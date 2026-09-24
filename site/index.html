@@ -62,6 +62,13 @@
   #ghud div{background:var(--navy);color:#fff;border-radius:10px;padding:6px 12px;text-align:center;min-width:78px}
   #ghud small{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
   #ghud b{font-family:"Barlow Condensed";font-size:24px;line-height:1}
+  #goto{position:fixed;left:16px;top:calc(76px + env(safe-area-inset-top));border:0;border-radius:10px;background:var(--clay);color:#fff;
+    padding:8px 14px;font-weight:600;font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+  #places .dest{display:grid;gap:6px;margin:0 0 12px;max-height:min(56vh,440px);overflow:auto}
+  #places .dest button{text-align:left;border:1px solid var(--line);border-radius:10px;background:#fff;padding:9px 12px;color:var(--ink);font-size:15px}
+  #places .dest button b{display:block;color:var(--navy);font-weight:600}
+  #places .dest button small{color:var(--muted);font-size:12.5px}
+  #places .dest button.game{border-color:var(--clay);background:#fdf3ee}
   #exit{position:fixed;left:16px;top:calc(14px + env(safe-area-inset-top));border:0;border-radius:10px;background:var(--card);padding:8px 12px;font-weight:600;color:var(--navy)}
   #instr{position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--card);
     border-radius:12px;padding:10px 16px;font-weight:600;color:var(--navy);box-shadow:0 6px 18px rgba(0,0,0,.18);text-align:center;width:max-content;max-width:calc(100% - 32px)}
@@ -111,7 +118,8 @@
 
 <div id="brand" class="hidden"><b>FORO ITALICO WORLD</b><span><i></i>Prototipo v0.3</span></div>
 <canvas id="minimap" class="hidden" width="336" height="300"></canvas>
-<div id="hint" class="hidden"><kbd>W A S D</kbd> cammina · <kbd>Shift</kbd> corri · trascina per girare la visuale · <kbd>E</kbd> interagisci</div>
+<div id="hint" class="hidden"><kbd>W A S D</kbd> cammina · <kbd>Shift</kbd> corri · trascina per girare la visuale · <kbd>E</kbd> interagisci · <kbd>T</kbd> vai a…</div>
+<button id="goto" class="hidden">Vai a…</button>
 <div id="poi" class="hidden"><h3></h3><p></p><button class="hidden"></button></div>
 <div id="joy" class="hidden"><div id="knob"></div></div>
 <div id="attrib" class="hidden"></div>
@@ -131,7 +139,7 @@
     <h1>Foro Italico World</h1>
     <p>Il Foro Italico costruito a blocchi, con gli impianti del torneo 2026. Cammina lungo il viale dei mosaici, scendi al Pietrangeli tra le statue di marmo, entra nella nuova arena dentro lo Stadio dei Marmi. Poi due sfide: dieci servizi sul Centrale e dieci palle dal vetro sul campo da padel.</p>
     <ul id="controls">
-      <li><b>W A S D</b> o frecce per camminare, <b>Shift</b> per correre</li>
+      <li><b>W A S D</b> o frecce per camminare, <b>Shift</b> per correre, <b>T</b> o il pulsante <b>Vai a…</b> per spostarti subito</li>
       <li><b>Trascina</b> con il mouse per girare la visuale, rotella per lo zoom</li>
       <li><b>E</b> per giocare quando sei sul Campo Centrale o sul campo da padel</li>
     </ul>
@@ -140,6 +148,15 @@
     <p class="fine">Nessuna registrazione: in questa versione si gioca come ospite.</p>
     <p class="fine" id="mapsrc">Planimetria schematica, non ancora fedele: impianti e nomi aggiornati al 2026, posizioni e distanze indicative.</p>
     <p id="err" class="hidden"></p>
+  </div>
+</div>
+
+<div id="places" class="overlay hidden">
+  <div class="panel">
+    <div class="tag">Teletrasporto</div>
+    <h2>Vai a…</h2>
+    <div class="dest"></div>
+    <button id="placesClose" class="secondary">Chiudi</button>
   </div>
 </div>
 
@@ -843,6 +860,43 @@ instParts(crowd, [
   { size:[.3,.3,.3], off:[0,.88,0], color: it => skins[(it.k*skins.length)|0] },
 ], false);
 
+/* ---------- un'unica geometria per materiale ----------
+   Con la mappa reale ci sono migliaia di oggetti fermi (edifici, percorsi, gradoni, recinzioni): disegnarli uno a uno
+   rallenta i computer meno potenti e i telefoni. Qui si fondono per materiale, dopo aver applicato la loro posizione. */
+function batchStatic(){
+  const groups = new Map(), drop = [];
+  scene.updateMatrixWorld(true);
+  for (const m of scene.children){
+    if (!m.isMesh || m.isInstancedMesh || m.material.map || !m.geometry.attributes.position) continue;
+    const key = m.material.uuid + (m.castShadow ? '|s' : '|n');
+    if (!groups.has(key)) groups.set(key, { material: m.material, cast: m.castShadow, list: [] });
+    groups.get(key).list.push(m); drop.push(m);
+  }
+  const v = new THREE.Vector3(), nm = new THREE.Matrix3();
+  for (const { material, cast, list } of groups.values()){
+    if (list.length < 2){ drop.splice(drop.indexOf(list[0]), 1); continue; }
+    let n = 0;
+    for (const m of list){ const g = m.geometry; n += g.index ? g.index.count : g.attributes.position.count; }
+    const pos = new Float32Array(n*3), nor = new Float32Array(n*3); let o = 0;
+    for (const m of list){
+      const g = m.geometry; if (!g.attributes.normal) g.computeVertexNormals();
+      const P = g.attributes.position, N = g.attributes.normal, I = g.index, cnt = I ? I.count : P.count;
+      nm.getNormalMatrix(m.matrixWorld);
+      for (let k = 0; k < cnt; k++, o++){
+        const i = I ? I.getX(k) : k;
+        v.fromBufferAttribute(P, i).applyMatrix4(m.matrixWorld); pos[o*3] = v.x; pos[o*3+1] = v.y; pos[o*3+2] = v.z;
+        v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); nor[o*3] = v.x; nor[o*3+1] = v.y; nor[o*3+2] = v.z;
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+    g.computeBoundingSphere();
+    const mesh = new THREE.Mesh(g, material); mesh.castShadow = cast; mesh.receiveShadow = true; mesh.frustumCulled = false; scene.add(mesh);
+  }
+  for (const m of drop){ scene.remove(m); if (m.geometry !== BOX) m.geometry.dispose(); }
+}
+batchStatic();
+
 /* ---------- nuvole ---------- */
 const clouds = [];
 for (let i=0;i<14;i++){
@@ -932,7 +986,7 @@ const POIS = [];
     text:"Il campo principale degli Internazionali BNL d'Italia, dove si giocano le finali. Da giugno 2026 è in corso il rifacimento: copertura mobile e 12.500 posti, con la fine dei lavori prevista per il 2028. Entra dal varco nelle tribune e scendi in campo per la sfida al servizio." });
   add(S.supertennis, { id:'st', name:'SuperTennis Arena', r:27, lh:8,
     text:"Lo stadio da 3.000 posti che porta il nome del canale televisivo della Federazione. Dal 2026 si trova di fronte al Campo Centrale, accanto all'ex Ostello della Gioventù." });
-  add(S.pietrangeli, { id:'pietr', name:'Stadio Nicola Pietrangeli', r:26, lh:6, y:2,
+  add(S.pietrangeli, { id:'pietr', name:'Stadio Nicola Pietrangeli', r:30, lh:6, y:2,
     text:"Il più antico stadio del tennis al Foro, un tempo chiamato Pallacorda: il campo è sotto il livello del viale, tra gradoni e statue di marmo. Dal 2006 porta il nome di Nicola Pietrangeli." });
   add(S.arena, { id:'arena', name:'BNP Paribas Arena', r:34, lh:(arena ? arena.top - groundH(S.arena.x, S.arena.z) : 7) + 3, prio:true,
     text:"Il secondo stadio del torneo: oltre 7.000 posti, costruito nel 2026 al centro della pista dello Stadio dei Marmi. Prende il posto della Grand Stand Arena." });
@@ -976,6 +1030,7 @@ addEventListener('keydown', e => {
     if (['Space','Enter','KeyE'].includes(e.code)){ e.preventDefault(); if (!e.repeat) tapGame(); }
     if (e.code === 'Escape') exitGame();
   } else if (e.code === 'KeyE' && started) tryPoiAction();
+  else if (e.code === 'KeyT' && started && G.phase !== 'end') openPlaces();
 });
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
@@ -1098,15 +1153,16 @@ function updateExplore(dt){
   ix += joy.x; iz += joy.y;
   const len = Math.hypot(ix, iz); if (len > 1){ ix /= len; iz /= len; }
   const run = keys.has('ShiftLeft') || keys.has('ShiftRight') || Math.hypot(joy.x, joy.y) > .92;
-  const speed = run ? 13 : 7.5, amt = Math.min(1, Math.hypot(ix, iz));
+  const speed = run ? 28 : 12, amt = Math.min(1, Math.hypot(ix, iz));  // il Foro reale è largo quasi 2 km
   const sy = Math.sin(cam.yaw), cy = Math.cos(cam.yaw);
   const vx = (ix*cy + iz*sy) * speed, vz = (-ix*sy + iz*cy) * speed;
   const p = hero.g.position;
   if (amt > .05){
-    p.x += vx*dt; p.z += vz*dt; collide(p);
+    const steps = Math.max(1, Math.ceil(Math.hypot(vx, vz)*dt/.5));
+    for (let k = 0; k < steps; k++){ p.x += vx*dt/steps; p.z += vz*dt/steps; collide(p); }
     const target = Math.atan2(vx, vz); let d = target - hero.g.rotation.y;
     d = Math.atan2(Math.sin(d), Math.cos(d)); hero.g.rotation.y += d * Math.min(1, dt*12);
-    walkPh += dt * (run ? 13 : 9);
+    walkPh += dt * (run ? 17 : 11);
   }
   const gy = groundH(p.x, p.z); p.y += (gy - p.y) * Math.min(1, dt*14);
   const sw = Math.sin(walkPh) * .75 * amt;
@@ -1130,7 +1186,7 @@ function flash(big, small){
 }
 const instr = (touch, desk) => { show($('#instr')); $('#instr').textContent = isTouch ? touch : desk; };
 function setExploreHud(on){
-  for (const id of ['#brand', '#minimap']) show($(id), on);
+  for (const id of ['#brand', '#minimap', '#goto']) show($(id), on);
   show($('#attrib'), on && !!LAYOUT.attribution);
   show($('#hint'), on && !isTouch); show($('#joy'), on && isTouch);
   if (!on) show($('#poi'), false); else curPoi = undefined;
@@ -1432,7 +1488,7 @@ function updateLabels(){
 const clock = new THREE.Clock();
 const orbit = { x:(S.centrale.x + (S.marmi || S.centrale).x)/2, z:(S.centrale.z + (S.marmi || S.centrale).z)/2 };
 function frameLoop(){
-  const dt = Math.min(.05, clock.getDelta());
+  const dt = Math.min(.1, clock.getDelta());
   if (G.active || G.phase === 'end'){ if (G.active) GAME.update(dt); }
   else if (started) updateExplore(dt);
   else { // giro di camera dietro l'overlay iniziale
@@ -1458,9 +1514,9 @@ addEventListener('resize', fitCamera);
 /* ---------- avvio ---------- */
 if (LAYOUT.attribution){ $('#attrib').textContent = LAYOUT.attribution; $('#mapsrc').textContent = 'Planimetria da OpenStreetMap (' + LAYOUT.attribution + '). Alcuni impianti del 2026 sono posizionati a stima.'; }
 if (isTouch){
-  $('#controls').innerHTML = '<li><b>Joystick</b> in basso a sinistra per camminare, spingi fino al bordo per correre</li><li><b>Trascina</b> sullo schermo per girare la visuale</li><li>Sul <b>Campo Centrale</b> e sul <b>campo da padel</b> compare il pulsante per giocare</li>';
+  $('#controls').innerHTML = '<li><b>Joystick</b> in basso a sinistra per camminare, spingi fino al bordo per correre</li><li><b>Trascina</b> sullo schermo per girare la visuale</li><li>Il pulsante <b>Vai a…</b> ti porta subito ai giochi e ai luoghi principali</li><li>Sul <b>Campo Centrale</b> e sul <b>campo da padel</b> compare il pulsante per giocare</li>';
 }
-window.__fiw = { layout: LAYOUT, hero, colliders, POIS, groundH, collide, G, GAMES }; // per i test automatici
+window.__fiw = { layout: LAYOUT, hero, colliders, POIS, groundH, collide, G, GAMES, renderer }; // per i test automatici
 function enterWorld(){
   show($('#intro'), false); started = true; G.phase = 'off';
   const [bx, bz] = [hero.g.position.x - Math.sin(hero.g.rotation.y)*10, hero.g.position.z - Math.cos(hero.g.rotation.y)*10];
@@ -1468,6 +1524,58 @@ function enterWorld(){
   setExploreHud(true);
 }
 // scorciatoie per chi prova il prototipo: #centrale e #padel portano direttamente in campo
+/* ---------- teletrasporto ---------- */
+// primo punto libero attorno a (x,z), partendo da `pref` se c'è; si guarda verso il luogo
+function safeSpot(x, z, pref){
+  const free = (px, pz) => px > BOUNDS.x0 && px < BOUNDS.x1 && pz > BOUNDS.z0 && pz < BOUNDS.z1 &&
+    !colliders.some(c => (c.t !== 'w' || !onBridge(px, pz)) && hits(c, px, pz, .7));
+  if (pref && free(...pref)) return pref;
+  for (let r = 0; r <= 220; r += r < 20 ? 4 : 10){
+    for (let k = 0; k < 16; k++){ const a = k/16*Math.PI*2, px = x + Math.cos(a)*r, pz = z + Math.sin(a)*r; if (free(px, pz)) return [px, pz]; }
+  }
+  return [x, z];
+}
+function teleport(x, z, lookX, lookZ){
+  const h = hero.g;
+  h.position.set(x, groundH(x, z), z);
+  h.rotation.y = Math.atan2(lookX - x, lookZ - z);
+  cam.yaw = h.rotation.y + Math.PI;
+  const d = cam.dist, back = Math.cos(cam.pitch)*d;
+  camera.position.set(x + Math.sin(cam.yaw)*back, h.position.y + 1.6 + Math.sin(cam.pitch)*d, z + Math.cos(cam.yaw)*back);
+  camera.lookAt(x, h.position.y + 1.7, z);
+  curPoi = undefined;
+}
+function goPlace(q){
+  show($('#places'), false);
+  if (q.game){ quickPlay(q.game); return; }
+  let pref = null;
+  const st = { st:S.supertennis, pietr:null, arena:S.arena }[q.id];
+  if (st){ const f = frame(st), d = q.id === 'arena' ? DIM.arena : DIM.supertennis; pref = f.w(0, d.l/2 + d.tiers*d.step + 4); }
+  if (q.id === 'pietr' && P.pietr) pref = P.pietr.f.w(0, P.pietr.hl + 3);
+  if (q.id === 'marmi' && P.marmi) pref = P.marmi.f.w(0, P.marmi.b + 4);
+  if (q.id === 'viale' && S.viale) pref = frame(S.viale).w(S.viale.len/2 - 20, 0);
+  if (q.id === 'esterni'){ // davanti al campo più vicino al centro dell'area
+    const c = (LAYOUT.courts || []).slice().sort((a, b) => Math.hypot(a.x - q.x, a.z - q.z) - Math.hypot(b.x - q.x, b.z - q.z))[0];
+    if (c){ pref = frame(c).w(0, 20.5); teleport(...safeSpot(c.x, c.z, pref), c.x, c.z); return; }
+  }
+  const [x, z] = safeSpot(q.ax ?? q.x, q.az ?? q.z, pref);
+  teleport(x, z, q.x, q.z);
+}
+const PLACE_NOTE = { centrale:'Sfida al servizio', padel:'Il vetro', arena:'Dentro lo Stadio dei Marmi', olimpico:'Visto da fuori' };
+function openPlaces(){
+  const order = ['centrale', 'padel', 'arena', 'pietr', 'st', 'marmi', 'esterni', 'fontana', 'viale', 'ponte', 'olimpico'];
+  const list = order.map(id => POIS.find(p => p.id === id)).filter(Boolean), box = $('#places .dest');
+  box.innerHTML = '';
+  for (const q of list){
+    const b = document.createElement('button'); if (q.game) b.className = 'game';
+    b.innerHTML = `<b>${q.game ? 'Gioca · ' : ''}${q.name}</b>` + (PLACE_NOTE[q.id] ? `<small>${PLACE_NOTE[q.id]}</small>` : '');
+    b.addEventListener('click', () => goPlace(q)); box.appendChild(b);
+  }
+  show($('#poi'), false); show($('#places'));
+}
+$('#goto').addEventListener('click', openPlaces);
+$('#placesClose').addEventListener('click', () => show($('#places'), false));
+
 function quickPlay(id){
   if (id === 'serve') placeOn(hero, CF, 0, 15, Math.PI), cam.yaw = CF.rot;
   else placeOn(hero, PF, 0, 8, Math.PI), cam.yaw = PF.rot;
