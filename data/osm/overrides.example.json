@@ -1,0 +1,9 @@
+{
+  "_nota": "Copia in overrides.json e togli le voci che non servono. lat/lon in gradi decimali (WGS84). bearing in gradi da nord in senso orario: per gli stadi è la direzione verso cui guarda l'ingresso, per Olimpico, Marmi, viale e ponte è la direzione del lato lungo. I valori qui sotto sono segnaposto, non misure.",
+  "sites": {
+    "supertennis": { "lat": 41.9345, "lon": 12.4570, "bearing": 270 },
+    "arena": { "bearing": 90 },
+    "centrale": { "bearing": 180 }
+  },
+  "exclude": ["way/0"]
+}

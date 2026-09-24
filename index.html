@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Foro Italico World</title>
-<meta name="description" content="Prototipo giocabile: il Foro Italico a blocchi e la sfida al servizio sul Campo Centrale.">
+<meta name="description" content="Prototipo giocabile: il Foro Italico a blocchi, con gli impianti del torneo 2026, e la sfida al servizio sul Campo Centrale.">
 <meta property="og:title" content="Foro Italico World">
 <meta property="og:description" content="Cammina tra i campi del Foro Italico e sfida il servizio sul Centrale.">
 <meta name="theme-color" content="#0b2a5b">
@@ -47,6 +47,8 @@
     background:rgba(11,42,91,.86);color:#fff;font-family:"Barlow Condensed";font-weight:700;font-size:14px;letter-spacing:.03em;
     padding:3px 8px;border-radius:6px;transition:opacity .2s}
   .label.game{background:var(--clay)}
+  #attrib{position:fixed;right:16px;bottom:calc(8px + env(safe-area-inset-bottom));font-size:11px;color:#34404f;background:rgba(250,247,240,.8);
+    border-radius:6px;padding:2px 7px;pointer-events:none}
 
   /* joystick */
   #joy{position:fixed;left:22px;bottom:calc(26px + env(safe-area-inset-bottom));width:120px;height:120px;border-radius:50%;
@@ -104,11 +106,12 @@
 <div id="app"></div>
 <div id="labels"></div>
 
-<div id="brand" class="hidden"><b>FORO ITALICO WORLD</b><span><i></i>Prototipo v0.1</span></div>
+<div id="brand" class="hidden"><b>FORO ITALICO WORLD</b><span><i></i>Prototipo v0.2</span></div>
 <canvas id="minimap" class="hidden" width="336" height="300"></canvas>
 <div id="hint" class="hidden"><kbd>W A S D</kbd> cammina · <kbd>Shift</kbd> corri · trascina per girare la visuale · <kbd>E</kbd> interagisci</div>
 <div id="poi" class="hidden"><h3></h3><p></p><button class="hidden"></button></div>
 <div id="joy" class="hidden"><div id="knob"></div></div>
+<div id="attrib" class="hidden"></div>
 
 <button id="exit" class="hidden">← Esci</button>
 <div id="ghud" class="hidden">
@@ -123,7 +126,7 @@
   <div class="panel">
     <div class="tag">Prototipo interno · FITP eSports</div>
     <h1>Foro Italico World</h1>
-    <p>Il Foro Italico costruito a blocchi. Cammina lungo il viale dei mosaici, scendi al Pietrangeli tra le statue di marmo, poi entra sul Centrale e mettiti alla prova con dieci servizi.</p>
+    <p>Il Foro Italico costruito a blocchi, con gli impianti del torneo 2026. Cammina lungo il viale dei mosaici, scendi al Pietrangeli tra le statue di marmo, entra nella nuova arena dentro lo Stadio dei Marmi, poi sul Centrale mettiti alla prova con dieci servizi.</p>
     <ul id="controls">
       <li><b>W A S D</b> o frecce per camminare, <b>Shift</b> per correre</li>
       <li><b>Trascina</b> con il mouse per girare la visuale, rotella per lo zoom</li>
@@ -131,6 +134,7 @@
     </ul>
     <button id="start" class="primary" disabled>Carico il Foro…</button>
     <p class="fine">Nessuna registrazione: in questa versione si gioca come ospite.</p>
+    <p class="fine" id="mapsrc">Planimetria schematica, non ancora fedele: impianti e nomi aggiornati al 2026, posizioni e distanze indicative.</p>
     <p id="err" class="hidden"></p>
   </div>
 </div>
@@ -178,6 +182,67 @@ const store = {
 const rand = (a,b) => a + Math.random()*(b-a);
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 
+/* ---------- planimetria ----------
+   Coordinate in metri: x = est, z = sud. `rot` è la rotazione attorno all'asse verticale (come rotation.y di Three.js).
+   Stadi e campi: il lato lungo del campo è l'asse z locale e l'ingresso sta sul lato +z.
+   Ellissi (Olimpico, Marmi) e rettangoli (viale, ponti): il lato lungo è l'asse x locale.
+   data/layout.json, se c'è, viene da OpenStreetMap (tools/osm-import.mjs). Altrimenti si usa lo schema qui sotto. */
+const rect = (x0,x1,z0,z1) => [[x0,z0],[x1,z0],[x1,z1],[x0,z1]];
+const SCHEMATIC = {
+  version: 1, source: 'schematic', attribution: null,
+  bounds: { x0:-200, x1:228, z0:-200, z1:160 },
+  start: { x:146, z:40, ry:-Math.PI/2 },
+  sites: {
+    viale:       { x:69, z:40, rot:0, len:192, wid:14 },
+    fontana:     { x:-45, z:40 },
+    obelisco:    { x:162, z:40 },
+    olimpico:    { x:-150, z:112, rot:0, a:62, b:46 },
+    marmi:       { x:92, z:-16, rot:0, a:59.2, b:43.2 },
+    arena:       { x:92, z:-16, rot:Math.PI/2 },
+    pietrangeli: { x:5, z:-62, rot:0 },
+    centrale:    { x:-62, z:-88, rot:0 },
+    supertennis: { x:10, z:-128, rot:-Math.PI/2 },
+    ponte:       { x:186, z:40, rot:0, len:32, wid:14 },
+  },
+  courts: [55,80,105,130].flatMap(x => [-115,-155].map(z => ({ x, z, rot:0 }))),
+  paved: [
+    rect(-65,-25, 23,57),        // piazzale della Fontana
+    rect(-28.5,-21.5, -143,33),  // asse nord verso i campi
+    rect(-62,-25.5, -51,-45),    // verso il Centrale
+    rect(-65.5,-58.5, -69.7,-45),// ingresso Centrale
+    rect(2,8, -38.6,33),         // verso il Pietrangeli
+    rect(-21.5,-13, -131,-125),  // ingresso SuperTennis Arena
+    rect(-21.5,164, -94,-88),    // passeggiata verso i campi esterni
+    rect(158,164, -175,33),      // lungo il fiume
+  ],
+  lines: [], bridges: [], buildings: [], trees: [],
+  water: [{ pts:[[186,-360],[186,340]], w:28 }],
+  backdrop: true,
+};
+
+async function loadLayout(){
+  const want = new URLSearchParams(location.search).get('layout');
+  if (want === 'schematic') return SCHEMATIC;
+  const url = want && /^[\w\-./]+\.json$/.test(want) ? want : 'data/layout.json';
+  try {
+    const r = await fetch(url, { cache:'no-cache' });
+    if (r.ok){ const d = await r.json(); if (d && d.sites && d.sites.centrale) return d; }
+  } catch(e){}
+  return SCHEMATIC;
+}
+const LAYOUT = await loadLayout();
+const S = LAYOUT.sites;
+const BOUNDS = LAYOUT.bounds;
+
+// sistema di riferimento locale di un impianto
+function frame(o){
+  const rot = o.rot || 0, c = Math.cos(rot), s = Math.sin(rot);
+  return { x:o.x, z:o.z, rot, c, s,
+    w(lx,lz){ return [o.x + lx*c + lz*s, o.z - lx*s + lz*c]; },
+    l(x,z){ const dx = x - o.x, dz = z - o.z; return [dx*c - dz*s, dx*s + dz*c]; } };
+}
+const segRot = (ax,az,bx,bz) => Math.atan2(-(bz-az), bx-ax); // rot che porta l'asse x locale lungo il segmento
+
 /* ---------- renderer, scena, luci ---------- */
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.5 : 2));
@@ -204,27 +269,116 @@ sun.shadow.bias = -0.0006;
 sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
 
+/* ---------- forme per collisioni e aree occupate ---------- */
+const colliders = [];   // ostacoli per il giocatore
+const occupied = [];    // aree da non riempire di alberi
+function addRect(list, cx, cz, hw, hd, rot = 0){
+  const c = Math.cos(rot), s = Math.sin(rot), ex = hw*Math.abs(c) + hd*Math.abs(s), ez = hw*Math.abs(s) + hd*Math.abs(c);
+  list.push({ t:'o', cx, cz, hw, hd, c, s, bb:[cx-ex, cx+ex, cz-ez, cz+ez] });
+}
+function addEll(list, x, z, a, b, rot = 0){
+  const r = Math.max(a,b);
+  list.push({ t:'e', x, z, a, b, c:Math.cos(rot), s:Math.sin(rot), bb:[x-r, x+r, z-r, z+r] });
+}
+function bbOf(pts){ let x0=Infinity, x1=-Infinity, z0=Infinity, z1=-Infinity; for (const [x,z] of pts){ x0=Math.min(x0,x); x1=Math.max(x1,x); z0=Math.min(z0,z); z1=Math.max(z1,z); } return [x0,x1,z0,z1]; }
+const addPoly = (list, pts) => list.push({ t:'p', pts, bb: bbOf(pts) });
+function addLine(list, pts, hw, t = 'l'){ const b = bbOf(pts); list.push({ t, pts, hw, bb:[b[0]-hw, b[1]+hw, b[2]-hw, b[3]+hw] }); }
+
+function inPoly(pts, x, z){
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++){
+    const [xi,zi] = pts[i], [xj,zj] = pts[j];
+    if ((zi > z) !== (zj > z) && x < (xj - xi)*(z - zi)/(zj - zi) + xi) inside = !inside;
+  }
+  return inside;
+}
+function closestOn(pts, x, z, closed){ // punto più vicino su una spezzata
+  let best = null, bd = Infinity;
+  const n = closed ? pts.length : pts.length - 1;
+  for (let i = 0; i < n; i++){
+    const [ax,az] = pts[i], [bx,bz] = pts[(i+1) % pts.length], dx = bx-ax, dz = bz-az, L = dx*dx + dz*dz;
+    const u = L ? clamp(((x-ax)*dx + (z-az)*dz)/L, 0, 1) : 0, px = ax + dx*u, pz = az + dz*u, d = (x-px)**2 + (z-pz)**2;
+    if (d < bd){ bd = d; best = [px, pz, dx, dz]; }
+  }
+  return { x:best[0], z:best[1], dx:best[2], dz:best[3], d:Math.sqrt(bd) };
+}
+const bridgeFrames = [];
+const onBridge = (x,z) => bridgeFrames.some(f => { const [lx,lz] = f.l(x,z); return Math.abs(lx) < f.len/2 && Math.abs(lz) < f.wid/2; });
+
+// il punto (x,z), allargato di m, cade nella forma?
+function hits(c, x, z, m){
+  if (x < c.bb[0]-m || x > c.bb[1]+m || z < c.bb[2]-m || z > c.bb[3]+m) return false;
+  if (c.t === 'o'){ const dx = x-c.cx, dz = z-c.cz; return Math.abs(dx*c.c - dz*c.s) < c.hw+m && Math.abs(dx*c.s + dz*c.c) < c.hd+m; }
+  if (c.t === 'e'){ const dx = x-c.x, dz = z-c.z, lx = dx*c.c - dz*c.s, lz = dx*c.s + dz*c.c; return (lx/(c.a+m))**2 + (lz/(c.b+m))**2 < 1; }
+  if (c.t === 'p') return inPoly(c.pts, x, z) || closestOn(c.pts, x, z, true).d < m;
+  return closestOn(c.pts, x, z, false).d < c.hw + m;
+}
+
 /* ---------- helper geometrici ---------- */
 const BOX = new THREE.BoxGeometry(1,1,1);
 const matCache = new Map();
 function mat(c){ if (!matCache.has(c)) matCache.set(c, new THREE.MeshLambertMaterial({ color: c })); return matCache.get(c); }
-const colliders = [];   // ostacoli per il giocatore
-const occupied = [];    // aree da non riempire di alberi
 
+// box(w,h,d,...): x,z sono locali se si passa un frame `f`; y è la base
 function box(w,h,d,c,x,y,z,o={}){
   const m = new THREE.Mesh(BOX, o.material || mat(c));
-  m.scale.set(w,h,d); m.position.set(x, y + h/2, z);
-  m.castShadow = o.cast !== false; m.receiveShadow = true;
-  (o.parent || scene).add(m);
-  if (o.collide) colliders.push({ t:'r', minX:x-w/2, maxX:x+w/2, minZ:z-d/2, maxZ:z+d/2 });
+  m.scale.set(w,h,d); m.castShadow = o.cast !== false; m.receiveShadow = true;
+  if (o.parent){ m.position.set(x, y + h/2, z); o.parent.add(m); return m; }
+  let wx = x, wz = z, rot = o.rot || 0;
+  if (o.f){ [wx, wz] = o.f.w(x, z); rot += o.f.rot; }
+  m.position.set(wx, y + h/2, wz); m.rotation.y = rot; scene.add(m);
+  if (o.collide) addRect(colliders, wx, wz, w/2, d/2, rot);
   return m;
 }
-function flat(w,d,x,y,z,material){
+function flat(w,d,x,y,z,material,rot=0,parent=scene){
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w,d), material);
-  m.rotation.x = -Math.PI/2; m.position.set(x,y,z); m.receiveShadow = true; scene.add(m); return m;
+  m.rotation.set(-Math.PI/2, 0, rot); m.position.set(x,y,z); m.receiveShadow = true; parent.add(m); return m;
 }
-const occRect = (x0,x1,z0,z1) => occupied.push({ t:'r', minX:Math.min(x0,x1), maxX:Math.max(x0,x1), minZ:Math.min(z0,z1), maxZ:Math.max(z0,z1) });
-const occEll = (x,z,a,b) => occupied.push({ t:'e', x, z, a, b });
+function shapeOf(pts, holes = []){
+  const s = new THREE.Shape(pts.map(([x,z]) => new THREE.Vector2(x, -z)));
+  for (const h of holes) s.holes.push(new THREE.Path(h.map(([x,z]) => new THREE.Vector2(x, -z))));
+  return s;
+}
+function polyFlat(pts, y, material){
+  const g = new THREE.ShapeGeometry(shapeOf(pts)); g.rotateX(-Math.PI/2);
+  const m = new THREE.Mesh(g, material); m.position.y = y; m.receiveShadow = true; scene.add(m); return m;
+}
+// spezzata spostata di d a lato (giunzioni a mitra)
+function offsetLine(pts, d){
+  const n = pts.length, out = [];
+  const nrm = i => { const [ax,az] = pts[i], [bx,bz] = pts[i+1], L = Math.hypot(bx-ax, bz-az) || 1; return [-(bz-az)/L, (bx-ax)/L]; };
+  for (let i = 0; i < n; i++){
+    const a = i > 0 ? nrm(i-1) : nrm(0), b = i < n-1 ? nrm(i) : nrm(n-2);
+    let mx = a[0] + b[0], mz = a[1] + b[1]; const ml = Math.hypot(mx, mz) || 1; mx /= ml; mz /= ml;
+    const k = d / Math.max(.35, mx*a[0] + mz*a[1]);
+    out.push([pts[i][0] + mx*k, pts[i][1] + mz*k]);
+  }
+  return out;
+}
+function ribbon(pts, w, y, material){
+  const L = offsetLine(pts, w/2), Rr = offsetLine(pts, -w/2), pos = [], idx = [];
+  for (let i = 0; i < pts.length; i++){ pos.push(L[i][0], y, L[i][1], Rr[i][0], y, Rr[i][1]); }
+  for (let i = 0; i < pts.length - 1; i++){ const a = 2*i; idx.push(a, a+1, a+2, a+1, a+3, a+2); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+  g.computeVertexNormals();
+  const m = new THREE.Mesh(g, material); m.receiveShadow = true; m.material.side = THREE.DoubleSide; scene.add(m); return m;
+}
+function clipPoly(pts, x0, x1, z0, z1){ // Sutherland-Hodgman su un rettangolo
+  const edges = [[p => p[0] >= x0, (a,b) => cut(a,b,0,x0)], [p => p[0] <= x1, (a,b) => cut(a,b,0,x1)],
+                 [p => p[1] >= z0, (a,b) => cut(a,b,1,z0)], [p => p[1] <= z1, (a,b) => cut(a,b,1,z1)]];
+  function cut(a,b,k,v){ const u = (v - a[k])/(b[k] - a[k]); return [a[0] + (b[0]-a[0])*u, a[1] + (b[1]-a[1])*u]; }
+  let out = pts;
+  for (const [ins, isect] of edges){
+    const src = out; out = [];
+    for (let i = 0; i < src.length; i++){
+      const cur = src[i], prev = src[(i + src.length - 1) % src.length];
+      if (ins(cur)){ if (!ins(prev)) out.push(isect(prev, cur)); out.push(cur); }
+      else if (ins(prev)) out.push(isect(prev, cur));
+    }
+    if (!out.length) break;
+  }
+  return out;
+}
 
 // istanze: un InstancedMesh per ogni parte, colore per istanza
 function instParts(items, parts, cast = true){
@@ -247,38 +401,64 @@ function instParts(items, parts, cast = true){
 /* ---------- palette ---------- */
 const C = {
   grass:0x79a052, grass2:0x6b9449, trav:0xe4d8c0, trav2:0xd3c5a8, marble:0xf2ede3, clay:0xc4623a,
-  water:0x4f7f86, navy:0x0b2a5b, blue:0x1f4fa3, sky:0x2b7bd6, trunk:0x7a5b3e, fence:0x2f4a3a,
+  water:0x4f7f86, navy:0x0b2a5b, blue:0x1f4fa3, sky:0x2b7bd6, trunk:0x7a5b3e, fence:0x2f4a3a, road:0x74767a,
 };
 
-/* ---------- mappa del Foro (coordinate indicative, x = est, z = sud) ---------- */
-const P = {
-  viale:   { x0:-27, x1:165, z:40, w:14 },
-  fountain:{ x:-45, z:40 },
-  olimpico:{ x:-150, z:112, a:62, b:46, a0:38, b0:26 },
-  marmi:   { x:70, z:-10, a0:32, b0:18, n:6, step:2.2, rise:0.5 },
-  pietr:   { x:5, z:-62, w:17, l:34, n:4, step:1.6, rise:0.55 },
-  centrale:{ x:-62, z:-88, w:18.3, l:36.6, tiers:12, step:1.25, rise:0.9 },
-  grand:   { x:-125, z:-30, w:18.3, l:36.6, tiers:7, step:1.2, rise:0.8 },
-  st:      { x:-25, z:-160, w:17, l:34, tiers:5, step:1.2, rise:0.8 },
-  river:   { x0:172, x1:200 }, bridge:{ z0:33, z1:47 },
-  courts:  [[55,-80],[80,-80],[105,-80],[130,-80],[55,-120],[80,-120],[105,-120],[130,-120]],
+/* ---------- impianti: dimensioni ---------- */
+const DIM = {
+  centrale:    { w:18.3, l:36.6, tiers:12, step:1.25, rise:.9 },
+  arena:       { w:18.3, l:36.6, tiers:9,  step:1.2,  rise:.8 },
+  supertennis: { w:17,   l:34,   tiers:5,  step:1.2,  rise:.8 },
 };
-P.marmi.D = P.marmi.n * P.marmi.rise;
-P.marmi.a = P.marmi.a0 + P.marmi.n * P.marmi.step;
-P.marmi.b = P.marmi.b0 + P.marmi.n * P.marmi.step;
-P.pietr.D = P.pietr.n * P.pietr.rise;
-P.pietr.hw = P.pietr.w/2 + P.pietr.n * P.pietr.step;
-P.pietr.hl = P.pietr.l/2 + P.pietr.n * P.pietr.step;
-const BOUNDS = { x0:-200, x1:228, z0:-200, z1:160 };
+const P = {};
+if (S.pietrangeli){
+  const p = P.pietr = { ...S.pietrangeli, w:17, l:34, n:4, step:1.6, rise:.55 };
+  p.D = p.n*p.rise; p.hw = p.w/2 + p.n*p.step; p.hl = p.l/2 + p.n*p.step; p.f = frame(p);
+}
+if (S.marmi){
+  const m = P.marmi = { ...S.marmi, n:6, step:2.2, rise:.5 };
+  m.step = Math.min(m.step, (Math.min(m.a, m.b) - 26)/m.n);
+  m.a0 = m.a - m.n*m.step; m.b0 = m.b - m.n*m.step; m.D = m.n*m.rise; m.f = frame(m);
+}
+if (S.olimpico){ const o = P.olimpico = { ...S.olimpico }; o.a0 = o.a*.62; o.b0 = o.b*.57; }
+const CF = frame(S.centrale);
 
-/* ---------- terreno con i buchi degli impianti ribassati ---------- */
+/* ---------- altezza del terreno (impianti ribassati) ---------- */
+function groundH(x,z){
+  const m = P.marmi;
+  if (m){
+    const [dx,dz] = m.f.l(x,z);
+    if ((dx/m.a)**2 + (dz/m.b)**2 < 1){
+      if ((dx/m.a0)**2 + (dz/m.b0)**2 < 1) return -m.D;
+      for (let k=0;k<m.n;k++) if ((dx/(m.a0+(k+1)*m.step))**2 + (dz/(m.b0+(k+1)*m.step))**2 < 1) return -m.D + (k+1)*m.rise;
+      return 0;
+    }
+  }
+  const p = P.pietr;
+  if (p){
+    const [lx,lz] = p.f.l(x,z);
+    if (Math.abs(lx) < p.hw && Math.abs(lz) < p.hl){
+      const e = Math.max(Math.abs(lx) - p.w/2, Math.abs(lz) - p.l/2);
+      return e <= 0 ? -p.D : -p.D + (Math.floor(e/p.step) + 1)*p.rise;
+    }
+  }
+  return 0;
+}
+
+/* ---------- acqua: il Tevere come nastro con argini ---------- */
+const MARGIN = 200;
+const GB = { x0:BOUNDS.x0 - MARGIN, x1:BOUNDS.x1 + MARGIN, z0:BOUNDS.z0 - MARGIN, z1:BOUNDS.z1 + MARGIN };
+const rivers = (LAYOUT.water || []).filter(r => r.pts && r.pts.length > 1).map(r => {
+  const poly = clipPoly(offsetLine(r.pts, r.w/2).concat(offsetLine(r.pts, -r.w/2).reverse()), GB.x0+10, GB.x1-10, GB.z0+10, GB.z1-10);
+  return { ...r, poly };
+}).filter(r => r.poly.length > 2);
+
+/* ---------- terreno con i buchi di fiume e impianti ribassati ---------- */
 {
-  const gs = new THREE.Shape();
-  gs.moveTo(-320,-320); gs.lineTo(320,-320); gs.lineTo(320,320); gs.lineTo(-320,320); gs.closePath();
-  const rectHole = (x0,x1,z0,z1) => { const h = new THREE.Path(); h.moveTo(x0,-z0); h.lineTo(x1,-z0); h.lineTo(x1,-z1); h.lineTo(x0,-z1); h.closePath(); gs.holes.push(h); };
-  rectHole(P.river.x0, P.river.x1, -310, 310);
-  rectHole(P.pietr.x - P.pietr.hw, P.pietr.x + P.pietr.hw, P.pietr.z - P.pietr.hl, P.pietr.z + P.pietr.hl);
-  const eh = new THREE.Path(); eh.absellipse(P.marmi.x, -P.marmi.z, P.marmi.a, P.marmi.b, 0, Math.PI*2, false); gs.holes.push(eh);
+  const holes = rivers.map(r => r.poly);
+  if (P.pietr){ const p = P.pietr; holes.push([[-p.hw,-p.hl],[p.hw,-p.hl],[p.hw,p.hl],[-p.hw,p.hl]].map(([a,b]) => p.f.w(a,b))); }
+  const gs = shapeOf(rect(GB.x0, GB.x1, GB.z0, GB.z1), holes);
+  if (P.marmi){ const m = P.marmi, eh = new THREE.Path(); eh.absellipse(m.x, -m.z, m.a, m.b, 0, Math.PI*2, false, m.rot || 0); gs.holes.push(eh); }
   const g = new THREE.ShapeGeometry(gs, 64); g.rotateX(-Math.PI/2);
   const ground = new THREE.Mesh(g, mat(C.grass)); ground.receiveShadow = true; scene.add(ground);
 }
@@ -308,236 +488,279 @@ function courtTexture(w,l){
   });
   courtTexCache.set(key, t); return t;
 }
-const mosaicTex = canvasTex(256, 256, (x,W,H) => {
-  x.fillStyle = '#f1ece1'; x.fillRect(0,0,W,H);
-  x.fillStyle = '#1d1d1f';
-  x.fillRect(0,10,W,6); x.fillRect(0,H-16,W,6);
-  for (let i=0;i<W;i+=32){ // greca
-    x.fillRect(i,22,24,4); x.fillRect(i+20,22,4,16); x.fillRect(i+8,34,16,4); x.fillRect(i+8,30,4,8);
-    x.fillRect(i,H-26,24,4); x.fillRect(i+20,H-38,4,16); x.fillRect(i+8,H-38,16,4); x.fillRect(i+8,H-38,4,8);
-  }
-  x.lineWidth = 7; x.strokeStyle = '#1d1d1f';
-  x.beginPath(); x.arc(W/2,H/2,48,0,Math.PI*2); x.stroke();
-  x.save(); x.translate(W/2,H/2);
-  for (let k=0;k<8;k++){ x.rotate(Math.PI/4); x.fillRect(-4,-34,8,26); }
-  x.restore();
-  x.fillRect(W/2-10,H/2-10,20,20);
-  for (let i=0;i<220;i++){ x.fillStyle = `rgba(0,0,0,${Math.random()*.06})`; x.fillRect(Math.random()*W, Math.random()*H, 5, 5); }
-}, [ (P.viale.x1-P.viale.x0)/P.viale.w, 1 ]);
-
-/* ---------- percorsi ---------- */
-const pathMat = new THREE.MeshLambertMaterial({ color: C.trav });
-function path(x0,x1,z0,z1){
-  const w = Math.abs(x1-x0), d = Math.abs(z1-z0);
-  flat(w, d, (x0+x1)/2, 0.05, (z0+z1)/2, pathMat); occRect(x0,x1,z0,z1);
+function mosaicTex(repeat){
+  return canvasTex(256, 256, (x,W,H) => {
+    x.fillStyle = '#f1ece1'; x.fillRect(0,0,W,H);
+    x.fillStyle = '#1d1d1f';
+    x.fillRect(0,10,W,6); x.fillRect(0,H-16,W,6);
+    for (let i=0;i<W;i+=32){ // greca
+      x.fillRect(i,22,24,4); x.fillRect(i+20,22,4,16); x.fillRect(i+8,34,16,4); x.fillRect(i+8,30,4,8);
+      x.fillRect(i,H-26,24,4); x.fillRect(i+20,H-38,4,16); x.fillRect(i+8,H-38,16,4); x.fillRect(i+8,H-38,4,8);
+    }
+    x.lineWidth = 7; x.strokeStyle = '#1d1d1f';
+    x.beginPath(); x.arc(W/2,H/2,48,0,Math.PI*2); x.stroke();
+    x.save(); x.translate(W/2,H/2);
+    for (let k=0;k<8;k++){ x.rotate(Math.PI/4); x.fillRect(-4,-34,8,26); }
+    x.restore();
+    x.fillRect(W/2-10,H/2-10,20,20);
+    for (let i=0;i<220;i++){ x.fillStyle = `rgba(0,0,0,${Math.random()*.06})`; x.fillRect(Math.random()*W, Math.random()*H, 5, 5); }
+  }, repeat);
 }
-flat(P.viale.x1-P.viale.x0, P.viale.w, (P.viale.x0+P.viale.x1)/2, 0.07, P.viale.z, new THREE.MeshLambertMaterial({ map: mosaicTex }));
-occRect(P.viale.x0, P.viale.x1, P.viale.z-P.viale.w/2, P.viale.z+P.viale.w/2);
-path(-65,-25, 23, 57);                 // piazzale della Fontana
-path(-28.5,-21.5, 33,-143);            // asse nord verso i campi
-path(-62,-25.5, -51,-45);              // verso il Centrale
-path(-65.5,-58.5, -45,-69.7);          // ingresso Centrale
-path(2,8, 33,-38.6);                   // verso il Pietrangeli
-path(-125,-21.5, 1,7);                 // verso la Grand Stand
-path(-128.5,-121.5, 1,-11.7);          // ingresso Grand Stand
-path(22,153, -53,-47);                 // passeggiata verso i campi esterni
-path(147,153, 33,-140);                // lungo i campi esterni
+
+/* ---------- percorsi, strade, edifici ---------- */
+const pathMat = new THREE.MeshLambertMaterial({ color: C.trav });
+const roadMat = new THREE.MeshLambertMaterial({ color: C.road });
+if (S.viale){
+  const v = S.viale, f = frame(v);
+  flat(v.len, v.wid, v.x, 0.07, v.z, new THREE.MeshLambertMaterial({ map: mosaicTex([Math.max(1, Math.round(v.len/v.wid)), 1]) }), f.rot);
+  addRect(occupied, v.x, v.z, v.len/2, v.wid/2, f.rot);
+}
+for (const pts of LAYOUT.paved || []){ polyFlat(pts, 0.05, pathMat); addPoly(occupied, pts); }
+for (const ln of LAYOUT.lines || []){
+  if (!ln.pts || ln.pts.length < 2) continue;
+  ribbon(ln.pts, ln.w, ln.kind === 'road' ? 0.045 : 0.055, ln.kind === 'road' ? roadMat : pathMat);
+  addLine(occupied, ln.pts, ln.w/2);
+}
+{
+  const tones = [0xe9e1cf, 0xdcd3bf, 0xefe8d8, 0xd9cdb4];
+  for (const b of LAYOUT.buildings || []){
+    const g = new THREE.ExtrudeGeometry(shapeOf(b.pts, b.holes || []), { depth: b.h, bevelEnabled:false }); g.rotateX(-Math.PI/2);
+    const m = new THREE.Mesh(g, mat(tones[(Math.abs(Math.round(b.pts[0][0]*7 + b.pts[0][1]*3))) % tones.length]));
+    m.castShadow = true; m.receiveShadow = true; scene.add(m);
+    addPoly(colliders, b.pts); addPoly(occupied, b.pts);
+  }
+}
 
 /* ---------- campi ---------- */
 const netMat = new THREE.MeshLambertMaterial({ color: 0x1f2a2e, transparent: true, opacity: .78 });
-function court(x,z,w,l,y){
-  flat(w, l, x, y + 0.04, z, new THREE.MeshLambertMaterial({ map: courtTexture(w,l) }));
-  box(12.8, 0.92, 0.04, 0, x, y, z, { material: netMat });
-  box(12.8, 0.07, 0.07, 0xffffff, x, y + 0.9, z);
-  box(0.1, 1.07, 0.1, 0x27352f, x - 6.4, y, z); box(0.1, 1.07, 0.1, 0x27352f, x + 6.4, y, z);
-  colliders.push({ t:'r', minX:x-6.45, maxX:x+6.45, minZ:z-0.12, maxZ:z+0.12 });
-  occRect(x-w/2, x+w/2, z-l/2, z+l/2);
+function court(f, w, l, y){
+  flat(w, l, f.x, y + 0.04, f.z, new THREE.MeshLambertMaterial({ map: courtTexture(w,l) }), f.rot);
+  box(12.8, 0.92, 0.04, 0, 0, y, 0, { f, material: netMat });
+  box(12.8, 0.07, 0.07, 0xffffff, 0, y + 0.9, 0, { f });
+  box(0.1, 1.07, 0.1, 0x27352f, -6.4, y, 0, { f }); box(0.1, 1.07, 0.1, 0x27352f, 6.4, y, 0, { f });
+  addRect(colliders, f.x, f.z, 6.45, .12, f.rot);
+  addRect(occupied, f.x, f.z, w/2, l/2, f.rot);
 }
 
-/* ---------- stadi con gradoni (ingresso sul lato sud) ---------- */
+/* ---------- stadi con gradoni (ingresso sul lato +z locale) ---------- */
 const crowd = [];
 const shirts = [0x1f4fa3, 0xffffff, 0xd8342c, 0xf3c623, 0x2b7bd6, 0x2f8f57, 0x0b2a5b, 0xf08a3c, 0xe9e2d0];
 function stadium(o){
-  const { x, z, w, l, tiers, step, rise, colors, top, gap = 8, fill = 0.7 } = o;
+  const { w, l, tiers, step, rise, colors, top, gap = 8, fill = 0.7, y0 = 0 } = o, f = frame(o);
   for (let i=0;i<tiers;i++){
     const off = i*step, h = (i+1)*rise, col = (i === tiers-1 && top) ? top : colors[i % colors.length];
     const outerW = w + 2*(off+step), sideL = l + 2*off;
-    const zn = z - l/2 - off - step/2, zs = z + l/2 + off + step/2;
-    const xe = x + w/2 + off + step/2, xw = x - w/2 - off - step/2;
-    box(outerW, h, step, col, x, 0, zn, { collide:true });
-    const lMin = x - outerW/2, lMax = x - gap/2, lw = lMax - lMin, lc = (lMin+lMax)/2;
-    box(lw, h, step, col, lc, 0, zs, { collide:true });
-    box(lw, h, step, col, 2*x - lc, 0, zs, { collide:true });
-    box(step, h, sideL, col, xe, 0, z, { collide:true });
-    box(step, h, sideL, col, xw, 0, z, { collide:true });
+    const zn = -l/2 - off - step/2, zs = l/2 + off + step/2, xe = w/2 + off + step/2;
+    box(outerW, h, step, col, 0, y0, zn, { f, collide:true });
+    const lMin = -outerW/2, lMax = -gap/2, lw = lMax - lMin, lc = (lMin+lMax)/2;
+    box(lw, h, step, col, lc, y0, zs, { f, collide:true });
+    box(lw, h, step, col, -lc, y0, zs, { f, collide:true });
+    box(step, h, sideL, col, xe, y0, 0, { f, collide:true });
+    box(step, h, sideL, col, -xe, y0, 0, { f, collide:true });
     const addRow = (x0,x1,z0,z1) => {
       const len = Math.hypot(x1-x0, z1-z0), n = Math.floor(len/0.95);
       for (let k=0;k<n;k++){
         if (Math.random() > fill) continue;
         const u = (k+.5)/n, px = x0 + (x1-x0)*u, pz = z0 + (z1-z0)*u;
-        if (Math.abs(px - x) < gap/2 + .3 && pz > z) continue;
-        crowd.push({ x:px, y:h, z:pz, c: shirts[(Math.random()*shirts.length)|0], k: Math.random() });
+        if (Math.abs(px) < gap/2 + .3 && pz > 0) continue;
+        const [wx, wz] = f.w(px, pz);
+        crowd.push({ x:wx, y:y0 + h, z:wz, ry:f.rot, c: shirts[(Math.random()*shirts.length)|0], k: Math.random() });
       }
     };
-    addRow(x - outerW/2 + .5, x + outerW/2 - .5, zn, zn);
-    addRow(x - outerW/2 + .5, x + outerW/2 - .5, zs, zs);
-    addRow(xe, xe, z - sideL/2 + .5, z + sideL/2 - .5);
-    addRow(xw, xw, z - sideL/2 + .5, z + sideL/2 - .5);
+    addRow(-outerW/2 + .5, outerW/2 - .5, zn, zn);
+    addRow(-outerW/2 + .5, outerW/2 - .5, zs, zs);
+    addRow(xe, xe, -sideL/2 + .5, sideL/2 - .5);
+    addRow(-xe, -xe, -sideL/2 + .5, sideL/2 - .5);
   }
   const R = w/2 + tiers*step, L = l/2 + tiers*step;
-  occRect(x-R-1, x+R+1, z-L-1, z+L+1);
-  court(x, z, w, l, 0);
+  addRect(occupied, o.x, o.z, R+1, L+1, f.rot);
+  court(f, w, l, y0);
+  return { f, R, L, top: y0 + tiers*rise };
 }
 {
-  const c = P.centrale;
-  stadium({ ...c, colors:[0xd4cdbd, 0xc2baa7], top: C.blue, fill: .78 });
-  // tabellone
-  box(10, 3.2, 0.6, 0x0d1624, c.x, c.tiers*c.rise + .2, c.z - c.l/2 - c.tiers*c.step + .4);
-  box(9.2, 2.5, 0.1, 0x1f4fa3, c.x, c.tiers*c.rise + .55, c.z - c.l/2 - c.tiers*c.step + .75, { cast:false });
-  const g = P.grand;  stadium({ ...g, colors:[0xdadada, 0xc8c8c8], top: 0x2f6f95, fill: .55 });
-  const s = P.st;     stadium({ ...s, colors:[0xd2cbbb, 0xbfb6a2], top: C.sky, fill: .5 });
+  const c = stadium({ ...S.centrale, ...DIM.centrale, colors:[0xd4cdbd, 0xc2baa7], top: C.blue, fill: .78 });
+  // tabellone sul lato opposto all'ingresso
+  box(10, 3.2, 0.6, 0x0d1624, 0, c.top + .2, -c.L + .4, { f:c.f });
+  box(9.2, 2.5, 0.1, 0x1f4fa3, 0, c.top + .55, -c.L + .75, { f:c.f, cast:false });
+  if (S.supertennis) stadium({ ...S.supertennis, ...DIM.supertennis, colors:[0xd2cbbb, 0xbfb6a2], top: C.sky, fill: .5 });
 }
 
 /* ---------- Stadio Pietrangeli: campo ribassato tra gradoni e statue ---------- */
 const statues = [];
-{
-  const p = P.pietr;
+if (P.pietr){
+  const p = P.pietr, f = p.f;
   for (let k=0;k<p.n;k++){
     const top = (k+1)*p.rise, ihw = p.w/2 + k*p.step, ihl = p.l/2 + k*p.step, col = k % 2 ? C.trav : C.trav2;
-    box(2*(ihw+p.step), top, p.step, col, p.x, -p.D, p.z - ihl - p.step/2);
-    box(2*(ihw+p.step), top, p.step, col, p.x, -p.D, p.z + ihl + p.step/2);
-    box(p.step, top, 2*ihl, col, p.x - ihw - p.step/2, -p.D, p.z);
-    box(p.step, top, 2*ihl, col, p.x + ihw + p.step/2, -p.D, p.z);
+    box(2*(ihw+p.step), top, p.step, col, 0, -p.D, -ihl - p.step/2, { f });
+    box(2*(ihw+p.step), top, p.step, col, 0, -p.D, ihl + p.step/2, { f });
+    box(p.step, top, 2*ihl, col, -ihw - p.step/2, -p.D, 0, { f });
+    box(p.step, top, 2*ihl, col, ihw + p.step/2, -p.D, 0, { f });
   }
-  court(p.x, p.z, p.w, p.l, -p.D);
-  // pareti sotto il bordo per non vedere il vuoto
-  occRect(p.x-p.hw-2, p.x+p.hw+2, p.z-p.hl-2, p.z+p.hl+2);
+  court(f, p.w, p.l, -p.D);
+  addRect(occupied, p.x, p.z, p.hw + 2, p.hl + 2, f.rot);
   // statue sul bordo
   const per = [];
-  for (let i=0;i<5;i++) per.push([p.x - p.hw + 3 + i*(2*p.hw-6)/4, p.z - p.hl + .9]);
-  for (let i=0;i<5;i++) per.push([p.x - p.hw + 3 + i*(2*p.hw-6)/4, p.z + p.hl - .9]);
-  for (let i=0;i<4;i++) per.push([p.x - p.hw + .9, p.z - p.hl + 8 + i*(2*p.hl-16)/3]);
-  for (let i=0;i<4;i++) per.push([p.x + p.hw - .9, p.z - p.hl + 8 + i*(2*p.hl-16)/3]);
-  for (const [sx,sz] of per) statues.push({ x:sx, y:0, z:sz, ry: Math.atan2(p.x - sx, p.z - sz), s:.95, arm: Math.random() < .5 });
+  for (let i=0;i<5;i++) per.push([-p.hw + 3 + i*(2*p.hw-6)/4, -p.hl + .9]);
+  for (let i=0;i<5;i++) per.push([-p.hw + 3 + i*(2*p.hw-6)/4, p.hl - .9]);
+  for (let i=0;i<4;i++) per.push([-p.hw + .9, -p.hl + 8 + i*(2*p.hl-16)/3]);
+  for (let i=0;i<4;i++) per.push([p.hw - .9, -p.hl + 8 + i*(2*p.hl-16)/3]);
+  for (const [lx,lz] of per){ const [sx,sz] = f.w(lx,lz); statues.push({ x:sx, y:0, z:sz, ry: Math.atan2(p.x - sx, p.z - sz), s:.95, arm: Math.random() < .5 }); }
 }
 
-/* ---------- Stadio dei Marmi: anello ribassato con le statue ---------- */
-{
-  const m = P.marmi;
+/* ---------- Stadio dei Marmi: anello ribassato con le statue e, dal 2026, l'arena al centro ---------- */
+let arena = null;
+if (P.marmi){
+  const m = P.marmi, rot = m.rot || 0;
   for (let k=0;k<m.n;k++){
     const sh = new THREE.Shape(); sh.absellipse(0,0, m.a0+(k+1)*m.step, m.b0+(k+1)*m.step, 0, Math.PI*2, false);
     const hole = new THREE.Path(); hole.absellipse(0,0, m.a0+k*m.step, m.b0+k*m.step, 0, Math.PI*2, true); sh.holes.push(hole);
     const g = new THREE.ExtrudeGeometry(sh, { depth:(k+1)*m.rise, bevelEnabled:false, curveSegments:72 });
     g.rotateX(-Math.PI/2);
     const mesh = new THREE.Mesh(g, mat(k % 2 ? C.marble : 0xe6dfd0));
-    mesh.position.set(m.x, -m.D, m.z); mesh.receiveShadow = true; mesh.castShadow = true; scene.add(mesh);
+    mesh.position.set(m.x, -m.D, m.z); mesh.rotation.y = rot; mesh.receiveShadow = true; mesh.castShadow = true; scene.add(mesh);
   }
   const disk = (a,b,col,y) => { const sh = new THREE.Shape(); sh.absellipse(0,0,a,b,0,Math.PI*2,false);
     const g = new THREE.ShapeGeometry(sh, 72); g.rotateX(-Math.PI/2);
-    const mesh = new THREE.Mesh(g, mat(col)); mesh.position.set(m.x, y, m.z); mesh.receiveShadow = true; scene.add(mesh); };
+    const mesh = new THREE.Mesh(g, mat(col)); mesh.position.set(m.x, y, m.z); mesh.rotation.y = rot; mesh.receiveShadow = true; scene.add(mesh); };
   disk(m.a0, m.b0, 0xb5533a, -m.D + .01);
   disk(m.a0-7, m.b0-7, C.grass2, -m.D + .02);
   for (let i=1;i<6;i++){
     const r = i*7/6, pts = new THREE.EllipseCurve(0,0, m.a0-7+r, m.b0-7+r, 0, Math.PI*2).getPoints(120);
-    const g = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p.x, 0, p.y)));
+    const g = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p.x, 0, -p.y)));
     const line = new THREE.LineLoop(g, new THREE.LineBasicMaterial({ color: 0xf4ede0, transparent:true, opacity:.8 }));
-    line.position.set(m.x, -m.D + .04, m.z); scene.add(line);
+    line.position.set(m.x, -m.D + .04, m.z); line.rotation.y = rot; scene.add(line);
   }
   for (let i=0;i<60;i++){
-    const t = i/60*Math.PI*2, a = m.a - m.step*.5, b = m.b - m.step*.5;
-    const sx = m.x + Math.cos(t)*a, sz = m.z + Math.sin(t)*b;
+    const t = i/60*Math.PI*2, [sx,sz] = m.f.w(Math.cos(t)*(m.a - m.step*.5), Math.sin(t)*(m.b - m.step*.5));
     statues.push({ x:sx, y:0, z:sz, ry: Math.atan2(m.x - sx, m.z - sz), s:1.05, arm: i % 3 === 0 });
   }
-  occEll(m.x, m.z, m.a + 2, m.b + 2);
+  addEll(occupied, m.x, m.z, m.a + 2, m.b + 2, rot);
+}
+if (S.arena){
+  const y0 = groundH(S.arena.x, S.arena.z);
+  arena = stadium({ ...S.arena, ...DIM.arena, y0, colors:[0xdcdcd6, 0xc9c9c2], top: 0x13795b, fill: .66 });
 }
 
 /* ---------- Stadio Olimpico, sullo sfondo ---------- */
-{
-  const o = P.olimpico;
+if (P.olimpico){
+  const o = P.olimpico, rot = o.rot || 0, f = frame(o);
   const ring = (a,b,a0,b0,depth,col,y,op) => {
     const sh = new THREE.Shape(); sh.absellipse(0,0,a,b,0,Math.PI*2,false);
     const h = new THREE.Path(); h.absellipse(0,0,a0,b0,0,Math.PI*2,true); sh.holes.push(h);
     const g = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled:false, curveSegments:80 }); g.rotateX(-Math.PI/2);
     const material = op ? new THREE.MeshLambertMaterial({ color: col, transparent: true, opacity: op }) : mat(col);
-    const mesh = new THREE.Mesh(g, material); mesh.position.set(o.x, y, o.z); mesh.castShadow = true; mesh.receiveShadow = true; scene.add(mesh);
+    const mesh = new THREE.Mesh(g, material); mesh.position.set(o.x, y, o.z); mesh.rotation.y = rot; mesh.castShadow = true; mesh.receiveShadow = true; scene.add(mesh);
   };
   ring(o.a, o.b, o.a0, o.b0, 21, 0xe3ded4, 0);
   ring(o.a + 1.5, o.b + 1.5, o.a0 + 7, o.b0 + 7, .7, 0xffffff, 23.5, .9);
-  for (let i=0;i<28;i++){ const t = i/28*Math.PI*2; box(.5, 2.6, .5, 0xcfd3d6, o.x + Math.cos(t)*(o.a+.8), 21, o.z + Math.sin(t)*(o.b+.8), { cast:false }); }
-  colliders.push({ t:'e', x:o.x, z:o.z, a:o.a, b:o.b });
-  occEll(o.x, o.z, o.a + 4, o.b + 4);
+  for (let i=0;i<28;i++){ const t = i/28*Math.PI*2; box(.5, 2.6, .5, 0xcfd3d6, Math.cos(t)*(o.a+.8), 21, Math.sin(t)*(o.b+.8), { f, cast:false }); }
+  addEll(colliders, o.x, o.z, o.a, o.b, rot);
+  addEll(occupied, o.x, o.z, o.a + 4, o.b + 4, rot);
 }
 
 /* ---------- Fontana della Sfera ---------- */
-{
-  const f = P.fountain;
+if (S.fontana){
+  const f = S.fontana;
   const cyl = (rt,rb,h,col,y,seg=36) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg), mat(col)); m.position.set(f.x,y,f.z); m.castShadow = true; m.receiveShadow = true; scene.add(m); return m; };
   cyl(7, 7.2, .7, C.trav2, .35);
   cyl(6.5, 6.5, .1, 0x86bccb, .64);
   cyl(.9, 1.3, 1.3, C.marble, 1.3);
   const sp = new THREE.Mesh(new THREE.SphereGeometry(2.2, 28, 18), mat(0xf4efe6)); sp.position.set(f.x, 4.1, f.z); sp.castShadow = true; scene.add(sp);
-  colliders.push({ t:'e', x:f.x, z:f.z, a:7.3, b:7.3 });
+  addEll(colliders, f.x, f.z, 7.3, 7.3);
+  addEll(occupied, f.x, f.z, 9, 9);
 }
 
-/* ---------- Tevere e Ponte Duca d'Aosta ---------- */
-{
-  const r = P.river, b = P.bridge;
-  flat(r.x1 - r.x0, 640, (r.x0+r.x1)/2, -1.7, 0, new THREE.MeshLambertMaterial({ color: C.water }));
-  box(.8, 4, 640, C.trav2, r.x0 + .4, -4, 0, { cast:false });
-  box(.8, 4, 640, C.trav2, r.x1 - .4, -4, 0, { cast:false });
-  // parapetti del lungotevere, aperti all'altezza del ponte
-  for (const px of [r.x0 - .6, r.x1 + .6]){
-    box(.6, 1, 320 + b.z0, C.trav, px, 0, (-320 + b.z0)/2, { collide:true });
-    box(.6, 1, 320 - b.z1, C.trav, px, 0, (320 + b.z1)/2, { collide:true });
+/* ---------- obelisco all'inizio del viale (solo volume, senza iscrizioni) ---------- */
+if (S.obelisco){
+  const o = S.obelisco;
+  box(5, 2.4, 5, C.trav2, o.x, 0, o.z, { collide:true });
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(.85, 1.25, 17, 4, 1), mat(C.marble));
+  shaft.rotation.y = Math.PI/4 + (S.viale ? frame(S.viale).rot : 0); shaft.position.set(o.x, 2.4 + 8.5, o.z); shaft.castShadow = true; scene.add(shaft);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(.85, 1.6, 4), mat(C.marble));
+  tip.rotation.y = shaft.rotation.y; tip.position.set(o.x, 2.4 + 17 + .8, o.z); tip.castShadow = true; scene.add(tip);
+  addRect(occupied, o.x, o.z, 4, 4);
+}
+
+/* ---------- Tevere e ponti ---------- */
+const bridges = (LAYOUT.bridges || []).slice();
+if (S.ponte) bridges.unshift(S.ponte);
+for (const b of bridges){ const f = frame(b); f.len = b.len; f.wid = b.wid; bridgeFrames.push(f); }
+for (const r of rivers){
+  const d = r.w/2;
+  polyFlat(r.poly, -1.7, new THREE.MeshLambertMaterial({ color: C.water }));
+  for (const side of [d, -d]){
+    const bank = offsetLine(r.pts, side), rail = offsetLine(r.pts, side + Math.sign(side)*.6);
+    for (let i = 0; i < bank.length - 1; i++){
+      const [ax,az] = bank[i], [bx,bz] = bank[i+1], len = Math.hypot(bx-ax, bz-az), mx = (ax+bx)/2, mz = (az+bz)/2;
+      if (mx < GB.x0 || mx > GB.x1 || mz < GB.z0 || mz > GB.z1) continue;
+      const rot = segRot(ax,az,bx,bz);
+      box(len + .4, 4, .8, C.trav2, mx, -4, mz, { rot, cast:false });
+      // parapetto del lungotevere, interrotto sui ponti
+      const [cx,cz] = rail[i], [ex,ez] = rail[i+1], steps = Math.max(1, Math.ceil(Math.hypot(ex-cx, ez-cz)/6));
+      for (let k = 0; k < steps; k++){
+        const u0 = k/steps, u1 = (k+1)/steps, px = cx + (ex-cx)*(u0+u1)/2, pz = cz + (ez-cz)*(u0+u1)/2;
+        if (onBridge(px, pz) || px < BOUNDS.x0 - 60 || px > BOUNDS.x1 + 60 || pz < BOUNDS.z0 - 60 || pz > BOUNDS.z1 + 60) continue;
+        box(Math.hypot(ex-cx, ez-cz)/steps + .05, 1, .6, C.trav, px, 0, pz, { rot, cast:false });
+      }
+    }
   }
-  colliders.push({ t:'r', minX:r.x0, maxX:r.x1, minZ:-400, maxZ:b.z0 });
-  colliders.push({ t:'r', minX:r.x0, maxX:r.x1, minZ:b.z1, maxZ:400 });
-  box(r.x1 - r.x0 + 2, .9, b.z1 - b.z0, C.trav, (r.x0+r.x1)/2, -.9, (b.z0+b.z1)/2);
-  box(r.x1 - r.x0 + 2, 1, .6, C.trav2, (r.x0+r.x1)/2, 0, b.z0 + .3, { collide:true });
-  box(r.x1 - r.x0 + 2, 1, .6, C.trav2, (r.x0+r.x1)/2, 0, b.z1 - .3, { collide:true });
-  for (const ax of [178, 186, 194]) box(2.4, 1.2, b.z1 - b.z0 - 1, C.trav2, ax, -2.1, (b.z0+b.z1)/2, { cast:false });
-  occRect(r.x0 - 4, 330, -400, 400);
+  addLine(colliders, r.pts, d + .6, 'w');
+  addLine(occupied, r.pts, d + 4);
+}
+for (const f of bridgeFrames){
+  box(f.len + 2, .9, f.wid, C.trav, 0, -.9, 0, { f });
+  box(f.len + 2, 1, .6, C.trav2, 0, 0, -f.wid/2 + .3, { f, collide:true });
+  box(f.len + 2, 1, .6, C.trav2, 0, 0, f.wid/2 - .3, { f, collide:true });
+  const nA = Math.max(1, Math.round(f.len/9));
+  for (let i = 0; i < nA; i++) box(2.4, 1.2, f.wid - 1, C.trav2, -f.len/2 + (i+.5)*f.len/nA, -2.1, 0, { f, cast:false });
+  addRect(occupied, f.x, f.z, f.len/2 + 2, f.wid/2 + 2, f.rot);
 }
 
 /* ---------- campi esterni con recinzione ---------- */
-for (const [x,z] of P.courts){
-  const w = 18.3, l = 36.6, h = 2.2, t = .15, open = 3;
-  court(x, z, w, l, 0);
-  box(w, h, t, C.fence, x, 0, z - l/2, { collide:true });
+for (const c of LAYOUT.courts || []){
+  const w = 18.3, l = 36.6, h = 2.2, t = .15, open = 3, f = frame(c);
+  court(f, w, l, 0);
+  box(w, h, t, C.fence, 0, 0, -l/2, { f, collide:true });
   const seg = (w - open)/2;
-  box(seg, h, t, C.fence, x - w/2 + seg/2, 0, z + l/2, { collide:true });
-  box(seg, h, t, C.fence, x + w/2 - seg/2, 0, z + l/2, { collide:true });
-  box(t, h, l, C.fence, x - w/2, 0, z, { collide:true });
-  box(t, h, l, C.fence, x + w/2, 0, z, { collide:true });
-  occRect(x - w/2 - 2, x + w/2 + 2, z - l/2 - 2, z + l/2 + 2);
+  box(seg, h, t, C.fence, -w/2 + seg/2, 0, l/2, { f, collide:true });
+  box(seg, h, t, C.fence, w/2 - seg/2, 0, l/2, { f, collide:true });
+  box(t, h, l, C.fence, -w/2, 0, 0, { f, collide:true });
+  box(t, h, l, C.fence, w/2, 0, 0, { f, collide:true });
+  addRect(occupied, c.x, c.z, w/2 + 2, l/2 + 2, f.rot);
 }
 
-/* ---------- sfondo: Monte Mario e la Farnesina ---------- */
-{
+/* ---------- sfondo ---------- */
+const cypresses = [];
+const hill = (x,z,r,sy,col) => { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 10), mat(col)); m.scale.set(r, r*sy, r*.8); m.position.set(x,-2,z); scene.add(m); };
+if (LAYOUT.backdrop){ // schema v0.1: la Farnesina e Monte Mario a nord
   box(170, 20, 26, 0xeae4d6, 40, 0, -225);
   for (const y of [5, 10, 15]) box(170.3, 1.3, 26.3, 0x8f877b, 40, y, -225, { cast:false });
-  const hill = (x,z,r,sy,col) => { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 10), mat(col)); m.scale.set(r, r*sy, r*.8); m.position.set(x,-2,z); scene.add(m); };
   hill(-120,-300,110,.42,0x5f8a45); hill(40,-320,120,.5,0x587f40); hill(190,-300,90,.38,0x628d47); hill(-260,-150,90,.4,0x5f8a45);
+  for (let x = -190; x <= 165; x += 7) cypresses.push({ x: x + rand(-2,2), z: rand(-196,-190), s: rand(.85,1.2), ry:0 });
+  for (let i=0;i<40;i++) cypresses.push({ x: rand(-200,200), z: rand(-240,-205), s: rand(.9,1.3), ry:0 });
+} else { // con i dati OSM: Monte Mario a ovest, fuori dall'area percorribile
+  const zc = (BOUNDS.z0 + BOUNDS.z1)/2, zs = (BOUNDS.z1 - BOUNDS.z0)/2;
+  hill(BOUNDS.x0 - 160, zc - zs*.6, 150, .45, 0x5f8a45); hill(BOUNDS.x0 - 190, zc + zs*.2, 170, .5, 0x587f40); hill(BOUNDS.x0 - 120, BOUNDS.z0 - 120, 130, .4, 0x628d47);
 }
 
 /* ---------- alberi: pini a ombrello e cipressi ---------- */
-const trees = [], cypresses = [];
-const addPine = (x,z,s=1) => { trees.push({ x, z, s, ry: Math.random()*Math.PI, v: Math.random() }); colliders.push({ t:'r', minX:x-.5, maxX:x+.5, minZ:z-.5, maxZ:z+.5 }); };
-for (let x = -18; x <= 160; x += 11){ addPine(x, 30.5, rand(.9,1.1)); addPine(x + 5, 49.5, rand(.9,1.1)); }
-for (let x = -190; x <= 165; x += 7) cypresses.push({ x: x + rand(-2,2), z: rand(-196,-190), s: rand(.85,1.2), ry:0 });
-for (let i=0;i<40;i++) cypresses.push({ x: rand(-200,200), z: rand(-240,-205), s: rand(.9,1.3), ry:0 });
+const trees = [];
+const blocked = (x,z,m) => occupied.some(c => hits(c,x,z,m)) || colliders.some(c => hits(c,x,z,m));
+const addPine = (x,z,s=1) => { trees.push({ x, z, s, ry: Math.random()*Math.PI, v: Math.random() }); addRect(colliders, x, z, .5, .5); };
+if (S.viale){ // due filari lungo il viale
+  const v = S.viale, f = frame(v);
+  for (let lx = -v.len/2 + 6; lx <= v.len/2 - 12; lx += 11){
+    for (const side of [-1, 1]){ const [x,z] = f.w(lx + (side > 0 ? 5 : 0), side*(v.wid/2 + 2.5)); if (!blocked(x,z,.6)) addPine(x, z, rand(.9,1.1)); }
+  }
+}
+for (const [x,z] of LAYOUT.trees || []) if (x > BOUNDS.x0 && x < BOUNDS.x1 && z > BOUNDS.z0 && z < BOUNDS.z1 && !blocked(x,z,.8)) addPine(x, z, rand(.8,1.15));
 {
-  const free = (x,z,m) => {
-    for (const c of occupied.concat(colliders)){
-      if (c.t === 'r'){ if (x > c.minX-m && x < c.maxX+m && z > c.minZ-m && z < c.maxZ+m) return false; }
-      else if (((x-c.x)/(c.a+m))**2 + ((z-c.z)/(c.b+m))**2 < 1) return false;
-    }
-    return true;
-  };
+  const area = (BOUNDS.x1 - BOUNDS.x0)*(BOUNDS.z1 - BOUNDS.z0);
+  const target = LAYOUT.source === 'schematic' ? 190 : Math.round(area/1000*(LAYOUT.trees && LAYOUT.trees.length ? .25 : .9));
   let placed = 0;
-  for (let i=0;i<3000 && placed<190;i++){
-    const x = rand(-195, 165), z = rand(-188, 155);
-    if (free(x,z,4.5)){ addPine(x, z, rand(.8,1.2)); placed++; }
+  for (let i=0;i<target*16 && placed<target;i++){
+    const x = rand(BOUNDS.x0 + 5, BOUNDS.x1 - 5), z = rand(BOUNDS.z0 + 12, BOUNDS.z1 - 5);
+    if (!blocked(x,z,4.5)){ addPine(x, z, rand(.8,1.2)); placed++; }
   }
 }
 const greens = [0x3f6b34, 0x4a7a3a, 0x36602f, 0x557f3f];
@@ -554,12 +777,15 @@ instParts(cypresses, [
 ]);
 
 /* ---------- bandiere lungo il viale ---------- */
-for (let x = -10; x <= 150; x += 32){
-  for (const z of [33.5, 46.5]){
-    box(.16, 8, .16, 0xdfe3e6, x, 0, z);
-    box(.9, 1.5, .05, 0x1f8a4c, x + .55, 6.3, z, { cast:false });
-    box(.9, 1.5, .05, 0xffffff, x + 1.45, 6.3, z, { cast:false });
-    box(.9, 1.5, .05, 0xd8342c, x + 2.35, 6.3, z, { cast:false });
+if (S.viale){
+  const v = S.viale, f = frame(v);
+  for (let lx = -v.len/2 + 17; lx <= v.len/2 - 15; lx += 32){
+    for (const lz of [-v.wid/2 + .5, v.wid/2 - .5]){
+      box(.16, 8, .16, 0xdfe3e6, lx, 0, lz, { f });
+      box(.9, 1.5, .05, 0x1f8a4c, lx + .55, 6.3, lz, { f, cast:false });
+      box(.9, 1.5, .05, 0xffffff, lx + 1.45, 6.3, lz, { f, cast:false });
+      box(.9, 1.5, .05, 0xd8342c, lx + 2.35, 6.3, lz, { f, cast:false });
+    }
   }
 }
 
@@ -610,74 +836,94 @@ function makeAvatar({ shirt, shorts, cap }){
 const hero = makeAvatar({ shirt: C.blue, shorts: 0xffffff, cap: 0xffffff });
 scene.add(hero.g);
 const rival = makeAvatar({ shirt: 0xffffff, shorts: 0x2a2f3a, cap: 0xd8342c });
-rival.g.position.set(P.centrale.x - 2.2, 0, P.centrale.z - 12.6);
+const placeOnCourt = (av, lx, lz, ry) => { const [x,z] = CF.w(lx, lz); av.g.position.set(x, 0, z); av.g.rotation.y = CF.rot + ry; };
+placeOnCourt(rival, -2.2, -12.6, 0);
 scene.add(rival.g);
-
-/* ---------- altezza del terreno (impianti ribassati) ---------- */
-function groundH(x,z){
-  const m = P.marmi, dx = x - m.x, dz = z - m.z;
-  if ((dx/m.a)**2 + (dz/m.b)**2 < 1){
-    if ((dx/m.a0)**2 + (dz/m.b0)**2 < 1) return -m.D;
-    for (let k=0;k<m.n;k++) if ((dx/(m.a0+(k+1)*m.step))**2 + (dz/(m.b0+(k+1)*m.step))**2 < 1) return -m.D + (k+1)*m.rise;
-    return 0;
-  }
-  const p = P.pietr, ex = Math.abs(x - p.x) - p.w/2, ez = Math.abs(z - p.z) - p.l/2, e = Math.max(ex, ez);
-  if (Math.abs(x - p.x) < p.hw && Math.abs(z - p.z) < p.hl){
-    if (e <= 0) return -p.D;
-    return -p.D + (Math.floor(e/p.step) + 1)*p.rise;
-  }
-  return 0;
-}
 
 /* ---------- collisioni ---------- */
 const R = .42;
+function pushRect(pos, c){ // rettangolo orientato: si lavora nel sistema locale
+  const dx = pos.x - c.cx, dz = pos.z - c.cz;
+  let lx = dx*c.c - dz*c.s, lz = dx*c.s + dz*c.c;
+  if (Math.abs(lx) > c.hw + R || Math.abs(lz) > c.hd + R) return;
+  const nx = clamp(lx, -c.hw, c.hw), nz = clamp(lz, -c.hd, c.hd), ex = lx - nx, ez = lz - nz, d2 = ex*ex + ez*ez;
+  if (d2 >= R*R) return;
+  if (d2 > 1e-8){ const d = Math.sqrt(d2); lx = nx + ex/d*R; lz = nz + ez/d*R; }
+  else {
+    const opts = [[-c.hw - R - lx, 0], [c.hw + R - lx, 0], [0, -c.hd - R - lz], [0, c.hd + R - lz]];
+    opts.sort((a,b) => Math.abs(a[0]+a[1]) - Math.abs(b[0]+b[1])); lx += opts[0][0]; lz += opts[0][1];
+  }
+  pos.x = c.cx + lx*c.c + lz*c.s; pos.z = c.cz - lx*c.s + lz*c.c;
+}
 function collide(pos){
   for (const c of colliders){
+    if (pos.x < c.bb[0] - R || pos.x > c.bb[1] + R || pos.z < c.bb[2] - R || pos.z > c.bb[3] + R) continue;
+    if (c.t === 'o'){ pushRect(pos, c); continue; }
     if (c.t === 'e'){
-      const dx = pos.x - c.x, dz = pos.z - c.z, k = Math.sqrt((dx/(c.a+R))**2 + (dz/(c.b+R))**2);
-      if (k < 1 && k > 1e-6){ pos.x = c.x + dx/k; pos.z = c.z + dz/k; }
+      const dx = pos.x - c.x, dz = pos.z - c.z, lx = dx*c.c - dz*c.s, lz = dx*c.s + dz*c.c;
+      const k = Math.sqrt((lx/(c.a+R))**2 + (lz/(c.b+R))**2);
+      if (k < 1 && k > 1e-6){ const nx = lx/k, nz = lz/k; pos.x = c.x + nx*c.c + nz*c.s; pos.z = c.z - nx*c.s + nz*c.c; }
       continue;
     }
-    if (pos.x < c.minX - R || pos.x > c.maxX + R || pos.z < c.minZ - R || pos.z > c.maxZ + R) continue;
-    const nx = clamp(pos.x, c.minX, c.maxX), nz = clamp(pos.z, c.minZ, c.maxZ), dx = pos.x - nx, dz = pos.z - nz, d2 = dx*dx + dz*dz;
-    if (d2 >= R*R) continue;
-    if (d2 > 1e-8){ const d = Math.sqrt(d2); pos.x = nx + dx/d*R; pos.z = nz + dz/d*R; }
-    else {
-      const opts = [[c.minX - R - pos.x, 0], [c.maxX + R - pos.x, 0], [0, c.minZ - R - pos.z], [0, c.maxZ + R - pos.z]];
-      opts.sort((a,b) => Math.abs(a[0]+a[1]) - Math.abs(b[0]+b[1])); pos.x += opts[0][0]; pos.z += opts[0][1];
+    if (c.t === 'p'){
+      const q = closestOn(c.pts, pos.x, pos.z, true), inside = inPoly(c.pts, pos.x, pos.z);
+      if (!inside && q.d >= R) continue;
+      let ux, uz;
+      if (q.d > 1e-6){ ux = (pos.x - q.x)/q.d; uz = (pos.z - q.z)/q.d; if (inside){ ux = -ux; uz = -uz; } }
+      else { const L = Math.hypot(q.dx, q.dz) || 1; ux = q.dz/L; uz = -q.dx/L; if (inPoly(c.pts, q.x + ux*.01, q.z + uz*.01)){ ux = -ux; uz = -uz; } }
+      pos.x = q.x + ux*R; pos.z = q.z + uz*R;
+      continue;
     }
+    // fiume: si attraversa solo sui ponti
+    if (onBridge(pos.x, pos.z)) continue;
+    const q = closestOn(c.pts, pos.x, pos.z, false), lim = c.hw + R;
+    if (q.d >= lim) continue;
+    let ux, uz;
+    if (q.d > 1e-6){ ux = (pos.x - q.x)/q.d; uz = (pos.z - q.z)/q.d; }
+    else { const L = Math.hypot(q.dx, q.dz) || 1; ux = q.dz/L; uz = -q.dx/L; }
+    pos.x = q.x + ux*lim; pos.z = q.z + uz*lim;
   }
   pos.x = clamp(pos.x, BOUNDS.x0, BOUNDS.x1); pos.z = clamp(pos.z, BOUNDS.z0, BOUNDS.z1);
 }
 
-/* ---------- luoghi ---------- */
-const POIS = [
-  { id:'centrale', name:'Campo Centrale', x:P.centrale.x, z:P.centrale.z, r:34, lh:14, game:true,
-    text:"Il campo principale degli Internazionali BNL d'Italia. Entra dal lato sud e scendi in campo per la sfida al servizio." },
-  { id:'pietr', name:'Stadio Pietrangeli', x:P.pietr.x, z:P.pietr.z, r:26, lh:6,
-    text:"Il campo più scenografico del Foro: si gioca sotto il livello del viale, tra gradoni e statue di marmo. Porta il nome di Nicola Pietrangeli." },
-  { id:'marmi', name:'Stadio dei Marmi', x:P.marmi.x, z:P.marmi.z, r:46, lh:8,
-    text:"Un anello di gradoni in marmo coronato da sessanta statue di atleti. Scendi fino alla pista." },
-  { id:'grand', name:'Grand Stand Arena', x:P.grand.x, z:P.grand.z, r:30, lh:10,
-    text:"Una delle arene con tribune del torneo. In questo prototipo si visita soltanto." },
-  { id:'st', name:'SuperTennis Arena', x:P.st.x, z:P.st.z, r:27, lh:8,
-    text:"Il campo che porta il nome del canale televisivo della Federazione." },
-  { id:'esterni', name:'Campi esterni', x:92, z:-100, r:52, lh:5,
-    text:"I campi in terra rossa dove si giocano le qualificazioni e dove i giocatori si allenano." },
-  { id:'viale', name:'Viale del Foro Italico', x:70, z:40, r:0, lh:4, box:[-27,165,31,49],
-    text:"Il viale d'ingresso, pavimentato con mosaici in bianco e nero. Collega il Tevere al piazzale della Fontana della Sfera." },
-  { id:'fontana', name:'Fontana della Sfera', x:P.fountain.x, z:P.fountain.z, r:18, lh:8.5,
-    text:"Una grande sfera di marmo al centro del piazzale. Da qui si vede lo Stadio Olimpico." },
-  { id:'olimpico', name:'Stadio Olimpico', x:P.olimpico.x, z:P.olimpico.z, r:82, lh:28,
-    text:"Lo stadio del calcio e dell'atletica. In questa versione fa da vicino di casa." },
-  { id:'ponte', name:"Ponte Duca d'Aosta", x:186, z:40, r:20, lh:4,
-    text:"Da qui si arriva a piedi dal lungotevere. Il Foro è alle tue spalle." },
-];
+/* ---------- luoghi (nomi e testi verificati a settembre 2026, fonti in docs/v0.2-planimetria.md) ---------- */
+const POIS = [];
+{
+  const add = (site, o) => { if (site) POIS.push({ x:site.x, z:site.z, ...o }); };
+  add(S.centrale, { id:'centrale', name:'Campo Centrale', r:34, lh:14, game:true,
+    text:"Il campo principale degli Internazionali BNL d'Italia, dove si giocano le finali. Da giugno 2026 è in corso il rifacimento: copertura mobile e 12.500 posti, con la fine dei lavori prevista per il 2028. Entra dal varco nelle tribune e scendi in campo per la sfida al servizio." });
+  add(S.supertennis, { id:'st', name:'SuperTennis Arena', r:27, lh:8,
+    text:"Lo stadio da 3.000 posti che porta il nome del canale televisivo della Federazione. Dal 2026 si trova di fronte al Campo Centrale, accanto all'ex Ostello della Gioventù." });
+  add(S.pietrangeli, { id:'pietr', name:'Stadio Nicola Pietrangeli', r:26, lh:6, y:2,
+    text:"Il più antico stadio del tennis al Foro, un tempo chiamato Pallacorda: il campo è sotto il livello del viale, tra gradoni e statue di marmo. Dal 2006 porta il nome di Nicola Pietrangeli." });
+  add(S.arena, { id:'arena', name:'BNP Paribas Arena', r:34, lh:(arena ? arena.top - groundH(S.arena.x, S.arena.z) : 7) + 3, prio:true,
+    text:"Il secondo stadio del torneo: oltre 7.000 posti, costruito nel 2026 al centro della pista dello Stadio dei Marmi. Prende il posto della Grand Stand Arena." });
+  if (P.marmi){ const [ax,az] = P.marmi.f.w(0, P.marmi.b - 2);
+    add(S.marmi, { id:'marmi', name:'Stadio dei Marmi «Pietro Mennea»', r:Math.max(P.marmi.a, P.marmi.b) + 4, lh:7, ax, az,
+      text:"La pista di atletica circondata da circa sessanta statue di atleti in marmo di Carrara, donate dalle province italiane. Dal 2013 porta anche il nome di Pietro Mennea." }); }
+  const cs = LAYOUT.courts || [];
+  if (cs.length){
+    const cx = cs.reduce((s,c) => s + c.x, 0)/cs.length, cz = cs.reduce((s,c) => s + c.z, 0)/cs.length;
+    const r = Math.max(30, ...cs.map(c => Math.hypot(c.x - cx, c.z - cz) + 14));
+    POIS.push({ id:'esterni', name:'Campi esterni', x:cx, z:cz, r, lh:5,
+      text:"I campi in terra rossa di qualificazioni e allenamenti. Nel 2026 il torneo contava 21 campi: 19 al Foro Italico e 2 sul Lungotevere." });
+  }
+  if (S.viale){ const f = frame(S.viale);
+    add(S.viale, { id:'viale', name:'Viale del Foro Italico', r:0, lh:4, inside:(x,z) => { const [lx,lz] = f.l(x,z); return Math.abs(lx) < S.viale.len/2 && Math.abs(lz) < S.viale.wid/2 + 2; },
+      text:"Un tempo Piazzale dell'Impero: circa 7.000 metri quadrati di mosaici in bianco e nero. Collega il lungotevere al piazzale della Fontana della Sfera." }); }
+  add(S.fontana, { id:'fontana', name:'Fontana della Sfera', r:18, lh:8.5,
+    text:"Realizzata tra il 1933 e il 1935 su progetto di Mario Paniconi e Giulio Pediconi. La sfera è un unico blocco di marmo di Carrara, la vasca è decorata con mosaici a soggetto marino." });
+  add(S.olimpico, { id:'olimpico', name:'Stadio Olimpico', r:(S.olimpico ? Math.max(S.olimpico.a, S.olimpico.b) : 0) + 20, lh:28,
+    text:"Lo stadio del calcio e dell'atletica, vicino di casa del torneo." });
+  add(S.ponte, { id:'ponte', name:"Ponte Duca d'Aosta", r:20, lh:4,
+    text:"Il ponte che collega il quartiere Flaminio al Foro. All'uscita c'è piazza Lauro de Bosis, con l'obelisco all'inizio del viale." });
+}
 const labelsEl = $('#labels');
 for (const p of POIS){
   p.el = document.createElement('div'); p.el.className = 'label' + (p.game ? ' game' : ''); p.el.textContent = p.game ? p.name + ' · gioca' : p.name;
   labelsEl.appendChild(p.el);
-  p.y = (p.id === 'pietr' || p.id === 'marmi') ? 2 : 0;
+  p.ax = p.ax ?? p.x; p.az = p.az ?? p.z;
+  p.y = p.y ?? Math.max(groundH(p.ax, p.az), -1);
 }
 
 /* ---------- input ---------- */
@@ -724,29 +970,42 @@ const joy = { x:0, y:0, id:null };
 
 /* ---------- minimappa ---------- */
 const mm = $('#minimap'), mctx = mm.getContext('2d');
-const MMB = { x0:-205, x1:232, z0:-205, z1:165 };
-const mmX = x => (x - MMB.x0)/(MMB.x1 - MMB.x0)*mm.width, mmZ = z => (z - MMB.z0)/(MMB.z1 - MMB.z0)*mm.height;
-const mmStatic = document.createElement('canvas'); mmStatic.width = mm.width; mmStatic.height = mm.height;
+const MMB = { x0:BOUNDS.x0 - 5, x1:BOUNDS.x1 + 5, z0:BOUNDS.z0 - 5, z1:BOUNDS.z1 + 5 };
+// scala minima di circa 460 m per riquadro: sulle mappe grandi la minimappa scorre attorno al giocatore
+const mmK = Math.max(Math.min(mm.width/(MMB.x1 - MMB.x0), mm.height/(MMB.z1 - MMB.z0)), mm.width/460);
+const mmStatic = document.createElement('canvas');
+mmStatic.width = Math.ceil((MMB.x1 - MMB.x0)*mmK); mmStatic.height = Math.ceil((MMB.z1 - MMB.z0)*mmK);
+const mmX = x => (x - MMB.x0)*mmK, mmZ = z => (z - MMB.z0)*mmK;
+const mmOff = (v, size, view) => size <= view ? (size - view)/2 : clamp(v - view/2, 0, size - view);
 {
-  const x = mmStatic.getContext('2d'), sx = mm.width/(MMB.x1-MMB.x0), sz = mm.height/(MMB.z1-MMB.z0);
-  x.fillStyle = '#7da25a'; x.fillRect(0,0,mm.width,mm.height);
-  const rect = (x0,x1,z0,z1,c) => { x.fillStyle = c; x.fillRect(mmX(x0), mmZ(z0), (x1-x0)*sx, (z1-z0)*sz); };
-  const ell = (cx,cz,a,b,c) => { x.fillStyle = c; x.beginPath(); x.ellipse(mmX(cx), mmZ(cz), a*sx, b*sz, 0, 0, Math.PI*2); x.fill(); };
-  rect(P.river.x0, P.river.x1, MMB.z0, MMB.z1, '#4f7f86'); rect(P.river.x0, P.river.x1, 33, 47, '#e4d8c0');
-  rect(P.viale.x0, P.viale.x1, 33, 47, '#f1ece1'); rect(-65,-25,23,57,'#e4d8c0');
-  rect(-28.5,-21.5,-143,33,'#e4d8c0'); rect(22,153,-53,-47,'#e4d8c0'); rect(147,153,-140,33,'#e4d8c0'); rect(-125,-21.5,1,7,'#e4d8c0');
-  const o = P.olimpico; ell(o.x,o.z,o.a,o.b,'#d9d4ca'); ell(o.x,o.z,o.a0,o.b0,'#6f9a4a');
-  const m = P.marmi; ell(m.x,m.z,m.a,m.b,'#efe9dd'); ell(m.x,m.z,m.a0,m.b0,'#b5533a'); ell(m.x,m.z,m.a0-7,m.b0-7,'#6b9449');
-  ell(P.fountain.x, P.fountain.z, 7, 7, '#cfe6ee');
-  for (const s of [P.centrale, P.grand, P.st]){ const hw = s.w/2 + s.tiers*s.step, hl = s.l/2 + s.tiers*s.step; rect(s.x-hw, s.x+hw, s.z-hl, s.z+hl, s === P.centrale ? '#1f4fa3' : '#cfc8b8'); rect(s.x-s.w/2, s.x+s.w/2, s.z-s.l/2, s.z+s.l/2, '#c4623a'); }
-  const p = P.pietr; rect(p.x-p.hw, p.x+p.hw, p.z-p.hl, p.z+p.hl, '#e4d8c0'); rect(p.x-p.w/2, p.x+p.w/2, p.z-p.l/2, p.z+p.l/2, '#c4623a');
-  for (const [cx,cz] of P.courts) rect(cx-9.15, cx+9.15, cz-18.3, cz+18.3, '#c4623a');
+  const x = mmStatic.getContext('2d'), k = mmK;
+  x.fillStyle = '#7da25a'; x.fillRect(0,0,mmStatic.width,mmStatic.height);
+  const poly = (pts, c) => { x.fillStyle = c; x.beginPath(); pts.forEach(([a,b],i) => i ? x.lineTo(mmX(a), mmZ(b)) : x.moveTo(mmX(a), mmZ(b))); x.closePath(); x.fill(); };
+  const line = (pts, w, c) => { x.strokeStyle = c; x.lineWidth = Math.max(1, w*k); x.lineJoin = 'round'; x.beginPath(); pts.forEach(([a,b],i) => i ? x.lineTo(mmX(a), mmZ(b)) : x.moveTo(mmX(a), mmZ(b))); x.stroke(); };
+  const inFrame = (o, draw) => { x.save(); x.translate(mmX(o.x), mmZ(o.z)); x.rotate(-(o.rot || 0)); x.scale(k, k); draw(); x.restore(); };
+  const r = (w,d,c) => { x.fillStyle = c; x.fillRect(-w/2, -d/2, w, d); };
+  const e = (a,b,c) => { x.fillStyle = c; x.beginPath(); x.ellipse(0, 0, a, b, 0, 0, Math.PI*2); x.fill(); };
+  for (const rv of rivers) poly(rv.poly, '#4f7f86');
+  for (const f of bridgeFrames) inFrame(f, () => r(f.len, f.wid, '#e4d8c0'));
+  for (const ln of LAYOUT.lines || []) line(ln.pts, ln.w, ln.kind === 'road' ? '#9a9c9f' : '#e4d8c0');
+  for (const pts of LAYOUT.paved || []) poly(pts, '#e4d8c0');
+  if (S.viale) inFrame(S.viale, () => r(S.viale.len, S.viale.wid, '#f1ece1'));
+  for (const b of LAYOUT.buildings || []) poly(b.pts, '#d6cdb9');
+  if (P.olimpico){ const o = P.olimpico; inFrame(o, () => { e(o.a, o.b, '#d9d4ca'); e(o.a0, o.b0, '#6f9a4a'); }); }
+  if (P.marmi){ const m = P.marmi; inFrame(m, () => { e(m.a, m.b, '#efe9dd'); e(m.a0, m.b0, '#b5533a'); e(m.a0-7, m.b0-7, '#6b9449'); }); }
+  if (S.fontana) inFrame(S.fontana, () => e(7, 7, '#cfe6ee'));
+  const stad = (s, d, c) => { if (s) inFrame(s, () => { r(d.w + 2*d.tiers*d.step, d.l + 2*d.tiers*d.step, c); r(d.w, d.l, '#c4623a'); }); };
+  stad(S.centrale, DIM.centrale, '#1f4fa3'); stad(S.arena, DIM.arena, '#13795b'); stad(S.supertennis, DIM.supertennis, '#cfc8b8');
+  if (P.pietr){ const p = P.pietr; inFrame(p, () => { r(2*p.hw, 2*p.hl, '#e4d8c0'); r(p.w, p.l, '#c4623a'); }); }
+  for (const c of LAYOUT.courts || []) inFrame(c, () => r(18.3, 36.6, '#c4623a'));
 }
 function drawMinimap(){
-  mctx.drawImage(mmStatic, 0, 0);
-  const t = performance.now()/400, cx = mmX(P.centrale.x), cz = mmZ(P.centrale.z);
+  const ox = mmOff(mmX(hero.g.position.x), mmStatic.width, mm.width), oz = mmOff(mmZ(hero.g.position.z), mmStatic.height, mm.height);
+  mctx.fillStyle = '#7da25a'; mctx.fillRect(0, 0, mm.width, mm.height);
+  mctx.drawImage(mmStatic, -ox, -oz);
+  const t = performance.now()/400, cx = mmX(S.centrale.x) - ox, cz = mmZ(S.centrale.z) - oz;
   mctx.strokeStyle = '#f3c623'; mctx.lineWidth = 3; mctx.beginPath(); mctx.arc(cx, cz, 22 + Math.sin(t)*3, 0, Math.PI*2); mctx.stroke();
-  const px = mmX(hero.g.position.x), pz = mmZ(hero.g.position.z), a = hero.g.rotation.y;
+  const px = mmX(hero.g.position.x) - ox, pz = mmZ(hero.g.position.z) - oz, a = hero.g.rotation.y;
   mctx.save(); mctx.translate(px, pz); mctx.rotate(-a);
   mctx.fillStyle = '#fff'; mctx.strokeStyle = '#0b2a5b'; mctx.lineWidth = 3;
   mctx.beginPath(); mctx.moveTo(0, 13); mctx.lineTo(9, -9); mctx.lineTo(0, -4); mctx.lineTo(-9, -9); mctx.closePath(); mctx.fill(); mctx.stroke();
@@ -754,24 +1013,27 @@ function drawMinimap(){
 }
 
 /* ---------- esplorazione ---------- */
-hero.g.position.set(150, 0, 40);
-hero.g.rotation.y = -Math.PI/2;
+hero.g.position.set(LAYOUT.start.x, 0, LAYOUT.start.z);
+hero.g.rotation.y = LAYOUT.start.ry || 0;
+const cam0 = { yaw: hero.g.rotation.y + Math.PI };
+cam.yaw = cam0.yaw;
 if (location.hash === '#centrale'){ // scorciatoia per le demo: si parte in campo
-  hero.g.position.set(P.centrale.x, 0, P.centrale.z + 15); hero.g.rotation.y = Math.PI; cam.yaw = 0;
+  placeOnCourt(hero, 0, 15, Math.PI); cam.yaw = CF.rot;
 }
 let started = false, walkPh = 0, curPoi = null;
 const vTmp = new THREE.Vector3();
 
 function inCentraleCourt(){
-  const c = P.centrale, p = hero.g.position;
-  return Math.abs(p.x - c.x) < c.w/2 && Math.abs(p.z - c.z) < c.l/2;
+  const [lx,lz] = CF.l(hero.g.position.x, hero.g.position.z);
+  return Math.abs(lx) < DIM.centrale.w/2 && Math.abs(lz) < DIM.centrale.l/2;
 }
 function nearestPoi(){
   const p = hero.g.position; let best = null, bs = 1;
   for (const q of POIS){
     let s;
-    if (q.box){ s = (p.x > q.box[0] && p.x < q.box[1] && p.z > q.box[2] && p.z < q.box[3]) ? .95 : 9; }
+    if (q.inside) s = q.inside(p.x, p.z) ? .95 : 9;
     else s = Math.hypot(p.x - q.x, p.z - q.z)/q.r;
+    if (q.prio && s < 1) return q;
     if (s < bs){ bs = s; best = q; }
   }
   return best;
@@ -821,10 +1083,11 @@ function updateExplore(dt){
   updatePoiCard();
 }
 
-/* ---------- sfida al servizio ---------- */
+/* ---------- sfida al servizio (coordinate locali del Centrale) ---------- */
 const G = { active:false };
+const courtG = new THREE.Group(); courtG.position.set(CF.x, 0, CF.z); courtG.rotation.y = CF.rot; scene.add(courtG);
 const ball = new THREE.Mesh(new THREE.SphereGeometry(.13, 14, 10), new THREE.MeshLambertMaterial({ color: 0xd9f24a, emissive: 0x39400e }));
-ball.castShadow = true; ball.visible = false; scene.add(ball);
+ball.castShadow = true; ball.visible = false; courtG.add(ball);
 // mirino: anello a terra più un'asta, così si vede anche a 25 metri
 const marker = new THREE.Group();
 {
@@ -833,12 +1096,12 @@ const marker = new THREE.Group();
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 1.6, 8), yel); pole.position.y = .8; marker.add(pole);
   const tip = new THREE.Mesh(new THREE.ConeGeometry(.28, .45, 12), yel); tip.position.y = 1.75; tip.rotation.x = Math.PI; marker.add(tip);
 }
-marker.visible = false; scene.add(marker);
+marker.visible = false; courtG.add(marker);
 const aceMat = new THREE.MeshBasicMaterial({ color: 0xf3c623, transparent: true, opacity: .62, depthWrite: false });
 const boxMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .16, depthWrite: false });
-const target = flat(4.115, 6.4, P.centrale.x - 4.115/2, .07, P.centrale.z - 3.2, boxMat);
-const aceT = flat(.7, 1.5, P.centrale.x - .35, .08, P.centrale.z - 5.65, aceMat);
-const aceW = flat(.7, 1.5, P.centrale.x - 4.115 + .35, .08, P.centrale.z - 5.65, aceMat);
+const target = flat(4.115, 6.4, -4.115/2, .07, -3.2, boxMat, 0, courtG);
+const aceT = flat(.7, 1.5, -.35, .08, -5.65, aceMat, 0, courtG);
+const aceW = flat(.7, 1.5, -4.115 + .35, .08, -5.65, aceMat, 0, courtG);
 target.visible = aceT.visible = aceW.visible = false;
 
 const bestKey = 'fiw.ace.best';
@@ -853,19 +1116,20 @@ $('#exit').addEventListener('click', exitServe);
 
 function setExploreHud(on){
   for (const id of ['#brand', '#minimap']) show($(id), on);
+  show($('#attrib'), on && !!LAYOUT.attribution);
   show($('#hint'), on && !isTouch); show($('#joy'), on && isTouch);
   if (!on) show($('#poi'), false); else curPoi = undefined;
   for (const p of POIS) p.el.style.display = on ? '' : 'none';
 }
 function startServe(){
-  const c = P.centrale;
-  Object.assign(G, { active:true, n:0, score:0, aces:0, streak:0, phase:'wait', t:0 });
+  Object.assign(G, { active:true, n:0, score:0, aces:0, streak:0, phase:'wait', t:0, rivalX:-2.2 });
   setExploreHud(false); show($('#ghud')); show($('#exit')); show($('#instr'));
   $('#gBest').textContent = getBest();
-  hero.g.position.set(c.x + .8, 0, c.z + 12.1); hero.g.rotation.y = Math.PI;
+  placeOnCourt(hero, .8, 12.1, Math.PI);
   hero.legL.rotation.x = hero.legR.rotation.x = hero.armL.rotation.x = hero.armR.rotation.x = 0;
-  rival.g.position.set(c.x - 2.2, 0, c.z - 12.6); rival.g.rotation.y = 0;
-  camera.position.set(c.x + 1.8, 6.2, c.z + 19.5); camera.lookAt(c.x - 1.4, 0, c.z - 3.5);
+  placeOnCourt(rival, -2.2, -12.6, 0);
+  const [px,pz] = CF.w(1.8, 19.5), [lx,lz] = CF.w(-1.4, -3.5);
+  camera.position.set(px, 6.2, pz); camera.lookAt(lx, 0, lz);
   marker.visible = target.visible = aceT.visible = aceW.visible = true;
   nextServe();
 }
@@ -874,7 +1138,7 @@ function nextServe(){
   G.n++; G.phase = 'aim'; G.t = 0; G.speed = 2.2 + G.n*.3; G.flight = null;
   ball.visible = false; marker.visible = true;
   hero.armR.rotation.x = 0;
-  rival.g.position.x = P.centrale.x - 2.2;
+  G.rivalX = -2.2; placeOnCourt(rival, G.rivalX, -12.6, 0);
   $('#gServe').textContent = G.n + '/10'; $('#gScore').textContent = G.score;
   show($('#instr')); $('#instr').textContent = isTouch ? 'Tocca per fissare la direzione' : 'Clic o Spazio per fissare la direzione';
 }
@@ -885,21 +1149,20 @@ function tapServe(){
   else if (G.phase === 'power'){ G.depthZ = marker.position.z; launch(); }
 }
 function launch(){
-  const c = P.centrale;
-  const S = new THREE.Vector3(c.x + .8, 2.9, c.z + 11.9), L = new THREE.Vector3(G.aimX, .13, G.depthZ);
-  const uNet = (S.z - c.z)/(S.z - L.z);
-  const yAt = u => S.y + (L.y - S.y)*u + .35*Math.sin(Math.PI*Math.min(u,1));
+  const S0 = new THREE.Vector3(.8, 2.9, 11.9), L = new THREE.Vector3(G.aimX, .13, G.depthZ);
+  const uNet = S0.z/(S0.z - L.z);
+  const yAt = u => S0.y + (L.y - S0.y)*u + .35*Math.sin(Math.PI*Math.min(u,1));
   let res;
-  if (L.z >= c.z - .05 || yAt(uNet) < .98) res = 'net';
-  else if (L.x < c.x - 4.115 || L.x > c.x) res = 'out';
-  else if (L.z < c.z - 6.4) res = 'long';
-  else if ((L.x > c.x - .7 || L.x < c.x - 3.415) && L.z < c.z - 4.9) res = 'ace';
+  if (L.z >= -.05 || yAt(uNet) < .98) res = 'net';
+  else if (L.x < -4.115 || L.x > 0) res = 'out';
+  else if (L.z < -6.4) res = 'long';
+  else if ((L.x > -.7 || L.x < -3.415) && L.z < -4.9) res = 'ace';
   else res = 'in';
   let E = L.clone();
-  if (res === 'net'){ const u = Math.min(uNet, 1); E = new THREE.Vector3(S.x + (L.x - S.x)*u, .55, c.z + .1); }
+  if (res === 'net'){ const u = Math.min(uNet, 1); E = new THREE.Vector3(S0.x + (L.x - S0.x)*u, .55, .1); }
   G.res = res; G.phase = 'flight'; G.t = 0; marker.visible = false;
-  G.flight = { S, E, dur: res === 'net' ? .42 : .5, stage: 1 };
-  ball.visible = true; ball.position.copy(S);
+  G.flight = { S:S0, E, dur: res === 'net' ? .42 : .5, stage: 1 };
+  ball.visible = true; ball.position.copy(S0);
   show($('#instr'), false);
 }
 function flash(big, small){
@@ -914,11 +1177,11 @@ function score(){
   $('#gScore').textContent = G.score;
 }
 function updateServe(dt){
-  const c = P.centrale; G.t += dt;
+  G.t += dt;
   if (G.phase === 'aim'){
-    marker.position.set(c.x - 2.2 + 3.1*Math.sin(G.t*G.speed), .1, c.z - 5.3);
+    marker.position.set(-2.2 + 3.1*Math.sin(G.t*G.speed), .1, -5.3);
   } else if (G.phase === 'power'){
-    marker.position.set(G.aimX, .1, c.z - 3.95 + 4.35*Math.sin(G.t*G.speed*1.1 + Math.PI/2));
+    marker.position.set(G.aimX, .1, -3.95 + 4.35*Math.sin(G.t*G.speed*1.1 + Math.PI/2));
   } else if (G.phase === 'flight'){
     const f = G.flight;
     hero.armR.rotation.x = G.t < .12 ? -2.9 : Math.max(-2.9, -2.9 + (G.t - .12)*9);
@@ -937,7 +1200,7 @@ function updateServe(dt){
       ball.position.lerpVectors(f.S2, f.E2, u);
       ball.position.y += (G.res === 'net' ? .2 : 1.1)*Math.sin(Math.PI*u);
       if (u >= 1){
-        if (G.res === 'in'){ f.S3 = f.E2.clone(); f.E3 = new THREE.Vector3(c.x + rand(-3,3), .13, c.z + 13); f.stage = 3; G.t = 0; f.dur = .75; }
+        if (G.res === 'in'){ f.S3 = f.E2.clone(); f.E3 = new THREE.Vector3(rand(-3,3), .13, 13); f.stage = 3; G.t = 0; f.dur = .75; }
         else { f.stage = 4; G.t = 0; }
       }
     } else if (f.stage === 3){
@@ -945,9 +1208,10 @@ function updateServe(dt){
       if (u >= 1){ f.stage = 4; G.t = 0; }
     } else if (f.stage === 4 && G.t > .55){ nextServe(); }
     // la risposta dell'avversario
-    const tx = G.res === 'in' ? f.E.x : G.res === 'ace' ? c.x - 2.2 + (f.E.x - (c.x - 2.2))*.35 : c.x - 2.2;
-    rival.g.position.x += (tx - rival.g.position.x)*Math.min(1, dt*(G.res === 'in' ? 6 : 3));
-    const mv = Math.abs(tx - rival.g.position.x) > .1 ? Math.sin(performance.now()/60)*.6 : 0;
+    const tx = G.res === 'in' ? f.E.x : G.res === 'ace' ? -2.2 + (f.E.x + 2.2)*.35 : -2.2;
+    G.rivalX += (tx - G.rivalX)*Math.min(1, dt*(G.res === 'in' ? 6 : 3));
+    placeOnCourt(rival, G.rivalX, -12.6, 0);
+    const mv = Math.abs(tx - G.rivalX) > .1 ? Math.sin(performance.now()/60)*.6 : 0;
     rival.legL.rotation.x = mv; rival.legR.rotation.x = -mv;
   }
 }
@@ -959,21 +1223,20 @@ function endGame(){
   show($('#instr'), false); show($('#end'));
 }
 function exitServe(){
-  const c = P.centrale;
   G.active = false; G.phase = 'off';
   for (const id of ['#ghud', '#exit', '#instr', '#end', '#howto']) show($(id), false);
   marker.visible = target.visible = aceT.visible = aceW.visible = ball.visible = false;
   hero.armR.rotation.x = 0;
-  rival.g.position.set(c.x - 2.2, 0, c.z - 12.6);
-  hero.g.position.set(c.x, 0, c.z + 16.5); hero.g.rotation.y = 0; cam.yaw = 0; cam.pitch = .38;
+  placeOnCourt(rival, -2.2, -12.6, 0);
+  placeOnCourt(hero, 0, 16.5, 0); cam.yaw = CF.rot; cam.pitch = .38;
   setExploreHud(true);
 }
 
 /* ---------- etichette 3D ---------- */
 function updateLabels(){
-  const w = innerWidth, h = innerHeight, p = hero.g.position;
+  const w = innerWidth, h = innerHeight;
   for (const q of POIS){
-    vTmp.set(q.x, (q.y || 0) + q.lh, q.z);
+    vTmp.set(q.ax, q.y + q.lh, q.az);
     const dist = camera.position.distanceTo(vTmp);
     vTmp.project(camera);
     const vis = vTmp.z < 1 && Math.abs(vTmp.x) < 1.1 && Math.abs(vTmp.y) < 1.1 && dist < (q.id === 'olimpico' ? 420 : 190);
@@ -984,38 +1247,42 @@ function updateLabels(){
 
 /* ---------- ciclo principale ---------- */
 const clock = new THREE.Clock();
-function frame(){
+const orbit = { x:(S.centrale.x + (S.marmi || S.centrale).x)/2, z:(S.centrale.z + (S.marmi || S.centrale).z)/2 };
+function frameLoop(){
   const dt = Math.min(.05, clock.getDelta());
   if (G.active || G.phase === 'end') updateServe(G.active ? dt : 0);
   else if (started) updateExplore(dt);
   else { // giro di camera dietro l'overlay iniziale
     const t = performance.now()/9000;
-    camera.position.set(-30 + Math.cos(t)*150, 70, -30 + Math.sin(t)*150); camera.lookAt(-20, 0, -40);
+    camera.position.set(orbit.x + Math.cos(t)*150, 70, orbit.z + Math.sin(t)*150); camera.lookAt(orbit.x, 0, orbit.z);
   }
   const p = hero.g.position;
-  const focus = started ? p : vTmp.set(-20, 0, -40);
+  const focus = started ? p : vTmp.set(orbit.x, 0, orbit.z);
   sun.position.set(focus.x + 60, 120, focus.z + 40); sun.target.position.set(focus.x, 0, focus.z);
   for (const c of clouds){ c.position.x += dt*2.2; if (c.position.x > 380) c.position.x = -380; }
   if (started && !G.active && G.phase !== 'end'){ updateLabels(); drawMinimap(); }
   renderer.render(scene, camera);
-  requestAnimationFrame(frame);
+  requestAnimationFrame(frameLoop);
 }
 for (const q of POIS) q.el.style.opacity = 0;
-requestAnimationFrame(frame);
+requestAnimationFrame(frameLoop);
 
 addEventListener('resize', () => {
   camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
 });
 
 /* ---------- avvio ---------- */
+if (LAYOUT.attribution){ $('#attrib').textContent = LAYOUT.attribution; $('#mapsrc').textContent = 'Planimetria da OpenStreetMap (' + LAYOUT.attribution + ').'; }
 if (isTouch){
   $('#controls').innerHTML = '<li><b>Joystick</b> in basso a sinistra per camminare, spingi fino al bordo per correre</li><li><b>Trascina</b> sullo schermo per girare la visuale</li><li>Sul <b>Campo Centrale</b> compare il pulsante per giocare</li>';
 }
+window.__fiw = { layout: LAYOUT, hero, colliders, POIS, groundH, collide }; // per i test automatici
 const startBtn = $('#start');
 startBtn.disabled = false; startBtn.textContent = 'Entra al Foro';
 startBtn.addEventListener('click', () => {
   show($('#intro'), false); started = true; G.phase = 'off';
-  camera.position.set(hero.g.position.x + 10, 5, hero.g.position.z);
+  const [bx, bz] = [hero.g.position.x - Math.sin(hero.g.rotation.y)*10, hero.g.position.z - Math.cos(hero.g.rotation.y)*10];
+  camera.position.set(bx, 5, bz);
   setExploreHud(true);
 });
 </script>

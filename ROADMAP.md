@@ -19,6 +19,17 @@ Un mondo giocabile nel browser, ambientato al Foro Italico, che tenga vicini al 
 - C'è un solo minigioco, e per giunta simile a quello che si trova in molti giochi di tennis.
 - Nessuna prova su un telefono vero.
 
+## v0.2 in corso (settembre 2026)
+
+Dettagli e fonti in [docs/v0.2-planimetria.md](docs/v0.2-planimetria.md).
+
+- [x] Mondo costruito da dati (`data/layout.json`) invece che da coordinate nel codice, con impianti ruotati, edifici, strade, fiume e ponti.
+- [x] Importatore da OpenStreetMap con test automatici e attribuzione ODbL nel gioco.
+- [x] Impianti e nomi 2026: BNP Paribas Arena dentro lo Stadio dei Marmi, SuperTennis Arena di fronte al Centrale, schede aggiornate con fonti.
+- [ ] Import dei dati reali: bloccato dalla rete del container. Serve abilitare `overpass-api.de` oppure esportare a mano da overpass-turbo (procedura nel documento).
+- [ ] Correzioni manuali dopo l'import (SuperTennis Arena, BNP Paribas Arena, ingressi degli stadi).
+- [ ] Mappa ufficiale del sito IBI 2026: numerazione dei campi e varchi.
+
 ## Prossimi passi (dalle prime settimane sul repository)
 
 1. **Planimetria fedele.** Ricostruire la mappa da OpenStreetMap (licenza ODbL, da citare) e dalla mappa ufficiale del torneo. Servono i materiali IBI 2026: mappa del sito, nomi dei campi e dei varchi d'ingresso.
