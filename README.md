@@ -2,14 +2,26 @@
 
 Prototipo di un mondo giocabile nel browser, ispirato al Foro Italico di Roma. Progetto esplorativo di FITP eSports, nato dall'analisi di [Como Junior](https://junior.comofootball.com/), il gioco del Como 1907.
 
-**Stato:** prototipo v0.2 in corso, uso interno. Impianti e nomi sono aggiornati all'edizione 2026; la planimetria diventa fedele quando si importano i dati di OpenStreetMap (vedi [ROADMAP.md](ROADMAP.md) e [docs/v0.2-planimetria.md](docs/v0.2-planimetria.md)).
+**Stato:** prototipo v0.4, uso interno. Planimetria da OpenStreetMap con impianti e nomi dell'edizione 2026; alcune posizioni del 2026 sono stimate (vedi [ROADMAP.md](ROADMAP.md), [docs/v0.2-planimetria.md](docs/v0.2-planimetria.md) e [docs/mondo-analisi-e-piano.md](docs/mondo-analisi-e-piano.md)).
 
 ## Cosa si può fare
 
-- Camminare nel Foro costruito a blocchi: viale dei mosaici, Fontana della Sfera, Tevere, Stadio dei Marmi con la BNP Paribas Arena al centro, Stadio Nicola Pietrangeli ribassato tra le statue, Centrale, SuperTennis Arena, campi esterni in terra rossa.
-- Giocare alla **sfida al servizio** sul Campo Centrale: dieci battute, ace e servizi dentro fanno punti, il record resta nel browser.
-- Giocare al **vetro** sul campo da padel: la palla rimbalza sulla parete di fondo e va colpita al ritorno, quando il cerchio si chiude.
-- Da computer si usano tastiera e mouse, da telefono joystick e tocchi. Si gioca come ospite, senza registrazione.
+- Camminare, correre e saltare nel Foro costruito a blocchi sulla planimetria di OpenStreetMap: viale dei mosaici, Fontana della Sfera, Tevere, Stadio dei Marmi con la BNP Paribas Arena, Stadio Nicola Pietrangeli, Centrale, SuperTennis Arena, campi esterni.
+- Giocare **partite vere**: tennis singolare sul Centrale e padel in doppio, con movimento, colpo, pallonetto, smash in salto, punteggio reale e tre livelli.
+- Guardare partite tra NPC sugli altri campi, con arbitro e raccattapalle; il punteggio del Centrale va sul maxischermo della fan zone.
+- Parlare con otto personaggi e fare le loro missioni: raccattapalle a tempo, medaglie tra le statue dei Marmi, una granita da consegnare. Minigiochi: sfida al servizio e il vetro.
+- Personalizzare il giocatore, lasciare un messaggio sulla bacheca dei tifosi, sfidare un amico con un link, raccogliere medaglie nell'album.
+- Da computer tastiera e mouse, da telefono joystick e pulsanti. Si gioca come ospite: i progressi restano nel browser.
+
+## Struttura del codice
+
+- `site/index.html`: interfaccia e stile. `site/js/main.js` avvia tutto e passa a ogni modulo il contesto condiviso `W`.
+- `site/js/core/`: motore di rendering, input, eventi, archivio. `world/`: planimetria, collisioni, costruzione del mondo, allestimenti.
+- `site/js/entities/`: avatar e giocatore. `systems/`: interazioni, luoghi, NPC e dialoghi, progressi, attività.
+- `site/js/match/`: fisica, regole, IA e resa grafica delle partite (i primi tre senza Three.js, testabili con Node).
+- `site/js/games/`: registro delle modalità e minigiochi. `ugc/`: profilo, bacheca, codici sfida. `content/npcs.js`: personaggi e dialoghi.
+
+**Aggiungere un personaggio:** una voce in `content/npcs.js` (posizione, aspetto, dialogo). **Aggiungere un gioco:** un modulo che chiama `W.games.register({...})` e una riga in `main.js`; per il menu «Vai a…», una voce in `systems/activities.js`.
 
 ## Come avviarlo
 
@@ -27,7 +39,7 @@ Poi apri `http://localhost:8765`. Con `#centrale` o `#padel` in fondo all'indiri
 NODE_USE_ENV_PROXY=1 node tools/osm-import.mjs --fetch   # scarica da Overpass e scrive site/data/layout.json
                                     # (la variabile serve solo dietro un proxy)
 node tools/osm-import.mjs           # usa data/osm/foro-italico.overpass.json esportato a mano
-node --test tools/test/*.test.mjs   # test dell'importatore
+node --test tools/test/*.test.mjs   # test di importatore, regole, fisica, partite e codici sfida
 ```
 
 Serve Node.js 18 o successivo, senza dipendenze. Se `site/data/layout.json` manca, il gioco usa la planimetria schematica scritta in `site/index.html`.

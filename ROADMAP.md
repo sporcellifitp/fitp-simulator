@@ -40,6 +40,19 @@ Dettagli e fonti in [docs/v0.2-planimetria.md](docs/v0.2-planimetria.md).
 - [ ] Posizione dei campi del Major: in OSM il Foro non ha campi da padel fissi, per ora il Court 1 fa da campo da padel.
 - [ ] Modalità «Italy Major».
 
+## v0.4 · Mondo vivo (settembre 2026)
+
+Analisi, piano e stato in [docs/mondo-analisi-e-piano.md](docs/mondo-analisi-e-piano.md).
+
+- [x] Codice diviso in moduli (`site/js/`), input unico per tastiera, mouse e touch.
+- [x] Partite vere: tennis singolare sul Centrale e padel in doppio, con movimento, salto, colpo, pallonetto e smash, regole e punteggio reali, IA su tre livelli.
+- [x] Partite tra NPC sugli altri campi, con arbitri e raccattapalle; maxischermo in fan zone.
+- [x] Otto personaggi con dialoghi e missioni, pubblico che passeggia.
+- [x] Attività nuove: raccattapalle, caccia alle medaglie ai Marmi, consegna della granita.
+- [x] Album delle medaglie e luoghi scoperti.
+- [x] UGC: editor del giocatore, bacheca dei tifosi, codici sfida condivisibili.
+- [ ] Moderazione e server per UGC e classifiche (P2).
+
 ## Prossimi passi (dalle prime settimane sul repository)
 
 1. **Planimetria fedele.** Ricostruire la mappa da OpenStreetMap (licenza ODbL, da citare) e dalla mappa ufficiale del torneo. Servono i materiali IBI 2026: mappa del sito, nomi dei campi e dei varchi d'ingresso.
