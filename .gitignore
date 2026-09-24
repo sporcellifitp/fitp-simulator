@@ -7,3 +7,6 @@ node_modules/
 # file temporanei dei test
 site/data/_test-*.json
 data/osm/parts/
+
+# pacchetti del sito da caricare a mano su Cloudflare Pages
+*.zip
