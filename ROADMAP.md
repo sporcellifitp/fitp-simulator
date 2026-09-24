@@ -23,12 +23,22 @@ Un mondo giocabile nel browser, ambientato al Foro Italico, che tenga vicini al 
 
 Dettagli e fonti in [docs/v0.2-planimetria.md](docs/v0.2-planimetria.md).
 
-- [x] Mondo costruito da dati (`data/layout.json`) invece che da coordinate nel codice, con impianti ruotati, edifici, strade, fiume e ponti.
+- [x] Mondo costruito da dati (`site/data/layout.json`) invece che da coordinate nel codice, con impianti ruotati, edifici, strade, fiume e ponti.
 - [x] Importatore da OpenStreetMap con test automatici e attribuzione ODbL nel gioco.
 - [x] Impianti e nomi 2026: BNP Paribas Arena dentro lo Stadio dei Marmi, SuperTennis Arena di fronte al Centrale, schede aggiornate con fonti.
-- [ ] Import dei dati reali: bloccato dalla rete del container. Serve abilitare `overpass-api.de` oppure esportare a mano da overpass-turbo (procedura nel documento).
-- [ ] Correzioni manuali dopo l'import (SuperTennis Arena, BNP Paribas Arena, ingressi degli stadi).
+- [x] Import dei dati reali da OpenStreetMap (24 settembre 2026): 655 edifici, 1.683 percorsi, 46 campi, Tevere e ponti.
+- [x] Correzioni manuali in `data/osm/overrides.json`: Stadio Olimpico ricavato dalla pista, SuperTennis Arena in posizione probabile.
+- [ ] Verificare con la mappa ufficiale la SuperTennis Arena, la BNP Paribas Arena (oggi al centro dei Marmi per deduzione) e l'orientamento degli ingressi.
 - [ ] Mappa ufficiale del sito IBI 2026: numerazione dei campi e varchi.
+
+## v0.3 anteprima (settembre 2026)
+
+- [x] Campo da padel 10 × 20 m con pareti di vetro e rete metallica.
+- [x] Minigioco «Il vetro»: la palla va colpita dopo il rimbalzo sulla parete di fondo, con cerchio di tempo, perfetti in serie e record.
+- [x] Pulsanti «Gioca subito» nella schermata iniziale per chi prova il prototipo.
+- [x] Sito pronto per Vercel e Cloudflare Pages (`site/`, `vercel.json`, noindex).
+- [ ] Posizione dei campi del Major: in OSM il Foro non ha campi da padel fissi, per ora il Court 1 fa da campo da padel.
+- [ ] Modalità «Italy Major».
 
 ## Prossimi passi (dalle prime settimane sul repository)
 

@@ -43,7 +43,8 @@ test('impianti riconosciuti e orientati', () => {
 test('campi, fiume, ponti, edifici, alberi', () => {
   const { layout } = buildLayout(makeFixture(TURN), { bbox: BBOX });
   assert.equal(layout.courts.length, 8);          // il campo dentro il Centrale non conta
-  assert.equal(layout.padel.length, 1);
+  assert.equal(layout.padel.length, 0);           // l'unico campo da padel diventa quello del minigioco
+  assert.ok(layout.sites.padel);
   assert.equal(layout.water.length, 1);           // i due tratti del Tevere uniti
   assert.equal(layout.buildings.length, 1);       // la struttura dello stadio è esclusa
   assert.equal(layout.bridges.length, 0);         // il Ponte Duca d'Aosta è un impianto, non un doppione

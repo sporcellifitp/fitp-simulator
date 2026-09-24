@@ -4,10 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Foro Italico World</title>
-<meta name="description" content="Prototipo giocabile: il Foro Italico a blocchi, con gli impianti del torneo 2026, e la sfida al servizio sul Campo Centrale.">
+<meta name="description" content="Prototipo giocabile: il Foro Italico a blocchi, con gli impianti del torneo 2026, la sfida al servizio sul Campo Centrale e il vetro sul campo da padel.">
 <meta property="og:title" content="Foro Italico World">
 <meta property="og:description" content="Cammina tra i campi del Foro Italico e sfida il servizio sul Centrale.">
 <meta name="theme-color" content="#0b2a5b">
+<meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b2a5b'/%3E%3Crect x='14' y='10' width='36' height='44' fill='%23c8643b'/%3E%3Cpath d='M14 32h36M32 18v28M20 18h24M20 46h24' stroke='%23fff' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -85,6 +86,8 @@
   .primary{width:100%;border:0;border-radius:12px;padding:13px;background:var(--navy);color:#fff;font-weight:600;font-size:16.5px}
   .primary:disabled{opacity:.55;cursor:wait}
   .secondary{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px;background:#fff;color:var(--navy);font-weight:600;font-size:15px;margin-top:8px}
+  .quick{display:flex;gap:8px}
+  .quick .secondary{font-size:14px;padding:9px 6px}
   .fine{font-size:12.5px;color:var(--muted);margin:10px 0 0!important;text-align:center}
   .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 16px}
   .stats div{background:#fff;border-radius:12px;padding:10px 6px;text-align:center;border:1px solid var(--line)}
@@ -106,7 +109,7 @@
 <div id="app"></div>
 <div id="labels"></div>
 
-<div id="brand" class="hidden"><b>FORO ITALICO WORLD</b><span><i></i>Prototipo v0.2</span></div>
+<div id="brand" class="hidden"><b>FORO ITALICO WORLD</b><span><i></i>Prototipo v0.3</span></div>
 <canvas id="minimap" class="hidden" width="336" height="300"></canvas>
 <div id="hint" class="hidden"><kbd>W A S D</kbd> cammina · <kbd>Shift</kbd> corri · trascina per girare la visuale · <kbd>E</kbd> interagisci</div>
 <div id="poi" class="hidden"><h3></h3><p></p><button class="hidden"></button></div>
@@ -115,7 +118,7 @@
 
 <button id="exit" class="hidden">← Esci</button>
 <div id="ghud" class="hidden">
-  <div><small>Servizio</small><b id="gServe">1/10</b></div>
+  <div><small id="gUnit">Servizio</small><b id="gServe">1/10</b></div>
   <div><small>Punti</small><b id="gScore">0</b></div>
   <div><small>Record</small><b id="gBest">0</b></div>
 </div>
@@ -126,13 +129,14 @@
   <div class="panel">
     <div class="tag">Prototipo interno · FITP eSports</div>
     <h1>Foro Italico World</h1>
-    <p>Il Foro Italico costruito a blocchi, con gli impianti del torneo 2026. Cammina lungo il viale dei mosaici, scendi al Pietrangeli tra le statue di marmo, entra nella nuova arena dentro lo Stadio dei Marmi, poi sul Centrale mettiti alla prova con dieci servizi.</p>
+    <p>Il Foro Italico costruito a blocchi, con gli impianti del torneo 2026. Cammina lungo il viale dei mosaici, scendi al Pietrangeli tra le statue di marmo, entra nella nuova arena dentro lo Stadio dei Marmi. Poi due sfide: dieci servizi sul Centrale e dieci palle dal vetro sul campo da padel.</p>
     <ul id="controls">
       <li><b>W A S D</b> o frecce per camminare, <b>Shift</b> per correre</li>
       <li><b>Trascina</b> con il mouse per girare la visuale, rotella per lo zoom</li>
-      <li><b>E</b> per giocare quando sei sul Campo Centrale</li>
+      <li><b>E</b> per giocare quando sei sul Campo Centrale o sul campo da padel</li>
     </ul>
     <button id="start" class="primary" disabled>Carico il Foro…</button>
+    <div class="quick"><button class="secondary" data-quick="serve" disabled>Gioca subito: servizio</button><button class="secondary" data-quick="vetro" disabled>Gioca subito: il vetro</button></div>
     <p class="fine">Nessuna registrazione: in questa versione si gioca come ospite.</p>
     <p class="fine" id="mapsrc">Planimetria schematica, non ancora fedele: impianti e nomi aggiornati al 2026, posizioni e distanze indicative.</p>
     <p id="err" class="hidden"></p>
@@ -141,15 +145,11 @@
 
 <div id="howto" class="overlay hidden">
   <div class="panel">
-    <div class="tag">Campo Centrale</div>
-    <h2>Sfida al servizio</h2>
-    <p>Dieci battute dal lato destro, in diagonale nel quadrato dell'avversario. Il primo tocco fissa la direzione, il secondo la profondità.</p>
-    <ul>
-      <li><b>Ace, 3 punti.</b> La palla deve cadere in una zona gialla, sulla T o all'esterno, vicino alla linea del servizio.</li>
-      <li><b>Servizio dentro, 1 punto.</b> Più ace di fila valgono un bonus crescente.</li>
-      <li>Ogni battuta il mirino corre un po' più veloce.</li>
-    </ul>
-    <button id="go" class="primary">Al servizio</button>
+    <div class="tag" id="hTag"></div>
+    <h2 id="hTitle"></h2>
+    <p id="hText"></p>
+    <ul id="hList"></ul>
+    <button id="go" class="primary">Gioca</button>
     <button id="nogo" class="secondary">Torna al Foro</button>
   </div>
 </div>
@@ -160,7 +160,7 @@
     <h2 id="endTitle">Bella serie</h2>
     <div class="stats">
       <div><b id="eScore">0</b><small>Punti</small></div>
-      <div><b id="eAces">0</b><small>Ace</small></div>
+      <div><b id="eAces">0</b><small id="eStat2">Ace</small></div>
       <div><b id="eBest">0</b><small>Record</small></div>
     </div>
     <button id="again" class="primary">Rigioca</button>
@@ -203,7 +203,9 @@ const SCHEMATIC = {
     centrale:    { x:-62, z:-88, rot:0 },
     supertennis: { x:10, z:-128, rot:-Math.PI/2 },
     ponte:       { x:186, z:40, rot:0, len:32, wid:14 },
+    padel:       { x:-125, z:-30, rot:0 },   // posizione inventata: area padel da verificare
   },
+  padel: [{ x:-143, z:-30, rot:0 }, { x:-107, z:-30, rot:0 }],
   courts: [55,80,105,130].flatMap(x => [-115,-155].map(z => ({ x, z, rot:0 }))),
   paved: [
     rect(-65,-25, 23,57),        // piazzale della Fontana
@@ -214,6 +216,7 @@ const SCHEMATIC = {
     rect(-21.5,-13, -131,-125),  // ingresso SuperTennis Arena
     rect(-21.5,164, -94,-88),    // passeggiata verso i campi esterni
     rect(158,164, -175,33),      // lungo il fiume
+    rect(-150,-21.5, 1,7),       // verso l'area padel
   ],
   lines: [], bridges: [], buildings: [], trees: [],
   water: [{ pts:[[186,-360],[186,340]], w:28 }],
@@ -263,7 +266,7 @@ const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.3, 1000
 scene.add(new THREE.HemisphereLight(0xe4f1ff, 0x6f7d4c, 1.05));
 const sun = new THREE.DirectionalLight(0xfff0d8, 2.3);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left:-75, right:75, top:75, bottom:-75, near:5, far:320 });
 sun.shadow.bias = -0.0006;
 sun.shadow.normalBias = 0.03;
@@ -422,6 +425,7 @@ if (S.marmi){
 }
 if (S.olimpico){ const o = P.olimpico = { ...S.olimpico }; o.a0 = o.a*.62; o.b0 = o.b*.57; }
 const CF = frame(S.centrale);
+const PF = S.padel ? frame(S.padel) : null;
 
 /* ---------- altezza del terreno (impianti ribassati) ---------- */
 function groundH(x,z){
@@ -729,6 +733,40 @@ for (const c of LAYOUT.courts || []){
   addRect(occupied, c.x, c.z, w/2 + 2, l/2 + 2, f.rot);
 }
 
+/* ---------- campi da padel: 10 x 20 m, pareti di vetro e rete metallica ---------- */
+const glassMat = new THREE.MeshLambertMaterial({ color: 0xd4eef7, transparent: true, opacity: .2, depthWrite: false });
+const meshMat = new THREE.MeshLambertMaterial({ color: 0x1b2328, transparent: true, opacity: .4, depthWrite: false });
+const padelTex = canvasTex(256, 512, (x, W, H) => {
+  const s = W/10, Y = m => H/2 + m*s;
+  x.fillStyle = '#1f5fae'; x.fillRect(0, 0, W, H);
+  for (let i=0;i<4000;i++){ x.fillStyle = Math.random() < .5 ? 'rgba(0,20,60,.08)' : 'rgba(255,255,255,.05)'; x.fillRect(Math.random()*W, Math.random()*H, 2, 2); }
+  x.fillStyle = '#f4f7fb';
+  for (const z of [-6.95, 6.95]) x.fillRect(0, Y(z) - 2, W, 4);   // linee del servizio
+  x.fillRect(W/2 - 2, Y(-6.95), 4, 13.9*s);                         // linea centrale
+});
+function padelCourt(c){
+  const f = frame(c);
+  flat(12, 22, c.x, .03, c.z, mat(0x4f6f8f), f.rot);
+  flat(10, 20, c.x, .045, c.z, new THREE.MeshLambertMaterial({ map: padelTex }), f.rot);
+  box(10, .88, .03, 0, 0, 0, 0, { f, material: netMat });
+  box(10, .05, .06, 0xffffff, 0, .86, 0, { f });
+  for (const x of [-5.05, 5.05]) box(.1, 1, .1, 0x1b2328, x, 0, 0, { f });
+  addRect(colliders, c.x, c.z, 5, .1, f.rot);
+  for (const z of [-10, 10]){
+    box(10, 3, .12, 0, 0, 0, z, { f, material: glassMat, collide: true, cast: false });
+    box(10, 1, .06, 0, 0, 3, z, { f, material: meshMat, cast: false });
+  }
+  for (const x of [-5, 5]) for (const sz of [-1, 1]){
+    box(.12, 3, 2, 0, x, 0, sz*9, { f, material: glassMat, collide: true, cast: false });
+    box(.12, 2, 2, 0, x, 0, sz*7, { f, material: glassMat, collide: true, cast: false });
+    box(.08, 1, 2, 0, x, 2, sz*7, { f, material: meshMat, cast: false });
+    box(.08, 3, 4.6, 0, x, 0, sz*3.7, { f, material: meshMat, collide: true, cast: false });  // porte aperte vicino alla rete
+  }
+  for (const x of [-5, 5]) for (const z of [-10, -8, -6, -1.4, 1.4, 6, 8, 10]) box(.1, z === 10 || z === -10 ? 4 : 3, .1, 0x1b2328, x, 0, z, { f });
+  addRect(occupied, c.x, c.z, 7, 12, f.rot);
+}
+for (const c of (S.padel ? [S.padel] : []).concat(LAYOUT.padel || [])) padelCourt(c);
+
 /* ---------- sfondo ---------- */
 const cypresses = [];
 const hill = (x,z,r,sy,col) => { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 10), mat(col)); m.scale.set(r, r*sy, r*.8); m.position.set(x,-2,z); scene.add(m); };
@@ -836,8 +874,8 @@ function makeAvatar({ shirt, shorts, cap }){
 const hero = makeAvatar({ shirt: C.blue, shorts: 0xffffff, cap: 0xffffff });
 scene.add(hero.g);
 const rival = makeAvatar({ shirt: 0xffffff, shorts: 0x2a2f3a, cap: 0xd8342c });
-const placeOnCourt = (av, lx, lz, ry) => { const [x,z] = CF.w(lx, lz); av.g.position.set(x, 0, z); av.g.rotation.y = CF.rot + ry; };
-placeOnCourt(rival, -2.2, -12.6, 0);
+const placeOn = (av, F, lx, lz, ry) => { const [x,z] = F.w(lx, lz); av.g.position.set(x, 0, z); av.g.rotation.y = F.rot + ry; };
+placeOn(rival, CF, -2.2, -12.6, 0);
 scene.add(rival.g);
 
 /* ---------- collisioni ---------- */
@@ -890,7 +928,7 @@ function collide(pos){
 const POIS = [];
 {
   const add = (site, o) => { if (site) POIS.push({ x:site.x, z:site.z, ...o }); };
-  add(S.centrale, { id:'centrale', name:'Campo Centrale', r:34, lh:14, game:true,
+  add(S.centrale, { id:'centrale', name:'Campo Centrale', r:34, lh:14, game:'serve',
     text:"Il campo principale degli Internazionali BNL d'Italia, dove si giocano le finali. Da giugno 2026 è in corso il rifacimento: copertura mobile e 12.500 posti, con la fine dei lavori prevista per il 2028. Entra dal varco nelle tribune e scendi in campo per la sfida al servizio." });
   add(S.supertennis, { id:'st', name:'SuperTennis Arena', r:27, lh:8,
     text:"Lo stadio da 3.000 posti che porta il nome del canale televisivo della Federazione. Dal 2026 si trova di fronte al Campo Centrale, accanto all'ex Ostello della Gioventù." });
@@ -901,11 +939,13 @@ const POIS = [];
   if (P.marmi){ const [ax,az] = P.marmi.f.w(0, P.marmi.b - 2);
     add(S.marmi, { id:'marmi', name:'Stadio dei Marmi «Pietro Mennea»', r:Math.max(P.marmi.a, P.marmi.b) + 4, lh:7, ax, az,
       text:"La pista di atletica circondata da circa sessanta statue di atleti in marmo di Carrara, donate dalle province italiane. Dal 2013 porta anche il nome di Pietro Mennea." }); }
-  const cs = LAYOUT.courts || [];
+  // solo i campi del torneo: quelli entro 300 m dal Pietrangeli (OSM include anche i circoli oltre il Tevere)
+  const hub = S.pietrangeli || S.centrale, cs = (LAYOUT.courts || []).filter(c => Math.hypot(c.x - hub.x, c.z - hub.z) < 300);
   if (cs.length){
     const cx = cs.reduce((s,c) => s + c.x, 0)/cs.length, cz = cs.reduce((s,c) => s + c.z, 0)/cs.length;
     const r = Math.max(30, ...cs.map(c => Math.hypot(c.x - cx, c.z - cz) + 14));
-    POIS.push({ id:'esterni', name:'Campi esterni', x:cx, z:cz, r, lh:5,
+    const nearCourt = (x, z) => cs.some(c => { const [lx, lz] = frame(c).l(x, z); return Math.abs(lx) < 12 && Math.abs(lz) < 21; });
+    POIS.push({ id:'esterni', name:'Campi esterni', x:cx, z:cz, r, lh:5, inside: LAYOUT.source === 'schematic' ? null : nearCourt,
       text:"I campi in terra rossa di qualificazioni e allenamenti. Nel 2026 il torneo contava 21 campi: 19 al Foro Italico e 2 sul Lungotevere." });
   }
   if (S.viale){ const f = frame(S.viale);
@@ -915,6 +955,8 @@ const POIS = [];
     text:"Realizzata tra il 1933 e il 1935 su progetto di Mario Paniconi e Giulio Pediconi. La sfera è un unico blocco di marmo di Carrara, la vasca è decorata con mosaici a soggetto marino." });
   add(S.olimpico, { id:'olimpico', name:'Stadio Olimpico', r:(S.olimpico ? Math.max(S.olimpico.a, S.olimpico.b) : 0) + 20, lh:28,
     text:"Lo stadio del calcio e dell'atletica, vicino di casa del torneo." });
+  add(S.padel, { id:'padel', name:'Campo da padel', r:24, lh:6, game:'vetro',
+    text:"Un campo da 10 metri per 20, chiuso da pareti di vetro e rete metallica. Il Foro ospita anche il BNL Italy Major Premier Padel, uno dei quattro Major del circuito: nel 2026 si è giocato dal 31 maggio al 7 giugno. Entra in campo per la sfida del vetro." });
   add(S.ponte, { id:'ponte', name:"Ponte Duca d'Aosta", r:20, lh:4,
     text:"Il ponte che collega il quartiere Flaminio al Foro. All'uscita c'è piazza Lauro de Bosis, con l'obelisco all'inizio del viale." });
 }
@@ -931,8 +973,8 @@ const keys = new Set();
 addEventListener('keydown', e => {
   keys.add(e.code);
   if (G.active){
-    if (['Space','Enter','KeyE'].includes(e.code)){ e.preventDefault(); tapServe(); }
-    if (e.code === 'Escape') exitServe();
+    if (['Space','Enter','KeyE'].includes(e.code)){ e.preventDefault(); if (!e.repeat) tapGame(); }
+    if (e.code === 'Escape') exitGame();
   } else if (e.code === 'KeyE' && started) tryPoiAction();
 });
 addEventListener('keyup', e => keys.delete(e.code));
@@ -942,7 +984,7 @@ const cam = { yaw: Math.PI/2, pitch: .38, dist: 10 };
 let drag = null;
 const canvas = renderer.domElement;
 canvas.addEventListener('pointerdown', e => {
-  if (G.active){ tapServe(); return; }
+  if (G.active){ tapGame(); return; }
   drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener('pointermove', e => {
@@ -998,6 +1040,7 @@ const mmOff = (v, size, view) => size <= view ? (size - view)/2 : clamp(v - view
   stad(S.centrale, DIM.centrale, '#1f4fa3'); stad(S.arena, DIM.arena, '#13795b'); stad(S.supertennis, DIM.supertennis, '#cfc8b8');
   if (P.pietr){ const p = P.pietr; inFrame(p, () => { r(2*p.hw, 2*p.hl, '#e4d8c0'); r(p.w, p.l, '#c4623a'); }); }
   for (const c of LAYOUT.courts || []) inFrame(c, () => r(18.3, 36.6, '#c4623a'));
+  for (const c of (S.padel ? [S.padel] : []).concat(LAYOUT.padel || [])) inFrame(c, () => r(10, 20, '#1f5fae'));
 }
 function drawMinimap(){
   const ox = mmOff(mmX(hero.g.position.x), mmStatic.width, mm.width), oz = mmOff(mmZ(hero.g.position.z), mmStatic.height, mm.height);
@@ -1015,18 +1058,11 @@ function drawMinimap(){
 /* ---------- esplorazione ---------- */
 hero.g.position.set(LAYOUT.start.x, 0, LAYOUT.start.z);
 hero.g.rotation.y = LAYOUT.start.ry || 0;
-const cam0 = { yaw: hero.g.rotation.y + Math.PI };
-cam.yaw = cam0.yaw;
-if (location.hash === '#centrale'){ // scorciatoia per le demo: si parte in campo
-  placeOnCourt(hero, 0, 15, Math.PI); cam.yaw = CF.rot;
-}
+cam.yaw = hero.g.rotation.y + Math.PI;
 let started = false, walkPh = 0, curPoi = null;
 const vTmp = new THREE.Vector3();
 
-function inCentraleCourt(){
-  const [lx,lz] = CF.l(hero.g.position.x, hero.g.position.z);
-  return Math.abs(lx) < DIM.centrale.w/2 && Math.abs(lz) < DIM.centrale.l/2;
-}
+const onCourt = (F, hw, hl) => { const [lx,lz] = F.l(hero.g.position.x, hero.g.position.z); return Math.abs(lx) < hw && Math.abs(lz) < hl; };
 function nearestPoi(){
   const p = hero.g.position; let best = null, bs = 1;
   for (const q of POIS){
@@ -1041,17 +1077,17 @@ function nearestPoi(){
 function updatePoiCard(){
   const q = nearestPoi(), card = $('#poi'), btn = card.querySelector('button');
   if (q !== curPoi){
-    curPoi = q; show(card, !!q);
+    curPoi = q; show(card, !!q); show($('#hint'), !q && !isTouch);
     if (q){ card.querySelector('h3').textContent = q.name; card.querySelector('p').textContent = q.text; }
   }
   if (q && q.game){
-    show(btn, true);
-    const ok = inCentraleCourt(); btn.disabled = !ok;
-    btn.textContent = ok ? (isTouch ? 'Gioca: sfida al servizio' : 'Gioca: sfida al servizio (E)') : 'Scendi in campo per giocare';
+    const gm = GAMES[q.game], ok = gm.canPlay();
+    show(btn, true); btn.disabled = !ok;
+    btn.textContent = ok ? `Gioca: ${gm.title.toLowerCase()}` + (isTouch ? '' : ' (E)') : gm.notOnCourt;
   } else show(btn, false);
 }
 $('#poi button').addEventListener('click', tryPoiAction);
-function tryPoiAction(){ if (curPoi && curPoi.game && inCentraleCourt()) openHowto(); }
+function tryPoiAction(){ if (curPoi && curPoi.game && GAMES[curPoi.game].canPlay()) openHowto(curPoi.game); }
 
 function updateExplore(dt){
   let ix = 0, iz = 0;
@@ -1083,8 +1119,63 @@ function updateExplore(dt){
   updatePoiCard();
 }
 
+/* ---------- minigiochi: parti comuni ---------- */
+const G = { active:false, phase:'off' };
+let GAME = null;
+const GAMES = {};
+const getBest = gm => parseInt(store.get(gm.bestKey) || '0', 10) || 0;
+function flash(big, small){
+  const el = $('#msg'); el.innerHTML = big + (small ? `<small>${small}</small>` : '');
+  el.classList.add('show'); clearTimeout(flash.t); flash.t = setTimeout(() => el.classList.remove('show'), 900);
+}
+const instr = (touch, desk) => { show($('#instr')); $('#instr').textContent = isTouch ? touch : desk; };
+function setExploreHud(on){
+  for (const id of ['#brand', '#minimap']) show($(id), on);
+  show($('#attrib'), on && !!LAYOUT.attribution);
+  show($('#hint'), on && !isTouch); show($('#joy'), on && isTouch);
+  if (!on) show($('#poi'), false); else curPoi = undefined;
+  for (const p of POIS) p.el.style.display = on ? '' : 'none';
+}
+let howtoId = null;
+function openHowto(id){
+  const gm = GAMES[id]; howtoId = id;
+  $('#hTag').textContent = gm.place; $('#hTitle').textContent = gm.title; $('#hText').textContent = gm.intro;
+  $('#hList').innerHTML = gm.rules.map(r => `<li>${r}</li>`).join('');
+  $('#go').textContent = gm.goLabel;
+  show($('#howto')); show($('#poi'), false);
+}
+function startGame(id){
+  GAME = GAMES[id];
+  Object.assign(G, { active:true, n:0, score:0, stat2:0, streak:0, phase:'wait', t:0 });
+  setExploreHud(false); show($('#ghud')); show($('#exit'));
+  $('#gUnit').textContent = GAME.unit; $('#gBest').textContent = getBest(GAME); $('#gScore').textContent = 0;
+  hero.legL.rotation.x = hero.legR.rotation.x = hero.armL.rotation.x = hero.armR.rotation.x = 0;
+  GAME.start();
+}
+function tapGame(){ if (G.active && GAME) GAME.tap(); }
+function endGame(){
+  G.active = false; G.phase = 'end';
+  const best = Math.max(getBest(GAME), G.score); store.set(GAME.bestKey, String(best));
+  $('#eScore').textContent = G.score; $('#eAces').textContent = G.stat2; $('#eBest').textContent = best; $('#eStat2').textContent = GAME.stat2Label;
+  $('#endTitle').textContent = G.score >= best && G.score > 0 ? 'Nuovo record' : GAME.verdict(G);
+  show($('#instr'), false); show($('#end'));
+}
+function exitGame(){
+  const gm = GAME;
+  G.active = false; G.phase = 'off';
+  for (const id of ['#ghud', '#exit', '#instr', '#end', '#howto']) show($(id), false);
+  hero.armR.rotation.x = 0;
+  placeOn(rival, CF, -2.2, -12.6, 0);
+  if (gm) gm.cleanup();
+  setExploreHud(true);
+}
+$('#go').addEventListener('click', () => { show($('#howto'), false); startGame(howtoId); });
+$('#nogo').addEventListener('click', () => show($('#howto'), false));
+$('#again').addEventListener('click', () => { show($('#end'), false); startGame(GAME.id); });
+$('#back').addEventListener('click', () => { show($('#end'), false); exitGame(); });
+$('#exit').addEventListener('click', exitGame);
+
 /* ---------- sfida al servizio (coordinate locali del Centrale) ---------- */
-const G = { active:false };
 const courtG = new THREE.Group(); courtG.position.set(CF.x, 0, CF.z); courtG.rotation.y = CF.rot; scene.add(courtG);
 const ball = new THREE.Mesh(new THREE.SphereGeometry(.13, 14, 10), new THREE.MeshLambertMaterial({ color: 0xd9f24a, emissive: 0x39400e }));
 ball.castShadow = true; ball.visible = false; courtG.add(ball);
@@ -1104,132 +1195,224 @@ const aceT = flat(.7, 1.5, -.35, .08, -5.65, aceMat, 0, courtG);
 const aceW = flat(.7, 1.5, -4.115 + .35, .08, -5.65, aceMat, 0, courtG);
 target.visible = aceT.visible = aceW.visible = false;
 
-const bestKey = 'fiw.ace.best';
-const getBest = () => parseInt(store.get(bestKey) || '0', 10) || 0;
+GAMES.serve = {
+  id:'serve', title:'Sfida al servizio', place:'Campo Centrale', unit:'Servizio', stat2Label:'Ace', bestKey:'fiw.ace.best', goLabel:'Al servizio',
+  notOnCourt:'Scendi in campo per giocare',
+  intro:"Dieci battute dal lato destro, in diagonale nel quadrato dell'avversario. Il primo tocco fissa la direzione, il secondo la profondità.",
+  rules:[
+    "<b>Ace, 3 punti.</b> La palla deve cadere in una zona gialla, sulla T o all'esterno, vicino alla linea del servizio.",
+    "<b>Servizio dentro, 1 punto.</b> Più ace di fila valgono un bonus crescente.",
+    "Ogni battuta il mirino corre un po' più veloce.",
+  ],
+  canPlay: () => onCourt(CF, DIM.centrale.w/2, DIM.centrale.l/2),
+  verdict: g => g.stat2 >= 5 ? 'Servizio da Centrale' : g.stat2 >= 2 ? 'Bella serie' : 'Si può fare di meglio',
+  start(){
+    G.rivalX = -2.2;
+    placeOn(hero, CF, .8, 12.1, Math.PI); placeOn(rival, CF, -2.2, -12.6, 0);
+    const [px,pz] = CF.w(1.8, 19.5), [lx,lz] = CF.w(-1.4, -3.5);
+    camera.position.set(px, 6.2, pz); camera.lookAt(lx, 0, lz);
+    marker.visible = target.visible = aceT.visible = aceW.visible = true;
+    this.next();
+  },
+  next(){
+    if (G.n >= 10) return endGame();
+    G.n++; G.phase = 'aim'; G.t = 0; G.speed = 2.2 + G.n*.3; G.flight = null;
+    ball.visible = false; marker.visible = true;
+    hero.armR.rotation.x = 0;
+    G.rivalX = -2.2; placeOn(rival, CF, G.rivalX, -12.6, 0);
+    $('#gServe').textContent = G.n + '/10'; $('#gScore').textContent = G.score;
+    instr('Tocca per fissare la direzione', 'Clic o Spazio per fissare la direzione');
+  },
+  tap(){
+    if (G.phase === 'aim'){ G.aimX = marker.position.x; G.phase = 'power'; G.t = 0;
+      instr('Tocca per fissare la profondità', 'Clic o Spazio per fissare la profondità'); }
+    else if (G.phase === 'power'){ G.depthZ = marker.position.z; this.launch(); }
+  },
+  launch(){
+    const S0 = new THREE.Vector3(.8, 2.9, 11.9), L = new THREE.Vector3(G.aimX, .13, G.depthZ);
+    const uNet = S0.z/(S0.z - L.z);
+    const yAt = u => S0.y + (L.y - S0.y)*u + .35*Math.sin(Math.PI*Math.min(u,1));
+    let res;
+    if (L.z >= -.05 || yAt(uNet) < .98) res = 'net';
+    else if (L.x < -4.115 || L.x > 0) res = 'out';
+    else if (L.z < -6.4) res = 'long';
+    else if ((L.x > -.7 || L.x < -3.415) && L.z < -4.9) res = 'ace';
+    else res = 'in';
+    let E = L.clone();
+    if (res === 'net'){ const u = Math.min(uNet, 1); E = new THREE.Vector3(S0.x + (L.x - S0.x)*u, .55, .1); }
+    G.res = res; G.phase = 'flight'; G.t = 0; marker.visible = false;
+    G.flight = { S:S0, E, dur: res === 'net' ? .42 : .5, stage: 1 };
+    ball.visible = true; ball.position.copy(S0);
+    show($('#instr'), false);
+  },
+  score(){
+    const r = G.res;
+    if (r === 'ace'){ G.streak++; G.stat2++; const pts = 3 + (G.streak - 1); G.score += pts; flash('ACE!', G.streak > 1 ? `${G.streak} di fila · +${pts}` : '+3'); }
+    else if (r === 'in'){ G.streak = 0; G.score += 1; flash('Dentro', '+1'); }
+    else { G.streak = 0; flash(r === 'net' ? 'Rete' : r === 'long' ? 'Lungo' : 'Fuori'); }
+    $('#gScore').textContent = G.score;
+  },
+  update(dt){
+    G.t += dt;
+    if (G.phase === 'aim'){
+      marker.position.set(-2.2 + 3.1*Math.sin(G.t*G.speed), .1, -5.3);
+    } else if (G.phase === 'power'){
+      marker.position.set(G.aimX, .1, -3.95 + 4.35*Math.sin(G.t*G.speed*1.1 + Math.PI/2));
+    } else if (G.phase === 'flight'){
+      const f = G.flight;
+      hero.armR.rotation.x = G.t < .12 ? -2.9 : Math.max(-2.9, -2.9 + (G.t - .12)*9);
+      const u = Math.min(1, G.t/f.dur);
+      if (f.stage === 1){
+        ball.position.lerpVectors(f.S, f.E, u);
+        ball.position.y = f.S.y + (f.E.y - f.S.y)*u + (G.res === 'net' ? .2 : .35)*Math.sin(Math.PI*u);
+        if (u >= 1){
+          this.score();
+          const dir = new THREE.Vector3(f.E.x - f.S.x, 0, f.E.z - f.S.z).normalize();
+          f.S2 = f.E.clone();
+          f.E2 = G.res === 'net' ? new THREE.Vector3(f.E.x, .13, f.E.z + .6) : f.E.clone().addScaledVector(dir, 6.5).setY(.9);
+          f.stage = 2; G.t = 0; f.dur = G.res === 'net' ? .35 : .45;
+        }
+      } else if (f.stage === 2){
+        ball.position.lerpVectors(f.S2, f.E2, u);
+        ball.position.y += (G.res === 'net' ? .2 : 1.1)*Math.sin(Math.PI*u);
+        if (u >= 1){
+          if (G.res === 'in'){ f.S3 = f.E2.clone(); f.E3 = new THREE.Vector3(rand(-3,3), .13, 13); f.stage = 3; G.t = 0; f.dur = .75; }
+          else { f.stage = 4; G.t = 0; }
+        }
+      } else if (f.stage === 3){
+        ball.position.lerpVectors(f.S3, f.E3, u); ball.position.y += 1.6*Math.sin(Math.PI*u);
+        if (u >= 1){ f.stage = 4; G.t = 0; }
+      } else if (f.stage === 4 && G.t > .55){ this.next(); }
+      // la risposta dell'avversario
+      const tx = G.res === 'in' ? f.E.x : G.res === 'ace' ? -2.2 + (f.E.x + 2.2)*.35 : -2.2;
+      G.rivalX += (tx - G.rivalX)*Math.min(1, dt*(G.res === 'in' ? 6 : 3));
+      placeOn(rival, CF, G.rivalX, -12.6, 0);
+      const mv = Math.abs(tx - G.rivalX) > .1 ? Math.sin(performance.now()/60)*.6 : 0;
+      rival.legL.rotation.x = mv; rival.legR.rotation.x = -mv;
+    }
+  },
+  cleanup(){
+    marker.visible = target.visible = aceT.visible = aceW.visible = ball.visible = false;
+    placeOn(hero, CF, 0, 16.5, 0); cam.yaw = CF.rot; cam.pitch = .38;
+  },
+};
 
-function openHowto(){ show($('#howto')); show($('#poi'), false); }
-$('#go').addEventListener('click', () => { show($('#howto'), false); startServe(); });
-$('#nogo').addEventListener('click', () => show($('#howto'), false));
-$('#again').addEventListener('click', () => { show($('#end'), false); startServe(); });
-$('#back').addEventListener('click', () => { show($('#end'), false); exitServe(); });
-$('#exit').addEventListener('click', exitServe);
+/* ---------- il vetro (padel, coordinate locali del campo: il giocatore sta sul lato +z) ----------
+   La palla dell'avversario rimbalza nel nostro campo, colpisce la parete di fondo e torna indietro:
+   va colpita quando il cerchio si chiude, dopo il vetro e prima del secondo rimbalzo. */
+if (PF){
+  const padelG = new THREE.Group(); padelG.position.set(PF.x, 0, PF.z); padelG.rotation.y = PF.rot; scene.add(padelG);
+  const pball = new THREE.Mesh(new THREE.SphereGeometry(.12, 14, 10), new THREE.MeshLambertMaterial({ color: 0xe6f550, emissive: 0x3a400e }));
+  pball.castShadow = true; pball.visible = false; padelG.add(pball);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0xf3c623, transparent: true, opacity: .9, side: THREE.DoubleSide, depthTest: false });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(.86, 1, 40), ringMat); ring.renderOrder = 5; ring.visible = false; scene.add(ring);
+  const splash = new THREE.Mesh(new THREE.RingGeometry(.1, .3, 24), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+  splash.visible = false; padelG.add(splash);
+  const V = new THREE.Vector3(), W = new THREE.Vector3();
+  const arc = (a, b, h, u, out) => { out.lerpVectors(a, b, u); out.y += 4*h*u*(1 - u); return out; };
+  const PERFECT = .075, GOOD = .17;
 
-function setExploreHud(on){
-  for (const id of ['#brand', '#minimap']) show($(id), on);
-  show($('#attrib'), on && !!LAYOUT.attribution);
-  show($('#hint'), on && !isTouch); show($('#joy'), on && isTouch);
-  if (!on) show($('#poi'), false); else curPoi = undefined;
-  for (const p of POIS) p.el.style.display = on ? '' : 'none';
-}
-function startServe(){
-  Object.assign(G, { active:true, n:0, score:0, aces:0, streak:0, phase:'wait', t:0, rivalX:-2.2 });
-  setExploreHud(false); show($('#ghud')); show($('#exit')); show($('#instr'));
-  $('#gBest').textContent = getBest();
-  placeOnCourt(hero, .8, 12.1, Math.PI);
-  hero.legL.rotation.x = hero.legR.rotation.x = hero.armL.rotation.x = hero.armR.rotation.x = 0;
-  placeOnCourt(rival, -2.2, -12.6, 0);
-  const [px,pz] = CF.w(1.8, 19.5), [lx,lz] = CF.w(-1.4, -3.5);
-  camera.position.set(px, 6.2, pz); camera.lookAt(lx, 0, lz);
-  marker.visible = target.visible = aceT.visible = aceW.visible = true;
-  nextServe();
-}
-function nextServe(){
-  if (G.n >= 10) return endGame();
-  G.n++; G.phase = 'aim'; G.t = 0; G.speed = 2.2 + G.n*.3; G.flight = null;
-  ball.visible = false; marker.visible = true;
-  hero.armR.rotation.x = 0;
-  G.rivalX = -2.2; placeOnCourt(rival, G.rivalX, -12.6, 0);
-  $('#gServe').textContent = G.n + '/10'; $('#gScore').textContent = G.score;
-  show($('#instr')); $('#instr').textContent = isTouch ? 'Tocca per fissare la direzione' : 'Clic o Spazio per fissare la direzione';
-}
-function tapServe(){
-  if (!G.active) return;
-  if (G.phase === 'aim'){ G.aimX = marker.position.x; G.phase = 'power'; G.t = 0;
-    $('#instr').textContent = isTouch ? 'Tocca per fissare la profondità' : 'Clic o Spazio per fissare la profondità'; }
-  else if (G.phase === 'power'){ G.depthZ = marker.position.z; launch(); }
-}
-function launch(){
-  const S0 = new THREE.Vector3(.8, 2.9, 11.9), L = new THREE.Vector3(G.aimX, .13, G.depthZ);
-  const uNet = S0.z/(S0.z - L.z);
-  const yAt = u => S0.y + (L.y - S0.y)*u + .35*Math.sin(Math.PI*Math.min(u,1));
-  let res;
-  if (L.z >= -.05 || yAt(uNet) < .98) res = 'net';
-  else if (L.x < -4.115 || L.x > 0) res = 'out';
-  else if (L.z < -6.4) res = 'long';
-  else if ((L.x > -.7 || L.x < -3.415) && L.z < -4.9) res = 'ace';
-  else res = 'in';
-  let E = L.clone();
-  if (res === 'net'){ const u = Math.min(uNet, 1); E = new THREE.Vector3(S0.x + (L.x - S0.x)*u, .55, .1); }
-  G.res = res; G.phase = 'flight'; G.t = 0; marker.visible = false;
-  G.flight = { S:S0, E, dur: res === 'net' ? .42 : .5, stage: 1 };
-  ball.visible = true; ball.position.copy(S0);
-  show($('#instr'), false);
-}
-function flash(big, small){
-  const el = $('#msg'); el.innerHTML = big + (small ? `<small>${small}</small>` : '');
-  el.classList.add('show'); clearTimeout(flash.t); flash.t = setTimeout(() => el.classList.remove('show'), 900);
-}
-function score(){
-  const r = G.res;
-  if (r === 'ace'){ G.streak++; G.aces++; const pts = 3 + (G.streak - 1); G.score += pts; flash('ACE!', G.streak > 1 ? `${G.streak} di fila · +${pts}` : '+3'); }
-  else if (r === 'in'){ G.streak = 0; G.score += 1; flash('Dentro', '+1'); }
-  else { G.streak = 0; flash(r === 'net' ? 'Rete' : r === 'long' ? 'Lungo' : 'Fuori'); }
-  $('#gScore').textContent = G.score;
-}
-function updateServe(dt){
-  G.t += dt;
-  if (G.phase === 'aim'){
-    marker.position.set(-2.2 + 3.1*Math.sin(G.t*G.speed), .1, -5.3);
-  } else if (G.phase === 'power'){
-    marker.position.set(G.aimX, .1, -3.95 + 4.35*Math.sin(G.t*G.speed*1.1 + Math.PI/2));
-  } else if (G.phase === 'flight'){
-    const f = G.flight;
-    hero.armR.rotation.x = G.t < .12 ? -2.9 : Math.max(-2.9, -2.9 + (G.t - .12)*9);
-    const u = Math.min(1, G.t/f.dur);
-    if (f.stage === 1){
-      ball.position.lerpVectors(f.S, f.E, u);
-      ball.position.y = f.S.y + (f.E.y - f.S.y)*u + (G.res === 'net' ? .2 : .35)*Math.sin(Math.PI*u);
-      if (u >= 1){
-        score();
-        const dir = new THREE.Vector3(f.E.x - f.S.x, 0, f.E.z - f.S.z).normalize();
-        f.S2 = f.E.clone();
-        f.E2 = G.res === 'net' ? new THREE.Vector3(f.E.x, .13, f.E.z + .6) : f.E.clone().addScaledVector(dir, 6.5).setY(.9);
-        f.stage = 2; G.t = 0; f.dur = G.res === 'net' ? .35 : .45;
+  GAMES.vetro = {
+    id:'vetro', title:'Il vetro', place:'Campo da padel', unit:'Palla', stat2Label:'Perfetti', bestKey:'fiw.vetro.best', goLabel:'In campo',
+    notOnCourt:'Entra in campo per giocare',
+    intro:"Nel padel la palla può toccare la parete di fondo dopo il rimbalzo ed essere giocata al ritorno. Qui è l'unico modo per rispondere: lascia passare la palla, aspetta che torni dal vetro e colpisci quando il cerchio si chiude.",
+    rules:[
+      "<b>Perfetto, 3 punti.</b> Colpisci quando il cerchio giallo si stringe sulla palla. Più perfetti di fila valgono un bonus.",
+      "<b>Buono, 1 punto.</b> Un attimo prima o un attimo dopo.",
+      "Se colpisci prima che la palla tocchi il vetro, o troppo tardi, il punto è perso.",
+      "Dieci palle, sempre più veloci.",
+    ],
+    canPlay: () => onCourt(PF, 5, 10),
+    verdict: g => g.stat2 >= 5 ? 'Mano da Major' : g.stat2 >= 2 ? 'Bel controllo' : 'Si può fare di meglio',
+    start(){
+      placeOn(rival, PF, 0, -7.5, 0); placeOn(hero, PF, 0, 8, Math.PI);
+      const [px,pz] = PF.w(0, 15.2), [lx,lz] = PF.w(0, -2);
+      camera.position.set(px, 4.4, pz); camera.lookAt(lx, .6, lz);
+      this.next();
+    },
+    next(){
+      if (G.n >= 10) return endGame();
+      G.n++; const k = (G.n - 1)/9;
+      const A = new THREE.Vector3(rand(-2.5, 2.5), 1.1, -7.3);
+      const B = new THREE.Vector3(rand(-3, 3), .12, rand(6.1, 7.3));
+      const gx = clamp(B.x + (B.x - A.x)*(9.85 - B.z)/(B.z - A.z), -4.4, 4.4);
+      const Gl = new THREE.Vector3(gx, rand(1, 1.6), 9.85);
+      const I = new THREE.Vector3(clamp(gx*.9, -4.2, 4.2), .95, rand(7.5, 8.3));
+      const F = new THREE.Vector3(I.x, .12, I.z - 1.3), R = new THREE.Vector3(I.x*.8, .12, I.z - 4.5);
+      // tratti della traiettoria: [da, a, altezza dell'arco, durata]
+      G.segs = [[A, B, 1.35, .95 - .28*k], [B, Gl, .45, .3 - .06*k], [Gl, I, .3, rand(.52, .6) - .2*k], [I, F, .08, .2], [F, R, .25, .7]];
+      G.seg = 0; G.t = 0; G.phase = 'ball'; G.hit = null; G.hx = I.x;
+      pball.visible = true; pball.position.copy(A); ring.visible = false;
+      hero.armR.rotation.x = 0; rival.armR.rotation.x = -2.2;
+      $('#gServe').textContent = G.n + '/10'; $('#gScore').textContent = G.score;
+      instr('Aspetta il vetro, poi tocca quando il cerchio si chiude', 'Aspetta il vetro, poi Spazio o clic quando il cerchio si chiude');
+    },
+    // quanto manca (negativo) o quanto è passato (positivo) dal momento ideale
+    delta(){ const d = G.segs[2][3]; return G.seg === 2 ? G.t - d : G.seg > 2 ? G.segs.slice(3, G.seg).reduce((s, x) => s + x[3], 0) + G.t : -Infinity; },
+    tap(){
+      if (G.phase !== 'ball') return;
+      if (G.seg < 2){ this.miss('Presto', 'aspetta che torni dal vetro'); return; }
+      const d = this.delta(), a = Math.abs(d);
+      if (a <= PERFECT) this.hit('perfect');
+      else if (a <= GOOD) this.hit('good');
+      else this.miss(d < 0 ? 'Presto' : 'Tardi');
+    },
+    hit(kind){
+      G.phase = 'return'; G.t = 0; ring.visible = false;
+      const from = pball.position.clone(), to = kind === 'perfect' ? new THREE.Vector3(rand(0,1) < .5 ? -3.9 : 3.9, .12, -8.6) : new THREE.Vector3(rand(-2.2, 2.2), .12, -5.5);
+      G.ret = [from, to, 1.7, .72];
+      if (kind === 'perfect'){ G.streak++; G.stat2++; const pts = 3 + (G.streak - 1); G.score += pts; flash('Perfetto!', G.streak > 1 ? `${G.streak} di fila · +${pts}` : '+3'); }
+      else { G.streak = 0; G.score += 1; flash('Buono', '+1'); }
+      $('#gScore').textContent = G.score; show($('#instr'), false);
+    },
+    miss(big, small){
+      G.phase = 'missed'; G.streak = 0; ring.visible = false; flash(big, small); show($('#instr'), false);
+    },
+    update(dt){
+      G.t += dt;
+      const moveHero = (tx, tz, k) => {
+        const [lx, lz] = PF.l(hero.g.position.x, hero.g.position.z), nx = lx + (tx - lx)*Math.min(1, dt*k), nz = lz + (tz - lz)*Math.min(1, dt*k);
+        const mv = Math.hypot(tx - lx, tz - lz) > .15 ? Math.sin(performance.now()/70)*.7 : 0;
+        hero.legL.rotation.x = mv; hero.legR.rotation.x = -mv;
+        placeOn(hero, PF, nx, nz, Math.PI);
+      };
+      if (G.phase === 'ball' || G.phase === 'missed'){
+        // la palla segue i tratti anche dopo un errore, fino a fermarsi
+        let s = G.segs[G.seg];
+        while (s && G.t >= s[3]){
+          G.t -= s[3]; G.seg++;
+          if (G.seg === 2){ splash.position.set(G.segs[1][1].x, G.segs[1][1].y, 9.8); splash.visible = true; splash.material.opacity = .9; }
+          s = G.segs[G.seg];
+        }
+        if (!s){ if (G.phase === 'ball') this.miss('Persa'); G.phase = 'pause'; G.t = 0; }
+        else arc(s[0], s[1], s[2], G.t/s[3], pball.position);
+        // cerchio di tempo: si chiude sulla palla nel momento ideale
+        if (G.phase === 'ball' && G.seg >= 2){
+          const d = this.delta(), sc = clamp(.28 - d*2.6, .22, 2.2);
+          pball.getWorldPosition(W); ring.position.copy(W); ring.quaternion.copy(camera.quaternion); ring.scale.setScalar(sc);
+          ringMat.color.set(Math.abs(d) <= PERFECT ? 0x39d353 : Math.abs(d) <= GOOD ? 0xf3c623 : 0xffffff);
+          ring.visible = true;
+        } else ring.visible = false;
+        moveHero(G.hx - .5, G.segs[2][1].z + .35, 5);
+        rival.armR.rotation.x = Math.min(0, rival.armR.rotation.x + dt*6);
+      } else if (G.phase === 'return'){
+        const [a, b, h, d] = G.ret, u = Math.min(1, G.t/d);
+        arc(a, b, h, u, pball.position);
+        hero.armR.rotation.x = G.t < .1 ? -2.4 : Math.min(0, -2.4 + (G.t - .1)*6);
+        const [rx] = PF.l(rival.g.position.x, rival.g.position.z);
+        placeOn(rival, PF, rx + (b.x*.6 - rx)*Math.min(1, dt*3), -7.5, 0);
+        if (u >= 1){ G.phase = 'pause'; G.t = 0; }
+      } else if (G.phase === 'pause'){
+        hero.legL.rotation.x = hero.legR.rotation.x = 0;
+        if (G.t > .55){ pball.visible = false; this.next(); }
       }
-    } else if (f.stage === 2){
-      ball.position.lerpVectors(f.S2, f.E2, u);
-      ball.position.y += (G.res === 'net' ? .2 : 1.1)*Math.sin(Math.PI*u);
-      if (u >= 1){
-        if (G.res === 'in'){ f.S3 = f.E2.clone(); f.E3 = new THREE.Vector3(rand(-3,3), .13, 13); f.stage = 3; G.t = 0; f.dur = .75; }
-        else { f.stage = 4; G.t = 0; }
-      }
-    } else if (f.stage === 3){
-      ball.position.lerpVectors(f.S3, f.E3, u); ball.position.y += 1.6*Math.sin(Math.PI*u);
-      if (u >= 1){ f.stage = 4; G.t = 0; }
-    } else if (f.stage === 4 && G.t > .55){ nextServe(); }
-    // la risposta dell'avversario
-    const tx = G.res === 'in' ? f.E.x : G.res === 'ace' ? -2.2 + (f.E.x + 2.2)*.35 : -2.2;
-    G.rivalX += (tx - G.rivalX)*Math.min(1, dt*(G.res === 'in' ? 6 : 3));
-    placeOnCourt(rival, G.rivalX, -12.6, 0);
-    const mv = Math.abs(tx - G.rivalX) > .1 ? Math.sin(performance.now()/60)*.6 : 0;
-    rival.legL.rotation.x = mv; rival.legR.rotation.x = -mv;
-  }
-}
-function endGame(){
-  G.active = false; G.phase = 'end';
-  const best = Math.max(getBest(), G.score); store.set(bestKey, String(best));
-  $('#eScore').textContent = G.score; $('#eAces').textContent = G.aces; $('#eBest').textContent = best;
-  $('#endTitle').textContent = G.score >= best && G.score > 0 ? 'Nuovo record' : G.aces >= 5 ? 'Servizio da Centrale' : G.aces >= 2 ? 'Bella serie' : 'Si può fare di meglio';
-  show($('#instr'), false); show($('#end'));
-}
-function exitServe(){
-  G.active = false; G.phase = 'off';
-  for (const id of ['#ghud', '#exit', '#instr', '#end', '#howto']) show($(id), false);
-  marker.visible = target.visible = aceT.visible = aceW.visible = ball.visible = false;
-  hero.armR.rotation.x = 0;
-  placeOnCourt(rival, -2.2, -12.6, 0);
-  placeOnCourt(hero, 0, 16.5, 0); cam.yaw = CF.rot; cam.pitch = .38;
-  setExploreHud(true);
+      if (splash.visible){ splash.material.opacity = Math.max(0, splash.material.opacity - dt*2.2); splash.scale.setScalar(1 + (1 - splash.material.opacity)*2); if (splash.material.opacity <= 0) splash.visible = false; }
+    },
+    cleanup(){
+      pball.visible = ring.visible = splash.visible = false;
+      placeOn(hero, PF, 7, 0, Math.PI/2); cam.yaw = PF.rot + Math.PI/2; cam.pitch = .38;
+    },
+  };
 }
 
 /* ---------- etichette 3D ---------- */
@@ -1250,7 +1433,7 @@ const clock = new THREE.Clock();
 const orbit = { x:(S.centrale.x + (S.marmi || S.centrale).x)/2, z:(S.centrale.z + (S.marmi || S.centrale).z)/2 };
 function frameLoop(){
   const dt = Math.min(.05, clock.getDelta());
-  if (G.active || G.phase === 'end') updateServe(G.active ? dt : 0);
+  if (G.active || G.phase === 'end'){ if (G.active) GAME.update(dt); }
   else if (started) updateExplore(dt);
   else { // giro di camera dietro l'overlay iniziale
     const t = performance.now()/9000;
@@ -1267,24 +1450,38 @@ function frameLoop(){
 for (const q of POIS) q.el.style.opacity = 0;
 requestAnimationFrame(frameLoop);
 
-addEventListener('resize', () => {
-  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
-});
+// sui telefoni in verticale serve un campo visivo più largo per vedere tutto il campo
+const fitCamera = () => { camera.aspect = innerWidth/innerHeight; camera.fov = camera.aspect < .8 ? 72 : 55; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); };
+fitCamera();
+addEventListener('resize', fitCamera);
 
 /* ---------- avvio ---------- */
-if (LAYOUT.attribution){ $('#attrib').textContent = LAYOUT.attribution; $('#mapsrc').textContent = 'Planimetria da OpenStreetMap (' + LAYOUT.attribution + ').'; }
+if (LAYOUT.attribution){ $('#attrib').textContent = LAYOUT.attribution; $('#mapsrc').textContent = 'Planimetria da OpenStreetMap (' + LAYOUT.attribution + '). Alcuni impianti del 2026 sono posizionati a stima.'; }
 if (isTouch){
-  $('#controls').innerHTML = '<li><b>Joystick</b> in basso a sinistra per camminare, spingi fino al bordo per correre</li><li><b>Trascina</b> sullo schermo per girare la visuale</li><li>Sul <b>Campo Centrale</b> compare il pulsante per giocare</li>';
+  $('#controls').innerHTML = '<li><b>Joystick</b> in basso a sinistra per camminare, spingi fino al bordo per correre</li><li><b>Trascina</b> sullo schermo per girare la visuale</li><li>Sul <b>Campo Centrale</b> e sul <b>campo da padel</b> compare il pulsante per giocare</li>';
 }
-window.__fiw = { layout: LAYOUT, hero, colliders, POIS, groundH, collide }; // per i test automatici
-const startBtn = $('#start');
-startBtn.disabled = false; startBtn.textContent = 'Entra al Foro';
-startBtn.addEventListener('click', () => {
+window.__fiw = { layout: LAYOUT, hero, colliders, POIS, groundH, collide, G, GAMES }; // per i test automatici
+function enterWorld(){
   show($('#intro'), false); started = true; G.phase = 'off';
   const [bx, bz] = [hero.g.position.x - Math.sin(hero.g.rotation.y)*10, hero.g.position.z - Math.cos(hero.g.rotation.y)*10];
   camera.position.set(bx, 5, bz);
   setExploreHud(true);
-});
+}
+// scorciatoie per chi prova il prototipo: #centrale e #padel portano direttamente in campo
+function quickPlay(id){
+  if (id === 'serve') placeOn(hero, CF, 0, 15, Math.PI), cam.yaw = CF.rot;
+  else placeOn(hero, PF, 0, 8, Math.PI), cam.yaw = PF.rot;
+  enterWorld(); openHowto(id);
+}
+const startBtn = $('#start');
+startBtn.disabled = false; startBtn.textContent = 'Entra al Foro';
+startBtn.addEventListener('click', enterWorld);
+for (const b of document.querySelectorAll('[data-quick]')){
+  if (b.dataset.quick === 'vetro' && !PF){ b.remove(); continue; }
+  b.disabled = false; b.addEventListener('click', () => quickPlay(b.dataset.quick));
+}
+if (location.hash === '#centrale') placeOn(hero, CF, 0, 15, Math.PI), cam.yaw = CF.rot;
+if (location.hash === '#padel' && PF) placeOn(hero, PF, 0, 8, Math.PI), cam.yaw = PF.rot;
 </script>
 <script>
   // se il modulo non parte (niente rete o browser vecchio) lo diciamo invece di restare in attesa

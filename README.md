@@ -8,27 +8,38 @@ Prototipo di un mondo giocabile nel browser, ispirato al Foro Italico di Roma. P
 
 - Camminare nel Foro costruito a blocchi: viale dei mosaici, Fontana della Sfera, Tevere, Stadio dei Marmi con la BNP Paribas Arena al centro, Stadio Nicola Pietrangeli ribassato tra le statue, Centrale, SuperTennis Arena, campi esterni in terra rossa.
 - Giocare alla **sfida al servizio** sul Campo Centrale: dieci battute, ace e servizi dentro fanno punti, il record resta nel browser.
+- Giocare al **vetro** sul campo da padel: la palla rimbalza sulla parete di fondo e va colpita al ritorno, quando il cerchio si chiude.
 - Da computer si usano tastiera e mouse, da telefono joystick e tocchi. Si gioca come ospite, senza registrazione.
 
 ## Come avviarlo
 
-Il gioco è un unico file, `index.html`. Three.js arriva da CDN, quindi serve la connessione a internet.
+Il gioco è un unico file, `site/index.html`, più la planimetria in `site/data/`. Three.js arriva da CDN, quindi serve la connessione a internet.
 
 ```bash
-python -m http.server 8765
+python -m http.server 8765 -d site
 ```
 
-Poi apri `http://localhost:8765`. Con `http://localhost:8765/#centrale` si parte direttamente in campo, con `?layout=schematic` si forza la planimetria schematica anche quando c'è quella importata.
+Poi apri `http://localhost:8765`. Con `#centrale` o `#padel` in fondo all'indirizzo si parte direttamente in campo, con `?layout=schematic` si forza la planimetria schematica anche quando c'è quella importata.
 
 ## Planimetria da OpenStreetMap
 
 ```bash
-node tools/osm-import.mjs --fetch   # scarica da Overpass e scrive data/layout.json
+NODE_USE_ENV_PROXY=1 node tools/osm-import.mjs --fetch   # scarica da Overpass e scrive site/data/layout.json
+                                    # (la variabile serve solo dietro un proxy)
 node tools/osm-import.mjs           # usa data/osm/foro-italico.overpass.json esportato a mano
 node --test tools/test/*.test.mjs   # test dell'importatore
 ```
 
-Serve Node.js 18 o successivo, senza dipendenze. Se `data/layout.json` manca, il gioco usa la planimetria schematica scritta in `index.html`.
+Serve Node.js 18 o successivo, senza dipendenze. Se `site/data/layout.json` manca, il gioco usa la planimetria schematica scritta in `site/index.html`.
+
+## Pubblicare online
+
+La cartella `site/` è un sito statico, senza build. Solo lei viene pubblicata: documenti, strumenti e dati grezzi restano nel repository.
+
+- **Vercel:** *Add New → Project*, importa il repository, lascia *Framework Preset: Other*. `vercel.json` imposta già la cartella `site`. Ogni push crea un'anteprima, il branch principale va in produzione.
+- **Cloudflare Pages:** *Create → Pages → Connect to Git*, build command vuoto, output directory `site`. Le intestazioni sono in `site/_headers`.
+
+Il sito chiede ai motori di ricerca di non indicizzarlo, ma questo non ne limita l'accesso. Su Vercel Hobby si può proteggere con *Vercel Authentication* (entra solo chi ha accesso al progetto Vercel), la password è solo sui piani a pagamento. Per aprirlo a tutti gli indirizzi @fitp.it serve Cloudflare Pages con Cloudflare Access, gratuito fino a 50 utenti.
 
 ## Tecnologia
 

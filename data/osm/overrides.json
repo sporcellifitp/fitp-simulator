@@ -1,0 +1,28 @@
+{
+  "_nota": "Correzioni alla planimetria importata da OSM. Vedi overrides.example.json per il formato.",
+  "sites": {
+    "olimpico": {
+      "_fonte": "OSM non ha il perimetro dello stadio con il nome: centro e asse dalla pista di atletica (relation/8080089, 180 x 95 m), gradinate aggiunte a stima",
+      "lat": 41.933945,
+      "lon": 12.454773,
+      "bearing": 166,
+      "a": 140,
+      "b": 100
+    },
+    "supertennis": {
+      "_fonte": "Posizione probabile, da confermare con la mappa ufficiale IBI 2026: way/938903083 (leisure=stadium senza nome, 44 x 18 m) lungo Viale delle Olimpiadi, di fronte al Centrale, come descritto da ATP e Il Messaggero",
+      "lat": 41.928188,
+      "lon": 12.457176,
+      "bearing": 321
+    },
+    "padel": {
+      "_fonte": "Nel Foro non ci sono campi da padel fissi in OSM: per il minigioco il Court 1 (way/30057834) diventa un campo da padel. Posizione di gioco, non reale",
+      "lat": 41.931142,
+      "lon": 12.455303,
+      "bearing": 168
+    }
+  },
+  "exclude": [
+    "way/30057834"
+  ]
+}

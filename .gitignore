@@ -5,4 +5,5 @@ desktop.ini
 node_modules/
 
 # file temporanei dei test
-data/_test-*.json
+site/data/_test-*.json
+data/osm/parts/

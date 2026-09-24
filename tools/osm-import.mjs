@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Importa la planimetria del Foro Italico da OpenStreetMap e scrive data/layout.json per il gioco.
+// Importa la planimetria del Foro Italico da OpenStreetMap e scrive site/data/layout.json per il gioco.
 //
 //   node tools/osm-import.mjs --fetch        scarica da Overpass e poi importa
 //   node tools/osm-import.mjs                importa data/osm/foro-italico.overpass.json (esportato a mano)
@@ -16,7 +16,7 @@ export const PATHS = {
   query: path.join(ROOT, 'tools/foro-italico.overpassql'),
   raw: path.join(ROOT, 'data/osm/foro-italico.overpass.json'),
   overrides: path.join(ROOT, 'data/osm/overrides.json'),
-  out: path.join(ROOT, 'data/layout.json'),
+  out: path.join(ROOT, 'site/data/layout.json'),
 };
 export const ATTRIBUTION = '© OpenStreetMap contributors, ODbL';
 
@@ -161,6 +161,7 @@ const SITES = {
   ponte:       { kind:'rect', wid:12, test: t => /duca d.?aosta/i.test(nameOf(t)) && !!(t.bridge || t.man_made === 'bridge') },
   fontana:     { kind:'point', test: t => t.amenity === 'fountain' && /sfera/i.test(nameOf(t)) },
   obelisco:    { kind:'point', test: t => t.man_made === 'obelisk' || (!!t.historic && /obelisco|monolite/i.test(nameOf(t))) },
+  padel:       { kind:'stadium', test: () => false },  // campo per il minigioco: il campo da padel più vicino al viale, o da overrides
 };
 const isTennis = t => t.leisure === 'pitch' && /(^|;)\s*tennis\s*($|;)/.test(t.sport || '');
 const isPadel = t => t.leisure === 'pitch' && /padel/.test(t.sport || '');
@@ -233,7 +234,6 @@ export function buildLayout(raw, { bbox, overrides = {}, now = new Date() } = {}
     if (s.rot == null && rule.kind !== 'point') s.rot = 0;
     report.sites[key] = (report.sites[key] ? report.sites[key] + ' + ' : '') + 'overrides.json';
   }
-  for (const key of Object.keys(SITES)) if (!sites[key] || sites[key].x == null) { delete sites[key]; report.missing.push(key); }
   const insideSite = (x, z, pad = 0) => sitePolys.some(sp => inPoly(sp.pts, x, z)) ||
     ['centrale', 'pietrangeli', 'supertennis', 'arena'].some(k => sites[k] && Math.hypot(x - sites[k].x, z - sites[k].z) < 22 + pad);
 
@@ -246,6 +246,12 @@ export function buildLayout(raw, { bbox, overrides = {}, now = new Date() } = {}
     const rr = minAreaRect(s.pts), c = { x:r1(rr.cx), z:r1(rr.cz), rot:r4(rotZ(rr.dir)) };
     (isPadel(s.tags) ? padel : courts).push(c);
   }
+  if (!sites.padel && padel.length){
+    const ref = sites.viale || sites.fontana || { x:0, z:0 };
+    padel.sort((a, b) => Math.hypot(a.x - ref.x, a.z - ref.z) - Math.hypot(b.x - ref.x, b.z - ref.z));
+    sites.padel = padel.shift(); report.sites.padel = 'campo da padel più vicino al viale';
+  }
+  for (const key of Object.keys(SITES)) if (!sites[key] || sites[key].x == null) { delete sites[key]; report.missing.push(key); }
 
   // fiume: linee d'asse del Tevere unite in un'unica spezzata
   const riverLines = all.filter(s => s.kind === 'line' && /river|canal/.test(s.tags.waterway || ''));
@@ -330,6 +336,49 @@ export function buildLayout(raw, { bbox, overrides = {}, now = new Date() } = {}
   return { layout, report };
 }
 
+/* ---------- download da Overpass ----------
+   I server pubblici tagliano le richieste lunghe: si manda una richiesta per ogni istruzione della query
+   e si uniscono i risultati. Con Node 22 dietro un proxy serve NODE_USE_ENV_PROXY=1. */
+export const ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+export function splitQuery(query){
+  const q = query.replace(/\/\*[\s\S]*?\*\//g, '');
+  const head = q.slice(0, q.indexOf('(')).trim(), body = q.slice(q.indexOf('(') + 1, q.lastIndexOf(')'));
+  const out = q.slice(q.lastIndexOf(')') + 1).replace(/^\s*;/, '').trim();
+  return body.split(';').map(x => x.trim()).filter(Boolean).map(st => `${head}\n(${st};);\n${out}`);
+}
+async function fetchOverpass(query){
+  const endpoints = process.env.OVERPASS_URL ? [process.env.OVERPASS_URL] : ENDPOINTS, seen = new Map(), failed = [];
+  const cacheDir = path.join(ROOT, 'data/osm/parts');
+  await mkdir(cacheDir, { recursive:true });
+  for (const [i, part] of splitQuery(query).entries()){
+    const cache = path.join(cacheDir, `${String(i).padStart(2, '0')}.json`), first = part.split('\n')[1];
+    if (existsSync(cache)){ // pezzo già scaricato in un tentativo precedente
+      const c = JSON.parse(await readFile(cache, 'utf8'));
+      if (c.part === part){ for (const el of c.elements) seen.set(`${el.type}/${el.id}`, el); console.log(`  ${first}  → dalla cache`); continue; }
+    }
+    let ok = false, last = '';
+    for (let attempt = 0; attempt < 4 && !ok; attempt++){
+      for (const ep of endpoints){
+        try {
+          const res = await fetch(ep, { method:'POST', body:'data=' + encodeURIComponent(part), signal: AbortSignal.timeout(90000),
+            headers:{ 'content-type':'application/x-www-form-urlencoded', 'user-agent':'foro-italico-world/0.3 (FITP eSports prototype)', accept:'application/json' } });
+          const text = await res.text();
+          if (!res.ok) { last = `${new URL(ep).host} ${res.status}`; continue; }
+          const elements = JSON.parse(text).elements || [];
+          for (const el of elements) seen.set(`${el.type}/${el.id}`, el);
+          await writeFile(cache, JSON.stringify({ part, elements }));
+          ok = true; break;
+        } catch (e) { last = `${new URL(ep).host} ${e.cause?.code || e.message}`; }
+      }
+      if (!ok) await new Promise(r => setTimeout(r, 3000*2**attempt));
+    }
+    if (!ok){ failed.push(first); console.log(`  ${first}  → NON SCARICATO (${last})`); continue; }
+    console.log(`  ${first}  → ${seen.size} elementi in totale`);
+  }
+  if (failed.length) throw new Error(`mancano ${failed.length} pezzi (${failed.join(' ')}): rilancia --fetch, quelli già scaricati restano in data/osm/parts`);
+  return { version:0.6, generator:'foro-italico-world', elements:[...seen.values()] };
+}
+
 /* ---------- riga di comando ---------- */
 async function main(argv){
   const arg = (name, def) => { const i = argv.indexOf(name); return i >= 0 ? argv[i+1] : def; };
@@ -337,14 +386,10 @@ async function main(argv){
   const bbox = parseBBox(query);
   const rawPath = path.resolve(arg('--in', PATHS.raw));
   if (argv.includes('--fetch')){
-    const endpoint = process.env.OVERPASS_URL || 'https://overpass-api.de/api/interpreter';
-    console.log(`Scarico da ${endpoint}…`);
-    const res = await fetch(endpoint, { method:'POST', body:'data=' + encodeURIComponent(query),
-      headers:{ 'content-type':'application/x-www-form-urlencoded', 'user-agent':'foro-italico-world/0.2 (FITP eSports)' } });
-    if (!res.ok) throw new Error(`Overpass ha risposto ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    const raw = await fetchOverpass(query);
     await mkdir(path.dirname(rawPath), { recursive:true });
-    await writeFile(rawPath, await res.text());
-    console.log(`Dati grezzi salvati in ${path.relative(ROOT, rawPath)}`);
+    await writeFile(rawPath, JSON.stringify(raw));
+    console.log(`Dati grezzi salvati in ${path.relative(ROOT, rawPath)} (${raw.elements.length} elementi)`);
   }
   if (!existsSync(rawPath)) throw new Error(`Manca ${path.relative(ROOT, rawPath)}: usa --fetch oppure esporta la query di tools/foro-italico.overpassql da overpass-turbo.eu`);
   const raw = JSON.parse(await readFile(rawPath, 'utf8'));
