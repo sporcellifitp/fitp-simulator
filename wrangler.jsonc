@@ -1,0 +1,8 @@
+// Cloudflare Workers: pubblica la cartella site/ come sito statico, senza codice lato server.
+{
+  "name": "foro-italico-world",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./site"
+  }
+}

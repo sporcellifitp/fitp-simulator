@@ -37,6 +37,7 @@ Serve Node.js 18 o successivo, senza dipendenze. Se `site/data/layout.json` manc
 La cartella `site/` è un sito statico, senza build. Solo lei viene pubblicata: documenti, strumenti e dati grezzi restano nel repository.
 
 - **Vercel:** *Add New → Project*, importa il repository, lascia *Framework Preset: Other*. `vercel.json` imposta già la cartella `site`. Ogni push crea un'anteprima, il branch principale va in produzione.
+- **Cloudflare Workers** (flusso *Create an application → Import a repository*): `wrangler.jsonc` pubblica già `site/` come sito statico, non serve comando di build. Serve l'app GitHub «Cloudflare Workers and Pages» autorizzata sul repository.
 - **Cloudflare Pages:** *Create → Pages → Connect to Git*, build command vuoto, output directory `site`. Le intestazioni sono in `site/_headers`.
 
 Il sito chiede ai motori di ricerca di non indicizzarlo, ma questo non ne limita l'accesso. Su Vercel Hobby si può proteggere con *Vercel Authentication* (entra solo chi ha accesso al progetto Vercel), la password è solo sui piani a pagamento. Per aprirlo a tutti gli indirizzi @fitp.it serve Cloudflare Pages con Cloudflare Access, gratuito fino a 50 utenti.
