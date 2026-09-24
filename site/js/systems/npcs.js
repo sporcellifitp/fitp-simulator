@@ -24,7 +24,7 @@ export function createNpcs(W){
     }
     npc.bubble = document.createElement('div'); npc.bubble.className = 'bubble hidden'; labels.appendChild(npc.bubble);
     if (def.dialogue || def.barks){
-      W.interact.add({ id: 'npc:' + (def.id || list.length), x: () => npc.x, z: () => npc.z, r: def.talkR || (def.dialogue ? 3.2 : 2.4),
+      W.interact.add({ id: 'npc:' + (def.id || list.length), x: () => npc.x, z: () => npc.z, r: def.talkR || (def.dialogue ? 3.2 : 1.7),   // il pubblico si saluta solo avvicinandosi apposta
         label: def.dialogue ? `Parla con ${def.name}` : 'Saluta', short: def.dialogue ? 'Parla' : 'Saluta',
         map: def.map || null, weak: !def.dialogue,
         act: () => def.dialogue ? W.dialogue.open(npc) : say(npc, def.barks[Math.floor(Math.random()*def.barks.length)]) });
@@ -97,7 +97,7 @@ export function createNpcs(W){
           const mark = npc.def.marker ? npc.def.marker(W) : '';
           const txt = (mark ? mark + ' ' : '') + npc.def.name;
           if (npc.label.textContent !== txt){ npc.label.textContent = txt; npc.label.classList.toggle('quest', !!mark); }
-          project(npc.label, npc.x, top, npc.z, explore);
+          project(npc.label, npc.x, top, npc.z, explore && d < (mark ? 60 : 20));   // nomi solo da vicino, chi ha una missione anche da lontano
         }
         npc.bubbleT = Math.max(0, npc.bubbleT - dt);
         if (npc.bubbleT <= 0) npc.bubble.classList.add('hidden');

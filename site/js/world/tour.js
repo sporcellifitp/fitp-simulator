@@ -464,7 +464,9 @@ export function buildTour(W){
         pt += dt/OPEN_T; setOpen(1 - clamp(pt, 0, 1)); if (pt >= 1){ phase = 'leaving'; pt = 0; }
       } else if (phase === 'leaving'){
         pt += dt/DRIVE_T; const e = pt*pt; truck.position.x = e*DRIVE_D; truck.visible = pt < 1;
-        if (pt >= 1){ place(pending); phase = 'arriving'; pt = 0; truck.visible = true; hud.toast(`Il Trophy Tour si è spostato: ora è ${pending.hint}`); }
+        if (pt >= 1){ place(pending); phase = 'arriving'; pt = 0; truck.visible = true;
+          const p = W.player.pos, R = W.route;   // lo si dice solo a chi è nei paraggi o lo sta cercando
+          if ((R && R.on && R.stops[R.index] && R.stops[R.index].id === 'tour') || Math.hypot(p.x - pending.x, p.z - pending.z) < 150) hud.toast(`Il Trophy Tour si è spostato: ora è ${pending.hint}`); }
       } else if (phase === 'arriving'){
         pt += dt/DRIVE_T; const e = 1 - (1 - clamp(pt, 0, 1))**2; truck.position.x = -DRIVE_D*(1 - e);
         if (pt >= 1){ truck.position.x = 0; phase = 'opening'; pt = 0; setColl(true); }

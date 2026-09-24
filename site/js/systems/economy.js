@@ -13,8 +13,9 @@ export function createEconomy(W){
     earn(n, why = ''){
       n = Math.round(n); if (n <= 0) return;
       st.coins += n; W.progress.save(); paint();
-      hud.toast(`+${n} gettoni${why ? ' · ' + why : ''}`, 'coin');
+      // niente messaggio a schermo: il contatore dei gettoni fa un salto e mostra «+n» accanto
       const el = $('#coins'); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+      const f = document.createElement('em'); f.className = 'plus'; f.textContent = '+' + n; el.appendChild(f); setTimeout(() => f.remove(), 1400);
     },
     spend(n, what = ''){
       if (st.coins < n){ hud.toast(`Servono ${n} gettoni${what ? ' per ' + what : ''}: ne hai ${st.coins}. Giocando ne guadagni altri.`); return false; }

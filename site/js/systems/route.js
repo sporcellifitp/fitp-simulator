@@ -140,8 +140,8 @@ export function createRoute(W){
       ${url ? `<img src="${url}" alt="${esc(s.name)}"${s.tall ? ' class="tall"' : ''}><small class="credit">${esc(credit(s))} · Wikimedia Commons</small>` : ''}
       <p>${esc(s.text)}</p>
       <div class="rbtn">${s.play ? `<button class="primary" data-play="${s.play}">${esc(s.playLabel)}</button>` : ''}
-        <button data-close="1">${next ? 'Avanti: ' + esc(next.name) : 'Chiudi'}</button></div>`;
-    show(card, true); cardT = 18;
+        <button data-close="1">${i === 0 ? 'Inizia il percorso' : 'Chiudi'}</button></div>`;
+    show(card, true); cardT = 0;                           // resta finché non si chiude: si apre solo su richiesta
     card.querySelector('[data-close]').addEventListener('click', () => { show(card, false); });
     const pb = card.querySelector('[data-play]');
     if (pb) pb.addEventListener('click', () => { show(card, false); pause(true); W.activities.go(s.play); });
@@ -169,14 +169,17 @@ export function createRoute(W){
   }
   function arrive(){
     const i = R.i, s = stops[i];
-    if (!R.done[s.id]){ R.done[s.id] = 1; PR.save(); W.economy.earn(5, 'tappa del percorso'); }
-    showCard(i);
+    const first = !R.done[s.id];
+    if (first){ R.done[s.id] = 1; PR.save(); W.economy.earn(5, 'tappa del percorso'); }
+    // solo una nota breve: la scheda con foto e testo si apre con «Leggi»
+    hud.note({ title: '✓ ' + s.name, sub: `Tappa ${i + 1} di ${stops.length}${first ? ' · +5 gettoni' : ''}${stops[i + 1] ? ' · poi ' + stops[i + 1].name : ''}`,
+      action: { label: 'Leggi', fn: () => showCard(i) }, ms: 5500 });
     goTo(i + 1);
   }
   function finish(){
     target = null; W.nav.clear(); chev.count = chevBg.count = 0; beam.visible = ring.visible = false; R.on = false; R.finished = 1; PR.save();
     if (PR.badge('guida')) W.economy.earn(40, 'Percorso del Foro completato');
-    hud.toast('Percorso del Foro completato: hai visto tutto il torneo!', 'gold');
+    hud.note({ title: 'Percorso del Foro completato', sub: 'Hai visto tutto il torneo', kind: 'gold', ms: 4000 });
   }
   function pause(quiet){
     R.on = false; PR.save(); target = null; chev.count = chevBg.count = 0; beam.visible = ring.visible = false;

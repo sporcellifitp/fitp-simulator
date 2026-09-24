@@ -64,8 +64,10 @@ export function createProgress(W){
     st.visited[id] = 1; save(); W.bus.emit('poi:first', id);
     const avail = MAIN.filter(k => W.pois.POIS.some(p => p.id === k));
     const n = avail.filter(k => st.visited[k]).length;
-    if (n < avail.length) hud.toast(`Luogo scoperto: ${n} di ${avail.length}`);
-    else api.badge('esploratore');
+    // durante il Percorso del Foro la tappa ha già la sua nota: qui solo il conteggio
+    const q = W.pois.POIS.find(p => p.id === id);
+    if (q && !(W.route && W.route.on)) hud.note({ title: q.name, sub: `Luogo scoperto · ${n} di ${avail.length}`, action: { label: 'Leggi', fn: () => W.pois.readPoi(q) } });
+    if (n >= avail.length) api.badge('esploratore');
   });
   W.bus.on('game:end', e => {
     if (e.id === 'serve' && e.stat2 >= 5) api.badge('ace');

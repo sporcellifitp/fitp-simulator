@@ -91,7 +91,8 @@ W.route.build();
 
 /* ---------- modalità: intro, explore, dialogue, menu, game ---------- */
 W.hud.setExplore = on => {
-  for (const id of ['#brand', '#goto', '#menuBtns', '#coins']) show(id, on);
+  for (const id of ['#goto', '#menuBtns', '#coins']) show(id, on);
+  show('#brand', on && !isTouch);                // sul telefono il titolo lascia spazio al navigatore
   show('#hint', on && !isTouch);
   show('#attrib', on && !!W.layout.attribution);
   W.pois.setVisible(on);
@@ -170,7 +171,7 @@ function enterWorld(){
   const R = W.progress.st.route;
   if (!W.progress.st.welcomed){
     W.progress.st.welcomed = 1; W.progress.save();
-    setTimeout(() => { W.route.start(0); hud.toast(`Benvenuto nel Fan Village! Hai ${W.economy.coins} gettoni. Segui la traccia gialla per il Percorso del Foro.`); }, 500);
+    setTimeout(() => W.route.start(0), 500);   // una sola scheda di benvenuto, poi solo la traccia a terra
   } else if (R && R.on) setTimeout(() => W.route.resume(), 500);
 }
 if (W.layout.attribution){ $('#attrib').textContent = W.layout.attribution; $('#mapsrc').textContent = 'Planimetria da OpenStreetMap (' + W.layout.attribution + '). Alcuni impianti del 2026 sono posizionati a stima.'; }

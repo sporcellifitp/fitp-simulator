@@ -81,6 +81,7 @@ export function createInput(canvas){
       return { x, y };
     },
     running(){ return k('ShiftLeft') || k('ShiftRight') || Math.hypot(joy.x, joy.y) > .92; },
+    get touchMove(){ return joy.id !== null; },     // si sta usando il joystick (anche su un computer con lo schermo touch)
     pressed(a){ return !blocked && edges.has(a); },
     any(...as){ return !blocked && as.some(a => edges.has(a)); },
     look(){ const l = { ...look }; look.dx = look.dy = look.zoom = 0; return l; },

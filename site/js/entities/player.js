@@ -1,9 +1,11 @@
 // Il giocatore nel mondo: movimento relativo alla telecamera, corsa, salto con gravità, collisioni, telecamera in terza persona.
-import { clamp, angleTo } from '../core/util.js';
+import { clamp, angleTo, isTouch } from '../core/util.js';
 import { collide, isFree } from '../world/collision.js';
 import { pose } from './avatar.js';
 
 const WALK = 12, RUN = 28, JUMP_V = 7.5, GRAV = 22;   // il Foro reale è largo quasi 2 km: si va svelti
+// sul telefono lo schermo è piccolo e il joystick va quasi sempre a fondo corsa: velocità più basse e partenza morbida
+const WALK_TOUCH = 6.5, RUN_TOUCH = 10.5;
 
 export function createPlayer(W, av){
   const { camera } = W.engine, input = W.input, groundH = W.world.groundH;
@@ -21,8 +23,10 @@ export function createPlayer(W, av){
       cam.eff = zone ? { dist: Math.min(cam.dist, zone.dist), pitch: Math.min(Math.max(cam.pitch, zone.pitch), zone.maxPitch ?? 1.2) } : null;
       const mv = input.move(), run = input.running(), amt = Math.min(1, Math.hypot(mv.x, mv.y));
       st.boostT = Math.max(0, (st.boostT || 0) - dt);
-      const sy = Math.sin(cam.yaw), cy = Math.cos(cam.yaw), speed = (run ? RUN : WALK)*(st.boostT > 0 ? 1.35 : 1);
-      const vx = (mv.x*cy - mv.y*sy)*speed, vz = (-mv.x*sy - mv.y*cy)*speed;
+      const touch = isTouch || input.touchMove;
+      const sy = Math.sin(cam.yaw), cy = Math.cos(cam.yaw), speed = (touch ? (run ? RUN_TOUCH : WALK_TOUCH) : (run ? RUN : WALK))*(st.boostT > 0 ? 1.35 : 1);
+      let vx = (mv.x*cy - mv.y*sy)*speed, vz = (-mv.x*sy - mv.y*cy)*speed;
+      if (touch){ const k = Math.min(1, dt*(amt > .05 ? 6 : 12)); st.vx = (st.vx || 0) + (vx - (st.vx || 0))*k; st.vz = (st.vz || 0) + (vz - (st.vz || 0))*k; vx = st.vx; vz = st.vz; }
       if (amt > .05){
         const steps = Math.max(1, Math.ceil(Math.hypot(vx, vz)*dt/.5));
         for (let k = 0; k < steps; k++){ p.x += vx*dt/steps; p.z += vz*dt/steps; collide(p); }

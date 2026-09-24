@@ -121,8 +121,9 @@ export function createPois(W){
     for (const q of POIS){
       v.set(q.ax, q.y + q.lh, q.az);
       const dist = cam.position.distanceTo(v); v.project(cam);
-      const vis = v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1 && dist < (q.id === 'olimpico' ? 420 : 190);
-      q.el.style.opacity = vis ? (curPoi === q ? 1 : .82) : 0;
+      // il nome del luogo in cui ci si trova già non serve; gli altri solo entro una distanza ragionevole
+      const vis = curPoi !== q && v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1 && dist < (q.id === 'olimpico' ? 300 : 150);
+      q.el.style.opacity = vis ? .85 : 0;
       if (vis) q.el.style.transform = `translate(${(v.x*.5 + .5)*w}px, ${(-v.y*.5 + .5)*h}px) translate(-50%,-100%)`;
     }
   }
@@ -181,14 +182,14 @@ export function createPois(W){
 
   return {
     POIS, openPlaces, goPlace, safeSpot,
+    // testo completo di un luogo, solo su richiesta del giocatore
+    readPoi(q){ W.setMode('menu'); W.hud.panel({ tag: 'Foro Italico', title: q.name, html: `<p>${esc(q.text)}</p>`, buttons: [{ label: 'Chiudi', primary: true }], onClose: () => W.setMode('explore') }); },
     setVisible(on){ for (const p of POIS) p.el.style.display = on ? '' : 'none'; show('#minimap', on); if (!on) show('#poi', false); else curPoi = undefined; },
     update(){
       if (W.mode !== 'explore' && W.mode !== 'drive') return;
       const q = nearestPoi(), card = $('#poi');
-      if (q !== curPoi){
-        curPoi = q; show(card, !!q); show('#hint', !q && !document.body.classList.contains('touch'));
-        if (q){ card.querySelector('h3').textContent = q.name; card.querySelector('p').textContent = q.text; W.bus.emit('poi:visit', q.id); }
-      }
+      // niente scheda automatica passando vicino a un luogo: al primo arrivo una nota breve con «Leggi» (systems/progress.js)
+      if (q !== curPoi){ curPoi = q; show(card, false); if (q) W.bus.emit('poi:visit', q.id); }
       updateLabels(); drawMinimap();
       if (W.input.pressed('places') && W.mode === 'explore') openPlaces();
     },
