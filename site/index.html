@@ -54,7 +54,10 @@
   /* joystick */
   #joy{position:fixed;left:22px;bottom:calc(26px + env(safe-area-inset-bottom));width:120px;height:120px;border-radius:50%;
     background:rgba(255,255,255,.28);border:2px solid rgba(255,255,255,.7);touch-action:none}
-  #knob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(11,42,91,.8);border:2px solid #fff}
+  #knob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(11,42,91,.8);border:2px solid #fff;transition:background .15s}
+  #joy::after{content:'Spingi oltre il bordo per correre';position:absolute;left:-8px;top:-24px;white-space:nowrap;font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);opacity:.85}
+  #joy.sprint{border-color:var(--yellow);box-shadow:0 0 0 6px rgba(243,198,35,.35)} #joy.sprint #knob{background:var(--yellow);border-color:var(--navy)}
+  #joy.sprint::after{content:'Corsa'} #joy.hint-off:not(.sprint)::after{display:none}
   body.touch #poi{bottom:calc(160px + env(safe-area-inset-bottom))}
 
   /* HUD gioco */
@@ -64,7 +67,7 @@
   #ghud b{font-family:"Barlow Condensed";font-size:24px;line-height:1}
   #goto{position:fixed;left:16px;top:calc(88px + env(safe-area-inset-top));border:0;border-radius:10px;background:var(--clay);color:#fff;
     padding:8px 14px;font-weight:600;font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
-  #places .dest{display:grid;gap:6px;margin:0 0 12px;max-height:min(56vh,440px);overflow:auto}
+  #places .dest{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin:0 0 12px;max-height:min(56vh,440px);overflow:auto}
   #places .dest button{text-align:left;border:1px solid var(--line);border-radius:10px;background:#fff;padding:9px 12px;color:var(--ink);font-size:15px}
   #places .dest button b{display:block;color:var(--navy);font-weight:600}
   #places .dest button small{color:var(--muted);font-size:12.5px}
@@ -115,6 +118,7 @@
   #toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(76px + env(safe-area-inset-top));background:var(--card);color:var(--navy);
     border-radius:12px;padding:9px 16px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.2);max-width:calc(100% - 32px);text-align:center;z-index:5}
   #toast.gold{background:var(--yellow);color:var(--ink)}
+  body.navigating #toast{top:calc(90px + env(safe-area-inset-top))}
   #toast b{display:block;font-size:16px} #toast small{display:block;font-weight:500;font-size:13px;color:#5b6678;margin-top:1px}
   #toast button{margin-top:7px;border:0;border-radius:999px;background:var(--navy);color:#fff;font-weight:700;font-size:13.5px;padding:6px 16px}
   #toast.note{pointer-events:auto;border-left:5px solid var(--yellow)}
@@ -124,6 +128,7 @@
   #tbtns button{min-width:92px;height:62px;border-radius:31px;border:2px solid #fff;background:rgba(11,42,91,.82);color:#fff;font-weight:700;font-size:16px;padding:0 16px;touch-action:none}
   #tbtns button[data-act="hit"]{background:rgba(200,100,59,.92);height:78px;min-width:110px;border-radius:39px;font-size:18px}
   #tbtns button.on{transform:scale(.94);filter:brightness(1.2)}
+  #tbtns button[data-act="run"]{min-width:78px;height:50px;font-size:15px} #tbtns button.lock{background:var(--yellow);color:var(--ink);border-color:var(--navy)}
   .label.npc{background:rgba(255,255,255,.9);color:var(--navy);font-size:13px;padding:2px 7px}
   .label.npc.quest{background:var(--yellow);color:var(--ink)}
   .bubble{position:fixed;left:0;top:0;pointer-events:none;transform:translate(-50%,-100%);background:#fff;color:var(--ink);border-radius:12px;
@@ -170,20 +175,28 @@
   #coins.pop{animation:pop .5s}
   @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
   #toast.coin{background:#fff8d6;color:var(--ink);border:1px solid var(--yellow)}
-  #nav{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top));background:var(--navy);color:#fff;border-radius:999px;
-    padding:6px 8px 6px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 20px rgba(0,0,0,.25);font-weight:600;font-size:15px;z-index:3}
-  #nav i{width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:16px solid var(--yellow);display:inline-block}
-  #nav button{border:0;border-radius:999px;background:rgba(255,255,255,.18);color:#fff;padding:3px 9px;font-size:13px}
-  #places .drow{display:flex;gap:6px} #places .drow > button:first-child{flex:1}
-  #places .drow .guide{border:1px solid var(--line);border-radius:10px;background:var(--navy);color:#fff;font-weight:600;font-size:13px;padding:0 10px}
+  #nav{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top));width:min(460px,calc(100% - 420px));min-width:320px;
+    background:#0f5132;background:linear-gradient(180deg,#136b43,#0f5a38);color:#fff;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.28);
+    display:flex;align-items:center;gap:10px;padding:9px 10px 9px 12px;z-index:6}
+  #nav .navbody{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+  #nav .man{flex:none;width:44px;height:44px;display:flex;align-items:center;justify-content:center;transition:transform .25s}
+  #nav .man svg{width:40px;height:40px;fill:#fff}
+  #nav .navbody span{display:flex;flex-direction:column;min-width:0}
+  #nav .navbody b{font-size:19px;line-height:1.15;font-family:Barlow,Arial,sans-serif}
+  #nav .navbody small{font-size:12.5px;opacity:.88;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #nav button{flex:none;border:0;border-radius:50%;width:32px;height:32px;background:rgba(255,255,255,.18);color:#fff;font-size:15px;padding:0}
+  #places .drow{display:flex;gap:6px} #places .drow > button:first-child{flex:1;min-width:0}
+  #places .dest button small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #places .how{font-size:13px;color:var(--muted);margin:-4px 0 8px;line-height:1.35}
+  #places .drow .guide{flex:none;width:92px;border:0;border-radius:10px;background:#136b43;color:#fff;font-weight:700;font-size:13px;padding:0 8px;display:flex;align-items:center;justify-content:center;gap:5px}
+  #places .drow .guide svg{width:15px;height:15px;fill:#fff}
+  #minimap{cursor:pointer}
   #panel .coinsline{background:#fff8d6;border:1px solid var(--yellow);border-radius:10px;padding:7px 10px;font-size:14px}
   #rcard{position:fixed;right:14px;bottom:44px;width:330px;max-height:calc(100vh - 150px);overflow:auto;background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.28);padding:12px 14px 12px;z-index:25;border-top:6px solid var(--navy)}
   #rcard .rtag{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--orange,#c8643b);font-weight:700}
   #rcard h3{margin:2px 0 8px;font-family:"Barlow Condensed",Arial Narrow,sans-serif;font-size:26px;color:var(--navy)}
   #rcard img{display:block;width:100%;height:150px;object-fit:cover;border-radius:10px}
   #rcard img.tall{object-fit:contain;background:#e9eef5}
-  #nav span{display:flex;gap:6px;min-width:0;max-width:calc(100vw - 190px);white-space:nowrap}
-  #nav span em{font-style:normal;overflow:hidden;text-overflow:ellipsis;min-width:0} #nav span b{flex:none;color:var(--yellow)}
   #rcard .credit{display:block;font-size:11px;color:var(--muted);margin:3px 0 0}
   #rcard p{font-size:14px;line-height:1.4;margin:8px 0}
   #rcard .rbtn{display:flex;flex-wrap:wrap;gap:6px}
@@ -209,11 +222,14 @@
   @media (max-width:560px){
     #minimap{width:112px;height:100px}
     /* telefono: il navigatore sta tra la colonna dei pulsanti e la minimappa, le notifiche sopra il joystick */
-    #nav{left:12px;right:136px;transform:none;justify-content:flex-start;padding-left:10px}
-    #nav span{max-width:none;flex:1;min-width:0;align-items:center}
-    #nav span em{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-size:13px;line-height:1.15}
-    body.touch #toast{top:auto;bottom:calc(180px + env(safe-area-inset-bottom));left:24px;right:24px;transform:none;max-width:none;font-size:14px}
-    #nav button{padding:3px 8px;font-size:0} #nav button::after{content:'✕';font-size:14px}
+    /* navigatore a tutta larghezza come nelle app di mappe; la minimappa scende sotto */
+    #nav{left:10px;right:10px;width:auto;min-width:0;transform:none;padding:8px 8px 8px 10px}
+    #nav .man{width:38px;height:38px} #nav .man svg{width:34px;height:34px}
+    #nav .navbody b{font-size:17px}
+    body.navigating #minimap{top:calc(84px + env(safe-area-inset-top))}
+    body.navigating #goto{top:calc(84px + env(safe-area-inset-top))}
+    /* sul telefono le notifiche stanno sopra il joystick, senza coprire i pulsanti a destra */
+    body.touch #toast{top:auto;bottom:calc(178px + env(safe-area-inset-bottom));left:12px;right:118px;transform:none;max-width:none;font-size:14px;padding:8px 12px}
     #brand b{font-size:16px}
     .panel h1{font-size:38px}
     #ghud div{min-width:64px;padding:5px 9px}
@@ -232,7 +248,7 @@
 <button id="goto" class="hidden">Vai a…</button>
 <div id="menuBtns" class="hidden"><button id="mAlbum">Album</button><button id="mProfile">Giocatore</button></div>
 <div id="coins" class="hidden"><i></i><span>Gettoni</span><b>0</b></div>
-<div id="nav" class="hidden"><i></i><span></span><button>Chiudi</button></div>
+<div id="nav" class="hidden"><div class="navbody"></div><button aria-label="Chiudi il navigatore">✕</button></div>
 <div id="rcard" class="hidden"></div>
 <div id="poi" class="hidden"><h3></h3><p></p></div>
 <div id="prompt" class="hidden"></div>
@@ -240,6 +256,7 @@
 <div id="joy" class="hidden"><div id="knob"></div></div>
 <div id="tbtns" class="hidden">
   <button data-act="jump" class="hidden">Salta</button>
+  <button data-act="run" class="hidden">Corri</button>
   <button data-act="interact" class="hidden">Parla</button>
   <button data-act="lob" class="hidden">Pallonetto</button>
   <button data-act="hit" class="hidden">Colpo</button>
@@ -280,8 +297,9 @@
 
 <div id="places" class="overlay hidden">
   <div class="panel">
-    <div class="tag">Teletrasporto</div>
+    <div class="tag">Luoghi e giochi</div>
     <h2>Vai a…</h2>
+    <p class="how">Tocca un nome per andarci subito. Con <b>Guidami</b> ci arrivi a piedi o in golf car, seguendo la linea blu come in un navigatore.</p>
     <div class="dest"></div>
     <button id="placesClose" class="secondary">Chiudi</button>
   </div>

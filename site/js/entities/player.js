@@ -19,6 +19,7 @@ export function createPlayer(W, av){
       if (!this.active) return;
       const L = input.look();
       cam.yaw -= L.dx*.006; cam.pitch = clamp(cam.pitch + L.dy*.004, .12, 1.1); cam.dist = clamp(cam.dist + L.zoom, 5, 24);
+      if (L.dx || L.dy) st.lookT = W.engine.time;
       const zone = (W.cameraZones || []).find(z => z.inside(p.x, p.z));
       cam.eff = zone ? { dist: Math.min(cam.dist, zone.dist), pitch: Math.min(Math.max(cam.pitch, zone.pitch), zone.maxPitch ?? 1.2) } : null;
       const mv = input.move(), run = input.running(), amt = Math.min(1, Math.hypot(mv.x, mv.y));
@@ -31,6 +32,11 @@ export function createPlayer(W, av){
         const steps = Math.max(1, Math.ceil(Math.hypot(vx, vz)*dt/.5));
         for (let k = 0; k < steps; k++){ p.x += vx*dt/steps; p.z += vz*dt/steps; collide(p); }
         av.g.rotation.y += angleTo(av.g.rotation.y, Math.atan2(vx, vz))*Math.min(1, dt*12);
+        // sul telefono la telecamera si rimette piano piano alle spalle di chi cammina (come nei giochi in terza persona),
+        // ma solo se il giocatore non l'ha girata col dito negli ultimi due secondi e sta andando più o meno avanti
+        if (touch && W.engine.time - (st.lookT || -9) > 2 && mv.y > .3){
+          const want = av.g.rotation.y + Math.PI; cam.yaw += angleTo(cam.yaw, want)*Math.min(1, dt*1.4*amt);
+        }
         st.walkPh += dt*(run ? 17 : 11);
         st.emote = 0;
       }

@@ -93,9 +93,18 @@ export function createPois(W){
       mctx.beginPath(); mctx.arc(mmX(x) - ox, mmZ(z) - oz, 6 + Math.sin(t)*1.2, 0, Math.PI*2); mctx.fill(); mctx.stroke();
     }
     if (W.nav && W.nav.target){
-      const t = W.nav.target, tx = mmX(t.x) - ox, tz = mmZ(t.z) - oz;
-      mctx.strokeStyle = 'rgba(243,198,35,.9)'; mctx.setLineDash([6, 5]); mctx.lineWidth = 3; mctx.beginPath(); mctx.moveTo(mmX(hp.x) - ox, mmZ(hp.z) - oz); mctx.lineTo(tx, tz); mctx.stroke(); mctx.setLineDash([]);
-      mctx.fillStyle = '#f3c623'; mctx.strokeStyle = '#0b2a5b'; mctx.beginPath(); mctx.arc(tx, tz, 8, 0, Math.PI*2); mctx.fill(); mctx.stroke();
+      // la strada che resta, in blu come nelle app di mappe, e lo spillo sulla meta
+      const t = W.nav.target, rest = W.nav.remaining, tx = mmX(t.x) - ox, tz = mmZ(t.z) - oz;
+      if (rest.length > 1){
+        mctx.lineJoin = mctx.lineCap = 'round';
+        for (const [w, c] of [[7, '#0b2a5b'], [4, '#4f8ff0']]){
+          mctx.strokeStyle = c; mctx.lineWidth = w; mctx.beginPath(); mctx.moveTo(mmX(hp.x) - ox, mmZ(hp.z) - oz);
+          for (let k = 0; k < rest.length; k += 2) mctx.lineTo(mmX(rest[k].x) - ox, mmZ(rest[k].z) - oz);
+          mctx.lineTo(mmX(rest.at(-1).x) - ox, mmZ(rest.at(-1).z) - oz); mctx.stroke();
+        }
+      }
+      mctx.fillStyle = '#d8342c'; mctx.strokeStyle = '#fff'; mctx.lineWidth = 2;
+      mctx.beginPath(); mctx.arc(tx, tz - 9, 6, Math.PI, 0); mctx.lineTo(tx, tz); mctx.closePath(); mctx.fill(); mctx.stroke();
     }
     const px = mmX(hp.x) - ox, pz = mmZ(hp.z) - oz;
     mctx.save(); mctx.translate(px, pz); mctx.rotate(-a);
@@ -156,7 +165,7 @@ export function createPois(W){
     const box = $('#places .dest'); box.innerHTML = '';
     const head = t => { const h = document.createElement('div'); h.className = 'sect'; h.textContent = t; box.appendChild(h); };
     // ogni riga: tocco sul nome = teletrasporto; «Guidami» = navigatore (a piedi o in golf car)
-    const row = (title, note, cls, go, target) => {
+    const row = (title, note, cls, go, target, arriveAction = null) => {
       const r = document.createElement('div'); r.className = 'drow';
       const b = document.createElement('button'); if (cls) b.className = cls;
       b.innerHTML = `<b>${esc(title)}</b>` + (note ? `<small>${esc(note)}</small>` : '');
@@ -164,23 +173,28 @@ export function createPois(W){
       r.appendChild(b);
       const t = target && target();
       if (t){
-        const g = document.createElement('button'); g.className = 'guide'; g.textContent = 'Guidami';
-        g.addEventListener('click', () => { show('#places', false); W.setMode('explore'); W.nav.set({ x: t.x, z: t.z, name: title }); });
+        const g = document.createElement('button'); g.className = 'guide';
+        g.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2l8 19-8-4-8 4z"/></svg>Guidami';
+        // all'arrivo una nota con l'azione giusta: il gioco per le attività, la scheda per i luoghi
+        g.addEventListener('click', () => { show('#places', false); W.setMode('explore');
+          W.nav.set({ x: t.x, z: t.z, r: t.r || 8, name: title, onArrive: () => W.hud.note({ title: '✓ Sei arrivato', sub: title, ms: 6000, action: arriveAction ? { label: arriveAction.label, fn: arriveAction.fn } : null }) }); });
         r.appendChild(g);
       }
       box.appendChild(r);
     };
     let group = null;
-    for (const a of W.activities.list()){ if (a.group !== group){ group = a.group; head(group); } row(a.title, a.where, 'game', a.go, a.target); }
+    for (const a of W.activities.list()){ if (a.group !== group){ group = a.group; head(group); } row(a.title, a.where, 'game', a.go, a.target, a.game || ['tennis', 'padel', 'raccattapalle', 'shop', 'store', 'golfcar', 'fanzone', 'medaglie', 'live'].includes(a.id) ? { label: a.game ? 'Gioca' : 'Apri', fn: () => a.go() } : null); }
     head('Luoghi');
     const order = ['centrale', 'padel', 'arena', 'pietr', 'st', 'marmi', 'esterni', 'fontana', 'viale', 'ponte', 'olimpico'];
-    for (const id of order){ const q = POIS.find(p => p.id === id); if (q) row(q.name, q.id === 'arena' ? 'Dentro lo Stadio dei Marmi' : '', '', () => goPlace(q), () => ({ x: q.ax ?? q.x, z: q.az ?? q.z })); }
+    for (const id of order){ const q = POIS.find(p => p.id === id); if (q) row(q.name, q.id === 'arena' ? 'Dentro lo Stadio dei Marmi' : '', '', () => goPlace(q), () => ({ x: q.ax ?? q.x, z: q.az ?? q.z, r: Math.min(24, Math.max(10, (q.r || 12)*.7)) }), { label: 'Leggi', fn: () => readPoiRef(q) }); }
     W.setMode('menu'); show('#places', true);
   }
+  const readPoiRef = q => api_.readPoi(q);
   $('#goto').addEventListener('click', openPlaces);
+  $('#minimap').addEventListener('click', () => { if (W.mode === 'explore') openPlaces(); });   // la minimappa apre «Vai a…»
   $('#placesClose').addEventListener('click', () => { show('#places', false); W.setMode('explore'); });
 
-  return {
+  const api_ = {
     POIS, openPlaces, goPlace, safeSpot,
     // testo completo di un luogo, solo su richiesta del giocatore
     readPoi(q){ W.setMode('menu'); W.hud.panel({ tag: 'Foro Italico', title: q.name, html: `<p>${esc(q.text)}</p>`, buttons: [{ label: 'Chiudi', primary: true }], onClose: () => W.setMode('explore') }); },
@@ -194,4 +208,5 @@ export function createPois(W){
       if (W.input.pressed('places') && W.mode === 'explore') openPlaces();
     },
   };
+  return api_;
 }

@@ -162,7 +162,7 @@ function signPosts(){
 /* ---------- avvio: si compare nel Fan Village e parte il Percorso del Foro ---------- */
 const start = W.layout.start;
 const spawn = () => {
-  if (W.village){ const [x, z] = W.village.anchors.plaza, [ex, ez] = W.village.anchors.entrance; W.player.place(x, z, ex, ez); W.player.cam.yaw = W.hero.g.rotation.y + Math.PI; }
+  if (W.village){ const [x, z] = W.village.anchors.spawn, [ex, ez] = W.village.anchors.entrance; W.player.place(x, z, ex, ez); }
   else { W.player.place(start.x, start.z); W.hero.g.rotation.y = start.ry || 0; W.player.cam.yaw = W.hero.g.rotation.y + Math.PI; }
 };
 spawn();

@@ -1,17 +1,14 @@
 // Percorso del Foro: itinerario guidato dal Fan Village a tutte le tappe del torneo.
 // Parte da solo al primo ingresso (si compare nel Fan Village), si mette in pausa chiudendo il navigatore
-// e riprende dal menu «Vai a…». La strada fino alla tappa successiva è calcolata sulla griglia degli ostacoli
-// (world/grid.js) e disegnata a terra con frecce gialle che scorrono; sulla meta c'è una colonna di luce.
+// e riprende dal menu «Vai a…». Strada, linea a terra, manovre e arrivo sono del navigatore (systems/nav.js).
 import * as THREE from 'three';
 import { $, show, esc, frame } from '../core/util.js';
 import { colliders, addRect } from '../world/collision.js';
-import { rasterize, findPath } from '../world/grid.js';
 import { canvasPlane, wrap } from '../world/canvas.js';
 import { ROUTE, PHOTO_INFO } from '../content/percorso.js';
 import { hud } from '../ui/hud.js';
 
 const NAVY = '#0b2a5b', GOLD = '#f3c623', LOGO = 'assets/brand/fitp-logo-2023.png';
-const MAX_CHEV = 700, GAP = 2.6;
 
 export function createRoute(W){
   const scene = W.engine.scene, S = W.layout.sites, { P, CF, DIM, groundH } = W.world, PR = W.progress, st = PR.st;
@@ -37,52 +34,7 @@ export function createRoute(W){
   const credit = s => s.photo ? PHOTO_INFO[s.photo] : null;
   const photoUrl = s => s.photo && PHOTO_INFO[s.photo] ? 'assets/photos/' + s.photo : null;
 
-  /* ---------- griglia per il calcolo della strada (1,5 m, costruita alla prima richiesta) ---------- */
-  let G = null;
-  const grid = () => {
-    if (!G){ const B = W.layout.bounds, cell = 1.5; G = rasterize(colliders, { x0: B.x0, z0: B.z0, nx: Math.ceil((B.x1 - B.x0)/cell), nz: Math.ceil((B.z1 - B.z0)/cell), cell, margin: .45, bounds: B }); }
-    return G;
-  };
-
-  /* ---------- frecce a terra, colonna di luce ---------- */
-  // freccia gialla con il bordo blu FITP: si legge sia sul marmo chiaro sia sul prato
-  const arrowGeo = k => { const s = new THREE.Shape(); s.moveTo(-.75*k, -.45*k); s.lineTo(0, .5*k); s.lineTo(.75*k, -.45*k); s.lineTo(.4*k, -.45*k); s.lineTo(0, .08*k); s.lineTo(-.4*k, -.45*k); s.closePath(); const g = new THREE.ShapeGeometry(s); g.rotateX(-Math.PI/2); g.rotateY(Math.PI); return g; };
-  const layer = (geo, color, order, off) => {
-    const m = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .96, depthWrite: false, polygonOffset: true, polygonOffsetFactor: off, polygonOffsetUnits: off }), MAX_CHEV);
-    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.count = 0; m.frustumCulled = false; m.userData.dynamic = true; m.renderOrder = order; scene.add(m); return m;
-  };
-  const chevBg = layer((() => { const g = arrowGeo(1.28); g.translate(0, 0, -.06); return g; })(), 0x0b2a5b, 2, -2);
-  const chev = layer(arrowGeo(1), 0xffffff, 3, -4);
-  chev.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CHEV*3), 3);
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 70, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xf3c623, transparent: true, opacity: .2, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
-  const ring = new THREE.Mesh(new THREE.RingGeometry(2.4, 3, 40), new THREE.MeshBasicMaterial({ color: 0xf3c623, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide }));
-  ring.rotation.x = -Math.PI/2;
-  for (const o of [beam, ring]){ o.userData.dynamic = true; o.visible = false; scene.add(o); }
-  let marks = [], near = 0;                              // posizioni delle frecce e la più vicina al giocatore
-  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(1, 1, 1), UP = new THREE.Vector3(0, 1, 0), C = new THREE.Color();
-  function layPath(pts){
-    marks = [];
-    let carry = GAP/2;
-    for (let k = 0; k + 1 < pts.length && marks.length < MAX_CHEV; k++){
-      const [ax, az] = pts[k], [bx, bz] = pts[k + 1], len = Math.hypot(bx - ax, bz - az); if (len < .01) continue;
-      const ang = Math.atan2(bx - ax, bz - az);
-      for (let d = carry; d < len && marks.length < MAX_CHEV; d += GAP){ const x = ax + (bx - ax)*d/len, z = az + (bz - az)*d/len; marks.push({ x, z, y: groundH(x, z) + .07, ang }); }
-      carry = (carry - len) % GAP; if (carry < 0) carry += GAP;
-    }
-    chev.count = chevBg.count = marks.length; shown = 0;
-    marks.forEach((m, i) => setMark(i, true));
-    chev.instanceMatrix.needsUpdate = chevBg.instanceMatrix.needsUpdate = true; near = 0;
-  }
-  let shown = 0;                                          // le frecce prima di questo indice sono già alle spalle
-  const ZERO = new THREE.Vector3(0, 0, 0);
-  function setMark(i, on){ const m = marks[i]; Q.setFromAxisAngle(UP, m.ang); M.compose(V.set(m.x, m.y, m.z), Q, on ? SC : ZERO); chev.setMatrixAt(i, M); chevBg.setMatrixAt(i, M); }
-  function hideBehind(k){
-    k = Math.max(0, k);
-    if (k === shown) return;
-    const a = Math.min(k, shown), b = Math.max(k, shown);
-    for (let i = a; i < b && i < marks.length; i++) setMark(i, i >= k);
-    shown = k; chev.instanceMatrix.needsUpdate = chevBg.instanceMatrix.needsUpdate = true;
-  }
+  const grid = () => W.nav.grid();
 
   /* ---------- totem di tappa con la foto reale ---------- */
   const imgs = new Map();
@@ -126,7 +78,7 @@ export function createRoute(W){
     Promise.all([url ? img(url) : null, img(LOGO)]).then(([ph, logo]) => draw(ph, logo));
     face.position.set(0, 1.8, .07); g.add(face);
     addRect(colliders, spot[0], spot[1], 1.05, .3, rot);
-    if (G) G.grid[(G.cellOf(spot[0], spot[1])[1])*G.nx + G.cellOf(spot[0], spot[1])[0]] = 1;
+    { const [ci, cj] = G_.cellOf(spot[0], spot[1]); G_.grid[cj*G_.nx + ci] = 1; }
   }
 
   /* ---------- scheda della tappa (non blocca il gioco) ---------- */
@@ -150,25 +102,17 @@ export function createRoute(W){
   /* ---------- stato: tappa corrente, pausa, strada ---------- */
   st.route = st.route || { i: 0, done: {}, on: false };
   const R = st.route;
-  let target = null, lastPlan = 0, endAt = null;
-  const navName = i => `${i + 1}/${stops.length} · ${stops[i].name}`;
-  function plan(){
-    const t = at(R.i); if (!t) return;
-    const p = W.mode === 'drive' && W.carts.cart ? { x: W.carts.cart.x, z: W.carts.cart.z } : W.player.pos;
-    const pts = findPath(grid(), p.x, p.z, t.x, t.z, Math.max(3, t.r - 3)) || [[p.x, p.z], [t.x, t.z]];
-    layPath(pts); lastPlan = performance.now();
-    endAt = pts.partial ? pts.at(-1) : null;               // meta dentro un recinto: vale l'ultimo punto raggiungibile
-    beam.visible = ring.visible = true;
-    const y = groundH(t.x, t.z); beam.position.set(t.x, y + 35, t.z); ring.position.set(t.x, y + .1, t.z);
-  }
+  const mine = () => W.nav.target && W.nav.target.route;
   function goTo(i){
     R.i = i; PR.save();
     if (i >= stops.length){ finish(); return; }
-    const t = at(i); target = { x: t.x, z: t.z, name: navName(i), keep: true, route: true };
-    W.nav.set(target); plan();
+    const t = at(i);
+    W.nav.set({ x: t.x, z: t.z, r: t.r, name: stops[i].name, sub: `Tappa ${i + 1}/${stops.length}`, route: true,
+      at: stops[i].id === 'tour' ? () => at(i) : null,        // il Trophy Tour si sposta: il navigatore lo insegue
+      onArrive: () => arrive(i), onCancel: () => pause() });
   }
-  function arrive(){
-    const i = R.i, s = stops[i];
+  function arrive(i){
+    const s = stops[i];
     const first = !R.done[s.id];
     if (first){ R.done[s.id] = 1; PR.save(); W.economy.earn(5, 'tappa del percorso'); }
     // solo una nota breve: la scheda con foto e testo si apre con «Leggi»
@@ -177,12 +121,15 @@ export function createRoute(W){
     goTo(i + 1);
   }
   function finish(){
-    target = null; W.nav.clear(); chev.count = chevBg.count = 0; beam.visible = ring.visible = false; R.on = false; R.finished = 1; PR.save();
+    if (mine()) W.nav.clear(true);
+    R.on = false; R.finished = 1; PR.save();
     if (PR.badge('guida')) W.economy.earn(40, 'Percorso del Foro completato');
     hud.note({ title: 'Percorso del Foro completato', sub: 'Hai visto tutto il torneo', kind: 'gold', ms: 4000 });
   }
   function pause(quiet){
-    R.on = false; PR.save(); target = null; chev.count = chevBg.count = 0; beam.visible = ring.visible = false;
+    if (!R.on) return;
+    R.on = false; PR.save();
+    if (mine()) W.nav.clear(true);
     if (!quiet) hud.toast('Percorso in pausa: lo riprendi da «Vai a…», Percorso del Foro');
   }
   const api = {
@@ -195,34 +142,14 @@ export function createRoute(W){
       else goTo(from);
     },
     resume(){ if (R.i >= stops.length || R.finished && R.i >= stops.length) api.start(0); else { R.on = true; goTo(Math.max(1, R.i)); } },
-    pause, plan, arrive,
-    get path(){ return marks; },
+    pause,
+    arrive: () => arrive(R.i),
+    plan: () => W.nav.plan(),
+    get path(){ return W.nav.path; },
     get grid(){ return grid(); },
     build(){ stops.forEach((s, i) => totem(s, i)); },
     update(dt){
       if (cardT > 0 && (cardT -= dt) <= 0) show(card, false);
-      if (!R.on || !target) return;
-      // il giocatore ha chiuso il navigatore: pausa
-      if (W.nav.target !== target){ pause(); return; }
-      const t = at(R.i); if (!t) return;
-      if (t.x !== target.x || t.z !== target.z){ target.x = t.x; target.z = t.z; plan(); }   // il Trophy Tour si è spostato
-      const p = W.mode === 'drive' && W.carts.cart ? { x: W.carts.cart.x, z: W.carts.cart.z } : W.player.pos;
-      const extra = W.mode === 'drive' ? 4 : 0;
-      if (Math.hypot(p.x - t.x, p.z - t.z) < t.r + extra || (endAt && Math.hypot(p.x - endAt[0], p.z - endAt[1]) < 5 + extra)){ arrive(); return; }
-      // freccia più vicina: quelle alle spalle spariscono; se ci si allontana dalla traccia si ricalcola
-      let best = near, bd = Infinity;
-      for (let k = Math.max(0, near - 5); k < Math.min(marks.length, near + 40); k++){ const m = marks[k], d = (m.x - p.x)**2 + (m.z - p.z)**2; if (d < bd){ bd = d; best = k; } }
-      near = best;
-      if ((bd > 22*22 || !marks.length) && performance.now() - lastPlan > 1500) plan();
-      // onda di luce che corre verso la meta
-      const time = W.engine.time;
-      hideBehind(near - 1);
-      for (let k = Math.max(0, near - 1); k < marks.length; k++){
-        const w = .55 + .45*Math.max(0, Math.sin((k - time*9)*.35));
-        C.setRGB(1, .62 + .26*w, .05*w); chev.setColorAt(k, C);
-      }
-      chev.instanceColor.needsUpdate = true;
-      ring.rotation.z = time*.8; ring.scale.setScalar(1 + .08*Math.sin(time*3)); beam.material.opacity = .14 + .06*Math.sin(time*2.4);
     },
   };
   return api;

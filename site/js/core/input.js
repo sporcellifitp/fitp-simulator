@@ -9,7 +9,8 @@ export const ACTION_KEYS = KEYMAP;
 
 export function createInput(canvas){
   const keys = new Set(), edges = new Set(), look = { dx: 0, dy: 0, zoom: 0 };
-  const joy = { x: 0, y: 0, id: null };
+  const joy = { x: 0, y: 0, id: null, sprint: false };
+  let runLock = false;                 // pulsante «Corri» sul telefono: resta acceso finché non lo si tocca di nuovo
   let drag = null, context = 'intro', blocked = false;
 
   addEventListener('keydown', e => {
@@ -45,18 +46,27 @@ export function createInput(canvas){
   // joystick
   {
     const base = $('#joy'), knob = $('#knob');
+    try { if (localStorage.getItem('fiw.sprintHint')) base.classList.add('hint-off'); } catch (e){}
     const set = e => {
       const r = base.getBoundingClientRect(), dx = e.clientX - (r.left + r.width/2), dy = e.clientY - (r.top + r.height/2);
       const len = Math.hypot(dx, dy), max = 42, k = len > max ? max/len : 1;
       knob.style.transform = `translate(${dx*k}px,${dy*k}px)`; joy.x = dx*k/max; joy.y = dy*k/max;
+      // corsa: si spinge oltre il bordo del joystick; resta attiva finché il dito non torna verso il centro
+      joy.sprint = joy.sprint ? len > max*.85 : len > max*1.45;
+      base.classList.toggle('sprint', joy.sprint);
+      if (joy.sprint && !base.classList.contains('hint-off')){ base.classList.add('hint-off'); try { localStorage.setItem('fiw.sprintHint', '1'); } catch (e){} }   // il suggerimento serve solo finché non si è provato
     };
     base.addEventListener('pointerdown', e => { joy.id = e.pointerId; base.setPointerCapture(e.pointerId); set(e); });
     base.addEventListener('pointermove', e => { if (joy.id === e.pointerId) set(e); });
-    const up = e => { if (joy.id !== e.pointerId) return; joy.id = null; joy.x = joy.y = 0; knob.style.transform = ''; };
+    const up = e => { if (joy.id !== e.pointerId) return; joy.id = null; joy.x = joy.y = 0; joy.sprint = false; base.classList.remove('sprint'); knob.style.transform = ''; };
     base.addEventListener('pointerup', up); base.addEventListener('pointercancel', up);
   }
   // pulsanti touch: ognuno genera un'azione
   for (const b of document.querySelectorAll('#tbtns [data-act]')){
+    if (b.dataset.act === 'run'){
+      b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); runLock = !runLock; b.classList.toggle('lock', runLock); b.textContent = runLock ? 'Corsa' : 'Corri'; });
+      continue;
+    }
     b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); edges.add(b.dataset.act); b.classList.add('on'); });
     const off = () => b.classList.remove('on');
     b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('pointerleave', off);
@@ -80,7 +90,8 @@ export function createInput(canvas){
       const l = Math.hypot(x, y); if (l > 1){ x /= l; y /= l; }
       return { x, y };
     },
-    running(){ return k('ShiftLeft') || k('ShiftRight') || Math.hypot(joy.x, joy.y) > .92; },
+    running(){ return k('ShiftLeft') || k('ShiftRight') || joy.sprint || runLock; },
+    get sprinting(){ return joy.sprint || runLock; },
     get touchMove(){ return joy.id !== null; },     // si sta usando il joystick (anche su un computer con lo schermo touch)
     pressed(a){ return !blocked && edges.has(a); },
     any(...as){ return !blocked && as.some(a => edges.has(a)); },
@@ -98,7 +109,7 @@ export function createInput(canvas){
       show('#tbtns', isTouch && pad);
       for (const b of document.querySelectorAll('#tbtns [data-act]')){
         const a = b.dataset.act;
-        const on = (c === 'explore' && (a === 'jump' || (a === 'interact' && opts.interact)))
+        const on = (c === 'explore' && (a === 'jump' || a === 'run' || (a === 'interact' && opts.interact)))
                 || (c === 'drive' && (a === 'jump' || a === 'interact'))
                 || (c === 'activity' && a === 'jump')
                 || (c === 'match' && (a === 'hit' || a === 'lob' || a === 'jump'));

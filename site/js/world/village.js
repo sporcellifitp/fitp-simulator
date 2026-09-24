@@ -130,6 +130,7 @@ export function buildVillage(W){
   anchors.carSpawn = { pos: world(0, l2 + 7), rot: F.rot };
   anchors.entrance = world(0, l2 + 3);
   anchors.plaza = world(0, 6);
+  anchors.spawn = world(0, 24);                                        // si compare qui: davanti all'arco, l'info point alle spalle
 
   const village = {
     F, v, anchors, screen, boardSpot, tennisF, padelF,
