@@ -68,6 +68,17 @@ Dettagli, fonti e licenze in [docs/v0.5-village.md](docs/v0.5-village.md).
 - [ ] Loghi ufficiali ad alta risoluzione e negativo ufficiale dall'ufficio marchio FITP.
 - [ ] Foto d'archivio FITP al posto di quelle di Wikimedia Commons; validazione dei testi con l'ufficio stampa.
 
+## v0.6 · Personaggi e amici (settembre 2026)
+
+Dettagli e limiti in [docs/v0.6-multiplayer.md](docs/v0.6-multiplayer.md).
+
+- [x] Un solo ingresso: si entra con il proprio personaggio (registrazione o nome), più personaggi per dispositivo.
+- [x] Anteprima 3D del personaggio nella registrazione, nel negozio e nel guardaroba: il capo si prova prima di comprarlo.
+- [x] Gioco con gli amici: stanza con link, fino a 8, posizioni in tempo reale, messaggi già pronti, Raggiungi e Guidami.
+- [x] Navigatore come Google Maps; corsa su telefono (joystick oltre il bordo o pulsante Corri).
+- [ ] Server FITP per le stanze (privacy, reti chiuse, stanze più grandi) e accesso con myFITP.
+- [ ] Partite di tennis e padel tra giocatori veri.
+
 ## Prossimi passi (dalle prime settimane sul repository)
 
 1. **Planimetria fedele.** Ricostruire la mappa da OpenStreetMap (licenza ODbL, da citare) e dalla mappa ufficiale del torneo. Servono i materiali IBI 2026: mappa del sito, nomi dei campi e dei varchi d'ingresso.
@@ -96,7 +107,7 @@ Dettagli, fonti e licenze in [docs/v0.5-village.md](docs/v0.5-village.md).
 | **v0.2 · Planimetria** | Mappa fedele da OpenStreetMap e mappa ufficiale, nomi verificati, schede aggiornate | ottobre 2026 |
 | **v0.3 · Padel** | Area padel, primo minigioco di padel, modalità «Italy Major» che trasforma un campo in campo da padel | novembre 2026 |
 | **v0.4 · Minigiochi** | Da due a tre minigiochi nuovi, collezione di premi dentro il mondo, sfida del giorno | dicembre 2026 - gennaio 2027 |
-| **v0.6 · Qualità** | Prove su telefono, prestazioni, accessibilità, test con 20-30 utenti della community eSeries | febbraio 2027 |
+| **v0.7 · Qualità** | Prove su telefono, prestazioni, accessibilità, test con 20-30 utenti della community eSeries | febbraio 2027 |
 | **v1.0 · Pilota IBI 2027** | Accesso con account myFITP, classifiche, premi legati agli eventi, dominio FITP | lancio 4-6 settimane prima di IBI 2027 |
 
 ## Decisioni aperte

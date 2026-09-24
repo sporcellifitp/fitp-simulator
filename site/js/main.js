@@ -26,6 +26,9 @@ import { createNpcs, createDialogue } from './systems/npcs.js';
 import { createProgress } from './systems/progress.js';
 import { createActivities } from './systems/activities.js';
 import { createRoute } from './systems/route.js';
+import { createCharacters } from './ugc/characters.js';
+import { createRoom } from './net/room.js';
+import { characters } from './core/store.js';
 import { createGames } from './games/registry.js';
 import { registerServe } from './games/serve.js';
 import { registerVetro } from './games/vetro.js';
@@ -88,6 +91,7 @@ for (const d of npcDefs(W)) W.npcs.spawn(d);
 W.bus.on('live:score', s => { W.live[s.venue] = s; });
 W.route = createRoute(W);               // Percorso del Foro: totem nelle tappe, strada calcolata sugli ostacoli
 W.route.build();
+W.room = createRoom(W);                 // gioca con gli amici: stanza condivisa con un link
 
 /* ---------- modalità: intro, explore, dialogue, menu, game ---------- */
 W.hud.setExplore = on => {
@@ -113,6 +117,7 @@ E.add({ update: dt => W.games.update(dt) }, 25);
 E.add({ update: () => W.dialogue.update() }, 30);
 E.add({ update: () => W.interact.update() }, 35);
 E.add({ update: dt => W.npcs.update(dt) }, 40);
+E.add({ update: dt => W.room.update(dt) }, 41);
 E.add({ update: dt => W.exhibitions.update(dt) }, 45);
 E.add({ update: dt => { W.props.update(dt); if (W.village) W.village.update(dt); if (W.tour) W.tour.update(dt); if (W.mode === 'explore') W.medals.update(dt); } }, 50);
 E.add({ update: () => W.nav.update() }, 65);
@@ -166,23 +171,27 @@ const spawn = () => {
   else { W.player.place(start.x, start.z); W.hero.g.rotation.y = start.ry || 0; W.player.cam.yaw = W.hero.g.rotation.y + Math.PI; }
 };
 spawn();
+let afterEnter = null;                    // azione da fare appena dentro (sfida ricevuta, stanza degli amici)
 function enterWorld(){
   show('#intro', false); W.setMode('explore'); W.player.follow(0, true);
-  const R = W.progress.st.route;
+  const R = W.progress.st.route, room = W.room.pendingLink;
   if (!W.progress.st.welcomed){
     W.progress.st.welcomed = 1; W.progress.save();
-    setTimeout(() => W.route.start(0), 500);   // una sola scheda di benvenuto, poi solo la traccia a terra
-  } else if (R && R.on) setTimeout(() => W.route.resume(), 500);
+    // chi arriva con il link di un amico lo raggiunge; gli altri partono con il Percorso del Foro
+    if (!room) setTimeout(() => W.route.start(0), 500);
+  } else if (R && R.on && !room) setTimeout(() => W.route.resume(), 500);
+  if (room) setTimeout(() => W.room.join(room), 300);
+  if (afterEnter){ const f = afterEnter; afterEnter = null; setTimeout(f, 50); }
 }
+// un solo pulsante: si entra con il proprio personaggio (chi non ce l'ha lo crea, chi ce l'ha scrive il nome)
+W.who = createCharacters(W, { onEnter: enterWorld });
 if (W.layout.attribution){ $('#attrib').textContent = W.layout.attribution; $('#mapsrc').textContent = 'Planimetria da OpenStreetMap (' + W.layout.attribution + '). Alcuni impianti del 2026 sono posizionati a stima.'; }
-if (isTouch) $('#controls').innerHTML = '<li><b>Joystick</b> per camminare (spingi fino al bordo per correre), <b>Salta</b> per saltare</li><li><b>Trascina</b> lo schermo per girare la visuale</li><li>Vicino a persone e campi compare il pulsante per <b>parlare</b> o <b>giocare</b></li>';
-$('#start').disabled = false; $('#start').textContent = 'Entra al Foro';
-$('#start').addEventListener('click', enterWorld);
-$('#introProfile').addEventListener('click', () => { enterWorld(); W.ugc.profile.open(); });
-for (const b of document.querySelectorAll('[data-quick]')){
-  const a = W.activities.list().find(x => x.id === b.dataset.quick);
-  if (!a){ b.remove(); continue; }
-  b.disabled = false; b.addEventListener('click', () => { enterWorld(); a.go(); });
+if (isTouch) $('#controls').innerHTML = '<li><b>Joystick</b> per camminare, spingilo oltre il bordo o tocca <b>Corri</b> per correre</li><li><b>Trascina</b> lo schermo per girare la visuale</li><li>Vicino a persone e campi compare il pulsante per <b>parlare</b> o <b>giocare</b></li>';
+$('#start').disabled = false; $('#start').textContent = 'Entra con il tuo personaggio';
+$('#start').addEventListener('click', () => W.who.open());
+if (W.room.pendingLink){
+  show('#introRoom', true);
+  $('#introRoom').innerHTML = `Sei stato invitato in una stanza con gli amici (codice <b>${esc(W.room.pendingLink)}</b>): entra con il tuo personaggio e li raggiungi.`;
 }
 $('#mAlbum').addEventListener('click', () => W.progress.openAlbum());
 $('#mProfile').addEventListener('click', () => W.ugc.profile.open());
@@ -190,12 +199,14 @@ $('#panelClose').addEventListener('click', () => hud.closePanel());
 $('#shareBox button').addEventListener('click', () => { const i = $('#shareBox input'); i.select(); try { document.execCommand('copy'); hud.toast('Link copiato'); } catch (e){} });
 
 // sfida ricevuta con un link
+let challengeAction = null;
 const ch = W.ugc.challenge.readFromUrl();
 if (ch){
   const d = W.games.get(ch.game);
   show('#introChallenge', true);
   $('#introChallenge').innerHTML = `<b>${esc(ch.nick)}</b> ti sfida a «${esc(d ? d.title : ch.game)}»: batti <b>${ch.score}</b> punti con la stessa sequenza.<button class="primary" id="acceptCh">Accetta la sfida</button>`;
-  $('#acceptCh').addEventListener('click', () => { enterWorld(); W.activities.go(ch.game); W.games.openHowto(ch.game, { seed: ch.seed, challenge: ch }); });
+  challengeAction = () => { W.activities.go(ch.game); W.games.openHowto(ch.game, { seed: ch.seed, challenge: ch }); };
+  $('#acceptCh').addEventListener('click', () => { afterEnter = challengeAction; W.who.open(); });
 }
 // scorciatoie per chi prova il prototipo: #centrale, #padel
 if (location.hash === '#centrale' || location.hash === '#padel'){
@@ -203,5 +214,7 @@ if (location.hash === '#centrale' || location.hash === '#padel'){
   if (F){ const [x, z] = F.w(0, 8); W.player.place(x, z, F.x, F.z); }
 }
 W.input.setContext('intro');
+// dopo il cambio di personaggio la pagina si ricarica ed entra da sola
+if (characters.takeAutoEnter()){ afterEnter = challengeAction; enterWorld(); }   // la sfida del link resta valida anche dopo il cambio
 window.__fiw = W;   // per i test automatici
 E.start();

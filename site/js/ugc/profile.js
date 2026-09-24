@@ -1,12 +1,15 @@
-// Il giocatore personalizzato: nome generato da parole scelte (niente testo libero, pubblico anche di minori), colori, numero.
+// Il giocatore personalizzato: nome composto da parole scelte (niente testo libero, pubblico anche di minori), colori, numero.
+// Si crea entrando nel gioco (ugc/characters.js); qui si cambiano carnagione e capelli, i vestiti nel guardaroba.
 import { $, show, esc } from '../core/util.js';
-import { store } from '../core/store.js';
+import { store, characters } from '../core/store.js';
+import { mountPreview } from '../ui/preview.js';
+import { creatorOptions } from './characters.js';
 import { hud } from '../ui/hud.js';
 import { SKINS } from '../entities/avatar.js';
 import { encodeChallenge, decodeChallenge } from './challenge.js';
 
-const NOUNS = ['Falco', 'Lupo', 'Delfino', 'Puma', 'Ghepardo', 'Volpe', 'Aquila', 'Lince', 'Tigre', 'Orso', 'Cometa', 'Fulmine', 'Razzo', 'Vento'];
-const ADJ = ['Rapido', 'Mancino', 'Solido', 'Instancabile', 'Preciso', 'Elegante', 'Coraggioso', 'Tenace', 'Scattante', 'Leggero', 'Furbo', 'Calmo'];
+export const NOUNS = ['Falco', 'Lupo', 'Delfino', 'Puma', 'Ghepardo', 'Volpe', 'Aquila', 'Lince', 'Tigre', 'Orso', 'Cometa', 'Fulmine', 'Razzo', 'Vento'];
+export const ADJ = ['Rapido', 'Mancino', 'Solido', 'Instancabile', 'Preciso', 'Elegante', 'Coraggioso', 'Tenace', 'Scattante', 'Leggero', 'Furbo', 'Calmo'];
 const hex = c => '#' + c.toString(16).padStart(6, '0');
 const pick = a => a[Math.floor(Math.random()*a.length)];
 
@@ -16,31 +19,27 @@ export function createUgc(W){
   if (!prof){ prof = DEF; store.set('profile', prof); }
   const apply = () => { W.hero.setLook(prof.look); $('#brandNick').textContent = `${prof.nick} · n. ${prof.number}`; };
 
-  /* ---------- editor del giocatore: nome, numero e carnagione (gratis); i vestiti si scelgono dal guardaroba ---------- */
+  /* ---------- editor del giocatore: carnagione e capelli, con il personaggio in 3D accanto; i vestiti nel guardaroba ---------- */
   function openProfile(){
-    let draft = JSON.parse(JSON.stringify(prof));
-    const html = () => `
-      <p class="nick"><b>${esc(draft.nick)}</b> · numero ${draft.number}</p>
-      <div class="row"><button class="secondary small" data-act="nick">Altro nome</button><button class="secondary small" data-act="num">Altro numero</button></div>
-      <label>Carnagione</label><div class="sw" data-k="skin">${SKINS.map(c => `<button style="background:${hex(c)}" data-c="${c}" class="${draft.look.skin === c ? 'on' : ''}" aria-label="carnagione"></button>`).join('')}</div>
-      <p class="fine">Maglie, cappellini, occhiali e racchette: nel tuo guardaroba, o al Negozio del giocatore nel Fan Village.</p>`;
+    const draft = JSON.parse(JSON.stringify(prof));
     W.setMode('menu');
-    const box = hud.panel({ tag: 'Il tuo giocatore', title: 'Personalizza', html: html(), buttons: [
-      { label: 'Salva', primary: true, onClick: () => { prof = draft; store.set('profile', prof); apply(); W.progress.badge('look'); hud.toast('Giocatore aggiornato'); } },
-      { label: 'Apri il guardaroba', onClick: () => { prof = draft; store.set('profile', prof); apply(); setTimeout(() => W.shop.openWardrobe({ ownedOnly: true, title: 'Il tuo guardaroba' }), 0); } },
+    let pv = null;
+    const box = hud.panel({ tag: 'Il tuo giocatore', title: 'Personalizza', html: '<div class="creator"><div class="pv"></div><div class="opts"></div></div>', buttons: [
+      { label: 'Salva', primary: true, onClick: () => save(draft) },
+      { label: 'Apri il guardaroba', onClick: () => { save(draft, true); setTimeout(() => W.shop.openWardrobe({ ownedOnly: true, title: 'Il tuo guardaroba' }), 0); } },
+      { label: 'Cambia personaggio', onClick: () => setTimeout(() => W.who.open(), 0) },
       { label: 'Annulla' },
-    ], onClose: () => { apply(); if (W.mode === 'menu') W.setMode('explore'); } });
-    const body = box.querySelector('.body');
-    const wire = () => {
-      body.innerHTML = html();
-      body.querySelectorAll('.sw button').forEach(b => b.addEventListener('click', () => { draft.look.skin = +b.dataset.c; W.hero.setLook(draft.look); wire(); }));
-      body.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
-        if (b.dataset.act === 'nick') draft.nick = `${pick(NOUNS)} ${pick(ADJ)}`;
-        if (b.dataset.act === 'num') draft.number = 1 + Math.floor(Math.random()*99);
-        wire();
-      }));
-    };
-    wire();
+    ], onClose: () => { if (pv) pv.unmount(); box.querySelector('.panel').classList.remove('wide'); apply(); if (W.mode === 'menu') W.setMode('explore'); } });
+    box.querySelector('.panel').classList.add('wide');
+    pv = mountPreview(box.querySelector('.creator .pv'), { ...draft.look });
+    creatorOptions(box.querySelector('.creator .opts'), draft, { onChange: d => { pv.setLook(d.look); W.hero.setLook(d.look); } });
+    box.querySelector('.creator .opts').insertAdjacentHTML('beforeend', '<p class="fine left">Maglie, cappellini, occhiali e racchette: nel tuo guardaroba, o al Negozio del giocatore nel Fan Village.</p>');
+  }
+  function save(p, silent = false){
+    prof = p; store.set('profile', prof); apply();
+    const c = characters.current(); if (c) characters.update({ id: c.id, look: prof.look });
+    if (!silent){ W.progress.badge('look'); hud.toast('Giocatore aggiornato'); }
+    W.bus.emit('look', prof.look);
   }
 
   /* ---------- sfide condivisibili ---------- */
@@ -62,7 +61,7 @@ export function createUgc(W){
   };
 
   return {
-    profile: { get: () => prof, open: openProfile, apply, save(p){ prof = p; store.set('profile', prof); apply(); W.progress.badge('look'); } },
+    profile: { get: () => prof, open: openProfile, apply, save },
     challenge,
   };
 }

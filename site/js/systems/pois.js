@@ -106,6 +106,12 @@ export function createPois(W){
       mctx.fillStyle = '#d8342c'; mctx.strokeStyle = '#fff'; mctx.lineWidth = 2;
       mctx.beginPath(); mctx.arc(tx, tz - 9, 6, Math.PI, 0); mctx.lineTo(tx, tz); mctx.closePath(); mctx.fill(); mctx.stroke();
     }
+    // amici nella stanza: un pallino del loro colore
+    if (W.room) for (const o of W.room.players.values()){
+      if (!o.cur) continue;
+      mctx.fillStyle = o.color; mctx.strokeStyle = '#fff'; mctx.lineWidth = 2;
+      mctx.beginPath(); mctx.arc(mmX(o.cur.x) - ox, mmZ(o.cur.z) - oz, 6, 0, Math.PI*2); mctx.fill(); mctx.stroke();
+    }
     const px = mmX(hp.x) - ox, pz = mmZ(hp.z) - oz;
     mctx.save(); mctx.translate(px, pz); mctx.rotate(-a);
     mctx.fillStyle = '#fff'; mctx.strokeStyle = '#0b2a5b'; mctx.lineWidth = 3;
