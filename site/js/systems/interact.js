@@ -15,8 +15,8 @@ export function createInteract(W){
       const p = W.player.pos; let best = null, bd = Infinity;
       for (const it of items.values()){
         const x = typeof it.x === 'function' ? it.x() : it.x, z = typeof it.z === 'function' ? it.z() : it.z;
-        const d = Math.hypot(p.x - x, p.z - z);
-        if (d < it.r && d < bd && it.when()){ bd = d; best = it; }
+        const d = Math.hypot(p.x - x, p.z - z), e = d + (it.weak ? 2.5 : 0);   // chi ha solo un saluto cede il passo a negozianti e giochi
+        if (d < it.r && e < bd && it.when()){ bd = e; best = it; }
       }
       if (best !== current){
         current = best;

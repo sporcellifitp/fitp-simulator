@@ -17,8 +17,11 @@ export function createPlayer(W, av){
       if (!this.active) return;
       const L = input.look();
       cam.yaw -= L.dx*.006; cam.pitch = clamp(cam.pitch + L.dy*.004, .12, 1.1); cam.dist = clamp(cam.dist + L.zoom, 5, 24);
+      const zone = (W.cameraZones || []).find(z => z.inside(p.x, p.z));
+      cam.eff = zone ? { dist: Math.min(cam.dist, zone.dist), pitch: Math.min(Math.max(cam.pitch, zone.pitch), zone.maxPitch ?? 1.2) } : null;
       const mv = input.move(), run = input.running(), amt = Math.min(1, Math.hypot(mv.x, mv.y));
-      const sy = Math.sin(cam.yaw), cy = Math.cos(cam.yaw), speed = run ? RUN : WALK;
+      st.boostT = Math.max(0, (st.boostT || 0) - dt);
+      const sy = Math.sin(cam.yaw), cy = Math.cos(cam.yaw), speed = (run ? RUN : WALK)*(st.boostT > 0 ? 1.35 : 1);
       const vx = (mv.x*cy - mv.y*sy)*speed, vz = (-mv.x*sy - mv.y*cy)*speed;
       if (amt > .05){
         const steps = Math.max(1, Math.ceil(Math.hypot(vx, vz)*dt/.5));
@@ -43,7 +46,8 @@ export function createPlayer(W, av){
       W.engine.setFocus(p.x, p.z);
     },
     follow(dt, snap = false){
-      const d = cam.dist, h = Math.sin(cam.pitch)*d, back = Math.cos(cam.pitch)*d;
+      const dist = cam.eff ? cam.eff.dist : cam.dist, pitch = cam.eff ? cam.eff.pitch : cam.pitch;
+      const d = dist, h = Math.sin(pitch)*d, back = Math.cos(pitch)*d;
       const tx = p.x + Math.sin(cam.yaw)*back, ty = p.y + 1.6 + h, tz = p.z + Math.cos(cam.yaw)*back;
       if (snap) camera.position.set(tx, ty, tz);
       else { const k = Math.min(1, dt*8); camera.position.x += (tx - camera.position.x)*k; camera.position.y += (ty - camera.position.y)*k; camera.position.z += (tz - camera.position.z)*k; }
@@ -59,6 +63,7 @@ export function createPlayer(W, av){
       W.engine.setFocus(x, z);
     },
     isFreeAt: (x, z) => isFree(x, z, .7),
+    boost(sec){ st.boostT = Math.max(st.boostT || 0, sec); W.bus.emit('player:boost', sec); },
   };
   return player;
 }

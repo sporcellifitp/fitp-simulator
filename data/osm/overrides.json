@@ -24,5 +24,20 @@
   },
   "exclude": [
     "way/30057834"
-  ]
+  ],
+  "crop": {
+    "_nota": "Area giocabile ridotta al Foro Italico (dall'Olimpico al Tevere, dai Marmi all'ultimo campo a sud): la città intorno resta come sfondo",
+    "north": 41.935477,
+    "west": 12.453318,
+    "south": 41.926933,
+    "east": 12.46178
+  },
+  "village": {
+    "_nota": "Fan village del gioco, non esiste nella realtà: in fondo al viale, oltre la Fontana della Sfera, sull'area pedonale del piazzale. Ingresso rivolto verso la fontana.",
+    "lat": 41.932322,
+    "lon": 12.456481,
+    "bearing": 25.9,
+    "w": 90,
+    "l": 64
+  }
 }

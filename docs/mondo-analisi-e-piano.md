@@ -130,6 +130,10 @@ Verifiche: 16 test automatici su regole, fisica, partite complete tra IA e codic
 ### Resta da fare
 
 - Tutto il P2 del piano: multigiocatore, UGC su server con moderazione, accesso myFITP, audio, altri minigiochi, tennis in doppio.
-- Bilanciamento con persone vere: il bot dei test colpisce sempre al momento giusto e vince facilmente; bisogna misurare la difficoltà con i 20-30 utenti della v0.5.
+- Bilanciamento con persone vere: il bot dei test colpisce sempre al momento giusto e vince facilmente; bisogna misurare la difficoltà con i 20-30 utenti della v0.6.
 - Pubblico sugli spalti che reagisce ai punti (oggi è fermo) e livelli di dettaglio per i telefoni meno potenti.
 - Prova su telefoni veri: finora solo simulazione nel browser.
+
+## Seguito: v0.5
+
+Fan Village, negozi, golf car, indicazioni e FITP Trophy Tour sono descritti in [v0.5-village.md](v0.5-village.md).

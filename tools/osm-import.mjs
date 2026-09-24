@@ -323,14 +323,51 @@ export function buildLayout(raw, { bbox, overrides = {}, now = new Date() } = {}
   }
 
   const pad = 15;
+  let bounds = { x0:r1(x0 + pad), x1:r1(x1 - pad), z0:r1(z0 + pad), z1:r1(z1 - pad) };
+  let pavedOut = paved.map(p => simplify(p.concat([p[0]]), .4).slice(0, -1).map(q => [r1(q[0]), r1(q[1])]));
+  let treesOut = trees.map(p => [r1(p[0]), r1(p[1])]);
+  let linesOut = lines, buildingsOut = buildings, courtsOut = courts, padelOut = padel, bridgesOut = bridges;
+
+  // area giocabile ridotta al Foro (overrides.crop, in gradi): fuori resta solo lo sfondo entro 150 m
+  if (overrides.crop){
+    const c = overrides.crop, [cx0, cz0] = P.xz(c.north, c.west), [cx1, cz1] = P.xz(c.south, c.east);
+    bounds = { x0: r1(Math.min(cx0, cx1)), x1: r1(Math.max(cx0, cx1)), z0: r1(Math.min(cz0, cz1)), z1: r1(Math.max(cz0, cz1)) };
+    const inB = ([x, z], m) => x > bounds.x0 - m && x < bounds.x1 + m && z > bounds.z0 - m && z < bounds.z1 + m;
+    buildingsOut = buildingsOut.filter(b => inB(centroid(b.pts), 150));
+    linesOut = linesOut.filter(l => l.pts.some(q => inB(q, 150)));
+    pavedOut = pavedOut.filter(q => inB(centroid(q), 150));
+    treesOut = treesOut.filter(q => inB(q, 0));
+    courtsOut = courtsOut.filter(q => inB([q.x, q.z], 0));
+    padelOut = padelOut.filter(q => inB([q.x, q.z], 0));
+    bridgesOut = bridgesOut.filter(q => inB([q.x, q.z], 150));
+  }
+  // spazio del fan village (overrides.village): lì si tolgono edifici, strade, alberi e campi di OSM
+  let village = null;
+  if (overrides.village){
+    const v = overrides.village, [vx, vz] = P.xz(v.lat, v.lon), rot = normAngle(rotFromBearing('stadium', v.bearing ?? 0));
+    village = { x: r1(vx), z: r1(vz), rot: r4(rot), w: v.w ?? 90, l: v.l ?? 64 };
+    const c = Math.cos(rot), s = Math.sin(rot), m = 4;
+    const inside = ([x, z]) => { const dx = x - vx, dz = z - vz; return Math.abs(dx*c - dz*s) < village.w/2 + m && Math.abs(dx*s + dz*c) < village.l/2 + m; };
+    const touches = pts => pts.some(inside) || inside(centroid(pts));
+    buildingsOut = buildingsOut.filter(b => !touches(b.pts));
+    linesOut = linesOut.map(l => ({ ...l, pts: l.pts })).flatMap(l => {       // le strade si interrompono al bordo del village
+      const parts = []; let cur = [];
+      for (const q of l.pts){ if (inside(q)){ if (cur.length > 1) parts.push(cur); cur = []; } else cur.push(q); }
+      if (cur.length > 1) parts.push(cur);
+      return parts.map(pts => ({ ...l, pts }));
+    });
+    pavedOut = pavedOut.filter(q => !touches(q));
+    treesOut = treesOut.filter(q => !inside(q));
+    courtsOut = courtsOut.filter(q => !inside([q.x, q.z]));
+    padelOut = padelOut.filter(q => !inside([q.x, q.z]));
+  }
   const layout = {
     version: 1, source: 'osm', attribution: ATTRIBUTION, generated: now.toISOString(),
-    origin: { lat:lat0, lon:lon0 }, bbox,
-    bounds: { x0:r1(x0 + pad), x1:r1(x1 - pad), z0:r1(z0 + pad), z1:r1(z1 - pad) },
-    start, sites, courts, padel, paved: paved.map(p => simplify(p.concat([p[0]]), .4).slice(0, -1).map(q => [r1(q[0]), r1(q[1])])),
-    lines, bridges, water, buildings, trees: trees.slice(0, 2500).map(p => [r1(p[0]), r1(p[1])]), backdrop: false,
+    origin: { lat:lat0, lon:lon0 }, bbox, bounds,
+    start, sites, courts: courtsOut, padel: padelOut, paved: pavedOut,
+    lines: linesOut, bridges: bridgesOut, water, buildings: buildingsOut, trees: treesOut.slice(0, 2500), backdrop: false, village,
   };
-  report.counts = { campi:courts.length, padel:padel.length, edifici:buildings.length, percorsi:lines.length, aree_pavimentate:layout.paved.length,
+  report.counts = { campi:layout.courts.length, padel:layout.padel.length, edifici:layout.buildings.length, percorsi:layout.lines.length, aree_pavimentate:layout.paved.length,
     ponti:bridges.length + (sites.ponte ? 1 : 0), tratti_fiume:water.length, alberi:layout.trees.length };
   report.bearings = Object.fromEntries(Object.entries(sites).filter(([k, s]) => s.rot != null).map(([k, s]) => [k, bearingFromRot(SITES[k].kind, s.rot)]));
   return { layout, report };

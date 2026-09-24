@@ -6,9 +6,9 @@ import { makeAvatar, placeOn, pose } from '../entities/avatar.js';
 import { hud } from '../ui/hud.js';
 
 export function registerVetro(W){
-  const PF = W.world.PF; if (!PF) return;
+  let PF = W.world.PF || (W.venues['village-padel'] || {}).F; if (!PF) return;
   const scene = W.engine.scene, hero = W.hero;
-  const padelG = new THREE.Group(); padelG.position.set(PF.x, 0, PF.z); padelG.rotation.y = PF.rot; scene.add(padelG);
+  const padelG = new THREE.Group(); scene.add(padelG);
   const pball = new THREE.Mesh(new THREE.SphereGeometry(.12, 14, 10), new THREE.MeshLambertMaterial({ color: 0xe6f550, emissive: 0x3a400e }));
   pball.castShadow = true; pball.visible = false; padelG.add(pball);
   const ringMat = new THREE.MeshBasicMaterial({ color: 0xf3c623, transparent: true, opacity: .9, side: THREE.DoubleSide, depthTest: false });
@@ -27,7 +27,7 @@ export function registerVetro(W){
   };
 
   W.games.register({
-    id: 'vetro', title: 'Il vetro', place: 'Campo da padel', kind: 'minigame', venue: 'padel', unit: 'Palla',
+    id: 'vetro', title: 'Il vetro', place: 'Campo da padel', kind: 'minigame', venue: W.world.PF ? 'padel' : 'village-padel', unit: 'Palla',
     bestKey: 'fiw.vetro.best', goLabel: 'In campo', seedable: true,
     intro: "Nel padel la palla può toccare la parete di fondo dopo il rimbalzo ed essere giocata al ritorno. Qui è l'unico modo per rispondere: lascia passare la palla, aspetta che torni dal vetro e colpisci quando il cerchio si chiude.",
     rules: [
@@ -37,6 +37,8 @@ export function registerVetro(W){
       'Dieci palle, sempre più veloci.',
     ],
     start(G){
+      const V = W.venues[G.venue] || W.venues.padel || W.venues['village-padel']; PF = V.F; G.V = V;
+      padelG.position.set(PF.x, 0, PF.z); padelG.rotation.y = PF.rot;
       if (!rival){ rival = makeAvatar({ shirt: 0xf3c623, shorts: 0x0b2a5b, cap: 0x0b2a5b }); scene.add(rival.g); }
       placeOn(rival, PF, 0, -7.5, 0); placeOn(hero, PF, 0, 8, Math.PI);
       const [px, pz] = PF.w(0, 15.2), [lx, lz] = PF.w(0, -2);
@@ -114,10 +116,10 @@ export function registerVetro(W){
       return { title: G.score >= best && G.score > 0 ? 'Nuovo record' : G.stat2 >= 5 ? 'Mano da Major' : G.stat2 >= 2 ? 'Bel controllo' : 'Si può fare di meglio',
         stats: [{ v: G.score, label: 'Punti' }, { v: G.stat2, label: 'Perfetti' }, { v: best, label: 'Record' }], won: G.score > 0 };
     },
-    cleanup(){
+    cleanup(G){
       pball.visible = ring.visible = splash.visible = false;
       if (rival){ scene.remove(rival.g); rival = null; }
-      const [x, z] = PF.w(7, 0); W.player.place(x, z, PF.x, PF.z);
+      const [x, z] = G.V.exit(); W.player.place(x, z, PF.x, PF.z);
     },
   });
 }

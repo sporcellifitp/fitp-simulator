@@ -62,7 +62,7 @@ export function createExhibitions(W){
 
   return {
     venues,
-    busy(id){ const g = W.games; return g.G.active && g.current && g.current.venue === id; },
+    busy(id){ const g = W.games; return g.G.active && g.G.venue === id; },
     update(dt){
       const p = W.player.pos;
       for (const v of venues){

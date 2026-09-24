@@ -2,7 +2,7 @@
 
 Prototipo di un mondo giocabile nel browser, ispirato al Foro Italico di Roma. Progetto esplorativo di FITP eSports, nato dall'analisi di [Como Junior](https://junior.comofootball.com/), il gioco del Como 1907.
 
-**Stato:** prototipo v0.4, uso interno. Planimetria da OpenStreetMap con impianti e nomi dell'edizione 2026; alcune posizioni del 2026 sono stimate (vedi [ROADMAP.md](ROADMAP.md), [docs/v0.2-planimetria.md](docs/v0.2-planimetria.md) e [docs/mondo-analisi-e-piano.md](docs/mondo-analisi-e-piano.md)).
+**Stato:** prototipo v0.5, uso interno. Planimetria da OpenStreetMap con impianti e nomi dell'edizione 2026; alcune posizioni del 2026 sono stimate (vedi [ROADMAP.md](ROADMAP.md), [docs/v0.2-planimetria.md](docs/v0.2-planimetria.md) e [docs/mondo-analisi-e-piano.md](docs/mondo-analisi-e-piano.md) e [docs/v0.5-village.md](docs/v0.5-village.md)).
 
 ## Cosa si può fare
 
@@ -10,6 +10,9 @@ Prototipo di un mondo giocabile nel browser, ispirato al Foro Italico di Roma. P
 - Giocare **partite vere**: tennis singolare sul Centrale e padel in doppio, con movimento, colpo, pallonetto, smash in salto, punteggio reale e tre livelli.
 - Guardare partite tra NPC sugli altri campi, con arbitro e raccattapalle; il punteggio del Centrale va sul maxischermo della fan zone.
 - Parlare con otto personaggi e fare le loro missioni: raccattapalle a tempo, medaglie tra le statue dei Marmi, una granita da consegnare. Minigiochi: sfida al servizio e il vetro.
+- Nel **Fan Village**, vicino all'ingresso, trovare tutti i giochi insieme, il negozio del giocatore (vestiti e racchette), lo Store del torneo (spille), il punto ristoro e il noleggio della **golf car** per girare il Foro. Si paga con i gettoni guadagnati giocando, senza denaro vero.
+- Visitare il **FITP Trophy Tour**, il museo itinerante: un camion-vetrina con la Coppa Davis e la Billie Jean King Cup, totem con la storia della Federazione e foto reali, foto ricordo con la Coppa. Cambia tappa ogni 5 minuti.
+- Orientarsi con cartelli, navigatore con freccia gialla e minimappa.
 - Personalizzare il giocatore, lasciare un messaggio sulla bacheca dei tifosi, sfidare un amico con un link, raccogliere medaglie nell'album.
 - Da computer tastiera e mouse, da telefono joystick e pulsanti. Si gioca come ospite: i progressi restano nel browser.
 
@@ -19,7 +22,9 @@ Prototipo di un mondo giocabile nel browser, ispirato al Foro Italico di Roma. P
 - `site/js/core/`: motore di rendering, input, eventi, archivio. `world/`: planimetria, collisioni, costruzione del mondo, allestimenti.
 - `site/js/entities/`: avatar e giocatore. `systems/`: interazioni, luoghi, NPC e dialoghi, progressi, attività.
 - `site/js/match/`: fisica, regole, IA e resa grafica delle partite (i primi tre senza Three.js, testabili con Node).
-- `site/js/games/`: registro delle modalità e minigiochi. `ugc/`: profilo, bacheca, codici sfida. `content/npcs.js`: personaggi e dialoghi.
+- `site/js/games/`: registro delle modalità e minigiochi. `ugc/`: profilo, bacheca, codici sfida, negozi. `content/`: personaggi e dialoghi, articoli dei negozi, pannelli del Trophy Tour.
+- `site/js/world/village.js` (Fan Village), `world/tour.js` (Trophy Tour), `entities/cart.js` (golf car), `systems/nav.js` ed `economy.js`.
+- `site/assets/`: loghi FITP (`brand/`) e foto del Trophy Tour (`photos/`), con fonti e licenze nei README.
 
 **Aggiungere un personaggio:** una voce in `content/npcs.js` (posizione, aspetto, dialogo). **Aggiungere un gioco:** un modulo che chiama `W.games.register({...})` e una riga in `main.js`; per il menu «Vai a…», una voce in `systems/activities.js`.
 
@@ -59,6 +64,7 @@ Il sito chiede ai motori di ricerca di non indicizzarlo, ma questo non ne limita
 - HTML, CSS e JavaScript in un solo file, nessuna fase di build
 - [Three.js](https://threejs.org/) 0.170 per il 3D
 - Mondo generato in codice a partire dalla planimetria: niente modelli esterni né asset generati con AI in questa versione
+- Foto del Trophy Tour da Wikimedia Commons (pubblico dominio, CC BY, CC BY-SA), con autore e licenza nel gioco
 - Dati cartografici © OpenStreetMap contributors, licenza [ODbL](https://opendatacommons.org/licenses/odbl/), quando importati
 
 ## Note

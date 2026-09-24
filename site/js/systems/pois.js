@@ -92,6 +92,11 @@ export function createPois(W){
       mctx.fillStyle = it.map; mctx.strokeStyle = '#0b2a5b'; mctx.lineWidth = 2;
       mctx.beginPath(); mctx.arc(mmX(x) - ox, mmZ(z) - oz, 6 + Math.sin(t)*1.2, 0, Math.PI*2); mctx.fill(); mctx.stroke();
     }
+    if (W.nav && W.nav.target){
+      const t = W.nav.target, tx = mmX(t.x) - ox, tz = mmZ(t.z) - oz;
+      mctx.strokeStyle = 'rgba(243,198,35,.9)'; mctx.setLineDash([6, 5]); mctx.lineWidth = 3; mctx.beginPath(); mctx.moveTo(mmX(hp.x) - ox, mmZ(hp.z) - oz); mctx.lineTo(tx, tz); mctx.stroke(); mctx.setLineDash([]);
+      mctx.fillStyle = '#f3c623'; mctx.strokeStyle = '#0b2a5b'; mctx.beginPath(); mctx.arc(tx, tz, 8, 0, Math.PI*2); mctx.fill(); mctx.stroke();
+    }
     const px = mmX(hp.x) - ox, pz = mmZ(hp.z) - oz;
     mctx.save(); mctx.translate(px, pz); mctx.rotate(-a);
     mctx.fillStyle = '#fff'; mctx.strokeStyle = '#0b2a5b'; mctx.lineWidth = 3;
@@ -149,16 +154,26 @@ export function createPois(W){
   function openPlaces(){
     const box = $('#places .dest'); box.innerHTML = '';
     const head = t => { const h = document.createElement('div'); h.className = 'sect'; h.textContent = t; box.appendChild(h); };
-    const btn = (title, note, cls, fn) => {
+    // ogni riga: tocco sul nome = teletrasporto; «Guidami» = navigatore (a piedi o in golf car)
+    const row = (title, note, cls, go, target) => {
+      const r = document.createElement('div'); r.className = 'drow';
       const b = document.createElement('button'); if (cls) b.className = cls;
       b.innerHTML = `<b>${esc(title)}</b>` + (note ? `<small>${esc(note)}</small>` : '');
-      b.addEventListener('click', () => { show('#places', false); W.setMode('explore'); fn(); }); box.appendChild(b);
+      b.addEventListener('click', () => { show('#places', false); W.setMode('explore'); go(); });
+      r.appendChild(b);
+      const t = target && target();
+      if (t){
+        const g = document.createElement('button'); g.className = 'guide'; g.textContent = 'Guidami';
+        g.addEventListener('click', () => { show('#places', false); W.setMode('explore'); W.nav.set({ x: t.x, z: t.z, name: title }); });
+        r.appendChild(g);
+      }
+      box.appendChild(r);
     };
-    head('Attività');
-    for (const a of W.activities.list()) btn(a.title, a.where, 'game', () => W.activities.go(a.id));
+    let group = null;
+    for (const a of W.activities.list()){ if (a.group !== group){ group = a.group; head(group); } row(a.title, a.where, 'game', a.go, a.target); }
     head('Luoghi');
     const order = ['centrale', 'padel', 'arena', 'pietr', 'st', 'marmi', 'esterni', 'fontana', 'viale', 'ponte', 'olimpico'];
-    for (const id of order){ const q = POIS.find(p => p.id === id); if (q) btn(q.name, q.id === 'arena' ? 'Dentro lo Stadio dei Marmi' : '', '', () => goPlace(q)); }
+    for (const id of order){ const q = POIS.find(p => p.id === id); if (q) row(q.name, q.id === 'arena' ? 'Dentro lo Stadio dei Marmi' : '', '', () => goPlace(q), () => ({ x: q.ax ?? q.x, z: q.az ?? q.z })); }
     W.setMode('menu'); show('#places', true);
   }
   $('#goto').addEventListener('click', openPlaces);
@@ -168,14 +183,14 @@ export function createPois(W){
     POIS, openPlaces, goPlace, safeSpot,
     setVisible(on){ for (const p of POIS) p.el.style.display = on ? '' : 'none'; show('#minimap', on); if (!on) show('#poi', false); else curPoi = undefined; },
     update(){
-      if (W.mode !== 'explore') return;
+      if (W.mode !== 'explore' && W.mode !== 'drive') return;
       const q = nearestPoi(), card = $('#poi');
       if (q !== curPoi){
         curPoi = q; show(card, !!q); show('#hint', !q && !document.body.classList.contains('touch'));
         if (q){ card.querySelector('h3').textContent = q.name; card.querySelector('p').textContent = q.text; W.bus.emit('poi:visit', q.id); }
       }
       updateLabels(); drawMinimap();
-      if (W.input.pressed('places')) openPlaces();
+      if (W.input.pressed('places') && W.mode === 'explore') openPlaces();
     },
   };
 }

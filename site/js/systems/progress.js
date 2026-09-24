@@ -16,13 +16,23 @@ export const BADGES = [
   { id: 'tifoso', title: 'Tifoso del Foro', desc: 'Lascia un messaggio sulla bacheca dei tifosi' },
   { id: 'sfida', title: 'Sfidante', desc: 'Condividi una sfida con un amico' },
   { id: 'look', title: 'Nuovo look', desc: 'Personalizza il tuo giocatore' },
+  { id: 'shopping', title: 'Primo acquisto', desc: 'Compra qualcosa al negozio del giocatore' },
+  { id: 'collezionista', title: 'Collezionista', desc: 'Raccogli tutte le spille dello Store del torneo' },
+  { id: 'golfcar', title: 'Al volante', desc: 'Noleggia la golf car e fai un giro del Foro' },
+  { id: 'museo', title: 'Storia azzurra', desc: 'Leggi tutti i pannelli e i trofei del FITP Trophy Tour' },
+  { id: 'passaporto', title: 'Passaporto del Tour', desc: 'Raggiungi il Trophy Tour in tutte le sue tappe' },
+  { id: 'fototour', title: 'Foto con la Coppa', desc: 'Scatta la foto ricordo al Trophy Tour' },
+  { id: 'village', title: 'Giocatore del village', desc: 'Gioca a tutte le postazioni del Fan Village' },
 ];
+
+const VILLAGE_GAMES = ['serve', 'tennis', 'raccattapalle', 'padel', 'vetro'];   // come BOOTHS in world/village.js
 
 export function createProgress(W){
   const st = store.get('progress', null) || { badges: {}, quests: {}, visited: {}, inv: {}, stats: {} };
   const save = () => store.set('progress', st);
+  st.owned = st.owned || {}; st.pins = st.pins || {}; st.museum = st.museum || {}; st.tour = st.tour || {};
   const api = {
-    st,
+    st, save,
     has: id => !!st.badges[id],
     badge(id){
       if (st.badges[id]) return false;
@@ -40,7 +50,8 @@ export function createProgress(W){
     openAlbum(){
       const got = BADGES.filter(b => st.badges[b.id]).length;
       const html = `<p>${got} medaglie su ${BADGES.length}. Le medaglie restano salvate in questo browser.</p><div class="album">` +
-        BADGES.map(b => `<div class="${st.badges[b.id] ? 'got' : ''}"><b>${esc(b.title)}</b><small>${esc(b.desc)}</small></div>`).join('') + '</div>';
+        BADGES.map(b => `<div class="${st.badges[b.id] ? 'got' : ''}"><b>${esc(b.title)}</b><small>${esc(b.desc)}</small></div>`).join('') + '</div>' +
+        (W.shop ? W.shop.pinsHtml() : '');
       W.setMode('menu');
       hud.panel({ tag: 'Album', title: 'Le tue medaglie', html, buttons: [{ label: 'Chiudi', primary: true }], onClose: () => W.setMode('explore') });
     },
@@ -49,7 +60,7 @@ export function createProgress(W){
   const MAIN = ['centrale', 'pietr', 'arena', 'marmi', 'st', 'fontana', 'viale', 'padel', 'esterni', 'ponte'];
   W.bus.on('poi:visit', id => {
     if (st.visited[id]) return;
-    st.visited[id] = 1; save();
+    st.visited[id] = 1; save(); W.bus.emit('poi:first', id);
     const avail = MAIN.filter(k => W.pois.POIS.some(p => p.id === k));
     const n = avail.filter(k => st.visited[k]).length;
     if (n < avail.length) hud.toast(`Luogo scoperto: ${n} di ${avail.length}`);
@@ -60,6 +71,12 @@ export function createProgress(W){
     if (e.id === 'vetro' && e.stat2 >= 5) api.badge('vetro');
     if (e.id === 'tennis' && e.won){ api.badge('vittoria-tennis'); if (e.G.opts.level === 'esperto') api.badge('esperto'); }
     if (e.id === 'padel' && e.won){ api.badge('vittoria-padel'); if (e.G.opts.level === 'esperto') api.badge('esperto'); }
+    // postazioni del Fan Village: giocate tutte e cinque, medaglia
+    if (e.G && /^village-/.test(e.G.venue || '')){
+      st.village = st.village || {}; const first = !st.village[e.id]; if (first){ st.village[e.id] = 1; save(); }
+      const n = VILLAGE_GAMES.filter(k => st.village[k]).length;
+      if (n >= VILLAGE_GAMES.length) api.badge('village'); else if (first) hud.toast(`Postazioni del village: ${n} di ${VILLAGE_GAMES.length}`);
+    }
   });
   return api;
 }

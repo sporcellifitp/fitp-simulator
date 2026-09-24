@@ -20,7 +20,7 @@ export function npcDefs(W){
   const cL = DIM.centrale.l/2 + DIM.centrale.tiers*DIM.centrale.step;
   const hub = S.pietrangeli || S.centrale;
   const outer = (layout.courts || []).filter(c => Math.hypot(c.x - hub.x, c.z - hub.z) < 300).sort((a, b) => Math.hypot(a.x - hub.x, a.z - hub.z) - Math.hypot(b.x - hub.x, b.z - hub.z))[3];
-  const FZ = W.props.fanZone, fz = FZ ? frame(FZ) : null;
+  const VA = W.village ? W.village.anchors : null, VF = W.village ? W.village.F : null;
   const G = W.games, A = W.activities, PR = W.progress;
   const defs = [];
 
@@ -104,24 +104,26 @@ export function npcDefs(W){
       fontana: { text: 'È la Fontana della Sfera, realizzata tra il 1933 e il 1935 su progetto di Mario Paniconi e Giulio Pediconi. La sfera è un unico blocco di marmo di Carrara.', options: [{ label: 'Grazie Paolo' }] },
     } } });
 
-  /* ---------- fan zone: Sara (granite) e Dario (info point) ---------- */
-  if (fz){
-    defs.push({ id: 'sara', name: 'Sara', role: 'chiosco delle granite', map: '#d8342c',
+  /* ---------- Fan Village: Sara (punto ristoro), Dario (info point), Marta (negozio), Nico (store), Franco (golf car), Beatrice (museo) ---------- */
+  if (VA){
+    defs.push({ id: 'sara', talkR: 4.6, name: 'Sara', role: 'chiosco delle granite', map: '#d8342c',
       look: { shirt: 0xd8342c, shorts: 0xffffff, cap: 0xffffff, hair: 0x1d1d1f, skin: 0xe8c2a0, hasRacket: false },
-      at: () => fz.w(-8, 3.2), face: () => fz.rot,
+      at: () => VA.sara, face: () => VF.rot + Math.PI,
       marker: () => PR.quest('granita') === 'none' ? '!' : '',
       dialogue: { start: () => PR.quest('granita') === 'none' ? 'quest' : 'hello', nodes: {
         quest: { text: 'Ciao! Luca il raccattapalle corre tutto il giorno e non ha tempo di venire qui. Gli porti tu una granita? Lo trovi ai campi esterni.', options: [
           { label: 'Ci penso io', do: () => { PR.give('granita', 1); PR.setQuest('granita', 'active'); W.hud.toast('Hai una granita per Luca: lo trovi ai campi esterni'); } },
           { label: 'Adesso no' },
         ] },
-        hello: { text: () => PR.quest('granita') === 'active' ? 'Luca aspetta ancora la sua granita: è ai campi esterni!' : 'Granite al limone, alla fragola e alla menta. Oggi va via tutto!', options: [{ label: 'Una alla fragola, grazie', do: () => W.hud.toast('Fresca!') }, { label: 'Ciao Sara' }] },
+        hello: { text: () => PR.quest('granita') === 'active' ? 'Luca aspetta ancora la sua granita: è ai campi esterni!' : 'Granite, gelati e acqua fresca. Rinfrescarsi dà energia: per un po\' si corre più veloci!', options: [{ label: 'Vediamo cosa c\'è', do: () => W.shop.openFood() }, { label: 'Ciao Sara' }] },
       } } });
-    defs.push({ id: 'dario', name: 'Dario', role: 'info point', map: '#2f8f57',
+    defs.push({ id: 'dario', talkR: 4.6, name: 'Dario', role: 'info point', map: '#2f8f57',
       look: { shirt: 0x2f8f57, shorts: 0x1d2430, cap: 0x2f8f57, skin: 0xd6a67e, hasRacket: false },
-      at: () => fz.w(8, 3.2), face: () => fz.rot,
+      at: () => VA.dario, face: () => VF.rot + Math.PI,
       dialogue: { start: 'hello', nodes: {
-        hello: { text: 'Benvenuto alla fan zone, {nick}! Qui puoi cambiare il tuo look, lasciare un messaggio ai tifosi e vedere le tue medaglie.', options: [
+        hello: { text: 'Benvenuto al Fan Village, {nick}! Qui trovi tutti i giochi: le postazioni sono in fondo, i campi ai lati. Ci sono anche negozi, il Museo FITP e il noleggio delle golf car.', options: [
+          { label: 'Dove vado adesso?', do: () => W.pois.openPlaces() },
+          { label: 'Come guadagno gettoni?', next: 'gettoni' },
           { label: 'Cambio il mio giocatore', do: () => W.ugc.profile.open() },
           { label: 'Scrivo sulla bacheca dei tifosi', do: () => W.ugc.board.open() },
           { label: 'Apro l\'album delle medaglie', do: () => W.progress.openAlbum() },
@@ -129,8 +131,55 @@ export function npcDefs(W){
           { label: 'Ciao!' },
         ] },
         sfida: { text: 'Alla fine della sfida al servizio, del vetro o del raccattapalle premi «Sfida un amico»: ottieni un link con la stessa sequenza e il tuo punteggio da battere.', options: [{ label: 'Grazie Dario' }] },
+        gettoni: { text: () => `Ne hai ${W.economy.coins}. Si guadagnano giocando: una partita vinta ne vale 30, le sfide fino a 22, le missioni 20 o 40, ogni medaglia 10, ogni luogo scoperto 3. Si spendono nei negozi e per la golf car.`, options: [{ label: 'Chiaro, grazie' }] },
       } } });
   }
+
+  if (VA){
+    defs.push({ id: 'marta', talkR: 4.6, name: 'Marta', role: 'Negozio del giocatore', map: '#c8643b',
+      look: { shirt: 0xc8643b, shorts: 0x1d2430, hasCap: false, hair: 0x1d1d1f, skin: 0xd6a67e, hasRacket: false, glasses: true },
+      at: () => VA.marta, face: () => VF.rot + Math.PI,
+      dialogue: { start: 'hello', nodes: {
+        hello: { text: () => `Ciao {nick}! Maglie, cappellini, fasce, occhiali, polsini, scarpe e racchette. Hai ${W.economy.coins} gettoni da spendere.`, options: [
+          { label: 'Fammi vedere tutto', do: () => W.shop.openWardrobe() },
+          { label: 'Apro il mio guardaroba', do: () => W.shop.openWardrobe({ ownedOnly: true, title: 'Il tuo guardaroba' }) },
+          { label: 'Ciao Marta' },
+        ] } } } });
+    defs.push({ id: 'nico', talkR: 4.6, name: 'Nico', role: 'Store del torneo', map: '#0b2a5b',
+      look: { shirt: 0x0b2a5b, shorts: 0xe9e2d0, cap: 0xf3c623, skin: 0xe8c2a0, hasRacket: false },
+      at: () => VA.nico, face: () => VF.rot + Math.PI,
+      dialogue: { start: 'hello', nodes: {
+        hello: { text: 'Benvenuto allo Store del torneo! Le spille da collezione finiscono nel tuo album: chi le prende tutte diventa collezionista.', options: [
+          { label: 'Vediamo le spille', do: () => W.shop.openStore() }, { label: 'Ciao Nico' },
+        ] } } } });
+    defs.push({ id: 'franco', talkR: 4.6, name: 'Franco', role: 'noleggio golf car', map: '#2f8f57',
+      look: { shirt: 0x2f8f57, shorts: 0x2a2f3a, cap: 0xffffff, skin: 0xb07a52, hasRacket: false },
+      at: () => VA.franco, face: () => VF.rot + Math.PI,
+      dialogue: { start: () => W.carts.rented ? 'rented' : 'hello', nodes: {
+        hello: { text: () => `Il Foro è grande: con la golf car lo giri tutto in un attimo. Il noleggio costa ${W.CART_PRICE} gettoni e vale finché resti nel gioco. Tu ne hai ${W.economy.coins}.`, options: [
+          { label: `Noleggio la golf car`, do: () => W.carts.rent() },
+          { label: 'Come si guida?', next: 'guida' }, { label: 'Più tardi' },
+        ] },
+        guida: { text: 'Frecce o WASD per accelerare, frenare e sterzare, Spazio per il clacson, E per scendere. Sul telefono c\'è il joystick. Attento ai muri!', options: [{ label: 'Noleggio', do: () => W.carts.rent() }, { label: 'Grazie' }] },
+        rented: { text: 'La tua golf car è dove l\'hai lasciata: sulla minimappa è il punto blu. Buon giro!', options: [{ label: 'Portami il navigatore sulla golf car', do: () => { const c = W.carts.cart; if (c) W.nav.set({ x: c.x, z: c.z, name: 'La tua golf car' }); } }, { label: 'Grazie Franco' }] },
+      } } });
+  }
+  if (W.tour) defs.push({ id: 'beatrice', talkR: 3.6, name: 'Beatrice', role: 'guida del Trophy Tour', map: '#0b2a5b',
+    look: { shirt: 0x0b2a5b, shorts: 0xffffff, hasCap: false, hair: 0x6b3b1c, skin: 0xf0d0b4, hasRacket: false },
+    at: () => [W.tour.curator.x, W.tour.curator.z], face: () => W.tour.F.rot + .4,
+    dialogue: { start: 'hello', nodes: {
+      hello: { text: () => { const T = W.tour, n = [...Object.keys(PR.st.museum)].length, tt = Object.keys(PR.st.tour).length; return `Benvenuto al FITP Trophy Tour, {nick}! È il museo itinerante della Federazione: gira il Foro e resta ${T.nextIn() ? Math.ceil(T.nextIn()/60) + ' minuti ancora' : 'qui per ora'} ${T.stop.hint}. Hai letto ${n} pannelli su ${T.total} e hai ${tt} timbri su ${T.stops.length}.`; }, options: [
+        { label: 'Cosa c\'è da vedere?', next: 'start' },
+        { label: 'Dove andrete dopo?', next: 'dopo' },
+        { label: 'Voglio la foto con la Coppa', next: 'foto' },
+        { label: 'Da dove vengono le foto?', next: 'fonti' },
+        { label: 'Grazie Beatrice' },
+      ] },
+      start: { text: 'Nel camion c\'è la Coppa Davis, vinta dall\'Italia nel 1976 e poi tre volte di fila dal 2023 al 2025. Nella vetrina a sinistra la Billie Jean King Cup. Lungo il tappeto rosso i totem con la storia della Federazione, dal 1910 a oggi.', options: [{ label: 'Vado!' }] },
+      dopo: { text: () => `La prossima tappa è ${W.tour.next().hint}. Ogni tappa in cui ci trovi vale un timbro: con tutti i timbri hai la medaglia del Passaporto del Tour.`, options: [{ label: 'Portami il navigatore', do: () => { const n = W.tour.next(); const [x, z] = n.F.w(-1.5, 18); W.nav.set({ x, z, name: 'Prossima tappa: ' + n.name }); } }, { label: 'Grazie' }] },
+      foto: { text: 'Mettiti sul cerchio giallo davanti alla parete dei loghi, accanto alla Coppa, e premi Foto. La foto resta sul tuo dispositivo.', options: [{ label: 'Scatta adesso', do: () => W.tour.takePhoto() }, { label: 'Dopo' }] },
+      fonti: { text: 'Sono foto di Wikimedia Commons con licenza libera: autore e licenza sono scritti sotto ogni foto. Nessuna ritrae da vicino un atleta.', options: [{ label: 'Chiaro' }] },
+    } } });
 
   /* ---------- Elena, tifosa al Pietrangeli ---------- */
   if (P.pietr) defs.push({ id: 'elena', name: 'Elena', role: 'tifosa',
@@ -144,7 +193,7 @@ export function npcDefs(W){
     } } });
 
   /* ---------- pubblico che passeggia ---------- */
-  const anchors = [S.viale, S.fontana, P.pietr && P.pietr.f.w(P.pietr.hw + 6, 0), CF.w(0, cL + 8), P.marmi && P.marmi.f.w(0, P.marmi.b + 8), fz && fz.w(0, 8), S.supertennis]
+  const anchors = [S.viale, S.fontana, P.pietr && P.pietr.f.w(P.pietr.hw + 6, 0), CF.w(0, cL + 8), P.marmi && P.marmi.f.w(0, P.marmi.b + 8), VA && VA.plaza, VA && VA.entrance, S.supertennis]
     .filter(Boolean).map(a => Array.isArray(a) ? { x: a[0], z: a[1] } : a);
   const n = W.layout.source === 'schematic' ? 22 : 30;
   for (let i = 0; i < n; i++){

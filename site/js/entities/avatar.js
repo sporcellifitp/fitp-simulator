@@ -26,7 +26,8 @@ function boxes(list){
 }
 
 export const SKINS = [0xf0d0b4, 0xe8c2a0, 0xe0b48f, 0xd6a67e, 0xb07a52, 0x8a5a3a];
-export const DEFAULT_LOOK = { shirt: 0x1f4fa3, shorts: 0xffffff, cap: 0xffffff, skin: 0xe0b48f, shoes: 0xf7f7f7, racket: 0x1f4fa3, hair: 0x3a2a1c, hasRacket: true, hasCap: true };
+export const DEFAULT_LOOK = { shirt: 0x1f4fa3, shorts: 0xffffff, cap: 0xffffff, skin: 0xe0b48f, shoes: 0xf7f7f7, racket: 0x1f4fa3, hair: 0x3a2a1c, hasRacket: true, hasCap: true,
+  stripe: null, headband: null, glasses: false, wrist: null };
 
 export function makeAvatar(look = {}, scale = 1){
   const L = { ...DEFAULT_LOOK, ...look };
@@ -45,8 +46,14 @@ export function makeAvatar(look = {}, scale = 1){
       L.hasCap ? [.48, .12, .48, L.cap, 0, 2.2, 0] : [.48, .14, .48, L.hair, 0, 2.2, -.01],
       L.hasCap ? [.46, .05, .24, L.cap, 0, 2.15, .32] : [.48, .3, .1, L.hair, 0, 2.02, -.21],
     ];
+    // accessori: righe sulla maglia (una o tricolore), fascia, occhiali da sole
+    if (L.stripe === 'tricolore') head.push([.74, .09, .44, 0x2f8f57, 0, 1.46, 0], [.74, .09, .44, 0xffffff, 0, 1.37, 0], [.74, .09, .44, 0xd8342c, 0, 1.28, 0]);
+    else if (L.stripe != null) head.push([.74, .1, .44, L.stripe, 0, 1.42, 0], [.74, .1, .44, L.stripe, 0, 1.2, 0]);
+    if (L.headband != null && !L.hasCap) head.push([.49, .09, .49, L.headband, 0, 2.08, 0]);
+    if (L.glasses) head.push([.4, .09, .03, 0x1d1d1f, 0, 1.98, .245]);
     const leg = [[.3, .42, .32, L.shorts, 0, -.21, 0], [.24, .44, .26, L.skin, 0, -.62, 0], [.28, .12, .38, L.shoes, 0, -.9, .04]];
     const arm = [[.22, .3, .26, L.shirt, 0, -.15, 0], [.19, .46, .21, L.skin, 0, -.52, 0]];
+    if (L.wrist != null) arm.push([.21, .1, .23, L.wrist, 0, -.68, 0]);
     const armWithRacket = L.hasRacket ? arm.concat([[.06, .36, .06, 0x222222, 0, -.93, .05], [.34, .42, .05, L.racket, 0, -1.28, .05], [.26, .34, .06, 0xe9e2c6, 0, -1.28, .05]]) : arm;
     parts.meshes = [mesh(head, body), mesh(leg, legL), mesh(leg, legR), mesh(arm, armL), mesh(armWithRacket, armR)];
   };

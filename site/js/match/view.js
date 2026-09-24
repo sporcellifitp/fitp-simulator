@@ -74,7 +74,8 @@ export function registerMatches(W){
     hud.instr('Joystick per muoverti · Colpo · Pallonetto · Salta', 'Frecce per muoverti · J o clic colpo · K pallonetto · Spazio salto');
   }
   function begin(G, sport, opts){
-    const F = sport === 'padel' ? PF : CF, profile = W.ugc.profile.get();
+    const V = W.venues[G.venue] || W.venues[sport === 'padel' ? 'padel' : 'centrale']; G.V = V;
+    const F = V.F, profile = W.ugc.profile.get();
     const rng = G.rng, pick = () => OPPONENTS[Math.floor(rng()*OPPONENTS.length)];
     const opp = [], used = new Set();
     while (opp.length < (sport === 'padel' ? 3 : 1)){ const o = pick(); if (!used.has(o.name)){ used.add(o.name); opp.push(o); } }
@@ -84,7 +85,7 @@ export function registerMatches(W){
     const looks = sport === 'padel' ? [null, opp[0].look, opp[1].look, opp[2].look] : [null, opp[0].look];
     const core = new MatchCore({ sport, teams, level: opts.level || 'normale', gamesToWin: +opts.games || 2, goldenPoint: false, rng, firstServer: 1 });
     const view = new MatchRenderer(W, core, F, { looks, humanAvatar: W.hero });
-    M = { core, view, sport, F };
+    M = { core, view, sport, F, V };
     G.phase = 'play';
     show('#scorebd', true); scoreboard(core); controlsHint();
     W.engine.setFocus(F.x, F.z);
@@ -129,9 +130,9 @@ export function registerMatches(W){
   }
   function cleanup(){
     if (!M) return;
-    M.view.dispose(); const F = M.F, sport = M.sport; M = null;
+    M.view.dispose(); const F = M.F, V = M.V; M = null;
     show('#scorebd', false);
-    const [x, z] = sport === 'padel' ? F.w(7, 0) : F.w(0, W.world.DIM.centrale.l/2 + W.world.DIM.centrale.tiers*W.world.DIM.centrale.step + 4);
+    const [x, z] = V.exit();
     W.player.place(x, z, F.x, F.z);
   }
   const endInfo = (G, sport) => ({
@@ -154,8 +155,8 @@ export function registerMatches(W){
     options: [LEVEL_OPT, LEN_OPT],
     start(G, o){ begin(G, 'tennis', o); }, update, cleanup, end: G => endInfo(G, 'tennis'),
   });
-  if (PF) W.games.register({
-    id: 'padel', title: 'Partita di padel', place: 'Campo da padel', kind: 'match', venue: 'padel', hud: 'match', goLabel: 'In campo',
+  if (PF || W.venues['village-padel']) W.games.register({
+    id: 'padel', title: 'Partita di padel', place: 'Campo da padel', kind: 'match', venue: PF ? 'padel' : 'village-padel', hud: 'match', goLabel: 'In campo',
     intro: 'Doppio di padel: tu e un compagno contro due avversari. La palla deve rimbalzare nel campo avversario prima di toccare il vetro; dopo il rimbalzo si gioca anche con le pareti.',
     rules: [
       '<b>Muoviti</b> con le frecce: il tuo compagno copre l\'altra metà del campo.',

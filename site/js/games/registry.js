@@ -21,7 +21,8 @@ export function createGames(W){
     const d = defs.get(id); if (!d) return;
     howto = d; opts = { ...preset };
     for (const o of d.options || []) if (opts[o.key] == null) opts[o.key] = store.get('opt.' + d.id + '.' + o.key, o.def);
-    $('#hTag').textContent = d.place; $('#hTitle').textContent = d.title; $('#hText').textContent = d.intro;
+    const V = W.venues[preset.venue || d.venue];
+    $('#hTag').textContent = V && V.label ? V.label : d.place; $('#hTitle').textContent = d.title; $('#hText').textContent = d.intro;
     $('#hList').innerHTML = d.rules.map(r => `<li>${r}</li>`).join('');
     const box = $('#hOpts'); box.innerHTML = '';
     for (const o of d.options || []){
@@ -45,7 +46,7 @@ export function createGames(W){
     const d = defs.get(id); if (!d) return;
     cur = d; lastOpts = { ...o };
     const seed = o.seed ?? ((Math.random()*2**31) >>> 0);
-    Object.assign(G, { active: true, phase: 'wait', t: 0, n: 0, score: 0, stat2: 0, streak: 0, seed, rng: mulberry32(seed), opts: o, challenge: o.challenge || null });
+    Object.assign(G, { active: true, phase: 'wait', t: 0, n: 0, score: 0, stat2: 0, streak: 0, seed, rng: mulberry32(seed), opts: o, challenge: o.challenge || null, venue: o.venue || d.venue });
     W.setMode('game');
     W.hud.setExplore(false);
     W.input.setContext(d.kind === 'match' ? 'match' : d.kind === 'activity' ? 'activity' : 'minigame');

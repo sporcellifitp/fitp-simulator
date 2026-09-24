@@ -5,10 +5,18 @@ import { createBus } from './core/events.js';
 import { createInput } from './core/input.js';
 import { createEngine } from './core/engine.js';
 import { loadLayout } from './world/layout.js';
-import { setBounds } from './world/collision.js';
+import * as collision from './world/collision.js';
 import { initGeom, batchStatic } from './world/geom.js';
 import { buildWorld } from './world/build.js';
 import { buildProps } from './world/props.js';
+import { buildVillage } from './world/village.js';
+import { buildTour } from './world/tour.js';
+import { buildSigns } from './world/signs.js';
+import { createCarts } from './entities/cart.js';
+import { createNav } from './systems/nav.js';
+import { createEconomy } from './systems/economy.js';
+import { createShop } from './ugc/shop.js';
+import { CART_PRICE } from './content/shop.js';
 import { makeAvatar, pose } from './entities/avatar.js';
 import { createPlayer } from './entities/player.js';
 import { hud } from './ui/hud.js';
@@ -30,20 +38,26 @@ import { npcDefs } from './content/npcs.js';
 
 if (isTouch) document.body.classList.add('touch');
 
-const W = { mode: 'intro', live: {} };
+const W = { mode: 'intro', live: {}, venues: {}, cameraZones: [], CART_PRICE };
 W.bus = createBus();
 W.engine = createEngine($('#app'));
 W.input = createInput(W.engine.renderer.domElement);
 W.hud = hud;
 W.layout = await loadLayout();
-setBounds(W.layout.bounds);
+collision.setBounds(W.layout.bounds);
+W.collision = collision;
 initGeom(W.engine.scene, W.engine.renderer);
 
-// mondo statico, poi allestimenti (fusi a loro volta), poi tutto ciò che si muove
+// mondo statico, Fan Village, allestimenti e cartelli (tutto fuso per materiale), poi tutto ciò che si muove
 W.world = buildWorld(W);
 W.interact = createInteract(W);
+{
+  const { CF, PF, DIM } = W.world, L = DIM.centrale.l/2 + DIM.centrale.tiers*DIM.centrale.step;
+  W.venues.centrale = { F: CF, sport: 'tennis', y0: 0, exit: () => CF.w(0, L + 4), label: 'Campo Centrale' };
+  if (PF) W.venues.padel = { F: PF, sport: 'padel', y0: 0, exit: () => PF.w(7, 0), label: 'Campo da padel' };
+}
+W.village = buildVillage(W);
 W.props = buildProps(W);
-batchStatic();
 
 W.hero = makeAvatar({});
 W.engine.scene.add(W.hero.g);
@@ -51,12 +65,19 @@ W.player = createPlayer(W, W.hero);
 W.player.active = true;
 W.games = createGames(W);
 W.pois = createPois(W);
+W.signs = buildSigns(W, signDests(), signPosts());
+W.tour = buildTour(W);                 // museo itinerante: cerca le sue tappe quando il resto del mondo è a posto
+batchStatic();
 W.progress = createProgress(W);
+W.economy = createEconomy(W);
 W.ugc = createUgc(W);
 W.ugc.profile.apply();
-W.ugc.board = createBoard(W, W.props.boardSpot);
+W.ugc.board = createBoard(W, W.village ? W.village.boardSpot : null);
+W.shop = createShop(W);
 W.dialogue = createDialogue(W);
 W.medals = createMedals(W);
+W.carts = createCarts(W);
+W.nav = createNav(W);
 W.activities = createActivities(W);
 registerServe(W); registerVetro(W); registerRaccattapalle(W);
 W.matches = registerMatches(W);
@@ -67,7 +88,7 @@ W.bus.on('live:score', s => { W.live[s.venue] = s; });
 
 /* ---------- modalità: intro, explore, dialogue, menu, game ---------- */
 W.hud.setExplore = on => {
-  for (const id of ['#brand', '#goto', '#menuBtns']) show(id, on);
+  for (const id of ['#brand', '#goto', '#menuBtns', '#coins']) show(id, on);
   show('#hint', on && !isTouch);
   show('#attrib', on && !!W.layout.attribution);
   W.pois.setVisible(on);
@@ -77,17 +98,20 @@ W.setMode = m => {
   W.mode = m;
   if (m === 'explore'){ W.hud.setExplore(true); W.input.setContext('explore'); }
   if (m === 'dialogue' || m === 'menu'){ W.input.setContext('menu'); hud.prompt(null); }
+  if (m === 'drive'){ W.hud.setExplore(true); hud.prompt(null); show('#poi', false); show('#hint', false); W.input.setContext('drive'); }
 };
 
 /* ---------- sistemi, in ordine ---------- */
 const E = W.engine;
 E.add({ update: dt => { if (W.mode === 'explore') W.player.update(dt); } }, 20);
+E.add({ update: dt => W.carts.update(dt) }, 22);
 E.add({ update: dt => W.games.update(dt) }, 25);
 E.add({ update: () => W.dialogue.update() }, 30);
 E.add({ update: () => W.interact.update() }, 35);
 E.add({ update: dt => W.npcs.update(dt) }, 40);
 E.add({ update: dt => W.exhibitions.update(dt) }, 45);
-E.add({ update: dt => { W.props.update(dt); if (W.mode === 'explore') W.medals.update(dt); } }, 50);
+E.add({ update: dt => { W.props.update(dt); if (W.village) W.village.update(dt); if (W.tour) W.tour.update(dt); if (W.mode === 'explore') W.medals.update(dt); } }, 50);
+E.add({ update: () => W.nav.update() }, 65);
 E.add({ update: () => W.pois.update() }, 60);
 E.add({ update: dt => { for (const c of W.world.clouds){ c.position.x += dt*2.2; if (c.position.x > 380) c.position.x = -380; } } }, 70);
 E.add({ update: () => {                                          // scorciatoie da tastiera in esplorazione
@@ -104,10 +128,43 @@ E.add({ update: () => {                                          // scorciatoie 
 }
 E.add({ update: () => W.input.endFrame() }, 999);
 
+/* ---------- cartelli: mete principali e dove piantare i pali ---------- */
+function signDests(){
+  const S = W.layout.sites, { CF, P, DIM } = W.world, L = DIM.centrale.l/2 + DIM.centrale.tiers*DIM.centrale.step, out = [];
+  const add = (id, name, xz, prio, kind) => { if (xz) out.push({ id, name, x: xz[0], z: xz[1], prio, kind }); };
+  if (W.village) add('village', 'Fan Village', W.village.anchors.entrance, 0, 'village');
+  add('centrale', 'Campo Centrale', CF.w(0, L + 3), 2);
+  if (P.pietr) add('pietr', 'Pietrangeli', P.pietr.f.w(0, P.pietr.hl + 3), 3);
+  if (P.marmi) add('marmi', 'Stadio dei Marmi', P.marmi.f.w(0, P.marmi.b + 3), 3);
+  if (S.supertennis) add('st', 'SuperTennis Arena', [S.supertennis.x, S.supertennis.z], 4);
+  if (S.fontana) add('fontana', 'Fontana della Sfera', [S.fontana.x, S.fontana.z], 5);
+  if (S.ponte) add('uscita', 'Ponte Duca d\'Aosta', [S.ponte.x, S.ponte.z], 6, 'uscita');
+  return out;
+}
+function signPosts(){
+  const S = W.layout.sites, { CF, P, DIM } = W.world, L = DIM.centrale.l/2 + DIM.centrale.tiers*DIM.centrale.step, out = [];
+  const add = (id, xz) => { if (xz) out.push({ id, at: xz }); };
+  const st = W.layout.start; add('start', [st.x + Math.cos(st.ry || 0)*4, st.z - Math.sin(st.ry || 0)*4]);
+  if (W.village){ const e = W.village.F.w(9, W.village.v.l/2 + 5); add('village', e); add('plaza', W.village.F.w(-4, 10)); }
+  if (S.fontana) add('fontana', [S.fontana.x + 11, S.fontana.z - 6]);
+  add('centrale', CF.w(-7, L + 6));
+  if (P.pietr) add('pietr', P.pietr.f.w(P.pietr.hw + 4, 9));
+  if (P.marmi) add('marmi', P.marmi.f.w(8, P.marmi.b + 6));
+  if (S.supertennis) add('st', [S.supertennis.x + 12, S.supertennis.z + 12]);
+  return out;
+}
+
 /* ---------- avvio ---------- */
 const start = W.layout.start;
 W.player.place(start.x, start.z); W.hero.g.rotation.y = start.ry || 0; W.player.cam.yaw = W.hero.g.rotation.y + Math.PI;
-function enterWorld(){ show('#intro', false); W.setMode('explore'); W.player.follow(0, true); }
+function enterWorld(){
+  show('#intro', false); W.setMode('explore'); W.player.follow(0, true);
+  if (W.village && !W.progress.st.welcomed){
+    W.progress.st.welcomed = 1; W.progress.save();
+    const [x, z] = W.village.anchors.plaza;
+    setTimeout(() => { W.nav.set({ x, z, name: 'Fan Village' }); hud.toast(`Benvenuto! Hai ${W.economy.coins} gettoni: il Fan Village è in fondo al viale, segui la freccia gialla.`); }, 400);
+  }
+}
 if (W.layout.attribution){ $('#attrib').textContent = W.layout.attribution; $('#mapsrc').textContent = 'Planimetria da OpenStreetMap (' + W.layout.attribution + '). Alcuni impianti del 2026 sono posizionati a stima.'; }
 if (isTouch) $('#controls').innerHTML = '<li><b>Joystick</b> per camminare (spingi fino al bordo per correre), <b>Salta</b> per saltare</li><li><b>Trascina</b> lo schermo per girare la visuale</li><li>Vicino a persone e campi compare il pulsante per <b>parlare</b> o <b>giocare</b></li>';
 $('#start').disabled = false; $('#start').textContent = 'Entra al Foro';

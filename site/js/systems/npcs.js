@@ -24,9 +24,9 @@ export function createNpcs(W){
     }
     npc.bubble = document.createElement('div'); npc.bubble.className = 'bubble hidden'; labels.appendChild(npc.bubble);
     if (def.dialogue || def.barks){
-      W.interact.add({ id: 'npc:' + (def.id || list.length), x: () => npc.x, z: () => npc.z, r: def.dialogue ? 3.2 : 2.4,
+      W.interact.add({ id: 'npc:' + (def.id || list.length), x: () => npc.x, z: () => npc.z, r: def.talkR || (def.dialogue ? 3.2 : 2.4),
         label: def.dialogue ? `Parla con ${def.name}` : 'Saluta', short: def.dialogue ? 'Parla' : 'Saluta',
-        map: def.map || null,
+        map: def.map || null, weak: !def.dialogue,
         act: () => def.dialogue ? W.dialogue.open(npc) : say(npc, def.barks[Math.floor(Math.random()*def.barks.length)]) });
     }
     list.push(npc);

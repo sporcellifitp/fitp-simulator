@@ -37,6 +37,7 @@ export const SCHEMATIC = {
   lines: [], bridges: [], buildings: [], trees: [],
   water: [{ pts: [[186, -360], [186, 340]], w: 28 }],
   backdrop: true,
+  village: { x: 70, z: 102, rot: Math.PI, w: 90, l: 64 },   // fan village a sud del viale, ingresso verso il viale
 };
 
 export async function loadLayout(){

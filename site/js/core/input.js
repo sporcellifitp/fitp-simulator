@@ -92,15 +92,18 @@ export function createInput(canvas){
     // contesto: mostra i comandi giusti sul telefono
     setContext(c, opts = {}){
       context = c;
-      show('#joy', isTouch && (c === 'explore' || c === 'match' || c === 'activity'));
-      show('#tbtns', isTouch && (c === 'explore' || c === 'match' || c === 'activity'));
+      const pad = c === 'explore' || c === 'match' || c === 'activity' || c === 'drive';
+      show('#joy', isTouch && pad);
+      show('#tbtns', isTouch && pad);
       for (const b of document.querySelectorAll('#tbtns [data-act]')){
         const a = b.dataset.act;
         const on = (c === 'explore' && (a === 'jump' || (a === 'interact' && opts.interact)))
+                || (c === 'drive' && (a === 'jump' || a === 'interact'))
                 || (c === 'activity' && a === 'jump')
                 || (c === 'match' && (a === 'hit' || a === 'lob' || a === 'jump'));
         show(b, on);
-        if (a === 'interact' && opts.interact) b.textContent = opts.interact;
+        if (a === 'interact') b.textContent = c === 'drive' ? 'Scendi' : (opts.interact || 'Parla');
+        if (a === 'jump') b.textContent = c === 'drive' ? 'Clacson' : 'Salta';
       }
     },
   };

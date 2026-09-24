@@ -7,6 +7,8 @@ import { BOX, mat, box, flat, shapeOf, polyFlat, offsetLine, ribbon, clipPoly, i
 export function buildWorld(W){
   const { scene } = W.engine, LAYOUT = W.layout, S = LAYOUT.sites, BOUNDS = LAYOUT.bounds;
   const rect = (x0, x1, z0, z1) => [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
+  // lo spazio del fan village resta libero (alberi compresi): lo costruisce world/village.js
+  if (LAYOUT.village){ const v = LAYOUT.village; addRect(occupied, v.x, v.z, v.w/2 + 3, v.l/2 + 3, v.rot || 0); }
   /* ---------- palette ---------- */
   const C = {
     grass:0x79a052, grass2:0x6b9449, trav:0xe4d8c0, trav2:0xd3c5a8, marble:0xf2ede3, clay:0xc4623a,

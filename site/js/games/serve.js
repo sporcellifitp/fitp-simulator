@@ -5,8 +5,8 @@ import { flat } from '../world/geom.js';
 import { hud } from '../ui/hud.js';
 
 export function registerServe(W){
-  const { CF, DIM } = W.world;
-  const courtG = new THREE.Group(); courtG.position.set(CF.x, 0, CF.z); courtG.rotation.y = CF.rot; W.engine.scene.add(courtG);
+  let CF = W.world.CF;
+  const courtG = new THREE.Group(); W.engine.scene.add(courtG);
   const ball = new THREE.Mesh(new THREE.SphereGeometry(.13, 14, 10), new THREE.MeshLambertMaterial({ color: 0xd9f24a, emissive: 0x39400e }));
   ball.castShadow = true; ball.visible = false; courtG.add(ball);
   // mirino: anello a terra più un'asta, così si vede anche a 25 metri
@@ -35,6 +35,8 @@ export function registerServe(W){
       "Ogni battuta il mirino corre un po' più veloce.",
     ],
     start(G){
+      const V = W.venues[G.venue] || W.venues.centrale; CF = V.F; G.V = V;
+      courtG.position.set(CF.x, 0, CF.z); courtG.rotation.y = CF.rot;
       G.rivalX = -2.2;
       if (!rival){ rival = makeAvatar({ shirt: 0xffffff, shorts: 0x2a2f3a, cap: 0xd8342c }); W.engine.scene.add(rival.g); }
       placeOn(hero, CF, .8, 12.1, Math.PI); placeOn(rival, CF, -2.2, -12.6, 0);
@@ -116,11 +118,11 @@ export function registerServe(W){
       return { title: G.score >= best && G.score > 0 ? 'Nuovo record' : G.stat2 >= 5 ? 'Servizio da Centrale' : G.stat2 >= 2 ? 'Bella serie' : 'Si può fare di meglio',
         stats: [{ v: G.score, label: 'Punti' }, { v: G.stat2, label: 'Ace' }, { v: best, label: 'Record' }], won: G.score > 0 };
     },
-    cleanup(){
+    cleanup(G){
       marker.visible = ball.visible = false; for (const z of zones) z.visible = false;
       if (rival){ W.engine.scene.remove(rival.g); rival = null; }
       hero.armR.rotation.x = 0;
-      const [x, z] = CF.w(0, DIM.centrale.l/2 + DIM.centrale.tiers*DIM.centrale.step + 4);
+      const [x, z] = (G.V || W.venues.centrale).exit();
       W.player.place(x, z, CF.x, CF.z);
     },
     exitPos(){ return CF.w(0, 16.5); },

@@ -11,8 +11,9 @@ export function registerRaccattapalle(W){
   const L = W.layout, S = L.sites, hub = S.pietrangeli || S.centrale;
   const c = (L.courts || []).filter(k => Math.hypot(k.x - hub.x, k.z - hub.z) < 300).sort((a, b) => Math.hypot(a.x - hub.x, a.z - hub.z) - Math.hypot(b.x - hub.x, b.z - hub.z))[3]
     || (L.courts || [])[0];
-  const F = c ? frame(c) : W.world.CF;
-  const scene = W.engine.scene, group = new THREE.Group(); group.position.set(F.x, 0, F.z); group.rotation.y = F.rot; scene.add(group);
+  let F = c ? frame(c) : W.world.CF;
+  W.venues.outer = { F, sport: 'tennis', y0: 0, exit: () => F.w(0, 21), label: 'Campi esterni' };
+  const scene = W.engine.scene, group = new THREE.Group(); scene.add(group);
   const ballGeo = new THREE.SphereGeometry(.16, 12, 8), ballMat = new THREE.MeshLambertMaterial({ color: 0xd9f24a, emissive: 0x3a400e });
   const basket = new THREE.Mesh(new THREE.CylinderGeometry(.45, .35, .7, 16, 1, true), new THREE.MeshLambertMaterial({ color: 0x1f4fa3, side: THREE.DoubleSide }));
   basket.position.set(6, .35, 17); group.add(basket);
@@ -20,7 +21,7 @@ export function registerRaccattapalle(W){
   const local = () => F.l(W.player.pos.x, W.player.pos.z);
 
   W.games.register({
-    id: 'raccattapalle', title: 'Raccattapalle', place: 'Campi esterni', kind: 'activity', venue: null, unit: 'Palline',
+    id: 'raccattapalle', title: 'Raccattapalle', place: 'Campi esterni', kind: 'activity', venue: 'outer', unit: 'Palline',
     bestKey: 'fiw.raccatta.best', goLabel: 'Via!', seedable: true,
     intro: `Sul campo sono rimaste ${N} palline e tra ${TIME} secondi riprende il gioco. Corri, raccoglile tutte e riportale nel cesto vicino alla rete.`,
     rules: [
@@ -30,6 +31,8 @@ export function registerRaccattapalle(W){
       'Se finisci prima del tempo, ogni secondo rimasto vale 3 punti.',
     ],
     start(G){
+      const V = W.venues[G.venue] || W.venues.outer; F = V.F; G.V = V;
+      group.position.set(F.x, 0, F.z); group.rotation.y = F.rot;
       balls.forEach(b => group.remove(b.m)); balls = [];
       for (let i = 0; i < N; i++){
         const x = (G.rng()*2 - 1)*7, z = (G.rng()*2 - 1)*16, high = G.rng() < .25;
@@ -72,6 +75,6 @@ export function registerRaccattapalle(W){
       return { title: G.delivered >= N ? 'Campo pulito!' : G.delivered >= 9 ? 'Quasi tutte' : 'Il gioco è ripreso',
         stats: [{ v: G.score, label: 'Punti' }, { v: `${G.delivered}/${N}`, label: 'Consegnate' }, { v: best, label: 'Record' }], won: G.delivered >= N };
     },
-    cleanup(){ balls.forEach(b => group.remove(b.m)); balls = []; },
+    cleanup(G){ balls.forEach(b => group.remove(b.m)); balls = []; const [x, z] = G.V.exit(); W.player.place(x, z, F.x, F.z); },
   });
 }
