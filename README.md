@@ -10,6 +10,7 @@ Prototipo di un mondo giocabile nel browser, ispirato al Foro Italico di Roma. P
 - Giocare **partite vere**: tennis singolare sul Centrale e padel in doppio, con movimento, colpo, pallonetto, smash in salto, punteggio reale e tre livelli.
 - Guardare partite tra NPC sugli altri campi, con arbitro e raccattapalle; il punteggio del Centrale va sul maxischermo della fan zone.
 - Parlare con otto personaggi e fare le loro missioni: raccattapalle a tempo, medaglie tra le statue dei Marmi, una granita da consegnare. Minigiochi: sfida al servizio e il vetro.
+- Partire dal **Fan Village**, dove si compare, e seguire il **Percorso del Foro**: 11 tappe guidate da frecce a terra, con totem e schede con foto reali, fino al Trophy Tour.
 - Nel **Fan Village**, vicino all'ingresso, trovare tutti i giochi insieme, il negozio del giocatore (vestiti e racchette), lo Store del torneo (spille), il punto ristoro e il noleggio della **golf car** per girare il Foro. Si paga con i gettoni guadagnati giocando, senza denaro vero.
 - Visitare il **FITP Trophy Tour**, il museo itinerante: un camion-vetrina con la Coppa Davis e la Billie Jean King Cup, totem con la storia della Federazione e foto reali, foto ricordo con la Coppa. Cambia tappa ogni 5 minuti.
 - Orientarsi con cartelli, navigatore con freccia gialla e minimappa.
@@ -23,7 +24,7 @@ Prototipo di un mondo giocabile nel browser, ispirato al Foro Italico di Roma. P
 - `site/js/entities/`: avatar e giocatore. `systems/`: interazioni, luoghi, NPC e dialoghi, progressi, attività.
 - `site/js/match/`: fisica, regole, IA e resa grafica delle partite (i primi tre senza Three.js, testabili con Node).
 - `site/js/games/`: registro delle modalità e minigiochi. `ugc/`: profilo, bacheca, codici sfida, negozi. `content/`: personaggi e dialoghi, articoli dei negozi, pannelli del Trophy Tour.
-- `site/js/world/village.js` (Fan Village), `world/tour.js` (Trophy Tour), `entities/cart.js` (golf car), `systems/nav.js` ed `economy.js`.
+- `site/js/world/village.js` (Fan Village), `world/tour.js` (Trophy Tour), `systems/route.js` e `world/grid.js` (Percorso del Foro e calcolo della strada), `entities/cart.js` (golf car), `systems/nav.js` ed `economy.js`.
 - `site/assets/`: loghi FITP (`brand/`) e foto del Trophy Tour (`photos/`), con fonti e licenze nei README.
 
 **Aggiungere un personaggio:** una voce in `content/npcs.js` (posizione, aspetto, dialogo). **Aggiungere un gioco:** un modulo che chiama `W.games.register({...})` e una riga in `main.js`; per il menu «Vai a…», una voce in `systems/activities.js`.

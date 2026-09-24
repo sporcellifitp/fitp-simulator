@@ -25,6 +25,7 @@ import { createPois } from './systems/pois.js';
 import { createNpcs, createDialogue } from './systems/npcs.js';
 import { createProgress } from './systems/progress.js';
 import { createActivities } from './systems/activities.js';
+import { createRoute } from './systems/route.js';
 import { createGames } from './games/registry.js';
 import { registerServe } from './games/serve.js';
 import { registerVetro } from './games/vetro.js';
@@ -85,6 +86,8 @@ W.exhibitions = createExhibitions(W);
 W.npcs = createNpcs(W);
 for (const d of npcDefs(W)) W.npcs.spawn(d);
 W.bus.on('live:score', s => { W.live[s.venue] = s; });
+W.route = createRoute(W);               // Percorso del Foro: totem nelle tappe, strada calcolata sugli ostacoli
+W.route.build();
 
 /* ---------- modalità: intro, explore, dialogue, menu, game ---------- */
 W.hud.setExplore = on => {
@@ -112,6 +115,7 @@ E.add({ update: dt => W.npcs.update(dt) }, 40);
 E.add({ update: dt => W.exhibitions.update(dt) }, 45);
 E.add({ update: dt => { W.props.update(dt); if (W.village) W.village.update(dt); if (W.tour) W.tour.update(dt); if (W.mode === 'explore') W.medals.update(dt); } }, 50);
 E.add({ update: () => W.nav.update() }, 65);
+E.add({ update: dt => W.route.update(dt) }, 66);
 E.add({ update: () => W.pois.update() }, 60);
 E.add({ update: dt => { for (const c of W.world.clouds){ c.position.x += dt*2.2; if (c.position.x > 380) c.position.x = -380; } } }, 70);
 E.add({ update: () => {                                          // scorciatoie da tastiera in esplorazione
@@ -154,16 +158,20 @@ function signPosts(){
   return out;
 }
 
-/* ---------- avvio ---------- */
+/* ---------- avvio: si compare nel Fan Village e parte il Percorso del Foro ---------- */
 const start = W.layout.start;
-W.player.place(start.x, start.z); W.hero.g.rotation.y = start.ry || 0; W.player.cam.yaw = W.hero.g.rotation.y + Math.PI;
+const spawn = () => {
+  if (W.village){ const [x, z] = W.village.anchors.plaza, [ex, ez] = W.village.anchors.entrance; W.player.place(x, z, ex, ez); W.player.cam.yaw = W.hero.g.rotation.y + Math.PI; }
+  else { W.player.place(start.x, start.z); W.hero.g.rotation.y = start.ry || 0; W.player.cam.yaw = W.hero.g.rotation.y + Math.PI; }
+};
+spawn();
 function enterWorld(){
   show('#intro', false); W.setMode('explore'); W.player.follow(0, true);
-  if (W.village && !W.progress.st.welcomed){
+  const R = W.progress.st.route;
+  if (!W.progress.st.welcomed){
     W.progress.st.welcomed = 1; W.progress.save();
-    const [x, z] = W.village.anchors.plaza;
-    setTimeout(() => { W.nav.set({ x, z, name: 'Fan Village' }); hud.toast(`Benvenuto! Hai ${W.economy.coins} gettoni: il Fan Village è in fondo al viale, segui la freccia gialla.`); }, 400);
-  }
+    setTimeout(() => { W.route.start(0); hud.toast(`Benvenuto nel Fan Village! Hai ${W.economy.coins} gettoni. Segui la traccia gialla per il Percorso del Foro.`); }, 500);
+  } else if (R && R.on) setTimeout(() => W.route.resume(), 500);
 }
 if (W.layout.attribution){ $('#attrib').textContent = W.layout.attribution; $('#mapsrc').textContent = 'Planimetria da OpenStreetMap (' + W.layout.attribution + '). Alcuni impianti del 2026 sono posizionati a stima.'; }
 if (isTouch) $('#controls').innerHTML = '<li><b>Joystick</b> per camminare (spingi fino al bordo per correre), <b>Salta</b> per saltare</li><li><b>Trascina</b> lo schermo per girare la visuale</li><li>Vicino a persone e campi compare il pulsante per <b>parlare</b> o <b>giocare</b></li>';

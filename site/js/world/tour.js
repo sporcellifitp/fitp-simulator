@@ -9,7 +9,8 @@ import * as THREE from 'three';
 import { frame, esc, clamp } from '../core/util.js';
 import { box, mat } from './geom.js';
 import { canvasPlane, wrap, fontsReady } from './canvas.js';
-import { hits, colliders, occupied } from './collision.js';
+import { colliders, occupied } from './collision.js';
+import { rasterize } from './grid.js';
 import { EXHIBITS, TROPHIES, TOUR_STOPS, TOUR_STAY, PHOTO_CREDITS } from '../content/museum.js';
 import { hud } from '../ui/hud.js';
 import { pose } from '../entities/avatar.js';
@@ -106,55 +107,11 @@ function bjkCup(silver, wood){
 
 /* ---------- ricerca delle tappe: uno spazio libero e piano vicino a ogni punto di riferimento ---------- */
 function findSpot(W, ax, az, prefer){
-  // griglia di occupazione a maglie di 1 m attorno al punto di riferimento, calcolata una volta:
+  // griglia di occupazione a maglie di 1 m attorno al punto di riferimento (world/grid.js), calcolata una volta:
   // le prove di posizionamento (decine di migliaia) diventano semplici letture
-  const R = 90 + 26, N = R*2, x0 = ax - R, z0 = az - R, B = W.layout.bounds;
-  const near = c => c.bb[1] > x0 && c.bb[0] < x0 + N && c.bb[3] > z0 && c.bb[2] < z0 + N;
-  const list = [...colliders.filter(near), ...occupied.filter(near)];
-  const grid = new Uint8Array(N*N);
-  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++){
-    const x = x0 + i + .5, z = z0 + j + .5;
-    if (x < B.x0 + 2 || x > B.x1 - 2 || z < B.z0 + 2 || z > B.z1 - 2) grid[j*N + i] = 1;
-  }
-  const mark = (x, z) => { const i = Math.floor(x - x0), j = Math.floor(z - z0); if (i >= 0 && j >= 0 && i < N && j < N) grid[j*N + i] = 1; };
-  const disk = (x, z, r) => { for (let dz = -r; dz <= r; dz += .7) for (let dx = -r; dx <= r; dx += .7) if (dx*dx + dz*dz <= r*r + .01) mark(x + dx, z + dz); };
-  const trace = (pts, closed, r) => {                   // bordi e linee: timbri lungo il tracciato
-    const n = closed ? pts.length : pts.length - 1;
-    for (let k = 0; k < n; k++){
-      const [ax_, az_] = pts[k], [bx, bz] = pts[(k + 1) % pts.length], L = Math.hypot(bx - ax_, bz - az_), m = Math.max(1, Math.ceil(L/.7));
-      for (let t = 0; t <= m; t++) disk(ax_ + (bx - ax_)*t/m, az_ + (bz - az_)*t/m, r);
-    }
-  };
-  for (const c of list){
-    if (c.t === 'p'){                                   // poligono: riempimento a scansione più il bordo
-      const pts = c.pts, j0 = Math.max(0, Math.floor(c.bb[2] - z0)), j1 = Math.min(N - 1, Math.ceil(c.bb[3] - z0));
-      for (let j = j0; j <= j1; j++){
-        const z = z0 + j + .5, xs = [];
-        for (let k = 0, q = pts.length - 1; k < pts.length; q = k++){ const [xi, zi] = pts[k], [xq, zq] = pts[q]; if ((zi > z) !== (zq > z)) xs.push(xi + (z - zi)*(xq - xi)/(zq - zi)); }
-        xs.sort((u, v) => u - v);
-        for (let k = 0; k + 1 < xs.length; k += 2){ const i0 = Math.max(0, Math.floor(xs[k] - x0)), i1 = Math.min(N - 1, Math.floor(xs[k + 1] - x0)); for (let i = i0; i <= i1; i++) grid[j*N + i] = 1; }
-      }
-      trace(pts, true, .6);
-    } else if (c.t !== 'o' && c.t !== 'e' && (c.hw || 0) > 2){    // fiume e argini larghi: ogni segmento vicino come una capsula
-      const r = c.hw + .6, n = c.pts.length - 1;
-      for (let k = 0; k < n; k++){
-        const [ax_, az_] = c.pts[k], [bx, bz] = c.pts[k + 1];
-        const i0 = Math.max(0, Math.floor(Math.min(ax_, bx) - r - x0)), i1 = Math.min(N - 1, Math.ceil(Math.max(ax_, bx) + r - x0));
-        const j0 = Math.max(0, Math.floor(Math.min(az_, bz) - r - z0)), j1 = Math.min(N - 1, Math.ceil(Math.max(az_, bz) + r - z0));
-        if (i0 > i1 || j0 > j1) continue;
-        const dx = bx - ax_, dz = bz - az_, L2 = dx*dx + dz*dz || 1;
-        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++){
-          const x = x0 + i + .5, z = z0 + j + .5, u = clamp(((x - ax_)*dx + (z - az_)*dz)/L2, 0, 1), ex = x - ax_ - dx*u, ez = z - az_ - dz*u;
-          if (ex*ex + ez*ez < r*r) grid[j*N + i] = 1;
-        }
-      }
-    } else if (c.t === 'o' || c.t === 'e'){             // rettangoli ed ellissi: prova esatta nel riquadro
-      const i0 = Math.max(0, Math.floor(c.bb[0] - x0 - 1)), i1 = Math.min(N - 1, Math.ceil(c.bb[1] - x0 + 1));
-      const j0 = Math.max(0, Math.floor(c.bb[2] - z0 - 1)), j1 = Math.min(N - 1, Math.ceil(c.bb[3] - z0 + 1));
-      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++){ const k = j*N + i; if (!grid[k] && hits(c, x0 + i + .5, z0 + j + .5, .6)) grid[k] = 1; }
-    } else trace(c.pts, false, (c.hw || 0) + .6);      // fiume e linee con spessore
-  }
-  const free = (x, z) => { const i = Math.floor(x - x0), j = Math.floor(z - z0); return i >= 0 && j >= 0 && i < N && j < N && !grid[j*N + i]; };
+  const R = 90 + 26, B = W.layout.bounds;
+  const G = rasterize([...colliders, ...occupied], { x0: ax - R, z0: az - R, nx: 2*R, nz: 2*R, cell: 1, margin: .6, bounds: B });
+  const free = G.free;
   const rots = prefer != null ? [prefer, prefer + Math.PI/2, prefer - Math.PI/2, prefer + Math.PI] : [0, 1, 2, 3, 4, 5, 6, 7].map(k => k*Math.PI/4);
   for (let r = 0; r <= 90; r += 4){
     const n = r ? Math.max(8, Math.round(r*Math.PI*2/8)) : 1;

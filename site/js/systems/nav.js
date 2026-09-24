@@ -14,12 +14,12 @@ export function createNav(W){
   const v = new THREE.Vector3();
   const api = {
     get target(){ return target; },
-    set(t){ target = t; show('#nav', true); hud.toast(`Navigatore: ${t.name}`); },
+    set(t){ target = t; show('#nav', true); if (!t.route) hud.toast(`Navigatore: ${t.name}`); },
     clear(){ target = null; arrow.visible = false; show('#nav', false); },
     update(){
       if (!target || !(W.mode === 'explore' || W.mode === 'drive')){ arrow.visible = false; return; }
       const p = W.player.pos, dx = target.x - p.x, dz = target.z - p.z, d = Math.hypot(dx, dz);
-      if (d < (W.mode === 'drive' ? 16 : 10)){ hud.toast(`Sei arrivato: ${target.name}`); api.clear(); return; }
+      if (!target.keep && d < (W.mode === 'drive' ? 16 : 10)){ hud.toast(`Sei arrivato: ${target.name}`); api.clear(); return; }
       arrow.visible = true; arrow.position.set(p.x, p.y + (W.mode === 'drive' ? 3.4 : 3.1), p.z); arrow.rotation.y = Math.atan2(dx, dz);
       // freccia sullo schermo: 0 = avanti, positivo = a destra
       const cam = W.engine.camera; cam.updateMatrixWorld(); v.set(target.x, p.y, target.z).applyMatrix4(cam.matrixWorldInverse);

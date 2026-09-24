@@ -40,8 +40,38 @@ export function buildProps(W){
       if (s.over){ x.fillStyle = '#f3c623'; x.font = 'bold 44px Barlow, Arial, sans-serif'; x.fillText('Partita finita', 40, 540); }
     });
   };
+  // tra un punteggio e l'altro il maxischermo mostra foto vere del Foro, con autore e licenza
+  const SLIDES = [
+    ['centrale-2015.jpg', 'Il Campo Centrale', 'Stefano Cappa · CC BY 3.0'],
+    ['pietrangeli-2012.jpg', 'Lo Stadio Nicola Pietrangeli', 'Itto Ogami · CC BY 3.0'],
+    ['davis-2016.jpg', 'La Coppa Davis', 'Carine06 · CC BY-SA 2.0'],
+    ['fedcup-2018.jpg', 'La coppa della Fed Cup', 'Peter Menzel · CC BY-SA 2.0'],
+    ['fontana-sfera.jpg', 'La Fontana della Sfera', 'Wikimau60 · CC BY-SA 4.0'],
+    ['stadio-marmi.jpg', 'Lo Stadio dei Marmi', 'Anthony Majanlahti · CC BY 2.0'],
+    ['viale-mosaici.jpg', 'I mosaici del piazzale, 1963', 'Fortepan / Pierre Varga · CC BY-SA 3.0'],
+    ['campi-esterni.jpg', 'I campi esterni', 'Itto Ogami · CC BY 3.0'],
+  ];
+  const slideImgs = SLIDES.map(([f]) => { const i = new Image(); i.src = 'assets/photos/' + f; return i; });
+  let lastScore = null, slide = 0, slideT = 0, showing = 'score';
+  const drawSlide = k => {
+    const im = slideImgs[k], [, title, credit] = SLIDES[k];
+    if (!screen || !im.complete || !im.naturalWidth) return false;
+    screen.redraw((x, w, h) => {
+      const r = Math.max(w/im.naturalWidth, h/im.naturalHeight), sw = w/r, sh = h/r;
+      x.drawImage(im, (im.naturalWidth - sw)/2, (im.naturalHeight - sh)/2, sw, sh, 0, 0, w, h);
+      x.fillStyle = 'rgba(11,42,91,.86)'; x.fillRect(0, h - 96, w, 96);
+      x.fillStyle = '#fff'; x.font = 'bold 50px "Barlow Condensed", "Arial Narrow", Arial, sans-serif'; x.fillText(title, 28, h - 40);
+      x.fillStyle = '#f3c623'; x.font = '24px Barlow, Arial, sans-serif'; x.textAlign = 'right'; x.fillText('Foto: ' + credit + ' · Wikimedia Commons', w - 24, h - 42); x.textAlign = 'left';
+    });
+    return true;
+  };
+  dyn.push(dt => {
+    slideT += dt;
+    if (showing === 'score' && slideT > (lastScore ? 16 : 5)){ if (drawSlide(slide)){ showing = 'photo'; slideT = 0; } }
+    else if (showing === 'photo' && slideT > 8){ slide = (slide + 1) % SLIDES.length; slideT = 0; if (lastScore){ showing = 'score'; drawScreen(lastScore); } else drawSlide(slide); }
+  });
   drawScreen(null);
-  W.bus.on('live:score', s => { if (s.venue === 'centrale') drawScreen(s); });
+  W.bus.on('live:score', s => { if (s.venue !== 'centrale') return; lastScore = s; if (showing === 'score') drawScreen(s); });
 
   /* ---------- seggioloni con arbitro sui campi delle partite dal vivo ---------- */
   const chair = (F, y0, halfW) => {

@@ -53,7 +53,7 @@ Analisi, piano e stato in [docs/mondo-analisi-e-piano.md](docs/mondo-analisi-e-p
 - [x] UGC: editor del giocatore, bacheca dei tifosi, codici sfida condivisibili.
 - [ ] Moderazione e server per UGC e classifiche (P2).
 
-## v0.5 · Fan Village e Trophy Tour (settembre 2026)
+## v0.5 · Fan Village, Percorso del Foro e Trophy Tour (settembre 2026)
 
 Dettagli, fonti e licenze in [docs/v0.5-village.md](docs/v0.5-village.md).
 
@@ -62,6 +62,8 @@ Dettagli, fonti e licenze in [docs/v0.5-village.md](docs/v0.5-village.md).
 - [x] Negozio del giocatore, Store del torneo con spille, punto ristoro; gettoni senza denaro vero.
 - [x] Golf car a noleggio in cambio di gettoni.
 - [x] FITP Trophy Tour: museo itinerante su camion, quattro tappe a rotazione, foto reali con licenza libera, trofei 3D dalle foto, foto ricordo, passaporto a timbri.
+- [x] Percorso del Foro: si compare nel Fan Village e un itinerario guidato di 11 tappe porta in tutto il Foro, con frecce a terra, totem e foto reali.
+- [x] Maxischermo con foto reali tra un punteggio e l'altro.
 - [x] Loghi solo su bianco (originale) o su blu (negativo).
 - [ ] Loghi ufficiali ad alta risoluzione e negativo ufficiale dall'ufficio marchio FITP.
 - [ ] Foto d'archivio FITP al posto di quelle di Wikimedia Commons; validazione dei testi con l'ufficio stampa.

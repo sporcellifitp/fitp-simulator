@@ -12,6 +12,8 @@ export function createActivities(W){
   const booth = game => VA && VA.booths.find(b => b.game === game);
   const toBooth = game => () => { const b = booth(game); if (!b) return; const [x, z] = W.pois.safeSpot(b.x, b.z, [b.x, b.z]); W.player.place(x, z, b.bx, b.bz); W.games.openHowto(game, { venue: b.venue }); };
   const A = [
+    { id: 'percorso', group: 'Fan Village', title: 'Percorso del Foro', get where(){ const R = W.route; if (!R) return ''; const i = R.index; return R.on ? `In corso: tappa ${i + 1} di ${R.stops.length}, ${R.stops[Math.min(i, R.stops.length - 1)].name}` : i > 1 && i < R.stops.length ? `Riprendi dalla tappa ${i + 1} di ${R.stops.length}` : `Il giro guidato del Foro in ${R.stops.length} tappe`; },
+      target: () => W.route && W.route.on && W.route.at(W.route.index), go: () => W.route.resume(), if: () => !!W.route && W.route.stops.length > 2 },
     { id: 'village', group: 'Fan Village', title: 'Fan Village', where: 'Tutti i giochi, i negozi e la golf car', target: () => VA && { x: VA.plaza[0], z: VA.plaza[1] }, go: () => { const [x, z] = VA.plaza; W.player.place(x, z, VA.entrance[0], VA.entrance[1]); }, if: () => !!VA },
     ...[['tennis', 'Partita di tennis'], ['padel', 'Partita di padel in doppio'], ['serve', 'Sfida al servizio'], ['vetro', 'Il vetro'], ['raccattapalle', 'Raccattapalle']]
       .map(([g, t]) => ({ id: g + '-v', game: g, group: 'Fan Village', title: t, where: 'Postazione nel Fan Village', target: () => booth(g), go: toBooth(g), if: () => !!booth(g) })),
