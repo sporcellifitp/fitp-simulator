@@ -31,6 +31,7 @@ export function createEconomy(W){
     if (e.id === 'serve') api.earn(cap(e.score/2, 20) + 2, 'sfida al servizio');
     if (e.id === 'vetro') api.earn(cap(e.score/3, 20) + 2, 'il vetro');
     if (e.id === 'raccattapalle') api.earn(cap(e.score/12, 20) + 2, 'raccattapalle');
+    if (e.id === 'online') api.earn(e.won ? 35 : 15, e.won ? 'vittoria tra amici' : 'partita tra amici');
     if (e.id === 'tennis' || e.id === 'padel') api.earn(e.won ? (lvl === 'esperto' ? 45 : lvl === 'facile' ? 20 : 30) : 8, e.won ? 'vittoria' : 'partita giocata');
   });
   W.bus.on('badge', () => setTimeout(() => api.earn(10, 'nuova medaglia'), 900));

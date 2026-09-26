@@ -11,7 +11,7 @@ Prototipo di un mondo giocabile nel browser, ispirato al Foro Italico di Roma. P
 - Guardare partite tra NPC sugli altri campi, con arbitro e raccattapalle; il punteggio del Centrale va sul maxischermo della fan zone.
 - Parlare con otto personaggi e fare le loro missioni: raccattapalle a tempo, medaglie tra le statue dei Marmi, una granita da consegnare. Minigiochi: sfida al servizio e il vetro.
 - Entrare con il proprio **personaggio**: chi è nuovo lo crea vedendolo in 3D, chi ce l'ha scrive il nome.
-- **Giocare con gli amici**: si crea una stanza, si manda il link e ci si ritrova nello stesso Foro (fino a 8).
+- **Giocare con gli amici**: si crea una stanza, si manda il link e ci si ritrova nello stesso Foro (fino a 8). Nella stanza si sfidano gli amici a tennis (1 contro 1) o a padel (2 contro 2, i posti vuoti li gioca il computer).
 - Farsi guidare come con **Google Maps**: linea blu a terra, manovre, distanza e tempo.
 - Partire dal **Fan Village**, dove si compare, e seguire il **Percorso del Foro**: 11 tappe guidate da frecce a terra, con totem e schede con foto reali, fino al Trophy Tour.
 - Nel **Fan Village**, vicino all'ingresso, trovare tutti i giochi insieme, il negozio del giocatore (vestiti e racchette), lo Store del torneo (spille), il punto ristoro e il noleggio della **golf car** per girare il Foro. Si paga con i gettoni guadagnati giocando, senza denaro vero.
@@ -28,7 +28,7 @@ Prototipo di un mondo giocabile nel browser, ispirato al Foro Italico di Roma. P
 - `site/js/match/`: fisica, regole, IA e resa grafica delle partite (i primi tre senza Three.js, testabili con Node).
 - `site/js/games/`: registro delle modalità e minigiochi. `ugc/`: profilo, bacheca, codici sfida, negozi. `content/`: personaggi e dialoghi, articoli dei negozi, pannelli del Trophy Tour.
 - `site/js/world/village.js` (Fan Village), `world/tour.js` (Trophy Tour), `systems/route.js` e `world/grid.js` (Percorso del Foro e calcolo della strada), `entities/cart.js` (golf car), `systems/nav.js` ed `economy.js`.
-- `site/js/net/room.js` (gioco con gli amici, WebRTC con PeerJS in `js/vendor/`), `ugc/characters.js` (personaggi), `ui/preview.js` (anteprima 3D), `core/store.js` (dati per personaggio).
+- `site/js/match/online.js` (partite tra amici), `site/js/net/room.js` (gioco con gli amici, WebRTC con PeerJS in `js/vendor/`), `ugc/characters.js` (personaggi), `ui/preview.js` (anteprima 3D), `core/store.js` (dati per personaggio).
 - `site/assets/`: loghi FITP (`brand/`) e foto del Trophy Tour (`photos/`), con fonti e licenze nei README.
 
 **Aggiungere un personaggio:** una voce in `content/npcs.js` (posizione, aspetto, dialogo). **Aggiungere un gioco:** un modulo che chiama `W.games.register({...})` e una riga in `main.js`; per il menu «Vai a…», una voce in `systems/activities.js`.

@@ -67,6 +67,7 @@ export function createGames(W){
     const st = $('#endStats'); st.innerHTML = r.stats.map(s => `<div><b>${esc(s.v)}</b><small>${esc(s.label)}</small></div>`).join('');
     $('#endNote').textContent = r.note || ''; show('#endNote', !!r.note);
     show('#share', !!d.seedable);
+    show('#again', !d.noAgain);                // le partite tra amici non si rigiocano da sole: serve una nuova sfida
     show('#shareBox', false);
     hud.hideInstr(); show('#end', true); W.input.setContext('menu');
     W.bus.emit('game:end', { id: d.id, score: G.score, stat2: G.stat2, won: r.won, G });

@@ -38,8 +38,15 @@ export function createRoom(W){
   const pendingLink = (() => { const m = /[#&]stanza=([A-Z0-9]{4,8})/i.exec(location.hash); return m ? m[1].toUpperCase() : null; })();
 
   const myInfo = () => { const p = W.ugc.profile.get(); return { nick: p.nick, number: p.number, look: p.look }; };
+  const wp = new THREE.Vector3(), wq = new THREE.Quaternion(), we = new THREE.Euler();
   const myState = () => {
-    const car = W.mode === 'drive' && W.carts.cart, p = car ? W.carts.cart : W.player.pos;
+    const car = W.mode === 'drive' && W.carts.cart;
+    if (!car && W.hero.g.parent && W.hero.g.parent !== scene){
+      // in partita il personaggio sta dentro il campo: agli amici si manda la sua posizione nel mondo
+      W.hero.g.getWorldPosition(wp); W.hero.g.getWorldQuaternion(wq); we.setFromQuaternion(wq, 'YXZ');
+      return { t: 's', x: +wp.x.toFixed(2), z: +wp.z.toFixed(2), y: +wp.y.toFixed(2), ry: +we.y.toFixed(3), st: 'run', car: false, play: 1 };
+    }
+    const p = car ? W.carts.cart : W.player.pos;
     return { t: 's', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +(car ? W.world.groundH(p.x, p.z) : W.player.pos.y).toFixed(2), ry: +(car ? W.carts.cart.h : W.hero.g.rotation.y).toFixed(3), st: W.player.st.state, car: !!car };
   };
   const link = () => location.origin + location.pathname + location.search + '#stanza=' + code;
@@ -57,6 +64,7 @@ export function createRoom(W){
   }
   function removePlayer(id){
     const o = players.get(id); if (!o) return;
+    deliver(id, { t: 'left' });
     scene.remove(o.av.g); if (o.cart) scene.remove(o.cart); o.label.remove(); o.bubble.remove(); players.delete(id); paintPanel();
     hud.toast(`${o.nick} ${o.number} è uscito dalla stanza`);
   }
@@ -64,7 +72,17 @@ export function createRoom(W){
 
   /* ---------- messaggi ---------- */
   // tutti i messaggi hanno { t, id? }: hello/welcome/join/leave/s (stato)/look/say/bye
+  const listeners = new Set();
+  const deliver = (from, d) => { for (const f of listeners) try { f(from, d); } catch (e){ console.error(e); } };
   function handle(msg, from){
+    // messaggi diretti a un solo giocatore (inviti e partite tra amici): chi ospita li inoltra
+    if (msg.t === 'to'){
+      if (!host) return;
+      if (msg.to === peer.id) deliver(from, msg.d);
+      else { const c = conns.get(msg.to); if (c && c.open) c.send({ t: 'm', from, d: msg.d }); }
+      return;
+    }
+    if (msg.t === 'm'){ deliver(msg.from, msg.d); return; }
     if (host && msg.t !== 'hello') msg.id = from;      // chi ospita non si fida dell'id dichiarato
     switch (msg.t){
       case 'hello': {
@@ -94,6 +112,12 @@ export function createRoom(W){
   function join2(o){ const [x, z] = W.pois.safeSpot(o.tgt.x + 2.5, o.tgt.z + 2.5, null); if (W.mode === 'explore') W.player.place(x, z, o.tgt.x, o.tgt.z); }
   function broadcast(msg, except){ for (const [id, c] of conns) if (id !== except && c.open) c.send(msg); }
   function send(msg){ if (host) broadcast({ ...msg, id: peer.id }); else if (hostConn && hostConn.open) hostConn.send(msg); }
+  function sendTo(id, d){
+    if (!peer) return;
+    if (id === peer.id){ deliver(id, d); return; }
+    if (host){ const c = conns.get(id); if (c && c.open) c.send({ t: 'm', from: peer.id, d }); }
+    else if (hostConn && hostConn.open) hostConn.send({ t: 'to', to: id, d });
+  }
 
   /* ---------- creare, entrare, uscire ---------- */
   async function create(){
@@ -137,6 +161,7 @@ export function createRoom(W){
     leave(true);
   }
   function leave(quiet = false){
+    if (status !== 'off') deliver(null, { t: 'closed' });
     if (peer){ try { if (!host && hostConn) hostConn.close(); peer.destroy(); } catch (e){} }
     for (const id of [...players.keys()]){ const o = players.get(id); scene.remove(o.av.g); if (o.cart) scene.remove(o.cart); o.label.remove(); o.bubble.remove(); players.delete(id); }
     conns.clear(); peer = null; hostConn = null; host = false; code = null; status = 'off';
@@ -162,7 +187,8 @@ export function createRoom(W){
           <button class="primary" data-r="share">${navigator.share ? 'Condividi il link' : 'Copia il link'}</button>${navigator.share ? '<button data-r="copy">Copia</button>' : ''}</div></div>
         <label>Nella stanza</label>
         <div class="plist"><div class="pl me"><i style="background:#0b2a5b"></i><b>${esc(myInfo().nick)} ${myInfo().number}</b><small>${host ? 'tu · hai creato la stanza' : 'tu'}</small></div>
-          ${list.map(o => `<div class="pl"><i style="background:${o.color}"></i><b>${esc(o.nick)} ${o.number}</b><span><button data-go="${o.id}">Raggiungi</button><button data-nav="${o.id}">Guidami</button></span></div>`).join('') || '<p class="fine left">Nessuno ancora: manda il link!</p>'}</div>
+          ${list.map(o => `<div class="pl"><i style="background:${o.color}"></i><b>${esc(o.nick)} ${o.number}</b><span><button data-ch="${o.id}">Sfida</button><button data-go="${o.id}">Raggiungi</button><button data-nav="${o.id}">Guidami</button></span></div>`).join('') || '<p class="fine left">Nessuno ancora: manda il link!</p>'}</div>
+        ${list.length ? '<button class="primary" data-r="match">Gioca una partita con gli amici</button>' : ''}
         <label>Messaggi veloci</label>
         <div class="quick">${QUICK.map((q, i) => `<button data-q="${i}">${esc(q)}</button>`).join('')}</div>
         <button class="secondary" data-r="leave">Esci dalla stanza</button>`;
@@ -170,10 +196,12 @@ export function createRoom(W){
     box.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', () => {
       const r = b.dataset.r;
       if (r === 'create') create();
+      if (r === 'match'){ closePanel(); setTimeout(() => W.online.openLobby(), 0); }
       if (r === 'leave') leave();
       if (r === 'share' && navigator.share) navigator.share({ title: 'Foro Italico World', text: `Vieni a giocare con me al Foro Italico: stanza ${code}`, url: link() }).catch(() => {});
       if (r === 'copy' || (r === 'share' && !navigator.share)){ const i = box.querySelector('.rlink input'); i.select(); (navigator.clipboard ? navigator.clipboard.writeText(link()) : Promise.reject()).then(() => hud.toast('Link copiato'), () => { try { document.execCommand('copy'); hud.toast('Link copiato'); } catch (e){} }); }
     }));
+    box.querySelectorAll('[data-ch]').forEach(b => b.addEventListener('click', () => { closePanel(); setTimeout(() => W.online.openLobby({ friend: b.dataset.ch }), 0); }));
     box.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => { const o = players.get(b.dataset.go); if (!o || !o.cur) return; closePanel(); const [x, z] = W.pois.safeSpot(o.cur.x + 2.5, o.cur.z + 2.5, null); W.player.place(x, z, o.cur.x, o.cur.z); }));
     box.querySelectorAll('[data-nav]').forEach(b => b.addEventListener('click', () => { const o = players.get(b.dataset.nav); if (!o || !o.cur) return; closePanel(); W.nav.set({ x: o.cur.x, z: o.cur.z, r: 5, name: `${o.nick} ${o.number}`, at: () => o.cur && { x: o.cur.x, z: o.cur.z } }); }));
     box.querySelectorAll('[data-q]').forEach(b => b.addEventListener('click', () => { const k = +b.dataset.q; send({ t: 'say', k }); showMine(QUICK[k]); if (k === 0) W.player.st.emote = 2.5; closePanel(); }));
@@ -198,12 +226,20 @@ export function createRoom(W){
   };
   return {
     get status(){ return status; }, get code(){ return code; }, get host(){ return host; }, get players(){ return players; },
-    pendingLink, create, join, leave, openPanel, send, link,
+    pendingLink, create, join, leave, openPanel, send, sendTo, link,
+    get myId(){ return peer && peer.id; },
+    on(f){ listeners.add(f); return () => listeners.delete(f); },
+    info: myInfo,
     update(dt){
       const explore = W.mode === 'explore' || W.mode === 'drive' || W.mode === 'dialogue';
       if (status === 'in' && (sendT -= dt) <= 0){ sendT = RATE; send(myState()); }
+      const match = W.online && W.online.active;
       for (const o of players.values()){
         if (!o.cur || !o.tgt) continue;
+        // chi gioca con me in questo momento lo disegna già la partita
+        const inMine = match && match.cfg.players.some(p => p.peer === o.id);
+        o.av.g.visible = !inMine; if (o.cart && inMine) o.cart.visible = false;
+        if (inMine){ o.label.style.opacity = 0; o.bubble.classList.add('hidden'); continue; }
         // si va verso l'ultima posizione ricevuta, senza scatti
         const k = Math.min(1, dt*9), c = o.cur, t = o.tgt, dx = t.x - c.x, dz = t.z - c.z, spd = Math.hypot(dx, dz)/RATE;
         if (Math.hypot(dx, dz) > 30){ c.x = t.x; c.z = t.z; } else { c.x += dx*k; c.z += dz*k; }

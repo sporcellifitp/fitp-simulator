@@ -77,7 +77,8 @@ Dettagli e limiti in [docs/v0.6-multiplayer.md](docs/v0.6-multiplayer.md).
 - [x] Gioco con gli amici: stanza con link, fino a 8, posizioni in tempo reale, messaggi già pronti, Raggiungi e Guidami.
 - [x] Navigatore come Google Maps; corsa su telefono (joystick oltre il bordo o pulsante Corri).
 - [ ] Server FITP per le stanze (privacy, reti chiuse, stanze più grandi) e accesso con myFITP.
-- [ ] Partite di tennis e padel tra giocatori veri.
+- [x] Partite di tennis (1 contro 1) e padel (2 contro 2) tra amici, con il computer nei posti vuoti.
+- [ ] Palla visibile anche agli amici che guardano; piccolo torneo nella stanza.
 
 ## Prossimi passi (dalle prime settimane sul repository)
 

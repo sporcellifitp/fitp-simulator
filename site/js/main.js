@@ -28,6 +28,7 @@ import { createActivities } from './systems/activities.js';
 import { createRoute } from './systems/route.js';
 import { createCharacters } from './ugc/characters.js';
 import { createRoom } from './net/room.js';
+import { registerOnline } from './match/online.js';
 import { characters } from './core/store.js';
 import { createGames } from './games/registry.js';
 import { registerServe } from './games/serve.js';
@@ -92,6 +93,7 @@ W.bus.on('live:score', s => { W.live[s.venue] = s; });
 W.route = createRoute(W);               // Percorso del Foro: totem nelle tappe, strada calcolata sugli ostacoli
 W.route.build();
 W.room = createRoom(W);                 // gioca con gli amici: stanza condivisa con un link
+W.online = registerOnline(W);           // partite di tennis e padel tra amici
 
 /* ---------- modalità: intro, explore, dialogue, menu, game ---------- */
 W.hud.setExplore = on => {

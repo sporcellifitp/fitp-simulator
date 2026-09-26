@@ -11,12 +11,13 @@ export const reasonLabel = r => REASON[r] || r;
 
 // Disegna giocatori e palla di una partita. F: sistema locale del campo; y0: quota del campo (Pietrangeli e arena sono ribassati).
 export class MatchRenderer {
-  constructor(W, core, F, { y0 = 0, looks = [], humanAvatar = null } = {}){
+  // humanId: quale giocatore usa l'avatar del giocatore (nelle partite tra amici i giocatori veri sono più di uno)
+  constructor(W, core, F, { y0 = 0, looks = [], humanAvatar = null, humanId = null } = {}){
     this.W = W; this.core = core; this.F = F; this.y0 = y0;
     this.group = new THREE.Group(); this.group.position.set(F.x, y0, F.z); this.group.rotation.y = F.rot;
     W.engine.scene.add(this.group);
     this.avatars = core.players.map((p, i) => {
-      if (p.human && humanAvatar){ this.group.add(humanAvatar.g); return humanAvatar; }
+      if (humanAvatar && (humanId ? p.id === humanId : p.human)){ this.group.add(humanAvatar.g); return humanAvatar; }
       const av = makeAvatar(looks[i] || {}); this.group.add(av.g); return av;
     });
     this.human = humanAvatar;

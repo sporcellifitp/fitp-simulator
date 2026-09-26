@@ -1,5 +1,6 @@
 // Una partita di tennis o padel: giocatori, servizio, scambi, punteggio. Senza Three.js: la grafica sta in view.js.
-// Il giocatore umano (se c'è) passa i comandi a update() come { move:{x,y}, jump, hit, lob }.
+// Il giocatore umano (se c'è) passa i comandi a update() come { move:{x,y}, jump, hit, lob }. Con più giocatori veri
+// (partite tra amici, match/online.js) si passa un oggetto { [id del giocatore]: comandi }.
 import { COURTS, newBall, stepBall, sideOf } from './physics.js';
 import { Rally, newScore, awardPoint, serveFromRight, pointLabels } from './rules.js';
 import { LEVELS, planIntercept, chooseShot, makeShot, shotTarget, gauss } from './ai.js';
@@ -121,25 +122,29 @@ export class MatchCore {
   /* ---------- aggiornamento ---------- */
   update(dt, input = null){
     this.events = []; this.t += dt; this.timer += dt;
-    const c = this.court, human = this.players.find(p => p.human);
-    // movimento del giocatore umano
-    if (human && input){
-      const dir = human.team === 0 ? 1 : -1;
-      human.tx = human.x + input.move.x*dir*human.speed*dt*3; human.tz = human.z - input.move.y*dir*human.speed*dt*3;
+    const c = this.court, humans = this.players.filter(p => p.human), human = humans[0];
+    // comandi: un solo giocatore (come prima) oppure uno per ogni giocatore vero
+    const inputs = input && input.move ? (human ? { [human.id]: input } : {}) : (input || {});
+    for (const h of humans){
+      const inp = inputs[h.id]; if (!inp) continue;
+      h.lastInput = inp;
+      const dir = h.team === 0 ? 1 : -1;
+      h.tx = h.x + inp.move.x*dir*h.speed*dt*3; h.tz = h.z - inp.move.y*dir*h.speed*dt*3;
       // livello Facile: senza frecce il personaggio va da solo incontro alla palla, a chi gioca resta il tempo del colpo
-      const still = Math.abs(input.move.x) < .05 && Math.abs(input.move.y) < .05;
-      if (still && this.level.assist && this.phase === 'live' && this.rally.lastHitter !== human.team){
-        human.planT = (human.planT || 0) - dt;
-        if (human.planT <= 0){ human.plan = planIntercept(human, this.ball, c, this.rally); human.planT = .12; }
-        if (human.plan){ human.tx = human.plan.x + (human.team === 0 ? .35 : -.35); human.tz = human.plan.z + (human.team === 0 ? .3 : -.3); }
+      const still = Math.abs(inp.move.x) < .05 && Math.abs(inp.move.y) < .05;
+      if (still && this.level.assist && this.phase === 'live' && this.rally.lastHitter !== h.team){
+        h.planT = (h.planT || 0) - dt;
+        if (h.planT <= 0){ h.plan = planIntercept(h, this.ball, c, this.rally); h.planT = .12; }
+        if (h.plan){ h.tx = h.plan.x + (h.team === 0 ? .35 : -.35); h.tz = h.plan.z + (h.team === 0 ? .3 : -.3); }
       }
-      if (input.jump && human.y <= 0 && this.phase !== 'serve') human.vy = JUMP_V;
-      if (input.hit){ human.swingBuffer = .3; human.lobBuffer = !!input.lob; }
+      if (inp.jump && h.y <= 0 && this.phase !== 'serve') h.vy = JUMP_V;
+      if (inp.hit){ h.swingBuffer = inp.late ? .45 : .3; h.lobBuffer = !!inp.lob; }   // chi gioca da un altro dispositivo ha un attimo in più
     }
     if (this.phase === 'serve'){
       if (this.serverP.human){
-        if (human.swingBuffer > 0){ human.swingBuffer = 0; this.serve(input ? input.move.x : 0); }
-        else if (this.timer > .05 && !this.serveAnnounced){ this.serveAnnounced = true; this.emit({ type: 'serveReady', human: true, second: this.rally.attempt === 2 }); }
+        const s = this.serverP;
+        if (s.swingBuffer > 0){ s.swingBuffer = 0; this.serve(s.lastInput ? s.lastInput.move.x : 0); }
+        else if (this.timer > .05 && !this.serveAnnounced){ this.serveAnnounced = true; this.emit({ type: 'serveReady', human: true, player: s.id, second: this.rally.attempt === 2 }); }
       } else if (this.timer > 1.1) this.serve();
       if (this.phase === 'serve'){ this.movePlayers(dt, true); this.holdBall(); }
     } else if (this.phase === 'live'){
@@ -162,8 +167,9 @@ export class MatchCore {
         this.movePlayers(dt, false);
         // colpi: prima l'umano (con un piccolo anticipo concesso), poi l'IA
         for (const p of this.players){
-          if (this.phase !== 'live' || !this.rally.canHit(p.team)) continue;
-          if (p.human){ if (p.swingBuffer > 0 && this.canReach(p)){ p.swingBuffer = 0; this.humanStrike(p, input || { move: { x: 0, y: 0 } }); } }
+          // la palla appena colpita deve viaggiare un attimo: niente botta e risposta a rete tra due giocatori veri
+          if (this.phase !== 'live' || !this.rally.canHit(p.team) || this.sinceHit < .22) continue;
+          if (p.human){ if (p.swingBuffer > 0 && this.canReach(p)){ p.swingBuffer = 0; this.humanStrike(p, p.lastInput || { move: { x: 0, y: 0 } }); } }
           else if (p.react <= 0 && this.canReach(p) && this.ball.p.y < 2.9 && this.aiWants(p)){
             const opp = this.teamPlayers(1 - p.team);
             if (this.ball.p.y > 2.1 && p.y <= 0) p.vy = JUMP_V*.8;
@@ -227,7 +233,7 @@ export class MatchCore {
       // restare nel proprio campo e dentro il recinto
       const dir = p.team === 0 ? 1 : -1;
       p.x = Math.max(-R.x + .3, Math.min(R.x - .3, p.x));
-      const zAbs = Math.max(.4, Math.min(R.z - .3, p.z*dir)); p.z = zAbs*dir;
+      const zAbs = Math.max(1.1, Math.min(R.z - .3, p.z*dir)); p.z = zAbs*dir;   // non si sta attaccati alla rete
       if (p.y > 0 || p.vy > 0){ p.vy -= GRAV_PLAYER*dt; p.y = Math.max(0, p.y + p.vy*dt); if (p.y === 0) p.vy = 0; }
     }
   }

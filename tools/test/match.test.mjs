@@ -111,3 +111,36 @@ test('codici sfida: andata e ritorno, codici alterati rifiutati', () => {
   const nasty = encodeChallenge({ game: 'serve', seed: 5, score: 3, nick: '<script>alert(1)</script>' });
   assert.equal(decodeChallenge(nasty).nick, 'scriptalertscript');
 });
+
+// partite tra amici (match/online.js): più giocatori veri, ognuno con i suoi comandi
+function botInputs(core, ids){
+  const inp = {};
+  for (const id of ids){
+    const p = core.players.find(q => q.id === id), b = core.ball.p;
+    const serving = core.phase === 'serve' && core.serverP === p;
+    const near = core.phase === 'live' && Math.hypot(b.x - p.x, b.z - p.z) < 1.2 && b.y > .15 && b.y < 2.3;
+    inp[id] = { move: { x: 0, y: 0 }, hit: serving || near, lob: false, jump: false };
+  }
+  return inp;
+}
+test('tennis tra due giocatori veri: servono e colpiscono entrambi, la partita finisce', () => {
+  const core = new MatchCore({ sport: 'tennis', teams: [[{ id: 'a', human: true }], [{ id: 'b', human: true }]], level: 'facile', gamesToWin: 1, rng: mulberry32(7), firstServer: 1 });
+  const hitters = new Set(); let over = false;
+  for (let i = 0; i < 60*600 && !over; i++){
+    for (const e of core.update(1/60, botInputs(core, ['a', 'b']))){
+      if (e.type === 'hit') hitters.add(e.player);
+      if (e.type === 'match') over = true;
+    }
+  }
+  assert.ok(over, 'la partita arriva alla fine');
+  assert.ok(hitters.has('a') && hitters.has('b'), 'colpiscono entrambi');
+});
+test('padel con due amici e due giocatori del computer', () => {
+  const core = new MatchCore({ sport: 'padel', teams: [[{ id: 'a', human: true }, { id: 'c1' }], [{ id: 'b', human: true }, { id: 'c2' }]], level: 'facile', gamesToWin: 1, rng: mulberry32(3), firstServer: 0 });
+  const hitters = new Set(); let points = 0;
+  for (let i = 0; i < 60*300 && points < 3; i++){
+    for (const e of core.update(1/60, botInputs(core, ['a', 'b']))){ if (e.type === 'hit') hitters.add(e.player); if (e.type === 'point') points++; }
+  }
+  assert.ok(points >= 3, 'si fanno punti');
+  assert.ok(hitters.has('a') && hitters.has('b'), 'giocano entrambi gli amici');
+});

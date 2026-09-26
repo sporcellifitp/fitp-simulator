@@ -5,6 +5,7 @@ import { hud } from '../ui/hud.js';
 
 export const BADGES = [
   { id: 'esploratore', title: 'Esploratore del Foro', desc: 'Visita tutti i luoghi principali' },
+  { id: 'amici', title: 'Partita tra amici', desc: 'Gioca una partita di tennis o di padel con i tuoi amici' },
   { id: 'guida', title: 'Guida del Foro', desc: 'Completa il Percorso del Foro, dal Fan Village al Trophy Tour' },
   { id: 'vittoria-tennis', title: 'Prima vittoria a tennis', desc: 'Vinci una partita sul Centrale' },
   { id: 'vittoria-padel', title: 'Prima vittoria a padel', desc: 'Vinci una partita di padel in doppio' },
