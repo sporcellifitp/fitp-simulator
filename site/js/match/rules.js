@@ -2,12 +2,15 @@
 // Squadra 0 gioca sul lato z > 0, squadra 1 sul lato z < 0.
 
 /* ---------- punteggio: 15-30-40, vantaggi (o punto d'oro), game, partita ---------- */
-export function newScore({ gamesToWin = 3, goldenPoint = false, firstServer = 0 } = {}){
-  return { points: [0, 0], games: [0, 0], gamesToWin, goldenPoint, server: firstServer, winner: null, history: [] };
+// set: true → si vince il set con due game di scarto e sul N pari si gioca il tie-break a 7 punti (regola dei set corti
+// ITF: set a 4 game, tie-break sul 4-4). Senza set vince chi arriva per primo a gamesToWin (come nel mondo).
+export function newScore({ gamesToWin = 3, goldenPoint = false, firstServer = 0, set = false } = {}){
+  return { points: [0, 0], games: [0, 0], gamesToWin, goldenPoint, set, tiebreak: false, tbFirst: null, server: firstServer, winner: null, history: [] };
 }
 const LABELS = ['0', '15', '30', '40'];
 export function pointLabels(sc){
   const [a, b] = sc.points;
+  if (sc.tiebreak) return [String(a), String(b)];
   if (a >= 3 && b >= 3){
     if (a === b) return ['40', '40'];
     return a > b ? ['V', '40'] : ['40', 'V'];
@@ -23,13 +26,25 @@ export function awardPoint(sc, team, reason = ''){
   sc.history.push({ team, reason });
   const o = 1 - team, p = sc.points;
   p[team]++;
+  if (sc.tiebreak){
+    // tie-break: a 7 con due punti di scarto; serve uno, poi due a testa
+    if (p[team] >= 7 && p[team] - p[o] >= 2){
+      sc.games[team]++; sc.points = [0, 0]; sc.tiebreak = false; sc.winner = team; sc.server = 1 - sc.tbFirst;
+      return { game: true, match: true, tiebreak: true };
+    }
+    const n = p[0] + p[1];
+    sc.server = Math.floor((n - 1)/2) % 2 === 0 ? 1 - sc.tbFirst : sc.tbFirst;
+    return { game: false, match: false };
+  }
   // si vince il game a 4 punti con due di scarto; col punto d'oro basta il punto sul 40 pari
   const game = p[team] >= 4 && (p[team] - p[o] >= 2 || (sc.goldenPoint && p[o] >= 3));
   if (!game) return { game: false, match: false };
   sc.games[team]++; sc.points = [0, 0]; sc.server = 1 - sc.server;
-  const match = sc.games[team] >= sc.gamesToWin;
+  const g = sc.games, N = sc.gamesToWin;
+  const match = sc.set ? g[team] >= N && g[team] - g[o] >= 2 : g[team] >= N;
   if (match) sc.winner = team;
-  return { game: true, match };
+  else if (sc.set && g[0] === N && g[1] === N){ sc.tiebreak = true; sc.tbFirst = sc.server; }
+  return { game: true, match, startTiebreak: sc.tiebreak };
 }
 
 /* ---------- scambio: chi può colpire, rimbalzi, falli ---------- */
@@ -47,6 +62,7 @@ export class Rally {
     this.isServe = true;
     this.hits = 0;
     this.result = null;
+    this.netTouch = false;         // il servizio ha toccato il nastro: se poi entra nel riquadro è «let», si ripete
   }
   // x del battitore: la destra del lato 0 è x > 0, quella del lato 1 è x < 0
   serveX(){ const s = this.fromRight ? 1 : -1; return this.server === 0 ? s : -s; }
@@ -75,6 +91,7 @@ export class Rally {
     return this.result;
   }
   // un servizio sbagliato: primo errore → seconda palla, secondo → doppio fallo
+  replayServe(){ this.reset(); return { let: true }; }
   fault(reason){
     if (this.attempt === 1){ this.attempt = 2; this.reset(); return { fault: true, reason }; }
     return this.end(1 - this.server, 'doppio fallo');
@@ -85,6 +102,7 @@ export class Rally {
   event(e){
     if (this.state !== 'live') return null;
     const hitter = this.lastHitter, other = 1 - hitter, sideOfE = e.side;
+    if (e.type === 'net'){ if (this.isServe && this.bouncesSinceHit === 0) this.netTouch = true; return null; }
     if (e.type === 'bounce'){
       this.bouncesSinceHit++;
       if (this.bouncesSinceHit === 1){
@@ -92,6 +110,7 @@ export class Rally {
         if (this.isServe){
           const b = this.serveBox();
           if (!(e.x >= b.x0 - .02 && e.x <= b.x1 + .02 && e.z >= b.z0 - .02 && e.z <= b.z1 + .02)) return this.fault('fuori');
+          if (this.netTouch) return this.replayServe();
           return null;
         }
         if (!this.inCourt(e.x, e.z)) return this.end(other, 'fuori');

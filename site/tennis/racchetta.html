@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0b1626">
+<title>Racchetta · Tennis 1 contro 1</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b2a5b'/%3E%3Ccircle cx='32' cy='32' r='15' fill='%23e4f54a'/%3E%3C/svg%3E">
+<style>
+  :root{--bg:#0b1626;--panel:#15233a;--ink:#f3f6fb;--muted:#9fb0c8;--ball:#e4f54a;--ok:#4cd07d;--warn:#ffc04d;--bad:#ff6b5e}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;
+    -webkit-user-select:none;user-select:none;touch-action:manipulation;overscroll-behavior:none}
+  body{display:flex;flex-direction:column;padding:max(14px,env(safe-area-inset-top)) 16px max(14px,env(safe-area-inset-bottom))}
+  .hidden{display:none!important}
+  #bar{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;min-height:28px}
+  #bar i{width:10px;height:10px;border-radius:50%;background:var(--warn);flex:none}
+  #bar.ok i{background:var(--ok)} #bar.bad i{background:var(--bad)}
+  #bar small{margin-left:auto;color:var(--muted);font-weight:500}
+  #stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:10px 4px}
+  #ring{width:min(62vw,260px);aspect-ratio:1;border-radius:50%;border:6px solid #23395a;display:flex;align-items:center;justify-content:center;
+    transition:border-color .2s,transform .12s;background:radial-gradient(circle at 50% 40%,#1b2d4a,#0f1c30)}
+  #ring.ready{border-color:var(--ok)} #ring.hit{transform:scale(1.06);border-color:var(--ball)} #ring.miss{border-color:var(--bad)}
+  #big{font-size:34px;font-weight:800;line-height:1.1;padding:0 12px}
+  #sub{font-size:17px;color:var(--muted);line-height:1.4;max-width:340px;min-height:48px}
+  .btn{display:block;width:100%;border:0;border-radius:14px;padding:17px;font:inherit;font-size:19px;font-weight:700;background:var(--ball);color:#132033;margin-top:10px}
+  .btn.alt{background:var(--panel);color:var(--ink);font-weight:600;font-size:16px;padding:14px}
+  #tap{height:30vh;font-size:28px;border-radius:20px}
+  #tools{display:flex;gap:8px;margin-top:10px}
+  #tools .btn{flex:1;margin:0}
+  #sens{display:flex;gap:6px;margin-top:10px;align-items:center;font-size:14px;color:var(--muted)}
+  #sens button{flex:1;border:1px solid #2c4366;background:transparent;color:var(--ink);border-radius:10px;padding:9px 4px;font:inherit;font-size:14px}
+  #sens button.on{background:#2c4366}
+</style>
+</head>
+<body>
+<div id="bar"><i></i><span id="barTxt">Collegamento…</span><small id="lat"></small></div>
+<div id="stage">
+  <div id="ring"><div id="big">Racchetta</div></div>
+  <div id="sub">Mi collego al gioco sul computer…</div>
+</div>
+<div id="actions">
+  <button class="btn hidden" id="enable">Attiva i sensori</button>
+  <button class="btn alt hidden" id="skip">Salta il dritto di prova</button>
+  <button class="btn hidden" id="tap">Colpisci</button>
+  <button class="btn hidden" id="retry">Riprova</button>
+</div>
+<div id="sens" class="hidden"><span>Sensibilità</span><button data-k="1.25">Bassa</button><button data-k="1" class="on">Media</button><button data-k=".8">Alta</button></div>
+<div id="tools" class="hidden">
+  <button class="btn alt" id="recal">Ricalibra</button>
+  <button class="btn alt" id="bye">Scollega</button>
+</div>
+<script type="module" src="../js/tennis/racchetta.js"></script>
+</body>
+</html>

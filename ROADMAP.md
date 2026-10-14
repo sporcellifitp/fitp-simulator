@@ -1,6 +1,6 @@
 # Roadmap di prodotto
 
-Ultimo aggiornamento: 24 settembre 2026. Responsabile: Sergio Porcelli, FITP eSports.
+Ultimo aggiornamento: 14 ottobre 2026. Responsabile: Sergio Porcelli, FITP eSports.
 
 ## Obiettivo
 
@@ -79,6 +79,18 @@ Dettagli e limiti in [docs/v0.6-multiplayer.md](docs/v0.6-multiplayer.md).
 - [ ] Server FITP per le stanze (privacy, reti chiuse, stanze più grandi) e accesso con myFITP.
 - [x] Partite di tennis (1 contro 1) e padel (2 contro 2) tra amici, con il computer nei posti vuoti.
 - [ ] Palla visibile anche agli amici che guardano; piccolo torneo nella stanza.
+
+## v0.7 · Tennis 1 contro 1 e telefono come racchetta (ottobre 2026)
+
+Architettura, sicurezza, prove e limiti in [docs/v0.7-tennis-racchetta.md](docs/v0.7-tennis-racchetta.md).
+
+- [x] Pagina `/tennis/`: partita contro il computer con mouse e tastiera (mira col puntatore, potenza tenendo premuto, tempo del colpo che decide la direzione).
+- [x] Regole: set corto a 4 e set a 6 con tie-break, let, nastro, falli, doppio fallo, palla mancata al servizio.
+- [x] Telefono come racchetta: QR monouso, collegamento diretto, permessi, calibrazione, riconoscimento di dritto e rovescio, orologi allineati per compensare il ritardo, movimento automatico.
+- [x] Guasti gestiti: niente sensori o permesso negato (il telefono diventa un pulsante), telefono scollegato, server irraggiungibile.
+- [ ] **Prova su iPhone e Android veri** e ritocco delle soglie del colpo (finora sensori simulati).
+- [ ] Sensazione di gioco: suoni veri, animazioni di dritto e rovescio, indicatore del rimbalzo al livello facile.
+- [ ] Livelli del computer e tattiche; poi 1 contro 1 online con due telefoni, riusando le stanze della v0.6.
 
 ## Prossimi passi (dalle prime settimane sul repository)
 

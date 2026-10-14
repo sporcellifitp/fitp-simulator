@@ -1,0 +1,12 @@
+{
+  "name": "tennis-e2e",
+  "private": true,
+  "description": "Prove nel browser di Tennis 1 contro 1 (computer e telefono simulato)",
+  "type": "module",
+  "dependencies": {
+    "express": "^4.21.2",
+    "jsqr": "1.4.0",
+    "peer": "^1.0.2",
+    "playwright-core": "^1.48.0"
+  }
+}

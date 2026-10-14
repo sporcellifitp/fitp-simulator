@@ -152,6 +152,7 @@ export function registerMatches(W){
       '<b>Pallonetto</b> con K o il tasto destro; <b>salta</b> con Spazio: se la palla è alta, in salto parte lo smash.',
       'Al servizio premi Colpo: la palla deve cadere nel riquadro in diagonale. Due tentativi.',
       'Al livello <b>Facile</b>, se non tocchi le frecce il personaggio va da solo verso la palla: tu pensi solo a colpire.',
+      'Novità: <a href="tennis/" target="_blank" rel="noopener">Tennis 1 contro 1</a>, con il telefono come racchetta.',
     ],
     options: [LEVEL_OPT, LEN_OPT],
     start(G, o){ begin(G, 'tennis', o); }, update, cleanup, end: G => endInfo(G, 'tennis'),

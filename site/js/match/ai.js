@@ -22,10 +22,11 @@ export function shotTarget(court, team, aimX = 0, depth = .8, type = 'drive'){
 }
 
 // velocità della palla per un colpo verso un bersaglio, con l'errore di esecuzione
-export function makeShot(court, from, target, type, error, rng, clearance = null){
+// pace: ritmo del colpo (1 normale, sopra 1 più veloce: la racchetta del giocatore lo sceglie con la potenza)
+export function makeShot(court, from, target, type, error, rng, clearance = null, pace = 1){
   const t = { x: target.x + gauss(rng)*error, z: target.z + gauss(rng)*error*1.2 };
   const dist = Math.hypot(t.x - from.x, t.z - from.z);
-  const v = aimShot(from, t, shotTime(court, type, dist)*(1 + gauss(rng)*.05), court, clearance ?? (type === 'lob' ? 1.2 : type === 'smash' ? .15 : .3));
+  const v = aimShot(from, t, shotTime(court, type, dist)*(1 + gauss(rng)*.05)/pace, court, clearance ?? (type === 'lob' ? 1.2 : type === 'smash' ? .15 : .3));
   return { v, target: t };
 }
 

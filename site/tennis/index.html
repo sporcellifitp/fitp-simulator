@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Tennis 1 contro 1 · Foro Italico World</title>
+<meta name="description" content="Partita di tennis contro il computer, con mouse e tastiera o con il telefono come racchetta.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b2a5b'/%3E%3Ccircle cx='32' cy='32' r='15' fill='%23e4f54a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--navy:#0b2a5b;--ink:#132033;--muted:#5b6678;--clay:#c0623a;--ball:#e4f54a;--ok:#2f8f57;--warn:#e0a020;--bad:#d8342c;--card:#fff;--line:#e3e7ee}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b1626;color:var(--ink);font-family:Barlow,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  #app{position:fixed;inset:0}
+  #app canvas{display:block;cursor:crosshair}
+  .hidden{display:none!important}
+  button{font:inherit;cursor:pointer}
+  h1,h2,.cond{font-family:"Barlow Condensed",Barlow,sans-serif;letter-spacing:.01em}
+
+  /* ---------- in partita ---------- */
+  #score{position:fixed;left:16px;top:16px;background:rgba(11,22,38,.86);color:#fff;border-radius:10px;padding:6px 4px;min-width:220px;font-variant-numeric:tabular-nums;backdrop-filter:blur(4px)}
+  #score .row{display:grid;grid-template-columns:14px 1fr 30px 38px;align-items:center;gap:6px;padding:3px 10px;font-weight:600}
+  #score .row i{width:8px;height:8px;border-radius:50%;background:transparent;justify-self:center}
+  #score .row.srv i{background:var(--ball)}
+  #score .row b{text-align:center;font-family:"Barlow Condensed";font-size:20px}
+  #score .row em{font-style:normal;text-align:center;font-family:"Barlow Condensed";font-size:20px;background:rgba(255,255,255,.12);border-radius:5px;color:var(--ball)}
+  #score small{display:block;padding:2px 10px 0;color:#9fb0c8;font-size:12px}
+  #chip{position:fixed;right:16px;top:16px;background:rgba(11,22,38,.86);color:#fff;border-radius:999px;padding:7px 14px 7px 12px;font-size:14px;display:flex;align-items:center;gap:8px}
+  #chip i{width:9px;height:9px;border-radius:50%;background:var(--warn)}
+  #chip.ok i{background:#4cd07d} #chip.bad i{background:var(--bad)}
+  #pauseBtn{position:fixed;right:16px;bottom:16px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(11,22,38,.8);color:#fff;font-weight:700}
+  #flash{position:fixed;left:50%;top:26%;transform:translateX(-50%);text-align:center;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.55);pointer-events:none;transition:opacity .25s}
+  #flash b{display:block;font-family:"Barlow Condensed";font-size:56px;line-height:1;font-weight:800}
+  #flash span{display:block;font-size:20px;font-weight:600;margin-top:4px}
+  #timing{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);padding:6px 16px;border-radius:999px;font-weight:700;font-size:18px;color:#132033;pointer-events:none;transition:opacity .3s}
+  #timing.perfetto{background:#7ee2a0} #timing.anticipo,#timing.ritardo{background:#ffd56b} #timing.steccata,#timing.mancata{background:#ff8a80}
+  #hint{position:fixed;left:50%;top:16px;transform:translateX(-50%);background:rgba(11,22,38,.78);color:#fff;padding:9px 18px;border-radius:10px;font-size:15px;max-width:min(620px,calc(100vw - 560px));min-width:260px;text-align:center;pointer-events:none}
+  #power{position:fixed;width:64px;height:8px;border-radius:4px;background:rgba(0,0,0,.45);pointer-events:none;overflow:hidden}
+  #power i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7ee2a0,#ffd56b 70%,#ff8a80)}
+
+  /* ---------- pannelli ---------- */
+  .ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(8,16,30,.42)}
+  .card{background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:24px 26px;width:min(460px,100%);max-height:calc(100vh - 32px);overflow:auto}
+  .card .tag{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--clay)}
+  .card h1{margin:2px 0 6px;font-size:38px;line-height:1.05;color:var(--navy)}
+  .card h2{margin:2px 0 8px;font-size:28px;color:var(--navy)}
+  .card p{margin:0 0 14px;color:var(--muted);line-height:1.45}
+  .btn{display:block;width:100%;border:0;border-radius:10px;padding:13px 16px;font-weight:600;font-size:17px;background:var(--navy);color:#fff;margin-top:10px;text-align:center}
+  .btn.alt{background:#eef1f6;color:var(--navy)}
+  .btn.ball{background:var(--ball);color:var(--ink)}
+  .btn:disabled{opacity:.45;cursor:default}
+  .seg{display:flex;gap:6px;margin:4px 0 6px}
+  .seg button{flex:1;border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 4px;font-size:14px;color:var(--ink)}
+  .seg button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .lbl{font-size:13px;font-weight:600;color:var(--muted);margin-top:6px}
+  .keys{margin:14px 0 0;padding:0;list-style:none;font-size:14px;color:var(--muted);line-height:1.6}
+  .keys b{color:var(--ink);font-weight:600}
+  .row2{display:flex;gap:10px} .row2 .btn{flex:1}
+  #qr{display:flex;align-items:center;justify-content:center;width:220px;height:220px;margin:6px auto 10px;border-radius:12px;background:#f4f6f9}
+  #qr svg{width:204px;height:204px}
+  #pairStatus{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:#f4f6f9;font-weight:600;font-size:15px}
+  #pairStatus i{flex:none;width:10px;height:10px;border-radius:50%;background:var(--warn)}
+  #pairStatus.ok i{background:var(--ok)} #pairStatus.bad i{background:var(--bad)}
+  #pairWarn{margin:10px 0 0;padding:9px 12px;border-radius:10px;background:#fff4dc;color:#7a5200;font-size:14px;line-height:1.4}
+  .steps{margin:10px 0 4px;padding-left:20px;color:var(--muted);font-size:14px;line-height:1.55}
+  .check{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:14px;color:var(--ink)}
+  #endStats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 4px}
+  #endStats div{background:#f4f6f9;border-radius:10px;padding:10px 4px;text-align:center}
+  #endStats b{display:block;font-family:"Barlow Condensed";font-size:30px;color:var(--navy)}
+  #endStats small{color:var(--muted);font-size:13px}
+  a.back{color:var(--muted);font-size:13px}
+</style>
+<script>/* /tennis senza barra finale: i percorsi relativi non tornerebbero */ if (!/\/$|\.html$/.test(location.pathname)) location.replace(location.pathname + '/' + location.search + location.hash);</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js"}}</script>
+<script src="../js/vendor/qrcode.js" defer></script>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="hud" class="hidden">
+  <div id="score"></div>
+  <div id="chip" class="hidden"><i></i><span></span></div>
+  <div id="flash" style="opacity:0"><b></b><span></span></div>
+  <div id="timing" style="opacity:0"></div>
+  <div id="hint"></div>
+  <div id="power" class="hidden"><i></i></div>
+  <button id="pauseBtn" title="Pausa (Esc)" aria-label="Pausa">II</button>
+</div>
+
+<div id="menu" class="ov">
+  <div class="card">
+    <div class="tag">Campo Centrale · Prototipo</div>
+    <h1>Tennis 1 contro 1</h1>
+    <p>Una partita contro il computer, con le regole vere. Gioca con mouse e tastiera, oppure usa il telefono come racchetta.</p>
+    <div class="lbl">Durata</div>
+    <div class="seg" id="fmt">
+      <button data-f="1">1 game</button>
+      <button data-f="4">Set corto a 4</button>
+      <button data-f="6">Set a 6</button>
+    </div>
+    <button class="btn" id="playMouse">Gioca con mouse e tastiera</button>
+    <button class="btn ball" id="playPhone">Gioca con il telefono</button>
+    <ul class="keys">
+      <li><b>Muoviti</b> con WASD o le frecce</li>
+      <li><b>Mira</b> con il puntatore sul campo avversario</li>
+      <li><b>Colpisci:</b> tieni premuto il tasto sinistro (o Spazio) per caricare, rilascia quando la palla arriva. Tasto destro (o K): pallonetto</li>
+      <li><b>Servizio:</b> premi per lanciare la palla, rilascia quando scende</li>
+    </ul>
+  </div>
+</div>
+
+<div id="pair" class="ov hidden">
+  <div class="card">
+    <div class="tag">Il telefono è la racchetta</div>
+    <h2>Inquadra il codice</h2>
+    <div id="qr"></div>
+    <div id="pairStatus"><i></i><span>Preparo la connessione…</span></div>
+    <div id="pairWarn" class="hidden"></div>
+    <ol class="steps">
+      <li>Apri la fotocamera del telefono e inquadra il codice.</li>
+      <li>Sul telefono tocca <b>Attiva i sensori</b> e tienilo fermo un attimo.</li>
+      <li>Fai un dritto di prova: il telefono impara il tuo colpo.</li>
+    </ol>
+    <label class="check"><input type="checkbox" id="autoMove" checked> Il personaggio si muove da solo (tu pensi solo al colpo)</label>
+    <button class="btn" id="pairGo" disabled>Inizia la partita</button>
+    <div class="row2"><button class="btn alt" id="pairBack">Indietro</button><button class="btn alt" id="pairForget">Scollega il telefono</button></div>
+  </div>
+</div>
+
+<div id="pause" class="ov hidden">
+  <div class="card">
+    <div class="tag">Pausa</div>
+    <h2>Partita in pausa</h2>
+    <button class="btn" id="resume">Riprendi</button>
+    <button class="btn alt" id="pausePhone">Collega il telefono</button>
+    <button class="btn alt" id="restart">Ricomincia la partita</button>
+    <button class="btn alt" id="toMenu">Torna al menu</button>
+  </div>
+</div>
+
+<div id="end" class="ov hidden">
+  <div class="card">
+    <div class="tag" id="endTag">Fine partita</div>
+    <h1 id="endTitle">Vittoria!</h1>
+    <p id="endScore"></p>
+    <div id="endStats"></div>
+    <button class="btn" id="again">Rivincita</button>
+    <button class="btn alt" id="endMenu">Menu</button>
+    <p style="margin:12px 0 0;text-align:center"><a class="back" href="../">Torna a Foro Italico World</a></p>
+  </div>
+</div>
+
+<script type="module" src="../js/tennis/main.js"></script>
+</body>
+</html>

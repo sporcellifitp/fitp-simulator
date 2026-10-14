@@ -35,9 +35,16 @@ export function stepBall(ball, dt, court, events = []){
     // rete
     if ((pz > 0) !== (p.z > 0) && Math.abs(p.x) < court.halfW + .9){
       const u = pz/(pz - p.z), y = p.y - v.y*h*(1 - u);
-      if (y < netHeightAt(court, p.x)){
-        p.z = pz > 0 ? .03 : -.03; v.z *= -.15; v.x *= .3; v.y = Math.min(v.y, 0);
-        events.push({ type: 'net', x: p.x, y, z: 0 });
+      const top = netHeightAt(court, p.x);
+      if (y < top){
+        if (top - y < .06 && Math.abs(v.z) > 4){
+          // sul nastro: la palla passa lo stesso, rallentata e un po' sparata in alto
+          v.z *= .45; v.x *= .7; v.y = Math.abs(v.y)*.2 + .9;
+          events.push({ type: 'net', tape: true, x: p.x, y, z: 0 });
+        } else {
+          p.z = pz > 0 ? .03 : -.03; v.z *= -.15; v.x *= .3; v.y = Math.min(v.y, 0);
+          events.push({ type: 'net', x: p.x, y, z: 0 });
+        }
       }
     }
     // pareti del padel: vetro e rete metallica rimandano la palla, sopra si esce dal recinto
