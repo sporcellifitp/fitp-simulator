@@ -225,9 +225,9 @@ function onEvent(e, view){
     case 'contact':
       if (!mine) break;
       A.stats.contacts++; if (e.label === 'perfetto') A.stats.perfect++;
-      timing(e.label, TIMING[e.label] || e.label, e.serve ? 'Servizio' : '');
+      timing(e.label, TIMING[e.label] || e.label, e.serve ? 'Servizio' : ({ drop: 'Palla corta', lob: 'Lob', slice: 'Tagliato', smash: 'Smash' }[e.shot] || ''));
       S.burst((view || viewNow()).ball.p, e.label === 'perfetto' ? 0x4cff8a : e.label === 'buono' ? 0xffffff : 0xffd56b);
-      phoneSend({ t: 'ev', k: 'contact', label: e.label });
+      phoneSend({ t: 'ev', k: 'contact', label: e.label, shot: e.shot });
       hint('');
       break;
     case 'miss': if (mine){ A.stats.miss++; const m = MISS[e.why] || ['Mancata', '']; timing('miss', m[0], m[1]); phoneSend({ t: 'ev', k: 'miss', why: e.why }); } break;
@@ -328,7 +328,7 @@ function stepGuest(dt, now){
   for (const e of M.takeEvents(R)) onEvent(e, view);
   if (A.state === 'play'){
     const input = controls.read();
-    const sw = input.swings.map(s => ({ at: M.seenAt(s.at, G.clock), power: s.power, lift: s.lift, lob: s.lob, dir: s.dir })), ts = input.tosses.map(s => ({ at: M.seenAt(s.at, G.clock) }));
+    const sw = input.swings.map(s => ({ at: M.seenAt(s.at, G.clock), power: s.power, lift: s.lift, lob: s.lob, drop: s.drop, slice: s.slice, dur: s.dur, dir: s.dir })), ts = input.tosses.map(s => ({ at: M.seenAt(s.at, G.clock) }));
     const mv = `${input.move.x.toFixed(2)},${input.move.y.toFixed(2)},${input.auto}`;
     if (sw.length || ts.length || mv !== lastMv){ G.send({ t: 'in', sw, ts, mv: input.move, auto: input.auto }); lastMv = mv; }
   }
@@ -344,7 +344,7 @@ function openHost(){
     const H = A.host = hostSession();
     H.on('change', () => { paintLobby(); hostNet(); });
     H.on('input', d => {
-      if (Array.isArray(d.sw)) for (const s of d.sw.slice(0, 4)) if (typeof s.at === 'number') inputQ.sw.push({ at: s.at, power: +s.power || .6, lift: +s.lift || 0, lob: !!s.lob, dir: s.dir | 0 });
+      if (Array.isArray(d.sw)) for (const s of d.sw.slice(0, 4)) if (typeof s.at === 'number') inputQ.sw.push({ at: s.at, power: +s.power || .6, lift: +s.lift || 0, lob: !!s.lob, drop: !!s.drop, slice: !!s.slice, dur: +s.dur || 0, dir: s.dir | 0 });
       if (Array.isArray(d.ts) && d.ts[0] && typeof d.ts[0].at === 'number') inputQ.ts.push({ at: d.ts[0].at });
       if (d.mv && typeof d.mv.x === 'number') inputQ.mv = { x: Math.max(-1, Math.min(1, d.mv.x)), y: Math.max(-1, Math.min(1, d.mv.y)) };
       if (typeof d.auto === 'boolean') inputQ.auto = d.auto;
