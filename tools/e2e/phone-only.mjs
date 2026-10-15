@@ -5,7 +5,7 @@ const B = await launch();
 const { p, errs } = await page(B, 'http://127.0.0.1:8765/tennis/?q=low');
 await p.waitForFunction(() => window.__racchetta, null, { timeout: 60000 });
 check('rebranding NATPF Simulator', /NATPF Simulator/i.test(await p.title()) && /NATPF/.test(await p.textContent('#menu')));
-check('nessuna opzione di gioco mouse/tastiera visibile', await p.locator('#ctrlMouse').evaluate(e => e.classList.contains('hidden')) && await p.locator('#pairMouse').evaluate(e => e.classList.contains('hidden')));
+check('nessuna schermata o opzione di scelta controller', await p.locator('#ctrl').count() === 0 && await p.locator('#ctrlMouse').count() === 0 && await p.locator('#pairMouse').count() === 0);
 
 await p.click('#btnCpu');
 await p.waitForFunction(() => document.querySelector('#qr').dataset.url, null, { timeout: 30000 });
