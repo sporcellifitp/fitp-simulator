@@ -15,14 +15,16 @@ export const SWEET_SPOT = Object.freeze({
 
 export function evaluateSweetSpot({ ball, player, impact, timeToImpact } = {}){
   if (!ball || !player || !impact ||
-      ![ball.x, ball.y, ball.z, player.x, player.z, impact.y, timeToImpact].every(Number.isFinite)){
+      ![ball.x, ball.y, ball.z, player.x, player.z, timeToImpact].every(Number.isFinite)){
     return { visible: false, inReach: false, heightOk: false, ready: false, perfect: false, distance: Infinity, heightDelta: Infinity };
   }
 
   const distance = Math.hypot(ball.x - player.x, ball.z - player.z);
-  const heightMin = impact.y >= SWEET_SPOT.overheadHeightMin ? SWEET_SPOT.overheadHeightMin : SWEET_SPOT.normalHeightMin;
-  const heightMax = impact.y >= SWEET_SPOT.overheadHeightMin ? SWEET_SPOT.overheadHeightMax : SWEET_SPOT.normalHeightMax;
-  const idealHeight = clamp(impact.y, heightMin, heightMax);
+  // Gli snapshot più vecchi non includono la quota prevista: fallback alla quota attuale senza interrompere il cue.
+  const predictedHeight = Number.isFinite(impact.y) ? impact.y : ball.y;
+  const heightMin = predictedHeight >= SWEET_SPOT.overheadHeightMin ? SWEET_SPOT.overheadHeightMin : SWEET_SPOT.normalHeightMin;
+  const heightMax = predictedHeight >= SWEET_SPOT.overheadHeightMin ? SWEET_SPOT.overheadHeightMax : SWEET_SPOT.normalHeightMax;
+  const idealHeight = clamp(predictedHeight, heightMin, heightMax);
   const heightDelta = Math.abs(ball.y - idealHeight);
   const inReach = distance >= SWEET_SPOT.idealDistanceMin && distance <= SWEET_SPOT.idealDistanceMax;
   const heightOk = heightDelta <= SWEET_SPOT.heightTolerance;
