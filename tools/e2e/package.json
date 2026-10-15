@@ -1,7 +1,7 @@
 {
-  "name": "tennis-e2e",
+  "name": "natpf-simulator-e2e",
   "private": true,
-  "description": "Prove nel browser di Tennis 1 contro 1 (computer e telefono simulato)",
+  "description": "Prove browser di NATPF Simulator con smartphone come unico controller",
   "type": "module",
   "dependencies": {
     "express": "^4.21.2",
