@@ -266,7 +266,7 @@ export class ArcadeMatch extends MatchCore {
       h.pend = null; h.done = true; h.inc = null;
       const shot = arcadeShot(this.court, h, this.ball, best, e);
       this.shadow = null; this.deferred = null;
-      h.anim = { kind: shot.type === 'smash' ? 'smash' : 'swing', side: shot.fore ? 'fh' : 'bh', at: Math.min(now, best.at), hit: true };
+      h.anim = { kind: shot.type, side: shot.fore ? 'fh' : 'bh', at: Math.min(now, best.at), hit: true };
       this.lastQuality = { label: shot.label, power: shot.power };
       this.strike(h, shot, false);
       this.emit({ type: 'contact', player: h.id, timing: e, label: shot.label, power: shot.power, shot: shot.type, side: shot.fore ? 'fh' : 'bh' });
@@ -324,8 +324,10 @@ export class ArcadeMatch extends MatchCore {
     for (const p of this.players){
       if (p.human || this.phase !== 'live' || !this.rally.canHit(p.team) || this.sinceHit < .22) continue;
       if (p.react > 0 || !this.canReach(p) || this.ball.p.y > 2.9 || !this.aiWants(p)) continue;
-      p.anim = { kind: this.ball.p.y > 2.1 ? 'smash' : 'swing', side: rel(p, this.ball.p).l >= 0 ? 'fh' : 'bh', at: this.t, hit: true };
-      this.strike(p, this.cpuShot(p));
+      const shot = this.cpuShot(p);
+      if (this.ball.p.y > 2.1 && Math.abs(this.ball.p.z) < this.court.halfL*.8) shot.type = 'smash';
+      p.anim = { kind: shot.type, side: rel(p, this.ball.p).l >= 0 ? 'fh' : 'bh', at: this.t, hit: true };
+      this.strike(p, shot);
     }
   }
   // il computer tiene lo scambio: mira dentro il campo con margine, ritmo moderato; sbaglia ogni tanto, di più sotto pressione
