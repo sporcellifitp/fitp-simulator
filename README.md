@@ -19,7 +19,7 @@ Prototipo di un mondo giocabile nel browser, ispirato al Foro Italico di Roma. P
 - Visitare il **FITP Trophy Tour**, il museo itinerante: un camion-vetrina con la Coppa Davis e la Billie Jean King Cup, totem con la storia della Federazione e foto reali, foto ricordo con la Coppa. Cambia tappa ogni 5 minuti.
 - Orientarsi con cartelli, navigatore con freccia gialla e minimappa.
 - Personalizzare il giocatore, lasciare un messaggio sulla bacheca dei tifosi, sfidare un amico con un link, raccogliere medaglie nell'album.
-- Da computer tastiera e mouse, da telefono joystick e pulsanti. Si gioca come ospite: i progressi restano nel browser.
+- Nel mondo esplorabile del Foro Italico si usano tastiera e mouse da computer, oppure joystick e pulsanti su telefono. NATPF Simulator è separato e richiede lo smartphone come racchetta. Si gioca come ospite: i progressi restano nel browser.
 
 ## Struttura del codice
 
