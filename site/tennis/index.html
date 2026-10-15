@@ -129,16 +129,6 @@
   </div>
 </div>
 
-<!-- scelta del controller -->
-<div id="ctrl" class="ov hidden">
-  <div class="card">
-    <h2>Collega il controller</h2>
-    <button class="choice" id="ctrlPhone"><em>Unico controller</em><b>Smartphone come racchetta</b><span>Inquadri un codice QR, nessuna app. Ti guidiamo nella calibrazione.</span></button>
-    <button class="choice hidden" id="ctrlMouse" aria-hidden="true" tabindex="-1"><b>Controller non disponibile</b></button>
-    <button class="btn alt" id="ctrlBack">Indietro</button>
-  </div>
-</div>
-
 <!-- telefono: collegamento e calibrazione guidata -->
 <div id="pair" class="ov hidden">
   <div class="card wide">
@@ -179,7 +169,7 @@
     </div>
     <div class="pane hidden" id="pConferma">
       <h2>Tutto pronto</h2>
-      <p>Il telefono è la tua racchetta. In partita: colpisci quando la palla arriva vicino al tuo giocatore; l'anello sul campo si stringe fino al momento giusto e diventa verde.</p>
+      <p>Il telefono è la tua racchetta. Timing perfetto = colpo più preciso e veloce. Swing a sinistra/destra = angolo; gesto breve = palla corta, verso l'alto = lob, taglio verso il basso = slice.</p>
       <button class="btn pink" id="pairGo">Continua</button>
       <button class="btn alt" id="pairRecal">Rifai la calibrazione</button>
     </div>
@@ -188,7 +178,7 @@
       <div class="note bad" id="errTxt"></div>
       <button class="btn alt" id="errRetry">Ho sistemato: riprova</button>
     </div>
-    <div class="row"><button class="btn alt" id="pairBack">Indietro</button><button class="btn alt hidden" id="pairMouse" aria-hidden="true" tabindex="-1">Controller non disponibile</button><button class="btn alt hidden" id="pairForget">Scollega il telefono</button></div>
+    <div class="row"><button class="btn alt" id="pairBack">Indietro</button><button class="btn alt hidden" id="pairForget">Scollega il telefono</button></div>
   </div>
 </div>
 
@@ -197,13 +187,13 @@
   <div class="card">
     <h2 id="lobbyTitle">Invita un amico</h2>
     <div id="inviteBox">
-      <p>Manda questo link al tuo amico: lo apre su un computer, sceglie nome e controller ed entra nella tua partita.</p>
+      <p>Manda questo link al tuo amico: lo apre sul computer, inserisce il nome e collega il telefono come racchetta.</p>
       <div class="invite"><input type="text" id="invUrl" readonly><button id="invCopy">Copia</button><button id="invShare" class="hidden">Condividi</button></div>
     </div>
     <div id="lobbyPlayers"></div>
     <div class="note hidden" id="lobbyNote"></div>
     <button class="btn pink" id="lobbyStart" disabled>Inizia la partita</button>
-    <div class="row"><button class="btn alt" id="lobbyCtrl">Cambia controller</button><button class="btn alt" id="lobbyLeave">Esci</button></div>
+    <div class="row"><button class="btn alt" id="lobbyCtrl">Ricollega o ricalibra il telefono</button><button class="btn alt" id="lobbyLeave">Esci</button></div>
   </div>
 </div>
 
@@ -215,7 +205,7 @@
     <div class="note" id="gStatus"><span class="dot"></span>Mi collego alla partita…</div>
     <div class="lbl">Il tuo nome</div>
     <input type="text" id="gName" maxlength="16" placeholder="Come ti chiami?">
-    <button class="btn pink" id="gGo">Scegli come giocare</button>
+    <button class="btn pink" id="gGo">Collega il telefono</button>
   </div>
 </div>
 
