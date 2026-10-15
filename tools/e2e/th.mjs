@@ -21,7 +21,7 @@ export async function page(browser, url, { w = 1280, h = 760, mobile = false, in
   if (three) await p.route(/cdn\.jsdelivr\.net\/npm\/three/, r => r.fulfill({ body: three, contentType: 'application/javascript' }));
   await p.route(/fonts\.(googleapis|gstatic)\.com/, r => r.fulfill({ body: '', contentType: 'text/css' }));
   if (init) await p.addInitScript(init);
-  await p.goto(url.replace('http://127.0.0.1:8765', BASE));
+  await p.goto(url.replace('http://127.0.0.1:8765', BASE), { waitUntil: 'domcontentloaded', timeout: 120000 });
   return { ctx, p, errs };
 }
 export const results = []; export const check = (n, ok, i = '') => { results.push(ok); console.log((ok ? 'OK  ' : 'KO  ') + n + (i ? ' — ' + i : '')); };

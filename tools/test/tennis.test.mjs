@@ -1,13 +1,14 @@
-// node --test tools/test: Tennis 1 contro 1 (set corti e tie-break, let, colpo con lo swing, servizio con il lancio,
-// rilevatore dei colpi del telefono, abbinamento con il QR)
+// node --test tools/test: Racchetta, il tennis arcade (set corti e tie-break, let, partita arcade col colpo a tempo,
+// servizio col lancio, rilevatore dei colpi e calibrazione del telefono, abbinamento con il QR)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { COURTS, newBall, stepBall, predict } from '../../site/js/match/physics.js';
 import { newScore, awardPoint, pointLabels, Rally } from '../../site/js/match/rules.js';
-import { MatchCore, mulberry32, tossY } from '../../site/js/match/core.js';
-import { rel, S0 } from '../../site/js/match/racket.js';
+import { MatchCore, mulberry32 } from '../../site/js/match/core.js';
 import { gauss } from '../../site/js/match/ai.js';
+import { ArcadeMatch, ARC, CPU, rel, tossY, TOSS_APEX } from '../../site/js/match/arcade.js';
 import { createSwingDetector } from '../../site/js/tennis/swing-detect.js';
+import { createCalibration, PLAN } from '../../site/js/tennis/calibration.js';
 import { createGate, parsePairing, pairingUrl, newSessionId, SESSION_PREFIX } from '../../site/js/tennis/pairing.js';
 
 const game = (s, t) => { for (let i = 0; i < 4; i++) awardPoint(s, t); };
@@ -58,167 +59,219 @@ test('fisica: palla sul nastro passa rallentata, palla bassa torna indietro', ()
   assert.ok(ev2.some(e => e.type === 'net' && !e.tape)); assert.ok(low.p.z > 0);
 });
 
-/* ---------- colpo con lo swing ---------- */
-// scambio in corso: il computer ha appena risposto, la palla arriva al giocatore (fermo a z = 11) sul dritto
-function rallyScene(seed = 1){
-  const core = new MatchCore({ sport: 'tennis', teams: [[{ human: true, id: 'me' }], [{ id: 'cpu' }]], level: 'normale', gamesToWin: 4, set: true, firstServer: 0, rng: mulberry32(seed) });
-  const h = core.players[0];
-  core.phase = 'live'; core.rally.hit(0); core.rally.event({ type: 'bounce', x: -2, z: -4, side: 1 }); core.rally.hit(1);
+/* ---------- partita arcade: colpo a tempo ---------- */
+// scambio in corso: il computer ha appena colpito, la palla arriva al giocatore (sul dritto, dopo il rimbalzo)
+function rallyScene(seed = 1, grace = .1){
+  const core = new ArcadeMatch({ teams: [[{ human: true, id: 'me', grace }], [{ id: 'cpu' }]], gamesToWin: 4, set: true, firstServer: 1, rng: mulberry32(seed) });
+  core.phase = 'live'; core.rally.hit(1); core.rally.event({ type: 'bounce', x: 1, z: 4, side: 0 }); core.rally.hit(0); core.rally.hit(1);
   core.sinceHit = .5; core.ball.held = false;
-  Object.assign(h, { x: 0, z: 11, tx: 0, tz: 11 });
-  core.ball.p = { x: .6, y: 1.2, z: 3 }; core.ball.v = { x: 0, y: 1.88, z: 16 };
-  // quando la palla passa davanti al giocatore nel punto ideale
-  const tc = predict(core.ball, core.court, 1.5, 1/600).find(k => k.z >= 11 - S0).t;
-  return { core, h, tc };
+  const h = core.players[0]; Object.assign(h, { x: 0, z: 12, tx: 0, tz: 12, auto: false });
+  core.ball.p = { x: .7, y: 1.4, z: 2 }; core.ball.v = { x: 0, y: 1.5, z: 13 };
+  // istante in cui la palla passa 40 cm davanti al giocatore
+  let t = 0; const b = { ...core.ball.p }, v = { ...core.ball.v };
+  while (b.z < 12 - ARC.S0){ v.y -= 9.81/600; v.z *= 1 - .06/600; b.x += v.x/600; b.y += v.y/600; b.z += v.z/600; if (b.y <= 0){ b.y = 0; v.y = -v.y*.7; v.x *= .8; v.z *= .8; } t += 1/600; }
+  return { core, h, tc: t };
 }
-function runSwing(core, delay, after = 0, win = .085){
-  const dt = 1/120; let t = 0, out = null;
-  const evs = [];
-  while (t < after){ evs.push(...core.update(dt, { move: { x: 0, y: 0 } })); t += dt; }
-  for (const e of core.update(dt, { move: { x: 0, y: 0 }, swing: { power: .6, delay, win } })){ evs.push(e); if ((e.type === 'contact' || e.type === 'whiff') && e.player === 'me') out = e; }
-  for (let i = 0; i < 120 && !out; i++){
-    for (const e of core.update(dt, { move: { x: 0, y: 0 } })){ evs.push(e); if ((e.type === 'contact' || e.type === 'whiff') && e.player === 'me') out = e; }
+// manda uno swing che «avviene» a at (secondi dall'inizio) e arriva arrive secondi dopo; restituisce il primo esito
+function play(core, swings, secs = 1.6){
+  const dt = 1/240, out = []; let t = 0;
+  const q = swings.map(s => ({ ...s, arrive: s.at + (s.lat || 0) }));
+  while (t < secs){
+    const inp = { move: { x: 0, y: 0 }, swings: [], auto: false };
+    for (const s of q) if (!s.sent && t >= s.arrive){ s.sent = true; inp.swings.push({ power: s.power ?? .6, delay: s.at - t - dt }); }
+    for (const e of core.update(dt, inp)) if (['contact', 'miss', 'point'].includes(e.type)) out.push(e);
+    t += dt;
   }
-  return { out, vx: core.ball.v.x, evs };
+  return out;
 }
-
-test('swing: in tempo «perfetto», in anticipo incrociato, in ritardo lungolinea, troppo presto a vuoto', () => {
-  const res = { perfetto: [], anticipo: [], ritardo: [] };
-  for (let s = 1; s <= 25; s++){
-    for (const [k, d] of [['perfetto', 0], ['anticipo', -.06], ['ritardo', .06]]){
-      const { core, tc } = rallyScene(s);
-      const r = runSwing(core, tc + d);
-      assert.equal(r.out && r.out.type, 'contact', `${k}: c'è il contatto`);
-      assert.equal(r.out.label, k, `${k}: giudizio del tempo`);
-      res[k].push(r.vx);
-    }
+test('arcade: in tempo «perfetto», anticipo incrociato, ritardo lungolinea; i margini sono larghi', () => {
+  const vx = { perfetto: [], anticipo: [], ritardo: [] };
+  for (let s = 1; s <= 20; s++) for (const [k, d] of [['perfetto', 0], ['anticipo', -.17], ['ritardo', .17]]){
+    const { core, tc } = rallyScene(s);
+    const ev = play(core, [{ at: tc + d }]);
+    const c = ev.find(e => e.type === 'contact');
+    assert.ok(c, `${k}: c'è il contatto`); assert.equal(c.label, k);
+    vx[k].push(core.ball.v.x);
   }
   const avg = a => a.reduce((x, y) => x + y, 0)/a.length;
-  // dritto del giocatore in basso (squadra 0, guarda verso -z): in anticipo la palla va a sinistra (x < 0)
-  assert.ok(avg(res.anticipo) < avg(res.perfetto) - 1 && avg(res.perfetto) < avg(res.ritardo) - 1, JSON.stringify([avg(res.anticipo), avg(res.perfetto), avg(res.ritardo)]));
+  // dritto del giocatore in basso (guarda verso -z): in anticipo la palla va a sinistra (x < 0), in ritardo a destra
+  assert.ok(avg(vx.anticipo) < avg(vx.perfetto) - 1 && avg(vx.perfetto) < avg(vx.ritardo) - 1, JSON.stringify([avg(vx.anticipo), avg(vx.perfetto), avg(vx.ritardo)].map(x => x.toFixed(2))));
+  // «buono» entro 120 ms, colpo comunque valido fino a 280 ms prima e 220 ms dopo
+  for (const d of [-.1, .1, -.26, .2]){ const { core, tc } = rallyScene(4); assert.ok(play(core, [{ at: tc + d }]).find(e => e.type === 'contact'), `swing a ${d*1000} ms`); }
+});
+test('arcade: troppo presto, troppo tardi e nessun movimento vengono detti', () => {
+  let { core, tc } = rallyScene(2); assert.equal(play(core, [{ at: tc - .5 }]).find(e => e.type === 'miss').why, 'presto');
+  ({ core, tc } = rallyScene(2)); assert.equal(play(core, [{ at: tc + .3 }]).find(e => e.type === 'miss').why, 'tardi');
+  ({ core, tc } = rallyScene(2)); assert.equal(play(core, []).find(e => e.type === 'miss').why, 'nessuno');
+});
+test('arcade: apertura e ritorno del braccio non rubano il colpo (vale lo swing più vicino alla palla)', () => {
   const { core, tc } = rallyScene(3);
-  assert.equal(runSwing(core, tc - .3).out.type, 'whiff');
+  const ev = play(core, [{ at: tc - .27 }, { at: tc + .02 }, { at: tc + .25 }]);
+  const c = ev.filter(e => e.type === 'contact');
+  assert.equal(c.length, 1); assert.equal(c[0].label, 'perfetto');
 });
-
-test('swing dal telefono arrivato in ritardo di rete: la palla torna al punto d\'impatto e il colpo è in tempo', () => {
-  const { core, h, tc } = rallyScene(7);
-  // il colpo è avvenuto all'istante giusto ma il messaggio arriva 70 ms dopo
-  const r = runSwing(core, -.07, tc + .07 - 1/120, .11);
-  assert.equal(r.out.type, 'contact'); assert.equal(r.out.label, 'perfetto');
-  assert.ok(r.evs.some(e => e.type === 'hit' && e.player === 'me'));
-  assert.ok(core.ball.v.z < 0, 'la palla torna verso il computer');
-  assert.ok(Math.abs(rel(h, core.ball.p).s) < 3);
+test('arcade: colpo dal telefono che arriva 90 ms dopo è in tempo; la palla torna indietro al massimo di 0,16 s', () => {
+  const { core, h, tc } = rallyScene(5);
+  const ev = play(core, [{ at: tc, lat: .09 }]);
+  const c = ev.find(e => e.type === 'contact');
+  assert.equal(c.label, 'perfetto'); assert.ok(core.ball.v.z < 0);
 });
-
-test('servizio con il lancio: in tempo parte, a vuoto è fallo, lancio non colpito si riprende', () => {
-  const mk = () => { const c = new MatchCore({ sport: 'tennis', teams: [[{ human: true, id: 'me' }], [{ id: 'cpu' }]], firstServer: 0, rng: mulberry32(5) }); return c; };
-  const dt = 1/120, idle = { move: { x: 0, y: 0 } };
-  // in tempo: lancio, poi swing che arriva a 0,77 s dal lancio
-  let c = mk(); c.update(dt, { ...idle, toss: true });
-  for (let t = 0; t < .6; t += dt) c.update(dt, idle);
-  let ev = c.update(dt, { ...idle, swing: { power: .7, delay: .09 } });
-  for (let i = 0; i < 30 && c.phase === 'serve'; i++) ev = ev.concat(c.update(dt, idle));
-  assert.equal(c.phase, 'live'); assert.ok(ev.some(e => e.type === 'contact' && e.serve));
-  // a vuoto: palla già scesa
-  c = mk(); c.update(dt, { ...idle, toss: true });
-  for (let t = 0; t < 1.05; t += dt) c.update(dt, idle);
-  ev = []; ev = ev.concat(c.update(dt, { ...idle, swing: { power: .7, delay: 0 } })); ev = ev.concat(c.update(dt, idle));
-  assert.ok(ev.some(e => e.type === 'fault' && e.reason === 'mancata'), JSON.stringify(ev.map(e => e.type)));
-  assert.equal(c.rally.attempt, 2);
-  // lancio lasciato cadere: niente fallo, si rilancia
-  c = mk(); c.update(dt, { ...idle, toss: true }); ev = [];
+test('arcade: giocatore lontano (rete, altro computer): il punto aspetta il suo colpo anche dopo il secondo rimbalzo', () => {
+  // palla corta che rimbalza due volte poco dopo il giocatore: con 0,35 s di attesa il colpo arrivato tardi vale ancora
+  const { core } = rallyScene(6, .38);
+  core.ball.p = { x: .7, y: .9, z: 6 }; core.ball.v = { x: 0, y: -2, z: 8 };
+  const b = { ...core.ball.p }, v = { ...core.ball.v }; let t = 0;
+  while (b.z < 12 - ARC.S0){ v.y -= 9.81/600; v.z *= 1 - .06/600; b.y += v.y/600; b.z += v.z/600; if (b.y <= 0){ b.y = 0; v.y = -v.y*.7; v.z *= .8; } t += 1/600; }
+  const ev = play(core, [{ at: t, lat: .3 }]);
+  assert.ok(!ev.some(e => e.type === 'point'), 'nessun punto chiuso prima del colpo');
+  assert.equal(ev.find(e => e.type === 'contact').label, 'perfetto');
+  // senza colpo, il punto si chiude dopo l'attesa con il motivo giusto
+  const s2 = rallyScene(6, .38); s2.core.ball.p = { x: .7, y: .9, z: 6 }; s2.core.ball.v = { x: 0, y: -2, z: 8 };
+  const ev2 = play(s2.core, [], 3);
+  assert.equal(ev2.find(e => e.type === 'miss').why, 'nessuno'); assert.equal(ev2.find(e => e.type === 'point').team, 1);
+});
+test('arcade: servizio col lancio — in cima al lancio è perfetto, lancio non colpito si riprende senza penalità', () => {
+  const mk = () => new ArcadeMatch({ teams: [[{ human: true, id: 'me' }], [{ id: 'cpu' }]], firstServer: 0, rng: mulberry32(5) });
+  const dt = 1/240, idle = { move: { x: 0, y: 0 } };
+  let c = mk(); c.update(dt, { ...idle, toss: {} }); let ev = [];
+  for (let t = dt; t < .9; t += dt) ev = ev.concat(c.update(dt, Math.abs(t - TOSS_APEX) < dt/2 ? { ...idle, swings: [{ power: .8 }] } : idle));
+  assert.equal(c.phase, 'live'); assert.equal(ev.find(e => e.type === 'contact').label, 'perfetto');
+  c = mk(); c.update(dt, { ...idle, toss: {} }); ev = [];
   for (let t = 0; t < 1.6; t += dt) ev = ev.concat(c.update(dt, idle));
   assert.ok(ev.some(e => e.type === 'tossCaught')); assert.equal(c.phase, 'serve'); assert.equal(c.rally.attempt, 1);
-  assert.ok(Math.abs(tossY(.77) - 2.75) < .1);
+  assert.ok(Math.abs(tossY(TOSS_APEX) - 2.78) < .1);
 });
 
-// un giocatore «robot» con gli stessi comandi di mouse e telefono: movimento automatico, swing con un errore di tempo
-function botInput(core, rng, st){
-  const h = core.players[0], inp = { move: { x: 0, y: 0 }, auto: true };
-  if (core.phase === 'serve' && core.serverP === h){
-    if (!core.toss && !st.tossT){ inp.toss = true; st.tossT = core.t; st.served = false; }
-    else if (core.toss && !st.served && core.t - core.toss.t0 > .66 + (rng() - .5)*.12){ inp.swing = { power: .5 + rng()*.4, delay: .09 }; st.served = true; }
-    return inp;
-  }
-  st.tossT = 0;
-  if (core.phase !== 'live' || core.rally.lastHitter === h.team || st.waiting) { if (core.rally.lastHitter === h.team) st.waiting = false; return inp; }
-  const b = core.ball, r = rel(h, b.p), vin = b.v.z;              // squadra 0: la palla viene verso +z
-  if (r.s > S0 && vin > 2 && r.s < 9 && Math.abs(r.l) < 1.4 && core.rally.canHit(0) && !(core.rally.isServe && core.rally.bouncesSinceHit === 0)){
-    const eta = (r.s - S0)/vin;
-    // come una persona: il tempo sbaglia di qualche centesimo di secondo (deviazione 50 ms)
-    if (eta < .1){ inp.swing = { power: .4 + rng()*.5, delay: .09 + gauss(rng)*.05, lift: 0 }; st.waiting = true; }
-  }
-  return inp;
-}
-test('partita completa con lo swing contro il computer: set corto a 4, il punteggio torna', () => {
-  for (const seed of [11, 14]){
-    const rng = mulberry32(seed);
-    const core = new MatchCore({ sport: 'tennis', teams: [[{ human: true, id: 'me' }], [{ id: 'cpu' }]], level: 'normale', gamesToWin: 4, set: true, rng: mulberry32(seed + 100) });
-    const st = {}; let t = 0, contacts = 0, perfect = 0, points = [0, 0], over = false;
-    while (t < 3600 && !over){
-      for (const e of core.update(1/120, botInput(core, rng, st))){
-        if (e.type === 'contact' && e.player === 'me'){ contacts++; if (e.label === 'perfetto') perfect++; st.waiting = false; }
-        if (e.type === 'whiff') st.waiting = false;
-        if (e.type === 'point'){ points[e.team]++; st.waiting = false; }
-        if (e.type === 'match') over = true;
-      }
-      t += 1/120;
+// persona col telefono: errore di tempo gaussiano, ritardo di rete, a volte l'apertura conta come colpo
+function simulate({ seed, sd, lat, backswing = 0, secs = 400, cpu = 'facile' }){
+  const rng = mulberry32(seed);
+  const core = new ArcadeMatch({ teams: [[{ human: true, id: 'me', grace: lat + .05 }], [{ id: 'cpu' }]], cpu, gamesToWin: 99, rng: mulberry32(seed + 77) });
+  const S = { contacts: 0, miss: 0, points: [0, 0], rallies: [], labels: {} }, queue = [];
+  let t = 0, plan = null, tossPlan = null;
+  while (t < secs){
+    const h = core.players[0], inp = { move: { x: 0, y: 0 }, swings: [] };
+    if (core.phase === 'serve' && core.serverP === h){
+      if (!core.toss && !tossPlan){ inp.toss = {}; tossPlan = { at: core.t + TOSS_APEX + gauss(rng)*sd }; }
+      if (!core.toss && tossPlan && tossPlan.sent && core.t > tossPlan.at + .5) tossPlan = null;
+    } else tossPlan = null;
+    if (tossPlan && core.toss && !tossPlan.sent && core.t >= tossPlan.at){ queue.push({ due: core.t + lat, at: tossPlan.at, s: { power: .7 } }); tossPlan.sent = true; }
+    if (core.phase === 'live' && h.inc && !h.done && (!plan || plan.Tc !== h.inc.Tc) && h.inc.Tc - core.t < .6) plan = { Tc: h.inc.Tc, at: h.inc.Tc + gauss(rng)*sd, bs: rng() < backswing };
+    if (plan && !plan.sent && core.t >= plan.at){
+      if (plan.bs) queue.push({ due: core.t - .28 + lat, at: plan.at - .28, s: { power: .4 } });
+      queue.push({ due: core.t + lat, at: plan.at, s: { power: .35 + rng()*.55 } }); plan.sent = true;
     }
-    const g = core.score.games;
-    assert.ok(over, `partita finita (seed ${seed}) dopo ${Math.round(t)} s`);
-    assert.ok(Math.max(...g) >= 4 && (Math.abs(g[0] - g[1]) >= 2 || (Math.max(...g) === 5 && Math.min(...g) === 4)), `punteggio del set valido: ${g}`);
-    assert.ok(contacts > 20 && perfect > 3, `colpi del giocatore: ${contacts}, perfetti ${perfect}`);
-    assert.ok(points[0] > 3 && points[1] > 3, `punti ${points}`);
+    for (let i = queue.length - 1; i >= 0; i--) if (core.t >= queue[i].due){ const q = queue.splice(i, 1)[0]; inp.swings.push({ ...q.s, delay: q.at - core.t }); }
+    for (const e of core.update(1/120, inp)){
+      if (e.type === 'contact' && !e.serve){ S.contacts++; S.labels[e.label] = (S.labels[e.label] || 0) + 1; }
+      if (e.type === 'miss') S.miss++;
+      if (e.type === 'point'){ S.points[e.team]++; S.rallies.push(core.rally.hits); }
+    }
+    t += 1/120;
   }
+  S.avg = S.rallies.reduce((a, b) => a + b, 0)/Math.max(1, S.rallies.length);
+  return S;
+}
+test('arcade contro la CPU: scambi lunghi senza errori ingiustificati, anche con tempo impreciso e aperture', () => {
+  for (const [sd, lat, bs] of [[.08, .06, 0], [.12, .08, .3]]){
+    const S = simulate({ seed: 3, sd, lat, backswing: bs });
+    const pts = S.points[0] + S.points[1];
+    assert.ok(S.avg >= 6, `scambio medio ${S.avg.toFixed(1)} colpi`);
+    assert.ok(S.miss/Math.max(1, S.contacts + S.miss) < .06, `palle mancate ${S.miss} su ${S.contacts + S.miss}`);
+    assert.ok(pts >= 15 && S.points[0]/pts >= .5, `punti ${S.points}`);
+  }
+  // con un tempo molto impreciso si perdono più punti: l'abilità conta
+  const bad = simulate({ seed: 3, sd: .16, lat: .1, backswing: .3 }), good = simulate({ seed: 3, sd: .05, lat: .06 });
+  assert.ok(bad.points[1]/(bad.points[0] + bad.points[1]) > good.points[1]/(good.points[0] + good.points[1]) + .1, JSON.stringify([bad.points, good.points]));
+});
+test('partita arcade completa: set corto a 4, il punteggio torna', () => {
+  const rng = mulberry32(21), core = new ArcadeMatch({ teams: [[{ human: true, id: 'me' }], [{ id: 'cpu' }]], gamesToWin: 4, set: true, rng: mulberry32(22) });
+  let t = 0, over = false, plan = null;
+  while (t < 2400 && !over){
+    const h = core.players[0], inp = { move: { x: 0, y: 0 }, swings: [] };
+    if (core.phase === 'serve' && core.serverP === h && !core.toss) inp.toss = {};
+    if (core.phase === 'serve' && core.toss && Math.abs(core.t - core.toss.t0 - TOSS_APEX) < 1/240) inp.swings.push({ power: .7 });
+    if (core.phase === 'live' && h.inc && (!plan || plan !== h.inc.Tc) && Math.abs(h.inc.Tc + gauss(rng)*.09 - core.t) < 1/240){ plan = h.inc.Tc; inp.swings.push({ power: .6 }); }
+    for (const e of core.update(1/120, inp)) if (e.type === 'match') over = true;
+    t += 1/120;
+  }
+  const g = core.score.games;
+  assert.ok(over, 'partita finita'); assert.ok(Math.max(...g) >= 4 && (Math.abs(g[0] - g[1]) >= 2 || (Math.max(...g) === 5 && Math.min(...g) === 4)), `set ${g}`);
 });
 
 /* ---------- rilevatore dei colpi ---------- */
-// tracce sintetiche a 100 Hz: rotazione a campana attorno a un asse, con accelerazione verso l'alto o verso il basso
-function trace(det, t0, { axis = [0, 0, 1], peak = 1000, dur = 220, up = 0 }){
-  const n = Math.round(dur/10);
+// tracce sintetiche a 100 Hz: rotazione a campana attorno a un asse, accelerazione verso l'alto o il basso
+function trace(det, t0, { axis = [0, 1, 0], peak = 600, dur = 240, up = 0, plateau = false }){
+  const n = Math.round(dur/10), out = [];
   for (let i = 0; i <= n; i++){
-    const u = i/n, m = peak*Math.sin(Math.PI*u)**2;
+    const u = i/n, m = plateau ? peak*Math.min(1, u*6, (1 - u)*6) : peak*Math.sin(Math.PI*u)**2;
     const acc = [8*Math.sin(Math.PI*u), up*6*Math.sin(Math.PI*u), 0];
     det.feed({ t: t0 + i*10, rot: axis.map(a => a*m), acc, accG: [acc[0], acc[1] + 9.81, acc[2]] });
   }
   return t0 + n*10;
 }
-const still = (det, t0, ms, noise = 4) => { let t = t0; for (; t < t0 + ms; t += 10) det.feed({ t, rot: [noise*Math.sin(t), -noise*Math.cos(t), 2], acc: [0, 0, 0], accG: [0, 9.81, 0] }); return t; };
-
-test('rilevatore: calibrazione, dritto e rovescio, potenza, colpo dal basso in alto', () => {
-  const det = createSwingDetector(), sw = [], st = [];
-  det.on('swing', s => sw.push(s)).on('status', s => st.push(s.s));
-  det.calibrate();
-  let t = still(det, 0, 900);
-  assert.equal(det.mode, 'practice');
-  t = trace(det, t + 10, { peak: 900 }); t = still(det, t + 10, 500, 2);
-  assert.equal(det.mode, 'ready'); assert.equal(sw.length, 0, 'il dritto di prova non è un colpo');
-  t = trace(det, t + 10, { peak: 1300, up: 1 }); t = still(det, t + 10, 500, 2);
-  t = trace(det, t + 10, { axis: [0, 0, -1], peak: 650, up: -1 }); t = still(det, t + 10, 500, 2);
-  assert.equal(sw.length, 2);
-  assert.equal(sw[0].side, 'fh'); assert.equal(sw[1].side, 'bh');
-  assert.ok(sw[0].power > sw[1].power && sw[0].power > .7, JSON.stringify(sw));
-  assert.ok(sw[0].lift > .2 && sw[1].lift < -.2, 'verso del colpo');
-  assert.deepEqual(st.slice(0, 3), ['still', 'practice', 'ready']);
+const still = (det, t0, ms, noise = 3, cb) => { let t = t0; for (; t < t0 + ms; t += 10){ const k = { t, rot: [noise*Math.sin(t), -noise*Math.cos(t), 1], acc: [0, 0, 0], accG: [0, 9.81, 0] }; det.feed(k); cb && cb(t, k); } return t; };
+const L = [0, 1, 0], R = [0, -1, 0];
+function calibrated(){
+  const det = createSwingDetector(), cal = createCalibration(det), ev = [];
+  cal.on(e => ev.push(e)); cal.start();
+  let t = still(det, 0, 700, 3, (t, k) => cal.tick(t, k));
+  t = still(det, t + 10, 600, 3, (t, k) => cal.tick(t, k));
+  for (const w of PLAN){ t = trace(det, t + 10, { axis: w === 'L' ? L : R, peak: w === 'L' ? 700 : 520 }); t = still(det, t + 10, 500, 3, (t, k) => cal.tick(t, k)); }
+  return { det, cal, ev, t };
+}
+test('calibrazione guidata: fermo, impugnatura, 3 swing per lato con esito, profilo su misura', () => {
+  const { cal, ev } = calibrated();
+  const steps = ev.filter(e => e.kind === 'step').map(e => e.step);
+  assert.deepEqual(steps.slice(0, 3), ['still', 'grip', 'swings']);
+  const at = ev.filter(e => e.kind === 'attempt');
+  assert.equal(at.length, 6); assert.ok(at.every(a => a.ok), JSON.stringify(at));
+  assert.deepEqual(at.map(a => a.dir).join(''), 'LLLRRR');
+  const rv = ev.find(e => e.kind === 'review'); assert.equal(rv.pass, true);
+  const p = cal.confirm();
+  assert.ok(p.minPeak < 520 && p.on < p.minPeak && p.ref > 450, JSON.stringify(p));
 });
-
-test('rilevatore: niente colpi per tremolii, movimenti lenti o il ritorno del braccio', () => {
-  const det = createSwingDetector(), sw = [];
-  det.on('swing', s => sw.push(s));
-  det.calibrate(); let t = still(det, 0, 900); t = trace(det, t + 10, { peak: 900 }); t = still(det, t + 10, 400, 2);
-  t = trace(det, t + 10, { peak: 200 });                       // tremolio
-  t = still(det, t + 10, 400, 2);
-  t = trace(det, t + 10, { peak: 300, dur: 1200 });            // movimento lento (sotto la soglia del picco)
-  t = still(det, t + 10, 400, 2);
-  assert.equal(sw.length, 0);
-  t = trace(det, t + 10, { peak: 1100 });                       // colpo…
-  t = trace(det, t + 10, { axis: [0, 0, -1], peak: 700 });     // …e subito il ritorno del braccio
-  still(det, t + 10, 400, 2);
-  assert.equal(sw.length, 1);
-  // calibrazione da fermo disturbata: si ricomincia
-  const d2 = createSwingDetector(), st = []; d2.on('status', s => st.push(s.s)); d2.calibrate();
-  let t2 = still(d2, 0, 300); trace(d2, t2, { peak: 400 });
-  assert.ok(st.includes('move')); assert.equal(d2.mode, 'still');
+test('calibrazione: movimenti troppo piccoli o direzioni non distinguibili non passano, con il motivo', () => {
+  for (const [why, mk] of [['piccolo', w => ({ axis: w === 'L' ? L : R, peak: 170 })], ['direzione', () => ({ axis: L, peak: 600 })]]){
+    const det = createSwingDetector(), cal = createCalibration(det), ev = []; cal.on(e => ev.push(e)); cal.start();
+    let t = still(det, 0, 700, 3, (t, k) => cal.tick(t, k)); t = still(det, t + 10, 600, 3, (t, k) => cal.tick(t, k));
+    for (let i = 0; i < 30 && cal.state.step === 'swings'; i++){ t = trace(det, t + 10, mk(PLAN[cal.state.idx])); t = still(det, t + 10, 500, 3, (t, k) => cal.tick(t, k)); }
+    const rv = ev.find(e => e.kind === 'review');
+    assert.equal(rv.pass, false); assert.equal(rv.why, why); assert.equal(cal.confirm(), null);
+  }
+});
+test('calibrazione: telefono tenuto male (non in verticale) → avviso; apertura prima del colpo non confonde la direzione', () => {
+  const det = createSwingDetector(), cal = createCalibration(det), ev = []; cal.on(e => ev.push(e)); cal.start();
+  let t = still(det, 0, 700, 3, (t, k) => cal.tick(t, k));
+  for (; t < 2500; t += 10){ const k = { t, rot: [1, 1, 1], acc: [0, 0, 0], accG: [0, 0, 9.81] }; det.feed(k); cal.tick(t, k); }   // telefono piatto
+  assert.ok(ev.some(e => e.kind === 'grip' && !e.upright)); assert.equal(cal.state.step, 'grip');
+  t = still(det, t, 600, 3, (t, k) => cal.tick(t, k));
+  assert.equal(cal.state.step, 'swings');
+  // ogni swing preceduto da un'apertura nel verso opposto, più lenta
+  for (const w of PLAN){ t = trace(det, t + 10, { axis: w === 'L' ? R : L, peak: 300 }); t = trace(det, t + 60, { axis: w === 'L' ? L : R, peak: 700 }); t = still(det, t + 10, 500, 3, (t, k) => cal.tick(t, k)); }
+  assert.equal(ev.find(e => e.kind === 'review').pass, true);
+});
+test('rilevatore calibrato: destra→sinistra e sinistra→destra a ogni ampiezza, potenza coerente, niente tremolii', () => {
+  const { det, cal } = calibrated(); cal.confirm();
+  const sw = []; det.on('swing', s => sw.push(s));
+  let t = 20000;
+  for (const peak of [260, 400, 700, 1000, 1400]) for (const axis of [L, R]){ t = trace(det, t + 10, { axis, peak }); t = still(det, t + 10, 400); }
+  assert.equal(sw.length, 10, JSON.stringify(sw.map(s => s.peak)));
+  assert.deepEqual(sw.map(s => s.dir), [1, -1, 1, -1, 1, -1, 1, -1, 1, -1]);
+  assert.ok(sw.every(s => s.power >= .3 && s.power <= 1));
+  for (let i = 2; i < 10; i += 2) assert.ok(sw[i].power >= sw[i - 2].power);           // più forte, più potenza
+  const t0 = t; trace(det, t + 10, { peak: 120 }); still(det, t + 300, 400); assert.equal(sw.length, 10, 'tremolio ignorato');
+  // movimenti simili danno potenze simili
+  const p = []; det.on('swing', s => p.push(s.power)); t = t0 + 2000;
+  for (let i = 0; i < 6; i++){ t = trace(det, t + 10, { axis: L, peak: 640 + (i % 3)*25 }); t = still(det, t + 10, 400); }
+  assert.ok(Math.max(...p) - Math.min(...p) < .08, JSON.stringify(p));
+});
+test('rilevatore: apertura e colpo vengono mandati entrambi; colpo «piatto» mandato subito dopo il picco', () => {
+  const { det, cal } = calibrated(); cal.confirm();
+  const sw = []; det.on('swing', s => sw.push(s));
+  let t = trace(det, 30000, { axis: R, peak: 400, dur: 260 }); t = trace(det, t + 40, { axis: L, peak: 800 }); still(det, t + 10, 400);
+  assert.equal(sw.length, 2); assert.deepEqual(sw.map(s => s.dir), [-1, 1]);
+  sw.length = 0; t = trace(det, 40000, { axis: L, peak: 700, dur: 400, plateau: true }); still(det, t + 10, 400);
+  assert.equal(sw.length, 1); assert.ok(sw[0].t - sw[0].peakT <= 60, `inviato ${sw[0].t - sw[0].peakT} ms dopo il picco`);
 });
 
 /* ---------- abbinamento ---------- */
@@ -248,4 +301,31 @@ test('abbinamento: QR monouso, chiave di ripresa, sessioni separate, scadenza', 
   assert.notEqual(g2.token, t0);
   // «Scollega»: la chiave di ripresa non vale più
   gate.forget(); assert.equal(gate.admit('phone1', { r: first.resume }).ok, false);
+});
+
+/* ---------- partita online: istantanee, orologi, colpi dell'amico ---------- */
+import { encodeSnap, encodeEvents, createMirror } from '../../site/js/tennis/net.js';
+import { createClock, parseInvite, inviteUrl, INVITE_PREFIX, newSessionId as newId } from '../../site/js/tennis/pairing.js';
+test('online: orologi allineati col viaggio più breve, istantanee interpolate, eventi mostrati al momento giusto', () => {
+  const clock = createClock();
+  clock.add(1000, 6050, 1100); clock.add(2000, 7015, 2030);          // il secondo viaggio è più breve: vale quello
+  assert.equal(clock.off, 5000); assert.equal(clock.rtt, 30);
+  const core = new ArcadeMatch({ teams: [[{ human: true, id: 'h' }], [{ human: true, id: 'g' }]], rng: mulberry32(1) });
+  const M = createMirror({ players: [{ id: 'h', team: 0 }, { id: 'g', team: 1 }], D: .1 });
+  // due istantanee a 1/30 s; la palla si muove di 0,5 m
+  core.ball.p = { x: 0, y: 1, z: 0 }; core.t = 10; M.push(JSON.parse(JSON.stringify(encodeSnap(core, 50000))));
+  core.ball.p = { x: 0, y: 1, z: .5 }; core.t = 10 + 1/30; M.push(JSON.parse(JSON.stringify(encodeSnap(core, 50000 + 1000/30))));
+  const v = M.view(10 + 1/60);
+  assert.ok(Math.abs(v.ball.p.z - .25) < .02, `interpolata a metà: ${v.ball.p.z}`);
+  // tempo di partita da un istante locale: ultima istantanea + tempo passato sull'orologio dell'host − ritardo di disegno
+  const local = 50000 + 1000/30 - 5000 + 100;                        // 100 ms dopo l'ultima istantanea (ora locale)
+  assert.ok(Math.abs(M.coreNow(local, clock) - (10 + 1/30 + .1)) < 2e-3);
+  assert.ok(Math.abs(M.seenAt(local/1000, clock) - (10 + 1/30)) < 2e-3, 'lo swing si riferisce a ciò che si vedeva');
+  M.pushEvents(encodeEvents({ t: 10.05 }, [{ type: 'bounce', x: 0, z: 1 }, { type: 'net' }]));
+  assert.equal(M.takeEvents(10.04).length, 0); assert.equal(M.takeEvents(10.06).length, 1, 'il tocco di rete senza nastro non si manda');
+  assert.deepEqual(M.score().labels, ['0', '0']);
+  // link d'invito: id e codice dopo il «#», riconosciuti solo con il prefisso giusto
+  const id = newId(undefined, INVITE_PREFIX), u = inviteUrl('https://x.example/tennis/', '', id, 'abcdefghijkmnop');
+  assert.deepEqual(parseInvite(new URL(u).hash), { session: id, token: 'abcdefghijkmnop' });
+  assert.equal(parseInvite('#sfida=racchetta-tel-aaaaaaaaaaaa.abcdefghijkm'), null);
 });

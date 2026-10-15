@@ -1,71 +1,74 @@
-// telefono senza sensori, permesso negato, «Scollega»: si gioca lo stesso
+// telefono senza sensori, permesso negato, permesso concesso (iPhone), calibrazione con swing troppo piccoli,
+// «Scollega» dai due lati, server di segnalazione irraggiungibile: il gioco spiega cosa fare e resta giocabile
 import { readFileSync } from 'node:fs';
-import { launch, page, check, summary, SP, JSQR } from './th.mjs';
-const B = await launch();
+import { launch, page, check, summary, SP } from './th.mjs';
+const motion = readFileSync(new URL('./motion.js', import.meta.url), 'utf8');
+const B = await launch(), size = { w: 800, h: 520 };
 async function desk(){
-  const D = await page(B, 'http://127.0.0.1:8765/tennis/?peer=127.0.0.1:9000');
-  await D.p.waitForFunction(() => window.__tennis && window.qrcode, null, { timeout: 60000 });
-  await D.p.click('#playPhone'); await D.p.waitForFunction(() => document.querySelector('#qr').dataset.url, null, { timeout: 20000 });
+  const D = await page(B, 'http://127.0.0.1:8765/tennis/?peer=127.0.0.1:9000&q=low', size);
+  await D.p.waitForFunction(() => window.__racchetta && window.qrcode, null, { timeout: 60000 });
+  await D.p.click('#btnCpu'); await D.p.click('#ctrlPhone');
+  await D.p.waitForFunction(() => document.querySelector('#qr').dataset.url, null, { timeout: 30000 });
   return { ...D, url: await D.p.evaluate(() => document.querySelector('#qr').dataset.url) };
 }
-// 1. browser senza DeviceMotionEvent
+const phone = async (url, init) => { const P = await page(B, url, { w: 390, h: 844, mobile: true, init }); await P.p.waitForFunction(() => window.__racchetta && __racchetta.state.linkState === 'on', null, { timeout: 40000 }); return P; };
+const errs = [];
+// 1. browser senza sensori di movimento
 {
-  const D = await desk();
-  const P = await page(B, D.url, { w: 390, h: 844, mobile: true, init: 'delete window.DeviceMotionEvent' });
-  await P.p.waitForFunction(() => window.__racchetta && __racchetta.state.linkState === 'on', null, { timeout: 20000 });
+  const D = await desk(), P = await phone(D.url, 'delete window.DeviceMotionEvent');
   await P.p.click('#enable');
-  await P.p.waitForFunction(() => __racchetta.state.sensor === 'tap');
-  check('senza sensori: il telefono diventa un pulsante', await P.p.evaluate(() => !document.querySelector('#tap').classList.contains('hidden')), await P.p.evaluate(() => document.querySelector('#sub').textContent));
-  await D.p.waitForFunction(() => !document.querySelector('#pairGo').disabled, null, { timeout: 8000 });
-  check('… e il computer lo accetta come comando', true, await D.p.evaluate(() => document.querySelector('#pairStatus').textContent));
-  await P.p.screenshot({ path: SP + '/t3-tap.png' });
-  await D.p.click('#pairGo'); await D.p.waitForFunction(() => __tennis.state === 'play');
-  await D.p.evaluate(() => { window.__sw = 0; __tennis.link.on('swing', () => __sw++); });
-  await P.p.tap('#tap'); await P.p.waitForTimeout(400);
-  check('il pulsante «Colpisci» arriva in partita', await D.p.evaluate(() => __sw >= 1 || !!__tennis.core.toss));
+  await D.p.waitForFunction(() => !document.querySelector('#pErrore').classList.contains('hidden'), null, { timeout: 10000 });
+  check('senza sensori: il computer spiega cosa fare e non fa partire il telefono', /Chrome|Safari/.test(await D.p.textContent('#errTxt')), await D.p.textContent('#errTxt'));
+  check('… anche sul telefono', /Niente sensori/.test(await P.p.textContent('#big')));
+  await D.p.screenshot({ path: SP + '/fail-nomotion.png' });
+  await D.p.click('#pairMouse');
+  check('… e si gioca con mouse e tastiera', await D.p.evaluate(() => __racchetta.state === 'play' && __racchetta.A.ctrl === 'mouse'));
+  errs.push(...D.errs, ...P.errs); await D.ctx.close(); await P.ctx.close();
+}
+// 2. permesso negato (iPhone, «Non consentire»)
+{
+  const D = await desk(), P = await phone(D.url, 'DeviceMotionEvent.requestPermission = async () => "denied"');
+  await P.p.click('#enable');
+  await D.p.waitForFunction(() => !document.querySelector('#pErrore').classList.contains('hidden'), null, { timeout: 10000 });
+  check('permesso negato: istruzioni per riattivarlo (iPhone e Android)', /Consenti/.test(await D.p.textContent('#errTxt')) && /Android/.test(await D.p.textContent('#errTxt')));
+  errs.push(...D.errs, ...P.errs); await D.ctx.close(); await P.ctx.close();
+}
+// 3. permesso concesso (iPhone): calibrazione; swing troppo piccoli → si spiega e non si conferma; poi si rifà bene
+{
+  const D = await desk(), P = await phone(D.url, motion + ';DeviceMotionEvent.requestPermission = async () => "granted"'), ph = P.p;
+  await ph.click('#enable'); await ph.evaluate(() => __motion.still(1800));
+  await D.p.waitForFunction(() => !document.querySelector('#pProva').classList.contains('hidden'), null, { timeout: 10000 });
+  check('permesso concesso: parte la calibrazione guidata', true);
+  for (let i = 0; i < 18 && await D.p.evaluate(() => document.querySelector('#pVerifica').classList.contains('hidden')); i++){
+    const want = await ph.evaluate(() => __racchetta.cal.state.idx < 3 ? 1 : -1);
+    await ph.evaluate(w => __motion.swing({ axis: [0, w, 0], peak: 175 }), want); await ph.evaluate(() => __motion.still(600));
+  }
+  await D.p.waitForFunction(() => !document.querySelector('#pVerifica').classList.contains('hidden'), null, { timeout: 10000 });
+  const why = await D.p.textContent('#rvWhy');
+  check('swing troppo piccoli: niente conferma e il motivo', /troppo piccoli/.test(why) && await D.p.evaluate(() => document.querySelector('#rvConfirm').classList.contains('hidden')), why);
+  await D.p.screenshot({ path: SP + '/fail-small.png' });
+  await D.p.click('#rvRetry');
+  for (const w of [1, 1, 1, -1, -1, -1]){ await ph.evaluate(w => __motion.swing({ axis: [0, w, 0], peak: 650 }), w); await ph.evaluate(() => __motion.still(600)); }
+  await D.p.waitForFunction(() => !document.querySelector('#rvConfirm').classList.contains('hidden'), null, { timeout: 10000 });
+  check('ripetuti bene: si può confermare', true);
   // «Scollega» dal telefono
-  await P.p.click('#bye');
-  await D.p.waitForFunction(() => /scollegato|attesa/i.test(document.querySelector('#chip').textContent), null, { timeout: 15000 });
-  check('«Scollega» dal telefono: il computer torna a mouse e tastiera', true, await D.p.evaluate(() => document.querySelector('#chip').textContent));
-  check('nessun errore JavaScript', !D.errs.length && !P.errs.length, [...D.errs, ...P.errs].join(' | ').slice(0, 300));
-  await D.ctx.close(); await P.ctx.close();
+  await D.p.click('#rvConfirm'); await D.p.waitForFunction(() => !document.querySelector('#pConferma').classList.contains('hidden'));
+  await ph.click('#bye');
+  await D.p.waitForFunction(() => !document.querySelector('#pCollega').classList.contains('hidden'), null, { timeout: 15000 });
+  check('«Scollega» dal telefono: il computer torna al QR', true);
+  errs.push(...D.errs, ...P.errs); await D.ctx.close(); await P.ctx.close();
 }
-// 2. permesso negato (come su iPhone quando si tocca «Non consentire»)
+// 4. server di segnalazione irraggiungibile
 {
-  const D = await desk();
-  const P = await page(B, D.url, { w: 390, h: 844, mobile: true, init: 'DeviceMotionEvent.requestPermission = async () => "denied"' });
-  await P.p.waitForFunction(() => window.__racchetta && __racchetta.state.linkState === 'on', null, { timeout: 20000 });
-  await P.p.click('#enable');
-  await P.p.waitForFunction(() => __racchetta.state.sensor === 'tap');
-  const txt = await P.p.evaluate(() => document.querySelector('#big').textContent + ' · ' + document.querySelector('#sub').textContent);
-  check('permesso negato: spiegazione e pulsante di riserva', /negati/.test(txt), txt);
-  await P.p.screenshot({ path: SP + '/t3-denied.png' });
-  // permesso concesso (iPhone): la calibrazione parte
-  await D.ctx.close(); await P.ctx.close();
-  const D2 = await desk();
-  const P2 = await page(B, D2.url, { w: 390, h: 844, mobile: true, init: readFileSync(new URL('./motion.js', import.meta.url), 'utf8') + ';DeviceMotionEvent.requestPermission = async () => "granted"' });
-  await P2.p.waitForFunction(() => window.__racchetta && __racchetta.state.linkState === 'on', null, { timeout: 20000 });
-  await P2.p.click('#enable'); await P2.p.evaluate(() => __motion.still(1200));
-  check('permesso concesso (iPhone): parte la calibrazione', await P2.p.evaluate(() => __racchetta.state.sensor === 'practice'));
-  await P2.p.click('#skip');
-  check('«Salta il dritto di prova» porta a «pronto»', await P2.p.evaluate(() => __racchetta.state.sensor === 'ready'));
-  // il computer «Scollega il telefono»: il telefono lo sa e non si ricollega da solo
-  await D2.p.waitForFunction(() => !document.querySelector('#pairForget').classList.contains('hidden'));
-  await D2.p.click('#pairForget');
-  await P2.p.waitForFunction(() => __racchetta.state.linkState === 'denied', null, { timeout: 10000 });
-  check('«Scollega il telefono» dal computer: il telefono chiede un QR nuovo', true, await P2.p.evaluate(() => document.querySelector('#sub').textContent));
-  check('… e il computer mostra un QR nuovo', await D2.p.evaluate(() => !!document.querySelector('#qr svg')));
-  check('nessun errore JavaScript', ![...D.errs, ...P.errs, ...D2.errs, ...P2.errs].length, [...D.errs, ...P.errs, ...D2.errs, ...P2.errs].join(' | ').slice(0, 300));
+  const D = await page(B, 'http://127.0.0.1:8765/tennis/?peer=127.0.0.1:9999&q=low', size);
+  await D.p.waitForFunction(() => window.__racchetta && window.qrcode, null, { timeout: 60000 });
+  await D.p.click('#btnCpu'); await D.p.click('#ctrlPhone');
+  await D.p.waitForFunction(() => /non disponibile/.test(document.querySelector('#pairStatus').textContent), null, { timeout: 40000 });
+  check('server non raggiungibile: messaggio chiaro', true, await D.p.textContent('#pairStatus'));
+  await D.p.click('#pairMouse');
+  check('… e si gioca con mouse e tastiera', await D.p.evaluate(() => __racchetta.state === 'play'));
+  // il browser scrive da solo in console il WebSocket rifiutato: è il guasto voluto, non un errore del gioco
+  errs.push(...D.errs.filter(e => !/WebSocket connection to 'ws:\/\/127\.0\.0\.1:9999/.test(e))); await D.ctx.close();
 }
-// 3. server di segnalazione irraggiungibile: il gioco resta giocabile
-{
-  const D = await page(B, 'http://127.0.0.1:8765/tennis/?peer=127.0.0.1:9999');
-  await D.p.waitForFunction(() => window.__tennis && window.qrcode, null, { timeout: 60000 });
-  await D.p.click('#playPhone');
-  await D.p.waitForFunction(() => /non disponibile/.test(document.querySelector('#pairStatus').textContent), null, { timeout: 30000 });
-  check('server non raggiungibile: messaggio chiaro', true, await D.p.evaluate(() => document.querySelector('#pairStatus').textContent));
-  await D.p.click('#pairBack'); await D.p.click('#playMouse');
-  check('… e si gioca con mouse e tastiera', await D.p.evaluate(() => __tennis.state === 'play'));
-  await D.ctx.close();
-}
+check('nessun errore JavaScript', !errs.length, errs.join(' | ').slice(0, 400));
 summary(); await B.close();

@@ -10,3 +10,6 @@ data/osm/parts/
 
 # pacchetti del sito da caricare a mano su Cloudflare Pages
 *.zip
+
+# prove nel browser: dipendenze installate a parte
+tools/e2e/node_modules

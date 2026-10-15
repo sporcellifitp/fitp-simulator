@@ -1,6 +1,6 @@
 # Roadmap di prodotto
 
-Ultimo aggiornamento: 14 ottobre 2026. Responsabile: Sergio Porcelli, FITP eSports.
+Ultimo aggiornamento: 15 ottobre 2026. Responsabile: Sergio Porcelli, FITP eSports.
 
 ## Obiettivo
 
@@ -91,6 +91,20 @@ Architettura, sicurezza, prove e limiti in [docs/v0.7-tennis-racchetta.md](docs/
 - [ ] **Prova su iPhone e Android veri** e ritocco delle soglie del colpo (finora sensori simulati).
 - [ ] Sensazione di gioco: suoni veri, animazioni di dritto e rovescio, indicatore del rimbalzo al livello facile.
 - [ ] Livelli del computer e tattiche; poi 1 contro 1 online con due telefoni, riusando le stanze della v0.6.
+
+## v0.8 · Racchetta, tennis arcade (ottobre 2026)
+
+Problemi trovati, cause, modifiche, prove e limiti in [docs/v0.8-racchetta.md](docs/v0.8-racchetta.md).
+
+- [x] Colpo giudicato sulla palla con finestra larga, direzione dal tempo, potenza coerente, feedback su ogni colpo e ogni palla persa (P0).
+- [x] Rilevatore del telefono riscritto: aperture ignorate, invio subito dopo il picco, soglie su misura (P0).
+- [x] Telecamera, movimento automatico e animazioni nello stile di Nintendo Switch Sports; servizio con lancio e colpo (P0).
+- [x] Calibrazione guidata in 5 passi con verifica dal vivo e conferma (P1).
+- [x] Partita contro la CPU (Facile, Normale) e partita tra amici con un link, in rete, con telefono o mouse per ognuno (P2).
+- [x] Arena ricostruita sulle immagini di riferimento, personaggi originali arrotondati, identità «Racchetta» (P3).
+- [ ] **Prova su iPhone e Android veri** e ritocco di soglie, finestre e CPU.
+- [ ] Server di segnalazione nostro (Worker Cloudflare) al posto di quello pubblico di PeerJS.
+- [ ] Loghi ufficiali solo se autorizzati; verifica del nome «Racchetta».
 
 ## Prossimi passi (dalle prime settimane sul repository)
 
