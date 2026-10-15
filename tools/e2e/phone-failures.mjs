@@ -61,7 +61,7 @@ const errs = [];
 {
   const D = await page(B, 'http://127.0.0.1:8765/tennis/?peer=127.0.0.1:9999&q=low', size);
   await D.p.waitForFunction(() => window.__racchetta && window.qrcode, null, { timeout: 60000 });
-  await D.p.click('#btnCpu'); await D.p.click('#ctrlPhone');
+  await D.p.click('#btnCpu');
   await D.p.waitForFunction(() => /non disponibile/.test(document.querySelector('#pairStatus').textContent), null, { timeout: 40000 });
   check('server non raggiungibile: messaggio chiaro', true, await D.p.textContent('#pairStatus'));
   check('nessun fallback mouse/tastiera se il signaling fallisce', await D.p.evaluate(() => __racchetta.state === 'pair' && __racchetta.A.ctrl === 'phone'));
