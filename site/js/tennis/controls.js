@@ -40,7 +40,7 @@ export function createControls(canvas, { pick, now = () => performance.now()/100
     set autoMove(v){ autoMove = v; },
     set useAim(v){ useAim = v; },
     // dal telefono: at già sull'orologio di questa pagina
-    phoneSwing(s){ if (enabled) q.push({ at: s.at, power: s.power, lift: s.lift, lob: s.lob, aim: null, dir: s.dir, src: 'phone' }); },
+    phoneSwing(s){ if (enabled) q.push({ at: s.at, power: s.power, lift: s.lift, lob: s.lob, drop: s.drop, slice: s.slice, dur: s.dur, aim: null, dir: s.dir, src: 'phone' }); },
     phoneToss(s){ if (enabled) q.push({ at: s.at, power: .5, toss: true, src: 'phone' }); },
     read(){
       let x = 0, y = 0;
