@@ -1,4 +1,4 @@
-// «Racchetta», pagina del telefono: si collega al computer con i dati del QR (dopo il «#»), chiede i permessi dei sensori,
+// NATPF Simulator, controller smartphone: si collega al computer con i dati del QR (dopo il «#»), chiede i permessi dei sensori,
 // fa la calibrazione guidata (calibration.js: i passi si vedono grandi sul computer, qui c'è il riassunto), riconosce i
 // colpi (swing-detect.js) e li manda al gioco con l'istante del picco. Niente app da installare.
 import { parsePairing } from './pairing.js';
@@ -126,9 +126,9 @@ function noMotion(why){
   removeEventListener('devicemotion', onMotion);
   sensor = why; sendState(); paint();
   ui({ denied: 'Sensori negati', insecure: 'Serve https', nomotion: 'Niente sensori' }[why], {
-    denied: 'Hai negato l\'accesso ai sensori di movimento. Su iPhone ricarica la pagina e tocca «Consenti»; su Android controlla i permessi del sito nel browser. Senza sensori puoi giocare con mouse e tastiera.',
+    denied: 'Hai negato l\'accesso ai sensori di movimento. Su iPhone ricarica la pagina e tocca «Consenti»; su Android controlla i permessi del sito nel browser. Senza sensori non puoi avviare la partita. Prova un browser compatibile e riapri il QR.',
     insecure: 'Il browser dà i sensori solo alle pagine sicure (https). Apri il gioco dall\'indirizzo pubblicato.',
-    nomotion: 'Questo browser non dà i sensori di movimento. Prova con Chrome (Android) o Safari (iPhone), oppure gioca con mouse e tastiera.',
+    nomotion: 'Questo browser non dà i sensori di movimento. Prova con Chrome (Android) o Safari (iPhone), e riapri il QR dal gioco.',
   }[why], 'miss');
 }
 function onMotion(e){
