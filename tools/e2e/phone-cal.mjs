@@ -8,7 +8,7 @@ const B = await launch();
 const D = await page(B, 'http://127.0.0.1:8765/tennis/?peer=127.0.0.1:9000&q=low', { w: 960, h: 600 }), d = D.p;
 await d.waitForFunction(() => window.__racchetta && window.qrcode, null, { timeout: 60000 });
 await d.fill('#name', 'Sergio'); await d.click('#fmt [data-v="1"]');
-await d.click('#btnCpu'); await d.click('#ctrlPhone');
+await d.click('#btnCpu');
 await d.waitForFunction(() => document.querySelector('#qr svg'), null, { timeout: 20000 });
 await d.addScriptTag({ content: jsqr });
 const decoded = await d.evaluate(async () => {
