@@ -59,11 +59,11 @@ export function createScene(container, { quality = 1 } = {}){
   function lastMarkOut(){ const o = marks[marks.length - 1]; if (o){ o.m.material.color.set(0xff3b30); o.life = 3; o.t = 0; } }
 
   /* ---------- personaggi ---------- */
-  let chars = [], last = new Map(), mood = new Map(), cheer = 0;
+  let chars = [], last = new Map(), mood = new Map(), cheer = 0, cameraTeam = null;
   function setPlayers(players, looks){
     for (const c of chars) scene.remove(c.g);
     chars = players.map((p, i) => { const c = makeCharacter(LOOKS[looks[i]] || LOOKS.blu); scene.add(c.g); return c; });
-    last = new Map(); mood = new Map();
+    last = new Map(); mood = new Map(); cameraTeam = null;
   }
   function setMood(id, m, secs = 1.4){ mood.set(id, { m, until: performance.now()/1000 + secs }); }
 
@@ -119,7 +119,6 @@ export function createScene(container, { quality = 1 } = {}){
   // Camera locale: il team 0 guarda da z>0 verso -z; il team 1 da z<0 verso +z.
   // È una trasformazione di vista del client: personaggi, palla, bersagli e fisica mantengono le coordinate assolute.
   const camPos = new THREE.Vector3(), camAt = new THREE.Vector3();
-  let cameraTeam = null;
   function follow(p, dt, snap = false){
     const frame = playerCameraFrame(p, HL);
     camPos.set(frame.camera.x, frame.camera.y, frame.camera.z);
@@ -132,7 +131,7 @@ export function createScene(container, { quality = 1 } = {}){
     camera.lookAt(camAt);
   }
   // vista d'insieme dell'arena per i menu: giro lento dall'alto
-  function orbit(t){ const a = t*.06; camera.position.set(Math.sin(a)*10, 8.5, Math.cos(a)*17); camera.lookAt(0, 1.5, 0); }
+  function orbit(t){ cameraTeam = null; const a = t*.06; camera.up.set(0, 1, 0); camera.position.set(Math.sin(a)*10, 8.5, Math.cos(a)*17); camera.lookAt(0, 1.5, 0); }
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3();
   function pick(clientX, clientY){
     const r = renderer.domElement.getBoundingClientRect();
