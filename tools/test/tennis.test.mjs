@@ -6,7 +6,7 @@ import { COURTS, newBall, stepBall, predict } from '../../site/js/match/physics.
 import { newScore, awardPoint, pointLabels, Rally } from '../../site/js/match/rules.js';
 import { MatchCore, mulberry32 } from '../../site/js/match/core.js';
 import { gauss } from '../../site/js/match/ai.js';
-import { ArcadeMatch, ARC, CPU, rel, tossY, TOSS_APEX, arcadeShot } from '../../site/js/match/arcade.js';
+import { ArcadeMatch, ARC, CPU, rel, tossY, TOSS_APEX, arcadeShot, chooseCpuShotType } from '../../site/js/match/arcade.js';
 import { createSwingDetector, classifySwingType } from '../../site/js/tennis/swing-detect.js';
 import { createCalibration, PLAN } from '../../site/js/tennis/calibration.js';
 import { createGate, parsePairing, pairingUrl, newSessionId, SESSION_PREFIX } from '../../site/js/tennis/pairing.js';
@@ -99,6 +99,14 @@ test('arcade: il timing determina qualità e ritmo, la direzione del gesto deter
   assert.ok(left.x < center.x && center.x < right.x, 'il gesto controlla sinistra, centro e destra');
   // «buono» entro 120 ms, colpo valido fino a 280 ms prima e 220 ms dopo
   for (const d of [-.1, .1, -.26, .2]){ const { core, tc } = rallyScene(4); assert.ok(play(core, [{ at: tc + d }]).find(e => e.type === 'contact'), `swing a ${d*1000} ms`); }
+});
+test('NATPF Simulator: la CPU varia tatticamente lob, palla corta, slice e drive in base alla posizione', () => {
+  assert.equal(chooseCpuShotType(true, CPU.normale, () => .05), 'lob', 'contro chi sale a rete prova il lob');
+  assert.equal(chooseCpuShotType(false, CPU.esperto, () => .05), 'drop', 'contro chi difende da fondo prova la palla corta');
+  let seq = [.99, .05];
+  assert.equal(chooseCpuShotType(true, CPU.esperto, () => seq.shift() ?? .99), 'slice', 'varia con uno slice se non sceglie il lob');
+  seq = [.99, .99];
+  assert.equal(chooseCpuShotType(false, CPU.esperto, () => seq.shift() ?? .99), 'drive', 'mantiene anche il drive come colpo base');
 });
 test('NATPF Simulator: drive, palla corta, lob e slice sono classificati e mirano a profondità diverse', () => {
   const court = COURTS.tennis, p = { team: 0, x: 0, z: 8 }, ball = { p: { x: 0, y: 1, z: 6 } };
