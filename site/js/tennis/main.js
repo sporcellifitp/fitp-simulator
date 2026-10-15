@@ -194,7 +194,7 @@ function beginPlay(looks, names){
   S.setPlayers((A.core || { players: A.mirror.players }).players, looks);
   A.state = 'play'; A.netPause = false; controls.enabled = true; controls.useAim = false;
   pane(null); show('#hud', true); scoreboard(); phoneChip();
-  hint('Colpisci con il telefono quando la palla arriva: l\'anello sul campo diventa verde nel momento giusto');
+  hint('Il gesto orienta il colpo a sinistra/destra; il timing determina qualità e velocità. Colpisci quando l\'anello diventa verde.');
   S.arena.setScore('0-0');
   phoneSend({ t: 'ph', ph: 'play' });
 }
@@ -344,7 +344,7 @@ function openHost(){
     const H = A.host = hostSession();
     H.on('change', () => { paintLobby(); hostNet(); });
     H.on('input', d => {
-      if (Array.isArray(d.sw)) for (const s of d.sw.slice(0, 4)) if (typeof s.at === 'number') inputQ.sw.push({ at: s.at, power: +s.power || .6, lift: +s.lift || 0, lob: !!s.lob, drop: !!s.drop, slice: !!s.slice, dur: +s.dur || 0, dir: s.dir | 0 });
+      if (Array.isArray(d.sw)) for (const s of d.sw.slice(0, 4)) if (typeof s.at === 'number') inputQ.sw.push({ at: Math.max(performance.now() - 1000, Math.min(performance.now() + 1000, s.at)), power: Math.max(.2, Math.min(1, Number(s.power) || .6)), lift: Math.max(-1, Math.min(1, Number(s.lift) || 0)), lob: !!s.lob, drop: s.drop === true, slice: s.slice === true, dur: Math.max(0, Math.min(700, Number(s.dur) || 0)), dir: s.dir === 1 ? 1 : s.dir === -1 ? -1 : 0 });
       if (Array.isArray(d.ts) && d.ts[0] && typeof d.ts[0].at === 'number') inputQ.ts.push({ at: d.ts[0].at });
       if (d.mv && typeof d.mv.x === 'number') inputQ.mv = { x: Math.max(-1, Math.min(1, d.mv.x)), y: Math.max(-1, Math.min(1, d.mv.y)) };
       if (typeof d.auto === 'boolean') inputQ.auto = d.auto;
