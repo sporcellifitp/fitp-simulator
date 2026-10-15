@@ -1,12 +1,9 @@
-// Partita arcade di «Racchetta»: stesse regole, punteggio e fisica della palla della partita base (core.js), ma il colpo
-// funziona come nei giochi di tennis con il controller di movimento (Wii Sports, Nintendo Switch Sports):
-//  - il personaggio si muove da solo verso la palla; chi gioca pensa solo a quando colpire;
-//  - conta il tempo dello swing rispetto all'istante in cui la palla passa davanti al giocatore, con una finestra larga;
-//    in anticipo la palla va incrociata, in ritardo lungolinea, come in Switch Sports (dritto: anticipo → sinistra);
-//  - si giudica la palla, non lo swing: tra più movimenti vicini (apertura, colpo, ritorno del braccio) vale quello più
-//    vicino all'istante giusto; gli altri si ignorano. Se non arriva nessun colpo buono si dice perché (presto, tardi, niente);
-//  - ritardo del telefono e della rete: si aspetta il colpo fino a «grace» secondi dopo il passaggio della palla, e la palla
-//    riparte dal punto in cui era al momento dello swing (al massimo 0,16 s indietro). Intanto il punto non si chiude.
+// Motore arcade di NATPF Simulator: regole e fisica condivise con core.js, input di gioco solo dal telefono.
+//  - il personaggio si muove da solo verso la palla: il giocatore controlla gesto, timing e scelta del colpo;
+//  - la direzione calibrata dello swing sceglie sinistra/centro/destra; il timing influisce su precisione, ritmo e rischio;
+//  - tra gli swing vicini (apertura, impatto, ritorno del braccio) vale quello più vicino al momento d'impatto;
+//  - quando il colpo manca, il gioco spiega se è arrivato presto, tardi, debole o fuori portata;
+//  - il ritardo del telefono/rete è compensato dalla cronologia della palla e dalla finestra di attesa del colpo.
 // Senza Three.js: testabile con node --test.
 import { MatchCore } from './core.js';
 import { stepBall, predict, sideOf } from './physics.js';
