@@ -116,7 +116,8 @@ test('NATPF Simulator: drive, palla corta, lob e slice sono classificati e miran
   const slice = arcadeShot(court, p, ball, { power: .55, slice: true, lift: -.8 }, 0);
   assert.equal(drive.type, 'drive'); assert.equal(drop.type, 'drop');
   assert.equal(lob.type, 'lob'); assert.equal(slice.type, 'slice');
-  assert.ok(Math.abs(drop.target.z) < Math.abs(drive.target.z), 'la palla corta atterra più vicino alla rete');
+  assert.ok(Math.abs(drop.target.z - Math.sign(drop.target.z)*2.1) < 1e-9, 'la palla corta atterra a circa 2,1 m dalla rete');
+  assert.ok(Math.abs(drop.target.z) < Math.abs(drive.target.z), 'la palla corta è più corta del drive');
   assert.ok(drop.pace < drive.pace && slice.pace < drive.pace, 'drop e slice sono meno penetranti del drive');
   assert.ok(CPU.esperto && CPU.esperto.label === 'Esperto', 'livello CPU Esperto configurato');
   assert.deepEqual(classifySwingType({ power: .48, lift: .1, dur: 150 }), { drop: true, slice: false, lob: false });
