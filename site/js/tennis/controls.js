@@ -24,7 +24,7 @@ export function createControls(_canvas, _options = {}){
         lob: !!s.lob,
         drop: !!s.drop,
         slice: !!s.slice,
-        dur: clamp(s.dur, 0, .7),
+        dur: clamp(s.dur, 0, 700),
         dir: clamp(s.dir, -1, 1),
         aim: null,
         src: 'phone',
