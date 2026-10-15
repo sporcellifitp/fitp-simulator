@@ -1,0 +1,211 @@
+# NATPF Simulator — audit completo e piano di intervento
+
+Data: 15 ottobre 2026  
+Branch di audit: `feature/natpf-simulator-gameplay-audit`  
+Base tecnica esaminata: `claude/lucid-cannon-us9l0g` (v0.8)  
+Stato: audit statico del repository; test automatici e prove su dispositivi reali da eseguire prima del rilascio.
+
+## 1. Decisioni di prodotto
+
+- Nome pubblico del gioco: **NATPF Simulator**.
+- Il controller di gioco è esclusivamente lo smartphone, collegato via QR code e browser HTTPS.
+- Mouse e tastiera non sono modalità alternative per giocare. Restano utilizzabili per navigazione, nome, avvio, copia link e gestione della pagina.
+- Il personaggio si muove automaticamente per mantenere il focus su timing, lettura della palla e qualità del gesto.
+- La prima modalità competitiva da validare è 1 contro 1 contro CPU; la partita tra amici resta subordinata a stabilità, latenza e test cross-network.
+- Non si aggiungono gesture speciali prima di verificare che siano riconoscibili sui telefoni reali in modo ripetibile.
+
+## 2. Sintesi esecutiva
+
+La base tecnica è più avanzata di un semplice prototipo: include fisica e regole separate dal rendering, partita arcade, CPU, collegamento del telefono, calibrazione, sincronizzazione temporale, modalità tra amici e test automatici/E2E. I rischi principali non sono l'assenza di infrastruttura, ma l'esperienza reale del colpo e l'affidabilità delle interazioni.
+
+Priorità:
+1. rendere NATPF Simulator phone-only senza lasciare scorciatoie mouse/tastiera;
+2. verificare input, calibrazione, timing e riconoscimento dei gesti su iPhone e Android reali;
+3. separare qualità del contatto, direzione, potenza e scelta del colpo;
+4. rendere palla corta, lob e slice leggibili e riconoscibili senza gesti troppo simili;
+5. migliorare CPU e movimento per trasformare gli angoli in pressione tattica;
+6. misurare durata dei rally, precisione, errori e skill gap;
+7. chiudere gli aspetti di sicurezza, telemetria privacy-preserving, deploy e autorizzazioni di marchi/asset.
+
+## 3. Architettura e componenti
+
+### Gioco e pagina
+- `site/tennis/index.html`: UI di gioco, onboarding, controller selection, lobby, HUD, pausa e fine partita.
+- `site/tennis/racchetta.html`: UI mobile per pairing, sensori, calibrazione e feedback.
+- `site/js/tennis/main.js`: orchestration delle schermate, match loop, eventi, input, pairing e multiplayer.
+- `site/js/tennis/controls.js`: normalizzazione degli input; attualmente include mouse e tastiera oltre al telefono.
+- `site/js/tennis/link.js`, `pairing.js`, `session.js`, `net.js`: collegamento, inviti, sessione e sincronizzazione.
+- `site/js/tennis/swing-detect.js`, `calibration.js`: riconoscimento e calibrazione del movimento.
+- `site/js/match/arcade.js`: timing, impatto, scelta del colpo del giocatore, movimento automatico, CPU.
+- `site/js/match/ai.js`, `physics.js`, `core.js`, `rules.js`: bersagli, traiettorie, partita e regole.
+- `tools/test/tennis.test.mjs`, `tools/test/match.test.mjs`: test deterministici di logica.
+- `tools/e2e/phone-cal.mjs`, `phone-failures.mjs`, `invite.mjs`: E2E simulati per pairing, sensori e partita tra amici.
+
+### Rischio architetturale
+L'astrazione degli input è utile, ma mantiene modalità alternative che non corrispondono più alla decisione di prodotto. Va semplificata senza rompere gli eventi di gioco, il servizio, la modalità ospite e la telemetria di test. La modalità phone-only deve essere enforced nel codice, non solo nascosta nella UI.
+
+## 4. Rilievi P0 — blocchi prima del rilascio
+
+### P0.1 — Controller non coerente con il prodotto
+**Evidenza:** `index.html` espone la scelta «Mouse e tastiera»; `main.js` imposta `A.ctrl = 'mouse'`; `controls.js` riceve clic, tasti e movimento manuale; i messaggi di errore propongono il fallback mouse/tastiera; i test di guasto verificano quel fallback.
+
+**Intervento:** rimuovere l'opzione dalla UI e la possibilità effettiva di produrre swing o movimento manuale da mouse/tastiera. Il flusso desktop diventa: scegli modalità → mostra QR → collega smartphone → autorizza sensori → calibra → gioca. In caso di sensori non disponibili, non avviare una partita con un controller diverso: mostra istruzioni per browser/permessi compatibili e possibilità di riprovare.
+
+### P0.2 — Validazione fisica non ancora dimostrata
+La documentazione del progetto dichiara test con sensori simulati e lascia come attività la prova su telefoni reali. Il successo del simulatore E2E non prova che il gesto venga rilevato correttamente su hardware reale.
+
+**Intervento:** test su almeno iPhone/Safari e Android/Chrome, HTTPS, permessi negati/riabilitati, cambio orientamento, tab in background, schermo bloccato, disconnessione e riconnessione. Verificare che il telefono resti impugnabile in sicurezza: evitare gesti che richiedono di lanciare il dispositivo o rotazioni innaturali.
+
+### P0.3 — Timing e direzione sono accoppiati
+**Evidenza:** `arcadeShot()` usa l'errore temporale per derivare `pull` e quindi l'angolo; la mira del mouse viene combinata con questa variabile. Il timing non dovrebbe essere il principale sistema di mira nel modello phone-only.
+
+**Intervento:** distinguere:
+- timing → qualità del contatto, precisione e velocità;
+- asse/direzione del gesto calibrato → angolo desiderato;
+- intensità dello swing → potenza;
+- gesto speciale riconosciuto → famiglia di colpo;
+- posizione e altezza d'impatto → difficoltà e rischio.
+
+La direzione del telefono deve essere relativa e calibrata, non presentata come misurazione assoluta del bersaglio nello spazio.
+
+### P0.4 — Errori non sempre interpretabili
+Il codice introduce dispersione tramite errore e casualità; la CPU ha probabilità di errore e pressione dipendente dalla lunghezza del rally. Questo può accorciare gli scambi, ma rischia di far sembrare casuali sia gli errori umani sia quelli della CPU.
+
+**Intervento:** determinismo per gli stessi input nel modello di colpo umano; variabilità controllata solo dove serve. Un colpo difficile deve richiedere più precisione, non fallire senza una causa comprensibile.
+
+## 5. P1 — Gameplay e skill gap
+
+### P1.1 — Colpi base
+Modellare un colpo come combinazione esplicita di:
+- timing;
+- direzione del gesto;
+- intensità;
+- altezza del punto d'impatto;
+- bersaglio desiderato;
+- stato di equilibrio/posizione stimabile dal gioco.
+
+Il modello non deve usare la stessa variabile per rappresentare più dimensioni del gesto.
+
+### P1.2 — Colpi speciali
+
+Implementare in ordine e dietro feature flag fino alla validazione:
+
+1. **Palla corta (drop shot)** — priorità più alta. Swing breve e controllato, con bassa potenza e gesto verticale dedicato solo se il rilevatore lo distingue in modo affidabile. Il bersaglio è vicino alla rete nel campo avversario; la palla deve rallentare e rimbalzare con traiettoria credibile. Non inferire la palla corta soltanto da uno swing debole, perché un colpo debole normale deve comunque esistere.
+2. **Lob** — gesto alto/ascendente distinto dal drive; traiettoria più alta, tempo di volo maggiore e bersaglio profondo. CPU più vicina alla rete deve poter arretrare e tentare lo smash, non ricevere un errore automatico.
+3. **Slice / colpo tagliato** — gesto di taglio riconosciuto su asse distinto dal drive. Nella prima versione può produrre una palla più lenta e bassa, con rimbalzo meno aggressivo; non simulare un effetto laterale complesso finché non è supportato dalla fisica.
+4. **Smash** — mantenere il riconoscimento contestuale già presente: palla alta e in posizione attaccabile. Evitare di classificare come smash qualsiasi swing sopra una soglia d'altezza senza considerare la posizione rispetto alla rete.
+
+Per ogni colpo servono: indicatore/feedback sul telefono, feedback sul campo, parametri di traiettoria, rischio di errore, test di classificazione e alternativa accessibile per chi non riesce a eseguire il gesto.
+
+### P1.3 — Angoli e pressione
+- Gli angoli devono dipendere dal gesto direzionale, non dal caso.
+- Più il bersaglio è vicino alla linea, maggiore è la difficoltà.
+- Il buon timing aumenta la precisione e la velocità utile.
+- Un incrociato efficace sposta l'avversario; una risposta in allungo è più corta o meno precisa.
+- Il giocatore può chiudere il punto attaccando una palla corta.
+- Evitare un limite artificiale di colpi per rally.
+
+### P1.4 — CPU tattica
+La funzione `cpuShot()` già varia mira, ritmo, profondità, attacco su palla debole e pressione. La CPU arcade espone attualmente Facile e Normale; va estesa a Esperto solo dopo aver misurato la baseline.
+
+- **Facile:** reazione più lenta, maggiore tolleranza, lascia spazio.
+- **Normale:** recupera il centro e punisce palle corte/deboli.
+- **Esperto:** recupero e lettura migliori, contrattacco su palle comode, ma vulnerabile agli angoli e alle variazioni.
+
+La CPU non deve anticipare il bersaglio prima del contatto. Il movimento deve seguire una traiettoria intercettabile e rispettare un tempo di reazione.
+
+## 6. P1 — UX, accessibilità e feedback
+
+- Ridurre il percorso al minimo: nome, livello, QR, attivazione sensori, calibrazione, partita.
+- Non richiedere l'installazione di un'app.
+- Calibrazione obbligatoria al primo avvio e ripetibile dalla pausa; conservare il profilo solo se la posizione di presa resta coerente.
+- Stato di connessione sempre visibile, con istruzioni specifiche per errore.
+- Durante il rally mostrare un feedback principale per volta: «Perfetto», «In ritardo», «Palla corta», «Lob», ecc.
+- Sul telefono, feedback breve e leggibile senza costringere a guardare lo schermo durante lo swing.
+- Evitare che i controlli per pausa o riconnessione interrompano silenziosamente una partita.
+- Nessun fallback a mouse/tastiera quando il telefono non funziona: recupero guidato e spiegazione.
+
+## 7. P1 — Multiplayer, rete e sincronizzazione
+
+La modalità tra amici usa una sessione PeerJS/WebRTC con l'host che simula la partita e il guest che invia input. Va trattata come una seconda fase rispetto al gioco CPU.
+
+Verifiche:
+- due smartphone, non due controller diversi;
+- host e guest con browser/device diversi;
+- Wi-Fi domestico, rete mobile, NAT restrittivi, riconnessione;
+- latenza e perdita di pacchetti;
+- nessun input duplicato o accettato fuori dalla finestra del colpo;
+- pausa, abbandono, rivincita e uscita da sessione;
+- nessun blocco indefinito se il signaling server è irraggiungibile.
+
+Prima di uso pubblico, valutare un signaling server controllato dal progetto; non esporre token di pairing riutilizzabili e mantenere token brevi, casuali e monouso.
+
+## 8. P1 — Sicurezza, privacy e release
+
+- Il gioco usa nome locale e pairing via URL/QR: verificare che i segreti del pairing vengano rimossi dall'URL dopo la lettura e non finiscano in log o analytics.
+- Testare scadenza e riuso del token, origin non valido, payload input fuori range e messaggi WebRTC inattesi.
+- Nessun account necessario per il prototipo; prima di introdurre account/classifiche, definire retention, consenso e gestione dei minori.
+- Il repository contiene marchi e asset relativi a Nitto ATP Finals, FITP e all'arena. Verificare autorizzazioni prima di ogni pubblicazione pubblica o uso promozionale.
+- Verificare HTTPS, noindex e accesso limitato: noindex non è controllo di accesso.
+- Confermare la destinazione di deploy e il branch collegato alla produzione prima di unire modifiche.
+
+## 9. Test plan
+
+### Automatici (Node)
+Eseguire:
+```bash
+node --test tools/test/*.test.mjs
+```
+
+Aggiungere test per:
+- classificazione univoca di drive, drop, lob, slice e smash;
+- colpo corto che atterra legalmente nel campo e resta raggiungibile;
+- lob che supera l'avversario e non viene classificato come drive;
+- slice con velocità/rimbalzo previsti;
+- timing perfetto più preciso del timing errato, a parità di gesto;
+- angolo stretto più rischioso del centro, a parità di qualità;
+- nessun input mouse/tastiera che produca movimento o swing;
+- servizi, let, fault, punteggio e fine match dopo le modifiche.
+
+### E2E browser
+- aggiornare `phone-cal.mjs` per verificare il flusso phone-only;
+- aggiornare `phone-failures.mjs`: sensori mancanti/permesso negato devono mostrare un errore recuperabile, non entrare in modalità mouse;
+- ritirare `cpu-mouse.mjs` come test di gameplay e sostituirlo con un test basato su swing del telefono simulato;
+- eseguire `invite.mjs` con controller smartphone per host e guest;
+- verificare assenza di errori JavaScript e regressioni nelle schermate.
+
+### Hardware reale
+- iPhone Safari e Android Chrome;
+- almeno 5 sessioni per dispositivo con calibrazione nuova;
+- 10 rally per livello CPU e per famiglia di colpo;
+- test con mani/dimensioni del telefono diverse, senza pretendere precisione assoluta dai sensori.
+
+## 10. Metriche di accettazione
+
+Raccogliere una baseline prima del bilanciamento. Non fissare target assoluti senza misurazione iniziale.
+
+- mediana e 90° percentile di colpi per punto e durata del rally;
+- percentuale di swing riconosciuti e falsi positivi;
+- percentuale di timing perfetti/buoni/mancati;
+- errore medio tra angolo richiesto e punto d'atterraggio;
+- tasso di successo e riconoscibilità dei colpi speciali;
+- risposte deboli della CPU dopo essere stata spostata;
+- errori non forzati percepiti come casuali;
+- win rate di principianti e giocatori esperti contro ogni livello;
+- disconnessioni, latenza e input persi in multiplayer.
+
+## 11. Ordine d'esecuzione raccomandato
+
+1. Rebranding visibile e phone-only enforcement.
+2. Test automatici esistenti + test per input vietati.
+3. Baseline su telefono reale e correzione del rilevatore/timing.
+4. Separazione tra timing e direzione, quindi controllo angoli.
+5. Palla corta; poi lob; poi slice; smash contestuale.
+6. CPU tattica e livello Esperto.
+7. Multiplayer con due telefoni su reti differenti.
+8. Test moderato con 5–10 persone e tuning in base ai dati.
+9. Revisione asset/marchi, sicurezza e deploy prima della distribuzione.
+
+## 12. Limiti dell'audit
+
+Questo documento deriva da ispezione statica di codice e documentazione. Non dichiara che i test siano passati: l'esecuzione Node, browser E2E e prove su iPhone/Android devono ancora essere eseguite nell'ambiente di progetto. Il funzionamento su telefoni reali non è dimostrato dal solo test con sensori simulati.
