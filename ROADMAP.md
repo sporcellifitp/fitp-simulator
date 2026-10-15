@@ -80,11 +80,11 @@ Dettagli e limiti in [docs/v0.6-multiplayer.md](docs/v0.6-multiplayer.md).
 - [x] Partite di tennis (1 contro 1) e padel (2 contro 2) tra amici, con il computer nei posti vuoti.
 - [ ] Palla visibile anche agli amici che guardano; piccolo torneo nella stanza.
 
-## v0.7 · Tennis 1 contro 1 e telefono come racchetta (ottobre 2026)
+## v0.7 · Tennis 1 contro 1 e telefono come racchetta (ottobre 2026, versione storica)
 
 Architettura, sicurezza, prove e limiti in [docs/v0.7-tennis-racchetta.md](docs/v0.7-tennis-racchetta.md).
 
-- [x] Pagina `/tennis/`: partita contro il computer con mouse e tastiera (mira col puntatore, potenza tenendo premuto, tempo del colpo che decide la direzione).
+- [x] Versione storica: la pagina `/tennis/` prevedeva mouse e tastiera; il ramo NATPF Simulator rimuove la modalità desktop e accetta soltanto lo smartphone come racchetta.
 - [x] Regole: set corto a 4 e set a 6 con tie-break, let, nastro, falli, doppio fallo, palla mancata al servizio.
 - [x] Telefono come racchetta: QR monouso, collegamento diretto, permessi, calibrazione, riconoscimento di dritto e rovescio, orologi allineati per compensare il ritardo, movimento automatico.
 - [x] Guasti gestiti: niente sensori o permesso negato (il telefono diventa un pulsante), telefono scollegato, server irraggiungibile.
@@ -96,11 +96,11 @@ Architettura, sicurezza, prove e limiti in [docs/v0.7-tennis-racchetta.md](docs/
 
 Problemi trovati, cause, modifiche, prove e limiti in [docs/v0.8-racchetta.md](docs/v0.8-racchetta.md).
 
-- [x] Colpo giudicato sulla palla con finestra larga, direzione dal tempo, potenza coerente, feedback su ogni colpo e ogni palla persa (P0).
+- [x] Colpo giudicato sulla palla con finestra larga; direzione dal gesto calibrato, timing per qualità/ritmo, feedback su colpo e palla persa (P0).
 - [x] Rilevatore del telefono riscritto: aperture ignorate, invio subito dopo il picco, soglie su misura (P0).
 - [x] Telecamera, movimento automatico e animazioni nello stile di Nintendo Switch Sports; servizio con lancio e colpo (P0).
 - [x] Calibrazione guidata in 5 passi con verifica dal vivo e conferma (P1).
-- [x] Partita contro la CPU (Facile, Normale) e partita tra amici con un link, con telefono come unico controller (P2).
+- [x] Partita contro la CPU (Facile, Normale, Esperto) e partita tra amici con un link, con telefono come unico controller (P2).
 - [x] Arena ricostruita sulle immagini di riferimento, personaggi originali arrotondati (P3).
 - [x] v0.8.1: branding dell'arena come nelle immagini di riferimento (Nitto ATP Finals, ESPORTS, «It all adds up to THIS», TORINO), grafiche in `site/assets/arena/`.
 - [ ] **Prova su iPhone e Android veri** e ritocco di soglie, finestre e CPU.
