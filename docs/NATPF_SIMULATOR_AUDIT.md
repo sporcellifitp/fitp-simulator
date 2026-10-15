@@ -3,7 +3,7 @@
 Data: 15 ottobre 2026  
 Branch di audit: `feature/natpf-simulator-gameplay-audit`  
 Base tecnica esaminata: `claude/lucid-cannon-us9l0g` (v0.8)  
-Stato: audit statico completato e prima implementazione phone-only/gameplay nel branch; test Node/E2E da eseguire, prove su dispositivi reali ancora necessarie.
+Stato: audit statico e prima implementazione phone-only/gameplay completati nel branch. I test unitari Node passano in GitHub Actions; E2E browser e prove su dispositivi reali non sono ancora stati eseguiti.
 
 ## 1. Decisioni di prodotto
 
@@ -12,7 +12,7 @@ Stato: audit statico completato e prima implementazione phone-only/gameplay nel 
 - Mouse e tastiera non sono modalità alternative per giocare. Restano utilizzabili per navigazione, nome, avvio, copia link e gestione della pagina.
 - Il personaggio si muove automaticamente per mantenere il focus su timing, lettura della palla e qualità del gesto.
 - La prima modalità competitiva da validare è 1 contro 1 contro CPU; la partita tra amici resta subordinata a stabilità, latenza e test cross-network.
-- Non si aggiungono gesture speciali prima di verificare che siano riconoscibili sui telefoni reali in modo ripetibile.
+- Palla corta, lob e slice sono presenti come prototipi euristici; le soglie vanno validate sui telefoni reali prima di considerarli feature stabili.
 
 ## 2. Sintesi esecutiva
 
@@ -52,7 +52,7 @@ L'astrazione è stata semplificata nel branch: gli input mouse/tastiera non veng
 **Implementato nel branch:** la UI non presenta più la scelta mouse/tastiera; i controlli di gioco accettano solo eventi dal telefono; un sensore non disponibile lascia il gioco in attesa, con istruzioni per riprovare. I pulsanti e i click desktop restano utilizzabili per navigare la UI, non per colpire o muovere il giocatore.
 
 ### P0.2 — Validazione fisica non ancora dimostrata
-La documentazione del progetto dichiara test con sensori simulati e lascia come attività la prova su telefoni reali. Il successo del simulatore E2E non prova che il gesto venga rilevato correttamente su hardware reale.
+La documentazione del progetto dichiara test con sensori simulati e lascia come attività la prova su telefoni reali. Il test unitario in CI verifica la logica deterministica, non il comportamento del sensore fisico.
 
 **Intervento:** test su almeno iPhone/Safari e Android/Chrome, HTTPS, permessi negati/riabilitati, cambio orientamento, tab in background, schermo bloccato, disconnessione e riconnessione. Verificare che il telefono resti impugnabile in sicurezza: evitare gesti che richiedono di lanciare il dispositivo o rotazioni innaturali.
 
@@ -98,8 +98,8 @@ La prima implementazione è presente nel branch, ma resta sperimentale fino a te
 Per ogni colpo servono: indicatore/feedback sul telefono, feedback sul campo, parametri di traiettoria, rischio di errore, test di classificazione e alternativa accessibile per chi non riesce a eseguire il gesto.
 
 ### P1.3 — Angoli e pressione
-- Gli angoli devono dipendere dal gesto direzionale, non dal caso.
-- Più il bersaglio è vicino alla linea, maggiore è la difficoltà.
+- **Implementato:** gli angoli dipendono dal gesto calibrato (sinistra/centro/destra), indipendentemente dal timing.
+- **Implementato in forma iniziale:** il rischio aumenta con l'angolo richiesto. Il bilanciamento della precisione e la relazione con il punto d'atterraggio vanno misurati.
 - Il buon timing aumenta la precisione e la velocità utile.
 - Un incrociato efficace sposta l'avversario; una risposta in allungo è più corta o meno precisa.
 - Il giocatore può chiudere il punto attaccando una palla corta.
@@ -168,11 +168,10 @@ Aggiungere test per:
 - servizi, let, fault, punteggio e fine match dopo le modifiche.
 
 ### E2E browser
-- aggiornare `phone-cal.mjs` per verificare il flusso phone-only;
-- aggiornare `phone-failures.mjs`: sensori mancanti/permesso negato devono mostrare un errore recuperabile, non entrare in modalità mouse;
-- ritirare `cpu-mouse.mjs` come test di gameplay e sostituirlo con un test basato su swing del telefono simulato;
-- eseguire `invite.mjs` con controller smartphone per host e guest;
-- verificare assenza di errori JavaScript e regressioni nelle schermate.
+- **Aggiornati nel branch:** `phone-only.mjs` verifica che mouse/tastiera non generino swing o movimento; `phone-cal.mjs` copre calibrazione/partita; `phone-failures.mjs` verifica il recupero senza controller alternativo.
+- `cpu-mouse.mjs` è stato rimosso come test di gameplay.
+- Da eseguire: E2E browser completi e `invite.mjs` con controller smartphone su host e guest.
+- Verificare assenza di errori JavaScript e regressioni nelle schermate.
 
 ### Hardware reale
 - iPhone Safari e Android Chrome;
@@ -196,16 +195,16 @@ Raccogliere una baseline prima del bilanciamento. Non fissare target assoluti se
 
 ## 11. Ordine d'esecuzione raccomandato
 
-1. Rebranding visibile e phone-only enforcement.
-2. Test automatici esistenti + test per input vietati.
-3. Baseline su telefono reale e correzione del rilevatore/timing.
-4. Separazione tra timing e direzione, quindi controllo angoli.
-5. Palla corta; poi lob; poi slice; smash contestuale.
-6. CPU tattica e livello Esperto.
-7. Multiplayer con due telefoni su reti differenti.
-8. Test moderato con 5–10 persone e tuning in base ai dati.
-9. Revisione asset/marchi, sicurezza e deploy prima della distribuzione.
+1. **Completato nel branch:** rebranding visibile e phone-only enforcement.
+2. **Completato:** aggiunti controlli unitari per timing/direzione/colpi e un workflow Node CI; test unitari superati.
+3. Da eseguire: baseline su telefono reale e correzione del rilevatore/timing.
+4. **Implementato e testato unitariamente:** timing separato da direzione; angoli a sinistra/centro/destra.
+5. **Prototipi implementati:** palla corta, lob e slice; serve validazione hardware e tuning.
+6. **Configurato:** livello CPU Esperto; serve bilanciamento e test moderati.
+7. Da eseguire: multiplayer con due telefoni su reti differenti.
+8. Da eseguire: test moderato con 5–10 persone e tuning in base ai dati.
+9. Da eseguire: revisione asset/marchi, sicurezza e deploy prima della distribuzione.
 
 ## 12. Limiti dell'audit
 
-Questo documento deriva da ispezione statica di codice e documentazione. I nuovi test di logica ed E2E sono stati aggiornati nel branch, ma non vanno considerati superati finché CI non li esegue. Il funzionamento su telefoni reali non è dimostrato dai test con sensori simulati.
+Audit statico completato e test unitari Node superati in GitHub Actions (workflow `NATPF Simulator tests`, commit `c1546c00981ffec7b823fdde7d77d58c7b861c11`). I test E2E browser non risultano eseguiti in questa verifica; il funzionamento e le soglie dei gesti su iPhone/Android reali restano da validare.
