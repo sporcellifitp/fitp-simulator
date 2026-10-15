@@ -88,7 +88,7 @@ function onData(c, d){
     case 'ph': phase = d.ph; if (sensor === 'ready') paint(); break;
     case 'cmd': command(d.c); break;
     case 'ev':
-      if (d.k === 'contact'){ buzz(d.label === 'perfetto' ? [40] : [20]); flash('hit', { perfetto: 'Perfetto!', buono: 'Bel colpo', anticipo: 'In anticipo', ritardo: 'In ritardo' }[d.label] || 'Colpo!', ''); }
+      if (d.k === 'contact'){ buzz(d.label === 'perfetto' ? [40] : [20]); flash('hit', ({ drop: 'Palla corta!', lob: 'Lob!', slice: 'Tagliato!', smash: 'Smash!' }[d.shot]) || ({ perfetto: 'Perfetto!', buono: 'Bel colpo', anticipo: 'In anticipo', ritardo: 'In ritardo' }[d.label] || 'Colpo!'), ''); }
       if (d.k === 'miss') { buzz([90]); flash('miss', { presto: 'Troppo presto', tardi: 'Troppo tardi', nessuno: 'Nessun colpo', portata: 'Troppo lontana' }[d.why] || 'Mancata', d.why === 'nessuno' ? 'Il movimento non è arrivato: fai uno swing più deciso.' : ''); }
       if (d.k === 'point') flash(d.mine ? 'hit' : 'miss', d.mine ? 'Punto tuo' : 'Punto avversario', d.txt || '', 1300);
       break;
