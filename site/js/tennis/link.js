@@ -84,7 +84,7 @@ export function createPhoneLink(){
           const now = performance.now();
           let at = now - n(d.lat, 0, 400, 60);
           if (clock.ok && typeof d.pk === 'number') at = Math.max(now - 350, Math.min(now, clock.toLocal(d.pk)));
-          emit('swing', { power: n(d.p, 0, 1, .6), lift: n(d.l, -1, 1, 0), lob: !!d.lob, dir: d.dir === 1 ? 1 : d.dir === -1 ? -1 : 0, at: at/1000 });
+          emit('swing', { power: n(d.p, 0, 1, .6), lift: n(d.l, -1, 1, 0), lob: !!d.lob, drop: d.drop === true, slice: d.slice === true, dur: n(d.dur, 0, 700, 0), dir: d.dir === 1 ? 1 : d.dir === -1 ? -1 : 0, at: at/1000 });
           break;
         }
         case 'toss': { const now = performance.now(); const at = clock.ok && typeof d.pk === 'number' ? clock.toLocal(d.pk) : now; emit('toss', { at: Math.min(now, at)/1000 }); break; }
