@@ -33,3 +33,30 @@ jobs:
           node --input-type=module --check < site/js/tennis/net.js
           node --input-type=module --check < site/js/tennis/viewpoint.js
           node --input-type=module --check < site/js/tennis/sweet-spot.js
+
+  browser-smoke:
+    name: Browser smoke test (phone-only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install E2E dependencies
+        run: npm install --prefix tools/e2e --no-audit --no-fund
+      - name: Install Chromium and OS dependencies
+        run: node tools/e2e/node_modules/playwright-core/cli.js install --with-deps chromium
+      - name: Start static site
+        shell: bash
+        run: |
+          python -m http.server 8765 -d site > /tmp/natpf-http.log 2>&1 &
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8765/tennis/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/natpf-http.log
+          exit 1
+      - name: Verify phone-only gameplay in Chromium
+        run: node tools/e2e/phone-only.mjs
