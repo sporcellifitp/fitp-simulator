@@ -151,7 +151,7 @@ cal.on(e => { send({ t: 'cal', e }); if (!flashT) paint();
 });
 det.on('swing', s => {
   if (sensor !== 'ready' || linkState !== 'on') return;
-  send({ t: 'sw', p: s.power, l: s.lift, lob: s.lob, dir: s.dir, pk: s.peakT, lat: rtt/2 + (performance.now() - s.peakT) });
+  send({ t: 'sw', p: s.power, l: s.lift, lob: s.lob, drop: s.drop, slice: s.slice, dur: s.dur, dir: s.dir, pk: s.peakT, lat: rtt/2 + (performance.now() - s.peakT) });
   flash('hit', s.dir > 0 ? '←' : s.dir < 0 ? '→' : '•', `Forza ${Math.round(s.power*100)}%`, 350);
 });
 
