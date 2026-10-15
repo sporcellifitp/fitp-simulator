@@ -1,4 +1,4 @@
-// «Racchetta»: il gioco. Collega scena (scene.js), partita arcade (match/arcade.js), comandi (controls.js), telefono
+// «NATPF Simulator»: il gioco. Collega scena (scene.js), partita arcade (match/arcade.js), comandi (controls.js), telefono
 // (link.js + calibrazione guidata) e partita tra amici (session.js + net.js).
 // Modalità: cpu (contro il computer), host (chi invita: fa girare la partita), guest (chi riceve il link: vede lo stato
 // dell'host e manda i suoi colpi). Schermate: menu → controller → telefono (collega, impugna, prova, verifica, conferma)
@@ -29,7 +29,7 @@ const MISS = { presto: ['Troppo presto', 'Hai colpito prima che arrivasse la pal
 const S = createScene($('#app'));
 const controls = createControls(S.renderer.domElement, { pick: (x, y) => S.pick(x, y) });
 const A = {
-  state: 'menu', mode: 'cpu', ctrl: 'mouse', name: store.get('name', ''), fmt: store.get('fmt', '4'), level: store.get('level', 'facile'),
+  state: 'menu', mode: 'cpu', ctrl: 'phone', name: store.get('name', ''), fmt: store.get('fmt', '4'), level: store.get('level', 'facile'),
   core: null, demo: null, link: null, host: null, guest: null, mirror: null, myId: 'me', afterCtrl: null, netPause: false, stats: null,
 };
 let lastT = performance.now(), flashT = 0, timingT = 0, snapAcc = 0, inputQ = { sw: [], ts: [], mv: { x: 0, y: 0 }, auto: true }, lastMv = '', endTimer = null;
@@ -50,8 +50,8 @@ $('#btnCpu').addEventListener('click', () => { A.mode = 'cpu'; chooseCtrl(() => 
 $('#btnInvite').addEventListener('click', () => { A.mode = 'host'; openHost(); });
 
 /* ---------- controller ---------- */
-function chooseCtrl(next){ A.afterCtrl = next; A.state = 'ctrl'; pane('#ctrl'); }
-$('#ctrlMouse').addEventListener('click', () => { A.ctrl = 'mouse'; A.afterCtrl && A.afterCtrl(); });
+function chooseCtrl(next){ A.afterCtrl = next; A.ctrl = 'phone'; openPair(next); }
+$('#ctrlMouse').addEventListener('click', () => { A.ctrl = 'phone'; openPair(A.afterCtrl); });
 $('#ctrlPhone').addEventListener('click', () => openPair(A.afterCtrl));
 $('#ctrlBack').addEventListener('click', () => back());
 function back(){
@@ -166,8 +166,8 @@ $('#rvConfirm').addEventListener('click', () => A.link.cmd('confirm'));
 $('#pairRecal').addEventListener('click', () => { cal = { step: null, idx: 0, marks: [], result: null }; A.link.cmd('cal'); });
 $('#errRetry').addEventListener('click', () => { A.link.cmd('cal'); paintPair(); });
 $('#pairGo').addEventListener('click', () => { A.ctrl = 'phone'; pairNext && pairNext(); });
-$('#pairMouse').addEventListener('click', () => { A.ctrl = 'mouse'; pairNext && pairNext(); });
-$('#pairBack').addEventListener('click', () => { if (A.state === 'paused' || A.pairFromPause){ A.pairFromPause = false; pane('#pause'); A.state = 'paused'; } else chooseCtrl(pairNext); });
+$('#pairMouse').addEventListener('click', () => { A.ctrl = 'phone'; paintPair(); });
+$('#pairBack').addEventListener('click', () => { if (A.state === 'paused' || A.pairFromPause){ A.pairFromPause = false; pane('#pause'); A.state = 'paused'; } else back(); });
 $('#pairForget').addEventListener('click', () => { A.link && A.link.forget(); qrTok = null; cal = { step: null, idx: 0, marks: [], result: null }; paintPair(); });
 function phoneChip(){
   const on = A.ctrl === 'phone' && A.link && (A.state === 'play' || A.state === 'paused');
@@ -192,9 +192,9 @@ function startLocal(){
 function beginPlay(looks, names){
   A.names = names; A.stats = { perfect: 0, contacts: 0, won: 0, miss: 0 };
   S.setPlayers((A.core || { players: A.mirror.players }).players, looks);
-  A.state = 'play'; A.netPause = false; controls.enabled = true; controls.useAim = A.ctrl === 'mouse' && A.mode !== 'guest';
+  A.state = 'play'; A.netPause = false; controls.enabled = true; controls.useAim = false;
   pane(null); show('#hud', true); scoreboard(); phoneChip();
-  hint(A.ctrl === 'phone' ? 'Colpisci quando la palla arriva: l\'anello sul campo diventa verde nel momento giusto' : 'Clic (o Spazio) quando la palla arriva: l\'anello sul campo diventa verde nel momento giusto');
+  hint('Colpisci con il telefono quando la palla arriva: l\'anello sul campo diventa verde nel momento giusto');
   S.arena.setScore('0-0');
   phoneSend({ t: 'ph', ph: 'play' });
 }
@@ -219,7 +219,7 @@ function onEvent(e, view){
       break;
     case 'bounce': S.mark(e.x, e.z); sound(.45, 'bounce'); break;
     case 'net': if (e.tape) flash('Nastro!', '', 800); sound(.5, 'net'); break;
-    case 'serveReady': if (mine) hint(A.ctrl === 'phone' ? 'Al servizio: un movimento lancia la palla, il secondo la colpisce in cima' : 'Al servizio: clic per lanciare la palla, clic di nuovo in cima al lancio'); if (mine) phoneSend({ t: 'ph', ph: 'serve' }); break;
+    case 'serveReady': if (mine) hint( 'Al servizio: un movimento lancia la palla, il secondo la colpisce in cima'); if (mine) phoneSend({ t: 'ph', ph: 'serve' }); break;
     case 'toss': if (mine) hint('Ora colpisci quando la palla è in cima'); break;
     case 'tossCaught': if (mine){ hint('Palla ripresa: rilancia quando vuoi'); if (e.why !== 'nessuno') timing('miss', e.why === 'presto' ? 'Troppo presto' : 'Troppo tardi', 'Colpisci quando la palla è in cima'); } break;
     case 'contact':
@@ -361,10 +361,10 @@ function openLobby(){
   if (A.mode === 'guest') A.guest.setMe({ name: myName(), ctrl: A.ctrl, ready: true });
   paintLobby();
 }
-function ctrlLabel(c, ready){ return c === 'phone' ? (ready ? 'telefono pronto' : 'telefono da calibrare') : 'mouse e tastiera'; }
+function ctrlLabel(c, ready){ return ready ? 'telefono pronto' : 'telefono da calibrare'; }
 function paintLobby(){
   if (A.state !== 'lobby') return;
-  const meReady = A.ctrl === 'mouse' || (A.link && A.link.ready);
+  const meReady = !!(A.link && A.link.ready);
   const row = (name, sub, st, color, ok) => `<div class="pl"><div class="av" style="background:${color}">${esc((name || '?')[0].toUpperCase())}</div><div><b>${esc(name)}</b><span>${esc(sub)}</span></div><div class="st" style="color:${ok ? '#16a34a' : '#8a93ab'}">${esc(st)}</div></div>`;
   if (A.mode === 'host'){
     const H = A.host;
@@ -375,7 +375,7 @@ function paintLobby(){
       + (g ? row(g.name, ctrlLabel(g.ctrl, g.ready), !g.connected ? 'Scollegato' : g.ready ? 'Pronto' : 'Si prepara…', '#ff5a3c', g.ready && g.connected) : row('In attesa dell\'amico…', 'Manda il link', '', '#c4cbe0', false));
     $('#lobbyStart').disabled = !(g && g.ready && g.connected && meReady);
     const note = $('#lobbyNote');
-    note.textContent = H.S.state === 'error' ? `Connessione non disponibile (${H.S.error}): la partita tra amici non può partire. Puoi giocare contro la CPU.` : !meReady ? 'Il tuo telefono non è pronto: tocca «Cambia controller».' : '';
+    note.textContent = H.S.state === 'error' ? `Connessione non disponibile (${H.S.error}): la partita tra amici non può partire. Puoi riprovare o tornare al menu.` : !meReady ? 'Collega e calibra il telefono per iniziare.' : '';
     note.className = 'note ' + (H.S.state === 'error' ? 'bad' : 'warn'); show(note, !!note.textContent);
   } else {
     const G = A.guest;
@@ -384,7 +384,7 @@ function paintLobby(){
   }
 }
 $('#invCopy').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('#invUrl').value); $('#invCopy').textContent = 'Copiato'; setTimeout(() => $('#invCopy').textContent = 'Copia', 1500); } catch (e){ $('#invUrl').select(); } });
-$('#invShare').addEventListener('click', () => navigator.share && navigator.share({ title: 'Racchetta', text: `${myName()} ti sfida a Racchetta: apri il link su un computer`, url: $('#invUrl').value }).catch(() => {}));
+$('#invShare').addEventListener('click', () => navigator.share && navigator.share({ title: 'NATPF Simulator', text: `${myName()} ti sfida a NATPF Simulator: apri il link e collega il telefono come racchetta`, url: $('#invUrl').value }).catch(() => {}));
 $('#lobbyCtrl').addEventListener('click', () => chooseCtrl(() => openLobby()));
 $('#lobbyLeave').addEventListener('click', () => leaveOnline());
 $('#lobbyStart').addEventListener('click', () => hostStart());
@@ -464,7 +464,7 @@ function pause(){
   phoneSend({ t: 'ph', ph: 'pause' });
 }
 function resume(){
-  A.state = 'play'; controls.enabled = true; pane(null); show('#hud', true); lastT = performance.now(); phoneChip(); controls.useAim = A.ctrl === 'mouse';
+  A.state = 'play'; controls.enabled = true; pane(null); show('#hud', true); lastT = performance.now(); phoneChip(); controls.useAim = false;
   if (A.mode === 'host') A.host.send({ t: 'pause', on: false });
   phoneSend({ t: 'ph', ph: 'play' });
   const p = me(); if (p) p.grace = grace();
