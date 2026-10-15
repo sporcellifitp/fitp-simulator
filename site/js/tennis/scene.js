@@ -64,6 +64,7 @@ export function createScene(container, { quality = 1 } = {}){
     for (const c of chars) scene.remove(c.g);
     chars = players.map((p, i) => { const c = makeCharacter(LOOKS[looks[i]] || LOOKS.blu); scene.add(c.g); return c; });
     last = new Map(); mood = new Map(); cameraTeam = null;
+    return chars;
   }
   function setMood(id, m, secs = 1.4){ mood.set(id, { m, until: performance.now()/1000 + secs }); }
 
