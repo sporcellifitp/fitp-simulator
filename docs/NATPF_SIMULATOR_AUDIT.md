@@ -106,7 +106,7 @@ Per ogni colpo servono: indicatore/feedback sul telefono, feedback sul campo, pa
 - Evitare un limite artificiale di colpi per rally.
 
 ### P1.4 — CPU tattica
-La funzione `cpuShot()` varia mira, ritmo, profondità, attacco su palla debole e pressione. Il branch espone Facile, Normale ed Esperto con parametri distinti; il bilanciamento e il comportamento nei rally lunghi restano da misurare.
+La funzione `cpuShot()` varia mira, ritmo, profondità e famiglia di colpo. La CPU può usare drive, lob contro chi sale a rete, palla corta contro chi resta profondo e slice; i livelli più alti variano più spesso. Negli scambi prolungati tende maggiormente a cercare l'attacco invece di aggiungere errori casuali per forzare il punto. Il bilanciamento resta da misurare.
 
 - **Facile:** reazione più lenta, maggiore tolleranza, lascia spazio.
 - **Normale:** recupera il centro e punisce palle corte/deboli.
