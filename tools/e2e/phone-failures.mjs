@@ -1,5 +1,5 @@
 // telefono senza sensori, permesso negato, permesso concesso (iPhone), calibrazione con swing troppo piccoli,
-// «Scollega» dai due lati, server di segnalazione irraggiungibile: il gioco spiega cosa fare e resta giocabile
+// «Scollega» dai due lati e server irraggiungibile: il gioco spiega come recuperare senza controller alternativo
 import { readFileSync } from 'node:fs';
 import { launch, page, check, summary, SP } from './th.mjs';
 const motion = readFileSync(new URL('./motion.js', import.meta.url), 'utf8');
@@ -7,7 +7,7 @@ const B = await launch(), size = { w: 800, h: 520 };
 async function desk(){
   const D = await page(B, 'http://127.0.0.1:8765/tennis/?peer=127.0.0.1:9000&q=low', size);
   await D.p.waitForFunction(() => window.__racchetta && window.qrcode, null, { timeout: 60000 });
-  await D.p.click('#btnCpu'); await D.p.click('#ctrlPhone');
+  await D.p.click('#btnCpu');
   await D.p.waitForFunction(() => document.querySelector('#qr').dataset.url, null, { timeout: 30000 });
   return { ...D, url: await D.p.evaluate(() => document.querySelector('#qr').dataset.url) };
 }
@@ -21,8 +21,7 @@ const errs = [];
   check('senza sensori: il computer spiega cosa fare e non fa partire il telefono', /Chrome|Safari/.test(await D.p.textContent('#errTxt')), await D.p.textContent('#errTxt'));
   check('… anche sul telefono', /Niente sensori/.test(await P.p.textContent('#big')));
   await D.p.screenshot({ path: SP + '/fail-nomotion.png' });
-  await D.p.click('#pairMouse');
-  check('… e si gioca con mouse e tastiera', await D.p.evaluate(() => __racchetta.state === 'play' && __racchetta.A.ctrl === 'mouse'));
+  check('nessun fallback mouse/tastiera: il gioco resta in attesa del telefono', await D.p.evaluate(() => __racchetta.state === 'pair' && __racchetta.A.ctrl === 'phone'));
   errs.push(...D.errs, ...P.errs); await D.ctx.close(); await P.ctx.close();
 }
 // 2. permesso negato (iPhone, «Non consentire»)
@@ -65,8 +64,7 @@ const errs = [];
   await D.p.click('#btnCpu'); await D.p.click('#ctrlPhone');
   await D.p.waitForFunction(() => /non disponibile/.test(document.querySelector('#pairStatus').textContent), null, { timeout: 40000 });
   check('server non raggiungibile: messaggio chiaro', true, await D.p.textContent('#pairStatus'));
-  await D.p.click('#pairMouse');
-  check('… e si gioca con mouse e tastiera', await D.p.evaluate(() => __racchetta.state === 'play'));
+  check('nessun fallback mouse/tastiera se il signaling fallisce', await D.p.evaluate(() => __racchetta.state === 'pair' && __racchetta.A.ctrl === 'phone'));
   // il browser scrive da solo in console il WebSocket rifiutato: è il guasto voluto, non un errore del gioco
   errs.push(...D.errs.filter(e => !/WebSocket connection to 'ws:\/\/127\.0\.0\.1:9999/.test(e))); await D.ctx.close();
 }
