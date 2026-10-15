@@ -4,6 +4,17 @@ import { launch, page, check, summary } from './th.mjs';
 const B = await launch();
 const { p, errs } = await page(B, 'http://127.0.0.1:8765/tennis/?q=low');
 await p.waitForFunction(() => window.__racchetta, null, { timeout: 60000 });
+const perspective = await p.evaluate(() => {
+  const S = __racchetta.S;
+  S.follow({ team: 0, x: 0, z: 8 }, 0, true);
+  const p1 = { cameraZ: S.camera.position.z, targetZ: -10 };
+  S.follow({ team: 1, x: 0, z: -8 }, 0, true);
+  const p2 = { cameraZ: S.camera.position.z, targetZ: 10 };
+  return { p1, p2, cameraUpY: S.camera.up.y };
+});
+check('prospettiva locale: entrambi i lati guardano verso la rete dal proprio fondo',
+  perspective.p1.cameraZ > 0 && perspective.p2.cameraZ < 0 && perspective.p1.targetZ < 0 && perspective.p2.targetZ > 0 && perspective.cameraUpY > .99,
+  JSON.stringify(perspective));
 check('rebranding NATPF Simulator', /NATPF Simulator/i.test(await p.title()) && /NATPF/.test(await p.textContent('#menu')));
 check('nessuna schermata o opzione di scelta controller', await p.locator('#ctrl').count() === 0 && await p.locator('#ctrlMouse').count() === 0 && await p.locator('#pairMouse').count() === 0);
 
