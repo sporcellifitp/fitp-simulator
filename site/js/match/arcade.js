@@ -325,18 +325,37 @@ export class ArcadeMatch extends MatchCore {
     const ox = opp.reduce((s, o) => s + o.x, 0)/Math.max(1, opp.length), side = p.team === 0 ? 1 : -1;
     let aimX = -Math.sign(ox*side || (rng() - .5))*(.35 + rng()*.55);
     if (rng() < .25) aimX = (rng()*2 - 1)*.5;
-    let pace = L.pace[0] + rng()*(L.pace[1] - L.pace[0]), depth = .55 + rng()*.33;
+    let pace = L.pace[0] + rng()*(L.pace[1] - L.pace[0]), depth = .55 + rng()*.33, type = 'drive';
     const lq = this.lastQuality, strong = lq && lq.label === 'perfetto' && lq.power > .7, weak = !lq || lq.label === 'anticipo' || lq.label === 'ritardo' || lq.power < .45;
-    // pressione: colpo perfetto e forte del giocatore, palla veloce, scambio lungo (niente scambi infiniti)
+    const nearNet = opp.some(o => Math.abs(o.z) < c.serviceZ*.72);
+    // La CPU varia il colpo in base alla posizione avversaria: lob contro chi sale, smorzata contro chi resta lontano.
+    // I livelli più alti usano più spesso la varietà, ma mantengono una quota di drive leggibili.
+    const lobRate = L === CPU.facile ? .12 : L === CPU.normale ? .2 : .28;
+    const dropRate = L === CPU.facile ? .05 : L === CPU.normale ? .1 : .15;
+    const sliceRate = L === CPU.facile ? .08 : L === CPU.normale ? .13 : .18;
+    if (nearNet && rng() < lobRate) type = 'lob';
+    else if (!nearNet && rng() < dropRate) type = 'drop';
+    else if (rng() < sliceRate) type = 'slice';
+    // pressione: colpo perfetto e forte del giocatore, palla veloce, scambio lungo (senza un limite artificiale ai rally)
     const pressure = (strong ? L.pressure : 0) + Math.min(.05, Math.hypot(this.ball.v.x, this.ball.v.z)/500) + Math.min(.06, this.rally.hits*.003);
-    // palla debole: attacco verso il campo libero, più veloce e angolato
-    if (rng() < (weak ? L.attack : L.attack*.4)){ aimX = -Math.sign(ox*side || (rng() - .5))*(.9 + rng()*.3); pace = L.attackPace[0] + rng()*(L.attackPace[1] - L.attackPace[0]); depth = .7 + rng()*.25; }
-    const target = shotTarget(c, p.team, aimX, depth, 'drive');
+    // palla debole: la CPU può scegliere di attaccare con un drive più rapido nel campo libero
+    if (rng() < (weak ? L.attack : L.attack*.4)){
+      type = 'drive'; aimX = -Math.sign(ox*side || (rng() - .5))*(.9 + rng()*.3);
+      pace = L.attackPace[0] + rng()*(L.attackPace[1] - L.attackPace[0]); depth = .7 + rng()*.25;
+    } else if (type === 'lob'){
+      depth = .92; pace *= .9;
+    } else if (type === 'drop'){
+      depth = .08; pace *= .68;
+    } else if (type === 'slice'){
+      depth = .62; pace *= .8;
+    }
+    const target = shotTarget(c, p.team, aimX, depth, type);
     this.lastQuality = null;
     if (rng() < L.err + pressure){
       const t = rng() < .5 ? { x: target.x, z: Math.sign(target.z)*.3 } : rng() < .5 ? { x: target.x, z: Math.sign(target.z)*(c.halfL + 1.2) } : { x: Math.sign(target.x || 1)*(c.halfW + 1), z: target.z };
-      return { type: 'drive', target: t, error: .2, clearance: t.z === Math.sign(target.z)*.3 ? -.3 : .4, pace };
+      return { type, target: t, error: .2, clearance: t.z === Math.sign(target.z)*.3 ? -.3 : type === 'lob' ? .8 : .4, pace };
     }
-    return { type: 'drive', target, error: L.spread, clearance: .55, pace };
+    const clearance = type === 'lob' ? 1.35 : type === 'drop' ? .32 : type === 'slice' ? .22 : .55;
+    return { type, target, error: L.spread + (type === 'drop' ? .14 : type === 'slice' ? .06 : 0), clearance, pace };
   }
 }
