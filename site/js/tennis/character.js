@@ -152,6 +152,7 @@ export function makeCharacter(look = LOOKS.blu){
           tw = lerp(1.15*sg, -.5*sg, a) - b*.7*sg;
           shRz = fh ? lerp(-1.2, .2, a) + b*1.2 : lerp(.7, -.7, a) - b*1.0;
           shRx = lerp(-.4, -.95, a) - b*.9; elR = lerp(-.5, -.15, a) - b*.6; rk = lerp(1.15, 2.65, a) - b*.35;
+          rkz = fh ? lerp(-.08, -.2, a) + b*.1 : lerp(.08, .24, a) - b*.1;
           shLx = -1 + b*.4; shLz = fh ? .1 - b*.5 : .3;
           lean = .1*a;
         }
