@@ -390,12 +390,17 @@ test('online: orologi allineati col viaggio più breve, istantanee interpolate, 
   clock.add(1000, 6050, 1100); clock.add(2000, 7015, 2030);          // il secondo viaggio è più breve: vale quello
   assert.equal(clock.off, 5000); assert.equal(clock.rtt, 30);
   const core = new ArcadeMatch({ teams: [[{ human: true, id: 'h' }], [{ human: true, id: 'g' }]], rng: mulberry32(1) });
+  core.players[1].anim = { kind: 'slice', side: 'bh', at: 10 };
+  core.players[1].inc = { Tc: 10.2, x: .5, z: 1, side: 'bh', y: 1.25 };
   const M = createMirror({ players: [{ id: 'h', team: 0 }, { id: 'g', team: 1 }], D: .1 });
   // due istantanee a 1/30 s; la palla si muove di 0,5 m
   core.ball.p = { x: 0, y: 1, z: 0 }; core.t = 10; M.push(JSON.parse(JSON.stringify(encodeSnap(core, 50000))));
   core.ball.p = { x: 0, y: 1, z: .5 }; core.t = 10 + 1/30; M.push(JSON.parse(JSON.stringify(encodeSnap(core, 50000 + 1000/30))));
   const v = M.view(10 + 1/60);
   assert.ok(Math.abs(v.ball.p.z - .25) < .02, `interpolata a metà: ${v.ball.p.z}`);
+  assert.equal(v.players[1].anim.kind, 'slice', 'il tipo di animazione si conserva nello snapshot');
+  assert.equal(v.players[1].anim.side, 'bh', 'il lato del colpo si conserva nello snapshot');
+  assert.equal(v.players[1].inc.y, 1.25, 'la quota prevista arriva al client remoto per lo sweet spot');
   // tempo di partita da un istante locale: ultima istantanea + tempo passato sull'orologio dell'host − ritardo di disegno
   const local = 50000 + 1000/30 - 5000 + 100;                        // 100 ms dopo l'ultima istantanea (ora locale)
   assert.ok(Math.abs(M.coreNow(local, clock) - (10 + 1/30 + .1)) < 2e-3);
