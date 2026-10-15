@@ -119,12 +119,16 @@ export function createScene(container, { quality = 1 } = {}){
   // Camera locale: il team 0 guarda da z>0 verso -z; il team 1 da z<0 verso +z.
   // È una trasformazione di vista del client: personaggi, palla, bersagli e fisica mantengono le coordinate assolute.
   const camPos = new THREE.Vector3(), camAt = new THREE.Vector3();
+  let cameraTeam = null;
   function follow(p, dt, snap = false){
     const frame = playerCameraFrame(p, HL);
     camPos.set(frame.camera.x, frame.camera.y, frame.camera.z);
     camAt.set(frame.target.x, frame.target.y, frame.target.z);
     camera.up.set(0, 1, 0);
-    if (snap) camera.position.copy(camPos); else camera.position.lerp(camPos, Math.min(1, dt*4));
+    // Al primo match (e se cambia team) applica subito la prospettiva locale: niente attraversamento del campo.
+    if (snap || cameraTeam == null || cameraTeam !== frame.team) camera.position.copy(camPos);
+    else camera.position.lerp(camPos, Math.min(1, dt*4));
+    cameraTeam = frame.team;
     camera.lookAt(camAt);
   }
   // vista d'insieme dell'arena per i menu: giro lento dall'alto
