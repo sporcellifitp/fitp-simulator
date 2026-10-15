@@ -7,7 +7,7 @@ import { newScore, awardPoint, pointLabels, Rally } from '../../site/js/match/ru
 import { MatchCore, mulberry32 } from '../../site/js/match/core.js';
 import { gauss } from '../../site/js/match/ai.js';
 import { ArcadeMatch, ARC, CPU, rel, tossY, TOSS_APEX, arcadeShot } from '../../site/js/match/arcade.js';
-import { createSwingDetector } from '../../site/js/tennis/swing-detect.js';
+import { createSwingDetector, classifySwingType } from '../../site/js/tennis/swing-detect.js';
 import { createCalibration, PLAN } from '../../site/js/tennis/calibration.js';
 import { createGate, parsePairing, pairingUrl, newSessionId, SESSION_PREFIX } from '../../site/js/tennis/pairing.js';
 
@@ -84,19 +84,20 @@ function play(core, swings, secs = 1.6){
   }
   return out;
 }
-test('arcade: in tempo «perfetto», anticipo incrociato, ritardo lungolinea; i margini sono larghi', () => {
-  const vx = { perfetto: [], anticipo: [], ritardo: [] };
-  for (let s = 1; s <= 20; s++) for (const [k, d] of [['perfetto', 0], ['anticipo', -.17], ['ritardo', .17]]){
-    const { core, tc } = rallyScene(s);
-    const ev = play(core, [{ at: tc + d }]);
-    const c = ev.find(e => e.type === 'contact');
-    assert.ok(c, `${k}: c'è il contatto`); assert.equal(c.label, k);
-    vx[k].push(core.ball.v.x);
-  }
-  const avg = a => a.reduce((x, y) => x + y, 0)/a.length;
-  // dritto del giocatore in basso (guarda verso -z): in anticipo la palla va a sinistra (x < 0), in ritardo a destra
-  assert.ok(avg(vx.anticipo) < avg(vx.perfetto) - 1 && avg(vx.perfetto) < avg(vx.ritardo) - 1, JSON.stringify([avg(vx.anticipo), avg(vx.perfetto), avg(vx.ritardo)].map(x => x.toFixed(2))));
-  // «buono» entro 120 ms, colpo comunque valido fino a 280 ms prima e 220 ms dopo
+test('arcade: il timing determina qualità e ritmo, la direzione del gesto determina l\'angolo', () => {
+  const court = COURTS.tennis, p = { team: 0, x: 0, z: 12 }, ball = { p: { x: .7, y: 1.4, z: 2 } };
+  const early = arcadeShot(court, p, ball, { power: .6, dir: 1 }, -.17);
+  const perfect = arcadeShot(court, p, ball, { power: .6, dir: 1 }, 0);
+  const late = arcadeShot(court, p, ball, { power: .6, dir: 1 }, .17);
+  assert.equal(early.target.x, perfect.target.x);
+  assert.equal(perfect.target.x, late.target.x);
+  assert.ok(perfect.pace > early.pace, 'timing perfetto aumenta il ritmo utile');
+  assert.ok(early.error > perfect.error && late.error > perfect.error, 'fuori tempo aumenta il rischio');
+  const left = arcadeShot(court, p, ball, { power: .6, dir: 1 }, 0).target;
+  const center = arcadeShot(court, p, ball, { power: .6, dir: 0 }, 0).target;
+  const right = arcadeShot(court, p, ball, { power: .6, dir: -1 }, 0).target;
+  assert.ok(left.x < center.x && center.x < right.x, 'il gesto controlla sinistra, centro e destra');
+  // «buono» entro 120 ms, colpo valido fino a 280 ms prima e 220 ms dopo
   for (const d of [-.1, .1, -.26, .2]){ const { core, tc } = rallyScene(4); assert.ok(play(core, [{ at: tc + d }]).find(e => e.type === 'contact'), `swing a ${d*1000} ms`); }
 });
 test('NATPF Simulator: drive, palla corta, lob e slice sono classificati e mirano a profondità diverse', () => {
@@ -109,6 +110,10 @@ test('NATPF Simulator: drive, palla corta, lob e slice sono classificati e miran
   assert.equal(lob.type, 'lob'); assert.equal(slice.type, 'slice');
   assert.ok(Math.abs(drop.target.z) < Math.abs(drive.target.z), 'la palla corta atterra più vicino alla rete');
   assert.ok(drop.pace < drive.pace && slice.pace < drive.pace, 'drop e slice sono meno penetranti del drive');
+  assert.ok(CPU.esperto && CPU.esperto.label === 'Esperto', 'livello CPU Esperto configurato');
+  assert.deepEqual(classifySwingType({ power: .48, lift: .1, dur: 150 }), { drop: true, slice: false, lob: false });
+  assert.deepEqual(classifySwingType({ power: .7, lift: -.8, dur: 240 }), { drop: false, slice: true, lob: false });
+  assert.deepEqual(classifySwingType({ power: .8, lift: .8, dur: 240 }), { drop: false, slice: false, lob: true });
 });
 test('arcade: troppo presto, troppo tardi e nessun movimento vengono detti', () => {
   let { core, tc } = rallyScene(2); assert.equal(play(core, [{ at: tc - .5 }]).find(e => e.type === 'miss').why, 'presto');
