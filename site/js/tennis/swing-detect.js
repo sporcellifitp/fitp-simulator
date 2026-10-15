@@ -28,6 +28,14 @@ export const DEFAULTS = {
 // profilo di chi gioca (dalla calibrazione): deriva, asse del colpo (+ = da destra a sinistra), colpo tipico, soglie
 export const defaultProfile = () => ({ bias: [0, 0, 0], axis: null, ref: 600, on: DEFAULTS.on, minPeak: DEFAULTS.minPeak, minAngle: DEFAULTS.minAngle, lobLift: null, sens: 1 });
 
+// La durata è in millisecondi, come i timestamp del sensore.
+export function classifySwingType({ power = .6, lift = 0, dur = 999 } = {}, lobLift = null){
+  const drop = dur <= 180 && power <= .55 && lift > -.45 && lift < .55;
+  const slice = !drop && lift <= -.65;
+  const lob = (lobLift != null && lift >= lobLift) || lift >= .7;
+  return { drop, slice, lob };
+}
+
 export function createSwingDetector(opts = {}){
   const C = { ...DEFAULTS, ...opts };
   let prof = defaultProfile();
