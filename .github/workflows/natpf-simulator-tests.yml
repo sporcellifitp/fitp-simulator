@@ -65,7 +65,7 @@ jobs:
   cloudflare-package:
     name: Package static site for Cloudflare Pages
     runs-on: ubuntu-latest
-    needs: [unit]
+    needs: [unit, browser-smoke]
     steps:
       - name: Checkout tested commit
         uses: actions/checkout@v4
