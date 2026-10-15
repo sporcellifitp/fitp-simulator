@@ -1,12 +1,9 @@
-// Partita arcade di «Racchetta»: stesse regole, punteggio e fisica della palla della partita base (core.js), ma il colpo
-// funziona come nei giochi di tennis con il controller di movimento (Wii Sports, Nintendo Switch Sports):
-//  - il personaggio si muove da solo verso la palla; chi gioca pensa solo a quando colpire;
-//  - conta il tempo dello swing rispetto all'istante in cui la palla passa davanti al giocatore, con una finestra larga;
-//    in anticipo la palla va incrociata, in ritardo lungolinea, come in Switch Sports (dritto: anticipo → sinistra);
-//  - si giudica la palla, non lo swing: tra più movimenti vicini (apertura, colpo, ritorno del braccio) vale quello più
-//    vicino all'istante giusto; gli altri si ignorano. Se non arriva nessun colpo buono si dice perché (presto, tardi, niente);
-//  - ritardo del telefono e della rete: si aspetta il colpo fino a «grace» secondi dopo il passaggio della palla, e la palla
-//    riparte dal punto in cui era al momento dello swing (al massimo 0,16 s indietro). Intanto il punto non si chiude.
+// Motore arcade di NATPF Simulator: regole e fisica condivise con core.js, input di gioco solo dal telefono.
+//  - il personaggio si muove da solo verso la palla: il giocatore controlla gesto, timing e scelta del colpo;
+//  - la direzione calibrata dello swing sceglie sinistra/centro/destra; il timing influisce su precisione, ritmo e rischio;
+//  - tra gli swing vicini (apertura, impatto, ritorno del braccio) vale quello più vicino al momento d'impatto;
+//  - quando il colpo manca, il gioco spiega se è arrivato presto, tardi, debole o fuori portata;
+//  - il ritardo del telefono/rete è compensato dalla cronologia della palla e dalla finestra di attesa del colpo.
 // Senza Three.js: testabile con node --test.
 import { MatchCore } from './core.js';
 import { stepBall, predict, sideOf } from './physics.js';
@@ -26,9 +23,19 @@ export const ARC = {
 };
 // err: errori gratuiti per colpo; attack: probabilità di attaccare quando la palla gli arriva debole o fuori tempo
 export const CPU = {
-  facile:  { label: 'Facile',  err: .055, spread: .3, pace: [.72, .84], attack: .25, attackPace: [1, 1.12], speed: 6.2, reaction: .3, pressure: .05 },
-  normale: { label: 'Normale', err: .045, spread: .26, pace: [.8, .95], attack: .35, attackPace: [1.05, 1.2], speed: 6.8, reaction: .22, pressure: .04 },
+  facile:  { label: 'Facile',  err: .055, spread: .3,  pace: [.72, .84], attack: .25, attackPace: [1, 1.12], speed: 6.2, reaction: .3,  pressure: .05, lobRate: .12, dropRate: .05, sliceRate: .08 },
+  normale: { label: 'Normale', err: .045, spread: .26, pace: [.8, .95],  attack: .35, attackPace: [1.05, 1.2], speed: 6.8, reaction: .22, pressure: .04, lobRate: .2,  dropRate: .1,  sliceRate: .13 },
+  esperto: { label: 'Esperto', err: .035, spread: .2,  pace: [.88, 1.02], attack: .43, attackPace: [1.12, 1.3], speed: 7.3, reaction: .16, pressure: .065, lobRate: .28, dropRate: .15, sliceRate: .18 },
 };
+
+export function chooseCpuShotType(nearNet, level, rng){
+  // Variety stays purposeful: punish a player at net with a lob, a deep defender with a drop,
+  // and mix in slices. A weak incoming ball can still override this with an attacking drive.
+  if (nearNet && rng() < level.lobRate) return 'lob';
+  if (!nearNet && rng() < level.dropRate) return 'drop';
+  if (rng() < level.sliceRate) return 'slice';
+  return 'drive';
+}
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const axes = p => ({ fz: p.team === 0 ? -1 : 1, rx: p.team === 0 ? 1 : -1 });
 // la palla vista dal giocatore: s avanti (verso la rete), l a destra (lato del dritto), h altezza
@@ -37,23 +44,25 @@ export const tossY = t => ARC.TOSS.y0 + ARC.TOSS.vy*t - 4.905*t*t;
 export const TOSS_APEX = ARC.TOSS.vy/9.81;
 export function timingLabel(e){ const q = Math.abs(e); return q <= ARC.PERFECT ? 'perfetto' : q <= ARC.GOOD ? 'buono' : e < 0 ? 'anticipo' : 'ritardo'; }
 
-// Il colpo che esce dall'impatto: direzione dal tempo (più la mira del mouse, se c'è), profondità e ritmo dalla potenza.
-// Errori piccoli: si sbaglia davvero solo molto fuori tempo o tirando fortissimo.
+// Il colpo: la direzione del gesto calibrato controlla l'angolo; il timing controlla qualità e ritmo.
+// dir=+1 (swing destra→sinistra) mira a sinistra dell'avversario; dir=-1 mira a destra; dir=0 mira al centro.
 export function arcadeShot(court, p, ball, sw, e){
-  const q = Math.abs(e), u = clamp(e/.16, -1.6, 1.6), r = rel(p, ball.p), fore = r.l >= 0;
+  const q = Math.abs(e), r = rel(p, ball.p), fore = r.l >= 0;
   const power = clamp(sw.power ?? .6, .2, 1), lift = clamp(sw.lift ?? 0, -1, 1);
   let type = 'drive';
-  if (sw.lob || lift >= .7) type = 'lob';
-  else if (ball.p.y > 2.1 && Math.abs(ball.p.z) < court.halfL*.8) type = 'smash';
+  if (ball.p.y > 2.1 && Math.abs(ball.p.z) < court.halfL*.8) type = 'smash';
+  else if (sw.drop) type = 'drop';
+  else if (sw.lob || lift >= .7) type = 'lob';
+  else if (sw.slice || lift <= -.65) type = 'slice';
   const over = Math.max(0, q - ARC.GOOD);                // molto fuori tempo: più errore, palla più bassa sulla rete e più lunga
-  const pull = u*.85*(fore ? 1 : -1), dir = p.team === 0 ? 1 : -1;      // aimX < 0 = sinistra di chi colpisce
-  const aimBase = sw.aim ? clamp(sw.aim.x/(court.halfW - .75)*dir, -1, 1)*.8 : 0;
-  const aimX = clamp(aimBase + pull, q <= ARC.GOOD ? -.95 : -1.25, q <= ARC.GOOD ? .95 : 1.25);
-  const depth = type === 'lob' ? .9 : .5 + .45*power + over*2;
+  const gestureDir = clamp(sw.dir ?? 0, -1, 1);
+  const aimX = -gestureDir*.72;
+  const angleRisk = Math.abs(aimX)*.08;
+  const depth = type === 'drop' ? .08 : type === 'lob' ? .9 : type === 'slice' ? .62 : .5 + .45*power + over*2;
   const target = shotTarget(court, p.team, aimX, depth, type);
-  const error = (q <= ARC.PERFECT ? .1 : q <= ARC.GOOD ? .2 : .3 + over*6) + (power > .92 ? .25 : 0);
-  const pace = type === 'lob' ? 1 : .76 + .44*power + (q <= ARC.PERFECT ? .1 : 0);
-  const clearance = type === 'lob' ? 1.4 : type === 'smash' ? .25 : .55 + .3*Math.max(0, lift) - over*3.5;
+  const error = (q <= ARC.PERFECT ? .1 : q <= ARC.GOOD ? .2 : .3 + over*6) + angleRisk + (power > .92 ? .25 : 0) + (type === 'drop' ? .18 : type === 'slice' ? .08 : 0);
+  const pace = type === 'lob' ? .9 : type === 'drop' ? .62 : type === 'slice' ? .78 : .76 + .44*power + (q <= ARC.PERFECT ? .1 : 0);
+  const clearance = type === 'lob' ? 1.4 : type === 'smash' ? .25 : type === 'drop' ? .32 : type === 'slice' ? .22 : .55 + .3*Math.max(0, lift) - over*3.5;
   return { type, target, error, clearance, pace, label: timingLabel(e), power, fore };
 }
 
@@ -257,7 +266,7 @@ export class ArcadeMatch extends MatchCore {
       h.pend = null; h.done = true; h.inc = null;
       const shot = arcadeShot(this.court, h, this.ball, best, e);
       this.shadow = null; this.deferred = null;
-      h.anim = { kind: shot.type === 'smash' ? 'smash' : 'swing', side: shot.fore ? 'fh' : 'bh', at: Math.min(now, best.at), hit: true };
+      h.anim = { kind: shot.type, side: shot.fore ? 'fh' : 'bh', at: Math.min(now, best.at), hit: true };
       this.lastQuality = { label: shot.label, power: shot.power };
       this.strike(h, shot, false);
       this.emit({ type: 'contact', player: h.id, timing: e, label: shot.label, power: shot.power, shot: shot.type, side: shot.fore ? 'fh' : 'bh' });
@@ -315,8 +324,19 @@ export class ArcadeMatch extends MatchCore {
     for (const p of this.players){
       if (p.human || this.phase !== 'live' || !this.rally.canHit(p.team) || this.sinceHit < .22) continue;
       if (p.react > 0 || !this.canReach(p) || this.ball.p.y > 2.9 || !this.aiWants(p)) continue;
-      p.anim = { kind: this.ball.p.y > 2.1 ? 'smash' : 'swing', side: rel(p, this.ball.p).l >= 0 ? 'fh' : 'bh', at: this.t, hit: true };
-      this.strike(p, this.cpuShot(p));
+      const shot = this.cpuShot(p);
+      if (this.ball.p.y > 2.1 && Math.abs(this.ball.p.z) < this.court.halfL*.8){
+        // Una palla alta è uno smash anche per la CPU: mantieni bersaglio, traiettoria e posa coerenti.
+        const factor = p.team === 0 ? 1 : -1;
+        const aimX = shot.target ? clamp(shot.target.x/(factor*(this.court.halfW - .75)), -1, 1) : 0;
+        shot.type = 'smash';
+        shot.target = shotTarget(this.court, p.team, aimX, .88, 'smash');
+        shot.error = this.cpu.spread;
+        shot.clearance = .25;
+        shot.pace = Math.max(1.08, shot.pace);
+      }
+      p.anim = { kind: shot.type, side: rel(p, this.ball.p).l >= 0 ? 'fh' : 'bh', at: this.t, hit: true };
+      this.strike(p, shot);
     }
   }
   // il computer tiene lo scambio: mira dentro il campo con margine, ritmo moderato; sbaglia ogni tanto, di più sotto pressione
@@ -325,18 +345,37 @@ export class ArcadeMatch extends MatchCore {
     const ox = opp.reduce((s, o) => s + o.x, 0)/Math.max(1, opp.length), side = p.team === 0 ? 1 : -1;
     let aimX = -Math.sign(ox*side || (rng() - .5))*(.35 + rng()*.55);
     if (rng() < .25) aimX = (rng()*2 - 1)*.5;
-    let pace = L.pace[0] + rng()*(L.pace[1] - L.pace[0]), depth = .55 + rng()*.33;
+    let pace = L.pace[0] + rng()*(L.pace[1] - L.pace[0]), depth = .55 + rng()*.33, type = 'drive';
     const lq = this.lastQuality, strong = lq && lq.label === 'perfetto' && lq.power > .7, weak = !lq || lq.label === 'anticipo' || lq.label === 'ritardo' || lq.power < .45;
-    // pressione: colpo perfetto e forte del giocatore, palla veloce, scambio lungo (niente scambi infiniti)
-    const pressure = (strong ? L.pressure : 0) + Math.min(.05, Math.hypot(this.ball.v.x, this.ball.v.z)/500) + Math.min(.06, this.rally.hits*.003);
-    // palla debole: attacco verso il campo libero, più veloce e angolato
-    if (rng() < (weak ? L.attack : L.attack*.4)){ aimX = -Math.sign(ox*side || (rng() - .5))*(.9 + rng()*.3); pace = L.attackPace[0] + rng()*(L.attackPace[1] - L.attackPace[0]); depth = .7 + rng()*.25; }
-    const target = shotTarget(c, p.team, aimX, depth, 'drive');
+    const nearNet = opp.some(o => Math.abs(o.z) < c.serviceZ*.72);
+    // La CPU varia il colpo in base alla posizione avversaria: lob contro chi sale, smorzata contro chi resta lontano.
+    // I livelli più alti usano più spesso la varietà, ma mantengono una quota di drive leggibili.
+    type = chooseCpuShotType(nearNet, L, rng);
+    // Pressione leggibile: colpo forte, palla veloce e impatto vicino al limite di portata.
+    // La durata del rally non aggiunge errori casuali: rende invece la CPU più propensa a cercare il punto.
+    const reachRatio = Math.hypot(this.ball.p.x - p.x, this.ball.p.z - p.z)/Math.max(.1, p.reach || 1.25);
+    const executionStress = Math.max(0, reachRatio - .55);
+    const executionError = Math.min(.15, executionStress*.24 + (p.moving > .65 ? .02 : 0));
+    const pressure = (strong ? L.pressure : 0) + Math.min(.05, Math.hypot(this.ball.v.x, this.ball.v.z)/500) + executionError*.4;
+    const longRallyAttack = Math.min(.16, this.rally.hits*.004);
+    // Palla debole o scambio prolungato: più probabilità di attaccare il campo libero con un drive rapido.
+    if (rng() < Math.min(.85, (weak ? L.attack : L.attack*.4) + longRallyAttack)){
+      type = 'drive'; aimX = -Math.sign(ox*side || (rng() - .5))*(.9 + rng()*.3);
+      pace = L.attackPace[0] + rng()*(L.attackPace[1] - L.attackPace[0]); depth = .7 + rng()*.25;
+    } else if (type === 'lob'){
+      depth = .92; pace *= .9;
+    } else if (type === 'drop'){
+      depth = .08; pace *= .68;
+    } else if (type === 'slice'){
+      depth = .62; pace *= .8;
+    }
+    const target = shotTarget(c, p.team, aimX, depth, type);
     this.lastQuality = null;
     if (rng() < L.err + pressure){
       const t = rng() < .5 ? { x: target.x, z: Math.sign(target.z)*.3 } : rng() < .5 ? { x: target.x, z: Math.sign(target.z)*(c.halfL + 1.2) } : { x: Math.sign(target.x || 1)*(c.halfW + 1), z: target.z };
-      return { type: 'drive', target: t, error: .2, clearance: t.z === Math.sign(target.z)*.3 ? -.3 : .4, pace };
+      return { type, target: t, error: .2 + executionError, clearance: t.z === Math.sign(target.z)*.3 ? -.3 : type === 'lob' ? .8 : .4, pace };
     }
-    return { type: 'drive', target, error: L.spread, clearance: .55, pace };
+    const clearance = type === 'lob' ? 1.35 : type === 'drop' ? .32 : type === 'slice' ? .22 : .55;
+    return { type, target, error: L.spread + executionError + (type === 'drop' ? .14 : type === 'slice' ? .06 : 0), clearance, pace };
   }
 }

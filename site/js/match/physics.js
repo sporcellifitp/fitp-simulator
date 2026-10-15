@@ -109,6 +109,7 @@ export function shotTime(court, type, dist){
   if (type === 'lob') return court.sport === 'padel' ? 1.75 : 1.85;
   if (type === 'smash') return Math.max(.32, dist/(fast*1.45));
   if (type === 'serve') return Math.max(.42, dist/(fast*1.25));
-  if (type === 'drop') return Math.max(.7, dist/(fast*.55));
+  if (type === 'drop') return Math.max(.72, dist/(fast*.55));
+  if (type === 'slice') return Math.max(.55, dist/(fast*.82));
   return Math.max(.45, dist/fast);
 }

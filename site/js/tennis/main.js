@@ -1,7 +1,7 @@
-// «Racchetta»: il gioco. Collega scena (scene.js), partita arcade (match/arcade.js), comandi (controls.js), telefono
+// «NATPF Simulator»: il gioco. Collega scena (scene.js), partita arcade (match/arcade.js), comandi (controls.js), telefono
 // (link.js + calibrazione guidata) e partita tra amici (session.js + net.js).
 // Modalità: cpu (contro il computer), host (chi invita: fa girare la partita), guest (chi riceve il link: vede lo stato
-// dell'host e manda i suoi colpi). Schermate: menu → controller → telefono (collega, impugna, prova, verifica, conferma)
+// dell'host e manda i suoi colpi). Schermate: menu → telefono (QR, impugnatura, prova, verifica, conferma)
 // → partita o sala d'attesa → partita → fine.
 import { ArcadeMatch } from '../match/arcade.js';
 import { pointLabels } from '../match/rules.js';
@@ -17,8 +17,8 @@ import { PLAN, CAL } from './calibration.js';
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => (typeof s === 'string' ? $(s) : s).classList.toggle('hidden', !on);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const store = { get(k, d){ try { const v = localStorage.getItem('racchetta.' + k); return v == null ? d : JSON.parse(v); } catch (e){ return d; } }, set(k, v){ try { localStorage.setItem('racchetta.' + k, JSON.stringify(v)); } catch (e){} } };
-const SCREENS = ['#menu', '#ctrl', '#pair', '#lobby', '#guest', '#mobile', '#net', '#pause', '#end'];
+const store = { get(k, d){ try { const v = localStorage.getItem('natpf-simulator.' + k); return v == null ? d : JSON.parse(v); } catch (e){ return d; } }, set(k, v){ try { localStorage.setItem('natpf-simulator.' + k, JSON.stringify(v)); } catch (e){} } };
+const SCREENS = ['#menu', '#pair', '#lobby', '#guest', '#mobile', '#net', '#pause', '#end'];
 const pane = id => { for (const s of SCREENS) show(s, s === id); };
 const isPhone = /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent) || (matchMedia('(pointer: coarse)').matches && Math.min(window.screen.width || 9999, innerWidth) < 600);
 
@@ -29,7 +29,7 @@ const MISS = { presto: ['Troppo presto', 'Hai colpito prima che arrivasse la pal
 const S = createScene($('#app'));
 const controls = createControls(S.renderer.domElement, { pick: (x, y) => S.pick(x, y) });
 const A = {
-  state: 'menu', mode: 'cpu', ctrl: 'mouse', name: store.get('name', ''), fmt: store.get('fmt', '4'), level: store.get('level', 'facile'),
+  state: 'menu', mode: 'cpu', ctrl: 'phone', name: store.get('name', ''), fmt: store.get('fmt', '4'), level: store.get('level', 'facile'),
   core: null, demo: null, link: null, host: null, guest: null, mirror: null, myId: 'me', afterCtrl: null, netPause: false, stats: null,
 };
 let lastT = performance.now(), flashT = 0, timingT = 0, snapAcc = 0, inputQ = { sw: [], ts: [], mv: { x: 0, y: 0 }, auto: true }, lastMv = '', endTimer = null;
@@ -50,10 +50,7 @@ $('#btnCpu').addEventListener('click', () => { A.mode = 'cpu'; chooseCtrl(() => 
 $('#btnInvite').addEventListener('click', () => { A.mode = 'host'; openHost(); });
 
 /* ---------- controller ---------- */
-function chooseCtrl(next){ A.afterCtrl = next; A.state = 'ctrl'; pane('#ctrl'); }
-$('#ctrlMouse').addEventListener('click', () => { A.ctrl = 'mouse'; A.afterCtrl && A.afterCtrl(); });
-$('#ctrlPhone').addEventListener('click', () => openPair(A.afterCtrl));
-$('#ctrlBack').addEventListener('click', () => back());
+function chooseCtrl(next){ A.afterCtrl = next; A.ctrl = 'phone'; openPair(next); }
 function back(){
   if (A.mode === 'guest'){ A.state = 'guest'; pane('#guest'); return; }
   if (A.mode === 'host' && A.host){ openLobby(); return; }
@@ -106,7 +103,7 @@ function paintPair(){
   if (L.L.state === 'waiting') txt = 'Inquadra il codice con la fotocamera del telefono';
   if (L.L.state === 'connected'){ txt = 'Telefono collegato: tocca «Attiva i sensori» sul telefono'; dot = 'ok'; }
   if (L.L.state === 'lost'){ txt = 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo'; dot = 'bad'; }
-  if (L.L.state === 'error'){ txt = `Connessione non disponibile (${L.L.error}). Puoi giocare con mouse e tastiera.`; dot = 'bad'; }
+  if (L.L.state === 'error'){ txt = `Connessione non disponibile (${L.L.error}). Riprova o verifica la connessione.`; dot = 'bad'; }
   $('#pairStatus').textContent = txt; $('#pairDot').className = 'dot ' + dot;
   show('#pairWarn', !L.connected && !!$('#pairWarn').textContent);
   const box = $('#qr');
@@ -166,8 +163,7 @@ $('#rvConfirm').addEventListener('click', () => A.link.cmd('confirm'));
 $('#pairRecal').addEventListener('click', () => { cal = { step: null, idx: 0, marks: [], result: null }; A.link.cmd('cal'); });
 $('#errRetry').addEventListener('click', () => { A.link.cmd('cal'); paintPair(); });
 $('#pairGo').addEventListener('click', () => { A.ctrl = 'phone'; pairNext && pairNext(); });
-$('#pairMouse').addEventListener('click', () => { A.ctrl = 'mouse'; pairNext && pairNext(); });
-$('#pairBack').addEventListener('click', () => { if (A.state === 'paused' || A.pairFromPause){ A.pairFromPause = false; pane('#pause'); A.state = 'paused'; } else chooseCtrl(pairNext); });
+$('#pairBack').addEventListener('click', () => { if (A.state === 'paused' || A.pairFromPause){ A.pairFromPause = false; pane('#pause'); A.state = 'paused'; } else back(); });
 $('#pairForget').addEventListener('click', () => { A.link && A.link.forget(); qrTok = null; cal = { step: null, idx: 0, marks: [], result: null }; paintPair(); });
 function phoneChip(){
   const on = A.ctrl === 'phone' && A.link && (A.state === 'play' || A.state === 'paused');
@@ -176,7 +172,7 @@ function phoneChip(){
   let t = 'Telefono: in attesa', cls = '';
   if (L.ready){ t = 'Telefono pronto' + (L.L.rtt != null ? ` · ${L.L.rtt} ms` : ''); cls = 'ok'; }
   else if (L.L.state === 'connected') t = 'Telefono: da calibrare (pausa → Telefono)';
-  else if (L.L.state === 'lost' || L.L.state === 'error'){ t = 'Telefono scollegato · usa mouse e tastiera'; cls = 'bad'; }
+  else if (L.L.state === 'lost' || L.L.state === 'error'){ t = 'Telefono scollegato · ricollega il controller'; cls = 'bad'; }
   c.className = cls; c.querySelector('span').textContent = t;
 }
 
@@ -192,9 +188,9 @@ function startLocal(){
 function beginPlay(looks, names){
   A.names = names; A.stats = { perfect: 0, contacts: 0, won: 0, miss: 0 };
   S.setPlayers((A.core || { players: A.mirror.players }).players, looks);
-  A.state = 'play'; A.netPause = false; controls.enabled = true; controls.useAim = A.ctrl === 'mouse' && A.mode !== 'guest';
+  A.state = 'play'; A.netPause = false; controls.enabled = true; controls.useAim = false;
   pane(null); show('#hud', true); scoreboard(); phoneChip();
-  hint(A.ctrl === 'phone' ? 'Colpisci quando la palla arriva: l\'anello sul campo diventa verde nel momento giusto' : 'Clic (o Spazio) quando la palla arriva: l\'anello sul campo diventa verde nel momento giusto');
+  hint('Il gesto orienta il colpo a sinistra/destra; il timing determina qualità e velocità. Colpisci quando l\'anello diventa verde.');
   S.arena.setScore('0-0');
   phoneSend({ t: 'ph', ph: 'play' });
 }
@@ -219,15 +215,15 @@ function onEvent(e, view){
       break;
     case 'bounce': S.mark(e.x, e.z); sound(.45, 'bounce'); break;
     case 'net': if (e.tape) flash('Nastro!', '', 800); sound(.5, 'net'); break;
-    case 'serveReady': if (mine) hint(A.ctrl === 'phone' ? 'Al servizio: un movimento lancia la palla, il secondo la colpisce in cima' : 'Al servizio: clic per lanciare la palla, clic di nuovo in cima al lancio'); if (mine) phoneSend({ t: 'ph', ph: 'serve' }); break;
+    case 'serveReady': if (mine) hint('Al servizio: un movimento lancia la palla, il secondo la colpisce in cima'); if (mine) phoneSend({ t: 'ph', ph: 'serve' }); break;
     case 'toss': if (mine) hint('Ora colpisci quando la palla è in cima'); break;
     case 'tossCaught': if (mine){ hint('Palla ripresa: rilancia quando vuoi'); if (e.why !== 'nessuno') timing('miss', e.why === 'presto' ? 'Troppo presto' : 'Troppo tardi', 'Colpisci quando la palla è in cima'); } break;
     case 'contact':
       if (!mine) break;
       A.stats.contacts++; if (e.label === 'perfetto') A.stats.perfect++;
-      timing(e.label, TIMING[e.label] || e.label, e.serve ? 'Servizio' : '');
+      timing(e.label, TIMING[e.label] || e.label, e.serve ? 'Servizio' : ({ drop: 'Palla corta', lob: 'Lob', slice: 'Tagliato', smash: 'Smash' }[e.shot] || ''));
       S.burst((view || viewNow()).ball.p, e.label === 'perfetto' ? 0x4cff8a : e.label === 'buono' ? 0xffffff : 0xffd56b);
-      phoneSend({ t: 'ev', k: 'contact', label: e.label });
+      phoneSend({ t: 'ev', k: 'contact', label: e.label, shot: e.shot });
       hint('');
       break;
     case 'miss': if (mine){ A.stats.miss++; const m = MISS[e.why] || ['Mancata', '']; timing('miss', m[0], m[1]); phoneSend({ t: 'ev', k: 'miss', why: e.why }); } break;
@@ -319,8 +315,8 @@ function stepCore(dt, now){
   S.sync(viewOf(core), dt, { id: A.myId, assist: true }); S.follow(m, dt);
   aimMarker();
 }
-// mirino del mouse: dove si manda la palla (il tempo resta la cosa più importante)
-function aimMarker(){ const a = A.ctrl === 'mouse' && A.state === 'play' && controls.aim; S.aim.visible = !!a; if (a) S.aim.position.set(A.myId === 'g' ? -a.x : a.x, .02, A.myId === 'g' ? -a.z : a.z); }
+// Il puntamento è gestito dal gesto calibrato del telefono; non esiste mira con puntatore.
+function aimMarker(){ const a = false; S.aim.visible = !!a; if (a) S.aim.position.set(A.myId === 'g' ? -a.x : a.x, .02, A.myId === 'g' ? -a.z : a.z); }
 // amico: disegna lo stato dell'host un attimo indietro, manda i colpi riferiti a ciò che vedeva
 function stepGuest(dt, now){
   const M = A.mirror, G = A.guest; if (!M.last) return;
@@ -328,7 +324,7 @@ function stepGuest(dt, now){
   for (const e of M.takeEvents(R)) onEvent(e, view);
   if (A.state === 'play'){
     const input = controls.read();
-    const sw = input.swings.map(s => ({ at: M.seenAt(s.at, G.clock), power: s.power, lift: s.lift, lob: s.lob, dir: s.dir })), ts = input.tosses.map(s => ({ at: M.seenAt(s.at, G.clock) }));
+    const sw = input.swings.map(s => ({ at: M.seenAt(s.at, G.clock), power: s.power, lift: s.lift, lob: s.lob, drop: s.drop, slice: s.slice, dur: s.dur, dir: s.dir })), ts = input.tosses.map(s => ({ at: M.seenAt(s.at, G.clock) }));
     const mv = `${input.move.x.toFixed(2)},${input.move.y.toFixed(2)},${input.auto}`;
     if (sw.length || ts.length || mv !== lastMv){ G.send({ t: 'in', sw, ts, mv: input.move, auto: input.auto }); lastMv = mv; }
   }
@@ -344,7 +340,7 @@ function openHost(){
     const H = A.host = hostSession();
     H.on('change', () => { paintLobby(); hostNet(); });
     H.on('input', d => {
-      if (Array.isArray(d.sw)) for (const s of d.sw.slice(0, 4)) if (typeof s.at === 'number') inputQ.sw.push({ at: s.at, power: +s.power || .6, lift: +s.lift || 0, lob: !!s.lob, dir: s.dir | 0 });
+      if (Array.isArray(d.sw)) for (const s of d.sw.slice(0, 4)) if (typeof s.at === 'number') inputQ.sw.push({ at: Math.max(performance.now() - 1000, Math.min(performance.now() + 1000, s.at)), power: Math.max(.2, Math.min(1, Number(s.power) || .6)), lift: Math.max(-1, Math.min(1, Number(s.lift) || 0)), lob: !!s.lob, drop: s.drop === true, slice: s.slice === true, dur: Math.max(0, Math.min(700, Number(s.dur) || 0)), dir: s.dir === 1 ? 1 : s.dir === -1 ? -1 : 0 });
       if (Array.isArray(d.ts) && d.ts[0] && typeof d.ts[0].at === 'number') inputQ.ts.push({ at: d.ts[0].at });
       if (d.mv && typeof d.mv.x === 'number') inputQ.mv = { x: Math.max(-1, Math.min(1, d.mv.x)), y: Math.max(-1, Math.min(1, d.mv.y)) };
       if (typeof d.auto === 'boolean') inputQ.auto = d.auto;
@@ -361,10 +357,10 @@ function openLobby(){
   if (A.mode === 'guest') A.guest.setMe({ name: myName(), ctrl: A.ctrl, ready: true });
   paintLobby();
 }
-function ctrlLabel(c, ready){ return c === 'phone' ? (ready ? 'telefono pronto' : 'telefono da calibrare') : 'mouse e tastiera'; }
+function ctrlLabel(c, ready){ return ready ? 'telefono pronto' : 'telefono da calibrare'; }
 function paintLobby(){
   if (A.state !== 'lobby') return;
-  const meReady = A.ctrl === 'mouse' || (A.link && A.link.ready);
+  const meReady = !!(A.link && A.link.ready);
   const row = (name, sub, st, color, ok) => `<div class="pl"><div class="av" style="background:${color}">${esc((name || '?')[0].toUpperCase())}</div><div><b>${esc(name)}</b><span>${esc(sub)}</span></div><div class="st" style="color:${ok ? '#16a34a' : '#8a93ab'}">${esc(st)}</div></div>`;
   if (A.mode === 'host'){
     const H = A.host;
@@ -375,7 +371,7 @@ function paintLobby(){
       + (g ? row(g.name, ctrlLabel(g.ctrl, g.ready), !g.connected ? 'Scollegato' : g.ready ? 'Pronto' : 'Si prepara…', '#ff5a3c', g.ready && g.connected) : row('In attesa dell\'amico…', 'Manda il link', '', '#c4cbe0', false));
     $('#lobbyStart').disabled = !(g && g.ready && g.connected && meReady);
     const note = $('#lobbyNote');
-    note.textContent = H.S.state === 'error' ? `Connessione non disponibile (${H.S.error}): la partita tra amici non può partire. Puoi giocare contro la CPU.` : !meReady ? 'Il tuo telefono non è pronto: tocca «Cambia controller».' : '';
+    note.textContent = H.S.state === 'error' ? `Connessione non disponibile (${H.S.error}): la partita tra amici non può partire. Puoi riprovare o tornare al menu.` : !meReady ? 'Collega e calibra il telefono per iniziare.' : '';
     note.className = 'note ' + (H.S.state === 'error' ? 'bad' : 'warn'); show(note, !!note.textContent);
   } else {
     const G = A.guest;
@@ -384,7 +380,7 @@ function paintLobby(){
   }
 }
 $('#invCopy').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('#invUrl').value); $('#invCopy').textContent = 'Copiato'; setTimeout(() => $('#invCopy').textContent = 'Copia', 1500); } catch (e){ $('#invUrl').select(); } });
-$('#invShare').addEventListener('click', () => navigator.share && navigator.share({ title: 'Racchetta', text: `${myName()} ti sfida a Racchetta: apri il link su un computer`, url: $('#invUrl').value }).catch(() => {}));
+$('#invShare').addEventListener('click', () => navigator.share && navigator.share({ title: 'NATPF Simulator', text: `${myName()} ti sfida a NATPF Simulator: apri il link e collega il telefono come racchetta`, url: $('#invUrl').value }).catch(() => {}));
 $('#lobbyCtrl').addEventListener('click', () => chooseCtrl(() => openLobby()));
 $('#lobbyLeave').addEventListener('click', () => leaveOnline());
 $('#lobbyStart').addEventListener('click', () => hostStart());
@@ -464,7 +460,7 @@ function pause(){
   phoneSend({ t: 'ph', ph: 'pause' });
 }
 function resume(){
-  A.state = 'play'; controls.enabled = true; pane(null); show('#hud', true); lastT = performance.now(); phoneChip(); controls.useAim = A.ctrl === 'mouse';
+  A.state = 'play'; controls.enabled = true; pane(null); show('#hud', true); lastT = performance.now(); phoneChip(); controls.useAim = false;
   if (A.mode === 'host') A.host.send({ t: 'pause', on: false });
   phoneSend({ t: 'ph', ph: 'play' });
   const p = me(); if (p) p.grace = grace();

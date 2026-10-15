@@ -14,8 +14,8 @@ export const gauss = rng => { let u = 0, v = 0; while (!u) u = rng(); while (!v)
 export function shotTarget(court, team, aimX = 0, depth = .8, type = 'drive'){
   const dir = team === 0 ? -1 : 1;                           // verso il campo avversario
   const deep = court.sport === 'padel' ? court.halfL - 1.6 : court.halfL - 1.1;
-  const d = type === 'drop' ? .25 : type === 'lob' ? Math.max(depth, .8) : depth;
-  const z = dir*(court.serviceZ*.45 + (deep - court.serviceZ*.45)*d);
+  // Una palla corta deve cadere vicino alla rete, non semplicemente nella metà corta del campo.
+  const z = type === 'drop' ? dir*2.1 : dir*(court.serviceZ*.45 + (deep - court.serviceZ*.45)*(type === 'lob' ? Math.max(depth, .8) : depth));
   // la sinistra di chi guarda verso -z (squadra 0) è x < 0; per la squadra 1 è x > 0
   const x = (team === 0 ? 1 : -1)*aimX*(court.halfW - .75);
   return { x, z };

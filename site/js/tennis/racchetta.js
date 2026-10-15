@@ -1,4 +1,4 @@
-// «Racchetta», pagina del telefono: si collega al computer con i dati del QR (dopo il «#»), chiede i permessi dei sensori,
+// NATPF Simulator, controller smartphone: si collega al computer con i dati del QR (dopo il «#»), chiede i permessi dei sensori,
 // fa la calibrazione guidata (calibration.js: i passi si vedono grandi sul computer, qui c'è il riassunto), riconosce i
 // colpi (swing-detect.js) e li manda al gioco con l'istante del picco. Niente app da installare.
 import { parsePairing } from './pairing.js';
@@ -8,7 +8,7 @@ import { peerConfig, loadPeer } from './link.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
-const ss = { get(k){ try { return JSON.parse(sessionStorage.getItem('racchetta.' + k)); } catch (e){ return null; } }, set(k, v){ try { sessionStorage.setItem('racchetta.' + k, JSON.stringify(v)); } catch (e){} }, del(k){ try { sessionStorage.removeItem('racchetta.' + k); } catch (e){} } };
+const ss = { get(k){ try { return JSON.parse(sessionStorage.getItem('natpf-simulator.' + k)); } catch (e){ return null; } }, set(k, v){ try { sessionStorage.setItem('natpf-simulator.' + k, JSON.stringify(v)); } catch (e){} }, del(k){ try { sessionStorage.removeItem('natpf-simulator.' + k); } catch (e){} } };
 
 // i dati del QR: si leggono e si tolgono subito dalla barra degli indirizzi (restano solo in questa scheda)
 let pair = parsePairing(location.hash);
@@ -47,7 +47,7 @@ function calUi(){
   else if (st.step === 'free') ui('Prova libera', 'Fai qualche swing: sul computer vedi direzione e forza.');
 }
 function phaseText(){
-  return { menu: 'Guarda il computer per iniziare.', serve: 'Primo movimento: lanci la palla. Secondo: colpisci in cima al lancio. Puoi anche toccare lo schermo per lanciare.', play: 'Colpisci quando la palla ti arriva.', pause: 'Partita in pausa.', over: 'Partita finita: guarda il computer.' }[phase] || '';
+  return { menu: 'Guarda il computer per iniziare.', serve: 'Primo movimento: lanci la palla. Secondo: colpisci in cima al lancio. Puoi anche toccare lo schermo per lanciare.', play: 'Timing = precisione. Swing ←/→ = angolo; gesto breve = palla corta, verso l\'alto = lob, taglio verso il basso = slice.', pause: 'Partita in pausa.', over: 'Partita finita: guarda il computer.' }[phase] || '';
 }
 function flash(cls, big, sub, ms = 650, arrow = ''){ ui(big, sub, cls, arrow); clearTimeout(flashT); flashT = setTimeout(() => { flashT = null; paint(); }, ms); }
 
@@ -88,7 +88,7 @@ function onData(c, d){
     case 'ph': phase = d.ph; if (sensor === 'ready') paint(); break;
     case 'cmd': command(d.c); break;
     case 'ev':
-      if (d.k === 'contact'){ buzz(d.label === 'perfetto' ? [40] : [20]); flash('hit', { perfetto: 'Perfetto!', buono: 'Bel colpo', anticipo: 'In anticipo', ritardo: 'In ritardo' }[d.label] || 'Colpo!', ''); }
+      if (d.k === 'contact'){ buzz(d.label === 'perfetto' ? [40] : [20]); flash('hit', ({ drop: 'Palla corta!', lob: 'Lob!', slice: 'Tagliato!', smash: 'Smash!' }[d.shot]) || ({ perfetto: 'Perfetto!', buono: 'Bel colpo', anticipo: 'In anticipo', ritardo: 'In ritardo' }[d.label] || 'Colpo!'), ''); }
       if (d.k === 'miss') { buzz([90]); flash('miss', { presto: 'Troppo presto', tardi: 'Troppo tardi', nessuno: 'Nessun colpo', portata: 'Troppo lontana' }[d.why] || 'Mancata', d.why === 'nessuno' ? 'Il movimento non è arrivato: fai uno swing più deciso.' : ''); }
       if (d.k === 'point') flash(d.mine ? 'hit' : 'miss', d.mine ? 'Punto tuo' : 'Punto avversario', d.txt || '', 1300);
       break;
@@ -97,7 +97,7 @@ function onData(c, d){
 }
 function lost(){
   if (linkState === 'denied') return;
-  conn = null; linkState = 'lost'; paint(); ui('Connessione persa', 'Riprovo da solo tra poco. Sul computer intanto puoi usare mouse e tastiera.');
+  conn = null; linkState = 'lost'; paint(); ui('Connessione persa', 'Riprovo da solo tra poco. Sul computer puoi riprovare il collegamento.');
   if (tries++ < 10) retryT = setTimeout(connect, Math.min(6000, 1000*tries));
 }
 const send = m => { if (conn && conn.open) try { conn.send(m); } catch (e){} };
@@ -125,10 +125,10 @@ async function enableSensors(){
 function noMotion(why){
   removeEventListener('devicemotion', onMotion);
   sensor = why; sendState(); paint();
-  ui({ denied: 'Sensori negati', insecure: 'Serve https', nomotion: 'Niente sensori' }[why], {
-    denied: 'Hai negato l\'accesso ai sensori di movimento. Su iPhone ricarica la pagina e tocca «Consenti»; su Android controlla i permessi del sito nel browser. Senza sensori puoi giocare con mouse e tastiera.',
+  ui({ denied: 'Sensori negati', insecure: 'Serve https', nomotion: 'Sensori non disponibili' }[why], {
+    denied: 'Hai negato l\'accesso ai sensori di movimento. Su iPhone ricarica la pagina e tocca «Consenti»; su Android controlla i permessi del sito nel browser. Senza sensori non puoi avviare la partita. Prova un browser compatibile e riapri il QR.',
     insecure: 'Il browser dà i sensori solo alle pagine sicure (https). Apri il gioco dall\'indirizzo pubblicato.',
-    nomotion: 'Questo browser non dà i sensori di movimento. Prova con Chrome (Android) o Safari (iPhone), oppure gioca con mouse e tastiera.',
+    nomotion: 'Questo browser non dà i sensori di movimento. Prova con Chrome (Android) o Safari (iPhone), e riapri il QR dal gioco.',
   }[why], 'miss');
 }
 function onMotion(e){
@@ -151,8 +151,9 @@ cal.on(e => { send({ t: 'cal', e }); if (!flashT) paint();
 });
 det.on('swing', s => {
   if (sensor !== 'ready' || linkState !== 'on') return;
-  send({ t: 'sw', p: s.power, l: s.lift, lob: s.lob, dir: s.dir, pk: s.peakT, lat: rtt/2 + (performance.now() - s.peakT) });
-  flash('hit', s.dir > 0 ? '←' : s.dir < 0 ? '→' : '•', `Forza ${Math.round(s.power*100)}%`, 350);
+  send({ t: 'sw', p: s.power, l: s.lift, lob: s.lob, drop: s.drop, slice: s.slice, dur: s.dur, dir: s.dir, pk: s.peakT, lat: rtt/2 + (performance.now() - s.peakT) });
+  const cue = s.drop ? 'PALLA CORTA' : s.slice ? 'TAGLIATO' : s.lob ? 'LOB' : s.dir > 0 ? '←' : s.dir < 0 ? '→' : '•';
+  flash('hit', cue, `Forza ${Math.round(s.power*100)}%`, 350);
 });
 
 /* ---------- pulsanti ---------- */

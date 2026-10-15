@@ -28,6 +28,14 @@ export const DEFAULTS = {
 // profilo di chi gioca (dalla calibrazione): deriva, asse del colpo (+ = da destra a sinistra), colpo tipico, soglie
 export const defaultProfile = () => ({ bias: [0, 0, 0], axis: null, ref: 600, on: DEFAULTS.on, minPeak: DEFAULTS.minPeak, minAngle: DEFAULTS.minAngle, lobLift: null, sens: 1 });
 
+// La durata è in millisecondi, come i timestamp del sensore.
+export function classifySwingType({ power = .6, lift = 0, dur = 999 } = {}, lobLift = null){
+  const drop = dur <= 180 && power <= .55 && lift > -.45 && lift < .55;
+  const slice = !drop && lift <= -.65;
+  const lob = (lobLift != null && lift >= lobLift) || lift >= .7;
+  return { drop, slice, lob };
+}
+
 export function createSwingDetector(opts = {}){
   const C = { ...DEFAULTS, ...opts };
   let prof = defaultProfile();
@@ -78,7 +86,10 @@ export function createSwingDetector(opts = {}){
     const dir = !prof.axis ? 0 : along > .25 ? 1 : along < -.25 ? -1 : 0;   // +1 da destra a sinistra, -1 da sinistra a destra
     const power = Math.max(.3, Math.min(1, .3 + .45*c.peak/prof.ref));
     lastFire = c.peakT;
-    emit('swing', { peakT: c.peakT, t, peak: Math.round(c.peak), power: +power.toFixed(3), dir, along: +along.toFixed(2), axis, lift: +lift.toFixed(3), lob: prof.lobLift != null && lift >= prof.lobLift, angle: Math.round(c.angle), dur: t - c.t0 });
+    const dur = t - c.t0;
+    // Soglie iniziali di palla corta e slice; la durata del sensore è in millisecondi.
+    const special = classifySwingType({ power, lift, dur }, prof.lobLift);
+    emit('swing', { peakT: c.peakT, t, peak: Math.round(c.peak), power: +power.toFixed(3), dir, along: +along.toFixed(2), axis, lift: +lift.toFixed(3), ...special, angle: Math.round(c.angle), dur });
   }
 
   return {
