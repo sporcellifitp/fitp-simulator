@@ -23,10 +23,19 @@ export const ARC = {
 };
 // err: errori gratuiti per colpo; attack: probabilità di attaccare quando la palla gli arriva debole o fuori tempo
 export const CPU = {
-  facile:  { label: 'Facile',  err: .055, spread: .3,  pace: [.72, .84], attack: .25, attackPace: [1, 1.12], speed: 6.2, reaction: .3,  pressure: .05 },
-  normale: { label: 'Normale', err: .045, spread: .26, pace: [.8, .95],  attack: .35, attackPace: [1.05, 1.2], speed: 6.8, reaction: .22, pressure: .04 },
-  esperto: { label: 'Esperto', err: .035, spread: .2,  pace: [.88, 1.02], attack: .43, attackPace: [1.12, 1.3], speed: 7.3, reaction: .16, pressure: .065 },
+  facile:  { label: 'Facile',  err: .055, spread: .3,  pace: [.72, .84], attack: .25, attackPace: [1, 1.12], speed: 6.2, reaction: .3,  pressure: .05, lobRate: .12, dropRate: .05, sliceRate: .08 },
+  normale: { label: 'Normale', err: .045, spread: .26, pace: [.8, .95],  attack: .35, attackPace: [1.05, 1.2], speed: 6.8, reaction: .22, pressure: .04, lobRate: .2,  dropRate: .1,  sliceRate: .13 },
+  esperto: { label: 'Esperto', err: .035, spread: .2,  pace: [.88, 1.02], attack: .43, attackPace: [1.12, 1.3], speed: 7.3, reaction: .16, pressure: .065, lobRate: .28, dropRate: .15, sliceRate: .18 },
 };
+
+export function chooseCpuShotType(nearNet, level, rng){
+  // Variety stays purposeful: punish a player at net with a lob, a deep defender with a drop,
+  // and mix in slices. A weak incoming ball can still override this with an attacking drive.
+  if (nearNet && rng() < level.lobRate) return 'lob';
+  if (!nearNet && rng() < level.dropRate) return 'drop';
+  if (rng() < level.sliceRate) return 'slice';
+  return 'drive';
+}
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const axes = p => ({ fz: p.team === 0 ? -1 : 1, rx: p.team === 0 ? 1 : -1 });
 // la palla vista dal giocatore: s avanti (verso la rete), l a destra (lato del dritto), h altezza
@@ -330,12 +339,7 @@ export class ArcadeMatch extends MatchCore {
     const nearNet = opp.some(o => Math.abs(o.z) < c.serviceZ*.72);
     // La CPU varia il colpo in base alla posizione avversaria: lob contro chi sale, smorzata contro chi resta lontano.
     // I livelli più alti usano più spesso la varietà, ma mantengono una quota di drive leggibili.
-    const lobRate = L === CPU.facile ? .12 : L === CPU.normale ? .2 : .28;
-    const dropRate = L === CPU.facile ? .05 : L === CPU.normale ? .1 : .15;
-    const sliceRate = L === CPU.facile ? .08 : L === CPU.normale ? .13 : .18;
-    if (nearNet && rng() < lobRate) type = 'lob';
-    else if (!nearNet && rng() < dropRate) type = 'drop';
-    else if (rng() < sliceRate) type = 'slice';
+    type = chooseCpuShotType(nearNet, L, rng);
     // pressione: colpo perfetto e forte del giocatore, palla veloce, scambio lungo (senza un limite artificiale ai rally)
     const pressure = (strong ? L.pressure : 0) + Math.min(.05, Math.hypot(this.ball.v.x, this.ball.v.z)/500) + Math.min(.06, this.rally.hits*.003);
     // palla debole: la CPU può scegliere di attaccare con un drive più rapido nel campo libero
