@@ -1,4 +1,4 @@
-// I giocatori di «Racchetta»: personaggi originali, morbidi e arrotondati (capsule e sfere), leggibili da lontano e in
+// I giocatori di NATPF Simulator: personaggi originali, morbidi e arrotondati (capsule e sfere), leggibili da lontano e in
 // corsa. Animazione procedurale sincronizzata con il colpo: pronto, corsa, preparazione sul lato giusto mentre la palla
 // arriva, colpo con l'impatto nell'istante dello swing, accompagnamento, recupero; lancio e servizio; esultanza e delusione.
 // Il personaggio guarda verso +z nel suo sistema; chi lo usa lo gira verso la rete.
@@ -94,11 +94,36 @@ export function makeCharacter(look = LOOKS.blu){
         shLx = lerp(-.4, -2.9, a); shLz = .25; elL = lerp(-.7, -.05, a); shRx = lerp(-.5, -2.6, a); elR = lerp(-.9, -1.8, a); rk = 1.6; tw = .5*a;
       } else {
         const a = ease(Math.min(1, u/.43)), b = ease((u - .43)/.57), sg = fh ? 1 : -1;
-        tw = lerp(1.15*sg, -.5*sg, a) - b*.7*sg;
-        shRz = fh ? lerp(-1.2, .2, a) + b*1.2 : lerp(.7, -.7, a) - b*1.0;
-        shRx = lerp(-.4, -.95, a) - b*.9; elR = lerp(-.5, -.15, a) - b*.6; rk = lerp(.3, 0, a);
-        shLx = -1 + b*.4; shLz = fh ? .1 - b*.5 : .3;
-        lean = .1*a;
+        if (k === 'drop'){
+          // Palla corta: swing compatto, baricentro più basso e accompagnamento corto.
+          tw = lerp(.72*sg, -.22*sg, a) - b*.2*sg;
+          shRz = fh ? lerp(-.82, -.12, a) + b*.28 : lerp(.48, -.12, a) - b*.24;
+          shRx = lerp(-.35, -.68, a) - b*.22; elR = lerp(-.58, -.28, a) - b*.1;
+          rk = lerp(.28, -.22, a) + b*.12; rkz = fh ? -.18 : .18;
+          shLx = -.85 + b*.18; shLz = fh ? .1 : .25; lean = .22*a;
+          hips.position.y -= .06*a;
+        } else if (k === 'lob'){
+          // Lob: chiusura più alta e follow-through sopra la linea delle spalle.
+          tw = lerp(1.0*sg, -.38*sg, a) - b*.35*sg;
+          shRz = fh ? lerp(-1.12, .34, a) + b*.3 : lerp(.68, -.38, a) - b*.3;
+          shRx = lerp(-.38, -1.62, a) - b*.28; elR = lerp(-.52, -1.05, a) - b*.25;
+          rk = lerp(.28, -.25, a); rkz = fh ? -.12 : .12;
+          shLx = lerp(-.95, -.72, a) + b*.12; shLz = fh ? -.38 : .34; lean = .06*a;
+        } else if (k === 'slice'){
+          // Slice: piano della racchetta inclinato e accompagnamento laterale.
+          tw = lerp(1.08*sg, -.42*sg, a) - b*.3*sg;
+          shRz = fh ? lerp(-1.18, .42, a) + b*.55 : lerp(.68, -.72, a) - b*.5;
+          shRx = lerp(-.38, -.98, a) - b*.6; elR = lerp(-.55, -.18, a) - b*.25;
+          rk = lerp(.28, -.12, a); rkz = fh ? lerp(-.12, -.75, a) + b*.12 : lerp(.12, .75, a) - b*.12;
+          shLx = -1 + b*.28; shLz = fh ? .06 - b*.38 : .26; lean = .12*a;
+        } else {
+          // Drive: animazione base, con torsione e accompagnamento differenziati per dritto/rovescio.
+          tw = lerp(1.15*sg, -.5*sg, a) - b*.7*sg;
+          shRz = fh ? lerp(-1.2, .2, a) + b*1.2 : lerp(.7, -.7, a) - b*1.0;
+          shRx = lerp(-.4, -.95, a) - b*.9; elR = lerp(-.5, -.15, a) - b*.6; rk = lerp(.3, 0, a);
+          shLx = -1 + b*.4; shLz = fh ? .1 - b*.5 : .3;
+          lean = .1*a;
+        }
       }
     }
     // umore dopo il punto
