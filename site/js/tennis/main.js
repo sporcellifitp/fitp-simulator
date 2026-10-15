@@ -1,7 +1,7 @@
 // «NATPF Simulator»: il gioco. Collega scena (scene.js), partita arcade (match/arcade.js), comandi (controls.js), telefono
 // (link.js + calibrazione guidata) e partita tra amici (session.js + net.js).
 // Modalità: cpu (contro il computer), host (chi invita: fa girare la partita), guest (chi riceve il link: vede lo stato
-// dell'host e manda i suoi colpi). Schermate: menu → controller → telefono (collega, impugna, prova, verifica, conferma)
+// dell'host e manda i suoi colpi). Schermate: menu → telefono (QR, impugnatura, prova, verifica, conferma)
 // → partita o sala d'attesa → partita → fine.
 import { ArcadeMatch } from '../match/arcade.js';
 import { pointLabels } from '../match/rules.js';
