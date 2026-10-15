@@ -92,7 +92,7 @@ Architettura, sicurezza, prove e limiti in [docs/v0.7-tennis-racchetta.md](docs/
 - [ ] Sensazione di gioco: suoni veri, animazioni di dritto e rovescio, indicatore del rimbalzo al livello facile.
 - [ ] Livelli del computer e tattiche; poi 1 contro 1 online con due telefoni, riusando le stanze della v0.6.
 
-## v0.8 · Racchetta, tennis arcade (ottobre 2026)
+## v0.8 · NATPF Simulator, tennis arcade (ottobre 2026)
 
 Problemi trovati, cause, modifiche, prove e limiti in [docs/v0.8-racchetta.md](docs/v0.8-racchetta.md).
 
@@ -100,14 +100,16 @@ Problemi trovati, cause, modifiche, prove e limiti in [docs/v0.8-racchetta.md](d
 - [x] Rilevatore del telefono riscritto: aperture ignorate, invio subito dopo il picco, soglie su misura (P0).
 - [x] Telecamera, movimento automatico e animazioni nello stile di Nintendo Switch Sports; servizio con lancio e colpo (P0).
 - [x] Calibrazione guidata in 5 passi con verifica dal vivo e conferma (P1).
-- [x] Partita contro la CPU (Facile, Normale) e partita tra amici con un link, in rete, con telefono o mouse per ognuno (P2).
+- [x] Partita contro la CPU (Facile, Normale) e partita tra amici con un link, con telefono come unico controller (P2).
 - [x] Arena ricostruita sulle immagini di riferimento, personaggi originali arrotondati (P3).
 - [x] v0.8.1: branding dell'arena come nelle immagini di riferimento (Nitto ATP Finals, ESPORTS, «It all adds up to THIS», TORINO), grafiche in `site/assets/arena/`.
 - [ ] **Prova su iPhone e Android veri** e ritocco di soglie, finestre e CPU.
 - [ ] Server di segnalazione nostro (Worker Cloudflare) al posto di quello pubblico di PeerJS.
-- [ ] File ufficiali ad alta risoluzione dei loghi dell'arena al posto dei ritagli; verifica del nome «Racchetta».
+- [ ] File ufficiali ad alta risoluzione dei loghi dell'arena al posto dei ritagli; verifica autorizzazioni e coerenza del branding NATPF Simulator.
 
 ## Prossimi passi (dalle prime settimane sul repository)
+
+Per il rebranding e il piano di qualità del gioco NATPF Simulator, vedere [docs/NATPF_SIMULATOR_AUDIT.md](docs/NATPF_SIMULATOR_AUDIT.md).
 
 1. **Planimetria fedele.** Ricostruire la mappa da OpenStreetMap (licenza ODbL, da citare) e dalla mappa ufficiale del torneo. Servono i materiali IBI 2026: mappa del sito, nomi dei campi e dei varchi d'ingresso.
 2. **Nomi e contenuti verificati.** Controllare i nomi ufficiali 2026 di ogni campo e i testi delle schede sui luoghi.
