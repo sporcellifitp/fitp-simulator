@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>Racchetta · tennis arcade</title>
-<meta name="description" content="Tennis arcade nel browser: contro il computer o contro un amico, con il telefono come racchetta o con mouse e tastiera.">
+<title>NATPF Simulator · tennis arcade</title>
+<meta name="description" content="NATPF Simulator: tennis arcade contro la CPU o un amico. Lo smartphone è la tua racchetta: collegalo via QR code.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23ff3d8b'/%3E%3Ccircle cx='44' cy='20' r='9' fill='%23e8ff3a'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -116,8 +116,8 @@
 <!-- menu iniziale -->
 <div id="menu" class="ov">
   <div class="card">
-    <div class="logo">RACCHETTA<i>TENNIS ARCADE</i></div>
-    <p style="margin-top:10px">Muovi il telefono come una racchetta, oppure gioca con il mouse. Il tuo giocatore corre da solo: tu pensi al colpo.</p>
+    <div class="logo">NATPF<i>SIMULATOR</i></div>
+    <p style="margin-top:10px">Collega il telefono via QR code e usalo come racchetta. Il tuo giocatore corre da solo: tu controlli il gesto, il timing e la direzione del colpo.</p>
     <div class="lbl">Il tuo nome</div>
     <input type="text" id="name" maxlength="16" placeholder="Come ti chiami?" autocomplete="nickname">
     <button class="btn pink" id="btnCpu">Gioca contro la CPU</button>
@@ -134,7 +134,7 @@
   <div class="card">
     <h2>Come vuoi giocare?</h2>
     <button class="choice" id="ctrlPhone"><em>Consigliato</em><b>Telefono come racchetta</b><span>Inquadri un codice QR, nessuna app. Ti guidiamo nella calibrazione.</span></button>
-    <button class="choice" id="ctrlMouse"><b>Mouse e tastiera</b><span>Clic (o Spazio) per colpire quando la palla arriva. Tasto destro: pallonetto.</span></button>
+    <button class="choice hidden" id="ctrlMouse" aria-hidden="true" tabindex="-1"><b>Controller non disponibile</b></button>
     <button class="btn alt" id="ctrlBack">Indietro</button>
   </div>
 </div>
@@ -188,7 +188,7 @@
       <div class="note bad" id="errTxt"></div>
       <button class="btn alt" id="errRetry">Ho sistemato: riprova</button>
     </div>
-    <div class="row"><button class="btn alt" id="pairBack">Indietro</button><button class="btn alt" id="pairMouse">Usa mouse e tastiera</button><button class="btn alt hidden" id="pairForget">Scollega il telefono</button></div>
+    <div class="row"><button class="btn alt" id="pairBack">Indietro</button><button class="btn alt hidden" id="pairMouse" aria-hidden="true" tabindex="-1">Controller non disponibile</button><button class="btn alt hidden" id="pairForget">Scollega il telefono</button></div>
   </div>
 </div>
 
@@ -210,7 +210,7 @@
 <!-- invito ricevuto -->
 <div id="guest" class="ov hidden">
   <div class="card">
-    <div class="logo">RACCHETTA<i>TENNIS ARCADE</i></div>
+    <div class="logo">NATPF<i>SIMULATOR</i></div>
     <h2 style="margin-top:12px" id="gTitle">Sei stato invitato</h2>
     <div class="note" id="gStatus"><span class="dot"></span>Mi collego alla partita…</div>
     <div class="lbl">Il tuo nome</div>
