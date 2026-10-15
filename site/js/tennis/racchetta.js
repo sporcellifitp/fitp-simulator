@@ -125,7 +125,7 @@ async function enableSensors(){
 function noMotion(why){
   removeEventListener('devicemotion', onMotion);
   sensor = why; sendState(); paint();
-  ui({ denied: 'Sensori negati', insecure: 'Serve https', nomotion: 'Niente sensori' }[why], {
+  ui({ denied: 'Sensori negati', insecure: 'Serve https', nomotion: 'Sensori non disponibili' }[why], {
     denied: 'Hai negato l\'accesso ai sensori di movimento. Su iPhone ricarica la pagina e tocca «Consenti»; su Android controlla i permessi del sito nel browser. Senza sensori non puoi avviare la partita. Prova un browser compatibile e riapri il QR.',
     insecure: 'Il browser dà i sensori solo alle pagine sicure (https). Apri il gioco dall\'indirizzo pubblicato.',
     nomotion: 'Questo browser non dà i sensori di movimento. Prova con Chrome (Android) o Safari (iPhone), e riapri il QR dal gioco.',
