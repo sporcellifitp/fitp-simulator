@@ -3,7 +3,7 @@
 Data: 15 ottobre 2026  
 Branch di audit: `feature/natpf-simulator-gameplay-audit`  
 Base tecnica esaminata: `claude/lucid-cannon-us9l0g` (v0.8)  
-Stato: audit statico del repository; test automatici e prove su dispositivi reali da eseguire prima del rilascio.
+Stato: audit statico completato e prima implementazione phone-only/gameplay nel branch; test Node/E2E da eseguire, prove su dispositivi reali ancora necessarie.
 
 ## 1. Decisioni di prodotto
 
@@ -33,7 +33,7 @@ Priorità:
 - `site/tennis/index.html`: UI di gioco, onboarding, controller selection, lobby, HUD, pausa e fine partita.
 - `site/tennis/racchetta.html`: UI mobile per pairing, sensori, calibrazione e feedback.
 - `site/js/tennis/main.js`: orchestration delle schermate, match loop, eventi, input, pairing e multiplayer.
-- `site/js/tennis/controls.js`: normalizzazione degli input; attualmente include mouse e tastiera oltre al telefono.
+- `site/js/tennis/controls.js`: accetta solo swing e lancio normalizzati dal collegamento smartphone; non registra eventi di gioco da mouse o tastiera.
 - `site/js/tennis/link.js`, `pairing.js`, `session.js`, `net.js`: collegamento, inviti, sessione e sincronizzazione.
 - `site/js/tennis/swing-detect.js`, `calibration.js`: riconoscimento e calibrazione del movimento.
 - `site/js/match/arcade.js`: timing, impatto, scelta del colpo del giocatore, movimento automatico, CPU.
@@ -42,22 +42,22 @@ Priorità:
 - `tools/e2e/phone-cal.mjs`, `phone-failures.mjs`, `invite.mjs`: E2E simulati per pairing, sensori e partita tra amici.
 
 ### Rischio architetturale
-L'astrazione degli input è utile, ma mantiene modalità alternative che non corrispondono più alla decisione di prodotto. Va semplificata senza rompere gli eventi di gioco, il servizio, la modalità ospite e la telemetria di test. La modalità phone-only deve essere enforced nel codice, non solo nascosta nella UI.
+L'astrazione è stata semplificata nel branch: gli input mouse/tastiera non vengono più registrati dal modulo di gioco, la scelta del controller è stata rimossa e i test E2E coprono il rifiuto degli input desktop. Restano da verificare le regressioni in browser e nella partita tra amici.
 
 ## 4. Rilievi P0 — blocchi prima del rilascio
 
-### P0.1 — Controller non coerente con il prodotto
-**Evidenza:** `index.html` espone la scelta «Mouse e tastiera»; `main.js` imposta `A.ctrl = 'mouse'`; `controls.js` riceve clic, tasti e movimento manuale; i messaggi di errore propongono il fallback mouse/tastiera; i test di guasto verificano quel fallback.
+### P0.1 — Controller non coerente con il prodotto ✅ implementazione nel branch
+**Rilievo sulla base v0.8:** l'interfaccia esponeva una modalità mouse/tastiera, i controlli ascoltavano input desktop e i guasti del sensore proponevano un fallback incompatibile con il prodotto.
 
-**Intervento:** rimuovere l'opzione dalla UI e la possibilità effettiva di produrre swing o movimento manuale da mouse/tastiera. Il flusso desktop diventa: scegli modalità → mostra QR → collega smartphone → autorizza sensori → calibra → gioca. In caso di sensori non disponibili, non avviare una partita con un controller diverso: mostra istruzioni per browser/permessi compatibili e possibilità di riprovare.
+**Implementato nel branch:** la UI non presenta più la scelta mouse/tastiera; i controlli di gioco accettano solo eventi dal telefono; un sensore non disponibile lascia il gioco in attesa, con istruzioni per riprovare. I pulsanti e i click desktop restano utilizzabili per navigare la UI, non per colpire o muovere il giocatore.
 
 ### P0.2 — Validazione fisica non ancora dimostrata
 La documentazione del progetto dichiara test con sensori simulati e lascia come attività la prova su telefoni reali. Il successo del simulatore E2E non prova che il gesto venga rilevato correttamente su hardware reale.
 
 **Intervento:** test su almeno iPhone/Safari e Android/Chrome, HTTPS, permessi negati/riabilitati, cambio orientamento, tab in background, schermo bloccato, disconnessione e riconnessione. Verificare che il telefono resti impugnabile in sicurezza: evitare gesti che richiedono di lanciare il dispositivo o rotazioni innaturali.
 
-### P0.3 — Timing e direzione sono accoppiati
-**Evidenza:** `arcadeShot()` usa l'errore temporale per derivare `pull` e quindi l'angolo; la mira del mouse viene combinata con questa variabile. Il timing non dovrebbe essere il principale sistema di mira nel modello phone-only.
+### P0.3 — Timing e direzione sono accoppiati ✅ separati nel branch
+**Rilievo sulla base v0.8:** `arcadeShot()` derivava l'angolo dall'errore temporale e combinava la mira del mouse. Ora la direzione calibrata del gesto determina un bersaglio a sinistra, centro o destra; il timing modifica qualità, rischio e ritmo, non la direzione.
 
 **Intervento:** distinguere:
 - timing → qualità del contatto, precisione e velocità;
@@ -88,11 +88,11 @@ Il modello non deve usare la stessa variabile per rappresentare più dimensioni 
 
 ### P1.2 — Colpi speciali
 
-Implementare in ordine e dietro feature flag fino alla validazione:
+La prima implementazione è presente nel branch, ma resta sperimentale fino a test su iPhone e Android. Le soglie sono euristiche del rilevatore, non ancora validate su hardware reale:
 
-1. **Palla corta (drop shot)** — priorità più alta. Swing breve e controllato, con bassa potenza e gesto verticale dedicato solo se il rilevatore lo distingue in modo affidabile. Il bersaglio è vicino alla rete nel campo avversario; la palla deve rallentare e rimbalzare con traiettoria credibile. Non inferire la palla corta soltanto da uno swing debole, perché un colpo debole normale deve comunque esistere.
-2. **Lob** — gesto alto/ascendente distinto dal drive; traiettoria più alta, tempo di volo maggiore e bersaglio profondo. CPU più vicina alla rete deve poter arretrare e tentare lo smash, non ricevere un errore automatico.
-3. **Slice / colpo tagliato** — gesto di taglio riconosciuto su asse distinto dal drive. Nella prima versione può produrre una palla più lenta e bassa, con rimbalzo meno aggressivo; non simulare un effetto laterale complesso finché non è supportato dalla fisica.
+1. **Palla corta (drop shot)** — prototipo implementato: gesto breve (fino a 180 ms) e a potenza contenuta, con componente verticale quasi neutra; bersaglio corto e ritmo ridotto. È una euristica: misurare falsi positivi prima di renderla definitiva, perché la durata dello swing può variare fra dispositivi e giocatori.
+2. **Lob** — prototipo implementato usando il componente ascendente del gesto; traiettoria più alta, tempo di volo maggiore e bersaglio profondo. Va verificata la distinzione da un drive con accelerometro diverso.
+3. **Slice / colpo tagliato** — prototipo implementato con componente discendente, ritmo minore e traiettoria più bassa. Non applica ancora uno spin laterale realistico: non presentarlo come simulazione biomeccanica completa.
 4. **Smash** — mantenere il riconoscimento contestuale già presente: palla alta e in posizione attaccabile. Evitare di classificare come smash qualsiasi swing sopra una soglia d'altezza senza considerare la posizione rispetto alla rete.
 
 Per ogni colpo servono: indicatore/feedback sul telefono, feedback sul campo, parametri di traiettoria, rischio di errore, test di classificazione e alternativa accessibile per chi non riesce a eseguire il gesto.
@@ -106,7 +106,7 @@ Per ogni colpo servono: indicatore/feedback sul telefono, feedback sul campo, pa
 - Evitare un limite artificiale di colpi per rally.
 
 ### P1.4 — CPU tattica
-La funzione `cpuShot()` già varia mira, ritmo, profondità, attacco su palla debole e pressione. La CPU arcade espone attualmente Facile e Normale; va estesa a Esperto solo dopo aver misurato la baseline.
+La funzione `cpuShot()` varia mira, ritmo, profondità, attacco su palla debole e pressione. Il branch espone Facile, Normale ed Esperto con parametri distinti; il bilanciamento e il comportamento nei rally lunghi restano da misurare.
 
 - **Facile:** reazione più lenta, maggiore tolleranza, lascia spazio.
 - **Normale:** recupera il centro e punisce palle corte/deboli.
@@ -208,4 +208,4 @@ Raccogliere una baseline prima del bilanciamento. Non fissare target assoluti se
 
 ## 12. Limiti dell'audit
 
-Questo documento deriva da ispezione statica di codice e documentazione. Non dichiara che i test siano passati: l'esecuzione Node, browser E2E e prove su iPhone/Android devono ancora essere eseguite nell'ambiente di progetto. Il funzionamento su telefoni reali non è dimostrato dal solo test con sensori simulati.
+Questo documento deriva da ispezione statica di codice e documentazione. I nuovi test di logica ed E2E sono stati aggiornati nel branch, ma non vanno considerati superati finché CI non li esegue. Il funzionamento su telefoni reali non è dimostrato dai test con sensori simulati.
