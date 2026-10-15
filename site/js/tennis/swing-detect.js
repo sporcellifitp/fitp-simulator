@@ -87,10 +87,9 @@ export function createSwingDetector(opts = {}){
     const power = Math.max(.3, Math.min(1, .3 + .45*c.peak/prof.ref));
     lastFire = c.peakT;
     const dur = t - c.t0;
-    // Gestures compatti e controllati: palla corta. Taglio verso il basso: slice. Soglie iniziali da validare su hardware reale.
-    const drop = dur <= .18 && power <= .55 && lift < .55;
-    const slice = !drop && lift <= -.65;
-    emit('swing', { peakT: c.peakT, t, peak: Math.round(c.peak), power: +power.toFixed(3), dir, along: +along.toFixed(2), axis, lift: +lift.toFixed(3), lob: prof.lobLift != null && lift >= prof.lobLift || lift >= .7, drop, slice, angle: Math.round(c.angle), dur });
+    // Soglie iniziali di palla corta e slice; la durata del sensore è in millisecondi.
+    const special = classifySwingType({ power, lift, dur }, prof.lobLift);
+    emit('swing', { peakT: c.peakT, t, peak: Math.round(c.peak), power: +power.toFixed(3), dir, along: +along.toFixed(2), axis, lift: +lift.toFixed(3), ...special, angle: Math.round(c.angle), dur });
   }
 
   return {
