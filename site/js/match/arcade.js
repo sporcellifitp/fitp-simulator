@@ -43,17 +43,19 @@ export function arcadeShot(court, p, ball, sw, e){
   const q = Math.abs(e), u = clamp(e/.16, -1.6, 1.6), r = rel(p, ball.p), fore = r.l >= 0;
   const power = clamp(sw.power ?? .6, .2, 1), lift = clamp(sw.lift ?? 0, -1, 1);
   let type = 'drive';
-  if (sw.lob || lift >= .7) type = 'lob';
-  else if (ball.p.y > 2.1 && Math.abs(ball.p.z) < court.halfL*.8) type = 'smash';
+  if (ball.p.y > 2.1 && Math.abs(ball.p.z) < court.halfL*.8) type = 'smash';
+  else if (sw.drop) type = 'drop';
+  else if (sw.lob || lift >= .7) type = 'lob';
+  else if (sw.slice || lift <= -.65) type = 'slice';
   const over = Math.max(0, q - ARC.GOOD);                // molto fuori tempo: più errore, palla più bassa sulla rete e più lunga
   const pull = u*.85*(fore ? 1 : -1), dir = p.team === 0 ? 1 : -1;      // aimX < 0 = sinistra di chi colpisce
   const aimBase = sw.aim ? clamp(sw.aim.x/(court.halfW - .75)*dir, -1, 1)*.8 : 0;
   const aimX = clamp(aimBase + pull, q <= ARC.GOOD ? -.95 : -1.25, q <= ARC.GOOD ? .95 : 1.25);
-  const depth = type === 'lob' ? .9 : .5 + .45*power + over*2;
+  const depth = type === 'drop' ? .08 : type === 'lob' ? .9 : type === 'slice' ? .62 : .5 + .45*power + over*2;
   const target = shotTarget(court, p.team, aimX, depth, type);
-  const error = (q <= ARC.PERFECT ? .1 : q <= ARC.GOOD ? .2 : .3 + over*6) + (power > .92 ? .25 : 0);
-  const pace = type === 'lob' ? 1 : .76 + .44*power + (q <= ARC.PERFECT ? .1 : 0);
-  const clearance = type === 'lob' ? 1.4 : type === 'smash' ? .25 : .55 + .3*Math.max(0, lift) - over*3.5;
+  const error = (q <= ARC.PERFECT ? .1 : q <= ARC.GOOD ? .2 : .3 + over*6) + (power > .92 ? .25 : 0) + (type === 'drop' ? .18 : type === 'slice' ? .08 : 0);
+  const pace = type === 'lob' ? .9 : type === 'drop' ? .62 : type === 'slice' ? .78 : .76 + .44*power + (q <= ARC.PERFECT ? .1 : 0);
+  const clearance = type === 'lob' ? 1.4 : type === 'smash' ? .25 : type === 'drop' ? .32 : type === 'slice' ? .22 : .55 + .3*Math.max(0, lift) - over*3.5;
   return { type, target, error, clearance, pace, label: timingLabel(e), power, fore };
 }
 
