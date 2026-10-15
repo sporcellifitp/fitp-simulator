@@ -1,4 +1,4 @@
-// Comandi unificati di «Racchetta»: mouse, tastiera e telefono producono le stesse azioni, una volta per fotogramma:
+// Controller phone-only di NATPF Simulator. Mouse e tastiera non producono input di gioco:
 //   { move:{x,y}, swings:[{ at, power, lift, lob, aim, dir, src }], auto }
 // at è l'istante dello swing (secondi, orologio di performance.now), preso dall'evento e non dal fotogramma: così il
 // giudizio del tempo non dipende da quanti fotogrammi al secondo fa il computer. La partita non sa da dove arriva lo swing.
@@ -13,7 +13,7 @@ export function createControls(canvas, { pick, now = () => performance.now()/100
   const keys = new Set(), q = [];
   let aim = null, mouseUsed = false, enabled = false, autoMove = true, useAim = true;
   // l'istante dello swing è quello dell'evento (timeStamp), non quello in cui il codice riesce a leggerlo
-  const push = (src, extra = {}, ts = null) => { if (!enabled) return; q.push({ at: (ts != null ? ts/1000 : now()) + .02, power: keys.has('ShiftLeft') || keys.has('ShiftRight') ? .95 : .62, lift: 0, lob: false, aim: useAim && mouseUsed && aim ? { ...aim } : null, dir: 0, src, ...extra }); };
+  const push = (src, extra = {}, ts = null) => { if (!enabled || src !== 'phone') return; q.push({ at: (ts != null ? ts/1000 : now()) + .02, power: keys.has('ShiftLeft') || keys.has('ShiftRight') ? .95 : .62, lift: 0, lob: false, aim: useAim && mouseUsed && aim ? { ...aim } : null, dir: 0, src, ...extra }); };
   const clampAim = p => p && { x: Math.max(-5.2, Math.min(5.2, p.x)), z: Math.max(-12.6, Math.min(-2, p.z)) };
 
   addEventListener('keydown', e => {
@@ -45,7 +45,7 @@ export function createControls(canvas, { pick, now = () => performance.now()/100
     read(){
       let x = 0, y = 0;
       const k = c => keys.has(c);
-      if (enabled){
+      if (enabled && false){
         if (k('KeyW') || k('ArrowUp')) y += 1; if (k('KeyS') || k('ArrowDown')) y -= 1;
         if (k('KeyA') || k('ArrowLeft')) x -= 1; if (k('KeyD') || k('ArrowRight')) x += 1;
       }
