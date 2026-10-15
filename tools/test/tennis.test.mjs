@@ -9,9 +9,43 @@ import { gauss } from '../../site/js/match/ai.js';
 import { ArcadeMatch, ARC, CPU, rel, tossY, TOSS_APEX, arcadeShot, chooseCpuShotType } from '../../site/js/match/arcade.js';
 import { createSwingDetector, classifySwingType } from '../../site/js/tennis/swing-detect.js';
 import { createCalibration, PLAN } from '../../site/js/tennis/calibration.js';
+import { playerCameraFrame } from '../../site/js/tennis/viewpoint.js';
+import { evaluateSweetSpot } from '../../site/js/tennis/sweet-spot.js';
 import { createGate, parsePairing, pairingUrl, newSessionId, SESSION_PREFIX } from '../../site/js/tennis/pairing.js';
 
 const game = (s, t) => { for (let i = 0; i < 4; i++) awardPoint(s, t); };
+
+test('prospettiva client: entrambe le squadre vedono il proprio fondo in basso e la rete davanti', () => {
+  const half = 11.885;
+  const p1 = playerCameraFrame({ team: 0, x: .5, z: 8 }, half);
+  const p2 = playerCameraFrame({ team: 1, x: -.5, z: -8 }, half);
+  assert.ok(p1.camera.z > 0 && p1.target.z < 0, 'team 0 guarda da fondo positivo verso la rete');
+  assert.ok(p2.camera.z < 0 && p2.target.z > 0, 'team 1 guarda da fondo negativo verso la rete');
+  assert.equal(p1.camera.y, p2.camera.y, 'altezza camera coerente');
+  assert.equal(p1.target.y, p2.target.y, 'altezza del punto di mira coerente');
+  assert.ok(p1.camera.z*p1.target.z < 0 && p2.camera.z*p2.target.z < 0, 'ogni camera guarda dal proprio lato verso il campo');
+});
+
+test('sweet spot: verde solo con timing, distanza e altezza coerenti; giallo in avvicinamento', () => {
+  const player = { x: 0, z: 8 };
+  const ball = { x: .7, y: 1.05, z: 7.6 };
+  const impact = { x: .7, y: 1.05, z: 7.6 };
+  const perfect = evaluateSweetSpot({ ball, player, impact, timeToImpact: .04 });
+  assert.equal(perfect.visible, true); assert.equal(perfect.inReach, true);
+  assert.equal(perfect.heightOk, true); assert.equal(perfect.perfect, true);
+  const early = evaluateSweetSpot({ ball, player, impact, timeToImpact: .16 });
+  assert.equal(early.ready, true); assert.equal(early.perfect, false);
+  const stretched = evaluateSweetSpot({ ball: { ...ball, x: 1.9 }, player, impact, timeToImpact: .02 });
+  assert.equal(stretched.inReach, false); assert.equal(stretched.perfect, false);
+  const wrongHeight = evaluateSweetSpot({ ball: { ...ball, y: 2.5 }, player, impact, timeToImpact: .02 });
+  assert.equal(wrongHeight.heightOk, false); assert.equal(wrongHeight.perfect, false);
+  const overhead = evaluateSweetSpot({
+    ball: { x: .7, y: 2.46, z: 7.6 }, player,
+    impact: { x: .7, y: 2.48, z: 7.6 }, timeToImpact: .03,
+  });
+  assert.equal(overhead.perfect, true, 'la finestra alta consente il timing di uno smash');
+});
+
 
 test('set corto a 4: due game di scarto, tie-break sul 4-4', () => {
   let s = newScore({ gamesToWin: 4, set: true, firstServer: 0 });
@@ -78,7 +112,7 @@ function play(core, swings, secs = 1.6){
   const q = swings.map(s => ({ ...s, arrive: s.at + (s.lat || 0) }));
   while (t < secs){
     const inp = { move: { x: 0, y: 0 }, swings: [], auto: false };
-    for (const s of q) if (!s.sent && t >= s.arrive){ s.sent = true; inp.swings.push({ power: s.power ?? .6, delay: s.at - t - dt }); }
+    for (const s of q) if (!s.sent && t >= s.arrive){ s.sent = true; inp.swings.push({ power: s.power ?? .6, lift: s.lift ?? 0, dir: s.dir ?? 0, lob: !!s.lob, drop: !!s.drop, slice: !!s.slice, dur: s.dur ?? 0, delay: s.at - t - dt }); }
     for (const e of core.update(dt, inp)) if (['contact', 'miss', 'point'].includes(e.type)) out.push(e);
     t += dt;
   }
@@ -123,6 +157,25 @@ test('NATPF Simulator: drive, palla corta, lob e slice sono classificati e miran
   assert.deepEqual(classifySwingType({ power: .48, lift: .1, dur: 150 }), { drop: true, slice: false, lob: false });
   assert.deepEqual(classifySwingType({ power: .7, lift: -.8, dur: 240 }), { drop: false, slice: true, lob: false });
   assert.deepEqual(classifySwingType({ power: .8, lift: .8, dur: 240 }), { drop: false, slice: false, lob: true });
+});
+test('animazione al contatto: tipo di colpo e lato dritto/rovescio arrivano al personaggio', () => {
+  let { core, h, tc } = rallyScene(31);
+  const dropEvents = play(core, [{ at: tc, power: .45, drop: true, dur: 150, dir: 1 }]);
+  const dropContact = dropEvents.find(e => e.type === 'contact');
+  assert.ok(dropContact, 'contatto riconosciuto');
+  assert.equal(dropContact.shot, 'drop');
+  assert.equal(h.anim.kind, 'drop', 'la posa riproduce la palla corta');
+  assert.equal(h.anim.side, 'fh', 'la palla sul lato dominante usa il dritto');
+
+  ({ core, h, tc } = rallyScene(32));
+  core.ball.p.x = -.7;
+  core.ball.v.x = 0;
+  const backhandEvents = play(core, [{ at: tc, power: .65, dir: -1 }]);
+  const backhandContact = backhandEvents.find(e => e.type === 'contact');
+  assert.ok(backhandContact, 'contatto di rovescio riconosciuto');
+  assert.equal(backhandContact.shot, 'drive');
+  assert.equal(h.anim.kind, 'drive');
+  assert.equal(h.anim.side, 'bh', 'la palla sul lato opposto usa il rovescio');
 });
 test('arcade: troppo presto, troppo tardi e nessun movimento vengono detti', () => {
   let { core, tc } = rallyScene(2); assert.equal(play(core, [{ at: tc - .5 }]).find(e => e.type === 'miss').why, 'presto');
