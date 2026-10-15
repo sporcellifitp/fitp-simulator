@@ -25,3 +25,11 @@ jobs:
           node-version: 20
       - name: Test rules, physics, AI and phone gesture classification
         run: node --test tools/test/*.test.mjs
+      - name: Check rendering and network module syntax
+        shell: bash
+        run: |
+          node --input-type=module --check < site/js/tennis/scene.js
+          node --input-type=module --check < site/js/tennis/character.js
+          node --input-type=module --check < site/js/tennis/net.js
+          node --input-type=module --check < site/js/tennis/viewpoint.js
+          node --input-type=module --check < site/js/tennis/sweet-spot.js
