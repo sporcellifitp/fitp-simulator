@@ -101,10 +101,11 @@ Problemi trovati, cause, modifiche, prove e limiti in [docs/v0.8-racchetta.md](d
 - [x] Telecamera, movimento automatico e animazioni nello stile di Nintendo Switch Sports; servizio con lancio e colpo (P0).
 - [x] Calibrazione guidata in 5 passi con verifica dal vivo e conferma (P1).
 - [x] Partita contro la CPU (Facile, Normale) e partita tra amici con un link, in rete, con telefono o mouse per ognuno (P2).
-- [x] Arena ricostruita sulle immagini di riferimento, personaggi originali arrotondati, identità «Racchetta» (P3).
+- [x] Arena ricostruita sulle immagini di riferimento, personaggi originali arrotondati (P3).
+- [x] v0.8.1: branding dell'arena come nelle immagini di riferimento (Nitto ATP Finals, ESPORTS, «It all adds up to THIS», TORINO), grafiche in `site/assets/arena/`.
 - [ ] **Prova su iPhone e Android veri** e ritocco di soglie, finestre e CPU.
 - [ ] Server di segnalazione nostro (Worker Cloudflare) al posto di quello pubblico di PeerJS.
-- [ ] Loghi ufficiali solo se autorizzati; verifica del nome «Racchetta».
+- [ ] File ufficiali ad alta risoluzione dei loghi dell'arena al posto dei ritagli; verifica del nome «Racchetta».
 
 ## Prossimi passi (dalle prime settimane sul repository)
 

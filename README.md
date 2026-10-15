@@ -31,7 +31,7 @@ Prototipo di un mondo giocabile nel browser, ispirato al Foro Italico di Roma. P
 - `site/js/world/village.js` (Fan Village), `world/tour.js` (Trophy Tour), `systems/route.js` e `world/grid.js` (Percorso del Foro e calcolo della strada), `entities/cart.js` (golf car), `systems/nav.js` ed `economy.js`.
 - `site/js/match/online.js` (partite tra amici), `site/js/net/room.js` (gioco con gli amici, WebRTC con PeerJS in `js/vendor/`), `ugc/characters.js` (personaggi), `ui/preview.js` (anteprima 3D), `core/store.js` (dati per personaggio).
 - `site/tennis/` e `site/js/tennis/` (Racchetta: pagina del computer `index.html`, pagina del telefono `racchetta.html`, arena, personaggi, scena, comandi unificati, telefono e calibrazione, partita tra amici) e `site/js/match/arcade.js` (partita arcade: colpo a tempo, assistenza, CPU). Il generatore di QR è in `js/vendor/qrcode.js` (MIT).
-- `site/assets/`: loghi FITP (`brand/`) e foto del Trophy Tour (`photos/`), con fonti e licenze nei README.
+- `site/assets/`: loghi FITP (`brand/`), foto del Trophy Tour (`photos/`) e grafiche dell'arena di Racchetta (`arena/`), con fonti e licenze nei README.
 
 **Aggiungere un personaggio:** una voce in `content/npcs.js` (posizione, aspetto, dialogo). **Aggiungere un gioco:** un modulo che chiama `W.games.register({...})` e una riga in `main.js`; per il menu «Vai a…», una voce in `systems/activities.js`.
 
