@@ -97,7 +97,7 @@ function onData(c, d){
 }
 function lost(){
   if (linkState === 'denied') return;
-  conn = null; linkState = 'lost'; paint(); ui('Connessione persa', 'Riprovo da solo tra poco. Sul computer intanto puoi usare mouse e tastiera.');
+  conn = null; linkState = 'lost'; paint(); ui('Connessione persa', 'Riprovo da solo tra poco. Sul computer puoi riprovare il collegamento.');
   if (tries++ < 10) retryT = setTimeout(connect, Math.min(6000, 1000*tries));
 }
 const send = m => { if (conn && conn.open) try { conn.send(m); } catch (e){} };
