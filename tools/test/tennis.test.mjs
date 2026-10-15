@@ -1,4 +1,4 @@
-// node --test tools/test: Racchetta, il tennis arcade (set corti e tie-break, let, partita arcade col colpo a tempo,
+// node --test tools/test: NATPF Simulator, tennis arcade (set corti e tie-break, let, partita arcade col colpo a tempo,
 // servizio col lancio, rilevatore dei colpi e calibrazione del telefono, abbinamento con il QR)
 import test from 'node:test';
 import assert from 'node:assert/strict';
