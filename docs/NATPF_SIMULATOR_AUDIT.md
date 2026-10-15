@@ -196,7 +196,7 @@ Raccogliere una baseline prima del bilanciamento. Non fissare target assoluti se
 ## 11. Ordine d'esecuzione raccomandato
 
 1. **Completato nel branch:** rebranding visibile e phone-only enforcement.
-2. **Completato:** aggiunti controlli unitari per timing/direzione/colpi e un workflow Node CI; test unitari superati.
+2. **Completato:** controlli unitari per timing/direzione/colpi, verifica sintattica dei moduli di rendering e smoke test phone-only in Chromium; workflow superato.
 3. Da eseguire: baseline su telefono reale e correzione del rilevatore/timing.
 4. **Implementato e testato unitariamente:** timing separato da direzione; angoli a sinistra/centro/destra.
 5. **Prototipi implementati:** palla corta, lob e slice; serve validazione hardware e tuning.
@@ -207,7 +207,7 @@ Raccogliere una baseline prima del bilanciamento. Non fissare target assoluti se
 
 ## 12. Limiti dell'audit
 
-Audit statico completato e test unitari Node superati in GitHub Actions (workflow `NATPF Simulator tests`, commit `c1546c00981ffec7b823fdde7d77d58c7b861c11`). I test E2E browser non risultano eseguiti in questa verifica; il funzionamento e le soglie dei gesti su iPhone/Android reali restano da validare.
+Il workflow GitHub Actions `NATPF Simulator tests` è superato sul commit `9bca0dbcf736360a1cdcefce6559e5fe942f347c`: test unitari Node, controllo sintattico dei moduli di rendering/rete e smoke test phone-only in Chromium. Il test browser verifica il caricamento dell'interfaccia e l'esclusione degli input desktop; non costituisce una prova visiva completa del match da entrambi i lati. Le animazioni durante una partita intera e le soglie dei gesti su iPhone/Android fisici restano da validare.
 ## 13. Aggiornamento — prospettiva, animazioni e Sweet Spot
 
 Interventi aggiuntivi nel branch dopo l'audit iniziale:
@@ -218,4 +218,4 @@ Interventi aggiuntivi nel branch dopo l'audit iniziale:
 - **Partita online:** site/js/tennis/net.js aggiunge la quota prevista come quinto campo opzionale dell'intercetto nello snapshot; il decoder tollera snapshot precedenti senza tale campo. Tipo e lato dell'animazione utilizzano il campo già esistente.
 - **Regressioni:** tools/test/tennis.test.mjs copre frame camera per entrambi i lati, sweet spot normale e overhead, animazione/lato al contatto e conservazione di tipo/quota negli snapshot.
 
-Il workflow Node in GitHub Actions va eseguito sul commit finale di questa integrazione. La copertura unit test non sostituisce una verifica visiva del client guest, dei passaggi menu/partita e della qualità delle animazioni nel browser reale.
+Validazione automatica completata: [workflow GitHub Actions](https://github.com/sergio4/foro-italico-world/actions/runs/38790491573). La copertura unit test e lo smoke browser non sostituiscono una verifica visiva del client guest, dei passaggi menu/partita e della qualità delle animazioni su un match completo, né le prove su iPhone/Safari e Android/Chrome.
