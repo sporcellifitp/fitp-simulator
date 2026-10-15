@@ -54,6 +54,15 @@ check('5 · calibrazione confermata: si usa quella in partita', await ph.evaluat
 await ph.screenshot({ path: SP + '/pc-phone-ready.png' });
 await d.click('#pairGo');
 await d.waitForFunction(() => __racchetta.state === 'play');
+const desktopInput = await d.evaluate(() => {
+  const c = __racchetta.controls, canvas = document.querySelector('#app canvas');
+  c.enabled = true;
+  canvas.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', button: 0, clientX: 400, clientY: 260 }));
+  window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, code: 'Space' }));
+  const v = c.read(); c.enabled = false;
+  return { swings: v.swings.length, moveX: v.move.x, moveY: v.move.y };
+});
+check('mouse e tastiera non producono input di gioco', desktopInput.swings === 0 && desktopInput.moveX === 0 && desktopInput.moveY === 0, JSON.stringify(desktopInput));
 await d.evaluate(() => { const c = __racchetta.core; c.score.server = 0; c.setupPoint(); });   // il primo servizio è del telefono
 check('partita avviata con il telefono, giocatore che si muove da solo', await d.evaluate(() => document.querySelector('#chip').classList.contains('ok')), await d.textContent('#chip'));
 // il robot fa partire il movimento sul telefono in modo che il picco cada quando la palla arriva (+ errore umano 50 ms)
