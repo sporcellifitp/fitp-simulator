@@ -325,7 +325,16 @@ export class ArcadeMatch extends MatchCore {
       if (p.human || this.phase !== 'live' || !this.rally.canHit(p.team) || this.sinceHit < .22) continue;
       if (p.react > 0 || !this.canReach(p) || this.ball.p.y > 2.9 || !this.aiWants(p)) continue;
       const shot = this.cpuShot(p);
-      if (this.ball.p.y > 2.1 && Math.abs(this.ball.p.z) < this.court.halfL*.8) shot.type = 'smash';
+      if (this.ball.p.y > 2.1 && Math.abs(this.ball.p.z) < this.court.halfL*.8){
+        // Una palla alta è uno smash anche per la CPU: mantieni bersaglio, traiettoria e posa coerenti.
+        const factor = p.team === 0 ? 1 : -1;
+        const aimX = shot.target ? clamp(shot.target.x/(factor*(this.court.halfW - .75)), -1, 1) : 0;
+        shot.type = 'smash';
+        shot.target = shotTarget(this.court, p.team, aimX, .88, 'smash');
+        shot.error = this.cpu.spread;
+        shot.clearance = .25;
+        shot.pace = Math.max(1.08, shot.pace);
+      }
       p.anim = { kind: shot.type, side: rel(p, this.ball.p).l >= 0 ? 'fh' : 'bh', at: this.t, hit: true };
       this.strike(p, shot);
     }
