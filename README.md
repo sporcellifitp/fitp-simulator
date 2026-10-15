@@ -30,8 +30,8 @@ Prototipo di un mondo giocabile nel browser, ispirato al Foro Italico di Roma. P
 - `site/js/games/`: registro delle modalità e minigiochi. `ugc/`: profilo, bacheca, codici sfida, negozi. `content/`: personaggi e dialoghi, articoli dei negozi, pannelli del Trophy Tour.
 - `site/js/world/village.js` (Fan Village), `world/tour.js` (Trophy Tour), `systems/route.js` e `world/grid.js` (Percorso del Foro e calcolo della strada), `entities/cart.js` (golf car), `systems/nav.js` ed `economy.js`.
 - `site/js/match/online.js` (partite tra amici), `site/js/net/room.js` (gioco con gli amici, WebRTC con PeerJS in `js/vendor/`), `ugc/characters.js` (personaggi), `ui/preview.js` (anteprima 3D), `core/store.js` (dati per personaggio).
-- `site/tennis/` e `site/js/tennis/` (Racchetta: pagina di gioco `index.html`, controller smartphone `racchetta.html`, arena, personaggi, scena, comandi unificati, telefono e calibrazione, partita tra amici) e `site/js/match/arcade.js` (partita arcade: colpo a tempo, assistenza, CPU). Il generatore di QR è in `js/vendor/qrcode.js` (MIT).
-- `site/assets/`: loghi FITP (`brand/`), foto del Trophy Tour (`photos/`) e grafiche dell'arena di Racchetta (`arena/`), con fonti e licenze nei README.
+- `site/tennis/` e `site/js/tennis/` (NATPF Simulator: pagina di gioco `index.html`, controller smartphone `racchetta.html`, arena, personaggi, scena, comandi phone-only, calibrazione e partita tra amici) e `site/js/match/arcade.js` (partita arcade: colpo a tempo, assistenza, CPU). Il generatore di QR è in `js/vendor/qrcode.js` (MIT).
+- `site/assets/`: loghi FITP (`brand/`), foto del Trophy Tour (`photos/`) e grafiche dell'arena di NATPF Simulator (`arena/`), con fonti e licenze nei README.
 
 **Aggiungere un personaggio:** una voce in `content/npcs.js` (posizione, aspetto, dialogo). **Aggiungere un gioco:** un modulo che chiama `W.games.register({...})` e una riga in `main.js`; per il menu «Vai a…», una voce in `systems/activities.js`.
 
@@ -43,7 +43,7 @@ Il gioco è un unico file, `site/index.html`, più la planimetria in `site/data/
 python -m http.server 8765 -d site
 ```
 
-Poi apri `http://localhost:8765` (il mondo) o `http://localhost:8765/tennis/` (Racchetta). Il telefono come racchetta e la partita tra amici funzionano dall'indirizzo pubblicato in https: istruzioni in [docs/v0.8-racchetta.md](docs/v0.8-racchetta.md). Con `#centrale` o `#padel` in fondo all'indirizzo si parte direttamente in campo, con `?layout=schematic` si forza la planimetria schematica anche quando c'è quella importata.
+Poi apri `http://localhost:8765` (il mondo) o `http://localhost:8765/tennis/` (NATPF Simulator). Il telefono come racchetta e la partita tra amici funzionano dall'indirizzo pubblicato in https: istruzioni in [docs/v0.8-racchetta.md](docs/v0.8-racchetta.md). Con `#centrale` o `#padel` in fondo all'indirizzo si parte direttamente in campo, con `?layout=schematic` si forza la planimetria schematica anche quando c'è quella importata.
 
 ## Planimetria da OpenStreetMap
 
@@ -54,7 +54,7 @@ node tools/osm-import.mjs           # usa data/osm/foro-italico.overpass.json es
 node --test tools/test/*.test.mjs   # test di importatore, regole, fisica, partite, codici sfida, colpo e telefono
 ```
 
-Serve Node.js 18 o successivo, senza dipendenze. Le prove nel browser di Racchetta (computer, telefono simulato, partita tra amici, con Playwright) sono in `tools/e2e/`, con le istruzioni nel README della cartella. Se `site/data/layout.json` manca, il gioco usa la planimetria schematica scritta in `site/index.html`.
+Serve Node.js 18 o successivo, senza dipendenze. Le prove nel browser di NATPF Simulator (computer, telefono simulato, partita tra amici, con Playwright) sono in `tools/e2e/`, con le istruzioni nel README della cartella. Se `site/data/layout.json` manca, il gioco usa la planimetria schematica scritta in `site/index.html`.
 
 ## Pubblicare online
 
