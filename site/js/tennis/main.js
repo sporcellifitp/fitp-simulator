@@ -18,7 +18,7 @@ const $ = s => document.querySelector(s);
 const show = (s, on = true) => (typeof s === 'string' ? $(s) : s).classList.toggle('hidden', !on);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const store = { get(k, d){ try { const v = localStorage.getItem('natpf-simulator.' + k); return v == null ? d : JSON.parse(v); } catch (e){ return d; } }, set(k, v){ try { localStorage.setItem('natpf-simulator.' + k, JSON.stringify(v)); } catch (e){} } };
-const SCREENS = ['#menu', '#ctrl', '#pair', '#lobby', '#guest', '#mobile', '#net', '#pause', '#end'];
+const SCREENS = ['#menu', '#pair', '#lobby', '#guest', '#mobile', '#net', '#pause', '#end'];
 const pane = id => { for (const s of SCREENS) show(s, s === id); };
 const isPhone = /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent) || (matchMedia('(pointer: coarse)').matches && Math.min(window.screen.width || 9999, innerWidth) < 600);
 
@@ -51,9 +51,6 @@ $('#btnInvite').addEventListener('click', () => { A.mode = 'host'; openHost(); }
 
 /* ---------- controller ---------- */
 function chooseCtrl(next){ A.afterCtrl = next; A.ctrl = 'phone'; openPair(next); }
-$('#ctrlMouse').addEventListener('click', () => { A.ctrl = 'phone'; openPair(A.afterCtrl); });
-$('#ctrlPhone').addEventListener('click', () => openPair(A.afterCtrl));
-$('#ctrlBack').addEventListener('click', () => back());
 function back(){
   if (A.mode === 'guest'){ A.state = 'guest'; pane('#guest'); return; }
   if (A.mode === 'host' && A.host){ openLobby(); return; }
@@ -166,7 +163,6 @@ $('#rvConfirm').addEventListener('click', () => A.link.cmd('confirm'));
 $('#pairRecal').addEventListener('click', () => { cal = { step: null, idx: 0, marks: [], result: null }; A.link.cmd('cal'); });
 $('#errRetry').addEventListener('click', () => { A.link.cmd('cal'); paintPair(); });
 $('#pairGo').addEventListener('click', () => { A.ctrl = 'phone'; pairNext && pairNext(); });
-$('#pairMouse').addEventListener('click', () => { A.ctrl = 'phone'; paintPair(); });
 $('#pairBack').addEventListener('click', () => { if (A.state === 'paused' || A.pairFromPause){ A.pairFromPause = false; pane('#pause'); A.state = 'paused'; } else back(); });
 $('#pairForget').addEventListener('click', () => { A.link && A.link.forget(); qrTok = null; cal = { step: null, idx: 0, marks: [], result: null }; paintPair(); });
 function phoneChip(){
