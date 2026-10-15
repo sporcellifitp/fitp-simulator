@@ -21,11 +21,18 @@ export const encodeEvents = (core, events) => events.filter(e => e.type !== 'net
 export function createMirror({ players, D = .1 }){
   const snaps = [], events = [];
   const M = {
-    D, players, last: null,
-    push(s){ if (M.last && s.ct < M.last.ct) return; snaps.push(s); M.last = s; while (snaps.length > 40) snaps.shift(); },
+    D, players, last: null, rate: 1,
+    // rate: quanto avanza il tempo di partita per ogni secondo dell'host. Su un computer lento la partita va più piano
+    // dell'orologio (passo massimo per fotogramma): senza questa stima l'amico vedrebbe e colpirebbe «nel futuro».
+    push(s){
+      if (M.last && s.ct < M.last.ct) return;
+      const p = M.last;
+      if (p && s.hw > p.hw + 5){ const r = (s.ct - p.ct)/((s.hw - p.hw)/1000); if (isFinite(r)) M.rate += (Math.max(.1, Math.min(1.2, r)) - M.rate)*.2; }
+      snaps.push(s); M.last = s; while (snaps.length > 40) snaps.shift();
+    },
     pushEvents(list){ events.push(...list); },
     // tempo di partita attuale stimato: ultima istantanea + tempo passato sull'orologio dell'host
-    coreNow(localMs, clock){ const s = M.last; if (!s) return 0; return s.ct + (clock.toRemote(localMs) - s.hw)/1000; },
+    coreNow(localMs, clock){ const s = M.last; if (!s) return 0; return s.ct + M.rate*(clock.toRemote(localMs) - s.hw)/1000; },
     renderTime(localMs, clock){ return M.coreNow(localMs, clock) - M.D; },
     // da un istante locale (s, orologio di questa pagina) al tempo di partita che si stava vedendo
     seenAt(localSec, clock){ return M.coreNow(localSec*1000, clock) - M.D; },

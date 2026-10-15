@@ -321,6 +321,11 @@ test('online: orologi allineati col viaggio più breve, istantanee interpolate, 
   const local = 50000 + 1000/30 - 5000 + 100;                        // 100 ms dopo l'ultima istantanea (ora locale)
   assert.ok(Math.abs(M.coreNow(local, clock) - (10 + 1/30 + .1)) < 2e-3);
   assert.ok(Math.abs(M.seenAt(local/1000, clock) - (10 + 1/30)) < 2e-3, 'lo swing si riferisce a ciò che si vedeva');
+  // partita che va a metà velocità (host lento): il tempo di partita stimato segue la velocità vera
+  const M2 = createMirror({ players: [{ id: 'h', team: 0 }, { id: 'g', team: 1 }], D: .1 });
+  for (let i = 0; i < 30; i++){ core.t = 20 + i*.5/30; M2.push(JSON.parse(JSON.stringify(encodeSnap(core, 60000 + i*1000/30)))); }
+  assert.ok(Math.abs(M2.rate - .5) < .05, `velocità ${M2.rate}`);
+  assert.ok(Math.abs(M2.coreNow(60000 + 29*1000/30 + 200 - 5000, clock) - (core.t + .1)) < .01);
   M.pushEvents(encodeEvents({ t: 10.05 }, [{ type: 'bounce', x: 0, z: 1 }, { type: 'net' }]));
   assert.equal(M.takeEvents(10.04).length, 0); assert.equal(M.takeEvents(10.06).length, 1, 'il tocco di rete senza nastro non si manda');
   assert.deepEqual(M.score().labels, ['0', '0']);

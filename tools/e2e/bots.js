@@ -31,7 +31,7 @@ window.__guestMouseBot = function ({ sd = .05 } = {}){
     const A = R.A, M = A.mirror;
     if (M && M.last && A.state === 'play' && A.guest){
       const now = performance.now(), Rt = M.renderTime(now, A.guest.clock), v = M.view(Rt), g = v.players[1];
-      const at = tc => now + (tc - Rt)*1000 + gauss()*sd*1000;
+      const at = tc => now + (tc - Rt)/M.rate*1000 + gauss()*sd*1000;      // quando la palla arriverà sullo schermo (anche se la partita va più piano)
       if (v.phase === 'serve' && v.serverId === 'g'){
         if (!v.toss && serve !== 'tossing' || serve === 'tossing' && !v.toss && now - tossT > 3000){ serve = 'tossing'; tossT = now; click(); }
         else if (v.toss && serve !== v.toss.t0){ serve = v.toss.t0; setTimeout(click, Math.max(0, at(v.toss.t0 + 5.1/9.81) - performance.now())); }

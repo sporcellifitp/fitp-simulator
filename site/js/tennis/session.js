@@ -85,7 +85,7 @@ export function joinSession(invite){
 
   async function connect(){
     set({ state: 'connecting', why: null });
-    clearTimeout(connect.t); connect.t = setTimeout(() => { if (S.state === 'connecting') lost(); }, 15000);   // niente risposta: si riprova
+    clearTimeout(connect.t); connect.t = setTimeout(() => { if (S.state === 'connecting') lost(); }, 25000);   // niente risposta: si riprova
     try {
       const Peer = await loadPeer();
       if (peer && !peer.destroyed) peer.destroy();
@@ -123,6 +123,8 @@ export function joinSession(invite){
     set({ state: 'lost' });
     if (tries++ < 10) setTimeout(connect, Math.min(6000, 1000*tries));
   }
+  // pagina chiusa o ricaricata: lo si dice subito all'host (la chiave di ripresa resta per rientrare)
+  addEventListener('pagehide', () => { try { conn && conn.close(); } catch (e){} });
   return {
     S, clock, invite,
     on(k, f){ H[k].push(f); return this; },

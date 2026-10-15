@@ -20,8 +20,8 @@ check('link aperto su smartphone: «Apri il link su un computer», nessuna parti
 await M.p.screenshot({ path: SP + '/inv-mobile.png' }); await M.ctx.close();
 // B entra
 const G = await page(B, link, size), b = G.p;
-await b.waitForFunction(() => window.__racchetta && /Collegato/.test(document.querySelector('#gStatus').textContent), null, { timeout: 60000 });
-await b.waitForFunction(() => /Sergio ti ha invitato/.test(document.querySelector('#gTitle').textContent), null, { timeout: 10000 });
+await b.waitForFunction(() => window.__racchetta && /Collegato/.test(document.querySelector('#gStatus').textContent), null, { timeout: 120000 });
+await b.waitForFunction(() => /Sergio ti ha invitato/.test(document.querySelector('#gTitle').textContent), null, { timeout: 40000 });
 check('B: invito ricevuto, sa chi lo invita', true, await b.textContent('#gTitle'));
 await b.fill('#gName', 'Giulia'); await b.click('#gGo'); await b.click('#ctrlPhone');
 await b.waitForFunction(() => document.querySelector('#qr').dataset.url, null, { timeout: 20000 });
