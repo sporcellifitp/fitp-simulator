@@ -1,6 +1,6 @@
 # Prove nel browser: NATPF Simulator
 
-Prove automatiche con Playwright e Chromium: il computer, un telefono simulato (eventi `devicemotion` sintetici) e la partita tra amici su più finestre. Non sostituiscono la prova su un telefono vero (vedi `docs/v0.8-racchetta.md`).
+Prove automatiche con Playwright e Chromium per NATPF Simulator: pairing QR, telefono simulato (eventi `devicemotion` sintetici), calibrazione, guasti e partita tra amici. Le prove simulate non sostituiscono la verifica su iPhone Safari e Android Chrome reali. Consultare `docs/NATPF_SIMULATOR_AUDIT.md`.
 
 ```bash
 cd tools/e2e && npm install                    # playwright-core, peer, express, jsqr
