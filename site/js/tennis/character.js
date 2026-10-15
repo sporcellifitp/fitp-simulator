@@ -61,7 +61,8 @@ export function makeCharacter(look = LOOKS.blu){
   throatShape.moveTo(-.022, .17); throatShape.lineTo(-.037, .245); throatShape.lineTo(-.065, .315);
   throatShape.lineTo(-.047, .327); throatShape.lineTo(0, .272); throatShape.lineTo(.047, .327);
   throatShape.lineTo(.065, .315); throatShape.lineTo(.037, .245); throatShape.lineTo(.022, .17); throatShape.closePath();
-  const throat = new THREE.Mesh(new THREE.ShapeGeometry(throatShape), mat(L.racket));
+  const throatMat = mat(L.racket); throatMat.side = THREE.DoubleSide;
+  const throat = new THREE.Mesh(new THREE.ShapeGeometry(throatShape), throatMat);
   throat.position.z = .003; racket.add(throat);
   // Corde reali a griglia, ritagliate dentro l'ovale: niente disco bianco pieno.
   const stringVerts = [];
