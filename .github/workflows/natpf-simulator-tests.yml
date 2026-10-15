@@ -33,6 +33,7 @@ jobs:
           node --input-type=module --check < site/js/tennis/net.js
           node --input-type=module --check < site/js/tennis/viewpoint.js
           node --input-type=module --check < site/js/tennis/sweet-spot.js
+          node --input-type=module --check < site/js/tennis/racchetta.js
 
   browser-smoke:
     name: Browser smoke test (phone-only)
