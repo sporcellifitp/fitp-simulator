@@ -109,7 +109,8 @@ export function makeCharacter(look = LOOKS.blu){
     if (p > 0){
       tw = lerp(0, fh ? 1.15 : -1.2, p);
       shRx = lerp(shRx, fh ? -.4 : -.9, p); shRz = lerp(shRz, fh ? -1.2 : .7, p); elR = lerp(elR, fh ? -.5 : -1.3, p);
-      shLx = lerp(shLx, -1.2, p); shLz = lerp(shLz, fh ? -.6 : .3, p);\n      rk = lerp(rk, fh ? 1.05 : 1.5, p); rkz = lerp(rkz, fh ? -.08 : .12, p);
+      shLx = lerp(shLx, -1.2, p); shLz = lerp(shLz, fh ? -.6 : .3, p);
+      rk = lerp(rk, fh ? 1.05 : 1.5, p); rkz = lerp(rkz, fh ? -.08 : .12, p);
     }
     // colpo: dalla preparazione all'impatto (u = .43) e all'accompagnamento
     if (s.swing != null){
