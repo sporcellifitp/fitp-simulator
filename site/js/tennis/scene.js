@@ -1,10 +1,12 @@
-// La scena 3D di «Racchetta»: arena (arena.js), personaggi (character.js), palla con scia e ombra, aiuto sul tempo
-// (anello che si stringe sul punto d'impatto), mirino del mouse, lampo del colpo, telecamera alle spalle del giocatore
+// Scena 3D di NATPF Simulator: arena, personaggi, palla con scia e ombra, sweet spot, feedback del colpo e camera locale
+// dietro il giocatore attivo. Le coordinate del campo restano assolute e non vengono mai trasformate per il rendering.
 // come in Nintendo Switch Sports: bassa, stabile, il proprio giocatore in primo piano e tutto il campo avversario davanti.
 // Coordinate della partita (x larghezza, z lunghezza, rete a z = 0). La squadra 0 sta a z > 0.
 import * as THREE from 'three';
 import { buildArena } from './arena.js';
 import { makeCharacter, LOOKS } from './character.js';
+import { playerCameraFrame } from './viewpoint.js';
+import { evaluateSweetSpot } from './sweet-spot.js';
 
 const HL = 11.885;
 const SWING = { before: .12, dur: .3 };            // l'animazione del colpo: impatto 0,12 s dopo l'inizio, durata 0,3 s
@@ -97,24 +99,31 @@ export function createScene(container, { quality = 1 } = {}){
     const M = new THREE.Matrix4();
     for (let i = 0; i < TRAIL; i++){ const h = hist[i]; const s = h ? (1 - i/TRAIL)*.9 : 0; M.makeScale(s, s, s); if (h) M.setPosition(h.x, h.y, h.z); trail.setMatrixAt(i, M); }
     trail.instanceMatrix.needsUpdate = true;
-    // anello del tempo per il giocatore di questo schermo
+    // Sweet spot locale: combina timing previsto, distanza palla-giocatore e altezza utile.
+    // Il cue è solo visivo: non cambia né la risoluzione dell'impatto né la fisica del punto.
     const me = local && view.players.find(p => p.id === local.id);
     if (me && me.inc && view.phase === 'live' && local.assist){
       const left = me.inc.Tc - view.t, r = .3 + Math.max(0, Math.min(1, left/.8))*1.2;
-      ring.visible = left > -.15; ring.position.set(me.inc.x, .02, me.inc.z); ring.scale.setScalar(r);
-      ring.material.color.set(Math.abs(left) < .07 ? 0x4cff8a : left < .3 ? 0xffe14a : 0xffffff);
-      ring.material.opacity = left < .3 ? .9 : .45;
+      const sweet = evaluateSweetSpot({ ball: b, player: me, impact: me.inc, timeToImpact: left });
+      ring.visible = left > -.15;
+      ring.position.set(me.inc.x, .02, me.inc.z);
+      ring.scale.setScalar(r);
+      ring.material.color.set(sweet.perfect ? 0x4cff8a : sweet.ready ? 0xffd447 : 0xffffff);
+      ring.material.opacity = sweet.perfect ? .98 : sweet.ready ? .88 : left < .3 ? .7 : .45;
     } else ring.visible = false;
     for (const o of marks){ o.t += dt; o.m.material.opacity = Math.max(0, .7*(1 - Math.max(0, o.t - o.life*.6)/(o.life*.4))); }
     for (let i = flashes.length - 1; i >= 0; i--){ const f = flashes[i]; f.t += dt; f.m.scale.setScalar(1 + f.t*14); f.m.material.opacity = Math.max(0, 1 - f.t/.3); if (f.t > .3){ scene.remove(f.m); flashes.splice(i, 1); } }
     cheer = Math.max(0, cheer - dt*.6);
     arena.update(now, Math.min(1, cheer));
   }
-  // telecamera dietro al giocatore di questo schermo (squadra 0 da z > 0, squadra 1 da z < 0)
+  // Camera locale: il team 0 guarda da z>0 verso -z; il team 1 da z<0 verso +z.
+  // È una trasformazione di vista del client: personaggi, palla, bersagli e fisica mantengono le coordinate assolute.
   const camPos = new THREE.Vector3(), camAt = new THREE.Vector3();
   function follow(p, dt, snap = false){
-    const f = p && p.team === 1 ? -1 : 1, px = p ? p.x : 0, pz = p ? Math.abs(p.z) : HL;
-    camPos.set(px*.45, 3.3, f*(Math.max(pz, HL - 1) + 7.4)); camAt.set(px*.2, 2.1, -f*10);
+    const frame = playerCameraFrame(p, HL);
+    camPos.set(frame.camera.x, frame.camera.y, frame.camera.z);
+    camAt.set(frame.target.x, frame.target.y, frame.target.z);
+    camera.up.set(0, 1, 0);
     if (snap) camera.position.copy(camPos); else camera.position.lerp(camPos, Math.min(1, dt*4));
     camera.lookAt(camAt);
   }
