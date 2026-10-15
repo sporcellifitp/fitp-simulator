@@ -26,8 +26,9 @@ export const ARC = {
 };
 // err: errori gratuiti per colpo; attack: probabilità di attaccare quando la palla gli arriva debole o fuori tempo
 export const CPU = {
-  facile:  { label: 'Facile',  err: .055, spread: .3, pace: [.72, .84], attack: .25, attackPace: [1, 1.12], speed: 6.2, reaction: .3, pressure: .05 },
-  normale: { label: 'Normale', err: .045, spread: .26, pace: [.8, .95], attack: .35, attackPace: [1.05, 1.2], speed: 6.8, reaction: .22, pressure: .04 },
+  facile:  { label: 'Facile',  err: .055, spread: .3,  pace: [.72, .84], attack: .25, attackPace: [1, 1.12], speed: 6.2, reaction: .3,  pressure: .05 },
+  normale: { label: 'Normale', err: .045, spread: .26, pace: [.8, .95],  attack: .35, attackPace: [1.05, 1.2], speed: 6.8, reaction: .22, pressure: .04 },
+  esperto: { label: 'Esperto', err: .035, spread: .2,  pace: [.88, 1.02], attack: .43, attackPace: [1.12, 1.3], speed: 7.3, reaction: .16, pressure: .065 },
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const axes = p => ({ fz: p.team === 0 ? -1 : 1, rx: p.team === 0 ? 1 : -1 });
@@ -37,10 +38,10 @@ export const tossY = t => ARC.TOSS.y0 + ARC.TOSS.vy*t - 4.905*t*t;
 export const TOSS_APEX = ARC.TOSS.vy/9.81;
 export function timingLabel(e){ const q = Math.abs(e); return q <= ARC.PERFECT ? 'perfetto' : q <= ARC.GOOD ? 'buono' : e < 0 ? 'anticipo' : 'ritardo'; }
 
-// Il colpo che esce dall'impatto: direzione dal tempo (più la mira del mouse, se c'è), profondità e ritmo dalla potenza.
-// Errori piccoli: si sbaglia davvero solo molto fuori tempo o tirando fortissimo.
+// Il colpo: la direzione del gesto calibrato controlla l'angolo; il timing controlla qualità e ritmo.
+// dir=+1 (swing destra→sinistra) mira a sinistra dell'avversario; dir=-1 mira a destra; dir=0 mira al centro.
 export function arcadeShot(court, p, ball, sw, e){
-  const q = Math.abs(e), u = clamp(e/.16, -1.6, 1.6), r = rel(p, ball.p), fore = r.l >= 0;
+  const q = Math.abs(e), r = rel(p, ball.p), fore = r.l >= 0;
   const power = clamp(sw.power ?? .6, .2, 1), lift = clamp(sw.lift ?? 0, -1, 1);
   let type = 'drive';
   if (ball.p.y > 2.1 && Math.abs(ball.p.z) < court.halfL*.8) type = 'smash';
@@ -48,12 +49,12 @@ export function arcadeShot(court, p, ball, sw, e){
   else if (sw.lob || lift >= .7) type = 'lob';
   else if (sw.slice || lift <= -.65) type = 'slice';
   const over = Math.max(0, q - ARC.GOOD);                // molto fuori tempo: più errore, palla più bassa sulla rete e più lunga
-  const pull = u*.85*(fore ? 1 : -1), dir = p.team === 0 ? 1 : -1;      // aimX < 0 = sinistra di chi colpisce
-  const aimBase = sw.aim ? clamp(sw.aim.x/(court.halfW - .75)*dir, -1, 1)*.8 : 0;
-  const aimX = clamp(aimBase + pull, q <= ARC.GOOD ? -.95 : -1.25, q <= ARC.GOOD ? .95 : 1.25);
+  const gestureDir = clamp(sw.dir ?? 0, -1, 1);
+  const aimX = -gestureDir*.72;
+  const angleRisk = Math.abs(aimX)*.08;
   const depth = type === 'drop' ? .08 : type === 'lob' ? .9 : type === 'slice' ? .62 : .5 + .45*power + over*2;
   const target = shotTarget(court, p.team, aimX, depth, type);
-  const error = (q <= ARC.PERFECT ? .1 : q <= ARC.GOOD ? .2 : .3 + over*6) + (power > .92 ? .25 : 0) + (type === 'drop' ? .18 : type === 'slice' ? .08 : 0);
+  const error = (q <= ARC.PERFECT ? .1 : q <= ARC.GOOD ? .2 : .3 + over*6) + angleRisk + (power > .92 ? .25 : 0) + (type === 'drop' ? .18 : type === 'slice' ? .08 : 0);
   const pace = type === 'lob' ? .9 : type === 'drop' ? .62 : type === 'slice' ? .78 : .76 + .44*power + (q <= ARC.PERFECT ? .1 : 0);
   const clearance = type === 'lob' ? 1.4 : type === 'smash' ? .25 : type === 'drop' ? .32 : type === 'slice' ? .22 : .55 + .3*Math.max(0, lift) - over*3.5;
   return { type, target, error, clearance, pace, label: timingLabel(e), power, fore };
