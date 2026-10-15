@@ -106,7 +106,7 @@ function paintPair(){
   if (L.L.state === 'waiting') txt = 'Inquadra il codice con la fotocamera del telefono';
   if (L.L.state === 'connected'){ txt = 'Telefono collegato: tocca «Attiva i sensori» sul telefono'; dot = 'ok'; }
   if (L.L.state === 'lost'){ txt = 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo'; dot = 'bad'; }
-  if (L.L.state === 'error'){ txt = `Connessione non disponibile (${L.L.error}). Puoi giocare con mouse e tastiera.`; dot = 'bad'; }
+  if (L.L.state === 'error'){ txt = `Connessione non disponibile (${L.L.error}). Riprova o verifica la connessione.`; dot = 'bad'; }
   $('#pairStatus').textContent = txt; $('#pairDot').className = 'dot ' + dot;
   show('#pairWarn', !L.connected && !!$('#pairWarn').textContent);
   const box = $('#qr');
@@ -219,7 +219,7 @@ function onEvent(e, view){
       break;
     case 'bounce': S.mark(e.x, e.z); sound(.45, 'bounce'); break;
     case 'net': if (e.tape) flash('Nastro!', '', 800); sound(.5, 'net'); break;
-    case 'serveReady': if (mine) hint( 'Al servizio: un movimento lancia la palla, il secondo la colpisce in cima'); if (mine) phoneSend({ t: 'ph', ph: 'serve' }); break;
+    case 'serveReady': if (mine) hint('Al servizio: un movimento lancia la palla, il secondo la colpisce in cima'); if (mine) phoneSend({ t: 'ph', ph: 'serve' }); break;
     case 'toss': if (mine) hint('Ora colpisci quando la palla è in cima'); break;
     case 'tossCaught': if (mine){ hint('Palla ripresa: rilancia quando vuoi'); if (e.why !== 'nessuno') timing('miss', e.why === 'presto' ? 'Troppo presto' : 'Troppo tardi', 'Colpisci quando la palla è in cima'); } break;
     case 'contact':
@@ -320,7 +320,7 @@ function stepCore(dt, now){
   aimMarker();
 }
 // mirino del mouse: dove si manda la palla (il tempo resta la cosa più importante)
-function aimMarker(){ const a = A.ctrl === 'mouse' && A.state === 'play' && controls.aim; S.aim.visible = !!a; if (a) S.aim.position.set(A.myId === 'g' ? -a.x : a.x, .02, A.myId === 'g' ? -a.z : a.z); }
+function aimMarker(){ const a = false; S.aim.visible = !!a; if (a) S.aim.position.set(A.myId === 'g' ? -a.x : a.x, .02, A.myId === 'g' ? -a.z : a.z); }
 // amico: disegna lo stato dell'host un attimo indietro, manda i colpi riferiti a ciò che vedeva
 function stepGuest(dt, now){
   const M = A.mirror, G = A.guest; if (!M.last) return;
