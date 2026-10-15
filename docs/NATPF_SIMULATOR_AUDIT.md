@@ -208,3 +208,14 @@ Raccogliere una baseline prima del bilanciamento. Non fissare target assoluti se
 ## 12. Limiti dell'audit
 
 Audit statico completato e test unitari Node superati in GitHub Actions (workflow `NATPF Simulator tests`, commit `c1546c00981ffec7b823fdde7d77d58c7b861c11`). I test E2E browser non risultano eseguiti in questa verifica; il funzionamento e le soglie dei gesti su iPhone/Android reali restano da validare.
+## 13. Aggiornamento — prospettiva, animazioni e Sweet Spot
+
+Interventi aggiuntivi nel branch dopo l'audit iniziale:
+
+- **Prospettiva per il guest:** site/js/tennis/viewpoint.js calcola il frame della camera in base al team. scene.js applica una vista dietro la propria linea di fondo e verso la rete, con snap iniziale quando il match comincia o cambia il giocatore seguito. Le coordinate assolute di palla, campo, giocatori e bersagli non vengono ruotate o riscritte.
+- **Animazioni contestuali:** ArcadeMatch.resolve() assegna a p.anim.kind il tipo di colpo effettivo (drive, drop, lob, slice, smash) e side il dritto/rovescio determinato con le coordinate relative al giocatore. cpuStrike() usa la stessa convenzione. scene.js trasferisce il tipo al personaggio e character.js riproduce movimenti distinti per drive, palla corta, lob e slice.
+- **Sweet Spot:** site/js/tennis/sweet-spot.js calcola distanza giocatore-palla, quota d'impatto ideale e distanza temporale dall'intercetto. Il cerchio è verde solo quando tutti i criteri sono soddisfatti, giallo nella finestra di preparazione e bianco fuori dalla zona utile. L'indicatore è solo visuale e non cambia il giudizio del colpo o la fisica.
+- **Partita online:** site/js/tennis/net.js aggiunge la quota prevista come quinto campo opzionale dell'intercetto nello snapshot; il decoder tollera snapshot precedenti senza tale campo. Tipo e lato dell'animazione utilizzano il campo già esistente.
+- **Regressioni:** tools/test/tennis.test.mjs copre frame camera per entrambi i lati, sweet spot normale e overhead, animazione/lato al contatto e conservazione di tipo/quota negli snapshot.
+
+Il workflow Node in GitHub Actions va eseguito sul commit finale di questa integrazione. La copertura unit test non sostituisce una verifica visiva del client guest, dei passaggi menu/partita e della qualità delle animazioni nel browser reale.
