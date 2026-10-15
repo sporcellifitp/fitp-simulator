@@ -44,10 +44,19 @@ const racket = await p.evaluate(() => {
   const [c] = __racchetta.S.setPlayers([{ id: 'grip-check', team: 0 }], ['blu']);
   const group = c.racketHead.parent;
   const strings = group.children.find(o => o.isLineSegments);
-  return { headY: c.racketHead.position.y, stringVertices: strings?.geometry.getAttribute('position').count ?? 0 };
+  const base = { t: 10, dt: 1/60, moving: 0, prep: 0, swing: .43 };
+  c.pose({ ...base, side: 'fh', kind: 'drive' });
+  const forehand = { x: group.rotation.x, z: group.rotation.z };
+  c.pose({ ...base, side: 'bh', kind: 'drive' });
+  const backhand = { x: group.rotation.x, z: group.rotation.z };
+  c.pose({ ...base, side: 'fh', kind: 'slice' });
+  const slice = { x: group.rotation.x, z: group.rotation.z };
+  return { headY: c.racketHead.position.y, stringVertices: strings?.geometry.getAttribute('position').count ?? 0, forehand, backhand, slice };
 });
-check('racchetta impugnata dal manico: testa sopra la mano e corde a griglia',
-  racket.headY > .3 && racket.stringVertices >= 40, JSON.stringify(racket));
+check('racchetta impugnata dal manico: testa sopra la mano, corde a griglia e polso articolato',
+  racket.headY > .3 && racket.stringVertices >= 40 &&
+  Math.abs(racket.forehand.z - racket.backhand.z) > .2 &&
+  Math.abs(racket.forehand.x - racket.slice.x) > .1, JSON.stringify(racket));
 
 // La pagina dedicata al telefono deve eseguire davvero il modulo JS: in assenza di QR deve mostrare un errore chiaro,
 // non restare bloccata sulla schermata statica iniziale «Collegamento…».
