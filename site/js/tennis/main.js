@@ -176,7 +176,7 @@ function phoneChip(){
   let t = 'Telefono: in attesa', cls = '';
   if (L.ready){ t = 'Telefono pronto' + (L.L.rtt != null ? ` · ${L.L.rtt} ms` : ''); cls = 'ok'; }
   else if (L.L.state === 'connected') t = 'Telefono: da calibrare (pausa → Telefono)';
-  else if (L.L.state === 'lost' || L.L.state === 'error'){ t = 'Telefono scollegato · usa mouse e tastiera'; cls = 'bad'; }
+  else if (L.L.state === 'lost' || L.L.state === 'error'){ t = 'Telefono scollegato · ricollega il controller'; cls = 'bad'; }
   c.className = cls; c.querySelector('span').textContent = t;
 }
 
@@ -319,7 +319,7 @@ function stepCore(dt, now){
   S.sync(viewOf(core), dt, { id: A.myId, assist: true }); S.follow(m, dt);
   aimMarker();
 }
-// mirino del mouse: dove si manda la palla (il tempo resta la cosa più importante)
+// Il puntamento è gestito dal gesto calibrato del telefono; non esiste mira con puntatore.
 function aimMarker(){ const a = false; S.aim.visible = !!a; if (a) S.aim.position.set(A.myId === 'g' ? -a.x : a.x, .02, A.myId === 'g' ? -a.z : a.z); }
 // amico: disegna lo stato dell'host un attimo indietro, manda i colpi riferiti a ciò che vedeva
 function stepGuest(dt, now){
