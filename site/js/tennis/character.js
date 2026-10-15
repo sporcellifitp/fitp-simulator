@@ -44,9 +44,39 @@ export function makeCharacter(look = LOOKS.blu){
   };
   const armR = arm(-1), armL = arm(1);                  // destra a x < 0 guardando verso +z
   const racket = pivot(armR.el, 0, -.28, 0);
-  const handle = new THREE.Mesh(new THREE.CylinderGeometry(.022, .022, .22, 8), mat(0x1d1d24)); handle.position.y = -.07; racket.add(handle);
-  const frame = new THREE.Mesh(new THREE.TorusGeometry(.17, .022, 8, 28), mat(L.racket)); frame.scale.set(.82, 1.1, 1); frame.position.y = -.4; racket.add(frame);
-  const strings = new THREE.Mesh(new THREE.CircleGeometry(.165, 24), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: .45, side: THREE.DoubleSide })); strings.scale.set(.82, 1.1, 1); strings.position.y = -.4; racket.add(strings);
+  // Il palmo è sul fondello del manico: il manico e l'ovale salgono dalla mano,
+  // invece di pendere verso terra come nel modello precedente.
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(.021, .021, .205, 8), mat(0x20232d));
+  handle.position.y = .115; racket.add(handle);
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(.024, .021, .16, 8), mat(0x363b48));
+  grip.position.y = .115; racket.add(grip);
+  for (let i = 0; i < 4; i++){
+    const band = new THREE.Mesh(new THREE.TorusGeometry(.022, .0025, 5, 12), mat(0x858a96));
+    band.rotation.x = Math.PI/2; band.position.y = .055 + i*.035; racket.add(band);
+  }
+  const frame = new THREE.Mesh(new THREE.TorusGeometry(.17, .022, 8, 28), mat(L.racket));
+  frame.scale.set(.82, 1.1, 1); frame.position.y = .42; racket.add(frame);
+  // Gola a Y tra manico e telaio: rende leggibile la continuità della racchetta.
+  const throatShape = new THREE.Shape();
+  throatShape.moveTo(-.022, .17); throatShape.lineTo(-.037, .245); throatShape.lineTo(-.065, .315);
+  throatShape.lineTo(-.047, .327); throatShape.lineTo(0, .272); throatShape.lineTo(.047, .327);
+  throatShape.lineTo(.065, .315); throatShape.lineTo(.037, .245); throatShape.lineTo(.022, .17); throatShape.closePath();
+  const throat = new THREE.Mesh(new THREE.ShapeGeometry(throatShape), mat(L.racket));
+  throat.position.z = .003; racket.add(throat);
+  // Corde reali a griglia, ritagliate dentro l'ovale: niente disco bianco pieno.
+  const stringVerts = [];
+  for (let i = 0; i <= 8; i++){
+    const x = -.102 + i*.0255, span = .136*Math.sqrt(Math.max(0, 1 - (x/.112)**2));
+    stringVerts.push(x, -span, 0, x, span, 0);
+  }
+  for (let i = 0; i <= 10; i++){
+    const y = -.126 + i*.0252, span = .106*Math.sqrt(Math.max(0, 1 - (y/.14)**2));
+    stringVerts.push(-span, y, 0, span, y, 0);
+  }
+  const stringGeo = new THREE.BufferGeometry();
+  stringGeo.setAttribute('position', new THREE.Float32BufferAttribute(stringVerts, 3));
+  const strings = new THREE.LineSegments(stringGeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: .78, depthWrite: false }));
+  strings.position.set(0, .42, .012); racket.add(strings);
   racket.traverse(o => { if (o.isMesh) o.castShadow = true; });
   // gambe: anca e ginocchio, scarpe arrotondate
   const leg = s => {
@@ -72,21 +102,21 @@ export function makeCharacter(look = LOOKS.blu){
     hips.position.y = .92 - ready*.18 + Math.abs(Math.cos(phase))*.05*bob;
     body.rotation.x = .12 + .18*bob;
     // braccia di base: racchetta davanti, pronta
-    let tw = 0, shRx = -.5, shRz = -.25, elR = -.9, shLx = -.4, shLz = .35, elL = -.7, rk = .3, rkz = 0, lean = 0, headX = 0;
+    let tw = 0, shRx = -.5, shRz = -.25, elR = -.9, shLx = -.4, shLz = .35, elL = -.7, rk = 1.3, rkz = 0, lean = 0, headX = 0;
     if (mv > .3 && !s.prep){ shLx = -Math.sin(phase)*.7*bob; shLz = .2; }
     // preparazione: torsione e racchetta indietro sul lato del colpo
     const p = ease(s.prep || 0), fh = (s.side || 'fh') === 'fh';
     if (p > 0){
       tw = lerp(0, fh ? 1.15 : -1.2, p);
       shRx = lerp(shRx, fh ? -.4 : -.9, p); shRz = lerp(shRz, fh ? -1.2 : .7, p); elR = lerp(elR, fh ? -.5 : -1.3, p);
-      shLx = lerp(shLx, -1.2, p); shLz = lerp(shLz, fh ? -.6 : .3, p);
+      shLx = lerp(shLx, -1.2, p); shLz = lerp(shLz, fh ? -.6 : .3, p);\n      rk = lerp(rk, fh ? 1.05 : 1.5, p); rkz = lerp(rkz, fh ? -.08 : .12, p);
     }
     // colpo: dalla preparazione all'impatto (u = .43) e all'accompagnamento
     if (s.swing != null){
       const u = s.swing, k = s.kind || 'swing';
       if (k === 'serve' || k === 'smash'){
         const a = ease(Math.min(1, u/.43)), b = ease((u - .43)/.57);
-        shRx = lerp(-2.9, -1.2, a) + b*1.4; shRz = -.25; elR = lerp(-1.8, -.2, a) - b*.4; rk = lerp(1.6, .2, a);
+        shRx = lerp(-2.9, -1.2, a) + b*1.4; shRz = -.25; elR = lerp(-1.8, -.2, a) - b*.4; rk = lerp(1.35, 2.65, a) + b*.25;
         shLx = lerp(-2.6, -.6, a); shLz = .3; lean = lerp(-.2, .35, a); tw = lerp(.5, -.3, a);
         hips.position.y += Math.sin(Math.min(1, u)*Math.PI)*.12;
       } else if (k === 'toss'){
@@ -99,7 +129,7 @@ export function makeCharacter(look = LOOKS.blu){
           tw = lerp(.72*sg, -.22*sg, a) - b*.2*sg;
           shRz = fh ? lerp(-.82, -.12, a) + b*.28 : lerp(.48, -.12, a) - b*.24;
           shRx = lerp(-.35, -.68, a) - b*.22; elR = lerp(-.58, -.28, a) - b*.1;
-          rk = lerp(.28, -.22, a) + b*.12; rkz = fh ? -.18 : .18;
+          rk = lerp(1.15, 2.05, a) + b*.1; rkz = fh ? -.18 : .18;
           shLx = -.85 + b*.18; shLz = fh ? .1 : .25; lean = .22*a;
           hips.position.y -= .06*a;
         } else if (k === 'lob'){
@@ -107,20 +137,20 @@ export function makeCharacter(look = LOOKS.blu){
           tw = lerp(1.0*sg, -.38*sg, a) - b*.35*sg;
           shRz = fh ? lerp(-1.12, .34, a) + b*.3 : lerp(.68, -.38, a) - b*.3;
           shRx = lerp(-.38, -1.62, a) - b*.28; elR = lerp(-.52, -1.05, a) - b*.25;
-          rk = lerp(.28, -.25, a); rkz = fh ? -.12 : .12;
+          rk = lerp(1.15, 1.9, a); rkz = fh ? -.12 : .12;
           shLx = lerp(-.95, -.72, a) + b*.12; shLz = fh ? -.38 : .34; lean = .06*a;
         } else if (k === 'slice'){
           // Slice: piano della racchetta inclinato e accompagnamento laterale.
           tw = lerp(1.08*sg, -.42*sg, a) - b*.3*sg;
           shRz = fh ? lerp(-1.18, .42, a) + b*.55 : lerp(.68, -.72, a) - b*.5;
           shRx = lerp(-.38, -.98, a) - b*.6; elR = lerp(-.55, -.18, a) - b*.25;
-          rk = lerp(.28, -.12, a); rkz = fh ? lerp(-.12, -.75, a) + b*.12 : lerp(.12, .75, a) - b*.12;
+          rk = lerp(1.15, 2.4, a); rkz = fh ? lerp(-.12, -.75, a) + b*.12 : lerp(.12, .75, a) - b*.12;
           shLx = -1 + b*.28; shLz = fh ? .06 - b*.38 : .26; lean = .12*a;
         } else {
           // Drive: animazione base, con torsione e accompagnamento differenziati per dritto/rovescio.
           tw = lerp(1.15*sg, -.5*sg, a) - b*.7*sg;
           shRz = fh ? lerp(-1.2, .2, a) + b*1.2 : lerp(.7, -.7, a) - b*1.0;
-          shRx = lerp(-.4, -.95, a) - b*.9; elR = lerp(-.5, -.15, a) - b*.6; rk = lerp(.3, 0, a);
+          shRx = lerp(-.4, -.95, a) - b*.9; elR = lerp(-.5, -.15, a) - b*.6; rk = lerp(1.15, 2.65, a) - b*.35;
           shLx = -1 + b*.4; shLz = fh ? .1 - b*.5 : .3;
           lean = .1*a;
         }
@@ -131,7 +161,7 @@ export function makeCharacter(look = LOOKS.blu){
     if (s.mood === 'sad'){ headX = .45; shLx = .05; shRx = .05; shLz = .12; shRz = -.12; tw = 0; lean = .2; }
     torso.rotation.y = tw; torso.rotation.x = lean;
     neck.rotation.y = -tw*.6; neck.rotation.x = headX;
-    armR.sh.rotation.set(shRx, 0, shRz); armR.el.rotation.x = elR; racket.rotation.x = rk; racket.rotation.z = rkz;
+    armR.sh.rotation.set(shRx, 0, shRz); armR.el.rotation.x = elR; racket.rotation.set(rk, 0, rkz);
     armL.sh.rotation.set(shLx, 0, shLz); armL.el.rotation.x = elL;
   }
   pose({ t: 0, dt: 0 });
