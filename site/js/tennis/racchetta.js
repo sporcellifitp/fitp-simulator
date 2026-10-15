@@ -47,7 +47,7 @@ function calUi(){
   else if (st.step === 'free') ui('Prova libera', 'Fai qualche swing: sul computer vedi direzione e forza.');
 }
 function phaseText(){
-  return { menu: 'Guarda il computer per iniziare.', serve: 'Primo movimento: lanci la palla. Secondo: colpisci in cima al lancio. Puoi anche toccare lo schermo per lanciare.', play: 'Colpisci quando la palla ti arriva.', pause: 'Partita in pausa.', over: 'Partita finita: guarda il computer.' }[phase] || '';
+  return { menu: 'Guarda il computer per iniziare.', serve: 'Primo movimento: lanci la palla. Secondo: colpisci in cima al lancio. Puoi anche toccare lo schermo per lanciare.', play: 'Timing = precisione. Swing ←/→ = angolo; gesto breve = palla corta, verso l\'alto = lob, taglio verso il basso = slice.', pause: 'Partita in pausa.', over: 'Partita finita: guarda il computer.' }[phase] || '';
 }
 function flash(cls, big, sub, ms = 650, arrow = ''){ ui(big, sub, cls, arrow); clearTimeout(flashT); flashT = setTimeout(() => { flashT = null; paint(); }, ms); }
 
@@ -152,7 +152,8 @@ cal.on(e => { send({ t: 'cal', e }); if (!flashT) paint();
 det.on('swing', s => {
   if (sensor !== 'ready' || linkState !== 'on') return;
   send({ t: 'sw', p: s.power, l: s.lift, lob: s.lob, drop: s.drop, slice: s.slice, dur: s.dur, dir: s.dir, pk: s.peakT, lat: rtt/2 + (performance.now() - s.peakT) });
-  flash('hit', s.dir > 0 ? '←' : s.dir < 0 ? '→' : '•', `Forza ${Math.round(s.power*100)}%`, 350);
+  const cue = s.drop ? 'PALLA CORTA' : s.slice ? 'TAGLIATO' : s.lob ? 'LOB' : s.dir > 0 ? '←' : s.dir < 0 ? '→' : '•';
+  flash('hit', cue, `Forza ${Math.round(s.power*100)}%`, 350);
 });
 
 /* ---------- pulsanti ---------- */
