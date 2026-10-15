@@ -340,10 +340,15 @@ export class ArcadeMatch extends MatchCore {
     // La CPU varia il colpo in base alla posizione avversaria: lob contro chi sale, smorzata contro chi resta lontano.
     // I livelli più alti usano più spesso la varietà, ma mantengono una quota di drive leggibili.
     type = chooseCpuShotType(nearNet, L, rng);
-    // pressione: colpo perfetto e forte del giocatore, palla veloce, scambio lungo (senza un limite artificiale ai rally)
-    const pressure = (strong ? L.pressure : 0) + Math.min(.05, Math.hypot(this.ball.v.x, this.ball.v.z)/500) + Math.min(.06, this.rally.hits*.003);
-    // palla debole: la CPU può scegliere di attaccare con un drive più rapido nel campo libero
-    if (rng() < (weak ? L.attack : L.attack*.4)){
+    // Pressione leggibile: colpo forte, palla veloce e impatto vicino al limite di portata.
+    // La durata del rally non aggiunge errori casuali: rende invece la CPU più propensa a cercare il punto.
+    const reachRatio = Math.hypot(this.ball.p.x - p.x, this.ball.p.z - p.z)/Math.max(.1, p.reach || 1.25);
+    const executionStress = Math.max(0, reachRatio - .55);
+    const executionError = Math.min(.15, executionStress*.24 + (p.moving > .65 ? .02 : 0));
+    const pressure = (strong ? L.pressure : 0) + Math.min(.05, Math.hypot(this.ball.v.x, this.ball.v.z)/500) + executionError*.4;
+    const longRallyAttack = Math.min(.16, this.rally.hits*.004);
+    // Palla debole o scambio prolungato: più probabilità di attaccare il campo libero con un drive rapido.
+    if (rng() < Math.min(.85, (weak ? L.attack : L.attack*.4) + longRallyAttack)){
       type = 'drive'; aimX = -Math.sign(ox*side || (rng() - .5))*(.9 + rng()*.3);
       pace = L.attackPace[0] + rng()*(L.attackPace[1] - L.attackPace[0]); depth = .7 + rng()*.25;
     } else if (type === 'lob'){
@@ -357,9 +362,9 @@ export class ArcadeMatch extends MatchCore {
     this.lastQuality = null;
     if (rng() < L.err + pressure){
       const t = rng() < .5 ? { x: target.x, z: Math.sign(target.z)*.3 } : rng() < .5 ? { x: target.x, z: Math.sign(target.z)*(c.halfL + 1.2) } : { x: Math.sign(target.x || 1)*(c.halfW + 1), z: target.z };
-      return { type, target: t, error: .2, clearance: t.z === Math.sign(target.z)*.3 ? -.3 : type === 'lob' ? .8 : .4, pace };
+      return { type, target: t, error: .2 + executionError, clearance: t.z === Math.sign(target.z)*.3 ? -.3 : type === 'lob' ? .8 : .4, pace };
     }
     const clearance = type === 'lob' ? 1.35 : type === 'drop' ? .32 : type === 'slice' ? .22 : .55;
-    return { type, target, error: L.spread + (type === 'drop' ? .14 : type === 'slice' ? .06 : 0), clearance, pace };
+    return { type, target, error: L.spread + executionError + (type === 'drop' ? .14 : type === 'slice' ? .06 : 0), clearance, pace };
   }
 }
