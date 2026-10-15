@@ -17,7 +17,7 @@ import { PLAN, CAL } from './calibration.js';
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => (typeof s === 'string' ? $(s) : s).classList.toggle('hidden', !on);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const store = { get(k, d){ try { const v = localStorage.getItem('racchetta.' + k); return v == null ? d : JSON.parse(v); } catch (e){ return d; } }, set(k, v){ try { localStorage.setItem('racchetta.' + k, JSON.stringify(v)); } catch (e){} } };
+const store = { get(k, d){ try { const v = localStorage.getItem('natpf-simulator.' + k); return v == null ? d : JSON.parse(v); } catch (e){ return d; } }, set(k, v){ try { localStorage.setItem('natpf-simulator.' + k, JSON.stringify(v)); } catch (e){} } };
 const SCREENS = ['#menu', '#ctrl', '#pair', '#lobby', '#guest', '#mobile', '#net', '#pause', '#end'];
 const pane = id => { for (const s of SCREENS) show(s, s === id); };
 const isPhone = /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent) || (matchMedia('(pointer: coarse)').matches && Math.min(window.screen.width || 9999, innerWidth) < 600);
