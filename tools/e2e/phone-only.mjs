@@ -38,4 +38,25 @@ const accepted = await p.evaluate(() => {
 });
 check('il controller smartphone resta accettato', accepted);
 check('nessun errore JavaScript', !errs.length, errs.join(' | ').slice(0, 400));
+
+// Controlla il modello della racchetta: testa sopra la mano e corde a griglia, non un disco pieno.
+const racket = await p.evaluate(() => {
+  const [c] = __racchetta.S.setPlayers([{ id: 'grip-check', team: 0 }], ['blu']);
+  const group = c.racketHead.parent;
+  const strings = group.children.find(o => o.isLineSegments);
+  return { headY: c.racketHead.position.y, stringVertices: strings?.geometry.getAttribute('position').count ?? 0 };
+});
+check('racchetta impugnata dal manico: testa sopra la mano e corde a griglia',
+  racket.headY > .3 && racket.stringVertices >= 40, JSON.stringify(racket));
+
+// La pagina dedicata al telefono deve eseguire davvero il modulo JS: in assenza di QR deve mostrare un errore chiaro,
+// non restare bloccata sulla schermata statica iniziale «Collegamento…».
+const phonePage = await page(B, 'http://127.0.0.1:8765/tennis/racchetta.html');
+await phonePage.p.waitForFunction(() => window.__racchetta, null, { timeout: 30000 });
+check('controller telefono avviato: QR mancante segnalato esplicitamente',
+  await phonePage.p.locator('#big').textContent() === 'Nessuna partita' &&
+  (await phonePage.p.evaluate(() => __racchetta.state.linkState)) === 'denied');
+check('controller telefono senza errori JavaScript', !phonePage.errs.length, phonePage.errs.join(' | ').slice(0, 400));
+await phonePage.ctx.close();
+
 summary(); await B.close();
