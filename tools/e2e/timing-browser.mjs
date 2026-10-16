@@ -40,7 +40,9 @@ async function hook(p){
   await p.evaluate(async () => {
     const { evaluateContact } = await import('/js/match/contact.js');
     const S = __racchetta.S, sync = S.sync, render = S.render;
-    window.__timing = { armed: false, sent: null, view: null, samples: [] };
+    window.__timing = { armed: false, sent: null, view: null, samples: [], received: [], packets: [] };
+    __racchetta.link.on('swing', s => __timing.received.push({ at: s.at, wall: performance.now()/1000 }));
+    __racchetta.A.host?.on('input', d => { if (d.sw?.length) __timing.packets.push({ ct: __racchetta.core.t, times: d.sw.map(s => s.at) }); });
     S.sync = (v, dt, local) => { __timing.view = v; __timing.local = local; return sync(v, dt, local); };
     S.render = () => {
       render();
@@ -88,7 +90,7 @@ async function exercise(host, target, team, label){
   await host.evaluate(() => { __racchetta.A.netPause = false; });
   const id = await host.evaluate(team => __racchetta.core.players[team].id, team);
   try { await host.waitForFunction(id => __contacts.some(e => e.player === id), id, { timeout: 20000 }); }
-  catch (e) { console.log('Timing diagnostic', await target.evaluate(() => ({ samples: __timing.samples, sent: __timing.sent, armed: __timing.armed, state: __racchetta.state, view: __timing.view, frameT: __racchetta.A.frameT, now: performance.now() }))); console.log('Host diagnostic', await host.evaluate(() => ({ contacts: __contacts, time: __racchetta.core.t, phase: __racchetta.core.phase, players: __racchetta.core.players }))); throw e; }
+  catch (e) { console.log('Timing diagnostic', await target.evaluate(() => ({ received: __timing.received, packets: __timing.packets, samples: __timing.samples, sent: __timing.sent, armed: __timing.armed, state: __racchetta.state, view: __timing.view, frameT: __racchetta.A.frameT, now: performance.now() }))); console.log('Host diagnostic', await host.evaluate(() => ({ packets: __timing.packets, contacts: __contacts, time: __racchetta.core.t, phase: __racchetta.core.phase, players: __racchetta.core.players }))); throw e; }
   const event = await host.evaluate(id => __contacts.find(e => e.player === id), id), sent = await target.evaluate(() => __timing.sent);
   check(label, sent?.green && event.label === 'perfetto' && event.at >= startedAt && event.at < startedAt + 2 && Math.abs(event.at - sent.at) < .03, JSON.stringify({ sent, event }));
 }

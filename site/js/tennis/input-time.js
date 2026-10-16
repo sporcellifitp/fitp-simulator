@@ -1,6 +1,6 @@
 // Browser timestamps at this boundary are seconds. Network timestamps are
 // seconds of match time, never performance.now() milliseconds.
-export const INPUT_TIME = Object.freeze({ maxAge: .8, presentationAge: 1.2, futureTolerance: .04, maxQueue: 8 });
+export const INPUT_TIME = Object.freeze({ maxAge: .8, presentationAge: 3, futureTolerance: .04, maxQueue: 8 });
 // Associate the sensor peak with the last frame actually displayed at that
 // time. Never extrapolate from a newer snapshot or count paused wall time.
 export function createPresentationTimeline(){

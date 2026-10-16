@@ -167,9 +167,11 @@ test('a deferred second bounce never advertises a new legal green contact', () =
 test('phone link preserves delayed peaks instead of shifting them to a later displayed frame', () => {
   const clock = { ok: true, toLocal: t => t - 5000 };
   assert.equal(phoneInputTime({ peakMs: 64400, nowMs: 60000, clock }), 59.4);
+  assert.equal(phoneInputTime({ peakMs: 63000, nowMs: 60000, clock }), 58, 'wall-clock stalls preserve the original frame');
+  assert.equal(readGuestInput({ sw: [{ at: 10 }] }, 10.9).sw.length, 0, 'match-time age remains bounded independently');
   assert.equal(phoneInputTime({ peakMs: 65020, nowMs: 60000, clock }), 60);
   assert.equal(phoneInputTime({ peakMs: 65080, nowMs: 60000, clock }), null);
-  assert.equal(phoneInputTime({ peakMs: 63000, nowMs: 60000, clock }), null);
+  assert.equal(phoneInputTime({ peakMs: 61000, nowMs: 60000, clock }), null);
   assert.equal(phoneInputTime({ peakMs: NaN, nowMs: 60000, clock }), null);
   assert.equal(phoneInputTime({ nowMs: 60000, clock: { ok: false }, latencyMs: 80 }), 59.92);
 });
