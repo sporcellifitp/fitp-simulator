@@ -11,7 +11,7 @@ export const JSQR = here + 'node_modules/jsqr/dist/jsQR.js';
 const threeFile = here + 'node_modules/three/build/three.module.min.js';
 const three = existsSync(threeFile) ? readFileSync(threeFile) : null;     // facoltativo: Three.js locale invece del CDN
 export async function launch(){
-  return chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
+  return chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--allow-loopback-in-peer-connection', '--disable-features=WebRtcHideLocalIpsWithMdns', '--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 }
 export async function page(browser, url, { w = 1280, h = 760, mobile = false, init = null } = {}){
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: mobile, isMobile: mobile, userAgent: mobile ? 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36' : undefined });
@@ -26,3 +26,4 @@ export async function page(browser, url, { w = 1280, h = 760, mobile = false, in
 }
 export const results = []; export const check = (n, ok, i = '') => { results.push(ok); console.log((ok ? 'OK  ' : 'KO  ') + n + (i ? ' — ' + i : '')); };
 export const summary = () => { console.log(`\n${results.filter(Boolean).length}/${results.length} verifiche superate`); if (results.some(r => !r)) process.exitCode = 1; };
+

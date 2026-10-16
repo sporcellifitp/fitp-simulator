@@ -1,6 +1,6 @@
 // Scena 3D di NATPF Simulator: arena, personaggi, palla con scia e ombra, sweet spot, feedback del colpo e camera locale
 // dietro il giocatore attivo. Le coordinate del campo restano assolute e non vengono mai trasformate per il rendering.
-// come in Nintendo Switch Sports: bassa, stabile, il proprio giocatore in primo piano e tutto il campo avversario davanti.
+// Il rialzo del POV richiesto verrà calibrato nel blocco camera, dopo la verifica del timing.
 // Coordinate della partita (x larghezza, z lunghezza, rete a z = 0). La squadra 0 sta a z > 0.
 import * as THREE from 'three';
 import { buildArena } from './arena.js';
@@ -9,7 +9,7 @@ import { playerCameraFrame } from './viewpoint.js';
 import { evaluateSweetSpot } from './sweet-spot.js';
 
 const HL = 11.885;
-const SWING = { before: .12, dur: .3 };            // l'animazione del colpo: impatto 0,12 s dopo l'inizio, durata 0,3 s
+const SWING = { before: .129, dur: .3 };            // impatto alla fase 0,43 del personaggio, durata 0,3 s
 
 export function createScene(container, { quality = 1 } = {}){
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -100,15 +100,14 @@ export function createScene(container, { quality = 1 } = {}){
     const M = new THREE.Matrix4();
     for (let i = 0; i < TRAIL; i++){ const h = hist[i]; const s = h ? (1 - i/TRAIL)*.9 : 0; M.makeScale(s, s, s); if (h) M.setPosition(h.x, h.y, h.z); trail.setMatrixAt(i, M); }
     trail.instanceMatrix.needsUpdate = true;
-    // Sweet spot locale: combina timing previsto, distanza palla-giocatore e altezza utile.
-    // Il cue è solo visivo: non cambia né la risoluzione dell'impatto né la fisica del punto.
+    // Sweet spot locale: stessa geometria e velocità relativa usate dal motore per valutare il contatto.
     const me = local && view.players.find(p => p.id === local.id);
     if (me && me.inc && view.phase === 'live' && local.assist){
-      const left = me.inc.Tc - view.t, r = .3 + Math.max(0, Math.min(1, left/.8))*1.2;
-      const sweet = evaluateSweetSpot({ ball: b, player: me, impact: me.inc, timeToImpact: left });
-      ring.visible = left > -.15;
-      ring.position.set(me.inc.x, .02, me.inc.z);
-      ring.scale.setScalar(r);
+      const left = me.inc.Tc - view.t;
+      const sweet = evaluateSweetSpot({ ball: b, velocity: view.ball.v, player: me, impact: me.inc, timeToImpact: left, eligible: me.contactEligible !== false });
+      ring.visible = sweet.visible && sweet.timeToImpact > -.22 && sweet.timeToImpact < 1;
+      ring.position.set(sweet.point?.x ?? me.inc.x, .02, sweet.point?.z ?? me.inc.z);
+      ring.scale.setScalar(.48);
       ring.material.color.set(sweet.perfect ? 0x4cff8a : sweet.ready ? 0xffd447 : 0xffffff);
       ring.material.opacity = sweet.perfect ? .98 : sweet.ready ? .88 : left < .3 ? .7 : .45;
     } else ring.visible = false;
@@ -152,3 +151,4 @@ export function createScene(container, { quality = 1 } = {}){
     render(){ renderer.render(scene, camera); },
   };
 }
+

@@ -5,17 +5,18 @@
 //  - quando il colpo manca, il gioco spiega se è arrivato presto, tardi, debole o fuori portata;
 //  - il ritardo del telefono/rete è compensato dalla cronologia della palla e dalla finestra di attesa del colpo.
 // Senza Three.js: testabile con node --test.
+import { CONTACT, contactAxes, relativeContact, contactLabel, evaluateContact, crossingTime } from './contact.js';
 import { MatchCore } from './core.js';
 import { stepBall, predict, sideOf } from './physics.js';
 import { makeShot, shotTarget, gauss } from './ai.js';
 
 export const ARC = {
-  S0: .4,                // punto d'impatto: 40 cm davanti al corpo
-  SIDE: .7,              // la palla passa a 70 cm dal corpo, sul lato del dritto o del rovescio
-  REACH: 2.0,            // portata laterale con l'allungo
-  EARLY: .28, LATE: .22, // finestra del colpo attorno all'istante giusto (secondi)
-  PERFECT: .06, GOOD: .12,
-  REWIND: .16,           // quanto la palla può tornare indietro al momento dell'impatto
+  S0: CONTACT.forward,                // punto d'impatto: zona della racchetta davanti al corpo
+  SIDE: CONTACT.side,              // la palla passa a 70 cm dal corpo, sul lato del dritto o del rovescio
+  REACH: CONTACT.reach,            // portata laterale con l'allungo
+  EARLY: CONTACT.early, LATE: CONTACT.late, // finestra del colpo attorno all'istante giusto (secondi)
+  PERFECT: CONTACT.perfect, GOOD: CONTACT.good,
+  REWIND: .8,           // quanto la palla può tornare indietro al momento dell'impatto
   SPEED: 6.0,            // corsa automatica (m/s), dopo un attimo di reazione (REACT)
   REACT: .18,
   TOSS: { y0: 1.45, vy: 5.1 },
@@ -37,12 +38,11 @@ export function chooseCpuShotType(nearNet, level, rng){
   return 'drive';
 }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-export const axes = p => ({ fz: p.team === 0 ? -1 : 1, rx: p.team === 0 ? 1 : -1 });
-// la palla vista dal giocatore: s avanti (verso la rete), l a destra (lato del dritto), h altezza
-export const rel = (p, b) => { const { fz, rx } = axes(p); return { s: (b.z - p.z)*fz, l: (b.x - p.x)*rx, h: b.y }; };
+export const axes = contactAxes;
+export const rel = relativeContact;
 export const tossY = t => ARC.TOSS.y0 + ARC.TOSS.vy*t - 4.905*t*t;
 export const TOSS_APEX = ARC.TOSS.vy/9.81;
-export function timingLabel(e){ const q = Math.abs(e); return q <= ARC.PERFECT ? 'perfetto' : q <= ARC.GOOD ? 'buono' : e < 0 ? 'anticipo' : 'ritardo'; }
+export const timingLabel = contactLabel;
 
 // Il colpo: la direzione del gesto calibrato controlla l'angolo; il timing controlla qualità e ritmo.
 // dir=+1 (swing destra→sinistra) mira a sinistra dell'avversario; dir=-1 mira a destra; dir=0 mira al centro.
@@ -74,7 +74,7 @@ export class ArcadeMatch extends MatchCore {
     for (const p of this.players){
       if (p.human){ Object.assign(p, { speed: ARC.SPEED, reach: ARC.REACH, grace: o.teams[p.team][p.idx].grace ?? .1, auto: true }); }
       else Object.assign(p, { speed: this.cpu.speed, reaction: this.cpu.reaction, skill: .6 });
-      Object.assign(p, { swings: [], anim: null, inc: null, pend: null, done: false, manualT: 0 });
+      Object.assign(p, { swings: [], anim: null, inc: null, pend: null, crossedAt: null, done: false, manualT: 0 });
     }
     this.hist = []; this.shadow = null; this.deferred = null; this.toss = null; this.lastQuality = null;
   }
@@ -82,7 +82,7 @@ export class ArcadeMatch extends MatchCore {
   setupPoint(){
     super.setupPoint();
     this.hist = []; this.toss = null; this.shadow = null; this.deferred = null;
-    for (const p of this.players || []) Object.assign(p, { swings: [], inc: null, pend: null, done: false });
+    for (const p of this.players || []) Object.assign(p, { swings: [], inc: null, pend: null, crossedAt: null, done: false });
   }
 
   /* ---------- comandi ---------- */
@@ -123,10 +123,10 @@ export class ArcadeMatch extends MatchCore {
         if (Math.abs(b.z) > c.halfL + 14 || Math.abs(b.x) > c.halfW + 12 || this.sinceHit > 7){ const res = (this.shadow || this.rally).lost(); if (res) this.outcome(res); }
       }
       if (this.phase === 'live'){
-        this.record();
         this.thinkAI(dt);
         this.autoMove(dt);
         this.movePlayers(dt, false);
+        this.record();
         for (const h of hs) this.contact(h, dt);
         this.cpuStrike();
       }
@@ -148,6 +148,7 @@ export class ArcadeMatch extends MatchCore {
     else this.endPoint(res);
   }
   addSwing(h, s){
+    if (!s || (s.delay != null && !Number.isFinite(s.delay)) || (s.delay || 0) > .04 || (s.delay || 0) < -ARC.REWIND) return;
     const sw = { power: .6, lift: 0, lob: false, aim: null, dir: null, ...s, at: this.t + (s.delay || 0) };
     delete sw.delay;
     if (this.phase === 'serve' && this.serverP === h){
@@ -206,7 +207,7 @@ export class ArcadeMatch extends MatchCore {
     const b = this.ball; b.held = false; b.p = { ...from }; b.v = { ...v }; b.rolling = false; b.stopped = false;
     this.rally.hit(s.team); this.toss = null;
     this.phase = 'live'; this.sinceHit = 0; this.lastHitter = s; this.hist = [];
-    for (const p of this.players) Object.assign(p, { swings: p === s ? [] : p.swings, inc: null, pend: null, done: false });
+    for (const p of this.players) Object.assign(p, { swings: p === s ? [] : p.swings, inc: null, pend: null, crossedAt: null, done: false });
     if (!s.human) s.swing = .35;
     this.emit({ type: 'hit', team: s.team, player: s.id, shot: 'serve', human: s.human });
   }
@@ -218,21 +219,36 @@ export class ArcadeMatch extends MatchCore {
   }
 
   /* ---------- colpi del giocatore vero ---------- */
+  movePlayers(dt, serving){
+    const before = this.players.map(p => ({ x: p.x, z: p.z }));
+    super.movePlayers(dt, serving);
+    this.players.forEach((p, i) => { p.vx = dt > 0 ? (p.x - before[i].x)/dt : 0; p.vz = dt > 0 ? (p.z - before[i].z)/dt : 0; });
+  }
   record(){
     const b = this.ball;
-    this.hist.push({ t: this.t, p: { ...b.p }, v: { ...b.v } });
+    const players = Object.fromEntries(this.players.map(p => [p.id, { x: p.x, z: p.z, team: p.team, vx: p.vx || 0, vz: p.vz || 0, eligible: this.legalFor(p) }]));
+    if (this.hist.at(-1)?.t === this.t) this.hist.pop();
+    this.hist.push({ t: this.t, p: { ...b.p }, v: { ...b.v }, players });
     while (this.hist.length && this.hist[0].t < this.t - ARC.HIST) this.hist.shift();
   }
   histAt(t){
-    const H = this.hist; if (!H.length) return null;
+    const H = this.hist; if (!H.length || t < H[0].t - .01) return null;
     if (t <= H[0].t) return H[0];
+    if (t >= H.at(-1).t) return H.at(-1);
     for (let i = H.length - 1; i > 0; i--) if (H[i - 1].t <= t){
       const a = H[i - 1], b = H[i], k = (t - a.t)/Math.max(1e-6, b.t - a.t), L = (x, y) => x + (y - x)*k;
-      return { t, p: { x: L(a.p.x, b.p.x), y: L(a.p.y, b.p.y), z: L(a.p.z, b.p.z) }, v: { x: L(a.v.x, b.v.x), y: L(a.v.y, b.v.y), z: L(a.v.z, b.v.z) } };
+      const players = Object.fromEntries(Object.entries(a.players).map(([id, p]) => {
+        const q = b.players[id]; return [id, { ...p, x: L(p.x, q.x), z: L(p.z, q.z), vx: L(p.vx, q.vx), vz: L(p.vz, q.vz) }];
+      }));
+      return { t, players, p: { x: L(a.p.x, b.p.x), y: L(a.p.y, b.p.y), z: L(a.p.z, b.p.z) }, v: { x: L(a.v.x, b.v.x), y: L(a.v.y, b.v.y), z: L(a.v.z, b.v.z) } };
     }
-    return H[H.length - 1];
+    return null;
   }
-  legalFor(h){ const r = this.rally; return r.state === 'live' && r.lastHitter !== h.team && !(r.isServe && r.bouncesSinceHit === 0) && this.sinceHit > .2; }
+  swingContact(h, at){
+    const k = this.histAt(at), p = k?.players[h.id];
+    return p ? evaluateContact({ ball: k.p, velocity: k.v, player: p, eligible: p.eligible }) : null;
+  }
+  legalFor(h){ const r = this.shadow || this.rally; return !h.done && r.state === 'live' && r.lastHitter !== h.team && !(r.isServe && r.bouncesSinceHit === 0) && this.sinceHit > .2; }
   contact(h, dt){
     if (this.phase !== 'live') return;
     const r = this.rally, incoming = r.lastHitter !== h.team && r.state === 'live';
@@ -242,37 +258,48 @@ export class ArcadeMatch extends MatchCore {
     // la palla passa davanti al giocatore: inizia l'attesa del colpo
     if (!h.pend && !h.done && this.legalFor(h) && sideOf(this.ball.p.z) === h.team){
       const H = this.hist, k = H[H.length - 1], k0 = H[H.length - 2];
-      const rr = rel(h, k.p), r0 = k0 ? rel(h, k0.p) : null;
+      const rr = rel(h, k.p);
       if (rr.s <= ARC.S0 && rr.s > -1.2){
-        const Tc = r0 && r0.s > ARC.S0 ? k0.t + (r0.s - ARC.S0)/Math.max(1e-6, r0.s - rr.s)*(k.t - k0.t) : this.t;
+        const Tc = crossingTime(k0, k, h.id);
+        if (h.crossedAt == null) h.crossedAt = Tc;
         if (Math.abs(rr.l) <= ARC.REACH && k.p.y >= .1 && k.p.y <= 3.1){
-          h.pend = { Tc, side: rr.l >= 0 ? 'fh' : 'bh' };
+          h.pend = { Tc: h.crossedAt, side: rr.l >= 0 ? 'fh' : 'bh' };
           if (!this.shadow){ this.shadow = Object.assign(Object.create(Object.getPrototypeOf(r)), r); this.deferred = null; }
-        } else { h.done = true; this.emit({ type: 'miss', player: h.id, why: 'portata', human: true }); }
+        } else if (Math.abs(rr.l) > ARC.REACH || rr.s < -.2) { h.done = true; this.emit({ type: 'miss', player: h.id, why: 'portata', human: true }); }
       }
     }
-    if (h.pend) this.resolve(h);
+    if (h.pend){
+      // A runner can stay alongside the ball after its first plane crossing.
+      // Keep the delivery grace open from the last genuinely playable frame,
+      // never from a second bounce or another already-invalid rally state.
+      const cue = evaluateContact({ ball: this.ball.p, velocity: this.ball.v, player: h, eligible: this.legalFor(h) });
+      if (cue.ready) h.pend.lastReadyAt = this.t;
+      this.resolve(h);
+    }
   }
   resolve(h){
     const P = h.pend, now = this.t;
-    const cand = h.swings.filter(w => w.at >= P.Tc - ARC.EARLY && w.at <= P.Tc + ARC.LATE);
+    const cand = h.swings.filter(w => w.at <= now && now - w.at <= ARC.REWIND && (w.at >= P.Tc - ARC.EARLY && w.at <= P.Tc + ARC.LATE || this.swingContact(h, w.at)?.perfect));
     const best = cand.reduce((a, w) => !a || Math.abs(w.at - P.Tc) < Math.abs(a.at - P.Tc) ? w : a, null);
     if (best && (best.at >= P.Tc - .1 || now >= P.Tc + h.grace + .03)){
-      const e = best.at - P.Tc;
-      const tc = Math.max(now - ARC.REWIND, clamp(best.at, P.Tc - .04, now));
+      const sample = this.swingContact(h, best.at);
+      // A green frame is judged by exactly the same historic geometry. Buffered
+      // early/late swings keep the crossing-based grading outside the sweet spot.
+      const e = sample?.perfect ? sample.error : best.at - P.Tc;
+      const tc = Math.max(now - ARC.REWIND, sample?.perfect ? best.at : clamp(best.at, P.Tc - ARC.PERFECT, Math.min(now, P.Tc + ARC.PERFECT)));
       const k = this.histAt(tc) || { p: { ...this.ball.p }, v: { ...this.ball.v } };
       this.ball.p = { ...k.p }; this.ball.v = { ...k.v };
       h.swings = h.swings.filter(w => w.at > best.at + .05);
       h.pend = null; h.done = true; h.inc = null;
-      const shot = arcadeShot(this.court, h, this.ball, best, e);
+      const shot = arcadeShot(this.court, { ...h, ...k.players?.[h.id] }, this.ball, best, e);
       this.shadow = null; this.deferred = null;
-      h.anim = { kind: shot.type, side: shot.fore ? 'fh' : 'bh', at: Math.min(now, best.at), hit: true };
+      h.anim = { kind: shot.type, side: shot.fore ? 'fh' : 'bh', at: tc, hit: true };
       this.lastQuality = { label: shot.label, power: shot.power };
       this.strike(h, shot, false);
-      this.emit({ type: 'contact', player: h.id, timing: e, label: shot.label, power: shot.power, shot: shot.type, side: shot.fore ? 'fh' : 'bh' });
+      this.emit({ type: 'contact', player: h.id, timing: e, at: tc, label: shot.label, power: shot.power, shot: shot.type, side: shot.fore ? 'fh' : 'bh' });
       return;
     }
-    if (now >= P.Tc + ARC.LATE + h.grace){
+    if (now >= Math.max(P.Tc + ARC.LATE, P.lastReadyAt || P.Tc) + h.grace){
       const early = h.swings.some(w => w.at < P.Tc - ARC.EARLY && w.at > P.Tc - 1), late = h.swings.some(w => w.at > P.Tc + ARC.LATE);
       h.pend = null; h.done = true; h.inc = null;
       this.emit({ type: 'miss', player: h.id, why: early ? 'presto' : late ? 'tardi' : 'nessuno', human: true });
@@ -316,7 +343,7 @@ export class ArcadeMatch extends MatchCore {
   strike(p, shot, anim = true){
     super.strike(p, shot, anim);
     this.hist = [];
-    for (const q of this.players) if (q.team !== p.team) Object.assign(q, { inc: null, pend: null, done: false, autoSide: null, reactT: this.t + ARC.REACT });
+    for (const q of this.players) if (q.team !== p.team) Object.assign(q, { inc: null, pend: null, crossedAt: null, done: false, autoSide: null, reactT: this.t + ARC.REACT });
   }
 
   /* ---------- computer ---------- */
@@ -379,3 +406,4 @@ export class ArcadeMatch extends MatchCore {
     return { type, target, error: L.spread + executionError + (type === 'drop' ? .14 : type === 'slice' ? .06 : 0), clearance, pace };
   }
 }
+

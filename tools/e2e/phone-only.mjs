@@ -2,7 +2,7 @@
 import { launch, page, check, summary } from './th.mjs';
 
 const B = await launch();
-const { p, errs } = await page(B, 'http://127.0.0.1:8765/tennis/?q=low');
+const { p, errs } = await page(B, `http://127.0.0.1:8765/tennis/?q=low${process.env.PEER ? '&peer='+process.env.PEER : ''}`);
 await p.waitForFunction(() => window.__racchetta, null, { timeout: 60000 });
 const perspective = await p.evaluate(() => {
   const S = __racchetta.S;
@@ -69,3 +69,4 @@ check('controller telefono senza errori JavaScript', !phonePage.errs.length, pho
 await phonePage.ctx.close();
 
 summary(); await B.close();
+

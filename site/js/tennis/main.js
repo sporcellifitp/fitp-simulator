@@ -3,6 +3,7 @@
 // Modalità: cpu (contro il computer), host (chi invita: fa girare la partita), guest (chi riceve il link: vede lo stato
 // dell'host e manda i suoi colpi). Schermate: menu → telefono (QR, impugnatura, prova, verifica, conferma)
 // → partita o sala d'attesa → partita → fine.
+import { createPresentationTimeline, readGuestInput, INPUT_TIME } from './input-time.js';
 import { ArcadeMatch } from '../match/arcade.js';
 import { pointLabels } from '../match/rules.js';
 import { mulberry32 } from '../match/core.js';
@@ -26,6 +27,7 @@ const REASON = { fuori: 'Fuori', rete: 'Rete', vincente: 'Vincente', ace: 'Ace!'
 const TIMING = { perfetto: 'PERFETTO!', buono: 'Bel colpo', anticipo: 'In anticipo', ritardo: 'In ritardo' };
 const MISS = { presto: ['Troppo presto', 'Hai colpito prima che arrivasse la palla'], tardi: ['Troppo tardi', 'La palla era già passata'], nessuno: ['Nessun colpo', 'Il movimento non è arrivato: fai uno swing più deciso'], portata: ['Troppo lontana', 'Questa non si prendeva'] };
 
+const presented = createPresentationTimeline();
 const S = createScene($('#app'));
 const controls = createControls(S.renderer.domElement, { pick: (x, y) => S.pick(x, y) });
 const A = {
@@ -33,6 +35,20 @@ const A = {
   core: null, demo: null, link: null, host: null, guest: null, mirror: null, myId: 'me', afterCtrl: null, netPause: false, stats: null,
 };
 let lastT = performance.now(), flashT = 0, timingT = 0, snapAcc = 0, inputQ = { sw: [], ts: [], mv: { x: 0, y: 0 }, auto: true }, lastMv = '', endTimer = null;
+
+// Discard inputs made before pause/reconnection/new match. Core time does not
+// advance while paused, so an old browser timestamp must never be remapped.
+function resetInputTimeline(){
+  const now = performance.now()/1000;
+  presented.reset();
+  inputQ = { sw: [], ts: [], mv: { x: 0, y: 0 }, auto: true };
+  controls.read();
+  A.inputSince = A.core ? A.core.t : 0;
+  if (A.core) {
+    for (const p of A.core.humans()) p.swings = [];
+    presented.record(now, A.core.t);
+  }
+}
 
 /* ---------- menu ---------- */
 $('#name').value = A.name;
@@ -186,6 +202,7 @@ function startLocal(){
   beginPlay(['blu', 'rosso'], [myName(), 'CPU']);
 }
 function beginPlay(looks, names){
+  resetInputTimeline();
   A.names = names; A.stats = { perfect: 0, contacts: 0, won: 0, miss: 0 };
   S.setPlayers((A.core || { players: A.mirror.players }).players, looks);
   A.state = 'play'; A.netPause = false; controls.enabled = true; controls.useAim = false;
@@ -258,7 +275,7 @@ function finish(won, games){
   phoneSend({ t: 'ph', ph: 'over' });
   if (A.mode === 'host') A.host.send({ t: 'end', games, winner: won ? myTeam : 1 - myTeam });
 }
-const viewOf = core => ({ t: core.t, phase: core.phase, ball: core.ball, held: core.ball.held, toss: core.toss, serverId: core.serverP && core.serverP.id, players: core.players });
+const viewOf = core => ({ t: core.t, phase: core.phase, ball: core.ball, held: core.ball.held, toss: core.toss, serverId: core.serverP && core.serverP.id, players: core.players.map(p => ({ ...p, contactEligible: core.legalFor ? core.legalFor(p) : false })) });
 const viewNow = () => A.core ? viewOf(A.core) : A.mirror.view(A.mirror.renderTime(performance.now(), A.guest.clock));
 
 /* ---------- ciclo ---------- */
@@ -274,8 +291,9 @@ function autoQuality(dt){
 function frame(now){
   const dt = Math.min(.1, (now - lastT)/1000); lastT = now; A.frameT = now;
   autoQuality(dt);
-  if (A.core && A.state === 'play' && !A.netPause) stepCore(dt, now);
-  else if (A.mirror && A.mode === 'guest') stepGuest(dt, now);
+  let shownTime = null;
+  if (A.core && A.state === 'play' && !A.netPause) shownTime = stepCore(dt, now);
+  else if (A.mirror && A.mode === 'guest') shownTime = stepGuest(dt, now);
   else if (A.core){ S.sync(viewOf(A.core), 0, null); S.follow(me(), dt); }
   else {
     if (!A.demo){ A.demo = new ArcadeMatch({ teams: [[{ id: 'a', name: 'A' }], [{ id: 'b', name: 'B' }]], gamesToWin: 99 }); S.setPlayers(A.demo.players, ['verde', 'viola']); }
@@ -285,14 +303,18 @@ function frame(now){
   if (flashT > 0){ flashT -= dt; if (flashT <= 0) $('#flash').style.opacity = 0; }
   if (timingT > 0){ timingT -= dt; if (timingT <= 0) $('#timing').style.opacity = 0; }
   S.render();
+  // Timestamp the completed render, not the beginning of a potentially slow frame.
+  if (Number.isFinite(shownTime) && A.state === 'play' && !A.netPause) presented.record(performance.now()/1000, shownTime);
   requestAnimationFrame(frame);
 }
 // un passo della partita che gira qui (CPU o host): comandi locali e dell'amico, eventi, istantanee
 function stepCore(dt, now){
   const core = A.core, input = controls.read(), n = Math.max(1, Math.ceil(dt/(1/120)));
   // istanti degli eventi (orologio del browser) → ritardi rispetto al primo passo di questo fotogramma
-  const t1 = now/1000 - dt + dt/n, c1 = core.t + dt/n;
-  const mine = { move: input.move, auto: input.auto, swings: input.swings.map(s => ({ ...s, delay: s.at - t1 })), toss: input.tosses.length ? { delay: input.tosses[0].at - t1 } : null };
+  const c1 = core.t + dt/n;
+  const sw = input.swings.map(s => ({ ...s, at: presented.seenAt(s.at) })).filter(s => s.at != null);
+  const tossAt = input.tosses.length ? presented.seenAt(input.tosses[0].at) : null;
+  const mine = { move: input.move, auto: input.auto, swings: sw.map(s => ({ ...s, delay: s.at - c1 })), toss: tossAt != null ? { delay: tossAt - c1 } : null };
   const inputs = { [A.myId]: mine };
   if (A.mode === 'host'){
     const q = inputQ;
@@ -314,23 +336,25 @@ function stepCore(dt, now){
   const m = me();
   S.sync(viewOf(core), dt, { id: A.myId, assist: true }); S.follow(m, dt);
   aimMarker();
+  return core.t;
 }
 // Il puntamento è gestito dal gesto calibrato del telefono; non esiste mira con puntatore.
 function aimMarker(){ const a = false; S.aim.visible = !!a; if (a) S.aim.position.set(A.myId === 'g' ? -a.x : a.x, .02, A.myId === 'g' ? -a.z : a.z); }
 // amico: disegna lo stato dell'host un attimo indietro, manda i colpi riferiti a ciò che vedeva
 function stepGuest(dt, now){
   const M = A.mirror, G = A.guest; if (!M.last) return;
-  const R = M.renderTime(now, G.clock), view = M.view(R); if (!view) return;
+  const R = A.netPause ? M.last.ct : M.renderTime(now, G.clock), view = M.view(R); if (!view) return;
   for (const e of M.takeEvents(R)) onEvent(e, view);
-  if (A.state === 'play'){
+  if (A.state === 'play' && !A.netPause){
     const input = controls.read();
-    const sw = input.swings.map(s => ({ at: M.seenAt(s.at, G.clock), power: s.power, lift: s.lift, lob: s.lob, drop: s.drop, slice: s.slice, dur: s.dur, dir: s.dir })), ts = input.tosses.map(s => ({ at: M.seenAt(s.at, G.clock) }));
+    const sw = input.swings.map(s => ({ at: presented.seenAt(s.at), power: s.power, lift: s.lift, lob: s.lob, drop: s.drop, slice: s.slice, dur: s.dur, dir: s.dir })).filter(s => s.at != null), ts = input.tosses.map(s => ({ at: presented.seenAt(s.at) })).filter(s => s.at != null);
     const mv = `${input.move.x.toFixed(2)},${input.move.y.toFixed(2)},${input.auto}`;
     if (sw.length || ts.length || mv !== lastMv){ G.send({ t: 'in', sw, ts, mv: input.move, auto: input.auto }); lastMv = mv; }
   }
   S.sync(view, dt, { id: 'g', assist: true }); S.follow(view.players.find(p => p.id === 'g'), dt);
   aimMarker();
   if (A.scoreDirty !== M.last.sc.join()){ A.scoreDirty = M.last.sc.join(); scoreboard(); }
+  return view.t;
 }
 
 /* ---------- invito: host ---------- */
@@ -340,11 +364,11 @@ function openHost(){
     const H = A.host = hostSession();
     H.on('change', () => { paintLobby(); hostNet(); });
     H.on('input', d => {
-      if (Array.isArray(d.sw)) for (const s of d.sw.slice(0, 4)) if (typeof s.at === 'number') inputQ.sw.push({ at: Math.max(performance.now() - 1000, Math.min(performance.now() + 1000, s.at)), power: Math.max(.2, Math.min(1, Number(s.power) || .6)), lift: Math.max(-1, Math.min(1, Number(s.lift) || 0)), lob: !!s.lob, drop: s.drop === true, slice: s.slice === true, dur: Math.max(0, Math.min(700, Number(s.dur) || 0)), dir: s.dir === 1 ? 1 : s.dir === -1 ? -1 : 0 });
-      if (Array.isArray(d.ts) && d.ts[0] && typeof d.ts[0].at === 'number') inputQ.ts.push({ at: d.ts[0].at });
-      if (d.mv && typeof d.mv.x === 'number') inputQ.mv = { x: Math.max(-1, Math.min(1, d.mv.x)), y: Math.max(-1, Math.min(1, d.mv.y)) };
-      if (typeof d.auto === 'boolean') inputQ.auto = d.auto;
-      if (typeof d.lag === 'number') guestGrace = Math.max(.2, Math.min(.5, d.lag + .12));
+      if (A.state !== 'play' || A.netPause || !A.core) return;
+      const packet = readGuestInput(d, A.core.t, A.inputSince || 0);
+      inputQ.sw.push(...packet.sw.slice(0, INPUT_TIME.maxQueue - inputQ.sw.length));
+      inputQ.ts.push(...packet.ts.slice(0, INPUT_TIME.maxQueue - inputQ.ts.length));
+      if (Number.isFinite(d.lag)) guestGrace = Math.max(.2, Math.min(.5, d.lag + .12));
     });
     H.start();
   }
@@ -396,8 +420,8 @@ function hostStart(){
 function hostNet(){
   const g = A.host.S.guest;
   if (!(A.mode === 'host' && (A.state === 'play' || A.state === 'paused'))) return;
-  if (!g || !g.connected){ A.netPause = true; netMsg(`${g ? g.name : 'L\'amico'} si è scollegato`, 'Aspetto che rientri: basta che riapra la pagina (si ricollega da solo). La partita riprende da dove era.', 'Termina la partita'); }
-  else if (A.netPause){ A.netPause = false; pane(null); A.host.send({ t: 'start', names: A.names, resume: true, ...fmtOpts() }); }
+  if (!g || !g.connected){ resetInputTimeline(); A.netPause = true; netMsg(`${g ? g.name : 'L\'amico'} si è scollegato`, 'Aspetto che rientri: basta che riapra la pagina (si ricollega da solo). La partita riprende da dove era.', 'Termina la partita'); }
+  else if (A.netPause){ resetInputTimeline(); lastT = performance.now(); A.netPause = false; pane(null); A.host.send({ t: 'start', names: A.names, resume: true, ...fmtOpts() }); }
 }
 
 /* ---------- invito: amico ---------- */
@@ -419,7 +443,7 @@ function guestNet(s){
     A.guest.setMe({ name: myName(), ctrl: A.ctrl, ready: A.state === 'lobby' || A.state === 'play' });
   }
   if (s.state === 'connecting') st.innerHTML = '<span class="dot"></span>Mi collego alla partita…';
-  if (s.state === 'lost'){ A.netLost = true; if (A.state === 'play') netMsg('Connessione persa', 'Provo a ricollegarmi da solo…', 'Esci'); else st.innerHTML = '<span class="dot bad"></span>Connessione persa, riprovo…'; }
+  if (s.state === 'lost'){ resetInputTimeline(); A.netPause = true; controls.enabled = false; A.netLost = true; if (A.state === 'play') netMsg('Connessione persa', 'Provo a ricollegarmi da solo…', 'Esci'); else st.innerHTML = '<span class="dot bad"></span>Connessione persa, riprovo…'; }
   if (s.state === 'denied'){
     const t = { busy: 'Questa partita ha già due giocatori.', expired: 'Il link è scaduto: chiedi un link nuovo a chi ti ha invitato.', denied: 'Il link non è più valido (è già stato usato): chiedi un link nuovo.', gone: 'La partita non esiste più: chi ti ha invitato ha chiuso o ricaricato la pagina.' }[s.why] || 'Non è possibile entrare.';
     netMsg('Non puoi entrare', t, 'Torna al menu');
@@ -432,13 +456,16 @@ function guestMsg(d){
     clearTimeout(endTimer);
     A.myId = 'g'; A.names = d.names; A.hostName = d.names[0];
     if (!A.mirror || !d.resume) A.mirror = createMirror({ players: [{ id: 'h', team: 0, human: true }, { id: 'g', team: 1, human: true }] });
+    if (d.resume) A.mirror.resetClock();
     A.mirror.D = Math.min(.2, Math.max(.07, (A.guest.clock.rtt || 60)/2000 + .05));
     if (!d.resume || A.state !== 'play') beginPlay(['blu', 'rosso'], d.names);
-    else pane(null);
+    else { A.netPause = false; controls.enabled = true; resetInputTimeline(); pane(null); }
   }
   if (d.t === 's' && A.mirror) A.mirror.push(d);
   if (d.t === 'e' && A.mirror) A.mirror.pushEvents(d.l);
   if (d.t === 'pause'){
+    A.netPause = !!d.on; controls.enabled = !d.on; resetInputTimeline();
+    if (!d.on && A.mirror) A.mirror.resetClock();
     if (d.on) netMsg('Partita in pausa', `${A.hostName} ha messo in pausa.`, 'Esci dalla partita');
     else if (!$('#net').classList.contains('hidden')){ if (A.state === 'net') A.state = 'play'; pane(null); }
   }
@@ -454,12 +481,14 @@ function leaveOnline(){
 /* ---------- pausa, fine, menu ---------- */
 function pause(){
   if (A.state !== 'play') return;
+  resetInputTimeline();
   A.state = 'paused'; controls.enabled = false; pane('#pause');
   show('#restart', A.mode === 'cpu'); $('#resume').textContent = A.mode === 'guest' ? 'Torna alla partita (non si ferma)' : 'Riprendi';
   if (A.mode === 'host') A.host.send({ t: 'pause', on: true });
   phoneSend({ t: 'ph', ph: 'pause' });
 }
 function resume(){
+  resetInputTimeline();
   A.state = 'play'; controls.enabled = true; pane(null); show('#hud', true); lastT = performance.now(); phoneChip(); controls.useAim = false;
   if (A.mode === 'host') A.host.send({ t: 'pause', on: false });
   phoneSend({ t: 'ph', ph: 'play' });
@@ -514,3 +543,4 @@ $('#mobAnyway').addEventListener('click', () => { A.state = 'menu'; pane('#menu'
 requestAnimationFrame(frame);
 // aggancio per i test automatici
 window.__racchetta = { A, controls, S, get core(){ return A.core; }, get state(){ return A.state; }, get link(){ return A.link; }, startLocal };
+

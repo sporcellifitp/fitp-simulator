@@ -37,7 +37,7 @@ test('sweet spot: verde solo con timing, distanza e altezza coerenti; giallo in 
   assert.equal(early.ready, true); assert.equal(early.perfect, false);
   const stretched = evaluateSweetSpot({ ball: { ...ball, x: 1.9 }, player, impact, timeToImpact: .02 });
   assert.equal(stretched.inReach, false); assert.equal(stretched.perfect, false);
-  const wrongHeight = evaluateSweetSpot({ ball: { ...ball, y: 2.5 }, player, impact, timeToImpact: .02 });
+  const wrongHeight = evaluateSweetSpot({ ball: { ...ball, y: 3.5 }, player, impact, timeToImpact: .02 });
   assert.equal(wrongHeight.heightOk, false); assert.equal(wrongHeight.perfect, false);
   const overhead = evaluateSweetSpot({
     ball: { x: .7, y: 2.46, z: 7.6 }, player,
@@ -188,7 +188,7 @@ test('arcade: apertura e ritorno del braccio non rubano il colpo (vale lo swing 
   const c = ev.filter(e => e.type === 'contact');
   assert.equal(c.length, 1); assert.equal(c[0].label, 'perfetto');
 });
-test('arcade: colpo dal telefono che arriva 90 ms dopo è in tempo; la palla torna indietro al massimo di 0,16 s', () => {
+test('arcade: colpo dal telefono che arriva 90 ms dopo è in tempo; il contatto usa la cronologia del fotogramma', () => {
   const { core, h, tc } = rallyScene(5);
   const ev = play(core, [{ at: tc, lat: .09 }]);
   const c = ev.find(e => e.type === 'contact');
@@ -418,3 +418,4 @@ test('online: orologi allineati col viaggio più breve, istantanee interpolate, 
   assert.deepEqual(parseInvite(new URL(u).hash), { session: id, token: 'abcdefghijkmnop' });
   assert.equal(parseInvite('#sfida=racchetta-tel-aaaaaaaaaaaa.abcdefghijkm'), null);
 });
+

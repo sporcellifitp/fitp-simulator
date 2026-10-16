@@ -2,7 +2,7 @@
 
 Data: 15 ottobre 2026. Base verificata: `a73299c01392d4beb415fb501557d61a96518587`, branch `feature/natpf-simulator-gameplay-audit`, PR #1 ancora in bozza. Branch dell'audit: `refactor/natpf-audit-20261015`.
 
-## Stato di questo checkpoint
+## Stato iniziale dell’audit
 
 Audit statico e diagnostica numerica completati sul percorso della modalità `/tennis/`. Nessuna modifica applicata al gameplay, nessun merge o deploy. Il refactoring verrà implementato per blocchi, con verifica dell'utente tra un blocco e il successivo, come richiesto. Non dichiarare il prodotto perfettamente funzionante sulla sola base dei test automatici.
 
@@ -56,7 +56,7 @@ Questi numeri descrivono casi sintetici, non frequenze di errore dei giocatori. 
 
 ### 5. Portrait, calibrazione e UX — P1
 
-L'architettura attuale è schermo principale sul computer + telefono controller. `main.js` intercetta gli smartphone e li indirizza al flusso mobile; `racchetta.html` è una pagina separata. Va chiarito se «portrait» riguarda il controller o anche un nuovo gioco completo sul telefono.
+L'architettura attuale è schermo principale sul computer + telefono controller. `main.js` intercetta gli smartphone e li indirizza al flusso mobile; `racchetta.html` è una pagina separata. L’utente ha chiarito che il portrait riguarda il controller: il campo resta sul computer.
 
 La gravità verifica l'impugnatura durante la calibrazione, ma il controllo si può saltare e non c'è gestione continuativa dell'orientamento. Non sono presenti un blocco portrait o un fallback UI quando il lock non è supportato. Il controller usa height:100% e overflow:hidden; non basta una viewport mobile per garantire assenza di clipping. La HUD principale ha dimensioni minime e posizioni fisse che possono sovrapporsi su schermi stretti.
 
@@ -112,6 +112,8 @@ Il blocco timing precede la mira perché il bug delle unità impedisce di giudic
 7. Visuale: screenshot/video dritto-rovescio, cinque colpi, entrambi i lati; errore spaziale e temporale delle corde rispetto alla palla misurato, oltre alla valutazione di naturalezza.
 8. Rilascio: regressioni Node, sintassi completa, E2E pertinenti e manifest del pacchetto. Esiti fisici lasciati esplicitamente in attesa finché l'utente non li prova.
 
-## Punto di prodotto da confermare
+## Chiarimento di prodotto ricevuto
 
-Il codice attuale presuppone computer per il campo e telefono per la racchetta. Interpretazione conservativa: portrait riguarda il controller. Se si vuole anche il campo giocabile direttamente sul telefono, serve decidere quel nuovo flusso prima di implementare UI, camera e controllo touch. Lo stesso vale per il posizionamento preventivo: deve essere una scelta effettiva sul telefono, oppure va mantenuto esplicitamente automatico.
+Confermato dall’utente: campo sul computer e telefono come racchetta; il portrait riguarda il controller. Per il POV il riferimento è Nintendo Switch Sports Tennis, con visuale rialzata e profonda. Il posizionamento preventivo richiederà una scelta effettiva sul telefono, oppure resterà dichiaratamente automatico.
+
+Implementazione e verifica del primo blocco: [checkpoint del 16 ottobre](NATPF_TIMING_BLOCK1_2026-10-16.md). Gli altri blocchi attendono la conferma di funzionamento del precedente.
