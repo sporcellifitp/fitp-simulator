@@ -5,7 +5,7 @@ const B = await launch(), Q = '?peer=127.0.0.1:9000&q=low', size = { w: 800, h: 
 const opened = [];
 let sharedContext = null;
 const localControls = process.env.TIMING_LOCAL_CONTROLS === '1'; // isolate rendering when local WebRTC is unavailable
-async function screen(url){ const v = await page(B, url, { ...size, context: sharedContext, init: () => { const RTC = window.RTCPeerConnection; window.RTCPeerConnection = class extends RTC { constructor(config, ...rest){ super({ ...config, iceServers: [] }, ...rest); } }; } }); sharedContext = v.ctx; opened.push(v); await v.p.waitForFunction(() => window.__racchetta); await v.p.evaluate(() => __racchetta.S.renderer.setSize(320, 240, false)); return v.p; }
+async function screen(url){ const target = new URL(url); target.searchParams.set('q', 'low'); const v = await page(B, target.href, { ...size, context: sharedContext, init: () => { const RTC = window.RTCPeerConnection; window.RTCPeerConnection = class extends RTC { constructor(config, ...rest){ super({ ...config, iceServers: [] }, ...rest); } }; } }); sharedContext = v.ctx; opened.push(v); await v.p.waitForFunction(() => window.__racchetta); await v.p.evaluate(() => __racchetta.S.renderer.setSize(320, 240, false)); return v.p; }
 async function pair(p){
   await p.waitForFunction(() => document.querySelector('#qr').dataset.url);
   console.log('Pairing normalized phone fixture');
