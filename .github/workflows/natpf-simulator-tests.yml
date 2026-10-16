@@ -41,9 +41,17 @@ jobs:
           node --input-type=module --check < site/js/tennis/racchetta.js
 
   browser-smoke:
-    name: Browser phone and timing tests
+    name: Browser ${{ matrix.name }} tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: phone and timing
+            files: phone-only.mjs timing-browser.mjs
+          - name: gesture and calibration
+            files: gesture-calibration.mjs
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,7 +64,7 @@ jobs:
       - name: Install Chromium and OS dependencies
         run: node tools/e2e/node_modules/playwright-core/cli.js install --with-deps chromium
       - name: Verify phone input, rendering and host/guest timing in Chromium
-        run: node tools/e2e/run-local.mjs phone-only.mjs timing-browser.mjs gesture-calibration.mjs
+        run: node tools/e2e/run-local.mjs ${{ matrix.files }}
 
   cloudflare-package:
     name: Package static site for Cloudflare Pages

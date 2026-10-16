@@ -306,8 +306,9 @@ function autoQuality(dt){
 function frame(now){
   const dt = Math.min(.1, (now - lastT)/1000); lastT = now; A.frameT = now;
   autoQuality(dt);
-  if (A.state === 'pair' && !$('#calPractice').classList.contains('hidden')){
-    calibrationPreview.tick(now); $('#calCaption').textContent = calibrationPreview.label;
+  if (A.state === 'pair'){
+    // Keep the arena still behind pairing; sensor setup only needs the practice scene.
+    if (!$('#calPractice').classList.contains('hidden')){ calibrationPreview.tick(now); $('#calCaption').textContent = calibrationPreview.label; }
     requestAnimationFrame(frame); return;
   }
   let shownTime = null;

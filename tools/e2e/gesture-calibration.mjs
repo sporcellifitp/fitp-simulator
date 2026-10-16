@@ -10,7 +10,9 @@ try {
  const P=await page(B,await d.evaluate(()=>document.querySelector('#qr').dataset.url),{w:390,h:844,mobile:true,init:motion});opened.push(P);const p=P.p;
  await p.waitForFunction(()=>window.__racchetta?.state.linkState==='on');
  await p.selectOption('#motionRange','compact');await p.selectOption('#hand','left');await p.click('#enable');
- await p.evaluate(()=>__motion.still(1600));await p.waitForFunction(()=>__racchetta.cal.state.step==='swings');
+ await p.evaluate(()=>__motion.still(1600));
+ try { await p.waitForFunction(()=>__racchetta.cal.state.step==='swings'); }
+ catch(e){console.log('Sensor calibration diagnostic',await p.evaluate(()=>({state:__racchetta.state,profile:__racchetta.det.profile,mode:__racchetta.det.mode,last:__racchetta.det.last,cal:__racchetta.cal.state})));throw e;}
  for(const dir of [1,1,1,-1,-1,-1]){
   await p.evaluate(async dir=>{await __motion.swing({axis:[0,-dir,0],peak:42,dur:260});await __motion.swing({axis:[0,dir,0],peak:dir===1?120:150,dur:220});await __motion.still(650);},dir);
  }
