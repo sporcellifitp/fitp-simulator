@@ -9,7 +9,7 @@ async function pair(p){
   await p.waitForFunction(() => document.querySelector('#qr').dataset.url);
   console.log('Pairing normalized phone fixture');
   if (localControls){
-    await p.evaluate(() => { window.__phone = { conn: { send(d){ if (d.t === 'sw') __racchetta.controls.phoneSwing({ at: d.pk/1000, power: d.p, dir: d.dir }); } } }; document.querySelector('#pairGo').click(); });
+    await p.evaluate(() => { window.__phone = { conn: { send(d){ if (d.t === 'sw') __racchetta.controls.phoneSwing({ at: (d.pk - (__racchetta.link?.clock?.off || 0))/1000, power: d.p, dir: d.dir }); } } }; document.querySelector('#pairGo').click(); });
     return;
   }
   await p.evaluate(async () => {
@@ -51,7 +51,10 @@ async function hook(p){
       const ring = S.scene.children.find(o => o.geometry?.type === 'RingGeometry' && o.geometry.parameters.outerRadius === 1);
       T.sent = { at: v.t, green: !!ring?.visible && ring.material.color.getHex() === 0x4cff8a };
       T.armed = false;
-      queueMicrotask(() => { const pk = performance.now(); setTimeout(() => __phone.conn.send({ t: 'sw', pk, lat: 60, p: .6, dir: 1, l: 0 }), 60); });
+      // This normalized fixture expresses its peak in the estimated phone clock.
+      // Clock estimation itself is covered separately; software rendering can
+      // stall both simulated endpoints on this single page/event loop.
+      queueMicrotask(() => { const pk = performance.now() + (__racchetta.link?.clock?.off || 0); setTimeout(() => __phone.conn.send({ t: 'sw', pk, lat: 60, p: .6, dir: 1, l: 0 }), 60); });
     };
   });
 }
