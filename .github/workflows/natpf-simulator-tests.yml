@@ -49,9 +49,14 @@ jobs:
       matrix:
         include:
           - name: phone and timing
-            files: phone-only.mjs timing-browser.mjs
+            command: node tools/e2e/run-local.mjs phone-only.mjs timing-browser.mjs
           - name: gesture and calibration
-            files: gesture-calibration.mjs
+            command: node tools/e2e/run-local.mjs gesture-calibration.mjs
+          - name: arcade visuals
+            command: node tools/e2e/run-local.mjs arcade-visuals.mjs
+          - name: direct LAN
+            command: node tools/e2e/lan-browser.mjs
+            lan: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,11 +65,14 @@ jobs:
         with:
           node-version: 20
       - name: Install E2E dependencies
-        run: npm install --prefix tools/e2e --no-audit --no-fund
+        run: npm ci --prefix tools/e2e --no-audit --no-fund
+      - name: Install LAN server dependencies
+        if: matrix.lan
+        run: npm ci --prefix tools/lan --no-audit --no-fund
       - name: Install Chromium and OS dependencies
         run: node tools/e2e/node_modules/playwright-core/cli.js install --with-deps chromium
       - name: Verify phone input, rendering and host/guest timing in Chromium
-        run: node tools/e2e/run-local.mjs ${{ matrix.files }}
+        run: ${{ matrix.command }}
 
   cloudflare-package:
     name: Package static site for Cloudflare Pages
@@ -89,3 +97,14 @@ jobs:
           compression-level: 6
           retention-days: 14
 
+
+      - name: Package local LAN distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: natpf-simulator-lan
+          path: |
+            site/
+            tools/lan/
+          if-no-files-found: error
+          compression-level: 6
+          retention-days: 14

@@ -13,3 +13,9 @@ data/osm/parts/
 
 # prove nel browser: dipendenze installate a parte
 tools/e2e/node_modules
+
+# credenziali TLS locali
+tools/lan/certs/
+*.key
+*-key.pem
+

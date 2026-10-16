@@ -1,0 +1,1 @@
+{"name":"natpf-desktop-lan","private":true,"type":"module","scripts":{"start":"node server.mjs"},"dependencies":{"three":"0.170.0","ws":"8.18.3"}}

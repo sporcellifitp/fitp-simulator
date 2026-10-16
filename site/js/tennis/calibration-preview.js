@@ -23,7 +23,7 @@ export function createCalibrationPreview(container){
   const contact = () => ({ x: (event?.dir || 1)*.7, y: shot === 'smash' || shot === 'serve' ? 2.35 : 1.15, z: 3 });
   function launch(){
     const p = contact(), type = shot === 'serve' ? 'serve' : shot;
-    ball.p = { ...p }; ball.v = makeShot(court, p, shotTarget(court, 0, -(event?.dir ?? 1)*.72, shot === 'drop' ? .1 : .85, type), type, 0, () => .5, shot === 'lob' ? 1.4 : .5, .8 + .4*(event?.power || .6)).v;
+    ball.p = { ...p }; ball.v = makeShot(court, p, shotTarget(court, 0, event?.aim ?? -(event?.dir ?? 1)*.72, shot === 'drop' ? .1 : .85, type), type, 0, () => .5, shot === 'lob' ? 1.4 : .5, .8 + .4*(event?.power || .6)).v;
     ball.held = false; ball.rolling = false; ball.stopped = false;
   }
   let launched = false;
@@ -33,7 +33,7 @@ export function createCalibrationPreview(container){
     get label(){ return label; },
     get phase(){ return phase; },
     example(type = shot, dir = 1){ shot = SHOTS[type] ? type : 'drive'; event = { dir, power: .6 }; mode = 'demo'; at = performance.now()/1000; launched = false; last = null; },
-    gesture(e){ if (SHOTS[e.shot]) shot = e.shot; event = { dir: e.dirValue ?? (e.dir === 'R' ? -1 : 1), power: Math.max(.3, Math.min(1, e.power || e.strength*.75 || .6)) }; mode = 'observed'; at = performance.now()/1000; launched = false; last = null; },
+    gesture(e){ if (SHOTS[e.shot]) shot = e.shot; event = { dir: e.dirValue ?? (e.dir === 'R' ? -1 : 1), aim: Number.isFinite(e.aim)?e.aim:null, power: Math.max(.3, Math.min(1, e.power || e.strength*.75 || .6)) }; mode = 'observed'; at = performance.now()/1000; launched = false; last = null; },
     tick(nowMs){
       const now = nowMs/1000; if (!at) at = now;
       let t = now-at; if (mode === 'demo' && t > 3.2){ at = now; t = 0; launched = false; }

@@ -70,7 +70,7 @@ async function incoming(host, team){
     if (c.rally.state !== 'live') throw new Error('Invalid incoming-ball fixture');
     c.lastHitter = c.players[1-team];
     c.sinceHit = .5; c.ball.held = false;
-    const h = c.players[team]; Object.assign(h, { x: 0, z: sign*8, tx: 0, tz: sign*8, grace: .45, autoSide: null, reactT: 0, planT: 0, vx: 0, vz: 0 });
+    const h = c.players[team]; Object.assign(h, { x: 0, z: sign*8, tx: 0, tz: sign*8, grace: .45, speed:0, autoSide: null, reactT: 0, planT: 0, vx: 0, vz: 0 });
     // Fixed reachable target isolates input/render timing from auto-movement AI.
     // Moving-player coverage lives in the 30/60/120 FPS core regression grid.
     h.inc = { Tc: c.t+.15, x: sign*.7, y: 1.3, z: sign*7, sx: 0, sz: sign*8, side: 'fh' }; h.planT = 2;

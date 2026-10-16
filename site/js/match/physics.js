@@ -27,7 +27,7 @@ export function stepBall(ball, dt, court, events = []){
   if (ball.stopped) return events;
   const n = Math.max(1, Math.ceil(dt/.004)), h = dt/n, p = ball.p, v = ball.v;
   for (let i = 0; i < n; i++){
-    const pz = p.z;
+    const px = p.x, py = p.y, pz = p.z;
     if (!ball.rolling) v.y -= GRAVITY*h;
     const drag = 1 - .06*h;                               // un po' d'aria
     v.x *= drag; v.z *= drag;
@@ -62,11 +62,16 @@ export function stepBall(ball, dt, court, events = []){
     }
     // terreno
     if (p.y <= 0 && v.y <= 0 && !ball.rolling){
+      const groundFraction = Math.max(0, Math.min(1, py/(py - p.y)));
       p.y = 0;
       if (-v.y < 1.2){ ball.rolling = true; v.y = 0; }
       else v.y = -v.y*court.bounce;
       v.x *= court.friction; v.z *= court.friction;
-      events.push({ type: 'bounce', x: p.x, y: 0, z: p.z, side: sideOf(p.z) });
+      // L'evento usa l'attraversamento del terreno, non la fine del sottopasso.
+      // Evita che un tiro sulla linea venga giudicato fuori per un frame più lungo.
+      const u = groundFraction;
+      const bx = px + (p.x - px)*u, bz = pz + (p.z - pz)*u;
+      events.push({ type: 'bounce', x: bx, y: 0, z: bz, side: sideOf(bz) });
     }
     if (ball.rolling){
       const k = 1 - 1.6*h; v.x *= k; v.z *= k;
@@ -89,18 +94,29 @@ export function predict(ball, court, T = 3, dt = 1/60){
   return out;
 }
 
-// Velocità iniziale per portare la palla da `from` a terra in `to` in circa `T` secondi, passando sopra la rete.
+// Solutore coerente con stepBall: drag applicato prima dell'avanzamento e gravità
+// semi-implicita. Il passo nominale è quello di un frame a60Hz diviso in5 passi;
+// i passi reali a30/120Hz differiscono meno di un centimetro al primo rimbalzo.
 export function aimShot(from, to, T, court, clearance = .35){
-  let t = T;
-  for (let k = 0; k < 40; k++){
-    const vx = (to.x - from.x)/t, vz = (to.z - from.z)/t, vy = (-from.y + .5*GRAVITY*t*t)/t;
-    if ((from.z > 0) === (to.z > 0) || Math.abs(vz) < 1e-6) return { x: vx, y: vy, z: vz, T: t };
-    const tn = -from.z/vz, yn = from.y + vy*tn - .5*GRAVITY*tn*tn;
-    if (yn >= netHeightAt(court, from.x + vx*tn) + clearance) return { x: vx, y: vy, z: vz, T: t };
-    t += .05;
+  if (court.sport === 'padel') return padelAimShot(from, to, T, court, clearance);
+  const h = 1/300, drag = .06, retain = 1 - drag*h;
+  let t = Math.max(.12, Math.round((Number.isFinite(T) ? T : 1)/h)*h);
+  const solve = duration => {
+    const factor = retain*(1 - Math.pow(retain, duration/h))/drag;
+    return { x: (to.x - from.x)/factor, y: (-from.y + .5*GRAVITY*duration*(duration + h))/duration, z: (to.z - from.z)/factor, T: duration };
+  };
+  let v;
+  for (let k = 0; k < 180; k++){
+    v = solve(t);
+    if ((from.z > 0) === (to.z > 0) || Math.abs(v.z) < 1e-6) return v;
+    const fraction = -from.z/(to.z - from.z);
+    const tn = h*Math.log(1 - fraction*(1 - Math.pow(retain, t/h)))/Math.log(retain);
+    const x = from.x + (to.x - from.x)*fraction;
+    const yn = from.y + v.y*tn - .5*GRAVITY*tn*(tn + h);
+    if (yn >= netHeightAt(court, x) + clearance) return v;
+    t += .01;
   }
-  const vx = (to.x - from.x)/t, vz = (to.z - from.z)/t, vy = (-from.y + .5*GRAVITY*t*t)/t;
-  return { x: vx, y: vy, z: vz, T: t };
+  return v;
 }
 
 // Parametri dei colpi: tempo di volo in funzione della distanza e del tipo
@@ -112,4 +128,17 @@ export function shotTime(court, type, dist){
   if (type === 'drop') return Math.max(.72, dist/(fast*.55));
   if (type === 'slice') return Math.max(.55, dist/(fast*.82));
   return Math.max(.45, dist/fast);
+}
+
+// Il padel conserva il suo tuning storico; il refactoring riguarda il tennis.
+function padelAimShot(from, to, T, court, clearance){
+  let t = T;
+  for (let k = 0; k < 40; k++){
+    const v = { x: (to.x - from.x)/t, z: (to.z - from.z)/t, y: (-from.y + .5*GRAVITY*t*t)/t, T: t };
+    if ((from.z > 0) === (to.z > 0) || Math.abs(v.z) < 1e-6) return v;
+    const tn = -from.z/v.z, yn = from.y + v.y*tn - .5*GRAVITY*tn*tn;
+    if (yn >= netHeightAt(court, from.x + v.x*tn) + clearance) return v;
+    t += .05;
+  }
+  return { x: (to.x - from.x)/t, z: (to.z - from.z)/t, y: (-from.y + .5*GRAVITY*t*t)/t, T: t };
 }

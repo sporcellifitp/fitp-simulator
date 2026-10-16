@@ -14,7 +14,7 @@ import { createPhoneLink } from './link.js';
 import { hostSession, joinSession } from './session.js';
 import { encodeSnap, encodeEvents, createMirror } from './net.js';
 import { parseInvite } from './pairing.js';
-import { PLAN, CAL } from './calibration.js';
+import { PLAN, GESTURE_PLAN, CAL } from './calibration.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => (typeof s === 'string' ? $(s) : s).classList.toggle('hidden', !on);
@@ -96,7 +96,7 @@ function openPair(next){
   pairNext = next; A.state = 'pair'; pane('#pair');
   const L = ensureLink(); L.start();
   const local = /^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(location.hostname), w = $('#pairWarn');
-  w.textContent = location.protocol !== 'https:' && !local ? 'Questa pagina non è in https: sul telefono i sensori di movimento non funzioneranno. Apri il gioco dall\'indirizzo pubblicato (https).'
+  w.textContent = L.transport === 'lan-webrtc' && local ? 'Modalità LAN: apri sul computer il suo indirizzo IP di rete in HTTPS, con un certificato attendibile sul telefono. Il QR non deve contenere localhost.' : L.transport === 'lan-webrtc' && location.protocol !== 'https:' ? 'Modalità LAN: i sensori del telefono richiedono il server HTTPS locale con un certificato attendibile.' : location.protocol !== 'https:' && !local ? 'Questa pagina non è in https: sul telefono i sensori di movimento non funzioneranno. Apri il gioco dall\'indirizzo pubblicato (https).'
     : local ? 'Il gioco è aperto da questo computer (localhost): un telefono vero non può raggiungerlo. Usa l\'indirizzo pubblicato in https.' : '';
   // telefono già collegato e calibrato: si può riusare o ricalibrare
   paintPair();
@@ -107,7 +107,7 @@ function pairStep(){
   const ph = L.L.phone;
   if (PHONE_ERR[ph]) return 'errore';
   if (ph === 'ready') return 'conferma';
-  if (ph === 'cal'){ if (cal.step === 'swings') return 'prova'; if (cal.step === 'review' || cal.step === 'free') return 'verifica'; return 'impugna'; }
+  if (ph === 'cal'){ if (cal.step === 'swings' || cal.step === 'shots') return 'prova'; if (cal.step === 'review' || cal.step === 'free') return 'verifica'; return 'impugna'; }
   return 'collega';
 }
 function paintPair(){
@@ -137,25 +137,26 @@ function paintPair(){
 function onCal(e){
   if (((e.kind === 'step' && e.step === 'still') || (e.kind === 'review' && e.touch)) && A.state === 'play'){ pause(); A.pairFromPause = true; openPair(() => { A.pairFromPause = false; A.state = 'paused'; resume(); }); }
   if (e.kind === 'selection'){ calibrationPreview.example(e.shot); }
-  if (e.kind === 'next' || (e.kind === 'step' && e.step === 'swings')) calibrationPreview.example(undefined, e.want === 'R' ? -1 : 1);
+  if (e.kind === 'next' || (e.kind === 'step' && ['swings','shots'].includes(e.step))) calibrationPreview.example(e.shot || 'drive', e.want === 'R' ? -1 : 1);
   if (e.kind === 'attempt' || e.kind === 'free') calibrationPreview.gesture(e);
   if (e.kind === 'step' && e.step === 'still') calibrationPreview.example();
   if (e.kind === 'free' && e.ok) $('#rvConfirm').disabled = false;
   if (e.step) cal.step = e.step;
-  if (e.kind === 'step' && e.step === 'swings'){ cal.idx = e.idx || 0; if (!cal.marks.length || e.idx === 0) cal.marks = PLAN.map(() => ''); }
+  if (e.kind === 'step' && e.step === 'swings'){ cal.idx = e.idx || 0; if (!cal.marks.length || e.idx === 0) cal.marks = Array.from({length:e.total || PLAN.length}, () => ''); }
+  if (e.kind === 'step' && e.step === 'shots'){ cal.idx = e.idx || 0; cal.marks.length = PLAN.length + GESTURE_PLAN.length; }
   if (e.kind === 'step' && e.step === 'still'){ cal.marks = []; cal.result = null; }
   if (e.kind === 'warn' && e.why === 'move') setGrip('Ti sei mosso: tieni fermo il telefono ancora un attimo', '');
   if (e.kind === 'step' && e.step === 'grip') setGrip(e.upright ? 'Telefono in verticale ✓ un attimo…' : 'Mettilo in verticale nel palmo, come il manico', e.upright ? 'ok' : '');
   if (e.kind === 'grip') setGrip(e.upright ? 'Telefono in verticale ✓' : 'Mettilo in verticale nel palmo, come il manico', e.upright ? 'ok' : '');
   if (e.kind === 'attempt'){
-    cal.marks[e.idx] = e.ok ? 'ok' : e.tries >= CAL.maxTries ? 'ko' : '';
+    cal.marks[e.globalIdx ?? e.idx] = e.ok ? 'ok' : e.tries >= CAL.maxTries ? 'ko' : '';
     const dir = e.dir === 'L' ? '←' : e.dir === 'R' ? '→' : '?';
-    feedback('#fbDir', '#fbTxt', '#fbBar', dir, e.ok ? `Riconosciuto: ${e.dir === 'L' ? 'da destra a sinistra' : 'da sinistra a destra'}` : e.why === 'piccolo' ? 'Movimento non distinguibile dal rumore: prova la modalità compatta o i tocchi' : `Direzione rilevata: ${dir}. Serve ${e.want === 'L' ? '←' : '→'}: tieni il telefono sempre nello stesso modo`, e.peak, e.ok);
+    feedback('#fbDir', '#fbTxt', '#fbBar', dir, e.ok ? `Registrato ${SHOTS[e.shot] || 'Piatto'}${e.want ? `: ${e.dir === 'L' ? 'da destra a sinistra' : 'da sinistra a destra'}` : ''}` : e.why === 'piccolo' ? 'Movimento non distinguibile dal rumore: prova la modalità compatta o i tocchi' : `Direzione rilevata: ${dir}. Serve ${e.want === 'L' ? '←' : '→'}: tieni il telefono sempre nello stesso modo`, e.peak, e.ok);
   }
   if (e.kind === 'next') cal.idx = e.idx;
-  if (e.kind === 'idle') feedback('#fbDir', '#fbTxt', '#fbBar', '…', 'Non sento movimenti: fai uno swing deciso. Se non cambia nulla, tocca «Ricalibra» sul telefono.', 0, false);
+  if (e.kind === 'idle') feedback('#fbDir', '#fbTxt', '#fbBar', '…', 'Non sento movimenti: prova il gesto comodo mostrato nell’esempio. Puoi scegliere movimento compatto o controllo con i tocchi sul telefono.', 0, false);
   if (e.kind === 'review'){ cal.result = e; paintReview(e); }
-  if (e.kind === 'free'){ feedback('#frDir', '#frTxt', '#frBar', e.dir === 'L' ? '←' : e.dir === 'R' ? '→' : e.ok ? '•' : '?', e.ok ? `${e.dirValue === 0 ? 'Colpo centrale' : e.dir === 'L' ? 'Colpo da destra a sinistra' : 'Colpo da sinistra a destra'}, forza ${Math.round(Math.min(1.5, e.strength)*100)}%` : 'Direzione incerta: riprova o usa Inverti direzioni', e.peak, e.ok); }
+  if (e.kind === 'free'){ feedback('#frDir', '#frTxt', '#frBar', e.dir === 'L' ? '←' : e.dir === 'R' ? '→' : e.ok ? '•' : '?', e.ok ? `${SHOTS[e.shot] || 'Piatto'} · ${e.dirValue === 0 ? 'centrale' : e.dir === 'L' ? 'da destra a sinistra' : 'da sinistra a destra'}, forza ${Math.round(Math.min(1.5, e.strength)*100)}%${Number.isFinite(e.confidence) ? ` · lettura ${Math.round(e.confidence*100)}%` : ''}` : 'Direzione incerta: riprova o usa Inverti direzioni', e.peak, e.ok); }
   if (e.kind === 'done') cal.step = 'done';
   paintPair();
 }
@@ -166,19 +167,26 @@ function feedback(dirId, txtId, barId, dir, txt, peak, ok){
   const m = $(barId).parentElement.querySelector('i'); if (m) m.style.left = (CAL.small/1000*100) + '%';
 }
 function paintSwings(){
-  const w = PLAN[cal.idx] || 'L';
-  $('#swArrow').textContent = w === 'L' ? '←' : '→';
-  $('#swWant').textContent = `Swing ${Math.min(PLAN.length, cal.idx + 1)} di ${PLAN.length}: ${w === 'L' ? 'da destra a sinistra' : 'da sinistra a destra'}`;
-  $('#swDots').innerHTML = PLAN.map((_, i) => `<i class="${cal.marks[i] || ''} ${i === cal.idx ? 'now' : ''}"></i>`).join('');
+  const guided = cal.step === 'shots', guide = guided ? GESTURE_PLAN[cal.idx] : { shot: 'drive', want: PLAN[cal.idx] || 'L' };
+  const index = (guided ? PLAN.length : 0) + cal.idx, total = guided ? PLAN.length + GESTURE_PLAN.length : cal.marks.length || PLAN.length;
+  $('#swArrow').textContent = guide.want === 'L' ? '←' : guide.want === 'R' ? '→' : '↑';
+  $('#swWant').textContent = `Prova ${Math.min(total, index + 1)} di ${total}: ${guide.label || SHOTS[guide.shot]}${guide.want ? ` ${guide.want === 'L' ? 'da destra a sinistra' : 'da sinistra a destra'}` : ''}`;
+  $('#swGuide').textContent = guide.hint || ({ drive: 'Apri, colpisci e torna pronto con il tuo gesto naturale.', slice: 'Inclina il piatto e accompagna il colpo di taglio, senza forzare il polso.', lob: 'Accompagna il colpo dal basso verso l’alto: la traiettoria deve alzarsi.', drop: 'Apri leggermente il piatto e accompagna un colpo corto e morbido: rallentare soltanto non basta.' }[guide.shot]);
+  $('#swDots').innerHTML = Array.from({length:total}, (_, i) => `<i class="${cal.marks[i] || ''} ${i === index ? 'now' : ''}"></i>`).join('');
 }
 function paintReview(r){
   $('#rvTitle').textContent = r.touch ? 'Controllo con i tocchi' : r.pass ? 'Movimenti riconosciuti' : 'Calibrazione da rifare';
   $('#rvL').textContent = `${r.okL}/3 ${r.okL >= 2 ? '✓' : '✗'}`; $('#rvR').textContent = `${r.okR}/3 ${r.okR >= 2 ? '✓' : '✗'}`;
   const why = $('#rvWhy');
   why.className = 'note ' + (r.pass ? 'ok' : 'bad');
-  why.textContent = r.touch ? 'Scegli un tipo, direzione e intensità sul telefono e premi Colpisci. Guarda il risultato, poi conferma.' : r.pass ? (r.assisted ? 'Le aperture e i colpi si somigliano: apri il braccio, poi tieni premuto il pulsante sul telefono per colpire. Prova nella simulazione e conferma.' : 'Prova un colpo guardando la simulazione. Apertura, impatto e traiettoria devono corrispondere al gesto che intendi fare. Poi conferma.')
+  why.textContent = r.touch ? 'Scegli un tipo, direzione e intensità sul telefono e premi Colpisci. Guarda il risultato, poi conferma.' : r.pass ? (r.assisted ? 'Le aperture e i colpi si somigliano: apri il braccio, poi tieni premuto il pulsante sul telefono per colpire. Prova nella simulazione e conferma.' : 'Prova liberamente i colpi guardando la simulazione: il tipo viene letto dal movimento, senza selezionarlo. Inclinazione, velocità e accompagnamento devono corrispondere alla tua intenzione. Poi conferma.')
+    : r.why === 'servizio' ? 'Non è stato registrato alcun gesto di servizio. Ripeti senza forzare il movimento oppure scegli i tocchi sul telefono.'
     : r.why === 'piccolo' ? 'Non riesco a distinguere questi gesti dal rumore. Scegli movimento compatto o controllo con i tocchi sul telefono, senza forzare il braccio.'
     : 'Le due direzioni non si distinguono. Tieni il telefono sempre nello stesso modo (in verticale nel palmo) e fai gli swing davvero da una parte all\'altra.';
+  if (r.pass && r.gestureWarnings?.length){
+    const shots = [...new Set(r.gestureWarnings.map(w => SHOTS[w.shot] || w.shot))].join(', ');
+    why.textContent += ` Gesti da distinguere meglio: ${shots}. Cambia l’inclinazione o l’accompagnamento, senza ampliare il movimento. Se sono ambigui verrà privilegiato il piatto; puoi ripetere la calibrazione.`;
+  }
   $('#rvConfirm').disabled = true;
   show('#calInvert', !r.touch); show('#rvRetry', !r.touch);
   show('#pVerifica .rv', !r.touch);
@@ -202,7 +210,12 @@ function phoneChip(){
   show('#chip', !!on); if (!on) return;
   const L = A.link, c = $('#chip');
   let t = 'Telefono: in attesa', cls = '';
-  if (L.ready){ t = 'Telefono pronto' + (L.L.rtt != null ? ` · ${L.L.rtt} ms` : ''); cls = 'ok'; }
+  if (L.ready){
+    const motion = L.motion(), measuredRtt = motion?.rtt ?? L.L.rtt;
+    t = (L.transport === 'lan-webrtc' ? 'LAN · ' : '') + 'Telefono pronto' + (measuredRtt != null ? ` · ${Math.round(measuredRtt)} ms` : '');
+    if (L.transport === 'lan-webrtc' && motion) t += ` · perdita ${Math.round(motion.loss*100)}%`;
+    cls = 'ok';
+  }
   else if (L.L.state === 'connected') t = 'Telefono: da calibrare (pausa → Telefono)';
   else if (L.L.state === 'lost' || L.L.state === 'error'){ t = 'Telefono scollegato · ricollega il controller'; cls = 'bad'; }
   c.className = cls; c.querySelector('span').textContent = t;
@@ -242,15 +255,16 @@ const phoneSend = m => { if (A.ctrl === 'phone' && A.link) A.link.send(m); };
 function onEvent(e, view){
   const mine = e.player === A.myId, myTeam = A.myId === 'g' ? 1 : 0;
   switch (e.type){
-    case 'hit': sound(e.shot === 'serve' || e.shot === 'smash' ? 1.3 : 1);
+    case 'hit': S.impact?.(e, view || viewNow()); sound(e.shot === 'serve' || e.shot === 'smash' ? 1.3 : 1);
+      if(mine && e.shot==='serve') phoneSend({t:'ph',ph:'play'});
       if (e.shot === 'serve'){ const v = A.core ? A.core.ball.v : null; if (v) S.arena.setSpeed(Math.hypot(v.x, v.y, v.z)*3.6); }
       if (!mine) hint('');
       break;
     case 'bounce': S.mark(e.x, e.z); sound(.45, 'bounce'); break;
     case 'net': if (e.tape) flash('Nastro!', '', 800); sound(.5, 'net'); break;
     case 'serveReady': if (mine) hint('Al servizio: un movimento lancia la palla, il secondo la colpisce in cima'); if (mine) phoneSend({ t: 'ph', ph: 'serve' }); break;
-    case 'toss': if (mine) hint('Ora colpisci quando la palla è in cima'); break;
-    case 'tossCaught': if (mine){ hint('Palla ripresa: rilancia quando vuoi'); if (e.why !== 'nessuno') timing('miss', e.why === 'presto' ? 'Troppo presto' : 'Troppo tardi', 'Colpisci quando la palla è in cima'); } break;
+    case 'toss': if (mine){hint('Ora colpisci quando la palla è in cima');phoneSend({t:'ph',ph:'toss'});} break;
+    case 'tossCaught': if (mine){ hint('Palla ripresa: rilancia quando vuoi'); phoneSend({t:'ph',ph:'serve'}); if (e.why !== 'nessuno') timing('miss', e.why === 'presto' ? 'Troppo presto' : 'Troppo tardi', 'Colpisci quando la palla è in cima'); } break;
     case 'contact':
       if (!mine) break;
       A.stats.contacts++; if (e.label === 'perfetto') A.stats.perfect++;
@@ -307,6 +321,7 @@ function autoQuality(dt){
 function frame(now){
   const dt = Math.min(.1, (now - lastT)/1000); lastT = now; A.frameT = now;
   autoQuality(dt);
+  S.setRacketMotion?.(A.ctrl === 'phone' ? A.link?.motion(now) : null);
   if (A.state === 'pair'){
     // Keep the arena still behind pairing; sensor setup only needs the practice scene.
     if (!$('#calPractice').classList.contains('hidden')){ calibrationPreview.tick(now); $('#calCaption').textContent = calibrationPreview.label; }
@@ -368,7 +383,7 @@ function stepGuest(dt, now){
   for (const e of M.takeEvents(R)) onEvent(e, view);
   if (A.state === 'play' && !A.netPause){
     const input = controls.read();
-    const sw = input.swings.map(s => ({ at: presented.seenAt(s.at), power: s.power, lift: s.lift, lob: s.lob, drop: s.drop, slice: s.slice, dur: s.dur, dir: s.dir })).filter(s => s.at != null), ts = input.tosses.map(s => ({ at: presented.seenAt(s.at) })).filter(s => s.at != null);
+    const sw = input.swings.map(s => ({ at: presented.seenAt(s.at), power: s.power, lift: s.lift, lob: s.lob, drop: s.drop, slice: s.slice, dur: s.dur, dir: s.dir, aim:s.aim,confidence:s.confidence })).filter(s => s.at != null), ts = input.tosses.map(s => ({ at: presented.seenAt(s.at) })).filter(s => s.at != null);
     const mv = `${input.move.x.toFixed(2)},${input.move.y.toFixed(2)},${input.auto}`;
     if (sw.length || ts.length || mv !== lastMv){ G.send({ t: 'in', sw, ts, mv: input.move, auto: input.auto }); lastMv = mv; }
   }

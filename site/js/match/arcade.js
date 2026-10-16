@@ -5,10 +5,11 @@
 //  - quando il colpo manca, il gioco spiega se è arrivato presto, tardi, debole o fuori portata;
 //  - il ritardo del telefono/rete è compensato dalla cronologia della palla e dalla finestra di attesa del colpo.
 // Senza Three.js: testabile con node --test.
-import { CONTACT, contactAxes, relativeContact, contactLabel, evaluateContact, crossingTime } from './contact.js';
+import { CONTACT, contactAxes, relativeContact, contactLabel, evaluateContact, crossingTime, isSmashContact } from './contact.js';
 import { MatchCore } from './core.js';
 import { stepBall, predict, sideOf } from './physics.js';
 import { makeShot, shotTarget, gauss } from './ai.js';
+import { gestureAim, executionQuality } from './shot-quality.js';
 
 export const ARC = {
   S0: CONTACT.forward,                // punto d'impatto: zona della racchetta davanti al corpo
@@ -24,12 +25,13 @@ export const ARC = {
 };
 // err: errori gratuiti per colpo; attack: probabilità di attaccare quando la palla gli arriva debole o fuori tempo
 export const CPU = {
-  facile:  { label: 'Facile',  err: .055, spread: .3,  pace: [.72, .84], attack: .25, attackPace: [1, 1.12], speed: 6.2, reaction: .3,  pressure: .05, lobRate: .12, dropRate: .05, sliceRate: .08 },
-  normale: { label: 'Normale', err: .045, spread: .26, pace: [.8, .95],  attack: .35, attackPace: [1.05, 1.2], speed: 6.8, reaction: .22, pressure: .04, lobRate: .2,  dropRate: .1,  sliceRate: .13 },
-  esperto: { label: 'Esperto', err: .035, spread: .2,  pace: [.88, 1.02], attack: .43, attackPace: [1.12, 1.3], speed: 7.3, reaction: .16, pressure: .065, lobRate: .28, dropRate: .15, sliceRate: .18 },
+  facile:  { label: 'Facile',  err: .085, spread: .22, pace: [.66, .78], attack: 0, attackPace: [.66, .78], speed: 6.2, reaction: .3, pressure: .05, lobRate: 0, dropRate: 0, sliceRate: 0, angle: .16 },
+  normale: { label: 'Normale', err: .045, spread: .26, pace: [.8, .95],  attack: .35, attackPace: [1.05, 1.2], speed: 6.8, reaction: .22, pressure: .04, lobRate: .2,  dropRate: .1,  sliceRate: .13, angle: .7 },
+  esperto: { label: 'Esperto', err: .035, spread: .2,  pace: [.88, 1.02], attack: .43, attackPace: [1.12, 1.3], speed: 7.3, reaction: .16, pressure: .065, lobRate: .28, dropRate: .15, sliceRate: .18, angle: 1 },
 };
 
 export function chooseCpuShotType(nearNet, level, rng){
+  if (level === CPU.facile) return 'drive';
   // Variety stays purposeful: punish a player at net with a lob, a deep defender with a drop,
   // and mix in slices. A weak incoming ball can still override this with an attacking drive.
   if (nearNet && rng() < level.lobRate) return 'lob';
@@ -37,33 +39,44 @@ export function chooseCpuShotType(nearNet, level, rng){
   if (rng() < level.sliceRate) return 'slice';
   return 'drive';
 }
+export const LOCOMOTION = Object.freeze({
+  lunge: { duration: .22, recovery: .36, speed: 1.4 },
+  dive: { duration: .34, recovery: .7, speed: 1.65 },
+});
+const readyMotion = () => ({ state: 'ready', dirX: 0, dirZ: 0, progress: 0 });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const axes = contactAxes;
 export const rel = relativeContact;
 export const tossY = t => ARC.TOSS.y0 + ARC.TOSS.vy*t - 4.905*t*t;
 export const TOSS_APEX = ARC.TOSS.vy/9.81;
 export const timingLabel = contactLabel;
+export { isSmashContact } from './contact.js';
 
-// Il colpo: la direzione del gesto calibrato controlla l'angolo; il timing controlla qualità e ritmo.
-// dir=+1 (swing destra→sinistra) mira a sinistra dell'avversario; dir=-1 mira a destra; dir=0 mira al centro.
+// L'intenzione arriva dal gesto; tempo ed equilibrio determinano quanto bene la si esegue.
 export function arcadeShot(court, p, ball, sw, e){
   const q = Math.abs(e), r = rel(p, ball.p), fore = r.l >= 0;
-  const power = clamp(sw.power ?? .6, .2, 1), lift = clamp(sw.lift ?? 0, -1, 1);
+  const power = clamp(Number.isFinite(sw.power) ? sw.power : .6, .2, 1), lift = clamp(sw.lift ?? 0, -1, 1);
   let type = 'drive';
-  if (ball.p.y > 2.1 && Math.abs(ball.p.z) < court.halfL*.8) type = 'smash';
+  if (isSmashContact(ball.p)) type = 'smash';
   else if (sw.drop) type = 'drop';
   else if (sw.lob || lift >= .7) type = 'lob';
   else if (sw.slice || lift <= -.65) type = 'slice';
-  const over = Math.max(0, q - ARC.GOOD);                // molto fuori tempo: più errore, palla più bassa sulla rete e più lunga
-  const gestureDir = clamp(sw.dir ?? 0, -1, 1);
-  const aimX = -gestureDir*.72;
-  const angleRisk = Math.abs(aimX)*.08;
-  const depth = type === 'drop' ? .08 : type === 'lob' ? .9 : type === 'slice' ? .62 : .5 + .45*power + over*2;
+  const execution = executionQuality(p, ball, e), { quality, balance } = execution;
+  const intendedAim = gestureAim(sw);
+  // La precisione apre gli angoli. Il gesto impreciso conserva il lato intenzionale,
+  // ma restituisce una palla più centrale e attaccabile.
+  const aimX = intendedAim*(.45 + .55*quality);
+  const over = Math.max(0, q - ARC.GOOD);
+  const depth = type === 'drop' ? .08 : type === 'lob' ? .8 + .18*quality : type === 'slice' ? .48 + .28*quality : .32 + .52*power + .13*quality + over*2.5;
   const target = shotTarget(court, p.team, aimX, depth, type);
-  const error = (q <= ARC.PERFECT ? .1 : q <= ARC.GOOD ? .2 : .3 + over*6) + angleRisk + (power > .92 ? .25 : 0) + (type === 'drop' ? .18 : type === 'slice' ? .08 : 0);
-  const pace = type === 'lob' ? .9 : type === 'drop' ? .62 : type === 'slice' ? .78 : .76 + .44*power + (q <= ARC.PERFECT ? .1 : 0);
-  const clearance = type === 'lob' ? 1.4 : type === 'smash' ? .25 : type === 'drop' ? .32 : type === 'slice' ? .22 : .55 + .3*Math.max(0, lift) - over*3.5;
-  return { type, target, error, clearance, pace, label: timingLabel(e), power, fore };
+  // Una smorzata in allungo/fuori tempo galleggia più lunga: non basta indebolire un gesto.
+  if (type === 'drop') target.z *= 1 + (1 - quality)*1.4;
+  const risk = Math.abs(intendedAim)*(1 - quality)*.15 + Math.max(0, power - .9)*(1 - quality);
+  const error = .055 + (1 - quality)*.36 + (1 - balance)*.12 + risk + over*2;
+  const pace = type === 'lob' ? .86 + .12*quality : type === 'drop' ? .84 + .13*quality : type === 'slice' ? .76 + .12*power + .12*quality : .64 + .43*power + .26*quality;
+  const clearance = type === 'lob' ? 1.4 : type === 'smash' ? .2 : type === 'drop' ? .28 + (1 - quality)*.24 : type === 'slice' ? .22 : .4 + .22*Math.max(0, lift) + (1 - balance)*.12 - over*2.5;
+  return { type, target, error, clearance, pace, label: timingLabel(e), power, fore,
+    intendedAim, executedAim: aimX, ...execution };
 }
 
 export class ArcadeMatch extends MatchCore {
@@ -74,7 +87,7 @@ export class ArcadeMatch extends MatchCore {
     for (const p of this.players){
       if (p.human){ Object.assign(p, { speed: ARC.SPEED, reach: ARC.REACH, grace: o.teams[p.team][p.idx].grace ?? .1, auto: true }); }
       else Object.assign(p, { speed: this.cpu.speed, reaction: this.cpu.reaction, skill: .6 });
-      Object.assign(p, { swings: [], anim: null, inc: null, pend: null, crossedAt: null, done: false, manualT: 0 });
+      Object.assign(p, { swings: [], anim: null, inc: null, pend: null, crossedAt: null, done: false, locomotion: readyMotion(), motionUntil: 0, recoverUntil: 0 });
     }
     this.hist = []; this.shadow = null; this.deferred = null; this.toss = null; this.lastQuality = null;
   }
@@ -82,26 +95,21 @@ export class ArcadeMatch extends MatchCore {
   setupPoint(){
     super.setupPoint();
     this.hist = []; this.toss = null; this.shadow = null; this.deferred = null;
-    for (const p of this.players || []) Object.assign(p, { swings: [], inc: null, pend: null, crossedAt: null, done: false });
+    for (const p of this.players || []) Object.assign(p, { swings: [], inc: null, pend: null, crossedAt: null, done: false, locomotion: readyMotion(), motionUntil: 0, recoverUntil: 0 });
   }
 
   /* ---------- comandi ---------- */
-  // input: { move, swings:[{ delay, power, lift, lob, aim, dir }], toss:{ delay }, auto } oppure { [id]: … }
+  // Il motore accetta solo gesto e lancio. Anche gli input remoti non possono spostare il personaggio.
   update(dt, input = null){
     this.events = []; this.t += dt; this.timer += dt;
     const hs = this.humans();
     const inputs = input && (input.move || input.swings || input.toss) ? (hs[0] ? { [hs[0].id]: input } : {}) : (input || {});
     for (const h of hs){
       const inp = inputs[h.id]; if (!inp) continue;
-      if (inp.auto != null) h.auto = !!inp.auto;
-      const mv = inp.move || { x: 0, y: 0 };
-      if (Math.abs(mv.x) > .05 || Math.abs(mv.y) > .05){
-        const d = h.team === 0 ? 1 : -1; h.tx = h.x + mv.x*d*h.speed*dt*4; h.tz = h.z - mv.y*d*h.speed*dt*4; h.manualT = .35;
-      }
+      h.auto = true;
       if (inp.toss) this.startToss(h, inp.toss.delay || 0);
       for (const s of inp.swings || []) this.addSwing(h, s);
     }
-    for (const h of hs) h.manualT = Math.max(0, h.manualT - dt);
 
     if (this.phase === 'serve'){
       const s = this.serverP;
@@ -124,7 +132,6 @@ export class ArcadeMatch extends MatchCore {
       }
       if (this.phase === 'live'){
         this.thinkAI(dt);
-        this.autoMove(dt);
         this.movePlayers(dt, false);
         this.record();
         for (const h of hs) this.contact(h, dt);
@@ -179,7 +186,7 @@ export class ArcadeMatch extends MatchCore {
     if (best && (best.at >= Tc - .1 || this.t >= Tc + s.grace + .03)){
       const e = best.at - Tc; s.swings = [];
       b.p.y = tossY(clamp(best.at - T.t0, .25, 1.1));
-      this.serveShot(s, { power: best.power, e, aim: best.aim });
+      this.serveShot(s, { power: best.power, e, aim: best.aim, dir:best.dir });
       return;
     }
     if (tt > .6 && b.p.y < 1.0){
@@ -190,10 +197,10 @@ export class ArcadeMatch extends MatchCore {
     }
   }
   // servizio con potenza e tempo: in tempo è sempre buono e più veloce, molto fuori tempo può finire in rete o lungo
-  serveShot(s, { power = .6, e = 0, aim = null }){
+  serveShot(s, { power = .6, e = 0, aim = null, dir = null }){
     const c = this.court, r = this.rally, box = r.serveBox(), second = r.attempt === 2, q = Math.abs(e), u = clamp(e/.2, -1.5, 1.5);
     const xMid = (box.x0 + box.x1)/2, xHalf = (box.x1 - box.x0)/2 - .4, side = s.team === 0 ? 1 : -1;
-    let ax = aim ? clamp((aim.x - xMid)/xHalf*side, -1, 1) : clamp(u*.7 + (this.rng() - .5)*.4, -1, 1);
+    const ax = Number.isFinite(aim) ? clamp(aim,-1,1) : aim && Number.isFinite(aim.x) ? clamp((aim.x - xMid)/xHalf*side,-1,1) : dir != null ? gestureAim({dir}) : clamp(u*.7 + (this.rng() - .5)*.4,-1,1);
     let tx = xMid + side*ax*xHalf, tz = Math.sign(box.z0 + box.z1)*(c.serviceZ - (second ? 1.2 : .8));
     let error = .12 + (q > ARC.GOOD ? (q - ARC.GOOD)*1.5 : 0);
     if (q > .2 && this.rng() < .5){ if (this.rng() < .5) tz = Math.sign(tz)*(c.serviceZ + 1.2); else error += .6; }   // servizio sbagliato
@@ -207,6 +214,8 @@ export class ArcadeMatch extends MatchCore {
     const b = this.ball; b.held = false; b.p = { ...from }; b.v = { ...v }; b.rolling = false; b.stopped = false;
     this.rally.hit(s.team); this.toss = null;
     this.phase = 'live'; this.sinceHit = 0; this.lastHitter = s; this.hist = [];
+    const speed=Math.hypot(v.x,v.y,v.z)||1;
+    s.anim={kind:'serve',side:'fh',at:this.t,hit:true,point:{...from},out:{x:v.x/speed,y:v.y/speed,z:v.z/speed}};
     for (const p of this.players) Object.assign(p, { swings: p === s ? [] : p.swings, inc: null, pend: null, crossedAt: null, done: false });
     if (!s.human) s.swing = .35;
     this.emit({ type: 'hit', team: s.team, player: s.id, shot: 'serve', human: s.human });
@@ -220,9 +229,42 @@ export class ArcadeMatch extends MatchCore {
 
   /* ---------- colpi del giocatore vero ---------- */
   movePlayers(dt, serving){
-    const before = this.players.map(p => ({ x: p.x, z: p.z }));
-    super.movePlayers(dt, serving);
-    this.players.forEach((p, i) => { p.vx = dt > 0 ? (p.x - before[i].x)/dt : 0; p.vz = dt > 0 ? (p.z - before[i].z)/dt : 0; });
+    const R = this.court.runoff;
+    for (const p of this.players){
+      const dx = p.tx - p.x, dz = p.tz - p.z, distance = Math.hypot(dx, dz);
+      const motion = p.locomotion || (p.locomotion = readyMotion());
+      const target = p.inc || p.plan, eta = target ? (target.Tc ?? this.t + target.t) - this.t : Infinity;
+      const incoming = !serving && this.phase === 'live' && this.rally.lastHitter !== p.team && !p.done;
+      const urgent = incoming && eta > 0 && eta < .7 && distance > .65 && distance/Math.max(.01,p.speed) > eta - .08;
+      if ((motion.state === 'dive' || motion.state === 'lunge') && this.t >= p.motionUntil){
+        p.recoverUntil = this.t + LOCOMOTION[motion.state].recovery;
+        Object.assign(motion, { state: 'recover', progress: 0 });
+        p.motionStart = this.t;
+      } else if (motion.state === 'recover' && this.t >= p.recoverUntil){
+        Object.assign(motion, readyMotion());
+      }
+      if (motion.state !== 'recover' && motion.state !== 'dive' && motion.state !== 'lunge'){
+        if (urgent){
+          const state = distance > 2.2 && distance/Math.max(.01,p.speed) > eta ? 'dive' : 'lunge';
+          p.motionStart = this.t; p.motionUntil = this.t + LOCOMOTION[state].duration;
+          Object.assign(motion, { state, progress: 0 });
+        } else Object.assign(motion, { state: distance > .08 ? 'run' : 'ready', progress: 0 });
+      }
+      if (motion.state === 'dive' || motion.state === 'lunge') motion.progress = clamp((this.t - p.motionStart)/LOCOMOTION[motion.state].duration,0,1);
+      if (motion.state === 'recover') motion.progress = clamp((this.t - p.motionStart)/Math.max(.01,p.recoverUntil - p.motionStart),0,1);
+      const multiplier = LOCOMOTION[motion.state]?.speed ?? (motion.state === 'recover' ? .4 : 1);
+      const step = Math.max(0,p.speed)*multiplier*Math.max(0,dt);
+      const beforeX = p.x, beforeZ = p.z;
+      if (distance > .02){ const k = Math.min(1,step/distance); p.x += dx*k; p.z += dz*k; }
+      p.x = clamp(p.x, -R.x + .3, R.x - .3);
+      const sign = p.team === 0 ? 1 : -1;
+      p.z = clamp(p.z*sign,1.1,R.z-.3)*sign;
+      p.vx = dt > 0 ? (p.x-beforeX)/dt : 0; p.vz = dt > 0 ? (p.z-beforeZ)/dt : 0;
+      const actual = Math.hypot(p.vx,p.vz);
+      p.moving = clamp(actual/Math.max(.01,p.speed),0,1);
+      if (actual > .01 && motion.state !== 'recover') { motion.dirX = p.vx/actual; motion.dirZ = p.vz/actual; }
+      if (motion.state === 'ready') { motion.dirX = 0; motion.dirZ = 0; }
+    }
   }
   record(){
     const b = this.ball;
@@ -253,8 +295,7 @@ export class ArcadeMatch extends MatchCore {
     if (this.phase !== 'live') return;
     const r = this.rally, incoming = r.lastHitter !== h.team && r.state === 'live';
     if (!incoming){ h.inc = null; return; }
-    // previsione dell'impatto: serve al movimento automatico e all'aiuto visivo sul tempo
-    if (!h.pend && !h.done){ h.planT = (h.planT || 0) - dt; if (h.planT <= 0 || !h.inc){ h.inc = this.predictContact(h); h.planT = .06; } }
+    // La previsione è già aggiornata in thinkAI(), prima del movimento.
     // la palla passa davanti al giocatore: inizia l'attesa del colpo
     if (!h.pend && !h.done && this.legalFor(h) && sideOf(this.ball.p.z) === h.team){
       const H = this.hist, k = H[H.length - 1], k0 = H[H.length - 2];
@@ -296,7 +337,7 @@ export class ArcadeMatch extends MatchCore {
       // Judge the historic contact, but show its feedback now. A delayed packet
       // must not put the entire follow-through in the past before it is drawn.
       h.anim = { kind: shot.type, side: shot.fore ? 'fh' : 'bh', at: now, hit: true };
-      this.lastQuality = { label: shot.label, power: shot.power };
+      this.lastQuality = { label: shot.label, power: shot.power, quality: shot.quality, balance: shot.balance };
       this.strike(h, shot, false);
       this.emit({ type: 'contact', player: h.id, timing: e, at: tc, label: shot.label, power: shot.power, shot: shot.type, side: shot.fore ? 'fh' : 'bh' });
       return;
@@ -313,34 +354,40 @@ export class ArcadeMatch extends MatchCore {
   }
   // dove e quando colpire: dopo il rimbalzo a un'altezza comoda se si fa in tempo, altrimenti il primo punto raggiungibile
   predictContact(h){
-    const r = this.rally, { fz, rx } = axes(h), samples = predict(this.ball, this.court, 3, 1/60);
-    let best = null, fallback = null, bounced = r.bouncesSinceHit;
+    const r = this.shadow || this.rally, { fz, rx } = axes(h), samples = predict(this.ball, this.court, 3, 1/60);
+    let best = null, fallback = null, leastEffort = null;
     for (const k of samples){
-      const b = bounced + k.bounces;
-      if (b >= 2) break;
-      if (sideOf(k.z) !== h.team || k.y < .3 || k.y > 2.8) continue;
-      if (r.isServe && b === 0) continue;                                 // il servizio va lasciato rimbalzare
-      const side = h.autoSide || ((k.x - h.x)*rx >= -.3 ? 1 : -1);
-      const sx = k.x - rx*side*ARC.SIDE, sz = k.z - fz*ARC.S0;
-      const reach = Math.max(0, Math.hypot(sx - h.x, sz - h.z) - .3)/h.speed <= k.t;
-      const comfy = b === 1 && k.y <= 1.55 && k.vy < .5;
-      const c = { Tc: this.t + k.t, x: k.x, y: k.y, z: k.z, sx, sz, side: side > 0 ? 'fh' : 'bh' };
-      if (reach && comfy){ best = c; break; }
-      if (reach && !fallback) fallback = c;
-      if (!reach && !fallback && k === samples[samples.length - 1]) fallback = c;
+      const bounces = r.bouncesSinceHit + k.bounces;
+      if (bounces >= 2) break;
+      if (sideOf(k.z) !== h.team || k.y < .3 || k.y > 2.8 || r.isServe && bounces === 0) continue;
+      const side = h.autoSide || ((k.x-h.x)*rx >= -.3 ? 1 : -1);
+      const sx = k.x-rx*side*ARC.SIDE, sz = k.z-fz*ARC.S0;
+      const distance = Math.hypot(sx-h.x,sz-h.z);
+      const wait = Math.max(0,(h.reactT||0)-this.t,h.react||0);
+      const reachable = distance <= Math.max(0,k.t-wait)*Math.max(0,h.speed) + .3;
+      const c = { Tc: this.t+k.t, t:k.t, x:k.x,y:k.y,z:k.z,sx,sz,side:side>0?'fh':'bh',reachable };
+      const effort = distance-Math.max(0,k.t-wait)*Math.max(0,h.speed);
+      if (!leastEffort || effort < leastEffort.effort) leastEffort = { c, effort };
+      if (reachable && bounces === 0 && isSmashContact(k) && k.vy < -.5){ best=c;break; }
+      if (reachable && bounces === 1 && k.y <= 1.55 && k.vy < .5){ best=c;break; }
+      if (reachable && !fallback) fallback=c;
     }
-    const c = best || fallback;
-    if (c && h.autoSide == null) h.autoSide = c.side === 'fh' ? 1 : -1;
+    const c = best || fallback || leastEffort?.c || null;
+    if (c && h.autoSide == null) h.autoSide=c.side==='fh'?1:-1;
     return c;
   }
-  autoMove(){
-    for (const h of this.humans()){
-      if (!h.auto || h.manualT > 0 || this.t < (h.reactT || 0)) continue;
-      if (h.pend || h.done){ if (h.done && this.rally.lastHitter === h.team) this.goHome(h, 1); continue; }
-      if (h.inc){ h.tx = h.inc.sx; h.tz = h.inc.sz; }
-      else if (this.rally.lastHitter === h.team){ this.goHome(h, 1); h.autoSide = null; }
+  // Stessa previsione fisica per entrambe le squadre; nessun input manuale cambia il bersaglio.
+  thinkAI(dt){
+    for (const p of this.players){
+      if (p.human) p.auto=true;
+      const incoming = this.rally.state==='live' && this.rally.lastHitter!==p.team;
+      if (incoming && !p.done && !p.pend){
+        p.planT=(p.planT||0)-dt;
+        if (p.planT<=0 || !p.inc){ p.inc=this.predictContact(p);p.planT=.06; }
+        p.plan=p.inc;
+        if (this.t >= (p.reactT||0) && p.react<=0 && p.inc){p.tx=p.inc.sx;p.tz=p.inc.sz;}
+      } else if (!incoming){this.goHome(p,1);p.inc=null;p.plan=null;p.autoSide=null;}
     }
-    for (const h of this.humans()) if (this.rally.lastHitter === h.team) h.autoSide = null;
   }
   strike(p, shot, anim = true){
     super.strike(p, shot, anim);
@@ -355,7 +402,7 @@ export class ArcadeMatch extends MatchCore {
       if (p.human || this.phase !== 'live' || !this.rally.canHit(p.team) || this.sinceHit < .22) continue;
       if (p.react > 0 || !this.canReach(p) || this.ball.p.y > 2.9 || !this.aiWants(p)) continue;
       const shot = this.cpuShot(p);
-      if (this.ball.p.y > 2.1 && Math.abs(this.ball.p.z) < this.court.halfL*.8){
+      if (isSmashContact(this.ball.p)){
         // Una palla alta è uno smash anche per la CPU: mantieni bersaglio, traiettoria e posa coerenti.
         const factor = p.team === 0 ? 1 : -1;
         const aimX = shot.target ? clamp(shot.target.x/(factor*(this.court.halfW - .75)), -1, 1) : 0;
@@ -373,23 +420,24 @@ export class ArcadeMatch extends MatchCore {
   cpuShot(p){
     const L = this.cpu, rng = this.rng, c = this.court, opp = this.players.filter(q => q.team !== p.team);
     const ox = opp.reduce((s, o) => s + o.x, 0)/Math.max(1, opp.length), side = p.team === 0 ? 1 : -1;
-    let aimX = -Math.sign(ox*side || (rng() - .5))*(.35 + rng()*.55);
-    if (rng() < .25) aimX = (rng()*2 - 1)*.5;
+    const beginner = L === CPU.facile;
+    let aimX = beginner ? (rng()*2-1)*L.angle : -Math.sign(ox*side || (rng()-.5))*(.35+rng()*.55)*L.angle;
+    if (!beginner && rng()<.25) aimX=(rng()*2-1)*.5*L.angle;
     let pace = L.pace[0] + rng()*(L.pace[1] - L.pace[0]), depth = .55 + rng()*.33, type = 'drive';
-    const lq = this.lastQuality, strong = lq && lq.label === 'perfetto' && lq.power > .7, weak = !lq || lq.label === 'anticipo' || lq.label === 'ritardo' || lq.power < .45;
+    const lq = this.lastQuality, strong = lq && (lq.quality ?? (lq.label === 'perfetto' ? 1 : .5)) > .8 && lq.power > .7, weak = lq && ((lq.quality ?? (lq.label === 'perfetto' ? 1 : .5)) < .55 || lq.power < .45);
     const nearNet = opp.some(o => Math.abs(o.z) < c.serviceZ*.72);
     // La CPU varia il colpo in base alla posizione avversaria: lob contro chi sale, smorzata contro chi resta lontano.
     // I livelli più alti usano più spesso la varietà, ma mantengono una quota di drive leggibili.
     type = chooseCpuShotType(nearNet, L, rng);
     // Pressione leggibile: colpo forte, palla veloce e impatto vicino al limite di portata.
-    // La durata del rally non aggiunge errori casuali: rende invece la CPU più propensa a cercare il punto.
+    // La durata non altera errori o decisioni: pressione e campo libero creano il punto.
     const reachRatio = Math.hypot(this.ball.p.x - p.x, this.ball.p.z - p.z)/Math.max(.1, p.reach || 1.25);
     const executionStress = Math.max(0, reachRatio - .55);
     const executionError = Math.min(.15, executionStress*.24 + (p.moving > .65 ? .02 : 0));
     const pressure = (strong ? L.pressure : 0) + Math.min(.05, Math.hypot(this.ball.v.x, this.ball.v.z)/500) + executionError*.4;
-    const longRallyAttack = Math.min(.16, this.rally.hits*.004);
-    // Palla debole o scambio prolungato: più probabilità di attaccare il campo libero con un drive rapido.
-    if (rng() < Math.min(.85, (weak ? L.attack : L.attack*.4) + longRallyAttack)){
+    const openCourt = Math.abs(ox)/c.halfW;
+    // Palla debole o avversario spostato: un attacco può chiudere per geometria e velocità.
+    if (!beginner && rng() < Math.min(.85,(weak ? L.attack : L.attack*.4)+openCourt*.22)){
       type = 'drive'; aimX = -Math.sign(ox*side || (rng() - .5))*(.9 + rng()*.3);
       pace = L.attackPace[0] + rng()*(L.attackPace[1] - L.attackPace[0]); depth = .7 + rng()*.25;
     } else if (type === 'lob'){

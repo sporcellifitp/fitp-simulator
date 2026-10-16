@@ -32,7 +32,8 @@ export function readGuestInput(data, now, since = 0){
     const at = matchInputTime(s?.at, now, since); if (at == null) continue;
     sw.push({ at, power: bounded(s.power, .2, 1, .6), lift: bounded(s.lift, -1, 1, 0),
       lob: s.lob === true, drop: s.drop === true, slice: s.slice === true,
-      dur: bounded(s.dur, 0, 700, 0), dir: s.dir === 1 ? 1 : s.dir === -1 ? -1 : 0 });
+      dur: bounded(s.dur, 0, 700, 0), dir: s.dir === 1 ? 1 : s.dir === -1 ? -1 : 0,
+      aim: bounded(s.aim,-1,1,null), confidence:bounded(s.confidence,0,1,.7) });
   }
   const at = matchInputTime(data?.ts?.[0]?.at, now, since);
   if (at != null) ts.push({ at });

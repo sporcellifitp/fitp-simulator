@@ -93,7 +93,7 @@ test('green frame -> phone controls -> host input -> perfect contact, both sides
 test('history records ball and player together; reading beyond newest sample never extrapolates', () => {
   const { c, h } = incoming(); c.update(.01, { auto: false }); const oldX = h.x;
   h.x = h.tx = 1; c.update(.01, { auto: false });
-  const k = c.histAt(.015); assert.ok(Math.abs(k.players[h.id].x - (oldX+1)/2) < 1e-12);
+  const k = c.histAt(.015); assert.ok(Math.abs(k.players[h.id].x - (oldX+h.x)/2) < 1e-12);
   assert.equal(c.histAt(100).t, .02);
   assert.equal(c.histAt(-1), null);
 });

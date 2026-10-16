@@ -26,7 +26,8 @@ export function createControls(_canvas, _options = {}){
         slice: !!s.slice,
         dur: clamp(s.dur, 0, 700),
         dir: clamp(s.dir, -1, 1),
-        aim: null,
+        aim: Number.isFinite(s.aim) ? clamp(s.aim,-1,1) : null,
+        confidence: clamp(s.confidence,0,1,.7),
         src: 'phone',
       });
     },

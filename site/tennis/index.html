@@ -7,9 +7,6 @@
 <title>NATPF Simulator · tennis arcade</title>
 <meta name="description" content="NATPF Simulator: tennis arcade contro la CPU o un amico. Lo smartphone è la tua racchetta: collegalo via QR code.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23ff3d8b'/%3E%3Ccircle cx='44' cy='20' r='9' fill='%23e8ff3a'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:ital,wght@0,700;0,800;1,800&display=swap" rel="stylesheet">
 <style>
   :root{--navy:#0a1a4f;--ink:#121c3a;--muted:#5b6788;--pink:#ff3d8b;--ball:#e8ff3a;--blue:#2f6bff;--ok:#16a34a;--okb:#4cff8a;--warn:#e0a020;--bad:#e5484d;--line:#e3e8f3}
   *{box-sizing:border-box}
@@ -101,7 +98,7 @@
   #pauseBtn{position:fixed;right:16px;bottom:16px;width:46px;height:46px;border-radius:50%;border:0;background:rgba(6,14,40,.8);color:#fff;font-weight:800}
 </style>
 <script>/* /tennis senza barra finale: i percorsi relativi non tornerebbero */ if (!/\/$|\.html$/.test(location.pathname)) location.replace(location.pathname + '/' + location.search + location.hash);</script>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js"}}</script>
+<script type="importmap">{"imports":{"three":"/js/vendor/three.module.js"}}</script>
 <script src="../js/vendor/qrcode.js" defer></script>
 </head>
 <body>
@@ -164,20 +161,20 @@
     <div class="pane hidden" id="pProva">
       <div id="swArrow">←</div>
       <div id="swWant">Swing da destra a sinistra</div>
-      <div id="swDots"></div>
+      <div id="swDots"></div><p id="swGuide">Apri, colpisci e torna pronto con il tuo gesto naturale.</p>
       <div class="fb"><div class="dir" id="fbDir"></div><div class="txt"><span id="fbTxt">Apri il braccio, colpisci e torna pronto. Usa un gesto comodo.</span><div class="meter"><b id="fbBar"></b><i title="minimo"></i></div></div></div>
     </div>
     <div class="pane hidden" id="pVerifica">
       <h2 id="rvTitle">Verifica</h2>
       <table class="rv"><tr><td>Da destra a sinistra ←</td><td id="rvL"></td></tr><tr><td>Da sinistra a destra →</td><td id="rvR"></td></tr></table>
       <div class="note" id="rvWhy"></div>
-      <div id="rvFreeBox" class="hidden"><div class="lbl">Prova libera: esegui un colpo e verifica direzione e intensità</div>
+      <div id="rvFreeBox" class="hidden"><div class="lbl">Prova libera: verifica tipo, direzione e intensità del gesto</div>
         <div class="fb"><div class="dir" id="frDir"></div><div class="txt"><span id="frTxt">In attesa di uno swing…</span><div class="meter"><b id="frBar"></b><i></i></div></div></div></div>
       <div class="row"><button class="btn alt" id="rvRetry">Ripeti gli swing</button><button class="btn ball" id="rvConfirm">Conferma la calibrazione</button></div>
     </div>
     <div class="pane hidden" id="pConferma">
       <h2>Tutto pronto</h2>
-      <p>Il telefono è la tua racchetta. Timing perfetto = colpo più preciso e veloce. Swing a sinistra/destra = angolo; scegli piatto, slice, lob o palla corta sul telefono. Smash e servizio dipendono dalla palla.</p>
+      <p>Il telefono è la tua racchetta. Direzione, inclinazione, velocità e accompagnamento del gesto determinano piatto, slice, lob e palla corta. Un timing preciso rende il colpo più efficace. Per servire, simula lancio e battuta; i tocchi restano disponibili come alternativa.</p>
       <button class="btn pink" id="pairGo">Continua</button>
       <button class="btn alt" id="pairRecal">Rifai la calibrazione</button>
     </div>

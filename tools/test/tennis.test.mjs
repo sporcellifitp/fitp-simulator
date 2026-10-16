@@ -99,7 +99,7 @@ function rallyScene(seed = 1, grace = .1){
   const core = new ArcadeMatch({ teams: [[{ human: true, id: 'me', grace }], [{ id: 'cpu' }]], gamesToWin: 4, set: true, firstServer: 1, rng: mulberry32(seed) });
   core.phase = 'live'; core.rally.hit(1); core.rally.event({ type: 'bounce', x: 1, z: 4, side: 0 }); core.rally.hit(0); core.rally.hit(1);
   core.sinceHit = .5; core.ball.held = false;
-  const h = core.players[0]; Object.assign(h, { x: 0, z: 12, tx: 0, tz: 12, auto: false });
+  const h = core.players[0]; Object.assign(h, { x: 0, z: 12, tx: 0, tz: 12, speed: 0 });
   core.ball.p = { x: .7, y: 1.4, z: 2 }; core.ball.v = { x: 0, y: 1.5, z: 13 };
   // istante in cui la palla passa 40 cm davanti al giocatore
   let t = 0; const b = { ...core.ball.p }, v = { ...core.ball.v };
@@ -123,8 +123,8 @@ test('arcade: il timing determina qualità e ritmo, la direzione del gesto deter
   const early = arcadeShot(court, p, ball, { power: .6, dir: 1 }, -.17);
   const perfect = arcadeShot(court, p, ball, { power: .6, dir: 1 }, 0);
   const late = arcadeShot(court, p, ball, { power: .6, dir: 1 }, .17);
-  assert.equal(early.target.x, perfect.target.x);
-  assert.equal(perfect.target.x, late.target.x);
+  assert.ok(Math.abs(perfect.target.x) > Math.abs(early.target.x), 'timing preciso apre l’angolo intenzionale');
+  assert.ok(Math.abs(perfect.target.x) > Math.abs(late.target.x), 'timing impreciso restituisce una palla più centrale');
   assert.ok(perfect.pace > early.pace, 'timing perfetto aumenta il ritmo utile');
   assert.ok(early.error > perfect.error && late.error > perfect.error, 'fuori tempo aumenta il rischio');
   const left = arcadeShot(court, p, ball, { power: .6, dir: 1 }, 0).target;
@@ -150,7 +150,7 @@ test('NATPF Simulator: drive, palla corta, lob e slice sono classificati e miran
   const slice = arcadeShot(court, p, ball, { power: .55, slice: true, lift: -.8 }, 0);
   assert.equal(drive.type, 'drive'); assert.equal(drop.type, 'drop');
   assert.equal(lob.type, 'lob'); assert.equal(slice.type, 'slice');
-  assert.ok(Math.abs(drop.target.z - Math.sign(drop.target.z)*2.1) < 1e-9, 'la palla corta atterra a circa 2,1 m dalla rete');
+  assert.ok(Math.abs(drop.target.z) >= 2.1 && Math.abs(drop.target.z) < 3.2, 'la smorzata in allungo cade più lunga del punto ideale');
   assert.ok(Math.abs(drop.target.z) < Math.abs(drive.target.z), 'la palla corta è più corta del drive');
   assert.ok(drop.pace < drive.pace && slice.pace < drive.pace, 'drop e slice sono meno penetranti del drive');
   assert.ok(CPU.esperto && CPU.esperto.label === 'Esperto', 'livello CPU Esperto configurato');

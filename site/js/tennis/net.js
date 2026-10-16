@@ -11,7 +11,7 @@ export function encodeSnap(core, hostWallMs){
   return {
     t: 's', ct: r3(core.t), hw: Math.round(hostWallMs*10)/10, ph: core.phase, sv: core.serverP && core.serverP.id,
     b: [r3(b.p.x), r3(b.p.y), r3(b.p.z), r3(b.v.x), r3(b.v.y), r3(b.v.z)], hd: b.held ? 1 : 0, tt: core.toss ? r3(core.toss.t0) : null,
-    p: core.players.map(p => [r3(p.x), r3(p.z), r3(p.y || 0), p.anim ? [p.anim.kind, p.anim.side || null, r3(p.anim.at), p.anim.point || null, p.anim.out || null, p.anim.hit ? 1 : 0] : 0, p.inc ? [r3(p.inc.Tc), r3(p.inc.x), r3(p.inc.z), p.inc.side, Number.isFinite(p.inc.y) ? r3(p.inc.y) : null] : 0, r3(p.vx || 0), r3(p.vz || 0), core.legalFor ? (core.legalFor(p) ? 1 : 0) : 0]),
+    p: core.players.map(p => [r3(p.x), r3(p.z), r3(p.y || 0), p.anim ? [p.anim.kind, p.anim.side || null, r3(p.anim.at), p.anim.point || null, p.anim.out || null, p.anim.hit ? 1 : 0] : 0, p.inc ? [r3(p.inc.Tc), r3(p.inc.x), r3(p.inc.z), p.inc.side, Number.isFinite(p.inc.y) ? r3(p.inc.y) : null] : 0, r3(p.vx || 0), r3(p.vz || 0), core.legalFor ? (core.legalFor(p) ? 1 : 0) : 0, p.locomotion ? [p.locomotion.state,r3(p.locomotion.dirX||0),r3(p.locomotion.dirZ||0),r3(p.locomotion.progress||0)] : null]),
     sc: [sc.games[0], sc.games[1], sc.points[0], sc.points[1], sc.server, sc.tiebreak ? 1 : 0, sc.gamesToWin, sc.set ? 1 : 0],
   };
 }
@@ -67,6 +67,7 @@ export function createMirror({ players, D = .1 }){
           ...p, x: L(a.p[i][0], b.p[i][0]), z: L(a.p[i][1], b.p[i][1]), y: L(a.p[i][2], b.p[i][2]),
           vx: L(a.p[i][5] || 0, b.p[i][5] || 0), vz: L(a.p[i][6] || 0, b.p[i][6] || 0),
           contactEligible: src.p[i][7] == null ? !!src.p[i][4] : !!src.p[i][7],
+          locomotion: src.p[i][8] ? {state:src.p[i][8][0],dirX:src.p[i][8][1],dirZ:src.p[i][8][2],progress:src.p[i][8][3]} : {state:'ready',dirX:0,dirZ:0,progress:0},
           anim: src.p[i][3] ? { kind: src.p[i][3][0], side: src.p[i][3][1], at: src.p[i][3][2], point: src.p[i][3][3] || null, out: src.p[i][3][4] || null, hit: !!src.p[i][3][5] } : null,
           inc: src.p[i][4] ? { Tc: src.p[i][4][0], x: src.p[i][4][1], z: src.p[i][4][2], side: src.p[i][4][3], y: Number.isFinite(src.p[i][4][4]) ? src.p[i][4][4] : undefined } : null,
         })),

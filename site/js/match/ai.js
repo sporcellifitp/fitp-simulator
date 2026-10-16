@@ -24,9 +24,10 @@ export function shotTarget(court, team, aimX = 0, depth = .8, type = 'drive'){
 // velocità della palla per un colpo verso un bersaglio, con l'errore di esecuzione
 // pace: ritmo del colpo (1 normale, sopra 1 più veloce: la racchetta del giocatore lo sceglie con la potenza)
 export function makeShot(court, from, target, type, error, rng, clearance = null, pace = 1){
-  const t = { x: target.x + gauss(rng)*error, z: target.z + gauss(rng)*error*1.2 };
+  const spread = Number.isFinite(error) ? Math.max(0, error) : 0;
+  const t = spread ? { x: target.x + gauss(rng)*spread, z: target.z + gauss(rng)*spread*1.2 } : { ...target };
   const dist = Math.hypot(t.x - from.x, t.z - from.z);
-  const v = aimShot(from, t, shotTime(court, type, dist)*(1 + gauss(rng)*.05)/pace, court, clearance ?? (type === 'lob' ? 1.2 : type === 'smash' ? .15 : .3));
+  const v = aimShot(from, t, shotTime(court, type, dist)*(court.sport === 'padel' ? 1 + gauss(rng)*.05 : 1)/Math.max(.3, pace), court, clearance ?? (type === 'lob' ? 1.2 : type === 'smash' ? .15 : .3));
   return { v, target: t };
 }
 
@@ -35,12 +36,13 @@ export function planIntercept(me, ball, court, rally, T = 2.6){
   const samples = predict(ball, court, T, 1/40);
   let fallback = null;
   for (const s of samples){
-    if (s.bounces >= 2) break;
+    const bounces = (rally.bouncesSinceHit || 0) + s.bounces;
+    if (bounces >= 2) break;
     if (sideOf(s.z) !== me.team) continue;
-    if (rally.isServe && rally.state === 'live' && s.bounces === 0) continue;
+    if (rally.isServe && rally.state === 'live' && bounces === 0) continue;
     const high = me.canJump ? 2.9 : 2.25;
     if (s.y < .22 || s.y > high) continue;
-    if (s.bounces === 0 && Math.abs(s.z) > court.serviceZ + 1.5 && court.sport === 'tennis') continue; // niente volée da fondo
+    if (bounces === 0 && Math.abs(s.z) > court.serviceZ + 1.5 && court.sport === 'tennis') continue; // niente volée da fondo
     const reachT = Math.max(0, Math.hypot(s.x - me.x, s.z - me.z) - me.reach*.75)/me.speed;
     if (!fallback) fallback = s;
     if (reachT <= s.t + .03) return { ...s, reachable: true };
@@ -68,10 +70,10 @@ export function chooseShot(court, me, ball, opponents, rng, rallyHits = 0){
   const depth = .55 + rng()*.45;
   const pressure = Math.min(1, Math.hypot(ball.v.x, ball.v.z)/30);
   const lowVolley = ball.p.y < court.netH + .25 && Math.abs(ball.p.z) < court.serviceZ ? .35 : 0;
-  const error = (1 - me.skill)*1.3 + pressure*.35 + lowVolley + rallyHits*.025 + (type === 'smash' ? .2 : 0);
+  const error = (1 - me.skill)*1.3 + pressure*.35 + lowVolley + (court.sport === 'padel' ? rallyHits*.025 : 0) + (type === 'smash' ? .2 : 0);
   const target = shotTarget(court, me.team, aimX, depth, type);
-  // errore gratuito: più probabile per i meno bravi e negli scambi lunghi
-  const pErr = (1 - me.skill)*.09 + rallyHits*.006 + lowVolley*.08;
+  // L'errore dipende dall'esecuzione e dalla pressione, mai dalla durata dello scambio.
+  const pErr = (1 - me.skill)*.09 + (court.sport === 'padel' ? rallyHits*.006 : 0) + lowVolley*.08;
   if (rng() < pErr){
     if (court.sport === 'padel' || rng() < .4) return { type, target: { x: target.x, z: Math.sign(target.z)*.4 }, error, clearance: -.35, unforced: true };
     const out = rng() < .5 ? { x: Math.sign(target.x || 1)*(court.halfW + .5 + rng()), z: target.z } : { x: target.x, z: Math.sign(target.z)*(court.halfL + .6 + rng()) };

@@ -5,6 +5,9 @@
 // Orologi: ogni secondo il computer chiede l'ora al telefono e tiene la stima col viaggio più breve; così l'istante del
 // colpo (il picco del movimento, misurato sul telefono) si porta sull'orologio del computer senza dipendere da quando il
 // computer, magari impegnato a disegnare, riesce a leggere il messaggio.
+import { LanPeer, isLanMode } from './lan-transport.js';
+import { decodeSensor } from './sensor-packet.js';
+import { createRacketMotion } from './racket-motion.js';
 import { phoneInputTime } from './input-time.js';
 import { createGate, newSessionId, pairingUrl, createClock } from './pairing.js';
 
@@ -16,7 +19,7 @@ export function peerConfig(){
   return { host, port: +(port || 443), path: '/fiw', secure: location.protocol === 'https:' && !/^(127\.|localhost)/.test(host), debug: 0 };
 }
 // solo il parametro di prova passa al telefono e all'amico, nient'altro dell'indirizzo
-export const testSearch = () => { const m = /[?&](peer=[^&#]+)/.exec(location.search); return m ? '?' + m[1] : ''; };
+export const testSearch = () => { if (isLanMode()) return '?lan=1'; const m = /[?&](peer=[^&#]+)/.exec(location.search); return m ? '?' + m[1] : ''; };
 
 let libP = null;
 export const loadPeer = () => libP || (libP = new Promise((res, rej) => {
@@ -31,7 +34,7 @@ export function createPhoneLink(){
   const L = { state: 'off', phone: null, rtt: null, error: null };
   const handlers = { swing: [], toss: [], change: [], cal: [] };
   let peer = null, conn = null, lastTok = gate.token, tick = null, lastSeen = 0;
-  const clock = createClock();
+  const clock = createClock(), racketMotion = createRacketMotion();
   const emit = (k, v) => { for (const f of handlers[k]) try { f(v); } catch (e){ console.error(e); } };
   const set = patch => { Object.assign(L, patch); emit('change', L); };
 
@@ -39,7 +42,7 @@ export function createPhoneLink(){
     if (peer && !peer.destroyed) return;
     set({ state: 'starting', error: null });
     try {
-      const Peer = await loadPeer();
+      const Peer = isLanMode() ? LanPeer : await loadPeer();
       peer = new Peer(session, peerConfig());
       peer.on('open', () => set({ state: conn ? 'connected' : 'waiting' }));
       peer.on('connection', c => accept(c));
@@ -69,7 +72,7 @@ export function createPhoneLink(){
         if (!res.ok){ c.send({ t: 'deny', why: res.why }); setTimeout(() => c.close(), 200); return; }
         ok = true; clearTimeout(timer);
         if (conn && conn !== c) try { conn.close(); } catch (e){}
-        conn = c; lastSeen = Date.now(); clock.reset(); c.send({ t: 'welcome', r: res.resume });
+        conn = c; lastSeen = Date.now(); clock.reset(); racketMotion.setBias([0,0,0]); racketMotion.reset(); c.send({ t: 'welcome', r: res.resume });
         set({ state: 'connected', phone: 'sensors', error: null });
         return;
       }
@@ -77,20 +80,21 @@ export function createPhoneLink(){
       switch (d.t){
         case 'ping': c.send({ t: 'pong', c: d.c }); break;
         case 'dq': if (typeof d.p === 'number') clock.add(d.d, d.p, performance.now()); break;
-        case 'st': set({ phone: String(d.s || ''), rtt: clock.rtt != null ? Math.round(clock.rtt) : L.rtt }); break;
-        case 'cal': emit('cal', d.e || {}); break;
+        case 'st': if (d.s === 'ready' && d.b) racketMotion.setBias(d.b); if (d.s === 'ready' && L.phone !== 'ready') racketMotion.reset(); set({ phone: String(d.s || ''), rtt: clock.rtt != null ? Math.round(clock.rtt) : L.rtt }); break;
+        case 'cal': if (d.e?.kind === 'done') racketMotion.setBias(d.e.profile?.bias || [0,0,0]); emit('cal', d.e || {}); break;
         case 'sw': {
           const n = (v, a, b, def) => typeof v === 'number' && isFinite(v) ? Math.max(a, Math.min(b, v)) : def;
           // istante del colpo sull'orologio di questo computer (ms → s), con orologi allineati; se no, ritardo stimato
           const now = performance.now();
           const at = phoneInputTime({ peakMs: d.pk, nowMs: now, clock, latencyMs: d.lat });
           if (at == null) break;
-          emit('swing', { power: n(d.p, 0, 1, .6), lift: n(d.l, -1, 1, 0), lob: !!d.lob, drop: d.drop === true, slice: d.slice === true, dur: n(d.dur, 0, 700, 0), dir: d.dir === 1 ? 1 : d.dir === -1 ? -1 : 0, at });
+          emit('swing', { power: n(d.p, 0, 1, .6), lift: n(d.l, -1, 1, 0), lob: !!d.lob, drop: d.drop === true, slice: d.slice === true, dur: n(d.dur, 0, 700, 0), dir: d.dir === 1 ? 1 : d.dir === -1 ? -1 : 0, aim:n(d.a,-1,1,null),confidence:n(d.c,0,1,.7),at });
           break;
         }
         case 'toss': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); if (at != null) emit('toss', { at }); break; }
       }
     });
+    c.on('motion', buffer => { if (ok && c === conn){ const sample = decodeSensor(buffer); if (sample) racketMotion.push(sample, performance.now()); } });
     c.on('close', () => { clearTimeout(timer); if (c === conn){ conn = null; gate.release(); set({ state: peer && !peer.destroyed ? 'lost' : 'off', phone: null }); } });
     c.on('error', () => {});
   }
@@ -100,6 +104,8 @@ export function createPhoneLink(){
     start,
     url(){ return pairingUrl(new URL('racchetta.html', location.href).href, testSearch(), session, gate.token); },
     get token(){ return gate.token; },
+    motion(now = performance.now()){ const sample = racketMotion.sample(now); return sample ? { ...sample, rtt: clock.rtt ?? L.rtt, transport: isLanMode() ? 'lan-webrtc' : 'webrtc' } : null; },
+    get transport(){ return isLanMode() ? 'lan-webrtc' : 'webrtc'; },
     get clock(){ return clock.ok ? { off: clock.off, rtt: clock.rtt } : null; },
     get connected(){ return !!(conn && conn.open); },
     get ready(){ return this.connected && L.phone === 'ready'; },

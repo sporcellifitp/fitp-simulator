@@ -1,7 +1,10 @@
 {
-  "version": "gesture-contact-2026-10-16",
+  "version": "arcade-lan-2026-10-16",
   "branch": "refactor/natpf-audit-20261015",
-  "validation": "awaiting-user-device-test",
+  "validation": "awaiting-device-LAN-test",
   "display": "computer",
-  "controller": "smartphone"
+  "controller": "smartphone",
+  "LAN": "local-HTTPS-and-WebRTC",
+  "sensorPacketBytes": 52,
+  "sensorHz": 40
 }

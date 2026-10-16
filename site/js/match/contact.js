@@ -40,3 +40,6 @@ export function crossingTime(previous, current, playerId){
     ? previous.t + (s0 - CONTACT.forward)/(s0 - s)*(current.t - previous.t)
     : current.t;
 }
+
+// Fascia condivisa da scelta del colpo e indicatore a terra.
+export const isSmashContact = ball => Number.isFinite(ball?.y) && ball.y >= 2.05 && ball.y <= CONTACT.maxHeight;

@@ -58,6 +58,7 @@ export class Rally {
     this.state = 'serve';          // serve | live | over
     this.lastHitter = null;        // squadra che ha colpito per ultima
     this.bouncesSinceHit = 0;
+    this.landedIn = false;         // il primo rimbalzo di questo colpo è valido
     this.wallBeforeBounce = false;
     this.isServe = true;
     this.hits = 0;
@@ -82,7 +83,7 @@ export class Rally {
     if (!this.canHit(team)){ return this.end(1 - team, 'doppio colpo'); }
     if (this.state === 'serve'){ this.state = 'live'; this.isServe = true; }
     else this.isServe = false;
-    this.lastHitter = team; this.bouncesSinceHit = 0; this.wallBeforeBounce = false; this.hits++;
+    this.lastHitter = team; this.bouncesSinceHit = 0; this.landedIn = false; this.wallBeforeBounce = false; this.hits++;
     return null;
   }
   end(team, reason){
@@ -111,14 +112,16 @@ export class Rally {
           const b = this.serveBox();
           if (!(e.x >= b.x0 - .02 && e.x <= b.x1 + .02 && e.z >= b.z0 - .02 && e.z <= b.z1 + .02)) return this.fault('fuori');
           if (this.netTouch) return this.replayServe();
+          this.landedIn = true;
           return null;
         }
         if (!this.inCourt(e.x, e.z)) return this.end(other, 'fuori');
+        this.landedIn = true;
         return null;
       }
-      // secondo rimbalzo nel campo di chi doveva rispondere
-      if (sideOfE === other) return this.end(hitter, this.isServe ? 'ace' : 'vincente');
-      return this.end(other, 'rete');
+      // Conta il primo rimbalzo valido, non il lato del secondo: vento,
+      // effetto o nastro possono riportare la palla oltre la rete senza risposta.
+      return this.end(hitter, this.isServe ? 'ace' : 'vincente');
     }
     if (e.type === 'wall'){
       // padel: dopo il colpo la palla deve toccare prima il campo avversario, poi può prendere il vetro
@@ -126,15 +129,20 @@ export class Rally {
       return null;
     }
     if (e.type === 'exit'){
-      if (this.bouncesSinceHit >= 1 && sideOfE === other) return this.end(hitter, 'fuori dal recinto');
+      if (this.landedIn) return this.end(hitter, 'fuori dal recinto');
       return this.isServe ? this.fault('fuori') : this.end(other, 'fuori');
     }
     if (e.type === 'stop'){
-      if (sideOfE === hitter) return this.isServe ? this.fault('rete') : this.end(other, 'rete');
-      return this.end(hitter, 'vincente');
+      if (this.landedIn) return this.end(hitter, this.isServe ? 'ace' : 'vincente');
+      return this.isServe ? this.fault('fuori') : this.end(other, 'fuori');
     }
     return null;
   }
-  // palla finita fuori portata (tennis: vola via senza rimbalzare nel campo)
-  lost(){ return this.state === 'live' ? (this.isServe ? this.fault('fuori') : this.end(1 - this.lastHitter, 'fuori')) : null; }
+  // Il limite spaziale/temporale chiude anche palle già rimbalzate dentro:
+  // non sono errori di chi ha tirato, ma risposte mancate dall'avversario.
+  lost(){
+    if (this.state !== 'live') return null;
+    if (this.landedIn) return this.end(this.lastHitter, this.isServe ? 'ace' : 'vincente');
+    return this.isServe ? this.fault('fuori') : this.end(1 - this.lastHitter, 'fuori');
+  }
 }

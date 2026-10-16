@@ -1,13 +1,14 @@
 // Scena 3D di NATPF Simulator: arena, personaggi, palla con scia e ombra, sweet spot, feedback del colpo e camera locale
 // dietro il giocatore attivo. Le coordinate del campo restano assolute e non vengono mai trasformate per il rendering.
-// Il rialzo del POV richiesto verrà calibrato nel blocco camera, dopo la verifica del timing.
+// POV rialzato e stabile: campo completo e avversario visibili da entrambi i lati locali.
 // Coordinate della partita (x larghezza, z lunghezza, rete a z = 0). La squadra 0 sta a z > 0.
 import * as THREE from 'three';
 import { buildArena } from './arena.js';
 import { makeCharacter, LOOKS } from './character.js';
-import { playerCameraFrame } from './viewpoint.js';
+import { playerCameraFrame, cameraFieldOfView } from './viewpoint.js';
 import { CONTACT, contactAxes, relativeContact } from '../match/contact.js';
 import { evaluateSweetSpot } from './sweet-spot.js';
+import { createImpactEffects, smashOpportunity, SHOT_COLORS } from './impact-effects.js';
 
 const HL = 11.885;
 const SWING = { before: .129, dur: .3 };            // impatto alla fase 0,43 del personaggio, durata 0,3 s
@@ -20,14 +21,14 @@ export function createScene(container, { quality = 1 } = {}){
   container.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x040a1c); scene.fog = new THREE.Fog(0x061033, 45, 120);
-  const camera = new THREE.PerspectiveCamera(52, 1, .2, 300);
+  const camera = new THREE.PerspectiveCamera(48, 1, .2, 300);
   // luce: ambiente blu e luce bianca dall'alto sul campo (come nei riferimenti)
   scene.add(new THREE.HemisphereLight(0x5770e0, 0x060a24, .95));
   const key = new THREE.DirectionalLight(0xeef3ff, 2.2); key.position.set(4, 30, 8); key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -14, right: 14, top: 24, bottom: -24, near: 5, far: 60 }); key.shadow.bias = -.0004; key.shadow.normalBias = .02;
   scene.add(key);
   const fill = new THREE.DirectionalLight(0x3355ff, .8); fill.position.set(-20, 12, -10); scene.add(fill);
-  const fit = () => { const w = container.clientWidth || innerWidth, h = container.clientHeight || innerHeight; renderer.setSize(w, h); camera.aspect = w/h; camera.fov = camera.aspect < 1.1 ? 64 : 52; camera.updateProjectionMatrix(); };
+  const fit = () => { const w = container.clientWidth || innerWidth, h = container.clientHeight || innerHeight; renderer.setSize(w, h); camera.aspect = w/h; camera.fov = cameraFieldOfView(camera.aspect); camera.updateProjectionMatrix(); };
   fit(); addEventListener('resize', fit);
 
   const arena = buildArena(scene, { quality });
@@ -37,6 +38,13 @@ export function createScene(container, { quality = 1 } = {}){
   ball.castShadow = true; scene.add(ball);
   const TRAIL = 14, trail = new THREE.InstancedMesh(new THREE.SphereGeometry(.08, 8, 6), new THREE.MeshBasicMaterial({ color: 0xf6ffb0, transparent: true, opacity: .35, depthWrite: false }), TRAIL);
   const hist = []; scene.add(trail);
+  const effects = createImpactEffects();
+  let effectFrame = effects.tick(0), localId = null, previousBall = null, previousTime = null, lastShake = 0, racketMotion = null;
+  const hitKeys = new Map();
+  const smashTarget = new THREE.Mesh(new THREE.RingGeometry(.49,.62,48), new THREE.MeshBasicMaterial({ color:0xff3d83, transparent:true, opacity:.8, depthWrite:false, side:THREE.DoubleSide }));
+  smashTarget.rotation.x=-Math.PI/2; smashTarget.position.y=.027; smashTarget.visible=false; scene.add(smashTarget);
+  const smashCore = new THREE.Mesh(new THREE.CircleGeometry(.49,48),new THREE.MeshBasicMaterial({color:0xff3d83,transparent:true,opacity:.1,depthWrite:false,side:THREE.DoubleSide}));
+  smashCore.rotation.x=-Math.PI/2; smashCore.position.y=.025; smashCore.visible=false; scene.add(smashCore);
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(.12, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: .4, depthWrite: false }));
   shadow.rotation.x = -Math.PI/2; scene.add(shadow);
   // aiuto sul tempo: anello sul punto d'impatto, si stringe fino all'istante giusto e diventa verde
@@ -60,19 +68,36 @@ export function createScene(container, { quality = 1 } = {}){
   function lastMarkOut(){ const o = marks[marks.length - 1]; if (o){ o.m.material.color.set(0xff3b30); o.life = 3; o.t = 0; } }
 
   /* ---------- personaggi ---------- */
-  let chars = [], last = new Map(), mood = new Map(), cheer = 0, cameraTeam = null;
+  let chars = [], last = new Map(), mood = new Map(), cheer = 0, cameraTeam = null, cameraAspect = null;
   function setPlayers(players, looks){
     for (const c of chars) scene.remove(c.g);
     chars = players.map((p, i) => { const c = makeCharacter(LOOKS[looks[i]] || LOOKS.blu); scene.add(c.g); return c; });
     last = new Map(); mood = new Map(); cameraTeam = null;
+    hist.length=0; previousBall=null; previousTime=null; effects.reset(); hitKeys.clear();
     return chars;
   }
   function setMood(id, m, secs = 1.4){ mood.set(id, { m, until: performance.now()/1000 + secs }); }
+
+  function impact(e,view){
+    if(e?.type!=='hit') return;
+    const player=view?.players?.find(p=>p.id===e.player), point=player?.anim?.hit && player.anim.point || view?.ball?.p;
+    effects.hit(e,point,e.player===localId);
+    hist.length=0; // the outbound trail starts at the new stroke, not on the incoming arc
+    if(player?.anim?.hit) hitKeys.set(e.player,player.anim.at);
+    trail.material.color.set(SHOT_COLORS[e.shot] || SHOT_COLORS.drive);
+  }
 
   // view: stato da disegnare, dalla partita locale (ArcadeMatch) o dalle istantanee dell'host (partita online)
   // view = { t, phase, ball:{p}, held, toss, players:[{ id, team, x, y, z, human, anim, inc, pend }], serverId }
   function sync(view, dt, local){
     const now = performance.now()/1000, b = view.ball.p;
+    localId=local?.id || null;
+    // Authoritative hit animations also cover delayed/lost presentation events.
+    for(const p of view.players) if(p.anim?.hit && hitKeys.get(p.id)!==p.anim.at){
+      if(view.t-p.anim.at<.35 && view.t-p.anim.at>-.05) impact({type:'hit',player:p.id,shot:p.anim.kind},view);
+      hitKeys.set(p.id,p.anim.at);
+    }
+    effectFrame=effects.tick(dt,view.phase==='live' && dt>0);
     view.players.forEach((p, i) => {
       const c = chars[i]; if (!c) return;
       const prev = last.get(p.id) || { x: p.x, z: p.z }, sp = Math.hypot(p.x - prev.x, p.z - prev.z)/Math.max(dt, 1e-3);
@@ -91,7 +116,7 @@ export function createScene(container, { quality = 1 } = {}){
       }
       if (view.phase === 'serve' && p.id === view.serverId && view.toss && swing == null){ swing = Math.min(1, (view.t - view.toss.t0)/.6); kind = 'toss'; }
       const md = mood.get(p.id), m = md && md.until > now ? md.m : null;
-      c.pose({ t: now + i, dt, moving: Math.min(1, sp/4), prep, side, swing, kind, mood: m });
+      c.pose({ t: now + i, dt, moving: Math.min(1, sp/4), prep, side, swing, kind, mood: m, locomotion:p.locomotion, racketMotion:p.id===localId ? racketMotion : null });
       const near = relativeContact(p,b), hit = p.anim?.hit && swing != null && p.anim.point;
       if (hit){
         const out = p.anim.out || { x: 0, y: .2, z: contactAxes(p).fz };
@@ -106,12 +131,24 @@ export function createScene(container, { quality = 1 } = {}){
     ball.position.set(b.x, b.y, b.z);
     shadow.position.set(b.x, .014, b.z); shadow.visible = ball.visible; shadow.material.opacity = Math.max(.12, .42 - b.y*.07);
     // scia: ultime posizioni della palla in volo
-    if (view.phase === 'live'){ hist.unshift({ x: b.x, y: b.y, z: b.z }); if (hist.length > TRAIL) hist.pop(); } else hist.length = 0;
+    const jump=previousBall && Math.hypot(b.x-previousBall.x,b.y-previousBall.y,b.z-previousBall.z)>4;
+    const discontinuity=previousTime!=null && (view.t<previousTime || view.t-previousTime>.25);
+    if(view.phase!=='live' || dt<=0 || jump || discontinuity) hist.length=0;
+    if(view.phase==='live' && dt>0){ hist.unshift({x:b.x,y:b.y,z:b.z}); if(hist.length>TRAIL) hist.pop(); }
+    previousBall={...b}; previousTime=view.t;
     const M = new THREE.Matrix4();
     for (let i = 0; i < TRAIL; i++){ const h = hist[i]; const s = h ? (1 - i/TRAIL)*.9 : 0; M.makeScale(s, s, s); if (h) M.setPosition(h.x, h.y, h.z); trail.setMatrixAt(i, M); }
     trail.instanceMatrix.needsUpdate = true;
     // Sweet spot locale: stessa geometria e velocità relativa usate dal motore per valutare il contatto.
     const me = local && view.players.find(p => p.id === local.id);
+    const smash=smashOpportunity(me,view.t,view.phase);
+    smashTarget.visible=smashCore.visible=!!smash;
+    if(smash){
+      smashTarget.position.set(smash.x,.027,smash.z); smashCore.position.set(smash.x,.025,smash.z);
+      const pulse=smash.ready ? 1+.04*Math.sin(now*18) : 1;
+      smashTarget.scale.setScalar(pulse); smashTarget.material.opacity=smash.ready ? .98 : .7;
+      smashCore.material.opacity=smash.ready ? .24 : .1;
+    }
     if (me && view.phase === 'live' && local.assist){
       const left = me.inc ? me.inc.Tc - view.t : Infinity;
       const sweet = evaluateSweetSpot({ ball: b, velocity: view.ball.v, player: me, impact: me.inc, timeToImpact: left, eligible: me.contactEligible !== false });
@@ -128,20 +165,30 @@ export function createScene(container, { quality = 1 } = {}){
   }
   // Camera locale: il team 0 guarda da z>0 verso -z; il team 1 da z<0 verso +z.
   // È una trasformazione di vista del client: personaggi, palla, bersagli e fisica mantengono le coordinate assolute.
-  const camPos = new THREE.Vector3(), camAt = new THREE.Vector3();
+  const camPos = new THREE.Vector3(), camAt = new THREE.Vector3(), camTarget = new THREE.Vector3();
   function follow(p, dt, snap = false){
-    const frame = playerCameraFrame(p, HL);
+    camera.position.x-=lastShake; lastShake=0;
+    const frame = playerCameraFrame(p, HL, camera.aspect);
     camPos.set(frame.camera.x, frame.camera.y, frame.camera.z);
     camAt.set(frame.target.x, frame.target.y, frame.target.z);
     camera.up.set(0, 1, 0);
     // Al primo match (e se cambia team) applica subito la prospettiva locale: niente attraversamento del campo.
-    if (snap || cameraTeam == null || cameraTeam !== frame.team) camera.position.copy(camPos);
-    else camera.position.lerp(camPos, Math.min(1, dt*4));
-    cameraTeam = frame.team;
-    camera.lookAt(camAt);
+    if (snap || cameraTeam == null || cameraTeam !== frame.team || cameraAspect !== camera.aspect){
+      camera.position.copy(camPos); camTarget.copy(camAt);
+    } else {
+      const blend = 1-Math.exp(-Math.max(0,dt)*4);
+      camera.position.lerp(camPos, blend); camTarget.lerp(camAt, blend);
+    }
+    cameraTeam = frame.team; cameraAspect = camera.aspect;
+    const target=camTarget.clone();
+    if(effectFrame.point) target.lerp(new THREE.Vector3(effectFrame.point.x,effectFrame.point.y,effectFrame.point.z),effectFrame.focus);
+    lastShake=effectFrame.shake; camera.position.x+=lastShake;
+    const fov=frame.fov-effectFrame.zoom;
+    if(Math.abs(camera.fov-fov)>.001){ camera.fov=fov; camera.updateProjectionMatrix(); }
+    camera.lookAt(target);
   }
   // vista d'insieme dell'arena per i menu: giro lento dall'alto
-  function orbit(t){ cameraTeam = null; const a = t*.06; camera.up.set(0, 1, 0); camera.position.set(Math.sin(a)*10, 8.5, Math.cos(a)*17); camera.lookAt(0, 1.5, 0); }
+  function orbit(t){ cameraTeam = null; lastShake=0; effects.reset(); effectFrame=effects.tick(0); camera.fov=cameraFieldOfView(camera.aspect); camera.updateProjectionMatrix(); const a = t*.06; camera.up.set(0, 1, 0); camera.position.set(Math.sin(a)*10, 8.5, Math.cos(a)*17); camera.lookAt(0, 1.5, 0); }
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3();
   function pick(clientX, clientY){
     const r = renderer.domElement.getBoundingClientRect();
@@ -149,7 +196,8 @@ export function createScene(container, { quality = 1 } = {}){
     return ray.ray.intersectPlane(plane, hit) ? { x: hit.x, z: hit.z } : null;
   }
   return {
-    renderer, scene, camera, arena, aim, setPlayers, setMood, sync, follow, orbit, pick, mark, lastMarkOut, burst,
+    renderer, scene, camera, arena, aim, smashTarget, impact, setPlayers,
+    setRacketMotion(sample){ racketMotion=sample; }, setMood, sync, follow, orbit, pick, mark, lastMarkOut, burst,
     cheer(k = 1){ cheer = Math.max(cheer, k); },
     // qualità grafica: 2 alta, 1 media (meno pubblico, risoluzione 1×), 0 bassa (anche senza ombre)
     setQuality(q){

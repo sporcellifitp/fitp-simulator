@@ -92,9 +92,10 @@ export function makeCharacter(look = LOOKS.blu){
   const legR = leg(-1), legL = leg(1);
 
   let phase = 0, bob = 0;
+  const wristMotion=new THREE.Quaternion(), motionTarget=new THREE.Quaternion(), motionIdentity=new THREE.Quaternion();
   // s: { t, dt, moving (0..1), prep (0..1), side ('fh'|'bh'), swing (0..1 avanzamento, null se fermo), kind, mood, crouch }
   function pose(s){
-    body.position.set(0, 0, 0);
+    body.position.set(0, 0, 0); body.rotation.z=0; hips.rotation.z=0;
     const dt = s.dt || 0, mv = s.moving || 0;
     phase += dt*(9 + mv*5); bob = lerp(bob, mv, Math.min(1, dt*8));
     // gambe: corsa o posizione di attesa (ginocchia piegate, piccolo saltello)
@@ -103,6 +104,18 @@ export function makeCharacter(look = LOOKS.blu){
     legR.kn.rotation.x = ready*1.6 + Math.max(0, -run)*1.1; legL.kn.rotation.x = ready*1.6 + Math.max(0, run)*1.1;
     hips.position.y = .92 - ready*.18 + Math.abs(Math.cos(phase))*.05*bob;
     body.rotation.x = .12 + .18*bob;
+    // Root remains at the engine's position. These states only articulate the
+    // skeleton; a dive cannot extend the physical hitbox or teleport a player.
+    const locomotion=s.locomotion, state=locomotion?.state || (mv>.1?'run':'ready');
+    if(state==='lunge' || state==='dive' || state==='recover'){
+      const progress=Math.max(0,Math.min(1,locomotion.progress || 0)), a=state==='recover' ? 1-ease(progress) : Math.sin(Math.PI*progress);
+      const yaw=root.rotation.y, dx=(locomotion.dirX || 0)*Math.cos(yaw)-(locomotion.dirZ || 0)*Math.sin(yaw);
+      const dive=state==='dive', lean=(dive?.9:.4)*a;
+      body.rotation.z=-dx*lean; body.rotation.x+=a*(dive?.34:.12);
+      hips.position.y-=a*(dive?.35:.17);
+      legR.hp.rotation.x=-.32-a*.7; legL.hp.rotation.x=-.32+a*.5;
+      legR.kn.rotation.x=.48+a*.9; legL.kn.rotation.x=.48+a*.18;
+    }
     // braccia di base: racchetta davanti, pronta
     let tw = 0, shRx = -.5, shRz = -.25, elR = -.9, shLx = -.4, shLz = .35, elL = -.7, rk = 1.3, rkz = 0, lean = 0, headX = 0;
     if (mv > .3 && !s.prep){ shLx = -Math.sin(phase)*.7*bob; shLz = .2; }
@@ -167,10 +180,19 @@ export function makeCharacter(look = LOOKS.blu){
     neck.rotation.y = -tw*.6; neck.rotation.x = headX;
     armR.sh.rotation.set(shRx, 0, shRz); armR.el.rotation.x = elR; racket.rotation.set(rk, 0, rkz);
     armL.sh.rotation.set(shLx, 0, shLz); armL.el.rotation.x = elL;
+    const motion=s.racketMotion, rot=motion?.rotation;
+    motionTarget.identity();
+    if(!motion?.stale && (Array.isArray(rot) || ArrayBuffer.isView(rot)) && rot.length===4 && rot.every(Number.isFinite)){
+      motionTarget.fromArray(rot).normalize();
+      const angle=2*Math.acos(Math.min(1,Math.abs(motionTarget.w))), confidence=Math.max(0,Math.min(1,motion.confidence ?? 1));
+      motionTarget.slerp(motionIdentity,1-(angle>.001 ? Math.min(.55,.7/angle) : .55)*confidence);
+    }
+    wristMotion.slerp(motionTarget,1-Math.exp(-Math.max(0,dt)*18));
+    racket.quaternion.multiply(wristMotion);
   }
   // Two-bone target: the hand stays on the grip and the string-bed center is
   // placed at the same world-space contact point used by physics.
-  const down = new THREE.Vector3(0,-1,0), v = new THREE.Vector3(), q = new THREE.Quaternion();
+  const down = new THREE.Vector3(0,-1,0), q = new THREE.Quaternion();
   function aimRacket(point, direction = { x: 0, y: 0, z: 1 }, weight = 1){
     if (!point || ![point.x,point.y,point.z].every(Number.isFinite) || weight <= 0) return;
     root.updateMatrixWorld(true);

@@ -25,3 +25,6 @@ Le prove con `devicemotion` sintetico non sostituiscono le prove su iPhone Safar
 
 
 `gesture-calibration.mjs` verifica la nuova calibrazione compatta e la prova del colpo, il controllo touch, portrait e il vincolo della racchetta con eventi sintetici.
+
+
+Arcade/LAN: `node run-local.mjs arcade-visuals.mjs` controlla camera, smash, scie e articolazione; `node lan-browser.mjs` avvia il proprio server LAN e verifica WebRTC diretto, dopo `npm ci --prefix ../lan`. I test si trovano nella matrice GitHub Actions insieme a timing e calibrazione.
