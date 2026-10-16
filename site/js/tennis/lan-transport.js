@@ -40,7 +40,7 @@ export class LanConnection extends Events {
   close(){if(this.closed)return;this.closed=true;this.open=false;this.pc.close();if(this.owner.connections.get(this.peer)===this)this.owner.connections.delete(this.peer);this.emit('close');}
 }
 export class LanPeer extends Events {
-  constructor(id){super();this.id=id||`phone-${crypto.randomUUID()}`;this.destroyed=false;this.connections=new Map();this.reconnect();}
+  constructor(id){super();this.id=typeof id==='string'?id:`phone-${crypto.randomUUID()}`;this.destroyed=false;this.connections=new Map();this.reconnect();}
   reconnect(){
     if(this.destroyed||this.ws&&this.ws.readyState<2)return;
     const endpoint=new URL('/lan-signal',location.href);endpoint.protocol=location.protocol==='https:'?'wss:':'ws:';

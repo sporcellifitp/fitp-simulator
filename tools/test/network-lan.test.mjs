@@ -30,3 +30,15 @@ test('LAN quaternion maps alpha to renderer Z and compensates the calibrated gyr
   motion.reset();motion.push(raw(1,100,[10,20,30]),100);motion.push(raw(2,125,[10,20,30]),125);assert.deepEqual(motion.sample(150).rotation,[0,0,0,1]);
   assert.equal(motion.setBias([NaN,0,0]),false);
 });
+
+test('LAN Peer accepts the phone options overload and the desktop session ID', async()=>{
+  const {LanPeer}=await import('../../site/js/tennis/lan-transport.js');
+  const oldSocket=globalThis.WebSocket,oldLocation=globalThis.location;
+  globalThis.WebSocket=class{constructor(){this.readyState=1;}close(){this.readyState=3;}};
+  globalThis.location={href:'http://127.0.0.1/tennis/?lan=1'};
+  try{
+    const phone=new LanPeer({debug:0}),desktop=new LanPeer('racchetta-tel-test-session');
+    assert.equal(typeof phone.id,'string');assert.match(phone.id,/^phone-[a-z0-9-]+$/);assert.equal(desktop.id,'racchetta-tel-test-session');
+    phone.destroy();desktop.destroy();
+  }finally{if(oldSocket===undefined)delete globalThis.WebSocket;else globalThis.WebSocket=oldSocket;if(oldLocation===undefined)delete globalThis.location;else globalThis.location=oldLocation;}
+});
