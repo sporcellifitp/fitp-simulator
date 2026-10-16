@@ -102,11 +102,11 @@ export function createScene(container, { quality = 1 } = {}){
     trail.instanceMatrix.needsUpdate = true;
     // Sweet spot locale: stessa geometria e velocità relativa usate dal motore per valutare il contatto.
     const me = local && view.players.find(p => p.id === local.id);
-    if (me && me.inc && view.phase === 'live' && local.assist){
-      const left = me.inc.Tc - view.t;
+    if (me && view.phase === 'live' && local.assist){
+      const left = me.inc ? me.inc.Tc - view.t : Infinity;
       const sweet = evaluateSweetSpot({ ball: b, velocity: view.ball.v, player: me, impact: me.inc, timeToImpact: left, eligible: me.contactEligible !== false });
       ring.visible = sweet.visible && sweet.timeToImpact > -.22 && sweet.timeToImpact < 1;
-      ring.position.set(sweet.point?.x ?? me.inc.x, .02, sweet.point?.z ?? me.inc.z);
+      ring.position.set(sweet.point?.x ?? me.x, .02, sweet.point?.z ?? me.z);
       ring.scale.setScalar(.48);
       ring.material.color.set(sweet.perfect ? 0x4cff8a : sweet.ready ? 0xffd447 : 0xffffff);
       ring.material.opacity = sweet.perfect ? .98 : sweet.ready ? .88 : left < .3 ? .7 : .45;
