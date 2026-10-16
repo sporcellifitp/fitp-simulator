@@ -3,6 +3,7 @@
 // Modalità: cpu (contro il computer), host (chi invita: fa girare la partita), guest (chi riceve il link: vede lo stato
 // dell'host e manda i suoi colpi). Schermate: menu → telefono (QR, impugnatura, prova, verifica, conferma)
 // → partita o sala d'attesa → partita → fine.
+import { createCalibrationPreview, SHOTS } from './calibration-preview.js';
 import { createPresentationTimeline, readGuestInput, INPUT_TIME } from './input-time.js';
 import { ArcadeMatch } from '../match/arcade.js';
 import { pointLabels } from '../match/rules.js';
@@ -29,6 +30,7 @@ const MISS = { presto: ['Troppo presto', 'Hai colpito prima che arrivasse la pal
 
 const presented = createPresentationTimeline();
 const S = createScene($('#app'));
+const calibrationPreview = createCalibrationPreview($('#calCanvas'));
 const controls = createControls(S.renderer.domElement, { pick: (x, y) => S.pick(x, y) });
 const A = {
   state: 'menu', mode: 'cpu', ctrl: 'phone', name: store.get('name', ''), fmt: store.get('fmt', '4'), level: store.get('level', 'facile'),
@@ -129,9 +131,15 @@ function paintPair(){
     box.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); qrTok = L.token; box.dataset.url = L.url();
   } else if (L.L.state === 'starting' || L.L.state === 'error'){ box.innerHTML = ''; qrTok = null; }
   if (step === 'errore') $('#errTxt').textContent = PHONE_ERR[L.L.phone];
+  show('#calPractice', ['prova','verifica'].includes(step));
   if (step === 'prova') paintSwings();
 }
 function onCal(e){
+  if (((e.kind === 'step' && e.step === 'still') || (e.kind === 'review' && e.touch)) && A.state === 'play'){ pause(); A.pairFromPause = true; openPair(() => { A.pairFromPause = false; A.state = 'paused'; resume(); }); }
+  if (e.kind === 'selection'){ calibrationPreview.example(e.shot); }
+  if (e.kind === 'attempt' || e.kind === 'free') calibrationPreview.gesture(e);
+  if (e.kind === 'step' && ['swings','still'].includes(e.step)) calibrationPreview.example();
+  if (e.kind === 'free' && e.ok) $('#rvConfirm').disabled = false;
   if (e.step) cal.step = e.step;
   if (e.kind === 'step' && e.step === 'swings'){ cal.idx = e.idx || 0; if (!cal.marks.length || e.idx === 0) cal.marks = PLAN.map(() => ''); }
   if (e.kind === 'step' && e.step === 'still'){ cal.marks = []; cal.result = null; }
@@ -141,12 +149,12 @@ function onCal(e){
   if (e.kind === 'attempt'){
     cal.marks[e.idx] = e.ok ? 'ok' : e.tries >= CAL.maxTries ? 'ko' : '';
     const dir = e.dir === 'L' ? '←' : e.dir === 'R' ? '→' : '?';
-    feedback('#fbDir', '#fbTxt', '#fbBar', dir, e.ok ? `Riconosciuto: ${e.dir === 'L' ? 'da destra a sinistra' : 'da sinistra a destra'}` : e.why === 'piccolo' ? 'Movimento troppo piccolo: fai uno swing più ampio, con il braccio' : `Direzione rilevata: ${dir}. Serve ${e.want === 'L' ? '←' : '→'}: tieni il telefono sempre nello stesso modo`, e.peak, e.ok);
+    feedback('#fbDir', '#fbTxt', '#fbBar', dir, e.ok ? `Riconosciuto: ${e.dir === 'L' ? 'da destra a sinistra' : 'da sinistra a destra'}` : e.why === 'piccolo' ? 'Movimento non distinguibile dal rumore: prova la modalità compatta o i tocchi' : `Direzione rilevata: ${dir}. Serve ${e.want === 'L' ? '←' : '→'}: tieni il telefono sempre nello stesso modo`, e.peak, e.ok);
   }
   if (e.kind === 'next') cal.idx = e.idx;
   if (e.kind === 'idle') feedback('#fbDir', '#fbTxt', '#fbBar', '…', 'Non sento movimenti: fai uno swing deciso. Se non cambia nulla, tocca «Ricalibra» sul telefono.', 0, false);
   if (e.kind === 'review'){ cal.result = e; paintReview(e); }
-  if (e.kind === 'free'){ feedback('#frDir', '#frTxt', '#frBar', e.dir === 'L' ? '←' : e.dir === 'R' ? '→' : '?', e.ok ? `Swing ${e.dir === 'L' ? 'da destra a sinistra' : 'da sinistra a destra'}, forza ${Math.round(Math.min(1.5, e.strength)*100)}%` : 'Swing troppo piccolo o direzione incerta', e.peak, e.ok); }
+  if (e.kind === 'free'){ feedback('#frDir', '#frTxt', '#frBar', e.dir === 'L' ? '←' : e.dir === 'R' ? '→' : '?', e.ok ? `Swing ${e.dir === 'L' ? 'da destra a sinistra' : 'da sinistra a destra'}, forza ${Math.round(Math.min(1.5, e.strength)*100)}%` : 'Direzione incerta: riprova o usa Inverti direzioni', e.peak, e.ok); }
   if (e.kind === 'done') cal.step = 'done';
   paintPair();
 }
@@ -163,16 +171,22 @@ function paintSwings(){
   $('#swDots').innerHTML = PLAN.map((_, i) => `<i class="${cal.marks[i] || ''} ${i === cal.idx ? 'now' : ''}"></i>`).join('');
 }
 function paintReview(r){
-  $('#rvTitle').textContent = r.pass ? 'Movimenti riconosciuti' : 'Calibrazione da rifare';
+  $('#rvTitle').textContent = r.touch ? 'Controllo con i tocchi' : r.pass ? 'Movimenti riconosciuti' : 'Calibrazione da rifare';
   $('#rvL').textContent = `${r.okL}/3 ${r.okL >= 2 ? '✓' : '✗'}`; $('#rvR').textContent = `${r.okR}/3 ${r.okR >= 2 ? '✓' : '✗'}`;
   const why = $('#rvWhy');
   why.className = 'note ' + (r.pass ? 'ok' : 'bad');
-  why.textContent = r.pass ? 'Direzioni e forza riconosciute. Puoi fare qualche swing di prova qui sotto, poi conferma.'
-    : r.why === 'piccolo' ? 'Gli swing erano troppo piccoli per distinguerli dai movimenti casuali. Muovi tutto il braccio, come un colpo vero, tenendo il telefono ben stretto.'
+  why.textContent = r.touch ? 'Scegli un tipo, direzione e intensità sul telefono e premi Colpisci. Guarda il risultato, poi conferma.' : r.pass ? (r.assisted ? 'Le aperture e i colpi si somigliano: apri il braccio, poi tieni premuto il pulsante sul telefono per colpire. Prova nella simulazione e conferma.' : 'Prova un colpo guardando la simulazione. Apertura, impatto e traiettoria devono corrispondere al gesto che intendi fare. Poi conferma.')
+    : r.why === 'piccolo' ? 'Non riesco a distinguere questi gesti dal rumore. Scegli movimento compatto o controllo con i tocchi sul telefono, senza forzare il braccio.'
     : 'Le due direzioni non si distinguono. Tieni il telefono sempre nello stesso modo (in verticale nel palmo) e fai gli swing davvero da una parte all\'altra.';
+  $('#rvConfirm').disabled = true;
+  show('#calInvert', !r.touch); show('#rvRetry', !r.touch);
   show('#rvConfirm', r.pass); show('#rvFreeBox', r.pass);
   if (r.pass) A.link.cmd('free');
 }
+$('#calDemo').addEventListener('click', () => calibrationPreview.example());
+$('#calInvert').addEventListener('click', () => A.link?.cmd('invert'));
+$('#calShotTypes').innerHTML = Object.entries(SHOTS).map(([key,label]) => `<button data-shot="${key}">${label}</button>`).join('');
+$('#calShotTypes').addEventListener('click', e => { const shot=e.target.dataset.shot; if (SHOTS[shot]){ calibrationPreview.example(shot); A.link?.send({ t:'practice',shot }); } });
 $('#skipGrip').addEventListener('click', () => A.link && A.link.cmd('skipGrip'));
 $('#rvRetry').addEventListener('click', () => { cal.marks = PLAN.map(() => ''); cal.idx = 0; A.link.cmd('retry'); });
 $('#rvConfirm').addEventListener('click', () => A.link.cmd('confirm'));
@@ -291,6 +305,10 @@ function autoQuality(dt){
 function frame(now){
   const dt = Math.min(.1, (now - lastT)/1000); lastT = now; A.frameT = now;
   autoQuality(dt);
+  if (A.state === 'pair' && !$('#calPractice').classList.contains('hidden')){
+    calibrationPreview.tick(now); $('#calCaption').textContent = calibrationPreview.label;
+    requestAnimationFrame(frame); return;
+  }
   let shownTime = null;
   if (A.core && A.state === 'play' && !A.netPause) shownTime = stepCore(dt, now);
   else if (A.mirror && A.mode === 'guest') shownTime = stepGuest(dt, now);

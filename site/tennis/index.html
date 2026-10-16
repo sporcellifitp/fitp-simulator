@@ -70,6 +70,9 @@
   table.rv{width:100%;border-collapse:collapse;margin:6px 0 4px;font-size:15px}
   table.rv td{padding:8px 6px;border-bottom:1px solid var(--line)} table.rv td:last-child{text-align:right;font-weight:700}
 
+  #calCanvas canvas{width:100%;height:auto;display:block;border-radius:12px;aspect-ratio:600/260}
+  #calCaption{font-weight:700;text-align:center;margin:8px 0;color:var(--navy)}
+  #calShotTypes{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0} #calShotTypes button{border:1px solid var(--line);border-radius:8px;background:#eef3fa;padding:8px;min-height:40px;font:inherit;font-size:13px;cursor:pointer}
   /* lobby */
   .invite{display:flex;gap:8px} .invite input{flex:1;font-size:14px}
   .invite button{flex:none;border:0;border-radius:10px;padding:0 14px;background:var(--navy);color:#fff;font-weight:600}
@@ -153,11 +156,16 @@
       </div>
       <button class="btn alt hidden" id="skipGrip">Lo tengo diversamente: continua</button>
     </div>
+    <div id="calPractice" class="hidden">
+      <div id="calCanvas"></div><div id="calCaption" role="status">Apri, colpisci, torna pronto</div>
+      <div id="calShotTypes"></div>
+      <div class="row"><button id="calDemo" class="btn alt">Rivedi esempio</button><button id="calInvert" class="btn alt">Inverti direzioni</button></div>
+    </div>
     <div class="pane hidden" id="pProva">
       <div id="swArrow">←</div>
       <div id="swWant">Swing da destra a sinistra</div>
       <div id="swDots"></div>
-      <div class="fb"><div class="dir" id="fbDir"></div><div class="txt"><span id="fbTxt">Fai uno swing come per colpire la palla.</span><div class="meter"><b id="fbBar"></b><i title="minimo"></i></div></div></div>
+      <div class="fb"><div class="dir" id="fbDir"></div><div class="txt"><span id="fbTxt">Apri il braccio, colpisci e torna pronto. Usa un gesto comodo.</span><div class="meter"><b id="fbBar"></b><i title="minimo"></i></div></div></div>
     </div>
     <div class="pane hidden" id="pVerifica">
       <h2 id="rvTitle">Verifica</h2>
@@ -169,7 +177,7 @@
     </div>
     <div class="pane hidden" id="pConferma">
       <h2>Tutto pronto</h2>
-      <p>Il telefono è la tua racchetta. Timing perfetto = colpo più preciso e veloce. Swing a sinistra/destra = angolo; gesto breve = palla corta, verso l'alto = lob, taglio verso il basso = slice.</p>
+      <p>Il telefono è la tua racchetta. Timing perfetto = colpo più preciso e veloce. Swing a sinistra/destra = angolo; scegli piatto, slice, lob o palla corta sul telefono. Smash e servizio dipendono dalla palla.</p>
       <button class="btn pink" id="pairGo">Continua</button>
       <button class="btn alt" id="pairRecal">Rifai la calibrazione</button>
     </div>

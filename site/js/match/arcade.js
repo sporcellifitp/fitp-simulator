@@ -344,6 +344,7 @@ export class ArcadeMatch extends MatchCore {
   }
   strike(p, shot, anim = true){
     super.strike(p, shot, anim);
+    if (p.anim){ const speed = Math.hypot(this.ball.v.x,this.ball.v.y,this.ball.v.z)||1; Object.assign(p.anim,{ hit:true, point:{...this.ball.p}, out:Object.fromEntries(Object.entries(this.ball.v).map(([key,v])=>[key,v/speed])) }); }
     this.hist = [];
     for (const q of this.players) if (q.team !== p.team) Object.assign(q, { inc: null, pend: null, crossedAt: null, done: false, autoSide: null, reactT: this.t + ARC.REACT });
   }

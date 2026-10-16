@@ -56,7 +56,7 @@ jobs:
       - name: Install Chromium and OS dependencies
         run: node tools/e2e/node_modules/playwright-core/cli.js install --with-deps chromium
       - name: Verify phone input, rendering and host/guest timing in Chromium
-        run: node tools/e2e/run-local.mjs phone-only.mjs timing-browser.mjs
+        run: node tools/e2e/run-local.mjs phone-only.mjs timing-browser.mjs gesture-calibration.mjs
 
   cloudflare-package:
     name: Package static site for Cloudflare Pages

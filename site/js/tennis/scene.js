@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { buildArena } from './arena.js';
 import { makeCharacter, LOOKS } from './character.js';
 import { playerCameraFrame } from './viewpoint.js';
+import { CONTACT, contactAxes, relativeContact } from '../match/contact.js';
 import { evaluateSweetSpot } from './sweet-spot.js';
 
 const HL = 11.885;
@@ -91,12 +92,21 @@ export function createScene(container, { quality = 1 } = {}){
       if (view.phase === 'serve' && p.id === view.serverId && view.toss && swing == null){ swing = Math.min(1, (view.t - view.toss.t0)/.6); kind = 'toss'; }
       const md = mood.get(p.id), m = md && md.until > now ? md.m : null;
       c.pose({ t: now + i, dt, moving: Math.min(1, sp/4), prep, side, swing, kind, mood: m });
+      const near = relativeContact(p,b), hit = p.anim?.hit && swing != null && p.anim.point;
+      if (hit){
+        const out = p.anim.out || { x: 0, y: .2, z: contactAxes(p).fz };
+        const follow = Math.max(0,(swing-.43))*.35;
+        c.aimRacket({ x: hit.x+out.x*follow, y: hit.y+out.y*follow, z: hit.z+out.z*follow },out,Math.max(0,Math.min(1,(1-swing)/.22)));
+      } else if (view.phase === 'live' && p.contactEligible !== false && near.s > -.2 && near.s < 3 && Math.abs(near.l)<1.7 && b.y>.4){
+        const fz = contactAxes(p).fz;
+        c.aimRacket({ x: b.x, y: b.y, z: p.z+fz*CONTACT.forward },{ x: 0, y: .1, z: fz },Math.min(1,Math.max(0,(prep-.25)/.35)));
+      }
     });
     ball.visible = !view.held || view.phase === 'serve';
-    ball.position.set(b.x, b.y + .1, b.z);
+    ball.position.set(b.x, b.y, b.z);
     shadow.position.set(b.x, .014, b.z); shadow.visible = ball.visible; shadow.material.opacity = Math.max(.12, .42 - b.y*.07);
     // scia: ultime posizioni della palla in volo
-    if (view.phase === 'live'){ hist.unshift({ x: b.x, y: b.y + .1, z: b.z }); if (hist.length > TRAIL) hist.pop(); } else hist.length = 0;
+    if (view.phase === 'live'){ hist.unshift({ x: b.x, y: b.y, z: b.z }); if (hist.length > TRAIL) hist.pop(); } else hist.length = 0;
     const M = new THREE.Matrix4();
     for (let i = 0; i < TRAIL; i++){ const h = hist[i]; const s = h ? (1 - i/TRAIL)*.9 : 0; M.makeScale(s, s, s); if (h) M.setPosition(h.x, h.y, h.z); trail.setMatrixAt(i, M); }
     trail.instanceMatrix.needsUpdate = true;

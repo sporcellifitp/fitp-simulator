@@ -43,7 +43,7 @@ export function makeCharacter(look = LOOKS.blu){
     return { sh, el, hand };
   };
   const armR = arm(-1), armL = arm(1);                  // destra a x < 0 guardando verso +z
-  const racket = pivot(armR.el, 0, -.28, 0);
+  const racket = pivot(armR.el, 0, -.27, 0);
   // Il palmo è sul fondello del manico: il manico e l'ovale salgono dalla mano,
   // invece di pendere verso terra come nel modello precedente.
   const handle = new THREE.Mesh(new THREE.CylinderGeometry(.021, .021, .205, 8), mat(0x20232d));
@@ -94,6 +94,7 @@ export function makeCharacter(look = LOOKS.blu){
   let phase = 0, bob = 0;
   // s: { t, dt, moving (0..1), prep (0..1), side ('fh'|'bh'), swing (0..1 avanzamento, null se fermo), kind, mood, crouch }
   function pose(s){
+    body.position.set(0, 0, 0);
     const dt = s.dt || 0, mv = s.moving || 0;
     phase += dt*(9 + mv*5); bob = lerp(bob, mv, Math.min(1, dt*8));
     // gambe: corsa o posizione di attesa (ginocchia piegate, piccolo saltello)
@@ -167,6 +168,41 @@ export function makeCharacter(look = LOOKS.blu){
     armR.sh.rotation.set(shRx, 0, shRz); armR.el.rotation.x = elR; racket.rotation.set(rk, 0, rkz);
     armL.sh.rotation.set(shLx, 0, shLz); armL.el.rotation.x = elL;
   }
+  // Two-bone target: the hand stays on the grip and the string-bed center is
+  // placed at the same world-space contact point used by physics.
+  const down = new THREE.Vector3(0,-1,0), v = new THREE.Vector3(), q = new THREE.Quaternion();
+  function aimRacket(point, direction = { x: 0, y: 0, z: 1 }, weight = 1){
+    if (!point || ![point.x,point.y,point.z].every(Number.isFinite) || weight <= 0) return;
+    root.updateMatrixWorld(true);
+    const target = new THREE.Vector3(point.x, point.y, point.z);
+    const local = torso.parent.worldToLocal(target.clone()).sub(torso.position);
+    const yaw = Math.atan2(local.z, -local.x);
+    torso.rotation.y = lerp(torso.rotation.y, yaw, weight); neck.rotation.y = -torso.rotation.y*.5;
+    root.updateMatrixWorld(true);
+    let shoulder = armR.sh.getWorldPosition(new THREE.Vector3());
+    const distance = shoulder.distanceTo(target), reach = .3+.27+.42-.001;
+    // Small visual lunge, bounded independently from the physics player's body.
+    if (distance > reach){
+      const shift = target.clone().sub(shoulder).normalize().multiplyScalar(Math.min(.3, distance-reach));
+      body.position.copy(body.parent.worldToLocal(body.getWorldPosition(new THREE.Vector3()).add(shift)).sub(body.position));
+      root.updateMatrixWorld(true); shoulder = armR.sh.getWorldPosition(new THREE.Vector3());
+    }
+    const delta = target.clone().sub(shoulder), length = Math.max(.391,Math.min(reach,delta.length())), axis = delta.normalize();
+    const a = (.3*.3-.69*.69+length*length)/(2*length), h = Math.sqrt(Math.max(0,.3*.3-a*a));
+    const bend = new THREE.Vector3(0,-1,0).addScaledVector(axis,axis.y).normalize();
+    const elbow = shoulder.clone().addScaledVector(axis,a).addScaledVector(bend,h);
+    const first = armR.sh.parent.worldToLocal(elbow.clone()).sub(armR.sh.position).normalize();
+    q.setFromUnitVectors(down,first); armR.sh.quaternion.slerp(q,weight); root.updateMatrixWorld(true);
+    const e = armR.el.getWorldPosition(new THREE.Vector3()), toward = target.clone().sub(e).normalize();
+    const second = armR.el.parent.worldToLocal(e.clone().add(toward)).sub(armR.el.position).normalize();
+    q.setFromUnitVectors(down,second); armR.el.quaternion.slerp(q,weight); root.updateMatrixWorld(true);
+    const y = toward, z = new THREE.Vector3(direction.x,direction.y,direction.z);
+    z.addScaledVector(y,-z.dot(y)); if (z.lengthSq()<1e-6) z.set(0,1,0).addScaledVector(y,-y.y); z.normalize();
+    const x = new THREE.Vector3().crossVectors(y,z).normalize(); z.crossVectors(x,y).normalize();
+    q.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,z));
+    const parentQ = armR.el.getWorldQuaternion(new THREE.Quaternion()).invert(); q.premultiply(parentQ);
+    racket.quaternion.slerp(q,weight); root.updateMatrixWorld(true);
+  }
   pose({ t: 0, dt: 0 });
-  return { g: root, pose, racketHead: frame };
+  return { g: root, pose, aimRacket, racketHead: frame, grip: racket, hand: armR.hand };
 }

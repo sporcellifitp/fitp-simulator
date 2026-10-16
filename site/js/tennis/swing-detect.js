@@ -5,8 +5,8 @@
 // parte appena passato il picco (o dopo 40 ms di velocità costante) → pausa breve (170 ms) contro i doppi picchi.
 // Cosa si manda al gioco: l'istante del picco (è l'impatto), la potenza (picco rispetto al colpo tipico di chi gioca),
 // la direzione (destra→sinistra o sinistra→destra, dall'asse di rotazione imparato in calibrazione) e il verso verticale.
-// Non si cerca di distinguere apertura e colpo qui: il gioco sceglie lo swing più vicino all'arrivo della palla
-// (match/arcade.js), quindi un'apertura o il ritorno del braccio non rubano il colpo.
+// La calibrazione raccoglie i candidati. In partita si filtra la preparazione con il profilo
+// personale e si aspetta il recupero prima di accettare un nuovo colpo.
 // Le soglie vengono dal profilo di calibrazione (calibration.js): si adattano a chi gioca, non solo «più sensibile».
 
 const len = v => Math.hypot(v[0], v[1], v[2]);
@@ -23,14 +23,16 @@ export const DEFAULTS = {
   plateau: 40,      // ms di velocità senza nuovo massimo: il picco è passato
   smooth: .55,      // peso del campione nuovo nella media mobile
   stillMax: 35,     // °/s di rumore accettato col telefono fermo
-  stillTime: 600,   // ms di calibrazione da fermo
+  stillTime: 600,
+  recover: 300, quiet: 70, gap: 140,   // ms di calibrazione da fermo
 };
 // profilo di chi gioca (dalla calibrazione): deriva, asse del colpo (+ = da destra a sinistra), colpo tipico, soglie
-export const defaultProfile = () => ({ bias: [0, 0, 0], axis: null, ref: 600, on: DEFAULTS.on, minPeak: DEFAULTS.minPeak, minAngle: DEFAULTS.minAngle, lobLift: null, sens: 1 });
+export const defaultProfile = () => ({ bias: [0, 0, 0], axis: null, ref: 600, on: DEFAULTS.on, minPeak: DEFAULTS.minPeak, minAngle: DEFAULTS.minAngle, lobLift: null, sens: 1, refs: null, preparation: null, minAngles: null, intentGate: false });
 
 // La durata è in millisecondi, come i timestamp del sensore.
 export function classifySwingType({ power = .6, lift = 0, dur = 999 } = {}, lobLift = null){
-  const drop = dur <= 180 && power <= .55 && lift > -.45 && lift < .55;
+  // A short/weak swing is not an intentional drop shot; select it on the phone.
+  const drop = false;
   const slice = !drop && lift <= -.65;
   const lob = (lobLift != null && lift >= lobLift) || lift >= .7;
   return { drop, slice, lob };
@@ -39,14 +41,20 @@ export function classifySwingType({ power = .6, lift = 0, dur = 999 } = {}, lobL
 export function createSwingDetector(opts = {}){
   const C = { ...DEFAULTS, ...opts };
   let prof = defaultProfile();
+  let training = false, armed = true, recovering = false, quietSince = null, phase = 'ready';
   let mode = 'run', still = null, cur = null, lastFire = -1e9, lastT = null, sm = 0, last = null;
-  const listeners = { swing: [], status: [], sample: [] };
+  const listeners = { swing: [], status: [], sample: [], phase: [] };
   const emit = (k, v) => { for (const f of listeners[k]) f(v); };
   const thr = () => ({ on: prof.on*prof.sens, minPeak: prof.minPeak*prof.sens });
 
+  const setPhase = value => { if (phase !== value){ phase = value; emit('phase', value); } };
+  const reset = () => { cur = null; sm = 0; lastT = null; recovering = false; quietSince = null; setPhase('ready'); };
+
   // campione: { t (ms), rot: [α,β,γ] °/s | null, acc: [x,y,z] m/s² senza gravità | null, accG: con gravità | null }
   function feed(k){
-    const dt = lastT == null ? 16 : Math.max(1, Math.min(60, k.t - lastT)); lastT = k.t;
+    if (!k || !Number.isFinite(k.t) || (lastT != null && k.t <= lastT)) return;
+    if (lastT != null && k.t - lastT > C.gap){ reset(); if (mode === 'still') still = null; }
+    const dt = lastT == null ? 10 : Math.max(1, Math.min(60, k.t - lastT)); lastT = k.t;
     last = k;
     const w = k.rot ? [k.rot[0] - prof.bias[0], k.rot[1] - prof.bias[1], k.rot[2] - prof.bias[2]] : null;
     const mag = w ? len(w) : (k.acc ? len(k.acc)*30 : 0);       // senza giroscopio: accelerazione in scala simile
@@ -54,8 +62,17 @@ export function createSwingDetector(opts = {}){
     if (mode === 'still') return feedStill(k);
     if (mode !== 'run') return;
     const T = thr();
+    if (recovering){
+      if (k.t-lastFire>100) setPhase('follow');
+      if (sm < T.on*.65){ if (quietSince == null) quietSince = k.t; } else quietSince = null;
+      if (quietSince == null || k.t - quietSince < C.quiet || k.t - lastFire < C.recover) return;
+      recovering = false; setPhase('ready');
+    }
+    if (!training && prof.intentGate && !armed) { cur = null; setPhase('preparation'); return; }
+    if (cur && w && dot(unit(w), unit(cur.peakW)) < -.3 && mag > T.on){ cur = null; sm = mag*C.smooth; }
     if (!cur){
       if (k.t - lastFire < C.refractory || sm < T.on) return;
+      setPhase('preparation');
       cur = { t0: k.t, peak: 0, peakT: k.t, peakW: w || [0, 0, 0], angle: 0, up: 0, tot: 0, fired: false };
     }
     cur.angle += mag*dt/1000;
@@ -75,6 +92,7 @@ export function createSwingDetector(opts = {}){
     if (still.max > C.stillMax){ still = null; emit('status', { s: 'move' }); return; }
     if (k.t - still.t0 >= C.stillTime){
       if (still.n) prof.bias = still.sum.map(v => v/still.n);
+      prof.noise = still.n ? Math.max(1, still.max - len(prof.bias)) : 5;
       const g = unit(still.g);
       still = null; mode = 'run'; emit('status', { s: 'still-ok', gravity: g });
     }
@@ -84,28 +102,35 @@ export function createSwingDetector(opts = {}){
     const lift = c.tot > 0 ? Math.max(-1, Math.min(1, c.up/c.tot*1.6)) : 0;
     const along = prof.axis ? dot(axis, prof.axis) : 0;
     const dir = !prof.axis ? 0 : along > .25 ? 1 : along < -.25 ? -1 : 0;   // +1 da destra a sinistra, -1 da sinistra a destra
-    const power = Math.max(.3, Math.min(1, .3 + .45*c.peak/prof.ref));
+    const reference = prof.refs?.[dir] || prof.ref;
+    const floor = prof.intentGate ? prof.minPeak*prof.sens : Math.max(prof.minPeak*prof.sens, (prof.preparation?.[dir] || 0)*1.2, reference*.5);
+    if (!training && prof.axis && (dir === 0 || c.peak < floor || c.angle < (prof.minAngles?.[dir] || prof.minAngle))){ setPhase('preparation'); return; }
+    const power = Math.max(.3, Math.min(1, .3 + .45*c.peak/reference));
     lastFire = c.peakT;
+    if (!training){ recovering = true; quietSince = null; setPhase('contact'); }
     const dur = t - c.t0;
     // Soglie iniziali di palla corta e slice; la durata del sensore è in millisecondi.
     const special = classifySwingType({ power, lift, dur }, prof.lobLift);
-    emit('swing', { peakT: c.peakT, t, peak: Math.round(c.peak), power: +power.toFixed(3), dir, along: +along.toFixed(2), axis, lift: +lift.toFixed(3), ...special, angle: Math.round(c.angle), dur });
+    emit('swing', { phase: 'contact', peakT: c.peakT, t, peak: Math.round(c.peak), power: +power.toFixed(3), dir, along: +along.toFixed(2), axis, lift: +lift.toFixed(3), ...special, angle: Math.round(c.angle), dur });
   }
 
   return {
     config: C,
     get profile(){ return prof; },
     get mode(){ return mode; },
+    get phase(){ return phase; },
+    setTraining(v){ training = !!v; reset(); },
+    setArmed(v){ armed = !!v; if (!armed) cur = null; },
     get last(){ return last; },
     on(k, f){ listeners[k].push(f); return this; },
     feed,
     // telefono fermo: deriva e rumore del giroscopio, verso della gravità (come si tiene il telefono)
     still(){ mode = 'still'; still = null; cur = null; },
-    setProfile(p){ prof = { ...defaultProfile(), ...p, bias: p.bias || prof.bias }; },
+    setProfile(p){ prof = { ...defaultProfile(), ...p, bias: p.bias || prof.bias }; armed = !prof.intentGate; reset(); },
     setThresholds(t){ prof = { ...prof, ...t }; },
     setSensitivity(k){ prof = { ...prof, sens: k }; },      // k < 1 più sensibile
-    stop(){ mode = 'off'; cur = null; },
-    run(){ mode = 'run'; },
+    stop(){ mode = 'off'; reset(); },
+    run(){ mode = 'run'; reset(); },
   };
 }
 

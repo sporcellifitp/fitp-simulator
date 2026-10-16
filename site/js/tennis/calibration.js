@@ -9,8 +9,8 @@ import { unit, dot } from './swing-detect.js';
 export const PLAN = ['L', 'L', 'L', 'R', 'R', 'R'];      // L: da destra a sinistra (←), R: da sinistra a destra (→)
 const SIGN = { L: 1, R: -1 };
 export const CAL = {
-  low: { on: 90, minPeak: 140, minAngle: 9 },  // soglie basse durante la calibrazione: si vedono anche i movimenti piccoli
-  small: 200,                      // °/s: sotto, lo swing è troppo piccolo
+  low: { on: 25, minPeak: 40, minAngle: 2.5 },  // soglie basse durante la calibrazione: si vedono anche i movimenti piccoli
+  small: 90,                      // °/s: sotto, lo swing è troppo piccolo
   burst: 380,                      // ms: movimenti vicini sono un solo tentativo (apertura + colpo): vale il più forte
   maxTries: 3,                     // tentativi per swing prima di andare avanti segnando l'errore
   idleHint: 7000,                  // ms senza movimenti: suggerimento
@@ -23,7 +23,7 @@ export const upright = g => !!g && Math.abs(g[1])/Math.max(1e-6, Math.hypot(g[0]
 
 export function createCalibration(det){
   const L = [];
-  const S = { step: 'idle', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, burst: [], burstT: 0, idleT: 0, gripT: null, lastT: 0 };
+  const S = { step: 'idle', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, burst: [], burstT: 0, idleT: 0, gripT: null, lastT: 0, options: { range: 'standard', hand: 'right', intentGate: false }, practice: 0 };
   const emit = e => { for (const f of L) f({ ...e, step: S.step }); };
 
   det.on('status', s => {
@@ -37,19 +37,21 @@ export function createCalibration(det){
   });
 
   // un tentativo = il movimento più forte di un gruppo ravvicinato (così l'apertura non conta come colpo)
-  function attempt(sw){
+  function attempt(sw, group = []){
     const along = S.axis ? dot(sw.axis, S.axis) : null;
     if (S.step === 'free'){
       const dir = along == null ? 0 : along > .25 ? 1 : along < -.25 ? -1 : 0;
-      emit({ kind: 'free', dir: dir > 0 ? 'L' : dir < 0 ? 'R' : '?', peak: sw.peak, strength: sw.peak/(S.profile ? S.profile.ref : 600), ok: sw.peak >= CAL.small && dir !== 0 });
+      emit({ kind: 'free', dir: dir > 0 ? 'L' : dir < 0 ? 'R' : '?', peak: sw.peak, strength: sw.peak/(S.profile?.refs?.[dir] || S.profile?.ref || 600), power: sw.power, lift: sw.lift, dirValue: dir, peakT: sw.peakT, angle: sw.angle, dur: sw.dur, ok: dir !== 0 });
+      if (dir !== 0) S.practice++;
       return;
     }
     const want = PLAN[S.idx];
     let dir = '?';
     if (!S.axis && S.idx === 0) { S.axis = sw.axis.slice(); dir = 'L'; }      // il primo swing (da destra a sinistra) fissa il verso
     else if (along != null) dir = along > .3 ? 'L' : along < -.3 ? 'R' : '?';
-    const small = sw.peak < CAL.small, ok = !small && dir === want;
-    const a = { want, dir, peak: sw.peak, lift: sw.lift, axis: sw.axis, ok, small };
+    const minimum = Math.max(S.options.range === 'compact' ? 40 : CAL.small, (det.profile.noise || 3)*5);
+    const small = sw.peak < minimum, ok = !small && dir === want;
+    const a = { want, dir, peak: sw.peak, lift: sw.lift, axis: sw.axis, angle: sw.angle || 6, ok, small, preparations: group.filter(x => x.peakT < sw.peakT && dot(x.axis, sw.axis) < -.3).map(x => ({ peak: x.peak, axis: x.axis })) };
     S.attempts.push(a);
     if (ok){
       // asse aggiornato con tutti gli swing riusciti (con il loro segno)
@@ -69,11 +71,16 @@ export function createCalibration(det){
     const fails = S.attempts.filter(a => !a.ok);
     const why = pass ? null : fails.some(a => a.small) && fails.filter(a => a.small).length >= fails.length/2 ? 'piccolo' : 'direzione';
     S.profile = pass ? {
-      bias: det.profile.bias, axis: S.axis, ref: Math.max(250, median(ok.map(a => a.peak))),
-      on: clamp(.3*base, 100, 240), minPeak: clamp(.42*base, 150, 380), minAngle: 16,
+      version: 2, ...S.options, bias: det.profile.bias, noise: det.profile.noise, axis: S.axis, ref: Math.max(60, median(ok.map(a => a.peak))),
+      refs: { 1: medL, '-1': medR },
+      preparation: Object.fromEntries([1, -1].map(dir => [dir, Math.max(0, ...ok.flatMap(a => a.preparations).filter(a => dot(a.axis, S.axis)*dir > .5).map(a => a.peak))])),
+      minAngles: { 1: Math.max(2, median(okL.map(a => a.angle))*.25), '-1': Math.max(2, median(okR.map(a => a.angle))*.25) },
+      on: clamp(.22*base, 22, 180), minPeak: clamp(.36*base, 35, 300), minAngle: S.options.range === 'compact' ? 2.5 : 5,
       lobLift: ok.some(a => a.lift) ? Math.max(.7, median(ok.map(a => a.lift)) + .45) : null,
     } : null;
-    S.result = { pass, why, okL: okL.length, okR: okR.length, medL: Math.round(medL), medR: Math.round(medR), attempts: S.attempts.map(a => ({ want: a.want, dir: a.dir, peak: a.peak, ok: a.ok })) };
+    const ambiguous = S.profile && [1,-1].some(d => (S.profile.preparation[d] || 0)*1.2 >= S.profile.refs[d]*.9);
+    if (ambiguous) S.profile.intentGate = true;
+    S.result = { pass, why, assisted: S.profile?.intentGate || false, okL: okL.length, okR: okR.length, medL: Math.round(medL), medR: Math.round(medR), attempts: S.attempts.map(a => ({ want: a.want, dir: a.dir, peak: a.peak, ok: a.ok })) };
     S.step = 'review';
     emit({ kind: 'review', ...S.result });
   }
@@ -81,16 +88,21 @@ export function createCalibration(det){
   return {
     get state(){ return S; },
     on(f){ L.push(f); return this; },
-    start(){
+    start(options = S.options){
+      S.options = { range: options.range === 'compact' ? 'compact' : 'standard', hand: options.hand === 'left' ? 'left' : 'right', intentGate: options.intentGate === true };
+      S.practice = 0; det.setTraining(true);
       Object.assign(S, { step: 'still', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, burst: [], idleT: S.lastT });
       det.setProfile({ bias: [0, 0, 0], ...CAL.low, axis: null }); det.still();
       emit({ kind: 'step' });
     },
     skipGrip(){ if (S.step === 'grip'){ S.step = 'swings'; S.idleT = S.lastT; emit({ kind: 'step', want: PLAN[0], idx: 0 }); } },
-    retry(){ Object.assign(S, { step: 'swings', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, burst: [], idleT: S.lastT }); det.setThresholds({ ...CAL.low, axis: null }); emit({ kind: 'step', want: PLAN[0], idx: 0 }); },
+    retry(){ S.practice = 0; det.setTraining(true); Object.assign(S, { step: 'swings', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, burst: [], idleT: S.lastT }); det.setThresholds({ ...CAL.low, axis: null }); emit({ kind: 'step', want: PLAN[0], idx: 0 }); },
     // prova libera con il profilo proposto: direzione e forza di ogni swing, prima di confermare
-    tryFree(){ if (!S.profile) return; S.step = 'free'; det.setProfile(S.profile); emit({ kind: 'step' }); },
-    confirm(){ if (!S.profile) return null; det.setProfile(S.profile); S.step = 'done'; emit({ kind: 'done', profile: S.profile }); return S.profile; },
+    tryFree(){ if (!S.profile) return; S.step = 'free'; det.setProfile(S.profile); det.setTraining(false); emit({ kind: 'step' }); },
+    confirm(){ if (!S.profile) return null; det.setProfile(S.profile); det.setTraining(false); S.step = 'done'; emit({ kind: 'done', profile: S.profile }); return S.profile; },
+    touch(dir = 0, power = .65, shot = 'drive'){ if (S.step !== 'free' || S.profile?.input !== 'touch') return; S.practice++; emit({ kind: 'free', dir: dir > 0 ? 'L' : dir < 0 ? 'R' : '?', dirValue: dir, power, strength: power/.75, peak: power*600, ok: true, shot }); },
+    invert(){ if (!S.profile || !S.axis) return; S.axis = S.axis.map(v => -v); S.profile.axis = S.axis; const swap = o => o && ({ 1: o[-1], '-1': o[1] }); S.profile.refs = swap(S.profile.refs); S.profile.preparation = swap(S.profile.preparation); S.profile.minAngles = swap(S.profile.minAngles); this.tryFree(); },
+    useTouch(){ S.practice = 0; S.burst = []; S.axis = null; S.profile = { version: 2, input: 'touch', ...S.options, ref: 1 }; S.result = { pass: true, touch: true, okL: 0, okR: 0 }; S.step = 'review'; emit({ kind: 'review', ...S.result }); },
     // da chiamare a ogni campione: impugnatura, gruppi di movimenti, suggerimenti se non arriva nulla
     tick(t, sample){
       S.lastT = t;
@@ -102,7 +114,7 @@ export function createCalibration(det){
       }
       if (S.burst.length && t - S.burstT >= CAL.burst){
         const best = S.burst.reduce((a, s) => s.peak > a.peak ? s : a);
-        S.burst = []; attempt(best);
+        const group = S.burst; S.burst = []; attempt(best, group);
       }
       if ((S.step === 'swings') && t - S.idleT > CAL.idleHint){ S.idleT = t; emit({ kind: 'idle' }); }
     },

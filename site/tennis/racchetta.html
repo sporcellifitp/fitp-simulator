@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#071233">
 <title>NATPF Simulator · controller smartphone</title>
@@ -10,7 +10,7 @@
 <style>
   :root{--bg:#071233;--panel:#13245a;--ink:#f3f6fb;--muted:#a6b6dc;--ball:#e8ff3a;--ok:#4cff8a;--warn:#ffc04d;--bad:#ff6b5e;--pink:#ff3d8b}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;height:100%;background:radial-gradient(circle at 50% 30%,#12286e,#071233 70%);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;
+  html,body{margin:0;height:100%;background:radial-gradient(circle at 50% 30%,#12286e,#071233 70%);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:auto;
     -webkit-user-select:none;user-select:none;touch-action:manipulation;overscroll-behavior:none}
   body{display:flex;flex-direction:column;padding:max(14px,env(safe-area-inset-top)) 16px max(14px,env(safe-area-inset-bottom))}
   .hidden{display:none!important}
@@ -30,6 +30,16 @@
   .btn.alt{background:var(--panel);color:var(--ink);font-weight:600;font-size:16px;padding:14px}
   #tools{display:flex;gap:8px;margin-top:10px}
   #tools .btn{flex:1;margin:0}
+  #profileOptions{font-size:15px;background:#13245a;border-radius:12px;padding:12px;display:grid;gap:8px;margin-top:10px}
+  #profileOptions label{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  select{font:inherit;min-height:44px;max-width:58%;border-radius:8px;padding:4px;background:#eef3ff;color:#071233}
+  #shotChoices{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
+  #shotChoices button{min-height:44px;border:1px solid #405b9b;border-radius:9px;background:#13245a;color:white;font:inherit;font-size:14px}
+  #shotChoices button.on{background:#e8ff3a;color:#071233;font-weight:700}
+  #shotHint,#phaseFeedback{font-size:14px;color:var(--muted);text-align:center;margin:6px 0}
+  #power{width:100%;min-height:36px} #touchHit{touch-action:none}
+  #rotate{position:fixed;inset:0;z-index:20;background:#071233;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:30px;font-size:24px}
+  @media(max-height:740px){#ring{width:min(42vw,170px)}#big{font-size:23px}#arrow{font-size:42px}#stage{gap:6px;min-height:170px}#grip{width:70px}#sub{font-size:15px;min-height:0}.btn{padding:12px}}
 </style>
 </head>
 <body>
@@ -45,14 +55,29 @@
   </svg>
   <div id="sub">Mi collego al gioco sul computer…</div>
 </div>
+<div id="phaseFeedback" aria-live="polite"></div>
+<div id="profileOptions" class="hidden">
+  <label>Movimento <select id="motionRange"><option value="standard">Naturale</option><option value="compact">Corto / compatto</option></select></label>
+  <label>Mano <select id="hand"><option value="right">Destra</option><option value="left">Sinistra</option></select></label>
+  <label><span>Arma lo swing con un tocco</span><input id="intentGate" type="checkbox"></label>
+  <small>Usa gesti comodi per te, anche da seduto. Non serve la massima forza.</small>
+</div>
+<div id="shotPanel" class="hidden">
+  <div id="shotChoices"></div><div id="shotHint">Smash su palla alta; servizio durante il lancio.</div>
+  <div id="manualAim" class="hidden"><label>Direzione <select id="aimDir"><option value="1">← Sinistra</option><option value="0">Centro</option><option value="-1">Destra →</option></select></label>
+  <label for="power">Intensità <output id="powerLabel">65%</output></label><input id="power" type="range" min="30" max="100" value="65"></div>
+  <button class="btn" id="touchHit">Colpisci</button>
+</div>
 <div id="actions">
   <button class="btn hidden" id="enable">Attiva i sensori</button>
+  <button class="btn alt hidden" id="enableTouch">Gioca con i tocchi</button>
   <button class="btn hidden" id="retry">Riprova</button>
 </div>
 <div id="tools" class="hidden">
   <button class="btn alt" id="recal">Ricalibra</button>
   <button class="btn alt" id="bye">Scollega</button>
 </div>
+<div id="rotate" class="hidden" role="alert"><b>Ruota il telefono in verticale</b><p>I comandi riprendono quando torni in portrait.</p></div>
 <script type="module" src="../js/tennis/racchetta.js"></script>
 </body>
 </html>

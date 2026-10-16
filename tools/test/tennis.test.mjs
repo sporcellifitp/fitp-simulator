@@ -154,7 +154,7 @@ test('NATPF Simulator: drive, palla corta, lob e slice sono classificati e miran
   assert.ok(Math.abs(drop.target.z) < Math.abs(drive.target.z), 'la palla corta è più corta del drive');
   assert.ok(drop.pace < drive.pace && slice.pace < drive.pace, 'drop e slice sono meno penetranti del drive');
   assert.ok(CPU.esperto && CPU.esperto.label === 'Esperto', 'livello CPU Esperto configurato');
-  assert.deepEqual(classifySwingType({ power: .48, lift: .1, dur: 150 }), { drop: true, slice: false, lob: false });
+  assert.deepEqual(classifySwingType({ power: .48, lift: .1, dur: 150 }), { drop: false, slice: false, lob: false });
   assert.deepEqual(classifySwingType({ power: .7, lift: -.8, dur: 240 }), { drop: false, slice: true, lob: false });
   assert.deepEqual(classifySwingType({ power: .8, lift: .8, dur: 240 }), { drop: false, slice: false, lob: true });
 });
@@ -310,7 +310,7 @@ test('calibrazione guidata: fermo, impugnatura, 3 swing per lato con esito, prof
   assert.ok(p.minPeak < 520 && p.on < p.minPeak && p.ref > 450, JSON.stringify(p));
 });
 test('calibrazione: movimenti troppo piccoli o direzioni non distinguibili non passano, con il motivo', () => {
-  for (const [why, mk] of [['piccolo', w => ({ axis: w === 'L' ? L : R, peak: 170 })], ['direzione', () => ({ axis: L, peak: 600 })]]){
+  for (const [why, mk] of [['piccolo', w => ({ axis: w === 'L' ? L : R, peak: 70 })], ['direzione', () => ({ axis: L, peak: 600 })]]){
     const det = createSwingDetector(), cal = createCalibration(det), ev = []; cal.on(e => ev.push(e)); cal.start();
     let t = still(det, 0, 700, 3, (t, k) => cal.tick(t, k)); t = still(det, t + 10, 600, 3, (t, k) => cal.tick(t, k));
     for (let i = 0; i < 30 && cal.state.step === 'swings'; i++){ t = trace(det, t + 10, mk(PLAN[cal.state.idx])); t = still(det, t + 10, 500, 3, (t, k) => cal.tick(t, k)); }
@@ -333,7 +333,7 @@ test('rilevatore calibrato: destra→sinistra e sinistra→destra a ogni ampiezz
   const { det, cal } = calibrated(); cal.confirm();
   const sw = []; det.on('swing', s => sw.push(s));
   let t = 20000;
-  for (const peak of [260, 400, 700, 1000, 1400]) for (const axis of [L, R]){ t = trace(det, t + 10, { axis, peak }); t = still(det, t + 10, 400); }
+  for (const ratio of [.55, .8, 1, 1.5, 2]) for (const axis of [L, R]){ const peak = det.profile.refs[axis === L ? 1 : -1]*ratio; t = trace(det, t + 10, { axis, peak }); t = still(det, t + 10, 400); }
   assert.equal(sw.length, 10, JSON.stringify(sw.map(s => s.peak)));
   assert.deepEqual(sw.map(s => s.dir), [1, -1, 1, -1, 1, -1, 1, -1, 1, -1]);
   assert.ok(sw.every(s => s.power >= .3 && s.power <= 1));
@@ -344,11 +344,12 @@ test('rilevatore calibrato: destra→sinistra e sinistra→destra a ogni ampiezz
   for (let i = 0; i < 6; i++){ t = trace(det, t + 10, { axis: L, peak: 640 + (i % 3)*25 }); t = still(det, t + 10, 400); }
   assert.ok(Math.max(...p) - Math.min(...p) < .08, JSON.stringify(p));
 });
-test('rilevatore: apertura e colpo vengono mandati entrambi; colpo «piatto» mandato subito dopo il picco', () => {
+test('rilevatore: preparazione appresa ignorata, un solo colpo e invio subito dopo il picco', () => {
   const { det, cal } = calibrated(); cal.confirm();
   const sw = []; det.on('swing', s => sw.push(s));
+  det.setProfile({ ...det.profile, preparation: { 1: 200, '-1': 410 } });
   let t = trace(det, 30000, { axis: R, peak: 400, dur: 260 }); t = trace(det, t + 40, { axis: L, peak: 800 }); still(det, t + 10, 400);
-  assert.equal(sw.length, 2); assert.deepEqual(sw.map(s => s.dir), [-1, 1]);
+  assert.equal(sw.length, 1); assert.deepEqual(sw.map(s => s.dir), [1]);
   sw.length = 0; t = trace(det, 40000, { axis: L, peak: 700, dur: 400, plateau: true }); still(det, t + 10, 400);
   assert.equal(sw.length, 1); assert.ok(sw[0].t - sw[0].peakT <= 60, `inviato ${sw[0].t - sw[0].peakT} ms dopo il picco`);
 });
