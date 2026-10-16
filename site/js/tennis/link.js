@@ -5,6 +5,7 @@
 // Orologi: ogni secondo il computer chiede l'ora al telefono e tiene la stima col viaggio più breve; così l'istante del
 // colpo (il picco del movimento, misurato sul telefono) si porta sull'orologio del computer senza dipendere da quando il
 // computer, magari impegnato a disegnare, riesce a leggere il messaggio.
+import { phoneInputTime } from './input-time.js';
 import { createGate, newSessionId, pairingUrl, createClock } from './pairing.js';
 
 // server di segnalazione: quello pubblico di PeerJS; per le prove «?peer=127.0.0.1:9000»
@@ -82,12 +83,12 @@ export function createPhoneLink(){
           const n = (v, a, b, def) => typeof v === 'number' && isFinite(v) ? Math.max(a, Math.min(b, v)) : def;
           // istante del colpo sull'orologio di questo computer (ms → s), con orologi allineati; se no, ritardo stimato
           const now = performance.now();
-          let at = now - n(d.lat, 0, 400, 60);
-          if (clock.ok && typeof d.pk === 'number') at = Math.max(now - 350, Math.min(now, clock.toLocal(d.pk)));
-          emit('swing', { power: n(d.p, 0, 1, .6), lift: n(d.l, -1, 1, 0), lob: !!d.lob, drop: d.drop === true, slice: d.slice === true, dur: n(d.dur, 0, 700, 0), dir: d.dir === 1 ? 1 : d.dir === -1 ? -1 : 0, at: at/1000 });
+          const at = phoneInputTime({ peakMs: d.pk, nowMs: now, clock, latencyMs: d.lat });
+          if (at == null) break;
+          emit('swing', { power: n(d.p, 0, 1, .6), lift: n(d.l, -1, 1, 0), lob: !!d.lob, drop: d.drop === true, slice: d.slice === true, dur: n(d.dur, 0, 700, 0), dir: d.dir === 1 ? 1 : d.dir === -1 ? -1 : 0, at });
           break;
         }
-        case 'toss': { const now = performance.now(); const at = clock.ok && typeof d.pk === 'number' ? clock.toLocal(d.pk) : now; emit('toss', { at: Math.min(now, at)/1000 }); break; }
+        case 'toss': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); if (at != null) emit('toss', { at }); break; }
       }
     });
     c.on('close', () => { clearTimeout(timer); if (c === conn){ conn = null; gate.release(); set({ state: peer && !peer.destroyed ? 'lost' : 'off', phone: null }); } });

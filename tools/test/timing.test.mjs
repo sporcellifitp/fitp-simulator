@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { ArcadeMatch } from '../../site/js/match/arcade.js';
 import { CONTACT, crossingTime, evaluateContact } from '../../site/js/match/contact.js';
 import { createControls } from '../../site/js/tennis/controls.js';
-import { createPresentationTimeline, readGuestInput, matchInputTime } from '../../site/js/tennis/input-time.js';
+import { createPresentationTimeline, readGuestInput, matchInputTime, phoneInputTime } from '../../site/js/tennis/input-time.js';
 import { encodeSnap, createMirror } from '../../site/js/tennis/net.js';
 import { mulberry32 } from '../../site/js/match/core.js';
 
@@ -161,4 +161,15 @@ test('a deferred second bounce never advertises a new legal green contact', () =
   c.shadow.end(1-h.team, 'vincente');
   assert.equal(c.legalFor(h), false);
   assert.equal(evaluateContact({ ball: { x: .7, y: 1, z: 7 }, velocity: { z: 8 }, player: h, eligible: c.legalFor(h) }).perfect, false);
+});
+
+
+test('phone link preserves delayed peaks instead of shifting them to a later displayed frame', () => {
+  const clock = { ok: true, toLocal: t => t - 5000 };
+  assert.equal(phoneInputTime({ peakMs: 64400, nowMs: 60000, clock }), 59.4);
+  assert.equal(phoneInputTime({ peakMs: 65020, nowMs: 60000, clock }), 60);
+  assert.equal(phoneInputTime({ peakMs: 65080, nowMs: 60000, clock }), null);
+  assert.equal(phoneInputTime({ peakMs: 63000, nowMs: 60000, clock }), null);
+  assert.equal(phoneInputTime({ peakMs: NaN, nowMs: 60000, clock }), null);
+  assert.equal(phoneInputTime({ nowMs: 60000, clock: { ok: false }, latencyMs: 80 }), 59.92);
 });

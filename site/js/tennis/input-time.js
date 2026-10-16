@@ -1,6 +1,6 @@
 // Browser timestamps at this boundary are seconds. Network timestamps are
 // seconds of match time, never performance.now() milliseconds.
-export const INPUT_TIME = Object.freeze({ maxAge: .8, futureTolerance: .04, maxQueue: 8 });
+export const INPUT_TIME = Object.freeze({ maxAge: .8, presentationAge: 1.2, futureTolerance: .04, maxQueue: 8 });
 // Associate the sensor peak with the last frame actually displayed at that
 // time. Never extrapolate from a newer snapshot or count paused wall time.
 export function createPresentationTimeline(){
@@ -11,7 +11,7 @@ export function createPresentationTimeline(){
       if (![wallSeconds, matchSeconds].every(Number.isFinite)) return;
       if (frames.length && wallSeconds < frames.at(-1).wall) return;
       frames.push({ wall: wallSeconds, match: matchSeconds });
-      while (frames.length > 1 && frames[0].wall < wallSeconds - 1.2) frames.shift();
+      while (frames.length > 1 && frames[0].wall < wallSeconds - INPUT_TIME.presentationAge) frames.shift();
     },
     seenAt(wallSeconds){
       if (!Number.isFinite(wallSeconds) || !frames.length || wallSeconds > frames.at(-1).wall + INPUT_TIME.maxAge) return null;
@@ -37,4 +37,14 @@ export function readGuestInput(data, now, since = 0){
   const at = matchInputTime(data?.ts?.[0]?.at, now, since);
   if (at != null) ts.push({ at });
   return { sw, ts, mv: { x: 0, y: 0 }, auto: true };
+}
+
+// Preserve a valid sensor peak. Clamping every delayed packet to "now - 350ms"
+// changes which frame was seen, especially when rendering stalls.
+export function phoneInputTime({ peakMs, nowMs, clock, latencyMs = 60 }){
+  if (!Number.isFinite(nowMs)) return null;
+  const lag = Number.isFinite(latencyMs) ? Math.max(0, Math.min(400, latencyMs)) : 60;
+  const at = clock?.ok && peakMs != null ? (Number.isFinite(peakMs) ? clock.toLocal(peakMs) : NaN) : nowMs - lag;
+  if (!Number.isFinite(at) || at < nowMs - INPUT_TIME.presentationAge*1000 || at > nowMs + INPUT_TIME.futureTolerance*1000) return null;
+  return Math.min(at, nowMs)/1000;
 }
