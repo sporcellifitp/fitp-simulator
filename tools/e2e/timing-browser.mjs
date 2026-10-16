@@ -3,8 +3,9 @@
 import { launch, page, check, summary, SP } from './th.mjs';
 const B = await launch(), Q = '?peer=127.0.0.1:9000&q=low', size = { w: 800, h: 600 };
 const opened = [];
+let sharedContext = null;
 const localControls = process.env.TIMING_LOCAL_CONTROLS === '1'; // isolate rendering when local WebRTC is unavailable
-async function screen(url){ const v = await page(B, url, { ...size, init: () => { const RTC = window.RTCPeerConnection; window.RTCPeerConnection = class extends RTC { constructor(config, ...rest){ super({ ...config, iceServers: [] }, ...rest); } }; } }); opened.push(v); await v.p.waitForFunction(() => window.__racchetta); await v.p.evaluate(() => __racchetta.S.renderer.setSize(320, 240, false)); return v.p; }
+async function screen(url){ const v = await page(B, url, { ...size, context: sharedContext, init: () => { const RTC = window.RTCPeerConnection; window.RTCPeerConnection = class extends RTC { constructor(config, ...rest){ super({ ...config, iceServers: [] }, ...rest); } }; } }); sharedContext = v.ctx; opened.push(v); await v.p.waitForFunction(() => window.__racchetta); await v.p.evaluate(() => __racchetta.S.renderer.setSize(320, 240, false)); return v.p; }
 async function pair(p){
   await p.waitForFunction(() => document.querySelector('#qr').dataset.url);
   console.log('Pairing normalized phone fixture');
@@ -27,7 +28,7 @@ async function pair(p){
       conn.on('error', reject);
       conn.on('data', d => {
         if (d.t === 'welcome'){ clearTimeout(timeout); conn.send({ t: 'st', s: 'ready' }); resolve(); }
-        if (d.t === 'dp') conn.send({ t: 'dq', d: d.d, p: performance.now() });
+        if (d.t === 'dp' && __phone.sync !== false) conn.send({ t: 'dq', d: d.d, p: performance.now() });
       });
     });
     __phone.heart = setInterval(() => conn.send({ t: 'ping', c: performance.now() }), 1000);
@@ -78,7 +79,10 @@ async function incoming(host, team){
   }, team);
 }
 async function exercise(host, target, team, label){
-  await target.evaluate(() => { __timing.armed = false; });
+  // Stabilize the synthetic phone clock before judging a rendered frame.
+  // The real clock estimator has its own unit tests and physical-device gate.
+  await target.evaluate(() => { __timing.armed = false; __phone.sync = false; });
+  await target.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const startedAt = await incoming(host, team);
   await target.evaluate(() => { __timing.armed = true; __timing.sent = null; __timing.samples = []; });
   await host.evaluate(() => { __racchetta.A.netPause = false; });
@@ -100,14 +104,14 @@ try {
   check('pause freezes physics and discards phone swings', await cpu.evaluate(v => __racchetta.core.t === v.t && __racchetta.core.players[0].swings.length === 0, paused));
   await cpu.click('#resume'); await exercise(cpu, cpu, 0, 'CPU timing still correct after resume');
   await cpu.screenshot({ path: SP+'/timing-cpu.png' });
-  await cpu.context().close();
+  await cpu.context().close(); sharedContext = null;
 
   if (!localControls){
   const host = await screen('http://127.0.0.1:8765/tennis/'+Q);
   await host.click('#btnInvite'); await pair(host);
   await host.waitForFunction(() => /#sfida=/.test(document.querySelector('#invUrl').value));
   const guest = await screen(await host.inputValue('#invUrl'));
-  await guest.waitForFunction(() => /Collegato/.test(document.querySelector('#gStatus').textContent));
+  try { await guest.waitForFunction(() => /Collegato/.test(document.querySelector('#gStatus').textContent)); } catch (e) { console.log('Guest connection diagnostic', await guest.evaluate(() => ({ status: document.querySelector('#gStatus').textContent, state: __racchetta.A.guest.S.state, error: __racchetta.A.guest.S.error }))); throw e; }
   await guest.click('#gGo'); await pair(guest);
   await host.waitForFunction(() => !document.querySelector('#lobbyStart').disabled); await host.click('#lobbyStart');
   await guest.waitForFunction(() => __racchetta.state === 'play' && __racchetta.A.mirror?.last);

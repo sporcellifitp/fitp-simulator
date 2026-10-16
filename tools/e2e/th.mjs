@@ -13,8 +13,8 @@ const three = existsSync(threeFile) ? readFileSync(threeFile) : null;     // fac
 export async function launch(){
   return chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--allow-loopback-in-peer-connection', '--disable-features=WebRtcHideLocalIpsWithMdns', '--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 }
-export async function page(browser, url, { w = 1280, h = 760, mobile = false, init = null } = {}){
-  const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: mobile, isMobile: mobile, userAgent: mobile ? 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36' : undefined });
+export async function page(browser, url, { w = 1280, h = 760, mobile = false, init = null, context = null } = {}){
+  const ctx = context || await browser.newContext({ viewport: { width: w, height: h }, hasTouch: mobile, isMobile: mobile, userAgent: mobile ? 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36' : undefined });
   const p = await ctx.newPage(); const errs = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message));
   p.on('console', m => { if (m.type() === 'error' && !/404|Failed to load resource/.test(m.text())) errs.push('console: ' + m.text()); });
