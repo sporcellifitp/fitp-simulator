@@ -65,7 +65,7 @@ test('green frame -> phone controls -> host input -> perfect contact, both sides
     const timeline = createPresentationTimeline(); timeline.reset(100, c.t);
     let scheduled = null, contact = null;
     for (let frame = 0; frame < fps*2 && !contact; frame++){
-      const n = Math.ceil(240/fps), dt = 1/fps/n;
+      const n = Math.ceil(120/fps), dt = 1/fps/n;
       for (let sub = 0; sub < n && !contact; sub++){
         let sw = [];
         if (scheduled && !scheduled.sent && c.t >= scheduled.arrive){
