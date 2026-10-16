@@ -293,7 +293,9 @@ export class ArcadeMatch extends MatchCore {
       h.pend = null; h.done = true; h.inc = null;
       const shot = arcadeShot(this.court, { ...h, ...k.players?.[h.id] }, this.ball, best, e);
       this.shadow = null; this.deferred = null;
-      h.anim = { kind: shot.type, side: shot.fore ? 'fh' : 'bh', at: tc, hit: true };
+      // Judge the historic contact, but show its feedback now. A delayed packet
+      // must not put the entire follow-through in the past before it is drawn.
+      h.anim = { kind: shot.type, side: shot.fore ? 'fh' : 'bh', at: now, hit: true };
       this.lastQuality = { label: shot.label, power: shot.power };
       this.strike(h, shot, false);
       this.emit({ type: 'contact', player: h.id, timing: e, at: tc, label: shot.label, power: shot.power, shot: shot.type, side: shot.fore ? 'fh' : 'bh' });

@@ -86,6 +86,7 @@ test('green frame -> phone controls -> host input -> perfect contact, both sides
     assert.ok(scheduled, 'no green frame: '+msg);
     assert.equal(contact?.label, 'perfetto', msg);
     assert.ok(Math.abs(contact.at - scheduled.at) <= CONTACT.perfect + .01, msg);
+    assert.ok(c.t - h.anim.at < .17, 'delayed contact must still have a visible follow-through: '+msg);
   }
 });
 

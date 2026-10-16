@@ -27,7 +27,7 @@ async function pair(p){
     });
     __phone.heart = setInterval(() => conn.send({ t: 'ping', c: performance.now() }), 1000);
   });
-  await p.waitForFunction(() => __racchetta.link.ready);
+  await p.waitForFunction(() => __racchetta.link.ready && __racchetta.link.clock);
   await p.click('#pairGo');
 }
 async function hook(p){

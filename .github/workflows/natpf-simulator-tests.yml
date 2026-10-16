@@ -41,8 +41,9 @@ jobs:
           node --input-type=module --check < site/js/tennis/racchetta.js
 
   browser-smoke:
-    name: Browser smoke test (phone-only)
+    name: Browser phone and timing tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4

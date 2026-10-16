@@ -9,7 +9,7 @@ Il campo rimane sul computer; lo smartphone è la racchetta. Il portrait riguard
 - `match/contact.js`, `match/arcade.js`, `tennis/sweet-spot.js`: un unico modello di contatto usa posizione e velocità relative. Il piano della racchetta è a 1 m davanti al giocatore, con riferimento laterale a 0,7 m. Il verde richiede portata, altezza utile, legalità dello scambio e scarto temporale entro 60 ms.
 - La cronologia contiene insieme palla e giocatori. Un impatto verde viene risolto nello stato storico corrispondente, anche durante la corsa. La tolleranza di consegna resta aperta dall'ultimo fotogramma giocabile: non può prolungarsi dopo un secondo rimbalzo invalidante.
 - `tennis/net.js`: gli snapshot aggiungono velocità del giocatore e legalità del contatto, mantenendo la lettura degli snapshot precedenti. Il tempo della vista si ferma quando si ferma l'estrapolazione. Dopo pausa/riconnessione si attende uno snapshot fresco e si riparte con la stima dell'orologio azzerata.
-- `tennis/scene.js`: anello ancorato alla zona racchetta, colore valutato con lo stesso modello del motore. Fase d'impatto allineata allo 0,43 del modello (129 ms su 300 ms). Questo non sostituisce il successivo lavoro sul rig e sull'aderenza delle corde alla palla.
+- `tennis/scene.js`: anello ancorato alla zona racchetta, colore valutato con lo stesso modello del motore. Fase d'impatto allineata allo 0,43 del modello (129 ms su 300 ms). Il feedback animato parte alla conferma del contatto, mentre il giudizio conserva l’istante storico: un pacchetto tardivo non può far terminare l’animazione prima che venga mostrata. Questo non sostituisce il successivo lavoro sul rig e sull'aderenza delle corde alla palla.
 
 ## Verifiche riproducibili
 
