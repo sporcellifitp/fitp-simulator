@@ -2,7 +2,7 @@
 // then verify calibration preview, intentional shots, touch fallback and grip IK.
 import { readFileSync } from 'node:fs';
 import { launch, page, check, summary, SP } from './th.mjs';
-const B=await launch(), motion=readFileSync(new URL('./motion.js',import.meta.url),'utf8');
+const B=await launch(), motion=readFileSync(new URL('./motion.js',import.meta.url),'utf8')+';DeviceMotionEvent.requestPermission = async () => "denied";';
 const opened=[];
 try {
  const desktop=await page(B,'http://127.0.0.1:8765/tennis/?q=low&peer=127.0.0.1:9000',{w:960,h:720});opened.push(desktop);const d=desktop.p;
@@ -10,6 +10,9 @@ try {
  const P=await page(B,await d.evaluate(()=>document.querySelector('#qr').dataset.url),{w:390,h:844,mobile:true,init:motion});opened.push(P);const p=P.p;
  await p.waitForFunction(()=>window.__racchetta?.state.linkState==='on');
  await p.selectOption('#motionRange','compact');await p.selectOption('#hand','left');await p.click('#enable');
+ await p.waitForFunction(()=>__racchetta.state.sensor==='denied');
+ check('denied sensor permission leaves the touch alternative available',await p.locator('#enableTouch').isVisible());
+ await p.evaluate(()=>{DeviceMotionEvent.requestPermission=async()=> 'granted';});await p.click('#enable');
  await p.evaluate(()=>__motion.still(1600));
  try { await p.waitForFunction(()=>__racchetta.cal.state.step==='swings'); }
  catch(e){console.log('Sensor calibration diagnostic',await p.evaluate(()=>({state:__racchetta.state,profile:__racchetta.det.profile,mode:__racchetta.det.mode,last:__racchetta.det.last,cal:__racchetta.cal.state})));throw e;}

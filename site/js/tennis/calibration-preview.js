@@ -32,7 +32,7 @@ export function createCalibrationPreview(container){
     get visible(){ return !container.classList.contains('hidden'); },
     get label(){ return label; },
     get phase(){ return phase; },
-    example(type = shot){ shot = SHOTS[type] ? type : 'drive'; event = null; mode = 'demo'; at = performance.now()/1000; launched = false; last = null; },
+    example(type = shot, dir = 1){ shot = SHOTS[type] ? type : 'drive'; event = { dir, power: .6 }; mode = 'demo'; at = performance.now()/1000; launched = false; last = null; },
     gesture(e){ if (SHOTS[e.shot]) shot = e.shot; event = { dir: e.dirValue ?? (e.dir === 'R' ? -1 : 1), power: Math.max(.3, Math.min(1, e.power || e.strength*.75 || .6)) }; mode = 'observed'; at = performance.now()/1000; launched = false; last = null; },
     tick(nowMs){
       const now = nowMs/1000; if (!at) at = now;

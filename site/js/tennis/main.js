@@ -137,8 +137,9 @@ function paintPair(){
 function onCal(e){
   if (((e.kind === 'step' && e.step === 'still') || (e.kind === 'review' && e.touch)) && A.state === 'play'){ pause(); A.pairFromPause = true; openPair(() => { A.pairFromPause = false; A.state = 'paused'; resume(); }); }
   if (e.kind === 'selection'){ calibrationPreview.example(e.shot); }
+  if (e.kind === 'next' || (e.kind === 'step' && e.step === 'swings')) calibrationPreview.example(undefined, e.want === 'R' ? -1 : 1);
   if (e.kind === 'attempt' || e.kind === 'free') calibrationPreview.gesture(e);
-  if (e.kind === 'step' && ['swings','still'].includes(e.step)) calibrationPreview.example();
+  if (e.kind === 'step' && e.step === 'still') calibrationPreview.example();
   if (e.kind === 'free' && e.ok) $('#rvConfirm').disabled = false;
   if (e.step) cal.step = e.step;
   if (e.kind === 'step' && e.step === 'swings'){ cal.idx = e.idx || 0; if (!cal.marks.length || e.idx === 0) cal.marks = PLAN.map(() => ''); }
