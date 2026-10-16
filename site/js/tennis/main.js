@@ -154,7 +154,7 @@ function onCal(e){
   if (e.kind === 'next') cal.idx = e.idx;
   if (e.kind === 'idle') feedback('#fbDir', '#fbTxt', '#fbBar', '…', 'Non sento movimenti: fai uno swing deciso. Se non cambia nulla, tocca «Ricalibra» sul telefono.', 0, false);
   if (e.kind === 'review'){ cal.result = e; paintReview(e); }
-  if (e.kind === 'free'){ feedback('#frDir', '#frTxt', '#frBar', e.dir === 'L' ? '←' : e.dir === 'R' ? '→' : '?', e.ok ? `Swing ${e.dir === 'L' ? 'da destra a sinistra' : 'da sinistra a destra'}, forza ${Math.round(Math.min(1.5, e.strength)*100)}%` : 'Direzione incerta: riprova o usa Inverti direzioni', e.peak, e.ok); }
+  if (e.kind === 'free'){ feedback('#frDir', '#frTxt', '#frBar', e.dir === 'L' ? '←' : e.dir === 'R' ? '→' : e.ok ? '•' : '?', e.ok ? `${e.dirValue === 0 ? 'Colpo centrale' : e.dir === 'L' ? 'Colpo da destra a sinistra' : 'Colpo da sinistra a destra'}, forza ${Math.round(Math.min(1.5, e.strength)*100)}%` : 'Direzione incerta: riprova o usa Inverti direzioni', e.peak, e.ok); }
   if (e.kind === 'done') cal.step = 'done';
   paintPair();
 }
@@ -180,6 +180,7 @@ function paintReview(r){
     : 'Le due direzioni non si distinguono. Tieni il telefono sempre nello stesso modo (in verticale nel palmo) e fai gli swing davvero da una parte all\'altra.';
   $('#rvConfirm').disabled = true;
   show('#calInvert', !r.touch); show('#rvRetry', !r.touch);
+  show('#pVerifica .rv', !r.touch);
   show('#rvConfirm', r.pass); show('#rvFreeBox', r.pass);
   if (r.pass) A.link.cmd('free');
 }

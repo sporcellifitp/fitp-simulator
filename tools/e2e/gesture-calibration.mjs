@@ -35,10 +35,13 @@ try {
  await p.waitForFunction(()=>['play','serve'].includes(__racchetta.state.phase));
  await d.evaluate(()=>{__gestures.length=0;});await p.click('#touchHit');await d.waitForFunction(()=>__gestures.length>0);
  check('touch fallback carries direction, intensity and shot without a motion sensor',await d.evaluate(()=>__gestures.length===1&&__gestures[0].slice&&__gestures[0].dir===-1&&Math.abs(__gestures[0].power-.55)<.01));
+ await p.click('#recal');await d.waitForFunction(()=>__racchetta.state==='pair');await p.waitForFunction(()=>__racchetta.cal.state.step==='free');
+ await p.selectOption('#aimDir','0');await p.click('#touchHit');await d.waitForFunction(()=>!document.querySelector('#rvConfirm').disabled);
+ check('touch recalibration pauses play and confirms a central shot without gyro inversion',await d.evaluate(()=>/Colpo centrale/.test(document.querySelector('#frTxt').textContent)&&document.querySelector('#calInvert').classList.contains('hidden')));
  await p.setViewportSize({width:844,height:390});await p.waitForFunction(()=>!document.querySelector('#rotate').classList.contains('hidden'));
  check('landscape interface requests portrait',await p.locator('#rotate').isVisible());
  await p.setViewportSize({width:320,height:568});await p.waitForFunction(()=>document.querySelector('#rotate').classList.contains('hidden'));
- check('small portrait keeps controls reachable by scrolling',await p.evaluate(()=>getComputedStyle(document.body).overflowY!=='hidden'&&!!document.querySelector('#touchHit')));
+ check('small portrait keeps controls reachable by scrolling',await p.evaluate(()=>getComputedStyle(document.body).overflowY!=='hidden'&&document.querySelector('#stage').getBoundingClientRect().bottom<=document.querySelector('#phaseFeedback').getBoundingClientRect().top+1&&document.documentElement.scrollWidth<=innerWidth));
  const rig=await d.evaluate(async()=>{
   const THREE=await import('three'),{makeCharacter}=await import('/js/tennis/character.js');let error=0,gap=0;
   for(const team of [0,1])for(const side of ['fh','bh'])for(const kind of ['drive','drop','slice','lob','smash','serve']){

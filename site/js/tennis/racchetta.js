@@ -128,7 +128,7 @@ async function enableSensors(){
   if (ask && (await ask) !== 'granted') return noMotion('denied');
   addEventListener('devicemotion', onMotion);
   motionSeen = false;
-  setTimeout(() => { if (!motionSeen) noMotion('nomotion'); }, 1500);
+  setTimeout(() => { if (!motionSeen && inputMode === 'motion') noMotion('nomotion'); }, 1500);
   const saved = ss.get('profile');
   if (saved?.version === 2 && saved.input !== 'touch'){ det.setProfile(saved); det.run(); sensor = 'ready'; }
   else { sensor = 'cal'; cal.start(preferences()); }
@@ -158,9 +158,9 @@ function command(c){
   if (c === 'free') cal.tryFree();
   if (c === 'confirm'){ const p = cal.confirm(); if (p){ ss.set('profile', p); sensor = 'ready'; sendState(); paint(); } }
 }
-cal.on(e => { send({ t: 'cal', e: { ...e, shot: selectedShot } }); if (!flashT) paint();
+cal.on(e => { send({ t: 'cal', e: { ...e, shot: selectedShot } }); paint();
   if (e.kind === 'attempt') flash(e.ok ? 'hit' : 'miss', e.ok ? 'Riconosciuto' : e.why === 'piccolo' ? 'Troppo piccolo' : 'Direzione?', '', 700, ARROW[e.dir]);
-  if (e.kind === 'free') flash(e.ok ? 'hit' : 'miss', ARROW[e.dir], `Forza ${Math.round(Math.min(1.5, e.strength)*100)}%`, 500);
+  if (e.kind === 'free') flash(e.ok ? 'hit' : 'miss', e.ok && e.dirValue === 0 ? 'Centro' : ARROW[e.dir], `Forza ${Math.round(Math.min(1.5, e.strength)*100)}%`, 500);
 });
 det.on('swing', s => {
   if (sensor !== 'ready' || linkState !== 'on' || !portrait || inputMode !== 'motion' || !['play','serve'].includes(phase)) return;

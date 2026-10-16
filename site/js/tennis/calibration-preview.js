@@ -12,7 +12,7 @@ export function createCalibrationPreview(container){
   scene.add(new THREE.HemisphereLight(0xffffff, 0x7c8da3, 2.5));
   const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(2, 7, 5); scene.add(light);
   const camera = new THREE.PerspectiveCamera(43, 600/260, .1, 100); camera.position.set(3.5, 3, 11); camera.lookAt(0, 1, 4);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(13, 30), new THREE.MeshStandardMaterial({ color: 0x2d78b7, roughness: 1 })); floor.rotation.x = -Math.PI/2; floor.position.z = -10; scene.add(floor);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(13, 30), new THREE.MeshStandardMaterial({ color: 0x2d78b7, roughness: 1 })); floor.rotation.x = -Math.PI/2; floor.position.z = -9; scene.add(floor);
   const net = new THREE.Mesh(new THREE.PlaneGeometry(8.2,.95),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.25,side:THREE.DoubleSide})); net.position.y=.475;scene.add(net);
   const lines=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-4,.015,-11),new THREE.Vector3(-4,.015,6),new THREE.Vector3(4,.015,-11),new THREE.Vector3(4,.015,6),new THREE.Vector3(-4,.015,-6.4),new THREE.Vector3(4,.015,-6.4),new THREE.Vector3(-4,.015,6),new THREE.Vector3(4,.015,6)]);scene.add(new THREE.LineSegments(lines,new THREE.LineBasicMaterial({color:0xffffff})));
   const c = makeCharacter(LOOKS.blu); scene.add(c.g); c.g.rotation.y = Math.PI; c.g.position.z = 4;
