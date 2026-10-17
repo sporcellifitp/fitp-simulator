@@ -10,11 +10,12 @@ import { createHeadlessEngine, mulberry32, gauss } from './headless-engine.mjs';
 // Profili: errore di tempo (s, deviazione standard), mira (quanto cerca il campo aperto e con che dispersione),
 // forza del gesto (velocità di Argon 0,8…1,65) e uso dei colpi speciali.
 export const PROFILES = {
-  preciso:   { timingSd: .045, aimOpen: .85, aimSd: .12, speed: 1.45, speedSd: .06, specials: .12 },
-  medio:     { timingSd: .09,  aimOpen: .55, aimSd: .3,  speed: 1.22, speedSd: .12, specials: .06 },
-  impreciso: { timingSd: .16,  aimOpen: .1,  aimSd: .55, speed: 1.02, speedSd: .16, specials: 0 },
+  preciso:   { timingSd: .045, aimOpen: .85, aimDepth: .95, aimSd: .12, speed: 1.45, speedSd: .06, specials: .12 },
+  medio:     { timingSd: .09,  aimOpen: .55, aimDepth: .8, aimSd: .3,  speed: 1.22, speedSd: .12, specials: .06 },
+  impreciso: { timingSd: .16,  aimOpen: .1,  aimDepth: .6, aimSd: .55, speed: 1.02, speedSd: .16, specials: 0 },
 };
-const RALLY_CAP = 60;           // oltre questi colpi lo scambio si considera «infinito» e si chiude d'ufficio
+const RALLY_CAP = 60;
+const IDEAL_R = -.45;           // m: palla poco davanti al giocatore, al centro della finestra «perfetto» di Argon           // oltre questi colpi lo scambio si considera «infinito» e si chiude d'ufficio
 const DT = 1/120;
 
 export function simulate({ profile = 'medio', difficulty = 'casual', points = 200, seed = 7, maxSeconds = 4000 } = {}){
@@ -29,7 +30,8 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
       const hits = e.ball.rallyStrokeCount;
       out.points++; if (who === 'player') out.won++;
       out.rallies.push(hits);
-      const key = `${who === 'player' ? 'vinto' : 'perso'}: ${why || 'punto'}`;
+      const last = e.natpfSkill?.lastShot, detail = process.env.AUDIT_DETAIL && who !== 'player' && e.ball.lastHitter === 'player' && last ? ` [${last.shot} ${last.grade}${e.ball.isPowerShot ? ' power' : ''}]` : '';
+      const key = `${who === 'player' ? 'vinto' : 'perso'}: ${why || 'punto'}${detail}`;
       out.reasons[key] = (out.reasons[key] || 0) + 1;
       award(who, why);
     };
@@ -47,11 +49,11 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
         if (e.ball.lastHitter === 'player') intent = null;
         else if (e.ball.vel.z > .5 && e.ball.pos.z > -6){
           if (!intent) intent = { error: gauss(rng)*P.timingSd, sent: false };
-          const r = e.ball.pos.z - e.player.pos.z, tti = (-.1 - r)/e.ball.vel.z;   // tempo all'impatto ideale
+          const r = e.ball.pos.z - e.player.pos.z, tti = (IDEAL_R - r)/Math.max(.5, e.ball.vel.z - e.player.vel.z);   // tempo all'impatto ideale (il giocatore corre)
           if (!intent.sent && tti <= -intent.error){
             intent.sent = true;
             const openSide = e.opponent.pos.x >= 0 ? -1 : 1;
-            const aim = Math.max(-1, Math.min(1, (rng() < P.aimOpen ? openSide*.85 : (rng() - .5)*1.2) + gauss(rng)*P.aimSd));
+            const aim = Math.max(-1, Math.min(1, (rng() < P.aimOpen ? openSide*P.aimDepth : (rng() - .5)*1.2) + gauss(rng)*P.aimSd));
             const special = rng() < P.specials;
             const shotType = special ? (e.opponent.pos.z > -9 ? 'lob' : 'drop') : 'topspin';
             e._handleUserSwingInput({ source: 'audit', shotType: shotType === 'drop' ? 'slice' : shotType, natpfDrop: shotType === 'drop', speed: shotType === 'drop' ? .85 : P.speed + gauss(rng)*P.speedSd, dirX: aim });
