@@ -142,6 +142,56 @@ try {
   check('gesto del telefono → colpo di Argon (lancio al servizio)', swings.swings.includes('natpf-phone'), JSON.stringify(swings));
   await phoneCtx.close();
   await host.evaluate(() => __argonTennis.natpfUi.selectController('mouse', { open: false }));
+  await hostCtx.close();
+
+  /* ---------- 3. 1v1 tra due istanze attraverso il server LAN ---------- */
+  const p1Ctx = await newContext({ viewport: { width: 1100, height: 680 } });
+  const p1 = await openGame(p1Ctx, BASE + '/', 'P1');
+  await p1.evaluate(() => __argonTennis.hud.callbacks.onSelectDifficulty('1v1'));
+  await p1.waitForFunction(() => document.querySelector('#natpf-invite a')?.href, null, { timeout: 15000 });
+  const invite = await p1.evaluate(() => document.querySelector('#natpf-invite a').href);
+  const inviteUrl = new URL(invite);
+  check('link del Player 2 nel menu: IP di rete al posto di localhost, stanza, role=p2 e ?lan=1', (!IP || inviteUrl.hostname === IP) && inviteUrl.searchParams.get('role') === 'p2' && /^AT-/.test(inviteUrl.searchParams.get('room')) && inviteUrl.searchParams.get('lan') === '1', invite);
+  const p2Ctx = await newContext({ viewport: { width: 1100, height: 680 } });
+  const p2 = await openGame(p2Ctx, invite, 'P2');
+  await p2.evaluate(() => { __argonTennis.setViewMode('first'); document.querySelector('#natpf-guest-go')?.click(); });
+  check('P2 entra nella stanza come guest', await p2.evaluate(() => __argonTennis.playerRole === 'p2' && __argonTennis.isMultiplayer));
+  await p1.evaluate(() => {
+    const e = __argonTennis, mc = e.motionController, f = mc.onP2Swing;
+    window.__p2swings = 0; window.__maxRally = 0;
+    mc.onP2Swing = s => { __p2swings++; return f(s); };
+    e.hud.callbacks.onStartMatch({ gamesToWin: 2, inputMode: 'mouse' });
+  });
+  // giocatori automatici: lancio e colpo al servizio, swing quando la palla arriva vicino (gli stessi eventi del mouse)
+  const bot = () => {
+    let last = 0;
+    window.__bot = setInterval(() => {
+      const e = window.__argonTennis, mc = e.motionController, me = e.playerRole === 'p2' ? 'opponent' : 'player', a = e[me], b = e.ball, now = performance.now();
+      window.__maxRally = Math.max(window.__maxRally || 0, b.rallyStrokeCount || 0);
+      if (now - last < 380) return;
+      if (e.phase === 'SERVE_STANCE' && e.score.server === me){ last = now + 400; mc.triggerSyntheticSwing({ type: 'toss' }); }
+      else if (e.phase === 'SERVE_TOSS' && e.score.server === me && b.vel.y < 0){ last = now; mc.triggerSyntheticSwing({}); }
+      else if (e.phase === 'RALLY' && b.inPlay && (a.pos.z - b.pos.z)*b.vel.z > 0 && Math.hypot(b.pos.x - a.pos.x, b.pos.z - a.pos.z) < 1.7){ last = now; mc.triggerSyntheticSwing({}); }
+    }, 8);
+  };
+  await p1.evaluate(bot); await p2.evaluate(bot);
+  await p1.waitForFunction(() => __argonTennis.phase === 'SERVE_STANCE' || __argonTennis.phase === 'RALLY', null, { timeout: 30000 });
+  const t0 = Date.now();
+  let sync = null;
+  while (Date.now() - t0 < 40000){
+    await sleep(1000);
+    sync = await Promise.all([p1, p2].map(p => p.evaluate(() => ({ score: ['playerPoints', 'opponentPoints', 'playerGames', 'opponentGames'].map(k => __argonTennis.score[k]), phase: __argonTennis.phase, rally: window.__maxRally, p2swings: window.__p2swings }))));
+    if (sync[0].p2swings >= 4 && sync[0].rally >= 3 && (sync[0].score.some(Boolean))) break;
+  }
+  await sleep(1500);
+  sync = await Promise.all([p1, p2].map(p => p.evaluate(() => ({ score: ['playerPoints', 'opponentPoints', 'playerGames', 'opponentGames'].map(k => __argonTennis.score[k]), phase: __argonTennis.phase, rally: window.__maxRally, p2swings: window.__p2swings }))));
+  console.log('1v1', JSON.stringify(sync));
+  check('i colpi del P2 arrivano all\'host attraverso il relay del server LAN', sync[0].p2swings >= 2, `colpi P2 ricevuti: ${sync[0].p2swings}`);
+  check('scambio 1v1 tra le due istanze', sync[0].rally >= 2, `scambio più lungo: ${sync[0].rally} colpi`);
+  check('punteggio e fase sincronizzati sul P2 (snapshot dell\'host)', JSON.stringify(sync[0].score) === JSON.stringify(sync[1].score) && sync[1].rally >= 1, `P1 ${sync[0].score} · P2 ${sync[1].score}`);
+  await p2.screenshot({ path: path.join(OUT, 'lan-1v1-p2-prima-persona.png') });
+  await p1.screenshot({ path: path.join(OUT, 'lan-1v1-p1.png') });
+  await p1Ctx.close(); await p2Ctx.close();
 } catch (error){
   check('prova LAN nel browser', false, error.stack);
 } finally {
