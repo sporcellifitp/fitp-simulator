@@ -1,4 +1,4 @@
-// Tessere della lobby NATPF: racchetta (smartphone NATPF, webcam e mouse/tastiera di Argon) e visuale.
+// Tessere della lobby NATPF: racchetta (smartphone NATPF, webcam e mouse/tastiera del motore base) e visuale.
 // Le stesse tessere servono nella lobby e nel pannello del Player 2.
 const svg = body => `<svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true">${body}</svg>`;
 export const ICONS = {

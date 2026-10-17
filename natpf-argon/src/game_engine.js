@@ -231,10 +231,10 @@ export class ArgonTennisEngine {
       (this.roomId = this.urlRoom || "default"),
       (this.playerRole = this.urlRole),
       (this.isMultiplayer = !!(this.urlRoom && this.urlRoom !== "DEFAULT") || this.urlMode === "1v1"),
-      // NATPF: solo singolare; il doppio di Argon resta nel motore dietro isDoubles (Opzione B, match_format.js)
+      // NATPF: solo singolare; il doppio del motore base resta nel motore dietro isDoubles (Opzione B, match_format.js)
       (this.matchFormat = resolveMatchFormat(this.params.get("format"))),
       (this.isDoubles = this.matchFormat.teamSize === 2),
-      // NATPF: visuale in terza persona (quella di Argon) o in prima persona
+      // NATPF: visuale in terza persona (quella del motore base) o in prima persona
       (this.viewMode = normalizeViewMode(this.params.get("view") || readStoredView())),
       (this.fpPose = { position: new o.Vector3(), target: new o.Vector3() }),
       (this.fpBodyActor = null),
@@ -384,15 +384,8 @@ export class ArgonTennisEngine {
       t = new o.SphereGeometry(185, 36, 20),
       i = new o.MeshBasicMaterial({ map: ae(), side: o.BackSide, depthWrite: !1, fog: !1 });
     (this.skyDome = new o.Mesh(t, i)),
-      this.scene.add(this.skyDome),
-      e.load("https://www.gstatic.com/aistudio/starter-apps/tennis/textures/court/tns_sky_a.png", (c) => {
-        (c.colorSpace = o.SRGBColorSpace),
-          (c.wrapS = o.RepeatWrapping),
-          (c.wrapT = o.ClampToEdgeWrapping),
-          c.repeat.set(8, 1),
-          (i.map = c),
-          (i.needsUpdate = !0);
-      });
+      // NATPF: niente texture esterne per cielo, nuvole e orizzonte: l'arena NATPF è al chiuso e li toglie dalla scena
+      this.scene.add(this.skyDome);
     const a = (c, y, f, m, d) => {
       const b = new o.CylinderGeometry(c, c, y, 48, 1, !0),
         u = new o.MeshBasicMaterial({
@@ -408,7 +401,8 @@ export class ArgonTennisEngine {
         (w.renderOrder = d),
         (w.visible = !1),
         this.scene.add(w),
-        e.load(m, (x) => {
+        m &&
+          e.load(m, (x) => {
           (x.colorSpace = o.SRGBColorSpace),
             (x.wrapS = o.RepeatWrapping),
             (x.wrapT = o.ClampToEdgeWrapping),
@@ -420,35 +414,13 @@ export class ArgonTennisEngine {
         w
       );
     };
-    (this.cloudRing2 = a(
-      152,
-      54,
-      24,
-      "https://www.gstatic.com/aistudio/starter-apps/tennis/textures/court/cloud02.png",
-      -2,
-    )),
-      (this.cloudRing1 = a(
-        138,
-        46,
-        19,
-        "https://www.gstatic.com/aistudio/starter-apps/tennis/textures/court/cloud01.png",
-        -1,
-      ));
+    (this.cloudRing2 = a(152, 54, 24, null, -2)), (this.cloudRing1 = a(138, 46, 19, null, -1));
     const s = new o.CylinderGeometry(96, 96, 15.5, 64, 1, !0),
       n = new o.MeshBasicMaterial({ transparent: !0, alphaTest: 0.15, side: o.BackSide, depthWrite: !1 });
     (this.horizonRing = new o.Mesh(s, n)),
       (this.horizonRing.position.y = 7.2),
       (this.horizonRing.visible = !1),
-      this.scene.add(this.horizonRing),
-      e.load("https://www.gstatic.com/aistudio/starter-apps/tennis/textures/court/tns_BG_c1.png", (c) => {
-        (c.colorSpace = o.SRGBColorSpace),
-          (c.wrapS = o.RepeatWrapping),
-          (c.wrapT = o.ClampToEdgeWrapping),
-          c.repeat.set(8, 1),
-          (n.map = c),
-          (n.needsUpdate = !0),
-          (this.horizonRing.visible = !0);
-      });
+      this.scene.add(this.horizonRing);
     const h = new o.HemisphereLight(10935551, 5612068, 1.22);
     h.position.set(0, 40, 0),
       this.scene.add(h),
@@ -610,7 +582,7 @@ export class ArgonTennisEngine {
         onTrackChange: (i) => {
           this.hud.updateAudioStatus({
             playing: !i.muted,
-            trackName: i.title.replace(/\s*\(Lyria 3\)/i, ""),
+            trackName: i.title,
           });
         },
       }));
@@ -729,7 +701,7 @@ export class ArgonTennisEngine {
           );
       }
     } catch (i) {
-      console.warn("[ArgonTennisEngine] Failed to create multiplayer room:", i);
+      console.warn("[NATPF] Stanza 1v1 non creata:", i);
     }
     return null;
   }
@@ -751,7 +723,7 @@ export class ArgonTennisEngine {
               );
             });
           } catch (d) {
-            if (m === f) return console.warn(`[ArgonTennisEngine] Could not load ${c}:`, d), new o.Group();
+            if (m === f) return console.warn(`[NATPF] Modello non caricato ${c}:`, d), new o.Group();
             await new Promise((b) => setTimeout(b, 350));
           }
         return new o.Group();
@@ -1135,6 +1107,8 @@ export class ArgonTennisEngine {
       this.hud.setReplayMode(!1),
       this.ballTrail.clear(),
       this.swingVfx && this.swingVfx.clearAllTrails();
+    // NATPF: dopo un replay torna la musica della partita
+    this.audioEngine && !this.autoPlayMode && this.audioEngine.resumeMatchMusic && this.audioEngine.resumeMatchMusic();
     const s = this.score.deuceSide ? 1.35 : -0.55,
       n = this.score.deuceSide ? -2.35 : 2.15;
     this.score.server === "player"
@@ -2630,12 +2604,14 @@ export class ArgonTennisEngine {
       return;
     }
     this._syncScoreboardHUD();
+    // NATPF: servizio vincente non toccato dall'avversario = ace (banner e voce)
+    t === "Nice Shot!" && this.ball.rallyStrokeCount === 1 && (t = "Ace!");
     const { bannerScoreText: n } = this._formatCurrentScore(),
       h = t === "Out" || t === "Net" ? "style-fault" : "style-score";
     this._recordBannerBroadcast(n, h, t || ""),
       this.hud.showCenterBanner(n, { style: h, subText: t || "", durationMs: 1450 }),
       this.audioEngine &&
-        (t === "Out" || t === "Net" || t === "Nice Shot!"
+        (t === "Out" || t === "Net" || t === "Nice Shot!" || t === "Ace!"
           ? (this.audioEngine.playVoiceCallout(t, { clearQueue: !0 }),
             this.audioEngine.announceScore(n, { delayMs: 680 }))
           : this.audioEngine.announceScore(n));
@@ -2778,7 +2754,7 @@ export class ArgonTennisEngine {
           this.audioEngine))
       ) {
         const r = n.banner.subText || "";
-        r === "Out" || r === "Net" || r === "Nice Shot!"
+        r === "Out" || r === "Net" || r === "Nice Shot!" || r === "Ace!" // NATPF: anche l'ace
           ? (this.audioEngine.playVoiceCallout(r, { clearQueue: !0 }),
             this.audioEngine.announceScore(n.banner.text, { delayMs: 680 }))
           : this.audioEngine.announceScore(n.banner.text);
@@ -3027,7 +3003,7 @@ export class ArgonTennisEngine {
     }
     this.camera.lookAt(this.cameraLookSmooth);
   }
-  // NATPF: campo visivo più ampio in prima persona (come viewpoint.js di NATPF), 45° di Argon in terza
+  // NATPF: campo visivo più ampio in prima persona (come viewpoint.js di NATPF), 45° del motore base in terza
   _updateCameraFov() {
     const e = this._isFirstPersonActive() ? firstPersonFov(this.camera.aspect) : 45;
     Math.abs(this.camera.fov - e) > 0.01 && ((this.camera.fov = e), this.camera.updateProjectionMatrix());

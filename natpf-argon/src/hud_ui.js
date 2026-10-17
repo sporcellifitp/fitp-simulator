@@ -1,4 +1,6 @@
 import { renderAllHudMiiAvatars as P, renderMiiAvatar as L } from "./mii_avatars.js";
+// NATPF: testi dell'HUD in italiano (traduzione al momento della visualizzazione)
+import { t as tr, scoreText as sc } from "./natpf/natpf_i18n.js";
 export class HudUI {
   constructor(t = {}) {
     (this.callbacks = t),
@@ -9,7 +11,7 @@ export class HudUI {
       (this.selectedInputMode = "mouse"),
       (this.selectedDifficulty = "casual"),
       (this.currentRoomId = "default"),
-      (this.currentTunnelUrl = "https://argon-tennis-sandbox-170440.uc.r.appspot.com"),
+      (this.currentTunnelUrl = ""), // NATPF: link del companion sull'indirizzo da cui gira il gioco
       (this.elTitleModal = document.getElementById("title-modal")),
       (this.elCompanionModal = document.getElementById("companion-modal")),
       (this.elVictoryModal = document.getElementById("victory-modal")),
@@ -68,7 +70,7 @@ export class HudUI {
       const o = document.querySelector(".you-tag");
       o && (o.textContent = "Player 1");
       const s = document.getElementById("setup-opponent-label");
-      s && (s.textContent = "You");
+      s && (s.textContent = "Tu");
     }
     this.updateMultiplayerRoomInfo({
       roomId: this.currentRoomId,
@@ -104,8 +106,8 @@ export class HudUI {
       (e === "1v1"
         ? (s.textContent = "Player 2")
         : e === "pro"
-          ? (s.textContent = "Matt")
-          : (s.textContent = "Club AI")),
+          ? (s.textContent = "CPU Pro")
+          : (s.textContent = "CPU")),
       this.updateOpponentPresence(this._lastRoomStatus || {}),
       n && this.callbacks.onSelectDifficulty && this.callbacks.onSelectDifficulty(e);
   }
@@ -181,7 +183,7 @@ export class HudUI {
     const g = document.getElementById("btn-create-1v1-room");
     g &&
       g.addEventListener("click", async () => {
-        (g.disabled = !0), (g.textContent = "Creating...");
+        (g.disabled = !0), (g.textContent = "Creo la stanza\u2026");
         try {
           if (this.callbacks.onCreateMultiplayerRoom) {
             const l = await this.callbacks.onCreateMultiplayerRoom();
@@ -196,7 +198,7 @@ export class HudUI {
               }));
           }
         } finally {
-          (g.disabled = !1), (g.textContent = "+ New 1v1 Room");
+          (g.disabled = !1), (g.textContent = "+ Nuova stanza 1v1");
         }
       });
     const y = document.getElementById("btn-save-tunnel-url");
@@ -214,9 +216,9 @@ export class HudUI {
             });
           } catch {}
           this.updateMultiplayerRoomInfo({ roomId: this.currentRoomId, tunnelUrl: this.currentTunnelUrl }),
-            (y.textContent = "Saved \u2713"),
+            (y.textContent = "Salvato \u2713"),
             setTimeout(() => {
-              y.textContent = "Update Tunnel";
+              y.textContent = "Aggiorna indirizzo";
             }, 1400);
         }
       });
@@ -228,8 +230,7 @@ export class HudUI {
           u = (l ? l.value : "").trim();
         if (!u) {
           c &&
-            (c.textContent =
-              "Enter a Google Chat Space ID (e.g. AAAAb123456) or colleague email (user@google.com) first.");
+            (c.textContent = "Scrivi prima lo spazio o l'email a cui mandare l'invito.");
           return;
         }
         if (
@@ -239,7 +240,7 @@ export class HudUI {
           const h = await this.callbacks.onCreateMultiplayerRoom();
           h && h.roomId && (this.currentRoomId = h.roomId);
         }
-        (f.disabled = !0), (f.textContent = "Sending...");
+        (f.disabled = !0), (f.textContent = "Invio\u2026");
         try {
           const h = u.includes("@"),
             E = await (
@@ -256,13 +257,13 @@ export class HudUI {
             ).json();
           c &&
             (E.sent
-              ? (c.textContent = `\u2705 Posted /argontennis 1v1 Match Card (Room ${this.currentRoomId}) to ${u}!`)
-              : (c.textContent = `\u2139\uFE0F Room ${this.currentRoomId} ready! Run: python3 scripts/gchat_argontennis_bot.py ${h ? "--dm " + u : "--space " + u} --room ${this.currentRoomId}`));
+              ? (c.textContent = `\u2705 Invito 1v1 (stanza ${this.currentRoomId}) inviato a ${u}`)
+              : (c.textContent = `\u2139\uFE0F Stanza ${this.currentRoomId} pronta: condividi i link del campo e del telefono.`));
         } catch {
           c &&
-            (c.textContent = `Room ${this.currentRoomId} ready \u2014 share the P2 Court & Pocket Racket links above!`);
+            (c.textContent = `Stanza ${this.currentRoomId} pronta \u2014 condividi i link del campo e del telefono.`);
         } finally {
-          (f.disabled = !1), (f.textContent = "Send GChat Card");
+          (f.disabled = !1), (f.textContent = "Invia invito");
         }
       });
     const I = document.getElementById("btn-copy-gchat-cmd");
@@ -270,12 +271,12 @@ export class HudUI {
       I.addEventListener("click", async () => {
         const l = document.getElementById("gchat-target-input"),
           c = document.getElementById("gchat-send-status"),
-          h = `python3 scripts/gchat_argontennis_bot.py --watch-space ${(l ? l.value : "").trim() || "<SPACE_ID>"} --tunnel-url ${this.currentTunnelUrl}`;
+          h = `${(this.currentTunnelUrl || window.location.origin).replace(/\/+$/, "")}/?room=${encodeURIComponent(this.currentRoomId)}&role=p2`;
         try {
           navigator.clipboard && navigator.clipboard.writeText && (await navigator.clipboard.writeText(h)),
-            c && (c.textContent = `\u{1F4CB} Copied: ${h}`);
+            c && (c.textContent = `\u{1F4CB} Copiato: ${h}`);
         } catch {
-          c && (c.textContent = `Run: ${h}`);
+          c && (c.textContent = h);
         }
       });
     const b = document.getElementById("btn-close-companion");
@@ -300,7 +301,7 @@ export class HudUI {
         const t = await fetch("/api/tunnel/status", { cache: "no-store" });
         if (t.ok) {
           const n = await t.json();
-          if (n.tunnelUrl) {
+          if (n.tunnelUrl && !/\.appspot\.com/i.test(n.tunnelUrl)) {
             this.currentTunnelUrl = n.tunnelUrl;
             const e = document.getElementById("tunnel-url-input");
             e && (e.value = n.tunnelUrl);
@@ -317,7 +318,9 @@ export class HudUI {
         (this.elTitleModal.classList.add("hidden"), (this.elTitleModal.style.display = "none"));
   }
   showTitleModal() {
-    document.documentElement.classList.remove("autoplay-mode"),
+    // NATPF: con la lobby torna la sua musica (src/audio_engine.js)
+    window.dispatchEvent(new Event("natpf:lobby")),
+      document.documentElement.classList.remove("autoplay-mode"),
       this.elTitleModal &&
         (this.elTitleModal.classList.remove("hidden"), (this.elTitleModal.style.display = "flex"));
   }
@@ -329,8 +332,10 @@ export class HudUI {
     const i = document.getElementById("victory-result-banner"),
       o = document.getElementById("victory-match-score"),
       s = document.getElementById("skill-rating-value");
-    i && ((i.textContent = t ? "YOU WIN!" : "TRY AGAIN!"), (i.style.color = t ? "#ffea28" : "#9ad4ff")),
-      o && (o.textContent = `Final Games: ${n} - ${e}`);
+    // NATPF: testi e colori della schermata finale
+    i && ((i.textContent = t ? "Hai vinto!" : "Riprova!"), (i.style.color = t ? "#e8ff3a" : "#ff3d8b")),
+      this.elVictoryModal.classList.toggle("natpf-lost", !t),
+      o && (o.textContent = `Game finali: ${n} - ${e}`);
     const a = t ? 1145 : 1020;
     s && (s.textContent = String(a)), this._drawSkillGraph(t), this.elVictoryModal.classList.remove("hidden");
   }
@@ -341,24 +346,24 @@ export class HudUI {
       i = n.width,
       o = n.height;
     e.clearRect(0, 0, i, o),
-      (e.fillStyle = "#f8fbff"),
+      (e.fillStyle = "#071233"), // NATPF: grafico nei colori della lobby
       e.fillRect(0, 0, i, o),
-      (e.strokeStyle = "#d0dce8"),
+      (e.strokeStyle = "rgba(166, 182, 220, 0.18)"),
       (e.lineWidth = 1);
     for (let p = 25; p < o; p += 35) e.beginPath(), e.moveTo(0, p), e.lineTo(i, p), e.stroke();
     const s = o * 0.56;
-    (e.strokeStyle = "#9aaab8"),
+    (e.strokeStyle = "rgba(166, 182, 220, 0.5)"),
       e.setLineDash([4, 4]),
       e.beginPath(),
       e.moveTo(0, s),
       e.lineTo(i, s),
       e.stroke(),
       e.setLineDash([]),
-      (e.fillStyle = "#6c7c8c"),
-      (e.font = "bold 11px sans-serif"),
-      e.fillText("PRO 1000", 8, s - 5);
+      (e.fillStyle = "#a6b6dc"),
+      (e.font = "bold 11px Bahnschrift, 'Arial Narrow', sans-serif"),
+      e.fillText("LIVELLO PRO 1000", 8, s - 5);
     const a = t ? [0.74, 0.66, 0.58, 0.45, 0.24] : [0.74, 0.66, 0.58, 0.52, 0.55];
-    (e.strokeStyle = "#1f96f2"),
+    (e.strokeStyle = "#ff3d8b"),
       (e.lineWidth = 3.5),
       (e.lineCap = "round"),
       (e.lineJoin = "round"),
@@ -371,11 +376,11 @@ export class HudUI {
       e.stroke();
     const r = i - 24,
       m = o * a[a.length - 1];
-    (e.fillStyle = "#ffea28"),
+    (e.fillStyle = "#e8ff3a"),
       e.beginPath(),
       e.arc(r, m, 6, 0, Math.PI * 2),
       e.fill(),
-      (e.strokeStyle = "#006cc4"),
+      (e.strokeStyle = "#071233"),
       (e.lineWidth = 2.5),
       e.stroke();
   }
@@ -398,14 +403,14 @@ export class HudUI {
     this.elScoreCenter &&
       (e
         ? (this.elScoreCenter.classList.add("deuce-mode"),
-          (this.elScorePlayer.textContent = e),
+          (this.elScorePlayer.textContent = sc(e)),
           this.elScoreSep.classList.add("hidden"),
           this.elScoreOpponent.classList.add("hidden"))
         : (this.elScoreCenter.classList.remove("deuce-mode"),
-          (this.elScorePlayer.textContent = t),
+          (this.elScorePlayer.textContent = sc(t)),
           this.elScoreSep.classList.remove("hidden"),
           this.elScoreOpponent.classList.remove("hidden"),
-          (this.elScoreOpponent.textContent = n)),
+          (this.elScoreOpponent.textContent = sc(n))),
       this.configureGameBubbles(s),
       this.elGamesPlayer &&
         this.elGamesPlayer
@@ -448,14 +453,14 @@ export class HudUI {
     if (this.elTimingPopup) {
       if (
         (this.timingPopupTimer && clearTimeout(this.timingPopupTimer),
-        (this.elTimingGrade.textContent = t),
+        (this.elTimingGrade.textContent = tr(t)),
         (this.elTimingGrade.className = "timing-grade"),
         t.includes("EARLY")
           ? this.elTimingGrade.classList.add("grade-early")
           : t.includes("LATE")
             ? this.elTimingGrade.classList.add("grade-late")
             : this.elTimingGrade.classList.add("grade-perfect"),
-        (this.elTimingDetail.textContent = n),
+        (this.elTimingDetail.textContent = tr(n)),
         e && e.visible)
       ) {
         const o = Math.max(110, Math.min(window.innerWidth - 110, e.x)),
@@ -477,11 +482,11 @@ export class HudUI {
     !this.elBannerLayer ||
       !this.elBannerText ||
       (this.bannerTimer && (clearTimeout(this.bannerTimer), (this.bannerTimer = null)),
-      (this.elBannerText.textContent = t),
+      (this.elBannerText.textContent = tr(sc(t))),
       (this.elBannerText.className = `center-banner-text ${n}`),
       this.elBannerSub &&
         (e
-          ? ((this.elBannerSub.textContent = e), this.elBannerSub.classList.remove("hidden"))
+          ? ((this.elBannerSub.textContent = tr(e)), this.elBannerSub.classList.remove("hidden"))
           : this.elBannerSub.classList.add("hidden")),
       this.elBannerLayer.classList.remove("hidden"),
       !o &&
@@ -504,16 +509,16 @@ export class HudUI {
       const i = Math.max(4, Math.min(96, t * 100));
       this.elTimingCursor.style.left = `${i.toFixed(1)}%`;
     }
-    this.elGaugeModeTitle && (this.elGaugeModeTitle.textContent = n),
-      this.elGaugeSpeedReadout && (this.elGaugeSpeedReadout.textContent = e);
+    this.elGaugeModeTitle && (this.elGaugeModeTitle.textContent = tr(n)),
+      this.elGaugeSpeedReadout && (this.elGaugeSpeedReadout.textContent = tr(e));
   }
   updateAudioStatus({ playing: t, trackName: n }) {
     this.elAudioDot && this.elAudioDot.classList.toggle("music-on", !!t),
       this.elAudioLabel &&
-        (this.elAudioLabel.textContent = t ? `Lyria: ${n || "Sunny Rally"}` : "Lyria: Muted");
+        (this.elAudioLabel.textContent = t ? `Musica: ${n || "sì"}` : "Musica: no");
   }
   updateCameraLabel(t) {
-    this.elCameraLabel && (this.elCameraLabel.textContent = t);
+    this.elCameraLabel && (this.elCameraLabel.textContent = tr(t));
   }
   updateMotionStatus({ webcamActive: t = !1, phoneConnected: n = !1, p1Phone: e = !1, p2Phone: i = !1 }) {
     this.elWebcamPip && this.elWebcamPip.classList.toggle("hidden", !t),
@@ -521,10 +526,10 @@ export class HudUI {
       this.elPhoneDot && this.elPhoneDot.classList.toggle("active", !!(n || e || i)),
       this.elPhoneLabel &&
         (e && i
-          ? (this.elPhoneLabel.textContent = "P1 & P2 Rackets")
+          ? (this.elPhoneLabel.textContent = "Racchette P1 e P2")
           : n || e || i
-            ? (this.elPhoneLabel.textContent = "Racket Connected")
-            : (this.elPhoneLabel.textContent = "Pocket Racket"));
+            ? (this.elPhoneLabel.textContent = "Telefono collegato")
+            : (this.elPhoneLabel.textContent = "Telefono"));
   }
   updateMultiplayerRoomInfo(t = {}) {
     const n = { ...(this._lastRoomStatus || {}), ...t };
@@ -532,7 +537,8 @@ export class HudUI {
       ((this._lastRoomStatus = n),
       n.roomId && (this.currentRoomId = String(n.roomId).toLowerCase()),
       n.role && (this.playerRole = String(n.role).toLowerCase() === "p2" ? "p2" : "p1"),
-      n.tunnelUrl)
+      // NATPF: l'indirizzo pubblico del motore base (appspot) non vale per NATPF
+      n.tunnelUrl && !/\.appspot\.com/i.test(n.tunnelUrl))
     ) {
       this.currentTunnelUrl = String(n.tunnelUrl).replace(/\/+$/, "");
       const d = document.getElementById("tunnel-url-input");
@@ -548,7 +554,7 @@ export class HudUI {
       s && s.classList.toggle("hidden", e),
       a && a.classList.toggle("hidden", e);
     const r = document.getElementById("companion-room-badge");
-    r && (r.textContent = `ROOM #${this.currentRoomId.toUpperCase()} \u2022 ${e ? "PLAYER 2" : "PLAYER 1"}`);
+    r && (r.textContent = `STANZA #${this.currentRoomId.toUpperCase()} \u2022 ${e ? "PLAYER 2" : "PLAYER 1"}`);
     const m = encodeURIComponent(this.currentRoomId),
       p = (this.currentTunnelUrl || window.location.origin).replace(/\/+$/, ""),
       g = `${p}/companion.html?room=${m}&role=p1`,
@@ -557,15 +563,25 @@ export class HudUI {
     f && (f.href = g);
     const I = document.getElementById("companion-link-p2");
     I && (I.href = y);
-    const b = document.getElementById("companion-qr");
+    // NATPF: QR del companion generati sul link vero (window.qrcode), niente immagini esterne
+    const qrSrc = (url) => {
+        try {
+          if (!window.qrcode) return "";
+          const q = window.qrcode(0, "M");
+          return q.addData(new URL(url, window.location.href).href), q.make(), q.createDataURL(4, 2);
+        } catch {
+          return "";
+        }
+      },
+      b = document.getElementById("companion-qr");
     if (b) {
-      const d = "https://www.gstatic.com/aistudio/starter-apps/tennis/qr/player1_qr.png";
-      b.dataset.lastSrc !== d && ((b.src = d), (b.dataset.lastSrc = d));
+      const d = qrSrc(g);
+      d && b.dataset.lastSrc !== d && ((b.src = d), (b.dataset.lastSrc = d));
     }
     const B = document.getElementById("companion-qr-p2");
     if (B) {
-      const d = "https://www.gstatic.com/aistudio/starter-apps/tennis/qr/player2_qr.png";
-      B.dataset.lastSrc !== d && ((B.src = d), (B.dataset.lastSrc = d));
+      const d = qrSrc(y);
+      d && B.dataset.lastSrc !== d && ((B.src = d), (B.dataset.lastSrc = d));
     }
     const T = document.getElementById("court-link-p1");
     T && (T.href = `/?room=${m}&role=p1`);
@@ -574,19 +590,19 @@ export class HudUI {
     const c = document.getElementById("mp-p1-status");
     if (c) {
       const d = !!(n.p1Phone || n.p1Online);
-      (c.textContent = n.p1Phone ? "Connected \u2713" : d ? "Court Ready" : "Scan QR"),
+      (c.textContent = n.p1Phone ? "Collegato \u2713" : d ? "In campo" : "Scansiona il QR"),
         c.classList.toggle("online", !!n.p1Phone);
     }
     const u = document.getElementById("mp-p2-status");
     if (u) {
       const d = !!(n.p2Phone || n.p2Online);
-      (u.textContent = n.p2Phone ? "Connected \u2713" : d ? "Court Ready" : "Scan QR"),
+      (u.textContent = n.p2Phone ? "Collegato \u2713" : d ? "In campo" : "Scansiona il QR"),
         u.classList.toggle("online", !!n.p2Phone);
     }
     const h = document.getElementById("mp-active-status");
     if (h) {
       const d = e ? !!n.p2Phone : !!n.p1Phone;
-      (h.textContent = d ? "Connected \u2713" : "Scan QR"), h.classList.toggle("online", d);
+      (h.textContent = d ? "Collegato \u2713" : "Scansiona il QR"), h.classList.toggle("online", d);
     }
     this.updateOpponentPresence(n);
   }
@@ -611,18 +627,18 @@ export class HudUI {
     s
       ? ((a = !!(t.p2Phone || t.p1Phone || t.p1Online)),
         t.p2Phone
-          ? (r = `Racket Ready \u2022 ${i} Joined`)
+          ? (r = `Racchetta pronta \u2022 ${i} in campo`)
           : t.p1Phone || t.p1Online
-            ? (r = `${i} Ready \u2022 Scan QR for Phone Racket`)
-            : (r = `Waiting for ${i}\u2026`))
+            ? (r = `${i} pronto \u2022 inquadra il QR per usare il telefono`)
+            : (r = `In attesa di ${i}\u2026`))
       : ((a = !!(t.p2Phone || t.p2Online)),
         t.p2Phone && t.p2Online
-          ? (r = `${o} Connected \u2022 Ready to Serve!`)
+          ? (r = `${o} collegato \u2022 pronti al servizio!`)
           : t.p2Phone
-            ? (r = `${o}'s Racket Ready \u2022 Ready to Serve!`)
+            ? (r = `Racchetta di ${o} pronta \u2022 pronti al servizio!`)
             : t.p2Online
-              ? (r = `${o} Joined \u2022 Ready to Serve!`)
-              : (r = `Waiting for ${o}\u2026`)),
+              ? (r = `${o} in campo \u2022 pronti al servizio!`)
+              : (r = `In attesa di ${o}\u2026`)),
       this.elOpponentPresencePill &&
         (this.elOpponentPresencePill.classList.remove("hidden"),
         this.elOpponentPresencePill.classList.toggle("ready", a),
@@ -639,7 +655,7 @@ export class HudUI {
       this.elOpponentPresenceText && (this.elOpponentPresenceText.textContent = r),
       e && e.classList.toggle("opponent-ready", a);
     const m = document.getElementById("setup-opponent-label");
-    m && this.selectedDifficulty === "1v1" && !s && (m.textContent = a ? `\u{1F7E2} ${o} Ready` : o),
+    m && this.selectedDifficulty === "1v1" && !s && (m.textContent = a ? `\u{1F7E2} ${o} pronto` : o),
       (this._lastOtherReady = a);
   }
 }

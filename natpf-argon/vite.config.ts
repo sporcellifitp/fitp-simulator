@@ -82,7 +82,7 @@ const assetCache = new Map(),
 function q() {
   const t = new Map();
   t.set("default", R("default"));
-  const r = "https://argon-tennis-sandbox-170440.uc.r.appspot.com",
+  const r = "", // NATPF: nessun indirizzo pubblico del motore base; i link usano l'host del gioco
     a = (u) => {
       const p = (u || "default").replace(/[^A-Za-z0-9_-]/g, "").toUpperCase() || "default",
         n = p === "DEFAULT" ? "default" : p;

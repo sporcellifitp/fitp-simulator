@@ -1,6 +1,6 @@
 /* NATPF: lobby console, pannelli, onboarding e allenatore (src/natpf/natpf_lobby.js, natpf_onboarding.js, natpf_ui.js).
-   Look volutamente diverso da Argon: scuro, sportivo, angoli tagliati, tipografia condensata, giallo palla e rosa
-   NATPF al posto dei pulsanti verdi arrotondati. Caricato dopo styles.css (Argon). */
+   Look volutamente diverso dal motore base: scuro, sportivo, angoli tagliati, tipografia condensata, giallo palla e rosa
+   NATPF al posto dei pulsanti verdi arrotondati. Caricato dopo styles.css (motore base). */
 :root {
   --lb-font: "Bahnschrift", "DIN Alternate", "Barlow Semi Condensed", "Arial Narrow", "Segoe UI", system-ui, sans-serif;
   --lb-navy: #071233;
@@ -14,7 +14,7 @@
   --lb-ok: #4cff8a;
   --lb-cut: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
 }
-/* 1v1: nessun secondo personaggio sul tabellone (i compagni di doppio di Argon restano solo nel codice) */
+/* 1v1: nessun secondo personaggio sul tabellone (i compagni di doppio del motore base restano solo nel codice) */
 .format-singles .secondary-mii {
   display: none !important;
 }
@@ -187,7 +187,7 @@
 .lobby-tiles.lobby-tiles-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-/* le tessere della modalità sono anche i .wii-green-choice letti dall'HUD di Argon: lo stile Argon si azzera */
+/* le tessere della modalità sono anche i .wii-green-choice letti dall'HUD del motore base: il loro stile si azzera */
 .natpf-lobby .lobby-tile,
 .lobby-tile {
   position: relative;
@@ -862,11 +862,11 @@
     animation: none;
   }
 }
-/* lobby aperta (Argon toglie .autoplay-mode quando mostra il menu): l'HUD di gioco resta dietro, nascosto */
+/* lobby aperta (il motore base toglie .autoplay-mode quando mostra il menu): l'HUD di gioco resta dietro, nascosto */
 html:not(.autoplay-mode) #hud-root {
   visibility: hidden;
 }
-/* ritratti Mii di Argon (svg accanto alla canvas) nel riquadro «Tu vs avversario» */
+/* ritratti dei personaggi (svg accanto alla canvas) nel riquadro «Tu vs avversario» */
 .versus-side .wii-mii-svg {
   width: 52px;
   height: 52px;

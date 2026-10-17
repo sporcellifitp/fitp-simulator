@@ -1,6 +1,6 @@
-// Visuale in prima persona per Argon Tennis, sul modello di NATPF Simulator (site/js/tennis/viewpoint.js):
+// Visuale in prima persona per il motore base, sul modello di NATPF Simulator (site/js/tennis/viewpoint.js):
 // occhi del giocatore locale, sguardo fisso verso il fondo campo avversario (niente rotazioni dovute a corsa
-// o swing), corpo nascosto ma mani e racchetta visibili in primo piano. La terza persona resta quella di Argon.
+// o swing), corpo nascosto ma mani e racchetta visibili in primo piano. La terza persona resta quella del motore base.
 // Vale per entrambi i giocatori: il giocatore locale è `player` per P1 e `opponent` per P2, e lo sguardo è
 // sempre verso la metà campo avversaria.
 import * as THREE from 'three';
