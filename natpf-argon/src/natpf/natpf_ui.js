@@ -2,18 +2,16 @@
 // mouse/tastiera di Argon) e della visuale, pannello di collegamento del telefono con le fasi della calibrazione
 // NATPF (collega → impugna → prova → verifica → pronto), invito del Player 2 per il 1v1 tra due computer.
 // I testi del collegamento seguono quelli di site/js/tennis/main.js.
+import { controllerTiles, viewTiles, controllerStatus } from './natpf_tiles.js';
+import { NatpfOnboarding } from './natpf_onboarding.js';
+import { NatpfLobby } from './natpf_lobby.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
   get(k, d){ try { return localStorage.getItem('natpf-argon.' + k) ?? d; } catch { return d; } },
   set(k, v){ try { localStorage.setItem('natpf-argon.' + k, v); } catch {} },
 };
-const CONTROLLERS = [
-  { id: 'phone', label: '📱 Smartphone', hint: 'Il telefono è la racchetta (NATPF)' },
-  { id: 'webcam', label: '📷 Webcam', hint: 'La webcam segue la mano (Argon)' },
-  { id: 'mouse', label: '🖱️ Mouse / tastiera', hint: 'Trascina o premi Spazio (Argon)' },
-];
-const VIEWS = [ { id: 'third', label: 'Terza persona' }, { id: 'first', label: 'Prima persona' } ];
+const CONTROLLERS = ['phone', 'webcam', 'mouse'].map(id => ({ id }));
 const STEPS = ['collega', 'impugna', 'prova', 'verifica', 'pronto'];
 const PHONE_ERR = {
   denied: 'Sul telefono è stato negato l’accesso ai sensori di movimento. Su iPhone ricarica la pagina del telefono e tocca «Consenti»; su Android consenti «Sensori di movimento» dal lucchetto nella barra degli indirizzi.',
@@ -36,8 +34,12 @@ export class NatpfUi {
     this._buildSetup();
     this._bindPhoneModal();
     this._bindStart();
+    this.onboarding = new NatpfOnboarding({ getController: () => this.controller, onPractice: () => this.lobby.startPractice(), onOpen: () => this._syncPause(), onClose: () => this._syncPause() });
+    this.lobby = new NatpfLobby(engine, this, this.onboarding);
     this.onViewChange(engine.viewMode);
-    this.phone.onChange(() => this.paintPhone());
+    this.phone.onChange(() => { this.paintPhone(); this.paintTiles(); });
+    // la prima volta si parte dall'onboarding
+    if (!NatpfOnboarding.seen() && !(engine.playerRole === 'p2' && engine.urlRoom)) setTimeout(() => this.onboarding.open(), 700);
     $('btn-natpf-view')?.addEventListener('click', e => { e.stopPropagation(); this.engine.setViewMode(this.engine.viewMode === 'first' ? 'third' : 'first'); });
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){
@@ -50,24 +52,36 @@ export class NatpfUi {
 
   /* ---------- racchetta e visuale ---------- */
   _buildSetup(){
-    for (const box of document.querySelectorAll('[data-natpf-setup]')){
-      box.innerHTML = `
-        <div class="natpf-setup-row"><span class="natpf-setup-label">Racchetta</span>
-          <div class="wii-green-btn-row natpf-choice-row">${CONTROLLERS.map(c => `<button type="button" class="wii-green-choice" data-natpf-controller="${c.id}" title="${c.hint}"><span class="choice-main">${c.label}</span></button>`).join('')}</div></div>
-        <div class="natpf-setup-row"><span class="natpf-setup-label">Visuale</span>
-          <div class="wii-green-btn-row natpf-choice-row">${VIEWS.map(v => `<button type="button" class="wii-green-choice" data-natpf-view="${v.id}"><span class="choice-main">${v.label}</span></button>`).join('')}</div></div>`;
-      box.addEventListener('click', e => {
-        const b = e.target.closest('button'); if (!b) return;
-        e.stopPropagation();
-        if (b.dataset.natpfController) this.selectController(b.dataset.natpfController);
-        if (b.dataset.natpfView) this.engine.setViewMode(b.dataset.natpfView);
-      });
-    }
+    for (const box of document.querySelectorAll('[data-natpf-tiles="controller"]')) box.innerHTML = controllerTiles();
+    for (const box of document.querySelectorAll('[data-natpf-tiles="view"]')) box.innerHTML = viewTiles();
+    // pannello del Player 2: le stesse tessere, compatte
+    for (const box of document.querySelectorAll('[data-natpf-setup]')) box.innerHTML = `<p class="lobby-label">Racchetta</p><div class="lobby-tiles compact">${controllerTiles(true)}</div><p class="lobby-label">Visuale</p><div class="lobby-tiles compact lobby-tiles-2">${viewTiles(true)}</div>`;
+    document.addEventListener('click', e => {
+      const b = e.target.closest('[data-natpf-controller],[data-natpf-view]'); if (!b) return;
+      e.stopPropagation();
+      if (b.dataset.natpfController) this.selectController(b.dataset.natpfController);
+      if (b.dataset.natpfView) this.engine.setViewMode(b.dataset.natpfView);
+    });
   }
+  paintTiles(){
+    const mc = this.engine.motionController, state = { phone: this.phone, webcamActive: !!mc?.webcamActive };
+    for (const el of document.querySelectorAll('[data-tile-status]')){ const id = el.dataset.tileStatus; if (CONTROLLERS.some(c => c.id === id)) el.textContent = controllerStatus(id, state); }
+    for (const el of document.querySelectorAll('[data-natpf-controller="phone"]')) el.classList.toggle('ok', this.phone.ready);
+    const note = $('lobby-racket-note');
+    if (note) note.textContent = this.controller === 'phone' ? (this.phone.ready ? 'Telefono pronto: puoi andare avanti.' : 'Tocca di nuovo la tessera per vedere il QR e collegare il telefono.')
+      : this.controller === 'webcam' ? 'Il browser chiederà il permesso di usare la webcam all’inizio della partita.' : 'Mouse e tastiera restano attivi anche con telefono o webcam.';
+  }
+  // il gioco resta fermo mentre si leggono le istruzioni o si collega il telefono a partita in corso
+  _syncPause(){
+    const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden');
+    this.engine.natpfPaused = !!busy && !this.engine.autoPlayMode && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(this.engine.phase);
+  }
+  tick(){ this.lobby.tick(); }
+  feedback(e){ this.lobby.feedback(e); }
   selectController(id, { open = true } = {}){
     this.controller = id; store.set('controller', id);
     const hud = this.engine.hud, mc = this.engine.motionController;
-    for (const b of document.querySelectorAll('[data-natpf-controller]')) b.classList.toggle('selected', b.dataset.natpfController === id);
+    for (const b of document.querySelectorAll('[data-natpf-controller]')){ b.classList.toggle('selected', b.dataset.natpfController === id); b.setAttribute('aria-checked', String(b.dataset.natpfController === id)); }
     // Argon: inputMode «webcam» accende la webcam all'avvio della partita; telefono e mouse non la usano
     const inputMode = id === 'webcam' ? 'webcam' : id === 'phone' ? 'phone' : 'mouse';
     if (hud) hud.selectedInputMode = inputMode;
@@ -75,15 +89,16 @@ export class NatpfUi {
     if (id === 'webcam' && open) hud?.callbacks?.onSelectInputMode?.('webcam');
     if (id !== 'webcam' && mc?.webcamActive){ mc.disableWebcam(); hud?.updateMotionStatus?.({ webcamActive: false, phoneConnected: this.phone.ready }); }
     if (id === 'phone'){ this.phone.start().catch(err => this._warn(`Collegamento non disponibile (${err.message}).`)); if (open) this.openPhone(); }
+    this.paintTiles?.();
   }
   onViewChange(view){
-    for (const b of document.querySelectorAll('[data-natpf-view]')) b.classList.toggle('selected', b.dataset.natpfView === view);
+    for (const b of document.querySelectorAll('[data-natpf-view]')){ b.classList.toggle('selected', b.dataset.natpfView === view); b.setAttribute('aria-checked', String(b.dataset.natpfView === view)); }
     const label = $('natpf-view-label'); if (label) label.textContent = view === 'first' ? '1ª persona' : '3ª persona';
   }
   // Con lo smartphone scelto si entra in campo quando la racchetta è pronta (mouse e tastiera restano attivi).
   _bindStart(){
     $('btn-start-match')?.addEventListener('click', e => {
-      if (this.controller === 'phone' && !this.phone.ready){ e.stopImmediatePropagation(); this.openPhone({ beforeStart: true }); }
+      if (this.controller === 'phone' && !this.phone.ready){ e.stopImmediatePropagation(); this.openPhone({ after: () => $('btn-start-match')?.click() }); }
     }, true);
   }
 
@@ -99,15 +114,16 @@ export class NatpfUi {
   }
 
   /* ---------- pannello del telefono ---------- */
-  openPhone({ beforeStart = false } = {}){
-    this.beforeStart = beforeStart;
+  // after: cosa fare quando, con il telefono pronto, si chiude il pannello (iniziare la partita o il punto di prova)
+  openPhone({ after = null } = {}){
+    this.afterReady = after;
     this.phone.start().catch(err => this._warn(`Collegamento non disponibile (${err.message}).`));
-    show(this.modal); this.paintPhone();
+    show(this.modal); this.paintPhone(); this._syncPause();
   }
-  closePhone(){ show(this.modal, false); }
+  closePhone(){ show(this.modal, false); this._syncPause(); }
   _bindPhoneModal(){
     const on = (id, fn) => $(id)?.addEventListener('click', e => { e.stopPropagation(); fn(); });
-    on('natpf-phone-close', () => { this.closePhone(); if (this.beforeStart && this.phone.ready) $('btn-start-match')?.click(); });
+    on('natpf-phone-close', () => { const after = this.afterReady; this.afterReady = null; this.closePhone(); if (after && this.phone.ready) after(); });
     on('natpf-phone-confirm', () => this.phone.confirm());
     on('natpf-phone-retry', () => this.phone.retry());
     on('natpf-phone-invert', () => this.phone.invert());
@@ -166,7 +182,7 @@ export class NatpfUi {
     show($('natpf-phone-skipgrip'), step === 'impugna');
     show($('natpf-phone-recal'), step === 'pronto' || step === 'errore');
     show($('natpf-phone-forget'), p.connected);
-    $('natpf-phone-close').textContent = this.beforeStart && step === 'pronto' ? '🎾 Inizia la partita' : 'Torna al campo';
+    $('natpf-phone-close').textContent = this.afterReady && step === 'pronto' ? 'Continua ›' : this.engine.autoPlayMode ? 'Torna alla lobby' : 'Torna al campo';
 
     const local = /^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(location.hostname) && !new URLSearchParams(location.search).get('phone');
     this._warn(p.connected ? '' : local ? 'Il gioco è aperto da questo computer (localhost): un telefono vero non può raggiungerlo. Apri il gioco dall’indirizzo di rete in https (npm run dev:https) o da quello pubblicato.'

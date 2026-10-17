@@ -24,6 +24,7 @@
       })();
     </script>
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./natpf.css" />
   </head>
   <body>
     <div id="root" class="hidden" aria-hidden="true"></div>
@@ -136,6 +137,8 @@
                   title="Cycle Camera Angle (C)"
                 >
                   <span>Cam:</span><strong id="camera-mode-label">Rally</strong></button
+                ><button id="btn-natpf-help" class="hud-mini-btn" type="button" title="Come si gioca (H)" data-open-onboarding>
+                  <span>? Aiuto</span></button
                 ><button id="btn-natpf-view" class="hud-mini-btn" type="button" title="Prima o terza persona (V)">
                   <span>Vista:</span><strong id="natpf-view-label">3ª persona</strong></button
                 ><button
@@ -159,62 +162,81 @@
         </div>
       </div>
     </div>
-    <div id="title-modal" class="wii-modal-backdrop">
-      <div class="wii-title-card">
-        <div class="wii-logo-header">
-          <h1 class="argon-logo-title">
-            <span class="logo-word-argon">NATPF</span><span class="logo-word-tennis">Simulator</span>
-          </h1>
-          <div class="natpf-logo-sub">Nitto ATP Finals · gameplay Argon Tennis</div>
+    <!-- NATPF: lobby in stile console (src/natpf/natpf_lobby.js). Restano gli id e le classi che legge l'HUD di
+         Argon: #difficulty-mode-group/.wii-green-choice, #match-length-group, #btn-start-match, #setup-mii-*, .you-tag -->
+    <div id="title-modal" class="wii-modal-backdrop natpf-lobby" data-step="mode">
+      <header class="lobby-top">
+        <div class="lobby-brand">
+          <span class="lobby-mark">NATPF</span><span class="lobby-word">Simulator</span>
+          <small>Nitto ATP Finals · Torino</small>
         </div>
-        <div class="court-preview-diagram">
-          <div class="mini-court-turf">
-            <div class="mini-court-lines">
-              <div class="mini-net-line"></div>
-              <div class="mini-service-box top"></div>
-              <div class="mini-service-box bottom"></div>
-            </div>
-            <div class="court-slot-marker opponent-marker">
-              <canvas id="setup-mii-opponent" width="192" height="192"></canvas>
-              <div id="setup-opponent-label" class="slot-tag cpu-tag">Club AI</div>
-            </div>
-            <div class="court-slot-marker player-marker">
-              <canvas id="setup-mii-player" width="192" height="192"></canvas>
-              <div class="slot-tag you-tag">You</div>
-            </div>
-          </div>
-        </div>
-        <div class="setup-section">
-          <div class="wii-green-btn-row" id="difficulty-mode-group">
-            <button type="button" class="wii-green-choice selected" data-difficulty="casual">
-              <span class="choice-main">Casual AI</span></button
-            ><button type="button" class="wii-green-choice" data-difficulty="pro">
-              <span class="choice-main">Pro AI</span></button
-            ><button type="button" class="wii-green-choice" data-difficulty="1v1">
-              <span class="choice-main">1v1 Match</span>
+        <nav class="lobby-steps" aria-label="Passi della lobby">
+          <button type="button" data-goto="mode"><b>1</b>Partita</button
+          ><button type="button" data-goto="racket"><b>2</b>Racchetta</button
+          ><button type="button" data-goto="view"><b>3</b>Visuale</button>
+        </nav>
+        <button type="button" id="lobby-help" class="lobby-ghost" title="Come si gioca (H)">
+          <span aria-hidden="true">?</span> Come si gioca
+        </button>
+      </header>
+
+      <main class="lobby-stage">
+        <section class="lobby-page" data-page="mode" aria-labelledby="lobby-t-mode">
+          <h2 class="lobby-title" id="lobby-t-mode">Scegli la partita</h2>
+          <div class="lobby-tiles" id="difficulty-mode-group" role="radiogroup">
+            <button type="button" class="wii-green-choice lobby-tile selected" data-difficulty="casual" role="radio">
+              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" /><path d="M11 18c8 3 18 3 26 0M11 30c8-3 18-3 26 0" /></svg>
+              <span class="tile-name">Contro la CPU</span><span class="tile-tag">Facile</span>
+              <span class="tile-desc">Scambi lunghi e palle comode, per imparare</span>
+            </button
+            ><button type="button" class="wii-green-choice lobby-tile" data-difficulty="pro" role="radio">
+              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M16 9h16v9a8 8 0 0 1-16 0zM16 13H9a6 6 0 0 0 7 8M32 13h7a6 6 0 0 1-7 8M24 26v8M17 39h14" /></svg>
+              <span class="tile-name">Contro la CPU</span><span class="tile-tag">Esperta</span>
+              <span class="tile-desc">Avversario veloce, colpi angolati</span>
+            </button
+            ><button type="button" class="wii-green-choice lobby-tile" data-difficulty="1v1" role="radio">
+              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="16" cy="16" r="6" /><circle cx="32" cy="16" r="6" /><path d="M6 38c1-8 6-12 10-12s9 4 10 12M22 38c1-8 6-12 10-12s9 4 10 12" /></svg>
+              <span class="tile-name">Sfida un amico</span><span class="tile-tag">1v1</span>
+              <span class="tile-desc">Due computer, ognuno dal proprio lato del campo</span>
             </button>
           </div>
-        </div>
-        <div class="setup-section" id="match-length-section">
-          <div class="wii-green-btn-row" id="match-length-group">
-            <button type="button" class="wii-green-choice" data-games="1">
-              <span class="choice-main">1 Game</span></button
-            ><button type="button" class="wii-green-choice selected" data-games="3">
-              <span class="choice-main">Best of 3</span></button
-            ><button type="button" class="wii-green-choice" data-games="5">
-              <span class="choice-main">Best of 5</span>
-            </button>
+          <div class="lobby-row" id="match-length-section">
+            <span class="lobby-label">Durata</span>
+            <div class="lobby-seg" id="match-length-group">
+              <button type="button" class="wii-green-choice" data-games="1"><span class="choice-main">1 game</span></button
+              ><button type="button" class="wii-green-choice selected" data-games="3"><span class="choice-main">Al meglio di 3</span></button
+              ><button type="button" class="wii-green-choice" data-games="5"><span class="choice-main">Al meglio di 5</span></button>
+            </div>
           </div>
-        </div>
-        <!-- NATPF: racchetta (smartphone, webcam o mouse/tastiera) e visuale; costruiti da src/natpf/natpf_ui.js -->
-        <div class="setup-section natpf-setup" data-natpf-setup></div>
-        <div id="natpf-invite" class="natpf-invite hidden" aria-live="polite"></div>
-        <div class="wii-modal-actions">
-          <button id="btn-start-match" type="button" class="wii-ok-btn">
-            <span class="hand-cursor-icon">🎾</span><span>Start Match</span>
-          </button>
-        </div>
-      </div>
+          <div id="natpf-invite" class="natpf-invite hidden" aria-live="polite"></div>
+          <div class="lobby-versus" aria-hidden="true">
+            <div class="versus-side"><canvas id="setup-mii-player" width="192" height="192"></canvas><span class="slot-tag you-tag">Tu</span></div>
+            <span class="versus-vs">VS</span>
+            <div class="versus-side"><canvas id="setup-mii-opponent" width="192" height="192"></canvas><span id="setup-opponent-label" class="slot-tag cpu-tag">Club AI</span></div>
+          </div>
+        </section>
+
+        <section class="lobby-page" data-page="racket" aria-labelledby="lobby-t-racket">
+          <h2 class="lobby-title" id="lobby-t-racket">Con cosa colpisci?</h2>
+          <div class="lobby-tiles" data-natpf-tiles="controller" role="radiogroup"></div>
+          <p class="lobby-note" id="lobby-racket-note"></p>
+        </section>
+
+        <section class="lobby-page" data-page="view" aria-labelledby="lobby-t-view">
+          <h2 class="lobby-title" id="lobby-t-view">Da dove guardi il campo?</h2>
+          <div class="lobby-tiles lobby-tiles-2" data-natpf-tiles="view" role="radiogroup"></div>
+          <div id="lobby-practice-result" class="lobby-result hidden" aria-live="polite"></div>
+          <p class="lobby-note">Prima di giocare puoi fare un <b>punto di prova</b> guidato: non conta per il punteggio.</p>
+        </section>
+      </main>
+
+      <footer class="lobby-bottom">
+        <button type="button" id="lobby-back" class="lobby-ghost">‹ Indietro</button>
+        <span class="lobby-keys" aria-hidden="true">← → scegli · Invio avanti · Esc indietro · H aiuto</span>
+        <button type="button" id="lobby-practice" class="lobby-secondary">Punto di prova</button
+        ><button type="button" id="lobby-next" class="lobby-primary">Avanti ›</button
+        ><button id="btn-start-match" type="button" class="lobby-primary"><span>Gioca</span> ›</button>
+      </footer>
     </div>
     <div id="companion-modal" class="wii-modal-backdrop hidden">
       <div class="wii-dialog-box wii-companion-clean-dialog">
@@ -290,11 +312,11 @@
       </div>
     </div>
     <!-- NATPF: smartphone come racchetta (QR, impugnatura, calibrazione di NATPF Simulator) -->
-    <div id="natpf-phone-modal" class="wii-modal-backdrop hidden" role="dialog" aria-labelledby="natpf-phone-title">
-      <div class="wii-dialog-box natpf-phone-dialog">
-        <div class="mp-dialog-header">
-          <h2 class="dialog-title" id="natpf-phone-title">📱 Smartphone come racchetta</h2>
-          <span id="natpf-phone-tag" class="mp-conn-tag">Scansiona il QR</span>
+    <div id="natpf-phone-modal" class="wii-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="natpf-phone-title">
+      <div class="natpf-sheet natpf-phone-dialog">
+        <div class="sheet-head">
+          <div><p class="sheet-kicker">Racchetta · smartphone NATPF</p><h2 class="sheet-title" id="natpf-phone-title">Collega il telefono</h2></div>
+          <span id="natpf-phone-tag" class="sheet-tag">Scansiona il QR</span>
         </div>
         <ol class="natpf-steps" id="natpf-phone-steps">
           <li data-s="collega">Collega</li><li data-s="impugna">Impugna</li><li data-s="prova">Prova</li
@@ -303,7 +325,7 @@
         <div class="natpf-phone-body">
           <div class="natpf-qr-col">
             <div id="natpf-qr" class="natpf-qr"></div>
-            <a id="natpf-phone-link" class="mp-subtle-link" target="_blank" rel="noopener">Apri il link del controller ↗</a>
+            <a id="natpf-phone-link" class="sheet-link" target="_blank" rel="noopener">Apri il link del controller ↗</a>
           </div>
           <div class="natpf-phone-info">
             <svg class="natpf-grip" viewBox="0 0 120 150" aria-label="Telefono in verticale nel palmo, schermo verso il palmo, come il manico di una racchetta">
@@ -318,27 +340,57 @@
           </div>
         </div>
         <p id="natpf-phone-warn" class="natpf-warn hidden"></p>
-        <div class="dialog-actions natpf-actions">
-          <button id="natpf-phone-confirm" type="button" class="wii-pill-btn natpf-primary hidden">Conferma la racchetta</button
-          ><button id="natpf-phone-retry" type="button" class="wii-pill-btn hidden">Rifai i gesti</button
-          ><button id="natpf-phone-invert" type="button" class="wii-pill-btn hidden">Inverti direzioni</button
-          ><button id="natpf-phone-skipgrip" type="button" class="wii-pill-btn hidden">Salta l'impugnatura</button
-          ><button id="natpf-phone-recal" type="button" class="wii-pill-btn hidden">Ricalibra</button
-          ><button id="natpf-phone-forget" type="button" class="wii-pill-btn hidden">Scollega</button
-          ><button id="natpf-phone-close" type="button" class="wii-pill-btn">Torna al campo</button>
+        <div class="sheet-actions natpf-actions">
+          <button id="natpf-phone-confirm" type="button" class="lobby-primary hidden">Conferma la racchetta</button
+          ><button id="natpf-phone-retry" type="button" class="lobby-ghost hidden">Rifai i gesti</button
+          ><button id="natpf-phone-invert" type="button" class="lobby-ghost hidden">Inverti direzioni</button
+          ><button id="natpf-phone-skipgrip" type="button" class="lobby-ghost hidden">Salta l'impugnatura</button
+          ><button id="natpf-phone-recal" type="button" class="lobby-ghost hidden">Ricalibra</button
+          ><button id="natpf-phone-forget" type="button" class="lobby-ghost hidden">Scollega</button
+          ><button id="natpf-phone-close" type="button" class="lobby-secondary">Torna al campo</button>
         </div>
       </div>
     </div>
     <!-- NATPF: Player 2 che entra da un link di invito sceglie racchetta e visuale -->
-    <div id="natpf-guest-modal" class="wii-modal-backdrop hidden" role="dialog">
-      <div class="wii-dialog-box natpf-guest-dialog">
-        <h2 class="dialog-title">🎾 Partita 1v1 · Player 2</h2>
-        <p class="dialog-desc">Scegli come colpire e da dove guardare il campo. Puoi cambiare in qualsiasi momento.</p>
-        <div class="setup-section natpf-setup" data-natpf-setup></div>
-        <div class="dialog-actions">
-          <button id="natpf-guest-go" type="button" class="wii-ok-btn"><span class="hand-cursor-icon">🎾</span><span>Entra in campo</span></button>
+    <div id="natpf-guest-modal" class="wii-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="natpf-guest-title">
+      <div class="natpf-sheet natpf-guest-dialog">
+        <p class="sheet-kicker">Sfida un amico · 1v1</p>
+        <h2 class="sheet-title" id="natpf-guest-title">Sei il Player 2</h2>
+        <p class="sheet-desc">Scegli come colpire e da dove guardare il campo. Puoi cambiare in qualsiasi momento.</p>
+        <div class="natpf-setup" data-natpf-setup></div>
+        <div class="sheet-actions">
+          <button type="button" class="lobby-ghost" data-open-onboarding>Come si gioca</button
+          ><button id="natpf-guest-go" type="button" class="lobby-primary">Entra in campo ›</button>
         </div>
       </div>
+    </div>
+    <!-- NATPF: onboarding guidato (src/natpf/natpf_onboarding.js) -->
+    <div id="natpf-onboarding" class="wii-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="onb-title">
+      <div class="natpf-sheet natpf-onboarding">
+        <div class="onb-head">
+          <p class="sheet-kicker" id="onb-count">Come si gioca · 1 di 5</p>
+          <div class="onb-ctrl" role="group" aria-label="Istruzioni per"></div>
+        </div>
+        <div class="onb-body">
+          <div class="onb-art" id="onb-art" aria-hidden="true"></div>
+          <div class="onb-text">
+            <h2 class="sheet-title" id="onb-title"></h2>
+            <div id="onb-copy" class="onb-copy"></div>
+          </div>
+        </div>
+        <div class="onb-dots" id="onb-dots"></div>
+        <div class="sheet-actions">
+          <button type="button" class="lobby-ghost" id="onb-skip">Salta</button
+          ><button type="button" class="lobby-ghost" id="onb-prev">‹ Indietro</button
+          ><button type="button" class="lobby-secondary hidden" id="onb-practice">Punto di prova</button
+          ><button type="button" class="lobby-primary" id="onb-next">Avanti ›</button>
+        </div>
+      </div>
+    </div>
+    <!-- NATPF: allenatore del punto di prova (src/natpf/natpf_lobby.js) -->
+    <div id="natpf-coach" class="natpf-coach hidden" aria-live="polite">
+      <span class="coach-kicker">Punto di prova</span><b id="coach-text"></b><small id="coach-sub"></small>
+      <button type="button" id="coach-exit" class="lobby-ghost">Esci</button>
     </div>
     <script type="module">
       import { renderAllHudMiiAvatars } from "./src/mii_avatars.js";

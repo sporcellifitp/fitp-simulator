@@ -663,7 +663,9 @@ export class ArgonTennisEngine {
     const mc = this.motionController;
     if (mc && mc.triggerHapticFeedback) {
       const haptic = mc.triggerHapticFeedback.bind(mc);
-      mc.triggerHapticFeedback = (e = {}) => (haptic(e), this.natpfPhone.feedback(e));
+      mc.triggerHapticFeedback = (e = {}) => (
+        haptic(e), this.natpfPhone.feedback(e), this.natpfUi && this.natpfUi.feedback && this.natpfUi.feedback(e)
+      );
     }
   }
   // NATPF: prima o terza persona, ricordata nel browser
@@ -779,7 +781,8 @@ export class ArgonTennisEngine {
     const c = () => {
       requestAnimationFrame(c);
       const y = Math.min(this.clock.getDelta(), 0.08);
-      this.update(y), this.render();
+      // NATPF: partita ferma mentre si leggono le istruzioni o si collega il telefono
+      this.natpfPaused || this.update(y), this.render();
     };
     requestAnimationFrame(c);
   }
@@ -2891,6 +2894,7 @@ export class ArgonTennisEngine {
   // NATPF: arena (pubblico, LED), telefono e corpo nascosto in prima persona, a ogni fotogramma
   _updateNatpf(e) {
     this.natpfArena.update(this.elapsedTime, this.cheerEnergy), this.natpfPhone && this.natpfPhone.update();
+    this.natpfUi && this.natpfUi.tick && this.natpfUi.tick(e);
     const t = this._isFirstPersonActive() ? this.localActor : null;
     t !== this.fpBodyActor &&
       (this.fpBodyActor && setFirstPersonBody(this.fpBodyActor, !1),

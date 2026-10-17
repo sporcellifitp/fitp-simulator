@@ -116,6 +116,17 @@ che servono (`scripts/natpf-site-plugin.mjs`).
   Sudore ed emoticon del giocatore locale sono spenti. La scelta vale per prima persona, terza persona di Argon e
   camere manuali (C), e il browser la ricorda.
 
+## Menu e onboarding (17 ottobre 2026, branch `feature/natpf-argon-lobby`)
+
+Il menu di Argon è diventato una **lobby in stile console**, scelta dall'utente fra tre proposte (A Broadcast TV,
+B Lobby console, C Editoriale FITP). Ha un aspetto proprio, con colori NATPF (blu notte, giallo palla, rosa),
+angoli tagliati, tipografia condensata e una scelta per schermata. Gli id letti dall'HUD di Argon
+(`#difficulty-mode-group`, `#match-length-group`, `#btn-start-match`, `#setup-mii-*`) restano, quindi
+difficoltà, durata, stanza 1v1 e avvio sono quelli di Argon. In più ci sono un onboarding guidato in cinque passi,
+che si adatta a smartphone, webcam o mouse/tastiera, e un punto di prova con allenatore che non conta per il
+punteggio. Lo stesso stile vale per il collegamento del telefono e per il pannello del Player 2. HUD di gioco e
+schermata di vittoria restano quelli di Argon.
+
 ## Verifiche fatte (17 ottobre 2026)
 
 | Verifica | Esito |

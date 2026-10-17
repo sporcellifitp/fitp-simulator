@@ -17,6 +17,21 @@ Primo MVP che unisce il **gameplay di Argon Tennis** con l'**ambientazione delle
 
 Analisi, architettura, verifiche e limiti: [../docs/NATPF_ARGON_MVP.md](../docs/NATPF_ARGON_MVP.md).
 
+## Menu, onboarding e punto di prova
+
+- **Lobby in stile console** (diversa dal menu di Argon) sopra l'arena, una scelta per schermata:
+  **1 Partita** (CPU facile, CPU esperta, sfida un amico; durata), **2 Racchetta** (smartphone, webcam,
+  mouse/tastiera, con lo stato di ognuna), **3 Visuale** (terza o prima persona), poi **Gioca**. Si naviga
+  anche con la tastiera: ← → scegli, Invio avanti, Esc indietro, H aiuto.
+- **Come si gioca**: cinque passi (presa, giocatore che corre da solo, servizio, colpi, tempo giusto), con le
+  istruzioni della racchetta scelta. Si apre da solo la prima volta e poi con «Come si gioca», con il pulsante
+  «Aiuto» durante la partita o con **H**. A partita in corso, mentre è aperto, il gioco resta in pausa.
+- **Punto di prova**: un punto contro la CPU facile che non conta per il punteggio, con un allenatore che dice
+  cosa fare («Servi tu», «Colpisci adesso, mentre è in alto», «Colpisci ora!») e com'è andato il colpo; alla
+  fine torna alla lobby con il riepilogo e il pulsante «Riprova».
+
+Codice: `src/natpf/natpf_lobby.js`, `natpf_onboarding.js`, `natpf_tiles.js`, stili in `natpf.css`.
+
 ## Avvio
 
 Serve Node.js 20 o più recente. La cartella `../site` del repository deve esserci, perché è da lì che
@@ -33,7 +48,7 @@ cosa che `npm run build` fa da solo.
 
 ### Smartphone come racchetta
 
-1. Nel menu scegli **Racchetta → 📱 Smartphone**: compare il QR.
+1. Nella lobby, al passo **2 Racchetta**, scegli **Smartphone**: compare il QR.
 2. Inquadralo con il telefono, tocca «Attiva i sensori» e segui i passi: impugna, prova, verifica, pronto.
 3. **Impugnatura**: telefono in verticale nel palmo, schermo verso il palmo, come il manico di una racchetta.
    Bastano quattro gesti comodi; poi una prova libera e «Conferma la racchetta».
@@ -55,7 +70,7 @@ Il collegamento passa da WebRTC con il server di segnalazione pubblico di PeerJS
 
 ### 1v1 tra due computer
 
-Scegli **1v1 Match** nel menu: il gioco crea una stanza e mostra il link per il Player 2
+Scegli **Sfida un amico** nella lobby: il gioco crea una stanza e mostra il link per il Player 2
 (`/?room=AT-XXXX&role=p2`). Il P2 sceglie racchetta e visuale e vede il campo dal proprio lato. La partita gira
 sul computer di P1 (host); lo stato e i colpi di P2 passano dal relay di Argon, che vive nel server Vite
 (`npm run dev` o `npm run preview`). Su un sito solo statico il 1v1 tra computer non è disponibile.
