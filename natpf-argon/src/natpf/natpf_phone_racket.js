@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import { createPhoneLink, testSearch } from '@natpf/tennis/link.js';
 import { pairingUrl } from '@natpf/tennis/pairing.js';
 import { gestureAim } from '@natpf/match/shot-quality.js';
+import { lanOrigin } from './natpf_lan.js';
 
 const NATPF_BASE = '/natpf/';
 const scripts = new Map();
@@ -24,10 +25,11 @@ const loadScript = src => scripts.get(src) || scripts.set(src, new Promise((reso
 
 // Pagina del telefono: stessa origine, oppure un'altra in https (?phone=https://…/tennis/racchetta.html o
 // VITE_NATPF_PHONE_PAGE) quando il gioco è aperto in http sulla LAN e il telefono ha bisogno di https per i sensori.
-export function phonePageUrl(location = window.location){
+// origin: indirizzo di rete del computer quando il gioco è aperto da localhost sul server LAN (natpf_lan.js).
+export function phonePageUrl(location = window.location, origin = null){
   const fromQuery = new URLSearchParams(location.search).get('phone');
   const fromEnv = import.meta.env?.VITE_NATPF_PHONE_PAGE;
-  return fromQuery || fromEnv || new URL(`${NATPF_BASE}tennis/racchetta.html`, location.origin).href;
+  return fromQuery || fromEnv || new URL(`${NATPF_BASE}tennis/racchetta.html`, origin || location.origin).href;
 }
 
 // Swing NATPF → swing Argon. dir NATPF: +1 da destra a sinistra (dritto per un destro), -1 da sinistra a destra.
@@ -81,7 +83,7 @@ export class NatpfPhoneRacket {
   get connected(){ return !!this.link?.connected; }
   get ready(){ return !!this.link?.ready; }
   get state(){ return this.link?.L || { state: 'off', phone: null }; }
-  get pairingUrl(){ return this.link ? pairingUrl(phonePageUrl(), testSearch(), this.link.session, this.link.token) : null; }
+  get pairingUrl(){ return this.link ? pairingUrl(phonePageUrl(window.location, this.lanOrigin), testSearch(), this.link.session, this.link.token) : null; }
   onChange(fn){ this.listeners.add(fn); return () => this.listeners.delete(fn); }
   _changed(){ for (const fn of this.listeners) try { fn(this); } catch (e){ console.error(e); } }
 
@@ -90,6 +92,8 @@ export class NatpfPhoneRacket {
     // librerie di NATPF (PeerJS per WebRTC, generatore di QR) dalla cartella del sito
     if (!window.Peer) await loadScript(`${NATPF_BASE}js/vendor/peerjs.min.js`);
     if (!window.qrcode) await loadScript(`${NATPF_BASE}js/vendor/qrcode.js`).catch(() => {});
+    // server LAN aperto da localhost: nel QR va l'indirizzo di rete del computer
+    this.lanOrigin = await lanOrigin();
     const link = this.link = createPhoneLink();
     link.on('change', () => { this._syncPhoneState(); this._changed(); });
     link.on('cal', e => this._onCal(e));

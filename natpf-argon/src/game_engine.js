@@ -2856,6 +2856,12 @@ export class ArgonTennisEngine {
         accelMag: Number(this.motionController.phoneState.accelMag) || 0,
       };
     }
+    // NATPF: webcam → posa continua della mano sulla racchetta e sul braccio del giocatore locale (prima e terza
+    // persona), come l'inclinazione del telefono; i colpi restano quelli di Argon (src/natpf/webcam_hand_pose.js)
+    !i &&
+      this.motionController?.webcamActive &&
+      ((this.playerRole !== "p2" && e === this.player) || (this.playerRole === "p2" && e === this.opponent)) &&
+      (i = this.motionController.webcamLiveInput());
     if (this.racketKinematics) {
       let a = t;
       if (this.phase === "SHOWCASE" && e === this.player && e.racketKinematics) {

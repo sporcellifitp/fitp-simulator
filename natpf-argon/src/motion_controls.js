@@ -1,3 +1,8 @@
+// NATPF: posa continua della mano dalla webcam (racchetta e braccio), vedi src/natpf/webcam_hand_pose.js
+import { WebcamHandTracker, handPoseFromLandmarks, handPoseFromFlow } from "./natpf/webcam_hand_pose.js";
+// NATPF: MediaPipe Hands dal pacchetto offline (npm @mediapipe/hands, servito sotto /assets/); CDN fissato solo di riserva
+export const MEDIAPIPE_LOCAL_BASE = "/assets/mediapipe/hands/";
+export const MEDIAPIPE_CDN_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/";
 export class MotionController {
   constructor(e = {}) {
     (this.onSwing = typeof e.onSwing == "function" ? e.onSwing : null),
@@ -27,6 +32,7 @@ export class MotionController {
       (this.smoothedCentroid = { x: 0.5, y: 0.5 }),
       (this.motionVector = { vx: 0, vy: 0, mag: 0 }),
       (this.lastWebcamTriggerMs = 0),
+      (this.handTracker = new WebcamHandTracker()),
       (this.phonePollIntervalMs = e.phonePollIntervalMs || 50),
       (this.phonePollTimer = null),
       (this.phoneState = {
@@ -354,14 +360,17 @@ export class MotionController {
           document.head.appendChild(n);
       });
     try {
-      if (
-        (window.Hands || (await e("https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js")), window.Hands)
-      ) {
+      // NATPF: prima i file locali (LAN/offline), poi la stessa versione dal CDN; se mancano entrambi resta l'optical flow
+      let base = this.mediapipeBase || MEDIAPIPE_LOCAL_BASE;
+      if (!window.Hands)
+        try {
+          await e(`${MEDIAPIPE_LOCAL_BASE}hands.js`), (base = MEDIAPIPE_LOCAL_BASE);
+        } catch {
+          await e(`${MEDIAPIPE_CDN_BASE}hands.js`), (base = MEDIAPIPE_CDN_BASE);
+        }
+      if (((this.mediapipeBase = base), window.Hands)) {
         const t = new window.Hands({
-          locateFile: (i) =>
-            i.endsWith(".js")
-              ? `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${i}`
-              : `/assets/mediapipe/hands/${i}`,
+          locateFile: (i) => `${base}${i}`,
         });
         t.setOptions({
           maxNumHands: 2,
@@ -414,6 +423,7 @@ export class MotionController {
         (this.hasPrevFrame = !1),
         (this.latestHandLandmarks = null),
         (this._mpBusy = !1),
+        this.handTracker.reset(),
         this._ensureMediaPipeHands(),
         this._notifyStatus({ webcam: !0, phone: this.phoneState.connected }),
         this._updateWebcamBadgeUI(!0),
@@ -437,6 +447,10 @@ export class MotionController {
       (this.latestHandLandmarks = null),
       this._notifyStatus({ webcam: !1, phone: this.phoneState.connected }),
       this._updateWebcamBadgeUI(!1);
+  }
+  // NATPF: posa della mano per la racchetta (liveInput), null se la webcam è spenta o la mano non si vede
+  webcamLiveInput(e = performance.now()) {
+    return this.webcamActive ? this.handTracker.sample(e) : null;
   }
   async toggleWebcam() {
     return this.webcamActive ? (this.disableWebcam(), !1) : this.enableWebcam();
@@ -468,7 +482,8 @@ export class MotionController {
           this.smoothedCentroid.y = _,
           (!this._webcamTrail || this._lastWebcamSource !== "mediapipe") && (this._webcamTrail = []),
           this._lastWebcamSource = "mediapipe",
-          this._webcamTrail.push({ x: S, y: _, t: e });
+          this._webcamTrail.push({ x: S, y: _, t: e }),
+          this.handTracker.push(handPoseFromLandmarks(c), e);
         this._webcamTrail.length > 5 || (this._webcamTrail.length > 2 && e - this._webcamTrail[0].t > 160);
 
       )
@@ -543,7 +558,8 @@ export class MotionController {
           this.smoothedCentroid.y = this.smoothedCentroid.y * 0.35 + b * 0.65,
           (!this._webcamTrail || this._lastWebcamSource !== "flow") && (this._webcamTrail = []),
           this._lastWebcamSource = "flow",
-          this._webcamTrail.push({ x: this.smoothedCentroid.x, y: this.smoothedCentroid.y, t: e });
+          this._webcamTrail.push({ x: this.smoothedCentroid.x, y: this.smoothedCentroid.y, t: e }),
+          this.handTracker.push(handPoseFromFlow(this.smoothedCentroid), e);
         this._webcamTrail.length > 5 || (this._webcamTrail.length > 2 && e - this._webcamTrail[0].t > 160);
 
       )

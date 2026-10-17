@@ -2,6 +2,7 @@
 // mouse/tastiera di Argon) e della visuale, pannello di collegamento del telefono con le fasi della calibrazione
 // NATPF (collega → impugna → prova → verifica → pronto), invito del Player 2 per il 1v1 tra due computer.
 // I testi del collegamento seguono quelli di site/js/tennis/main.js.
+import { guestInviteUrl } from './natpf_lan.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -88,12 +89,12 @@ export class NatpfUi {
   }
 
   /* ---------- invito del Player 2 (1v1 tra due computer, relay di Argon) ---------- */
-  onRoomCreated(room){
+  async onRoomCreated(room){
     const box = $('natpf-invite'); if (!box || !room?.roomId) return;
-    const url = new URL(`/?room=${encodeURIComponent(room.roomId)}&role=p2`, location.origin).href;
-    const local = /^(localhost|127\.|\[::1\])/.test(location.hostname);
+    // in LAN (lan/server.mjs) l'indirizzo di rete del computer al posto di localhost, con ?lan=1 (natpf_lan.js)
+    const { url, reachable } = await guestInviteUrl(room.roomId);
     box.innerHTML = `<b>Player 2</b>: apri sull'altro computer <a href="${url}" target="_blank" rel="noopener">${url}</a> <button type="button" class="wii-pill-btn" data-copy>Copia</button>
-      ${local ? '<small>Il gioco è aperto da localhost: per un altro computer usa l’indirizzo di rete mostrato da Vite (es. http://192.168.x.x:3000).</small>' : ''}`;
+      ${!reachable ? '<small>Il gioco è aperto da localhost: per un altro computer usa l’indirizzo di rete (avvia-lan.cmd lo mostra, es. https://192.168.x.x:8443).</small>' : ''}`;
     box.querySelector('[data-copy]')?.addEventListener('click', ev => { ev.stopPropagation(); navigator.clipboard?.writeText(url).then(() => { ev.target.textContent = 'Copiato ✓'; }).catch(() => {}); });
     show(box);
   }
@@ -168,7 +169,7 @@ export class NatpfUi {
     show($('natpf-phone-forget'), p.connected);
     $('natpf-phone-close').textContent = this.beforeStart && step === 'pronto' ? '🎾 Inizia la partita' : 'Torna al campo';
 
-    const local = /^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(location.hostname) && !new URLSearchParams(location.search).get('phone');
+    const local = /^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(location.hostname) && !new URLSearchParams(location.search).get('phone') && !p.lanOrigin;
     this._warn(p.connected ? '' : local ? 'Il gioco è aperto da questo computer (localhost): un telefono vero non può raggiungerlo. Apri il gioco dall’indirizzo di rete in https (npm run dev:https) o da quello pubblicato.'
       : location.protocol !== 'https:' ? 'Questa pagina non è in https: sul telefono i sensori di movimento non funzioneranno. Usa npm run dev:https in LAN o l’indirizzo pubblicato.' : '');
   }

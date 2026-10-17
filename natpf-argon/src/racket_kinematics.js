@@ -599,6 +599,9 @@ export class RacketKinematicsController {
         mouseVelX: p(d, -6, 6),
         mouseVelY: p(S, -6, 6),
         accelMag: p(a, 0, 8),
+        // NATPF: spostamento della mano vista dalla webcam (metri, riferimento del giocatore)
+        handOffsetX: p(Number(o.handOffsetX ?? 0) || 0, -0.3, 0.3),
+        handOffsetY: p(Number(o.handOffsetY ?? 0) || 0, -0.3, 0.3),
       }
     );
   }
@@ -682,6 +685,8 @@ export class RacketKinematicsController {
       ),
       te = this.posSpringStiffness,
       ne = this.posSpringDamping;
+    // NATPF: la mano reale (webcam) sposta polso e racchetta, oltre le piccole oscillazioni di Argon
+    (B.x += a.handOffsetX), (B.y += a.handOffsetY);
     (t.wristSpringVel.x += ((B.x - t.wristSpringPos.x) * te - t.wristSpringVel.x * ne) * s),
       (t.wristSpringVel.y += ((B.y - t.wristSpringPos.y) * te - t.wristSpringVel.y * ne) * s),
       (t.wristSpringVel.z += ((B.z - t.wristSpringPos.z) * te - t.wristSpringVel.z * ne) * s),
