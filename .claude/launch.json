@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "natpf-argon-musica",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd natpf-argon && npx vite --port=3107 --host=127.0.0.1 --strictPort"],
+      "port": 3107
+    }
+  ]
+}

@@ -35,9 +35,10 @@ export class AudioEngine {
     const s = () => {
       this.unlock();
     };
-    window.addEventListener("pointerdown", s, { passive: !0 }),
-      window.addEventListener("keydown", s, { passive: !0 }),
-      window.addEventListener("touchstart", s, { passive: !0 }),
+    // in cattura: la lobby ferma la propagazione dei clic e dei tasti, ma il primo gesto deve sbloccare l'audio
+    window.addEventListener("pointerdown", s, { passive: !0, capture: !0 }),
+      window.addEventListener("keydown", s, { passive: !0, capture: !0 }),
+      window.addEventListener("touchstart", s, { passive: !0, capture: !0 }),
       // la lobby riaperta (anche dal «Menu» della vittoria) riporta il suo brano
       window.addEventListener("natpf:lobby", () => this.playMusicForState("title"));
   }
