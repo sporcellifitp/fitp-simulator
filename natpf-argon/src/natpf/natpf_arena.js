@@ -1,0 +1,48 @@
+// Arena delle Nitto ATP Finals di NATPF Simulator dentro la scena di Argon Tennis.
+// L'arena è quella di site/js/tennis/arena.js, usata così com'è: stesse coordinate di Argon (campo centrato
+// nell'origine, lunghezza lungo z, misure ITF), quindi tabelloni, sponsor, tribune, cubo e stendardi restano
+// nella disposizione originale. È simmetrica: ognuno dei due giocatori la vede dal proprio lato, con lo
+// stesso orientamento di gioco (la camera di P2 è già specchiata da Argon).
+import * as THREE from 'three';
+import { buildArena } from '@natpf/tennis/arena.js';
+
+// Luci e atmosfera di site/js/tennis/scene.js (palazzetto al chiuso in luce blu).
+const NATPF_LIGHTS = {
+  background: 0x040a1c, fog: [0x061033, 45, 120],
+  hemi: { sky: 0x5770e0, ground: 0x060a24, intensity: .95 },
+  key: { color: 0xeef3ff, intensity: 2.2, position: [4, 30, 8] },
+  fill: { color: 0x3355ff, intensity: .8, position: [-20, 12, -10] },
+};
+// I personaggi di Argon sono pensati per il sole: un po' di luce in più sul campo li tiene leggibili.
+const CHARACTER_LIFT = { hemi: 1.25, key: 1.12 };
+
+export function installNatpfArena(engine, { quality = 1 } = {}){
+  const scene = engine.scene;
+  // all'aperto → al chiuso: cielo, nuvole e orizzonte di Argon fuori dalla scena
+  for (const key of ['skyDome', 'cloudRing1', 'cloudRing2', 'horizonRing']) if (engine[key]) scene.remove(engine[key]);
+  scene.background = new THREE.Color(NATPF_LIGHTS.background);
+  scene.fog = new THREE.Fog(...NATPF_LIGHTS.fog);
+
+  const lights = scene.children.filter(o => o.isLight);
+  const hemi = lights.find(l => l.isHemisphereLight);
+  if (hemi){ hemi.color.setHex(NATPF_LIGHTS.hemi.sky); hemi.groundColor.setHex(NATPF_LIGHTS.hemi.ground); hemi.intensity = NATPF_LIGHTS.hemi.intensity*CHARACTER_LIFT.hemi; }
+  if (engine.sunLight){
+    const s = engine.sunLight; s.color.setHex(NATPF_LIGHTS.key.color); s.intensity = NATPF_LIGHTS.key.intensity*CHARACTER_LIFT.key;
+    s.position.set(...NATPF_LIGHTS.key.position);
+    Object.assign(s.shadow.camera, { left: -14, right: 14, top: 24, bottom: -24, near: 5, far: 60 }); s.shadow.normalBias = .02; s.shadow.camera.updateProjectionMatrix();
+  }
+  const fill = lights.find(l => l.isDirectionalLight && l !== engine.sunLight);
+  if (fill){ fill.color.setHex(NATPF_LIGHTS.fill.color); fill.intensity = NATPF_LIGHTS.fill.intensity; fill.position.set(...NATPF_LIGHTS.fill.position); }
+
+  const arena = buildArena(scene, { quality });
+  let lastScore = '', lastSpeed = null;
+  return {
+    arena,
+    // Lo stadio, la rete e il pubblico GLB di Argon restano caricati ma non visibili: l'arena NATPF ha i suoi.
+    adoptArgonStadium({ stadium, net, crowd } = {}){ for (const o of [stadium, net, crowd]) if (o) o.visible = false; },
+    // tifo di Argon (0,22…1) → salto del pubblico NATPF (0…1)
+    update(time, cheerEnergy = 0){ arena.update(time, Math.max(0, Math.min(1, (cheerEnergy - .22)/.78))); },
+    setScore(text){ const t = String(text || '').slice(0, 7); if (t !== lastScore){ lastScore = t; arena.setScore(t); } },
+    setSpeed(kmh){ if (Number.isFinite(kmh) && kmh !== lastSpeed){ lastSpeed = kmh; arena.setSpeed(kmh); } },
+  };
+}

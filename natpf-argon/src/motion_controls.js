@@ -619,14 +619,19 @@ export class MotionController {
               h = a.p2 || null,
               p = this.phoneState.connected,
               f = this.p2PhoneState.connected;
-            (this.phoneState.connected = !!n.connected),
-              (this.phoneState.lastSeenMs = Number(n.lastSeenMs ?? -1)),
+            // NATPF: con il telefono NATPF collegato (externalRacket) stato e orientamento arrivano dal suo
+            // collegamento WebRTC, non dal relay
+            const ext = !!this.externalRacket;
+            ext ||
+              ((this.phoneState.connected = !!n.connected),
+              (this.phoneState.lastSeenMs = Number(n.lastSeenMs ?? -1))),
               h &&
                 ((this.p2PhoneState.connected = !!h.connected),
                 (this.p2PhoneState.lastSeenMs = Number(h.lastSeenMs ?? -1)));
             const s = this.role === "p2" && h ? h : n;
             s &&
               s.orientation &&
+              !ext &&
               ((this.phoneState.orientation = {
                 pitch: Number(s.orientation.pitch || 0),
                 roll: Number(s.orientation.roll || 0),

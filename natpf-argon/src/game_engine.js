@@ -12,6 +12,26 @@ import {
 import { MiiBodyAnimator as Q } from "./mii_body_animation.js";
 import { MiiFacialFXController as J } from "./mii_facial_fx.js";
 import { SwingVFXManager as ee } from "./swing_vfx.js";
+// NATPF: arena delle Nitto ATP Finals, smartphone come racchetta, prima persona, formato 1v1
+import { installNatpfArena } from "./natpf/natpf_arena.js";
+import { NatpfPhoneRacket } from "./natpf/natpf_phone_racket.js";
+import {
+  VIEW_STORAGE_KEY,
+  normalizeViewMode,
+  firstPersonPose,
+  firstPersonFov,
+  setFirstPersonBody,
+  FIRST_PERSON,
+} from "./natpf/natpf_camera.js";
+import { resolveMatchFormat } from "./natpf/match_format.js";
+import { NatpfUi } from "./natpf/natpf_ui.js";
+const readStoredView = () => {
+  try {
+    return localStorage.getItem(VIEW_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
 const S = {
     BASELINE_Z: 11.89,
     SERVICE_LINE_Z: 6.4,
@@ -211,6 +231,13 @@ export class ArgonTennisEngine {
       (this.roomId = this.urlRoom || "default"),
       (this.playerRole = this.urlRole),
       (this.isMultiplayer = !!(this.urlRoom && this.urlRoom !== "DEFAULT") || this.urlMode === "1v1"),
+      // NATPF: solo singolare; il doppio di Argon resta nel motore dietro isDoubles (Opzione B, match_format.js)
+      (this.matchFormat = resolveMatchFormat(this.params.get("format"))),
+      (this.isDoubles = this.matchFormat.teamSize === 2),
+      // NATPF: visuale in terza persona (quella di Argon) o in prima persona
+      (this.viewMode = normalizeViewMode(this.params.get("view") || readStoredView())),
+      (this.fpPose = { position: new o.Vector3(), target: new o.Vector3() }),
+      (this.fpBodyActor = null),
       (this.roomStatus = {
         roomId: this.roomId,
         p1Online: !0,
@@ -299,6 +326,7 @@ export class ArgonTennisEngine {
       (this.swingVfx = new ee(this.scene)),
       this._setupLightingAndSky(),
       this._setupEffectsPools(),
+      (this.natpfArena = installNatpfArena(this)),
       this._initHudAndControllers(),
       (this.clock = new o.Clock()),
       (this.physicsAccumulator = 0),
@@ -568,6 +596,7 @@ export class ArgonTennisEngine {
                 (this.hud.hideTitleModal(), this.startNewMatch({ showStartBanner: !0 }));
           }
       },
+      onOpenPhoneRacket: () => this.natpfUi && this.natpfUi.openPhone(),
       onPlayAgain: () => {
         (this.autoPlayMode = !1),
           (this.userHasInteracted = !0),
@@ -605,10 +634,13 @@ export class ArgonTennisEngine {
           });
         },
       })),
+      this._initNatpfPhone(),
       window.addEventListener("keydown", (i) => {
         (i.target && (i.target.tagName === "INPUT" || i.target.tagName === "TEXTAREA")) ||
           (i.code === "KeyC"
             ? this.hud.callbacks.onCycleCamera()
+            : i.code === "KeyV"
+              ? this.setViewMode(this.viewMode === "first" ? "third" : "first")
             : i.code === "KeyR"
               ? this.hud.callbacks.onToggleReplay()
               : this.isMultiplayer &&
@@ -619,6 +651,49 @@ export class ArgonTennisEngine {
                   speed: 1.18,
                 }));
       });
+  }
+  // NATPF: smartphone come racchetta (controller di NATPF Simulator) accanto a mouse, tastiera e webcam
+  _initNatpfPhone() {
+    // prima persona: sudore ed emoticon del viso nascosto finirebbero davanti alla camera
+    for (const e of ["spawnSweatDrops", "triggerEmoteBurst"]) {
+      const t = this.facialFX && this.facialFX[e] && this.facialFX[e].bind(this.facialFX);
+      t && (this.facialFX[e] = (i, ...a) => (i && i === this.fpBodyActor ? void 0 : t(i, ...a)));
+    }
+    this.natpfPhone = new NatpfPhoneRacket(this);
+    const mc = this.motionController;
+    if (mc && mc.triggerHapticFeedback) {
+      const haptic = mc.triggerHapticFeedback.bind(mc);
+      mc.triggerHapticFeedback = (e = {}) => (haptic(e), this.natpfPhone.feedback(e));
+    }
+  }
+  // NATPF: prima o terza persona, ricordata nel browser
+  setViewMode(e) {
+    this.viewMode = normalizeViewMode(e);
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, this.viewMode);
+    } catch {}
+    this.manualCameraOverride = null;
+    this.hud.updateCameraLabel && this.hud.updateCameraLabel("Auto");
+    this.natpfUi && this.natpfUi.onViewChange && this.natpfUi.onViewChange(this.viewMode);
+    return this.viewMode;
+  }
+  get localActor() {
+    return this.playerRole === "p2" ? this.opponent : this.player;
+  }
+  // NATPF: la prima persona vale durante la partita, non nel menu, nei replay o con una camera scelta a mano
+  _isFirstPersonActive() {
+    return (
+      this.viewMode === "first" &&
+      !this.manualCameraOverride &&
+      !this.autoPlayMode &&
+      ["SERVE_STANCE", "SERVE_TOSS", "RALLY", "POINT_OVER"].includes(this.phase)
+    );
+  }
+  // NATPF: 1v1 → i compagni di doppio non sono in campo
+  _applyMatchFormat() {
+    for (const e of [this.playerPartner, this.opponentPartner])
+      (e.root.visible = this.isDoubles), e.shadowBlob && (e.shadowBlob.visible = this.isDoubles);
+    document.body.classList.toggle("format-singles", !this.isDoubles);
   }
   async createMultiplayerRoom({ p1Name: e = "Player 1", p2Name: t = "Player 2" } = {}) {
     try {
@@ -647,6 +722,7 @@ export class ArgonTennisEngine {
             this.hud &&
               this.hud.updateMultiplayerRoomInfo &&
               this.hud.updateMultiplayerRoomInfo(this.roomStatus),
+            this.natpfUi && this.natpfUi.onRoomCreated && this.natpfUi.onRoomCreated(a),
             a
           );
       }
@@ -691,10 +767,12 @@ export class ArgonTennisEngine {
       g = n.clone(!0);
     this._prepareStadiumAndNet(i, a),
       this._prepareCrowd(l),
+      this.natpfArena.adoptArgonStadium({ stadium: i, net: a, crowd: l }),
       this._prepareMiiActor(this.player, s, h),
       this._prepareMiiActor(this.playerPartner, p, h),
       this._prepareMiiActor(this.opponent, n, h),
       this._prepareMiiActor(this.opponentPartner, g, h),
+      this._applyMatchFormat(),
       this._prepareTennisBall(r),
       this._bootInitialStateFromURL(),
       this.clock.start();
@@ -1070,12 +1148,9 @@ export class ArgonTennisEngine {
     const h = this.score.deuceSide ? -2.05 : 2.05;
     this.playerPartner.pos.set(h, 0, 5.2),
       this.playerPartner.targetPos.copy(this.playerPartner.pos),
-      (this.playerPartner.root.visible = !0),
-      this.playerPartner.shadowBlob && (this.playerPartner.shadowBlob.visible = !0),
       this.opponentPartner.pos.set(-h, 0, -5.2),
       this.opponentPartner.targetPos.copy(this.opponentPartner.pos),
-      (this.opponentPartner.root.visible = !0),
-      this.opponentPartner.shadowBlob && (this.opponentPartner.shadowBlob.visible = !0),
+      this._applyMatchFormat(),
       this.ball.vel.set(0, 0, 0),
       this.ball.spin.set(0, 0, 0),
       (this.ball.inPlay = !1),
@@ -1148,12 +1223,9 @@ export class ArgonTennisEngine {
         this.facialFX.setExpression(this.opponent, "focused_squint", 1.2)),
       this.playerPartner.pos.set(-2.1, 0, 5.4),
       this.playerPartner.targetPos.copy(this.playerPartner.pos),
-      (this.playerPartner.root.visible = !0),
-      this.playerPartner.shadowBlob && (this.playerPartner.shadowBlob.visible = !0),
       this.opponentPartner.pos.set(2.1, 0, -5.4),
       this.opponentPartner.targetPos.copy(this.opponentPartner.pos),
-      (this.opponentPartner.root.visible = !0),
-      this.opponentPartner.shadowBlob && (this.opponentPartner.shadowBlob.visible = !0),
+      this._applyMatchFormat(),
       this.opponent.pos.set(-1.65, 0, -10.5),
       this.opponent.targetPos.set(-1.95, 0, -10.8);
     const i = new o.Vector3(1.42, 1.25, 10.85),
@@ -1301,6 +1373,7 @@ export class ArgonTennisEngine {
         const s = this.ball.pos.z - this.player.pos.z,
           n = this.ball.pos.z - this.playerPartner.pos.z,
           h =
+            this.isDoubles &&
             this.ball.pos.z > 0.3 &&
             this.ball.pos.z <= 7.5 &&
             Math.abs(this.ball.pos.x - this.playerPartner.pos.x) < 3.4,
@@ -1339,7 +1412,7 @@ export class ArgonTennisEngine {
       ) {
         const s = this.ball.pos.z - this.player.pos.z,
           n = this.ball.pos.z - this.playerPartner.pos.z;
-        ((s >= -8 && s <= 0.9) || (n >= -5.5 && n <= 0.9)) &&
+        ((s >= -8 && s <= 0.9) || (this.isDoubles && n >= -5.5 && n <= 0.9)) &&
           (this.pendingUserSwing = {
             evt: { ...e, side: t, sweetSpotAssisted: !0 },
             expiresAt: this.elapsedTime + 0.48,
@@ -1502,6 +1575,7 @@ export class ArgonTennisEngine {
           ? 128 + Math.random() * 14
           : 158 + Math.min(22, (a - 0.9) * 28),
     );
+    this.natpfArena.setSpeed(w); // NATPF: velocità del servizio sui segnapunti dell'arena
     if (
       ((this.ball.inPlay = !0),
       (this.ball.lastHitter = e.role === "player" ? "player" : "opponent"),
@@ -1569,7 +1643,7 @@ export class ArgonTennisEngine {
       n = this.ball.pos.z - this.playerPartner.pos.z,
       h = Math.abs(this.ball.pos.x - this.playerPartner.pos.x),
       r = Math.hypot(h, n),
-      l = !t && this.ball.pos.z > 0.3 && this.ball.pos.z <= 7.6 && r <= 3.95 && r < s,
+      l = this.isDoubles && !t && this.ball.pos.z > 0.3 && this.ball.pos.z <= 7.6 && r <= 3.95 && r < s,
       p = l ? this.playerPartner : this.player,
       g = l ? n : i,
       c = l ? h : a,
@@ -1775,7 +1849,7 @@ export class ArgonTennisEngine {
       s = this.opponentPartner.pos.z - this.ball.pos.z,
       n = Math.abs(this.ball.pos.x - this.opponentPartner.pos.x),
       h = Math.hypot(n, s),
-      r = this.ball.pos.z < -0.3 && this.ball.pos.z >= -7.6 && h <= 3.95 && h < a,
+      r = this.isDoubles && this.ball.pos.z < -0.3 && this.ball.pos.z >= -7.6 && h <= 3.95 && h < a,
       l = r ? this.opponentPartner : this.opponent,
       p = r ? s : t,
       g = r ? n : i,
@@ -2071,15 +2145,18 @@ export class ArgonTennisEngine {
         this.elapsedTime - this.lastSyncSentAt >= 0.045 &&
         ((this.lastSyncSentAt = this.elapsedTime), this._broadcastMultiplayerSnapshot()),
       this._updateMiiAnimation(this.player, e),
-      this._updateMiiAnimation(this.playerPartner, e),
+      this.isDoubles && this._updateMiiAnimation(this.playerPartner, e),
       this._updateMiiAnimation(this.opponent, e),
-      this._updateMiiAnimation(this.opponentPartner, e),
+      this.isDoubles && this._updateMiiAnimation(this.opponentPartner, e),
+      this._updateNatpf(e),
       this._updateCrowdAnimation(e),
       this.swingVfx)
     )
       if (
         (this.swingVfx.update(e, {
-          actors: [this.player, this.playerPartner, this.opponent, this.opponentPartner],
+          actors: this.isDoubles
+            ? [this.player, this.playerPartner, this.opponent, this.opponentPartner]
+            : [this.player, this.opponent],
           ball: this.ball,
           camera: this.camera,
         }),
@@ -2333,7 +2410,7 @@ export class ArgonTennisEngine {
               this.ball.pos.x - this.opponentPartner.pos.x,
               this.opponentPartner.pos.z - this.ball.pos.z,
             ),
-            h = this.ball.pos.z >= -7.2 && n < s && n <= 3.9 ? this.opponentPartner : this.opponent,
+            h = this.isDoubles && this.ball.pos.z >= -7.2 && n < s && n <= 3.9 ? this.opponentPartner : this.opponent,
             r = h.pos.z - this.ball.pos.z,
             l = Math.abs(this.ball.pos.x - h.pos.x);
           if (this.playerRole === "p2") {
@@ -2364,6 +2441,7 @@ export class ArgonTennisEngine {
             n = s ? 0.85 : 1.3,
             h = s ? 1.8 : 2.34;
           if (
+            this.isDoubles &&
             !this.ball.isPowerShot &&
             this.ball.shotType !== "LOB" &&
             this.ball.rallyStrokeCount > 2 &&
@@ -2408,7 +2486,7 @@ export class ArgonTennisEngine {
             this.ball.pos.x - this.playerPartner.pos.x,
             this.ball.pos.z - this.playerPartner.pos.z,
           ),
-          h = this.ball.pos.z <= 7.2 && n < s && n <= 3.8 ? this.playerPartner : this.player,
+          h = this.isDoubles && this.ball.pos.z <= 7.2 && n < s && n <= 3.8 ? this.playerPartner : this.player,
           r = this.ball.pos.z - h.pos.z,
           l = Math.abs(this.ball.pos.x - h.pos.x);
         if (this.playerRole !== "p2") {
@@ -2747,6 +2825,8 @@ export class ArgonTennisEngine {
   }
   _syncScoreboardHUD() {
     const e = this._formatCurrentScore();
+    // NATPF: punteggio del game anche sui segnapunti arancioni dell'arena
+    this.natpfArena.setScore(e.deuceLabel || `${e.playerScoreText}-${e.opponentScoreText}`);
     this.hud.updateScoreboard({
       playerScoreText: e.playerScoreText,
       opponentScoreText: e.opponentScoreText,
@@ -2807,6 +2887,15 @@ export class ArgonTennisEngine {
           rallyCount: this.ball.rallyStrokeCount,
           camera: this.camera,
         });
+  }
+  // NATPF: arena (pubblico, LED), telefono e corpo nascosto in prima persona, a ogni fotogramma
+  _updateNatpf(e) {
+    this.natpfArena.update(this.elapsedTime, this.cheerEnergy), this.natpfPhone && this.natpfPhone.update();
+    const t = this._isFirstPersonActive() ? this.localActor : null;
+    t !== this.fpBodyActor &&
+      (this.fpBodyActor && setFirstPersonBody(this.fpBodyActor, !1),
+      t && setFirstPersonBody(t, !0),
+      (this.fpBodyActor = t));
   }
   _updateCrowdAnimation(e) {
     if (((this.cheerEnergy = Math.max(0.22, this.cheerEnergy - e * 0.35)), this.crowdScene)) {
@@ -2875,7 +2964,18 @@ export class ArgonTennisEngine {
     const e = this.manualCameraOverride || this.cameraMode,
       t = new o.Vector3(),
       i = new o.Vector3();
-    if (e === "INTRO_PAN") {
+    if (this._isFirstPersonActive()) {
+      // NATPF: prima persona dal giocatore locale (P1 o P2), sguardo verso la metà campo avversaria
+      const a = firstPersonPose(this.localActor, S.BASELINE_Z, this.fpPose);
+      if ((t.copy(a.position), i.copy(a.target), this.phase === "SERVE_TOSS" && this.score.server === this.localActor.role)) {
+        // al proprio servizio lo sguardo sale con la palla lanciata, poi torna sul campo
+        const s = o.MathUtils.smoothstep(this.ball.pos.y, 1.3, 2.6);
+        i.lerp(
+          new o.Vector3(this.ball.pos.x, this.ball.pos.y, this.ball.pos.z - this.localActor.sideSign * 1.6),
+          s * 0.85,
+        );
+      }
+    } else if (e === "INTRO_PAN") {
       const a = this.elapsedTime * 0.42;
       t.set(Math.sin(a) * 9.5, 8.2, 16.5 + Math.cos(a) * 3.5), i.set(0, 0.8, -1.5);
     } else if (e === "SHOWCASE_CAM") t.set(1.15, 1.54, 7.55), i.set(1.15, 1.12, 11.2);
@@ -2897,6 +2997,7 @@ export class ArgonTennisEngine {
   }
   _snapCameraImmediate() {
     const { targetPos: e, targetLook: t } = this._computeTargetCameraPose();
+    this._updateCameraFov();
     this.cameraPosSmooth.copy(e),
       this.cameraLookSmooth.copy(t),
       this.camera.position.copy(e),
@@ -2907,18 +3008,25 @@ export class ArgonTennisEngine {
   }
   _updateCameraRig(e) {
     const { targetPos: t, targetLook: i } = this._computeTargetCameraPose(),
-      a = 1 - Math.exp(-6.5 * e);
+      n = this._isFirstPersonActive(),
+      a = 1 - Math.exp(-(n ? FIRST_PERSON.follow : 6.5) * e);
     if (
-      (this.cameraPosSmooth.lerp(t, a),
+      (this._updateCameraFov(),
+      this.cameraPosSmooth.lerp(t, a),
       this.cameraLookSmooth.lerp(i, a),
       this.camera.position.copy(this.cameraPosSmooth),
       this.cameraTrauma > 0.001)
     ) {
-      const s = this.cameraTrauma * this.cameraTrauma * 0.26;
+      const s = this.cameraTrauma * this.cameraTrauma * 0.26 * (n ? FIRST_PERSON.shake : 1);
       (this.camera.position.x += (Math.random() - 0.5) * s),
         (this.camera.position.y += (Math.random() - 0.5) * s);
     }
     this.camera.lookAt(this.cameraLookSmooth);
+  }
+  // NATPF: campo visivo più ampio in prima persona (come viewpoint.js di NATPF), 45° di Argon in terza
+  _updateCameraFov() {
+    const e = this._isFirstPersonActive() ? firstPersonFov(this.camera.aspect) : 45;
+    Math.abs(this.camera.fov - e) > 0.01 && ((this.camera.fov = e), this.camera.updateProjectionMatrix());
   }
   _projectToScreen(e) {
     const t = e.clone().project(this.camera),
@@ -2928,8 +3036,13 @@ export class ArgonTennisEngine {
     return { x: a, y: s, visible: i };
   }
   _updateProjectedHUD() {
-    if ((this.phase === "SERVE_STANCE" || this.phase === "SERVE_TOSS") && this.cameraMode !== "REPLAY_CAM") {
-      const i = (this.score.server === "player" ? this.player : this.opponent).pos
+    const t = this.score.server === "player" ? this.player : this.opponent;
+    if (
+      (this.phase === "SERVE_STANCE" || this.phase === "SERVE_TOSS") &&
+      this.cameraMode !== "REPLAY_CAM" &&
+      !(this._isFirstPersonActive() && t === this.localActor) // NATPF: in prima persona niente etichetta sopra di sé
+    ) {
+      const i = t.pos
           .clone()
           .add(new o.Vector3(0, 2.25, 0)),
         a = this._projectToScreen(i);
@@ -2947,5 +3060,5 @@ export class ArgonTennisEngine {
 }
 window.addEventListener("DOMContentLoaded", () => {
   const P = new ArgonTennisEngine();
-  (window.__argonTennis = P), P.loadAssetsAndStart();
+  (P.natpfUi = new NatpfUi(P)), (window.__argonTennis = P), P.loadAssetsAndStart();
 });

@@ -169,7 +169,9 @@ export class HudUI {
     const m = document.getElementById("btn-phone-racket");
     m &&
       m.addEventListener("click", (l) => {
-        l.stopPropagation(), this.openMultiplayerModal();
+        // NATPF: il pulsante apre il collegamento del telefono NATPF (QR + calibrazione)
+        l.stopPropagation(),
+          this.callbacks.onOpenPhoneRacket ? this.callbacks.onOpenPhoneRacket() : this.openMultiplayerModal();
       });
     const p = document.getElementById("btn-multiplayer-modal");
     p &&

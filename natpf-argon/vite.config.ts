@@ -1,6 +1,7 @@
 import C from "path";
 import { defineConfig as D, loadEnv as P } from "vite";
 import v from "@vitejs/plugin-react";
+import { natpfSitePlugin } from "./scripts/natpf-site-plugin.mjs";
 function N(t) {
   return {
     role: t,
@@ -90,7 +91,8 @@ function q() {
     },
     c = (u) => {
       u.use(async (p, n, g) => {
-        const I = p.url || "/",
+        // NATPF: un indirizzo non valido (es. «//») non deve far cadere il server con il relay della partita
+        const I = (p.url || "/").replace(/^\/{2,}/, "/"),
           w = new URL(I, "http://localhost:3000"),
           l = w.pathname;
         if (l === "/___rPc_sWiTcH___") {
@@ -307,17 +309,30 @@ function q() {
     },
   };
 }
-export default D(({ mode: t }) => {
+// NATPF Simulator vive in ../site (sito statico del repository): il desktop ne importa i moduli con «@natpf»,
+// la pagina del telefono viene servita/copiata sotto /natpf/ (scripts/natpf-site-plugin.mjs).
+const NATPF_SITE = C.resolve(__dirname, "../site");
+export default D(async ({ mode: t }) => {
   const r = P(t, ".", "");
+  // HTTPS locale (certificato autofirmato) per i sensori del telefono in LAN: NATPF_HTTPS=1 npm run dev
+  const https = process.env.NATPF_HTTPS === "1" ? [(await import("@vitejs/plugin-basic-ssl")).default()] : [];
   return {
-    server: { port: 3e3, host: "0.0.0.0", hmr: process.env.DISABLE_HMR !== "true" },
-    plugins: [v(), q()],
+    server: {
+      port: 3e3,
+      host: "0.0.0.0",
+      hmr: process.env.DISABLE_HMR !== "true",
+      fs: { allow: [C.resolve(__dirname), NATPF_SITE] },
+    },
+    plugins: [v(), q(), natpfSitePlugin({ siteDir: NATPF_SITE }), ...https],
     define: { "process.env.GEMINI_API_KEY": JSON.stringify(r.GEMINI_API_KEY || "") },
     resolve: {
       alias: {
         "../assets/vendor/GLTFLoader.js": "three/examples/jsm/loaders/GLTFLoader.js",
+        "@natpf": C.join(NATPF_SITE, "js"),
         "@": C.resolve("."),
       },
+      // i moduli di ../site importano «three»: una sola istanza, quella di Argon
+      dedupe: ["three"],
     },
   };
 });

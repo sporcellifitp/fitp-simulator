@@ -10,7 +10,7 @@
       name="description"
       content="Wii Sports-inspired 3D arcade tennis game with frantic racket kinematics, expressive Mii characters, webcam &amp; phone motion controls, and Lyria 3 audio."
     />
-    <title>Argon Tennis</title>
+    <title>NATPF Simulator · Argon Tennis</title>
     <script>
       (function () {
         const params = new URLSearchParams(window.location.search);
@@ -115,7 +115,7 @@
           <div class="motion-buttons-col">
             <button id="btn-webcam-toggle" class="hud-mini-btn motion-btn" type="button">
               <span class="btn-dot" id="webcam-status-dot"></span><span>Webcam Motion</span></button
-            ><button id="btn-phone-racket" class="hud-mini-btn motion-btn hidden" type="button">
+            ><button id="btn-phone-racket" class="hud-mini-btn motion-btn" type="button" title="Smartphone come racchetta (NATPF)">
               <span class="btn-dot" id="phone-status-dot"></span
               ><span id="phone-status-label">Pocket Racket</span>
             </button>
@@ -136,6 +136,8 @@
                   title="Cycle Camera Angle (C)"
                 >
                   <span>Cam:</span><strong id="camera-mode-label">Rally</strong></button
+                ><button id="btn-natpf-view" class="hud-mini-btn" type="button" title="Prima o terza persona (V)">
+                  <span>Vista:</span><strong id="natpf-view-label">3ª persona</strong></button
                 ><button
                   id="btn-replay-trigger"
                   class="hud-mini-btn"
@@ -161,8 +163,9 @@
       <div class="wii-title-card">
         <div class="wii-logo-header">
           <h1 class="argon-logo-title">
-            <span class="logo-word-argon">Argon</span><span class="logo-word-tennis">Tennis</span>
+            <span class="logo-word-argon">NATPF</span><span class="logo-word-tennis">Simulator</span>
           </h1>
+          <div class="natpf-logo-sub">Nitto ATP Finals · gameplay Argon Tennis</div>
         </div>
         <div class="court-preview-diagram">
           <div class="mini-court-turf">
@@ -203,6 +206,9 @@
             </button>
           </div>
         </div>
+        <!-- NATPF: racchetta (smartphone, webcam o mouse/tastiera) e visuale; costruiti da src/natpf/natpf_ui.js -->
+        <div class="setup-section natpf-setup" data-natpf-setup></div>
+        <div id="natpf-invite" class="natpf-invite hidden" aria-live="polite"></div>
         <div class="wii-modal-actions">
           <button id="btn-start-match" type="button" class="wii-ok-btn">
             <span class="hand-cursor-icon">🎾</span><span>Start Match</span>
@@ -280,6 +286,57 @@
         <div class="skill-card-footer">
           <button id="btn-play-again" type="button" class="wii-footer-btn primary">Play again</button
           ><button id="btn-return-title" type="button" class="wii-footer-btn secondary">Menu</button>
+        </div>
+      </div>
+    </div>
+    <!-- NATPF: smartphone come racchetta (QR, impugnatura, calibrazione di NATPF Simulator) -->
+    <div id="natpf-phone-modal" class="wii-modal-backdrop hidden" role="dialog" aria-labelledby="natpf-phone-title">
+      <div class="wii-dialog-box natpf-phone-dialog">
+        <div class="mp-dialog-header">
+          <h2 class="dialog-title" id="natpf-phone-title">📱 Smartphone come racchetta</h2>
+          <span id="natpf-phone-tag" class="mp-conn-tag">Scansiona il QR</span>
+        </div>
+        <ol class="natpf-steps" id="natpf-phone-steps">
+          <li data-s="collega">Collega</li><li data-s="impugna">Impugna</li><li data-s="prova">Prova</li
+          ><li data-s="verifica">Verifica</li><li data-s="pronto">Pronto</li>
+        </ol>
+        <div class="natpf-phone-body">
+          <div class="natpf-qr-col">
+            <div id="natpf-qr" class="natpf-qr"></div>
+            <a id="natpf-phone-link" class="mp-subtle-link" target="_blank" rel="noopener">Apri il link del controller ↗</a>
+          </div>
+          <div class="natpf-phone-info">
+            <svg class="natpf-grip" viewBox="0 0 120 150" aria-label="Telefono in verticale nel palmo, schermo verso il palmo, come il manico di una racchetta">
+              <rect x="44" y="8" width="34" height="70" rx="7" fill="#dfe6ff" stroke="#0b1433" stroke-width="3" />
+              <rect x="49" y="15" width="24" height="54" rx="3" fill="#2f6bff" />
+              <path d="M30 70 q0 -14 14 -12 l40 2 q12 1 10 16 l-4 46 q-2 14 -18 14 h-22 q-18 0 -20 -18z" fill="#f0c7a0" stroke="#0b1433" stroke-width="3" />
+              <path d="M44 74 h40 M44 86 h40 M44 98 h38" stroke="#c99a74" stroke-width="3" />
+            </svg>
+            <p id="natpf-phone-status" class="natpf-phone-status"></p>
+            <p id="natpf-phone-hint" class="natpf-phone-hint"></p>
+            <div id="natpf-phone-dots" class="natpf-dots"></div>
+          </div>
+        </div>
+        <p id="natpf-phone-warn" class="natpf-warn hidden"></p>
+        <div class="dialog-actions natpf-actions">
+          <button id="natpf-phone-confirm" type="button" class="wii-pill-btn natpf-primary hidden">Conferma la racchetta</button
+          ><button id="natpf-phone-retry" type="button" class="wii-pill-btn hidden">Rifai i gesti</button
+          ><button id="natpf-phone-invert" type="button" class="wii-pill-btn hidden">Inverti direzioni</button
+          ><button id="natpf-phone-skipgrip" type="button" class="wii-pill-btn hidden">Salta l'impugnatura</button
+          ><button id="natpf-phone-recal" type="button" class="wii-pill-btn hidden">Ricalibra</button
+          ><button id="natpf-phone-forget" type="button" class="wii-pill-btn hidden">Scollega</button
+          ><button id="natpf-phone-close" type="button" class="wii-pill-btn">Torna al campo</button>
+        </div>
+      </div>
+    </div>
+    <!-- NATPF: Player 2 che entra da un link di invito sceglie racchetta e visuale -->
+    <div id="natpf-guest-modal" class="wii-modal-backdrop hidden" role="dialog">
+      <div class="wii-dialog-box natpf-guest-dialog">
+        <h2 class="dialog-title">🎾 Partita 1v1 · Player 2</h2>
+        <p class="dialog-desc">Scegli come colpire e da dove guardare il campo. Puoi cambiare in qualsiasi momento.</p>
+        <div class="setup-section natpf-setup" data-natpf-setup></div>
+        <div class="dialog-actions">
+          <button id="natpf-guest-go" type="button" class="wii-ok-btn"><span class="hand-cursor-icon">🎾</span><span>Entra in campo</span></button>
         </div>
       </div>
     </div>
