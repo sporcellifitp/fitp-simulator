@@ -28,6 +28,7 @@
   .lbl{font-size:13px;font-weight:600;color:var(--muted);margin:12px 0 4px}
   input[type=text]{width:100%;font:inherit;font-size:17px;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;color:var(--ink)}
   input[type=text]:focus{outline:2px solid var(--blue);border-color:transparent}
+  select{width:100%;font:inherit;padding:10px;border:1.5px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)}
   .seg{display:flex;gap:6px}
   .seg button{flex:1;border:1.5px solid var(--line);background:#fff;border-radius:9px;padding:8px 4px;font-size:14px;color:var(--ink)}
   .seg button.on{background:var(--navy);border-color:var(--navy);color:#fff}
@@ -126,13 +127,14 @@
       <div><div class="lbl">Durata</div><div class="seg" id="fmt"><button data-v="1">1 game</button><button data-v="4">Set a 4</button><button data-v="6">Set a 6</button></div></div>
     </div>
     <div class="lbl">Difficoltà CPU</div><div class="seg" id="lvl"><button data-v="facile">Facile</button><button data-v="normale">Normale</button><button data-v="esperto">Esperto</button></div>
+    <label class="lbl" for="cameraMenu">Visuale</label><select id="cameraMenu" data-camera-select><option value="third">Terza persona · dietro il giocatore</option><option value="first">Prima persona · dagli occhi del giocatore</option></select>
   </div>
 </div>
 
 <!-- telefono: collegamento e calibrazione guidata -->
 <div id="pair" class="ov hidden">
   <div class="card wide">
-    <ol id="steps"><li data-s="collega">1 · Collega</li><li data-s="impugna">2 · Impugna</li><li data-s="prova">3 · Prova i colpi</li><li data-s="verifica">4 · Verifica</li><li data-s="conferma">5 · Conferma</li></ol>
+    <ol id="steps"><li data-s="collega">Collega</li><li data-s="impugna">Tieni fermo</li><li data-s="prova">4 gesti</li><li data-s="verifica">Prova libera</li><li data-s="conferma">Gioca</li></ol>
     <div class="pane" id="pCollega">
       <div class="row" style="align-items:center">
         <div id="qr"></div>
@@ -148,14 +150,14 @@
       <h2>Impugna il telefono come una racchetta</h2>
       <div class="gripfig">
         <svg viewBox="0 0 120 150" aria-hidden="true"><rect x="44" y="8" width="34" height="70" rx="7" fill="#dfe6ff" stroke="#0a1a4f" stroke-width="3"/><rect x="49" y="15" width="24" height="54" rx="3" fill="#2f6bff"/><path d="M30 70 q0 -14 14 -12 l40 2 q12 1 10 16 l-4 46 q-2 14 -18 14 h-22 q-18 0 -20 -18z" fill="#f0c7a0" stroke="#0a1a4f" stroke-width="3"/><path d="M44 74 h40 M44 86 h40 M44 98 h38" stroke="#c99a74" stroke-width="3"/></svg>
-        <div><p style="max-width:330px">Telefono <b>in verticale</b> nel palmo, come il manico. Dita ben chiuse, lo schermo di lato. Tienilo fermo un attimo: misuro i sensori.</p>
+        <div><p style="max-width:330px">Tieni il telefono come ti è più comodo, senza muoverlo per un attimo. Poi segui le frecce con <b>quattro gesti comodi</b>. Non serve conoscere i colpi del tennis.</p>
         <div class="note"><span class="dot" id="gripDot"></span><span id="gripStatus">Tieni fermo il telefono…</span></div></div>
       </div>
       <button class="btn alt hidden" id="skipGrip">Lo tengo diversamente: continua</button>
     </div>
     <div id="calPractice" class="hidden">
       <div id="calCanvas"></div><div id="calCaption" role="status">Apri, colpisci, torna pronto</div>
-      <div id="calShotTypes"></div>
+      <details><summary>Scopri gli altri gesti (facoltativo)</summary><div id="calShotTypes"></div><p>Verso l’alto: palla alta. Verso il basso: taglio. Tocco corto e morbido: palla vicina alla rete.</p></details>
       <div class="row"><button id="calDemo" class="btn alt">Rivedi esempio</button><button id="calInvert" class="btn alt">Inverti direzioni</button></div>
     </div>
     <div class="pane hidden" id="pProva">
@@ -174,7 +176,7 @@
     </div>
     <div class="pane hidden" id="pConferma">
       <h2>Tutto pronto</h2>
-      <p>Il telefono è la tua racchetta. Direzione, inclinazione, velocità e accompagnamento del gesto determinano piatto, slice, lob e palla corta. Un timing preciso rende il colpo più efficace. Per servire, simula lancio e battuta; i tocchi restano disponibili come alternativa.</p>
+      <p>Guarda la palla e colpisci quando arriva vicino alla racchetta: non devi aspettare il cerchietto. Il personaggio corre da solo. Per iniziare uno scambio fai un movimento per alzare la palla, poi un secondo per colpirla.</p>
       <button class="btn pink" id="pairGo">Continua</button>
       <button class="btn alt" id="pairRecal">Rifai la calibrazione</button>
     </div>
@@ -238,6 +240,7 @@
 <div id="pause" class="ov hidden">
   <div class="card">
     <h2>Pausa</h2>
+    <label class="lbl" for="cameraPause">Visuale</label><select id="cameraPause" data-camera-select><option value="third">Terza persona · dietro il giocatore</option><option value="first">Prima persona · dagli occhi del giocatore</option></select>
     <button class="btn pink" id="resume">Riprendi</button>
     <button class="btn alt" id="pausePhone">Telefono: collega o ricalibra</button>
     <button class="btn alt" id="restart">Ricomincia la partita</button>

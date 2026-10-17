@@ -67,7 +67,7 @@ export function arcadeShot(court, p, ball, sw, e){
   // ma restituisce una palla più centrale e attaccabile.
   const aimX = intendedAim*(.45 + .55*quality);
   const over = Math.max(0, q - ARC.GOOD);
-  const depth = type === 'drop' ? .08 : type === 'lob' ? .8 + .18*quality : type === 'slice' ? .48 + .28*quality : .32 + .52*power + .13*quality + over*2.5;
+  const depth = type === 'drop' ? .08 : type === 'lob' ? .8 + .18*quality : type === 'slice' ? .48 + .28*quality : .32 + .52*power + .13*quality + over*4.2;
   const target = shotTarget(court, p.team, aimX, depth, type);
   // Una smorzata in allungo/fuori tempo galleggia più lunga: non basta indebolire un gesto.
   if (type === 'drop') target.z *= 1 + (1 - quality)*1.4;
@@ -179,7 +179,7 @@ export class ArcadeMatch extends MatchCore {
   }
   updateToss(){
     const s = this.serverP, T = this.toss, tt = this.t - T.t0, b = this.ball, { fz, rx } = axes(s);
-    b.p = { x: s.x + rx*.3, y: tossY(tt), z: s.z + fz*.25 }; b.v = { x: 0, y: ARC.TOSS.vy - 9.81*tt, z: 0 }; b.held = false;
+    b.p = { x: s.x + rx*.3, y: tossY(tt), z: s.z + fz*.25 }; b.v = { x: 0, y: ARC.TOSS.vy - 9.81*tt, z: 0 }; b.spin = {x:0,y:0,z:0}; b.held = false;
     const Tc = T.t0 + TOSS_APEX;                                          // si colpisce in cima al lancio
     const cand = s.swings.filter(w => w.at >= Tc - .45 && w.at <= Tc + .35);
     const best = cand.reduce((a, w) => !a || Math.abs(w.at - Tc) < Math.abs(a.at - Tc) ? w : a, null);
@@ -207,11 +207,11 @@ export class ArcadeMatch extends MatchCore {
     const pace = .7 + .5*Math.min(power, second ? .65 : 1) + (q <= ARC.PERFECT ? .12 : 0);
     const from = { x: this.ball.p.x, y: Math.max(2.1, this.ball.p.y), z: this.ball.p.z };
     const shot = makeShot(c, from, { x: tx, z: tz }, 'serve', error, this.rng, q > .2 ? .05 : .35, pace);
-    this.launchServe(s, from, shot.v);
+    this.launchServe(s, from, shot.v, shot.spin);
     if (s.human) this.emit({ type: 'contact', player: s.id, timing: e, label: timingLabel(e), power, serve: true, shot: 'serve' });
   }
-  launchServe(s, from, v){
-    const b = this.ball; b.held = false; b.p = { ...from }; b.v = { ...v }; b.rolling = false; b.stopped = false;
+  launchServe(s, from, v, spin = {x:0,y:0,z:0}){
+    const b = this.ball; b.held = false; b.p = { ...from }; b.v = { ...v }; b.spin = {...spin}; b.rolling = false; b.stopped = false;
     this.rally.hit(s.team); this.toss = null;
     this.phase = 'live'; this.sinceHit = 0; this.lastHitter = s; this.hist = [];
     const speed=Math.hypot(v.x,v.y,v.z)||1;
@@ -270,7 +270,7 @@ export class ArcadeMatch extends MatchCore {
     const b = this.ball;
     const players = Object.fromEntries(this.players.map(p => [p.id, { x: p.x, z: p.z, team: p.team, vx: p.vx || 0, vz: p.vz || 0, eligible: this.legalFor(p) }]));
     if (this.hist.at(-1)?.t === this.t) this.hist.pop();
-    this.hist.push({ t: this.t, p: { ...b.p }, v: { ...b.v }, players });
+    this.hist.push({ t: this.t, p: { ...b.p }, v: { ...b.v }, spin: {...b.spin}, players });
     while (this.hist.length && this.hist[0].t < this.t - ARC.HIST) this.hist.shift();
   }
   histAt(t){
@@ -282,7 +282,7 @@ export class ArcadeMatch extends MatchCore {
       const players = Object.fromEntries(Object.entries(a.players).map(([id, p]) => {
         const q = b.players[id]; return [id, { ...p, x: L(p.x, q.x), z: L(p.z, q.z), vx: L(p.vx, q.vx), vz: L(p.vz, q.vz) }];
       }));
-      return { t, players, p: { x: L(a.p.x, b.p.x), y: L(a.p.y, b.p.y), z: L(a.p.z, b.p.z) }, v: { x: L(a.v.x, b.v.x), y: L(a.v.y, b.v.y), z: L(a.v.z, b.v.z) } };
+      return { t, players, p: { x: L(a.p.x, b.p.x), y: L(a.p.y, b.p.y), z: L(a.p.z, b.p.z) }, v: { x: L(a.v.x, b.v.x), y: L(a.v.y, b.v.y), z: L(a.v.z, b.v.z) }, spin: Object.fromEntries(['x','y','z'].map(key=>[key,L(a.spin?.[key]||0,b.spin?.[key]||0)])) };
     }
     return null;
   }
@@ -300,8 +300,9 @@ export class ArcadeMatch extends MatchCore {
     if (!h.pend && !h.done && this.legalFor(h) && sideOf(this.ball.p.z) === h.team){
       const H = this.hist, k = H[H.length - 1], k0 = H[H.length - 2];
       const rr = rel(h, k.p);
-      if (rr.s <= ARC.S0 && rr.s > -1.2){
-        const Tc = crossingTime(k0, k, h.id);
+      const visibleContact = evaluateContact({ ball: k.p, velocity: k.v, player: h, eligible: true });
+      if (visibleContact.accepted || rr.s <= ARC.S0 && rr.s > -1.2){
+        const Tc = visibleContact.accepted ? this.t + visibleContact.timeToImpact : crossingTime(k0, k, h.id);
         if (h.crossedAt == null) h.crossedAt = Tc;
         if (Math.abs(rr.l) <= ARC.REACH && k.p.y >= .1 && k.p.y <= 3.1){
           h.pend = { Tc: h.crossedAt, side: rr.l >= 0 ? 'fh' : 'bh' };
@@ -320,16 +321,20 @@ export class ArcadeMatch extends MatchCore {
   }
   resolve(h){
     const P = h.pend, now = this.t;
-    const cand = h.swings.filter(w => w.at <= now && now - w.at <= ARC.REWIND && (w.at >= P.Tc - ARC.EARLY && w.at <= P.Tc + ARC.LATE || this.swingContact(h, w.at)?.perfect));
-    const best = cand.reduce((a, w) => !a || Math.abs(w.at - P.Tc) < Math.abs(a.at - P.Tc) ? w : a, null);
-    if (best && (best.at >= P.Tc - .1 || now >= P.Tc + h.grace + .03)){
-      const sample = this.swingContact(h, best.at);
-      // A green frame is judged by exactly the same historic geometry. Buffered
-      // early/late swings keep the crossing-based grading outside the sweet spot.
-      const e = sample?.perfect ? sample.error : best.at - P.Tc;
-      const tc = Math.max(now - ARC.REWIND, sample?.perfect ? best.at : clamp(best.at, P.Tc - ARC.PERFECT, Math.min(now, P.Tc + ARC.PERFECT)));
+    const current = evaluateContact({ ball: this.ball.p, velocity: this.ball.v, player: h, eligible: this.legalFor(h) });
+    const cand = h.swings.map(w => ({ w, sample: this.swingContact(h, w.at) })).filter(({w,sample}) =>
+      w.at <= now && now-w.at <= ARC.REWIND && (sample?.accepted ||
+      current.accepted && now-w.at <= CONTACT.buffer && sample?.visible && sample.heightOk && sample.forward <= CONTACT.front + .65 && sample.distance <= CONTACT.idealReach + .65));
+    const bestEntry = cand.reduce((a, entry) => !a || Math.abs(entry.sample?.error ?? 1) < Math.abs(a.sample?.error ?? 1) ? entry : a, null);
+    if (bestEntry){
+      const { w: best, sample } = bestEntry;
+      // Real, visible contact resolves now. A short pre-contact buffer is only
+      // allowed next to the racket; it cannot hit a remote ball or become perfect.
+      const buffered = !sample.accepted;
+      const e = buffered ? -Math.max(ARC.GOOD+.01, Math.min(ARC.EARLY, sample.timeToImpact)) : sample.error;
+      const tc = buffered ? now : best.at;
       const k = this.histAt(tc) || { p: { ...this.ball.p }, v: { ...this.ball.v } };
-      this.ball.p = { ...k.p }; this.ball.v = { ...k.v };
+      this.ball.p = { ...k.p }; this.ball.v = { ...k.v }; this.ball.spin = {...k.spin};
       h.swings = h.swings.filter(w => w.at > best.at + .05);
       h.pend = null; h.done = true; h.inc = null;
       const shot = arcadeShot(this.court, { ...h, ...k.players?.[h.id] }, this.ball, best, e);
@@ -344,8 +349,13 @@ export class ArcadeMatch extends MatchCore {
     }
     if (now >= Math.max(P.Tc + ARC.LATE, P.lastReadyAt || P.Tc) + h.grace){
       const early = h.swings.some(w => w.at < P.Tc - ARC.EARLY && w.at > P.Tc - 1), late = h.swings.some(w => w.at > P.Tc + ARC.LATE);
+      const measured = h.swings.filter(w=>w.at>=P.Tc-.8 && w.at<=now).map(w=>({w,sample:this.swingContact(h,w.at)})).filter(s=>s.sample);
+      const closest = measured.sort((a,b)=>Math.abs(a.w.at-P.Tc)-Math.abs(b.w.at-P.Tc))[0]?.sample;
+      const why = closest ? closest.forward>CONTACT.front || closest.timeToImpact>CONTACT.early ? 'presto'
+        : closest.forward<CONTACT.back || closest.timeToImpact < -CONTACT.late ? 'tardi' : 'portata'
+        : early ? 'presto' : late ? 'tardi' : 'nessuno';
       h.pend = null; h.done = true; h.inc = null;
-      this.emit({ type: 'miss', player: h.id, why: early ? 'presto' : late ? 'tardi' : 'nessuno', human: true });
+      this.emit({ type: 'miss', player: h.id, why, human: true });
       // nessun colpo: il punto riprende da dove era rimasto
       const sh = this.shadow, d = this.deferred; this.shadow = null; this.deferred = null;
       if (sh) this.rally = sh;

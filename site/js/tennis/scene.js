@@ -5,7 +5,8 @@
 import * as THREE from 'three';
 import { buildArena } from './arena.js';
 import { makeCharacter, LOOKS } from './character.js';
-import { playerCameraFrame, cameraFieldOfView } from './viewpoint.js';
+import { playerCameraFrame, cameraFieldOfView, normalizeCameraMode } from './viewpoint.js';
+import { disposeSceneResources } from './scene-resources.js';
 import { CONTACT, contactAxes, relativeContact } from '../match/contact.js';
 import { evaluateSweetSpot } from './sweet-spot.js';
 import { createImpactEffects, smashOpportunity, SHOT_COLORS } from './impact-effects.js';
@@ -14,6 +15,7 @@ const HL = 11.885;
 const SWING = { before: .129, dur: .3 };            // impatto alla fase 0,43 del personaggio, durata 0,3 s
 
 export function createScene(container, { quality = 1 } = {}){
+  let cameraMode = 'third', destroyed = false;
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, quality < 1 ? 1 : 2));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -28,7 +30,7 @@ export function createScene(container, { quality = 1 } = {}){
   key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -14, right: 14, top: 24, bottom: -24, near: 5, far: 60 }); key.shadow.bias = -.0004; key.shadow.normalBias = .02;
   scene.add(key);
   const fill = new THREE.DirectionalLight(0x3355ff, .8); fill.position.set(-20, 12, -10); scene.add(fill);
-  const fit = () => { const w = container.clientWidth || innerWidth, h = container.clientHeight || innerHeight; renderer.setSize(w, h); camera.aspect = w/h; camera.fov = cameraFieldOfView(camera.aspect); camera.updateProjectionMatrix(); };
+  const fit = () => { const w = container.clientWidth || innerWidth, h = container.clientHeight || innerHeight; renderer.setSize(w, h); camera.aspect = w/h; camera.fov = cameraFieldOfView(camera.aspect,cameraMode); camera.updateProjectionMatrix(); };
   fit(); addEventListener('resize', fit);
 
   const arena = buildArena(scene, { quality });
@@ -63,14 +65,16 @@ export function createScene(container, { quality = 1 } = {}){
   function mark(x, z, out = false){
     const m = new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({ color: out ? 0xff3b30 : 0xd8e6ff, transparent: true, opacity: .7, depthWrite: false }));
     m.rotation.x = -Math.PI/2; m.position.set(x, .012, z); scene.add(m); marks.push({ m, t: 0, life: out ? 3 : 1.6 });
-    while (marks.length > 5) scene.remove(marks.shift().m);
+    while (marks.length > 5){ const old=marks.shift().m; scene.remove(old); disposeSceneResources(old,{geometries:false}); }
   }
   function lastMarkOut(){ const o = marks[marks.length - 1]; if (o){ o.m.material.color.set(0xff3b30); o.life = 3; o.t = 0; } }
 
   /* ---------- personaggi ---------- */
   let chars = [], last = new Map(), mood = new Map(), cheer = 0, cameraTeam = null, cameraAspect = null;
   function setPlayers(players, looks){
-    for (const c of chars) scene.remove(c.g);
+    for (const c of chars){ scene.remove(c.g); disposeSceneResources(c.g); }
+    for (const {m} of flashes){ scene.remove(m); disposeSceneResources(m); } flashes.length=0;
+    for (const {m} of marks){ scene.remove(m); disposeSceneResources(m,{geometries:false}); } marks.length=0;
     chars = players.map((p, i) => { const c = makeCharacter(LOOKS[looks[i]] || LOOKS.blu); scene.add(c.g); return c; });
     last = new Map(); mood = new Map(); cameraTeam = null;
     hist.length=0; previousBall=null; previousTime=null; effects.reset(); hitKeys.clear();
@@ -100,6 +104,7 @@ export function createScene(container, { quality = 1 } = {}){
     effectFrame=effects.tick(dt,view.phase==='live' && dt>0);
     view.players.forEach((p, i) => {
       const c = chars[i]; if (!c) return;
+      c.setFirstPerson(cameraMode==='first' && p.id===localId);
       const prev = last.get(p.id) || { x: p.x, z: p.z }, sp = Math.hypot(p.x - prev.x, p.z - prev.z)/Math.max(dt, 1e-3);
       last.set(p.id, { x: p.x, z: p.z });
       c.g.position.set(p.x, p.y || 0, p.z);
@@ -124,7 +129,13 @@ export function createScene(container, { quality = 1 } = {}){
         c.aimRacket({ x: hit.x+out.x*follow, y: hit.y+out.y*follow, z: hit.z+out.z*follow },out,Math.max(0,Math.min(1,(1-swing)/.22)));
       } else if (view.phase === 'live' && p.contactEligible !== false && near.s > -.2 && near.s < 3 && Math.abs(near.l)<1.7 && b.y>.4){
         const fz = contactAxes(p).fz;
-        c.aimRacket({ x: b.x, y: b.y, z: p.z+fz*CONTACT.forward },{ x: 0, y: .1, z: fz },Math.min(1,Math.max(0,(prep-.25)/.35)));
+        const contact=evaluateSweetSpot({ball:b,velocity:view.ball.v,player:p,timeToImpact:p.inc ? p.inc.Tc-view.t : Infinity,eligible:p.contactEligible!==false});
+        // The ready string-bed reaches for the real ball only inside the same
+        // playable volume as the hit judge. Before that, prepare at the shared
+        // contact anchor instead of appearing to intercept an unplayable ball.
+        const playable=contact.accepted ?? contact.ready;
+        const point=playable ? b : {x:contact.point?.x ?? p.x,y:Math.max(.65,Math.min(2.8,b.y)),z:contact.point?.z ?? p.z+fz*CONTACT.forward};
+        c.aimRacket(point,{ x: 0, y: .1, z: fz },Math.min(1,Math.max(0,(prep-.25)/.35)));
       }
     });
     ball.visible = !view.held || view.phase === 'serve';
@@ -155,11 +166,11 @@ export function createScene(container, { quality = 1 } = {}){
       ring.visible = sweet.visible && sweet.timeToImpact > -.22 && sweet.timeToImpact < 1;
       ring.position.set(sweet.point?.x ?? me.x, .02, sweet.point?.z ?? me.z);
       ring.scale.setScalar(.48);
-      ring.material.color.set(sweet.perfect ? 0x4cff8a : sweet.ready ? 0xffd447 : 0xffffff);
+      ring.material.color.set(sweet.perfect ? 0x4cff8a : sweet.ready ? 0x92edb0 : 0xffffff);
       ring.material.opacity = sweet.perfect ? .98 : sweet.ready ? .88 : left < .3 ? .7 : .45;
     } else ring.visible = false;
-    for (const o of marks){ o.t += dt; o.m.material.opacity = Math.max(0, .7*(1 - Math.max(0, o.t - o.life*.6)/(o.life*.4))); }
-    for (let i = flashes.length - 1; i >= 0; i--){ const f = flashes[i]; f.t += dt; f.m.scale.setScalar(1 + f.t*14); f.m.material.opacity = Math.max(0, 1 - f.t/.3); if (f.t > .3){ scene.remove(f.m); flashes.splice(i, 1); } }
+    for (let i=marks.length-1;i>=0;i--){ const o=marks[i]; o.t+=dt; o.m.material.opacity=Math.max(0,.7*(1-Math.max(0,o.t-o.life*.6)/(o.life*.4))); if(o.t>o.life){scene.remove(o.m);disposeSceneResources(o.m,{geometries:false});marks.splice(i,1);} }
+    for (let i = flashes.length - 1; i >= 0; i--){ const f = flashes[i]; f.t += dt; f.m.scale.setScalar(1 + f.t*14); f.m.material.opacity = Math.max(0, 1 - f.t/.3); if (f.t > .3){ scene.remove(f.m); disposeSceneResources(f.m); flashes.splice(i, 1); } }
     cheer = Math.max(0, cheer - dt*.6);
     arena.update(now, Math.min(1, cheer));
   }
@@ -168,7 +179,7 @@ export function createScene(container, { quality = 1 } = {}){
   const camPos = new THREE.Vector3(), camAt = new THREE.Vector3(), camTarget = new THREE.Vector3();
   function follow(p, dt, snap = false){
     camera.position.x-=lastShake; lastShake=0;
-    const frame = playerCameraFrame(p, HL, camera.aspect);
+    const frame = playerCameraFrame(p, HL, camera.aspect,cameraMode);
     camPos.set(frame.camera.x, frame.camera.y, frame.camera.z);
     camAt.set(frame.target.x, frame.target.y, frame.target.z);
     camera.up.set(0, 1, 0);
@@ -176,19 +187,21 @@ export function createScene(container, { quality = 1 } = {}){
     if (snap || cameraTeam == null || cameraTeam !== frame.team || cameraAspect !== camera.aspect){
       camera.position.copy(camPos); camTarget.copy(camAt);
     } else {
-      const blend = 1-Math.exp(-Math.max(0,dt)*4);
+      const blend = 1-Math.exp(-Math.max(0,dt)*(cameraMode==='first'?16:4));
       camera.position.lerp(camPos, blend); camTarget.lerp(camAt, blend);
     }
     cameraTeam = frame.team; cameraAspect = camera.aspect;
     const target=camTarget.clone();
-    if(effectFrame.point) target.lerp(new THREE.Vector3(effectFrame.point.x,effectFrame.point.y,effectFrame.point.z),effectFrame.focus);
+    if(effectFrame.point && cameraMode!=='first') target.lerp(new THREE.Vector3(effectFrame.point.x,effectFrame.point.y,effectFrame.point.z),effectFrame.focus);
     lastShake=effectFrame.shake; camera.position.x+=lastShake;
-    const fov=frame.fov-effectFrame.zoom;
+    // First person preserves the user's gaze: no sudden look-at toward a
+    // near racket, and a milder zoom to retain peripheral trajectory cues.
+    const fov=frame.fov-effectFrame.zoom*(cameraMode==='first'?.45:1);
     if(Math.abs(camera.fov-fov)>.001){ camera.fov=fov; camera.updateProjectionMatrix(); }
     camera.lookAt(target);
   }
   // vista d'insieme dell'arena per i menu: giro lento dall'alto
-  function orbit(t){ cameraTeam = null; lastShake=0; effects.reset(); effectFrame=effects.tick(0); camera.fov=cameraFieldOfView(camera.aspect); camera.updateProjectionMatrix(); const a = t*.06; camera.up.set(0, 1, 0); camera.position.set(Math.sin(a)*10, 8.5, Math.cos(a)*17); camera.lookAt(0, 1.5, 0); }
+  function orbit(t){ cameraTeam = null; lastShake=0; effects.reset(); effectFrame=effects.tick(0); camera.fov=cameraFieldOfView(camera.aspect); camera.updateProjectionMatrix(); const a = t*.06; camera.up.set(0, 1, 0); camera.position.set(Math.sin(a)*10, 8.5, Math.cos(a)*17); camera.lookAt(0, 1.5, 0); for(const c of chars)c.setFirstPerson(false); }
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3();
   function pick(clientX, clientY){
     const r = renderer.domElement.getBoundingClientRect();
@@ -197,6 +210,8 @@ export function createScene(container, { quality = 1 } = {}){
   }
   return {
     renderer, scene, camera, arena, aim, smashTarget, impact, setPlayers,
+    get cameraMode(){return cameraMode;},
+    setCameraMode(mode){ const next=normalizeCameraMode(mode); if(next!==cameraMode){cameraMode=next;cameraTeam=null;effects.reset();effectFrame=effects.tick(0);} return cameraMode; },
     setRacketMotion(sample){ racketMotion=sample; }, setMood, sync, follow, orbit, pick, mark, lastMarkOut, burst,
     cheer(k = 1){ cheer = Math.max(cheer, k); },
     // qualità grafica: 2 alta, 1 media (meno pubblico, risoluzione 1×), 0 bassa (anche senza ombre)
@@ -207,6 +222,14 @@ export function createScene(container, { quality = 1 } = {}){
       scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
     },
     render(){ renderer.render(scene, camera); },
+    destroy(){
+      if(destroyed)return; destroyed=true;
+      removeEventListener('resize',fit);
+      const markGeometryInScene=marks.length>0;
+      disposeSceneResources(scene); if(!markGeometryInScene)markGeo.dispose();
+      key.shadow.map?.dispose(); renderer.dispose(); renderer.domElement.remove();
+      chars.length=0;marks.length=0;flashes.length=0;last.clear();mood.clear();hitKeys.clear();
+    },
   };
 }
 

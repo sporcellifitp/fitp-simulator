@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { makeCharacter, LOOKS } from './character.js';
 import { makeShot, shotTarget } from '../match/ai.js';
 import { COURTS, newBall, stepBall } from '../match/physics.js';
-export const SHOTS = Object.freeze({ drive: 'Drive / piatto', slice: 'Slice', lob: 'Lob', drop: 'Palla corta', smash: 'Smash', serve: 'Servizio' });
+export const SHOTS = Object.freeze({ drive: 'Colpo normale', slice: 'Taglio verso il basso', lob: 'Palla alta', drop: 'Tocco corto', smash: 'Colpo dall’alto', serve: 'Avvio dello scambio' });
 export function createCalibrationPreview(container){
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.setPixelRatio(1); renderer.setSize(600, 260, false); container.appendChild(renderer.domElement);
@@ -23,7 +23,8 @@ export function createCalibrationPreview(container){
   const contact = () => ({ x: (event?.dir || 1)*.7, y: shot === 'smash' || shot === 'serve' ? 2.35 : 1.15, z: 3 });
   function launch(){
     const p = contact(), type = shot === 'serve' ? 'serve' : shot;
-    ball.p = { ...p }; ball.v = makeShot(court, p, shotTarget(court, 0, event?.aim ?? -(event?.dir ?? 1)*.72, shot === 'drop' ? .1 : .85, type), type, 0, () => .5, shot === 'lob' ? 1.4 : .5, .8 + .4*(event?.power || .6)).v;
+    const result = makeShot(court, p, shotTarget(court, 0, event?.aim ?? -(event?.dir ?? 1)*.72, shot === 'drop' ? .1 : .85, type), type, 0, () => .5, shot === 'lob' ? 1.4 : .5, .8 + .4*(event?.power || .6));
+    ball.p = { ...p }; ball.v = {...result.v}; ball.spin = {...result.spin};
     ball.held = false; ball.rolling = false; ball.stopped = false;
   }
   let launched = false;
@@ -39,11 +40,11 @@ export function createCalibrationPreview(container){
       let t = now-at; if (mode === 'demo' && t > 3.2){ at = now; t = 0; launched = false; }
       const impactAt = mode === 'demo' ? 1 : .16, swing = (t-impactAt)/.55 + .43;
       phase = t < impactAt-.15 ? 'preparation' : t < impactAt+.08 ? 'contact' : t < impactAt+.7 ? 'follow' : 'ready';
-      const names = { preparation: 'Apri il braccio', contact: 'Colpisci', follow: 'Accompagna', ready: 'Torna pronto' };
+      const names = { preparation: 'Preparati comodamente', contact: 'Colpisci', follow: 'Finisci il gesto', ready: 'Torna pronto' };
       label = `${mode === 'demo' ? 'Esempio' : 'Il tuo gesto'} · ${SHOTS[shot]} · ${names[phase]}`;
       const side = (event?.dir || 1) > 0 ? 'fh' : 'bh', point = contact();
       c.pose({ t: now, dt: last == null ? 0 : Math.min(.05,now-last), moving: 0, prep: t < impactAt ? Math.min(1,t/impactAt) : 0, side, kind: shot, swing: swing >= 0 && swing <= 1.2 ? Math.min(1,swing) : null });
-      if (t < impactAt+.4) c.aimRacket?.(point, { x: -(event?.dir ?? 1)*.5, y: .2, z: -1 }, 1);
+      if (t < impactAt+.4) c.aimRacket?.(point, launched ? ball.v : { x: (event?.aim ?? -(event?.dir ?? 1)*.72)*.7, y: .2, z: -1 }, 1);
       if (t < impactAt){ mesh.position.set(point.x, shot === 'serve' ? .9+(point.y-.9)*Math.sin(t/impactAt*Math.PI/2) : point.y, shot === 'serve' ? point.z : point.z - 5*(1-t/impactAt)); }
       else {
         if (!launched){ launch(); launched = true; }

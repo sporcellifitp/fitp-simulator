@@ -8,7 +8,7 @@ const app = express(), signalApp = express(), signal = http.createServer(signalA
 const peerServer = ExpressPeerServer(signal, { path: '/' });
 if (process.env.SIGNAL_DEBUG) peerServer.on('message', (_, msg) => console.log('Signal:', msg.type));
 signalApp.use('/fiw', peerServer);
-app.use(express.static(fileURLToPath(new URL('../../site/', import.meta.url))));
+app.use(express.static(process.env.NATPF_SITE_ROOT || fileURLToPath(new URL('../../site/', import.meta.url))));
 const web = http.createServer(app);
 await Promise.all([new Promise(r => web.listen(8765, '127.0.0.1', r)), new Promise(r => signal.listen(9000, '127.0.0.1', r))]);
 try {

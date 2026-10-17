@@ -1,5 +1,5 @@
 // Giocatori comandati dall'IA e scelta dei colpi (condivisa con il giocatore umano). Senza Three.js.
-import { predict, sideOf, aimShot, shotTime } from './physics.js';
+import { predict, sideOf, aimShot, shotTime, spinForShot } from './physics.js';
 
 export const LEVELS = {
   facile:  { skill: .42, speed: 4.3, reaction: .38, humanReach: 1.8, humanError: .25, label: 'Facile', assist: true },
@@ -27,8 +27,9 @@ export function makeShot(court, from, target, type, error, rng, clearance = null
   const spread = Number.isFinite(error) ? Math.max(0, error) : 0;
   const t = spread ? { x: target.x + gauss(rng)*spread, z: target.z + gauss(rng)*spread*1.2 } : { ...target };
   const dist = Math.hypot(t.x - from.x, t.z - from.z);
-  const v = aimShot(from, t, shotTime(court, type, dist)*(court.sport === 'padel' ? 1 + gauss(rng)*.05 : 1)/Math.max(.3, pace), court, clearance ?? (type === 'lob' ? 1.2 : type === 'smash' ? .15 : .3));
-  return { v, target: t };
+  const spin = spinForShot(type, from, t, court);
+  const v = aimShot(from, t, shotTime(court, type, dist)*(court.sport === 'padel' ? 1 + gauss(rng)*.05 : 1)/Math.max(.3, pace), court, clearance ?? (type === 'lob' ? 1.2 : type === 'smash' ? .15 : .3), spin);
+  return { v, spin, target: t };
 }
 
 // dove intercettare la palla: il primo punto raggiungibile, a un'altezza giocabile, prima del secondo rimbalzo

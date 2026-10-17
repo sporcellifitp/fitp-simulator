@@ -67,7 +67,7 @@ export class MatchCore {
   holdBall(){
     const s = this.serverP, b = this.ball;
     b.p = { x: s.x + .35*(s.team === 0 ? -1 : 1), y: 1, z: s.z }; b.v = { x: 0, y: 0, z: 0 };
-    b.held = true; b.stopped = false; b.rolling = false; b.out = false;
+    b.spin = { x: 0, y: 0, z: 0 }; b.held = true; b.stopped = false; b.rolling = false; b.out = false;
   }
 
   /* ---------- servizio ---------- */
@@ -84,7 +84,7 @@ export class MatchCore {
     const from = padel ? { x: s.x, y: .85, z: s.z } : { x: s.x, y: 2.75, z: s.z };
     const shot = makeShot(c, from, { x: tx, z: tz }, padel ? 'drive' : 'serve', err, this.rng);
     if (padel){ shot.v.x *= .78; shot.v.z *= .78; shot.v.y = (-from.y + .5*9.81*((tz - from.z)/shot.v.z)**2)/((tz - from.z)/shot.v.z); }
-    const b = this.ball; b.held = false; b.p = { ...from }; b.v = { x: shot.v.x, y: shot.v.y, z: shot.v.z };
+    const b = this.ball; b.held = false; b.p = { ...from }; b.v = { x: shot.v.x, y: shot.v.y, z: shot.v.z }; b.spin = { ...shot.spin };
     r.hit(s.team);
     s.swing = .35;
     this.phase = 'live'; this.sinceHit = 0; this.lastHitter = s;
@@ -103,7 +103,7 @@ export class MatchCore {
     const shot = makeShot(c, from, target, type, error, this.rng, clearance, pace);
     const res = this.rally.hit(p.team);
     if (res){ this.endPoint(res); return; }
-    b.v = { x: shot.v.x, y: shot.v.y, z: shot.v.z }; b.p = from; b.rolling = false; b.stopped = false;
+    b.v = { x: shot.v.x, y: shot.v.y, z: shot.v.z }; b.spin = { ...shot.spin }; b.p = from; b.rolling = false; b.stopped = false;
     if (anim) p.swing = .35;
     p.lastShot = type; this.sinceHit = 0; this.lastHitter = p;
     for (const q of this.players) if (q.team !== p.team){ q.react = q.reaction; q.planT = 0; }

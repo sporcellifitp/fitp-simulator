@@ -51,6 +51,35 @@ try {
     return{fov,teamTwoZ:S.camera.position.z};
   });
   check('volo ripristina wide; POV del secondo giocatore specchiato',Math.abs(recovered.fov-result.wide)<.02 && recovered.teamTwoZ<0);
+  const first=await p.evaluate(async()=>{
+    const THREE=await import('three'),{S,view,players}=window.__visuals;
+    const perspectives=[];
+    S.setCameraMode('first');
+    for(const team of [0,1]){
+      players[0].team=team;players[0].z=team?-11.885:11.885;players[1].team=1-team;players[1].z=-players[0].z;
+      S.sync(view,1/60,{id:'me',assist:true});S.follow(players[0],1/60,true);S.render();
+      const opponent=new THREE.Vector3(players[1].x,1,players[1].z).project(S.camera);
+      perspectives.push({team,eyeY:S.camera.position.y,z:S.camera.position.z,opponent:opponent.toArray(),fov:S.camera.fov});
+    }
+    return perspectives;
+  });
+  check('prima persona reale alla testa P1/P2, avversario davanti e camera specchiata',first.every(f=>Math.abs(f.eyeY-1.68)<.001 && f.fov===78 && f.opponent.slice(0,2).every(v=>Math.abs(v)<1)) && first[0].z>0 && first[1].z<0,JSON.stringify(first));
+  await p.screenshot({path:SP+'/arcade-first-person.png'});
+  const memory=await p.evaluate(()=>{
+    const{S,view,players}=window.__visuals;S.setCameraMode('third');
+    S.setPlayers(players,['blu','rosso']);S.sync(view,1/60,{id:'me'});S.follow(players[0],1/60,true);S.render();
+    const before={...S.renderer.info.memory};
+    for(let i=0;i<12;i++){
+      S.setPlayers(players,['blu','rosso']);S.burst({x:0,y:1,z:0});
+      for(let j=0;j<8;j++)S.mark(j*.1,1,j===7);
+      S.sync(view,.5,{id:'me'});S.render();
+      S.sync(view,4,{id:'me'});S.render();
+    }
+    const after={...S.renderer.info.memory};
+    S.destroy();S.destroy();
+    return{before,after,canvasCount:document.querySelectorAll('canvas').length};
+  });
+  check('riavvii e feedback ripetuti non accumulano geometrie GPU; teardown rimuove canvas',memory.after.geometries<=memory.before.geometries+1 && memory.after.textures===memory.before.textures && memory.canvasCount===0,JSON.stringify(memory));
   check('rendering senza errori JavaScript',errs.length===0,errs.join('; '));
 } finally {await browser.close();}
 summary();

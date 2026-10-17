@@ -1,7 +1,10 @@
 {
-  "version": "arcade-lan-2026-10-16",
+  "version": "intuitive-arcade-2026-10-16",
   "branch": "refactor/natpf-audit-20261015",
-  "validation": "awaiting-device-LAN-test",
+  "validation": "automated-tests-plus-physical-user-validation-pending",
+  "cameraModes": ["third", "first"],
+  "calibrationGestures": 4,
+  "contact": "visible-racket-volume",
   "display": "computer",
   "controller": "smartphone",
   "LAN": "local-HTTPS-and-WebRTC",

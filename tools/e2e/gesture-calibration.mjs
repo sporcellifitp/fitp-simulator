@@ -16,33 +16,28 @@ try {
  await p.evaluate(()=>__motion.still(1600));
  try { await p.waitForFunction(()=>__racchetta.cal.state.step==='swings'); }
  catch(e){console.log('Sensor calibration diagnostic',await p.evaluate(()=>({state:__racchetta.state,profile:__racchetta.det.profile,mode:__racchetta.det.mode,last:__racchetta.det.last,cal:__racchetta.cal.state})));throw e;}
- for(const dir of [1,1,1,-1,-1,-1]){
+ for(const dir of [1,-1,1,-1]){
   await p.evaluate(async dir=>{await __motion.swing({axis:[0,-dir,0],peak:42,dur:260});await __motion.swing({axis:[0,dir,0],peak:dir===1?120:150,dur:220});await __motion.still(650);},dir);
  }
- await p.waitForFunction(()=>__racchetta.cal.state.step==='shots');
- check('six natural drives lead to personalized shot training',await p.evaluate(()=>__racchetta.cal.state.idx===0&&__racchetta.cal.state.profile.version===3));
+ check('four comfortable gestures finish setup without special-shot training',await p.evaluate(()=>__racchetta.cal.state.profile.version===4&&__racchetta.cal.state.profile.automaticGesture&&__racchetta.cal.state.step!=='shots'));
  const learned=[
   {shot:'slice',axis:[0,1,0],peak:120,up:-1,tilt:-.35}, {shot:'slice',axis:[0,-1,0],peak:150,up:-1,tilt:-.35},
   {shot:'lob',axis:[0,1,0],peak:120,up:1,tilt:.25}, {shot:'lob',axis:[0,-1,0],peak:150,up:1,tilt:.25},
-  {shot:'drop',axis:[0,1,0],peak:90,dur:160,tilt:.65}, {shot:'drop',axis:[0,-1,0],peak:90,dur:160,tilt:.65},
+  {shot:'drop',axis:[0,1,0],peak:65,dur:160,tilt:.65}, {shot:'drop',axis:[0,-1,0],peak:65,dur:160,tilt:.65},
   {shot:'serve',axis:[1,0,0],peak:120,up:1}, {shot:'serve',axis:[1,0,0],peak:120,up:1},
  ];
- for(let i=0;i<learned.length;i++){
-  await p.waitForFunction(i=>__racchetta.cal.state.step==='shots'&&__racchetta.cal.state.idx===i,i);
-  await p.evaluate(async trace=>{await __motion.swing(trace);await __motion.still(650);},learned[i]);
- }
  try {await p.waitForFunction(()=>__racchetta.cal.state.step==='free');}
  catch(e){console.log('Guided shot diagnostic',await p.evaluate(()=>({state:__racchetta.cal.state,profile:__racchetta.det.profile})));throw e;}
- check('compact gestures learn every shot in either direction for either hand',await p.evaluate(()=>__racchetta.cal.state.profile.hand==='left'&&__racchetta.cal.state.profile.ref<180&&__racchetta.cal.state.result.pass&&__racchetta.cal.state.profile.templates.length===14));
+ check('short calibration learns personal strength and direction for either hand',await p.evaluate(()=>__racchetta.cal.state.profile.hand==='left'&&__racchetta.cal.state.profile.ref<180&&__racchetta.cal.state.result.pass&&__racchetta.cal.state.profile.templates.length===4));
  check('practice simulation visible; confirmation awaits an observed gesture',await d.evaluate(()=>!document.querySelector('#calPractice').classList.contains('hidden')&&!!document.querySelector('#calCanvas canvas')&&document.querySelector('#rvConfirm').disabled));
  check('motion control has no shot menu to select during play',!(await p.locator('#shotChoices').isVisible()));
- const labels={slice:'Slice',lob:'Lob',drop:'Palla corta'};
+ const labels={slice:'Taglio verso il basso',lob:'Palla alta',drop:'Tocco corto'};
  for(const shot of ['slice','lob','drop']){
   await p.evaluate(async trace=>{await __motion.swing(trace);await __motion.still(500);},learned.find(t=>t.shot===shot));
   await d.waitForFunction(label=>document.querySelector('#calCaption').textContent.includes(label),labels[shot]);
   check(`free practice recognizes ${shot} directly from the gesture`,await d.evaluate(label=>!document.querySelector('#rvConfirm').disabled&&document.querySelector('#calCaption').textContent.includes(label),labels[shot]));
  }
- await d.screenshot({path:SP+'/calibration-v3.png'});
+ await d.screenshot({path:SP+'/calibration-quick.png'});
  await d.click('#rvConfirm');await p.waitForFunction(()=>__racchetta.state.sensor==='ready');await d.click('#pairGo');
  await d.waitForFunction(()=>__racchetta.state==='play');
  // A deterministic point selects the human server. Inputs still come exclusively

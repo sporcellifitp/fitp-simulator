@@ -4,7 +4,7 @@
 import { SHOT_NAMES, shotFlags } from './shot-options.js';
 import { parsePairing } from './pairing.js';
 import { createSwingDetector, sampleFromMotion } from './swing-detect.js';
-import { createCalibration, PLAN, GESTURE_PLAN } from './calibration.js';
+import { createCalibration, PLAN, GESTURE_PLAN, calibrationPlan } from './calibration.js';
 import { LanPeer, isLanMode } from './lan-transport.js';
 import { encodeSensor, SENSOR_HZ } from './sensor-packet.js';
 import { peerConfig, loadPeer } from './link.js';
@@ -24,7 +24,7 @@ let peer = null, conn = null, linkState = 'off', rtt = 80, sensor = 'off', phase
 
 /* ---------- interfaccia ---------- */
 let selectedShot = 'auto', inputMode = 'motion', portrait = true, shotsPaintKey = '';
-const preferences = () => ({ range: $('#motionRange').value, hand: $('#hand').value, intentGate: $('#intentGate').checked, gestural:true });
+const preferences = () => ({ range: $('#motionRange').value, hand: $('#hand').value, intentGate: $('#intentGate').checked, gestural:true,quick:true });
 const ARROW = { L: '←', R: '→', '?': '?' };
 function ui(big, sub, ring = '', arrow = ''){ $('#big').textContent = big; $('#sub').textContent = sub; $('#ring').className = ring; $('#arrow').textContent = arrow; }
 function bar(){
@@ -43,7 +43,7 @@ function paint(){
   show('#touchHit', inputMode === 'touch' || det.profile.intentGate);
   $('#touchHit').textContent = inputMode === 'touch' ? 'Colpisci' : 'Arma dopo l’apertura';
   show('#shotChoices',inputMode==='touch');
-  $('#shotHint').textContent=inputMode==='touch'?'Scegli il colpo; smash e servizio seguono la palla.':'Tipo, intensità e angolo seguono il gesto. Guarda il computer.';
+  $('#shotHint').textContent=inputMode==='touch'?'Scegli il colpo; smash e servizio seguono la palla.':'Dai un colpetto quando la palla arriva alla racchetta sul computer.';
   paintShots();
   show('#retry', (linkState === 'lost' || linkState === 'denied') && !!pair);
   show('#tools', linkState === 'on' && (sensor === 'ready' || sensor === 'cal'));
@@ -56,14 +56,14 @@ function paint(){
 function calUi(){
   const st = cal.state;
   if (st.step === 'still') ui('Fermo', 'Tieni il telefono fermo nel palmo, come il manico di una racchetta.');
-  else if (st.step === 'grip') ui('In verticale', 'Telefono in verticale, schermo verso di te di lato, dita ben chiuse.');
-  else if (st.step === 'swings'){ const w = PLAN[st.idx]; ui(w === 'L' ? 'Da destra a sinistra' : 'Da sinistra a destra', `Swing ${st.idx + 1} di ${PLAN.length}: apri il braccio, colpisci e torna pronto, con un movimento comodo.`, '', ARROW[w]); }
+  else if (st.step === 'grip') ui('La tua presa', 'Tieni il telefono come ti è comodo, senza stringere troppo.');
+  else if (st.step === 'swings'){ const plan=calibrationPlan(st.options),w=plan[st.idx]; ui(w === 'L' ? 'Muovi verso sinistra' : 'Muovi verso destra', `Gesto ${st.idx + 1} di ${plan.length}. Muovi il telefono come per dare un colpetto. Basta un gesto comodo, anche piccolo; poi fermati.`, '', ARROW[w]); }
   else if(st.step==='shots'){const g=GESTURE_PLAN[st.idx];ui(SHOT_NAMES[g.shot],`Gesto ${PLAN.length+st.idx+1} di ${PLAN.length+GESTURE_PLAN.length}: ${g.hint}`, '',g.want?ARROW[g.want]:'↑');}
   else if (st.step === 'review') ui(st.result && st.result.pass ? 'Fatto!' : 'Da rifare', st.result && st.result.pass ? 'Guarda il computer e conferma.' : 'Guarda il computer: ti dice cosa cambiare.', st.result && st.result.pass ? 'ready' : 'miss');
-  else if (st.step === 'free') ui('Prova libera', 'Esegui un gesto: sul computer vedi il tipo riconosciuto e la traiettoria.');
+  else if (st.step === 'free') ui('Prova un colpetto', 'Guarda il computer: il personaggio ripete il tuo gesto. Non devi conoscere i colpi del tennis.');
 }
 function phaseText(){
-  return { menu: 'Guarda il computer per iniziare.', toss:'Colpisci quando la palla raggiunge la cima del lancio.', serve: 'Primo movimento: lanci la palla. Secondo: colpisci in cima al lancio. Puoi anche toccare lo schermo per lanciare.', play: 'Il gesto sceglie tipo e angolo; velocità e timing controllano il colpo. Guarda la palla sul computer.', pause: 'Partita in pausa.', over: 'Partita finita: guarda il computer.' }[phase] || '';
+  return { menu: 'Guarda il computer per iniziare.', toss:'Colpisci quando la palla raggiunge la cima del lancio.', serve: 'Alza il telefono per far partire la palla. Poi dai un colpetto quando è in alto. Puoi anche toccare lo schermo per lanciarla.', play: 'Guarda il computer e colpisci quando la palla arriva alla racchetta. Muovi il telefono nella direzione desiderata.', pause: 'Partita in pausa.', over: 'Partita finita: guarda il computer.' }[phase] || '';
 }
 function flash(cls, big, sub, ms = 650, arrow = ''){ ui(big, sub, cls, arrow); clearTimeout(flashT); flashT = setTimeout(() => { flashT = null; paint(); }, ms); }
 
@@ -106,7 +106,7 @@ function onData(c, d){
     case 'cmd': command(d.c); break;
     case 'ev':
       if (d.k === 'contact'){ buzz(d.label === 'perfetto' ? [40] : [20]); flash('hit', ({ drop: 'Palla corta!', lob: 'Lob!', slice: 'Tagliato!', smash: 'Smash!' }[d.shot]) || ({ perfetto: 'Perfetto!', buono: 'Bel colpo', anticipo: 'In anticipo', ritardo: 'In ritardo' }[d.label] || 'Colpo!'), ''); }
-      if (d.k === 'miss') { buzz([90]); flash('miss', { presto: 'Troppo presto', tardi: 'Troppo tardi', nessuno: 'Nessun colpo', portata: 'Troppo lontana' }[d.why] || 'Mancata', d.why === 'nessuno' ? 'Il movimento non è arrivato: fai uno swing più deciso.' : ''); }
+      if (d.k === 'miss') { buzz([90]); flash('miss', { presto: 'Troppo presto', tardi: 'Troppo tardi', nessuno: 'Nessun colpo', portata: 'Troppo lontana' }[d.why] || 'Mancata', d.why === 'nessuno' ? 'Il movimento non è arrivato: riprova con un colpetto comodo.' : ''); }
       if (d.k === 'point') flash(d.mine ? 'hit' : 'miss', d.mine ? 'Punto tuo' : 'Punto avversario', d.txt || '', 1300);
       break;
     case 'bye': ss.del('resume'); ss.del('pair'); pair = null; linkState = 'denied'; paint(); ui('Scollegato', 'Il computer ha scollegato il telefono. Per giocare di nuovo inquadra il nuovo QR.'); try { c.close(); } catch (e){} break;
@@ -136,7 +136,7 @@ async function enableSensors(){
   motionSeen = false;
   setTimeout(() => { if (!motionSeen && inputMode === 'motion') noMotion('nomotion'); }, 1500);
   const saved = ss.get('profile');
-  if (saved?.version === 3 && saved.input !== 'touch'){ det.setProfile(saved); det.run(); sensor = 'ready'; }
+  if (saved?.version === 4 && saved.input !== 'touch'){ det.setProfile(saved); det.run(); sensor = 'ready'; }
   else { sensor = 'cal'; cal.start(preferences()); }
   sendState(); paint();
 }
@@ -177,7 +177,7 @@ det.on('swing', s => {
   if (sensor !== 'ready' || linkState !== 'on' || !portrait || inputMode !== 'motion' || !['play','serve','toss'].includes(phase)) return;
   const flags = shotFlags(selectedShot, s);
   send({ t: 'sw', p: s.power, l: Math.max(-.6,Math.min(.6,s.lift)), ...flags, dur: s.dur, dir: s.dir, a:s.aim,c:s.confidence,pk: s.peakT, lat: rtt/2 + (performance.now() - s.peakT) });
-  const cue = SHOT_NAMES[s.shot] || 'Colpo';
+  const cue = ({drive:'Gesto letto',lob:'Verso l’alto',slice:'Taglio verso il basso',drop:'Tocco corto',serve:'Movimento letto',smash:'Colpo dall’alto'})[s.shot] || 'Gesto letto';
   flash('hit', cue, `Forza ${Math.round(s.power*100)}%`, 350);
 });
 

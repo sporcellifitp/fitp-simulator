@@ -4,13 +4,14 @@
 // fluido anche con la rete che va a scatti. Quando l'amico colpisce, il colpo si riferisce a ciò che vedeva (tempo − D):
 // l'host lo giudica su quell'istante (la palla torna indietro), e intanto non chiude il punto (attesa «grace»).
 import { pointLabels } from '../match/rules.js';
+import { COURTS, newBall, stepBall } from '../match/physics.js';
 
 const r3 = v => Math.round(v*1000)/1000;
 export function encodeSnap(core, hostWallMs){
   const b = core.ball, sc = core.score;
   return {
     t: 's', ct: r3(core.t), hw: Math.round(hostWallMs*10)/10, ph: core.phase, sv: core.serverP && core.serverP.id,
-    b: [r3(b.p.x), r3(b.p.y), r3(b.p.z), r3(b.v.x), r3(b.v.y), r3(b.v.z)], hd: b.held ? 1 : 0, tt: core.toss ? r3(core.toss.t0) : null,
+    b: [r3(b.p.x), r3(b.p.y), r3(b.p.z), r3(b.v.x), r3(b.v.y), r3(b.v.z), r3(b.spin?.x || 0), r3(b.spin?.y || 0), r3(b.spin?.z || 0), b.rolling ? 1 : 0, b.stopped ? 1 : 0], sp: core.sport || 'tennis', hd: b.held ? 1 : 0, tt: core.toss ? r3(core.toss.t0) : null,
     p: core.players.map(p => [r3(p.x), r3(p.z), r3(p.y || 0), p.anim ? [p.anim.kind, p.anim.side || null, r3(p.anim.at), p.anim.point || null, p.anim.out || null, p.anim.hit ? 1 : 0] : 0, p.inc ? [r3(p.inc.Tc), r3(p.inc.x), r3(p.inc.z), p.inc.side, Number.isFinite(p.inc.y) ? r3(p.inc.y) : null] : 0, r3(p.vx || 0), r3(p.vz || 0), core.legalFor ? (core.legalFor(p) ? 1 : 0) : 0, p.locomotion ? [p.locomotion.state,r3(p.locomotion.dirX||0),r3(p.locomotion.dirZ||0),r3(p.locomotion.progress||0)] : null]),
     sc: [sc.games[0], sc.games[1], sc.points[0], sc.points[1], sc.server, sc.tiebreak ? 1 : 0, sc.gamesToWin, sc.set ? 1 : 0],
   };
@@ -52,17 +53,21 @@ export function createMirror({ players, D = .1 }){
       for (let i = snaps.length - 1; i > 0; i--) if (snaps[i - 1].ct <= R){ a = snaps[i - 1]; b = snaps[i]; break; }
       if (R >= b.ct) a = b;
       const k = b === a ? 0 : Math.max(0, Math.min(1, (R - a.ct)/(b.ct - a.ct))), L = (x, y) => x + (y - x)*k;
-      // oltre l'ultima istantanea: la palla prosegue in linea retta per al massimo 0,15 s
-      const ex = b === a ? Math.min(.15, Math.max(0, R - a.ct)) : 0;
+      // Oltre l'ultima istantanea: stessa fisica, spin e rimbalzo dell'host,
+      // per al massimo150ms. I campi assenti nei vecchi snapshot sono zero.
+      const ex = b === a && !a.hd ? Math.min(.15, Math.max(0, R - a.ct)) : 0;
+      const extrapolated = newBall({x:a.b[0],y:a.b[1],z:a.b[2]}, {x:a.b[3],y:a.b[4],z:a.b[5]}, {x:a.b[6]||0,y:a.b[7]||0,z:a.b[8]||0});
+      extrapolated.rolling=!!a.b[9]; extrapolated.stopped=!!a.b[10];
+      if (ex > 0) stepBall(extrapolated, ex, COURTS[a.sp] || COURTS.tennis);
       const ball = b === a
-        ? { x: a.b[0] + a.b[3]*ex, y: Math.max(0, a.b[1] + a.b[4]*ex - 4.9*ex*ex), z: a.b[2] + a.b[5]*ex }
+        ? { ...extrapolated.p }
         : { x: L(a.b[0], b.b[0]), y: L(a.b[1], b.b[1]), z: L(a.b[2], b.b[2]) };
       // un salto grande tra due istantanee (colpo con la palla riportata indietro): niente interpolazione
       if (b !== a && Math.hypot(b.b[0] - a.b[0], b.b[2] - a.b[2]) > 4){ const n = k < .5 ? a : b; ball.x = n.b[0]; ball.y = n.b[1]; ball.z = n.b[2]; }
       const src = k < .5 ? a : b;
       return {
         t: R, phase: src.ph, held: !!src.hd, serverId: src.sv, toss: src.tt != null ? { t0: src.tt } : null,
-        ball: { p: ball, v: { x: L(a.b[3], b.b[3]), y: L(a.b[4], b.b[4]) - 9.81*ex, z: L(a.b[5], b.b[5]) } },
+        ball: { p: ball, v: b === a ? {...extrapolated.v} : { x: L(a.b[3], b.b[3]), y: L(a.b[4], b.b[4]), z: L(a.b[5], b.b[5]) }, spin: b === a ? {...extrapolated.spin} : {x:L(a.b[6]||0,b.b[6]||0),y:L(a.b[7]||0,b.b[7]||0),z:L(a.b[8]||0,b.b[8]||0)} },
         players: M.players.map((p, i) => ({
           ...p, x: L(a.p[i][0], b.p[i][0]), z: L(a.p[i][1], b.p[i][1]), y: L(a.p[i][2], b.p[i][2]),
           vx: L(a.p[i][5] || 0, b.p[i][5] || 0), vz: L(a.p[i][6] || 0, b.p[i][6] || 0),

@@ -3,31 +3,42 @@
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const dot = (a, b) => a.x*b.x + a.y*b.y + a.z*b.z;
 
-export function cameraFieldOfView(aspect = 16/9){
+export function normalizeCameraMode(mode){ return mode === 'first' ? 'first' : 'third'; }
+
+export function cameraFieldOfView(aspect = 16/9, mode = 'third'){
   const a = Number.isFinite(aspect) && aspect > 0 ? aspect : 16/9;
   // Un modesto allargamento sui monitor stretti; il resto viene dalla distanza,
   // evitando il grandangolo che schiaccia l'avversario e le traiettorie lontane.
-  return 48 + clamp((1.6-a)*5, 0, 8);
+  return (normalizeCameraMode(mode) === 'first' ? 78 : 52) + clamp((1.6-a)*5, 0, 8);
 }
 
-export function playerCameraFrame(player, halfLength = 11.885, aspect = 16/9){
+export function playerCameraFrame(player, halfLength = 11.885, aspect = 16/9, mode = 'third'){
   const team = player && player.team === 1 ? 1 : 0;
   const side = team === 0 ? 1 : -1;
   const x = player && Number.isFinite(player.x) ? player.x : 0;
   const half = Number.isFinite(halfLength) && halfLength > 0 ? halfLength : 11.885;
   const a = Number.isFinite(aspect) && aspect > 0 ? aspect : 16/9;
+  mode = normalizeCameraMode(mode);
+  if (mode === 'first'){
+    const z = player && Number.isFinite(player.z) ? player.z : side*half;
+    const y = player && Number.isFinite(player.y) ? player.y : 0;
+    // Eye position follows the actual local player on either half of the court.
+    // A fixed gaze towards the far baseline avoids camera rotations from body
+    // preparation, swing direction, motion packets or the running animation.
+    return { team, mode, fov:cameraFieldOfView(a,mode), camera:{x,y:y+1.68,z:z-side*.18}, target:{x,y:1.18,z:-side*(half+2)} };
+  }
   // Punto di mira sotto il piano di gioco: il campo occupa il centro della
   // schermata, lasciando meno spazio vuoto alle tribune. Campo stabile anche
   // quando il giocatore corre a rete o arretra: niente zoom
   // legato alla sua z. Un piccolo seguito laterale conserva il senso del movimento.
-  const target = { x: clamp(x*.035, -.25, .25), y: -2.5, z: -side*.8 };
-  const offset = { x: clamp(x*.12, -.7, .7)-target.x, y: 16, z: side*(half+12.115)-target.z };
+  const target = { x: clamp(x*.035, -.25, .25), y: -.4, z: -side*.8 };
+  const offset = { x: clamp(x*.12, -.7, .7)-target.x, y: 8.5, z: side*(half+14.115)-target.z };
   const distance = Math.hypot(offset.x, offset.y, offset.z);
   const forward = { x: -offset.x/distance, y: -offset.y/distance, z: -offset.z/distance };
   const horizontal = Math.hypot(forward.x, forward.z);
   const right = { x: -forward.z/horizontal, y: 0, z: forward.x/horizontal };
   const up = { x: -right.z*forward.y, y: right.z*forward.x-right.x*forward.z, z: right.x*forward.y };
-  const fov = cameraFieldOfView(a), tan = Math.tan(fov*Math.PI/360);
+  const fov = cameraFieldOfView(a,mode), tan = Math.tan(fov*Math.PI/360);
   // Inquadra entrambi i fondocampo con 2,6 m di recupero, i corridoi laterali
   // e la testa della racchetta. I margini NDC lasciano aria per HUD e rimbalzi.
   let scale = 1;
@@ -42,7 +53,7 @@ export function playerCameraFrame(player, halfLength = 11.885, aspect = 16/9){
   // Un lob alto deve restare leggibile sopra la rete, senza inseguire la palla.
   for (const px of [-5, 0, 5]) for (const pz of [-6, 0, 6]) fit({ x: px, y: 9, z: pz });
   return {
-    team, fov,
+    team, mode, fov,
     camera: { x: target.x+offset.x*scale, y: target.y+offset.y*scale, z: target.z+offset.z*scale },
     target,
   };

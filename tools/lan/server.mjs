@@ -6,19 +6,26 @@ import {fileURLToPath} from 'node:url';
 import {networkInterfaces} from 'node:os';
 import {WebSocketServer} from 'ws';
 const root=path.resolve(fileURLToPath(new URL('../../site/',import.meta.url)));
-const args=Object.fromEntries(process.argv.slice(2).map(v=>{const i=v.indexOf('=');return i<0?[v.replace(/^--/,''),true]:[v.slice(0,i).replace(/^--/,''),v.slice(i+1)];}));
-const tls=!!(args.cert&&args.key), port=Number(args.port || (tls?8443:8080));
+export function lanAddresses(){let addresses={};try{addresses=networkInterfaces();}catch{}return [...new Set(Object.values(addresses).flatMap(items=>(items||[]).filter(a=>a.family==='IPv4'&&!a.internal).map(a=>a.address)))];}
+export function createLanServer(options={}){
+const tls=!!(options.cert&&options.key),port=Number(options.port??(tls?8443:8080));
+const clients=new Map();
+const status=()=>options.status?options.status():({ready:tls,message:tls?'Server HTTPS pronto.':'HTTP: solo test desktop. Per i sensori del telefono servono HTTPS e certificato attendibile.',addresses:lanAddresses(),urls:tls?lanAddresses().map(ip=>`https://${ip}:${server.address()?.port||port}/tennis/?lan=1`):[],registered:clients.size});
 const mime={'.html':'text/html','.js':'text/javascript','.json':'application/json','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.webp':'image/webp','.woff2':'font/woff2','.glb':'model/gltf-binary'};
 const serve=(req,res)=>{
   let pathname;try{pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);}catch{res.writeHead(400).end();return;}
+  if(pathname==='/lan/status'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}).end(JSON.stringify(status()));return;}
+  if(pathname==='/lan/'||pathname==='/lan'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Content-Security-Policy':"default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'"});fs.createReadStream(fileURLToPath(new URL('./setup.html',import.meta.url))).pipe(res);return;}
+  if(options.setupOnly){res.writeHead(302,{Location:'/lan/'}).end();return;}
   if(pathname==='/'){res.writeHead(302,{Location:'/tennis/?lan=1'}).end();return;}
   const filename=pathname==='/js/vendor/three.module.js'?fileURLToPath(new URL('node_modules/three/build/three.module.js',import.meta.url)):path.resolve(root,'.'+pathname+(pathname.endsWith('/')?'index.html':''));
   if(pathname!=='/js/vendor/three.module.js'&&!filename.startsWith(root+path.sep)){res.writeHead(403).end();return;}
   fs.stat(filename,(error,stat)=>{if(error||!stat.isFile()){res.writeHead(404).end();return;}res.writeHead(200,{'Content-Type':mime[path.extname(filename)]||'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});fs.createReadStream(filename).pipe(res);});
 };
-const server=tls?https.createServer({cert:fs.readFileSync(args.cert),key:fs.readFileSync(args.key)},serve):http.createServer(serve);
-const wss=new WebSocketServer({server,path:'/lan-signal',maxPayload:32768}), clients=new Map();
+const server=tls?https.createServer({cert:fs.readFileSync(options.cert),key:fs.readFileSync(options.key)},serve):http.createServer(serve);
+const wss=new WebSocketServer({server,path:'/lan-signal',maxPayload:32768});
 wss.on('connection',(ws,request)=>{
+  if(options.setupOnly){ws.close(1008,'setup-only');return;}
   // Browser signaling is same-origin; reject cross-site attempts to the local service.
   const origin=request.headers.origin;try{if(origin&&new URL(origin).host!==request.headers.host){ws.close(1008,'origin');return;}}catch{ws.close(1008);return;}
   let id=null,count=0;const quota=setInterval(()=>{count=0;},1000);
@@ -30,4 +37,9 @@ wss.on('connection',(ws,request)=>{
   });
   ws.on('close',()=>{clearInterval(quota);if(clients.get(id)===ws)clients.delete(id);});ws.on('error',()=>{});
 });
-server.listen(port,'0.0.0.0',()=>{console.log(`NATPF LAN: ${tls?'https':'http'}://localhost:${port}/tennis/?lan=1`);let addresses={};try{addresses=networkInterfaces();}catch{}for(const interfaces of Object.values(addresses))for(const address of interfaces||[])if(address.family==='IPv4'&&!address.internal)console.log(`Telefono/desktop: ${tls?'https':'http'}://${address.address}:${port}/tennis/?lan=1`);if(!tls)console.log('HTTP: solo test desktop. I sensori del telefono richiedono HTTPS attendibile.');});
+return {server,wss,clients,listen:()=>new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,options.host||'0.0.0.0',()=>{server.removeListener('error',reject);resolve(server.address());});}),close:()=>new Promise(resolve=>{for(const ws of wss.clients)ws.terminate();wss.close(()=>server.close(resolve));})};
+}
+if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+const args=Object.fromEntries(process.argv.slice(2).map(v=>{const i=v.indexOf('=');return i<0?[v.replace(/^--/,''),true]:[v.slice(0,i).replace(/^--/,''),v.slice(i+1)];}));
+const app=createLanServer(args);try{const {port}=await app.listen();const scheme=args.cert&&args.key?'https':'http';console.log(`NATPF LAN: ${scheme}://localhost:${port}/tennis/?lan=1`);for(const ip of lanAddresses())console.log(`Telefono/desktop: ${scheme}://${ip}:${port}/tennis/?lan=1`);if(scheme==='http')console.log('HTTP: solo test desktop. I sensori del telefono richiedono HTTPS attendibile.');}catch(error){console.error(`Avvio LAN non riuscito: ${error.message}`);process.exitCode=1;}
+}

@@ -35,7 +35,7 @@ test('sweet spot: verde solo con timing, distanza e altezza coerenti; giallo in 
   assert.equal(perfect.heightOk, true); assert.equal(perfect.perfect, true);
   const early = evaluateSweetSpot({ ball, player, impact, timeToImpact: .16 });
   assert.equal(early.ready, true); assert.equal(early.perfect, false);
-  const stretched = evaluateSweetSpot({ ball: { ...ball, x: 1.9 }, player, impact, timeToImpact: .02 });
+  const stretched = evaluateSweetSpot({ ball: { ...ball, x: 2.3 }, player, impact, timeToImpact: .02 });
   assert.equal(stretched.inReach, false); assert.equal(stretched.perfect, false);
   const wrongHeight = evaluateSweetSpot({ ball: { ...ball, y: 3.5 }, player, impact, timeToImpact: .02 });
   assert.equal(wrongHeight.heightOk, false); assert.equal(wrongHeight.perfect, false);
@@ -100,7 +100,7 @@ function rallyScene(seed = 1, grace = .1){
   core.phase = 'live'; core.rally.hit(1); core.rally.event({ type: 'bounce', x: 1, z: 4, side: 0 }); core.rally.hit(0); core.rally.hit(1);
   core.sinceHit = .5; core.ball.held = false;
   const h = core.players[0]; Object.assign(h, { x: 0, z: 12, tx: 0, tz: 12, speed: 0 });
-  core.ball.p = { x: .7, y: 1.4, z: 2 }; core.ball.v = { x: 0, y: 1.5, z: 13 };
+  core.ball.p = { x: .7, y: 2.4, z: 2 }; core.ball.v = { x: 0, y: 1.5, z: 13 };
   // istante in cui la palla passa 40 cm davanti al giocatore
   let t = 0; const b = { ...core.ball.p }, v = { ...core.ball.v };
   while (b.z < 12 - ARC.S0){ v.y -= 9.81/600; v.z *= 1 - .06/600; b.x += v.x/600; b.y += v.y/600; b.z += v.z/600; if (b.y <= 0){ b.y = 0; v.y = -v.y*.7; v.x *= .8; v.z *= .8; } t += 1/600; }
@@ -131,8 +131,8 @@ test('arcade: il timing determina qualità e ritmo, la direzione del gesto deter
   const center = arcadeShot(court, p, ball, { power: .6, dir: 0 }, 0).target;
   const right = arcadeShot(court, p, ball, { power: .6, dir: -1 }, 0).target;
   assert.ok(left.x < center.x && center.x < right.x, 'il gesto controlla sinistra, centro e destra');
-  // «buono» entro 120 ms, colpo valido fino a 280 ms prima e 220 ms dopo
-  for (const d of [-.1, .1, -.26, .2]){ const { core, tc } = rallyScene(4); assert.ok(play(core, [{ at: tc + d }]).find(e => e.type === 'contact'), `swing a ${d*1000} ms`); }
+  // Validity is now spatial: nearby early/late swings count, remote swings do not.
+  for (const d of [-.1, 0, .1]){ const { core, tc } = rallyScene(4); assert.ok(play(core, [{ at: tc + d }]).find(e => e.type === 'contact'), `swing a ${d*1000} ms`); }
 });
 test('NATPF Simulator: la CPU varia tatticamente lob, palla corta, slice e drive in base alla posizione', () => {
   assert.equal(chooseCpuShotType(true, CPU.normale, () => .05), 'lob', 'contro chi sale a rete prova il lob');
@@ -220,48 +220,8 @@ test('arcade: servizio col lancio — in cima al lancio è perfetto, lancio non 
   assert.ok(Math.abs(tossY(TOSS_APEX) - 2.78) < .1);
 });
 
-// persona col telefono: errore di tempo gaussiano, ritardo di rete, a volte l'apertura conta come colpo
-function simulate({ seed, sd, lat, backswing = 0, secs = 400, cpu = 'facile' }){
-  const rng = mulberry32(seed);
-  const core = new ArcadeMatch({ teams: [[{ human: true, id: 'me', grace: lat + .05 }], [{ id: 'cpu' }]], cpu, gamesToWin: 99, rng: mulberry32(seed + 77) });
-  const S = { contacts: 0, miss: 0, points: [0, 0], rallies: [], labels: {} }, queue = [];
-  let t = 0, plan = null, tossPlan = null;
-  while (t < secs){
-    const h = core.players[0], inp = { move: { x: 0, y: 0 }, swings: [] };
-    if (core.phase === 'serve' && core.serverP === h){
-      if (!core.toss && !tossPlan){ inp.toss = {}; tossPlan = { at: core.t + TOSS_APEX + gauss(rng)*sd }; }
-      if (!core.toss && tossPlan && tossPlan.sent && core.t > tossPlan.at + .5) tossPlan = null;
-    } else tossPlan = null;
-    if (tossPlan && core.toss && !tossPlan.sent && core.t >= tossPlan.at){ queue.push({ due: core.t + lat, at: tossPlan.at, s: { power: .7 } }); tossPlan.sent = true; }
-    if (core.phase === 'live' && h.inc && !h.done && (!plan || plan.Tc !== h.inc.Tc) && h.inc.Tc - core.t < .6) plan = { Tc: h.inc.Tc, at: h.inc.Tc + gauss(rng)*sd, bs: rng() < backswing };
-    if (plan && !plan.sent && core.t >= plan.at){
-      if (plan.bs) queue.push({ due: core.t - .28 + lat, at: plan.at - .28, s: { power: .4 } });
-      queue.push({ due: core.t + lat, at: plan.at, s: { power: .35 + rng()*.55 } }); plan.sent = true;
-    }
-    for (let i = queue.length - 1; i >= 0; i--) if (core.t >= queue[i].due){ const q = queue.splice(i, 1)[0]; inp.swings.push({ ...q.s, delay: q.at - core.t }); }
-    for (const e of core.update(1/120, inp)){
-      if (e.type === 'contact' && !e.serve){ S.contacts++; S.labels[e.label] = (S.labels[e.label] || 0) + 1; }
-      if (e.type === 'miss') S.miss++;
-      if (e.type === 'point'){ S.points[e.team]++; S.rallies.push(core.rally.hits); }
-    }
-    t += 1/120;
-  }
-  S.avg = S.rallies.reduce((a, b) => a + b, 0)/Math.max(1, S.rallies.length);
-  return S;
-}
-test('arcade contro la CPU: scambi lunghi senza errori ingiustificati, anche con tempo impreciso e aperture', () => {
-  for (const [sd, lat, bs] of [[.08, .06, 0], [.12, .08, .3]]){
-    const S = simulate({ seed: 3, sd, lat, backswing: bs });
-    const pts = S.points[0] + S.points[1];
-    assert.ok(S.avg >= 6, `scambio medio ${S.avg.toFixed(1)} colpi`);
-    assert.ok(S.miss/Math.max(1, S.contacts + S.miss) < .06, `palle mancate ${S.miss} su ${S.contacts + S.miss}`);
-    assert.ok(pts >= 15 && S.points[0]/pts >= .5, `punti ${S.points}`);
-  }
-  // con un tempo molto impreciso si perdono più punti: l'abilità conta
-  const bad = simulate({ seed: 3, sd: .16, lat: .1, backswing: .3 }), good = simulate({ seed: 3, sd: .05, lat: .06 });
-  // Con un singolo seed il numero assoluto di punti è piccolo: richiediamo un vantaggio netto, ma non una soglia fragile al 10%.
-  assert.ok(bad.points[1]/(bad.points[0] + bad.points[1]) > good.points[1]/(good.points[0] + good.points[1]) + .05, JSON.stringify([bad.points, good.points]));
-});
+// Multi-seed spatial timing and rally-length regressions live in rally-balance.test.mjs.
+// Do not re-roll timing error on every mutable movement forecast inc.Tc.
 test('partita arcade completa: set corto a 4, il punteggio torna', () => {
   const rng = mulberry32(21), core = new ArcadeMatch({ teams: [[{ human: true, id: 'me' }], [{ id: 'cpu' }]], gamesToWin: 4, set: true, rng: mulberry32(22) });
   let t = 0, over = false, plan = null;

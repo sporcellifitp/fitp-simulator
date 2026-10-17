@@ -226,5 +226,9 @@ export function makeCharacter(look = LOOKS.blu){
     racket.quaternion.slerp(q,weight); root.updateMatrixWorld(true);
   }
   pose({ t: 0, dt: 0 });
-  return { g: root, pose, aimRacket, racketHead: frame, grip: racket, hand: armR.hand };
+  return { g: root, pose, aimRacket, racketHead: frame, grip: racket, hand: armR.hand,
+    // Preserve the arms, physical grip and racket in first person. Only meshes
+    // surrounding the eye are hidden, so the head cannot occlude the court.
+    setFirstPerson(enabled){ for (const part of [chest,trim,shorts,neck,legR.hp,legL.hp]) part.visible=!enabled; },
+  };
 }

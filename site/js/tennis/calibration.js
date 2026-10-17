@@ -1,6 +1,6 @@
 // Calibrazione guidata del telefono-racchetta. Senza DOM: la usa la pagina del telefono, il computer ne mostra i passi.
-// Passi: fermo (deriva del giroscopio) → impugnatura (telefono in verticale, dalla gravità) → 6 swing guidati
-// (3 per verso) → se gestural, 8 esempi personali di slice, lob, palla corta e servizio → prova libera → conferma.
+// Percorso rapido: fermo nella propria presa → quattro gesti comodi alternati → prova libera.
+// Il percorso esteso per allenare ogni colpo resta disponibile esplicitamente con quick:false.
 // Dagli swing veri escono le soglie su misura (colpo tipico, soglia d'inizio, picco minimo) e l'asse del colpo, che dice
 // la direzione. Se non va (movimenti troppo piccoli, direzioni non distinguibili, nessun movimento) si spiega cosa fare
 // e la partita col telefono non parte.
@@ -8,6 +8,8 @@ import { unit, dot } from './swing-detect.js';
 import { canonicalTwist } from './gesture-intent.js';
 
 export const PLAN = ['L', 'L', 'L', 'R', 'R', 'R'];      // L: da destra a sinistra (←), R: da sinistra a destra (→)
+export const QUICK_PLAN = ['L', 'R', 'L', 'R'];
+export const calibrationPlan = options => options?.quick ? QUICK_PLAN : PLAN;
 export const GESTURE_PLAN = [
   ...['L','R'].map(want=>({shot:'slice',want,hint:'Inclina il piatto e accompagna di taglio verso il basso, senza forzare il polso.'})),
   ...['L','R'].map(want=>({shot:'lob',want,hint:'Accompagna dal basso verso l’alto con un movimento comodo.'})),
@@ -36,12 +38,18 @@ export const upright = g => !!g && Math.abs(g[1])/Math.max(1e-6, Math.hypot(g[0]
 export function createCalibration(det){
   const L = [];
   const S = { step: 'idle', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, burst: [], burstT: 0, idleT: 0, gripT: null, lastT: 0, options: { range: 'standard', hand: 'right', intentGate: false }, practice: 0, templates: [], shotAttempts: [] };
+  const plan = () => calibrationPlan(S.options);
+  const total = () => plan().length + (S.options.gestural && !S.options.quick ? GESTURE_PLAN.length : 0);
   const emit = e => { for (const f of L) f({ ...e, step: S.step }); };
 
   det.on('status', s => {
     if (S.step !== 'still') return;
     if (s.s === 'move') emit({ kind: 'warn', why: 'move' });
-    if (s.s === 'still-ok'){ S.step = 'grip'; S.gripT = null; emit({ kind: 'step', gravity: s.gravity, upright: upright(s.gravity) }); }
+    if (s.s === 'still-ok'){
+      // Any comfortable grip is a valid personal frame; no compulsory upright pose.
+      S.step = S.options.quick ? 'swings' : 'grip'; S.gripT = null; S.idleT = S.lastT;
+      emit({ kind: 'step', gravity: s.gravity, upright: upright(s.gravity), ...(S.options.quick ? { want: plan()[0], shot:'drive', idx:0, total:total(), quick:true } : {}) });
+    }
   });
   det.on('swing', sw => {
     if (!['swings', 'shots', 'free'].includes(S.step)) return;
@@ -59,11 +67,11 @@ export function createCalibration(det){
       return;
     }
     if (S.step === 'shots'){ shotAttempt(sw); return; }
-    const want = PLAN[S.idx];
+    const want = plan()[S.idx];
     let dir = '?';
     if (!S.axis && S.idx === 0) { S.axis = sw.axis.slice(); dir = 'L'; }      // il primo swing (da destra a sinistra) fissa il verso
     else if (along != null) dir = along > .3 ? 'L' : along < -.3 ? 'R' : '?';
-    const minimum = Math.max(S.options.range === 'compact' ? 40 : CAL.small, (det.profile.noise || 3)*5);
+    const minimum = Math.max(S.options.quick ? 40 : S.options.range === 'compact' ? 40 : CAL.small, (det.profile.noise || 3)*5);
     const small = sw.peak < minimum, ok = !small && dir === want;
     const a = { want, dir, peak: sw.peak, lift: sw.lift, axis: sw.axis, gravity: sw.gravity, angle: sw.angle || 6, features: sw.features, dur: sw.dur, ok, small, preparations: group.filter(x => x.peakT < sw.peakT && dot(x.axis, sw.axis) < -.3).map(x => ({ peak: x.peak, axis: x.axis })) };
     S.attempts.push(a);
@@ -75,8 +83,8 @@ export function createCalibration(det){
     } else if (S.idx === 0 && small) S.axis = null;
     S.tries = ok ? 0 : S.tries + 1;
     const advance = ok || S.tries >= CAL.maxTries;
-    emit({ kind: 'attempt', ...a, shot: 'drive', axis: undefined, idx: S.idx, globalIdx: S.idx, total: S.options.gestural ? PLAN.length + GESTURE_PLAN.length : PLAN.length, tries: S.tries, why: ok ? null : small ? 'piccolo' : 'direzione' });
-    if (advance){ S.idx++; S.tries = 0; if (S.idx >= PLAN.length) review(); else emit({ kind: 'next', idx: S.idx, globalIdx: S.idx, want: PLAN[S.idx], shot: 'drive' }); }
+    emit({ kind: 'attempt', ...a, shot: 'drive', axis: undefined, idx: S.idx, globalIdx: S.idx, total: total(), tries: S.tries, why: ok ? null : small ? 'piccolo' : 'direzione' });
+    if (advance){ S.idx++; S.tries = 0; if (S.idx >= plan().length) review(); else emit({ kind: 'next', idx: S.idx, globalIdx: S.idx, want: plan()[S.idx], shot: 'drive' }); }
   }
   function review(){
     const ok = S.attempts.filter(a => a.ok), okL = ok.filter(a => a.want === 'L'), okR = ok.filter(a => a.want === 'R');
@@ -85,7 +93,7 @@ export function createCalibration(det){
     const fails = S.attempts.filter(a => !a.ok);
     const why = pass ? null : fails.some(a => a.small) && fails.filter(a => a.small).length >= fails.length/2 ? 'piccolo' : 'direzione';
     S.profile = pass ? {
-      version: S.options.gestural ? 3 : 2, ...S.options, bias: det.profile.bias, noise: det.profile.noise, gravity: det.profile.gravity, axis: S.axis, ref: Math.max(60, median(ok.map(a => a.peak))),
+      version: S.options.quick ? 4 : S.options.gestural ? 3 : 2, automaticGesture: S.options.quick, ...S.options, bias: det.profile.bias, noise: det.profile.noise, gravity: det.profile.gravity, axis: S.axis, ref: Math.max(60, median(ok.map(a => a.peak))),
       refs: { 1: medL, '-1': medR }, refAngle: Math.max(2, median(ok.map(a => a.angle))),
       preparation: Object.fromEntries([1, -1].map(dir => [dir, Math.max(0, ...ok.flatMap(a => a.preparations).filter(a => dot(a.axis, S.axis)*dir > .5).map(a => a.peak))])),
       minAngles: { 1: Math.max(2, median(okL.map(a => a.angle))*.25), '-1': Math.max(2, median(okR.map(a => a.angle))*.25) },
@@ -93,14 +101,22 @@ export function createCalibration(det){
       lobLift: ok.some(a => a.lift) ? Math.max(.7, median(ok.map(a => a.lift)) + .45) : null,
     } : null;
     const ambiguous = S.profile && [1,-1].some(d => (S.profile.preparation[d] || 0)*1.2 >= S.profile.refs[d]*.9);
-    if (ambiguous) S.profile.intentGate = true;
+    if (ambiguous && !S.options.quick) S.profile.intentGate = true;
     S.result = { pass, why, assisted: S.profile?.intentGate || false, okL: okL.length, okR: okR.length, medL: Math.round(medL), medR: Math.round(medR), attempts: S.attempts.map(a => ({ want: a.want, dir: a.dir, peak: a.peak, ok: a.ok })) };
-    if (pass && S.options.gestural){
+    if (pass && S.options.gestural && !S.options.quick){
       S.templates = ok.map(a => ({ shot: 'drive', dir: SIGN[a.want], peak: a.peak, angle: a.angle, features: templateFeatures(a, S.profile.refs[SIGN[a.want]], S.profile.refAngle, S.axis, SIGN[a.want]) }));
       S.step = 'shots'; S.idx = 0; S.tries = 0; S.burst = [];
       det.setProfile({ ...S.profile, ...CAL.low }); det.setTraining(true);
       emit({ kind: 'step', idx: 0, globalIdx: PLAN.length, total: PLAN.length + GESTURE_PLAN.length, ...GESTURE_PLAN[0] });
-    } else finishReview();
+    } else {
+      if (pass && S.options.quick){
+        S.profile.templates = ok.map(a => ({ shot:'drive',dir:SIGN[a.want],peak:a.peak,angle:a.angle,features:templateFeatures(a,S.profile.refs[SIGN[a.want]],S.profile.refAngle,S.axis,SIGN[a.want]) }));
+        S.profile.minPeak = Math.max((S.profile.noise || 3)*5, Math.min(S.profile.minPeak, base*.28));
+        S.profile.on = Math.max((S.profile.noise || 3)*4, Math.min(S.profile.on, base*.18));
+        S.result.quick = true;
+      }
+      finishReview();
+    }
   }
 
   function finishReview(){
@@ -145,14 +161,14 @@ export function createCalibration(det){
     get state(){ return S; },
     on(f){ L.push(f); return this; },
     start(options = S.options){
-      S.options = { range: options.range === 'compact' ? 'compact' : 'standard', hand: options.hand === 'left' ? 'left' : 'right', intentGate: options.intentGate === true, gestural: options.gestural === true };
+      S.options = { range: options.range === 'compact' ? 'compact' : 'standard', hand: options.hand === 'left' ? 'left' : 'right', intentGate: options.intentGate === true, gestural: options.gestural === true, quick: options.quick === true };
       S.practice = 0; det.setTraining(true);
       Object.assign(S, { step: 'still', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT });
       det.setProfile({ bias: [0, 0, 0], ...CAL.low, axis: null }); det.still();
       emit({ kind: 'step' });
     },
-    skipGrip(){ if (S.step === 'grip'){ S.step = 'swings'; S.idleT = S.lastT; emit({ kind: 'step', want: PLAN[0], shot: 'drive', idx: 0, total: S.options.gestural ? PLAN.length + GESTURE_PLAN.length : PLAN.length }); } },
-    retry(){ S.practice = 0; det.setTraining(true); Object.assign(S, { step: 'swings', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT }); det.setThresholds({ ...CAL.low, axis: null }); emit({ kind: 'step', want: PLAN[0], shot: 'drive', idx: 0, total: S.options.gestural ? PLAN.length + GESTURE_PLAN.length : PLAN.length }); },
+    skipGrip(){ if (S.step === 'grip'){ S.step = 'swings'; S.idleT = S.lastT; emit({ kind: 'step', want: plan()[0], shot: 'drive', idx: 0, total: total() }); } },
+    retry(){ S.practice = 0; det.setTraining(true); Object.assign(S, { step: 'swings', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT }); det.setThresholds({ ...CAL.low, axis: null }); emit({ kind: 'step', want: plan()[0], shot: 'drive', idx: 0, total: total() }); },
     // prova libera con il profilo proposto: direzione e forza di ogni swing, prima di confermare
     tryFree(){ if (!S.profile) return; S.step = 'free'; det.setProfile(S.profile); det.setTraining(false); det.setContext?.('practice'); emit({ kind: 'step' }); },
     confirm(){ if (!S.profile) return null; det.setProfile(S.profile); det.setTraining(false); S.step = 'done'; emit({ kind: 'done', profile: S.profile }); return S.profile; },
@@ -164,7 +180,7 @@ export function createCalibration(det){
       S.lastT = t;
       if (S.step === 'grip'){
         const up = upright(sample && sample.accG);
-        if (up){ if (S.gripT == null) S.gripT = t; if (t - S.gripT >= CAL.gripHold){ S.step = 'swings'; S.idleT = t; emit({ kind: 'step', want: PLAN[0], shot: 'drive', idx: 0, total: S.options.gestural ? PLAN.length + GESTURE_PLAN.length : PLAN.length }); } }
+        if (up){ if (S.gripT == null) S.gripT = t; if (t - S.gripT >= CAL.gripHold){ S.step = 'swings'; S.idleT = t; emit({ kind: 'step', want: plan()[0], shot: 'drive', idx: 0, total: total() }); } }
         else if (S.gripT != null){ S.gripT = null; emit({ kind: 'grip', upright: false }); }
         if (!up && (t - (S.gripWarnT || 0) > 1000)){ S.gripWarnT = t; emit({ kind: 'grip', upright: false }); }
       }

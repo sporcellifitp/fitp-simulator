@@ -9,6 +9,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      upload_artifacts:
+        description: 'Carica gli ZIP su GitHub (richiede spazio artifact disponibile)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -54,8 +59,15 @@ jobs:
             command: node tools/e2e/run-local.mjs gesture-calibration.mjs
           - name: arcade visuals
             command: node tools/e2e/run-local.mjs arcade-visuals.mjs
+          - name: intuitive controls
+            command: |
+              python3 tools/package-natpf.py --out=/tmp/natpf-scope --commit="$GITHUB_SHA"
+              NATPF_SITE_ROOT=/tmp/natpf-scope/static node tools/e2e/run-local.mjs intuitive-contact.mjs quick-phone-ui.mjs phone-only.mjs
           - name: direct LAN
-            command: node tools/e2e/lan-browser.mjs
+            command: |
+              node --test tools/lan/test/setup.test.mjs
+              node tools/e2e/lan-setup-browser.mjs
+              node tools/e2e/lan-browser.mjs
             lan: true
     steps:
       - name: Checkout
@@ -75,7 +87,7 @@ jobs:
         run: ${{ matrix.command }}
 
   cloudflare-package:
-    name: Package static site for Cloudflare Pages
+    name: Validate NATPF-only packages
     runs-on: ubuntu-latest
     needs: [unit, browser-smoke]
     steps:
@@ -88,23 +100,25 @@ jobs:
           test -f site/tennis/index.html
           test -f site/js/tennis/main.js
           test -f site/js/tennis/scene.js
-      - name: Package Cloudflare Pages assets
+      - name: Build and verify NATPF-only ZIPs
+        run: python3 tools/package-natpf.py --out=/tmp/natpf-release --commit="$GITHUB_SHA"
+      - name: Upload Cloudflare Pages package when requested
+        if: github.event_name == 'workflow_dispatch' && inputs.upload_artifacts
         uses: actions/upload-artifact@v4
         with:
           name: natpf-simulator-cloudflare
-          path: site/
+          path: /tmp/natpf-release/natpf-simulator-cloudflare.zip
           if-no-files-found: error
           compression-level: 6
-          retention-days: 14
+          retention-days: 1
 
 
-      - name: Package local LAN distribution
+      - name: Upload LAN package when requested
+        if: github.event_name == 'workflow_dispatch' && inputs.upload_artifacts
         uses: actions/upload-artifact@v4
         with:
           name: natpf-simulator-lan
-          path: |
-            site/
-            tools/lan/
+          path: /tmp/natpf-release/natpf-simulator-lan.zip
           if-no-files-found: error
           compression-level: 6
-          retention-days: 14
+          retention-days: 1

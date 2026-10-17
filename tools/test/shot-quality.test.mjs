@@ -10,7 +10,7 @@ const player = { team: 0, x: 0, z: 12, speed: 6, vx: 0, vz: 0 };
 const ball = { p: { x: .7, y: 1.2, z: 11 } };
 function flight(from, target, type, dt, clearance = .3, pace = 1){
   const shot = makeShot(court, from, target, type, 0, () => { throw Error('un tiro senza dispersione non usa casualità'); }, clearance, pace);
-  const b = newBall(from, shot.v); let bounce = null, net = false, apex = from.y, netY = null;
+  const b = newBall(from, shot.v, shot.spin); let bounce = null, net = false, apex = from.y, netY = null;
   for (let t = 0; t < 6 && !bounce; t += dt){
     const old = { ...b.p }, events = stepBall(b, dt, court);
     apex = Math.max(apex, b.p.y);

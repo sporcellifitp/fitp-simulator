@@ -14,7 +14,7 @@ import { createPhoneLink } from './link.js';
 import { hostSession, joinSession } from './session.js';
 import { encodeSnap, encodeEvents, createMirror } from './net.js';
 import { parseInvite } from './pairing.js';
-import { PLAN, GESTURE_PLAN, CAL } from './calibration.js';
+import { PLAN, QUICK_PLAN, GESTURE_PLAN, CAL } from './calibration.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => (typeof s === 'string' ? $(s) : s).classList.toggle('hidden', !on);
@@ -25,11 +25,19 @@ const pane = id => { for (const s of SCREENS) show(s, s === id); };
 const isPhone = /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent) || (matchMedia('(pointer: coarse)').matches && Math.min(window.screen.width || 9999, innerWidth) < 600);
 
 const REASON = { fuori: 'Fuori', rete: 'Rete', vincente: 'Vincente', ace: 'Ace!', 'doppio fallo': 'Doppio fallo', 'doppio colpo': 'Doppio colpo' };
-const TIMING = { perfetto: 'PERFETTO!', buono: 'Bel colpo', anticipo: 'In anticipo', ritardo: 'In ritardo' };
-const MISS = { presto: ['Troppo presto', 'Hai colpito prima che arrivasse la palla'], tardi: ['Troppo tardi', 'La palla era già passata'], nessuno: ['Nessun colpo', 'Il movimento non è arrivato: fai uno swing più deciso'], portata: ['Troppo lontana', 'Questa non si prendeva'] };
+const TIMING = { perfetto: 'PERFETTO!', buono: 'Bel colpo', anticipo: 'Colpo anticipato', ritardo: 'Colpo di recupero' };
+const MISS = { presto: ['Palla ancora lontana', 'Aspetta che arrivi vicino alla racchetta'], tardi: ['Palla già passata', 'Prova a iniziare il gesto un po’ prima'], nessuno: ['Gesto non rilevato', 'Riprova con un gesto comodo; puoi ricalibrare dalla pausa'], portata: ['Fuori portata', 'La palla era troppo lontana o troppo alta'] };
 
 const presented = createPresentationTimeline();
 const S = createScene($('#app'));
+let cameraMode = store.get('camera', 'third') === 'first' ? 'first' : 'third';
+function selectCamera(value){
+  cameraMode = value === 'first' ? 'first' : 'third'; store.set('camera', cameraMode);
+  S.setCameraMode(cameraMode);
+  for (const el of document.querySelectorAll('[data-camera-select]')) el.value = cameraMode;
+}
+for (const el of document.querySelectorAll('[data-camera-select]')) el.addEventListener('change', e => selectCamera(e.target.value));
+selectCamera(cameraMode);
 const calibrationPreview = createCalibrationPreview($('#calCanvas'));
 const controls = createControls(S.renderer.domElement, { pick: (x, y) => S.pick(x, y) });
 const A = {
@@ -135,6 +143,7 @@ function paintPair(){
   if (step === 'prova') paintSwings();
 }
 function onCal(e){
+  if (Number.isFinite(e.total)) cal.total = e.total;
   if (((e.kind === 'step' && e.step === 'still') || (e.kind === 'review' && e.touch)) && A.state === 'play'){ pause(); A.pairFromPause = true; openPair(() => { A.pairFromPause = false; A.state = 'paused'; resume(); }); }
   if (e.kind === 'selection'){ calibrationPreview.example(e.shot); }
   if (e.kind === 'next' || (e.kind === 'step' && ['swings','shots'].includes(e.step))) calibrationPreview.example(e.shot || 'drive', e.want === 'R' ? -1 : 1);
@@ -167,19 +176,21 @@ function feedback(dirId, txtId, barId, dir, txt, peak, ok){
   const m = $(barId).parentElement.querySelector('i'); if (m) m.style.left = (CAL.small/1000*100) + '%';
 }
 function paintSwings(){
-  const guided = cal.step === 'shots', guide = guided ? GESTURE_PLAN[cal.idx] : { shot: 'drive', want: PLAN[cal.idx] || 'L' };
+  const plan = cal.total === QUICK_PLAN.length ? QUICK_PLAN : PLAN;
+  const guided = cal.step === 'shots', guide = guided ? GESTURE_PLAN[cal.idx] : { shot: 'drive', want: plan[cal.idx] || 'L' };
   const index = (guided ? PLAN.length : 0) + cal.idx, total = guided ? PLAN.length + GESTURE_PLAN.length : cal.marks.length || PLAN.length;
   $('#swArrow').textContent = guide.want === 'L' ? '←' : guide.want === 'R' ? '→' : '↑';
-  $('#swWant').textContent = `Prova ${Math.min(total, index + 1)} di ${total}: ${guide.label || SHOTS[guide.shot]}${guide.want ? ` ${guide.want === 'L' ? 'da destra a sinistra' : 'da sinistra a destra'}` : ''}`;
+  $('#swWant').textContent = `Gesto ${Math.min(total, index + 1)} di ${total}${guide.want ? `: ${guide.want === 'L' ? 'verso sinistra' : 'verso destra'}` : ''}`;
   $('#swGuide').textContent = guide.hint || ({ drive: 'Apri, colpisci e torna pronto con il tuo gesto naturale.', slice: 'Inclina il piatto e accompagna il colpo di taglio, senza forzare il polso.', lob: 'Accompagna il colpo dal basso verso l’alto: la traiettoria deve alzarsi.', drop: 'Apri leggermente il piatto e accompagna un colpo corto e morbido: rallentare soltanto non basta.' }[guide.shot]);
   $('#swDots').innerHTML = Array.from({length:total}, (_, i) => `<i class="${cal.marks[i] || ''} ${i === index ? 'now' : ''}"></i>`).join('');
 }
 function paintReview(r){
   $('#rvTitle').textContent = r.touch ? 'Controllo con i tocchi' : r.pass ? 'Movimenti riconosciuti' : 'Calibrazione da rifare';
-  $('#rvL').textContent = `${r.okL}/3 ${r.okL >= 2 ? '✓' : '✗'}`; $('#rvR').textContent = `${r.okR}/3 ${r.okR >= 2 ? '✓' : '✗'}`;
+  const count = r.quick ? 2 : 3;
+  $('#rvL').textContent = `${r.okL}/${count} ${r.okL >= 2 ? '✓' : '✗'}`; $('#rvR').textContent = `${r.okR}/${count} ${r.okR >= 2 ? '✓' : '✗'}`;
   const why = $('#rvWhy');
   why.className = 'note ' + (r.pass ? 'ok' : 'bad');
-  why.textContent = r.touch ? 'Scegli un tipo, direzione e intensità sul telefono e premi Colpisci. Guarda il risultato, poi conferma.' : r.pass ? (r.assisted ? 'Le aperture e i colpi si somigliano: apri il braccio, poi tieni premuto il pulsante sul telefono per colpire. Prova nella simulazione e conferma.' : 'Prova liberamente i colpi guardando la simulazione: il tipo viene letto dal movimento, senza selezionarlo. Inclinazione, velocità e accompagnamento devono corrispondere alla tua intenzione. Poi conferma.')
+  why.textContent = r.touch ? 'Scegli direzione e intensità sul telefono e premi Colpisci. Prova una volta, poi conferma.' : r.pass ? (r.assisted ? 'Apri il braccio, poi tieni premuto il pulsante sul telefono mentre colpisci. Prova una volta e conferma.' : 'Pronto! Prova un gesto guardando la palla, poi conferma. Muovi normalmente per rispondere; accompagna verso l’alto per alzare la palla, fai un tocco corto e morbido per mandarla vicino alla rete. Non serve conoscere il tennis.')
     : r.why === 'servizio' ? 'Non è stato registrato alcun gesto di servizio. Ripeti senza forzare il movimento oppure scegli i tocchi sul telefono.'
     : r.why === 'piccolo' ? 'Non riesco a distinguere questi gesti dal rumore. Scegli movimento compatto o controllo con i tocchi sul telefono, senza forzare il braccio.'
     : 'Le due direzioni non si distinguono. Tieni il telefono sempre nello stesso modo (in verticale nel palmo) e fai gli swing davvero da una parte all\'altra.';
