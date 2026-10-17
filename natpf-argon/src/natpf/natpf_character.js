@@ -12,12 +12,12 @@ import { setOpponentPortraitLook } from './natpf_portrait.js';
 
 // Varianti: P1 come l'immagine di riferimento, CPU con la polo blu NATPF, P2 con dettagli rosa.
 export const CHARACTER_LOOKS = Object.freeze({
-  p1: Object.freeze({ skin: 0xf0c19a, hair: 0x6b4127, brow: 0x24150d, polo: 0xf5f6f2, collar: 0xf5f6f2, placket: 0xe9ebee,
-    button: 0xc5cad4, shorts: 0xf1f2ef, band: 0xffffff, wristR: 0xffffff, wristL: 0x1f4fc4, socks: 0x1f4fc4, shoe: 0xfbfbf9, sole: 0x1f4fc4 }),
+  p1: Object.freeze({ skin: 0xf0c19a, hair: 0x7b4a2b, brow: 0x24150d, polo: 0xf5f6f2, collar: 0xf5f6f2, placket: 0xe9ebee,
+    button: 0xc5cad4, shorts: 0xdde1e8, band: 0xffffff, wristR: 0xffffff, wristL: 0x1f4fc4, socks: 0x1f4fc4, shoe: 0xfbfbf9, sole: 0x1f4fc4 }),
   cpu: Object.freeze({ skin: 0xd59d77, hair: 0x2a1c14, brow: 0x160e09, polo: 0x16378f, collar: 0xffffff, placket: 0x1c45ad,
     button: 0xffffff, shorts: 0x0b1a45, band: 0xffffff, wristR: 0xffffff, wristL: 0xffffff, socks: 0xffffff, shoe: 0xfbfbf9, sole: 0x0b1a45 }),
   p2: Object.freeze({ skin: 0xe6b38c, hair: 0x7a3f22, brow: 0x2c160b, polo: 0xf5f6f2, collar: 0xff3d8b, placket: 0xff3d8b,
-    button: 0xffffff, shorts: 0xf1f2ef, band: 0xff3d8b, wristR: 0xff3d8b, wristL: 0xff3d8b, socks: 0xff3d8b, shoe: 0xfbfbf9, sole: 0xff3d8b }),
+    button: 0xffffff, shorts: 0xdde1e8, band: 0xff3d8b, wristR: 0xff3d8b, wristL: 0xff3d8b, socks: 0xff3d8b, shoe: 0xfbfbf9, sole: 0xff3d8b }),
 });
 export const resolveLookKey = key => (CHARACTER_LOOKS[key] ? key : 'p1');
 
@@ -33,7 +33,7 @@ export const PART_NAMES = Object.freeze(Object.keys(PART_BASE));
 // Misure (unità del modello). La testa è un ellissoide: il viso dinamico si appoggia sul suo centro.
 const HEAD = { rx: 0.27, ry: 0.245, rz: 0.235, cy: 0.18 };
 const ARM = { upper: 0.15, fore: 0.15, wristBack: 0.045, shoulderX: 0.215, shoulderY: 0.47, maxStretch: 1.7 };
-const LEG = { thigh: 0.17, shin: 0.175, hipX: 0.1, hipY: -0.12, ankle: [0, -0.03, -0.02], maxStretch: 1.35 };
+const LEG = { thigh: 0.17, shin: 0.175, hipX: 0.1, hipY: -0.1, ankle: [0, -0.03, -0.02], maxStretch: 1.35 };
 // Punti della racchetta usati da racket_kinematics.getRacketRimWorldPoints (sistema locale, prima della scala 1.22).
 export const RACKET_POINTS = Object.freeze({ butt: 0, throat: 0.345, center: 0.545, tip: 0.755, headA: 0.172, headB: 0.215 });
 export const BALL_RADIUS = 0.065;
@@ -46,7 +46,9 @@ function toyMaterial(hex, kind = 'cloth'){
   const key = `${hex}|${kind}`;
   if (MATERIALS.has(key)) return MATERIALS.get(key);
   const rough = kind === 'skin' ? 0.5 : kind === 'hair' ? 0.66 : kind === 'graphite' ? 0.42 : kind === 'felt' ? 0.92 : 0.6;
-  const m = new THREE.MeshStandardMaterial({ color: hex, roughness: rough, metalness: kind === 'graphite' ? 0.18 : 0 });
+  // un po' di luce propria nel colore del pezzo: sotto le luci fredde dell'arena il vinile resta caldo e leggibile
+  const glow = kind === 'skin' ? 0.24 : kind === 'graphite' || kind === 'grip' ? 0.04 : kind === 'felt' ? 0.22 : 0.14;
+  const m = new THREE.MeshStandardMaterial({ color: hex, roughness: rough, metalness: kind === 'graphite' ? 0.18 : 0, emissive: hex, emissiveIntensity: glow });
   // «Skin» e «Hair» nel nome servono al viso dinamico (colore della palpebra e delle sopracciglia)
   m.name = `natpf-${KIND[kind] || kind}`;
   m.userData.natpfMaterial = true;
@@ -75,6 +77,7 @@ function place(geo, { p = [0, 0, 0], r = [0, 0, 0], s = [1, 1, 1] } = {}){
   return geo.applyMatrix4(_m.compose(_p.set(p[0], p[1], p[2]), _q, _s.set(s[0], s[1], s[2])));
 }
 const sphere = (opts, w = 20, h = 14) => place(new THREE.SphereGeometry(1, w, h), opts);
+// I profili vanno dal basso verso l'alto (in senso antiorario nel piano r-y), così le normali guardano fuori.
 const lathe = (pts, scaleZ = 1, segments = 32) =>
   place(new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), segments), { s: [1, 1, scaleZ] });
 const merge = list => { const g = mergeGeometries(list); list.forEach(x => x.dispose()); return g; };
@@ -85,29 +88,28 @@ let GEO = null;
 function geometries(){
   if (GEO) return GEO;
   const { rx, ry, rz, cy } = HEAD;
-  // Capelli: calotta voluminosa sopra la fascia, guscio corto su lati e nuca, ciuffi morbidi in cima
+  // Capelli: calotta voluminosa sopra la fascia, volume corto su lati e nuca, ciuffi morbidi in cima
   const tufts = [
-    [0, 0.31, 0.0, 0.17, 0.1, 0.17], [-0.13, 0.27, 0.06, 0.11, 0.09, 0.11], [0.13, 0.27, 0.06, 0.11, 0.09, 0.11],
-    [-0.07, 0.255, 0.135, 0.1, 0.075, 0.085], [0.075, 0.25, 0.13, 0.1, 0.075, 0.085], [0, 0.265, 0.12, 0.09, 0.08, 0.09],
-    [0, 0.27, -0.12, 0.15, 0.1, 0.13], [-0.18, 0.2, -0.05, 0.09, 0.085, 0.11], [0.18, 0.2, -0.05, 0.09, 0.085, 0.11],
-    [-0.12, 0.2, -0.17, 0.1, 0.09, 0.08], [0.12, 0.2, -0.17, 0.1, 0.09, 0.08],
+    [0, 0.285, 0.0, 0.22, 0.12, 0.2], [-0.12, 0.265, 0.07, 0.14, 0.1, 0.13], [0.12, 0.265, 0.07, 0.14, 0.1, 0.13],
+    [-0.055, 0.25, 0.135, 0.12, 0.085, 0.1], [0.06, 0.245, 0.13, 0.12, 0.085, 0.1],
+    [0, 0.255, -0.11, 0.19, 0.11, 0.15], [-0.17, 0.2, -0.04, 0.11, 0.1, 0.13], [0.17, 0.2, -0.04, 0.11, 0.1, 0.13],
   ].map(([x, y, z, sx, sy, sz]) => sphere({ p: [x, cy + y, z], s: [sx, sy, sz] }, 14, 10));
   const hair = merge([
     place(new THREE.SphereGeometry(1, 32, 12, 0, Math.PI*2, 0, Math.PI/3), { p: [0, cy + 0.01, -0.004], s: [rx + 0.02, ry + 0.035, rz + 0.027] }),
-    place(new THREE.SphereGeometry(1, 28, 8, Math.PI*0.85, Math.PI*1.3, Math.PI*0.3, Math.PI*0.22), { p: [0, cy, 0], s: [rx + 0.01, ry + 0.01, rz + 0.01] }),
-    place(new THREE.SphereGeometry(1, 20, 8, Math.PI*1.18, Math.PI*0.64, Math.PI*0.5, Math.PI*0.17), { p: [0, cy, 0], s: [rx + 0.008, ry + 0.008, rz + 0.012] }),
+    // volume posteriore spostato indietro: copre nuca e lati fin sopra le orecchie, il viso resta libero
+    sphere({ p: [0, cy + 0.03, -0.035], s: [rx + 0.008, 0.23, rz] }, 32, 20),
     ...tufts,
   ]);
   // Fascia: anello piatto con bordi arrotondati, appena fuori dalla fronte
-  const bandProfile = [[0.254, -0.03], [0.266, -0.032], [0.274, -0.022], [0.276, 0], [0.274, 0.022], [0.266, 0.032], [0.254, 0.03]];
-  const band = place(lathe(bandProfile, 0.871, 40), { p: [0, cy + 0.12, 0], r: [0.05, 0, 0] });
+  const bandProfile = [[0.247, -0.03], [0.259, -0.032], [0.267, -0.022], [0.269, 0], [0.267, 0.022], [0.259, 0.032], [0.247, 0.03]];
+  const band = place(lathe(bandProfile, 0.871, 40), { p: [0, cy + 0.148, 0], r: [0.05, 0, 0] });
   // Busto (polo) e pantaloncini: profili di rotazione, schiacciati davanti-dietro
   const DEPTH = 0.78;
-  const polo = lathe([[0.214, -0.035], [0.219, 0.06], [0.228, 0.2], [0.232, 0.33], [0.226, 0.42], [0.205, 0.49], [0.165, 0.545], [0.11, 0.575], [0.075, 0.585]], DEPTH);
-  const collar = lathe([[0.082, 0.562], [0.092, 0.612], [0.11, 0.612], [0.15, 0.578], [0.176, 0.538]], DEPTH + 0.02);
+  const polo = lathe([[0.2, 0.078], [0.226, 0.086], [0.222, 0.15], [0.228, 0.24], [0.232, 0.33], [0.226, 0.42], [0.205, 0.49], [0.165, 0.545], [0.11, 0.575], [0.075, 0.585]], DEPTH);
+  const collar = lathe([[0.176, 0.538], [0.15, 0.578], [0.11, 0.612], [0.092, 0.612], [0.082, 0.562]], DEPTH + 0.02);
   const placket = place(new THREE.BoxGeometry(0.05, 0.12, 0.014), { p: [0, 0.47, 0.163], r: [-0.26, 0, 0] });
   const buttons = merge([0.445, 0.497].map(y => sphere({ p: [0, y, 0.165 + (0.47 - y)*0.266 + 0.009], s: [0.011, 0.011, 0.006] }, 10, 8)));
-  const shorts = lathe([[0.19, 0.08], [0.198, 0.02], [0.214, -0.04], [0.222, -0.1], [0.215, -0.16], [0.2, -0.19], [0.12, -0.2], [0.001, -0.2]], DEPTH);
+  const shorts = lathe([[0.001, -0.15], [0.13, -0.15], [0.215, -0.143], [0.232, -0.118], [0.231, -0.06], [0.22, 0.02], [0.204, 0.1], [0.195, 0.15]], DEPTH);
   const neck = place(new THREE.CylinderGeometry(0.07, 0.08, 0.16, 16), { p: [0, 0.6, 0] });
   // Testa: ellissoide con il centro in (0, cy, 0); orecchie e naso piccoli
   const headSkin = sphere({ p: [0, cy, 0], s: [rx, ry, rz] }, 36, 26);
@@ -127,7 +129,7 @@ function geometries(){
     elbow: sphere({ s: [0.052, 0.052, 0.052] }, 12, 10),
     wristBand: new THREE.CylinderGeometry(0.06, 0.06, 0.05, 16),
     thigh: unitCylinder(0.078, 0.07), shin: unitCylinder(0.066, 0.058),
-    cuff: place(new THREE.CylinderGeometry(0.1, 0.104, 0.1, 18), { p: [0, 0.03, 0] }),
+    cuff: place(new THREE.CylinderGeometry(0.098, 0.104, 0.08, 18), { p: [0, 0.02, 0] }),
     knee: sphere({ s: [0.07, 0.07, 0.07] }, 14, 10),
     sock: new THREE.CylinderGeometry(0.064, 0.062, 0.09, 16),
   };
@@ -341,14 +343,15 @@ function restyleFace(actor, look){
   if (!rig) return;
   for (const eye of [rig.leftEye, rig.rightEye]){
     if (!eye) continue;
-    eye.scleraMesh?.scale.set(0.66, 0.86, 0.36);
+    eye.scleraMesh?.scale.set(0.54, 0.7, 0.3);
     eye.pupilMesh?.scale.set(0.92, 1.16, 0.46);
     eye.pupilGroup?.children.forEach((c, i) => { if (i > 0) c.scale.setScalar(0.5); });
     eye.lidMesh?.material?.color?.setHex(look.skin);
   }
   for (const brow of [rig.leftBrow, rig.rightBrow]){
     const m = brow?.children[0];
-    if (m){ m.scale.set(1.1, 1.55, 1.1); m.material?.color?.setHex(look.brow); }
+    // sopracciglia spesse e un po' aggrottate (estremità interne più basse): sguardo concentrato
+    if (m){ m.scale.set(1.12, 1.6, 1.1); m.rotation.z = brow === rig.leftBrow ? -0.2 : 0.2; m.material?.color?.setHex(look.brow); }
   }
   const mouth = rig.neutralMouth;
   if (mouth?.children.length > 1){ mouth.children[0].scale.set(0.58, 0.42, 1); mouth.children[1].visible = false; }
