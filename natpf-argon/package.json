@@ -12,7 +12,8 @@
     "prebuild": "[ -d node_modules/.bin ] || bun install || npm install",
     "prelint": "[ -d node_modules/.bin ] || bun install || npm install",
     "test": "node --import ./test/register.mjs --test test/*.test.mjs",
-    "dev:https": "node scripts/dev-https.mjs"
+    "dev:https": "node scripts/dev-https.mjs",
+    "audit:rally": "node --import ./test/register.mjs scripts/audit/rally-balance.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.8.0",
