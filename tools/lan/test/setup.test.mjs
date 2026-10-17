@@ -41,3 +41,13 @@ test('LAN diagnostics count signaling registration and remove it on disconnect',
     const response=await fetch(base+'/tools/lan/certs/key.pem');assert.equal(response.status,404);
   }finally{ws?.terminate();await app.close();}
 });
+
+test('a custom request handler (natpf-argon) replaces the site files but keeps /lan/status and signaling',async()=>{
+  const app=createLanServer({port:0,host:'127.0.0.1',handler:(req,res)=>res.writeHead(200,{'Content-Type':'text/plain'}).end('game '+req.url)});await app.listen();
+  try{
+    const base=`http://127.0.0.1:${app.server.address().port}`;
+    assert.equal(await fetch(base+'/?lan=1').then(r=>r.text()),'game /?lan=1');
+    assert.equal(await fetch(base+'/tennis/').then(r=>r.text()),'game /tennis/');
+    assert.equal((await fetch(base+'/lan/status').then(r=>r.json())).registered,0);
+  }finally{await app.close();}
+});

@@ -27,9 +27,73 @@ npm install
 npm run dev          # http://localhost:3000 (Vite + relay della partita 1v1)
 ```
 
-I modelli 3D e i file MediaPipe di Argon (circa 34 MB) non sono nel repository. In sviluppo il server li
-prende da gstatic al primo uso. Con `node scripts/download-assets.mjs` si scaricano invece in `public/assets/`,
-cosa che `npm run build` fa da solo.
+Modelli 3D, audio e texture di Argon non sono nel repository: `npm run assets` li scarica in `public/assets/`
+(lo fa anche `npm run build`), MediaPipe Hands arriva con `npm install`. Se un file manca, il server di sviluppo lo
+prende da gstatic al primo uso. Per giocare senza internet vedi la **versione LAN** qui sotto.
+
+## Versione LAN (anche senza internet)
+
+Un computer fa da server HTTPS sulla rete locale: serve il gioco, la pagina del telefono NATPF (`/natpf/`), il
+relay della partita 1v1 (`/api/*`) e la segnalazione del telefono (`/lan-signal`). Internet serve solo la prima
+volta, per installare le dipendenze e scaricare il pacchetto offline.
+
+### Avvio su Windows
+
+1. Installa Node.js 20 o più recente. Collega computer, telefono ed eventuale secondo computer alla stessa Wi-Fi
+   (senza isolamento tra dispositivi).
+2. **Certificato, una volta per computer e rete**: è lo stesso di NATPF Simulator in `../tools/lan/certs/`
+   (`cert.pem`, `key.pem`), per l'IP di rete esatto del computer e firmato da una CA che il telefono considera
+   attendibile, per esempio mkcert. La procedura è in [../tools/lan/README.md](../tools/lan/README.md). Il solo avviso
+   di certificato ignorato **non basta**: il browser del telefono non dà i sensori e la pagina non è un contesto
+   sicuro.
+3. Doppio clic su **`avvia-lan.cmd`**. La prima volta installa le dipendenze (`tools/lan` e `natpf-argon`),
+   completa il pacchetto offline e fa la build; le volte successive rifà la build solo se i sorgenti sono cambiati.
+   Poi avvia il server e scrive nella finestra gli **indirizzi di rete** (per esempio
+   `https://192.168.1.41:8443/?lan=1`). Si apre anche la guida su `http://127.0.0.1:8080/lan/`, visibile solo dal
+   computer, che controlla certificato, scadenza e IP e mostra i pulsanti per aprire il gioco.
+4. Apri il gioco sul computer dall'indirizzo di rete (va bene anche `https://localhost:8443`: QR e link di invito
+   usano comunque l'IP di rete). Tieni aperta la finestra del programma mentre giochi.
+
+Opzioni: `avvia-lan.cmd --build` (rifà la build), `--offline` (non prova mai gstatic per gli asset mancanti),
+`--port=8443`, `--setup-port=8080`, `--cert=… --key=…`. Su macOS/Linux, dalla cartella `natpf-argon`:
+`node lan/prepare.mjs && npm run lan`.
+
+Firewall: consenti Node.js sulla rete privata (TCP 8443 per HTTPS, UDP per il WebRTC diretto del telefono).
+
+### Telefono in LAN
+
+Racchetta → Smartphone, poi inquadra il QR. In LAN il QR porta `?lan=1`: il telefono si collega con il trasporto
+LAN di NATPF (segnalazione WebSocket sul computer, due DataChannel WebRTC diretti, nessun server STUN/TURN o
+PeerJS). Così arriva anche il **flusso continuo dei sensori** (circa 33–40 campioni al secondo) e la racchetta
+virtuale segue il polso tra un colpo e l'altro, con l'impugnatura NATPF: telefono in verticale nel palmo, schermo
+verso il palmo. Rotazione attorno al lato corto del telefono → beccheggio della testa, attorno al manico → apertura e
+chiusura del piatto, attorno alla normale dello schermo → testa che oscilla a destra e a sinistra.
+
+### 1v1 tra due computer in LAN
+
+Scegli 1v1 nel menu: il link per il Player 2 usa l'IP di rete, per esempio
+`https://192.168.1.41:8443/?room=AT-XXXX&role=p2&lan=1`. Aprilo sull'altro computer (anche lì il certificato deve
+essere attendibile, oppure i sensori e la webcam non sono garantiti). Il relay della stanza vive nel server LAN.
+
+### Webcam in LAN e offline
+
+MediaPipe Hands arriva dal pacchetto npm `@mediapipe/hands` (versione fissata, Apache-2.0) ed è servito dal
+computer sotto `/assets/mediapipe/hands/`; il CDN della stessa versione resta solo come riserva, e se mancano
+entrambi Argon usa l'optical flow. Oltre a far partire i colpi, la mano ora muove **di continuo** racchetta e mano
+del personaggio, in prima e in terza persona: spostamento a destra/sinistra e in alto/in basso, rotazione della mano
+→ rotazione del piatto. La posizione di riposo si adatta in pochi secondi a dove tieni la mano; se la mano sparisce
+la racchetta torna alla posa di Argon. Il corpo (spostamento laterale del giocatore) non è collegato: resta il
+movimento automatico di Argon.
+
+### Pacchetto offline
+
+`npm run assets` scarica in `public/assets/` modelli 3D, musiche e annunci, texture del cielo e QR di Argon (lista
+letta dai sorgenti) e scrive `public/assets/manifest.json` con dimensioni, sha256 e licenza. In tutto circa 37 MB:
+modelli 10,4 MB, audio 3,4 MB, texture 0,1 MB, MediaPipe 23,3 MB (da npm). `npm run assets:check` dice cosa manca.
+Licenze: MediaPipe Apache-2.0; modelli, audio e texture vengono dalla starter app di Google AI Studio e non hanno una
+licenza dichiarata, quindi solo uso interno finché non viene verificata. Se un file manca il gioco parte lo stesso:
+il server prova gstatic solo se c'è rete, altrimenti risponde 404 e Argon continua senza quel modello, suono o
+texture.
 
 ### Smartphone come racchetta
 
@@ -50,22 +114,26 @@ Il telefono ha bisogno di una pagina **https** per leggere i sensori di moviment
   `?phone=https://…/tennis/racchetta.html` (o con `VITE_NATPF_PHONE_PAGE`). Il protocollo deve essere quello di
   `../site/js/tennis/`.
 
-Il collegamento passa da WebRTC con il server di segnalazione pubblico di PeerJS. Per le prove senza internet:
-`?peer=127.0.0.1:9000` con `node ../tools/e2e/peer-server.mjs`.
+Fuori dalla LAN il collegamento passa da WebRTC con il server di segnalazione pubblico di PeerJS (solo gesti e
+servizio, niente flusso continuo dei sensori). Per le prove senza internet: `?peer=127.0.0.1:9000` con
+`node ../tools/e2e/peer-server.mjs`, oppure la versione LAN (`?lan=1`), che è quella consigliata.
 
 ### 1v1 tra due computer
 
 Scegli **1v1 Match** nel menu: il gioco crea una stanza e mostra il link per il Player 2
 (`/?room=AT-XXXX&role=p2`). Il P2 sceglie racchetta e visuale e vede il campo dal proprio lato. La partita gira
-sul computer di P1 (host); lo stato e i colpi di P2 passano dal relay di Argon, che vive nel server Vite
-(`npm run dev` o `npm run preview`). Su un sito solo statico il 1v1 tra computer non è disponibile.
+sul computer di P1 (host); lo stato e i colpi di P2 passano dal relay di Argon (`scripts/argon-relay.mjs`), che vive
+nel server Vite (`npm run dev` o `npm run preview`) e nel server LAN (`avvia-lan.cmd`). Su un sito solo statico il
+1v1 tra computer non è disponibile.
 
 ### Build
 
 ```bash
 npm run build        # dist/ (gioco + pagina del telefono NATPF in dist/natpf/ + grafiche dell'arena)
 npm run preview      # http://localhost:3000 con il relay 1v1
-npm test             # test dell'integrazione NATPF ↔ Argon
+npm test             # test dell'integrazione NATPF ↔ Argon e della versione LAN
+npm run lan          # server LAN HTTPS sulla build (vedi «Versione LAN»)
+npm run test:e2e-lan # prova nel browser della versione LAN (Chrome, openssl, npm ci in ../tools/lan e ../tools/e2e)
 ```
 
 ## Comandi
@@ -86,6 +154,11 @@ Parametri utili: `?view=first|third`, `?mode=casual|pro|1v1`, `?room=…&role=p2
 - `src/natpf/` – integrazione: `natpf_arena.js` (arena e luci), `natpf_phone_racket.js` (telefono → colpi e
   inclinazione della racchetta), `natpf_camera.js` (prima persona), `natpf_ui.js` (menu, QR e calibrazione,
   invito P2), `match_format.js` (1v1 / Opzione B 2v2).
+- `lan/` – server LAN: `server.mjs` (avvio guidato di `../tools/lan`), `game-handler.mjs` (build, relay, pacchetto
+  offline, pagina del telefono, `?lan=1`), `prepare.mjs` (dipendenze, asset, build se serve); `avvia-lan.cmd`.
+- `scripts/argon-relay.mjs` (relay 1v1), `scripts/offline-assets.mjs` e `download-assets.mjs` (pacchetto offline).
+- `src/natpf/webcam_hand_pose.js` (mano dalla webcam → racchetta), `natpf_lan.js` (IP di rete per QR e invito),
+  `argon_assets.js` (asset gstatic → `./assets/`).
 - `scripts/natpf-site-plugin.mjs` – riuso di `../site`: alias `@natpf`, pagina del telefono sotto `/natpf/`,
   copia nella build delle sole dipendenze necessarie.
 - `test/` – test Node dell'integrazione.
