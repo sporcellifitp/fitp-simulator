@@ -25,6 +25,8 @@ import {
 } from "./natpf/natpf_camera.js";
 import { resolveMatchFormat } from "./natpf/match_format.js";
 import { NatpfUi } from "./natpf/natpf_ui.js";
+// NATPF skill gap: assistenza del tempo graduata, mira e rischio del giocatore, limiti ed errori della CPU
+import * as NS from "./natpf/natpf_skill.js";
 const readStoredView = () => {
   try {
     return localStorage.getItem(VIEW_STORAGE_KEY);
@@ -378,6 +380,9 @@ export class ArgonTennisEngine {
             (this.playerPartner.maxSpeed = 8.6),
             (this.opponent.maxSpeed = 5.85),
             (this.opponentPartner.maxSpeed = 5.15));
+    // NATPF skill gap: velocità della CPU per difficoltà (natpf_skill.js); nel 1v1 corre una persona
+    t !== "1v1" && NS.skillLevel(t).cpuSpeed && (this.opponent.maxSpeed = NS.skillLevel(t).cpuSpeed);
+    t !== "1v1" && NS.skillLevel(t).playerSpeed && (this.player.maxSpeed = NS.skillLevel(t).playerSpeed);
   }
   _setupLightingAndSky() {
     const e = new o.TextureLoader(),
@@ -1162,6 +1167,7 @@ export class ArgonTennisEngine {
       (this.pendingUserSwing = null),
       (this.pendingP2Swing = null),
       (this.pendingServeSwing = null),
+      NS.resetRally(this), // NATPF skill gap: serie di perfetti e pressione ripartono a ogni punto
       (this.player.swingArcMesh.visible = !1),
       (this.opponent.swingArcMesh.visible = !1),
       this.playerPartner.swingArcMesh && (this.playerPartner.swingArcMesh.visible = !1),
@@ -1393,8 +1399,9 @@ export class ArgonTennisEngine {
             }),
             this.audioEngine && this.audioEngine.playSwingWhoosh(Number(e.speed || 1.15)),
             (this.pendingUserSwing = {
-              evt: { ...e, side: t, sweetSpotAssisted: !0 },
-              expiresAt: this.elapsedTime + 0.48,
+              // NATPF skill gap: attesa dello sweet spot breve e graduata per difficoltà (prima +0,48 s)
+              evt: { ...e, side: t, sweetSpotAssisted: !0, natpfLead: NS.leadToSweetSpot(r, this.ball.vel.z) },
+              expiresAt: NS.assistExpiry(this.elapsedTime, NS.skillLevel(this.matchConfig.difficulty)),
               waitForSweetSpot: !0,
             });
           return;
@@ -1417,8 +1424,9 @@ export class ArgonTennisEngine {
           n = this.ball.pos.z - this.playerPartner.pos.z;
         ((s >= -8 && s <= 0.9) || (this.isDoubles && n >= -5.5 && n <= 0.9)) &&
           (this.pendingUserSwing = {
-            evt: { ...e, side: t, sweetSpotAssisted: !0 },
-            expiresAt: this.elapsedTime + 0.48,
+            // NATPF skill gap: come sopra
+            evt: { ...e, side: t, sweetSpotAssisted: !0, natpfLead: NS.leadToSweetSpot(s, this.ball.vel.z) },
+            expiresAt: NS.assistExpiry(this.elapsedTime, NS.skillLevel(this.matchConfig.difficulty)),
             waitForSweetSpot: !0,
           });
       }
@@ -1499,8 +1507,9 @@ export class ArgonTennisEngine {
               dirX: Number(e.dirX || 0),
             }),
             (this.pendingP2Swing = {
-              evt: { ...e, side: t, sweetSpotAssisted: !0 },
-              expiresAt: this.elapsedTime + 0.48,
+              // NATPF skill gap: attesa dello sweet spot breve anche per il Player 2
+              evt: { ...e, side: t, sweetSpotAssisted: !0, natpfLead: NS.leadToSweetSpot(s, this.ball.vel.z) },
+              expiresAt: NS.assistExpiry(this.elapsedTime, NS.skillLevel("1v1")),
               waitForSweetSpot: !0,
             });
           return;
@@ -1517,8 +1526,9 @@ export class ArgonTennisEngine {
           }),
         this.ball.lastHitter === "player" &&
           (this.pendingP2Swing = {
-            evt: { ...e, side: t, sweetSpotAssisted: !0 },
-            expiresAt: this.elapsedTime + 0.48,
+            // NATPF skill gap: come sopra
+            evt: { ...e, side: t, sweetSpotAssisted: !0, natpfLead: NS.leadToSweetSpot(this.opponent.pos.z - this.ball.pos.z, this.ball.vel.z) },
+            expiresAt: NS.assistExpiry(this.elapsedTime, NS.skillLevel("1v1")),
             waitForSweetSpot: !0,
           }));
     }
@@ -1719,14 +1729,15 @@ export class ArgonTennisEngine {
     e.timing
       ? (u = String(e.timing).toUpperCase())
       : e.sweetSpotAssisted && g >= -1.85 && g <= 0.78
-        ? ((u = "PERFECT"), (w = 0.5))
+        ? ({ grade: u, cursor: w } = NS.assistGrade(e.natpfLead, NS.skillLevel(this.matchConfig.difficulty))) // NATPF skill gap
+
         : g < -2.65
           ? ((u = "VERY EARLY"), (w = 0.14))
-          : g < -1.45 || (e.dirX && e.dirX < -0.52)
+          : g < -1.45 // NATPF skill gap: il voto dipende dal tempo, non dalla mira (prima: dirX < −0,52 = «in anticipo»)
             ? ((u = "EARLY"), (w = 0.28))
             : g > 1.35
               ? ((u = "VERY LATE"), (w = 0.88))
-              : g > 0.68 || (e.dirX && e.dirX > 0.52)
+              : g > 0.68 // NATPF skill gap: come sopra (prima: dirX > 0,52 = «in ritardo»)
                 ? ((u = "LATE"), (w = 0.72))
                 : x &&
                   this.matchConfig.difficulty === "pro" &&
@@ -1736,27 +1747,30 @@ export class ArgonTennisEngine {
       M = !_ && (u === "PERFECT" || T === "FLAT" || d) && f >= 0.98,
       R = p.pos.x >= 0 ? 1 : -1,
       v = o.MathUtils.clamp(Number(e.dirX || 0), -1, 1);
-    let E = 0;
-    if (u === "EARLY" || u === "VERY EARLY") E = -R * (2.35 + Math.random() * 1.15) + v * 0.95;
-    else if (u === "LATE" || u === "VERY LATE") E = R * (2.35 + Math.random() * 1.05) + v * 0.95;
-    else {
-      const A = this.opponent.pos.x >= 0 ? -1 : 1;
-      Math.abs(v) > 0.22 ? (E = v * (2.75 + Math.random() * 0.95)) : (E = A * (2.45 + Math.random() * 1.25));
-    }
+    // NATPF skill gap: la direzione segue la mira (e il piatto del telefono), la dispersione cresce con il tempo
+    // sbagliato e con la potenza, e vicino alle righe si può uscire (natpf_skill.js). Prima: sempre dentro le righe.
+    const natpfLv = NS.skillLevel(this.matchConfig.difficulty),
+      natpfQ =
+        (e.sweetSpotAssisted && g >= -1.85 && g <= 0.78 && !e.timing
+          ? NS.assistGrade(e.natpfLead, natpfLv).quality
+          : NS.timingQuality(u, g)) *
+        NS.reachQuality(c, p.vel.length() / Math.max(1, p.maxSpeed)),
+      natpfDrop = !!(e.natpfDrop || (e.natpf && e.natpf.shot === "drop"));
+    let E = t
+      ? o.MathUtils.clamp(v * 2.6, -S.SINGLES_X + 0.6, S.SINGLES_X - 0.6)
+      : NS.playerLandingX({
+          grade: u,
+          aim: v,
+          aimMode: e.natpf && e.natpf.aim,
+          side: R,
+          openSide: this.opponent.pos.x >= 0 ? -1 : 1,
+          quality: natpfQ,
+          power: NS.powerNorm(f),
+          level: natpfLv,
+        });
+    _ && !t && (E *= 0.75);
     let k = !1,
       O = !1;
-    _ &&
-      !t &&
-      !this.autoPlayMode &&
-      this.matchConfig.difficulty === "pro" &&
-      f > 1.45 &&
-      Math.random() < 0.28 &&
-      (k = !0),
-      k
-        ? (E = (E >= 0 ? 1 : -1) * (S.SINGLES_X + 0.48 + Math.random() * 0.45))
-        : _
-          ? (E = o.MathUtils.clamp(E * 0.65, -S.SINGLES_X + 0.65, S.SINGLES_X - 0.65))
-          : (E = o.MathUtils.clamp(E, -S.SINGLES_X + 0.35, S.SINGLES_X - 0.35));
     let N = -(8.2 + Math.random() * 2.6),
       I = 0.84,
       C = 16,
@@ -1765,6 +1779,8 @@ export class ArgonTennisEngine {
       ? ((I = 1.04), (N = -(6.2 + Math.random() * 2.2)), (C = 6))
       : l
         ? ((I = M ? 0.56 : 0.68), (N = -(5.6 + Math.random() * 3.4)), (C = 12))
+        : natpfDrop
+          ? ((N = -(2.7 + Math.random() * 1.5)), (I = Math.max(1.32, (Math.abs(this.ball.pos.z) - N) / 10)), (C = -2), (V = 0)) // NATPF skill gap: palla corta vera
         : T === "LOB"
           ? ((I = 1.32), (N = -(9 + Math.random() * 2)), (C = 4))
           : T === "SLICE"
@@ -1775,11 +1791,26 @@ export class ArgonTennisEngine {
                 (C = 21))
               : (I = Math.max(0.68, 0.84 / Math.min(1.16, f * 0.92)));
     const K = Math.max(0.84, 1 - Math.min(8, this.ball.rallyStrokeCount) * 0.015);
-    I *= K;
+    natpfDrop || (I *= K); // NATPF skill gap: la palla corta non accelera con lo scambio (finirebbe in rete)
+    // NATPF skill gap: profondità con rischio di palla lunga, velocità che cresce con i colpi perfetti consecutivi
+    if (!t) {
+      N = NS.playerDepthZ(N, { quality: natpfQ, power: NS.powerNorm(f), level: natpfLv });
+      // rischio d'errore del giocatore: lungo con la potenza, largo vicino alle righe, in rete fuori tempo
+      const natpfErr = natpfDrop ? { kind: "ok" } : NS.playerErrorPlan({ quality: natpfQ, power: NS.powerNorm(f), aimX: E, level: natpfLv });
+      natpfErr.kind === "long" ? (N = natpfErr.z) : natpfErr.kind === "wide" ? (E = natpfErr.x) : natpfErr.kind === "net" && (O = !0);
+      const natpfS = NS.registerPlayerShot(this, {
+        grade: u, quality: natpfQ, power: NS.powerNorm(f), landingX: E,
+        shot: d ? "SMASH" : natpfDrop ? "DROP" : T, cpuZ: this.opponent.pos.z,
+      });
+      I = NS.mistimeFlight(natpfDrop ? I : NS.streakFlight(I, natpfS.streak, natpfLv), natpfQ);
+      natpfDrop || (I = NS.minClearFlight({ fromY: Math.max(0.78, Math.min(1.92, this.ball.pos.y)), fromZ: this.ball.pos.z, toZ: N, flight: I, topspin: C }));
+    }
     const B = this.ball.pos.clone();
     (B.y = Math.max(0.78, Math.min(1.92, B.y))),
       this.ball.pos.copy(B),
       this._launchBallToTarget(B, new o.Vector3(E, 0, N), I, { topspin: C, sidespin: V, allowNetFault: O }),
+      // NATPF skill gap: la palla corta è lenta e alta, l'attrito dell'aria la frenerebbe in rete: si compensa
+      natpfDrop && this.ball.vel.multiplyScalar(1 + L.AIR_DRAG * this.ball.vel.length() * I * 0.35),
       (this.ball.inPlay = !0),
       (this.ball.lastHitter = "player"),
       (this.ball.bounceCountOnCurrentSide = 0),
@@ -1841,6 +1872,7 @@ export class ArgonTennisEngine {
         5.1,
       ),
       this._predictBallIntercept(this.opponent),
+      this.isMultiplayer || t || NS.planCpuRun(this), // NATPF skill gap: reazione e lettura della CPU
       !0
     );
   }
@@ -1914,10 +1946,10 @@ export class ArgonTennisEngine {
       );
     let u = "PERFECT";
     e.sweetSpotAssisted && p >= -1.85 && p <= 0.78
-      ? (u = "PERFECT")
-      : p < -1.45 || (e.dirX && e.dirX < -0.52)
+      ? (u = NS.assistGrade(e.natpfLead, NS.skillLevel("1v1")).grade) // NATPF skill gap
+      : p < -1.45 // NATPF skill gap: il voto dipende dal tempo, non dalla mira
         ? (u = "EARLY")
-        : (p > 0.68 || (e.dirX && e.dirX > 0.52)) && (u = "LATE");
+        : p > 0.68 && (u = "LATE");
     const w = (u === "PERFECT" || m === "FLAT" || d) && y >= 0.98,
       x = l.pos.x >= 0 ? 1 : -1,
       _ = o.MathUtils.clamp(Number(e.dirX || 0), -1, 1);
@@ -1928,7 +1960,9 @@ export class ArgonTennisEngine {
       const C = this.player.pos.x >= 0 ? -1 : 1;
       T = Math.abs(_) > 0.22 ? -_ * (2.65 + Math.random() * 0.95) : C * (2.35 + Math.random() * 1.25);
     }
-    T = o.MathUtils.clamp(T, -S.SINGLES_X + 0.38, S.SINGLES_X - 0.38);
+    // NATPF skill gap: anche il Player 2 rischia vicino alle righe con potenza e tempo sbagliato (prima: sempre dentro)
+    const natpfP2Q = e.sweetSpotAssisted && p >= -1.85 && p <= 0.78 ? NS.assistGrade(e.natpfLead, NS.skillLevel("1v1")).quality : NS.timingQuality(u, p);
+    T = NS.landingScatter(T, { quality: natpfP2Q, power: NS.powerNorm(y), level: NS.skillLevel("1v1") });
     let M = 8 + Math.random() * 2.6,
       R = w ? 0.72 : 0.86,
       v = w ? 20 : 15,
@@ -1938,6 +1972,11 @@ export class ArgonTennisEngine {
       : m === "LOB"
         ? ((R = 1.3), (M = 9 + Math.random() * 2), (v = 4))
         : m === "SLICE" && ((R = 0.98), (M = 6.8 + Math.random() * 2.5), (v = -6), (E = x * 10));
+    {
+      const natpfS = NS.registerPlayerShot(this, { grade: u, quality: natpfP2Q, power: NS.powerNorm(y), landingX: T, shot: d ? "SMASH" : m, who: "p2" });
+      (M = -NS.playerDepthZ(-M, { quality: natpfP2Q, power: NS.powerNorm(y), level: NS.skillLevel("1v1") })),
+        (R = NS.streakFlight(R, natpfS.p2Streak, NS.skillLevel("1v1")));
+    }
     const k = this.ball.pos.clone();
     (k.y = Math.max(0.78, Math.min(1.92, k.y))),
       this.ball.pos.copy(k),
@@ -2018,16 +2057,27 @@ export class ArgonTennisEngine {
       y = "TOPSPIN",
       f = i ? 1.14 : 0.88,
       m = !1;
+    // NATPF skill gap: errori della CPU che crescono con angolo, velocità, pressione e allungo; sotto pressione
+    // la CPU rimanda palle corte e alte da smash (natpf_skill.js). Prima: errori solo in allungo e a caso.
+    const natpfPlan = NS.cpuReturnPlan(this, e);
     if (this.autoPlayMode && !this.userHasInteracted) (y = "TOPSPIN"), (f = 0.84);
+    else if (natpfPlan.kind === "net") (m = !0), (c = 3.2 + Math.random() * 2.4), (f = 0.78);
+    else if (natpfPlan.kind === "wide")
+      (g = (Math.random() < 0.5 ? 1 : -1) * (S.SINGLES_X + 0.45 + Math.random() * 0.7)),
+        (c = 8.4 + Math.random() * 2.6),
+        (f = 0.92);
+    else if (natpfPlan.kind === "long") (c = S.BASELINE_Z + 0.55 + Math.random() * 1.1), (f = 1.02);
+    else if (natpfPlan.kind === "attack")
+      (g = o.MathUtils.clamp(l * (2.4 + Math.random() * 1.1), -S.SINGLES_X + 0.45, S.SINGLES_X - 0.45)),
+        (c = 9.4 + Math.random() * 1.6),
+        (f = natpfPlan.flight);
+    else if (natpfPlan.kind === "weak")
+      (y = "LOB"),
+        (g = o.MathUtils.clamp((Math.random() - 0.5) * 2.6, -S.SINGLES_X + 1, S.SINGLES_X - 1)),
+        (c = 4.4 + Math.random() * 2.4),
+        (f = 1.5);
     else if (h && this.ball.rallyStrokeCount >= 2) {
-      const b = i ? (a > 1.45 || s ? 0.42 : 0.28) : a > 1.92 ? 0.24 : 0.14;
-      Math.random() < b
-        ? Math.random() < 0.48
-          ? ((m = !0), (c = 1.2), (f = 0.76))
-          : ((g = (Math.random() < 0.5 ? 1 : -1) * (S.SINGLES_X + 0.48 + Math.random() * 0.45)),
-            (c = 9.5 + Math.random() * 2.8),
-            (f = 0.88))
-        : ((y = a > 1.35 || s ? "LOB" : "SLICE"),
+      ((y = a > 1.35 || s ? "LOB" : "SLICE"),
           (g = o.MathUtils.clamp((Math.random() - 0.5) * 2.4, -S.SINGLES_X + 1.1, S.SINGLES_X - 1.1)),
           (c = 5.6 + Math.random() * 2.2),
           (f = y === "LOB" ? 1.36 : 1.18));
@@ -2401,7 +2451,8 @@ export class ArgonTennisEngine {
         }
       }
       if (
-        (this._stepActorFootwork(this.player, e),
+        (this.isMultiplayer || NS.tickCpuRun(this), // NATPF skill gap: la CPU parte dopo il tempo di reazione
+        this._stepActorFootwork(this.player, e),
         this._stepActorFootwork(this.playerPartner, e),
         this._stepActorFootwork(this.opponent, e),
         this._stepActorFootwork(this.opponentPartner, e),
@@ -2442,7 +2493,7 @@ export class ArgonTennisEngine {
         } else {
           const s = this.matchConfig.difficulty !== "pro",
             n = s ? 0.85 : 1.3,
-            h = s ? 1.8 : 2.34;
+            h = NS.cpuReach(this, s ? 1.8 : 2.34); // NATPF skill gap: portata reale della CPU
           if (
             this.isDoubles &&
             !this.ball.isPowerShot &&
