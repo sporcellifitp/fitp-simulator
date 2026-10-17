@@ -21,13 +21,15 @@ export function firstPersonPose(actor, baselineZ, out = { position: new THREE.Ve
 }
 export const firstPersonFov = aspect => cameraFieldOfView(aspect, 'first');
 
-// Nasconde testa, busto e piedi del personaggio locale lasciando visibili mani e racchetta.
+// Nasconde testa, busto, gambe e parte alta delle braccia del personaggio locale: restano avambracci, mani e racchetta.
 // Si nascondono i gruppi «genitori»: le espressioni del viso, che accendono e spengono i propri pezzi, restano
 // comunque invisibili perché figlie della testa.
 export function setFirstPersonBody(actor, firstPerson){
   if (!actor?.model) return;
   const hideable = actor.__natpfHideable || (actor.__natpfHideable = collectHideable(actor.model, [actor.parts?.handL, actor.parts?.handR, actor.racketPivot].filter(Boolean)));
   for (const o of hideable) o.visible = !firstPerson;
+  // braccia (fino al gomito) e gambe del personaggio NATPF, che stanno fuori dal modello
+  for (const o of actor.natpfFirstPersonHidden || []) o.visible = !firstPerson;
 }
 // Rami del modello che non portano a mani o racchetta.
 function collectHideable(root, keep){

@@ -4,13 +4,10 @@ import path from 'node:path';
 const GSTATIC_BASE = 'https://www.gstatic.com/aistudio/starter-apps/tennis';
 
 const ASSETS_TO_DOWNLOAD = [
-  // 3D Models (.glb)
+  // Modelli 3D (.glb): stadio, rete e pubblico. Giocatori, racchetta e pallina sono procedurali
+  // (src/natpf/natpf_character.js) e non si scaricano più.
   'models/stadium_court.glb',
   'models/tennis_net.glb',
-  'models/mii_player.glb',
-  'models/mii_opponent.glb',
-  'models/tennis_racket.glb',
-  'models/tennis_ball.glb',
   'models/mii_crowd.glb',
   // MediaPipe Hands binary/model assets
   'mediapipe/hands/hands.binarypb',

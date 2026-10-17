@@ -104,7 +104,8 @@ export function upgradeMiiCharacterMaterials(t, o = "player") {
   if (a && typeof a.traverse == "function") {
     const i = new Map();
     a.traverse((e) => {
-      if (!e.isMesh) return;
+      // NATPF: il personaggio procedurale ha già i suoi materiali condivisi
+      if (!e.isMesh || e.userData?.natpfMaterial) return;
       (e.castShadow = !0), (e.receiveShadow = !0);
       let n = /Torso/i.test(e.name || ""),
         m = e.parent;
@@ -146,7 +147,7 @@ export function upgradeRacketMaterials(t) {
   if (!o || typeof o.traverse != "function") return;
   const s = new Map();
   o.traverse((a) => {
-    if (!a.isMesh) return;
+    if (!a.isMesh || a.userData?.natpfMaterial) return;
     (a.castShadow = !0),
       (a.receiveShadow = !0),
       a.geometry && !a.geometry.attributes.normal && a.geometry.computeVertexNormals();
