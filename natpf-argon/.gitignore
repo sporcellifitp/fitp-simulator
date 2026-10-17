@@ -1,6 +1,11 @@
 node_modules/
 dist/
-# scaricati da scripts/download-assets.mjs (modelli 3D e MediaPipe di Argon)
+# pacchetto offline scaricato da scripts/download-assets.mjs (modelli 3D, audio, texture, QR di Argon)
 public/assets/models/
 public/assets/mediapipe/
-.env.local
+public/assets/audio/
+public/assets/textures/
+public/assets/qr/
+public/assets/manifest.json
+# certificati del server LAN (lan/server.mjs --autofirmato)
+lan/certs/

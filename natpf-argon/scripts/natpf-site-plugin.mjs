@@ -13,7 +13,7 @@ const MIME = {
 };
 // Solo ciò che serve al telefono e all'arena: niente mondo esplorabile, minigiochi o dati del Foro.
 const ENTRIES = ['tennis/racchetta.html', 'js/tennis/racchetta.js', 'js/vendor/peerjs.min.js', 'js/vendor/peerjs.LICENSE', 'js/vendor/qrcode.js'];
-const ALLOWED = /^(tennis\/racchetta\.html|js\/tennis\/[\w.-]+\.js|js\/match\/[\w.-]+\.js|js\/vendor\/(peerjs\.min\.js|peerjs\.LICENSE|qrcode\.js)|assets\/arena\/[\w.-]+\.png)$/;
+export const ALLOWED = /^(tennis\/racchetta\.html|js\/tennis\/[\w.-]+\.js|js\/match\/[\w.-]+\.js|js\/vendor\/(peerjs\.min\.js|peerjs\.LICENSE|qrcode\.js)|assets\/arena\/[\w.-]+\.png)$/;
 
 // Dipendenze relative di un modulo ES, come tools/package-natpf.py.
 export function phoneFiles(siteDir){

@@ -1,4 +1,5 @@
 import { renderAllHudMiiAvatars as P, renderMiiAvatar as L } from "./mii_avatars.js";
+import { argonAssetUrl } from "./natpf/argon_assets.js";
 export class HudUI {
   constructor(t = {}) {
     (this.callbacks = t),
@@ -559,12 +560,12 @@ export class HudUI {
     I && (I.href = y);
     const b = document.getElementById("companion-qr");
     if (b) {
-      const d = "https://www.gstatic.com/aistudio/starter-apps/tennis/qr/player1_qr.png";
+      const d = argonAssetUrl("https://www.gstatic.com/aistudio/starter-apps/tennis/qr/player1_qr.png");
       b.dataset.lastSrc !== d && ((b.src = d), (b.dataset.lastSrc = d));
     }
     const B = document.getElementById("companion-qr-p2");
     if (B) {
-      const d = "https://www.gstatic.com/aistudio/starter-apps/tennis/qr/player2_qr.png";
+      const d = argonAssetUrl("https://www.gstatic.com/aistudio/starter-apps/tennis/qr/player2_qr.png");
       B.dataset.lastSrc !== d && ((B.src = d), (B.dataset.lastSrc = d));
     }
     const T = document.getElementById("court-link-p1");

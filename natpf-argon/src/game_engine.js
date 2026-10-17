@@ -25,6 +25,7 @@ import {
 } from "./natpf/natpf_camera.js";
 import { resolveMatchFormat } from "./natpf/match_format.js";
 import { NatpfUi } from "./natpf/natpf_ui.js";
+import { argonAssetUrl } from "./natpf/argon_assets.js";
 const readStoredView = () => {
   try {
     return localStorage.getItem(VIEW_STORAGE_KEY);
@@ -385,7 +386,7 @@ export class ArgonTennisEngine {
       i = new o.MeshBasicMaterial({ map: ae(), side: o.BackSide, depthWrite: !1, fog: !1 });
     (this.skyDome = new o.Mesh(t, i)),
       this.scene.add(this.skyDome),
-      e.load("https://www.gstatic.com/aistudio/starter-apps/tennis/textures/court/tns_sky_a.png", (c) => {
+      e.load(argonAssetUrl("https://www.gstatic.com/aistudio/starter-apps/tennis/textures/court/tns_sky_a.png"), (c) => {
         (c.colorSpace = o.SRGBColorSpace),
           (c.wrapS = o.RepeatWrapping),
           (c.wrapT = o.ClampToEdgeWrapping),
@@ -408,7 +409,7 @@ export class ArgonTennisEngine {
         (w.renderOrder = d),
         (w.visible = !1),
         this.scene.add(w),
-        e.load(m, (x) => {
+        e.load(argonAssetUrl(m), (x) => {
           (x.colorSpace = o.SRGBColorSpace),
             (x.wrapS = o.RepeatWrapping),
             (x.wrapT = o.ClampToEdgeWrapping),
@@ -440,7 +441,7 @@ export class ArgonTennisEngine {
       (this.horizonRing.position.y = 7.2),
       (this.horizonRing.visible = !1),
       this.scene.add(this.horizonRing),
-      e.load("https://www.gstatic.com/aistudio/starter-apps/tennis/textures/court/tns_BG_c1.png", (c) => {
+      e.load(argonAssetUrl("https://www.gstatic.com/aistudio/starter-apps/tennis/textures/court/tns_BG_c1.png"), (c) => {
         (c.colorSpace = o.SRGBColorSpace),
           (c.wrapS = o.RepeatWrapping),
           (c.wrapT = o.ClampToEdgeWrapping),

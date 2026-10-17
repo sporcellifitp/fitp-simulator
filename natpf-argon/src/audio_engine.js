@@ -1,3 +1,4 @@
+import { argonAssetUrl } from "./natpf/argon_assets.js";
 export const LYRIA_TRACKS = {
   menu_theme: {
     id: "menu_theme",
@@ -104,6 +105,9 @@ export const GEMINI_TTS_CLIPS = {
   "ad in": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_ad_in.mp3",
   "ad out": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_ad_out.mp3",
 };
+// NATPF: musiche e annunci dal pacchetto offline (./assets/audio/…, vedi src/natpf/argon_assets.js)
+for (const t of Object.values(LYRIA_TRACKS)) t.src = argonAssetUrl(t.src);
+for (const k of Object.keys(GEMINI_TTS_CLIPS)) GEMINI_TTS_CLIPS[k] = argonAssetUrl(GEMINI_TTS_CLIPS[k]);
 export class AudioEngine {
   constructor(s = {}) {
     (this.ctx = null),

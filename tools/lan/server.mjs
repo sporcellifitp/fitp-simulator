@@ -17,6 +17,8 @@ const serve=(req,res)=>{
   if(pathname==='/lan/status'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}).end(JSON.stringify(status()));return;}
   if(pathname==='/lan/'||pathname==='/lan'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Content-Security-Policy':"default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'"});fs.createReadStream(fileURLToPath(new URL('./setup.html',import.meta.url))).pipe(res);return;}
   if(options.setupOnly){res.writeHead(302,{Location:'/lan/'}).end();return;}
+  // Another game (e.g. natpf-argon) can reuse TLS, /lan/status and /lan-signal with its own request handler.
+  if(options.handler){options.handler(req,res);return;}
   if(pathname==='/'){res.writeHead(302,{Location:'/tennis/?lan=1'}).end();return;}
   const filename=pathname==='/js/vendor/three.module.js'?fileURLToPath(new URL('node_modules/three/build/three.module.js',import.meta.url)):path.resolve(root,'.'+pathname+(pathname.endsWith('/')?'index.html':''));
   if(pathname!=='/js/vendor/three.module.js'&&!filename.startsWith(root+path.sep)){res.writeHead(403).end();return;}
