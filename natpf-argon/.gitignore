@@ -1,0 +1,6 @@
+node_modules/
+dist/
+# scaricati da scripts/download-assets.mjs (modelli 3D e MediaPipe di Argon)
+public/assets/models/
+public/assets/mediapipe/
+.env.local
