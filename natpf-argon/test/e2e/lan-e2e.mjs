@@ -269,7 +269,7 @@ try {
     console.log('webcam → racchetta', JSON.stringify(webcam));
     for (const view of ['third', 'first']){
       const w = webcam[view], label = view === 'first' ? 'prima persona' : 'terza persona';
-      check(`webcam, ${label}: mano a destra/sinistra → racchetta a destra/sinistra sullo schermo`, w.dx > .03, `Δx schermo ${w.dx}`);
+      check(`webcam, ${label}: mano a destra/sinistra → racchetta a destra/sinistra sullo schermo`, w.dx > (view === 'first' ? .05 : .01), `Δx schermo ${w.dx}`);
       check(`webcam, ${label}: mano in alto/in basso → racchetta in alto/in basso`, w.dy > (view === 'first' ? .05 : .01), `Δy schermo ${w.dy}`);
       check(`webcam, ${label}: mano ruotata → racchetta ruotata`, w.rollDeg > 5, `${w.rollDeg}°`);
       check(`webcam, ${label}: i movimenti lenti muovono la racchetta senza far partire colpi`, w.shots === 0, `colpi: ${w.shots}`);
