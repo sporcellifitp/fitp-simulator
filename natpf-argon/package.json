@@ -12,10 +12,15 @@
     "prebuild": "[ -d node_modules/.bin ] || bun install || npm install",
     "prelint": "[ -d node_modules/.bin ] || bun install || npm install",
     "test": "node --import ./test/register.mjs --test test/*.test.mjs",
-    "dev:https": "node scripts/dev-https.mjs"
+    "dev:https": "node scripts/dev-https.mjs",
+    "assets": "node scripts/download-assets.mjs",
+    "assets:check": "node scripts/download-assets.mjs --check",
+    "lan": "node lan/server.mjs",
+    "test:e2e-lan": "node test/e2e/lan-e2e.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.8.0",
+    "@mediapipe/hands": "0.4.1675469240",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "three": "0.160.0"

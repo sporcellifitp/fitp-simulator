@@ -283,5 +283,6 @@ test('niente più modelli di personaggi, racchetta e pallina da scaricare', () =
     assert.ok(!dl.includes(f), `download-assets scarica ancora ${f}`);
     assert.ok(!engine.includes(f), `il motore carica ancora ${f}`);
   }
-  for (const f of ['stadium_court.glb', 'tennis_net.glb', 'mii_crowd.glb']) assert.ok(dl.includes(f) && engine.includes(f));
+  // anche stadio, rete e pubblico del motore base non si caricano più: al loro posto c'è l'arena NATPF
+  for (const f of ['stadium_court.glb', 'tennis_net.glb', 'mii_crowd.glb']) assert.ok(!engine.includes(f), `il motore carica ancora ${f}`);
 });

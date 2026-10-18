@@ -731,9 +731,10 @@ export class ArgonTennisEngine {
         return new o.Group();
       },
       [i, a, l] = await Promise.all([
-        t("https://www.gstatic.com/aistudio/starter-apps/tennis/models/stadium_court.glb?v=argon4_kinetic"),
-        t("https://www.gstatic.com/aistudio/starter-apps/tennis/models/tennis_net.glb?v=argon4_kinetic"),
-        t("https://www.gstatic.com/aistudio/starter-apps/tennis/models/mii_crowd.glb?v=argon4_kinetic"),
+        // NATPF: stadio, rete e pubblico vengono dall'arena NATPF; i vecchi modelli non si scaricano più
+        Promise.resolve(new o.Group()),
+        Promise.resolve(new o.Group()),
+        Promise.resolve(new o.Group()),
       ]),
       // NATPF: giocatori (P1, CPU/P2 e compagni del doppio), racchetta e pallina creati nel codice
       { player: s, playerPartner: p, opponent: n, opponentPartner: g, racket: h, ball: r } = createNatpfCast();
@@ -2834,6 +2835,12 @@ export class ArgonTennisEngine {
         accelMag: Number(this.motionController.phoneState.accelMag) || 0,
       };
     }
+    // NATPF: webcam → posa continua della mano sulla racchetta e sul braccio del giocatore locale (prima e terza
+    // persona), come l'inclinazione del telefono; i colpi restano quelli di Argon (src/natpf/webcam_hand_pose.js)
+    !i &&
+      this.motionController?.webcamActive &&
+      ((this.playerRole !== "p2" && e === this.player) || (this.playerRole === "p2" && e === this.opponent)) &&
+      (i = this.motionController.webcamLiveInput());
     if (this.racketKinematics) {
       let a = t;
       if (this.phase === "SHOWCASE" && e === this.player && e.racketKinematics) {

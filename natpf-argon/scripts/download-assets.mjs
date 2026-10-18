@@ -1,56 +1,64 @@
-// Asset scaricati una volta in public/assets/: solo i modelli 3D del motore base e i file di MediaPipe Hands.
-// Musica, annunci, texture del cielo e QR del companion non servono più: la musica e la voce sono generate nel
-// browser (src/natpf/natpf_music.js, natpf_voice.js), il cielo è sostituito dall'arena NATPF al chiuso e i QR sono
-// creati sul link vero (window.qrcode). I modelli dei personaggi li sostituisce il lavoro sul personaggio 3D.
+// Pacchetto offline di Argon: scarica una volta in public/assets/ modelli 3D, audio, texture e QR che il gioco usa
+// (la lista si legge dai sorgenti, vedi scripts/offline-assets.mjs) e scrive public/assets/manifest.json con
+// dimensioni, sha256 e licenze. MediaPipe Hands non si scarica da qui: arriva dal pacchetto npm @mediapipe/hands.
+// I file già presenti non si riscaricano. Senza rete avvisa e non blocca la build (--strict per fallire).
+//   node scripts/download-assets.mjs [--strict] [--check]
 import fs from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { ARGON_UPSTREAM, ROOT, LICENSES, MEDIAPIPE_DIR, MEDIAPIPE_FILES, MEDIAPIPE_HANDS_VERSION, argonAssetList, assetCategory } from './offline-assets.mjs';
 
-const GSTATIC_BASE = 'https://www.gstatic.com/aistudio/starter-apps/tennis';
+const strict = process.argv.includes('--strict'), checkOnly = process.argv.includes('--check');
+const OUT = path.join(ROOT, 'public/assets');
 
-const ASSETS_TO_DOWNLOAD = [
-  // Modelli 3D (.glb): stadio, rete e pubblico. Giocatori, racchetta e pallina sono procedurali
-  // (src/natpf/natpf_character.js) e non si scaricano più.
-  'models/stadium_court.glb',
-  'models/tennis_net.glb',
-  'models/mii_crowd.glb',
-  // MediaPipe Hands binary/model assets
-  'mediapipe/hands/hands.binarypb',
-  'mediapipe/hands/hands_solution_packed_assets.data',
-  'mediapipe/hands/hands_solution_simd_wasm_bin.wasm',
-  'mediapipe/hands/hands_solution_wasm_bin.wasm',
-  'mediapipe/hands/hand_landmark_full.tflite',
-  'mediapipe/hands/hand_landmark_lite.tflite',
-];
+async function size(file){ try { const s = await fs.stat(file); return s.isFile() && s.size > 0 ? s.size : 0; } catch { return 0; } }
 
-async function downloadAsset(relPath) {
-  const destPath = path.resolve('public', 'assets', relPath);
+async function download(rel){
+  const dest = path.join(OUT, rel);
+  if (await size(dest)) return { rel, ok: true, cached: true };
+  if (checkOnly) return { rel, ok: false, error: 'mancante' };
   try {
-    const stat = await fs.stat(destPath);
-    if (stat.size > 0) {
-      return;
-    }
-  } catch {
-    // File does not exist yet; proceed with download
-  }
-
-  await fs.mkdir(path.dirname(destPath), { recursive: true });
-  const url = `${GSTATIC_BASE}/${relPath}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`Failed to download ${url}: HTTP ${res.status}`);
-  }
-  const buffer = Buffer.from(await res.arrayBuffer());
-  await fs.writeFile(destPath, buffer);
-  console.log(`[download-assets] Downloaded ${relPath} (${buffer.length} bytes)`);
+    const res = await fetch(ARGON_UPSTREAM + rel, { signal: AbortSignal.timeout(30000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const buffer = Buffer.from(await res.arrayBuffer());
+    await fs.mkdir(path.dirname(dest), { recursive: true });
+    await fs.writeFile(dest + '.part', buffer); await fs.rename(dest + '.part', dest);
+    console.log(`[assets] scaricato ${rel} (${(buffer.length/1024).toFixed(0)} kB)`);
+    return { rel, ok: true };
+  } catch (error){ return { rel, ok: false, error: error.cause?.code || error.message }; }
 }
 
-async function main() {
-  console.log('[download-assets] Ensuring static 3D models and MediaPipe assets in public/assets/...');
-  await Promise.all(ASSETS_TO_DOWNLOAD.map(downloadAsset));
-  console.log('[download-assets] All static assets ready.');
+async function entry(file, rel, category){
+  const body = await fs.readFile(file);
+  return { path: rel, category, bytes: body.length, sha256: createHash('sha256').update(body).digest('hex'), license: LICENSES[category] };
 }
 
-main().catch((err) => {
-  console.error('[download-assets] Error:', err);
-  process.exit(1);
-});
+async function main(){
+  const list = argonAssetList();
+  const results = [];
+  for (let i = 0; i < list.length; i += 6) results.push(...await Promise.all(list.slice(i, i + 6).map(download)));   // 6 alla volta
+  const failed = results.filter(r => !r.ok);
+  const files = [];
+  for (const r of results.filter(r => r.ok)) files.push(await entry(path.join(OUT, r.rel), r.rel, assetCategory(r.rel)));
+  const mediapipeMissing = [];
+  for (const f of MEDIAPIPE_FILES){
+    const src = path.join(MEDIAPIPE_DIR, f);
+    // hands_solution_simd_wasm_bin.data è vuoto nel pacchetto npm: basta che esista
+    try { await fs.access(src); files.push(await entry(src, `mediapipe/hands/${f}`, 'mediapipe')); } catch { mediapipeMissing.push(f); }
+  }
+  const bytes = files.reduce((n, f) => n + f.bytes, 0), byCategory = {};
+  for (const f of files) byCategory[f.category] = (byCategory[f.category] || 0) + f.bytes;
+  if (!checkOnly){
+    await fs.mkdir(OUT, { recursive: true });
+    await fs.writeFile(path.join(OUT, 'manifest.json'), JSON.stringify({ generated: new Date().toISOString(), upstream: ARGON_UPSTREAM, mediapipe: `@mediapipe/hands@${MEDIAPIPE_HANDS_VERSION}`, bytes, byCategory, missing: failed.map(f => f.rel), files }, null, 1));
+  }
+  const mb = n => (n/1048576).toFixed(1) + ' MB';
+  console.log(`[assets] pacchetto offline: ${files.length} file, ${mb(bytes)} (${Object.entries(byCategory).map(([k, v]) => `${k} ${mb(v)}`).join(', ')})`);
+  if (mediapipeMissing.length) console.warn(`[assets] MediaPipe Hands mancante (${mediapipeMissing.join(', ')}): esegui npm install. La webcam userà l'optical flow.`);
+  if (failed.length){
+    console.warn(`[assets] ${failed.length} file non disponibili (${failed[0].error}): ${failed.map(f => f.rel).join(', ')}`);
+    console.warn('[assets] Il gioco parte lo stesso (senza quei modelli/suoni/texture). Riprova con la rete: npm run assets');
+    if (strict || checkOnly) process.exitCode = 1;
+  }
+}
+main().catch(err => { console.error('[assets] errore:', err); process.exitCode = 1; });
