@@ -49,12 +49,22 @@ cosa che `npm run build` fa da solo.
 ### Smartphone come racchetta
 
 1. Nella lobby, al passo **2 Racchetta**, scegli **Smartphone**: compare il QR.
-2. Inquadralo con il telefono, tocca «Attiva i sensori» e segui i passi: impugna, prova, verifica, pronto.
-3. **Impugnatura**: telefono in verticale nel palmo, schermo verso il palmo, come il manico di una racchetta.
-   Bastano quattro gesti comodi; poi una prova libera e «Conferma la racchetta».
+2. Scegli la **presa** (sotto le tessere, e anche nel pannello del telefono o sul telefono stesso):
+   - **Orizzontale · piatto** (predefinita): telefono in orizzontale nel palmo, display verso di te; il dorso guarda
+     la rete e fa da corde. Il telefono si usa in landscape.
+   - **Verticale · manico**: telefono in verticale nel palmo, come il manico (la presa di NATPF Simulator).
+3. Inquadra il QR con il telefono, tocca «Attiva i sensori» e segui i passi. Con la presa orizzontale: **2 secondi
+   fermo** in posizione «pronto», piatto verso la rete, poi **quattro gesti comodi** (sinistra, destra, sinistra,
+   destra), una prova libera e «Conferma la racchetta».
 4. Al servizio un primo gesto lancia la palla e il secondo la colpisce in alto. Nello scambio colpisci quando la
-   palla arriva alla racchetta: il verso del gesto sceglie dritto o rovescio, l'inclinazione la mira, la forza
-   la velocità. Un gesto verso l'alto fa un lob, un gesto tagliato uno slice.
+   palla arriva alla racchetta; il verso del gesto sceglie dritto o rovescio.
+   - **Presa orizzontale**: la direzione la decide soprattutto **l'angolo del piatto all'impatto**: piatto girato a
+     sinistra o a destra (rispetto al tuo gesto dritto della calibrazione) → incrociato o lungolinea. Piatto aperto
+     verso l'alto → lob (gesto deciso) o palla corta (gesto morbido); piatto chiuso → colpo coperto. Gesto dal basso
+     verso l'alto → topspin, tagliato dall'alto → slice. La velocità del gesto è la velocità della palla; il tempo
+     conta ancora, ma meno. Sul telefono una freccia mostra dove punta il piatto e in gioco la racchetta lo segue.
+   - **Presa verticale**: verso e inclinazione del gesto per la mira, gesto verso l'alto per il lob, tagliato per lo
+     slice (come prima).
 
 Il telefono ha bisogno di una pagina **https** per leggere i sensori di movimento:
 
@@ -68,6 +78,29 @@ Il telefono ha bisogno di una pagina **https** per leggere i sensori di moviment
 Il collegamento passa da WebRTC con il server di segnalazione pubblico di PeerJS. Per le prove senza internet:
 `?peer=127.0.0.1:9000` con `node ../tools/e2e/peer-server.mjs`.
 
+### Skill gap: angolo e forza contano
+
+Gli scambi non sono più infiniti e non li vince sempre la CPU: chi colpisce in tempo, angolato e forte fa il punto,
+chi sbaglia lo paga. Vale per telefono, webcam, mouse e tastiera (`src/natpf/natpf_skill.js`).
+
+- **Tempo.** Lo swing in anticipo viene tenuto fino allo sweet spot per poco (Casual 0,30 s, Pro 0,16 s, 1v1
+  0,22 s; prima 0,48 s per tutti) ed è «perfetto» solo con poco anticipo. Il voto dipende dal tempo, non dalla mira.
+- **Colpo del giocatore.** La mira decide la direzione (prima i colpi centrali andavano da soli nel campo libero);
+  con potenza alta vicino alle righe si può uscire, fuori tempo si va in rete o lunghi. I colpi perfetti di fila
+  accelerano la palla, fino a quella che passa ancora la rete.
+- **CPU.** Tempo di reazione, lettura imperfetta delle palle veloci e angolate, velocità e portata limitate: i colpi
+  angolati e potenti possono essere vincenti. I suoi errori crescono con angolo, velocità, pressione e lunghezza
+  dello scambio; sotto pressione rimanda palle alte da smash, sulle palle deboli attacca. Palle corte da fondo e
+  lob sopra la CPU a rete sono sfruttabili.
+- **Casual** resta per principianti: assistenza più lunga e CPU più lenta, ma gli scambi finiscono.
+
+Audit su molti punti simulati con il motore vero (profili preciso, medio, impreciso):
+
+```bash
+npm run audit:rally                     # Casual e Pro, tutti i profili
+npm run audit:rally -- --difficulty=pro --points=300
+```
+
 ### 1v1 tra due computer
 
 Scegli **Sfida un amico** nella lobby: il gioco crea una stanza e mostra il link per il Player 2
@@ -80,7 +113,8 @@ sul computer di P1 (host); lo stato e i colpi di P2 passano dal relay di Argon, 
 ```bash
 npm run build        # dist/ (gioco + pagina del telefono NATPF in dist/natpf/ + grafiche dell'arena)
 npm run preview      # http://localhost:3000 con il relay 1v1
-npm test             # test dell'integrazione NATPF ↔ Argon
+npm test             # test dell'integrazione NATPF ↔ Argon, presa orizzontale e skill gap
+npm run audit:rally  # audit degli scambi (colpi per punto, punti vinti per profilo)
 ```
 
 ## Comandi
@@ -89,7 +123,7 @@ npm test             # test dell'integrazione NATPF ↔ Argon
 |---|---|---|---|
 | Servizio | ↑ / W / T lancia, Spazio colpisce | mano verso l'alto, poi swing | gesto, poi gesto in alto |
 | Colpo | Spazio o trascinamento; 1–4 per il tipo | swing davanti alla webcam | gesto naturale con il telefono |
-| Mira | Q/E o A/D, direzione del trascinamento | direzione dello swing | verso e inclinazione del gesto |
+| Mira | Q/E o A/D, direzione del trascinamento | direzione dello swing | angolo del piatto (presa orizzontale) o verso e inclinazione del gesto (verticale) |
 
 Altri tasti: **V** prima/terza persona, **C** camera, **R** replay.
 
@@ -99,11 +133,15 @@ Parametri utili: `?view=first|third`, `?mode=casual|pro|1v1`, `?room=…&role=p2
 
 - `src/` – Argon Tennis (riformattato con Prettier). Le modifiche al motore sono agganci brevi, marcati `NATPF:`.
 - `src/natpf/` – integrazione: `natpf_arena.js` (arena e luci), `natpf_phone_racket.js` (telefono → colpi e
-  inclinazione della racchetta), `natpf_camera.js` (prima persona), `natpf_ui.js` (menu, QR e calibrazione,
+  inclinazione della racchetta, presa orizzontale), `natpf_skill.js` (skill gap: assistenza, rischio, CPU), `natpf_camera.js` (prima persona), `natpf_ui.js` (menu, QR e calibrazione,
   invito P2), `match_format.js` (1v1 / Opzione B 2v2).
 - `scripts/natpf-site-plugin.mjs` – riuso di `../site`: alias `@natpf`, pagina del telefono sotto `/natpf/`,
   copia nella build delle sole dipendenze necessarie.
+- `scripts/audit/` – motore senza browser (`headless-engine.mjs`) e audit degli scambi (`rally-balance.mjs`,
+  risultati in `results/`).
 - `test/` – test Node dell'integrazione.
+- `../site/js/tennis/face-tracker.js` – orientamento del piatto sul telefono (presa orizzontale), condiviso con
+  la pagina del telefono di NATPF Simulator, dove resta un'opzione: la presa predefinita là è quella verticale.
 
 Modelli, audio e texture di Argon arrivano dalla starter app di Google AI Studio (gstatic). Marchi e grafiche
 dell'arena: vedi `../site/assets/arena/README.md`. Uso interno FITP eSports.
