@@ -148,7 +148,8 @@ export function offlineAssetsPlugin({ root = ROOT } = {}){
   const mount = server => server.middlewares.use(createAssetMiddleware({ dirs: defaultAssetDirs(root) }));
   return {
     name: 'argon-offline-assets',
-    configureServer: mount,
+    // niente valore restituito: una funzione restituita sarebbe per Vite un post-hook, chiamato senza argomenti
+    configureServer(server){ mount(server); },
     configurePreviewServer(server){ server.middlewares.use(createAssetMiddleware({ dirs: [{ dir: path.join(server.config.root, server.config.build.outDir, 'assets') }, ...defaultAssetDirs(root)] })); },
     configResolved(config){ if (config.command === 'build') outDir = path.resolve(config.root, config.build.outDir); },
     closeBundle(){
