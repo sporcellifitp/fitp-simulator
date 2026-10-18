@@ -656,7 +656,12 @@ body {
     width: 9px;
     height: 14px;
   }
+  #top-hud-bar {
+    justify-content: space-between;
+    gap: 4px;
+  }
   .wii-scoreboard-pill {
+    min-width: 0;
     height: 40px;
   }
   .mii-avatar-badge {
