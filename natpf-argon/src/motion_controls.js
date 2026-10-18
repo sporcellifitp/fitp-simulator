@@ -135,6 +135,7 @@ export class MotionController {
         pitch: h,
         roll: p,
         timing: e.timing || null,
+        natpf: e.natpf || null, // NATPF: mira dal piatto del telefono e palla corta (natpf_phone_racket.js)
         timestamp: e.timestamp || Date.now(),
       };
     if (
