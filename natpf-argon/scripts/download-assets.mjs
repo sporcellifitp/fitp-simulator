@@ -1,3 +1,7 @@
+// Asset scaricati una volta in public/assets/: solo i modelli 3D del motore base e i file di MediaPipe Hands.
+// Musica, annunci, texture del cielo e QR del companion non servono più: la musica e la voce sono generate nel
+// browser (src/natpf/natpf_music.js, natpf_voice.js), il cielo è sostituito dall'arena NATPF al chiuso e i QR sono
+// creati sul link vero (window.qrcode). I modelli dei personaggi li sostituisce il lavoro sul personaggio 3D.
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
