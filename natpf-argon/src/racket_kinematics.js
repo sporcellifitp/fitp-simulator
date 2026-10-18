@@ -685,8 +685,9 @@ export class RacketKinematicsController {
       ),
       te = this.posSpringStiffness,
       ne = this.posSpringDamping;
-    // NATPF: la mano reale (webcam) sposta polso e racchetta, oltre le piccole oscillazioni di Argon
-    (B.x += a.handOffsetX), (B.y += a.handOffsetY);
+    // NATPF: la mano reale (webcam) sposta polso e racchetta, oltre le piccole oscillazioni di Argon.
+    // Nel riferimento del Mii la destra del giocatore è -x (la racchetta a riposo sta a x = -0,36).
+    (B.x -= a.handOffsetX), (B.y += a.handOffsetY);
     (t.wristSpringVel.x += ((B.x - t.wristSpringPos.x) * te - t.wristSpringVel.x * ne) * s),
       (t.wristSpringVel.y += ((B.y - t.wristSpringPos.y) * te - t.wristSpringVel.y * ne) * s),
       (t.wristSpringVel.z += ((B.z - t.wristSpringPos.z) * te - t.wristSpringVel.z * ne) * s),
