@@ -195,8 +195,9 @@ locale attendibile, per l'IP esatto): l'avvio guidato ne controlla coppia, scade
   del Player 2 usano il primo indirizzo https di `/lan/status` coperto dal certificato.
 - **Pacchetto offline** (`scripts/offline-assets.mjs`, `download-assets.mjs`): modelli, audio (musiche Lyria e
   annunci TTS), texture e QR di Argon in `public/assets/` (lista letta dai sorgenti, `manifest.json` con dimensioni,
-  sha256 e licenza; 57 file, circa 37 MB); MediaPipe Hands dal pacchetto npm `@mediapipe/hands@0.4.1675469240`
-  (Apache-2.0, identico byte per byte ai file wasm/data di gstatic). Nei sorgenti di Argon gli indirizzi gstatic
+  sha256 e licenza; con MediaPipe 67 file, circa 55 MB); MediaPipe Hands dal pacchetto npm
+  `@mediapipe/hands@0.4.1675469240` (Apache-2.0, identico byte per byte ai file wasm/data di gstatic) e Pose da
+  `@mediapipe/pose@0.5.1675469404` (Apache-2.0, solo il modello lite: 17,6 MB invece di 52). Nei sorgenti di Argon gli indirizzi gstatic
   restano scritti ma passano da `argonAssetUrl` → `./assets/…` (audio, texture, QR) come Argon già faceva per i
   modelli. Il server risponde dal disco; se un file manca prova gstatic solo se c'è rete, altrimenti 404 e il gioco
   continua (modello vuoto, niente suono, cielo senza texture, webcam con optical flow).
@@ -207,14 +208,25 @@ locale attendibile, per l'IP esatto): l'avvio guidato ne controlla coppia, scade
   `liveInput` di `racket_kinematics.js`, come l'inclinazione del telefono: inclinazioni (rollio, beccheggio,
   imbardata) e uno spostamento del polso fino a ±26 cm di lato e ±24 cm in altezza, che sposta racchetta e mano del
   personaggio in prima e in terza persona. Colpi, mira e timing restano quelli di Argon.
-- **Corpo non collegato.** «Tracciare i movimenti dell'utente» potrebbe voler dire anche lo spostamento laterale
-  del giocatore: non l'ho implementato, resta il movimento automatico di Argon, in attesa di una decisione.
+- **Webcam → movimento del giocatore** (`src/natpf/webcam_body_follow.js`, deciso dall'utente il 18 ottobre):
+  opzione «Movimento: automatico / segui il corpo» della racchetta Webcam (pulsante nell'HUD accanto a «Vista»,
+  tasto B, `?move=body`). MediaPipe Pose lite gira sugli stessi fotogrammi della webcam di Argon accanto a Hands;
+  spalle e anche danno la posizione laterale e, dalla larghezza delle spalle, la distanza dalla webcam, entrambe
+  rispetto a dove il giocatore è stato visto la prima volta (centro del campo, posizione di attesa di Argon).
+  Laterale: ±28% dell'inquadratura copre fino al corridoio; distanza: spalle 1,35 volte più larghe = 4,5 m verso
+  la rete, più strette = fino a 1,5 m dietro il fondo. **Isolato dal motore**: `_predictBallIntercept` e
+  `_stepActorFootwork` non cambiano; il modulo avvolge `_stepActorFootwork` e, solo durante lo scambio e solo per il
+  giocatore che segue il corpo, sostituisce per quel passo il bersaglio di Argon e poi lo rimette (velocità
+  massima, passi e animazioni restano di Argon). Corpo fuori inquadratura o non visto per più di 0,4 s → bersaglio
+  automatico. Il P2 manda il bersaglio all'host con `/api/body` del relay (letto da `/api/match/state`, campo
+  `body.p2`), perché è l'host a simulare la partita. Predefinito **automatico**, per lo spazio e la postura che
+  «segui il corpo» richiede (vedi README). Il colpo resta legato alla mano.
 
 ### Verifiche (17 ottobre 2026)
 
 | Verifica | Esito |
 |---|---|
-| `npm test` in natpf-argon (9 test precedenti + 10 nuovi: relay, pacchetto offline, server LAN, build da rifare, avvio con `tools/lan` in HTTPS e `/lan-signal`, IP di rete per QR e invito, posa della mano) | 19/19 |
+| `npm test` in natpf-argon (9 test precedenti + 16 nuovi: relay, pacchetto offline, plugin Vite, server LAN, build da rifare, avvio con `tools/lan` in HTTPS e `/lan-signal`, IP di rete per QR e invito, posa della mano, posa del corpo, bersaglio in campo, aggancio isolato al movimento, P2 attraverso il relay) | 25/25 |
 | `node --test tools/test/*.test.mjs` | 124/124 |
 | `node --test tools/lan/test/setup.test.mjs` (+1 test per `handler`) | 4/4 |
 | `npm run test:e2e-lan` (`natpf-argon/test/e2e/lan-e2e.mjs`): server LAN vero, Chrome, ogni richiesta fuori dal computer bloccata e contata | vedi sotto |
@@ -238,7 +250,15 @@ La prova nel browser verifica:
   distanza) e in prima persona (circa un quinto dello schermo); mano ruotata → racchetta ruotata di 15–19°; i
   movimenti lenti non fanno partire colpi, uno swing veloce sì (colpo di Argon con sorgente «webcam»). Con la GPU il
   gioco gira a 50–60 FPS, con la webcam e MediaPipe a ~30 FPS; un'inferenza di MediaPipe costa 10–40 ms.
-- **Esito**: 28/28 verifiche superate (18 ottobre 2026, Chrome 155 con GPU, Windows 11).
+- **Movimento «segui il corpo»** (parte `corpo`): pulsante «Movimento» visibile con la webcam e predefinito
+  automatico; MediaPipe Pose caricato da `/assets/mediapipe/pose/` accanto a Hands, entrambi attivi (un'inferenza
+  10 ms e 6 ms), ~45 FPS. Con posizioni del corpo sintetiche (spalle e anche, stessi campi di MediaPipe): P1 a
+  destra/sinistra davanti alla webcam → x = +3,3 / −3,3 m in campo durante lo scambio, in terza e in prima persona;
+  avvicinarsi alla webcam → z = 7,3 m (verso la rete dal fondo a 11,9 m); corpo che sparisce → stato «corpo non
+  visto · automatico» e bersaglio di Argon. P2 in 1v1: il bersaglio passa dal relay e l'host lo muove (destra del
+  P2 → −3,3 m, sinistra → +3,3 m), e il P2 vede il proprio giocatore spostato. La prova ha trovato un bug vero,
+  corretto: Hands e Pose inizializzati insieme si rompevano a vicenda (il caricatore di MediaPipe è globale).
+- **Esito**: 38/38 verifiche superate in tutte e cinque le parti (18 ottobre 2026, Chrome 155 con GPU, Windows 11).
 
 Le prove usano un certificato di prova (openssl) e Chrome con `--ignore-certificate-errors`, al posto del
 certificato mkcert attendibile: con il solo avviso ignorato il WebRTC del telefono non partiva, a conferma di quanto
@@ -250,6 +270,8 @@ scende a 1–2 FPS e la traccia della mano di Argon, che lavora per fotogrammi, 
 - **Telefoni veri** in LAN (Android/Chrome, iPhone/Safari) con il certificato mkcert installato: calibrazione,
   inclinazione continua, latenza e perdita di pacchetti sulla Wi-Fi dell'evento (isolamento tra dispositivi,
   firewall di Windows per Node.js e UDP).
+- **«Segui il corpo» con una persona vera**: rilevamento di Pose con luce, sfondo e distanza reali, ampiezze
+  (±28% dell'inquadratura, spalle ×1,35) e latenza del movimento; P2 con la latenza del relay su Wi-Fi.
 - **Webcam vera con una mano vera**: qualità del riconoscimento di MediaPipe con luce e sfondo reali, segni e
   ampiezza della posa (pensati per una webcam frontale a specchio), soglie degli swing di Argon, frame rate su un PC
   da evento. Il riconoscimento della mano non è stato provato su immagini reali.

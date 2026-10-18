@@ -18,7 +18,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const OUT = process.env.OUT || path.join(os.tmpdir(), 'natpf-argon-lan-e2e');
 fs.mkdirSync(OUT, { recursive: true });
 const results = [];
-// ONLY=telefono,1v1,webcam per eseguire solo alcune parti
+// ONLY=telefono,1v1,webcam,corpo per eseguire solo alcune parti
 const run = part => !process.env.ONLY || process.env.ONLY.split(',').includes(part);
 const check = (name, ok, info = '') => { results.push(!!ok); console.log(`${ok ? 'OK  ' : 'KO  '}${name}${info ? ' — ' + info : ''}`); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -311,7 +311,8 @@ try {
         await observer.waitForFunction(() => __argonTennis.phase === 'RALLY', null, { timeout: 40000 });
         await sleep(900);
         const s = await observer.evaluate(k => ({ phase: __argonTennis.phase, x: __argonTennis[k].pos.x, z: __argonTennis[k].pos.z }), actorKey);
-        out.push({ bodyX, ...s });
+        const seen = page !== observer ? await page.evaluate(k => __argonTennis[k].pos.x, actorKey) : null;
+        out.push({ bodyX, ...s, seen });
         await observer.waitForFunction(() => __argonTennis.phase !== 'RALLY', null, { timeout: 30000 }).catch(() => {});
       }
       console.log(label, JSON.stringify(out.map(o => ({ corpo: o.bodyX, fase: o.phase, x: +o.x.toFixed(2), z: +o.z.toFixed(2) }))));
@@ -380,8 +381,7 @@ try {
     const p2Moves = await measure(guest, host2, 'opponent', [.3, .7], 'corpo P2 → giocatore sull\'host');
     const p2r = p2Moves.find(o => o.bodyX < .5), p2l = p2Moves.find(o => o.bodyX > .5);
     check('P2 segue il corpo attraverso il relay: destra del P2 → -x, sinistra → +x (sull\'host che simula)', p2r && p2l && p2r.x < -2 && p2l.x > 2, `destra ${p2r?.x.toFixed(2)}, sinistra ${p2l?.x.toFixed(2)}`);
-    const guestView = await guest.evaluate(() => __argonTennis.opponent.pos.x);
-    check('…e il P2 vede il proprio giocatore spostato (snapshot dell\'host)', guestView > 1.5, `x sul P2 = ${guestView.toFixed(2)}`);
+    check('…e il P2 vede il proprio giocatore spostato (snapshot dell\'host)', p2r && p2l && p2r.seen < -1.5 && p2l.seen > 1.5, `x sul P2: ${p2r?.seen?.toFixed(2)}, ${p2l?.seen?.toFixed(2)}`);
     await guest.screenshot({ path: path.join(OUT, 'lan-corpo-p2.png') });
     await hCtx.close(); await gCtx.close();
   }
