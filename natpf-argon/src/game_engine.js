@@ -26,6 +26,7 @@ import {
 import { resolveMatchFormat } from "./natpf/match_format.js";
 import { NatpfUi } from "./natpf/natpf_ui.js";
 import { argonAssetUrl } from "./natpf/argon_assets.js";
+import { NatpfBodyFollow } from "./natpf/webcam_body_follow.js";
 const readStoredView = () => {
   try {
     return localStorage.getItem(VIEW_STORAGE_KEY);
@@ -661,6 +662,8 @@ export class ArgonTennisEngine {
       t && (this.facialFX[e] = (i, ...a) => (i && i === this.fpBodyActor ? void 0 : t(i, ...a)));
     }
     this.natpfPhone = new NatpfPhoneRacket(this);
+    // NATPF: webcam → «Movimento: segui il corpo» (MediaPipe Pose), isolato dal movimento automatico di Argon
+    this.natpfBody = new NatpfBodyFollow(this);
     const mc = this.motionController;
     if (mc && mc.triggerHapticFeedback) {
       const haptic = mc.triggerHapticFeedback.bind(mc);

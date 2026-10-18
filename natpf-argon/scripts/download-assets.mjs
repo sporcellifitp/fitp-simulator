@@ -1,12 +1,12 @@
 // Pacchetto offline di Argon: scarica una volta in public/assets/ modelli 3D, audio, texture e QR che il gioco usa
 // (la lista si legge dai sorgenti, vedi scripts/offline-assets.mjs) e scrive public/assets/manifest.json con
-// dimensioni, sha256 e licenze. MediaPipe Hands non si scarica da qui: arriva dal pacchetto npm @mediapipe/hands.
+// dimensioni, sha256 e licenze. MediaPipe Hands e Pose non si scaricano da qui: arrivano dai pacchetti npm.
 // I file già presenti non si riscaricano. Senza rete avvisa e non blocca la build (--strict per fallire).
 //   node scripts/download-assets.mjs [--strict] [--check]
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { ARGON_UPSTREAM, ROOT, LICENSES, MEDIAPIPE_DIR, MEDIAPIPE_FILES, MEDIAPIPE_HANDS_VERSION, argonAssetList, assetCategory } from './offline-assets.mjs';
+import { ARGON_UPSTREAM, ROOT, LICENSES, MEDIAPIPE_PACKAGES, argonAssetList, assetCategory, mediapipeAssets } from './offline-assets.mjs';
 
 const strict = process.argv.includes('--strict'), checkOnly = process.argv.includes('--check');
 const OUT = path.join(ROOT, 'public/assets');
@@ -41,20 +41,19 @@ async function main(){
   const files = [];
   for (const r of results.filter(r => r.ok)) files.push(await entry(path.join(OUT, r.rel), r.rel, assetCategory(r.rel)));
   const mediapipeMissing = [];
-  for (const f of MEDIAPIPE_FILES){
-    const src = path.join(MEDIAPIPE_DIR, f);
-    // hands_solution_simd_wasm_bin.data è vuoto nel pacchetto npm: basta che esista
-    try { await fs.access(src); files.push(await entry(src, `mediapipe/hands/${f}`, 'mediapipe')); } catch { mediapipeMissing.push(f); }
+  for (const { rel, src } of mediapipeAssets()){
+    // *_simd_wasm_bin.data è vuoto nei pacchetti npm: basta che esista
+    try { await fs.access(src); files.push(await entry(src, rel, 'mediapipe')); } catch { mediapipeMissing.push(rel); }
   }
   const bytes = files.reduce((n, f) => n + f.bytes, 0), byCategory = {};
   for (const f of files) byCategory[f.category] = (byCategory[f.category] || 0) + f.bytes;
   if (!checkOnly){
     await fs.mkdir(OUT, { recursive: true });
-    await fs.writeFile(path.join(OUT, 'manifest.json'), JSON.stringify({ generated: new Date().toISOString(), upstream: ARGON_UPSTREAM, mediapipe: `@mediapipe/hands@${MEDIAPIPE_HANDS_VERSION}`, bytes, byCategory, missing: failed.map(f => f.rel), files }, null, 1));
+    await fs.writeFile(path.join(OUT, 'manifest.json'), JSON.stringify({ generated: new Date().toISOString(), upstream: ARGON_UPSTREAM, mediapipe: MEDIAPIPE_PACKAGES.map(p => `@mediapipe/${p.name}@${p.version}`), bytes, byCategory, missing: failed.map(f => f.rel), files }, null, 1));
   }
   const mb = n => (n/1048576).toFixed(1) + ' MB';
   console.log(`[assets] pacchetto offline: ${files.length} file, ${mb(bytes)} (${Object.entries(byCategory).map(([k, v]) => `${k} ${mb(v)}`).join(', ')})`);
-  if (mediapipeMissing.length) console.warn(`[assets] MediaPipe Hands mancante (${mediapipeMissing.join(', ')}): esegui npm install. La webcam userà l'optical flow.`);
+  if (mediapipeMissing.length) console.warn(`[assets] MediaPipe mancante (${mediapipeMissing.join(', ')}): esegui npm install. Senza Hands la webcam usa l'optical flow, senza Pose il movimento resta automatico.`);
   if (failed.length){
     console.warn(`[assets] ${failed.length} file non disponibili (${failed[0].error}): ${failed.map(f => f.rel).join(', ')}`);
     console.warn('[assets] Il gioco parte lo stesso (senza quei modelli/suoni/texture). Riprova con la rete: npm run assets');
