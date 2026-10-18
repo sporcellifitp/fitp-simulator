@@ -1,5 +1,5 @@
 // Onboarding guidato: cinque passi su come si gioca, con le istruzioni della racchetta scelta (smartphone NATPF,
-// webcam o mouse/tastiera di Argon), poi il punto di prova. Si apre da solo la prima volta e poi con «Come si
+// webcam o mouse/tastiera del motore base), poi il punto di prova. Si apre da solo la prima volta e poi con «Come si
 // gioca», il pulsante «Aiuto» o il tasto H.
 const $ = id => document.getElementById(id);
 const CONTROLLERS = [['phone', 'Smartphone'], ['webcam', 'Webcam'], ['mouse', 'Mouse e tastiera']];

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="it">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -8,9 +8,9 @@
     />
     <meta
       name="description"
-      content="Wii Sports-inspired 3D arcade tennis game with frantic racket kinematics, expressive Mii characters, webcam &amp; phone motion controls, and Lyria 3 audio."
+      content="NATPF Simulator: il tennis 3D delle Nitto ATP Finals di Torino. Smartphone o webcam come racchetta, sfida 1v1, prima e terza persona."
     />
-    <title>NATPF Simulator · Argon Tennis</title>
+    <title>NATPF Simulator</title>
     <script>
       (function () {
         const params = new URLSearchParams(window.location.search);
@@ -25,15 +25,16 @@
     </script>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./natpf.css" />
+    <link rel="stylesheet" href="./natpf-hud.css" />
   </head>
   <body>
     <div id="root" class="hidden" aria-hidden="true"></div>
-    <div id="canvas-container" aria-label="Argon Tennis 3D Stadium Viewport">
+    <div id="canvas-container" aria-label="Arena NATPF in 3D">
       <canvas id="game-canvas"></canvas>
     </div>
     <div id="hud-root">
       <header id="top-hud-bar">
-        <div id="games-pill-player" class="wii-games-pill" title="Player Games Won">
+        <div id="games-pill-player" class="wii-games-pill" title="Game vinti da te">
           <span class="game-bubble" data-slot="0"></span><span class="game-bubble" data-slot="1"></span
           ><span class="game-bubble extra-slot hidden" data-slot="2"></span>
         </div>
@@ -60,48 +61,48 @@
             </div>
           </div>
         </div>
-        <div id="games-pill-opponent" class="wii-games-pill" title="Opponent Games Won">
+        <div id="games-pill-opponent" class="wii-games-pill" title="Game vinti dall'avversario">
           <span class="game-bubble" data-slot="0"></span><span class="game-bubble" data-slot="1"></span
           ><span class="game-bubble extra-slot hidden" data-slot="2"></span>
         </div>
       </header>
       <div id="opponent-presence-pill" class="opponent-presence-pill hidden" aria-live="polite">
         <span id="opponent-presence-dot" class="presence-dot"></span
-        ><span id="opponent-presence-text">Waiting for Player 2…</span>
+        ><span id="opponent-presence-text">In attesa di Player 2…</span>
       </div>
       <div id="world-labels-layer">
-        <div id="server-tag" class="wii-server-tag hidden"><span class="server-tag-text">Server</span></div>
+        <div id="server-tag" class="wii-server-tag hidden"><span class="server-tag-text">Al servizio</span></div>
         <div id="player-nameplate" class="wii-court-nameplate player-plate hidden">
           <canvas id="plate-mii-player" width="192" height="192"></canvas>
           <div class="plate-info">
-            <div class="plate-name">Ammaar</div>
-            <div class="plate-skill">Skill Level 1050</div>
+            <div class="plate-name">Tu</div>
+            <div class="plate-skill">Livello 1050</div>
           </div>
         </div>
         <div id="timing-popup" class="wii-timing-popup hidden">
-          <span id="timing-popup-grade" class="timing-grade">PERFECT</span
-          ><span id="timing-popup-detail" class="timing-detail">POWER TOPSPIN • 178 KM/H</span>
+          <span id="timing-popup-grade" class="timing-grade">PERFETTO</span
+          ><span id="timing-popup-detail" class="timing-detail">DRITTO TOPSPIN • 178 KM/H</span>
         </div>
       </div>
       <div id="center-banner-layer" class="center-banner-layer hidden">
         <div id="center-banner-streak" class="center-banner-streak"></div>
-        <div id="center-banner-text" class="center-banner-text style-gold">Game Point</div>
+        <div id="center-banner-text" class="center-banner-text style-gold">Palla game</div>
         <div id="center-banner-sub" class="center-banner-sub hidden"></div>
       </div>
       <div id="replay-badge" class="wii-replay-badge hidden">
         <span class="replay-dots"
           ><i class="dot dot-1"></i><i class="dot dot-2"></i><i class="dot dot-3"></i></span
-        ><span class="replay-label">Replay</span>
+        ><span class="replay-label">Moviola</span>
       </div>
       <div id="bottom-right-dock" class="hud-corner-dock bottom-right-dock">
         <div id="timing-gauge-card" class="timing-gauge-card">
           <div class="gauge-header">
-            <span id="gauge-mode-title">SWING TIMING</span><span id="gauge-speed-readout">READY</span>
+            <span id="gauge-mode-title">Tempo del colpo</span><span id="gauge-speed-readout">Pronto</span>
           </div>
           <div class="timing-bar-track">
-            <div class="timing-zone zone-early">EARLY (Cross)</div>
-            <div class="timing-zone zone-sweet">SWEET SPOT</div>
-            <div class="timing-zone zone-late">LATE (Line)</div>
+            <div class="timing-zone zone-early" title="Anticipo: palla incrociata">Anticipo</div>
+            <div class="timing-zone zone-sweet">Centro</div>
+            <div class="timing-zone zone-late" title="Ritardo: palla lungolinea">Ritardo</div>
             <div id="timing-cursor" class="timing-cursor" style="left: 50%"></div>
           </div>
         </div>
@@ -110,15 +111,15 @@
             <video id="webcam-video" autoplay playsinline muted></video
             ><canvas id="webcam-canvas" width="160" height="120"></canvas>
             <div class="pip-badge">
-              <span class="pip-live-dot"></span><span id="pip-motion-label">Webcam Swing</span>
+              <span class="pip-live-dot"></span><span id="pip-motion-label">Webcam attiva</span>
             </div>
           </div>
           <div class="motion-buttons-col">
             <button id="btn-webcam-toggle" class="hud-mini-btn motion-btn" type="button">
-              <span class="btn-dot" id="webcam-status-dot"></span><span>Webcam Motion</span></button
+              <span class="btn-dot" id="webcam-status-dot"></span><span>Webcam</span></button
             ><button id="btn-phone-racket" class="hud-mini-btn motion-btn" type="button" title="Smartphone come racchetta (NATPF)">
               <span class="btn-dot" id="phone-status-dot"></span
-              ><span id="phone-status-label">Pocket Racket</span>
+              ><span id="phone-status-label">Telefono</span>
             </button>
             <div id="bottom-left-dock" class="hud-corner-dock bottom-left-dock">
               <div class="dock-pill-row">
@@ -126,17 +127,19 @@
                   id="btn-audio-toggle"
                   class="hud-mini-btn"
                   type="button"
-                  title="Toggle Lyria 3 Soundtrack & SFX"
+                  title="Musica ed effetti: sì / no"
                 >
                   <span class="btn-dot music-on" id="audio-status-dot"></span
-                  ><span id="audio-track-label">Lyria: Sunny Rally</span></button
+                  ><span id="audio-track-label">Musica: sì</span></button
+                ><button id="btn-voice-toggle" class="hud-mini-btn" type="button" title="Voce del punteggio" aria-pressed="true">
+                  <span class="btn-dot music-on"></span><span>Voce:</span><strong data-voice-label>sì</strong></button
                 ><button
                   id="btn-camera-cycle"
                   class="hud-mini-btn"
                   type="button"
-                  title="Cycle Camera Angle (C)"
+                  title="Cambia inquadratura (C)"
                 >
-                  <span>Cam:</span><strong id="camera-mode-label">Rally</strong></button
+                  <span>Camera:</span><strong id="camera-mode-label">Auto</strong></button
                 ><button id="btn-natpf-help" class="hud-mini-btn" type="button" title="Come si gioca (H)" data-open-onboarding>
                   <span>? Aiuto</span></button
                 ><button id="btn-natpf-view" class="hud-mini-btn" type="button" title="Prima o terza persona (V)">
@@ -145,16 +148,16 @@
                   id="btn-replay-trigger"
                   class="hud-mini-btn"
                   type="button"
-                  title="Toggle Instant Replay (R)"
+                  title="Moviola del punto (R)"
                 >
-                  <span>Replay</span></button
+                  <span>Moviola</span></button
                 ><button
                   id="btn-multiplayer-modal"
                   class="hud-mini-btn hidden"
                   type="button"
-                  title="Open /argontennis 1v1 Multiplayer & Cloudflare Companion Links"
+                  title="Collegamenti per la sfida 1v1"
                 >
-                  <span>💬 /argontennis 1v1</span>
+                  <span>💬 Sfida 1v1</span>
                 </button>
               </div>
             </div>
@@ -162,8 +165,8 @@
         </div>
       </div>
     </div>
-    <!-- NATPF: lobby in stile console (src/natpf/natpf_lobby.js). Restano gli id e le classi che legge l'HUD di
-         Argon: #difficulty-mode-group/.wii-green-choice, #match-length-group, #btn-start-match, #setup-mii-*, .you-tag -->
+    <!-- NATPF: lobby in stile console (src/natpf/natpf_lobby.js). Restano gli id e le classi che legge l'HUD del
+         motore base: #difficulty-mode-group/.wii-green-choice, #match-length-group, #btn-start-match, #setup-mii-*, .you-tag -->
     <div id="title-modal" class="wii-modal-backdrop natpf-lobby" data-step="mode">
       <header class="lobby-top">
         <div class="lobby-brand">
@@ -212,7 +215,7 @@
           <div class="lobby-versus" aria-hidden="true">
             <div class="versus-side"><canvas id="setup-mii-player" width="192" height="192"></canvas><span class="slot-tag you-tag">Tu</span></div>
             <span class="versus-vs">VS</span>
-            <div class="versus-side"><canvas id="setup-mii-opponent" width="192" height="192"></canvas><span id="setup-opponent-label" class="slot-tag cpu-tag">Club AI</span></div>
+            <div class="versus-side"><canvas id="setup-mii-opponent" width="192" height="192"></canvas><span id="setup-opponent-label" class="slot-tag cpu-tag">CPU</span></div>
           </div>
         </section>
 
@@ -241,16 +244,15 @@
     <div id="companion-modal" class="wii-modal-backdrop hidden">
       <div class="wii-dialog-box wii-companion-clean-dialog">
         <div class="mp-dialog-header">
-          <h2 class="dialog-title">📱 Phone Controller</h2>
-          <span id="mp-active-status" class="mp-conn-tag">Scan QR</span>
+          <h2 class="dialog-title">📱 Telefono come racchetta</h2>
+          <span id="mp-active-status" class="mp-conn-tag">Scansiona il QR</span>
         </div>
-        <p class="dialog-desc">Scan with your phone camera</p>
+        <p class="dialog-desc">Inquadra il codice con la fotocamera del telefono</p>
         <div id="mp-card-p1" class="mp-clean-qr-wrap">
           <span id="mp-p1-status" class="hidden"></span
           ><img
             id="companion-qr"
-            src="https://www.gstatic.com/aistudio/starter-apps/tennis/qr/player1_qr.png"
-            alt="Phone Controller QR"
+            alt="QR del telefono di Player 1"
             width="200"
             height="200"
             class="mp-qr-img"
@@ -260,15 +262,14 @@
             target="_blank"
             rel="noopener"
             class="mp-subtle-link"
-            >Open controller link ↗</a
+            >Apri il link del controller ↗</a
           >
         </div>
         <div id="mp-card-p2" class="mp-clean-qr-wrap hidden">
           <span id="mp-p2-status" class="hidden"></span
           ><img
             id="companion-qr-p2"
-            src="https://www.gstatic.com/aistudio/starter-apps/tennis/qr/player2_qr.png"
-            alt="Phone Controller QR"
+            alt="QR del telefono di Player 2"
             width="200"
             height="200"
             class="mp-qr-img"
@@ -278,35 +279,35 @@
             target="_blank"
             rel="noopener"
             class="mp-subtle-link"
-            >Open controller link ↗</a
+            >Apri il link del controller ↗</a
           >
         </div>
         <div class="dialog-actions">
-          <button id="btn-close-companion" type="button" class="wii-pill-btn">Back to Court</button>
+          <button id="btn-close-companion" type="button" class="wii-pill-btn">Torna al campo</button>
         </div>
       </div>
     </div>
     <div id="victory-modal" class="wii-modal-backdrop hidden">
       <div class="wii-skill-card">
-        <div class="skill-card-header">Club Skill Rating</div>
+        <div class="skill-card-header">Rating NATPF</div>
         <div class="skill-card-body">
           <div class="skill-chart-frame">
             <canvas id="skill-graph-canvas" width="280" height="200"></canvas>
           </div>
           <div class="skill-mii-summary">
-            <div id="victory-result-banner" class="victory-result-banner">YOU WIN!</div>
+            <div id="victory-result-banner" class="victory-result-banner">Hai vinto!</div>
             <div class="skill-score-pill">
               <canvas id="victory-mii-icon" width="192" height="192"></canvas>
               <div class="skill-score-meta">
                 <div class="skill-rating-number" id="skill-rating-value">1120</div>
-                <div class="skill-player-name">Ammaar (+120)</div>
+                <div class="skill-player-name">Tu</div>
               </div>
             </div>
-            <div id="victory-match-score" class="victory-match-score">Final Games: 2 - 0</div>
+            <div id="victory-match-score" class="victory-match-score">Game finali: 2 - 0</div>
           </div>
         </div>
         <div class="skill-card-footer">
-          <button id="btn-play-again" type="button" class="wii-footer-btn primary">Play again</button
+          <button id="btn-play-again" type="button" class="wii-footer-btn primary">Gioca ancora</button
           ><button id="btn-return-title" type="button" class="wii-footer-btn secondary">Menu</button>
         </div>
       </div>

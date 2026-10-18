@@ -1,5 +1,5 @@
 // Formato della partita. L'MVP NATPF è solo singolare 1v1 (contro la CPU o tra due giocatori).
-// Argon nasce in doppio: il codice dei compagni resta nel motore, dietro `isDoubles`, per l'Opzione B.
+// Il motore base nasce in doppio: il codice dei compagni resta nel motore, dietro `isDoubles`, per l'Opzione B.
 // Per riattivare il 2v2 (solo su richiesta) basta DOUBLES_ENABLED = true e un pulsante nel menu: il motore
 // mostra di nuovo i compagni e ne usa volée e posizionamento, senza riprogettare nulla.
 export const DOUBLES_ENABLED = false;

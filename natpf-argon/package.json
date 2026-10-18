@@ -1,5 +1,5 @@
 {
-  "name": "natpf-argon",
+  "name": "natpf-simulator-tennis",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -29,5 +29,5 @@
     "typescript": "^6.0.3",
     "vite": "^7.3.5"
   },
-  "description": "NATPF Simulator su base Argon Tennis: arena Nitto ATP Finals, smartphone o webcam come racchetta, 1v1, prima e terza persona"
+  "description": "NATPF Simulator: tennis 3D nell'arena delle Nitto ATP Finals, smartphone o webcam come racchetta, 1v1, prima e terza persona"
 }

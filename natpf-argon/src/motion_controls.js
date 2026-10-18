@@ -394,7 +394,8 @@ export class MotionController {
         window.location.protocol === "http:" &&
           window.location.hostname !== "localhost" &&
           window.location.hostname !== "127.0.0.1" &&
-          window.open("https://argon-tennis-sandbox-170440.uc.r.appspot.com/?webcam=1", "_blank"),
+          // NATPF: la stessa pagina in https (la webcam lo richiede), non l'indirizzo del motore base
+          window.open(`https://${window.location.host}${window.location.pathname}?webcam=1`, "_blank"),
         !1
       );
     try {

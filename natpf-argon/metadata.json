@@ -1,6 +1,6 @@
 {
-  "name": "Remix Argon Tennis",
-  "description": "3D arcade tennis game with frantic racket kinematics, expressive Mii characters, webcam \u0026 phone motion controls, and Lyria 3 audio.",
+  "name": "NATPF Simulator",
+  "description": "Tennis 3D delle Nitto ATP Finals: smartphone o webcam come racchetta, sfida 1v1, prima e terza persona, musiche originali e voce italiana del punteggio.",
   "requestFramePermissions": [
     "camera"
   ],

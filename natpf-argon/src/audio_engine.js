@@ -1,121 +1,25 @@
-export const LYRIA_TRACKS = {
-  menu_theme: {
-    id: "menu_theme",
-    title: "Argon Club Plaza Breeze (Lyria 3)",
-    subtitle: "Title & Club Select Theme",
-    src: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/menu_theme.mp3",
-    loop: !0,
-    baseVolume: 0.42,
-  },
-  court_intro: {
-    id: "court_intro",
-    title: "Center Court Flyover (Lyria 3)",
-    subtitle: "Stadium Intro Fanfare",
-    src: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/court_intro.mp3",
-    loop: !1,
-    baseVolume: 0.48,
-  },
-  match_rally: {
-    id: "match_rally",
-    title: "Sunny Baseline Rally (Lyria 3)",
-    subtitle: "Active Match Atmosphere",
-    src: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/match_rally.mp3",
-    loop: !0,
-    baseVolume: 0.34,
-  },
-  victory_fanfare: {
-    id: "victory_fanfare",
-    title: "Grand Slam Trophy (Lyria 3)",
-    subtitle: "Match Victory Celebration",
-    src: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/victory_fanfare.mp3",
-    loop: !1,
-    baseVolume: 0.5,
-  },
-};
-const x = {
-  title: "menu_theme",
-  menu: "menu_theme",
-  select: "menu_theme",
-  intro: "court_intro",
-  court_intro: "court_intro",
-  flyover: "court_intro",
-  start: "court_intro",
-  serve: "match_rally",
-  serve_wait: "match_rally",
-  serve_toss: "match_rally",
-  rally: "match_rally",
-  playing: "match_rally",
-  match: "match_rally",
-  point: "match_rally",
-  gamepoint: "match_rally",
-  replay: "match_rally",
-  victory: "victory_fanfare",
-  win: "victory_fanfare",
-  game_won: "victory_fanfare",
-  match_over: "victory_fanfare",
-  celebration: "victory_fanfare",
-  menu_theme: "menu_theme",
-  match_rally: "match_rally",
-  victory_fanfare: "victory_fanfare",
-};
-export const GEMINI_TTS_CLIPS = {
-  start: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/match_start.mp3",
-  match_start: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/match_start.mp3",
-  "game point": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/game_point.mp3",
-  game_point: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/game_point.mp3",
-  "break point": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/break_point.mp3",
-  break_point: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/break_point.mp3",
-  "match point": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/match_point.mp3",
-  match_point: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/match_point.mp3",
-  game: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/game_won.mp3",
-  "game!": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/game_won.mp3",
-  game_won: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/game_won.mp3",
-  "game set and match": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/game_set_match.mp3",
-  game_set_match: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/game_set_match.mp3",
-  out: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/call_out.mp3",
-  call_out: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/call_out.mp3",
-  net: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/call_net.mp3",
-  call_net: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/call_net.mp3",
-  "nice shot!": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/call_nice_shot.mp3",
-  "nice shot": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/call_nice_shot.mp3",
-  call_nice_shot: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/call_nice_shot.mp3",
-  "power serve": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/call_power_serve.mp3",
-  "power serve!": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/call_power_serve.mp3",
-  call_power_serve: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/call_power_serve.mp3",
-  smash: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/call_power_smash.mp3",
-  call_power_smash: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/call_power_smash.mp3",
-  replay: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/call_replay.mp3",
-  call_replay: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/call_replay.mp3",
-  "15 - 00": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_15_00.mp3",
-  "30 - 00": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_30_00.mp3",
-  "40 - 00": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_40_00.mp3",
-  "00 - 15": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_00_15.mp3",
-  "00 - 30": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_00_30.mp3",
-  "00 - 40": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_00_40.mp3",
-  "15 - 15": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_15_15.mp3",
-  "30 - 15": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_30_15.mp3",
-  "40 - 15": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_40_15.mp3",
-  "15 - 30": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_15_30.mp3",
-  "30 - 30": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_30_30.mp3",
-  "40 - 30": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_40_30.mp3",
-  "15 - 40": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_15_40.mp3",
-  "30 - 40": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_30_40.mp3",
-  deuce: "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_deuce.mp3",
-  "ad in": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_ad_in.mp3",
-  "ad out": "https://www.gstatic.com/aistudio/starter-apps/tennis/audio/tts/score_ad_out.mp3",
-};
+// Audio di NATPF Simulator. Tutto è sintetizzato con Web Audio, senza file esterni né licenze:
+// - musica: brani originali generati in tempo reale dal sequencer di src/natpf/natpf_music.js;
+// - effetti di colpo, rimbalzo, rete, lancio, pubblico e interfaccia: sintesi del motore base, invariata;
+// - voce del punteggio in italiano con speechSynthesis (src/natpf/natpf_voice.js).
+// API pubblica invariata per il motore di gioco: playMusicForState, announceScore, playVoiceCallout, play*.
+import { NATPF_TRACKS, NatpfMusic, trackForState } from "./natpf/natpf_music.js";
+import { NatpfVoice, italianCallout } from "./natpf/natpf_voice.js";
+export { NATPF_TRACKS };
+// Annunci che fanno passare la musica al brano dei punti decisivi (e ritorno allo scambio sugli altri punteggi)
+const HIGH_STAKES = /^(game point|break point|match point|palla (game|break|match))$/i;
 export class AudioEngine {
   constructor(s = {}) {
     (this.ctx = null),
       (this.masterGain = null),
       (this.sfxGain = null),
+      (this.musicGain = null),
       (this.reverbSend = null),
+      (this.music = null),
+      (this.voice = new NatpfVoice()),
       (this.muted = !!(s.muted ?? !1)),
       (this.musicVolume = Number(s.musicVolume ?? 0.65)),
       (this.sfxVolume = Number(s.sfxVolume ?? 0.85)),
-      (this.audioElements = new Map()),
-      (this.ttsAudioElements = new Map()),
-      (this._activeVoiceAudio = null),
       (this._voiceTimers = []),
       (this.currentTrackId = null),
       (this.desiredTrackId = "menu_theme"),
@@ -123,43 +27,48 @@ export class AudioEngine {
       (this.onTrackChange = typeof s.onTrackChange == "function" ? s.onTrackChange : null),
       (this._noiseBuffer = null),
       (this._pinkNoiseBuffer = null),
-      (this._fadeTimers = new Map()),
-      this._preloadTracks(),
-      this._preloadTtsClips(),
-      this._attachAutoplayUnlock();
-  }
-  _preloadTracks() {
-    for (const [s, t] of Object.entries(LYRIA_TRACKS)) {
-      const e = new Audio();
-      (e.src = t.src),
-        (e.loop = t.loop),
-        (e.preload = "auto"),
-        (e.volume = 0),
-        (e.crossOrigin = "anonymous"),
-        s === "court_intro" &&
-          e.addEventListener("ended", () => {
-            this.currentTrackId === "court_intro" && this.playMusicForState("rally");
-          }),
-        this.audioElements.set(s, e);
-    }
-  }
-  _preloadTtsClips() {
-    const s = new Set(Object.values(GEMINI_TTS_CLIPS));
-    for (const t of s) {
-      const e = new Audio();
-      (e.src = t),
-        (e.preload = "auto"),
-        (e.volume = Math.min(1, this.sfxVolume)),
-        this.ttsAudioElements.set(t, e);
-    }
+      (this.voice.volume = Math.min(1, this.sfxVolume)),
+      this._attachAutoplayUnlock(),
+      this._bindVoiceToggle();
   }
   _attachAutoplayUnlock() {
     const s = () => {
       this.unlock();
     };
-    window.addEventListener("pointerdown", s, { passive: !0 }),
-      window.addEventListener("keydown", s, { passive: !0 }),
-      window.addEventListener("touchstart", s, { passive: !0 });
+    // in cattura: la lobby ferma la propagazione dei clic e dei tasti, ma il primo gesto deve sbloccare l'audio
+    window.addEventListener("pointerdown", s, { passive: !0, capture: !0 }),
+      window.addEventListener("keydown", s, { passive: !0, capture: !0 }),
+      window.addEventListener("touchstart", s, { passive: !0, capture: !0 }),
+      // la lobby riaperta (anche dal «Menu» della vittoria) riporta il suo brano
+      window.addEventListener("natpf:lobby", () => this.playMusicForState("title"));
+  }
+  // Pulsante «Voce» dell'HUD: accende e spegne gli annunci del punteggio
+  _bindVoiceToggle() {
+    const b = typeof document < "u" && document.getElementById("btn-voice-toggle");
+    b &&
+      (b.addEventListener("click", (e) => {
+        e.stopPropagation(), this.setVoiceEnabled(!this.voice.enabled);
+      }),
+      this._updateVoiceButton());
+  }
+  _updateVoiceButton() {
+    const b = typeof document < "u" && document.getElementById("btn-voice-toggle");
+    if (!b) return;
+    const on = this.voice.enabled,
+      label = b.querySelector("[data-voice-label]"),
+      dot = b.querySelector(".btn-dot");
+    label && (label.textContent = on ? "sì" : "no"),
+      dot && dot.classList.toggle("music-on", on),
+      b.setAttribute("aria-pressed", String(on)),
+      (b.title = on
+        ? this.voice.available || !this.voice.synth
+          ? "Voce del punteggio accesa (clic per spegnerla)"
+          : "Voce accesa, ma il browser non ha una voce italiana: gli annunci restano in silenzio"
+        : "Voce del punteggio spenta (clic per accenderla)");
+  }
+  setVoiceEnabled(on) {
+    const r = this.voice.setEnabled(on);
+    return this._updateVoiceButton(), r;
   }
   _ensureContext() {
     if (!this.ctx) {
@@ -171,7 +80,10 @@ export class AudioEngine {
         this.masterGain.connect(this.ctx.destination),
         (this.sfxGain = this.ctx.createGain()),
         (this.sfxGain.gain.value = this.sfxVolume),
-        this.sfxGain.connect(this.masterGain);
+        this.sfxGain.connect(this.masterGain),
+        (this.musicGain = this.ctx.createGain()),
+        (this.musicGain.gain.value = this.musicVolume),
+        this.musicGain.connect(this.masterGain);
       const t = this.ctx.createDelay(0.5);
       t.delayTime.value = 0.095;
       const e = this.ctx.createGain();
@@ -186,7 +98,9 @@ export class AudioEngine {
         a.connect(e),
         e.connect(t),
         a.connect(this.masterGain),
-        this._buildNoiseBuffers();
+        this._buildNoiseBuffers(),
+        (this.music = new NatpfMusic(this.ctx, this.musicGain, { noise: this._noiseBuffer })),
+        (this.music.onSwitch = () => this._syncTrackFromSequencer());
     }
     return this.ctx.state === "suspended" && this.ctx.resume().catch(() => {}), this.ctx;
   }
@@ -219,86 +133,71 @@ export class AudioEngine {
     }
   }
   unlock() {
-    if ((this._ensureContext(), (this.unlocked = !0), this.desiredTrackId && !this.muted)) {
-      const s = this.audioElements.get(this.currentTrackId || this.desiredTrackId);
-      (!s || s.paused) && this._crossfadeToTrack(this.desiredTrackId);
-    }
+    this._ensureContext(),
+      (this.unlocked = !0),
+      this.music && !this.muted && !this.music.playing && this._startTrack(this.desiredTrackId);
   }
   playMusicForState(s) {
-    const t = String(s || "rally")
-        .toLowerCase()
-        .trim(),
-      e = x[t] || "match_rally";
-    if (((this.desiredTrackId = e), this.currentTrackId === e)) {
-      const a = this.audioElements.get(e);
-      return a && a.paused && !this.muted && a.play().catch(() => {}), this.getCurrentTrackInfo();
-    }
-    return this._crossfadeToTrack(e), this.getCurrentTrackInfo();
+    const e = trackForState(s);
+    return (
+      (this.desiredTrackId = e),
+      this.music && this.unlocked && !this.muted
+        ? this._startTrack(e, { restart: e === "court_intro" && this.currentTrackId !== "court_intro" })
+        : this._notifyTrack(),
+      this.getCurrentTrackInfo()
+    );
   }
-  _crossfadeToTrack(s) {
-    const t = this.currentTrackId;
-    if (((this.currentTrackId = s), t && t !== s)) {
-      const o = this.audioElements.get(t);
-      o && this._fadeAudio(o, 0, 420, !0);
-    }
-    const e = this.audioElements.get(s),
-      a = LYRIA_TRACKS[s];
-    if (e && a) {
-      const o = this.muted ? 0 : Math.min(1, a.baseVolume * this.musicVolume);
-      if (!a.loop)
-        try {
-          e.currentTime = 0;
-        } catch {}
-      e.play()
-        .then(() => {
-          this._fadeAudio(e, o, 480, !1);
-        })
-        .catch(() => {});
-    }
-    const i = this.getCurrentTrackInfo();
-    this._updateHudMusicBadge(i), typeof this.onTrackChange == "function" && this.onTrackChange(i);
+  _startTrack(s, { restart: t = !1 } = {}) {
+    this.music && (this.music.play(s, { restart: t }), (this.currentTrackId = this.music.currentId || s)),
+      this._notifyTrack();
   }
-  _fadeAudio(s, t, e, a = !1) {
-    this._fadeTimers.has(s) && clearInterval(this._fadeTimers.get(s));
-    const i = 12,
-      o = Math.max(16, Math.floor(e / i)),
-      n = s.volume;
-    let r = 0;
-    const m = setInterval(() => {
-      r++;
-      const p = r / i;
-      (s.volume = Math.max(0, Math.min(1, n + (t - n) * p))),
-        r >= i &&
-          (clearInterval(m),
-          this._fadeTimers.delete(s),
-          (s.volume = Math.max(0, Math.min(1, t))),
-          a && t <= 0.001 && s.pause());
-    }, o);
-    this._fadeTimers.set(s, m);
+  _notifyTrack() {
+    const s = this.getCurrentTrackInfo();
+    (s.id !== this._lastNotifiedTrack || s.muted !== this._lastNotifiedMuted) &&
+      ((this._lastNotifiedTrack = s.id),
+      (this._lastNotifiedMuted = s.muted),
+      this._updateHudMusicBadge(s),
+      typeof this.onTrackChange == "function" && this.onTrackChange(s));
+  }
+  // Brano in esecuzione (l'ingresso in campo passa da solo allo scambio)
+  _syncTrackFromSequencer() {
+    this.music &&
+      this.music.currentId &&
+      this.music.currentId !== this.desiredTrackId &&
+      this.music.playing &&
+      !this.music.pendingNext &&
+      ((this.currentTrackId = this.desiredTrackId = this.music.currentId), this._notifyTrack());
   }
   getCurrentTrackInfo() {
-    const s = this.currentTrackId || this.desiredTrackId || "menu_theme";
+    this.music && this.music.currentId && (this.currentTrackId = this.music.currentId);
+    const s = this.currentTrackId || this.desiredTrackId || "menu_theme",
+      t = NATPF_TRACKS[s] || NATPF_TRACKS.menu_theme;
     return {
-      ...(LYRIA_TRACKS[s] || LYRIA_TRACKS.menu_theme),
+      id: t.id,
+      title: t.title,
+      subtitle: t.subtitle,
+      loop: t.loopFrom !== null,
+      baseVolume: t.volume,
       muted: this.muted,
       musicVolume: this.musicVolume,
+      voiceEnabled: this.voice.enabled,
     };
   }
   setMuted(s) {
-    (this.muted = !!s),
+    return (
+      (this.muted = !!s),
       this.masterGain &&
         this.ctx &&
-        this.masterGain.gain.setValueAtTime(this.muted ? 0 : 1, this.ctx.currentTime);
-    const t = this.audioElements.get(this.currentTrackId || this.desiredTrackId),
-      e = LYRIA_TRACKS[this.currentTrackId || this.desiredTrackId];
-    return (
-      t &&
-        e &&
+        this.masterGain.gain.setTargetAtTime(this.muted ? 0 : 1, this.ctx.currentTime, 0.03),
+      this.music &&
         (this.muted
-          ? (t.volume = 0)
-          : ((t.volume = Math.min(1, e.baseVolume * this.musicVolume)),
-            t.paused && t.play().catch(() => {}))),
-      this._updateHudMusicBadge(this.getCurrentTrackInfo()),
+          ? this.music.stop()
+          : this.unlocked &&
+            (this.music.currentId === this.desiredTrackId
+              ? this.music.resume()
+              : this._startTrack(this.desiredTrackId))),
+      this.muted && this.voice.cancel(),
+      this._notifyTrack(),
       this.muted
     );
   }
@@ -306,19 +205,17 @@ export class AudioEngine {
     return this.setMuted(!this.muted);
   }
   setMusicVolume(s) {
-    if (((this.musicVolume = Math.max(0, Math.min(1, Number(s)))), !this.muted && this.currentTrackId)) {
-      const t = this.audioElements.get(this.currentTrackId),
-        e = LYRIA_TRACKS[this.currentTrackId];
-      t && e && (t.volume = Math.min(1, e.baseVolume * this.musicVolume));
-    }
+    (this.musicVolume = Math.max(0, Math.min(1, Number(s)))),
+      this.musicGain && this.ctx && this.musicGain.gain.setTargetAtTime(this.musicVolume, this.ctx.currentTime, 0.05);
   }
   setSfxVolume(s) {
     (this.sfxVolume = Math.max(0, Math.min(1, Number(s)))),
+      (this.voice.volume = this.sfxVolume),
       this.sfxGain && this.ctx && this.sfxGain.gain.setValueAtTime(this.sfxVolume, this.ctx.currentTime);
   }
   _updateHudMusicBadge(s) {
     const t = document.getElementById("hud-music-title") || document.getElementById("music-track-label");
-    t && s && (t.textContent = s.muted ? `\u{1F507} ${s.title}` : `\u266A ${s.title}`);
+    t && s && (t.textContent = s.muted ? `\u{1F507} ${s.title}` : `♪ ${s.title}`);
   }
   playSwingWhoosh(s = 1) {
     if (this.muted) return;
@@ -592,76 +489,65 @@ export class AudioEngine {
     if (this.muted || !s) return;
     const a = String(s).trim(),
       i = this._ensureContext();
+    // musica: i punti decisivi hanno il loro brano, gli altri punteggi riportano allo scambio
+    this._syncTrackFromSequencer(),
+      ["match_rally", "game_point"].includes(this.desiredTrackId) &&
+        (HIGH_STAKES.test(a)
+          ? this.playMusicForState("gamepoint")
+          : (/^game!?$|deuce|parit/i.test(a) || (/\d/.test(a) && !/40/.test(a))) &&
+            this.desiredTrackId === "game_point" &&
+            this.playMusicForState("rally"));
     if (i && e) {
       const o = i.currentTime + t / 1e3;
-      (/game|match|deuce|win|nice|power|smash/i.test(a) ? [587.33, 739.99, 880] : [523.25, 659.25]).forEach(
-        (m, p) => {
-          const u = o + p * 0.065,
-            l = i.createOscillator(),
-            c = i.createOscillator();
-          (l.type = "sine"),
-            (c.type = "triangle"),
-            c.detune.setValueAtTime(10, u),
-            l.frequency.setValueAtTime(m, u),
-            c.frequency.setValueAtTime(m, u);
-          const h = i.createGain();
+      // gong a due o tre toni del giudice di sedia NATPF
+      (/game|match|deuce|parit|vantaggio|win|nice|bel colpo|power|smash|ace/i.test(a)
+        ? [659.25, 830.61, 987.77]
+        : [783.99, 587.33]
+      ).forEach((m, p) => {
+        const u = o + p * 0.085,
+          l = i.createOscillator(),
+          c = i.createOscillator();
+        (l.type = "sine"), (c.type = "sine"), l.frequency.setValueAtTime(m, u), c.frequency.setValueAtTime(m * 2.01, u);
+        const h = i.createGain(),
+          k = i.createGain();
+        (k.gain.value = 0.18),
           h.gain.setValueAtTime(0.001, u),
-            h.gain.linearRampToValueAtTime(0.055, u + 0.008),
-            h.gain.exponentialRampToValueAtTime(8e-4, u + 0.24),
-            l.connect(h),
-            c.connect(h),
-            h.connect(this.sfxGain),
-            this.reverbSend && h.connect(this.reverbSend),
-            l.start(u),
-            c.start(u),
-            l.stop(u + 0.26),
-            c.stop(u + 0.26);
-        },
-      );
+          h.gain.linearRampToValueAtTime(0.06, u + 0.006),
+          h.gain.exponentialRampToValueAtTime(8e-4, u + 0.42),
+          l.connect(h),
+          c.connect(k).connect(h),
+          h.connect(this.sfxGain),
+          this.reverbSend && h.connect(this.reverbSend),
+          l.start(u),
+          c.start(u),
+          l.stop(u + 0.44),
+          c.stop(u + 0.44);
+      });
     }
-    this.playVoiceCallout(a, { delayMs: t, clearQueue: t === 0 });
+    this.playVoiceCallout(a, { delayMs: t + (e ? 160 : 0), clearQueue: t === 0 });
   }
   playVoiceCallout(s, { delayMs: t = 0, clearQueue: e = !1 } = {}) {
     if (this.muted || !s) return;
-    const a = String(s).trim().toLowerCase(),
-      i = GEMINI_TTS_CLIPS[a];
-    e &&
-      this._voiceTimers.length > 0 &&
-      (this._voiceTimers.forEach((n) => clearTimeout(n)), (this._voiceTimers = []));
+    const a = String(s).trim();
+    // replay: brano della moviola finché il gioco non torna allo scambio
+    /^(replay|call_replay)$/i.test(a) &&
+      ["match_rally", "game_point"].includes(this.desiredTrackId) &&
+      this.playMusicForState("replay"),
+      e &&
+        this._voiceTimers.length > 0 &&
+        (this._voiceTimers.forEach((n) => clearTimeout(n)), (this._voiceTimers = []));
+    if (!italianCallout(a)) return;
     const o = () => {
-      if (!this.muted) {
-        if (i)
-          try {
-            this._activeVoiceAudio &&
-              !this._activeVoiceAudio.paused &&
-              (this._activeVoiceAudio.pause(), (this._activeVoiceAudio.currentTime = 0));
-            let n = this.ttsAudioElements.get(i);
-            n || ((n = new Audio(i)), this.ttsAudioElements.set(i, n)),
-              (n.currentTime = 0),
-              (n.volume = Math.min(1, this.sfxVolume * 0.98)),
-              (this._activeVoiceAudio = n),
-              n.play().catch(() => {});
-            return;
-          } catch {}
-        if (typeof window < "u" && "speechSynthesis" in window)
-          try {
-            window.speechSynthesis.cancel();
-            const n = String(s)
-                .replace(/\b00\b/g, "Love")
-                .replace(/\s*-\s*/g, " ")
-                .replace(/!/g, ""),
-              r = new SpeechSynthesisUtterance(n);
-            (r.rate = 1.06),
-              (r.pitch = 1.04),
-              (r.volume = Math.min(1, this.sfxVolume * 0.9)),
-              window.speechSynthesis.speak(r);
-          } catch {}
-      }
+      this.muted || this.voice.say(a);
     };
     if (t > 0) {
       const n = setTimeout(o, t);
       this._voiceTimers.push(n);
     } else o();
+  }
+  // Nuovo punto dopo un replay: torna la musica della partita
+  resumeMatchMusic() {
+    this.desiredTrackId === "replay" && this.playMusicForState("rally");
   }
   playUiClick() {
     if (this.muted) return;

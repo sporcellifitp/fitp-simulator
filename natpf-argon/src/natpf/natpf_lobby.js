@@ -42,10 +42,10 @@ export class NatpfLobby {
     $('lobby-practice').addEventListener('click', e => { e.stopPropagation(); this.startPractice(); });
     $('lobby-help').addEventListener('click', e => { e.stopPropagation(); this.onboarding.open(); });
     $('coach-exit').addEventListener('click', e => { e.stopPropagation(); this.endPractice({ early: true }); });
-    // un trascinamento sulla lobby non deve diventare uno swing del mouse di Argon
+    // un trascinamento sulla lobby non deve diventare uno swing del mouse del motore base
     this.el.addEventListener('pointerdown', e => e.stopPropagation());
     $('natpf-coach').addEventListener('pointerdown', e => e.stopPropagation());
-    // tastiera della lobby prima di quella di Argon (che con Spazio/Invio/frecce colpirebbe)
+    // tastiera della lobby prima di quella del motore base (che con Spazio/Invio/frecce colpirebbe)
     window.addEventListener('keydown', e => this._key(e), true);
     this.go('mode');
   }
