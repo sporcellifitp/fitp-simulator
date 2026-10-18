@@ -35,9 +35,10 @@ export class AudioEngine {
     const s = () => {
       this.unlock();
     };
-    window.addEventListener("pointerdown", s, { passive: !0 }),
-      window.addEventListener("keydown", s, { passive: !0 }),
-      window.addEventListener("touchstart", s, { passive: !0 }),
+    // in cattura: la lobby ferma la propagazione dei clic e dei tasti, ma il primo gesto deve sbloccare l'audio
+    window.addEventListener("pointerdown", s, { passive: !0, capture: !0 }),
+      window.addEventListener("keydown", s, { passive: !0, capture: !0 }),
+      window.addEventListener("touchstart", s, { passive: !0, capture: !0 }),
       // la lobby riaperta (anche dal «Menu» della vittoria) riporta il suo brano
       window.addEventListener("natpf:lobby", () => this.playMusicForState("title"));
   }
@@ -98,7 +99,8 @@ export class AudioEngine {
         e.connect(t),
         a.connect(this.masterGain),
         this._buildNoiseBuffers(),
-        (this.music = new NatpfMusic(this.ctx, this.musicGain, { noise: this._noiseBuffer }));
+        (this.music = new NatpfMusic(this.ctx, this.musicGain, { noise: this._noiseBuffer })),
+        (this.music.onSwitch = () => this._syncTrackFromSequencer());
     }
     return this.ctx.state === "suspended" && this.ctx.resume().catch(() => {}), this.ctx;
   }
@@ -161,8 +163,10 @@ export class AudioEngine {
   _syncTrackFromSequencer() {
     this.music &&
       this.music.currentId &&
-      this.music.currentId !== this.currentTrackId &&
-      ((this.currentTrackId = this.music.currentId), this._notifyTrack());
+      this.music.currentId !== this.desiredTrackId &&
+      this.music.playing &&
+      !this.music.pendingNext &&
+      ((this.currentTrackId = this.desiredTrackId = this.music.currentId), this._notifyTrack());
   }
   getCurrentTrackInfo() {
     this.music && this.music.currentId && (this.currentTrackId = this.music.currentId);

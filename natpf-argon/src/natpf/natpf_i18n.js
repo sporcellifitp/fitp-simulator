@@ -11,6 +11,8 @@ const PHRASES = [
   ["NET TIMING", "Tempo della volée"],
   ["SWING TIMING", "Tempo del colpo"],
   ["SWING WHIFF", "Colpo a vuoto"],
+  ["WHIFF", "A vuoto"],
+  ["UPWARD FLICK / SPACE", "Polso in alto / Spazio"],
   ["SWEET SPOT APEX", "Impatto al vertice"],
   ["SWEET SPOT", "Centro piatto"],
   ["VERY EARLY", "Molto in anticipo"],
