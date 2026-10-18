@@ -133,7 +133,8 @@ npm run build        # dist/ (gioco + pagina del telefono NATPF in dist/natpf/ +
 npm run preview      # http://localhost:3000 con il relay 1v1
 npm test             # test dell'integrazione NATPF ↔ Argon e della versione LAN
 npm run lan          # server LAN HTTPS sulla build (vedi «Versione LAN»)
-npm run test:e2e-lan # prova nel browser della versione LAN (Chrome, openssl, npm ci in ../tools/lan e ../tools/e2e)
+npm run test:e2e-lan # prova nel browser della versione LAN: Chrome con GPU, openssl, npm ci in ../tools/lan e
+                     # ../tools/e2e; ONLY=telefono,1v1,webcam per una parte sola
 ```
 
 ## Comandi
