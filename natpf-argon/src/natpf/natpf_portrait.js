@@ -2,7 +2,7 @@
 // (testa tonda, capelli castani voluminosi, fascia, sopracciglia decise, occhi piccoli scuri, polo con colletto).
 // I colori arrivano dalle stesse varianti del personaggio; qui solo numeri, niente three.js, così l'HUD resta leggero.
 const LOOKS = {
-  p1: { skin: '#f0c19a', skinShade: '#d99f78', hair: '#6b4127', hairLight: '#8a5a39', brow: '#24150d', polo: '#f5f6f2', poloShade: '#d9dce3',
+  p1: { skin: '#f0c19a', skinShade: '#d99f78', hair: '#7b4a2b', hairLight: '#9a6440', brow: '#24150d', polo: '#f5f6f2', poloShade: '#d9dce3',
     collar: '#f5f6f2', placket: '#e3e6ea', button: '#aeb5c2', band: '#ffffff', bandShade: '#d7dbe3', badge: '#16378f' },
   cpu: { skin: '#d59d77', skinShade: '#b97f5b', hair: '#2a1c14', hairLight: '#463126', brow: '#160e09', polo: '#16378f', poloShade: '#0e2665',
     collar: '#ffffff', placket: '#1c45ad', button: '#ffffff', band: '#ffffff', bandShade: '#d7dbe3', badge: '#0b1a45' },
