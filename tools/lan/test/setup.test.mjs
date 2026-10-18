@@ -42,7 +42,7 @@ test('LAN diagnostics count signaling registration and remove it on disconnect',
   }finally{ws?.terminate();await app.close();}
 });
 
-test('a custom request handler (natpf-argon) replaces the site files but keeps /lan/status and signaling',async()=>{
+test('a custom request handler (natpf-tennis) replaces the site files but keeps /lan/status and signaling',async()=>{
   const app=createLanServer({port:0,host:'127.0.0.1',handler:(req,res)=>res.writeHead(200,{'Content-Type':'text/plain'}).end('game '+req.url)});await app.listen();
   try{
     const base=`http://127.0.0.1:${app.server.address().port}`;

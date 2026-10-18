@@ -1,0 +1,57 @@
+name: NATPF motore base MVP
+
+on:
+  push:
+    branches:
+      - feature/natpf-tennis-mvp
+    paths:
+      - 'natpf-tennis/**'
+      - 'site/js/tennis/**'
+      - 'site/js/match/**'
+      - 'site/js/vendor/**'
+      - 'site/tennis/racchetta.html'
+      - 'site/assets/arena/**'
+      - '.github/workflows/natpf-tennis.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'natpf-tennis/**'
+      - 'site/js/tennis/**'
+      - 'site/js/match/**'
+      - 'site/tennis/racchetta.html'
+      - 'site/assets/arena/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Integration tests and production build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: natpf-tennis
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: natpf-tennis/package-lock.json
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: NATPF ↔ motore base integration tests
+        run: npm test
+      - name: Production build (motore base 3D models, NATPF phone page and arena art)
+        run: npm run build
+      - name: Check bundled NATPF files
+        run: |
+          test -f dist/natpf/tennis/racchetta.html
+          test -f dist/natpf/js/tennis/racchetta.js
+          test -f dist/natpf/js/vendor/peerjs.min.js
+          test -f dist/assets/arena/tabellone-fondo.png
+          test -s dist/assets/models/stadium_court.glb
