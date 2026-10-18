@@ -20,6 +20,7 @@ import { createPhoneLink, testSearch } from '@natpf/tennis/link.js';
 import { pairingUrl } from '@natpf/tennis/pairing.js';
 import { gestureAim } from '@natpf/match/shot-quality.js';
 import { lanOrigin } from './natpf_lan.js';
+import { VIBRATION } from './natpf_shot_feedback.js';
 
 const NATPF_BASE = '/natpf/';
 const scripts = new Map();
@@ -192,11 +193,13 @@ export class NatpfPhoneRacket {
   forget(){ this.link?.forget(); this.recalibrate(); }
 
   // Esito dei colpi al telefono (vibrazione e scritta), dalle stesse chiamate che motore base usa per l'aptica.
-  feedback({ role, kind, grade = '', shotType = '' } = {}){
+  feedback({ role, kind, grade = '', shotType = '', quality = null } = {}){
     if (!this.ready || (role || 'p1') !== this.engine.playerRole) return;
     const shot = /SMASH/i.test(shotType) ? 'smash' : /LOB/i.test(shotType) ? 'lob' : /SLICE/i.test(shotType) ? 'slice' : 'drive';
-    if (kind === 'hit') this.link.send({ t: 'ev', k: 'contact', label: /PERFECT|POWER/i.test(grade) ? 'perfetto' : /EARLY/i.test(grade) ? 'anticipo' : /LATE/i.test(grade) ? 'ritardo' : 'buono', shot });
-    else if (kind === 'whiff') this.link.send({ t: 'ev', k: 'miss', why: 'tardi' });
+    // vib: vibrazione per esito (lunga = perfetto, breve = buono, doppia = errore); i telefoni senza supporto la ignorano
+    const vib = quality ? VIBRATION[quality.color] : undefined;
+    if (kind === 'hit') this.link.send({ t: 'ev', k: 'contact', label: /PERFECT|POWER/i.test(grade) ? 'perfetto' : /EARLY/i.test(grade) ? 'anticipo' : /LATE/i.test(grade) ? 'ritardo' : 'buono', shot, vib, out: quality?.label === 'Fuori' });
+    else if (kind === 'whiff') this.link.send({ t: 'ev', k: 'miss', why: 'tardi', vib: VIBRATION.red });
     else if (kind === 'point_won' || kind === 'fault') this.link.send({ t: 'ev', k: 'point', mine: kind === 'point_won', txt: grade });
   }
 

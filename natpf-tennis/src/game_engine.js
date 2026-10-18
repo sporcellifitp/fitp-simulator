@@ -645,9 +645,12 @@ export class NatpfTennisEngine {
     const mc = this.motionController;
     if (mc && mc.triggerHapticFeedback) {
       const haptic = mc.triggerHapticFeedback.bind(mc);
-      mc.triggerHapticFeedback = (e = {}) => (
-        haptic(e), this.natpfPhone.feedback(e), this.natpfUi && this.natpfUi.feedback && this.natpfUi.feedback(e)
-      );
+      // NATPF: l'esito del colpo (anello colorato, allenamento) decide anche la vibrazione del telefono
+      mc.triggerHapticFeedback = (e = {}) => {
+        haptic(e);
+        const q = this.natpfUi && this.natpfUi.feedback ? this.natpfUi.feedback(e) : null;
+        this.natpfPhone.feedback({ ...e, quality: q });
+      };
     }
   }
   // NATPF: prima o terza persona, ricordata nel browser
@@ -2859,6 +2862,7 @@ export class NatpfTennisEngine {
   }
   _syncScoreboardHUD() {
     const e = this._formatCurrentScore();
+    this.natpfUi && this.natpfUi.onScore && this.natpfUi.onScore(this.score, this.matchConfig.gamesToWin);
     // NATPF: punteggio del game anche sui segnapunti arancioni dell'arena
     this.natpfArena.setScore(e.deuceLabel || `${e.playerScoreText}-${e.opponentScoreText}`);
     this.hud.updateScoreboard({
@@ -2937,6 +2941,8 @@ export class NatpfTennisEngine {
       (this.fpBodyActor && setFirstPersonBody(this.fpBodyActor, !1),
       t && setFirstPersonBody(t, !0),
       (this.fpBodyActor = t));
+    // NATPF: mancino specchiato; in prima persona la mano libera solo al servizio
+    this.natpfUi && this.natpfUi.hand && this.natpfUi.hand.update(this.fpBodyActor);
   }
   _updateCrowdAnimation(e) {
     if (((this.cheerEnergy = Math.max(0.22, this.cheerEnergy - e * 0.35)), this.crowdScene)) {
