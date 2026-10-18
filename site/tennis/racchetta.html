@@ -49,8 +49,10 @@
     padding:max(10px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
   body.flat.land>#bar{grid-column:1/-1} body.flat.land>#stage{grid-column:1;grid-row:2/span 6;min-height:0;padding:0}
   body.flat.land>*:not(#bar):not(#stage):not(#rotate){grid-column:2}
-  body.flat.land #ring{width:min(38vh,170px)} body.flat.land #big{font-size:22px} body.flat.land #sub{font-size:14px;min-height:0}
-  body.flat.land #faceDial{width:min(34vh,150px)} body.flat.land .btn{padding:11px;font-size:16px}
+  body.flat.land #stage{flex-direction:row;flex-wrap:wrap;align-content:center;gap:6px 14px}
+  body.flat.land #sub,body.flat.land #faceTxt{flex-basis:100%}
+  body.flat.land #ring{width:min(36vh,150px)} body.flat.land #big{font-size:20px} body.flat.land #arrow{font-size:34px} body.flat.land #sub{font-size:14px;min-height:0}
+  body.flat.land #faceDial{width:min(34vh,130px)} body.flat.land #gripFlat{width:min(36vh,140px)} body.flat.land .btn{padding:11px;font-size:16px}
   @media(max-height:740px){#ring{width:min(54vw,170px)}#big{font-size:19px}#arrow{font-size:42px}#stage{gap:6px;min-height:170px}#grip{width:70px}#sub{font-size:15px;min-height:0}.btn{padding:12px}}
 </style>
 </head>
