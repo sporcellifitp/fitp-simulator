@@ -301,7 +301,7 @@ export class HudUI {
         const t = await fetch("/api/tunnel/status", { cache: "no-store" });
         if (t.ok) {
           const n = await t.json();
-          if (n.tunnelUrl && !/\.appspot\.com/i.test(n.tunnelUrl)) {
+          if (n.tunnelUrl) {
             this.currentTunnelUrl = n.tunnelUrl;
             const e = document.getElementById("tunnel-url-input");
             e && (e.value = n.tunnelUrl);
@@ -537,8 +537,7 @@ export class HudUI {
       ((this._lastRoomStatus = n),
       n.roomId && (this.currentRoomId = String(n.roomId).toLowerCase()),
       n.role && (this.playerRole = String(n.role).toLowerCase() === "p2" ? "p2" : "p1"),
-      // NATPF: l'indirizzo pubblico del motore base (appspot) non vale per NATPF
-      n.tunnelUrl && !/\.appspot\.com/i.test(n.tunnelUrl))
+      n.tunnelUrl)
     ) {
       this.currentTunnelUrl = String(n.tunnelUrl).replace(/\/+$/, "");
       const d = document.getElementById("tunnel-url-input");

@@ -165,7 +165,7 @@ test('avvio LAN: riusa tools/lan (certificato per IP, /lan/status, /lan-signal) 
     assert.equal(GAME_PATH, '/?lan=1');
     const setup = `http://127.0.0.1:${launcher.setup.server.address().port}`;
     const status = await fetch(setup + '/lan/status').then(r => r.json());
-    assert.equal(status.game, 'natpf-tennis'); assert.equal(typeof status.build, 'boolean'); assert.ok(status.offline.total > 50);
+    assert.equal(status.game, 'natpf-tennis'); assert.equal(typeof status.build, 'boolean'); assert.equal(status.offline.total, MEDIAPIPE_FILES.length + MEDIAPIPE_POSE_FILES.length);   // solo MediaPipe
     assert.ok(status.urls.every(u => u.endsWith(':' + launcher.game.server.address().port + '/?lan=1')));
     assert.ok(!JSON.stringify(status).includes('PRIVATE KEY'));
     const base = `https://127.0.0.1:${launcher.game.server.address().port}`;
