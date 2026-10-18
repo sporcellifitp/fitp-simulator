@@ -25,6 +25,8 @@ import {
 } from "./natpf/natpf_camera.js";
 import { resolveMatchFormat } from "./natpf/match_format.js";
 import { NatpfUi } from "./natpf/natpf_ui.js";
+// NATPF: personaggio, racchetta e pallina procedurali (niente GLB esterni)
+import { createNatpfCast, finishNatpfActor, updateNatpfCharacters } from "./natpf/natpf_character.js";
 const readStoredView = () => {
   try {
     return localStorage.getItem(VIEW_STORAGE_KEY);
@@ -728,17 +730,13 @@ export class ArgonTennisEngine {
           }
         return new o.Group();
       },
-      [i, a, s, n, h, r, l] = await Promise.all([
+      [i, a, l] = await Promise.all([
         t("https://www.gstatic.com/aistudio/starter-apps/tennis/models/stadium_court.glb?v=argon4_kinetic"),
         t("https://www.gstatic.com/aistudio/starter-apps/tennis/models/tennis_net.glb?v=argon4_kinetic"),
-        t("https://www.gstatic.com/aistudio/starter-apps/tennis/models/mii_player.glb?v=argon4_kinetic"),
-        t("https://www.gstatic.com/aistudio/starter-apps/tennis/models/mii_opponent.glb?v=argon4_kinetic"),
-        t("https://www.gstatic.com/aistudio/starter-apps/tennis/models/tennis_racket.glb?v=argon4_kinetic"),
-        t("https://www.gstatic.com/aistudio/starter-apps/tennis/models/tennis_ball.glb?v=argon4_kinetic"),
         t("https://www.gstatic.com/aistudio/starter-apps/tennis/models/mii_crowd.glb?v=argon4_kinetic"),
       ]),
-      p = s.clone(!0),
-      g = n.clone(!0);
+      // NATPF: giocatori (P1, CPU/P2 e compagni del doppio), racchetta e pallina creati nel codice
+      { player: s, playerPartner: p, opponent: n, opponentPartner: g, racket: h, ball: r } = createNatpfCast();
     this._prepareStadiumAndNet(i, a),
       this._prepareCrowd(l),
       this.natpfArena.adoptArgonStadium({ stadium: i, net: a, crowd: l }),
@@ -857,7 +855,9 @@ export class ArgonTennisEngine {
       e.root.position.copy(e.pos),
       this.scene.add(e.root),
       this.racketKinematics && this.racketKinematics.initActor(e),
-      this.swingVfx && this.swingVfx.registerActor(e);
+      this.swingVfx && this.swingVfx.registerActor(e),
+      // NATPF: braccia e gambe che seguono mani e piedi, viso adattato al personaggio
+      finishNatpfActor(e);
   }
   _prepareTennisBall(e) {
     e.traverse((t) => {
@@ -3035,6 +3035,8 @@ export class ArgonTennisEngine {
       this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
   render() {
+    // NATPF: varianti di colore e arti dei personaggi, dopo tutte le animazioni del fotogramma
+    updateNatpfCharacters(this);
     this.renderer.render(this.scene, this.camera);
   }
 }

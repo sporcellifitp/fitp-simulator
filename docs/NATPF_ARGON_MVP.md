@@ -147,6 +147,33 @@ Il gioco non deve sembrare il tennis arcade da cui deriva il motore. Cambiato ri
   vedono giocando (cartella `natpf-argon/`, file `mii_*.js`, classi CSS `wii-*`/`mii-*`, chiavi `natpf-argon.*` in
   localStorage, classe `ArgonTennisEngine`), da rinominare all'unione dei branch.
 
+## Personaggio procedurale (17 ottobre 2026)
+
+Le figurine scaricate da gstatic (`mii_player.glb`, `mii_opponent.glb`) sono sostituite da un tennista «toy» in
+vinile costruito nel codice (`src/natpf/natpf_character.js`): testa grande con capelli castani voluminosi e fascia
+bianca, sopracciglia decise e occhi piccoli scuri, polo bianca con colletto e due bottoni, pantaloncini bianchi,
+polsino bianco a destra e blu a sinistra, calze blu, scarpe bianche con suola blu. Varianti di colore: **P1** come il
+riferimento, **CPU** con la polo blu NATPF, **P2** con dettagli rosa; l'avversario passa da CPU a P2 da solo nelle
+partite 1v1 tra persone (`isMultiplayer`).
+
+- **Stesse parti del motore.** Il modello espone `Torso`, `Head`, `Hand_L`, `Hand_R`, `Foot_L`, `Foot_R` nelle
+  posizioni di riposo dei vecchi GLB, quindi rig del corpo, espressioni del viso e cinematica della racchetta
+  funzionano senza modifiche. Il viso dinamico viene solo adattato (occhi piccoli, sopracciglia aggrottate, bocca
+  chiusa a riposo).
+- **Braccia e gambe vere.** A ogni fotogramma, dopo tutte le animazioni (in `render()`), un'IK a due ossa collega
+  spalla e mano, anca e caviglia. Le braccia possono allungarsi fino al 70% come un giocattolo morbido.
+- **Racchetta e pallina** procedurali (`createNatpfRacket`, `createNatpfBall`) con le stesse misure e gli stessi
+  punti del piatto usati da colpi ed effetti. Si scaricano solo `stadium_court`, `tennis_net` e `mii_crowd`.
+- **Prima persona.** Restano avambracci, polsini, mani e racchetta (`natpfFirstPersonHidden` in `natpf_camera.js`).
+- **Ritratti HUD** (`src/natpf/natpf_portrait.js`): SVG del personaggio nei colori della variante; `mii_avatars.js`
+  mantiene solo l'API e gli id usati da HUD e lobby.
+- **Prestazioni.** Geometrie e materiali sono condivisi tra gli attori (un materiale per colore). Ogni personaggio
+  ha 39 mesh e circa 15 mila triangoli; i vecchi modelli avevano 24 mesh ma circa 42 mila vertici.
+
+Interventi nel motore, marcati `NATPF`: import e creazione del cast in `loadAssetsAndStart`, `finishNatpfActor` in
+fondo a `_prepareMiiActor`, `updateNatpfCharacters` in `render()`. `mii_model_overhaul.js` salta i materiali del
+personaggio. Test: `test/natpf-character.test.mjs`.
+
 ## Verifiche fatte (17 ottobre 2026)
 
 | Verifica | Esito |
