@@ -91,6 +91,14 @@ test('asset: prima il disco, gstatic solo se manca e c\'è rete, MediaPipe mai d
   } finally { await s.close(); fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('plugin Vite degli asset: configureServer non restituisce nulla (una funzione sarebbe un post-hook che fa cadere npm run dev)', async () => {
+  const { offlineAssetsPlugin } = await import('../scripts/offline-assets.mjs');
+  const used = [];
+  const app = function connectApp(){ throw new Error('chiamata come post-hook'); };
+  const ret = offlineAssetsPlugin().configureServer({ middlewares: { use(fn){ used.push(fn); return app; } } });
+  assert.equal(ret, undefined); assert.equal(used.length, 1); assert.equal(typeof used[0], 'function');
+});
+
 test('client: gli indirizzi gstatic di Argon diventano ./assets/ (pacchetto offline)', () => {
   assert.equal(argonAssetUrl(ARGON_GSTATIC + 'audio/menu_theme.mp3'), './assets/audio/menu_theme.mp3');
   assert.equal(argonAssetUrl('./assets/models/x.glb'), './assets/models/x.glb');
