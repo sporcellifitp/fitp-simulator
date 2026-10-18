@@ -178,6 +178,12 @@ export function createCalibration(det){
     retry(){ S.practice = 0; det.setTraining(true); Object.assign(S, { step: 'swings', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT }); det.setThresholds({ ...CAL.low, axis: null }); emit({ kind: 'step', want: plan()[0], shot: 'drive', idx: 0, total: total() }); },
     // prova libera con il profilo proposto: direzione e forza di ogni swing, prima di confermare
     tryFree(){ if (!S.profile) return; S.step = 'free'; det.setProfile(S.profile); det.setTraining(false); det.setContext?.('practice'); emit({ kind: 'step' }); },
+    // salta i gesti: profilo semplice dalla posa ferma (deriva e rumore), senza asse del colpo; i gesti valgono tutti
+    skip(){
+      if (S.step === 'idle' || S.step === 'done') return null;
+      S.profile = { version: 4, automaticGesture: true, simple: true, ...S.options, bias: det.profile.bias, noise: det.profile.noise, gravity: det.profile.gravity, axis: null, ref: 420, refs: null, refAngle: 30, on: 70, minPeak: 120, minAngle: 6 };
+      return this.confirm();
+    },
     confirm(){ if (!S.profile) return null; det.setProfile(S.profile); det.setTraining(false); S.step = 'done'; emit({ kind: 'done', profile: S.profile }); return S.profile; },
     touch(dir = 0, power = .65, shot = 'drive'){ if (S.step !== 'free' || S.profile?.input !== 'touch') return; S.practice++; emit({ kind: 'free', dir: dir > 0 ? 'L' : dir < 0 ? 'R' : '?', dirValue: dir, power, strength: power/.75, peak: power*600, ok: true, shot }); },
     invert(){ if (!S.profile || !S.axis) return; S.axis = S.axis.map(v => -v); S.profile.axis = S.axis; const swap = o => o && ({ 1: o[-1], '-1': o[1] }); S.profile.refs = swap(S.profile.refs); S.profile.preparation = swap(S.profile.preparation); S.profile.minAngles = swap(S.profile.minAngles); if (S.profile.templates) S.profile.templates = S.profile.templates.map(t => ({ ...t, dir: -t.dir })); this.tryFree(); },

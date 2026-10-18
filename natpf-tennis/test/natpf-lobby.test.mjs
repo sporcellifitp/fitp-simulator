@@ -1,27 +1,29 @@
 // Menu a tappe, esito del colpo, mano del giocatore e allenamento (funzioni senza DOM).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LOBBY_STEPS, EGG_WORD, stepReady, initialStep, eggTyped } from '../src/natpf/natpf_lobby.js';
+import { LOBBY_STEPS, EGG_WORD, stepReady, initialStep, eggTyped, autoAdvance } from '../src/natpf/natpf_lobby.js';
 import { controllerTiles, viewTiles, controllerStatus, CONTROLLER_TILES } from '../src/natpf/natpf_tiles.js';
 import { shotQuality, landsIn, VIBRATION, QUALITY_COLORS } from '../src/natpf/natpf_shot_feedback.js';
 import { leftySide, isLocalServing, normalizeHand } from '../src/natpf/natpf_hand.js';
-import { DRILLS, drillAfterShot } from '../src/natpf/natpf_training.js';
+import { DRILLS, drillAfterShot, calSide, calCoach, CAL_HOLD } from '../src/natpf/natpf_training.js';
 
-test('menu in cinque tappe: come si gioca, controller, preparazione, allenamento, partita', () => {
-  assert.deepEqual(LOBBY_STEPS, ['howto', 'controller', 'setup', 'training', 'match']);
-  assert.equal(initialStep({ flowDone: false }), 'howto');
-  assert.equal(initialStep({ flowDone: true }), 'match');
+test('menu per chi gioca la prima volta: benvenuto, racchetta, collega, riscaldamento in campo, partita', () => {
+  assert.deepEqual(LOBBY_STEPS, ['welcome', 'controller', 'connect', 'warmup', 'match']);
+  assert.equal(initialStep(), 'welcome');               // ogni visitatore riparte dal benvenuto
 });
 
-test('si va avanti solo con la racchetta pronta e dopo l’allenamento', () => {
-  assert.equal(stepReady('setup', { controller: 'phone', phoneReady: false }), false);
-  assert.equal(stepReady('setup', { controller: 'phone', phoneReady: true }), true);
-  assert.equal(stepReady('setup', { controller: 'webcam', webcamActive: false }), false);
-  assert.equal(stepReady('setup', { controller: 'webcam', webcamActive: true }), true);
-  assert.equal(stepReady('setup', { controller: 'mouse' }), true);
-  assert.equal(stepReady('training', { trainingDone: false }), false);
-  assert.equal(stepReady('training', { trainingDone: true }), true);
-  assert.equal(stepReady('howto', {}), true);
+test('in campo appena il controller è pronto; il riscaldamento non blocca mai', () => {
+  // telefono: basta che sia collegato con i sensori attivi (la calibrazione si fa in campo)
+  assert.equal(stepReady('connect', { controller: 'phone', phoneLinked: false }), false);
+  assert.equal(stepReady('connect', { controller: 'phone', phoneLinked: true }), true);
+  assert.equal(stepReady('connect', { controller: 'webcam', webcamActive: false }), false);
+  assert.equal(stepReady('connect', { controller: 'webcam', webcamActive: true }), true);
+  assert.equal(stepReady('connect', { controller: 'mouse' }), true);
+  for (const s of ['welcome', 'controller', 'warmup', 'match']) assert.equal(stepReady(s, {}), true, s);
+  assert.equal(autoAdvance('connect', { controller: 'phone', phoneLinked: true }), true);
+  assert.equal(autoAdvance('connect', { controller: 'webcam', handSeen: true }), true);
+  assert.equal(autoAdvance('connect', { controller: 'webcam', handSeen: false }), false);
+  assert.equal(autoAdvance('controller', { controller: 'phone', phoneLinked: true }), false);
 });
 
 test('easter egg: la parola si riconosce anche in mezzo ad altri tasti', () => {
@@ -35,11 +37,11 @@ test('tessere: tre controller (il mouse si mostra solo con l’easter egg), due 
   assert.equal((controllerTiles().match(/data-natpf-controller=/g) || []).length, 3);
   assert.equal((viewTiles().match(/data-natpf-view=/g) || []).length, 2);
   assert.deepEqual(CONTROLLER_TILES.map(t => t.id), ['phone', 'webcam', 'mouse']);
-  assert.match(controllerStatus('phone', { phone: { ready: false, connected: false } }), /Da collegare/);
-  assert.match(controllerStatus('phone', { phone: { ready: false, connected: true } }), /calibrare/);
+  assert.match(controllerStatus('phone', { phone: { ready: false, connected: false } }), /QR/);
+  assert.match(controllerStatus('phone', { phone: { ready: false, connected: true } }), /Collegato/);
   assert.match(controllerStatus('phone', { phone: { ready: true, connected: true } }), /Pronto/);
   assert.match(controllerStatus('webcam', { phone: {}, webcamActive: true }), /Attiva/);
-  assert.match(controllerStatus('webcam', { phone: {}, webcamActive: false }), /preparazione/);
+  assert.match(controllerStatus('webcam', { phone: {}, webcamActive: false }), /impugnare/);
 });
 
 test('esito del colpo: verde perfetto, giallo anticipo/ritardo, rosso fuori o mancata', () => {
@@ -88,12 +90,17 @@ test('mano libera in vista solo al proprio servizio', () => {
   assert.equal(isLocalServing({ phase: 'SERVE_STANCE', playerRole: 'p2', score: { server: 'opponent' } }), true);
 });
 
-test('allenamento: servizio, dritto, rovescio, colpi liberi; conta solo il lato giusto', () => {
-  assert.deepEqual(DRILLS.map(d => d.id), ['serve', 'forehand', 'backhand', 'free']);
+test('riscaldamento: calibrazione in campo, poi dritto, rovescio, servizio, angoli; conta solo il lato giusto', () => {
+  assert.deepEqual(DRILLS.map(d => d.id), ['forehand', 'backhand', 'serve', 'free']);
   for (const d of DRILLS) for (const c of ['phone', 'webcam', 'mouse']) assert.ok(d.hint[c], `${d.id}/${c}`);
-  const fh = DRILLS[1], p0 = { done: 0, tries: 0 };
+  const fh = DRILLS[0], p0 = { done: 0, tries: 0 };
   assert.deepEqual(drillAfterShot(fh, p0, { side: 'forehand', inCourt: true }), { done: 1, tries: 1, ok: true, wrongSide: false });
   assert.equal(drillAfterShot(fh, p0, { side: 'backhand', inCourt: true }).done, 0);
   assert.equal(drillAfterShot(fh, p0, { side: 'forehand', inCourt: false }).done, 0);
   assert.equal(drillAfterShot(DRILLS[3], p0, { side: 'backhand', inCourt: true }).done, 1);
+  // i gesti della calibrazione diventano colpi: «L» (da destra a sinistra) è il dritto del destro e il rovescio del mancino
+  assert.equal(calSide('L', 'right'), 'forehand'); assert.equal(calSide('R', 'right'), 'backhand');
+  assert.equal(calSide('L', 'left'), 'backhand'); assert.equal(calSide('R', 'left'), 'forehand');
+  assert.deepEqual(calCoach('L'), { side: 'forehand', title: 'Dritto', arrow: '←', move: 'verso sinistra' });
+  assert.ok(CAL_HOLD > .05 && CAL_HOLD < .3);
 });

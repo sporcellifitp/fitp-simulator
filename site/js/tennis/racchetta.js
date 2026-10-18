@@ -21,7 +21,9 @@ else pair = ss.get('pair');
 
 // Presa: «upright» (predefinita, telefono in verticale come il manico) o «flat» (telefono in orizzontale nel palmo,
 // display verso di sé: il dorso è il piatto). La sceglie il computer (messaggio grip) o chi gioca qui sotto.
-let grip = ss.get('grip') === 'flat' ? 'flat' : 'upright';
+// La presa orizzontale resta nel codice ma non si offre più: scomoda in gioco. Si gioca solo in verticale.
+let grip = 'upright';
+const ALLOW_FLAT = false;
 const det = createSwingDetector(), face = createFaceTracker();
 // prima della calibrazione: ogni gesto porta con sé il piatto all'istante del picco (l'impatto)
 det.on('swing', s => { if (grip === 'flat' && face.ready) s.face = face.faceAt(s.peakT); });
@@ -193,7 +195,7 @@ function paintFace(f){
   $('#faceTxt').textContent = `Piatto ${side}${pitch > 15 ? ' · aperto ↑' : pitch < -15 ? ' · chiuso ↓' : ''}`;
 }
 function setGrip(value){
-  const next = value === 'flat' ? 'flat' : 'upright';
+  const next = value === 'flat' && ALLOW_FLAT ? 'flat' : 'upright';
   $('#gripMode').value = next;
   if (next === grip) return;
   grip = next; ss.set('grip', grip); face.reset(); lockOrientation();
@@ -207,6 +209,8 @@ function command(c){
   if (c === 'invert') cal.invert();
   if (c === 'skipGrip') cal.skipGrip();
   if (c === 'free') cal.tryFree();
+  // dal computer: «Salta» durante la calibrazione → profilo semplice (niente direzione: dritto o rovescio li sceglie il gioco)
+  if (c === 'skip' && sensor === 'cal' && inputMode === 'motion'){ const p = cal.skip(); det.setContext(phase); if (p){ sensor = 'ready'; sendState(); paint(); } }
   if (c === 'confirm'){ const p = cal.confirm(); det.setContext(phase); if (p){ ss.set('profile', p); sensor = 'ready'; sendState(); paint(); } }
 }
 cal.on(e => { send({ t: 'cal', e: { ...e, shot:e.shot || (inputMode==='touch'?selectedShot:'drive') } }); paint();
@@ -219,6 +223,7 @@ det.on('swing', s => {
   // presa orizzontale: angolo del piatto all'impatto rispetto al proprio gesto dritto (campi facoltativi g, fy, fp, fr, fa)
   const fa = grip === 'flat' ? aimFromFace(s.face, det.profile.faceRef, { dir: s.dir, angle: s.angle }) : null;
   send({ t: 'sw', p: s.power, l: Math.max(-.6,Math.min(.6,s.lift)), ...flags, dur: s.dur, dir: s.dir, a:s.aim,c:s.confidence,pk: s.peakT, lat: rtt/2 + (performance.now() - s.peakT),
+    v: s.peak, tw: Number.isFinite(s.features?.twist) ? +s.features.twist.toFixed(3) : undefined,
     ...(fa ? { g: 'flat', fy: fa.yaw, fp: fa.pitch, fr: fa.roll, fa: fa.aim } : {}) });
   const cue = ({drive:'Gesto letto',lob:'Verso l’alto',slice:'Taglio verso il basso',drop:'Tocco corto',serve:'Movimento letto',smash:'Colpo dall’alto'})[s.shot] || 'Gesto letto';
   flash('hit', cue, `Forza ${Math.round(s.power*100)}%`, 350);

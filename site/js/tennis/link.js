@@ -1,6 +1,6 @@
 // Il telefono come racchetta, lato computer: sessione WebRTC (PeerJS), QR, controllo di chi si collega, orologi.
 // Il computer è la «base»: si registra sul server di segnalazione con un id casuale e aspetta il telefono.
-// Dal telefono: hello {k|r}, ping, dq (risposta all'orologio), st (stato), cal (passi della calibrazione), sw (colpo), toss,
+// Dal telefono: hello {k|r}, ping, dq (risposta all'orologio), st (stato), cal (passi della calibrazione), sw (colpo, con v e tw facoltativi), toss,
 // fo (orientamento del piatto, solo con la presa orizzontale: facoltativo, chi non lo usa lo ignora).
 // Al telefono: welcome {r}, deny, pong, dp (orologio), cmd (comandi della calibrazione), ev (esito del colpo, punto), ph (fase).
 // Orologi: ogni secondo il computer chiede l'ora al telefono e tiene la stima col viaggio più breve; così l'istante del
@@ -93,7 +93,9 @@ export function createPhoneLink(){
           if (at == null) break;
           // presa orizzontale: angolo del piatto all'impatto (campi facoltativi; senza, il colpo resta quello di sempre)
           const face = d.g === 'flat' && typeof d.fy === 'number' && isFinite(d.fy) ? { yaw: n(d.fy, -180, 180, 0), pitch: n(d.fp, -90, 90, 0), roll: n(d.fr, -180, 180, 0), aim: n(d.fa, -1, 1, 0) } : null;
-          emit('swing', { power: n(d.p, 0, 1, .6), lift: n(d.l, -1, 1, 0), lob: !!d.lob, drop: d.drop === true, slice: d.slice === true, dur: n(d.dur, 0, 700, 0), dir: d.dir === 1 ? 1 : d.dir === -1 ? -1 : 0, aim:n(d.a,-1,1,null),confidence:n(d.c,0,1,.7),at, ...(face ? { grip: 'flat', face } : {}) });
+          emit('swing', { power: n(d.p, 0, 1, .6), lift: n(d.l, -1, 1, 0), lob: !!d.lob, drop: d.drop === true, slice: d.slice === true, dur: n(d.dur, 0, 700, 0), dir: d.dir === 1 ? 1 : d.dir === -1 ? -1 : 0, aim:n(d.a,-1,1,null),confidence:n(d.c,0,1,.7),at, ...(face ? { grip: 'flat', face } : {}),
+            // facoltativi: velocità vera del telefono al picco (°/s) e rotazione del polso rispetto al proprio dritto
+            ...(typeof d.v === 'number' && isFinite(d.v) ? { peak: n(d.v, 0, 4000, 0) } : {}), ...(typeof d.tw === 'number' && isFinite(d.tw) ? { twist: n(d.tw, -2, 2, 0) } : {}) });
           break;
         }
         case 'toss': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); if (at != null) emit('toss', { at }); break; }

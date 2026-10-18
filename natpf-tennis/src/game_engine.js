@@ -1639,7 +1639,7 @@ export class NatpfTennisEngine {
       r = Math.hypot(h, n),
       l = this.isDoubles && !t && this.ball.pos.z > 0.3 && this.ball.pos.z <= 7.6 && r <= 3.95 && r < s,
       p = l ? this.playerPartner : this.player,
-      g = l ? n : i,
+      g = (l ? n : i) - NS.latencyShift(e, this.ball.vel.z), // NATPF: telefono in verticale, la palla quando il telefono ha colpito
       c = l ? h : a,
       y = l ? r : s;
     if (!t && p.swingCooldown > 0) return !1;
@@ -1723,6 +1723,10 @@ export class NatpfTennisEngine {
                 : x &&
                   this.matchConfig.difficulty === "pro" &&
                   ((u = g < 0 ? "EARLY" : "LATE"), (w = g < 0 ? 0.3 : 0.7));
+    // NATPF: telefono in verticale → il voto viene dal tempo vero del colpo (istante del picco sul telefono)
+    const natpfSwing = !t && e.natpf && e.natpf.aim === "swing" && !e.timing,
+      natpfTau = natpfSwing ? (e.sweetSpotAssisted ? Number(e.natpfLead || 0) + NS.eventLatency(e) : NS.swingTiming(g, this.ball.vel.z)) : 0;
+    natpfSwing && ({ grade: u, cursor: w } = NS.swingGrade(natpfTau, NS.skillLevel(this.matchConfig.difficulty)));
     const _ = u === "VERY EARLY" || u === "VERY LATE",
       T = this.selectedShotType || "TOPSPIN",
       M = !_ && (u === "PERFECT" || T === "FLAT" || d) && f >= 0.98,
@@ -1732,13 +1736,22 @@ export class NatpfTennisEngine {
     // sbagliato e con la potenza, e vicino alle righe si può uscire (natpf_skill.js). Prima: sempre dentro le righe.
     const natpfLv = NS.skillLevel(this.matchConfig.difficulty),
       natpfQ =
-        (e.sweetSpotAssisted && g >= -1.85 && g <= 0.78 && !e.timing
+        (natpfSwing ? NS.swingQuality(natpfTau, NS.skillLevel(this.matchConfig.difficulty)) : e.sweetSpotAssisted && g >= -1.85 && g <= 0.78 && !e.timing
           ? NS.assistGrade(e.natpfLead, natpfLv).quality
           : NS.timingQuality(u, g)) *
         NS.reachQuality(c, p.vel.length() / Math.max(1, p.maxSpeed)),
       natpfDrop = !!(e.natpfDrop || (e.natpf && e.natpf.shot === "drop"));
     let E = t
       ? o.MathUtils.clamp(v * 2.6, -S.SINGLES_X + 0.6, S.SINGLES_X - 0.6)
+      : natpfSwing
+        ? NS.swingLandingX({
+            timing: natpfTau,
+            contact: (m ? -1 : 1) * (e.natpf.hand === "left" ? -1 : 1),
+            wrist: e.natpf.wrist,
+            quality: natpfQ,
+            power: NS.powerNorm(f),
+            level: natpfLv,
+          })
       : NS.playerLandingX({
           grade: u,
           aim: v,
@@ -1775,12 +1788,14 @@ export class NatpfTennisEngine {
     natpfDrop || (I *= K); // NATPF skill gap: la palla corta non accelera con lo scambio (finirebbe in rete)
     // NATPF skill gap: profondità con rischio di palla lunga, velocità che cresce con i colpi perfetti consecutivi
     if (!t) {
+      // NATPF: telefono in verticale → profondità dalla forza vera del gesto (lento = palla corta che la CPU attacca)
+      natpfSwing && !_ && !l && !natpfDrop && T !== "LOB" && T !== "SLICE" && (N = NS.swingDepthZ(NS.powerNorm(f)));
       N = NS.playerDepthZ(N, { quality: natpfQ, power: NS.powerNorm(f), level: natpfLv });
       // rischio d'errore del giocatore: lungo con la potenza, largo vicino alle righe, in rete fuori tempo
       const natpfErr = natpfDrop ? { kind: "ok" } : NS.playerErrorPlan({ quality: natpfQ, power: NS.powerNorm(f), aimX: E, level: natpfLv });
       natpfErr.kind === "long" ? (N = natpfErr.z) : natpfErr.kind === "wide" ? (E = natpfErr.x) : natpfErr.kind === "net" && (O = !0);
       const natpfS = NS.registerPlayerShot(this, {
-        grade: u, quality: natpfQ, power: NS.powerNorm(f), landingX: E,
+        grade: u, quality: natpfQ, power: NS.powerNorm(f), landingX: E, landingZ: N,
         shot: d ? "SMASH" : natpfDrop ? "DROP" : T, cpuZ: this.opponent.pos.z,
       });
       I = NS.mistimeFlight(natpfDrop ? I : NS.streakFlight(I, natpfS.streak, natpfLv), natpfQ);
@@ -2168,7 +2183,7 @@ export class NatpfTennisEngine {
   update(e) {
     (this.elapsedTime += e), (this.cameraTrauma = Math.max(0, this.cameraTrauma - e * 1.4));
     const t = this.swingVfx ? this.swingVfx.consumeHitStop(e) : e,
-      i = this.phase === "REPLAY" ? 0.38 : 1;
+      i = this.phase === "REPLAY" ? 0.38 : this.natpfTimeScale ?? 1; // NATPF: rallentatore del riscaldamento (natpf_training.js)
     for (this.physicsAccumulator += t * i; this.physicsAccumulator >= L.FIXED_DT; )
       this._stepPhysics(L.FIXED_DT), (this.physicsAccumulator -= L.FIXED_DT);
     if (

@@ -18,20 +18,29 @@ white label per uso interno. Solo **1v1**: contro la CPU oppure tra due computer
 
 Analisi, architettura, verifiche e limiti: [../docs/NATPF_TENNIS_MVP.md](../docs/NATPF_TENNIS_MVP.md).
 
-## Menu a tappe, allenamento e pausa
+## Menu per chi gioca la prima volta, riscaldamento in campo e pausa
 
-- **Cinque tappe brevi** sopra l'arena, una scelta per schermata, con forme arrotondate (`natpf-round.css`):
-  1. **Come si gioca**: tre schede.
-  2. **Controller**: smartphone o webcam, più la mano (destra o mancino).
-  3. **Preparazione**:
-     - smartphone: presa orizzontale «piatto», di default, o verticale «manico», poi QR e calibrazione;
-     - webcam: anteprima, controllo della mano e scelta fra corsa automatica e corsa col corpo.
-  4. **Allenamento**: in campo ci sei solo tu, con un lanciapalle. Servizio 2, dritto 3, rovescio 3, colpi
-     liberi 3. Non conta per il punteggio.
-  5. **Partita**: CPU facile, CPU esperta o sfida un amico; durata e visuale; poi **Gioca**.
+Pensato per fiere ed eventi: ogni visitatore vede il gioco per la prima volta. Una pagina alla volta, un pulsante
+grande per andare avanti, «Indietro» sempre visibile, forme arrotondate (`natpf-round.css`, `natpf-flow.css`).
 
-  Avanti si sblocca solo con la racchetta pronta e l'allenamento fatto (oppure con «Salta»). Chi ha già giocato
-  riparte dalla tappa «Partita». Tastiera: Invio avanti, Esc indietro.
+1. **Benvenuto**: «Il tuo telefono è la racchetta», «Gioca» e «Come si gioca».
+2. **Con cosa giochi?** Smartphone o webcam (toccare la tessera porta avanti) e mano destra o sinistra.
+3. **Collega**:
+   - smartphone: QR nella pagina e tre passi che si spuntano da soli (inquadra il QR, «Attiva i sensori», impugna
+     in verticale); appena i sensori sono attivi si entra in campo da soli;
+   - webcam: anteprima, controllo della mano e scelta fra corsa automatica e corsa col corpo.
+4. **Riscaldamento in campo** (`natpf_training.js`), con un lanciapalle e senza avversario. **Calibrazione e
+   allenamento sono la stessa cosa**: ogni gesto chiesto dal telefono è una palla che rallenta, si ferma davanti alla
+   racchetta e riparte quando il gesto è riconosciuto. La calibrazione si conferma da sola, poi dritto 2, rovescio 2,
+   servizio 1, angoli 3. «Salta il riscaldamento» è sempre visibile: con il telefono non calibrato si gioca in
+   **modalità semplice** (dritto e rovescio li sceglie il gioco).
+5. **Partita**: CPU facile, CPU esperta o sfida un amico; durata (1 game di default) e visuale; poi **Gioca**.
+
+Dietro il menu gira una dimostrazione: con il menu aperto nessun colpo arriva al motore, da nessuna racchetta.
+Tastiera: Invio avanti, Esc indietro, H guida. **Come si gioca** è una finestra unica con tutte le istruzioni
+visibili insieme, ciascuna con una clip del gioco vero (`public/guide/*.jpg`, rigenerabili con
+`node scripts/guide-clips.mjs` mentre gira `npm run dev`).
+
 - **Mouse e tastiera nascosti**: servono solo per le prove al computer. Digita **natpf** nel menu (easter egg)
   per mostrarli e attivarli. Digitandolo di nuovo si nascondono.
 - **Esito del colpo senza barra del tempo**:
@@ -50,8 +59,8 @@ Analisi, architettura, verifiche e limiti: [../docs/NATPF_TENNIS_MVP.md](../docs
   menu» e «Riprendi».
 - **Player 2** con link di invito: una scheda con racchetta, visuale e mano, poi «Entra in campo».
 
-Codice: `src/natpf/natpf_lobby.js` (tappe ed easter egg), `natpf_training.js`, `natpf_shot_feedback.js`,
-`natpf_hand.js`, `natpf_pause.js`, `natpf_tiles.js`; stili in `natpf.css` e `natpf-round.css`.
+Codice: `src/natpf/natpf_lobby.js` (pagine ed easter egg), `natpf_training.js` (riscaldamento), `natpf_onboarding.js` (guida), `natpf_shot_feedback.js`,
+`natpf_hand.js`, `natpf_pause.js`, `natpf_tiles.js`; stili in `natpf.css`, `natpf-round.css` e `natpf-flow.css`.
 
 ## Musica, voce e HUD
 
@@ -154,23 +163,19 @@ L'unico pacchetto da preparare è MediaPipe per la webcam (Hands e Pose lite, ci
 
 ### Smartphone come racchetta
 
-1. Nella lobby, al passo **2 Racchetta**, scegli **Smartphone**: compare il QR.
-2. Scegli la **presa** (sotto le tessere, e anche nel pannello del telefono o sul telefono stesso):
-   - **Orizzontale · piatto** (predefinita): telefono in orizzontale nel palmo, display verso di te; il dorso guarda
-     la rete e fa da corde. Il telefono si usa in landscape.
-   - **Verticale · manico**: telefono in verticale nel palmo, come il manico (la presa di NATPF Simulator).
-3. Inquadra il QR con il telefono, tocca «Attiva i sensori» e segui i passi. Con la presa orizzontale: **2 secondi
-   fermo** in posizione «pronto», piatto verso la rete, poi **quattro gesti comodi** (sinistra, destra, sinistra,
-   destra), una prova libera e «Conferma la racchetta».
-4. Al servizio un primo gesto lancia la palla e il secondo la colpisce in alto. Nello scambio colpisci quando la
-   palla arriva alla racchetta; il verso del gesto sceglie dritto o rovescio.
-   - **Presa orizzontale**: la direzione la decide soprattutto **l'angolo del piatto all'impatto**: piatto girato a
-     sinistra o a destra (rispetto al tuo gesto dritto della calibrazione) → incrociato o lungolinea. Piatto aperto
-     verso l'alto → lob (gesto deciso) o palla corta (gesto morbido); piatto chiuso → colpo coperto. Gesto dal basso
-     verso l'alto → topspin, tagliato dall'alto → slice. La velocità del gesto è la velocità della palla; il tempo
-     conta ancora, ma meno. Sul telefono una freccia mostra dove punta il piatto e in gioco la racchetta lo segue.
-   - **Presa verticale**: verso e inclinazione del gesto per la mira, gesto verso l'alto per il lob, tagliato per lo
-     slice (come prima).
+1. Nel menu scegli **Smartphone**: nella pagina «Collega» compare il QR.
+2. Si gioca solo con il telefono **in verticale nel palmo**, schermo verso il palmo, come il manico (la presa
+   orizzontale è stata provata e tolta: scomoda).
+3. Inquadra il QR, tocca «Attiva i sensori»: si entra in campo e il riscaldamento fa la calibrazione con quattro palle
+   (dritto e rovescio alternati).
+4. Al servizio un primo gesto lancia la palla e il secondo la colpisce in alto. Nello scambio:
+   - **tempo**: conta l'istante vero del colpo misurato dal telefono. Un attimo prima → incrociato, un attimo dopo →
+     lungolinea (finestra più larga contro la CPU facile);
+   - **polso**: ruotando il manico all'impatto, rispetto al proprio dritto, si apre o si chiude l'angolo;
+   - **forza**: metà dal gesto rispetto alla calibrazione, metà dalla velocità vera del telefono; un gesto lento
+     resta corto e la CPU attacca;
+   - **colpi speciali** rispetto al proprio dritto: dal basso verso l'alto lob, dall'alto verso il basso tagliato,
+     tagliato e lento palla corta.
 
 Il telefono ha bisogno di una pagina **https** per leggere i sensori di movimento:
 
@@ -225,7 +230,7 @@ npm test             # test dell'integrazione NATPF e della versione LAN
 npm run lan          # server LAN HTTPS sulla build (vedi «Versione LAN»)
 npm run test:e2e-lan # prova nel browser della versione LAN: Chrome con GPU, openssl, npm ci in ../tools/lan e
                      # ../tools/e2e; ONLY=telefono,1v1,webcam per una parte sola
-npm test             # test dell'integrazione NATPF ↔ motore base, presa orizzontale e skill gap
+npm test             # test dell'integrazione NATPF ↔ motore base, menu, riscaldamento, colpo del telefono e skill gap
 npm run audit:rally  # audit degli scambi (colpi per punto, punti vinti per profilo)
 ```
 
@@ -235,7 +240,7 @@ npm run audit:rally  # audit degli scambi (colpi per punto, punti vinti per prof
 |---|---|---|---|
 | Servizio | ↑ / W / T lancia, Spazio colpisce | mano verso l'alto, poi swing | gesto, poi gesto in alto |
 | Colpo | Spazio o trascinamento; 1–4 per il tipo | swing davanti alla webcam | gesto naturale con il telefono |
-| Mira | Q/E o A/D, direzione del trascinamento | direzione dello swing | angolo del piatto (presa orizzontale) o verso e inclinazione del gesto (verticale) |
+| Mira | Q/E o A/D, direzione del trascinamento | direzione dello swing | tempo vero del colpo (prima incrociato, dopo lungolinea) e rotazione del polso |
 
 Altri tasti: **V** prima/terza persona, **C** camera, **R** moviola.
 

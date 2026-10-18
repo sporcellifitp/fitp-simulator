@@ -6,7 +6,6 @@ import { createFaceTracker, aimFromFace, faceReference, flatGrip, FACE } from '@
 import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
 import { createCalibration } from '@natpf/tennis/calibration.js';
 import { natpfSwingToEngine, racketTiltFromFace, faceShot, NatpfPhoneRacket, normalizeGrip } from '../src/natpf/natpf_phone_racket.js';
-import { GRIP_CHOICES, gripChoice } from '../src/natpf/natpf_tiles.js';
 import * as NS from '../src/natpf/natpf_skill.js';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
 import { simulate } from '../scripts/audit/rally-balance.mjs';
@@ -110,10 +109,10 @@ test('presa orizzontale: il piatto girato a sinistra/destra dà la direzione, ap
   assert.equal(cover.shotType, 'topspin'); assert.ok(cover.dirY < -.4);
   assert.ok(sw({ yaw: 0, pitch: 0, aim: 0 }, { power: 1 }).speed > sw({ yaw: 0, pitch: 0, aim: 0 }, { power: .35 }).speed);
   assert.equal(faceShot({ face: { pitch: 30 }, power: .9 }), 'lob');
-  // senza dati del piatto (o presa verticale) il colpo resta quello di NATPF
+  // senza dati del piatto (presa verticale, la sola in gioco) la direzione la decidono tempo e polso
   const upright = natpfSwingToEngine({ dir: 1, power: .3 });
-  assert.equal(upright.natpf, undefined); assert.equal(upright.side, 'forehand');
-  assert.deepEqual(natpfSwingToEngine({ dir: 1, drop: true }).natpf, { shot: 'drop' });
+  assert.equal(upright.natpf.aim, 'swing'); assert.equal(upright.side, 'forehand');
+  assert.equal(natpfSwingToEngine({ dir: 1, drop: true }).natpf.shot, 'drop');
 });
 
 test('racchetta in gioco: segue il piatto del telefono', () => {
@@ -123,17 +122,15 @@ test('racchetta in gioco: segue il piatto del telefono', () => {
   assert.equal(racketTiltFromFace({ yaw: 200, pitch: 0 }).yaw, 50);
 });
 
-test('presa scelta nel gioco: predefinita «piatto», va al telefono appena è collegato', () => {
+test('presa: solo verticale; il gioco la manda al telefono appena è collegato', () => {
   const sent = [];
   const phone = new NatpfPhoneRacket({ playerRole: 'p1' });
-  assert.equal(phone.grip, 'flat');
+  assert.equal(phone.grip, 'upright');
   phone.link = { connected: true, send: m => sent.push(m) };
   phone._sendGrip(); phone._sendGrip();
-  phone.setGrip('upright');
-  assert.deepEqual(sent, [{ t: 'grip', g: 'flat' }, { t: 'grip', g: 'upright' }]);
-  assert.equal(normalizeGrip('x'), 'flat');
-  assert.deepEqual(GRIP_CHOICES.map(g => g.id), ['flat', 'upright']);
-  assert.match(gripChoice(), /Orizzontale · piatto/); assert.match(gripChoice(), /Verticale · manico/);
+  phone.setGrip('flat');
+  assert.deepEqual(sent, [{ t: 'grip', g: 'upright' }, { t: 'grip', g: 'upright' }]);
+  assert.equal(normalizeGrip('flat'), 'upright');
 });
 
 /* ---------- skill gap ---------- */

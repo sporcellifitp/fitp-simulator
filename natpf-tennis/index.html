@@ -27,6 +27,7 @@
     <link rel="stylesheet" href="./natpf.css" />
     <link rel="stylesheet" href="./natpf-hud.css" />
     <link rel="stylesheet" href="./natpf-round.css" />
+    <link rel="stylesheet" href="./natpf-flow.css" />
   </head>
   <body>
     <div id="root" class="hidden" aria-hidden="true"></div>
@@ -167,57 +168,66 @@
         </div>
       </div>
     </div>
-    <!-- NATPF: menu a tappe come il tutorial di un videogioco (src/natpf/natpf_lobby.js):
-         1 come si gioca → 2 controller e mano → 3 preparazione (telefono o webcam) → 4 allenamento → 5 partita.
+    <!-- NATPF: menu per chi non ha mai giocato (src/natpf/natpf_lobby.js): un solo pulsante grande per pagina.
+         Benvenuto → con cosa giochi → collega (QR e passi del telefono, o la webcam) → riscaldamento in campo
+         (calibrazione del telefono + lanciapalle, src/natpf/natpf_training.js) → partita.
          Restano gli id letti dall'HUD del motore base: #difficulty-mode-group/.nt-green-choice, #match-length-group,
          #btn-start-match, #setup-pl-*, .you-tag -->
-    <div id="title-modal" class="nt-modal-backdrop natpf-lobby" data-step="howto">
+    <div id="title-modal" class="nt-modal-backdrop natpf-lobby" data-step="welcome">
       <header class="lobby-top">
         <div class="lobby-brand">
           <span class="lobby-mark">NATPF</span><span class="lobby-word">Simulator</span>
           <small>Nitto ATP Finals · Torino</small>
         </div>
-        <nav class="lobby-steps" aria-label="Tappe">
-          <button type="button" data-goto="howto"><b>1</b><span>Come si gioca</span></button
-          ><button type="button" data-goto="controller"><b>2</b><span>Controller</span></button
-          ><button type="button" data-goto="setup"><b>3</b><span>Preparazione</span></button
-          ><button type="button" data-goto="training"><b>4</b><span>Allenamento</span></button
-          ><button type="button" data-goto="match"><b>5</b><span>Partita</span></button>
-        </nav>
-        <button type="button" id="lobby-help" class="lobby-ghost lobby-round" title="Guida completa (H)" aria-label="Guida completa">?</button>
+        <ol class="lobby-progress" aria-label="Avanzamento">
+          <li data-progress="controller"><b>1</b><span>Racchetta</span></li
+          ><li data-progress="connect"><b>2</b><span>Collega</span></li
+          ><li data-progress="warmup"><b>3</b><span>Riscaldamento</span></li
+          ><li data-progress="match"><b>4</b><span>Partita</span></li>
+        </ol>
+        <button type="button" id="lobby-help" class="lobby-ghost lobby-help-btn" title="Come si gioca (H)"><span aria-hidden="true">?</span> Come si gioca</button>
       </header>
+      <span class="lobby-demo-tag" aria-hidden="true">Dimostrazione · nessuna partita in corso</span>
 
       <main class="lobby-stage">
-        <section class="lobby-page" data-page="howto" aria-labelledby="lobby-t-howto">
-          <h2 class="lobby-title" id="lobby-t-howto">Come si gioca</h2>
-          <div class="howto-cards">
-            <div class="howto-card"><span class="howto-ico" aria-hidden="true">🏃</span><b>Corre da solo</b><p>Il giocatore raggiunge la palla da solo: tu pensi solo al colpo.</p></div>
-            <div class="howto-card"><span class="howto-ico" aria-hidden="true">🎾</span><b>Colpisci al momento giusto</b><p>Quando la palla arriva alla racchetta. Un anello verde a terra = colpo perfetto.</p></div>
-            <div class="howto-card"><span class="howto-ico" aria-hidden="true">↗</span><b>Scegli angolo e forza</b><p>Angolo e velocità del gesto decidono dove e quanto veloce va la palla.</p></div>
+        <section class="lobby-page" data-page="welcome" aria-labelledby="lobby-t-welcome">
+          <p class="welcome-kicker">Il tennis delle Nitto ATP Finals</p>
+          <h2 class="welcome-title" id="lobby-t-welcome">Il tuo telefono<br />è la racchetta</h2>
+          <p class="welcome-sub">Inquadri un QR, fai quattro colpi di riscaldamento e sei in campo. Non serve saper giocare a tennis.</p>
+          <div class="welcome-actions">
+            <button type="button" id="welcome-play" class="lobby-primary lobby-xl">Gioca ›</button
+            ><button type="button" class="lobby-secondary" data-open-onboarding>Come si gioca</button>
           </div>
-          <p class="lobby-note">Prepari il controller, ti alleni da solo e poi giochi la partita.</p>
         </section>
 
         <section class="lobby-page" data-page="controller" aria-labelledby="lobby-t-controller">
-          <h2 class="lobby-title" id="lobby-t-controller">Come vuoi giocare?</h2>
+          <h2 class="lobby-title" id="lobby-t-controller">Con cosa giochi?</h2>
           <div class="lobby-tiles lobby-tiles-2" data-natpf-tiles="controller" role="radiogroup"></div>
           <div class="lobby-row">
-            <span class="lobby-label">Mano</span>
+            <span class="lobby-label">Giochi con la mano</span>
             <div class="lobby-seg" role="radiogroup" aria-label="Mano">
               <button type="button" class="seg-btn" data-natpf-hand="right">Destra</button
-              ><button type="button" class="seg-btn" data-natpf-hand="left">Mancino</button>
+              ><button type="button" class="seg-btn" data-natpf-hand="left">Sinistra</button>
             </div>
           </div>
           <p class="lobby-note" id="lobby-egg-note" hidden>Modalità prova: mouse e tastiera attivi.</p>
         </section>
 
-        <section class="lobby-page" data-page="setup" aria-labelledby="lobby-t-setup">
-          <h2 class="lobby-title" id="lobby-t-setup">Prepara il controller</h2>
-          <div class="setup-panel" data-setup="phone">
-            <div class="natpf-grip-choice" id="lobby-grip-choice" data-natpf-grip-choice role="radiogroup" aria-label="Presa del telefono"></div>
-            <div class="setup-status"><span class="setup-dot" id="setup-phone-dot"></span><span id="setup-phone-text">Telefono da collegare</span></div>
-            <button type="button" id="setup-phone-go" class="lobby-primary">Collega e calibra</button>
+        <section class="lobby-page" data-page="connect" aria-labelledby="lobby-t-connect">
+          <h2 class="lobby-title" id="lobby-t-connect">Collega il telefono</h2>
+          <div class="connect-panel" data-setup="phone">
+            <div class="connect-qr">
+              <div id="connect-qr" class="natpf-qr"></div>
+              <a id="connect-link" class="sheet-link" target="_blank" rel="noopener">Apri il link del controller ↗</a>
+            </div>
+            <ol class="connect-steps">
+              <li data-connect="scan"><i aria-hidden="true"></i><div><b>Inquadra il QR</b><span>Apri la fotocamera del telefono e tocca il link che compare.</span></div></li>
+              <li data-connect="sensors"><i aria-hidden="true"></i><div><b>Tocca «Attiva i sensori»</b><span>Sul telefono. Su iPhone poi tocca «Consenti».</span></div></li>
+              <li data-connect="hold"><i aria-hidden="true"></i><div><b>Impugna il telefono in verticale</b><span>Nel palmo, schermo verso il palmo, come il manico di una racchetta. Si parte da soli.</span></div>
+                <svg class="connect-grip" viewBox="0 0 120 150" aria-hidden="true"><rect x="44" y="8" width="34" height="70" rx="7" fill="#dfe6ff" stroke="#0b1433" stroke-width="3" /><rect x="49" y="15" width="24" height="54" rx="3" fill="#2f6bff" /><path d="M30 70 q0 -14 14 -12 l40 2 q12 1 10 16 l-4 46 q-2 14 -18 14 h-22 q-18 0 -20 -18z" fill="#f0c7a0" stroke="#0b1433" stroke-width="3" /><path d="M44 74 h40 M44 86 h40 M44 98 h38" stroke="#c99a74" stroke-width="3" /></svg></li>
+            </ol>
           </div>
+          <p id="connect-warn" class="natpf-warn hidden"></p>
           <div class="setup-panel" data-setup="webcam">
             <div class="setup-cam"><video id="setup-webcam-video" autoplay playsinline muted></video><span id="setup-cam-badge" class="setup-cam-badge">Webcam spenta</span></div>
             <div class="setup-side">
@@ -235,21 +245,12 @@
           <div class="setup-panel" data-setup="mouse">
             <div class="setup-status"><span class="setup-dot ok"></span><span>Mouse e tastiera pronti: Spazio colpisce, ↑ lancia al servizio, Q/E mirano.</span></div>
           </div>
-        </section>
-
-        <section class="lobby-page" data-page="training" aria-labelledby="lobby-t-training">
-          <h2 class="lobby-title" id="lobby-t-training">Allenamento</h2>
-          <p class="lobby-note">Solo tu in campo e un lanciapalle: servizio, dritto, rovescio e colpi liberi. Non conta per il punteggio.</p>
-          <ol class="training-list" id="training-list"></ol>
-          <div id="lobby-practice-result" class="lobby-result hidden" aria-live="polite"></div>
-          <div class="lobby-row">
-            <button type="button" id="training-go" class="lobby-primary">Inizia l'allenamento</button>
-            <button type="button" id="training-recal" class="lobby-ghost hidden">Ricalibra il telefono</button>
-          </div>
+          <button type="button" class="lobby-link" id="connect-other" data-switch-controller>Non hai il telefono a portata? Usa la webcam</button>
         </section>
 
         <section class="lobby-page" data-page="match" aria-labelledby="lobby-t-match">
-          <h2 class="lobby-title" id="lobby-t-match">La tua partita</h2>
+          <h2 class="lobby-title" id="lobby-t-match">Pronto per la partita</h2>
+          <div id="lobby-practice-result" class="lobby-result hidden" aria-live="polite"></div>
           <div class="lobby-tiles" id="difficulty-mode-group" role="radiogroup">
             <button type="button" class="nt-green-choice lobby-tile selected" data-difficulty="casual" role="radio">
               <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" /><path d="M11 18c8 3 18 3 26 0M11 30c8-3 18-3 26 0" /></svg>
@@ -267,8 +268,8 @@
           <div class="lobby-row" id="match-length-section">
             <span class="lobby-label">Durata</span>
             <div class="lobby-seg" id="match-length-group">
-              <button type="button" class="nt-green-choice" data-games="1"><span class="choice-main">1 game</span></button
-              ><button type="button" class="nt-green-choice selected" data-games="3"><span class="choice-main">Al meglio di 3</span></button
+              <button type="button" class="nt-green-choice selected" data-games="1"><span class="choice-main">1 game</span></button
+              ><button type="button" class="nt-green-choice" data-games="3"><span class="choice-main">Al meglio di 3</span></button
               ><button type="button" class="nt-green-choice" data-games="5"><span class="choice-main">Al meglio di 5</span></button>
             </div>
           </div>
@@ -292,7 +293,7 @@
       <footer class="lobby-bottom">
         <button type="button" id="lobby-back" class="lobby-ghost">‹ Indietro</button>
         <span class="lobby-keys" aria-hidden="true">Invio avanti · Esc indietro</span>
-        <button type="button" id="lobby-skip" class="lobby-ghost hidden">Salta</button
+        <button type="button" id="lobby-warmup" class="lobby-ghost hidden">Rifai il riscaldamento</button
         ><button type="button" id="lobby-next" class="lobby-primary">Avanti ›</button
         ><button id="btn-start-match" type="button" class="lobby-primary"><span>Gioca</span> ›</button>
       </footer>
@@ -392,8 +393,6 @@
               <path d="M30 70 q0 -14 14 -12 l40 2 q12 1 10 16 l-4 46 q-2 14 -18 14 h-22 q-18 0 -20 -18z" fill="#f0c7a0" stroke="#0b1433" stroke-width="3" />
               <path d="M44 74 h40 M44 86 h40 M44 98 h38" stroke="#c99a74" stroke-width="3" />
             </svg>
-            <!-- NATPF presa del telefono (anche dal pannello di collegamento) -->
-            <div class="natpf-grip-choice compact" data-natpf-grip-choice="compact" role="radiogroup" aria-label="Presa del telefono"></div>
             <p id="natpf-phone-status" class="natpf-phone-status"></p>
             <p id="natpf-phone-hint" class="natpf-phone-hint"></p>
             <div id="natpf-phone-dots" class="natpf-dots"></div>
@@ -445,33 +444,38 @@
         </div>
       </div>
     </div>
-    <!-- NATPF: onboarding guidato (src/natpf/natpf_onboarding.js) -->
+    <!-- NATPF: «Come si gioca», tutte le istruzioni in una finestra con le clip del gioco (src/natpf/natpf_onboarding.js) -->
     <div id="natpf-onboarding" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="onb-title">
-      <div class="natpf-sheet natpf-onboarding">
-        <div class="onb-head">
-          <p class="sheet-kicker" id="onb-count">Come si gioca · 1 di 5</p>
+      <div class="natpf-sheet natpf-guide">
+        <div class="guide-head">
+          <div><p class="sheet-kicker">Guida</p><h2 class="sheet-title" id="onb-title">Come si gioca</h2></div>
           <div class="onb-ctrl" role="group" aria-label="Istruzioni per"></div>
+          <button type="button" class="guide-close" id="onb-close" aria-label="Chiudi">×</button>
         </div>
-        <div class="onb-body">
-          <div class="onb-art" id="onb-art" aria-hidden="true"></div>
-          <div class="onb-text">
-            <h2 class="sheet-title" id="onb-title"></h2>
-            <div id="onb-copy" class="onb-copy"></div>
-          </div>
-        </div>
-        <div class="onb-dots" id="onb-dots"></div>
+        <div class="guide-rows" id="onb-rows"></div>
         <div class="sheet-actions">
-          <button type="button" class="lobby-ghost" id="onb-skip">Salta</button
-          ><button type="button" class="lobby-ghost" id="onb-prev">‹ Indietro</button
-          ><button type="button" class="lobby-secondary hidden" id="onb-practice">Punto di prova</button
-          ><button type="button" class="lobby-primary" id="onb-next">Avanti ›</button>
+          <button type="button" class="lobby-secondary" id="onb-practice">Prova nel riscaldamento</button
+          ><button type="button" class="lobby-primary" id="onb-next">Ho capito ›</button>
         </div>
       </div>
     </div>
-    <!-- NATPF: allenatore del punto di prova (src/natpf/natpf_lobby.js) -->
+    <!-- NATPF: allenatore del riscaldamento in campo (src/natpf/natpf_training.js) -->
     <div id="natpf-coach" class="natpf-coach hidden" aria-live="polite">
-      <span class="coach-kicker">Allenamento</span><b id="coach-text"></b><small id="coach-sub"></small>
-      <button type="button" id="coach-exit" class="lobby-ghost">Esci</button>
+      <ol class="coach-stages" id="coach-stages" aria-label="Riscaldamento"></ol>
+      <span class="coach-kicker" id="coach-kicker">Riscaldamento</span>
+      <b id="coach-text"></b><small id="coach-sub"></small>
+      <div class="coach-actions">
+        <button type="button" id="coach-simple" class="lobby-ghost hidden">Modalità semplice</button
+        ><button type="button" id="coach-exit" class="lobby-secondary">Salta il riscaldamento ›</button>
+      </div>
+    </div>
+    <!-- gesto da fare, grande al centro, mentre la palla aspetta davanti alla racchetta -->
+    <div id="coach-gesture" class="coach-gesture hidden" aria-hidden="true">
+      <div class="gesture-card" data-dir="L">
+        <svg class="gesture-phone" viewBox="0 0 60 100"><rect x="14" y="4" width="32" height="60" rx="7" /><rect x="19" y="11" width="22" height="44" rx="3" class="scr" /><path d="M6 60 q0 -10 10 -9 l28 1 q10 1 8 12 l-3 26 q-2 8 -12 8 h-16 q-14 0 -15 -12z" class="hand" /></svg>
+        <span class="gesture-arrow"></span>
+      </div>
+      <b id="coach-gesture-text"></b>
     </div>
     <script type="module">
       import { renderAllHudPlayerAvatars } from "./src/player_avatars.js";

@@ -21,6 +21,7 @@ import { pairingUrl } from '@natpf/tennis/pairing.js';
 import { gestureAim } from '@natpf/match/shot-quality.js';
 import { lanOrigin } from './natpf_lan.js';
 import { VIBRATION } from './natpf_shot_feedback.js';
+import { swingPower, swingShot } from './natpf_skill.js';
 
 const NATPF_BASE = '/natpf/';
 const scripts = new Map();
@@ -41,7 +42,8 @@ export function phonePageUrl(location = window.location, origin = null){
 // aim NATPF: -1 sinistra … +1 destra, nel riferimento del giocatore, come dirX del motore base (per P2 motore base specchia già).
 export const GRIPS = Object.freeze(['flat', 'upright']);
 export const GRIP_STORAGE_KEY = 'natpf-tennis.grip';
-export const normalizeGrip = g => (g === 'upright' ? 'upright' : 'flat');
+// La presa orizzontale («il telefono è il piatto») è stata provata e tolta: scomoda. Resta solo la verticale.
+export const normalizeGrip = () => 'upright';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // Presa orizzontale: il colpo dall'angolo del piatto all'impatto.
@@ -55,19 +57,27 @@ export function faceShot(s){
   if (lift <= FACE_SHOT.liftSlice || (f.pitch >= FACE_SHOT.openSlice && lift < -.1)) return 'slice';
   return 'topspin';
 }
-export function natpfSwingToEngine(s, { hand = 'right', grip = null } = {}){
+// Telefono in verticale (la sola presa in gioco): la direzione la decidono il motore con il tempo vero del colpo
+// (latency: dal picco sul telefono a ora) e il polso (wrist, dalla rotazione del manico rispetto al proprio dritto della
+// calibrazione); la forza mescola il gesto rispetto alla calibrazione e la velocità vera del telefono (peak, °/s);
+// lob, tagliato e palla corta dal verso verticale del gesto rispetto al proprio dritto (liftBaseline).
+export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaseline = 0, now = null } = {}){
   const flat = !!s.face && Number.isFinite(s.face.yaw) && (s.grip === 'flat' || grip === 'flat');
   if (flat) return faceSwingToEngine(s, { hand });
   const dirX = Math.max(-1, Math.min(1, gestureAim(s)));
   const forehandDir = hand === 'left' ? -1 : 1;
   const side = s.dir === forehandDir ? 'forehand' : s.dir === -forehandDir ? 'backhand' : null;
-  const power = Number.isFinite(s.power) ? s.power : .6;
   const lift = Number.isFinite(s.lift) ? s.lift : 0;
-  // forza del gesto (0,3…1) → velocità del motore base (0,8…1,65); un colpo deciso diventa un colpo potente
-  const speed = .8 + Math.max(0, Math.min(1, (power - .3)/.7))*.85;
-  const shotType = s.lob ? 'lob' : s.slice ? 'slice' : s.drop ? 'slice' : 'topspin';
-  return { source: 'natpf-phone', side, shotType, speed: s.drop ? Math.min(speed, .9) : speed, dirX, dirY: s.lob ? -.85 : s.slice || s.drop ? .3 : -.45 + lift*.2, timing: null,
-    ...(s.drop ? { natpf: { shot: 'drop' } } : {}) };
+  const power = swingPower(Number.isFinite(s.power) ? s.power : .6, Number.isFinite(s.peak) ? s.peak : null);
+  // forza (0…1) → velocità del motore base (0,8…1,65); un colpo deciso diventa un colpo potente
+  const speed = .8 + power*.85;
+  const shot = swingShot({ lift, baseline: liftBaseline, power, lob: !!s.lob, slice: !!s.slice, drop: !!s.drop });
+  const wrist = Number.isFinite(s.twist) ? clamp(s.twist*1.6, -1, 1) : Number.isFinite(s.aim) ? clamp(s.aim + (s.dir || 0)*.4, -1, 1) : 0;
+  const latency = Number.isFinite(s.at) && Number.isFinite(now) ? clamp(now - s.at, 0, .3) : .06;
+  const rel = lift - (Number.isFinite(liftBaseline) ? liftBaseline : 0);
+  return { source: 'natpf-phone', side, shotType: shot === 'drop' ? 'slice' : shot, speed: shot === 'drop' ? Math.min(speed, .9) : speed, dirX,
+    dirY: shot === 'lob' ? -.85 : shot === 'slice' || shot === 'drop' ? .3 : -.45 + clamp(rel, -.5, .5)*.2, timing: null,
+    natpf: { aim: 'swing', shot, wrist: +wrist.toFixed(3), power: +power.toFixed(3), latency: +latency.toFixed(3), hand } };
 }
 function faceSwingToEngine(s, { hand = 'right' } = {}){
   const f = s.face, lift = Number.isFinite(s.lift) ? s.lift : 0, power = Number.isFinite(s.power) ? s.power : .6;
@@ -128,6 +138,9 @@ export class NatpfPhoneRacket {
     this.grip = normalizeGrip(readGrip());
     this.gripSent = false;
     this.listeners = new Set();
+    this.swingListeners = new Set();
+    this.liftBaseline = 0;               // verso verticale del proprio dritto (calibrazione): lob e tagliato si leggono rispetto a questo
+    this.calListeners = new Set();
     this.lastPhase = null;
     this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false };
   }
@@ -165,32 +178,42 @@ export class NatpfPhoneRacket {
     if (e.step) c.step = e.step;
     if (e.kind === 'grip' || (e.kind === 'step' && 'upright' in e)) c.grip = !!e.upright;
     if (e.kind === 'step' && e.step === 'still'){ c.review = null; c.freeOk = false; c.attempts = []; }
-    if (e.kind === 'attempt') c.attempts[e.globalIdx ?? e.idx ?? c.attempts.length] = e.ok ? 'ok' : 'ko';
+    if (e.kind === 'attempt'){
+      c.attempts[e.globalIdx ?? e.idx ?? c.attempts.length] = e.ok ? 'ok' : 'ko';
+      if (e.ok && Number.isFinite(e.lift)){ c.lifts = [...(c.lifts || []), e.lift].slice(-6); const v = [...c.lifts].sort((a, b) => a - b); this.liftBaseline = v[v.length >> 1]; }
+    }
     c.idle = e.kind === 'idle';
     if (e.kind === 'review'){ c.review = e; c.freeOk = false; if (e.pass) this.link.cmd('free'); }   // prova libera, poi conferma
     if (e.kind === 'free' && e.ok) c.freeOk = true;
     if (e.kind === 'done'){ c.step = 'done'; if (e.profile?.hand === 'left' || e.profile?.hand === 'right') this.hand = e.profile.hand; }
     c.last = e;
+    for (const fn of this.calListeners) try { fn(e); } catch (err){ console.error(err); }
     this._changed();
   }
+  onCal(fn){ this.calListeners.add(fn); return () => this.calListeners.delete(fn); }
   _onSwing(s){
     const mc = this.engine.motionController;
     if (!mc || !this.ready) return;
+    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftBaseline, now: performance.now()/1000 }), role: this.engine.playerRole };
+    for (const fn of this.swingListeners) try { fn(ev, s); } catch (e){ console.error(e); }
     // _emitSwing instrada già P1 in locale e P2 verso l'host (relay della stanza 1v1)
-    mc._emitSwing({ ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip }), role: this.engine.playerRole });
+    mc._emitSwing(ev);
   }
+  onSwing(fn){ this.swingListeners.add(fn); return () => this.swingListeners.delete(fn); }
   _onToss(){
     const mc = this.engine.motionController;
     if (mc && this.ready) mc._emitToss({ source: 'natpf-phone', shotType: 'lob', speed: 1.1, dirX: 0, dirY: -.9, role: this.engine.playerRole });
   }
 
   // comandi della calibrazione (vedi racchetta.js → command)
-  recalibrate(){ this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false }; this.link?.cmd('cal'); this._changed(); }
+  recalibrate(){ this.simple = false; this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false }; this.link?.cmd('cal'); this._changed(); }
   retry(){ this.cal.attempts = []; this.link?.cmd('retry'); }
   confirm(){ this.link?.cmd('confirm'); }
   invert(){ this.link?.cmd('invert'); }
   skipGrip(){ this.link?.cmd('skipGrip'); }
   forget(){ this.link?.forget(); this.recalibrate(); }
+  // salta i gesti della calibrazione: il telefono usa un profilo semplice (il gioco sceglie dritto o rovescio da solo)
+  skipCalibration(){ this.simple = true; this.link?.cmd('skip'); this._changed(); }
 
   // Esito dei colpi al telefono (vibrazione e scritta), dalle stesse chiamate che motore base usa per l'aptica.
   feedback({ role, kind, grade = '', shotType = '', quality = null } = {}){

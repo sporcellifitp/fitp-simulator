@@ -1,4 +1,6 @@
 // NATPF skill gap: chi colpisce in tempo, angolato e forte deve poter fare il punto; chi sbaglia deve pagarlo.
+// Con il telefono in verticale la direzione nasce dal tempo vero del colpo e dal polso (swingLandingX): chi sa
+// giocare a tennis sceglie l'angolo, chi colpisce a caso manda la palla a caso e spesso corta.
 // Funzioni senza DOM, chiamate dal motore del motore base (game_engine.js, blocchi «NATPF skill gap») e dall'audit
 // scripts/audit/rally-balance.mjs. Valgono per tutte le racchette: telefono, webcam, mouse e tastiera.
 //
@@ -17,26 +19,26 @@ export const COURT = Object.freeze({ SINGLES_X: 4.115, BASELINE_Z: 11.89, OUT_X:
 // Parametri per difficoltà. «1v1» (due persone) usa solo la parte del giocatore.
 export const SKILL_LEVELS = Object.freeze({
   casual: Object.freeze({
-    assistWindow: .3, perfectLead: .17,                 // s: lo swing anticipato resta in attesa al massimo così; «perfetto» entro perfectLead
+    assistWindow: .3, perfectLead: .17, timingSpan: .2,  // s: lo swing anticipato resta in attesa al massimo così; «perfetto» entro perfectLead
     autoAim: .55,                                       // uno swing al centro va comunque un po' verso il campo libero
     scatter: .45, lineRisk: .5, depthRisk: .5,          // m: dispersione laterale e in profondità
     playerErr: Object.freeze({ base: .008, power: .1, timing: .28, max: .45 }),  // rischio d'errore del giocatore
     streakGain: .045, streakMin: .82,                   // tempo di volo −4,5% per colpo perfetto consecutivo, fino a −18%
     cpuReach: 1.4, cpuSpeed: 4.7, cpuReact: .24, cpuReadSd: .45, cpuReadFix: .38, cpuCenterBias: .35,
-    cpuErr: Object.freeze({ base: .03, angle: .2, speed: .12, pressure: .06, stretch: .25, rally: .016, drop: .32, lob: .3, smash: .5, max: .7 }),
-    cpuWeak: .16, cpuAttack: .45, cpuAttackBase: .05, cpuAttackFlight: .8, playerSpeed: 10.2,  // su palle deboli la CPU attacca: angolo e ritmo
+    cpuErr: Object.freeze({ base: .03, angle: .2, speed: .12, pressure: .06, stretch: .25, rally: .014, drop: .32, lob: .3, smash: .5, max: .7 }),
+    cpuWeak: .16, cpuAttack: .7, cpuAttackBase: .12, cpuAttackFlight: .7, playerSpeed: 10.2,  // su palle deboli la CPU attacca: angolo e ritmo
   }),
   pro: Object.freeze({
-    assistWindow: .16, perfectLead: .07, autoAim: .25,
+    assistWindow: .16, perfectLead: .07, timingSpan: .15, autoAim: .25,
     scatter: .5, lineRisk: .6, depthRisk: .55,
     playerErr: Object.freeze({ base: .01, power: .13, timing: .32, max: .5 }),
     streakGain: .05, streakMin: .8,
     cpuReach: 1.5, cpuSpeed: 5.0, cpuReact: .2, cpuReadSd: .36, cpuReadFix: .3, cpuCenterBias: .22,
-    cpuErr: Object.freeze({ base: .015, angle: .13, speed: .12, pressure: .045, stretch: .2, rally: .022, drop: .22, lob: .2, smash: .35, max: .5 }),
+    cpuErr: Object.freeze({ base: .015, angle: .2, speed: .12, pressure: .045, stretch: .25, rally: .012, drop: .22, lob: .2, smash: .35, max: .5 }),
     cpuWeak: .1, cpuAttack: .7, cpuAttackBase: .24, cpuAttackFlight: .62, playerSpeed: 8.8,
   }),
   '1v1': Object.freeze({
-    assistWindow: .22, perfectLead: .12, autoAim: .3,
+    assistWindow: .22, perfectLead: .12, timingSpan: .17, autoAim: .3,
     scatter: .48, lineRisk: .55, depthRisk: .55,
     playerErr: Object.freeze({ base: .01, power: .12, timing: .3, max: .5 }),
     streakGain: .045, streakMin: .82,
@@ -89,6 +91,60 @@ export function playerLandingX({ grade = 'PERFECT', aim = 0, aimMode = null, sid
   else x = openSide*level.autoAim*(2.2 + rng()*1.1) + v*2;          // colpo centrale: niente più campo aperto gratis
   return landingScatter(x, { quality, power, level, rng });
 }
+/* ---------- telefono in verticale: direzione dal tempo vero del colpo e dal polso ---------- */
+// Come nel tennis vero: colpire prima che la palla arrivi all'altezza del corpo la tira incrociata, colpire tardi la
+// spinge lungolinea; il polso (rotazione del manico all'impatto) apre o chiude ancora l'angolo. Il tempo è quello
+// dell'istante del picco misurato sul telefono, non quello in cui il messaggio arriva al computer.
+//   timing: secondi di anticipo rispetto allo sweet spot (negativo = in ritardo)
+//   contact: +1 se la palla è alla destra di chi colpisce (dritto del destro), -1 alla sinistra
+//   wrist: −1 … +1, polso che manda la palla a sinistra … a destra
+export const SWING_AIM = Object.freeze({ timingSpan: .16, timingX: 2.5, wristX: 2.2, naturalX: .6, maxX: 5.2, centre: .35 });
+// Anticipo all'istante del picco: la palla, quando il telefono ha colpito, era ancora più lontana di «latency» secondi.
+export function swingTiming(r, velZ, latency = 0){
+  const v = Math.abs(finite(velZ)), lat = clamp(finite(latency), 0, .3);
+  return v > .5 ? (-.1 - finite(r))/v + lat : 0;
+}
+// Ritardo del colpo del telefono (s, dal picco a quando il computer lo riceve) e spostamento della palla in quel tempo
+export const eventLatency = e => (e && e.natpf && e.natpf.aim === 'swing' ? clamp(finite(e.natpf.latency), 0, .3) : 0);
+export const latencyShift = (e, velZ) => Math.abs(finite(velZ))*eventLatency(e);
+// Tempo in unità della finestra (più larga contro la CPU facile): 0 centro, ±1 anticipo/ritardo deciso, oltre ±1,6 non
+// conta di più.
+export const timingUnits = (timing, level = null) => clamp(finite(timing)/(level?.timingSpan || SWING_AIM.timingSpan), -1.6, 1.6);
+// Voto del colpo dal tempo all'impatto (per anello colorato, testi e potenza)
+export function swingGrade(timing, level = null){
+  const t = timingUnits(timing, level);
+  if (Math.abs(t) <= SWING_AIM.centre) return { grade: 'PERFECT', cursor: .5 - t*.2 };
+  if (t > 0) return { grade: t > 1.25 ? 'VERY EARLY' : 'EARLY', cursor: clamp(.5 - t*.25, .1, .45) };
+  return { grade: t < -1.25 ? 'VERY LATE' : 'LATE', cursor: clamp(.5 - t*.25, .55, .9) };
+}
+// Qualità del colpo: un anticipo o un ritardo moderati sono una scelta (angolo), quelli estremi un errore.
+export const swingQuality = (timing, level = null) => clamp(1 - .55*clamp(Math.abs(timingUnits(timing, level)) - .7, 0, .9), .5, 1);
+export function swingLandingX({ timing = 0, contact = 1, wrist = 0, quality = 1, power = .6, level = SKILL_LEVELS.casual, rng = Math.random } = {}){
+  const c = contact >= 0 ? 1 : -1, t = timingUnits(timing, level), w = clamp(finite(wrist), -1, 1);
+  const x = -c*SWING_AIM.naturalX - c*t*SWING_AIM.timingX + w*SWING_AIM.wristX;
+  return landingScatter(clamp(x, -SWING_AIM.maxX, SWING_AIM.maxX), { quality, power, level, rng });
+}
+// Forza: metà dalla velocità del gesto rispetto alla propria calibrazione, metà dalla velocità vera del telefono
+// (°/s al picco). Un gesto da bambino resta lento anche se è «il più forte» che fa; il dritto di un tennista va forte.
+export function swingPower(relative = .6, peakDegS = null){
+  const rel = clamp((finite(relative, .6) - .3)/.7);
+  if (!Number.isFinite(peakDegS)) return rel;
+  return clamp(.45*rel + .55*clamp((peakDegS - 280)/900));
+}
+// Profondità (z negativa): i gesti veloci vanno lunghi (e rischiano), quelli lenti restano a metà campo e la CPU attacca.
+export function swingDepthZ(power = .6, { rng = Math.random } = {}){
+  return -clamp(6.6 + 4.1*clamp(finite(power, .6)) + gauss(rng)*.45, 5.6, 11.4);
+}
+// Tipo di colpo dal verso verticale del gesto rispetto al proprio dritto (calibrazione): su = lob, giù = tagliato,
+// giù e lento = palla corta.
+export const SWING_LIFT = Object.freeze({ lob: .32, slice: -.3, dropPower: .38 });
+export function swingShot({ lift = 0, baseline = 0, power = .6, lob = false, slice = false, drop = false } = {}){
+  const rel = finite(lift) - finite(baseline);
+  if (drop) return 'drop';
+  if (lob || rel >= SWING_LIFT.lob) return 'lob';
+  if (slice || rel <= SWING_LIFT.slice) return finite(power, .6) < SWING_LIFT.dropPower ? 'drop' : 'slice';
+  return 'topspin';
+}
 // Dispersione laterale: cresce con il tempo sbagliato e con la potenza; vicino alle righe la potenza è un rischio.
 export function landingScatter(x, { quality = 1, power = .6, level = SKILL_LEVELS.casual, rng = Math.random } = {}){
   const p = clamp(finite(power, .6)), q = clamp(finite(quality, 1)), x0 = finite(x);
@@ -138,13 +194,13 @@ export function minClearFlight({ fromY = 1, fromZ = 11, toZ = -9, flight = .8, t
 export const mistimeFlight = (flight, quality) => flight*(1 + .14*(1 - clamp(finite(quality, 1))));
 
 // Dopo il colpo del giocatore: pressione sulla CPU e serie di perfetti.
-export function registerPlayerShot(engine, { grade, quality, power, landingX, shot = 'TOPSPIN', who = 'player', cpuZ = -11 } = {}){
+export function registerPlayerShot(engine, { grade, quality, power, landingX, landingZ = -9.5, shot = 'TOPSPIN', who = 'player', cpuZ = -11 } = {}){
   const s = skillState(engine), perfect = String(grade).toUpperCase() === 'PERFECT';
   if (who === 'p2') s.p2Streak = perfect ? s.p2Streak + 1 : 0;
   else s.streak = perfect ? s.streak + 1 : 0;
   const angle = clamp(Math.abs(finite(landingX))/COURT.SINGLES_X);
-  s.pressure = clamp(s.pressure*.75 + clamp(finite(quality, 1))*(.25 + .45*angle + .35*clamp(finite(power, .6))), 0, 3);
-  s.lastQuality = quality; s.lastShot = { shot: String(shot).toUpperCase(), grade, landingX, power, cpuZ };
+  s.pressure = clamp(s.pressure*.75 + clamp(finite(quality, 1))*(.1 + .45*angle + .45*clamp(finite(power, .6)))*shotThreat({ power, depth: landingZ }), 0, 3);
+  s.lastQuality = quality; s.lastShot = { shot: String(shot).toUpperCase(), grade, landingX, landingZ, power, cpuZ };
   return s;
 }
 
@@ -176,9 +232,11 @@ export const cpuReach = (engine, base) => { const lv = skillLevel(engine.matchCo
 
 // Probabilità d'errore della CPU sul colpo che sta per rimandare.
 // quality: qualità del colpo in arrivo (un angolo preso fuori tempo mette meno in difficoltà)
-export function cpuErrorChance({ angle = 0, speed = 22, pressure = 0, stretch = 0, rally = 0, quality = 1, shot = 'TOPSPIN', cpuDeep = true, level = SKILL_LEVELS.casual } = {}){
+// threat: pericolosità del colpo in arrivo (forza e profondità): una palla lenta e corta non mette in difficoltà nessuno.
+export const shotThreat = ({ power = .6, depth = -9.5 } = {}) => clamp(.25 + .55*clamp(finite(power, .6)) + .35*clamp((-finite(depth, -9.5) - 7.6)/2.6), .25, 1.15);
+export function cpuErrorChance({ angle = 0, speed = 22, pressure = 0, stretch = 0, rally = 0, quality = 1, shot = 'TOPSPIN', cpuDeep = true, threat = 1, level = SKILL_LEVELS.casual } = {}){
   const k = level.cpuErr; if (!k) return 0;
-  const S = String(shot).toUpperCase(), q = .3 + .7*clamp(finite(quality, 1));
+  const S = String(shot).toUpperCase(), q = (.3 + .7*clamp(finite(quality, 1)))*clamp(finite(threat, 1), .25, 1.15);
   let p = k.base + q*(k.angle*clamp(finite(angle))**1.5 + k.speed*clamp((finite(speed, 22) - 12)/16) + k.stretch*clamp(finite(stretch))**2)
     + k.pressure*clamp(finite(pressure), 0, 3) + k.rally*Math.max(0, finite(rally) - 4);
   if (S === 'DROP' && cpuDeep) p += k.drop;
@@ -201,6 +259,7 @@ export function cpuReturnPlan(engine, actor, { rng = Math.random } = {}){
     quality: finite(s.lastQuality, 1),
     shot: s.lastShot?.shot || ball.shotType,
     cpuDeep: finite(s.lastShot?.cpuZ, -11) < -8.5,
+    threat: s.lastShot ? shotThreat({ power: s.lastShot.power, depth: s.lastShot.landingZ }) : 1,
     level: lv,
   };
   const chance = cpuErrorChance(info), roll = rng();
@@ -212,7 +271,9 @@ export function cpuReturnPlan(engine, actor, { rng = Math.random } = {}){
   if (rng() < lv.cpuWeak*clamp(s.pressure, 0, 2)*.5 + (info.stretch > .8 ? .08 : 0)) return { kind: 'weak', chance, info };
   s.pressure *= .6;
   // palla debole (fuori tempo, lenta e centrale): la CPU attacca con angolo e ritmo
-  const soft = (1 - clamp(info.quality)) + (info.angle < .35 && finite(s.lastShot?.power, .6) < .45 ? .35 : 0);
+  // palla corta (rimbalzo prima di 8 m dalla rete) e lenta: la CPU entra e attacca
+  const short = clamp((finite(s.lastShot?.landingZ, -9.5) + 8.6)/2.4);
+  const soft = (1 - clamp(info.quality)) + (info.angle < .35 && finite(s.lastShot?.power, .6) < .45 ? .35 : 0) + short*(.5 - .4*clamp(finite(s.lastShot?.power, .6)));
   if (lv.cpuAttack && info.stretch < .8 && rng() < (lv.cpuAttackBase || 0) + lv.cpuAttack*clamp(soft)) return { kind: 'attack', chance, info, flight: lv.cpuAttackFlight };
   return { kind: 'ok', chance, info };
 }

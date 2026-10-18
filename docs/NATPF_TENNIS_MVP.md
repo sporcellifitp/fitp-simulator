@@ -495,3 +495,25 @@ scende a 1–2 FPS e la traccia della mano del motore base, che lavora per fotog
    motore base, che non sono stati rimossi.
 3. Da progettare: chi comanda i compagni (CPU o altri giocatori), un telefono per giocatore (`NatpfPhoneRacket`
    per ruolo), relay con quattro ruoli, prima persona per ciascun giocatore locale.
+
+## Menu per eventi, riscaldamento in campo e colpo del telefono (v3, 18 ottobre 2026)
+
+Dopo la prova dello zip `c0854d9`. Analisi completa, modalità per fiere e backlog di registrazione e CMS:
+[NATPF_EVENTI_E_BACKLOG.md](NATPF_EVENTI_E_BACKLOG.md).
+
+- **Partita che partiva da sola**: dietro il menu gira la dimostrazione e un gesto (webcam, telefono pronto) la
+  trasformava in partita. Ora con il menu aperto nessun colpo arriva al motore (`NatpfUi._gateDesktopInput`).
+- **Menu** (`natpf_lobby.js`): benvenuto → racchetta → collega (QR e tre passi nella pagina) → riscaldamento →
+  partita. Ingresso in campo automatico quando i sensori sono attivi. Ogni visitatore riparte dal benvenuto.
+- **Riscaldamento** (`natpf_training.js`): la calibrazione del telefono è dentro l'allenamento. Rallentatore del
+  motore (`natpfTimeScale`) per fermare la palla davanti alla racchetta finché il gesto non è riconosciuto; conferma
+  automatica; «Salta» sempre visibile; modalità semplice (`cmd: 'skip'` → `calibration.skip()` sul telefono).
+- **Solo presa verticale**: la scelta orizzontale è tolta dal gioco e dalla pagina del telefono.
+- **Guida** (`natpf_onboarding.js`): finestra unica con sei righe e clip del gioco (`scripts/guide-clips.mjs`).
+- **Colpo del telefono** (`natpf_skill.js`: `swingTiming`, `swingLandingX`, `swingPower`, `swingDepthZ`,
+  `swingShot`, `shotThreat`): direzione dal tempo vero del picco e dal polso, forza assoluta, profondità, CPU che
+  sbaglia sui colpi pericolosi e attacca le palle corte. La pagina del telefono manda in più, facoltativi, `v`
+  (velocità al picco, °/s) e `tw` (rotazione del polso).
+- Test: `npm test` 75/75 (9 nuovi in `test/natpf-swing.test.mjs`), `node --test tools/test/*.test.mjs` 124/124,
+  `tools/lan` 4/4. Audit: tennista / amatore / bambino contro la CPU esperta 91% / 71% / 38% dei punti.
+- Da provare con telefoni veri: soglia del polso, velocità tipica del dritto, rallentatore del riscaldamento.
