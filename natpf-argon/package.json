@@ -16,7 +16,8 @@
     "assets": "node scripts/download-assets.mjs",
     "assets:check": "node scripts/download-assets.mjs --check",
     "lan": "node lan/server.mjs",
-    "test:e2e-lan": "node test/e2e/lan-e2e.mjs"
+    "test:e2e-lan": "node test/e2e/lan-e2e.mjs",
+    "audit:rally": "node --import ./test/register.mjs scripts/audit/rally-balance.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.8.0",

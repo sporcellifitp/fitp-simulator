@@ -222,6 +222,8 @@
         <section class="lobby-page" data-page="racket" aria-labelledby="lobby-t-racket">
           <h2 class="lobby-title" id="lobby-t-racket">Con cosa colpisci?</h2>
           <div class="lobby-tiles" data-natpf-tiles="controller" role="radiogroup"></div>
+          <!-- NATPF presa del telefono: orizzontale (piatto) o verticale (manico), solo con lo smartphone -->
+          <div class="natpf-grip-choice" id="lobby-grip-choice" data-natpf-grip-choice role="radiogroup" aria-label="Presa del telefono"></div>
           <p class="lobby-note" id="lobby-racket-note"></p>
         </section>
 
@@ -335,6 +337,8 @@
               <path d="M30 70 q0 -14 14 -12 l40 2 q12 1 10 16 l-4 46 q-2 14 -18 14 h-22 q-18 0 -20 -18z" fill="#f0c7a0" stroke="#0b1433" stroke-width="3" />
               <path d="M44 74 h40 M44 86 h40 M44 98 h38" stroke="#c99a74" stroke-width="3" />
             </svg>
+            <!-- NATPF presa del telefono (anche dal pannello di collegamento) -->
+            <div class="natpf-grip-choice compact" data-natpf-grip-choice="compact" role="radiogroup" aria-label="Presa del telefono"></div>
             <p id="natpf-phone-status" class="natpf-phone-status"></p>
             <p id="natpf-phone-hint" class="natpf-phone-hint"></p>
             <div id="natpf-phone-dots" class="natpf-dots"></div>

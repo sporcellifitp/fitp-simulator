@@ -6,6 +6,7 @@
 // e la partita col telefono non parte.
 import { unit, dot } from './swing-detect.js';
 import { canonicalTwist } from './gesture-intent.js';
+import { faceReference, flatGrip } from './face-tracker.js';
 
 export const PLAN = ['L', 'L', 'L', 'R', 'R', 'R'];      // L: da destra a sinistra (←), R: da sinistra a destra (→)
 export const QUICK_PLAN = ['L', 'R', 'L', 'R'];
@@ -29,6 +30,7 @@ export const CAL = {
   maxTries: 3,                     // tentativi per swing prima di andare avanti segnando l'errore
   idleHint: 7000,                  // ms senza movimenti: suggerimento
   gripHold: 400,                   // ms in verticale per confermare l'impugnatura
+  flatStill: 2000,                 // ms fermi in posizione «pronto» con la presa orizzontale (telefono = piatto)
 };
 const median = a => { const s = [...a].sort((x, y) => x - y); return s.length ? (s.length % 2 ? s[(s.length - 1)/2] : (s[s.length/2 - 1] + s[s.length/2])/2) : 0; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -48,7 +50,7 @@ export function createCalibration(det){
     if (s.s === 'still-ok'){
       // Any comfortable grip is a valid personal frame; no compulsory upright pose.
       S.step = S.options.quick ? 'swings' : 'grip'; S.gripT = null; S.idleT = S.lastT;
-      emit({ kind: 'step', gravity: s.gravity, upright: upright(s.gravity), ...(S.options.quick ? { want: plan()[0], shot:'drive', idx:0, total:total(), quick:true } : {}) });
+      emit({ kind: 'step', gravity: s.gravity, upright: upright(s.gravity), ...(S.options.grip === 'flat' ? { grip: 'flat', flat: flatGrip(s.gravity) } : {}), ...(S.options.quick ? { want: plan()[0], shot:'drive', idx:0, total:total(), quick:true } : {}) });
     }
   });
   det.on('swing', sw => {
@@ -73,7 +75,7 @@ export function createCalibration(det){
     else if (along != null) dir = along > .3 ? 'L' : along < -.3 ? 'R' : '?';
     const minimum = Math.max(S.options.quick ? 40 : S.options.range === 'compact' ? 40 : CAL.small, (det.profile.noise || 3)*5);
     const small = sw.peak < minimum, ok = !small && dir === want;
-    const a = { want, dir, peak: sw.peak, lift: sw.lift, axis: sw.axis, gravity: sw.gravity, angle: sw.angle || 6, features: sw.features, dur: sw.dur, ok, small, preparations: group.filter(x => x.peakT < sw.peakT && dot(x.axis, sw.axis) < -.3).map(x => ({ peak: x.peak, axis: x.axis })) };
+    const a = { want, dir, peak: sw.peak, lift: sw.lift, axis: sw.axis, gravity: sw.gravity, angle: sw.angle || 6, features: sw.features, dur: sw.dur, ok, small, face: sw.face || null, preparations: group.filter(x => x.peakT < sw.peakT && dot(x.axis, sw.axis) < -.3).map(x => ({ peak: x.peak, axis: x.axis })) };
     S.attempts.push(a);
     if (ok){
       // asse aggiornato con tutti gli swing riusciti (con il loro segno)
@@ -109,6 +111,8 @@ export function createCalibration(det){
       det.setProfile({ ...S.profile, ...CAL.low }); det.setTraining(true);
       emit({ kind: 'step', idx: 0, globalIdx: PLAN.length, total: PLAN.length + GESTURE_PLAN.length, ...GESTURE_PLAN[0] });
     } else {
+      // presa orizzontale: il piatto abituale all'impatto del proprio gesto dritto, per leggere poi la mira dal piatto
+      if (pass && S.options.grip === 'flat'){ S.profile.grip = 'flat'; S.profile.faceRef = faceReference(ok.filter(a => a.face).map(a => ({ dir: SIGN[a.want], yaw: a.face.yaw, pitch: a.face.pitch, angle: a.angle }))); }
       if (pass && S.options.quick){
         S.profile.templates = ok.map(a => ({ shot:'drive',dir:SIGN[a.want],peak:a.peak,angle:a.angle,features:templateFeatures(a,S.profile.refs[SIGN[a.want]],S.profile.refAngle,S.axis,SIGN[a.want]) }));
         S.profile.minPeak = Math.max((S.profile.noise || 3)*5, Math.min(S.profile.minPeak, base*.28));
@@ -161,7 +165,10 @@ export function createCalibration(det){
     get state(){ return S; },
     on(f){ L.push(f); return this; },
     start(options = S.options){
-      S.options = { range: options.range === 'compact' ? 'compact' : 'standard', hand: options.hand === 'left' ? 'left' : 'right', intentGate: options.intentGate === true, gestural: options.gestural === true, quick: options.quick === true };
+      const flat = options.grip === 'flat';
+      // presa orizzontale («il telefono è il piatto»): sempre il percorso rapido, con 2 s fermi in posizione «pronto»
+      S.options = { range: options.range === 'compact' ? 'compact' : 'standard', hand: options.hand === 'left' ? 'left' : 'right', intentGate: options.intentGate === true, gestural: flat ? false : options.gestural === true, quick: flat || options.quick === true, ...(flat ? { grip: 'flat' } : {}) };
+      if (det.config){ if (S.baseStill == null) S.baseStill = det.config.stillTime; det.config.stillTime = flat ? CAL.flatStill : S.baseStill; }
       S.practice = 0; det.setTraining(true);
       Object.assign(S, { step: 'still', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT });
       det.setProfile({ bias: [0, 0, 0], ...CAL.low, axis: null }); det.still();

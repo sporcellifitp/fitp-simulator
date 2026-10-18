@@ -1,6 +1,7 @@
 // Il telefono come racchetta, lato computer: sessione WebRTC (PeerJS), QR, controllo di chi si collega, orologi.
 // Il computer è la «base»: si registra sul server di segnalazione con un id casuale e aspetta il telefono.
-// Dal telefono: hello {k|r}, ping, dq (risposta all'orologio), st (stato), cal (passi della calibrazione), sw (colpo), toss.
+// Dal telefono: hello {k|r}, ping, dq (risposta all'orologio), st (stato), cal (passi della calibrazione), sw (colpo), toss,
+// fo (orientamento del piatto, solo con la presa orizzontale: facoltativo, chi non lo usa lo ignora).
 // Al telefono: welcome {r}, deny, pong, dp (orologio), cmd (comandi della calibrazione), ev (esito del colpo, punto), ph (fase).
 // Orologi: ogni secondo il computer chiede l'ora al telefono e tiene la stima col viaggio più breve; così l'istante del
 // colpo (il picco del movimento, misurato sul telefono) si porta sull'orologio del computer senza dipendere da quando il
@@ -31,7 +32,8 @@ export const loadPeer = () => libP || (libP = new Promise((res, rej) => {
 export function createPhoneLink(){
   const gate = createGate({});
   const session = newSessionId();
-  const L = { state: 'off', phone: null, rtt: null, error: null };
+  const L = { state: 'off', phone: null, rtt: null, error: null, grip: null };
+  let faceSample = null;                     // ultimo orientamento del piatto (presa orizzontale) { yaw, pitch, roll, at }
   const handlers = { swing: [], toss: [], change: [], cal: [] };
   let peer = null, conn = null, lastTok = gate.token, tick = null, lastSeen = 0;
   const clock = createClock(), racketMotion = createRacketMotion();
@@ -72,7 +74,7 @@ export function createPhoneLink(){
         if (!res.ok){ c.send({ t: 'deny', why: res.why }); setTimeout(() => c.close(), 200); return; }
         ok = true; clearTimeout(timer);
         if (conn && conn !== c) try { conn.close(); } catch (e){}
-        conn = c; lastSeen = Date.now(); clock.reset(); racketMotion.setBias([0,0,0]); racketMotion.reset(); c.send({ t: 'welcome', r: res.resume });
+        conn = c; lastSeen = Date.now(); clock.reset(); faceSample = null; racketMotion.setBias([0,0,0]); racketMotion.reset(); c.send({ t: 'welcome', r: res.resume });
         set({ state: 'connected', phone: 'sensors', error: null });
         return;
       }
@@ -80,7 +82,8 @@ export function createPhoneLink(){
       switch (d.t){
         case 'ping': c.send({ t: 'pong', c: d.c }); break;
         case 'dq': if (typeof d.p === 'number') clock.add(d.d, d.p, performance.now()); break;
-        case 'st': if (d.s === 'ready' && d.b) racketMotion.setBias(d.b); if (d.s === 'ready' && L.phone !== 'ready') racketMotion.reset(); set({ phone: String(d.s || ''), rtt: clock.rtt != null ? Math.round(clock.rtt) : L.rtt }); break;
+        case 'st': if (d.s === 'ready' && d.b) racketMotion.setBias(d.b); if (d.s === 'ready' && L.phone !== 'ready') racketMotion.reset(); set({ phone: String(d.s || ''), rtt: clock.rtt != null ? Math.round(clock.rtt) : L.rtt, grip: d.gp === 'flat' || d.gp === 'upright' ? d.gp : L.grip }); break;
+        case 'fo': { const f = v => typeof v === 'number' && isFinite(v) ? Math.max(-180, Math.min(180, v)) : null; if (f(d.y) != null) faceSample = { yaw: f(d.y), pitch: f(d.p) ?? 0, roll: f(d.r) ?? 0, at: performance.now() }; break; }
         case 'cal': if (d.e?.kind === 'done') racketMotion.setBias(d.e.profile?.bias || [0,0,0]); emit('cal', d.e || {}); break;
         case 'sw': {
           const n = (v, a, b, def) => typeof v === 'number' && isFinite(v) ? Math.max(a, Math.min(b, v)) : def;
@@ -88,7 +91,9 @@ export function createPhoneLink(){
           const now = performance.now();
           const at = phoneInputTime({ peakMs: d.pk, nowMs: now, clock, latencyMs: d.lat });
           if (at == null) break;
-          emit('swing', { power: n(d.p, 0, 1, .6), lift: n(d.l, -1, 1, 0), lob: !!d.lob, drop: d.drop === true, slice: d.slice === true, dur: n(d.dur, 0, 700, 0), dir: d.dir === 1 ? 1 : d.dir === -1 ? -1 : 0, aim:n(d.a,-1,1,null),confidence:n(d.c,0,1,.7),at });
+          // presa orizzontale: angolo del piatto all'impatto (campi facoltativi; senza, il colpo resta quello di sempre)
+          const face = d.g === 'flat' && typeof d.fy === 'number' && isFinite(d.fy) ? { yaw: n(d.fy, -180, 180, 0), pitch: n(d.fp, -90, 90, 0), roll: n(d.fr, -180, 180, 0), aim: n(d.fa, -1, 1, 0) } : null;
+          emit('swing', { power: n(d.p, 0, 1, .6), lift: n(d.l, -1, 1, 0), lob: !!d.lob, drop: d.drop === true, slice: d.slice === true, dur: n(d.dur, 0, 700, 0), dir: d.dir === 1 ? 1 : d.dir === -1 ? -1 : 0, aim:n(d.a,-1,1,null),confidence:n(d.c,0,1,.7),at, ...(face ? { grip: 'flat', face } : {}) });
           break;
         }
         case 'toss': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); if (at != null) emit('toss', { at }); break; }
@@ -106,6 +111,8 @@ export function createPhoneLink(){
     get token(){ return gate.token; },
     motion(now = performance.now()){ const sample = racketMotion.sample(now); return sample ? { ...sample, rtt: clock.rtt ?? L.rtt, transport: isLanMode() ? 'lan-webrtc' : 'webrtc' } : null; },
     get transport(){ return isLanMode() ? 'lan-webrtc' : 'webrtc'; },
+    // orientamento del piatto (presa orizzontale), se arrivato negli ultimi 250 ms
+    face(now = performance.now()){ return faceSample && now - faceSample.at < 250 ? { ...faceSample, age: now - faceSample.at } : null; },
     get clock(){ return clock.ok ? { off: clock.off, rtt: clock.rtt } : null; },
     get connected(){ return !!(conn && conn.open); },
     get ready(){ return this.connected && L.phone === 'ready'; },

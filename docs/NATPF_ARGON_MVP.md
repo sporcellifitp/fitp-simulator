@@ -200,6 +200,87 @@ personaggio. Test: `test/natpf-character.test.mjs`.
 - **`npm run lint`** dava già 50 errori di tipo nel relay di Argon (`vite.config.ts`) prima di queste modifiche;
   non ne ho aggiunti.
 
+## Presa «telefono = piatto» e skill gap (18 ottobre 2026, branch `claude/natpf-presa-skillgap-c7c7bd`)
+
+Dopo la prova sulla build della lobby restavano due problemi: il telefono tenuto in orizzontale non funzionava
+(la pagina chiedeva il portrait e fermava il riconoscimento) e gli scambi erano tutti uguali e infiniti.
+
+### Presa orizzontale («il telefono è il piatto»)
+
+- **Come si tiene.** Telefono in orizzontale nel palmo, display verso chi gioca: il dorso guarda la rete e fa da
+  corde. È la presa predefinita di NATPF Argon. Si sceglie nella lobby (passo 2 Racchetta, sotto la tessera
+  Smartphone), nel pannello di collegamento e sul telefono; il valore va al telefono (messaggio `grip`) e finisce
+  nel profilo di calibrazione. La presa verticale («manico») resta disponibile.
+- **Pagina del telefono** (`site/tennis/racchetta.html`, condivisa con NATPF Simulator): con la presa orizzontale
+  funziona in landscape, con un'interfaccia a due colonne. La presa predefinita della pagina resta quella
+  verticale, quindi NATPF Simulator si comporta come prima. Calibrazione breve: 2 s fermi in posizione «pronto»,
+  poi quattro gesti comodi.
+- **Angolo del piatto** (`site/js/tennis/face-tracker.js`): sul telefono si integra il giroscopio in un quaternione
+  rispetto alla posa di riposo; la gravità corregge l'inclinazione (filtro alla Mahony) e, da fermo, la posa
+  «pronto» assorbe la deriva dell'imbardata. All'istante del picco del gesto (l'impatto) si legge il piatto e si
+  toglie quello abituale del proprio gesto dritto, misurato nei gesti di calibrazione (`faceRef` nel profilo).
+  Il risultato va nel pacchetto del colpo con campi nuovi e facoltativi (`g`, `fy`, `fp`, `fr`, `fa`). In più un
+  messaggio leggero `fo` (20 al secondo) porta l'orientamento per la racchetta in gioco. NATPF Simulator ignora
+  entrambi.
+- **Dal piatto al colpo** (`natpf_phone_racket.js`): piatto girato a sinistra/destra → direzione (±30° = tutto
+  incrociato o lungolinea); aperto → lob, o palla corta con un gesto morbido; chiuso → coperto; gesto dal basso
+  verso l'alto → topspin, tagliato → slice; forza del gesto → velocità. Nel motore, con la mira dal piatto il tempo
+  sposta la direzione meno della metà del solito.
+- **Riscontro.** Sul telefono una freccia e una scritta mostrano dove punta il piatto; in gioco la racchetta segue
+  l'orientamento quando arrivano i dati `fo`.
+
+### Skill gap (`src/natpf/natpf_skill.js`, agganci nel motore marcati `NATPF skill gap`)
+
+Cause degli scambi infiniti trovate con l'audit: lo swing anticipato veniva tenuto fino a 0,48 s e diventava sempre
+«perfetto»; uno swing mirato forte (|dirX| > 0,52) veniva classificato «in anticipo/in ritardo» anche se in tempo;
+i colpi centrali andavano da soli nel campo libero; i colpi del giocatore erano sempre dentro le righe; la CPU
+arrivava su tutto e sbagliava solo in allungo e a caso.
+
+- **Assistenza graduata**: attesa dello sweet spot Casual 0,30 s, Pro 0,16 s, 1v1 0,22 s; «perfetto» solo con un
+  anticipo piccolo (0,17 / 0,07 / 0,12 s). Il voto dipende dal tempo, non dalla mira.
+- **Giocatore**: la mira decide la direzione; il rischio d'errore cresce con la potenza vicino alle righe e con il
+  tempo sbagliato (lungo, largo, in rete); la palla accelera con i perfetti consecutivi, fino alla traiettoria che
+  passa ancora la rete; la palla corta è vera (la vecchia «slice morbida» finiva in rete per l'attrito dell'aria).
+- **CPU**: reazione, lettura imperfetta delle palle veloci e angolate (all'inizio si aspetta la palla più al
+  centro), velocità e portata limitate. Gli errori crescono con angolo, velocità, pressione, allungo e lunghezza
+  dello scambio, e di più su palle corte da fondo, lob sopra la CPU avanzata e smash. Sotto pressione rimanda palle
+  alte da smash; sulle palle deboli attacca.
+- Webcam, mouse e tastiera passano dallo stesso motore e ne beneficiano.
+
+### Audit degli scambi (`npm run audit:rally`, `natpf-argon/scripts/audit/`)
+
+Il motore vero gira senza browser (`headless-engine.mjs`); un bot gioca 150 punti × 3 semi per profilo. Profili:
+preciso (errore di tempo 45 ms, mira al campo libero vicino alle righe, gesto forte), medio (90 ms), impreciso
+(160 ms, mira casuale, gesto debole). Stesso bot prima e dopo; «infiniti» = scambi chiusi d'ufficio a 60 colpi.
+
+| Difficoltà | Profilo | Colpi/punto prima | Infiniti prima | Punti vinti prima | Colpi/punto dopo | Mediana dopo | Infiniti dopo | Punti vinti dopo |
+|---|---|---|---|---|---|---|---|---|
+| Casual | preciso | 59,8 | 168 su 169 | 0% | 5,8 | 5 | 0 | 96% |
+| Casual | medio | 59,8 | 167 su 168 | 0% | 8,4 | 7 | 0 | 88% |
+| Casual | impreciso | 56,2 | 145 su 164 | 0% | 8,6 | 7 | 0 | 55% |
+| Pro | preciso | 59,3 | 189 su 192 | 0% | 9,4 | 8 | 0 | 84% |
+| Pro | medio | 57,4 | 175 su 195 | 0% | 10,0 | 9 | 0 | 62% |
+| Pro | impreciso | 33,9 | 81 su 290 | 0% | 5,9 | 5 | 0 | 19% |
+
+Risultati completi in `natpf-argon/scripts/audit/results/prima.txt` e `dopo.txt`. Obiettivo indicativo 4–8 colpi
+tra bravi: Casual 5,8; Pro 9,4 (mediana 8), un po' sopra. Il preciso batte la CPU Casual e nessun profilo fa
+scambi infiniti. È un banco di prova deterministico sulle regole del motore, non una misura di persone reali. La
+CPU vince i punti soprattutto con gli errori e i colpi mancati di chi gioca, raramente con vincenti propri.
+
+### Verifiche (18 ottobre 2026)
+
+| Verifica | Esito |
+|---|---|
+| `npm test` in natpf-argon (14 test di prima + 14 nuovi: orientamento del piatto, calibrazione orizzontale, mappatura dell'angolo, presa nel ponte, skill gap, motore senza browser, audit breve) | 28/28 |
+| `node --test tools/test/*.test.mjs` (NATPF) | 124/124 |
+| Browser: `tools/e2e/argon-flat-grip.mjs`, telefono simulato in landscape (`devicemotion` sintetico, PeerJS locale): QR, presa dal gioco, landscape senza blocco, 2 s fermi + 4 gesti, piatto a destra/sinistra → palla a destra/sinistra con i due versi del gesto, racchetta che segue il piatto, indicatore, passaggio alla presa verticale | 17/17, tre esecuzioni di fila |
+| Browser, pagina del telefono di NATPF Simulator con la presa predefinita: `gesture-calibration.mjs`, `quick-phone-ui.mjs` | 18/18, 6/6 |
+| `phone-cal.mjs` | fallisce anche sul commit di partenza (si aspetta la vecchia calibrazione a sei gesti): non dipende da queste modifiche |
+
+Non verificato: telefoni reali (in particolare quanto è stabile l'imbardata del giroscopio vero e se l'angolo del
+piatto al picco del gesto corrisponde a quello che chi gioca sente come «impatto»); P2 col telefono tramite il relay
+(la direzione arriva già calcolata, i campi del piatto no); taratura dello skill gap con persone vere.
+
 ## Limiti e prossimi passi
 
 1. **Prova fisica breve** con telefono reale: scelta della visuale, calibrazione, servizio, scambio.
@@ -315,6 +396,15 @@ scende a 1–2 FPS e la traccia della mano di Argon, che lavora per fotogrammi, 
   da evento. Il riconoscimento della mano non è stato provato su immagini reali.
 - **Secondo computer reale** per il 1v1 (anche lui deve fidarsi della CA).
 - **Avvio da `avvia-lan.cmd` su un PC pulito** (prima installazione con internet, poi senza).
+3. **Flusso dei sensori anche con PeerJS** (canale non affidabile dedicato), per l'inclinazione continua con la
+   presa verticale; con la presa orizzontale c'è già l'orientamento del piatto (`fo`).
+4. **1v1 tra computer su sito statico:** sostituire il relay di Argon con la sessione WebRTC di NATPF
+   (`session.js`).
+5. HUD di Argon in inglese: tradurre le scritte rimaste.
+6. Asset 3D e audio di Argon da gstatic (starter app AI Studio): verificare licenza e disponibilità prima di un
+   uso pubblico.
+7. **Prova fisica della presa orizzontale** e taratura con persone vere di `FACE.aimYaw` (±30°), delle soglie di
+   `FACE_SHOT` e dei parametri di `SKILL_LEVELS`.
 
 ## Opzione B: 2v2 (solo su richiesta)
 

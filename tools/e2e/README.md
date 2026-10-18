@@ -28,3 +28,5 @@ Le prove con `devicemotion` sintetico non sostituiscono le prove su iPhone Safar
 
 
 Arcade/LAN: `node run-local.mjs arcade-visuals.mjs` controlla camera, smash, scie e articolazione; `node lan-browser.mjs` avvia il proprio server LAN e verifica WebRTC diretto, dopo `npm ci --prefix ../lan`. I test si trovano nella matrice GitHub Actions insieme a timing e calibrazione.
+
+NATPF Argon (`natpf-argon/`): `node argon-flat-grip.mjs` avvia da solo vite (porta 3107) e PeerJS (9107) e prova il telefono simulato in landscape con la presa orizzontale «il telefono è il piatto»: calibrazione breve, piatto a destra/sinistra → palla a destra/sinistra. Su Windows usa Chrome installato (`CHROMIUM_PATH`).

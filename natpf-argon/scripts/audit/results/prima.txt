@@ -1,0 +1,19 @@
+difficoltà  profilo     punti  colpi/punto  mediana  max  infiniti  punti vinti
+casual      preciso       169        59.78       60   60       168           0%
+casual      medio         168        59.82       60   60       167           0%
+casual      impreciso     164         56.2       60   60       145           0%
+pro         preciso       192        59.34       60   60       189           0%
+pro         medio         195        57.35       60   60       175           0%
+pro         impreciso     290        33.94       33   60        81           0%
+
+casual/preciso: perso: scambio infinito 168 · perso: Out 1
+
+casual/medio: perso: scambio infinito 167 · perso: Out 1
+
+casual/impreciso: perso: scambio infinito 145 · perso: Nice Shot! 12 · perso: Point 6 · perso: Net 1
+
+pro/preciso: perso: scambio infinito 189 · perso: Out 3
+
+pro/medio: perso: scambio infinito 175 · perso: Net 10 · perso: Point 7 · perso: Out 3
+
+pro/impreciso: perso: Point 141 · perso: scambio infinito 81 · perso: Net 61 · perso: Nice Shot! 5 · perso: Out 2

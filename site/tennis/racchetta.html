@@ -40,6 +40,19 @@
   #manualAim{display:grid;gap:8px} #manualAim label:first-child{display:flex;align-items:center;justify-content:space-between}
   #power{width:100%;min-height:36px} #touchHit{touch-action:none}
   #rotate{position:fixed;inset:0;z-index:20;background:#071233;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:30px;font-size:24px}
+  /* presa orizzontale «il telefono è il piatto»: si gioca in landscape, l'indicatore mostra dove punta il piatto */
+  #faceDial{width:min(52vw,190px);height:auto}
+  #faceDial .tick{stroke:#405b9b;stroke-width:3} #faceArrow{transition:transform .06s linear}
+  #faceTxt{font-size:15px;color:var(--muted);min-height:20px}
+  #gripFlat{width:150px;height:auto}
+  body.flat.land{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);grid-auto-rows:min-content;column-gap:16px;align-content:start;
+    padding:max(10px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+  body.flat.land>#bar{grid-column:1/-1} body.flat.land>#stage{grid-column:1;grid-row:2/span 6;min-height:0;padding:0}
+  body.flat.land>*:not(#bar):not(#stage):not(#rotate){grid-column:2}
+  body.flat.land #stage{flex-direction:row;flex-wrap:wrap;align-content:center;gap:6px 14px}
+  body.flat.land #sub,body.flat.land #faceTxt{flex-basis:100%}
+  body.flat.land #ring{width:min(36vh,150px)} body.flat.land #big{font-size:20px} body.flat.land #arrow{font-size:34px} body.flat.land #sub{font-size:14px;min-height:0}
+  body.flat.land #faceDial{width:min(34vh,130px)} body.flat.land #gripFlat{width:min(36vh,140px)} body.flat.land .btn{padding:11px;font-size:16px}
   @media(max-height:740px){#ring{width:min(54vw,170px)}#big{font-size:19px}#arrow{font-size:42px}#stage{gap:6px;min-height:170px}#grip{width:70px}#sub{font-size:15px;min-height:0}.btn{padding:12px}}
 </style>
 </head>
@@ -54,10 +67,24 @@
     <path d="M30 70 q0 -14 14 -12 l40 2 q12 1 10 16 l-4 46 q-2 14 -18 14 h-22 q-18 0 -20 -18z" fill="#f0c7a0" stroke="#0b1433" stroke-width="3"/>
     <path d="M44 74 h40 M44 86 h40 M44 98 h38" stroke="#c99a74" stroke-width="3"/>
   </svg>
+  <!-- presa orizzontale: telefono in orizzontale nel palmo, display verso di sé, il dorso guarda la rete -->
+  <svg id="gripFlat" class="hidden" viewBox="0 0 160 110" aria-label="Telefono in orizzontale nel palmo, display verso di te: il dorso è il piatto della racchetta">
+    <path d="M40 92 q-8 -40 10 -52 l60 -4 q16 0 16 18 l-4 38 q-2 14 -18 14 h-46 q-14 0 -18 -14z" fill="#f0c7a0" stroke="#0b1433" stroke-width="3"/>
+    <rect x="22" y="22" width="116" height="56" rx="9" fill="#dfe6ff" stroke="#0b1433" stroke-width="3"/>
+    <rect x="31" y="29" width="98" height="42" rx="4" fill="#2f6bff"/>
+    <path d="M80 6 v12 M72 12 l8 -8 l8 8" stroke="#e8ff3a" stroke-width="4" fill="none"/>
+  </svg>
+  <svg id="faceDial" class="hidden" viewBox="-60 -60 120 120" aria-label="Dove punta il piatto della racchetta">
+    <path class="tick" d="M-52 0 A52 52 0 0 1 52 0" fill="none"/><path class="tick" d="M0 -58 v10 M-41 -41 l6 6 M41 -41 l-6 6"/>
+    <g id="faceArrow"><path d="M0 8 V-44" stroke="#e8ff3a" stroke-width="8" stroke-linecap="round"/><path d="M-12 -32 L0 -50 L12 -32z" fill="#e8ff3a"/></g>
+    <circle id="facePitch" cx="0" cy="22" r="7" fill="#4cff8a"/>
+  </svg>
+  <div id="faceTxt" class="hidden" aria-live="off"></div>
   <div id="sub">Mi collego al gioco sul computer…</div>
 </div>
 <div id="phaseFeedback" aria-live="polite"></div>
 <div id="profileOptions" class="hidden">
+  <label>Presa <select id="gripMode"><option value="upright">Verticale · manico</option><option value="flat">Orizzontale · piatto</option></select></label>
   <label>Movimento <select id="motionRange"><option value="standard">Naturale</option><option value="compact">Corto / compatto</option></select></label>
   <label>Mano <select id="hand"><option value="right">Destra</option><option value="left">Sinistra</option></select></label>
   <label><span>Riconosci il gesto solo mentre tengo premuto</span><input id="intentGate" type="checkbox"></label>

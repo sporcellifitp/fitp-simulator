@@ -1,0 +1,19 @@
+difficoltà  profilo     punti  colpi/punto  mediana  max  infiniti  punti vinti
+casual      preciso       450         5.84        5   20         0          96%
+casual      medio         450         8.39        7   28         0        87.6%
+casual      impreciso     450         8.62        7   33         0        55.3%
+pro         preciso       450         9.43        8   48         0          84%
+pro         medio         450        10.04        9   37         0        62.2%
+pro         impreciso     450         5.85        5   30         0        18.7%
+
+casual/preciso: vinto: Nice Shot! 204 · vinto: Net 157 · vinto: Out 71 · perso: Out 10 · perso: Net 8
+
+casual/medio: vinto: Net 224 · vinto: Nice Shot! 93 · vinto: Out 77 · perso: Net 27 · perso: Out 26 · perso: Point 3
+
+casual/impreciso: vinto: Net 174 · perso: Point 97 · vinto: Out 62 · perso: Net 54 · perso: Nice Shot! 27 · perso: Out 23 · vinto: Nice Shot! 13
+
+pro/preciso: vinto: Net 222 · vinto: Out 123 · perso: Out 45 · vinto: Nice Shot! 33 · perso: Net 27
+
+pro/medio: vinto: Net 194 · perso: Point 92 · vinto: Out 80 · perso: Net 49 · perso: Out 29 · vinto: Nice Shot! 6
+
+pro/impreciso: perso: Point 300 · vinto: Net 59 · perso: Net 46 · vinto: Out 25 · perso: Out 19 · perso: Nice Shot! 1

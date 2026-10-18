@@ -11,6 +11,10 @@
 //   attorno a X → beccheggio della testa della racchetta (pitch)
 //   attorno a Y → apertura/chiusura del piatto, pronazione/supinazione (roll)
 //   attorno a Z → testa che oscilla a destra/sinistra nel piano del piatto (yaw)
+// Presa orizzontale «il telefono è il piatto» (predefinita in NATPF Argon): telefono in orizzontale nel palmo, display
+// verso chi gioca, il dorso guarda la rete come le corde. Il telefono calcola l'angolo del piatto all'impatto
+// (face-tracker.js) e lo manda nel colpo: la direzione la decide soprattutto il piatto (natpfSwingToArgon), e la
+// racchetta in gioco segue l'orientamento del piatto (racketTiltFromFace).
 import * as THREE from 'three';
 import { createPhoneLink, testSearch } from '@natpf/tennis/link.js';
 import { pairingUrl } from '@natpf/tennis/pairing.js';
@@ -34,7 +38,25 @@ export function phonePageUrl(location = window.location, origin = null){
 
 // Swing NATPF → swing Argon. dir NATPF: +1 da destra a sinistra (dritto per un destro), -1 da sinistra a destra.
 // aim NATPF: -1 sinistra … +1 destra, nel riferimento del giocatore, come dirX di Argon (per P2 Argon specchia già).
-export function natpfSwingToArgon(s, { hand = 'right' } = {}){
+export const GRIPS = Object.freeze(['flat', 'upright']);
+export const GRIP_STORAGE_KEY = 'natpf-argon.grip';
+export const normalizeGrip = g => (g === 'upright' ? 'upright' : 'flat');
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// Presa orizzontale: il colpo dall'angolo del piatto all'impatto.
+//   yaw (piatto girato a sinistra/destra) → direzione: incrociato o lungolinea
+//   pitch aperto → lob (gesto deciso) o palla corta (gesto morbido); chiuso → colpo coperto
+//   gesto dal basso verso l'alto → topspin, tagliato dall'alto → slice; forza del gesto → velocità della palla
+export const FACE_SHOT = Object.freeze({ open: 18, openSlice: 8, closed: -10, liftSlice: -.3, softDrop: .5 });
+export function faceShot(s){
+  const f = s.face, lift = Number.isFinite(s.lift) ? s.lift : 0, power = Number.isFinite(s.power) ? s.power : .6;
+  if (f.pitch >= FACE_SHOT.open) return power < FACE_SHOT.softDrop ? 'drop' : 'lob';
+  if (lift <= FACE_SHOT.liftSlice || (f.pitch >= FACE_SHOT.openSlice && lift < -.1)) return 'slice';
+  return 'topspin';
+}
+export function natpfSwingToArgon(s, { hand = 'right', grip = null } = {}){
+  const flat = !!s.face && Number.isFinite(s.face.yaw) && (s.grip === 'flat' || grip === 'flat');
+  if (flat) return faceSwingToArgon(s, { hand });
   const dirX = Math.max(-1, Math.min(1, gestureAim(s)));
   const forehandDir = hand === 'left' ? -1 : 1;
   const side = s.dir === forehandDir ? 'forehand' : s.dir === -forehandDir ? 'backhand' : null;
@@ -43,7 +65,30 @@ export function natpfSwingToArgon(s, { hand = 'right' } = {}){
   // forza del gesto (0,3…1) → velocità di Argon (0,8…1,65); un colpo deciso diventa un colpo potente
   const speed = .8 + Math.max(0, Math.min(1, (power - .3)/.7))*.85;
   const shotType = s.lob ? 'lob' : s.slice ? 'slice' : s.drop ? 'slice' : 'topspin';
-  return { source: 'natpf-phone', side, shotType, speed: s.drop ? Math.min(speed, .9) : speed, dirX, dirY: s.lob ? -.85 : s.slice || s.drop ? .3 : -.45 + lift*.2, timing: null };
+  return { source: 'natpf-phone', side, shotType, speed: s.drop ? Math.min(speed, .9) : speed, dirX, dirY: s.lob ? -.85 : s.slice || s.drop ? .3 : -.45 + lift*.2, timing: null,
+    ...(s.drop ? { natpf: { shot: 'drop' } } : {}) };
+}
+function faceSwingToArgon(s, { hand = 'right' } = {}){
+  const f = s.face, lift = Number.isFinite(s.lift) ? s.lift : 0, power = Number.isFinite(s.power) ? s.power : .6;
+  const forehandDir = hand === 'left' ? -1 : 1;
+  const side = s.dir === forehandDir ? 'forehand' : s.dir === -forehandDir ? 'backhand' : null;
+  // la mira viene dal piatto (yaw rispetto alla posa «pronto»), un poco anche dal gesto
+  const faceAim = Number.isFinite(f.aim) ? f.aim : clamp(f.yaw/30, -1, 1);
+  const dirX = clamp(faceAim*.88 + gestureAim(s)*.12, -1, 1);
+  const shot = faceShot(s);
+  const speed = .8 + clamp((power - .3)/.7, 0, 1)*.85;
+  const closed = f.pitch <= FACE_SHOT.closed;
+  return {
+    source: 'natpf-phone', side, shotType: shot === 'drop' ? 'slice' : shot, speed: shot === 'drop' ? Math.min(speed, .9) : speed, dirX,
+    dirY: shot === 'lob' ? -.85 : shot === 'slice' || shot === 'drop' ? .3 : -.45 + lift*.2 - (closed ? .1 : 0), timing: null,
+    natpf: { aim: 'face', shot, face: { yaw: f.yaw, pitch: f.pitch, roll: f.roll || 0 } },
+  };
+}
+// Orientamento del piatto → inclinazione della racchetta di Argon (gradi, come phoneState.orientation):
+// piatto girato → oscillazione della testa (yaw), aperto/chiuso → apertura del piatto (roll), rotazione → beccheggio.
+export function racketTiltFromFace(face){
+  if (!face || !Number.isFinite(face.yaw)) return null;
+  return { pitch: clamp((face.roll || 0)*.5, -40, 40), roll: clamp(face.pitch || 0, -45, 45), yaw: clamp(face.yaw, -50, 50) };
 }
 
 const euler = new THREE.Euler(), quat = new THREE.Quaternion(), identity = new THREE.Quaternion();
@@ -60,6 +105,9 @@ export function racketTiltFromRotation(rotation, confidence = 1){
 }
 
 // Fase di gioco mandata al telefono: decide se e come il telefono riconosce i gesti (vedi racchetta.js).
+function readGrip(){ try { return globalThis.localStorage?.getItem(GRIP_STORAGE_KEY); } catch { return null; } }
+function writeGrip(g){ try { globalThis.localStorage?.setItem(GRIP_STORAGE_KEY, g); } catch {} }
+
 export function phoneGamePhase(engine){
   const local = engine.playerRole === 'p2' ? 'opponent' : 'player';
   switch (engine.phase){
@@ -76,6 +124,8 @@ export class NatpfPhoneRacket {
     this.engine = engine;
     this.link = null;
     this.hand = 'right';
+    this.grip = normalizeGrip(readGrip());
+    this.gripSent = false;
     this.listeners = new Set();
     this.lastPhase = null;
     this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false };
@@ -83,6 +133,11 @@ export class NatpfPhoneRacket {
   get connected(){ return !!this.link?.connected; }
   get ready(){ return !!this.link?.ready; }
   get state(){ return this.link?.L || { state: 'off', phone: null }; }
+  // presa scelta nel gioco (lobby, pannello del telefono): va al telefono, che rifà la calibrazione se serve
+  setGrip(g){
+    this.grip = normalizeGrip(g); writeGrip(this.grip); this.gripSent = false; this._sendGrip(); this._changed();
+  }
+  _sendGrip(){ if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.gripSent = true; } if (!this.connected) this.gripSent = false; }
   get pairingUrl(){ return this.link ? pairingUrl(phonePageUrl(window.location, this.lanOrigin), testSearch(), this.link.session, this.link.token) : null; }
   onChange(fn){ this.listeners.add(fn); return () => this.listeners.delete(fn); }
   _changed(){ for (const fn of this.listeners) try { fn(this); } catch (e){ console.error(e); } }
@@ -95,7 +150,7 @@ export class NatpfPhoneRacket {
     // server LAN aperto da localhost: nel QR va l'indirizzo di rete del computer
     this.lanOrigin = await lanOrigin();
     const link = this.link = createPhoneLink();
-    link.on('change', () => { this._syncPhoneState(); this._changed(); });
+    link.on('change', () => { this._sendGrip(); this._syncPhoneState(); this._changed(); });
     link.on('cal', e => this._onCal(e));
     link.on('swing', s => this._onSwing(s));
     link.on('toss', () => this._onToss());
@@ -121,7 +176,7 @@ export class NatpfPhoneRacket {
     const mc = this.engine.motionController;
     if (!mc || !this.ready) return;
     // _emitSwing instrada già P1 in locale e P2 verso l'host (relay della stanza 1v1)
-    mc._emitSwing({ ...natpfSwingToArgon(s, { hand: this.hand }), role: this.engine.playerRole });
+    mc._emitSwing({ ...natpfSwingToArgon(s, { hand: this.hand, grip: this.grip }), role: this.engine.playerRole });
   }
   _onToss(){
     const mc = this.engine.motionController;
@@ -162,8 +217,9 @@ export class NatpfPhoneRacket {
     mc.externalRacket = ready ? 'natpf-phone' : null;
     mc.phoneState.connected = ready;
     if (ready){
-      const motion = this.link.motion();
-      const tilt = motion && !motion.stale ? racketTiltFromRotation(motion.rotation, motion.confidence) : { pitch: 0, roll: 0, yaw: 0 };
+      // presa orizzontale: la racchetta segue il piatto del telefono; altrimenti il flusso dei sensori (LAN)
+      const face = this.link.face && this.link.face(), motion = face ? null : this.link.motion();
+      const tilt = face ? racketTiltFromFace(face) : motion && !motion.stale ? racketTiltFromRotation(motion.rotation, motion.confidence) : { pitch: 0, roll: 0, yaw: 0 };
       if (tilt) mc.phoneState.orientation = { ...mc.phoneState.orientation, ...tilt, accelMag: 0 };
     }
     if (was !== ready) mc._notifyStatus({ webcam: mc.webcamActive, phone: ready, p1Phone: ready && this.engine.playerRole === 'p1', p2Phone: ready && this.engine.playerRole === 'p2' });
