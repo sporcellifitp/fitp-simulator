@@ -29,6 +29,7 @@ import { NatpfUi } from "./natpf/natpf_ui.js";
 import { createNatpfCast, finishNatpfActor, updateNatpfCharacters } from "./natpf/natpf_character.js";
 // NATPF skill gap: assistenza del tempo graduata, mira e rischio del giocatore, limiti ed errori della CPU
 import * as NS from "./natpf/natpf_skill.js";
+import { NatpfBodyFollow } from "./natpf/webcam_body_follow.js";
 const readStoredView = () => {
   try {
     return localStorage.getItem(VIEW_STORAGE_KEY);
@@ -639,6 +640,8 @@ export class ArgonTennisEngine {
       t && (this.facialFX[e] = (i, ...a) => (i && i === this.fpBodyActor ? void 0 : t(i, ...a)));
     }
     this.natpfPhone = new NatpfPhoneRacket(this);
+    // NATPF: webcam → «Movimento: segui il corpo» (MediaPipe Pose), isolato dal movimento automatico di Argon
+    this.natpfBody = new NatpfBodyFollow(this);
     const mc = this.motionController;
     if (mc && mc.triggerHapticFeedback) {
       const haptic = mc.triggerHapticFeedback.bind(mc);

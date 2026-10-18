@@ -1,8 +1,9 @@
 // Pacchetto offline degli asset di Argon Tennis: niente internet a runtime.
 // - Modelli 3D, audio (musiche Lyria e annunci TTS), texture del cielo e QR della starter app arrivano da gstatic:
 //   scripts/download-assets.mjs li scarica una volta in public/assets/ (la build li copia in dist/assets/).
-// - MediaPipe Hands (webcam) arriva dal pacchetto npm @mediapipe/hands (Apache-2.0), versione fissata in package.json:
-//   in sviluppo e nel server LAN si serve da node_modules, la build lo copia in dist/assets/mediapipe/hands/.
+// - MediaPipe Hands (webcam, mano) e Pose (webcam, corpo per «segui il corpo») arrivano dai pacchetti npm
+//   @mediapipe/hands e @mediapipe/pose (Apache-2.0), versioni fissate in package.json: in sviluppo e nel server LAN
+//   si servono da node_modules, la build li copia in dist/assets/mediapipe/{hands,pose}/.
 // Il gioco chiede sempre /assets/…; questo middleware risponde dal disco e, solo se il file manca e la rete c'è,
 // lo prende da gstatic (come faceva il proxy di vite.config.ts). Se manca e la rete no: 404 e il gioco va avanti
 // (modello vuoto, niente musica, cielo senza texture, webcam con optical flow).
@@ -12,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 export const ARGON_UPSTREAM = 'https://www.gstatic.com/aistudio/starter-apps/tennis/';
 export const MEDIAPIPE_HANDS_VERSION = '0.4.1675469240';
+export const MEDIAPIPE_POSE_VERSION = '0.5.1675469404';
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const MEDIAPIPE_DIR = path.join(ROOT, 'node_modules/@mediapipe/hands');
 // file di MediaPipe Hands che il runtime carica (hands.js li chiede con locateFile)
@@ -22,6 +24,18 @@ export const MEDIAPIPE_FILES = [
   'hand_landmark_full.tflite', 'hand_landmark_lite.tflite',
 ];
 // cartelle sotto /assets/ servite da questo middleware (le altre, es. i bundle di Vite, no)
+// Pose: solo il modello «lite» (modelComplexity 0), non full e heavy (34 MB in meno)
+export const MEDIAPIPE_POSE_FILES = [
+  'pose.js', 'pose_solution_packed_assets_loader.js', 'pose_solution_packed_assets.data',
+  'pose_solution_simd_wasm_bin.js', 'pose_solution_simd_wasm_bin.wasm', 'pose_solution_simd_wasm_bin.data',
+  'pose_solution_wasm_bin.js', 'pose_solution_wasm_bin.wasm', 'pose_web.binarypb', 'pose_landmark_lite.tflite',
+];
+export const MEDIAPIPE_PACKAGES = [
+  { name: 'hands', version: MEDIAPIPE_HANDS_VERSION, files: MEDIAPIPE_FILES },
+  { name: 'pose', version: MEDIAPIPE_POSE_VERSION, files: MEDIAPIPE_POSE_FILES },
+];
+// tutti i file MediaPipe del pacchetto offline: percorso sotto /assets/ e sorgente in node_modules
+export const mediapipeAssets = (root = ROOT) => MEDIAPIPE_PACKAGES.flatMap(p => p.files.map(f => ({ rel: `mediapipe/${p.name}/${f}`, src: path.join(root, 'node_modules/@mediapipe', p.name, f), pkg: p })));
 export const ASSET_PREFIX = /^\/assets\/(models|audio|textures|mediapipe|qr)\//;
 
 export const MIME = {
@@ -47,14 +61,14 @@ export const LICENSES = {
   audio: 'audio del motore base',
   textures: 'texture del motore base',
   qr: 'QR del motore base',
-  mediapipe: `@mediapipe/hands ${MEDIAPIPE_HANDS_VERSION} (npm, Google): Apache-2.0`,
+  mediapipe: `@mediapipe/hands ${MEDIAPIPE_HANDS_VERSION} e @mediapipe/pose ${MEDIAPIPE_POSE_VERSION} (npm, Google): Apache-2.0`,
 };
 
 // Percorso su disco di /assets/<rel>, cercando nell'ordine nelle cartelle date; null se non c'è.
 export function localAsset(rel, dirs){
   if (!rel || rel.includes('\0')) return null;
-  for (const { prefix = '', dir } of dirs){
-    if (!rel.startsWith(prefix)) continue;
+  for (const { prefix = '', dir, only } of dirs){
+    if (!rel.startsWith(prefix) || (only && !only.includes(rel.slice(prefix.length)))) continue;
     const base = path.resolve(dir), file = path.resolve(base, rel.slice(prefix.length));
     if (!file.startsWith(base + path.sep)) continue;
     const stat = fs.statSync(file, { throwIfNoEntry: false });
@@ -63,7 +77,7 @@ export function localAsset(rel, dirs){
   return null;
 }
 export const defaultAssetDirs = (root = ROOT) => [
-  { prefix: 'mediapipe/hands/', dir: path.join(root, 'node_modules/@mediapipe/hands') },
+  ...MEDIAPIPE_PACKAGES.map(p => ({ prefix: `mediapipe/${p.name}/`, dir: path.join(root, 'node_modules/@mediapipe', p.name), only: p.files })),
   { dir: path.join(root, 'public/assets') },
 ];
 
@@ -123,7 +137,7 @@ export function sendFile(req, res, file, cacheControl = 'no-cache', extra = {}){
 
 // Stato del pacchetto offline: cosa c'è e cosa manca (per il server LAN e per i test).
 export function offlineStatus(root = ROOT, dirs = defaultAssetDirs(root)){
-  const wanted = [...argonAssetList(root), ...MEDIAPIPE_FILES.map(f => `mediapipe/hands/${f}`)];
+  const wanted = [...argonAssetList(root), ...mediapipeAssets(root).map(a => a.rel)];
   const missing = wanted.filter(rel => !localAsset(rel, dirs));
   return { total: wanted.length, missing, complete: missing.length === 0 };
 }
@@ -134,18 +148,17 @@ export function offlineAssetsPlugin({ root = ROOT } = {}){
   const mount = server => server.middlewares.use(createAssetMiddleware({ dirs: defaultAssetDirs(root) }));
   return {
     name: 'argon-offline-assets',
-    // niente valore di ritorno: Vite chiamerebbe dopo l'avvio una funzione restituita qui
+    // niente valore restituito: una funzione restituita sarebbe per Vite un post-hook, chiamato senza argomenti
     configureServer(server){ mount(server); },
-    configurePreviewServer(server){ void server.middlewares.use(createAssetMiddleware({ dirs: [{ dir: path.join(server.config.root, server.config.build.outDir, 'assets') }, ...defaultAssetDirs(root)] })); },
+    configurePreviewServer(server){ server.middlewares.use(createAssetMiddleware({ dirs: [{ dir: path.join(server.config.root, server.config.build.outDir, 'assets') }, ...defaultAssetDirs(root)] })); },
     configResolved(config){ if (config.command === 'build') outDir = path.resolve(config.root, config.build.outDir); },
     closeBundle(){
       if (!outDir || !fs.existsSync(outDir)) return;
-      const dest = path.join(outDir, 'assets/mediapipe/hands');
-      fs.mkdirSync(dest, { recursive: true });
-      for (const f of MEDIAPIPE_FILES){
-        const src = path.join(root, 'node_modules/@mediapipe/hands', f);
-        if (fs.existsSync(src)) fs.copyFileSync(src, path.join(dest, f));
-        else console.warn(`[offline-assets] manca ${f}: npm install installa @mediapipe/hands`);
+      for (const { rel, src, pkg } of mediapipeAssets(root)){
+        const dest = path.join(outDir, 'assets', rel);
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        if (fs.existsSync(src)) fs.copyFileSync(src, dest);
+        else console.warn(`[offline-assets] manca ${rel}: npm install installa @mediapipe/${pkg.name}`);
       }
     },
   };

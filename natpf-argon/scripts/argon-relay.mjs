@@ -67,6 +67,16 @@ function d(t, r, a) {
     t.setHeader("Cache-Control", "no-cache, no-store, must-revalidate"),
     t.end(c));
 }
+// NATPF: corpo dei giocatori per /api/match/state; dopo 1 s senza notizie non è più attivo
+function bodyState(e) {
+  const out = {},
+    now = Date.now();
+  for (const k of ["p1", "p2"]) {
+    const b = e.body?.[k];
+    out[k] = b ? { active: b.active && now - b.at < 1e3, x: b.x, z: b.z, ageMs: now - b.at } : null;
+  }
+  return out;
+}
 // publicUrl: indirizzo restituito nei link della stanza (stringa o funzione della richiesta). Il default è quello
 // originale di Argon; il server LAN passa l'indirizzo di rete del computer.
 export function createArgonRelay({ publicUrl = ARGON_PUBLIC_URL } = {}) {
@@ -149,6 +159,8 @@ export function createArgonRelay({ publicUrl = ARGON_PUBLIC_URL } = {}) {
         snapshotSeq: e.stateSeq,
         snapshot: e.matchSnapshot,
         tunnelUrl: r,
+        // NATPF: bersaglio in campo dal corpo davanti alla webcam («segui il corpo», src/natpf/webcam_body_follow.js)
+        body: bodyState(e),
       });
       return;
     }
@@ -159,6 +171,14 @@ export function createArgonRelay({ publicUrl = ARGON_PUBLIC_URL } = {}) {
         k = h === "p2" || h === "2" || h === "opponent" ? "p2" : "p1",
         i = a(m),
         o = i.rackets[k];
+      // NATPF: il P2 manda dove lo porta il corpo; l'host lo legge da /api/match/state (body.p2)
+      if (l === "/api/body") {
+        const x = Number(e.x),
+          z = Number(e.z);
+        (i.body ||= {})[k] = { active: !!e.active && Number.isFinite(x) && Number.isFinite(z), x: Number.isFinite(x) ? x : 0, z: Number.isFinite(z) ? z : 0, at: Date.now() };
+        d(n, 200, { ok: !0, roomId: i.roomId, role: k });
+        return;
+      }
       if (l === "/api/racket/swing") {
         const s = Date.now();
         ((o.seq += 1), (o.lastSeenTs = s), (o.connected = !0));

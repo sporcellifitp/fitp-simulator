@@ -22,6 +22,7 @@
   "dependencies": {
     "@google/genai": "^2.8.0",
     "@mediapipe/hands": "0.4.1675469240",
+    "@mediapipe/pose": "0.5.1675469404",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "three": "0.160.0"

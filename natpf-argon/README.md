@@ -110,17 +110,26 @@ essere attendibile, oppure i sensori e la webcam non sono garantiti). Il relay d
 
 ### Webcam in LAN e offline
 
-MediaPipe Hands arriva dal pacchetto npm `@mediapipe/hands` (versione fissata, Apache-2.0) ed è servito dal
+MediaPipe Hands arriva dal pacchetto npm `@mediapipe/hands` (versione fissata, Apache-2.0; Pose da `@mediapipe/pose`) ed è servito dal
 computer sotto `/assets/mediapipe/hands/`; il CDN della stessa versione resta solo come riserva, e se mancano
 entrambi la webcam usa l'optical flow. Oltre a far partire i colpi, la mano ora muove **di continuo** racchetta e mano
 del personaggio, in prima e in terza persona: spostamento a destra/sinistra e in alto/in basso, rotazione della mano
 → rotazione del piatto. La posizione di riposo si adatta in pochi secondi a dove tieni la mano; se la mano sparisce
-la racchetta torna alla posa di riposo. Lo spostamento del corpo davanti alla webcam (il giocatore che si muove in
-campo) è in sviluppo; per ora il giocatore si muove da solo.
+la racchetta torna alla posa di riposo.
+
+**Movimento: automatico / segui il corpo.** Con la racchetta Webcam compare nell'HUD il pulsante «Movimento»
+(tasto **B**, oppure `?move=body`). Con «segui il corpo» MediaPipe Pose (pacchetto `@mediapipe/pose`, modello lite,
+offline) trova spalle e anche: spostarti a destra o a sinistra davanti alla webcam porta il giocatore a destra o a
+sinistra in campo, avvicinarti alla webcam lo porta verso la rete, allontanarti verso il fondo. La posizione in cui
+ti vede per la prima volta vale come centro del campo. Vale solo durante lo scambio (al servizio i giocatori restano
+al loro posto) e per P1 e P2, in prima e in terza persona; il colpo resta legato alla mano. Se esci
+dall'inquadratura o la webcam non ti vede per più di 0,4 s, torna il movimento automatico e il pulsante lo dice. Il
+valore predefinito è **automatico**: seguire il corpo chiede 2–3 m liberi davanti allo schermo, il busto intero
+nell'inquadratura e di giocare in piedi, mentre l'automatico funziona anche da seduti o vicino al monitor.
 
 ### Pacchetto offline
 
-L'unico pacchetto da preparare è MediaPipe Hands per la webcam (circa 23 MB, dal pacchetto npm):
+L'unico pacchetto da preparare è MediaPipe per la webcam (Hands e Pose lite, circa 41 MB, dai pacchetti npm):
 `npm run assets` lo copia in `public/assets/` e scrive `public/assets/manifest.json` con dimensioni e sha256;
 `npm run assets:check` dice cosa manca. Senza MediaPipe la webcam usa l'optical flow.
 

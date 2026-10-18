@@ -9,7 +9,7 @@ import http from 'node:http';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createArgonRelay } from '../scripts/argon-relay.mjs';
-import { argonAssetList, createAssetMiddleware, localAsset, offlineStatus, MEDIAPIPE_FILES, LICENSES, assetCategory } from '../scripts/offline-assets.mjs';
+import { argonAssetList, createAssetMiddleware, localAsset, offlineStatus, MEDIAPIPE_FILES, MEDIAPIPE_POSE_FILES, mediapipeAssets, LICENSES, assetCategory } from '../scripts/offline-assets.mjs';
 import { createGameHandler, lanRedirect } from '../lan/game-handler.mjs';
 import { buildIsStale } from '../lan/prepare.mjs';
 import { argonAssetUrl, ARGON_GSTATIC } from '../src/natpf/argon_assets.js';
@@ -54,7 +54,12 @@ test('pacchetto offline: nessun asset esterno nei sorgenti, resta solo MediaPipe
   assert.match(LICENSES.mediapipe, /Apache-2.0/);
   assert.ok(MEDIAPIPE_FILES.includes('hands.js') && MEDIAPIPE_FILES.some(f => f.endsWith('.wasm')));
   const status = offlineStatus();
-  assert.equal(status.total, MEDIAPIPE_FILES.length);
+  assert.equal(status.total, list.length + MEDIAPIPE_FILES.length + MEDIAPIPE_POSE_FILES.length);
+  // Pose: solo il modello lite (modelComplexity 0), non full e heavy
+  assert.ok(MEDIAPIPE_POSE_FILES.includes('pose_landmark_lite.tflite') && !MEDIAPIPE_POSE_FILES.some(f => /full|heavy/.test(f)));
+  assert.ok(mediapipeAssets().some(a => a.rel === 'mediapipe/pose/pose.js'));
+  assert.match(LICENSES.mediapipe, /@mediapipe\/pose/);
+  assert.equal(localAsset('mediapipe/pose/pose_landmark_heavy.tflite', [{ prefix: 'mediapipe/pose/', dir: path.join(ROOT, 'node_modules/@mediapipe/pose'), only: MEDIAPIPE_POSE_FILES }]), null, 'heavy non servito');
 });
 
 test('asset: prima il disco, gstatic solo se manca e c\'è rete, MediaPipe mai da gstatic, niente uscite dalla cartella', async () => {
@@ -81,6 +86,14 @@ test('asset: prima il disco, gstatic solo se manca e c\'è rete, MediaPipe mai d
     assert.equal((await fetch(s.base + '/assets/%2e%2e/%2e%2e/argon-secret.txt')).status, 404);
     assert.equal((await fetch(s.base + '/assets/index-abc.js')).status, 404);          // non è un asset di Argon: next()
   } finally { await s.close(); fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('plugin Vite degli asset: configureServer non restituisce nulla (una funzione sarebbe un post-hook che fa cadere npm run dev)', async () => {
+  const { offlineAssetsPlugin } = await import('../scripts/offline-assets.mjs');
+  const used = [];
+  const app = function connectApp(){ throw new Error('chiamata come post-hook'); };
+  const ret = offlineAssetsPlugin().configureServer({ middlewares: { use(fn){ used.push(fn); return app; } } });
+  assert.equal(ret, undefined); assert.equal(used.length, 1); assert.equal(typeof used[0], 'function');
 });
 
 test('client: gli indirizzi gstatic di Argon diventano ./assets/ (pacchetto offline)', () => {
