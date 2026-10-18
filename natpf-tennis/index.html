@@ -26,6 +26,7 @@
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./natpf.css" />
     <link rel="stylesheet" href="./natpf-hud.css" />
+    <link rel="stylesheet" href="./natpf-round.css" />
   </head>
   <body>
     <div id="root" class="hidden" aria-hidden="true"></div>
@@ -61,6 +62,7 @@
             </div>
           </div>
         </div>
+        <div id="natpf-games-line" class="natpf-games-line" aria-live="polite"></div>
         <div id="games-pill-opponent" class="nt-games-pill" title="Game vinti dall'avversario">
           <span class="game-bubble" data-slot="0"></span><span class="game-bubble" data-slot="1"></span
           ><span class="game-bubble extra-slot hidden" data-slot="2"></span>
@@ -165,42 +167,101 @@
         </div>
       </div>
     </div>
-    <!-- NATPF: lobby in stile console (src/natpf/natpf_lobby.js). Restano gli id e le classi che legge l'HUD del
-         motore base: #difficulty-mode-group/.nt-green-choice, #match-length-group, #btn-start-match, #setup-pl-*, .you-tag -->
-    <div id="title-modal" class="nt-modal-backdrop natpf-lobby" data-step="mode">
+    <!-- NATPF: menu a tappe come il tutorial di un videogioco (src/natpf/natpf_lobby.js):
+         1 come si gioca → 2 controller e mano → 3 preparazione (telefono o webcam) → 4 allenamento → 5 partita.
+         Restano gli id letti dall'HUD del motore base: #difficulty-mode-group/.nt-green-choice, #match-length-group,
+         #btn-start-match, #setup-pl-*, .you-tag -->
+    <div id="title-modal" class="nt-modal-backdrop natpf-lobby" data-step="howto">
       <header class="lobby-top">
         <div class="lobby-brand">
           <span class="lobby-mark">NATPF</span><span class="lobby-word">Simulator</span>
           <small>Nitto ATP Finals · Torino</small>
         </div>
-        <nav class="lobby-steps" aria-label="Passi della lobby">
-          <button type="button" data-goto="mode"><b>1</b>Partita</button
-          ><button type="button" data-goto="racket"><b>2</b>Racchetta</button
-          ><button type="button" data-goto="view"><b>3</b>Visuale</button>
+        <nav class="lobby-steps" aria-label="Tappe">
+          <button type="button" data-goto="howto"><b>1</b><span>Come si gioca</span></button
+          ><button type="button" data-goto="controller"><b>2</b><span>Controller</span></button
+          ><button type="button" data-goto="setup"><b>3</b><span>Preparazione</span></button
+          ><button type="button" data-goto="training"><b>4</b><span>Allenamento</span></button
+          ><button type="button" data-goto="match"><b>5</b><span>Partita</span></button>
         </nav>
-        <button type="button" id="lobby-help" class="lobby-ghost" title="Come si gioca (H)">
-          <span aria-hidden="true">?</span> Come si gioca
-        </button>
+        <button type="button" id="lobby-help" class="lobby-ghost lobby-round" title="Guida completa (H)" aria-label="Guida completa">?</button>
       </header>
 
       <main class="lobby-stage">
-        <section class="lobby-page" data-page="mode" aria-labelledby="lobby-t-mode">
-          <h2 class="lobby-title" id="lobby-t-mode">Scegli la partita</h2>
+        <section class="lobby-page" data-page="howto" aria-labelledby="lobby-t-howto">
+          <h2 class="lobby-title" id="lobby-t-howto">Come si gioca</h2>
+          <div class="howto-cards">
+            <div class="howto-card"><span class="howto-ico" aria-hidden="true">🏃</span><b>Corre da solo</b><p>Il giocatore raggiunge la palla da solo: tu pensi solo al colpo.</p></div>
+            <div class="howto-card"><span class="howto-ico" aria-hidden="true">🎾</span><b>Colpisci al momento giusto</b><p>Quando la palla arriva alla racchetta. Un anello verde a terra = colpo perfetto.</p></div>
+            <div class="howto-card"><span class="howto-ico" aria-hidden="true">↗</span><b>Scegli angolo e forza</b><p>Angolo e velocità del gesto decidono dove e quanto veloce va la palla.</p></div>
+          </div>
+          <p class="lobby-note">Prepari il controller, ti alleni da solo e poi giochi la partita.</p>
+        </section>
+
+        <section class="lobby-page" data-page="controller" aria-labelledby="lobby-t-controller">
+          <h2 class="lobby-title" id="lobby-t-controller">Come vuoi giocare?</h2>
+          <div class="lobby-tiles lobby-tiles-2" data-natpf-tiles="controller" role="radiogroup"></div>
+          <div class="lobby-row">
+            <span class="lobby-label">Mano</span>
+            <div class="lobby-seg" role="radiogroup" aria-label="Mano">
+              <button type="button" class="seg-btn" data-natpf-hand="right">Destra</button
+              ><button type="button" class="seg-btn" data-natpf-hand="left">Mancino</button>
+            </div>
+          </div>
+          <p class="lobby-note" id="lobby-egg-note" hidden>Modalità prova: mouse e tastiera attivi.</p>
+        </section>
+
+        <section class="lobby-page" data-page="setup" aria-labelledby="lobby-t-setup">
+          <h2 class="lobby-title" id="lobby-t-setup">Prepara il controller</h2>
+          <div class="setup-panel" data-setup="phone">
+            <div class="natpf-grip-choice" id="lobby-grip-choice" data-natpf-grip-choice role="radiogroup" aria-label="Presa del telefono"></div>
+            <div class="setup-status"><span class="setup-dot" id="setup-phone-dot"></span><span id="setup-phone-text">Telefono da collegare</span></div>
+            <button type="button" id="setup-phone-go" class="lobby-primary">Collega e calibra</button>
+          </div>
+          <div class="setup-panel" data-setup="webcam">
+            <div class="setup-cam"><video id="setup-webcam-video" autoplay playsinline muted></video><span id="setup-cam-badge" class="setup-cam-badge">Webcam spenta</span></div>
+            <div class="setup-side">
+              <div class="setup-status"><span class="setup-dot" id="setup-cam-dot"></span><span id="setup-cam-text">Mettiti a 1,5–2 m, mano ben visibile</span></div>
+              <div class="lobby-row">
+                <span class="lobby-label">Movimento</span>
+                <div class="lobby-seg" role="radiogroup" aria-label="Movimento">
+                  <button type="button" class="seg-btn" data-natpf-move="auto">Automatico</button
+                  ><button type="button" class="seg-btn" data-natpf-move="body">Segui il corpo</button>
+                </div>
+              </div>
+              <button type="button" id="setup-cam-go" class="lobby-primary">Accendi la webcam</button>
+            </div>
+          </div>
+          <div class="setup-panel" data-setup="mouse">
+            <div class="setup-status"><span class="setup-dot ok"></span><span>Mouse e tastiera pronti: Spazio colpisce, ↑ lancia al servizio, Q/E mirano.</span></div>
+          </div>
+        </section>
+
+        <section class="lobby-page" data-page="training" aria-labelledby="lobby-t-training">
+          <h2 class="lobby-title" id="lobby-t-training">Allenamento</h2>
+          <p class="lobby-note">Solo tu in campo e un lanciapalle: servizio, dritto, rovescio e colpi liberi. Non conta per il punteggio.</p>
+          <ol class="training-list" id="training-list"></ol>
+          <div id="lobby-practice-result" class="lobby-result hidden" aria-live="polite"></div>
+          <div class="lobby-row">
+            <button type="button" id="training-go" class="lobby-primary">Inizia l'allenamento</button>
+            <button type="button" id="training-recal" class="lobby-ghost hidden">Ricalibra il telefono</button>
+          </div>
+        </section>
+
+        <section class="lobby-page" data-page="match" aria-labelledby="lobby-t-match">
+          <h2 class="lobby-title" id="lobby-t-match">La tua partita</h2>
           <div class="lobby-tiles" id="difficulty-mode-group" role="radiogroup">
             <button type="button" class="nt-green-choice lobby-tile selected" data-difficulty="casual" role="radio">
               <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" /><path d="M11 18c8 3 18 3 26 0M11 30c8-3 18-3 26 0" /></svg>
-              <span class="tile-name">Contro la CPU</span><span class="tile-tag">Facile</span>
-              <span class="tile-desc">Scambi lunghi e palle comode, per imparare</span>
+              <span class="tile-name">CPU facile</span><span class="tile-desc">Per prendere confidenza</span>
             </button
             ><button type="button" class="nt-green-choice lobby-tile" data-difficulty="pro" role="radio">
               <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M16 9h16v9a8 8 0 0 1-16 0zM16 13H9a6 6 0 0 0 7 8M32 13h7a6 6 0 0 1-7 8M24 26v8M17 39h14" /></svg>
-              <span class="tile-name">Contro la CPU</span><span class="tile-tag">Esperta</span>
-              <span class="tile-desc">Avversario veloce, colpi angolati</span>
+              <span class="tile-name">CPU esperta</span><span class="tile-desc">Veloce, angola e non regala nulla</span>
             </button
             ><button type="button" class="nt-green-choice lobby-tile" data-difficulty="1v1" role="radio">
               <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="16" cy="16" r="6" /><circle cx="32" cy="16" r="6" /><path d="M6 38c1-8 6-12 10-12s9 4 10 12M22 38c1-8 6-12 10-12s9 4 10 12" /></svg>
-              <span class="tile-name">Sfida un amico</span><span class="tile-tag">1v1</span>
-              <span class="tile-desc">Due computer, ognuno dal proprio lato del campo</span>
+              <span class="tile-name">Sfida un amico</span><span class="tile-desc">1v1 su due computer</span>
             </button>
           </div>
           <div class="lobby-row" id="match-length-section">
@@ -211,37 +272,31 @@
               ><button type="button" class="nt-green-choice" data-games="5"><span class="choice-main">Al meglio di 5</span></button>
             </div>
           </div>
+          <div class="lobby-row">
+            <span class="lobby-label">Visuale</span>
+            <div class="lobby-seg" role="radiogroup" aria-label="Visuale">
+              <button type="button" class="seg-btn" data-natpf-view="third">3ª persona</button
+              ><button type="button" class="seg-btn" data-natpf-view="first">1ª persona</button>
+            </div>
+          </div>
           <div id="natpf-invite" class="natpf-invite hidden" aria-live="polite"></div>
           <div class="lobby-versus" aria-hidden="true">
             <div class="versus-side"><canvas id="setup-pl-player" width="192" height="192"></canvas><span class="slot-tag you-tag">Tu</span></div>
             <span class="versus-vs">VS</span>
             <div class="versus-side"><canvas id="setup-pl-opponent" width="192" height="192"></canvas><span id="setup-opponent-label" class="slot-tag cpu-tag">CPU</span></div>
           </div>
-        </section>
-
-        <section class="lobby-page" data-page="racket" aria-labelledby="lobby-t-racket">
-          <h2 class="lobby-title" id="lobby-t-racket">Con cosa colpisci?</h2>
-          <div class="lobby-tiles" data-natpf-tiles="controller" role="radiogroup"></div>
-          <!-- NATPF presa del telefono: orizzontale (piatto) o verticale (manico), solo con lo smartphone -->
-          <div class="natpf-grip-choice" id="lobby-grip-choice" data-natpf-grip-choice role="radiogroup" aria-label="Presa del telefono"></div>
-          <p class="lobby-note" id="lobby-racket-note"></p>
-        </section>
-
-        <section class="lobby-page" data-page="view" aria-labelledby="lobby-t-view">
-          <h2 class="lobby-title" id="lobby-t-view">Da dove guardi il campo?</h2>
-          <div class="lobby-tiles lobby-tiles-2" data-natpf-tiles="view" role="radiogroup"></div>
-          <div id="lobby-practice-result" class="lobby-result hidden" aria-live="polite"></div>
-          <p class="lobby-note">Prima di giocare puoi fare un <b>punto di prova</b> guidato: non conta per il punteggio.</p>
+          <p class="lobby-note" id="lobby-match-note"></p>
         </section>
       </main>
 
       <footer class="lobby-bottom">
         <button type="button" id="lobby-back" class="lobby-ghost">‹ Indietro</button>
-        <span class="lobby-keys" aria-hidden="true">← → scegli · Invio avanti · Esc indietro · H aiuto</span>
-        <button type="button" id="lobby-practice" class="lobby-secondary">Punto di prova</button
+        <span class="lobby-keys" aria-hidden="true">Invio avanti · Esc indietro</span>
+        <button type="button" id="lobby-skip" class="lobby-ghost hidden">Salta</button
         ><button type="button" id="lobby-next" class="lobby-primary">Avanti ›</button
         ><button id="btn-start-match" type="button" class="lobby-primary"><span>Gioca</span> ›</button>
       </footer>
+      <div id="natpf-toast" class="natpf-toast hidden" role="status"></div>
     </div>
     <div id="companion-modal" class="nt-modal-backdrop hidden">
       <div class="nt-dialog-box nt-companion-clean-dialog">
@@ -369,6 +424,27 @@
         </div>
       </div>
     </div>
+    <!-- NATPF: pausa (src/natpf/natpf_pause.js): in partita l'HUD mostra solo tabellone, game ed esito del colpo -->
+    <button id="natpf-pause-btn" class="natpf-pause-btn" type="button" aria-label="Pausa (Esc)" title="Pausa (Esc)"><span aria-hidden="true">❚❚</span></button>
+    <div id="natpf-pause" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="natpf-pause-title">
+      <div class="natpf-sheet natpf-pause-sheet">
+        <p class="sheet-kicker">Partita in pausa</p>
+        <h2 class="sheet-title" id="natpf-pause-title">Pausa</h2>
+        <div class="pause-grid">
+          <button type="button" data-pause="music"><span>Musica</span><b>Sì</b></button
+          ><button type="button" data-pause="voice"><span>Voce</span><b>Sì</b></button
+          ><button type="button" data-pause="view"><span>Visuale</span><b>3ª persona</b></button
+          ><button type="button" data-pause="move"><span>Movimento</span><b>Automatico</b></button
+          ><button type="button" data-pause="replay"><span>Moviola</span><b>Rivedi il punto</b></button
+          ><button type="button" data-pause="phone"><span>Telefono</span><b>Ricalibra</b></button
+          ><button type="button" data-pause="help"><span>Aiuto</span><b>Come si gioca</b></button>
+        </div>
+        <div class="sheet-actions">
+          <button type="button" class="lobby-ghost" data-pause="menu">Torna al menu</button
+          ><button type="button" class="lobby-primary" data-pause="resume">Riprendi ›</button>
+        </div>
+      </div>
+    </div>
     <!-- NATPF: onboarding guidato (src/natpf/natpf_onboarding.js) -->
     <div id="natpf-onboarding" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="onb-title">
       <div class="natpf-sheet natpf-onboarding">
@@ -394,7 +470,7 @@
     </div>
     <!-- NATPF: allenatore del punto di prova (src/natpf/natpf_lobby.js) -->
     <div id="natpf-coach" class="natpf-coach hidden" aria-live="polite">
-      <span class="coach-kicker">Punto di prova</span><b id="coach-text"></b><small id="coach-sub"></small>
+      <span class="coach-kicker">Allenamento</span><b id="coach-text"></b><small id="coach-sub"></small>
       <button type="button" id="coach-exit" class="lobby-ghost">Esci</button>
     </div>
     <script type="module">

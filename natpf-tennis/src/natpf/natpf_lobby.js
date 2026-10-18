@@ -1,81 +1,110 @@
-// Lobby in stile console: una scelta per schermata (1 Partita → 2 Racchetta → 3 Visuale), tessere grandi
-// sopra l'arena, navigazione con frecce/Invio/Esc. Comprende il punto di prova guidato: un punto contro la CPU
-// facile, con un allenatore che dice cosa fare (servizio, quando colpire, com'è andato il colpo), che non conta
-// per il punteggio e riporta alla lobby.
+// Menu a tappe, come il tutorial di un videogioco: 1 come si gioca → 2 controller (smartphone o webcam) e mano →
+// 3 preparazione (collegamento e calibrazione del telefono, oppure webcam e inquadratura) → 4 allenamento da solo →
+// 5 impostazioni della partita e «Gioca». Si va avanti solo quando la tappa è pronta. Chi ha già completato il
+// percorso riparte dalla partita, con le tappe precedenti sempre raggiungibili.
+// Easter egg: digitando «natpf» nel menu compaiono mouse e tastiera (modalità prova per il computer).
+import { DRILLS } from './natpf_training.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
-export const LOBBY_STEPS = ['mode', 'racket', 'view'];
-
-const SERVE_HINT = { phone: 'Fai un gesto con il telefono per lanciare la palla', webcam: 'Alza la mano di scatto per lanciare la palla', mouse: 'Premi ↑ o W per lanciare la palla (o Spazio)' };
-const HIT_HINT = { phone: 'un gesto deciso con il telefono', webcam: 'uno swing della mano', mouse: 'Spazio' };
-const GRADE = [[/VERY EARLY/, 'Molto in anticipo: aspetta che la palla arrivi alla racchetta'], [/VERY LATE/, 'Molto in ritardo: inizia il gesto un po’ prima'],
-  [/PERFECT|POWER/, 'Perfetto: colpo al momento giusto'], [/EARLY/, 'Un po’ in anticipo: la palla va incrociata'], [/LATE/, 'Un po’ in ritardo: la palla va lungolinea'], [/GOOD/, 'Buon colpo']];
-export const gradeHint = grade => (GRADE.find(([re]) => re.test(String(grade || ''))) || [null, 'Colpo riuscito'])[1];
-const GRADE_RANK = g => /PERFECT|POWER/.test(g) ? 3 : /VERY/.test(g) ? 1 : /EARLY|LATE|GOOD/.test(g) ? 2 : 0;
-const GRADE_LABEL = g => /PERFECT|POWER/.test(g) ? 'perfetto' : /VERY/.test(g) ? 'di recupero' : /EARLY/.test(g) ? 'in anticipo' : /LATE/.test(g) ? 'in ritardo' : 'buono';
-
-// Testo dell'allenatore per lo stato della partita (funzione pura, per i test).
-export function coachMessage(engine, controller, practice = {}){
-  const c = SERVE_HINT[controller] ? controller : 'mouse', b = engine.ball, p = engine.player;
-  switch (engine.phase){
-    case 'SERVE_STANCE': return engine.score.server === 'player' ? { text: 'Servi tu', sub: SERVE_HINT[c] } : { text: 'Serve l’avversario', sub: 'Guarda la palla: il tuo giocatore si sposta da solo' };
-    case 'SERVE_TOSS': return engine.score.server === 'player' ? { text: 'Colpisci adesso, mentre è in alto', sub: `Usa ${HIT_HINT[c]}`, hot: true } : { text: 'Preparati alla risposta', sub: 'Colpisci quando la palla arriva alla racchetta' };
-    case 'RALLY': {
-      if (b.lastHitter === 'player') return { text: practice.lastGrade ? 'Bel colpo!' : 'Palla dall’altra parte', sub: practice.lastGrade ? gradeHint(practice.lastGrade) : 'Torna pronto' };
-      const tta = b.vel.z > .1 ? (p.pos.z - b.pos.z)/b.vel.z : Infinity;
-      return tta < .5 ? { text: 'Colpisci ora!', sub: `Usa ${HIT_HINT[c]}`, hot: true } : { text: 'Arriva verso di te', sub: 'Il giocatore corre da solo: tu pensa solo al colpo' };
-    }
-    case 'POINT_OVER': return practice.won ? { text: 'Punto tuo!', sub: 'Ottimo, sei pronto per la partita' } : { text: 'Punto all’avversario', sub: 'Nessun problema: puoi riprovare' };
-    default: return { text: '', sub: '' };
-  }
+export const LOBBY_STEPS = ['howto', 'controller', 'setup', 'training', 'match'];
+export const EGG_WORD = 'natpf';
+const store = {
+  get(k, d){ try { return localStorage.getItem('natpf-tennis.' + k) ?? d; } catch { return d; } },
+  set(k, v){ try { localStorage.setItem('natpf-tennis.' + k, v); } catch {} },
+};
+// La tappa è pronta per andare avanti? (funzione pura, per i test)
+export function stepReady(step, { controller, phoneReady, webcamActive, trainingDone }){
+  if (step === 'setup') return controller === 'phone' ? phoneReady : controller === 'webcam' ? webcamActive : true;
+  if (step === 'training') return !!trainingDone;
+  return true;
 }
+// Da dove riparte il menu: prima volta dal tutorial, poi dalla partita (il telefono si ricollega con «Gioca»)
+export const initialStep = ({ flowDone }) => (flowDone ? 'match' : 'howto');
+// Riconosce la parola dell'easter egg tra i tasti digitati
+export function eggTyped(buffer, key){ const next = (buffer + String(key || '').toLowerCase()).slice(-EGG_WORD.length); return { buffer: next, hit: next === EGG_WORD }; }
 
 export class NatpfLobby {
   constructor(engine, ui, onboarding){
     this.engine = engine; this.ui = ui; this.onboarding = onboarding;
     this.el = $('title-modal');
-    this.step = 'mode';
-    this.practice = null;
-    for (const b of this.el.querySelectorAll('[data-goto]')) b.addEventListener('click', e => { e.stopPropagation(); this.go(b.dataset.goto); });
+    this.eggBuffer = '';
+    this.trainingDone = store.get('trainingDone', '') === '1';
+    this.step = initialStep({ flowDone: store.get('flowDone', '') === '1' });
+    for (const b of this.el.querySelectorAll('[data-goto]')) b.addEventListener('click', e => { e.stopPropagation(); this.goIfAllowed(b.dataset.goto); });
     $('lobby-next').addEventListener('click', e => { e.stopPropagation(); this.next(); });
     $('lobby-back').addEventListener('click', e => { e.stopPropagation(); this.back(); });
-    $('lobby-practice').addEventListener('click', e => { e.stopPropagation(); this.startPractice(); });
+    $('lobby-skip').addEventListener('click', e => { e.stopPropagation(); this.go('match'); });
     $('lobby-help').addEventListener('click', e => { e.stopPropagation(); this.onboarding.open(); });
-    $('coach-exit').addEventListener('click', e => { e.stopPropagation(); this.endPractice({ early: true }); });
-    // un trascinamento sulla lobby non deve diventare uno swing del mouse del motore base
+    $('setup-phone-go').addEventListener('click', e => { e.stopPropagation(); this.ui.openPhone({ after: () => this.go('training') }); });
+    $('setup-cam-go').addEventListener('click', async e => { e.stopPropagation(); await this.ui.startWebcam(); this.paint(); });
+    $('training-go').addEventListener('click', e => { e.stopPropagation(); this.startTraining(); });
+    $('training-recal').addEventListener('click', e => { e.stopPropagation(); this.ui.openPhone(); });
+    $('btn-start-match')?.addEventListener('click', () => store.set('flowDone', '1'));
     this.el.addEventListener('pointerdown', e => e.stopPropagation());
-    $('natpf-coach').addEventListener('pointerdown', e => e.stopPropagation());
-    // tastiera della lobby prima di quella del motore base (che con Spazio/Invio/frecce colpirebbe)
+    // tastiera del menu prima di quella del motore (che con Spazio/Invio/frecce colpirebbe)
     window.addEventListener('keydown', e => this._key(e), true);
-    this.go('mode');
+    $('training-list').innerHTML = DRILLS.map(d => `<li data-drill="${d.id}"><b>${d.label}</b><span>${d.need}×</span></li>`).join('');
+    this.go(this.step);
+    setInterval(() => this.visible && this.paint(), 400);   // stato di telefono e webcam
   }
   get visible(){ return this.el.style.display !== 'none' && !this.el.classList.contains('hidden'); }
-
+  // le tappe successive si raggiungono solo se quelle prima sono pronte
+  goIfAllowed(step){
+    const k = LOBBY_STEPS.indexOf(step), cur = LOBBY_STEPS.indexOf(this.step);
+    if (k <= cur || LOBBY_STEPS.slice(0, k).every(s => stepReady(s, this.state()))) this.go(step);
+  }
+  state(){ return { controller: this.ui.controller, phoneReady: this.ui.phone.ready, webcamActive: !!this.engine.motionController?.webcamActive, trainingDone: this.trainingDone }; }
   go(step){
     if (!LOBBY_STEPS.includes(step)) return;
     this.step = step; this.el.dataset.step = step;
-    const k = LOBBY_STEPS.indexOf(step);
     for (const p of this.el.querySelectorAll('[data-page]')) p.classList.toggle('on', p.dataset.page === step);
+    if (step === 'setup' && this.ui.controller === 'webcam' && !this.engine.motionController?.webcamActive) this.ui.startWebcam().then(() => this.paint());
+    this.paint();
+    requestAnimationFrame(() => (this._tiles().find(t => t.classList.contains('selected')) || this._tiles()[0] || $('lobby-next'))?.focus({ preventScroll: true }));
+  }
+  paint(){
+    const st = this.state(), k = LOBBY_STEPS.indexOf(this.step), last = k === LOBBY_STEPS.length - 1;
     for (const b of this.el.querySelectorAll('[data-goto]')){ const i = LOBBY_STEPS.indexOf(b.dataset.goto); b.className = i === k ? 'on' : i < k ? 'done' : ''; b.setAttribute('aria-current', i === k ? 'step' : 'false'); }
     show($('lobby-back'), k > 0);
-    show($('lobby-next'), k < LOBBY_STEPS.length - 1);
-    show($('btn-start-match'), k === LOBBY_STEPS.length - 1);
-    show($('lobby-practice'), k === LOBBY_STEPS.length - 1 && this.engine.playerRole !== 'p2');
-    if (step !== 'view') show($('lobby-practice-result'), false);
-    this.ui.paintTiles();
-    requestAnimationFrame(() => (this._tiles()[0] && this._tiles().find(t => t.classList.contains('selected')) || this._tiles()[0])?.focus({ preventScroll: true }));
+    show($('lobby-next'), !last);
+    show($('btn-start-match'), last);
+    show($('lobby-skip'), this.step === 'training' && this.trainingDone);
+    const ready = stepReady(this.step, st), next = $('lobby-next');
+    next.disabled = !ready;
+    next.textContent = this.step === 'howto' ? 'Inizia ›' : 'Avanti ›';
+    // preparazione: pannello del controller scelto
+    for (const p of this.el.querySelectorAll('[data-setup]')) show(p, p.dataset.setup === st.controller);
+    $('lobby-t-setup').textContent = st.controller === 'phone' ? 'Prepara lo smartphone' : st.controller === 'webcam' ? 'Prepara la webcam' : 'Mouse e tastiera';
+    const pd = $('setup-phone-dot'), pt = $('setup-phone-text');
+    if (pd){ pd.className = 'setup-dot ' + (st.phoneReady ? 'ok' : this.ui.phone.connected ? 'mid' : ''); pt.textContent = st.phoneReady ? 'Telefono pronto e calibrato ✓' : this.ui.phone.connected ? 'Telefono collegato: completa la calibrazione' : 'Telefono da collegare: inquadra il QR'; }
+    $('setup-phone-go').textContent = st.phoneReady ? 'Ricalibra' : 'Collega e calibra';
+    this.ui.paintWebcamSetup?.();
+    // allenamento: esercizi e stato
+    show($('training-recal'), st.controller === 'phone');
+    $('training-go').textContent = this.trainingDone ? 'Rifai l’allenamento' : 'Inizia l’allenamento';
+    const note = $('lobby-match-note');
+    if (note) note.textContent = st.controller === 'phone' && !st.phoneReady ? 'Il telefono va ricollegato: premendo «Gioca» compare il QR.' : '';
   }
-  next(){ const k = LOBBY_STEPS.indexOf(this.step); if (k < LOBBY_STEPS.length - 1) this.go(LOBBY_STEPS[k + 1]); else $('btn-start-match').click(); }
+  next(){
+    const k = LOBBY_STEPS.indexOf(this.step);
+    if (!stepReady(this.step, this.state())) return;
+    if (k < LOBBY_STEPS.length - 1) this.go(LOBBY_STEPS[k + 1]); else $('btn-start-match').click();
+  }
   back(){ const k = LOBBY_STEPS.indexOf(this.step); if (k > 0) this.go(LOBBY_STEPS[k - 1]); }
   _tiles(){ return [...this.el.querySelectorAll(`[data-page="${this.step}"] .lobby-tile`)]; }
   _key(e){
     if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
-    if (this.onboarding.isOpen){ if (this.onboarding.key(e)){ e.preventDefault(); } e.stopImmediatePropagation(); return; }
+    if (this.onboarding.isOpen){ if (this.onboarding.key(e)) e.preventDefault(); e.stopImmediatePropagation(); return; }
     const sheetOpen = [...document.querySelectorAll('.natpf-sheet-backdrop')].some(m => !m.classList.contains('hidden'));
-    if (e.code === 'KeyH' && !sheetOpen){ e.stopImmediatePropagation(); this.onboarding.open(); return; }
-    if (!this.visible || sheetOpen || this.practice) return;
+    // in campo: Esc apre e chiude la pausa
+    if (!this.visible){
+      if (e.code === 'Escape' && this.ui.pause){ e.preventDefault(); e.stopImmediatePropagation(); this.ui.pause.toggle(); }
+      return;
+    }
+    if (sheetOpen) return;
     if (e.code === 'Tab') return;
     e.stopImmediatePropagation();
+    if (e.key && e.key.length === 1){ const r = eggTyped(this.eggBuffer, e.key); this.eggBuffer = r.buffer; if (r.hit){ this.ui.toggleTestInput(); this.eggBuffer = ''; return; } }
     const tiles = this._tiles(), i = tiles.indexOf(document.activeElement);
     if (['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'].includes(e.code) && tiles.length){
       e.preventDefault();
@@ -83,45 +112,25 @@ export class NatpfLobby {
       t.focus(); t.click();
     } else if (e.code === 'Enter'){ e.preventDefault(); this.next(); }
     else if (e.code === 'Escape' || e.code === 'Backspace'){ e.preventDefault(); this.back(); }
+    else if (e.code === 'KeyH'){ this.onboarding.open(); }
   }
-
-  /* ---------- punto di prova ---------- */
-  startPractice(){
-    const ui = this.ui, E = this.engine;
-    if (ui.controller === 'phone' && !ui.phone.ready){ ui.openPhone({ after: () => this.startPractice() }); return; }
-    this.practice = { hits: 0, best: '', lastGrade: '', whiffs: 0, won: false, ending: false, prevDifficulty: E.hud.selectedDifficulty || E.matchConfig.difficulty };
-    E._applyDifficultyTuning('casual');
-    E.hud.hideTitleModal();
-    E.autoPlayMode = !1; E.userHasInteracted = !0; E.persistentStateLock = !1;
-    if (ui.controller === 'webcam' && E.motionController) E.motionController.enableWebcam();
-    E.startNewMatch({ showStartBanner: !1 });
-    E.hud.showCenterBanner('Punto di prova', { style: 'style-start', subText: 'Non conta per il punteggio', durationMs: 1500 });
-    show($('natpf-coach')); this.tick();
+  /* ---------- allenamento ---------- */
+  startTraining(){
+    const ui = this.ui;
+    if (ui.controller === 'phone' && !ui.phone.ready){ ui.openPhone({ after: () => this.startTraining() }); return; }
+    ui.training.start();
   }
-  feedback({ role = 'p1', kind, grade = '' } = {}){
-    const p = this.practice; if (!p || role !== 'p1') return;
-    if (kind === 'hit'){ p.hits++; p.lastGrade = grade; if (GRADE_RANK(grade) > GRADE_RANK(p.best)) p.best = grade; }
-    if (kind === 'whiff') p.whiffs++;
-  }
-  tick(){
-    const p = this.practice, E = this.engine; if (!p) return;
-    if (E.phase === 'POINT_OVER' && !p.ending){ p.ending = true; p.won = E.score.playerPoints > 0; setTimeout(() => this.endPractice(), 1600); }
-    const m = coachMessage(E, this.ui.controller, p), box = $('natpf-coach');
-    $('coach-text').textContent = m.text; $('coach-sub').textContent = m.sub; box.classList.toggle('hot', !!m.hot);
-  }
-  endPractice({ early = false } = {}){
-    const p = this.practice, E = this.engine; if (!p) return;
-    this.practice = null; show($('natpf-coach'), false);
-    E._applyDifficultyTuning(p.prevDifficulty || 'casual');
-    Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: !0 });
-    E._syncScoreboardHUD(); E.hud.hideCenterBanner();
-    E._setupMidRallyShowcase({}); E.autoPlayMode = !0;
-    E.hud.showTitleModal(); this.go('view');
+  // compatibilità: l'onboarding propone ancora «Prova» → allenamento
+  startPractice(){ this.go('training'); this.startTraining(); }
+  onTrainingEnd({ completed, stats }){
+    if (completed){ this.trainingDone = true; store.set('trainingDone', '1'); }
+    this.go(completed ? 'training' : 'training');
     const r = $('lobby-practice-result');
-    r.innerHTML = `<b>${early ? 'Punto di prova interrotto' : p.won ? 'Punto di prova vinto' : 'Punto di prova finito'}</b>
-      <span>${p.hits ? `${p.hits} ${p.hits === 1 ? 'colpo riuscito' : 'colpi riusciti'} · miglior colpo ${GRADE_LABEL(p.best)}` : 'Nessun colpo questa volta: guarda la palla e colpisci quando arriva alla racchetta'}</span>
-      <button type="button" class="lobby-ghost" data-retry>Riprova</button>`;
-    r.querySelector('[data-retry]').addEventListener('click', e => { e.stopPropagation(); this.startPractice(); });
+    r.innerHTML = `<b>${completed ? 'Allenamento completato ✓' : 'Allenamento interrotto'}</b>
+      <span>${stats.shots} colpi · ${stats.perfect} perfetti${stats.out ? ` · ${stats.out} fuori` : ''}</span>`;
     show(r);
+    this.paint();
   }
+  tick(){}
+  feedback(){}
 }

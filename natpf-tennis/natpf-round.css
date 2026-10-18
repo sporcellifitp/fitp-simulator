@@ -1,0 +1,518 @@
+/* NATPF: forme tondeggianti per menu, pannelli e HUD (caricato per ultimo). Pillole, schede molto arrotondate,
+   icone e ritratti nei cerchi; niente angoli tagliati né inclinazioni. Più gli elementi del menu a tappe, della pausa,
+   del tabellone con i game e dell'esito del colpo (anello verde / giallo / rosso). */
+:root {
+  --lb-cut: none;
+  --hud-cut-sm: none;
+  --hud-cut-both: none;
+  --r-card: 26px;
+  --r-pill: 999px;
+  --q-green: #3be37f;
+  --q-yellow: #ffd23f;
+  --q-red: #ff4d5e;
+}
+.natpf-lobby *,
+.natpf-sheet,
+.natpf-sheet *,
+#hud-root *,
+.natpf-coach,
+.natpf-pause-btn {
+  clip-path: none !important;
+}
+#hud-root .game-bubble,
+#hud-root .score-center-display,
+#hud-root .score-dash,
+.center-banner-streak {
+  transform: none !important;
+}
+
+/* ---------- menu ---------- */
+.lobby-steps {
+  border-radius: var(--r-pill);
+  padding: 5px;
+}
+.lobby-steps button {
+  border-radius: var(--r-pill);
+  padding: 8px 14px;
+}
+.lobby-steps b {
+  border-radius: 50%;
+}
+.lobby-steps button.done b,
+.lobby-steps button.on b {
+  border-color: transparent;
+}
+.lobby-ghost,
+.lobby-secondary,
+.lobby-primary {
+  border-radius: var(--r-pill) !important;
+  clip-path: none !important;
+}
+.lobby-primary {
+  padding-inline: 30px;
+  box-shadow: 0 6px 18px rgba(232, 255, 58, 0.25);
+}
+.lobby-primary:disabled {
+  box-shadow: none;
+}
+.lobby-round {
+  width: 46px;
+  height: 46px;
+  min-height: 46px;
+  padding: 0;
+  font-size: 20px;
+}
+.natpf-lobby .lobby-tile,
+.lobby-tile {
+  border-radius: var(--r-card);
+  align-items: center;
+  text-align: center;
+  min-height: 190px;
+  padding: 24px 22px 20px;
+}
+.lobby-tile .tile-icon {
+  width: 64px;
+  height: 64px;
+  padding: 12px;
+  border-radius: 50%;
+  background: rgba(166, 182, 220, 0.14);
+}
+.lobby-tile.selected .tile-icon {
+  background: rgba(232, 255, 58, 0.16);
+}
+.natpf-lobby .lobby-tile.selected,
+.lobby-tile.selected {
+  transform: translateY(-4px);
+  box-shadow: 0 0 0 3px rgba(232, 255, 58, 0.35);
+}
+.lobby-tile.selected::after {
+  top: 14px;
+  right: 18px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--lb-ball);
+  color: var(--lb-navy);
+  font-size: 15px;
+}
+.tile-name {
+  font-style: normal;
+  text-transform: none;
+  font-size: 22px;
+}
+.tile-tag {
+  border-radius: var(--r-pill);
+  padding: 3px 10px;
+}
+.lobby-title {
+  font-style: normal;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.lobby-seg {
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-pill);
+}
+.natpf-lobby .lobby-seg .nt-green-choice,
+.seg-btn {
+  border-radius: var(--r-pill) !important;
+  padding: 9px 18px;
+  border: 0;
+  background: transparent;
+  color: var(--lb-muted);
+  font: 700 14px var(--lb-font);
+  cursor: pointer;
+}
+.seg-btn.selected,
+.natpf-lobby .lobby-seg .nt-green-choice.selected {
+  background: var(--lb-ink);
+  color: var(--lb-navy);
+}
+.lobby-result,
+.natpf-invite {
+  border-left: 0;
+  border-radius: 18px;
+  box-shadow: inset 0 0 0 1px var(--lb-line);
+}
+.natpf-lobby .slot-tag,
+.versus-side .nt-pl-svg,
+.versus-side .wii-pl-svg,
+.versus-side svg {
+  border-radius: var(--r-pill);
+}
+.versus-side svg {
+  border-radius: 50%;
+}
+.grip-pill {
+  border-radius: 20px !important;
+}
+.natpf-lobby button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* tappa 1: come si gioca */
+.howto-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.howto-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 20px;
+  border-radius: var(--r-card);
+  background: var(--lb-panel);
+  box-shadow: inset 0 0 0 1px var(--lb-line);
+  text-align: center;
+}
+.howto-ico {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(232, 255, 58, 0.14);
+  font-size: 30px;
+  color: var(--lb-ball);
+}
+.howto-card b {
+  font-size: 19px;
+}
+.howto-card p {
+  margin: 0;
+  color: var(--lb-muted);
+  font-size: 15px;
+  line-height: 1.4;
+}
+/* tappa 3: preparazione */
+.setup-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  padding: 22px;
+  border-radius: var(--r-card);
+  background: var(--lb-panel);
+  box-shadow: inset 0 0 0 1px var(--lb-line);
+}
+.setup-panel.hidden {
+  display: none;
+}
+.setup-panel .natpf-grip-choice {
+  flex: 1 1 100%;
+}
+.setup-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  font-size: 17px;
+  font-weight: 700;
+}
+.setup-dot {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ff6b5e;
+  box-shadow: 0 0 0 4px rgba(255, 107, 94, 0.18);
+}
+.setup-dot.mid {
+  background: var(--q-yellow);
+  box-shadow: 0 0 0 4px rgba(255, 210, 63, 0.18);
+}
+.setup-dot.ok {
+  background: var(--q-green);
+  box-shadow: 0 0 0 4px rgba(59, 227, 127, 0.2);
+}
+.setup-cam {
+  position: relative;
+  width: min(360px, 100%);
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 22px;
+  background: #050b1f;
+}
+.setup-cam video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+.setup-cam-badge {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  padding: 5px 12px;
+  border-radius: var(--r-pill);
+  background: rgba(7, 18, 51, 0.8);
+  font-size: 13px;
+  font-weight: 700;
+}
+.setup-cam-badge.ok {
+  background: var(--q-green);
+  color: var(--lb-navy);
+}
+.setup-side {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 240px;
+}
+/* tappa 4: allenamento */
+.training-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.training-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--r-pill);
+  background: var(--lb-panel);
+  box-shadow: inset 0 0 0 1px var(--lb-line);
+}
+.training-list span {
+  color: var(--lb-ball);
+  font-weight: 700;
+}
+.natpf-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  z-index: 80;
+  padding: 12px 22px;
+  border-radius: var(--r-pill);
+  background: var(--lb-ball);
+  color: var(--lb-navy);
+  font: 700 15px var(--lb-font);
+  transform: translateX(-50%);
+}
+
+/* ---------- pannelli ---------- */
+.natpf-sheet {
+  border-radius: 30px;
+  box-shadow:
+    inset 0 0 0 1px var(--lb-line),
+    0 24px 60px rgba(0, 0, 0, 0.45);
+  border: 0;
+}
+.sheet-title {
+  font-style: normal;
+  text-transform: none;
+}
+.sheet-tag,
+.natpf-steps li,
+.onb-ctrl,
+.onb-ctrl button,
+.onb-dots button {
+  border-radius: var(--r-pill);
+}
+.onb-ctrl {
+  padding: 3px;
+  gap: 3px;
+}
+.natpf-qr {
+  border-radius: 20px;
+}
+.natpf-warn {
+  border-left: 0;
+  border-radius: 16px;
+}
+.natpf-dots i {
+  border-radius: 50%;
+}
+.natpf-sheet kbd {
+  border-radius: 8px;
+}
+
+/* ---------- HUD in partita: solo l'essenziale ---------- */
+.motion-buttons-col,
+#bottom-left-dock,
+#timing-gauge-card,
+#games-pill-player,
+#games-pill-opponent,
+#btn-natpf-movement {
+  display: none !important;
+}
+#top-hud-bar {
+  position: relative;
+}
+.nt-scoreboard-pill {
+  border-radius: var(--r-pill) !important;
+  padding-inline: 10px !important;
+}
+.pl-avatar-badge {
+  border-radius: 50% !important;
+  overflow: hidden;
+}
+.natpf-games-line {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 16px;
+  border-radius: var(--r-pill);
+  background: rgba(7, 18, 51, 0.82);
+  box-shadow: inset 0 0 0 1px var(--lb-line);
+  color: var(--lb-ink);
+  font: 700 14px var(--lb-font);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.natpf-games-line:empty {
+  display: none;
+}
+.natpf-games-line span,
+.natpf-games-line small {
+  color: var(--lb-muted);
+  font-weight: 600;
+}
+.natpf-games-line b {
+  min-width: 14px;
+  color: var(--lb-ball);
+  font-size: 16px;
+  text-align: center;
+}
+.natpf-training .natpf-games-line,
+.natpf-training .pl-side-opponent {
+  visibility: hidden;
+}
+.nt-timing-popup,
+.nt-server-tag,
+.nt-replay-badge,
+.opponent-presence-pill,
+.nt-court-nameplate,
+.webcam-pip-card,
+.nt-skill-card,
+.nt-dialog-box {
+  border-radius: 22px !important;
+}
+.nt-server-tag,
+.nt-replay-badge,
+.opponent-presence-pill,
+.nt-footer-btn,
+.hud-mini-btn {
+  border-radius: var(--r-pill) !important;
+}
+.nt-server-tag:after {
+  display: none !important;
+}
+.webcam-pip-card {
+  overflow: hidden;
+}
+/* esito del colpo: stesso colore dell'anello a terra */
+.timing-grade.q-green {
+  color: var(--q-green) !important;
+}
+.timing-grade.q-yellow {
+  color: var(--q-yellow) !important;
+}
+.timing-grade.q-red {
+  color: var(--q-red) !important;
+}
+.nt-timing-popup:has(.q-green) {
+  box-shadow: inset 0 0 0 2px var(--q-green) !important;
+}
+.nt-timing-popup:has(.q-yellow) {
+  box-shadow: inset 0 0 0 2px var(--q-yellow) !important;
+}
+.nt-timing-popup:has(.q-red) {
+  box-shadow: inset 0 0 0 2px var(--q-red) !important;
+}
+/* pausa */
+.natpf-pause-btn {
+  position: fixed;
+  z-index: 45;
+  top: 18px;
+  right: 18px;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(7, 18, 51, 0.82);
+  box-shadow: inset 0 0 0 1px var(--lb-line);
+  color: var(--lb-ink);
+  font: 800 15px var(--lb-font);
+  letter-spacing: -1px;
+  cursor: pointer;
+}
+.natpf-pause-btn:hover {
+  background: var(--lb-blue);
+}
+html:not(.autoplay-mode) .natpf-pause-btn {
+  display: none;
+}
+.pause-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.pause-grid button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 14px 18px;
+  border: 0;
+  border-radius: 20px;
+  background: rgba(166, 182, 220, 0.1);
+  box-shadow: inset 0 0 0 1px var(--lb-line);
+  color: var(--lb-ink);
+  font: 600 13px var(--lb-font);
+  text-align: left;
+  cursor: pointer;
+}
+.pause-grid button.hidden {
+  display: none;
+}
+.pause-grid button span {
+  color: var(--lb-muted);
+}
+.pause-grid button b {
+  font-size: 16px;
+}
+.pause-grid button.on b {
+  color: var(--lb-ball);
+}
+.pause-grid button:hover {
+  background: rgba(166, 182, 220, 0.18);
+}
+/* allenatore */
+.natpf-coach {
+  border-left: 0 !important;
+  border-radius: 26px !important;
+  box-shadow: inset 0 0 0 2px var(--lb-ball);
+  padding: 12px 16px 12px 22px;
+}
+.natpf-coach.hot {
+  box-shadow: inset 0 0 0 2px var(--lb-pink);
+}
+.natpf-coach b {
+  font-style: normal;
+  text-transform: none;
+}
+@media (max-width: 760px) {
+  .howto-cards {
+    grid-template-columns: 1fr;
+  }
+  .lobby-steps button span {
+    display: none;
+  }
+}

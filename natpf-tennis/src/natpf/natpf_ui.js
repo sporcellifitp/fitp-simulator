@@ -6,6 +6,10 @@ import { controllerTiles, viewTiles, controllerStatus, gripChoice, GRIP_SVG } fr
 import { NatpfOnboarding } from './natpf_onboarding.js';
 import { NatpfLobby } from './natpf_lobby.js';
 import { guestInviteUrl } from './natpf_lan.js';
+import { NatpfPause } from './natpf_pause.js';
+import { NatpfShotFeedback } from './natpf_shot_feedback.js';
+import { NatpfHand } from './natpf_hand.js';
+import { NatpfTraining } from './natpf_training.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -28,19 +32,25 @@ export class NatpfUi {
   constructor(engine){
     this.engine = engine;
     this.phone = engine.natpfPhone;
-    this.controller = store.get('controller', 'mouse');
-    if (!CONTROLLERS.some(c => c.id === this.controller)) this.controller = 'mouse';
+    // mouse e tastiera solo in modalità prova (easter egg «natpf» nel menu)
+    this.testInput = store.get('testInput', '') === '1';
+    this.controller = store.get('controller', 'phone');
+    if (!CONTROLLERS.some(c => c.id === this.controller) || (this.controller === 'mouse' && !this.testInput)) this.controller = 'phone';
+    this.hand = new NatpfHand(engine);
+    this.shot = new NatpfShotFeedback(engine);
+    this.training = new NatpfTraining(engine, this);
+    this._gateDesktopInput();
     this.modal = $('natpf-phone-modal');
     this.qrToken = null;
     this._buildSetup();
     this._bindPhoneModal();
     this._bindStart();
     this.onboarding = new NatpfOnboarding({ getController: () => this.controller, onPractice: () => this.lobby.startPractice(), onOpen: () => this._syncPause(), onClose: () => this._syncPause() });
-    this.lobby = new NatpfLobby(engine, this, this.onboarding);
+    this.lobby = this.flow = new NatpfLobby(engine, this, this.onboarding);
+    this.pause = new NatpfPause(engine, this);
+    this.hand.set(this.hand.hand);
     this.onViewChange(engine.viewMode);
     this.phone.onChange(() => { this.paintPhone(); this.paintTiles(); });
-    // la prima volta si parte dall'onboarding
-    if (!NatpfOnboarding.seen() && !(engine.playerRole === 'p2' && engine.urlRoom)) setTimeout(() => this.onboarding.open(), 700);
     $('btn-natpf-view')?.addEventListener('click', e => { e.stopPropagation(); this.engine.setViewMode(this.engine.viewMode === 'first' ? 'third' : 'first'); });
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){
@@ -59,12 +69,17 @@ export class NatpfUi {
     for (const box of document.querySelectorAll('[data-natpf-setup]')) box.innerHTML = `<p class="lobby-label">Racchetta</p><div class="lobby-tiles compact">${controllerTiles(true)}</div><p class="lobby-label">Visuale</p><div class="lobby-tiles compact lobby-tiles-2">${viewTiles(true)}</div>`;
     // NATPF presa del telefono: lobby (passo Racchetta) e pannello del telefono
     for (const box of document.querySelectorAll('[data-natpf-grip-choice]')) box.innerHTML = gripChoice(box.dataset.natpfGripChoice === 'compact');
+    this._paintTestInput();
     document.addEventListener('click', e => {
+      const h = e.target.closest('[data-natpf-hand]');
+      if (h){ e.stopPropagation(); this.hand.set(h.dataset.natpfHand); this.paintTiles(); return; }
+      const mv = e.target.closest('[data-natpf-move]');
+      if (mv){ e.stopPropagation(); this.engine.natpfBody?.setMode(mv.dataset.natpfMove); this.paintWebcamSetup(); return; }
       const g = e.target.closest('[data-natpf-grip]');
       if (g){ e.stopPropagation(); this.phone.setGrip(g.dataset.natpfGrip); this.paintGrip(); this.paintPhone(); return; }
       const b = e.target.closest('[data-natpf-controller],[data-natpf-view]'); if (!b) return;
       e.stopPropagation();
-      if (b.dataset.natpfController) this.selectController(b.dataset.natpfController);
+      if (b.dataset.natpfController) this.selectController(b.dataset.natpfController, { open: false });
       if (b.dataset.natpfView) this.engine.setViewMode(b.dataset.natpfView);
     });
   }
@@ -78,6 +93,8 @@ export class NatpfUi {
   }
   paintTiles(){
     this.paintGrip();
+    for (const b of document.querySelectorAll('[data-natpf-hand]')){ const on = b.dataset.natpfHand === this.hand.hand; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
+    this.flow?.paint?.();
     const mc = this.engine.motionController, state = { phone: this.phone, webcamActive: !!mc?.webcamActive };
     for (const el of document.querySelectorAll('[data-tile-status]')){ const id = el.dataset.tileStatus; if (CONTROLLERS.some(c => c.id === id)) el.textContent = controllerStatus(id, state); }
     for (const el of document.querySelectorAll('[data-natpf-controller="phone"]')) el.classList.toggle('ok', this.phone.ready);
@@ -87,11 +104,77 @@ export class NatpfUi {
   }
   // il gioco resta fermo mentre si leggono le istruzioni o si collega il telefono a partita in corso
   _syncPause(){
-    const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden');
+    const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen;
     this.engine.natpfPaused = !!busy && !this.engine.autoPlayMode && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(this.engine.phase);
   }
-  tick(){ this.lobby.tick(); }
-  feedback(e){ this.lobby.feedback(e); }
+  tick(dt = 1/60){ this.training.tick(dt); this.shot.update(dt); }
+  // esito dei colpi del giocatore locale: anello colorato, allenamento; il valore torna al telefono (vibrazione)
+  feedback(e = {}){
+    if ((e.role || 'p1') !== this.engine.playerRole) return null;
+    const q = this.shot.onLocalFeedback(e);
+    if (q && e.kind === 'hit') this.training.onShot(q);
+    return q;
+  }
+  // game vinti dentro il tabellone (al posto delle caselle negli angoli)
+  onScore(score, gamesToWin){
+    const el = $('natpf-games-line'); if (!el || !score) return;
+    const p2 = this.engine.playerRole === 'p2';
+    const me = p2 ? score.opponentGames : score.playerGames, other = p2 ? score.playerGames : score.opponentGames;
+    el.innerHTML = `<span>Game</span><b>${me}</b><i>–</i><b>${other}</b><small>${gamesToWin > 1 ? `al meglio di ${gamesToWin*2 - 1}` : 'game secco'}</small>`;
+  }
+  // dal menu di pausa: fine partita o allenamento, ritorno al menu
+  backToMenu(){
+    const E = this.engine;
+    if (this.training.active){ this.training.stop({ completed: false }); return; }
+    E.natpfPaused = false; E.hud.hideVictoryModal?.(); E.hud.hideCenterBanner();
+    Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
+    E._syncScoreboardHUD(); E._setupMidRallyShowcase({}); E.autoPlayMode = true;
+    E.hud.showTitleModal(); this.flow.go('match');
+  }
+  /* ---------- webcam nella tappa di preparazione ---------- */
+  async startWebcam(){
+    const mc = this.engine.motionController; if (!mc) return false;
+    const ok = mc.webcamActive || await mc.enableWebcam();
+    this.engine.hud?.updateMotionStatus?.({ webcamActive: !!ok, phoneConnected: this.phone.ready });
+    const v = $('setup-webcam-video');
+    if (v && mc.webcamStream && v.srcObject !== mc.webcamStream){ v.srcObject = mc.webcamStream; v.play?.().catch(() => {}); }
+    this.paintWebcamSetup();
+    return ok;
+  }
+  paintWebcamSetup(){
+    const mc = this.engine.motionController, on = !!mc?.webcamActive;
+    const hand = on && performance.now() - (mc.latestHandSeenAt || -1e9) < 1200;
+    const dot = $('setup-cam-dot'), txt = $('setup-cam-text'), badge = $('setup-cam-badge'), go = $('setup-cam-go');
+    if (dot) dot.className = 'setup-dot ' + (hand ? 'ok' : on ? 'mid' : '');
+    if (txt) txt.textContent = hand ? 'Mano vista ✓ sei pronto' : on ? 'Webcam accesa: mostra la mano che colpisce' : 'Mettiti a 1,5–2 m, mano ben visibile e luce davanti';
+    if (badge){ badge.textContent = on ? (hand ? 'Mano vista' : 'Cerco la mano…') : 'Webcam spenta'; badge.classList.toggle('ok', hand); }
+    show(go, !on);
+    const body = !!this.engine.natpfBody?.enabled;
+    for (const b of document.querySelectorAll('[data-natpf-move]')){ const sel = (b.dataset.natpfMove === 'body') === body; b.classList.toggle('selected', sel); b.setAttribute('aria-checked', String(sel)); }
+  }
+  /* ---------- easter egg: mouse e tastiera per le prove al computer ---------- */
+  get desktopInputAllowed(){ return this.testInput || this.controller === 'mouse'; }
+  _gateDesktopInput(){
+    const mc = this.engine.motionController; if (!mc) return;
+    const gate = fn => (e = {}) => (/^(keyboard|mouse)$/.test(e.source) && !this.desktopInputAllowed ? null : fn(e));
+    if (mc._emitSwing) mc._emitSwing = gate(mc._emitSwing.bind(mc));
+    if (mc._emitToss) mc._emitToss = gate(mc._emitToss.bind(mc));
+  }
+  toggleTestInput(){
+    this.testInput = !this.testInput; store.set('testInput', this.testInput ? '1' : '');
+    if (!this.testInput && this.controller === 'mouse') this.selectController('phone', { open: false });
+    this._paintTestInput();
+    this.toast(this.testInput ? 'Modalità prova: mouse e tastiera attivi' : 'Modalità prova disattivata');
+  }
+  _paintTestInput(){
+    for (const b of document.querySelectorAll('[data-natpf-controller="mouse"]')) show(b, this.testInput);
+    const n = $('lobby-egg-note'); if (n) n.hidden = !this.testInput;
+  }
+  toast(text){
+    const t = $('natpf-toast'); if (!t) return;
+    t.textContent = text; show(t); clearTimeout(this._toastT); this._toastT = setTimeout(() => show(t, false), 2600);
+  }
+
   selectController(id, { open = true } = {}){
     this.controller = id; store.set('controller', id);
     const hud = this.engine.hud, mc = this.engine.motionController;
