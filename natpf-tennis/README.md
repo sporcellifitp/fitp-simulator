@@ -18,20 +18,40 @@ white label per uso interno. Solo **1v1**: contro la CPU oppure tra due computer
 
 Analisi, architettura, verifiche e limiti: [../docs/NATPF_TENNIS_MVP.md](../docs/NATPF_TENNIS_MVP.md).
 
-## Menu, onboarding e punto di prova
+## Menu a tappe, allenamento e pausa
 
-- **Lobby in stile console** sopra l'arena, una scelta per schermata:
-  **1 Partita** (CPU facile, CPU esperta, sfida un amico; durata), **2 Racchetta** (smartphone, webcam,
-  mouse/tastiera, con lo stato di ognuna), **3 Visuale** (terza o prima persona), poi **Gioca**. Si naviga
-  anche con la tastiera: ← → scegli, Invio avanti, Esc indietro, H aiuto.
-- **Come si gioca**: cinque passi (presa, giocatore che corre da solo, servizio, colpi, tempo giusto), con le
-  istruzioni della racchetta scelta. Si apre da solo la prima volta e poi con «Come si gioca», con il pulsante
-  «Aiuto» durante la partita o con **H**. A partita in corso, mentre è aperto, il gioco resta in pausa.
-- **Punto di prova**: un punto contro la CPU facile che non conta per il punteggio, con un allenatore che dice
-  cosa fare («Servi tu», «Colpisci adesso, mentre è in alto», «Colpisci ora!») e com'è andato il colpo; alla
-  fine torna alla lobby con il riepilogo e il pulsante «Riprova».
+- **Cinque tappe brevi** sopra l'arena, una scelta per schermata, con forme arrotondate (`natpf-round.css`):
+  1. **Come si gioca**: tre schede.
+  2. **Controller**: smartphone o webcam, più la mano (destra o mancino).
+  3. **Preparazione**:
+     - smartphone: presa orizzontale «piatto», di default, o verticale «manico», poi QR e calibrazione;
+     - webcam: anteprima, controllo della mano e scelta fra corsa automatica e corsa col corpo.
+  4. **Allenamento**: in campo ci sei solo tu, con un lanciapalle. Servizio 2, dritto 3, rovescio 3, colpi
+     liberi 3. Non conta per il punteggio.
+  5. **Partita**: CPU facile, CPU esperta o sfida un amico; durata e visuale; poi **Gioca**.
 
-Codice: `src/natpf/natpf_lobby.js`, `natpf_onboarding.js`, `natpf_tiles.js`, stili in `natpf.css`.
+  Avanti si sblocca solo con la racchetta pronta e l'allenamento fatto (oppure con «Salta»). Chi ha già giocato
+  riparte dalla tappa «Partita». Tastiera: Invio avanti, Esc indietro.
+- **Mouse e tastiera nascosti**: servono solo per le prove al computer. Digita **natpf** nel menu (easter egg)
+  per mostrarli e attivarli. Digitandolo di nuovo si nascondono.
+- **Esito del colpo senza barra del tempo**:
+  - un anello colorato a terra, nel punto in cui atterrerà la palla, che pulsa al rimbalzo: verde perfetto,
+    giallo in anticipo, in ritardo o buono, rosso fuori o mancata;
+  - un lampo dello stesso colore sulla racchetta e una scritta breve;
+  - sul telefono una vibrazione: lunga per il perfetto, doppia corta per l'errore.
+- **Mancino**:
+  - il proprio personaggio è specchiato, in prima e in terza persona, con la racchetta nella sinistra;
+  - dritto e rovescio si scambiano;
+  - al servizio la palla parte dall'altra mano.
+
+  In prima persona la mano libera si vede solo al proprio servizio, per il lancio di palla.
+- **HUD pulito**: restano tabellone, riga dei game sotto il tabellone, esito del colpo e il pulsante **pausa**
+  (❚❚ o Esc). La pausa raccoglie musica, voce, visuale, corsa col corpo, moviola, telefono, aiuto, «Torna al
+  menu» e «Riprendi».
+- **Player 2** con link di invito: una scheda con racchetta, visuale e mano, poi «Entra in campo».
+
+Codice: `src/natpf/natpf_lobby.js` (tappe ed easter egg), `natpf_training.js`, `natpf_shot_feedback.js`,
+`natpf_hand.js`, `natpf_pause.js`, `natpf_tiles.js`; stili in `natpf.css` e `natpf-round.css`.
 
 ## Musica, voce e HUD
 
@@ -47,8 +67,7 @@ Codice: `src/natpf/natpf_lobby.js`, `natpf_onboarding.js`, `natpf_tiles.js`, sti
   partita», «fuori», «rete», «ace», «bel colpo». Usa una voce italiana del sistema (per esempio Microsoft Elsa o
   Cosimo su Windows, Google italiano su Chrome); se non c'è resta in silenzio. Pulsante «Voce» dell'HUD per
   spegnerla (la scelta resta salvata).
-- **HUD** in stile regia televisiva NATPF (`natpf-hud.css`): tabellone a striscia, esito del colpo, tempo del
-  colpo, banner, moviola, pulsanti e schermata finale, tutti in italiano (`src/natpf/natpf_i18n.js` traduce le
+- **HUD** in stile regia televisiva NATPF (`natpf-hud.css`): tabellone a striscia, esito del colpo, banner, moviola, pulsanti e schermata finale, tutti in italiano (`src/natpf/natpf_i18n.js` traduce le
   etichette del motore quando le mostra).
 
 ## Avvio

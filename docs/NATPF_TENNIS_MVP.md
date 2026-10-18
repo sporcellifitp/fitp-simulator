@@ -281,6 +281,65 @@ Non verificato: telefoni reali (in particolare quanto è stabile l'imbardata del
 piatto al picco del gesto corrisponde a quello che chi gioca sente come «impatto»); P2 col telefono tramite il relay
 (la direzione arriva già calcolata, i campi del piatto no); taratura dello skill gap con persone vere.
 
+## Menu a tappe v2 (18 ottobre 2026, branch `feature/natpf-tennis-v2`)
+
+Richiesta: un aspetto meno simile al motore base, forme arrotondate, niente riquadri in basso a sinistra, un
+percorso da videogioco con poche parole e la mano libera visibile solo al servizio.
+
+### Cosa cambia
+
+- **Forme arrotondate**: `natpf-round.css`, caricato dopo gli altri stili.
+  - Toglie gli angoli tagliati (variabili a `none`, `clip-path: none`).
+  - Pulsanti a pillola, tessere e schede con raggi ampi, icone nei cerchi.
+- **Flusso in cinque tappe** (`natpf_lobby.js`): come si gioca → controller e mano → preparazione → allenamento
+  → partita.
+  - `stepReady` blocca Avanti finché la racchetta non è pronta e l'allenamento non è fatto. «Salta» resta
+    possibile.
+  - `initialStep` fa ripartire dalla partita chi ha già fatto il percorso.
+  - Gli id del motore base (`#difficulty-mode-group`, `#match-length-group`, `#btn-start-match`) restano nella
+    tappa Partita.
+- **Allenamento** (`natpf_training.js`):
+  - l'avversario è nascosto e spostato lontano, e un lanciapalle manda palle sul dritto o sul rovescio
+    (tiene conto del mancino);
+  - `_awardPoint` è agganciato: durante l'allenamento il punto non conta e parte la palla successiva;
+  - alla fine ripristina avversario, difficoltà e punteggio.
+- **HUD**:
+  - nascosti i pulsanti in basso a sinistra (musica, camera, moviola, corsa), la barra del tempo e le caselle
+    dei game negli angoli;
+  - i game sono in una riga sotto il tabellone;
+  - tutto il resto è nella **pausa** (`natpf_pause.js`), che usa gli stessi pulsanti nascosti dell'HUD.
+- **Esito del colpo** (`natpf_shot_feedback.js`):
+  - anello colorato nel punto di arrivo (`ball.targetLanding`, noto al momento del colpo), lampo sulla
+    racchetta e scritta breve;
+  - il colore viene dal grade del motore e da dentro/fuori;
+  - il telefono riceve `vib` e `out` nell'evento `ev`; `racchetta.js` li usa se ci sono, quindi resta
+    compatibile con NATPF Simulator.
+- **Mano** (`natpf_hand.js`):
+  - mancino = `root.scale.x = -1` sull'attore locale, in prima e terza persona;
+  - `_emitSwing` scambia dritto e rovescio per webcam e mouse (il telefono conosce già la mano);
+  - al servizio la palla è specchiata attorno al giocatore;
+  - in prima persona mano e avambraccio liberi sono nascosti fuori dal proprio servizio.
+- **Mouse e tastiera**: nascosti e bloccati (`_gateDesktopInput`). L'easter egg `natpf`, digitato nel menu, li
+  attiva e la scelta resta salvata.
+
+### Verifiche (18 ottobre 2026)
+
+- **Test**: `npm test` 67/67; test di NATPF Simulator 124/124; test LAN 4/4.
+- **Browser**:
+  - tutte le tappe, con l'easter egg che mostra il mouse;
+  - allenamento completo (11 colpi, 11 perfetti), con avversario ripristinato alla fine;
+  - anello verde e scritta «Perfetto»;
+  - mancino in prima persona: racchetta a sinistra, mano libera al servizio e nascosta nello scambio, palla
+    specchiata;
+  - riga dei game;
+  - pausa con Esc e «Torna al menu»;
+  - scheda del Player 2 con la scelta della mano.
+
+### Limiti
+
+- Il mancino del Player 2 è solo locale: l'host vede il Player 2 destro. Serve un campo `hand` nel relay.
+- Da provare con telefono e webcam reali: preparazione webcam, vibrazioni per esito, allenamento.
+
 ## Limiti e prossimi passi
 
 1. **Prova fisica breve** con telefono reale: scelta della visuale, calibrazione, servizio, scambio.
