@@ -295,6 +295,7 @@ export class NatpfMusic {
     this.timer = null;
     this.volume = 1;
     this.scheduledNotes = 0;
+    this.onSwitch = null; // chiamato quando un brano passa da solo al successivo (ingresso in campo → scambio)
   }
 
   get playing() {
@@ -387,6 +388,7 @@ export class NatpfMusic {
           // fine dell'ingresso in campo: il brano successivo attacca a tempo, senza buchi
           this._switch(NATPF_TRACKS[this.pendingNext || track.next || "match_rally"], { fade: false, at: this.nextTime });
           this.pendingNext = null;
+          if (typeof this.onSwitch === "function") this.onSwitch(this.track.id);
           continue;
         }
         this.step = track.loopFrom * STEPS;
