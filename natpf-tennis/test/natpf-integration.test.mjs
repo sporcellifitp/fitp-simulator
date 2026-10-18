@@ -64,12 +64,12 @@ test('esito del colpo al telefono solo per il giocatore locale', () => {
   const phone = new NatpfPhoneRacket({ playerRole: 'p2' });
   phone.link = { ready: true, send: m => sent.push(m) };
   phone.feedback({ role: 'p1', kind: 'hit', grade: 'PERFECT' });
-  phone.feedback({ role: 'p2', kind: 'hit', grade: 'PERFECT • FOREHAND', shotType: 'LOB' });
+  phone.feedback({ role: 'p2', kind: 'hit', grade: 'PERFECT • FOREHAND', shotType: 'LOB', quality: { color: 'green', label: 'Perfetto' } });
   phone.feedback({ role: 'p2', kind: 'whiff' });
   phone.feedback({ role: 'p2', kind: 'point_won', grade: 'POINT WON!' });
   assert.deepEqual(sent, [
-    { t: 'ev', k: 'contact', label: 'perfetto', shot: 'lob' },
-    { t: 'ev', k: 'miss', why: 'tardi' },
+    { t: 'ev', k: 'contact', label: 'perfetto', shot: 'lob', vib: [70], out: false },
+    { t: 'ev', k: 'miss', why: 'tardi', vib: [25, 60, 25] },
     { t: 'ev', k: 'point', mine: true, txt: 'POINT WON!' },
   ]);
 });

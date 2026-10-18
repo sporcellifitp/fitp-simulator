@@ -30,6 +30,11 @@ export class NatpfHand {
     this.hand = readHand();
     this.mirrored = null;
     this.offHidden = null;
+    // al servizio la palla sta nella mano libera: per un mancino dall'altra parte del corpo
+    const mirrorBall = actor => { if (this.hand === 'left' && actor === engine.localActor) engine.ball.pos.x = 2*actor.pos.x - engine.ball.pos.x; };
+    const setup = engine._setupPointServe?.bind(engine), toss = engine._startServeToss?.bind(engine);
+    if (setup) engine._setupPointServe = (o) => { const r = setup(o); const s = engine.score.server === 'player' ? engine.player : engine.opponent; mirrorBall(s); return r; };
+    if (toss) engine._startServeToss = (actor) => { const r = toss(actor); mirrorBall(actor); return r; };
     const mc = engine.motionController;
     const emit = mc?._emitSwing?.bind(mc);
     if (emit) mc._emitSwing = (e = {}) => {

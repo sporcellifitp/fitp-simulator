@@ -38,6 +38,6 @@ export const GRIP_SVG = {
 // Stato mostrato sotto ogni racchetta.
 export function controllerStatus(id, { phone, webcamActive }){
   if (id === 'phone') return phone.ready ? 'Pronto ✓' : phone.connected ? 'Collegato · da calibrare' : 'Da collegare · mostra il QR';
-  if (id === 'webcam') return webcamActive ? 'Attiva ✓' : 'Si accende all’inizio della partita';
+  if (id === 'webcam') return webcamActive ? 'Attiva ✓' : 'Si accende nella preparazione';
   return 'Sempre disponibile';
 }

@@ -34,8 +34,8 @@ export class NatpfShotFeedback {
     this.engine = engine;
     this.markers = [];
     this.flashes = [];
-    const ring = new THREE.RingGeometry(.34, .5, 40); ring.rotateX(-Math.PI/2);
-    const disc = new THREE.CircleGeometry(.34, 32); disc.rotateX(-Math.PI/2);
+    const ring = new THREE.RingGeometry(.55, .82, 48); ring.rotateX(-Math.PI/2);
+    const disc = new THREE.CircleGeometry(.55, 40); disc.rotateX(-Math.PI/2);
     for (let i = 0; i < 4; i++){
       const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
       const fill = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
@@ -55,7 +55,10 @@ export class NatpfShotFeedback {
       const g = String(o.grade || ''), p2 = /^P2\b/.test(g);
       const q = shotQuality(g, { inCourt: landsIn(engine.ball?.targetLanding, { towardNegativeZ: !p2, serve: /SERVE/i.test(g) }) });
       const kmh = String(o.detail || '').match(/\d+\s*KM\/H/i)?.[0] || '';
-      popup({ ...o, grade: q.label, detail: kmh.toLowerCase().replace('km/h', 'km/h') });
+      // in prima persona il proprio messaggio va al centro, sotto la linea dello sguardo (non sopra il tabellone)
+      const mine = p2 === (engine.playerRole === 'p2');
+      const screenPos = mine && engine._isFirstPersonActive?.() ? { x: window.innerWidth/2, y: window.innerHeight*.64, visible: true } : o.screenPos;
+      popup({ ...o, screenPos, grade: q.label, detail: kmh.toLowerCase() });
       const el = document.getElementById('timing-popup-grade');
       if (el){ el.classList.remove('grade-early', 'grade-late', 'grade-perfect', 'q-green', 'q-yellow', 'q-red'); el.classList.add('q-' + q.color); }
     };
