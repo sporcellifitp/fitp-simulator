@@ -9,7 +9,7 @@ import http from 'node:http';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createArgonRelay } from '../scripts/argon-relay.mjs';
-import { argonAssetList, createAssetMiddleware, localAsset, offlineStatus, MEDIAPIPE_FILES, LICENSES, assetCategory } from '../scripts/offline-assets.mjs';
+import { argonAssetList, createAssetMiddleware, localAsset, offlineStatus, MEDIAPIPE_FILES, MEDIAPIPE_POSE_FILES, mediapipeAssets, LICENSES, assetCategory } from '../scripts/offline-assets.mjs';
 import { createGameHandler, lanRedirect } from '../lan/game-handler.mjs';
 import { buildIsStale } from '../lan/prepare.mjs';
 import { argonAssetUrl, ARGON_GSTATIC } from '../src/natpf/argon_assets.js';
@@ -57,7 +57,12 @@ test('pacchetto offline: la lista degli asset si legge dai sorgenti, con licenze
   assert.match(LICENSES.mediapipe, /Apache-2\.0/);
   assert.ok(MEDIAPIPE_FILES.includes('hands.js') && MEDIAPIPE_FILES.some(f => f.endsWith('.wasm')));
   const status = offlineStatus();
-  assert.equal(status.total, list.length + MEDIAPIPE_FILES.length);
+  assert.equal(status.total, list.length + MEDIAPIPE_FILES.length + MEDIAPIPE_POSE_FILES.length);
+  // Pose: solo il modello lite (modelComplexity 0), non full e heavy
+  assert.ok(MEDIAPIPE_POSE_FILES.includes('pose_landmark_lite.tflite') && !MEDIAPIPE_POSE_FILES.some(f => /full|heavy/.test(f)));
+  assert.ok(mediapipeAssets().some(a => a.rel === 'mediapipe/pose/pose.js'));
+  assert.match(LICENSES.mediapipe, /@mediapipe\/pose/);
+  assert.equal(localAsset('mediapipe/pose/pose_landmark_heavy.tflite', [{ prefix: 'mediapipe/pose/', dir: path.join(ROOT, 'node_modules/@mediapipe/pose'), only: MEDIAPIPE_POSE_FILES }]), null, 'heavy non servito');
 });
 
 test('asset: prima il disco, gstatic solo se manca e c\'è rete, MediaPipe mai da gstatic, niente uscite dalla cartella', async () => {
