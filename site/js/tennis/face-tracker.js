@@ -32,7 +32,7 @@ export const FACE = Object.freeze({
 
 // gesti di calibrazione: il piatto «tipico» all'impatto per ogni verso del gesto (+1 / −1), da togliere in partita
 export function faceReference(samples){
-  const med = a => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length/2)] : 0; };
+  const med = a => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length ? (s.length % 2 ? s[m] : (s[m - 1] + s[m])/2) : 0; };
   const out = {};
   for (const dir of [1, -1]){
     const xs = samples.filter(s => s && s.dir === dir && Number.isFinite(s.yaw));
