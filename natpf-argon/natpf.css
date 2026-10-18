@@ -586,6 +586,58 @@
   color: #9aaab8;
   font-size: 40px;
 }
+/* NATPF presa del telefono: orizzontale (piatto) o verticale (manico) */
+.natpf-grip-choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+  width: min(1120px, 100%);
+  margin: 12px auto 4px;
+}
+.natpf-grip-choice .grip-label {
+  flex: 1 0 100%;
+  color: var(--lb-muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.grip-pill {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 2px solid var(--lb-line);
+  background: var(--lb-panel);
+  color: var(--lb-ink);
+  font-family: var(--lb-font);
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+.grip-pill small {
+  color: var(--lb-muted);
+  font-size: 13px;
+}
+.grip-pill.selected {
+  border-color: var(--lb-ball);
+  box-shadow: inset 0 0 0 1px var(--lb-ball);
+}
+.grip-pill:focus-visible {
+  outline: 3px solid var(--lb-ball);
+  outline-offset: 2px;
+}
+.natpf-grip-choice.compact {
+  margin: 0 0 10px;
+}
+.natpf-grip-choice.compact .grip-pill {
+  flex: 1 1 140px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
 .natpf-grip {
   float: right;
   width: 64px;

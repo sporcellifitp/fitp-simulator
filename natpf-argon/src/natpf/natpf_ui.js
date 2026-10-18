@@ -2,7 +2,7 @@
 // mouse/tastiera di Argon) e della visuale, pannello di collegamento del telefono con le fasi della calibrazione
 // NATPF (collega → impugna → prova → verifica → pronto), invito del Player 2 per il 1v1 tra due computer.
 // I testi del collegamento seguono quelli di site/js/tennis/main.js.
-import { controllerTiles, viewTiles, controllerStatus } from './natpf_tiles.js';
+import { controllerTiles, viewTiles, controllerStatus, gripChoice, GRIP_SVG } from './natpf_tiles.js';
 import { NatpfOnboarding } from './natpf_onboarding.js';
 import { NatpfLobby } from './natpf_lobby.js';
 const $ = id => document.getElementById(id);
@@ -56,14 +56,27 @@ export class NatpfUi {
     for (const box of document.querySelectorAll('[data-natpf-tiles="view"]')) box.innerHTML = viewTiles();
     // pannello del Player 2: le stesse tessere, compatte
     for (const box of document.querySelectorAll('[data-natpf-setup]')) box.innerHTML = `<p class="lobby-label">Racchetta</p><div class="lobby-tiles compact">${controllerTiles(true)}</div><p class="lobby-label">Visuale</p><div class="lobby-tiles compact lobby-tiles-2">${viewTiles(true)}</div>`;
+    // NATPF presa del telefono: lobby (passo Racchetta) e pannello del telefono
+    for (const box of document.querySelectorAll('[data-natpf-grip-choice]')) box.innerHTML = gripChoice(box.dataset.natpfGripChoice === 'compact');
     document.addEventListener('click', e => {
+      const g = e.target.closest('[data-natpf-grip]');
+      if (g){ e.stopPropagation(); this.phone.setGrip(g.dataset.natpfGrip); this.paintGrip(); this.paintPhone(); return; }
       const b = e.target.closest('[data-natpf-controller],[data-natpf-view]'); if (!b) return;
       e.stopPropagation();
       if (b.dataset.natpfController) this.selectController(b.dataset.natpfController);
       if (b.dataset.natpfView) this.engine.setViewMode(b.dataset.natpfView);
     });
   }
+  // NATPF presa del telefono: scelta evidenziata, disegno della presa nel pannello, scelta visibile solo con lo smartphone
+  paintGrip(){
+    const grip = this.phone.grip;
+    for (const b of document.querySelectorAll('[data-natpf-grip]')){ const on = b.dataset.natpfGrip === grip; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
+    show($('lobby-grip-choice'), this.controller === 'phone');
+    const svg = document.querySelector('.natpf-grip');
+    if (svg && svg.dataset.grip !== grip){ svg.dataset.grip = grip; svg.innerHTML = GRIP_SVG[grip]; svg.setAttribute('aria-label', grip === 'flat' ? 'Telefono in orizzontale nel palmo, display verso di te: il dorso è il piatto della racchetta' : 'Telefono in verticale nel palmo, schermo verso il palmo, come il manico di una racchetta'); }
+  }
   paintTiles(){
+    this.paintGrip();
     const mc = this.engine.motionController, state = { phone: this.phone, webcamActive: !!mc?.webcamActive };
     for (const el of document.querySelectorAll('[data-tile-status]')){ const id = el.dataset.tileStatus; if (CONTROLLERS.some(c => c.id === id)) el.textContent = controllerStatus(id, state); }
     for (const el of document.querySelectorAll('[data-natpf-controller="phone"]')) el.classList.toggle('ok', this.phone.ready);
@@ -161,7 +174,8 @@ export class NatpfUi {
     if (L.state === 'lost'){ status = 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo'; tag = 'Scollegato'; }
     if (L.state === 'error'){ status = `Connessione non disponibile (${L.error}). Riprova o verifica la connessione a internet.`; tag = 'Errore'; }
     if (step === 'collega' && p.connected){ status = 'Telefono collegato: sul telefono tocca «Attiva i sensori»'; tag = 'Collegato'; }
-    if (step === 'impugna'){ status = cal.grip ? 'Telefono in verticale ✓ resta così un attimo…' : 'Tieni il telefono in verticale nel palmo, schermo verso il palmo, come il manico di una racchetta'; hint = 'Presa comoda, senza stringere: va bene anche da seduti.'; tag = 'Impugnatura'; }
+    if (step === 'impugna' && p.grip === 'flat'){ status = 'Telefono in orizzontale nel palmo, display verso di te: il dorso guarda la rete come le corde. Resta fermo 2 secondi in posizione «pronto».'; hint = 'Poi bastano quattro gesti comodi, a sinistra e a destra. Va bene anche da seduti.'; tag = 'Posizione pronto'; }
+    else if (step === 'impugna'){ status = cal.grip ? 'Telefono in verticale ✓ resta così un attimo…' : 'Tieni il telefono in verticale nel palmo, schermo verso il palmo, come il manico di una racchetta'; hint = 'Presa comoda, senza stringere: va bene anche da seduti.'; tag = 'Impugnatura'; }
     if (step === 'prova'){ status = 'Fai i gesti che chiede il telefono: un colpetto comodo verso sinistra o verso destra, poi fermati.'; hint = cal.idle ? 'Non sento movimenti: prova un gesto più deciso, oppure sul telefono scegli movimento compatto o i tocchi.' : 'Non serve conoscere il tennis: basta un gesto naturale.'; tag = 'Calibrazione'; }
     if (step === 'verifica'){
       const r = cal.review;
@@ -169,7 +183,7 @@ export class NatpfUi {
       else { status = cal.freeOk ? 'Gesto letto ✓ ora conferma la racchetta' : 'Gesti riconosciuti! Prova un colpetto libero con il telefono…'; hint = 'Muovi normalmente per rispondere; accompagna verso l’alto per alzare la palla, un tocco corto e morbido per una palla corta.'; }
       tag = 'Verifica';
     }
-    if (step === 'pronto'){ status = 'Racchetta pronta ✓'; hint = 'Guarda la palla sul computer e colpisci quando arriva alla racchetta. Al servizio: un gesto lancia la palla, il secondo la colpisce in alto.'; tag = `Pronto${L.rtt != null ? ` · ${L.rtt} ms` : ''}`; }
+    if (step === 'pronto'){ status = 'Racchetta pronta ✓'; hint = p.grip === 'flat' ? 'Il piatto decide la direzione: giralo a sinistra o a destra per angolare, aprilo verso l’alto per il lob (o una palla corta con un gesto morbido), chiudilo per il coperto. Dal basso verso l’alto: topspin; dall’alto: slice.' : 'Guarda la palla sul computer e colpisci quando arriva alla racchetta. Al servizio: un gesto lancia la palla, il secondo la colpisce in alto.'; tag = `Pronto${L.rtt != null ? ` · ${L.rtt} ms` : ''}`; }
     if (step === 'errore'){ status = 'Sensori non disponibili'; hint = PHONE_ERR[L.phone]; tag = 'Errore'; }
     $('natpf-phone-status').textContent = status; $('natpf-phone-hint').textContent = hint;
     const t = $('natpf-phone-tag'); t.textContent = tag; t.classList.toggle('online', step === 'pronto');
