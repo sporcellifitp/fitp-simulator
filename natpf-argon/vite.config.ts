@@ -331,7 +331,7 @@ export default D(async ({ mode: t }) => {
         "@natpf": C.join(NATPF_SITE, "js"),
         "@": C.resolve("."),
       },
-      // i moduli di ../site importano «three»: una sola istanza, quella di Argon
+      // i moduli di ../site importano «three»: una sola istanza, quella del motore base
       dedupe: ["three"],
     },
   };
