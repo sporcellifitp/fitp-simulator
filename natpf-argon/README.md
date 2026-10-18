@@ -77,19 +77,29 @@ essere attendibile, oppure i sensori e la webcam non sono garantiti). Il relay d
 
 ### Webcam in LAN e offline
 
-MediaPipe Hands arriva dal pacchetto npm `@mediapipe/hands` (versione fissata, Apache-2.0) ed è servito dal
+MediaPipe Hands arriva dal pacchetto npm `@mediapipe/hands` (versione fissata, Apache-2.0; Pose da `@mediapipe/pose`) ed è servito dal
 computer sotto `/assets/mediapipe/hands/`; il CDN della stessa versione resta solo come riserva, e se mancano
 entrambi Argon usa l'optical flow. Oltre a far partire i colpi, la mano ora muove **di continuo** racchetta e mano
 del personaggio, in prima e in terza persona: spostamento a destra/sinistra e in alto/in basso, rotazione della mano
 → rotazione del piatto. La posizione di riposo si adatta in pochi secondi a dove tieni la mano; se la mano sparisce
-la racchetta torna alla posa di Argon. Il corpo (spostamento laterale del giocatore) non è collegato: resta il
-movimento automatico di Argon.
+la racchetta torna alla posa di Argon.
+
+**Movimento: automatico / segui il corpo.** Con la racchetta Webcam compare nell'HUD il pulsante «Movimento»
+(tasto **B**, oppure `?move=body`). Con «segui il corpo» MediaPipe Pose (pacchetto `@mediapipe/pose`, modello lite,
+offline) trova spalle e anche: spostarti a destra o a sinistra davanti alla webcam porta il giocatore a destra o a
+sinistra in campo, avvicinarti alla webcam lo porta verso la rete, allontanarti verso il fondo. La posizione in cui
+ti vede per la prima volta vale come centro del campo. Vale solo durante lo scambio (al servizio i giocatori restano
+dove li mette Argon) e per P1 e P2, in prima e in terza persona; il colpo resta legato alla mano. Se esci
+dall'inquadratura o la webcam non ti vede per più di 0,4 s, torna il movimento automatico di Argon e il pulsante lo
+dice. Il valore predefinito è **automatico**: seguire il corpo chiede 2–3 m liberi davanti allo schermo, il busto
+intero nell'inquadratura e di giocare in piedi, mentre l'automatico funziona anche da seduti o vicino al monitor.
 
 ### Pacchetto offline
 
 `npm run assets` scarica in `public/assets/` modelli 3D, musiche e annunci, texture del cielo e QR di Argon (lista
-letta dai sorgenti) e scrive `public/assets/manifest.json` con dimensioni, sha256 e licenza. In tutto circa 37 MB:
-modelli 10,4 MB, audio 3,4 MB, texture 0,1 MB, MediaPipe 23,3 MB (da npm). `npm run assets:check` dice cosa manca.
+letta dai sorgenti) e scrive `public/assets/manifest.json` con dimensioni, sha256 e licenza. In tutto 67 file,
+circa 55 MB: modelli 10,4 MB, audio 3,4 MB, texture 0,1 MB, MediaPipe Hands e Pose lite 40,9 MB (da npm).
+`npm run assets:check` dice cosa manca.
 Licenze: MediaPipe Apache-2.0; modelli, audio e texture vengono dalla starter app di Google AI Studio e non hanno una
 licenza dichiarata, quindi solo uso interno finché non viene verificata. Se un file manca il gioco parte lo stesso:
 il server prova gstatic solo se c'è rete, altrimenti risponde 404 e Argon continua senza quel modello, suono o

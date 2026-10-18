@@ -64,7 +64,7 @@ async function openGame(ctx, url, label){
 try {
   await new Promise((resolve, reject) => {
     const t = setTimeout(() => reject(new Error('server LAN non partito: ' + serverLog)), 20000);
-    const poll = setInterval(() => { if (/Gioco pronto|HTTPS non ancora pronto/.test(serverLog)){ clearInterval(poll); clearTimeout(t); resolve(); } }, 100);
+    const poll = setInterval(() => { if (/Gioco pronto/.test(serverLog)){ clearInterval(poll); clearTimeout(t); resolve(); } }, 100);
     server.once('exit', code => { clearInterval(poll); clearTimeout(t); reject(new Error(`server LAN uscito (${code}): ${serverLog}`)); });
   });
   check('server LAN avviato in HTTPS con gli indirizzi di rete', IP ? serverLog.includes(`https://${IP}:${PORT}/?lan=1`) : /HTTPS/.test(serverLog), serverLog.split('\n').find(l => l.includes('https://')) || '');
@@ -282,6 +282,108 @@ try {
     check('webcam: uno swing della mano fa partire il colpo di Argon', shots.includes('webcam'), JSON.stringify(shots));
     await cam.evaluate(() => { window.__handOn = false; __argonTennis.motionController.disableWebcam(); });
     await camCtx.close();
+  }
+
+  /* ---------- 5. webcam «Movimento: segui il corpo» (MediaPipe Pose offline), P1 e P2 ---------- */
+  if (run('corpo')){
+    // corpo sintetico con gli stessi campi di MediaPipe Pose (spalle 11/12, anche 23/24), a ogni risultato
+    const bodyInjector = () => {
+      window.__body = { x: .5, w: .2, on: true };
+      const lm = ({ x, w }) => { const l = Array.from({ length: 33 }, () => ({ x: .5, y: .5, z: 0, visibility: .1 })); l[11] = { x: x + w/2, y: .35, z: 0, visibility: .95 }; l[12] = { x: x - w/2, y: .35, z: 0, visibility: .95 }; l[23] = { x: x + w*.4, y: .65, z: 0, visibility: .9 }; l[24] = { x: x - w*.4, y: .65, z: 0, visibility: .9 }; return l; };
+      window.__bodyTimer = setInterval(() => { if (__body.on) __argonTennis.natpfBody.onPoseResults({ poseLandmarks: lm(__body) }); }, 40);
+    };
+    // giocatore automatico solo per servizio e colpi (la posizione la decide il corpo)
+    const shooter = () => {
+      let last = 0;
+      window.__shooter = setInterval(() => {
+        const e = window.__argonTennis, mc = e.motionController, me = e.playerRole === 'p2' ? 'opponent' : 'player', a = e[me], b = e.ball, now = performance.now();
+        if (now - last < 380) return;
+        if (e.phase === 'SERVE_STANCE' && e.score.server === me){ last = now + 400; mc.triggerSyntheticSwing({ type: 'toss' }); }
+        else if (e.phase === 'SERVE_TOSS' && e.score.server === me && b.vel.y < 0){ last = now; mc.triggerSyntheticSwing({}); }
+        else if (e.phase === 'RALLY' && b.inPlay && (a.pos.z - b.pos.z)*b.vel.z > 0 && Math.hypot(b.pos.x - a.pos.x, b.pos.z - a.pos.z) < 1.7){ last = now; mc.triggerSyntheticSwing({}); }
+      }, 8);
+    };
+    // posizione x del giocatore che segue il corpo dopo 0,9 s di scambio, con il corpo a destra o a sinistra
+    const measure = async (page, observer, actorKey, side, label) => {
+      const out = [];
+      for (const bodyX of side){
+        await page.evaluate(x => { __body.x = x; }, bodyX);
+        await observer.waitForFunction(() => __argonTennis.phase === 'RALLY', null, { timeout: 40000 });
+        await sleep(900);
+        const s = await observer.evaluate(k => ({ phase: __argonTennis.phase, x: __argonTennis[k].pos.x, z: __argonTennis[k].pos.z }), actorKey);
+        out.push({ bodyX, ...s });
+        await observer.waitForFunction(() => __argonTennis.phase !== 'RALLY', null, { timeout: 30000 }).catch(() => {});
+      }
+      console.log(label, JSON.stringify(out.map(o => ({ corpo: o.bodyX, fase: o.phase, x: +o.x.toFixed(2), z: +o.z.toFixed(2) }))));
+      return out;
+    };
+
+    // P1 contro la CPU
+    const bodyCtx = await newContext({ viewport: { width: 1100, height: 680 }, permissions: ['camera'] });
+    const bp = await openGame(bodyCtx, BASE + '/', 'corpo P1');
+    await bp.evaluate(() => { __argonTennis.natpfUi.selectController('webcam', { open: false }); __argonTennis.hud.callbacks.onStartMatch({ gamesToWin: 2, inputMode: 'webcam' }); __argonTennis.hud.hideTitleModal(); });
+    await bp.waitForFunction(() => __argonTennis.motionController.webcamActive, null, { timeout: 20000 });
+    check('pulsante «Movimento» visibile con la webcam, predefinito automatico', await bp.evaluate(() => { const b = document.getElementById('btn-natpf-movement'); return !!b && !b.classList.contains('hidden') && __argonTennis.natpfBody.mode === 'auto' && /automatico/.test(b.textContent); }));
+    await bp.click('#btn-natpf-movement');
+    await bp.waitForFunction(() => __argonTennis.natpfBody.pose, null, { timeout: 90000 }).catch(() => {});
+    const poseInfo = await bp.evaluate(async () => {
+      const f = __argonTennis.natpfBody, mc = __argonTennis.motionController;
+      if (!f.pose) return { loaded: false, status: f.status };
+      const t0 = performance.now(); await f.pose.send({ image: mc.videoElem });
+      const t1 = performance.now(); if (mc.mpHands) await mc.mpHands.send({ image: mc.videoElem });
+      return { loaded: true, base: f.base, ms: Math.round(t1 - t0), handsMs: Math.round(performance.now() - t1), mode: f.mode, hands: !!mc.mpHands };
+    });
+    check('«segui il corpo»: MediaPipe Pose caricato dal pacchetto locale insieme a Hands (entrambi attivi), inferenza offline', poseInfo.loaded && poseInfo.hands && poseInfo.base === '/assets/mediapipe/pose/' && poseInfo.mode === 'body', JSON.stringify(poseInfo));
+    await bp.evaluate(bodyInjector);
+    await bp.waitForFunction(() => __argonTennis.natpfBody.status === 'following', null, { timeout: 10000 });
+    check('il corpo viene visto e la posizione di partenza calibrata', await bp.evaluate(() => /segue il corpo/.test(document.getElementById('btn-natpf-movement').textContent)));
+    await bp.evaluate(shooter);
+    const fps = await bp.evaluate(() => new Promise(r => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 1500) requestAnimationFrame(f); else r(Math.round(n/(performance.now() - t0)*1000)); }; requestAnimationFrame(f); }));
+    // destra del giocatore = sinistra nell'immagine della camera (a specchio): x .3 = destra, .7 = sinistra
+    const p1Moves = await measure(bp, bp, 'player', [.3, .7, .3], 'corpo P1 → giocatore');
+    await bp.evaluate(() => __argonTennis.setViewMode('first'));
+    const p1First = await measure(bp, bp, 'player', [.7], 'corpo P1 → giocatore (prima persona)');
+    const right = p1Moves.filter(o => o.bodyX < .5), left = [...p1Moves, ...p1First].filter(o => o.bodyX > .5);
+    check('P1 segue il corpo: a destra davanti alla webcam → a destra in campo (terza persona)', right.every(o => o.x > 2), right.map(o => o.x.toFixed(2)).join(', '));
+    check('P1 segue il corpo: a sinistra → a sinistra in campo (terza e prima persona)', left.every(o => o.x < -2), left.map(o => o.x.toFixed(2)).join(', '));
+    // avanti verso la webcam (spalle più larghe) → verso la rete
+    await bp.evaluate(() => { __body.x = .5; __body.w = .2*1.35; });
+    await bp.waitForFunction(() => __argonTennis.phase === 'RALLY', null, { timeout: 40000 }); await sleep(900);
+    const fwd = await bp.evaluate(() => __argonTennis.player.pos.z);
+    check('P1 si avvicina alla webcam → va verso la rete', fwd < 9, `z = ${fwd.toFixed(2)} (fondo campo 11,89)`);
+    await bp.screenshot({ path: path.join(OUT, 'lan-corpo-p1-prima-persona.png') });
+    // corpo che esce dall'inquadratura: si torna al movimento automatico
+    await bp.evaluate(() => { __body.on = false; });
+    await sleep(700);
+    const lost = await bp.evaluate(() => ({ status: __argonTennis.natpfBody.status, label: document.getElementById('btn-natpf-movement').textContent, target: __argonTennis.natpfBody.targetFor(__argonTennis.player) }));
+    check('corpo non visto → movimento automatico di Argon', lost.status === 'lost' && lost.target === null && /automatico/.test(lost.label), JSON.stringify(lost));
+    console.log('fps con webcam, Hands e Pose', fps);
+    await bp.evaluate(() => { clearInterval(__shooter); clearInterval(__bodyTimer); __argonTennis.motionController.disableWebcam(); });
+    await bodyCtx.close();
+
+    // P2 in 1v1: il bersaglio del corpo passa dal relay all'host
+    const hCtx = await newContext({ viewport: { width: 1000, height: 620 } });
+    const host2 = await openGame(hCtx, BASE + '/', 'corpo host');
+    await host2.evaluate(() => __argonTennis.hud.callbacks.onSelectDifficulty('1v1'));
+    await host2.waitForFunction(() => document.querySelector('#natpf-invite a')?.href, null, { timeout: 15000 });
+    const invite2 = await host2.evaluate(() => document.querySelector('#natpf-invite a').href);
+    const gCtx = await newContext({ viewport: { width: 1000, height: 620 }, permissions: ['camera'] });
+    const guest = await openGame(gCtx, invite2, 'corpo P2');
+    await guest.evaluate(async () => { document.querySelector('#natpf-guest-go')?.click(); __argonTennis.natpfUi.selectController('webcam', { open: false }); await __argonTennis.motionController.enableWebcam(); __argonTennis.natpfBody.setMode('body'); });
+    await guest.waitForFunction(() => __argonTennis.natpfBody.pose, null, { timeout: 90000 });
+    check('P2: Hands e Pose entrambi attivi', await guest.evaluate(() => !!__argonTennis.motionController.mpHands && !!__argonTennis.natpfBody.pose));
+    await guest.evaluate(bodyInjector);
+    await guest.waitForFunction(() => __argonTennis.natpfBody.status === 'following', null, { timeout: 10000 });
+    await host2.evaluate(() => { __argonTennis.hud.callbacks.onStartMatch({ gamesToWin: 2, inputMode: 'mouse' }); __argonTennis.hud.hideTitleModal(); });
+    await host2.evaluate(shooter); await guest.evaluate(shooter);
+    // destra del P2 (che guarda verso +z) = -x nel campo
+    const p2Moves = await measure(guest, host2, 'opponent', [.3, .7], 'corpo P2 → giocatore sull\'host');
+    const p2r = p2Moves.find(o => o.bodyX < .5), p2l = p2Moves.find(o => o.bodyX > .5);
+    check('P2 segue il corpo attraverso il relay: destra del P2 → -x, sinistra → +x (sull\'host che simula)', p2r && p2l && p2r.x < -2 && p2l.x > 2, `destra ${p2r?.x.toFixed(2)}, sinistra ${p2l?.x.toFixed(2)}`);
+    const guestView = await guest.evaluate(() => __argonTennis.opponent.pos.x);
+    check('…e il P2 vede il proprio giocatore spostato (snapshot dell\'host)', guestView > 1.5, `x sul P2 = ${guestView.toFixed(2)}`);
+    await guest.screenshot({ path: path.join(OUT, 'lan-corpo-p2.png') });
+    await hCtx.close(); await gCtx.close();
   }
 
 } catch (error){

@@ -167,6 +167,9 @@ export class NatpfBodyFollow {
   /* ---------- MediaPipe Pose sui fotogrammi della webcam di Argon ---------- */
   async _ensurePose(){
     if (this.pose || this._loading || this.status === 'unavailable') return;
+    // Hands e Pose non si inizializzano insieme: il caricatore dei file di MediaPipe è globale e i due si
+    // sovrascrivono a vicenda (Hands ricadrebbe sull'optical flow). Pose aspetta che Hands abbia finito.
+    if (this.mc?._mpLoading) return;
     this._loading = true;
     try {
       let base = MEDIAPIPE_POSE_LOCAL_BASE;
