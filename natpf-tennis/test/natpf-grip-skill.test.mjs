@@ -55,8 +55,9 @@ test('mira dal piatto: si toglie il piatto abituale del proprio gesto dritto (ca
   const straight = aimFromFace({ yaw: -14, pitch: 4 }, ref, { dir: 1, angle: 44 });
   assert.ok(Math.abs(straight.yaw) < 1.5 && Math.abs(straight.aim) < .06, JSON.stringify(straight));
   const right = aimFromFace({ yaw: 15, pitch: 4 }, ref, { dir: 1, angle: 44 });
-  assert.ok(right.aim > .8, 'piatto girato a destra rispetto al solito → mira a destra');
-  assert.equal(aimFromFace({ yaw: 90, pitch: 0 }, null).aim, 1);
+  assert.ok(right.aim > .5 && right.aim < .8, 'piatto girato a destra rispetto al solito → mira a destra, curva morbida');
+  assert.ok(aimFromFace({ yaw: 70, pitch: 0 }, null).aim > .9);
+  assert.equal(aimFromFace({ yaw: 95, pitch: 0 }, null).aim, null, 'oltre il limite la misura non vale: mira dal tempo');
   assert.equal(aimFromFace(null, ref), null);
   assert.ok(FACE.aimYaw > 0);
 });

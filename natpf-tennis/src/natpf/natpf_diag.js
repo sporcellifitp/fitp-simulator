@@ -55,8 +55,16 @@ export class NatpfDiag {
     };
     requestAnimationFrame(loop);
   }
+  // stato della partita quando arriva il colpo: spiega i colpi senza esito (palla lontana, punto finito, già colpita)
+  engineState(){
+    const e = this.engine, b = e.ball, me = e.localActor || e.player;
+    const r2 = v => (Number.isFinite(v) ? +v.toFixed(2) : null);
+    return { phase: e.phase || null, inPlay: !!b?.inPlay, lastHitter: b?.lastHitter || null, role: e.playerRole || null,
+      ball: b?.pos ? [r2(b.pos.x), r2(b.pos.y), r2(b.pos.z)] : null, velZ: r2(b?.vel?.z),
+      dist: b?.pos && me?.position ? r2(Math.hypot(b.pos.x - me.position.x, b.pos.z - me.position.z)) : null };
+  }
   _onSwing(ev, s){
-    const rec = { s: { ...s }, ev: { side: ev.side, shotType: ev.shotType, speed: ev.speed, natpf: ev.natpf }, hitAt: null, frameAt: null, result: null };
+    const rec = { s: { ...s }, ev: { side: ev.side, shotType: ev.shotType, speed: ev.speed, natpf: ev.natpf, ...(ev.ignored ? { ignored: ev.ignored } : {}) }, game: this.engineState(), hitAt: null, frameAt: null, result: null };
     this.swings.push(rec); if (this.swings.length > 8) this.swings.shift();
     this.recording?.swings.push(rec);
   }
@@ -73,13 +81,13 @@ export class NatpfDiag {
     const link = this.engine.natpfPhone.link;
     if (!this.recording){
       this.recording = { startedAt: new Date().toISOString(), transport: link?.transport || null, raw: [], swings: [], stats: [] };
-      link?.send({ t: 'cfg', prep: 1, mo: 1, diag: 1 });
+      this.engine.natpfPhone.diagStream = true; link?.send({ t: 'cfg', prep: 1, mo: 1, diag: 1 });
       this._recTimer = setInterval(() => { this.recording?.stats.push({ at: performance.now(), ...(link?.stats?.() || {}), hz: link?.L?.hz ?? null, fps: Math.round(this.fps) }); }, 1000);
       this._recStop = setTimeout(() => this.recording && this.toggleRecording(), DIAG_MAX_RECORD_MS);
     } else {
       clearInterval(this._recTimer); clearTimeout(this._recStop);
-      link?.send({ t: 'cfg', prep: 1, mo: 1, diag: 0 });
-      const data = { ...this.recording, endedAt: new Date().toISOString(), profile: { hand: this.engine.natpfPhone.hand, liftBaseline: this.engine.natpfPhone.liftBaseline, phone: this.engine.natpfPhone.profile || null } };
+      this.engine.natpfPhone.diagStream = false; link?.send({ t: 'cfg', prep: 1, mo: 1, diag: 0 });
+      const data = { ...this.recording, endedAt: new Date().toISOString(), profile: { hand: this.engine.natpfPhone.hand, liftBaseline: this.engine.natpfPhone.liftBaseline, liftNow: this.engine.natpfPhone.liftModel?.value, phone: this.engine.natpfPhone.profile || null } };
       this.recording = null;
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
@@ -103,6 +111,8 @@ export class NatpfDiag {
     for (const r of [...this.swings].reverse()){
       const t = swingTimeline(r.s, r), n = r.ev.natpf || {};
       lines.push(`${String(r.s.seq ?? '').padStart(4)}  ${(`${r.ev.side || '–'}/${n.shot || r.ev.shotType}`).padEnd(17)} ${(`${(n.wrist ?? 0).toFixed(2)} ${n.aimSource || ''}`).padEnd(12)} ${String(r1(t.detect)).padStart(5)} ${String(r1(t.hold)).padStart(5)} ${String(r1(t.delivery)).padStart(9)} ${String(r1(t.total)).padStart(7)} ${String(r1(t.ball)).padStart(13)} ${String(r1(t.screen)).padStart(8)}  ${r.result ? `${r.result.quality || r.result.kind} x ${r.result.landingX}` : ''}`);
+      if (r.ev.ignored) lines.push(`       scartato: ${r.ev.ignored}`);
+      else if (!r.result && r.game) lines.push(`       senza esito · ${r.game.phase} · palla ${r.game.inPlay ? 'in gioco' : 'ferma'}${r.game.lastHitter ? ` (ultimo: ${r.game.lastHitter})` : ''}${r.game.dist != null ? ` a ${r.game.dist} m` : ''}`);
       if (n.why?.length) lines.push(`       perché: ${n.why.join(' · ')}${r.s.vert ? ` · verticale ${r.s.vert}` : ''}`);
     }
     body.textContent = lines.join('\n');

@@ -59,26 +59,31 @@ gravità in due ordini di assi diversi (i gesti verticali non venivano mai ricon
 
 Segnali: **H** verso orizzontale (giroscopio, rispetto all'asse imparato in calibrazione), **V** gesto verticale
 riconosciuto sul telefono, **L** verso verticale della mano durante la spinta (accelerazione lungo la gravità,
-rispetto al proprio dritto), **F** piatto all'impatto (orientamento filtrato: imbardata → mira, apertura in gradi),
-**P** forza (metà rispetto alla calibrazione, metà dalla velocità vera), palla alta.
+rispetto al proprio gesto abituale **nello stesso verso**: prima dalla calibrazione, poi la mediana degli ultimi 12
+colpi veri in quel verso), **F** piatto all'impatto (orientamento filtrato: imbardata → mira, apertura in gradi),
+**P** forza (metà rispetto alla calibrazione, metà dalla velocità vera), **S** velocità rispetto al proprio colpo
+tipico, palla alta. Le soglie di L si allargano con la variabilità dei propri colpi (k = variabilità/0,12, tra 1 e 1,8).
 
 | Colpo | Condizione (decide la prima riga che vale) |
 |---|---|
-| Pallonetto | gesto verticale verso l'alto; oppure orizzontale con L ≥ 0,45, o L ≥ 0,3 e piatto aperto ≥ 10° |
-| Schiacciata | gesto verticale verso il basso con palla alta; oppure orizzontale con palla alta e L ≤ −0,2 |
-| Tagliato (chop) | gesto verticale verso il basso con palla bassa |
-| Palla corta | orizzontale con L ≤ −0,22 **e** piatto aperto ≥ 8° **e** gesto morbido (P < 0,45) |
-| Tagliato | orizzontale con L ≤ −0,22 (senza le altre due condizioni) |
-| Topspin | orizzontale con 0,15 ≤ L < 0,45, oppure il caso normale |
+| Pallonetto | gesto verticale verso l'alto senza verso orizzontale; oppure orizzontale non lento (S ≥ 0,45) con L ≥ 0,55, o L ≥ 0,4 e piatto aperto ≥ 10° |
+| Schiacciata | gesto verticale verso il basso (senza verso orizzontale) con palla alta; oppure orizzontale con palla alta e L ≤ −0,25 |
+| Tagliato (chop) | gesto verticale verso il basso (senza verso orizzontale) con palla bassa |
+| Palla corta | orizzontale con L ≤ −0,35 **e** piatto aperto ≥ 8° **e** gesto morbido (P < 0,45) |
+| Tagliato | orizzontale non lento con L ≤ −0,35 (senza le altre due condizioni) |
+| Topspin | orizzontale con L ≥ 0,2, gesto lento, oppure il caso normale |
 | Piatto (potente) | orizzontale veloce (P ≥ 0,78) con piatto dritto (\|F\| < 10°) |
 
 - **Dritto / rovescio**: dal verso H e dalla mano (dritto del destro = da destra a sinistra; del mancino il contrario).
   Senza H (gesto verticale o modalità semplice) il lato lo danno la preparazione o la posizione della palla.
 - **Direzione**: soprattutto il piatto all'impatto (dorso del telefono girato a destra → palla a destra, a sinistra →
-  a sinistra, rispetto al proprio colpo abituale; ±30° = tutto il campo), poi un poco il tempo del colpo (prima =
-  più incrociato). È la stessa regola per dritto e rovescio: il rovescio va lungolinea quanto il dritto.
+  a sinistra, rispetto al proprio colpo abituale), poi un poco il tempo del colpo (prima = più incrociato). È la
+  stessa regola per dritto e rovescio: il rovescio va lungolinea quanto il dritto. L'angolo si misura dalla posa più
+  ferma prima del colpo (non da una posa «pronto» fissa) e passa per una curva morbida (40° ≈ 3/4 della mira); oltre
+  80° la misura non è credibile e la direzione la decide solo il tempo del colpo (fonte «timing» nel pannello).
 - **Preparazione**: il gesto nel verso opposto al colpo atteso (il gioco dice al telefono da che parte arriva la
-  palla) aspetta fino a 250 ms; se arriva il colpo è una preparazione, se no vale come colpo con il suo istante vero.
+  palla) aspetta fino a 250 ms solo se è più debole dell'85% del proprio colpo tipico; se arriva il colpo è una
+  preparazione, se no vale come colpo con il suo istante vero. Un colpo pieno parte subito.
 - **Gioco con i tocchi**: il colpo scelto sul telefono vale così com'è.
 - I valori soglia sono il punto di partenza: vanno tarati con le registrazioni di persone vere (sezione 5).
 
@@ -95,6 +100,25 @@ rispetto al proprio dritto), **F** piatto all'impatto (orientamento filtrato: im
   frequenza vera e buchi del flusso, tempi di ogni colpo giocato e gli stessi campioni ripassati nel rilevatore e
   nella tabella attuali. Serve a tarare le soglie sui movimenti veri e a confrontare LAN e internet.
 
+## 5b. Cosa hanno mostrato le prime registrazioni vere (LAN) e cosa è cambiato
+
+La rete andava bene (sensori a 60 Hz senza buchi, giro di andata e ritorno 7–9 ms, consegna 2–13 ms); i problemi
+erano nel riconoscimento:
+
+| Problema | Causa | Correzione |
+|---|---|---|
+| Mira quasi sempre in fondo (16 colpi su 24) | posa «pronto» che con la mano vera non sta mai ferma (riposo a 49 °/s di mediana); mira lineare con ±30° | angolo dalla posa più ferma prima del colpo, curva morbida, oltre 80° mira dal tempo |
+| Tagliati non voluti («taglio −0,44» sempre uguale) | L tagliata a ±0,6 nel messaggio, riferimento della calibrazione no | L intera, riferimento per verso del colpo |
+| Pallonetti di rovescio non voluti | il rovescio in partita sale di suo ~0,9 più dei due rovesci della calibrazione | riferimento che si adatta ai colpi veri, soglie più larghe con la variabilità |
+| Quasi tutto «piatto» | colpi a 1200–1650 °/s con la forza al massimo da 1,55 volte il colpo tipico e scala assoluta fino a 1180 °/s | forza al massimo da 2 volte il colpo tipico, scala assoluta fino a 1680 °/s |
+| Riconoscimento 30–67 ms dopo il picco | si aspettava il calo della media mobile | si parte dal calo della velocità grezza (sotto l'88%, o due campioni in calo): 19–40 ms sulle stesse registrazioni |
+| Tre colpi trattenuti ~200 ms | ogni gesto nel verso «sbagliato» era trattenuto come possibile preparazione | trattenuti solo i gesti deboli |
+| Gesti a 212–325 °/s diventati colpi speciali | nessun limite di velocità per lob e tagliato | sotto 0,45 del colpo tipico niente colpi speciali dalla sola L |
+| Colpi senza esito non spiegabili | la registrazione non diceva lo stato della partita; i colpi scartati (palla che si allontana) non c'erano | stato della partita per ogni colpo, colpi scartati registrati con il motivo |
+| Prima registrazione senza campioni grezzi | dopo la riconnessione il telefono non riceveva più la richiesta | la richiesta si rimanda a ogni riconnessione mentre si registra |
+
+Le prove: `test/natpf-recording.test.mjs` e la rianalisi delle registrazioni con `replay-recording.mjs`.
+
 ## 6. Test
 
 - `test/natpf-pipeline.test.mjs` (nuovo): telefono simulato a 60 Hz con orientamento fisicamente coerente (la
@@ -103,18 +127,18 @@ rispetto al proprio dritto), **F** piatto all'impatto (orientamento filtrato: im
   palla corta solo con tre segnali insieme; tabella completa; micro-movimenti senza colpi; **stessi gesti in LAN e
   via internet → stessi messaggi, stessi colpi, stessa direzione, stesso orientamento della racchetta**; istante del
   picco entro mezzo campione e riconoscimento entro tre campioni.
-- Tutte le prove esistenti: `npm test` 91/91, `node --test tools/test/*.test.mjs` 124/124 (calibrazione estesa del
+- Tutte le prove esistenti: `npm test` 98/98, `node --test tools/test/*.test.mjs` 124/124 (calibrazione estesa del
   sito compresa), `tools/lan` 4/4, controllo di sintassi di tutti i moduli del telefono.
 
 ## 7. Problemi aperti
 
-- **Taratura con persone vere**: soglie di L (0,15 / 0,22 / 0,45), del gesto verticale (0,25), della mira (±30°) e
-  dell'attesa della preparazione (250 ms) vengono da gesti sintetici. Servono registrazioni con il pannello (qualche
-  minuto per persona, LAN e internet) e la rianalisi.
+- **Taratura con persone vere**: le soglie sono state corrette su una prima registrazione vera, ma senza sapere quale
+  colpo si voleva fare. Serve una registrazione con una sequenza nota (per esempio 5 dritti incrociati, 5 rovesci
+  lungolinea, 3 pallonetti, 3 tagliati) per confrontare il colpo voluto con quello riconosciuto, soprattutto per la mira.
 - **Racchetta a schermo**: segue l'orientamento attraverso la molla del motore (salita circa 100 ms, ampiezza ridotta):
   è un effetto di presentazione, non tocca il colpo; renderla più diretta va valutato a parte.
-- **Mira dal piatto**: richiede di tornare in una posa simile tra un colpo e l'altro (la posa di riferimento si
-  aggiorna dopo 0,4 s fermi); chi non si ferma mai ha una mira meno ripetibile.
+- **Mira dal piatto**: nei gesti molto ampi (oltre 130°) l'imbardata del piatto è poco ripetibile; per ora lì decide il
+  tempo del colpo. Va rivista con la registrazione a sequenza nota.
 - **Player 2 nel 1v1**: il relay della stanza porta ancora i campi del motore base; tabella, mira dal piatto e
   preparazione valgono per il Player 1.
 - **Telefoni a bassa frequenza** (alcuni iPhone e Android in risparmio energetico, 30 Hz): istante e piatto restano

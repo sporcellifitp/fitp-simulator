@@ -22,7 +22,7 @@ import { gestureAim } from '@natpf/match/shot-quality.js';
 import { lanOrigin } from './natpf_lan.js';
 import { VIBRATION } from './natpf_shot_feedback.js';
 import { swingPower } from './natpf_skill.js';
-import { classifyPhoneShot, aimFromSignals, ENGINE_SHOT } from './natpf_gestures.js';
+import { classifyPhoneShot, aimFromSignals, ENGINE_SHOT, liftBaselineFromProfile, resolveLiftBaseline, createLiftModel } from './natpf_gestures.js';
 
 const NATPF_BASE = '/natpf/';
 const scripts = new Map();
@@ -79,11 +79,11 @@ export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaselin
   const face = s.face && Number.isFinite(s.face.yaw) ? s.face : null;
   // colpo scelto a mano sul telefono (gioco con i tocchi: nessun dato dei sensori nel messaggio) → vale la scelta
   const chosen = !Number.isFinite(s.peak) && !face ? (s.drop ? 'drop' : s.lob ? 'lob' : s.slice ? 'slice' : null) : null;
-  const cls = chosen ? { shot: chosen, why: ['scelto sul telefono'] } : classifyPhoneShot({ dir: s.dir || 0, vert: s.vert || null, lift, liftBaseline, facePitch: face ? face.pitch : null, power, ballHigh });
+  const cls = chosen ? { shot: chosen, why: ['scelto sul telefono'] } : classifyPhoneShot({ dir: s.dir || 0, vert: s.vert || null, lift, liftBaseline, facePitch: face ? face.pitch : null, power, speed: Number.isFinite(s.speed) ? s.speed : null, ballHigh });
   const shot = cls.shot;
-  const aimed = aimFromSignals({ faceAim: face ? face.aim : null, twist: s.twist, aim: s.aim, dir: s.dir || 0 });
+  const aimed = aimFromSignals({ faceAim: face ? face.aim : null, faceUnreliable: !!face && !Number.isFinite(face.aim), twist: s.twist, aim: s.aim, dir: s.dir || 0 });
   const latency = Number.isFinite(s.at) && Number.isFinite(now) ? clamp(now - s.at, 0, .3) : .06;
-  const rel = lift - (Number.isFinite(liftBaseline) ? liftBaseline : 0);
+  const rel = lift - resolveLiftBaseline(liftBaseline, s.dir || 0).base;
   return { source: 'natpf-phone', side, shotType: ENGINE_SHOT[shot], speed: shot === 'drop' ? Math.min(speed, .9) : shot === 'flat' ? Math.max(speed, 1.32) : speed, dirX,
     dirY: shot === 'lob' ? -.85 : shot === 'slice' || shot === 'drop' ? .3 : shot === 'smash' ? .5 : -.45 + clamp(rel, -.5, .5)*.2, timing: null,
     natpf: { aim: 'swing', shot, wrist: +aimed.aim.toFixed(3), aimSource: aimed.source, power: +power.toFixed(3), latency: +latency.toFixed(3), hand,
@@ -174,7 +174,8 @@ export class NatpfPhoneRacket {
     this.listeners = new Set();
     this.swingListeners = new Set();
     this.rawListeners = new Set();
-    this.liftBaseline = 0;               // verso verticale del proprio dritto (calibrazione): lob e tagliato si leggono rispetto a questo
+    this.liftBaseline = 0;               // verso verticale abituale (calibrazione, per verso del colpo): lob e tagliato si leggono rispetto a questo
+    this.liftModel = createLiftModel();  // … poi si adatta ai colpi veri della partita
     this.calListeners = new Set();
     this.lastPhase = null;
     this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false };
@@ -188,7 +189,8 @@ export class NatpfPhoneRacket {
   }
   // con la presa vanno al telefono anche le richieste facoltative: preparazione del colpo e flusso dei sensori in JSON
   _sendGrip(){
-    if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.link.send({ t: 'cfg', prep: 1, mo: 1 }); this.gripSent = true; this.lastExpect = null; }
+    // diag: se la diagnostica sta registrando, anche dopo una riconnessione il telefono rimanda i campioni grezzi
+    if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.link.send({ t: 'cfg', prep: 1, mo: 1, ...(this.diagStream ? { diag: 1 } : {}) }); this.gripSent = true; this.lastExpect = null; }
     if (!this.connected) this.gripSent = false;
   }
   get pairingUrl(){ return this.link ? pairingUrl(phonePageUrl(window.location, this.lanOrigin), testSearch(), this.link.session, this.link.token) : null; }
@@ -226,7 +228,7 @@ export class NatpfPhoneRacket {
     c.idle = e.kind === 'idle';
     if (e.kind === 'review'){ c.review = e; c.freeOk = false; if (e.pass) this.link.cmd('free'); }   // prova libera, poi conferma
     if (e.kind === 'free' && e.ok) c.freeOk = true;
-    if (e.kind === 'done'){ c.step = 'done'; this.profile = e.profile || null; if (e.profile?.hand === 'left' || e.profile?.hand === 'right') this.hand = e.profile.hand; }
+    if (e.kind === 'done'){ c.step = 'done'; this.profile = e.profile || null; this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline; this.liftModel.reset(this.liftBaseline); if (e.profile?.hand === 'left' || e.profile?.hand === 'right') this.hand = e.profile.hand; }
     c.last = e;
     for (const fn of this.calListeners) try { fn(e); } catch (err){ console.error(err); }
     this._changed();
@@ -237,9 +239,14 @@ export class NatpfPhoneRacket {
     if (!mc || !this.ready) return;
     // la palla si allontana (l'ha appena colpita chi gioca qui): è il rientro della mano o un gesto a vuoto, non un
     // colpo. Prima il motore faceva comunque partire swing e fruscio della racchetta.
-    if (ballMovingAway(this.engine)){ this.ignoredSwings = (this.ignoredSwings || 0) + 1; return; }
-    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftBaseline, now: performance.now()/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine) }), role: this.engine.playerRole };
+    if (ballMovingAway(this.engine)){
+      this.ignoredSwings = (this.ignoredSwings || 0) + 1;
+      for (const fn of this.swingListeners) try { fn({ ignored: 'palla che si allontana', natpf: {} }, s); } catch (e){ console.error(e); }
+      return;
+    }
+    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, now: performance.now()/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine) }), role: this.engine.playerRole };
     this.lastPrep = null;
+    this.liftModel.add(s.dir, s.lift);
     for (const fn of this.swingListeners) try { fn(ev, s); } catch (e){ console.error(e); }
     // _emitSwing instrada già P1 in locale e P2 verso l'host (relay della stanza 1v1)
     mc._emitSwing(ev);

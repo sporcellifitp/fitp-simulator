@@ -29,6 +29,9 @@ export const DEFAULTS = {
   prepHold: 250,    // ms (modalità preparazione): un gesto nel verso opposto al colpo atteso aspetta così prima di valere
   prepMax: 700,     // ms: oltre, il gesto trattenuto vale comunque come colpo
   recoverWindow: 600, // ms dopo un colpo in cui il gesto nel verso opposto è il rientro della mano, non un colpo
+  rawDrop: .88,     // il colpo parte appena la velocità grezza scende sotto l'88% del suo picco (prima del calo della media)…
+  rawFall: .97,     // … o dopo due campioni grezzi in calo sotto il 97% (picchi larghi: nei colpi veri 30–50 ms prima)
+  prepWeak: .85,    // (modalità preparazione) si trattiene solo un gesto più debole dell'85% del proprio colpo tipico
 };
 // profilo di chi gioca (dalla calibrazione): deriva, asse del colpo (+ = da destra a sinistra), colpo tipico, soglie
 export const defaultProfile = () => ({ bias: [0, 0, 0], axis: null, ref: 600, on: DEFAULTS.on, minPeak: DEFAULTS.minPeak, minAngle: DEFAULTS.minAngle, lobLift: null, sens: 1, refs: null, preparation: null, minAngles: null, intentGate: false });
@@ -107,6 +110,9 @@ export function createSwingDetector(opts = {}){
     }
     if (!training && prof.intentGate && !armed && !serving()) { cur = null; setPhase('preparation'); return; }
     if (cur && w && dot(unit(w), unit(cur.peakW)) < -.3 && mag > T.on){ cur = null; sm = mag*C.smooth; }
+    // gesto già valutato (scartato come piccolo) e ora la velocità sale molto oltre il suo picco senza essere mai scesa:
+    // è un gesto nuovo (la preparazione lenta seguita dal colpo vero), non la coda del primo
+    else if (cur && cur.fired && mag > Math.max(cur.rawPeak, cur.peak)*1.3 && mag > T.minPeak){ cur = null; sm = mag*C.smooth; }
     if (!cur){
       // pausa contro i doppi picchi dello stesso gesto: solo nello stesso verso. Prima bloccava anche il colpo che segue
       // subito la preparazione (verso opposto): il colpo partiva al suo picco, tardi e con l'istante sbagliato.
@@ -116,6 +122,7 @@ export function createSwingDetector(opts = {}){
       cur = { t0: k.t, peak: 0, peakT: k.t, peakW: w || [0, 0, 0], gravity: null, angle: 0, up: 0, tot: 0, fired: false, rawPeak: 0, truePeakT: k.t };
     }
     cur.angle += mag*dt/1000;
+    cur.fallN = raw.length > 1 && mag < raw[raw.length - 2][1] ? (cur.fallN || 0) + 1 : 0;
     // picco grezzo: il campione di mezzo è un massimo locale → vertice della parabola (precisione sotto il campione)
     if (raw.length === 3 && !cur.fired){
       const [[ta, a], [tb, b], [tc, c3]] = raw;
@@ -131,7 +138,10 @@ export function createSwingDetector(opts = {}){
     }
     const minAngle = serving() ? Math.min(2.5,prof.minAngle) : Math.min(prof.minAngle,...(prof.templates||[]).map(t=>Math.max(2,t.angle*.35)));
     const ready = cur.peak >= T.minPeak && cur.angle >= minAngle && k.t - cur.t0 >= C.minDur;
-    if (!cur.fired && ready && (sm < cur.peak*.9 || k.t - cur.peakT >= C.plateau)){ cur.fired = true; fire(k.t); }
+    // picco passato: la velocità grezza è già scesa (sotto l'88% del picco, o in calo da due campioni), prima della
+    // media mobile; oppure è scesa la media, oppure niente di nuovo da «plateau» ms
+    const rawPast = cur.rawPeak > 0 && k.t > cur.truePeakT && cur.rawPeak >= T.minPeak && (mag < cur.rawPeak*C.rawDrop || (cur.fallN >= 2 && mag < cur.rawPeak*C.rawFall));
+    if (!cur.fired && ready && (rawPast || sm < cur.peak*.9 || k.t - cur.peakT >= C.plateau)){ cur.fired = true; fire(k.t); }
     if (sm < T.on*.6 || k.t - cur.t0 > C.maxDur){ cur = null; }
   }
   function feedStill(k){
@@ -174,7 +184,9 @@ export function createSwingDetector(opts = {}){
       if (prepMode && dir !== 0 && !serving()) emit('prep', { peakT: c.peakT, dir, peak: Math.round(c.peak), angle: Math.round(c.angle), small: true });
       return;
     }
-    const power = Math.max(.3, Math.min(1, .3 + .45*c.peak/powerReference));
+    // forza: il proprio colpo tipico vale circa 0,65, il doppio arriva al massimo (prima già 1,55 volte bastava e quasi
+    // ogni colpo deciso usciva al massimo, quindi «piatto»)
+    const power = Math.max(.3, Math.min(1, .3 + .35*c.peak/powerReference));
     // Soglie iniziali di palla corta e slice; la durata del sensore è in millisecondi.
     const special = classifySwingType({ power, lift, dur }, prof.lobLift);
     const sw = { phase: 'contact', peakT, t, peak: Math.round(c.peak), power: +power.toFixed(3), dir, along: +along.toFixed(2), axis, gravity, lift: +lift.toFixed(3), ...special, ...intent, features, angle: Math.round(c.angle), dur,
@@ -183,7 +195,9 @@ export function createSwingDetector(opts = {}){
       // un gesto trattenuto e ora quello opposto: il primo era la preparazione
       if (held && dir !== 0 && dir === -held.sw.dir){ emit('prep', { peakT: held.sw.peakT, dir: held.sw.dir, peak: held.sw.peak, angle: held.sw.angle }); held = null; }
       else if (held){ const h = held; held = null; commit(h.sw, t); }
-      if (expectDir && dir === -expectDir){ held = { sw, until: c.peakT + C.prepHold }; setPhase('preparation'); return; }
+      // solo un gesto debole può essere la preparazione: un colpo pieno nel verso «sbagliato» parte subito (prima
+      // aspettava 250 ms anche i colpi veri, e arrivavano in ritardo)
+      if (expectDir && dir === -expectDir && c.peak < reference*C.prepWeak){ held = { sw, until: c.peakT + C.prepHold }; setPhase('preparation'); return; }
     }
     commit(sw, t);
   }

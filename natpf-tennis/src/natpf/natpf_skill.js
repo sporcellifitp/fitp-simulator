@@ -137,9 +137,11 @@ export function prepQuality(n){
 // Forza: metà dalla velocità del gesto rispetto alla propria calibrazione, metà dalla velocità vera del telefono
 // (°/s al picco). Un gesto da bambino resta lento anche se è «il più forte» che fa; il dritto di un tennista va forte.
 export function swingPower(relative = .6, peakDegS = null){
+  // relativa: il telefono dà 0,3 + 0,35 × (picco / proprio colpo tipico), quindi il colpo tipico vale 0,5
   const rel = clamp((finite(relative, .6) - .3)/.7);
   if (!Number.isFinite(peakDegS)) return rel;
-  return clamp(.45*rel + .55*clamp((peakDegS - 280)/900));
+  // scala assoluta fino a circa 1700 °/s: i dritti veri arrivano a 1200–1650 °/s (con 1180 erano tutti al massimo)
+  return clamp(.45*rel + .55*clamp((peakDegS - 280)/1400));
 }
 // Profondità (z negativa): i gesti veloci vanno lunghi (e rischiano), quelli lenti restano a metà campo e la CPU attacca.
 export function swingDepthZ(power = .6, { rng = Math.random } = {}){

@@ -43,9 +43,16 @@ test('colpo nel verso atteso: parte subito, senza ritardo', () => {
   assert.ok(out.swings[0].t - peak < 80);
 });
 
-test('colpo voluto dall’altro lato: vale lo stesso, dopo una breve attesa, con il suo istante del picco', () => {
-  const { out, rest, move } = rig({ expect: 1 });
+test('colpo pieno dall’altro lato: parte subito (solo un gesto debole può essere la preparazione)', () => {
+  const { out, move } = rig({ expect: 1 });
   const peak = move(-1, 750, 180);
+  assert.equal(out.swings.length, 1); assert.equal(out.swings[0].dir, -1);
+  assert.ok(out.swings[0].t - peak < 80); assert.equal(out.swings[0].holdMs, 0);
+});
+
+test('gesto debole dall’altro lato: vale lo stesso, dopo una breve attesa, con il suo istante del picco', () => {
+  const { out, rest, move } = rig({ expect: 1 });
+  const peak = move(-1, 460, 180);
   assert.equal(out.swings.length, 0, 'trattenuto');
   rest(400);
   assert.equal(out.swings.length, 1); assert.equal(out.swings[0].dir, -1);

@@ -48,7 +48,7 @@ test('voto e qualità dal tempo: centro perfetto, anticipo/ritardo una scelta, e
 });
 
 test('forza: conta anche la velocità vera del telefono; profondità dalla forza', () => {
-  const kid = NS.swingPower(.95, 380), player = NS.swingPower(.75, 1150);
+  const kid = NS.swingPower(.95, 380), player = NS.swingPower(.8, 1500);
   assert.ok(kid < .55 && player > .75, `${kid} ${player}`);
   assert.equal(NS.swingPower(1), 1);                                         // senza velocità: solo il gesto relativo
   assert.ok(NS.swingDepthZ(.1, { rng: mid }) > -7.5);                        // lento: palla a metà campo

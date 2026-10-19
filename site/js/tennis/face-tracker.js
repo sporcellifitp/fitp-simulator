@@ -28,8 +28,10 @@ export const FACE = Object.freeze({
   quietRate: 25,      // °/s: sotto, il telefono è «fermo» e l'imbardata «pronto» lo segue
   relax: .9,          // s: costante di tempo con cui la posa «pronto» segue il telefono fermo
   quietHold: 150,     // ms fermo prima che la posa «pronto» inizi a seguire (presa verticale: più lungo, vedi racchetta.js)
-  history: 600,       // ms di storia per leggere il piatto all'istante del picco
-  aimYaw: 30,         // °: imbardata del piatto che vale «tutto a destra/sinistra»
+  history: 1500,      // ms di storia: piatto all'istante del picco e posa ferma prima del colpo
+  aimYaw: 40,         // °: imbardata del piatto oltre il proprio colpo abituale che vale circa 3/4 della mira (curva morbida)
+  maxAimYaw: 80,      // °: oltre, la misura non è credibile (gesto molto ampio, piatto quasi orizzontale): mira dal tempo
+  baseFrom: 900, baseTo: 60,  // ms prima dell'inizio del colpo in cui cercare l'istante più fermo (la posa di partenza)
 });
 
 // gesti di calibrazione: il piatto «tipico» all'impatto per ogni verso del gesto (+1 / −1), da togliere in partita
@@ -48,7 +50,10 @@ export function aimFromFace(face, ref, { dir = 0, angle = 0 } = {}){
   if (!face || !Number.isFinite(face.yaw)) return null;
   const r = ref?.[dir] || null, scale = r && r.angle > 0 && angle > 0 ? clamp(angle/r.angle, .5, 1.8) : 1;
   const yaw = wrap(face.yaw - (r ? r.yaw*scale : 0)), pitch = face.pitch - (r ? r.pitch : 0);
-  return { yaw: +yaw.toFixed(1), pitch: +pitch.toFixed(1), roll: +(face.roll || 0).toFixed(1), aim: +clamp(yaw/FACE.aimYaw, -1, 1).toFixed(3) };
+  // curva morbida: solo un piatto girato con decisione arriva in fondo (con i gesti veri la mira lineare era quasi
+  // sempre ±1); oltre maxAimYaw la misura non vale e la mira la decide il tempo del colpo (aim null)
+  const aim = Math.abs(yaw) > FACE.maxAimYaw ? null : +Math.tanh(yaw/FACE.aimYaw).toFixed(3);
+  return { yaw: +yaw.toFixed(1), pitch: +pitch.toFixed(1), roll: +(face.roll || 0).toFixed(1), aim };
 }
 
 export function createFaceTracker(opts = {}){
@@ -102,10 +107,24 @@ export function createFaceTracker(opts = {}){
       if (rate < C.quietRate){ if (quietSince == null) quietSince = k.t; if (k.t - quietSince > C.quietHold) readyYaw += wrap(m.yaw - readyYaw)*Math.min(1, dt/C.relax); }
       else quietSince = null;
       current = { yaw: +wrap(m.yaw - readyYaw).toFixed(2), pitch: +m.pitch.toFixed(2), roll: +m.roll.toFixed(2) };
-      hist.push({ t: k.t, ...current }); while (hist.length && k.t - hist[0].t > C.history) hist.shift();
+      hist.push({ t: k.t, ...current, rate }); while (hist.length && k.t - hist[0].t > C.history) hist.shift();
       return current;
     },
     get face(){ return current; },
+    // Piatto all'impatto rispetto alla posa di partenza di questo colpo: l'imbardata «pronto» con la mano vera non sta
+    // mai ferma (tremolio e piccoli spostamenti tra un colpo e l'altro), quindi il riferimento è l'istante più fermo
+    // (velocità media su 5 campioni, a parità di ±2 °/s il più recente) tra baseFrom e baseTo ms prima dell'inizio del
+    // colpo t0. Senza storia: faceAt.
+    strokeFace(peakT, t0 = peakT){
+      const f = this.faceAt(peakT); if (!f) return f;
+      const win = hist.filter(h => h.t >= t0 - C.baseFrom && h.t <= t0 - C.baseTo);
+      let best = null;
+      for (let i = 0; i < win.length; i++){
+        const a = win.slice(Math.max(0, i - 2), i + 3), r = a.reduce((s, h) => s + h.rate, 0)/a.length;
+        if (!best || r <= best.r + 2) best = { r: Math.min(r, best ? best.r : r), yaw: win[i].yaw };   // a parità, il più vicino al colpo
+      }
+      return best ? { ...f, yaw: +wrap(f.yaw - best.yaw).toFixed(2), base: +best.yaw.toFixed(1), baseRate: Math.round(best.r) } : f;
+    },
     // piatto all'istante t (es. il picco del gesto, che è l'impatto), interpolato tra i due campioni vicini: in un
     // colpo a 1000 °/s due campioni a 60 Hz distano 16°, il campione più vicino sbaglierebbe fino a 8°
     faceAt(t){

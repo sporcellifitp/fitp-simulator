@@ -8,6 +8,7 @@ import { createFaceTracker } from '@natpf/tennis/face-tracker.js';
 import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { natpfSwingToEngine } from '../../src/natpf/natpf_phone_racket.js';
 import { swingTimeline } from '../../src/natpf/natpf_diag.js';
+import { liftBaselineFromProfile, createLiftModel } from '../../src/natpf/natpf_gestures.js';
 
 const file = process.argv[2];
 if (!file){ console.error('Uso: node --import ./test/register.mjs scripts/audit/replay-recording.mjs registrazione.json'); process.exit(1); }
@@ -21,6 +22,7 @@ for (const s of rec.stats?.slice(-1) || []) console.log(`ultimo stato: RTT ${s.r
 console.log('\ncolpi giocati:');
 for (const r of rec.swings || []){
   const t = swingTimeline(r.s, r), n = r.ev?.natpf || {};
+  if (r.ev?.ignored){ console.log(`  #${r.s.seq ?? '?'} scartato: ${r.ev.ignored}`); continue; }
   console.log(`  #${r.s.seq ?? '?'} ${r.ev?.side || '–'}/${n.shot || r.ev?.shotType} mira ${n.wrist} (${n.aimSource}) · rilev ${t.detect} · prep ${t.hold} · consegna ${t.delivery?.toFixed?.(0)} · attesa palla ${t.ball?.toFixed?.(0)} ms · ${r.result?.quality || ''} · ${(n.why || []).join(', ')}`);
 }
 const prof = rec.profile?.phone;
@@ -28,7 +30,9 @@ if (!prof){ console.log('\n(nessun profilo di calibrazione nella registrazione: 
 const det = createSwingDetector(), face = createFaceTracker({ quietHold: 400, relax: 2.5 });
 det.setProfile(prof); det.run(); face.setRest(prof.gravity, prof.bias);
 const found = [];
-det.on('swing', s => { s.face = face.faceAt(s.peakT); const d = swingMessage(s, { faceRef: prof.faceRef, now: s.t }); const ev = natpfSwingToEngine(parseSwingMessage(d, { at: s.peakT/1000, now: s.t }), { hand: rec.profile.hand, liftBaseline: rec.profile.liftBaseline || 0 }); found.push({ s, ev }); });
+// come in gioco: verso verticale abituale dalla calibrazione, poi dai colpi veri
+const lifts = createLiftModel(liftBaselineFromProfile(prof) ?? rec.profile.liftBaseline ?? 0);
+det.on('swing', s => { s.face = face.strokeFace(s.peakT, s.t - s.dur); const d = swingMessage(s, { faceRef: prof.faceRef, now: s.t }); const ev = natpfSwingToEngine(parseSwingMessage(d, { at: s.peakT/1000, now: s.t }), { hand: rec.profile.hand, liftBaseline: lifts.value }); lifts.add(s.dir, s.lift); found.push({ s, ev }); });
 for (const k of raw){ face.feed(k); det.feed(k); }
 console.log(`\nrianalisi con il rilevatore attuale: ${found.length} colpi`);
-for (const { s, ev } of found) console.log(`  picco ${s.peakT.toFixed(0)} ms · ${s.peak}°/s · verso ${s.dir}${s.vert ? ' ' + s.vert : ''} · su/giù ${s.lift} · piatto ${s.face ? `${s.face.yaw}°/${s.face.pitch}°` : '–'} → ${ev.side || '–'}/${ev.natpf.shot} mira ${ev.natpf.wrist} · ${ev.natpf.why.join(', ')}`);
+for (const { s, ev } of found) console.log(`  picco ${s.peakT.toFixed(0)} ms · rilev ${s.detectMs} · prep ${s.holdMs} · ${s.peak}°/s · verso ${s.dir}${s.vert ? ' ' + s.vert : ''} · su/giù ${s.lift} · piatto ${s.face ? `${s.face.yaw}°/${s.face.pitch}°` : '–'} → ${ev.side || '–'}/${ev.natpf.shot} mira ${ev.natpf.wrist} · ${ev.natpf.why.join(', ')}`);

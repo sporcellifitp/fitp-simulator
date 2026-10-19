@@ -126,10 +126,10 @@ test('tabella dei colpi: topspin, piatto, lob orizzontale, schiacciata su palla 
   assert.equal(classifyPhoneShot({ dir: 1, lift: .25, power: .6 }).shot, 'topspin');
   assert.equal(classifyPhoneShot({ dir: 1, lift: 0, power: .9, facePitch: 2 }).shot, 'flat');
   assert.equal(classifyPhoneShot({ dir: 1, lift: 0, power: .9, facePitch: -18 }).shot, 'topspin');
-  assert.equal(classifyPhoneShot({ dir: -1, lift: .5 }).shot, 'lob');
-  assert.equal(classifyPhoneShot({ dir: -1, lift: .35, facePitch: 14 }).shot, 'lob');
-  assert.equal(classifyPhoneShot({ dir: -1, lift: .35, facePitch: 0 }).shot, 'topspin');
-  assert.equal(classifyPhoneShot({ dir: 1, lift: -.25, ballHigh: true }).shot, 'smash');
+  assert.equal(classifyPhoneShot({ dir: -1, lift: .6 }).shot, 'lob');
+  assert.equal(classifyPhoneShot({ dir: -1, lift: .45, facePitch: 14 }).shot, 'lob');
+  assert.equal(classifyPhoneShot({ dir: -1, lift: .45, facePitch: 0 }).shot, 'topspin');
+  assert.equal(classifyPhoneShot({ dir: 1, lift: -.3, ballHigh: true }).shot, 'smash');
   assert.equal(classifyPhoneShot({ dir: 1, lift: .3, liftBaseline: .25 }).shot, 'topspin', 'si confronta con il proprio dritto');
 });
 
