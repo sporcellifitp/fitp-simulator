@@ -185,6 +185,9 @@ try {
         else if (e.phase === 'RALLY' && b.inPlay && (a.pos.z - b.pos.z)*b.vel.z > 0 && Math.hypot(b.pos.x - a.pos.x, b.pos.z - a.pos.z) < 1.7){ last = now; mc.triggerSyntheticSwing({}); }
       }, 8);
     };
+    // con la grafica software ogni fotogramma dura 1–2 s e la palla resta ferma tra due fotogrammi: si toglie solo il
+    // disegno, partita, relay e colpi restano quelli veri
+    for (const p of [p1, p2]) await p.evaluate(() => { __natpfTennis.render = () => {}; });
     await p1.evaluate(bot); await p2.evaluate(bot);
     await p1.waitForFunction(() => __natpfTennis.phase === 'SERVE_STANCE' || __natpfTennis.phase === 'RALLY', null, { timeout: 30000 });
     const t0 = Date.now();
