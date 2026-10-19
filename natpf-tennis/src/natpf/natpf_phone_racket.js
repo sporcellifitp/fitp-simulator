@@ -61,14 +61,18 @@ export function faceShot(s){
 // (latency: dal picco sul telefono a ora) e il polso (wrist, dalla rotazione del manico rispetto al proprio dritto della
 // calibrazione); la forza mescola il gesto rispetto alla calibrazione e la velocità vera del telefono (peak, °/s);
 // lob, tagliato e palla corta dal verso verticale del gesto rispetto al proprio dritto (liftBaseline).
-export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaseline = 0, now = null } = {}){
+export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaseline = 0, now = null, prep = null, prepCapable = false } = {}){
   const flat = !!s.face && Number.isFinite(s.face.yaw) && (s.grip === 'flat' || grip === 'flat');
   if (flat) return faceSwingToEngine(s, { hand });
   const dirX = Math.max(-1, Math.min(1, gestureAim(s)));
   const forehandDir = hand === 'left' ? -1 : 1;
-  const side = s.dir === forehandDir ? 'forehand' : s.dir === -forehandDir ? 'backhand' : null;
+  // preparazione nel verso opposto poco prima del colpo (0,08…1 s): colpo preparato; dà il lato anche senza calibrazione
+  const pr = prep && Number.isFinite(prep.at) && Number.isFinite(s.at) && s.at - prep.at >= .08 && s.at - prep.at <= 1 && (!s.dir || prep.dir === -s.dir) ? prep : null;
+  const strokeDir = s.dir || (pr ? -pr.dir : 0);
+  const side = strokeDir === forehandDir ? 'forehand' : strokeDir === -forehandDir ? 'backhand' : null;
   const lift = Number.isFinite(s.lift) ? s.lift : 0;
-  const power = swingPower(Number.isFinite(s.power) ? s.power : .6, Number.isFinite(s.peak) ? s.peak : null);
+  // la preparazione carica il colpo: un poco più di forza
+  const power = clamp(swingPower(Number.isFinite(s.power) ? s.power : .6, Number.isFinite(s.peak) ? s.peak : null) + (pr ? .07*clamp((pr.angle || 30)/50, .3, 1) : 0), 0, 1);
   // forza (0…1) → velocità del motore base (0,8…1,65); un colpo deciso diventa un colpo potente
   const speed = .8 + power*.85;
   const shot = swingShot({ lift, baseline: liftBaseline, power, lob: !!s.lob, slice: !!s.slice, drop: !!s.drop });
@@ -77,7 +81,8 @@ export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaselin
   const rel = lift - (Number.isFinite(liftBaseline) ? liftBaseline : 0);
   return { source: 'natpf-phone', side, shotType: shot === 'drop' ? 'slice' : shot, speed: shot === 'drop' ? Math.min(speed, .9) : speed, dirX,
     dirY: shot === 'lob' ? -.85 : shot === 'slice' || shot === 'drop' ? .3 : -.45 + clamp(rel, -.5, .5)*.2, timing: null,
-    natpf: { aim: 'swing', shot, wrist: +wrist.toFixed(3), power: +power.toFixed(3), latency: +latency.toFixed(3), hand } };
+    natpf: { aim: 'swing', shot, wrist: +wrist.toFixed(3), power: +power.toFixed(3), latency: +latency.toFixed(3), hand,
+      prep: pr ? { lead: +(s.at - pr.at).toFixed(3), amount: clamp((pr.angle || 30)/50, .3, 1) } : null, prepCapable: !!prepCapable } };
 }
 function faceSwingToEngine(s, { hand = 'right' } = {}){
   const f = s.face, lift = Number.isFinite(s.lift) ? s.lift : 0, power = Number.isFinite(s.power) ? s.power : .6;
@@ -130,6 +135,21 @@ export function phoneGamePhase(engine){
   }
 }
 
+// Lato del colpo dal verso del gesto (+1 da destra a sinistra = dritto del destro)
+export const strokeSide = (dir, hand = 'right') => { const fh = hand === 'left' ? -1 : 1; return dir === fh ? 'forehand' : dir === -fh ? 'backhand' : null; };
+// Verso del colpo atteso per il giocatore locale: la palla arriva verso di lui e cade alla sua destra o sinistra.
+// 0 quando la palla non arriva o è al centro (lì non si trattiene nessun gesto).
+export function expectedStrokeDir(engine, hand = 'right'){
+  const b = engine.ball, p2 = engine.playerRole === 'p2', me = p2 ? engine.opponent : engine.player;
+  if (!b || !me || !b.inPlay || engine.phase !== 'RALLY' || b.lastHitter === (p2 ? 'opponent' : 'player')) return 0;
+  const toward = p2 ? b.vel.z < -.5 : b.vel.z > .5;
+  if (!toward) return 0;
+  const x = Number.isFinite(b.targetLanding?.x) ? b.targetLanding.x : b.pos.x, rel = (x - me.pos.x)*(p2 ? -1 : 1);   // + alla sua destra
+  if (Math.abs(rel) < .25) return 0;
+  const fh = hand === 'left' ? -1 : 1;                                        // verso del dritto
+  return (rel > 0) !== (hand === 'left') ? fh : -fh;
+}
+
 export class NatpfPhoneRacket {
   constructor(engine){
     this.engine = engine;
@@ -151,7 +171,11 @@ export class NatpfPhoneRacket {
   setGrip(g){
     this.grip = normalizeGrip(g); writeGrip(this.grip); this.gripSent = false; this._sendGrip(); this._changed();
   }
-  _sendGrip(){ if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.gripSent = true; } if (!this.connected) this.gripSent = false; }
+  // con la presa vanno al telefono anche le richieste facoltative: preparazione del colpo e flusso dei sensori in JSON
+  _sendGrip(){
+    if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.link.send({ t: 'cfg', prep: 1, mo: 1 }); this.gripSent = true; this.lastExpect = null; }
+    if (!this.connected) this.gripSent = false;
+  }
   get pairingUrl(){ return this.link ? pairingUrl(phonePageUrl(window.location, this.lanOrigin), testSearch(), this.link.session, this.link.token) : null; }
   onChange(fn){ this.listeners.add(fn); return () => this.listeners.delete(fn); }
   _changed(){ for (const fn of this.listeners) try { fn(this); } catch (e){ console.error(e); } }
@@ -168,6 +192,7 @@ export class NatpfPhoneRacket {
     link.on('cal', e => this._onCal(e));
     link.on('swing', s => this._onSwing(s));
     link.on('toss', () => this._onToss());
+    link.on('prep', p => this._onPrep(p));
     await link.start();
     this._changed();
     return this;
@@ -194,10 +219,19 @@ export class NatpfPhoneRacket {
   _onSwing(s){
     const mc = this.engine.motionController;
     if (!mc || !this.ready) return;
-    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftBaseline, now: performance.now()/1000 }), role: this.engine.playerRole };
+    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftBaseline, now: performance.now()/1000, prep: this.lastPrep, prepCapable: !!this.state.prep }), role: this.engine.playerRole };
+    this.lastPrep = null;
     for (const fn of this.swingListeners) try { fn(ev, s); } catch (e){ console.error(e); }
     // _emitSwing instrada già P1 in locale e P2 verso l'host (relay della stanza 1v1)
     mc._emitSwing(ev);
+  }
+  // Preparazione del colpo (racchetta portata indietro, nel verso opposto al colpo): la racchetta in gioco si carica
+  // da quella parte e il colpo che segue vale come «preparato» (natpfSwingToEngine → prep).
+  _onPrep(p){
+    if (!this.ready) return;
+    this.lastPrep = { ...p };
+    const side = strokeSide(-p.dir, this.hand), actor = this.engine.localActor || this.engine.player;
+    if (actor && side) (actor.userData || (actor.userData = {})).natpfPrep = { side, until: performance.now() + 750, amount: clamp((p.angle || 30)/50, .45, 1) };
   }
   onSwing(fn){ this.swingListeners.add(fn); return () => this.swingListeners.delete(fn); }
   _onToss(){
@@ -231,6 +265,9 @@ export class NatpfPhoneRacket {
     if (!this.link) return;
     const phase = this.connected ? phoneGamePhase(this.engine) : null;
     if (phase && phase !== this.lastPhase){ this.lastPhase = phase; this.link.send({ t: 'ph', ph: phase }); }
+    // verso del colpo atteso: il telefono distingue così la preparazione (verso opposto) dal colpo
+    const ex = phase === 'play' && this.ready ? expectedStrokeDir(this.engine, this.hand) : 0;
+    if (this.connected && ex !== this.lastExpect){ this.lastExpect = ex; this.link.send({ t: 'ex', d: ex }); }
     if (!this.connected) this.lastPhase = null;
     this._syncPhoneState();
   }

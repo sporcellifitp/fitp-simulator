@@ -9,8 +9,8 @@
 import * as THREE from 'three';
 
 export const DRILLS = Object.freeze([
-  { id: 'forehand', label: 'Dritto', need: 2, hint: { phone: 'Colpisci quando la palla arriva alla racchetta', webcam: 'Swing quando la palla arriva alla racchetta', mouse: 'Spazio quando la palla arriva' } },
-  { id: 'backhand', label: 'Rovescio', need: 2, hint: { phone: 'Palla sull’altro lato: gesto nel verso opposto', webcam: 'Swing verso l’altro lato', mouse: 'Spazio o trascina verso l’altro lato' } },
+  { id: 'forehand', label: 'Dritto', need: 2, hint: { phone: 'Mentre la palla arriva porta indietro il telefono, poi colpisci quando arriva alla racchetta', webcam: 'Swing quando la palla arriva alla racchetta', mouse: 'Spazio quando la palla arriva' } },
+  { id: 'backhand', label: 'Rovescio', need: 2, hint: { phone: 'Palla sull’altro lato: carica dall’altra parte e colpisci nel verso opposto', webcam: 'Swing verso l’altro lato', mouse: 'Spazio o trascina verso l’altro lato' } },
   { id: 'serve', label: 'Servizio', need: 1, hint: { phone: 'Alza il telefono per lanciare la palla, poi un colpetto quando è in alto', webcam: 'Alza la mano per lanciare, poi swing in alto', mouse: '↑ o W per lanciare, poi Spazio' } },
   { id: 'free', label: 'Angoli', need: 3, hint: { phone: 'Colpisci un attimo prima: incrociato. Un attimo dopo: lungolinea. Il polso stringe l’angolo', webcam: 'Prova a mirare: lo swing sposta la palla', mouse: 'Q/E o A/D per mirare' } },
 ]);

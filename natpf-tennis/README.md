@@ -174,6 +174,12 @@ L'unico pacchetto da preparare è MediaPipe per la webcam (Hands e Pose lite, ci
    - **polso**: ruotando il manico all'impatto, rispetto al proprio dritto, si apre o si chiude l'angolo;
    - **forza**: metà dal gesto rispetto alla calibrazione, metà dalla velocità vera del telefono; un gesto lento
      resta corto e la CPU attacca;
+   - **preparazione**: mentre la palla arriva si può portare indietro il telefono (nel verso opposto al colpo) e fare
+     tutti i micro-movimenti dell'attesa. Il gioco dice al telefono da che parte arriva la palla: un gesto nel verso
+     opposto resta in attesa e, se subito dopo arriva il colpo, conta come preparazione (la racchetta in campo si
+     carica da quella parte e il colpo vale come «preparato»: più pulito e un poco più forte); se il colpo non arriva
+     vale come colpo, con il suo istante vero. Online il telefono manda anche il giroscopio a 30 Hz, così la
+     racchetta in gioco segue i movimenti prima del colpo (in LAN c'era già il canale binario);
    - **colpi speciali** rispetto al proprio dritto: dal basso verso l'alto lob, dall'alto verso il basso tagliato,
      tagliato e lento palla corta.
 

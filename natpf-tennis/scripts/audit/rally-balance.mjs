@@ -18,10 +18,11 @@ export const PROFILES = {
 // Telefono in verticale (natpf.aim = 'swing'): la direzione nasce dal tempo vero del colpo e dal polso.
 //   intent: quanto spesso cerca il lato libero con tempo e polso · timingSd: errore di tempo (s) · wristSd: errore del polso
 //   peak: velocità vera del telefono al picco (°/s) · rel: forza rispetto alla propria calibrazione
+//   prep: quanto spesso porta indietro la racchetta prima del colpo
 export const PHONE_PROFILES = {
-  tennista: { swing: true, intent: .9, timingSd: .035, wristSd: .12, peak: 1150, peakSd: 150, rel: .8, specials: .1 },
-  amatore:  { swing: true, intent: .5, timingSd: .075, wristSd: .3,  peak: 700,  peakSd: 160, rel: .7, specials: .04 },
-  bambino:  { swing: true, intent: 0,  timingSd: .14,  wristSd: .45, peak: 380,  peakSd: 90,  rel: .75, specials: 0 },
+  tennista: { swing: true, prep: .9, intent: .9, timingSd: .035, wristSd: .12, peak: 1150, peakSd: 150, rel: .8, specials: .1 },
+  amatore:  { swing: true, prep: .55, intent: .5, timingSd: .075, wristSd: .3,  peak: 700,  peakSd: 160, rel: .7, specials: .04 },
+  bambino:  { swing: true, prep: .1, intent: 0,  timingSd: .14,  wristSd: .45, peak: 380,  peakSd: 90,  rel: .75, specials: 0 },
 };
 Object.assign(PROFILES, PHONE_PROFILES);
 const RALLY_CAP = 60;
@@ -47,7 +48,8 @@ function phoneIntent(e, P, rng){
   // error > 0 = in ritardo (come negli altri profili): per anticipare di tau si colpisce tau secondi prima dello sweet spot
   return { error: -tau + gauss(rng)*P.timingSd + (-.1 - IDEAL_R)/18, sent: false,
     swing: { source: 'audit', side: contact > 0 ? 'forehand' : 'backhand', shotType: shot, speed: .8 + power*.85, dirX: 0,
-      natpf: { aim: 'swing', shot, wrist: Math.max(-1, Math.min(1, wrist + gauss(rng)*P.wristSd)), power, latency: 0, hand: 'right' } } };
+      natpf: { aim: 'swing', shot, wrist: Math.max(-1, Math.min(1, wrist + gauss(rng)*P.wristSd)), power, latency: 0, hand: 'right',
+        prepCapable: true, prep: rng() < (P.prep || 0) ? { lead: .35, amount: .8 } : null } } };
 }
 
 export function simulate({ profile = 'medio', difficulty = 'casual', points = 200, seed = 7, maxSeconds = 4000 } = {}){

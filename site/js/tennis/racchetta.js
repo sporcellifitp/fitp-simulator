@@ -31,6 +31,8 @@ det.on('status', s => { if (s.s === 'still-ok' && grip === 'flat') face.setRest(
 const cal = createCalibration(det);
 let lastFaceSent = -Infinity, lastFacePaint = -Infinity;
 let sensorSequence = 0, lastSensorSent = -Infinity;
+// richieste facoltative del gioco (messaggio cfg): preparazione del colpo e flusso dei sensori anche senza canale binario
+let streamJson = false, prepWanted = false;
 let peer = null, conn = null, linkState = 'off', rtt = 80, sensor = 'off', phase = 'menu', retryT = null, tries = 0, wake = null, motionSeen = false, flashT = null;
 
 /* ---------- interfaccia ---------- */
@@ -118,6 +120,10 @@ function onData(c, d){
     case 'pong': rtt = rtt*.7 + (performance.now() - d.c)*.3; bar(); break;
     case 'dp': send({ t: 'dq', d: d.d, p: performance.now() }); break;
     case 'grip': setGrip(d.g); break;
+    // il gioco chiede la modalità preparazione (prep) e il flusso dei sensori in JSON quando non c'è il canale binario (mo)
+    case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); streamJson = !!d.mo; sendState(); break;
+    // verso del colpo atteso (da che parte arriva la palla): +1 da destra a sinistra, -1 da sinistra a destra, 0 non si sa
+    case 'ex': det.setExpect(d.d); break;
     case 'practice': if (inputMode==='touch' && SHOT_NAMES[d.shot]){ selectedShot = d.shot; paintShots(); } break;
     case 'ph': phase = d.ph; det.setContext(phase); if (phase === 'play' && ['serve','smash'].includes(selectedShot)) selectedShot = 'drive'; if (sensor === 'ready') paint(); break;
     case 'cmd': command(d.c); break;
@@ -137,7 +143,7 @@ function lost(){
   if (tries++ < 10) retryT = setTimeout(connect, Math.min(6000, 1000*tries));
 }
 const send = m => { if (conn && conn.open) try { conn.send(m); } catch (e){} };
-const sendState = () => send({ t: 'st', s: sensor === 'off' ? 'sensors' : sensor, b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip });
+const sendState = () => send({ t: 'st', s: sensor === 'off' ? 'sensors' : sensor, b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, ...(det.prepMode ? { pm: 1 } : {}) });
 setInterval(() => { if (conn && conn.open){ send({ t: 'ping', c: performance.now() }); sendState(); } }, 1000);
 const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e){} };
 
@@ -176,6 +182,10 @@ function onMotion(e){
   if (linkState === 'on' && conn?.sendMotion && k.t - lastSensorSent >= 1000/SENSOR_HZ){
     const packet = encodeSensor(k, sensorSequence++);
     if (packet && conn.sendMotion(packet)) lastSensorSent = k.t;
+  }
+  // collegamento via internet (niente canale binario): giroscopio a 30 Hz in JSON, solo per far seguire la racchetta in gioco
+  else if (linkState === 'on' && streamJson && sensor === 'ready' && k.rot && k.t - lastSensorSent >= 1000/30){
+    lastSensorSent = k.t; send({ t: 'sm', q: sensorSequence++, k: Math.round(k.t*10)/10, r: k.rot.map(v => Math.round(v*10)/10) });
   }
   if (grip === 'flat' && face.ready){
     const f = face.feed(k);
@@ -227,6 +237,12 @@ det.on('swing', s => {
     ...(fa ? { g: 'flat', fy: fa.yaw, fp: fa.pitch, fr: fa.roll, fa: fa.aim } : {}) });
   const cue = ({drive:'Gesto letto',lob:'Verso l’alto',slice:'Taglio verso il basso',drop:'Tocco corto',serve:'Movimento letto',smash:'Colpo dall’alto'})[s.shot] || 'Gesto letto';
   flash('hit', cue, `Forza ${Math.round(s.power*100)}%`, 350);
+});
+
+// preparazione del colpo (racchetta portata indietro): al gioco per animarla e per premiare chi si prepara
+det.on('prep', p => {
+  if (sensor !== 'ready' || linkState !== 'on' || !portrait || inputMode !== 'motion' || phase !== 'play') return;
+  send({ t: 'pr', dir: p.dir, pk: p.peakT, v: p.peak, a: p.angle, lat: rtt/2 + (performance.now() - p.peakT) });
 });
 
 function paintShots(){

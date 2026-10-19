@@ -124,6 +124,12 @@ export function swingLandingX({ timing = 0, contact = 1, wrist = 0, quality = 1,
   const x = -c*SWING_AIM.naturalX - c*t*SWING_AIM.timingX + w*SWING_AIM.wristX;
   return landingScatter(clamp(x, -SWING_AIM.maxX, SWING_AIM.maxX), { quality, power, level, rng });
 }
+// Preparazione: chi porta indietro la racchetta prima del colpo (come ogni tennista) colpisce più pulito; chi colpisce
+// solo di polso, a braccio fermo, disperde di più. Vale solo se il telefono sa riconoscere la preparazione.
+export function prepQuality(n){
+  if (!n || n.aim !== 'swing' || !n.prepCapable) return 1;
+  return n.prep ? 1 : .86;
+}
 // Forza: metà dalla velocità del gesto rispetto alla propria calibrazione, metà dalla velocità vera del telefono
 // (°/s al picco). Un gesto da bambino resta lento anche se è «il più forte» che fa; il dritto di un tennista va forte.
 export function swingPower(relative = .6, peakDegS = null){

@@ -517,3 +517,23 @@ Dopo la prova dello zip `c0854d9`. Analisi completa, modalità per fiere e backl
 - Test: `npm test` 75/75 (9 nuovi in `test/natpf-swing.test.mjs`), `node --test tools/test/*.test.mjs` 124/124,
   `tools/lan` 4/4. Audit: tennista / amatore / bambino contro la CPU esperta 91% / 71% / 38% dei punti.
 - Da provare con telefoni veri: soglia del polso, velocità tipica del dritto, rallentatore del riscaldamento.
+
+## Preparazione del colpo e micro-movimenti (19 ottobre 2026)
+
+Problema: prima di colpire si porta indietro il telefono (nel verso opposto al colpo) e lo si muove in attesa della
+palla. Il rilevatore prendeva una preparazione decisa per un colpo dell'altro lato, e online la racchetta in gioco non
+seguiva nulla prima del colpo (il flusso dei sensori c'era solo in LAN).
+
+- **Rilevatore** (`site/js/tennis/swing-detect.js`, modalità facoltativa `setPrepMode`, `setExpect`): un gesto nel
+  verso opposto al colpo atteso resta in attesa fino a 250 ms (finché è in corso il gesto opposto, fino a 700 ms). Se
+  arriva il colpo nel verso giusto, il primo diventa l'evento `prep`; altrimenti vale come colpo con l'istante del
+  picco vero (il gioco compensa il ritardo con la latenza del colpo). I movimenti troppo piccoli per un colpo sono
+  anch'essi `prep`. Il colpo nel verso atteso parte subito.
+- **Protocollo** (facoltativo, la versione del sito non cambia): dal gioco `cfg {prep, mo}` ed `ex {d}` (verso del
+  colpo atteso, da `expectedStrokeDir`); dal telefono `pr` (preparazione), `sm` (giroscopio a 30 Hz in JSON quando
+  non c'è il canale binario) e `pm` nello stato.
+- **Gioco**: `racket_kinematics.js` carica la racchetta dal lato della preparazione (`userData.natpfPrep`); il colpo
+  preparato (preparazione 0,08–1 s prima, nel verso opposto) ha un poco più di forza; quello a braccio fermo disperde
+  di più (`prepQuality`, solo se il telefono riconosce la preparazione). Senza calibrazione la preparazione dà il lato.
+- Test: `npm test` 83/83 (7 nuovi in `test/natpf-prep.test.mjs`), sito 124/124, LAN 4/4. Audit contro la CPU
+  esperta: tennista / amatore / bambino 90% / 63% / 31%.

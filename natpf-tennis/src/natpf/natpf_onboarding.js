@@ -19,10 +19,10 @@ export const GUIDE = [
     all: 'Non devi spostarti: <b>pensi solo al colpo</b>. Guarda la palla che arriva verso la racchetta.',
   }, game: 'Il tuo giocatore va da solo verso la palla. Cambi visuale (prima o terza persona) nel menu o con <kbd>V</kbd>.' },
   { id: 'hit', title: 'Colpisci quando la palla arriva', clip: 'hit', you: {
-    phone: 'Un <b>colpetto deciso</b> del telefono verso sinistra o verso destra, quando la palla è vicina alla racchetta. Dritto o rovescio li sceglie il verso del gesto.',
+    phone: 'Mentre la palla arriva <b>porta indietro il telefono</b> come una racchetta, poi un <b>colpo deciso</b> nel verso opposto quando la palla è vicina. Dritto o rovescio li sceglie il verso del colpo; la preparazione non conta come colpo.',
     webcam: 'Uno <b>swing della mano</b> verso sinistra o verso destra quando la palla arriva.',
     mouse: '<kbd>Spazio</kbd> quando la palla arriva alla racchetta.',
-  }, game: 'A terra compare un anello: <b class="q-g">verde</b> perfetto, <b class="q-y">giallo</b> buono, <b class="q-r">rosso</b> fuori tempo.' },
+  }, game: 'La racchetta in campo si carica con te. A terra compare un anello: <b class="q-g">verde</b> perfetto, <b class="q-y">giallo</b> buono, <b class="q-r">rosso</b> fuori tempo.' },
   { id: 'aim', title: 'Scegli dove va la palla', clip: 'aim', you: {
     phone: 'Come nel tennis vero: colpisci <b>un attimo prima</b> e la palla va <b>incrociata</b>, <b>un attimo dopo</b> e va <b>lungolinea</b>. Ruotando il polso stringi l’angolo. Più veloce il gesto, più forte la palla.',
     webcam: 'La direzione dello swing sposta la palla; colpire prima la incrocia, colpire dopo la manda lungolinea.',

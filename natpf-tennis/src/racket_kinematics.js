@@ -730,6 +730,10 @@ export class RacketKinematicsController {
         }
       }
     }
+    // NATPF: preparazione vera dal telefono (racchetta portata indietro): carica e lato seguono chi gioca
+    const natpfPrep = n.userData && n.userData.natpfPrep;
+    natpfPrep && !t.swingActive && performance.now() < natpfPrep.until &&
+      ((G = Math.max(G, natpfPrep.amount)), (t.anticipationSide = t.activeStanceSide = natpfPrep.side));
     !t.swingActive && G < 0.15 && d === "RALLY"
       ? m > 1.25 || a.mouseVelX * L < -1.8
         ? (t.activeStanceSide = "backhand")

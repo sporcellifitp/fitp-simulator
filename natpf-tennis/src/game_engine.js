@@ -1736,7 +1736,7 @@ export class NatpfTennisEngine {
     // sbagliato e con la potenza, e vicino alle righe si può uscire (natpf_skill.js). Prima: sempre dentro le righe.
     const natpfLv = NS.skillLevel(this.matchConfig.difficulty),
       natpfQ =
-        (natpfSwing ? NS.swingQuality(natpfTau, NS.skillLevel(this.matchConfig.difficulty)) : e.sweetSpotAssisted && g >= -1.85 && g <= 0.78 && !e.timing
+        (natpfSwing ? NS.swingQuality(natpfTau, NS.skillLevel(this.matchConfig.difficulty)) * NS.prepQuality(e.natpf) : e.sweetSpotAssisted && g >= -1.85 && g <= 0.78 && !e.timing
           ? NS.assistGrade(e.natpfLead, natpfLv).quality
           : NS.timingQuality(u, g)) *
         NS.reachQuality(c, p.vel.length() / Math.max(1, p.maxSpeed)),

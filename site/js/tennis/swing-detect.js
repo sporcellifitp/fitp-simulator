@@ -26,6 +26,8 @@ export const DEFAULTS = {
   stillMax: 35,     // °/s di rumore accettato col telefono fermo
   stillTime: 600,
   recover: 300, quiet: 70, gap: 140,   // ms di calibrazione da fermo
+  prepHold: 250,    // ms (modalità preparazione): un gesto nel verso opposto al colpo atteso aspetta così prima di valere
+  prepMax: 700,     // ms: oltre, il gesto trattenuto vale comunque come colpo
 };
 // profilo di chi gioca (dalla calibrazione): deriva, asse del colpo (+ = da destra a sinistra), colpo tipico, soglie
 export const defaultProfile = () => ({ bias: [0, 0, 0], axis: null, ref: 600, on: DEFAULTS.on, minPeak: DEFAULTS.minPeak, minAngle: DEFAULTS.minAngle, lobLift: null, sens: 1, refs: null, preparation: null, minAngles: null, intentGate: false });
@@ -44,8 +46,13 @@ export function createSwingDetector(opts = {}){
   let prof = defaultProfile();
   let training = false, armed = true, recovering = false, quietSince = null, phase = 'ready';
   let context = 'play';
+  // Modalità preparazione (facoltativa, la chiede il gioco): prima del colpo si porta indietro la racchetta, cioè ci si
+  // muove nel verso opposto al colpo. Se il gioco dice da che parte arriva la palla (expect: +1/-1, verso del colpo
+  // atteso), un gesto nel verso opposto non parte subito: se entro poco arriva il gesto nel verso giusto era una
+  // preparazione (evento 'prep'), altrimenti vale come colpo con il suo istante del picco (il tempo resta giusto).
+  let prepMode = false, expectDir = 0, held = null;
   let mode = 'run', still = null, cur = null, lastFire = -1e9, lastT = null, sm = 0, last = null;
-  const listeners = { swing: [], status: [], sample: [], phase: [] };
+  const listeners = { swing: [], status: [], sample: [], phase: [], prep: [] };
   const emit = (k, v) => { for (const f of listeners[k]) f(v); };
   const serving = () => context === 'serve' || context === 'toss';
   const thr = () => {
@@ -56,13 +63,18 @@ export function createSwingDetector(opts = {}){
   };
 
   const setPhase = value => { if (phase !== value){ phase = value; emit('phase', value); } };
-  const reset = () => { cur = null; sm = 0; lastT = null; recovering = false; quietSince = null; setPhase('ready'); };
+  const reset = () => { cur = null; sm = 0; lastT = null; recovering = false; quietSince = null; held = null; setPhase('ready'); };
 
   // campione: { t (ms), rot: [α,β,γ] °/s | null, acc: [x,y,z] m/s² senza gravità | null, accG: con gravità | null }
   function feed(k){
     if (!k || !Number.isFinite(k.t) || (lastT != null && k.t <= lastT)) return;
     if (lastT != null && k.t - lastT > C.gap){ reset(); if (mode === 'still') still = null; }
     const dt = lastT == null ? 10 : Math.max(1, Math.min(60, k.t - lastT)); lastT = k.t;
+    // gesto trattenuto: vale come colpo se non è arrivato il gesto opposto (si aspetta ancora se è in corso)
+    if (held && k.t >= held.until){
+      const pending = cur && !cur.fired && dot(unit(cur.peakW), held.sw.axis) < -.3 && k.t - held.sw.peakT < C.prepMax;
+      if (!pending){ const h = held; held = null; commit(h.sw); }
+    }
     last = k;
     const w = k.rot ? [k.rot[0] - prof.bias[0], k.rot[1] - prof.bias[1], k.rot[2] - prof.bias[2]] : null;
     const mag = w ? len(w) : (k.acc ? len(k.acc)*30 : 0);       // senza giroscopio: accelerazione in scala simile
@@ -121,13 +133,28 @@ export function createSwingDetector(opts = {}){
     const intent=gestureFloor(prof,dir,features,context);
     const floor=prof.intentGate&&!serving()?thr().minPeak:Math.max(thr().minPeak,intent.floor*prof.sens);
     const minAngle=serving()?2:Math.min(prof.minAngles?.[dir]||prof.minAngle,...(prof.templates||[]).filter(t=>t.shot===intent.shot).map(t=>Math.max(2,t.angle*.35)));
-    if (!training && ((prof.axis && dir === 0 && !serving() && !(context==='practice' && intent.shot==='serve')) || c.peak < floor || c.angle < minAngle)){ setPhase('preparation'); return; }
+    if (!training && ((prof.axis && dir === 0 && !serving() && !(context==='practice' && intent.shot==='serve')) || c.peak < floor || c.angle < minAngle)){
+      setPhase('preparation');
+      // movimento troppo piccolo per un colpo: in modalità preparazione è la racchetta che si carica
+      if (prepMode && dir !== 0 && !serving()) emit('prep', { peakT: c.peakT, dir, peak: Math.round(c.peak), angle: Math.round(c.angle), small: true });
+      return;
+    }
     const power = Math.max(.3, Math.min(1, .3 + .45*c.peak/powerReference));
-    lastFire = c.peakT;
-    if (!training){ recovering = !serving(); quietSince = null; setPhase('contact'); }
     // Soglie iniziali di palla corta e slice; la durata del sensore è in millisecondi.
     const special = classifySwingType({ power, lift, dur }, prof.lobLift);
-    emit('swing', { phase: 'contact', peakT: c.peakT, t, peak: Math.round(c.peak), power: +power.toFixed(3), dir, along: +along.toFixed(2), axis, gravity, lift: +lift.toFixed(3), ...special, ...intent, features, angle: Math.round(c.angle), dur });
+    const sw = { phase: 'contact', peakT: c.peakT, t, peak: Math.round(c.peak), power: +power.toFixed(3), dir, along: +along.toFixed(2), axis, gravity, lift: +lift.toFixed(3), ...special, ...intent, features, angle: Math.round(c.angle), dur };
+    if (prepMode && !training && !serving()){
+      // un gesto trattenuto e ora quello opposto: il primo era la preparazione
+      if (held && dir !== 0 && dir === -held.sw.dir){ emit('prep', { peakT: held.sw.peakT, dir: held.sw.dir, peak: held.sw.peak, angle: held.sw.angle }); held = null; }
+      else if (held){ const h = held; held = null; commit(h.sw); }
+      if (expectDir && dir === -expectDir){ held = { sw, until: c.peakT + C.prepHold }; setPhase('preparation'); return; }
+    }
+    commit(sw);
+  }
+  function commit(sw){
+    lastFire = sw.peakT;
+    if (!training){ recovering = !serving(); quietSince = null; setPhase('contact'); }
+    emit('swing', sw);
   }
 
   return {
@@ -139,6 +166,10 @@ export function createSwingDetector(opts = {}){
     setContext(value){ const next=['serve','toss','practice'].includes(value)?value:'play';if(context!==next){context=next;reset();} },
     setTraining(v){ training = !!v; reset(); },
     setArmed(v){ armed = !!v; if (!armed) cur = null; },
+    // modalità preparazione e verso del colpo atteso (+1 da destra a sinistra, -1 da sinistra a destra, 0 non si sa)
+    setPrepMode(v){ prepMode = !!v; if (!prepMode){ expectDir = 0; held = null; } },
+    setExpect(d){ expectDir = d === 1 ? 1 : d === -1 ? -1 : 0; },
+    get prepMode(){ return prepMode; },
     get last(){ return last; },
     on(k, f){ listeners[k].push(f); return this; },
     feed,

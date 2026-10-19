@@ -63,9 +63,9 @@ deterministico, non misure su persone reali.
 
 | Profilo | CPU facile: punti vinti | CPU esperta: punti vinti | Distanza media dal centro |
 |---|---|---|---|
-| Tennista (tempo preciso, polso, gesto veloce) | 97% | 91% | 3,0 m |
-| Amatore | 90% | 71% | 2,2 m |
-| Bambino (tempo a caso, gesto lento) | 65% | 38% | 1,6 m |
+| Tennista (tempo preciso, polso, gesto veloce, prepara il colpo) | 89% | 90% | 3,1 m |
+| Amatore | 87% | 63% | 2,1 m |
+| Bambino (tempo a caso, gesto lento, quasi mai prepara) | 73% | 31% | 1,7 m |
 
 Da verificare con telefoni veri: la soglia del polso, la velocità tipica (°/s) di un dritto da tennista e quanto
 «prima» e «dopo» vengono naturali.
