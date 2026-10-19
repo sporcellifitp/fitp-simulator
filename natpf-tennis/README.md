@@ -98,7 +98,16 @@ Un computer fa da server HTTPS sulla rete locale: serve il gioco, la pagina del 
 relay della partita 1v1 (`/api/*`) e la segnalazione del telefono (`/lan-signal`). Internet serve solo la prima
 volta, per installare le dipendenze e scaricare il pacchetto offline.
 
-### Avvio su Windows
+### Pacchetto LAN pronto per Windows
+
+`node lan/pacchetto.mjs --out=cartella --node=node-vXX-win-x64.zip` (dopo `npm run build` e `npm ci` in
+`../tools/lan`) prepara una cartella da zippare con: gioco già costruito e pacchetto offline, server LAN con le sue
+dipendenze, Node.js portatile, `AVVIA NATPF LAN.cmd`, `PREPARA I TELEFONI.cmd` e `LEGGIMI.txt` (istruzioni in
+`lan/LEGGIMI.txt`). Il certificato lo crea `../tools/lan/certificato.mjs` al primo avvio, senza mkcert: autorità
+locale del computer, certificato del server per gli indirizzi di rete attuali (rifatto da solo se cambiano) e
+`natpf-ca.crt` da installare su telefoni e computer, distribuito da `PREPARA I TELEFONI.cmd` con una pagina e un QR.
+
+### Avvio su Windows (dai sorgenti)
 
 1. Installa Node.js 20 o più recente. Collega computer, telefono ed eventuale secondo computer alla stessa Wi-Fi
    (senza isolamento tra dispositivi).

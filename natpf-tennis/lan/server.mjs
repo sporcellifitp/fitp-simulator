@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGameHandler } from './game-handler.mjs';
-import { ROOT, offlineStatus } from '../scripts/offline-assets.mjs';
+import { ROOT, offlineStatus, defaultAssetDirs } from '../scripts/offline-assets.mjs';
 
 export const GAME_PATH = '/?lan=1';
 
@@ -17,7 +17,10 @@ export function gameStatus({ root = ROOT, distDir = path.join(root, 'dist') } = 
   let cached = null, at = 0;
   return () => {
     if (!cached || Date.now() - at > 10000){
-      const offline = offlineStatus(root);
+      // anche il pacchetto offline copiato nella build (dist/assets) conta: nel pacchetto LAN è l'unico
+      let offline;
+      try { offline = offlineStatus(root, [{ dir: path.join(distDir, 'assets') }, ...defaultAssetDirs(root)]); }
+      catch { offline = { complete: true, missing: [], total: 0 }; }
       cached = { game: 'natpf-tennis', build: fs.existsSync(path.join(distDir, 'index.html')), offline: { complete: offline.complete, missing: offline.missing.length, total: offline.total } };
       at = Date.now();
     }

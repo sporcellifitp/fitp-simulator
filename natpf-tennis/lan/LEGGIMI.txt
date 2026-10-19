@@ -1,0 +1,50 @@
+NATPF SIMULATOR · VERSIONE LAN (WINDOWS)
+========================================
+
+Il computer fa da server sulla rete locale: gioco, telefono come racchetta e sfida 1v1 tra due computer,
+anche senza internet. Non serve installare nulla: Node.js è già nella cartella "node".
+
+PRIMA VOLTA (una sola volta per computer e per telefono)
+--------------------------------------------------------
+1. Estrai tutto lo zip in una cartella (per esempio sul Desktop). Non avviarlo dall'interno dello zip.
+2. Collega computer e telefoni alla stessa Wi-Fi. Le reti "ospiti" spesso impediscono ai dispositivi di
+   parlarsi: se il telefono non si collega, prova un'altra rete o l'hotspot del computer.
+3. Doppio clic su  AVVIA NATPF LAN.cmd
+   - crea il certificato HTTPS per l'indirizzo di rete di questo PC;
+   - Windows chiede se installare il certificato "NATPF Simulator LAN": rispondi Sì (serve a Chrome ed Edge);
+   - Windows chiede se consentire Node.js sulla rete: scegli "Reti private" e Consenti;
+   - nella finestra compare l'indirizzo del gioco, per esempio  https://192.168.1.41:8443/?lan=1
+     e si apre la guida sul computer.
+   Lascia aperta questa finestra mentre giochi.
+4. Per ogni telefono: doppio clic su  PREPARA I TELEFONI.cmd , poi sul telefono inquadra il QR che compare
+   nella finestra (o apri l'indirizzo http://...:8081/ scritto sotto) e segui la pagina:
+   - iPhone: "Scarica il certificato" → Consenti → Impostazioni → Profilo scaricato → Installa →
+     Impostazioni → Generali → Info → Impostazioni attendibilità certificati → attiva "NATPF Simulator LAN";
+   - Android: "Scarica il certificato" → Impostazioni → Sicurezza → Crittografia e credenziali →
+     Installa un certificato → Certificato CA → scegli "natpf-ca.crt".
+   Poi chiudi la finestra di PREPARA I TELEFONI.
+
+OGNI VOLTA
+----------
+1. Doppio clic su  AVVIA NATPF LAN.cmd
+2. Sul computer apri l'indirizzo mostrato (con Chrome o Edge) e premi Gioca.
+3. Scegli Smartphone e inquadra il QR con il telefono: il telefono si collega direttamente al computer.
+4. Sfida un amico: scegli "Sfida un amico" e apri il link del Player 2 sull'altro computer (stessa rete;
+   anche lì va installato natpf-ca.crt, con PREPARA I TELEFONI o con un doppio clic sul file
+   tools\lan\certs\natpf-ca.crt → Installa certificato → Utente corrente → Autorità di certificazione radice).
+
+SE QUALCOSA NON VA
+------------------
+- Il telefono non apre la pagina del gioco: il certificato non è installato o attivato sul telefono (vedi sopra),
+  oppure il firewall blocca Node.js (consenti la porta 8443 sulle reti private).
+- Il telefono apre la pagina ma non si collega: la Wi-Fi isola i dispositivi; usa un'altra rete.
+- Cambia l'indirizzo del computer (altra rete): riapri AVVIA NATPF LAN.cmd, il certificato si aggiorna da solo e i
+  telefoni già preparati restano validi.
+- Firefox non usa l'archivio certificati di Windows: usa Chrome o Edge sul computer.
+
+SICUREZZA
+---------
+La cartella tools\lan\certs\ca contiene la chiave dell'autorità di certificazione di questo computer: non copiarla
+e non darla a nessuno. Ai telefoni va solo natpf-ca.crt (la parte pubblica), che PREPARA I TELEFONI distribuisce.
+Per togliere la fiducia: sul telefono rimuovi il profilo o il certificato "NATPF Simulator LAN"; su Windows apri
+"Gestisci certificati utente" → Autorità di certificazione radice attendibili → elimina "NATPF Simulator LAN".

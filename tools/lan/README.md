@@ -15,7 +15,12 @@ Su macOS/Linux, dalla cartella `tools/lan`: `npm ci`, poi `npm run setup`. La gu
 
 Serve un certificato valido per **l'indirizzo IP LAN esatto** del computer, firmato da una CA attendibile anche sul telefono. L'avvio guidato controlla file, coppia certificato/chiave, scadenza e corrispondenza dell'IP; non può verificare se il telefono si fida già della CA.
 
-Puoi usare una CA locale di sviluppo, per esempio **mkcert**, predisposta dal responsabile del computer. Il launcher non scarica eseguibili e non modifica automaticamente la fiducia dei dispositivi. Se mkcert è già installato, dalla cartella `tools/lan`:
+**Senza programmi da installare**: `node certificato.mjs` crea un'autorità locale del computer (`certs/ca/`, la chiave
+non va mai copiata altrove), il certificato del server per gli indirizzi di rete attuali (`certs/cert.pem`, `key.pem`,
+rifatto da solo quando cambiano) e la parte pubblica `certs/natpf-ca.crt`. `node certificato.mjs --servi` la offre ai
+telefoni della stessa Wi-Fi su `http://IP:8081/` (pagina con istruzioni per iPhone e Android e QR nella finestra).
+
+In alternativa puoi usare una CA locale di sviluppo, per esempio **mkcert**, predisposta dal responsabile del computer. Il launcher non scarica eseguibili e non modifica automaticamente la fiducia dei dispositivi. Se mkcert è già installato, dalla cartella `tools/lan`:
 
 ```sh
 mkdir certs

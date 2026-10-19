@@ -723,7 +723,7 @@ export class NatpfTennisEngine {
       t = async (y, f = 4) => {
         const c =
           y.startsWith("http") || y.startsWith("./") || y.startsWith("/")
-            ? y.replace("https://www.gstatic.com/aistudio/starter-apps/tennis/", "./assets/")
+            ? y.replace(/^https?:\/\/[^/]+\/(?:[\w-]+\/)*?tennis\//, "./assets/") // NATPF: indirizzi assoluti → pacchetto locale
             : `./assets/models/${y}?v=natpf`;
         for (let m = 0; m <= f; m++)
           try {

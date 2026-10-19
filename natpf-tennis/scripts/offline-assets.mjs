@@ -1,5 +1,5 @@
 // Pacchetto offline degli asset di motore base: niente internet a runtime.
-// - Modelli 3D, audio (musiche musica e annunci TTS), texture del cielo e QR della starter app arrivano da gstatic:
+// - Modelli 3D, audio (musiche musica e annunci TTS), texture del cielo e QR del motore base arrivavano da un CDN esterno:
 //   scripts/download-assets.mjs li scarica una volta in public/assets/ (la build li copia in dist/assets/).
 // - MediaPipe Hands (webcam, mano) e Pose (webcam, corpo per «segui il corpo») arrivano dai pacchetti npm
 //   @mediapipe/hands e @mediapipe/pose (Apache-2.0), versioni fissate in package.json: in sviluppo e nel server LAN
@@ -47,10 +47,12 @@ export const MIME = {
 };
 export const mimeFor = file => MIME[path.extname(file)] || 'application/octet-stream';
 
-const GSTATIC_URL = /https:\/\/www\.gstatic\.com\/aistudio\/starter-apps\/tennis\/([\w./-]+?\.(?:glb|mp3|png))/g;
-// Asset gstatic usati dal gioco, letti dai sorgenti (così la lista non va tenuta a mano): modelli, audio, texture, QR.
+const GSTATIC_URL = /\.\/assets\/((?:models|audio|textures|qr)\/[\w./-]+?\.(?:glb|mp3|png))/g;
+// Asset locali (./assets/…) usati dal gioco, letti dai sorgenti (così la lista non va tenuta a mano): modelli, audio, texture, QR.
 export function sourceAssetList(root = ROOT){
-  const files = ['index.html', ...fs.readdirSync(path.join(root, 'src')).filter(f => f.endsWith('.js')).map(f => `src/${f}`)];
+  // nel pacchetto LAN non ci sono i sorgenti: si guarda solo ciò che c'è
+  const src = path.join(root, 'src');
+  const files = [...(fs.existsSync(path.join(root, 'index.html')) ? ['index.html'] : []), ...(fs.existsSync(src) ? fs.readdirSync(src).filter(f => f.endsWith('.js')).map(f => `src/${f}`) : [])];
   const found = new Set();
   for (const f of files) for (const [, rel] of fs.readFileSync(path.join(root, f), 'utf8').matchAll(GSTATIC_URL)) found.add(rel);
   return [...found].sort();
