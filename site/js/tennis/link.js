@@ -12,6 +12,7 @@ import { LanPeer, isLanMode } from './lan-transport.js';
 import { decodeSensor } from './sensor-packet.js';
 import { createRacketMotion } from './racket-motion.js';
 import { phoneInputTime } from './input-time.js';
+import { parseSwingMessage } from './swing-message.js';
 import { createGate, newSessionId, pairingUrl, createClock } from './pairing.js';
 
 // server di segnalazione: quello pubblico di PeerJS; per le prove «?peer=127.0.0.1:9000»
@@ -35,8 +36,11 @@ export function createPhoneLink(){
   const gate = createGate({});
   const session = newSessionId();
   const L = { state: 'off', phone: null, rtt: null, error: null, grip: null };
-  let faceSample = null;                     // ultimo orientamento del piatto (presa orizzontale) { yaw, pitch, roll, at }
-  const handlers = { swing: [], toss: [], change: [], cal: [], prep: [] };
+  let faceSample = null;                     // ultimo orientamento del piatto { yaw, pitch, roll, at }
+  // frequenza di arrivo per tipo di messaggio (Hz, media mobile) e ultimo arrivo: diagnostica, non entra nel gioco
+  const rates = {};
+  const countMsg = k => { const now = performance.now(), r = rates[k] || (rates[k] = { hz: 0, last: null, count: 0 }); if (r.last != null){ const dt = Math.max(1, now - r.last); r.hz += (1000/dt - r.hz)*.1; } r.last = now; r.count++; };
+  const handlers = { swing: [], toss: [], change: [], cal: [], prep: [], raw: [] };
   let peer = null, conn = null, lastTok = gate.token, tick = null, lastSeen = 0;
   const clock = createClock(), racketMotion = createRacketMotion();
   const emit = (k, v) => { for (const f of handlers[k]) try { f(v); } catch (e){ console.error(e); } };
@@ -81,32 +85,29 @@ export function createPhoneLink(){
         return;
       }
       if (c !== conn) return;
+      if (typeof d.t === 'string') countMsg(d.t);
       switch (d.t){
         case 'ping': c.send({ t: 'pong', c: d.c }); break;
         case 'dq': if (typeof d.p === 'number') clock.add(d.d, d.p, performance.now()); break;
-        case 'st': if (d.s === 'ready' && d.b) racketMotion.setBias(d.b); if (d.s === 'ready' && L.phone !== 'ready') racketMotion.reset(); set({ phone: String(d.s || ''), rtt: clock.rtt != null ? Math.round(clock.rtt) : L.rtt, grip: d.gp === 'flat' || d.gp === 'upright' ? d.gp : L.grip, prep: d.pm === 1 }); break;
+        case 'st': if (d.s === 'ready' && d.b) racketMotion.setBias(d.b); if (d.s === 'ready' && L.phone !== 'ready') racketMotion.reset(); set({ phone: String(d.s || ''), rtt: clock.rtt != null ? Math.round(clock.rtt) : L.rtt, grip: d.gp === 'flat' || d.gp === 'upright' ? d.gp : L.grip, prep: d.pm === 1, hz: typeof d.hz === 'number' && isFinite(d.hz) ? Math.round(d.hz) : L.hz }); break;
         case 'fo': { const f = v => typeof v === 'number' && isFinite(v) ? Math.max(-180, Math.min(180, v)) : null; if (f(d.y) != null) faceSample = { yaw: f(d.y), pitch: f(d.p) ?? 0, roll: f(d.r) ?? 0, at: performance.now() }; break; }
         case 'cal': if (d.e?.kind === 'done') racketMotion.setBias(d.e.profile?.bias || [0,0,0]); emit('cal', d.e || {}); break;
         case 'sw': {
-          const n = (v, a, b, def) => typeof v === 'number' && isFinite(v) ? Math.max(a, Math.min(b, v)) : def;
           // istante del colpo sull'orologio di questo computer (ms → s), con orologi allineati; se no, ritardo stimato
           const now = performance.now();
           const at = phoneInputTime({ peakMs: d.pk, nowMs: now, clock, latencyMs: d.lat });
           if (at == null) break;
-          // presa orizzontale: angolo del piatto all'impatto (campi facoltativi; senza, il colpo resta quello di sempre)
-          const face = d.g === 'flat' && typeof d.fy === 'number' && isFinite(d.fy) ? { yaw: n(d.fy, -180, 180, 0), pitch: n(d.fp, -90, 90, 0), roll: n(d.fr, -180, 180, 0), aim: n(d.fa, -1, 1, 0) } : null;
-          emit('swing', { power: n(d.p, 0, 1, .6), lift: n(d.l, -1, 1, 0), lob: !!d.lob, drop: d.drop === true, slice: d.slice === true, dur: n(d.dur, 0, 700, 0), dir: d.dir === 1 ? 1 : d.dir === -1 ? -1 : 0, aim:n(d.a,-1,1,null),confidence:n(d.c,0,1,.7),at, ...(face ? { grip: 'flat', face } : {}),
-            // facoltativi: velocità vera del telefono al picco (°/s) e rotazione del polso rispetto al proprio dritto
-            ...(typeof d.v === 'number' && isFinite(d.v) ? { peak: n(d.v, 0, 4000, 0) } : {}), ...(typeof d.tw === 'number' && isFinite(d.tw) ? { twist: n(d.tw, -2, 2, 0) } : {}) });
+          emit('swing', parseSwingMessage(d, { at, now }));
           break;
         }
         // facoltativi: preparazione del colpo (pr) e giroscopio in JSON quando non c'è il canale binario (sm)
         case 'pr': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: d.lat }); if (at != null && (d.dir === 1 || d.dir === -1)) emit('prep', { dir: d.dir, peak: typeof d.v === 'number' ? d.v : null, angle: typeof d.a === 'number' ? d.a : null, at }); break; }
+        case 'rs': if (typeof d.k === 'number') emit('raw', { t: d.k, rot: Array.isArray(d.r) ? d.r : null, acc: Array.isArray(d.a) ? d.a : null, accG: Array.isArray(d.g) ? d.g : null, at: performance.now() }); break;
         case 'sm': if (Array.isArray(d.r) && d.r.length === 3 && Number.isInteger(d.q) && typeof d.k === 'number') racketMotion.push({ sequence: d.q, t: d.k, rot: d.r.map(Number), acc: null, accG: null }, performance.now()); break;
         case 'toss': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); if (at != null) emit('toss', { at }); break; }
       }
     });
-    c.on('motion', buffer => { if (ok && c === conn){ const sample = decodeSensor(buffer); if (sample) racketMotion.push(sample, performance.now()); } });
+    c.on('motion', buffer => { if (ok && c === conn){ countMsg('bin'); const sample = decodeSensor(buffer); if (sample) racketMotion.push(sample, performance.now()); } });
     c.on('close', () => { clearTimeout(timer); if (c === conn){ conn = null; gate.release(); set({ state: peer && !peer.destroyed ? 'lost' : 'off', phone: null }); } });
     c.on('error', () => {});
   }
@@ -118,6 +119,8 @@ export function createPhoneLink(){
     get token(){ return gate.token; },
     motion(now = performance.now()){ const sample = racketMotion.sample(now); return sample ? { ...sample, rtt: clock.rtt ?? L.rtt, transport: isLanMode() ? 'lan-webrtc' : 'webrtc' } : null; },
     get transport(){ return isLanMode() ? 'lan-webrtc' : 'webrtc'; },
+    // diagnostica: frequenza e età dell'ultimo arrivo per tipo di messaggio (fo, sw, bin, sm, rs…), orologio
+    stats(now = performance.now()){ const out = {}; for (const [k, r] of Object.entries(rates)) out[k] = { hz: Math.round(r.hz), ageMs: r.last == null ? null : Math.round(now - r.last), count: r.count }; return { rates: out, rtt: clock.rtt ?? L.rtt, clockOk: clock.ok, clockSamples: clock.samples ?? null }; },
     // orientamento del piatto (presa orizzontale), se arrivato negli ultimi 250 ms
     face(now = performance.now()){ return faceSample && now - faceSample.at < 250 ? { ...faceSample, age: now - faceSample.at } : null; },
     get clock(){ return clock.ok ? { off: clock.off, rtt: clock.rtt } : null; },

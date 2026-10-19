@@ -1748,6 +1748,7 @@ export class NatpfTennisEngine {
             timing: natpfTau,
             contact: (m ? -1 : 1) * (e.natpf.hand === "left" ? -1 : 1),
             wrist: e.natpf.wrist,
+            aimSource: e.natpf.aimSource,
             quality: natpfQ,
             power: NS.powerNorm(f),
             level: natpfLv,

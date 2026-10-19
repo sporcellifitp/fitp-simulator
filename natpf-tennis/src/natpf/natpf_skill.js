@@ -119,9 +119,13 @@ export function swingGrade(timing, level = null){
 }
 // Qualità del colpo: un anticipo o un ritardo moderati sono una scelta (angolo), quelli estremi un errore.
 export const swingQuality = (timing, level = null) => clamp(1 - .55*clamp(Math.abs(timingUnits(timing, level)) - .7, 0, .9), .5, 1);
-export function swingLandingX({ timing = 0, contact = 1, wrist = 0, quality = 1, power = .6, level = SKILL_LEVELS.casual, rng = Math.random } = {}){
+// Con il piatto all'impatto (aimSource 'face') la mira la decide soprattutto il piatto, uguale per dritto e rovescio
+// (girato a destra → palla a destra: il rovescio va lungolinea quanto il dritto); il tempo pesa meno.
+export const FACE_AIM = Object.freeze({ naturalX: .3, timingX: 1.0, faceX: 3.2 });
+export function swingLandingX({ timing = 0, contact = 1, wrist = 0, aimSource = null, quality = 1, power = .6, level = SKILL_LEVELS.casual, rng = Math.random } = {}){
   const c = contact >= 0 ? 1 : -1, t = timingUnits(timing, level), w = clamp(finite(wrist), -1, 1);
-  const x = -c*SWING_AIM.naturalX - c*t*SWING_AIM.timingX + w*SWING_AIM.wristX;
+  const K = aimSource === 'face' ? { naturalX: FACE_AIM.naturalX, timingX: FACE_AIM.timingX, wristX: FACE_AIM.faceX } : SWING_AIM;
+  const x = -c*K.naturalX - c*t*K.timingX + w*K.wristX;
   return landingScatter(clamp(x, -SWING_AIM.maxX, SWING_AIM.maxX), { quality, power, level, rng });
 }
 // Preparazione: chi porta indietro la racchetta prima del colpo (come ogni tennista) colpisce più pulito; chi colpisce

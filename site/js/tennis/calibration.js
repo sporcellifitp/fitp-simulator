@@ -31,6 +31,7 @@ export const CAL = {
   idleHint: 7000,                  // ms senza movimenti: suggerimento
   gripHold: 400,                   // ms in verticale per confermare l'impugnatura
   flatStill: 2000,                 // ms fermi in posizione «pronto» con la presa orizzontale (telefono = piatto)
+  recovery: .4,                    // un movimento sotto il 40% del picco dei gesti già riconosciuti è il rientro della mano
 };
 const median = a => { const s = [...a].sort((x, y) => x - y); return s.length ? (s.length % 2 ? s[(s.length - 1)/2] : (s[s.length/2 - 1] + s[s.length/2])/2) : 0; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -58,8 +59,13 @@ export function createCalibration(det){
     S.burst.push(sw); S.burstT = sw.peakT; S.idleT = sw.peakT;
   });
 
+  // Rientro in posizione dopo un gesto (o un tremolio): molto più debole dei gesti già riconosciuti. Non è un tentativo:
+  // prima veniva preso per il gesto successivo (il rientro dopo «verso sinistra» diventava «verso destra»), il gesto
+  // vero risultava «direzione sbagliata» e il profilo usciva con soglie bassissime.
+  const isRecovery = sw => { const ok = S.attempts.filter(a => a.ok).map(a => a.peak); return ok.length > 0 && sw.peak < CAL.recovery*median(ok); };
   // un tentativo = il movimento più forte di un gruppo ravvicinato (così l'apertura non conta come colpo)
   function attempt(sw, group = []){
+    if (S.step === 'swings' && isRecovery(sw)){ emit({ kind: 'warn', why: 'rientro', peak: sw.peak }); return; }
     const along = S.axis ? dot(sw.axis, S.axis) : null;
     if (S.step === 'free'){
       const dir = Number.isFinite(sw.dir) ? sw.dir : along == null ? 0 : along > .25 ? 1 : along < -.25 ? -1 : 0;
@@ -112,7 +118,9 @@ export function createCalibration(det){
       emit({ kind: 'step', idx: 0, globalIdx: PLAN.length, total: PLAN.length + GESTURE_PLAN.length, ...GESTURE_PLAN[0] });
     } else {
       // presa orizzontale: il piatto abituale all'impatto del proprio gesto dritto, per leggere poi la mira dal piatto
-      if (pass && S.options.grip === 'flat'){ S.profile.grip = 'flat'; S.profile.faceRef = faceReference(ok.filter(a => a.face).map(a => ({ dir: SIGN[a.want], yaw: a.face.yaw, pitch: a.face.pitch, angle: a.angle }))); }
+      // il piatto abituale all'impatto del proprio dritto e rovescio: in partita la mira è lo scarto da questo (entrambe le prese)
+      if (pass && S.options.grip === 'flat') S.profile.grip = 'flat';
+      if (pass && ok.some(a => a.face)) S.profile.faceRef = faceReference(ok.filter(a => a.face).map(a => ({ dir: SIGN[a.want], yaw: a.face.yaw, pitch: a.face.pitch, angle: a.angle })));
       if (pass && S.options.quick){
         S.profile.templates = ok.map(a => ({ shot:'drive',dir:SIGN[a.want],peak:a.peak,angle:a.angle,features:templateFeatures(a,S.profile.refs[SIGN[a.want]],S.profile.refAngle,S.axis,SIGN[a.want]) }));
         S.profile.minPeak = Math.max((S.profile.noise || 3)*5, Math.min(S.profile.minPeak, base*.28));

@@ -24,17 +24,17 @@ export const GUIDE = [
     mouse: '<kbd>Spazio</kbd> quando la palla arriva alla racchetta.',
   }, game: 'La racchetta in campo si carica con te. A terra compare un anello: <b class="q-g">verde</b> perfetto, <b class="q-y">giallo</b> buono, <b class="q-r">rosso</b> fuori tempo.' },
   { id: 'aim', title: 'Scegli dove va la palla', clip: 'aim', you: {
-    phone: 'Come nel tennis vero: colpisci <b>un attimo prima</b> e la palla va <b>incrociata</b>, <b>un attimo dopo</b> e va <b>lungolinea</b>. Ruotando il polso stringi l’angolo. Più veloce il gesto, più forte la palla.',
+    phone: 'Al momento del colpo <b>gira il dorso del telefono verso dove vuoi mandare la palla</b>: a destra va a destra, a sinistra va a sinistra, di dritto e di rovescio. Più veloce il gesto, più forte la palla.',
     webcam: 'La direzione dello swing sposta la palla; colpire prima la incrocia, colpire dopo la manda lungolinea.',
     mouse: '<kbd>Q</kbd>/<kbd>E</kbd> o <kbd>A</kbd>/<kbd>D</kbd> mirano a sinistra o a destra.',
-  }, game: 'Angoli e velocità mettono in difficoltà l’avversario, ma vicino alle righe si rischia il fuori.' },
+  }, game: 'Conta anche il tempo: un attimo prima la palla si incrocia un po’ di più. Vicino alle righe si rischia il fuori.' },
   { id: 'serve', title: 'Il servizio', clip: 'serve', you: {
     phone: '<b>1</b> alza il telefono (o tocca lo schermo): lanci la palla. <b>2</b> un colpetto quando è in alto: servizio.',
     webcam: '<b>1</b> alza la mano di scatto: lanci la palla. <b>2</b> swing quando è in alto.',
     mouse: '<b>1</b> <kbd>↑</kbd> o <kbd>W</kbd> lancia la palla. <b>2</b> <kbd>Spazio</kbd> quando è in alto.',
   }, game: 'Quando servi tu, in basso compare «Al servizio».' },
   { id: 'shots', title: 'Colpi speciali', clip: 'shots', you: {
-    phone: 'Gesto <b>dal basso verso l’alto</b>: lob. <b>Dall’alto verso il basso</b>: tagliato; se è anche lento, palla corta. Sulle palle alte lo smash parte da solo.',
+    phone: 'Telefono <b>dal basso verso l’alto</b>: pallonetto. <b>Dall’alto verso il basso</b>: schiacciata sulle palle alte, tagliato su quelle basse. Tagliato <b>lento con il dorso del telefono aperto verso l’alto</b>: palla corta. Gesto veloce e dritto: colpo piatto.',
     webcam: 'Swing verso l’alto: lob. Verso il basso: tagliato. Sulle palle alte lo smash parte da solo.',
     mouse: '<kbd>1</kbd> topspin · <kbd>2</kbd> tagliato · <kbd>3</kbd> lob · <kbd>4</kbd> smash.',
   }, game: 'Il lob scavalca chi è a rete, la palla corta sorprende chi sta in fondo.' },

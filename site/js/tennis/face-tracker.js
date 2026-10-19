@@ -1,5 +1,6 @@
-// Presa orizzontale «il telefono è il piatto»: il telefono sta in orizzontale nel palmo, display verso chi gioca, e il
-// dorso guarda la rete come le corde. Qui si calcola dove punta il piatto, sul telefono, senza DOM (testabile con Node).
+// Dove punta il piatto della racchetta, sul telefono, senza DOM (testabile con Node). Vale per entrambe le prese: il
+// piatto è la normale al dorso del telefono (−z). Presa verticale (manico, l'unica in gioco): il dorso guarda dove va
+// la palla al momento dell'impatto. Presa orizzontale (non più offerta): il dorso guarda la rete come le corde.
 //
 // Riferimento: la posa di riposo della calibrazione («pronto, piatto verso la rete»). La gravità di quel momento dà
 // l'alto; la normale del dorso (−z del telefono) proiettata in orizzontale dà l'avanti, verso la rete; destra = avanti × alto.
@@ -26,6 +27,7 @@ export const FACE = Object.freeze({
   kp: 2.2,            // guadagno della correzione con la gravità (1/s)
   quietRate: 25,      // °/s: sotto, il telefono è «fermo» e l'imbardata «pronto» lo segue
   relax: .9,          // s: costante di tempo con cui la posa «pronto» segue il telefono fermo
+  quietHold: 150,     // ms fermo prima che la posa «pronto» inizi a seguire (presa verticale: più lungo, vedi racchetta.js)
   history: 600,       // ms di storia per leggere il piatto all'istante del picco
   aimYaw: 30,         // °: imbardata del piatto che vale «tutto a destra/sinistra»
 });
@@ -97,19 +99,24 @@ export function createFaceTracker(opts = {}){
       if (th > 1e-9){ const s = Math.sin(th/2)/len(w); q = qnorm(qmul(q, [w[0]*s, w[1]*s, w[2]*s, Math.cos(th/2)])); }
       const m = measure();
       // fermo: la posa «pronto» segue piano l'imbardata (assorbe la deriva e il ritorno in posizione)
-      if (rate < C.quietRate){ if (quietSince == null) quietSince = k.t; if (k.t - quietSince > 150) readyYaw += wrap(m.yaw - readyYaw)*Math.min(1, dt/C.relax); }
+      if (rate < C.quietRate){ if (quietSince == null) quietSince = k.t; if (k.t - quietSince > C.quietHold) readyYaw += wrap(m.yaw - readyYaw)*Math.min(1, dt/C.relax); }
       else quietSince = null;
       current = { yaw: +wrap(m.yaw - readyYaw).toFixed(2), pitch: +m.pitch.toFixed(2), roll: +m.roll.toFixed(2) };
       hist.push({ t: k.t, ...current }); while (hist.length && k.t - hist[0].t > C.history) hist.shift();
       return current;
     },
     get face(){ return current; },
-    // piatto all'istante t (es. il picco del gesto, che è l'impatto): il campione più vicino nella storia
+    // piatto all'istante t (es. il picco del gesto, che è l'impatto), interpolato tra i due campioni vicini: in un
+    // colpo a 1000 °/s due campioni a 60 Hz distano 16°, il campione più vicino sbaglierebbe fino a 8°
     faceAt(t){
       if (!hist.length) return current;
-      let best = hist[hist.length - 1];
-      for (const h of hist) if (Math.abs(h.t - t) < Math.abs(best.t - t)) best = h;
-      return { yaw: best.yaw, pitch: best.pitch, roll: best.roll };
+      if (t <= hist[0].t) return { yaw: hist[0].yaw, pitch: hist[0].pitch, roll: hist[0].roll };
+      for (let i = 1; i < hist.length; i++){
+        const a = hist[i - 1], b = hist[i];
+        if (t <= b.t){ const u = (t - a.t)/Math.max(1e-6, b.t - a.t); return { yaw: +(a.yaw + wrap(b.yaw - a.yaw)*u).toFixed(2), pitch: +(a.pitch + (b.pitch - a.pitch)*u).toFixed(2), roll: +(a.roll + (b.roll - a.roll)*u).toFixed(2) }; }
+      }
+      const z = hist[hist.length - 1];
+      return { yaw: z.yaw, pitch: z.pitch, roll: z.roll };
     },
   };
 }

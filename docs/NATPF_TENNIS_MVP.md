@@ -537,3 +537,9 @@ seguiva nulla prima del colpo (il flusso dei sensori c'era solo in LAN).
   di più (`prepQuality`, solo se il telefono riconosce la preparazione). Senza calibrazione la preparazione dà il lato.
 - Test: `npm test` 83/83 (7 nuovi in `test/natpf-prep.test.mjs`), sito 124/124, LAN 4/4. Audit contro la CPU
   esperta: tennista / amatore / bambino 90% / 63% / 31%.
+
+## Reattività, gesti e direzione del telefono (19 ottobre 2026)
+
+Analisi della catena LAN e internet, dieci cause trovate e corrette, nuova mappatura dei gesti (pallonetto e
+schiacciata verticali, palla corta con tre segnali, mira dal piatto all'impatto uguale per dritto e rovescio),
+pannello di diagnostica con registrazione e rianalisi: [NATPF_GESTI_E_LATENZA.md](NATPF_GESTI_E_LATENZA.md).

@@ -10,6 +10,7 @@ import { NatpfPause } from './natpf_pause.js';
 import { NatpfShotFeedback } from './natpf_shot_feedback.js';
 import { NatpfHand } from './natpf_hand.js';
 import { NatpfTraining } from './natpf_training.js';
+import { NatpfDiag } from './natpf_diag.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -39,6 +40,8 @@ export class NatpfUi {
     this.hand = new NatpfHand(engine);
     this.shot = new NatpfShotFeedback(engine);
     this.training = new NatpfTraining(engine, this);
+    // diagnostica (Maiusc+D o ?diag=1): prima del menu, così il suo tasto arriva anche con il menu aperto
+    this.diag = new NatpfDiag(engine, this);
     this._gateDesktopInput();
     this.modal = $('natpf-phone-modal');
     this.qrToken = null;
@@ -96,6 +99,7 @@ export class NatpfUi {
   feedback(e = {}){
     if ((e.role || 'p1') !== this.engine.playerRole) return null;
     const q = this.shot.onLocalFeedback(e);
+    this.diag?.onFeedback(e, q);
     if (q && e.kind === 'hit') this.training.onShot(q);
     else if (e.kind === 'fault' && /VERY (EARLY|LATE)/.test(e.grade || '')) this.training.onMistime(/EARLY/.test(e.grade));
     return q;

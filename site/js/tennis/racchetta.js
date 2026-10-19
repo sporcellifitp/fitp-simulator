@@ -8,7 +8,8 @@ import { createCalibration, PLAN, GESTURE_PLAN, calibrationPlan } from './calibr
 import { LanPeer, isLanMode } from './lan-transport.js';
 import { encodeSensor, SENSOR_HZ } from './sensor-packet.js';
 import { peerConfig, loadPeer } from './link.js';
-import { createFaceTracker, aimFromFace } from './face-tracker.js';
+import { createFaceTracker } from './face-tracker.js';
+import { swingMessage } from './swing-message.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
@@ -24,15 +25,18 @@ else pair = ss.get('pair');
 // La presa orizzontale resta nel codice ma non si offre più: scomoda in gioco. Si gioca solo in verticale.
 let grip = 'upright';
 const ALLOW_FLAT = false;
-const det = createSwingDetector(), face = createFaceTracker();
-// prima della calibrazione: ogni gesto porta con sé il piatto all'istante del picco (l'impatto)
-det.on('swing', s => { if (grip === 'flat' && face.ready) s.face = face.faceAt(s.peakT); });
-det.on('status', s => { if (s.s === 'still-ok' && grip === 'flat') face.setRest(s.gravity, det.profile.bias); });
+// Orientamento del piatto (face-tracker.js) con entrambe le prese: è la stessa misura in LAN e via internet, dà la
+// direzione del colpo all'impatto e fa seguire la racchetta in gioco. Con la presa verticale la posa «pronto» segue il
+// telefono solo dopo 0,4 s fermo e lentamente: le pause della preparazione non spostano il riferimento della mira.
+const det = createSwingDetector(), face = createFaceTracker(ALLOW_FLAT ? {} : { quietHold: 400, relax: 2.5 });
+// ogni gesto porta con sé il piatto all'istante del picco (l'impatto)
+det.on('swing', s => { if (face.ready) s.face = face.faceAt(s.peakT); });
+det.on('status', s => { if (s.s === 'still-ok') face.setRest(s.gravity, det.profile.bias); });
 const cal = createCalibration(det);
 let lastFaceSent = -Infinity, lastFacePaint = -Infinity;
 let sensorSequence = 0, lastSensorSent = -Infinity;
 // richieste facoltative del gioco (messaggio cfg): preparazione del colpo e flusso dei sensori anche senza canale binario
-let streamJson = false, prepWanted = false;
+let streamJson = false, prepWanted = false, diagStream = false, sampleHz = 60, lastSampleT = null, swingSeq = 0;
 let peer = null, conn = null, linkState = 'off', rtt = 80, sensor = 'off', phase = 'menu', retryT = null, tries = 0, wake = null, motionSeen = false, flashT = null;
 
 /* ---------- interfaccia ---------- */
@@ -121,7 +125,7 @@ function onData(c, d){
     case 'dp': send({ t: 'dq', d: d.d, p: performance.now() }); break;
     case 'grip': setGrip(d.g); break;
     // il gioco chiede la modalità preparazione (prep) e il flusso dei sensori in JSON quando non c'è il canale binario (mo)
-    case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); streamJson = !!d.mo; sendState(); break;
+    case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); streamJson = !!d.mo; diagStream = !!d.diag; sendState(); break;
     // verso del colpo atteso (da che parte arriva la palla): +1 da destra a sinistra, -1 da sinistra a destra, 0 non si sa
     case 'ex': det.setExpect(d.d); break;
     case 'practice': if (inputMode==='touch' && SHOT_NAMES[d.shot]){ selectedShot = d.shot; paintShots(); } break;
@@ -143,7 +147,7 @@ function lost(){
   if (tries++ < 10) retryT = setTimeout(connect, Math.min(6000, 1000*tries));
 }
 const send = m => { if (conn && conn.open) try { conn.send(m); } catch (e){} };
-const sendState = () => send({ t: 'st', s: sensor === 'off' ? 'sensors' : sensor, b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, ...(det.prepMode ? { pm: 1 } : {}) });
+const sendState = () => send({ t: 'st', s: sensor === 'off' ? 'sensors' : sensor, b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), ...(det.prepMode ? { pm: 1 } : {}) });
 setInterval(() => { if (conn && conn.open){ send({ t: 'ping', c: performance.now() }); sendState(); } }, 1000);
 const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e){} };
 
@@ -161,7 +165,7 @@ async function enableSensors(){
   motionSeen = false;
   setTimeout(() => { if (!motionSeen && inputMode === 'motion') noMotion('nomotion'); }, 1500);
   const saved = ss.get('profile');
-  if (saved?.version === 4 && saved.input !== 'touch' && (saved.grip || 'upright') === grip){ det.setProfile(saved); det.run(); sensor = 'ready'; if (grip === 'flat') face.setRest(saved.gravity, saved.bias); }
+  if (saved?.version === 4 && saved.input !== 'touch' && (saved.grip || 'upright') === grip){ det.setProfile(saved); det.run(); sensor = 'ready'; face.setRest(saved.gravity, saved.bias); }
   else { sensor = 'cal'; cal.start(preferences()); }
   sendState(); paint();
 }
@@ -183,15 +187,24 @@ function onMotion(e){
     const packet = encodeSensor(k, sensorSequence++);
     if (packet && conn.sendMotion(packet)) lastSensorSent = k.t;
   }
-  // collegamento via internet (niente canale binario): giroscopio a 30 Hz in JSON, solo per far seguire la racchetta in gioco
-  else if (linkState === 'on' && streamJson && sensor === 'ready' && k.rot && k.t - lastSensorSent >= 1000/30){
-    lastSensorSent = k.t; send({ t: 'sm', q: sensorSequence++, k: Math.round(k.t*10)/10, r: k.rot.map(v => Math.round(v*10)/10) });
+  // frequenza vera dei sensori di questo telefono (Hz), per la diagnostica del computer
+  if (lastSampleT != null && k.t > lastSampleT) sampleHz += (1000/Math.min(200, k.t - lastSampleT) - sampleHz)*.05;
+  lastSampleT = k.t;
+  // diagnostica (il computer la chiede con cfg.diag): ogni campione grezzo, uguale in LAN e via internet, per registrarlo
+  if (linkState === 'on' && diagStream) send({ t: 'rs', k: Math.round(k.t*10)/10, r: k.rot && k.rot.map(v => Math.round(v*10)/10), a: k.acc && k.acc.map(v => Math.round(v*100)/100), g: k.accG && k.accG.map(v => Math.round(v*100)/100) });
+  // Orientamento del piatto al computer, 30 volte al secondo: la racchetta in gioco segue questo, identico in LAN e via
+  // internet (corretto con la gravità, senza deriva). Il flusso binario della LAN resta per chi lo usa.
+  let f = null;
+  if (face.ready){
+    f = face.feed(k);
+    // in LAN a ogni campione (costa poco e toglie fino a 33 ms alla racchetta a schermo), via internet 30 volte al secondo
+    if (f && linkState === 'on' && k.t - lastFaceSent >= (isLanMode() ? 0 : 33)){ lastFaceSent = k.t; send({ t: 'fo', y: f.yaw, p: f.pitch, r: f.roll }); }
+    if (f && grip === 'flat' && k.t - lastFacePaint >= 60){ lastFacePaint = k.t; paintFace(f); }
   }
-  if (grip === 'flat' && face.ready){
-    const f = face.feed(k);
-    // orientamento del piatto al computer (la racchetta in gioco segue il telefono): leggero, 20 volte al secondo
-    if (f && linkState === 'on' && k.t - lastFaceSent >= 50){ lastFaceSent = k.t; send({ t: 'fo', y: f.yaw, p: f.pitch, r: f.roll }); }
-    if (f && k.t - lastFacePaint >= 60){ lastFacePaint = k.t; paintFace(f); }
+  // via internet senza orientamento del piatto (prima della calibrazione): giroscopio a 30 Hz in JSON. Solo se manca il
+  // canale binario della LAN (prima questo ramo partiva anche in LAN tra un pacchetto binario e l'altro)
+  if (!f && !conn?.sendMotion && linkState === 'on' && streamJson && sensor === 'ready' && k.rot && k.t - lastSensorSent >= 1000/30){
+    lastSensorSent = k.t; send({ t: 'sm', q: sensorSequence++, k: Math.round(k.t*10)/10, r: k.rot.map(v => Math.round(v*10)/10) });
   }
   det.feed(k);
   if (sensor === 'cal') cal.tick(k.t, k);
@@ -230,11 +243,7 @@ cal.on(e => { send({ t: 'cal', e: { ...e, shot:e.shot || (inputMode==='touch'?se
 det.on('swing', s => {
   if (sensor !== 'ready' || linkState !== 'on' || !portrait || inputMode !== 'motion' || !['play','serve','toss'].includes(phase)) return;
   const flags = shotFlags(selectedShot, s);
-  // presa orizzontale: angolo del piatto all'impatto rispetto al proprio gesto dritto (campi facoltativi g, fy, fp, fr, fa)
-  const fa = grip === 'flat' ? aimFromFace(s.face, det.profile.faceRef, { dir: s.dir, angle: s.angle }) : null;
-  send({ t: 'sw', p: s.power, l: Math.max(-.6,Math.min(.6,s.lift)), ...flags, dur: s.dur, dir: s.dir, a:s.aim,c:s.confidence,pk: s.peakT, lat: rtt/2 + (performance.now() - s.peakT),
-    v: s.peak, tw: Number.isFinite(s.features?.twist) ? +s.features.twist.toFixed(3) : undefined,
-    ...(fa ? { g: 'flat', fy: fa.yaw, fp: fa.pitch, fr: fa.roll, fa: fa.aim } : {}) });
+  send(swingMessage(s, { flags, grip, faceRef: det.profile.faceRef, rtt, now: performance.now(), sampleHz, seq: ++swingSeq }));
   const cue = ({drive:'Gesto letto',lob:'Verso l’alto',slice:'Taglio verso il basso',drop:'Tocco corto',serve:'Movimento letto',smash:'Colpo dall’alto'})[s.shot] || 'Gesto letto';
   flash('hit', cue, `Forza ${Math.round(s.power*100)}%`, 350);
 });

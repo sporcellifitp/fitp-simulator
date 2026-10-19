@@ -170,6 +170,13 @@ L'unico pacchetto da preparare è MediaPipe per la webcam (Hands e Pose lite, ci
 `npm run assets` lo copia in `public/assets/` e scrive `public/assets/manifest.json` con dimensioni e sha256;
 `npm run assets:check` dice cosa manca. Senza MediaPipe la webcam usa l'optical flow.
 
+### Diagnostica del telefono
+
+Maiusc+D (o `?diag=1`) apre il pannello con i tempi di ogni colpo (rilevamento, preparazione, consegna, attesa della
+palla, schermo), le frequenze dei flussi e «Registra» per salvare una sessione; `scripts/audit/replay-recording.mjs`
+la rianalizza. Analisi completa, mappatura dei gesti e problemi aperti:
+[../docs/NATPF_GESTI_E_LATENZA.md](../docs/NATPF_GESTI_E_LATENZA.md).
+
 ### Smartphone come racchetta
 
 1. Nel menu scegli **Smartphone**: nella pagina «Collega» compare il QR.

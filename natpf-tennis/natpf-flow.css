@@ -590,3 +590,46 @@
     height: 180px;
   }
 }
+
+/* ---------- diagnostica della racchetta (Maiusc+D) ---------- */
+.natpf-diag {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 200;
+  max-width: min(980px, calc(100vw - 24px));
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(4, 10, 28, 0.9);
+  color: #dfe7ff;
+  font: 12px/1.35 ui-monospace, Menlo, Consolas, monospace;
+  box-shadow: 0 0 0 1px var(--lb-line);
+}
+.natpf-diag.hidden {
+  display: none;
+}
+.natpf-diag .diag-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.natpf-diag .diag-head b {
+  flex: 1;
+  color: var(--lb-ball);
+}
+.natpf-diag button {
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(166, 182, 220, 0.2);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.natpf-diag pre {
+  margin: 0;
+  white-space: pre;
+  overflow-x: auto;
+  font: inherit;
+}
