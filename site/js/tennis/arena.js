@@ -21,7 +21,10 @@ function canvas(w, h, draw){
 }
 // grafiche dell'arena (site/assets/arena/)
 const loader = new THREE.TextureLoader();
-const ART = name => { const t = loader.load(new URL('../../assets/arena/' + name, import.meta.url).href); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+// anisotropia: la massima della scheda video (buildArena la riceve dal renderer); i loghi visti di taglio (rete,
+// tabelloni laterali, scritta sul campo) restano nitidi invece di sfocarsi con le mipmap
+let ANISO = 8;
+const ART = name => { const t = loader.load(new URL('../../assets/arena/' + name, import.meta.url).href); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = ANISO; return t; };
 const plainTex = () => canvas(64, 64, (x, W, H) => {
   const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#16378f'); g.addColorStop(1, '#0a2163'); x.fillStyle = g; x.fillRect(0, 0, W, H);
 });
@@ -63,7 +66,8 @@ function mergeGeometries(list){
   const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); return out;
 }
 
-export function buildArena(scene, { quality = 1 } = {}){
+export function buildArena(scene, { quality = 1, anisotropy = 8 } = {}){
+  ANISO = Math.max(1, Math.min(16, anisotropy || 8));
   const group = new THREE.Group(); scene.add(group);
   const lam = (c, extra = {}) => new THREE.MeshLambertMaterial({ color: c, ...extra });
   const add = (geo, mat, x, y, z, { ry = 0, shadow = false, receive = true } = {}) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.y = ry; m.castShadow = shadow; m.receiveShadow = receive; group.add(m); return m; };
@@ -93,9 +97,11 @@ export function buildArena(scene, { quality = 1 } = {}){
     const tape = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(Array.from({ length: seg + 1 }, (_, i) => { const x = -X + i*2*X/seg; return new THREE.Vector3(x, .914 + .156*Math.min(1, Math.abs(x)/X)**1.6 - .03, 0); })), 48, .035, 6), lam(0xffffff));
     tape.castShadow = true; group.add(tape);
     add(new THREE.BoxGeometry(.05, .9, .02), lam(0xffffff), 0, .45, 0);
-    // logo Nitto ATP Finals sulla rete, vicino ai due pali, sulle due facce
-    const netLogo = new THREE.MeshBasicMaterial({ map: ART('rete-logo.png'), transparent: true, depthWrite: false, side: THREE.DoubleSide });
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(new THREE.PlaneGeometry(1.45, .9), netLogo, sx*(X - 1.05), .5, sz*.014).renderOrder = 2;   // sopra le maglie della rete da ogni lato
+    // logo Nitto ATP Finals eSERIES sulla rete, vicino ai due pali: un piano per faccia, ognuno girato verso il proprio
+    // lato del campo (con un piano a doppia faccia chi gioca dall'altra parte leggeva la scritta al contrario).
+    // Proporzioni del file del logo (2048 × 330): 1,6 × 0,258 m, nessuna deformazione.
+    const netLogo = new THREE.MeshBasicMaterial({ map: ART('rete-logo.png'), transparent: true, depthWrite: false });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(new THREE.PlaneGeometry(1.6, 1.6*330/2048), netLogo, sx*(X - 1.15), .56, sz*.016, { ry: sz > 0 ? 0 : Math.PI }).renderOrder = 2;
     for (const s of [-1, 1]) add(new THREE.BoxGeometry(.12, 1.07, .12), lam(0x0f2254), s*X, .535, 0, { shadow: true });
   }
 

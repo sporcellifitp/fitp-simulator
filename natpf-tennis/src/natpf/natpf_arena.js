@@ -43,7 +43,7 @@ export function installNatpfArena(engine, { quality = 1 } = {}){
   const fill = lights.find(l => l.isDirectionalLight && l !== engine.sunLight);
   if (fill){ fill.color.setHex(NATPF_LIGHTS.fill.color); fill.intensity = NATPF_LIGHTS.fill.intensity; fill.position.set(...NATPF_LIGHTS.fill.position); }
 
-  const arena = buildArena(scene, { quality });
+  const arena = buildArena(scene, { quality, anisotropy: engine.renderer?.capabilities?.getMaxAnisotropy?.() || 8 });
   let lastScore = '', lastSpeed = null, practice = false;
   const look = L => {
     scene.background = new THREE.Color(L.background); scene.fog = new THREE.Fog(...L.fog);

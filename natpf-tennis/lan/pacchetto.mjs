@@ -25,7 +25,7 @@ for (const f of ['match-relay.mjs', 'offline-assets.mjs', 'natpf-site-plugin.mjs
 fs.writeFileSync(path.join(OUT, 'natpf-tennis/package.json'), JSON.stringify({ name: 'natpf-simulator-tennis', private: true, type: 'module' }, null, 2));
 // pagina del telefono con le sue dipendenze, e le grafiche dell'arena
 for (const f of phoneFiles(path.join(REPO, 'site'))) copy(`site/${f}`);
-copy('site/assets/arena');
+copy('site/assets/arena'); copy('site/assets/brand');
 // avvio guidato, segnalazione del telefono e certificato (ws e node-forge: solo JavaScript, vanno bene anche su Windows)
 for (const f of ['launcher.mjs', 'server.mjs', 'setup.html', 'certificato.mjs', 'package.json', 'README.md']) copy(`tools/lan/${f}`);
 for (const m of ['ws', 'node-forge']) copy(`tools/lan/node_modules/${m}`);

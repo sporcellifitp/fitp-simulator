@@ -13,7 +13,7 @@ const MIME = {
 };
 // Solo ciò che serve al telefono e all'arena: niente mondo esplorabile, minigiochi o dati del Foro.
 const ENTRIES = ['tennis/racchetta.html', 'js/tennis/racchetta.js', 'js/vendor/peerjs.min.js', 'js/vendor/peerjs.LICENSE', 'js/vendor/qrcode.js'];
-export const ALLOWED = /^(tennis\/racchetta\.html|js\/tennis\/[\w.-]+\.js|js\/match\/[\w.-]+\.js|js\/vendor\/(peerjs\.min\.js|peerjs\.LICENSE|qrcode\.js)|assets\/arena\/[\w.-]+\.png)$/;
+export const ALLOWED = /^(tennis\/racchetta\.html|js\/tennis\/[\w.-]+\.js|js\/match\/[\w.-]+\.js|js\/vendor\/(peerjs\.min\.js|peerjs\.LICENSE|qrcode\.js)|assets\/(arena|brand)\/[\w.-]+\.png)$/;
 
 // Dipendenze relative di un modulo ES, come tools/package-natpf.py.
 export function phoneFiles(siteDir){
@@ -35,6 +35,8 @@ export function phoneFiles(siteDir){
   for (const entry of ENTRIES) visit(entry);
   return [...files].sort();
 }
+// loghi ufficiali ad alta risoluzione per l'interfaccia (intro, menu): serviti sotto /natpf/assets/brand/
+export const brandFiles = siteDir => fs.readdirSync(path.join(siteDir, 'assets/brand')).filter(f => f.endsWith('.png')).map(f => `assets/brand/${f}`);
 export const arenaFiles = siteDir => fs.readdirSync(path.join(siteDir, 'assets/arena')).filter(f => f.endsWith('.png')).map(f => `assets/arena/${f}`);
 
 export function natpfSitePlugin({ siteDir }){
@@ -63,6 +65,7 @@ export function natpfSitePlugin({ siteDir }){
       const copy = (rel, dest) => { const target = path.join(outDir, dest); fs.mkdirSync(path.dirname(target), { recursive: true }); fs.copyFileSync(path.join(siteDir, rel), target); };
       for (const rel of phoneFiles(siteDir)) copy(rel, `natpf/${rel}`);
       for (const rel of arenaFiles(siteDir)) copy(rel, rel);
+      for (const rel of brandFiles(siteDir)) copy(rel, `natpf/${rel}`);
     },
   };
 }
