@@ -264,6 +264,7 @@ export class NatpfLobby {
   }
   _key(e){
     if (this.ui.intro?.active) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;     // scorciatoie (pannello dell'addetto, browser): non sono del menu
     if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
     if (this.onboarding.isOpen){ if (this.onboarding.key(e)) e.preventDefault(); e.stopImmediatePropagation(); return; }
     const sheetOpen = [...document.querySelectorAll('.natpf-sheet-backdrop')].some(m => !m.classList.contains('hidden'));
