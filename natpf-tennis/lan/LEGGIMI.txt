@@ -12,7 +12,8 @@ PRIMA VOLTA (una sola volta per computer e per telefono)
 3. Doppio clic su  AVVIA NATPF LAN.cmd
    - crea il certificato HTTPS per l'indirizzo di rete di questo PC;
    - Windows chiede se installare il certificato "NATPF Simulator LAN": rispondi Sì (serve a Chrome ed Edge);
-   - Windows chiede se consentire Node.js sulla rete: scegli "Reti private" e Consenti;
+   - Windows chiede i permessi di amministratore per aprire il firewall al gioco (SBLOCCA LA RETE): rispondi Sì.
+     Il firewall si apre solo per i dispositivi della stessa rete locale;
    - nella finestra compare l'indirizzo del gioco, per esempio  https://192.168.1.41:8443/?lan=1
      e si apre la guida sul computer.
    Lascia aperta questa finestra mentre giochi.
@@ -35,6 +36,12 @@ OGNI VOLTA
 
 SE QUALCOSA NON VA
 ------------------
+- Il telefono non raggiunge nessun indirizzo (né il QR del gioco né quello dei certificati):
+  1. il telefono deve essere sulla stessa Wi-Fi del PC (non in 4G/5G, non sulla rete «ospiti»);
+  2. doppio clic su SBLOCCA LA RETE.cmd e rispondi Sì (toglie anche i blocchi che Windows mette su Node.js quando
+     l'avviso del firewall viene chiuso), poi riapri AVVIA NATPF LAN.cmd;
+  3. usa l'indirizzo che inizia con 192.168. o 10. (gli altri di solito sono schede virtuali o VPN);
+  4. se ancora niente, la Wi-Fi isola i dispositivi: prova l'hotspot del telefono o un router dedicato allo stand.
 - Il telefono non apre la pagina del gioco: il certificato non è installato o attivato sul telefono (vedi sopra),
   oppure il firewall blocca Node.js (consenti la porta 8443 sulle reti private).
 - Il telefono apre la pagina ma non si collega: la Wi-Fi isola i dispositivi; usa un'altra rete.

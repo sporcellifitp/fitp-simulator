@@ -67,9 +67,43 @@ if not exist "tools\\lan\\certs\\pc-attendibile.txt" (
   if not errorlevel 1 echo ok> "tools\\lan\\certs\\pc-attendibile.txt"
 )
 echo.
-echo Se Windows chiede di consentire Node.js sulla rete, scegli "Reti private" e Consenti.
+rem una volta sola: firewall aperto per il gioco (porte 8443 e 8081 e WebRTC, solo dalla rete locale)
+if not exist "tools\\lan\\certs\\rete-sbloccata.txt" (
+  echo.
+  echo Ora Windows chiede i permessi di amministratore per aprire il firewall al gioco: rispondi Si'.
+  call "%~dp0SBLOCCA LA RETE.cmd" auto
+)
+echo.
+echo Tipo di rete di questo PC (se e' "Public" e il telefono non si collega, apri SBLOCCA LA RETE.cmd):
+powershell -NoProfile -Command "Get-NetConnectionProfile | ForEach-Object { '  ' + $_.InterfaceAlias + ': ' + $_.NetworkCategory }" 2>nul
 "%NODE%" natpf-tennis\\lan\\server.mjs %*
 pause
+`));
+fs.writeFileSync(path.join(OUT, 'SBLOCCA LA RETE.cmd'), crlf(`@echo off
+rem Apre il firewall di Windows al gioco, solo per i dispositivi della rete locale (telefoni e secondo computer):
+rem HTTPS 8443, pagina dei certificati 8081 e WebRTC di node.exe. Toglie i blocchi che Windows crea su Node.js
+rem quando l'avviso del firewall viene chiuso o rifiutato. Chiede i permessi di amministratore.
+chcp 65001 >nul
+set "MODO=%~1"
+if "%MODO%"=="" set "MODO=mano"
+net session >nul 2>&1
+if errorlevel 1 (
+  powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -ArgumentList '%MODO%' -Verb RunAs -Wait"
+  goto :eof
+)
+set "NODEEXE=%~dp0node\\node.exe"
+netsh advfirewall firewall delete rule name="NATPF LAN" >nul 2>&1
+netsh advfirewall firewall delete rule name="Node.js JavaScript Runtime" >nul 2>&1
+netsh advfirewall firewall add rule name="NATPF LAN" dir=in action=allow protocol=TCP localport=8443,8081 remoteip=localsubnet profile=any >nul
+netsh advfirewall firewall add rule name="NATPF LAN" dir=in action=allow program="%NODEEXE%" protocol=UDP remoteip=localsubnet profile=any >nul
+netsh advfirewall firewall add rule name="NATPF LAN" dir=in action=allow program="%NODEEXE%" protocol=TCP remoteip=localsubnet profile=any >nul
+if errorlevel 1 (
+  echo Non sono riuscito ad aprire il firewall. Chiedi a chi gestisce il PC, o consenti a mano node.exe e la porta 8443.
+) else (
+  echo Firewall aperto per NATPF Simulator, solo dalla rete locale.
+  echo ok> "%~dp0tools\\lan\\certs\\rete-sbloccata.txt"
+)
+if /i not "%MODO%"=="auto" pause
 `));
 fs.writeFileSync(path.join(OUT, 'PREPARA I TELEFONI.cmd'), crlf(`@echo off
 rem Una volta per telefono: il telefono scarica e installa il certificato della rete NATPF (solo la parte pubblica).

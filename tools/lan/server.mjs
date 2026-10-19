@@ -6,7 +6,15 @@ import {fileURLToPath} from 'node:url';
 import {networkInterfaces} from 'node:os';
 import {WebSocketServer} from 'ws';
 const root=path.resolve(fileURLToPath(new URL('../../site/',import.meta.url)));
-export function lanAddresses(){let addresses={};try{addresses=networkInterfaces();}catch{}return [...new Set(Object.values(addresses).flatMap(items=>(items||[]).filter(a=>a.family==='IPv4'&&!a.internal).map(a=>a.address)))];}
+// Indirizzi di rete del computer, i più probabili per il telefono prima: Wi-Fi ed Ethernet, poi il resto. Fuori le schede
+// virtuali (WSL, Hyper-V, VirtualBox, VMware, Docker, VPN) e gli indirizzi automatici 169.254: un telefono non li raggiunge.
+const VIRTUAL=/vethernet|virtualbox|vmware|vmnet|hyper-v|wsl|docker|vbox|tailscale|zerotier|hamachi|tap-|tun|wireguard|loopback|bluetooth/i;
+export function rankAddresses(interfaces){
+  const rank=(name,ip)=>(/wi-?fi|wlan|wireless|en0/i.test(name)?0:/ethernet|eth|en\d/i.test(name)?1:2)+(/^192\.168\./.test(ip)?0:/^10\./.test(ip)?.1:.2);
+  const list=Object.entries(interfaces||{}).flatMap(([name,items])=>(items||[]).filter(a=>a.family==='IPv4'&&!a.internal&&!/^169\.254\./.test(a.address)&&!VIRTUAL.test(name)).map(a=>({ip:a.address,r:rank(name,a.address)})));
+  return [...new Set(list.sort((a,b)=>a.r-b.r).map(a=>a.ip))];
+}
+export function lanAddresses(){let addresses={};try{addresses=networkInterfaces();}catch{}const ranked=rankAddresses(addresses);return ranked.length?ranked:[...new Set(Object.values(addresses).flatMap(items=>(items||[]).filter(a=>a.family==='IPv4'&&!a.internal).map(a=>a.address)))];}
 export function createLanServer(options={}){
 const tls=!!(options.cert&&options.key),port=Number(options.port??(tls?8443:8080));
 const clients=new Map();
