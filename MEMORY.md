@@ -3,7 +3,7 @@
 Memoria di lavoro del progetto: da leggere all'inizio di ogni sessione e da aggiornare alla fine di ogni attività.
 Non contiene password, token o altri segreti.
 
-Ultimo aggiornamento: 19 ottobre 2026, sera · branch `claude/friendly-fermat-dwv2w2` (ripartito da
+Ultimo aggiornamento: 19 ottobre 2026, notte (secondo giro: colpi con la presa vera, mira, musica, sedia) · branch `claude/friendly-fermat-dwv2w2` (ripartito da
 `feature/natpf-tennis-v2`, che contiene tutto il lavoro precedente; i branch `backup/*` e gli altri `feature/natpf-*`
 sono già inclusi)
 
@@ -28,6 +28,12 @@ ammessi solo gli header di copyright delle librerie open source). Loghi ufficial
   `link.js` → `natpf_phone_racket.js` (`natpfSwingToEngine`, modelli adattivi) → `natpf_gestures.js`
   (`classifyPhoneShot`: dritto/rovescio, lob, palla corta, tagliato) → `game_engine.js` (`_attemptPlayerRallyStrike`,
   `natpf_skill.js` per direzione e profondità).
+- Tre parti separate del colpo: **rilevamento** (telefono: `swing-detect.js` decide quando c'è un colpo e il verso,
+  `face-tracker.js` misura il piatto), **classificazione** (computer: `natpf_gestures.classifyPhoneShot`, deciso al
+  picco con i dati di preparazione e spinta, mai cambiato dopo l'impatto) e **simulazione** (motore: `natpf_skill`
+  direzione, profondità, traiettoria). Segnali: L/`move` = spostamento verticale della mano (accelerometro, rispetto ai
+  propri colpi normali), T = rotazione verticale del piatto (`headAt`), `fh` = direzione assoluta del piatto
+  all'impatto (mira, `createAimModel`). Simulatore della presa vera: `natpf-tennis/test/phone-sim.mjs`.
 - **Multigiocatore (sfida un amico)**: host unico arbitro. Relay `/api/match/*` (server LAN, `scripts/match-relay.mjs`)
   o, su sito statico, `natpf_p2p.js` (intercetta le stesse chiamate e usa WebRTC con PeerJS; invito
   `?room=AT-XXXX&role=p2&net=p2p`). Sessione 1v1 in `natpf_versus.js` (funzioni pure: lobby, stato del P2, contatori)
@@ -89,6 +95,11 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 - 1v1: il ritardo di rete P2 → host è compensato solo per il telefono e solo per il tempo nel relay; mai provato con
   due computer veri né su reti diverse; senza TURN alcune reti non si collegano. Tra due giocatori automatici perfetti
   gli scambi possono durare a lungo (84 colpi nella prova).
+- Colpi e mira: soglie (pallonetto con mano che sale ≥ 0,25, decisa ≥ 0,5; mira 26°, centro 10°) tarate sul simulatore
+  che riproduce il video del 19/10, non su registrazioni vere (nel repository non ce ne sono). Nella prova nel browser
+  la mira a destra è risultata più debole di quella a sinistra quando i colpi precedenti alternavano pronazioni
+  opposte (centro spostato di ~15°): da verificare con il telefono vero e una registrazione (Maiusc+D).
+- La prova `natpf-flat-grip.mjs` (presa orizzontale) era obsoleta: sostituita da `natpf-phone-upright.mjs`.
 - Il link d'invito porta il formato scelto al momento della stanza; se si cambia formato dopo, il P2 lo riceve dal
   primo snapshot (non è un errore, solo un attimo di ritardo).
 
@@ -107,6 +118,21 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
   giocatori ognuno ha la sua camera: le scritte si girano sul computer di ciascuno (`arena.setViewer`), così il campo è
   uguale per tutti e due. Primo tentativo (d78b0f2: ognuna verso la metà opposta) scartato: la scritta vicina, che la
   camera di gioco inquadra, risultava capovolta.
+- Pallonetto con la presa vera (secondo giro): T è normalizzato e dipende solo dall'asse di rotazione; la pronazione
+  del polso (asse dell'avambraccio, orizzontale) dà lo stesso T di un colpo verso l'alto. Decisione: pallonetto e
+  tagliato veloce solo con la mano che si sposta davvero (L); la mano che sale con decisione è un pallonetto anche se
+  il piatto ruota al contrario; palla corta invariata (baseline richiesta). Riferimenti personali (L, T) solo dai colpi
+  normali: prima tre pallonetti di fila spostavano il «normale». Verso del colpo anche dalla rotazione attorno alla
+  verticale quando l'impugnatura è cambiata dopo la calibrazione (prima il colpo spariva).
+- Mira (secondo giro): prima solo la rotazione durante il colpo rispetto alla mediana degli ultimi 12 colpi (polso o
+  corpo girati prima del colpo ignorati, mira annullata dopo 2–3 colpi dalla stessa parte: palla sempre a x ≈ −0,6 m).
+  Decisione: il telefono manda la direzione assoluta del piatto all'impatto (`fh`), il centro segue i colpi normali
+  (12%) e la deriva lenta (3%), mira tanh(scarto/26°); guadagni del tempo 1,6 m e del piatto 3,4 m. Primo tentativo
+  di simulazione con la pronazione che si accumulava: falso allarme del simulatore (rotazioni non commutano), il
+  simulatore ora torna alla posa di partenza come la mano vera.
+- Musica: gruppi di brani per schermata con rotazione (`TRACK_GROUPS`), 12 brani; la testa del gruppo resta il
+  brano di prima. Sedia dell'arbitro: «A» estrusa in codice (forma fedele ai riferimenti, ombre e luci della scena);
+  Higgsfield non è servito.
 - Host autorevole per il multigiocatore; snapshot con formato (`fmt`) per il 2v2.
 - 1v1 (punto 4): la revisione (due esami indipendenti del codice, quasi tutti i difetti riprodotti) ha mostrato che
   mancava una sessione. Decisioni: i colpi del P2 contano sull'host solo con `_versusInMatch()`; il computer del P2
@@ -132,6 +158,11 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 | 19/10/2026 | 684021a | Calibrazione: fermo prima di ogni gesto, rientro al centro escluso, tremolii ignorati, scelta del gesto nel verso richiesto | `site/js/tennis/calibration.js`, `racchetta.js`, `main.js`, `natpf-tennis/src/natpf/natpf_training.js`, `tools/test/calibration-quick.test.mjs`, `tools/test/gesture-training.test.mjs` |
 
 | 19/10/2026 | d8b7bec | Rovescio lungolinea non più letto come dritto | `site/js/tennis/swing-detect.js`, `natpf-tennis/src/natpf/natpf_phone_racket.js`, `natpf-tennis/test/natpf-prep.test.mjs` |
+| 19/10/2026 | 41b1880 | Colpi con la presa vera: niente pallonetti/tagliati dalla rotazione del polso, riferimenti solo dai colpi normali, verso del colpo con impugnatura cambiata, diagnostica con confidenza | `site/js/tennis/swing-detect.js`, `natpf-tennis/src/natpf/natpf_gestures.js`, `natpf_phone_racket.js`, `natpf_diag.js`, `scripts/audit/replay-recording.mjs`, `test/phone-sim.mjs`, `test/natpf-gesture-grip.test.mjs` |
+| 19/10/2026 | 95ec78e | Mira continua dalla direzione del piatto all'impatto, centro che non annulla i colpi mirati | `site/js/tennis/face-tracker.js`, `swing-message.js`, `natpf-tennis/src/natpf/natpf_gestures.js`, `natpf_phone_racket.js`, `natpf_skill.js`, `test/natpf-aim.test.mjs` |
+| 19/10/2026 | 717a104 | Sedia dell'arbitro: grande «A» blu come nei riferimenti | `site/js/tennis/arena.js` |
+| 19/10/2026 | a48ba06 | Musica (12 brani a rotazione), blur dei menu, barra delle tappe, menu, classifica, pannello del P2 | `natpf-tennis/src/natpf/natpf_music.js`, `natpf.css`, `natpf-hud.css`, `natpf-intro.css`, `test/natpf-audio.test.mjs` |
+| 19/10/2026 | b0e9e69 | Prova nel browser del telefono con la presa verticale (QR → colpi) | `tools/e2e/natpf-phone-upright.mjs`, `tools/e2e/README.md` |
 | 19/10/2026 | 73c0eda + prova | 1v1: sessione, lobby, host arbitro, pausa/rientro, stanza chiusa o inesistente, errori del P2, relay e WebRTC; prova a due sessioni | `natpf-tennis/src/natpf/natpf_versus.js`, `natpf_versus_ui.js`, `natpf_ui.js`, `natpf_lobby.js`, `natpf_p2p.js`, `src/game_engine.js`, `src/motion_controls.js`, `src/hud_ui.js`, `scripts/match-relay.mjs`, `natpf.css`, `test/natpf-versus.test.mjs`, `tools/e2e/natpf-1v1-p2p.mjs`, `test/e2e/lan-e2e.mjs`, `docs/NATPF_ROADMAP.md` |
 | 19/10/2026 | 494f583 (dopo d78b0f2) | TORINO: orientata per chi gioca (`setViewer`, P2 girato), 3,6 m senza deformazione, 2,1 m dietro la riga | `site/js/tennis/arena.js`, `site/js/tennis/scene.js`, `natpf-tennis/src/natpf/natpf_arena.js`, `natpf-tennis/test/natpf-arena-court.test.mjs` |
 | 19/10/2026 | 4f4304f | Varietà di traiettorie e angoli per giocatore, P2 e CPU; palla che cade alla profondità voluta (prima ~2 m corta per l'aria) | `natpf-tennis/src/natpf/natpf_skill.js`, `natpf-tennis/src/game_engine.js`, `natpf-tennis/test/natpf-variety.test.mjs`, `natpf-tennis/scripts/audit/variety.mjs` |
@@ -147,9 +178,22 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 | 5 | Grafica del campo simmetrica (TORINO su entrambe le metà, loghi della rete) | fatto: le due TORINO si leggono dritte dalla camera di chi gioca su quel computer (P1 e P2 vedono lo stesso campo), proporzioni del file e 2,1 m dietro la riga come nei riferimenti; loghi della rete già leggibili dai due lati (8785a11). Provato con rendering nel browser dalle camere di gioco di P1 e P2 |
 | 6 | MEMORY.md | fatto, da aggiornare a ogni attività |
 
+Secondo giro (richiesta del 19/10 pomeriggio, con foto e video della presa):
+
+| # | Attività | Stato |
+|---|---|---|
+| 1 | Colpi: pallonetti nei dritti per la rotazione del polso; dritto predefinito; palla corta invariata | fatto, provato con il simulatore della presa vera (96 dritti, pallonetti, palle corte, rumore, impugnatura cambiata) e nel browser dal QR (10/10); telefono vero **non provato** |
+| 2 | Angolazioni: zone sempre uguali | fatto, provato nel motore (tre zone, mira continua, P2 dal suo lato) e nel browser; telefono vero **non provato** |
+| 3 | Musica più varia, blur, allineamenti | fatto, provato (test della musica; schermate a 1024, 1280, 1366, 1920 px); audio reale non ascoltabile qui |
+| 4 | Sedia dell'arbitro come nei riferimenti | fatto, provato con rendering da fondo campo, da vicino e dal lato del P2 |
+| 5 | Regressioni (QR, latenza, un gesto un colpo, palla corta, due lati, arena) | fatto: test unitari, prova nel browser del telefono, prova 1v1 a due sessioni |
+
 ## 11. Prossimi passi
 
-1. Prova con persone vere: telefono (punti 1–2), varietà dei colpi giocando (punto 3), 1v1 su due computer (punto 4).
+1. Prova con persone vere: una registrazione (Maiusc+D → Registra) con una sequenza dichiarata, per esempio 5 dritti
+   normali, 5 dritti girando il polso, 3 pallonetti, 3 palle corte, 3 dritti mirati a destra e 3 a sinistra; poi
+   `node --import ./test/register.mjs scripts/audit/replay-recording.mjs file.json` per tarare `GESTURE.lobMove`,
+   `AIM.gain/settle`. Poi varietà dei colpi giocando e 1v1 su due computer.
 2. Unire `claude/friendly-fermat-dwv2w2` nel branch principale del lavoro (`feature/natpf-tennis-v2`) dopo la prova.
 3. Server TURN per il 1v1 su reti che bloccano WebRTC; compensazione del ritardo per mouse/webcam del P2.
 4. Altri punti aperti: `docs/NATPF_ROADMAP.md` §3.
@@ -158,6 +202,12 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 
 - `tools/test`: 126 test passano (19/10). Nuovi: calibrazione con tremolio, rientro al centro, preparazione e
   accompagnamento (il test fallisce con il codice precedente: riproduce il difetto segnalato).
+- Secondo giro: `natpf-tennis/test` **156** test; `natpf-gesture-grip.test.mjs` (6 su 9 falliscono con il codice di
+  prima: dritti come pallonetti, quarto pallonetto di fila, angolo della traiettoria, quarta palla corta, impugnatura
+  cambiata, tabella) e `natpf-aim.test.mjs` (4 su 6 falliscono con il codice di prima: con il piatto a sinistra, al
+  centro o a destra la palla cadeva sempre a x −0,59…−0,64 m). Prova nel browser `tools/e2e/natpf-phone-upright.mjs`:
+  QR, calibrazione, 6 dritti con il polso → 6 colpi normali, pallonetto, mira destra/sinistra: **10/10**. Audit dello
+  scambio invariato (i profili simulati mirano con il polso, non con il piatto: la nuova mira non vi entra).
 - `natpf-tennis/test`: 140 test passano (19/10, dopo il punto 4; nuovi `natpf-versus.test.mjs`, 9 test che
   falliscono con il codice di prima, e `natpf-arena-court.test.mjs`).
 - Prova a due sessioni (punto 4): `cd tools/e2e && node natpf-1v1-p2p.mjs` (dopo la build): stanza dal menu, link,

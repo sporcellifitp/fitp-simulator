@@ -23,6 +23,17 @@ con hardware vero (telefono in mano, webcam con una persona, Wi-Fi di un evento)
 | 5 · Grafica del campo | TORINO capovolta per una delle due camere, deformata (6,4 × 1,6 m) e lontana dalla riga | Scritte girate verso chi gioca su ogni computer, proporzioni del file, 2,1 m dietro la riga come nei riferimenti | **provato** con rendering dalle camere di gioco di P1 e P2 |
 | 6 · MEMORY.md | — | Memoria di lavoro nella root, aggiornata a ogni attività | — |
 
+### Secondo giro del 19/10 (foto e video della presa vera)
+
+| Punto | Causa trovata | Correzione | Verifica |
+|---|---|---|---|
+| Pallonetti nei dritti normali | T (verso del piatto) dipende solo dall'asse di rotazione: la pronazione del polso a fine dritto lo porta a ±0,7 come un colpo verso l'alto; tre pallonetti di fila spostavano il riferimento personale | Pallonetto e tagliato veloce solo con la mano che si sposta davvero (accelerometro); mano che sale con decisione = pallonetto anche con il piatto al contrario; riferimenti solo dai colpi normali; palla corta invariata | **provato** con il simulatore della presa vera e nel browser dal QR; telefono vero no |
+| Colpi spariti con l'impugnatura cambiata | verso del colpo solo dall'asse della calibrazione, nel riferimento del telefono | verso anche dalla rotazione attorno alla verticale | **provato** (simulatore) |
+| Palla sempre nella stessa zona | mira solo dalla rotazione durante il colpo, rispetto alla mediana degli ultimi colpi: polso girato prima ignorato, mira annullata dopo 2–3 colpi | direzione assoluta del piatto all'impatto, centro che segue solo i colpi normali e la deriva, mira continua; tempo del colpo più incisivo | **provato** nel motore e nel browser; telefono vero no |
+| Musica sempre uguale | un brano per schermata | 12 brani, gruppi a rotazione, cambio dopo tre giri in dissolvenza | **provato** (test); ascolto reale no |
+| Menu | nessun blur; barra delle tappe tagliata; menu fuori schermo a 800 px; classifica e pannello del P2 disallineati | blur 5–6 px, barra compatta, menu compatto, larghezze allineate | **provato** con schermate a 4 risoluzioni |
+| Sedia dell'arbitro | scaletta bianca generica | grande «A» blu a blocco come nei riferimenti | **provato** con rendering |
+
 ### Pallonetto e palla corta (le «palle alte» e le «palle corte»)
 
 | Causa trovata | Correzione | Verifica |
@@ -76,7 +87,10 @@ certificato e firewall. Dettagli in [NATPF_GESTI_E_LATENZA.md](NATPF_GESTI_E_LAT
 
 ## 3. Aperto, in ordine di priorità
 
-1. **Prova con persone vere della nuova lettura dei colpi** (pallonetto, palla corta, tagliato) e degli esercizi
+1. **Registrazione dichiarata con il telefono vero** (Maiusc+D → Registra): dritti normali, dritti girando il
+   polso, pallonetti, palle corte, dritti mirati a destra e a sinistra; rianalisi con `replay-recording.mjs` per
+   tarare `GESTURE.lobMove` e `AIM` (oggi tarati sul simulatore della presa vera).
+1b. **Prova con persone vere della nuova lettura dei colpi** (pallonetto, palla corta, tagliato) e degli esercizi
    del riscaldamento; una registrazione con una sequenza dichiarata (es. 5 dritti, 5 rovesci, 3 pallonetti, 3 palle
    corte) per tarare soglie e segno del nuovo segnale. Il segno «palmo nel dritto, dorso nel rovescio» viene dalla
    fisica della presa e va confermato.
