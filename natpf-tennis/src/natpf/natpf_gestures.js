@@ -44,6 +44,11 @@ export const GESTURE = Object.freeze({
   slow: .45, spreadRef: .12, spreadMax: 1.2,
   headWeight: .6, dropSpeed: .7,
   lobV: .38, cutV: -.28, topV: .12,     // soglie di V quando c'è T (segnale più pulito: niente allargamento con k)
+  // con T: pallonetto e tagliato veloce solo se la mano si sposta davvero in alto o in basso (L rispetto ai propri
+  // colpi, la stessa soglia del gesto verticale del telefono, swing-detect VERTICAL.minLift). La rotazione del polso
+  // da sola non basta: con la presa vera (video del 19/10) il telefono prona di 60–90° a fine dritto, T arriva a ±0,7 e
+  // i dritti diventavano pallonetti o tagliati. La palla corta (tagliato morbido) resta com'era.
+  lobMove: .25, cutMove: .25,
   aimYaw: 40, maxAimYaw: 80,
 });
 const finite = (v, d = 0) => (Number.isFinite(v) ? v : d);
@@ -112,25 +117,41 @@ export function classifyPhoneShot({ dir = 0, vert = null, lift = 0, liftBaseline
   const ref = resolveLiftBaseline(liftBaseline, dir), G = GESTURE;
   const hasHead = Number.isFinite(head);
   const T = hasHead ? head - resolveLiftBaseline(headBaseline, dir).base : null;
-  const L = hasHead ? G.headWeight*T + (1 - G.headWeight)*(finite(lift) - ref.base) : finite(lift) - ref.base, open = Number.isFinite(facePitch) ? facePitch : null;
+  // spostamento verticale della mano (accelerometro) rispetto ai propri colpi in quel verso: è la prova che il colpo va
+  // davvero verso l'alto o verso il basso, a differenza di T che misura solo come ruota il piatto
+  const move = finite(lift) - ref.base;
+  const L = hasHead ? G.headWeight*T + (1 - G.headWeight)*move : move, open = Number.isFinite(facePitch) ? facePitch : null;
   const k = Math.max(1, Math.min(G.spreadMax, finite(liftSpread, ref.spread)/G.spreadRef));
   const slow = Number.isFinite(speed) && speed < G.slow;
   // soglie personali (esercizi «Pallonetto» e «Palla corta» del riscaldamento): valgono al posto di quelle generali
   const P = personal || {}, lobAt = Number.isFinite(P.lob) ? P.lob : hasHead ? G.lobV : G.lobLift*k, cutAt = Number.isFinite(P.cut) ? P.cut : hasHead ? G.cutV : G.cutLift*k;
   const soft = power < G.dropPower || (Number.isFinite(speed) && speed < (Number.isFinite(P.dropSpeed) ? P.dropSpeed : G.dropSpeed));
-  const why = [], out = (shot, w) => ({ shot, why: w, v: +L.toFixed(3) });
+  const why = [], out = (shot, w, conf = 1) => ({ shot, why: w, v: +L.toFixed(3), move: +move.toFixed(3), conf: +Math.max(0, Math.min(1, conf)).toFixed(2) });
+  // margine rispetto a una soglia: 0 al limite, 1 quando il segnale è il doppio della soglia (confidenza mostrata in
+  // diagnostica)
+  const margin = (x, at) => (at ? Math.min(1, Math.max(0, x/at - 1)) : 1);
+  // con T: la mano sale / scende davvero? (senza T, L è già lo spostamento)
+  const rises = !hasHead || move >= G.lobMove, sinks = !hasHead || move <= -G.cutMove;
   // il gesto verticale vale solo senza verso orizzontale: un rovescio un po' dal basso verso l'alto resta un rovescio
   if (vert === 'up' && !dir){ why.push('verticale verso l’alto'); return out('lob', why); }
-  if (vert === 'up' && L >= G.lobLiftOpen*k){ why.push('verticale verso l’alto', `mano che sale (${L.toFixed(2)})`); return out('lob', why); }
+  if (vert === 'up' && L >= G.lobLiftOpen*k && rises){ why.push('verticale verso l’alto', `mano che sale (${L.toFixed(2)})`); return out('lob', why, margin(L, G.lobLiftOpen*k)); }
   if (vert === 'down' && !dir){ why.push('verticale verso il basso', ballHigh ? 'palla alta' : 'palla bassa'); return out(ballHigh ? 'smash' : 'slice', why); }
-  if (!slow && (L >= lobAt || (L >= G.lobLiftOpen*k && open != null && open >= G.lobOpen))){ why.push(`mano che sale (${L.toFixed(2)})`, ...(open != null ? [`piatto ${open.toFixed(0)}°`] : [])); return out('lob', why); }
+  const lobby = L >= lobAt || (L >= G.lobLiftOpen*k && open != null && open >= G.lobOpen);
+  // la traiettoria conta più della rotazione: la mano che sale con decisione (la stessa soglia di quando T manca) è un
+  // pallonetto anche se il piatto ruota al contrario
+  if (!slow && hasHead && move >= G.lobLift*k){ why.push(`la mano sale molto (${move.toFixed(2)})`); return out('lob', why, margin(move, G.lobLift*k)); }
+  if (!slow && lobby && rises){ why.push(`mano che sale (${L.toFixed(2)})`, ...(hasHead ? [`spostamento ${move.toFixed(2)}`] : []), ...(open != null ? [`piatto ${open.toFixed(0)}°`] : [])); return out('lob', why, Math.min(margin(L, lobAt), hasHead ? margin(move, G.lobMove) : 1)); }
+  // il piatto «sale» ma la mano no: rotazione del polso, colpo normale
+  const wristOnly = !slow && lobby && !rises;
   if (ballHigh && L <= G.smashLift*k){ why.push('palla alta', `mano che scende (${L.toFixed(2)})`); return out('smash', why); }
   if (L <= cutAt){
     // palla corta: tagliato morbido. Con T basta il gesto (l'apertura del piatto misurata non è affidabile)
     if (hasHead && soft){ why.push(`taglio (${L.toFixed(2)})`, `morbido (${power.toFixed(2)})`); return out('drop', why); }
     if (open != null && open >= G.dropOpen && power < G.dropPower){ why.push(`taglio (${L.toFixed(2)})`, `piatto aperto ${open.toFixed(0)}°`, `morbido (${power.toFixed(2)})`); return out('drop', why); }
-    if (!slow){ why.push(`taglio (${L.toFixed(2)})`); return out('slice', why); }
+    if (!slow && sinks){ why.push(`taglio (${L.toFixed(2)})`, ...(hasHead ? [`spostamento ${move.toFixed(2)}`] : [])); return out('slice', why, Math.min(margin(L, cutAt), hasHead ? margin(-move, G.cutMove) : 1)); }
+    if (!slow){ why.push(`rotazione del polso (${L.toFixed(2)}), la mano non scende (${move.toFixed(2)})`); return out('topspin', why, .5); }
   }
+  if (wristOnly){ why.push(`rotazione del polso (${L.toFixed(2)}), la mano non sale (${move.toFixed(2)})`); return out('topspin', why, .5); }
   if (slow){ why.push(`gesto lento (${speed.toFixed(2)})`); return out('topspin', why); }
   if (L >= (hasHead ? G.topV : G.topLift*k)){ why.push(`dal basso verso l’alto (${L.toFixed(2)})`); return out('topspin', why); }
   if (power >= G.flatPower && (open == null || Math.abs(open) < G.flatFace)){ why.push(`veloce (${power.toFixed(2)})`, 'piatto dritto'); return out('flat', why); }

@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
 import { createFaceTracker } from '@natpf/tennis/face-tracker.js';
 import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js';
-import { natpfSwingToEngine } from '../../src/natpf/natpf_phone_racket.js';
+import { natpfSwingToEngine, NORMAL_SHOTS } from '../../src/natpf/natpf_phone_racket.js';
 import { swingTimeline } from '../../src/natpf/natpf_diag.js';
 import { liftBaselineFromProfile, createLiftModel, createFaceModel } from '../../src/natpf/natpf_gestures.js';
 
@@ -33,7 +33,7 @@ const found = [];
 // come in gioco: verso verticale abituale dalla calibrazione, poi dai colpi veri
 const lifts = createLiftModel(liftBaselineFromProfile(prof) ?? rec.profile.liftBaseline ?? 0), faces = createFaceModel();
 const heads = createLiftModel(0);
-det.on('swing', s => { s.face = face.strokeFace(s.peakT, s.t - s.dur); s.head = face.headAt(s.peakT, s.axis); const d = swingMessage(s, { faceRef: prof.faceRef, now: s.t }); const m = parseSwingMessage(d, { at: s.peakT/1000, now: s.t }); const ev = natpfSwingToEngine(m, { hand: rec.profile.hand, liftBaseline: lifts.value, headBaseline: heads.value, faceCenter: faces.center(s.dir) }); lifts.add(s.dir, s.lift); faces.add(s.dir, m.face); heads.add(s.dir, ev.natpf.head); found.push({ s, ev }); });
+det.on('swing', s => { s.face = face.strokeFace(s.peakT, s.t - s.dur); s.head = face.headAt(s.peakT, s.axis); const d = swingMessage(s, { faceRef: prof.faceRef, now: s.t }); const m = parseSwingMessage(d, { at: s.peakT/1000, now: s.t }); const ev = natpfSwingToEngine(m, { hand: rec.profile.hand, liftBaseline: lifts.value, headBaseline: heads.value, faceCenter: faces.center(s.dir) }); if (NORMAL_SHOTS.has(ev.natpf.shot)){ lifts.add(s.dir, s.lift); heads.add(s.dir, ev.natpf.head); } faces.add(s.dir, m.face); found.push({ s, ev }); });
 for (const k of raw){ face.feed(k); det.feed(k); }
 console.log(`\nrianalisi con il rilevatore attuale: ${found.length} colpi`);
-for (const { s, ev } of found) console.log(`  picco ${s.peakT.toFixed(0)} ms · rilev ${s.detectMs} · prep ${s.holdMs} · ${s.peak}°/s · verso ${s.dir}${s.vert ? ' ' + s.vert : ''} · su/giù ${s.lift} · piatto sale ${ev.natpf.head} · piatto ${s.face ? `${s.face.yaw}°/${s.face.pitch}°` : '–'} → ${ev.side || '–'}/${ev.natpf.shot} mira ${ev.natpf.wrist} · ${ev.natpf.why.join(', ')}`);
+for (const { s, ev } of found) console.log(`  picco ${s.peakT.toFixed(0)} ms · rilev ${s.detectMs} · prep ${s.holdMs} · ${s.peak}°/s · verso ${s.dir}${s.vert ? ' ' + s.vert : ''} · su/giù ${s.lift} · piatto sale ${ev.natpf.head} · mano ${ev.natpf.move} · conf ${ev.natpf.conf} · piatto ${s.face ? `${s.face.yaw}°/${s.face.pitch}°` : '–'} → ${ev.side || '–'}/${ev.natpf.shot} mira ${ev.natpf.wrist} · ${ev.natpf.why.join(', ')}`);

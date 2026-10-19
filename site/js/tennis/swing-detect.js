@@ -61,6 +61,17 @@ export function verticalGesture(axis, gravity, lift, along = 0){
   return lift >= VERTICAL.minLift ? 'up' : lift <= -VERTICAL.minLift ? 'down' : null;
 }
 
+// Verso del colpo dalla rotazione attorno alla verticale: +1/−1 nello stesso senso del colpo di calibrazione (che si
+// fa attorno alla verticale), null se il gesto non gira abbastanza attorno alla verticale (|cos| < 0,5) o se la
+// calibrazione non era attorno alla verticale.
+export function aroundVertical(axis, gravity, calibAxis, calibGravity){
+  if (!axis || !gravity || !calibAxis || !calibGravity) return null;
+  const up = g => unit([g[2], g[0], g[1]]);          // gravità [x, y, z] → ordine dei sensori [α(z), β(x), γ(y)]
+  const ref = dot(unit(calibAxis), up(calibGravity)), now = dot(unit(axis), up(gravity));
+  if (Math.abs(ref) < .5 || Math.abs(now) < .5) return null;
+  return Math.sign(now) === Math.sign(ref) ? 1 : -1;
+}
+
 export function createSwingDetector(opts = {}){
   const C = { ...DEFAULTS, ...opts };
   let prof = defaultProfile();
@@ -165,7 +176,12 @@ export function createSwingDetector(opts = {}){
     const c = cur, axis = unit(c.peakW);
     const lift = c.tot > 0 ? Math.max(-1, Math.min(1, c.up/c.tot*1.6)) : 0;
     const along = prof.axis ? dot(axis, prof.axis) : 0;
-    const dir = !prof.axis ? 0 : along > .25 ? 1 : along < -.25 ? -1 : 0;   // +1 da destra a sinistra, -1 da sinistra a destra
+    let dir = !prof.axis ? 0 : along > .25 ? 1 : along < -.25 ? -1 : 0;   // +1 da destra a sinistra, -1 da sinistra a destra
+    // impugnatura cambiata dopo la calibrazione (telefono girato nella mano, polso che prona a fine colpo): l'asse
+    // imparato nel riferimento del telefono non riconosce più il colpo, che prima spariva senza messaggio. Il verso
+    // allora viene dalla rotazione attorno alla verticale, che non dipende da come si tiene il telefono
+    const turn = dir || !prof.axis ? null : aroundVertical(axis, c.gravity || prof.gravity, prof.axis, prof.gravity);
+    if (turn) dir = turn;
     const vert = verticalGesture(axis, c.gravity || prof.gravity, lift, along);
     // istante del colpo: il picco grezzo interpolato, se c'è ed è vicino a quello della media mobile
     const peakT = c.rawPeak > 0 && Math.abs(c.truePeakT - c.peakT) < 60 ? +c.truePeakT.toFixed(1) : c.peakT;

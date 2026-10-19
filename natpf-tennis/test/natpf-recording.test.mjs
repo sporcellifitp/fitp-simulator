@@ -124,12 +124,19 @@ import { LOB_FLIGHT } from '../src/natpf/natpf_skill.js';
 
 test('verso verticale del piatto (giroscopio): pallonetto, palla corta e tagliato; il segno dipende dal piatto che colpisce', () => {
   // dritto del destro (dir 1): colpisce il palmo, il telefono misura il dorso → segno invertito
-  const up = natpfSwingToEngine({ dir: 1, power: .7, peak: 1100, speed: 1, lift: 0, head: -.7, at: 1 }, { now: 1.03 });
+  // piatto che sale con la mano che sale: pallonetto; il piatto che sale da solo (rotazione del polso, mano ferma)
+  // resta un dritto (prima era un pallonetto: con la presa vera succedeva nei dritti normali, 19/10)
+  const up = natpfSwingToEngine({ dir: 1, power: .7, peak: 1100, speed: 1, lift: .3, head: -.7, at: 1 }, { now: 1.03 });
   assert.equal(up.natpf.head, .7); assert.equal(up.natpf.shot, 'lob');
+  const wrist = natpfSwingToEngine({ dir: 1, power: .7, peak: 1100, speed: 1, lift: 0, head: -.7, at: 1 }, { now: 1.03 });
+  assert.equal(wrist.natpf.shot, 'topspin', JSON.stringify(wrist.natpf));
+  // palla corta: invariata (tagliato morbido, basta il gesto)
   const soft = natpfSwingToEngine({ dir: 1, power: .35, peak: 420, speed: .5, lift: -.2, head: .6, at: 1 }, { now: 1.03 });
   assert.equal(soft.natpf.shot, 'drop', JSON.stringify(soft.natpf));
-  const cut = natpfSwingToEngine({ dir: -1, power: .8, peak: 1200, speed: 1.1, lift: -.2, head: -.7, at: 1 }, { now: 1.03 });
+  // tagliato veloce: il piatto che scende con la mano che scende; il piatto da solo non basta
+  const cut = natpfSwingToEngine({ dir: -1, power: .8, peak: 1200, speed: 1.1, lift: -.3, head: -.7, at: 1 }, { now: 1.03 });
   assert.equal(cut.natpf.shot, 'slice');
+  assert.equal(natpfSwingToEngine({ dir: -1, power: .8, peak: 1200, speed: 1.1, lift: 0, head: -.7, at: 1 }, { now: 1.03 }).natpf.shot, 'topspin');
   const normal = natpfSwingToEngine({ dir: 1, power: .7, peak: 1100, speed: 1, lift: .05, head: -.05, at: 1 }, { now: 1.03 });
   assert.ok(['topspin', 'flat'].includes(normal.natpf.shot));
 });

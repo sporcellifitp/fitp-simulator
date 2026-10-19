@@ -115,6 +115,9 @@ export class NatpfDiag {
       else if (!r.result && /SERVE/.test(r.game?.phase || '') && r.game.server === 'player') lines.push('       servizio (lancio o colpo)');
       else if (!r.result && r.game) lines.push(`       senza esito · ${r.game.phase} · palla ${r.game.inPlay ? 'in gioco' : 'ferma'}${r.game.lastHitter ? ` (ultimo: ${r.game.lastHitter})` : ''}${r.game.dist != null ? ` a ${r.game.dist} m` : ''}`);
       if (n.why?.length) lines.push(`       perché: ${n.why.join(' · ')}${r.s.vert ? ` · verticale ${r.s.vert}` : ''}`);
+      // segnali della classificazione: V (piatto + mano), spostamento verticale della mano, rotazione del piatto T,
+      // confidenza (0 al limite della soglia, 1 lontano); il tipo è deciso al picco, prima del follow-through
+      if (Number.isFinite(n.v)) lines.push(`       segnali: V ${n.v.toFixed(2)} · mano ${Number.isFinite(n.move) ? n.move.toFixed(2) : '–'} · piatto T ${Number.isFinite(n.head) ? n.head.toFixed(2) : '–'} · confidenza ${Number.isFinite(n.conf) ? n.conf.toFixed(2) : '–'}`);
     }
     body.textContent = lines.join('\n');
     const rec = this.el?.querySelector('[data-diag="rec"]'); if (rec) rec.textContent = this.recording ? 'Ferma e scarica' : 'Registra';
