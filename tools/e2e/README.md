@@ -29,4 +29,6 @@ Le prove con `devicemotion` sintetico non sostituiscono le prove su iPhone Safar
 
 Arcade/LAN: `node run-local.mjs arcade-visuals.mjs` controlla camera, smash, scie e articolazione; `node lan-browser.mjs` avvia il proprio server LAN e verifica WebRTC diretto, dopo `npm ci --prefix ../lan`. I test si trovano nella matrice GitHub Actions insieme a timing e calibrazione.
 
-NATPF motore base (`natpf-tennis/`): `node natpf-flat-grip.mjs` avvia da solo vite (porta 3107) e PeerJS (9107) e prova il telefono simulato in landscape con la presa orizzontale «il telefono è il piatto»: calibrazione breve, piatto a destra/sinistra → palla a destra/sinistra. Su Windows usa Chrome installato (`CHROMIUM_PATH`).
+NATPF motore base (`natpf-tennis/`):
+- `node natpf-phone-upright.mjs` avvia da solo vite (porta 3108) e PeerJS (9108) e prova il telefono simulato con la presa del gioco (verticale): link del QR, calibrazione rapida, dritti con il polso che ruota (mai pallonetti), pallonetto con la mano che sale, piatto girato a destra/sinistra → palla a destra/sinistra. Prende il posto di `natpf-flat-grip.mjs` (presa orizzontale, non più offerta). Su Windows usa Chrome installato (`CHROMIUM_PATH`).
+- `node natpf-1v1-p2p.mjs` (dopo la build di `natpf-tennis`): sfida un amico sul sito statico con due sessioni del browser e WebRTC: stanza dal menu, link, «Sono pronto», partita con il servizio di tutti e due, uscita e rientro del P2, stanza chiusa, link inesistente. `DIST=cartella` per provarla su uno zip estratto.
