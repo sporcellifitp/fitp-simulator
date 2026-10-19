@@ -1,8 +1,8 @@
-// Formato della partita. L'MVP NATPF è solo singolare 1v1 (contro la CPU o tra due giocatori).
-// Il motore base nasce in doppio: il codice dei compagni resta nel motore, dietro `isDoubles`, per l'Opzione B.
-// Per riattivare il 2v2 (solo su richiesta) basta DOUBLES_ENABLED = true e un pulsante nel menu: il motore
-// mostra di nuovo i compagni e ne usa volée e posizionamento, senza riprogettare nulla.
-export const DOUBLES_ENABLED = false;
+// Formato della partita: singolare 1v1 o doppio 2v2, contro la CPU o con un amico su un altro computer.
+// Il motore base nasce in doppio: con il 2v2 rimette in campo i compagni (guidati dalla CPU) e ne usa volée e
+// posizionamento. Si sceglie nella pagina «Partita» del menu (engine.setMatchFormat) o con ?format=doubles.
+export const DOUBLES_ENABLED = true;
+export const FORMAT_KEY = 'natpf-tennis.format';
 
 export const MATCH_FORMATS = Object.freeze({
   singles: Object.freeze({ id: 'singles', teamSize: 1, label: '1v1' }),

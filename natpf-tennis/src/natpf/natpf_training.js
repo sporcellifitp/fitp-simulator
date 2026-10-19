@@ -71,6 +71,7 @@ export class NatpfTraining {
     this.withCal = !!this.cal;
     this.prevDifficulty = E.hud.selectedDifficulty || E.matchConfig.difficulty;
     E._applyDifficultyTuning('casual'); E.isMultiplayer = false;
+    E.setMatchFormat?.('singles');                 // il riscaldamento è sempre in singolare (niente compagni in campo)
     E.hud.hideTitleModal(); E.hud.hideCenterBanner();
     E.autoPlayMode = false; E.userHasInteracted = true; E.persistentStateLock = false;
     if (this.ui.controller === 'webcam' && E.motionController && !E.motionController.webcamActive) E.motionController.enableWebcam();

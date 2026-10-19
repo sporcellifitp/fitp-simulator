@@ -677,6 +677,11 @@ export class NatpfTennisEngine {
     );
   }
   // NATPF: 1v1 → i compagni di doppio non sono in campo
+  // NATPF: formato scelto nel menu (1v1 o 2v2) prima di iniziare la partita
+  setMatchFormat(id) {
+    (this.matchFormat = resolveMatchFormat(id)), (this.isDoubles = this.matchFormat.teamSize === 2), this._applyMatchFormat();
+    return this.matchFormat.id;
+  }
   _applyMatchFormat() {
     for (const e of [this.playerPartner, this.opponentPartner])
       (e.root.visible = this.isDoubles), e.shadowBlob && (e.shadowBlob.visible = this.isDoubles);
@@ -2733,6 +2738,7 @@ export class NatpfTennisEngine {
           opponentPartner: e(this.opponentPartner),
         },
         banner: this.lastBannerBroadcast,
+        fmt: this.matchFormat.id, // NATPF: il P2 gioca nello stesso formato dell'host
       };
     fetch("/api/match/sync", {
       method: "POST",
@@ -2781,6 +2787,7 @@ export class NatpfTennisEngine {
     ) {
       this.lastAppliedSnapshotSeq = e.snapshotSeq;
       const n = e.snapshot;
+      n.fmt && n.fmt !== this.matchFormat.id && this.setMatchFormat(n.fmt);
       n.phase &&
         n.phase !== "TITLE" &&
         (this.phase === "TITLE" && this.hud.hideTitleModal(),

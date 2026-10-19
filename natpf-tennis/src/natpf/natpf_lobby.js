@@ -11,6 +11,7 @@
 // Dietro il menu gira una dimostrazione: nessun gesto la trasforma in partita (natpf_ui.js, _gateInput).
 // Pausa, «Torna al menu» e il «Menu» della schermata finale riportano al menu principale.
 // Easter egg: digitando «natpf» nel menu compaiono mouse e tastiera (modalità prova per il computer).
+import { FORMAT_KEY } from './match_format.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const LOBBY_STEPS = ['menu', 'mode', 'options', 'controller', 'connect', 'warmup', 'match'];
@@ -57,6 +58,7 @@ export class NatpfLobby {
       const m = e.target.closest('[data-menu]'); if (m){ e.stopPropagation(); this.menu(m.dataset.menu); return; }
       const t = e.target.closest('[data-mode]'); if (t){ e.stopPropagation(); this.setMode(t.dataset.mode); setTimeout(() => this.go('controller'), 160); return; }
       const o = e.target.closest('[data-option]'); if (o){ e.stopPropagation(); this.option(o.dataset.option); return; }
+      const f = e.target.closest('[data-natpf-format]'); if (f){ e.stopPropagation(); this.setFormat(f.dataset.natpfFormat); return; }
       // scegliere la racchetta è già andare avanti
       const c = e.target.closest('[data-natpf-controller]'); if (c && this.step === 'controller') setTimeout(() => this.go('connect'), 160);
     });
@@ -71,6 +73,10 @@ export class NatpfLobby {
     window.addEventListener('keydown', e => this._key(e), true);
     // il «Menu» della schermata finale riapre la lobby: si torna al menu principale
     $('btn-return-title')?.addEventListener('click', () => this.ui.backToMenu());
+    // formato della partita (1v1 o 2v2): vale da «Gioca»; il riscaldamento è sempre in singolare
+    let fmt = 'singles'; try { fmt = localStorage.getItem(FORMAT_KEY) || 'singles'; } catch {}
+    this.setFormat(fmt);
+    $('btn-start-match')?.addEventListener('click', () => this.engine.setMatchFormat?.(this.format), true);
     // partite brevi: in fiera si gioca un game
     document.querySelector('#match-length-group [data-games="1"]')?.click();
     this.go(this.step);
@@ -105,6 +111,14 @@ export class NatpfLobby {
     for (const b of document.querySelectorAll('#difficulty-mode-group [data-difficulty]')) show(b, mode === 'friend' ? b.dataset.difficulty === '1v1' : b.dataset.difficulty !== '1v1');
     this.paint();
   }
+  setFormat(id){
+    this.format = id === 'doubles' ? 'doubles' : 'singles';
+    try { localStorage.setItem(FORMAT_KEY, this.format); } catch {}
+    for (const b of this.el.querySelectorAll('[data-natpf-format]')){ const on = b.dataset.natpfFormat === this.format; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
+    const opp = $('setup-opponent-label');
+    if (opp) opp.textContent = this.mode === 'friend' ? (this.format === 'doubles' ? 'Amico + CPU' : 'Amico') : this.format === 'doubles' ? '2 CPU' : 'CPU';
+    const you = this.el.querySelector('.you-tag'); if (you) you.textContent = this.format === 'doubles' ? 'Tu + CPU' : 'Tu';
+  }
   option(name){
     const click = id => $(id)?.click();
     if (name === 'music') click('btn-audio-toggle');
@@ -126,7 +140,7 @@ export class NatpfLobby {
     this.step = step; this.el.dataset.step = step; this.el.dataset.flow = this.mode;
     for (const p of this.el.querySelectorAll('[data-page]')) p.classList.toggle('on', p.dataset.page === step);
     if (step !== 'menu') show($('lobby-menu-result'), false);
-    if (step === 'match') this.setMode(this.mode === 'training' ? 'cpu' : this.mode);
+    if (step === 'match'){ this.setMode(this.mode === 'training' ? 'cpu' : this.mode); this.setFormat(this.format); }
     if (step === 'connect'){
       // si entra in campo da soli solo quando il controller diventa pronto mentre si è qui (non tornando indietro)
       this.autoFrom = autoAdvance('connect', this.state()) ? 'connect' : null;

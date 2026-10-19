@@ -13,11 +13,12 @@ import { phoneFiles, arenaFiles } from '../scripts/natpf-site-plugin.mjs';
 const SITE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../site');
 const near = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 
-test('MVP solo singolare: il doppio resta disattivato finché non viene richiesto (Opzione B)', () => {
-  assert.equal(DOUBLES_ENABLED, false);
+test('formato: singolare di base, doppio 2v2 su richiesta dal menu', () => {
+  assert.equal(DOUBLES_ENABLED, true);
   assert.equal(resolveMatchFormat().id, 'singles');
-  assert.equal(resolveMatchFormat('doubles').id, 'singles');
-  assert.equal(resolveMatchFormat('doubles', { doublesEnabled: true }).teamSize, 2);
+  assert.equal(resolveMatchFormat('doubles').teamSize, 2);
+  assert.equal(resolveMatchFormat('doubles', { doublesEnabled: false }).id, 'singles');
+  assert.equal(resolveMatchFormat('qualsiasi').id, 'singles');
 });
 
 test('gesto NATPF → colpo motore base: direzione del gesto sceglie dritto/rovescio, mira e forza passano', () => {
