@@ -1,4 +1,5 @@
-// Riscaldamento in campo: calibrazione del telefono e allenamento sono la stessa cosa. In campo c'è solo il giocatore,
+// Riscaldamento in campo: calibrazione del telefono e allenamento sono la stessa cosa. Si gioca sul campo d'allenamento
+// (la stessa arena a porte chiuse, natpf_arena.setPractice) con il pannello di lato, fuori dal campo. In campo c'è solo il giocatore,
 // dall'altra parte un lanciapalle (l'avversario non si vede e non risponde). Con lo smartphone:
 //   1 «pronto»: telefono fermo in verticale per un attimo (il telefono misura la deriva dei sensori);
 //   2 quattro palle, alternate dritto e rovescio: ogni palla rallenta fino a fermarsi davanti alla racchetta e aspetta
@@ -75,6 +76,8 @@ export class NatpfTraining {
     if (o?.root) o.root.visible = !on;
     if (o?.shadowBlob) o.shadowBlob.visible = !on;
     document.body.classList.toggle('natpf-training', on);
+    // campo d'allenamento: tribune vuote e luci di lavoro; il pannello si sposta di lato (natpf-flow.css)
+    this.engine.natpfArena?.setPractice?.(on);
   }
   // giocatore fermo in attesa (nessun servizio, nessuna palla): il motore non deve far partire il punto successivo
   _idle(){

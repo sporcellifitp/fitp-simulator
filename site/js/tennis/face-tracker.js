@@ -19,6 +19,9 @@ const cross = (a, b) => [a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1]
 const qmul = (a, b) => [a[3]*b[0] + a[0]*b[3] + a[1]*b[2] - a[2]*b[1], a[3]*b[1] - a[0]*b[2] + a[1]*b[3] + a[2]*b[0], a[3]*b[2] + a[0]*b[1] - a[1]*b[0] + a[2]*b[3], a[3]*b[3] - a[0]*b[0] - a[1]*b[1] - a[2]*b[2]];
 const qnorm = q => { const l = Math.hypot(...q) || 1; return q.map(v => v/l); };
 const qconj = q => [-q[0], -q[1], -q[2], q[3]];
+// angolo (rad) della componente di rotazione di q attorno all'asse unitario a (scomposizione swing-twist)
+export const twistAbout = (q, a) => { const p = dot([q[0], q[1], q[2]], a); return wrapRad(2*Math.atan2(p, q[3])); };
+const wrapRad = a => { while (a > Math.PI) a -= 2*Math.PI; while (a < -Math.PI) a += 2*Math.PI; return a; };
 export const rotate = (q, v) => qmul(qmul(q, [v[0], v[1], v[2], 0]), qconj(q)).slice(0, 3);
 const wrap = a => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -68,6 +71,8 @@ export function createFaceTracker(opts = {}){
     const roll = Math.asin(clamp(dot(y, frame.up), -1, 1))/D - frame.roll0;
     return { yaw, pitch, roll };
   }
+  // quaternione all'istante t (il campione più vicino: per la sola rotazione attorno alla verticale basta)
+  const qAt = t => { let b = null; for (const h of hist) if (!b || Math.abs(h.t - t) < Math.abs(b.t - t)) b = h; return b?.q || null; };
   return {
     get ready(){ return !!frame; },
     get quaternion(){ return q.slice(); },
@@ -107,7 +112,7 @@ export function createFaceTracker(opts = {}){
       if (rate < C.quietRate){ if (quietSince == null) quietSince = k.t; if (k.t - quietSince > C.quietHold) readyYaw += wrap(m.yaw - readyYaw)*Math.min(1, dt/C.relax); }
       else quietSince = null;
       current = { yaw: +wrap(m.yaw - readyYaw).toFixed(2), pitch: +m.pitch.toFixed(2), roll: +m.roll.toFixed(2) };
-      hist.push({ t: k.t, ...current, rate }); while (hist.length && k.t - hist[0].t > C.history) hist.shift();
+      hist.push({ t: k.t, ...current, rate, q: q.slice() }); while (hist.length && k.t - hist[0].t > C.history) hist.shift();
       return current;
     },
     get face(){ return current; },
@@ -121,9 +126,14 @@ export function createFaceTracker(opts = {}){
       let best = null;
       for (let i = 0; i < win.length; i++){
         const a = win.slice(Math.max(0, i - 2), i + 3), r = a.reduce((s, h) => s + h.rate, 0)/a.length;
-        if (!best || r <= best.r + 2) best = { r: Math.min(r, best ? best.r : r), yaw: win[i].yaw };   // a parità, il più vicino al colpo
+        if (!best || r <= best.r + 2) best = { r: Math.min(r, best ? best.r : r), yaw: win[i].yaw, q: win[i].q };   // a parità, il più vicino al colpo
       }
-      return best ? { ...f, yaw: +wrap(f.yaw - best.yaw).toFixed(2), base: +best.yaw.toFixed(1), baseRate: Math.round(best.r) } : f;
+      if (!best) return f;
+      // direzione: rotazione del telefono attorno alla verticale tra la posa di partenza e l'impatto (scomposizione
+      // swing-twist). Vale con qualunque inclinazione del dorso; l'imbardata della normale del dorso invece perde
+      // significato quando il dorso guarda in alto o in basso (nelle registrazioni succedeva in metà dei colpi).
+      const qp = qAt(peakT), turn = qp && best.q ? -twistAbout(qmul(qp, qconj(best.q)), frame.up)/D : null;
+      return { ...f, yaw: +wrap(turn != null ? turn : f.yaw - best.yaw).toFixed(2), base: +best.yaw.toFixed(1), baseRate: Math.round(best.r) };
     },
     // piatto all'istante t (es. il picco del gesto, che è l'impatto), interpolato tra i due campioni vicini: in un
     // colpo a 1000 °/s due campioni a 60 Hz distano 16°, il campione più vicino sbaglierebbe fino a 8°

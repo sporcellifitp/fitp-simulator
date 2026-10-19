@@ -633,3 +633,43 @@
   overflow-x: auto;
   font: inherit;
 }
+
+/* ---------- campo d'allenamento: il pannello sta di lato, fuori dal campo (prima copriva la metà campo da cui
+   arrivano le palle). Schermi larghi: colonna a sinistra sopra le tribune; stretti: striscia compatta in alto. ---------- */
+body.natpf-training .natpf-coach {
+  top: 84px;
+  left: 16px;
+  min-width: 0;
+  width: min(300px, 26vw);
+  padding: 10px 12px 12px 14px;
+  border-radius: 18px;
+  transform: none;
+}
+body.natpf-training .natpf-coach b {
+  font-size: 18px;
+}
+body.natpf-training .natpf-coach small {
+  font-size: 13px;
+}
+body.natpf-training .coach-actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+@media (max-width: 900px), (max-aspect-ratio: 1/1) {
+  body.natpf-training .natpf-coach {
+    top: 70px;
+    left: 50%;
+    width: min(560px, calc(100vw - 32px));
+    padding: 8px 12px;
+    transform: translateX(-50%);
+  }
+  body.natpf-training .coach-stages {
+    display: none;
+  }
+  body.natpf-training .natpf-coach b {
+    font-size: 16px;
+  }
+  body.natpf-training .natpf-coach small {
+    font-size: 12px;
+  }
+}

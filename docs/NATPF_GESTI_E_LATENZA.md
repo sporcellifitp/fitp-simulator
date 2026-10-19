@@ -78,9 +78,11 @@ tipico, palla alta. Le soglie di L si allargano con la variabilità dei propri c
   Senza H (gesto verticale o modalità semplice) il lato lo danno la preparazione o la posizione della palla.
 - **Direzione**: soprattutto il piatto all'impatto (dorso del telefono girato a destra → palla a destra, a sinistra →
   a sinistra, rispetto al proprio colpo abituale), poi un poco il tempo del colpo (prima = più incrociato). È la
-  stessa regola per dritto e rovescio: il rovescio va lungolinea quanto il dritto. L'angolo si misura dalla posa più
-  ferma prima del colpo (non da una posa «pronto» fissa) e passa per una curva morbida (40° ≈ 3/4 della mira); oltre
-  80° la misura non è credibile e la direzione la decide solo il tempo del colpo (fonte «timing» nel pannello).
+  stessa regola per dritto e rovescio: il rovescio va lungolinea quanto il dritto. L'angolo è la rotazione del telefono
+  attorno alla verticale dalla posa più ferma prima del colpo all'impatto (vale con qualunque inclinazione del dorso);
+  dopo tre colpi in un verso si misura rispetto alla mediana dei propri colpi in quel verso (il colpo normale va al
+  centro) e passa per una curva morbida (40° ≈ 3/4 della mira); oltre 80° la misura non è credibile e la direzione la
+  decide solo il tempo del colpo (fonte «timing» nel pannello).
 - **Preparazione**: il gesto nel verso opposto al colpo atteso (il gioco dice al telefono da che parte arriva la
   palla) aspetta fino a 250 ms solo se è più debole dell'85% del proprio colpo tipico; se arriva il colpo è una
   preparazione, se no vale come colpo con il suo istante vero. Un colpo pieno parte subito.
@@ -119,6 +121,24 @@ erano nel riconoscimento:
 
 Le prove: `test/natpf-recording.test.mjs` e la rianalisi delle registrazioni con `replay-recording.mjs`.
 
+### Secondo giro (tre registrazioni LAN, 80 colpi)
+
+Rete sempre buona (60 Hz senza buchi, consegna 4–15 ms), riconoscimento a 17–42 ms. Restava:
+
+| Problema | Causa | Correzione |
+|---|---|---|
+| Palle alte impossibili da colpire | lo swing anticipato aspettava la palla solo sotto 2,35 m: sopra scadeva senza colpo | attesa fino a 3,4 m; sopra 1,78 m il motore fa la schiacciata |
+| Schiacciate su palle a metà volo | «palla alta» guardava solo l'altezza, anche a 12 m di distanza | palla alta solo se è entro 6 m da chi gioca |
+| Pallonetto quasi impossibile | soglia allargata fino a 1,8 volte con gesti variabili (mano che sale ≥ 1) | allargamento al massimo 1,2 (soglia ≤ 0,6); gesto verticale con un po' di lato e mano che sale = pallonetto |
+| Pallonetti e palle corte «invisibili» | il messaggio dell'esito diceva solo «Perfetto»/«Anticipo» | nome del colpo speciale nel messaggio (Pallonetto, Palla corta, Schiacciata, Tagliato) |
+| Mira persa in metà dei colpi | imbardata della normale del dorso senza senso con il dorso molto inclinato (aperture misurate fino a 90°) | direzione dalla rotazione attorno alla verticale (scomposizione swing-twist), poi ricentrata sui propri colpi della partita |
+| Palle corte da «piatto aperto» non voluto | apertura del piatto lontana da quella della calibrazione | apertura ricentrata sui propri colpi della partita |
+| Preparazioni lente diventate colpi dopo 250 ms | il gesto trattenuto senza seguito valeva sempre come colpo | se è lento (sotto 0,45 del colpo tipico) resta una preparazione |
+| Pannello del riscaldamento sopra il campo | il pannello stava in alto al centro, sopra la metà campo da cui arrivano le palle | campo d'allenamento dedicato (tribune vuote, luci di lavoro, «PROVA» sui tabelloni) e pannello di lato |
+
+Lo stato della partita nelle registrazioni ha mostrato anche che molti colpi «senza esito» erano lanci e colpi di servizio
+(il pannello ora li indica come servizio).
+
 ## 6. Test
 
 - `test/natpf-pipeline.test.mjs` (nuovo): telefono simulato a 60 Hz con orientamento fisicamente coerente (la
@@ -127,12 +147,12 @@ Le prove: `test/natpf-recording.test.mjs` e la rianalisi delle registrazioni con
   palla corta solo con tre segnali insieme; tabella completa; micro-movimenti senza colpi; **stessi gesti in LAN e
   via internet → stessi messaggi, stessi colpi, stessa direzione, stesso orientamento della racchetta**; istante del
   picco entro mezzo campione e riconoscimento entro tre campioni.
-- Tutte le prove esistenti: `npm test` 98/98, `node --test tools/test/*.test.mjs` 124/124 (calibrazione estesa del
+- Tutte le prove esistenti: `npm test` 103/103, `node --test tools/test/*.test.mjs` 124/124 (calibrazione estesa del
   sito compresa), `tools/lan` 4/4, controllo di sintassi di tutti i moduli del telefono.
 
 ## 7. Problemi aperti
 
-- **Taratura con persone vere**: le soglie sono state corrette su una prima registrazione vera, ma senza sapere quale
+- **Taratura con persone vere**: le soglie sono state corrette su quattro registrazioni vere, ma senza sapere quale
   colpo si voleva fare. Serve una registrazione con una sequenza nota (per esempio 5 dritti incrociati, 5 rovesci
   lungolinea, 3 pallonetti, 3 tagliati) per confrontare il colpo voluto con quello riconosciuto, soprattutto per la mira.
 - **Racchetta a schermo**: segue l'orientamento attraverso la molla del motore (salita circa 100 ms, ampiezza ridotta):

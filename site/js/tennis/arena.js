@@ -241,6 +241,8 @@ export function buildArena(scene, { quality = 1 } = {}){
     group, setScore, setSpeed,
     // qualità: meno pubblico sui computer lenti (le persone sono in ordine casuale per anello, ne restano a caso)
     setDensity(k){ if (crowd) crowd.count = Math.round(crowdN*Math.max(.1, Math.min(1, k))); },
+    // tribune vuote (campo d'allenamento)
+    setCrowd(visible){ if (crowd) crowd.visible = !!visible; },
     update(t, cheer = 0){ for (const f of updaters) f(t, cheer); },
   };
 }

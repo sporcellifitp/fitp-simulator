@@ -26,6 +26,13 @@ export function shotQuality(grade = '', { inCourt = true } = {}){
   if (/LATE/.test(g)) return { color: 'yellow', label: 'Ritardo' };
   return { color: 'yellow', label: 'Buono' };
 }
+// nome del colpo speciale dal grade del motore («PERFECT • FOREHAND LOB!», «EARLY • SMASH!»): si mostra insieme
+// all'esito, altrimenti pallonetto, palla corta e schiacciata non si distinguono da un colpo normale
+export function shotName(grade = ''){
+  const g = String(grade).toUpperCase();
+  if (/SERVE/.test(g)) return null;
+  return /DROP SHOT/.test(g) ? 'Palla corta' : /SMASH/.test(g) ? 'Schiacciata' : /\bLOB\b/.test(g) ? 'Pallonetto' : /\bSLICE\b/.test(g) ? 'Tagliato' : null;
+}
 // vibrazione del telefono: lunga per il perfetto, breve per il buono, doppia corta per l'errore
 export const VIBRATION = Object.freeze({ green: [70], yellow: [25], red: [25, 60, 25] });
 
@@ -58,7 +65,8 @@ export class NatpfShotFeedback {
       // in prima persona il proprio messaggio va al centro, sotto la linea dello sguardo (non sopra il tabellone)
       const mine = p2 === (engine.playerRole === 'p2');
       const screenPos = mine && engine._isFirstPersonActive?.() ? { x: window.innerWidth/2, y: window.innerHeight*.64, visible: true } : o.screenPos;
-      popup({ ...o, screenPos, grade: q.label, detail: kmh.toLowerCase() });
+      const name = shotName(g);
+      popup({ ...o, screenPos, grade: q.label, detail: [name, kmh.toLowerCase()].filter(Boolean).join(' · ') });
       const el = document.getElementById('timing-popup-grade');
       if (el){ el.classList.remove('grade-early', 'grade-late', 'grade-perfect', 'q-green', 'q-yellow', 'q-red'); el.classList.add('q-' + q.color); }
     };

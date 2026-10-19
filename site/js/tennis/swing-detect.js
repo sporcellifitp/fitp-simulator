@@ -32,6 +32,7 @@ export const DEFAULTS = {
   rawDrop: .88,     // il colpo parte appena la velocità grezza scende sotto l'88% del suo picco (prima del calo della media)…
   rawFall: .97,     // … o dopo due campioni grezzi in calo sotto il 97% (picchi larghi: nei colpi veri 30–50 ms prima)
   prepWeak: .85,    // (modalità preparazione) si trattiene solo un gesto più debole dell'85% del proprio colpo tipico
+  prepSlow: .45,    // gesto trattenuto e senza seguito: sotto il 45% del colpo tipico era una preparazione, non un colpo
 };
 // profilo di chi gioca (dalla calibrazione): deriva, asse del colpo (+ = da destra a sinistra), colpo tipico, soglie
 export const defaultProfile = () => ({ bias: [0, 0, 0], axis: null, ref: 600, on: DEFAULTS.on, minPeak: DEFAULTS.minPeak, minAngle: DEFAULTS.minAngle, lobLift: null, sens: 1, refs: null, preparation: null, minAngles: null, intentGate: false });
@@ -92,7 +93,7 @@ export function createSwingDetector(opts = {}){
     // gesto trattenuto: vale come colpo se non è arrivato il gesto opposto (si aspetta ancora se è in corso)
     if (held && k.t >= held.until){
       const pending = cur && !cur.fired && dot(unit(cur.peakW), held.sw.axis) < -.3 && k.t - held.sw.peakT < C.prepMax;
-      if (!pending){ const h = held; held = null; commit(h.sw, k.t); }
+      if (!pending){ const h = held; held = null; release(h.sw, k.t); }
     }
     last = k;
     const w = k.rot ? [k.rot[0] - prof.bias[0], k.rot[1] - prof.bias[1], k.rot[2] - prof.bias[2]] : null;
@@ -194,12 +195,18 @@ export function createSwingDetector(opts = {}){
     if (prepMode && !training && !serving()){
       // un gesto trattenuto e ora quello opposto: il primo era la preparazione
       if (held && dir !== 0 && dir === -held.sw.dir){ emit('prep', { peakT: held.sw.peakT, dir: held.sw.dir, peak: held.sw.peak, angle: held.sw.angle }); held = null; }
-      else if (held){ const h = held; held = null; commit(h.sw, t); }
+      else if (held){ const h = held; held = null; release(h.sw, t); }
       // solo un gesto debole può essere la preparazione: un colpo pieno nel verso «sbagliato» parte subito (prima
       // aspettava 250 ms anche i colpi veri, e arrivavano in ritardo)
       if (expectDir && dir === -expectDir && c.peak < reference*C.prepWeak){ held = { sw, until: c.peakT + C.prepHold }; setPhase('preparation'); return; }
     }
     commit(sw, t);
+  }
+  // gesto trattenuto senza il colpo opposto: se è lento era una preparazione rimasta a metà (nelle registrazioni questi
+  // gesti partivano 250 ms dopo come colpi lenti e quasi mai prendevano la palla), altrimenti vale come colpo
+  function release(sw, now){
+    if ((sw.features?.speed ?? 1) < C.prepSlow){ emit('prep', { peakT: sw.peakT, dir: sw.dir, peak: sw.peak, angle: sw.angle, small: true }); setPhase('ready'); return; }
+    commit(sw, now);
   }
   // now: istante in cui il colpo parte davvero (dopo l'eventuale attesa della preparazione), per misurare i ritardi
   function commit(sw, now = sw.t){

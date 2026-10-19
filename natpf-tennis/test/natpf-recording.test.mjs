@@ -66,3 +66,54 @@ test('il colpo parte appena la velocità grezza scende dal picco (60 Hz)', () =>
   assert.ok(out[0].detectMs <= 26, `riconosciuto ${out[0].detectMs} ms dopo il picco`);
   assert.ok(out[0].power > .6 && out[0].power < .95, `forza ${out[0].power}: un colpo forte non è subito al massimo`);
 });
+
+// ---- secondo giro di registrazioni: palle alte, pallonetto, palla corta, mira, preparazioni lente ----
+import { createFaceModel, centeredFace } from '../src/natpf/natpf_gestures.js';
+import { ballIsHigh } from '../src/natpf/natpf_phone_racket.js';
+import { shotName } from '../src/natpf/natpf_shot_feedback.js';
+
+test('mira e apertura rispetto al proprio colpo abituale in partita', () => {
+  const m = createFaceModel();
+  assert.equal(m.center(1), null, 'prima dei colpi: come dal telefono');
+  for (const yaw of [-35, -28, -31, -40, -25]) m.add(1, { yaw, pitch: 60 });
+  const c = m.center(1);
+  assert.deepEqual(c, { yaw: -31, pitch: 60 });
+  const normal = centeredFace({ yaw: -30, pitch: 62 }, c), right = centeredFace({ yaw: 5, pitch: 60 }, c);
+  assert.ok(Math.abs(normal.aim) < .1 && Math.abs(normal.pitch) < 5, 'il colpo normale va al centro e non è «aperto»');
+  assert.ok(right.aim > .6);
+  assert.equal(centeredFace({ yaw: 70, pitch: 0 }, c).aim, null, 'scarto non credibile: mira dal tempo');
+  const ev = natpfSwingToEngine({ dir: 1, power: .6, peak: 900, lift: 0, at: 1, face: { yaw: -30, pitch: 62, aim: .9 } }, { now: 1.03, faceCenter: c });
+  assert.ok(Math.abs(ev.natpf.wrist) < .1); assert.notEqual(ev.natpf.shot, 'drop');
+});
+
+test('pallonetto raggiungibile: soglia non oltre 0,6 anche con gesti molto variabili; verticale con un po’ di lato', () => {
+  assert.equal(classifyPhoneShot({ dir: 1, lift: .62, liftSpread: .3, speed: 1 }).shot, 'lob');
+  assert.equal(classifyPhoneShot({ dir: -1, vert: 'up', lift: .4, speed: 1 }).shot, 'lob');
+  assert.notEqual(classifyPhoneShot({ dir: -1, vert: 'up', lift: .1, speed: 1 }).shot, 'lob');
+});
+
+test('palla alta solo se è vicina: a metà volo non trasforma il colpo in schiacciata', () => {
+  const engine = { playerRole: 'p1', player: { pos: { x: 0, z: 11.2 } }, ball: { inPlay: true, pos: { x: 0, y: 2.2, z: -1.3 }, vel: { y: 0 } } };
+  assert.equal(ballIsHigh(engine), false);
+  engine.ball.pos.z = 8.5; assert.equal(ballIsHigh(engine), true);
+});
+
+test('nome del colpo speciale nel messaggio dell’esito', () => {
+  assert.equal(shotName('PERFECT • FOREHAND LOB!'), 'Pallonetto');
+  assert.equal(shotName('EARLY • BACKHAND DROP SHOT!'), 'Palla corta');
+  assert.equal(shotName('PERFECT • SMASH!'), 'Schiacciata');
+  assert.equal(shotName('PERFECT • FOREHAND TOPSPIN!'), null);
+  assert.equal(shotName('POWER SERVE!'), null);
+});
+
+test('preparazione trattenuta e lenta senza il colpo che segue: non diventa un colpo', () => {
+  const det = createSwingDetector(), out = { swings: [], preps: [] };
+  det.setProfile({ axis: [0, 0, 1], ref: 800, refs: { 1: 800, '-1': 800 }, on: 60, minPeak: 120, minAngle: 5, noise: 2, bias: [0, 0, 0] }); det.run();
+  det.setPrepMode(true); det.setExpect(1);
+  det.on('swing', s => out.swings.push(s)); det.on('prep', p => out.preps.push(p));
+  let t = 0;
+  const rest = ms => { for (const end = t + ms; t < end; t += 16.7) det.feed({ t, rot: [0, 0, 0], acc: [0, 0, 0], accG: [0, 9.8, 0] }); };
+  const move = (dir, peak, ms) => { const n = Math.round(ms/16.7); for (let i = 0; i <= n; i++, t += 16.7) det.feed({ t, rot: [0, 0, dir*peak*Math.sin(Math.PI*i/n)**2], acc: [0, 0, 0], accG: [0, 9.8, 0] }); };
+  rest(300); move(-1, 300, 220); rest(600);
+  assert.equal(out.swings.length, 0); assert.ok(out.preps.length >= 1);
+});

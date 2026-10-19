@@ -1837,10 +1837,14 @@ export class NatpfTennisEngine {
         p.swingType === "smash" && !this.autoPlayMode && this.audioEngine.playVoiceCallout("smash"));
     const F = Math.round(this.ball.vel.length() * 6.8),
       H = d ? "SMASH" : m ? "BACKHAND" : "FOREHAND",
+      // NATPF: i colpi speciali si vedono sempre per nome (prima «anticipo/ritardo» copriva pallonetto e palla corta)
+      natpfSpecial = d ? "SMASH" : natpfDrop ? "DROP SHOT" : T === "LOB" ? "LOB" : T === "SLICE" ? "SLICE" : null,
       X = l
         ? "NET VOLLEY"
         : _
           ? "DEFENSIVE"
+          : natpfSpecial && !t
+            ? (d ? "SMASH" : `${H} ${natpfSpecial}`)
           : u === "EARLY"
             ? `${H} CROSS`
             : u === "LATE"
@@ -2564,7 +2568,7 @@ export class NatpfTennisEngine {
             if (
               (!this.pendingUserSwing.waitForSweetSpot || (r >= -0.85 && r <= 0.65)) &&
               Math.hypot(l, r) <= p &&
-              this.ball.pos.y < 2.35
+              this.ball.pos.y < 3.4 // NATPF: anche le palle alte (prima 2,35 m: lo swing in attesa scadeva e non si colpiva; sopra 1,78 m è una schiacciata)
             ) {
               const c = this.pendingUserSwing.evt;
               (this.pendingUserSwing = null), this._attemptPlayerRallyStrike(c, !1);

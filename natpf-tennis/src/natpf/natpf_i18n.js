@@ -39,6 +39,9 @@ const PHRASES = [
   ["RISING", "In salita"],
   ["READY", "Pronto"],
   ["LOB", "Pallonetto"],
+  ["DROP SHOT", "Palla corta"],
+  ["SMASH", "Schiacciata"],
+  ["SLICE", "Tagliato"],
   ["FLAT", "Piatto"],
   // punti, game e partita
   ["POINT WON", "Punto vinto"],

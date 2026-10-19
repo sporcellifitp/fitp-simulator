@@ -57,11 +57,11 @@ export class NatpfDiag {
   }
   // stato della partita quando arriva il colpo: spiega i colpi senza esito (palla lontana, punto finito, già colpita)
   engineState(){
-    const e = this.engine, b = e.ball, me = e.localActor || e.player;
+    const e = this.engine, b = e.ball, me = e.playerRole === 'p2' ? e.opponent : e.player;
     const r2 = v => (Number.isFinite(v) ? +v.toFixed(2) : null);
     return { phase: e.phase || null, inPlay: !!b?.inPlay, lastHitter: b?.lastHitter || null, role: e.playerRole || null,
       ball: b?.pos ? [r2(b.pos.x), r2(b.pos.y), r2(b.pos.z)] : null, velZ: r2(b?.vel?.z),
-      dist: b?.pos && me?.position ? r2(Math.hypot(b.pos.x - me.position.x, b.pos.z - me.position.z)) : null };
+      dist: b?.pos && me?.pos ? r2(Math.hypot(b.pos.x - me.pos.x, b.pos.z - me.pos.z)) : null, server: e.score?.server || null };
   }
   _onSwing(ev, s){
     const rec = { s: { ...s }, ev: { side: ev.side, shotType: ev.shotType, speed: ev.speed, natpf: ev.natpf, ...(ev.ignored ? { ignored: ev.ignored } : {}) }, game: this.engineState(), hitAt: null, frameAt: null, result: null };
@@ -112,6 +112,7 @@ export class NatpfDiag {
       const t = swingTimeline(r.s, r), n = r.ev.natpf || {};
       lines.push(`${String(r.s.seq ?? '').padStart(4)}  ${(`${r.ev.side || '–'}/${n.shot || r.ev.shotType}`).padEnd(17)} ${(`${(n.wrist ?? 0).toFixed(2)} ${n.aimSource || ''}`).padEnd(12)} ${String(r1(t.detect)).padStart(5)} ${String(r1(t.hold)).padStart(5)} ${String(r1(t.delivery)).padStart(9)} ${String(r1(t.total)).padStart(7)} ${String(r1(t.ball)).padStart(13)} ${String(r1(t.screen)).padStart(8)}  ${r.result ? `${r.result.quality || r.result.kind} x ${r.result.landingX}` : ''}`);
       if (r.ev.ignored) lines.push(`       scartato: ${r.ev.ignored}`);
+      else if (!r.result && /SERVE/.test(r.game?.phase || '') && r.game.server === 'player') lines.push('       servizio (lancio o colpo)');
       else if (!r.result && r.game) lines.push(`       senza esito · ${r.game.phase} · palla ${r.game.inPlay ? 'in gioco' : 'ferma'}${r.game.lastHitter ? ` (ultimo: ${r.game.lastHitter})` : ''}${r.game.dist != null ? ` a ${r.game.dist} m` : ''}`);
       if (n.why?.length) lines.push(`       perché: ${n.why.join(' · ')}${r.s.vert ? ` · verticale ${r.s.vert}` : ''}`);
     }

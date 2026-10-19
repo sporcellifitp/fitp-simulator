@@ -16,11 +16,12 @@
 // Contesto del gioco: mano (destra/mancina) e palla alta sopra la testa.
 //
 // Tabella (la prima riga che vale decide; nessun colpo speciale nasce da un solo segnale). Soglie di L moltiplicate
-// per k = liftSpread/0,12 (tra 1 e 1,8):
+// per k = liftSpread/0,12 (tra 1 e 1,2; con 1,8 il pallonetto non usciva più a nessuno):
 //   gesto verticale verso l'alto (V up, senza verso orizzontale H)  → lob, lato dalla palla
+//   gesto verticale verso l'alto con un po' di H e mano che sale (L ≥ 0,35) → lob
 //   gesto verticale verso il basso (V down, senza H) con palla alta → schiacciata
 //   gesto verticale verso il basso (V down, senza H) con palla bassa → tagliato (chop)
-//   orizzontale, mano che sale molto (L ≥ 0,55), o sale (L ≥ 0,4) con piatto aperto (F ≥ 10°), non lento → lob
+//   orizzontale, mano che sale molto (L ≥ 0,5), o sale (L ≥ 0,35) con piatto aperto (F ≥ 10°), non lento → lob
 //   orizzontale con palla alta e mano che scende (L ≤ −0,25)         → schiacciata
 //   orizzontale, mano che scende (L ≤ −0,35), piatto aperto (F ≥ 8°) e gesto morbido (P < 0,45) → palla corta
 //   orizzontale, mano che scende (L ≤ −0,35), non lento             → tagliato
@@ -31,11 +32,12 @@
 // Direzione: soprattutto il piatto all'impatto (girato a destra → palla a destra, uguale per dritto e rovescio, così
 // il rovescio va anche lungolinea), poi un poco il tempo del colpo (motore, natpf_skill.swingLandingX).
 export const GESTURE = Object.freeze({
-  lobLift: .55, lobLiftOpen: .4, lobOpen: 10,
+  lobLift: .5, lobLiftOpen: .35, lobOpen: 10,
   cutLift: -.35, dropOpen: 8, dropPower: .45,
   smashLift: -.25, topLift: .2,
   flatPower: .78, flatFace: 10,
-  slow: .45, spreadRef: .12, spreadMax: 1.8,
+  slow: .45, spreadRef: .12, spreadMax: 1.2,
+  aimYaw: 40, maxAimYaw: 80,
 });
 const finite = (v, d = 0) => (Number.isFinite(v) ? v : d);
 const median = a => { const v = [...a].sort((x, y) => x - y), m = v.length >> 1; return v.length ? (v.length % 2 ? v[m] : (v[m - 1] + v[m])/2) : 0; };
@@ -54,7 +56,7 @@ export function liftBaselineFromProfile(profile){
 // media di 0,9 più dei due rovesci della calibrazione, e ogni rovescio sembrava un lob. Si parte dalla calibrazione;
 // dopo `min` colpi in un verso vale la mediana degli ultimi `keep` colpi in quel verso (la maggior parte dei colpi sono
 // normali, la mediana non si sposta per qualche lob o tagliato), e la variabilità è quella dei colpi veri.
-export function createLiftModel(initial = null, { keep = 12, min = 4 } = {}){
+export function createLiftModel(initial = null, { keep = 12, min = 3 } = {}){
   const hist = { 1: [], '-1': [] };
   let calib = initial;
   return {
@@ -72,6 +74,26 @@ export function createLiftModel(initial = null, { keep = 12, min = 4 } = {}){
     },
   };
 }
+// Piatto abituale in partita, per verso del colpo: la mediana degli ultimi colpi veri (dopo `min`) si toglie
+// all'imbardata e all'apertura misurate dal telefono. Nelle registrazioni il riferimento della calibrazione era lontano
+// dai colpi veri (dritto −30°, aperture di 50–90° che facevano «palle corte» non volute): la mira è lo scarto dal
+// proprio colpo normale, che va al centro.
+export function createFaceModel({ keep = 12, min = 3 } = {}){
+  const hist = { 1: [], '-1': [] };
+  return {
+    reset(){ hist[1] = []; hist[-1] = []; },
+    add(dir, face){ if ((dir === 1 || dir === -1) && face && Number.isFinite(face.yaw)){ const h = hist[dir]; h.push({ yaw: face.yaw, pitch: finite(face.pitch) }); if (h.length > keep) h.shift(); } },
+    center(dir){ const h = hist[dir]; return h && h.length >= min ? { yaw: +median(h.map(f => f.yaw)).toFixed(1), pitch: +median(h.map(f => f.pitch)).toFixed(1) } : null; },
+  };
+}
+// piatto rispetto al proprio colpo abituale: mira (curva morbida, null se lo scarto non è credibile) e apertura
+export function centeredFace(face, center = null){
+  if (!face || !Number.isFinite(face.yaw)) return null;
+  if (!center) return face;
+  let yaw = face.yaw - center.yaw; while (yaw > 180) yaw -= 360; while (yaw < -180) yaw += 360;
+  const aim = Math.abs(yaw) > GESTURE.maxAimYaw ? null : +Math.tanh(yaw/GESTURE.aimYaw).toFixed(3);
+  return { ...face, yaw: +yaw.toFixed(1), pitch: +(finite(face.pitch) - center.pitch).toFixed(1), aim, centered: true };
+}
 // riferimento per il verso del colpo: numero (vecchio formato) oppure { all, 1, -1, spread }
 export function resolveLiftBaseline(b, dir = 0){
   if (Number.isFinite(b)) return { base: b, spread: 0 };
@@ -87,6 +109,7 @@ export function classifyPhoneShot({ dir = 0, vert = null, lift = 0, liftBaseline
   const why = [];
   // il gesto verticale vale solo senza verso orizzontale: un rovescio un po' dal basso verso l'alto resta un rovescio
   if (vert === 'up' && !dir){ why.push('verticale verso l’alto'); return { shot: 'lob', why }; }
+  if (vert === 'up' && L >= G.lobLiftOpen*k){ why.push('verticale verso l’alto', `mano che sale (${L.toFixed(2)})`); return { shot: 'lob', why }; }
   if (vert === 'down' && !dir){ why.push('verticale verso il basso', ballHigh ? 'palla alta' : 'palla bassa'); return { shot: ballHigh ? 'smash' : 'slice', why }; }
   if (!slow && (L >= G.lobLift*k || (L >= G.lobLiftOpen*k && open != null && open >= G.lobOpen))){ why.push(`mano che sale (${L.toFixed(2)})`, ...(open != null ? [`piatto ${open.toFixed(0)}°`] : [])); return { shot: 'lob', why }; }
   if (ballHigh && L <= G.smashLift*k){ why.push('palla alta', `mano che scende (${L.toFixed(2)})`); return { shot: 'smash', why }; }
