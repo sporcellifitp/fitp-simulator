@@ -20,6 +20,11 @@ function N(t) {
 function R(t, r = "Player 1", a = "Player 2", c = 2) {
   return {
     roomId: t,
+    // NATPF: epoca della stanza (cambia se il server riparte o la stanza rinasce): i client azzerano i contatori
+    epoch: Math.random().toString(36).slice(2, 8),
+    createdAt: Date.now(),
+    touchedAt: Date.now(),
+    p2Ready: !1,
     hostName: r,
     guestName: a,
     gamesToWin: c,
@@ -92,15 +97,21 @@ export function natpfSwingExtras(e = {}) {
 }
 // publicUrl: indirizzo restituito nei link della stanza (stringa o funzione della richiesta). Il default è quello
 // originale del motore base; il server LAN passa l'indirizzo di rete del computer.
+// NATPF: codice della stanza «AT-XXXX» (4 tra lettere e cifre, senza 0/O e 1/I che si confondono a voce)
+export const ROOM_RE = /^AT-[A-Z0-9]{4}$/;
+const ROOM_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+export function newRoomId(rng = Math.random) { let s = "AT-"; for (let i = 0; i < 4; i++) s += ROOM_CHARS[Math.floor(rng() * ROOM_CHARS.length)]; return s; }
+const ROOM_IDLE_MS = 6 * 3600e3;   // stanze ferme da 6 ore: via (prima restavano per sempre)
 export function createMatchRelay({ publicUrl = PUBLIC_URL } = {}) {
   const t = new Map();
   t.set("default", R("default"));
+  const key = (u) => { const p = (u || "default").replace(/[^A-Za-z0-9_-]/g, "").toUpperCase() || "default"; return p === "DEFAULT" ? "default" : p; };
   const a = (u) => {
-    const p = (u || "default").replace(/[^A-Za-z0-9_-]/g, "").toUpperCase() || "default",
-      n = p === "DEFAULT" ? "default" : p;
+    const n = key(u);
     let g = t.get(n);
-    return (g || ((g = R(n)), t.set(n, g)), g);
+    return (g || ((g = R(n)), t.set(n, g)), (g.touchedAt = Date.now()), g);
   };
+  const sweep = () => { const now = Date.now(); for (const [k, v] of t) k !== "default" && now - (v.touchedAt || 0) > ROOM_IDLE_MS && t.delete(k); };
   const relay = async (p, n, g) => {
     // NATPF: un indirizzo non valido (es. «//») non deve far cadere il server con il relay della partita
     const I = (p.url || "/").replace(/^\/{2,}/, "/"),
@@ -145,15 +156,23 @@ export function createMatchRelay({ publicUrl = PUBLIC_URL } = {}) {
       return;
     }
     if (p.method === "GET" && l === "/api/match/state") {
+      // NATPF: il Player 2 con un codice che non esiste (link vecchio o sbagliato) lo deve sapere, non aspettare per sempre
+      if (f === "p2" && key(b) !== "default" && !t.has(key(b))) {
+        d(n, 404, { ok: !1, error: "stanza", roomId: key(b) });
+        return;
+      }
       const e = a(b),
-        m = w.searchParams.get("touch");
+        // touch=p1|p2 (o touch=1 con il proprio role): chi interroga è online; ready=1|0 dal Player 2
+        m = ((x) => (x === "1" || x === "true" ? f : x))(w.searchParams.get("touch"));
       (m === "p1" || m === "p2") &&
         (m === "p2" ? (e.p2DesktopSeenTs = Date.now()) : (e.p1DesktopSeenTs = Date.now()));
+      m === "p2" && w.searchParams.has("ready") && (e.p2Ready = w.searchParams.get("ready") === "1");
       const h = Date.now(),
         k = T(e.rackets.p1),
         i = T(e.rackets.p2),
-        o = e.p1DesktopSeenTs > 0 && h - e.p1DesktopSeenTs < 8e3,
-        s = e.p2DesktopSeenTs > 0 && h - e.p2DesktopSeenTs < 8e3;
+        // NATPF 1v1: online se ha interrogato negli ultimi 4 s (interroga ogni 50 ms; prima 8 s)
+        o = e.p1DesktopSeenTs > 0 && h - e.p1DesktopSeenTs < 4e3,
+        s = e.p2DesktopSeenTs > 0 && h - e.p2DesktopSeenTs < 4e3;
       d(n, 200, {
         ok: !0,
         roomId: e.roomId,
@@ -162,6 +181,8 @@ export function createMatchRelay({ publicUrl = PUBLIC_URL } = {}) {
         gamesToWin: e.gamesToWin,
         p1Online: o,
         p2Online: s,
+        p2Ready: s && !!e.p2Ready,
+        epoch: e.epoch,
         p1DesktopOnline: o,
         p2DesktopOnline: s,
         p1PhoneConnected: k.connected,
@@ -262,17 +283,24 @@ export function createMatchRelay({ publicUrl = PUBLIC_URL } = {}) {
         return;
       }
       if (l === "/api/match/create") {
-        const s = "AT-" + Math.random().toString(36).substring(2, 6).toUpperCase(),
-          S = R(
+        sweep();
+        // NATPF: l'host che ricarica la pagina chiede di nuovo la sua stanza, così il P2 si ricollega da solo;
+        // altrimenti un codice nuovo che non sia già in uso. Nomi: p1Name/p2Name dal gioco (prima «Ammaar» e
+        // «Challenger» di default, da cui l'«In attesa di Challenger…» senza istruzioni)
+        const want = String(e.roomId || "").toUpperCase();
+        let s = ROOM_RE.test(want) ? want : newRoomId();
+        for (let k = 0; !ROOM_RE.test(want) && t.has(s) && k < 20; k++) s = newRoomId();
+        const S = R(
             s,
-            String(e.hostName || "Ammaar"),
-            String(e.guestName || "Challenger"),
-            Number(e.gamesToWin || 2),
+            String(e.p1Name || e.hostName || "Player 1").slice(0, 24),
+            String(e.p2Name || e.guestName || "Player 2").slice(0, 24),
+            Number(e.gamesToWin || 1),
           );
         (t.set(s, S),
           d(n, 200, {
             ok: !0,
             roomId: s,
+            epoch: S.epoch,
             hostDesktopUrl: `${r}/?room=${s}&role=p1`,
             guestDesktopUrl: `${r}/?room=${s}&role=p2`,
             p1PhoneUrl: `${r}/companion.html?room=${s}&role=p1`,

@@ -31,7 +31,7 @@ export function createHeadlessEngine({ difficulty = 'casual' } = {}){
     ball: { mesh: null, pos: new THREE.Vector3(0.85, 1.15, 11.6), vel: new THREE.Vector3(), spin: new THREE.Vector3(), inPlay: false, lastHitter: 'player',
       bounceCountOnCurrentSide: 0, shotType: 'TOPSPIN', isPowerShot: false, rallyStrokeCount: 0, targetLanding: new THREE.Vector3(0, 0, -8.5) },
     hud: sink(), ballTrail: sink(), natpfArena: sink(), audioEngine: null, racketKinematics: null, swingVfx: null, facialFX: null, bodyAnimator: null, motionController: null,
-    elapsedTime: 0, physicsAccumulator: 0, cheerEnergy: 0,
+    elapsedTime: 0, physicsAccumulator: 0, cheerEnergy: 0, roomStatus: {}, lastAppliedSnapshotSeq: 0, lastSyncSentAt: 0,
   });
   e.player = e._createActorState('player', 1, new THREE.Vector3(1.15, 0, 11.89));
   e.playerPartner = e._createActorState('player_partner', 1, new THREE.Vector3(-2.1, 0, 5.4));

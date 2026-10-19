@@ -21,6 +21,7 @@ export const isRelayPath = pathname => /^\/api\/(match|racket|tunnel)\/|^\/api\/
 const REMOTE_ALLOWED = new Set(['GET /api/match/state', 'GET /api/racket/state', 'GET /api/tunnel/status', 'POST /api/racket/swing', 'POST /api/racket/telemetry', 'POST /api/racket/feedback', 'POST /api/body']);
 export const remoteAllowed = (method, pathname) => REMOTE_ALLOWED.has(`${String(method || 'GET').toUpperCase()} ${pathname}`);
 export const LIVE_MS = 5000;          // senza messaggi per 5 s il collegamento è perso (come il telefono)
+export const CLOSED_MS = 20000;       // host introvabile per 20 s: probabilmente ha chiuso la stanza
 const RPC_TIMEOUT_MS = 4000;
 
 /* ---------- relay della partita nel browser ---------- */
@@ -111,9 +112,13 @@ export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => 
   const ev = emitter();
   const S = { status: 'starting', error: null, peerId: peerIdForRoom(roomId), lastSeen: 0, guests: 0 };
   const set = patch => { const before = S.status + S.error; Object.assign(S, patch); if (before !== S.status + S.error) ev.emit({ ...S }); };
-  let conn = null, destroyed = false, settle;
+  let conn = null, destroyed = false, settle, peer = null, again = null;
   const ready = new Promise(r => { settle = r; });
-  const peer = new Peer(S.peerId, options);
+  // un errore della segnalazione prima di registrarsi distrugge il Peer (PeerJS): se ne crea uno nuovo con lo stesso
+  // id dopo qualche secondo (prima l'invito restava legato a un Peer distrutto)
+  const restart = () => { if (destroyed || again) return; again = timers.setTimeout(() => { again = null; if (!destroyed && (!peer || peer.destroyed)) make(); }, 3000); };
+  function make(){
+  peer = new Peer(S.peerId, options);
   peer.on('open', () => { set({ status: conn?.open ? 'connected' : 'waiting', error: null }); settle({ ok: true }); });
   peer.on('connection', c => {
     let ok = false;
@@ -122,6 +127,10 @@ export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => 
       if (!ok){
         // presentazione: solo chi conosce la stanza; un nuovo P2 (o lo stesso che si ricollega) prende il posto del vecchio
         if (!d || d.t !== 'hi' || String(d.room || '').toUpperCase() !== String(roomId).toUpperCase()){ try { c.send({ t: 'no', why: 'stanza' }); } catch {} timers.setTimeout(() => c.close(), 200); return; }
+        // un secondo P2 mentre il primo è vivo (link aperto due volte, inoltrato in un gruppo): rifiutato. Prima il
+        // nuovo prendeva il posto del vecchio, che si ricollegava e lo scalzava, all'infinito. Chi ricarica la pagina
+        // rientra appena il vecchio collegamento tace (LIVE_MS)
+        if (conn && conn !== c && conn.open && now() - S.lastSeen <= LIVE_MS){ try { c.send({ t: 'no', why: 'occupata' }); } catch {} timers.setTimeout(() => c.close(), 200); return; }
         ok = true;
         if (conn && conn !== c) try { conn.close(); } catch {}
         conn = c; S.guests++; seen(); set({ status: 'connected', error: null });
@@ -141,13 +150,16 @@ export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => 
     if (type === 'peer-unavailable') return;
     if (S.status === 'starting') settle({ ok: false, error: type });
     set({ status: conn?.open ? S.status : 'error', error: type });
+    if (type !== 'unavailable-id' && (peer.destroyed || !peer.open)) restart();
   });
+  }
+  make();
   // il P2 interroga lo stato ogni 50 ms: se tace per 5 s è scollegato (anche se WebRTC non se ne è ancora accorto)
   const watch = timers.setInterval(() => { if (conn && S.status === 'connected' && now() - S.lastSeen > LIVE_MS) set({ status: 'lost' }); if (conn && S.status === 'lost' && now() - S.lastSeen <= LIVE_MS) set({ status: 'connected' }); }, 1000);
   return {
     get state(){ return { ...S }; },
     ready, onStatus: ev.on,
-    destroy(){ destroyed = true; timers.clearInterval(watch); try { conn?.close(); } catch {} try { peer.destroy(); } catch {} set({ status: 'off' }); },
+    destroy(){ destroyed = true; timers.clearInterval(watch); timers.clearTimeout(again); try { conn?.close(); } catch {} try { peer?.destroy(); } catch {} set({ status: 'off' }); },
   };
 }
 
@@ -155,19 +167,21 @@ export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => 
 // status: starting → connecting → connected → lost (riprova ogni pochi secondi) · error (segnalazione non raggiungibile)
 export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.now(), timers = globalThis, retryMs = [1000, 2000, 3000, 5000] }){
   const ev = emitter();
-  const S = { status: 'starting', error: null, hostId: peerIdForRoom(roomId), attempts: 0, lastSeen: 0 };
+  const S = { status: 'starting', error: null, hostId: peerIdForRoom(roomId), attempts: 0, lastSeen: 0, missingSince: 0 };
   const set = patch => { const before = S.status + S.error; Object.assign(S, patch); if (before !== S.status + S.error) ev.emit({ ...S }); };
-  let conn = null, rpc = null, destroyed = false, retryT = null, openT = null, peerOpen = false;
-  const peer = new Peer(undefined, options);
-  const retry = () => {
+  let conn = null, rpc = null, destroyed = false, retryT = null, openT = null, peerOpen = false, peer = null;
+  const retry = (wait = retryMs[Math.min(S.attempts, retryMs.length - 1)]) => {
     if (destroyed || retryT) return;
-    const wait = retryMs[Math.min(S.attempts, retryMs.length - 1)];
-    retryT = timers.setTimeout(() => { retryT = null; connect(); }, wait);
+    // Peer distrutto da un errore della segnalazione (anche all'avvio): se ne crea uno nuovo (prima il P2 restava
+    // fermo in «errore» per sempre, pur promettendo di riprovare)
+    retryT = timers.setTimeout(() => { retryT = null; if (!peer || peer.destroyed) makePeer(); else connect(); }, wait);
   };
-  function drop(c){
+  // host introvabile da molto (ha chiuso la scheda o ricaricato senza tornare): lo si dice, continuando a riprovare
+  const missing = () => { S.missingSince ||= now(); if (now() - S.missingSince > CLOSED_MS) set({ error: 'chiusa' }); };
+  function drop(c, wait){
     if (c !== conn) return;
     conn = null; rpc = null; timers.clearTimeout(openT);
-    if (!destroyed){ set({ status: S.lastSeen ? 'lost' : 'connecting' }); retry(); }
+    if (!destroyed){ if (S.error !== 'occupata') set({ status: S.lastSeen ? 'lost' : 'connecting' }); retry(wait); }
   }
   function connect(){
     if (destroyed || !peerOpen || conn) return;
@@ -179,7 +193,9 @@ export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.no
     rpc = createRpcClient(c, { onMessage: d => {
       if (c !== conn) return;
       S.lastSeen = now();
-      if (d?.t === 'ok' && !ok){ ok = true; S.attempts = 0; set({ status: 'connected', error: null }); }
+      if (d?.t === 'ok' && !ok){ ok = true; S.attempts = 0; S.missingSince = 0; set({ status: 'connected', error: null }); }
+      // stanza occupata da un altro Player 2: si riprova più tardi (entra se l'altro esce)
+      if (d?.t === 'no' && d.why === 'occupata'){ set({ status: 'error', error: 'occupata' }); try { c.close(); } catch {} drop(c, 4000); return; }
       if (d?.t === 'no'){ set({ status: 'error', error: 'stanza' }); }
     } });
     c.on('open', () => { try { c.send({ t: 'hi', room: roomId }); } catch {} });
@@ -188,15 +204,21 @@ export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.no
     // l'host non risponde entro 8 s (non è online, rete che blocca WebRTC): si chiude e si riprova
     openT = timers.setTimeout(() => { if (c === conn && !ok){ try { c.close(); } catch {} drop(c); } }, 8000);
   }
-  peer.on('open', () => { peerOpen = true; connect(); });
-  peer.on('disconnected', () => { if (!destroyed) timers.setTimeout(() => { if (!destroyed && !peer.destroyed) try { peer.reconnect(); } catch {} }, 1500); });
-  peer.on('error', e => {
-    const type = e?.type || String(e);
-    // host non ancora (o non più) registrato: si riprova
-    if (type === 'peer-unavailable'){ const c = conn; if (c){ try { c.close(); } catch {} drop(c); } else retry(); if (S.status !== 'lost') set({ status: 'connecting' }); return; }
-    set({ status: conn?.open ? S.status : 'error', error: type });
-    if (!conn) retry();
-  });
+  function makePeer(){
+    peerOpen = false;
+    const p = peer = new Peer(undefined, options);
+    p.on('open', () => { if (p !== peer) return; peerOpen = true; connect(); });
+    p.on('disconnected', () => { if (!destroyed) timers.setTimeout(() => { if (!destroyed && !p.destroyed) try { p.reconnect(); } catch {} }, 1500); });
+    p.on('error', e => {
+      if (p !== peer) return;
+      const type = e?.type || String(e);
+      // host non ancora (o non più) registrato: si riprova
+      if (type === 'peer-unavailable'){ missing(); const c = conn; if (c){ try { c.close(); } catch {} drop(c); } else retry(); if (S.status !== 'lost') set({ status: 'connecting' }); return; }
+      set({ status: conn?.open ? S.status : 'error', error: type });
+      if (!conn) retry();
+    });
+  }
+  makePeer();
   // l'host tace da 5 s (scheda chiusa, rete persa): si chiude e si riprova
   const watch = timers.setInterval(() => {
     if (conn && S.status === 'connected' && now() - S.lastSeen > LIVE_MS){ const c = conn; try { c.close(); } catch {} drop(c); }
@@ -206,7 +228,7 @@ export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.no
     get connected(){ return S.status === 'connected' && !!conn?.open; },
     onStatus: ev.on,
     request(req){ return rpc && S.status === 'connected' ? rpc.request(req) : Promise.reject(new TypeError('host non collegato')); },
-    destroy(){ destroyed = true; timers.clearInterval(watch); timers.clearTimeout(retryT); timers.clearTimeout(openT); try { conn?.close(); } catch {} try { peer.destroy(); } catch {} set({ status: 'off' }); },
+    destroy(){ destroyed = true; timers.clearInterval(watch); timers.clearTimeout(retryT); timers.clearTimeout(openT); try { conn?.close(); } catch {} try { peer?.destroy(); } catch {} set({ status: 'off' }); },
   };
 }
 
@@ -249,8 +271,12 @@ export function installNatpfP2p({ win = globalThis.window, Peer = null, peerOpti
   async function createHostRoom(body){
     api.mode = 'host'; api.local ||= createLocalRelay({ host: win.location?.host || 'localhost' });
     let res = null, json = null;
-    // id del Peer già preso da un'altra stanza (raro): nuova stanza
-    for (let tries = 0; tries < 3; tries++){
+    // id del Peer già preso: dopo un ricaricamento (stessa stanza richiesta) il vecchio Peer si libera in pochi secondi
+    // e si riprova lo stesso id; altrimenti (raro) nuova stanza
+    let want = null; try { want = JSON.parse(typeof body === 'string' ? body : JSON.stringify(body || {})).roomId || null; } catch {}
+    for (let tries = 0; tries < 5; tries++){
+      if (tries && want && tries < 4) await new Promise(r => setTimeout(r, 2000));
+      else if (tries && want){ try { const o = JSON.parse(body); delete o.roomId; body = JSON.stringify(o); } catch {} want = null; }
       res = await api.local.handle({ method: 'POST', url: '/api/match/create', body });
       json = JSON.parse(res.text);
       api.roomId = json.roomId;

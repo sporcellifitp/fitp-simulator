@@ -1,0 +1,121 @@
+// Interfaccia della sfida tra due computer (1v1), sopra natpf_versus.js:
+//   • host, pagina «Partita» del menu: codice della stanza, link da mandare, tre passi con lo stato (stanza creata ·
+//     Player 2 entrato · Player 2 pronto) e «Gioca» attivo solo quando il Player 2 è pronto;
+//   • host in partita: se il Player 2 sparisce la partita si ferma con la spiegazione e riprende da sola quando torna;
+//     «Torna al menu» per chiudere;
+//   • Player 2: un pannello unico con lo stato (mi collego · collegato · pronto · partita · collegamento perso · stanza
+//     chiusa o inesistente), racchetta e visuale, «Sono pronto» ed «Esci».
+// Lo stato arriva ogni 50 ms dal relay (/api/match/state) attraverso il motore (roomStatus, versusGuest).
+import { VERSUS, lobbyState, canStart, hostLobbyLines, startLabel, guestState, guestText } from './natpf_versus.js';
+const $ = id => document.getElementById(id);
+const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
+
+export class NatpfVersusUi {
+  constructor(engine, ui){
+    this.engine = engine; this.ui = ui;
+    this.p2 = engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT';
+    this.ready = false;
+    this.p2Gone = 0;            // host: da quando il P2 non si vede (ms, 0 = presente)
+    this.waiting = false;       // host: partita ferma in attesa del P2
+    this._buildWait();
+    if (this.p2) this._bindGuest();
+    // il motore si ferma con la pausa: il controllo gira a parte, e durante la pausa l'host dice al P2 che è in pausa
+    this._timer = setInterval(() => this.tick(), 250);
+  }
+  /* ---------- host ---------- */
+  get hostActive(){ return !this.p2 && !!this.engine.versus?.active; }
+  get state(){ const r = this.engine.roomStatus || {}; return lobbyState({ p2Online: r.p2Online, p2Ready: r.p2Ready }); }
+  canStart(){ return canStart(this.state); }
+  // pagina «Partita» in modalità amico: righe di stato e pulsante «Gioca»
+  paintLobby(){
+    const box = $('natpf-invite'), btn = $('btn-start-match');
+    if (!this.hostActive || this.ui.lobby?.mode !== 'friend'){ if (btn){ btn.disabled = false; btn.classList.remove('waiting'); } return; }
+    const st = this.state, r = this.engine.roomStatus || {};
+    const list = box?.querySelector('[data-versus-lines]');
+    if (list) list.innerHTML = hostLobbyLines(st, { roomId: this.engine.roomId, p2Name: r.guestName || 'Player 2' })
+      .map(l => `<li class="${l.state}" data-line="${l.id}">${l.text}</li>`).join('');
+    if (btn){
+      const ok = canStart(st);
+      btn.disabled = !ok; btn.classList.toggle('waiting', !ok);
+      const label = btn.querySelector('.choice-main') || btn;
+      if (!btn.dataset.label) btn.dataset.label = label.textContent;
+      label.textContent = ok ? btn.dataset.label : startLabel(st);
+    }
+  }
+  // sheet di attesa sull'host (Player 2 uscito a partita in corso)
+  _buildWait(){
+    if ($('natpf-versus-wait')) return;
+    document.body.insertAdjacentHTML('beforeend', `<div id="natpf-versus-wait" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="natpf-versus-wait-title">
+      <div class="natpf-sheet"><p class="sheet-kicker">Sfida un amico · 1v1</p><h2 class="sheet-title" id="natpf-versus-wait-title">Il Player 2 si è scollegato</h2>
+      <p class="sheet-desc" data-versus-wait-text>La partita è ferma. Riprende da sola appena il Player 2 riapre il link.</p>
+      <div class="sheet-actions"><button type="button" class="lobby-ghost" data-versus-menu>Torna al menu</button></div></div></div>`);
+    const el = $('natpf-versus-wait');
+    el.addEventListener('pointerdown', e => e.stopPropagation());
+    el.querySelector('[data-versus-menu]').addEventListener('click', e => { e.stopPropagation(); this._setWaiting(false); this.ui.backToMenu(); });
+  }
+  _setWaiting(on){
+    if (on === this.waiting) return;
+    this.waiting = on; show($('natpf-versus-wait'), on);
+    this.engine.natpfVersusWait = on; this.ui._syncPause();
+    if (!on) this.ui.toast('Player 2 di nuovo collegato: si riprende');
+  }
+  tick(){
+    const E = this.engine;
+    if (this.p2){ this._tickGuest(); return; }
+    if (!this.hostActive){ this.p2Gone = 0; this._setWaiting(false); return; }
+    if (this.ui.lobby?.visible) this.paintLobby();
+    const now = performance.now(), online = !!E.roomStatus?.p2Online;
+    this.p2Gone = online ? 0 : (this.p2Gone || now);
+    const inMatch = E._versusInMatch?.() && E.phase !== 'MATCH_OVER';
+    if (inMatch && this.p2Gone && now - this.p2Gone > VERSUS.lostMs) this._setWaiting(true);
+    else if (this.waiting && (online || !inMatch)) this._setWaiting(false);
+    // con il motore fermo (pausa o attesa) non partono snapshot: si dice al P2 che la partita è in pausa
+    if (E.natpfPaused && inMatch && E.roomId && E.roomId !== 'default')
+      fetch('/api/match/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room: E.roomId, snapshot: { paused: true, waitingP2: this.waiting } }) }).catch(() => {});
+  }
+  /* ---------- Player 2 ---------- */
+  _bindGuest(){
+    const modal = $('natpf-guest-modal'); if (!modal) return;
+    const desc = modal.querySelector('.sheet-desc');
+    desc?.insertAdjacentHTML('beforebegin', '<p class="natpf-versus-status" data-versus-guest aria-live="polite"></p>');
+    const go = $('natpf-guest-go');
+    if (go){ go.textContent = 'Sono pronto ✓'; }
+    modal.querySelector('.sheet-actions')?.insertAdjacentHTML('afterbegin', '<button type="button" class="lobby-ghost" data-versus-leave>Esci</button>');
+    modal.querySelector('[data-versus-leave]')?.addEventListener('click', e => { e.stopPropagation(); this.leave(); });
+  }
+  // «Sono pronto» (natpf_ui apre prima il telefono se serve): l'host lo vede nella lobby
+  setReady(on = true){
+    this.ready = !!on;
+    const mc = this.engine.motionController; if (mc) mc.versusReady = this.ready;
+    this._paintGuest();
+  }
+  leave(){
+    this.setReady(false);
+    const u = new URL(location.href);
+    for (const k of ['room', 'role', 'net', 'format']) u.searchParams.delete(k);
+    location.href = u.pathname + (u.search || '');
+  }
+  get guest(){
+    const G = this.engine.versusGuest || {}, p2p = this.engine.natpfP2p;
+    const linked = p2p?.mode === 'guest' ? p2p.status === 'connected' : !!this.engine.roomStatus?.p1Online;
+    const age = G.lastSnapshotAt ? performance.now() - G.lastSnapshotAt : null;
+    const invalid = !!G.invalidSince && performance.now() - G.invalidSince > VERSUS.invalidMs;
+    return guestState({ linked, invalid, closed: G.closed, hostLobby: G.lobby !== false, lastSnapshotAgeMs: G.lobby === false ? age : null, everLinked: G.everLinked });
+  }
+  _paintGuest(){
+    const st = this.guest, el = document.querySelector('[data-versus-guest]');
+    if (el){ el.textContent = guestText(st, { ready: this.ready, hostName: this.engine.roomStatus?.hostName || 'Player 1' }); el.dataset.state = st; }
+    const go = $('natpf-guest-go');
+    if (go){ go.disabled = st !== 'lobby' && st !== 'connecting'; go.textContent = this.ready ? 'Pronto ✓' : 'Sono pronto ✓'; go.classList.toggle('selected', this.ready); }
+    return st;
+  }
+  _tickGuest(){
+    const st = this._paintGuest(), modal = $('natpf-guest-modal');
+    // il pannello resta aperto finché non si gioca; torna se l'host chiude, si perde il collegamento o si torna in lobby
+    if (modal) show(modal, st !== 'playing');
+    if (this._last !== st){
+      if (st === 'playing' && this._last) this.ui.toast('Si gioca!');
+      this._last = st;
+    }
+  }
+}

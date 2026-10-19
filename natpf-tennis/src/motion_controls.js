@@ -1,6 +1,7 @@
 // NATPF: posa continua della mano dalla webcam (racchetta e braccio), vedi src/natpf/webcam_hand_pose.js
 import { WebcamHandTracker, handPoseFromLandmarks, handPoseFromFlow } from "./natpf/webcam_hand_pose.js";
 import { relayedNatpf } from "./natpf/natpf_skill.js";
+import { newSwings } from "./natpf/natpf_versus.js";
 // NATPF: MediaPipe Hands dal pacchetto offline (npm @mediapipe/hands, servito sotto /assets/); CDN fissato solo di riserva
 export const MEDIAPIPE_LOCAL_BASE = "/assets/mediapipe/hands/";
 export const MEDIAPIPE_CDN_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/";
@@ -635,10 +636,16 @@ export class MotionController {
     const e = async () => {
       if (!this._disposed)
         try {
-          const t = `?room=${encodeURIComponent(this.roomId || "default")}&role=${encodeURIComponent(this.role || "p1")}&touch=1`,
+          // NATPF 1v1: touch con il proprio ruolo (prima «touch=1», che il relay ignorava: l'host non vedeva mai il P2
+          // online) e, dal P2, se è pronto in lobby
+          const t = `?room=${encodeURIComponent(this.roomId || "default")}&role=${encodeURIComponent(this.role || "p1")}&touch=${this.role === "p2" ? "p2" : "p1"}${this.role === "p2" && this.versusReady != null ? `&ready=${this.versusReady ? 1 : 0}` : ""}`,
             i = await fetch(`/api/match/state${t}`, { cache: "no-store" });
+          // NATPF 1v1: stanza che non esiste (link vecchio o sbagliato)
+          if (i.status === 404 && this.role === "p2") { typeof this.onRoomState == "function" && this.onRoomState({ invalidRoom: !0 }); return; }
           if (i.ok) {
             const a = await i.json();
+            // NATPF 1v1: relay ripartito (epoca nuova): i contatori dei colpi ricominciano da capo
+            a.epoch && a.epoch !== this.relayEpoch && (this.relayEpoch != null && ((this.lastProcessedPhoneSeq = 0), (this.lastProcessedP2PhoneSeq = 0)), (this.relayEpoch = a.epoch));
             typeof this.onRoomState == "function" && this.onRoomState(a);
             const n = a.p1 || a,
               h = a.p2 || null,
@@ -720,9 +727,10 @@ export class MotionController {
                 const o = Date.now() - Number(h.lastSwing.serverTimeMs || 0);
                 this.lastProcessedP2PhoneSeq = o < 1200 ? r - 1 : r;
               }
-              if (r > this.lastProcessedP2PhoneSeq) {
-                (this.lastProcessedP2PhoneSeq = r), (this.p2PhoneState.lastSwing = h.lastSwing);
-                const o = h.lastSwing;
+              // NATPF 1v1: tutti i colpi arrivati dall'ultima lettura, in ordine (prima solo l'ultimo: un lancio e il
+              // colpo del servizio nella stessa lettura perdevano il lancio)
+              for (const o of newSwings(h.swingHistory, this.lastProcessedP2PhoneSeq, h.lastSwing)) {
+                (this.lastProcessedP2PhoneSeq = o.seq), (this.p2PhoneState.lastSwing = o);
                 o.type === "toss"
                   ? this._emitP2Toss({
                       source: "phone",

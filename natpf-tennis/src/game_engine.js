@@ -32,6 +32,8 @@ import * as NS from "./natpf/natpf_skill.js";
 import { NatpfBodyFollow } from "./natpf/webcam_body_follow.js";
 // NATPF: sfida tra due computer anche senza server (sito statico): relay nel browser dell'host e WebRTC
 import { installNatpfP2p } from "./natpf/natpf_p2p.js";
+import { VERSUS, MATCH_PHASES, seqGate } from "./natpf/natpf_versus.js";
+const VERSUS_ROOM_KEY = "natpf.versus.room";
 const readStoredView = () => {
   try {
     return localStorage.getItem(VIEW_STORAGE_KEY);
@@ -369,7 +371,7 @@ export class NatpfTennisEngine {
     (this.matchConfig.difficulty = t),
       t === "1v1"
         ? ((this.isMultiplayer = !0),
-          (this.matchConfig.gamesToWin = 1),
+          // NATPF 1v1: la durata scelta nel menu vale anche tra due computer (prima sempre un game: il P2 non serviva mai)
           (this.player.maxSpeed = 9.8),
           (this.playerPartner.maxSpeed = 8.4),
           (this.opponent.maxSpeed = 9.6),
@@ -625,13 +627,12 @@ export class NatpfTennisEngine {
               ? this.setViewMode(this.viewMode === "first" ? "third" : "first")
             : i.code === "KeyR"
               ? this.hud.callbacks.onToggleReplay()
-              : this.isMultiplayer &&
+              : // NATPF 1v1: tasto del colpo del P2 solo sul computer del P2 e mandato all'host come ogni suo colpo
+                // (prima sull'host faceva giocare al P1 i colpi del P2, e sul P2 restava locale)
+                this.playerRole === "p2" &&
+                this.isMultiplayer &&
                 (i.code === "ShiftRight" || i.code === "KeyK" || i.code === "Numpad0") &&
-                this._handleP2SwingInput({
-                  source: "keyboard_p2",
-                  shotType: this.p2SelectedShotType,
-                  speed: 1.18,
-                }));
+                this.motionController?.triggerSyntheticSwing?.({ source: "keyboard", shotType: (this.p2SelectedShotType || "topspin").toLowerCase(), speed: 1.18 }));
       });
   }
   // NATPF: smartphone come racchetta (controller di NATPF Simulator) accanto a mouse, tastiera e webcam
@@ -691,10 +692,13 @@ export class NatpfTennisEngine {
   }
   async createMultiplayerRoom({ p1Name: e = "Player 1", p2Name: t = "Player 2" } = {}) {
     try {
+      // NATPF 1v1: dopo un ricaricamento della pagina si chiede di nuovo la stessa stanza: il P2 si ricollega da solo
+      let natpfRoom = "";
+      try { natpfRoom = sessionStorage.getItem(VERSUS_ROOM_KEY) || ""; } catch {}
       const i = await fetch("/api/match/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ p1Name: e, p2Name: t }),
+        body: JSON.stringify({ p1Name: e, p2Name: t, roomId: natpfRoom || void 0, gamesToWin: this.matchConfig.gamesToWin }),
       });
       if (i.ok) {
         const a = await i.json();
@@ -702,6 +706,8 @@ export class NatpfTennisEngine {
           return (
             (this.roomId = a.roomId),
             (this.isMultiplayer = !0),
+            (this.versus = { active: !0, closing: !1 }), // NATPF 1v1: la sessione nasce con la stanza
+            (() => { try { sessionStorage.setItem(VERSUS_ROOM_KEY, a.roomId); } catch {} })(),
             this._applyDifficultyTuning("1v1"),
             this.motionController &&
               this.motionController.setRoomConfig &&
@@ -724,6 +730,24 @@ export class NatpfTennisEngine {
       console.warn("[NATPF] Stanza 1v1 non creata:", i);
     }
     return null;
+  }
+  // NATPF 1v1: partita tra due computer in corso (non lobby, non dimostrazione)?
+  _versusInMatch() {
+    return !!this.versus?.active && !this.autoPlayMode && MATCH_PHASES.includes(this.phase);
+  }
+  // NATPF 1v1: l'host lascia la sfida (sceglie un'altra modalità): il P2 riceve «stanza chiusa», la stanza smette di
+  // comandare il motore (prima un colpo del P2 trasformava una partita contro la CPU in un 1v1 senza avversario)
+  endVersus() {
+    if (!this.versus?.active || this.playerRole === "p2") return;
+    this.versus = { active: !1, closing: !1 };
+    try { sessionStorage.removeItem(VERSUS_ROOM_KEY); } catch {}
+    const room = this.roomId;
+    room && room !== "default" &&
+      fetch("/api/match/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room, snapshot: { closed: !0 } }) }).catch(() => {});
+    (this.roomId = "default"), (this.isMultiplayer = !1), (this.pendingP2Swing = null);
+    this.motionController?.setRoomConfig?.({ roomId: "default", role: "p1" });
+    this.roomStatus = { ...this.roomStatus, roomId: "default", p2Online: !1, p2Ready: !1, isMultiplayer: !1 };
+    this.hud?.updateMultiplayerRoomInfo?.(this.roomStatus);
   }
   async loadAssetsAndStart() {
     const e = new D(),
@@ -1421,10 +1445,12 @@ export class NatpfTennisEngine {
     }
   }
   _handleP2TossInput(e = {}) {
+    // NATPF 1v1: sull'host il lancio del P2 vale solo a partita 1v1 in corso (non nel menu, non contro la CPU)
+    if (this.playerRole !== "p2" && !this._versusInMatch()) return !1;
     return (
       (this.userHasInteracted = !0),
       (this.isMultiplayer = !0),
-      this.phase === "TITLE"
+      this.phase === "TITLE" && this.playerRole === "p2"
         ? (this.hud.hideTitleModal(),
           (this.autoPlayMode = !1),
           (this.persistentStateLock = !1),
@@ -1441,12 +1467,14 @@ export class NatpfTennisEngine {
   _handleP2SwingInput(e = {}) {
     // NATPF: Player 2 mancino → il suo personaggio è specchiato anche sul computer dell'host
     const natpfHand = e.hand || (e.natpf && e.natpf.hand);
+    // NATPF 1v1: sull'host il colpo del P2 vale solo a partita 1v1 in corso. Prima ogni colpo del P2 (anche con
+    // l'host nel menu o contro la CPU) accendeva il 1v1 e ripristinava la durata a un game
+    if (this.playerRole !== "p2" && !this._versusInMatch()) return;
     natpfHand && this.playerRole !== "p2" && this.natpfUi && this.natpfUi.hand && this.natpfUi.hand.mirrorRemote && this.natpfUi.hand.mirrorRemote(this.opponent, natpfHand);
     if (
       ((this.userHasInteracted = !0),
       (this.isMultiplayer = !0),
-      this._applyDifficultyTuning("1v1"),
-      this.phase === "TITLE")
+      this.phase === "TITLE" && this.playerRole === "p2")
     ) {
       this.hud.hideTitleModal(),
         (this.autoPlayMode = !1),
@@ -1966,9 +1994,13 @@ export class NatpfTennisEngine {
     let u = "PERFECT";
     e.sweetSpotAssisted && p >= -1.85 && p <= 0.78
       ? (u = NS.assistGrade(e.natpfLead, NS.skillLevel("1v1")).grade) // NATPF skill gap
-      : p < -1.45 // NATPF skill gap: il voto dipende dal tempo, non dalla mira
-        ? (u = "EARLY")
-        : p > 0.68 && (u = "LATE");
+      : p < -2.65 // NATPF 1v1: anche il P2 può colpire molto in anticipo o molto in ritardo, come il P1
+        ? (u = "VERY EARLY")
+        : p < -1.45 // NATPF skill gap: il voto dipende dal tempo, non dalla mira
+          ? (u = "EARLY")
+          : p > 1.35
+            ? (u = "VERY LATE")
+            : p > 0.68 && (u = "LATE");
     // NATPF: il P2 con il telefono in verticale gioca come il P1: voto dal tempo vero del colpo, direzione da tempo e
     // polso, mano mancina, palla corta e pallonetto veri. Senza il campo natpf (webcam, tastiera, server vecchio) come prima.
     const natpfSwing = !!(e.natpf && e.natpf.aim === "swing" && !e.timing),
@@ -2008,7 +2040,8 @@ export class NatpfTennisEngine {
     let M = 8 + Math.random() * 2.6,
       R = w ? 0.72 : 0.86,
       v = w ? 20 : 15,
-      E = 0;
+      E = 0,
+      natpfP2Net = !1;
     r
       ? ((R = w ? 0.58 : 0.7), (M = 5.6 + Math.random() * 3.2))
       : natpfDrop
@@ -2022,13 +2055,18 @@ export class NatpfTennisEngine {
     natpfSwing && !natpfVery && !r && !natpfDrop && m !== "LOB" && m !== "SLICE" && (M = -NS.swingDepthZ(NS.powerNorm(y)));
     {
       const natpfS = NS.registerPlayerShot(this, { grade: u, quality: natpfP2Q, power: NS.powerNorm(y), landingX: T, shot: d ? "SMASH" : natpfDrop ? "DROP" : m, who: "p2" });
-      (M = -NS.playerDepthZ(-M, { quality: natpfP2Q, power: NS.powerNorm(y), level: NS.skillLevel("1v1") })),
+      (M = -NS.playerDepthZ(-M, { quality: natpfP2Q, power: NS.powerNorm(y), level: NS.skillLevel("1v1") }));
+      // NATPF 1v1: rischio d'errore come il P1 (lungo con la potenza, largo vicino alle righe, in rete fuori tempo).
+      // Prima il P2 non sbagliava mai: tutti i suoi colpi restavano dentro
+      const natpfP2Err = natpfDrop || r ? { kind: "ok" } : NS.playerErrorPlan({ quality: natpfP2Q, power: NS.powerNorm(y), aimX: T, level: NS.skillLevel("1v1") });
+      natpfP2Err.kind === "long" ? (M = -natpfP2Err.z) : natpfP2Err.kind === "wide" ? (T = natpfP2Err.x) : natpfP2Err.kind === "net" && (natpfP2Net = !0);
+      (natpfDrop || natpfLob) || (R = NS.mistimeFlight(R, natpfP2Q)),
         // NATPF: palla corta e pallonetto non accelerano con la serie di perfetti; il colpo del telefono passa la rete
         natpfDrop || natpfLob || (R = NS.streakFlight(R, natpfS.p2Streak, NS.skillLevel("1v1"))),
         natpfSwing && !natpfDrop && (R = NS.minClearFlight({ fromY: Math.max(0.78, Math.min(1.92, this.ball.pos.y)), fromZ: this.ball.pos.z, toZ: M, flight: R, topspin: v }));
       // NATPF varietà: come il P1, angolo stretto corto e altezza sulla rete dal colpo e dalla forza (anche senza telefono)
-      if (!r && !natpfDrop && !natpfVery && m !== "LOB") {
-        M = NS.angleDepth(T, M);
+      if (!r && !natpfDrop && !natpfVery && m !== "LOB" && !natpfP2Net) {
+        natpfP2Err.kind === "ok" && (M = NS.angleDepth(T, M));
         const A = NS.shotArc({ shot: w && m !== "SLICE" ? "FLAT" : m, power: NS.powerNorm(y), quality: natpfP2Q, fromY: Math.max(0.78, Math.min(1.92, this.ball.pos.y)), fromZ: this.ball.pos.z, toZ: M, flight: R });
         (R = A.flight), (v = A.topspin);
       }
@@ -2036,8 +2074,8 @@ export class NatpfTennisEngine {
     const k = this.ball.pos.clone();
     (k.y = Math.max(0.78, Math.min(1.92, k.y))),
       this.ball.pos.copy(k),
-      this._launchBallToTarget(k, new o.Vector3(T, 0, M), R, { topspin: v, sidespin: E, allowNetFault: !1 }),
-      NS.fixAir(this.ball, { from: k, to: { x: T, z: M }, topspin: v, sidespin: E, gravity: L.GRAVITY, drag: L.AIR_DRAG }), // NATPF varietà: la palla cade alla profondità voluta, come per il P1
+      this._launchBallToTarget(k, new o.Vector3(T, 0, M), R, { topspin: v, sidespin: E, allowNetFault: natpfP2Net }),
+      natpfP2Net || NS.fixAir(this.ball, { from: k, to: { x: T, z: M }, topspin: v, sidespin: E, gravity: L.GRAVITY, drag: L.AIR_DRAG }), // NATPF varietà: la palla cade alla profondità voluta, come per il P1
       // NATPF: palla corta e pallonetto veri del P2, compensati per l'attrito dell'aria come quelli del P1
       (this.ball.inPlay = !0),
       (this.ball.lastHitter = "opponent"),
@@ -2264,11 +2302,13 @@ export class NatpfTennisEngine {
     for (this.physicsAccumulator += t * i; this.physicsAccumulator >= L.FIXED_DT; )
       this._stepPhysics(L.FIXED_DT), (this.physicsAccumulator -= L.FIXED_DT);
     if (
-      (this.isMultiplayer &&
+      // NATPF 1v1: a partita in corso lo snapshot; con l'host in lobby solo lo stato della lobby (prima andavano al P2
+      // anche la dimostrazione del menu e il riscaldamento)
+      (this.versus?.active &&
         this.roomId &&
         this.roomId !== "default" &&
         this.playerRole === "p1" &&
-        this.elapsedTime - this.lastSyncSentAt >= 0.045 &&
+        this.elapsedTime - this.lastSyncSentAt >= (this._versusInMatch() ? VERSUS.matchEvery : VERSUS.lobbyEvery) &&
         ((this.lastSyncSentAt = this.elapsedTime), this._broadcastMultiplayerSnapshot()),
       this._updatePlayerAnimation(this.player, e),
       this.isDoubles && this._updatePlayerAnimation(this.playerPartner, e),
@@ -2443,7 +2483,8 @@ export class NatpfTennisEngine {
       return;
     }
     if (this.phase === "POINT_OVER") {
-      this.phaseTimer > 2.15 && this._setupPointServe({ showBanner: !0 });
+      // NATPF 1v1: il punto successivo lo prepara l'host (snapshot), non il computer del P2
+      this.phaseTimer > 2.15 && !(this.playerRole === "p2" && this.isMultiplayer) && this._setupPointServe({ showBanner: !0 });
       return;
     }
     if (this.phase === "RALLY" && this.ball.inPlay) {
@@ -2532,7 +2573,7 @@ export class NatpfTennisEngine {
         this.ball.lastHitter === "player" && this.ball.pos.z < -2)
       )
         if (this.isMultiplayer) {
-          const s = Math.hypot(this.ball.pos.x - this.opponent.pos.x, this.ball.pos.z - this.ball.pos.z),
+          const s = Math.hypot(this.ball.pos.x - this.opponent.pos.x, this.opponent.pos.z - this.ball.pos.z), // NATPF: prima z − z della palla (sempre 0)
             n = Math.hypot(
               this.ball.pos.x - this.opponentPartner.pos.x,
               this.opponentPartner.pos.z - this.ball.pos.z,
@@ -2553,7 +2594,7 @@ export class NatpfTennisEngine {
             if (this.elapsedTime > this.pendingP2Swing.expiresAt) this.pendingP2Swing = null;
             else {
               const p = h === this.opponentPartner ? 3.95 : 4.65;
-              if (r >= -0.85 && r <= 0.65 && Math.hypot(l, r) <= p && this.ball.pos.y < 2.35) {
+              if (r >= -0.85 && r <= 0.65 && Math.hypot(l, r) <= p && this.ball.pos.y < 3.4) { // NATPF: palle alte anche per il P2, come per il P1 (prima 2,35 m)
                 const c = this.pendingP2Swing.evt;
                 (this.pendingP2Swing = null), this._attemptP2RallyStrike(c);
                 return;
@@ -2674,6 +2715,12 @@ export class NatpfTennisEngine {
     } else e.vel.set(0, 0, 0);
   }
   _awardPoint(e, t = "") {
+    // NATPF 1v1: sul computer del P2 punti, game e fine partita li decide solo l'host (arrivano con gli snapshot).
+    // Prima il P2 simulava per conto suo e poteva dare punti diversi o chiudere la partita da solo
+    if (this.playerRole === "p2" && this.isMultiplayer) {
+      (this.ball.inPlay = !1), (this.pendingP2Swing = null), (this.pendingServeSwing = null);
+      return;
+    }
     (this.phase = "POINT_OVER"),
       (this.phaseTimer = 0),
       (this.ball.inPlay = !1),
@@ -2771,6 +2818,10 @@ export class NatpfTennisEngine {
       (this.lastBannerBroadcast = { seq: this.bannerSeq, text: e, style: t, subText: i });
   }
   _broadcastMultiplayerSnapshot() {
+    if (!this._versusInMatch()) {
+      fetch("/api/match/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room: this.roomId, snapshot: { lobby: !0, fmt: this.matchFormat.id, gamesToWin: this.matchConfig.gamesToWin } }) }).catch(() => {});
+      return;
+    }
     const e = (i) => ({
         px: Number(i.pos.x.toFixed(3)),
         pz: Number(i.pos.z.toFixed(3)),
@@ -2806,6 +2857,9 @@ export class NatpfTennisEngine {
         },
         banner: this.lastBannerBroadcast,
         fmt: this.matchFormat.id, // NATPF: il P2 gioca nello stesso formato dell'host
+        gamesToWin: this.matchConfig.gamesToWin,
+        spin: [Number(this.ball.spin.x.toFixed(2)), Number(this.ball.spin.y.toFixed(2))],
+        bounces: this.ball.bounceCountOnCurrentSide,
       };
     fetch("/api/match/sync", {
       method: "POST",
@@ -2815,14 +2869,21 @@ export class NatpfTennisEngine {
   }
   _handleRoomStateUpdate(e = {}) {
     if (!e) return;
+    // NATPF 1v1: stato del Player 2 (stanza inesistente, chiusa, lobby dell'host, snapshot)
+    const G = this.playerRole === "p2" ? (this.versusGuest ||= { invalidSince: 0, closed: !1, lobby: !0, lastSnapshotAt: 0, everLinked: !1, gate: null }) : null;
+    if (G && e.invalidRoom) {
+      G.invalidSince ||= performance.now();
+      return;
+    }
+    G && (G.invalidSince = 0);
     const t = !!(this.roomStatus.p2Online || this.roomStatus.p2Phone),
       i = !!(this.roomStatus.p1Online || this.roomStatus.p1Phone),
       a = !!(e.p2Online || e.p2?.connected),
       s = !!(e.p1Online || e.p1?.connected);
     if (
       (a && !t
-        ? ((this.isMultiplayer = !0),
-          this._applyDifficultyTuning("1v1"),
+        ? // NATPF 1v1: il P2 che si collega non cambia più il livello della partita dell'host (lo fa la stanza, una volta)
+          (this.versus?.active &&
           this.playerRole !== "p2" &&
             this.audioEngine &&
             this.audioEngine.playServeToss &&
@@ -2839,6 +2900,7 @@ export class NatpfTennisEngine {
         guestName: e.guestName || this.roomStatus.guestName || "Player 2",
         p1Online: !!e.p1Online,
         p2Online: !!e.p2Online,
+        p2Ready: !!e.p2Ready,
         p1Phone: !!e.p1?.connected,
         p2Phone: !!e.p2?.connected,
         isMultiplayer: !!(this.isMultiplayer || (this.roomId && this.roomId !== "default")),
@@ -2847,19 +2909,43 @@ export class NatpfTennisEngine {
         urls: e.urls || this.roomStatus.urls || null,
       }),
       this.hud && this.hud.updateMultiplayerRoomInfo && this.hud.updateMultiplayerRoomInfo(this.roomStatus),
-      this.playerRole === "p2" &&
+      G &&
         e.snapshot &&
-        typeof e.snapshotSeq == "number" &&
-        e.snapshotSeq > this.lastAppliedSnapshotSeq)
+        // NATPF 1v1: contatore con l'epoca del relay (se il relay riparte non si scartano più tutti gli snapshot)
+        seqGate((G.gate ||= { epoch: null, last: this.lastAppliedSnapshotSeq || 0 }), { epoch: e.epoch ?? null, seq: e.snapshotSeq }).ok)
     ) {
       this.lastAppliedSnapshotSeq = e.snapshotSeq;
       const n = e.snapshot;
+      G.everLinked = !0;
       n.fmt && n.fmt !== this.matchFormat.id && this.setMatchFormat(n.fmt);
+      n.gamesToWin && (this.matchConfig.gamesToWin = n.gamesToWin);
+      // l'host ha chiuso la stanza o è in lobby: niente partita da mostrare
+      if (n.closed) { G.closed = !0; G.lobby = !0; return; }
+      G.closed = !1;
+      G.lastSnapshotAt = performance.now();
+      if (n.lobby) {
+        G.lobby = !0;
+        return;
+      }
+      // host in pausa (o in attesa del P2): la partita resta com'è, il collegamento è vivo
+      if (n.paused) {
+        G.lobby = !1;
+        return;
+      }
+      const wasOver = this.phase === "MATCH_OVER";
+      G.lobby = !1;
       n.phase &&
         n.phase !== "TITLE" &&
         (this.phase === "TITLE" && this.hud.hideTitleModal(),
         (this.phase = n.phase),
+        // NATPF 1v1: anche il tempo della fase (prima il P2 teneva il suo e preparava il servizio per conto suo)
+        typeof n.phaseTimer == "number" && (this.phaseTimer = n.phaseTimer),
         (this.cameraMode = n.cameraMode || this.cameraMode)),
+        // NATPF 1v1: fine partita decisa dall'host → schermata finale anche sul P2 (prima solo il banner)
+        n.phase === "MATCH_OVER" &&
+          !wasOver &&
+          n.score &&
+          setTimeout(() => this.hud.showVictoryModal({ playerWon: n.score.opponentGames > n.score.playerGames, playerGames: n.score.playerGames, opponentGames: n.score.opponentGames }), 1800),
         n.score && ((this.score = { ...this.score, ...n.score }), this._syncScoreboardHUD()),
         n.ball &&
           (this.ball.pos.set(n.ball.px, n.ball.py, n.ball.pz),
@@ -2869,6 +2955,8 @@ export class NatpfTennisEngine {
           (this.ball.shotType = n.ball.shotType || "TOPSPIN"),
           (this.ball.isPowerShot = !!n.ball.isPowerShot),
           (this.ball.rallyStrokeCount = Number(n.ball.rallyStrokeCount || 0)),
+          Array.isArray(n.spin) && this.ball.spin.set(Number(n.spin[0]) || 0, Number(n.spin[1]) || 0, 0),
+          typeof n.bounces == "number" && (this.ball.bounceCountOnCurrentSide = n.bounces),
           this.ballTrail.setStyle(this.ball.shotType, this.ball.isPowerShot));
       const h = (r, l) => {
         l &&

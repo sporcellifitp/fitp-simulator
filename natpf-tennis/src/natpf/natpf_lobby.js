@@ -118,6 +118,11 @@ export class NatpfLobby {
     // la scelta della modalità decide gli avversari della pagina «Partita»: CPU (facile o esperta) o 1v1 con invito
     const diff = this.engine.hud?.selectedDifficulty;
     if (mode === 'friend' && diff !== '1v1') document.querySelector('#difficulty-mode-group [data-difficulty="1v1"]')?.click();
+    // sfida un amico: la stanza nasce subito (così l'amico può entrare mentre si prepara la racchetta); scegliendo
+    // un'altra modalità la stanza si chiude e il Player 2 lo sa (prima restava aperta e i suoi colpi dirottavano la
+    // partita contro la CPU)
+    if (mode === 'friend' && diff === '1v1' && !this.engine.versus?.active && this.engine.playerRole !== 'p2') this.engine.createMultiplayerRoom?.();
+    if (mode !== 'friend') this.engine.endVersus?.();
     if (mode === 'cpu' && diff === '1v1') document.querySelector('#difficulty-mode-group [data-difficulty="casual"]')?.click();
     for (const b of document.querySelectorAll('#difficulty-mode-group [data-difficulty]')) show(b, mode === 'friend' ? b.dataset.difficulty === '1v1' : b.dataset.difficulty !== '1v1');
     this.paint();

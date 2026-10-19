@@ -6,6 +6,7 @@ import { controllerTiles, viewTiles, controllerStatus } from './natpf_tiles.js';
 import { NatpfOnboarding } from './natpf_onboarding.js';
 import { NatpfLobby } from './natpf_lobby.js';
 import { guestInviteUrl } from './natpf_lan.js';
+import { NatpfVersusUi } from './natpf_versus_ui.js';
 import { NatpfPause } from './natpf_pause.js';
 import { NatpfShotFeedback } from './natpf_shot_feedback.js';
 import { NatpfHand } from './natpf_hand.js';
@@ -24,6 +25,9 @@ const CONTROLLERS = ['phone', 'webcam', 'mouse'].map(id => ({ id }));
 // testi dello stato della sfida senza server (natpf_p2p.js), per l'host e per il Player 2
 export function p2pStatusText(mode, status, error = null){
   const host = mode === 'host';
+  // Player 2: host introvabile da tempo, o stanza già occupata da un altro Player 2
+  if (!host && error === 'chiusa' && status !== 'connected') return 'L’host non risponde: forse ha chiuso la partita. Riprovo da solo; se non torna, chiedi un nuovo link';
+  if (!host && error === 'occupata') return 'Nella stanza c’è già un Player 2: riprovo tra poco, entri appena si libera';
   switch (status){
     case 'waiting': return 'In attesa del Player 2…';
     case 'connected': return host ? 'Player 2 collegato ✓' : 'Collegato all’host ✓';
@@ -68,6 +72,7 @@ export class NatpfUi {
     this.onboarding = new NatpfOnboarding({ getController: () => this.controller, onPractice: () => this.lobby.startPractice(), onOpen: () => this._syncPause(), onClose: () => this._syncPause() });
     this.lobby = this.flow = new NatpfLobby(engine, this, this.onboarding);
     this.pause = new NatpfPause(engine, this);
+    this.versus = new NatpfVersusUi(engine, this);
     this.kiosk = new NatpfKiosk(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
     this.intro = new NatpfIntro({ onDone: () => { if (this.lobby.visible) this.lobby.go('menu'); } });
@@ -81,7 +86,13 @@ export class NatpfUi {
       show($('natpf-guest-modal'));
       // sfida senza server: stato del collegamento con l'host sotto il titolo
       if (engine.natpfP2p?.mode === 'guest'){ $('natpf-guest-modal')?.querySelector('.sheet-desc')?.insertAdjacentHTML('afterend', '<p class="natpf-p2p-status" data-p2p-status></p>'); this._watchP2p(); }
-      $('natpf-guest-go')?.addEventListener('click', () => { show($('natpf-guest-modal'), false); if (this.controller === 'phone' && !this.phone.ready) this.openPhone(); });
+      // «Sono pronto»: con il telefono scelto prima lo si collega; l'host vede il Player 2 pronto nella lobby
+      $('natpf-guest-go')?.addEventListener('click', () => {
+        if (this.versus.ready){ this.versus.setReady(false); return; }
+        if (this.controller === 'phone' && !this.phone.ready){ show($('natpf-guest-modal'), false); this.openPhone({ after: () => this.versus.setReady(true) }); return; }
+        this.versus.setReady(true);
+      });
+      document.documentElement.classList.add('versus-guest');
     }
     // la scelta salvata vale anche per motore base (webcam accesa all'avvio della partita)
     this.selectController(this.controller, { open: false });
@@ -114,7 +125,7 @@ export class NatpfUi {
   }
   // il gioco resta fermo mentre si leggono le istruzioni o si collega il telefono a partita in corso
   _syncPause(){
-    const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen;
+    const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen || this.engine.natpfVersusWait;
     this.engine.natpfPaused = !!busy && !this.engine.autoPlayMode && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(this.engine.phase);
   }
   tick(dt = 1/60){ this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); }
@@ -240,6 +251,8 @@ export class NatpfUi {
   // Con lo smartphone scelto si entra in campo quando la racchetta è pronta (mouse e tastiera restano attivi).
   _bindStart(){
     $('btn-start-match')?.addEventListener('click', e => {
+      // sfida tra due computer: si parte solo con il Player 2 entrato e pronto
+      if (this.lobby?.mode === 'friend' && this.versus?.hostActive && !this.versus.canStart()){ e.stopImmediatePropagation(); this.toast(this.versus.state === 'waiting' ? 'Manda il link al Player 2: la partita parte quando è pronto' : 'Il Player 2 sta scegliendo la racchetta: aspetta «pronto»'); return; }
       if (this.controller === 'phone' && !this.phone.ready){ e.stopImmediatePropagation(); this.openPhone({ after: () => $('btn-start-match')?.click() }); return; }
       this.wipe(this.lobby?.mode === 'friend' ? 'Sfida 1v1' : 'Si gioca');
     }, true);
@@ -259,11 +272,16 @@ export class NatpfUi {
     // senza server (sito statico) la stanza vive in questo browser e il P2 si collega in WebRTC (natpf_p2p.js)
     const p2p = room.net === 'p2p';
     const { url, reachable } = await guestInviteUrl(room.roomId, { p2p, format: this.engine.matchFormat?.id });
-    box.innerHTML = `<b>Player 2</b>: apri sull'altro computer <a href="${url}" target="_blank" rel="noopener">${url}</a> <button type="button" class="nt-pill-btn" data-copy>Copia</button>
+    // lobby della sfida: codice, link da mandare e i tre passi con lo stato (natpf_versus_ui.js li aggiorna)
+    box.innerHTML = `<div class="versus-code"><span>Codice stanza</span><b data-room-code>${room.roomId}</b></div>
+      <p class="versus-how">Manda questo link all’amico: lo apre sul suo computer, sceglie la racchetta e preme «Sono pronto».</p>
+      <div class="versus-link"><a href="${url}" target="_blank" rel="noopener">${url}</a> <button type="button" class="nt-pill-btn" data-copy>Copia link</button></div>
+      <ul class="versus-lines" data-versus-lines></ul>
       ${p2p ? '<small class="natpf-p2p-status" data-p2p-status></small>' : ''}
       ${!reachable ? '<small>Il gioco è aperto da localhost: per un altro computer usa l’indirizzo di rete (avvia-lan.cmd lo mostra, es. https://192.168.x.x:8443).</small>' : ''}`;
     box.querySelector('[data-copy]')?.addEventListener('click', ev => { ev.stopPropagation(); navigator.clipboard?.writeText(url).then(() => { ev.target.textContent = 'Copiato ✓'; }).catch(() => {}); });
     show(box);
+    this.versus?.paintLobby();
     if (p2p) this._watchP2p();
   }
   // stato del collegamento senza server: nell'invito (host) e nel pannello del Player 2, con un avviso quando cambia

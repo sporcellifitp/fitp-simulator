@@ -958,3 +958,99 @@ html:not(.autoplay-mode) #hud-root {
   right: 14px;
   font-size: 15px;
 }
+/* sfida un amico (src/natpf/natpf_versus_ui.js): lobby dell'host e stato del Player 2 */
+.natpf-invite .versus-code {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  width: 100%;
+  word-break: normal;
+}
+.natpf-invite .versus-code span {
+  color: var(--lb-muted);
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.natpf-invite .versus-code b {
+  color: var(--lb-ball);
+  font: 800 28px var(--lb-font);
+  letter-spacing: 0.08em;
+}
+.natpf-invite .versus-how {
+  width: 100%;
+  margin: 0;
+  color: var(--lb-muted);
+  word-break: normal;
+}
+.natpf-invite .versus-link {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+.versus-lines {
+  width: 100%;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  word-break: normal;
+}
+.versus-lines li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 0;
+  color: var(--lb-muted);
+}
+.versus-lines li::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--lb-line);
+  border-radius: 50%;
+  flex: none;
+}
+.versus-lines li.on {
+  color: var(--lb-ink);
+}
+.versus-lines li.on::before {
+  border-color: #f5b942;
+  background: #f5b942;
+  animation: versus-pulse 1.2s ease-in-out infinite;
+}
+.versus-lines li.ok {
+  color: var(--lb-ink);
+}
+.versus-lines li.ok::before {
+  border-color: #3fd47a;
+  background: #3fd47a;
+}
+@keyframes versus-pulse {
+  50% { opacity: 0.35; }
+}
+#btn-start-match.waiting {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.natpf-versus-status {
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  border-left: 4px solid #f5b942;
+  background: var(--lb-panel, rgba(255, 255, 255, 0.06));
+  font-weight: 700;
+}
+.natpf-versus-status[data-state="lobby"],
+.natpf-versus-status[data-state="playing"] {
+  border-color: #3fd47a;
+}
+.natpf-versus-status[data-state="lost"],
+.natpf-versus-status[data-state="closed"],
+.natpf-versus-status[data-state="invalid"] {
+  border-color: #ff5a5a;
+}
+/* il Player 2 non riavvia la partita: la rivincita la decide l'host */
+.versus-guest #btn-play-again {
+  display: none;
+}

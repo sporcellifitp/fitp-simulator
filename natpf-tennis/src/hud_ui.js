@@ -85,12 +85,8 @@ export class HudUI {
         a.classList.toggle("selected", a.dataset.difficulty === e);
       });
     const o = document.getElementById("match-length-section");
-    if (e === "1v1")
-      o && o.classList.add("hidden"),
-        (this.selectedGamesToWin = 1),
-        this.configureGameBubbles(1),
-        n && this.callbacks.onSelectMatchLength && this.callbacks.onSelectMatchLength(1);
-    else {
+    // NATPF 1v1: anche tra due computer si sceglie la durata (prima sempre un game: il servizio non passava mai al P2)
+    {
       o && o.classList.remove("hidden");
       const a = document.querySelector("#match-length-group .nt-green-choice.selected"),
         r = parseInt(a?.dataset?.games || "3", 10);
