@@ -413,6 +413,28 @@
 .natpf-invite.hidden {
   display: none;
 }
+/* sfida senza server (src/natpf/natpf_p2p.js): stato del collegamento tra i due computer */
+.natpf-p2p-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  word-break: normal;
+}
+.natpf-p2p-status::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #f5b942;
+  flex: none;
+}
+.natpf-p2p-status[data-state="connected"]::before {
+  background: #3fd47a;
+}
+.natpf-p2p-status[data-state="lost"]::before,
+.natpf-p2p-status[data-state="error"]::before {
+  background: #ff5a5a;
+}
 .lobby-result b {
   color: var(--lb-ball);
   font-style: italic;

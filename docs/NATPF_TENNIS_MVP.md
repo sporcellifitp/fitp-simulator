@@ -545,3 +545,43 @@ seguiva nulla prima del colpo (il flusso dei sensori c'era solo in LAN).
 Analisi della catena LAN e internet, dieci cause trovate e corrette, nuova mappatura dei gesti (pallonetto e
 schiacciata verticali, palla corta con tre segnali, mira dal piatto all'impatto uguale per dritto e rovescio),
 pannello di diagnostica con registrazione e rianalisi: [NATPF_GESTI_E_LATENZA.md](NATPF_GESTI_E_LATENZA.md).
+
+## Sfida tra due computer sul sito statico (19 ottobre 2026)
+
+Sul sito pubblicato (Cloudflare, solo file statici) `/api/match/*` non esiste e il 1v1 tra due computer non partiva.
+Ora la stanza può vivere nel browser dell'host e il Player 2 gli parla in WebRTC, senza cambiare motore e
+`motion_controls.js` (`src/natpf/natpf_p2p.js`):
+
+- **Quando si attiva.** All'avvio di una sfida l'host prova `/api/match/create`: se risponde 404, una pagina HTML o un
+  errore di rete, oppure se l'indirizzo ha `?net=p2p`, la stanza si crea nel browser. In LAN (`lan/server.mjs`) e con
+  `npm run dev` il server risponde e resta tutto come prima.
+- **Host.** `fetch` viene intercettato solo per `/api/match/*`, `/api/racket/*`, `/api/body` e `/api/tunnel/*`: le
+  richieste le serve `scripts/match-relay.mjs` (lo stesso modulo del server, eseguito nel browser con richiesta e
+  risposta finte, quindi stesso JSON). L'host apre un Peer PeerJS con id `natpf-sfida-<stanza>` sul server di
+  segnalazione pubblico già usato dal telefono (`?peer=host:porta` per un server di prova, passato anche al P2).
+- **Player 2.** Il link di invito è la stessa pagina con `?room=<id>&role=p2&net=p2p` (più `format` se l'host non
+  gioca il singolare). Le sue richieste diventano RPC sulla DataConnection affidabile (`{t:'rq'}` → `{t:'rs'}`); l'host
+  accetta solo stato e colpi (non lo snapshot né nuove stanze) e impone la propria stanza.
+- **Stato e riconnessione.** Nell'invito dell'host: in attesa, Player 2 collegato, scollegato (si ricollega da solo),
+  errore della segnalazione; per il P2 lo stesso stato sotto «Sei il Player 2» e un avviso quando cambia. Il P2 riprova
+  a collegarsi ogni 1–5 s (anche se apre il link prima che l'host sia online o se la rete di uno dei due cade per qualche secondo); 5 s senza
+  messaggi valgono come collegamento perso.
+
+**Colpo del P2 con gli stessi dati del P1.** Il colpo del telefono del P2 (`natpfSwingToEngine` → `mc._emitSwing`)
+viaggia ora con `natpf` (colpo riconosciuto, polso e fonte della mira, forza, latenza, preparazione) e `hand`; il relay
+li conserva (`natpfSwingExtras`, solo se presenti), l'host li passa a `_emitP2Swing` aggiungendo alla latenza il tempo
+passato nel relay (`relayedNatpf`). `_attemptP2RallyStrike` li usa come il P1: voto dal tempo vero del colpo, direzione
+da tempo e polso specchiata per chi guarda verso +z, mano mancina, palla corta e pallonetto veri (con la compensazione
+dell'aria), profondità dalla forza, nomi dei colpi speciali. Senza `natpf` il colpo del P2 resta quello di prima. Un
+P2 mancino è specchiato anche sullo schermo dell'host.
+
+Test: `test/natpf-p2p.test.mjs` (relay nel browser, RPC su canali finti, Peer finti con riconnessione, fetch
+intercettato su sito statico e con server, colpo del P2 dal `_emitSwing` all'host e nel motore senza browser).
+
+**Da provare con due computer veri:**
+- sito pubblicato su due reti diverse (casa/ufficio, hotspot del telefono): WebRTC senza server TURN può non passare
+  dietro NAT simmetrici o reti aziendali; in quel caso il P2 resta su «Mi collego all'host…»;
+- fluidità del P2 con lo stato letto ogni 50 ms via DataConnection (circa 20 richieste al secondo) e tempo del colpo
+  del P2: il viaggio dal suo computer all'host non è misurato e non entra nella latenza;
+- ricarica della pagina dell'host a partita in corso (la stanza in memoria si perde: serve una nuova sfida) e telefono
+  del P2 collegato al suo computer mentre lui gioca via WebRTC con l'host.

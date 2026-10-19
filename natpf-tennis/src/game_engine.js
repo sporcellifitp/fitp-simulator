@@ -30,6 +30,8 @@ import { createNatpfCast, finishNatpfActor, updateNatpfCharacters } from "./natp
 // NATPF skill gap: assistenza del tempo graduata, mira e rischio del giocatore, limiti ed errori della CPU
 import * as NS from "./natpf/natpf_skill.js";
 import { NatpfBodyFollow } from "./natpf/webcam_body_follow.js";
+// NATPF: sfida tra due computer anche senza server (sito statico): relay nel browser dell'host e WebRTC
+import { installNatpfP2p } from "./natpf/natpf_p2p.js";
 const readStoredView = () => {
   try {
     return localStorage.getItem(VIEW_STORAGE_KEY);
@@ -1437,6 +1439,9 @@ export class NatpfTennisEngine {
     );
   }
   _handleP2SwingInput(e = {}) {
+    // NATPF: Player 2 mancino → il suo personaggio è specchiato anche sul computer dell'host
+    const natpfHand = e.hand || (e.natpf && e.natpf.hand);
+    natpfHand && this.playerRole !== "p2" && this.natpfUi && this.natpfUi.hand && this.natpfUi.hand.mirrorRemote && this.natpfUi.hand.mirrorRemote(this.opponent, natpfHand);
     if (
       ((this.userHasInteracted = !0),
       (this.isMultiplayer = !0),
@@ -1892,7 +1897,7 @@ export class NatpfTennisEngine {
       h = Math.hypot(n, s),
       r = this.isDoubles && this.ball.pos.z < -0.3 && this.ball.pos.z >= -7.6 && h <= 3.95 && h < a,
       l = r ? this.opponentPartner : this.opponent,
-      p = r ? s : t,
+      p = (r ? s : t) - NS.latencyShift(e, this.ball.vel.z), // NATPF: telefono del P2 in verticale, la palla quando il telefono ha colpito (0 senza dati NATPF)
       g = r ? n : i,
       c = r ? h : a;
     if (l.swingCooldown > 0) return !1;
@@ -1956,6 +1961,14 @@ export class NatpfTennisEngine {
       : p < -1.45 // NATPF skill gap: il voto dipende dal tempo, non dalla mira
         ? (u = "EARLY")
         : p > 0.68 && (u = "LATE");
+    // NATPF: il P2 con il telefono in verticale gioca come il P1: voto dal tempo vero del colpo, direzione da tempo e
+    // polso, mano mancina, palla corta e pallonetto veri. Senza il campo natpf (webcam, tastiera, server vecchio) come prima.
+    const natpfSwing = !!(e.natpf && e.natpf.aim === "swing" && !e.timing),
+      natpfLv = NS.skillLevel("1v1"),
+      natpfTau = natpfSwing ? (e.sweetSpotAssisted ? Number(e.natpfLead || 0) + NS.eventLatency(e) : NS.swingTiming(p, this.ball.vel.z)) : 0,
+      natpfDrop = !!(e.natpfDrop || (e.natpf && e.natpf.shot === "drop")),
+      natpfLob = !!e.natpf && m === "LOB";
+    natpfSwing && (u = NS.swingGrade(natpfTau, natpfLv).grade);
     const w = (u === "PERFECT" || m === "FLAT" || d) && y >= 0.98,
       x = l.pos.x >= 0 ? 1 : -1,
       _ = o.MathUtils.clamp(Number(e.dirX || 0), -1, 1);
@@ -1967,26 +1980,51 @@ export class NatpfTennisEngine {
       T = Math.abs(_) > 0.22 ? -_ * (2.65 + Math.random() * 0.95) : C * (2.35 + Math.random() * 1.25);
     }
     // NATPF skill gap: anche il Player 2 rischia vicino alle righe con potenza e tempo sbagliato (prima: sempre dentro)
-    const natpfP2Q = e.sweetSpotAssisted && p >= -1.85 && p <= 0.78 ? NS.assistGrade(e.natpfLead, NS.skillLevel("1v1")).quality : NS.timingQuality(u, p);
-    T = NS.landingScatter(T, { quality: natpfP2Q, power: NS.powerNorm(y), level: NS.skillLevel("1v1") });
+    const natpfP2Q = natpfSwing
+      ? NS.swingQuality(natpfTau, natpfLv) * NS.prepQuality(e.natpf) * NS.reachQuality(g, l.vel.length() / Math.max(1, l.maxSpeed))
+      : e.sweetSpotAssisted && p >= -1.85 && p <= 0.78 ? NS.assistGrade(e.natpfLead, NS.skillLevel("1v1")).quality : NS.timingQuality(u, p);
+    T = natpfSwing
+      ? // NATPF: come il P1 (swingLandingX), specchiato: il P2 guarda verso +z, la sua destra è −x
+        -NS.swingLandingX({
+          timing: natpfTau,
+          contact: (f ? -1 : 1) * ((e.natpf.hand || e.hand) === "left" ? -1 : 1),
+          wrist: e.natpf.wrist,
+          aimSource: e.natpf.aimSource,
+          quality: natpfP2Q,
+          power: NS.powerNorm(y),
+          level: natpfLv,
+        })
+      : NS.landingScatter(T, { quality: natpfP2Q, power: NS.powerNorm(y), level: NS.skillLevel("1v1") });
+    const natpfVery = u === "VERY EARLY" || u === "VERY LATE";
+    natpfVery && (T *= 0.75);
     let M = 8 + Math.random() * 2.6,
       R = w ? 0.72 : 0.86,
       v = w ? 20 : 15,
       E = 0;
     r
       ? ((R = w ? 0.58 : 0.7), (M = 5.6 + Math.random() * 3.2))
+      : natpfDrop
+        ? ((M = 2.7 + Math.random() * 1.5), (R = Math.max(1.32, (Math.abs(this.ball.pos.z) + M) / 10)), (v = -2), (E = 0)) // NATPF: palla corta vera anche per il P2
+      : natpfLob
+        ? ((R = NS.LOB_FLIGHT + Math.random() * 0.2), (M = 9 + Math.random() * 2), (v = 4)) // NATPF: pallonetto vero anche per il P2
       : m === "LOB"
         ? ((R = 1.3), (M = 9 + Math.random() * 2), (v = 4))
         : m === "SLICE" && ((R = 0.98), (M = 6.8 + Math.random() * 2.5), (v = -6), (E = x * 10));
+    // NATPF: telefono in verticale → profondità dalla forza vera del gesto, come il P1 (z positiva: metà campo del P1)
+    natpfSwing && !natpfVery && !r && !natpfDrop && m !== "LOB" && m !== "SLICE" && (M = -NS.swingDepthZ(NS.powerNorm(y)));
     {
-      const natpfS = NS.registerPlayerShot(this, { grade: u, quality: natpfP2Q, power: NS.powerNorm(y), landingX: T, shot: d ? "SMASH" : m, who: "p2" });
+      const natpfS = NS.registerPlayerShot(this, { grade: u, quality: natpfP2Q, power: NS.powerNorm(y), landingX: T, shot: d ? "SMASH" : natpfDrop ? "DROP" : m, who: "p2" });
       (M = -NS.playerDepthZ(-M, { quality: natpfP2Q, power: NS.powerNorm(y), level: NS.skillLevel("1v1") })),
-        (R = NS.streakFlight(R, natpfS.p2Streak, NS.skillLevel("1v1")));
+        // NATPF: palla corta e pallonetto non accelerano con la serie di perfetti; il colpo del telefono passa la rete
+        natpfDrop || natpfLob || (R = NS.streakFlight(R, natpfS.p2Streak, NS.skillLevel("1v1"))),
+        natpfSwing && !natpfDrop && (R = NS.minClearFlight({ fromY: Math.max(0.78, Math.min(1.92, this.ball.pos.y)), fromZ: this.ball.pos.z, toZ: M, flight: R, topspin: v }));
     }
     const k = this.ball.pos.clone();
     (k.y = Math.max(0.78, Math.min(1.92, k.y))),
       this.ball.pos.copy(k),
       this._launchBallToTarget(k, new o.Vector3(T, 0, M), R, { topspin: v, sidespin: E, allowNetFault: !1 }),
+      // NATPF: palla corta e pallonetto veri del P2, compensati per l'attrito dell'aria come quelli del P1
+      (natpfDrop || natpfLob) && this.ball.vel.multiplyScalar(1 + L.AIR_DRAG * this.ball.vel.length() * R * 0.35),
       (this.ball.inPlay = !0),
       (this.ball.lastHitter = "opponent"),
       (this.ball.bounceCountOnCurrentSide = 0),
@@ -2014,11 +2052,15 @@ export class NatpfTennisEngine {
           u === "PERFECT" ? "perfect" : "good",
         );
     const O = Math.round(this.ball.vel.length() * 6.8),
+      // NATPF: i colpi speciali del P2 si vedono per nome, come quelli del P1
+      natpfP2Special = natpfSwing || natpfDrop ? (d ? "SMASH" : natpfDrop ? "DROP SHOT" : m === "LOB" ? "LOB" : m === "SLICE" ? "SLICE" : null) : null,
       N = r
         ? "NET VOLLEY"
-        : u === "EARLY"
+        : natpfP2Special
+          ? natpfP2Special
+        : u === "EARLY" || u === "VERY EARLY"
           ? "CROSS-COURT"
-          : u === "LATE"
+          : u === "LATE" || u === "VERY LATE"
             ? "DOWN THE LINE"
             : `SWEET SPOT ${m}`,
       I = this._projectToScreen(l.pos.clone().add(new o.Vector3(0, 2.35, 0)));
@@ -3135,6 +3177,8 @@ export class NatpfTennisEngine {
   }
 }
 window.addEventListener("DOMContentLoaded", () => {
+  // NATPF: prima del motore, che interroga subito il relay della partita
+  const p2p = installNatpfP2p();
   const P = new NatpfTennisEngine();
-  (P.natpfUi = new NatpfUi(P)), (window.__natpfTennis = P), P.loadAssetsAndStart();
+  (P.natpfP2p = p2p), (P.natpfUi = new NatpfUi(P)), (window.__natpfTennis = P), P.loadAssetsAndStart();
 });
