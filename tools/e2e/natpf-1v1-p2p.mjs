@@ -137,4 +137,6 @@ try {
   check('prova 1v1 p2p', false, String(err?.stack || err).split('\n').slice(0, 3).join(' '));
 } finally {
   await B.close(); stop(); summary();
+  // il server di segnalazione tiene aperti i socket: si esce con il risultato
+  setTimeout(() => process.exit(), 300);
 }
