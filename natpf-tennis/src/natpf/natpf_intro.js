@@ -1,5 +1,5 @@
-// Intro all'avvio, come l'accensione di un gioco su console: marchi (ESPORTS FITP «presenta», Nitto ATP Finals
-// eSERIES), titolo NATPF Simulator con la palla che lo attraversa, poi «Premi un tasto per iniziare». Un tasto, un clic
+// Intro all'avvio, come l'accensione di un gioco su console: marchi (ESPORTS FITP «presenta», Nitto ATP Finals), titolo
+// NATPF Simulator con la palla che lo attraversa, poi «Premi un tasto per iniziare». Un tasto, un clic
 // o un tocco durante l'animazione la porta alla fine; alla fine fa partire il menu (e sblocca l'audio del browser,
 // che vuole un gesto). La seconda volta nella stessa sessione si vede solo il titolo. ?intro=0 la salta (prove).
 const $ = id => document.getElementById(id);

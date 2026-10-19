@@ -28,7 +28,7 @@ con hardware vero (telefono in mano, webcam con una persona, Wi-Fi di un evento)
 
 | Tappa | Cosa c'è | Verifica |
 |---|---|---|
-| Intro | ESPORTS FITP «presenta», Nitto ATP Finals eSERIES, titolo con la palla, «Premi un tasto»; saltabile; breve se già vista nella sessione; `?intro=0` per le prove | **provato** nel browser (fotogrammi) |
+| Intro | ESPORTS FITP «presenta», Nitto ATP Finals, titolo con la palla, «Premi un tasto»; saltabile; breve se già vista nella sessione; `?intro=0` per le prove | **provato** nel browser (fotogrammi) |
 | Menu principale | Gioca · Allenamento · Come si gioca · Opzioni, con frecce, Invio ed Esc | **provato** nel browser |
 | Modalità | Contro la CPU · Sfida un amico, con caratteristiche e racchette richieste; decide gli avversari della pagina partita | **provato** nel browser |
 | Racchetta e collegamento | Smartphone (QR), webcam o (prova) mouse e tastiera; si entra in campo da soli quando è pronto | **provato** con mouse e tastiera nel browser; QR con telefono simulato nel test LAN |
@@ -38,7 +38,16 @@ con hardware vero (telefono in mano, webcam con una persona, Wi-Fi di un evento)
 
 ### Loghi e arena
 
-- Loghi ufficiali (vettoriali ESPORTS FITP e Nitto ATP Finals eSeries) convertiti ad alta risoluzione con
+- Arena ricomposta sulle immagini di riferimento: muro continuo attorno al fuori campo con i loghi stampati (lati
+  lunghi: logo impilato e ESPORTS alternati; fondo: logo orizzontale e ESPORTS), pannelli LED negli angoli, bordo
+  luminoso blu sul muro e sul parapetto delle tribune, varco con tre operatori TV sul lato opposto all'arbitro, sedia ad
+  «A» con l'arbitro e le due panchine, raccattapalle sul fondo, cubo più grande e più basso, fari con alone, stendardi
+  con la coppa, fuori campo più chiaro attorno al campo. Logo ufficiale Nitto ATP Finals al posto di eSeries
+  (interfaccia e arena). **provato** con inquadrature fisse simili a quelle dei riferimenti; personaggi e pubblico
+  restano stilizzati (blocchi), non le figure dettagliate delle immagini.
+
+- Loghi ufficiali (vettoriali ESPORTS FITP e logo orizzontale Nitto ATP Finals; versione impilata composta con i
+  blocchi del logo ufficiale) convertiti ad alta risoluzione con
   trasparenza (`site/assets/brand/`) e usati in intro, menu e passaggio al campo. **provato**
 - Tutte le grafiche dei loghi nell'arena rigenerate dai file ufficiali con le proporzioni dei pannelli 3D
   (`natpf-tennis/scripts/brand/brand-assets.py`): tabelloni, pannelli LED, fascia, maxischermo, stendardi, rete. **provato** (inquadrature fisse)

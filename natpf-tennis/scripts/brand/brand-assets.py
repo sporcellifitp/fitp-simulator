@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # Loghi ufficiali (vettoriali) → PNG ad alta risoluzione per l'interfaccia e grafiche dell'arena 3D.
 #   python3 scripts/brand/brand-assets.py CARTELLA_DEI_SORGENTI
-# Sorgenti attesi nella cartella (nomi che contengono): «Nitto-ATP-Finals-eSeries-White.eps», «…-Navy.eps»,
-# «…-Full-Colour.eps», «eSports-logo-NEG-rgb.pdf», «eSports-logo-POS-rgb.pdf». Servono ghostscript (gs) e pdftocairo.
+# Sorgenti attesi nella cartella (nomi che contengono): «NittoATPFinals_Horizontal_OnDark_RGB.eps»,
+# «NittoATPFinals_Horizontal_OnLight_RGB.eps» (pacchetto ufficiale del logo orizzontale, cartella Digital),
+# «eSports-logo-NEG-rgb.pdf», «eSports-logo-POS-rgb.pdf». Servono ghostscript (gs) e pdftocairo.
 # Scrive site/assets/brand/*.png (loghi ritagliati con trasparenza) e site/assets/arena/*.png (supporti dell'arena,
 # con le proporzioni dei pannelli 3D di site/js/tennis/arena.js: il logo non si deforma).
 import glob, os, subprocess, sys, tempfile
@@ -32,7 +33,7 @@ def crop(im, pad=0, min_row=0):
     return im.crop((max(0, cols.min() - pad), max(0, rows.min() - pad), cols.max() + 1 + pad, rows.max() + 1 + pad))
 
 def split_rows(im):
-    # righe vuote tra marchio e «eSERIES»: restituisce (marchio, eSERIES)
+    # righe vuote tra due righe di un logo: restituisce (riga sopra, riga sotto)
     a = np.array(im)[:, :, 3]; empty = [r for r in range(im.height) if a[r].max() <= 8]
     gap = [r for r in empty if 0 < r < im.height - 1]
     top_end = gap[0]; bottom_start = gap[-1] + 1
@@ -48,14 +49,36 @@ def save(im, path, rgb=False):
     print(os.path.relpath(path, ROOT), im.size)
 
 # ---------- loghi ----------
-white, navy = crop(render(src('eSeries-White'), 200)), crop(render(src('eSeries-Navy'), 200))
-colour = crop(render(src('Full-Colour'), 120), min_row=200)        # il file a colori ha un segno isolato in alto
+white, colour = crop(render(src('Horizontal_OnDark_RGB'), 600)), crop(render(src('Horizontal_OnLight_RGB'), 600))
 neg, pos = crop(render(src('logo-NEG'), 600)), crop(render(src('logo-POS'), 600))
-white_mark, _ = split_rows(white)
-for name, im, w in [('nitto-atp-finals-eseries-white', white, 2400), ('nitto-atp-finals-eseries-navy', navy, 2400),
-                    ('nitto-atp-finals-eseries-colour', colour, 2400), ('nitto-atp-finals-white', white_mark, 2400),
+
+def parts(im):
+    # il logo orizzontale si divide in tre blocchi separati da colonne vuote: «Nitto», «ATP», «FINALS»
+    a = np.array(im)[:, :, 3]; cols = a.max(0) > 8
+    gaps, run = [], None
+    for x, c in enumerate(cols):
+        if not c and run is None: run = x
+        if c and run is not None: gaps.append((run, x)); run = None
+    big = sorted(gaps, key=lambda g: g[1] - g[0], reverse=True)[:2]
+    (a1, b1), (a2, b2) = sorted(big)
+    return crop(im.crop((0, 0, a1, im.height))), crop(im.crop((b1, 0, a2, im.height))), crop(im.crop((b2, 0, im.width, im.height)))
+
+def stacked(im):
+    # versione impilata (come sui pannelli e sulla rete dell'arena): «Nitto» sopra, «ATP» grande, «FINALS» sotto a destra,
+    # composta con i blocchi del logo ufficiale senza deformarli
+    nitto, atp, finals = parts(im)
+    W = atp.width; n = fit(nitto, W*.62, 10**6); f = fit(finals, W*.62, 10**6)
+    gap = int(atp.height*.12); H = n.height + gap + atp.height + gap + f.height
+    out = Image.new('RGBA', (W + int(W*.06), H), (0, 0, 0, 0))
+    out.alpha_composite(n, (int(W*.30), 0)); out.alpha_composite(atp, (0, n.height + gap)); out.alpha_composite(f, (out.width - f.width, n.height + 2*gap + atp.height))
+    return crop(out)
+
+white_stack = stacked(white)
+for name, im, w in [('nitto-atp-finals-white', white, 2400), ('nitto-atp-finals-colour', colour, 2400), ('nitto-atp-finals-stacked-white', white_stack, 1200),
                     ('esports-fitp-neg', neg, 1400), ('esports-fitp-pos', pos, 1400)]:
     save(fit(im, w, 10000), os.path.join(BRAND, name + '.png'))
+for old in ['nitto-atp-finals-eseries-white', 'nitto-atp-finals-eseries-navy', 'nitto-atp-finals-eseries-colour']:
+    if os.path.exists(os.path.join(BRAND, old + '.png')): os.remove(os.path.join(BRAND, old + '.png'))
 
 # ---------- supporti dell'arena ----------
 NAVY_TOP, NAVY_BOTTOM = (16, 38, 140), (6, 18, 92)
@@ -91,39 +114,54 @@ def serif(size, bold=False):
         if os.path.exists(f): return ImageFont.truetype(f, size)
     return ImageFont.load_default()
 
+def text_center(im, text, y, font, fill=(236, 240, 255, 255)):
+    d = ImageDraw.Draw(im); b = d.textbbox((0, 0), text, font=font)
+    d.text(((im.width - (b[2] - b[0]))/2 - b[0], y - (b[3] - b[1])/2 - b[1]), text, font=font, fill=fill)
+
+def trophy(w, h):
+    # coppa delle Finals stilizzata (argento): coppa, manici, stelo, base a due gradini
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    silver, shade, light = (214, 222, 236, 255), (150, 162, 186, 255), (250, 252, 255, 255)
+    cx = w/2
+    d.ellipse((cx - w*.34, h*.02, cx + w*.34, h*.14), fill=shade)                         # bocca
+    d.polygon([(cx - w*.34, h*.08), (cx + w*.34, h*.08), (cx + w*.22, h*.42), (cx - w*.22, h*.42)], fill=silver)
+    d.polygon([(cx - w*.10, h*.10), (cx - w*.02, h*.10), (cx - w*.08, h*.40), (cx - w*.14, h*.40)], fill=light)
+    for s in (-1, 1):                                                                     # manici
+        d.arc((cx + s*w*.26 - w*.16, h*.10, cx + s*w*.26 + w*.16, h*.36), 270 if s > 0 else 90, 90 if s > 0 else 270, fill=silver, width=max(3, int(w*.05)))
+    d.polygon([(cx - w*.05, h*.42), (cx + w*.05, h*.42), (cx + w*.07, h*.66), (cx - w*.07, h*.66)], fill=shade)
+    d.ellipse((cx - w*.16, h*.62, cx + w*.16, h*.70), fill=silver)
+    d.rectangle((cx - w*.24, h*.70, cx + w*.24, h*.84), fill=(40, 46, 70, 255))            # base scura
+    d.rectangle((cx - w*.30, h*.84, cx + w*.30, h*.96), fill=(30, 34, 56, 255))
+    return im
+
 A = lambda n: os.path.join(ARENA, n)
-# tabelloni laterali 7,6 × 1 m
-im = gradient(2048, 270, NAVY_TOP, NAVY_BOTTOM); save(place(im, white, 1024, 135, 1700, 200), A('nitto-atp-finals.png'), rgb=True)
-# tabellone di fondo 13,2 × 1 m: ESPORTS · Nitto ATP FINALS eSERIES · ESPORTS
-im = gradient(4096, 310, NAVY_TOP, NAVY_BOTTOM)
-place(im, white, 2048, 155, 2000, 228); place(im, neg, 560, 155, 700, 290); place(im, neg, 4096 - 560, 155, 700, 290)
-save(im, A('tabellone-fondo.png'), rgb=True)
-# loghi ESPORTS sui tabelloni laterali 2 × 1 m
-im = gradient(1024, 512, NAVY_TOP, NAVY_BOTTOM); save(place(im, neg, 512, 256, 940, 470), A('esports.png'), rgb=True)
+T = (0, 0, 0, 0)
+# loghi stampati sul muro attorno al fuori campo (trasparenti: il muro blu sta sotto)
+save(place(Image.new('RGBA', (2048, 210), T), white, 1024, 105, 2000, 196), A('nitto-atp-finals.png'))
+save(place(Image.new('RGBA', (1024, 820), T), white_stack, 512, 410, 980, 784), A('logo-impilato.png'))
+save(place(Image.new('RGBA', (1024, 530), T), neg, 512, 265, 1000, 516), A('esports.png'))
 # logo ESPORTS sopra il maxischermo 2 × 0,52 m (trasparente)
-save(place(Image.new('RGBA', (1024, 266), (0, 0, 0, 0)), neg, 512, 133, 1000, 262), A('esports-piccolo.png'))
+save(place(Image.new('RGBA', (1024, 266), T), neg, 512, 133, 1000, 262), A('esports-piccolo.png'))
 # fascia LED tra gli anelli e sotto il cubo (si ripete in orizzontale)
-im = led_glow(gradient(2048, 202, (20, 60, 210), (8, 26, 120))); save(place(im, white, 1024, 101, 1300, 150), A('fascia-led.png'), rgb=True)
-# pannelli LED 2,05 × 1,07 m e facce del cubo 7 × 3,7 m
-im = stripes(led_glow(gradient(1024, 536, (24, 70, 225), (8, 24, 120)))); save(place(im, white, 512, 268, 760, 300), A('pannello-led.png'), rgb=True)
+im = led_glow(gradient(2048, 202, (20, 60, 210), (8, 26, 120))); save(place(im, white, 1024, 101, 1500, 120), A('fascia-led.png'), rgb=True)
+# pannelli LED negli angoli del muro (2,05 × 1,07 m) e facce del cubo (7 × 3,7 m): logo impilato
+im = stripes(led_glow(gradient(1024, 536, (24, 70, 225), (8, 24, 120)))); save(place(im, white_stack, 512, 268, 520, 400), A('pannello-led.png'), rgb=True)
 # maxischermo 5,8 × 3,39 m: fascia nera con il marchio, sotto «It all adds up to THIS»
 W, H = 1600, 935
 im = stripes(led_glow(gradient(W, H, (20, 56, 200), (6, 18, 96))))
 ImageDraw.Draw(im).rectangle((0, 0, W, int(H*.19)), fill=(0, 0, 0, 255))
-place(im, white_mark, W/2, H*.095, W*.62, H*.13)
-place(im, white, W/2, H*.3, W*.28, H*.09)
-d = ImageDraw.Draw(im)
-for text, y, f in [('It all adds up to', H*.47, serif(int(H*.085))), ('THIS', H*.71, serif(int(H*.29)))]:
-    b = d.textbbox((0, 0), text, font=f); d.text(((W - (b[2] - b[0]))/2 - b[0], y - (b[3] - b[1])/2 - b[1]), text, font=f, fill=(236, 240, 255, 255))
+place(im, white, W/2, H*.095, W*.66, H*.12)
+place(im, white_stack, W/2, H*.31, W*.10, H*.13)
+text_center(im, 'It all adds up to', H*.5, serif(int(H*.08)))
+text_center(im, 'THIS', H*.73, serif(int(H*.28)))
 save(im, A('maxischermo.png'), rgb=True)
-# stendardi 3,4 × 5,8 m
+# stendardi 3,4 × 5,8 m: logo, motto e coppa
 W, H = 600, 1024
-im = led_glow(gradient(W, H, (18, 50, 190), (6, 16, 88)))
-place(im, white, W/2, H*.14, W*.82, H*.14)
-d = ImageDraw.Draw(im)
-for text, y, f in [('It all adds up to', H*.42, serif(int(H*.045))), ('THIS', H*.53, serif(int(H*.13)))]:
-    b = d.textbbox((0, 0), text, font=f); d.text(((W - (b[2] - b[0]))/2 - b[0], y - (b[3] - b[1])/2 - b[1]), text, font=f, fill=(236, 240, 255, 255))
-place(im, neg, W/2, H*.8, W*.75, H*.24)
+im = stripes(led_glow(gradient(W, H, (18, 50, 190), (6, 16, 88))), n=2)
+place(im, white_stack, W/2, H*.08, W*.28, H*.09)
+text_center(im, 'It all adds up to', H*.18, serif(int(H*.04)))
+text_center(im, 'THIS', H*.27, serif(int(H*.12)))
+tr = trophy(int(W*.6), int(H*.52)); im.alpha_composite(tr, (int((W - tr.width)/2), int(H*.38)))
 save(im, A('stendardo.png'), rgb=True)
-# logo sulla rete (trasparente, proporzioni del logo: il piano 3D le segue)
-save(place(Image.new('RGBA', (2048, 330), (0, 0, 0, 0)), white, 1024, 165, 2000, 318), A('rete-logo.png'))
+# logo sulla rete vicino ai pali: impilato, come nei riferimenti (trasparente)
+save(place(Image.new('RGBA', (1024, 820), T), white_stack, 512, 410, 1000, 800), A('rete-logo.png'))

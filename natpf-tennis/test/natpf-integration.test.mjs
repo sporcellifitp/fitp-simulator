@@ -106,5 +106,5 @@ test('build: solo la pagina del telefono NATPF, le sue dipendenze e le grafiche 
   for (const f of ['tennis/racchetta.html', 'js/tennis/racchetta.js', 'js/tennis/link.js', 'js/tennis/calibration.js', 'js/tennis/swing-detect.js', 'js/vendor/peerjs.min.js', 'js/vendor/qrcode.js']) assert.ok(files.includes(f), f);
   assert.ok(!files.some(f => /^(js\/(world|games|content|systems)\/|data\/|assets\/photos\/)/.test(f)), 'niente mondo esplorabile o minigiochi');
   const art = arenaFiles(SITE);
-  for (const f of ['assets/arena/tabellone-fondo.png', 'assets/arena/maxischermo.png', 'assets/arena/rete-logo.png']) assert.ok(art.includes(f), f);
+  for (const f of ['assets/arena/logo-impilato.png', 'assets/arena/maxischermo.png', 'assets/arena/rete-logo.png']) assert.ok(art.includes(f), f);
 });
