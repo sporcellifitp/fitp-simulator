@@ -1,5 +1,7 @@
 # NATPF Simulator, tennis 1v1: analisi e MVP
 
+> Stato attuale, cose aperte e verifiche: [NATPF_ROADMAP.md](NATPF_ROADMAP.md).
+
 Checkpoint: 17 ottobre 2026. Branch `feature/natpf-tennis-mvp`, cartella `natpf-tennis/`, partito da
 `refactor/natpf-audit-20261015` (160b648), che contiene già la PR #1. La versione NATPF Simulator esistente
 (`site/tennis/`) non è stata modificata.

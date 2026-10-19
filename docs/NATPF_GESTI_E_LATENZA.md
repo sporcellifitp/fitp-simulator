@@ -139,6 +139,20 @@ Rete sempre buona (60 Hz senza buchi, consegna 4–15 ms), riconoscimento a 17�
 Lo stato della partita nelle registrazioni ha mostrato anche che molti colpi «senza esito» erano lanci e colpi di servizio
 (il pannello ora li indica come servizio).
 
+### Terzo giro: pallonetto e palla corta
+
+- **Traiettoria del pallonetto** (motore): 2 s di volo con la compensazione dell'aria (`NS.LOB_FLIGHT`), sale a ~6 m e
+  cade in fondo; prima 1,32 s, 2,5 m e caduta a metà campo. La CPU risponde fino a 3,1 m.
+- **Verso verticale del colpo T** (`face-tracker.headAt`, campo `he` del messaggio): (ω × n)·alto / |ω|, cioè di quanto
+  il piatto sale o scende mentre ruota, dal giroscopio e dall'orientamento filtrato. Il telefono lo misura sul dorso
+  (−z); nel dritto colpisce il palmo (lo schermo, +z) e il segno si inverte sul computer. Si usa V = 0,6·T + 0,4·L
+  (L = segnale dell'accelerometro di prima), ricentrato sui propri colpi per verso; soglie con T: pallonetto ≥ 0,38,
+  tagliato ≤ −0,28, topspin ≥ 0,12; palla corta = tagliato morbido (forza < 0,45 o velocità < 0,7 del proprio colpo).
+- **Soglie personali** (`learnSpecials`): gli esercizi «Pallonetto» e «Palla corta» del riscaldamento (solo
+  smartphone) registrano V dei tentativi; la soglia diventa il 55% del proprio gesto (pallonetto tra 0,18 e 0,5,
+  palla corta tra −0,4 e −0,15). Si azzerano con una nuova calibrazione o dalle Opzioni.
+- Il messaggio dell'esito mostra il nome del colpo speciale (Pallonetto, Palla corta, Schiacciata, Tagliato).
+
 ## 6. Test
 
 - `test/natpf-pipeline.test.mjs` (nuovo): telefono simulato a 60 Hz con orientamento fisicamente coerente (la
