@@ -22,7 +22,7 @@ import { gestureAim } from '@natpf/match/shot-quality.js';
 import { lanOrigin } from './natpf_lan.js';
 import { VIBRATION } from './natpf_shot_feedback.js';
 import { swingPower } from './natpf_skill.js';
-import { classifyPhoneShot, aimFromSignals, ENGINE_SHOT, liftBaselineFromProfile, resolveLiftBaseline, createLiftModel, createFaceModel, centeredFace, learnSpecials } from './natpf_gestures.js';
+import { classifyPhoneShot, aimFromSignals, ENGINE_SHOT, liftBaselineFromProfile, resolveLiftBaseline, createLiftModel, createFaceModel, createAimModel, centeredFace, learnSpecials } from './natpf_gestures.js';
 
 const NATPF_BASE = '/natpf/';
 const scripts = new Map();
@@ -66,7 +66,7 @@ const SPECIALS_KEY = 'natpf-tennis.specials';
 export const NORMAL_SHOTS = new Set(['topspin', 'flat']);
 function readSpecials(){ try { return JSON.parse(localStorage.getItem(SPECIALS_KEY) || '{}') || {}; } catch { return {}; } }
 function writeSpecials(v){ try { localStorage.setItem(SPECIALS_KEY, JSON.stringify(v)); } catch {} }
-export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaseline = 0, headBaseline = 0, faceCenter = null, personal = null, now = null, prep = null, prepCapable = false, ballHigh = false } = {}){
+export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaseline = 0, headBaseline = 0, faceCenter = null, aimModel = null, personal = null, now = null, prep = null, prepCapable = false, ballHigh = false } = {}){
   const flat = !!s.face && Number.isFinite(s.face.yaw) && (s.grip === 'flat' || grip === 'flat');
   if (flat) return faceSwingToEngine(s, { hand });
   const dirX = Math.max(-1, Math.min(1, gestureAim(s)));
@@ -89,13 +89,16 @@ export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaselin
   const head = Number.isFinite(s.head) ? +(s.head*(strokeDir === -forehandDir ? 1 : -1)).toFixed(3) : null;
   const cls = chosen ? { shot: chosen, why: ['scelto sul telefono'] } : classifyPhoneShot({ dir: s.dir || 0, vert: s.vert || null, lift, liftBaseline, head, headBaseline, personal, facePitch: face ? face.pitch : null, power, speed: Number.isFinite(s.speed) ? s.speed : null, ballHigh });
   const shot = cls.shot;
-  const aimed = aimFromSignals({ faceAim: face ? face.aim : null, faceUnreliable: !!face && !Number.isFinite(face.aim), twist: s.twist, aim: s.aim, dir: s.dir || 0 });
+  // mira dalla direzione assoluta del piatto (telefoni aggiornati); senza, come prima dalla rotazione durante il colpo
+  const heading = aimModel && Number.isFinite(s.heading) ? aimModel.aim(s.dir || 0, s.heading) : null;
+  const faceAim = heading ? heading.aim : face ? face.aim : null, faceUnreliable = heading ? heading.aim == null : !!face && !Number.isFinite(face.aim);
+  const aimed = aimFromSignals({ faceAim, faceUnreliable, twist: s.twist, aim: s.aim, dir: s.dir || 0 });
   const latency = Number.isFinite(s.at) && Number.isFinite(now) ? clamp(now - s.at, 0, .3) : .06;
   const rel = lift - resolveLiftBaseline(liftBaseline, s.dir || 0).base;
   return { source: 'natpf-phone', side, shotType: ENGINE_SHOT[shot], speed: shot === 'drop' ? Math.min(speed, .9) : shot === 'flat' ? Math.max(speed, 1.32) : speed, dirX,
     dirY: shot === 'lob' ? -.85 : shot === 'slice' || shot === 'drop' ? .3 : shot === 'smash' ? .5 : -.45 + clamp(rel, -.5, .5)*.2, timing: null,
     natpf: { aim: 'swing', shot, head, v: cls.v ?? null, move: cls.move ?? null, conf: cls.conf ?? null, speed: Number.isFinite(s.speed) ? s.speed : null, wrist: +aimed.aim.toFixed(3), aimSource: aimed.source, power: +power.toFixed(3), latency: +latency.toFixed(3), hand,
-      why: cls.why, prep: pr ? { lead: +(s.at - pr.at).toFixed(3), amount: clamp((pr.angle || 30)/50, .3, 1) } : null, prepCapable: !!prepCapable } };
+      aimDev: heading ? heading.dev : null, why: cls.why, prep: pr ? { lead: +(s.at - pr.at).toFixed(3), amount: clamp((pr.angle || 30)/50, .3, 1) } : null, prepCapable: !!prepCapable } };
 }
 function faceSwingToEngine(s, { hand = 'right' } = {}){
   const f = s.face, lift = Number.isFinite(s.lift) ? s.lift : 0, power = Number.isFinite(s.power) ? s.power : .6;
@@ -205,6 +208,7 @@ export class NatpfPhoneRacket {
     this.liftBaseline = 0;               // verso verticale abituale (calibrazione, per verso del colpo): lob e tagliato si leggono rispetto a questo
     this.liftModel = createLiftModel();  // … poi si adatta ai colpi veri della partita
     this.faceModel = createFaceModel();  // piatto abituale per verso del colpo (mira = scarto da questo)
+    this.aimModel = createAimModel();    // direzione abituale del piatto all'impatto (mira dei telefoni aggiornati)
     this.headModel = createLiftModel(0); // verso verticale abituale del piatto che colpisce, per verso del colpo
     // pallonetto e palla corta di chi gioca, imparati negli esercizi del riscaldamento (si azzerano con una nuova calibrazione)
     this.specialSamples = readSpecials(); this.personal = learnSpecials(this.specialSamples);
@@ -260,7 +264,7 @@ export class NatpfPhoneRacket {
     c.idle = e.kind === 'idle';
     if (e.kind === 'review'){ c.review = e; c.freeOk = false; if (e.pass) this.link.cmd('free'); }   // prova libera, poi conferma
     if (e.kind === 'free' && e.ok) c.freeOk = true;
-    if (e.kind === 'done'){ c.step = 'done'; this.profile = e.profile || null; this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline; this.liftModel.reset(this.liftBaseline); this.faceModel.reset(); this.headModel.reset(0); this.resetSpecials(); if (e.profile?.hand === 'left' || e.profile?.hand === 'right') this.hand = e.profile.hand; }
+    if (e.kind === 'done'){ c.step = 'done'; this.profile = e.profile || null; this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline; this.liftModel.reset(this.liftBaseline); this.faceModel.reset(); this.aimModel.reset(); this.headModel.reset(0); this.resetSpecials(); if (e.profile?.hand === 'left' || e.profile?.hand === 'right') this.hand = e.profile.hand; }
     c.last = e;
     for (const fn of this.calListeners) try { fn(e); } catch (err){ console.error(err); }
     this._changed();
@@ -284,13 +288,13 @@ export class NatpfPhoneRacket {
       for (const fn of this.swingListeners) try { fn({ ignored: 'palla che si allontana', natpf: {} }, s); } catch (e){ console.error(e); }
       return;
     }
-    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, faceCenter: this.faceModel.center(s.dir), now: performance.now()/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine) }), role: this.engine.playerRole };
+    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine) }), role: this.engine.playerRole };
     this.lastPrep = null;
     if (!ev.side) ev.side = sideFromBall(this.engine, this.hand);
     // riferimenti personali solo dai colpi normali: prima entravano anche pallonetti e palle corte, e dopo tre di fila il
     // quarto sembrava «normale» (usciva un dritto)
     if (NORMAL_SHOTS.has(ev.natpf.shot)){ this.liftModel.add(s.dir, s.lift); this.headModel.add(s.dir, ev.natpf.head); }
-    this.faceModel.add(s.dir, s.face);
+    this.faceModel.add(s.dir, s.face); this.aimModel.add(s.dir, s.heading);
     for (const fn of this.swingListeners) try { fn(ev, s); } catch (e){ console.error(e); }
     // _emitSwing instrada già P1 in locale e P2 verso l'host (relay della stanza 1v1)
     mc._emitSwing(ev);

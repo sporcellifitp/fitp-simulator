@@ -132,7 +132,10 @@ export function swingGrade(timing, level = null){
 export const swingQuality = (timing, level = null) => clamp(1 - .55*clamp(Math.abs(timingUnits(timing, level)) - .7, 0, .9), .5, 1);
 // Con il piatto all'impatto (aimSource 'face') la mira la decide soprattutto il piatto, uguale per dritto e rovescio
 // (girato a destra → palla a destra: il rovescio va lungolinea quanto il dritto); il tempo pesa meno.
-export const FACE_AIM = Object.freeze({ naturalX: .3, timingX: 1.0, faceX: 3.2 });
+// timingX 1,6 (prima 1,0): dentro la finestra «perfetto» il tempo sposta la palla di ±0,6 m, in anticipo/ritardo deciso
+// di ±1,6 m; faceX 3,4: con la mira dalla direzione del piatto (createAimModel) 20° di scarto portano la palla a ~2,2 m
+// dal centro, 30° quasi sulla riga. Prima la palla cadeva quasi sempre nella stessa zona (x ≈ −0,4 m).
+export const FACE_AIM = Object.freeze({ naturalX: .3, timingX: 1.6, faceX: 3.4 });
 export function swingLandingX({ timing = 0, contact = 1, wrist = 0, aimSource = null, quality = 1, power = .6, level = SKILL_LEVELS.casual, rng = Math.random } = {}){
   const c = contact >= 0 ? 1 : -1, t = timingUnits(timing, level), w = clamp(finite(wrist), -1, 1);
   const K = aimSource === 'face' ? { naturalX: FACE_AIM.naturalX, timingX: FACE_AIM.timingX, wristX: FACE_AIM.faceX } : SWING_AIM;

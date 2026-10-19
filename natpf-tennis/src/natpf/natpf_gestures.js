@@ -98,6 +98,36 @@ export function createFaceModel({ keep = 12, min = 3 } = {}){
     center(dir){ const h = hist[dir]; return h && h.length >= min ? { yaw: +median(h.map(f => f.yaw)).toFixed(1), pitch: +median(h.map(f => f.pitch)).toFixed(1) } : null; },
   };
 }
+// Mira dalla direzione assoluta del piatto all'impatto (campo fh del telefono), rispetto al proprio colpo abituale per
+// verso. Prima la mira era solo la rotazione durante il colpo, rispetto alla mediana degli ultimi 12 colpi: girare il
+// polso o il corpo prima del colpo non contava, e dopo due o tre colpi mirati dalla stessa parte la mediana li seguiva e
+// la mira tornava a zero (in prova la palla cadeva sempre a x ≈ −0,4 m). Ora:
+//   • il centro nasce dalla mediana dei primi `min` colpi e poi segue i colpi vicini (scarto < settle gradi) di una
+//     frazione alpha, quelli lontani solo di drift: assorbe la deriva del giroscopio e del corpo, non i colpi mirati;
+//   • mira continua tanh(scarto/gain): 10° → 0,37, 20° → 0,65, 30° → 0,82; oltre maxDev gradi la misura non è credibile.
+export const AIM = Object.freeze({ gain: 26, settle: 10, alpha: .12, drift: .03, min: 3, maxDev: 80 });
+const wrapDeg = a => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };
+export function createAimModel({ gain = AIM.gain, settle = AIM.settle, alpha = AIM.alpha, drift = AIM.drift, min = AIM.min } = {}){
+  const S = { 1: { first: [], center: null }, '-1': { first: [], center: null } };
+  return {
+    reset(){ for (const d of [1, -1]){ S[d].first = []; S[d].center = null; } },
+    center(dir){ return S[dir]?.center ?? null; },
+    add(dir, heading){
+      const st = S[dir]; if (!st || !Number.isFinite(heading)) return;
+      if (st.center == null){ st.first.push(heading); if (st.first.length >= min){ const base = st.first[0]; st.center = wrapDeg(base + median(st.first.map(h => wrapDeg(h - base)))); } return; }
+      const dev = wrapDeg(heading - st.center);
+      // vicino al centro: colpo normale, il centro lo segue; lontano: colpo mirato, il centro si sposta appena (una
+      // deriva che dura si recupera in una trentina di colpi, qualche colpo mirato non sposta il centro)
+      if (Math.abs(dev) <= AIM.maxDev) st.center = wrapDeg(st.center + (Math.abs(dev) < settle ? alpha : drift)*dev);
+    },
+    // mira per questo colpo: { aim, dev } (aim null se lo scarto non è credibile), null se il centro non c'è ancora
+    aim(dir, heading){
+      const c = S[dir]?.center; if (c == null || !Number.isFinite(heading)) return null;
+      const dev = wrapDeg(heading - c);
+      return { aim: Math.abs(dev) > AIM.maxDev ? null : +Math.tanh(dev/gain).toFixed(3), dev: +dev.toFixed(1) };
+    },
+  };
+}
 // piatto rispetto al proprio colpo abituale: mira (curva morbida, null se lo scarto non è credibile) e apertura
 export function centeredFace(face, center = null){
   if (!face || !Number.isFinite(face.yaw)) return null;

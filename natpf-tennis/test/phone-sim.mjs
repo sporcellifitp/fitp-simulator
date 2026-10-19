@@ -10,7 +10,7 @@ import { createFaceTracker } from '@natpf/tennis/face-tracker.js';
 import { createCalibration } from '@natpf/tennis/calibration.js';
 import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { natpfSwingToEngine, NORMAL_SHOTS } from '../src/natpf/natpf_phone_racket.js';
-import { createLiftModel, createFaceModel, liftBaselineFromProfile } from '../src/natpf/natpf_gestures.js';
+import { createLiftModel, createFaceModel, createAimModel, liftBaselineFromProfile } from '../src/natpf/natpf_gestures.js';
 
 export const G = 9.81, DT = 1000/60;
 const qmul = (a, b) => [a[3]*b[0] + a[0]*b[3] + a[1]*b[2] - a[2]*b[1], a[3]*b[1] - a[0]*b[2] + a[1]*b[3] + a[2]*b[0], a[3]*b[2] + a[0]*b[1] - a[1]*b[0] + a[2]*b[3], a[3]*b[3] - a[0]*b[0] - a[1]*b[1] - a[2]*b[2]];
@@ -51,8 +51,16 @@ export function simPhone({ hand = 'right', seed = 7 } = {}){
   // (pronazione) attorno a «wristAxis» che cresce nella seconda metà, più l'accelerazione della mano (campo): spinta nel
   // verso del colpo (push, avanti) e verso l'alto/basso (vy) nella prima metà, frenata nella seconda. back: apertura
   // lenta prima e rientro dopo, come una mano vera.
+  // torna lentamente (90 °/s) a un orientamento: la mano che rientra nella sua posa «pronto»
+  const returnTo = (target, rate = 90) => {
+    const d = qmul(target, qconj(q)), w = Math.max(-1, Math.min(1, d[3]*(d[3] < 0 ? -1 : 1))), ang = 2*Math.acos(w)*180/Math.PI;
+    if (ang < .05) return;
+    const ax = d[3] < 0 ? [-d[0], -d[1], -d[2]] : [d[0], d[1], d[2]];
+    pose(ax, ang, rate);
+  };
   const swing = ({ axis = [0, 1, 0], peak = 700, ms = 260, wrist = 0, wristAxis = [0, 0, -1], vy = 0, push = 4, tremor = 0, back = true } = {}) => {
     const n = Math.round(ms/DT), travel = peak*ms/1000*.5, l = Math.hypot(...axis), wl = Math.hypot(...wristAxis);
+    const start = q.slice();
     if (back) pose(axis, -travel/2, 90);
     for (let i = 0; i <= n; i++){
       const u = i/n, w = peak*Math.sin(Math.PI*u)**2, pr = wrist*Math.sin(Math.PI*Math.min(1, u*1.4 - .2 > 0 ? u*1.4 - .2 : 0))**2;
@@ -60,7 +68,7 @@ export function simPhone({ hand = 'right', seed = 7 } = {}){
       sampleWorld(ww, [0, vy*Math.sin(2*Math.PI*u), -push*Math.sin(Math.PI*u)]);
     }
     // rientro: la mano torna al centro e il polso torna nella posa di prima (la pronazione non si accumula)
-    if (back){ rest(120, tremor); pose(axis, -travel/2, 90); if (wrist) pose(wristAxis, -wrist*ms/1000*.5*.82, 120); }
+    if (back){ rest(120, tremor); returnTo(start); }
   };
   const calibrate = () => {
     cal.start({ quick: true, hand }); rest(800);
@@ -70,13 +78,13 @@ export function simPhone({ hand = 'right', seed = 7 } = {}){
   };
   // sul computer: come NatpfPhoneRacket._onSwing, con i riferimenti che si adattano ai colpi della partita
   const prof = () => det.profile;
-  const lifts = { model: null }, heads = createLiftModel(0), faces = createFaceModel();
+  const lifts = { model: null }, heads = createLiftModel(0), faces = createFaceModel(), aims = createAimModel();
   const game = (d, { ballHigh = false } = {}) => {
     lifts.model ||= createLiftModel(liftBaselineFromProfile(prof()) ?? 0);
     const s = parseSwingMessage(d, { at: 10, now: 10020 });
-    const ev = natpfSwingToEngine(s, { hand, now: 10.02, ballHigh, liftBaseline: lifts.model.value, headBaseline: heads.value, faceCenter: faces.center(s.dir) });
+    const ev = natpfSwingToEngine(s, { hand, now: 10.02, ballHigh, liftBaseline: lifts.model.value, headBaseline: heads.value, faceCenter: faces.center(s.dir), aimModel: aims });
     if (NORMAL_SHOTS.has(ev.natpf.shot)){ lifts.model.add(s.dir, s.lift); heads.add(s.dir, ev.natpf.head); }
-    faces.add(s.dir, s.face);
+    faces.add(s.dir, s.face); aims.add(s.dir, s.heading);
     return { s, ev };
   };
   return { det, face, msgs, rest, pose, swing, calibrate, game, sampleWorld, get t(){ return t; }, get q(){ return q; } };

@@ -133,7 +133,8 @@ export function createFaceTracker(opts = {}){
     // (velocità media su 5 campioni, a parità di ±2 °/s il più recente) tra baseFrom e baseTo ms prima dell'inizio del
     // colpo t0. Senza storia: faceAt.
     strokeFace(peakT, t0 = peakT){
-      const f = this.faceAt(peakT); if (!f) return f;
+      const f0 = this.faceAt(peakT); if (!f0) return f0;
+      const f = { ...f0, abs: +wrap(f0.yaw).toFixed(2) };
       const win = hist.filter(h => h.t >= t0 - C.baseFrom && h.t <= t0 - C.baseTo);
       let best = null;
       for (let i = 0; i < win.length; i++){
@@ -145,6 +146,9 @@ export function createFaceTracker(opts = {}){
       // swing-twist). Vale con qualunque inclinazione del dorso; l'imbardata della normale del dorso invece perde
       // significato quando il dorso guarda in alto o in basso (nelle registrazioni succedeva in metà dei colpi).
       const qp = qAt(peakT), turn = qp && best.q ? -twistAbout(qmul(qp, qconj(best.q)), frame.up)/D : null;
+      // abs: direzione del piatto all'impatto rispetto alla posa di riposo della calibrazione. Comprende anche il polso o
+      // il corpo girati prima del colpo, che la rotazione durante il colpo (yaw) non vede: il gioco la confronta con il
+      // proprio colpo abituale per la mira (natpf_gestures, createAimModel)
       return { ...f, yaw: +wrap(turn != null ? turn : f.yaw - best.yaw).toFixed(2), base: +best.yaw.toFixed(1), baseRate: Math.round(best.r) };
     },
     // piatto all'istante t (es. il picco del gesto, che è l'impatto), interpolato tra i due campioni vicini: in un
