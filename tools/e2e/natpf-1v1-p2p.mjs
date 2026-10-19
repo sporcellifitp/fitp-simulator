@@ -20,7 +20,7 @@ import express from 'express';
 import { ExpressPeerServer } from 'peer';
 import { launch, page, check, summary, SP } from './th.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url)), DIST = path.resolve(here, '../../natpf-tennis/dist');
+const here = path.dirname(fileURLToPath(import.meta.url)), DIST = path.resolve(process.env.DIST || path.resolve(here, '../../natpf-tennis/dist'));   // DIST=cartella: per provare lo zip estratto
 if (!fs.existsSync(path.join(DIST, 'index.html'))){ console.log('Manca natpf-tennis/dist: eseguire prima la build'); process.exit(1); }
 const PEER_PORT = +(process.env.PEER_PORT || 9117), GAME_PORT = +(process.env.GAME_PORT || 3117);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
