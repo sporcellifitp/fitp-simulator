@@ -12,7 +12,7 @@ import * as THREE from 'three';
 
 const C = {                              // colori presi dalle immagini di riferimento (sotto luce blu)
   court: 0x294a94, runoff: 0x2a80d2, line: 0xf2f7ff, board: 0x0b2468, boardTop: 0x14327f,
-  step: 0x131d45, aisle: 0x22346e, wall: 0x0c1636, roof: 0x0a1024, truss: 0x1b2747, net: 0x0d1d4d,
+  step: 0x131d45, aisle: 0x22346e, nosing: 0x8aa2ee, seat: 0x141b3e, wall: 0x0c1636, roof: 0x0a1024, truss: 0x1b2747, net: 0x0d1d4d,
 };
 const HW = 4.115, DW = 5.485, HL = 11.885, SZ = 6.4;
 
@@ -52,20 +52,164 @@ function ringPath(hx, hz, R, step){
   return pts;
 }
 
-/* ---------- pubblico: figure sedute, una geometria per tutti (InstancedMesh) ---------- */
-function personGeometry(){
+/* ---------- figure: pezzi semplici fusi in una geometria sola ---------- */
+// Ogni pezzo porta con sé un colore (persone in piedi, colori nei vertici) oppure un'etichetta «parte, arto» che lo
+// shader del pubblico usa per colorarlo (maglia, pelle, capelli…) e per alzare le braccia.
+const UP = new THREE.Vector3(0, 1, 0);
+function kit(){
   const parts = [];
-  const body = new THREE.CapsuleGeometry(.19, .28, 2, 6); body.translate(0, .42, 0); parts.push(body);
-  const head = new THREE.SphereGeometry(.12, 6, 5); head.translate(0, .86, .02); parts.push(head);
-  const lap = new THREE.BoxGeometry(.34, .12, .36); lap.translate(0, .12, .18); parts.push(lap);
-  const g = mergeGeometries(parts); g.computeVertexNormals(); return g;
+  const k = {
+    add(geo, { color = 0xffffff, part = 0, limb = 0 } = {}){ parts.push({ g: geo.index ? geo.toNonIndexed() : geo, color: new THREE.Color(color), part, limb }); return k; },
+    build({ colors = false, tags = false } = {}){
+      let n = 0; for (const p of parts) n += p.g.attributes.position.count;
+      const pos = new Float32Array(n*3), nor = new Float32Array(n*3), col = colors ? new Float32Array(n*3) : null, tag = tags ? new Float32Array(n*2) : null;
+      let o = 0;
+      for (const p of parts){
+        const c = p.g.attributes.position.count; pos.set(p.g.attributes.position.array, o*3); nor.set(p.g.attributes.normal.array, o*3);
+        for (let i = o; i < o + c; i++){ if (col){ col[i*3] = p.color.r; col[i*3 + 1] = p.color.g; col[i*3 + 2] = p.color.b; } if (tag){ tag[i*2] = p.part; tag[i*2 + 1] = p.limb; } }
+        o += c; p.g.dispose();
+      }
+      const out = new THREE.BufferGeometry();
+      out.setAttribute('position', new THREE.BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      if (col) out.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      if (tag) out.setAttribute('aTag', new THREE.BufferAttribute(tag, 2));
+      return out;
+    },
+  };
+  return k;
 }
-function mergeGeometries(list){
-  let n = 0; for (const g of list){ if (g.index) { const ng = g.toNonIndexed(); list[list.indexOf(g)] = ng; } }
-  for (const g of list) n += g.attributes.position.count;
-  const pos = new Float32Array(n*3), nor = new Float32Array(n*3); let o = 0;
-  for (const g of list){ pos.set(g.attributes.position.array, o*3); nor.set(g.attributes.normal.array, o*3); o += g.attributes.position.count; }
-  const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); return out;
+// cilindro aperto (o capsula) da a a b, raggio r0 in a e r1 in b; «ext» lo allunga ai due capi per chiudere le giunture
+function limb(a, b, r0, r1, seg, { capsule = false, ext = 0 } = {}){
+  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A), L = d.length(); d.normalize();
+  const g = capsule ? new THREE.CapsuleGeometry((r0 + r1)/2, Math.max(.01, L - r0 - r1 + 2*ext), 2, seg) : new THREE.CylinderGeometry(r1, r0, L + 2*ext, seg, 1, true);
+  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, d)); g.translate((A.x + B.x)/2, (A.y + B.y)/2, (A.z + B.z)/2); return g;
+}
+
+/* ---------- pubblico: figura seduta, una geometria per tutti (InstancedMesh) ---------- */
+// Misure in metri, origine sul gradino sotto la persona, +z verso il campo. Parti (aTag.x): 0 maglia, 1 pelle,
+// 2 capelli, 3 pantaloni, 4 avambraccio (manica lunga o pelle), 5 telefono, 6-8 bandierina verde/bianco/rosso, 9 asta.
+// Arti (aTag.y): 1-2 braccio e avambraccio sinistri, 3-4 destri (la mano e gli oggetti seguono l'avambraccio destro).
+// Spalla e gomito (CROWD_ARM) sono anche i perni dello shader che alza le braccia.
+const CROWD_ARM = { sx: .215, sy: 1.0, sz: 0, ex: .24, ey: .69, ez: -.02 }, CROWD_HAND = [.16, .61, .2];
+// livelli di dettaglio: 'fine' (anello basso), 'medio' e 'leggero' (anello alto, secondo la qualità), 'oggetti' (solo
+// telefono e bandierina, nella mesh a parte di chi li tiene alzati)
+const CROWD_LOD = { fine: { rs: 7, hy: 5, hh: 3, as: 5, hands: true, neck: 5 }, medio: { rs: 6, hy: 4, hh: 2, as: 4, hands: true, neck: 4 }, leggero: { rs: 5, hy: 4, hh: 2, as: 3, hands: false, neck: 0 } };
+function crowdGeometry(level){
+  const K = kit(), A = CROWD_ARM, H0 = CROWD_HAND;
+  if (level === 'oggetti'){
+    // nella mano destra, a braccio a riposo (l'avambraccio va verso +z: alzato, l'asse z diventa la verticale)
+    const [hx, hy, hz] = H0;
+    K.add(new THREE.BoxGeometry(.075, .014, .14).translate(hx, hy + .04, hz + .07), { part: 5, limb: 4 });
+    K.add(limb([hx, hy, hz], [hx, hy, hz + .57], .01, .01, 3), { part: 9, limb: 4 });
+    for (const [i, x0] of [[6, 0], [7, .1], [8, .2]]) for (const f of [-1, 1]){
+      K.add(new THREE.PlaneGeometry(.1, .2).rotateX(-Math.PI/2*f).translate(hx + .05 + x0, hy + f*.003, hz + .46), { part: i, limb: 4 });
+    }
+    return K.build({ tags: true });
+  }
+  const L = CROWD_LOD[level];
+  // gambe: cosce sul seggiolino, stinchi giù fino al gradino
+  K.add(new THREE.BoxGeometry(.36, .15, .46).translate(0, .49, .03), { part: 3 });
+  K.add(new THREE.BoxGeometry(.3, .42, .12).translate(0, .21, .28), { part: 3 });
+  // busto: più largo alle spalle, schiacciato davanti-dietro; aperto sotto (sta dentro le cosce), chiuso sopra
+  K.add(new THREE.CylinderGeometry(.205, .16, .5, L.rs, 1, true).scale(1, 1, .62).translate(0, .81, -.01), { part: 0 });
+  K.add(new THREE.CircleGeometry(.205, L.rs).rotateX(-Math.PI/2).rotateY(-Math.PI/2).scale(1, 1, .62).translate(0, 1.06, -.01), { part: 0 });
+  if (L.neck) K.add(limb([0, 1.02, 0], [0, 1.11, .005], .045, .045, L.neck), { part: 1 });
+  K.add(new THREE.SphereGeometry(.11, L.rs, L.hy).scale(.94, 1.1, 1).translate(0, 1.2, .01), { part: 1 });
+  // capelli: calotta spostata all'indietro, il viso resta scoperto
+  K.add(new THREE.SphereGeometry(.118, L.rs, L.hh, 0, Math.PI*2, 0, Math.PI*.52).rotateX(-.42).translate(0, 1.215, -.012), { part: 2 });
+  // braccia: dalla spalla al gomito lungo il fianco, avambraccio appoggiato sulla coscia
+  for (const e of [-1, 1]){
+    const S = [e*A.sx, A.sy, A.sz], E = [e*A.ex, A.ey, A.ez], H = [e*H0[0], H0[1], H0[2]], l = e < 0 ? 1 : 3;
+    K.add(limb(S, E, .058, .05, L.as, { ext: .03 }), { part: 0, limb: l });
+    K.add(limb(E, H, .05, .042, L.as, { ext: .02 }), { part: 4, limb: l + 1 });
+    if (L.hands) K.add(new THREE.OctahedronGeometry(.046).translate(H[0], H[1], H[2] + .03), { part: 1, limb: l + 1 });
+  }
+  return K.build({ tags: true });
+}
+// materiale del pubblico: colori dei pezzi, braccia alzate e salti, tutto nello shader (nessun costo sulla CPU)
+function crowdMaterial(U){
+  const m = new THREE.MeshLambertMaterial(), A = CROWD_ARM, f = v => v.toFixed(3);
+  m.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, U);
+    sh.vertexShader = `uniform float uTime; uniform float uCheer; uniform vec3 uPantsA, uPantsB, uPhone, uFlagG, uFlagW, uFlagR;
+attribute vec2 aTag; attribute vec3 aSkin, aHair; attribute vec4 aMisc; attribute float aSeed;
+varying float vGlow;
+mat3 rotX(float a){ float c = cos(a), s = sin(a); return mat3(1., 0., 0., 0., c, s, 0., -s, c); }
+mat3 rotZ(float a){ float c = cos(a), s = sin(a); return mat3(c, s, 0., -s, c, 0., 0., 0., 1.); }
+// braccio alzato: prima si stende il gomito, poi tutto il braccio ruota sulla spalla verso l'alto e un po' in fuori
+vec3 armPose(vec3 p, float r, float side, bool fore, bool dir){
+  vec3 S = vec3(side*${f(A.sx)}, ${f(A.sy)}, ${f(A.sz)}), E = vec3(side*${f(A.ex)}, ${f(A.ey)}, ${f(A.ez)});
+  float wave = sin(uTime*7. + aSeed*2.3)*.25*uCheer;
+  mat3 Ru = rotX(1.15*r), R = rotZ(-side*.32*r)*rotX((-2.65 + wave)*r);
+  if (fore) p = dir ? Ru*p : E + Ru*(p - E);
+  return dir ? R*p : S + R*(p - S);
+}
+` + sh.vertexShader
+      .replace('#include <color_vertex>', `#include <color_vertex>
+ // parte e arto del vertice; quanto è alzato il braccio (chi tifa lo alza un po' dopo gli altri, non tutti insieme)
+ int part = int(aTag.x + .5), limb = int(aTag.y + .5);
+ float up = aMisc.z > .75 ? 1. : aMisc.z > .25 ? clamp(uCheer*1.8 - fract(aSeed*.618)*.8, 0., 1.) : 0.;
+ float side = limb > 2 ? 1. : -1., armR = limb == 0 ? 0. : (side < 0. && aMisc.w > .5) ? 0. : up;
+ bool fore = limb == 2 || limb == 4;
+ vec3 c = vColor.rgb; vGlow = 0.;
+ if (part == 1) c = aSkin;
+ else if (part == 2) c = aHair;
+ else if (part == 3) c = mix(uPantsA, uPantsB, aMisc.x);
+ else if (part == 4) c = mix(aSkin, vColor.rgb, aMisc.y);
+ else if (part == 5){ c = uPhone; vGlow = .9; }
+ else if (part == 6) c = uFlagG;
+ else if (part == 7) c = uFlagW;
+ else if (part == 8) c = uFlagR;
+ else if (part == 9) c = vec3(.05);
+ vColor.rgb = c;`)
+      .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+ if (limb > 0) objectNormal = armPose(objectNormal, armR, side, fore, true);`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+ // ogni oggetto solo nella mano di chi lo tiene (gli altri si riducono a un punto)
+ bool keep = part < 5 || (part == 5 && aMisc.w > .5 && aMisc.w < 1.5) || (part > 5 && aMisc.w > 1.5);
+ if (!keep) transformed = vec3(0.);
+ else if (limb > 0) transformed = armPose(transformed, armR, side, fore, false);
+ transformed.y += uCheer*.22*abs(sin(uTime*9. + aSeed*1.7));`);
+    sh.fragmentShader = 'varying float vGlow;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += vGlow*diffuseColor.rgb;');
+  };
+  return m;
+}
+// seggiolino: seduta e schienale (sotto la persona, o vuoto dove manca qualcuno)
+function seatGeometry(){
+  return kit().add(new THREE.BoxGeometry(.44, .06, .4).translate(0, .39, -.01)).add(new THREE.BoxGeometry(.44, .42, .05).rotateX(-.1).translate(0, .62, -.24)).build();
+}
+
+/* ---------- persona in piedi (o seduta, per l'arbitro): un'unica mesh con i colori nei vertici ---------- */
+// pose: 'dietro' (raccattapalle, mani dietro la schiena), 'camera' (operatori, mani alle maniglie), 'seduto' (arbitro)
+function standingGeometry({ shirt, pants, hair, shoes, skin = 0xd9a98a, pose = 'dietro', sleeves = false }){
+  const K = kit(), seated = pose === 'seduto', dy = seated ? -.8 : 0;     // seduto: il bacino scende sul piano della sedia
+  for (const e of [-1, 1]){
+    if (seated){
+      K.add(limb([e*.1, .1, 0], [e*.1, .13, .44], .085, .07, 8, { capsule: true }), { color: pants });
+      K.add(limb([e*.1, .13, .45], [e*.1, -.36, .48], .065, .055, 8, { capsule: true }), { color: pants });
+      K.add(new THREE.BoxGeometry(.11, .08, .26).translate(e*.1, -.4, .55), { color: shoes });
+    } else {
+      K.add(limb([e*.1, .1, 0], [e*.105, .88, 0], .062, .085, 8, { capsule: true }), { color: pants });
+      K.add(new THREE.BoxGeometry(.11, .08, .27).translate(e*.1, .04, .045), { color: shoes });
+    }
+  }
+  K.add(new THREE.CylinderGeometry(.175, .17, .2, 10).scale(1, 1, .66).translate(0, .92 + dy, 0), { color: pants });                // bacino
+  K.add(new THREE.CylinderGeometry(.2, .165, .5, 10).scale(1, 1, .6).translate(0, 1.25 + dy, 0), { color: shirt });                // busto
+  K.add(new THREE.CapsuleGeometry(.075, .3, 3, 8).rotateZ(Math.PI/2).scale(1, 1, .85).translate(0, 1.44 + dy, 0), { color: shirt }); // spalle
+  K.add(limb([0, 1.47 + dy, 0], [0, 1.6 + dy, .01], .052, .048, 8), { color: skin });                                              // collo
+  K.add(new THREE.SphereGeometry(.11, 12, 9).scale(.92, 1.08, 1).translate(0, 1.68 + dy, .01), { color: skin });
+  K.add(new THREE.SphereGeometry(.117, 12, 5, 0, Math.PI*2, 0, Math.PI*.55).rotateX(-.45).translate(0, 1.695 + dy, -.005), { color: hair });
+  K.add(new THREE.BoxGeometry(.03, .045, .04).translate(0, 1.67 + dy, .115), { color: skin });                                     // naso
+  for (const e of [-1, 1]){
+    const S = [e*.235, 1.43 + dy, 0];
+    const [E, H] = pose === 'camera' ? [[e*.27, 1.18, .1], [e*.17, 1.36, .27]]
+      : seated ? [[e*.25, 1.17 + dy, .08], [e*.15, 1.1 + dy, .33]]
+      : [[e*.25, 1.17, -.06], [e*.07, 1.02, -.15]];
+    K.add(limb(S, E, .058, .05, 8, { capsule: true }), { color: shirt });
+    K.add(limb(E, H, .05, .042, 8, { capsule: true }), { color: sleeves ? shirt : skin });
+    K.add(new THREE.SphereGeometry(.048, 8, 6).scale(.8, 1, 1.15).translate(...H), { color: skin });
+  }
+  return K.build({ colors: true });
 }
 
 export function buildArena(scene, { quality = 1, anisotropy = 8 } = {}){
@@ -149,17 +293,15 @@ export function buildArena(scene, { quality = 1, anisotropy = 8 } = {}){
   const setScore = txt => { for (const m of scoreBox.mats){ m.map.dispose(); m.map = seg7(txt, 256, 128); } };
   const setSpeed = kmh => { for (const m of speedBox.mats){ m.map.dispose(); m.map = seg7(String(Math.round(kmh)).padStart(3, '0'), 256, 100); } };
 
-  // persona in piedi (operatori, raccattapalle): gambe, busto, testa; scale < 1 per i ragazzi. Un po' di luce propria:
-  // i fari del campo li illuminano di fronte, con la sola luce dall'alto i fianchi prenderebbero il blu dell'ambiente
-  const lit = c => new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: .32 });
-  const skin = lit(0xd9a98a);
-  const person = (x, z, ry, shirt, pants, k = 1, y = 0) => {
-    const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; g.scale.setScalar(k); group.add(g);
-    const part = (geo, m, px, py, pz) => { const o = new THREE.Mesh(geo, m); o.position.set(px, py, pz); o.castShadow = true; g.add(o); };
-    for (const e of [-1, 1]) part(new THREE.CapsuleGeometry(.075, .7, 2, 6), lit(pants), e*.1, .45, 0);
-    part(new THREE.CapsuleGeometry(.17, .42, 2, 8), lit(shirt), 0, 1.15, 0);
-    for (const e of [-1, 1]) part(new THREE.CapsuleGeometry(.055, .5, 2, 6), lit(shirt), e*.24, 1.12, .04);
-    part(new THREE.SphereGeometry(.12, 10, 8), skin, 0, 1.58, 0);
+  // persona in piedi (operatori, raccattapalle) o seduta (arbitro): scarpe, gambe, bacino, busto con le spalle, collo,
+  // testa con i capelli, braccia piegate; scale < 1 per i ragazzi. Una mesh sola a persona, colori nei vertici e un
+  // po' di luce propria nel colore del pezzo: i fari del campo li illuminano di fronte, con la sola luce dall'alto i
+  // fianchi prenderebbero il blu dell'ambiente
+  const litV = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0xffffff, emissiveIntensity: .32 });
+  litV.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance *= vColor;'); };
+  const person = (x, z, ry, shirt, pants, k = 1, y = 0, look = {}) => {
+    const m = new THREE.Mesh(standingGeometry({ shirt, pants, hair: 0x2e2018, shoes: 0x16171c, ...look }), litV);
+    m.position.set(x, y, z); m.rotation.y = ry; m.scale.setScalar(k); m.castShadow = true; group.add(m); return m;
   };
   /* sedia dell'arbitro bianca ad «A», panchine bianche, operatori TV, raccattapalle */
   {
@@ -169,59 +311,120 @@ export function buildArena(scene, { quality = 1, anisotropy = 8 } = {}){
     for (const s of [-1, 1]){ const leg = add(new THREE.BoxGeometry(.13, 2.55, .55), white, X + s*.34, 1.22, 0, { shadow: true }); leg.rotation.z = -s*.28; }
     for (const [y, w] of [[.55, 1.15], [1.05, .85], [1.55, .55]]) add(new THREE.BoxGeometry(w, .09, .5), white, X, y, 0);
     add(new THREE.BoxGeometry(.8, .12, .8), white, X, 2.45, 0, { shadow: true }); add(new THREE.BoxGeometry(.1, .75, .8), white, X - .38, 2.85, 0);
-    person(X - .08, 0, Math.PI/2, 0x1b2140, 0x1b2140, .78, 1.75);
+    // arbitro seduto sulla pedana, in bianco con i pantaloni scuri, piedi oltre il bordo verso il campo
+    person(X - .02, 0, Math.PI/2, 0xf2f4fa, 0x1b2140, .95, 2.51, { pose: 'seduto', sleeves: true, hair: 0x3a2a20 });
     const sofa = z => { add(new THREE.BoxGeometry(.9, .45, 2.2), white, X - .9, .25, z, { shadow: true }); add(new THREE.BoxGeometry(.25, .55, 2.2), white, X - 1.25, .7, z); for (const e of [-1, 1]) add(new THREE.BoxGeometry(.9, .3, .2), white, X - .9, .6, z + e*1.05); };
     sofa(-3.2); sofa(3.2);
     // operatori TV: tre telecamere sul cavalletto nella buca del lato opposto all'arbitro, all'altezza della rete
-    for (const cz of [-1.6, 0, 1.6]){
+    [-1.6, 0, 1.6].forEach((cz, i) => {
       const cx = WX - .1;
       for (const a of [0, 2.1, 4.2]){ const l = add(new THREE.CylinderGeometry(.02, .02, 1.3, 4), lam(0x111111), cx - .35 + Math.cos(a)*.2, .62, cz + Math.sin(a)*.2); l.rotation.z = Math.cos(a)*.16; l.rotation.x = -Math.sin(a)*.16; }
       add(new THREE.BoxGeometry(.75, .34, .34), lam(0x2a2c33), cx - .45, 1.42, cz, { shadow: true });
       add(new THREE.CylinderGeometry(.11, .13, .22, 10), lam(0x111216), cx - .9, 1.42, cz).rotation.z = Math.PI/2;
-      person(cx + .15, cz, -Math.PI/2, 0xf2f4fa, 0x15161c);
-    }
+      // maglia bianca e pantaloni scuri, mani alle maniglie della telecamera
+      person(cx + .15, cz, -Math.PI/2, 0xf2f4fa, 0x15161c, 1, 0, { pose: 'camera', sleeves: i !== 1, hair: [0x1a1412, 0x6e4e33, 0x8a8a8a][i] });
+    });
     // raccattapalle in fondo, davanti al muro, ai lati del logo
-    for (const s of [-1, 1]) for (const e of [-1, 1]) person(e*4.6, s*(WZ - .6), s > 0 ? Math.PI : 0, 0xf4f6fb, 0xf4f6fb, .82);
+    // tutti in bianco (scarpe comprese), mani dietro la schiena
+    const kidHair = [0x2e2018, 0xa9844f, 0x1a1412, 0x5a3a24];
+    for (const s of [-1, 1]) for (const e of [-1, 1]) person(e*4.6, s*(WZ - .6), s > 0 ? Math.PI : 0, 0xf4f6fb, 0xf4f6fb, .82, 0, { shoes: 0xe9edf5, hair: kidHair[(s + 1) + (e + 1)/2] });
   }
 
   /* tribune: anello basso, fascia LED, anello alto; pubblico seduto; scale e passaggi tra i settori */
-  const people = [], steps = [], aisles = [];
-  let crowd = null, crowdN = 0;
+  const people = [[], []], seats = [], steps = [], aisles = [], nosing = [];
+  let crowd = null;
   const tiers = [
     { hx: 12.9, hz: 22.4, R: 6, rows: 12, d: .82, rise: .5, y0: 1.5, gapEnd: 4.2 },
     { hx: 12.9 + 11.2, hz: 22.4 + 11.2, R: 6 + 11.2, rows: Math.round(14*quality + 4*(1 - quality)), d: .8, rise: .62, y0: 9.4, gapEnd: 0 },
   ];
   const SP = .56, SEC = 14;
-  for (const T of tiers){
+  tiers.forEach((T, t) => {
     for (let r = 0; r < T.rows; r++){
       const o = r*T.d, y = T.y0 + r*T.rise, pts = ringPath(T.hx + o, T.hz + o, T.R + o, SP);
       pts.forEach((p, i) => {
         const endCenter = Math.abs(p.nz) > .99 && Math.abs(p.x) < T.gapEnd && r < 9;       // a metà dei lati corti: maxischermo e passaggio
         const aisle = i % SEC === 0 || endCenter;
-        (aisle ? aisles : steps).push({ x: p.x + p.nx*T.d/2, y, z: p.z + p.nz*T.d/2, ry: Math.atan2(p.nx, p.nz), w: SP, d: T.d, h: T.rise + (r === 0 ? T.y0 : 0) });
-        if (!aisle && Math.random() < .9) people.push({ x: p.x + p.nx*T.d*.45, y, z: p.z + p.nz*T.d*.45, ry: Math.atan2(-p.nx, -p.nz) });
+        const cx = p.x + p.nx*T.d/2, cz = p.z + p.nz*T.d/2, ry = Math.atan2(p.nx, p.nz), h = T.rise + (r === 0 ? T.y0 : 0);
+        if (aisle && r > 0 && !endCenter){
+          // scala: due alzate per fila (metà davanti più bassa), con il bordo chiaro su ogni gradino
+          const q = T.d/4, hr = T.rise/2;
+          aisles.push({ x: cx + p.nx*q, y, z: cz + p.nz*q, ry, w: SP, d: T.d/2, h }, { x: cx - p.nx*q, y: y - hr, z: cz - p.nz*q, ry, w: SP, d: T.d/2, h: h - hr });
+          for (const [k, yy] of [[0, y - hr], [2*q, y]]) nosing.push({ x: p.x + p.nx*(k + .03), y: yy + .006, z: p.z + p.nz*(k + .03), ry, w: SP*.86, d: .06, h: .03 });
+        } else (aisle ? aisles : steps).push({ x: cx, y, z: cz, ry, w: SP, d: T.d, h });
+        if (aisle) return;
+        const spot = { x: p.x + p.nx*T.d*.45, y, z: p.z + p.nz*T.d*.45, ry: Math.atan2(-p.nx, -p.nz) };
+        seats.push(spot);
+        if (Math.random() < .9) people[t].push({ ...spot });
       });
     }
-  }
-  for (let i = people.length - 1; i > 0; i--){ const j = (Math.random()*(i + 1)) | 0; [people[i], people[j]] = [people[j], people[i]]; }
+  });
+  for (const L of people) for (let i = L.length - 1; i > 0; i--){ const j = (Math.random()*(i + 1)) | 0; [L[i], L[j]] = [L[j], L[i]]; }
   const box = new THREE.BoxGeometry(1, 1, 1), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
   const instanced = (list, mat, size) => {
     const im = new THREE.InstancedMesh(box, mat, list.length);
     list.forEach((s, i) => { Q.setFromAxisAngle(up, s.ry); V.set(s.x, s.y - s.h/2, s.z); S.set(s.w, s.h, s.d); M.compose(V, Q, S); im.setMatrixAt(i, M); });
     im.receiveShadow = false; group.add(im); return im;
   };
-  instanced(steps, lam(C.step)); instanced(aisles, lam(C.aisle));
+  instanced(steps, lam(C.step)); instanced(aisles, lam(C.aisle)); instanced(nosing, lam(C.nosing));
   {
-    const im = new THREE.InstancedMesh(personGeometry(), new THREE.MeshLambertMaterial(), people.length), col = new THREE.Color();
-    const palette = [0x9fb4ee, 0x7f97e0, 0xb7c6f4, 0x6278cc, 0xcfd9fb, 0x5468b8, 0x8e86e8, 0x4a5fae];
-    people.forEach((p, i) => { Q.setFromAxisAngle(up, p.ry); V.set(p.x, p.y, p.z); S.set(1, 1, 1); M.compose(V, Q, S); im.setMatrixAt(i, M); im.setColorAt(i, col.set(palette[(Math.random()*palette.length) | 0])); });
-    // il pubblico salta quando si fa punto (spostamento nello shader, nessun costo sulla CPU)
-    const U = { uTime: { value: 0 }, uCheer: { value: 0 } };
-    im.material.onBeforeCompile = sh => {
-      Object.assign(sh.uniforms, U);
-      sh.vertexShader = 'uniform float uTime; uniform float uCheer;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed.y += uCheer*.22*abs(sin(uTime*9. + float(gl_InstanceID)*1.7));');
+    // seggiolini: uno per posto, anche dove il posto è vuoto (si vedono i buchi nel pubblico, e le tribune a porte chiuse)
+    const im = new THREE.InstancedMesh(seatGeometry(), lam(C.seat), seats.length);
+    seats.forEach((p, i) => { Q.setFromAxisAngle(up, p.ry); V.set(p.x, p.y, p.z); M.compose(V, Q, S.set(1, 1, 1)); im.setMatrixAt(i, M); });
+    group.add(im);
+  }
+  {
+    // Pubblico: una InstancedMesh per anello (in basso la figura più dettagliata, in alto quella leggera) e una
+    // piccolissima con telefoni e bandierine di chi li tiene alzati. Colore della maglia in instanceColor; per persona
+    // anche pelle, capelli, aSeed (fase dell'animazione) e aMisc = (tono dei pantaloni, manica lunga 0/1,
+    // braccia: 0 giù · .5 si alzano col tifo · 1 sempre su, oggetto: 0 niente · 1 telefono · 2 bandierina).
+    // Lo shader (crowdMaterial) colora i pezzi secondo aTag, alza le braccia e fa saltare il pubblico.
+    const U = { uTime: { value: 0 }, uCheer: { value: 0 }, uPantsA: { value: new THREE.Color(0x1c2233) }, uPantsB: { value: new THREE.Color(0x4a5d84) },
+      uPhone: { value: new THREE.Color(0xdfe8ff) }, uFlagG: { value: new THREE.Color(0x1f8a4c) }, uFlagW: { value: new THREE.Color(0xf4f5f0) }, uFlagR: { value: new THREE.Color(0xc8323c) } };
+    const mat = crowdMaterial(U);
+    // maglie: tanti neutri (bianco, grigi, nero, blu notte) e qualche colore pieno un po' spento, appena spinto verso
+    // il blu della sala, così sotto le luci dell'arena resta vario senza stonare; [colore, peso]
+    const pick = list => { let t = Math.random()*list.reduce((a, [, w]) => a + w, 0); for (const [c, w] of list){ if ((t -= w) <= 0) return c; } return list[0][0]; };
+    const shirts = [[0xe9edf5, 5], [0xb8bfcc, 4], [0x7d8494, 4], [0x3b404c, 5], [0x1d2029, 5], [0x25355f, 5], [0x3f62c9, 3], [0x8fb3ea, 3],
+      [0x3f8f9a, 1.5], [0x4f7f5a, 1.5], [0xc9a24a, 1.5], [0xd07a45, 1], [0xb8434a, 2], [0x7a2e3e, 1.5], [0xd98fae, 1.5], [0x6a5aa8, 2], [0xcdb99a, 2]];
+    const hairs = [[0x1a1412, 6], [0x2e2018, 6], [0x4a3222, 5], [0x6e4e33, 3], [0xa9844f, 2], [0xd2b47a, 1.5], [0x7a3a22, 1], [0x8a8a8a, 2], [0xc9c9c9, 1.5]];
+    const skins = [[0xf1c9a8, 4], [0xe0ac88, 4], [0xc68863, 2], [0x9a6444, 1.2], [0x6b4430, .8]];
+    const hall = new THREE.Color(0x5b72c8), col = new THREE.Color(), holders = [];
+    const fill = (im, list, own) => {
+      const N = list.length, geo = im.geometry, skinA = new Float32Array(N*3), hairA = new Float32Array(N*3), misc = new Float32Array(N*4), seed = new Float32Array(N);
+      geo.setAttribute('aSkin', new THREE.InstancedBufferAttribute(skinA, 3)); geo.setAttribute('aHair', new THREE.InstancedBufferAttribute(hairA, 3));
+      geo.setAttribute('aMisc', new THREE.InstancedBufferAttribute(misc, 4)); geo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seed, 1));
+      list.forEach((p, i) => {
+        M.compose(V.set(p.x, p.y, p.z), Q.setFromAxisAngle(up, p.ry), S.setScalar(p.k)); im.setMatrixAt(i, M);
+        im.setColorAt(i, col.set(p.shirt)); col.set(p.skin).toArray(skinA, i*3); col.set(p.hair).toArray(hairA, i*3);
+        misc.set(p.misc, i*4); seed[i] = p.seed;
+        if (own && p.misc[3]) holders.push(p);
+      });
+      return im;
     };
-    group.add(im); crowd = im; crowdN = people.length;
+    const crowds = people.map((list, t) => {
+      list.forEach((p, i) => {
+        const u = Math.random(), item = u < .02 ? 1 : u < .035 ? 2 : 0;
+        Object.assign(p, {
+          tier: t, rank: i, k: .93 + Math.random()*.12, ry: p.ry + (Math.random() - .5)*.25, seed: Math.random()*100,   // un po' più grandi e più piccoli, un po' girati
+          shirt: col.set(pick(shirts)).lerp(hall, .12).getHex(), skin: pick(skins), hair: pick(hairs),
+          misc: [Math.random(), Math.random() < .4 ? 1 : 0, item || u < .05 ? 1 : u < .3 ? .5 : 0, item],
+        });
+      });
+      const im = fill(new THREE.InstancedMesh(crowdGeometry(t === 0 ? 'fine' : quality >= .75 ? 'medio' : 'leggero'), mat, list.length), list, true);
+      group.add(im); return im;
+    });
+    // telefoni e bandierine: stessi attributi della persona che li tiene, così seguono il suo braccio
+    const propsIm = fill(new THREE.InstancedMesh(crowdGeometry('oggetti'), mat, holders.length), holders, false);
+    const propM = holders.map((_, i) => { const m = new THREE.Matrix4(); propsIm.getMatrixAt(i, m); return m; }), zero = new THREE.Matrix4().makeScale(0, 0, 0);
+    group.add(propsIm);
+    crowd = {
+      set visible(v){ for (const im of [...crowds, propsIm]) im.visible = v; },
+      // meno pubblico: le persone sono in ordine casuale per anello, ne restano a caso; gli oggetti seguono chi resta
+      density(k){
+        const n = crowds.map((im, t) => im.count = Math.round(people[t].length*k));
+        holders.forEach((p, i) => propsIm.setMatrixAt(i, p.rank < n[p.tier] ? propM[i] : zero)); propsIm.instanceMatrix.needsUpdate = true;
+      },
+    };
     updaters.push((t, cheer) => { U.uTime.value = t; U.uCheer.value = cheer; });
   }
   // fascia LED tra i due anelli: scritta che scorre
@@ -293,7 +496,7 @@ export function buildArena(scene, { quality = 1, anisotropy = 8 } = {}){
   return {
     group, setScore, setSpeed,
     // qualità: meno pubblico sui computer lenti (le persone sono in ordine casuale per anello, ne restano a caso)
-    setDensity(k){ if (crowd) crowd.count = Math.round(crowdN*Math.max(.1, Math.min(1, k))); },
+    setDensity(k){ if (crowd) crowd.density(Math.max(.1, Math.min(1, k))); },
     // tribune vuote (campo d'allenamento)
     setCrowd(visible){ if (crowd) crowd.visible = !!visible; },
     update(t, cheer = 0){ for (const f of updaters) f(t, cheer); },
