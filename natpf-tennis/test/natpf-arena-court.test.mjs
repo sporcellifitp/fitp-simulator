@@ -16,3 +16,13 @@ test('arena: TORINO dritta per chi gioca, su tutte e due le metà, per P1 e per 
   }
   assert.ok(COURT_WORD.back < 3 && COURT_WORD.width < 4.5, 'poco dietro la riga di fondo e non più larga del corridoio dei doppi');
 });
+
+test('arena: sedia dell\'arbitro come nelle schermate di riferimento (a destra dal fondo del P1, lontana dalla rete)', async () => {
+  const { UMPIRE } = await import('@natpf/tennis/arena.js');
+  const post = 5.485 + .915;                                 // paletto della rete: corridoio dei doppi + 0,915 m
+  assert.ok(UMPIRE.x > 0, 'a destra di chi guarda dal fondo del P1');
+  assert.ok(UMPIRE.x - post > 3.2 && UMPIRE.x - post < 3.9, `oltre il paletto: ${(UMPIRE.x - post).toFixed(2)} m`);
+  assert.ok(12.2 - UMPIRE.x > 1.8, 'davanti al muro laterale');
+  assert.equal(UMPIRE.tvSide, -Math.sign(UMPIRE.x), 'telecamere sul lato opposto');
+  assert.deepEqual([...UMPIRE.benchZ].map(Math.abs), [4, 4]);
+});

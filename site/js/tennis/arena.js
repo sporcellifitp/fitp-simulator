@@ -31,6 +31,9 @@ const ART = name => { const t = loader.load(new URL('../../assets/arena/' + name
 // −1 = P2): come nei riferimenti, le due scritte dietro le linee di fondo si leggono dritte dalla camera di chi gioca,
 // quella vicina sotto la camera e quella in fondo al campo. Ognuno vede il proprio campo uguale all'altro.
 export const courtWordTurn = viewer => (viewer < 0 ? Math.PI : 0);
+// sedia dell'arbitro e telecamere come nelle schermate di riferimento (prese dal fondo del P1, z > 0): sedia a destra
+// (x > 0) a 10 m dal centro sulla linea della rete, panchine ai lati a z = ±4 m, telecamere nella buca sul lato opposto
+export const UMPIRE = Object.freeze({ x: 10, benchZ: [-4, 4], tvSide: -1 });
 export const COURT_WORD = Object.freeze({ width: 3.6, back: 2.1 });   // m: larghezza (proporzioni del file 1360 × 385) e distanza dalla riga di fondo
 const plainTex = () => canvas(64, 64, (x, W, H) => {
   const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#16378f'); g.addColorStop(1, '#0a2163'); x.fillStyle = g; x.fillRect(0, 0, W, H);
@@ -264,16 +267,17 @@ export function buildArena(scene, { quality = 1, anisotropy = 8 } = {}){
 
   /* muro attorno al fuori campo (alto 1 m) con i loghi stampati, pannelli LED negli angoli, bordo luminoso */
   const WX = 12.2, WZ = 21, WH = 1, WT = .3, PIT = 2.7;          // muro interno: ±12,2 × ±21 m; buca telecamere |z| < 2,7
+  const TV = UMPIRE.tvSide;                                        // la buca delle telecamere è sul lato opposto all'arbitro
   const wallMat = new THREE.MeshLambertMaterial({ map: plainTex() }), neon = new THREE.MeshBasicMaterial({ color: 0x2f6dff });
   const wall = (x0, z0, x1, z1) => {
     const L = Math.hypot(x1 - x0, z1 - z0), cx = (x0 + x1)/2, cz = (z0 + z1)/2, ry = Math.atan2(x1 - x0, z1 - z0) + Math.PI/2;
     add(new THREE.BoxGeometry(L, WH, WT), wallMat, cx, WH/2, cz, { ry });
     add(new THREE.BoxGeometry(L, .05, WT + .04), neon, cx, WH + .025, cz, { ry });
   };
-  for (const s of [-1, 1]){ wall(-WX - WT/2, s*(WZ + WT/2), WX + WT/2, s*(WZ + WT/2)); wall(-(WX + WT/2), -WZ, -(WX + WT/2), WZ); }
-  wall(WX + WT/2, -WZ, WX + WT/2, -PIT); wall(WX + WT/2, PIT, WX + WT/2, WZ);
+  for (const s of [-1, 1]){ wall(-WX - WT/2, s*(WZ + WT/2), WX + WT/2, s*(WZ + WT/2)); wall(-TV*(WX + WT/2), -WZ, -TV*(WX + WT/2), WZ); }
+  wall(TV*(WX + WT/2), -WZ, TV*(WX + WT/2), -PIT); wall(TV*(WX + WT/2), PIT, TV*(WX + WT/2), WZ);
   // varco delle telecamere: il muro si interrompe, i due capi sono rifiniti come le testate del muro
-  for (const e of [-1, 1]) add(new THREE.BoxGeometry(WT + .04, WH + .05, .04), neon, WX + WT/2, WH/2, e*PIT);
+  for (const e of [-1, 1]) add(new THREE.BoxGeometry(WT + .04, WH + .05, .04), neon, TV*(WX + WT/2), WH/2, e*PIT);
   // loghi sul lato interno del muro, con le proporzioni dei file
   const deco = (tex, w, h, x, z, ry, y = WH/2) => add(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }), x, y, z, { ry });
   const hor = ART('nitto-atp-finals.png'), stack = ART('logo-impilato.png'), esp = ART('esports.png'), led = ART('pannello-led.png');
@@ -314,41 +318,47 @@ export function buildArena(scene, { quality = 1, anisotropy = 8 } = {}){
   };
   /* sedia dell'arbitro bianca ad «A», panchine bianche, operatori TV, raccattapalle */
   {
-    const white = lam(0xf2f5ff), X = -(DW + 1.9);
-    // sedia ad «A» come nei riferimenti: una grande lettera «A» a blocco (alta 2,95 m, larga 2,3 m alla base, spessa
-    // 0,66 m: forma di 2,45 × 1,9 × 0,55 m ingrandita di S), blu scuro lucido con i fianchi chiari, leggibile guardando dal fondo; gradini bianchi tra le gambe sotto
-    // la traversa, pedana e seduta bianche in cima con l'arbitro. Prima: due assi bianche e tre pioli (una scaletta).
-    const S = 1.2, seatY = 2.45*S + .16;
+    const white = lam(0xf2f5ff), X = UMPIRE.x;
+    // sedia ad «A» come nei riferimenti (le quattro schermate dal fondo del P1): a destra di chi guarda dal fondo del P1
+    // (x > 0), circa 3,5 m oltre il paletto della rete e 2,2 m davanti al muro laterale, sulla linea della rete. Una
+    // grande lettera «A» a blocco (alta 2,95 m, larga 2,3 m alla base, spessa 0,66 m: forma di 2,45 × 1,9 × 0,55 m
+    // ingrandita di S), blu scuro lucido con i fianchi chiari, girata verso il campo: si legge dall'altro lato del campo.
+    // Pedana e seduta bianche in cima con l'arbitro, scaletta bianca separata sul fianco (verso z negativa).
+    // Prima: a sinistra, a 7,4 m dal centro, con l'«A» girata verso il fondo e i gradini dentro l'apertura.
+    const S = 1.2, seatY = 2.45*S + .16, top = 2.45*S + .1;
     {
       const A = new THREE.Shape([[-.95, 0], [-.3, 2.45], [.3, 2.45], [.95, 0], [.5, 0], [.36, .55], [-.36, .55], [-.5, 0]].map(([x, y]) => new THREE.Vector2(x, y)));
       A.holes.push(new THREE.Path([[-.21, .95], [.21, .95], [0, 1.72]].map(([x, y]) => new THREE.Vector2(x, y))));
       const geo = new THREE.ExtrudeGeometry(A, { depth: .55, bevelEnabled: true, bevelThickness: .05, bevelSize: .045, bevelSegments: 3, curveSegments: 4 });
       geo.translate(0, 0, -.275);
       const face = new THREE.MeshPhongMaterial({ color: 0x1d3a9a, specular: 0x6f8cff, shininess: 60 }), side = new THREE.MeshPhongMaterial({ color: 0xd9e4ff, specular: 0xffffff, shininess: 40 });
-      // l'«A» si legge dal fondo (come nel riferimento con la camera dietro la riga): piano parallelo alla rete, gambe
-      // verso il campo e verso il muro
-      const chair = add(geo, [face, side], X, .05, 0, { shadow: true });
+      // piano dell'«A» parallelo al lato lungo, faccia verso il campo (−x), gambe lungo z
+      const chair = add(geo, [face, side], X, .05, 0, { ry: -Math.PI/2, shadow: true });
       chair.receiveShadow = true; chair.scale.setScalar(S);
-      // gradini bianchi nell'apertura sotto la traversa (si sale da dietro)
-      for (const [y, w] of [[.12, .78], [.3, .66], [.46, .55]]) add(new THREE.BoxGeometry(w*S, .06, .4), white, X, y*S, 0);
-      // pedana e seduta in cima
-      const top = 2.45*S + .1;
+      // pedana e seduta in cima, schienale verso il muro
       add(new THREE.BoxGeometry(.95, .1, .75), white, X, top, 0, { shadow: true });
-      add(new THREE.BoxGeometry(.12, .7, .75), white, X - .42, top + .37, 0);
-      for (const e of [-1, 1]) add(new THREE.BoxGeometry(.6, .22, .06), white, X - .1, top + .16, e*.36);
+      add(new THREE.BoxGeometry(.12, .7, .75), white, X + .42, top + .37, 0);
+      for (const e of [-1, 1]) add(new THREE.BoxGeometry(.6, .22, .06), white, X + .1, top + .16, e*.36);
     }
-    // arbitro seduto sulla pedana, in bianco con i pantaloni scuri, piedi oltre il bordo verso il campo
-    person(X - .02, 0, Math.PI/2, 0xf2f4fa, 0x1b2140, .95, seatY, { pose: 'seduto', sleeves: true, hair: 0x3a2a20 });
-    const sofa = z => { add(new THREE.BoxGeometry(.9, .45, 2.2), white, X - .9, .25, z, { shadow: true }); add(new THREE.BoxGeometry(.25, .55, 2.2), white, X - 1.25, .7, z); for (const e of [-1, 1]) add(new THREE.BoxGeometry(.9, .3, .2), white, X - .9, .6, z + e*1.05); };
-    sofa(-3.2); sofa(3.2);
+    // scaletta bianca accanto alla gamba dell'«A» (lato z negativa): due montanti inclinati e i pioli, fino alla pedana
+    {
+      const z0 = -1.95, z1 = -.62, len = Math.hypot(top, z1 - z0), tilt = Math.atan2(z1 - z0, top);
+      for (const e of [-1, 1]){ const r = add(new THREE.BoxGeometry(.06, len, .08), white, X + e*.24, top/2, (z0 + z1)/2, { shadow: true }); r.rotation.x = tilt; }
+      for (let i = 1; i <= 8; i++){ const u = i/9; add(new THREE.BoxGeometry(.48, .04, .12), white, X, u*top, z0 + u*(z1 - z0)); }
+    }
+    // arbitro seduto sulla pedana, in bianco con i pantaloni scuri, girato verso il campo
+    person(X + .02, 0, -Math.PI/2, 0xf2f4fa, 0x1b2140, .95, seatY, { pose: 'seduto', sleeves: true, hair: 0x3a2a20 });
+    // panchine bianche sulla stessa linea della sedia, ai due lati, schienale verso il muro
+    const sofa = z => { add(new THREE.BoxGeometry(.9, .45, 2.2), white, X + .9, .25, z, { shadow: true }); add(new THREE.BoxGeometry(.25, .55, 2.2), white, X + 1.25, .7, z); for (const e of [-1, 1]) add(new THREE.BoxGeometry(.9, .3, .2), white, X + .9, .6, z + e*1.05); };
+    for (const z of UMPIRE.benchZ) sofa(z);
     // operatori TV: tre telecamere sul cavalletto nella buca del lato opposto all'arbitro, all'altezza della rete
     [-1.6, 0, 1.6].forEach((cz, i) => {
-      const cx = WX - .1;
-      for (const a of [0, 2.1, 4.2]){ const l = add(new THREE.CylinderGeometry(.02, .02, 1.3, 4), lam(0x111111), cx - .35 + Math.cos(a)*.2, .62, cz + Math.sin(a)*.2); l.rotation.z = Math.cos(a)*.16; l.rotation.x = -Math.sin(a)*.16; }
-      add(new THREE.BoxGeometry(.75, .34, .34), lam(0x2a2c33), cx - .45, 1.42, cz, { shadow: true });
-      add(new THREE.CylinderGeometry(.11, .13, .22, 10), lam(0x111216), cx - .9, 1.42, cz).rotation.z = Math.PI/2;
+      const cx = TV*(WX - .1);
+      for (const a of [0, 2.1, 4.2]){ const l = add(new THREE.CylinderGeometry(.02, .02, 1.3, 4), lam(0x111111), cx - TV*.35 + Math.cos(a)*.2, .62, cz + Math.sin(a)*.2); l.rotation.z = Math.cos(a)*.16; l.rotation.x = -Math.sin(a)*.16; }
+      add(new THREE.BoxGeometry(.75, .34, .34), lam(0x2a2c33), cx - TV*.45, 1.42, cz, { shadow: true });
+      add(new THREE.CylinderGeometry(.11, .13, .22, 10), lam(0x111216), cx - TV*.9, 1.42, cz).rotation.z = Math.PI/2;
       // maglia bianca e pantaloni scuri, mani alle maniglie della telecamera
-      person(cx + .15, cz, -Math.PI/2, 0xf2f4fa, 0x15161c, 1, 0, { pose: 'camera', sleeves: i !== 1, hair: [0x1a1412, 0x6e4e33, 0x8a8a8a][i] });
+      person(cx + TV*.15, cz, -TV*Math.PI/2, 0xf2f4fa, 0x15161c, 1, 0, { pose: 'camera', sleeves: i !== 1, hair: [0x1a1412, 0x6e4e33, 0x8a8a8a][i] });
     });
     // raccattapalle in fondo, davanti al muro, ai lati del logo
     // tutti in bianco (scarpe comprese), mani dietro la schiena

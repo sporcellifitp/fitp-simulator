@@ -32,7 +32,7 @@ con hardware vero (telefono in mano, webcam con una persona, Wi-Fi di un evento)
 | Palla sempre nella stessa zona | mira solo dalla rotazione durante il colpo, rispetto alla mediana degli ultimi colpi: polso girato prima ignorato, mira annullata dopo 2–3 colpi | direzione assoluta del piatto all'impatto, centro che segue solo i colpi normali e la deriva, mira continua; tempo del colpo più incisivo | **provato** nel motore e nel browser; telefono vero no |
 | Musica sempre uguale | un brano per schermata | 12 brani, gruppi a rotazione, cambio dopo tre giri in dissolvenza | **provato** (test); ascolto reale no |
 | Menu | nessun blur; barra delle tappe tagliata; menu fuori schermo a 800 px; classifica e pannello del P2 disallineati | blur 5–6 px, barra compatta, menu compatto, larghezze allineate | **provato** con schermate a 4 risoluzioni |
-| Sedia dell'arbitro | scaletta bianca generica | grande «A» blu a blocco come nei riferimenti | **provato** con rendering |
+| Sedia dell'arbitro | scaletta bianca generica, poi «A» a 7,4 m sul lato sinistro | grande «A» blu verso il campo, a destra a 10 m dal centro (3,6 m oltre il paletto), scaletta sul fianco, panchine a ±4 m, telecamere sul lato opposto | **provato** con rendering e test |
 
 ### Pallonetto e palla corta (le «palle alte» e le «palle corte»)
 

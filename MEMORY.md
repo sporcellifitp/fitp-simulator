@@ -132,7 +132,10 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
   simulatore ora torna alla posa di partenza come la mano vera.
 - Musica: gruppi di brani per schermata con rotazione (`TRACK_GROUPS`), 12 brani; la testa del gruppo resta il
   brano di prima. Sedia dell'arbitro: «A» estrusa in codice (forma fedele ai riferimenti, ombre e luci della scena);
-  Higgsfield non è servito.
+  Higgsfield non è servito. Posizione (correzione del 19/10 dalle quattro schermate prese dal fondo del P1): sedia a
+  destra (x = +10 m, 3,6 m oltre il paletto, 2,2 m davanti al muro), «A» girata verso il campo, scaletta bianca
+  separata sul fianco (z < 0), panchine a z = ±4 m con lo schienale verso il muro, telecamere e varco nel muro sul lato
+  opposto (x < 0). Valori in `UMPIRE` (`site/js/tennis/arena.js`), controllati in `test/natpf-arena-court.test.mjs`.
 - Host autorevole per il multigiocatore; snapshot con formato (`fmt`) per il 2v2.
 - 1v1 (punto 4): la revisione (due esami indipendenti del codice, quasi tutti i difetti riprodotti) ha mostrato che
   mancava una sessione. Decisioni: i colpi del P2 contano sull'host solo con `_versusInMatch()`; il computer del P2
@@ -161,6 +164,7 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 | 19/10/2026 | 41b1880 | Colpi con la presa vera: niente pallonetti/tagliati dalla rotazione del polso, riferimenti solo dai colpi normali, verso del colpo con impugnatura cambiata, diagnostica con confidenza | `site/js/tennis/swing-detect.js`, `natpf-tennis/src/natpf/natpf_gestures.js`, `natpf_phone_racket.js`, `natpf_diag.js`, `scripts/audit/replay-recording.mjs`, `test/phone-sim.mjs`, `test/natpf-gesture-grip.test.mjs` |
 | 19/10/2026 | 95ec78e | Mira continua dalla direzione del piatto all'impatto, centro che non annulla i colpi mirati | `site/js/tennis/face-tracker.js`, `swing-message.js`, `natpf-tennis/src/natpf/natpf_gestures.js`, `natpf_phone_racket.js`, `natpf_skill.js`, `test/natpf-aim.test.mjs` |
 | 19/10/2026 | 717a104 | Sedia dell'arbitro: grande «A» blu come nei riferimenti | `site/js/tennis/arena.js` |
+| 19/10/2026 | (questo) | Sedia dell'arbitro al posto delle schermate: a destra, 10 m dal centro, «A» verso il campo, scaletta sul fianco, panchine a ±4 m, telecamere sul lato opposto | `site/js/tennis/arena.js`, `natpf-tennis/test/natpf-arena-court.test.mjs` |
 | 19/10/2026 | a48ba06 | Musica (12 brani a rotazione), blur dei menu, barra delle tappe, menu, classifica, pannello del P2 | `natpf-tennis/src/natpf/natpf_music.js`, `natpf.css`, `natpf-hud.css`, `natpf-intro.css`, `test/natpf-audio.test.mjs` |
 | 19/10/2026 | b0e9e69 | Prova nel browser del telefono con la presa verticale (QR → colpi) | `tools/e2e/natpf-phone-upright.mjs`, `tools/e2e/README.md` |
 | 19/10/2026 | 73c0eda + prova | 1v1: sessione, lobby, host arbitro, pausa/rientro, stanza chiusa o inesistente, errori del P2, relay e WebRTC; prova a due sessioni | `natpf-tennis/src/natpf/natpf_versus.js`, `natpf_versus_ui.js`, `natpf_ui.js`, `natpf_lobby.js`, `natpf_p2p.js`, `src/game_engine.js`, `src/motion_controls.js`, `src/hud_ui.js`, `scripts/match-relay.mjs`, `natpf.css`, `test/natpf-versus.test.mjs`, `tools/e2e/natpf-1v1-p2p.mjs`, `test/e2e/lan-e2e.mjs`, `docs/NATPF_ROADMAP.md` |
@@ -185,7 +189,7 @@ Secondo giro (richiesta del 19/10 pomeriggio, con foto e video della presa):
 | 1 | Colpi: pallonetti nei dritti per la rotazione del polso; dritto predefinito; palla corta invariata | fatto, provato con il simulatore della presa vera (96 dritti, pallonetti, palle corte, rumore, impugnatura cambiata) e nel browser dal QR (10/10); telefono vero **non provato** |
 | 2 | Angolazioni: zone sempre uguali | fatto, provato nel motore (tre zone, mira continua, P2 dal suo lato) e nel browser; telefono vero **non provato** |
 | 3 | Musica più varia, blur, allineamenti | fatto, provato (test della musica; schermate a 1024, 1280, 1366, 1920 px); audio reale non ascoltabile qui |
-| 4 | Sedia dell'arbitro come nei riferimenti | fatto, provato con rendering da fondo campo, da vicino e dal lato del P2 |
+| 4 | Sedia dell'arbitro come nei riferimenti | fatto; posizione corretta dopo le quattro schermate (era troppo vicina alla rete e sul lato sbagliato), provata con rendering dal fondo del P1, dal lato e di fronte |
 | 5 | Regressioni (QR, latenza, un gesto un colpo, palla corta, due lati, arena) | fatto: test unitari, prova nel browser del telefono, prova 1v1 a due sessioni |
 
 ## 11. Prossimi passi
