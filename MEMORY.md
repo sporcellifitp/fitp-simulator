@@ -3,7 +3,9 @@
 Memoria di lavoro del progetto: da leggere all'inizio di ogni sessione e da aggiornare alla fine di ogni attività.
 Non contiene password, token o altri segreti.
 
-Ultimo aggiornamento: 19 ottobre 2026 · branch `feature/natpf-tennis-v2`
+Ultimo aggiornamento: 19 ottobre 2026, sera · branch `claude/friendly-fermat-dwv2w2` (ripartito da
+`feature/natpf-tennis-v2`, che contiene tutto il lavoro precedente; i branch `backup/*` e gli altri `feature/natpf-*`
+sono già inclusi)
 
 ## 1. Descrizione
 
@@ -26,8 +28,13 @@ ammessi solo gli header di copyright delle librerie open source). Loghi ufficial
   `link.js` → `natpf_phone_racket.js` (`natpfSwingToEngine`, modelli adattivi) → `natpf_gestures.js`
   (`classifyPhoneShot`: dritto/rovescio, lob, palla corta, tagliato) → `game_engine.js` (`_attemptPlayerRallyStrike`,
   `natpf_skill.js` per direzione e profondità).
-- **Multigiocatore**: host autorevole. Relay `/api/match/*` (server LAN, `scripts/match-relay.mjs`) o, su sito
-  statico, `natpf_p2p.js` (intercetta le stesse chiamate e usa WebRTC con PeerJS; invito `?room=&role=p2&net=p2p`).
+- **Multigiocatore (sfida un amico)**: host unico arbitro. Relay `/api/match/*` (server LAN, `scripts/match-relay.mjs`)
+  o, su sito statico, `natpf_p2p.js` (intercetta le stesse chiamate e usa WebRTC con PeerJS; invito
+  `?room=AT-XXXX&role=p2&net=p2p`). Sessione 1v1 in `natpf_versus.js` (funzioni pure: lobby, stato del P2, contatori)
+  e `natpf_versus_ui.js` (lobby dell'host, pausa se il P2 esce, pannello del P2); nel motore `engine.versus`,
+  `_versusInMatch()`, `endVersus()`, `versusGuest`. Flusso: «Sfida un amico» crea la stanza (riusata dopo un
+  ricaricamento, `sessionStorage natpf.versus.room`) → link → P2 entra e preme «Sono pronto» (`touch=p2&ready=1`) →
+  «Gioca» si sblocca → snapshot ogni 45 ms (in lobby `{lobby}`, in pausa `{paused}`, chiusura `{closed}`).
 - **Arena**: `site/js/tennis/arena.js` (`buildArena`), decal dei loghi sul muro, pubblico con InstancedMesh,
   `natpf_arena.js` (campo d'allenamento, anisotropia).
 
@@ -77,7 +84,13 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 - Prove con telefoni veri, webcam con persone e due computer reali non possibili in questo ambiente.
 - p2p su Cloudflare senza server TURN: alcune reti (NAT simmetrici) possono non collegarsi.
 - Il browser di prova usa la grafica software: fotogrammi lenti (1,6–1,8 s), tempi delle prove automatiche imprecisi.
-- Test e2e LAN: il telefono simulato non chiude la connessione WebRTC verso l'indirizzo di rete (7/8 verifiche).
+- Test e2e LAN: il telefono simulato non chiude la connessione WebRTC verso l'indirizzo di rete del contenitore, e il
+  browser di prova non raggiunge quell'indirizzo (il P2 apre l'invito su 127.0.0.1, ripiego nella prova).
+- 1v1: il ritardo di rete P2 → host è compensato solo per il telefono e solo per il tempo nel relay; mai provato con
+  due computer veri né su reti diverse; senza TURN alcune reti non si collegano. Tra due giocatori automatici perfetti
+  gli scambi possono durare a lungo (84 colpi nella prova).
+- Il link d'invito porta il formato scelto al momento della stanza; se si cambia formato dopo, il P2 lo riceve dal
+  primo snapshot (non è un errore, solo un attimo di ritardo).
 
 ## 8. Soluzioni tentate e decisioni tecniche
 
@@ -95,6 +108,14 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
   uguale per tutti e due. Primo tentativo (d78b0f2: ognuna verso la metà opposta) scartato: la scritta vicina, che la
   camera di gioco inquadra, risultava capovolta.
 - Host autorevole per il multigiocatore; snapshot con formato (`fmt`) per il 2v2.
+- 1v1 (punto 4): la revisione (due esami indipendenti del codice, quasi tutti i difetti riprodotti) ha mostrato che
+  mancava una sessione. Decisioni: i colpi del P2 contano sull'host solo con `_versusInMatch()`; il computer del P2
+  non assegna punti e non prepara il servizio (`_awardPoint` e `POINT_OVER` lasciati all'host), riceve fase, tempo
+  della fase, effetto e rimbalzi della palla e la fine partita; scegliere un'altra modalità chiude la stanza
+  (`endVersus` manda `{closed}`); durata a scelta anche in 1v1 (motore e HUD la forzavano a un game); relay: nomi del
+  gioco (prima «Ammaar»/«Challenger»), `touch=1` accettato, codici senza 0/O/1/I, stanza riusata, epoca, 404 per
+  stanza inesistente, pulizia dopo 6 h; WebRTC: stanza «occupata» per un secondo P2, Peer ricreato dopo un errore,
+  host introvabile per 20 s segnalato. Non fatto: compensazione del ritardo per mouse/webcam del P2 (vedi §7).
 - Varietà (punto 3): ogni colpo passava la rete al minimo (1,25–1,27 m) e la CPU sceglieva il colpo da un ciclo fisso.
   Decisione: `shotArc` (altezza sulla rete e top spin da tipo di colpo e forza), `angleDepth` (angolo stretto = palla
   corta), `bounceSpin` (rimbalzo con l'effetto), `cpuShotChoice` (schemi a peso: centro, campo libero, contropiede,
@@ -111,7 +132,8 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 | 19/10/2026 | 684021a | Calibrazione: fermo prima di ogni gesto, rientro al centro escluso, tremolii ignorati, scelta del gesto nel verso richiesto | `site/js/tennis/calibration.js`, `racchetta.js`, `main.js`, `natpf-tennis/src/natpf/natpf_training.js`, `tools/test/calibration-quick.test.mjs`, `tools/test/gesture-training.test.mjs` |
 
 | 19/10/2026 | d8b7bec | Rovescio lungolinea non più letto come dritto | `site/js/tennis/swing-detect.js`, `natpf-tennis/src/natpf/natpf_phone_racket.js`, `natpf-tennis/test/natpf-prep.test.mjs` |
-| 19/10/2026 | d78b0f2 + (punto 5 bis) | TORINO: orientata per chi gioca (`setViewer`, P2 girato), 3,6 m senza deformazione, 2,1 m dietro la riga | `site/js/tennis/arena.js`, `site/js/tennis/scene.js`, `natpf-tennis/src/natpf/natpf_arena.js`, `natpf-tennis/test/natpf-arena-court.test.mjs` |
+| 19/10/2026 | 73c0eda + prova | 1v1: sessione, lobby, host arbitro, pausa/rientro, stanza chiusa o inesistente, errori del P2, relay e WebRTC; prova a due sessioni | `natpf-tennis/src/natpf/natpf_versus.js`, `natpf_versus_ui.js`, `natpf_ui.js`, `natpf_lobby.js`, `natpf_p2p.js`, `src/game_engine.js`, `src/motion_controls.js`, `src/hud_ui.js`, `scripts/match-relay.mjs`, `natpf.css`, `test/natpf-versus.test.mjs`, `tools/e2e/natpf-1v1-p2p.mjs`, `test/e2e/lan-e2e.mjs`, `docs/NATPF_ROADMAP.md` |
+| 19/10/2026 | 494f583 (dopo d78b0f2) | TORINO: orientata per chi gioca (`setViewer`, P2 girato), 3,6 m senza deformazione, 2,1 m dietro la riga | `site/js/tennis/arena.js`, `site/js/tennis/scene.js`, `natpf-tennis/src/natpf/natpf_arena.js`, `natpf-tennis/test/natpf-arena-court.test.mjs` |
 | 19/10/2026 | 4f4304f | Varietà di traiettorie e angoli per giocatore, P2 e CPU; palla che cade alla profondità voluta (prima ~2 m corta per l'aria) | `natpf-tennis/src/natpf/natpf_skill.js`, `natpf-tennis/src/game_engine.js`, `natpf-tennis/test/natpf-variety.test.mjs`, `natpf-tennis/scripts/audit/variety.mjs` |
 
 ## 10. Stato delle attività (richiesta in 6 punti del 19/10)
@@ -121,19 +143,28 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 | 1 | Calibrazione telefono (falsi movimenti, rientro, gesto precedente) | fatto, provato con test a mano simulata; da provare con telefono vero |
 | 2 | Dritto/rovescio, rovescio lungolinea | fatto, provato con gesti simulati; da provare con telefono vero |
 | 3 | Varietà di traiettorie e angoli (anche P2) | fatto, provato con audit e test nel motore senza browser; da vedere giocando |
-| 4 | Revisione completa 1v1 con verifica a due sessioni | in corso (lavoro in un worktree separato) |
+| 4 | Revisione completa 1v1 con verifica a due sessioni | fatto: rifatto da capo (il lavoro dell'altro PC non era stato pubblicato). Provato con due sessioni del browser sul sito statico, tutti e 7 i passi della richiesta (18/18), e con il server LAN; due computer e due persone veri non provati |
 | 5 | Grafica del campo simmetrica (TORINO su entrambe le metà, loghi della rete) | fatto: le due TORINO si leggono dritte dalla camera di chi gioca su quel computer (P1 e P2 vedono lo stesso campo), proporzioni del file e 2,1 m dietro la riga come nei riferimenti; loghi della rete già leggibili dai due lati (8785a11). Provato con rendering nel browser dalle camere di gioco di P1 e P2 |
 | 6 | MEMORY.md | fatto, da aggiornare a ogni attività |
 
 ## 11. Prossimi passi
 
-Rifare e verificare il punto 4 (il lavoro nel worktree dell'altro PC non è stato pubblicato); aggiornare roadmap; build, zip Cloudflare e LAN, prova degli zip estratti.
+1. Prova con persone vere: telefono (punti 1–2), varietà dei colpi giocando (punto 3), 1v1 su due computer (punto 4).
+2. Unire `claude/friendly-fermat-dwv2w2` nel branch principale del lavoro (`feature/natpf-tennis-v2`) dopo la prova.
+3. Server TURN per il 1v1 su reti che bloccano WebRTC; compensazione del ritardo per mouse/webcam del P2.
+4. Altri punti aperti: `docs/NATPF_ROADMAP.md` §3.
 
 ## 12. Test e verifiche
 
 - `tools/test`: 126 test passano (19/10). Nuovi: calibrazione con tremolio, rientro al centro, preparazione e
   accompagnamento (il test fallisce con il codice precedente: riproduce il difetto segnalato).
-- `natpf-tennis/test`: 129 test passano (19/10, dopo il punto 3; nuovo `natpf-variety.test.mjs`).
+- `natpf-tennis/test`: 140 test passano (19/10, dopo il punto 4; nuovi `natpf-versus.test.mjs`, 9 test che
+  falliscono con il codice di prima, e `natpf-arena-court.test.mjs`).
+- Prova a due sessioni (punto 4): `cd tools/e2e && node natpf-1v1-p2p.mjs` (dopo la build): stanza dal menu, link,
+  P2 entra, «Sono pronto», «Gioca», partita al meglio di 3 con il servizio del P2, punteggio uguale, P2 esce (host in
+  pausa con spiegazione) e rientra (si riprende), host chiude (P2: «stanza chiusa»), link inesistente: **18/18**.
+- Grafica (punto 5): rendering dalle camere di gioco di P1 e P2 con Chromium senza schermo.
+- Punto 3: `natpf-tennis/test` 129 test (nuovo `natpf-variety.test.mjs`).
   `npm run audit:variety`: altezza sulla rete del giocatore p10–p90 1,38–2,02 m (prima 1,26–1,74), scarto
   rimbalzo–bersaglio −0,02 m (prima −2,1 m). `npm run audit:rally`: punti vinti per profilo entro ±5 punti da prima.
 - Prima del punto 3: `natpf-tennis/test` 123 test (19/10). Nuovi: rovescio morbido + rientro (fallisce col codice

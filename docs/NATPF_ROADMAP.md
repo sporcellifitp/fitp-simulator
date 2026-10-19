@@ -1,6 +1,6 @@
 # NATPF Simulator · roadmap
 
-Ultimo aggiornamento: 19 ottobre 2026 (branch `feature/natpf-tennis-v2`). Raccoglie in un posto solo lo stato del
+Ultimo aggiornamento: 19 ottobre 2026, sera (branch `claude/friendly-fermat-dwv2w2`, da `feature/natpf-tennis-v2`). Raccoglie in un posto solo lo stato del
 gioco di tennis (1v1, telefono come racchetta, webcam, LAN e Cloudflare). I dettagli tecnici restano nei documenti
 collegati: [NATPF_TENNIS_MVP.md](NATPF_TENNIS_MVP.md) (storia e architettura),
 [NATPF_GESTI_E_LATENZA.md](NATPF_GESTI_E_LATENZA.md) (telefono, gesti, latenza, registrazioni),
@@ -11,6 +11,17 @@ schermo, rianalisi delle registrazioni vere); **solo implementato** = scritto e 
 con hardware vero (telefono in mano, webcam con una persona, Wi-Fi di un evento).
 
 ## 1. Fatto in questo giro
+
+### Richiesta in 6 punti del 19/10 (stato in [MEMORY.md](../MEMORY.md) §10)
+
+| Punto | Causa trovata | Correzione | Verifica |
+|---|---|---|---|
+| 1 · Calibrazione del telefono | Tremolii presi per gesti; il rientro della mano al centro diventava il gesto successivo | Quiete prima di ogni gesto, posizione della mano lungo l'asse del colpo, rientro escluso | test con mano simulata **provati**; telefono vero **non provato** |
+| 2 · Rovescio lungolinea letto come dritto | Il rovescio morbido veniva trattenuto come preparazione e il rientro diventava il dritto | Il gesto opposto è il colpo solo se veloce almeno l'80%; zona «palla diretta» 0,6 m | test con gesti simulati **provati**; telefono vero **non provato** |
+| 3 · Varietà di traiettorie e angoli (anche P2 e CPU) | Ogni colpo passava la rete al minimo (1,25 m); la CPU sceglieva il colpo da un ciclo fisso; l'aria accorciava ogni colpo di ~2 m (le palle «in fondo» cadevano a metà campo) | Altezza sulla rete e top spin da colpo e forza, angolo stretto corto, rimbalzo con l'effetto, 8 schemi della CPU, correzione dell'aria sulla profondità | **provato** con `npm run audit:variety` e `audit:rally` (equilibrio entro pochi punti) e test nel motore; da vedere giocando |
+| 4 · 1v1 tra due computer | Nessuna sessione: i colpi del P2 accendevano il 1v1 anche contro la CPU o nel menu; partita forzata a un game (il P2 non serviva mai); il computer del P2 decideva i punti da solo; «In attesa di Challenger» (nomi ignorati dal relay); host mai informato del P2 online (`touch=1`); host bloccato se il P2 esce; P2 orfano dopo un ricaricamento; il P2 non sbagliava mai | Sessione esplicita con l'host unico arbitro; lobby con codice, link e tre passi (stanza · P2 entrato · P2 pronto), «Gioca» solo con il P2 pronto; pausa con spiegazione se il P2 esce, ripresa automatica; pannello del P2 con «Sono pronto» ed «Esci»; stanza chiusa e link inesistente segnalati; durata a scelta; errori e palle alte del P2 come il P1 | **provato** con due sessioni del browser sul sito statico (WebRTC, 18/18) e con il server LAN; 9 test nuovi; due computer veri **non provati** |
+| 5 · Grafica del campo | TORINO capovolta per una delle due camere, deformata (6,4 × 1,6 m) e lontana dalla riga | Scritte girate verso chi gioca su ogni computer, proporzioni del file, 2,1 m dietro la riga come nei riferimenti | **provato** con rendering dalle camere di gioco di P1 e P2 |
+| 6 · MEMORY.md | — | Memoria di lavoro nella root, aggiornata a ogni attività | — |
 
 ### Pallonetto e palla corta (le «palle alte» e le «palle corte»)
 
@@ -71,15 +82,18 @@ certificato e firewall. Dettagli in [NATPF_GESTI_E_LATENZA.md](NATPF_GESTI_E_LAT
    fisica della presa e va confermato.
 2. **Direzione (mira)**: tarare con la stessa registrazione dichiarata; oggi la mira è ricentrata sui propri colpi e
    nei gesti molto ampi decide il tempo del colpo.
-3. **Modalità per eventi** ([NATPF_EVENTI_E_BACKLOG.md](NATPF_EVENTI_E_BACKLOG.md) §3): chiosco (ritorno al menu
-   dopo 30 s senza nessuno), Radar del servizio, classifica del giorno, pannello dell'addetto.
+3. **Modalità per eventi** ([NATPF_EVENTI_E_BACKLOG.md](NATPF_EVENTI_E_BACKLOG.md) §3): sfide (Radar, Bersagli 60",
+   Scambio infinito, Sfida il campione), nickname, classifica del giorno, chiosco e pannello dell'addetto sono
+   implementati (commit 45de50b); da provare a uno stand con il pubblico.
 4. **Registrazione dei visitatori e CMS del modulo** (stesso documento, §4): Cloudflare Pages Functions + D1.
-5. **1v1 su sito statico (Cloudflare)**: oggi la sfida tra due computer usa il relay del server LAN; su Cloudflare
-   serve la sessione WebRTC di NATPF.
-6. **Player 2 nel 1v1**: mano (mancino), lettura dei colpi e mira dal piatto arrivano ancora con i campi del motore
-   base.
+5. **1v1 con due persone vere** su due computer e su reti diverse (Wi-Fi di un evento, NAT): la prova a due
+   sessioni usa giocatori automatici sullo stesso computer. Server TURN per le reti che bloccano WebRTC.
+6. **Ritardo di rete del P2 nel 1v1**: si compensa solo il tempo nel relay e solo per il telefono; il tragitto
+   P2 → host non è misurato.
 7. **Torino** sul campo: la scritta resta quella ricavata dalle foto (non c'è un file ufficiale).
 8. Opzione B 2v2: solo su richiesta.
+9. Scambi lunghissimi tra due giocatori automatici perfetti nel 1v1 (84 colpi nella prova): con persone vere da
+   osservare, nel 1v1 non c'è la CPU che sbaglia.
 
 ## 4. Verifiche non possibili in questo ambiente
 
@@ -89,6 +103,6 @@ certificato e firewall. Dettagli in [NATPF_GESTI_E_LATENZA.md](NATPF_GESTI_E_LAT
   offline, QR con l'indirizzo di rete e la pagina del telefono, trasporto LAN diretto, nessuna richiesta esterna,
   nessun errore nelle pagine. La catena gesto → colpo è provata dai test con il telefono simulato (LAN e internet).
 - Webcam con una persona vera.
-- Wi-Fi di un evento, secondo computer reale per il 1v1.
+- Wi-Fi di un evento, secondo computer reale per il 1v1 (provato con due sessioni del browser sullo stesso computer).
 - Resa dei loghi su una scheda video vera (anisotropia, mipmap) e su schermi grandi.
 - Audio dell'intro e del menu (il browser di prova non ha uscita audio).
