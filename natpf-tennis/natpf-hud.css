@@ -495,7 +495,8 @@ body {
 /* ---------- finestre: telefono (motore base) e fine partita ---------- */
 .nt-modal-backdrop:not(.natpf-lobby):not(.natpf-sheet-backdrop) {
   background: radial-gradient(ellipse at 50% 30%, rgba(22, 55, 143, 0.55), rgba(4, 10, 28, 0.92) 70%);
-  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
 }
 .nt-dialog-box {
   border: 1px solid var(--hud-line);

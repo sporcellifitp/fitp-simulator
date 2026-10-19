@@ -611,3 +611,51 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- allineamenti (19/10): barra delle tappe senza tagli, menu che sta nello schermo, classifica allineata ---------- */
+/* la quinta tappa («Partita») finiva sotto «Come si gioca»: sotto i 1500 px resta il nome solo della tappa corrente */
+@media (max-width: 1500px) {
+  .lobby-progress li {
+    padding: 7px 10px;
+  }
+  .lobby-progress li:not(.on) span {
+    display: none;
+  }
+}
+/* menu principale con sei voci: su schermi bassi (portatili 1280 × 800, 1366 × 768) l'ultima usciva dallo schermo */
+@media (max-height: 900px) {
+  .lobby-page[data-page="menu"] .welcome-title {
+    font-size: clamp(30px, 4.2vw, 54px);
+  }
+  .main-menu {
+    gap: 7px;
+  }
+  .lobby-page[data-page="menu"] .menu-item {
+    padding: 8px 20px 8px 24px;
+  }
+  .menu-item b {
+    font-size: 22px;
+  }
+  .menu-item[data-menu="play"] b {
+    font-size: 27px;
+  }
+  .menu-item span {
+    font-size: 13.5px;
+  }
+}
+/* classifica: le sfide e l'elenco hanno la stessa larghezza */
+.ranking-tabs {
+  display: flex;
+  width: min(620px, 100%);
+}
+.ranking-tabs .seg-btn {
+  flex: 1 1 auto;
+}
+/* pannello del Player 2: le tessere della racchetta occupano tutta la riga come quelle della visuale (la terza colonna
+   era della tessera «mouse», nascosta fuori dalla modalità prova) */
+.lobby-tiles.compact:not(.lobby-tiles-2) {
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+}
+.lobby-tiles.compact > .hidden {
+  display: none;
+}

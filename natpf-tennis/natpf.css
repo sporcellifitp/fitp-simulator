@@ -27,7 +27,9 @@
   gap: 16px;
   padding: max(18px, 3vh) max(18px, 4vw);
   background: linear-gradient(180deg, rgba(4, 10, 28, 0.86) 0, rgba(4, 10, 28, 0.3) 26%, rgba(4, 10, 28, 0.42) 62%, rgba(4, 10, 28, 0.94) 100%);
-  backdrop-filter: none;
+  /* blur leggero dell'arena dietro il menu: testi più leggibili, campo e pubblico ancora riconoscibili */
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
   color: var(--lb-ink);
   font-family: var(--lb-font);
   overflow-y: auto;
@@ -466,7 +468,8 @@
 .nt-modal-backdrop.natpf-sheet-backdrop {
   z-index: 60;
   background: rgba(4, 10, 28, 0.74);
-  backdrop-filter: none;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
 }
 .natpf-sheet {
   display: flex;
