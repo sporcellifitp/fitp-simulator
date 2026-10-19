@@ -302,3 +302,103 @@ export function cpuReturnPlan(engine, actor, { rng = Math.random } = {}){
   if (lv.cpuAttack && info.stretch < .8 && rng() < (lv.cpuAttackBase || 0) + lv.cpuAttack*clamp(soft)) return { kind: 'attack', chance, info, flight: lv.cpuAttackFlight };
   return { kind: 'ok', chance, info };
 }
+
+/* ---------- varietà di traiettorie e angoli ---------- */
+// Prima ogni colpo passava la rete al minimo consentito (circa 1,25 m): stesse parabole piatte per tutti, angoli
+// stretti impossibili e CPU che sceglieva il colpo da un ciclo fisso. Ora l'altezza sulla rete dipende dal colpo e
+// dalla forza (top spin lento = parabola alta e carica, piatto forte = rasoterra, tagliato = basso), gli angoli
+// stretti cadono corti come nel tennis vero e la CPU sceglie tra più schemi. Vale per giocatore, P2 e CPU.
+//   clear: altezza sulla rete (m) per tipo di colpo, da forte (indice 0) a lento (indice 1); spin: top spin corrispondente
+export const ARC = Object.freeze({
+  TOPSPIN: Object.freeze({ clear: [1.3, 2.05], spin: [15, 23], sd: .14 }),
+  FLAT: Object.freeze({ clear: [1.27, 1.42], spin: [19, 20], sd: .05 }),
+  SLICE: Object.freeze({ clear: [1.27, 1.55], spin: [-7, -5], sd: .07 }),
+  MOON: Object.freeze({ clear: [2.5, 3.1], spin: [20, 24], sd: .15 }),
+  netY: .914 + .34, maxFlight: 1.9,
+});
+// Altezza della palla quando passa sopra la rete (z = 0) con il lancio del motore (_launchBallToTarget, senz'aria).
+export function netCrossY({ fromY = 1, fromZ = 11, toZ = -9, flight = .8, topspin = 14, gravity = 9.15 } = {}){
+  const g = gravity + finite(topspin)*.14, y0 = finite(fromY, 1), dz = finite(toZ) - finite(fromZ), h = Math.max(.45, finite(flight, .8));
+  const vz = dz/h, vy = (.08 - y0 + .5*g*h*h)/h, m = Math.abs(finite(fromZ)/vz);
+  return y0 + vy*m - .5*g*m*m;
+}
+// Tempo di volo perché la palla passi sopra la rete all'altezza «clear» (mai meno di «flight»).
+export function flightForClear({ clear = ARC.netY, maxFlight = ARC.maxFlight, ...a } = {}){
+  const base = Math.max(.45, finite(a.flight, .8));
+  if (Math.sign(finite(a.fromZ, 11)) === Math.sign(finite(a.toZ, -9))) return base;
+  for (let h = base; h < maxFlight; h += .01) if (netCrossY({ ...a, flight: h }) >= clear) return h;
+  return Math.max(base, maxFlight);
+}
+// Traiettoria del colpo: altezza sulla rete e top spin dal tipo di colpo e dalla forza, poi il tempo di volo.
+//   shot: 'TOPSPIN' | 'FLAT' | 'SLICE' | 'MOON' · power 0…1 · quality 0…1 (un colpo sporco esce più alto e più corto di spin)
+// Restituisce { flight, topspin, clear }: flight non è mai più corto di quello proposto dal motore.
+export function shotArc({ shot = 'TOPSPIN', power = .6, quality = 1, fromY = 1, fromZ = 11, toZ = -9, flight = .8, gravity = 9.15, rng = Math.random } = {}){
+  const S = String(shot).toUpperCase(), A = ARC[S === 'POWER' ? 'FLAT' : S] || ARC.TOPSPIN;
+  const soft = 1 - clamp(finite(power, .6)), q = clamp(finite(quality, 1));
+  // palla presa alta (sopra 1,5 m): si può tirare più piatta
+  const high = clamp((finite(fromY, 1) - 1.5)/.5)*.18;
+  const clear = Math.max(ARC.netY + .02, A.clear[0] + (A.clear[1] - A.clear[0])*soft + Math.abs(gauss(rng))*A.sd + (1 - q)*.15 - high);
+  const topspin = A.spin[0] + (A.spin[1] - A.spin[0])*soft - (S === 'TOPSPIN' ? (1 - q)*5 : 0);
+  return { flight: flightForClear({ fromY, fromZ, toZ, flight, topspin, gravity, clear }), topspin, clear };
+}
+// Correzione per l'attrito dell'aria del motore, che il lancio (_launchBallToTarget) non considera: ogni colpo cadeva
+// circa 2 m prima del bersaglio, cioè le palle «in fondo» rimbalzavano a metà campo e gli errori «lunghi» restavano
+// dentro. airScale simula il volo con la stessa fisica del motore e restituisce di quanto moltiplicare la velocità
+// lungo il campo (z) perché la palla cada alla profondità voluta. La mira laterale resta quella tarata finora.
+export function airScale({ from, vel, to, topspin = 14, sidespin = 0, gravity = 9.15, drag = .012, dt = 1/120 } = {}){
+  const want = Math.abs(to.z - from.z), g = gravity + finite(topspin)*.14;
+  const reach = k => {
+    let y = from.y, z = from.z, vx = vel.x, vy = vel.y, vz = vel.z*k;
+    for (let i = 0; i < 900 && !(y <= .075 && vy < 0); i++){
+      const d = Math.max(0, 1 - drag*Math.hypot(vx, vy, vz)*dt);
+      vx *= d; vy *= d; vz *= d; vy -= g*dt; vx += finite(sidespin)*.12*dt;
+      y += vy*dt; z += vz*dt;
+    }
+    return Math.abs(z - from.z);
+  };
+  let k = 1;
+  for (let i = 0; i < 6; i++){ const got = reach(k); if (!got || Math.abs(got - want) < .05) break; k *= clamp(want/got, .8, 1.25); }
+  return clamp(k, 1, 1.8);
+}
+// Applica la correzione alla velocità della palla (solo la componente lungo il campo).
+export function fixAir(ball, opts){ ball.vel.z *= airScale({ ...opts, vel: ball.vel }); return ball; }
+// Angolo stretto: una palla molto angolata deve cadere più corta per restare in campo (come nel tennis vero).
+// z: profondità proposta (negativa o positiva, è il segno della metà campo) · x: punto di rimbalzo laterale
+export function angleDepth(x, z, { rng = Math.random } = {}){
+  const a = clamp((Math.abs(finite(x)) - 2.9)/1.2), s = Math.sign(finite(z, -9)) || -1, d = Math.abs(finite(z, -9));
+  if (!a || d < 6.4) return finite(z, -9);
+  const short = 5.9 + rng()*1.3;
+  return s*(d + (short - d)*a);
+}
+// Rimbalzo: il top spin salta più alto e scorre, il tagliato resta basso (moltiplicatori della velocità al rimbalzo).
+export const bounceSpin = spin => { const s = finite(spin, 14); return { up: clamp(1 + (s - 14)*.012, .88, 1.12), along: clamp(1 + (s - 14)*.006, .95, 1.06) }; };
+
+// Schemi della CPU nella risposta normale: prima il colpo veniva da un ciclo fisso (top, top, tagliato, top, lob) e la
+// palla andava sempre verso il campo libero a media profondità. Ora la CPU sceglie per peso tra più schemi, con
+// angoli e altezze diversi; al livello Esperto cerca più spesso angoli e palle profonde.
+//   playerX: posizione laterale del giocatore · playerZ: distanza dalla rete · ballX: dove la CPU colpisce
+export const CPU_PATTERNS = Object.freeze({
+  casual: Object.freeze({ rally: .32, open: .3, behind: .08, deep: .1, angle: .04, slice: .1, moon: .06 }),
+  pro: Object.freeze({ rally: .2, open: .26, behind: .12, deep: .18, angle: .1, slice: .09, moon: .05 }),
+});
+export function cpuShotChoice({ difficulty = 'casual', playerX = 0, playerZ = 11.5, ballX = 0, rally = 0, rng = Math.random } = {}){
+  const pro = String(difficulty).toLowerCase() === 'pro', W = { ...CPU_PATTERNS[pro ? 'pro' : 'casual'] };
+  const open = finite(playerX) >= 0 ? -1 : 1, nearNet = finite(playerZ, 11.5) < 7.5;
+  if (nearNet){ W.moon = 0; W.lob = .35; W.angle *= 1.6; }    // giocatore a rete: pallonetto o passante angolato
+  if (finite(rally) < 2){ W.angle *= .3; W.behind *= .3; }     // sulla risposta al servizio niente colpi rischiosi
+  const keys = Object.keys(W), tot = keys.reduce((s, k) => s + W[k], 0);
+  let r = rng()*tot, kind = keys[0];
+  for (const k of keys){ if ((r -= W[k]) <= 0){ kind = k; break; } }
+  const depth = pro ? [7.4, 10.4] : [6.4, 8.8], z = (a, b) => a + rng()*(b - a), side = s => clamp(s, -COURT.SINGLES_X + .45, COURT.SINGLES_X - .45);
+  switch (kind){
+    case 'rally': return { kind, shot: 'TOPSPIN', x: side((rng() - .5)*2.4), z: z(depth[0] + .8, depth[1] + .6), power: pro ? .55 : .35 };
+    case 'open': return { kind, shot: 'TOPSPIN', x: side(open*(pro ? 1.25 + rng()*1.75 : .85 + rng()*1.15)), z: z(depth[0], depth[1]), power: pro ? .7 : .5 };
+    case 'behind': return { kind, shot: 'TOPSPIN', x: side(-open*(1.3 + rng()*1.2)), z: z(depth[0] + .5, depth[1] + .5), power: pro ? .65 : .45 };
+    case 'deep': return { kind, shot: 'TOPSPIN', x: side(open*(2.2 + rng()*1.2)), z: z(Math.max(9.2, depth[1] - .4), 10.9), power: pro ? .8 : .6 };
+    case 'angle': return { kind, shot: 'TOPSPIN', x: side(open*(3.25 + rng()*.45)), z: z(5.8, 7), power: .5 };
+    case 'slice': return { kind, shot: 'SLICE', x: side((rng() - .5)*3.2 + open*.8), z: z(depth[0] - .4, depth[1]), power: .45 };
+    case 'moon': return { kind, shot: 'MOON', x: side((rng() - .5)*2), z: z(9.3, 10.6), power: .3 };
+    case 'lob': return { kind, shot: 'LOB', x: side((rng() - .5)*2.4), z: z(9.4, 10.8), power: .3 };
+  }
+  return { kind: 'rally', shot: 'TOPSPIN', x: 0, z: depth[0], power: .5 };
+}

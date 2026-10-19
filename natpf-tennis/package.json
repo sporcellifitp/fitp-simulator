@@ -17,7 +17,8 @@
     "assets:check": "node scripts/download-assets.mjs --check",
     "lan": "node lan/server.mjs",
     "test:e2e-lan": "node test/e2e/lan-e2e.mjs",
-    "audit:rally": "node --import ./test/register.mjs scripts/audit/rally-balance.mjs"
+    "audit:rally": "node --import ./test/register.mjs scripts/audit/rally-balance.mjs",
+    "audit:variety": "node --import ./test/register.mjs scripts/audit/variety.mjs"
   },
   "dependencies": {
     "@mediapipe/hands": "0.4.1675469240",

@@ -91,6 +91,14 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 - Pallonetto: volo di 2 s con compensazione dell'aria (prima cadeva a metà campo).
 - Verso verticale del colpo dal giroscopio/orientamento (`headAt`), non dall'accelerometro (rumoroso con presa a manico).
 - Host autorevole per il multigiocatore; snapshot con formato (`fmt`) per il 2v2.
+- Varietà (punto 3): ogni colpo passava la rete al minimo (1,25–1,27 m) e la CPU sceglieva il colpo da un ciclo fisso.
+  Decisione: `shotArc` (altezza sulla rete e top spin da tipo di colpo e forza), `angleDepth` (angolo stretto = palla
+  corta), `bounceSpin` (rimbalzo con l'effetto), `cpuShotChoice` (schemi a peso: centro, campo libero, contropiede,
+  profondo, angolo, tagliato, parabola alta, pallonetto sul giocatore a rete).
+- Aria: `_launchBallToTarget` ignora l'attrito e i colpi cadevano ~2 m prima del bersaglio. Prima prova: correzione su
+  tutta la velocità → palle precise anche di lato, ma tennista in Esperto dall'89% al 67% (out larghi: la mira laterale
+  era tarata sulla palla accorciata del 20%). Decisione: `fixAir` corregge solo la componente lungo il campo; il
+  bilanciamento resta quello di prima (audit entro pochi punti) e la profondità diventa vera.
 
 ## 9. Modifiche recenti
 
@@ -98,7 +106,8 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 |---|---|---|---|
 | 19/10/2026 | 684021a | Calibrazione: fermo prima di ogni gesto, rientro al centro escluso, tremolii ignorati, scelta del gesto nel verso richiesto | `site/js/tennis/calibration.js`, `racchetta.js`, `main.js`, `natpf-tennis/src/natpf/natpf_training.js`, `tools/test/calibration-quick.test.mjs`, `tools/test/gesture-training.test.mjs` |
 
-| 19/10/2026 | (punto 2) | Rovescio lungolinea non più letto come dritto | `site/js/tennis/swing-detect.js`, `natpf-tennis/src/natpf/natpf_phone_racket.js`, `natpf-tennis/test/natpf-prep.test.mjs` |
+| 19/10/2026 | d8b7bec | Rovescio lungolinea non più letto come dritto | `site/js/tennis/swing-detect.js`, `natpf-tennis/src/natpf/natpf_phone_racket.js`, `natpf-tennis/test/natpf-prep.test.mjs` |
+| 19/10/2026 | (punto 3) | Varietà di traiettorie e angoli per giocatore, P2 e CPU; palla che cade alla profondità voluta (prima ~2 m corta per l'aria) | `natpf-tennis/src/natpf/natpf_skill.js`, `natpf-tennis/src/game_engine.js`, `natpf-tennis/test/natpf-variety.test.mjs`, `natpf-tennis/scripts/audit/variety.mjs` |
 
 ## 10. Stato delle attività (richiesta in 6 punti del 19/10)
 
@@ -106,20 +115,23 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 |---|---|---|
 | 1 | Calibrazione telefono (falsi movimenti, rientro, gesto precedente) | fatto, provato con test a mano simulata; da provare con telefono vero |
 | 2 | Dritto/rovescio, rovescio lungolinea | fatto, provato con gesti simulati; da provare con telefono vero |
-| 3 | Varietà di traiettorie e angoli (anche P2) | da fare |
+| 3 | Varietà di traiettorie e angoli (anche P2) | fatto, provato con audit e test nel motore senza browser; da vedere giocando |
 | 4 | Revisione completa 1v1 con verifica a due sessioni | in corso (lavoro in un worktree separato) |
 | 5 | Grafica del campo simmetrica (TORINO su entrambe le metà, loghi della rete) | da fare |
 | 6 | MEMORY.md | fatto, da aggiornare a ogni attività |
 
 ## 11. Prossimi passi
 
-Punti 3, 5; unire e verificare il punto 4; aggiornare roadmap; build, zip Cloudflare e LAN, prova degli zip estratti.
+Punto 5; rifare e verificare il punto 4 (il lavoro nel worktree dell'altro PC non è stato pubblicato); aggiornare roadmap; build, zip Cloudflare e LAN, prova degli zip estratti.
 
 ## 12. Test e verifiche
 
 - `tools/test`: 126 test passano (19/10). Nuovi: calibrazione con tremolio, rientro al centro, preparazione e
   accompagnamento (il test fallisce con il codice precedente: riproduce il difetto segnalato).
-- `natpf-tennis/test`: 123 test passano (19/10). Nuovi: rovescio morbido + rientro (fallisce col codice
+- `natpf-tennis/test`: 129 test passano (19/10, dopo il punto 3; nuovo `natpf-variety.test.mjs`).
+  `npm run audit:variety`: altezza sulla rete del giocatore p10–p90 1,38–2,02 m (prima 1,26–1,74), scarto
+  rimbalzo–bersaglio −0,02 m (prima −2,1 m). `npm run audit:rally`: punti vinti per profilo entro ±5 punti da prima.
+- Prima del punto 3: `natpf-tennis/test` 123 test (19/10). Nuovi: rovescio morbido + rientro (fallisce col codice
   precedente), zona palla diretta e lato dalla palla.
 - **Non verificato**: calibrazione con un telefono vero in mano; soglie (`CAL.settle` 220 ms, `homeRest` 600 ms,
   `homeWeak` 0,75) tarate su gesti simulati.

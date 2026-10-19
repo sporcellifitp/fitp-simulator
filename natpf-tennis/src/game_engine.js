@@ -1805,19 +1805,27 @@ export class NatpfTennisEngine {
       // rischio d'errore del giocatore: lungo con la potenza, largo vicino alle righe, in rete fuori tempo
       const natpfErr = natpfDrop ? { kind: "ok" } : NS.playerErrorPlan({ quality: natpfQ, power: NS.powerNorm(f), aimX: E, level: natpfLv });
       natpfErr.kind === "long" ? (N = natpfErr.z) : natpfErr.kind === "wide" ? (E = natpfErr.x) : natpfErr.kind === "net" && (O = !0);
+      // NATPF varietà: l'angolo stretto cade corto (prima la palla molto angolata cadeva in fondo, cioè fuori)
+      natpfErr.kind === "ok" && !_ && !l && !natpfDrop && T !== "LOB" && (N = NS.angleDepth(E, N));
       const natpfS = NS.registerPlayerShot(this, {
         grade: u, quality: natpfQ, power: NS.powerNorm(f), landingX: E, landingZ: N,
         shot: d ? "SMASH" : natpfDrop ? "DROP" : T, cpuZ: this.opponent.pos.z,
       });
       I = NS.mistimeFlight(natpfDrop || T === "LOB" ? I : NS.streakFlight(I, natpfS.streak, natpfLv), natpfQ);
       natpfDrop || (I = NS.minClearFlight({ fromY: Math.max(0.78, Math.min(1.92, this.ball.pos.y)), fromZ: this.ball.pos.z, toZ: N, flight: I, topspin: C }));
+      // NATPF varietà: altezza sulla rete e top spin dal colpo e dalla forza (prima tutti i colpi passavano a filo)
+      if (!natpfDrop && !O && !_ && !l && T !== "LOB") {
+        const A = NS.shotArc({ shot: M && T !== "SLICE" ? "FLAT" : T, power: NS.powerNorm(f), quality: natpfQ, fromY: Math.max(0.78, Math.min(1.92, this.ball.pos.y)), fromZ: this.ball.pos.z, toZ: N, flight: I });
+        (I = A.flight), (C = A.topspin);
+      }
     }
     const B = this.ball.pos.clone();
     (B.y = Math.max(0.78, Math.min(1.92, B.y))),
       this.ball.pos.copy(B),
       this._launchBallToTarget(B, new o.Vector3(E, 0, N), I, { topspin: C, sidespin: V, allowNetFault: O }),
-      // NATPF skill gap: la palla corta è lenta e alta, l'attrito dell'aria la frenerebbe in rete: si compensa
-      (natpfDrop || T === "LOB") && this.ball.vel.multiplyScalar(1 + L.AIR_DRAG * this.ball.vel.length() * I * 0.35), // NATPF: anche il pallonetto (lento e alto) cadrebbe a metà campo
+      // NATPF varietà: il lancio non considera l'aria e ogni colpo cadeva circa 2 m prima del bersaglio (palle «in fondo»
+      // a metà campo, errori «lunghi» che restavano dentro): la velocità si corregge perché la palla cada alla profondità voluta
+      O || NS.fixAir(this.ball, { from: B, to: { x: E, z: N }, topspin: C, sidespin: V, gravity: L.GRAVITY, drag: L.AIR_DRAG }),
       (this.ball.inPlay = !0),
       (this.ball.lastHitter = "player"),
       (this.ball.bounceCountOnCurrentSide = 0),
@@ -2018,13 +2026,19 @@ export class NatpfTennisEngine {
         // NATPF: palla corta e pallonetto non accelerano con la serie di perfetti; il colpo del telefono passa la rete
         natpfDrop || natpfLob || (R = NS.streakFlight(R, natpfS.p2Streak, NS.skillLevel("1v1"))),
         natpfSwing && !natpfDrop && (R = NS.minClearFlight({ fromY: Math.max(0.78, Math.min(1.92, this.ball.pos.y)), fromZ: this.ball.pos.z, toZ: M, flight: R, topspin: v }));
+      // NATPF varietà: come il P1, angolo stretto corto e altezza sulla rete dal colpo e dalla forza (anche senza telefono)
+      if (!r && !natpfDrop && !natpfVery && m !== "LOB") {
+        M = NS.angleDepth(T, M);
+        const A = NS.shotArc({ shot: w && m !== "SLICE" ? "FLAT" : m, power: NS.powerNorm(y), quality: natpfP2Q, fromY: Math.max(0.78, Math.min(1.92, this.ball.pos.y)), fromZ: this.ball.pos.z, toZ: M, flight: R });
+        (R = A.flight), (v = A.topspin);
+      }
     }
     const k = this.ball.pos.clone();
     (k.y = Math.max(0.78, Math.min(1.92, k.y))),
       this.ball.pos.copy(k),
       this._launchBallToTarget(k, new o.Vector3(T, 0, M), R, { topspin: v, sidespin: E, allowNetFault: !1 }),
+      NS.fixAir(this.ball, { from: k, to: { x: T, z: M }, topspin: v, sidespin: E, gravity: L.GRAVITY, drag: L.AIR_DRAG }), // NATPF varietà: la palla cade alla profondità voluta, come per il P1
       // NATPF: palla corta e pallonetto veri del P2, compensati per l'attrito dell'aria come quelli del P1
-      (natpfDrop || natpfLob) && this.ball.vel.multiplyScalar(1 + L.AIR_DRAG * this.ball.vel.length() * R * 0.35),
       (this.ball.inPlay = !0),
       (this.ball.lastHitter = "opponent"),
       (this.ball.bounceCountOnCurrentSide = 0),
@@ -2104,7 +2118,8 @@ export class NatpfTennisEngine {
       c = i ? 6.4 + Math.random() * 2.4 : 7.4 + Math.random() * 3,
       y = "TOPSPIN",
       f = i ? 1.14 : 0.88,
-      m = !1;
+      m = !1
+    let natpfArc = null;
     // NATPF skill gap: errori della CPU che crescono con angolo, velocità, pressione e allungo; sotto pressione
     // la CPU rimanda palle corte e alte da smash (natpf_skill.js). Prima: errori solo in allungo e a caso.
     const natpfPlan = NS.cpuReturnPlan(this, e);
@@ -2131,18 +2146,28 @@ export class NatpfTennisEngine {
           (f = y === "LOB" ? 1.36 : 1.18));
     } else if (t) (y = "SLICE"), (c = 5.8 + Math.random() * 2.6), (f = i ? 0.96 : 0.76);
     else {
-      const b = ["TOPSPIN", "TOPSPIN", "SLICE", "TOPSPIN", "LOB"];
-      (y = b[this.ball.rallyStrokeCount % b.length]),
+      // NATPF varietà: schemi scelti per peso (centro, campo libero, contropiede, profondo, angolo stretto, tagliato,
+      // parabola alta, pallonetto sul giocatore a rete). Prima: ciclo fisso top, top, tagliato, top, lob verso il campo libero.
+      const natpfC = NS.cpuShotChoice({ difficulty: this.matchConfig.difficulty, playerX: this.player.pos.x, playerZ: this.player.pos.z, ballX: this.ball.pos.x, rally: this.ball.rallyStrokeCount });
+      (g = natpfC.x), (c = natpfC.z), (natpfArc = natpfC);
+      (y = natpfC.shot === "MOON" ? "TOPSPIN" : natpfC.shot),
         (f = y === "LOB" ? (i ? 1.36 : 1.24) : y === "SLICE" ? (i ? 1.18 : 0.96) : i ? 1.1 : 0.86);
     }
+    natpfPlan.kind === "attack" && (natpfArc = { shot: "FLAT", power: 0.8 });
     const d = this.ball.pos.clone();
-    (d.y = Math.max(0.82, Math.min(1.68, d.y))),
-      this.ball.pos.copy(d),
-      this._launchBallToTarget(d, new o.Vector3(g, 0, c), f, {
-        topspin: y === "SLICE" ? -5 : y === "LOB" ? 5 : 13,
+    (d.y = Math.max(0.82, Math.min(1.68, d.y))), this.ball.pos.copy(d);
+    // NATPF varietà: altezza sulla rete e top spin dal tipo di colpo e dalla forza (prima: top spin fisso 13 per tutti)
+    let natpfSpin = y === "SLICE" ? -5 : y === "LOB" ? 5 : 13;
+    if (natpfArc && y !== "LOB") {
+      const A = NS.shotArc({ shot: natpfArc.shot, power: natpfArc.power, fromY: d.y, fromZ: d.z, toZ: c, flight: f });
+      (f = A.flight), (natpfSpin = A.topspin);
+    }
+    this._launchBallToTarget(d, new o.Vector3(g, 0, c), f, {
+        topspin: natpfSpin,
         sidespin: 0,
         allowNetFault: m,
       }),
+      m || NS.fixAir(this.ball, { from: d, to: { x: g, z: c }, topspin: natpfSpin, gravity: L.GRAVITY, drag: L.AIR_DRAG }), // NATPF varietà: la palla della CPU cade alla profondità voluta
       (this.ball.inPlay = !0),
       (this.ball.lastHitter = "opponent"),
       (this.ball.bounceCountOnCurrentSide = 0),
@@ -2473,9 +2498,9 @@ export class NatpfTennisEngine {
       if (this.ball.pos.y <= 0.075 && this.ball.vel.y < 0) {
         const s = Math.abs(this.ball.vel.y);
         (this.ball.pos.y = 0.075),
-          (this.ball.vel.y = -this.ball.vel.y * L.BOUNCE_RESTITUTION),
+          (this.ball.vel.y = -this.ball.vel.y * L.BOUNCE_RESTITUTION * NS.bounceSpin(this.ball.spin.x).up), // NATPF varietà: il top spin salta, il tagliato resta basso
           (this.ball.vel.x *= L.SURFACE_FRICTION),
-          (this.ball.vel.z *= L.SURFACE_FRICTION),
+          (this.ball.vel.z *= L.SURFACE_FRICTION * NS.bounceSpin(this.ball.spin.x).along),
           this._spawnBounceRing(this.ball.pos.x, this.ball.pos.z),
           this.swingVfx && this.swingVfx.spawnTurfBounce(this.ball.pos.x, this.ball.pos.z, this.ball, s),
           this.audioEngine && this.audioEngine.playBallBounce(Math.min(1.2, s / 5));
