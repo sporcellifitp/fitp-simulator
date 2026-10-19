@@ -163,6 +163,7 @@ function onCal(e){
     feedback('#fbDir', '#fbTxt', '#fbBar', dir, e.ok ? `Registrato ${SHOTS[e.shot] || 'Piatto'}${e.want ? `: ${e.dir === 'L' ? 'da destra a sinistra' : 'da sinistra a destra'}` : ''}` : e.why === 'piccolo' ? 'Movimento non distinguibile dal rumore: prova la modalità compatta o i tocchi' : `Direzione rilevata: ${dir}. Serve ${e.want === 'L' ? '←' : '→'}: tieni il telefono sempre nello stesso modo`, e.peak, e.ok);
   }
   if (e.kind === 'next') cal.idx = e.idx;
+  if (e.kind === 'settle' || (e.kind === 'warn' && e.why === 'centro')) feedback('#fbDir', '#fbTxt', '#fbBar', '•', 'Torna al centro e fermati un attimo: poi fai il gesto richiesto', 0, false);
   if (e.kind === 'idle') feedback('#fbDir', '#fbTxt', '#fbBar', '…', 'Non sento movimenti: prova il gesto comodo mostrato nell’esempio. Puoi scegliere movimento compatto o controllo con i tocchi sul telefono.', 0, false);
   if (e.kind === 'review'){ cal.result = e; paintReview(e); }
   if (e.kind === 'free'){ feedback('#frDir', '#frTxt', '#frBar', e.dir === 'L' ? '←' : e.dir === 'R' ? '→' : e.ok ? '•' : '?', e.ok ? `${SHOTS[e.shot] || 'Piatto'} · ${e.dirValue === 0 ? 'centrale' : e.dir === 'L' ? 'da destra a sinistra' : 'da sinistra a destra'}, forza ${Math.round(Math.min(1.5, e.strength)*100)}%${Number.isFinite(e.confidence) ? ` · lettura ${Math.round(e.confidence*100)}%` : ''}` : 'Direzione incerta: riprova o usa Inverti direzioni', e.peak, e.ok); }

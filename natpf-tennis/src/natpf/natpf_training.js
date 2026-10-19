@@ -112,6 +112,9 @@ export class NatpfTraining {
     if (e.want && (e.kind === 'step' || e.kind === 'next')){ c.want = e.want; if (!this.ballLive()) this.wait = Math.min(this.wait || .5, .5); }
     if (e.kind === 'step' && e.step === 'still') this.message = null;
     if (e.kind === 'idle') this.message = 'Non sento movimenti: un colpetto un po’ più deciso';
+    // ogni gesto parte da fermo: il rientro della mano non conta, si aspetta che si fermi al centro
+    if (e.kind === 'settle' || (e.kind === 'warn' && e.why === 'centro')) this.message = 'Torna al centro e fermati un attimo';
+    if (e.kind === 'ready' && c.want) this.message = `Ora: ${calCoach(e.want || c.want, hand).arrow}`;
     if (e.kind === 'attempt'){
       const advance = e.ok || (e.tries || 0) >= 3;     // dopo 3 tentativi la calibrazione va avanti comunque
       if (e.ok){ c.hits++; this.message = 'Riconosciuto ✓'; }

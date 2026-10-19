@@ -15,6 +15,7 @@ function setup(options = { gestural: true, range: 'compact' }){
     const peak = kind === 'drop' ? 75 : kind === 'serve' ? 190 : dir > 0 ? 300 : 240;
     const features = { lift:kind === 'lob' ? .9 : kind === 'serve' ? .7 : 0, tilt:kind === 'drop' ? .7 : 0, twist:kind === 'slice' ? .8 : 0, speed:kind === 'drop' ? .25 : 1, duration:kind === 'drop' ? 420 : 230, travel:kind === 'drop' ? .3 : 1 };
     const sw = { dir, axis:kind === 'serve' ? [1,0,0] : [0,dir,0], peak, angle:kind === 'drop' ? 6 : 30, peakT:t, power:.7, dur:features.duration, lift:features.lift, features, ...overrides };
+    cal.tick(t - 150); cal.tick(t - 150 + CAL.settle);   // mano ferma al centro prima del gesto
     emit('swing', sw); t += CAL.burst + 10; cal.tick(t); t += 200;
   };
   return {cal,det,events,shot};
@@ -25,7 +26,7 @@ function allShots(run){ for (const g of GESTURE_PLAN) run.shot(g.want === 'R' ? 
 test('personal gesture training learns every shot in both directions and accepts a vertical serve', () => {
   const run=setup(); drives(run);
   assert.equal(run.cal.state.step,'shots');
-  assert.equal(run.events.at(-1).total,14);
+  assert.equal(run.events.filter(e => e.kind === 'step').at(-1).total,14);
   assert.equal(run.det.training,true);
   allShots(run);
   const {profile,result}=run.cal.state;

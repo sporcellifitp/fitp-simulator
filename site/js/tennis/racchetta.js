@@ -78,6 +78,7 @@ function calUi(){
   if (st.step === 'still' && grip === 'flat') ui('Pronto, fermo', 'Telefono in orizzontale nel palmo, display verso di te: il dorso guarda la rete come le corde. Resta fermo così per 2 secondi.');
   else if (st.step === 'still') ui('Fermo', 'Tieni il telefono fermo nel palmo, come il manico di una racchetta.');
   else if (st.step === 'grip') ui('La tua presa', 'Tieni il telefono come ti è comodo, senza stringere troppo.');
+  else if (st.step === 'swings' && !st.ready) ui('Fermati al centro', 'Riporta il telefono davanti a te e fermalo un attimo: il gesto dopo conta solo da fermo.');
   else if (st.step === 'swings'){ const plan=calibrationPlan(st.options),w=plan[st.idx]; ui(w === 'L' ? 'Muovi verso sinistra' : 'Muovi verso destra', `Gesto ${st.idx + 1} di ${plan.length}. Muovi il telefono come per dare un colpetto. Basta un gesto comodo, anche piccolo; poi fermati.`, '', ARROW[w]); }
   else if(st.step==='shots'){const g=GESTURE_PLAN[st.idx];ui(SHOT_NAMES[g.shot],`Gesto ${PLAN.length+st.idx+1} di ${PLAN.length+GESTURE_PLAN.length}: ${g.hint}`, '',g.want?ARROW[g.want]:'↑');}
   else if (st.step === 'review') ui(st.result && st.result.pass ? 'Fatto!' : 'Da rifare', st.result && st.result.pass ? 'Guarda il computer e conferma.' : 'Guarda il computer: ti dice cosa cambiare.', st.result && st.result.pass ? 'ready' : 'miss');
