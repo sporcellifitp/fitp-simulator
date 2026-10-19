@@ -1,0 +1,443 @@
+/* NATPF Simulator: intro all'avvio, menu principale, modalità, opzioni e passaggio al campo (natpf_intro.js,
+   natpf_lobby.js). Stessi colori e caratteri della lobby (natpf.css). Tempi dell'intro: INTRO_MS in natpf_intro.js. */
+
+/* ---------- intro ---------- */
+.natpf-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 4100;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 40%, #12307f 0, #071233 55%, #02050f 100%);
+  color: var(--lb-ink);
+  font-family: var(--lb-font);
+  cursor: pointer;
+}
+.natpf-intro.hidden {
+  display: none;
+}
+.natpf-intro.leaving {
+  animation: intro-leave 0.65s ease-in forwards;
+}
+/* campo in prospettiva che scorre sotto il titolo */
+.intro-court {
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  bottom: -10%;
+  height: 70%;
+  background:
+    linear-gradient(90deg, transparent 49.6%, rgba(255, 255, 255, 0.35) 49.6%, rgba(255, 255, 255, 0.35) 50.4%, transparent 50.4%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.22) 0 3px, transparent 3px 120px),
+    linear-gradient(180deg, rgba(31, 92, 220, 0) 0, rgba(31, 92, 220, 0.55) 100%);
+  transform: perspective(600px) rotateX(62deg);
+  transform-origin: 50% 100%;
+  opacity: 0;
+  animation: intro-court-in 1.2s ease-out 3.1s forwards, intro-court-run 3s linear 3.1s infinite;
+}
+.intro-stage {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: min(92vw, 1100px);
+  text-align: center;
+}
+.intro-logo {
+  grid-area: 1 / 1;
+  align-self: center;
+  opacity: 0;
+  filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5));
+}
+.intro-esports {
+  width: min(56vw, 520px);
+  animation: intro-mark 1.7s cubic-bezier(0.2, 0.9, 0.2, 1) 0.2s both;
+}
+.intro-presents {
+  grid-area: 2 / 1;
+  margin: 0;
+  color: var(--lb-muted);
+  font: 600 16px var(--lb-font);
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: intro-fade 1.3s ease 0.5s both;
+}
+.intro-nitto {
+  width: min(78vw, 820px);
+  animation: intro-mark 1.6s cubic-bezier(0.2, 0.9, 0.2, 1) 1.75s both;
+}
+.intro-title {
+  grid-area: 1 / 1;
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  opacity: 0;
+  animation: intro-slam 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) 3.35s both;
+}
+.intro-title b {
+  font: italic 900 clamp(64px, 12vw, 170px) / 0.9 var(--lb-font);
+  letter-spacing: 0.01em;
+  border-bottom: clamp(6px, 1vw, 12px) solid var(--lb-ball);
+  text-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.intro-title i {
+  color: var(--lb-pink);
+  font: italic 800 clamp(26px, 4.4vw, 60px) var(--lb-font);
+  text-transform: uppercase;
+}
+/* la palla attraversa il titolo con la sua scia */
+.intro-ball {
+  position: absolute;
+  top: 18%;
+  left: -12%;
+  width: clamp(22px, 3vw, 40px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fbffb0, var(--lb-ball) 55%, #a8c400);
+  box-shadow: -60px 0 30px -10px rgba(232, 255, 58, 0.35), -120px 0 40px -20px rgba(232, 255, 58, 0.15);
+  opacity: 0;
+  animation: intro-ball 0.8s ease-in 3.25s both;
+}
+.intro-tag {
+  grid-area: 2 / 1;
+  margin: 8px 0 0;
+  color: var(--lb-muted);
+  font: 700 clamp(13px, 1.4vw, 17px) var(--lb-font);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: intro-fade-in 0.6s ease 3.9s both;
+}
+.intro-start {
+  grid-area: 3 / 1;
+  margin-top: 6vh;
+  padding: 14px 34px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--lb-ball);
+  font: 800 clamp(16px, 1.8vw, 22px) var(--lb-font);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0;
+  cursor: pointer;
+}
+.natpf-intro.is-ready .intro-start {
+  opacity: 1;
+  animation: intro-blink 1.4s ease-in-out infinite;
+}
+.intro-partners {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  transform: translateX(-50%);
+  opacity: 0;
+}
+.intro-partners img:first-child {
+  height: 46px;
+}
+.intro-partners img:last-child {
+  height: 26px;
+}
+.natpf-intro.is-ready .intro-partners {
+  opacity: 0.85;
+  transition: opacity 0.6s;
+}
+.intro-skip {
+  position: absolute;
+  right: 22px;
+  bottom: 18px;
+  padding: 8px 16px;
+  border: 1px solid var(--lb-line);
+  border-radius: 999px;
+  background: rgba(7, 18, 51, 0.6);
+  color: var(--lb-muted);
+  font: 700 13px var(--lb-font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.natpf-intro.is-ready .intro-skip {
+  display: none;
+}
+/* fine dell'animazione (anche saltata): titolo fermo, marchi spariti */
+.natpf-intro.is-ready .intro-esports,
+.natpf-intro.is-ready .intro-nitto,
+.natpf-intro.is-ready .intro-presents,
+.natpf-intro.is-ready .intro-ball {
+  animation: none;
+  opacity: 0;
+}
+.natpf-intro.is-ready .intro-title,
+.natpf-intro.is-ready .intro-tag {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+.natpf-intro.is-ready .intro-court {
+  animation: intro-court-run 3s linear infinite;
+  opacity: 1;
+}
+/* intro breve (sessione già vista): solo il titolo */
+.natpf-intro.mode-short .intro-esports,
+.natpf-intro.mode-short .intro-nitto,
+.natpf-intro.mode-short .intro-presents {
+  display: none;
+}
+.natpf-intro.mode-short .intro-title,
+.natpf-intro.mode-short .intro-ball,
+.natpf-intro.mode-short .intro-court,
+.natpf-intro.mode-short .intro-tag {
+  animation-delay: 0.1s;
+}
+@keyframes intro-mark {
+  0% { opacity: 0; transform: scale(0.82); filter: blur(8px) drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5)); }
+  22% { opacity: 1; transform: scale(1); filter: blur(0) drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5)); }
+  78% { opacity: 1; transform: scale(1.03); }
+  100% { opacity: 0; transform: scale(1.08); }
+}
+@keyframes intro-fade {
+  0%, 100% { opacity: 0; }
+  25%, 75% { opacity: 1; }
+}
+@keyframes intro-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes intro-slam {
+  0% { opacity: 0; transform: scale(2.2) skewX(-8deg); }
+  60% { opacity: 1; transform: scale(0.96) skewX(0); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes intro-ball {
+  0% { opacity: 0; left: -12%; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0; left: 108%; }
+}
+@keyframes intro-court-in {
+  to { opacity: 1; }
+}
+@keyframes intro-court-run {
+  from { background-position: 0 0, 0 0, 0 0; }
+  to { background-position: 0 0, 0 120px, 0 0; }
+}
+@keyframes intro-blink {
+  50% { opacity: 0.35; }
+}
+@keyframes intro-leave {
+  to { opacity: 0; transform: scale(1.06); }
+}
+
+/* ---------- loghi nella barra della lobby ---------- */
+.lobby-partners {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+}
+.lobby-partners img:first-child {
+  height: 18px;
+}
+.lobby-partners img:last-child {
+  height: 30px;
+}
+
+/* ---------- menu principale ---------- */
+.main-menu {
+  display: grid;
+  gap: 10px;
+  width: min(520px, 100%);
+  margin-top: 8px;
+}
+.menu-item {
+  display: grid;
+  gap: 2px;
+  padding: 14px 22px 14px 26px;
+  border: 1px solid var(--lb-line);
+  border-left: 6px solid transparent;
+  background: rgba(7, 18, 51, 0.78);
+  color: var(--lb-ink);
+  font-family: var(--lb-font);
+  text-align: left;
+  clip-path: var(--lb-cut);
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s, border-color 0.15s;
+}
+.menu-item b {
+  font: italic 800 26px / 1.1 var(--lb-font);
+  text-transform: uppercase;
+}
+.menu-item span {
+  color: var(--lb-muted);
+  font-size: 15px;
+}
+.menu-item:hover,
+.menu-item:focus-visible {
+  outline: none;
+  transform: translateX(8px);
+  border-left-color: var(--lb-ball);
+  background: rgba(22, 55, 143, 0.92);
+}
+.menu-item:focus-visible b,
+.menu-item:hover b {
+  color: var(--lb-ball);
+}
+.menu-item[data-menu="play"] b {
+  font-size: 32px;
+}
+
+/* ---------- modalità ---------- */
+.mode-tiles .mode-tile {
+  align-content: start;
+  text-align: left;
+}
+.mode-facts {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--lb-ink);
+  font-size: 14px;
+}
+.mode-facts li::before {
+  content: "›";
+  margin-right: 8px;
+  color: var(--lb-ball);
+  font-weight: 800;
+}
+.lobby-page[data-page="options"] .seg-btn b {
+  color: var(--lb-ball);
+}
+
+/* ---------- passaggio dal menu al campo ---------- */
+.natpf-wipe {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  visibility: hidden;
+}
+.natpf-wipe.run {
+  visibility: visible;
+}
+.wipe-band {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  position: absolute;
+  inset: -30vh -30vw;
+  background: linear-gradient(100deg, #071233 0 30%, #16378f 30% 70%, #071233 70%);
+  transform: translateX(-130%) skewX(-14deg);
+}
+.wipe-band img {
+  width: min(50vw, 560px);
+  transform: skewX(14deg);
+}
+.wipe-band b {
+  color: var(--lb-ball);
+  font: italic 900 clamp(40px, 7vw, 96px) var(--lb-font);
+  text-transform: uppercase;
+  transform: skewX(14deg);
+}
+.natpf-wipe.run .wipe-band {
+  animation: wipe-run 1.35s cubic-bezier(0.7, 0, 0.3, 1) forwards;
+}
+@keyframes wipe-run {
+  0% { transform: translateX(-130%) skewX(-14deg); }
+  38%, 62% { transform: translateX(0) skewX(-14deg); }
+  100% { transform: translateX(130%) skewX(-14deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .natpf-intro *,
+  .natpf-wipe.run .wipe-band {
+    animation-duration: 0.01s !important;
+    animation-delay: 0s !important;
+  }
+}
+@media (max-width: 760px) {
+  .menu-item b {
+    font-size: 21px;
+  }
+  .menu-item[data-menu="play"] b {
+    font-size: 25px;
+  }
+  .lobby-partners img:first-child {
+    height: 14px;
+  }
+  .lobby-partners img:last-child {
+    height: 24px;
+  }
+}
+
+/* l'animazione parte quando il gioco la avvia (classe mode-*), non al primo disegno della pagina: altrimenti i marchi
+   scorrerebbero mentre il browser carica ancora gli script */
+.natpf-intro:not(.mode-full):not(.mode-short) *,
+.natpf-intro:not(.mode-full):not(.mode-short) {
+  animation-play-state: paused !important;
+}
+
+/* barra in alto della lobby: marchio a sinistra, avanzamento al centro, aiuto a destra, su una riga */
+#title-modal.natpf-lobby .lobby-top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+#title-modal.natpf-lobby .lobby-progress {
+  justify-self: center;
+}
+.natpf-lobby .lobby-demo-tag,
+.natpf-lobby[data-step="menu"] .lobby-demo-tag {
+  top: auto;
+  left: auto;
+  right: max(18px, 4vw);
+  bottom: max(26px, 4vh);
+}
+.natpf-lobby:not([data-step="menu"]) .lobby-demo-tag {
+  display: none;
+}
+/* menu principale: titolo più compatto, così le quattro voci stanno sempre nello schermo */
+.lobby-page[data-page="menu"] .welcome-title {
+  font-size: clamp(34px, 5vw, 66px);
+}
+.lobby-page[data-page="menu"] .menu-item {
+  padding-block: 10px;
+}
+@media (max-height: 640px) {
+  .lobby-page[data-page="menu"] .welcome-title {
+    font-size: clamp(28px, 4vw, 44px);
+  }
+  .menu-item span {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  #title-modal.natpf-lobby .lobby-top {
+    grid-template-columns: 1fr auto;
+  }
+  #title-modal.natpf-lobby .lobby-progress {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+#title-modal.natpf-lobby .lobby-help-btn {
+  white-space: nowrap;
+}
+#title-modal.natpf-lobby .lobby-progress {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}

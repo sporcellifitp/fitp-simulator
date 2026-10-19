@@ -44,7 +44,8 @@
   background: var(--q-green);
   color: var(--lb-navy);
 }
-.natpf-lobby[data-step="welcome"] .lobby-progress {
+.natpf-lobby[data-step="menu"] .lobby-progress,
+.natpf-lobby[data-step="options"] .lobby-progress {
   visibility: hidden;
 }
 .lobby-help-btn {
@@ -75,7 +76,7 @@
   text-transform: uppercase;
   pointer-events: none;
 }
-.natpf-lobby[data-step="welcome"] .lobby-demo-tag {
+.natpf-lobby[data-step="menu"] .lobby-demo-tag {
   top: auto;
   left: auto;
   right: max(18px, 4vw);
@@ -101,7 +102,7 @@
 }
 
 /* ---------- benvenuto ---------- */
-.lobby-page[data-page="welcome"] {
+.lobby-page[data-page="menu"] {
   max-width: 760px;
   gap: 14px;
 }

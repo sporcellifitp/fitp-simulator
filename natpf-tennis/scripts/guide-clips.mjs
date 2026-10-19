@@ -18,7 +18,7 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-await page.goto(URL_);
+await page.goto(URL_ + (URL_.includes('?') ? '&' : '?') + 'intro=0');
 await page.waitForTimeout(5000);
 // riscaldamento con mouse e tastiera (niente calibrazione), interfaccia del riscaldamento nascosta
 await page.evaluate(() => {

@@ -1,14 +1,33 @@
-// Menu pensato per chi vede il gioco per la prima volta (in fiera, a un evento): una pagina alla volta, un pulsante
-// grande per andare avanti, «Indietro» sempre visibile, niente tappe da sbloccare.
-//   benvenuto → con cosa giochi (smartphone o webcam, mano) → collega (QR e tre passi sul telefono, oppure la webcam)
-//   → riscaldamento in campo (calibrazione del telefono e lanciapalle insieme, natpf_training.js, sempre saltabile)
-//   → partita (avversario, durata, visuale, «Gioca»).
+// Menu di NATPF Simulator, con il percorso di un gioco da console (dopo l'intro, natpf_intro.js):
+//   menu principale ─ Gioca ─────────→ modalità (contro la CPU · sfida un amico) → racchetta (smartphone o webcam,
+//                   │                   mano) → collega (QR e tre passi sul telefono, o la webcam) → riscaldamento in
+//                   │                   campo (calibrazione + lanciapalle, natpf_training.js, saltabile) → partita
+//                   │                   (livello o invito dell'amico, durata, visuale) → «Gioca»: passaggio al campo
+//                   ├ Allenamento ───→ racchetta → collega → campo d'allenamento → di nuovo al menu con il risultato
+//                   ├ Come si gioca → guida con le clip (natpf_onboarding.js)
+//                   └ Opzioni ───────→ mano, visuale, musica, voce, colpi imparati, intro
+// Un pulsante grande per pagina, «Indietro» sempre visibile, frecce + Invio + Esc come con un joypad.
 // Appena il telefono ha i sensori attivi si entra in campo da soli; con la webcam appena si vede la mano.
 // Dietro il menu gira una dimostrazione: nessun gesto la trasforma in partita (natpf_ui.js, _gateInput).
+// Pausa, «Torna al menu» e il «Menu» della schermata finale riportano al menu principale.
 // Easter egg: digitando «natpf» nel menu compaiono mouse e tastiera (modalità prova per il computer).
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
-export const LOBBY_STEPS = ['welcome', 'controller', 'connect', 'warmup', 'match'];
+export const LOBBY_STEPS = ['menu', 'mode', 'options', 'controller', 'connect', 'warmup', 'match'];
+export const MODES = ['cpu', 'friend', 'training'];
+// tappe mostrate nella barra di avanzamento, per modalità
+export function progressSteps(mode){
+  return mode === 'training' ? [['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Allenamento']]
+    : [['mode', 'Modalità'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Riscaldamento'], ['match', 'Partita']];
+}
+// tappa precedente («Indietro» ed Esc)
+export function previousStep(step, mode){
+  if (step === 'mode' || step === 'options') return 'menu';
+  if (step === 'controller') return mode === 'training' ? 'menu' : 'mode';
+  if (step === 'connect') return 'controller';
+  if (step === 'match') return 'connect';
+  return null;
+}
 export const EGG_WORD = 'natpf';
 // Il controller è pronto per entrare in campo? (funzione pura, per i test)
 //   telefono: collegato e con i sensori attivi (la calibrazione si fa in campo, nel riscaldamento)
@@ -20,8 +39,8 @@ export function stepReady(step, { controller, phoneLinked, webcamActive }){
 export function autoAdvance(step, { controller, phoneLinked, handSeen }){
   return step === 'connect' && (controller === 'phone' ? !!phoneLinked : controller === 'webcam' ? !!handSeen : false);
 }
-// Ogni visitatore riparte dal benvenuto
-export const initialStep = () => 'welcome';
+// Ogni visitatore riparte dal menu principale (dopo l'intro)
+export const initialStep = () => 'menu';
 // Riconosce la parola dell'easter egg tra i tasti digitati
 export function eggTyped(buffer, key){ const next = (buffer + String(key || '').toLowerCase()).slice(-EGG_WORD.length); return { buffer: next, hit: next === EGG_WORD }; }
 
@@ -31,20 +50,27 @@ export class NatpfLobby {
     this.el = $('title-modal');
     this.eggBuffer = '';
     this.trainingDone = false;
+    this.mode = 'cpu';
     this.autoFrom = null;            // tappa da cui si è già entrati in campo da soli (una volta sola)
     this.step = initialStep();
-    $('welcome-play')?.addEventListener('click', e => { e.stopPropagation(); this.go('controller'); });
+    this.el.addEventListener('click', e => {
+      const m = e.target.closest('[data-menu]'); if (m){ e.stopPropagation(); this.menu(m.dataset.menu); return; }
+      const t = e.target.closest('[data-mode]'); if (t){ e.stopPropagation(); this.setMode(t.dataset.mode); setTimeout(() => this.go('controller'), 160); return; }
+      const o = e.target.closest('[data-option]'); if (o){ e.stopPropagation(); this.option(o.dataset.option); return; }
+      // scegliere la racchetta è già andare avanti
+      const c = e.target.closest('[data-natpf-controller]'); if (c && this.step === 'controller') setTimeout(() => this.go('connect'), 160);
+    });
     $('lobby-next').addEventListener('click', e => { e.stopPropagation(); this.next(); });
     $('lobby-back').addEventListener('click', e => { e.stopPropagation(); this.back(); });
     $('lobby-warmup').addEventListener('click', e => { e.stopPropagation(); this.go('warmup'); });
     $('lobby-help').addEventListener('click', e => { e.stopPropagation(); this.onboarding.open(); });
     $('setup-cam-go').addEventListener('click', async e => { e.stopPropagation(); await this.ui.startWebcam(); this.paint(); });
     $('connect-other')?.addEventListener('click', e => { e.stopPropagation(); this.ui.selectController(this.ui.controller === 'phone' ? 'webcam' : 'phone', { open: false }); this.go('connect'); });
-    // scegliere la racchetta è già andare avanti
-    this.el.addEventListener('click', e => { const t = e.target.closest('[data-natpf-controller]'); if (t && this.step === 'controller') setTimeout(() => this.go('connect'), 160); });
     this.el.addEventListener('pointerdown', e => e.stopPropagation());
     // tastiera del menu prima di quella del motore (che con Spazio/Invio/frecce colpirebbe)
     window.addEventListener('keydown', e => this._key(e), true);
+    // il «Menu» della schermata finale riapre la lobby: si torna al menu principale
+    $('btn-return-title')?.addEventListener('click', () => this.ui.backToMenu());
     // partite brevi: in fiera si gioca un game
     document.querySelector('#match-length-group [data-games="1"]')?.click();
     this.go(this.step);
@@ -61,11 +87,46 @@ export class NatpfLobby {
       handSeen: !!mc?.webcamActive && performance.now() - (mc.latestHandSeenAt || -1e9) < 600,
     };
   }
+  /* ---------- menu principale, modalità, opzioni ---------- */
+  menu(item){
+    if (item === 'play'){ this.go('mode'); return; }
+    if (item === 'training'){ this.setMode('training'); this.go('controller'); return; }
+    if (item === 'guide'){ this.onboarding.open(); return; }
+    if (item === 'options') this.go('options');
+  }
+  setMode(mode){
+    if (!MODES.includes(mode)) return;
+    this.mode = mode;
+    for (const t of this.el.querySelectorAll('[data-mode]')){ const on = t.dataset.mode === mode; t.classList.toggle('selected', on); t.setAttribute('aria-checked', String(on)); }
+    // la scelta della modalità decide gli avversari della pagina «Partita»: CPU (facile o esperta) o 1v1 con invito
+    const diff = this.engine.hud?.selectedDifficulty;
+    if (mode === 'friend' && diff !== '1v1') document.querySelector('#difficulty-mode-group [data-difficulty="1v1"]')?.click();
+    if (mode === 'cpu' && diff === '1v1') document.querySelector('#difficulty-mode-group [data-difficulty="casual"]')?.click();
+    for (const b of document.querySelectorAll('#difficulty-mode-group [data-difficulty]')) show(b, mode === 'friend' ? b.dataset.difficulty === '1v1' : b.dataset.difficulty !== '1v1');
+    this.paint();
+  }
+  option(name){
+    const click = id => $(id)?.click();
+    if (name === 'music') click('btn-audio-toggle');
+    if (name === 'voice') click('btn-voice-toggle');
+    if (name === 'specials'){ this.ui.phone.resetSpecials?.(); this.ui.toast('Pallonetto e palla corta: si reimparano nel prossimo allenamento'); }
+    if (name === 'intro'){ this.ui.intro?.play('full'); return; }
+    this.paint();
+  }
+  _paintOptions(){
+    const audio = this.engine.audioEngine;
+    const set = (k, on) => { const b = this.el.querySelector(`[data-option="${k}"] b`); if (b) b.textContent = on ? 'Sì' : 'No'; };
+    set('music', audio ? !audio.muted : true);
+    set('voice', audio?.voice ? !!audio.voice.enabled : true);
+  }
   go(step){
     if (!LOBBY_STEPS.includes(step)) return;
     if (step === 'warmup'){ this.startWarmup(); return; }
-    this.step = step; this.el.dataset.step = step;
+    if (step === 'menu' && this.step !== 'menu') this.mode = this.mode === 'training' ? 'cpu' : this.mode;
+    this.step = step; this.el.dataset.step = step; this.el.dataset.flow = this.mode;
     for (const p of this.el.querySelectorAll('[data-page]')) p.classList.toggle('on', p.dataset.page === step);
+    if (step !== 'menu') show($('lobby-menu-result'), false);
+    if (step === 'match') this.setMode(this.mode === 'training' ? 'cpu' : this.mode);
     if (step === 'connect'){
       // si entra in campo da soli solo quando il controller diventa pronto mentre si è qui (non tornando indietro)
       this.autoFrom = autoAdvance('connect', this.state()) ? 'connect' : null;
@@ -75,25 +136,31 @@ export class NatpfLobby {
     this.paint();
     requestAnimationFrame(() => (this._tiles().find(t => t.classList.contains('selected')) || this._tiles()[0] || this._primary())?.focus({ preventScroll: true }));
   }
-  _primary(){ return this.step === 'welcome' ? $('welcome-play') : this.step === 'match' ? $('btn-start-match') : $('lobby-next'); }
+  _primary(){ return this.step === 'match' ? $('btn-start-match') : $('lobby-next'); }
   paint(){
-    const st = this.state(), k = LOBBY_STEPS.indexOf(this.step);
-    for (const li of this.el.querySelectorAll('[data-progress]')){ const i = LOBBY_STEPS.indexOf(li.dataset.progress); li.className = i === k ? 'on' : i < k ? 'done' : ''; }
-    const welcome = this.step === 'welcome', match = this.step === 'match';
-    show($('lobby-back'), !welcome);
-    show($('lobby-next'), !welcome && !match);
+    const st = this.state(), steps = progressSteps(this.mode), k = steps.findIndex(([id]) => id === this.step);
+    const bar = $('lobby-progress');
+    if (bar){
+      const key = this.mode + ':' + this.step;
+      if (bar.dataset.key !== key){ bar.dataset.key = key; bar.innerHTML = steps.map(([id, label], i) => `<li class="${i === k ? 'on' : i < k ? 'done' : ''}"><b>${i + 1}</b><span>${label}</span></li>`).join(''); }
+    }
+    const menu = this.step === 'menu', match = this.step === 'match', pick = this.step === 'mode' || this.step === 'options';
+    show($('lobby-back'), !menu);
+    show($('lobby-next'), !menu && !match && !pick);
     show($('btn-start-match'), match);
     show($('lobby-warmup'), match);
-    this.el.querySelector('.lobby-bottom')?.classList.toggle('only-help', welcome);
+    this.el.querySelector('.lobby-bottom')?.classList.toggle('only-help', menu);
     const next = $('lobby-next');
     next.disabled = !stepReady(this.step, st);
-    next.textContent = this.step === 'connect' ? 'In campo ›' : 'Avanti ›';
+    next.textContent = this.step === 'connect' ? (this.mode === 'training' ? 'Al campo d’allenamento ›' : 'In campo ›') : 'Avanti ›';
     // collega: pannello del controller scelto
     for (const p of this.el.querySelectorAll('[data-setup]')) show(p, p.dataset.setup === st.controller);
     const other = $('connect-other');
     if (other){ show(other, st.controller !== 'mouse'); other.textContent = st.controller === 'phone' ? 'Non hai il telefono a portata? Usa la webcam' : 'Preferisci il telefono? Usa lo smartphone'; }
     $('lobby-t-connect').textContent = st.controller === 'phone' ? 'Collega il telefono' : st.controller === 'webcam' ? 'Accendi la webcam' : 'Mouse e tastiera';
+    $('lobby-t-match').textContent = this.mode === 'friend' ? 'Sfida un amico' : 'Pronto per la partita';
     if (this.step === 'connect' && st.controller === 'phone') this.ui.paintConnect();
+    if (this.step === 'options') this._paintOptions();
     this.ui.paintWebcamSetup?.();
     const note = $('lobby-match-note');
     if (note) note.textContent = st.controller === 'phone' && !st.phoneReady ? 'Il telefono va ricollegato: premendo «Gioca» compare il QR.' : '';
@@ -101,15 +168,19 @@ export class NatpfLobby {
     if (this.visible && autoAdvance(this.step, st) && this.autoFrom !== this.step){ this.autoFrom = this.step; setTimeout(() => this.visible && this.step === 'connect' && this.go('warmup'), 700); }
   }
   next(){
-    const k = LOBBY_STEPS.indexOf(this.step);
     if (!stepReady(this.step, this.state())) return;
-    if (this.step === 'welcome') return this.go('controller');
-    if (k < LOBBY_STEPS.length - 1) this.go(LOBBY_STEPS[k + 1]); else $('btn-start-match').click();
+    if (this.step === 'mode') return this.go('controller');
+    if (this.step === 'controller') return this.go('connect');
+    if (this.step === 'connect') return this.go('warmup');
+    if (this.step === 'match') $('btn-start-match').click();
   }
-  // dalla partita si torna al collegamento (il riscaldamento si rifà con il suo pulsante)
-  back(){ const k = LOBBY_STEPS.indexOf(this.step); if (k > 0) this.go(this.step === 'match' ? 'connect' : LOBBY_STEPS[k - 1]); }
-  _tiles(){ return [...this.el.querySelectorAll(`[data-page="${this.step}"] .lobby-tile`)].filter(t => !t.classList.contains('hidden')); }
+  back(){ const p = previousStep(this.step, this.mode); if (p) this.go(p); }
+  _tiles(){
+    const page = `[data-page="${this.step}"]`;
+    return [...this.el.querySelectorAll(`${page} .lobby-tile, ${page} .menu-item, ${page} .seg-btn`)].filter(t => !t.classList.contains('hidden') && t.offsetParent !== null);
+  }
   _key(e){
+    if (this.ui.intro?.active) return;
     if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
     if (this.onboarding.isOpen){ if (this.onboarding.key(e)) e.preventDefault(); e.stopImmediatePropagation(); return; }
     const sheetOpen = [...document.querySelectorAll('.natpf-sheet-backdrop')].some(m => !m.classList.contains('hidden'));
@@ -123,15 +194,19 @@ export class NatpfLobby {
     e.stopImmediatePropagation();
     if (e.key && e.key.length === 1){ const r = eggTyped(this.eggBuffer, e.key); this.eggBuffer = r.buffer; if (r.hit){ this.ui.toggleTestInput(); this.eggBuffer = ''; return; } }
     const tiles = this._tiles(), i = tiles.indexOf(document.activeElement);
+    // frecce: si sposta il fuoco (come un joypad); nella pagina «Partita» le tessere si scelgono subito
     if (['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'].includes(e.code) && tiles.length){
       e.preventDefault();
       const d = e.code === 'ArrowRight' || e.code === 'ArrowDown' ? 1 : -1, t = tiles[(i < 0 ? 0 : i + d + tiles.length) % tiles.length];
-      t.focus(); if (this.step !== 'controller') t.click();
-    } else if (e.code === 'Enter'){ e.preventDefault(); if (this.step === 'controller' && i >= 0) tiles[i].click(); else this.next(); }
+      t.focus(); if (this.step === 'match' && t.classList.contains('lobby-tile')) t.click();
+    } else if (e.code === 'Enter'){
+      e.preventDefault();
+      if (i >= 0 && ['menu', 'mode', 'controller', 'options'].includes(this.step)) tiles[i].click(); else this.next();
+    }
     else if (e.code === 'Escape' || e.code === 'Backspace'){ e.preventDefault(); this.back(); }
     else if (e.code === 'KeyH'){ this.onboarding.open(); }
   }
-  /* ---------- riscaldamento in campo ---------- */
+  /* ---------- riscaldamento e allenamento in campo ---------- */
   startWarmup(){
     const ui = this.ui;
     // telefono non ancora collegato: prima il collegamento
@@ -139,15 +214,20 @@ export class NatpfLobby {
     this.step = 'warmup'; this.el.dataset.step = 'warmup';
     ui.training.start();
   }
-  // compatibilità: l'onboarding propone ancora «Prova» → riscaldamento
-  startPractice(){ this.go(this.ui.controller === 'phone' && !this.state().phoneLinked ? 'connect' : 'warmup'); }
+  // compatibilità: l'onboarding propone ancora «Prova» → allenamento
+  startPractice(){ this.setMode('training'); this.go(this.ui.controller === 'phone' && !this.state().phoneLinked ? 'connect' : 'warmup'); }
   onTrainingEnd({ completed, skipped, stats }){
     if (completed) this.trainingDone = true;
-    this.go('match');
-    const r = $('lobby-practice-result');
-    r.innerHTML = skipped ? `<b>Riscaldamento saltato</b><span>${this.ui.phone.simple ? 'Modalità semplice: dritto e rovescio li sceglie il gioco.' : 'Lo puoi rifare quando vuoi.'}</span>`
-      : `<b>${completed ? 'Riscaldamento completato ✓' : 'Riscaldamento interrotto'}</b><span>${stats.shots} colpi · ${stats.perfect} perfetti${stats.out ? ` · ${stats.out} fuori` : ''}</span>`;
-    show(r);
+    const text = skipped ? `<b>${this.mode === 'training' ? 'Allenamento interrotto' : 'Riscaldamento saltato'}</b><span>${this.ui.phone.simple ? 'Modalità semplice: dritto e rovescio li sceglie il gioco.' : 'Lo puoi rifare quando vuoi.'}</span>`
+      : `<b>${completed ? (this.mode === 'training' ? 'Allenamento completato ✓' : 'Riscaldamento completato ✓') : 'Interrotto'}</b><span>${stats.shots} colpi · ${stats.perfect} perfetti${stats.out ? ` · ${stats.out} fuori` : ''}</span>`;
+    // allenamento dal menu: si torna al menu con il risultato; riscaldamento prima della partita: si va alla partita
+    if (this.mode === 'training'){
+      this.go('menu');
+      const r = $('lobby-menu-result'); r.innerHTML = text; show(r);
+    } else {
+      this.go('match');
+      const r = $('lobby-practice-result'); r.innerHTML = text; show(r);
+    }
     this.paint();
   }
   tick(){}

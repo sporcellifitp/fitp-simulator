@@ -11,6 +11,7 @@ import { NatpfShotFeedback } from './natpf_shot_feedback.js';
 import { NatpfHand } from './natpf_hand.js';
 import { NatpfTraining } from './natpf_training.js';
 import { NatpfDiag } from './natpf_diag.js';
+import { NatpfIntro } from './natpf_intro.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -51,6 +52,9 @@ export class NatpfUi {
     this.onboarding = new NatpfOnboarding({ getController: () => this.controller, onPractice: () => this.lobby.startPractice(), onOpen: () => this._syncPause(), onClose: () => this._syncPause() });
     this.lobby = this.flow = new NatpfLobby(engine, this, this.onboarding);
     this.pause = new NatpfPause(engine, this);
+    // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
+    this.intro = new NatpfIntro({ onDone: () => { if (this.lobby.visible) this.lobby.go('menu'); } });
+    $('btn-play-again')?.addEventListener('click', () => this.wipe('Rivincita'), true);
     this.hand.set(this.hand.hand);
     this.onViewChange(engine.viewMode);
     this.phone.onChange(() => { this.paintPhone(); this.paintTiles(); if (this.lobby?.visible && this.lobby.step === 'connect') this.lobby.paint(); });
@@ -118,7 +122,7 @@ export class NatpfUi {
     E.natpfPaused = false; E.hud.hideVictoryModal?.(); E.hud.hideCenterBanner();
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
     E._syncScoreboardHUD(); E._setupMidRallyShowcase({}); E.autoPlayMode = true;
-    E.userHasInteracted = false; E.hud.showTitleModal(); this.flow.go('match');
+    E.userHasInteracted = false; E.hud.showTitleModal(); this.flow.go('menu');
   }
   /* ---------- webcam nella tappa di preparazione ---------- */
   async startWebcam(){
@@ -216,8 +220,16 @@ export class NatpfUi {
   // Con lo smartphone scelto si entra in campo quando la racchetta è pronta (mouse e tastiera restano attivi).
   _bindStart(){
     $('btn-start-match')?.addEventListener('click', e => {
-      if (this.controller === 'phone' && !this.phone.ready){ e.stopImmediatePropagation(); this.openPhone({ after: () => $('btn-start-match')?.click() }); }
+      if (this.controller === 'phone' && !this.phone.ready){ e.stopImmediatePropagation(); this.openPhone({ after: () => $('btn-start-match')?.click() }); return; }
+      this.wipe(this.lobby?.mode === 'friend' ? 'Sfida 1v1' : 'Si gioca');
     }, true);
+  }
+  // passaggio dal menu al campo: una fascia con il marchio attraversa lo schermo e copre il cambio di scena
+  wipe(text = 'Si gioca'){
+    const w = $('natpf-wipe'); if (!w) return;
+    const t = $('natpf-wipe-text'); if (t) t.textContent = text;
+    w.classList.remove('run'); void w.offsetWidth; w.classList.add('run');
+    clearTimeout(this._wipeT); this._wipeT = setTimeout(() => w.classList.remove('run'), 1400);
   }
 
   /* ---------- invito del Player 2 (1v1 tra due computer, relay del motore base) ---------- */

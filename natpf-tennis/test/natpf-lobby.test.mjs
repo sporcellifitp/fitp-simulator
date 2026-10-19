@@ -1,15 +1,30 @@
 // Menu a tappe, esito del colpo, mano del giocatore e allenamento (funzioni senza DOM).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LOBBY_STEPS, EGG_WORD, stepReady, initialStep, eggTyped, autoAdvance } from '../src/natpf/natpf_lobby.js';
+import { LOBBY_STEPS, EGG_WORD, stepReady, initialStep, eggTyped, autoAdvance, progressSteps, previousStep } from '../src/natpf/natpf_lobby.js';
+import { introMode, INTRO_MS } from '../src/natpf/natpf_intro.js';
 import { controllerTiles, viewTiles, controllerStatus, CONTROLLER_TILES } from '../src/natpf/natpf_tiles.js';
 import { shotQuality, landsIn, VIBRATION, QUALITY_COLORS } from '../src/natpf/natpf_shot_feedback.js';
 import { leftySide, isLocalServing, normalizeHand } from '../src/natpf/natpf_hand.js';
 import { DRILLS, drillsFor, drillAfterShot, calSide, calCoach, CAL_HOLD } from '../src/natpf/natpf_training.js';
 
-test('menu per chi gioca la prima volta: benvenuto, racchetta, collega, riscaldamento in campo, partita', () => {
-  assert.deepEqual(LOBBY_STEPS, ['welcome', 'controller', 'connect', 'warmup', 'match']);
-  assert.equal(initialStep(), 'welcome');               // ogni visitatore riparte dal benvenuto
+test('percorso da console: menu → modalità → racchetta → collega → riscaldamento → partita; allenamento a parte', () => {
+  assert.deepEqual(LOBBY_STEPS, ['menu', 'mode', 'options', 'controller', 'connect', 'warmup', 'match']);
+  assert.equal(initialStep(), 'menu');                  // dopo l'intro ogni visitatore parte dal menu principale
+  assert.deepEqual(progressSteps('cpu').map(([id]) => id), ['mode', 'controller', 'connect', 'warmup', 'match']);
+  assert.deepEqual(progressSteps('training').map(([id]) => id), ['controller', 'connect', 'warmup']);
+  assert.equal(previousStep('controller', 'cpu'), 'mode');
+  assert.equal(previousStep('controller', 'training'), 'menu', 'l’allenamento parte dal menu');
+  assert.equal(previousStep('mode', 'cpu'), 'menu'); assert.equal(previousStep('options'), 'menu');
+  assert.equal(previousStep('match', 'friend'), 'connect'); assert.equal(previousStep('menu'), null);
+});
+
+test('intro: completa la prima volta, breve nella stessa sessione, spenta con ?intro=0 o in diagnostica', () => {
+  assert.equal(introMode({ search: '', seen: false }), 'full');
+  assert.equal(introMode({ search: '', seen: true }), 'short');
+  assert.equal(introMode({ search: '?intro=0' }), 'off');
+  assert.equal(introMode({ search: '?diag=1' }), 'off');
+  assert.ok(INTRO_MS.full > INTRO_MS.short);
 });
 
 test('in campo appena il controller è pronto; il riscaldamento non blocca mai', () => {
@@ -19,7 +34,7 @@ test('in campo appena il controller è pronto; il riscaldamento non blocca mai',
   assert.equal(stepReady('connect', { controller: 'webcam', webcamActive: false }), false);
   assert.equal(stepReady('connect', { controller: 'webcam', webcamActive: true }), true);
   assert.equal(stepReady('connect', { controller: 'mouse' }), true);
-  for (const s of ['welcome', 'controller', 'warmup', 'match']) assert.equal(stepReady(s, {}), true, s);
+  for (const s of ['menu', 'mode', 'controller', 'warmup', 'match']) assert.equal(stepReady(s, {}), true, s);
   assert.equal(autoAdvance('connect', { controller: 'phone', phoneLinked: true }), true);
   assert.equal(autoAdvance('connect', { controller: 'webcam', handSeen: true }), true);
   assert.equal(autoAdvance('connect', { controller: 'webcam', handSeen: false }), false);
