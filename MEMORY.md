@@ -107,7 +107,8 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 | 19/10/2026 | 684021a | Calibrazione: fermo prima di ogni gesto, rientro al centro escluso, tremolii ignorati, scelta del gesto nel verso richiesto | `site/js/tennis/calibration.js`, `racchetta.js`, `main.js`, `natpf-tennis/src/natpf/natpf_training.js`, `tools/test/calibration-quick.test.mjs`, `tools/test/gesture-training.test.mjs` |
 
 | 19/10/2026 | d8b7bec | Rovescio lungolinea non più letto come dritto | `site/js/tennis/swing-detect.js`, `natpf-tennis/src/natpf/natpf_phone_racket.js`, `natpf-tennis/test/natpf-prep.test.mjs` |
-| 19/10/2026 | (punto 3) | Varietà di traiettorie e angoli per giocatore, P2 e CPU; palla che cade alla profondità voluta (prima ~2 m corta per l'aria) | `natpf-tennis/src/natpf/natpf_skill.js`, `natpf-tennis/src/game_engine.js`, `natpf-tennis/test/natpf-variety.test.mjs`, `natpf-tennis/scripts/audit/variety.mjs` |
+| 19/10/2026 | (punto 5) | TORINO dritta per chi la guarda dalla metà opposta (prima capovolta per P1 e P2) | `site/js/tennis/arena.js`, `natpf-tennis/test/natpf-arena-court.test.mjs` |
+| 19/10/2026 | 4f4304f | Varietà di traiettorie e angoli per giocatore, P2 e CPU; palla che cade alla profondità voluta (prima ~2 m corta per l'aria) | `natpf-tennis/src/natpf/natpf_skill.js`, `natpf-tennis/src/game_engine.js`, `natpf-tennis/test/natpf-variety.test.mjs`, `natpf-tennis/scripts/audit/variety.mjs` |
 
 ## 10. Stato delle attività (richiesta in 6 punti del 19/10)
 
@@ -117,12 +118,12 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 | 2 | Dritto/rovescio, rovescio lungolinea | fatto, provato con gesti simulati; da provare con telefono vero |
 | 3 | Varietà di traiettorie e angoli (anche P2) | fatto, provato con audit e test nel motore senza browser; da vedere giocando |
 | 4 | Revisione completa 1v1 con verifica a due sessioni | in corso (lavoro in un worktree separato) |
-| 5 | Grafica del campo simmetrica (TORINO su entrambe le metà, loghi della rete) | da fare |
+| 5 | Grafica del campo simmetrica (TORINO su entrambe le metà, loghi della rete) | fatto: TORINO era capovolta per tutti e due i giocatori, ora dritta; loghi della rete già leggibili dai due lati (8785a11). Provato con rendering nel browser (viste P1, P2, rete) |
 | 6 | MEMORY.md | fatto, da aggiornare a ogni attività |
 
 ## 11. Prossimi passi
 
-Punto 5; rifare e verificare il punto 4 (il lavoro nel worktree dell'altro PC non è stato pubblicato); aggiornare roadmap; build, zip Cloudflare e LAN, prova degli zip estratti.
+Rifare e verificare il punto 4 (il lavoro nel worktree dell'altro PC non è stato pubblicato); aggiornare roadmap; build, zip Cloudflare e LAN, prova degli zip estratti.
 
 ## 12. Test e verifiche
 
