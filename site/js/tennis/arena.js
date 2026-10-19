@@ -410,7 +410,8 @@ export function buildArena(scene, { quality = 1, anisotropy = 8 } = {}){
           misc: [Math.random(), Math.random() < .4 ? 1 : 0, item || u < .05 ? 1 : u < .3 ? .5 : 0, item],
         });
       });
-      const im = fill(new THREE.InstancedMesh(crowdGeometry(t === 0 ? 'fine' : quality >= .75 ? 'medio' : 'leggero'), mat, list.length), list, true);
+      // anello alto lontano dalla telecamera: sempre la figura leggera (margine sui PC degli eventi)
+      const im = fill(new THREE.InstancedMesh(crowdGeometry(t === 0 ? (quality >= .75 ? 'fine' : 'medio') : 'leggero'), mat, list.length), list, true);
       group.add(im); return im;
     });
     // telefoni e bandierine: stessi attributi della persona che li tiene, così seguono il suo braccio
