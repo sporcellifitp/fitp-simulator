@@ -9,7 +9,10 @@ import { leftySide, isLocalServing, normalizeHand } from '../src/natpf/natpf_han
 import { DRILLS, drillsFor, drillAfterShot, calSide, calCoach, CAL_HOLD } from '../src/natpf/natpf_training.js';
 
 test('percorso da console: menu → modalità → racchetta → collega → riscaldamento → partita; allenamento a parte', () => {
-  assert.deepEqual(LOBBY_STEPS, ['menu', 'mode', 'options', 'controller', 'connect', 'warmup', 'match']);
+  assert.deepEqual(LOBBY_STEPS, ['menu', 'mode', 'options', 'challenges', 'ranking', 'result', 'controller', 'connect', 'warmup', 'match']);
+  assert.deepEqual(progressSteps('challenge').map(([id]) => id), ['challenges', 'controller', 'connect', 'warmup']);
+  assert.equal(previousStep('controller', 'challenge'), 'challenges');
+  assert.equal(previousStep('result', 'challenge'), 'menu');
   assert.equal(initialStep(), 'menu');                  // dopo l'intro ogni visitatore parte dal menu principale
   assert.deepEqual(progressSteps('cpu').map(([id]) => id), ['mode', 'controller', 'connect', 'warmup', 'match']);
   assert.deepEqual(progressSteps('training').map(([id]) => id), ['controller', 'connect', 'warmup']);

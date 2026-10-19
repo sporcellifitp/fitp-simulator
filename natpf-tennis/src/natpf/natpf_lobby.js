@@ -3,6 +3,9 @@
 //                   │                   mano) → collega (QR e tre passi sul telefono, o la webcam) → riscaldamento in
 //                   │                   campo (calibrazione + lanciapalle, natpf_training.js, saltabile) → partita
 //                   │                   (livello o invito dell'amico, durata, visuale) → «Gioca»: passaggio al campo
+//                   ├ Sfide ─────────→ sfida → nickname → racchetta → collega → (calibrazione) → sfida in campo →
+//                   │                   risultato con la posizione in classifica (natpf_events.js)
+//                   ├ Classifica del giorno
 //                   ├ Allenamento ───→ racchetta → collega → campo d'allenamento → di nuovo al menu con il risultato
 //                   ├ Come si gioca → guida con le clip (natpf_onboarding.js)
 //                   └ Opzioni ───────→ mano, visuale, musica, voce, colpi imparati, intro
@@ -12,19 +15,22 @@
 // Pausa, «Torna al menu» e il «Menu» della schermata finale riportano al menu principale.
 // Easter egg: digitando «natpf» nel menu compaiono mouse e tastiera (modalità prova per il computer).
 import { FORMAT_KEY } from './match_format.js';
+import { CHALLENGES, challengeById, validNickname } from './natpf_events.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
-export const LOBBY_STEPS = ['menu', 'mode', 'options', 'controller', 'connect', 'warmup', 'match'];
-export const MODES = ['cpu', 'friend', 'training'];
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+export const LOBBY_STEPS = ['menu', 'mode', 'options', 'challenges', 'ranking', 'result', 'controller', 'connect', 'warmup', 'match'];
+export const MODES = ['cpu', 'friend', 'training', 'challenge'];
 // tappe mostrate nella barra di avanzamento, per modalità
 export function progressSteps(mode){
+  if (mode === 'challenge') return [['challenges', 'Sfida'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'In campo']];
   return mode === 'training' ? [['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Allenamento']]
     : [['mode', 'Modalità'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Riscaldamento'], ['match', 'Partita']];
 }
 // tappa precedente («Indietro» ed Esc)
 export function previousStep(step, mode){
-  if (step === 'mode' || step === 'options') return 'menu';
-  if (step === 'controller') return mode === 'training' ? 'menu' : 'mode';
+  if (['mode', 'options', 'challenges', 'ranking', 'result'].includes(step)) return 'menu';
+  if (step === 'controller') return mode === 'training' ? 'menu' : mode === 'challenge' ? 'challenges' : 'mode';
   if (step === 'connect') return 'controller';
   if (step === 'match') return 'connect';
   return null;
@@ -59,6 +65,9 @@ export class NatpfLobby {
       const t = e.target.closest('[data-mode]'); if (t){ e.stopPropagation(); this.setMode(t.dataset.mode); setTimeout(() => this.go('controller'), 160); return; }
       const o = e.target.closest('[data-option]'); if (o){ e.stopPropagation(); this.option(o.dataset.option); return; }
       const f = e.target.closest('[data-natpf-format]'); if (f){ e.stopPropagation(); this.setFormat(f.dataset.natpfFormat); return; }
+      const ch = e.target.closest('[data-challenge]'); if (ch){ e.stopPropagation(); this.pickChallenge(ch.dataset.challenge); return; }
+      const tab = e.target.closest('[data-ranking]'); if (tab){ e.stopPropagation(); this.rankingTab = tab.dataset.ranking; this._paintRanking(); return; }
+      const r = e.target.closest('[data-result]'); if (r){ e.stopPropagation(); this._resultAction(r.dataset.result); return; }
       // scegliere la racchetta è già andare avanti
       const c = e.target.closest('[data-natpf-controller]'); if (c && this.step === 'controller') setTimeout(() => this.go('connect'), 160);
     });
@@ -96,6 +105,8 @@ export class NatpfLobby {
   /* ---------- menu principale, modalità, opzioni ---------- */
   menu(item){
     if (item === 'play'){ this.go('mode'); return; }
+    if (item === 'challenges'){ this.go('challenges'); return; }
+    if (item === 'ranking'){ this.go('ranking'); return; }
     if (item === 'training'){ this.setMode('training'); this.go('controller'); return; }
     if (item === 'guide'){ this.onboarding.open(); return; }
     if (item === 'options') this.go('options');
@@ -110,6 +121,61 @@ export class NatpfLobby {
     if (mode === 'cpu' && diff === '1v1') document.querySelector('#difficulty-mode-group [data-difficulty="casual"]')?.click();
     for (const b of document.querySelectorAll('#difficulty-mode-group [data-difficulty]')) show(b, mode === 'friend' ? b.dataset.difficulty === '1v1' : b.dataset.difficulty !== '1v1');
     this.paint();
+  }
+  /* ---------- sfide, nickname, classifica ---------- */
+  pickChallenge(id){
+    if (!challengeById(id)) return;
+    this.challenge = id; this.setMode('challenge');
+    // solo il nickname: chiesto una volta per visitatore (il chiosco lo dimentica quando lo stand torna libero)
+    this.askNickname(() => this.go('controller'));
+  }
+  askNickname(then){
+    const ev = this.ui.events, box = $('natpf-nick'), input = $('nick-input'), warn = $('nick-warn');
+    if (ev.nickname){ then(); return; }
+    this._nickThen = then; input.value = ''; show(warn, false); show(box); setTimeout(() => input.focus(), 50);
+    if (!this._nickBound){
+      this._nickBound = true;
+      box.addEventListener('pointerdown', e => e.stopPropagation());
+      box.addEventListener('keydown', e => e.stopPropagation());
+      $('nick-cancel').addEventListener('click', e => { e.stopPropagation(); show(box, false); });
+      $('nick-form').addEventListener('submit', e => {
+        e.preventDefault(); e.stopPropagation();
+        const v = validNickname(input.value);
+        if (!v.ok){ warn.textContent = v.why; show(warn); return; }
+        this.ui.events.nickname = v.nick; show(box, false); const t = this._nickThen; this._nickThen = null; t?.();
+      });
+    }
+  }
+  _paintChallenges(){
+    const box = $('challenge-tiles'); if (!box) return;
+    if (!box.dataset.built){
+      box.dataset.built = '1';
+      box.innerHTML = CHALLENGES.map(c => `<button type="button" class="lobby-tile mode-tile" data-challenge="${c.id}" role="radio"><span class="tile-name">${c.label}</span><span class="tile-desc">${c.short}</span><ul class="mode-facts">${c.facts.map(f => `<li>${f}</li>`).join('')}</ul><span class="tile-best" data-best="${c.id}"></span></button>`).join('');
+    }
+    for (const el of box.querySelectorAll('[data-best]')){ const top = this.ui.events.top(el.dataset.best, 1)[0]; const c = challengeById(el.dataset.best); el.textContent = top ? `Record di oggi: ${top.score} ${c.unit} · ${top.nick}` : 'Nessun record oggi: il primo è tuo'; }
+    const note = $('challenge-nick-note'); if (note) note.textContent = this.ui.events.nickname ? `Giochi come ${this.ui.events.nickname}` : 'Prima della sfida ti chiediamo solo un nickname.';
+  }
+  _paintRanking(){
+    const tabs = $('ranking-tabs'), list = $('ranking-list'); if (!tabs || !list) return;
+    this.rankingTab = challengeById(this.rankingTab) ? this.rankingTab : CHALLENGES[0].id;
+    tabs.innerHTML = CHALLENGES.map(c => `<button type="button" class="seg-btn ${c.id === this.rankingTab ? 'selected' : ''}" data-ranking="${c.id}" role="tab">${c.label}</button>`).join('');
+    const c = challengeById(this.rankingTab), top = this.ui.events.top(c.id, 10);
+    list.innerHTML = top.length ? top.map((e, i) => `<li><b>${i + 1}</b><span>${esc(e.nick)}</span><em>${e.score} ${c.unit}</em></li>`).join('') : '<li class="empty">Ancora nessun risultato oggi</li>';
+  }
+  showResult(r){
+    this.lastResult = r; this.rankingTab = r.id;
+    this.go('result');
+    $('result-kicker').textContent = r.label;
+    $('lobby-t-result').textContent = r.id === 'champion' ? (r.won > r.lost ? 'Hai battuto il campione!' : 'Il campione ha vinto') : `Bravo, ${r.nick}!`;
+    $('result-score').innerHTML = r.id === 'champion' ? `${r.won}<small>–</small>${r.lost}<i>${r.score} punti</i>` : `${r.score}<small>${r.unit}</small>`;
+    $('result-rank').textContent = `${r.rank}° posto su ${r.total} di oggi`;
+    const c = challengeById(r.id);
+    $('result-top').innerHTML = this.ui.events.top(r.id, 5).map((e, i) => `<li class="${i + 1 === r.rank ? 'me' : ''}"><b>${i + 1}</b><span>${esc(e.nick)}</span><em>${e.score} ${c.unit}</em></li>`).join('');
+  }
+  _resultAction(a){
+    if (a === 'again'){ this.setMode('challenge'); this.startWarmup(); return; }
+    if (a === 'ranking'){ this.go('ranking'); return; }
+    this.go('menu');
   }
   setFormat(id){
     this.format = id === 'doubles' ? 'doubles' : 'singles';
@@ -136,10 +202,13 @@ export class NatpfLobby {
   go(step){
     if (!LOBBY_STEPS.includes(step)) return;
     if (step === 'warmup'){ this.startWarmup(); return; }
-    if (step === 'menu' && this.step !== 'menu') this.mode = this.mode === 'training' ? 'cpu' : this.mode;
+    if (step !== 'ranking') document.documentElement.classList.remove('ranking-full');
+    if (step === 'menu' && this.step !== 'menu' && (this.mode === 'training' || this.mode === 'challenge')) this.mode = 'cpu';
     this.step = step; this.el.dataset.step = step; this.el.dataset.flow = this.mode;
     for (const p of this.el.querySelectorAll('[data-page]')) p.classList.toggle('on', p.dataset.page === step);
     if (step !== 'menu') show($('lobby-menu-result'), false);
+    if (step === 'challenges') this._paintChallenges();
+    if (step === 'ranking') this._paintRanking();
     if (step === 'match'){ this.setMode(this.mode === 'training' ? 'cpu' : this.mode); this.setFormat(this.format); }
     if (step === 'connect'){
       // si entra in campo da soli solo quando il controller diventa pronto mentre si è qui (non tornando indietro)
@@ -158,8 +227,8 @@ export class NatpfLobby {
       const key = this.mode + ':' + this.step;
       if (bar.dataset.key !== key){ bar.dataset.key = key; bar.innerHTML = steps.map(([id, label], i) => `<li class="${i === k ? 'on' : i < k ? 'done' : ''}"><b>${i + 1}</b><span>${label}</span></li>`).join(''); }
     }
-    const menu = this.step === 'menu', match = this.step === 'match', pick = this.step === 'mode' || this.step === 'options';
-    show($('lobby-back'), !menu);
+    const menu = this.step === 'menu', match = this.step === 'match', pick = ['mode', 'options', 'challenges', 'ranking', 'result'].includes(this.step);
+    show($('lobby-back'), !menu && this.step !== 'result');
     show($('lobby-next'), !menu && !match && !pick);
     show($('btn-start-match'), match);
     show($('lobby-warmup'), match);
@@ -191,7 +260,7 @@ export class NatpfLobby {
   back(){ const p = previousStep(this.step, this.mode); if (p) this.go(p); }
   _tiles(){
     const page = `[data-page="${this.step}"]`;
-    return [...this.el.querySelectorAll(`${page} .lobby-tile, ${page} .menu-item, ${page} .seg-btn`)].filter(t => !t.classList.contains('hidden') && t.offsetParent !== null);
+    return [...this.el.querySelectorAll(`${page} .lobby-tile, ${page} .menu-item, ${page} .seg-btn, ${page} [data-result]`)].filter(t => !t.classList.contains('hidden') && t.offsetParent !== null);
   }
   _key(e){
     if (this.ui.intro?.active) return;
@@ -215,7 +284,7 @@ export class NatpfLobby {
       t.focus(); if (this.step === 'match' && t.classList.contains('lobby-tile')) t.click();
     } else if (e.code === 'Enter'){
       e.preventDefault();
-      if (i >= 0 && ['menu', 'mode', 'controller', 'options'].includes(this.step)) tiles[i].click(); else this.next();
+      if (i >= 0 && ['menu', 'mode', 'controller', 'options', 'challenges', 'ranking', 'result'].includes(this.step)) tiles[i].click(); else this.next();
     }
     else if (e.code === 'Escape' || e.code === 'Backspace'){ e.preventDefault(); this.back(); }
     else if (e.code === 'KeyH'){ this.onboarding.open(); }
@@ -226,11 +295,19 @@ export class NatpfLobby {
     // telefono non ancora collegato: prima il collegamento
     if (ui.controller === 'phone' && !this.state().phoneLinked){ this.go('connect'); return; }
     this.step = 'warmup'; this.el.dataset.step = 'warmup';
+    // sfida: con il telefono non ancora calibrato prima solo la calibrazione in campo, poi la sfida
+    if (this.mode === 'challenge'){
+      if (ui.controller === 'phone' && !ui.phone.ready) ui.training.start({ calOnly: true });
+      else ui.events.start(this.challenge);
+      return;
+    }
     ui.training.start();
   }
   // compatibilità: l'onboarding propone ancora «Prova» → allenamento
   startPractice(){ this.setMode('training'); this.go(this.ui.controller === 'phone' && !this.state().phoneLinked ? 'connect' : 'warmup'); }
-  onTrainingEnd({ completed, skipped, stats }){
+  onTrainingEnd({ completed, skipped, calibrated, stats }){
+    // calibrazione prima di una sfida (anche saltata: modalità semplice) → la sfida
+    if (this.mode === 'challenge'){ this.ui.events.start(this.challenge); return; }
     if (completed) this.trainingDone = true;
     const text = skipped ? `<b>${this.mode === 'training' ? 'Allenamento interrotto' : 'Riscaldamento saltato'}</b><span>${this.ui.phone.simple ? 'Modalità semplice: dritto e rovescio li sceglie il gioco.' : 'Lo puoi rifare quando vuoi.'}</span>`
       : `<b>${completed ? (this.mode === 'training' ? 'Allenamento completato ✓' : 'Riscaldamento completato ✓') : 'Interrotto'}</b><span>${stats.shots} colpi · ${stats.perfect} perfetti${stats.out ? ` · ${stats.out} fuori` : ''}</span>`;

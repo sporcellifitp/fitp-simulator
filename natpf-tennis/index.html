@@ -184,6 +184,37 @@
       <div class="intro-partners" aria-hidden="true"><img src="./natpf/assets/brand/esports-fitp-neg.png" alt="" /><img src="./natpf/assets/brand/nitto-atp-finals-white.png" alt="" /></div>
       <button type="button" class="intro-skip" id="intro-skip">Salta ›</button>
     </div>
+    <!-- nickname per sfide e classifica (solo il nickname, nessun altro dato) -->
+    <div id="natpf-nick" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="nick-title">
+      <form class="natpf-sheet nick-sheet" id="nick-form" autocomplete="off">
+        <p class="sheet-kicker">Classifica del giorno</p>
+        <h2 class="sheet-title" id="nick-title">Il tuo nickname</h2>
+        <p class="sheet-desc">Compare in classifica e sul maxischermo. Nient’altro: niente email, niente dati personali.</p>
+        <input id="nick-input" class="nick-input" maxlength="14" spellcheck="false" placeholder="Es. Ace99" />
+        <p class="natpf-warn hidden" id="nick-warn"></p>
+        <div class="sheet-actions"><button type="button" class="lobby-ghost" id="nick-cancel">Indietro</button><button type="submit" class="lobby-primary">Avanti ›</button></div>
+      </form>
+    </div>
+    <!-- sfida in corso: punteggio, tempo, ultimo colpo -->
+    <div id="natpf-challenge-hud" class="natpf-challenge-hud hidden" aria-live="polite"></div>
+    <!-- pannello dell'addetto allo stand (Ctrl+Maiusc+K, oppure tieni premuto 3 s il marchio NATPF nel menu) -->
+    <div id="natpf-staff" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="staff-title">
+      <div class="natpf-sheet staff-sheet">
+        <p class="sheet-kicker">Riservato all’addetto</p>
+        <h2 class="sheet-title" id="staff-title">Pannello dello stand</h2>
+        <div class="pause-grid">
+          <button type="button" data-staff="kiosk"><span>Modalità chiosco</span><b>No</b></button
+          ><button type="button" data-staff="idle"><span>Ritorno al menu dopo</span><b>45 s</b></button
+          ><button type="button" data-staff="ranking"><span>Classifica</span><b>A schermo intero</b></button
+          ><button type="button" data-staff="export"><span>Classifica</span><b>Scarica CSV</b></button
+          ><button type="button" data-staff="reset"><span>Classifica</span><b>Azzera oggi</b></button
+          ><button type="button" data-staff="phone"><span>Telefono</span><b>Scollega</b></button
+          ><button type="button" data-staff="music"><span>Musica</span><b>Sì</b></button>
+        </div>
+        <p class="sheet-desc" id="staff-note"></p>
+        <div class="sheet-actions"><button type="button" class="lobby-primary" data-staff="close">Chiudi</button></div>
+      </div>
+    </div>
     <!-- passaggio dal menu al campo -->
     <div id="natpf-wipe" class="natpf-wipe" aria-hidden="true"><div class="wipe-band"><img src="./natpf/assets/brand/nitto-atp-finals-white.png" alt="" /><b id="natpf-wipe-text">Si gioca</b></div></div>
     <!-- NATPF: menu (src/natpf/natpf_lobby.js), percorso come in un gioco da console:
@@ -210,6 +241,8 @@
           <div id="lobby-menu-result" class="lobby-result hidden" aria-live="polite"></div>
           <nav class="main-menu" aria-label="Menu principale">
             <button type="button" class="menu-item" data-menu="play"><b>Gioca</b><span>Partita contro la CPU o sfida un amico</span></button>
+            <button type="button" class="menu-item" data-menu="challenges"><b>Sfide</b><span>Radar del servizio, Bersagli 60", Scambio infinito, Sfida il campione</span></button>
+            <button type="button" class="menu-item" data-menu="ranking"><b>Classifica del giorno</b><span>I migliori di oggi in ogni sfida</span></button>
             <button type="button" class="menu-item" data-menu="training"><b>Allenamento</b><span>Campo d’allenamento: impari i colpi e il gioco impara i tuoi gesti</span></button>
             <button type="button" class="menu-item" data-menu="guide"><b>Come si gioca</b><span>La guida con le clip del gioco</span></button>
             <button type="button" class="menu-item" data-menu="options"><b>Opzioni</b><span>Mano, visuale, musica e voce</span></button>
@@ -229,6 +262,31 @@
               <span class="tile-name">Sfida un amico</span><span class="tile-desc">1 contro 1 su due computer: tu da un lato del campo, l’amico dall’altro.</span>
               <ul class="mode-facts"><li>2 giocatori · 2 computer in rete</li><li>Ognuno con il suo smartphone o la sua webcam</li><li>1v1, oppure 2v2 ognuno con un compagno CPU</li></ul>
             </button>
+          </div>
+        </section>
+
+        <section class="lobby-page" data-page="challenges" aria-labelledby="lobby-t-challenges">
+          <h2 class="lobby-title" id="lobby-t-challenges">Scegli la sfida</h2>
+          <div class="lobby-tiles challenge-tiles" id="challenge-tiles" role="radiogroup"></div>
+          <p class="lobby-note" id="challenge-nick-note"></p>
+        </section>
+
+        <section class="lobby-page" data-page="ranking" aria-labelledby="lobby-t-ranking">
+          <h2 class="lobby-title" id="lobby-t-ranking">Classifica del giorno</h2>
+          <div class="lobby-seg ranking-tabs" id="ranking-tabs" role="tablist"></div>
+          <ol class="ranking-list" id="ranking-list"></ol>
+        </section>
+
+        <section class="lobby-page" data-page="result" aria-labelledby="lobby-t-result">
+          <p class="welcome-kicker" id="result-kicker">Sfida</p>
+          <h2 class="lobby-title result-title" id="lobby-t-result">Risultato</h2>
+          <div class="result-score" id="result-score"></div>
+          <p class="result-rank" id="result-rank"></p>
+          <ol class="ranking-list compact" id="result-top"></ol>
+          <div class="welcome-actions">
+            <button type="button" class="lobby-primary" data-result="again">Riprova ›</button
+            ><button type="button" class="lobby-secondary" data-result="ranking">Classifica</button
+            ><button type="button" class="lobby-ghost" data-result="menu">Menu</button>
           </div>
         </section>
 

@@ -63,9 +63,11 @@ export class NatpfTraining {
     if (d?.shot){ this.ui.phone.learnSpecial?.(d.shot, ev.natpf); this.lastLearn = d.shot; }
   }
   get phoneCal(){ return this.ui.controller === 'phone' && !this.ui.phone.ready; }
-  start(){
+  // calOnly: solo la calibrazione del telefono in campo (prima di una sfida), poi si torna a chi l'ha chiesta
+  start({ calOnly = false } = {}){
+    this.calOnly = calOnly;
     const E = this.engine;
-    this.drills = drillsFor(this.ui.controller);
+    this.drills = calOnly ? [] : drillsFor(this.ui.controller);
     this.active = true; this.idx = 0; this.progress = { done: 0, tries: 0 }; this.stats = { shots: 0, perfect: 0, out: 0 }; this.wait = 0; this.message = null;
     this.cal = this.phoneCal ? { want: null, held: false, armed: false, hits: 0, fails: 0, done: false } : null;
     this.withCal = !!this.cal;
@@ -144,6 +146,7 @@ export class NatpfTraining {
     this.engine.motionController?._emitSwing({ source: 'natpf-warmup', side, shotType: 'topspin', speed: 1.2, dirX: 0, role: E.playerRole });
   }
   _startDrills(){
+    if (this.calOnly){ this.stop({ completed: true, calibrated: true }); return; }
     const E = this.engine;
     E.natpfTimeScale = 1; this.gesture?.classList.add('hidden');
     this.cal = null; this.idx = 0; this.progress = { done: 0, tries: 0 };
@@ -244,7 +247,8 @@ export class NatpfTraining {
     if (this.ui.controller === 'phone' && !this.ui.phone.ready) this.ui.phone.skipCalibration();
     this.stop({ completed: false, skipped: true });
   }
-  stop({ completed, skipped = false }){
+  // silent: chiusa da una sfida che parte subito dopo (niente menu né risultato)
+  stop({ completed, skipped = false, calibrated = false, silent = false }){
     if (!this.active) return;
     const E = this.engine;
     this.active = false; this.cal = null; E.natpfTimeScale = 1;
@@ -254,8 +258,9 @@ export class NatpfTraining {
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
     E._syncScoreboardHUD(); E.hud.hideCenterBanner();
     E._setupMidRallyShowcase({}); E.autoPlayMode = true; E.userHasInteracted = false;
+    if (silent) return;
     E.hud.showTitleModal();
-    this.ui.flow?.onTrainingEnd({ completed, skipped, stats: this.stats });
+    this.ui.flow?.onTrainingEnd({ completed, skipped, calibrated, stats: this.stats });
   }
   paint(){
     if (!this.active || !this.coach) return;

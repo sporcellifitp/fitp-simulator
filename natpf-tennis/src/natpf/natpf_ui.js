@@ -12,6 +12,8 @@ import { NatpfHand } from './natpf_hand.js';
 import { NatpfTraining } from './natpf_training.js';
 import { NatpfDiag } from './natpf_diag.js';
 import { NatpfIntro } from './natpf_intro.js';
+import { NatpfEvents } from './natpf_events.js';
+import { NatpfKiosk } from './natpf_kiosk.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -41,6 +43,7 @@ export class NatpfUi {
     this.hand = new NatpfHand(engine);
     this.shot = new NatpfShotFeedback(engine);
     this.training = new NatpfTraining(engine, this);
+    this.events = new NatpfEvents(engine, this);      // sfide per gli eventi (dopo il riscaldamento: ne avvolge i punti)
     // diagnostica (Maiusc+D o ?diag=1): prima del menu, così il suo tasto arriva anche con il menu aperto
     this.diag = new NatpfDiag(engine, this);
     this._gateDesktopInput();
@@ -52,6 +55,7 @@ export class NatpfUi {
     this.onboarding = new NatpfOnboarding({ getController: () => this.controller, onPractice: () => this.lobby.startPractice(), onOpen: () => this._syncPause(), onClose: () => this._syncPause() });
     this.lobby = this.flow = new NatpfLobby(engine, this, this.onboarding);
     this.pause = new NatpfPause(engine, this);
+    this.kiosk = new NatpfKiosk(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
     this.intro = new NatpfIntro({ onDone: () => { if (this.lobby.visible) this.lobby.go('menu'); } });
     $('btn-play-again')?.addEventListener('click', () => this.wipe('Rivincita'), true);
@@ -98,13 +102,13 @@ export class NatpfUi {
     const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen;
     this.engine.natpfPaused = !!busy && !this.engine.autoPlayMode && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(this.engine.phase);
   }
-  tick(dt = 1/60){ this.training.tick(dt); this.shot.update(dt); }
+  tick(dt = 1/60){ this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); }
   // esito dei colpi del giocatore locale: anello colorato, allenamento; il valore torna al telefono (vibrazione)
   feedback(e = {}){
     if ((e.role || 'p1') !== this.engine.playerRole) return null;
     const q = this.shot.onLocalFeedback(e);
     this.diag?.onFeedback(e, q);
-    if (q && e.kind === 'hit') this.training.onShot(q);
+    if (q && e.kind === 'hit'){ this.training.onShot(q); this.events.onShot(q, e); }
     else if (e.kind === 'fault' && /VERY (EARLY|LATE)/.test(e.grade || '')) this.training.onMistime(/EARLY/.test(e.grade));
     return q;
   }
@@ -119,6 +123,7 @@ export class NatpfUi {
   backToMenu(){
     const E = this.engine;
     if (this.training.active){ this.training.stop({ completed: false }); return; }
+    this.events.abort();
     E.natpfPaused = false; E.hud.hideVictoryModal?.(); E.hud.hideCenterBanner();
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
     E._syncScoreboardHUD(); E._setupMidRallyShowcase({}); E.autoPlayMode = true;
