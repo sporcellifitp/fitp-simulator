@@ -8,6 +8,11 @@
 //      gesto della calibrazione NELLO STESSO VERSO (dritto e rovescio hanno valori diversi: nelle registrazioni vere il
 //      rovescio «scende» di suo di 0,4 più del dritto): > 0 sale, < 0 scende. È un segnale rumoroso: le soglie si
 //      allargano con la variabilità dei propri gesti di calibrazione (liftSpread)
+//   T  verso verticale del colpo dal giroscopio e dall'orientamento: di quanto il piatto che colpisce sale o scende
+//      mentre ruota (−1…+1, face-tracker.headAt; il piatto che colpisce è il palmo nel dritto, il dorso della mano
+//      nel rovescio), rispetto ai propri colpi in quel verso. È il segnale principale: con la presa a manico il dritto
+//      ruota il telefono attorno al suo asse lungo e L misura soprattutto la forza centripeta. Con T si usa
+//      V = 0,6·T + 0,4·L, senza T solo L.
 //   S  velocità rispetto al proprio colpo tipico: sotto 0,45 è un gesto lento (niente lob o tagliato dalla sola L,
 //      resta possibile la palla corta, che è lenta per definizione)
 //   F  piatto all'impatto (filtro d'orientamento del telefono): imbardata → mira (−1 sinistra … +1 destra) e
@@ -37,6 +42,8 @@ export const GESTURE = Object.freeze({
   smashLift: -.25, topLift: .2,
   flatPower: .78, flatFace: 10,
   slow: .45, spreadRef: .12, spreadMax: 1.2,
+  headWeight: .6, dropSpeed: .7,
+  lobV: .38, cutV: -.28, topV: .12,     // soglie di V quando c'è T (segnale più pulito: niente allargamento con k)
   aimYaw: 40, maxAimYaw: 80,
 });
 const finite = (v, d = 0) => (Number.isFinite(v) ? v : d);
@@ -101,26 +108,46 @@ export function resolveLiftBaseline(b, dir = 0){
   return { base: finite(b[dir], finite(b.all)), spread: finite(b.spread) };
 }
 
-export function classifyPhoneShot({ dir = 0, vert = null, lift = 0, liftBaseline = 0, liftSpread = null, facePitch = null, power = .6, speed = null, ballHigh = false } = {}){
+export function classifyPhoneShot({ dir = 0, vert = null, lift = 0, liftBaseline = 0, liftSpread = null, head = null, headBaseline = 0, facePitch = null, power = .6, speed = null, ballHigh = false, personal = null } = {}){
   const ref = resolveLiftBaseline(liftBaseline, dir), G = GESTURE;
-  const L = finite(lift) - ref.base, open = Number.isFinite(facePitch) ? facePitch : null;
+  const hasHead = Number.isFinite(head);
+  const T = hasHead ? head - resolveLiftBaseline(headBaseline, dir).base : null;
+  const L = hasHead ? G.headWeight*T + (1 - G.headWeight)*(finite(lift) - ref.base) : finite(lift) - ref.base, open = Number.isFinite(facePitch) ? facePitch : null;
   const k = Math.max(1, Math.min(G.spreadMax, finite(liftSpread, ref.spread)/G.spreadRef));
   const slow = Number.isFinite(speed) && speed < G.slow;
-  const why = [];
+  // soglie personali (esercizi «Pallonetto» e «Palla corta» del riscaldamento): valgono al posto di quelle generali
+  const P = personal || {}, lobAt = Number.isFinite(P.lob) ? P.lob : hasHead ? G.lobV : G.lobLift*k, cutAt = Number.isFinite(P.cut) ? P.cut : hasHead ? G.cutV : G.cutLift*k;
+  const soft = power < G.dropPower || (Number.isFinite(speed) && speed < (Number.isFinite(P.dropSpeed) ? P.dropSpeed : G.dropSpeed));
+  const why = [], out = (shot, w) => ({ shot, why: w, v: +L.toFixed(3) });
   // il gesto verticale vale solo senza verso orizzontale: un rovescio un po' dal basso verso l'alto resta un rovescio
-  if (vert === 'up' && !dir){ why.push('verticale verso l’alto'); return { shot: 'lob', why }; }
-  if (vert === 'up' && L >= G.lobLiftOpen*k){ why.push('verticale verso l’alto', `mano che sale (${L.toFixed(2)})`); return { shot: 'lob', why }; }
-  if (vert === 'down' && !dir){ why.push('verticale verso il basso', ballHigh ? 'palla alta' : 'palla bassa'); return { shot: ballHigh ? 'smash' : 'slice', why }; }
-  if (!slow && (L >= G.lobLift*k || (L >= G.lobLiftOpen*k && open != null && open >= G.lobOpen))){ why.push(`mano che sale (${L.toFixed(2)})`, ...(open != null ? [`piatto ${open.toFixed(0)}°`] : [])); return { shot: 'lob', why }; }
-  if (ballHigh && L <= G.smashLift*k){ why.push('palla alta', `mano che scende (${L.toFixed(2)})`); return { shot: 'smash', why }; }
-  if (L <= G.cutLift*k){
-    if (open != null && open >= G.dropOpen && power < G.dropPower){ why.push(`taglio (${L.toFixed(2)})`, `piatto aperto ${open.toFixed(0)}°`, `morbido (${power.toFixed(2)})`); return { shot: 'drop', why }; }
-    if (!slow){ why.push(`taglio (${L.toFixed(2)})`); return { shot: 'slice', why }; }
+  if (vert === 'up' && !dir){ why.push('verticale verso l’alto'); return out('lob', why); }
+  if (vert === 'up' && L >= G.lobLiftOpen*k){ why.push('verticale verso l’alto', `mano che sale (${L.toFixed(2)})`); return out('lob', why); }
+  if (vert === 'down' && !dir){ why.push('verticale verso il basso', ballHigh ? 'palla alta' : 'palla bassa'); return out(ballHigh ? 'smash' : 'slice', why); }
+  if (!slow && (L >= lobAt || (L >= G.lobLiftOpen*k && open != null && open >= G.lobOpen))){ why.push(`mano che sale (${L.toFixed(2)})`, ...(open != null ? [`piatto ${open.toFixed(0)}°`] : [])); return out('lob', why); }
+  if (ballHigh && L <= G.smashLift*k){ why.push('palla alta', `mano che scende (${L.toFixed(2)})`); return out('smash', why); }
+  if (L <= cutAt){
+    // palla corta: tagliato morbido. Con T basta il gesto (l'apertura del piatto misurata non è affidabile)
+    if (hasHead && soft){ why.push(`taglio (${L.toFixed(2)})`, `morbido (${power.toFixed(2)})`); return out('drop', why); }
+    if (open != null && open >= G.dropOpen && power < G.dropPower){ why.push(`taglio (${L.toFixed(2)})`, `piatto aperto ${open.toFixed(0)}°`, `morbido (${power.toFixed(2)})`); return out('drop', why); }
+    if (!slow){ why.push(`taglio (${L.toFixed(2)})`); return out('slice', why); }
   }
-  if (slow){ why.push(`gesto lento (${speed.toFixed(2)})`); return { shot: 'topspin', why }; }
-  if (L >= G.topLift*k){ why.push(`dal basso verso l’alto (${L.toFixed(2)})`); return { shot: 'topspin', why }; }
-  if (power >= G.flatPower && (open == null || Math.abs(open) < G.flatFace)){ why.push(`veloce (${power.toFixed(2)})`, 'piatto dritto'); return { shot: 'flat', why }; }
-  why.push('colpo normale'); return { shot: 'topspin', why };
+  if (slow){ why.push(`gesto lento (${speed.toFixed(2)})`); return out('topspin', why); }
+  if (L >= (hasHead ? G.topV : G.topLift*k)){ why.push(`dal basso verso l’alto (${L.toFixed(2)})`); return out('topspin', why); }
+  if (power >= G.flatPower && (open == null || Math.abs(open) < G.flatFace)){ why.push(`veloce (${power.toFixed(2)})`, 'piatto dritto'); return out('flat', why); }
+  why.push('colpo normale'); return out('topspin', why);
+}
+// Soglie personali dai gesti fatti a richiesta negli esercizi del riscaldamento (V di ogni tentativo): a metà strada tra
+// il proprio colpo normale (V = 0, ricentrato) e il proprio pallonetto o la propria palla corta. Se il gesto non si
+// distingue abbastanza dal colpo normale (|V| < 0,15) resta la soglia generale.
+export const SPECIAL = Object.freeze({ min: .15, share: .55, lobMin: .18, lobMax: .5, cutMax: -.15, cutMin: -.4 });
+export function learnSpecials(samples = {}){
+  const out = {}, lob = (samples.lob || []).filter(Number.isFinite), drop = (samples.drop || []).filter(x => Number.isFinite(x?.v));
+  if (lob.length){ const m = median(lob); if (m >= SPECIAL.min) out.lob = +Math.min(SPECIAL.lobMax, Math.max(SPECIAL.lobMin, m*SPECIAL.share)).toFixed(3); }
+  if (drop.length){
+    const m = median(drop.map(x => x.v)); if (m <= -SPECIAL.min) out.cut = +Math.max(SPECIAL.cutMin, Math.min(SPECIAL.cutMax, m*SPECIAL.share)).toFixed(3);
+    const sp = drop.map(x => x.speed).filter(Number.isFinite); if (sp.length) out.dropSpeed = +Math.min(.9, Math.max(.5, median(sp)*1.25)).toFixed(3);
+  }
+  return out;
 }
 // Tipo di colpo del motore base per ogni colpo NATPF (la palla corta è un tagliato con natpf.shot = 'drop')
 export const ENGINE_SHOT = Object.freeze({ lob: 'lob', smash: 'smash', slice: 'slice', drop: 'slice', topspin: 'topspin', flat: 'flat' });

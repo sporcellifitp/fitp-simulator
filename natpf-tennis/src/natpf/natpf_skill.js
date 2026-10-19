@@ -203,6 +203,8 @@ export function minClearFlight({ fromY = 1, fromZ = 11, toZ = -9, flight = .8, t
   return flight;
 }
 // Un colpo fuori tempo è anche più lento: arriva prima la CPU.
+// Tempo di volo del pallonetto (s): con la compensazione della resistenza dell'aria sale a circa 6 m e cade in fondo
+export const LOB_FLIGHT = 2.0;
 export const mistimeFlight = (flight, quality) => flight*(1 + .14*(1 - clamp(finite(quality, 1))));
 
 // Dopo il colpo del giocatore: pressione sulla CPU e serie di perfetti.

@@ -117,3 +117,36 @@ test('preparazione trattenuta e lenta senza il colpo che segue: non diventa un c
   rest(300); move(-1, 300, 220); rest(600);
   assert.equal(out.swings.length, 0); assert.ok(out.preps.length >= 1);
 });
+
+// ---- pallonetto e palla corta: segnale del verso verticale, soglie personali, traiettorie ----
+import { learnSpecials, GESTURE } from '../src/natpf/natpf_gestures.js';
+import { LOB_FLIGHT } from '../src/natpf/natpf_skill.js';
+
+test('verso verticale del piatto (giroscopio): pallonetto, palla corta e tagliato; il segno dipende dal piatto che colpisce', () => {
+  // dritto del destro (dir 1): colpisce il palmo, il telefono misura il dorso → segno invertito
+  const up = natpfSwingToEngine({ dir: 1, power: .7, peak: 1100, speed: 1, lift: 0, head: -.7, at: 1 }, { now: 1.03 });
+  assert.equal(up.natpf.head, .7); assert.equal(up.natpf.shot, 'lob');
+  const soft = natpfSwingToEngine({ dir: 1, power: .35, peak: 420, speed: .5, lift: -.2, head: .6, at: 1 }, { now: 1.03 });
+  assert.equal(soft.natpf.shot, 'drop', JSON.stringify(soft.natpf));
+  const cut = natpfSwingToEngine({ dir: -1, power: .8, peak: 1200, speed: 1.1, lift: -.2, head: -.7, at: 1 }, { now: 1.03 });
+  assert.equal(cut.natpf.shot, 'slice');
+  const normal = natpfSwingToEngine({ dir: 1, power: .7, peak: 1100, speed: 1, lift: .05, head: -.05, at: 1 }, { now: 1.03 });
+  assert.ok(['topspin', 'flat'].includes(normal.natpf.shot));
+});
+
+test('soglie personali dagli esercizi: il proprio pallonetto «piccolo» diventa riconoscibile', () => {
+  const p = learnSpecials({ lob: [.32, .28, .36], drop: [{ v: -.3, speed: .55 }, { v: -.26, speed: .6 }] });
+  assert.ok(p.lob >= .18 && p.lob < .25, JSON.stringify(p)); assert.ok(p.cut <= -.15 && p.cut > -.2); assert.ok(p.dropSpeed > .6);
+  assert.equal(classifyPhoneShot({ dir: 1, lift: .3, speed: 1 }).shot, 'topspin', 'soglia generale');
+  assert.equal(classifyPhoneShot({ dir: 1, lift: .3, speed: 1, personal: p }).shot, 'lob', 'soglia personale');
+  assert.deepEqual(learnSpecials({ lob: [.05, .1] }), {}, 'gesto non distinguibile: resta la soglia generale');
+  assert.ok(GESTURE.headWeight > .5);
+});
+
+test('traiettoria del pallonetto nella fisica del motore: alto e in fondo al campo', () => {
+  const G = 9.15, DRAG = .012, e = 1/120;
+  const sim = (I, zT, spin) => { const g = G + spin*.14; let vz = (zT - 11)/I, vy = (.08 - 1 + .5*g*I*I)/I; const k = 1 + DRAG*Math.hypot(vz, vy)*I*.35; vz *= k; vy *= k;
+    let y = 1, z = 11, apex = 1; while (y > 0){ const a = Math.max(0, 1 - DRAG*Math.hypot(vz, vy)*e); vz *= a; vy *= a; vy -= g*e; y += vy*e; z += vz*e; apex = Math.max(apex, y); } return { z, apex }; };
+  const lob = sim(LOB_FLIGHT, -10, 4);
+  assert.ok(lob.apex > 5 && lob.z < -9 && lob.z > -11.9, JSON.stringify(lob));
+});

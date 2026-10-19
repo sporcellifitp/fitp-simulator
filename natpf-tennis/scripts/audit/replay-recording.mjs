@@ -32,7 +32,8 @@ det.setProfile(prof); det.run(); face.setRest(prof.gravity, prof.bias);
 const found = [];
 // come in gioco: verso verticale abituale dalla calibrazione, poi dai colpi veri
 const lifts = createLiftModel(liftBaselineFromProfile(prof) ?? rec.profile.liftBaseline ?? 0), faces = createFaceModel();
-det.on('swing', s => { s.face = face.strokeFace(s.peakT, s.t - s.dur); const d = swingMessage(s, { faceRef: prof.faceRef, now: s.t }); const m = parseSwingMessage(d, { at: s.peakT/1000, now: s.t }); const ev = natpfSwingToEngine(m, { hand: rec.profile.hand, liftBaseline: lifts.value, faceCenter: faces.center(s.dir) }); lifts.add(s.dir, s.lift); faces.add(s.dir, m.face); found.push({ s, ev }); });
+const heads = createLiftModel(0);
+det.on('swing', s => { s.face = face.strokeFace(s.peakT, s.t - s.dur); s.head = face.headAt(s.peakT, s.axis); const d = swingMessage(s, { faceRef: prof.faceRef, now: s.t }); const m = parseSwingMessage(d, { at: s.peakT/1000, now: s.t }); const ev = natpfSwingToEngine(m, { hand: rec.profile.hand, liftBaseline: lifts.value, headBaseline: heads.value, faceCenter: faces.center(s.dir) }); lifts.add(s.dir, s.lift); faces.add(s.dir, m.face); heads.add(s.dir, ev.natpf.head); found.push({ s, ev }); });
 for (const k of raw){ face.feed(k); det.feed(k); }
 console.log(`\nrianalisi con il rilevatore attuale: ${found.length} colpi`);
-for (const { s, ev } of found) console.log(`  picco ${s.peakT.toFixed(0)} ms · rilev ${s.detectMs} · prep ${s.holdMs} · ${s.peak}°/s · verso ${s.dir}${s.vert ? ' ' + s.vert : ''} · su/giù ${s.lift} · piatto ${s.face ? `${s.face.yaw}°/${s.face.pitch}°` : '–'} → ${ev.side || '–'}/${ev.natpf.shot} mira ${ev.natpf.wrist} · ${ev.natpf.why.join(', ')}`);
+for (const { s, ev } of found) console.log(`  picco ${s.peakT.toFixed(0)} ms · rilev ${s.detectMs} · prep ${s.holdMs} · ${s.peak}°/s · verso ${s.dir}${s.vert ? ' ' + s.vert : ''} · su/giù ${s.lift} · piatto sale ${ev.natpf.head} · piatto ${s.face ? `${s.face.yaw}°/${s.face.pitch}°` : '–'} → ${ev.side || '–'}/${ev.natpf.shot} mira ${ev.natpf.wrist} · ${ev.natpf.why.join(', ')}`);

@@ -1777,7 +1777,7 @@ export class NatpfTennisEngine {
         : natpfDrop
           ? ((N = -(2.7 + Math.random() * 1.5)), (I = Math.max(1.32, (Math.abs(this.ball.pos.z) - N) / 10)), (C = -2), (V = 0)) // NATPF skill gap: palla corta vera
         : T === "LOB"
-          ? ((I = 1.32), (N = -(9 + Math.random() * 2)), (C = 4))
+          ? ((I = NS.LOB_FLIGHT + Math.random() * 0.2), (N = -(9 + Math.random() * 2)), (C = 4)) // NATPF: pallonetto vero (prima 1,32 s: saliva a 2,5 m e cadeva a metà campo)
           : T === "SLICE"
             ? ((I = 0.98), (N = -(6.8 + Math.random() * 2.6)), (C = -6.5), (V = -R * 11))
             : T === "FLAT" || M
@@ -1786,7 +1786,7 @@ export class NatpfTennisEngine {
                 (C = 21))
               : (I = Math.max(0.68, 0.84 / Math.min(1.16, f * 0.92)));
     const K = Math.max(0.84, 1 - Math.min(8, this.ball.rallyStrokeCount) * 0.015);
-    natpfDrop || (I *= K); // NATPF skill gap: la palla corta non accelera con lo scambio (finirebbe in rete)
+    natpfDrop || T === "LOB" || (I *= K); // NATPF skill gap: palla corta e pallonetto non accelerano con lo scambio
     // NATPF skill gap: profondità con rischio di palla lunga, velocità che cresce con i colpi perfetti consecutivi
     if (!t) {
       // NATPF: telefono in verticale → profondità dalla forza vera del gesto (lento = palla corta che la CPU attacca)
@@ -1799,7 +1799,7 @@ export class NatpfTennisEngine {
         grade: u, quality: natpfQ, power: NS.powerNorm(f), landingX: E, landingZ: N,
         shot: d ? "SMASH" : natpfDrop ? "DROP" : T, cpuZ: this.opponent.pos.z,
       });
-      I = NS.mistimeFlight(natpfDrop ? I : NS.streakFlight(I, natpfS.streak, natpfLv), natpfQ);
+      I = NS.mistimeFlight(natpfDrop || T === "LOB" ? I : NS.streakFlight(I, natpfS.streak, natpfLv), natpfQ);
       natpfDrop || (I = NS.minClearFlight({ fromY: Math.max(0.78, Math.min(1.92, this.ball.pos.y)), fromZ: this.ball.pos.z, toZ: N, flight: I, topspin: C }));
     }
     const B = this.ball.pos.clone();
@@ -1807,7 +1807,7 @@ export class NatpfTennisEngine {
       this.ball.pos.copy(B),
       this._launchBallToTarget(B, new o.Vector3(E, 0, N), I, { topspin: C, sidespin: V, allowNetFault: O }),
       // NATPF skill gap: la palla corta è lenta e alta, l'attrito dell'aria la frenerebbe in rete: si compensa
-      natpfDrop && this.ball.vel.multiplyScalar(1 + L.AIR_DRAG * this.ball.vel.length() * I * 0.35),
+      (natpfDrop || T === "LOB") && this.ball.vel.multiplyScalar(1 + L.AIR_DRAG * this.ball.vel.length() * I * 0.35), // NATPF: anche il pallonetto (lento e alto) cadrebbe a metà campo
       (this.ball.inPlay = !0),
       (this.ball.lastHitter = "player"),
       (this.ball.bounceCountOnCurrentSide = 0),
@@ -2510,7 +2510,7 @@ export class NatpfTennisEngine {
           }
           const r = Math.abs(this.ball.pos.z - this.opponent.pos.z),
             l = Math.abs(this.ball.pos.x - this.opponent.pos.x);
-          if (r < 1.32 && this.ball.pos.y < 2.05) {
+          if (r < 1.32 && this.ball.pos.y < (this.ball.shotType === "LOB" ? 3.1 : 2.05)) { // NATPF: la CPU risponde anche al pallonetto (sopra 2,05 m non colpiva mai)
             if (l <= h) this._executeOpponentReturn(this.opponent);
             else if (l <= 3.45 && this.opponent.swingTimer <= 0) {
               const p = this.ball.pos.x < this.opponent.pos.x ? "backhand" : "forehand";

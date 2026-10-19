@@ -116,6 +116,18 @@ export function createFaceTracker(opts = {}){
       return current;
     },
     get face(){ return current; },
+    // Verso verticale del colpo all'istante t: di quanto il piatto (normale del dorso, −z) si inclina verso l'alto o
+    // verso il basso mentre ruota, (ω × n)·alto / |ω|, da −1 a +1. Dritto o rovescio piatti: il piatto ruota in
+    // orizzontale (≈ 0). Dal basso verso l'alto (pallonetto, topspin): il piatto sale (> 0). Dall'alto verso il basso
+    // (tagliato, palla corta): scende (< 0). Usa solo giroscopio e orientamento filtrato: con la presa a manico il colpo
+    // ruota il telefono attorno al suo asse lungo e l'accelerometro durante il colpo misura soprattutto la forza
+    // centripeta (era il segnale «su/giù» di prima, troppo rumoroso). axis: asse di rotazione [α, β, γ].
+    headAt(t, axis){
+      if (!frame || !axis) return null;
+      const qp = qAt(t); if (!qp) return null;
+      const w = unit(rotate(qp, [axis[1], axis[2], axis[0]])), n = rotate(qp, [0, 0, -1]);
+      return +clamp(dot(cross(w, n), frame.up), -1, 1).toFixed(3);
+    },
     // Piatto all'impatto rispetto alla posa di partenza di questo colpo: l'imbardata «pronto» con la mano vera non sta
     // mai ferma (tremolio e piccoli spostamenti tra un colpo e l'altro), quindi il riferimento è l'istante più fermo
     // (velocità media su 5 campioni, a parità di ±2 °/s il più recente) tra baseFrom e baseTo ms prima dell'inizio del

@@ -12,6 +12,10 @@ import * as THREE from 'three';
 export const DRILLS = Object.freeze([
   { id: 'forehand', label: 'Dritto', need: 2, hint: { phone: 'Mentre la palla arriva porta indietro il telefono, poi colpisci quando arriva alla racchetta', webcam: 'Swing quando la palla arriva alla racchetta', mouse: 'Spazio quando la palla arriva' } },
   { id: 'backhand', label: 'Rovescio', need: 2, hint: { phone: 'Palla sull’altro lato: carica dall’altra parte e colpisci nel verso opposto', webcam: 'Swing verso l’altro lato', mouse: 'Spazio o trascina verso l’altro lato' } },
+  // colpi speciali (solo smartphone): il gioco impara il TUO pallonetto e la TUA palla corta (soglie personali,
+  // natpf_gestures.learnSpecials). Si passa avanti anche senza riuscirci, dopo 4 tentativi.
+  { id: 'lob', label: 'Pallonetto', need: 1, shot: 'lob', phoneOnly: true, maxTries: 4, hint: { phone: 'Colpisci dal basso verso l’alto: chiudi il colpo con la racchetta che sale, come per mandare la palla in alto' } },
+  { id: 'drop', label: 'Palla corta', need: 1, shot: 'drop', phoneOnly: true, maxTries: 4, hint: { phone: 'Colpo lento e morbido, dall’alto verso il basso, come per accarezzare la palla sotto' } },
   { id: 'serve', label: 'Servizio', need: 1, hint: { phone: 'Alza il telefono per lanciare la palla, poi un colpetto quando è in alto', webcam: 'Alza la mano per lanciare, poi swing in alto', mouse: '↑ o W per lanciare, poi Spazio' } },
   { id: 'free', label: 'Angoli', need: 3, hint: { phone: 'Al colpo gira il dorso del telefono verso dove vuoi la palla: destra o sinistra, di dritto e di rovescio', webcam: 'Prova a mirare: lo swing sposta la palla', mouse: 'Q/E o A/D per mirare' } },
 ]);
@@ -25,7 +29,10 @@ export function calCoach(want, hand = 'right'){
   return { side, title: side === 'forehand' ? 'Dritto' : 'Rovescio', arrow: want === 'L' ? '←' : '→', move: want === 'L' ? 'verso sinistra' : 'verso destra' };
 }
 // avanzamento di un esercizio (funzione pura, per i test)
-export function drillAfterShot(drill, progress, { side, inCourt }){
+export const drillsFor = controller => DRILLS.filter(d => !d.phoneOnly || controller === 'phone');
+export function drillAfterShot(drill, progress, { side, inCourt, shot = null }){
+  // colpi speciali: conta il colpo riconosciuto, anche se finisce fuori (si impara il gesto, non la mira)
+  if (drill.shot) return { ...progress, tries: progress.tries + 1, done: progress.done + (shot === drill.shot ? 1 : 0), ok: shot === drill.shot, wrongShot: shot !== drill.shot };
   if (!inCourt) return { ...progress, tries: progress.tries + 1, ok: false };
   const sideOk = drill.id === 'forehand' ? side === 'forehand' : drill.id === 'backhand' ? side === 'backhand' : true;
   return { ...progress, tries: progress.tries + 1, done: progress.done + (sideOk ? 1 : 0), ok: sideOk, wrongSide: !sideOk };
@@ -45,11 +52,20 @@ export class NatpfTraining {
     const award = engine._awardPoint.bind(engine);
     engine._awardPoint = (winner, why = '') => this.active ? this._ballOver(winner, why) : award(winner, why);
     ui.phone?.onCal?.(e => this._onCal(e));
+    // colpi del telefono: negli esercizi dei colpi speciali ogni tentativo è un esempio del gesto di chi gioca
+    ui.phone?.onSwing?.(ev => this._onPhoneSwing(ev));
   }
-  get drill(){ return DRILLS[this.idx]; }
+  get drill(){ return (this.drills || DRILLS)[this.idx]; }
+  _onPhoneSwing(ev){
+    if (!this.active || this.cal || !ev?.natpf || ev.ignored) return;
+    this.lastShot = ev.natpf.shot;
+    const d = this.drill;
+    if (d?.shot){ this.ui.phone.learnSpecial?.(d.shot, ev.natpf); this.lastLearn = d.shot; }
+  }
   get phoneCal(){ return this.ui.controller === 'phone' && !this.ui.phone.ready; }
   start(){
     const E = this.engine;
+    this.drills = drillsFor(this.ui.controller);
     this.active = true; this.idx = 0; this.progress = { done: 0, tries: 0 }; this.stats = { shots: 0, perfect: 0, out: 0 }; this.wait = 0; this.message = null;
     this.cal = this.phoneCal ? { want: null, held: false, armed: false, hits: 0, fails: 0, done: false } : null;
     this.withCal = !!this.cal;
@@ -152,8 +168,9 @@ export class NatpfTraining {
     const side = E.player.swingType === 'backhand' ? 'backhand' : E.player.swingType === 'smash' ? 'smash' : 'forehand';
     // il servizio si conta qui; gli altri esercizi quando la palla è giocabile (anche fuori conta come tentativo)
     const before = this.progress.done;
-    this.progress = drillAfterShot(d, this.progress, { side: d.id === 'serve' ? 'serve' : side, inCourt: q.label !== 'Fuori' && q.label !== 'Mancata' });
-    this.message = this.progress.done > before ? `${q.label} ✓` : this.progress.wrongSide ? (d.id === 'forehand' ? 'Era un rovescio: la palla va sul dritto' : 'Era un dritto: la palla va sul rovescio') : q.label === 'Fuori' ? 'Fuori: meno angolo o meno forza' : q.label;
+    this.progress = drillAfterShot(d, this.progress, { side: d.id === 'serve' ? 'serve' : side, inCourt: q.label !== 'Fuori' && q.label !== 'Mancata', shot: this.lastShot });
+    this.lastShot = null;
+    this.message = d.shot ? (this.progress.done > before ? `${d.label} ✓` : this.progress.tries >= 2 ? 'Ho imparato il tuo gesto: riprova uguale' : (d.shot === 'lob' ? 'Più dal basso verso l’alto' : 'Più lento, dall’alto verso il basso')) : this.progress.done > before ? `${q.label} ✓` : this.progress.wrongSide ? (d.id === 'forehand' ? 'Era un rovescio: la palla va sul dritto' : 'Era un dritto: la palla va sul rovescio') : q.label === 'Fuori' ? 'Fuori: meno angolo o meno forza' : q.label;
     this.paint();
   }
   // colpo molto fuori tempo (il motore lo gioca in difesa): conta come tentativo
@@ -168,7 +185,7 @@ export class NatpfTraining {
     if (!this.cal && winner !== 'player' && E.ball.lastHitter === 'opponent'){ this.progress = { ...this.progress, tries: this.progress.tries + 1 }; this.message = 'Palla persa: colpisci quando arriva alla racchetta'; }
     E.phase = 'POINT_OVER'; E.phaseTimer = 0; E.ball.inPlay = false; E.natpfTimeScale = 1;
     E.pendingUserSwing = E.pendingP2Swing = E.pendingServeSwing = null;
-    if (!this.cal && this.drill && this.progress.done >= this.drill.need){ this.idx++; this.progress = { done: 0, tries: 0 }; if (this.idx < DRILLS.length) this.message = `Bravo! Ora: ${this.drill.label}`; }
+    if (!this.cal && this.drill && (this.progress.done >= this.drill.need || (this.drill.maxTries && this.progress.tries >= this.drill.maxTries))){ this.idx++; this.progress = { done: 0, tries: 0 }; if (this.idx < this.drills.length) this.message = `Bravo! Ora: ${this.drill.label}`; }
     this.wait = this.cal ? .7 : 1.1;
     this.paint();
   }
@@ -181,9 +198,10 @@ export class NatpfTraining {
       if (step === 'swings' && this.cal.want){ this._feed(calSide(this.cal.want, this.ui.hand?.hand), { hold: true }); return; }
       this._idle(); this.wait = .4; return;
     }
-    if (this.idx >= DRILLS.length) return this.stop({ completed: true });
+    if (this.idx >= this.drills.length) return this.stop({ completed: true });
     if (this.drill.id === 'serve'){ E.score.server = 'player'; E._setupPointServe({ showBanner: false }); return; }
-    this._feed(this.drill.id === 'backhand' ? 'backhand' : this.drill.id === 'forehand' ? 'forehand' : Math.random() < .5 ? 'forehand' : 'backhand');
+    // pallonetto e palla corta: sul dritto, il colpo più comodo
+    this._feed(this.drill.id === 'backhand' ? 'backhand' : this.drill.id === 'forehand' || this.drill.shot ? 'forehand' : Math.random() < .5 ? 'forehand' : 'backhand');
   }
   // lanciapalle: palla dal fondo avversario verso il dritto o il rovescio del giocatore locale (destro o mancino)
   _feed(side, { hold = false } = {}){
@@ -243,7 +261,7 @@ export class NatpfTraining {
     const $ = sel => this.coach.querySelector(sel);
     const t = $('#coach-text'), s = $('#coach-sub'), k = $('#coach-kicker');
     const c = this.ui.controller, hand = this.ui.hand?.hand;
-    const stages = this.withCal ? [CAL_STAGE, ...DRILLS] : DRILLS;
+    const stages = this.withCal ? [CAL_STAGE, ...this.drills] : this.drills;
     const cur = this.cal ? 0 : stages.indexOf(this.drill);
     const list = $('#coach-stages');
     const key = stages.map(x => x.id).join() + cur;
@@ -266,7 +284,7 @@ export class NatpfTraining {
       return;
     }
     const d = this.drill, ctrl = c in (d?.hint || {}) ? c : 'phone';
-    k.textContent = `Riscaldamento · ${(this.idx || 0) + 1} di ${DRILLS.length}`;
+    k.textContent = `Riscaldamento · ${(this.idx || 0) + 1} di ${this.drills.length}`;
     if (!d){ t.textContent = 'Riscaldamento completato'; s.textContent = ''; return; }
     t.textContent = `${d.label} ${Math.min(this.progress.done, d.need)}/${d.need}`;
     s.textContent = d.hint[ctrl] + msg;

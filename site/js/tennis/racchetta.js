@@ -30,7 +30,7 @@ const ALLOW_FLAT = false;
 // telefono solo dopo 0,4 s fermo e lentamente: le pause della preparazione non spostano il riferimento della mira.
 const det = createSwingDetector(), face = createFaceTracker(ALLOW_FLAT ? {} : { quietHold: 400, relax: 2.5 });
 // ogni gesto porta con sé il piatto all'istante del picco (l'impatto)
-det.on('swing', s => { if (face.ready) s.face = face.strokeFace(s.peakT, s.t - s.dur); });
+det.on('swing', s => { if (face.ready){ s.face = face.strokeFace(s.peakT, s.t - s.dur); s.head = face.headAt(s.peakT, s.axis); } });
 det.on('status', s => { if (s.s === 'still-ok') face.setRest(s.gravity, det.profile.bias); });
 const cal = createCalibration(det);
 let lastFaceSent = -Infinity, lastFacePaint = -Infinity;

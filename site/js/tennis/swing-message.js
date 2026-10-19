@@ -2,7 +2,8 @@
 // in LAN e via internet allo stesso modo, e i test lo usano per provare tutta la catena con gli stessi gesti.
 // Campi: p forza, l verso verticale, dur, dir, a mira del gesto, c fiducia, pk istante del picco (ms sul telefono),
 // lat ritardo stimato, v velocità al picco (°/s), tw rotazione del polso, g/fy/fp/fr/fa piatto all'impatto,
-// fu piatto non credibile, sp velocità rispetto al proprio colpo tipico, sd ms dal picco al riconoscimento, hd ms di attesa della preparazione, hz Hz dei sensori, n numero, vt gesto verticale.
+// fu piatto non credibile, sp velocità rispetto al proprio colpo tipico, he verso verticale del colpo (piatto che sale o
+// scende mentre ruota, face-tracker.headAt), sd ms dal picco al riconoscimento, hd ms di attesa della preparazione, hz Hz dei sensori, n numero, vt gesto verticale.
 import { aimFromFace } from './face-tracker.js';
 
 export function swingMessage(s, { flags = {}, grip = 'upright', faceRef = null, rtt = 80, now = s.t, sampleHz = 60, seq = 0 } = {}){
@@ -16,6 +17,7 @@ export function swingMessage(s, { flags = {}, grip = 'upright', faceRef = null, 
     v: s.peak, tw: Number.isFinite(s.features?.twist) ? +s.features.twist.toFixed(3) : undefined,
     ...(fa ? { g: grip, fy: fa.yaw, fp: fa.pitch, fr: fa.roll, ...(fa.aim != null ? { fa: fa.aim } : { fu: 1 }) } : {}),
     ...(Number.isFinite(s.features?.speed) ? { sp: +s.features.speed.toFixed(3) } : {}),
+    ...(Number.isFinite(s.head) ? { he: s.head } : {}),
     sd: s.detectMs, hd: s.holdMs, hz: Math.round(sampleHz), n: seq, ...(s.vert ? { vt: s.vert } : {}) };
 }
 
@@ -29,6 +31,7 @@ export function parseSwingMessage(d, { at, now }){
     ...(face ? { grip: d.g === 'flat' ? 'flat' : 'upright', face } : {}),
     ...(typeof d.v === 'number' && isFinite(d.v) ? { peak: n(d.v, 0, 4000, 0) } : {}), ...(typeof d.tw === 'number' && isFinite(d.tw) ? { twist: n(d.tw, -2, 2, 0) } : {}),
     ...(typeof d.sp === 'number' && isFinite(d.sp) ? { speed: n(d.sp, 0, 5, 1) } : {}),
+    ...(typeof d.he === 'number' && isFinite(d.he) ? { head: n(d.he, -1, 1, 0) } : {}),
     ...(typeof d.sd === 'number' ? { detectMs: n(d.sd, 0, 1000, 0) } : {}), ...(typeof d.hd === 'number' ? { holdMs: n(d.hd, 0, 2000, 0) } : {}),
     ...(typeof d.hz === 'number' ? { sampleHz: n(d.hz, 0, 1000, 0) } : {}), ...(Number.isInteger(d.n) ? { seq: d.n } : {}), ...(d.vt === 'up' || d.vt === 'down' ? { vert: d.vt } : {}),
     receivedAt: now/1000, sentLat: n(d.lat, 0, 5000, null) };

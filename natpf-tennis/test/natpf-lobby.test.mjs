@@ -5,7 +5,7 @@ import { LOBBY_STEPS, EGG_WORD, stepReady, initialStep, eggTyped, autoAdvance } 
 import { controllerTiles, viewTiles, controllerStatus, CONTROLLER_TILES } from '../src/natpf/natpf_tiles.js';
 import { shotQuality, landsIn, VIBRATION, QUALITY_COLORS } from '../src/natpf/natpf_shot_feedback.js';
 import { leftySide, isLocalServing, normalizeHand } from '../src/natpf/natpf_hand.js';
-import { DRILLS, drillAfterShot, calSide, calCoach, CAL_HOLD } from '../src/natpf/natpf_training.js';
+import { DRILLS, drillsFor, drillAfterShot, calSide, calCoach, CAL_HOLD } from '../src/natpf/natpf_training.js';
 
 test('menu per chi gioca la prima volta: benvenuto, racchetta, collega, riscaldamento in campo, partita', () => {
   assert.deepEqual(LOBBY_STEPS, ['welcome', 'controller', 'connect', 'warmup', 'match']);
@@ -91,13 +91,17 @@ test('mano libera in vista solo al proprio servizio', () => {
 });
 
 test('riscaldamento: calibrazione in campo, poi dritto, rovescio, servizio, angoli; conta solo il lato giusto', () => {
-  assert.deepEqual(DRILLS.map(d => d.id), ['forehand', 'backhand', 'serve', 'free']);
-  for (const d of DRILLS) for (const c of ['phone', 'webcam', 'mouse']) assert.ok(d.hint[c], `${d.id}/${c}`);
+  assert.deepEqual(DRILLS.map(d => d.id), ['forehand', 'backhand', 'lob', 'drop', 'serve', 'free']);
+  for (const d of DRILLS) for (const c of ['phone', 'webcam', 'mouse']) if (!d.phoneOnly || c === 'phone') assert.ok(d.hint[c], `${d.id}/${c}`);
+  assert.deepEqual(drillsFor('mouse').map(d => d.id), ['forehand', 'backhand', 'serve', 'free']);
+  const lob = DRILLS.find(d => d.id === 'lob');
+  assert.equal(drillAfterShot(lob, { done: 0, tries: 0 }, { shot: 'lob', inCourt: false }).done, 1, 'pallonetto riconosciuto: vale anche fuori');
+  assert.equal(drillAfterShot(lob, { done: 0, tries: 0 }, { shot: 'topspin', inCourt: true }).done, 0);
   const fh = DRILLS[0], p0 = { done: 0, tries: 0 };
   assert.deepEqual(drillAfterShot(fh, p0, { side: 'forehand', inCourt: true }), { done: 1, tries: 1, ok: true, wrongSide: false });
   assert.equal(drillAfterShot(fh, p0, { side: 'backhand', inCourt: true }).done, 0);
   assert.equal(drillAfterShot(fh, p0, { side: 'forehand', inCourt: false }).done, 0);
-  assert.equal(drillAfterShot(DRILLS[3], p0, { side: 'backhand', inCourt: true }).done, 1);
+  assert.equal(drillAfterShot(DRILLS.find(d => d.id === 'free'), p0, { side: 'backhand', inCourt: true }).done, 1);
   // i gesti della calibrazione diventano colpi: «L» (da destra a sinistra) è il dritto del destro e il rovescio del mancino
   assert.equal(calSide('L', 'right'), 'forehand'); assert.equal(calSide('R', 'right'), 'backhand');
   assert.equal(calSide('L', 'left'), 'backhand'); assert.equal(calSide('R', 'left'), 'forehand');
