@@ -90,6 +90,10 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
   (nessun verso atteso); gesti senza verso orizzontale: lato dalla posizione della palla, non dalla mira.
 - Pallonetto: volo di 2 s con compensazione dell'aria (prima cadeva a metà campo).
 - Verso verticale del colpo dal giroscopio/orientamento (`headAt`), non dall'accelerometro (rumoroso con presa a manico).
+- TORINO: i riferimenti (camera dietro una riga di fondo) mostrano le due scritte dritte da quella camera. Con due
+  giocatori ognuno ha la sua camera: le scritte si girano sul computer di ciascuno (`arena.setViewer`), così il campo è
+  uguale per tutti e due. Primo tentativo (d78b0f2: ognuna verso la metà opposta) scartato: la scritta vicina, che la
+  camera di gioco inquadra, risultava capovolta.
 - Host autorevole per il multigiocatore; snapshot con formato (`fmt`) per il 2v2.
 - Varietà (punto 3): ogni colpo passava la rete al minimo (1,25–1,27 m) e la CPU sceglieva il colpo da un ciclo fisso.
   Decisione: `shotArc` (altezza sulla rete e top spin da tipo di colpo e forza), `angleDepth` (angolo stretto = palla
@@ -107,7 +111,7 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 | 19/10/2026 | 684021a | Calibrazione: fermo prima di ogni gesto, rientro al centro escluso, tremolii ignorati, scelta del gesto nel verso richiesto | `site/js/tennis/calibration.js`, `racchetta.js`, `main.js`, `natpf-tennis/src/natpf/natpf_training.js`, `tools/test/calibration-quick.test.mjs`, `tools/test/gesture-training.test.mjs` |
 
 | 19/10/2026 | d8b7bec | Rovescio lungolinea non più letto come dritto | `site/js/tennis/swing-detect.js`, `natpf-tennis/src/natpf/natpf_phone_racket.js`, `natpf-tennis/test/natpf-prep.test.mjs` |
-| 19/10/2026 | (punto 5) | TORINO dritta per chi la guarda dalla metà opposta (prima capovolta per P1 e P2) | `site/js/tennis/arena.js`, `natpf-tennis/test/natpf-arena-court.test.mjs` |
+| 19/10/2026 | d78b0f2 + (punto 5 bis) | TORINO: orientata per chi gioca (`setViewer`, P2 girato), 3,6 m senza deformazione, 2,1 m dietro la riga | `site/js/tennis/arena.js`, `site/js/tennis/scene.js`, `natpf-tennis/src/natpf/natpf_arena.js`, `natpf-tennis/test/natpf-arena-court.test.mjs` |
 | 19/10/2026 | 4f4304f | Varietà di traiettorie e angoli per giocatore, P2 e CPU; palla che cade alla profondità voluta (prima ~2 m corta per l'aria) | `natpf-tennis/src/natpf/natpf_skill.js`, `natpf-tennis/src/game_engine.js`, `natpf-tennis/test/natpf-variety.test.mjs`, `natpf-tennis/scripts/audit/variety.mjs` |
 
 ## 10. Stato delle attività (richiesta in 6 punti del 19/10)
@@ -118,7 +122,7 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 | 2 | Dritto/rovescio, rovescio lungolinea | fatto, provato con gesti simulati; da provare con telefono vero |
 | 3 | Varietà di traiettorie e angoli (anche P2) | fatto, provato con audit e test nel motore senza browser; da vedere giocando |
 | 4 | Revisione completa 1v1 con verifica a due sessioni | in corso (lavoro in un worktree separato) |
-| 5 | Grafica del campo simmetrica (TORINO su entrambe le metà, loghi della rete) | fatto: TORINO era capovolta per tutti e due i giocatori, ora dritta; loghi della rete già leggibili dai due lati (8785a11). Provato con rendering nel browser (viste P1, P2, rete) |
+| 5 | Grafica del campo simmetrica (TORINO su entrambe le metà, loghi della rete) | fatto: le due TORINO si leggono dritte dalla camera di chi gioca su quel computer (P1 e P2 vedono lo stesso campo), proporzioni del file e 2,1 m dietro la riga come nei riferimenti; loghi della rete già leggibili dai due lati (8785a11). Provato con rendering nel browser dalle camere di gioco di P1 e P2 |
 | 6 | MEMORY.md | fatto, da aggiornare a ogni attività |
 
 ## 11. Prossimi passi

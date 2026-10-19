@@ -44,7 +44,7 @@ export function installNatpfArena(engine, { quality = 1 } = {}){
   if (fill){ fill.color.setHex(NATPF_LIGHTS.fill.color); fill.intensity = NATPF_LIGHTS.fill.intensity; fill.position.set(...NATPF_LIGHTS.fill.position); }
 
   const arena = buildArena(scene, { quality, anisotropy: engine.renderer?.capabilities?.getMaxAnisotropy?.() || 8 });
-  let lastScore = '', lastSpeed = null, practice = false;
+  let lastScore = '', lastSpeed = null, practice = false, viewer = 1;
   const look = L => {
     scene.background = new THREE.Color(L.background); scene.fog = new THREE.Fog(...L.fog);
     if (hemi){ hemi.color.setHex(L.hemi.sky); hemi.groundColor.setHex(L.hemi.ground); hemi.intensity = L.hemi.intensity*CHARACTER_LIFT.hemi; }
@@ -63,7 +63,12 @@ export function installNatpfArena(engine, { quality = 1 } = {}){
     // Lo stadio, la rete e il pubblico GLB del motore base restano caricati ma non visibili: l'arena NATPF ha i suoi.
     adoptLegacyStadium({ stadium, net, crowd } = {}){ for (const o of [stadium, net, crowd]) if (o) o.visible = false; },
     // tifo del motore base (0,22…1) → salto del pubblico NATPF (0…1)
-    update(time, cheerEnergy = 0){ arena.update(time, practice ? 0 : Math.max(0, Math.min(1, (cheerEnergy - .22)/.78))); },
+    update(time, cheerEnergy = 0){
+      // scritte sul campo dritte per chi gioca su questo computer (P2: dall'altra metà)
+      const side = engine.playerRole === 'p2' ? -1 : 1;
+      if (side !== viewer){ viewer = side; arena.setViewer?.(side); }
+      arena.update(time, practice ? 0 : Math.max(0, Math.min(1, (cheerEnergy - .22)/.78)));
+    },
     // punteggio sui tabelloni in italiano: «0-15», «PARITÀ», «VANT.»
     setScore(text){ if (practice) return; const t = scoreText(text, { short: true }).slice(0, 7); if (t !== lastScore){ lastScore = t; arena.setScore(t); } },
     setSpeed(kmh){ if (Number.isFinite(kmh) && kmh !== lastSpeed){ lastSpeed = kmh; arena.setSpeed(kmh); } },

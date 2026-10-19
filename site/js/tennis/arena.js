@@ -27,9 +27,11 @@ const loader = new THREE.TextureLoader();
 // tabelloni laterali, scritta sul campo) restano nitidi invece di sfocarsi con le mipmap
 let ANISO = 8;
 const ART = name => { const t = loader.load(new URL('../../assets/arena/' + name, import.meta.url).href); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = ANISO; return t; };
-// Rotazione (nel piano del campo) della scritta TORINO dietro la linea di fondo nella metà s (+1 / −1): dritta per chi la
-// guarda dalla metà opposta.
-export const courtWordTurn = s => (s > 0 ? Math.PI : 0);
+// Rotazione (nel piano del campo) delle scritte TORINO per chi guarda dalla metà «viewer» (+1 = P1, dietro z positiva;
+// −1 = P2): come nei riferimenti, le due scritte dietro le linee di fondo si leggono dritte dalla camera di chi gioca,
+// quella vicina sotto la camera e quella in fondo al campo. Ognuno vede il proprio campo uguale all'altro.
+export const courtWordTurn = viewer => (viewer < 0 ? Math.PI : 0);
+export const COURT_WORD = Object.freeze({ width: 3.6, back: 2.1 });   // m: larghezza (proporzioni del file 1360 × 385) e distanza dalla riga di fondo
 const plainTex = () => canvas(64, 64, (x, W, H) => {
   const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#16378f'); g.addColorStop(1, '#0a2163'); x.fillStyle = g; x.fillRect(0, 0, W, H);
 });
@@ -231,10 +233,14 @@ export function buildArena(scene, { quality = 1, anisotropy = 8 } = {}){
   const line = (x0, z0, x1, z1) => { const m = add(new THREE.PlaneGeometry(Math.abs(x1 - x0) || .05, Math.abs(z1 - z0) || .05), lineMat, (x0 + x1)/2, .006, (z0 + z1)/2); m.rotation.x = -Math.PI/2; };
   for (const s of [-1, 1]){ line(-DW, s*HL, DW, s*HL); line(s*DW, -HL, s*DW, HL); line(s*HW, -HL, s*HW, HL); line(-HW, s*SZ, HW, s*SZ); line(0, s*HL, 0, s*(HL - .1)); }
   line(0, -SZ, 0, SZ);
-  // TORINO sul fuori campo dietro le due linee di fondo, uguale nelle due metà: ognuna si legge dritta da chi gioca
-  // nella metà opposta e la guarda (prima era girata verso chi le stava alle spalle: tutti e due la vedevano capovolta)
-  const courtWord = ART('torino.png');
-  for (const s of [-1, 1]){ const m = add(new THREE.PlaneGeometry(6.4, 1.6), new THREE.MeshLambertMaterial({ map: courtWord, transparent: true, depthWrite: false }), 0, .008, s*(HL + 3.6)); m.rotation.x = -Math.PI/2; m.rotation.z = courtWordTurn(s); }
+  // TORINO sul fuori campo poco dietro le due linee di fondo (come nei riferimenti), girate verso chi gioca: setViewer
+  // le gira per il P2. Prima: 6,4 × 1,6 m (lettere allungate), 3,6 m dietro la riga e capovolte per una delle due camere.
+  const courtWord = ART('torino.png'), courtWords = [];
+  for (const s of [-1, 1]){
+    const m = add(new THREE.PlaneGeometry(COURT_WORD.width, COURT_WORD.width*385/1360), new THREE.MeshLambertMaterial({ map: courtWord, transparent: true, depthWrite: false }), 0, .008, s*(HL + COURT_WORD.back));
+    m.rotation.x = -Math.PI/2; m.rotation.z = courtWordTurn(1); courtWords.push(m);
+  }
+  const setViewer = side => { for (const m of courtWords) m.rotation.z = courtWordTurn(side); };
 
   /* rete: profilo vero, maglia scura, nastro e fascia centrale bianchi, scritta vicino ai pali */
   {
@@ -498,7 +504,7 @@ export function buildArena(scene, { quality = 1, anisotropy = 8 } = {}){
   }
 
   return {
-    group, setScore, setSpeed,
+    group, setScore, setSpeed, setViewer,
     // qualità: meno pubblico sui computer lenti (le persone sono in ordine casuale per anello, ne restano a caso)
     setDensity(k){ if (crowd) crowd.density(Math.max(.1, Math.min(1, k))); },
     // tribune vuote (campo d'allenamento)

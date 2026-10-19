@@ -180,6 +180,7 @@ export function createScene(container, { quality = 1 } = {}){
   function follow(p, dt, snap = false){
     camera.position.x-=lastShake; lastShake=0;
     const frame = playerCameraFrame(p, HL, camera.aspect,cameraMode);
+    arena.setViewer(p.team ? -1 : 1);   // scritte del campo dritte per chi gioca su questo computer
     camPos.set(frame.camera.x, frame.camera.y, frame.camera.z);
     camAt.set(frame.target.x, frame.target.y, frame.target.z);
     camera.up.set(0, 1, 0);
