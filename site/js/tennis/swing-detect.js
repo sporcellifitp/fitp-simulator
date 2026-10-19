@@ -33,6 +33,9 @@ export const DEFAULTS = {
   rawFall: .97,     // … o dopo due campioni grezzi in calo sotto il 97% (picchi larghi: nei colpi veri 30–50 ms prima)
   prepWeak: .85,    // (modalità preparazione) si trattiene solo un gesto più debole dell'85% del proprio colpo tipico
   prepSlow: .45,    // gesto trattenuto e senza seguito: sotto il 45% del colpo tipico era una preparazione, non un colpo
+  prepFollow: .8,   // il gesto opposto dopo quello trattenuto è il colpo solo se veloce almeno l'80% di quello: più debole
+                    // è il rientro della mano, e il colpo era quello trattenuto (il rovescio lungolinea su palla centrale
+                    // diventava un dritto: rovescio morbido trattenuto, poi il rientro verso il dritto preso per il colpo)
 };
 // profilo di chi gioca (dalla calibrazione): deriva, asse del colpo (+ = da destra a sinistra), colpo tipico, soglie
 export const defaultProfile = () => ({ bias: [0, 0, 0], axis: null, ref: 600, on: DEFAULTS.on, minPeak: DEFAULTS.minPeak, minAngle: DEFAULTS.minAngle, lobLift: null, sens: 1, refs: null, preparation: null, minAngles: null, intentGate: false });
@@ -182,7 +185,8 @@ export function createSwingDetector(opts = {}){
     if (!training && ((prof.axis && dir === 0 && !vertical && !serving() && !(context==='practice' && intent.shot==='serve')) || (!vertical && c.peak < floor) || c.angle < minAngle)){
       setPhase('preparation');
       // movimento troppo piccolo per un colpo: in modalità preparazione è la racchetta che si carica
-      if (prepMode && dir !== 0 && !serving()) emit('prep', { peakT: c.peakT, dir, peak: Math.round(c.peak), angle: Math.round(c.angle), small: true });
+      // (non dopo un gesto trattenuto nel verso opposto: lì è il rientro della mano)
+      if (prepMode && dir !== 0 && !serving() && !(held && dir === -held.sw.dir)) emit('prep', { peakT: c.peakT, dir, peak: Math.round(c.peak), angle: Math.round(c.angle), small: true });
       return;
     }
     // forza: il proprio colpo tipico vale circa 0,65, il doppio arriva al massimo (prima già 1,55 volte bastava e quasi
@@ -194,6 +198,7 @@ export function createSwingDetector(opts = {}){
       ...(vert ? { vert } : {}), detectMs: +Math.max(0, t - peakT).toFixed(1) };
     if (prepMode && !training && !serving()){
       // un gesto trattenuto e ora quello opposto: il primo era la preparazione
+      if (held && dir !== 0 && dir === -held.sw.dir && c.peak < held.sw.peak*C.prepFollow){ const h = held; held = null; commit(h.sw, t); setPhase('follow'); return; }
       if (held && dir !== 0 && dir === -held.sw.dir){ emit('prep', { peakT: held.sw.peakT, dir: held.sw.dir, peak: held.sw.peak, angle: held.sw.angle }); held = null; }
       else if (held){ const h = held; held = null; release(h.sw, t); }
       // solo un gesto debole può essere la preparazione: un colpo pieno nel verso «sbagliato» parte subito (prima

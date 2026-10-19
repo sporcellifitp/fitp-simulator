@@ -84,6 +84,10 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 - Calibrazione: prima il rientro della mano veniva preso come gesto successivo (soglia «40% del picco» non
   bastava). Decisione: quiete prima di ogni gesto + posizione della mano integrata lungo l'asse del colpo; il primo
   movimento che riporta la mano al punto di partenza è il rientro, salvo pausa ≥ 600 ms lontano dal centro.
+- Dritto/rovescio: il rovescio morbido (lungolinea) su palla appena dalla parte del dritto veniva trattenuto come
+  «preparazione» e il rientro della mano diventava il dritto. Decisione: il gesto opposto dopo quello trattenuto è il
+  colpo solo se veloce almeno l'80% (`prepFollow`), altrimenti vale il gesto trattenuto; zona «palla diretta» 0,6 m
+  (nessun verso atteso); gesti senza verso orizzontale: lato dalla posizione della palla, non dalla mira.
 - Pallonetto: volo di 2 s con compensazione dell'aria (prima cadeva a metà campo).
 - Verso verticale del colpo dal giroscopio/orientamento (`headAt`), non dall'accelerometro (rumoroso con presa a manico).
 - Host autorevole per il multigiocatore; snapshot con formato (`fmt`) per il 2v2.
@@ -94,12 +98,14 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 |---|---|---|---|
 | 19/10/2026 | 684021a | Calibrazione: fermo prima di ogni gesto, rientro al centro escluso, tremolii ignorati, scelta del gesto nel verso richiesto | `site/js/tennis/calibration.js`, `racchetta.js`, `main.js`, `natpf-tennis/src/natpf/natpf_training.js`, `tools/test/calibration-quick.test.mjs`, `tools/test/gesture-training.test.mjs` |
 
+| 19/10/2026 | (punto 2) | Rovescio lungolinea non più letto come dritto | `site/js/tennis/swing-detect.js`, `natpf-tennis/src/natpf/natpf_phone_racket.js`, `natpf-tennis/test/natpf-prep.test.mjs` |
+
 ## 10. Stato delle attività (richiesta in 6 punti del 19/10)
 
 | # | Attività | Stato |
 |---|---|---|
 | 1 | Calibrazione telefono (falsi movimenti, rientro, gesto precedente) | fatto, provato con test a mano simulata; da provare con telefono vero |
-| 2 | Dritto/rovescio, rovescio lungolinea | da fare |
+| 2 | Dritto/rovescio, rovescio lungolinea | fatto, provato con gesti simulati; da provare con telefono vero |
 | 3 | Varietà di traiettorie e angoli (anche P2) | da fare |
 | 4 | Revisione completa 1v1 con verifica a due sessioni | in corso (lavoro in un worktree separato) |
 | 5 | Grafica del campo simmetrica (TORINO su entrambe le metà, loghi della rete) | da fare |
@@ -107,13 +113,14 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 
 ## 11. Prossimi passi
 
-Punti 2, 3, 5; unire e verificare il punto 4; aggiornare roadmap; build, zip Cloudflare e LAN, prova degli zip estratti.
+Punti 3, 5; unire e verificare il punto 4; aggiornare roadmap; build, zip Cloudflare e LAN, prova degli zip estratti.
 
 ## 12. Test e verifiche
 
 - `tools/test`: 126 test passano (19/10). Nuovi: calibrazione con tremolio, rientro al centro, preparazione e
   accompagnamento (il test fallisce con il codice precedente: riproduce il difetto segnalato).
-- `natpf-tennis/test`: 121 test passano (19/10).
+- `natpf-tennis/test`: 123 test passano (19/10). Nuovi: rovescio morbido + rientro (fallisce col codice
+  precedente), zona palla diretta e lato dalla palla.
 - **Non verificato**: calibrazione con un telefono vero in mano; soglie (`CAL.settle` 220 ms, `homeRest` 600 ms,
   `homeWeak` 0,75) tarate su gesti simulati.
 

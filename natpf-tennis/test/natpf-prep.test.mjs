@@ -98,3 +98,24 @@ test('flusso dei sensori in JSON (collegamento via internet): la racchetta in gi
   const s = m.sample(12*33.3);
   assert.ok(s && !s.stale && Math.abs(s.rotation[3]) < .999, 'la rotazione integrata si muove');
 });
+
+// Rovescio lungolinea su una palla appena dalla parte del dritto: rovescio morbido nel verso «sbagliato» per il
+// telefono, poi la mano rientra verso il dritto. Prima il rovescio diventava la preparazione e il rientro il colpo.
+test('rovescio morbido seguito dal rientro della mano: resta un rovescio, il rientro non è un dritto', () => {
+  const { out, rest, move } = rig({ expect: 1 });
+  const bh = move(-1, 380, 200); move(1, 280, 200); rest(500);
+  assert.deepEqual(out.swings.map(s => s.dir), [-1], JSON.stringify(out.swings.map(s => [s.dir, s.peak])));
+  assert.equal(out.preps.length, 0);
+  assert.ok(Math.abs(out.swings[0].peakT - bh) <= 20, 'tempo del colpo: quello del rovescio');
+  assert.equal(strokeSide(out.swings[0].dir, 'right'), 'backhand');
+});
+
+test('palla diretta (entro 0,6 m dal corpo): nessun verso atteso; gesto senza verso → lato dalla palla', async () => {
+  const { sideFromBall, BODY_ZONE } = await import('../src/natpf/natpf_phone_racket.js');
+  const engine = x => ({ phase: 'RALLY', playerRole: 'p1', player: { pos: { x: 0 } }, ball: { inPlay: true, lastHitter: 'opponent', vel: { z: 8 }, pos: { x }, targetLanding: { x } } });
+  assert.equal(expectedStrokeDir(engine(.45), 'right'), 0);
+  assert.equal(expectedStrokeDir(engine(BODY_ZONE + .2), 'right'), 1);
+  assert.equal(sideFromBall(engine(-.3), 'right'), 'backhand');
+  assert.equal(sideFromBall(engine(.3), 'right'), 'forehand');
+  assert.equal(sideFromBall(engine(.3), 'left'), 'backhand');
+});

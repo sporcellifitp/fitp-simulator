@@ -164,13 +164,29 @@ export function ballMovingAway(engine){
 export const strokeSide = (dir, hand = 'right') => { const fh = hand === 'left' ? -1 : 1; return dir === fh ? 'forehand' : dir === -fh ? 'backhand' : null; };
 // Verso del colpo atteso per il giocatore locale: la palla arriva verso di lui e cade alla sua destra o sinistra.
 // 0 quando la palla non arriva o è al centro (lì non si trattiene nessun gesto).
+// palla «diretta»: entro 0,6 m dal corpo si gioca sia di dritto sia di rovescio, il telefono non deve aspettarsi un
+// verso (prima bastavano 0,25 m: il rovescio su una palla appena a destra veniva trattenuto come preparazione)
+export const BODY_ZONE = .6;
+function ballRel(engine){
+  const b = engine.ball, p2 = engine.playerRole === 'p2', me = p2 ? engine.opponent : engine.player;
+  if (!b || !me) return null;
+  const x = Number.isFinite(b.targetLanding?.x) ? b.targetLanding.x : b.pos.x;
+  return (x - me.pos.x)*(p2 ? -1 : 1);                                         // + alla sua destra
+}
+// lato del colpo dalla posizione della palla, per i gesti senza verso orizzontale (verticali): prima lo decideva la
+// mira nel motore, e un colpo mirato verso sinistra diventava sempre un dritto
+export function sideFromBall(engine, hand = 'right'){
+  const rel = ballRel(engine);
+  if (rel == null) return null;
+  return (rel >= 0) !== (hand === 'left') ? 'forehand' : 'backhand';
+}
 export function expectedStrokeDir(engine, hand = 'right'){
   const b = engine.ball, p2 = engine.playerRole === 'p2', me = p2 ? engine.opponent : engine.player;
   if (!b || !me || !b.inPlay || engine.phase !== 'RALLY' || b.lastHitter === (p2 ? 'opponent' : 'player')) return 0;
   const toward = p2 ? b.vel.z < -.5 : b.vel.z > .5;
   if (!toward) return 0;
-  const x = Number.isFinite(b.targetLanding?.x) ? b.targetLanding.x : b.pos.x, rel = (x - me.pos.x)*(p2 ? -1 : 1);   // + alla sua destra
-  if (Math.abs(rel) < .25) return 0;
+  const rel = ballRel(engine);
+  if (Math.abs(rel) < BODY_ZONE) return 0;
   const fh = hand === 'left' ? -1 : 1;                                        // verso del dritto
   return (rel > 0) !== (hand === 'left') ? fh : -fh;
 }
@@ -269,6 +285,7 @@ export class NatpfPhoneRacket {
     }
     const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, faceCenter: this.faceModel.center(s.dir), now: performance.now()/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine) }), role: this.engine.playerRole };
     this.lastPrep = null;
+    if (!ev.side) ev.side = sideFromBall(this.engine, this.hand);
     this.liftModel.add(s.dir, s.lift); this.faceModel.add(s.dir, s.face); this.headModel.add(s.dir, ev.natpf.head);
     for (const fn of this.swingListeners) try { fn(ev, s); } catch (e){ console.error(e); }
     // _emitSwing instrada già P1 in locale e P2 verso l'host (relay della stanza 1v1)
