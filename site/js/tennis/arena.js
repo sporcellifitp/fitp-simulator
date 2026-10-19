@@ -315,13 +315,30 @@ export function buildArena(scene, { quality = 1, anisotropy = 8 } = {}){
   /* sedia dell'arbitro bianca ad «A», panchine bianche, operatori TV, raccattapalle */
   {
     const white = lam(0xf2f5ff), X = -(DW + 1.9);
-    // sedia ad «A»: le due gambe si aprono verso il campo e verso il muro (la «A» si legge guardando dal fondo), con
-    // scaletta, pedana, schienale e l'arbitro seduto in cima
-    for (const s of [-1, 1]){ const leg = add(new THREE.BoxGeometry(.13, 2.55, .55), white, X + s*.34, 1.22, 0, { shadow: true }); leg.rotation.z = -s*.28; }
-    for (const [y, w] of [[.55, 1.15], [1.05, .85], [1.55, .55]]) add(new THREE.BoxGeometry(w, .09, .5), white, X, y, 0);
-    add(new THREE.BoxGeometry(.8, .12, .8), white, X, 2.45, 0, { shadow: true }); add(new THREE.BoxGeometry(.1, .75, .8), white, X - .38, 2.85, 0);
+    // sedia ad «A» come nei riferimenti: una grande lettera «A» a blocco (alta 2,95 m, larga 2,3 m alla base, spessa
+    // 0,66 m: forma di 2,45 × 1,9 × 0,55 m ingrandita di S), blu scuro lucido con i fianchi chiari, leggibile guardando dal fondo; gradini bianchi tra le gambe sotto
+    // la traversa, pedana e seduta bianche in cima con l'arbitro. Prima: due assi bianche e tre pioli (una scaletta).
+    const S = 1.2, seatY = 2.45*S + .16;
+    {
+      const A = new THREE.Shape([[-.95, 0], [-.3, 2.45], [.3, 2.45], [.95, 0], [.5, 0], [.36, .55], [-.36, .55], [-.5, 0]].map(([x, y]) => new THREE.Vector2(x, y)));
+      A.holes.push(new THREE.Path([[-.21, .95], [.21, .95], [0, 1.72]].map(([x, y]) => new THREE.Vector2(x, y))));
+      const geo = new THREE.ExtrudeGeometry(A, { depth: .55, bevelEnabled: true, bevelThickness: .05, bevelSize: .045, bevelSegments: 3, curveSegments: 4 });
+      geo.translate(0, 0, -.275);
+      const face = new THREE.MeshPhongMaterial({ color: 0x1d3a9a, specular: 0x6f8cff, shininess: 60 }), side = new THREE.MeshPhongMaterial({ color: 0xd9e4ff, specular: 0xffffff, shininess: 40 });
+      // l'«A» si legge dal fondo (come nel riferimento con la camera dietro la riga): piano parallelo alla rete, gambe
+      // verso il campo e verso il muro
+      const chair = add(geo, [face, side], X, .05, 0, { shadow: true });
+      chair.receiveShadow = true; chair.scale.setScalar(S);
+      // gradini bianchi nell'apertura sotto la traversa (si sale da dietro)
+      for (const [y, w] of [[.12, .78], [.3, .66], [.46, .55]]) add(new THREE.BoxGeometry(w*S, .06, .4), white, X, y*S, 0);
+      // pedana e seduta in cima
+      const top = 2.45*S + .1;
+      add(new THREE.BoxGeometry(.95, .1, .75), white, X, top, 0, { shadow: true });
+      add(new THREE.BoxGeometry(.12, .7, .75), white, X - .42, top + .37, 0);
+      for (const e of [-1, 1]) add(new THREE.BoxGeometry(.6, .22, .06), white, X - .1, top + .16, e*.36);
+    }
     // arbitro seduto sulla pedana, in bianco con i pantaloni scuri, piedi oltre il bordo verso il campo
-    person(X - .02, 0, Math.PI/2, 0xf2f4fa, 0x1b2140, .95, 2.51, { pose: 'seduto', sleeves: true, hair: 0x3a2a20 });
+    person(X - .02, 0, Math.PI/2, 0xf2f4fa, 0x1b2140, .95, seatY, { pose: 'seduto', sleeves: true, hair: 0x3a2a20 });
     const sofa = z => { add(new THREE.BoxGeometry(.9, .45, 2.2), white, X - .9, .25, z, { shadow: true }); add(new THREE.BoxGeometry(.25, .55, 2.2), white, X - 1.25, .7, z); for (const e of [-1, 1]) add(new THREE.BoxGeometry(.9, .3, .2), white, X - .9, .6, z + e*1.05); };
     sofa(-3.2); sofa(3.2);
     // operatori TV: tre telecamere sul cavalletto nella buca del lato opposto all'arbitro, all'altezza della rete
