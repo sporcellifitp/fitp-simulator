@@ -19,6 +19,19 @@ const store = {
   set(k, v){ try { localStorage.setItem('natpf-tennis.' + k, v); } catch {} },
 };
 const CONTROLLERS = ['phone', 'webcam', 'mouse'].map(id => ({ id }));
+// testi dello stato della sfida senza server (natpf_p2p.js), per l'host e per il Player 2
+export function p2pStatusText(mode, status, error = null){
+  const host = mode === 'host';
+  switch (status){
+    case 'waiting': return 'In attesa del Player 2…';
+    case 'connected': return host ? 'Player 2 collegato ✓' : 'Collegato all’host ✓';
+    case 'lost': return host ? 'Player 2 scollegato: si ricollega da solo appena torna la rete' : 'Collegamento con l’host perso: mi ricollego…';
+    case 'connecting': return 'Mi collego all’host…';
+    case 'error': return error === 'stanza' ? 'Stanza non valida: chiedi all’host un nuovo link' : `Collegamento non disponibile (${error || 'rete'}): controlla la connessione a internet${host ? '' : ', riprovo da solo'}`;
+    case 'off': return 'Collegamento chiuso';
+    default: return 'Preparo il collegamento…';
+  }
+}
 const STEPS = ['collega', 'impugna', 'prova', 'verifica', 'pronto'];
 const PHONE_ERR = {
   denied: 'Sul telefono è stato negato l’accesso ai sensori di movimento. Su iPhone ricarica la pagina del telefono e tocca «Consenti»; su Android consenti «Sensori di movimento» dal lucchetto nella barra degli indirizzi.',
@@ -62,6 +75,8 @@ export class NatpfUi {
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){
       show($('natpf-guest-modal'));
+      // sfida senza server: stato del collegamento con l'host sotto il titolo
+      if (engine.natpfP2p?.mode === 'guest'){ $('natpf-guest-modal')?.querySelector('.sheet-desc')?.insertAdjacentHTML('afterend', '<p class="natpf-p2p-status" data-p2p-status></p>'); this._watchP2p(); }
       $('natpf-guest-go')?.addEventListener('click', () => { show($('natpf-guest-modal'), false); if (this.controller === 'phone' && !this.phone.ready) this.openPhone(); });
     }
     // la scelta salvata vale anche per motore base (webcam accesa all'avvio della partita)
@@ -235,12 +250,33 @@ export class NatpfUi {
   /* ---------- invito del Player 2 (1v1 tra due computer, relay del motore base) ---------- */
   async onRoomCreated(room){
     const box = $('natpf-invite'); if (!box || !room?.roomId) return;
-    // in LAN (lan/server.mjs) l'indirizzo di rete del computer al posto di localhost, con ?lan=1 (natpf_lan.js)
-    const { url, reachable } = await guestInviteUrl(room.roomId);
+    // in LAN (lan/server.mjs) l'indirizzo di rete del computer al posto di localhost, con ?lan=1 (natpf_lan.js);
+    // senza server (sito statico) la stanza vive in questo browser e il P2 si collega in WebRTC (natpf_p2p.js)
+    const p2p = room.net === 'p2p';
+    const { url, reachable } = await guestInviteUrl(room.roomId, { p2p, format: this.engine.matchFormat?.id });
     box.innerHTML = `<b>Player 2</b>: apri sull'altro computer <a href="${url}" target="_blank" rel="noopener">${url}</a> <button type="button" class="nt-pill-btn" data-copy>Copia</button>
+      ${p2p ? '<small class="natpf-p2p-status" data-p2p-status></small>' : ''}
       ${!reachable ? '<small>Il gioco è aperto da localhost: per un altro computer usa l’indirizzo di rete (avvia-lan.cmd lo mostra, es. https://192.168.x.x:8443).</small>' : ''}`;
     box.querySelector('[data-copy]')?.addEventListener('click', ev => { ev.stopPropagation(); navigator.clipboard?.writeText(url).then(() => { ev.target.textContent = 'Copiato ✓'; }).catch(() => {}); });
     show(box);
+    if (p2p) this._watchP2p();
+  }
+  // stato del collegamento senza server: nell'invito (host) e nel pannello del Player 2, con un avviso quando cambia
+  _watchP2p(){
+    const p2p = this.engine.natpfP2p; if (!p2p?.active) return;
+    const paint = () => {
+      const text = p2pStatusText(p2p.mode, p2p.status, p2p.error);
+      for (const el of document.querySelectorAll('[data-p2p-status]')){ el.textContent = text; el.dataset.state = p2p.status; }
+    };
+    paint();
+    if (this._p2pOff) return;
+    let last = p2p.status;
+    this._p2pOff = p2p.onStatus(s => {
+      paint();
+      // avviso solo sui cambi che contano (collegato / perso), non a ogni tentativo
+      if (s.status !== last && (s.status === 'connected' || s.status === 'lost')) this.toast(p2pStatusText(s.mode, s.status, s.error));
+      last = s.status;
+    });
   }
 
   /* ---------- pannello del telefono ---------- */

@@ -77,6 +77,19 @@ function bodyState(e) {
   }
   return out;
 }
+// NATPF: campi aggiunti al colpo del P2 perché l'host lo giochi come quello del P1 (natpf_phone_racket.js →
+// natpfSwingToEngine). Solo oggetti piccoli e una mano valida; senza questi campi il colpo resta quello del motore base.
+export function natpfSwingExtras(e = {}) {
+  const out = {};
+  if (e.natpf && typeof e.natpf === "object" && !Array.isArray(e.natpf)) {
+    try {
+      const j = JSON.stringify(e.natpf);
+      j.length <= 4096 && (out.natpf = JSON.parse(j));
+    } catch {}
+  }
+  (e.hand === "left" || e.hand === "right") && (out.hand = e.hand);
+  return out;
+}
 // publicUrl: indirizzo restituito nei link della stanza (stringa o funzione della richiesta). Il default è quello
 // originale del motore base; il server LAN passa l'indirizzo di rete del computer.
 export function createMatchRelay({ publicUrl = PUBLIC_URL } = {}) {
@@ -197,6 +210,8 @@ export function createMatchRelay({ publicUrl = PUBLIC_URL } = {}) {
           timestamp: Number(e.timestamp ?? s),
           serverTimeMs: s,
           source: String(e.source || "phone"),
+          // NATPF: dati del telefono del P2 (colpo speciale, mira, latenza, mano), solo se arrivano
+          ...natpfSwingExtras(e),
         };
         ((o.lastSwing = S),
           o.swingHistory.push(S),

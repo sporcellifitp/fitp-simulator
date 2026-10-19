@@ -1,5 +1,6 @@
 // NATPF: posa continua della mano dalla webcam (racchetta e braccio), vedi src/natpf/webcam_hand_pose.js
 import { WebcamHandTracker, handPoseFromLandmarks, handPoseFromFlow } from "./natpf/webcam_hand_pose.js";
+import { relayedNatpf } from "./natpf/natpf_skill.js";
 // NATPF: MediaPipe Hands dal pacchetto offline (npm @mediapipe/hands, servito sotto /assets/); CDN fissato solo di riserva
 export const MEDIAPIPE_LOCAL_BASE = "/assets/mediapipe/hands/";
 export const MEDIAPIPE_CDN_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/";
@@ -142,6 +143,7 @@ export class MotionController {
         roll: p,
         timing: e.timing || null,
         natpf: e.natpf || null, // NATPF: mira dal piatto del telefono e palla corta (natpf_phone_racket.js)
+        hand: e.hand || (e.natpf && e.natpf.hand) || null, // NATPF: mano di chi gioca (mancino), anche per l'host nel 1v1
         timestamp: e.timestamp || Date.now(),
       };
     if (
@@ -175,6 +177,9 @@ export class MotionController {
               pitch: h,
               roll: p,
               source: l.source,
+              // NATPF: colpo speciale, mira, latenza e mano del telefono del P2, per l'host come per il P1
+              ...(l.natpf ? { natpf: l.natpf } : {}),
+              ...(l.hand ? { hand: l.hand } : {}),
             }),
           })
             .then((r) => (r.ok ? r.json() : null))
@@ -295,6 +300,8 @@ export class MotionController {
         roll: h,
         timestamp: e.timestamp || Date.now(),
       };
+    // NATPF: dati del telefono del P2 (tipo di colpo, mira, latenza, mano), solo se sono arrivati
+    e.natpf && (s.natpf = e.natpf), e.hand && (s.hand = e.hand);
     return typeof this.onP2Swing == "function" && this.onP2Swing(s), s;
   }
   _emitP2Toss(e = {}) {
@@ -738,6 +745,9 @@ export class MotionController {
                       dirY: o.dirY ?? -0.45,
                       pitch: o.pitch,
                       roll: o.roll,
+                      // NATPF: con il tempo passato nel relay prima di questa lettura
+                      natpf: relayedNatpf(o),
+                      hand: o.hand,
                     });
               }
             } else

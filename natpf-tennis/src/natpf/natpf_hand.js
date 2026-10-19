@@ -37,7 +37,9 @@ export class NatpfHand {
     if (toss) engine._startServeToss = (actor) => { const r = toss(actor); mirrorBall(actor); return r; };
     const mc = engine.motionController;
     const emit = mc?._emitSwing?.bind(mc);
-    if (emit) mc._emitSwing = (e = {}) => {
+    if (emit) mc._emitSwing = (e0 = {}) => {
+      // la mano viaggia con il colpo: il colpo del Player 2 arriva all'host con la mano di chi gioca (1v1 tra due computer)
+      const e = e0.hand ? e0 : { ...e0, hand: this.hand };
       if (this.hand !== 'left' || e.type === 'toss' || ['SERVE_STANCE', 'SERVE_TOSS'].includes(engine.phase)) return emit(e);
       const a = engine.localActor;
       return emit({ ...e, side: leftySide(e, { ballX: engine.ball?.pos?.x || 0, actorX: a?.pos?.x || 0, facingNegativeZ: engine.playerRole !== 'p2' }) });
@@ -49,6 +51,12 @@ export class NatpfHand {
     const a = this.engine.localActor; if (!a?.root) return;
     const want = this.hand === 'left' ? -1 : 1;
     if (this.mirrored !== a || Math.sign(a.root.scale.x) !== want){ a.root.scale.x = Math.abs(a.root.scale.x || 1)*want; this.mirrored = a; }
+  }
+  // personaggio dell'altro giocatore (Player 2 visto dall'host): specchiato se è mancino
+  mirrorRemote(actor, hand){
+    if (!actor?.root || actor === this.engine.localActor) return;
+    const want = normalizeHand(hand) === 'left' ? -1 : 1;
+    if (Math.sign(actor.root.scale.x) !== want) actor.root.scale.x = Math.abs(actor.root.scale.x || 1)*want;
   }
   // ogni fotogramma: mano libera visibile solo al servizio, in prima persona
   update(firstPersonActor){

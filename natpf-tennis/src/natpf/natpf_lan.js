@@ -20,11 +20,20 @@ export function lanOrigin({ location = globalThis.location, fetchImpl = globalTh
 }
 
 // Link per il Player 2: stesso server, indirizzo di rete se il gioco è aperto da localhost, e ?lan=1 in LAN.
-export async function guestInviteUrl(roomId, { location = globalThis.location, fetchImpl } = {}){
+// p2p: sfida senza server (sito statico, natpf_p2p.js) → stessa pagina con ?net=p2p; format: formato scelto dall'host;
+// il server di segnalazione di prova (?peer=…) passa anche al P2.
+export async function guestInviteUrl(roomId, { location = globalThis.location, fetchImpl, p2p = false, format = null } = {}){
   const origin = (await lanOrigin({ location, fetchImpl })) || location.origin;
   const params = new URLSearchParams({ room: roomId, role: 'p2' });
   if (isLanMode()) params.set('lan', '1');
-  const url = `${origin}/?${params}`;
+  if (p2p){
+    params.set('net', 'p2p');
+    const peer = new URLSearchParams(location.search || '').get('peer'); if (peer) params.set('peer', peer);
+  }
+  if (format && format !== 'singles') params.set('format', format);
+  // sul sito pubblicato il gioco può stare in una sottocartella: stessa pagina dell'host
+  const path = p2p ? (location.pathname || '/') : '/';
+  const url = `${origin}${path}?${params}`;
   // reachable: un altro computer può aprirlo (non è localhost)
   return { url, reachable: !isLoopbackHost(new URL(url).hostname) };
 }
