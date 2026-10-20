@@ -57,6 +57,22 @@ export function resetRally(engine){ const s = skillState(engine); s.streak = 0; 
 export function leadToSweetSpot(r, velZ){ const v = Math.abs(finite(velZ)); return v > .5 ? Math.max(0, (-.1 - finite(r))/v) : 0; }
 // Swing anticipato in attesa: scade dopo la finestra della difficoltà (prima 0,48 s per tutti).
 export function assistExpiry(now, level){ return now + level.assistWindow; }
+// Un gesto, un solo swing a schermo. Prima: con un gesto in anticipo lo swing partiva subito e poi ripartiva da capo
+// quando la palla arrivava (due swing per un gesto, con uno scatto della racchetta); con un gesto in tempo la palla
+// partiva subito ma la racchetta arrivava al punto d'impatto dell'animazione ~0,1 s dopo. Ora:
+//   • gesto in anticipo: la racchetta si carica subito dal lato del colpo (risposta immediata) e resta carica finché
+//     la palla non arriva; lo swing parte al colpo vero;
+//   • colpo: l'animazione parte da poco prima dell'impatto (contactSkip della sua durata, l'impatto è al 34%), così
+//     racchetta e palla si toccano davvero nell'istante del colpo.
+export const SWING_VISUAL = Object.freeze({ contactSkip: .24, prepMargin: .2 });
+export function holdSwingPrep(actor, side, lead = 0){
+  if (!actor || (side !== 'forehand' && side !== 'backhand')) return;
+  (actor.userData || (actor.userData = {})).natpfPrep = { side, amount: 1, until: (globalThis.performance?.now?.() ?? Date.now()) + (Math.max(0, finite(lead)) + SWING_VISUAL.prepMargin)*1000 };
+}
+export function swingFromContact(state){
+  if (state && Number.isFinite(state.swingDuration)) state.swingElapsed = Math.max(state.swingElapsed || 0, SWING_VISUAL.contactSkip*state.swingDuration);
+  return state;
+}
 // Voto dello swing rilasciato allo sweet spot: «perfetto» solo con un anticipo piccolo, altrimenti «in anticipo».
 export function assistGrade(lead, level){
   const l = finite(lead, 0);

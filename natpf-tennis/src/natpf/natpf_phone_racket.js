@@ -336,7 +336,7 @@ export class NatpfPhoneRacket {
     // vib: vibrazione per esito (lunga = perfetto, breve = buono, doppia = errore); i telefoni senza supporto la ignorano
     const vib = quality ? VIBRATION[quality.color] : undefined;
     if (kind === 'hit') this.link.send({ t: 'ev', k: 'contact', label: /PERFECT|POWER/i.test(grade) ? 'perfetto' : /EARLY/i.test(grade) ? 'anticipo' : /LATE/i.test(grade) ? 'ritardo' : 'buono', shot, vib, out: quality?.label === 'Fuori' });
-    else if (kind === 'whiff') this.link.send({ t: 'ev', k: 'miss', why: 'tardi', vib: VIBRATION.red });
+    else if (kind === 'whiff') this.link.send({ t: 'ev', k: 'miss', why: /EARLY/i.test(grade) ? 'presto' : 'tardi', vib: VIBRATION.red });
     else if (kind === 'point_won' || kind === 'fault') this.link.send({ t: 'ev', k: 'point', mine: kind === 'point_won', txt: grade });
   }
 

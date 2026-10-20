@@ -1400,47 +1400,47 @@ export class NatpfTennisEngine {
             Math.abs(this.ball.pos.x - this.playerPartner.pos.x) < 3.4,
           r = h ? n : s;
         if (r < -0.95 && r >= -7.8) {
-          const l = h ? this.playerPartner : this.player;
-          this.racketKinematics &&
-            this.racketKinematics.triggerSwing(l, {
-              shotType: i,
-              side: t,
-              speed: Number(e.speed || 1.2),
-              timing: "early",
-              dirX: Number(e.dirX || 0),
-            }),
+          const l = h ? this.playerPartner : this.player, lead = NS.leadToSweetSpot(r, this.ball.vel.z);
+          // NATPF: un gesto, un solo swing (NS.SWING_VISUAL): la racchetta si carica subito dal lato del colpo, lo swing
+          // parte quando arriva la palla (prima partiva subito e ripartiva da capo al colpo)
+          NS.holdSwingPrep(l, t, lead),
             this.audioEngine && this.audioEngine.playSwingWhoosh(Number(e.speed || 1.15)),
             (this.pendingUserSwing = {
               // NATPF skill gap: attesa dello sweet spot breve e graduata per difficoltà (prima +0,48 s)
-              evt: { ...e, side: t, sweetSpotAssisted: !0, natpfLead: NS.leadToSweetSpot(r, this.ball.vel.z) },
+              evt: { ...e, side: t, sweetSpotAssisted: !0, natpfLead: lead },
               expiresAt: NS.assistExpiry(this.elapsedTime, NS.skillLevel(this.matchConfig.difficulty)),
               waitForSweetSpot: !0,
+              actor: l,
+              prep: !0,
             });
           return;
         }
       }
-      if (
-        !this._attemptPlayerRallyStrike({ ...e, side: t }, !1) &&
-        (this.racketKinematics &&
-          this.racketKinematics.triggerSwing(this.player, {
-            shotType: i,
-            side: t,
-            speed: Number(e.speed || 1.2),
-            timing: "sweet",
-            dirX: Number(e.dirX || 0),
-          }),
-        this.audioEngine && this.audioEngine.playSwingWhoosh(Number(e.speed || 1.15)),
-        this.ball.lastHitter === "opponent")
-      ) {
+      if (!this._attemptPlayerRallyStrike({ ...e, side: t }, !1)) {
         const s = this.ball.pos.z - this.player.pos.z,
-          n = this.ball.pos.z - this.playerPartner.pos.z;
-        ((s >= -8 && s <= 0.9) || (this.isDoubles && n >= -5.5 && n <= 0.9)) &&
-          (this.pendingUserSwing = {
-            // NATPF skill gap: come sopra
-            evt: { ...e, side: t, sweetSpotAssisted: !0, natpfLead: NS.leadToSweetSpot(s, this.ball.vel.z) },
-            expiresAt: NS.assistExpiry(this.elapsedTime, NS.skillLevel(this.matchConfig.difficulty)),
-            waitForSweetSpot: !0,
-          });
+          n = this.ball.pos.z - this.playerPartner.pos.z,
+          wait = this.ball.lastHitter === "opponent" && ((s >= -8 && s <= 0.9) || (this.isDoubles && n >= -5.5 && n <= 0.9));
+        this.audioEngine && this.audioEngine.playSwingWhoosh(Number(e.speed || 1.15));
+        // NATPF: palla in arrivo ma non ancora a portata → racchetta carica e swing al colpo (un solo swing); nessuna
+        // palla da prendere → lo swing a vuoto si vede subito
+        wait
+          ? (NS.holdSwingPrep(this.player, t, NS.leadToSweetSpot(s, this.ball.vel.z)),
+            (this.pendingUserSwing = {
+              // NATPF skill gap: come sopra
+              evt: { ...e, side: t, sweetSpotAssisted: !0, natpfLead: NS.leadToSweetSpot(s, this.ball.vel.z) },
+              expiresAt: NS.assistExpiry(this.elapsedTime, NS.skillLevel(this.matchConfig.difficulty)),
+              waitForSweetSpot: !0,
+              actor: this.player,
+              prep: !0,
+            }))
+          : this.racketKinematics &&
+            this.racketKinematics.triggerSwing(this.player, {
+              shotType: i,
+              side: t,
+              speed: Number(e.speed || 1.2),
+              timing: "sweet",
+              dirX: Number(e.dirX || 0),
+            });
       }
     }
   }
@@ -1709,14 +1709,17 @@ export class NatpfTennisEngine {
       this.racketKinematics)
     ) {
       const A = String(e.shotType || this.selectedShotType || "topspin").toLowerCase(),
-        G = d || A === "power" ? "smash" : A;
-      this.racketKinematics.triggerSwing(p, {
-        shotType: G,
-        side: d ? "overhead" : m ? "backhand" : "forehand",
-        speed: f,
-        timing: "sweet",
-        dirX: Number(e.dirX || 0),
-      });
+        G = d || A === "power" ? "smash" : A,
+        st = this.racketKinematics.triggerSwing(p, {
+          shotType: G,
+          side: d ? "overhead" : m ? "backhand" : "forehand",
+          speed: f,
+          timing: "sweet",
+          dirX: Number(e.dirX || 0),
+        });
+      // NATPF: colpo di chi gioca → l'animazione parte da poco prima dell'impatto (NS.SWING_VISUAL), la racchetta
+      // tocca la palla nell'istante del colpo; la carica del gesto anticipato finisce qui
+      t || (NS.swingFromContact(st), p.userData && (p.userData.natpfPrep = null));
     }
     if ((this.audioEngine && this.audioEngine.playSwingWhoosh(f), y > (l ? 4.05 : 4.85) && !t)) {
       if (g > 1.45) {
@@ -2675,8 +2678,12 @@ export class NatpfTennisEngine {
           });
         }
         if (this.pendingUserSwing)
-          if (this.elapsedTime > this.pendingUserSwing.expiresAt) this.pendingUserSwing = null;
-          else {
+          if (this.elapsedTime > this.pendingUserSwing.expiresAt) {
+            // NATPF: gesto troppo in anticipo, la palla non è arrivata in tempo: lo swing a vuoto si vede e si sente
+            // (prima il gesto spariva senza nessun segno, dopo una racchetta che si caricava e basta)
+            const ps = this.pendingUserSwing;
+            (this.pendingUserSwing = null), ps.prep && this._natpfEarlyWhiff(ps);
+          } else {
             const p = h === this.playerPartner ? 3.95 : 4.65;
             if (
               (!this.pendingUserSwing.waitForSweetSpot || (r >= -0.85 && r <= 0.65)) &&
@@ -2702,6 +2709,18 @@ export class NatpfTennisEngine {
         }
       }
     }
+  }
+  // NATPF: swing a vuoto di un gesto troppo in anticipo (lo swing in attesa è scaduto prima che arrivasse la palla)
+  _natpfEarlyWhiff(ps) {
+    const a = ps.actor || this.player, ev = ps.evt || {};
+    a.userData && (a.userData.natpfPrep = null);
+    this.racketKinematics &&
+      this.racketKinematics.triggerSwing(a, { shotType: String(ev.shotType || "topspin").toLowerCase(), side: ev.side, speed: Number(ev.speed || 1.15), timing: "early", dirX: Number(ev.dirX || 0) });
+    const G = this._projectToScreen(a.pos.clone().add(new o.Vector3(0, 2.35, 0)));
+    this.hud.showTimingPopup({ grade: "VERY EARLY \u2022 WHIFF", detail: "TOO EARLY", screenPos: G, durationMs: 750 }),
+      this.motionController &&
+        this.motionController.triggerHapticFeedback &&
+        this.motionController.triggerHapticFeedback({ role: "p1", kind: "whiff", grade: "VERY EARLY \u2022 WHIFF", shotType: this.selectedShotType || "TOPSPIN", speedKmh: 0, intensity: 0.65 });
   }
   _stepActorFootwork(e, t) {
     const i = e.targetPos.x - e.pos.x,

@@ -135,7 +135,7 @@ export class NatpfUi {
     const q = this.shot.onLocalFeedback(e);
     this.diag?.onFeedback(e, q);
     if (q && e.kind === 'hit'){ this.training.onShot(q); this.events.onShot(q, e); }
-    else if (e.kind === 'fault' && /VERY (EARLY|LATE)/.test(e.grade || '')) this.training.onMistime(/EARLY/.test(e.grade));
+    else if ((e.kind === 'fault' || e.kind === 'whiff') && /VERY (EARLY|LATE)|WHIFF/.test(e.grade || '')) this.training.onMistime(/EARLY/.test(e.grade));
     return q;
   }
   // game vinti dentro il tabellone (al posto delle caselle negli angoli)

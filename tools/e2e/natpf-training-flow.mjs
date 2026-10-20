@@ -120,16 +120,19 @@ try {
   await shot('3-pronto');
   // primo esercizio (Dritto, 2 colpi): palla vera dal lanciapalle, il computer dice «Ora» quando la palla è vicina
   const drill = [];
+  if (process.env.DEBUG) await game.evaluate(() => { const E = __natpfTennis; window.__sw = []; const h = E._handleUserSwingInput.bind(E); E._handleUserSwingInput = ev => { const r = E.ball.pos.z - E.player.pos.z; __sw.push({ r: +r.toFixed(2), lead: +((-.1 - r)/Math.max(.5, E.ball.vel.z)).toFixed(3), y: +E.ball.pos.y.toFixed(2), vz: +E.ball.vel.z.toFixed(1), b: E.ball.bounceCountOnCurrentSide, px: +E.player.pos.x.toFixed(2), bx: +E.ball.pos.x.toFixed(2), lat: ev.natpf?.latency }); h(ev); __sw.at(-1).pending = !!E.pendingUserSwing; __sw.at(-1).exp = E.pendingUserSwing ? +(E.pendingUserSwing.expiresAt - E.elapsedTime).toFixed(3) : null; __sw.at(-1).diff = E.matchConfig.difficulty; }; const w = E._natpfEarlyWhiff.bind(E); E._natpfEarlyWhiff = ps => { __sw.push({ whiff: true, r: +(E.ball.pos.z - E.player.pos.z).toFixed(2), vz: +E.ball.vel.z.toFixed(1), y: +E.ball.pos.y.toFixed(2), dist: +Math.hypot(E.ball.pos.x - E.player.pos.x, E.ball.pos.z - E.player.pos.z).toFixed(2), phase: E.phase }); w(ps); }; });
   for (let k = 0; k < 4 && drill.filter(d => d.ok).length < 2; k++){
     const hot = await game.waitForFunction(() => { const T = __natpfTennis.natpfUi.training; return T.active && !T.cal && T.drill?.id === 'forehand' && document.getElementById('coach-main').dataset.state === 'go' ? { cue: document.getElementById('coach-cue').dataset.dir, title: document.getElementById('coach-text').textContent } : null; }, null, { timeout: 15000, polling: 20 }).then(h => h.jsonValue(), () => null);
     if (!hot) break;
     if (k === 0) await shot('4-esercizio-dritto');
     const before = await game.evaluate(() => __natpfTennis.natpfUi.training.progress.done);
-    await phone.evaluate(() => { window.__busy = true; return __up.swing(1).then(() => { window.__busy = false; }); });
+    // tempo di reazione di una persona al segnale «Ora» (~0,25 s), poi il gesto (picco a metà, dopo 120 ms)
+    await phone.evaluate(() => { window.__busy = true; return new Promise(r => setTimeout(r, 250)).then(() => __up.swing(1)).then(() => { window.__busy = false; }); });
     const res = await game.waitForFunction(b => { const T = __natpfTennis.natpfUi.training; return T.progress.done > b || T.drill?.id !== 'forehand' || T.progress.tries > 0 ? { done: T.progress.done, tries: T.progress.tries, drill: T.drill?.id, flash: T.flash?.text } : null; }, before, { timeout: 6000, polling: 50 }).then(h => h.jsonValue(), () => null);
     drill.push({ ...hot, ok: !!res && (res.done > before || res.drill !== 'forehand'), res });
     await game.waitForTimeout(400);
   }
+  if (process.env.DEBUG) console.log(JSON.stringify(await game.evaluate(() => __sw)));
   check('esercizio «Dritto»: freccia ← sul computer, «Ora» quando la palla arriva, colpi contati', drill.filter(d => d.ok).length >= 2 && drill.every(d => d.cue === 'L' && /Dritto/i.test(d.title)), JSON.stringify(drill));
   const tl = await game.evaluate(() => __tl), ptl = await phone.evaluate(() => __tl);
   const cals = await game.evaluate(() => __cals);

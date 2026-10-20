@@ -19,6 +19,7 @@ export function landsIn(target, { towardNegativeZ = true, serve = false } = {}){
 // grade del motore (es. «PERFECT • FOREHAND TOPSPIN», «POWER SERVE!», «EARLY SERVE», «TOO LATE! • WHIFF») → esito
 export function shotQuality(grade = '', { inCourt = true } = {}){
   const g = String(grade).toUpperCase();
+  if (/WHIFF/.test(g) && /EARLY/.test(g)) return { color: 'red', label: 'Troppo presto' };
   if (/WHIFF|TOO LATE/.test(g)) return { color: 'red', label: 'Mancata' };
   if (!inCourt) return { color: 'red', label: 'Fuori' };
   if (/PERFECT|POWER/.test(g)) return { color: 'green', label: 'Perfetto' };
@@ -75,7 +76,7 @@ export class NatpfShotFeedback {
   // dal giro dell'aptica: kind «hit»/«whiff» del giocatore locale; restituisce l'esito (anche per il telefono)
   onLocalFeedback({ kind, grade } = {}){
     const e = this.engine, towardNegativeZ = e.playerRole !== 'p2';
-    if (kind === 'whiff'){ const q = shotQuality('WHIFF'); this.pending = q; return q; }
+    if (kind === 'whiff'){ const q = shotQuality(/EARLY/i.test(grade || '') ? grade : 'WHIFF'); this.pending = q; return q; }
     if (kind !== 'hit') return null;
     const serve = /SERVE/i.test(grade), target = e.ball?.targetLanding;
     const q = shotQuality(grade, { inCourt: landsIn(target, { towardNegativeZ, serve }) });
