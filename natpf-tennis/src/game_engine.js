@@ -1517,39 +1517,40 @@ export class NatpfTennisEngine {
       if (this.ball.lastHitter === "player") {
         const s = this.opponent.pos.z - this.ball.pos.z;
         if (s < -0.95 && s >= -7.8) {
-          this.racketKinematics &&
-            this.racketKinematics.triggerSwing(this.opponent, {
-              shotType: i,
-              side: t,
-              speed: Number(e.speed || 1.2),
-              timing: "early",
-              dirX: Number(e.dirX || 0),
-            }),
+          // NATPF: un gesto, un solo swing anche per il Player 2 (come per il P1, NS.SWING_VISUAL)
+          NS.holdSwingPrep(this.opponent, t, NS.leadToSweetSpot(s, this.ball.vel.z)),
             (this.pendingP2Swing = {
               // NATPF skill gap: attesa dello sweet spot breve anche per il Player 2
               evt: { ...e, side: t, sweetSpotAssisted: !0, natpfLead: NS.leadToSweetSpot(s, this.ball.vel.z) },
               expiresAt: NS.assistExpiry(this.elapsedTime, NS.skillLevel("1v1")),
               waitForSweetSpot: !0,
+              actor: this.opponent,
+              prep: !0,
             });
           return;
         }
       }
-      this._attemptP2RallyStrike({ ...e, side: t }) ||
-        (this.racketKinematics &&
-          this.racketKinematics.triggerSwing(this.opponent, {
-            shotType: i,
-            side: t,
-            speed: Number(e.speed || 1.2),
-            timing: "sweet",
-            dirX: Number(e.dirX || 0),
-          }),
-        this.ball.lastHitter === "player" &&
-          (this.pendingP2Swing = {
-            // NATPF skill gap: come sopra
-            evt: { ...e, side: t, sweetSpotAssisted: !0, natpfLead: NS.leadToSweetSpot(this.opponent.pos.z - this.ball.pos.z, this.ball.vel.z) },
-            expiresAt: NS.assistExpiry(this.elapsedTime, NS.skillLevel("1v1")),
-            waitForSweetSpot: !0,
-          }));
+      if (!this._attemptP2RallyStrike({ ...e, side: t })) {
+        const wait = this.ball.lastHitter === "player";
+        wait
+          ? (NS.holdSwingPrep(this.opponent, t, NS.leadToSweetSpot(this.opponent.pos.z - this.ball.pos.z, this.ball.vel.z)),
+            (this.pendingP2Swing = {
+              // NATPF skill gap: come sopra
+              evt: { ...e, side: t, sweetSpotAssisted: !0, natpfLead: NS.leadToSweetSpot(this.opponent.pos.z - this.ball.pos.z, this.ball.vel.z) },
+              expiresAt: NS.assistExpiry(this.elapsedTime, NS.skillLevel("1v1")),
+              waitForSweetSpot: !0,
+              actor: this.opponent,
+              prep: !0,
+            }))
+          : this.racketKinematics &&
+            this.racketKinematics.triggerSwing(this.opponent, {
+              shotType: i,
+              side: t,
+              speed: Number(e.speed || 1.2),
+              timing: "sweet",
+              dirX: Number(e.dirX || 0),
+            });
+      }
     }
   }
   _startServeToss(e) {
@@ -1969,14 +1970,16 @@ export class NatpfTennisEngine {
       this.racketKinematics)
     ) {
       const C = String(e.shotType || m || "topspin").toLowerCase(),
-        V = d || C === "power" ? "smash" : C;
-      this.racketKinematics.triggerSwing(l, {
-        shotType: V,
-        side: d ? "overhead" : f ? "backhand" : "forehand",
-        speed: y,
-        timing: "sweet",
-        dirX: Number(e.dirX || 0),
-      });
+        V = d || C === "power" ? "smash" : C,
+        st = this.racketKinematics.triggerSwing(l, {
+          shotType: V,
+          side: d ? "overhead" : f ? "backhand" : "forehand",
+          speed: y,
+          timing: "sweet",
+          dirX: Number(e.dirX || 0),
+        });
+      // NATPF: come per il P1, racchetta sulla palla nell'istante del colpo
+      NS.swingFromContact(st), l.userData && (l.userData.natpfPrep = null);
     }
     if ((this.audioEngine && this.audioEngine.playSwingWhoosh(y), c > (r ? 4.05 : 4.85)))
       return (
@@ -2594,7 +2597,13 @@ export class NatpfTennisEngine {
             });
           }
           if (this.pendingP2Swing)
-            if (this.elapsedTime > this.pendingP2Swing.expiresAt) this.pendingP2Swing = null;
+            if (this.elapsedTime > this.pendingP2Swing.expiresAt) {
+              // NATPF: gesto del P2 troppo in anticipo: swing a vuoto visibile (come per il P1)
+              const ps = this.pendingP2Swing;
+              (this.pendingP2Swing = null),
+                ps.prep && ps.actor && (ps.actor.userData && (ps.actor.userData.natpfPrep = null),
+                this.racketKinematics && this.racketKinematics.triggerSwing(ps.actor, { shotType: String(ps.evt?.shotType || "topspin").toLowerCase(), side: ps.evt?.side, speed: Number(ps.evt?.speed || 1.15), timing: "early", dirX: Number(ps.evt?.dirX || 0) }));
+            }
             else {
               const p = h === this.opponentPartner ? 3.95 : 4.65;
               if (r >= -0.85 && r <= 0.65 && Math.hypot(l, r) <= p && this.ball.pos.y < 3.4) { // NATPF: palle alte anche per il P2, come per il P1 (prima 2,35 m)
