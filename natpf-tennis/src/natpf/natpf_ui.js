@@ -11,6 +11,7 @@ import { NatpfPause } from './natpf_pause.js';
 import { NatpfShotFeedback } from './natpf_shot_feedback.js';
 import { NatpfHand } from './natpf_hand.js';
 import { NatpfTraining } from './natpf_training.js';
+import { NatpfGestureHud } from './natpf_gesture_hud.js';
 import { NatpfDiag } from './natpf_diag.js';
 import { NatpfIntro } from './natpf_intro.js';
 import { NatpfEvents } from './natpf_events.js';
@@ -60,6 +61,7 @@ export class NatpfUi {
     this.hand = new NatpfHand(engine);
     this.shot = new NatpfShotFeedback(engine);
     this.training = new NatpfTraining(engine, this);
+    this.gesture = new NatpfGestureHud(engine, this);   // etichetta del gesto: rilevato, letto, applicato
     this.events = new NatpfEvents(engine, this);      // sfide per gli eventi (dopo il riscaldamento: ne avvolge i punti)
     // diagnostica (Maiusc+D o ?diag=1): prima del menu, così il suo tasto arriva anche con il menu aperto
     this.diag = new NatpfDiag(engine, this);
@@ -128,12 +130,13 @@ export class NatpfUi {
     const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen || this.engine.natpfVersusWait;
     this.engine.natpfPaused = !!busy && !this.engine.autoPlayMode && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(this.engine.phase);
   }
-  tick(dt = 1/60){ this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); }
+  tick(dt = 1/60){ this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.gesture.update(dt); }
   // esito dei colpi del giocatore locale: anello colorato, allenamento; il valore torna al telefono (vibrazione)
   feedback(e = {}){
     if ((e.role || 'p1') !== this.engine.playerRole) return null;
     const q = this.shot.onLocalFeedback(e);
     this.diag?.onFeedback(e, q);
+    this.gesture?.onFeedback(e, q);
     if (q && e.kind === 'hit'){ this.training.onShot(q); this.events.onShot(q, e); }
     else if ((e.kind === 'fault' || e.kind === 'whiff') && /VERY (EARLY|LATE)|WHIFF/.test(e.grade || '')) this.training.onMistime(/EARLY/.test(e.grade));
     return q;

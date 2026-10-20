@@ -689,3 +689,78 @@ body {
     animation: none !important;
   }
 }
+
+/* ---------- etichetta del gesto (natpf_gesture_hud.js): rilevato → letto → applicato ---------- */
+.natpf-gesture {
+  position: fixed;
+  left: 50%;
+  bottom: max(18px, 3vh);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px 6px 8px;
+  border-radius: 999px;
+  background: rgba(7, 18, 51, 0.86);
+  box-shadow: inset 0 0 0 2px rgba(166, 182, 220, 0.4);
+  color: #f3f6fb;
+  font-family: "Bahnschrift", "DIN Alternate", "Barlow Semi Condensed", "Arial Narrow", "Segoe UI", system-ui, sans-serif;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.natpf-gesture.hidden {
+  display: none;
+}
+.natpf-gesture b {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e8ff3a;
+  color: #071233;
+  font-size: 22px;
+  line-height: 1;
+}
+.natpf-gesture span {
+  display: grid;
+  line-height: 1.15;
+}
+.natpf-gesture i {
+  font-style: italic;
+  font-weight: 800;
+  font-size: 18px;
+  text-transform: uppercase;
+}
+.natpf-gesture small {
+  color: #a6b6dc;
+  font-size: 13px;
+}
+.natpf-gesture[data-state="wait"] {
+  box-shadow: inset 0 0 0 2px #ffd23f;
+}
+.natpf-gesture[data-state="ok"] {
+  box-shadow: inset 0 0 0 2px #3be37f;
+}
+.natpf-gesture[data-state="ok"] small {
+  color: #3be37f;
+}
+.natpf-gesture[data-state="mid"] small {
+  color: #ffd23f;
+}
+.natpf-gesture[data-state="bad"] {
+  box-shadow: inset 0 0 0 2px #ff4d5e;
+}
+.natpf-gesture[data-state="bad"] small {
+  color: #ff4d5e;
+}
+.natpf-gesture[data-state="ignored"] {
+  opacity: 0.75;
+}
+.natpf-gesture[data-state="ignored"] b {
+  background: rgba(166, 182, 220, 0.4);
+}
+/* nel riscaldamento sta sopra il pannello dell'allenatore */
+body.natpf-training .natpf-gesture {
+  bottom: calc(max(16px, 3.5vh) + 132px);
+}

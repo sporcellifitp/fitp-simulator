@@ -13,7 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
-import { launch, page, check, summary } from './th.mjs';
+import { launch, page, check, summary, SP } from './th.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
 const PEER_PORT = +(process.env.PEER_PORT || 9110), GAME_PORT = +(process.env.GAME_PORT || 3110);
@@ -42,7 +42,8 @@ const B = await launch();
 try {
   const { p: game, errs: gameErrs } = await page(B, `http://127.0.0.1:${GAME_PORT}/?intro=0&peer=127.0.0.1:${PEER_PORT}`, { w: 1280, h: 720 });
   await game.waitForFunction(() => window.__natpfTennis?.natpfPhone && window.__natpfTennis.natpfUi && window.__natpfTennis.player?.model, null, { timeout: 120000 });
-  await game.evaluate(() => { __natpfTennis.render = () => {}; });
+  await game.evaluate(() => { const E = __natpfTennis; E.__render = E.render.bind(E); E.render = () => {}; });
+  const shot = async name => { if (process.env.SHOTS !== '1') return; await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/latency-${name}.png` }); };
   await game.evaluate(() => { __natpfTennis.natpfUi.selectController('phone', { open: false }); return __natpfTennis.natpfPhone.start(); });
   await game.waitForFunction(() => __natpfTennis.natpfPhone.link?.L.state === 'waiting' && __natpfTennis.natpfPhone.pairingUrl, null, { timeout: 30000 });
   const url = await game.evaluate(() => __natpfTennis.natpfPhone.pairingUrl);
@@ -61,7 +62,10 @@ try {
   await game.evaluate(() => {
     const E = __natpfTennis, abs = () => performance.timeOrigin + performance.now();
     E.natpfUi.onboarding?.close?.(); E.hud.hideTitleModal(); E.autoPlayMode = false; E.userHasInteracted = true;
-    window.__got = []; window.__anim = []; window.__strikes = []; window.__prep = [];
+    window.__got = []; window.__anim = []; window.__strikes = []; window.__prep = []; window.__chip = [];
+    // etichetta del gesto: ogni cambio di stato (letto → in attesa → esito)
+    const chip = document.getElementById('natpf-gesture');
+    new MutationObserver(() => { if (!chip.classList.contains('hidden')) __chip.push({ at: abs(), state: chip.dataset.state, text: chip.textContent }); }).observe(chip, { attributes: true, subtree: true, childList: true, characterData: true });
     // racchetta che si carica (gesto in anticipo): è la risposta immediata a schermo
     const ud = E.player.userData || (E.player.userData = {}); let np = ud.natpfPrep || null;
     Object.defineProperty(ud, 'natpfPrep', { configurable: true, get: () => np, set: v => { if (v && !np) __prep.push({ at: abs(), side: v.side }); np = v; } });
@@ -81,16 +85,17 @@ try {
   for (const lead of [0, .05, .15, .25, 0, .1]){
     const n0 = await phone.evaluate(() => __sent.length);
     // il gesto dura 240 ms con il picco a metà: la palla si lancia in modo da trovarsi a lead + 120 ms dallo sweet spot
-    await game.evaluate(l => { __anim.length = 0; __strikes.length = 0; __got.length = 0; __prep.length = 0; __serveBall(l + .12); }, lead);
-    await phone.evaluate(() => { return __up.swing(1).then(() => __up.still(900)); });
+    await game.evaluate(l => { __anim.length = 0; __strikes.length = 0; __got.length = 0; __prep.length = 0; __chip.length = 0; __serveBall(l + .12); }, lead);
+    if (lead === .15 && process.env.SHOTS === '1'){ await phone.evaluate(() => __up.swing(1)); await game.waitForTimeout(150); await shot('esito'); await phone.evaluate(() => __up.still(900)); }
+    else await phone.evaluate(() => { return __up.swing(1).then(() => __up.still(900)); });
     await game.waitForTimeout(300);
-    const sent = await phone.evaluate(n => __sent[n] || null, n0), g = await game.evaluate(() => ({ got: __got[0] || null, anim: [...__anim], strikes: [...__strikes], prep: [...__prep] }));
+    const sent = await phone.evaluate(n => __sent[n] || null, n0), g = await game.evaluate(() => ({ got: __got[0] || null, anim: [...__anim], strikes: [...__strikes], prep: [...__prep], chip: [...new Set(__chip.map(c => c.state))] }));
     if (process.env.DEBUG) console.log(JSON.stringify({ lead, sent, g }));
     if (!sent || !g.got){ rows.push({ lead, lost: true }); continue; }
     const firstAnim = g.anim[0]?.at, strike = g.strikes.find(s => s.ok)?.at, response = Math.min(firstAnim ?? Infinity, g.prep[0]?.at ?? Infinity);
     rows.push({ lead, detect: +(sent.fire - sent.peak).toFixed(1), deliver: +(g.got.at - sent.sent).toFixed(1), engine: Number.isFinite(response) ? +(response - g.got.at).toFixed(1) : null,
       ballWait: strike && Number.isFinite(response) ? +(strike - response).toFixed(1) : null, total: Number.isFinite(response) ? +(response - sent.peak).toFixed(1) : null, swings: g.anim.length, prep: g.prep.length, hit: !!strike,
-      swingAtStrike: strike && firstAnim ? +(firstAnim - strike).toFixed(1) : null });
+      swingAtStrike: strike && firstAnim ? +(firstAnim - strike).toFixed(1) : null, chip: g.chip, chipAt: (() => { const c = (g.chip.length ? g.chip : null); return c; })() });
   }
   console.log('anticipo (s) · rilevamento · consegna · motore · picco→risposta a schermo · attesa della palla (ms) · risposta · swing · colpo');
   for (const r of rows) console.log(r.lost ? `${r.lead} perso` : `${r.lead} · ${r.detect} · ${r.deliver} · ${r.engine} · ${r.total} · ${r.ballWait} · ${r.prep ? 'racchetta carica' : 'swing'} · ${r.swings} · ${r.hit ? 'sì' : 'no'}`);
@@ -99,6 +104,13 @@ try {
   check('un gesto, una sola animazione dello swing (niente secondo swing quando arriva la palla)', ok.every(r => r.swings === 1), JSON.stringify(ok.map(r => r.swings)));
   check('dal picco del gesto alla risposta a schermo (racchetta carica o swing): meno di 100 ms (senza il disegno)', ok.every(r => r.total != null && r.total < 100), JSON.stringify(ok.map(r => r.total)));
   check('lo swing parte nell’istante del colpo (entro 20 ms)', ok.every(r => r.swingAtStrike != null && Math.abs(r.swingAtStrike) < 20), JSON.stringify(ok.map(r => r.swingAtStrike)));
+  // etichetta del gesto: compare (gesto letto), in anticipo dice «aspetta la palla», poi l'esito del colpo
+  check('etichetta del gesto: letto, in attesa se in anticipo, poi l’esito', ok.every(r => r.chip.length && /ok|mid|bad/.test(r.chip.at(-1)) && (!r.prep || r.chip.includes('wait'))), JSON.stringify(ok.map(r => r.chip)));
+  // gesto con la palla che si allontana: ignorato, e l'etichetta lo dice
+  await game.evaluate(() => { const E = __natpfTennis; __chip.length = 0; E.ball.lastHitter = 'player'; E.ball.pos.set(0, 1, 5); E.ball.vel.set(0, 0, -16); E.phase = 'RALLY'; E.ball.inPlay = true; });
+  await phone.evaluate(() => __up.swing(1).then(() => __up.still(600)));
+  const ign = await game.evaluate(() => __chip.at(-1) || null);
+  check('gesto con la palla già colpita: etichetta «Gesto ignorato» e il motivo', ign?.state === 'ignored' && /ignorato/i.test(ign.text), JSON.stringify(ign));
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));
 } finally {
   await B.close(); stop();
