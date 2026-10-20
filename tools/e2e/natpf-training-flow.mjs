@@ -152,13 +152,21 @@ try {
   const calSamples = tl.filter(s => s.cal), xs = calSamples.map(s => s.px);
   const travel = xs.length ? Math.max(...xs) - Math.min(...xs) : 0;
   check('durante la calibrazione il giocatore non corre da un lato all’altro', travel < .8, `escursione ${travel.toFixed(2)} m`);
-  // stesso gesto chiesto dai due schermi: freccia del telefono uguale a quella del computer quando il computer chiede
-  const at = t => ptl.reduce((a, s) => s.t <= t ? s : a, ptl[0]);
-  // (campioni presi ogni 100 ms nelle due pagine: discorde solo se lo è sia il campione del telefono prima sia quello dopo)
-  const after = t => ptl.find(s => s.t >= t);
+  // stesso gesto chiesto dai due schermi: freccia del telefono uguale a quella del computer quando il computer chiede.
+  // Il telefono cambia gesto appena lo riconosce, il computer quando arriva il messaggio: campioni presi ogni 100 ms
+  // nelle due pagine, discorde solo se nessun campione del telefono entro 150 ms mostra la stessa freccia (prima: il
+  // campione subito prima e quello subito dopo, che con la macchina carica cadevano nei 5–25 ms del messaggio)
   const differs = (p, s) => p && p.arrow && p.arrow !== (s.want === 'L' ? '←' : '→');
-  const mismatch = asking.filter(s => s.want && differs(at(s.t), s) && differs(after(s.t), s));
-  check('telefono e computer chiedono lo stesso gesto nello stesso momento', asking.length > 0 && mismatch.length === 0, `${mismatch.length} campioni discordi`);
+  const near = t => ptl.filter(p => Math.abs(p.t - t) <= 150 && p.arrow);
+  const mismatch = asking.filter(s => s.want && near(s.t).length && near(s.t).every(p => differs(p, s)));
+  // ritardo tra i due schermi a ogni cambio di gesto: primo campione del telefono con il gesto nuovo → primo campione
+  // del computer con lo stesso gesto (risoluzione 100 ms)
+  const lags = [];
+  for (let i = 1; i < ptl.length; i++){
+    const a = ptl[i - 1].idx, b = ptl[i].idx; if (!(b > a) || ptl[i].step !== 'swings') continue;
+    const pc = tl.find(s => s.t >= ptl[i - 1].t && s.cal && s.idx === b); if (pc) lags.push(Math.max(0, pc.t - ptl[i].t));
+  }
+  check('telefono e computer chiedono lo stesso gesto nello stesso momento', asking.length > 0 && mismatch.length === 0, `${mismatch.length} campioni discordi · ritardo del computer sul telefono ai cambi di gesto: ${lags.map(x => x + ' ms').join(', ') || '—'}`);
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));
 } finally {
   await B.close(); stop();
