@@ -165,7 +165,9 @@ try {
       console.log(`P2: ${inviteUrl.hostname} non raggiungibile da questo browser (${String(err.message).split('\n')[0]}), uso ${local.host}`);
       p2 = await openGame(p2Ctx, local.href, 'P2');
     }
-    await p2.evaluate(() => { __natpfTennis.setViewMode('first'); document.querySelector('#natpf-guest-go')?.click(); });
+    // racchetta di prova (mouse) prima di «Sono pronto», come in natpf-1v1-p2p.mjs: con il telefono (predefinito) e nessun
+    // telefono collegato si aprirebbe il suo pannello e il P2, in pausa, non manderebbe colpi
+    await p2.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.testInput = true; ui.selectController('mouse', { open: false }); __natpfTennis.setViewMode('first'); document.querySelector('#natpf-guest-go')?.click(); });
     check('P2 entra nella stanza come guest', await p2.evaluate(() => __natpfTennis.playerRole === 'p2' && __natpfTennis.isMultiplayer));
     await p1.evaluate(() => {
       const e = __natpfTennis, mc = e.motionController, f = mc.onP2Swing;

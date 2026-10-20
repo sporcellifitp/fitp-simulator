@@ -90,6 +90,7 @@ export class NatpfUi {
       if (this.lobby?.visible || this.engine.autoPlayMode || this.training?.active) return;
       if (this.modal?.classList.contains('hidden')) this.openPhone();
     });
+    this.phone.onChange(() => this._watchPhoneDrop());
     $('btn-natpf-view')?.addEventListener('click', e => { e.stopPropagation(); this.engine.setViewMode(this.engine.viewMode === 'first' ? 'third' : 'first'); });
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){
@@ -329,6 +330,24 @@ export class NatpfUi {
     show(this.modal); this.paintPhone(); this._syncPause();
   }
   closePhone(){ show(this.modal, false); this._syncPause(); }
+  // Telefono che cade in campo (rete persa, schermo spento) a partita, esercizi o sfida in corso: prima il gioco andava
+  // avanti e i colpi si perdevano senza avviso. Se non torna entro mezzo secondo (un ricollegamento normale dura meno)
+  // si apre il pannello del telefono, che mette in pausa e dice come ricollegarlo; quando il telefono è di nuovo pronto il
+  // pannello aperto così si chiude da solo e si riprende. In calibrazione il campo è già fermo e lo dice il pannello in campo
+  _watchPhoneDrop(){
+    const ready = this.phone.ready, was = this.phoneWasReady; this.phoneWasReady = ready;
+    if (ready){
+      clearTimeout(this.dropT); this.dropT = null;
+      if (this.phoneDropOpened){ this.phoneDropOpened = false; if (!this.modal?.classList.contains('hidden')){ this.closePhone(); this.toast('Telefono di nuovo collegato: si riprende'); } }
+      return;
+    }
+    if (!was || this.dropT) return;
+    this.dropT = setTimeout(() => {
+      this.dropT = null;
+      const inField = this.controller === 'phone' && !this.lobby?.visible && !this.engine.autoPlayMode && !(this.training?.active && this.training.cal);
+      if (!this.phone.ready && inField && this.modal?.classList.contains('hidden')){ this.phoneDropOpened = true; this.openPhone(); }
+    }, 500);
+  }
   _bindPhoneModal(){
     const on = (id, fn) => $(id)?.addEventListener('click', e => { e.stopPropagation(); fn(); });
     on('natpf-phone-close', () => { const after = this.afterReady; this.afterReady = null; this.closePhone(); if (after && this.phone.ready) after(); });

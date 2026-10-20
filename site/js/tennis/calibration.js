@@ -281,6 +281,18 @@ export function createCalibration(det){
       return this.confirm();
     },
     confirm(){ if (!S.profile) return null; det.setProfile(S.profile); det.setTraining(false); S.step = 'done'; emit({ kind: 'done', profile: S.profile }); return S.profile; },
+    // eventi che descrivono il passo attuale (senza mandarli), per chi si ricollega a calibrazione in corso: dopo una
+    // caduta del collegamento gli eventi fatti nel frattempo sono andati persi e il computer riparte da questi
+    replay(){
+      const step = S.step;
+      if (step === 'still' || step === 'grip') return [{ kind: 'step', step }];
+      if (guided()){
+        const want = step === 'swings' ? plan()[S.idx] : GESTURE_PLAN[S.idx]?.want ?? null;
+        return [{ kind: 'step', step, want, shot: 'drive', idx: S.idx, total: total() }, ...(S.ready ? [{ kind: 'ready', step, want }] : [])];
+      }
+      if ((step === 'review' || step === 'free') && S.result) return [{ kind: 'review', step: 'review', ...S.result }];
+      return [];
+    },
     touch(dir = 0, power = .65, shot = 'drive'){ if (S.step !== 'free' || S.profile?.input !== 'touch') return; S.practice++; emit({ kind: 'free', dir: dir > 0 ? 'L' : dir < 0 ? 'R' : '?', dirValue: dir, power, strength: power/.75, peak: power*600, ok: true, shot }); },
     invert(){ if (!S.profile || !S.axis) return; S.axis = S.axis.map(v => -v); S.profile.axis = S.axis; const swap = o => o && ({ 1: o[-1], '-1': o[1] }); S.profile.refs = swap(S.profile.refs); S.profile.preparation = swap(S.profile.preparation); S.profile.minAngles = swap(S.profile.minAngles); if (S.profile.templates) S.profile.templates = S.profile.templates.map(t => ({ ...t, dir: -t.dir })); this.tryFree(); },
     useTouch(){ S.practice = 0; S.burst = []; S.axis = null; S.profile = { version: 2, input: 'touch', ...S.options, ref: 1 }; S.result = { pass: true, touch: true, okL: 0, okR: 0 }; S.step = 'review'; emit({ kind: 'review', ...S.result }); },

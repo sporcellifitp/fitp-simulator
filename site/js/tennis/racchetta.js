@@ -37,7 +37,7 @@ let lastFaceSent = -Infinity, lastFacePaint = -Infinity, lastAttemptOk = false;
 let sensorSequence = 0, lastSensorSent = -Infinity;
 // richieste facoltative del gioco (messaggio cfg): preparazione del colpo e flusso dei sensori anche senza canale binario
 let streamJson = false, prepWanted = false, diagStream = false, sampleHz = 60, lastSampleT = null, swingSeq = 0;
-let peer = null, conn = null, linkState = 'off', rtt = 80, sensor = 'off', phase = 'menu', retryT = null, tries = 0, wake = null, motionSeen = false, flashT = null;
+let peer = null, conn = null, linkState = 'off', rtt = 80, sensor = 'off', phase = 'menu', retryT = null, tries = 0, wake = null, motionSeen = false, flashT = null, lastRx = 0;
 
 /* ---------- interfaccia ---------- */
 let selectedShot = 'auto', inputMode = 'motion', portrait = true, shotsPaintKey = '';
@@ -113,15 +113,31 @@ async function connect(){
       c.on('error', () => {});
     });
     peer.on('error', e => {
-      if (e.type === 'peer-unavailable'){ linkState = 'denied'; paint(); ui('Partita non trovata', 'Il gioco sul computer è stato chiuso o ricaricato. Inquadra di nuovo il codice QR.'); ss.del('resume'); return; }
+      // canale con il computer ancora aperto: un errore del solo server di segnalazione (sua rete, websocket caduto) non
+      // tocca il collegamento diretto. Prima ogni errore chiudeva tutto e un canale sano andava perso
+      if (conn?.open && SIGNAL_ERRORS.has(e.type)) return;
+      // computer non registrato sul server: con la chiave di ripresa si riprova (gioco che si ricarica, rete del computer
+      // che torna); senza, il codice del QR non porta più a una partita. Prima anche con la chiave si cancellava tutto
+      if (e.type === 'peer-unavailable' && !ss.get('resume')){ linkState = 'denied'; paint(); ui('Partita non trovata', 'Il gioco sul computer è stato chiuso o ricaricato. Inquadra di nuovo il codice QR.'); return; }
       lost();
     });
+    // server di segnalazione perso con il canale aperto: ci si ricollega al server senza toccare il canale (come il computer)
+    peer.on('disconnected', () => { const p = peer; setTimeout(() => { if (p === peer && !p.destroyed && conn?.open) try { p.reconnect(); } catch (e){} }, 1500); });
   } catch (e){ lost(); }
 }
+const SIGNAL_ERRORS = new Set(['network', 'disconnected', 'socket-error', 'socket-closed', 'server-error', 'unavailable-id', 'lan-signaling']);
+// eventi della calibrazione al computer (anche quelli che descrivono il passo attuale dopo una ripresa del collegamento)
+const sendCal = e => send({ t: 'cal', e: { ...e, shot: e.shot || (inputMode === 'touch' ? selectedShot : 'drive') } });
 function onData(c, d){
   if (!d || typeof d !== 'object') return;
+  if (c === conn || d.t === 'welcome') lastRx = performance.now();
   switch (d.t){
-    case 'welcome': conn = c; linkState = 'on'; tries = 0; if (d.r) ss.set('resume', d.r); sendState(); paint(); break;
+    case 'welcome':
+      conn = c; linkState = 'on'; tries = 0; if (d.r) ss.set('resume', d.r); sendState();
+      // ripresa a calibrazione in corso: gli eventi fatti mentre il collegamento era giù sono andati persi, il computer
+      // riceve il passo attuale (prima restava al gesto di prima mentre il telefono era già alla verifica)
+      if (sensor === 'cal') for (const e of cal.replay()) sendCal(e);
+      paint(); break;
     case 'deny':
       linkState = 'denied'; ss.del('resume');
       ui('Non collegato', d.why === 'busy' ? 'C\'è già un altro telefono collegato a questo computer.' : 'Il codice è scaduto o è già stato usato: inquadra di nuovo il QR sul computer.');
@@ -153,7 +169,14 @@ function lost(){
 }
 const send = m => { if (conn && conn.open) try { conn.send(m); } catch (e){} };
 const sendState = () => send({ t: 'st', s: sensor === 'off' ? 'sensors' : sensor, b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), ...(det.prepMode ? { pm: 1 } : {}) });
-setInterval(() => { if (conn && conn.open){ send({ t: 'ping', c: performance.now() }); sendState(); } }, 1000);
+setInterval(() => {
+  if (!(conn && conn.open)) return;
+  // il computer manda qualcosa ogni secondo (risposte ai ping, misure dell'orologio): 5 s di silenzio vogliono dire
+  // collegamento morto anche se il canale non si è chiuso (rete persa). Prima il telefono restava «collegato» per sempre,
+  // non si ricollegava e i colpi si perdevano; ora si chiude e si riprende con la chiave di ripresa
+  if (performance.now() - lastRx > 5000){ const c = conn; conn = null; try { c.close(); } catch (e){} lost(); return; }
+  send({ t: 'ping', c: performance.now() }); sendState();
+}, 1000);
 const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e){} };
 
 /* ---------- sensori ---------- */
@@ -162,7 +185,7 @@ async function enableSensors(){
   // iPhone: il permesso va chiesto subito, dentro il tocco
   const ask = typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function' && window.isSecureContext
     ? DeviceMotionEvent.requestPermission().catch(() => 'denied') : null;
-  try { if ('wakeLock' in navigator && !wake){ wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch (e){}
+  await keepAwake();
   if (!window.isSecureContext) return noMotion('insecure');
   if (typeof DeviceMotionEvent === 'undefined') return noMotion('nomotion');
   if (ask && (await ask) !== 'granted') return noMotion('denied');
@@ -241,7 +264,7 @@ function command(c){
   if (c === 'skip' && sensor === 'cal' && inputMode === 'motion'){ const p = cal.skip(); det.setContext(phase); if (p){ sensor = 'ready'; sendState(); paint(); } }
   if (c === 'confirm'){ const p = cal.confirm(); det.setContext(phase); if (p){ ss.set('profile', p); sensor = 'ready'; sendState(); paint(); } }
 }
-cal.on(e => { send({ t: 'cal', e: { ...e, shot:e.shot || (inputMode==='touch'?selectedShot:'drive') } });
+cal.on(e => { sendCal(e);
   // gesto successivo pronto: il «Riconosciuto» del gesto prima lascia subito il posto alla nuova freccia (come sul
   // computer); «Altro verso» resta il suo tempo (mostra già la freccia giusta)
   if (e.kind === 'ready' && flashT && lastAttemptOk){ clearTimeout(flashT); flashT = null; }
@@ -306,7 +329,14 @@ $('#bye').addEventListener('click', () => {
 });
 // tocco sullo schermo al servizio: lancia la palla
 $('#stage').addEventListener('pointerdown', () => { if (phase === 'serve' && sensor === 'ready') send({ t: 'toss', pk: performance.now() }); });
-document.addEventListener('visibilitychange', async () => { if (!document.hidden && sensor !== 'off' && !wake) try { wake = await navigator.wakeLock.request('screen'); } catch (e){} });
+// schermo sempre acceso durante il gioco (il telefono non si tocca): il blocco si perde quando la pagina va in secondo
+// piano e si riprende al ritorno. Prima la ripresa non ascoltava la perdita successiva: dal secondo ciclo restava un
+// blocco già rilasciato, lo schermo si spegneva e il collegamento cadeva
+async function keepAwake(){
+  if (!('wakeLock' in navigator) || (wake && !wake.released)) return;
+  try { const w = await navigator.wakeLock.request('screen'); wake = w; w.addEventListener('release', () => { if (wake === w) wake = null; }); } catch (e){}
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && sensor !== 'off') keepAwake(); });
 addEventListener('pagehide', () => { try { conn && conn.close(); } catch (e){} });
 
 checkOrientation();

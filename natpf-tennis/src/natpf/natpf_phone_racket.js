@@ -64,6 +64,9 @@ export function faceShot(s){
 // telefono, uguale in LAN e via internet), il tempo del colpo lo misura il motore (latency: dal picco sul telefono a ora).
 // La forza mescola il gesto rispetto alla calibrazione e la velocità vera del telefono (peak, °/s).
 const SPECIALS_KEY = 'natpf-tennis.specials';
+// colpo più vecchio di così all'arrivo (s dal picco sul telefono): consegnato in ritardo dopo un'interruzione della rete
+// (il canale recapita tutto insieme quando torna), non si gioca. Di solito arrivano 30–60 ms dopo il picco
+export const PHONE_STALE_S = .6;
 export const NORMAL_SHOTS = new Set(['topspin', 'flat']);
 function readSpecials(){ try { return JSON.parse(localStorage.getItem(SPECIALS_KEY) || '{}') || {}; } catch { return {}; } }
 function writeSpecials(v){ try { localStorage.setItem(SPECIALS_KEY, JSON.stringify(v)); } catch {} }
@@ -229,6 +232,11 @@ export class NatpfPhoneRacket {
   }
   // con la presa vanno al telefono anche le richieste facoltative: preparazione del colpo e flusso dei sensori in JSON
   _sendGrip(){
+    // telefono ricollegato (anche senza che il computer l'abbia visto cadere: pagina ricaricata entro 5 s): presa,
+    // impostazioni, fase e verso atteso vanno rimandati. Prima la fase restava quella vecchia sul computer e il telefono
+    // ricaricato, fermo su «menu», scartava i colpi fino al punto dopo
+    const joins = this.state.joins || 0;
+    if (joins !== this.joins){ this.joins = joins; this.gripSent = false; this.lastPhase = null; this.lastExpect = null; }
     // diag: se la diagnostica sta registrando, anche dopo una riconnessione il telefono rimanda i campioni grezzi
     if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.link.send({ t: 'cfg', prep: 1, mo: 1, ...(this.diagStream ? { diag: 1 } : {}) }); this.gripSent = true; this.lastExpect = null; }
     if (!this.connected) this.gripSent = false;
@@ -237,8 +245,13 @@ export class NatpfPhoneRacket {
   onChange(fn){ this.listeners.add(fn); return () => this.listeners.delete(fn); }
   _changed(){ for (const fn of this.listeners) try { fn(this); } catch (e){ console.error(e); } }
 
-  async start(){
-    if (this.link){ this.link.start(); return this; }
+  start(){
+    if (this.link){ this.link.start(); return Promise.resolve(this); }
+    // una sola creazione anche con due chiamate ravvicinate (pagina «Collega», pannello del telefono): prima, durante il
+    // caricamento delle librerie, ne partivano due, con due collegamenti registrati e un QR che poteva essere l'altro
+    return this._starting || (this._starting = this._start().finally(() => { this._starting = null; }));
+  }
+  async _start(){
     // librerie di NATPF (PeerJS per WebRTC, generatore di QR) dalla cartella del sito
     if (!window.Peer) await loadScript(`${NATPF_BASE}js/vendor/peerjs.min.js`);
     if (!window.qrcode) await loadScript(`${NATPF_BASE}js/vendor/qrcode.js`).catch(() => {});
@@ -286,6 +299,13 @@ export class NatpfPhoneRacket {
   _onSwing(s){
     const mc = this.engine.motionController;
     if (!mc || !this.ready) return;
+    // colpo consegnato in forte ritardo: giocato ora sarebbe un colpo «fantasma» fuori tempo (prima si accettava fino a
+    // 3 s dopo il picco, e il motore lo trattava come fatto al massimo 0,3 s prima)
+    if (Number.isFinite(s?.at) && performance.now()/1000 - s.at > PHONE_STALE_S){
+      this.ignoredSwings = (this.ignoredSwings || 0) + 1;
+      for (const fn of this.swingListeners) try { fn({ ignored: 'arrivato in ritardo dalla rete', natpf: {} }, s); } catch (e){ console.error(e); }
+      return;
+    }
     // la palla si allontana (l'ha appena colpita chi gioca qui): è il rientro della mano o un gesto a vuoto, non un
     // colpo. Prima il motore faceva comunque partire swing e fruscio della racchetta.
     if (ballMovingAway(this.engine)){

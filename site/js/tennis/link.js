@@ -81,7 +81,9 @@ export function createPhoneLink(){
         ok = true; clearTimeout(timer);
         if (conn && conn !== c) try { conn.close(); } catch (e){}
         conn = c; lastSeen = Date.now(); clock.reset(); faceSample = null; racketMotion.setBias([0,0,0]); racketMotion.reset(); c.send({ t: 'welcome', r: res.resume });
-        set({ state: 'connected', phone: 'sensors', error: null });
+        // joins: un collegamento nuovo (anche lo stesso telefono che si ricollega senza che il computer l'abbia visto
+        // cadere): chi usa il collegamento rimanda al telefono quello che la pagina ricaricata ha perso
+        set({ state: 'connected', phone: 'sensors', error: null, joins: (L.joins || 0) + 1 });
         return;
       }
       if (c !== conn) return;

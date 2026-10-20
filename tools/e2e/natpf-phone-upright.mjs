@@ -78,9 +78,10 @@ try {
   const ready = await game.waitForFunction(() => __natpfTennis.natpfPhone.ready, null, { timeout: 5000 }).then(() => true, () => false);
   check('telefono pronto per giocare', ready);
 
-  // partita ferma in uno scambio: ogni colpo del telefono colpisce una palla appena davanti al giocatore
+  // partita ferma in uno scambio: ogni colpo del telefono colpisce una palla appena davanti al giocatore. Il motore non
+  // avanza (update vuoto) ma il gioco non è in pausa: con la pausa i colpi ora vengono scartati, come per chi gioca
   await game.evaluate(() => {
-    const E = __natpfTennis; E.natpfUi.onboarding?.close?.(); E.hud.hideTitleModal(); E.natpfPaused = true; E.autoPlayMode = false; E.userHasInteracted = true; E.phase = 'RALLY';
+    const E = __natpfTennis; E.natpfUi.onboarding?.close?.(); E.hud.hideTitleModal(); E.update = () => {}; E.natpfPaused = false; E.autoPlayMode = false; E.userHasInteracted = true; E.phase = 'RALLY';
     // a partita ferma la palla resta in arrivo verso il giocatore (altrimenti il colpo è «palla che si allontana»)
     setInterval(() => { E.phase = 'RALLY'; E.ball.inPlay = true; E.ball.lastHitter = 'opponent'; E.ball.pos.set(.3, 1, 9); E.ball.vel.set(0, 0, 14); }, 30);
     E.natpfPhone.lastPhase = 'play'; E.natpfPhone.link.send({ t: 'ph', ph: 'play' });

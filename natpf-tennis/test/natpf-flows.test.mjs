@@ -204,3 +204,67 @@ test('Player 2: dopo «Sono pronto» con il telefono da collegare il pannello d�
   w.advance(1500);
   assert.ok(visible('natpf-phone-modal') && !visible('natpf-guest-modal'));
 });
+
+// --- collegamento del telefono (audit del 20/10) ---
+async function phoneMatch(){
+  const w = await makeWorld({ controller: 'phone' }); w.advance(300);
+  const { ui, lobby } = w;
+  lobby.menu('play'); lobby.setMode('cpu'); lobby.go('controller'); lobby.go('connect'); lobby.next();
+  calibrate(w); w.cal({ kind: 'done', profile: { hand: 'right' } }); ui.training.skip(); w.pressStart(); w.advance(500);
+  return w;
+}
+const drop = w => { Object.assign(w.link, { connected: false, ready: false, L: { ...w.link.L, state: 'lost', phone: null } }); w.E.natpfPhone._changed(); };
+const back = w => { Object.assign(w.link, { connected: true, ready: true, L: { ...w.link.L, state: 'connected', phone: 'ready' } }); w.E.natpfPhone._changed(); };
+
+test('Partita: telefono che cade → pausa con il pannello del telefono; quando torna pronto si riprende da solo', async () => {
+  const w = await phoneMatch(), { E } = w;
+  assert.ok(E.natpfPhone.ready && !E.natpfPaused && !E.autoPlayMode);
+  drop(w); w.advance(200);
+  assert.ok(!visible('natpf-phone-modal'), 'non subito: un ricollegamento normale dura meno');
+  w.advance(500);
+  assert.ok(visible('natpf-phone-modal') && E.natpfPaused);
+  back(w);
+  assert.ok(!visible('natpf-phone-modal') && !E.natpfPaused);
+});
+
+test('Partita: ricollegamento rapido del telefono (meno di mezzo secondo) → nessuna pausa', async () => {
+  const w = await phoneMatch(), { E } = w;
+  drop(w); w.advance(150); back(w); w.advance(1000);
+  assert.ok(!visible('natpf-phone-modal') && !E.natpfPaused);
+});
+
+test('Telefono ricollegato senza che il computer l’abbia visto cadere: fase e impostazioni rimandate', async () => {
+  const w = await phoneMatch(), { E, link } = w, P = E.natpfPhone;
+  const count = t => link.sent.filter(m => m.t === t).length;
+  P.update(); const ph = count('ph'), grip = count('grip');
+  P.update(); assert.equal(count('ph'), ph);                       // fase già mandata: non si ripete
+  link.L.joins = (link.L.joins || 0) + 1; P._sendGrip();             // collegamento nuovo (evento «change» del collegamento)
+  P.update();
+  assert.equal(count('ph'), ph + 1); assert.equal(count('grip'), grip + 1);
+});
+
+test('Colpo del telefono arrivato in forte ritardo (rete che torna): ignorato, non giocato fuori tempo', async () => {
+  const w = await phoneMatch(), P = w.E.natpfPhone, seen = [];
+  P.onSwing(ev => seen.push(ev));
+  P._onSwing({ dir: 1, power: .8, peak: 600, at: performance.now()/1000 - 1.2 });
+  assert.equal(seen.at(-1)?.ignored, 'arrivato in ritardo dalla rete');
+  P._onSwing({ dir: 1, power: .8, peak: 600, at: performance.now()/1000 - .05 });
+  assert.notEqual(seen.at(-1)?.ignored, 'arrivato in ritardo dalla rete');
+});
+
+test('Calibrazione rifatta dopo una verifica non superata: ogni gesto del secondo giro colpisce la sua palla', async () => {
+  const w = await makeWorld({ controller: 'phone' }); w.advance(300);
+  const { E, lobby, link } = w;
+  lobby.menu('training'); lobby.go('connect'); lobby.next();
+  w.cal({ kind: 'step', step: 'still' });
+  const round = check => ['L', 'R', 'L', 'R'].forEach((want, idx) => {
+    w.cal({ kind: idx ? 'next' : 'step', step: 'swings', want, idx, total: 4 }); w.cal({ kind: 'ready', want }); w.advance(100);
+    const z0 = E.ball.pos.z; w.cal({ kind: 'attempt', ok: true, idx, want }); w.advance(600);
+    if (check) assert.ok(E.ball.pos.z < z0 - 2, `gesto ${idx + 1}: palla da ${z0.toFixed(2)} a ${E.ball.pos.z.toFixed(2)}`);
+    w.advance(600);
+  });
+  round(false);
+  w.cal({ kind: 'review', pass: false, why: 'direzione' }); w.advance(1700);
+  assert.ok(link.cmds.includes('retry'));
+  round(true);
+});
