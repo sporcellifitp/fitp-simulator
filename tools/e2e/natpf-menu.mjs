@@ -1,0 +1,65 @@
+// NATPF motore base: menu principale al centro, sfondo fermo. Verifica a tre risoluzioni (1366 × 657 di un portatile
+// con la barra del browser, 1024 × 600, 1280 × 720):
+//   • tutte le voci visibili senza scorrere (anche le pagine «Modalità», «Racchetta», «Partita», «Opzioni», «Sfide»);
+//   • frecce come con un joypad: giù/su tra le voci, destra/sinistra nella fila delle voci di servizio;
+//   • descrizione della voce scelta sotto il pannello;
+//   • con il menu aperto il gioco non avanza (niente partita dimostrativa) e l'arena non si ridisegna a ogni
+//     fotogramma: era la causa dello sfarfallio della home, insieme al campo animato dell'intro.
+//   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-menu.mjs
+import { spawn } from 'node:child_process';
+import http from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { launch, check, summary, SP } from './th.mjs';
+
+const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
+const GAME_PORT = +(process.env.GAME_PORT || 3116);
+const vite = spawn(process.execPath, [path.join(GAME, 'node_modules/vite/bin/vite.js'), '--port', String(GAME_PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: GAME, env: { ...process.env, DISABLE_HMR: 'true' }, stdio: 'pipe' });
+process.on('exit', () => { try { vite.kill(); } catch {} });
+const up = async url => { for (let i = 0; i < 120; i++){ const ok = await new Promise(r => http.get(url, res => { res.resume(); r(res.statusCode === 200); }).on('error', () => r(false))); if (ok) return true; await new Promise(r => setTimeout(r, 500)); } return false; };
+check('gioco avviato con vite', await up(`http://127.0.0.1:${GAME_PORT}/`));
+
+const B = await launch();
+try {
+  for (const [w, h] of [[1366, 657], [1024, 600], [1280, 720]]){
+    const ctx = await B.newContext({ viewport: { width: w, height: h } }), p = await ctx.newPage(), errs = [];
+    p.on('pageerror', e => errs.push(e.message));
+    await p.goto(`http://127.0.0.1:${GAME_PORT}/?intro=0`, { waitUntil: 'domcontentloaded' });
+    await p.waitForFunction(() => window.__natpfTennis?.player?.model && __natpfTennis.natpfUi?.lobby?.visible, null, { timeout: 120000 });
+    await p.waitForTimeout(600);
+    const tag = `${w} × ${h}`;
+    const fit = await p.evaluate(() => { const m = document.getElementById('title-modal'); const items = [...document.querySelectorAll('[data-page="menu"] .menu-item')].map(e => e.getBoundingClientRect()); return { scroll: m.scrollHeight - m.clientHeight, inView: items.length === 6 && items.every(r => r.top >= 0 && r.bottom <= innerHeight), focus: document.activeElement?.dataset?.menu, centre: Math.abs((items[0].left + items[0].right)/2 - innerWidth/2) }; });
+    check(`${tag}: le sei voci del menu al centro, visibili senza scorrere, «Gioca» scelta`, fit.scroll <= 0 && fit.inView && fit.focus === 'play' && fit.centre < 4, JSON.stringify(fit));
+    if (w === 1280) await p.screenshot({ path: `${SP}/menu-${w}x${h}.png` });
+    const seq = [];
+    for (const k of ['ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowRight', 'ArrowRight', 'ArrowUp']){ await p.keyboard.press(k); seq.push(await p.evaluate(() => document.activeElement?.dataset?.menu)); }
+    check(`${tag}: frecce come un joypad`, seq.join() === 'training,challenges,guide,options,options,challenges', seq.join());
+    const desc = await p.evaluate(() => document.getElementById('menu-desc').textContent);
+    check(`${tag}: descrizione della voce scelta`, /Radar del servizio/.test(desc), desc);
+    // sfondo fermo: lo stato del gioco non cambia e il canvas non si ridisegna dopo i primi secondi
+    await p.waitForTimeout(9000);
+    const s0 = await p.evaluate(() => { const E = __natpfTennis, r = E.render.bind(E); window.__r = 0; E.render = () => { __r++; r(); }; return { t: E.phaseTimer, x: E.player.pos.x, ball: E.ball.inPlay }; });
+    await p.waitForTimeout(3000);
+    const s1 = await p.evaluate(() => ({ t: __natpfTennis.phaseTimer, x: __natpfTennis.player.pos.x, ball: __natpfTennis.ball.inPlay, renders: __r }));
+    check(`${tag}: con il menu aperto nessuna partita dimostrativa e nessun ridisegno continuo dell’arena`, s0.t === s1.t && s0.x === s1.x && !s1.ball && s1.renders === 0, JSON.stringify({ s0, s1 }));
+    // le altre pagine del menu stanno anche loro in una schermata
+    const pages = {};
+    for (const step of ['mode', 'controller', 'match', 'options', 'challenges', 'ranking']){
+      await p.evaluate(s => { const L = __natpfTennis.natpfUi.lobby; if (s === 'mode') L.setMode('cpu'); L.go(s); }, step);
+      await p.waitForTimeout(300);
+      pages[step] = await p.evaluate(() => { const m = document.getElementById('title-modal'); return m.scrollHeight - m.clientHeight; });
+    }
+    check(`${tag}: anche le altre pagine del menu senza scorrere`, Object.values(pages).every(v => v <= 0), JSON.stringify(pages));
+    // Invio su «Allenamento» porta alla scelta della racchetta
+    await p.evaluate(() => __natpfTennis.natpfUi.lobby.go('menu'));
+    await p.waitForTimeout(300);
+    await p.focus('[data-menu="training"]'); await p.keyboard.press('Enter'); await p.waitForTimeout(300);
+    check(`${tag}: Invio sulla voce la apre`, await p.evaluate(() => __natpfTennis.natpfUi.lobby.step) === 'controller');
+    check(`${tag}: nessun errore JavaScript`, !errs.length, errs.join(' | ').slice(0, 300));
+    await ctx.close();
+  }
+} finally {
+  await B.close();
+}
+summary();
+setTimeout(() => process.exit(), 300);

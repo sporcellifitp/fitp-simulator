@@ -63,25 +63,6 @@
   background: var(--lb-ball);
   color: var(--lb-navy);
 }
-.lobby-demo-tag {
-  position: fixed;
-  left: max(18px, 4vw);
-  top: 116px;
-  padding: 6px 14px;
-  border-radius: var(--r-pill);
-  background: rgba(7, 18, 51, 0.72);
-  color: var(--lb-muted);
-  font: 700 11px var(--lb-font);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  pointer-events: none;
-}
-.natpf-lobby[data-step="menu"] .lobby-demo-tag {
-  top: auto;
-  left: auto;
-  right: max(18px, 4vw);
-  bottom: max(26px, 4vh);
-}
 .lobby-link {
   justify-self: start;
   margin-top: 4px;
@@ -96,57 +77,6 @@
 }
 .lobby-link.hidden {
   display: none;
-}
-.lobby-bottom.only-help .lobby-keys {
-  visibility: hidden;
-}
-
-/* ---------- benvenuto ---------- */
-.lobby-page[data-page="menu"] {
-  max-width: 760px;
-  gap: 14px;
-}
-.welcome-kicker {
-  margin: 0;
-  color: var(--lb-pink);
-  font: 700 15px var(--lb-font);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
-.welcome-title {
-  margin: 0;
-  font: italic 800 clamp(44px, 6.6vw, 86px) / 0.95 var(--lb-font);
-  text-transform: uppercase;
-  text-shadow: 0 6px 30px rgba(0, 0, 0, 0.45);
-}
-.welcome-sub {
-  margin: 4px 0 10px;
-  max-width: 560px;
-  color: var(--lb-ink);
-  font-size: 19px;
-  line-height: 1.4;
-}
-.welcome-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-}
-.lobby-xl {
-  min-height: 64px;
-  padding-inline: 46px;
-  font-size: 22px;
-  border-radius: var(--r-pill) !important;
-  box-shadow: 0 0 0 6px rgba(232, 255, 58, 0.18), 0 12px 30px rgba(0, 0, 0, 0.35);
-  animation: welcome-pulse 1.8s ease-in-out infinite;
-}
-.welcome-actions .lobby-secondary {
-  min-height: 64px;
-  border-radius: var(--r-pill) !important;
-}
-@keyframes welcome-pulse {
-  50% {
-    box-shadow: 0 0 0 12px rgba(232, 255, 58, 0.08), 0 12px 30px rgba(0, 0, 0, 0.35);
-  }
 }
 
 /* ---------- collega: QR e tre passi ---------- */
@@ -701,7 +631,6 @@
 @media (prefers-reduced-motion: reduce) {
   .guide-clip,
   .guide-svg .gs-swing,
-  .lobby-xl,
   .connect-steps li.on i {
     animation: none;
   }

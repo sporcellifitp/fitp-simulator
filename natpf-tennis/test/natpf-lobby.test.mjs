@@ -129,3 +129,17 @@ test('riscaldamento: calibrazione in campo, poi dritto, rovescio, servizio, ango
   // freccia del gesto per il lato del colpo (pannello degli esercizi): l'inverso di calSide
   for (const hand of ['right', 'left']) for (const side of ['forehand', 'backhand']) assert.equal(calSide(sideWant(side, hand), hand), side);
 });
+
+test('menu principale: frecce verso la voce più vicina in quella direzione (le tre voci di servizio stanno in fila)', async () => {
+  const { nearestTile } = await import('../src/natpf/natpf_lobby.js');
+  // GIOCA, ALLENAMENTO, SFIDE in colonna; CLASSIFICA, COME SI GIOCA, OPZIONI in fila sotto
+  const R = { play: [0, 0, 300, 70], training: [0, 80, 300, 50], challenges: [0, 140, 300, 50], ranking: [0, 200, 95, 40], guide: [102, 200, 95, 40], options: [205, 200, 95, 40] };
+  const tiles = Object.keys(R), rect = k => ({ left: R[k][0], top: R[k][1], width: R[k][2], height: R[k][3] });
+  const go = (from, code) => nearestTile(tiles, from, code, rect);
+  assert.equal(go('play', 'ArrowDown'), 'training');
+  assert.equal(go('challenges', 'ArrowDown'), 'guide', 'sotto il centro della voce');
+  assert.equal(go('guide', 'ArrowRight'), 'options');
+  assert.equal(go('options', 'ArrowRight'), null, 'in fondo alla riga');
+  assert.equal(go('ranking', 'ArrowUp'), 'challenges');
+  assert.equal(go('play', 'ArrowUp'), null);
+});

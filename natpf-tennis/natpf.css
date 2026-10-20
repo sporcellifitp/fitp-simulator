@@ -26,10 +26,14 @@
   justify-content: space-between;
   gap: 16px;
   padding: max(18px, 3vh) max(18px, 4vw);
-  background: linear-gradient(180deg, rgba(4, 10, 28, 0.86) 0, rgba(4, 10, 28, 0.3) 26%, rgba(4, 10, 28, 0.42) 62%, rgba(4, 10, 28, 0.94) 100%);
-  /* blur leggero dell'arena dietro il menu: testi più leggibili, campo e pubblico ancora riconoscibili */
+  /* arena ferma dietro (game_engine._natpfBackdropFrame), sfocata e scurita ai bordi. Il blur resta (leggibilità),
+     ma ora sopra un'immagine ferma: prima il canvas si ridisegnava a ogni fotogramma e il blur di tutto lo schermo si
+     ricalcolava di continuo (sfarfallio, fotogrammi persi) */
   -webkit-backdrop-filter: blur(5px);
   backdrop-filter: blur(5px);
+  background:
+    radial-gradient(ellipse 70% 62% at 50% 50%, rgba(4, 10, 28, 0.35) 0, rgba(4, 10, 28, 0.72) 100%),
+    linear-gradient(180deg, rgba(4, 10, 28, 0.8) 0, rgba(4, 10, 28, 0.15) 22%, rgba(4, 10, 28, 0.25) 70%, rgba(4, 10, 28, 0.9) 100%);
   color: var(--lb-ink);
   font-family: var(--lb-font);
   overflow-y: auto;

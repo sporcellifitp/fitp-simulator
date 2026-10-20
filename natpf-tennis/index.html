@@ -234,21 +234,26 @@
         <ol class="lobby-progress" id="lobby-progress" aria-label="Avanzamento"></ol>
         <button type="button" id="lobby-help" class="lobby-ghost lobby-help-btn" title="Come si gioca (H)"><span aria-hidden="true">?</span> Come si gioca</button>
       </header>
-      <span class="lobby-demo-tag" aria-hidden="true">Dimostrazione · nessuna partita in corso</span>
 
       <main class="lobby-stage">
+        <!-- menu principale: un pannello al centro come nei giochi da console dei primi anni 2000 (voce principale grande,
+             due modalità, tre voci di servizio in fila; descrizione della voce scelta sotto, tasti in basso) -->
         <section class="lobby-page" data-page="menu" aria-labelledby="lobby-t-menu">
-          <p class="welcome-kicker">Il tennis delle Nitto ATP Finals</p>
-          <h2 class="welcome-title" id="lobby-t-menu">Il tuo telefono<br />è la racchetta</h2>
-          <div id="lobby-menu-result" class="lobby-result hidden" aria-live="polite"></div>
-          <nav class="main-menu" aria-label="Menu principale">
-            <button type="button" class="menu-item" data-menu="play"><b>Gioca</b><span>Partita contro la CPU o sfida un amico</span></button>
-            <button type="button" class="menu-item" data-menu="challenges"><b>Sfide</b><span>Radar del servizio, Bersagli 60", Scambio infinito, Sfida il campione</span></button>
-            <button type="button" class="menu-item" data-menu="ranking"><b>Classifica del giorno</b><span>I migliori di oggi in ogni sfida</span></button>
-            <button type="button" class="menu-item" data-menu="training"><b>Allenamento</b><span>Campo d’allenamento: impari i colpi e il gioco impara i tuoi gesti</span></button>
-            <button type="button" class="menu-item" data-menu="guide"><b>Come si gioca</b><span>La guida con le clip del gioco</span></button>
-            <button type="button" class="menu-item" data-menu="options"><b>Opzioni</b><span>Mano, visuale, musica e voce</span></button>
-          </nav>
+          <div class="menu-panel">
+            <header class="menu-head"><span class="menu-kicker">Il tennis delle Nitto ATP Finals · Torino</span><h2 class="menu-title" id="lobby-t-menu">Menu principale</h2></header>
+            <div id="lobby-menu-result" class="lobby-result hidden" aria-live="polite"></div>
+            <nav class="main-menu" aria-label="Menu principale">
+              <button type="button" class="menu-item menu-primary" data-menu="play" data-desc="Partita veloce in arena: contro la CPU (facile o esperta) o contro un amico su un altro computer"><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" /><path d="M11 18c8 3 18 3 26 0M11 30c8-3 18-3 26 0" /></svg><b>Gioca</b><span>Contro la CPU · Sfida un amico</span><i class="mi-go" aria-hidden="true">›</i></button>
+              <button type="button" class="menu-item" data-menu="training" data-desc="Campo d’allenamento: calibri il telefono, impari dritto, rovescio, pallonetto, palla corta e servizio"><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><ellipse cx="20" cy="18" rx="10" ry="13" /><path d="M26 28l14 14M15 10l10 16M12 20l16-4" /></svg><b>Allenamento</b><span>Calibrazione e colpi</span><i class="mi-go" aria-hidden="true">›</i></button>
+              <button type="button" class="menu-item" data-menu="challenges" data-desc="Sfide per la classifica del giorno: Radar del servizio, Bersagli 60”, Scambio infinito, Sfida il campione"><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M15 8h18v8a9 9 0 0 1-18 0zM15 11H8a7 7 0 0 0 9 9M33 11h7a7 7 0 0 1-9 9M24 25v8M17 40h14l-2-7H19z" /></svg><b>Sfide</b><span>Radar, Bersagli, Scambio infinito, Campione</span><i class="mi-go" aria-hidden="true">›</i></button>
+              <div class="menu-row">
+                <button type="button" class="menu-item menu-small" data-menu="ranking" data-desc="I migliori di oggi in ogni sfida"><b>Classifica</b></button
+                ><button type="button" class="menu-item menu-small" data-menu="guide" data-desc="La guida con le clip del gioco: come tenere il telefono e come colpire"><b>Come si gioca</b></button
+                ><button type="button" class="menu-item menu-small" data-menu="options" data-desc="Mano, visuale, musica, voce e colpi imparati"><b>Opzioni</b></button>
+              </div>
+            </nav>
+            <p class="menu-desc" id="menu-desc" aria-live="polite">Partita veloce in arena: contro la CPU (facile o esperta) o contro un amico su un altro computer</p>
+          </div>
         </section>
 
         <section class="lobby-page" data-page="mode" aria-labelledby="lobby-t-mode">

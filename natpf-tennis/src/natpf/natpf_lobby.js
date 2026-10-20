@@ -48,6 +48,21 @@ export function autoAdvance(step, { controller, phoneLinked, handSeen }){
 }
 // Ogni visitatore riparte dal menu principale (dopo l'intro)
 export const initialStep = () => 'menu';
+// Voce più vicina nella direzione della freccia (rettangoli come getBoundingClientRect), null se non ce n'è una.
+// Su/giù: prima la distanza in verticale, poi lo scarto di lato; destra/sinistra: solo nella stessa riga.
+export function nearestTile(tiles, from, code, rect = el => el.getBoundingClientRect()){
+  const a = rect(from), ax = a.left + a.width/2, ay = a.top + a.height/2, vertical = code === 'ArrowUp' || code === 'ArrowDown';
+  let best = null, bd = Infinity;
+  for (const t of tiles){
+    if (t === from) continue;
+    const b = rect(t), dx = b.left + b.width/2 - ax, dy = b.top + b.height/2 - ay;
+    const ok = code === 'ArrowUp' ? dy < -4 : code === 'ArrowDown' ? dy > 4 : code === 'ArrowLeft' ? dx < -4 && Math.abs(dy) < a.height/2 : dx > 4 && Math.abs(dy) < a.height/2;
+    if (!ok) continue;
+    const dist = vertical ? Math.abs(dy) + 2*Math.abs(dx) : Math.abs(dx);
+    if (dist < bd){ bd = dist; best = t; }
+  }
+  return best;
+}
 // Riconosce la parola dell'easter egg tra i tasti digitati
 export function eggTyped(buffer, key){ const next = (buffer + String(key || '').toLowerCase()).slice(-EGG_WORD.length); return { buffer: next, hit: next === EGG_WORD }; }
 
@@ -78,6 +93,9 @@ export class NatpfLobby {
     $('setup-cam-go').addEventListener('click', async e => { e.stopPropagation(); await this.ui.startWebcam(); this.paint(); });
     $('connect-other')?.addEventListener('click', e => { e.stopPropagation(); this.ui.selectController(this.ui.controller === 'phone' ? 'webcam' : 'phone', { open: false }); this.go('connect'); });
     this.el.addEventListener('pointerdown', e => e.stopPropagation());
+    // menu principale: sotto le voci la descrizione di quella scelta (frecce, mouse o tocco)
+    const describe = e => { const m = e.target?.closest?.('[data-menu]'), d = $('menu-desc'); if (m && d && m.dataset.desc && d.textContent !== m.dataset.desc) d.textContent = m.dataset.desc; };
+    this.el.addEventListener('focusin', describe); this.el.addEventListener('pointerover', describe);
     // tastiera del menu prima di quella del motore (che con Spazio/Invio/frecce colpirebbe)
     window.addEventListener('keydown', e => this._key(e), true);
     // il «Menu» della schermata finale riapre la lobby: si torna al menu principale
@@ -237,7 +255,9 @@ export class NatpfLobby {
     show($('lobby-next'), !menu && !match && !pick);
     show($('btn-start-match'), match);
     show($('lobby-warmup'), match);
-    this.el.querySelector('.lobby-bottom')?.classList.toggle('only-help', menu);
+    // tasti come su una console: nel menu le frecce scelgono, nelle altre pagine Invio va avanti
+    const keys = this.el.querySelector('.lobby-keys'), kt = menu ? '↑ ↓ ← → scegli · Invio conferma · H come si gioca' : 'Invio avanti · Esc indietro';
+    if (keys && keys.textContent !== kt) keys.textContent = kt;
     const next = $('lobby-next');
     next.disabled = !stepReady(this.step, st);
     next.textContent = this.step === 'connect' ? (this.mode === 'training' ? 'Al campo d’allenamento ›' : 'In campo ›') : 'Avanti ›';
@@ -283,10 +303,15 @@ export class NatpfLobby {
     e.stopImmediatePropagation();
     if (e.key && e.key.length === 1){ const r = eggTyped(this.eggBuffer, e.key); this.eggBuffer = r.buffer; if (r.hit){ this.ui.toggleTestInput(); this.eggBuffer = ''; return; } }
     const tiles = this._tiles(), i = tiles.indexOf(document.activeElement);
-    // frecce: si sposta il fuoco (come un joypad); nella pagina «Partita» le tessere si scelgono subito
+    // frecce: si sposta il fuoco (come un joypad) verso la voce più vicina in quella direzione (nel menu principale le
+    // tre voci di servizio stanno in fila), altrimenti alla successiva/precedente; nella pagina «Partita» le tessere
+    // si scelgono subito
     if (['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'].includes(e.code) && tiles.length){
       e.preventDefault();
-      const d = e.code === 'ArrowRight' || e.code === 'ArrowDown' ? 1 : -1, t = tiles[(i < 0 ? 0 : i + d + tiles.length) % tiles.length];
+      const d = e.code === 'ArrowRight' || e.code === 'ArrowDown' ? 1 : -1;
+      const near = i >= 0 ? nearestTile(tiles, tiles[i], e.code) : null;
+      // menu principale: destra/sinistra solo dentro la riga (in fondo alla riga si resta lì)
+      const t = near || (this.step === 'menu' && i >= 0 && (e.code === 'ArrowLeft' || e.code === 'ArrowRight') ? tiles[i] : tiles[(i < 0 ? 0 : i + d + tiles.length) % tiles.length]);
       t.focus(); if (this.step === 'match' && t.classList.contains('lobby-tile')) t.click();
     } else if (e.code === 'Enter'){
       e.preventDefault();

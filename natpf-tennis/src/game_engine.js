@@ -794,6 +794,9 @@ export class NatpfTennisEngine {
     const c = () => {
       requestAnimationFrame(c);
       const y = Math.min(this.clock.getDelta(), 0.08);
+      // NATPF: con il menu aperto lo sfondo è un'inquadratura ferma dell'arena (_natpfBackdropTick), non più la partita
+      // dimostrativa disegnata a ogni fotogramma sotto un blur
+      if (this._natpfBackdropFrame(y)) return;
       // NATPF: partita ferma mentre si leggono le istruzioni o si collega il telefono
       this.natpfPaused || this.update(y), this.render();
     };
@@ -3309,7 +3312,53 @@ export class NatpfTennisEngine {
   _onResize() {
     (this.camera.aspect = window.innerWidth / window.innerHeight),
       this.camera.updateProjectionMatrix(),
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
+      this.renderer.setSize(window.innerWidth, window.innerHeight),
+      (this.natpfBackdropDirty = !0);
+  }
+  // NATPF: sfondo del menu. Prima dietro il menu girava una partita dimostrativa (camera che segue la palla, scie,
+  // stelline, pubblico in movimento) disegnata a ogni fotogramma e sfocata con un backdrop-filter sull'intera pagina:
+  // sfarfallio e fotogrammi persi nella home. Ora con il menu aperto l'arena è un'inquadratura ferma, ridisegnata solo
+  // quando serve (all'ingresso, a ogni ridimensionamento, nei primi secondi per le texture che arrivano dopo); il gioco
+  // non avanza, ma il telefono, l'interfaccia e la lobby della sfida 1v1 continuano a funzionare.
+  _natpfBackdropFrame(dt) {
+    const want = !!this.natpfUi?.menuBackdrop?.();
+    if (want !== !!this.natpfBackdrop) {
+      this.natpfBackdrop = want;
+      want && (this._natpfBackdropPose(), (this.natpfBackdropDirty = !0), (this.natpfBackdropSince = performance.now()), (this.natpfBackdropTick = 0));
+    }
+    if (!want) return !1;
+    this.elapsedTime += dt;
+    // 1v1: la lobby dell'host continua a mandare il suo stato al Player 2 (prima lo faceva update())
+    this.versus?.active &&
+      this.roomId &&
+      this.roomId !== "default" &&
+      this.playerRole === "p1" &&
+      this.elapsedTime - this.lastSyncSentAt >= VERSUS.lobbyEvery &&
+      ((this.lastSyncSentAt = this.elapsedTime), this._broadcastMultiplayerSnapshot());
+    this.natpfPhone && this.natpfPhone.update(), this.natpfUi && this.natpfUi.tick && this.natpfUi.tick(dt);
+    // si ridisegna solo quando serve: all'ingresso, a ogni ridimensionamento e, nei primi 8 s, una volta al secondo
+    // (texture dei loghi che arrivano dopo il primo disegno); poi l'immagine resta quella. Tempo vero, non quello del
+    // gioco (che a fotogrammi lenti avanza meno)
+    const tick = Math.floor((performance.now() - (this.natpfBackdropSince || 0)) / 1000);
+    (this.natpfBackdropDirty || (tick !== this.natpfBackdropTick && tick <= 8)) && ((this.natpfBackdropDirty = !1), (this.natpfBackdropTick = tick), this.render());
+    return !0;
+  }
+  // inquadratura del menu: i due giocatori fermi sulle righe di fondo, palla nascosta, camera di gioco dietro il P1
+  _natpfBackdropPose() {
+    const B = S.BASELINE_Z, still = (a, x, z) => a && (a.pos.set(x, 0, z), a.targetPos.copy(a.pos), a.vel && a.vel.set(0, 0, 0), (a.swingTimer = 0));
+    still(this.player, 0.9, B - 0.2), still(this.opponent, -0.9, -B + 0.2);
+    this.isDoubles && (still(this.playerPartner, -2.1, 5.4), still(this.opponentPartner, 2.1, -5.4));
+    (this.ball.inPlay = !1), this.ball.pos.set(0, -5, 0), this.ball.vel.set(0, 0, 0);
+    this.ballTrail && this.ballTrail.clear && this.ballTrail.clear(), this.swingVfx && this.swingVfx.clearAllTrails && this.swingVfx.clearAllTrails();
+    (this.pendingUserSwing = null), (this.pendingP2Swing = null), (this.pendingServeSwing = null);
+    (this.phase = "POINT_OVER"), (this.phaseTimer = 0), (this.cameraMode = "RALLY_CAM"), (this.cameraTrauma = 0);
+    // qualche passo di animazione e di camera senza fisica: pose ferme e inquadratura assestata
+    for (let i = 0; i < 24; i++)
+      this._updatePlayerAnimation(this.player, 1 / 30),
+        this._updatePlayerAnimation(this.opponent, 1 / 30),
+        this.isDoubles && (this._updatePlayerAnimation(this.playerPartner, 1 / 30), this._updatePlayerAnimation(this.opponentPartner, 1 / 30)),
+        this._updateCameraRig(1 / 30);
+    this._updateEffects(0);
   }
   render() {
     // NATPF: varianti di colore e arti dei personaggi, dopo tutte le animazioni del fotogramma

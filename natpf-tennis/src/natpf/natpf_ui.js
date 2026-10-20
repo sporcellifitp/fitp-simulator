@@ -131,6 +131,9 @@ export class NatpfUi {
     this.engine.natpfPaused = !!busy && !this.engine.autoPlayMode && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(this.engine.phase);
   }
   tick(dt = 1/60){ this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.gesture.update(dt); }
+  // sfondo fermo dell'arena dietro il menu (motore: _natpfBackdropFrame). Il Player 2 dell'invito vede l'arena viva
+  // (riceve lo stato dell'host), e in campo (riscaldamento, sfide) il gioco gira
+  menuBackdrop(){ return !!this.lobby?.visible && !this.training?.active && !this.events?.active && this.engine.playerRole !== 'p2'; }
   // esito dei colpi del giocatore locale: anello colorato, allenamento; il valore torna al telefono (vibrazione)
   feedback(e = {}){
     if ((e.role || 'p1') !== this.engine.playerRole) return null;
