@@ -123,9 +123,10 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 - 1v1: se cade il telefono del Player 2, si ferma solo il suo computer (pannello del telefono), non la partita
   dell'host.
 - Prove del sito di prima (`site/tennis`): `phone-failures.mjs` aspetta ancora testi della calibrazione vecchia (2
-  verifiche e un'attesa scadute, uguali sul sito del 19/10). `phone-cal.mjs` aggiornata alla calibrazione rapida; la
-  sua parte di partita è fallita due volte a macchina molto carica (ritardo del collegamento salito a 580 ms) anche sul
-  sito di prima.
+  verifiche e un'attesa scadute, uguali sul sito del 19/10). `phone-cal.mjs` aggiornata alla calibrazione rapida (la
+  calibrazione passa); la sua parte di partita resta ferma al servizio (0 lanci: il robot manda un solo gesto di lancio
+  e non riprova) sia sul sito del 19/10 (953044c) sia su quello attuale, anche a macchina scarica: non dipende dal
+  quarto giro. Proposta come attività a parte.
 
 ## 8. Soluzioni tentate e decisioni tecniche
 
