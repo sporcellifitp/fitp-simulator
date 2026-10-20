@@ -6,7 +6,7 @@ import { introMode, INTRO_MS } from '../src/natpf/natpf_intro.js';
 import { controllerTiles, viewTiles, controllerStatus, CONTROLLER_TILES } from '../src/natpf/natpf_tiles.js';
 import { shotQuality, landsIn, VIBRATION, QUALITY_COLORS } from '../src/natpf/natpf_shot_feedback.js';
 import { leftySide, isLocalServing, normalizeHand } from '../src/natpf/natpf_hand.js';
-import { DRILLS, drillsFor, drillAfterShot, calSide, calCoach, CAL_HOLD } from '../src/natpf/natpf_training.js';
+import { DRILLS, drillsFor, drillAfterShot, calSide, calCoach, CAL_SPOT, sideWant } from '../src/natpf/natpf_training.js';
 
 test('percorso da console: menu → modalità → racchetta → collega → riscaldamento → partita; allenamento a parte', () => {
   assert.deepEqual(LOBBY_STEPS, ['menu', 'mode', 'options', 'challenges', 'ranking', 'result', 'controller', 'connect', 'warmup', 'match']);
@@ -124,5 +124,8 @@ test('riscaldamento: calibrazione in campo, poi dritto, rovescio, servizio, ango
   assert.equal(calSide('L', 'right'), 'forehand'); assert.equal(calSide('R', 'right'), 'backhand');
   assert.equal(calSide('L', 'left'), 'backhand'); assert.equal(calSide('R', 'left'), 'forehand');
   assert.deepEqual(calCoach('L'), { side: 'forehand', title: 'Dritto', arrow: '←', move: 'verso sinistra' });
-  assert.ok(CAL_HOLD > .05 && CAL_HOLD < .3);
+  // la palla della calibrazione aspetta di lato, all'altezza della racchetta, poco davanti al giocatore fermo al centro
+  assert.ok(CAL_SPOT.reach > .7 && CAL_SPOT.reach < 1.4 && CAL_SPOT.height > .6 && CAL_SPOT.height < 1.3 && CAL_SPOT.ahead < .95);
+  // freccia del gesto per il lato del colpo (pannello degli esercizi): l'inverso di calSide
+  for (const hand of ['right', 'left']) for (const side of ['forehand', 'backhand']) assert.equal(calSide(sideWant(side, hand), hand), side);
 });

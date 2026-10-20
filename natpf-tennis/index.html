@@ -588,23 +588,26 @@
         </div>
       </div>
     </div>
-    <!-- NATPF: allenatore del riscaldamento in campo (src/natpf/natpf_training.js) -->
+    <!-- NATPF: allenatore del riscaldamento in campo (src/natpf/natpf_training.js): in alto le tappe e i pulsanti, in
+         basso al centro, sotto il giocatore (dove si guarda mentre si gioca), il gesto da fare in grande con la freccia,
+         lo stato (aspetta / ora / riprova / ✓) e l'esito dell'ultimo gesto -->
     <div id="natpf-coach" class="natpf-coach hidden" aria-live="polite">
-      <ol class="coach-stages" id="coach-stages" aria-label="Riscaldamento"></ol>
-      <span class="coach-kicker" id="coach-kicker">Riscaldamento</span>
-      <b id="coach-text"></b><small id="coach-sub"></small>
-      <div class="coach-actions">
-        <button type="button" id="coach-simple" class="lobby-ghost hidden">Modalità semplice</button
-        ><button type="button" id="coach-exit" class="lobby-secondary">Salta il riscaldamento ›</button>
+      <div class="coach-top">
+        <span class="coach-kicker" id="coach-kicker">Riscaldamento</span>
+        <ol class="coach-stages" id="coach-stages" aria-label="Tappe del riscaldamento"></ol>
+        <div class="coach-actions">
+          <button type="button" id="coach-simple" class="lobby-ghost hidden">Modalità semplice</button
+          ><button type="button" id="coach-exit" class="lobby-secondary">Salta ›</button>
+        </div>
       </div>
-    </div>
-    <!-- gesto da fare, grande al centro, mentre la palla aspetta davanti alla racchetta -->
-    <div id="coach-gesture" class="coach-gesture hidden" aria-hidden="true">
-      <div class="gesture-card" data-dir="L">
-        <svg class="gesture-phone" viewBox="0 0 60 100"><rect x="14" y="4" width="32" height="60" rx="7" /><rect x="19" y="11" width="22" height="44" rx="3" class="scr" /><path d="M6 60 q0 -10 10 -9 l28 1 q10 1 8 12 l-3 26 q-2 8 -12 8 h-16 q-14 0 -15 -12z" class="hand" /></svg>
-        <span class="gesture-arrow"></span>
+      <div class="coach-main" id="coach-main" data-state="wait">
+        <div class="coach-cue" id="coach-cue" data-dir="" aria-hidden="true">
+          <svg class="gesture-phone" viewBox="0 0 60 100"><rect x="14" y="4" width="32" height="60" rx="7" /><rect x="19" y="11" width="22" height="44" rx="3" class="scr" /><path d="M6 60 q0 -10 10 -9 l28 1 q10 1 8 12 l-3 26 q-2 8 -12 8 h-16 q-14 0 -15 -12z" class="hand" /></svg>
+          <span class="gesture-arrow"></span>
+        </div>
+        <div class="coach-words"><b id="coach-text"></b><small id="coach-sub"></small></div>
+        <div class="coach-side"><span class="coach-badge" id="coach-badge"></span><span class="coach-count" id="coach-count"></span><span class="coach-dots" id="coach-dots"></span></div>
       </div>
-      <b id="coach-gesture-text"></b>
     </div>
     <script type="module">
       import { renderAllHudPlayerAvatars } from "./src/player_avatars.js";

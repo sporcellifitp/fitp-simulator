@@ -33,7 +33,7 @@ const det = createSwingDetector(), face = createFaceTracker(ALLOW_FLAT ? {} : { 
 det.on('swing', s => { if (face.ready){ s.face = face.strokeFace(s.peakT, s.t - s.dur); s.head = face.headAt(s.peakT, s.axis); } });
 det.on('status', s => { if (s.s === 'still-ok') face.setRest(s.gravity, det.profile.bias); });
 const cal = createCalibration(det);
-let lastFaceSent = -Infinity, lastFacePaint = -Infinity;
+let lastFaceSent = -Infinity, lastFacePaint = -Infinity, lastAttemptOk = false;
 let sensorSequence = 0, lastSensorSent = -Infinity;
 // richieste facoltative del gioco (messaggio cfg): preparazione del colpo e flusso dei sensori anche senza canale binario
 let streamJson = false, prepWanted = false, diagStream = false, sampleHz = 60, lastSampleT = null, swingSeq = 0;
@@ -76,10 +76,14 @@ function paint(){
 function calUi(){
   const st = cal.state;
   if (st.step === 'still' && grip === 'flat') ui('Pronto, fermo', 'Telefono in orizzontale nel palmo, display verso di te: il dorso guarda la rete come le corde. Resta fermo così per 2 secondi.');
-  else if (st.step === 'still') ui('Fermo', 'Tieni il telefono fermo nel palmo, come il manico di una racchetta.');
+  // stessi passi e stesse parole del computer (natpf_cal_view.js): si guarda il computer, qui c'è il riassunto
+  else if (st.step === 'still') ui('Tieni fermo', 'Telefono in verticale nel palmo, come il manico di una racchetta. Guarda il computer.');
   else if (st.step === 'grip') ui('La tua presa', 'Tieni il telefono come ti è comodo, senza stringere troppo.');
-  else if (st.step === 'swings' && !st.ready) ui('Fermati al centro', 'Riporta il telefono davanti a te e fermalo un attimo: il gesto dopo conta solo da fermo.');
-  else if (st.step === 'swings'){ const plan=calibrationPlan(st.options),w=plan[st.idx]; ui(w === 'L' ? 'Muovi verso sinistra' : 'Muovi verso destra', `Gesto ${st.idx + 1} di ${plan.length}. Muovi il telefono come per dare un colpetto. Basta un gesto comodo, anche piccolo; poi fermati.`, '', ARROW[w]); }
+  else if (st.step === 'swings'){
+    const plan = calibrationPlan(st.options), w = plan[st.idx], stroke = (w === 'L') !== (st.options.hand === 'left') ? 'Dritto' : 'Rovescio';
+    if (!st.ready) ui(`${stroke} ${ARROW[w]}`, 'Fermo un attimo al centro…', '', '');
+    else ui(`${stroke} ${ARROW[w]}`, `Ora: muovi il telefono ${w === 'L' ? 'verso sinistra' : 'verso destra'}, come un colpetto, poi fermati. Gesto ${st.idx + 1} di ${plan.length}.`, 'ready', ARROW[w]);
+  }
   else if(st.step==='shots'){const g=GESTURE_PLAN[st.idx];ui(SHOT_NAMES[g.shot],`Gesto ${PLAN.length+st.idx+1} di ${PLAN.length+GESTURE_PLAN.length}: ${g.hint}`, '',g.want?ARROW[g.want]:'↑');}
   else if (st.step === 'review') ui(st.result && st.result.pass ? 'Fatto!' : 'Da rifare', st.result && st.result.pass ? 'Guarda il computer e conferma.' : 'Guarda il computer: ti dice cosa cambiare.', st.result && st.result.pass ? 'ready' : 'miss');
   else if (st.step === 'free') ui('Prova un colpetto', 'Guarda il computer: il personaggio ripete il tuo gesto. Non devi conoscere i colpi del tennis.');
@@ -237,8 +241,14 @@ function command(c){
   if (c === 'skip' && sensor === 'cal' && inputMode === 'motion'){ const p = cal.skip(); det.setContext(phase); if (p){ sensor = 'ready'; sendState(); paint(); } }
   if (c === 'confirm'){ const p = cal.confirm(); det.setContext(phase); if (p){ ss.set('profile', p); sensor = 'ready'; sendState(); paint(); } }
 }
-cal.on(e => { send({ t: 'cal', e: { ...e, shot:e.shot || (inputMode==='touch'?selectedShot:'drive') } }); paint();
-  if (e.kind === 'attempt') flash(e.ok ? 'hit' : 'miss', e.ok ? 'Riconosciuto' : e.why === 'piccolo' ? 'Troppo piccolo' : 'Direzione?', '', 700, ARROW[e.dir]);
+cal.on(e => { send({ t: 'cal', e: { ...e, shot:e.shot || (inputMode==='touch'?selectedShot:'drive') } });
+  // gesto successivo pronto: il «Riconosciuto» del gesto prima lascia subito il posto alla nuova freccia (come sul
+  // computer); «Altro verso» resta il suo tempo (mostra già la freccia giusta)
+  if (e.kind === 'ready' && flashT && lastAttemptOk){ clearTimeout(flashT); flashT = null; }
+  if (e.kind === 'attempt') lastAttemptOk = !!e.ok;
+  paint();
+  // esito del gesto: la freccia è sempre quella del gesto chiesto (come sul computer), anche quando il verso era sbagliato
+  if (e.kind === 'attempt') flash(e.ok ? 'hit' : 'miss', e.ok ? 'Riconosciuto' : e.why === 'piccolo' ? 'Più deciso' : 'Altro verso', e.ok ? '' : e.why === 'piccolo' ? 'Un colpetto un po’ più ampio.' : `Hai mosso ${ARROW[e.dir] || '?'}: rifallo ${ARROW[e.want] || ''}`, 900, ARROW[e.want]);
   if (e.kind === 'free') flash(e.ok ? 'hit' : 'miss', e.ok && e.dirValue === 0 ? 'Centro' : ARROW[e.dir], `Forza ${Math.round(Math.min(1.5, e.strength)*100)}%`, 500);
 });
 det.on('swing', s => {

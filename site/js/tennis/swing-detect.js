@@ -72,6 +72,18 @@ export function aroundVertical(axis, gravity, calibAxis, calibGravity){
   return Math.sign(now) === Math.sign(ref) ? 1 : -1;
 }
 
+// Verso assoluto del gesto attorno alla verticale, senza calibrazione: visto dall'alto il dritto del destro (da destra a
+// sinistra) gira in senso antiorario, cioè la rotazione punta verso l'alto (la gravità del browser, da fermi, punta in
+// alto). +1 da destra a sinistra, -1 da sinistra a destra, 0 se il gesto non gira abbastanza attorno alla verticale
+// (|cos| < min) o se manca la gravità. Serve a riconoscere un primo gesto della calibrazione fatto nel verso sbagliato.
+export function verticalTurn(axis, gravity, min = .6){
+  if (!axis || !gravity) return 0;
+  const up = unit([gravity[2], gravity[0], gravity[1]]);
+  if (!len(up) || !len(axis)) return 0;
+  const c = dot(unit(axis), up);
+  return c >= min ? 1 : c <= -min ? -1 : 0;
+}
+
 export function createSwingDetector(opts = {}){
   const C = { ...DEFAULTS, ...opts };
   let prof = defaultProfile();

@@ -23,6 +23,7 @@ import { lanOrigin } from './natpf_lan.js';
 import { VIBRATION } from './natpf_shot_feedback.js';
 import { swingPower } from './natpf_skill.js';
 import { classifyPhoneShot, aimFromSignals, ENGINE_SHOT, liftBaselineFromProfile, resolveLiftBaseline, createLiftModel, createFaceModel, createAimModel, centeredFace, learnSpecials } from './natpf_gestures.js';
+import { calReduce, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
 
 const NATPF_BASE = '/natpf/';
 const scripts = new Map();
@@ -215,6 +216,9 @@ export class NatpfPhoneRacket {
     this.calListeners = new Set();
     this.lastPhase = null;
     this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false };
+    // passo della calibrazione come lo vede il computer (natpf_cal_view.js): si aggiorna con ogni evento del telefono,
+    // anche prima di entrare in campo, così il riscaldamento parte sempre dal passo vero
+    this.calView = CAL_VIEW_EMPTY;
   }
   get connected(){ return !!this.link?.connected; }
   get ready(){ return !!this.link?.ready; }
@@ -254,6 +258,7 @@ export class NatpfPhoneRacket {
 
   _onCal(e){
     const c = this.cal;
+    this.calView = calReduce(this.calView, e);
     if (e.step) c.step = e.step;
     if (e.kind === 'grip' || (e.kind === 'step' && 'upright' in e)) c.grip = !!e.upright;
     if (e.kind === 'step' && e.step === 'still'){ c.review = null; c.freeOk = false; c.attempts = []; }
@@ -315,7 +320,7 @@ export class NatpfPhoneRacket {
   }
 
   // comandi della calibrazione (vedi racchetta.js → command)
-  recalibrate(){ this.simple = false; this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false }; this.link?.cmd('cal'); this._changed(); }
+  recalibrate(){ this.simple = false; this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false }; this.calView = CAL_VIEW_EMPTY; this.link?.cmd('cal'); this._changed(); }
   retry(){ this.cal.attempts = []; this.link?.cmd('retry'); }
   confirm(){ this.link?.cmd('confirm'); }
   invert(){ this.link?.cmd('invert'); }

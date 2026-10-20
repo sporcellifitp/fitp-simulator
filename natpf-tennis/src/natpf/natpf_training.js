@@ -1,33 +1,41 @@
 // Riscaldamento in campo: calibrazione del telefono e allenamento sono la stessa cosa. Si gioca sul campo d'allenamento
-// (la stessa arena a porte chiuse, natpf_arena.setPractice) con il pannello di lato, fuori dal campo. In campo c'è solo il giocatore,
-// dall'altra parte un lanciapalle (l'avversario non si vede e non risponde). Con lo smartphone:
-//   1 «pronto»: telefono fermo in verticale per un attimo (il telefono misura la deriva dei sensori);
-//   2 quattro palle, alternate dritto e rovescio: ogni palla rallenta fino a fermarsi davanti alla racchetta e aspetta
-//     il gesto che il telefono chiede (sono i gesti della calibrazione); al gesto riconosciuto il giocatore colpisce;
-//   3 la calibrazione si conferma da sola; poi palle vere: dritto, rovescio, servizio e angoli con il tempo del colpo.
-// Con webcam e mouse si parte dal punto 3. «Salta il riscaldamento» chiude in qualsiasi momento: con il telefono non
-// ancora calibrato si gioca in modalità semplice (dritto e rovescio li sceglie il gioco). Non conta per il punteggio.
+// (la stessa arena a porte chiuse, natpf_arena.setPractice). In campo c'è solo il giocatore, dall'altra parte un
+// lanciapalle (l'avversario non si vede e non risponde). Si guarda il computer: le istruzioni stanno in basso al centro,
+// sotto il giocatore, grandi; il telefono è il controller e ripete la stessa cosa in piccolo. Con lo smartphone:
+//   1 «fermo»: telefono fermo in verticale per un attimo (il telefono misura la deriva dei sensori);
+//   2 quattro gesti, alternati dritto e rovescio: il giocatore resta fermo al centro della riga di fondo e la palla
+//     aspetta, ferma all'altezza della racchetta, dal lato del gesto chiesto; al gesto riconosciuto il giocatore la
+//     colpisce. Il computer mostra sempre il passo in cui si trova il telefono (natpf_cal_view.js), mai un suo percorso;
+//   3 la calibrazione si conferma da sola; poi palle vere: dritto, rovescio, pallonetto, palla corta, servizio e angoli
+//     (qui il giocatore corre da solo verso la palla, come in partita: si pensa solo al colpo).
+// Con webcam e mouse si parte dal punto 3. «Salta» chiude in qualsiasi momento: con il telefono non ancora calibrato si
+// gioca in modalità semplice (dritto e rovescio li sceglie il gioco). Non conta per il punteggio.
 import * as THREE from 'three';
+import { calSide, calPrompt, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
+export { calSide };
 
 export const DRILLS = Object.freeze([
-  { id: 'forehand', label: 'Dritto', need: 2, hint: { phone: 'Mentre la palla arriva porta indietro il telefono, poi colpisci quando arriva alla racchetta', webcam: 'Swing quando la palla arriva alla racchetta', mouse: 'Spazio quando la palla arriva' } },
-  { id: 'backhand', label: 'Rovescio', need: 2, hint: { phone: 'Palla sull’altro lato: carica dall’altra parte e colpisci nel verso opposto', webcam: 'Swing verso l’altro lato', mouse: 'Spazio o trascina verso l’altro lato' } },
+  { id: 'forehand', label: 'Dritto', need: 2, cue: 'forehand', hint: { phone: 'Il giocatore va da solo verso la palla: tu colpisci quando arriva alla racchetta', webcam: 'Swing quando la palla arriva alla racchetta', mouse: 'Spazio quando la palla arriva' } },
+  { id: 'backhand', label: 'Rovescio', need: 2, cue: 'backhand', hint: { phone: 'Palla sull’altro lato: colpisci nel verso opposto quando arriva alla racchetta', webcam: 'Swing verso l’altro lato', mouse: 'Spazio o trascina verso l’altro lato' } },
   // colpi speciali (solo smartphone): il gioco impara il TUO pallonetto e la TUA palla corta (soglie personali,
   // natpf_gestures.learnSpecials). Si passa avanti anche senza riuscirci, dopo 4 tentativi.
-  { id: 'lob', label: 'Pallonetto', need: 1, shot: 'lob', phoneOnly: true, maxTries: 4, hint: { phone: 'Colpisci dal basso verso l’alto: chiudi il colpo con la racchetta che sale, come per mandare la palla in alto' } },
+  { id: 'lob', label: 'Pallonetto', need: 1, shot: 'lob', phoneOnly: true, maxTries: 4, hint: { phone: 'Colpisci dal basso verso l’alto: la mano sale, come per mandare la palla in alto' } },
   { id: 'drop', label: 'Palla corta', need: 1, shot: 'drop', phoneOnly: true, maxTries: 4, hint: { phone: 'Colpo lento e morbido, dall’alto verso il basso, come per accarezzare la palla sotto' } },
   { id: 'serve', label: 'Servizio', need: 1, hint: { phone: 'Alza il telefono per lanciare la palla, poi un colpetto quando è in alto', webcam: 'Alza la mano per lanciare, poi swing in alto', mouse: '↑ o W per lanciare, poi Spazio' } },
-  { id: 'free', label: 'Angoli', need: 3, hint: { phone: 'Al colpo gira il dorso del telefono verso dove vuoi la palla: destra o sinistra, di dritto e di rovescio', webcam: 'Prova a mirare: lo swing sposta la palla', mouse: 'Q/E o A/D per mirare' } },
+  { id: 'free', label: 'Angoli', need: 3, hint: { phone: 'Al colpo gira il dorso del telefono verso dove vuoi la palla: destra o sinistra', webcam: 'Prova a mirare: lo swing sposta la palla', mouse: 'Q/E o A/D per mirare' } },
 ]);
 // Calibrazione dentro il riscaldamento (solo smartphone)
 export const CAL_STAGE = Object.freeze({ id: 'cal', label: 'Calibrazione' });
-export const CAL_HOLD = .14;           // s prima dello sweet spot in cui la palla si ferma ad aspettare il gesto
+// posizione del giocatore (centro della riga di fondo) e della palla che aspetta il gesto: di lato quanto il braccio
+// con la racchetta, poco davanti, all'altezza del fianco. flight: s di volo della palla colpita prima della successiva
+export const CAL_SPOT = Object.freeze({ z: 11.4, reach: 1.05, ahead: .45, height: .95, flight: .9 });
 // Gesto della calibrazione → colpo: «L» è il gesto da destra a sinistra, il dritto di un destro (il rovescio di un mancino)
-export const calSide = (want, hand = 'right') => ((want === 'L') !== (hand === 'left') ? 'forehand' : 'backhand');
 export function calCoach(want, hand = 'right'){
   const side = calSide(want, hand);
   return { side, title: side === 'forehand' ? 'Dritto' : 'Rovescio', arrow: want === 'L' ? '←' : '→', move: want === 'L' ? 'verso sinistra' : 'verso destra' };
 }
+// verso del gesto del colpo sul telefono (freccia) per un lato: il dritto del destro va da destra a sinistra
+export const sideWant = (side, hand = 'right') => ((side === 'forehand') !== (hand === 'left') ? 'L' : 'R');
 // avanzamento di un esercizio (funzione pura, per i test)
 export const drillsFor = controller => DRILLS.filter(d => !d.phoneOnly || controller === 'phone');
 export function drillAfterShot(drill, progress, { side, inCourt, shot = null }){
@@ -37,14 +45,12 @@ export function drillAfterShot(drill, progress, { side, inCourt, shot = null }){
   const sideOk = drill.id === 'forehand' ? side === 'forehand' : drill.id === 'backhand' ? side === 'backhand' : true;
   return { ...progress, tries: progress.tries + 1, done: progress.done + (sideOk ? 1 : 0), ok: sideOk, wrongSide: !sideOk };
 }
-const ATTEMPT_MSG = { piccolo: 'Un po’ più deciso', direzione: 'Dall’altra parte' };
 
 export class NatpfTraining {
   constructor(engine, ui){
     this.engine = engine; this.ui = ui;
     this.active = false;
     this.coach = document.getElementById('natpf-coach');
-    this.gesture = document.getElementById('coach-gesture');
     document.getElementById('coach-exit')?.addEventListener('click', e => { e.stopPropagation(); this.skip(); });
     document.getElementById('coach-simple')?.addEventListener('click', e => { e.stopPropagation(); this.simpleMode(); });
     this.coach?.addEventListener('pointerdown', e => e.stopPropagation());
@@ -56,6 +62,7 @@ export class NatpfTraining {
     ui.phone?.onSwing?.(ev => this._onPhoneSwing(ev));
   }
   get drill(){ return (this.drills || DRILLS)[this.idx]; }
+  get view(){ return this.ui.phone?.calView || CAL_VIEW_EMPTY; }
   _onPhoneSwing(ev){
     if (!this.active || this.cal || !ev?.natpf || ev.ignored) return;
     this.lastShot = ev.natpf.shot;
@@ -68,8 +75,8 @@ export class NatpfTraining {
     this.calOnly = calOnly;
     const E = this.engine;
     this.drills = calOnly ? [] : drillsFor(this.ui.controller);
-    this.active = true; this.idx = 0; this.progress = { done: 0, tries: 0 }; this.stats = { shots: 0, perfect: 0, out: 0 }; this.wait = 0; this.message = null;
-    this.cal = this.phoneCal ? { want: null, held: false, armed: false, hits: 0, fails: 0, done: false } : null;
+    this.active = true; this.idx = 0; this.progress = { done: 0, tries: 0 }; this.stats = { shots: 0, perfect: 0, out: 0 }; this.wait = 0; this.message = null; this.flash = null;
+    this.cal = this.phoneCal ? { ballFor: -1, hitFor: -1, flightT: 0, fails: 0 } : null;
     this.withCal = !!this.cal;
     this.prevDifficulty = E.hud.selectedDifficulty || E.matchConfig.difficulty;
     E._applyDifficultyTuning('casual'); E.isMultiplayer = false;
@@ -80,13 +87,14 @@ export class NatpfTraining {
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true }); E._syncScoreboardHUD();
     this._hideOpponent(true);
     if (this.cal){
-      // calibrazione: niente servizio, il giocatore aspetta la prima palla (il telefono chiede di stare fermo)
-      this._idle();
-      const c = this.ui.phone.cal;
-      if (!c.step || c.step === 'done' || c.step === 'review') this.ui.phone.recalibrate();
-      else if (c.step === 'swings' && c.last?.want) this.cal.want = c.last.want;
+      // calibrazione: niente servizio e niente corse, il giocatore aspetta fermo al centro
+      this._idle(); this._centerPlayer();
+      // telefono senza una calibrazione in corso (mai partita, finita o già alla verifica): si ricomincia. Se è già ai
+      // gesti (succede: il telefono parte appena si attivano i sensori, prima di entrare in campo) si continua da lì
+      const step = this.ui.phone.cal?.step;
+      if (!step || ['done', 'review', 'free'].includes(step) || this.view.stage === 'off') this.ui.phone.recalibrate();
     } else E._setupPointServe({ showBanner: false });
-    E.hud.showCenterBanner('Riscaldamento', { style: 'style-start', subText: this.cal ? 'Prima ti insegno i due colpi' : 'Solo tu e il lanciapalle', durationMs: 1400 });
+    E.hud.showCenterBanner(this.cal ? 'Calibrazione' : 'Riscaldamento', { style: 'style-start', subText: this.cal ? 'Il gioco impara i tuoi due gesti' : 'Solo tu e il lanciapalle', durationMs: 1300 });
     this.coach?.classList.remove('hidden');
     this.paint();
   }
@@ -95,67 +103,84 @@ export class NatpfTraining {
     if (o?.root) o.root.visible = !on;
     if (o?.shadowBlob) o.shadowBlob.visible = !on;
     document.body.classList.toggle('natpf-training', on);
-    // campo d'allenamento: tribune vuote e luci di lavoro; il pannello si sposta di lato (natpf-flow.css)
+    // campo d'allenamento: tribune vuote e luci di lavoro (natpf_arena.js)
     this.engine.natpfArena?.setPractice?.(on);
   }
   // giocatore fermo in attesa (nessun servizio, nessuna palla): il motore non deve far partire il punto successivo
   _idle(){
     const E = this.engine;
-    E.phase = 'POINT_OVER'; E.phaseTimer = 0; E.ball.inPlay = false; E.cameraMode = 'RALLY_CAM';
+    E.phase = 'POINT_OVER'; E.phaseTimer = 0; E.ball.inPlay = false; E.cameraMode = 'RALLY_CAM'; E.natpfTimeScale = 1;
     E.ball.pos.set(0, -5, 0); E.ball.vel.set(0, 0, 0); E.ballTrail?.clear?.();
     E.pendingUserSwing = E.pendingP2Swing = E.pendingServeSwing = null;
+  }
+  _centerPlayer(){
+    const p = this.engine.player;
+    p.pos.set(0, 0, CAL_SPOT.z); p.targetPos.copy(p.pos); p.vel?.set?.(0, 0, 0);
   }
   /* ---------- calibrazione in campo ---------- */
   _onCal(e){
     if (!this.active || !this.cal) return;
-    const c = this.cal, hand = this.ui.hand?.hand;
-    if (e.want && (e.kind === 'step' || e.kind === 'next')){ c.want = e.want; if (!this.ballLive()) this.wait = Math.min(this.wait || .5, .5); }
-    if (e.kind === 'step' && e.step === 'still') this.message = null;
-    if (e.kind === 'idle') this.message = 'Non sento movimenti: un colpetto un po’ più deciso';
-    // ogni gesto parte da fermo: il rientro della mano non conta, si aspetta che si fermi al centro
-    if (e.kind === 'settle' || (e.kind === 'warn' && e.why === 'centro')) this.message = 'Torna al centro e fermati un attimo';
-    if (e.kind === 'ready' && c.want) this.message = `Ora: ${calCoach(e.want || c.want, hand).arrow}`;
-    if (e.kind === 'attempt'){
-      const advance = e.ok || (e.tries || 0) >= 3;     // dopo 3 tentativi la calibrazione va avanti comunque
-      if (e.ok){ c.hits++; this.message = 'Riconosciuto ✓'; }
-      else this.message = `${ATTEMPT_MSG[e.why] || 'Riprova'}: ${calCoach(e.want, hand).arrow}`;
-      if (advance) this._hitHeld(e.want || c.want);
+    const c = this.cal, v = this.view, hand = this.ui.hand?.hand;
+    this._calTick(0);                                      // palla del passo attuale subito, senza aspettare il fotogramma
+    if (e.kind === 'attempt' && e.ok){
+      this.flash = { text: `${calCoach(e.want || v.want, hand).title} riconosciuto ✓`, ok: true, until: performance.now() + 900 };
+      this._hitCal(e.idx ?? v.idx, e.want || v.want);
     }
+    // gesto non valido: il perché resta scritto finché non si rifà (calPrompt), qui solo il lampo «Riprova»
+    if (e.kind === 'attempt' && !e.ok) this.flash = { text: calPrompt(v, hand).sub, ok: false, until: performance.now() + 1100 };
+    if (e.kind === 'ready' && this.flash?.ok) this.flash = null;   // gesto dopo pronto: «Ora» subito, come sul telefono
     if (e.kind === 'review'){
-      if (e.pass){ this.message = 'Racchetta pronta ✓'; this.ui.phone.confirm(); }
+      if (e.pass) this.ui.phone.confirm();
       else {
         c.fails++;
-        this.message = c.fails >= 2 ? 'Non riesco a distinguere i due gesti: prova la modalità semplice' : 'Non ho distinto i due gesti: rifacciamo, più ampi';
-        if (c.fails < 2) setTimeout(() => this.active && this.ui.phone.retry(), 1600);
+        if (c.fails < 2) setTimeout(() => this.active && this.cal && this.ui.phone.retry(), 1600);
       }
     }
-    if (e.kind === 'done'){ c.done = true; this._startDrills(); }
+    if (e.kind === 'done'){ this._startDrills(); return; }
     this.paint();
   }
   ballLive(){ const E = this.engine; return E.phase === 'RALLY' && E.ball.inPlay; }
-  // gesto riconosciuto: la palla riparte e il giocatore colpisce (o colpirà appena la palla arriva)
-  // gesto arrivato prima che la palla si fermi: si colpisce appena la palla arriva al punto d'attesa
-  _hitHeld(want){
-    const c = this.cal;
-    if (!c) return;
-    if (!c.held){ c.armed = want || c.want; return; }
-    this._release(want);
+  // palla del gesto chiesto: ferma all'altezza della racchetta, dal lato del colpo; il giocatore resta al centro
+  _presentBall(v){
+    const E = this.engine, c = this.cal, p = E.player, hand = this.ui.hand?.hand;
+    const toRight = (calSide(v.want, hand) === 'forehand') !== (hand === 'left');      // P1 guarda verso −z: la sua destra è +x
+    this._centerPlayer();
+    const x = p.pos.x + (toRight ? 1 : -1)*CAL_SPOT.reach, z = p.pos.z - CAL_SPOT.ahead;
+    E.ballTrail?.clear?.(); E.swingVfx?.clearAllTrails?.();
+    E.ball.pos.set(x, CAL_SPOT.height, z); E.ball.vel.set(0, 0, 2); E.ball.spin?.set?.(0, 0, 0);
+    E.ball.targetLanding?.set?.(x, 0, p.pos.z);
+    Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 1, rallyStrokeCount: 1, shotType: 'TOPSPIN', isPowerShot: false });
+    E.pendingUserSwing = null;
+    E.phase = 'RALLY'; E.phaseTimer = 0; E.cameraMode = 'RALLY_CAM';
+    E.natpfTimeScale = 0;                           // tutto fermo finché non arriva il gesto
+    c.ballFor = v.idx; c.flightT = 0;
   }
-  _release(want){
+  // gesto riconosciuto dal telefono: il giocatore colpisce la palla di quel gesto, dal lato di quel gesto
+  _hitCal(idx, want){
     const c = this.cal, E = this.engine;
-    c.armed = false; c.held = false; E.natpfTimeScale = 1;
-    this.gesture?.classList.add('hidden');
-    const side = calSide(want || c.want, this.ui.hand?.hand);
-    this.engine.motionController?._emitSwing({ source: 'natpf-warmup', side, shotType: 'topspin', speed: 1.2, dirX: 0, role: E.playerRole });
+    if (!c || c.ballFor !== idx || c.hitFor === idx || !this.ballLive() || E.ball.lastHitter !== 'opponent') return;
+    c.hitFor = idx; c.flightT = 0; E.natpfTimeScale = 1; E.player.swingCooldown = 0;
+    E.motionController?._emitSwing({ source: 'natpf-warmup', side: calSide(want, this.ui.hand?.hand), shotType: 'topspin', speed: 1.15, dirX: 0, role: E.playerRole });
+  }
+  _calTick(dt){
+    const E = this.engine, c = this.cal, v = this.view, p = E.player;
+    p.targetPos.copy(p.pos);                                                      // il giocatore non corre mai da solo
+    const flying = this.ballLive() && E.ball.lastHitter === 'player';
+    if (flying) c.flightT += dt;
+    if (v.stage === 'gesture'){
+      // nuova palla per il gesto nuovo appena la palla colpita è passata, subito se non ce n'è una in volo, e comunque
+      // prima che il telefono accetti il gesto (il tentativo arriva sempre dopo «ready», sullo stesso canale ordinato)
+      if (c.ballFor !== v.idx && (!flying || c.flightT >= CAL_SPOT.flight || v.ready)) this._presentBall(v);
+    } else if (!flying && E.ball.inPlay) this._idle();                             // fermo, verifica, fine: niente palla
+    if (!this.ballLive() && E.phase === 'POINT_OVER') E.phaseTimer = 0;            // niente servizio automatico
   }
   _startDrills(){
     if (this.calOnly){ this.stop({ completed: true, calibrated: true }); return; }
     const E = this.engine;
-    E.natpfTimeScale = 1; this.gesture?.classList.add('hidden');
     this.cal = null; this.idx = 0; this.progress = { done: 0, tries: 0 };
-    this.message = 'Ora con le palle vere';
+    this.message = null; this.flash = { text: 'Racchetta pronta ✓', until: performance.now() + 1400 };
     E.hud.showCenterBanner('Racchetta pronta', { style: 'style-start', subText: 'Ora le palle vere', durationMs: 1300 });
-    this._idle(); this.wait = 1.2;
+    this._idle(); this.wait = 1.4;
     this.paint();
   }
   // il telefono non riesce a distinguere i gesti (o chi gioca non vuole calibrare): profilo semplice
@@ -177,7 +202,9 @@ export class NatpfTraining {
     const before = this.progress.done;
     this.progress = drillAfterShot(d, this.progress, { side: d.id === 'serve' ? 'serve' : side, inCourt: q.label !== 'Fuori' && q.label !== 'Mancata', shot: this.lastShot });
     this.lastShot = null;
-    this.message = d.shot ? (this.progress.done > before ? `${d.label} ✓` : this.progress.tries >= 2 ? 'Ho imparato il tuo gesto: riprova uguale' : (d.shot === 'lob' ? 'Più dal basso verso l’alto' : 'Più lento, dall’alto verso il basso')) : this.progress.done > before ? `${q.label} ✓` : this.progress.wrongSide ? (d.id === 'forehand' ? 'Era un rovescio: la palla va sul dritto' : 'Era un dritto: la palla va sul rovescio') : q.label === 'Fuori' ? 'Fuori: meno angolo o meno forza' : q.label;
+    const ok = this.progress.done > before;
+    this.message = d.shot ? (ok ? `${d.label} ✓` : this.progress.tries >= 2 ? 'Ho imparato il tuo gesto: riprova uguale' : (d.shot === 'lob' ? 'Più dal basso verso l’alto' : 'Più lento, dall’alto verso il basso')) : ok ? `${q.label} ✓` : this.progress.wrongSide ? (d.id === 'forehand' ? 'Era un rovescio: la palla va sul dritto' : 'Era un dritto: la palla va sul rovescio') : q.label === 'Fuori' ? 'Fuori: meno angolo o meno forza' : q.label;
+    this.flash = { text: this.message, ok, until: performance.now() + 1200 };
     this.paint();
   }
   // colpo molto fuori tempo (il motore lo gioca in difesa): conta come tentativo
@@ -185,66 +212,53 @@ export class NatpfTraining {
     if (!this.active || this.cal) return;
     this.progress = { ...this.progress, tries: this.progress.tries + 1 };
     this.message = early ? 'Troppo presto: aspetta che la palla arrivi vicino' : 'Troppo tardi: colpisci un attimo prima';
+    this.flash = { text: this.message, ok: false, until: performance.now() + 1200 };
     this.paint();
   }
   _ballOver(winner, why){
     const E = this.engine;
-    if (!this.cal && winner !== 'player' && E.ball.lastHitter === 'opponent'){ this.progress = { ...this.progress, tries: this.progress.tries + 1 }; this.message = 'Palla persa: colpisci quando arriva alla racchetta'; }
     E.phase = 'POINT_OVER'; E.phaseTimer = 0; E.ball.inPlay = false; E.natpfTimeScale = 1;
     E.pendingUserSwing = E.pendingP2Swing = E.pendingServeSwing = null;
-    if (!this.cal && this.drill && (this.progress.done >= this.drill.need || (this.drill.maxTries && this.progress.tries >= this.drill.maxTries))){ this.idx++; this.progress = { done: 0, tries: 0 }; if (this.idx < this.drills.length) this.message = `Bravo! Ora: ${this.drill.label}`; }
-    this.wait = this.cal ? .7 : 1.1;
+    if (this.cal){ this.paint(); return; }                       // calibrazione: la palla del gesto dopo la mette _calTick
+    if (winner !== 'player' && E.ball.lastHitter === 'opponent'){ this.progress = { ...this.progress, tries: this.progress.tries + 1 }; this.message = 'Palla persa: colpisci quando arriva alla racchetta'; this.flash = { text: this.message, ok: false, until: performance.now() + 1200 }; }
+    if (this.drill && (this.progress.done >= this.drill.need || (this.drill.maxTries && this.progress.tries >= this.drill.maxTries))){ this.idx++; this.progress = { done: 0, tries: 0 }; if (this.idx < this.drills.length){ this.message = null; this.flash = { text: `Bravo! Ora: ${this.drill.label}`, ok: true, until: performance.now() + 1400 }; } }
+    this.wait = 1.1;
     this.paint();
   }
   _next(){
     const E = this.engine;
+    if (this.cal) return;
     if (this.ballLive() && E.ball.lastHitter === 'opponent') return;     // c'è già una palla in arrivo
-    if (this.cal){
-      // una palla per ogni gesto della calibrazione, solo quando il telefono lo chiede
-      const step = this.ui.phone.cal.step;
-      if (step === 'swings' && this.cal.want){ this._feed(calSide(this.cal.want, this.ui.hand?.hand), { hold: true }); return; }
-      this._idle(); this.wait = .4; return;
-    }
     if (this.idx >= this.drills.length) return this.stop({ completed: true });
     if (this.drill.id === 'serve'){ E.score.server = 'player'; E._setupPointServe({ showBanner: false }); return; }
     // pallonetto e palla corta: sul dritto, il colpo più comodo
     this._feed(this.drill.id === 'backhand' ? 'backhand' : this.drill.id === 'forehand' || this.drill.shot ? 'forehand' : Math.random() < .5 ? 'forehand' : 'backhand');
   }
   // lanciapalle: palla dal fondo avversario verso il dritto o il rovescio del giocatore locale (destro o mancino)
-  _feed(side, { hold = false } = {}){
+  _feed(side){
     const E = this.engine, p = E.player, lefty = this.ui.hand?.hand === 'left';
     const toRight = (side === 'forehand') !== lefty;            // P1 guarda verso -z: la sua destra è +x
-    const x = THREE.MathUtils.clamp(p.pos.x + (toRight ? 1.3 : -1.3) + (Math.random() - .5)*(hold ? .2 : .6), -3.4, 3.4);
-    const start = new THREE.Vector3((Math.random() - .5)*2, 1.05, -11.6), target = new THREE.Vector3(x, 0, 8.4 + Math.random()*(hold ? .6 : 1.4));
+    const x = THREE.MathUtils.clamp(p.pos.x + (toRight ? 1.3 : -1.3) + (Math.random() - .5)*.6, -3.4, 3.4);
+    const start = new THREE.Vector3((Math.random() - .5)*2, 1.05, -11.6), target = new THREE.Vector3(x, 0, 8.4 + Math.random()*1.4);
     E.ballTrail?.clear(); E.swingVfx?.clearAllTrails?.();
     E.ball.pos.copy(start);
-    E._launchBallToTarget(start, target, hold ? 1.3 : 1.15, { topspin: 10, sidespin: 0, allowNetFault: false });
+    E._launchBallToTarget(start, target, 1.15, { topspin: 10, sidespin: 0, allowNetFault: false });
     Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: 1, shotType: 'TOPSPIN', isPowerShot: false });
     E.phase = 'RALLY'; E.phaseTimer = 0; E.cameraMode = 'RALLY_CAM';
     E._predictBallIntercept(p);
     E.audioEngine?.playRacketHit?.('topspin', 'good');
-    if (this.cal) this.cal.held = false;
+    this.fedSide = side;
   }
   tick(dt){
     if (!this.active) return;
     const E = this.engine, o = E.opponent;
     // il lanciapalle non corre e non risponde: l'avversario resta fuori dal campo
     if (o){ o.pos.set(0, 0, -40); o.targetPos.copy(o.pos); }
-    if (this.cal) this._calTick();
-    if (this.cal && !this.ballLive() && E.phase === 'POINT_OVER') E.phaseTimer = 0;     // niente servizio automatico
+    if (this.cal) this._calTick(dt);
     if (this.wait > 0){ this.wait -= dt; if (this.wait <= 0) this._next(); }
     this.paint();
   }
-  // la palla della calibrazione rallenta e si ferma davanti alla racchetta finché il telefono non riconosce il gesto
-  _calTick(){
-    const E = this.engine, c = this.cal, b = E.ball;
-    if (!this.ballLive() || b.lastHitter !== 'opponent' || b.vel.z <= .5) return;
-    const lead = (E.player.pos.z - .1 - b.pos.z)/b.vel.z;
-    if (c.armed && lead <= CAL_HOLD + .02){ this._release(c.armed); return; }
-    if (lead <= CAL_HOLD + .35 && !c.held) E.natpfTimeScale = Math.max(.08, (lead - CAL_HOLD)/.35);    // rallentatore
-    if (lead <= CAL_HOLD && !c.held){ c.held = true; E.natpfTimeScale = 0; this.gesture?.classList.remove('hidden'); }
-  }
-  // «Salta il riscaldamento»: con il telefono non calibrato si passa alla modalità semplice
+  // «Salta»: con il telefono non calibrato si passa alla modalità semplice
   skip(){
     if (!this.active) return;
     if (this.ui.controller === 'phone' && !this.ui.phone.ready) this.ui.phone.skipCalibration();
@@ -255,7 +269,7 @@ export class NatpfTraining {
     if (!this.active) return;
     const E = this.engine;
     this.active = false; this.cal = null; E.natpfTimeScale = 1;
-    this.coach?.classList.add('hidden'); this.gesture?.classList.add('hidden'); this._hideOpponent(false);
+    this.coach?.classList.add('hidden'); this._hideOpponent(false);
     E.opponent.pos.set(-1.35, 0, -11.89); E.opponent.targetPos.copy(E.opponent.pos);
     E._applyDifficultyTuning(this.prevDifficulty || 'casual');
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
@@ -265,40 +279,44 @@ export class NatpfTraining {
     E.hud.showTitleModal();
     this.ui.flow?.onTrainingEnd({ completed, skipped, calibrated, stats: this.stats });
   }
+  // Pannello in campo: tappe in alto, in basso al centro il gesto da fare (titolo grande, freccia, stato) e l'esito
   paint(){
     if (!this.active || !this.coach) return;
     const $ = sel => this.coach.querySelector(sel);
-    const t = $('#coach-text'), s = $('#coach-sub'), k = $('#coach-kicker');
-    const c = this.ui.controller, hand = this.ui.hand?.hand;
+    const c = this.ui.controller, hand = this.ui.hand?.hand, now = performance.now();
     const stages = this.withCal ? [CAL_STAGE, ...this.drills] : this.drills;
     const cur = this.cal ? 0 : stages.indexOf(this.drill);
-    const list = $('#coach-stages');
-    const key = stages.map(x => x.id).join() + cur;
+    const list = $('#coach-stages'), key = stages.map(x => x.id).join() + cur;
     if (list && list.dataset.key !== key){ list.dataset.key = key; list.innerHTML = stages.map((x, i) => `<li class="${i < cur ? 'done' : i === cur ? 'on' : ''}">${x.label}</li>`).join(''); }
     show($('#coach-simple'), !!this.cal && this.cal.fails >= 1);
-    const msg = this.message ? ` · ${this.message}` : '';
+    const flash = this.flash && now < this.flash.until ? this.flash : null;
+    const mode = this.ui.flow?.mode === 'training' ? 'Allenamento' : 'Riscaldamento';
+    let view;
     if (this.cal){
-      const step = this.ui.phone.cal.step, want = this.cal.want || this.ui.phone.cal.last?.want;
-      k.textContent = 'Riscaldamento · calibrazione';
-      if (!step || step === 'still' || step === 'grip'){ t.textContent = 'Telefono in verticale, fermo'; s.textContent = 'Nel palmo, schermo verso il palmo, come il manico di una racchetta. Un attimo e partiamo.' + msg; }
-      else if (step === 'swings' && want){
-        const g = calCoach(want, hand);
-        t.textContent = `${g.title}: muovi il telefono ${g.move} ${g.arrow}`;
-        s.textContent = (this.cal.held ? 'La palla ti aspetta: fai il gesto.' : 'Un colpetto comodo quando la palla arriva, poi fermati.') + msg;
-        const gt = document.getElementById('coach-gesture-text'); if (gt) gt.textContent = `${g.title} ${g.arrow}`;
-        const card = this.gesture?.querySelector('.gesture-card'); if (card) card.dataset.dir = want;
+      const v = this.view, pr = calPrompt(v, hand);
+      const count = v.stage === 'gesture' ? `Gesto ${Math.min(v.idx + 1, v.total)} di ${v.total}` : v.stage === 'still' ? 'Prima di iniziare' : '';
+      view = { kicker: mode, title: pr.title, sub: flash ? flash.text : (this.message && v.stage !== 'gesture' ? this.message : pr.sub), state: flash ? (flash.ok ? 'ok' : 'retry') : pr.state, dir: pr.dir, count, dots: v.stage === 'gesture' ? Array.from({ length: v.total }, (_, i) => i < v.idx ? 'done' : i === v.idx ? 'on' : '') : null };
+    } else {
+      const d = this.drill, ctrl = c in (d?.hint || {}) ? c : 'phone';
+      if (!d) view = { kicker: mode, title: 'Completato ✓', sub: '', state: 'ok', dir: null, count: '' };
+      else {
+        const hot = isHot(this.engine);
+        view = { kicker: `${mode} · ${this.idx + 1} di ${this.drills.length}`, title: d.label, sub: flash ? flash.text : d.hint[ctrl], state: flash ? (flash.ok ? 'ok' : 'retry') : hot ? 'go' : 'wait',
+          dir: c === 'phone' && d.cue ? sideWant(d.cue, hand) : null, count: `${Math.min(this.progress.done, d.need)} di ${d.need}`, dots: Array.from({ length: d.need }, (_, i) => i < this.progress.done ? 'done' : '') };
       }
-      else { t.textContent = 'Controllo i tuoi gesti…'; s.textContent = this.message || ''; }
-      this.coach.classList.toggle('hot', !!this.cal.held);
-      return;
     }
-    const d = this.drill, ctrl = c in (d?.hint || {}) ? c : 'phone';
-    k.textContent = `Riscaldamento · ${(this.idx || 0) + 1} di ${this.drills.length}`;
-    if (!d){ t.textContent = 'Riscaldamento completato'; s.textContent = ''; return; }
-    t.textContent = `${d.label} ${Math.min(this.progress.done, d.need)}/${d.need}`;
-    s.textContent = d.hint[ctrl] + msg;
-    this.coach.classList.toggle('hot', E_isHot(this.engine));
+    const k = $('#coach-kicker'); if (k && k.textContent !== view.kicker) k.textContent = view.kicker;
+    const t = $('#coach-text'); if (t && t.textContent !== view.title) t.textContent = view.title;
+    const s = $('#coach-sub'); if (s && s.textContent !== view.sub) s.textContent = view.sub;
+    const n = $('#coach-count'); if (n && n.textContent !== view.count) n.textContent = view.count;
+    const main = $('#coach-main'); if (main && main.dataset.state !== view.state) main.dataset.state = view.state;
+    const cue = $('#coach-cue'); if (cue){ const dir = view.dir || ''; if (cue.dataset.dir !== dir) cue.dataset.dir = dir; }
+    const dots = $('#coach-dots'), dk = (view.dots || []).join();
+    if (dots && dots.dataset.key !== dk){ dots.dataset.key = dk; dots.innerHTML = (view.dots || []).map(x => `<i class="${x}"></i>`).join(''); }
+    const badge = $('#coach-badge'), bt = { go: 'Ora', wait: '…', retry: 'Riprova', ok: '✓' }[view.state] || '';
+    if (badge && badge.textContent !== bt) badge.textContent = bt;
   }
 }
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
-const E_isHot = E => E.phase === 'RALLY' && E.ball.lastHitter === 'opponent' && E.ball.vel.z > .1 && (E.player.pos.z - E.ball.pos.z)/E.ball.vel.z < .5;
+// palla in arrivo vicina alla racchetta: è il momento del colpo
+const isHot = E => E.phase === 'RALLY' && E.ball.inPlay && E.ball.lastHitter === 'opponent' && E.ball.vel.z > .1 && (E.player.pos.z - E.ball.pos.z)/E.ball.vel.z < .4;

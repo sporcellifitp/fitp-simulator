@@ -50,3 +50,23 @@ test('a hand held still with tremor never consumes calibration attempts',()=>{
  let t=quiet(det,cal,0,800);t=jitter(det,cal,t,6000,60);
  assert.equal(cal.state.step,'swings');assert.equal(cal.state.idx,0);assert.equal(ev.filter(e=>e.kind==='attempt').length,0);
 });
+// Primo gesto nel verso sbagliato (telefono in verticale, gesto attorno alla verticale). Prima il primo gesto fissava il
+// verso qualunque fosse: un primo gesto al contrario invertiva la calibrazione e il gesto «verso destra» dopo risultava
+// «verso sinistra». Ora è un tentativo nel verso sbagliato; alla terza volta di fila si accetta (telefoni con il segno
+// della rotazione opposto).
+test('first calibration gesture in the wrong direction around the vertical is a wrong-direction attempt',()=>{
+ const run=firsts=>{const det=createSwingDetector(),cal=createCalibration(det),ev=[];cal.on(e=>ev.push(e));cal.start({quick:true});
+  let t=quiet(det,cal,0,800);
+  const turn=(s,peak=220)=>{t=stroke(det,cal,t,{axis:[0,0,s],peak});t=quiet(det,cal,t,650);};   // γ: attorno al lato lungo, verticale
+  for(const s of firsts)turn(s);
+  for(const d of QUICK_PLAN.slice(1))turn(d==='L'?1:-1);
+  return {cal,at:ev.filter(e=>e.kind==='attempt').map(a=>`${a.want}${a.dir}${a.ok?'':'!'}`)};};
+ // un gesto sbagliato, poi quello giusto: la calibrazione riesce con il verso vero
+ let r=run([-1,1]);
+ assert.deepEqual(r.at,['LR!','LL','RR','LL','RR']);assert.equal(r.cal.state.result.pass,true);
+ assert.ok(r.cal.state.profile.axis[2]>.9,'asse: da destra a sinistra = rotazione verso l’alto');
+ // il verso giusto subito: come prima
+ r=run([1]);assert.deepEqual(r.at,['LL','RR','LL','RR']);
+ // tre volte lo stesso verso «sbagliato»: è il telefono, si accetta (e gli altri gesti si leggono di conseguenza)
+ r=run([-1,-1,-1]);assert.deepEqual(r.at.slice(0,3),['LR!','LR!','LL']);
+});

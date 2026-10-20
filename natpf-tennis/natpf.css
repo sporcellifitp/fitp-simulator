@@ -852,64 +852,6 @@
   background: var(--lb-ball);
 }
 
-/* ---------- allenatore del punto di prova ---------- */
-.natpf-coach {
-  position: fixed;
-  z-index: 40;
-  top: 86px;
-  left: 50%;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  column-gap: 16px;
-  min-width: min(520px, 92vw);
-  padding: 12px 14px 12px 18px;
-  border-left: 5px solid var(--lb-ball);
-  background: rgba(7, 18, 51, 0.92);
-  color: var(--lb-ink);
-  font-family: var(--lb-font);
-  transform: translateX(-50%);
-}
-.natpf-coach.hidden {
-  display: none;
-}
-.coach-kicker {
-  grid-column: 1;
-  color: var(--lb-pink);
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-.natpf-coach b {
-  grid-column: 1;
-  font-size: 22px;
-  font-style: italic;
-  text-transform: uppercase;
-}
-.natpf-coach small {
-  grid-column: 1;
-  color: var(--lb-muted);
-  font-size: 14px;
-}
-.natpf-coach .lobby-ghost {
-  grid-column: 2;
-  grid-row: 1 / span 3;
-  align-self: center;
-  min-height: 36px;
-  padding: 6px 14px;
-}
-.natpf-coach.hot {
-  border-left-color: var(--lb-pink);
-  animation: coach-pulse 0.5s ease-in-out infinite alternate;
-}
-.natpf-coach.hot b {
-  color: var(--lb-ball);
-}
-@keyframes coach-pulse {
-  to {
-    background: rgba(22, 55, 143, 0.95);
-  }
-}
 @media (max-width: 760px) {
   .lobby-tiles,
   .lobby-tiles.lobby-tiles-2 {
@@ -934,8 +876,7 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .lobby-page,
-  .natpf-coach.hot {
+  .lobby-page {
     animation: none;
   }
 }
