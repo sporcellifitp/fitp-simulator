@@ -1,6 +1,6 @@
 # NATPF Simulator · roadmap
 
-Ultimo aggiornamento: 19 ottobre 2026, sera (branch `claude/friendly-fermat-dwv2w2`, da `feature/natpf-tennis-v2`). Raccoglie in un posto solo lo stato del
+Ultimo aggiornamento: 20 ottobre 2026 (branch `claude/friendly-fermat-dwv2w2`, da `feature/natpf-tennis-v2`). Raccoglie in un posto solo lo stato del
 gioco di tennis (1v1, telefono come racchetta, webcam, LAN e Cloudflare). I dettagli tecnici restano nei documenti
 collegati: [NATPF_TENNIS_MVP.md](NATPF_TENNIS_MVP.md) (storia e architettura),
 [NATPF_GESTI_E_LATENZA.md](NATPF_GESTI_E_LATENZA.md) (telefono, gesti, latenza, registrazioni),
@@ -12,7 +12,17 @@ con hardware vero (telefono in mano, webcam con una persona, Wi-Fi di un evento)
 
 ## 1. Fatto in questo giro
 
-### Richiesta in 6 punti del 19/10 (stato in [MEMORY.md](../MEMORY.md) §10)
+### Audit e miglioramenti del 20/10: allenamento, calibrazione, risposta del giocatore, menu (stato in [MEMORY.md](../MEMORY.md) §10)
+
+| Punto | Causa trovata | Correzione | Verifica |
+|---|---|---|---|
+| Allenamento: telefono e computer non coerenti, giocatore che si muove da solo | Due percorsi separati: il telefono decideva i passi, il computer lanciava una palla rallentata e «armava» il gesto; se il telefono era già ai gesti la palla non partiva, e un gesto fatto prima della palla colpiva quella del gesto dopo | Il computer mostra sempre il passo del telefono (`natpf_cal_view.js`); giocatore fermo, palla ferma dal lato del gesto chiesto; pannello in basso al centro con gesto, freccia e stato (aspetta · ora · riprova · ✓), stesse parole sul telefono; telefono scollegato segnalato | **provato** nel browser con il telefono simulato: 13/13 (5/9 con il codice di prima) e ricollegamento a metà calibrazione 6/6; telefono vero **non provato** |
+| Calibrazione con prese, inclinazioni, ampiezze e velocità diverse | Il primo gesto fissava il verso anche se fatto al contrario; con il polso che prona il verso dei gesti successivi si sbagliava (168 combinazioni su 432); dopo la correzione, 623 dritti morbidi letti come palle corte | Verso assoluto dalla rotazione attorno alla verticale (primo gesto al contrario rifatto), rotazione netta durante il gesto, riferimento del piatto dai gesti della calibrazione | **provato** con l'audit `calibration-matrix.mjs`: 864/864 calibrazioni, 10 368 colpi senza colpi persi, lati sbagliati o colpi speciali non voluti; telefono vero **non provato** |
+| Risposta del giocatore al gesto | Gesto in anticipo: swing subito e di nuovo all'arrivo della palla (due swing per un gesto); gesto in tempo: la racchetta arrivava all'impatto ~0,1 s dopo la palla; gesto troppo presto: nessun segno | Racchetta che si carica subito dal lato del colpo, swing all'istante del colpo partendo poco prima dell'impatto (anche per il Player 2), swing a vuoto con «Troppo presto», etichetta del gesto sul computer (rilevato → letto → applicato) | **provato** nel browser: un solo swing per gesto, risposta 26–35 ms dopo il picco (9/9), 1v1 18/18 |
+| Latenza | Misurata tratto per tratto: rilevatore ~24 ms, rete 1–10 ms, motore < 2 ms; la rete non è il collo di bottiglia | Nessun cambio di trasporto (confronto WebRTC, WebSocket, Bluetooth, sensori più frequenti in [NATPF_GESTI_E_LATENZA.md](NATPF_GESTI_E_LATENZA.md) §8) | **provato** in locale; Wi-Fi vero **non provato** |
+| Menu principale e sfarfallio della home | Dietro il menu girava una partita dimostrativa ridisegnata a ogni fotogramma sotto un pannello sfocato, più il campo animato dell'intro | Menu al centro con tutte le voci visibili, frecce come un joypad, descrizione della voce; dietro un fotogramma fermo dell'arena (il gioco non avanza e non ridisegna) | **provato** nel browser a 1366 × 657, 1024 × 600 e 1280 × 720 (22/22, 0 ridisegni in 3 s); scheda video vera **non provata** |
+
+### Richiesta in 6 punti del 19/10
 
 | Punto | Causa trovata | Correzione | Verifica |
 |---|---|---|---|
@@ -51,10 +61,10 @@ con hardware vero (telefono in mano, webcam con una persona, Wi-Fi di un evento)
 | Tappa | Cosa c'è | Verifica |
 |---|---|---|
 | Intro | ESPORTS FITP «presenta», Nitto ATP Finals, titolo con la palla, «Premi un tasto»; saltabile; breve se già vista nella sessione; `?intro=0` per le prove | **provato** nel browser (fotogrammi) |
-| Menu principale | Gioca · Allenamento · Come si gioca · Opzioni, con frecce, Invio ed Esc | **provato** nel browser |
+| Menu principale | Al centro, tutte le voci senza scorrere: Gioca · Allenamento · Sfide, poi Classifica · Come si gioca · Opzioni; frecce come un joypad, Invio, Esc, descrizione della voce; dietro un fotogramma fermo dell'arena (niente partita dimostrativa) | **provato** nel browser a tre risoluzioni |
 | Modalità | Contro la CPU · Sfida un amico, con caratteristiche e racchette richieste; decide gli avversari della pagina partita | **provato** nel browser |
 | Racchetta e collegamento | Smartphone (QR), webcam o (prova) mouse e tastiera; si entra in campo da soli quando è pronto | **provato** con mouse e tastiera nel browser; QR con telefono simulato nel test LAN |
-| Riscaldamento / allenamento | Campo d'allenamento (tribune vuote), calibrazione, dritto, rovescio, pallonetto, palla corta, servizio, angoli; dall'Allenamento si torna al menu con il risultato | **provato** il flusso con mouse e tastiera; con il telefono **solo implementato** |
+| Riscaldamento / allenamento | Campo d'allenamento (tribune vuote), calibrazione guidata dal telefono (il computer mostra lo stesso passo), dritto, rovescio, pallonetto, palla corta, servizio, angoli; dall'Allenamento si torna al menu con il risultato | **provato** con mouse e tastiera e con il telefono simulato nel browser; telefono vero **non provato** |
 | Partita | Livello CPU o invito dell'amico, durata, visuale; fascia di passaggio al campo | **provato** nel browser |
 | Pausa e fine | Pausa (Esc), «Torna al menu»; schermata finale con «Gioca ancora» e «Menu», che riportano al menu principale con la dimostrazione | **provato** nel browser |
 
@@ -94,6 +104,11 @@ certificato e firewall. Dettagli in [NATPF_GESTI_E_LATENZA.md](NATPF_GESTI_E_LAT
    del riscaldamento; una registrazione con una sequenza dichiarata (es. 5 dritti, 5 rovesci, 3 pallonetti, 3 palle
    corte) per tarare soglie e segno del nuovo segnale. Il segno «palmo nel dritto, dorso nel rovescio» viene dalla
    fisica della presa e va confermato.
+1c. **Palla corta con prese diverse** (audit del 20/10, simulatore): riconosciuta in 277 gesti su 864; 154/288 con
+   lo schermo verso di sé, 107/288 con lo schermo girato di 45°, 16/288 girato di lato, meno se chi gioca prona molto
+   nei dritti (il riferimento del piatto viene dai propri colpi). Il segnale usa il dorso del telefono: con lo schermo
+   di lato il gesto verso il basso non lo muove. Colpi normali mai letti come palle corte. Da decidere con la
+   registrazione vera se cambiare segnale (spostamento della mano) o indicare la presa.
 2. **Direzione (mira)**: tarare con la stessa registrazione dichiarata; oggi la mira è ricentrata sui propri colpi e
    nei gesti molto ampi decide il tempo del colpo.
 3. **Modalità per eventi** ([NATPF_EVENTI_E_BACKLOG.md](NATPF_EVENTI_E_BACKLOG.md) §3): sfide (Radar, Bersagli 60",

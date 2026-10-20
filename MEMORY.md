@@ -3,7 +3,7 @@
 Memoria di lavoro del progetto: da leggere all'inizio di ogni sessione e da aggiornare alla fine di ogni attività.
 Non contiene password, token o altri segreti.
 
-Ultimo aggiornamento: 19 ottobre 2026, notte (secondo giro: colpi con la presa vera, mira, musica, sedia) · branch `claude/friendly-fermat-dwv2w2` (ripartito da
+Ultimo aggiornamento: 20 ottobre 2026 (quarto giro: allenamento, calibrazione, risposta al gesto, menu, audit) · branch `claude/friendly-fermat-dwv2w2` (ripartito da
 `feature/natpf-tennis-v2`, che contiene tutto il lavoro precedente; i branch `backup/*` e gli altri `feature/natpf-*`
 sono già inclusi)
 
@@ -34,6 +34,16 @@ ammessi solo gli header di copyright delle librerie open source). Loghi ufficial
   direzione, profondità, traiettoria). Segnali: L/`move` = spostamento verticale della mano (accelerometro, rispetto ai
   propri colpi normali), T = rotazione verticale del piatto (`headAt`), `fh` = direzione assoluta del piatto
   all'impatto (mira, `createAimModel`). Simulatore della presa vera: `natpf-tennis/test/phone-sim.mjs`.
+- **Allenamento con il telefono** (20/10): il telefono guida la calibrazione (passi `step`/`next`/`ready`/`attempt`/
+  `review`/`done`) e il computer la mostra con `natpf_cal_view.calReduce` (funzione pura degli eventi, `phone.calView`):
+  in `natpf_training.js` giocatore fermo al centro, palla ferma dal lato del gesto chiesto (`CAL_SPOT`), colpo solo
+  dopo un tentativo riuscito. Pannello `#natpf-coach` in basso al centro (stato `wait`/`go`/`retry`/`ok`).
+- **Risposta al gesto** (20/10): gesto in anticipo → `NS.holdSwingPrep` (racchetta carica dal lato del colpo) e
+  `pendingUserSwing`; all'istante del colpo `triggerSwing` + `NS.swingFromContact` (swing dal 24% della durata, poco
+  prima dell'impatto); scaduto senza palla → `_natpfEarlyWhiff` («Troppo presto»). Stesso schema per il P2.
+  `natpf_gesture_hud.js`: etichetta del gesto sul computer (rilevato → letto → applicato).
+- **Menu** (20/10): con la lobby aperta il motore non chiama `update()` (`_natpfBackdropFrame`): fotogramma fermo
+  dell'arena (`_natpfBackdropPose`), ridisegno solo se serve; restano attivi telefono, lobby del 1v1 e `natpfUi.tick`.
 - **Multigiocatore (sfida un amico)**: host unico arbitro. Relay `/api/match/*` (server LAN, `scripts/match-relay.mjs`)
   o, su sito statico, `natpf_p2p.js` (intercetta le stesse chiamate e usa WebRTC con PeerJS; invito
   `?room=AT-XXXX&role=p2&net=p2p`). Sessione 1v1 in `natpf_versus.js` (funzioni pure: lobby, stato del P2, contatori)
@@ -153,13 +163,39 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
   tutta la velocità → palle precise anche di lato, ma tennista in Esperto dall'89% al 67% (out larghi: la mira laterale
   era tarata sulla palla accorciata del 20%). Decisione: `fixAir` corregge solo la componente lungo il campo; il
   bilanciamento resta quello di prima (audit entro pochi punti) e la profondità diventa vera.
+- Allenamento (20/10): prima telefono e computer avevano due macchine a stati (il computer lanciava una palla
+  rallentata e «armava» il gesto): se il telefono era già ai gesti la palla non partiva mai, e un gesto fatto prima
+  della palla colpiva quella del gesto dopo, dal lato sbagliato. Decisione: una sola fonte, il telefono; il computer
+  è funzione dei suoi eventi (`calReduce`) e il giocatore non si muove mai da solo in calibrazione. Telefono
+  scollegato o senza sensori: pannello «Telefono scollegato» con il rimedio; al ricollegamento la calibrazione riparte.
+- Verso dei gesti in calibrazione (20/10): il primo gesto fissava il verso anche se fatto al contrario, e con il
+  polso che prona l'asse del primo gesto sbagliava i successivi. Decisione: verso assoluto dalla rotazione attorno
+  alla verticale (`verticalTurn`; un primo gesto chiaramente al contrario si rifà, alla terza volta di fila si accetta
+  per i telefoni con il segno opposto), poi rotazione netta durante il gesto (`netTurn`), poi l'asse imparato.
+  Riferimento del piatto (T) dai quattro gesti della calibrazione (`profile.heads`): prima partiva da 0 e i dritti
+  morbidi con pronazione diventavano palle corte (623 su 5184 nell'audit).
+- Un gesto, un solo swing (20/10): prima un gesto in anticipo faceva partire lo swing subito e di nuovo all'arrivo
+  della palla; un gesto in tempo arrivava all'impatto dell'animazione ~0,1 s dopo la palla. Decisione: racchetta
+  caricata subito (`holdSwingPrep`), swing all'istante del colpo partendo dal 24% (`swingFromContact`), swing a vuoto
+  visibile alla scadenza. Tempi misurati: rilevatore ~24 ms, rete 1–10 ms, motore < 2 ms: la rete non è il collo di
+  bottiglia, nessun cambio di trasporto (WebSocket non più veloce in LAN, Web Bluetooth non usabile da una pagina
+  web sul telefono; sensori più frequenti solo su Android, da provare).
+- Menu e sfarfallio (20/10): la home ridisegnava a ogni fotogramma una partita dimostrativa sotto un pannello con
+  `backdrop-filter`, più il campo animato dell'intro. Decisione: fotogramma fermo dell'arena senza `update()`, campo
+  dell'intro fermo, menu al centro con tutte le voci visibili (stile console anni 2000).
 
 ## 9. Modifiche recenti
 
 | Data | Commit | Cosa | File |
 |---|---|---|---|
+| 20/10/2026 | 2e59c51 | Allenamento: il computer mostra sempre il passo del telefono, giocatore fermo, palla ferma dal lato del gesto, pannello in basso al centro | `natpf-tennis/src/natpf/natpf_cal_view.js` (nuovo), `natpf_training.js`, `natpf_phone_racket.js`, `index.html`, `natpf-flow.css`, `natpf.css`, `natpf-round.css`, `site/js/tennis/calibration.js`, `racchetta.js`, `swing-detect.js`, `tools/e2e/natpf-training-flow.mjs`, test |
+| 20/10/2026 | a1244bb | Calibrazione con il polso che prona e con qualunque presa; riferimento del piatto dai gesti della calibrazione | `site/js/tennis/calibration.js`, `swing-detect.js`, `natpf-tennis/src/natpf/natpf_gestures.js`, `natpf_phone_racket.js`, `test/phone-sim.mjs`, `test/natpf-calibration-matrix.test.mjs`, `scripts/audit/calibration-matrix.mjs` |
+| 20/10/2026 | ce77f02 | Un gesto, un solo swing: racchetta carica subito, swing all'istante del colpo, swing a vuoto visibile; tempi misurati | `natpf-tennis/src/game_engine.js`, `natpf_skill.js`, `natpf_phone_racket.js`, `natpf_shot_feedback.js`, `natpf_ui.js`, `tools/e2e/natpf-latency.mjs` |
+| 20/10/2026 | 15aac5c | Etichetta del gesto sul computer: rilevato, letto, applicato | `natpf-tennis/src/natpf/natpf_gesture_hud.js` (nuovo), `natpf_ui.js`, `index.html`, `natpf-hud.css`, `test/natpf-gesture-hud.test.mjs` |
+| 20/10/2026 | 5696b12 | 1v1: un gesto, un solo swing anche per il Player 2 | `natpf-tennis/src/game_engine.js` |
+| 20/10/2026 | 20f589a | Menu principale al centro, sfondo fermo, sfarfallio della home risolto alla radice | `natpf-tennis/index.html`, `natpf-intro.css`, `natpf-flow.css`, `natpf.css`, `src/game_engine.js`, `natpf_lobby.js`, `natpf_ui.js`, `test/natpf-lobby.test.mjs`, `tools/e2e/natpf-menu.mjs` |
+| 20/10/2026 | 86faf66 | Allenamento: telefono scollegato segnalato sul computer; documento dei gesti, quarto giro | `natpf-tennis/src/natpf/natpf_training.js`, `tools/e2e/natpf-training-reconnect.mjs`, `docs/NATPF_GESTI_E_LATENZA.md` |
 | 19/10/2026 | 684021a | Calibrazione: fermo prima di ogni gesto, rientro al centro escluso, tremolii ignorati, scelta del gesto nel verso richiesto | `site/js/tennis/calibration.js`, `racchetta.js`, `main.js`, `natpf-tennis/src/natpf/natpf_training.js`, `tools/test/calibration-quick.test.mjs`, `tools/test/gesture-training.test.mjs` |
-
 | 19/10/2026 | d8b7bec | Rovescio lungolinea non più letto come dritto | `site/js/tennis/swing-detect.js`, `natpf-tennis/src/natpf/natpf_phone_racket.js`, `natpf-tennis/test/natpf-prep.test.mjs` |
 | 19/10/2026 | 41b1880 | Colpi con la presa vera: niente pallonetti/tagliati dalla rotazione del polso, riferimenti solo dai colpi normali, verso del colpo con impugnatura cambiata, diagnostica con confidenza | `site/js/tennis/swing-detect.js`, `natpf-tennis/src/natpf/natpf_gestures.js`, `natpf_phone_racket.js`, `natpf_diag.js`, `scripts/audit/replay-recording.mjs`, `test/phone-sim.mjs`, `test/natpf-gesture-grip.test.mjs` |
 | 19/10/2026 | 95ec78e | Mira continua dalla direzione del piatto all'impatto, centro che non annulla i colpi mirati | `site/js/tennis/face-tracker.js`, `swing-message.js`, `natpf-tennis/src/natpf/natpf_gestures.js`, `natpf_phone_racket.js`, `natpf_skill.js`, `test/natpf-aim.test.mjs` |
@@ -191,6 +227,16 @@ Secondo giro (richiesta del 19/10 pomeriggio, con foto e video della presa):
 | 3 | Musica più varia, blur, allineamenti | fatto, provato (test della musica; schermate a 1024, 1280, 1366, 1920 px); audio reale non ascoltabile qui |
 | 4 | Sedia dell'arbitro come nei riferimenti | fatto; posizione corretta dopo le quattro schermate (era troppo vicina alla rete e sul lato sbagliato), provata con rendering dal fondo del P1, dal lato e di fronte |
 | 5 | Regressioni (QR, latenza, un gesto un colpo, palla corta, due lati, arena) | fatto: test unitari, prova nel browser del telefono, prova 1v1 a due sessioni |
+
+Quarto giro (20/10: audit completo e miglioramenti di gioco, calibrazione e interfaccia):
+
+| # | Attività | Stato |
+|---|---|---|
+| 1 | Allenamento: telefono, gesti chiesti e computer coerenti; niente movimenti automatici in calibrazione | fatto, provato nel browser con il telefono simulato (13/13; ricollegamento a metà calibrazione 6/6); telefono vero **non provato** |
+| 2 | Calibrazione e reattività: prese, inclinazioni, ampiezze, velocità; latenza misurata; un gesto un swing; etichetta del gesto | fatto, provato con l'audit della calibrazione (864/864) e nel browser (9/9); palla corta con lo schermo di lato ancora debole (§7); telefono e Wi-Fi veri **non provati** |
+| 3 | Menu principale al centro, niente animazione di sfondo, sfarfallio | fatto, provato nel browser a tre risoluzioni (22/22, nessun ridisegno con il menu fermo); scheda video vera **non provata** |
+| 4 | Audit a 360° (stati, collegamento, errori, prestazioni, regressioni) | in corso: tre esami indipendenti del codice; regressioni nel browser e test (vedi §12) |
+| 5 | Resoconto | nel messaggio finale della sessione; dettagli in `docs/NATPF_GESTI_E_LATENZA.md` §8 e `docs/NATPF_ROADMAP.md` §1 |
 
 ## 11. Prossimi passi
 
