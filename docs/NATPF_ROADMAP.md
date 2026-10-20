@@ -21,6 +21,9 @@ con hardware vero (telefono in mano, webcam con una persona, Wi-Fi di un evento)
 | Risposta del giocatore al gesto | Gesto in anticipo: swing subito e di nuovo all'arrivo della palla (due swing per un gesto); gesto in tempo: la racchetta arrivava all'impatto ~0,1 s dopo la palla; gesto troppo presto: nessun segno | Racchetta che si carica subito dal lato del colpo, swing all'istante del colpo partendo poco prima dell'impatto (anche per il Player 2), swing a vuoto con «Troppo presto», etichetta del gesto sul computer (rilevato → letto → applicato) | **provato** nel browser: un solo swing per gesto, risposta 26–35 ms dopo il picco (9/9), 1v1 18/18 |
 | Latenza | Misurata tratto per tratto: rilevatore ~24 ms, rete 1–10 ms, motore < 2 ms; la rete non è il collo di bottiglia | Nessun cambio di trasporto (confronto WebRTC, WebSocket, Bluetooth, sensori più frequenti in [NATPF_GESTI_E_LATENZA.md](NATPF_GESTI_E_LATENZA.md) §8) | **provato** in locale; Wi-Fi vero **non provato** |
 | Menu principale e sfarfallio della home | Dietro il menu girava una partita dimostrativa ridisegnata a ogni fotogramma sotto un pannello sfocato, più il campo animato dell'intro | Menu al centro con tutte le voci visibili, frecce come un joypad, descrizione della voce; dietro un fotogramma fermo dell'arena (il gioco non avanza e non ridisegna) | **provato** nel browser a 1366 × 657, 1024 × 600 e 1280 × 720 (22/22, 0 ridisegni in 3 s); scheda video vera **non provata** |
+| Audit · fluidità | Fisica a passi fissi interi senza interpolazione: a 60 Hz con fotogrammi irregolari la palla scattava (3 fotogrammi su 25), a 144 Hz restava ferma in 11 su 60; i due QR del companion si rigeneravano a ogni risposta del relay (20 al secondo con il server LAN, ~20% del thread) | Tutto il tempo del fotogramma in passi uguali ≤ 1/120 s, tempo dal rAF; QR solo quando cambia il link; riquadri delle sfide e della lobby 1v1 scritti solo quando cambiano | **provato** (test sul motore, misure nel browser); fluidità su un monitor vero **non provata** |
+| Audit · flussi | Riscaldamento di «Sfida un amico» contato come partita 1v1 (falso «Player 2 scollegato», calibrazione ferma); «Torna al menu» che faceva partire la sfida o portava alla pagina Partita; gioco in pausa per il visitatore dopo il reset del chiosco; «Ricalibra» con il pannello chiuso senza conferma; colpi e lanci accettati in pausa; vittoria sopra il menu; moviola che bloccava le sfide | Ogni percorso corretto alla radice e coperto da un test che fallisce con il codice di prima (21 in `natpf-flows.test.mjs`, interfaccia vera sul motore senza disegno) | **provato** |
+| Audit · collegamento | Il telefono non si accorgeva della rete persa (restava «collegato», colpi persi); dopo una ripresa la calibrazione sul computer restava indietro; nessuna pausa se il telefono cadeva in partita; errori del solo server di segnalazione che chiudevano un canale sano; blocco dello schermo perso dal secondo ritorno; fase non rimandata a un telefono ricaricato | Silenzio di 5 s → ripresa con la chiave; passo attuale rimandato alla ripresa; pausa con il pannello del telefono e ripresa automatica; colpi arrivati in ritardo ignorati | **provato** nel browser con la rete ferma simulata (`natpf-phone-blackout.mjs`, 3 su 3 fallite prima); Wi-Fi vero **non provato** |
 
 ### Richiesta in 6 punti del 19/10
 
@@ -115,8 +118,12 @@ certificato e firewall. Dettagli in [NATPF_GESTI_E_LATENZA.md](NATPF_GESTI_E_LAT
    Scambio infinito, Sfida il campione), nickname, classifica del giorno, chiosco e pannello dell'addetto sono
    implementati (commit 45de50b); da provare a uno stand con il pubblico.
 4. **Registrazione dei visitatori e CMS del modulo** (stesso documento, §4): Cloudflare Pages Functions + D1.
+4b. **Scheda video**: audit del 20/10 senza misure su hardware vero: 199 chiamate di disegno e 4,3 M vertici per
+   fotogramma (pubblico non indicizzato e disegnato anche fuori campo), ombre di ogni pezzo dei personaggi, risoluzione
+   fino a 2×. Misurare i fotogrammi al secondo su un portatile vero prima di ridurre la qualità.
 5. **1v1 con due persone vere** su due computer e su reti diverse (Wi-Fi di un evento, NAT): la prova a due
    sessioni usa giocatori automatici sullo stesso computer. Server TURN per le reti che bloccano WebRTC.
+5b. **1v1: telefono del Player 2 che cade**: oggi si ferma solo il computer del P2, non la partita dell'host.
 6. **Ritardo di rete del P2 nel 1v1**: si compensa solo il tempo nel relay e solo per il telefono; il tragitto
    P2 → host non è misurato.
 7. **Torino** sul campo: la scritta resta quella ricavata dalle foto (non c'è un file ufficiale).
@@ -133,5 +140,8 @@ certificato e firewall. Dettagli in [NATPF_GESTI_E_LATENZA.md](NATPF_GESTI_E_LAT
   nessun errore nelle pagine. La catena gesto → colpo è provata dai test con il telefono simulato (LAN e internet).
 - Webcam con una persona vera.
 - Wi-Fi di un evento, secondo computer reale per il 1v1 (provato con due sessioni del browser sullo stesso computer).
+- Cadute vere della rete del telefono (Wi-Fi spento, schermo spento, passaggio a un'altra rete): provate solo con la
+  rete ferma simulata nelle pagine del browser.
+- Fluidità e sfarfallio su una scheda video vera e su monitor a 120–144 Hz.
 - Resa dei loghi su una scheda video vera (anisotropia, mipmap) e su schermi grandi.
 - Audio dell'intro e del menu (il browser di prova non ha uscita audio).

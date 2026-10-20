@@ -223,3 +223,19 @@ colpo partendo da poco prima dell'impatto, swing a vuoto visibile con «Troppo p
 
 Il margine vero resta sulla frequenza dei sensori (il picco si riconosce 1–2 campioni dopo) e sulla durata del gesto
 stesso; per questo il tempo del colpo si misura all'istante del picco sul telefono, non all'arrivo.
+
+### Cadute e riprese del collegamento (audit)
+
+| Situazione | Prima | Ora |
+|---|---|---|
+| Rete del telefono ferma senza che il canale si chiuda | il computer segnalava «scollegato» dopo 5 s, il telefono restava «collegato» per sempre e nessuno si ricollegava | anche il telefono controlla il silenzio (5 s, il computer risponde ogni secondo) e si ricollega con la chiave di ripresa |
+| Ripresa a calibrazione in corso | il telefono aveva continuato (gesti fatti a rete ferma), il computer restava al gesto di prima: i due schermi chiedevano cose diverse | il telefono rimanda gli eventi del passo attuale (`calibration.replay`): il computer torna allo stesso passo e, se la verifica è superata, la conferma |
+| Telefono che cade a partita, esercizi o sfida in corso | il gioco andava avanti e i colpi si perdevano senza avviso | dopo mezzo secondo pausa con il pannello del telefono; quando torna pronto il pannello si chiude da solo |
+| Colpi consegnati tutti insieme quando la rete torna | accettati fino a 3 s dopo il picco e giocati come appena fatti | ignorati se arrivano più di 0,6 s dopo il picco (di solito arrivano in 30–60 ms) |
+| Pagina del telefono ricaricata entro 5 s | il computer non rimandava fase e impostazioni: il telefono restava su «menu» e scartava i colpi | contatore dei collegamenti: a ogni collegamento nuovo si rimandano presa, impostazioni, fase e verso atteso |
+| Errore del solo server di segnalazione | il telefono chiudeva anche il canale diretto, sano | con il canale aperto si ignora e ci si ricollega al server |
+
+Prova: `tools/e2e/natpf-phone-blackout.mjs` ferma i messaggi nelle pagine (il canale resta aperto, come una rete che si
+blocca): computer → telefono, poi nei due sensi durante la calibrazione, poi durante gli esercizi. 6/6; con il codice di
+prima 3 verifiche su 3 fallite. La rete vera (Wi-Fi spento, schermo spento, cambio di rete) resta da provare con il
+telefono in mano.

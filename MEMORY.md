@@ -104,7 +104,8 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
   browser di prova non raggiunge quell'indirizzo (il P2 apre l'invito su 127.0.0.1, ripiego nella prova).
 - 1v1: il ritardo di rete P2 → host è compensato solo per il telefono e solo per il tempo nel relay; mai provato con
   due computer veri né su reti diverse; senza TURN alcune reti non si collegano. Tra due giocatori automatici perfetti
-  gli scambi possono durare a lungo (84 colpi nella prova).
+  gli scambi possono durare a lungo (84 e 154 colpi nelle prove; `natpf-1v1-p2p.mjs` ora lascia passare la palla
+  dopo 10 colpi, altrimenti il Player 2 poteva non arrivare mai a servire nel tempo della prova).
 - Colpi e mira: soglie (pallonetto con mano che sale ≥ 0,25, decisa ≥ 0,5; mira 26°, centro 10°) tarate sul simulatore
   che riproduce il video del 19/10, non su registrazioni vere (nel repository non ce ne sono). Nella prova nel browser
   la mira a destra è risultata più debole di quella a sinistra quando i colpi precedenti alternavano pronazioni
@@ -112,6 +113,19 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 - La prova `natpf-flat-grip.mjs` (presa orizzontale) era obsoleta: sostituita da `natpf-phone-upright.mjs`.
 - Il link d'invito porta il formato scelto al momento della stanza; se si cambia formato dopo, il P2 lo riceve dal
   primo snapshot (non è un errore, solo un attimo di ritardo).
+- Palla corta (audit del 20/10, simulatore): riconosciuta in 277 gesti su 864; 154/288 con lo schermo verso di sé,
+  16/288 con lo schermo girato di lato, meno se chi gioca prona molto nei dritti. Il segnale (T) usa il dorso del
+  telefono: con lo schermo di lato il gesto verso il basso non lo muove. Da decidere con una registrazione vera.
+- Carico della scheda video (audit del 20/10, contato senza misurare su hardware vero): arena con 199 chiamate di
+  disegno e 4,3 milioni di vertici per fotogramma (pubblico: 7 522 persone, 3,2 M vertici non indicizzati, disegnate
+  anche fuori dall'inquadratura), ombre 2048 con ~110 chiamate in più (ogni pezzo dei personaggi proietta ombra),
+  risoluzione fino a 2× con antialias. Non toccato: da misurare su un portatile vero prima di ridurre la qualità.
+- 1v1: se cade il telefono del Player 2, si ferma solo il suo computer (pannello del telefono), non la partita
+  dell'host.
+- Prove del sito di prima (`site/tennis`): `phone-failures.mjs` aspetta ancora testi della calibrazione vecchia (2
+  verifiche e un'attesa scadute, uguali sul sito del 19/10). `phone-cal.mjs` aggiornata alla calibrazione rapida; la
+  sua parte di partita è fallita due volte a macchina molto carica (ritardo del collegamento salito a 580 ms) anche sul
+  sito di prima.
 
 ## 8. Soluzioni tentate e decisioni tecniche
 
@@ -183,6 +197,21 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 - Menu e sfarfallio (20/10): la home ridisegnava a ogni fotogramma una partita dimostrativa sotto un pannello con
   `backdrop-filter`, più il campo animato dell'intro. Decisione: fotogramma fermo dell'arena senza `update()`, campo
   dell'intro fermo, menu al centro con tutte le voci visibili (stile console anni 2000).
+- Audit del 20/10, fluidità: la fisica avanzava a passi fissi interi con il resto accumulato e senza interpolazione;
+  scelto di dividere tutto il tempo del fotogramma in passi uguali ≤ 1/120 s (`natpf_skill.physicsSteps`) e di prendere
+  il tempo dall'orario del rAF, più semplice e meno rischioso dell'interpolazione di palla e personaggi nel motore.
+  I QR del companion si generano solo quando cambia il link (prima a ogni risposta del relay, ~20% del thread a 20 Hz).
+- Audit del 20/10, flussi: «Torna al menu» porta sempre al menu (allenamento fermato senza passare dalla sua fine,
+  che porta alla partita o alla sfida); con il gioco in pausa nessun colpo o lancio arriva al motore (le prove che
+  congelavano il motore con la pausa ora lo fanno con `update` vuoto); il riscaldamento e le sfide non contano come
+  partita 1v1; telefono che ricalibra in campo senza il pannello: in allenamento lo guida il campo, altrove si riapre il
+  pannello.
+- Audit del 20/10, collegamento: il telefono controlla il silenzio (5 s, come il computer) e si ricollega con la chiave
+  di ripresa; alla ripresa a calibrazione in corso rimanda il passo attuale con gli stessi eventi di sempre
+  (`calibration.replay`, nessun messaggio nuovo da gestire); il computer va in pausa con il pannello del telefono se il
+  telefono non torna entro mezzo secondo e riprende da solo; i colpi più vecchi di 0,6 s all'arrivo si ignorano
+  (normale: 30–60 ms). Un difetto ipotizzato nella ripetizione della calibrazione (palla del quarto gesto) è stato
+  controllato e non esiste: nessuna modifica.
 
 ## 9. Modifiche recenti
 
@@ -195,6 +224,9 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 | 20/10/2026 | 5696b12 | 1v1: un gesto, un solo swing anche per il Player 2 | `natpf-tennis/src/game_engine.js` |
 | 20/10/2026 | 20f589a | Menu principale al centro, sfondo fermo, sfarfallio della home risolto alla radice | `natpf-tennis/index.html`, `natpf-intro.css`, `natpf-flow.css`, `natpf.css`, `src/game_engine.js`, `natpf_lobby.js`, `natpf_ui.js`, `test/natpf-lobby.test.mjs`, `tools/e2e/natpf-menu.mjs` |
 | 20/10/2026 | 86faf66 | Allenamento: telefono scollegato segnalato sul computer; documento dei gesti, quarto giro | `natpf-tennis/src/natpf/natpf_training.js`, `tools/e2e/natpf-training-reconnect.mjs`, `docs/NATPF_GESTI_E_LATENZA.md` |
+| 20/10/2026 | 7d46eed | Prove nel browser: `phone-cal` sulla calibrazione rapida, coerenza dei due schermi misurata nel tempo | `tools/e2e/phone-cal.mjs`, `tools/e2e/natpf-training-flow.mjs` |
+| 20/10/2026 | 9c97fca | Audit: fisica senza scatti (passi uguali ≤ 1/120 s, tempo dal rAF), QR non più rigenerati a ogni risposta del relay, flussi senza vicoli ciechi (riscaldamento 1v1, «Torna al menu», chiosco, ricalibrazione in campo, input in pausa, moviola, vittoria sopra il menu) | `natpf-tennis/src/game_engine.js`, `hud_ui.js`, `natpf_skill.js`, `natpf_ui.js`, `natpf_training.js`, `natpf_events.js`, `natpf_kiosk.js`, `natpf_lobby.js`, `natpf_pause.js`, `natpf_versus_ui.js`, `test/ui-world.mjs`, `test/natpf-flows.test.mjs`, `test/natpf-physics-steps.test.mjs` |
+| 20/10/2026 | 62452e8 | Collegamento: telefono che si accorge della rete persa, ripresa della calibrazione, pausa automatica, colpi arrivati in ritardo ignorati, impostazioni rimandate al ricollegamento | `site/js/tennis/racchetta.js`, `calibration.js`, `link.js`, `natpf-tennis/src/natpf/natpf_phone_racket.js`, `natpf_ui.js`, `tools/e2e/natpf-phone-blackout.mjs`, `tools/test/calibration-replay.test.mjs` |
 | 19/10/2026 | 684021a | Calibrazione: fermo prima di ogni gesto, rientro al centro escluso, tremolii ignorati, scelta del gesto nel verso richiesto | `site/js/tennis/calibration.js`, `racchetta.js`, `main.js`, `natpf-tennis/src/natpf/natpf_training.js`, `tools/test/calibration-quick.test.mjs`, `tools/test/gesture-training.test.mjs` |
 | 19/10/2026 | d8b7bec | Rovescio lungolinea non più letto come dritto | `site/js/tennis/swing-detect.js`, `natpf-tennis/src/natpf/natpf_phone_racket.js`, `natpf-tennis/test/natpf-prep.test.mjs` |
 | 19/10/2026 | 41b1880 | Colpi con la presa vera: niente pallonetti/tagliati dalla rotazione del polso, riferimenti solo dai colpi normali, verso del colpo con impugnatura cambiata, diagnostica con confidenza | `site/js/tennis/swing-detect.js`, `natpf-tennis/src/natpf/natpf_gestures.js`, `natpf_phone_racket.js`, `natpf_diag.js`, `scripts/audit/replay-recording.mjs`, `test/phone-sim.mjs`, `test/natpf-gesture-grip.test.mjs` |
@@ -235,21 +267,40 @@ Quarto giro (20/10: audit completo e miglioramenti di gioco, calibrazione e inte
 | 1 | Allenamento: telefono, gesti chiesti e computer coerenti; niente movimenti automatici in calibrazione | fatto, provato nel browser con il telefono simulato (13/13; ricollegamento a metà calibrazione 6/6); telefono vero **non provato** |
 | 2 | Calibrazione e reattività: prese, inclinazioni, ampiezze, velocità; latenza misurata; un gesto un swing; etichetta del gesto | fatto, provato con l'audit della calibrazione (864/864) e nel browser (9/9); palla corta con lo schermo di lato ancora debole (§7); telefono e Wi-Fi veri **non provati** |
 | 3 | Menu principale al centro, niente animazione di sfondo, sfarfallio | fatto, provato nel browser a tre risoluzioni (22/22, nessun ridisegno con il menu fermo); scheda video vera **non provata** |
-| 4 | Audit a 360° (stati, collegamento, errori, prestazioni, regressioni) | in corso: tre esami indipendenti del codice; regressioni nel browser e test (vedi §12) |
+| 4 | Audit a 360° (stati, collegamento, errori, prestazioni, regressioni) | fatto: tre esami indipendenti (flussi, collegamento, disegno), ogni difetto riprodotto prima di correggerlo (24 test nuovi che falliscono con il codice di prima, prova della rete che cade nel browser); restano i punti di §7 e §11 |
 | 5 | Resoconto | nel messaggio finale della sessione; dettagli in `docs/NATPF_GESTI_E_LATENZA.md` §8 e `docs/NATPF_ROADMAP.md` §1 |
 
 ## 11. Prossimi passi
 
+0. Prova fisica del quarto giro (20/10) con telefono e computer veri, in quest'ordine: allenamento dal menu (le
+   istruzioni del telefono e del computer coincidono? il giocatore resta fermo in calibrazione?), quattro gesti con la
+   propria presa, esercizi; partita: un gesto un solo swing, nessun ritardo percepito; menu senza sfarfallio sulla
+   propria scheda video; Wi-Fi spento e riacceso sul telefono durante calibrazione e partita (pausa, ripresa, stesso
+   passo sui due schermi). Annotare fotogrammi al secondo e modello del computer (vedi §7, carico della scheda video).
 1. Prova con persone vere: una registrazione (Maiusc+D → Registra) con una sequenza dichiarata, per esempio 5 dritti
    normali, 5 dritti girando il polso, 3 pallonetti, 3 palle corte, 3 dritti mirati a destra e 3 a sinistra; poi
    `node --import ./test/register.mjs scripts/audit/replay-recording.mjs file.json` per tarare `GESTURE.lobMove`,
    `AIM.gain/settle`. Poi varietà dei colpi giocando e 1v1 su due computer.
 2. Unire `claude/friendly-fermat-dwv2w2` nel branch principale del lavoro (`feature/natpf-tennis-v2`) dopo la prova.
 3. Server TURN per il 1v1 su reti che bloccano WebRTC; compensazione del ritardo per mouse/webcam del P2.
-4. Altri punti aperti: `docs/NATPF_ROADMAP.md` §3.
+4. Se la prova 0 mostra fotogrammi sotto i 50 al secondo: pubblico diviso in settori (così si scarta quello fuori
+   dall'inquadratura) e indicizzato, ombre solo da corpo, racchetta e palla, risoluzione massima 1,5×.
+5. Palla corta con lo schermo girato di lato (§7): segnale dallo spostamento della mano o indicazione della presa.
+6. 1v1: telefono del Player 2 che cade → pausa anche sull'host.
+7. Altri punti aperti: `docs/NATPF_ROADMAP.md` §3.
 
 ## 12. Test e verifiche
 
+- Quarto giro (20/10), a fine giro: `natpf-tennis/test` **191** test, `tools/test` **129**; nuovi: `natpf-cal-view`,
+  `natpf-calibration-matrix`, `natpf-gesture-hud`, `natpf-physics-steps` (3), `natpf-flows` (21, interfaccia vera sul
+  motore senza disegno con `test/ui-world.mjs`), `tools/test/calibration-replay` (2). Prove nel browser (Chromium senza
+  schermo, telefono simulato): allenamento 13/13, ricollegamento 6/6, rete che cade 6/6 (`natpf-phone-blackout.mjs`:
+  3 su 3 falliscono con il codice di prima), risposta al gesto 9/9, presa verticale 10/10, menu 22/22, 1v1 tra due
+  browser 18/18 (anche sullo zip Cloudflare estratto), 1v1 in LAN 10/10, telefono del sito 10/10, 18/18, 6/6;
+  pacchetto LAN estratto: server, gioco, pagina del telefono e stanza 1v1 rispondono. Zip: `natpf-simulator-cloudflare-20261020.zip`
+  (23,6 MiB, nessun file oltre 25 MiB) e `natpf-simulator-lan-windows-20261020.zip` (57,1 MiB, Node 22.22.0 verificato). Audit della calibrazione: 864/864 calibrazioni,
+  10 368 colpi senza colpi persi, lati sbagliati o colpi speciali non voluti. Misure: fisica senza scatti (prima 3
+  fotogrammi su 25 sbagliati a 60 Hz e 11 su 60 fermi a 144 Hz), QR 0,16 ms per risposta del relay (prima 10 ms).
 - `tools/test`: 126 test passano (19/10). Nuovi: calibrazione con tremolio, rientro al centro, preparazione e
   accompagnamento (il test fallisce con il codice precedente: riproduce il difetto segnalato).
 - Secondo giro: `natpf-tennis/test` **156** test; `natpf-gesture-grip.test.mjs` (6 su 9 falliscono con il codice di

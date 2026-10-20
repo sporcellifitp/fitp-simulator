@@ -47,7 +47,9 @@ const BOT = () => {
     if (now - last < 380) return;
     if (e.phase === 'SERVE_STANCE' && e.score.server === me){ last = now + 400; mc.triggerSyntheticSwing({ type: 'toss' }); }
     else if (e.phase === 'SERVE_TOSS' && e.score.server === me && b.vel.y < 0){ last = now; window.__served[me]++; mc.triggerSyntheticSwing({}); }
-    else if (e.phase === 'RALLY' && b.inPlay && (a.pos.z - b.pos.z)*b.vel.z > 0 && Math.hypot(b.pos.x - a.pos.x, b.pos.z - a.pos.z) < 1.7){ last = now; mc.triggerSyntheticSwing({}); }
+    // dopo una decina di colpi si lascia passare la palla: due giocatori automatici perfetti non sbagliano mai e uno
+    // scambio poteva durare più del tempo della prova (154 colpi in 4 minuti), senza mai arrivare al cambio del servizio
+    else if (e.phase === 'RALLY' && b.inPlay && (b.rallyStrokeCount || 0) < 10 && (a.pos.z - b.pos.z)*b.vel.z > 0 && Math.hypot(b.pos.x - a.pos.x, b.pos.z - a.pos.z) < 1.7){ last = now; mc.triggerSyntheticSwing({}); }
   }, 8);
 };
 // il disegno con WebGL software rallenta i fotogrammi a 1–2 s: si toglie solo il render, la partita resta
