@@ -558,26 +558,18 @@ export class HudUI {
     f && (f.href = g);
     const I = document.getElementById("companion-link-p2");
     I && (I.href = y);
-    // NATPF: QR del companion generati sul link vero (window.qrcode), niente immagini esterne
-    const qrSrc = (url) => {
+    // NATPF: QR del companion generati sul link vero (window.qrcode), niente immagini esterne. Solo quando il link
+    // cambia: questa funzione gira a ogni risposta del relay (ogni 50 ms con il server LAN) e prima rigenerava i due QR
+    // ogni volta (~30 ms di lavoro ogni 50 ms: scatti continui nel menu e in partita)
+    const qrSet = (img, url) => {
+        if (!img || img.dataset.qrUrl === url) return;
         try {
-          if (!window.qrcode) return "";
+          if (!window.qrcode) return;
           const q = window.qrcode(0, "M");
-          return q.addData(new URL(url, window.location.href).href), q.make(), q.createDataURL(4, 2);
-        } catch {
-          return "";
-        }
-      },
-      b = document.getElementById("companion-qr");
-    if (b) {
-      const d = qrSrc(g);
-      d && b.dataset.lastSrc !== d && ((b.src = d), (b.dataset.lastSrc = d));
-    }
-    const B = document.getElementById("companion-qr-p2");
-    if (B) {
-      const d = qrSrc(y);
-      d && B.dataset.lastSrc !== d && ((B.src = d), (B.dataset.lastSrc = d));
-    }
+          q.addData(new URL(url, window.location.href).href), q.make(), (img.src = q.createDataURL(4, 2)), (img.dataset.qrUrl = url);
+        } catch {}
+      };
+    qrSet(document.getElementById("companion-qr"), g), qrSet(document.getElementById("companion-qr-p2"), y);
     const T = document.getElementById("court-link-p1");
     T && (T.href = `/?room=${m}&role=p1`);
     const l = document.getElementById("court-link-p2");

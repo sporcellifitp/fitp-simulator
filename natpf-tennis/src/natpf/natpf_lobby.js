@@ -141,7 +141,9 @@ export class NatpfLobby {
     // partita contro la CPU)
     if (mode === 'friend' && diff === '1v1' && !this.engine.versus?.active && this.engine.playerRole !== 'p2') this.engine.createMultiplayerRoom?.();
     if (mode !== 'friend') this.engine.endVersus?.();
-    if (mode === 'cpu' && diff === '1v1') document.querySelector('#difficulty-mode-group [data-difficulty="casual"]')?.click();
+    // lasciando «Sfida un amico» (anche per allenamento o sfide) si torna alla CPU: prima allenamento e sfide ripristinavano
+    // alla fine il 1v1 senza stanza
+    if (mode !== 'friend' && diff === '1v1') document.querySelector('#difficulty-mode-group [data-difficulty="casual"]')?.click();
     for (const b of document.querySelectorAll('#difficulty-mode-group [data-difficulty]')) show(b, mode === 'friend' ? b.dataset.difficulty === '1v1' : b.dataset.difficulty !== '1v1');
     this.paint();
   }
@@ -272,8 +274,12 @@ export class NatpfLobby {
     this.ui.paintWebcamSetup?.();
     const note = $('lobby-match-note');
     if (note) note.textContent = st.controller === 'phone' && !st.phoneReady ? 'Il telefono va ricollegato: premendo «Gioca» compare il QR.' : '';
-    // telefono con i sensori attivi o mano vista dalla webcam: si entra in campo da soli
-    if (this.visible && autoAdvance(this.step, st) && this.autoFrom !== this.step){ this.autoFrom = this.step; setTimeout(() => this.visible && this.step === 'connect' && this.go('warmup'), 700); }
+    // telefono con i sensori attivi o mano vista dalla webcam: si entra in campo da soli, ma non con la guida aperta (prima
+    // il riscaldamento partiva sotto la guida e il suo «Prova» lo faceva ripartire come allenamento)
+    if (this.visible && autoAdvance(this.step, st) && this.autoFrom !== this.step && !this.onboarding.isOpen){
+      this.autoFrom = this.step;
+      setTimeout(() => { if (this.visible && this.step === 'connect' && !this.onboarding.isOpen) this.go('warmup'); else this.autoFrom = null; }, 700);
+    }
   }
   next(){
     if (!stepReady(this.step, this.state())) return;

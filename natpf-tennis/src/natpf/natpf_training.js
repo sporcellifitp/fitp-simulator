@@ -79,6 +79,7 @@ export class NatpfTraining {
     this.cal = this.phoneCal ? { ballFor: -1, hitFor: -1, flightT: 0, fails: 0 } : null;
     this.withCal = !!this.cal;
     this.prevDifficulty = E.hud.selectedDifficulty || E.matchConfig.difficulty;
+    this.prevFormat = E.matchFormat?.id || null;
     E._applyDifficultyTuning('casual'); E.isMultiplayer = false;
     E.setMatchFormat?.('singles');                 // il riscaldamento è sempre in singolare (niente compagni in campo)
     E.hud.hideTitleModal(); E.hud.hideCenterBanner();
@@ -119,7 +120,8 @@ export class NatpfTraining {
   }
   /* ---------- calibrazione in campo ---------- */
   _onCal(e){
-    if (!this.active || !this.cal) return;
+    if (!this.active) return;
+    if (!this.cal){ if (e.kind !== 'done' && this._phoneRecalibrating()) this._recal(); else return; }
     const c = this.cal, v = this.view, hand = this.ui.hand?.hand;
     this._calTick(0);                                      // palla del passo attuale subito, senza aspettare il fotogramma
     if (!this.cal) return;                                 // (telefono già pronto: si è passati agli esercizi)
@@ -134,7 +136,10 @@ export class NatpfTraining {
       if (e.pass) this.ui.phone.confirm();
       else {
         c.fails++;
-        if (c.fails < 2) setTimeout(() => this.active && this.cal && this.ui.phone.retry(), 1600);
+        // (annullato se nel frattempo si ricalibra o si esce: prima scattava lo stesso e il telefono saltava il passo
+        // «fermo», con i sensori non tarati)
+        clearTimeout(this.retryT);
+        if (c.fails < 2) this.retryT = setTimeout(() => this.active && this.cal && this.view.stage === 'review' && this.ui.phone.retry(), 1600);
       }
     }
     if (e.kind === 'done'){ this._startDrills(); return; }
@@ -178,10 +183,25 @@ export class NatpfTraining {
     } else if (!flying && E.ball.inPlay) this._idle();                             // fermo, verifica, fine: niente palla
     if (!this.ballLive() && E.phase === 'POINT_OVER') E.phaseTimer = 0;            // niente servizio automatico
   }
+  // telefono che ricomincia a calibrare a esercizi già iniziati, senza il pannello del telefono aperto (Ricalibra e
+  // pannello chiuso, pagina del telefono ricaricata): si torna alla calibrazione in campo e poi all'esercizio di prima.
+  // Prima gli eventi erano ignorati, nessuno confermava la verifica e i colpi venivano scartati («Palla persa» senza fine)
+  _phoneRecalibrating(){
+    const P = this.ui.phone;
+    return this.ui.controller === 'phone' && !!P?.connected && !P.ready && P.state?.phone === 'cal' && !!this.ui.modal?.classList.contains('hidden');
+  }
+  _recal(){
+    this.cal = { ballFor: -1, hitFor: -1, flightT: 0, fails: 0, resume: this.idx };
+    this.withCal = true; this.wait = 0; this.flash = null; this.message = null;
+    this._idle(); this._centerPlayer();
+    // verifica già superata mentre il pannello era aperto: si conferma subito
+    const P = this.ui.phone;
+    if (P.cal?.review?.pass && (P.cal.step === 'review' || P.cal.step === 'free')) P.confirm();
+  }
   _startDrills(){
     if (this.calOnly){ this.stop({ completed: true, calibrated: true }); return; }
-    const E = this.engine;
-    this.cal = null; this.idx = 0; this.progress = { done: 0, tries: 0 };
+    const E = this.engine, resume = this.cal?.resume ?? 0;
+    this.cal = null; this.idx = resume; this.progress = { done: 0, tries: 0 };
     this.message = null; this.flash = { text: 'Racchetta pronta ✓', until: performance.now() + 1400 };
     E.hud.showCenterBanner('Racchetta pronta', { style: 'style-start', subText: 'Ora le palle vere', durationMs: 1300 });
     this._idle(); this.wait = 1.4;
@@ -258,6 +278,7 @@ export class NatpfTraining {
     const E = this.engine, o = E.opponent;
     // il lanciapalle non corre e non risponde: l'avversario resta fuori dal campo
     if (o){ o.pos.set(0, 0, -40); o.targetPos.copy(o.pos); }
+    if (!this.cal && this._phoneRecalibrating()) this._recal();
     if (this.cal) this._calTick(dt);
     if (this.wait > 0){ this.wait -= dt; if (this.wait <= 0) this._next(); }
     this.paint();
@@ -272,13 +293,17 @@ export class NatpfTraining {
   stop({ completed, skipped = false, calibrated = false, silent = false }){
     if (!this.active) return;
     const E = this.engine;
-    this.active = false; this.cal = null; E.natpfTimeScale = 1;
+    this.active = false; this.cal = null; E.natpfTimeScale = 1; clearTimeout(this.retryT);
     this.coach?.classList.add('hidden'); this._hideOpponent(false);
     E.opponent.pos.set(-1.35, 0, -11.89); E.opponent.targetPos.copy(E.opponent.pos);
     E._applyDifficultyTuning(this.prevDifficulty || 'casual');
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
     E._syncScoreboardHUD(); E.hud.hideCenterBanner();
     E._setupMidRallyShowcase({}); E.autoPlayMode = true; E.userHasInteracted = false;
+    // formato della partita scelto prima del riscaldamento (sempre in singolare) e pausa ricalcolata: prima il gioco
+    // poteva restare in pausa dopo il reset del chiosco
+    if (this.prevFormat) E.setMatchFormat?.(this.prevFormat);
+    this.ui._syncPause?.();
     if (silent) return;
     E.hud.showTitleModal();
     this.ui.flow?.onTrainingEnd({ completed, skipped, calibrated, stats: this.stats });

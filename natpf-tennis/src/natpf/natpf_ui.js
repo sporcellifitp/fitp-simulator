@@ -82,6 +82,14 @@ export class NatpfUi {
     this.hand.set(this.hand.hand);
     this.onViewChange(engine.viewMode);
     this.phone.onChange(() => { this.paintPhone(); this.paintTiles(); if (this.lobby?.visible && this.lobby.step === 'connect') this.lobby.paint(); });
+    // telefono che ricalibra in partita o in una sfida senza il pannello aperto (Ricalibra e pannello chiuso, pagina del
+    // telefono ricaricata): prima nessuno mostrava i passi né confermava la verifica, e i colpi venivano scartati. Si
+    // riapre il pannello del telefono (in allenamento la calibrazione la guida il campo, natpf_training)
+    this.phone.onCal?.(e => {
+      if (!e || e.kind === 'done' || this.controller !== 'phone' || this.phone.ready) return;
+      if (this.lobby?.visible || this.engine.autoPlayMode || this.training?.active) return;
+      if (this.modal?.classList.contains('hidden')) this.openPhone();
+    });
     $('btn-natpf-view')?.addEventListener('click', e => { e.stopPropagation(); this.engine.setViewMode(this.engine.viewMode === 'first' ? 'third' : 'first'); });
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){
@@ -151,15 +159,19 @@ export class NatpfUi {
     const me = p2 ? score.opponentGames : score.playerGames, other = p2 ? score.playerGames : score.opponentGames;
     el.innerHTML = `<span>Game</span><b>${me}</b><i>–</i><b>${other}</b><small>${gamesToWin > 1 ? `al meglio di ${gamesToWin*2 - 1}` : 'game secco'}</small>`;
   }
-  // dal menu di pausa: fine partita o allenamento, ritorno al menu
+  // dal menu di pausa (e dal chiosco): fine partita, allenamento o sfida, ritorno al menu principale. Prima, in
+  // allenamento, lo stop passava dalla fine dell'allenamento: dal riscaldamento si finiva sulla pagina «Partita» e dalla
+  // calibrazione di una sfida partiva la sfida; e il gioco poteva restare in pausa per chi arrivava dopo
   backToMenu(){
     const E = this.engine;
-    if (this.training.active){ this.training.stop({ completed: false }); return; }
+    // Player 2 dell'invito: tornare al menu vuol dire lasciare la stanza (prima restava dentro e i suoi colpi passavano)
+    if (E.playerRole === 'p2' && this.versus?.p2){ this.versus.leave(); return; }
+    if (this.training.active) this.training.stop({ completed: false, silent: true });
     this.events.abort();
     E.natpfPaused = false; E.hud.hideVictoryModal?.(); E.hud.hideCenterBanner();
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
     E._syncScoreboardHUD(); E._setupMidRallyShowcase({}); E.autoPlayMode = true;
-    E.userHasInteracted = false; E.hud.showTitleModal(); this.flow.go('menu');
+    E.userHasInteracted = false; E.hud.showTitleModal(); this.flow.go('menu'); this._syncPause();
   }
   /* ---------- webcam nella tappa di preparazione ---------- */
   async startWebcam(){
@@ -213,12 +225,13 @@ export class NatpfUi {
   }
   /* ---------- easter egg: mouse e tastiera per le prove al computer ---------- */
   get desktopInputAllowed(){ return this.testInput || this.controller === 'mouse'; }
-  // Due filtri sui colpi di tutte le racchette: mouse e tastiera solo in modalità prova, e nessun colpo mentre il menu è
-  // aperto (dietro gira la dimostrazione: prima un gesto della webcam o del telefono la trasformava in una partita).
+  // Filtri sui colpi di tutte le racchette: mouse e tastiera solo in modalità prova; nessun colpo mentre il menu è
+  // aperto (dietro gira la dimostrazione: prima un gesto della webcam o del telefono la trasformava in una partita); nessun
+  // colpo né lancio con il gioco in pausa (prima restavano in attesa e partivano alla ripresa)
   get menuOpen(){ return !!this.lobby?.visible && !this.training?.active; }
   _gateDesktopInput(){
     const mc = this.engine.motionController; if (!mc) return;
-    const gate = fn => (e = {}) => ((/^(keyboard|mouse)$/.test(e.source) && !this.desktopInputAllowed) || (this.menuOpen && e.role !== 'p2' && this.engine.playerRole !== 'p2') ? null : fn(e));
+    const gate = fn => (e = {}) => ((/^(keyboard|mouse)$/.test(e.source) && !this.desktopInputAllowed) || (this.menuOpen && e.role !== 'p2' && this.engine.playerRole !== 'p2') || this.engine.natpfPaused ? null : fn(e));
     if (mc._emitSwing) mc._emitSwing = gate(mc._emitSwing.bind(mc));
     if (mc._emitToss) mc._emitToss = gate(mc._emitToss.bind(mc));
   }

@@ -32,8 +32,11 @@ export class NatpfVersusUi {
     if (!this.hostActive || this.ui.lobby?.mode !== 'friend'){ if (btn){ btn.disabled = false; btn.classList.remove('waiting'); } return; }
     const st = this.state, r = this.engine.roomStatus || {};
     const list = box?.querySelector('[data-versus-lines]');
-    if (list) list.innerHTML = hostLobbyLines(st, { roomId: this.engine.roomId, p2Name: r.guestName || 'Player 2' })
+    // solo se cambia: prima le righe si riscrivevano ogni 250 ms e l'animazione del pallino in attesa ripartiva da capo
+    // (lampeggiava invece di pulsare)
+    const html = hostLobbyLines(st, { roomId: this.engine.roomId, p2Name: r.guestName || 'Player 2' })
       .map(l => `<li class="${l.state}" data-line="${l.id}">${l.text}</li>`).join('');
+    if (list && list.dataset.html !== html){ list.innerHTML = html; list.dataset.html = html; }
     if (btn){
       const ok = canStart(st);
       btn.disabled = !ok; btn.classList.toggle('waiting', !ok);
@@ -53,11 +56,12 @@ export class NatpfVersusUi {
     el.addEventListener('pointerdown', e => e.stopPropagation());
     el.querySelector('[data-versus-menu]').addEventListener('click', e => { e.stopPropagation(); this._setWaiting(false); this.ui.backToMenu(); });
   }
-  _setWaiting(on){
+  // back: il Player 2 è tornato davvero (prima l'avviso compariva a ogni uscita dall'attesa, anche tornando al menu)
+  _setWaiting(on, back = false){
     if (on === this.waiting) return;
     this.waiting = on; show($('natpf-versus-wait'), on);
     this.engine.natpfVersusWait = on; this.ui._syncPause();
-    if (!on) this.ui.toast('Player 2 di nuovo collegato: si riprende');
+    if (!on && back) this.ui.toast('Player 2 di nuovo collegato: si riprende');
   }
   tick(){
     const E = this.engine;
@@ -68,7 +72,7 @@ export class NatpfVersusUi {
     this.p2Gone = online ? 0 : (this.p2Gone || now);
     const inMatch = E._versusInMatch?.() && E.phase !== 'MATCH_OVER';
     if (inMatch && this.p2Gone && now - this.p2Gone > VERSUS.lostMs) this._setWaiting(true);
-    else if (this.waiting && (online || !inMatch)) this._setWaiting(false);
+    else if (this.waiting && (online || !inMatch)) this._setWaiting(false, online);
     // con il motore fermo (pausa o attesa) non partono snapshot: si dice al P2 che la partita è in pausa
     if (E.natpfPaused && inMatch && E.roomId && E.roomId !== 'default')
       fetch('/api/match/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room: E.roomId, snapshot: { paused: true, waitingP2: this.waiting } }) }).catch(() => {});
@@ -111,8 +115,11 @@ export class NatpfVersusUi {
   }
   _tickGuest(){
     const st = this._paintGuest(), modal = $('natpf-guest-modal');
-    // il pannello resta aperto finché non si gioca; torna se l'host chiude, si perde il collegamento o si torna in lobby
-    if (modal) show(modal, st !== 'playing');
+    // il pannello resta aperto finché non si gioca; torna se l'host chiude, si perde il collegamento o si torna in lobby.
+    // Non sopra il pannello del telefono o la guida: prima, dopo «Sono pronto» con il telefono da collegare, tornava ogni
+    // 250 ms sopra il QR e lo copriva
+    const pm = this.ui.modal, other = (!!pm && !pm.classList.contains('hidden')) || !!this.ui.onboarding?.isOpen;
+    if (modal) show(modal, st !== 'playing' && !other);
     if (this._last !== st){
       if (st === 'playing' && this._last) this.ui.toast('Si gioca!');
       this._last = st;

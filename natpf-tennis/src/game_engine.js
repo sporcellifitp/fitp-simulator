@@ -551,6 +551,9 @@ export class NatpfTennisEngine {
           this.hud.setReplayMode(this.manualCameraOverride === "REPLAY_CAM");
       },
       onToggleReplay: () => {
+        // NATPF: niente moviola nel riscaldamento e nelle sfide (dopo il replay il lanciapalle non ripartiva e la sfida
+        // restava ferma al servizio)
+        if (this.natpfUi?.training?.active || this.natpfUi?.events?.active) return;
         this.phase === "REPLAY"
           ? ((this.persistentStateLock = !1),
             this.hud.setReplayMode(!1),
@@ -731,9 +734,11 @@ export class NatpfTennisEngine {
     }
     return null;
   }
-  // NATPF 1v1: partita tra due computer in corso (non lobby, non dimostrazione)?
+  // NATPF 1v1: partita tra due computer in corso (non lobby, non dimostrazione, non riscaldamento o sfide in campo:
+  // prima il riscaldamento dell'host contava come partita, compariva «Il Player 2 si è scollegato» e la calibrazione
+  // restava ferma)
   _versusInMatch() {
-    return !!this.versus?.active && !this.autoPlayMode && MATCH_PHASES.includes(this.phase);
+    return !!this.versus?.active && !this.autoPlayMode && MATCH_PHASES.includes(this.phase) && !this.natpfUi?.training?.active && !this.natpfUi?.events?.active;
   }
   // NATPF 1v1: l'host lascia la sfida (sceglie un'altra modalità): il P2 riceve «stanza chiusa», la stanza smette di
   // comandare il motore (prima un colpo del P2 trasformava una partita contro la CPU in un 1v1 senza avversario)
@@ -791,9 +796,13 @@ export class NatpfTennisEngine {
       this._prepareTennisBall(r),
       this._bootInitialStateFromURL(),
       this.clock.start();
-    const c = () => {
+    // NATPF: tempo del fotogramma dall'orario del rAF (allineato al refresh dello schermo) invece che da quando gira il
+    // codice, che oscilla di qualche ms e faceva avanzare la palla in modo irregolare anche a fotogrammi regolari
+    let last = null;
+    const c = (ts) => {
       requestAnimationFrame(c);
-      const y = Math.min(this.clock.getDelta(), 0.08);
+      const y = Math.min(last != null && ts >= last ? (ts - last) / 1e3 : this.clock.getDelta(), 0.08);
+      last = Number.isFinite(ts) ? ts : null;
       // NATPF: con il menu aperto lo sfondo è un'inquadratura ferma dell'arena (_natpfBackdropTick), non più la partita
       // dimostrativa disegnata a ogni fotogramma sotto un blur
       if (this._natpfBackdropFrame(y)) return;
@@ -2308,8 +2317,8 @@ export class NatpfTennisEngine {
     (this.elapsedTime += e), (this.cameraTrauma = Math.max(0, this.cameraTrauma - e * 1.4));
     const t = this.swingVfx ? this.swingVfx.consumeHitStop(e) : e,
       i = this.phase === "REPLAY" ? 0.38 : this.natpfTimeScale ?? 1; // NATPF: rallentatore del riscaldamento (natpf_training.js)
-    for (this.physicsAccumulator += t * i; this.physicsAccumulator >= L.FIXED_DT; )
-      this._stepPhysics(L.FIXED_DT), (this.physicsAccumulator -= L.FIXED_DT);
+    // NATPF: tutto il tempo del fotogramma in passi uguali ≤ FIXED_DT (natpf_skill.physicsSteps), niente resto accumulato
+    for (let k = 0, s = NS.physicsSteps(t * i, L.FIXED_DT); k < s.n; k++) this._stepPhysics(s.h);
     if (
       // NATPF 1v1: a partita in corso lo snapshot; con l'host in lobby solo lo stato della lobby (prima andavano al P2
       // anche la dimostrazione del menu e il riscaldamento)
@@ -2817,11 +2826,15 @@ export class NatpfTennisEngine {
             (this.audioEngine.playMusicForState("victory"),
             this.audioEngine.announceScore(p ? "Game Set and Match" : "Game")),
           setTimeout(() => {
-            this.hud.showVictoryModal({
-              playerWon: this.playerRole === "p2" ? !p : p,
-              playerGames: this.score.playerGames,
-              opponentGames: this.score.opponentGames,
-            });
+            // NATPF: solo se la partita è ancora finita lì (prima, tornando al menu entro 1,8 s, la schermata finale
+            // compariva sopra il menu)
+            this.phase === "MATCH_OVER" &&
+              !this.autoPlayMode &&
+              this.hud.showVictoryModal({
+                playerWon: this.playerRole === "p2" ? !p : p,
+                playerGames: this.score.playerGames,
+                opponentGames: this.score.opponentGames,
+              });
           }, 1800);
         return;
       }
@@ -2976,7 +2989,7 @@ export class NatpfTennisEngine {
         n.phase === "MATCH_OVER" &&
           !wasOver &&
           n.score &&
-          setTimeout(() => this.hud.showVictoryModal({ playerWon: n.score.opponentGames > n.score.playerGames, playerGames: n.score.playerGames, opponentGames: n.score.opponentGames }), 1800),
+          setTimeout(() => this.phase === "MATCH_OVER" && this.hud.showVictoryModal({ playerWon: n.score.opponentGames > n.score.playerGames, playerGames: n.score.playerGames, opponentGames: n.score.opponentGames }), 1800),
         n.score && ((this.score = { ...this.score, ...n.score }), this._syncScoreboardHUD()),
         n.ball &&
           (this.ball.pos.set(n.ball.px, n.ball.py, n.ball.pz),

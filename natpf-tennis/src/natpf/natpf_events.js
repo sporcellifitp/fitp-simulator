@@ -200,26 +200,35 @@ export class NatpfEvents {
     A.over = true;
     const nick = this.nickname || 'Ospite';
     const r = addScore(this.board, A.id, nick, A.score); this.board = r.board; this._write();
-    this.active = null; show(this.hud, false); this._showTargets(false); this._opponentAway(false);
-    E.natpfTimeScale = 1; E.pendingUserSwing = E.pendingP2Swing = E.pendingServeSwing = null;
-    E.opponent.pos.set(-1.35, 0, -11.89); E.opponent.targetPos.copy(E.opponent.pos);
-    E._applyDifficultyTuning(E.hud.selectedDifficulty === 'pro' ? 'pro' : 'casual');
+    this.active = null; this._restore();
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
     E._syncScoreboardHUD(); E.hud.hideCenterBanner();
     E._setupMidRallyShowcase({}); E.autoPlayMode = true; E.userHasInteracted = false;
     E.hud.showTitleModal();
     this.ui.flow?.showResult({ id: A.id, label: A.c.label, unit: A.c.unit, score: A.score, rank: r.rank, total: r.total, nick, won: A.won, lost: A.lost });
   }
-  // interrotta dalla pausa («Torna al menu»): nessun risultato
+  // interrotta dalla pausa («Torna al menu»): nessun risultato, ma il motore torna com'era (prima dopo un «Campione»
+  // interrotto restavano la CPU esperta, il game secco e il lanciapalle fermo)
   abort(){
     if (!this.active) return;
-    this.active.over = true; this.active = null; show(this.hud, false); this._showTargets(false); this._opponentAway(false);
+    this.active.over = true; this.active = null; this._restore();
+  }
+  _restore(){
+    const E = this.engine;
+    show(this.hud, false); this._showTargets(false); this._opponentAway(false);
+    E.natpfTimeScale = 1; E.pendingUserSwing = E.pendingP2Swing = E.pendingServeSwing = null;
+    E.opponent.pos.set(-1.35, 0, -11.89); E.opponent.targetPos.copy(E.opponent.pos);
+    E._applyDifficultyTuning(E.hud.selectedDifficulty === 'pro' ? 'pro' : 'casual');
+    if (Number.isFinite(E.hud.selectedGamesToWin)) E.matchConfig.gamesToWin = E.hud.selectedGamesToWin;
   }
   paint(){
     const A = this.active; if (!A || !this.hud) return;
     const time = A.time > 0 ? `<span class="ch-time">${Math.ceil(A.time)}"</span>` : '';
     const main = A.id === 'radar' ? `${A.best || 0}<small>km/h</small>` : A.id === 'champion' ? `${A.won}<small>–</small>${A.lost}` : `${A.score}<small>${A.c.unit}</small>`;
     const sub = A.id === 'radar' ? `Servizio ${Math.min(3, A.serves + 1)} di 3` : A.id === 'champion' ? 'Prima a 3 punti' : A.id === 'rally' ? 'Colpi di fila dentro il campo' : 'Angoli 3 · palla corta 5 · dentro 1';
-    this.hud.innerHTML = `<span class="ch-kicker">${A.c.label}${this.nickname ? ` · ${this.nickname}` : ''}</span><b class="ch-score">${main}</b>${time}<span class="ch-sub">${sub}</span>${A.last ? `<span class="ch-last">${A.last}</span>` : ''}`;
+    const html = `<span class="ch-kicker">${A.c.label}${this.nickname ? ` · ${this.nickname}` : ''}</span><b class="ch-score">${main}</b>${time}<span class="ch-sub">${sub}</span>${A.last ? `<span class="ch-last">${A.last}</span>` : ''}`;
+    // solo se cambia: paint gira a ogni fotogramma e prima ricostruiva il riquadro (una regione «aria-live») 60 volte al
+    // secondo, mentre il contenuto cambia circa una volta al secondo
+    if (html !== this.hudHtml){ this.hudHtml = html; this.hud.innerHTML = html; }
   }
 }

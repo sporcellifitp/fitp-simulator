@@ -73,6 +73,15 @@ export function swingFromContact(state){
   if (state && Number.isFinite(state.swingDuration)) state.swingElapsed = Math.max(state.swingElapsed || 0, SWING_VISUAL.contactSkip*state.swingDuration);
   return state;
 }
+// Passi della fisica per un fotogramma: tutto il tempo del fotogramma, diviso in n passi uguali mai più lunghi del
+// passo fisso del motore (1/120 s). Prima la fisica avanzava solo a passi fissi interi e il resto si accumulava: a 60 Hz,
+// con il tempo dei fotogrammi che oscilla, ogni tanto un fotogramma riceveva 1 o 3 passi invece di 2 (palla e giocatori
+// che scattano di metà o una volta e mezza il dovuto); a 144 Hz un fotogramma su sei non muoveva niente.
+export function physicsSteps(dt, max){
+  if (!(dt > 0) || !(max > 0)) return { n: 0, h: 0 };
+  const n = Math.max(1, Math.ceil(dt/max - 1e-6));
+  return { n, h: dt/n };
+}
 // Voto dello swing rilasciato allo sweet spot: «perfetto» solo con un anticipo piccolo, altrimenti «in anticipo».
 export function assistGrade(lead, level){
   const l = finite(lead, 0);

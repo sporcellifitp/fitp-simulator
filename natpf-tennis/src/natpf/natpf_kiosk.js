@@ -53,11 +53,14 @@ export class NatpfKiosk {
   // stand libero per il prossimo visitatore
   reset(){
     const ui = this.ui;
-    for (const m of document.querySelectorAll('.natpf-sheet-backdrop:not(#natpf-staff)')) m.classList.add('hidden');
+    // guida chiusa con la sua funzione prima di nascondere i pannelli (dopo, per lei, è già chiusa)
     if (ui.onboarding?.isOpen) ui.onboarding.close();
+    for (const m of document.querySelectorAll('.natpf-sheet-backdrop:not(#natpf-staff)')) m.classList.add('hidden');
     ui.events.nickname = '';
     if (ui.phone.connected) ui.phone.forget?.();
     ui.lobby.go('menu');
+    // pausa ricalcolata a pannelli chiusi: prima restava attiva e il visitatore successivo trovava il gioco fermo
+    ui._syncPause?.();
     this.last = performance.now();
   }
   run(cmd){
