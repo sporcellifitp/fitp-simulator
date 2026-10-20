@@ -122,6 +122,7 @@ export class NatpfTraining {
     if (!this.active || !this.cal) return;
     const c = this.cal, v = this.view, hand = this.ui.hand?.hand;
     this._calTick(0);                                      // palla del passo attuale subito, senza aspettare il fotogramma
+    if (!this.cal) return;                                 // (telefono già pronto: si è passati agli esercizi)
     if (e.kind === 'attempt' && e.ok){
       this.flash = { text: `${calCoach(e.want || v.want, hand).title} riconosciuto ✓`, ok: true, until: performance.now() + 900 };
       this._hitCal(e.idx ?? v.idx, e.want || v.want);
@@ -164,6 +165,9 @@ export class NatpfTraining {
   }
   _calTick(dt){
     const E = this.engine, c = this.cal, v = this.view, p = E.player;
+    // telefono già pronto senza passare dalla fine della calibrazione (pagina ricaricata con il profilo salvato): si va
+    // agli esercizi invece di restare sull'ultimo gesto
+    if (this.ui.phone?.ready){ this._startDrills(); return; }
     p.targetPos.copy(p.pos);                                                      // il giocatore non corre mai da solo
     const flying = this.ballLive() && E.ball.lastHitter === 'player';
     if (flying) c.flightT += dt;
@@ -291,8 +295,11 @@ export class NatpfTraining {
     show($('#coach-simple'), !!this.cal && this.cal.fails >= 1);
     const flash = this.flash && now < this.flash.until ? this.flash : null;
     const mode = this.ui.flow?.mode === 'training' ? 'Allenamento' : 'Riscaldamento';
+    const P = this.ui.phone, lost = c === 'phone' && P && (!P.connected || (P.state?.phone && !['cal', 'ready'].includes(P.state.phone)));
     let view;
-    if (this.cal){
+    // telefono scollegato o senza sensori (pagina ricaricata, schermo spento): prima il pannello restava su «Ora»
+    if (lost) view = { kicker: mode, title: 'Telefono scollegato', sub: !P.connected ? 'Riapri la pagina sul telefono: si ricollega da solo e si riparte da qui' : 'Sul telefono tocca «Attiva i sensori»', state: 'retry', dir: null, count: '' };
+    else if (this.cal){
       const v = this.view, pr = calPrompt(v, hand);
       const count = v.stage === 'gesture' ? `Gesto ${Math.min(v.idx + 1, v.total)} di ${v.total}` : v.stage === 'still' ? 'Prima di iniziare' : '';
       view = { kicker: mode, title: pr.title, sub: flash ? flash.text : (this.message && v.stage !== 'gesture' ? this.message : pr.sub), state: flash ? (flash.ok ? 'ok' : 'retry') : pr.state, dir: pr.dir, count, dots: v.stage === 'gesture' ? Array.from({ length: v.total }, (_, i) => i < v.idx ? 'done' : i === v.idx ? 'on' : '') : null };

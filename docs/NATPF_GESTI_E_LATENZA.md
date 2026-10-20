@@ -179,3 +179,47 @@ Lo stato della partita nelle registrazioni ha mostrato anche che molti colpi «s
   interpolati, ma il riconoscimento richiede più tempo; il pannello mostra la frequenza vera.
 - Le prove con telefoni veri non sono possibili in questo ambiente: tutto quello sopra è verificato con test e
   simulazioni, non sul campo.
+
+## 8. Quarto giro (20/10): allenamento, calibrazione, risposta del giocatore, collegamento
+
+### Allenamento e calibrazione in campo
+
+| Problema | Causa | Correzione |
+|---|---|---|
+| In calibrazione il giocatore correva da solo e mostrava colpi diversi da quelli chiesti dal telefono | due percorsi separati: il telefono decideva i passi, il computer lanciava una palla, la rallentava e «armava» il gesto. Se il telefono era già ai gesti quando si entrava in campo (parte appena si attivano i sensori) la palla non partiva mai; un gesto fatto prima della palla colpiva la palla del gesto dopo, dal lato sbagliato | il computer mostra sempre il passo del telefono (`natpf_cal_view.js`, funzione pura degli eventi); giocatore fermo al centro, palla ferma dal lato del gesto chiesto, colpo con il lato del gesto riconosciuto. Prova nel browser `natpf-training-flow.mjs`: 5/9 con il codice di prima, 13/13 dopo |
+| Istruzioni piccole in un pannello di lato | pannello pensato per non coprire il campo | in basso al centro, sotto il giocatore: gesto grande con la freccia del telefono, stato (aspetta / ora / riprova / ✓), tappe in alto; il telefono ripete le stesse parole |
+| Primo gesto al contrario: calibrazione invertita | il primo gesto fissava il verso, qualunque fosse | verso assoluto dalla rotazione attorno alla verticale: un primo gesto chiaramente al contrario si rifà (alla terza volta di fila si accetta: telefoni con il segno opposto) |
+| Calibrazione impossibile con il polso che prona (168 combinazioni su 432 nell'audit) | il verso dei gesti dopo il primo veniva dall'asse del primo gesto, che contiene anche la rotazione del polso | verso dalla rotazione netta attorno alla verticale durante il gesto (`netTurn`), poi dall'asse al picco, poi dall'asse imparato; in partita la rotazione netta dà il verso quando l'asse non basta |
+| Dritti morbidi con pronazione letti come palle corte (623 colpi su 5184) | il riferimento del verso del piatto (T) partiva da 0 e imparava solo dai colpi normali | riferimento iniziale dai quattro gesti della calibrazione (`profile.heads`) |
+
+Audit: `node --import ./test/register.mjs scripts/audit/calibration-matrix.mjs [--lefty]` (4 inclinazioni, 3 rotazioni
+dello schermo, 6 ampiezze/velocità, 3 pronazioni, tremolio, destro e mancino): 864/864 calibrazioni, 10368 colpi senza
+colpi persi, lati sbagliati o colpi speciali non voluti.
+
+### Tempi dal gesto alla risposta (misurati, `tools/e2e/natpf-latency.mjs`)
+
+| Tratto | Tempo |
+|---|---|
+| picco del gesto → decisione del rilevatore (60 campioni/s) | ~24 ms (registrazioni vere: 17–42 ms) |
+| telefono → computer (WebRTC in locale) | 1–10 ms (registrazioni vere in LAN: 2–15 ms) |
+| arrivo → motore e animazione | < 2 ms |
+| totale picco → risposta a schermo | 26–35 ms, più 1–2 fotogrammi di disegno |
+
+La rete non è il collo di bottiglia. Quello che si percepiva come ritardo o incoerenza era nella risposta del giocatore:
+con un gesto in anticipo lo swing partiva subito e ripartiva da capo quando arrivava la palla (due swing per un gesto);
+con un gesto in tempo la palla partiva subito ma la racchetta arrivava all'impatto dell'animazione ~0,1 s dopo; un gesto
+troppo in anticipo spariva senza segni. Ora: racchetta che si carica subito dal lato del colpo, swing nell'istante del
+colpo partendo da poco prima dell'impatto, swing a vuoto visibile con «Troppo presto», etichetta del gesto sul computer
+(rilevato → letto → applicato).
+
+### Alternative al collegamento
+
+| Soluzione | Latenza | Stabilità | Compatibilità | Valutazione |
+|---|---|---|---|---|
+| WebRTC DataChannel (attuale: diretto in LAN, PeerJS via internet) | 2–15 ms in LAN | buona; SCTP su UDP, niente blocco in testa | tutti i browser dei telefoni | **si tiene** |
+| WebSocket sul server LAN | simile in LAN (+ un salto nel server) | TCP: con una perdita i messaggi dopo aspettano | ovunque | nessun vantaggio sulla latenza; utile solo come ripiego se WebRTC è bloccato |
+| Bluetooth (Web Bluetooth) | intervalli di connessione BLE 7,5–30 ms | — | una pagina web sul telefono non può fare da periferica BLE e Safari su iPhone non ha Web Bluetooth: servirebbe un'app | non praticabile senza app, e non più veloce del Wi-Fi |
+| Sensori più frequenti (Generic Sensor API, solo Chrome per Android) | riconoscimento più presto di ~8 ms a 120 Hz | da provare | non su iPhone; Chrome può limitare la frequenza | possibile miglioramento futuro, da provare con telefoni veri |
+
+Il margine vero resta sulla frequenza dei sensori (il picco si riconosce 1–2 campioni dopo) e sulla durata del gesto
+stesso; per questo il tempo del colpo si misura all'istante del picco sul telefono, non all'arrivo.
