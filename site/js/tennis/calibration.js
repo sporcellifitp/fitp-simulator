@@ -4,7 +4,7 @@
 // Dagli swing veri escono le soglie su misura (colpo tipico, soglia d'inizio, picco minimo) e l'asse del colpo, che dice
 // la direzione. Se non va (movimenti troppo piccoli, direzioni non distinguibili, nessun movimento) si spiega cosa fare
 // e la partita col telefono non parte.
-import { unit, dot, len, verticalTurn } from './swing-detect.js';
+import { unit, dot, len, verticalTurn, netTurn } from './swing-detect.js';
 import { canonicalTwist } from './gesture-intent.js';
 import { faceReference, flatGrip } from './face-tracker.js';
 
@@ -46,6 +46,9 @@ export const CAL = {
                                    // preparazione nel verso opposto può essere più veloce del colpo)
   flipTrust: 2,                    // primo gesto chiaramente al contrario (rotazione attorno alla verticale): si chiede di
                                    // rifarlo; alla terza volta di fila si accetta (telefoni con il segno opposto)
+  vertical: .35,                   // gesti dopo il primo: il verso viene dalla verticale se ci gira attorno almeno così
+                                   // (coseno tra asse di rotazione e verticale), altrimenti dall'asse imparato
+  netTurn: .2,                     // … o se la rotazione netta attorno alla verticale è almeno il 20% del percorso del gesto
 };
 const median = a => { const s = [...a].sort((x, y) => x - y); return s.length ? (s.length % 2 ? s[(s.length - 1)/2] : (s[s.length/2 - 1] + s[s.length/2])/2) : 0; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -54,7 +57,7 @@ export const upright = g => !!g && Math.abs(g[1])/Math.max(1e-6, Math.hypot(g[0]
 
 export function createCalibration(det){
   const L = [];
-  const S = { step: 'idle', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, burst: [], burstT: 0, idleT: 0, gripT: null, lastT: 0, options: { range: 'standard', hand: 'right', intentGate: false }, practice: 0, templates: [], shotAttempts: [], ready: false, readyAt: 0, quietT: null, settleT: 0, settleHinted: false, rot: [0, 0, 0], track: [], home: null, quietSpan: 0, flipTries: 0 };
+  const S = { step: 'idle', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, burst: [], burstT: 0, idleT: 0, gripT: null, lastT: 0, options: { range: 'standard', hand: 'right', intentGate: false }, practice: 0, templates: [], shotAttempts: [], ready: false, readyAt: 0, quietT: null, settleT: 0, settleHinted: false, rot: [0, 0, 0], track: [], home: null, quietSpan: 0, flipTries: 0, vsign: 1 };
   const plan = () => calibrationPlan(S.options);
   const total = () => plan().length + (S.options.gestural && !S.options.quick ? GESTURE_PLAN.length : 0);
   const emit = e => { for (const f of L) f({ ...e, step: S.step }); };
@@ -130,11 +133,19 @@ export function createCalibration(det){
       // CAL.flipTrust volte di fila si accetta comunque (telefoni che riportano la rotazione con il segno opposto)
       const turn = small ? 0 : verticalTurn(sw.axis, sw.gravity);
       if (turn === -1 && S.flipTries < CAL.flipTrust){ S.flipTries++; dir = 'R'; }
-      else { S.axis = sw.axis.slice(); dir = 'L'; S.flipTries = 0; }
+      else { if (turn === -1) S.vsign = -1; S.axis = sw.axis.slice(); dir = 'L'; S.flipTries = 0; }
     }
-    else if (along != null) dir = along > .3 ? 'L' : along < -.3 ? 'R' : '?';
+    else {
+      // verso dei gesti dopo il primo: prima di tutto la rotazione attorno alla verticale (dritto e rovescio girano
+      // attorno alla verticale in versi opposti, con qualunque presa). Prima contava solo l'asse del primo gesto, che
+      // contiene anche la rotazione del polso: con il polso che prona il rovescio non risultava più «opposto» e la
+      // calibrazione falliva (gesti piccoli o normali con pronazione: 168 prese/gesti su 432 nell'audit)
+      // (rotazione netta del gesto attorno alla verticale, se c'è; altrimenti l'asse al picco rispetto alla verticale)
+      const v = small ? 0 : S.vsign*(netTurn(sw.turn, sw.angle, CAL.netTurn) || verticalTurn(sw.axis, sw.gravity, CAL.vertical));
+      dir = v > 0 ? 'L' : v < 0 ? 'R' : along == null ? '?' : along > .3 ? 'L' : along < -.3 ? 'R' : '?';
+    }
     const ok = !small && dir === want;
-    const a = { want, dir, peak: sw.peak, lift: sw.lift, axis: sw.axis, gravity: sw.gravity, angle: sw.angle || 6, features: sw.features, dur: sw.dur, ok, small, face: sw.face || null, preparations: group.filter(x => !x.back && x.peakT < sw.peakT && dot(x.axis, sw.axis) < -.3).map(x => ({ peak: x.peak, axis: x.axis })) };
+    const a = { want, dir, peak: sw.peak, lift: sw.lift, axis: sw.axis, gravity: sw.gravity, angle: sw.angle || 6, features: sw.features, dur: sw.dur, ok, small, face: sw.face || null, head: Number.isFinite(sw.head) ? sw.head : null, preparations: group.filter(x => !x.back && x.peakT < sw.peakT && dot(x.axis, sw.axis) < -.3).map(x => ({ peak: x.peak, axis: x.axis })) };
     S.attempts.push(a);
     if (ok){
       // asse aggiornato con tutti gli swing riusciti (con il loro segno)
@@ -193,6 +204,10 @@ export function createCalibration(det){
       // il piatto abituale all'impatto del proprio dritto e rovescio: in partita la mira è lo scarto da questo (entrambe le prese)
       if (pass && S.options.grip === 'flat') S.profile.grip = 'flat';
       if (pass && ok.some(a => a.face)) S.profile.faceRef = faceReference(ok.filter(a => a.face).map(a => ({ dir: SIGN[a.want], yaw: a.face.yaw, pitch: a.face.pitch, angle: a.angle })));
+      // verso verticale del piatto (headAt) dei propri gesti normali, per verso: è il riferimento di pallonetto, tagliato
+      // e palla corta sul computer. Prima partiva da 0 e imparava solo dai colpi «normali»: chi ha un dritto morbido con
+      // il polso che prona aveva tutti i colpi letti come palle corte, e il riferimento non si correggeva più
+      if (pass){ const heads = {}; for (const w of ['L', 'R']){ const h = ok.filter(a => a.want === w && Number.isFinite(a.head)).map(a => a.head); if (h.length) heads[SIGN[w]] = +median(h).toFixed(3); } if (Object.keys(heads).length) S.profile.heads = heads; }
       if (pass && S.options.quick){
         S.profile.templates = ok.map(a => ({ shot:'drive',dir:SIGN[a.want],peak:a.peak,angle:a.angle,features:templateFeatures(a,S.profile.refs[SIGN[a.want]],S.profile.refAngle,S.axis,SIGN[a.want]) }));
         S.profile.minPeak = Math.max((S.profile.noise || 3)*5, Math.min(S.profile.minPeak, base*.28));
@@ -251,12 +266,12 @@ export function createCalibration(det){
       S.options = { range: options.range === 'compact' ? 'compact' : 'standard', hand: options.hand === 'left' ? 'left' : 'right', intentGate: options.intentGate === true, gestural: flat ? false : options.gestural === true, quick: flat || options.quick === true, ...(flat ? { grip: 'flat' } : {}) };
       if (det.config){ if (S.baseStill == null) S.baseStill = det.config.stillTime; det.config.stillTime = flat ? CAL.flatStill : S.baseStill; }
       S.practice = 0; det.setTraining(true);
-      Object.assign(S, { step: 'still', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT, home: null, track: [], rot: [0, 0, 0], flipTries: 0 }); unready();
+      Object.assign(S, { step: 'still', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT, home: null, track: [], rot: [0, 0, 0], flipTries: 0, vsign: 1 }); unready();
       det.setProfile({ bias: [0, 0, 0], ...CAL.low, axis: null }); det.still();
       emit({ kind: 'step' });
     },
     skipGrip(){ if (S.step === 'grip'){ S.step = 'swings'; S.idleT = S.lastT; unready(); emit({ kind: 'step', want: plan()[0], shot: 'drive', idx: 0, total: total() }); } },
-    retry(){ S.practice = 0; det.setTraining(true); Object.assign(S, { step: 'swings', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT, home: null, track: [], rot: [0, 0, 0], flipTries: 0 }); unready(); det.setThresholds({ ...CAL.low, axis: null }); emit({ kind: 'step', want: plan()[0], shot: 'drive', idx: 0, total: total() }); },
+    retry(){ S.practice = 0; det.setTraining(true); Object.assign(S, { step: 'swings', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT, home: null, track: [], rot: [0, 0, 0], flipTries: 0, vsign: 1 }); unready(); det.setThresholds({ ...CAL.low, axis: null }); emit({ kind: 'step', want: plan()[0], shot: 'drive', idx: 0, total: total() }); },
     // prova libera con il profilo proposto: direzione e forza di ogni swing, prima di confermare
     tryFree(){ if (!S.profile) return; S.step = 'free'; det.setProfile(S.profile); det.setTraining(false); det.setContext?.('practice'); emit({ kind: 'step' }); },
     // salta i gesti: profilo semplice dalla posa ferma (deriva e rumore), senza asse del colpo; i gesti valgono tutti

@@ -10,7 +10,7 @@ import { createFaceTracker } from '@natpf/tennis/face-tracker.js';
 import { createCalibration } from '@natpf/tennis/calibration.js';
 import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { natpfSwingToEngine, NORMAL_SHOTS } from '../src/natpf/natpf_phone_racket.js';
-import { createLiftModel, createFaceModel, createAimModel, liftBaselineFromProfile } from '../src/natpf/natpf_gestures.js';
+import { createLiftModel, createFaceModel, createAimModel, liftBaselineFromProfile, headBaselineFromProfile } from '../src/natpf/natpf_gestures.js';
 
 export const G = 9.81, DT = 1000/60;
 const qmul = (a, b) => [a[3]*b[0] + a[0]*b[3] + a[1]*b[2] - a[2]*b[1], a[3]*b[1] - a[0]*b[2] + a[1]*b[3] + a[2]*b[0], a[3]*b[2] + a[0]*b[1] - a[1]*b[0] + a[2]*b[3], a[3]*b[3] - a[0]*b[0] - a[1]*b[1] - a[2]*b[2]];
@@ -70,22 +70,29 @@ export function simPhone({ hand = 'right', seed = 7 } = {}){
     // rientro: la mano torna al centro e il polso torna nella posa di prima (la pronazione non si accumula)
     if (back){ rest(120, tremor); returnTo(start); }
   };
-  const calibrate = () => {
-    cal.start({ quick: true, hand }); rest(800);
-    for (const w of ['L', 'R', 'L', 'R']){ swing({ axis: [0, w === 'L' ? 1 : -1, 0] }); rest(500); }
-    if (cal.state.step !== 'review' || !cal.state.result.pass) throw new Error('calibrazione non riuscita: ' + JSON.stringify(cal.state.result));
-    cal.confirm(); ready = true; rest(600);
+  // calibrazione rapida vera: quattro gesti alternati; opzioni del gesto (peak, ms, wrist, tremor…) come in swing.
+  // soft: restituisce l'esito invece di fermarsi (per le prove con prese e gesti diversi)
+  const calibrate = ({ soft = false, rest: pause = 500, tremor = 0, ...gesture } = {}) => {
+    const events = []; const off = cal.on(e => events.push(e));
+    cal.start({ quick: true, hand }); rest(800, tremor);
+    for (const w of ['L', 'R', 'L', 'R']){ swing({ axis: [0, w === 'L' ? 1 : -1, 0], tremor, ...gesture }); rest(pause, tremor); }
+    const ok = cal.state.step === 'review' && !!cal.state.result?.pass;
+    if (!ok && !soft) throw new Error('calibrazione non riuscita: ' + JSON.stringify(cal.state.result));
+    if (ok){ cal.confirm(); ready = true; rest(600, tremor); }
+    void off;
+    return { ok, step: cal.state.step, result: cal.state.result, attempts: events.filter(e => e.kind === 'attempt').map(e => ({ want: e.want, dir: e.dir, ok: e.ok, why: e.why, peak: Math.round(e.peak) })) };
   };
   // sul computer: come NatpfPhoneRacket._onSwing, con i riferimenti che si adattano ai colpi della partita
   const prof = () => det.profile;
-  const lifts = { model: null }, heads = createLiftModel(0), faces = createFaceModel(), aims = createAimModel();
+  const lifts = { model: null }, heads = { model: null }, faces = createFaceModel(), aims = createAimModel();
   const game = (d, { ballHigh = false } = {}) => {
     lifts.model ||= createLiftModel(liftBaselineFromProfile(prof()) ?? 0);
+    heads.model ||= createLiftModel(headBaselineFromProfile(prof(), hand) ?? 0);
     const s = parseSwingMessage(d, { at: 10, now: 10020 });
-    const ev = natpfSwingToEngine(s, { hand, now: 10.02, ballHigh, liftBaseline: lifts.model.value, headBaseline: heads.value, faceCenter: faces.center(s.dir), aimModel: aims });
-    if (NORMAL_SHOTS.has(ev.natpf.shot)){ lifts.model.add(s.dir, s.lift); heads.add(s.dir, ev.natpf.head); }
+    const ev = natpfSwingToEngine(s, { hand, now: 10.02, ballHigh, liftBaseline: lifts.model.value, headBaseline: heads.model.value, faceCenter: faces.center(s.dir), aimModel: aims });
+    if (NORMAL_SHOTS.has(ev.natpf.shot)){ lifts.model.add(s.dir, s.lift); heads.model.add(s.dir, ev.natpf.head); }
     faces.add(s.dir, s.face); aims.add(s.dir, s.heading);
     return { s, ev };
   };
-  return { det, face, msgs, rest, pose, swing, calibrate, game, sampleWorld, get t(){ return t; }, get q(){ return q; } };
+  return { det, face, cal, msgs, rest, pose, swing, calibrate, game, sampleWorld, get t(){ return t; }, get q(){ return q; } };
 }

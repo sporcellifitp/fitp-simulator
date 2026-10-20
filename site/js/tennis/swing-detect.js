@@ -84,6 +84,15 @@ export function verticalTurn(axis, gravity, min = .6){
   return c >= min ? 1 : c <= -min ? -1 : 0;
 }
 
+// Verso dalla rotazione netta attorno alla verticale durante tutto il gesto (turn, gradi) rispetto al percorso totale
+// (angle, gradi): +1 da destra a sinistra, -1 il contrario, 0 se la parte attorno alla verticale è meno di `min`
+// (o il gesto quasi non gira: meno di 4°). Più robusto dell'asse al picco quando il polso prona.
+export function netTurn(turn, angle, min = .2){
+  if (!Number.isFinite(turn) || !Number.isFinite(angle) || angle <= 0 || Math.abs(turn) < 4) return 0;
+  const r = turn/angle;
+  return r >= min ? 1 : r <= -min ? -1 : 0;
+}
+
 export function createSwingDetector(opts = {}){
   const C = { ...DEFAULTS, ...opts };
   let prof = defaultProfile();
@@ -146,9 +155,12 @@ export function createSwingDetector(opts = {}){
       const sameWay = !w || !lastAxis || dot(unit(w), lastAxis) > -.3;
       if ((k.t - lastFire < C.refractory && sameWay) || sm < T.on) return;
       setPhase('preparation');
-      cur = { t0: k.t, peak: 0, peakT: k.t, peakW: w || [0, 0, 0], gravity: null, angle: 0, up: 0, tot: 0, fired: false, rawPeak: 0, truePeakT: k.t };
+      cur = { t0: k.t, peak: 0, peakT: k.t, peakW: w || [0, 0, 0], gravity: null, angle: 0, turn: 0, up: 0, tot: 0, fired: false, rawPeak: 0, truePeakT: k.t };
     }
     cur.angle += mag*dt/1000;
+    // rotazione netta attorno alla verticale durante il gesto (gradi, + = antioraria vista dall'alto = da destra a
+    // sinistra): il polso che prona gira attorno a un asse orizzontale e non la cambia, il dritto e il rovescio sì
+    if (w && k.accG){ const g = unit(k.accG.map((v, i) => v - (k.acc?.[i] || 0))); if (len(g)) cur.turn += dot(w, [g[2], g[0], g[1]])*dt/1000; }
     cur.fallN = raw.length > 1 && mag < raw[raw.length - 2][1] ? (cur.fallN || 0) + 1 : 0;
     // picco grezzo: il campione di mezzo è un massimo locale → vertice della parabola (precisione sotto il campione)
     if (raw.length === 3 && !cur.fired){
@@ -194,6 +206,9 @@ export function createSwingDetector(opts = {}){
     // allora viene dalla rotazione attorno alla verticale, che non dipende da come si tiene il telefono
     const turn = dir || !prof.axis ? null : aroundVertical(axis, c.gravity || prof.gravity, prof.axis, prof.gravity);
     if (turn) dir = turn;
+    // ancora nessun verso: il gesto è dominato dalla rotazione del polso (asse al picco quasi orizzontale), ma la mano
+    // gira comunque attorno alla verticale; il segno si confronta con quello del colpo di calibrazione
+    if (!dir && prof.axis){ const t = netTurn(c.turn, c.angle), ref = prof.gravity ? dot(unit(prof.axis), unit([prof.gravity[2], prof.gravity[0], prof.gravity[1]])) : 0; if (t && Math.abs(ref) >= .3) dir = t*Math.sign(ref); }
     const vert = verticalGesture(axis, c.gravity || prof.gravity, lift, along);
     // istante del colpo: il picco grezzo interpolato, se c'è ed è vicino a quello della media mobile
     const peakT = c.rawPeak > 0 && Math.abs(c.truePeakT - c.peakT) < 60 ? +c.truePeakT.toFixed(1) : c.peakT;
@@ -223,7 +238,7 @@ export function createSwingDetector(opts = {}){
     // Soglie iniziali di palla corta e slice; la durata del sensore è in millisecondi.
     const special = classifySwingType({ power, lift, dur }, prof.lobLift);
     const sw = { phase: 'contact', peakT, t, peak: Math.round(c.peak), power: +power.toFixed(3), dir, along: +along.toFixed(2), axis, gravity, lift: +lift.toFixed(3), ...special, ...intent, features, angle: Math.round(c.angle), dur,
-      ...(vert ? { vert } : {}), detectMs: +Math.max(0, t - peakT).toFixed(1) };
+      ...(vert ? { vert } : {}), turn: +c.turn.toFixed(1), detectMs: +Math.max(0, t - peakT).toFixed(1) };
     if (prepMode && !training && !serving()){
       // un gesto trattenuto e ora quello opposto: il primo era la preparazione
       if (held && dir !== 0 && dir === -held.sw.dir && c.peak < held.sw.peak*C.prepFollow){ const h = held; held = null; commit(h.sw, t); setPhase('follow'); return; }

@@ -64,6 +64,18 @@ export function liftBaselineFromProfile(profile){
   out.spread = +median(xs.map(t => Math.abs(t.features.lift - (out[t.dir] ?? out.all)))).toFixed(3);
   return out;
 }
+// Verso verticale abituale del piatto (T, headAt) dai gesti normali della calibrazione (profile.heads, per verso del
+// colpo +1/−1, misurato sul dorso del telefono), nel segno che usa il computer: nel dritto colpisce il palmo, cioè lo
+// schermo, e il segno si inverte (come in natpfSwingToEngine). null senza dati.
+export function headBaselineFromProfile(profile, hand = 'right'){
+  const h = profile?.heads; if (!h || typeof h !== 'object') return null;
+  const fh = hand === 'left' ? -1 : 1, out = {};
+  for (const d of [1, -1]) if (Number.isFinite(h[d])) out[d] = +(h[d]*(d === -fh ? 1 : -1)).toFixed(3);
+  const v = Object.values(out);
+  if (!v.length) return null;
+  out.all = +median(v).toFixed(3); out.spread = 0;
+  return out;
+}
 // Verso verticale abituale che si adatta a come si gioca davvero: nelle registrazioni il rovescio in partita saliva in
 // media di 0,9 più dei due rovesci della calibrazione, e ogni rovescio sembrava un lob. Si parte dalla calibrazione;
 // dopo `min` colpi in un verso vale la mediana degli ultimi `keep` colpi in quel verso (la maggior parte dei colpi sono

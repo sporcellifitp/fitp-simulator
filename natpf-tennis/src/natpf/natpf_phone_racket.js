@@ -22,7 +22,7 @@ import { gestureAim } from '@natpf/match/shot-quality.js';
 import { lanOrigin } from './natpf_lan.js';
 import { VIBRATION } from './natpf_shot_feedback.js';
 import { swingPower } from './natpf_skill.js';
-import { classifyPhoneShot, aimFromSignals, ENGINE_SHOT, liftBaselineFromProfile, resolveLiftBaseline, createLiftModel, createFaceModel, createAimModel, centeredFace, learnSpecials } from './natpf_gestures.js';
+import { classifyPhoneShot, aimFromSignals, ENGINE_SHOT, liftBaselineFromProfile, headBaselineFromProfile, resolveLiftBaseline, createLiftModel, createFaceModel, createAimModel, centeredFace, learnSpecials } from './natpf_gestures.js';
 import { calReduce, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
 
 const NATPF_BASE = '/natpf/';
@@ -269,7 +269,7 @@ export class NatpfPhoneRacket {
     c.idle = e.kind === 'idle';
     if (e.kind === 'review'){ c.review = e; c.freeOk = false; if (e.pass) this.link.cmd('free'); }   // prova libera, poi conferma
     if (e.kind === 'free' && e.ok) c.freeOk = true;
-    if (e.kind === 'done'){ c.step = 'done'; this.profile = e.profile || null; this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline; this.liftModel.reset(this.liftBaseline); this.faceModel.reset(); this.aimModel.reset(); this.headModel.reset(0); this.resetSpecials(); if (e.profile?.hand === 'left' || e.profile?.hand === 'right') this.hand = e.profile.hand; }
+    if (e.kind === 'done'){ c.step = 'done'; this.profile = e.profile || null; this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline; this.liftModel.reset(this.liftBaseline); this.faceModel.reset(); this.aimModel.reset(); this.resetSpecials(); if (e.profile?.hand === 'left' || e.profile?.hand === 'right') this.hand = e.profile.hand; this.headModel.reset(headBaselineFromProfile(this.profile, this.hand) ?? 0); }
     c.last = e;
     for (const fn of this.calListeners) try { fn(e); } catch (err){ console.error(err); }
     this._changed();
