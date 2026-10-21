@@ -41,7 +41,7 @@ export const WEBCAM_STROKE = Object.freeze({
   pendStill: .12,               // s di mano ferma per decidere un movimento rimasto in attesa
   restStill: .35,               // s di mano ferma per un nuovo punto di riposo (una breve pausa a fine preparazione no)
   pendMax: .7,                  // s massimi di attesa
-  segMax: .8,                   // s: un movimento da fermo più lungo non è uno swing (un passante che attraversa)
+  segMax: .8,                   // s: un movimento da fermo più lungo non è uno swing (un passante che attraversa; col flusso ottico diviso per flow)
   lobSlope: 1.2, lobRise: .12,  // pallonetto: salita/spostamento laterale e salita minima (u)...
   lobEnd: .05,                  // ... con la mano che finisce sopra la posizione di riposo (u)...
   lobStart: .15,                // ... partendo da non più di così sopra il riposo (non la mano che sale a colpire una schiacciata)
@@ -332,7 +332,7 @@ export function createStrokeTracker(opt = {}){
       TR && TR('attesa decisa', { t: s.t, peak: g.peak, after: g.after || 0, D, ret: isReturn(g) });
       // ritorno verso il riposo, mano alzata piano (preparazione della schiacciata, non un pallonetto), dopo è venuto un
       // movimento più ampio che non era un colpo (era una preparazione), oppure troppo lungo per uno swing (un passante)
-      if (isReturn(g) || (upright(D) && g.peak < C.vFast*f) || (g.after || 0) >= .8*g.peak || g.dur > C.segMax) return;
+      if (isReturn(g) || (upright(D) && g.peak < C.vFast*f) || (g.after || 0) >= .8*g.peak || g.dur > C.segMax/f) return;
       const c = classify(g, f);
       if (c.stroke){ out.push(swing(s, c, `swing secco: ${c.why}`)); rec = { at: s.t }; TR && TR('colpo', { t: s.t, ...c }); }
     }
