@@ -96,9 +96,11 @@ tipico, palla alta. Le soglie di L si allargano con la variabilità dei propri c
   (orientamento, binario, JSON), e per gli ultimi colpi: lato, tipo e perché, mira e sua fonte, **rilevamento**
   (dal picco alla decisione, sul telefono), **attesa della preparazione**, **consegna** (rete + code, con gli orologi
   allineati), **totale** dal picco all'arrivo, **attesa della palla**, tempo **a schermo**, esito e punto di caduta.
-- **Registra**: fino a 60 s di campioni grezzi del telefono (uguali in LAN e via internet), colpi, esiti, statistiche
-  ogni secondo e profilo di calibrazione, in un file JSON da scaricare.
-- **Rianalisi**: `node --import ./test/register.mjs scripts/audit/replay-recording.mjs file.json` (da `natpf-tennis`):
+- **Registrazione** (dal 21/10 modalità diagnostica, guida in [NATPF_DIAGNOSTICA.md](NATPF_DIAGNOSTICA.md)): senza
+  limite di durata, scritta su disco mentre si gioca, con video della webcam e del gioco, eventi del motore, colpi,
+  campioni grezzi del telefono, orologio, prestazioni e prova guidata dei colpi; si scarica come zip con un rapporto
+  da aprire con un doppio clic. Prima: fino a 60 s, tutto in memoria, in un file JSON.
+- **Rianalisi**: `node --import ./test/register.mjs scripts/audit/replay-recording.mjs file.json|file.zip` (da `natpf-tennis`):
   frequenza vera e buchi del flusso, tempi di ogni colpo giocato e gli stessi campioni ripassati nel rilevatore e
   nella tabella attuali. Serve a tarare le soglie sui movimenti veri e a confrontare LAN e internet.
 
@@ -216,7 +218,7 @@ colpo partendo da poco prima dell'impatto, swing a vuoto visibile con «Troppo p
 
 | Soluzione | Latenza | Stabilità | Compatibilità | Valutazione |
 |---|---|---|---|---|
-| WebRTC DataChannel (attuale: diretto in LAN, PeerJS via internet) | 2–15 ms in LAN | buona; SCTP su UDP, niente blocco in testa | tutti i browser dei telefoni | **si tiene** |
+| WebRTC DataChannel (attuale: diretto in LAN, PeerJS via internet) | 2–15 ms in LAN | buona; SCTP su UDP. Il colpo però viaggiava su un canale ordinato e affidabile: un pacchetto perso fermava i messaggi dopo fino alla ritrasmissione (corretto il 21/10, §9) | tutti i browser dei telefoni | **si tiene** |
 | WebSocket sul server LAN | simile in LAN (+ un salto nel server) | TCP: con una perdita i messaggi dopo aspettano | ovunque | nessun vantaggio sulla latenza; utile solo come ripiego se WebRTC è bloccato |
 | Bluetooth (Web Bluetooth) | intervalli di connessione BLE 7,5–30 ms | — | una pagina web sul telefono non può fare da periferica BLE e Safari su iPhone non ha Web Bluetooth: servirebbe un'app | non praticabile senza app, e non più veloce del Wi-Fi |
 | Sensori più frequenti (Generic Sensor API, solo Chrome per Android) | riconoscimento più presto di ~8 ms a 120 Hz | da provare | non su iPhone; Chrome può limitare la frequenza | possibile miglioramento futuro, da provare con telefoni veri |
@@ -239,3 +241,19 @@ Prova: `tools/e2e/natpf-phone-blackout.mjs` ferma i messaggi nelle pagine (il ca
 blocca): computer → telefono, poi nei due sensi durante la calibrazione, poi durante gli esercizi. 6/6; con il codice di
 prima 3 verifiche su 3 fallite. La rete vera (Wi-Fi spento, schermo spento, cambio di rete) resta da provare con il
 telefono in mano.
+
+## 9. Quinto giro (21/10): colpi senza attesa di rete, modalità diagnostica, app nativa
+
+- **Colpi senza attesa di ritrasmissione.** Il colpo viaggiava solo sul canale ordinato e affidabile: con un pacchetto
+  perso aspettava la ritrasmissione (perdita simulata, via internet: p99 153–293 ms, fino a 39 colpi su 150 oltre
+  50 ms). Ora il telefono manda tre copie sul percorso senza ritrasmissioni e una sul canale affidabile; il computer
+  tiene la prima. Stessa prova: p99 6–15 ms, nessun colpo oltre 50 ms, nessun colpo perso. Tabella completa e
+  ripetizione in [NATPF_APP_NATIVA_E_TRASPORTI.md](NATPF_APP_NATIVA_E_TRASPORTI.md) §2.
+- **Stato della pagina del telefono.** Il telefono comunica se la pagina è visibile e se il blocco dello schermo è
+  attivo; il computer avvisa se lo schermo può spegnersi (pagina sospesa, sensori fermi).
+- **Colpi scartati** (istante del picco non valido, telefono non pronto): prima sparivano senza traccia, ora finiscono
+  nel registro della diagnostica con il motivo.
+- **Ritardo dello schermo.** Si può impostare nel pannello della diagnostica (0–200 ms): si somma alla correzione del
+  ritardo del telefono nel giudizio del tempo. Resta a 0 finché non lo si misura con un video a 240 fps.
+- **Modalità diagnostica**: [NATPF_DIAGNOSTICA.md](NATPF_DIAGNOSTICA.md).
+- **App nativa, Bluetooth, sensori più frequenti**: [NATPF_APP_NATIVA_E_TRASPORTI.md](NATPF_APP_NATIVA_E_TRASPORTI.md).

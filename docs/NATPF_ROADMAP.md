@@ -1,6 +1,6 @@
 # NATPF Simulator · roadmap
 
-Ultimo aggiornamento: 20 ottobre 2026 (branch `claude/friendly-fermat-dwv2w2`, da `feature/natpf-tennis-v2`). Raccoglie in un posto solo lo stato del
+Ultimo aggiornamento: 21 ottobre 2026 (branch `claude/friendly-fermat-dwv2w2`, da `feature/natpf-tennis-v2`). Raccoglie in un posto solo lo stato del
 gioco di tennis (1v1, telefono come racchetta, webcam, LAN e Cloudflare). I dettagli tecnici restano nei documenti
 collegati: [NATPF_TENNIS_MVP.md](NATPF_TENNIS_MVP.md) (storia e architettura),
 [NATPF_GESTI_E_LATENZA.md](NATPF_GESTI_E_LATENZA.md) (telefono, gesti, latenza, registrazioni),
@@ -11,6 +11,15 @@ schermo, rianalisi delle registrazioni vere); **solo implementato** = scritto e 
 con hardware vero (telefono in mano, webcam con una persona, Wi-Fi di un evento).
 
 ## 1. Fatto in questo giro
+
+### Quinto giro del 21/10: modalità diagnostica, colpi senza attesa di rete, app nativa (stato in [MEMORY.md](../MEMORY.md) §10)
+
+| Punto | Causa trovata | Correzione | Verifica |
+|---|---|---|---|
+| Registri che «si fermano dopo circa 30 s» | La registrazione di prima si chiudeva da sola a 60 s e teneva tutto in memoria. Nel simulatore nessuno stop a 30 s. Causa più probabile sul telefono vero (ipotesi): lo schermo che si spegne dopo il tempo impostato, spesso 30 s, quando il blocco dello schermo manca o si perde; la pagina si sospende e i campioni si fermano | Registrazione senza limite, scritta su disco; il telefono comunica pagina visibile e blocco dello schermo, il computer avvisa e il registro lo annota | **provato** nel browser: 150 s continui, pagina del telefono nascosta rilevata e annotata; causa sul telefono vero **da confermare** con la prima sessione |
+| Modalità diagnostica | Mancava: niente video, niente eventi del motore, un solo orologio non dichiarato, 60 s in memoria | Registratore su un solo orologio (computer), scrittura progressiva su disco con recupero, parti da 30 minuti nelle registrazioni lunghe, controllo dello spazio, video della webcam e del gioco sincronizzati, metriche, confronto tra sessioni, pacchetto zip con rapporto, prova guidata dei colpi come riferimento ([NATPF_DIAGNOSTICA.md](NATPF_DIAGNOSTICA.md)) | **provato** nel browser con telefono simulato e webcam finta (23/23: sessione di 150 s, registrazione in parti, spazio su disco quasi finito, ricarica a metà con recupero, prova guidata); costo del registratore sul thread del gioco 0,07% del tempo in mediana, al massimo 0,4%; video del gioco spento all'inizio perché pesa (misurato); telefono, webcam e persona veri **non provati** |
+| Colpi in ritardo quando la rete perde pacchetti | Il colpo viaggiava solo sul canale ordinato e affidabile: un pacchetto perso fermava tutto fino alla ritrasmissione (via internet p99 153–293 ms, fino a 39 colpi su 150 oltre 50 ms) | Tre copie sul percorso senza ritrasmissioni e una sul canale affidabile; il computer tiene la prima | **provato** con perdita simulata del 3% e dell'8%, LAN e internet: p99 6–15 ms, nessun colpo oltre 50 ms, nessun colpo perso; Wi-Fi vero **non provato** |
+| App nativa e Bluetooth | Valutazione con le misure disponibili | Non ora: l'app guadagnerebbe ~13 ms di riconoscimento (sensori a 100 Hz); il Bluetooth non è più veloce di un Wi-Fi dedicato. Regola per decidere con i dati delle sessioni vere ([NATPF_APP_NATIVA_E_TRASPORTI.md](NATPF_APP_NATIVA_E_TRASPORTI.md)) | misure nel simulatore (riconoscimento a 30/60/100/200 Hz) e con perdita simulata; telefoni veri **non provati** |
 
 ### Audit e miglioramenti del 20/10: allenamento, calibrazione, risposta del giocatore, menu (stato in [MEMORY.md](../MEMORY.md) §10)
 
@@ -100,9 +109,12 @@ certificato e firewall. Dettagli in [NATPF_GESTI_E_LATENZA.md](NATPF_GESTI_E_LAT
 
 ## 3. Aperto, in ordine di priorità
 
-1. **Registrazione dichiarata con il telefono vero** (Maiusc+D → Registra): dritti normali, dritti girando il
-   polso, pallonetti, palle corte, dritti mirati a destra e a sinistra; rianalisi con `replay-recording.mjs` per
-   tarare `GESTURE.lobMove` e `AIM` (oggi tarati sul simulatore della presa vera).
+1. **Prova guidata dei colpi con il telefono vero** (menu → Maiusc+D → «▶ Prova guidata», circa 4 minuti, con il
+   video della webcam): dritti, rovesci, pallonetti, incrociati e lungolinea richiesti dal lanciapalle. Dà il
+   riferimento per lato, tipo e direzione, la frequenza vera dei sensori, i tempi e la causa dei registri che si
+   fermavano. Poi `node scripts/diag/diag.mjs colpi sessione.zip` e `replay-recording.mjs sessione.zip` per tarare
+   `GESTURE.lobMove` e `AIM` (oggi tarati sul simulatore della presa vera). Palle corte e dritti girando il polso
+   restano da registrare a parte, con un segno (Maiusc+M) per ogni gesto.
 1b. **Prova con persone vere della nuova lettura dei colpi** (pallonetto, palla corta, tagliato) e degli esercizi
    del riscaldamento; una registrazione con una sequenza dichiarata (es. 5 dritti, 5 rovesci, 3 pallonetti, 3 palle
    corte) per tarare soglie e segno del nuovo segnale. Il segno «palmo nel dritto, dorso nel rovescio» viene dalla

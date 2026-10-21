@@ -3,7 +3,7 @@
 Memoria di lavoro del progetto: da leggere all'inizio di ogni sessione e da aggiornare alla fine di ogni attività.
 Non contiene password, token o altri segreti.
 
-Ultimo aggiornamento: 20 ottobre 2026 (quarto giro: allenamento, calibrazione, risposta al gesto, menu, audit) · branch `claude/friendly-fermat-dwv2w2` (ripartito da
+Ultimo aggiornamento: 21 ottobre 2026 (quinto giro: modalità diagnostica, colpi senza attesa di rete, valutazione app nativa, Leggenda, webcam) · branch `claude/friendly-fermat-dwv2w2` (ripartito da
 `feature/natpf-tennis-v2`, che contiene tutto il lavoro precedente; i branch `backup/*` e gli altri `feature/natpf-*`
 sono già inclusi)
 
@@ -53,6 +53,32 @@ ammessi solo gli header di copyright delle librerie open source). Loghi ufficial
   «Gioca» si sblocca → snapshot ogni 45 ms (in lobby `{lobby}`, in pausa `{paused}`, chiusura `{closed}`).
 - **Arena**: `site/js/tennis/arena.js` (`buildArena`), decal dei loghi sul muro, pubblico con InstancedMesh,
   `natpf_arena.js` (campo d'allenamento, anisotropia).
+- **Collegamento telefono → computer, percorso veloce** (21/10): i messaggi che contano solo se arrivano subito
+  viaggiano senza ritrasmissioni e senza ordine:
+  - copie del colpo (`sw`, tre a 0/8/24 ms più una sul canale affidabile; il computer tiene la prima, `n` scarta le
+    altre);
+  - piatto (`fo`, con l'istante `k`);
+  - campioni della diagnostica (`rs`, con il numero `q`).
+  
+  In LAN viaggiano sul canale `motion` come JSON; via internet su una seconda connessione «fast-…» non ordinata dello
+  stesso telefono, accettata solo dallo stesso peer. Il computer lo annuncia con `welcome.f = 1`: un telefono nuovo con
+  un gioco vecchio usa solo il canale affidabile. Il server LAN serve la pagina del telefono dai sorgenti e il gioco
+  dalla build. `link.stats().swings` dice da quale percorso è arrivata la prima copia. Lo stato del telefono porta
+  anche `vis` (pagina visibile) e `wk` (blocco dello schermo 1/0/−1); il computer avvisa se lo schermo può spegnersi.
+- **Modalità diagnostica** (21/10, `natpf-tennis/src/natpf/diag/`, pannello `natpf_diag.js`, Maiusc+D o Pausa →
+  Diagnostica; guida in `docs/NATPF_DIAGNOSTICA.md`):
+  - `DiagRecorder` mette su un solo orologio (`performance.now()` del computer, `t` in ms dall'inizio) gli eventi di
+    motore, telefono, webcam e prestazioni; si aggancia al motore avvolgendo `update`, `render`, `_spawnBounceRing`,
+    `_awardPoint` e `_attemptPlayerRallyStrike`, e il resto con gli ascoltatori di telefono e controller (`onTrack`
+    della webcam);
+  - scrittura ogni 0,5 s, tramite un worker (`diag_worker.js`), nel file system privato del browser (cartella
+    `natpf-diag/<id>`); niente limite di durata;
+  - recupero dopo una chiusura improvvisa, video della webcam e del gioco (MediaRecorder);
+  - pacchetto zip (`diag_export.js`) con `rapporto.html` (video sincronizzati), metriche (`diag_metrics.js`, anche
+    `compareMetrics`), eventi e campioni;
+  - prova guidata (`diag_protocol.js`: `training.start({ drills, diag })`, evento `atteso` = colpo richiesto, unico
+    riferimento per dire «riconosciuto male»);
+  - script `scripts/diag/diag.mjs metriche|colpi|confronta`.
 
 ## 3. Tecnologie
 
@@ -127,6 +153,19 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
   calibrazione passa); la sua parte di partita resta ferma al servizio (0 lanci: il robot manda un solo gesto di lancio
   e non riprova) sia sul sito del 19/10 (953044c) sia su quello attuale, anche a macchina scarica: non dipende dal
   quarto giro. Proposta come attività a parte.
+
+- Registri che «si fermano dopo circa 30 s» (segnalazione del 21/10): nel simulatore nessuno stop (sessioni di
+  150 s continue); la registrazione di prima si chiudeva a 60 s. Causa sul telefono vero **non confermata**; ipotesi
+  più probabile: lo schermo del telefono che si spegne (spesso dopo 30 s) quando il blocco dello schermo manca o si
+  perde, con la pagina sospesa. Ora il registro lo mostra (`tel.stato.visibile`, `schermo`, avvisi
+  `telefono-nascosto` e `schermo-telefono`): la prima sessione vera lo conferma o lo esclude.
+- Modalità diagnostica provata solo con sensori sintetici, webcam finta e grafica software. La codifica dei video
+  (MediaRecorder) gira fuori dal thread del gioco ma usa CPU o scheda video. Misurato sul computer di prova (4 core,
+  codifica software): la sola webcam non pesa; con anche il video del gioco fotogrammi al 5° percentile da 59 a 48 e
+  consegna dei colpi mediana da 4,7 a 17,9 ms. Per questo il video del gioco parte spento; su un PC vero lo dicono le
+  `prestazioni` della prima sessione.
+- Ritardo dello schermo (televisore): impostazione nel pannello della diagnostica, ferma a 0 finché non si misura con
+  un video a 240 fps; oggi il giudizio del tempo non lo compensa.
 
 ## 8. Soluzioni tentate e decisioni tecniche
 
@@ -213,11 +252,39 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
   telefono non torna entro mezzo secondo e riprende da solo; i colpi più vecchi di 0,6 s all'arrivo si ignorano
   (normale: 30–60 ms). Un difetto ipotizzato nella ripetizione della calibrazione (palla del quarto gesto) è stato
   controllato e non esiste: nessuna modifica.
+- Colpi con la rete che perde pacchetti (21/10): il colpo viaggiava solo sul canale ordinato e affidabile, e un
+  pacchetto perso fermava tutto fino alla ritrasmissione (perdita simulata: p99 fino a 293 ms via internet). Scartati
+  il cambio di trasporto (WebSocket ha lo stesso blocco, Bluetooth e app nativa non sono più veloci di un Wi-Fi
+  dedicato) e un canale solo non affidabile (un colpo perso è peggio di uno in ritardo). Decisione: tre copie sul
+  percorso senza ritrasmissioni (0/8/24 ms) più una sul canale affidabile, il computer tiene la prima per numero;
+  compatibilità con `welcome.f`. Misura in `docs/NATPF_APP_NATIVA_E_TRASPORTI.md` §2.
+- Correzione di un dato dell'audit del 20/10: la consegna di «22 colpi su 40» e «2 su 40» nella prova con perdite
+  veniva dal banco di prova (il gioco nel menu rimandava di continuo la fase e il telefono scartava i colpi), non
+  dalla rete. Con il banco corretto tutti i colpi arrivano, prima e dopo la correzione delle copie.
+- Modalità diagnostica (21/10): un solo orologio (`performance.now()` del computer); il telefono si allinea con gli
+  scambi a giro più breve, tutti registrati per ricalcolare scarto e deriva dopo (`clockFit`). Scrittura in un worker
+  con il file system privato del browser (scrittura sincrona nel worker, niente copie sul thread del gioco), righe JSON,
+  `meta.json` ogni 3 s per il recupero, coda massima 24 MB (poi si saltano i campioni grezzi, mai il gioco). Zip senza
+  compressione: i file su disco entrano per riferimento. «Riconosciuto male» solo con un riferimento: la prova guidata
+  (colpo richiesto dal lanciapalle, evento `atteso`); senza, solo distribuzioni. Registrazioni lunghe: parti nuove ogni
+  30 minuti o 1 GB con lo stesso orologio (ogni parte è un pacchetto completo, il limite di 4 GB dello zip non si
+  raggiunge); spazio del browser controllato ogni 10 s (sotto 200 MB via i video, sotto 50 MB i campioni, sotto 20 MB
+  chiusura; mai cancellazioni automatiche). La prima soglia era 1 GB: il browser di prova (contesto temporaneo, simile
+  a una finestra privata) ha una quota di 999 MB e i video non partivano. Metriche e rapporto si calcolano nel worker
+  leggendo i file a righe (`diag_analysis.js`).
+- App nativa e Bluetooth (21/10): non ora. Guadagno misurato nel simulatore: riconoscimento 33 → 20 ms passando da
+  60 a 100 Hz; a 200 Hz il rilevatore attuale non calibra (finestre in campioni). Regola per decidere con i dati
+  delle sessioni vere e architettura (app sottile con la stessa pagina e un ponte verso i sensori) in
+  `docs/NATPF_APP_NATIVA_E_TRASPORTI.md` §6.
 
 ## 9. Modifiche recenti
 
 | Data | Commit | Cosa | File |
 |---|---|---|---|
+| 21/10/2026 | e0b4f6a | Colpi senza attesa di ritrasmissione (copie sul percorso veloce), stato della pagina e del blocco dello schermo del telefono, colpi scartati segnalati | `site/js/tennis/link.js`, `lan-transport.js`, `racchetta.js`, `natpf-tennis/src/natpf/natpf_ui.js`, `tools/test/phone-link-fast.test.mjs`, `tools/e2e/natpf-swing-loss.mjs`, `test/natpf-flows.test.mjs` |
+| 21/10/2026 | 78e79e1 | Modalità diagnostica: registrazione su disco senza limite, video sincronizzati, metriche, confronto, prova guidata, ritardo dello schermo | `natpf-tennis/src/natpf/diag/` (nuovo), `natpf_diag.js`, `natpf_training.js`, `natpf_lobby.js`, `natpf_pause.js`, `natpf_phone_racket.js`, `index.html`, `natpf-flow.css`, `scripts/diag/diag.mjs`, `scripts/audit/replay-recording.mjs`, `test/natpf-diag.test.mjs`, `tools/e2e/natpf-diag-session.mjs`, `docs/NATPF_DIAGNOSTICA.md` |
+| 21/10/2026 | db5bd33 | Diagnostica: video del gioco spento all'inizio (costo misurato), confronto che segnala video diversi | `natpf-tennis/src/natpf/natpf_diag.js`, `diag_metrics.js`, `diag_recorder.js`, `scripts/diag/diag.mjs`, `test/natpf-diag.test.mjs`, `tools/e2e/natpf-diag-session.mjs`, `docs/NATPF_DIAGNOSTICA.md` |
+| 21/10/2026 | 3ccacc3 | Diagnostica: registrazioni lunghe in parti, spazio su disco, analisi a righe nel worker | `natpf-tennis/src/natpf/diag/diag_recorder.js`, `diag_analysis.js` (nuovo), `diag_worker.js`, `diag_store.js`, `diag_export.js`, `diag_viewer.js`, `diag_metrics.js`, `natpf_diag.js`, test |
 | 20/10/2026 | 2e59c51 | Allenamento: il computer mostra sempre il passo del telefono, giocatore fermo, palla ferma dal lato del gesto, pannello in basso al centro | `natpf-tennis/src/natpf/natpf_cal_view.js` (nuovo), `natpf_training.js`, `natpf_phone_racket.js`, `index.html`, `natpf-flow.css`, `natpf.css`, `natpf-round.css`, `site/js/tennis/calibration.js`, `racchetta.js`, `swing-detect.js`, `tools/e2e/natpf-training-flow.mjs`, test |
 | 20/10/2026 | a1244bb | Calibrazione con il polso che prona e con qualunque presa; riferimento del piatto dai gesti della calibrazione | `site/js/tennis/calibration.js`, `swing-detect.js`, `natpf-tennis/src/natpf/natpf_gestures.js`, `natpf_phone_racket.js`, `test/phone-sim.mjs`, `test/natpf-calibration-matrix.test.mjs`, `scripts/audit/calibration-matrix.mjs` |
 | 20/10/2026 | ce77f02 | Un gesto, un solo swing: racchetta carica subito, swing all'istante del colpo, swing a vuoto visibile; tempi misurati | `natpf-tennis/src/game_engine.js`, `natpf_skill.js`, `natpf_phone_racket.js`, `natpf_shot_feedback.js`, `natpf_ui.js`, `tools/e2e/natpf-latency.mjs` |
@@ -271,6 +338,15 @@ Quarto giro (20/10: audit completo e miglioramenti di gioco, calibrazione e inte
 | 4 | Audit a 360° (stati, collegamento, errori, prestazioni, regressioni) | fatto: tre esami indipendenti (flussi, collegamento, disegno), ogni difetto riprodotto prima di correggerlo (24 test nuovi che falliscono con il codice di prima, prova della rete che cade nel browser); restano i punti di §7 e §11 |
 | 5 | Resoconto | nel messaggio finale della sessione; dettagli in `docs/NATPF_GESTI_E_LATENZA.md` §8 e `docs/NATPF_ROADMAP.md` §1 |
 
+Quinto giro (21/10: app nativa e Bluetooth, modalità diagnostica, migliorie già validate dall'audit):
+
+| # | Attività | Stato |
+|---|---|---|
+| 1 | Valutazione app nativa, Bluetooth, tempo reale | fatto: `docs/NATPF_APP_NATIVA_E_TRASPORTI.md`, con misure (riconoscimento a 30/60/100/200 Hz, perdita di pacchetti simulata); raccomandazione «non ora» con una regola per decidere sui dati veri |
+| 2 | Modalità diagnostica (video, registro completo, orologio, metriche, pacchetto, confronto, recupero, prova guidata) | fatto, provato nel browser con telefono simulato e webcam finta (19/19 su 150 s, ricarica a metà, prova guidata); telefono, webcam e persona veri **non provati** |
+| 2b | Registri che si fermano dopo ~30 s | causa nel codice di prima: stop a 60 s e tutto in memoria (corretto); causa sul telefono vero (schermo che si spegne) **ipotesi**, ora rilevata e annotata |
+| 3 | Migliorie validate: colpi senza attesa di rete (R12) | fatto, provato con perdita simulata (LAN e internet, 3% e 8%: nessun colpo oltre 50 ms, prima fino a 39 su 150); Wi-Fi vero **non provato** |
+
 ## 11. Prossimi passi
 
 0. Prova fisica del quarto giro (20/10) con telefono e computer veri, in quest'ordine: allenamento dal menu (le
@@ -278,10 +354,13 @@ Quarto giro (20/10: audit completo e miglioramenti di gioco, calibrazione e inte
    propria presa, esercizi; partita: un gesto un solo swing, nessun ritardo percepito; menu senza sfarfallio sulla
    propria scheda video; Wi-Fi spento e riacceso sul telefono durante calibrazione e partita (pausa, ripresa, stesso
    passo sui due schermi). Annotare fotogrammi al secondo e modello del computer (vedi §7, carico della scheda video).
-1. Prova con persone vere: una registrazione (Maiusc+D → Registra) con una sequenza dichiarata, per esempio 5 dritti
-   normali, 5 dritti girando il polso, 3 pallonetti, 3 palle corte, 3 dritti mirati a destra e 3 a sinistra; poi
-   `node --import ./test/register.mjs scripts/audit/replay-recording.mjs file.json` per tarare `GESTURE.lobMove`,
-   `AIM.gain/settle`. Poi varietà dei colpi giocando e 1v1 su due computer.
+1. Prova con persone vere: **prova guidata** della modalità diagnostica (menu → Maiusc+D → «▶ Prova guidata», con il
+   video della webcam), almeno tre sessioni per telefono; poi `node scripts/diag/diag.mjs colpi sessione.zip` e
+   `node --import ./test/register.mjs scripts/audit/replay-recording.mjs sessione.zip` per tarare `GESTURE.lobMove`,
+   `AIM.gain/settle`. Le stesse sessioni decidono l'app nativa (regola in `docs/NATPF_APP_NATIVA_E_TRASPORTI.md` §6),
+   la causa dei registri che si fermavano e le raccomandazioni rimandate (pallonetto dal telefono, direzione). Palle
+   corte e dritti girando il polso: registrazione libera con un segno (Maiusc+M) per gesto. Poi varietà dei colpi
+   giocando e 1v1 su due computer.
 2. Unire `claude/friendly-fermat-dwv2w2` nel branch principale del lavoro (`feature/natpf-tennis-v2`) dopo la prova.
 3. Server TURN per il 1v1 su reti che bloccano WebRTC; compensazione del ritardo per mouse/webcam del P2.
 4. Se la prova 0 mostra fotogrammi sotto i 50 al secondo: pubblico diviso in settori (così si scarta quello fuori
@@ -292,6 +371,15 @@ Quarto giro (20/10: audit completo e miglioramenti di gioco, calibrazione e inte
 
 ## 12. Test e verifiche
 
+- Quinto giro (21/10): `natpf-tennis/test` **208** test, `tools/test` **134**. Nuovi: `natpf-diag.test.mjs` (16:
+  metriche, zip, magazzino, registratore, analisi a righe uguale al calcolo su tutto il registro, rotazione senza
+  eventi o campioni persi o doppi, spazio su disco, avviso del confronto), `tools/test/phone-link-fast.test.mjs` (5), in `natpf-flows`
+  l'avviso del blocco dello schermo (fallisce senza la condizione sulla pagina nascosta). Prove nel browser:
+  diagnostica `natpf-diag-session.mjs` **23/23** su 150 s a macchina scarica (sessione lunga, parti, spazio,
+  ricarica, prova guidata; costo del registratore mediana 0,7 ms al secondo, scrittura più lunga 1,6 ms),
+  telefono 10/10, risposta al gesto 9/9, allenamento 13/13, rete che cade 6/6, ricollegamento 6/6, menu 22/22, 1v1
+  18/18, LAN 7/8 (la verifica che manca è il limite noto del contenitore, §7). Misure: perdita di pacchetti
+  (`natpf-swing-loss.mjs`), riconoscimento per frequenza dei sensori (in `docs/NATPF_APP_NATIVA_E_TRASPORTI.md`).
 - Quarto giro (20/10), a fine giro: `natpf-tennis/test` **191** test, `tools/test` **129**; nuovi: `natpf-cal-view`,
   `natpf-calibration-matrix`, `natpf-gesture-hud`, `natpf-physics-steps` (3), `natpf-flows` (21, interfaccia vera sul
   motore senza disegno con `test/ui-world.mjs`), `tools/test/calibration-replay` (2). Prove nel browser (Chromium senza
@@ -327,7 +415,13 @@ Quarto giro (20/10: audit completo e miglioramenti di gioco, calibrazione e inte
 ## 13. Configurazioni (senza segreti)
 
 - `localStorage`: `natpf-tennis.specials` (soglie pallonetto/palla corta), `natpf-tennis.classifica`, chiosco,
-  formato partita; `sessionStorage`: nickname, profilo del telefono.
+  formato partita, `natpf.displayLagMs` (ritardo dello schermo, 0–200 ms, dal pannello della diagnostica);
+  `sessionStorage`: nickname, profilo del telefono.
+- File system privato del browser: sessioni della diagnostica in `natpf-diag/<id>/` (eventi, campioni, video,
+  `meta.json`); si cancellano dal pannello.
+- Prove: `tools/e2e/natpf-diag-session.mjs` (`SECONDS`, `VIDEOS=webcam,gioco|webcam|gioco|nessuno`, `VERBOSE`),
+  `tools/e2e/natpf-swing-loss.mjs` (`MODE=lan|internet`, `N`, `LOSS`, `ROOT` per misurare un altro checkout; serve
+  iptables).
 - Parametri URL: `?intro=0`, `?diag=1`, `?room=&role=p2&net=p2p`.
 - Calibrazione: costanti `CAL` in `site/js/tennis/calibration.js`; gesti: `GESTURE` in `natpf_gestures.js`;
   mira: `SWING_AIM`/`FACE_AIM` in `natpf_skill.js`.
