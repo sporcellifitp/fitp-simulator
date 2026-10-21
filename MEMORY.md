@@ -79,6 +79,12 @@ ammessi solo gli header di copyright delle librerie open source). Loghi ufficial
   - prova guidata (`diag_protocol.js`: `training.start({ drills, diag })`, evento `atteso` = colpo richiesto, unico
     riferimento per dire «riconosciuto male»);
   - script `scripts/diag/diag.mjs metriche|colpi|confronta`.
+- **CPU Leggenda** (21/10, `natpf-tennis/src/natpf/natpf_legend.js`, documento `docs/NATPF_LEGGENDA.md`): terzo
+  livello (`difficulty: 'leggenda'`, tessera «CPU Leggenda», `?mode=leggenda`). Chi gioca ha le regole di Esperto; la
+  CPU usa la stessa fisica e le regole d'esecuzione di chi gioca, sceglie il colpo per utilità tra molti schemi,
+  impara dagli errori dell'avversario, corre con accelerazione e frenata limitate, affonda, lascia passare le palle
+  che vede fuori. Agganci nel motore (`game_engine.js`, commenti «NATPF Leggenda») che per casual, pro, 1v1 e sfide
+  escono subito; `npm run audit:legend` con le soglie.
 
 ## 3. Tecnologie
 
@@ -272,6 +278,12 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
   chiusura; mai cancellazioni automatiche). La prima soglia era 1 GB: il browser di prova (contesto temporaneo, simile
   a una finestra privata) ha una quota di 999 MB e i video non partivano. Metriche e rapporto si calcolano nel worker
   leggendo i file a righe (`diag_analysis.js`).
+- CPU Leggenda (21/10): niente errore «a dado» né errori che crescono con lo scambio; qualità del colpo e rischio
+  con le funzioni del giocatore, scelta per utilità (rischio della CPU, probabilità d'errore dell'avversario stimata e
+  imparata, valore dello scambio, penalità per le ripetizioni), mira corretta per l'aria laterale (0,865). Due
+  scostamenti dalla specifica, misurati: «lascia passare» a 0,08 m (± 0,12) invece di 0,25 m (± 0,18), perché con i
+  valori della specifica due criteri non passavano; errore di tempo della CPU 0,025 s invece di 0,03 s (vincenti/errori
+  contro «medio» 0,99 → 1,00). Verifica che casual e pro non cambino: firma di 36 simulazioni identica a 726b5e3.
 - App nativa e Bluetooth (21/10): non ora. Guadagno misurato nel simulatore: riconoscimento 33 → 20 ms passando da
   60 a 100 Hz; a 200 Hz il rilevatore attuale non calibra (finestre in campioni). Regola per decidere con i dati
   delle sessioni vere e architettura (app sottile con la stessa pagina e un ponte verso i sensori) in
@@ -281,6 +293,7 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 
 | Data | Commit | Cosa | File |
 |---|---|---|---|
+| 21/10/2026 | 70af03a, 77ba6fb, 65f809b, a220e4d | CPU Leggenda: modello, menu, allungo nel disegno, documento | `natpf-tennis/src/natpf/natpf_legend.js` (nuovo), `natpf_skill.js`, `game_engine.js`, `hud_ui.js`, `natpf_events.js`, `index.html`, `scripts/audit/legend.mjs`, `test/natpf-legend.test.mjs`, `test/natpf-flows.test.mjs`, `docs/NATPF_LEGGENDA.md` |
 | 21/10/2026 | e0b4f6a | Colpi senza attesa di ritrasmissione (copie sul percorso veloce), stato della pagina e del blocco dello schermo del telefono, colpi scartati segnalati | `site/js/tennis/link.js`, `lan-transport.js`, `racchetta.js`, `natpf-tennis/src/natpf/natpf_ui.js`, `tools/test/phone-link-fast.test.mjs`, `tools/e2e/natpf-swing-loss.mjs`, `test/natpf-flows.test.mjs` |
 | 21/10/2026 | 78e79e1 | Modalità diagnostica: registrazione su disco senza limite, video sincronizzati, metriche, confronto, prova guidata, ritardo dello schermo | `natpf-tennis/src/natpf/diag/` (nuovo), `natpf_diag.js`, `natpf_training.js`, `natpf_lobby.js`, `natpf_pause.js`, `natpf_phone_racket.js`, `index.html`, `natpf-flow.css`, `scripts/diag/diag.mjs`, `scripts/audit/replay-recording.mjs`, `test/natpf-diag.test.mjs`, `tools/e2e/natpf-diag-session.mjs`, `docs/NATPF_DIAGNOSTICA.md` |
 | 21/10/2026 | db5bd33 | Diagnostica: video del gioco spento all'inizio (costo misurato), confronto che segnala video diversi | `natpf-tennis/src/natpf/natpf_diag.js`, `diag_metrics.js`, `diag_recorder.js`, `scripts/diag/diag.mjs`, `test/natpf-diag.test.mjs`, `tools/e2e/natpf-diag-session.mjs`, `docs/NATPF_DIAGNOSTICA.md` |
@@ -346,6 +359,7 @@ Quinto giro (21/10: app nativa e Bluetooth, modalità diagnostica, migliorie gi�
 | 2 | Modalità diagnostica (video, registro completo, orologio, metriche, pacchetto, confronto, recupero, prova guidata) | fatto, provato nel browser con telefono simulato e webcam finta (19/19 su 150 s, ricarica a metà, prova guidata); telefono, webcam e persona veri **non provati** |
 | 2b | Registri che si fermano dopo ~30 s | causa nel codice di prima: stop a 60 s e tutto in memoria (corretto); causa sul telefono vero (schermo che si spegne) **ipotesi**, ora rilevata e annotata |
 | 3 | Migliorie validate: colpi senza attesa di rete (R12) | fatto, provato con perdita simulata (LAN e internet, 3% e 8%: nessun colpo oltre 50 ms, prima fino a 39 su 150); Wi-Fi vero **non provato** |
+| 3b | Migliorie validate: CPU Leggenda (R10) | fatto, tutti i criteri di `audit:legend` rispettati con i giocatori simulati (game vinti dalla CPU 66–99,6% secondo il profilo, errori 3,5–4,8% per colpo, 8–9 schemi, entropia 2,39–2,67 bit); casual e pro identici; persone vere **non provate** |
 
 ## 11. Prossimi passi
 
@@ -371,7 +385,8 @@ Quinto giro (21/10: app nativa e Bluetooth, modalità diagnostica, migliorie gi�
 
 ## 12. Test e verifiche
 
-- Quinto giro (21/10): `natpf-tennis/test` **208** test, `tools/test` **134**. Nuovi: `natpf-diag.test.mjs` (16:
+- Quinto giro (21/10): `natpf-tennis/test` **220** test con Leggenda (`natpf-legend.test.mjs`, 11, e uno in
+  `natpf-flows`), `tools/test` **134**; `npm run audit:legend` tutti i criteri. Nuovi: `natpf-diag.test.mjs` (16:
   metriche, zip, magazzino, registratore, analisi a righe uguale al calcolo su tutto il registro, rotazione senza
   eventi o campioni persi o doppi, spazio su disco, avviso del confronto), `tools/test/phone-link-fast.test.mjs` (5), in `natpf-flows`
   l'avviso del blocco dello schermo (fallisce senza la condizione sulla pagina nascosta). Prove nel browser:
@@ -422,6 +437,6 @@ Quinto giro (21/10: app nativa e Bluetooth, modalità diagnostica, migliorie gi�
 - Prove: `tools/e2e/natpf-diag-session.mjs` (`SECONDS`, `VIDEOS=webcam,gioco|webcam|gioco|nessuno`, `VERBOSE`),
   `tools/e2e/natpf-swing-loss.mjs` (`MODE=lan|internet`, `N`, `LOSS`, `ROOT` per misurare un altro checkout; serve
   iptables).
-- Parametri URL: `?intro=0`, `?diag=1`, `?room=&role=p2&net=p2p`.
+- Parametri URL: `?intro=0`, `?diag=1`, `?mode=leggenda` (anche `casual`, `pro`), `?room=&role=p2&net=p2p`.
 - Calibrazione: costanti `CAL` in `site/js/tennis/calibration.js`; gesti: `GESTURE` in `natpf_gestures.js`;
   mira: `SWING_AIM`/`FACE_AIM` in `natpf_skill.js`.
