@@ -301,7 +301,7 @@ export class DiagRecorder {
   }
   _webcam(d){
     if (!d) return;
-    if (d.kind && d.kind !== 'frame') this.log('webcam.evento', { tipo: d.kind, ...pick(d, ['side', 'shotType', 'source', 'speed', 'dirX', 'dirY', 'reason', 'hands']) });
+    if (d.kind && d.kind !== 'frame') this.log('webcam.evento', { tipo: d.kind, ...pick(d, ['type', 'side', 'shotType', 'source', 'speed', 'dirX', 'dirY', 'reason', 'hands']) });
     else this.log('webcam.frame', { ct: Number.isFinite(d.captureT) ? r(d.captureT - this.t0, 1) : null, source: d.source || null, hands: d.hands ?? null, chosen: d.chosen ?? null, reason: d.reason || null, x: r(d.x, 3), y: r(d.y, 3), inferMs: r(d.inferMs, 1) });
   }
   // dopo ogni aggiornamento del motore: fase, palla (solo in gioco) e chi l'ha colpita

@@ -3,7 +3,7 @@
 // nuove nelle registrazioni lunghe, spazio su disco), analisi del registro a righe.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeMetrics, compareMetrics, missingInSequence, clockFit, shotDirection, dist } from '../src/natpf/diag/diag_metrics.js';
+import { computeMetrics, compareMetrics, compareNote, missingInSequence, clockFit, shotDirection, dist } from '../src/natpf/diag/diag_metrics.js';
 import { zipBlob, readZip } from '../src/natpf/diag/diag_zip.js';
 import { crc32 } from '../src/natpf/diag/diag_crc.js';
 import { memoryStore } from '../src/natpf/diag/diag_store.js';
@@ -305,4 +305,11 @@ test('registratore: spazio su disco quasi finito → video fermati, poi campioni
   assert.equal(ev.at(-1).k, 'sessione.fine');
   assert.equal((await store.list()).length, 1, 'nessuna sessione cancellata');
   await flushTimers();
+});
+
+test('confronto con video diversi: avviso (il video del gioco pesa sulle prestazioni), nessuno con gli stessi video', () => {
+  const m = files => ({ registrazione: { video: files.map(file => ({ file })) } });
+  assert.equal(compareNote(m(['video-webcam.webm']), m(['video-webcam.mp4'])), null);
+  assert.match(compareNote(m(['video-webcam.webm']), m(['video-webcam.webm', 'video-gioco.webm'])), /prima: webcam; dopo: gioco \+ webcam/);
+  assert.match(compareNote(m([]), m(['video-gioco.webm'])), /prima: nessuno/);
 });

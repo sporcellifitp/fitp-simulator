@@ -14,10 +14,10 @@ Serve a migliorare il gioco con dati veri invece che con impressioni. Il ciclo �
    - **Maiusc+D**, in qualunque momento;
    - **Pausa → Diagnostica**;
    - l'indirizzo con `?diag=1`.
-2. Scegli cosa registrare. Le tre opzioni sono attive all'inizio:
-   - video della webcam del computer, che inquadra chi gioca;
-   - video del gioco;
-   - campioni dei sensori del telefono.
+2. Scegli cosa registrare:
+   - video della webcam del computer, che inquadra chi gioca (attivo all'inizio);
+   - campioni dei sensori del telefono (attivi all'inizio);
+   - video del gioco: spento all'inizio, perché pesa sulle prestazioni (vedi «Costo dei video»). Si accende quando serve vedere cosa mostrava lo schermo.
 3. Premi **● Avvia registrazione** e gioca normalmente.
    - In alto compare **● REC** con il tempo.
    - **Maiusc+M** segna un momento («qui il colpo era sbagliato»).
@@ -76,7 +76,7 @@ I campioni grezzi del telefono stanno in un file a parte, `telefono-sensori.json
   - Ogni fotogramma ha l'istante di cattura (`requestVideoFrameCallback`, stesso orologio).
   - Il rapporto porta i video all'istante di un evento con `t_video = t_evento − t_inizio_video`.
   - Il cursore «Allineamento webcam» corregge l'eventuale scarto residuo (decine di ms): si fa combaciare un gesto visibile con il suo colpo.
-- **Gioco.** Il video del gioco cattura i fotogrammi disegnati sullo stesso orologio.
+- **Gioco.** Il video del gioco cattura i fotogrammi disegnati sullo stesso orologio. Il menu è un fotogramma fermo e non si ridisegna: lì il video non riceve fotogrammi nuovi, e una parte passata tutta nel menu può non avere il video del gioco.
 
 ## Prestazioni, memoria, sessioni lunghe, recupero
 
@@ -100,7 +100,16 @@ I campioni grezzi del telefono stanno in un file a parte, `telefono-sensori.json
   Chi gioca vede un avviso a ogni passo, e il registro lo annota (`spazio-video`, `spazio-campioni`, `spazio`). Nessuna sessione si cancella da sola: si eliminano dal pannello.
 - **Analisi a righe.** Metriche e rapporto si calcolano nel worker, leggendo il registro a pezzi e tenendo in memoria solo gli eventi che servono (`diag_analysis.js`): il thread del gioco non legge mai il registro, nemmeno per preparare il pacchetto.
 - **Recupero.** `meta.json` viene riscritto ogni 3 s. Se la pagina si chiude o il browser si blocca, al riavvio la sessione compare come «Interrotta», con i dati fino all'ultimo pezzo scritto. **Recupera** ricalcola dimensioni e CRC, poi si scarica come le altre.
-- **Costo misurato.** Ogni secondo `prestazioni.regMs` registra i ms che il registratore ha usato sul thread del gioco. La prova nel browser richiede meno di 20 ms al secondo, cioè il 2%, e nessuna scrittura oltre 8 ms.
+- **Costo misurato.** Ogni secondo `prestazioni.regMs` registra i ms che il registratore ha usato sul thread del gioco. La prova nel browser richiede meno di 20 ms al secondo, cioè il 2%, e nessuna scrittura oltre 8 ms. Sessione di 150 s su macchina scarica: mediana 0,8 ms al secondo, massimo 3,9, scrittura più lunga 1,2 ms.
+- **Costo dei video.** I video si codificano fuori dal thread del gioco, ma usano processore e scheda video. Prova sullo stesso computer (4 core, grafica e codifica software, 2 giri da 40 s, mediane):
+
+  | Video | Consegna dei colpi p50 / p99 | Fotogrammi al secondo p50 / 5° percentile | Fotogrammi oltre 50 ms |
+  |---|---|---|---|
+  | nessuno | 4,7 / 19,6 ms | 60 / 59 | 0 |
+  | solo webcam | 7,8 / 24,1 ms | 60 / 58,6 | 1 |
+  | webcam e gioco | 17,9 / 61,9 ms | 56,5 / 48,2 | 10 |
+
+  La webcam non cambia nulla di misurabile; il video del gioco sì, per questo parte spento. Su un computer con codifica video nella scheda il costo dovrebbe essere minore: lo dicono le `prestazioni` della prima sessione vera. Due sessioni con video diversi non si confrontano alla pari: il confronto lo segnala. Si ripete con `VIDEOS=nessuno|webcam|webcam,gioco PARTS=A node natpf-diag-session.mjs`.
 - **Senza file system privato** (browser vecchi): la sessione resta in memoria, con un limite di 300 MB e senza recupero. Il pannello lo dice.
 - **Pacchetto.** Uno zip senza compressione: i file su disco entrano per riferimento, senza copie in memoria. Il limite dello zip (4 GB) non si raggiunge, perché le parti si chiudono a 1 GB.
 

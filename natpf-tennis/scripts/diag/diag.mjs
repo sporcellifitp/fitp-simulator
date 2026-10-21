@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { readZip } from '../../src/natpf/diag/diag_zip.js';
-import { computeMetrics, compareMetrics, summaryLines } from '../../src/natpf/diag/diag_metrics.js';
+import { computeMetrics, compareMetrics, compareNote, summaryLines } from '../../src/natpf/diag/diag_metrics.js';
 
 const [, , cmd, a, b] = process.argv;
 const usage = () => { console.error('Uso: node scripts/diag/diag.mjs metriche|colpi <pacchetto.zip|cartella>  ·  confronta <prima> <dopo>'); process.exit(1); };
@@ -37,7 +37,8 @@ if (cmd === 'metriche'){
   }
 } else if (cmd === 'confronta'){
   const A = load(a), Bs = load(b);
-  const rows = compareMetrics(A.metrics, Bs.metrics);
+  const rows = compareMetrics(A.metrics, Bs.metrics), note = compareNote(A.metrics, Bs.metrics);
+  if (note) console.log(`Attenzione: ${note}\n`);
   const w = Math.max(...rows.map(r => r.label.length));
   console.log(`${'metrica'.padEnd(w)}  ${'prima'.padStart(9)}  ${'dopo'.padStart(9)}  esito`);
   for (const r of rows) console.log(`${r.label.padEnd(w)}  ${String(r.prima ?? '–').padStart(9)}  ${String(r.dopo ?? '–').padStart(9)}  ${r.esito}`);

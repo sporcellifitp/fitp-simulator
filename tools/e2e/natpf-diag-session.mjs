@@ -58,6 +58,9 @@ const fetchPackage = async (game, id) => {
   const d = await dl, file = path.join(SP, `diag-${id}.zip`); await d.saveAs(file);
   return readZip(new Uint8Array(fs.readFileSync(file)));
 };
+// nel menu il gioco non ridisegna (fotogramma fermo): per le parti D ed E si disegna a ogni fotogramma, come in partita,
+// altrimenti il video del gioco non ha fotogrammi
+const PAINT = on => { window.__paint = on; const loop = () => { if (!window.__paint) return; __natpfTennis.render(); requestAnimationFrame(loop); }; if (on) loop(); };
 const LIGHT_RENDER = () => { let k = 0; __natpfTennis.render = function(){ this.renderer.setClearColor(++k % 2 ? 0x1d3b2a : 0x2a4d38); this.renderer.clear(); }; };
 const lines = bytes => new TextDecoder().decode(bytes).trim().split('\n').filter(Boolean).map(l => JSON.parse(l));
 try {
@@ -137,13 +140,17 @@ try {
   check('rapporto: pagina autonoma con dati e video collegati', html.includes('id="dati"') && VIDEOS.every(v => html.includes(`video-${v}.`)) && !/<script src=/.test(html));
   console.log('metriche (estratto):', JSON.stringify({ telefono: m.telefono?.tempiMs, gioco: m.gioco, registrazione: m.registrazione }).slice(0, 900));
 
+  if (PARTS.includes('D') || PARTS.includes('E')) await game.evaluate(PAINT, true);
   if (PARTS.includes('D')){
     /* ---------- D. registrazione lunga in parti ---------- */
     await game.evaluate(v => { const d = __natpfTennis.natpfUi.diag; d.opts.webcamVideo = v.includes('webcam'); d.opts.gameVideo = v.includes('gioco'); d.recorder.rotateMs = 6000; return d.start(); }, VIDEOS);
     await game.waitForFunction(() => __natpfTennis.natpfUi.diag.recorder.active, null, { timeout: 15000 });
     await swingLoop(phone, 14000);
     // si ferma solo quando nella terza parte i video sono ripartiti e hanno già scritto qualcosa
-    await game.waitForFunction(n => { const R = __natpfTennis.natpfUi.diag.recorder; return R.part >= 3 && R.now() - R.partT0 > 2000 && R.videos.length === n && R.videos.every(v => v.info.byte > 0); }, VIDEOS.length, { timeout: 30000 });
+    await game.waitForFunction(n => { const R = __natpfTennis.natpfUi.diag.recorder; return R.part >= 3 && R.now() - R.partT0 > 2000 && R.videos.length === n && R.videos.every(v => v.info.byte > 0); }, VIDEOS.length, { timeout: 30000 }).catch(async e => {
+      console.log('stato al blocco:', JSON.stringify(await game.evaluate(() => { const R = __natpfTennis.natpfUi.diag.recorder; return { part: R.part, inParte: Math.round(R.now() - R.partT0), rotazione: !!R._rotation, videoOff: R.videoOff, videos: R.videos.map(v => ({ kind: v.kind, byte: v.info.byte, stopped: !!v.stopped })) }; })));
+      throw e;
+    });
     await game.evaluate(() => __natpfTennis.natpfUi.diag.stop());
     await game.waitForFunction(() => !__natpfTennis.natpfUi.diag.recorder.active && !__natpfTennis.natpfUi.diag.busy, null, { timeout: 60000 });
     const parts = await game.evaluate(async () => {
@@ -191,6 +198,7 @@ try {
       (!VIDEOS.length || (at('spazio-video') != null && vEnd.length === VIDEOS.length)) && at('spazio-campioni') != null && at('spazio') != null && perfAfter >= 3 && evE.at(-1).k === 'sessione.fine' && /spazio/.test(toast),
       `avvisi ${evE.filter(e => e.k === 'avviso').map(e => `${e.codice}@${(e.t/1000).toFixed(1)}s`).join(', ')} · prestazioni dopo il primo avviso ${perfAfter} · «${toast}»`);
   }
+  await game.evaluate(PAINT, false);
   if (PARTS.includes('B')){
     /* ---------- B. sessione interrotta da una ricarica ---------- */
     await game.evaluate(() => __natpfTennis.natpfUi.diag.start());

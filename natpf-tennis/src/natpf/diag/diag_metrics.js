@@ -173,6 +173,14 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
   return out;
 }
 
+// Due sessioni con video diversi non si confrontano alla pari: il video del gioco pesa su fotogrammi e consegna dei
+// colpi (prova del 21/10, 4 core e codifica software: fotogrammi al 5° percentile da 59 a 48, consegna mediana +13 ms;
+// la sola webcam non cambia nulla di misurabile). Testo dell'avviso, o null se i video sono gli stessi
+export function compareNote(a, b){
+  const vids = m => (m?.registrazione?.video || []).map(v => String(v.file || '').replace(/^video-/, '').replace(/\..*$/, '')).sort().join(' + ') || 'nessuno';
+  const va = vids(a), vb = vids(b);
+  return va === vb ? null : `Video registrati diversi (prima: ${va}; dopo: ${vb}): il video del gioco pesa su fotogrammi e consegna dei colpi, le prestazioni non si confrontano alla pari.`;
+}
 // Confronto tra due sessioni: per ogni metrica il verso «migliore» (+1 più alto, −1 più basso, 0 più vicino a zero) e
 // la variazione. Le soglie dicono quando una differenza conta (sotto: rumore); «peggio» solo oltre soglia.
 export const COMPARE = [

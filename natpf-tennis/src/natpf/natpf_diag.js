@@ -12,7 +12,7 @@
 // Prima la registrazione si fermava da sola dopo 60 s e teneva tutto in memoria fino al download.
 import { DiagRecorder } from './diag/diag_recorder.js';
 import { createDiagStore } from './diag/diag_store.js';
-import { compareMetrics, summaryLines } from './diag/diag_metrics.js';
+import { compareMetrics, compareNote, summaryLines } from './diag/diag_metrics.js';
 export { summaryLines };
 import { buildPackage, download } from './diag/diag_export.js';
 import { DIAG_PROTOCOLS, protocolDrills, expectedFor } from './diag/diag_protocol.js';
@@ -40,7 +40,8 @@ export class NatpfDiag {
     this.on = new URLSearchParams(location.search).get('diag') === '1';
     this.recorder = new DiagRecorder({ engine, ui });
     this.sessions = []; this.selected = new Set(); this.summary = null; this.busy = '';
-    this.opts = { webcamVideo: true, gameVideo: true, phoneSamples: true };
+    // video del gioco spento all'inizio: è quello che pesa sulle prestazioni (vedi compareNote); si accende quando serve
+    this.opts = { webcamVideo: true, gameVideo: false, phoneSamples: true };
     window.addEventListener('keydown', e => {
       if (e.shiftKey && e.code === 'KeyD'){ e.preventDefault(); e.stopImmediatePropagation(); this.toggle(); }
       else if (e.shiftKey && e.code === 'KeyM' && this.recorder.active){ e.preventDefault(); e.stopImmediatePropagation(); this.recorder.mark('segno da tastiera'); this.ui?.toast?.('Momento segnato nella registrazione'); }
@@ -172,7 +173,7 @@ export class NatpfDiag {
     }
     const o = this.opts, sum = this.summary;
     box.innerHTML = `<p class="diag-note">Registra una sessione mentre giochi: tutti i dati tecnici e, se vuoi, il video di chi gioca (webcam del computer) e del gioco. Poi scarichi il pacchetto con il rapporto.</p>
-      <div class="diag-opts"><label><input type="checkbox" data-opt="webcamVideo" ${o.webcamVideo ? 'checked' : ''}> video della webcam (chi gioca)</label><label><input type="checkbox" data-opt="gameVideo" ${o.gameVideo ? 'checked' : ''}> video del gioco</label><label><input type="checkbox" data-opt="phoneSamples" ${o.phoneSamples ? 'checked' : ''}> campioni dei sensori del telefono</label></div>
+      <div class="diag-opts"><label><input type="checkbox" data-opt="webcamVideo" ${o.webcamVideo ? 'checked' : ''}> video della webcam (chi gioca)</label><label><input type="checkbox" data-opt="gameVideo" ${o.gameVideo ? 'checked' : ''}> video del gioco (pesa sulle prestazioni)</label><label><input type="checkbox" data-opt="phoneSamples" ${o.phoneSamples ? 'checked' : ''}> campioni dei sensori del telefono</label></div>
       <div class="diag-actions"><input data-label type="text" maxlength="80" placeholder="Nota (facoltativa): cosa provi in questa sessione"><button type="button" class="diag-start" data-diag="start">● Avvia registrazione</button></div>
       <div class="diag-actions"><button type="button" data-diag="protocol">▶ Prova guidata dei colpi (dal menu, ~4 min)</button><span class="diag-note">il lanciapalle chiede dritti, rovesci, pallonetti, incrociati e lungolinea: così si misura se il gioco riconosce il colpo richiesto</span></div>
       <details class="diag-lag"><summary>Ritardo dello schermo: ${this.engine.natpfPhone?.displayLagMs || 0} ms</summary>
@@ -205,8 +206,8 @@ export class NatpfDiag {
     const [a, b] = ids.map(id => this.sessions.find(s => s.id === id)).sort((x, y) => x.startedAt - y.startedAt);
     const ma = await this.store.metrics(a.id).catch(() => null), mb = await this.store.metrics(b.id).catch(() => null);
     if (!ma || !mb){ box.innerHTML = '<p class="diag-warn">Metriche non disponibili per una delle due sessioni.</p>'; return; }
-    const rows = compareMetrics(ma, mb).filter(r => r.esito !== 'n.d.');
-    box.innerHTML = `<div class="diag-sub">Confronto: ${esc(when(a.startedAt))} → ${esc(when(b.startedAt))}</div><table class="diag-cmp"><tr><th>metrica</th><th>prima</th><th>dopo</th><th></th></tr>${rows.map(r => `<tr class="cmp-${r.esito}"><td>${esc(r.label)}</td><td>${r.prima}</td><td>${r.dopo}</td><td>${r.esito}</td></tr>`).join('') || '<tr><td colspan="4">Nessuna metrica in comune.</td></tr>'}</table>`;
+    const rows = compareMetrics(ma, mb).filter(r => r.esito !== 'n.d.'), note = compareNote(ma, mb);
+    box.innerHTML = `<div class="diag-sub">Confronto: ${esc(when(a.startedAt))} → ${esc(when(b.startedAt))}</div>${note ? `<p class="diag-warn">${esc(note)}</p>` : ''}<table class="diag-cmp"><tr><th>metrica</th><th>prima</th><th>dopo</th><th></th></tr>${rows.map(r => `<tr class="cmp-${r.esito}"><td>${esc(r.label)}</td><td>${r.prima}</td><td>${r.dopo}</td><td>${r.esito}</td></tr>`).join('') || '<tr><td colspan="4">Nessuna metrica in comune.</td></tr>'}</table>`;
   }
   _frame(){
     const loop = t => {
