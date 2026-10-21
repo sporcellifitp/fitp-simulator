@@ -16,6 +16,13 @@ export const gauss = (rng = Math.random) => { let u = 0, v = 0; while (!u) u = r
 
 export const COURT = Object.freeze({ SINGLES_X: 4.115, BASELINE_Z: 11.89, OUT_X: 4.115 + .22, OUT_Z: 11.89 + .28 });
 
+// Regole del giocatore a livello Esperto: valgono anche contro Leggenda (la CPU cambia, chi gioca no).
+const EXPERT_PLAYER = Object.freeze({
+  assistWindow: .16, perfectLead: .07, timingSpan: .15, autoAim: .25,
+  scatter: .5, lineRisk: .6, depthRisk: .55,
+  playerErr: Object.freeze({ base: .01, power: .13, timing: .32, max: .5 }),
+  streakGain: .05, streakMin: .8, playerSpeed: 8.8,
+});
 // Parametri per difficoltà. «1v1» (due persone) usa solo la parte del giocatore.
 export const SKILL_LEVELS = Object.freeze({
   casual: Object.freeze({
@@ -29,13 +36,18 @@ export const SKILL_LEVELS = Object.freeze({
     cpuWeak: .16, cpuAttack: .7, cpuAttackBase: .12, cpuAttackFlight: .7, playerSpeed: 10.2,  // su palle deboli la CPU attacca: angolo e ritmo
   }),
   pro: Object.freeze({
-    assistWindow: .16, perfectLead: .07, timingSpan: .15, autoAim: .25,
-    scatter: .5, lineRisk: .6, depthRisk: .55,
-    playerErr: Object.freeze({ base: .01, power: .13, timing: .32, max: .5 }),
-    streakGain: .05, streakMin: .8,
+    ...EXPERT_PLAYER,
     cpuReach: 1.5, cpuSpeed: 5.0, cpuReact: .2, cpuReadSd: .36, cpuReadFix: .3, cpuCenterBias: .22,
     cpuErr: Object.freeze({ base: .015, angle: .2, speed: .12, pressure: .045, stretch: .25, rally: .012, drop: .22, lob: .2, smash: .35, max: .5 }),
-    cpuWeak: .1, cpuAttack: .7, cpuAttackBase: .24, cpuAttackFlight: .62, playerSpeed: 8.8,
+    cpuWeak: .1, cpuAttack: .7, cpuAttackBase: .24, cpuAttackFlight: .62,
+  }),
+  // Leggenda: per chi gioca le regole di Esperto. La CPU non ha una probabilità d'errore propria (cpuErr): colpisce
+  // con le stesse regole del giocatore e sceglie il colpo per utilità (natpf_legend.js); split-step, reazione e
+  // lettura umane, corsa con accelerazione e frenata limitate (cpuSpeed sotto la velocità del giocatore).
+  leggenda: Object.freeze({
+    ...EXPERT_PLAYER,
+    cpuReach: 1.85, cpuSpeed: 7.0, cpuReact: .15, cpuReactSd: .03, cpuReadSd: .25, cpuReadFix: .32, cpuCenterBias: 0,
+    cpuErr: null, cpuLegend: true,
   }),
   '1v1': Object.freeze({
     assistWindow: .22, perfectLead: .12, timingSpan: .17, autoAim: .3,
@@ -262,6 +274,16 @@ export function registerPlayerShot(engine, { grade, quality, power, landingX, la
 export function planCpuRun(engine, { rng = Math.random } = {}){
   const lv = skillLevel(engine.matchConfig?.difficulty), s = skillState(engine), cpu = engine.opponent;
   if (!lv.cpuReact || !cpu) return null;
+  if (lv.cpuLegend){
+    // Leggenda: split-step all'impatto dell'avversario (ferma per il tempo di reazione, 0,15 ± 0,03 s), poi verso il
+    // punto d'incontro con un errore di lettura che si azzera mentre la palla vola (in cpuReadFix secondi)
+    const truth = cpu.targetPos.clone(), speed = finite(engine.ball?.vel?.length?.(), 24), now = finite(engine.elapsedTime);
+    const react = clamp(lv.cpuReact + gauss(rng)*(lv.cpuReactSd || 0), .1, .25);
+    const err = gauss(rng)*lv.cpuReadSd*(.6 + .4*clamp((speed - 18)/14));
+    s.cpuPlan = { legend: true, hold: cpu.pos.clone(), truth, err, readAt: now + react, fixDur: lv.cpuReadFix };
+    cpu.targetPos.copy(s.cpuPlan.hold);
+    return s.cpuPlan;
+  }
   const truth = cpu.targetPos.clone(), speed = finite(engine.ball?.vel?.length?.(), 24);
   const angle = clamp(Math.abs(finite(engine.ball?.targetLanding?.x))/COURT.SINGLES_X);
   // la CPU legge male le palle veloci e angolate e, all'inizio, si aspetta la palla più al centro
@@ -277,6 +299,13 @@ export function tickCpuRun(engine){
   const plan = engine.natpfSkill?.cpuPlan, cpu = engine.opponent;
   if (!plan || !cpu) return;
   const now = finite(engine.elapsedTime);
+  if (plan.legend){
+    if (now < plan.readAt){ cpu.targetPos.copy(plan.hold); return; }
+    const k = Math.max(0, 1 - (now - plan.readAt)/plan.fixDur);
+    cpu.targetPos.copy(plan.truth); cpu.targetPos.x += plan.err*k;
+    if (!k) engine.natpfSkill.cpuPlan = null;
+    return;
+  }
   if (now >= plan.fixAt){ cpu.targetPos.copy(plan.truth); engine.natpfSkill.cpuPlan = null; }
   else if (now >= plan.readAt) cpu.targetPos.copy(plan.read);
   else cpu.targetPos.copy(plan.hold);
@@ -410,7 +439,8 @@ export const CPU_PATTERNS = Object.freeze({
   pro: Object.freeze({ rally: .2, open: .26, behind: .12, deep: .18, angle: .1, slice: .09, moon: .05 }),
 });
 export function cpuShotChoice({ difficulty = 'casual', playerX = 0, playerZ = 11.5, ballX = 0, rally = 0, rng = Math.random } = {}){
-  const pro = String(difficulty).toLowerCase() === 'pro', W = { ...CPU_PATTERNS[pro ? 'pro' : 'casual'] };
+  // Leggenda non usa questi schemi (natpf_legend.js), ma se ci arrivasse varrebbero quelli di Esperto
+  const pro = ['pro', 'leggenda'].includes(String(difficulty).toLowerCase()), W = { ...CPU_PATTERNS[pro ? 'pro' : 'casual'] };
   const open = finite(playerX) >= 0 ? -1 : 1, nearNet = finite(playerZ, 11.5) < 7.5;
   if (nearNet){ W.moon = 0; W.lob = .35; W.angle *= 1.6; }    // giocatore a rete: pallonetto o passante angolato
   if (finite(rally) < 2){ W.angle *= .3; W.behind *= .3; }     // sulla risposta al servizio niente colpi rischiosi

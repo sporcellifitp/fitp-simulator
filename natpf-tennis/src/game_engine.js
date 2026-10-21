@@ -29,6 +29,7 @@ import { NatpfUi } from "./natpf/natpf_ui.js";
 import { createNatpfCast, finishNatpfActor, updateNatpfCharacters } from "./natpf/natpf_character.js";
 // NATPF skill gap: assistenza del tempo graduata, mira e rischio del giocatore, limiti ed errori della CPU
 import * as NS from "./natpf/natpf_skill.js";
+import * as NL from "./natpf/natpf_legend.js";
 import { NatpfBodyFollow } from "./natpf/webcam_body_follow.js";
 // NATPF: sfida tra due computer anche senza server (sito statico): relay nel browser dell'host e WebRTC
 import { installNatpfP2p } from "./natpf/natpf_p2p.js";
@@ -284,7 +285,7 @@ export class NatpfTennisEngine {
       (this.cameraTrauma = 0);
     const e = this.isMultiplayer
       ? "1v1"
-      : ["casual", "pro", "1v1"].includes(this.urlMode)
+      : ["casual", "pro", "leggenda", "1v1"].includes(this.urlMode)
         ? this.urlMode
         : "casual";
     (this.matchConfig = { gamesToWin: e === "1v1" ? 1 : 2, inputMode: "mouse", difficulty: e }),
@@ -376,7 +377,7 @@ export class NatpfTennisEngine {
           (this.playerPartner.maxSpeed = 8.4),
           (this.opponent.maxSpeed = 9.6),
           (this.opponentPartner.maxSpeed = 8.2))
-        : t === "pro"
+        : t === "pro" || t === "leggenda" // NATPF: Leggenda come Esperto (la velocità della CPU viene da natpf_skill)
           ? ((this.isMultiplayer = !!(this.urlRoom && this.urlRoom !== "DEFAULT")),
             (this.player.maxSpeed = 9.8),
             (this.playerPartner.maxSpeed = 8.4),
@@ -1133,6 +1134,7 @@ export class NatpfTennisEngine {
     }
   }
   startNewMatch({ showStartBanner: e = !0 } = {}) {
+    NL.resetLegend(this); // NATPF Leggenda: il modello dell'avversario riparte da zero a ogni partita
     (this.score.playerPoints = 0),
       (this.score.opponentPoints = 0),
       (this.score.playerGames = 0),
@@ -1601,7 +1603,7 @@ export class NatpfTennisEngine {
       l = e.sideSign * h * (1.75 + Math.random() * 0.85),
       p = o.MathUtils.clamp(l + r, -S.SINGLES_X + 0.45, S.SINGLES_X - 0.45),
       c =
-        e.role === "opponent" && !this.isMultiplayer ? (this.matchConfig.difficulty === "pro" ? 1 : 1.24) : 1;
+        e.role === "opponent" && !this.isMultiplayer ? (["pro", "leggenda"].includes(this.matchConfig.difficulty) ? 1 : 1.24) : 1;
     let y = -e.sideSign * (4.4 + Math.random() * 1.35),
       f = s ? Math.max(0.58, 0.66 / Math.min(1.18, a * 0.92)) * c : n ? 0.94 * c : 0.8 * c,
       m = s ? 22 : n ? 8 : 15,
@@ -1775,7 +1777,7 @@ export class NatpfTennisEngine {
               : g > 0.68 // NATPF skill gap: come sopra (prima: dirX > 0,52 = «in ritardo»)
                 ? ((u = "LATE"), (w = 0.72))
                 : x &&
-                  this.matchConfig.difficulty === "pro" &&
+                  ["pro", "leggenda"].includes(this.matchConfig.difficulty) &&
                   ((u = g < 0 ? "EARLY" : "LATE"), (w = g < 0 ? 0.3 : 0.7));
     // NATPF: telefono in verticale → il voto viene dal tempo vero del colpo (istante del picco sul telefono)
     const natpfSwing = !t && e.natpf && e.natpf.aim === "swing" && !e.timing,
@@ -2158,7 +2160,7 @@ export class NatpfTennisEngine {
   }
   _executeOpponentReturn(e = this.opponent) {
     const t = e === this.opponentPartner,
-      i = this.matchConfig.difficulty !== "pro",
+      i = !["pro", "leggenda"].includes(this.matchConfig.difficulty),
       a = Math.abs(this.ball.pos.x - e.pos.x),
       s = !!this.ball.isPowerShot,
       h = a > (i ? 1.08 : 1.55) || (s && a > (i ? 0.75 : 1.25)),
@@ -2210,6 +2212,10 @@ export class NatpfTennisEngine {
         (f = y === "LOB" ? (i ? 1.36 : 1.24) : y === "SLICE" ? (i ? 1.18 : 0.96) : i ? 1.1 : 0.86);
     }
     natpfPlan.kind === "attack" && (natpfArc = { shot: "FLAT", power: 0.8 });
+    // NATPF Leggenda: colpo scelto per utilità ed eseguito con le regole del giocatore, mira corretta per l'aria
+    // (natpf_legend.js). Solo per la CPU principale: il compagno a rete del doppio gioca come prima
+    const natpfLeg = e === this.opponent && NL.isLegend(this) && !(this.autoPlayMode && !this.userHasInteracted) ? NL.legendReturn(this, e) : null;
+    natpfLeg && ((g = natpfLeg.x), (c = natpfLeg.z), (y = natpfLeg.shot), (f = natpfLeg.flight), (natpfArc = natpfLeg.arc), (m = natpfLeg.net));
     const d = this.ball.pos.clone();
     (d.y = Math.max(0.82, Math.min(1.68, d.y))), this.ball.pos.copy(d);
     // NATPF varietà: altezza sulla rete e top spin dal tipo di colpo e dalla forza (prima: top spin fisso 13 per tutti)
@@ -2256,6 +2262,7 @@ export class NatpfTennisEngine {
       this.audioEngine &&
         (this.audioEngine.playSwingWhoosh(1), this.audioEngine.playRacketHit(y.toLowerCase(), "good")),
       this.opponent.targetPos.set(o.MathUtils.clamp(-g * 0.25, -1.6, 1.6), 0, -S.BASELINE_Z + 0.35),
+      natpfLeg && NL.legendRecover(this, e, g, c), // NATPF Leggenda: recupero sulla bisettrice degli angoli possibili
       this._predictBallIntercept(this.player);
   }
   _launchBallToTarget(e, t, i, { topspin: a = 14, sidespin: s = 0, allowNetFault: n = !1 } = {}) {
@@ -2489,7 +2496,7 @@ export class NatpfTennisEngine {
         this.ball.pos.y >= 2.75
       ) {
         const i = this.score.server === "player" ? this.player : this.opponent;
-        this._executeServeHit(i, { timing: "PERFECT" });
+        this._executeServeHit(i, i === this.opponent && NL.isLegend(this) ? NL.legendServe(this) : { timing: "PERFECT" }); // NATPF Leggenda: servizio vario
         return;
       }
       this.ball.pos.y <= 0.95 &&
@@ -2629,7 +2636,7 @@ export class NatpfTennisEngine {
             return;
           }
         } else {
-          const s = this.matchConfig.difficulty !== "pro",
+          const s = !["pro", "leggenda"].includes(this.matchConfig.difficulty),
             n = s ? 0.85 : 1.3,
             h = NS.cpuReach(this, s ? 1.8 : 2.34); // NATPF skill gap: portata reale della CPU
           if (
@@ -2648,7 +2655,7 @@ export class NatpfTennisEngine {
           const r = Math.abs(this.ball.pos.z - this.opponent.pos.z),
             l = Math.abs(this.ball.pos.x - this.opponent.pos.x);
           if (r < 1.32 && this.ball.pos.y < (this.ball.shotType === "LOB" ? 3.1 : 2.05)) { // NATPF: la CPU risponde anche al pallonetto (sopra 2,05 m non colpiva mai)
-            if (l <= h) this._executeOpponentReturn(this.opponent);
+            if (l <= h) NL.legendLetGo(this) || this._executeOpponentReturn(this.opponent); // NATPF Leggenda: le palle che vede fuori le lascia passare
             else if (l <= 3.45 && this.opponent.swingTimer <= 0) {
               const p = this.ball.pos.x < this.opponent.pos.x ? "backhand" : "forehand";
               (this.opponent.swingType = p),
@@ -2744,6 +2751,7 @@ export class NatpfTennisEngine {
         this.motionController.triggerHapticFeedback({ role: "p1", kind: "whiff", grade: "VERY EARLY \u2022 WHIFF", shotType: this.selectedShotType || "TOPSPIN", speedKmh: 0, intensity: 0.65 });
   }
   _stepActorFootwork(e, t) {
+    if (NL.legendStep(this, e, t)) return; // NATPF Leggenda: la CPU accelera e frena, niente velocità istantanea
     const i = e.targetPos.x - e.pos.x,
       a = e.targetPos.z - e.pos.z,
       s = Math.hypot(i, a);
@@ -2761,6 +2769,7 @@ export class NatpfTennisEngine {
       (this.ball.inPlay = !1), (this.pendingP2Swing = null), (this.pendingServeSwing = null);
       return;
     }
+    NL.legendPointEnd(this, e); // NATPF Leggenda: il modello dell'avversario impara da come finisce il punto
     (this.phase = "POINT_OVER"),
       (this.phaseTimer = 0),
       (this.ball.inPlay = !1),
