@@ -162,6 +162,17 @@ test('Sfide: «Torna al menu» da un «Campione» rimette la CPU scelta e la dur
   assert.equal(E.matchConfig.gamesToWin, 2);
 });
 
+test('Sfide: il «Campione» resta contro la CPU esperta anche con Leggenda scelta, e dopo torna Leggenda', async () => {
+  const w = await makeWorld({ controller: 'mouse', difficulty: 'leggenda' }); w.advance(300);
+  const { E, ui, lobby } = w;
+  assert.equal(E.matchConfig.difficulty, 'leggenda');
+  lobby.menu('challenges'); ui.events.nickname = 'Eva'; lobby.pickChallenge('champion'); lobby.go('connect'); lobby.next(); w.advance(2000);
+  assert.equal(ui.events.active?.id, 'champion');
+  assert.equal(E.matchConfig.difficulty, 'pro');
+  w.key('Escape', 'Escape'); ui.pause.run('menu');
+  assert.equal(E.matchConfig.difficulty, 'leggenda');
+});
+
 test('Moviola: nascosta nel menu di pausa durante le sfide', async () => {
   const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
   const { ui, lobby } = w;

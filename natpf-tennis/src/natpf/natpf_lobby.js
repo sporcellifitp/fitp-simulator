@@ -133,7 +133,7 @@ export class NatpfLobby {
     if (!MODES.includes(mode)) return;
     this.mode = mode;
     for (const t of this.el.querySelectorAll('[data-mode]')){ const on = t.dataset.mode === mode; t.classList.toggle('selected', on); t.setAttribute('aria-checked', String(on)); }
-    // la scelta della modalità decide gli avversari della pagina «Partita»: CPU (facile o esperta) o 1v1 con invito
+    // la scelta della modalità decide gli avversari della pagina «Partita»: CPU (facile, esperta o Leggenda) o 1v1 con invito
     const diff = this.engine.hud?.selectedDifficulty;
     if (mode === 'friend' && diff !== '1v1') document.querySelector('#difficulty-mode-group [data-difficulty="1v1"]')?.click();
     // sfida un amico: la stanza nasce subito (così l'amico può entrare mentre si prepara la racchetta); scegliendo

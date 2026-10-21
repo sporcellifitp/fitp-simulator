@@ -64,7 +64,7 @@ export class HudUI {
       ((this.playerRole = e),
       n && n !== "DEFAULT"
         ? ((this.currentRoomId = n), this._setDifficultySelection("1v1", { notify: !1 }))
-        : ["casual", "pro", "1v1"].includes(i) && this._setDifficultySelection(i, { notify: !1 }),
+        : ["casual", "pro", "leggenda", "1v1"].includes(i) && this._setDifficultySelection(i, { notify: !1 }),
       e === "p2")
     ) {
       const o = document.querySelector(".you-tag");
@@ -79,7 +79,7 @@ export class HudUI {
     });
   }
   _setDifficultySelection(t, { notify: n = !0 } = {}) {
-    const e = ["casual", "pro", "1v1"].includes(t) ? t : "casual";
+    const e = ["casual", "pro", "leggenda", "1v1"].includes(t) ? t : "casual";
     (this.selectedDifficulty = e),
       document.querySelectorAll("#difficulty-mode-group .nt-green-choice").forEach((a) => {
         a.classList.toggle("selected", a.dataset.difficulty === e);
@@ -103,7 +103,9 @@ export class HudUI {
         ? (s.textContent = "Player 2")
         : e === "pro"
           ? (s.textContent = "CPU Pro")
-          : (s.textContent = "CPU")),
+          : e === "leggenda"
+            ? (s.textContent = "CPU Leggenda")
+            : (s.textContent = "CPU")),
       this.updateOpponentPresence(this._lastRoomStatus || {}),
       n && this.callbacks.onSelectDifficulty && this.callbacks.onSelectDifficulty(e);
   }

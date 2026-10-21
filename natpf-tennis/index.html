@@ -243,7 +243,7 @@
             <header class="menu-head"><span class="menu-kicker">Il tennis delle Nitto ATP Finals · Torino</span><h2 class="menu-title" id="lobby-t-menu">Menu principale</h2></header>
             <div id="lobby-menu-result" class="lobby-result hidden" aria-live="polite"></div>
             <nav class="main-menu" aria-label="Menu principale">
-              <button type="button" class="menu-item menu-primary" data-menu="play" data-desc="Partita veloce in arena: contro la CPU (facile o esperta) o contro un amico su un altro computer"><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" /><path d="M11 18c8 3 18 3 26 0M11 30c8-3 18-3 26 0" /></svg><b>Gioca</b><span>Contro la CPU · Sfida un amico</span><i class="mi-go" aria-hidden="true">›</i></button>
+              <button type="button" class="menu-item menu-primary" data-menu="play" data-desc="Partita veloce in arena: contro la CPU (facile, esperta o Leggenda) o contro un amico su un altro computer"><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" /><path d="M11 18c8 3 18 3 26 0M11 30c8-3 18-3 26 0" /></svg><b>Gioca</b><span>Contro la CPU · Sfida un amico</span><i class="mi-go" aria-hidden="true">›</i></button>
               <button type="button" class="menu-item" data-menu="training" data-desc="Campo d’allenamento: calibri il telefono, impari dritto, rovescio, pallonetto, palla corta e servizio"><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><ellipse cx="20" cy="18" rx="10" ry="13" /><path d="M26 28l14 14M15 10l10 16M12 20l16-4" /></svg><b>Allenamento</b><span>Calibrazione e colpi</span><i class="mi-go" aria-hidden="true">›</i></button>
               <button type="button" class="menu-item" data-menu="challenges" data-desc="Sfide per la classifica del giorno: Radar del servizio, Bersagli 60”, Scambio infinito, Sfida il campione"><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M15 8h18v8a9 9 0 0 1-18 0zM15 11H8a7 7 0 0 0 9 9M33 11h7a7 7 0 0 1-9 9M24 25v8M17 40h14l-2-7H19z" /></svg><b>Sfide</b><span>Radar, Bersagli, Scambio infinito, Campione</span><i class="mi-go" aria-hidden="true">›</i></button>
               <div class="menu-row">
@@ -252,7 +252,7 @@
                 ><button type="button" class="menu-item menu-small" data-menu="options" data-desc="Mano, visuale, musica, voce e colpi imparati"><b>Opzioni</b></button>
               </div>
             </nav>
-            <p class="menu-desc" id="menu-desc" aria-live="polite">Partita veloce in arena: contro la CPU (facile o esperta) o contro un amico su un altro computer</p>
+            <p class="menu-desc" id="menu-desc" aria-live="polite">Partita veloce in arena: contro la CPU (facile, esperta o Leggenda) o contro un amico su un altro computer</p>
           </div>
         </section>
 
@@ -261,7 +261,7 @@
           <div class="lobby-tiles lobby-tiles-2 mode-tiles" role="radiogroup">
             <button type="button" class="lobby-tile mode-tile" data-mode="cpu" role="radio">
               <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" /><path d="M11 18c8 3 18 3 26 0M11 30c8-3 18-3 26 0" /></svg>
-              <span class="tile-name">Contro la CPU</span><span class="tile-desc">Una partita veloce in arena contro un avversario facile o esperto.</span>
+              <span class="tile-name">Contro la CPU</span><span class="tile-desc">Una partita veloce in arena contro un avversario facile, esperto o Leggenda.</span>
               <ul class="mode-facts"><li>1 giocatore · 1 computer</li><li>Racchetta: smartphone o webcam</li><li>Singolare 1v1 o doppio 2v2 con un compagno CPU</li></ul>
             </button
             ><button type="button" class="lobby-tile mode-tile" data-mode="friend" role="radio">
@@ -388,6 +388,10 @@
             ><button type="button" class="nt-green-choice lobby-tile" data-difficulty="pro" role="radio">
               <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M16 9h16v9a8 8 0 0 1-16 0zM16 13H9a6 6 0 0 0 7 8M32 13h7a6 6 0 0 1-7 8M24 26v8M17 39h14" /></svg>
               <span class="tile-name">CPU esperta</span><span class="tile-desc">Veloce, angola e non regala nulla</span>
+            </button
+            ><button type="button" class="nt-green-choice lobby-tile" data-difficulty="leggenda" role="radio">
+              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M9 36h30M11 36 8 16l9 8 7-13 7 13 9-8-3 20" /><circle cx="24" cy="28" r="3" /></svg>
+              <span class="tile-name">CPU Leggenda</span><span class="tile-desc">Varia i colpi, ti studia e sbaglia pochissimo</span>
             </button
             ><button type="button" class="nt-green-choice lobby-tile" data-difficulty="1v1" role="radio">
               <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="16" cy="16" r="6" /><circle cx="32" cy="16" r="6" /><path d="M6 38c1-8 6-12 10-12s9 4 10 12M22 38c1-8 6-12 10-12s9 4 10 12" /></svg>

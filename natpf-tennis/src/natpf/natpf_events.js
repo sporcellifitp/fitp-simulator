@@ -218,7 +218,8 @@ export class NatpfEvents {
     show(this.hud, false); this._showTargets(false); this._opponentAway(false);
     E.natpfTimeScale = 1; E.pendingUserSwing = E.pendingP2Swing = E.pendingServeSwing = null;
     E.opponent.pos.set(-1.35, 0, -11.89); E.opponent.targetPos.copy(E.opponent.pos);
-    E._applyDifficultyTuning(E.hud.selectedDifficulty === 'pro' ? 'pro' : 'casual');
+    // la CPU scelta nel menu (anche Leggenda: prima tornava casual); il 1v1 qui non c'è, le sfide sono contro la CPU
+    E._applyDifficultyTuning(['pro', 'leggenda'].includes(E.hud.selectedDifficulty) ? E.hud.selectedDifficulty : 'casual');
     if (Number.isFinite(E.hud.selectedGamesToWin)) E.matchConfig.gamesToWin = E.hud.selectedGamesToWin;
   }
   paint(){
