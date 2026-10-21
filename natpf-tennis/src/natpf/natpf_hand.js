@@ -36,6 +36,9 @@ export class NatpfHand {
     if (setup) engine._setupPointServe = (o) => { const r = setup(o); const s = engine.score.server === 'player' ? engine.player : engine.opponent; mirrorBall(s); return r; };
     if (toss) engine._startServeToss = (actor) => { const r = toss(actor); mirrorBall(actor); return r; };
     const mc = engine.motionController;
+    // webcam: la mano che impugna (per scegliere quale seguire) e il lancio di palla solo quando il gioco lo accetta
+    // (al proprio servizio): nello scambio la mano che sale di scatto segue le regole dei colpi, non diventa un pallonetto
+    if (mc){ mc.handPreference = this.hand; mc.canToss = () => engine.phase === 'TITLE' || (engine.phase === 'SERVE_STANCE' && isLocalServing(engine)); }
     const emit = mc?._emitSwing?.bind(mc);
     if (emit) mc._emitSwing = (e0 = {}) => {
       // la mano viaggia con il colpo: il colpo del Player 2 arriva all'host con la mano di chi gioca (1v1 tra due computer)
@@ -45,7 +48,7 @@ export class NatpfHand {
       return emit({ ...e, side: leftySide(e, { ballX: engine.ball?.pos?.x || 0, actorX: a?.pos?.x || 0, facingNegativeZ: engine.playerRole !== 'p2' }) });
     };
   }
-  set(h){ this.hand = normalizeHand(h); writeHand(this.hand); if (this.engine.natpfPhone) this.engine.natpfPhone.hand = this.hand; this.apply(); }
+  set(h){ this.hand = normalizeHand(h); writeHand(this.hand); if (this.engine.natpfPhone) this.engine.natpfPhone.hand = this.hand; if (this.engine.motionController) this.engine.motionController.handPreference = this.hand; this.apply(); }
   // specchia il personaggio locale (una sola volta per cambio)
   apply(){
     const a = this.engine.localActor; if (!a?.root) return;

@@ -1,5 +1,7 @@
 // NATPF: posa continua della mano dalla webcam (racchetta e braccio), vedi src/natpf/webcam_hand_pose.js
 import { WebcamHandTracker, handPoseFromLandmarks, handPoseFromFlow } from "./natpf/webcam_hand_pose.js";
+// NATPF: colpi dalla traccia della mano (un evento per colpo) e scelta della mano da seguire, vedi src/natpf/webcam_strokes.js
+import { createStrokeTracker, pickHand, handPoint, handSize } from "./natpf/webcam_strokes.js";
 import { relayedNatpf } from "./natpf/natpf_skill.js";
 import { newSwings } from "./natpf/natpf_versus.js";
 // NATPF: MediaPipe Hands dal pacchetto offline (npm @mediapipe/hands, servito sotto /assets/); CDN fissato solo di riserva
@@ -35,6 +37,13 @@ export class MotionController {
       (this.motionVector = { vx: 0, vy: 0, mag: 0 }),
       (this.lastWebcamTriggerMs = 0),
       (this.handTracker = new WebcamHandTracker()),
+      // NATPF: riconoscimento dei colpi della webcam, mano seguita, mano che impugna (NatpfHand), lancio accettato dal
+      // gioco (NatpfHand: solo al proprio servizio) e aggancio facoltativo della diagnostica (onTrack)
+      (this._strokes = createStrokeTracker()),
+      (this._handTrack = null),
+      (this.handPreference = "right"),
+      (this.canToss = null),
+      (this.onTrack = typeof e.onTrack == "function" ? e.onTrack : null),
       (this.phonePollIntervalMs = e.phonePollIntervalMs || 50),
       (this.phonePollTimer = null),
       (this.phoneState = {
@@ -277,7 +286,10 @@ export class MotionController {
       } catch (o) {
         console.error(o);
       }
-    return !l && typeof this.onSwing == "function" && this.onSwing(s), s;
+    // NATPF: lancio rifiutato (fuori dal proprio servizio) → swing, passando da _emitSwing come gli altri colpi: così
+    // anche qui il mancino ha il lato giusto (NatpfHand) e vale il blocco della pausa. Dalla webcam niente: nello
+    // scambio la mano che sale segue le regole dei colpi (canToss), non diventa un pallonetto
+    return !l && s.source !== "webcam" && this._emitSwing({ source: s.source, side: s.side, shotType: s.shotType, speed: s.speed, dirX: s.dirX, dirY: s.dirY, pitch: s.pitch, roll: s.roll }), s;
   }
   _emitP2Swing(e = {}) {
     const t = Math.max(0.5, Math.min(2, Number(e.speed ?? 1.15))),
@@ -387,14 +399,7 @@ export class MotionController {
           minDetectionConfidence: 0.4,
           minTrackingConfidence: 0.4,
         }),
-          t.onResults((i) => {
-            (this._mpBusy = !1),
-              i && i.multiHandLandmarks && i.multiHandLandmarks.length > 0
-                ? ((this.latestHandLandmarks = i.multiHandLandmarks[0]),
-                  (this.latestHandSeenAt = performance.now()),
-                  (this._hasNewHandResult = !0))
-                : (this.latestHandLandmarks = null);
-          }),
+          t.onResults((i) => this._onHandResults(i)),
           await t.initialize(),
           (this.mpHands = t);
       }
@@ -434,6 +439,8 @@ export class MotionController {
         (this.latestHandLandmarks = null),
         (this._mpBusy = !1),
         this.handTracker.reset(),
+        this._resetHandTracking(),
+        this._watchFrames(),
         this._ensureMediaPipeHands(),
         this._notifyStatus({ webcam: !0, phone: this.phoneState.connected }),
         this._updateWebcamBadgeUI(!0),
@@ -455,8 +462,105 @@ export class MotionController {
       (this.webcamActive = !1),
       (this.hasPrevFrame = !1),
       (this.latestHandLandmarks = null),
+      this._resetHandTracking(),
       this._notifyStatus({ webcam: !1, phone: this.phoneState.connected }),
       this._updateWebcamBadgeUI(!1);
+  }
+  // NATPF: niente mano seguita e niente colpo a metà (webcam riaccesa, mano nuova)
+  _resetHandTracking() {
+    (this._handTrack = null), (this._handLost = !1), (this._handPick = null), (this._handCapture = null), (this._handLastPos = null), (this._frameMeta = null), this._strokes && this._strokes.reset();
+  }
+  // NATPF: istante di cattura dei fotogrammi della camera (requestVideoFrameCallback), per le velocità della mano
+  // senza il ritardo variabile dell'inferenza; senza il supporto vale l'istante dell'invio al modello
+  _watchFrames() {
+    const v = this.videoElem,
+      gen = (this._frameGen = (this._frameGen || 0) + 1);
+    if (!v || typeof v.requestVideoFrameCallback != "function") return;
+    // una sola catena di richiami: quella di una webcam spenta e riaccesa si ferma
+    const cb = (now, md) => {
+      if (this._frameGen !== gen) return;
+      this._frameMeta = { capture: md && Number.isFinite(md.captureTime) ? md.captureTime : now, at: now };
+      this.webcamActive && this.videoElem === v && v.requestVideoFrameCallback(cb);
+    };
+    v.requestVideoFrameCallback(cb);
+  }
+  _frameCaptureT(e) {
+    const m = this._frameMeta;
+    return m && e >= m.capture && e - m.capture < 250 ? m.capture : e;
+  }
+  _videoAspect() {
+    const v = this.videoElem;
+    return v && v.videoWidth > 0 && v.videoHeight > 0 ? v.videoHeight / v.videoWidth : 0.75;
+  }
+  _diag(o) {
+    if (typeof this.onTrack == "function")
+      try {
+        this.onTrack(o);
+      } catch (e) {
+        console.error(e);
+      }
+  }
+  // NATPF: diagnostica di un fotogramma elaborato (s: campione della mano o del flusso; senza, source null)
+  _diagFrame(e, s) {
+    const h = this._handPick;
+    this._diag({ kind: "frame", t: e, captureT: s ? s.t : this._frameCaptureT(e), source: s ? s.src : null, hands: h ? h.hands : null, chosen: h ? h.chosen : null, reason: h ? h.reason : null, x: s ? s.x : null, y: s ? s.y : null, inferMs: this.lastInferMs ?? null, phase: this._strokes.state.phase });
+  }
+  // NATPF: risultato del modello delle mani: la mano da seguire tra quelle trovate (continuità, lateralità, taglia),
+  // non la prima della lista (una mano che entra, di un passante o la mano libera, la prendeva e la teneva)
+  _onHandResults(i) {
+    this._mpBusy = !1;
+    const now = performance.now(),
+      lms = (i && i.multiHandLandmarks) || [],
+      hd = (i && i.multiHandedness) || [],
+      aspect = this._videoAspect(),
+      T = this._handTrack;
+    this.lastInferMs = Number.isFinite(this._mpSentAt) ? now - this._mpSentAt : null;
+    const pick = pickHand(
+      lms.map((lm, k) => ({ lm, label: hd[k] && hd[k].label, score: hd[k] && hd[k].score })),
+      { track: T, t: now, prefer: this.handPreference, aspect },
+    );
+    this._handPick = { hands: lms.length, chosen: pick.index, reason: pick.reason };
+    if (pick.index < 0) {
+      (this.latestHandLandmarks = null), T && !this._handLost && ((this._handLost = !0), this._diag({ kind: "lost", t: now, hands: lms.length, reason: pick.reason }));
+      return;
+    }
+    const lm = lms[pick.index],
+      p = handPoint(lm),
+      u = -p.y * aspect,
+      size = handSize(lm, aspect),
+      fresh = !T || now - T.t > 500,
+      dt = T ? Math.max(0.016, (now - T.t) / 1000) : 0;
+    (this._handTrack = {
+      x: p.x,
+      u,
+      vx: fresh ? 0 : (p.x - T.x) / dt,
+      vu: fresh ? 0 : (u - T.u) / dt,
+      t: now,
+      size: size > 1e-4 ? size : T ? T.size : 0,
+      k: this._strokes.state.k,
+      label: (hd[pick.index] && hd[pick.index].label) || null,
+    }),
+      fresh && this._strokes.reset(),
+      (fresh || this._handLost) && this._diag({ kind: "found", t: now, hands: lms.length, reason: pick.reason }),
+      (this._handLost = !1),
+      (this.latestHandLandmarks = lm),
+      (this.latestHandSeenAt = now),
+      (this._handCapture = { lm, t: Number.isFinite(this._mpSentCapT) ? this._mpSentCapT : now }),
+      (this._hasNewHandResult = !0);
+  }
+  // NATPF: un campione della mano (o del flusso ottico) al riconoscimento dei colpi, poi gli eventi decisi
+  _strokeSample(s, e) {
+    const evs = this._strokes.push({ ...s, aspect: this._videoAspect(), canToss: typeof this.canToss == "function" ? !!this.canToss() : null }),
+      o = this._strokes.motion();
+    o && ((this.motionVector.vx = o.vx), (this.motionVector.vy = o.vy), (this.motionVector.mag = o.mag));
+    this.onTrack && this._diagFrame(e, s);
+    for (const v of evs) {
+      this.lastWebcamTriggerMs = e;
+      this.onTrack && this._diag({ kind: "event", t: e, captureT: s.t, source: s.src, type: v.type, side: v.side, shotType: v.shotType, speed: v.speed, dirX: v.dirX, dirY: v.dirY, reason: v.why });
+      v.type === "toss"
+        ? this._emitToss({ source: "webcam", side: v.side, shotType: "lob", speed: v.speed, dirX: v.dirX, dirY: -0.9 })
+        : this._emitSwing({ source: "webcam", side: v.side, shotType: v.shotType, speed: v.speed, dirX: v.dirX, dirY: v.dirY });
+    }
   }
   // NATPF: posa della mano per la racchetta (liveInput), null se la webcam è spenta o la mano non si vede
   webcamLiveInput(e = performance.now()) {
@@ -469,39 +573,42 @@ export class MotionController {
     if (!this.webcamActive || !this.videoElem || this.videoElem.readyState < 2) return;
     const e = performance.now(),
       t = this.videoElem.currentTime !== this._lastVideoTime;
-    if (
-      (t &&
-        ((this._lastVideoTime = this.videoElem.currentTime),
-        this.mpHands &&
-          !this._mpBusy &&
-          ((this._mpBusy = !0),
-          this.mpHands.send({ image: this.videoElem }).catch(() => {
-            this._mpBusy = !1;
-          }))),
-      this.latestHandLandmarks && e - (this.latestHandSeenAt || 0) < 240)
-    ) {
+    t &&
+      ((this._lastVideoTime = this.videoElem.currentTime),
+      this.mpHands &&
+        !this._mpBusy &&
+        ((this._mpBusy = !0),
+        (this._mpSentAt = e),
+        (this._mpSentCapT = this._frameCaptureT(e)),
+        this.mpHands.send({ image: this.videoElem }).catch(() => {
+          this._mpBusy = !1;
+        })));
+    if (this.latestHandLandmarks && e - (this.latestHandSeenAt || 0) < 240) {
       if (!this._hasNewHandResult) return;
       this._hasNewHandResult = !1;
+      // NATPF: la mano scelta (_onHandResults), con l'istante di cattura del suo fotogramma quando c'è
       const c = this.latestHandLandmarks,
-        b = c[0],
-        w = c[9],
-        S = 1 - (b.x * 0.45 + w.x * 0.55),
-        _ = b.y * 0.45 + w.y * 0.55;
-      for (
-        this.smoothedCentroid.x = S,
-          this.smoothedCentroid.y = _,
-          (!this._webcamTrail || this._lastWebcamSource !== "mediapipe") && (this._webcamTrail = []),
-          this._lastWebcamSource = "mediapipe",
-          this._webcamTrail.push({ x: S, y: _, t: e }),
-          this.handTracker.push(handPoseFromLandmarks(c), e);
-        this._webcamTrail.length > 5 || (this._webcamTrail.length > 2 && e - this._webcamTrail[0].t > 160);
-
-      )
-        this._webcamTrail.shift();
-      this._evaluateHandTrail(e, !0);
+        p = handPoint(c),
+        cap = this._handCapture && this._handCapture.lm === c ? this._handCapture.t : e;
+      (this.smoothedCentroid.x = p.x),
+        (this.smoothedCentroid.y = p.y),
+        (this._lastWebcamSource = "hands"),
+        (this._handSeenForFlow = e),
+        (this._handLastPos = { x: p.x, y: p.y }),
+        this.handTracker.push(handPoseFromLandmarks(c), e),
+        this._strokeSample({ t: cap, x: p.x, y: p.y, src: "hands", scale: handSize(c, this._videoAspect()) }, e);
       return;
     }
     if (!t) return;
+    // NATPF: mano persa da poco (il mosso nella parte veloce dello swing): si aspetta che torni, il colpo continua sulla
+    // traccia della mano invece di ripartire sul flusso ottico
+    if (e - (this._handSeenForFlow ?? -1e9) < 220) {
+      this.onTrack && this._diagFrame(e, null);
+      return;
+    }
+    // NATPF: il fotogramma di confronto è vecchio (la mano si vedeva, il flusso era fermo): si riparte da questo
+    const stale = !this.hasPrevFrame || e - (this._flowAt ?? -1e9) > 250;
+    this._flowAt = e;
     const a = this.flowWidth,
       n = this.flowHeight,
       h = this.offscreenCtx;
@@ -521,7 +628,7 @@ export class MotionController {
         const S = c * a + w,
           _ = S * 4,
           C = (p[_] * 0.299 + p[_ + 1] * 0.587 + p[_ + 2] * 0.114) / 255;
-        if (this.hasPrevFrame) {
+        if (!stale) {
           const X = Math.abs(C - this.prevLuma[S]),
             M = X > 0.11 ? X : 0;
           if (((this.motionEnergyMap[S] = this.motionEnergyMap[S] * 0.45 + M * 0.55), M > 0.13)) {
@@ -535,15 +642,23 @@ export class MotionController {
         this.prevLuma[S] = C;
       }
     }
-    if (!this.hasPrevFrame) {
-      (this.hasPrevFrame = !0), (this._webcamTrail = []);
+    if (stale) {
+      (this.hasPrevFrame = !0), this.onTrack && this._diagFrame(e, null);
       return;
     }
+    // NATPF: flusso ottico di riserva solo vicino all'ultima posizione della mano (vista da meno di 1,5 s) o, senza,
+    // nella zona centrale: un passante ai lati o sullo sfondo non diventa un colpo
+    const near = e - (this._handSeenForFlow ?? -1e9) < 1500 && this._handLastPos,
+      rx = near ? this._handLastPos.x : 0.5,
+      ry = near ? this._handLastPos.y : 0.5,
+      rw = near ? 0.28 : 0.32,
+      rh = near ? 0.36 : 0.6;
     let m = 0,
       g = 0,
       T = 0;
     for (let c = 0; c < l; c++)
       for (let b = 0; b < s; b++) {
+        if (Math.abs((b + 0.5) / s - rx) > rw || Math.abs((c + 0.5) / l - ry) > rh) continue;
         let w = 0,
           S = 0,
           _ = 0;
@@ -552,7 +667,7 @@ export class MotionController {
           if (!(X < 0 || X >= l))
             for (let M = -1; M <= 1; M++) {
               const v = b + M;
-              if (v < 0 || v >= s) continue;
+              if (v < 0 || v >= s || Math.abs((v + 0.5) / s - rx) > rw || Math.abs((X + 0.5) / l - ry) > rh) continue;
               const I = X * s + v;
               (w += y[I]), (S += P[I]), (_ += d[I]);
             }
@@ -561,75 +676,25 @@ export class MotionController {
       }
     const u = f > 0.001 ? m / f : 0;
     if (m > 3.2 && u >= 0.45) {
+      // NATPF: dopo una pausa del flusso (o dopo la mano) il centro riparte da qui, senza la media con quello vecchio
       const c = g / m,
-        b = T / m;
-      for (
-        this.smoothedCentroid.x = this.smoothedCentroid.x * 0.35 + c * 0.65,
-          this.smoothedCentroid.y = this.smoothedCentroid.y * 0.35 + b * 0.65,
-          (!this._webcamTrail || this._lastWebcamSource !== "flow") && (this._webcamTrail = []),
-          this._lastWebcamSource = "flow",
-          this._webcamTrail.push({ x: this.smoothedCentroid.x, y: this.smoothedCentroid.y, t: e }),
-          this.handTracker.push(handPoseFromFlow(this.smoothedCentroid), e);
-        this._webcamTrail.length > 5 || (this._webcamTrail.length > 2 && e - this._webcamTrail[0].t > 160);
-
-      )
-        this._webcamTrail.shift();
-      this._evaluateHandTrail(e, !1);
+        b = T / m,
+        k = e - (this._flowSampleAt ?? -1e9) < 200 ? 0.35 : 0;
+      (this._flowSampleAt = e),
+        (this.smoothedCentroid.x = this.smoothedCentroid.x * k + c * (1 - k)),
+        (this.smoothedCentroid.y = this.smoothedCentroid.y * k + b * (1 - k)),
+        (this._lastWebcamSource = "flow"),
+        this.handTracker.push(handPoseFromFlow(this.smoothedCentroid), e),
+        this._strokeSample({ t: this._frameCaptureT(e), x: this.smoothedCentroid.x, y: this.smoothedCentroid.y, src: "flow", scale: null }, e);
     } else
       (this.motionVector.vx *= 0.72),
         (this.motionVector.vy *= 0.72),
         (this.motionVector.mag *= 0.72),
-        this._webcamTrail &&
-          this._webcamTrail.length > 0 &&
-          e - this._webcamTrail[this._webcamTrail.length - 1].t > 150 &&
-          (this._webcamTrail = []);
-  }
-  _evaluateHandTrail(e, t) {
-    if (!this._webcamTrail || this._webcamTrail.length < 2) return;
-    const i = this._webcamTrail[0],
-      a = this._webcamTrail[this._webcamTrail.length - 1],
-      n = Math.max(0.025, (a.t - i.t) / 1e3),
-      h = a.x - i.x,
-      p = a.y - i.y,
-      f = Math.hypot(h, p);
-    let s = 0;
-    for (let m = 1; m < this._webcamTrail.length; m++)
-      s += Math.hypot(
-        this._webcamTrail[m].x - this._webcamTrail[m - 1].x,
-        this._webcamTrail[m].y - this._webcamTrail[m - 1].y,
-      );
-    const l = s > 0.001 ? f / s : 0,
-      r = t ? 0.065 : 0.1,
-      o = t ? 0.62 : 0.7,
-      y = t ? 0.62 : 0.85,
-      P = h / n,
-      d = p / n;
-    if (
-      ((this.motionVector.vx = P * 0.65),
-      (this.motionVector.vy = d * 0.65),
-      (this.motionVector.mag = l >= o ? Math.hypot(this.motionVector.vx, this.motionVector.vy) : 0),
-      f >= r && l >= o && this.motionVector.mag >= y && e - this.lastWebcamTriggerMs > 320)
-    ) {
-      (this.lastWebcamTriggerMs = e), (this._webcamTrail = [a]);
-      const m = Math.min(1.65, Math.max(0.85, 0.75 + this.motionVector.mag * 0.45)),
-        g = Math.max(-1, Math.min(1, this.motionVector.vx * 0.85)),
-        T = Math.max(-1, Math.min(1, this.motionVector.vy * 0.85));
-      let u = null;
-      if (
-        (P > 0.15 ? (u = "backhand") : P < -0.15 && (u = "forehand"),
-        (a.y < 0.35 && p < -0.045 && d < -0.45) || (d < -0.85 && Math.abs(d) > Math.abs(P) * 1.15))
-      )
-        this._emitToss({ source: "webcam", side: u, shotType: "lob", speed: m, dirX: g, dirY: -0.9 });
-      else {
-        let c = "topspin";
-        (d > 0.85 && m > 1.18) || m >= 1.46
-          ? (c = "smash")
-          : d > 0.32
-            ? (c = "slice")
-            : d < -0.58 && (c = "lob"),
-          this._emitSwing({ source: "webcam", side: u, shotType: c, speed: m, dirX: g, dirY: T });
-      }
-    }
+        // NATPF: il moto si è fermato: per un po' la mano resta all'ultimo centro, così il movimento finisce e uno swing
+        // secco rimasto in attesa si decide anche con il solo flusso ottico
+        e - (this._flowSampleAt ?? -1e9) < 400
+          ? this._strokeSample({ t: this._frameCaptureT(e), x: this.smoothedCentroid.x, y: this.smoothedCentroid.y, src: "flow", scale: null }, e)
+          : this.onTrack && this._diagFrame(e, null);
   }
   startPhonePolling() {
     if (this.phonePollTimer) return;
