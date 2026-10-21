@@ -340,6 +340,18 @@ export class NatpfLobby {
     }
     ui.training.start();
   }
+  // prova guidata della modalità diagnostica: come l'allenamento, con esercizi che dicono quale colpo serve (riferimento
+  // delle metriche). Con il telefono non collegato si va prima al collegamento
+  startDiag(drills, run){
+    const ui = this.ui;
+    this.setMode('training');
+    if (ui.controller === 'phone' && !this.state().phoneLinked){ this.go('connect'); return false; }
+    this.step = 'warmup'; this.el.dataset.step = 'warmup';
+    ui.training.start({ drills, diag: run });
+    // niente servizio iniziale: il lanciapalle parte subito (con il telefono da calibrare, dopo la calibrazione)
+    if (!ui.training.cal){ ui.training._idle(); ui.training.wait = 1.2; }
+    return true;
+  }
   // compatibilità: l'onboarding propone ancora «Prova» → allenamento
   startPractice(){ this.setMode('training'); this.go(this.ui.controller === 'phone' && !this.state().phoneLinked ? 'connect' : 'warmup'); }
   onTrainingEnd({ completed, skipped, calibrated, stats }){

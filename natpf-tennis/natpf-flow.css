@@ -693,3 +693,123 @@
   overflow-x: auto;
   font: inherit;
 }
+/* modalità diagnostica: registrazione delle sessioni, elenco, confronto */
+.natpf-diag {
+  width: min(820px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+}
+.natpf-diag .diag-sub {
+  margin: 10px 0 4px;
+  color: var(--lb-ball);
+  font-weight: 600;
+}
+.natpf-diag .diag-note {
+  margin: 4px 0;
+  color: #b9c4e4;
+}
+.natpf-diag .diag-warn {
+  margin: 4px 0;
+  color: #ffb4a8;
+}
+.natpf-diag .diag-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 6px 0;
+}
+.natpf-diag .diag-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0;
+}
+.natpf-diag .diag-actions input[type="text"] {
+  flex: 1 1 260px;
+  padding: 5px 9px;
+  border: 1px solid rgba(166, 182, 220, 0.35);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  color: inherit;
+  font: inherit;
+}
+.natpf-diag .diag-start,
+.natpf-diag .diag-stop {
+  padding: 6px 14px;
+  background: #c62828;
+  color: #fff;
+  font-weight: 600;
+}
+.natpf-diag .diag-live-rec {
+  margin: 4px 0;
+  color: #ff8a80;
+  font-weight: 600;
+}
+.natpf-diag .diag-summary {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(166, 182, 220, 0.1);
+}
+.natpf-diag .diag-summary ul {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+}
+.natpf-diag .diag-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(166, 182, 220, 0.15);
+}
+.natpf-diag .diag-item span {
+  flex: 1 1 300px;
+}
+.natpf-diag .diag-lost span {
+  color: #ffcc80;
+}
+.natpf-diag .diag-cmp {
+  width: 100%;
+  border-collapse: collapse;
+}
+.natpf-diag .diag-cmp td,
+.natpf-diag .diag-cmp th {
+  padding: 3px 6px;
+  border-bottom: 1px solid rgba(166, 182, 220, 0.15);
+  text-align: left;
+}
+.natpf-diag .cmp-meglio td:last-child {
+  color: #7bd88f;
+}
+.natpf-diag .cmp-peggio td:last-child {
+  color: #ff8a80;
+}
+.natpf-diag .diag-live summary {
+  margin-top: 10px;
+  cursor: pointer;
+  color: #b9c4e4;
+}
+.natpf-diag .diag-live pre {
+  font: 12px/1.35 ui-monospace, Menlo, Consolas, monospace;
+}
+.natpf-rec {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  z-index: 210;
+  transform: translateX(-50%);
+  padding: 3px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(198, 40, 40, 0.85);
+  color: #fff;
+  font: 600 12px/1.4 system-ui, sans-serif;
+  cursor: pointer;
+}
+.natpf-rec.hidden {
+  display: none;
+}

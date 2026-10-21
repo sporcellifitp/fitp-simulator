@@ -37,3 +37,8 @@ NATPF motore base (`natpf-tennis/`):
 - `node natpf-phone-blackout.mjs` (3117, 9117): collegamento che cade e torna (messaggi fermati nelle pagine, canale aperto): il telefono se ne accorge da solo e si ricollega, la calibrazione si riallinea alla ripresa, durante gli esercizi pausa con il pannello del telefono e ripresa automatica.
 - `node natpf-latency.mjs` (3110, 9110): tempi dal picco del gesto alla risposta a schermo (rilevatore, rete, motore), un solo swing per gesto anche in anticipo, swing all'istante del colpo, etichetta del gesto.
 - `node natpf-menu.mjs` (3116): menu principale a 1366 × 657, 1024 × 600 e 1280 × 720: voci visibili senza scorrere, frecce, descrizione, nessuna partita dimostrativa e nessun ridisegno con il menu fermo.
+- `node natpf-diag-session.mjs` (3118, 9118; `SECONDS=150`, `VIDEOS=webcam,gioco|webcam|gioco|nessuno`, `PARTS=A` per la sola sessione lunga): modalità diagnostica con telefono simulato e webcam finta del browser. Prova tre cose:
+  - una sessione lunga: niente stop a 30/60 s, campioni continui, prestazioni al secondo, video della webcam e del gioco, costo del registratore sotto il 2%, pacchetto zip valido;
+  - una sessione interrotta da una ricarica, poi recuperata;
+  - la prova guidata con il riferimento nelle metriche.
+- `node natpf-swing-loss.mjs` (3140, 3141; `MODE=lan|internet`, `N=150`, `LOSS=0,0.03,0.08`, `ROOT` per misurare un altro checkout): consegna dei colpi con perdita di pacchetti simulata (prima/dopo le copie sul percorso veloce). Criteri: nessun colpo perso, p99 ≤ 50 ms con il 3% e ≤ 80 ms con l'8%. Serve iptables (root), quindi è uno script di misura e non sta nella matrice; per la LAN prima `npm run build`.

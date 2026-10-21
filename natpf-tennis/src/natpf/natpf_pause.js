@@ -34,6 +34,7 @@ export class NatpfPause {
       case 'replay': this.close(); click('btn-replay-trigger'); return;
       case 'phone': this.close(); this.ui.openPhone(); return;
       case 'help': this.close(); this.ui.onboarding.open(); return;
+      case 'diag': this.close(); this.ui.diag?.open(); return;
       case 'menu': this.close(); this.ui.backToMenu(); return;
     }
     this.paint();
@@ -53,6 +54,7 @@ export class NatpfPause {
     show(this.el.querySelector('[data-pause="phone"]'), this.ui.controller === 'phone');
     // niente moviola nel riscaldamento e nelle sfide (dopo il replay il lanciapalle non ripartiva)
     show(this.el.querySelector('[data-pause="replay"]'), !this.ui.training?.active && !this.ui.events?.active);
+    set('diag', this.ui.diag?.recorder?.active ? 'In registrazione' : 'Registra la sessione', !!this.ui.diag?.recorder?.active);
     const kicker = this.el.querySelector('.sheet-kicker'); if (kicker) kicker.textContent = this.ui.training?.active ? 'Allenamento in pausa' : 'Partita in pausa';
   }
 }

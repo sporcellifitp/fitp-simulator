@@ -68,9 +68,16 @@ const SPECIALS_KEY = 'natpf-tennis.specials';
 // (il canale recapita tutto insieme quando torna), non si gioca. Di solito arrivano 30–60 ms dopo il picco
 export const PHONE_STALE_S = .6;
 export const NORMAL_SHOTS = new Set(['topspin', 'flat']);
+const finiteOr = (v, d = 0) => (Number.isFinite(v) ? v : d);
+// ritardo dello schermo (ms) salvato su questo computer: 0 finché non lo si misura (pannello della diagnostica)
+export const DISPLAY_LAG_KEY = 'natpf.displayLagMs';
+export function readDisplayLagMs(){ try { const v = +localStorage.getItem(DISPLAY_LAG_KEY); return Number.isFinite(v) ? Math.max(0, Math.min(200, Math.round(v))) : 0; } catch { return 0; } }
+export function writeDisplayLagMs(ms){ const v = Math.max(0, Math.min(200, Math.round(+ms || 0))); try { localStorage.setItem(DISPLAY_LAG_KEY, String(v)); } catch {} return v; }
 function readSpecials(){ try { return JSON.parse(localStorage.getItem(SPECIALS_KEY) || '{}') || {}; } catch { return {}; } }
 function writeSpecials(v){ try { localStorage.setItem(SPECIALS_KEY, JSON.stringify(v)); } catch {} }
-export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaseline = 0, headBaseline = 0, faceCenter = null, aimModel = null, personal = null, now = null, prep = null, prepCapable = false, ballHigh = false } = {}){
+// displayLag (s): ritardo dello schermo misurato (impostazione della diagnostica, 0 se non misurato). Chi gioca colpisce
+// la palla che vede: con uno schermo in ritardo ogni colpo risulterebbe in ritardo di altrettanto
+export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaseline = 0, headBaseline = 0, faceCenter = null, aimModel = null, personal = null, now = null, prep = null, prepCapable = false, ballHigh = false, displayLag = 0 } = {}){
   const flat = !!s.face && Number.isFinite(s.face.yaw) && (s.grip === 'flat' || grip === 'flat');
   if (flat) return faceSwingToEngine(s, { hand });
   const dirX = Math.max(-1, Math.min(1, gestureAim(s)));
@@ -97,7 +104,7 @@ export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaselin
   const heading = aimModel && Number.isFinite(s.heading) ? aimModel.aim(s.dir || 0, s.heading) : null;
   const faceAim = heading ? heading.aim : face ? face.aim : null, faceUnreliable = heading ? heading.aim == null : !!face && !Number.isFinite(face.aim);
   const aimed = aimFromSignals({ faceAim, faceUnreliable, twist: s.twist, aim: s.aim, dir: s.dir || 0 });
-  const latency = Number.isFinite(s.at) && Number.isFinite(now) ? clamp(now - s.at, 0, .3) : .06;
+  const latency = Number.isFinite(s.at) && Number.isFinite(now) ? clamp(now - s.at + clamp(finiteOr(displayLag), 0, .2), 0, .3) : .06;
   const rel = lift - resolveLiftBaseline(liftBaseline, s.dir || 0).base;
   return { source: 'natpf-phone', side, shotType: ENGINE_SHOT[shot], speed: shot === 'drop' ? Math.min(speed, .9) : shot === 'flat' ? Math.max(speed, 1.32) : speed, dirX,
     dirY: shot === 'lob' ? -.85 : shot === 'slice' || shot === 'drop' ? .3 : shot === 'smash' ? .5 : -.45 + clamp(rel, -.5, .5)*.2, timing: null,
@@ -209,6 +216,8 @@ export class NatpfPhoneRacket {
     this.listeners = new Set();
     this.swingListeners = new Set();
     this.rawListeners = new Set();
+    this.dropListeners = new Set();       // colpi arrivati con il telefono non ancora pronto (solo diagnostica)
+    this.displayLagMs = readDisplayLagMs(); // ritardo dello schermo misurato (0 finché non lo si misura)
     this.liftBaseline = 0;               // verso verticale abituale (calibrazione, per verso del colpo): lob e tagliato si leggono rispetto a questo
     this.liftModel = createLiftModel();  // … poi si adatta ai colpi veri della partita
     this.faceModel = createFaceModel();  // piatto abituale per verso del colpo (mira = scarto da questo)
@@ -264,6 +273,7 @@ export class NatpfPhoneRacket {
     link.on('toss', () => this._onToss());
     link.on('prep', p => this._onPrep(p));
     link.on('raw', k => { for (const fn of this.rawListeners) try { fn(k); } catch (e){ console.error(e); } });
+    link.on('dropped', d => { for (const fn of this.dropListeners) try { fn(d.reason, { seq: d.seq, path: d.path }); } catch (e){ console.error(e); } });
     await link.start();
     this._changed();
     return this;
@@ -298,7 +308,7 @@ export class NatpfPhoneRacket {
   resetSpecials(){ this.specialSamples = {}; this.personal = {}; writeSpecials({}); }
   _onSwing(s){
     const mc = this.engine.motionController;
-    if (!mc || !this.ready) return;
+    if (!mc || !this.ready){ for (const fn of this.dropListeners) try { fn('telefono non pronto', s); } catch (e){ console.error(e); } return; }
     // colpo consegnato in forte ritardo: giocato ora sarebbe un colpo «fantasma» fuori tempo (prima si accettava fino a
     // 3 s dopo il picco, e il motore lo trattava come fatto al massimo 0,3 s prima)
     if (Number.isFinite(s?.at) && performance.now()/1000 - s.at > PHONE_STALE_S){
@@ -313,7 +323,7 @@ export class NatpfPhoneRacket {
       for (const fn of this.swingListeners) try { fn({ ignored: 'palla che si allontana', natpf: {} }, s); } catch (e){ console.error(e); }
       return;
     }
-    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine) }), role: this.engine.playerRole };
+    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, displayLag: this.displayLagMs/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine) }), role: this.engine.playerRole };
     this.lastPrep = null;
     if (!ev.side) ev.side = sideFromBall(this.engine, this.hand);
     // riferimenti personali solo dai colpi normali: prima entravano anche pallonetti e palle corte, e dopo tre di fila il
@@ -333,6 +343,7 @@ export class NatpfPhoneRacket {
     if (actor && side) (actor.userData || (actor.userData = {})).natpfPrep = { side, until: performance.now() + 750, amount: clamp((p.angle || 30)/50, .45, 1) };
   }
   onRaw(fn){ this.rawListeners.add(fn); return () => this.rawListeners.delete(fn); }
+  onDropped(fn){ this.dropListeners.add(fn); return () => this.dropListeners.delete(fn); }
   onSwing(fn){ this.swingListeners.add(fn); return () => this.swingListeners.delete(fn); }
   _onToss(){
     const mc = this.engine.motionController;

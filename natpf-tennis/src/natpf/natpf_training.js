@@ -39,6 +39,8 @@ export const sideWant = (side, hand = 'right') => ((side === 'forehand') !== (ha
 // avanzamento di un esercizio (funzione pura, per i test)
 export const drillsFor = controller => DRILLS.filter(d => !d.phoneOnly || controller === 'phone');
 export function drillAfterShot(drill, progress, { side, inCourt, shot = null }){
+  // prova guidata della diagnostica: ogni palla giocata è un campione (il giudizio lo fanno le metriche, con il video)
+  if (drill.diag) return { ...progress, tries: progress.tries + 1, done: progress.done + 1, ok: true };
   // colpi speciali: conta il colpo riconosciuto, anche se finisce fuori (si impara il gesto, non la mira)
   if (drill.shot) return { ...progress, tries: progress.tries + 1, done: progress.done + (shot === drill.shot ? 1 : 0), ok: shot === drill.shot, wrongShot: shot !== drill.shot };
   if (!inCourt) return { ...progress, tries: progress.tries + 1, ok: false };
@@ -67,14 +69,16 @@ export class NatpfTraining {
     if (!this.active || this.cal || !ev?.natpf || ev.ignored) return;
     this.lastShot = ev.natpf.shot;
     const d = this.drill;
-    if (d?.shot){ this.ui.phone.learnSpecial?.(d.shot, ev.natpf); this.lastLearn = d.shot; }
+    if (d?.shot && d.learn !== false){ this.ui.phone.learnSpecial?.(d.shot, ev.natpf); this.lastLearn = d.shot; }
   }
   get phoneCal(){ return this.ui.controller === 'phone' && !this.ui.phone.ready; }
   // calOnly: solo la calibrazione del telefono in campo (prima di una sfida), poi si torna a chi l'ha chiesta
-  start({ calOnly = false } = {}){
+  // drills/diag: esercizi su misura e richiami della prova guidata della diagnostica (onFeed a ogni palla, onEnd)
+  start({ calOnly = false, drills = null, diag = null } = {}){
     this.calOnly = calOnly;
     const E = this.engine;
-    this.drills = calOnly ? [] : drillsFor(this.ui.controller);
+    this.drills = calOnly ? [] : drills || drillsFor(this.ui.controller);
+    this.diagRun = diag;
     this.active = true; this.idx = 0; this.progress = { done: 0, tries: 0 }; this.stats = { shots: 0, perfect: 0, out: 0 }; this.wait = 0; this.message = null; this.flash = null;
     this.cal = this.phoneCal ? { ballFor: -1, hitFor: -1, flightT: 0, fails: 0 } : null;
     this.withCal = !!this.cal;
@@ -255,6 +259,7 @@ export class NatpfTraining {
     if (this.ballLive() && E.ball.lastHitter === 'opponent') return;     // c'è già una palla in arrivo
     if (this.idx >= this.drills.length) return this.stop({ completed: true });
     if (this.drill.id === 'serve'){ E.score.server = 'player'; E._setupPointServe({ showBanner: false }); return; }
+    if (this.drill.feed) return this._feed(this.drill.feed === 'random' ? (Math.random() < .5 ? 'forehand' : 'backhand') : this.drill.feed);
     // pallonetto e palla corta: sul dritto, il colpo più comodo
     this._feed(this.drill.id === 'backhand' ? 'backhand' : this.drill.id === 'forehand' || this.drill.shot ? 'forehand' : Math.random() < .5 ? 'forehand' : 'backhand');
   }
@@ -272,6 +277,7 @@ export class NatpfTraining {
     E._predictBallIntercept(p);
     E.audioEngine?.playRacketHit?.('topspin', 'good');
     this.fedSide = side;
+    this.diagRun?.onFeed?.(this.drill, side);
   }
   tick(dt){
     if (!this.active) return;
@@ -304,6 +310,7 @@ export class NatpfTraining {
     // poteva restare in pausa dopo il reset del chiosco
     if (this.prevFormat) E.setMatchFormat?.(this.prevFormat);
     this.ui._syncPause?.();
+    const run = this.diagRun; this.diagRun = null; run?.onEnd?.({ completed, skipped });
     if (silent) return;
     E.hud.showTitleModal();
     this.ui.flow?.onTrainingEnd({ completed, skipped, calibrated, stats: this.stats });

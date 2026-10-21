@@ -10,9 +10,24 @@ import { natpfSwingToEngine, NORMAL_SHOTS } from '../../src/natpf/natpf_phone_ra
 import { swingTimeline } from '../../src/natpf/natpf_diag.js';
 import { liftBaselineFromProfile, createLiftModel, createFaceModel } from '../../src/natpf/natpf_gestures.js';
 
+import { readZip } from '../../src/natpf/diag/diag_zip.js';
 const file = process.argv[2];
-if (!file){ console.error('Uso: node --import ./test/register.mjs scripts/audit/replay-recording.mjs registrazione.json'); process.exit(1); }
-const rec = JSON.parse(fs.readFileSync(file, 'utf8'));
+if (!file){ console.error('Uso: node --import ./test/register.mjs scripts/audit/replay-recording.mjs registrazione.json|pacchetto.zip'); process.exit(1); }
+// pacchetto della modalità diagnostica (zip): campioni grezzi, colpi e profilo dagli eventi, nello stesso formato della
+// registrazione di prima (Maiusc+D → Registra, JSON unico)
+function fromPackage(path){
+  const z = readZip(new Uint8Array(fs.readFileSync(path))), lines = n => (z.get(n) ? new TextDecoder().decode(z.get(n)).split('\n').filter(Boolean).flatMap(l => { try { return [JSON.parse(l)]; } catch { return []; } }) : []);
+  const ev = lines('eventi.jsonl'), meta = JSON.parse(new TextDecoder().decode(z.get('sessione.json') || new Uint8Array()) || '{}');
+  const prof = ev.filter(e => e.k === 'tel.profilo').at(-1);
+  return {
+    transport: meta.transport, startedAt: meta.inizio,
+    raw: lines('telefono-sensori.jsonl').map(k => ({ t: k.k, rot: k.r, acc: k.a, accG: k.g })),
+    // colpi: i campi del registro tornano nella forma del messaggio letto (s) e dell'evento del gioco (ev)
+    swings: ev.filter(e => e.k === 'tel.colpo').map(e => ({ s: { seq: e.n, detectMs: e.rilevamento, holdMs: e.attesa, at: e.picco != null ? e.picco/1000 : null, receivedAt: e.arrivo != null ? e.arrivo/1000 : null }, ev: { side: e.lato, ...(e.scartato ? { ignored: e.scartato } : {}), natpf: { shot: e.tipo, wrist: e.mira, aimSource: e.fonteMira } }, hitAt: null, frameAt: null })),
+    stats: [], profile: prof ? { phone: prof.profilo, hand: prof.mano, liftBaseline: prof.liftBaseline } : null,
+  };
+}
+const rec = file.endsWith('.zip') ? fromPackage(file) : JSON.parse(fs.readFileSync(file, 'utf8'));
 const raw = (rec.raw || []).filter(k => Number.isFinite(k.t)).sort((a, b) => a.t - b.t);
 const pct = (a, p) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(p*s.length))] : null; };
 const dts = raw.slice(1).map((k, i) => k.t - raw[i].t);
