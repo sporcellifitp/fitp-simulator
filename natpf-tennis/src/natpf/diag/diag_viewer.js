@@ -5,13 +5,15 @@
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // eventi che vanno nella pagina (gli altri restano in eventi.jsonl): palla solo ogni 4 campioni (~15 al secondo)
 const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'webcam.evento', 'video', 'atteso', 'marca', 'avviso', 'sessione.fine']);
-export function viewerEvents(events){
-  const out = []; let i = 0;
-  for (const e of events){ if (KEEP.has(e.k)) out.push(e); else if (e.k === 'palla' && i++ % 4 === 0) out.push({ t: e.t, k: e.k, p: e.p }); }
-  return out;
+// filtro di un evento alla volta (anche nel worker, mentre legge il registro a righe): l'evento, la palla ridotta o null
+export function viewerFilter(){
+  let i = 0;
+  return e => (KEEP.has(e.k) ? e : e.k === 'palla' && i++ % 4 === 0 ? { t: e.t, k: e.k, p: e.p } : null);
 }
-export function viewerHtml({ meta = {}, metrics = {}, events = [], videos = [] } = {}){
-  const data = JSON.stringify({ meta, metrics, events: viewerEvents(events), videos }).replace(/</g, '\\u003c');
+export function viewerEvents(events){ const keep = viewerFilter(), out = []; for (const e of events){ const v = keep(e); if (v) out.push(v); } return out; }
+// eventsJson: eventi già filtrati e serializzati (dal worker), così il thread del gioco non legge il registro
+export function viewerHtml({ meta = {}, metrics = {}, events = [], eventsJson = null, videos = [] } = {}){
+  const data = (JSON.stringify({ meta, metrics, videos }).slice(0, -1) + ',"events":' + (eventsJson ?? JSON.stringify(viewerEvents(events))) + '}').replace(/</g, '\\u003c');
   return `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sessione diagnostica ${esc(meta.inizio || meta.id || '')}</title>
 <style>
@@ -87,7 +89,8 @@ $('onlyShots').onchange = list; list(); draw(0); addEventListener('resize', () =
 
 export function readmeText(meta = {}){
   return `Pacchetto diagnostico NATPF Simulator
-Sessione ${meta.id || ''} · inizio ${meta.inizio || ''}
+Sessione ${meta.id || ''} · inizio ${meta.inizio || ''}${meta.parte > 1 || meta.prossima ? `
+Parte ${meta.parte || 1} di una registrazione lunga (stesso orologio: t continua dalla prima parte)${meta.precedente ? ` · precedente ${meta.precedente}` : ''}${meta.prossima ? ` · successiva ${meta.prossima}` : ''}` : ''}
 
 Apri rapporto.html con il browser (doppio clic, dopo aver estratto lo zip): metriche, linea del tempo e video
 sincronizzati. Un clic su un evento porta i video a quell'istante.

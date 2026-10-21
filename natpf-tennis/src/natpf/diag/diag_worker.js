@@ -4,7 +4,7 @@
 // all'ultimo pezzo scritto e la sessione si recupera al riavvio (stato «interrotta»).
 // Messaggi: { rid, op, … } → { rid, ok, … }. Le operazioni di una sessione passano in coda, una alla volta.
 import { crc32 } from './diag_crc.js';
-import { computeMetrics } from './diag_metrics.js';
+import { createAnalysis, lineSplitter } from './diag_analysis.js';
 const ROOT_DIR = 'natpf-diag';
 const live = new Map();             // id → { dir, files: Map(nome → { h, size, crc }), meta, queue, lastMeta }
 let rootP = null;
@@ -19,8 +19,25 @@ async function readText(dir, name){
   const fh = await dir.getFileHandle(name), f = await fh.getFile();
   return dec.decode(await f.arrayBuffer());
 }
-// righe JSON (l'ultima può essere troncata da una chiusura improvvisa: si salta)
-export function parseLines(text){ const out = []; for (const l of text.split('\n')){ if (!l) continue; try { out.push(JSON.parse(l)); } catch {} } return out; }
+// righe JSON di un file lette a pezzi, senza tenere in memoria tutto il testo
+async function eachLine(dir, name, fn){
+  let file; try { file = await (await dir.getFileHandle(name)).getFile(); } catch { return; }
+  const split = lineSplitter(fn), reader = file.stream().pipeThrough(new TextDecoderStream()).getReader();
+  for (;;){ const { value, done } = await reader.read(); if (done) break; split.push(value); }
+  split.end();
+}
+// metriche (e, per il rapporto, gli eventi da mostrare) di una sessione chiusa, calcolate qui: niente lavoro sul
+// thread del gioco; le metriche restano anche in metriche.json
+async function analyze(id, { viewer = false } = {}){
+  const dir = await (await root()).getDirectoryHandle(id);
+  let meta = {}; try { meta = JSON.parse(await readText(dir, 'meta.json')); } catch {}
+  const a = createAnalysis({ viewer });
+  await eachLine(dir, 'eventi.jsonl', e => a.event(e));
+  await eachLine(dir, 'telefono-sensori.jsonl', s => a.raw(s));
+  const out = a.result(meta);
+  await writeWhole(dir, 'metriche.json', JSON.stringify(out.metrics, null, 1));
+  return out;
+}
 async function handleOf(s, name){
   let f = s.files.get(name);
   if (!f){
@@ -98,15 +115,9 @@ const ops = {
     await writeWhole(dir, 'meta.json', JSON.stringify(meta));
     return { meta };
   },
-  // metriche di una sessione chiusa, calcolate qui (niente lavoro sul thread del gioco) e salvate in metriche.json
-  async metrics({ id }){
-    const dir = await (await root()).getDirectoryHandle(id);
-    let meta = {}; try { meta = JSON.parse(await readText(dir, 'meta.json')); } catch {}
-    const lines = async name => { try { return parseLines(await readText(dir, name)); } catch { return []; } };
-    const m = computeMetrics(await lines('eventi.jsonl'), { raw: await lines('telefono-sensori.jsonl'), meta });
-    await writeWhole(dir, 'metriche.json', JSON.stringify(m, null, 1));
-    return { metrics: m };
-  },
+  async metrics({ id }){ return { metrics: (await analyze(id)).metrics }; },
+  // per il rapporto: metriche ed eventi già filtrati e serializzati
+  async report({ id }){ return analyze(id, { viewer: true }); },
   async remove({ id }){
     const s = live.get(id); if (s){ for (const f of s.files.values()) try { f.h.close(); } catch {} live.delete(id); }
     await (await root()).removeEntry(id, { recursive: true });

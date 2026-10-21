@@ -48,6 +48,8 @@ export class NatpfDiag {
     const phone = engine.natpfPhone;
     phone.onSwing?.((ev, s) => this._onSwing(ev, s));
     this.recorder.onChange(() => this._paintRec());
+    this.recorder.notify = text => this.ui?.toast?.(text);
+    this.recorder.autoStop = async () => { await this.stop(); this.ui?.toast?.('Diagnostica chiusa: spazio su disco finito. Maiusc+D per scaricare la sessione'); };
     this._frame();
     if (this.on) this._build();
     // sessioni interrotte da recuperare: si avvisa una volta all'avvio
@@ -123,7 +125,7 @@ export class NatpfDiag {
     try {
       const res = await this.recorder.stop();
       const m = await this.store.metrics(res.id).catch(() => null);
-      this.summary = { id: res.id, metrics: m };
+      this.summary = { id: res.id, metrics: m, parts: res.parts || 1 };
       await this.refresh();
     } catch (e){ this.ui?.toast?.(`Problema nel chiudere la registrazione: ${e?.message || e}`); }
     this.busy = ''; this._paintRec();
@@ -157,7 +159,8 @@ export class NatpfDiag {
     if (R.active){
       // i pulsanti si scrivono una volta sola (riscriverli a ogni aggiornamento può far perdere un clic): poi solo il testo
       const s = (performance.now() - R.t0)/1000, c = R.counts;
-      const text = `● Registrazione in corso · ${clock(s)} · ${c.eventi} eventi · ${(c.byte/1048576).toFixed(1)} MB${c.campioni ? ` · ${c.campioni} campioni del telefono` : ''}${R.videos?.length ? ` · video: ${R.videos.map(v => v.kind).join(', ')}` : ''}`;
+      const vids = (R.videos || []).filter(v => !v.stopped).map(v => v.kind);
+      const text = `● Registrazione in corso · ${clock(s)}${R.part > 1 ? ` · parte ${R.part}` : ''} · ${c.eventi} eventi · ${(c.byte/1048576).toFixed(1)} MB${c.campioni ? ` · ${c.campioni} campioni del telefono` : ''}${vids.length ? ` · video: ${vids.join(', ')}` : R.videoOff ? ' · video fermati (spazio)' : ''}`;
       let st = box.querySelector('[data-rec-status]');
       if (!st){
         box.innerHTML = `<p class="diag-live-rec" data-rec-status></p>
@@ -176,7 +179,7 @@ export class NatpfDiag {
         <p class="diag-note">Lascia 0 se non l'hai misurato. Si misura con la prova guidata (mediana del «tempo dei colpi del telefono»: se è in ritardo di molti ms a ogni sessione, lo schermo è un sospetto) o meglio con un video a 240 fps del telefono e del televisore insieme. Vale solo per i colpi del telefono.</p>
         <div class="diag-actions"><input data-lag type="number" min="0" max="200" step="5" value="${this.engine.natpfPhone?.displayLagMs || 0}"><button type="button" data-diag="lag">Salva</button></div></details>
       ${this.store?.kind === 'memory' ? `<p class="diag-warn">Questo browser non permette di scrivere su disco: la sessione resta in memoria (massimo 300 MB) e si perde se la pagina si chiude.</p>` : ''}
-      ${sum ? `<div class="diag-summary"><b>Sessione appena registrata</b><ul>${summaryLines(sum.metrics || {}).map(l => `<li>${esc(l)}</li>`).join('')}</ul><button type="button" data-diag="save" data-id="${esc(sum.id)}">⬇ Scarica il pacchetto</button></div>` : ''}`;
+      ${sum ? `<div class="diag-summary"><b>Sessione appena registrata</b>${sum.parts > 1 ? `<p class="diag-note">Registrazione lunga, salvata in ${sum.parts} parti (30 minuti o 1 GB ciascuna): il riassunto è dell'ultima, le altre si scaricano dall'elenco qui sotto.</p>` : ''}<ul>${summaryLines(sum.metrics || {}).map(l => `<li>${esc(l)}</li>`).join('')}</ul><button type="button" data-diag="save" data-id="${esc(sum.id)}">⬇ Scarica il pacchetto</button></div>` : ''}`;
   }
   _paintList(){
     const box = $('natpf-diag-list'); if (!box) return;
@@ -186,7 +189,8 @@ export class NatpfDiag {
       if (s.broken) return `<div class="diag-item"><span>${id} · non leggibile</span><button type="button" data-diag="del" data-id="${id}">Elimina</button></div>`;
       const dur = s.durationS ?? (s.savedAt && s.startedAt ? (s.savedAt - s.startedAt)/1000 : null);
       const mb = Object.values(s.files || {}).reduce((a, f) => a + (f.size || 0), 0)/1048576;
-      const info = `${when(s.startedAt)} · ${dur != null ? clock(dur) : '–'} · ${s.controller || '–'}${s.transport ? ' (' + s.transport + ')' : ''} · ${mb.toFixed(1)} MB${s.label ? ' · ' + esc(s.label) : ''}`;
+      const part = s.parte > 1 || s.prossima ? ` · parte ${s.parte || 1}` : '';
+      const info = `${when(s.startedAt)}${part} · ${dur != null ? clock(dur) : '–'} · ${s.controller || '–'}${s.transport ? ' (' + s.transport + ')' : ''} · ${mb.toFixed(1)} MB${s.label ? ' · ' + esc(s.label) : ''}`;
       if (!s.ended && !s.live) return `<div class="diag-item diag-lost"><span>Interrotta · ${info}</span><button type="button" data-diag="recover" data-id="${id}">Recupera</button><button type="button" data-diag="del" data-id="${id}">Elimina</button></div>`;
       if (s.live) return `<div class="diag-item"><span>In registrazione · ${info}</span></div>`;
       return `<div class="diag-item"><label><input type="checkbox" data-cmp="${id}" ${this.selected.has(s.id) ? 'checked' : ''}> confronta</label><span>${info}</span><button type="button" data-diag="save" data-id="${id}">⬇ Scarica</button><button type="button" data-diag="del" data-id="${id}">Elimina</button></div>`;

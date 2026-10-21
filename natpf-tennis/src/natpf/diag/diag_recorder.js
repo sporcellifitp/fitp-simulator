@@ -7,6 +7,11 @@
 //     webcam e del gioco (MediaRecorder): tutto scritto a pezzi su disco dal worker (diag_store.js), ogni 0,5 s.
 //     In memoria resta solo l'ultimo mezzo secondo: le sessioni lunghe non rallentano e non riempiono la RAM.
 //   - Agganci leggeri installati una volta: se non si registra costano un confronto.
+//   - Rotazione: una registrazione lunga continua da sola in una parte nuova ogni 30 minuti o oltre 1 GB (stesso
+//     orologio, parti collegate tra loro), così ogni parte resta un pacchetto completo da scaricare e da analizzare.
+//   - Spazio: ogni 10 s si controlla lo spazio libero del browser; sotto 200 MB si fermano i video (in 10 s ne scrivono al
+//     massimo ~4 MB), sotto 50 MB anche i campioni del telefono, sotto 20 MB la registrazione si chiude da sola, prima
+//     che le scritture falliscano. Niente si cancella da solo.
 // Tipi di evento (k): fase, palla, rimbalzo, punto, tentativo, colpo.gioco, input, tel.colpo, tel.cal, tel.stato,
 // tel.orologio, tel.link, webcam.frame, webcam.evento, prestazioni, video, video.frame, atteso, marca, avviso.
 import { latencyShift, eventLatency, swingTiming } from '../natpf_skill.js';
@@ -14,6 +19,9 @@ import { shotDirection } from './diag_metrics.js';
 
 export const DIAG_VERSION = 1;
 const FLUSH_MS = 500, BACKLOG_LIMIT = 24*1024*1024, BALL_PHASES = new Set(['SERVE_TOSS', 'RALLY', 'POINT_OVER']);
+const MB = 1024*1024;
+export const ROTATE_MS = 30*60*1000, ROTATE_BYTES = 1024*MB;
+export const FREE_VIDEO = 200*MB, FREE_RAW = 50*MB, FREE_STOP = 20*MB;
 const enc = new TextEncoder();
 const r = (v, d = 2) => (Number.isFinite(v) ? +v.toFixed(d) : null);
 const vec = (v, d = 2) => (v ? [r(v.x, d), r(v.y, d), r(v.z, d)] : null);
@@ -30,6 +38,10 @@ export class DiagRecorder {
     this.active = false; this.id = null; this.events = []; this.rawBuf = []; this.listeners = new Set();
     this.counts = { eventi: 0, campioni: 0, byte: 0, persi: 0 };
     this._installed = false;
+    // regolabili (prove): durata e dimensione di una parte, intervallo del controllo dello spazio; autoStop: chi chiude
+    // la registrazione quando lo spazio finisce (il pannello, per mostrare il riassunto); notify: avvisi per chi gioca
+    this.rotateMs = ROTATE_MS; this.rotateBytes = ROTATE_BYTES; this.spaceEveryMs = 10000; this.autoStop = null; this.notify = null;
+    this._videoGen = 0;
   }
   onChange(fn){ this.listeners.add(fn); return () => this.listeners.delete(fn); }
   _changed(){ for (const fn of this.listeners) try { fn(this); } catch (e){ console.error(e); } }
@@ -56,6 +68,8 @@ export class DiagRecorder {
     // reg: ms al secondo spesi dal registratore sul thread del gioco (serializzazione, campioni della palla): il suo costo
     this.videos = []; this.perf = { frames: [], upd: [], ren: [], last: null, longTasks: 0, reg: 0, flushMax: 0, at: this.now() };
     this.lastPhase = null; this.lastHitter = null; this.lastInputSide = null; this.lastStato = null;
+    // parti: la prima ha lo stesso id del gruppo; videoOff: video fermati per lo spazio (non ripartono nelle parti dopo)
+    this.part = 1; this.partT0 = this.t0; this._countsAtPart = { ...this.counts }; this._spaceAt = -Infinity; this.freeMB = null; this.videoOff = null;
     const controller = ui?.controller || null, transport = ph?.link?.transport || null;
     this.meta = {
       id: this.id, versione: DIAG_VERSION, startedAt: this.startedWall, inizio: new Date(this.startedWall).toISOString(), label: String(label || '').slice(0, 80),
@@ -66,7 +80,7 @@ export class DiagRecorder {
       cpu: typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || null : null,
       gpu: this._gpu(),
       gioco: { difficolta: E.matchConfig?.difficulty || null, mano: ui?.hand?.hand || null, presa: ph?.grip || null, formato: E.matchFormat?.id || null, ritardoSchermoMs: ph?.displayLagMs ?? 0 },
-      store: this.store.kind,
+      store: this.store.kind, parte: 1, gruppo: this.id,
     };
     await this.store.open(this.id, this.meta);
     this.active = true;
@@ -86,26 +100,81 @@ export class DiagRecorder {
     return this.id;
   }
   async stop(){
-    if (!this.active) return null;
-    const E = this.engine, ph = E.natpfPhone;
+    if (!this.active || this._stopping) return null;
+    this._stopping = true;
+    try {
+      await this._rotation?.catch(() => {});               // una parte nuova in apertura finisce prima
+      const E = this.engine, ph = E.natpfPhone;
+      for (const v of this.videos) v.stop();
+      await Promise.all(this.videos.map(v => v.done.catch(() => {})));
+      this._videoGen++;
+      this._second();
+      this.log('sessione.fine', { durataS: r((this.now() - this.partT0)/1000, 1), parte: this.part, durataTotaleS: r((this.now() - this.t0)/1000, 1), conteggi: this._partCounts() });
+      clearInterval(this._flushT); clearInterval(this._secT); cancelAnimationFrame(this._raf);
+      if (this._ownCamera){ for (const tr of this._ownCamera.getTracks()) tr.stop(); this._ownCamera = null; }
+      if (this._ownVideo){ this._ownVideo.remove(); this._ownVideo = null; }
+      if (ph && this.phoneSamples){ ph.diagStream = false; ph.link?.send({ t: 'cfg', prep: 1, mo: 1, diag: 0 }); }
+      await this.flush(true);
+      this.active = false;
+      const meta = await this.store.close(this.id, { durationS: r((this.now() - this.partT0)/1000, 1), endedAt: this.wallNow(), counts: this._partCounts(), videos: this.videos.map(v => v.info) });
+      const id = this.id; this._changed();
+      return { id, meta, parts: this.part, gruppo: this.meta.gruppo };
+    } finally { this._stopping = false; }
+  }
+  _partCounts(){ const c = {}; for (const k of Object.keys(this.counts)) c[k] = this.counts[k] - (this._countsAtPart?.[k] || 0); return c; }
+  _partBytes(){ return this.counts.byte - (this._countsAtPart?.byte || 0) + this.videos.reduce((a, v) => a + (v.info.byte || 0), 0); }
+  // parte nuova: la registrazione continua senza buchi. Video fermati con gli ultimi pezzi scritti, eventi fino a qui
+  // nella parte che si chiude, poi stessa registrazione con un id nuovo (gli eventi arrivati nel frattempo restano in
+  // memoria e finiscono nella parte nuova) e video ripartiti sullo stesso flusso della webcam
+  _rotate(){ return this._rotation || (this._rotation = this._doRotate().finally(() => { this._rotation = null; })); }
+  async _doRotate(){
+    if (!this.active || this._stopping) return;
+    const prev = this.id, kinds = this.videos.filter(v => !v.stopped).map(v => v.kind);
     for (const v of this.videos) v.stop();
     await Promise.all(this.videos.map(v => v.done.catch(() => {})));
-    this._second();
-    this.log('sessione.fine', { durataS: r((this.now() - this.t0)/1000, 1), conteggi: { ...this.counts } });
-    clearInterval(this._flushT); clearInterval(this._secT); cancelAnimationFrame(this._raf);
-    if (this._ownCamera){ for (const tr of this._ownCamera.getTracks()) tr.stop(); this._ownCamera = null; }
-    if (this._ownVideo){ this._ownVideo.remove(); this._ownVideo = null; }
-    if (ph && this.phoneSamples){ ph.diagStream = false; ph.link?.send({ t: 'cfg', prep: 1, mo: 1, diag: 0 }); }
-    await this.flush(true);
-    this.active = false;
-    const meta = await this.store.close(this.id, { durationS: r((this.now() - this.t0)/1000, 1), endedAt: this.wallNow(), counts: { ...this.counts }, videos: this.videos.map(v => v.info) });
-    const id = this.id; this._changed();
-    return { id, meta };
+    this._videoGen++;
+    const next = newSessionId(new Date(this.wallNow())), cut = this.now(), tCut = r(cut - this.t0, 1);
+    // fine di questa parte e inizio della prossima allo stesso istante
+    this.log('sessione.fine', { t: tCut, durataS: r((cut - this.partT0)/1000, 1), parte: this.part, prossima: next, conteggi: this._partCounts() });
+    const closing = { durationS: r((cut - this.partT0)/1000, 1), endedAt: this.wallNow(), counts: this._partCounts(), videos: this.videos.map(v => v.info), prossima: next };
+    this._cutting = true;                                   // il salvataggio periodico aspetta la parte nuova
+    try {
+      await this.flush(true);
+      await this.store.close(prev, closing);
+      this.id = next; this.part++; this.partT0 = cut; this._countsAtPart = { ...this.counts }; this.videos = [];
+      this.meta = { ...this.meta, id: next, parte: this.part, precedente: prev, startedAt: this.wallNow(), inizio: new Date(this.wallNow()).toISOString(), tInizioMs: r(cut - this.t0, 1) };
+      await this.store.open(next, this.meta);
+      this.events.unshift({ t: tCut, k: 'sessione', ...this.meta, gpu: undefined }); this.counts.eventi++;
+    } finally { this._cutting = false; }
+    if (this.videoOff || this._stopping) return;
+    if (kinds.includes('webcam')) await this._startCamera().catch(e => this.warn('video-webcam', `video della webcam non ripartito: ${e?.message || e}`));
+    if (kinds.includes('gioco')) this._startGameVideo();
+    this._changed();
+  }
+  // spazio libero del browser (non c'è nel magazzino in memoria, che ha il suo limite)
+  async _checkSpace(){
+    if (this.store?.kind !== 'disk') return;
+    const est = await globalThis.navigator?.storage?.estimate?.().catch(() => null);
+    if (!this.active || !Number.isFinite(est?.quota) || !Number.isFinite(est?.usage)) return;
+    const free = est.quota - est.usage, mb = this.freeMB = Math.round(free/MB);
+    if (free < FREE_STOP){ this.warn('spazio', `spazio su disco finito (${mb} MB liberi): registrazione chiusa`, { liberoMB: mb }); await (this.autoStop ? this.autoStop() : this.stop()); return; }
+    if (free < FREE_RAW && this.phoneSamples){
+      const ph = this.engine.natpfPhone;
+      this.phoneSamples = false; if (ph){ ph.diagStream = false; ph.link?.send({ t: 'cfg', prep: 1, mo: 1, diag: 0 }); }
+      this.warn('spazio-campioni', `spazio su disco quasi finito (${mb} MB liberi): fermati anche i campioni del telefono`, { liberoMB: mb });
+      this.notify?.('Diagnostica: spazio su disco quasi finito, fermati i campioni del telefono');
+    }
+    if (free < FREE_VIDEO && !this.videoOff && this.videos.some(v => !v.stopped)){
+      this.videoOff = 'spazio'; this._videoGen++;
+      for (const v of this.videos) v.stop();
+      this.warn('spazio-video', `spazio su disco quasi finito (${mb} MB liberi): video fermati, il registro continua`, { liberoMB: mb });
+      this.notify?.('Diagnostica: spazio su disco quasi finito, video fermati (il registro continua)');
+    }
   }
   // scrittura a pezzi: righe JSON, cedute al worker. Se il disco resta indietro (coda oltre 24 MB) si saltano i
   // campioni grezzi del telefono di questo giro, e lo si annota
   async flush(final = false){
-    if (!this.store || !this.id) return;
+    if (!this.store || !this.id || (this._cutting && !final)) return;
     const ev = this.events, raw = this.rawBuf;
     this.events = []; this.rawBuf = [];
     const jobs = [];
@@ -265,12 +334,15 @@ export class DiagRecorder {
     const heap = globalThis.performance?.memory?.usedJSHeapSize;
     this.log('prestazioni', { fps: r(fr.length*1000/dt, 1), p50: r(q(fr, .5), 1), p95: r(q(fr, .95), 1), max: r(fr.length ? Math.max(...fr) : null, 1), lunghi: fr.filter(x => x > 50).length,
       upd95: r(q(P.upd, .95), 2), ren95: r(q(P.ren, .95), 2), heapMB: Number.isFinite(heap) ? r(heap/1048576, 1) : null, compiti: P.longTasks, coda: this.store?.backlog ? r(this.store.backlog/1048576, 1) : 0,
-      regMs: r(P.reg*1000/dt, 2), regMax: r(P.flushMax, 2) });
+      regMs: r(P.reg*1000/dt, 2), regMax: r(P.flushMax, 2), ...(this.freeMB != null ? { liberoMB: this.freeMB } : {}) });
     P.frames = []; P.upd = []; P.ren = []; P.longTasks = 0; P.reg = 0; P.flushMax = 0; P.at = now;
     const link = this.engine.natpfPhone?.link;
     if (link?.stats && this.engine.natpfPhone?.connected){ const st = link.stats(); this.log('tel.link', { copie: st.swings || null, rtt: r(st.rtt, 1), hz: Object.fromEntries(Object.entries(st.rates || {}).map(([k, v]) => [k, v.hz])) }); }
     this._phoneStato();
     this._changed();
+    if (this._rotation || this._stopping) return;
+    if (now - this.partT0 >= this.rotateMs || this._partBytes() >= this.rotateBytes){ this._rotate().catch(e => this.warn('parte', `parte nuova non riuscita: ${e?.message || e}`)); return; }
+    if (now - this._spaceAt >= this.spaceEveryMs){ this._spaceAt = now; this._checkSpace().catch(() => {}); }
   }
   _loop(){
     const tick = ts => {
@@ -293,6 +365,7 @@ export class DiagRecorder {
   async _startCamera(){
     const mc = this.engine.motionController;
     let stream = mc?.webcamActive && mc.videoElem?.srcObject, video = mc?.videoElem;
+    if (!stream && this._ownCamera?.active){ stream = this._ownCamera; video = this._ownVideo; }   // parte nuova: stessa webcam
     if (!stream){
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('webcam non disponibile');
       stream = this._ownCamera = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }, audio: false });
@@ -304,8 +377,9 @@ export class DiagRecorder {
     this._record('webcam', stream, 1_000_000);
     // istante di cattura di ogni fotogramma (stesso orologio del registro): allinea il video al registro
     if (video?.requestVideoFrameCallback){
+      const gen = this._videoGen;
       const cb = (now, md) => {
-        if (!this.active) return;
+        if (!this.active || gen !== this._videoGen) return;
         this.log('video.frame', { file: 'webcam', mt: r(md.mediaTime, 3), ct: Number.isFinite(md.captureTime) ? r(md.captureTime - this.t0, 1) : null, pt: r(now - this.t0, 1), n: md.presentedFrames ?? null });
         video.requestVideoFrameCallback(cb);
       };
@@ -315,28 +389,33 @@ export class DiagRecorder {
   _startGameVideo(){
     const c = this.engine.renderer?.domElement;
     if (!c?.captureStream) return this.warn('video-gioco', 'video del gioco non disponibile in questo browser');
-    try { this._record('gioco', c.captureStream(30), 2_000_000); }
+    try { this._record('gioco', c.captureStream(30), 2_000_000, { ownTracks: true }); }
     catch (e){ this.warn('video-gioco', `video del gioco non registrato: ${e?.message || e}`); }
   }
-  _record(kind, stream, bps){
+  // ownTracks: flusso creato per questo video (cattura della tela), da chiudere con lui
+  _record(kind, stream, bps, { ownTracks = false } = {}){
     const mime = pickVideoMime();
     if (!mime) throw new Error('registrazione video non supportata');
     const name = `video-${kind}.${mime.includes('mp4') ? 'mp4' : 'webm'}`;
     const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bps });
     const track = stream.getVideoTracks?.()[0], set = track?.getSettings?.() || {};
     const v = { kind, info: { file: name, mime, w: set.width ?? null, h: set.height ?? null, fps: set.frameRate ?? null, byte: 0 }, chain: Promise.resolve() };
+    const sid = this.id;                                     // la parte a cui appartiene (anche per gli ultimi pezzi)
     let startT = null, resolveDone;
     v.done = new Promise(res => { resolveDone = res; });
     rec.onstart = () => { startT = this.now(); this.log('video', { file: name, stato: 'inizio', mime, w: v.info.w, h: v.info.h, fps: v.info.fps }); };
     rec.ondataavailable = e => {
       if (!e.data?.size) return;
       const blob = e.data;
-      v.chain = v.chain.then(async () => { const buf = await blob.arrayBuffer(); v.info.byte += buf.byteLength; await this.store.append(this.id, name, buf); })
+      v.chain = v.chain.then(async () => { const buf = await blob.arrayBuffer(); v.info.byte += buf.byteLength; await this.store.append(sid, name, buf); })
         .catch(err => this.warn('video-' + kind, `video ${kind}: scrittura non riuscita (${err?.message || err})`));
     };
-    rec.onstop = () => { v.chain.then(() => { this.log('video', { file: name, stato: 'fine', durataS: r((this.now() - (startT ?? this.now()))/1000, 1), byte: v.info.byte }); resolveDone(); }); };
+    rec.onstop = () => {
+      if (ownTracks) for (const tr of stream.getTracks()) tr.stop();
+      v.chain.then(() => { this.log('video', { file: name, stato: 'fine', durataS: r((this.now() - (startT ?? this.now()))/1000, 1), byte: v.info.byte }); resolveDone(); });
+    };
     rec.onerror = e => this.warn('video-' + kind, `video ${kind}: errore del registratore (${e?.error?.name || 'sconosciuto'})`);
-    v.stop = () => { try { if (rec.state !== 'inactive') rec.stop(); else resolveDone(); } catch { resolveDone(); } };
+    v.stop = () => { v.stopped = true; try { if (rec.state !== 'inactive') rec.stop(); else resolveDone(); } catch { resolveDone(); } };
     rec.start(1000);
     this.videos.push(v);
   }

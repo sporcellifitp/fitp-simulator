@@ -1,13 +1,15 @@
 // Modalità diagnostica: metriche (riferimento solo dalla prova guidata), zip del pacchetto, magazzino in memoria e
-// registratore con un motore finto (eventi, campioni del telefono, scrittura a pezzi, coda piena, arresto).
+// registratore con un motore finto (eventi, campioni del telefono, scrittura a pezzi, coda piena, arresto, parti
+// nuove nelle registrazioni lunghe, spazio su disco), analisi del registro a righe.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { computeMetrics, compareMetrics, missingInSequence, clockFit, shotDirection, dist } from '../src/natpf/diag/diag_metrics.js';
 import { zipBlob, readZip } from '../src/natpf/diag/diag_zip.js';
 import { crc32 } from '../src/natpf/diag/diag_crc.js';
 import { memoryStore } from '../src/natpf/diag/diag_store.js';
-import { DiagRecorder, newSessionId } from '../src/natpf/diag/diag_recorder.js';
-import { viewerHtml } from '../src/natpf/diag/diag_viewer.js';
+import { DiagRecorder, newSessionId, FREE_VIDEO, FREE_RAW, FREE_STOP } from '../src/natpf/diag/diag_recorder.js';
+import { viewerHtml, viewerEvents } from '../src/natpf/diag/diag_viewer.js';
+import { createAnalysis, lineSplitter } from '../src/natpf/diag/diag_analysis.js';
 import { summaryLines } from '../src/natpf/natpf_diag.js';
 import { natpfSwingToEngine } from '../src/natpf/natpf_phone_racket.js';
 
@@ -210,4 +212,97 @@ test('ritardo dello schermo: si somma alla latenza del colpo del telefono (0 = c
   assert.equal(natpfSwingToEngine(s, { now: 10.2, displayLag: .5 }).natpf.latency, .3);
   const m = { colpi: { tempoTelefonoMs: { n: 30, p50: -85 } } };
   assert.ok(summaryLines(m).some(l => /85 ms in ritardo/.test(l)));
+});
+
+test('analisi a righe (worker): stesse metriche del registro letto tutto insieme, eventi del rapporto già pronti', () => {
+  const events = sampleEvents();
+  for (let i = 0; i < 400; i++) events.push({ t: 20000 + i*16, k: 'palla', p: [0, 1, i/10], v: [0, 0, -20] }, { t: 20000 + i*16 + 1, k: 'video.frame', file: 'webcam', mt: i/30 });
+  events.push({ t: 27000, k: 'atteso', lato: 'forehand', colpo: 'normale', finestraMs: 4000 }, { t: 27400, k: 'tel.colpo', n: 30, lato: 'forehand', tipo: 'topspin', rilevamento: 24, consegna: 3, totale: 27 });
+  const raw = []; for (let i = 0; i < 500; i++) if (i !== 200) raw.push({ t: i*16.7, k: i*16.7, q: i, r: [1, 2, 3], a: [0, 0, 0], g: [0, 9.8, 0], via: 'fast' });
+  const meta = { controller: 'phone', transport: 'lan-webrtc' };
+  const whole = computeMetrics(events, { raw, meta });
+  // il testo arriva a pezzi di lunghezza qualsiasi, l'ultima riga troncata (chiusura improvvisa)
+  const a = createAnalysis({ viewer: true });
+  const feed = (rows, fn, cut) => { const text = rows.map(o => JSON.stringify(o)).join('\n') + '\n{"t":99999,"k":"tron', sp = lineSplitter(fn); for (let i = 0; i < text.length; i += cut) sp.push(text.slice(i, i + cut)); sp.end(); };
+  feed(events, e => a.event(e), 37); feed(raw, k => a.raw(k), 101);
+  const { metrics, eventsJson } = a.result(meta);
+  assert.deepEqual(metrics, whole);
+  assert.equal(eventsJson, JSON.stringify(viewerEvents(events)));
+  assert.equal(metrics.registrazione.eventi, events.length);
+});
+
+test('registratore: registrazione lunga in parti collegate, stesso orologio, nessun evento o campione perso al cambio', async t => {
+  globalThis.requestAnimationFrame ??= cb => setTimeout(() => cb(performance.now()), 16);
+  globalThis.cancelAnimationFrame ??= id => clearTimeout(id);
+  let now = 1000;
+  const { engine, emitRaw } = fakeWorld(), store = memoryStore();
+  const R = new DiagRecorder({ engine, ui: { controller: 'phone', training: { active: false } }, store, now: () => now, wallNow: () => Date.UTC(2026, 9, 21, 10, 0, 0) + now });
+  R.rotateMs = 1000;
+  const first = await R.start({ webcamVideo: false, gameVideo: false });
+  t.after(() => { if (R.active) R.stop(); });
+  let q = 0;
+  const step = () => { now += 100; emitRaw({ t: now, q: q++, rot: [1, 2, 3] }); engine._awardPoint('player', 'Out'); };
+  for (let i = 0; i < 5; i++) step();
+  await R.flush();
+  for (let i = 0; i < 6; i++) step();
+  R._second();                                         // oltre 1 s: parte nuova
+  const rotation = R._rotation;
+  assert.ok(rotation, 'parte nuova avviata');
+  step();                                              // durante il cambio: finisce in una delle due parti, una volta
+  await rotation;
+  for (let i = 0; i < 4; i++) step();
+  const res = await R.stop();
+  assert.equal(res.parts, 2); assert.equal(res.gruppo, first);
+  const list = await store.list(), p1 = list.find(s => s.id === first), p2 = list.find(s => s.id === res.id);
+  assert.ok(p1.ended && p2.ended);
+  assert.equal(p1.prossima, p2.id); assert.equal(p2.precedente, p1.id); assert.equal(p2.parte, 2); assert.equal(p2.gruppo, first);
+  const lines = async (id, f) => (await (await store.file(id, f)).text()).trim().split('\n').map(l => JSON.parse(l));
+  const e1 = await lines(first, 'eventi.jsonl'), e2 = await lines(res.id, 'eventi.jsonl');
+  assert.equal(e1.at(-1).k, 'sessione.fine'); assert.equal(e1.at(-1).prossima, res.id);
+  assert.equal(e2[0].k, 'sessione'); assert.equal(e2[0].parte, 2);
+  assert.ok(e2[0].t >= e1.at(-1).t, 'stesso orologio, la seconda parte continua da dove finisce la prima');
+  for (const e of [e1, e2]) assert.ok(e.every((x, i) => !i || x.t >= e[i - 1].t), 'eventi in ordine');
+  // ogni punto registrato una volta sola, nell'una o nell'altra parte
+  assert.equal(e1.filter(e => e.k === 'punto').length + e2.filter(e => e.k === 'punto').length, 16);
+  assert.equal(e1.length + e2.length, R.counts.eventi);
+  assert.equal(p1.counts.eventi, e1.length); assert.equal(p2.counts.eventi, e2.length);
+  // campioni del telefono: numerazione continua tra le due parti
+  const qs = [...await lines(first, 'telefono-sensori.jsonl'), ...await lines(res.id, 'telefono-sensori.jsonl')].map(k => k.q);
+  assert.deepEqual(qs, [...Array(16).keys()]);
+  await flushTimers();
+});
+
+test('registratore: spazio su disco quasi finito → video fermati, poi campioni, poi chiusura; niente si cancella', async t => {
+  globalThis.requestAnimationFrame ??= cb => setTimeout(() => cb(performance.now()), 16);
+  globalThis.cancelAnimationFrame ??= id => clearTimeout(id);
+  let free = 5000*1024*1024;
+  const nav = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { value: { storage: { estimate: async () => ({ quota: 8e10, usage: 8e10 - free }) } }, configurable: true, writable: true });
+  t.after(() => { if (nav) Object.defineProperty(globalThis, 'navigator', nav); else delete globalThis.navigator; });
+  let now = 1000;
+  const { engine } = fakeWorld(), store = memoryStore(); store.kind = 'disk';      // il controllo vale per il disco
+  const R = new DiagRecorder({ engine, ui: { controller: 'phone', training: { active: false } }, store, now: () => now, wallNow: () => Date.UTC(2026, 9, 21, 10, 0, 0) });
+  const notices = []; R.notify = n => notices.push(n);
+  let autoStopped = false; R.autoStop = async () => { autoStopped = true; await R.stop(); };
+  const id = await R.start({ webcamVideo: false, gameVideo: false });
+  const video = { kind: 'webcam', info: { file: 'video-webcam.webm', byte: 0 }, stopped: false, stop(){ this.stopped = true; }, done: Promise.resolve() };
+  R.videos.push(video);
+  await R._checkSpace();
+  assert.ok(!video.stopped && R.phoneSamples, 'spazio sufficiente: tutto continua');
+  free = FREE_VIDEO - 1;
+  await R._checkSpace();
+  assert.ok(video.stopped); assert.equal(R.videoOff, 'spazio'); assert.ok(R.phoneSamples); assert.ok(R.active);
+  free = FREE_RAW - 1;
+  await R._checkSpace();
+  assert.equal(R.phoneSamples, false); assert.equal(engine.natpfPhone.diagStream, false);
+  assert.deepEqual(engine.natpfPhone.sent.at(-1), { t: 'cfg', prep: 1, mo: 1, diag: 0 });
+  assert.equal(notices.length, 2);
+  now += 2000; free = FREE_STOP - 1;
+  await R._checkSpace();
+  assert.ok(autoStopped); assert.equal(R.active, false);
+  const ev = (await (await store.file(id, 'eventi.jsonl')).text()).trim().split('\n').map(l => JSON.parse(l));
+  assert.deepEqual(ev.filter(e => e.k === 'avviso').map(e => e.codice), ['spazio-video', 'spazio-campioni', 'spazio']);
+  assert.equal(ev.at(-1).k, 'sessione.fine');
+  assert.equal((await store.list()).length, 1, 'nessuna sessione cancellata');
+  await flushTimers();
 });

@@ -4,10 +4,14 @@
 //      telefono continui, un evento delle prestazioni al secondo, video della webcam e del gioco, costo del registratore
 //      sul thread del gioco; pacchetto zip valido (CRC), rapporto e metriche;
 //   B. sessione interrotta da una ricarica della pagina: al riavvio si recupera e il pacchetto si scarica;
-//   C. prova guidata dal menu: richieste del lanciapalle nel registro e metriche con il riferimento.
+//   C. prova guidata dal menu: richieste del lanciapalle nel registro e metriche con il riferimento;
+//   D. registrazione lunga in parti (una parte ogni 6 s invece di 30 min): parti collegate, pacchetti validi con i video,
+//      nessun buco al cambio di parte (eventi e campioni del telefono continui);
+//   E. spazio su disco quasi finito (stima del browser simulata): video fermati, poi campioni, poi chiusura da sola.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-diag-session.mjs
 //   VIDEOS=webcam,gioco (predefinito) | webcam | gioco | nessuno: quali video registrare nella parte A, per misurare
-//   quanto costano (consegna dei colpi, fotogrammi) sulla stessa macchina; PARTS=A per la sola sessione lunga.
+//   quanto costano (consegna dei colpi, fotogrammi) sulla stessa macchina; PARTS=A per la sola sessione lunga (le parti
+//   girano nell'ordine A, D, E, B, C).
 // Sensori sintetici, webcam finta del browser e grafica software: non sostituiscono una sessione con telefono e webcam veri.
 import { spawn } from 'node:child_process';
 import http from 'node:http';
@@ -22,7 +26,7 @@ import { readZip } from '../../natpf-tennis/src/natpf/diag/diag_zip.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
 const PEER_PORT = +(process.env.PEER_PORT || 9118), GAME_PORT = +(process.env.GAME_PORT || 3118), SECONDS = +(process.env.SECONDS || 150);
-const PARTS = process.env.PARTS || 'ABC';
+const PARTS = process.env.PARTS || 'ABCDE';
 const VIDEOS = (process.env.VIDEOS ?? 'webcam,gioco').split(',').filter(v => v === 'webcam' || v === 'gioco');
 const app = express(), peerServer = http.createServer(app);
 app.use('/fiw', ExpressPeerServer(peerServer, { path: '/' }));
@@ -133,6 +137,60 @@ try {
   check('rapporto: pagina autonoma con dati e video collegati', html.includes('id="dati"') && VIDEOS.every(v => html.includes(`video-${v}.`)) && !/<script src=/.test(html));
   console.log('metriche (estratto):', JSON.stringify({ telefono: m.telefono?.tempiMs, gioco: m.gioco, registrazione: m.registrazione }).slice(0, 900));
 
+  if (PARTS.includes('D')){
+    /* ---------- D. registrazione lunga in parti ---------- */
+    await game.evaluate(v => { const d = __natpfTennis.natpfUi.diag; d.opts.webcamVideo = v.includes('webcam'); d.opts.gameVideo = v.includes('gioco'); d.recorder.rotateMs = 6000; return d.start(); }, VIDEOS);
+    await game.waitForFunction(() => __natpfTennis.natpfUi.diag.recorder.active, null, { timeout: 15000 });
+    await swingLoop(phone, 14000);
+    // si ferma solo quando nella terza parte i video sono ripartiti e hanno già scritto qualcosa
+    await game.waitForFunction(n => { const R = __natpfTennis.natpfUi.diag.recorder; return R.part >= 3 && R.now() - R.partT0 > 2000 && R.videos.length === n && R.videos.every(v => v.info.byte > 0); }, VIDEOS.length, { timeout: 30000 });
+    await game.evaluate(() => __natpfTennis.natpfUi.diag.stop());
+    await game.waitForFunction(() => !__natpfTennis.natpfUi.diag.recorder.active && !__natpfTennis.natpfUi.diag.busy, null, { timeout: 60000 });
+    const parts = await game.evaluate(async () => {
+      const d = __natpfTennis.natpfUi.diag, g = d.recorder.meta.gruppo; d.recorder.rotateMs = 30*60*1000;
+      return (await d.store.list()).filter(s => s.gruppo === g).sort((a, b) => a.parte - b.parte).map(s => ({ id: s.id, parte: s.parte, ended: s.ended, precedente: s.precedente || null, prossima: s.prossima || null }));
+    });
+    check('registrazione lunga: parti nuove da sole, collegate tra loro', parts.length >= 3 && parts.every((p, i) => p.ended && p.parte === i + 1 && (!i || p.precedente === parts[i - 1].id) && (i === parts.length - 1 || p.prossima === parts[i + 1].id)), `${parts.length} parti`);
+    const zips = []; for (const p of parts) zips.push(await fetchPackage(game, p.id));
+    // intestazione di un video completo: webm (EBML) o mp4 (ftyp)
+    const head = b => !!b && b.length > 16 && ((b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) || new TextDecoder().decode(b.slice(4, 8)) === 'ftyp');
+    check('ogni parte: pacchetto valido (CRC) con i video, ognuno con la sua intestazione', zips.every(z => VIDEOS.every(v => { const n = [...z.keys()].find(k => k.startsWith(`video-${v}.`)); return n && head(z.get(n)); })),
+      zips.map(z => [...z.keys()].filter(k => k.startsWith('video')).map(k => `${k} ${(z.get(k).length/1024).toFixed(0)} kB`).join(' + ')).join(' | '));
+    const evs = zips.map(z => lines(z.get('eventi.jsonl'))), raws = zips.map(z => (z.has('telefono-sensori.jsonl') ? lines(z.get('telefono-sensori.jsonl')) : []));
+    const jumps = evs.slice(1).map((e, i) => e[0].t - evs[i].at(-1).t);
+    const qs = raws.flat().map(k => k.q).filter(Number.isInteger), qMin = Math.min(...qs), qMax = Math.max(...qs), missing = qMax - qMin + 1 - new Set(qs).size;
+    // al confine tra due parti nessun numero saltato (i campioni viaggiano senza ordine: si guardano massimo e minimo)
+    const edges = raws.slice(1).map((rw, i) => { const a = raws[i].map(k => k.q), b = rw.map(k => k.q); return a.length && b.length ? Math.min(...b) - Math.max(...a) : null; });
+    check('cambio di parte senza buchi: stesso orologio, eventi e campioni del telefono continui', jumps.every(j => j >= 0 && j < 1000) && edges.every(e => e != null && e <= 1) && missing <= Math.ceil(qs.length*.005) && qs.length > 300,
+      `salto tra le parti ${jumps.map(j => j.toFixed(0)).join(', ')} ms · campioni ${qs.length}, mancanti ${missing} · confini ${edges.join(', ')}`);
+  }
+  if (PARTS.includes('E')){
+    /* ---------- E. spazio su disco quasi finito ---------- */
+    await game.evaluate(v => {
+      const d = __natpfTennis.natpfUi.diag; d.opts.webcamVideo = v.includes('webcam'); d.opts.gameVideo = v.includes('gioco'); d.recorder.spaceEveryMs = 1000;
+      window.__free = 5e9; navigator.storage.estimate = async () => ({ quota: 1e11, usage: 1e11 - window.__free });
+      return d.start();
+    }, VIDEOS);
+    await game.waitForFunction(() => __natpfTennis.natpfUi.diag.recorder.active, null, { timeout: 15000 });
+    const idE = await game.evaluate(() => __natpfTennis.natpfUi.diag.recorder.id);
+    await swingLoop(phone, 4000);
+    await game.evaluate(() => { window.__free = 150*1024*1024; });
+    if (VIDEOS.length) await game.waitForFunction(() => __natpfTennis.natpfUi.diag.recorder.videoOff === 'spazio', null, { timeout: 10000 });
+    await swingLoop(phone, 4000);
+    await game.evaluate(() => { window.__free = 40*1024*1024; });
+    await game.waitForFunction(() => !__natpfTennis.natpfUi.diag.recorder.phoneSamples, null, { timeout: 10000 });
+    await swingLoop(phone, 3000);
+    await game.evaluate(() => { window.__free = 10*1024*1024; });
+    await game.waitForFunction(() => !__natpfTennis.natpfUi.diag.recorder.active && !__natpfTennis.natpfUi.diag.busy, null, { timeout: 30000 });
+    const toast = await game.evaluate(() => { delete navigator.storage.estimate; __natpfTennis.natpfUi.diag.recorder.spaceEveryMs = 10000; return document.getElementById('natpf-toast')?.textContent || ''; });
+    const evE = lines((await fetchPackage(game, idE)).get('eventi.jsonl'));
+    const at = c => evE.find(e => e.k === 'avviso' && e.codice === c)?.t;
+    const vEnd = evE.filter(e => e.k === 'video' && e.stato === 'fine');
+    const perfAfter = evE.filter(e => e.k === 'prestazioni' && e.t > (at('spazio-video') ?? at('spazio-campioni'))).length;
+    check('spazio quasi finito: video fermati (il registro continua), poi campioni, poi chiusura da sola, con avviso a chi gioca',
+      (!VIDEOS.length || (at('spazio-video') != null && vEnd.length === VIDEOS.length)) && at('spazio-campioni') != null && at('spazio') != null && perfAfter >= 3 && evE.at(-1).k === 'sessione.fine' && /spazio/.test(toast),
+      `avvisi ${evE.filter(e => e.k === 'avviso').map(e => `${e.codice}@${(e.t/1000).toFixed(1)}s`).join(', ')} · prestazioni dopo il primo avviso ${perfAfter} · «${toast}»`);
+  }
   if (PARTS.includes('B')){
     /* ---------- B. sessione interrotta da una ricarica ---------- */
     await game.evaluate(() => __natpfTennis.natpfUi.diag.start());

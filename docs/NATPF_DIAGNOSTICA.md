@@ -23,7 +23,8 @@ Serve a migliorare il gioco con dati veri invece che con impressioni. Il ciclo �
    - **Maiusc+M** segna un momento («qui il colpo era sbagliato»).
    - Non c'è un limite di durata.
 4. **Maiusc+D → ■ Ferma la registrazione**. Il pannello mostra un riassunto in parole.
-5. **⬇ Scarica il pacchetto**: uno zip. Estrailo e apri `rapporto.html` con un doppio clic.
+5. **⬇ Scarica il pacchetto**: uno zip. Estrailo e apri `rapporto.html` con un doppio clic. Una registrazione lunga
+   si salva in parti da 30 minuti: ogni parte compare nell'elenco («parte 2», «parte 3»…) e si scarica da sola.
 6. Per confrontare due sessioni, spunta **confronta** su tutte e due: compare la tabella prima/dopo.
 
 **Prova guidata dei colpi**, circa 4 minuti, dal menu principale:
@@ -85,10 +86,23 @@ I campioni grezzi del telefono stanno in un file a parte, `telefono-sensori.json
   - Video in pezzi da 1 s, scritti allo stesso modo.
   - CRC calcolato mentre i dati arrivano.
 - **Disco in ritardo.** Se la coda supera 24 MB, si saltano i campioni del telefono di quel giro e si annota un avviso (`coda`): il gioco non rallenta mai per aspettare il disco.
+- **Rotazione.** Una registrazione lunga passa da sola a una parte nuova ogni 30 minuti o oltre 1 GB.
+  - Stesso orologio: `t` continua dalla prima parte.
+  - Parti collegate: `parte`, `precedente`, `prossima`, `gruppo` in `sessione.json`.
+  - Ogni parte è un pacchetto completo, con i suoi video e le sue metriche.
+  - Al cambio i video si chiudono con gli ultimi pezzi e ripartono sullo stesso flusso della webcam. Gli eventi arrivati nel frattempo finiscono nella parte nuova: nessun buco né doppione, e i campioni del telefono restano numerati di seguito.
+  - Così nessun pacchetto si avvicina al limite dello zip (4 GB) e le metriche si calcolano su una parte alla volta.
+- **Spazio su disco.** Ogni 10 s si legge la stima dello spazio libero del browser:
+  - sotto 200 MB si fermano i video, che sono la parte più pesante (fino a circa 1,3 GB all'ora con tutti e due, ai bitrate impostati; in 10 s al massimo ~4 MB), e il registro continua;
+  - sotto 50 MB si fermano anche i campioni del telefono;
+  - sotto 20 MB la registrazione si chiude da sola, prima che le scritture falliscano.
+  
+  Chi gioca vede un avviso a ogni passo, e il registro lo annota (`spazio-video`, `spazio-campioni`, `spazio`). Nessuna sessione si cancella da sola: si eliminano dal pannello.
+- **Analisi a righe.** Metriche e rapporto si calcolano nel worker, leggendo il registro a pezzi e tenendo in memoria solo gli eventi che servono (`diag_analysis.js`): il thread del gioco non legge mai il registro, nemmeno per preparare il pacchetto.
 - **Recupero.** `meta.json` viene riscritto ogni 3 s. Se la pagina si chiude o il browser si blocca, al riavvio la sessione compare come «Interrotta», con i dati fino all'ultimo pezzo scritto. **Recupera** ricalcola dimensioni e CRC, poi si scarica come le altre.
 - **Costo misurato.** Ogni secondo `prestazioni.regMs` registra i ms che il registratore ha usato sul thread del gioco. La prova nel browser richiede meno di 20 ms al secondo, cioè il 2%, e nessuna scrittura oltre 8 ms.
 - **Senza file system privato** (browser vecchi): la sessione resta in memoria, con un limite di 300 MB e senza recupero. Il pannello lo dice.
-- **Pacchetto.** Uno zip senza compressione: i file su disco entrano per riferimento, senza copie in memoria. Il limite è 4 GB.
+- **Pacchetto.** Uno zip senza compressione: i file su disco entrano per riferimento, senza copie in memoria. Il limite dello zip (4 GB) non si raggiunge, perché le parti si chiudono a 1 GB.
 
 ## Cosa si misura da solo e cosa no
 
@@ -142,12 +156,12 @@ node scripts/diag/diag.mjs confronta prima.zip dopo.zip   # codice 2 se qualcosa
 - **Codice:** `natpf-tennis/src/natpf/diag/`:
   - `diag_recorder.js`: registratore;
   - `diag_store.js` e `diag_worker.js`: disco;
-  - `diag_metrics.js`, `diag_zip.js`, `diag_viewer.js`, `diag_export.js`;
+  - `diag_metrics.js`, `diag_analysis.js` (analisi a righe), `diag_zip.js`, `diag_viewer.js`, `diag_export.js`;
   - `diag_protocol.js`: prova guidata.
 - **Pannello:** `natpf_diag.js`.
 - **Prove:**
   - `natpf-tennis/test/natpf-diag.test.mjs`, unitarie;
-  - `tools/e2e/natpf-diag-session.mjs`, nel browser: sessione di 150 s, ricarica a metà, prova guidata.
+  - `tools/e2e/natpf-diag-session.mjs`, nel browser: sessione di 150 s, registrazione in parti (una ogni 6 s nella prova), spazio su disco quasi finito, ricarica a metà, prova guidata.
 - **Limiti:**
   - le prove usano sensori sintetici, una webcam finta e grafica software;
   - la prima sessione vera con telefono e webcam conferma i numeri reali.

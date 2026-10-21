@@ -56,9 +56,14 @@ export function shotDirection(landingX, contactSide){
 // colpo richiesto nella prova guidata: «normale» vale per dritto e rovescio piatti o arrotati
 const NORMAL = new Set(['topspin', 'flat', 'drive', 'normale']);
 export const sameShot = (want, got) => (want === 'normale' ? NORMAL.has(String(got || '').toLowerCase()) : String(want) === String(got || '').toLowerCase());
-export function computeMetrics(events, { raw = [], meta = {} } = {}){
+// tipi di evento che le metriche leggono: l'analisi a righe (diag_analysis.js) tiene in memoria solo questi
+export const METRIC_KINDS = new Set(['tel.colpo', 'tel.orologio', 'tel.stato', 'tel.link', 'webcam.frame', 'webcam.evento', 'prestazioni',
+  'colpo.gioco', 'input', 'punto', 'rimbalzo', 'tentativo', 'atteso', 'avviso', 'video']);
+// events: tutti gli eventi, oppure solo quelli di METRIC_KINDS con eventi (quanti erano in tutto) e spanMs (dal primo
+// all'ultimo); raw: campioni del telefono (bastano k e q)
+export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spanMs = null } = {}){
   const by = k => events.filter(e => e.k === k);
-  const durata = events.length ? (events.at(-1).t - events[0].t)/1000 : 0;
+  const durata = Number.isFinite(spanMs) ? spanMs/1000 : events.length ? (events.at(-1).t - events[0].t)/1000 : 0;
   const out = { versione: 1, durataS: r1(meta.durationS ?? durata), controller: meta.controller ?? null, trasporto: meta.transport ?? null };
 
   // ---- telefono ----
@@ -161,7 +166,7 @@ export function computeMetrics(events, { raw = [], meta = {} } = {}){
 
   // ---- registrazione ----
   out.registrazione = {
-    eventi: events.length, campioniTelefono: raw.length, avvisi: tally(by('avviso'), a => a.codice || a.testo),
+    eventi: eventi ?? events.length, campioniTelefono: raw.length, avvisi: tally(by('avviso'), a => a.codice || a.testo),
     perditeRegistratore: by('avviso').filter(a => a.codice === 'coda').reduce((s, a) => s + (a.persi || 0), 0),
     video: by('video').filter(v => v.stato === 'fine').map(v => ({ file: v.file, durataS: r1(v.durataS), MB: r1(v.byte/1048576) })),
   };

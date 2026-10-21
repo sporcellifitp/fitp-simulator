@@ -23,15 +23,26 @@ function workerStore(){
     list: () => call({ op: 'list' }).then(r => r.sessions),
     recover: id => call({ op: 'recover', id }).then(r => r.meta),
     metrics: id => call({ op: 'metrics', id }).then(r => r.metrics),
+    // metriche ed eventi del rapporto già serializzati (letti a righe nel worker)
+    report: id => call({ op: 'report', id }).then(r => ({ metrics: r.metrics, eventsJson: r.eventsJson })),
     remove: id => call({ op: 'remove', id }),
     // file di una sessione chiusa (su disco: nessuna copia in memoria anche per video lunghi)
     async file(id, name){ return (await (await dir(id)).getFileHandle(name)).getFile(); },
   };
 }
 
-const concat = parts => { const n = parts.reduce((a, p) => a + p.length, 0), out = new Uint8Array(n); let o = 0; for (const p of parts){ out.set(p, o); o += p.length; } return out; };
 export function memoryStore(){
   const sessions = new Map(); let total = 0;
+  // stessa analisi a righe del worker
+  const report = async (id, viewer = true) => {
+    const s = sessions.get(id); if (!s) return null;
+    const { createAnalysis, lineSplitter } = await import('./diag_analysis.js');
+    const a = createAnalysis({ viewer });
+    const feed = (name, fn) => { const split = lineSplitter(fn), dec = new TextDecoder(); for (const p of s.parts.get(name) || []) split.push(dec.decode(p, { stream: true })); split.push(dec.decode()); split.end(); };
+    feed('eventi.jsonl', e => a.event(e)); feed('telefono-sensori.jsonl', k => a.raw(k));
+    const out = a.result(s.meta); s.meta.metrics = out.metrics;
+    return out;
+  };
   return {
     kind: 'memory',
     probe: async () => ({}),
@@ -55,13 +66,8 @@ export function memoryStore(){
     },
     async list(){ return [...sessions.values()].map(s => ({ ...s.meta })).sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0)); },
     async recover(id){ return sessions.get(id)?.meta || null; },
-    async metrics(id){
-      const s = sessions.get(id); if (!s) return null;
-      const { computeMetrics } = await import('./diag_metrics.js');
-      const lines = name => { const out = []; for (const l of new TextDecoder().decode(concat(s.parts.get(name) || [])).split('\n')) if (l) try { out.push(JSON.parse(l)); } catch {} return out; };
-      const m = computeMetrics(lines('eventi.jsonl'), { raw: lines('telefono-sensori.jsonl'), meta: s.meta });
-      s.meta.metrics = m; return m;
-    },
+    async metrics(id){ return (await report(id, false))?.metrics ?? null; },
+    report,
     async remove(id){ const s = sessions.get(id); if (s){ for (const n of s.sizes.values()) total -= n; sessions.delete(id); } },
     async file(id, name){ const s = sessions.get(id); return new Blob(s?.parts.get(name) || []); },
   };

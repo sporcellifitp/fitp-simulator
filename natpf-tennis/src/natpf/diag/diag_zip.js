@@ -1,6 +1,7 @@
 // Zip senza compressione (metodo «stored») per il pacchetto diagnostico: i file già su disco (video, eventi) entrano
 // per riferimento in un Blob, senza copiarli in memoria; il CRC arriva già calcolato dal worker. Limite 4 GB (niente
-// zip64): per sessioni più grandi si scarica la cartella. readZip legge gli zip «stored» (script di confronto, test).
+// zip64): non si raggiunge, perché le registrazioni lunghe passano a una parte nuova a 1 GB. readZip legge gli zip
+// «stored» (script di confronto, test).
 import { crc32 } from './diag_crc.js';
 const enc = new TextEncoder();
 const LIMIT = 0xffffffff;
@@ -18,7 +19,7 @@ export function zipBlob(entries, { date = new Date() } = {}){
     if (typeof data === 'string') data = enc.encode(data);
     if (data instanceof Uint8Array){ size = data.length; crc = e.crc ?? crc32(data); }
     else { size = data.size; crc = e.crc; if (!Number.isInteger(crc)) throw new Error(`CRC mancante per ${e.name}`); }
-    if (size > LIMIT || offset > LIMIT) throw new Error('pacchetto oltre 4 GB: scarica la cartella della sessione');
+    if (size > LIMIT || offset > LIMIT) throw new Error('pacchetto oltre 4 GB');
     const name = enc.encode(e.name), h = new DataView(new ArrayBuffer(30));
     h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
     h.setUint16(10, time, true); h.setUint16(12, day, true); h.setUint32(14, crc >>> 0, true); h.setUint32(18, size, true); h.setUint32(22, size, true);
@@ -35,7 +36,7 @@ export function zipBlob(entries, { date = new Date() } = {}){
     h.setUint16(28, c.name.length, true); h.setUint32(42, c.offset, true);
     parts.push(h.buffer, c.name); offset += 46 + c.name.length;
   }
-  if (offset > LIMIT) throw new Error('pacchetto oltre 4 GB: scarica la cartella della sessione');
+  if (offset > LIMIT) throw new Error('pacchetto oltre 4 GB');
   const eocd = new DataView(new ArrayBuffer(22));
   eocd.setUint32(0, 0x06054b50, true); eocd.setUint16(8, central.length, true); eocd.setUint16(10, central.length, true);
   eocd.setUint32(12, offset - start, true); eocd.setUint32(16, start, true);
