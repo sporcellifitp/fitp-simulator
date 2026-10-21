@@ -555,6 +555,12 @@ export class MotionController {
     o && ((this.motionVector.vx = o.vx), (this.motionVector.vy = o.vy), (this.motionVector.mag = o.mag));
     this.onTrack && this._diagFrame(e, s);
     for (const v of evs) {
+      // NATPF: conferma di un colpo anticipato (arriva dopo l'impatto): solo diagnostica, al gioco niente
+      if (v.type === "confirm") {
+        const p = v.early || {};
+        this.onTrack && this._diag({ kind: "confirm", t: e, captureT: s.t, source: s.src, side: v.side, shotType: v.shotType, reason: `${v.agree ? "come il colpo anticipato" : `diverso dal colpo anticipato (${p.side || "-"} ${p.shotType || "-"})`}: ${v.why}` });
+        continue;
+      }
       this.lastWebcamTriggerMs = e;
       this.onTrack && this._diag({ kind: "event", t: e, captureT: s.t, source: s.src, type: v.type, side: v.side, shotType: v.shotType, speed: v.speed, dirX: v.dirX, dirY: v.dirY, reason: v.why });
       v.type === "toss"

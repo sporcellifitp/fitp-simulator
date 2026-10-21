@@ -1,13 +1,14 @@
 // Colpi della webcam (src/natpf/webcam_strokes.js dentro motion_controls.js): sottoinsieme veloce del banco completo
 // scripts/audit/webcam-sweep.mjs con le stesse soglie d'accettazione. Swing secchi in 2D per pendenza (destro e
 // mancino, 4:3 e 16:9), colpi completi in 3D, folla, lancio del servizio, scelta della mano, mancino nei ripieghi,
-// istante di cattura dei fotogrammi, flusso ottico di riserva e aggancio della diagnostica (onTrack).
+// istante di cattura dei fotogrammi, flusso ottico di riserva, aggancio della diagnostica (onTrack) e, nel motore
+// vero, lo swing che arriva prima della palla.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MotionController } from '../src/motion_controls.js';
 import { NatpfHand } from '../src/natpf/natpf_hand.js';
 import { createStrokeTracker, pickHand, handPoint, handSize } from '../src/natpf/webcam_strokes.js';
-import { runSweep, runTrial, runCrowd, runDropout, sweep, engineView, handLandmarks, makeFake } from './webcam-sim.mjs';
+import { runSweep, runTrial, runCrowd, runDropout, engineSwings, sweep, engineView, handLandmarks, makeFake } from './webcam-sim.mjs';
 
 const MC = MotionController, tracker = () => createStrokeTracker();
 const pct = (n, d) => `${(100*n/d).toFixed(0)}% (${n}/${d})`;
@@ -63,7 +64,7 @@ test('swing secchi da fermo (2D): lato giusto, niente pallonetti fino a pendenza
   assert.ok(single >= .98*rows.length, `un solo evento ${pct(single, rows.length)}`);
 });
 
-test('colpi completi (3D, preparazione e ritorno): un evento nel colpo, nessuno nella preparazione; pallonetto e schiacciata', () => {
+test('colpi completi (3D, preparazione e ritorno): un evento, prima dell\'impatto, nessuno nella preparazione; schiacciata', () => {
   const CAMS = [{ Hc: 1.1, tiltDeg: 0, aspect: 4/3 }, { Hc: 1.9, tiltDeg: 20, aspect: 16/9 }];
   const WANT = { FH_TOP: 'forehand', BH_TOP: 'backhand', FH_SLICE: 'forehand', BH_FLAT: 'backhand' };
   const rows = [];
@@ -72,8 +73,8 @@ test('colpi completi (3D, preparazione e ritorno): un evento nel colpo, nessuno 
     for (const tempo of [.7, 1]) for (const D of [1.5, 2.5]) for (const [fps, lat] of [[30, 22], [30, 45]]) for (const dropK of [.3, 1]){
       const r = runTrial(MC, { stroke, hand, tempo, D, cam, fps, lat, dropK, seed: seed++, tracker: tracker() });
       const { tFwd, tContact } = r.path, ev = r.events.filter(e => e.ts >= -.05);
-      const fwd = ev.find(e => e.ts >= tFwd - .05 && e.ts <= tContact + .35);
-      rows.push({ stroke, n: ev.length, prep: ev.some(e => e.ts < tFwd - .05), v: engineView(fwd, hand) });
+      const fwd = ev.find(e => e.ts >= tFwd - .05 && e.ts <= tContact + .35), conf = r.confirms.find(c => c.ts >= tFwd - .05);
+      rows.push({ stroke, n: ev.length, prep: ev.some(e => e.ts < tFwd - .05), v: engineView(fwd, hand), dt: fwd ? 1000*(fwd.ts - tContact) : null, conf: conf && engineView({ ...conf, kind: 'swing' }, hand) });
     }
   const ground = rows.filter(r => WANT[r.stroke]), side = ground.filter(r => r.v.side === WANT[r.stroke]).length;
   assert.ok(side >= .95*ground.length, `lato giusto ${pct(side, ground.length)}`);
@@ -82,8 +83,14 @@ test('colpi completi (3D, preparazione e ritorno): un evento nel colpo, nessuno 
   const single = rows.filter(r => r.n <= 1).length, clean = rows.filter(r => !r.prep).length;
   assert.ok(single >= .98*rows.length, `un solo evento ${pct(single, rows.length)}`);
   assert.ok(clean >= .95*rows.length, `nessun evento nella preparazione ${pct(clean, rows.length)}`);
-  const L = rows.filter(r => r.stroke === 'FH_LOB'), lob = L.filter(r => /lob/.test(r.v.shot || '')).length;
-  assert.ok(lob >= .9*L.length, `pallonetto voluto ${pct(lob, L.length)}`);
+  // il colpo arriva al gioco prima dell'impatto (il gioco lo tiene fino allo sweet spot): mediana ≤ 0, 90° ≤ +60 ms
+  const dts = ground.map(r => r.dt).filter(v => v != null).sort((a, b) => a - b), at = p => dts[Math.floor(p*(dts.length - 1))];
+  assert.ok(at(.5) <= 0 && at(.9) <= 60, `evento − impatto: mediana ${at(.5).toFixed(0)} ms, 90° ${at(.9).toFixed(0)} ms`);
+  // pallonetto voluto: con la camera di fronte la salita ripida arriva dopo l'impatto, quando il colpo anticipato è già
+  // partito (col lato giusto); il tipo lo dice solo la conferma per la diagnostica
+  const L = rows.filter(r => r.stroke === 'FH_LOB'), lobSide = L.filter(r => r.v.side === 'forehand').length, lobConf = L.filter(r => /lob/.test(r.conf?.shot || '')).length;
+  assert.ok(lobSide >= .95*L.length, `pallonetto voluto, lato giusto ${pct(lobSide, L.length)}`);
+  assert.ok(lobConf >= .6*L.length, `pallonetto voluto, nella conferma ${pct(lobConf, L.length)}`);
   const S = rows.filter(r => r.stroke === 'SMASH'), smash = S.filter(r => r.v.shot === 'smash').length;
   assert.ok(smash >= .8*S.length, `schiacciata ${pct(smash, S.length)}`);
 });
@@ -167,6 +174,9 @@ test('diagnostica (onTrack): un richiamo per fotogramma elaborato e uno per colp
   assert.equal(h.hands, 1); assert.equal(h.chosen, 0); assert.ok(h.captureT <= h.t);
   assert.equal(events.length, 1);
   assert.equal(events[0].side, 'backhand'); assert.equal(events[0].source, 'hands'); assert.ok(events[0].reason);
+  // il colpo era anticipato: la conferma alla fine del gesto arriva solo alla diagnostica
+  const conf = log.filter(d => d.kind === 'confirm');
+  assert.equal(conf.length, 1); assert.equal(conf[0].side, 'backhand'); assert.match(conf[0].reason, /come il colpo anticipato/);
   assert.deepEqual(log.filter(d => d.kind === 'lost' || d.kind === 'found').map(d => d.kind), ['found', 'lost', 'found']);
   // senza aggancio non succede niente di diverso
   const f2 = makeFake(MC, { tracker: tracker() });
@@ -221,21 +231,23 @@ test('come la prova nel browser (test/e2e/lan-e2e.mjs, webcam): pose lente senza
   } finally { performance.now = realNow; }
   const before = f.events.filter(e => e.t < swingAt), after = f.events.filter(e => e.t >= swingAt);
   assert.equal(before.length, 0, `colpi durante le pose: ${JSON.stringify(before)}`);
-  assert.deepEqual(after.map(e => `${e.kind}:${e.side}`), ['swing:backhand']);
+  // come nella prova e2e conta che parta un colpo, uno solo: lo swing finto comincia con un salto della mano di lato
+  assert.equal(after.length, 1, JSON.stringify(after)); assert.equal(after[0].kind, 'swing');
 });
 
-test('riconoscimento: un salto tra mano e flusso ottico non è un colpo; lo swing dopo un salto lontano dal riposo sì', () => {
+test('riconoscimento: un salto tra mano e flusso ottico non è un colpo; uno swing di lato è un solo colpo, anticipato', () => {
   const tr = createStrokeTracker(), ev = [];
   for (let t = 0; t <= 1000; t += 33) ev.push(...tr.push({ t, x: .3, y: .5, src: 'hands', scale: .04 }));
   for (let t = 1033; t <= 2000; t += 33) ev.push(...tr.push({ t, x: .7, y: .5, src: 'flow' }));
   assert.equal(ev.length, 0);
-  // il salto all'indietro e lo swing che va ben oltre il punto di partenza (come lo swing finto della prova nel browser)
-  const t2 = createStrokeTracker(), out = []; let x = .5;
+  // swing di lato da fermo verso destra (rovescio del destro): il colpo parte nella prima metà, poi solo la conferma
+  const t2 = createStrokeTracker(), out = []; let x = .34;
   for (let t = 0; t <= 4000; t += 1000/60){
-    for (let i = 0; i <= 5; i++) if (t >= 3000 + 34*i) x = .34 + .07*i;
-    out.push(...t2.push({ t, x, y: .53, src: 'hands', scale: .09 }));
+    for (let i = 0; i <= 10; i++) if (t >= 3000 + 17*i) x = .34 + .35*(1 - Math.cos(Math.PI*i/10))/2;
+    for (const e of t2.push({ t, x, y: .53, src: 'hands', scale: .09 })) out.push({ ...e, at: t - 3000 });
   }
-  assert.deepEqual(out.map(e => `${e.type}:${e.side}`), ['swing:backhand']);
+  assert.deepEqual(out.map(e => `${e.type}:${e.side}`), ['swing:backhand', 'confirm:backhand']);
+  assert.ok(out[0].early && out[0].at < 90, `colpo a ${out[0].at.toFixed(0)} ms di uno swing di 170 ms`);
 });
 
 test('nel gioco (motore e interfaccia veri): la mano scelta e il lancio accettato arrivano al controller della webcam', async () => {
@@ -248,4 +260,21 @@ test('nel gioco (motore e interfaccia veri): la mano scelta e il lancio accettat
   w.ui.hand.set('left');
   assert.equal(mc.handPreference, 'left');
   w.ui.hand.set('right');
+});
+
+test('nel motore: lo swing della webcam arriva prima della palla, viene tenuto fino allo sweet spot e non è in ritardo', async () => {
+  // colpi a rimbalzo simulati: il colpo che esce dal riconoscimento e quando arriva rispetto all'impatto del gesto
+  const CAMS = [{ Hc: 1.1, tiltDeg: 0, aspect: 4/3 }, { Hc: 1.9, tiltDeg: 20, aspect: 16/9 }], swings = [];
+  let seed = 500;
+  for (const stroke of ['FH_TOP', 'BH_TOP', 'FH_FLAT', 'BH_SLICE']) for (const cam of CAMS) for (const [fps, lat] of [[30, 22], [30, 45]]) for (const tempo of [.7, 1, 1.4]){
+    const r = runTrial(MC, { stroke, tempo, cam, fps, lat, D: 2, seed: seed++, tracker: tracker() });
+    const ev = r.events.find(e => e.kind === 'swing' && e.ts >= r.path.tFwd - .05);
+    if (ev) swings.push({ dt: ev.ts - r.path.tContact, side: ev.side, shotType: ev.shotType, speed: ev.speed, dirX: ev.dirX, dirY: ev.dirY });
+  }
+  assert.ok(swings.length >= 45, `colpi riconosciuti ${swings.length}/48`);
+  // nel motore: la palla della CPU arriva, il gesto ha l'impatto quando la palla è allo sweet spot e il colpo arriva
+  // al gioco con lo stesso scarto. Prima (evento ~0,15–0,25 s dopo l'impatto) la palla era già 2–4 m oltre: VERY LATE
+  const out = await engineSwings(swings, { difficulty: 'casual' }), n = out.length, by = g => out.filter(o => o.grade === g).length;
+  const held = out.filter(o => o.held).length, onTime = by('PERFECT') + by('EARLY'), bad = by('VERY LATE') + by('WHIFF') + by('niente');
+  assert.ok(onTime >= .85*n && bad <= .08*n && held >= .25*n, `tenuti ${pct(held, n)}, PERFECT o EARLY ${pct(onTime, n)}, VERY LATE o a vuoto ${pct(bad, n)}: ${JSON.stringify(out.map(o => o.grade))}`);
 });

@@ -20,7 +20,13 @@
 //   e inclinata la mano che si avvicina scende nell'immagine);
 // - lancio di palla solo quando il gioco lo accetta (canToss: al proprio servizio); nello scambio lo stesso gesto
 //   segue le regole dei colpi;
-// - cambio di sorgente (mano ↔ flusso ottico) o una pausa lunga nei campioni: il viaggio riparte da lì.
+// - cambio di sorgente (mano ↔ flusso ottico) o una pausa lunga nei campioni: il viaggio riparte da lì;
+// - colpo anticipato: il gioco tiene lo swing fino allo sweet spot solo se arriva prima della palla, quindi il colpo
+//   parte durante l'avanzamento, prima dell'impatto, con lato e tipo provvisori: quando dopo la preparazione la mano
+//   torna verso la camera (la taglia cresce: con la camera di fronte il moto di lato arriva dopo l'impatto) o appena
+//   il moto di lato è chiaramente veloce. Il resto del gesto, quando la mano rallenta, si classifica di nuovo: solo una
+//   conferma per la diagnostica (type 'confirm', dopo l'impatto), mai un secondo colpo. Il pallonetto, che sale
+//   soprattutto dopo l'impatto, di solito lo riconosce solo la conferma.
 // Le uscite (velocità, dirX, dirY) restano quelle del motore base, misurate sugli ultimi 160 ms in unità dell'immagine.
 export const WEBCAM_STROKE = Object.freeze({
   scaleRef: .0395,              // polso–nocca del medio (larghezze) di una mano adulta a ~2 m, webcam da ~62°
@@ -56,6 +62,17 @@ export const WEBCAM_STROKE = Object.freeze({
   homeStill: .3, homeTau: 1.5,  // posizione di riposo per le altezze: mano ferma da homeStill s, media su homeTau s
   flow: 1.3,                    // traccia del flusso ottico (rumorosa): soglie più alte
   gap: 350,                     // ms senza campioni (mano persa a lungo, flusso fermo): il viaggio riparte
+  // colpo anticipato, prima dell'impatto: il gioco tiene lo swing fino allo sweet spot solo se arriva prima della palla
+  aWin: 90, aSpan: 50,          // ms: finestra e durata minima per la velocità di avvicinamento alla camera
+  gEarly: .08,                  // dopo la preparazione la mano è tornata verso la camera di tanto (ln della taglia dal minimo)...
+  aEarly: .7,                   // ... e si avvicina ancora almeno così (1/s)
+  aAway: .4,                    // 1/s: la mano che si allontana dalla camera è la preparazione, non il colpo
+  gPrep: .08,                   // la preparazione ha portato la mano lontano dalla camera almeno così (ln della taglia)
+  prepEarly: .08,               // preparazione minima (u) perché l'avvicinamento sia il colpo
+  vEarly: 1.1, dEarly: .04,     // swing di lato deciso appena va così veloce (u/s, velocità sugli ultimi 28 ms) e ha fatto così (u)
+  sliceEarly: -.6,              // colpo anticipato: la mano che adesso scende così (u/s) è un tagliato
+  earlyLead: .35,               // s dal colpo anticipato al momento in cui il ritorno dopo il colpo si comincia a contare
+                                // (come quando il colpo si decideva dopo l'impatto)
   window: 160,                  // ms per velocità e direzione in uscita (come il motore base)
 });
 const hyp = Math.hypot, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -112,6 +129,7 @@ export function createStrokeTracker(opt = {}){
   const C = { ...WEBCAM_STROKE, ...opt }, TR = typeof opt.trace === 'function' ? opt.trace : null;
   let k = 1, kSamples = [], home = null, hist = [], seg = null, pend = null, rec = null, stillSince = null, last = null, tossAt = -1e9;
   let rest = null, trip = null;          // ultimo punto in cui la mano era ferma e viaggio da lì (estremi, velocità)
+  let zh = [], early = null;             // ln della taglia della mano nel tempo; colpo anticipato del viaggio
   const state = { get k(){ return k; }, get home(){ return home; }, get phase(){ return rec ? 'ritorno' : seg ? (seg.kind === 'after' ? 'colpo' : 'movimento') : pend ? 'attesa' : 'ferma'; } };
 
   // velocità (u/s, già divisa per la scala) dal campione di almeno 45 ms prima, stessa sorgente
@@ -120,11 +138,11 @@ export function createStrokeTracker(opt = {}){
     for (let i = hist.length - 2; i >= 0; i--){ const q = hist[i]; if (q.src !== s.src) return null; if (s.t - q.t >= 150) return hyp(s.x - q.x, s.u - q.u)/((s.t - q.t)/1000)/k; }
     return null;
   }
-  function velocity(s){
+  function velocity(s, base = 45){
     for (let i = hist.length - 2; i >= 0; i--){
       const q = hist[i];
       if (q.src !== s.src) return null;
-      if (s.t - q.t >= 45) return { x: (s.x - q.x)/((s.t - q.t)/1000)/k, u: (s.u - q.u)/((s.t - q.t)/1000)/k };
+      if (s.t - q.t >= base) return { x: (s.x - q.x)/((s.t - q.t)/1000)/k, u: (s.u - q.u)/((s.t - q.t)/1000)/k };
     }
     return null;
   }
@@ -144,7 +162,18 @@ export function createStrokeTracker(opt = {}){
   const upright = D => D.u > 0 && D.u > 1.15*Math.abs(D.x);
   const newSeg = (from, kind) => ({ p0: pt(from), end: pt(from), t0: from.t, peak: 0, peakX: 0, kind, done: false, slow: 0 });
   // low[dir]: punto più basso dopo l'estremo in quel verso (il fondo dell'anello dopo la preparazione)
-  function startTrip(p){ rest = pt(p); trip = { xMax: pt(p), xMin: pt(p), uMax: pt(p), uMin: pt(p), peak: 0, low: { 1: pt(p), '-1': pt(p), 0: pt(p) } }; }
+  function startTrip(p){ rest = pt(p); trip = { xMax: pt(p), xMin: pt(p), uMax: pt(p), uMin: pt(p), peak: 0, low: { 1: pt(p), '-1': pt(p), 0: pt(p) }, zMin: null }; early = null; }
+  // ln della taglia della mano adesso (media degli ultimi due campioni, meno rumore)
+  const zNow = () => (zh.length >= 2 ? (zh[zh.length - 1].z + zh[zh.length - 2].z)/2 : null);
+  // velocità d'avvicinamento alla camera (1/s): pendenza di ln(taglia della mano) sugli ultimi aWin ms
+  function approach(){
+    const n = zh.length; if (n < 2) return null;
+    let i = n - 1; while (i > 0 && zh[n - 1].t - zh[i - 1].t <= C.aWin) i--;
+    const w = zh.slice(i); if (w.length < 2 || w[w.length - 1].t - w[0].t < C.aSpan) return null;
+    const mt = w.reduce((a, q) => a + q.t, 0)/w.length, mz = w.reduce((a, q) => a + q.z, 0)/w.length;
+    let num = 0, den = 0; for (const q of w){ num += (q.t - mt)*(q.z - mz); den += (q.t - mt)**2; }
+    return den > 0 ? num/den*1000 : null;
+  }
   // il viaggio torna indietro: dal punto più lontano di lato (dritto, rovescio, pallonetto) o dalla cima di una
   // salita quasi verticale (schiacciata). dir: verso della preparazione (+1 destra, -1 sinistra, 0 in alto)
   function tripReversal(s){
@@ -228,8 +257,9 @@ export function createStrokeTracker(opt = {}){
     if (prev && s.t <= prev.t) return out;
     // cambio di sorgente (mano ↔ flusso ottico) o troppo tempo senza campioni: posizioni non confrontabili, il viaggio
     // riparte da qui (un colpo a metà si perde, non ne nasce uno falso); il ritorno dopo un colpo continua
-    if (prev && (prev.src !== s.src || s.t - prev.t > C.gap)){ hist = []; seg = null; pend = null; stillSince = null; trip = null; }
+    if (prev && (prev.src !== s.src || s.t - prev.t > C.gap)){ hist = []; seg = null; pend = null; stillSince = null; trip = null; zh = []; }
     hist.push(s); while (hist.length > 2 && s.t - hist[0].t > 600) hist.shift();
+    if (s.src === 'hands' && fin(raw.scale) && raw.scale > 1e-4){ zh.push({ t: s.t, z: Math.log(raw.scale) }); while (zh.length > 2 && s.t - zh[0].t > 300) zh.shift(); }
     if (!trip) startTrip(s);
     const v = velocity(s);
     if (!v){ last = s; return out; }
@@ -245,10 +275,22 @@ export function createStrokeTracker(opt = {}){
     }
     // dopo un colpo: finale e ritorno non contano finché la mano non si ferma
     if (rec){
+      // dopo un colpo anticipato il resto del gesto, fino a quando la mano rallenta, si classifica di nuovo: solo una
+      // conferma per la diagnostica (arriva dopo l'impatto, quando il gioco ha già giocato lo swing), mai un secondo colpo
+      const g = rec.shadow;
+      if (g && !g.done){
+        g.end = pt(s); if (sp > g.peak) g.peak = sp;
+        g.slow = g.peak >= C.vMin*f && sp < C.vEnd*f ? (g.slow || 0) + 1 : 0;
+        if (g.slow >= 2){
+          const c = classify(g, f, v, g.prepDir), e0 = rec.early; g.done = true;
+          out.push({ type: 'confirm', side: c.stroke ? c.side : null, shotType: c.stroke ? c.shotType : null, early: e0, agree: !!c.stroke && c.side === e0.side && c.shotType === e0.shotType, why: c.why });
+          TR && TR('conferma', { t: s.t, ...c, early: e0 });
+        }
+      }
       const age = (s.t - rec.at)/1000;
       // ferma vicino al riposo, o ferma e dopo recFar s (chi resta nel finale), o comunque dopo recMax s
       const near = home && hyp(s.x - home.x, s.u - home.u)/k <= C.recNear;
-      if ((stillFor >= C.recStill && ((age >= C.recMin && near) || age >= C.recFar)) || age >= C.recMax){ rec = null; seg = null; startTrip(s); }
+      if ((stillFor >= C.recStill && ((age >= C.recMin && near) || age >= C.recFar)) || age >= C.recMax){ rec = null; seg = null; startTrip(s); trip.afterRec = stillFor < C.recStill; }
       last = s; return out;
     }
     // viaggio della mano: estremi e velocità della preparazione, contata solo mentre la mano si allontana dal riposo di
@@ -260,6 +302,9 @@ export function createStrokeTracker(opt = {}){
     if (s.u < trip.uMin.u) trip.uMin = pt(s);
     for (const d of [1, -1, 0]) if (s.u < trip.low[d].u) trip.low[d] = pt(s);
     if (away && (!seg || (seg.kind !== 'after' && !seg.toss))) trip.peak = Math.max(trip.peak, sp);
+    // colpo anticipato con la camera di fronte: dopo la preparazione la mano viene verso la camera prima di muoversi di
+    // lato (il moto di lato nell'immagine arriva soprattutto dopo l'impatto)
+    if (!early && approachEarly()){ last = s; return out; }
     // segmenti di movimento: iniziano quando la mano accelera, finiscono con due campioni lenti di fila
     if (!seg && sp >= C.vStart*f){ seg = newSeg(last || s, 'move'); TR && TR('inizio', { t: s.t, sp }); }
     if (seg){
@@ -287,6 +332,12 @@ export function createStrokeTracker(opt = {}){
       }
       const peakSeen = seg.peak >= C.vMin*f && sp < C.peakDrop*seg.peak;
       if (seg.kind === 'after'){
+        // colpo anticipato dopo la preparazione di lato: torna indietro di lato più veloce della preparazione
+        if (!early && seg.prepDir && quickSide(disp(seg), Math.max(C.vEarly, C.fwdSpeed*seg.prepPeak))){
+          const D = disp(seg), ls = v.u/Math.max(Math.abs(v.x), 1e-3), slope = D.u/Math.max(Math.abs(D.x), 1e-3);
+          emitEarly({ side: seg.prepDir > 0 ? 'forehand' : 'backhand', shotType: lobLike(seg) ? 'lob' : ls >= C.topRise ? 'topspin' : slope <= C.sliceSlope || ls <= C.sliceSlope ? 'slice' : 'topspin' }, 'anticipato: colpo di lato dopo la preparazione', seg);
+          return;
+        }
         // più lento della preparazione e fermo prima del riposo: è il ritorno di uno swing secco, non un colpo
         if (!forward(seg)) return;
         if (!peakSeen && !committed(seg, sp, f, v)) return;
@@ -301,6 +352,13 @@ export function createStrokeTracker(opt = {}){
         out.push({ type: 'toss', side: D.x > .03 ? 'backhand' : D.x < -.03 ? 'forehand' : null, shotType: 'lob', speed: o.speed, dirX: o.dirX, dirY: -.9, why: 'mano che sale di scatto' });
         seg.done = true; seg.toss = true; tossAt = s.t; TR && TR('lancio', { t: s.t }); return;
       }
+      // colpo anticipato da fermo: swing di lato appena è chiaramente veloce (le preparazioni di lato sono più lente e,
+      // con la camera di fronte, vanno lontano dalla camera); non il ritorno verso la posizione di riposo
+      if (!early && Math.abs(D.x) >= C.dEarly*f && Math.abs(D.x) >= 1.25*Math.abs(D.u) && quickSide(D) && !receding() && !homeward(seg)){
+        const ls = v.u/Math.max(Math.abs(v.x), 1e-3), slope = D.u/Math.abs(D.x);
+        emitEarly({ side: D.x > 0 ? 'backhand' : 'forehand', shotType: ls >= C.topRise ? 'topspin' : slope <= C.sliceSlope || ls <= C.sliceSlope ? 'slice' : 'topspin' }, 'anticipato: swing veloce di lato', { ...seg, prepDir: 0 });
+        return;
+      }
       // da fermo valgono subito solo lo swing veloce e orizzontale e la discesa da sopra la spalla
       const fast = seg.peakX >= C.vFast*f && Math.abs(D.x) >= 1.25*Math.abs(D.u) && (peakSeen ? hyp(D.x, D.u) >= C.dMin*f : Math.abs(D.x) >= 1.5*C.commitX*f);
       // la discesa da ferma in alto è il colpo del servizio dopo il lancio (nello scambio la schiacciata ha la sua preparazione)
@@ -309,6 +367,54 @@ export function createStrokeTracker(opt = {}){
         const c = classify(seg, f, v);
         if (c.stroke){ out.push(swing(s, c, `${smash ? 'da sopra la spalla' : 'swing veloce'}: ${c.why}`)); seg.done = true; rec = { at: s.t }; pend = null; TR && TR('colpo', { t: s.t, ...c }); }
       }
+    }
+    // velocità di lato adesso (sugli ultimi 28 ms) nel verso dello spostamento, se il moto è soprattutto di lato
+    function quickSide(D, min = C.vEarly){
+      const q = velocity(s, 28) || v;
+      return Math.sign(q.x) === Math.sign(D.x) && Math.abs(q.x) >= 1.25*Math.abs(q.u) && Math.abs(q.x) >= min*f;
+    }
+    // la mano va lontano dalla camera (la taglia cala): con la camera di fronte è la preparazione
+    function receding(){ const a = s.src === 'hands' ? approach() : null; return a != null && a < -C.aAway; }
+    // movimento partito lontano dalla posizione di riposo che ci torna: il ritorno, non un colpo
+    // (anche dopo un colpo finito col tempo massimo a mano ancora in moto: si muove verso la posizione di riposo)
+    function homeward(g){
+      if (!home) return false;
+      const b = hyp(g.p0.x - home.x, g.p0.u - home.u)/k, e = hyp(s.x - home.x, s.u - home.u)/k;
+      if (b >= .15 && e < b - .03) return true;
+      return !!trip.afterRec && e < b && (home.x - s.x)*v.x + (home.u - s.u)*v.u > 0;
+    }
+    // colpo anticipato: va subito al gioco; il resto del gesto (g, dal punto più lontano della preparazione) resta da
+    // seguire solo per la conferma. Il ritorno si conta dall'impatto previsto
+    function emitEarly(c, why, g){
+      const o = output(s);
+      out.push({ type: 'swing', side: c.side, shotType: c.shotType, speed: o.speed, dirX: o.dirX, dirY: o.dirY, vx: o.vx, vy: o.vy, mag: o.mag, why, early: true });
+      early = { t: s.t, side: c.side, shotType: c.shotType };
+      rec = { at: s.t + C.earlyLead*1000, early, shadow: { ...g, end: pt(s), peak: 0, slow: 0, done: false } };
+      if (seg) seg.done = true;
+      seg = null; pend = null;
+      TR && TR('colpo anticipato', { t: s.t, ...c, why });
+    }
+    function approachEarly(){
+      const z = s.src === 'hands' ? zNow() : null;
+      if (z == null) return false;
+      // la mano più lontana dalla camera in questo viaggio (fine della preparazione): la preparazione l'ha portata
+      // lontano (il ritorno verso la posizione d'attesa dopo il colpo invece si avvicina e basta)
+      if (trip.zRest == null) trip.zRest = z;
+      if (trip.zMin == null || z < trip.zMin) trip.zMin = z;
+      const a = approach();
+      if (a == null || a < C.aEarly || z - trip.zMin < C.gEarly || trip.zRest - trip.zMin < C.gPrep) return false;
+      const right = (trip.xMax.x - rest.x)/k, left = (rest.x - trip.xMin.x)/k, up = (trip.uMax.u - rest.u)/k;
+      let dir;
+      if (up >= C.smashPrep && up > 2.5*Math.max(right, left)) dir = 0;            // preparazione in alto: schiacciata
+      else if (Math.max(right, left) >= C.prepEarly) dir = right >= left ? 1 : -1;   // preparazione di lato
+      else return false;
+      // ancora dalla parte della preparazione (non il ritorno); al proprio servizio, prima del lancio, la mano che sale è il lancio
+      if (dir && (s.x - rest.x)*dir/k < .5*C.prepEarly) return false;
+      if (!dir && (above(s) < C.smashHigh || (raw.canToss === true && s.t - tossAt > 3000))) return false;
+      const g = { kind: 'after', p0: dir > 0 ? trip.xMax : dir < 0 ? trip.xMin : trip.uMax, end: pt(s), t0: s.t, peak: 0, peakX: 0, prepDir: dir };
+      const c = !dir ? { side: null, shotType: 'smash' } : { side: dir > 0 ? 'forehand' : 'backhand', shotType: lobLike(g) ? 'lob' : v.u <= C.sliceEarly ? 'slice' : 'topspin' };
+      emitEarly(c, `anticipato: la mano viene verso la camera (${a.toFixed(1)}/s)`, g);
+      return true;
     }
     function endSeg(g, at){
       if (g === seg) seg = null;
@@ -337,7 +443,7 @@ export function createStrokeTracker(opt = {}){
       if (c.stroke){ out.push(swing(s, c, `swing secco: ${c.why}`)); rec = { at: s.t }; TR && TR('colpo', { t: s.t, ...c }); }
     }
   }
-  function reset(){ hist = []; seg = null; pend = null; rec = null; stillSince = null; last = null; rest = null; trip = null; }
+  function reset(){ hist = []; seg = null; pend = null; rec = null; stillSince = null; last = null; rest = null; trip = null; zh = []; early = null; }
   // movimento attuale della mano per la racchetta a schermo (come il motore base: ultimi 160 ms)
   const motion = () => (last ? output(last) : null);
   return { push, reset, motion, state };
