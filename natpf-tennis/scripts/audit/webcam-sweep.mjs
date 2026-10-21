@@ -1,19 +1,22 @@
 // Banco completo dei colpi della webcam (test/webcam-sim.mjs) con i criteri d'accettazione: swing secchi in 2D per
 // pendenza, colpi completi in 3D (preparazione, colpo, ritorno) su camere, distanze, ampiezze, tempi e frequenze
 // diverse, folla (una seconda mano che entra ed esce) e lancio del servizio. Codice d'uscita 1 se un criterio manca.
-// Informativi, senza criterio: swing secco seguito dal ritorno, mano persa per il mosso (flusso ottico di riserva) e
-// passante sullo sfondo senza mani viste.
+// Il colpo che riceve il gioco va confrontato con l'impatto: il gioco tiene lo swing fino allo sweet spot solo se
+// arriva prima della palla (sezione 8: lo stesso scarto nel motore vero).
+// Informativi, senza criterio: swing secco seguito dal ritorno, mano persa per il mosso (flusso ottico di riserva),
+// passante sullo sfondo senza mani viste ed esito nel motore.
 //   node --import ./test/register.mjs scripts/audit/webcam-sweep.mjs                 codice attuale
 //   node --import ./test/register.mjs scripts/audit/webcam-sweep.mjs --prima=<file>  un motion_controls.js di prima
+//     (--riconoscimento=<file>: anche un webcam_strokes.js di prima)
 //   RAPIDO=1 riduce le griglie (circa un decimo delle prove)
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { runTrial, runSweep, runCrowd, runDropout, sweep, engineView, STROKES } from '../../test/webcam-sim.mjs';
-import { createStrokeTracker } from '../../src/natpf/webcam_strokes.js';
+import { runTrial, runSweep, runCrowd, runDropout, engineSwings, sweep, engineView, STROKES } from '../../test/webcam-sim.mjs';
 
-const arg = process.argv.find(a => a.startsWith('--prima='));
-const file = arg ? path.resolve(arg.slice(8)) : new URL('../../src/motion_controls.js', import.meta.url).pathname;
+const opt = name => { const a = process.argv.find(x => x.startsWith(`--${name}=`)); return a ? path.resolve(a.slice(name.length + 3)) : null; };
+const file = opt('prima') || new URL('../../src/motion_controls.js', import.meta.url).pathname;
 const { MotionController: MC } = await import(pathToFileURL(file).href);
+const { createStrokeTracker } = await import(opt('riconoscimento') ? pathToFileURL(opt('riconoscimento')).href : '../../src/natpf/webcam_strokes.js');
 const nuovo = typeof MC.prototype._onHandResults === 'function';
 const tracker = () => (nuovo ? createStrokeTracker() : null);
 const fast = !!process.env.RAPIDO, pick = (a, every) => (fast ? a.filter((_, i) => i % every === 0) : a);
@@ -32,7 +35,7 @@ for (const hand of ['right', 'left']) for (const side of ['FH', 'BH']) for (cons
     const dir = (side === 'FH' ? -1 : 1)*(hand === 'left' ? -1 : 1);
     const ev = runSweep(MC, { pathFn: sweep({ dir, dS, ratio, aspect, T, curve, yMid }), T, aspect, ...R, seed: seed++, hand, tracker: tracker() });
     const inSw = ev.filter(e => e.ts >= -.02 && e.ts <= T + .6);
-    sw.push({ hand, side, ratio, aspect, rate, v: engineView(inSw[0], hand), n: ev.length });
+    sw.push({ hand, side, ratio, aspect, rate, v: engineView(inSw[0], hand), n: ev.length, dt: inSw[0] ? 1000*(inSw[0].ts - T/2) : null });
   }
 console.log('\n=== Swing secchi da fermo: primo evento (vista del motore nello scambio) ===');
 for (const ratio of [-.8, -.5, -.3, 0, .3, .5, .8, 1.2]){
@@ -55,6 +58,10 @@ for (const ratio of [.3, .5, .8]){
   check(`swing secchi pendenza ${ratio}: pallonetti e lanci`, pct(L.filter(r => /lob/.test(r.v.label)).length, L.length), L.filter(r => /lob/.test(r.v.label)).length <= .05*L.length, '≤5%');
 }
 check('swing secchi: un solo evento', pct(nat.filter(r => r.n <= 1).length, nat.length), nat.filter(r => r.n <= 1).length >= .98*nat.length, '≥98%');
+// il colpo che riceve il gioco rispetto all'impatto (a metà percorso, dove lo swing è più veloce): il gioco tiene lo
+// swing fino allo sweet spot solo se arriva prima che la palla abbia superato il giocatore
+const swDt = nat.map(r => r.dt).filter(v => v != null);
+check('swing secchi: colpo rispetto all\'impatto, mediana e 90° percentile', `${q(swDt, .5).toFixed(0)} ms / ${q(swDt, .9).toFixed(0)} ms (10° ${q(swDt, .1).toFixed(0)} ms)`, q(swDt, .5) <= 0 && q(swDt, .9) <= 60, '≤0 / ≤60 ms');
 
 /* ---------- 2. colpi completi in 3D ---------- */
 const CAMS = { 'portatile-4:3': { Hc: 1.1, tiltDeg: 0, aspect: 4/3 }, 'sopra-tv-4:3': { Hc: 1.9, tiltDeg: 20, aspect: 4/3 }, 'portatile-16:9': { Hc: 1.1, tiltDeg: 0, aspect: 16/9 }, 'sopra-tv-16:9': { Hc: 1.9, tiltDeg: 20, aspect: 16/9 } };
@@ -66,7 +73,8 @@ for (const stroke of Object.keys(STROKES)) for (const hand of ['right', 'left'])
     const r = runTrial(MC, { stroke, hand, amp, tempo, D, cam, ...rate, seed: seed++, dropK, prepK, tracker: tracker() });
     const { tFwd, tContact } = r.path, ev = r.events.filter(e => e.ts >= -.05);
     const prep = ev.filter(e => e.ts < tFwd - .05), fwd = ev.find(e => e.ts >= tFwd - .05 && e.ts <= tContact + .35);
-    rows.push({ stroke, hand, camName, rateName, tempo, n: ev.length, prep: prep.length, fwd, v: engineView(fwd, hand), dt: fwd ? 1000*(fwd.ts - tContact) : null });
+    const conf = r.confirms.find(c => c.ts >= tFwd - .05);
+    rows.push({ stroke, hand, camName, rateName, tempo, n: ev.length, prep: prep.length, fwd, v: engineView(fwd, hand), dt: fwd ? 1000*(fwd.ts - tContact) : null, conf: conf ? engineView({ ...conf, kind: 'swing' }, hand) : null, confDt: conf ? 1000*(conf.ts - tContact) : null });
   }
 const WANT = { FH_TOP: ['forehand', 'topspin'], FH_FLAT: ['forehand', 'topspin'], FH_SLICE: ['forehand', 'slice'], BH_TOP: ['backhand', 'topspin'], BH_FLAT: ['backhand', 'topspin'], BH_SLICE: ['backhand', 'slice'], FH_LOB: ['forehand', 'lob'], SMASH: [null, 'smash'] };
 const GROUND = ['FH_TOP', 'FH_FLAT', 'FH_SLICE', 'BH_TOP', 'BH_FLAT', 'BH_SLICE'];
@@ -100,8 +108,16 @@ check('colpi completi: pallonetti e lanci nei colpi a rimbalzo', pct(G.filter(r 
 const all = rows.filter(ok15);
 check('colpi completi: un solo evento per colpo (nessun doppione)', pct(all.filter(r => r.n <= 1).length, all.length), all.filter(r => r.n <= 1).length >= .98*all.length, '≥98%');
 check('colpi completi: nessun evento nella preparazione', pct(all.filter(r => !r.prep).length, all.length), all.filter(r => !r.prep).length >= .95*all.length, '≥95%');
+const gDt = G.filter(ok15).map(r => r.dt).filter(v => v != null);
+check('colpi a rimbalzo: colpo rispetto all\'impatto, mediana e 90° percentile', `${q(gDt, .5).toFixed(0)} ms / ${q(gDt, .9).toFixed(0)} ms (10° ${q(gDt, .1).toFixed(0)} ms)`, q(gDt, .5) <= 0 && q(gDt, .9) <= 60, '≤0 / ≤60 ms');
 const lobs = rows.filter(r => r.stroke === 'FH_LOB' && ok15(r)), smash = rows.filter(r => r.stroke === 'SMASH' && ok15(r));
 check('pallonetto voluto riconosciuto', pct(lobs.filter(r => /lob/.test(r.v.shot || '')).length, lobs.length), lobs.filter(r => /lob/.test(r.v.shot || '')).length >= .9*lobs.length, '≥90%');
+// colpi anticipati: la conferma alla fine del gesto (solo diagnostica) e quando arriva rispetto all'impatto
+const withConf = rows.filter(r => ok15(r) && r.conf), confDt = withConf.map(r => r.confDt);
+if (withConf.length){
+  const L = withConf.filter(r => r.stroke === 'FH_LOB'), agree = withConf.filter(r => r.conf.label === r.v.label).length;
+  console.log(`conferma (dopo il colpo anticipato, solo diagnostica): uguale al colpo ${pct(agree, withConf.length)}, lato giusto ${pct(withConf.filter(r => WANT[r.stroke][0] == null || r.conf.side === WANT[r.stroke][0]).length, withConf.length)}, pallonetto voluto ${pct(L.filter(r => /lob/.test(r.conf.shot || '')).length, L.length)}; arriva dopo l'impatto ms p10/50/90 ${q(confDt, .1).toFixed(0)}/${q(confDt, .5).toFixed(0)}/${q(confDt, .9).toFixed(0)}`);
+}
 check('schiacciata da sopra la spalla riconosciuta', pct(smash.filter(r => r.v.shot === 'smash').length, smash.length), smash.filter(r => r.v.shot === 'smash').length >= .8*smash.length, '≥80%');
 
 /* ---------- 3. folla: una seconda mano entra ed esce ---------- */
@@ -176,6 +192,18 @@ for (const speed of [.35, .6, 1]){
     ev += r.events.length; secs += 3.9;
   }
   console.log(`passante a ${speed} larghezze/s: ${ev} colpi falsi in ${secs.toFixed(0)} s (${(ev/secs*60).toFixed(1)} al minuto)`);
+}
+
+/* ---------- 8. nel motore: lo swing della webcam col tempo del riconoscimento (informativo) ---------- */
+// colpi a rimbalzo (≥15 Hz) con il loro evento: la palla della CPU arriva, l'impatto del gesto è allo sweet spot e il
+// colpo arriva al gioco con lo stesso scarto misurato sopra
+console.log('\n=== Nel motore: colpi a rimbalzo con lo scarto del riconoscimento (palla della CPU, sweet spot all\'impatto) ===');
+const sample = G.filter(r => ok15(r) && r.fwd).filter((_, i) => i % (fast ? 12 : 36) === 0)
+  .map(r => ({ dt: r.dt/1000, side: r.fwd.side, shotType: r.fwd.shotType, speed: r.fwd.speed, dirX: r.fwd.dirX, dirY: r.fwd.dirY }));
+for (const difficulty of ['casual', 'pro']){
+  const out = await engineSwings(sample, { difficulty }), t = {};
+  for (const o of out) t[o.grade] = (t[o.grade] || 0) + 1;
+  console.log(`${difficulty.padEnd(6)} n=${out.length} | tenuti fino allo sweet spot ${pct(out.filter(o => o.held).length, out.length).padStart(4)} | ${['PERFECT', 'EARLY', 'LATE', 'VERY LATE', 'WHIFF', 'niente'].map(g => `${g} ${pct(t[g] || 0, out.length)}`).join(', ')}`);
 }
 
 console.log(`\n${crit.filter(Boolean).length}/${crit.length} criteri soddisfatti`);

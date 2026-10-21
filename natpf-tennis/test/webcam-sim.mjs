@@ -118,8 +118,11 @@ export function runTrial(MC, { stroke, hand = 'right', amp = 1, tempo = 1, D = 2
     const p = proj(path.at(c - lead)), size = .095/(2*p.depth*tanH);
     return [{ lm: handLandmarks({ S: p.S + gauss(rng)*noise, y: p.y + gauss(rng)*noise, size: size*(.92 + .08*rng()), aspect, angle: .3*mir }), label: LABEL[hand] }];
   };
+  // conferme dei colpi anticipati (solo diagnostica, al gioco non arrivano)
+  const confirms = [];
+  f.onTrack = d => { if (d.kind === 'confirm') confirms.push({ ts: performance.now()/1000 - lead, side: d.side, shotType: d.shotType }); };
   const ev = runLoop(f, { total: lead + path.tEnd + .3, fps, lat, rng, handsAt });
-  return { events: ev.map(e => ({ ...e, ts: e.t/1000 - lead })), path };
+  return { events: ev.map(e => ({ ...e, ts: e.t/1000 - lead })), confirms, path };
 }
 // swing secco in 2D da fermo (profilo minimum-jerk): dir ±1 (verso nell'immagine specchiata), dS ampiezza
 // (larghezze), ratio salita/spostamento fisici, T durata, curve 2 = la salita (o la discesa) si concentra in un tratto
@@ -186,6 +189,41 @@ export function runCrowd(MC, { seed = 1, on = [1, 2.6], label = 'Left', size = .
   };
   const ev = runLoop(f, { total: 4.2, fps, lat, rng, handsAt });
   return ev.map(e => ({ ...e, ts: e.t/1000 }));
+}
+// Nel motore vero (senza disegno): la CPU manda la palla, il gesto ha l'impatto quando la palla è allo sweet spot
+// (0,1 m davanti al giocatore) e il colpo della webcam arriva dt secondi dopo (dt dal riconoscimento: negativo = prima).
+// Per ogni colpo: tenuto fino allo sweet spot o no, e il voto del motore (PERFECT, EARLY, LATE, VERY LATE, WHIFF, niente).
+export async function engineSwings(swings, { difficulty = 'casual', seed = 7, maxSeconds = 900 } = {}){
+  const { createHeadlessEngine, mulberry32: rand } = await import('../scripts/audit/headless-engine.mjs');
+  const realRandom = Math.random; Math.random = rand(seed);
+  const out = [];
+  try {
+    const e = createHeadlessEngine({ difficulty }), grades = [], DT = 1/120;
+    e.hud = new Proxy({}, { get: (t, k) => (k === 'showTimingPopup' ? ({ grade = '' } = {}) => grades.push(String(grade)) : () => {}) });
+    e.startNewMatch({ showStartBanner: false });
+    let i = 0, plan = null, serveAt = null;
+    for (let t = 0; t < maxSeconds && i < swings.length; t += DT){
+      if (e.phase === 'SERVE_STANCE' && e.score.server === 'player' && e.phaseTimer > .6){ e._handleUserTossInput({}); serveAt = e.elapsedTime + .55; }
+      if (e.phase === 'SERVE_TOSS' && e.score.server === 'player' && serveAt != null && e.elapsedTime >= serveAt){ serveAt = null; e._handleUserSwingInput({ source: 'audit', speed: 1.2 }); }
+      if (e.phase === 'RALLY' && e.ball.inPlay && e.ball.lastHitter === 'opponent' && e.ball.vel.z > .5 && e.ball.pos.z > -6){
+        if (!plan) plan = { ...swings[i], sent: false, from: 0 };
+        const r = e.ball.pos.z - e.player.pos.z, tti = (-.1 - r)/Math.max(.5, e.ball.vel.z - e.player.vel.z);
+        if (!plan.sent && tti <= -plan.dt){
+          plan.sent = true; plan.from = grades.length; plan.ballSpeed = e.ball.vel.z;
+          e._handleUserSwingInput({ source: 'webcam', side: plan.side, shotType: plan.shotType, speed: plan.speed, dirX: plan.dirX, dirY: plan.dirY });
+          plan.held = !!e.pendingUserSwing?.waitForSweetSpot;
+        }
+      }
+      e.step(DT);
+      // fine del colpo: la palla l'ha colpita il giocatore, oppure il punto è finito
+      if (plan?.sent && (e.ball.lastHitter === 'player' || e.phase !== 'RALLY')){
+        const g = grades.slice(plan.from).find(s => !/^P2 /.test(s)) || 'niente';
+        out.push({ dt: plan.dt, held: plan.held, ballSpeed: plan.ballSpeed, grade: /WHIFF/.test(g) ? 'WHIFF' : g.split(' • ')[0] || 'niente' });
+        plan = null; i++;
+      }
+    }
+  } finally { Math.random = realRandom; }
+  return out;
 }
 // colpo come lo vede il motore: il mancino ha dritto e rovescio scambiati da NatpfHand (solo sugli swing); un lancio
 // rifiutato nello scambio diventava un pallonetto (codice di prima)
