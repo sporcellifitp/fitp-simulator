@@ -336,6 +336,14 @@ export class NatpfUi {
   // pannello aperto così si chiude da solo e si riprende. In calibrazione il campo è già fermo e lo dice il pannello in campo
   _watchPhoneDrop(){
     const ready = this.phone.ready, was = this.phoneWasReady; this.phoneWasReady = ready;
+    // telefono pronto senza blocco dello schermo (browser che non lo offre, risparmio energetico, permesso negato): dopo
+    // il tempo del telefono lo schermo si spegne, la pagina si sospende e i colpi si fermano. Lo si dice una volta per
+    // collegamento, prima che succeda (con la pagina nascosta il blocco si rilascia da solo: non è questo il problema)
+    const L = this.phone.state, joins = L.joins || 0;
+    if (ready && L.vis !== false && (L.wake === 0 || L.wake === -1) && this.wakeWarned !== joins){
+      this.wakeWarned = joins;
+      this.toast(L.wake === -1 ? 'Questo browser del telefono non tiene acceso lo schermo: disattiva il blocco automatico del telefono' : 'Lo schermo del telefono potrebbe spegnersi: disattiva il risparmio energetico o il blocco automatico');
+    }
     if (ready){
       clearTimeout(this.dropT); this.dropT = null;
       if (this.phoneDropOpened){ this.phoneDropOpened = false; if (!this.modal?.classList.contains('hidden')){ this.closePhone(); this.toast('Telefono di nuovo collegato: si riprende'); } }

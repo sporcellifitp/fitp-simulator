@@ -21,7 +21,9 @@ export class LanConnection extends Events {
     channel.onclose=()=>{if(channel.label==='control')this.close();};
     channel.onerror=e=>this.emit('error',e);
     channel.onmessage=e=>{
-      if(channel.label==='motion'){if(e.data instanceof ArrayBuffer)this.emit('motion',e.data);return;}
+      // canale dei sensori: pacchetti binari e, in JSON, i messaggi che contano solo se arrivano subito (copie dei colpi,
+      // piatto, campioni della diagnostica: niente ritrasmissioni, un pacchetto perso non ferma quelli dopo)
+      if(channel.label==='motion'){if(e.data instanceof ArrayBuffer)this.emit('motion',e.data);else if(typeof e.data==='string'&&e.data.length<=8192){try{this.emit('fast',JSON.parse(e.data));}catch{}}return;}
       if(typeof e.data!=='string'||e.data.length>32768)return;
       try{this.emit('data',JSON.parse(e.data));}catch{}
     };
@@ -36,6 +38,7 @@ export class LanConnection extends Events {
     }catch(e){this.emit('error',e);this.close();}
   }
   send(data){if(this.control?.readyState==='open'&&this.control.bufferedAmount<65536)this.control.send(JSON.stringify(data));}
+  sendFast(data){const c=this.motion;if(c?.readyState!=='open'||c.bufferedAmount>16384)return false;try{c.send(JSON.stringify(data));return true;}catch{return false;}}
   sendMotion(buffer){const c=this.motion;if(c?.readyState!=='open'||c.bufferedAmount>2048||!(buffer instanceof ArrayBuffer))return false;try{c.send(buffer);return true;}catch{return false;}}
   close(){if(this.closed)return;this.closed=true;this.open=false;this.pc.close();if(this.owner.connections.get(this.peer)===this)this.owner.connections.delete(this.peer);this.emit('close');}
 }

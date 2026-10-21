@@ -38,6 +38,8 @@ let sensorSequence = 0, lastSensorSent = -Infinity;
 // richieste facoltative del gioco (messaggio cfg): preparazione del colpo e flusso dei sensori anche senza canale binario
 let streamJson = false, prepWanted = false, diagStream = false, sampleHz = 60, lastSampleT = null, swingSeq = 0;
 let peer = null, conn = null, linkState = 'off', rtt = 80, sensor = 'off', phase = 'menu', retryT = null, tries = 0, wake = null, motionSeen = false, flashT = null, lastRx = 0;
+// percorso veloce (link.js): via internet una seconda connessione non ordinata; in LAN il canale dei sensori
+let fast = null, fastOk = false, rawSeq = 0;
 
 /* ---------- interfaccia ---------- */
 let selectedShot = 'auto', inputMode = 'motion', portrait = true, shotsPaintKey = '';
@@ -133,7 +135,7 @@ function onData(c, d){
   if (c === conn || d.t === 'welcome') lastRx = performance.now();
   switch (d.t){
     case 'welcome':
-      conn = c; linkState = 'on'; tries = 0; if (d.r) ss.set('resume', d.r); sendState();
+      conn = c; linkState = 'on'; tries = 0; fastOk = d.f === 1; if (d.r) ss.set('resume', d.r); sendState(); openFast();
       // ripresa a calibrazione in corso: gli eventi fatti mentre il collegamento era giù sono andati persi, il computer
       // riceve il passo attuale (prima restava al gesto di prima mentre il telefono era già alla verifica)
       if (sensor === 'cal') for (const e of cal.replay()) sendCal(e);
@@ -159,16 +161,39 @@ function onData(c, d){
       if (d.k === 'point') flash(d.mine ? 'hit' : 'miss', d.mine ? 'Punto tuo' : 'Punto avversario', d.txt || '', 1300);
       break;
     }
-    case 'bye': ss.del('resume'); ss.del('pair'); pair = null; linkState = 'denied'; paint(); ui('Scollegato', 'Il computer ha scollegato il telefono. Per giocare di nuovo inquadra il nuovo QR.'); try { c.close(); } catch (e){} break;
+    case 'bye': ss.del('resume'); ss.del('pair'); pair = null; closeFast(); linkState = 'denied'; paint(); ui('Scollegato', 'Il computer ha scollegato il telefono. Per giocare di nuovo inquadra il nuovo QR.'); try { c.close(); } catch (e){} break;
   }
 }
 function lost(){
   if (linkState === 'denied') return;
+  closeFast();
   conn = null; linkState = 'lost'; paint(); ui('Connessione persa', 'Riprovo da solo tra poco. Sul computer puoi riprovare il collegamento.');
   if (tries++ < 10) retryT = setTimeout(connect, Math.min(6000, 1000*tries));
 }
 const send = m => { if (conn && conn.open) try { conn.send(m); } catch (e){} };
-const sendState = () => send({ t: 'st', s: sensor === 'off' ? 'sensors' : sensor, b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), ...(det.prepMode ? { pm: 1 } : {}) });
+// messaggi che valgono solo se arrivano subito: senza ritrasmissioni e senza ordine, così un pacchetto perso non ferma
+// quelli dopo. false se il percorso non c'è (allora chi chiama usa send)
+const sendFast = m => {
+  if (!(conn && conn.open) || !fastOk) return false;
+  if (conn.sendFast) return conn.sendFast(m);
+  if (fast?.open) try { fast.send(m); return true; } catch (e){}
+  return false;
+};
+// via internet: seconda connessione dello stesso telefono, non ordinata (il computer la accetta solo da questo peer)
+function openFast(){
+  if (!fastOk || isLanMode() || !peer || peer.destroyed || fast?.open) return;
+  closeFast();
+  try {
+    const f = fast = peer.connect(pair.session, { reliable: false, serialization: 'json', label: 'fast-' + Math.random().toString(36).slice(2, 10) });
+    f.on('close', () => { if (fast === f) fast = null; });
+    f.on('error', () => {});
+  } catch (e){ fast = null; }
+}
+function closeFast(){ const f = fast; fast = null; if (f) try { f.close(); } catch (e){} }
+// vis: pagina in primo piano (0 = nascosta: schermo spento, altra app); wk: blocco dello schermo attivo (1), non
+// attivo (0, negato o perso: lo schermo può spegnersi dopo il tempo del telefono), non supportato dal browser (-1)
+const wakeState = () => (!('wakeLock' in navigator) ? -1 : wake && !wake.released ? 1 : 0);
+const sendState = () => send({ t: 'st', s: sensor === 'off' ? 'sensors' : sensor, b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}) });
 setInterval(() => {
   if (!(conn && conn.open)) return;
   // il computer manda qualcosa ogni secondo (risposte ai ping, misure dell'orologio): 5 s di silenzio vogliono dire
@@ -219,14 +244,18 @@ function onMotion(e){
   if (lastSampleT != null && k.t > lastSampleT) sampleHz += (1000/Math.min(200, k.t - lastSampleT) - sampleHz)*.05;
   lastSampleT = k.t;
   // diagnostica (il computer la chiede con cfg.diag): ogni campione grezzo, uguale in LAN e via internet, per registrarlo
-  if (linkState === 'on' && diagStream) send({ t: 'rs', k: Math.round(k.t*10)/10, r: k.rot && k.rot.map(v => Math.round(v*10)/10), a: k.acc && k.acc.map(v => Math.round(v*100)/100), g: k.accG && k.accG.map(v => Math.round(v*100)/100) });
+  if (linkState === 'on' && diagStream){
+    const rs = { t: 'rs', q: rawSeq++, k: Math.round(k.t*10)/10, r: k.rot && k.rot.map(v => Math.round(v*10)/10), a: k.acc && k.acc.map(v => Math.round(v*100)/100), g: k.accG && k.accG.map(v => Math.round(v*100)/100) };
+    if (!sendFast(rs)) send(rs);
+  }
   // Orientamento del piatto al computer, 30 volte al secondo: la racchetta in gioco segue questo, identico in LAN e via
   // internet (corretto con la gravità, senza deriva). Il flusso binario della LAN resta per chi lo usa.
   let f = null;
   if (face.ready){
     f = face.feed(k);
     // in LAN a ogni campione (costa poco e toglie fino a 33 ms alla racchetta a schermo), via internet 30 volte al secondo
-    if (f && linkState === 'on' && k.t - lastFaceSent >= (isLanMode() ? 0 : 33)){ lastFaceSent = k.t; send({ t: 'fo', y: f.yaw, p: f.pitch, r: f.roll }); }
+    // sul percorso veloce: conta solo l'ultimo (k, istante sul telefono, scarta quelli arrivati fuori ordine)
+    if (f && linkState === 'on' && k.t - lastFaceSent >= (isLanMode() ? 0 : 33)){ lastFaceSent = k.t; const fo = { t: 'fo', k: Math.round(k.t*10)/10, y: f.yaw, p: f.pitch, r: f.roll }; if (!sendFast(fo)) send(fo); }
     if (f && grip === 'flat' && k.t - lastFacePaint >= 60){ lastFacePaint = k.t; paintFace(f); }
   }
   // via internet senza orientamento del piatto (prima della calibrazione): giroscopio a 30 Hz in JSON. Solo se manca il
@@ -277,7 +306,12 @@ cal.on(e => { sendCal(e);
 det.on('swing', s => {
   if (sensor !== 'ready' || linkState !== 'on' || !portrait || inputMode !== 'motion' || !['play','serve','toss'].includes(phase)) return;
   const flags = shotFlags(selectedShot, s);
-  send(swingMessage(s, { flags, grip, faceRef: det.profile.faceRef, rtt, now: performance.now(), sampleHz, seq: ++swingSeq }));
+  const msg = swingMessage(s, { flags, grip, faceRef: det.profile.faceRef, rtt, now: performance.now(), sampleHz, seq: ++swingSeq });
+  // il colpo parte su due strade: tre copie sul percorso veloce (se un pacchetto si perde arriva la copia dopo, nessuno
+  // aspetta una ritrasmissione) e una sul canale affidabile (arriva sempre, anche se tardi). Il computer tiene la prima
+  // e scarta le altre con il numero del colpo. Prima c'era solo il canale affidabile e ordinato: con il Wi-Fi che perde
+  // pacchetti un colpo poteva arrivare 0,1–0,9 s dopo
+  sendFast(msg); send(msg); setTimeout(() => sendFast(msg), 8); setTimeout(() => sendFast(msg), 24);
   const cue = ({drive:'Gesto letto',lob:'Verso l’alto',slice:'Taglio verso il basso',drop:'Tocco corto',serve:'Movimento letto',smash:'Colpo dall’alto'})[s.shot] || 'Gesto letto';
   flash('hit', cue, `Forza ${Math.round(s.power*100)}%`, 350);
 });
@@ -322,7 +356,7 @@ $('#enable').addEventListener('click', enableSensors);
 $('#retry').addEventListener('click', () => { tries = 0; connect(); });
 $('#recal').addEventListener('click', () => command('cal'));
 $('#bye').addEventListener('click', () => {
-  ss.del('resume'); ss.del('pair'); ss.del('profile'); pair = null;
+  ss.del('resume'); ss.del('pair'); ss.del('profile'); pair = null; closeFast();
   try { conn && conn.close(); } catch (e){} conn = null; linkState = 'denied';
   removeEventListener('devicemotion', onMotion); sensor = 'off'; paint();
   ui('Scollegato', 'Per giocare di nuovo inquadra il codice QR sul computer.');
@@ -334,9 +368,11 @@ $('#stage').addEventListener('pointerdown', () => { if (phase === 'serve' && sen
 // blocco già rilasciato, lo schermo si spegneva e il collegamento cadeva
 async function keepAwake(){
   if (!('wakeLock' in navigator) || (wake && !wake.released)) return;
-  try { const w = await navigator.wakeLock.request('screen'); wake = w; w.addEventListener('release', () => { if (wake === w) wake = null; }); } catch (e){}
+  try { const w = await navigator.wakeLock.request('screen'); wake = w; w.addEventListener('release', () => { if (wake === w) wake = null; sendState(); }); } catch (e){}
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden && sensor !== 'off') keepAwake(); });
+// pagina nascosta: il computer lo sa subito (prima che il telefono si sospenda); al ritorno prima si riprende il blocco,
+// poi si manda lo stato (il computer non deve vedere per un attimo un blocco che manca)
+document.addEventListener('visibilitychange', () => { if (document.hidden || sensor === 'off') sendState(); else keepAwake().then(sendState); });
 addEventListener('pagehide', () => { try { conn && conn.close(); } catch (e){} });
 
 checkOrientation();

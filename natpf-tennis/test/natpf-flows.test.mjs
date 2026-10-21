@@ -268,3 +268,22 @@ test('Calibrazione rifatta dopo una verifica non superata: ogni gesto del second
   assert.ok(link.cmds.includes('retry'));
   round(true);
 });
+
+test('Blocco dello schermo del telefono: avviso una volta per collegamento, mai con la pagina nascosta', async () => {
+  const w = await makeWorld({ controller: 'phone' }); w.advance(300);
+  const { ui, link } = w, toast = () => (visible('natpf-toast') ? $('natpf-toast').textContent : '');
+  const state = s => { $('natpf-toast').classList.add('hidden'); Object.assign(link.L, s); link.ready = true; link.L.phone = 'ready'; ui._watchPhoneDrop(); return toast(); };
+  link.L.joins = 1;
+  assert.equal(state({ vis: true, wake: 1 }), '', 'blocco attivo: niente avviso');
+  // pagina nascosta (schermo spento, altra app): il telefono rilascia il blocco da solo, non è il caso da segnalare
+  assert.equal(state({ vis: false, wake: 0 }), '');
+  // di nuovo in primo piano senza blocco (negato o risparmio energetico): avviso, una volta sola
+  assert.match(state({ vis: true, wake: 0 }), /potrebbe spegnersi/);
+  assert.equal(state({ vis: true, wake: 0 }), '');
+  // collegamento nuovo con un browser che non offre il blocco
+  link.L.joins = 2;
+  assert.match(state({ vis: true, wake: -1 }), /non tiene acceso lo schermo/);
+  // telefono vecchio, che non manda questi campi: nessun avviso
+  link.L.joins = 3; delete link.L.vis; delete link.L.wake;
+  assert.equal(state({}), '');
+});
