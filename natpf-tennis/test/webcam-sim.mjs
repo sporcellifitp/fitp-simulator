@@ -1,0 +1,198 @@
+// Banco di prova sintetico della webcam: traiettorie della mano (swing secchi in 2D e colpi completi in 3D con
+// preparazione, caduta della mano, colpo, finale, tenuta e ritorno), proiezione sulla camera specchiata, landmark con
+// la taglia vera della mano e la lateralità come le dà il modello, inferenza con latenza e un solo fotogramma in volo
+// come nel gioco. Gli eventi escono dal vero motion_controls.js (_processWebcamFrame, _onHandResults): lo stesso
+// banco gira anche su una copia del codice di prima (scripts/audit/webcam-sweep.mjs --prima) per il confronto.
+// Usato da test/natpf-webcam-classifier.test.mjs (sottoinsieme veloce) e da scripts/audit/webcam-sweep.mjs (completo).
+export function mulberry32(a){ return function(){ a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0)/4294967296; }; }
+export function gauss(rng){ let u = 0, v = 0; while (!u) u = rng(); while (!v) v = rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+
+// Keyframe per un DESTRO, coordinate fisiche (m): X destra del giocatore, Y altezza, Z verso la webcam.
+// Fasi: pronto(0) → fine preparazione(0,45) → caduta/anello(0,62) → impatto(0,82) → accompagnamento(0,95) →
+// finale(1,12) → tenuta(1,50) → ritorno(2,20) → fermo(2,70)
+const R = (x, y, z) => [x, y, z];
+export const STROKES = {
+  FH_TOP:   { side: 'forehand', type: 'topspin', keys: [R(.18,1.05,.30), R(.60,1.35,-.30), R(.62,.88,-.25), R(.40,.98,.45), R(.00,1.25,.55), R(-.38,1.58,.10), R(-.40,1.60,.05)] },
+  FH_FLAT:  { side: 'forehand', type: 'flat',    keys: [R(.18,1.05,.30), R(.60,1.25,-.30), R(.60,1.00,-.25), R(.40,1.00,.45), R(.00,1.10,.55), R(-.38,1.30,.15), R(-.40,1.32,.10)] },
+  FH_SLICE: { side: 'forehand', type: 'slice',   keys: [R(.18,1.05,.30), R(.55,1.50,-.25), R(.55,1.30,-.10), R(.38,.98,.45), R(.10,.90,.65), R(-.20,.98,.45), R(-.22,1.00,.42)] },
+  BH_TOP:   { side: 'backhand', type: 'topspin', keys: [R(.12,1.05,.30), R(-.50,1.25,-.25), R(-.50,.88,-.20), R(-.30,.98,.45), R(.05,1.25,.55), R(.42,1.62,.10), R(.44,1.64,.05)] },
+  BH_FLAT:  { side: 'backhand', type: 'flat',    keys: [R(.12,1.05,.30), R(-.50,1.20,-.25), R(-.50,1.00,-.20), R(-.30,1.00,.45), R(.05,1.10,.55), R(.42,1.30,.15), R(.44,1.32,.10)] },
+  BH_SLICE: { side: 'backhand', type: 'slice',   keys: [R(.12,1.05,.30), R(-.48,1.48,-.20), R(-.48,1.30,-.05), R(-.30,.98,.45), R(-.02,.90,.62), R(.28,.98,.45), R(.30,1.00,.42)] },
+  FH_LOB:   { side: 'forehand', type: 'lob',     keys: [R(.18,1.05,.30), R(.55,1.15,-.25), R(.55,.80,-.15), R(.38,.92,.40), R(.25,1.40,.45), R(.05,1.85,.20), R(.03,1.87,.15)] },
+  SMASH:    { side: 'overhead', type: 'smash',   keys: [R(.18,1.05,.30), R(.35,1.85,-.25), R(.30,1.75,-.30), R(.28,2.05,.35), R(.05,1.45,.45), R(-.25,.95,.25), R(-.27,.93,.22)] },
+};
+// Catmull-Rom non uniforme (Barry-Goldman) sui tempi dei keyframe
+function catmull(ts, ps, t){
+  let i = 0; while (i < ts.length - 2 && t > ts[i + 1]) i++;
+  const i0 = Math.max(0, i - 1), i1 = i, i2 = i + 1, i3 = Math.min(ts.length - 1, i + 2);
+  const t0 = i0 === i1 ? ts[i1] - (ts[i2] - ts[i1]) : ts[i0], t1 = ts[i1], t2 = ts[i2], t3 = i3 === i2 ? ts[i2] + (ts[i2] - ts[i1]) : ts[i3];
+  const P0 = i0 === i1 ? ps[i1].map((v, k) => 2*v - ps[i2][k]) : ps[i0], P1 = ps[i1], P2 = ps[i2], P3 = i3 === i2 ? ps[i2].map((v, k) => 2*v - ps[i1][k]) : ps[i3];
+  const tt = Math.max(t1, Math.min(t2, t));
+  const L = (A, B, ta, tb) => A.map((v, k) => ((tb - tt)*v + (tt - ta)*B[k])/(tb - ta));
+  const A1 = L(P0, P1, t0, t1), A2 = L(P1, P2, t1, t2), A3 = L(P2, P3, t2, t3);
+  const B1 = L(A1, A2, t0, t2), B2 = L(A2, A3, t1, t3);
+  return L(B1, B2, t1, t2);
+}
+// traiettoria completa (con ritorno alla posizione di attesa). dropK: quanto scende la mano dopo la preparazione,
+// prepK: durata della preparazione, tempo: scala di tutto il colpo
+export function strokePath(stroke, { hand = 'right', amp = 1, tempo = 1, x0 = 0, hScale = 1, dropK = 1, prepK = 1 } = {}){
+  const k0 = STROKES[stroke].keys.map(p => [...p]);
+  k0[2][1] = k0[1][1] + (k0[2][1] - k0[1][1])*dropK;
+  const keys = [...k0, k0[0], k0[0]];
+  const d = [0, .45*prepK, .17, .20, .13, .17, .38, .70, .50].map(v => v*tempo);
+  const ts = d.map((_, i) => d.slice(0, i + 1).reduce((a, b) => a + b, 0));
+  const mir = hand === 'left' ? -1 : 1;
+  const ps = keys.map(([x, y, z]) => [x0 + mir*x*amp, (1.15 + (y - 1.15)*amp)*hScale, z*amp]);
+  return { at: t => catmull(ts, ps, Math.max(0, Math.min(ts[ts.length - 1], t))), tEnd: ts[ts.length - 1], tFwd: ts[2], tContact: ts[3], tFinish: ts[5] };
+}
+// webcam a distanza D (m) dal piano del giocatore, altezza Hc, inclinazione tiltDeg (verso il basso), FOV orizzontale
+// e aspetto; immagine SPECCHIATA come nel gioco (S = 1 - x): destra del giocatore = destra dell'immagine
+export function makeCamera({ D = 2, Hc = 1.1, tiltDeg = 0, hfovDeg = 62, aspect = 4/3 } = {}){
+  const th = tiltDeg*Math.PI/180, tanH = Math.tan(hfovDeg*Math.PI/360), tanV = tanH/aspect;
+  return ([X, Y, Z]) => {
+    const ry = Y - Hc, rz = Z - D, depth = -ry*Math.sin(th) - rz*Math.cos(th), yc = ry*Math.cos(th) - rz*Math.sin(th);
+    return { S: .5 + X/(2*depth*tanH), y: .5 - yc/(2*depth*tanV), depth };
+  };
+}
+// 21 landmark come li dà il modello (x non specchiata, y verso il basso) per una mano con il punto seguito in (S, y),
+// lunghezza polso–nocca del medio «size» (larghezze dell'immagine) e asse inclinato di «angle» (0 = dita in alto)
+export function handLandmarks({ S, y, size = .0395, aspect = .75, angle = 0 }){
+  // asse u (polso → nocca) e perpendicolare v in unità uguali sui due assi; x del modello non specchiata, y in altezze
+  const ux = Math.sin(angle), uy = -Math.cos(angle), vx = Math.cos(angle), vy = Math.sin(angle);
+  const cx = 1 - S, P = (a, b) => ({ x: cx - (ux*a + vx*b)*size, y: y + (uy*a + vy*b)*size/aspect, z: 0 });
+  const lm = Array.from({ length: 21 }, (_, i) => P(.45 + .25*(i % 4), -.35 + .1*Math.floor(i/4)));
+  lm[0] = P(-.55, 0); lm[9] = P(.45, 0); lm[5] = P(.42, .3); lm[17] = P(.36, -.32); lm[13] = P(.43, -.12);
+  return lm;
+}
+const LABEL = { right: 'Left', left: 'Right' };          // il modello vede l'immagine non specchiata
+
+// controller finto sul prototipo vero: solo i campi che usa la webcam
+export function makeFake(MC, { aspect = .75, canToss = () => false, hand = 'right', tracker = null } = {}){
+  const f = Object.create(MC.prototype);
+  const staticCtx = { save(){}, scale(){}, drawImage(){}, restore(){}, getImageData: (x, y, w, h) => ({ data: new Uint8ClampedArray(w*h*4).fill(128) }) };
+  Object.assign(f, {
+    webcamActive: true, videoElem: { readyState: 4, currentTime: 0, videoWidth: 640, videoHeight: Math.round(640*aspect) }, _lastVideoTime: undefined,
+    latestHandLandmarks: null, latestHandSeenAt: -1e9, _hasNewHandResult: false, _mpBusy: false,
+    smoothedCentroid: { x: .5, y: .5 }, motionVector: { vx: 0, vy: 0, mag: 0 }, lastWebcamTriggerMs: -1e9,
+    handTracker: { push(){}, reset(){} }, _webcamTrail: null, _lastWebcamSource: null,
+    flowWidth: 64, flowHeight: 48, hasPrevFrame: false, prevLuma: new Float32Array(64*48), motionEnergyMap: new Float32Array(64*48),
+    offscreenCtx: staticCtx, phoneState: { orientation: { pitch: 0, roll: 0 } }, role: 'p1', _listeners: { swing: [], toss: [], status: [], orientation: [] },
+    _strokes: tracker, _handTrack: null, handPreference: hand, canToss, onTrack: null,
+  });
+  f.events = [];
+  f._emitSwing = e => { f.events.push({ kind: 'swing', t: performance.now(), side: e.side ?? null, shotType: e.shotType, speed: e.speed, dirX: e.dirX, dirY: e.dirY, src: f._lastWebcamSource }); };
+  f._emitToss = e => { f.events.push({ kind: 'toss', t: performance.now(), side: e.side ?? null, shotType: 'lob', speed: e.speed, dirX: e.dirX, dirY: e.dirY, src: f._lastWebcamSource }); };
+  return f;
+}
+// risultato del modello: con il codice nuovo passa da _onHandResults (scelta della mano), con quello di prima la
+// prima mano della lista va diretta nei campi che leggeva _processWebcamFrame
+function deliver(f, hands, now){
+  if (typeof f._onHandResults === 'function') return f._onHandResults({ multiHandLandmarks: hands.map(h => h.lm), multiHandedness: hands.map(h => ({ label: h.label, score: h.score ?? .92 })) });
+  f._mpBusy = false;
+  if (hands.length){ f.latestHandLandmarks = hands[0].lm; f.latestHandSeenAt = now; f._hasNewHandResult = true; } else f.latestHandLandmarks = null;
+}
+// ciclo del gioco a 60 Hz: fotogrammi della camera a fps, inferenza con latenza lat (ms) e un solo invio in volo
+function runLoop(f, { total, fps, lat, rng, handsAt }){
+  const realNow = performance.now; let NOW = 0; performance.now = () => NOW;
+  try {
+    let inflight = null, frameT = 0;
+    f.mpHands = { send: () => { inflight = { capT: frameT, doneT: NOW + lat*(.85 + .3*rng()) }; return Promise.resolve(); } };
+    for (let T = 0; T <= total; T += 1/60){
+      NOW = T*1000;
+      const k = Math.floor((T - .008)*fps); frameT = Math.max(0, k/fps); f.videoElem.currentTime = frameT;
+      if (inflight && inflight.doneT <= NOW){ const c = inflight.capT; inflight = null; f._mpBusy = false; deliver(f, handsAt(c), NOW); }
+      f._processWebcamFrame();
+    }
+  } finally { performance.now = realNow; }
+  return f.events;
+}
+const asp = cam => 1/(cam.aspect ?? 4/3);
+
+// colpo completo in 3D. Eventi con ts = tempo dall'inizio del colpo (s)
+export function runTrial(MC, { stroke, hand = 'right', amp = 1, tempo = 1, D = 2, cam = {}, fps = 30, lat = 30, noise = .003, seed = 1, dropK = 1, prepK = 1, canToss = () => false, tracker = null }){
+  const rng = mulberry32(seed), aspect = asp(cam);
+  const path = strokePath(stroke, { hand, amp, tempo, x0: (rng() - .5)*.5, hScale: .88 + rng()*.17, dropK, prepK });
+  const proj = makeCamera({ D, ...cam }), f = makeFake(MC, { aspect, canToss, hand, tracker });
+  const lead = .6, tanH = Math.tan((cam.hfovDeg ?? 62)*Math.PI/360), mir = hand === 'left' ? -1 : 1;
+  const handsAt = c => {
+    const p = proj(path.at(c - lead)), size = .095/(2*p.depth*tanH);
+    return [{ lm: handLandmarks({ S: p.S + gauss(rng)*noise, y: p.y + gauss(rng)*noise, size: size*(.92 + .08*rng()), aspect, angle: .3*mir }), label: LABEL[hand] }];
+  };
+  const ev = runLoop(f, { total: lead + path.tEnd + .3, fps, lat, rng, handsAt });
+  return { events: ev.map(e => ({ ...e, ts: e.t/1000 - lead })), path };
+}
+// swing secco in 2D da fermo (profilo minimum-jerk): dir ±1 (verso nell'immagine specchiata), dS ampiezza
+// (larghezze), ratio salita/spostamento fisici, T durata, curve 2 = la salita (o la discesa) si concentra in un tratto
+const mj = t => (t <= 0 ? 0 : t >= 1 ? 1 : 10*t**3 - 15*t**4 + 6*t**5);
+export function sweep({ dir, dS, ratio, aspect, T, curve, yMid = .5 }){
+  const dy = ratio*dS*(1/aspect), S0 = .5 - dir*dS/2, y0 = yMid + dy/2;
+  const g = s => (curve === 1 ? s : ratio >= 0 ? s*s : 1 - (1 - s)**2);
+  return t => { const s = mj(t/T); return { S: S0 + dir*dS*s, y: y0 - dy*g(s) }; };
+}
+export function runSweep(MC, { pathFn, T, aspect = .75, fps = 30, lat = 22, noise = .003, seed = 1, hand = 'right', canToss = () => false, tracker = null }){
+  const rng = mulberry32(seed), f = makeFake(MC, { aspect, canToss, hand, tracker }), lead = .5;
+  const handsAt = c => { const p = pathFn(Math.max(0, c - lead)); return [{ lm: handLandmarks({ S: p.S + gauss(rng)*noise, y: p.y + gauss(rng)*noise, aspect }), label: LABEL[hand] }]; };
+  const ev = runLoop(f, { total: lead + T + .9, fps, lat, rng, handsAt });
+  return ev.map(e => ({ ...e, ts: e.t/1000 - lead }));
+}
+// fotogrammi sintetici 64×48 per il flusso ottico (già specchiati, come dopo drawImage): sfondo con tessitura, la mano
+// (macchia chiara) e, se c'è, un passante (sagoma scura alta). scene(t) → [{ S, y, rx, ry, c }] al tempo del video
+export function flowCtx(f, scene, seed = 99){
+  const W = 64, H = 48, rnd = mulberry32(seed), bg = Float32Array.from({ length: W*H }, () => .35 + .2*rnd());
+  return { save(){}, scale(){}, drawImage(){}, restore(){}, getImageData(){
+    const sc = scene(f.videoElem.currentTime), data = new Uint8ClampedArray(W*H*4);
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++){
+      let L = bg[j*W + i];
+      for (const b of sc){ const dx = (i + .5)/W - b.S, dy = ((j + .5)/H - b.y)*H/W; if ((dx/b.rx)**2 + (dy/b.ry)**2 <= 1) L = b.c; }
+      const v = Math.max(0, Math.min(255, (L + gauss(rnd)*.01)*255)), k = (j*W + i)*4;
+      data[k] = data[k + 1] = data[k + 2] = v; data[k + 3] = 255;
+    }
+    return { data };
+  } };
+}
+// swing 2D con la mano persa dal modello per il mosso (probabilità che cresce con lo spostamento durante l'esposizione,
+// da blurLo a blurHi pixel su 640×480) e il flusso ottico di riserva sui fotogrammi sintetici; passante(t) facoltativo
+export function runDropout(MC, { pathFn, T, fps = 30, lat = 22, noise = .003, seed = 1, hand = 'right', exposure = 1/60, blurLo = 8, blurHi = 20, passante = null, tracker = null }){
+  const rng = mulberry32(seed), aspect = .75, f = makeFake(MC, { aspect, hand, tracker }), lead = .5;
+  const at = c => pathFn(Math.max(0, c - lead));
+  f.offscreenCtx = flowCtx(f, c => { const p = at(c), s = [{ S: p.S, y: p.y, rx: .045, ry: .05, c: .9 }]; if (passante){ const b = passante(c); s.push({ S: b.S, y: b.y, rx: .05, ry: .2, c: .08 }); } return s; }, seed + 7);
+  let lost = 0, seen = 0;
+  const handsAt = c => {
+    const a = at(c), b = at(c + exposure), blur = Math.hypot((b.S - a.S)*640, (b.y - a.y)*480);
+    if (rng() < Math.max(0, Math.min(1, (blur - blurLo)/(blurHi - blurLo)))){ lost++; return []; }
+    seen++; return [{ lm: handLandmarks({ S: a.S + gauss(rng)*noise, y: a.y + gauss(rng)*noise, aspect }), label: LABEL[hand] }];
+  };
+  const ev = runLoop(f, { total: lead + T + .9, fps, lat, rng, handsAt });
+  return { events: ev.map(e => ({ ...e, ts: e.t/1000 - lead })), lost, seen };
+}
+// folla: una seconda mano (passante o mano libera) visibile da on[0] a on[1] s, che il modello mette in testa alla
+// lista; il giocatore fa due rovesci a 1,6 e 3,2 s
+export function runCrowd(MC, { seed = 1, on = [1, 2.6], label = 'Left', size = .036, at = { S: .22, y: .4 }, fps = 30, lat = 22, tracker = null }){
+  const rng = mulberry32(seed), aspect = .75, f = makeFake(MC, { aspect, tracker });
+  const bh = sweep({ dir: 1, dS: .4, ratio: .2, aspect, T: .25, curve: 1, yMid: .55 }), swings = [1.6, 3.2];
+  const player = t => {
+    for (const t0 of swings){
+      const u = t - t0, A = bh(0), B = bh(.25);
+      if (u >= 0 && u <= .25){ const p = bh(u); return { S: p.S + .12, y: p.y }; }
+      if (u > .25 && u <= .45) return { S: B.S + .12, y: B.y };
+      if (u > .45 && u <= 1.45){ const k = mj((u - .45)/1); return { S: B.S + .12 + (A.S - B.S)*k, y: B.y + (A.y - B.y)*k }; }
+    }
+    const A = bh(0); return { S: A.S + .12 + .004*Math.sin(5*t), y: A.y };
+  };
+  const handsAt = c => {
+    const p = player(c), me = { lm: handLandmarks({ S: p.S + gauss(rng)*.003, y: p.y + gauss(rng)*.003, aspect }), label: 'Left' };
+    const by = c >= on[0] && c < on[1] ? [{ lm: handLandmarks({ S: at.S + .01*Math.sin(3*c), y: at.y, size, aspect }), label }] : [];
+    return [...by, me];
+  };
+  const ev = runLoop(f, { total: 4.2, fps, lat, rng, handsAt });
+  return ev.map(e => ({ ...e, ts: e.t/1000 }));
+}
+// colpo come lo vede il motore: il mancino ha dritto e rovescio scambiati da NatpfHand (solo sugli swing); un lancio
+// rifiutato nello scambio diventava un pallonetto (codice di prima)
+const swap = s => (s === 'forehand' ? 'backhand' : s === 'backhand' ? 'forehand' : s);
+export function engineView(ev, hand){
+  if (!ev) return { side: null, shot: null, label: 'niente' };
+  const side = hand === 'left' && ev.kind === 'swing' ? swap(ev.side) : ev.side;
+  const shot = ev.kind === 'toss' ? 'lob(lancio)' : ev.shotType;
+  return { side, shot, label: `${side === 'forehand' ? 'FH' : side === 'backhand' ? 'BH' : '?'}·${shot}` };
+}
