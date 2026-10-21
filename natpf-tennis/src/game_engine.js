@@ -2244,7 +2244,8 @@ export class NatpfTennisEngine {
           speed: 1.15,
           timing: "sweet",
         }),
-        this.racketKinematics.triggerImpactRecoil(e, 0.95)),
+        this.racketKinematics.triggerImpactRecoil(e, 0.95),
+        natpfLeg && NL.legendSwingAtContact(this, e)), // NATPF Leggenda: con la palla lontana la racchetta allungata la tocca nell'istante del colpo
       this.swingVfx &&
         this.swingVfx.onRacketContact({
           actor: e,
@@ -3154,6 +3155,7 @@ export class NatpfTennisEngine {
         liveInput: i,
       });
     }
+    NL.legendReachPose(this, e, t); // NATPF Leggenda: racchetta, braccio e corpo verso la palla lontana (prima del corpo, che fa seguire la mano)
     this.bodyAnimator
       ? this.bodyAnimator.updatePlayerBodyAnimation(e, t, this)
       : e.root.position.set(e.pos.x, e.pos.y, e.pos.z),

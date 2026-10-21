@@ -2,11 +2,12 @@
 // sulle regole vere del motore (simulate di rally-balance.mjs) con i profili di giocatore simulati, poi verifica dei
 // criteri del livello. Esce con codice 1 se un criterio non è rispettato. È un banco di prova deterministico (semi
 // fissi), non una misura di persone reali: i profili non puniscono la prevedibilità della CPU.
-//   npm run audit:legend                              criteri: Leggenda contro 6 profili, casual e pro contro «medio»
-//   npm run audit:legend -- --points=150 --profiles=medio,tennista --seeds=3   (default: 300 punti, 8 semi)
-//   npm run audit:legend -- --table                   tabella casual / pro / leggenda per tutti i profili (senza criteri)
-//   npm run audit:legend -- --ablation                da dove viene la forza (senza «lascia passare», scelta a caso, …)
-//   npm run audit:legend -- --json
+// Uso (comando «audit:legend» del progetto, dalla cartella natpf-tennis):
+//   audit:legend                                       criteri: Leggenda contro 6 profili, casual e pro contro «medio»
+//   audit:legend -- --points=150 --profiles=medio,tennista --seeds=3   (default: 300 punti, 8 semi)
+//   audit:legend -- --table                            tabella casual / pro / leggenda per tutti i profili (senza criteri)
+//   audit:legend -- --ablation                         da dove viene la forza (senza «lascia passare», scelta a caso, …)
+//   audit:legend -- --json
 import { pathToFileURL } from 'node:url';
 import { simulate } from './rally-balance.mjs';
 import { legendTuning } from '../../src/natpf/natpf_legend.js';

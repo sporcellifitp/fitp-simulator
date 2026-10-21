@@ -1,7 +1,7 @@
 // Livello «Leggenda» (src/natpf/natpf_legend.js): stesse regole del giocatore, scelta varia, mira corretta per l'aria,
 // split-step e corsa credibili, palle fuori lasciate passare, apprendimento; casual e pro non passano mai di qui.
-// I criteri di gioco sul torneo completo sono in scripts/audit/legend.mjs (npm run audit:legend).
-// node --import ./test/register.mjs --test test/*.test.mjs
+// I criteri di gioco sul torneo completo sono in scripts/audit/legend.mjs (comando audit:legend).
+// Gira con gli altri test del gioco (comando test del progetto).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as NS from '../src/natpf/natpf_skill.js';
@@ -158,6 +158,36 @@ test('Leggenda: servizio vario (da un angolo all\'altro e al corpo, velocità di
   for (let i = 0; i < 200; i++){ const s = NL.legendServe(e, rng); speeds.push(s.speed); dir[s.dirX <= -.9 ? 'neg' : s.dirX >= .9 ? 'pos' : 'mid']++; }
   assert.ok(dir.neg > 40 && dir.pos > 40 && dir.mid > 20, JSON.stringify(dir));
   assert.ok(Math.min(...speeds) >= 1.05 && Math.max(...speeds) <= 1.45 && Math.max(...speeds) - Math.min(...speeds) > .3);
+});
+
+test('Leggenda nel disegno: racchetta e corpo verso la palla lontana, lato del colpo rispetto al corpo, swing all\'impatto', () => {
+  // attore con racchetta e modello finti: racket_kinematics riscrive la posizione della racchetta a ogni fotogramma
+  const pose = e => {
+    const a = e.opponent;
+    a.racketPivot = { position: { x: -.36 } }; a.model = { rotation: { z: 0 } }; a.racketKinematics = { swingDuration: .36, swingElapsed: 0 };
+    return () => { a.racketPivot.position.x = -.36; NL.legendReachPose(e, a, 1/60); return { dx: a.racketPivot.position.x + .36, lean: a.model.rotation.z, prep: a.userData?.natpfPrep?.side }; };
+  };
+  const e = engine(), frame = pose(e);
+  rallyBall(e, { bx: 1.8 });
+  e.opponent.pos.set(0, 0, -11.4); e.ball.pos.set(1.8, 1, -10.0 + 16*.12);    // impatto fra 0,12 s, palla a 1,8 m dal corpo
+  let f; for (let i = 0; i < 6; i++) f = frame();
+  assert.ok(f.dx > .25 && f.dx <= NL.LEGEND.reachMax + 1e-9, `racchetta allungata di ${f.dx}`);
+  assert.ok(f.lean < -.1, `corpo inclinato verso la palla (${f.lean})`);      // radice della CPU non girata: x locale = x del campo
+  assert.equal(f.prep, 'backhand', 'palla a x maggiore del corpo: rovescio, come all\'impatto del motore');
+  // all'impatto: con l'allungo lo swing parte da poco prima del colpo; con la palla vicina resta intero
+  e.opponent.natpfReach.hold = { t: e.elapsedTime, x: .4 }; NL.legendSwingAtContact(e, e.opponent);
+  assert.ok(e.opponent.racketKinematics.swingElapsed > 0);
+  e.opponent.racketKinematics.swingElapsed = 0; e.opponent.natpfReach.hold = { t: e.elapsedTime, x: 0 }; NL.legendSwingAtContact(e, e.opponent);
+  assert.equal(e.opponent.racketKinematics.swingElapsed, 0);
+  // palla vicina: dopo l'impatto la racchetta rientra subito e il corpo torna dritto
+  e.ball.lastHitter = 'opponent'; for (let i = 0; i < 30; i++) f = frame();
+  assert.ok(Math.abs(f.dx) < .01 && Math.abs(f.lean) < .01, JSON.stringify(f));
+  // casual e pro: niente allungo, niente lato imposto
+  for (const d of ['casual', 'pro']){
+    const p = engine(d), pf = pose(p); rallyBall(p, { bx: 1.8 }); p.ball.pos.set(1.8, 1, -8.1);
+    const r = pf();
+    assert.deepEqual([r.dx, r.lean, r.prep], [0, 0, undefined], d);
+  }
 });
 
 test('casual e pro non passano mai dal modello di Leggenda', () => {

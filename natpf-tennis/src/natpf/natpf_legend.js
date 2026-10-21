@@ -11,7 +11,8 @@
 //   • la mira compensa l'aria: lo spostamento laterale vero è circa 0,865 volte quello voluto (fixAir corregge solo la
 //     profondità), quindi la CPU mira più larga di tanto e la palla cade dove vuole;
 //   • corsa con accelerazione e frenata limitate, recupero sulla bisettrice degli angoli possibili dell'avversario,
-//     affondo (passo esplosivo nelle ultime decine di centesimi) quando la palla passerebbe lontana dal corpo;
+//     affondo (passo esplosivo nelle ultime decine di centesimi) quando la palla passerebbe lontana dal corpo; nel
+//     disegno racchetta, braccio e corpo si allungano verso la palla lontana e lo swing tocca la palla all'impatto;
 //   • lascia passare le palle che vede fuori, con un errore di lettura; servizio vario.
 // Split-step, reazione e lettura della traiettoria stanno in natpf_skill.planCpuRun (livello con cpuLegend).
 // Attiva solo con il livello «leggenda» contro la CPU: casual, pro, 1v1 e le sfide non passano mai da qui.
@@ -26,7 +27,7 @@ const Phi = x => .5*(1 + Math.tanh(.7978845608*(x + .044715*x*x*x)));     // nor
 // Valori tarati con scripts/audit/legend.mjs (torneo senza grafica, 8 semi × 300 punti × 6 profili di giocatore):
 // risultati e scelte in docs/NATPF_LEGGENDA.md.
 export const LEGEND = Object.freeze({
-  timingSd: .03,            // s: errore di tempo del colpo della CPU (cresce con la velocità della palla in arrivo)
+  timingSd: .025,           // s: errore di tempo del colpo della CPU (cresce con la velocità della palla in arrivo)
   tau: .014,                // temperatura della scelta (softmax sull'utilità): più bassa = più deterministica
   repeat: .008,             // penalità per la stessa zona di uno degli ultimi 2 colpi
   repeatKind: .01,          // penalità per lo stesso schema di uno degli ultimi 3 colpi
@@ -43,6 +44,10 @@ export const LEGEND = Object.freeze({
   // esplosivo (accelerazione lungeAccel, al massimo lungeSpeed, sotto la velocità del giocatore) porta il corpo a
   // lungeKeep dalla palla: la racchetta la tocca davvero, senza scatti
   lungeFrom: 1.2, lungeKeep: 1.05, lungeTime: .32, lungeSpeed: 8.4, lungeAccel: 30,
+  // allungo visivo (solo disegno): la palla che passa oltre reachFrom m dal corpo, nelle ultime reachLead s prima
+  // dell'impatto e per reachHold s dopo, porta racchetta e braccio verso di lei (al massimo reachMax m) e inclina il
+  // corpo dalla stessa parte (fino a reachLean rad)
+  reachFrom: .9, reachMax: .45, reachLean: .24, reachLead: .22, reachHold: .18,
   // valore di uno scambio che continua: ½, per (errori osservati / attesi dell'avversario)^vLearn tra vMin e vMax
   // (contro chi sbaglia molto la CPU gioca sicura, contro chi non sbaglia rischia prima)...
   vLearn: 1, vMin: .2, vMax: 1.4,
@@ -201,6 +206,9 @@ export function legendReturn(e, actor, rng = legendRng(e)){
   m.pending = net || plan.kind !== 'ok' ? null : { kind: c.kind, prior: c.prior };
   m.stats.picks[c.kind] = (m.stats.picks[c.kind] || 0) + 1;
   m.lastPick = { kind: c.kind, err: plan.kind, q: +q.toFixed(3), pErr: +c.pErr.toFixed(3), eH: +c.eH.toFixed(3), shot: c.shot, x: +x.toFixed(2), z: +z.toFixed(2) };
+  // allungo visivo: resta verso la palla per un attimo dopo l'impatto (legendReachPose)
+  const gap = e.ball.pos.x - actor.pos.x, rs = actor.natpfReach || (actor.natpfReach = { amt: 0, hold: null });
+  rs.hold = { t: finite(e.elapsedTime), x: Math.sign(gap)*clamp(Math.abs(gap) - L.reachFrom, 0, L.reachMax) };
   const out = { kind: c.kind, err: plan.kind, x: xAim, z, net };
   if (net) Object.assign(out, { shot: 'TOPSPIN', flight: .78, arc: null });
   else if (c.shot === 'LOB') Object.assign(out, { shot: 'LOB', flight: NS.LOB_FLIGHT + rng()*.2, arc: null });
@@ -251,6 +259,49 @@ export function legendStep(e, a, dt){
   a.vel.set(a.vel.x + ax, 0, a.vel.z + az);
   a.pos.x += a.vel.x*dt; a.pos.z += a.vel.z*dt; a.stridePhase += a.vel.length()*dt*4.4;
   return true;
+}
+
+/* ---------- allungo visivo: racchetta, braccio e corpo verso la palla lontana ---------- */
+// Solo disegno (il motore senza grafica non ha racchetta né modello): da chiamare a ogni fotogramma dopo il calcolo
+// della racchetta e prima dell'animazione del corpo, che fa seguire la racchetta alla mano (il braccio IK si stende
+// come un giocattolo morbido). Prima un impatto a 1,4–1,85 m mostrava la CPU dritta, con la racchetta vicino alla
+// spalla, e la palla che ripartiva a 0,6–0,9 m dal piatto.
+export function legendReachPose(e, a, dt){
+  const s = a?.natpfReach;
+  if (!isLegend(e) || a !== e.opponent){
+    // livello cambiato a metà allungo: il corpo torna dritto (casual, pro e 1v1 non impostano mai natpfReach)
+    if (s){ a.model && (a.model.rotation.z = 0); a.natpfReach = null; }
+    return;
+  }
+  const L = cfg(e), b = e.ball, now = finite(e.elapsedTime), st = s || (a.natpfReach = { amt: 0, hold: null });
+  let want = 0;
+  const hold = st.hold && now - st.hold.t >= 0 && now - st.hold.t < L.reachHold;
+  if (hold) want = st.hold.x;
+  else if (b?.inPlay && e.phase === 'RALLY' && b.lastHitter !== 'opponent' && b.vel.z < -1){
+    // palla in arrivo: dove passerà quando la CPU colpisce (a 1,32 m davanti); il corpo, che frena arrivando, conta per metà
+    const t = Math.max(0, (b.pos.z - a.pos.z - 1.32)/(-b.vel.z)), px = b.pos.x + b.vel.x*t, gap = px - (a.pos.x + .5*a.vel.x*t);
+    if (t > 0 && t < L.reachLead) want = Math.sign(gap)*clamp(Math.abs(gap) - L.reachFrom, 0, L.reachMax);
+    // lato del colpo: la racchetta si prepara dalla parte in cui passa la palla rispetto al corpo, come decide il motore
+    // all'impatto (palla a x maggiore = rovescio). L'anticipazione del motore guarda la metà campo della palla: con la
+    // CPU decentrata la racchetta si preparava dal lato sbagliato e lo swing passava lontano dalla palla. Carica 0:
+    // cambia solo il lato (preparazione natpfPrep di racket_kinematics), la carica resta quella del motore.
+    const side = px - a.pos.x;
+    if (Math.abs(side) > .15) (a.userData || (a.userData = {})).natpfPrep = { side: side > 0 ? 'backhand' : 'forehand', amount: 0, until: (globalThis.performance?.now?.() ?? Date.now()) + 120 };
+  }
+  // verso la palla in fretta, indietro con calma (subito, se all'impatto la palla era vicina al corpo)
+  st.amt += (want - st.amt)*(1 - Math.exp(-Math.max(0, finite(dt))/(hold || Math.abs(want) > Math.abs(st.amt) ? .05 : .12)));
+  if (!want && Math.abs(st.amt) < 1e-3) st.amt = 0;
+  const local = a.sideSign > 0 ? -1 : 1;                   // la radice di chi sta nella metà vicina è girata di 180°
+  if (a.racketPivot) a.racketPivot.position.x += st.amt*local;
+  if (a.model) a.model.rotation.z = -Math.sign(st.amt)*local*L.reachLean*Math.min(1, Math.abs(st.amt)/L.reachMax);
+}
+
+// Swing della CPU all'impatto: lo swing parte all'impatto e arriva alla posa del colpo ~0,12 s dopo (come a tutti i
+// livelli). Con l'allungo, invece, l'animazione parte da poco prima dell'impatto (come per chi gioca,
+// NS.swingFromContact): la racchetta allungata è sulla palla nell'istante del colpo. Con la palla vicina al corpo resta
+// lo swing intero, che attraversa la palla.
+export function legendSwingAtContact(e, a){
+  if (isLegend(e) && a?.natpfReach?.hold?.x && a.racketKinematics) NS.swingFromContact(a.racketKinematics);
 }
 
 /* ---------- lasciare passare la palla che esce ---------- */
