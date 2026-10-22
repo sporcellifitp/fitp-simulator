@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
-import { simulate } from '../scripts/audit/rally-balance.mjs';
+import { simulate, courtStats } from '../scripts/audit/rally-balance.mjs';
 import * as NI from '../src/natpf/natpf_impact.js';
 import { ENGINE_SHOT } from '../src/natpf/natpf_gestures.js';
 import { DiagRecorder } from '../src/natpf/diag/diag_recorder.js';
@@ -268,18 +268,25 @@ test('servizio dal gesto: stesso gesto stesso servizio; forza, verso e momento d
   assert.equal(tooSoon.phase, 'SERVE_TOSS');
 });
 
-test('scambi che finiscono e dinamici: nessuno scambio infinito; volée, palle lasciate andare, schiacciate e tagliati in partita', () => {
+test('scambi che finiscono e dinamici: nessuno scambio infinito; palle lasciate andare, tagliati, pallonetti; volée e schiacciate quando la palla le chiede, mai la corsa a rete senza motivo', () => {
   const all = { shots: {}, volleys: 0, plans: {} };
-  for (const difficulty of ['casual', 'pro', 'leggenda']){
-    const r = simulate({ profile: 'tennista', difficulty, points: 30, seed: 4 });
+  for (const difficulty of ['casual', 'pro', 'leggenda']) for (const seed of [4, 7]){
+    const r = simulate({ profile: 'tennista', difficulty, points: 30, seed });
     assert.equal(r.capped, 0, `${difficulty}: ${r.maxHits} colpi`);
     assert.ok(r.maxHits < 60, `${difficulty}: ${r.maxHits}`);
-    // a ogni livello si gioca anche al volo e le palle che vanno fuori si lasciano andare
-    assert.ok(r.racket.volleys > 0 && r.racket.plans.letgo > 0, `${difficulty}: ${JSON.stringify(r.racket)}`);
+    // a ogni livello le palle che vanno fuori si lasciano andare
+    assert.ok(r.racket.plans.letgo > 0, `${difficulty}: ${JSON.stringify(r.racket)}`);
+    // movimento (campo aperto, fase C): dopo il colpo si torna verso il fondo; verso la rete solo quando una palla
+    // corta ha portato lì e non c'è il tempo di tornare (prima 46–89% dei colpi, anche dal fondo)
+    const c = courtStats([r]);
+    assert.ok(c.toNetPct < 10 && c.toNetFromBackPct === 0, `${difficulty}: ${JSON.stringify(c)}`);
+    all.volleys += r.racket.volleys;
     for (const [k, v] of Object.entries(r.racket.shots)) all.shots[k] = (all.shots[k] || 0) + v;
     for (const [k, v] of Object.entries(r.racket.plans)) all.plans[k] = (all.plans[k] || 0) + v;
   }
-  assert.ok(all.shots.SMASH > 0 && all.shots.SLICE > 0 && all.shots.LOB > 0 && all.plans.smash > 0, JSON.stringify(all));
+  // volée e schiacciate restano, dove la palla le chiede (palle corte e pallonetti di Leggenda)
+  assert.ok(all.volleys > 0 && all.shots.SMASH > 0 && all.plans.smash > 0, JSON.stringify(all));
+  assert.ok(all.shots.SLICE > 0 && all.shots.LOB > 0, JSON.stringify(all));
 });
 
 test('swing corto e ampio nel motore: alla stessa forza il colpo corto rimbalza un poco più vicino alla rete', () => {

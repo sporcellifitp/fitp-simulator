@@ -158,9 +158,10 @@ Formato: problema → evidenza → causa → verifica → soluzione → criterio
 - **Soluzione**: il movimento automatico sceglie dove prendere la palla.
   - Dopo il rimbalzo all'altezza comoda.
   - Al volo, se chi gioca è avanti o la palla è alta da schiacciare.
-  - Dopo un colpo d'attacco riuscito chi gioca sale a rete, poi torna in posizione.
-- **Criterio**: negli scambi automatici si vedono volée dopo i colpi d'attacco e schiacciate al volo su palle alte
-  raggiungibili.
+  - Dopo un colpo d'attacco riuscito chi gioca sale a rete, poi torna in posizione (tolto nella fase C del 22/10 notte:
+    portava a rete troppo spesso; ora si va avanti solo quando la palla lo chiede, §6).
+- **Criterio**: negli scambi automatici si vedono volée e schiacciate al volo su palle raggiungibili (dalla fase C solo
+  quando la palla le chiede: palle corte, pallonetti corti).
 
 ### P7. Pallonetti e tagli decisi con poca sicurezza
 
@@ -314,10 +315,22 @@ Nessun numero casuale nel colpo di chi gioca: lo stesso gesto, sulla stessa pall
 
 ### Dall'intenzione all'esito (motore)
 
-6. **Esito** (`natpf_stroke_outcome.js`, `_natpfRacketShot` in `game_engine.js`).
+6. **Esito** (`natpf_stroke_outcome.js`, `_natpfRacketShot` in `game_engine.js`; campo aperto dalla fase C del 22/10
+   notte, §6).
    - Il tempo dentro la finestra è una scelta: in anticipo incrociato, in ritardo lungolinea. Il lungolinea pieno vale
      quanto la palla impiega a passare 1,4 m dietro il punto d'impatto.
-   - Oltre la finestra è esecuzione: qualità più bassa e palla spinta verso fuori.
+   - Oltre la finestra è esecuzione: qualità più bassa e palla che continua ad andare verso l'esterno, in modo continuo
+     fino alla fine della finestra d'impatto, dove esce (prima si fermava a 1,6 volte la finestra: nell'ultimo 40% della
+     finestra tutte le palle uguali).
+   - Il lato del colpo (da che parte va la palla in anticipo) viene dal gesto, dritto o rovescio, non da dove il
+     movimento automatico ha messo il corpo rispetto alla palla.
+   - La mira si misura attorno a un punto neutro che segue la posizione laterale della palla all'impatto (40%); −1 e +1
+     sono le due righe (0,45 m dentro). Da ogni posizione si arriva a tutte e due le righe con il tempo e il piatto.
+   - Profondità continua dalla profondità voluta (forza, salita, ampiezza dello swing): top spin da 6 a 11,4 m dalla
+     rete (il proprio colpo tipico attorno a 8,7 m), piatto 6,4–11,6, tagliato 5,2–10,6, palla corta 1,8–4,6, pallonetto
+     8,6–11,4 (prima il top spin 7,4–10,9). Gli angoli stretti cadono più corti in proporzione.
+   - Assistenza «morbida»: avvicina le palle alle righe senza superarle e senza cambiare l'ordine delle direzioni; sfuma
+     oltre la finestra e attorno alla qualità del livello (prima un taglio netto: molte palle sulla stessa riga).
    - Qualità = portata × preparazione × corsa × palla difficile (veloce, profonda, alta) × pressione degli scambi lunghi.
    - Assistenza per livello. Sotto `assistQ` la palla non è più tenuta in campo; sotto `failQ` il colpo fallisce (in rete
      se colpito sotto 1 m, altrimenti lungo):
@@ -341,10 +354,14 @@ Nessun numero casuale nel colpo di chi gioca: lo stesso gesto, sulla stessa pall
      controllo vale per le palle lasciate andare e per la corsa.
    - Il lanciapalle dell'allenamento e delle sfide calcola il piano come in partita (prima usava ancora il vecchio
      posizionamento, 2,15 m dietro il rimbalzo, senza piano).
-8. **Movimento automatico** (P6). La traiettoria si prevede con la stessa fisica del motore.
-   - Dopo il rimbalzo all'altezza comoda; volée se si è avanti; schiacciata al volo sui pallonetti che salgono oltre 3,3 m.
+8. **Movimento automatico** (P6; contestuale dalla fase C). La traiettoria si prevede con la stessa fisica del motore.
+   - Dopo il rimbalzo all'altezza comoda; schiacciata al volo sui pallonetti che salgono oltre 3,3 m.
+   - Al volo solo quando conviene: aspettare il rimbalzo costerebbe almeno 0,35 s di corsa in più (chi è vicino alla
+     rete), nel punto prima del rimbalzo che costa meno corsa. Prima bastava essere a meno di 8 m dalla rete.
    - Le palle che rimbalzerebbero fuori si lasciano andare.
-   - Dopo un attacco riuscito da metà campo si sale a rete; dopo una volée si resta a rete.
+   - Dopo il colpo si torna verso il fondo se si fa in tempo prima del colpo dell'avversario (all'indietro al 55% della
+     corsa); a rete si resta solo quando una palla corta ha portato lì e il tempo non basta. Prima: a rete dopo un
+     attacco o da dentro il campo, anche con il tempo per tornare (verso la rete dopo il 46–89% dei colpi).
    - Arrivare al limite costa qualità (fino al 40%): un buon angolo dell'avversario si paga.
 9. **Servizio dal gesto** (P5). Il colpo parte all'arrivo del gesto. La qualità dipende da quanto il gesto è lontano dal
    punto più alto del lancio; un gesto oltre 0,42 s prima fa ancora parte del lancio. Piatto, kick (testa che sale) o
@@ -574,8 +591,10 @@ diagnostica (Maiusc+D → Registra) e si salva il pacchetto.
    dei colpi corti più vicina alla rete.
 7. **Swing orizzontale, verticale, obliquo** (test 4). Dieci per tipo: atteso top spin (orizzontale e obliquo in
    salita), pallonetto (verticale dal basso), tagliato (dall'alto).
-8. **Schiacciata e volée** (test 6). Partita a Esperto: salire a rete dopo un attacco; sui pallonetti della CPU
-   schiacciare al volo. Negli eventi `piano`: `volley` e `smash`; negli eventi `racchetta`: `volee: true`.
+8. **Movimento, schiacciata e volée** (test 6, fase C). Partita a Esperto e a Leggenda. Atteso: dopo i colpi dal fondo
+   si torna in fondo (nessuna corsa a rete senza una palla corta); su una palla corta si va avanti e, se l'avversario
+   risponde subito, si gioca al volo; sui pallonetti corti della CPU si schiaccia al volo. Negli eventi `piano`: `volley`
+   e `smash` solo in questi casi; negli eventi `racchetta`: `volee: true`.
 9. **Finestra d'impatto** (test 8). Swing volutamente in anticipo e in ritardo. Atteso: eventi `vuoto` con motivo
    «presto» o «tardi», mai un colpo con la palla lontana.
 10. **Tremolio** (test 11). Telefono tenuto fermo 30 s in posizione di attesa. Atteso: nessun `tel.colpo`.
@@ -583,16 +602,27 @@ diagnostica (Maiusc+D → Registra) e si salva il pacchetto.
     che passa davanti alla webcam; chi gioca nasconde la mano per 1–2 s. Atteso: nessun evento `input` della webcam per
     gli swing dell'altra persona; i colpi di chi gioca riprendono dopo la mano nascosta. Ripetere con l'altra persona
     più vicina alla webcam di chi gioca (limite noto: all'avvio può essere scelta lei).
-12. **Scambi dinamici** (test 12). Tre partite a Casual, Esperto e Leggenda. Atteso: scambi che finiscono, volée e
-    palle lasciate andare negli eventi; a Leggenda nessuno scambio oltre 40 colpi.
+12. **Scambi dinamici** (test 12). Tre partite a Casual, Esperto e Leggenda. Atteso: scambi che finiscono e palle
+    lasciate andare negli eventi; volée solo dopo palle corte; a Leggenda nessuno scambio oltre 40 colpi.
 13. **Ritardo dello schermo**. Video a 240 fotogrammi al secondo dello schermo e del telefono: se i colpi arrivano in
     ritardo di più di 40 ms in ogni sessione (riassunto: «tempo dei colpi del telefono»), impostare il ritardo dello
     schermo nella diagnostica.
+14. **Campo aperto** (fase C, §6). Dalla stessa palla del lanciapalle (allenamento), con il telefono, una persona per
+    volta:
+    - dieci dritti con il tempo che va dal molto in anticipo al molto in ritardo: nella diagnostica (`racchetta`) `mira`
+      e `x` cambiano in ordine con `tempo`, senza colpi con la stessa caduta per tempi diversi; ai due estremi la palla
+      esce di lato;
+    - dieci dritti dal più morbido al più forte: `profondita` cresce in ordine, dalla zona della riga del servizio alla
+      riga di fondo; il colpo abituale cade attorno a 8–9 m;
+    - lo stesso dritto ripetuto dieci volte: `ripetibilita` con variazione della caduta entro 1 m;
+    - nel riassunto, «scarto tra caduta calcolata e rimbalzo vero» con mediana entro 0,3 m;
+    - in partita: dopo i colpi dal fondo il giocatore torna in fondo; va a rete solo dopo una palla corta.
+    Ogni cosa che non torna va guardata nel video (la persona può aver fatto un altro gesto) prima di cambiare il modello.
 
 Analisi dei pacchetti: `node scripts/diag/diag.mjs colpi sessione.zip` e, per i campioni grezzi,
 `node --import ./test/register.mjs scripts/audit/zip-replay.mjs <cartella estratta>`.
 
-## 6. Confronto con il gioco di riferimento, campo aperto e movimento (fase A, 22/10 notte)
+## 6. Confronto con il gioco di riferimento, campo aperto e movimento (fasi A e C, 22/10 notte)
 
 ### Il riferimento
 
@@ -632,3 +662,35 @@ del gioco precedente della stessa serie, che una recensione dice identico («esa
 - `recoverAfterShot` (`natpf_impact.js`): colpito a meno di 8,2 m dalla rete → sempre a rete; colpo profondo e forte o
   angolato da meno di 10,6 m → a rete («attacco»). Una palla corta porta avanti, e da lì non si torna più.
 - `planPlayerIntercept`: chi è entro 8 m dalla rete prende la palla al volo, quindi resta avanti.
+
+### Campo aperto e movimento: cosa è cambiato (fase C)
+
+Codice: `natpf_stroke_outcome.js` (mira attorno al punto neutro, tempo continuo su tutta la finestra, profondità su
+tutto il campo, assistenza morbida), `natpf_impact.js` (volée solo quando conviene, recupero secondo il tempo),
+`game_engine.js` (lato del colpo dal gesto, posizione della palla all'impatto, tempo di volo al recupero), diagnostica
+(evento `racchetta` con mira, punto neutro, palla all'impatto, assistenza, volo, altezza sulla rete, effetto; metrica
+dello scarto tra la caduta calcolata e il rimbalzo vero). Test: `natpf-campo-aperto.test.mjs` (12 prove; con il codice
+di prima ne falliscono 11, tutte tranne «stessi ingressi, stesso esito»).
+
+Misure con i giocatori simulati (`npm run audit:rally -- --campo`, tre partite da 150 punti per riga; prima = codice
+della fase B):
+
+| | prima | dopo |
+|---|---|---|
+| verso la rete dopo il colpo | 46–89% dei colpi | 0–0,1% |
+| volée | 33–69% | 0–0,1% a Casual ed Esperto; a Leggenda su palle corte e pallonetti |
+| impatto, mediana della distanza dalla rete | 2,9–10,5 m | 9,9–12,4 m |
+| celle di 1 m usate (profili del telefono) | 35–46 | 38–60 |
+| profondità p10–p90, tutti i profili | 5,4–10,2 m | 4,8–10,4 m |
+| caduta del dritto in anticipo oltre 0,32 s (Casual) | sempre −4,02 m | da −4,0 a −5,2 m, continua |
+| profondità del dritto, forza 0,3 → 1 | 8,45 → 10,90 m | 7,62 → 11,31 m (6,0 m a forza 0) |
+
+- Leggenda (`npm run audit:legend`): tutti i criteri rispettati; contro chi resta in fondo usa più palle corte.
+- Equilibrio (`npm run audit:rally`): nessuno scambio infinito. Chi gioca con il telefono vince più punti di prima, perché
+  non viene più passato a rete: a Esperto il profilo «amatore» dal 57% all'80%, «tennista» dal 94% al 99,8%, «bambino»
+  dal 24,5% al 28%; il controllo esistente «Esperto contro medio» resta nel 70–85% dei game (83%). Da rivedere con le
+  partite vere della diagnostica prima di toccare la CPU.
+- Limiti: il lungolinea pieno chiede anche il piatto (in ritardo, dentro la finestra, la mira arriva a +0,57 contro −0,87
+  in anticipo, perché la palla passa il corpo); un colpo molto in anticipo (oltre circa 1,7 volte la finestra della
+  direzione) esce di lato; la varietà della CPU e la sua difficoltà non sono state ritarate.
+

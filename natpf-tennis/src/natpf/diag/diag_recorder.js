@@ -236,7 +236,10 @@ export class DiagRecorder {
       // registrato della racchetta (prima anche un campo racchetta in colpo.gioco, solo per chi gioca qui)
       if (out && L) R.log('racchetta', { chi: L.who || null, n: L.seq ?? null, voluto: I.shot || null, colpo: O.shot || null, forza: r(I.power, 3), profondita: r(I.depth, 3), piatto: r(I.face, 3), ricavato: !!I.derived,
         tempoMs: r(1000*L.timing, 1), tempo: r(O.t, 3), oltre: r(O.excess, 3), qualita: r(O.q, 3), assistito: !!O.assisted, fallito: !!O.failed, rete: !!O.netFault,
-        x: r(out.E), z: r(out.N), volee: !!L.volley, lato: L.contact ?? null, voto: O.grade || null });
+        x: r(out.E), z: r(out.N), volee: !!L.volley, lato: L.contact ?? null, voto: O.grade || null,
+        // direzione calcolata: mira (−1…+1 tra le righe, 0 il punto neutro), punto neutro e posizione della palla
+        // all'impatto (riferimento di chi colpisce), assistenza (0…1); traiettoria: volo (s), altezza sulla rete, effetto
+        mira: r(O.aim, 3), neutro: r(O.x0), palla: r(L.hitX), aiuto: r(O.assist, 2), volo: r(L.flight, 3), rete_m: r(O.clear, 2), effetto: r(O.topspin, 1) });
       return out;
     });
     const plan = (who, P) => P && P.at === E.elapsedTime && R.log('piano', { chi: who, tipo: P.kind || null, contatto: P.contact ? [r(P.contact.x), r(P.contact.y), r(P.contact.z)] : null, t: r(P.t, 3), corsa: r(P.stretch, 3) });

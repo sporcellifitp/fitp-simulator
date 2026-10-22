@@ -137,3 +137,16 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     calibrazione senza pronazione, «pallonetto» che per la racchetta virtuale è la testa che scende, piatto tarato sul
     modello di prima). Nuovo: salita abituale imparata giocando quando la calibrazione manca («Salta»).
   - Prove: `tools/test` 135/135, `npm test` 281/281; CI del sito in locale: telefono 10/10, tempi 8/8, gesto e calibrazione 18/18, grafica 9/9, pacchetto ridotto 5/5, 6/6 e 10/10, LAN in Node 4/4, nel browser 3/3 e 7/8 (limite noto del contenitore), pacchetti creati; motore base nel browser: diagnostica 24/24, allenamento 13/13, risposta al gesto 9/9, presa verticale 10/10, presa del 19/10 10/10, menu 22/22, ricollegamento 6/6, rete che cade 6/6; partita intera della pagina storica (`phone-cal.mjs`) 17/17.
+- Checkpoint 13 (22/10, notte): fase C del passo 17, campo aperto e movimento.
+  - Esito: tempo continuo su tutta la finestra d'impatto (prima piatto oltre 1,6 volte la finestra), mira attorno a un
+    punto neutro che segue la palla, lato del colpo dal gesto (prima dalla palla rispetto al corpo: il movimento
+    automatico poteva ribaltare la direzione), profondità su tutto il campo (top spin 6–11,4 m, prima 7,4–10,9),
+    assistenza morbida che non cambia l'ordine delle direzioni.
+  - Movimento: volée solo quando aspettare il rimbalzo costerebbe almeno 0,35 s di corsa in più; dopo il colpo verso il
+    fondo se si fa in tempo prima del colpo dell'avversario, a rete solo se una palla corta ha portato lì.
+  - Diagnostica: mira, punto neutro, palla all'impatto, assistenza, volo nell'evento `racchetta`; scarto tra caduta
+    calcolata e rimbalzo vero nelle metriche.
+  - Misure (giocatori simulati): verso la rete 46–89% → 0–0,1%, volée 33–69% → 0–0,1% a Casual ed Esperto (a Leggenda su palle
+    corte e pallonetti), Leggenda con tutti i criteri; i profili del telefono vincono più punti (Esperto, amatore
+    57% → 80%): da rivedere con partite vere.
+  - Prove: `tools/test` 135/135, `npm test` 293/293; CI del sito in locale: telefono 10/10, tempi 8/8, gesto e calibrazione 18/18, grafica 9/9, pacchetto ridotto 5/5, 6/6 e 10/10, LAN in Node 4/4, nel browser 3/3 e 7/8 (limite noto), pacchetti creati; motore base nel browser: scambio vero (`natpf-rally.mjs`, nuova) 7/7, diagnostica 24/24, allenamento 13/13, risposta al gesto 9/9, presa verticale 10/10, presa del 19/10 10/10, menu 22/22, ricollegamento 6/6, rete che cade 6/6, build e 1v1 18/18.

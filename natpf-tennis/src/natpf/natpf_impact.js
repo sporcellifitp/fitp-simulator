@@ -8,8 +8,10 @@
 //     anticipo resta in attesa con il suo tempo vero; uno più forte arrivato dopo lo sostituisce (il primo era la
 //     preparazione). All'arrivo della palla: dentro la finestra si colpisce, prima della finestra è un colpo a vuoto.
 //     Dopo il punto d'impatto si colpisce ancora per poco (in ritardo).
-//   • Dopo il colpo: chi è avanti resta a rete; dopo un attacco riuscito da metà campo si sale a rete; altrimenti si
-//     torna in fondo al campo.
+//   • Dopo il colpo si torna verso il fondo se si fa in tempo prima del colpo dell'avversario; a rete si resta solo
+//     quando una palla corta ha portato lì e non c'è il tempo di tornare. Avanti si va per prendere una palla che lo
+//     chiede (corta, o al volo quando aspettare il rimbalzo costerebbe troppa strada). Prima chi colpiva da dentro il
+//     campo andava e restava a rete (56–89% dei colpi nelle partite simulate), anche senza che la palla lo chiedesse.
 import { bounceSpin, eventLatency, holdSwingPrep, COURT } from './natpf_skill.js';
 import { IMPACT, impactWindow, lateSpanOf } from './natpf_stroke_outcome.js';
 import { skillLevel } from './natpf_skill.js';
@@ -24,17 +26,22 @@ export const PLAN = Object.freeze({
   side: .72,                 // m: palla di lato al corpo all'impatto (dritto o rovescio)
   comfort: [.5, 1.45],       // m: altezza comoda dopo il rimbalzo
   volley: [.5, 1.95], volleyMinZ: 2.2,   // volée: altezza e distanza minima dalla rete
-  frontCourt: 8,             // m dalla rete: da qui in avanti si prende al volo
+  // al volo solo se conviene: aspettare il rimbalzo costerebbe almeno volleySave secondi di corsa in più (chi è vicino
+  // alla rete dovrebbe tornare indietro di metri) o il rimbalzo non si raggiunge. Prima bastava essere a meno di 8 m
+  // dalla rete, e dopo una volée si restava a rete
+  volleySave: .35,
   smash: [1.9, 2.95], lobApex: 3.3, smashMinZ: 2.6,   // schiacciata al volo sulle palle che salgono oltre lobApex
   react: .12,                // s: prima di muoversi
   slackFull: .35,            // s di margine con cui si arriva sul punto d'impatto senza fretta; meno è un colpo in corsa
   runFrom: 2, runSpan: 4, runWeight: .7,   // m: una corsa lunga (oltre runFrom) è un colpo in corsa anche se si arriva
   stretchCost: .4,           // qualità che si perde arrivando al limite (un buon angolo dell'avversario costa)
   baseline: 11.74, maxBack: 13.4,
-  netZ: 4.6,                 // m: posizione a rete
+  netZ: 4.6,                 // m: posizione a rete (posizione d'attesa del doppio)
   letGo: .15,                // m: la palla che rimbalzerebbe fuori di almeno tanto si lascia andare (non si gioca al volo)
-  // salita a rete dopo un colpo d'attacco da non oltre fromZ: qualità e (profondità e forza, oppure angolo)
-  approach: Object.freeze({ quality: .8, depth: 9.2, power: .66, angle: 2.9, fromZ: 10.6 }),
+  // recupero dopo il colpo: tempo fino al colpo dell'avversario (volo del proprio colpo più oppTake, il tempo che
+  // l'avversario impiega a prendere la palla dopo il rimbalzo); all'indietro si va più piano che avanti (recoverEff
+  // della corsa piena: partenza, frenata, passi all'indietro). safeZ: profondità da cui si gioca comodi dopo il rimbalzo
+  oppTake: .45, recoverEff: .55, safeZ: 10,
 });
 
 // Traiettoria della palla da adesso: [{ t, x, y, z, vy, bounces }] (bounces: rimbalzi da adesso in poi)
@@ -98,15 +105,17 @@ export function planPlayerIntercept(engine, actor){
   let kind = null, s = null;
   // schiacciata al volo: palla alta che scende nella zona della schiacciata
   if (apex >= PLAN.lobApex) s = before.find(p => p.vy < 0 && p.y >= PLAN.smash[0] && p.y <= PLAN.smash[1] && Z(p.z) >= PLAN.smashMinZ && reachable(p)), kind = s ? 'smash' : null;
-  // volée: chi è avanti prende la palla prima del rimbalzo
-  if (!s && Z(actor.pos.z) <= PLAN.frontCourt) s = before.find(p => Z(p.z) >= PLAN.volleyMinZ && p.y >= PLAN.volley[0] && p.y <= PLAN.volley[1] && reachable(p)), kind = s ? 'volley' : null;
-  // dopo il rimbalzo: il primo punto comodo (in discesa dopo il colmo, o al colmo se è basso) raggiungibile
   if (!s){
+    // dopo il rimbalzo: il primo punto comodo (in discesa dopo il colmo, o al colmo se è basso) raggiungibile
     const top = after.reduce((m, p) => Math.max(m, p.y), 0);
-    s = after.find(p => p.y >= PLAN.comfort[0] && p.y <= PLAN.comfort[1] && (p.vy <= 0 || top <= PLAN.comfort[1]) && reachable(p))
+    const ground = after.find(p => p.y >= PLAN.comfort[0] && p.y <= PLAN.comfort[1] && (p.vy <= 0 || top <= PLAN.comfort[1]) && reachable(p))
       || after.find(p => p.y >= PLAN.comfort[0] && reachable(p))
       || after.find(p => reachable(p));
-    kind = s ? 'ground' : null;
+    // al volo: solo se aspettare il rimbalzo costa molto più strada (si è vicini alla rete) o il rimbalzo non si
+    // raggiunge; nel punto prima del rimbalzo che costa meno corsa
+    const volley = before.filter(p => Z(p.z) >= PLAN.volleyMinZ && p.y >= PLAN.volley[0] && p.y <= PLAN.volley[1] && reachable(p)).reduce((b, p) => (!b || need(p) < need(b) ? p : b), null);
+    if (volley && (!ground || need(ground) - need(volley) >= PLAN.volleySave)) s = volley, kind = 'volley';
+    else if (ground) s = ground, kind = 'ground';
   }
   // nessun punto raggiungibile: verso il rimbalzo (o la fine della traiettoria), il più vicino possibile
   if (!s){ s = after[0] || path[path.length - 1]; kind = 'stretch'; }
@@ -123,12 +132,16 @@ export function planPlayerIntercept(engine, actor){
 // Qualità che resta dopo la corsa sul piano in corso (1 se si è arrivati con calma)
 export const stretchQuality = (engine, actor = engine.player) => 1 - PLAN.stretchCost*clamp(finite(livePlan(engine, actor)?.stretch), 0, 1);
 
-// Dopo il colpo di chi gioca: a rete o in fondo al campo (nella propria metà, anche per il Player 2 del 1v1)
-export function recoverAfterShot(engine, actor, { landingX = 0, landingZ = -9, quality = 1, power = .6, contactZ = 11.5 } = {}){
-  const A = PLAN.approach, depth = Math.abs(finite(landingZ, -9)), x = finite(landingX), half = Math.sign(actor.pos.z) || 1;
-  const cz = Math.abs(finite(contactZ, 11.5)), atNet = cz <= PLAN.frontCourt + .2;
-  const attack = !atNet && cz <= A.fromZ && finite(quality, 1) >= A.quality && ((depth >= A.depth && finite(power, .6) >= A.power) || Math.abs(x) >= A.angle);
-  if (atNet || attack){ actor.targetPos.set(clamp(x*.3, -2.4, 2.4), 0, half*PLAN.netZ); return 'net'; }
+// Dopo il colpo di chi gioca (nella propria metà, anche per il Player 2 del 1v1): verso il fondo, di lato dalla parte
+// opposta a dove va la palla, se si fa in tempo ad arrivare almeno a safeZ prima del colpo dell'avversario. Altrimenti
+// (succede solo quando una palla corta ha portato vicino alla rete) si chiude a rete: presi a metà campo è peggio. Fin
+// dove si arriva lo decide il tempo; il colpo dopo lo decide il piano nuovo, da lì. Prima: a rete da dentro il campo o
+// dopo un attacco, anche con il tempo per tornare. Restituisce 'net' o 'baseline'.
+export function recoverAfterShot(engine, actor, { landingX = 0, flight = 1, contactZ = 11.5 } = {}){
+  const half = Math.sign(actor.pos.z) || 1, z = Math.abs(finite(contactZ, 11.5)), x = finite(landingX);
+  const time = Math.max(0, finite(flight, 1) + PLAN.oppTake - PLAN.react);
+  const back = z + Math.max(4, finite(actor.maxSpeed, 9))*PLAN.recoverEff*time;
+  if (back < PLAN.safeZ){ actor.targetPos.set(clamp(x*.3, -2.4, 2.4), 0, half*Math.max(z, PLAN.netZ)); return 'net'; }
   actor.targetPos.set(clamp(-x*.22, -1.6, 1.6), 0, half*PLAN.baseline);
   return 'baseline';
 }

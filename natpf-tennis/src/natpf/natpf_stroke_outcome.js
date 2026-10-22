@@ -1,14 +1,18 @@
 // Telefono come racchetta: dall'intenzione e dall'esecuzione all'esito del colpo di chi gioca, senza caso
-// (docs/NATPF_RACCHETTA_VIRTUALE.md §3). Lo usa il motore all'istante dell'impatto, quando sa dov'è la palla.
+// (docs/NATPF_RACCHETTA_VIRTUALE.md §3 e §6). Lo usa il motore all'istante dell'impatto, quando sa dov'è la palla.
 //
 //   • intenzione (natpf_stroke_intent.js): tipo di colpo, forza, profondità voluta, salita, mira del piatto;
 //   • tempo: dentro la finestra comoda (± timingSpan del livello) è una scelta, come nei giochi con il controller di
 //     movimento: in anticipo la palla va incrociata, in ritardo lungolinea. Oltre la finestra è un errore di esecuzione:
-//     la direzione non va più in là della scelta piena, ma la palla esce più corta, più alta e più lenta, e se il
-//     ritardo o l'anticipo sono grandi spinge fuori di lato;
+//     la palla continua ad andare verso l'esterno (fino alla fine della finestra d'impatto, dove esce), più corta, più
+//     alta e più lenta;
+//   • campo aperto: la mira si misura attorno a un punto neutro che segue la posizione della palla all'impatto, e va da
+//     una riga laterale all'altra; la profondità va dalla riga del servizio (e prima) alla riga di fondo. Tutto è
+//     continuo: niente bersagli, zone, gradini o tetti che mettono molte palle nello stesso punto;
 //   • allungo e preparazione tolgono qualità come prima (reachQuality, prepQuality di natpf_skill.js).
-// Assistenza: con un gesto ragionevole (tempo dentro la finestra e qualità sufficiente) la palla resta in campo; escono
-// solo i colpi estremi. Stessi ingressi, stesso esito.
+// Assistenza: con un gesto ragionevole (tempo dentro la finestra e qualità sufficiente) la palla resta in campo, avvicinata
+// alle righe senza superarle e senza cambiare l'ordine delle direzioni; sfuma oltre la finestra e sotto la qualità del
+// livello. Escono solo i colpi estremi. Stessi ingressi, stesso esito.
 import { ARC, flightForClear, swingGrade, timingUnits } from './natpf_skill.js';
 
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -17,17 +21,26 @@ const lerp = (a, b, u) => a + (b - a)*clamp(u);
 
 export const OUTCOME = Object.freeze({
   natural: .15,       // un colpo neutro va un poco incrociato (il colpo più sicuro)
-  timingAim: .72,     // tempo dentro la finestra → mira (piena a ±1 unità)
+  timingAim: .72,     // tempo dentro la finestra → mira (a ±1 unità quasi piena)
   faceAim: .32,       // piatto girato rispetto al proprio colpo abituale
   xMax: 3.65,         // m: mira piena, 0,45 m dentro la riga laterale del singolare
-  pushOut: 1.4,       // m di lato per unità di tempo oltre la finestra (può uscire)
-  // profondità del rimbalzo (m dalla rete) per tipo, da forza 0 a forza 1
-  depth: Object.freeze({ TOPSPIN: [7.4, 10.9], FLAT: [8.2, 11.2], SLICE: [7.0, 10.3], DROP: [2.4, 4.4], LOB: [9.2, 11.0], SMASH: [6.2, 10.2] }),
-  maxDepth: 11.3,     // m: profondità massima con l'assistenza (la riga di fondo è a 11,89)
+  follow: .4,         // il punto neutro segue di tanto la posizione laterale della palla all'impatto (0: sempre il centro)
+  pushOut: 1.4,       // m di lato per unità di tempo oltre la finestra, fino alla fine della finestra (la palla esce)
+  // profondità del rimbalzo (m dalla rete) per tipo, da profondità voluta 0 a 1: dalla riga del servizio (e prima)
+  // alla riga di fondo; il proprio colpo tipico (profondità voluta circa 0,5) cade attorno a 8,7 m. Prima un colpo
+  // normale andava da 7,4 a 10,9 m (2,5 m con i gesti tipici: metà campo e centro irraggiungibili)
+  depth: Object.freeze({ TOPSPIN: [6, 11.4], FLAT: [6.4, 11.6], SLICE: [5.2, 10.6], DROP: [1.8, 4.6], LOB: [8.6, 11.4], SMASH: [5.6, 10.8] }),
+  depthKnee: 10.8, maxDepth: 11.6,   // m: con l'assistenza la palla si avvicina alla riga di fondo (11,89) senza superarla
+  sideKnee: 3.1, sideEdge: 4,        // m: con l'assistenza la palla si avvicina alla riga laterale (4,115) senza superarla
+  minDepth: 3, dropMin: 1.6,         // m: un colpo (una palla corta) non cade più vicino alla rete di così
+  assistFade: .25,    // unità di tempo oltre la finestra in cui l'assistenza sparisce (prima di colpo, alla finestra)
+  assistQSpan: .1,    // qualità attorno alla soglia del livello in cui l'assistenza sparisce (prima di colpo)
   shortPerQ: 2.4,     // m più corta per la qualità che manca
   shortPerExcess: .8, // m più corta per unità di tempo oltre la finestra
   heavyRise: .45, heavyGain: 4,   // top spin con la testa che sale molto e forte: va lunga (può uscire)
-  wideFrom: 2.9, wideSpan: 1, wideDepth: 6,   // angolo stretto: oltre 2,9 m di lato la palla cade più corta
+  // angolo stretto: oltre wideFrom di lato la palla cade più corta, verso wideDepth in proporzione (widePull): la
+  // differenza di profondità voluta resta (prima tutte le palle molto angolate cadevano a 6 m)
+  wideFrom: 2.9, wideSpan: 1, wideDepth: 6, widePull: .6,
   floatPerQ: .35,     // m più alta sulla rete per la qualità che manca (palla «galleggiante» per l'avversario)
   lobFlight: [2.2, 1.75], smashFlight: .42,
   volleyShort: 1,     // m: la volée spinge meno
@@ -58,30 +71,47 @@ export const rallyPressure = (strokes, from = RALLY_PRESSURE.from) => 1 - Math.m
 // Qualità del tempo: piena dentro la finestra, scende oltre (fino a metà)
 export const timingQualityOf = t => 1 - .5*clamp(Math.abs(finite(t)) - 1, 0, 1);
 
+// Limiti dolci: uguale fino a knee, poi verso edge senza raggiungerlo. Sempre crescenti: niente gradini e niente
+// palle tutte nello stesso punto (prima l'assistenza era un taglio netto alla mira piena e a 11,3 m)
+const softEdge = (v, knee, edge) => (v <= knee ? v : knee + (edge - knee)*Math.tanh((v - knee)/(edge - knee)));
+const softFloor = (v, floor, knee) => (v >= knee ? v : knee - (knee - floor)*Math.tanh((knee - v)/(knee - floor)));
+// Punto neutro (mira 0) nel riferimento di chi colpisce: segue la posizione laterale della palla all'impatto
+export const neutralX = (hitX, xMax = OUTCOME.xMax) => clamp(finite(hitX), -xMax, xMax)*OUTCOME.follow;
+// Caduta laterale dalla mira: −1 e +1 sono le due righe (xMax), 0 il punto neutro; oltre ±1 si continua in linea
+export const landingFromAim = (aim, x0, xMax = OUTCOME.xMax) => x0 + aim*(aim >= 0 ? xMax - x0 : xMax + x0);
+// Mira che porta la palla in x (inversa di landingFromAim; per chi vuole mirare un punto, come i banchi di prova)
+export const aimForLanding = (x, x0, xMax = OUTCOME.xMax) => (x - x0)/Math.max(.1, x >= x0 ? xMax - x0 : xMax + x0);
+
 // intent: { shot, power, depth, rise, face } (minuscolo o maiuscolo); timing: s di anticipo all'impatto (negativo = in
 // ritardo); lateSpan: s di ritardo che valgono il lungolinea pieno (lateSpanOf: con le palle veloci è più breve, perché
-// la palla passa il corpo prima); contact: +1 se la palla è alla destra di chi colpisce, −1 a sinistra; quality:
-// allungo × preparazione (0…1); contactY: altezza della palla all'impatto; volley: presa al volo; level: parametri del
-// livello (skillLevel).
+// la palla passa il corpo prima); contact: +1 colpo di dritto del destro (o di rovescio del mancino), −1 l'altro lato:
+// dice da che parte va la palla in anticipo; hitX: posizione laterale della palla all'impatto (m, riferimento di chi
+// colpisce, + a destra); quality: allungo × preparazione (0…1); contactY: altezza della palla all'impatto; volley:
+// presa al volo; level: parametri del livello (skillLevel).
 // Restituisce, nel riferimento di chi colpisce (x a destra, depth in avanti dalla rete): { x, depth, clear, topspin,
-// flight (solo pallonetto e schiacciata), netFault, grade, cursor, t, excess, q, assisted }.
-export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contact = 1, quality = 1, contactY = 1, volley = false, level = {} } = {}){
+// flight (solo pallonetto e schiacciata), netFault, grade, cursor, t, excess, q, aim, x0, assist, assisted }.
+export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contact = 1, hitX = 0, quality = 1, contactY = 1, volley = false, level = {} } = {}){
   const O = OUTCOME, shot = String(intent.shot || 'topspin').toUpperCase();
   const power = clamp(finite(intent.power, .5)), want = clamp(finite(intent.depth, power)), rise = clamp(finite(intent.rise), -1, 1);
   const AS = assistOf(level), span = directionSpan(level), late = Number.isFinite(lateSpan) ? clamp(lateSpan, .04, span) : span;
-  const c = finite(contact, 1) >= 0 ? 1 : -1, t = clamp(finite(timing) >= 0 ? finite(timing)/span : finite(timing)/late, -1.6, 1.6), inside = clamp(t, -1, 1), excess = Math.max(0, Math.abs(t) - 1);
+  // tempo in unità della finestra della direzione (+ anticipo). Oltre ±1 la palla continua ad andare verso l'esterno
+  // fino alla fine della finestra d'impatto (prima si fermava a 1,6 unità: nell'ultimo 40% della finestra tutte le
+  // palle uguali). ±4 è oltre ogni finestra d'impatto, solo per sicurezza
+  const c = finite(contact, 1) >= 0 ? 1 : -1, t = clamp(finite(timing) >= 0 ? finite(timing)/span : finite(timing)/late, -4, 4), inside = clamp(t, -1, 1), excess = Math.max(0, Math.abs(t) - 1);
   const q = clamp(timingQualityOf(t)*clamp(finite(quality, 1)), .2, 1);
-  const assisted = excess === 0 && q >= AS.assistQ, xMax = AS.xMax;
-  // direzione: tempo dentro la finestra e piatto, poi la spinta oltre la finestra
-  const aim = clamp(-c*O.natural - c*inside*finite(AS.timingAim, O.timingAim) + clamp(finite(intent.face), -1, 1)*finite(intent.faceWeight, O.faceAim), -1, 1);
-  let x = aim*xMax - c*Math.sign(t)*excess*O.pushOut;
-  // profondità: forza voluta, meno per la qualità che manca e il tempo oltre la finestra
+  // assistenza: piena dentro la finestra e sopra la qualità del livello, sfuma oltre (prima un gradino)
+  const assist = clamp(1 - excess/O.assistFade)*clamp((q - AS.assistQ)/O.assistQSpan + .5), xMax = AS.xMax, k = xMax/O.xMax;
+  // direzione: mira dal tempo e dal piatto attorno al punto neutro, poi la spinta oltre la finestra
+  const aim = -c*O.natural - c*inside*finite(AS.timingAim, O.timingAim) + clamp(finite(intent.face), -1, 1)*finite(intent.faceWeight, O.faceAim);
+  const x0 = neutralX(hitX, xMax), raw = landingFromAim(aim, x0, xMax) - c*Math.sign(t)*excess*O.pushOut;
+  const x = raw + (Math.sign(raw)*softEdge(Math.abs(raw), O.sideKnee*k, O.sideEdge*k) - raw)*assist;
+  // profondità: voluta (forza e ampiezza dello swing), meno per la qualità che manca e il tempo oltre la finestra
   const D = O.depth[shot] || O.depth.TOPSPIN;
   let depth = lerp(D[0], D[1], want) - (1 - q)*O.shortPerQ - excess*O.shortPerExcess - (volley ? O.volleyShort*(1 - power) : 0);
   if (shot === 'TOPSPIN') depth += clamp(rise - O.heavyRise, 0, .4)*O.heavyGain*power;
-  if (shot !== 'DROP' && shot !== 'LOB') depth += (O.wideDepth - depth)*clamp((Math.abs(x) - O.wideFrom)/O.wideSpan)*(depth > O.wideDepth ? 1 : 0);
-  if (assisted){ x = clamp(x, -xMax, xMax); depth = Math.min(depth, O.maxDepth); }
-  depth = Math.max(shot === 'DROP' ? 1.6 : 3, depth);
+  if (shot !== 'DROP' && shot !== 'LOB') depth -= Math.max(0, depth - O.wideDepth)*O.widePull*clamp((Math.abs(x) - O.wideFrom)/O.wideSpan);
+  depth += (softEdge(depth, O.depthKnee, O.maxDepth) - depth)*assist;
+  depth = shot === 'DROP' ? softFloor(depth, O.dropMin, O.dropMin + .6) : softFloor(depth, O.minDepth, O.minDepth + .6);
   // altezza sulla rete ed effetto
   const A = ARC[shot === 'DROP' ? 'SLICE' : shot === 'SMASH' ? 'FLAT' : shot === 'LOB' ? 'MOON' : shot] || ARC.TOPSPIN, soft = 1 - power;
   const high = clamp((finite(contactY, 1) - 1.5)/.5)*.18;
@@ -95,7 +125,8 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contac
   if (failed && !netFault) depth = Math.max(depth, 12.6 + (finite(AS.failQ, 0) - q)*4);
   const g = swingGrade(t*(level?.timingSpan || span), level);
   return { x: +x.toFixed(3), depth: +depth.toFixed(3), clear: +clear.toFixed(3), topspin: +topspin.toFixed(2), flight: flight == null ? null : +flight.toFixed(3),
-    netFault, failed, grade: g.grade, cursor: g.cursor, t: +t.toFixed(3), excess: +excess.toFixed(3), q: +q.toFixed(3), assisted, shot };
+    netFault, failed, grade: g.grade, cursor: g.cursor, t: +t.toFixed(3), excess: +excess.toFixed(3), q: +q.toFixed(3),
+    aim: +aim.toFixed(3), x0: +x0.toFixed(3), assist: +assist.toFixed(3), assisted: assist >= .5, shot };
 }
 
 // Ritardo (s) che vale il lungolinea pieno: il tempo che la palla impiega a passare lateBehind metri dietro il punto

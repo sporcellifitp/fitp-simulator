@@ -36,7 +36,7 @@ tastiera come controlli nuovi.
   [dati], [codice], [ipotesi] e [insufficiente].
 - **Passi 1–14 fatti** (codice e test automatici). **Passo 16 fatto nella fase B del passo 17** (difetti 5 e 7
   risolti, difetto 6 non riprodotto, presa del 19/10 verificata e corretta per chi salta la calibrazione, diagnostica
-  con una sola registrazione). **Passo 17** (gameplay come il gioco di riferimento): fasi A e B fatte, C–E da fare.
+  con una sola registrazione). **Passo 17** (gameplay come il gioco di riferimento): fasi A, B e C fatte, D ed E da fare.
   **Validazione fisica non fatta** (passo 15): in questo ambiente non ci sono telefono, webcam né persone; procedura
   in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5.
 - Dopo il checkpoint 10 (22/10, notte) il branch contiene anche l'ultimo commit della seconda sessione (`40d58b2`):
@@ -83,9 +83,11 @@ Non fatto o aperto:
 - difetto 6: prova sotto carico;
 - il video di riferimento pubblico indicato nella richiesta non si scarica da qui (solo titolo e quattro immagini).
 
-Da fare, in ordine: fasi C, D ed E del passo 17 (campo aperto e movimento; sincronia, animazioni e prospettive;
-tutte le prove, documenti e rapporto finale), poi la validazione fisica (§5 del documento) e la taratura delle
-soglie con i pacchetti della diagnostica.
+Fatto nella fase C del passo 17: campo aperto continuo e movimento automatico contestuale (vedi il passo 17).
+
+Da fare, in ordine: fasi D ed E del passo 17 (sincronia, animazioni e prospettive; tutte le prove, documenti e
+rapporto finale), poi la validazione fisica (§5 del documento), la taratura delle soglie con i pacchetti della
+diagnostica e l'equilibrio della CPU con le partite vere.
 
 ## Unione dei due branch (22/10): cosa si è tenuto
 
@@ -273,9 +275,14 @@ Trovati confrontando il lavoro delle due sessioni e verificati qui; stato misura
     - B [x] passo 16: difetti 5 e 7 risolti, difetto 6 non riprodotto (20/20), presa del 19/10 verificata con le tre
       prove nel browser (attuale 10/10, coerente 10/10, `84ca878` 7/10 spiegata) e salita abituale imparata giocando,
       diagnostica con una sola registrazione. CI completa: `tools/test` 135/135, `npm test` 281/281; CI del sito in locale: telefono 10/10, tempi 8/8, gesto e calibrazione 18/18, grafica 9/9, pacchetto ridotto 5/5, 6/6 e 10/10, LAN in Node 4/4, nel browser 3/3 e 7/8 (limite noto del contenitore), pacchetti creati; motore base nel browser: diagnostica 24/24, allenamento 13/13, risposta al gesto 9/9, presa verticale 10/10, presa del 19/10 10/10, menu 22/22, ricollegamento 6/6, rete che cade 6/6; partita intera della pagina storica (`phone-cal.mjs`) 17/17;
-    - C [ ] campo aperto (mappa continua del tempo su tutta la finestra, angolo dalla posizione di chi colpisce,
-      profondità su tutto il campo) e movimento (recupero verso il fondo secondo il tempo disponibile, avanti solo per
-      le palle corte), con i test di continuità, copertura, ripetibilità, profondità, fuori e in rete, assistenza;
+    - C [x] campo aperto e movimento (`docs/NATPF_RACCHETTA_VIRTUALE.md` §6, «cosa è cambiato»): tempo continuo su
+      tutta la finestra, punto neutro dalla posizione della palla, lato del colpo dal gesto, profondità su tutto il
+      campo, assistenza morbida; volée solo quando conviene, recupero verso il fondo secondo il tempo (a rete solo se
+      una palla corta ha portato lì e il tempo non basta); diagnostica di direzione, traiettoria e scarto della caduta.
+      Test `natpf-campo-aperto.test.mjs` (12; 11 falliscono con il codice di prima). Audit: verso la rete 46–89% → 0–0,1%,
+      volée 33–69% → 0–0,1% a Casual ed Esperto, impatto mediano 2,9–10,5 → 9,9–12,4 m dalla rete, Leggenda con tutti i
+      criteri. Da rivedere con partite vere: a Esperto i profili del telefono vincono più punti (amatore 57% → 80%).
+      CI completa: `tools/test` 135/135, `npm test` 293/293; CI del sito in locale: telefono 10/10, tempi 8/8, gesto e calibrazione 18/18, grafica 9/9, pacchetto ridotto 5/5, 6/6 e 10/10, LAN in Node 4/4, nel browser 3/3 e 7/8 (limite noto), pacchetti creati; motore base nel browser: scambio vero (`natpf-rally.mjs`, nuova) 7/7, diagnostica 24/24, allenamento 13/13, risposta al gesto 9/9, presa verticale 10/10, presa del 19/10 10/10, menu 22/22, ricollegamento 6/6, rete che cade 6/6, build e 1v1 18/18;
     - D [ ] sincronia del colpo, animazioni, recupero, prospettive;
     - E [ ] tutte le prove, CI del sito, documenti, protocollo di validazione fisica, rapporto finale.
 
@@ -288,7 +295,7 @@ Trovati confrontando il lavoro delle due sessioni e verificati qui; stato misura
 3. Lo ZIP della sessione reale non è nel repository (contiene il video della webcam). Per rifare le analisi, estrarlo
    in una cartella vuota fuori dal repository e passare quella cartella agli script.
 4. Test: `cd natpf-tennis && npm test`; `node --test tools/test/*.test.mjs` dalla root. Il passo in corso è il passo
-   17, fase C (campo aperto e movimento).
+   17, fase D (sincronia del colpo, animazioni, prospettive).
 5. Prove nel browser (`tools/e2e`, dopo `npm ci` lì): in questo ambiente il browser delle prove va indicato con
    `CHROMIUM_PATH=/opt/pw-browsers/chromium` (per esempio `CHROMIUM_PATH=/opt/pw-browsers/chromium node
    natpf-training-flow.mjs`); le prove della CI della pagina storica dalla root con `node tools/e2e/run-local.mjs

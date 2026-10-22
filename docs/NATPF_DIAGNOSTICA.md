@@ -54,7 +54,7 @@ Tutto è scritto in `eventi.jsonl`, un evento JSON per riga. `t` è in ms dall'i
 | `rimbalzo`, `punto`, `fase` | eventi del motore |
 | `tentativo` | swing del giocatore: distanza palla–giocatore, correzione della latenza, velocità, se l'ha colpita |
 | `colpo.gioco` | esito del colpo a schermo (tempo, qualità, punto di rimbalzo, direzione incrociato/lungolinea/centro) e colpi della CPU. Con la racchetta virtuale l'esito del colpo è solo nell'evento `racchetta` (prima era ripetuto qui) |
-| `racchetta` | esito deterministico del colpo, unica registrazione (docs/NATPF_RACCHETTA_VIRTUALE.md): chi, numero del colpo del telefono (`n`, lo lega a `tel.colpo`), colpo voluto e giocato, forza, profondità voluta, piatto, tempo rispetto all'impatto in ms (`tempoMs`) e nella finestra della direzione (`tempo`, −1…+1, + anticipo), oltre la finestra (`oltre`), qualità, assistito, fallito (in rete o lungo), punto di rimbalzo nel riferimento di chi colpisce, al volo, lato, voto |
+| `racchetta` | esito deterministico del colpo, unica registrazione (docs/NATPF_RACCHETTA_VIRTUALE.md): chi, numero del colpo del telefono (`n`, lo lega a `tel.colpo`), colpo voluto e giocato, forza, profondità voluta, piatto, tempo rispetto all'impatto in ms (`tempoMs`) e nella finestra della direzione (`tempo`, −1…+1, + anticipo), oltre la finestra (`oltre`), qualità, assistito, fallito (in rete o lungo), punto di rimbalzo calcolato, al volo, lato, voto; direzione calcolata (`mira`, −1…+1 tra le righe, 0 il punto neutro; `neutro`; `palla`: posizione laterale della palla all'impatto, riferimento di chi colpisce; `aiuto`: assistenza 0…1) e traiettoria (`volo` in s, `rete_m` altezza sulla rete, `effetto`) |
 | `piano` | piano d'intercetto del movimento automatico: rimbalzo (`ground`), volée, schiacciata al volo, palla lasciata andare (`letgo`), al limite (`stretch`); punto d'impatto, tempo, corsa |
 | `servizio` | servizio dal gesto: tipo (piatto, kick, slice), qualità, ritmo, ms dal punto più alto del lancio, punto di rimbalzo, km/h, voto |
 | `vuoto` | colpo a vuoto e il motivo: troppo presto, troppo tardi, palla fuori portata |
@@ -155,7 +155,9 @@ I campioni grezzi del telefono stanno in un file a parte, `telefono-sensori.json
 - `colpi`: input, esiti, tempo, direzione;
 - `racchetta` (eventi `racchetta`, `piano`, `servizio`, `vuoto`): colpi voluti e giocati, falliti (in rete o lunghi),
   assistiti, al volo, tempo in ms e nella finestra della direzione (`tempoInFinestraPercento`, + anticipo), colpi oltre
-  la finestra (`oltreLaFinestraPercento`), qualità; piani d'intercetto, colpi a vuoto per motivo, servizi;
+  la finestra (`oltreLaFinestraPercento`), qualità, direzione calcolata (`mira`) e scarto tra la caduta calcolata e il
+  primo rimbalzo vero della palla (`cadutaScartoM`: dice se la fisica porta la palla dove il modello dice); piani
+  d'intercetto, colpi a vuoto per motivo, servizi;
 - `riferimento`, solo nella prova guidata (anche `direzioneDalTempoPercento`, dal tempo degli eventi `racchetta`);
 - `ripetibilita`: per ogni colpo richiesto (o, senza prova guidata, per lato e tipo letti) quanto spesso il tipo letto è
   lo stesso e quanto variano (p90 − p10) salita della testa, forza, tempo nella finestra, punto di caduta (x) e

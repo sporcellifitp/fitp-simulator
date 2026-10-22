@@ -211,7 +211,8 @@ test('registratore (racchetta virtuale): forma e intenzione del gesto, esito det
   t.after(() => { if (R.active) R.stop(); });
   const intent = { shot: 'lob', conf: .4, power: .55, reach: .9, depth: .6, face: .2, rise: .72, plane: .31, riseRef: -.18, why: ['la testa sale decisa (0.72, abituale -0.18)'] };
   emitSwing({ side: 'forehand', natpf: { shot: 'lob', intent, seq: 12 } }, { seq: 12, at: (now - 30)/1000, receivedAt: now/1000, peak: 980, angle: 110, shape: { plane: .31, rise: .72, roll: -.1, tilt: .5, head: 9.3, hand: 2.1, from: 210 } });
-  engine.natpfLastRacket = { who: 'player', at: 3.5, seq: 12, timing: .08, intent, contact: 1, quality: .93, volley: false, out: { t: .42, excess: 0, q: .9, assisted: true, failed: false, netFault: false, shot: 'LOB', x: -1.2, depth: 10.4, grade: 'PERFECT' } };
+  engine.natpfLastRacket = { who: 'player', at: 3.5, seq: 12, timing: .08, intent, contact: 1, hitX: .8, flight: 1.95, quality: .93, volley: false,
+    out: { t: .42, excess: 0, q: .9, assisted: true, assist: 1, aim: -.41, x0: .32, clear: 2.6, topspin: 5, failed: false, netFault: false, shot: 'LOB', x: -1.2, depth: 10.4, grade: 'PERFECT' } };
   engine._natpfRacketShot();
   R.onFeedback({ kind: 'hit', grade: 'PERFECT • LOB' }, { label: 'Ottimo' });
   R.onFeedback({ kind: 'whiff', grade: 'WHIFF' }, null);
@@ -230,6 +231,9 @@ test('registratore (racchetta virtuale): forma e intenzione del gesto, esito det
   assert.equal(rk.length, 1);
   assert.equal(rk[0].n, 12); assert.equal(rk[0].tempo, .42); assert.equal(rk[0].oltre, 0); assert.equal(rk[0].voluto, 'lob'); assert.equal(rk[0].colpo, 'LOB');
   assert.equal(rk[0].x, 1.2); assert.equal(rk[0].z, -10.4); assert.equal(rk[0].assistito, true);
+  // direzione calcolata e traiettoria (campo aperto): mira tra le righe, punto neutro, palla all'impatto, volo
+  assert.equal(rk[0].mira, -.41); assert.equal(rk[0].neutro, .32); assert.equal(rk[0].palla, .8); assert.equal(rk[0].aiuto, 1);
+  assert.equal(rk[0].volo, 1.95); assert.equal(rk[0].rete_m, 2.6); assert.equal(rk[0].effetto, 5);
   for (const c of ev.filter(e => e.k === 'colpo.gioco' && e.chi === 'giocatore')) assert.equal(c.racchetta, undefined);
   await R.stop(); await flushTimers();
 });
@@ -240,7 +244,9 @@ test('metriche (racchetta virtuale): esito nella finestra, direzione voluta con 
   const T = [.4, .35, .5, -.3], X = [-2.1, -2.0, -2.4, 1.6];
   T.forEach((tempo, i) => {
     ev.push({ t: 100 + i*900, k: 'tel.colpo', n: i + 1, lato: 'forehand', tipo: 'topspin', forma: { salita: .3 + i*.02, piano: .95 }, intenzione: { tipo: 'topspin', forza: .6 + i*.01 } });
-    ev.push({ t: 300 + i*900, k: 'racchetta', chi: 'player', n: i + 1, voluto: 'topspin', colpo: 'TOPSPIN', tempo, oltre: 0, qualita: .9, x: X[i], z: -(10 + i*.1), assistito: true, volee: false });
+    ev.push({ t: 300 + i*900, k: 'racchetta', chi: 'player', n: i + 1, voluto: 'topspin', colpo: 'TOPSPIN', tempo, oltre: 0, qualita: .9, x: X[i], z: -(10 + i*.1), assistito: true, volee: false, mira: X[i]/3.65 });
+    // primo rimbalzo vero della palla: 0,3 m (0,4 per l'ultimo) dalla caduta calcolata
+    ev.push({ t: 350 + i*900, k: 'rimbalzo', da: 'player', x: X[i] + (i === 3 ? .4 : .3), z: -(10 + i*.1), n: 0 });
     ev.push({ t: 400 + i*900, k: 'colpo.gioco', chi: 'giocatore', esito: 'hit', direzione: X[i] < -1 ? 'incrociato' : 'lungolinea' });
   });
   // fuori dalla prova: un colpo oltre la finestra, fallito
@@ -248,12 +254,15 @@ test('metriche (racchetta virtuale): esito nella finestra, direzione voluta con 
   const m = computeMetrics(ev);
   assert.equal(m.racchetta.colpi, 5); assert.equal(m.racchetta.oltreLaFinestraPercento, 20); assert.deepEqual(m.racchetta.falliti, { lungo: 1 });
   assert.equal(m.racchetta.assistiti, 4); assert.equal(m.colpi.racchetta, undefined);
+  // scarto tra la caduta calcolata e il primo rimbalzo vero: 4 colpi con il rimbalzo (il quinto non rimbalza prima della fine)
+  assert.equal(m.racchetta.cadutaScartoM.n, 4); assert.equal(m.racchetta.cadutaScartoM.p50, .3); assert.equal(m.racchetta.mira.n, 4);
   assert.equal(m.riferimento.direzioneGiustaPercento, 75); assert.equal(m.riferimento.direzioneDalTempoPercento, 75);
   assert.equal(m.telefono.forma.colpi, 4); assert.deepEqual(m.telefono.intenzione, { topspin: 4 });
   assert.deepEqual(m.ripetibilita.gruppi['diag-fh-cross'], { colpi: 4, conEsito: 4, tipo: 'topspin', tipoUgualePercento: 100, salita: .06, forza: .03, tempo: .8, x: 4, profondita: .3 });
   const lines = summaryLines(m).join('\n');
   assert.match(lines, /Esiti della racchetta: 5 colpi .* tempo nella finestra mediana \+40% \(\+ anticipo\) · oltre la finestra 20%/);
   assert.match(lines, /voluta con il tempo 75%/); assert.match(lines, /Ripetibilità diag-fh-cross: 4 colpi, tipo «topspin» nel 100%/);
+  assert.match(lines, /Direzione della racchetta: mira mediana -?0\.\d.* scarto tra caduta calcolata e rimbalzo vero mediana 0\.3 m/);
   // senza prova guidata i gruppi sono lato e tipo letti; senza forma né intenzione (telefono di prima) i gruppi partono
   // dagli esiti della racchetta: niente variazione del gesto, la stessa variazione dell'esito
   assert.ok(computeMetrics(ev.filter(e => e.k !== 'atteso')).ripetibilita.gruppi['forehand/topspin']);

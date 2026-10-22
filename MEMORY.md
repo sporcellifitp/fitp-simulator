@@ -3,7 +3,7 @@
 Memoria di lavoro del progetto: da leggere all'inizio di ogni sessione e da aggiornare alla fine di ogni attività.
 Non contiene password, token o altri segreti.
 
-Ultimo aggiornamento: 22 ottobre 2026, notte (racchetta virtuale; unione dei due branch; passo 17 fasi A e B) · **branch unico**
+Ultimo aggiornamento: 22 ottobre 2026, notte (racchetta virtuale; unione dei due branch; passo 17 fasi A, B e C) · **branch unico**
 `claude/friendly-fermat-dwv2w2` (ripartito da `feature/natpf-tennis-v2`, che contiene tutto il lavoro precedente; i
 branch `backup/*` e gli altri `feature/natpf-*` sono già inclusi; il 22/10 vi è stato unito
 `claude/determined-tesla-8dgaks`). Stato per chi riprende: §0.
@@ -19,13 +19,15 @@ branch `backup/*` e gli altri `feature/natpf-*` sono già inclusi; il 22/10 vi �
   dall'utente** (benchmark vincolante; nome verificato; confronto e cause in `docs/NATPF_RACCHETTA_VIRTUALE.md` §6;
   il nome del gioco non va nei file, regola di marchio). Passo 17 di `SESSION_HANDOFF.md`, fasi A–E.
 - **Fatto** (codice e test automatici, con sensori e mani simulati): la racchetta virtuale ai passi 1–14; fase A
-  (riferimento, audit della mira e del movimento); fase B: forza degli swing corti dal picco vero, diagnostica con una
+  (riferimento, audit della mira e del movimento); fase C (campo aperto continuo, movimento automatico contestuale:
+  verso la rete dopo il colpo da 46–89% a 0–0,1% nelle partite simulate); fase B: forza degli swing corti dal picco vero, diagnostica con una
   sola registrazione dell'esito, partita intera col telefono della pagina storica (cause nella prova, 17/17), prove
   della CI della pagina storica 20/20 (difetto 6 non riprodotto), presa del 19/10 verificata e salita abituale imparata
   giocando per chi salta la calibrazione.
 - **Non fatto o aperto**:
-  - fasi C (campo aperto continuo e movimento automatico contestuale), D (sincronia, animazioni, prospettive), E
-    (prove, documenti, rapporto);
+  - fasi D (sincronia, animazioni, prospettive) ed E (prove, documenti, rapporto);
+  - equilibrio della CPU dopo la fase C: a Esperto i profili del telefono simulati vincono più punti (amatore 57% →
+    79%), da rivedere con partite vere;
   - validazione fisica con telefono, webcam e persone vere (procedura in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5);
   - chi calibra senza la pronazione che usa poi in partita vede tagliati finché non ricalibra.
 
@@ -54,9 +56,12 @@ ammessi solo gli header di copyright delle librerie open source). Loghi ufficial
   (`site/js/tennis/stroke-shape.js`: piano, salita della testa, manico, velocità; campi `an` e `sh` del messaggio); il
   computer ne ricava l'intenzione (`natpf_stroke_intent.js`, al posto di `classifyPhoneShot` quando c'è la forma) e il
   motore l'esito senza caso (`natpf_stroke_outcome.js`, `_natpfRacketShot`): tempo dentro la finestra = direzione,
-  oltre = esecuzione; assistenza per livello (`ASSIST`). `natpf_impact.js`: finestra d'impatto (swing in attesa fino
-  al punto d'impatto, il più forte sostituisce la preparazione), piano d'intercetto (volée, schiacciata al volo, palle
-  fuori lasciate andare; vale solo per la sua palla, `livePlan`), recupero a rete, anche per il Player 2 del 1v1.
+  oltre = esecuzione, continuo su tutta la finestra; mira attorno a un punto neutro che segue la palla, lato del colpo
+  dal gesto, profondità su tutto il campo, assistenza morbida per livello (`ASSIST`; campo aperto della fase C del
+  22/10 notte). `natpf_impact.js`: finestra d'impatto (swing in attesa fino al punto d'impatto, il più forte sostituisce
+  la preparazione), piano d'intercetto (schiacciata al volo, volée solo quando conviene, palle fuori lasciate andare;
+  vale solo per la sua palla, `livePlan`), recupero verso il fondo secondo il tempo (a rete solo se una palla corta ha
+  portato lì), anche per il Player 2 del 1v1.
   Servizio dal gesto (`serveOutcome`). Mano unica: la decide il computer (`cfg.hand`, `{t:'hand'}` dal telefono).
   Webcam con un solo soggetto (`trackOthers` e ripresa per taglia, `HAND_KEEP`, in `webcam_strokes.js`). Calibrazione
   rapida con due gesti facoltativi (`QUICK_PLAN`) e passo «fermo» sulla mediana della rotazione (`swing-detect.js`).
@@ -462,6 +467,7 @@ calibrazione oltre 10 s con il tremolio, «Salta» nel passo «fermo».
   verificato), estratti e provati. Validazione fisica non eseguita (§4.3 del documento). Verifica successiva (22/10):
   la prova della CI «gesture and calibration» della pagina storica fallisce (evento `hand`), la prova del telefono con
   i gesti della presa del 19/10 fa 7/10 (10/10 prima del giro): `SESSION_HANDOFF.md`, «Difetti verificati».
+- Fase C del passo 17 (22/10, notte): `tools/test` 135/135, `npm test` 293/293; CI del sito in locale: telefono 10/10, tempi 8/8, gesto e calibrazione 18/18, grafica 9/9, pacchetto ridotto 5/5, 6/6 e 10/10, LAN in Node 4/4, nel browser 3/3 e 7/8 (limite noto), pacchetti creati; motore base nel browser: scambio vero (`natpf-rally.mjs`, nuova) 7/7, diagnostica 24/24, allenamento 13/13, risposta al gesto 9/9, presa verticale 10/10, presa del 19/10 10/10, menu 22/22, ricollegamento 6/6, rete che cade 6/6, build e 1v1 18/18.
 - Fase B del passo 17 (22/10, notte): `tools/test` 135/135, `npm test` 281/281; CI del sito in locale: telefono 10/10, tempi 8/8, gesto e calibrazione 18/18, grafica 9/9, pacchetto ridotto 5/5, 6/6 e 10/10, LAN in Node 4/4, nel browser 3/3 e 7/8 (limite noto del contenitore), pacchetti creati; motore base nel browser: diagnostica 24/24, allenamento 13/13, risposta al gesto 9/9, presa verticale 10/10, presa del 19/10 10/10, menu 22/22, ricollegamento 6/6, rete che cade 6/6; partita intera della pagina storica (`phone-cal.mjs`) 17/17. Difetto 6 non riprodotto (20/20).
 - Branch unito (22/10, sera, dopo il merge della seconda sessione): `npm test` **276**/276, `tools/test` 135/135; nel
   browser telefono 10/10, allenamento 13/13, risposta al gesto 9/9, ricollegamento 6/6, rete che cade 6/6, menu 22/22,

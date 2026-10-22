@@ -1968,9 +1968,9 @@ export class NatpfTennisEngine {
     }
     return (
       this.hud.updateTimingGauge({ cursorNormalized: w, modeTitle: `${u} (${X})`, speedText: `${F} KM/H` }),
-      // NATPF racchetta virtuale: dopo un attacco o da avanti si resta a rete, altrimenti in fondo al campo
+      // NATPF racchetta virtuale: dopo il colpo verso il fondo, quanto il tempo lo permette (natpf_impact.js)
       racketShot && !l && !this.isDoubles
-        ? NI.recoverAfterShot(this, this.player, { landingX: E, landingZ: N, quality: racketShot.q, power: racketShot.power, contactZ: p.pos.z })
+        ? NI.recoverAfterShot(this, this.player, { landingX: E, flight: I, contactZ: p.pos.z })
         : this.player.targetPos.set(o.MathUtils.clamp(-E * 0.22, -1.6, 1.6), 0, S.BASELINE_Z - 0.15),
       this.playerPartner.targetPos.set(
         o.MathUtils.clamp(E * 0.35 + (this.score.deuceSide ? -1.4 : 1.4), -2.8, 2.8),
@@ -1989,9 +1989,12 @@ export class NatpfTennisEngine {
     // chi colpisce verso −z (P1) o verso +z (P2 nel 1v1): l'esito è nel suo riferimento (x a destra), poi si specchia
     const toward = p === this.opponent ? 1 : -1, mirror = toward === 1 ? -1 : 1;
     const intent = NO.eventIntent(e), shot = smash ? "smash" : intent.shot === "smash" ? "flat" : intent.shot;
-    // lato della palla rispetto a chi colpisce (+ destra); al centro conta il lato del colpo
+    // lato del colpo: dal gesto (dritto o rovescio letto dal telefono o dalla webcam), così la direzione voluta con il
+    // tempo non dipende da dove il movimento automatico ha messo il corpo (prima: dalla palla rispetto al corpo); senza
+    // lato, dalla palla. hitX: dove è la palla all'impatto (riferimento di chi colpisce): il punto neutro la segue
     const dx = (b.pos.x - p.pos.x) * mirror, hand = (e.natpf && e.natpf.hand) || e.hand || "right", fh = hand === "left" ? -1 : 1,
-      contact = Math.abs(dx) >= 0.2 ? Math.sign(dx) : e.side === "backhand" ? -fh : fh;
+      contact = e.side === "forehand" ? fh : e.side === "backhand" ? -fh : Math.abs(dx) >= 0.2 ? Math.sign(dx) : fh,
+      hitX = b.pos.x * mirror;
     // allungo, corsa e preparazione; arrivare al limite su un angolo dell'avversario toglie qualità (natpf_impact.js)
     // … e una palla molto veloce (da 24 m/s, fino a −25% a 36 m/s), profonda (colpita oltre 30 cm dietro la riga, fino a
     // −15%) o con il rimbalzo alto sopra la spalla (fino a −12%, non la schiacciata) si controlla peggio
@@ -1999,7 +2002,7 @@ export class NatpfTennisEngine {
       pace = (1 - 0.25 * cl((b.vel.length() - 24) / 12)) * (1 - 0.15 * cl((Math.abs(p.pos.z) - 12.2) / 1.2)) * (smash ? 1 : 1 - 0.12 * cl((b.pos.y - 1.5) / 0.6)),
       quality = NS.reachQuality(lateral, running) * NS.prepQuality(e.natpf) * (!this.isDoubles && (p === this.player || p === this.opponent) ? NI.stretchQuality(this, p) : 1) * pace * NO.rallyPressure(b.rallyStrokeCount, NO.assistOf(lv).pressureFrom),
       volley = b.bounceCountOnCurrentSide === 0 && Math.abs(p.pos.z) < 9;
-    const out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, contact, quality, contactY: b.pos.y, volley, level: lv });
+    const out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, contact, hitX, quality, contactY: b.pos.y, volley, level: lv });
     const R = p.pos.x >= 0 ? 1 : -1, N = toward * out.depth, X = out.x * mirror, engineShot = out.shot === "DROP" ? "SLICE" : out.shot === "SMASH" ? "FLAT" : out.shot;
     const st = NS.registerPlayerShot(this, { grade: out.grade, quality: out.q, power: intent.power, landingX: X, landingZ: N, shot: out.shot, cpuZ: this.opponent.pos.z, who: toward === 1 ? "p2" : "player" });
     const fromY = Math.max(0.78, Math.min(out.shot === "SMASH" ? 3.1 : 1.92, b.pos.y));
@@ -2015,7 +2018,7 @@ export class NatpfTennisEngine {
       I = NO.outcomeFlight({ ...out, flight: null }, { fromY, fromZ: b.pos.z, toZ: N, flight: NS.mistimeFlight(NS.streakFlight(base, toward === 1 ? st.p2Streak : st.streak, lv), out.q) });
     }
     // seq: numero del colpo del telefono (diagnostica); at: istante del motore, per riconoscere un esito nuovo
-    this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, quality: +quality.toFixed(3), volley, seq: (e.natpf && e.natpf.seq) ?? null, at: this.elapsedTime };
+    this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, hitX: +hitX.toFixed(3), quality: +quality.toFixed(3), volley, flight: +I.toFixed(3), seq: (e.natpf && e.natpf.seq) ?? null, at: this.elapsedTime };
     return {
       E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 * mirror : 0, O: out.netFault, T: engineShot,
       drop: out.shot === "DROP", u: out.grade, w: out.cursor, q: out.q, power: intent.power, out,
@@ -2239,9 +2242,9 @@ export class NatpfTennisEngine {
           speedKmh: O,
           intensity: w ? 1.45 : 1.1,
         }),
-      // NATPF racchetta virtuale: come chi gioca qui, a rete dopo un attacco o da avanti, altrimenti in fondo al campo
+      // NATPF racchetta virtuale: come chi gioca qui, dopo il colpo verso il fondo quanto il tempo lo permette
       p2Racket && !r && !this.isDoubles
-        ? NI.recoverAfterShot(this, this.opponent, { landingX: T, landingZ: M, quality: p2Racket.q, power: p2Racket.power, contactZ: l.pos.z })
+        ? NI.recoverAfterShot(this, this.opponent, { landingX: T, flight: R, contactZ: l.pos.z })
         : this.opponent.targetPos.set(o.MathUtils.clamp(-T * 0.22, -1.6, 1.6), 0, -S.BASELINE_Z + 0.25),
       this.opponentPartner.targetPos.set(
         o.MathUtils.clamp(T * 0.35 + (this.score.deuceSide ? 1.4 : -1.4), -2.8, 2.8),

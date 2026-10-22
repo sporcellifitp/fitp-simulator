@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { createHeadlessEngine, mulberry32, gauss } from './headless-engine.mjs';
 import { skillLevel } from '../../src/natpf/natpf_skill.js';
 import { strokePower } from '../../src/natpf/natpf_stroke_intent.js';
-import { OUTCOME, lateSpanOf, directionSpan } from '../../src/natpf/natpf_stroke_outcome.js';
+import { OUTCOME, lateSpanOf, directionSpan, assistOf, neutralX, aimForLanding } from '../../src/natpf/natpf_stroke_outcome.js';
 
 // Profili: errore di tempo (s, deviazione standard), mira (quanto cerca il campo aperto e con che dispersione),
 // forza del gesto (velocità del motore base 0,8…1,65) e uso dei colpi speciali.
@@ -36,14 +36,16 @@ const DT = 1/120;
 // errore; gli altri colpiscono quando capita. L'intenzione arriva al motore come quella dei telefoni con la forma.
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function phoneIntent(e, P, rng){
-  const span = directionSpan(skillLevel(e.matchConfig.difficulty)), open = e.opponent.pos.x >= 0 ? -1 : 1;
+  const lv = skillLevel(e.matchConfig.difficulty), span = directionSpan(lv), open = e.opponent.pos.x >= 0 ? -1 : 1, xMax = assistOf(lv).xMax;
   const contact = e.ball.targetLanding.x >= e.player.pos.x ? 1 : -1;
   let tau = 0, face = 0;
   if (rng() < P.intent){
-    // mira voluta (−1…1, piena a 0,45 m dalla riga): circa metà con il tempo, il resto con il piatto
-    // in anticipo fino alla finestra del livello; in ritardo poco (con le palle veloci la palla passa il corpo): il
-    // lungolinea lo dà soprattutto il piatto, come fa chi gioca davvero
-    const aim = open*(.7 + rng()*.3), want = clamp(-aim*.6/(contact*OUTCOME.timingAim), -1, 1), u = want >= 0 ? want : want*.5;
+    // punto voluto sul lato libero (dal 70% della mira piena alla mira piena), come mira attorno al punto neutro, che
+    // segue la palla (natpf_stroke_outcome.js): circa metà con il tempo, il resto con il piatto. In anticipo fino alla
+    // finestra del livello; in ritardo poco (con le palle veloci la palla passa il corpo): il lungolinea lo dà
+    // soprattutto il piatto, come fa chi gioca davvero
+    const aim = aimForLanding(open*(.7 + rng()*.3)*xMax, neutralX(e.ball.targetLanding.x, xMax), xMax);
+    const want = clamp(-aim*.6/(contact*OUTCOME.timingAim), -1, 1), u = want >= 0 ? want : want*.5;
     tau = u*(u >= 0 ? span : lateSpanOf(e.ball.vel.z, skillLevel(e.matchConfig.difficulty)))*.9;
     face = clamp((aim + contact*u*OUTCOME.timingAim + contact*OUTCOME.natural)/OUTCOME.faceAim, -1, 1);
   }

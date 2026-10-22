@@ -72,6 +72,18 @@ export const METRIC_KINDS = new Set(['tel.colpo', 'tel.orologio', 'tel.stato', '
   'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'punto', 'rimbalzo', 'tentativo', 'atteso', 'avviso', 'video']);
 // events: tutti gli eventi, oppure solo quelli di METRIC_KINDS con eventi (quanti erano in tutto) e spanMs (dal primo
 // all'ultimo); raw: campioni del telefono (bastano k e q)
+// scarto (m) tra la caduta calcolata di un colpo della racchetta e il primo rimbalzo vero della sua palla, prima del colpo
+// dopo (null se la palla non rimbalza: in rete, al volo dell'avversario, fine del punto)
+function landingGap(k, events){
+  if (!Number.isFinite(k?.x) || !Number.isFinite(k?.z)) return null;
+  const who = k.chi === 'p2' ? 'opponent' : 'player';
+  for (const e of events){
+    if (e.t <= k.t) continue;
+    if (e.k === 'racchetta' || e.k === 'punto') return null;
+    if (e.k === 'rimbalzo' && e.da === who) return +Math.hypot(e.x - k.x, e.z - k.z).toFixed(2);
+  }
+  return null;
+}
 export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spanMs = null } = {}){
   const by = k => events.filter(e => e.k === k);
   const durata = Number.isFinite(spanMs) ? spanMs/1000 : events.length ? (events.at(-1).t - events[0].t)/1000 : 0;
@@ -170,6 +182,9 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
       assistiti: count(rk, x => x.assistito), alVolo: count(rk, x => x.volee), tempoMs: dist(rk.map(x => x.tempoMs)), qualitaPercento: dist(rk.map(x => (Number.isFinite(x.qualita) ? 100*x.qualita : null))),
       // tempo nella finestra della direzione (% della finestra, + anticipo) e colpi oltre la finestra (tempo sbagliato)
       tempoInFinestraPercento: dist(rk.map(x => (Number.isFinite(x.tempo) ? 100*x.tempo : null))), oltreLaFinestraPercento: rk.length ? r1(100*count(rk, x => x.oltre > 0)/rk.length) : null,
+      // direzione calcolata (mira tra le righe, + a destra di chi colpisce) e scarto tra la caduta calcolata e il primo
+      // rimbalzo vero dopo il colpo (m): dice se la fisica porta la palla dove il modello dice
+      mira: dist(rk.map(x => x.mira)), cadutaScartoM: dist(rk.map(x => landingGap(x, events))),
       piani: tally(piani, p => p.tipo), vuoti: tally(vuoti, v => v.perche),
       servizi: serv.length ? { n: serv.length, tipi: tally(serv, x => x.tipo), voti: tally(serv, x => x.voto), qualitaPercento: dist(serv.map(x => (Number.isFinite(x.qualita) ? 100*x.qualita : null))), dalColmoMs: dist(serv.map(x => x.tauMs)) } : null,
     };
@@ -312,6 +327,7 @@ export function summaryLines(m = {}){
   // eventi «racchetta», «vuoto» e «servizio»: colpi voluti ed esiti, colpi a vuoto con il motivo, servizi dal gesto
   const KR = m.racchetta, list = o => Object.entries(o || {}).map(([k, v]) => `${k} ${v}`).join(', ');
   if (KR?.colpi) L.push(`Esiti della racchetta: ${KR.colpi} colpi · voluti ${list(KR.voluti)} · tempo nella finestra mediana ${KR.tempoInFinestraPercento?.p50 > 0 ? '+' : ''}${KR.tempoInFinestraPercento?.p50 ?? '–'}% (+ anticipo) · oltre la finestra ${KR.oltreLaFinestraPercento ?? 0}% · falliti ${list(KR.falliti) || '0'} · al volo ${KR.alVolo} · tempo mediana ${KR.tempoMs?.p50 ?? '–'} ms`);
+  if (KR?.colpi && (KR.mira?.n || KR.cadutaScartoM?.n)) L.push(`Direzione della racchetta: mira mediana ${KR.mira?.p50 ?? '–'}, variazione ${KR.mira?.jitter ?? '–'} (−1 e +1 le righe) · scarto tra caduta calcolata e rimbalzo vero mediana ${KR.cadutaScartoM?.p50 ?? '–'} m, p90 ${KR.cadutaScartoM?.p90 ?? '–'} m`);
   if (KR && Object.keys(KR.vuoti || {}).length) L.push(`Colpi a vuoto: ${list(KR.vuoti)}`);
   if (KR?.servizi) L.push(`Servizi dal gesto: ${KR.servizi.n} · ${list(KR.servizi.voti)}`);
   const av = m.registrazione?.avvisi || {};
