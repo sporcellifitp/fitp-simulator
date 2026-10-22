@@ -347,6 +347,8 @@ export class NatpfPhoneRacket {
     }
     const ref = this.profile && !this.profile.simple && Number.isFinite(this.profile.ref) ? this.profile.ref : null;
     const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, displayLag: this.displayLagMs/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine), ref }), role: this.engine.playerRole };
+    // numero del colpo del telefono: la diagnostica lega così il gesto (tel.colpo) al suo esito nel motore (colpo.gioco)
+    ev.natpf.seq = Number.isFinite(s.seq) ? s.seq : null;
     this.lastPrep = null;
     if (!ev.side) ev.side = sideFromBall(this.engine, this.hand);
     // riferimenti personali solo dai colpi normali: prima entravano anche pallonetti e palle corte, e dopo tre di fila il
@@ -380,7 +382,8 @@ export class NatpfPhoneRacket {
   invert(){ this.link?.cmd('invert'); }
   skipGrip(){ this.link?.cmd('skipGrip'); }
   forget(){ this.link?.forget(); this.recalibrate(); }
-  // salta i gesti della calibrazione: il telefono usa un profilo semplice (il gioco sceglie dritto o rovescio da solo)
+  // salta i gesti della calibrazione: il telefono usa un profilo semplice (verso dalla gravità, tipo di colpo dalla forma,
+  // forza dalla velocità vera; manca solo il colpo tipico)
   skipCalibration(){ this.simple = true; this.link?.cmd('skip'); this._changed(); }
 
   // Esito dei colpi al telefono (vibrazione e scritta), dalle stesse chiamate che motore base usa per l'aptica.

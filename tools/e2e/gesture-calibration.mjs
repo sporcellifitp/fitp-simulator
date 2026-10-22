@@ -2,6 +2,7 @@
 // then verify automatic shot intent, two-motion serve, touch fallback and grip IK.
 import { readFileSync } from 'node:fs';
 import { launch, page, check, summary, SP } from './th.mjs';
+import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 const B=await launch(), motion=readFileSync(new URL('./motion.js',import.meta.url),'utf8')+';DeviceMotionEvent.requestPermission = async () => "denied";';
 const opened=[];
 try {
@@ -16,10 +17,10 @@ try {
  await p.evaluate(()=>__motion.still(1600));
  try { await p.waitForFunction(()=>__racchetta.cal.state.step==='swings'); }
  catch(e){console.log('Sensor calibration diagnostic',await p.evaluate(()=>({state:__racchetta.state,profile:__racchetta.det.profile,mode:__racchetta.det.mode,last:__racchetta.det.last,cal:__racchetta.cal.state})));throw e;}
- for(const dir of [1,-1,1,-1]){
+ for(const dir of QUICK_PLAN.map(w=>w==='L'?1:-1)){
   await p.evaluate(async dir=>{await __motion.swing({axis:[0,-dir,0],peak:42,dur:260});await __motion.swing({axis:[0,dir,0],peak:dir===1?120:150,dur:220});await __motion.still(650);},dir);
  }
- check('four comfortable gestures finish setup without special-shot training',await p.evaluate(()=>__racchetta.cal.state.profile.version===4&&__racchetta.cal.state.profile.automaticGesture&&__racchetta.cal.state.step!=='shots'));
+ check(`${QUICK_PLAN.length} comfortable gestures finish setup without special-shot training`,await p.evaluate(()=>__racchetta.cal.state.profile.version===4&&__racchetta.cal.state.profile.automaticGesture&&__racchetta.cal.state.step!=='shots'));
  const learned=[
   {shot:'slice',axis:[0,1,0],peak:120,up:-1,tilt:-.35}, {shot:'slice',axis:[0,-1,0],peak:150,up:-1,tilt:-.35},
   {shot:'lob',axis:[0,1,0],peak:120,up:1,tilt:.25}, {shot:'lob',axis:[0,-1,0],peak:150,up:1,tilt:.25},
@@ -28,7 +29,7 @@ try {
  ];
  try {await p.waitForFunction(()=>__racchetta.cal.state.step==='free');}
  catch(e){console.log('Guided shot diagnostic',await p.evaluate(()=>({state:__racchetta.cal.state,profile:__racchetta.det.profile})));throw e;}
- check('short calibration learns personal strength and direction for either hand',await p.evaluate(()=>__racchetta.cal.state.profile.hand==='left'&&__racchetta.cal.state.profile.ref<180&&__racchetta.cal.state.result.pass&&__racchetta.cal.state.profile.templates.length===4));
+ check('short calibration learns personal strength and direction for either hand',await p.evaluate(n=>__racchetta.cal.state.profile.hand==='left'&&__racchetta.cal.state.profile.ref<180&&__racchetta.cal.state.result.pass&&__racchetta.cal.state.profile.templates.length===n,QUICK_PLAN.length));
  check('practice simulation visible; confirmation awaits an observed gesture',await d.evaluate(()=>!document.querySelector('#calPractice').classList.contains('hidden')&&!!document.querySelector('#calCanvas canvas')&&document.querySelector('#rvConfirm').disabled));
  check('motion control has no shot menu to select during play',!(await p.locator('#shotChoices').isVisible()));
  const labels={slice:'Taglio verso il basso',lob:'Palla alta',drop:'Tocco corto'};

@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
 import { launch, page, check, summary } from './th.mjs';
+import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
 const PEER_PORT = +(process.env.PEER_PORT || 9117), GAME_PORT = +(process.env.GAME_PORT || 3117);
@@ -79,7 +80,7 @@ try {
   // B. rete ferma nei due sensi mentre chi gioca finisce i gesti sul telefono
   await phone.waitForFunction(() => __racchetta.cal.state.step === 'swings' && __racchetta.cal.state.idx === 1, null, { timeout: 10000 });
   await setDrop([game, phone], true);
-  for (const sign of [-1, 1, -1]) await gesture(sign, true);
+  for (const w of QUICK_PLAN.slice(1)) await gesture(w === 'L' ? 1 : -1, true);
   const phoneStep = await phone.evaluate(() => __racchetta.cal.state.step);
   const pcBefore = await game.evaluate(() => ({ stage: __natpfTennis.natpfUi.training.view.stage, idx: __natpfTennis.natpfUi.training.view.idx }));
   await setDrop([game, phone], false);

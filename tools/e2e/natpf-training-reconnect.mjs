@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
 import { launch, page, check, summary, SP } from './th.mjs';
+import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
 const PEER_PORT = +(process.env.PEER_PORT || 9111), GAME_PORT = +(process.env.GAME_PORT || 3111);
@@ -66,7 +67,7 @@ try {
   await phone.click('#enable');
   // la calibrazione riparte dal primo gesto e arriva in fondo
   const asked = [];
-  for (let i = 0; i < 4; i++){
+  for (let i = 0; i < QUICK_PLAN.length; i++){
     const want = await game.waitForFunction(i => { const T = __natpfTennis.natpfUi.training; return T.cal && T.view.stage === 'gesture' && T.view.idx === i && document.getElementById('coach-main').dataset.state === 'go' ? T.view.want : null; }, i, { timeout: 15000, polling: 50 }).then(h => h.jsonValue(), () => null);
     if (!want) break;
     const ball = await game.evaluate(() => +__natpfTennis.ball.pos.x.toFixed(2));
@@ -74,7 +75,7 @@ try {
     const sign = want === 'R' ? -1 : 1;
     await phone.evaluate(s => { window.__busy = true; return __up.swing(s).then(() => __up.back(s)).then(() => { window.__busy = false; }); }, sign);
   }
-  check('dopo il ritorno del telefono la calibrazione riparte e chiede i quattro gesti con la palla dal lato giusto', asked.length === 4 && asked.every(a => (a.want === 'L') === (a.ball > 0)), JSON.stringify(asked));
+  check('dopo il ritorno del telefono la calibrazione riparte e chiede tutti i gesti con la palla dal lato giusto', asked.length === QUICK_PLAN.length && asked.every(a => (a.want === 'L') === (a.ball > 0)), JSON.stringify(asked));
   const done = await game.waitForFunction(() => { const T = __natpfTennis.natpfUi.training; return T.active && !T.cal; }, null, { timeout: 15000 }).then(() => true, () => false);
   check('calibrazione completata dopo la riconnessione', done);
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));

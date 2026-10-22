@@ -355,22 +355,25 @@ Nessun numero casuale nel colpo di chi gioca: lo stesso gesto, sulla stessa pall
 
 ### Webcam, calibrazione, diagnostica
 
-12. **Webcam con un solo soggetto** (`webcam_strokes.js`, `motion_controls.js`).
-    - Le mani viste insieme a quella seguita sono di «altre persone»: non si prendono mai per continuità.
-    - Persa la propria mano per più di 0,5 s: per 3 s si riprende solo vicino a dove era, e mai una mano di un'altra
-      persona.
-    - La mano ritrovata deve stare ferma un momento (0,15 s) prima dei colpi: una mano che entra in movimento non fa
-      swing.
+12. **Webcam con un solo soggetto** (`webcam_strokes.js`, `motion_controls.js`; `docs/NATPF_WEBCAM.md`).
+    - Le altre mani viste insieme a quella di chi gioca si ricordano (`trackOthers`) e non ne prendono il posto.
+    - Persa la mano di chi gioca, per 5 s (`HAND_KEEP`) si riprende solo una mano della sua taglia, anche altrove.
+    - Il 22/10 le due sessioni ne avevano fatta una versione ciascuna; si è tenuta questa, che con le prove di entrambe
+      fa 54 scenari giusti su 55 (l'altra 49: perdeva colpi veri dopo una perdita breve della mano).
 13. **Calibrazione.**
-    - Con «Salta» il gioco è completo: verso dalla gravità, intenzione dalla forma, forza assoluta.
+    - Con «Salta» il gioco è completo: verso dalla gravità, intenzione dalla forma, forza assoluta; «Salta» vale anche
+      durante il passo «fermo».
+    - Percorso rapido con due gesti facoltativi (dritto e rovescio) e passo «fermo» sulla mediana della rotazione: circa
+      4,5 s anche con un tremolio di 25 °/s (prima quattro gesti, 8,3 s e oltre 10 s con il tremolio).
     - Colpi completi accettati: un gesto nel verso opposto a quello chiesto può essere l'apertura lenta. Si aspetta fino
       a 0,9 s il colpo nel verso giusto, finché la mano non si ferma davvero (0,4 s). Prima l'apertura veniva giudicata
       da sola («altro verso») e il colpo non contava.
 14. **Diagnostica** (`docs/NATPF_DIAGNOSTICA.md`).
-    - `tel.colpo` con forma e intenzione.
-    - Eventi `racchetta` (esito), `piano`, `servizio`, `vuoto` (colpo a vuoto con il motivo).
-    - Metriche di ripetibilità per colpo voluto: mediana e scarto interquartile di gesto ed esito.
-    - Prova guidata con tagliati e palle corte in fondo (circa 5 minuti).
+    - `tel.colpo` con velocità al picco, forma e intenzione.
+    - Esito nel campo `racchetta` di `colpo.gioco` (legato al gesto con il numero del colpo) ed eventi `racchetta`,
+      `piano`, `servizio`, `vuoto` (colpo a vuoto con il motivo): in parte doppi, da tenerne uno.
+    - Ripetibilità: per colpo richiesto (p90 − p10) e per colpo voluto (mediana e scarto interquartile).
+    - Prova guidata con tagliati e palle corte (circa 5 minuti).
 
 ### Test obbligatori
 
@@ -384,9 +387,9 @@ Nessun numero casuale nel colpo di chi gioca: lo stesso gesto, sulla stessa pall
 | 6 | Schiacciata prima del rimbalzo | `natpf-racchetta-motore`: «schiacciata prima del rimbalzo», «1v1 … schiacciata al volo» |
 | 7 | Palla corta e pallonetto ripetibili | `natpf-racchetta-motore`: «palla corta e pallonetto ripetibili»; `natpf-racchetta`: «colpi vari dal gesto» |
 | 8 | Finestra d'impatto | `natpf-racchetta-motore`: «finestra d'impatto»; `natpf-webcam-classifier`: «nel motore: lo swing della webcam …» |
-| 9 | Webcam con più persone | `natpf-webcam-classifier`: «un solo soggetto», «webcam con più persone, mano persa e tremolio», «folla» |
-| 10 | Perdita del tracciamento | `natpf-webcam-classifier`: «flusso ottico di riserva», «webcam con più persone, mano persa …» |
-| 11 | Tremolio | `natpf-racchetta`: «tremolio»; `natpf-webcam-classifier`: «… e tremolio» |
+| 9 | Webcam con più persone | `natpf-webcam-classifier`: «più persone (prova 9)», «webcam con più persone, mano persa e tremolio», «folla» |
+| 10 | Perdita del tracciamento | `natpf-webcam-classifier`: «perdita del tracciamento (prova 10, webcam)», «flusso ottico di riserva»; `natpf-racchetta`: «perdita del tracciamento (prova 10, telefono)» |
+| 11 | Tremolio | `natpf-racchetta`: «tremolio», «tremolio in partita (prova 11, telefono)», calibrazione con il tremolio; `natpf-webcam-classifier`: «tremolio (prova 11, webcam)», «… e tremolio» |
 | 12 | Scambi dinamici | `natpf-racchetta-motore`: «scambi che finiscono e dinamici», «palla che va fuori»; audit della Leggenda |
 | 13 | Collegamento del telefono | `natpf-racchetta`: «mano: una sola»; `tools/test`; prove nel browser (§4.2) |
 | 14 | Regressioni | `npm test`, `tools/test`, prove nel browser, banco della webcam |
@@ -410,13 +413,14 @@ Tre risultati diversi, tenuti separati: codice implementato, test automatici sup
 
 ### 4.2 Test automatici superati
 
-Tutti eseguiti in questo contenitore il 22/10/2026, con il codice finale del branch.
+Eseguiti in questo contenitore il 22/10/2026. I numeri sono quelli rifatti la sera sul branch unico, dopo l'unione
+del lavoro delle due sessioni del giorno (vedi `SESSION_HANDOFF.md`), salvo dove indicato.
 
-- **`natpf-tennis`**: `npm test`, 263 test su 263.
+- **`natpf-tennis`**: `npm test`, 276 test su 276.
 - **`tools/test`** (pagina del telefono e codice condiviso): 135 su 135. Il test nuovo della calibrazione con colpi
   completi fallisce con il codice di prima.
 - **Prove nel browser** (browser senza schermo, telefono simulato, pagina vera del telefono e collegamento vero), con il
-  codice finale e la build:
+  codice unito e la build:
 
   | Prova | Esito |
   |---|---|
@@ -425,12 +429,15 @@ Tutti eseguiti in questo contenitore il 22/10/2026, con il codice finale del bra
   | `natpf-latency`: dal gesto alla risposta, un solo swing per gesto, swing all'istante del colpo | 9/9 |
   | `natpf-training-reconnect`, `natpf-phone-blackout`: telefono scollegato, rete che cade | 6/6, 6/6 |
   | `natpf-menu` | 22/22 |
-  | `natpf-1v1-p2p`: 1v1 tra due browser (anche sul pacchetto Cloudflare estratto) | 18/18, 18/18 |
-  | `natpf-diag-session`: diagnostica lunga, parti, spazio, ricarica, prova guidata | 23/23 |
+  | `natpf-1v1-p2p`: 1v1 tra due browser (anche sul pacchetto Cloudflare estratto, prima dell'unione) | 18/18, 18/18 |
+  | `natpf-diag-session`: diagnostica lunga, parti, spazio, ricarica, prova guidata | 24/24 |
   | `lan-e2e` | 7/8: la verifica che manca è il limite noto del contenitore (il browser di prova non raggiunge l'indirizzo di rete del contenitore), come nei giri precedenti |
 
   I gesti della prova del telefono vengono dalla racchetta simulata (`natpf-tennis/test/racket-gestures.mjs`).
-- **Pacchetti** (fuori dal repository): Cloudflare 23,7 MiB, 84 file, nessuno oltre 25 MiB; estratto e servito da un
+- **Prove della CI della pagina storica** (`.github/workflows/natpf-simulator-tests.yml`): telefono 10/10, grafica 9/9,
+  pacchetto ridotto 5/5, 6/6 e 10/10, LAN in Node 4/4; **«gesture and calibration» e «timing-browser» falliscono**
+  (§4.4). Fuori dalla CI, `phone-cal.mjs` (partita intera col telefono) fallisce (§4.4).
+- **Pacchetti** (fuori dal repository, prima dell'unione): Cloudflare 23,7 MiB, 84 file, nessuno oltre 25 MiB; estratto e servito da un
   server statico risponde su gioco, pagina del telefono (con il codice nuovo), risorse e `_headers`. LAN per Windows
   57,2 MiB con Node 22.22.0 (somma SHA-256 uguale a quella ufficiale); estratto: certificato, server, gioco, pagina
   del telefono e stanza 1v1 rispondono.
@@ -479,10 +486,13 @@ Tutti eseguiti in questo contenitore il 22/10/2026, con il codice finale del bra
   nuovo {top spin 21, palla corta 9, tagliato 4, piatto 3, pallonetto 3}. Le palle corte sono soprattutto preparazioni
   deboli, che in partita la finestra d'impatto sostituisce con il colpo.
 - **Webcam con più persone** (`scripts/audit/webcam-crowd.mjs`, stesse scene sintetiche): colpi fantasma nelle scene
-  con altre persone 6 prima, 0 adesso. Nella scena «chi gioca ritrovato dopo 0,9 s, poi rovescio»: prima un colpo
-  fantasma e il rovescio perso, adesso il rovescio. Tremolio fino a 3,6 cm a 2 m: 0 colpi prima e dopo (60 prove).
+  con altre persone 6 prima, 0 con la versione della prima sessione, 1 con quella tenuta all'unione dei due branch
+  (la mano nuova della stessa taglia che entra lontano dopo 0,6 s: limite noto, in cambio dei colpi veri che l'altra
+  perdeva dopo una perdita breve della mano). Nella scena «chi gioca ritrovato dopo 0,9 s, poi rovescio»: prima un
+  colpo fantasma e il rovescio perso, adesso il rovescio. Tremolio fino a 3,6 cm a 2 m: 0 colpi prima e dopo (60
+  prove).
 - **Calibrazione con colpi completi** (apertura lenta e colpo): prima fallisce («altro verso» sull'apertura), adesso
-  passa con i quattro colpi (`tools/test`, test nuovo, e prova nel browser).
+  passa con i colpi del percorso rapido (`tools/test`, test nuovo, e prova nel browser).
 
 ### 4.3 Validazione fisica
 
@@ -493,17 +503,21 @@ tagliato (−0,22), forza del pallonetto «morbido» (0,3), zona morta del piatt
 
 ### 4.4 Limiti noti
 
-- **Difetti aperti, verificati dopo la fine del giro** (misure in `SESSION_HANDOFF.md`, «Difetti aperti»):
-  - la pagina storica `site/tennis` va in errore sull'evento `hand` del collegamento: la prova della CI «gesture and
-    calibration» fallisce (18/18 prima del giro e con `hand: []` in `link.js`);
-  - con i gesti sintetici della presa del 19/10 (polso che prona) i dritti diventano tagliati e il pallonetto un
-    tagliato: la prova del telefono di prima fa 7/10, prima del giro 10/10;
-  - la calibrazione rapida supera 10 s con un tremolio di 25 °/s in 4 prove su 6 (criterio di P9 non raggiunto);
-  - «Salta» durante il passo «fermo» lascia il rilevatore ad aspettare il telefono fermo;
-  - negli swing corti la forza è sottostimata (picco della media mobile).
+- **Difetti verificati dopo la fine del giro** (misure in `SESSION_HANDOFF.md`, «Difetti verificati»):
+  - aperto: con il passo «fermo» nuovo del rilevatore (dall'unione) due prove della CI della pagina storica falliscono,
+    «gesture and calibration» (il secondo gesto del servizio non colpisce il lancio) e «timing-browser»; con il
+    rilevatore di prima passano 18/18 e 8/8;
+  - aperto: nella partita intera della pagina storica (`phone-cal.mjs`, fuori dalla CI) il telefono non lancia e non
+    colpisce, anche con il rilevatore di prima;
+  - aperto: con i gesti sintetici della presa del 19/10 (polso che prona) i dritti diventano tagliati e il pallonetto un
+    tagliato: la prova del telefono di prima fa 7/10 (anche dopo l'unione), prima del giro 10/10;
+  - aperto: negli swing corti la forza è sottostimata (picco della media mobile);
+  - aperto: l'esito della racchetta e la ripetibilità nella diagnostica sono registrati in due modi (da tenerne uno);
+  - risolti dall'unione: errore della pagina storica sull'evento `hand`; calibrazione oltre 10 s con il tremolio
+    (ora circa 4,5 s); «Salta» durante il passo «fermo».
 - Webcam: all'avvio vince la mano più grande con la lateralità giusta, quindi un'altra persona più vicina alla webcam
-  di chi gioca può essere scelta. Una mano nuova che compare lontano entro 0,5 s dalla perdita della propria si prende
-  ancora: non si distingue dalla propria che torna dopo il mosso di uno swing.
+  di chi gioca può essere scelta. Persa la mano di chi gioca, una mano nuova della stessa taglia che entra entro 5 s
+  viene presa anche lontano e il suo swing conta (`docs/NATPF_WEBCAM.md`).
 - Webcam: un tremolio di 4,8 cm a 12 Hz (molto oltre un tremolio vero) fa colpi in 6 semi su 20.
 - Telefono: la rotazione del polso sul manico è misurata ma non usata (non validata).
 - La direzione dipende soprattutto dal tempo dell'impatto; il piatto sposta la palla di circa 0,7 m con 25° (per

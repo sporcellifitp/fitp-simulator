@@ -4,9 +4,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
 import { parseSwingMessage } from '@natpf/tennis/swing-message.js';
-import { NatpfPhoneRacket } from '../src/natpf/natpf_phone_racket.js';
+import { QUICK_PLAN } from '@natpf/tennis/calibration.js';
+import { NatpfPhoneRacket, natpfSwingToEngine } from '../src/natpf/natpf_phone_racket.js';
 import { racketSim, strokeDir } from './racket-sim.mjs';
 import { strokeIntent } from '../src/natpf/natpf_stroke_intent.js';
+import { simPhone } from './phone-sim.mjs';
 
 /* ---------- mano unica ---------- */
 test('mano: una sola, quella del gioco; va al telefono, torna dal telefono e la calibrazione non la cambia', () => {
@@ -31,6 +33,18 @@ test('mano: una sola, quella del gioco; va al telefono, torna dal telefono e la 
   assert.equal(sent.filter(m => m.t === 'cfg').at(-1).hand, 'right');
 });
 
+test('diagnostica: il colpo del telefono arriva al motore con il suo numero (gesto ed esito si legano nel registro)', () => {
+  const got = [], phone = new NatpfPhoneRacket({ playerRole: 'p1', phase: 'RALLY', motionController: { _emitSwing: e => got.push(e) },
+    ball: { inPlay: true, lastHitter: 'opponent', pos: { x: .6, y: 1, z: 6 }, vel: { x: 0, y: 0, z: 12 } }, player: { pos: { x: 0, z: 11.4 } }, opponent: { pos: { x: 0, z: -11.4 } } });
+  phone.link = { ready: true, connected: true, send(){}, cmd(){} };
+  const sim = racketSim({ hand: 'right', seed: 2 }); sim.start(); sim.stroke({ side: 'forehand' });
+  const s = { ...sim.last(), at: performance.now()/1000 };
+  phone._onSwing(s);
+  assert.equal(got.length, 1);
+  assert.equal(got[0].natpf.seq, s.seq); assert.ok(Number.isInteger(s.seq));
+  assert.ok(got[0].natpf.intent, 'intenzione dalla forma');
+});
+
 /* ---------- deriva del giroscopio ---------- */
 test('deriva: dal passo «fermo» solo se plausibile; il movimento della mano non diventa deriva', () => {
   const still = mean => { const det = createSwingDetector(); det.still(); for (let t = 0; t <= 700; t += 16) det.feed({ t, rot: mean.map(v => v + Math.sin(t)*.3), acc: [0, 0, 0], accG: [0, 9.8, 0] }); return det.profile.bias; };
@@ -41,6 +55,108 @@ test('deriva: dal passo «fermo» solo se plausibile; il movimento della mano no
   // anche dai profili salvati prima
   const det = createSwingDetector(); det.setProfile({ bias: [3.4, 6.8, 4.4], axis: null });
   assert.deepEqual(det.profile.bias, [0, 0, 0]);
+});
+
+/* ---------- calibrazione tollerante ---------- */
+// chi gioca segue i passi: resta fermo (con il tremolio della mano) finché il passo cambia, fa il gesto chiesto quando
+// il telefono è pronto. Restituisce la durata del passo «fermo» e di tutta la calibrazione (ms)
+function followCalibration({ hand, seed, tremor, limit = 15000 }){
+  const sim = simPhone({ hand, seed }), ev = [];
+  sim.cal.on(e => ev.push(e));
+  const t0 = sim.t;
+  sim.cal.start({ quick: true, hand });
+  while (sim.cal.state.step === 'still' && sim.t - t0 < limit) sim.rest(50, tremor);
+  const still = sim.t - t0;
+  while (sim.cal.state.step === 'swings' && sim.t - t0 < limit){
+    while (!sim.cal.state.ready && sim.t - t0 < limit) sim.rest(50, tremor);
+    sim.swing({ axis: [0, QUICK_PLAN[sim.cal.state.idx] === 'L' ? 1 : -1, 0], tremor });
+    sim.rest(450, tremor);
+  }
+  return { still, total: sim.t - t0, result: sim.cal.state.result, attempts: ev.filter(e => e.kind === 'attempt'), moves: ev.filter(e => e.kind === 'warn' && e.why === 'move').length };
+}
+
+test('tremolio: con il tremolio naturale della mano (15–25 °/s) la calibrazione finisce entro 10 s, senza tentativi persi', () => {
+  // prima un solo campione oltre 35 °/s faceva ripartire il passo «fermo» (fino a 3,7 s con 25 °/s) e i gesti erano
+  // quattro: più di 8 s anche con gesti perfetti, oltre 10 s in 2 prove su 12 con 25 °/s
+  for (const hand of ['right', 'left']) for (const tremor of [15, 20, 25]) for (const seed of [1, 4, 11]){
+    const tag = `${hand}, tremolio ${tremor} °/s, seme ${seed}`, r = followCalibration({ hand, seed, tremor });
+    assert.equal(r.result?.pass, true, tag);
+    assert.ok(r.still < 1000, `${tag}: passo «fermo» in ${Math.round(r.still)} ms`);
+    assert.ok(r.total <= 10000, `${tag}: calibrazione in ${Math.round(r.total)} ms`);
+    assert.equal(r.moves, 0, `${tag}: avvisi «movimento»`);
+    assert.deepEqual(r.attempts.map(a => a.ok), QUICK_PLAN.map(() => true), tag);
+  }
+});
+
+test('passo «fermo»: il telefono che si muove davvero non passa; gli avvisi sono al massimo uno ogni mezzo secondo', () => {
+  const sim = simPhone({ seed: 2 }), ev = [];
+  sim.cal.on(e => ev.push(e));
+  sim.cal.start({ quick: true });
+  // la mano che porta il telefono in posizione: rotazione lenta e continua (45 °/s), poi avanti e indietro (120 °/s)
+  sim.pose([0, 1, 0], 135, 45); sim.pose([1, 0, 0], 60, 120); sim.pose([1, 0, 0], -60, 120);
+  assert.equal(sim.cal.state.step, 'still');
+  const warns = ev.filter(e => e.kind === 'warn' && e.why === 'move').length, secs = sim.t/1000;
+  assert.ok(warns >= 1 && warns <= Math.ceil(secs*2) + 1, `${warns} avvisi in ${secs.toFixed(1)} s`);
+  // fermo: passa
+  sim.rest(800, 10);
+  assert.notEqual(sim.cal.state.step, 'still');
+});
+
+/* ---------- «Salta» con il gioco completo ---------- */
+test('«Salta» anche durante il passo «fermo»: si gioca subito con verso, tipo di colpo e forza dal gesto', () => {
+  // prima il rilevatore restava ad aspettare il telefono fermo (nessun colpo partiva) e il filtro d'orientamento non
+  // aveva la posa di riposo (niente forma del colpo, quindi niente intenzione)
+  const CASES = [
+    { o: { side: 'forehand' }, shot: 'topspin' }, { o: { side: 'backhand' }, shot: 'topspin' },
+    { o: { side: 'forehand', peak: 1300 }, shot: 'flat' }, { o: { side: 'forehand', peak: 500 }, shot: 'topspin' },
+    { o: { side: 'forehand', rise: 70, peak: 650 }, shot: 'lob' }, { o: { side: 'backhand', rise: -35, peak: 700 }, shot: 'slice' },
+    { o: { side: 'backhand', rise: -35, peak: 480 }, shot: 'drop' }, { o: { overhead: true, peak: 1100 }, shot: 'smash', high: true },
+  ];
+  for (const hand of ['right', 'left']) for (const skip of [0, 250]){
+    const tag = `${hand}, «Salta» dopo ${skip} ms`;
+    const sim = racketSim({ hand, seed: 5 }), profile = sim.start({ skip, tremor: 25 });
+    assert.equal(profile?.simple, true, tag);
+    assert.equal(sim.det.mode, 'run', tag); assert.ok(sim.face.ready, `${tag}: filtro d'orientamento senza posa di riposo`);
+    const power = {};
+    for (const { o, shot, high } of CASES){
+      const n0 = sim.swings.length, truth = sim.stroke({ ...o, tremor: 25 });
+      const s = sim.swings.slice(n0).filter(x => x.peak > (o.peak || 900)*.6).pop(), what = `${tag}, ${JSON.stringify(o)}`;
+      assert.ok(s, `${what}: nessun colpo`);
+      const ev = natpfSwingToEngine(sim.last(), { hand, ref: null, ballHigh: !!high });
+      assert.ok(ev.natpf.intent, `${what}: nessuna intenzione`);
+      assert.equal(ev.natpf.intent.shot, shot, what);
+      if (!o.overhead){ assert.equal(s.dir, truth.dir, what); assert.equal(ev.side, o.side, what); }
+      if (o.side === 'forehand' && !o.rise) power[o.peak || 900] = ev.natpf.intent.power;
+    }
+    assert.ok(power[500] < power[900] && power[900] < power[1300], `${tag}: forza ${JSON.stringify(power)}`);
+  }
+});
+
+/* ---------- prove obbligatorie 10 e 11, parte del telefono (la webcam è in natpf-webcam-classifier.test.mjs) ---------- */
+test('tremolio in partita (prova 11, telefono): 10 s di attesa con la mano che trema non fanno colpi; il colpo dopo sì, col verso giusto', () => {
+  for (const tremor of [15, 25]) for (const skip of [null, 200]){
+    const tag = `tremolio ${tremor} °/s, «Salta» ${skip == null ? 'dopo il passo «fermo»' : 'durante il passo «fermo»'}`;
+    const sim = racketSim({ hand: 'right', seed: 3 }); sim.start({ tremor, ...(skip == null ? {} : { skip }) });
+    const n0 = sim.swings.length; sim.rest(10000, tremor);
+    assert.equal(sim.swings.length, n0, `${tag}: ${sim.swings.slice(n0).map(s => s.peak)}`);
+    const truth = sim.stroke({ side: 'backhand', tremor }), got = sim.swings.slice(n0).filter(s => s.peak > 500);
+    assert.equal(got.length, 1, tag); assert.equal(got[0].dir, truth.dir, tag);
+  }
+});
+
+test('perdita del tracciamento (prova 10, telefono): pause nei campioni dei sensori non fanno colpi fantasma; il colpo dopo arriva intero', () => {
+  // pagina in secondo piano o telefono che rallenta: oltre 140 ms senza campioni il rilevatore riparte (DEFAULTS.gap).
+  // Il collegamento che cade e torna è nelle prove nel browser (natpf-phone-blackout.mjs)
+  for (const hand of ['right', 'left']){
+    const sim = racketSim({ hand, seed: 9 }); sim.start();
+    for (const [ms, side] of [[200, 'backhand'], [600, 'forehand'], [2000, 'backhand']]){
+      const n0 = sim.swings.length; sim.gap(ms); sim.rest(300);
+      assert.equal(sim.swings.length, n0, `${hand}, pausa di ${ms} ms`);
+      const truth = sim.stroke({ side }), got = sim.swings.slice(n0).filter(s => s.peak > 500);
+      assert.equal(got.length, 1, `${hand}, pausa di ${ms} ms`); assert.equal(got[0].dir, truth.dir);
+      assert.ok(got[0].shape && natpfSwingToEngine(sim.last(), { hand }).natpf.intent, `${hand}, pausa di ${ms} ms: forma e intenzione`);
+    }
+  }
 });
 
 /* ---------- verso senza calibrazione ---------- */

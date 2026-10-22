@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
 import { launch, page, check, summary, SP } from './th.mjs';
+import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
 const PEER_PORT = +(process.env.PEER_PORT || 9109), GAME_PORT = +(process.env.GAME_PORT || 3109);
@@ -80,7 +81,18 @@ try {
     const E = __natpfTennis, T = E.natpfUi.training; window.__hits = []; window.__cals = [];
     E.natpfPhone.onCal(e => __cals.push({ t: Date.now(), kind: e.kind, step: e.step, idx: e.idx, want: e.want, dir: e.dir, ok: e.ok, why: e.why }));
     const h = T._hitCal.bind(T);
-    T._hitCal = (i, w) => { const ballX = +E.ball.pos.x.toFixed(2); h(i, w); __hits.push({ idx: i, want: w, ballX, struck: E.ball.lastHitter === 'player', swing: E.player.swingType, px: +E.player.pos.x.toFixed(2) }); };
+    // il colpo si registra quando la palla è colpita davvero: dalla finestra d'impatto (22/10) lo swing aspetta che la
+    // palla arrivi al punto d'impatto, e subito dopo il gesto la palla non è ancora partita (struck false, swing di prima)
+    T._hitCal = (i, w) => {
+      const ballX = +E.ball.pos.x.toFixed(2), rec = { idx: i, want: w, ballX, struck: false, swing: null, px: +E.player.pos.x.toFixed(2), at: performance.now() };
+      h(i, w); __hits.push(rec);
+      rec.trace = [];
+      const poll = () => {
+        if (rec.trace.length < 12) rec.trace.push([Math.round(performance.now() - rec.at), +E.ball.pos.z.toFixed(2), E.ball.lastHitter, E.pendingUserSwing ? +(E.pendingUserSwing.expiresAt - E.elapsedTime).toFixed(2) : null, E.phase, E.natpfTimeScale, E.natpfLastRacket?.whiff || E.lastWhiff || null]);
+        if (E.ball.lastHitter === 'player'){ rec.struck = true; rec.swing = E.player.swingType; rec.ms = Math.round(performance.now() - rec.at); } else if (performance.now() - rec.at < 4000) requestAnimationFrame(poll);
+      };
+      poll();
+    };
   });
   await phone.click('#enable');
   await phone.waitForFunction(() => __racchetta.state.sensor === 'cal', null, { timeout: 5000 });
@@ -92,7 +104,7 @@ try {
 
   // chi gioca guarda il computer: fa il gesto quando il computer lo chiede (gesto grande al centro o pannello «Ora»)
   const gestures = [];
-  for (let i = 0; i < 4; i++){
+  for (let i = 0; i < QUICK_PLAN.length; i++){
     const t0 = Date.now();
     // il computer dice «Ora» con la freccia: è il momento del gesto (chi gioca guarda lo schermo, non il telefono)
     const asked = await game.waitForFunction(i => { const T = __natpfTennis.natpfUi.training; return T.cal && T.view.stage === 'gesture' && T.view.idx === i && document.getElementById('coach-main').dataset.state === 'go' ? T.view.want : null; }, i, { timeout: 12000, polling: 50 }).then(h => h.jsonValue(), () => null);
@@ -112,8 +124,8 @@ try {
     }
     await phone.evaluate(s => { window.__busy = true; return __up.swing(s).then(() => __up.back(s)).then(() => { window.__busy = false; }); }, sign);
     // il colpo si vede sul computer
-    const hit = await game.waitForFunction(n => __hits.length > n ? __hits[n] : null, i, { timeout: 6000, polling: 50 }).then(h => h.jsonValue(), () => null);
-    Object.assign(gestures[i], { hit: !!hit?.struck, swing: hit?.swing, hitBallX: hit?.ballX });
+    const hit = await game.waitForFunction(n => __hits.length > n && (__hits[n].struck || performance.now() - __hits[n].at > 4000) ? __hits[n] : null, i, { timeout: 8000, polling: 50 }).then(h => h.jsonValue(), () => null);
+    Object.assign(gestures[i], { hit: !!hit?.struck, swing: hit?.swing, hitBallX: hit?.ballX, ...(hit?.struck ? { ms: hit.ms } : { trace: hit?.trace }) });
     await phone.waitForTimeout(900);
   }
   const done = await game.waitForFunction(() => { const T = __natpfTennis.natpfUi.training; return T.active && !T.cal; }, null, { timeout: 15000 }).then(() => true, () => false);
@@ -137,7 +149,7 @@ try {
   const tl = await game.evaluate(() => __tl), ptl = await phone.evaluate(() => __tl);
   const cals = await game.evaluate(() => __cals);
   writeFileSync(`${SP}/training-timeline.json`, JSON.stringify({ gestures, game: tl, phone: ptl, cals }, null, 0));
-  check('quattro gesti chiesti dal computer, nell’ordine dritto/rovescio, e riconosciuti', gestures.length === 4 && gestures.every(g => g.asked && g.hit) && gestures.map(g => g.asked).join('') === 'LRLR', JSON.stringify(gestures));
+  check(`${QUICK_PLAN.length} gesti chiesti dal computer, nell’ordine dritto/rovescio, e riconosciuti`, gestures.length === QUICK_PLAN.length && gestures.every(g => g.asked && g.hit) && gestures.map(g => g.asked).join('') === QUICK_PLAN.join(''), JSON.stringify(gestures));
   // la palla di ogni gesto sta dal lato di quel colpo e il giocatore colpisce con quel colpo (prima: dritto su una palla
   // mandata al rovescio, quando il gesto arrivava prima della palla)
   check('palla dal lato del colpo chiesto, ferma, giocatore al centro', gestures.every(g => g.ball && g.ball.frozen && g.ball.live && Math.abs(g.ball.px) < .05 && (g.asked === 'L' ? g.ball.bx > .5 : g.ball.bx < -.5)), JSON.stringify(gestures.map(g => g.ball)));

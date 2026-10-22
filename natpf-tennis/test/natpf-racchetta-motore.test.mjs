@@ -61,6 +61,13 @@ test('stessi gesti sulla stessa palla, stesso esito: nessuna componente casuale 
   assert.equal(a.racket.out.x, b.racket.out.x); assert.equal(a.racket.out.depth, b.racket.out.depth);
 });
 
+test('diagnostica: l\'esito del motore porta il numero del colpo del telefono, per legarlo al gesto registrato', () => {
+  const sw = phoneSwing({ shot: 'topspin', power: .7 }); sw.natpf.seq = 41;
+  const r = withEngine('pro', e => { cpuShot(e); return play(e, [{ lead: .05, swing: sw }]); });
+  assert.ok(r.hit);
+  assert.equal(r.racket.seq, 41); assert.ok(Number.isFinite(r.racket.at));
+});
+
 test('incrociato e lungolinea: in anticipo la palla va incrociata, in ritardo lungolinea; il piatto sposta la direzione', () => {
   // dritto del destro con la palla alla sua destra: incrociato = verso sinistra (x negativa)
   const shot = lead => withEngine('casual', e => { cpuShot(e, { to: [1.8, 8.4] }); return play(e, [{ lead, swing: phoneSwing({ shot: 'topspin', power: .7 }) }]); });

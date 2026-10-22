@@ -13,6 +13,7 @@ import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '../../../tools/e2e/node_modules/playwright-core/index.mjs';
+import { QUICK_PLAN } from '../../../site/js/tennis/calibration.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT = process.env.OUT || path.join(os.tmpdir(), 'natpf-tennis-lan-e2e');
@@ -91,11 +92,12 @@ try {
     await phone.addInitScript(fs.readFileSync(path.join(ROOT, '../tools/e2e/motion.js'), 'utf8') + ';DeviceMotionEvent.requestPermission=async()=>"granted";');
     await phone.goto(pairing.url);
     await phone.waitForFunction(() => window.__racchetta?.state.linkState === 'on', null, { timeout: 30000 });
-    // calibrazione rapida NATPF vera, guidata dal computer (natpf_phone_racket.js): fermo, quattro gesti, prova libera, conferma
+    // calibrazione rapida NATPF vera, guidata dal computer (natpf_phone_racket.js): fermo, i gesti del percorso rapido,
+    // prova libera, conferma
     await phone.click('#enable');
     await phone.evaluate(() => __motion.still(1600));
     await phone.waitForFunction(() => __racchetta.cal.state.step === 'swings', null, { timeout: 15000 });
-    for (const dir of [1, -1, 1, -1]) await phone.evaluate(async dir => { await __motion.swing({ axis: [0, -dir, 0], peak: 42, dur: 260 }); await __motion.swing({ axis: [0, dir, 0], peak: dir === 1 ? 120 : 150, dur: 220 }); await __motion.still(650); }, dir);
+    for (const dir of QUICK_PLAN.map(w => w === 'L' ? 1 : -1)) await phone.evaluate(async dir => { await __motion.swing({ axis: [0, -dir, 0], peak: 42, dur: 260 }); await __motion.swing({ axis: [0, dir, 0], peak: dir === 1 ? 120 : 150, dur: 220 }); await __motion.still(650); }, dir);
     await host.waitForFunction(() => __natpfTennis.natpfPhone.cal.review?.pass, null, { timeout: 15000 });
     await phone.waitForFunction(() => __racchetta.cal.state.step === 'free', null, { timeout: 10000 });
     await phone.evaluate(async () => { await __motion.swing({ axis: [0, 1, 0], peak: 120, dur: 220 }); await __motion.still(500); });

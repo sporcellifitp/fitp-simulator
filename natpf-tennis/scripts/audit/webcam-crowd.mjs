@@ -4,6 +4,8 @@
 //   node --import ./test/register.mjs scripts/audit/webcam-crowd.mjs --prima=<motion_controls.js> --riconoscimento=<webcam_strokes.js>
 // (per esempio estratti con git show <commit>:natpf-tennis/src/motion_controls.js in natpf-tennis/src/, dove trovano i
 // propri import). Atteso: nessun colpo nelle scene con altre persone e nel tremolio; un rovescio nell'ultima scena.
+// Dal 22/10 (webcam della seconda sessione, ripresa per taglia) le due scene della mano nuova che entra lontano
+// fanno un colpo: limite noto, docs/NATPF_WEBCAM.md.
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { runScene, sweep, handLandmarks, gauss, MODEL_LABEL } from '../../test/webcam-sim.mjs';

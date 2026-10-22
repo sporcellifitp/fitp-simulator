@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
 import { launch, page, check, summary, SP } from './th.mjs';
+import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
 const GESTURES = JSON.parse(execFileSync(process.execPath, ['--import', './test/register.mjs', 'test/racket-gestures.mjs', 'destro'], { cwd: GAME, maxBuffer: 64*1024*1024 }).toString());
@@ -60,11 +61,11 @@ try {
   await phone.waitForFunction(() => __racchetta.state.sensor === 'cal' && __racchetta.state.step === 'still', null, { timeout: 5000 });
   await phone.evaluate(() => __up.still(2400));
   await phone.waitForFunction(() => __racchetta.state.step === 'swings', null, { timeout: 5000 });
-  // quattro gesti nel verso che la calibrazione chiede (prima fermi: la calibrazione vuole la mano ferma prima di ogni
+  // i gesti nel verso che la calibrazione chiede (prima fermi: la calibrazione vuole la mano ferma prima di ogni
   // gesto): verso sinistra il dritto del destro, verso destra il rovescio
-  // (il verso chiesto: piano della calibrazione rapida al passo in corso; fino a 8 gesti, se uno non viene preso)
-  for (let i = 0; i < 8; i++){
-    const want = await phone.evaluate(() => { const S = __racchetta.cal.state; return S.step === 'swings' ? ['L', 'R', 'L', 'R'][S.idx] ?? null : null; });
+  // (il verso chiesto: piano della calibrazione rapida al passo in corso; fino al doppio dei gesti, se uno non viene preso)
+  for (let i = 0; i < 2*QUICK_PLAN.length; i++){
+    const want = await phone.evaluate(plan => { const S = __racchetta.cal.state; return S.step === 'swings' ? plan[S.idx] ?? null : null; }, QUICK_PLAN);
     if (!want) break;
     await phone.evaluate(g => __up.still(500).then(() => __up.play(g)).then(() => __up.still(500)), want === 'R' ? 'backhand' : 'forehand');
   }

@@ -3,9 +3,33 @@
 Memoria di lavoro del progetto: da leggere all'inizio di ogni sessione e da aggiornare alla fine di ogni attività.
 Non contiene password, token o altri segreti.
 
-Ultimo aggiornamento: 21 ottobre 2026 (quinto giro: modalità diagnostica, colpi senza attesa di rete, valutazione app nativa, Leggenda, webcam) · branch `claude/friendly-fermat-dwv2w2` (ripartito da
-`feature/natpf-tennis-v2`, che contiene tutto il lavoro precedente; i branch `backup/*` e gli altri `feature/natpf-*`
-sono già inclusi)
+Ultimo aggiornamento: 22 ottobre 2026 (racchetta virtuale; unione dei due branch del giorno) · **branch unico**
+`claude/friendly-fermat-dwv2w2` (ripartito da `feature/natpf-tennis-v2`, che contiene tutto il lavoro precedente; i
+branch `backup/*` e gli altri `feature/natpf-*` sono già inclusi; il 22/10 vi è stato unito
+`claude/determined-tesla-8dgaks`). Stato per chi riprende: §0.
+
+## 0. Per chi riprende (22/10, sera)
+
+- **Un solo branch: `claude/friendly-fermat-dwv2w2`.** Contiene il lavoro delle due sessioni del 22/10: la seconda,
+  su `claude/determined-tesla-8dgaks`, è stata unita qui con un merge. Non si lavora più su altri branch; commit nuovi
+  fatti altrove vanno portati qui con un merge (mai reset né force push).
+- **Fatto** (codice e test automatici, con sensori e mani simulati): la racchetta virtuale ai passi 1–14 di
+  `SESSION_HANDOFF.md`: diagnosi della sessione reale, mano unica, verso del gesto, forma del colpo, intenzione ed
+  esito senza caso, finestra d'impatto, volée e schiacciate, servizio dal gesto, Player 2 del 1v1, Leggenda,
+  calibrazione rapida con due gesti tollerante al tremolio, «Salta» anche nel passo «fermo», webcam con un solo
+  soggetto, diagnostica, 14 test obbligatori. Prove sul branch unito: `npm test` 276/276, `tools/test` 135/135, prove
+  del gioco nel browser tutte superate (LAN 7/8 per il limite noto del contenitore).
+- **Non fatto o aperto**:
+  - due prove della CI della pagina storica (`gesture-calibration`, `timing-browser`) falliscono per il passo «fermo»
+    nuovo di `swing-detect.js` (con quello di prima passano: difetto 6 di `SESSION_HANDOFF.md`); la prova lunga
+    `phone-cal.mjs` (fuori dalla CI) fallisce per un'altra causa (difetto 7);
+  - validazione fisica con telefono, webcam e persone vere (procedura in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5);
+  - presa del video del 19/10: i dritti con il polso che prona vengono letti come tagliati (prova del telefono con i gesti di prima 7/10, prima del giro 10/10);
+  - forza sottostimata negli swing corti;
+  - diagnostica con l'esito e la ripetibilità registrati in due modi (da tenerne uno).
+- **Da fare, in ordine**: difetti 6 e 7, presa del 19/10, swing corti, diagnostica doppia (passo 16 di
+  `SESSION_HANDOFF.md`, con misure e indicazioni), poi la validazione fisica (passo 15). Le scelte fatte nell'unione
+  dei due branch sono in `SESSION_HANDOFF.md`, la cronologia in `WORKLOG.md` (checkpoint 9).
 
 ## 1. Descrizione
 
@@ -36,7 +60,8 @@ ammessi solo gli header di copyright delle librerie open source). Loghi ufficial
   al punto d'impatto, il più forte sostituisce la preparazione), piano d'intercetto (volée, schiacciata al volo, palle
   fuori lasciate andare; vale solo per la sua palla, `livePlan`), recupero a rete, anche per il Player 2 del 1v1.
   Servizio dal gesto (`serveOutcome`). Mano unica: la decide il computer (`cfg.hand`, `{t:'hand'}` dal telefono).
-  Webcam con un solo soggetto (`updateOthers` in `webcam_strokes.js`).
+  Webcam con un solo soggetto (`trackOthers` e ripresa per taglia, `HAND_KEEP`, in `webcam_strokes.js`). Calibrazione
+  rapida con due gesti facoltativi (`QUICK_PLAN`) e passo «fermo» sulla mediana della rotazione (`swing-detect.js`).
 - Tre parti separate del colpo: **rilevamento** (telefono: `swing-detect.js` decide quando c'è un colpo e il verso,
   `face-tracker.js` misura il piatto), **classificazione** (computer: `natpf_gestures.classifyPhoneShot`, deciso al
   picco con i dati di preparazione e spinta, mai cambiato dopo l'impatto) e **simulazione** (motore: `natpf_skill`
@@ -394,11 +419,11 @@ Quinto giro (21/10: app nativa e Bluetooth, modalità diagnostica, migliorie gi�
 
 ## 11. Prossimi passi
 
-Prima di tutto: i **cinque difetti aperti della racchetta virtuale** (verificati il 22/10 dopo la fine del giro, elenco
-e misure in `SESSION_HANDOFF.md`, «Difetti aperti»): pagina storica in errore sull'evento `hand` (prova della CI
-«gesture and calibration»), presa del 19/10 (prova del telefono di prima 7/10, prima del giro 10/10), calibrazione
-oltre 10 s con il tremolio, «Salta» nel passo «fermo», forza degli swing corti. Un'altra sessione ha lavorato in
-parallelo da `84ca878` su `claude/determined-tesla-8dgaks`: i due branch vanno uniti o va scelto quale tenere.
+Prima di tutto: i **punti aperti della racchetta virtuale** (§0 e passo 16 di `SESSION_HANDOFF.md`, con le misure):
+pagina storica (due prove della CI falliscono con il passo «fermo» nuovo del rilevatore; la partita intera col
+telefono di `phone-cal.mjs` fallisce per un'altra causa), presa del 19/10, forza degli swing corti, diagnostica in parte
+doppia. Risolti dall'unione dei due branch del 22/10: errore sull'evento `hand`, calibrazione oltre 10 s con il
+tremolio, «Salta» nel passo «fermo».
 
 0. **Validazione fisica della racchetta virtuale** (22/10): procedura in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5 (telefono
    Android e iPhone, webcam, più persone, prova guidata con il video), poi tarare le soglie del §4.3 con i pacchetti.
@@ -437,7 +462,13 @@ parallelo da `84ca878` su `claude/determined-tesla-8dgaks`: i due branch vanno u
   (23,7 MiB, nessun file oltre 25 MiB) e `natpf-simulator-lan-windows-20261022.zip` (57,2 MiB, Node 22.22.0
   verificato), estratti e provati. Validazione fisica non eseguita (§4.3 del documento). Verifica successiva (22/10):
   la prova della CI «gesture and calibration» della pagina storica fallisce (evento `hand`), la prova del telefono con
-  i gesti della presa del 19/10 fa 7/10 (10/10 prima del giro): `SESSION_HANDOFF.md`, «Difetti aperti».
+  i gesti della presa del 19/10 fa 7/10 (10/10 prima del giro): `SESSION_HANDOFF.md`, «Difetti verificati».
+- Branch unito (22/10, sera, dopo il merge della seconda sessione): `npm test` **276**/276, `tools/test` 135/135; nel
+  browser telefono 10/10, allenamento 13/13, risposta al gesto 9/9, ricollegamento 6/6, rete che cade 6/6, menu 22/22,
+  1v1 18/18, diagnostica 24/24, LAN 7/8 (limite noto); CI della pagina storica: telefono 10/10, grafica 9/9, pacchetto
+  ridotto 5/5, 6/6, 10/10, LAN in Node 4/4, **«gesture and calibration» e «timing-browser» falliscono** (con il
+  rilevatore di prima 18/18 e 8/8); `phone-cal.mjs` fallisce (nessun lancio in partita, anche con il rilevatore di
+  prima); presa del 19/10 con i gesti di prima 7/10.
 - Quinto giro (21/10): `natpf-tennis/test` **236** test, con Leggenda (`natpf-legend.test.mjs`, 11, e uno in
   `natpf-flows`) e webcam (`natpf-webcam-classifier.test.mjs`, 15); `tools/test` **134**; `npm run audit:legend`
   tutti i criteri; banco della webcam (`scripts/audit/webcam-sweep.mjs`) 16 criteri su 18. Nuovi: `natpf-diag.test.mjs` (16:

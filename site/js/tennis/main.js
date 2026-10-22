@@ -187,8 +187,9 @@ function paintSwings(){
 }
 function paintReview(r){
   $('#rvTitle').textContent = r.touch ? 'Controllo con i tocchi' : r.pass ? 'Movimenti riconosciuti' : 'Calibrazione da rifare';
-  const count = r.quick ? 2 : 3;
-  $('#rvL').textContent = `${r.okL}/${count} ${r.okL >= 2 ? '✓' : '✗'}`; $('#rvR').textContent = `${r.okR}/${count} ${r.okR >= 2 ? '✓' : '✗'}`;
+  // gesti chiesti e necessari per verso dal telefono (need/per); i telefoni di prima non li mandano
+  const count = r.per ?? (r.quick ? 2 : 3), need = r.need ?? 2;
+  $('#rvL').textContent = `${r.okL}/${count} ${r.okL >= need ? '✓' : '✗'}`; $('#rvR').textContent = `${r.okR}/${count} ${r.okR >= need ? '✓' : '✗'}`;
   const why = $('#rvWhy');
   why.className = 'note ' + (r.pass ? 'ok' : 'bad');
   why.textContent = r.touch ? 'Scegli direzione e intensità sul telefono e premi Colpisci. Prova una volta, poi conferma.' : r.pass ? (r.assisted ? 'Apri il braccio, poi tieni premuto il pulsante sul telefono mentre colpisci. Prova una volta e conferma.' : 'Pronto! Prova un gesto guardando la palla, poi conferma. Muovi normalmente per rispondere; accompagna verso l’alto per alzare la palla, fai un tocco corto e morbido per mandarla vicino alla rete. Non serve conoscere il tennis.')

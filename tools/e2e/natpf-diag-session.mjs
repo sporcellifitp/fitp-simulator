@@ -237,6 +237,8 @@ try {
     await game.waitForFunction(() => !__natpfTennis.natpfUi.diag.recorder.active && !__natpfTennis.natpfUi.diag.busy, null, { timeout: 60000 });
     const mC = await game.evaluate(() => __natpfTennis.natpfUi.diag.summary?.metrics);
     check('prova guidata: richieste del lanciapalle nel registro e metriche con il riferimento (non senza)', mC?.riferimento?.richieste >= 5 && mC.riferimento.gestiConRiferimento > 0, JSON.stringify(mC?.riferimento || null).slice(0, 300));
+    // racchetta virtuale (22/10): forma e intenzione di ogni colpo del telefono, esito della racchetta legato al colpo
+    check('prova guidata: forma e intenzione dei colpi del telefono ed esito della racchetta nelle metriche', mC?.telefono?.forma?.colpi > 0 && Object.keys(mC.telefono.intenzione || {}).length > 0 && mC?.colpi?.racchetta?.colpi > 0, JSON.stringify({ forma: mC?.telefono?.forma, intenzione: mC?.telefono?.intenzione, racchetta: mC?.colpi?.racchetta, ripetibilita: mC?.ripetibilita }).slice(0, 400));
   }
   check('nessun errore nelle pagine', !errors.length, errors.slice(0, 5).join(' | '));
 } finally { await B.close(); }

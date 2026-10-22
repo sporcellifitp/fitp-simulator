@@ -32,18 +32,18 @@ await holding;
 await d.waitForFunction(() => !document.querySelector('#pProva').classList.contains('hidden'), null, { timeout: 8000 });
 check('3 · dopo il telefono fermo e in verticale si passa agli swing', true);
 await d.screenshot({ path: SP + '/pc-3-swing.png' });
-// calibrazione rapida (← → ← →): il secondo gesto prima nel verso sbagliato (va segnalato), uno con l'apertura prima
-// del colpo. Prima la prova seguiva il piano di sei gesti (tre per lato), sostituito da quello rapido.
+// calibrazione rapida (← →, dal 22/10; prima ← → ← →): il secondo gesto prima nel verso sbagliato (va segnalato), poi con
+// l'apertura prima del colpo. Prima ancora la prova seguiva il piano di sei gesti (tre per lato).
 const L = [0, 1, 0], R = [0, -1, 0], fb = [];
 const swing = async (axis, peak, pre = false) => { if (pre) await ph.evaluate(a => __motion.swing({ axis: a, peak: 300, dur: 260 }), axis.map(v => -v)); await ph.evaluate(([a, p]) => __motion.swing({ axis: a, peak: p }), [axis, peak]); await ph.evaluate(() => __motion.still(600)); fb.push(await d.textContent('#fbTxt')); };
 await swing(L, 700);
 await swing(L, 700);                                  // sbagliato: si chiedeva da sinistra a destra
 const wrong = fb[1];
-await swing(R, 650, true); await swing(L, 720); await swing(R, 560);
+await swing(R, 650, true);
 check('3 · ogni swing ha l\'esito subito: direzione rilevata, riconosciuto o no', /Registrato/.test(fb[0]) && /Direzione rilevata: ←/.test(wrong), `${fb[0]} | ${wrong}`);
 await d.waitForFunction(() => !document.querySelector('#pVerifica').classList.contains('hidden'), null, { timeout: 8000 });
 const rv = await d.evaluate(() => ({ L: document.querySelector('#rvL').textContent, R: document.querySelector('#rvR').textContent, why: document.querySelector('#rvWhy').textContent, ok: !document.querySelector('#rvConfirm').classList.contains('hidden') }));
-check('4 · verifica: due su due per lato, si può confermare', rv.ok && /2\/2/.test(rv.L) && /2\/2/.test(rv.R), JSON.stringify(rv));
+check('4 · verifica: tutti i gesti chiesti per lato, si può confermare', rv.ok && /1\/1 ✓/.test(rv.L) && /1\/1 ✓/.test(rv.R), JSON.stringify(rv));
 await ph.evaluate(() => __motion.swing({ axis: [0, -1, 0], peak: 650 })); await ph.evaluate(() => __motion.still(600));
 const free = await d.textContent('#frTxt');
 check('4 · prova libera: direzione e forza in tempo reale', /da sinistra a destra, forza \d+%/.test(free), free);

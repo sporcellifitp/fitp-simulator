@@ -5,14 +5,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calReduce, calPrompt, calSide, CAL_VIEW_EMPTY } from '../src/natpf/natpf_cal_view.js';
+import { QUICK_PLAN } from '@natpf/tennis/calibration.js';
 
 const run = events => events.reduce((v, e) => calReduce(v, e), CAL_VIEW_EMPTY);
 // gli eventi come li manda il telefono (calibration.js): step porta sempre il passo attuale
 const FLOW = [
   { kind: 'step', step: 'still' },
-  { kind: 'step', step: 'swings', want: 'L', idx: 0, total: 4 },
+  { kind: 'step', step: 'swings', want: 'L', idx: 0, total: QUICK_PLAN.length },
   { kind: 'ready', step: 'swings', want: 'L' },
 ];
+
+test('vista: prima del primo passo i gesti sono quelli del percorso rapido del telefono', () => {
+  assert.equal(CAL_VIEW_EMPTY.total, QUICK_PLAN.length);
+});
 
 test('vista: fermo → gesto 1 «L» in attesa della mano ferma → «ora»', () => {
   let v = run(FLOW.slice(0, 1));
@@ -54,7 +59,7 @@ test('vista: mancino, verifica, nuova calibrazione', () => {
   assert.equal(calSide('R', 'left'), 'forehand');
   const r = calReduce(v, { kind: 'review', step: 'review', pass: false, why: 'direzione' });
   assert.deepEqual([r.stage, calPrompt(r).state], ['review', 'retry']);
-  const again = calReduce(r, { kind: 'step', step: 'swings', want: 'L', idx: 0, total: 4 });
+  const again = calReduce(r, { kind: 'step', step: 'swings', want: 'L', idx: 0, total: QUICK_PLAN.length });
   assert.deepEqual([again.stage, again.idx, again.hits, again.last], ['gesture', 0, 0, null]);
   const done = calReduce(calReduce(v, { kind: 'review', step: 'review', pass: true }), { kind: 'done', step: 'done' });
   assert.equal(done.stage, 'done');

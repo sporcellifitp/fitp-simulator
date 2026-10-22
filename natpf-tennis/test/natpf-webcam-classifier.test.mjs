@@ -8,8 +8,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MotionController } from '../src/motion_controls.js';
 import { NatpfHand } from '../src/natpf/natpf_hand.js';
-import { createStrokeTracker, pickHand, updateOthers, handPoint, handSize } from '../src/natpf/webcam_strokes.js';
-import { runSweep, runTrial, runCrowd, runDropout, runScene, engineSwings, sweep, engineView, handLandmarks, makeFake, gauss, MODEL_LABEL } from './webcam-sim.mjs';
+import { createStrokeTracker, pickHand, trackOthers, HAND_KEEP, handPoint, handSize } from '../src/natpf/webcam_strokes.js';
+import { runSweep, runTrial, runCrowd, runDropout, runScene, runTwoPeople, engineSwings, sweep, engineView, handLandmarks, makeFake, gauss, MODEL_LABEL } from './webcam-sim.mjs';
 
 const MC = MotionController, tracker = () => createStrokeTracker();
 const pct = (n, d) => `${(100*n/d).toFixed(0)}% (${n}/${d})`;
@@ -39,26 +39,21 @@ test('scelta della mano: una mano che entra (più grande, in testa alla lista) n
   const p = handPoint(mine), track = { x: p.x, u: -p.y*.75, vx: 0, vu: 0, t: 1000, size: handSize(mine), k: 1, label: 'Right' };
   const r = pickHand([{ lm: other, label: 'Left', score: .99 }, { lm: mine, label: 'Right', score: .6 }], { track, t: 1033 });
   assert.deepEqual(r, { index: 1, reason: 'continuità' });
-  // la mano seguita sparisce: si aspetta (persa) invece di saltare sull'altra; dopo mezzo secondo si sceglie di nuovo,
-  // per 3 s solo vicino a dove era (un solo soggetto: chi passa davanti alla webcam no), poi qualsiasi mano
+  // la mano seguita sparisce: si aspetta (persa) invece di saltare sull'altra, anche dopo mezzo secondo (prima a
+  // 0,5 s si sceglieva da capo e vinceva l'altra); per HAND_KEEP si riprende solo una mano della taglia di chi gioca,
+  // anche altrove; dopo si sceglie di nuovo (al chiosco arriva un'altra persona)
   assert.deepEqual(pickHand([{ lm: other, label: 'Left', score: .99 }], { track, t: 1100 }), { index: -1, reason: 'persa' });
-  assert.deepEqual(pickHand([{ lm: other, label: 'Left', score: .99 }], { track, t: 1700 }), { index: -1, reason: 'lontana' });
-  const back = handLandmarks({ S: .5, y: .5, size: .04 });
-  assert.equal(pickHand([{ lm: other, label: 'Left', score: .99 }, { lm: back, label: 'Left', score: .9 }], { track, t: 1700 }).index, 1);
-  assert.equal(pickHand([{ lm: other, label: 'Left', score: .99 }], { track, t: 4100 }).index, 0);
-});
-
-test('un solo soggetto: le mani delle altre persone, viste insieme alla propria, non si prendono', () => {
-  const mine = handLandmarks({ S: .6, y: .55, size: .04 }), theirs = handLandmarks({ S: .3, y: .45, size: .04 });
-  const p = handPoint(mine), track = { x: p.x, u: -p.y*.75, vx: 0, vu: 0, t: 1000, size: handSize(mine), k: 1, label: 'Left' };
-  // viste insieme: quella di chi guarda diventa un'altra persona; persa la propria, non si salta su di lei…
-  const others = updateOthers([], [{ lm: mine }, { lm: theirs }], { chosen: 0, t: 1000 });
+  assert.deepEqual(pickHand([{ lm: other, label: 'Left', score: .99 }], { track, t: 1700 }), { index: -1, reason: 'persa' });
+  const back = handLandmarks({ S: .7, y: .5, size: .042 });
+  assert.deepEqual(pickHand([{ lm: other, label: 'Left', score: .99 }, { lm: back, label: 'Right', score: .9 }], { track, t: 3000 }), { index: 1, reason: 'ritrovata' });
+  assert.equal(pickHand([{ lm: other, label: 'Left', score: .99 }], { track, t: 1000 + HAND_KEEP + 1 }).index, 0);
+  // un'altra mano già vista insieme a quella seguita (trackOthers) non la sostituisce nemmeno se ha la sua taglia
+  // (abbastanza vicina da passare la continuità: senza l'elenco delle altre mani la si prendeva)
+  const twin = handLandmarks({ S: .4, y: .5, size: .04 }), others = trackOthers([], [{ lm: twin }, { lm: mine }], { chosen: 1, t: 1000 });
   assert.equal(others.length, 1);
-  assert.deepEqual(pickHand([{ lm: theirs, label: 'Left', score: .95 }], { track, t: 1150, others }), { index: -1, reason: 'persa' });
-  // … nemmeno dopo mezzo secondo (finché si vede resta riconosciuta), e senza memoria il salto ci sarebbe stato
-  const still = updateOthers(others, [{ lm: theirs }], { chosen: -1, t: 1700 });
-  assert.deepEqual(pickHand([{ lm: theirs, label: 'Left', score: .95 }], { track, t: 1700, others: still }), { index: -1, reason: 'altra persona' });
-  assert.equal(pickHand([{ lm: theirs, label: 'Left', score: .95 }], { track: { ...track, vx: -1.2 }, t: 1150 }).index, 0);
+  assert.deepEqual(pickHand([{ lm: twin, label: 'Right', score: .9 }], { track, t: 1066 }), { index: 0, reason: 'continuità' });
+  assert.deepEqual(pickHand([{ lm: twin, label: 'Right', score: .9 }], { track, others, t: 1066 }), { index: -1, reason: 'persa' });
+  assert.deepEqual(pickHand([{ lm: twin, label: 'Right', score: .9 }], { track, others, t: 2500 }), { index: -1, reason: 'persa' });
 });
 
 test('webcam con più persone, mano persa e tremolio: nessuno swing fantasma, la propria mano ritrovata gioca', () => {
@@ -78,8 +73,9 @@ test('webcam con più persone, mano persa e tremolio: nessuno swing fantasma, la
     'persa 1,5 s, swing di chi guarda': (c, rng) => [other(2, { dS: .4 })(c), ...(lost(c, 1, 2.5) ? [] : [still(c, rng)])],
     'persa 3 s, swing di chi guarda': (c, rng) => [other(3, { dS: .4 })(c), ...(lost(c, 1, 4) ? [] : [still(c, rng)])],
     'persa 1,5 s, chi guarda con la mano opposta': (c, rng) => [other(2, { dS: .4, label: MODEL_LABEL.left })(c), ...(lost(c, 1, 2.5) ? [] : [still(c, rng)])],
-    // (una mano nuova che compare lontano entro 0,5 s si prende ancora: non si distingue dalla propria dopo il mosso)
-    'mano nuova che entra lontano dopo 0,6 s, si avvicina con uno swing': (c, rng) => [...(c >= 1.6 ? [other(2.2, { S0: .18, dir: 1 })(c)] : []), ...(lost(c, 1, 3.5) ? [] : [still(c, rng)])],
+    // limite noto (docs/NATPF_WEBCAM.md): persa la mano di chi gioca, per HAND_KEEP si riprende una mano della sua taglia
+    // anche lontano, quindi una mano nuova della stessa taglia che entra in quel tempo (mai vista prima) viene presa e il
+    // suo swing conta (scena «mano nuova che entra lontano dopo 0,6 s e si avvicina con uno swing»)
   };
   for (const [name, handsAt] of Object.entries(scenes)) assert.equal(fmt(run(handsAt)), '-', name);
   // chi passa davanti alla webcam: la mano di chi gioca sparisce, una mano grande attraversa l'immagine
@@ -156,6 +152,43 @@ test('folla: una seconda mano che entra ed esce non crea colpi e non ruba la man
     const ev = runCrowd(MC, { seed: 10, label, size, tracker: tracker() });
     assert.equal(ev.map(e => `${e.kind}:${e.side}`).join(), 'swing:backhand,swing:backhand', `mano ${label} ${size}: ${JSON.stringify(ev)}`);
     assert.ok(Math.abs(ev[0].ts - 1.7) < .35 && Math.abs(ev[1].ts - 3.3) < .35, ev.map(e => e.ts.toFixed(2)).join());
+  }
+});
+
+// Prove obbligatorie della racchetta virtuale (docs/NATPF_RACCHETTA_VIRTUALE.md §3): 9 più persone, 10 perdita del
+// tracciamento, 11 tremolio. Chi gioca fa un dritto a 2,8 s e un rovescio a 4,6 s (runTwoPeople)
+const twoStrokes = r => r.events.map(e => `${e.ts.toFixed(2)} ${e.side}`).join(' | ');
+const isTwoStrokes = r => r.events.length === 2 && r.events[0].side === 'forehand' && r.events[1].side === 'backhand' && Math.abs(r.events[0].ts - 2.9) < .3 && Math.abs(r.events[1].ts - 4.7) < .3;
+
+test('più persone (prova 9): la mano di chi gioca resta la sua; chi sta dietro o accanto non fa colpi e non la sostituisce quando si perde', () => {
+  // prima la continuità durava 0,5 s con un raggio che cresceva di 2,5 larghezze al secondo: senza la mano di chi gioca
+  // per pochi fotogrammi si prendeva quella dell'altra persona (il salto era un colpo), dopo 0,5 s si sceglieva da capo
+  // (nel banco: 28 scenari giusti su 72, ora 72)
+  for (const other of [{ S: .3, y: .42, size: .028 }, { S: .12, y: .5, size: .038 }]) for (const label of ['Left', 'Right']) for (const lose of [null, [1.2, 1.5], [1.2, 2.3], [3.0, 3.6]]){
+    const r = runTwoPeople(MC, { seed: 2, other, label, lose, tracker: tracker() }), tag = JSON.stringify({ other, label, lose });
+    assert.ok(isTwoStrokes(r), `${tag}: ${twoStrokes(r)}`);
+    // ritrovata per continuità o per taglia, mai scegliendo da capo tra le mani in vista
+    assert.ok(r.picks.filter(p => p.kind === 'found').slice(1).every(p => ['continuità', 'ritrovata'].includes(p.reason)), `${tag}: ${JSON.stringify(r.picks)}`);
+  }
+});
+
+test('perdita del tracciamento (prova 10, webcam): mano persa ferma, a lungo o mentre rientra dopo un colpo, nessun colpo fantasma', () => {
+  // la mano ritrovata dopo più di 0,5 s riparte da capo (il viaggio dal punto in cui si ritrova): niente colpi dal salto,
+  // e il colpo dopo arriva
+  for (const lose of [[1.2, 1.5], [1.2, 2.3], [.8, 2.6], [3.0, 3.6], [3.1, 3.3]]) for (const seed of [1, 4]){
+    const r = runTwoPeople(MC, { seed, other: null, lose, tracker: tracker() });
+    assert.ok(isTwoStrokes(r), `${JSON.stringify({ lose, seed })}: ${twoStrokes(r)}`);
+  }
+});
+
+test('tremolio (prova 11, webcam): i punti della mano che tremano non fanno colpi e i colpi restano', () => {
+  // rumore dei punti fino a 0,008 larghezze (5 px su 640: mano piccola, luce scarsa), colpi a 2,2 s come in uno scambio.
+  // Limiti misurati (docs/NATPF_WEBCAM.md): a 0,01 un colpo in più ogni 12 prove; con colpi a 1,8 s il ritorno dopo il
+  // colpo non vede la mano ferma e dura fino a recMax, e il colpo dopo si perde (anche prima di queste modifiche)
+  for (const jitter of [.006, .008]) for (const seed of [1, 2, 3]){
+    const r = runTwoPeople(MC, { seed, other: null, jitter, strokes: [[2.8, -1], [5.0, 1]], total: 6.6, tracker: tracker() });
+    const ok = r.events.length === 2 && r.events[0].side === 'forehand' && r.events[1].side === 'backhand' && Math.abs(r.events[1].ts - 5.1) < .3;
+    assert.ok(ok, `${JSON.stringify({ jitter, seed })}: ${twoStrokes(r)}`);
   }
 });
 
@@ -315,6 +348,10 @@ test('nel gioco (motore e interfaccia veri): la mano scelta e il lancio accettat
   assert.equal(mc.canToss(), accepted(), w.E.phase);
   w.ui.hand.set('left');
   assert.equal(mc.handPreference, 'left');
+  // una sola impostazione (P1): la stessa mano va al telefono, e quella cambiata sulla pagina del telefono torna alla webcam
+  assert.equal(w.E.natpfPhone.hand, 'left');
+  w.E.natpfPhone._onPhoneHand('right');
+  assert.equal(w.ui.hand.hand, 'right'); assert.equal(mc.handPreference, 'right'); assert.equal(w.E.natpfPhone.hand, 'right');
   w.ui.hand.set('right');
 });
 

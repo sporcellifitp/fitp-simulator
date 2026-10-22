@@ -7,11 +7,13 @@ const mul=(a,n)=>a.map(v=>v*n);
 function quiet(det,cal,t,ms=650,tilt=0){for(const end=t+ms;t<=end;t+=10){const k={t,rot:[0,0,0],acc:[0,0,0],accG:[0,9.81*Math.sqrt(1-tilt*tilt),9.81*tilt]};det.feed(k);cal?.tick(t,k);}return t;}
 function stroke(det,cal,t,{axis=[0,1,0],peak=120,dur=220,up=0,tilt=0}={}){for(let i=0;i<=dur;i+=10){const u=i/dur,m=peak*Math.sin(Math.PI*u)**2,a=[8*Math.sin(Math.PI*u),up*6*Math.sin(Math.PI*u),0],k={t:t+i,rot:mul(axis,m),acc:a,accG:[a[0],a[1]+9.81*Math.sqrt(1-tilt*tilt),9.81*tilt]};det.feed(k);cal?.tick(k.t,k);}return t+dur+10;}
 function learn({axis=[0,1,0],peak=120,tilt=0}={}){const det=createSwingDetector(),cal=createCalibration(det);cal.start({quick:true,gestural:true});let t=quiet(det,cal,0,800,tilt);assert.equal(cal.state.step,'swings','no compulsory vertical grip');for(const d of QUICK_PLAN){t=stroke(det,cal,t,{axis:mul(axis,d==='L'?1:-1),peak,tilt});t=quiet(det,cal,t,650,tilt);}assert.equal(cal.state.step,'review');assert.equal(cal.state.result.pass,true);cal.confirm();return {det,cal,t};}
-test('quick calibration needs exactly four alternating comfortable gestures and accepts a non-upright grip',()=>{
+// percorso rapido: due gesti comodi, un dritto e un rovescio (prima quattro: più di 8 s anche con gesti perfetti)
+test('quick calibration needs exactly two comfortable gestures, one per side, and accepts a non-upright grip',()=>{
  const {cal}=learn({axis:unit([.6,.8,0]),peak:65,tilt:.8});
- assert.equal(cal.state.profile.version,4);assert.equal(cal.state.profile.automaticGesture,true);assert.equal(cal.state.profile.templates.length,4);assert.deepEqual(cal.state.result.attempts.map(x=>x.want),['L','R','L','R']);assert.equal(cal.state.profile.intentGate,false);assert.ok(cal.state.profile.ref<90);
+ assert.equal(cal.state.profile.version,4);assert.equal(cal.state.profile.automaticGesture,true);assert.equal(cal.state.profile.templates.length,2);assert.deepEqual(cal.state.result.attempts.map(x=>x.want),['L','R']);assert.equal(cal.state.profile.intentGate,false);assert.ok(cal.state.profile.ref<90);
+ assert.equal(cal.state.result.need,1);assert.equal(cal.state.result.per,1);
 });
-test('four examples recognize ordinary, upward, downward and intentional short gestures on both sides',()=>{
+test('two examples recognize ordinary, upward, downward and intentional short gestures on both sides',()=>{
  const {det,t}=learn(),events=[];det.on('swing',e=>events.push(e));let at=t;
  for(const dir of [1,-1])for(const shot of ['drive','lob','slice','drop']){at=stroke(det,null,at,{axis:[0,dir,0],up:shot==='lob'?1:shot==='slice'?-1:0,tilt:shot==='drop'?.65:shot==='slice'?-.35:shot==='lob'?.25:0,...(shot==='drop'?{peak:65,dur:160}:{})});at=quiet(det,null,at);assert.equal(events.at(-1)?.shot,shot,JSON.stringify(events.at(-1)));assert.equal(events.at(-1).dir,dir);}assert.equal(events.length,8);
 });
@@ -41,7 +43,7 @@ test('calibration ignores tremor and the return to centre: every requested gestu
  for(const opts of [{},{pauseAfterReturn:false},{returnPeak:.7,prepPeak:.6}]){
   const {cal,ev}=handCalibration(opts),at=ev.filter(e=>e.kind==='attempt');
   assert.equal(cal.state.step,'review',JSON.stringify(opts));
-  assert.deepEqual(at.map(a=>a.dir+(a.ok?'':'!')),['L','R','L','R'],JSON.stringify({opts,at:at.map(a=>[a.want,a.dir,a.peak,a.why])}));
+  assert.deepEqual(at.map(a=>a.dir+(a.ok?'':'!')),QUICK_PLAN,JSON.stringify({opts,at:at.map(a=>[a.want,a.dir,a.peak,a.why])}));
   assert.equal(cal.state.result.pass,true);
  }
 });
@@ -63,10 +65,10 @@ test('first calibration gesture in the wrong direction around the vertical is a 
   return {cal,at:ev.filter(e=>e.kind==='attempt').map(a=>`${a.want}${a.dir}${a.ok?'':'!'}`)};};
  // un gesto sbagliato, poi quello giusto: la calibrazione riesce con il verso vero
  let r=run([-1,1]);
- assert.deepEqual(r.at,['LR!','LL','RR','LL','RR']);assert.equal(r.cal.state.result.pass,true);
+ assert.deepEqual(r.at,['LR!','LL','RR']);assert.equal(r.cal.state.result.pass,true);
  assert.ok(r.cal.state.profile.axis[2]>.9,'asse: da destra a sinistra = rotazione verso l’alto');
  // il verso giusto subito: come prima
- r=run([1]);assert.deepEqual(r.at,['LL','RR','LL','RR']);
+ r=run([1]);assert.deepEqual(r.at,['LL','RR']);
  // tre volte lo stesso verso «sbagliato»: è il telefono, si accetta (e gli altri gesti si leggono di conseguenza)
  r=run([-1,-1,-1]);assert.deepEqual(r.at.slice(0,3),['LR!','LR!','LL']);
 });
@@ -82,5 +84,5 @@ test('calibration with full strokes: a slow backswing in the opposite direction 
   t=stroke(det,cal,t,{axis:[0,0,-s],peak:220,dur:700});t=quiet(det,cal,t,80);t=stroke(det,cal,t,{axis:[0,0,s],peak:850,dur:260});t=quiet(det,cal,t,900);}
  assert.equal(cal.state.step,'review',JSON.stringify(cal.state.attempts.map(a=>[a.want,a.dir,a.peak])));
  assert.equal(cal.state.result.pass,true);
- assert.deepEqual(cal.state.result.attempts.map(a=>[a.want,a.dir,a.peak>800]),[['L','L',true],['R','R',true],['L','L',true],['R','R',true]]);
+ assert.deepEqual(cal.state.result.attempts.map(a=>[a.want,a.dir,a.peak>800]),QUICK_PLAN.map(d=>[d,d,true]));
 });

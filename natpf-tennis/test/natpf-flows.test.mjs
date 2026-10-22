@@ -5,11 +5,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeWorld, $, fetches, visible } from './ui-world.mjs';
+import { QUICK_PLAN } from '@natpf/tennis/calibration.js';
 
-// calibrazione del telefono: quattro gesti e verifica superata (eventi come quelli del telefono vero)
+// calibrazione del telefono: i gesti del percorso rapido e verifica superata (eventi come quelli del telefono vero)
 const calibrate = w => {
   w.cal({ kind: 'step', step: 'still' });
-  ['L', 'R', 'L', 'R'].forEach((want, idx) => { w.cal({ kind: idx ? 'next' : 'step', step: 'swings', want, idx, total: 4 }); w.cal({ kind: 'ready', want }); w.cal({ kind: 'attempt', ok: true, idx, want }); w.advance(700); });
+  QUICK_PLAN.forEach((want, idx) => { w.cal({ kind: idx ? 'next' : 'step', step: 'swings', want, idx, total: QUICK_PLAN.length }); w.cal({ kind: 'ready', want }); w.cal({ kind: 'attempt', ok: true, idx, want }); w.advance(700); });
   w.cal({ kind: 'review', pass: true });
 };
 // partita contro la CPU con mouse e tastiera (riscaldamento saltato)
@@ -35,7 +36,7 @@ test('Sfida un amico: il riscaldamento non è una partita 1v1 (niente «Player 2
   assert.ok(snaps.length > 0 && snaps.every(s => s.lobby), JSON.stringify(snaps.map(s => Object.keys(s))));
   assert.ok(!ui.versus.waiting && !E.natpfPaused && !visible('natpf-versus-wait'));
   // il gesto riconosciuto colpisce la palla della calibrazione
-  w.cal({ kind: 'step', step: 'still' }); w.cal({ kind: 'step', step: 'swings', want: 'L', idx: 0, total: 4 });
+  w.cal({ kind: 'step', step: 'still' }); w.cal({ kind: 'step', step: 'swings', want: 'L', idx: 0, total: QUICK_PLAN.length });
   const z0 = E.ball.pos.z; w.cal({ kind: 'ready', want: 'L' }); w.cal({ kind: 'attempt', ok: true, idx: 0, want: 'L' }); w.advance(1000);
   assert.ok(E.ball.pos.z < z0 - 5, `palla da ${z0.toFixed(2)} a ${E.ball.pos.z.toFixed(2)}`);
 });
@@ -83,7 +84,7 @@ test('Chiosco: dopo il reset il gioco non resta in pausa per il visitatore succe
   // visitatore successivo: allenamento, gesto riconosciuto → la palla parte (prima il gioco restava fermo)
   link.connected = true; link.L = { state: 'connected', phone: 'cal' };
   lobby.menu('training'); lobby.go('connect'); lobby.next();
-  w.cal({ kind: 'step', step: 'still' }); w.cal({ kind: 'step', step: 'swings', want: 'L', idx: 0, total: 4 }); w.cal({ kind: 'ready', want: 'L' });
+  w.cal({ kind: 'step', step: 'still' }); w.cal({ kind: 'step', step: 'swings', want: 'L', idx: 0, total: QUICK_PLAN.length }); w.cal({ kind: 'ready', want: 'L' });
   const z0 = E.ball.pos.z, s0 = w.stats.update;
   w.cal({ kind: 'attempt', ok: true, idx: 0, want: 'L' }); w.advance(2000);
   assert.ok(w.stats.update - s0 > 100 && E.ball.pos.z < z0 - 5, `fotogrammi ${w.stats.update - s0}, palla ${z0.toFixed(2)} → ${E.ball.pos.z.toFixed(2)}`);
@@ -288,13 +289,44 @@ test('Colpo del telefono arrivato in forte ritardo (rete che torna): ignorato, n
   assert.notEqual(seen.at(-1)?.ignored, 'arrivato in ritardo dalla rete');
 });
 
+test('Calibrazione in campo: il gesto riconosciuto colpisce la sua palla anche se il telefono passa subito al gesto dopo', async () => {
+  // il telefono manda il tentativo riuscito e nello stesso istante il gesto successivo con «pronto» (la mano era già
+  // ferma), o la verifica dopo l'ultimo. Dalla finestra d'impatto lo swing aspetta la palla al punto d'impatto, e la
+  // palla veniva sostituita (o tolta) prima del colpo: nel riscaldamento il giocatore non colpiva più nessuna palla
+  // (prova nel browser del 22/10)
+  const w = await makeWorld({ controller: 'phone' }); w.advance(300);
+  const { E, lobby } = w;
+  lobby.menu('training'); lobby.go('connect'); lobby.next();
+  w.cal({ kind: 'step', step: 'still' });
+  const strokes = [];
+  QUICK_PLAN.forEach((want, idx) => {
+    if (!idx) w.cal({ kind: 'step', step: 'swings', want, idx, total: QUICK_PLAN.length });
+    w.cal({ kind: 'ready', want }); w.advance(100);
+    const ballX = E.ball.pos.x;
+    w.cal({ kind: 'attempt', ok: true, idx, want });
+    let hit = E.ball.lastHitter === 'player';
+    if (idx + 1 < QUICK_PLAN.length){ w.cal({ kind: 'next', step: 'swings', idx: idx + 1, want: QUICK_PLAN[idx + 1], total: QUICK_PLAN.length }); w.cal({ kind: 'ready', want: QUICK_PLAN[idx + 1] }); }
+    else w.cal({ kind: 'review', pass: true });
+    // il colpo parte subito (palla della calibrazione appena oltre il punto d'impatto) o entro 0,3 s; dopo almeno
+    // CAL_SPOT.seen di volo arriva già la palla del gesto dopo
+    for (let ms = 0; ms < 300; ms += 20){ w.advance(20); hit ||= E.ball.lastHitter === 'player'; }
+    strokes.push({ want, ballX: +ballX.toFixed(2), hitter: hit ? 'player' : E.ball.lastHitter, swing: E.player.swingType });
+    w.advance(900);
+  });
+  for (const s of strokes){
+    assert.equal(s.hitter, 'player', JSON.stringify(strokes));
+    assert.equal(s.swing, s.want === 'L' ? 'forehand' : 'backhand', JSON.stringify(strokes));
+    assert.ok(s.want === 'L' ? s.ballX > .5 : s.ballX < -.5, JSON.stringify(strokes));
+  }
+});
+
 test('Calibrazione rifatta dopo una verifica non superata: ogni gesto del secondo giro colpisce la sua palla', async () => {
   const w = await makeWorld({ controller: 'phone' }); w.advance(300);
   const { E, lobby, link } = w;
   lobby.menu('training'); lobby.go('connect'); lobby.next();
   w.cal({ kind: 'step', step: 'still' });
-  const round = check => ['L', 'R', 'L', 'R'].forEach((want, idx) => {
-    w.cal({ kind: idx ? 'next' : 'step', step: 'swings', want, idx, total: 4 }); w.cal({ kind: 'ready', want }); w.advance(100);
+  const round = check => QUICK_PLAN.forEach((want, idx) => {
+    w.cal({ kind: idx ? 'next' : 'step', step: 'swings', want, idx, total: QUICK_PLAN.length }); w.cal({ kind: 'ready', want }); w.advance(100);
     const z0 = E.ball.pos.z; w.cal({ kind: 'attempt', ok: true, idx, want }); w.advance(600);
     if (check) assert.ok(E.ball.pos.z < z0 - 2, `gesto ${idx + 1}: palla da ${z0.toFixed(2)} a ${E.ball.pos.z.toFixed(2)}`);
     w.advance(600);

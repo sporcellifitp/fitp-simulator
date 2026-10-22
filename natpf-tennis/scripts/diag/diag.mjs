@@ -1,6 +1,6 @@
 // Pacchetti della modalità diagnostica (zip scaricati dal gioco, o cartelle estratte):
 //   node scripts/diag/diag.mjs metriche sessione.zip            metriche e riassunto (ricalcolate dagli eventi)
-//   node scripts/diag/diag.mjs colpi sessione.zip               un colpo del telefono per riga: tipo, mira, tempi, esito
+//   node scripts/diag/diag.mjs colpi sessione.zip               un colpo del telefono per riga: tipo, mira, tempi, forma, esito
 //   node scripts/diag/diag.mjs confronta prima.zip dopo.zip     variazioni delle metriche: meglio, peggio, uguale
 // Codice d'uscita 2 se il confronto trova peggioramenti oltre la soglia di rumore (utile prima/dopo una modifica).
 import fs from 'node:fs';
@@ -29,11 +29,14 @@ if (cmd === 'metriche'){
   console.log('\n' + JSON.stringify(s.metrics, null, 1));
 } else if (cmd === 'colpi'){
   const s = load(a);
-  console.log('   t (s)    #  via       lato/tipo          mira   rilev  consegna  esito');
+  // racchetta virtuale: forma del gesto (salita della testa / piano), forza letta, esito con il tempo nella finestra
+  // d'impatto (−1…+1, + anticipo) e la qualità; l'esito si lega al colpo con il suo numero, altrimenti per tempo
+  console.log('   t (s)    #  via       lato/tipo          mira   rilev  consegna  salita/piano  forza  esito');
   const out = s.events.filter(e => e.k === 'colpo.gioco' && e.chi === 'giocatore');
   for (const c of s.events.filter(e => e.k === 'tel.colpo')){
-    const res = out.find(o => o.t >= c.t && o.t - c.t < 1500);
-    console.log(`${(c.t/1000).toFixed(2).padStart(8)} ${String(c.n ?? '').padStart(4)}  ${(c.via || '').padEnd(8)}  ${c.scartato ? ('scartato: ' + c.scartato).padEnd(32) : `${(c.lato || '?') + '/' + (c.tipo || '?')}`.padEnd(18) + ` ${String(c.mira ?? '').padStart(6)} ${String(c.rilevamento ?? '').padStart(6)} ${String(c.consegna ?? '').padStart(9)}`}  ${res ? `${res.esito} ${res.tempo || ''} x ${res.x ?? ''} ${res.direzione || ''}` : ''}`);
+    const res = out.find(o => Number.isInteger(c.n) && o.racchetta?.n === c.n) || out.find(o => o.t >= c.t && o.t - c.t < 1500 && !o.racchetta);
+    const forma = c.forma ? `${c.forma.salita}/${c.forma.piano}` : '–', k = res?.racchetta;
+    console.log(`${(c.t/1000).toFixed(2).padStart(8)} ${String(c.n ?? '').padStart(4)}  ${(c.via || '').padEnd(8)}  ${c.scartato ? ('scartato: ' + c.scartato).padEnd(32) : `${(c.lato || '?') + '/' + (c.tipo || '?')}`.padEnd(18) + ` ${String(c.mira ?? '').padStart(6)} ${String(c.rilevamento ?? '').padStart(6)} ${String(c.consegna ?? '').padStart(9)}`}  ${forma.padStart(12)}  ${String(c.intenzione?.forza ?? '–').padStart(5)}  ${res ? `${res.esito} ${res.tempo || ''} x ${res.x ?? ''} ${res.direzione || ''}${k ? ` · finestra ${k.tempo}${k.eccesso ? ` (oltre ${k.eccesso})` : ''} q ${k.q}${k.fallito ? ' fallito' : ''}${k.rete ? ' in rete' : ''}${k.volee ? ' volée' : ''}` : ''}` : ''}`);
   }
 } else if (cmd === 'confronta'){
   const A = load(a), Bs = load(b);

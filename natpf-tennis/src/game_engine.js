@@ -2014,7 +2014,8 @@ export class NatpfTennisEngine {
         base = out.shot === "SMASH" ? out.flight : Math.max(0.58, 0.84 / Math.min(1.2, (0.8 + intent.power * 0.85) * 0.94)) * K;
       I = NO.outcomeFlight({ ...out, flight: null }, { fromY, fromZ: b.pos.z, toZ: N, flight: NS.mistimeFlight(NS.streakFlight(base, toward === 1 ? st.p2Streak : st.streak, lv), out.q) });
     }
-    this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, quality: +quality.toFixed(3), volley };
+    // seq: numero del colpo del telefono (diagnostica); at: istante del motore, per riconoscere un esito nuovo
+    this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, quality: +quality.toFixed(3), volley, seq: (e.natpf && e.natpf.seq) ?? null, at: this.elapsedTime };
     return {
       E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 * mirror : 0, O: out.netFault, T: engineShot,
       drop: out.shot === "DROP", u: out.grade, w: out.cursor, q: out.q, power: intent.power, out,

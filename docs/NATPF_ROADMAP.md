@@ -20,8 +20,8 @@ con hardware vero (telefono in mano, webcam con una persona, Wi-Fi di un evento)
 - Nuovo modello: forma del colpo sul telefono, intenzione sul computer, esito senza caso nel motore; finestra
   d'impatto; movimento con volée, schiacciate al volo e palle fuori lasciate andare; servizio dal gesto; Player 2 del
   1v1 con lo stesso modello; Leggenda ritarata.
-- Webcam con un solo soggetto e tremolio senza swing; calibrazione con colpi completi; diagnostica con forma,
-  intenzione, esito e ripetibilità; prova guidata con tagliati e palle corte.
+- Webcam con un solo soggetto e tremolio senza swing; calibrazione rapida con due gesti e colpi completi; diagnostica
+  con forma, intenzione, esito e ripetibilità; prova guidata con tagliati e palle corte.
 - Test automatici e prima/dopo sugli stessi dati superati; **validazione fisica non eseguita** (procedura nel
   documento, §5).
 

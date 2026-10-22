@@ -30,8 +30,8 @@ const pick = v => (v.stage === 'gesture' ? { stage: v.stage, idx: v.idx, want: v
 test('replay: il passo attuale descritto con gli stessi eventi (fermo, gesto con la mano pronta, verifica)', () => {
   const det = createSwingDetector(), cal = createCalibration(det); cal.start({ quick: true });
   assert.deepEqual(cal.replay(), [{ kind: 'step', step: 'still' }]);
-  const mid = phone(2).cal;
-  assert.deepEqual(mid.replay(), [{ kind: 'step', step: 'swings', want: QUICK_PLAN[2], shot: 'drive', idx: 2, total: 4 }, { kind: 'ready', step: 'swings', want: QUICK_PLAN[2] }]);
+  const mid = phone(1).cal;
+  assert.deepEqual(mid.replay(), [{ kind: 'step', step: 'swings', want: QUICK_PLAN[1], shot: 'drive', idx: 1, total: QUICK_PLAN.length }, { kind: 'ready', step: 'swings', want: QUICK_PLAN[1] }]);
   const end = phone().cal;
   const r = end.replay();
   assert.equal(r.length, 1); assert.equal(r[0].kind, 'review'); assert.equal(r[0].pass, true);
@@ -40,7 +40,7 @@ test('replay: il passo attuale descritto con gli stessi eventi (fermo, gesto con
 });
 
 test('dopo una caduta del collegamento il computer torna allo stesso passo del telefono', () => {
-  for (const stop of [1, 2, 3, 4]){
+  for (const stop of QUICK_PLAN.map((_, i) => i + 1)){
     const { cal, events } = phone(stop);
     // il computer ha visto solo gli eventi fino al primo gesto (poi il collegamento è caduto)
     const firstAttempt = events.findIndex(e => e.kind === 'attempt');
