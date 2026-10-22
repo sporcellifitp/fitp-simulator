@@ -358,7 +358,7 @@ export class NatpfLobby {
     // calibrazione prima di una sfida (anche saltata: modalità semplice) → la sfida
     if (this.mode === 'challenge'){ this.ui.events.start(this.challenge); return; }
     if (completed) this.trainingDone = true;
-    const text = skipped ? `<b>${this.mode === 'training' ? 'Allenamento interrotto' : 'Riscaldamento saltato'}</b><span>${this.ui.phone.simple ? 'Modalità semplice: dritto e rovescio li sceglie il gioco.' : 'Lo puoi rifare quando vuoi.'}</span>`
+    const text = skipped ? `<b>${this.mode === 'training' ? 'Allenamento interrotto' : 'Riscaldamento saltato'}</b><span>${this.ui.phone.simple ? 'Modalità semplice: si gioca senza i gesti di prova.' : 'Lo puoi rifare quando vuoi.'}</span>`
       : `<b>${completed ? (this.mode === 'training' ? 'Allenamento completato ✓' : 'Riscaldamento completato ✓') : 'Interrotto'}</b><span>${stats.shots} colpi · ${stats.perfect} perfetti${stats.out ? ` · ${stats.out} fuori` : ''}</span>`;
     // allenamento dal menu: si torna al menu con il risultato; riscaldamento prima della partita: si va alla partita
     if (this.mode === 'training'){

@@ -1,5 +1,5 @@
 // Calibrazione del telefono vista dal computer: una funzione pura degli eventi del telefono (calibration.js).
-// Il telefono decide i passi (fermo → quattro gesti → verifica); il computer mostra sempre lo stesso passo, con la
+// Il telefono decide i passi (fermo → due gesti → verifica); il computer mostra sempre lo stesso passo, con la
 // stessa freccia, nello stesso momento. Prima il computer aveva un suo percorso (palla lanciata, rallentata, «gesto
 // armato») che partiva dall'ultimo evento ricevuto: se il telefono era già ai gesti quando si entrava in campo la
 // palla non partiva mai, e un gesto fatto prima della palla colpiva la palla del gesto dopo dal lato sbagliato.
@@ -7,7 +7,8 @@
 // vista = { stage: 'off' | 'still' | 'gesture' | 'review' | 'done', idx, total, want: 'L' | 'R' | null,
 //           ready (mano ferma: il telefono accetta il gesto), note (perché il telefono aspetta), last (ultimo tentativo),
 //           hits, pass, why, seq (cresce a ogni evento che cambia ciò che si vede) }
-export const CAL_VIEW_EMPTY = Object.freeze({ stage: 'off', idx: 0, total: 4, want: null, ready: false, note: null, last: null, hits: 0, pass: null, why: null, seq: 0 });
+// total: gesti del percorso rapido (QUICK_PLAN di calibration.js) finché il telefono non lo dice con il primo passo
+export const CAL_VIEW_EMPTY = Object.freeze({ stage: 'off', idx: 0, total: 2, want: null, ready: false, note: null, last: null, hits: 0, pass: null, why: null, seq: 0 });
 
 export function calReduce(v = CAL_VIEW_EMPTY, e = {}){
   const next = patch => ({ ...v, ...patch, seq: v.seq + 1 });

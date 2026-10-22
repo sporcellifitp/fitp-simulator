@@ -10,7 +10,7 @@ le correzioni, la mappatura dei gesti, i test e i problemi ancora aperti.
 | Sensori (giroscopio, accelerometro con e senza gravità) | `site/js/tennis/racchetta.js` → `sampleFromMotion` | istante del campione = `event.timeStamp`; frequenza vera misurata e mandata al computer (`hz`) |
 | Orientamento del telefono (filtro con correzione della gravità, senza deriva da fermo) | `site/js/tennis/face-tracker.js` | prima solo con la presa orizzontale, ora con entrambe |
 | Riconoscimento del colpo: preparazione, colpo, impatto, rientro | `site/js/tennis/swing-detect.js` | picco, verso, gesto verticale, attesa della preparazione |
-| Calibrazione (asse del colpo, soglie personali, piatto abituale all'impatto) | `site/js/tennis/calibration.js` | 4 gesti nel riscaldamento in campo |
+| Calibrazione (asse del colpo, soglie personali, piatto abituale all'impatto) | `site/js/tennis/calibration.js` | 2 gesti nel riscaldamento in campo (dal 22/10; prima 4), facoltativi con «Salta» |
 | Messaggio del colpo (scritto e letto in un solo posto) | `site/js/tennis/swing-message.js` | usato da telefono, computer e test |
 | Trasporto | LAN: `lan-transport.js` (WebRTC diretto, canale comandi + canale binario dei sensori); internet: PeerJS (`link.js`) | stessi messaggi JSON in entrambi |
 | Orologi e istante del colpo sul computer | `pairing.js` (`createClock`), `input-time.js` (`phoneInputTime`) | il colpo vale all'istante del picco, non all'arrivo |

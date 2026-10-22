@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
 import { launch, page, check, summary, SP } from './th.mjs';
+import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
 const PEER_PORT = +(process.env.PEER_PORT || 9108), GAME_PORT = +(process.env.GAME_PORT || 3108);
@@ -62,8 +63,8 @@ try {
   await phone.waitForFunction(() => __racchetta.state.sensor === 'cal' && __racchetta.state.step === 'still', null, { timeout: 5000 });
   await phone.evaluate(() => __up.still(2400));
   await phone.waitForFunction(() => __racchetta.state.step === 'swings', null, { timeout: 5000 });
-  // quattro gesti nel verso che la calibrazione chiede (prima fermi: la calibrazione vuole la mano ferma prima di ogni gesto)
-  for (let i = 0; i < 4; i++){
+  // i gesti nel verso che la calibrazione chiede (prima fermi: la calibrazione vuole la mano ferma prima di ogni gesto)
+  for (let i = 0; i < QUICK_PLAN.length; i++){
     const want = await phone.evaluate(() => __racchetta.state.want ?? __racchetta.cal?.state?.want ?? null);
     const sign = want === 'R' || want === 'right' || want === -1 ? -1 : 1;
     await phone.evaluate(s => __up.still(500).then(() => __up.swing(s, { wrist: 0 })).then(() => __up.back(s)).then(() => __up.still(700)), i % 2 ? -sign : sign);

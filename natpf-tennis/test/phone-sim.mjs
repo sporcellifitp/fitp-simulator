@@ -7,7 +7,7 @@
 // schermo girato di lato, pronazione del polso di 60–90° a fine dritto), non solo i gesti «da manuale».
 import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
 import { createFaceTracker } from '@natpf/tennis/face-tracker.js';
-import { createCalibration } from '@natpf/tennis/calibration.js';
+import { createCalibration, QUICK_PLAN } from '@natpf/tennis/calibration.js';
 import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { natpfSwingToEngine, NORMAL_SHOTS } from '../src/natpf/natpf_phone_racket.js';
 import { createLiftModel, createFaceModel, createAimModel, liftBaselineFromProfile, headBaselineFromProfile } from '../src/natpf/natpf_gestures.js';
@@ -70,12 +70,13 @@ export function simPhone({ hand = 'right', seed = 7 } = {}){
     // rientro: la mano torna al centro e il polso torna nella posa di prima (la pronazione non si accumula)
     if (back){ rest(120, tremor); returnTo(start); }
   };
-  // calibrazione rapida vera: quattro gesti alternati; opzioni del gesto (peak, ms, wrist, tremor…) come in swing.
+  // calibrazione rapida vera: i gesti alternati del percorso rapido (QUICK_PLAN); opzioni del gesto (peak, ms, wrist,
+  // tremor…) come in swing.
   // soft: restituisce l'esito invece di fermarsi (per le prove con prese e gesti diversi)
   const calibrate = ({ soft = false, rest: pause = 500, tremor = 0, ...gesture } = {}) => {
     const events = []; const off = cal.on(e => events.push(e));
     cal.start({ quick: true, hand }); rest(800, tremor);
-    for (const w of ['L', 'R', 'L', 'R']){ swing({ axis: [0, w === 'L' ? 1 : -1, 0], tremor, ...gesture }); rest(pause, tremor); }
+    for (const w of QUICK_PLAN){ swing({ axis: [0, w === 'L' ? 1 : -1, 0], tremor, ...gesture }); rest(pause, tremor); }
     const ok = cal.state.step === 'review' && !!cal.state.result?.pass;
     if (!ok && !soft) throw new Error('calibrazione non riuscita: ' + JSON.stringify(cal.state.result));
     if (ok){ cal.confirm(); ready = true; rest(600, tremor); }

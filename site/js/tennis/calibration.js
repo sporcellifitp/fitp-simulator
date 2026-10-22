@@ -1,5 +1,8 @@
 // Calibrazione guidata del telefono-racchetta. Senza DOM: la usa la pagina del telefono, il computer ne mostra i passi.
-// Percorso rapido: fermo nella propria presa → quattro gesti comodi alternati → prova libera.
+// Percorso rapido: fermo nella propria presa → due gesti comodi (dritto e rovescio) → prova libera. I gesti sono
+// facoltativi: verso, tipo di colpo e forza si leggono anche senza («Salta», profilo semplice); i gesti aggiungono il
+// colpo tipico (forza relativa), l'asse del proprio gesto e il piatto abituale. Prima erano quattro: con le pause per
+// fermarsi al centro la calibrazione durava più di 8 s anche con gesti perfetti.
 // Il percorso esteso per allenare ogni colpo resta disponibile esplicitamente con quick:false.
 // Dagli swing veri escono le soglie su misura (colpo tipico, soglia d'inizio, picco minimo) e l'asse del colpo, che dice
 // la direzione. Se non va (movimenti troppo piccoli, direzioni non distinguibili, nessun movimento) si spiega cosa fare
@@ -9,8 +12,10 @@ import { canonicalTwist } from './gesture-intent.js';
 import { faceReference, flatGrip } from './face-tracker.js';
 
 export const PLAN = ['L', 'L', 'L', 'R', 'R', 'R'];      // L: da destra a sinistra (←), R: da sinistra a destra (→)
-export const QUICK_PLAN = ['L', 'R', 'L', 'R'];
+export const QUICK_PLAN = ['L', 'R'];
 export const calibrationPlan = options => options?.quick ? QUICK_PLAN : PLAN;
+// gesti riusciti per verso perché la calibrazione passi: tutti nel percorso rapido (uno per verso), due su tre nell'esteso
+export const calibrationNeed = options => options?.quick ? 1 : 2;
 export const GESTURE_PLAN = [
   ...['L','R'].map(want=>({shot:'slice',want,hint:'Inclina il piatto e accompagna di taglio verso il basso, senza forzare il polso.'})),
   ...['L','R'].map(want=>({shot:'lob',want,hint:'Accompagna dal basso verso l’alto con un movimento comodo.'})),
@@ -181,7 +186,7 @@ export function createCalibration(det){
   function review(){
     const ok = S.attempts.filter(a => a.ok), okL = ok.filter(a => a.want === 'L'), okR = ok.filter(a => a.want === 'R');
     const medL = median(okL.map(a => a.peak)), medR = median(okR.map(a => a.peak)), base = Math.min(medL || 1e9, medR || 1e9);
-    const pass = okL.length >= 2 && okR.length >= 2;
+    const need = calibrationNeed(S.options), pass = okL.length >= need && okR.length >= need;
     const fails = S.attempts.filter(a => !a.ok);
     const why = pass ? null : fails.some(a => a.small) && fails.filter(a => a.small).length >= fails.length/2 ? 'piccolo' : 'direzione';
     S.profile = pass ? {
@@ -194,7 +199,8 @@ export function createCalibration(det){
     } : null;
     const ambiguous = S.profile && [1,-1].some(d => (S.profile.preparation[d] || 0)*1.2 >= S.profile.refs[d]*.9);
     if (ambiguous && !S.options.quick) S.profile.intentGate = true;
-    S.result = { pass, why, assisted: S.profile?.intentGate || false, okL: okL.length, okR: okR.length, medL: Math.round(medL), medR: Math.round(medR), attempts: S.attempts.map(a => ({ want: a.want, dir: a.dir, peak: a.peak, ok: a.ok })) };
+    // need e per (gesti chiesti per verso): chi mostra il riepilogo non deve sapere quale percorso si è fatto
+    S.result = { pass, why, assisted: S.profile?.intentGate || false, okL: okL.length, okR: okR.length, need, per: plan().filter(w => w === 'L').length, medL: Math.round(medL), medR: Math.round(medR), attempts: S.attempts.map(a => ({ want: a.want, dir: a.dir, peak: a.peak, ok: a.ok })) };
     if (pass && S.options.gestural && !S.options.quick){
       S.templates = ok.map(a => ({ shot: 'drive', dir: SIGN[a.want], peak: a.peak, angle: a.angle, features: templateFeatures(a, S.profile.refs[SIGN[a.want]], S.profile.refAngle, S.axis, SIGN[a.want]) }));
       S.step = 'shots'; S.idx = 0; S.tries = 0; S.burst = []; unready();
@@ -275,9 +281,13 @@ export function createCalibration(det){
     retry(){ S.practice = 0; det.setTraining(true); Object.assign(S, { step: 'swings', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT, home: null, track: [], rot: [0, 0, 0], flipTries: 0, vsign: 1 }); unready(); det.setThresholds({ ...CAL.low, axis: null }); emit({ kind: 'step', want: plan()[0], shot: 'drive', idx: 0, total: total() }); },
     // prova libera con il profilo proposto: direzione e forza di ogni swing, prima di confermare
     tryFree(){ if (!S.profile) return; S.step = 'free'; det.setProfile(S.profile); det.setTraining(false); det.setContext?.('practice'); emit({ kind: 'step' }); },
-    // salta i gesti: profilo semplice dalla posa ferma (deriva e rumore), senza asse del colpo; i gesti valgono tutti
+    // salta i gesti: profilo semplice dalla posa ferma (deriva e rumore), senza asse del colpo. Il gioco è completo lo
+    // stesso: verso dalla rotazione attorno alla verticale, tipo di colpo dalla forma, forza dalla velocità vera.
+    // Anche durante il passo «fermo»: il rilevatore passa subito al gioco con la gravità dei campioni già arrivati
+    // (prima restava ad aspettare il telefono fermo, e fino ad allora nessun colpo partiva)
     skip(){
       if (S.step === 'idle' || S.step === 'done') return null;
+      if (det.mode === 'still'){ S.step = 'skip'; det.finishStill?.(); }
       S.profile = { version: 4, automaticGesture: true, simple: true, ...S.options, bias: det.profile.bias, noise: det.profile.noise, gravity: det.profile.gravity, axis: null, ref: 420, refs: null, refAngle: 30, on: 70, minPeak: 120, minAngle: 6 };
       return this.confirm();
     },

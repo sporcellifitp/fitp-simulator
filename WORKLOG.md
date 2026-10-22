@@ -34,3 +34,14 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     del lancio non serve.
   - Decisione: il P2 usa lo stesso esito e lo stesso piano d'intercetto di chi gioca qui, calcolati nel suo
     riferimento e poi specchiati (test con la stessa palla specchiata: stesso piano).
+- Ripresa (seconda sessione, la prima si è fermata per il limite d'uso all'inizio del passo 10): lista dei passi
+  verificata su `SESSION_HANDOFF.md`, documento e commit; nessun lavoro perso dopo `84ca878`. Branch
+  `claude/determined-tesla-8dgaks`, portato in avanti su quello della prima sessione.
+- Checkpoint 5: calibrazione tollerante e «Salta» con il gioco completo (passo 10).
+  - Misura prima: con il tremolio di 25 °/s il passo «fermo» durava fino a 3,7 s e la calibrazione superava 10 s in
+    2 prove su 12; anche con gesti perfetti i quattro gesti portavano a 8,3 s.
+  - Decisioni: passo «fermo» sulla mediana (il tremolio resta, un movimento vero no); due gesti, come nel piano di P9;
+    «Salta» chiude subito anche il passo «fermo».
+  - Le prove nel browser hanno trovato due regressioni del giro, corrette: il riscaldamento non colpiva più le palle
+    della calibrazione (finestra d'impatto), la pagina storica andava in errore sull'evento `hand`. Altre due
+    (presa verticale e latenza) esistevano già a `84ca878`: annotate nel passo 13.

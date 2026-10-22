@@ -51,10 +51,12 @@ export function createPhoneLink(){
   const countMsg = k => { const now = performance.now(), r = rates[k] || (rates[k] = { hz: 0, last: null, count: 0 }); if (r.last != null){ const dt = Math.max(1, now - r.last); r.hz += (1000/dt - r.hz)*.1; } r.last = now; r.count++; };
   // clock: ogni scambio dell'orologio { d invio, p telefono, r ricezione } (ms); state: ogni stato del telefono (st), per
   // la diagnostica
-  const handlers = { swing: [], toss: [], change: [], cal: [], prep: [], raw: [], clock: [], state: [], dropped: [] };
+  const handlers = { swing: [], toss: [], change: [], cal: [], prep: [], raw: [], clock: [], state: [], dropped: [], hand: [] };
   let peer = null, conn = null, lastTok = gate.token, tick = null, lastSeen = 0;
   const clock = createClock(), racketMotion = createRacketMotion();
-  const emit = (k, v) => { for (const f of handlers[k]) try { f(v); } catch (e){ console.error(e); } };
+  // un evento senza ascoltatori non è un errore: la pagina storica non ascolta «hand» (mano cambiata sul telefono) e
+  // l'errore fermava la gestione del messaggio
+  const emit = (k, v) => { for (const f of handlers[k] || []) try { f(v); } catch (e){ console.error(e); } };
   const set = patch => { Object.assign(L, patch); emit('change', L); };
 
   async function start(){

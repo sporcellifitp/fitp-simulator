@@ -26,7 +26,9 @@ tastiera come controlli nuovi.
 
 ## Stato corrente
 
-- Branch `claude/friendly-fermat-dwv2w2` (mai `main`). Prima di questo giro il branch era al commit `bfd629c`.
+- Branch: dalla seconda sessione del 22/10 il lavoro continua su `claude/determined-tesla-8dgaks` (mai `main`), portato
+  in avanti senza merge su `claude/friendly-fermat-dwv2w2` (`84ca878`, ultimo commit della prima sessione, interrotta
+  dal limite d'uso mentre iniziava il passo 10). Prima di questo giro il branch era al commit `bfd629c`.
 - **Fase 1 (diagnosi) finita.** È in `docs/NATPF_RACCHETTA_VIRTUALE.md` §2, problemi P1–P10 con evidenze marcate
   [dati], [codice], [ipotesi] e [insufficiente].
 - Fase in corso: **implementazione** (passi qui sotto).
@@ -97,11 +99,29 @@ tastiera come controlli nuovi.
    - Player 2 del 1v1 con il telefono: stesso esito deterministico, specchiato; stesso piano d'intercetto nella sua
      metà campo (volée, schiacciata al volo, palla fuori lasciata andare), recupero a rete o in fondo, mano dal suo
      telefono (`natpfP2Hand`). Senza telefono il P2 colpisce come prima; si muove con il nuovo piano.
-10. [ ] Calibrazione tollerante; «Salta» con il gioco completo.
+10. [x] Calibrazione tollerante; «Salta» con il gioco completo.
+    - Passo «fermo» con finestra scorrevole: rotazione mediana ≤ 30 °/s e nessun campione oltre 90 °/s; rumore come
+      90° percentile. Con il tremolio di 25 °/s durava fino a 3,7 s, ora sempre 0,65 s.
+    - Percorso rapido con due gesti (dritto e rovescio, `QUICK_PLAN`), facoltativi con «Salta»: 4,5 s con gesti
+      perfetti (prima 8,3 s). Il riepilogo porta `need` e `per` (gesti chiesti e necessari per verso).
+    - «Salta» anche durante il passo «fermo» (`det.finishStill`): prima il rilevatore restava in attesa e nessun
+      colpo partiva. Dopo «Salta» verso, tipo di colpo e forza vengono comunque dal gesto (prova con tutti i colpi).
+    - Testi aggiornati («dritto e rovescio li sceglie il gioco» non era più vero; quattro gesti → due).
+    - Regressioni trovate con le prove nel browser e corrette:
+      - riscaldamento: dalla finestra d'impatto (passo 6) il colpo del gesto riconosciuto aspetta la palla, e la palla
+        del gesto dopo la sostituiva prima del colpo (il telefono manda tentativo, gesto dopo e «pronto» insieme):
+        il giocatore non colpiva più nessuna palla. Ora la palla resta finché il colpo parte e vola almeno 0,3 s;
+      - `link.js`: l'evento `hand` (passo 1) senza ascoltatori mandava in errore la pagina storica (`site/tennis`).
 11. [ ] Webcam: mano dall'impostazione unica; prove con più persone, perdita del tracciamento, tremolio.
 12. [ ] Diagnostica: forma, intenzione ed esito negli eventi; prova guidata con il colpo richiesto; metriche di
     ripetibilità.
 13. [ ] I 14 test obbligatori, prima/dopo sullo ZIP (`scripts/audit/zip-replay.mjs`), regressioni (`npm test`, e2e).
+    Prove nel browser che falliscono già a `84ca878` (prima del passo 10), da chiarire qui:
+    - `natpf-phone-upright.mjs` 7/10: con il telefono sintetico della presa del 19/10 i dritti con il polso che prona
+      diventano tagliati («dall'alto in basso»), la mano che sale dà un tagliato invece del pallonetto, la mira dal
+      piatto girato prima del colpo si perde (intenzione dalla forma, passi 3–4);
+    - `natpf-latency.mjs` 7/9: gesti in anticipo di 0,05, 0,1 e 0,25 s senza colpo (0,15 s sì), mentre P4 chiede che
+      fino a 0,35 s la palla si prenda (finestra d'impatto, passo 6).
 14. [ ] Documento finale (codice, test automatici e validazione fisica separati), procedura di prova fisica, build e
     zip.
 
@@ -112,4 +132,9 @@ tastiera come controlli nuovi.
 2. Leggere questo file, poi `docs/NATPF_RACCHETTA_VIRTUALE.md` §3.
 3. Lo ZIP della sessione reale non è nel repository (contiene il video della webcam). Per rifare le analisi, estrarlo
    in una cartella vuota fuori dal repository e passare quella cartella agli script.
-4. Test: `cd natpf-tennis && npm test`. Il passo in corso è il primo `[ ]` della lista sopra.
+4. Test: `cd natpf-tennis && npm test`; `node --test tools/test/*.test.mjs` dalla root. Il passo in corso è il primo
+   `[ ]` della lista sopra.
+5. Prove nel browser (`tools/e2e`, dopo `npm ci` lì): in questo ambiente Playwright non trova il suo Chromium, quindi
+   `CHROMIUM_PATH=/opt/pw-browsers/chromium node natpf-training-flow.mjs` (e le altre). Il browser usa la grafica
+   software: una prova che fallisce una volta va ripetuta prima di concludere (la latenza ha dato 4/9 una volta, poi
+   7/9 tre volte).

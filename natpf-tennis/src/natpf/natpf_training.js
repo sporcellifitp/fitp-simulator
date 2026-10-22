@@ -2,14 +2,16 @@
 // (la stessa arena a porte chiuse, natpf_arena.setPractice). In campo c'è solo il giocatore, dall'altra parte un
 // lanciapalle (l'avversario non si vede e non risponde). Si guarda il computer: le istruzioni stanno in basso al centro,
 // sotto il giocatore, grandi; il telefono è il controller e ripete la stessa cosa in piccolo. Con lo smartphone:
-//   1 «fermo»: telefono fermo in verticale per un attimo (il telefono misura la deriva dei sensori);
-//   2 quattro gesti, alternati dritto e rovescio: il giocatore resta fermo al centro della riga di fondo e la palla
+//   1 «fermo»: telefono fermo in verticale per un attimo, anche con il tremolio della mano (il telefono misura come lo
+//     si tiene);
+//   2 due gesti, un dritto e un rovescio: il giocatore resta fermo al centro della riga di fondo e la palla
 //     aspetta, ferma all'altezza della racchetta, dal lato del gesto chiesto; al gesto riconosciuto il giocatore la
 //     colpisce. Il computer mostra sempre il passo in cui si trova il telefono (natpf_cal_view.js), mai un suo percorso;
 //   3 la calibrazione si conferma da sola; poi palle vere: dritto, rovescio, pallonetto, palla corta, servizio e angoli
 //     (qui il giocatore corre da solo verso la palla, come in partita: si pensa solo al colpo).
 // Con webcam e mouse si parte dal punto 3. «Salta» chiude in qualsiasi momento: con il telefono non ancora calibrato si
-// gioca in modalità semplice (dritto e rovescio li sceglie il gioco). Non conta per il punteggio.
+// gioca in modalità semplice, con il gioco completo (verso, tipo di colpo e forza dal gesto: mancano solo il colpo
+// tipico e il piatto abituale, che il gioco impara dai colpi). Non conta per il punteggio.
 import * as THREE from 'three';
 import { calSide, calPrompt, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
 export { calSide };
@@ -27,8 +29,9 @@ export const DRILLS = Object.freeze([
 // Calibrazione dentro il riscaldamento (solo smartphone)
 export const CAL_STAGE = Object.freeze({ id: 'cal', label: 'Calibrazione' });
 // posizione del giocatore (centro della riga di fondo) e della palla che aspetta il gesto: di lato quanto il braccio
-// con la racchetta, poco davanti, all'altezza del fianco. flight: s di volo della palla colpita prima della successiva
-export const CAL_SPOT = Object.freeze({ z: 11.4, reach: 1.05, ahead: .45, height: .95, flight: .9 });
+// con la racchetta, poco davanti, all'altezza del fianco. flight: s di volo della palla colpita prima della successiva;
+// seen: s di volo che si vedono comunque, anche con il telefono già pronto al gesto dopo
+export const CAL_SPOT = Object.freeze({ z: 11.4, reach: 1.05, ahead: .45, height: .95, flight: .9, seen: .3 });
 // Gesto della calibrazione → colpo: «L» è il gesto da destra a sinistra, il dritto di un destro (il rovescio di un mancino)
 export function calCoach(want, hand = 'right'){
   const side = calSide(want, hand);
@@ -146,7 +149,8 @@ export class NatpfTraining {
         if (c.fails < 2) this.retryT = setTimeout(() => this.active && this.cal && this.view.stage === 'review' && this.ui.phone.retry(), 1600);
       }
     }
-    if (e.kind === 'done'){ this._startDrills(); return; }
+    // agli esercizi dopo il colpo dell'ultimo gesto, se aspetta ancora la palla (ci pensa _calTick)
+    if (e.kind === 'done'){ if (!this._calStriking()) this._startDrills(); else this.paint(); return; }
     this.paint();
   }
   ballLive(){ const E = this.engine; return E.phase === 'RALLY' && E.ball.inPlay; }
@@ -172,19 +176,31 @@ export class NatpfTraining {
     c.hitFor = idx; c.flightT = 0; E.natpfTimeScale = 1; E.player.swingCooldown = 0;
     E.motionController?._emitSwing({ source: 'natpf-warmup', side: calSide(want, this.ui.hand?.hand), shotType: 'topspin', speed: 1.15, dirX: 0, role: E.playerRole });
   }
+  // colpo del gesto riconosciuto che aspetta la palla al punto d'impatto (finestra d'impatto del motore): la palla è
+  // già presa. Il telefono manda il gesto dopo (o la verifica, poi la fine) subito dopo il tentativo: prima la palla
+  // veniva sostituita o tolta prima del colpo, e nel riscaldamento il giocatore non colpiva più nessuna palla
+  _calStriking(){
+    const E = this.engine, c = this.cal;
+    return !!c && c.hitFor === c.ballFor && !!E.pendingUserSwing && this.ballLive() && E.ball.lastHitter !== 'player';
+  }
   _calTick(dt){
     const E = this.engine, c = this.cal, v = this.view, p = E.player;
-    // telefono già pronto senza passare dalla fine della calibrazione (pagina ricaricata con il profilo salvato): si va
-    // agli esercizi invece di restare sull'ultimo gesto
-    if (this.ui.phone?.ready){ this._startDrills(); return; }
+    const striking = this._calStriking();
+    // telefono già pronto (fine della calibrazione, o pagina ricaricata con il profilo salvato): si va agli esercizi
+    // invece di restare sull'ultimo gesto, dopo il colpo dell'ultimo gesto (finché la calibrazione è aperta non conta
+    // come colpo dell'esercizio)
+    if (this.ui.phone?.ready){ if (!striking) this._startDrills(); return; }
     p.targetPos.copy(p.pos);                                                      // il giocatore non corre mai da solo
     const flying = this.ballLive() && E.ball.lastHitter === 'player';
     if (flying) c.flightT += dt;
     if (v.stage === 'gesture'){
       // nuova palla per il gesto nuovo appena la palla colpita è passata, subito se non ce n'è una in volo, e comunque
-      // prima che il telefono accetti il gesto (il tentativo arriva sempre dopo «ready», sullo stesso canale ordinato)
-      if (c.ballFor !== v.idx && (!flying || c.flightT >= CAL_SPOT.flight || v.ready)) this._presentBall(v);
-    } else if (!flying && E.ball.inPlay) this._idle();                             // fermo, verifica, fine: niente palla
+      // prima che il telefono accetti il gesto (il tentativo arriva sempre dopo «ready», sullo stesso canale ordinato).
+      // Non mentre il colpo del gesto prima aspetta la palla, e la palla colpita vola almeno CAL_SPOT.seen: «ready»
+      // arriva insieme al tentativo se la mano era già ferma, e la palla colpita spariva nello stesso fotogramma. Il
+      // colpo si chiude in 0,2 s (al massimo alla scadenza dello swing), il tentativo dopo arriva almeno 0,6 s dopo
+      if (c.ballFor !== v.idx && !striking && (!flying || c.flightT >= (v.ready ? CAL_SPOT.seen : CAL_SPOT.flight))) this._presentBall(v);
+    } else if (!flying && !striking && E.ball.inPlay) this._idle();                // fermo, verifica, fine: niente palla
     if (!this.ballLive() && E.phase === 'POINT_OVER') E.phaseTimer = 0;            // niente servizio automatico
   }
   // telefono che ricomincia a calibrare a esercizi già iniziati, senza il pannello del telefono aperto (Ricalibra e
@@ -215,7 +231,7 @@ export class NatpfTraining {
   simpleMode(){
     if (!this.active) return;
     this.ui.phone.skipCalibration();
-    this.message = 'Modalità semplice: dritto e rovescio li sceglie il gioco';
+    this.message = 'Modalità semplice: si gioca senza i gesti di prova';
     if (this.cal) this.cal.fails = 0;
   }
   /* ---------- palle ---------- */

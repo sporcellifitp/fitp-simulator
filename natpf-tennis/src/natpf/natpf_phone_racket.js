@@ -380,7 +380,8 @@ export class NatpfPhoneRacket {
   invert(){ this.link?.cmd('invert'); }
   skipGrip(){ this.link?.cmd('skipGrip'); }
   forget(){ this.link?.forget(); this.recalibrate(); }
-  // salta i gesti della calibrazione: il telefono usa un profilo semplice (il gioco sceglie dritto o rovescio da solo)
+  // salta i gesti della calibrazione: il telefono usa un profilo semplice (verso dalla gravità, tipo di colpo dalla forma,
+  // forza dalla velocità vera; manca solo il colpo tipico)
   skipCalibration(){ this.simple = true; this.link?.cmd('skip'); this._changed(); }
 
   // Esito dei colpi al telefono (vibrazione e scritta), dalle stesse chiamate che motore base usa per l'aptica.

@@ -14,6 +14,7 @@
 import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
 import { createFaceTracker } from '@natpf/tennis/face-tracker.js';
 import { strokeShape } from '@natpf/tennis/stroke-shape.js';
+import { createCalibration } from '@natpf/tennis/calibration.js';
 import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { rng } from './phone-sim.mjs';
 
@@ -45,6 +46,8 @@ export function racketSim({ hand = 'right', seed = 3, profile = null, prep = tru
   const det = createSwingDetector(), face = createFaceTracker({ quietHold: 400, relax: 2.5 });
   const swings = [], msgs = [];
   let seq = 0;
+  // come racchetta.js: a passo «fermo» finito (anche saltato) il filtro d'orientamento parte dalla posa di riposo
+  det.on('status', s => { if (s.s === 'still-ok') face.setRest(s.gravity, det.profile.bias); });
   det.on('swing', s => {
     if (face.ready){ s.face = face.strokeFace(s.peakT, s.t - s.dur); s.head = face.headAt(s.peakT, s.axis); s.shape = strokeShape(face.history(), face.up, { peakT: s.peakT }); }
     swings.push(s);
@@ -75,8 +78,17 @@ export function racketSim({ hand = 'right', seed = 3, profile = null, prep = tru
   };
   const rest = (ms, tremor = 0) => { for (const end = t + ms; t < end;){ const j = [0, 1, 2].map(() => (R() - .5)*2*tremor*D*DT/1000); sample(qnorm(qmul(qaxis(j, len(j)/D), q)), pos.slice(), 0); } };
   // calibrazione «Salta»: profilo semplice dalla posa ferma (come cal.skip())
-  const start = ({ elev = 70, turn = 0, tremor = 0 } = {}) => {
+  // skip: «Salta» che arriva durante il passo «fermo», tanti ms dopo il suo inizio, con la calibrazione vera (come
+  // racchetta.js, comando «skip»); restituisce il profilo
+  const start = ({ elev = 70, turn = 0, tremor = 0, skip = null } = {}) => {
     q = readyPose(elev, turn); pos = [hand === 'left' ? -.25 : .25, 1.1, -.35]; vel = [0, 0, 0];
+    if (skip != null){
+      const cal = createCalibration(det); cal.start({ quick: true, hand });
+      rest(skip, tremor);
+      const p = cal.skip(); det.setContext('play'); det.setPrepMode(prep);
+      rest(400, tremor);
+      return p;
+    }
     det.still(); rest(700, tremor);
     const p = profile || { version: 4, automaticGesture: true, simple: true, hand, bias: det.profile.bias, noise: det.profile.noise, gravity: det.profile.gravity, axis: null, ref: 420, refs: null, refAngle: 30, on: 70, minPeak: 120, minAngle: 6 };
     det.setProfile(p); det.run(); det.setContext('play'); det.setPrepMode(prep);

@@ -13,6 +13,7 @@ import { gestureFloor, canonicalTwist } from './gesture-intent.js';
 const len = v => Math.hypot(v[0], v[1], v[2]);
 const dot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
 const unit = v => { const l = len(v); return l > 1e-9 ? v.map(x => x/l) : [0, 0, 0]; };
+const quantile = (a, q) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(q*s.length))] : 0; };
 
 export const DEFAULTS = {
   on: 140,          // °/s: sopra questa velocità di rotazione inizia un colpo
@@ -23,8 +24,11 @@ export const DEFAULTS = {
   refractory: 170,  // ms dopo un colpo in cui non ne parte un altro (doppi picchi dello stesso gesto)
   plateau: 40,      // ms di velocità senza nuovo massimo: il picco è passato
   smooth: .55,      // peso del campione nuovo nella media mobile
-  stillMax: 35,     // °/s di rumore accettato col telefono fermo
-  stillTime: 600,
+  stillMax: 30,     // °/s: rotazione mediana accettata col telefono fermo in mano. Il tremolio naturale sta sotto (sessione
+                    // del 22/10: il passo è passato con la mediana a 15 °/s, il telefono che si muoveva stava a 30–110);
+                    // prima nessun campione doveva superare 35 °/s e con il tremolio il passo ripartiva di continuo
+  stillPeak: 90,    // °/s: un campione oltre è un movimento vero e la finestra del passo «fermo» riparte
+  stillTime: 600,   // ms di finestra del passo «fermo»
   recover: 300, quiet: 70, gap: 140,   // ms di calibrazione da fermo
   prepHold: 250,    // ms (modalità preparazione): un gesto nel verso opposto al colpo atteso aspetta così prima di valere
   prepMax: 700,     // ms: oltre, il gesto trattenuto vale comunque come colpo
@@ -115,7 +119,8 @@ export function createSwingDetector(opts = {}){
   // ultimi tre campioni grezzi (tempo, modulo): l'istante vero del picco si ricava da una parabola sui tre attorno al
   // massimo, senza il ritardo della media mobile (che serve solo a decidere quando il colpo è partito)
   const raw = [];
-  let mode = 'run', still = null, cur = null, lastFire = -1e9, lastT = null, sm = 0, last = null, lastPeak = 0;
+  // still: campioni della finestra del passo «fermo»; finishAt: «Salta» arrivato senza campioni, si finisce al primo
+  let mode = 'run', still = null, finishAt = false, cur = null, lastFire = -1e9, lastT = null, sm = 0, last = null, lastPeak = 0;
   const listeners = { swing: [], status: [], sample: [], phase: [], prep: [] };
   const emit = (k, v) => { for (const f of listeners[k]) f(v); };
   const serving = () => context === 'serve' || context === 'toss';
@@ -196,19 +201,33 @@ export function createSwingDetector(opts = {}){
     if (!cur.fired && ready && (rawPast || sm < cur.peak*.9 || k.t - cur.peakT >= C.plateau)){ cur.fired = true; fire(k.t); }
     if (sm < T.on*.6 || k.t - cur.t0 > C.maxDur){ cur = null; }
   }
+  // Passo «fermo»: finestra scorrevole di stillTime ms. Fermo vuol dire rotazione mediana entro stillMax e nessun
+  // campione oltre stillPeak: il tremolio della mano resta, un movimento vero no. Prima bastava un campione oltre 35 °/s
+  // per ripartire da capo, e con un tremolio di 25 °/s il passo durava fino a 3,7 s (banco del telefono simulato)
   function feedStill(k){
-    if (!still) still = { t0: k.t, n: 0, sum: [0, 0, 0], max: 0, g: [0, 0, 0] };
-    if (k.rot){ for (let i = 0; i < 3; i++) still.sum[i] += k.rot[i]; still.n++; still.max = Math.max(still.max, len(k.rot)); }
-    if (k.accG) for (let i = 0; i < 3; i++) still.g[i] += k.accG[i];
-    if (still.max > C.stillMax){ still = null; emit('status', { s: 'move' }); return; }
-    if (k.t - still.t0 >= C.stillTime){
-      // deriva: la media da fermi solo se è piccola (altrimenti era il movimento della mano, e si tiene zero)
-      if (still.n){ const m = still.sum.map(v => v/still.n); prof.bias = len(m) <= C.biasMax ? m : [0, 0, 0]; }
-      prof.noise = still.n ? Math.max(1, still.max - len(prof.bias)) : 5;
-      const g = unit(still.g);
-      prof.gravity = g;
-      still = null; mode = 'run'; emit('status', { s: 'still-ok', gravity: g });
-    }
+    const m = k.rot ? len(k.rot) : null;
+    if (finishAt){ settle([{ t: k.t, rot: k.rot, g: k.accG, m }], true); return; }
+    if (m != null && m > C.stillPeak){ still = null; emit('status', { s: 'move' }); return; }
+    (still ||= []).push({ t: k.t, rot: k.rot, g: k.accG, m });
+    while (still.length > 1 && k.t - still[1].t >= C.stillTime) still.shift();
+    if (k.t - still[0].t < C.stillTime) return;
+    const mags = still.filter(s => s.m != null).map(s => s.m);
+    if (mags.length && quantile(mags, .5) > C.stillMax){ emit('status', { s: 'move' }); return; }
+    settle(still);
+  }
+  // dalla finestra: gravità (come si tiene il telefono), deriva solo se plausibile (altrimenti era il movimento della
+  // mano, e si tiene zero), rumore come 90° percentile (con il massimo un picco isolato alzava tutte le soglie).
+  // forced («Salta» prima della fine del passo): nessuna deriva (il giroscopio del browser è già compensato) e rumore
+  // al massimo stillMax, perché la finestra può contenere un movimento
+  function settle(win, forced = false){
+    const rots = win.filter(s => s.rot), gs = win.filter(s => s.g), steady = gs.filter(s => Math.abs(len(s.g) - 9.81) < 1.5);
+    const mean = rots.length ? [0, 1, 2].map(i => rots.reduce((a, s) => a + s.rot[i], 0)/rots.length) : [0, 0, 0];
+    prof.bias = !forced && len(mean) <= C.biasMax ? mean : [0, 0, 0];
+    const p90 = rots.length ? quantile(rots.map(s => len(s.rot.map((v, i) => v - prof.bias[i]))), .9) : null;
+    prof.noise = p90 == null ? 5 : Math.max(1, forced ? Math.min(C.stillMax, p90) : p90);
+    const g = unit((steady.length ? steady : gs).reduce((a, s) => a.map((v, i) => v + s.g[i]), [0, 0, 0]));
+    if (len(g) || !prof.gravity) prof.gravity = g;
+    still = null; finishAt = false; mode = 'run'; emit('status', { s: 'still-ok', gravity: prof.gravity, ...(forced ? { forced: true } : {}) });
   }
   function fire(t){
     const c = cur, axis = unit(c.peakW);
@@ -307,7 +326,10 @@ export function createSwingDetector(opts = {}){
     on(k, f){ listeners[k].push(f); return this; },
     feed,
     // telefono fermo: deriva e rumore del giroscopio, verso della gravità (come si tiene il telefono)
-    still(){ mode = 'still'; still = null; cur = null; },
+    still(){ mode = 'still'; still = null; finishAt = false; cur = null; },
+    // «Salta» prima della fine del passo «fermo»: si gioca subito, con la gravità dei campioni già arrivati (o del primo
+    // che arriva). Prima il rilevatore restava ad aspettare il telefono fermo e nessun colpo partiva
+    finishStill(){ if (mode !== 'still') return false; if (still?.length) settle(still, true); else finishAt = true; return true; },
     // deriva solo se plausibile anche dai profili salvati prima (alcuni avevano il movimento della mano come deriva)
     setProfile(p){ const b = p.bias || prof.bias; prof = { ...defaultProfile(), ...p, bias: b && len(b) <= C.biasMax ? b : [0, 0, 0] }; armed = !prof.intentGate; absSign = 1; votes = { agree: 0, against: 0 }; reset(); },
     get absSign(){ return absSign; },
