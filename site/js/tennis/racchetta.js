@@ -301,7 +301,7 @@ function command(c){
   if (c === 'invert') cal.invert();
   if (c === 'skipGrip') cal.skipGrip();
   if (c === 'free') cal.tryFree();
-  // dal computer: «Salta» durante la calibrazione → profilo semplice (niente direzione: dritto o rovescio li sceglie il gioco)
+  // dal computer: «Salta» durante la calibrazione → profilo semplice (verso del gesto dalla gravità, swing-detect.js)
   if (c === 'skip' && sensor === 'cal' && inputMode === 'motion'){ const p = cal.skip(); det.setContext(phase); if (p){ sensor = 'ready'; sendState(); paint(); } }
   if (c === 'confirm'){ const p = cal.confirm(); det.setContext(phase); if (p){ ss.set('profile', p); sensor = 'ready'; sendState(); paint(); } }
 }

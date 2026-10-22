@@ -97,10 +97,21 @@ tastiera come controlli nuovi.
    - Player 2 del 1v1 con il telefono: stesso esito deterministico, specchiato; stesso piano d'intercetto nella sua
      metà campo (volée, schiacciata al volo, palla fuori lasciata andare), recupero a rete o in fondo, mano dal suo
      telefono (`natpfP2Hand`). Senza telefono il P2 colpisce come prima; si muove con il nuovo piano.
-10. [ ] Calibrazione tollerante; «Salta» con il gioco completo.
-11. [ ] Webcam: mano dall'impostazione unica; prove con più persone, perdita del tracciamento, tremolio.
-12. [ ] Diagnostica: forma, intenzione ed esito negli eventi; prova guidata con il colpo richiesto; metriche di
-    ripetibilità.
+10. [x] Calibrazione: con «Salta» il gioco è completo (verso dalla gravità, intenzione dalla forma, forza assoluta);
+    deriva solo se plausibile; avviso «muovi» al massimo ogni 0,5 s; testi della modalità semplice corretti (prima
+    dicevano che dritto e rovescio li sceglie il gioco).
+11. [x] Webcam (`webcam_strokes.js`, `motion_controls.js`): mano dall'impostazione unica (`handPreference`).
+    - Un solo soggetto: le mani viste insieme alla propria sono «altre persone» e non si prendono (prima, con la
+      propria nascosta un attimo, il salto sulla mano vicina diventava uno swing).
+    - Persa la propria mano per più di 0,5 s: per 3 s si riprende solo vicino a dove era; la mano ritrovata deve
+      stare ferma un momento prima dei colpi.
+    - Limiti rimasti: all'avvio vince la mano più grande con la lateralità giusta (un'altra persona più vicina alla
+      webcam può essere scelta); una mano nuova che compare lontano entro 0,5 s si prende ancora (non si distingue
+      dalla propria dopo il mosso).
+    - Tremolio: nessuno swing fino a 3,6 cm a 2 m (12 Hz). Banco `webcam-sweep` ridotto identico a prima.
+12. [x] Diagnostica: `tel.colpo` con forma e intenzione; eventi `racchetta` (esito), `piano`, `servizio`, `vuoto`;
+    metriche `racchetta` (ripetibilità per colpo voluto: mediana e scarto interquartile); prova guidata con tagliati e
+    palle corte in fondo (la prima parte resta uguale).
 13. [ ] I 14 test obbligatori, prima/dopo sullo ZIP (`scripts/audit/zip-replay.mjs`), regressioni (`npm test`, e2e).
 14. [ ] Documento finale (codice, test automatici e validazione fisica separati), procedura di prova fisica, build e
     zip.

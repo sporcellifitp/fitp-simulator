@@ -34,3 +34,10 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     del lancio non serve.
   - Decisione: il P2 usa lo stesso esito e lo stesso piano d'intercetto di chi gioca qui, calcolati nel suo
     riferimento e poi specchiati (test con la stessa palla specchiata: stesso piano).
+- Checkpoint 5: webcam con un solo soggetto, tremolio, diagnostica, calibrazione.
+  - Scoperta (prova con più persone nel simulatore): con la mano di chi gioca nascosta per un attimo, il salto sulla
+    mano di chi guarda diventava uno swing; e una mano che entrava in movimento dopo una perdita faceva un colpo.
+  - Decisioni: memoria delle «altre persone» (mani viste insieme alla propria); ripresa solo vicino a dove era la
+    propria per 3 s; la mano ritrovata deve stare ferma prima dei colpi. Scartata la regola «la mano deve muoversi
+    prima del salto»: con l'esposizione lunga faceva perdere swing veri (il banco della webcam lo mostrava).
+  - Telefono: nessuno swing con il tremolio fino a 160 °/s; il tremolio vero è di pochi °/s.

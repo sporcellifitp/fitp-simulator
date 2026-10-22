@@ -9,7 +9,8 @@
 //   3 la calibrazione si conferma da sola; poi palle vere: dritto, rovescio, pallonetto, palla corta, servizio e angoli
 //     (qui il giocatore corre da solo verso la palla, come in partita: si pensa solo al colpo).
 // Con webcam e mouse si parte dal punto 3. «Salta» chiude in qualsiasi momento: con il telefono non ancora calibrato si
-// gioca in modalità semplice (dritto e rovescio li sceglie il gioco). Non conta per il punteggio.
+// gioca in modalità semplice (verso e forma del gesto letti lo stesso, forza non tarata sul proprio colpo; prima dritto e
+// rovescio li sceglieva il gioco). Non conta per il punteggio.
 import * as THREE from 'three';
 import { calSide, calPrompt, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
 export { calSide };
@@ -215,7 +216,7 @@ export class NatpfTraining {
   simpleMode(){
     if (!this.active) return;
     this.ui.phone.skipCalibration();
-    this.message = 'Modalità semplice: dritto e rovescio li sceglie il gioco';
+    this.message = 'Senza calibrazione: il gesto vale lo stesso, la forza non è tarata sul tuo colpo';
     if (this.cal) this.cal.fails = 0;
   }
   /* ---------- palle ---------- */
