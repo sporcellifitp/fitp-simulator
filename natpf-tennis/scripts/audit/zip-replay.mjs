@@ -58,7 +58,7 @@ const rows = [];
 for (const s of swings){
   const t = s.peakT + off;
   const rec = strokes.find(c => Math.abs((c.picco ?? c.t) - t) < 80);
-  const intent = s.shape ? strokeIntent({ shape: s.shape, peak: s.peak, angle: s.angle }, { ref: profile.simple ? null : profile.ref }) : null;
+  const intent = s.shape ? strokeIntent({ shape: s.shape, peak: s.peak, rawPeak: s.rawPeak, angle: s.angle }, { ref: profile.simple ? null : profile.ref, rawRef: profile.simple ? null : profile.rawRef }) : null;
   rows.push({ t: +(t/1000).toFixed(2), dir: s.dir, peak: s.peak, angle: s.angle, lift: s.lift, head: s.head, shape: s.shape || null, intent,
     rec: rec ? { n: rec.n, lato: rec.lato, tipo: rec.tipo, mira: rec.mira, dir: rec.dir, scartato: rec.scartato || null } : null });
 }

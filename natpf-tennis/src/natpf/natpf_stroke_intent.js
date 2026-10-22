@@ -3,7 +3,7 @@
 // swing, verso della testa della racchetta, inclinazione del manico, velocità. Qui diventa:
 //   • tipo di colpo, con margini chiari (un colpo speciale solo se il gesto lo dice davvero, altrimenti colpo normale);
 //   • forza (velocità vera del gesto, rispetto al proprio colpo tipico se c'è la calibrazione);
-//   • profondità voluta (forza e ampiezza: uno swing corto resta corto);
+//   • profondità voluta (forza e, poco, ampiezza: un colpo bloccato è un poco più corto, uno compatto e veloce no);
 //   • mira del piatto rispetto al proprio colpo abituale per lato (zona morta: i colpi normali non si spostano).
 // Niente caso: lo stesso gesto dà sempre la stessa intenzione. Tempo ed esecuzione li aggiunge il motore all'impatto
 // (natpf_stroke_outcome.js), quando sa dov'è la palla.
@@ -31,6 +31,8 @@ export const INTENT = Object.freeze({
   smashPower: .3,
   peakLow: 250, peakHigh: 1350,   // °/s: forza assoluta da 0 a 1 (i dritti veri arrivano a 1200–1650 °/s)
   compact: 30, wide: 100,          // gradi: swing corto (profondità ridotta) … ampio (profondità piena)
+  reachDepth: .8,                  // profondità voluta di uno swing corto rispetto a uno ampio alla stessa forza (era
+                                   // 0,55: un colpo compatto ma veloce perdeva quasi metà della profondità)
   faceDead: 8, faceSpan: 28,       // gradi: zona morta e scarto per la mira piena del piatto
   riseRefMin: -.6, riseRefMax: .3, // salita abituale (calibrazione) che si tiene in conto, al massimo
 });
@@ -83,14 +85,18 @@ export function faceAimFromDev(dev){
 // Intenzione completa da un colpo letto (parseSwingMessage) con la forma. null senza forma (telefono non aggiornato).
 //   ref: colpo tipico (°/s) dalla calibrazione · headingDev: scarto del piatto dal proprio colpo abituale (gradi)
 //   riseRef: salita abituale in quel verso dalla calibrazione (classifyStroke)
-export function strokeIntent(s, { ref = null, ballHigh = null, headingDev = null, riseRef = null } = {}){
+//   rawRef: colpo tipico con la velocità vera al picco (calibrazione). Con rawPeak del telefono la forza si misura sul picco
+//   vero: il massimo della media mobile (peak) negli swing corti resta molto sotto (50° a 1100 °/s: 72%, forza 0,49
+//   contro 0,70 di uno swing ampio alla stessa velocità). Con un profilo senza rawRef si resta sul picco della media.
+export function strokeIntent(s, { ref = null, rawRef = null, ballHigh = null, headingDev = null, riseRef = null } = {}){
   if (!s?.shape) return null;
-  const power = strokePower(s.peak, ref), reach = swingReach(s.angle);
+  const useRaw = Number.isFinite(s.rawPeak) && (Number.isFinite(rawRef) || !Number.isFinite(ref));
+  const power = useRaw ? strokePower(s.rawPeak, Number.isFinite(rawRef) ? rawRef : null) : strokePower(s.peak, ref), reach = swingReach(s.angle);
   const cls = classifyStroke(s.shape, { power, angle: s.angle, ballHigh, riseRef });
   return {
     shot: cls.shot, conf: cls.conf, why: cls.why, power: +power.toFixed(3), reach: +reach.toFixed(3),
-    // profondità voluta 0…1: la forza, ridotta se lo swing è corto (un colpo bloccato resta a metà campo)
-    depth: +clamp(power*(.55 + .45*reach)).toFixed(3),
+    // profondità voluta 0…1: la forza, un poco ridotta se lo swing è corto (un colpo bloccato è più corto)
+    depth: +clamp(power*(INTENT.reachDepth + (1 - INTENT.reachDepth)*reach)).toFixed(3),
     rise: finite(s.shape.rise), plane: finite(s.shape.plane), tilt: finite(s.shape.tilt), roll: finite(s.shape.roll),
     riseRef: Number.isFinite(riseRef) ? +clamp(riseRef, INTENT.riseRefMin, INTENT.riseRefMax).toFixed(3) : null,
     face: faceAimFromDev(headingDev),

@@ -16,7 +16,7 @@ export function swingMessage(s, { flags = {}, grip = 'upright', faceRef = null, 
   // l: verso verticale intero (−1…+1). Prima si tagliava a ±0,6 mentre il riferimento della calibrazione no: il
   // confronto era falsato e molti colpi normali sembravano tagliati.
   return { t: 'sw', p: s.power, l: Math.max(-1, Math.min(1, s.lift)), ...flags, dur: s.dur, dir: s.dir, a: s.aim, c: s.confidence, pk: s.peakT, lat: rtt/2 + (now - s.peakT),
-    v: s.peak, tw: Number.isFinite(s.features?.twist) ? +s.features.twist.toFixed(3) : undefined,
+    v: s.peak, ...(Number.isFinite(s.rawPeak) ? { vr: s.rawPeak } : {}), tw: Number.isFinite(s.features?.twist) ? +s.features.twist.toFixed(3) : undefined,
     ...(fa ? { g: grip, fy: fa.yaw, fp: fa.pitch, fr: fa.roll, ...(fa.aim != null ? { fa: fa.aim } : { fu: 1 }) } : {}),
     ...(Number.isFinite(s.features?.speed) ? { sp: +s.features.speed.toFixed(3) } : {}),
     ...(Number.isFinite(s.head) ? { he: s.head } : {}),
@@ -34,7 +34,7 @@ export function parseSwingMessage(d, { at, now }){
   return { power: n(d.p, 0, 1, .6), lift: n(d.l, -1, 1, 0), lob: !!d.lob, drop: d.drop === true, slice: d.slice === true, dur: n(d.dur, 0, 700, 0), dir: d.dir === 1 ? 1 : d.dir === -1 ? -1 : 0,
     aim: n(d.a, -1, 1, null), confidence: n(d.c, 0, 1, .7), at,
     ...(face ? { grip: d.g === 'flat' ? 'flat' : 'upright', face } : {}),
-    ...(typeof d.v === 'number' && isFinite(d.v) ? { peak: n(d.v, 0, 4000, 0) } : {}), ...(typeof d.tw === 'number' && isFinite(d.tw) ? { twist: n(d.tw, -2, 2, 0) } : {}),
+    ...(typeof d.v === 'number' && isFinite(d.v) ? { peak: n(d.v, 0, 4000, 0) } : {}), ...(typeof d.vr === 'number' && isFinite(d.vr) ? { rawPeak: n(d.vr, 0, 4000, 0) } : {}), ...(typeof d.tw === 'number' && isFinite(d.tw) ? { twist: n(d.tw, -2, 2, 0) } : {}),
     ...(typeof d.sp === 'number' && isFinite(d.sp) ? { speed: n(d.sp, 0, 5, 1) } : {}),
     ...(typeof d.he === 'number' && isFinite(d.he) ? { head: n(d.he, -1, 1, 0) } : {}),
     ...(typeof d.fh === 'number' && isFinite(d.fh) ? { heading: n(d.fh, -180, 180, 0) } : {}),

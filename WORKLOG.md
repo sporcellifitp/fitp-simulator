@@ -122,3 +122,18 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     0,5 s prima; profondità dei colpi normali in 2,5 m; caduta indipendente dalla posizione di chi colpisce); il
     recupero dopo il colpo manda e tiene a rete chi colpisce da dentro il campo (56–89% dei colpi nelle partite
     simulate). Nuova sintesi `npm run audit:rally -- --campo`.
+- Checkpoint 12 (22/10, notte): fase B del passo 17 (il passo 16 di prima).
+  - Swing corti (difetto 5): forza dal picco vero dei campioni grezzi (`vr`, vertice della parabola) con il riferimento
+    grezzo della calibrazione (`rawRef`); profondità voluta per l'80% dalla forza.
+  - Diagnostica: esito della racchetta registrato una volta sola (evento `racchetta`, con il numero del colpo e il tempo
+    nella finestra); tolti `colpo.gioco.racchetta`, `colpi.racchetta` e `racchetta.perColpo`; `ripetibilita` parte dai
+    gesti o, senza, dagli esiti.
+  - Partita intera col telefono della pagina storica (difetto 7): cause nella prova (comandi lasciati spenti dal
+    controllo di mouse e tastiera, robot che ignorava il tempo lento della partita con la grafica software, lancio senza
+    nuovo tentativo); ora 17/17.
+  - Prove della CI della pagina storica (difetto 6): 20/20 a macchina scarica con il rilevatore attuale e con quello di
+    `84ca878`; non riprodotto.
+  - Presa del 19/10: prova attuale 10/10, prova coerente della seconda sessione 10/10, prova di `84ca878` 7/10 (spiegata:
+    calibrazione senza pronazione, «pallonetto» che per la racchetta virtuale è la testa che scende, piatto tarato sul
+    modello di prima). Nuovo: salita abituale imparata giocando quando la calibrazione manca («Salta»).
+  - Prove: `tools/test` 135/135, `npm test` 281/281; CI del sito in locale: telefono 10/10, tempi 8/8, gesto e calibrazione 18/18, grafica 9/9, pacchetto ridotto 5/5, 6/6 e 10/10, LAN in Node 4/4, nel browser 3/3 e 7/8 (limite noto del contenitore), pacchetti creati; motore base nel browser: diagnostica 24/24, allenamento 13/13, risposta al gesto 9/9, presa verticale 10/10, presa del 19/10 10/10, menu 22/22, ricollegamento 6/6, rete che cade 6/6; partita intera della pagina storica (`phone-cal.mjs`) 17/17.

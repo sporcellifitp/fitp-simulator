@@ -510,15 +510,32 @@ tagliato (−0,22), forza del pallonetto «morbido» (0,3), zona morta del piatt
 ### 4.4 Limiti noti
 
 - **Difetti verificati dopo la fine del giro** (misure in `SESSION_HANDOFF.md`, «Difetti verificati»):
-  - aperto: con il passo «fermo» nuovo del rilevatore (dall'unione) due prove della CI della pagina storica falliscono,
-    «gesture and calibration» (il secondo gesto del servizio non colpisce il lancio) e «timing-browser»; con il
-    rilevatore di prima passano 18/18 e 8/8;
-  - aperto: nella partita intera della pagina storica (`phone-cal.mjs`, fuori dalla CI) il telefono non lancia e non
-    colpisce, anche con il rilevatore di prima;
-  - aperto: con i gesti sintetici della presa del 19/10 (polso che prona) i dritti diventano tagliati e il pallonetto un
-    tagliato: la prova del telefono di prima fa 7/10 (anche dopo l'unione), prima del giro 10/10;
-  - aperto: negli swing corti la forza è sottostimata (picco della media mobile);
-  - aperto: l'esito della racchetta e la ripetibilità nella diagnostica sono registrati in due modi (da tenerne uno);
+  - non riprodotto (fase B): le due prove della CI della pagina storica che fallivano dopo l'unione, «gesture and
+    calibration» e «timing-browser», passano 20 volte su 20 (5 per prova e per rilevatore, quello attuale e quello di
+    `84ca878`), a macchina scarica. Il rilevatore è lo stesso dei fallimenti di allora: l'ipotesi è il carico della
+    macchina (prove nel browser con la grafica software lanciate insieme ad altre), da verificare sotto carico;
+  - risolto (fase B): nella partita intera della pagina storica (`phone-cal.mjs`, fuori dalla CI) il telefono non
+    lanciava e non colpiva. Le cause erano nella prova, non nel gioco: il controllo «mouse e tastiera non producono input»
+    spegneva i comandi della partita e non li riaccendeva (da lì ogni colpo del telefono veniva scartato; prova e filtro
+    sono entrati insieme il 15/10); il robot programmava i gesti come se la partita andasse in tempo reale, mentre con la
+    grafica software il tempo della partita va più piano (un passo al massimo 0,1 s per fotogramma) e il colpo arrivava
+    anche un secondo prima; il lancio non si riprovava. Ora 17/17, partita finita (punti 4–6);
+  - presa del 19/10 (fase B, sensori simulati): la prova con il telefono coerente (calibrazione e partita con la stessa
+    pronazione, `natpf-phone-upright-19-10.mjs`) e quella con la racchetta simulata passano 10/10. La prova di `84ca878`
+    resta 7/10 ed è servita da riferimento diagnostico: calibra senza pronazione e gioca con la pronazione (salita
+    abituale 0, quindi i dritti con la testa che scende di 0,27–0,40 sono tagliati); il suo «pallonetto» inclina in
+    avanti la cima del telefono, che per la racchetta virtuale è la testa che scende (−0,42); il piatto sposta la palla di
+    1,2 m con ±25° (la prova chiedeva 1,5 m, tarata quando il piatto valeva 3,9 m). Corretto il caso di chi salta la
+    calibrazione: la salita abituale si impara giocando (mediana degli ultimi colpi per verso, da tre colpi); dal quarto
+    colpo dritti e rovesci con la pronazione sono normali. Resta: chi calibra senza pronazione e poi gioca con la
+    pronazione vede tagliati finché non ricalibra con il proprio colpo;
+  - risolto nel codice e nei test automatici (fase B, da provare con il telefono vero): negli swing corti la forza era
+    sottostimata perché il picco era quello della media mobile, che negli swing di pochi campioni resta sotto il
+    picco vero. Il telefono manda anche il picco dei campioni grezzi (vertice della parabola, `vr`), la calibrazione ne
+    impara il riferimento (`rawRef`) e la forza usa quello; la portata del gesto pesa poco sulla profondità (80% dalla
+    forza), così uno swing compatto ma veloce non è punito;
+  - risolto (fase B): l'esito della racchetta e la ripetibilità erano registrati due volte nella diagnostica; ora
+    l'esito è solo nell'evento `racchetta` e la variazione solo in `ripetibilita`;
   - risolti dall'unione: errore della pagina storica sull'evento `hand`; calibrazione oltre 10 s con il tremolio
     (ora circa 4,5 s); «Salta» durante il passo «fermo».
 - Webcam: all'avvio vince la mano più grande con la lateralità giusta, quindi un'altra persona più vicina alla webcam
@@ -548,8 +565,9 @@ diagnostica (Maiusc+D → Registra) e si salva il pacchetto.
    - pallonetti: tipo giusto ≥ 70%; tagliati ≥ 70%; palle corte ≥ 60%;
    - direzione giusta (incrociato e lungolinea) ≥ 70%;
    - ogni errore va guardato nel video prima di cambiare una soglia (chi gioca può aver fatto un altro gesto).
-4. **Ripetibilità** (test 7). Dieci palle corte e dieci pallonetti uguali. In `metriche.json`, `racchetta.perColpo`:
-   scarto interquartile della profondità entro 1 m.
+4. **Ripetibilità** (test 7). Dieci palle corte e dieci pallonetti uguali (meglio dalla prova guidata, un gruppo per
+   colpo richiesto). In `metriche.json`, `ripetibilita.gruppi`: variazione della profondità (`profondita`, p90 − p10)
+   entro 1 m e tipo uguale (`tipoUgualePercento`) almeno all'80%.
 5. **Inclinazioni e impugnature** (test 2). Dieci dritti tenendo il telefono più dritto, dieci più inclinato e dieci
    ruotato nella mano. Atteso: stesso tipo (`tel.colpo.intenzione.colpo`) e salita entro ±0,15.
 6. **Swing corto e ampio** (test 3). Dieci colpi bloccati (corti) e dieci ampi alla stessa velocità. Atteso: profondità

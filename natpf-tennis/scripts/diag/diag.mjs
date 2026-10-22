@@ -30,13 +30,14 @@ if (cmd === 'metriche'){
 } else if (cmd === 'colpi'){
   const s = load(a);
   // racchetta virtuale: forma del gesto (salita della testa / piano), forza letta, esito con il tempo nella finestra
-  // d'impatto (−1…+1, + anticipo) e la qualità; l'esito si lega al colpo con il suo numero, altrimenti per tempo
+  // d'impatto (−1…+1, + anticipo) e la qualità; l'esito (evento racchetta) si lega al colpo con il suo numero, il
+  // risultato a schermo (colpo.gioco) per tempo
   console.log('   t (s)    #  via       lato/tipo          mira   rilev  consegna  salita/piano  forza  esito');
-  const out = s.events.filter(e => e.k === 'colpo.gioco' && e.chi === 'giocatore');
+  const out = s.events.filter(e => e.k === 'colpo.gioco' && e.chi === 'giocatore'), rk = s.events.filter(e => e.k === 'racchetta' && e.chi === 'player');
   for (const c of s.events.filter(e => e.k === 'tel.colpo')){
-    const res = out.find(o => Number.isInteger(c.n) && o.racchetta?.n === c.n) || out.find(o => o.t >= c.t && o.t - c.t < 1500 && !o.racchetta);
-    const forma = c.forma ? `${c.forma.salita}/${c.forma.piano}` : '–', k = res?.racchetta;
-    console.log(`${(c.t/1000).toFixed(2).padStart(8)} ${String(c.n ?? '').padStart(4)}  ${(c.via || '').padEnd(8)}  ${c.scartato ? ('scartato: ' + c.scartato).padEnd(32) : `${(c.lato || '?') + '/' + (c.tipo || '?')}`.padEnd(18) + ` ${String(c.mira ?? '').padStart(6)} ${String(c.rilevamento ?? '').padStart(6)} ${String(c.consegna ?? '').padStart(9)}`}  ${forma.padStart(12)}  ${String(c.intenzione?.forza ?? '–').padStart(5)}  ${res ? `${res.esito} ${res.tempo || ''} x ${res.x ?? ''} ${res.direzione || ''}${k ? ` · finestra ${k.tempo}${k.eccesso ? ` (oltre ${k.eccesso})` : ''} q ${k.q}${k.fallito ? ' fallito' : ''}${k.rete ? ' in rete' : ''}${k.volee ? ' volée' : ''}` : ''}` : ''}`);
+    const k = rk.find(o => Number.isInteger(c.n) && o.n === c.n) || null, res = out.find(o => o.t >= c.t && o.t - c.t < 1500) || null;
+    const forma = c.forma ? `${c.forma.salita}/${c.forma.piano}` : '–';
+    console.log(`${(c.t/1000).toFixed(2).padStart(8)} ${String(c.n ?? '').padStart(4)}  ${(c.via || '').padEnd(8)}  ${c.scartato ? ('scartato: ' + c.scartato).padEnd(32) : `${(c.lato || '?') + '/' + (c.tipo || '?')}`.padEnd(18) + ` ${String(c.mira ?? '').padStart(6)} ${String(c.rilevamento ?? '').padStart(6)} ${String(c.consegna ?? '').padStart(9)}`}  ${forma.padStart(12)}  ${String(c.intenzione?.forza ?? '–').padStart(5)}  ${res ? `${res.esito} ${res.tempo || ''} x ${res.x ?? ''} ${res.direzione || ''}${k ? ` · finestra ${k.tempo}${k.oltre ? ` (oltre ${k.oltre})` : ''} q ${k.qualita}${k.fallito ? ' fallito' : ''}${k.rete ? ' in rete' : ''}${k.volee ? ' volée' : ''}` : ''}` : ''}`);
   }
 } else if (cmd === 'confronta'){
   const A = load(a), Bs = load(b);

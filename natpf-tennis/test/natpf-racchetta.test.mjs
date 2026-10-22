@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
 import { parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { QUICK_PLAN } from '@natpf/tennis/calibration.js';
-import { NatpfPhoneRacket, natpfSwingToEngine, riseRefOf } from '../src/natpf/natpf_phone_racket.js';
+import { NatpfPhoneRacket, natpfSwingToEngine, riseRefOf, createRiseModel, habitualRise } from '../src/natpf/natpf_phone_racket.js';
 import { classifyStroke } from '../src/natpf/natpf_stroke_intent.js';
 import { racketSim, strokeDir } from './racket-sim.mjs';
 import { strokeIntent } from '../src/natpf/natpf_stroke_intent.js';
@@ -246,7 +246,7 @@ test('forma: inclinazioni e rotazioni del telefono in mano non cambiano il gesto
   }
 });
 
-test('forma: swing corto e ampio (prova 3) — un colpo per gesto, verso giusto, e lo swing corto resta corto', () => {
+test('forma: swing corto e ampio (prova 3) — un colpo per gesto, verso giusto; lo swing corto è un poco più corto, non molto più debole', () => {
   for (const hand of ['right', 'left']){
     const sim = racketSim({ hand, seed: 7 }); sim.start();
     for (const side of ['forehand', 'backhand']){
@@ -258,9 +258,11 @@ test('forma: swing corto e ampio (prova 3) — un colpo per gesto, verso giusto,
         assert.equal(it.shot, 'topspin', tag);
         reach.push([it.reach, it.depth]);
       }
-      // portata e profondità voluta crescono con l'ampiezza (alla stessa velocità di picco)
-      for (let i = 1; i < reach.length; i++) assert.ok(reach[i][0] > reach[i - 1][0] && reach[i][1] > reach[i - 1][1], `${hand} ${side}: ${JSON.stringify(reach)}`);
-      assert.ok(reach[0][1] < .5*reach[3][1], `${hand} ${side}: ${JSON.stringify(reach)}`);
+      // portata e profondità voluta crescono con l'ampiezza (alla stessa velocità di picco), ma lo swing corto tiene
+      // gran parte della profondità: la forza viene dal picco vero (prima 40° davano meno della metà di 150°)
+      // (la profondità dipende soprattutto dalla forza: tra due ampiezze vicine conta la piccola differenza di velocità)
+      for (let i = 1; i < reach.length; i++) assert.ok(reach[i][0] > reach[i - 1][0] && reach[i][1] > reach[i - 1][1] - .02, `${hand} ${side}: ${JSON.stringify(reach)}`);
+      assert.ok(reach[3][1] > reach[0][1] && reach[0][1] >= .6*reach[3][1], `${hand} ${side}: ${JSON.stringify(reach)}`);
     }
   }
 });
@@ -307,15 +309,34 @@ test('colpi vari dal gesto: orizzontale, obliquo, verticale, in discesa, morbido
   }
 });
 
-test('swing corto e ampio: alla stessa velocità lo swing corto vuole meno profondità (un colpo bloccato resta corto)', () => {
+test('swing corto e ampio: alla stessa velocità lo swing corto vuole un poco meno profondità (un colpo bloccato è più corto)', () => {
   const sim = racketSim({ hand: 'right', seed: 4 }); sim.start();
   const short = strokeIntent(strokeOf(sim, { side: 'forehand', peak: 900, amp: 40 }).msg);
   const wide = strokeIntent(strokeOf(sim, { side: 'forehand', peak: 900, amp: 140 }).msg);
   assert.ok(short.reach < .3 && wide.reach > .9, `${short.reach} ${wide.reach}`);
-  assert.ok(short.depth < wide.depth - .2, `${short.depth} ${wide.depth}`);
-  // a parità di forza misurata la differenza è solo l'ampiezza: profondità = forza × (0,55 + 0,45 × ampiezza)
+  assert.ok(short.depth < wide.depth - .1, `${short.depth} ${wide.depth}`);
+  // a parità di forza misurata la differenza è solo l'ampiezza: profondità = forza × (0,8 + 0,2 × ampiezza); era 0,55 +
+  // 0,45 × ampiezza, e un colpo compatto ma veloce perdeva quasi metà della profondità
   const same = p => strokeIntent({ shape: { rise: 0, plane: 1, tilt: .2 }, peak: 900, angle: p });
-  assert.ok(Math.abs(same(30).depth/same(100).depth - .55) < .01);
+  assert.ok(Math.abs(same(30).depth/same(100).depth - .8) < .01);
+});
+
+test('swing corti (difetto 5): la forza viene dalla velocità vera al picco, non dalla media mobile', () => {
+  // alla stessa velocità vera uno swing compatto e uno ampio hanno la stessa forza; con il massimo della media mobile
+  // (com'era) lo swing compatto perdeva forza oltre alla portata
+  for (const peak of [700, 1100]){
+    const sim = racketSim({ hand: 'right', seed: 4 }); sim.start();
+    const read = amp => { const { msg } = strokeOf(sim, { side: 'forehand', peak, amp }); return { msg, it: strokeIntent(msg), old: strokeIntent({ ...msg, rawPeak: undefined }) }; };
+    // ampiezze che il telefono simulato riproduce alla velocità chiesta (sotto i 90° a 1100 °/s il gesto dura meno di sei
+    // campioni e il simulatore lo rallenta)
+    const short = read(90), wide = read(150);
+    assert.ok(Number.isFinite(short.msg.rawPeak) && short.msg.rawPeak > short.msg.peak, JSON.stringify(short.msg));
+    assert.ok(Math.abs(short.it.power - wide.it.power) <= .05, `${peak} °/s: corto ${short.it.power}, ampio ${wide.it.power}`);
+    assert.ok(wide.it.power - short.it.power < wide.old.power - short.old.power, `${peak} °/s: prima ${short.old.power}/${wide.old.power}, ora ${short.it.power}/${wide.it.power}`);
+  }
+  // il colpo tipico della calibrazione si misura allo stesso modo (rawRef): forza relativa coerente
+  assert.equal(strokeIntent({ shape: { rise: 0, plane: 1, tilt: .2 }, peak: 800, rawPeak: 1000, angle: 100 }, { ref: 800, rawRef: 1000 }).power,
+    strokeIntent({ shape: { rise: 0, plane: 1, tilt: .2 }, peak: 1000, angle: 100 }, { ref: 1000 }).power);
 });
 
 test('forma: il messaggio vecchio (senza forma) si legge come prima', () => {
@@ -375,4 +396,29 @@ test('presa del 19/10 (telefono in verticale nel pugno, polso che prona) con la 
   // la mano che sale con il telefono che si inclina in avanti (la testa scende): non diventa un tagliato
   const { r } = series(35, p => p.swing({ axis: [-1, 0, 0], peak: 650, vy: 9, push: 2, tremor: 6 }), { yaw: false });
   assert.ok(r.every(x => x.ev.natpf.shot !== 'slice' && x.ev.natpf.shot !== 'drop'), r.map(x => x.ev.natpf.shot).join(' '));
+});
+
+test('presa del 19/10 senza calibrazione («Salta»): la salita abituale si impara dai primi colpi, poi dritti e rovesci sono normali', () => {
+  // prima, saltata la calibrazione, la pronazione faceva tagliati per tutta la partita (nessun riferimento personale;
+  // la prova del telefono di 84ca878, calibrato senza pronazione, ne è il caso: 7/10). Ora i primi tre colpi in un verso
+  // si leggono con le soglie assolute, dal quarto con la mediana di quelli (createRiseModel)
+  const grip = (p, tilt) => { p.pose([0, 1, 0], 30); p.pose([1, 0, 0], -tilt); p.rest(500, 4); };
+  for (const tilt of [0, 35, 60]) for (const wrist of [450, -450, 800]) for (const [axis, side] of [[[0, 1, 0], 'forehand'], [[0, -1, 0], 'backhand']]){
+    const p = simPhone({ seed: 7, shape: true }); grip(p, tilt);
+    assert.equal(p.skip({ tremor: 4 })?.simple, true);
+    for (let i = 0; i < 7; i++){ p.swing({ axis, peak: 750, wrist, wristAxis: [0, 0, -1], tremor: 8 }); p.rest(700, 6); }
+    const r = p.msgs.map(d => p.game(d)), tag = `inclinazione ${tilt}°, ${side}, polso ${wrist}°/s: ${r.map(x => `${x.ev.natpf.shot}(${x.s.shape?.rise})`).join(' ')}`;
+    assert.equal(r.length, 7, tag);
+    assert.ok(r.every(x => x.ev.side === side), tag);
+    assert.ok(r.slice(3).every(x => ['topspin', 'flat'].includes(x.ev.natpf.shot) && Number.isFinite(x.ev.natpf.intent.riseRef)), tag);
+  }
+  // il modello: per verso, pallonetti e schiacciate esclusi, da tre colpi; la calibrazione vera ha la precedenza
+  const m = createRiseModel();
+  m.add(1, -.3, 'topspin'); m.add(1, -.32, 'slice'); assert.equal(m.ref(1), null);
+  m.add(1, .8, 'lob'); m.add(1, -.28, 'topspin'); assert.equal(m.ref(1), -.3); assert.equal(m.ref(-1), null);
+  assert.equal(habitualRise({ simple: true }, 1, m), -.3);
+  assert.equal(habitualRise({ rises: { 1: -.1 } }, 1, m), -.1);
+  m.reset(); assert.equal(habitualRise({ simple: true }, 1, m), null);
+  // imparata la salita della presa, il tagliato vero (la testa scende di molto di più) resta un tagliato
+  assert.equal(classifyStroke({ plane: .9, rise: -.62, roll: 0, tilt: .6 }, { power: .6, riseRef: -.3 }).shot, 'slice');
 });

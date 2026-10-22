@@ -186,6 +186,8 @@ export function createSwingDetector(opts = {}){
       if (b >= a && b >= c3 && b > cur.rawPeak && tb >= cur.t0){
         const den = a - 2*b + c3, off = den < 0 ? Math.max(-.5, Math.min(.5, .5*(a - c3)/den)) : 0;
         cur.rawPeak = b; cur.truePeakT = tb + off*(off < 0 ? tb - ta : tc - tb);
+        // valore al vertice della parabola (al massimo il 15% sopra il campione: con il rumore la parabola esagera)
+        cur.rawTop = den < 0 ? Math.min(b*1.15, b - (a - c3)**2/(8*den)) : b;
       }
     }
     if (sm > cur.peak){ cur.peak = sm; cur.peakT = k.t; if (w) cur.peakW = w; if(k.accG) cur.gravity=unit(k.accG.map((v,i)=>v-(k.acc?.[i]||0))); }
@@ -273,7 +275,9 @@ export function createSwingDetector(opts = {}){
     const power = Math.max(.3, Math.min(1, .3 + .35*c.peak/powerReference));
     // Soglie iniziali di palla corta e slice; la durata del sensore è in millisecondi.
     const special = classifySwingType({ power, lift, dur }, prof.lobLift);
-    const sw = { phase: 'contact', peakT, t, peak: Math.round(c.peak), power: +power.toFixed(3), dir, along: +along.toFixed(2), axis, gravity, lift: +lift.toFixed(3), ...special, ...intent, features, angle: Math.round(c.angle), dur,
+    // rawPeak: velocità vera al picco (vertice della parabola sui campioni grezzi). peak resta il massimo della media
+    // mobile, che decide le soglie: negli swing corti è molto più basso del vero (50° a 1100 °/s: 72%)
+    const sw = { phase: 'contact', peakT, t, peak: Math.round(c.peak), rawPeak: Math.round(Math.max(c.rawTop || 0, c.rawPeak || 0) || c.peak), power: +power.toFixed(3), dir, along: +along.toFixed(2), axis, gravity, lift: +lift.toFixed(3), ...special, ...intent, features, angle: Math.round(c.angle), dur,
       ...(vert ? { vert } : {}), turn: +c.turn.toFixed(1), detectMs: +Math.max(0, t - peakT).toFixed(1) };
     if (prepMode && !training && !serving()){
       // un gesto trattenuto e ora quello opposto: il primo era la preparazione

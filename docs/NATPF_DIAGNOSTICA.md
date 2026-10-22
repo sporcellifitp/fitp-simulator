@@ -53,8 +53,8 @@ Tutto è scritto in `eventi.jsonl`, un evento JSON per riga. `t` è in ms dall'i
 | `palla` | posizione e velocità a ogni fotogramma mentre la palla è in gioco |
 | `rimbalzo`, `punto`, `fase` | eventi del motore |
 | `tentativo` | swing del giocatore: distanza palla–giocatore, correzione della latenza, velocità, se l'ha colpita |
-| `colpo.gioco` | esito del colpo (tempo, qualità, punto di rimbalzo, direzione incrociato/lungolinea/centro) e colpi della CPU. Racchetta virtuale: `racchetta` con il numero del colpo del telefono (`n`, lo lega a `tel.colpo`), tempo nella finestra d'impatto (−1…+1, + anticipo), eccesso oltre la finestra, qualità, assistenza, fallito, in rete, tipo, punto di caduta nel riferimento di chi colpisce, volée |
-| `racchetta` | esito deterministico del colpo (docs/NATPF_RACCHETTA_VIRTUALE.md): chi, colpo voluto e giocato, forza, profondità voluta, piatto, tempo rispetto all'impatto, oltre la finestra, qualità, assistito, fallito (in rete o lungo), punto di rimbalzo, al volo, lato, voto |
+| `colpo.gioco` | esito del colpo a schermo (tempo, qualità, punto di rimbalzo, direzione incrociato/lungolinea/centro) e colpi della CPU. Con la racchetta virtuale l'esito del colpo è solo nell'evento `racchetta` (prima era ripetuto qui) |
+| `racchetta` | esito deterministico del colpo, unica registrazione (docs/NATPF_RACCHETTA_VIRTUALE.md): chi, numero del colpo del telefono (`n`, lo lega a `tel.colpo`), colpo voluto e giocato, forza, profondità voluta, piatto, tempo rispetto all'impatto in ms (`tempoMs`) e nella finestra della direzione (`tempo`, −1…+1, + anticipo), oltre la finestra (`oltre`), qualità, assistito, fallito (in rete o lungo), punto di rimbalzo nel riferimento di chi colpisce, al volo, lato, voto |
 | `piano` | piano d'intercetto del movimento automatico: rimbalzo (`ground`), volée, schiacciata al volo, palla lasciata andare (`letgo`), al limite (`stretch`); punto d'impatto, tempo, corsa |
 | `servizio` | servizio dal gesto: tipo (piatto, kick, slice), qualità, ritmo, ms dal punto più alto del lancio, punto di rimbalzo, km/h, voto |
 | `vuoto` | colpo a vuoto e il motivo: troppo presto, troppo tardi, palla fuori portata |
@@ -152,17 +152,20 @@ I campioni grezzi del telefono stanno in un file a parte, `telefono-sensori.json
 - `telefono`: sensori, colpi, tempi, orologio, collegamento, tipi;
 - `webcam`;
 - `gioco`, con il costo del registratore;
-- `colpi`: input, esiti, tempo, direzione; `racchetta`: tempo nella finestra d'impatto, colpi oltre la finestra,
-  falliti, in rete, assistiti, volée, qualità;
-- `racchetta` (eventi `racchetta`, `piano`, `servizio`, `vuoto`): colpi voluti e giocati, falliti, al volo, tempo e
-  qualità; ripetibilità per colpo voluto (mediana e scarto interquartile di forza, tempo, punto di rimbalzo, qualità; di
-  salita, piano e manico del gesto); piani d'intercetto, colpi a vuoto per motivo, servizi. In parte doppia di
-  `colpi.racchetta` e `ripetibilita` (le due sessioni del 22/10 le hanno fatte in parallelo): da tenerne una;
-- `riferimento`, solo nella prova guidata (anche `direzioneDalTempoPercento`);
+- `colpi`: input, esiti, tempo, direzione;
+- `racchetta` (eventi `racchetta`, `piano`, `servizio`, `vuoto`): colpi voluti e giocati, falliti (in rete o lunghi),
+  assistiti, al volo, tempo in ms e nella finestra della direzione (`tempoInFinestraPercento`, + anticipo), colpi oltre
+  la finestra (`oltreLaFinestraPercento`), qualità; piani d'intercetto, colpi a vuoto per motivo, servizi;
+- `riferimento`, solo nella prova guidata (anche `direzioneDalTempoPercento`, dal tempo degli eventi `racchetta`);
 - `ripetibilita`: per ogni colpo richiesto (o, senza prova guidata, per lato e tipo letti) quanto spesso il tipo letto è
-  lo stesso e quanto variano (p90 − p10) salita della testa, forza, tempo nella finestra e punto di caduta. Il modello
-  del colpo non ha caso: la variazione è di chi gioca e delle palle, ed è il riferimento per tarare le soglie;
+  lo stesso e quanto variano (p90 − p10) salita della testa, forza, tempo nella finestra, punto di caduta (x) e
+  profondità. Si parte dai gesti del telefono (`tel.colpo` con forma o intenzione) legati all'esito con il numero del
+  colpo; senza (telefono di prima, webcam) dagli esiti della racchetta, raggruppati per colpo voluto. Il modello del
+  colpo non ha caso: la variazione è di chi gioca e delle palle, ed è il riferimento per tarare le soglie;
 - `registrazione`.
+
+L'esito di ogni colpo della racchetta è registrato una volta sola, nell'evento `racchetta`. Fino al 22/10 era ripetuto
+in `colpo.gioco`, e le metriche avevano sia `colpi.racchetta` sia `racchetta.perColpo` oltre a `ripetibilita`.
 
 Per ogni distribuzione: quanti, media, mediana, p90, p99, massimo e jitter (p90 − p10).
 

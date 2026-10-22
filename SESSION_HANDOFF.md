@@ -34,10 +34,11 @@ tastiera come controlli nuovi.
   `bfd629c`.
 - **Fase 1 (diagnosi) finita.** È in `docs/NATPF_RACCHETTA_VIRTUALE.md` §2, problemi P1–P11 con evidenze marcate
   [dati], [codice], [ipotesi] e [insufficiente].
-- **Passi 1–14 fatti** (codice e test automatici). **Aperti** (passo 16): due prove della CI della pagina storica che
-  falliscono dopo l'unione (difetto 6), la partita intera col telefono della pagina storica (difetto 7), la presa del 19/10 (difetto 2), la forza degli swing corti (difetto 5), la
-  diagnostica in parte doppia. **Validazione fisica non fatta** (passo 15): in questo ambiente non ci sono telefono,
-  webcam né persone; procedura in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5.
+- **Passi 1–14 fatti** (codice e test automatici). **Passo 16 fatto nella fase B del passo 17** (difetti 5 e 7
+  risolti, difetto 6 non riprodotto, presa del 19/10 verificata e corretta per chi salta la calibrazione, diagnostica
+  con una sola registrazione). **Passo 17** (gameplay come il gioco di riferimento): fasi A e B fatte, C–E da fare.
+  **Validazione fisica non fatta** (passo 15): in questo ambiente non ci sono telefono, webcam né persone; procedura
+  in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5.
 - Dopo il checkpoint 10 (22/10, notte) il branch contiene anche l'ultimo commit della seconda sessione (`40d58b2`):
   salita abituale dalla calibrazione per la presa del 19/10 (da verificare nel browser, passo 16), telefono simulato
   con la forma, prova nel browser della presa del 19/10 a parte (`tools/e2e/natpf-phone-upright-19-10.mjs`). Node:
@@ -66,29 +67,25 @@ Fatto (codice e test automatici con sensori e mani simulati; nessuna prova con d
 - diagnostica con forma, intenzione ed esito dei colpi, ripetibilità, prova guidata con tagliati e palle corte;
 - 14 test obbligatori (tabella in `docs/NATPF_RACCHETTA_VIRTUALE.md` §3).
 
+Fatto nella fase B del passo 17 (22/10 notte; codice e test automatici, nessuna prova con dispositivi veri):
+- difetto 5, swing corti: forza dal picco vero dei campioni grezzi, riferimento grezzo dalla calibrazione;
+- diagnostica: l'esito della racchetta è registrato una volta sola (evento `racchetta`), la variazione tra colpi
+  uguali solo in `ripetibilita` (dai gesti o, senza, dagli esiti);
+- difetto 7 (`phone-cal.mjs`): cause nella prova, corrette; partita intera 17/17;
+- presa del 19/10: verificata con le tre prove nel browser; salita abituale imparata giocando per chi salta la
+  calibrazione;
+- difetto 6: non riprodotto (20/20 a macchina scarica).
+
 Non fatto o aperto:
-- **pagina storica `site/tennis`**: due prove della CI falliscono con il passo «fermo» nuovo del rilevatore (difetto 6);
-  nella partita intera di `phone-cal.mjs` il telefono non lancia e non colpisce (difetto 7, altra causa);
 - **validazione fisica** (passo 15);
-- **presa del video del 19/10** (difetto 2): i dritti con il polso che prona vengono letti come tagliati (prova del
-  telefono con i gesti di prima 7/10 anche sul branch unito, 10/10 prima del giro);
-- **forza degli swing corti** sottostimata (difetto 5);
-- **diagnostica doppia**: l'esito della racchetta e la ripetibilità sono registrati in due modi (eventi `racchetta`,
-  `piano`, `servizio`, `vuoto` e metrica `racchetta` della prima sessione; campo `colpo.gioco.racchetta`, metriche
-  `colpi.racchetta` e `ripetibilita` della seconda): funzionano entrambi, va tenuto uno solo;
+- presa del 19/10 con una calibrazione fatta senza la pronazione usata poi in partita: tagliati finché non si
+  ricalibra (difetto 2);
+- difetto 6: prova sotto carico;
 - il video di riferimento pubblico indicato nella richiesta non si scarica da qui (solo titolo e quattro immagini).
 
-Da fare, in ordine (passo 16, poi 15):
-1. difetto 6: trovare nel passo «fermo» nuovo di `swing-detect.js` (`settle`: gravità dai campioni «steady», deriva
-   sulla finestra, rumore come 90° percentile) cosa cambia il servizio a due gesti e i tempi della pagina storica, e
-   correggerlo tenendo la tolleranza al tremolio e «Salta» nel passo «fermo»; poi le prove della CI del sito;
-2. difetto 7: perché nella partita intera della pagina storica il telefono non lancia e non colpisce (`phone-cal.mjs`);
-3. presa del 19/10: riferimento personale per verso della salita della testa (dalla calibrazione e dai colpi normali),
-   poi la prova del telefono con i gesti di prima (`tools/e2e/natpf-phone-upright.mjs` com'era a `84ca878`) e con
-   quelli della racchetta simulata (quella di adesso);
-4. forza degli swing corti (picco senza media mobile, o compensato per la durata), con un test;
-5. diagnostica: tenere una sola versione dell'esito e della ripetibilità, aggiornando metriche, rapporto e test;
-6. validazione fisica (§5 del documento), poi tarare le soglie con i pacchetti della diagnostica.
+Da fare, in ordine: fasi C, D ed E del passo 17 (campo aperto e movimento; sincronia, animazioni e prospettive;
+tutte le prove, documenti e rapporto finale), poi la validazione fisica (§5 del documento) e la taratura delle
+soglie con i pacchetti della diagnostica.
 
 ## Unione dei due branch (22/10): cosa si è tenuto
 
@@ -137,32 +134,45 @@ Trovati confrontando il lavoro delle due sessioni e verificati qui; stato misura
    CI «gesture and calibration» passava 18/18 a `bfd629c`, si fermava al servizio sul branch della prima sessione
    (2 prove su 2); sul branch unito l'errore non c'è più, ma la prova si ferma
    più avanti per il difetto 6.
-2. **Presa del video del 19/10: aperto.** La prova del telefono com'era a `84ca878` (gesti sintetici con il polso che
-   prona) passa 10/10 a `bfd629c`, dava 7/10 sul codice della prima sessione e 7/10 anche sul branch unito: dritti
-   con il polso che ruota letti come tagliati, il gesto dal basso verso l'alto letto come tagliato invece che
-   pallonetto, mira dal piatto girato 1,2 m (la prova chiede più di 1,5 m; prima 3,9 m). L'intenzione nuova legge
-   salita e discesa con soglie fisse, senza il riferimento personale per verso che il modello di prima prendeva dalla
-   calibrazione e dai colpi normali. La prova attuale (gesti della racchetta simulata) passa 10/10: quale dei due
-   gesti somigli a quello vero lo dice solo il telefono vero (§5 del documento, passo 5).
+2. **Presa del video del 19/10: verificato e corretto per chi salta la calibrazione (fase B, 22/10 notte).** Sul branch
+   unito: prova del telefono coerente (`natpf-phone-upright-19-10.mjs`, calibrazione e partita con la stessa
+   pronazione) 10/10 con salita abituale −0,28; prova attuale con la racchetta simulata 10/10; prova di `84ca878` 7/10,
+   usata come riferimento diagnostico. Le sue tre verifiche fallite: (a) calibra senza pronazione e gioca con la
+   pronazione, quindi salita abituale 0 e dritti con la testa che scende di 0,27–0,40 letti come tagliati; (b) il suo
+   «pallonetto» inclina in avanti la cima del telefono, che per la racchetta virtuale è la testa che scende (−0,42): non
+   è un pallonetto; (c) il piatto sposta la palla di 1,2 m con ±25°, la prova chiedeva 1,5 m (tarata quando il piatto
+   valeva 3,9 m; per progetto pesa meno del tempo). Corretto il caso (a) quando la calibrazione manca: salita abituale
+   imparata giocando (`createRiseModel` in `natpf_phone_racket.js`, mediana degli ultimi colpi per verso, da tre colpi,
+   pallonetti e schiacciate esclusi); test nuovo in `natpf-racchetta.test.mjs` (18 combinazioni di inclinazione, polso
+   e lato: dal quarto colpo dritti e rovesci normali). Resta: chi calibra senza pronazione e gioca con la pronazione vede
+   tagliati finché non ricalibra con il proprio colpo.
 3. **Calibrazione entro 10 s con il tremolio (criterio di P9): risolto con l'unione** (due gesti, passo «fermo» sulla
    mediana). Con un tremolio di 25 °/s il passo «fermo» dura 0,65 s e la calibrazione circa 4,5 s; 0 prove su 24 oltre
    10 s con 0, 15, 20 e 25 °/s. Prima: 8,3 s con gesti perfetti, oltre 10 s in 4 prove su 6 con 25 °/s.
 4. **«Salta» durante il passo «fermo»: risolto con l'unione** (`det.finishStill`): il primo dritto dopo «Salta» parte
    (prova «Salta anche durante il passo fermo» in `natpf-racchetta.test.mjs`).
-5. **Swing corti: aperto.** La forza viene dal picco della media mobile, più basso del vero negli swing corti. A
-   1100 °/s: swing di 50° → 72% del picco (forza 0,49), 120° → 93% (forza 0,70); a 700 °/s 82% e 95%. Lo swing corto
-   perde forza oltre alla portata, che invece è voluta.
-6. **Pagina storica `site/tennis`, servizio e tempi: aperto** (dal commit `31d20b4` della seconda sessione, quindi anche
-   sul suo branch). Le prove della CI «gesture and calibration» (`tools/e2e/gesture-calibration.mjs`) e
-   «timing-browser» (`tools/e2e/timing-browser.mjs`) falliscono: nella prima il secondo gesto del servizio non colpisce
-   il lancio (nessun contatto entro 15 s), nella seconda il passo del Player 2 non arriva. Verificato sul branch unito:
-   rimettendo solo `site/js/tennis/swing-detect.js` com'era a `84ca878` passano 18/18 e 8/8; la causa è quindi nel passo
-   «fermo» nuovo del rilevatore (`feedStill`/`settle`), da trovare. Non è la calibrazione a due gesti: con quattro
-   gesti fallisce lo stesso.
-7. **Pagina storica, partita intera col telefono: aperto.** `tools/e2e/phone-cal.mjs` (fuori dalla CI: calibrazione,
-   prova libera, poi una partita giocata dal telefono simulato, fino a 10 minuti) arriva alla partita, ma il telefono
-   non lancia mai la palla al servizio e non colpisce («0 lanci», punti 0–0). Fallisce allo stesso modo anche con il
-   rilevatore di prima, quindi non è il difetto 6. Non verificato se fallisse già prima del giro del 22/10 (la prova a `bfd629c` è stata interrotta).
+5. **Swing corti: risolto nel codice (fase B).** Il telefono manda anche il picco dei campioni grezzi (vertice della
+   parabola sui tre campioni attorno al massimo, al massimo +15% sul campione: `vr` nel messaggio); la calibrazione ne
+   impara il riferimento (`rawRef`) e la forza usa quello; la profondità voluta dipende per l'80% dalla forza e per il
+   20% dall'ampiezza (prima 55/45). Test in `natpf-racchetta.test.mjs` («swing corti (difetto 5)»: a 700 e 1100 °/s
+   swing di 90° e 150° con forza entro 0,05) e nel motore. Prima: a 1100 °/s, 50° → 72% del picco (forza 0,49), 120° →
+   93% (0,70).
+6. **Pagina storica `site/tennis`, servizio e tempi: non riprodotto (fase B).** «gesture and calibration» e
+   «timing-browser» passano 20 volte su 20 (5 per prova e per rilevatore, quello attuale e quello di `84ca878` nella
+   stessa copia del branch), a macchina scarica; il rilevatore è lo stesso dei fallimenti visti dopo l'unione. Ipotesi:
+   carico della macchina (prove nel browser con la grafica software, allora lanciate insieme ad altre). Prova sotto
+   carico: vedi la fase B del passo 17. La CI automatica del repository non gira sui branch `claude/*` (solo su due branch
+   e sulle richieste di unione verso `main`): le prove si fanno qui con `full-ci` (elenco nel passo 17).
+7. **Pagina storica, partita intera col telefono: risolto (fase B), le cause erano nella prova.**
+   `tools/e2e/phone-cal.mjs` (fuori dalla CI) ora passa 17/17 e gioca la partita fino alla fine (punti 4–6, 10 lanci,
+   13 colpi). Cause trovate con una copia strumentata della prova:
+   - il controllo «mouse e tastiera non producono input» metteva `controls.enabled = false` e non lo rimetteva: da lì
+     `controls.phoneSwing` scartava ogni colpo del telefono (prova `1315ee9` e filtro `d1d5015`, entrambi del 15/10);
+   - il robot programmava il gesto come se la partita andasse in tempo reale; con la grafica software i fotogrammi
+     superano 0,1 s e il tempo della partita va più piano (un passo al massimo 0,1 s), quindi il colpo arrivava anche un
+     secondo prima del colmo del lancio, che ricadeva e ripartiva al gesto dopo. Ora il robot misura la velocità della
+     partita e fa partire il gesto quando mancano i 110 ms veri che servono al picco;
+   - il lancio non si riprovava se il primo gesto andava perso: ora si riprova dopo 1,5 s.
 
 ## Prossimi passi (in ordine)
 
@@ -252,17 +262,17 @@ Trovati confrontando il lavoro delle due sessioni e verificati qui; stato misura
     prova fisica); build; zip Cloudflare e LAN estratti e provati (fuori dal repository, prima dell'unione).
 15. [ ] **Validazione fisica** con telefono, webcam e persone vere: `docs/NATPF_RACCHETTA_VIRTUALE.md` §5. Nessuna
     verifica fisica è stata fatta.
-16. [ ] **Aperti** (si possono fare qui, prima del passo 15): pagina storica (difetti 6 e 7), presa del 19/10 (difetto 2),
-    forza degli swing corti (difetto 5), diagnostica doppia (passo 12). Dopo ogni correzione: tutte le prove, comprese
-    quelle della CI della pagina storica (`.github/workflows/natpf-simulator-tests.yml`) e la prova del telefono con i
-    gesti della presa del 19/10.
+16. [x] **Aperti del 22/10** (fatti nella fase B del passo 17): pagina storica (difetto 7 risolto, difetto 6 non
+    riprodotto), presa del 19/10 (difetto 2, verificata; corretta per chi salta la calibrazione), forza degli swing corti
+    (difetto 5), diagnostica doppia (una sola registrazione).
 17. [ ] **Richiesta del 22/10 notte: gameplay come il gioco di riferimento** (benchmark vincolante; nome verificato,
     uscito il 22/10/2026; confronto e cause in `docs/NATPF_RACCHETTA_VIRTUALE.md` §6). Fasi, in ordine:
     - A [x] riferimento verificato, matrice di confronto, audit della mira e del movimento (`npm run audit:rally --
       --campo`: base del 22/10 notte, verso la rete dopo il 56–89% dei colpi, profondità dei colpi normali 8,45–10,9 m,
       direzione satura oltre 0,15–0,2 s di anticipo);
-    - B [ ] passo 16 (difetti 6 e 7, presa del 19/10 da verificare con le due prove nel browser, swing corti,
-      diagnostica doppia);
+    - B [x] passo 16: difetti 5 e 7 risolti, difetto 6 non riprodotto (20/20), presa del 19/10 verificata con le tre
+      prove nel browser (attuale 10/10, coerente 10/10, `84ca878` 7/10 spiegata) e salita abituale imparata giocando,
+      diagnostica con una sola registrazione. CI completa: `tools/test` 135/135, `npm test` 281/281; CI del sito in locale: telefono 10/10, tempi 8/8, gesto e calibrazione 18/18, grafica 9/9, pacchetto ridotto 5/5, 6/6 e 10/10, LAN in Node 4/4, nel browser 3/3 e 7/8 (limite noto del contenitore), pacchetti creati; motore base nel browser: diagnostica 24/24, allenamento 13/13, risposta al gesto 9/9, presa verticale 10/10, presa del 19/10 10/10, menu 22/22, ricollegamento 6/6, rete che cade 6/6; partita intera della pagina storica (`phone-cal.mjs`) 17/17;
     - C [ ] campo aperto (mappa continua del tempo su tutta la finestra, angolo dalla posizione di chi colpisce,
       profondità su tutto il campo) e movimento (recupero verso il fondo secondo il tempo disponibile, avanti solo per
       le palle corte), con i test di continuità, copertura, ripetibilità, profondità, fuori e in rete, assistenza;
@@ -278,10 +288,18 @@ Trovati confrontando il lavoro delle due sessioni e verificati qui; stato misura
 3. Lo ZIP della sessione reale non è nel repository (contiene il video della webcam). Per rifare le analisi, estrarlo
    in una cartella vuota fuori dal repository e passare quella cartella agli script.
 4. Test: `cd natpf-tennis && npm test`; `node --test tools/test/*.test.mjs` dalla root. Il passo in corso è il passo
-   16, a partire dal difetto 6.
+   17, fase C (campo aperto e movimento).
 5. Prove nel browser (`tools/e2e`, dopo `npm ci` lì): in questo ambiente il browser delle prove va indicato con
    `CHROMIUM_PATH=/opt/pw-browsers/chromium` (per esempio `CHROMIUM_PATH=/opt/pw-browsers/chromium node
    natpf-training-flow.mjs`); le prove della CI della pagina storica dalla root con `node tools/e2e/run-local.mjs
    <prova>.mjs` (elenco in `.github/workflows/natpf-simulator-tests.yml`). Il browser usa la grafica software: una
-   prova che fallisce una volta va ripetuta prima di concludere. `phone-cal.mjs` gioca una partita intera (fino a
-   10 minuti): serve un limite di tempo più lungo.
+   prova che fallisce una volta va ripetuta prima di concludere, e le prove nel browser vanno lanciate una alla volta
+   (insieme rallentano e falliscono per i tempi). `phone-cal.mjs` gioca una partita intera (fino a 10 minuti): serve un
+   limite di tempo più lungo.
+6. La CI automatica (`.github/workflows/natpf-simulator-tests.yml`) non parte sui branch `claude/*`: la «CI completa del
+   sito» si fa qui, in sequenza: `node --test tools/test/*.test.mjs`; il controllo di sintassi dei moduli elencati nel
+   file; `node tools/e2e/run-local.mjs phone-only.mjs timing-browser.mjs`; `… gesture-calibration.mjs`; `…
+   arcade-visuals.mjs`; il pacchetto `python3 tools/package-natpf.py --out=…` e `NATPF_SITE_ROOT=…/static node
+   tools/e2e/run-local.mjs intuitive-contact.mjs quick-phone-ui.mjs phone-only.mjs`; `node --test
+   tools/lan/test/setup.test.mjs`, `node tools/e2e/lan-setup-browser.mjs`, `node tools/e2e/lan-browser.mjs`. Poi le
+   prove del motore base (`natpf-*.mjs` in `tools/e2e`).

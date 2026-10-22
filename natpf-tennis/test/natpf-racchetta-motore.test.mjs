@@ -282,13 +282,12 @@ test('scambi che finiscono e dinamici: nessuno scambio infinito; volée, palle l
   assert.ok(all.shots.SMASH > 0 && all.shots.SLICE > 0 && all.shots.LOB > 0 && all.plans.smash > 0, JSON.stringify(all));
 });
 
-test('swing corto e ampio nel motore: alla stessa forza il colpo corto rimbalza più vicino alla rete', () => {
-  // profondità voluta = forza × (0,55 + 0,45 × ampiezza): swing di 35° (ampiezza 0,07) e di 100° (1)
+test('swing corto e ampio nel motore: alla stessa forza il colpo corto rimbalza un poco più vicino alla rete', () => {
+  // profondità voluta = forza × (0,8 + 0,2 × ampiezza): swing di 35° (ampiezza 0,07) e di 100° (1)
   const run = depth => withEngine('casual', e => { cpuShot(e, { to: [1.2, 8.6] }); return play(e, [{ lead: .02, swing: phoneSwing({ shot: 'topspin', power: .6, depth }) }]); });
-  const short = run(.6*(.55 + .45*.07)), wide = run(.6);
+  const short = run(.6*(.8 + .2*.07)), wide = run(.6);
   assert.ok(short.hit && wide.hit);
-  // con forza 0,6: circa 0,9 m più corto (8,3 m contro 9,2 m dalla rete); con forza piena la differenza cresce
-  assert.ok(Math.abs(short.landing.z) < Math.abs(wide.landing.z) - .6, `corto ${short.landing.z}, ampio ${wide.landing.z}`);
+  assert.ok(Math.abs(short.landing.z) < Math.abs(wide.landing.z) - .2, `corto ${short.landing.z}, ampio ${wide.landing.z}`);
 });
 
 test('diagnostica: esito, piano, servizio e colpi a vuoto nel registro; ripetibilità nelle metriche; rapporto valido', async t => {
@@ -322,7 +321,9 @@ test('diagnostica: esito, piano, servizio e colpi a vuoto nel registro; ripetibi
     assert.equal(sv.length, 1); assert.equal(sv[0].chi, 'giocatore'); assert.ok(sv[0].qualita > .9, JSON.stringify(sv[0]));
     const m = computeMetrics(ev).racchetta;
     assert.equal(m.colpi, 3); assert.deepEqual(m.voluti, { topspin: 3 });
-    assert.equal(m.perColpo.topspin.x.iqr, 0);      // stesso gesto, stesso esito
+    // stesso gesto, stesso esito: nessuna variazione del punto di caduta tra i tre colpi (senza gesti del telefono i
+    // gruppi della ripetibilità sono i tipi voluti)
+    assert.equal(computeMetrics(ev).ripetibilita.gruppi.topspin.x, 0); assert.equal(computeMetrics(ev).ripetibilita.gruppi.topspin.profondita, 0);
     assert.deepEqual(m.vuoti, { presto: 1 }); assert.equal(m.servizi.n, 1);
     // la pagina del rapporto: lo script si legge (nessun apice che chiude una stringa)
     const html = viewerHtml({ meta: { id }, metrics: computeMetrics(ev), events: ev });

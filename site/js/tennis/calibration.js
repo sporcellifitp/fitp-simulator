@@ -155,7 +155,7 @@ export function createCalibration(det){
       dir = v > 0 ? 'L' : v < 0 ? 'R' : along == null ? '?' : along > .3 ? 'L' : along < -.3 ? 'R' : '?';
     }
     const ok = !small && dir === want;
-    const a = { want, dir, peak: sw.peak, lift: sw.lift, axis: sw.axis, gravity: sw.gravity, angle: sw.angle || 6, features: sw.features, dur: sw.dur, ok, small, face: sw.face || null, head: Number.isFinite(sw.head) ? sw.head : null, rise: Number.isFinite(sw.shape?.rise) ? sw.shape.rise : null, preparations: group.filter(x => !x.back && x.peakT < sw.peakT && dot(x.axis, sw.axis) < -.3).map(x => ({ peak: x.peak, axis: x.axis })) };
+    const a = { want, dir, peak: sw.peak, lift: sw.lift, axis: sw.axis, gravity: sw.gravity, angle: sw.angle || 6, features: sw.features, dur: sw.dur, ok, small, face: sw.face || null, head: Number.isFinite(sw.head) ? sw.head : null, rise: Number.isFinite(sw.shape?.rise) ? sw.shape.rise : null, rawPeak: Number.isFinite(sw.rawPeak) ? sw.rawPeak : null, preparations: group.filter(x => !x.back && x.peakT < sw.peakT && dot(x.axis, sw.axis) < -.3).map(x => ({ peak: x.peak, axis: x.axis })) };
     S.attempts.push(a);
     if (ok){
       // asse aggiornato con tutti gli swing riusciti (con il loro segno)
@@ -197,6 +197,8 @@ export function createCalibration(det){
     S.profile = pass ? {
       version: S.options.quick ? 4 : S.options.gestural ? 3 : 2, automaticGesture: S.options.quick, ...S.options, bias: det.profile.bias, noise: det.profile.noise, gravity: det.profile.gravity, axis: S.axis, ref: Math.max(60, median(ok.map(a => a.peak))),
       refs: { 1: medL, '-1': medR }, refAngle: Math.max(2, median(ok.map(a => a.angle))),
+      // colpo tipico con la velocità vera al picco (rawPeak): la forza sul computer si misura così, anche negli swing corti
+      ...(ok.length && ok.every(a => Number.isFinite(a.rawPeak)) ? { rawRef: Math.max(60, median(ok.map(a => a.rawPeak))) } : {}),
       preparation: Object.fromEntries([1, -1].map(dir => [dir, Math.max(0, ...ok.flatMap(a => a.preparations).filter(a => dot(a.axis, S.axis)*dir > .5).map(a => a.peak))])),
       minAngles: { 1: Math.max(2, median(okL.map(a => a.angle))*.25), '-1': Math.max(2, median(okR.map(a => a.angle))*.25) },
       on: clamp(.22*base, 22, 180), minPeak: clamp(.36*base, 35, 300), minAngle: S.options.range === 'compact' ? 2.5 : 5,

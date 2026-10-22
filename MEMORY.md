@@ -3,33 +3,31 @@
 Memoria di lavoro del progetto: da leggere all'inizio di ogni sessione e da aggiornare alla fine di ogni attività.
 Non contiene password, token o altri segreti.
 
-Ultimo aggiornamento: 22 ottobre 2026 (racchetta virtuale; unione dei due branch del giorno) · **branch unico**
+Ultimo aggiornamento: 22 ottobre 2026, notte (racchetta virtuale; unione dei due branch; passo 17 fasi A e B) · **branch unico**
 `claude/friendly-fermat-dwv2w2` (ripartito da `feature/natpf-tennis-v2`, che contiene tutto il lavoro precedente; i
 branch `backup/*` e gli altri `feature/natpf-*` sono già inclusi; il 22/10 vi è stato unito
 `claude/determined-tesla-8dgaks`). Stato per chi riprende: §0.
 
-## 0. Per chi riprende (22/10, sera)
+## 0. Per chi riprende (22/10, notte)
 
 - **Un solo branch: `claude/friendly-fermat-dwv2w2`.** Contiene il lavoro delle due sessioni del 22/10: la seconda,
-  su `claude/determined-tesla-8dgaks`, è stata unita qui con un merge. Non si lavora più su altri branch; commit nuovi
-  fatti altrove vanno portati qui con un merge (mai reset né force push).
-- **Fatto** (codice e test automatici, con sensori e mani simulati): la racchetta virtuale ai passi 1–14 di
-  `SESSION_HANDOFF.md`: diagnosi della sessione reale, mano unica, verso del gesto, forma del colpo, intenzione ed
-  esito senza caso, finestra d'impatto, volée e schiacciate, servizio dal gesto, Player 2 del 1v1, Leggenda,
-  calibrazione rapida con due gesti tollerante al tremolio, «Salta» anche nel passo «fermo», webcam con un solo
-  soggetto, diagnostica, 14 test obbligatori. Prove sul branch unito: `npm test` 276/276, `tools/test` 135/135, prove
-  del gioco nel browser tutte superate (LAN 7/8 per il limite noto del contenitore).
+  su `claude/determined-tesla-8dgaks`, è stata unita qui con un merge (anche l'ultimo commit `40d58b2`, nel
+  checkpoint 10). Non si lavora più su altri branch; commit nuovi fatti altrove vanno portati qui con un merge (mai
+  reset né force push). La CI automatica del repository non parte sui branch `claude/*`: la CI del sito si fa in locale
+  (`SESSION_HANDOFF.md`, «Come riprendere»).
+- **Richiesta in corso (22/10 notte): gameplay il più vicino possibile al tennis del gioco di riferimento indicato
+  dall'utente** (benchmark vincolante; nome verificato; confronto e cause in `docs/NATPF_RACCHETTA_VIRTUALE.md` §6;
+  il nome del gioco non va nei file, regola di marchio). Passo 17 di `SESSION_HANDOFF.md`, fasi A–E.
+- **Fatto** (codice e test automatici, con sensori e mani simulati): la racchetta virtuale ai passi 1–14; fase A
+  (riferimento, audit della mira e del movimento); fase B: forza degli swing corti dal picco vero, diagnostica con una
+  sola registrazione dell'esito, partita intera col telefono della pagina storica (cause nella prova, 17/17), prove
+  della CI della pagina storica 20/20 (difetto 6 non riprodotto), presa del 19/10 verificata e salita abituale imparata
+  giocando per chi salta la calibrazione.
 - **Non fatto o aperto**:
-  - due prove della CI della pagina storica (`gesture-calibration`, `timing-browser`) falliscono per il passo «fermo»
-    nuovo di `swing-detect.js` (con quello di prima passano: difetto 6 di `SESSION_HANDOFF.md`); la prova lunga
-    `phone-cal.mjs` (fuori dalla CI) fallisce per un'altra causa (difetto 7);
+  - fasi C (campo aperto continuo e movimento automatico contestuale), D (sincronia, animazioni, prospettive), E
+    (prove, documenti, rapporto);
   - validazione fisica con telefono, webcam e persone vere (procedura in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5);
-  - presa del video del 19/10: i dritti con il polso che prona vengono letti come tagliati (prova del telefono con i gesti di prima 7/10, prima del giro 10/10);
-  - forza sottostimata negli swing corti;
-  - diagnostica con l'esito e la ripetibilità registrati in due modi (da tenerne uno).
-- **Da fare, in ordine**: difetti 6 e 7, presa del 19/10, swing corti, diagnostica doppia (passo 16 di
-  `SESSION_HANDOFF.md`, con misure e indicazioni), poi la validazione fisica (passo 15). Le scelte fatte nell'unione
-  dei due branch sono in `SESSION_HANDOFF.md`, la cronologia in `WORKLOG.md` (checkpoint 9).
+  - chi calibra senza la pronazione che usa poi in partita vede tagliati finché non ricalibra.
 
 ## 1. Descrizione
 
@@ -419,11 +417,12 @@ Quinto giro (21/10: app nativa e Bluetooth, modalità diagnostica, migliorie gi�
 
 ## 11. Prossimi passi
 
-Prima di tutto: i **punti aperti della racchetta virtuale** (§0 e passo 16 di `SESSION_HANDOFF.md`, con le misure):
-pagina storica (due prove della CI falliscono con il passo «fermo» nuovo del rilevatore; la partita intera col
-telefono di `phone-cal.mjs` fallisce per un'altra causa), presa del 19/10, forza degli swing corti, diagnostica in parte
-doppia. Risolti dall'unione dei due branch del 22/10: errore sull'evento `hand`, calibrazione oltre 10 s con il
-tremolio, «Salta» nel passo «fermo».
+Prima di tutto: il **passo 17 di `SESSION_HANDOFF.md`** (gameplay come il gioco di riferimento), fasi C–E: campo
+aperto continuo e movimento automatico contestuale, sincronia e animazioni, prove e rapporto. I punti aperti del passo
+16 sono stati chiusi nella fase B (22/10 notte): partita intera di `phone-cal.mjs` (cause nella prova), forza degli
+swing corti, diagnostica con una sola registrazione, presa del 19/10 verificata; le due prove della CI della pagina
+storica passano 20/20 (non riprodotto). Risolti prima, dall'unione dei due branch: errore sull'evento `hand`,
+calibrazione oltre 10 s con il tremolio, «Salta» nel passo «fermo».
 
 0. **Validazione fisica della racchetta virtuale** (22/10): procedura in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5 (telefono
    Android e iPhone, webcam, più persone, prova guidata con il video), poi tarare le soglie del §4.3 con i pacchetti.
@@ -463,6 +462,7 @@ tremolio, «Salta» nel passo «fermo».
   verificato), estratti e provati. Validazione fisica non eseguita (§4.3 del documento). Verifica successiva (22/10):
   la prova della CI «gesture and calibration» della pagina storica fallisce (evento `hand`), la prova del telefono con
   i gesti della presa del 19/10 fa 7/10 (10/10 prima del giro): `SESSION_HANDOFF.md`, «Difetti verificati».
+- Fase B del passo 17 (22/10, notte): `tools/test` 135/135, `npm test` 281/281; CI del sito in locale: telefono 10/10, tempi 8/8, gesto e calibrazione 18/18, grafica 9/9, pacchetto ridotto 5/5, 6/6 e 10/10, LAN in Node 4/4, nel browser 3/3 e 7/8 (limite noto del contenitore), pacchetti creati; motore base nel browser: diagnostica 24/24, allenamento 13/13, risposta al gesto 9/9, presa verticale 10/10, presa del 19/10 10/10, menu 22/22, ricollegamento 6/6, rete che cade 6/6; partita intera della pagina storica (`phone-cal.mjs`) 17/17. Difetto 6 non riprodotto (20/20).
 - Branch unito (22/10, sera, dopo il merge della seconda sessione): `npm test` **276**/276, `tools/test` 135/135; nel
   browser telefono 10/10, allenamento 13/13, risposta al gesto 9/9, ricollegamento 6/6, rete che cade 6/6, menu 22/22,
   1v1 18/18, diagnostica 24/24, LAN 7/8 (limite noto); CI della pagina storica: telefono 10/10, grafica 9/9, pacchetto

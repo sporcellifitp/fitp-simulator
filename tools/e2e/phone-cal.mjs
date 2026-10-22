@@ -55,33 +55,45 @@ await ph.screenshot({ path: SP + '/pc-phone-ready.png' });
 await d.click('#pairGo');
 await d.waitForFunction(() => __racchetta.state === 'play');
 const desktopInput = await d.evaluate(() => {
-  const c = __racchetta.controls, canvas = document.querySelector('#app canvas');
+  // i comandi sono già attivi in partita: si provano attivi e si lasciano come erano (prima restavano spenti, e la
+  // partita dopo non riceveva più i colpi del telefono: «0 lanci», punti 0–0)
+  const c = __racchetta.controls, canvas = document.querySelector('#app canvas'), was = c.enabled;
   c.enabled = true;
   canvas.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', button: 0, clientX: 400, clientY: 260 }));
   window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, code: 'Space' }));
-  const v = c.read(); c.enabled = false;
+  const v = c.read(); c.enabled = was;
   return { swings: v.swings.length, moveX: v.move.x, moveY: v.move.y };
 });
 check('mouse e tastiera non producono input di gioco', desktopInput.swings === 0 && desktopInput.moveX === 0 && desktopInput.moveY === 0, JSON.stringify(desktopInput));
 await d.evaluate(() => { const c = __racchetta.core; c.score.server = 0; c.setupPoint(); });   // il primo servizio è del telefono
 check('partita avviata con il telefono, giocatore che si muove da solo', await d.evaluate(() => document.querySelector('#chip').classList.contains('ok')), await d.textContent('#chip'));
-// il robot fa partire il movimento sul telefono in modo che il picco cada quando la palla arriva (+ errore umano 50 ms)
+// il robot fa partire il movimento sul telefono in modo che il picco cada quando la palla arriva (+ errore umano 50 ms).
+// Nel browser di prova il gioco disegna con la grafica software: con fotogrammi oltre 0,1 s il tempo della partita va
+// più piano dell'orologio (un passo al massimo 0,1 s). Il robot misura quanto va veloce e fa partire il gesto quando al
+// momento giusto mancano i 110 ms veri che il gesto impiega ad arrivare al picco; prima lo programmava come se la partita
+// andasse in tempo reale, e il colpo arrivava anche un secondo prima (lancio ripreso, «0 lanci» o nessun colpo)
 await d.evaluate(() => { window.__ev = { contact: [], miss: [], points: [0, 0], toss: 0 };
   setInterval(() => { const c = __racchetta.core; if (!c || c.__w) return; c.__w = 1; const u = c.update.bind(c); c.update = (dt, inp) => { const ev = u(dt, inp); for (const e of ev){ if (e.type === 'contact' && e.player === 'me') __ev.contact.push(e.label + (e.serve ? '·servizio' : '') + ' ' + Math.round(e.timing*1000)); if (e.type === 'miss' && e.player === 'me') __ev.miss.push(e.why); if (e.type === 'point') __ev.points[e.team]++; if (e.type === 'toss') __ev.toss++; } return ev; }; }, 30); });
 const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
-const t0 = Date.now(); let end = false, lastTc = null, lastToss = null;
+const APEX = 5.1/9.81, PEAK_MS = 110;   // colmo del lancio (s dopo il lancio); ms dall'inizio del gesto al picco
+const t0 = Date.now(); let end = false, lastTc = null, lastToss = null, tossSentAt = 0, rate = 1, prev = null, err = 0;
+const fire = (axis, peak) => ph.evaluate(([a, p]) => { __motion.swing({ axis: a, peak: p }); }, [axis, peak]);
 while (Date.now() - t0 < 600000){
   const s = await d.evaluate(() => { const A = __racchetta.A, c = A.core; if (!c || A.state !== 'play') return { st: A.state };
-    const h = c.players[0]; return { st: A.state, ph: c.phase, srv: c.serverP === h, toss: c.toss && c.toss.t0, tc: h.inc && !h.done ? h.inc.Tc : null, ct: c.t, ft: A.frameT, clock: A.link.clock }; });
+    const h = c.players[0]; return { st: A.state, ph: c.phase, srv: c.serverP === h, toss: c.toss && c.toss.t0, tc: h.inc && !h.done ? h.inc.Tc : null, ct: c.t, ft: A.frameT }; });
   if (s.st === 'end'){ end = true; break; }
-  if (s.st === 'play' && s.clock){
-    const toPhone = tc => s.ft + (tc - s.ct)*1000 + s.clock.off;
-    if (s.ph === 'serve' && s.srv && !s.toss && lastToss !== 'sent'){ lastToss = 'sent'; await ph.evaluate(() => __motion.swing({ axis: [0, 1, 0], peak: 500 })); }
-    else if (s.ph === 'serve' && s.toss && lastToss !== s.toss){ lastToss = s.toss; const tgt = toPhone(s.toss + 5.1/9.81) + gauss()*50; ph.evaluate(t => new Promise(r => setTimeout(() => __motion.swing({ axis: [0, 1, 0], peak: 800 }).then(r), Math.max(0, t - 110 - performance.now()))), tgt); }
-    else if (s.ph !== 'serve') lastToss = null;
-    if (s.ph === 'live' && s.tc && s.tc !== lastTc && s.tc - s.ct < .6){ lastTc = s.tc; const tgt = toPhone(s.tc) + gauss()*50; ph.evaluate(t => new Promise(r => setTimeout(() => __motion.swing({ axis: Math.random() < .5 ? [0, 1, 0] : [0, -1, 0], peak: 500 + Math.random()*600 }).then(r), Math.max(0, t - 110 - performance.now()))), tgt); }
+  if (s.st === 'play'){
+    // velocità della partita rispetto all'orologio (media mobile tra due fotogrammi diversi)
+    if (prev && s.ft > prev.ft + 1 && s.ct >= prev.ct) rate = rate*.7 + .3*Math.max(.05, Math.min(1.5, (s.ct - prev.ct)/((s.ft - prev.ft)/1000)));
+    if (!prev || s.ft > prev.ft + 1) prev = { ct: s.ct, ft: s.ft };
+    const lead = PEAK_MS/1000*rate;   // tempo della partita che passa mentre il gesto arriva al picco
+    // lancio: se il gesto non lancia (perso, o il telefono non era ancora al servizio) si riprova dopo 1,5 s, come chi gioca
+    if (s.ph === 'serve' && s.srv && !s.toss && (lastToss !== 'sent' || Date.now() - tossSentAt > 1500)){ lastToss = 'sent'; tossSentAt = Date.now(); err = gauss()*.05; await ph.evaluate(() => __motion.swing({ axis: [0, 1, 0], peak: 500 })); }
+    else if (s.ph === 'serve' && s.toss && lastToss !== s.toss && s.toss + APEX + err*rate - s.ct <= lead){ lastToss = s.toss; err = gauss()*.05; await fire([0, 1, 0], 800); }
+    else if (s.ph !== 'serve' && lastToss !== null){ lastToss = null; }
+    if (s.ph === 'live' && s.tc && s.tc !== lastTc && s.tc + err*rate - s.ct <= lead){ lastTc = s.tc; err = gauss()*.05; await fire(Math.random() < .5 ? [0, 1, 0] : [0, -1, 0], 500 + Math.random()*600); }
   }
-  await d.waitForTimeout(20);
+  await d.waitForTimeout(15);
 }
 const ev = await d.evaluate(() => __ev);
 await d.screenshot({ path: SP + '/pc-end.png' });

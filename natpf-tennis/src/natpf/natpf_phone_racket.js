@@ -73,6 +73,22 @@ export const NORMAL_SHOTS = new Set(['topspin', 'flat']);
 // salita abituale della testa della racchetta nel verso del colpo (+1/−1), dai gesti della calibrazione
 // (profile.rises); null con il profilo semplice («Salta»), senza dati o con il verso 0
 export const riseRefOf = (profile, dir) => (profile && !profile.simple && (dir === 1 || dir === -1) && Number.isFinite(profile.rises?.[dir]) ? profile.rises[dir] : null);
+// Salita abituale imparata giocando, per verso, quando la calibrazione non la dà («Salta», profili di prima): mediana
+// degli ultimi colpi dello scambio in quel verso, pallonetti e schiacciate esclusi, da tre colpi in poi. Senza, chi
+// tiene il telefono in verticale con il polso che prona (presa del 19/10) e salta la calibrazione vedeva i dritti
+// diventare tagliati per tutta la partita. Come quella della calibrazione sposta le soglie dei colpi speciali solo per
+// renderli più difficili (classifyStroke): con molti tagliati voluti i tagliati diventano più difficili, mai più facili
+export const RISE_LEARN = Object.freeze({ min: 3, keep: 9, skip: Object.freeze(['lob', 'smash']) });
+export function createRiseModel({ min = RISE_LEARN.min, keep = RISE_LEARN.keep } = {}){
+  const seen = { 1: [], '-1': [] };
+  return {
+    reset(){ seen[1] = []; seen[-1] = []; },
+    add(dir, rise, shot){ if ((dir === 1 || dir === -1) && Number.isFinite(rise) && !RISE_LEARN.skip.includes(shot)){ const h = seen[dir]; h.push(rise); if (h.length > keep) h.shift(); } },
+    ref(dir){ const h = seen[dir]; if (!h || h.length < min) return null; const v = [...h].sort((a, b) => a - b), m = v.length >> 1; return +(v.length % 2 ? v[m] : (v[m - 1] + v[m])/2).toFixed(3); },
+  };
+}
+// salita abituale per il colpo: quella della calibrazione, altrimenti quella imparata giocando (o null)
+export const habitualRise = (profile, dir, model = null) => riseRefOf(profile, dir) ?? model?.ref(dir) ?? null;
 const finiteOr = (v, d = 0) => (Number.isFinite(v) ? v : d);
 // ritardo dello schermo (ms) salvato su questo computer: 0 finché non lo si misura (pannello della diagnostica)
 export const DISPLAY_LAG_KEY = 'natpf.displayLagMs';
@@ -82,7 +98,7 @@ function readSpecials(){ try { return JSON.parse(localStorage.getItem(SPECIALS_K
 function writeSpecials(v){ try { localStorage.setItem(SPECIALS_KEY, JSON.stringify(v)); } catch {} }
 // displayLag (s): ritardo dello schermo misurato (impostazione della diagnostica, 0 se non misurato). Chi gioca colpisce
 // la palla che vede: con uno schermo in ritardo ogni colpo risulterebbe in ritardo di altrettanto
-export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaseline = 0, headBaseline = 0, faceCenter = null, aimModel = null, personal = null, now = null, prep = null, prepCapable = false, ballHigh = false, displayLag = 0, ref = null, riseRef = null } = {}){
+export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaseline = 0, headBaseline = 0, faceCenter = null, aimModel = null, personal = null, now = null, prep = null, prepCapable = false, ballHigh = false, displayLag = 0, ref = null, rawRef = null, riseRef = null } = {}){
   const flat = !!s.face && Number.isFinite(s.face.yaw) && (s.grip === 'flat' || grip === 'flat');
   if (flat) return faceSwingToEngine(s, { hand });
   const dirX = Math.max(-1, Math.min(1, gestureAim(s)));
@@ -107,7 +123,7 @@ export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaselin
   const heading = aimModel && Number.isFinite(s.heading) ? aimModel.aim(s.dir || 0, s.heading) : null;
   // telefoni con la forma del colpo (stroke-shape.js): intenzione dalla forma (natpf_stroke_intent.js), deterministica;
   // il motore aggiunge tempo ed esecuzione all'impatto (natpf_stroke_outcome.js). Senza forma, la tabella di prima.
-  const intent = chosen ? null : strokeIntent(s, { ref, ballHigh, headingDev: heading?.dev ?? null, riseRef });
+  const intent = chosen ? null : strokeIntent(s, { ref, rawRef, ballHigh, headingDev: heading?.dev ?? null, riseRef });
   const cls = chosen ? { shot: chosen, why: ['scelto sul telefono'] } : intent ? { shot: intent.shot, conf: intent.conf, why: intent.why } : classifyPhoneShot({ dir: s.dir || 0, vert: s.vert || null, lift, liftBaseline, head, headBaseline, personal, facePitch: face ? face.pitch : null, power, speed: Number.isFinite(s.speed) ? s.speed : null, ballHigh });
   const shot = cls.shot;
   const faceAim = heading ? heading.aim : face ? face.aim : null, faceUnreliable = heading ? heading.aim == null : !!face && !Number.isFinite(face.aim);
@@ -235,6 +251,7 @@ export class NatpfPhoneRacket {
     this.faceModel = createFaceModel();  // piatto abituale per verso del colpo (mira = scarto da questo)
     this.aimModel = createAimModel();    // direzione abituale del piatto all'impatto (mira dei telefoni aggiornati)
     this.headModel = createLiftModel(0); // verso verticale abituale del piatto che colpisce, per verso del colpo
+    this.riseModel = createRiseModel();  // salita abituale imparata giocando, se la calibrazione non la dà
     // pallonetto e palla corta di chi gioca, imparati negli esercizi del riscaldamento (si azzerano con una nuova calibrazione)
     this.specialSamples = readSpecials(); this.personal = learnSpecials(this.specialSamples);
     this.calListeners = new Set();
@@ -317,7 +334,7 @@ export class NatpfPhoneRacket {
     c.idle = e.kind === 'idle';
     if (e.kind === 'review'){ c.review = e; c.freeOk = false; if (e.pass) this.link.cmd('free'); }   // prova libera, poi conferma
     if (e.kind === 'free' && e.ok) c.freeOk = true;
-    if (e.kind === 'done'){ c.step = 'done'; this.profile = e.profile || null; this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline; this.liftModel.reset(this.liftBaseline); this.faceModel.reset(); this.aimModel.reset(); this.resetSpecials(); if (e.profile && e.profile.hand !== this.hand){ this.gripSent = false; this._sendGrip(); } this.headModel.reset(headBaselineFromProfile(this.profile, this.hand) ?? 0); }
+    if (e.kind === 'done'){ c.step = 'done'; this.profile = e.profile || null; this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline; this.liftModel.reset(this.liftBaseline); this.faceModel.reset(); this.aimModel.reset(); this.riseModel.reset(); this.resetSpecials(); if (e.profile && e.profile.hand !== this.hand){ this.gripSent = false; this._sendGrip(); } this.headModel.reset(headBaselineFromProfile(this.profile, this.hand) ?? 0); }
     c.last = e;
     for (const fn of this.calListeners) try { fn(e); } catch (err){ console.error(err); }
     this._changed();
@@ -349,9 +366,10 @@ export class NatpfPhoneRacket {
       return;
     }
     const ref = this.profile && !this.profile.simple && Number.isFinite(this.profile.ref) ? this.profile.ref : null;
-    // salita abituale dei propri colpi in questo verso (gesti della calibrazione): vedi classifyStroke
-    const riseRef = riseRefOf(this.profile, s.dir);
-    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, displayLag: this.displayLagMs/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine), ref, riseRef }), role: this.engine.playerRole };
+    const rawRef = this.profile && !this.profile.simple && Number.isFinite(this.profile.rawRef) ? this.profile.rawRef : null;
+    // salita abituale dei propri colpi in questo verso (gesti della calibrazione, o imparata giocando): classifyStroke
+    const riseRef = habitualRise(this.profile, s.dir, this.riseModel);
+    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, displayLag: this.displayLagMs/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine), ref, rawRef, riseRef }), role: this.engine.playerRole };
     // numero del colpo del telefono: la diagnostica lega così il gesto (tel.colpo) al suo esito nel motore (colpo.gioco)
     ev.natpf.seq = Number.isFinite(s.seq) ? s.seq : null;
     this.lastPrep = null;
@@ -360,6 +378,7 @@ export class NatpfPhoneRacket {
     // quarto sembrava «normale» (usciva un dritto)
     if (NORMAL_SHOTS.has(ev.natpf.shot)){ this.liftModel.add(s.dir, s.lift); this.headModel.add(s.dir, ev.natpf.head); }
     this.faceModel.add(s.dir, s.face); this.aimModel.add(s.dir, s.heading);
+    if (this.engine.phase === 'RALLY' && ev.natpf.intent) this.riseModel.add(s.dir, s.shape?.rise, ev.natpf.intent.shot);
     for (const fn of this.swingListeners) try { fn(ev, s); } catch (e){ console.error(e); }
     // _emitSwing instrada già P1 in locale e P2 verso l'host (relay della stanza 1v1)
     mc._emitSwing(ev);

@@ -231,8 +231,11 @@ export class DiagRecorder {
     // servizio dal gesto e colpi a vuoto con il motivo
     wrap('_natpfRacketShot', function(orig, ...a){
       const out = orig(...a), L = E.natpfLastRacket, I = L?.intent || {}, O = L?.out || {};
-      if (out && L) R.log('racchetta', { chi: L.who || null, voluto: I.shot || null, colpo: O.shot || null, forza: r(I.power, 3), profondita: r(I.depth, 3), piatto: r(I.face, 3), ricavato: !!I.derived,
-        tempoMs: r(1000*L.timing, 1), oltre: r(O.excess, 3), qualita: r(O.q, 3), assistito: !!O.assisted, fallito: !!O.failed, rete: !!O.netFault,
+      // n: numero del colpo del telefono (lega l'esito al gesto, evento tel.colpo); tempo: posizione nella finestra
+      // della direzione, −1…+1 (+ anticipo: incrociato, − ritardo: lungolinea), oltre ±1 l'eccesso. È l'unico esito
+      // registrato della racchetta (prima anche un campo racchetta in colpo.gioco, solo per chi gioca qui)
+      if (out && L) R.log('racchetta', { chi: L.who || null, n: L.seq ?? null, voluto: I.shot || null, colpo: O.shot || null, forza: r(I.power, 3), profondita: r(I.depth, 3), piatto: r(I.face, 3), ricavato: !!I.derived,
+        tempoMs: r(1000*L.timing, 1), tempo: r(O.t, 3), oltre: r(O.excess, 3), qualita: r(O.q, 3), assistito: !!O.assisted, fallito: !!O.failed, rete: !!O.netFault,
         x: r(out.E), z: r(out.N), volee: !!L.volley, lato: L.contact ?? null, voto: O.grade || null });
       return out;
     });
@@ -351,16 +354,9 @@ export class DiagRecorder {
     const side = /back/i.test(this.lastInputSide || '') ? 'backhand' : /fore/i.test(this.lastInputSide || '') ? 'forehand' : null;
     const contactSide = side ? ((side === 'forehand') === (hand !== 'left') ? 1 : -1) : null;
     const hit = e.kind === 'hit';
-    // esito deterministico della racchetta virtuale (natpf_stroke_outcome.js, natpfLastRacket del motore), solo se
-    // nuovo e di chi gioca qui. tempo: posizione nella finestra d'impatto, −1…+1 (+ anticipo: incrociato, − ritardo:
-    // lungolinea), oltre ±1 l'eccesso; x e prof nel riferimento di chi colpisce (x a destra, prof dalla rete)
-    const lr = this.engine.natpfLastRacket, mine = lr && lr.who === (this.engine.playerRole === 'p2' ? 'p2' : 'player') && lr.at !== this._racketAt;
-    if (mine) this._racketAt = lr.at;
-    const o = mine ? lr.out || {} : null;
-    const racchetta = mine && (hit || e.kind === 'fault') ? { n: lr.seq ?? null, tempo: r(o.t, 3), eccesso: r(o.excess, 3), q: r(o.q, 3), qualita: r(lr.quality, 3), assistito: !!o.assisted,
-      fallito: !!o.failed, rete: !!o.netFault, tipo: o.shot || null, x: r(o.x), prof: r(o.depth), volee: !!lr.volley, contatto: lr.contact ?? null } : null;
+    // l'esito della racchetta virtuale (tempo, qualità, assistenza) è nell'evento «racchetta», registrato dal motore
     this.log('colpo.gioco', { chi: 'giocatore', esito: e.kind || null, tempo: e.grade || null, qualita: q?.label || null, kmh: e.speedKmh ?? null, tipo: e.shotType || null,
-      x: hit && ls ? r(ls.landingX) : null, z: hit && ls ? r(ls.landingZ) : null, lato: side, direzione: hit && ls ? shotDirection(ls.landingX, contactSide) : null, racchetta });
+      x: hit && ls ? r(ls.landingX) : null, z: hit && ls ? r(ls.landingZ) : null, lato: side, direzione: hit && ls ? shotDirection(ls.landingX, contactSide) : null });
   }
   // misure al secondo: fotogrammi, aggiornamento, disegno, memoria; stato del collegamento del telefono
   _second(){

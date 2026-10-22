@@ -157,31 +157,20 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
       // mediana lontana da zero dice un ritardo sistematico (per esempio lo schermo)
       tempoTelefonoMs: dist(by('tentativo').filter(x => Number.isFinite(x.tauMs)).map(x => x.tauMs)),
     };
-    // esito deterministico della racchetta virtuale: tempo nella finestra d'impatto (% della finestra, + anticipo),
-    // colpi oltre la finestra (tempo sbagliato), falliti per qualità, in rete, aiutati dall'assistenza, volée
-    const rk = esiti.map(c => c.racchetta).filter(Boolean);
-    if (rk.length) out.colpi.racchetta = {
-      colpi: rk.length, tempoInFinestraPercento: dist(rk.map(x => Number.isFinite(x.tempo) ? 100*x.tempo : null)),
-      oltreLaFinestraPercento: r1(100*count(rk, x => x.eccesso > 0)/rk.length), falliti: count(rk, x => x.fallito), inRete: count(rk, x => x.rete),
-      assistiti: count(rk, x => x.assistito), volee: count(rk, x => x.volee), qualita: dist(rk.map(x => x.q)), tipi: tally(rk, x => x.tipo),
-    };
   }
 
   // ---- racchetta virtuale: intenzione dal gesto, esito senza caso, ripetibilità (docs/NATPF_RACCHETTA_VIRTUALE.md) ----
   const rk = by('racchetta').filter(x => x.chi === 'player'), vuoti = by('vuoto'), piani = by('piano').filter(p => p.chi === 'giocatore');
   const serv = by('servizio').filter(x => x.chi === 'giocatore'), forme = by('tel.colpo').filter(c => !c.scartato && c.forma);
   if (rk.length || vuoti.length || piani.length || serv.length || forme.length){
-    const perColpo = {}, formaPerColpo = {};
-    for (const [k, g] of Object.entries(groupBy(rk, x => x.voluto || '?')))
-      perColpo[k] = { n: g.length, forza: spread(g.map(x => x.forza)), tempoMs: spread(g.map(x => x.tempoMs)), x: spread(g.map(x => x.x)), z: spread(g.map(x => x.z)),
-        qualita: spread(g.map(x => x.qualita)), falliti: count(g, x => x.fallito), alVolo: count(g, x => x.volee) };
-    for (const [k, g] of Object.entries(groupBy(forme, c => c.intenzione?.tipo || c.tipo || '?')))
-      formaPerColpo[k] = { n: g.length, salita: spread(g.map(c => c.forma.salita)), piano: spread(g.map(c => c.forma.piano)), manico: spread(g.map(c => c.forma.manico)), forza: spread(g.map(c => c.intenzione?.forza)) };
+    // esito di ogni colpo della racchetta (evento «racchetta»); la variazione tra colpi uguali è in «ripetibilita»
     out.racchetta = {
-      nota: 'per colpo voluto: mediana (p50) e scarto interquartile (iqr) di gesto ed esito. Il motore non aggiunge caso: gesti simili danno esiti simili, la dispersione degli esiti viene dai gesti e dal tempo',
+      nota: 'esiti dei colpi di chi gioca: il motore non aggiunge caso, gesti simili danno esiti simili (variazione in ripetibilita)',
       colpi: rk.length, voluti: tally(rk, x => x.voluto), esiti: tally(rk, x => x.colpo), falliti: tally(rk.filter(x => x.fallito), x => (x.rete ? 'rete' : 'lungo')),
       assistiti: count(rk, x => x.assistito), alVolo: count(rk, x => x.volee), tempoMs: dist(rk.map(x => x.tempoMs)), qualitaPercento: dist(rk.map(x => (Number.isFinite(x.qualita) ? 100*x.qualita : null))),
-      perColpo, formaPerColpo, piani: tally(piani, p => p.tipo), vuoti: tally(vuoti, v => v.perche),
+      // tempo nella finestra della direzione (% della finestra, + anticipo) e colpi oltre la finestra (tempo sbagliato)
+      tempoInFinestraPercento: dist(rk.map(x => (Number.isFinite(x.tempo) ? 100*x.tempo : null))), oltreLaFinestraPercento: rk.length ? r1(100*count(rk, x => x.oltre > 0)/rk.length) : null,
+      piani: tally(piani, p => p.tipo), vuoti: tally(vuoti, v => v.perche),
       servizi: serv.length ? { n: serv.length, tipi: tally(serv, x => x.tipo), voti: tally(serv, x => x.voto), qualitaPercento: dist(serv.map(x => (Number.isFinite(x.qualita) ? 100*x.qualita : null))), dalColmoMs: dist(serv.map(x => x.tauMs)) } : null,
     };
   }
@@ -192,16 +181,17 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
     // ogni colpo del telefono o della webcam usa l'ultima richiesta prima di lui
     const rows = [];
     let a = null, j = 0;
-    const tagged = [...events.filter(e => e.k === 'tel.colpo' || e.k === 'input' || e.k === 'colpo.gioco' || e.k === 'atteso')].sort((x, y) => x.t - y.t);
+    const tagged = [...events.filter(e => e.k === 'tel.colpo' || e.k === 'input' || e.k === 'colpo.gioco' || e.k === 'racchetta' || e.k === 'atteso')].sort((x, y) => x.t - y.t);
     for (const e of tagged){
       if (e.k === 'atteso'){ a = e; continue; }
       if (!a || e.t - a.t > (a.finestraMs || 6000)) continue;
       if (e.k === 'tel.colpo' && !e.scartato) rows.push({ kind: 'tel', a, lato: e.lato, tipo: e.tipo });
       else if (e.k === 'input' && e.fonte === 'webcam') rows.push({ kind: 'cam', a, lato: e.lato, tipo: e.colpo });
-      else if (e.k === 'colpo.gioco' && e.chi === 'giocatore' && e.esito === 'hit') rows.push({ kind: 'esito', a, direzione: e.direzione, dalTempo: timingDirection(e.racchetta?.tempo) });
+      else if (e.k === 'colpo.gioco' && e.chi === 'giocatore' && e.esito === 'hit') rows.push({ kind: 'esito', a, direzione: e.direzione });
+      else if (e.k === 'racchetta' && e.chi === 'player') rows.push({ kind: 'tempo', a, dalTempo: timingDirection(e.tempo) });
       j++;
     }
-    const gest = rows.filter(r => r.kind !== 'esito'), dir = rows.filter(r => r.kind === 'esito' && r.a.direzione), dirT = dir.filter(r => r.dalTempo);
+    const gest = rows.filter(r => r.kind === 'tel' || r.kind === 'cam'), dir = rows.filter(r => r.kind === 'esito' && r.a.direzione), dirT = rows.filter(r => r.kind === 'tempo' && r.a.direzione && r.dalTempo);
     const lato = gest.filter(r => r.a.lato), tipo = gest.filter(r => r.a.colpo);
     const matrice = {}; for (const r of tipo){ const k = `${r.a.colpo}→${r.tipo || '?'}`; matrice[k] = (matrice[k] || 0) + 1; }
     const matriceDir = {}; for (const r of dir){ const k = `${r.a.direzione}→${r.direzione || '?'}`; matriceDir[k] = (matriceDir[k] || 0) + 1; }
@@ -219,29 +209,31 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
   }
 
   // ---- ripetibilità (racchetta virtuale) ----
-  // stesso colpo, stesso gesto, stesso esito? Gesto (tel.colpo) ed esito (colpo.gioco) si legano con il numero del colpo
-  // del telefono; i gruppi sono i colpi richiesti nella prova guidata, altrimenti lato e tipo letti. Per ogni gruppo:
-  // quanto spesso il tipo letto è lo stesso e quanto variano (p90 − p10) forma, forza, tempo e punto di caduta. Il
-  // modello non ha caso: la variazione è di chi gioca e delle palle, ed è il riferimento per tarare le soglie
-  const gesti = by('tel.colpo').filter(c => !c.scartato && (c.forma || c.intenzione));
-  if (gesti.length){
-    const esitoDi = new Map(); for (const c of by('colpo.gioco')) if (Number.isInteger(c.racchetta?.n)) esitoDi.set(c.racchetta.n, c.racchetta);
+  // stesso colpo, stesso gesto, stesso esito? Con i gesti del telefono (tel.colpo con forma o intenzione) si parte dai
+  // gesti, e l'esito (evento racchetta) si lega con il numero del colpo; senza (webcam, colpi d'altro tipo) si parte
+  // dagli esiti. Gruppi: il colpo richiesto nella prova guidata, altrimenti lato e tipo letti (dai gesti) o il tipo
+  // voluto (dagli esiti). Per ogni gruppo: quanto spesso il tipo è lo stesso e quanto variano (p90 − p10) forma, forza,
+  // tempo e punto di caduta. Il modello non ha caso: la variazione è di chi gioca e delle palle
+  const gesti = by('tel.colpo').filter(c => !c.scartato && (c.forma || c.intenzione)), esitiR = by('racchetta').filter(x => x.chi === 'player');
+  if (gesti.length || esitiR.length){
+    const esitoDi = new Map(); for (const x of esitiR) if (Number.isInteger(x.n)) esitoDi.set(x.n, x);
+    const base = gesti.length ? gesti.map(g => ({ t: g.t, g, e: Number.isInteger(g.n) ? esitoDi.get(g.n) || null : null, key: `${g.lato || '?'}/${g.tipo || '?'}`, tipo: g.tipo }))
+      : esitiR.map(e => ({ t: e.t, g: null, e, key: e.voluto || '?', tipo: e.colpo ? String(e.colpo).toLowerCase() : null }));
     const richieste = by('atteso'), gruppi = {};
     let ai = -1;
-    for (const g of gesti){
-      while (ai + 1 < richieste.length && richieste[ai + 1].t <= g.t) ai++;
-      const a = ai >= 0 && g.t - richieste[ai].t <= (richieste[ai].finestraMs || 6000) ? richieste[ai] : null;
-      const key = a ? a.prova || `${a.lato || '?'}/${a.colpo || '?'}` : `${g.lato || '?'}/${g.tipo || '?'}`;
-      (gruppi[key] ||= []).push({ g, e: Number.isInteger(g.n) ? esitoDi.get(g.n) || null : null });
+    for (const x of base){
+      while (ai + 1 < richieste.length && richieste[ai + 1].t <= x.t) ai++;
+      const a = ai >= 0 && x.t - richieste[ai].t <= (richieste[ai].finestraMs || 6000) ? richieste[ai] : null;
+      (gruppi[a ? a.prova || `${a.lato || '?'}/${a.colpo || '?'}` : x.key] ||= []).push(x);
     }
     const spread = a => { const v = a.filter(Number.isFinite); return v.length >= 2 ? +(pct(v, .9) - pct(v, .1)).toFixed(3) : null; };
     out.ripetibilita = { nota: 'variazione = p90 − p10 tra i colpi dello stesso gruppo (gruppi da almeno 3 colpi)', gruppi: {} };
     for (const [key, L] of Object.entries(gruppi)){
       if (L.length < 3) continue;
-      const tipi = tally(L, x => x.g.tipo), top = Object.entries(tipi).sort((p, q) => q[1] - p[1])[0];
+      const tipi = tally(L, x => x.tipo), top = Object.entries(tipi).sort((p, q) => q[1] - p[1])[0];
       out.ripetibilita.gruppi[key] = { colpi: L.length, conEsito: count(L, x => x.e), tipo: top ? top[0] : null, tipoUgualePercento: top ? r1(100*top[1]/L.length) : null,
-        salita: spread(L.map(x => x.g.forma?.salita)), forza: spread(L.map(x => x.g.intenzione?.forza)), tempo: spread(L.map(x => x.e?.tempo)),
-        x: spread(L.map(x => x.e?.x)), profondita: spread(L.map(x => x.e?.prof)) };
+        salita: spread(L.map(x => x.g?.forma?.salita)), forza: spread(L.map(x => x.g?.intenzione?.forza ?? x.e?.forza)), tempo: spread(L.map(x => x.e?.tempo)),
+        x: spread(L.map(x => x.e?.x)), profondita: spread(L.map(x => (Number.isFinite(x.e?.z) ? Math.abs(x.e.z) : null))) };
     }
   }
 
@@ -285,7 +277,7 @@ export const COMPARE = [
   ['riferimento.tipoGiustoPercento', 'Prova guidata: tipo giusto (%)', +1, 3],
   ['riferimento.direzioneGiustaPercento', 'Prova guidata: direzione giusta (%)', +1, 5],
   ['riferimento.direzioneDalTempoPercento', 'Prova guidata: direzione voluta con il tempo (%)', +1, 5],
-  ['colpi.racchetta.oltreLaFinestraPercento', 'Colpi oltre la finestra d\'impatto (%)', -1, 3],
+  ['racchetta.oltreLaFinestraPercento', 'Colpi oltre la finestra d\'impatto (%)', -1, 3],
 ];
 const get = (o, path) => path.split('.').reduce((v, k) => (v == null ? v : v[k]), o);
 export function compareMetrics(a, b){
@@ -315,13 +307,11 @@ export function summaryLines(m = {}){
   if (C?.tempo && Object.keys(C.tempo).length) L.push(`Tempo dei colpi: ${Object.entries(C.tempo).map(([k, v]) => `${k} ${v}`).join(', ')}`);
   if (C?.tempoTelefonoMs?.n) L.push(`Tempo dei colpi del telefono rispetto all'impatto ideale: mediana ${C.tempoTelefonoMs.p50 > 0 ? '+' : ''}${C.tempoTelefonoMs.p50} ms (${C.tempoTelefonoMs.p50 > 0 ? 'anticipo' : 'ritardo'}) su ${C.tempoTelefonoMs.n} colpi`);
   if (C?.tempoTelefonoMs?.n >= 20 && C.tempoTelefonoMs.p50 < -40) L.push(`Ipotesi da verificare: i colpi del telefono arrivano in media ${-C.tempoTelefonoMs.p50} ms in ritardo. Se succede in ogni sessione, misura il ritardo dello schermo (video a 240 fps) prima di cambiare altro.`);
-  const K = C?.racchetta;
-  if (K) L.push(`Racchetta: ${K.colpi} colpi · tempo nella finestra mediana ${K.tempoInFinestraPercento?.p50 > 0 ? '+' : ''}${K.tempoInFinestraPercento?.p50 ?? '–'}% (+ anticipo) · oltre la finestra ${K.oltreLaFinestraPercento}% · falliti ${K.falliti} · in rete ${K.inRete} · volée ${K.volee}`);
   if (R) L.push(`Prova guidata: lato giusto ${R.latoGiustoPercento ?? '–'}% · tipo giusto ${R.tipoGiustoPercento ?? '–'}% · direzione giusta ${R.direzioneGiustaPercento ?? '–'}%${R.direzioneDalTempoPercento != null ? ` (voluta con il tempo ${R.direzioneDalTempoPercento}%)` : ''} (da verificare nel video)`);
   for (const [k, g] of Object.entries(m.ripetibilita?.gruppi || {})) L.push(`Ripetibilità ${k}: ${g.colpi} colpi, tipo «${g.tipo}» nel ${g.tipoUgualePercento}% · variazione salita ${g.salita ?? '–'}, forza ${g.forza ?? '–'}, tempo ${g.tempo ?? '–'}, caduta x ${g.x ?? '–'} m, profondità ${g.profondita ?? '–'} m`);
   // eventi «racchetta», «vuoto» e «servizio»: colpi voluti ed esiti, colpi a vuoto con il motivo, servizi dal gesto
   const KR = m.racchetta, list = o => Object.entries(o || {}).map(([k, v]) => `${k} ${v}`).join(', ');
-  if (KR?.colpi) L.push(`Esiti della racchetta: ${KR.colpi} colpi · voluti ${list(KR.voluti)} · falliti ${list(KR.falliti) || '0'} · al volo ${KR.alVolo} · tempo mediana ${KR.tempoMs?.p50 ?? '–'} ms`);
+  if (KR?.colpi) L.push(`Esiti della racchetta: ${KR.colpi} colpi · voluti ${list(KR.voluti)} · tempo nella finestra mediana ${KR.tempoInFinestraPercento?.p50 > 0 ? '+' : ''}${KR.tempoInFinestraPercento?.p50 ?? '–'}% (+ anticipo) · oltre la finestra ${KR.oltreLaFinestraPercento ?? 0}% · falliti ${list(KR.falliti) || '0'} · al volo ${KR.alVolo} · tempo mediana ${KR.tempoMs?.p50 ?? '–'} ms`);
   if (KR && Object.keys(KR.vuoti || {}).length) L.push(`Colpi a vuoto: ${list(KR.vuoti)}`);
   if (KR?.servizi) L.push(`Servizi dal gesto: ${KR.servizi.n} · ${list(KR.servizi.voti)}`);
   const av = m.registrazione?.avvisi || {};
