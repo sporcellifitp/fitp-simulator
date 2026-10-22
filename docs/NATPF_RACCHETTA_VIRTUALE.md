@@ -207,6 +207,28 @@ Formato: problema → evidenza → causa → verifica → soluzione → criterio
   - la calibrazione finisce entro 10 s con il tremolio naturale della mano (simulato 15–25 °/s);
   - dopo «Salta» si gioca con verso e tipi di colpo.
 
+### P11. La preparazione giocata come colpo, il colpo vero scartato
+
+- **Evidenza [dati]**: rigiocando i campioni grezzi nella catena del telefono di prima, i colpi riconosciuti
+  coincidono con quelli registrati in partita (39 su 40). Mancano 13 colpi forti, da 900 a 1874 °/s, che arrivano
+  0,1–0,5 s dopo un gesto lento (175–528 °/s, la preparazione): il telefono ha mandato al gioco la preparazione e ha
+  ignorato il colpo vero. 3 dei 6 colpi a vuoto «troppo presto» dello scambio sono così:
+  - a 17,15 s: preparazione 301 °/s, colpo vero 1228 °/s a 17,38 s;
+  - a 22,57 s: preparazione 257 °/s, colpo vero 1352 °/s a 22,67 s;
+  - a 37,21 s: preparazione 260 °/s, colpo vero 1160 °/s a 37,45 s.
+  Gli altri tre sono swing forti fatti circa 1 s prima dell'arrivo di palle corte e lente (5–8 m/s), con chi gioca
+  fermo 2,15 m dietro il rimbalzo (P6).
+- **Causa [codice]**: dopo un gesto mandato al gioco, il rilevatore aspetta che il telefono torni fermo (almeno
+  300 ms e 70 ms di quiete) prima di accettarne un altro. Inoltre un gesto nel verso opposto entro 600 ms è il
+  «rientro» della mano. Tra preparazione e colpo la quiete non c'è, e il colpo è nel verso opposto.
+- **Soluzione**:
+  - una rotazione nel verso opposto chiaramente più forte del gesto appena mandato (oltre 1,2 volte) è il colpo vero:
+    non si aspetta la quiete e non è un rientro;
+  - sul computer lo swing più forte sostituisce quello in attesa (P4).
+- **Criterio**:
+  - sugli stessi dati, i colpi forti dopo una preparazione sono riconosciuti;
+  - nel banco: un colpo dopo la preparazione è sempre riconosciuto, e la preparazione è più debole e nel verso opposto.
+
 ### P10. Webcam
 
 - **[dati]** La webcam è stata il controller solo nei primi 5,7 s: 338 fotogrammi su 341 senza mano. Il video mostra

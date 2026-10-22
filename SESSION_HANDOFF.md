@@ -48,18 +48,23 @@ tastiera come controlli nuovi.
 - **P9 Calibrazione**: «Salta» lascia il gioco senza verso, e la deriva del giroscopio si calcola con il telefono che
   si muove in mano. Il passo «fermo» funziona: passa quando il telefono si ferma davvero.
 - **P10 Webcam**: nessun dato utile nello ZIP.
+- **P11 Preparazione giocata come colpo**: rigiocando i campioni grezzi, 13 colpi forti (900–1874 °/s) erano scartati
+  dal telefono perché arrivavano subito dopo la preparazione lenta, che il gioco ha giocato al loro posto. Spiega 3
+  dei 6 colpi a vuoto «troppo presto».
 - **Funzionano**: collegamento e prestazioni (59,9 Hz, 31,8 + 6,7 ms, 60 fps).
 
 ## Prossimi passi (in ordine)
 
-1. [ ] Mano unica: il computer manda la mano al telefono, la calibrazione non la cambia (`natpf_phone_racket.js`,
-   `natpf_hand.js`, `racchetta.js`, `link.js`/messaggi `cfg`).
-2. [ ] Verso del gesto dalla gravità con il profilo semplice; deriva del giroscopio accettata solo se plausibile
-   (`swing-detect.js`, `face-tracker.js`).
-3. [ ] Forma del gesto sul telefono: piano, percorso della testa, ampiezza, piatto, rotazione che chiude o apre.
-   Nuovo modulo in `site/js/tennis/`, campi nuovi in `swing-message.js` compatibili con i telefoni vecchi.
-4. [ ] Intenzione sul computer: nuovo modulo `natpf_stroke_intent.js` che decide tipo, direzione, profondità e
-   altezza, con margini chiari.
+1. [x] Mano unica (commit `78ea315`): il computer manda la mano al telefono (`cfg.hand`), il telefono la rimanda se
+   cambiata lì (`{t:'hand'}`), la calibrazione non la cambia.
+2. [x] Verso del gesto dalla gravità con il profilo semplice; segno invertito scoperto dai colpi; deriva accettata solo
+   ≤ 1,5 °/s. Colpo dopo una preparazione lenta riconosciuto (P11).
+3. [x] Forma del gesto sul telefono (`site/js/tennis/stroke-shape.js`): piano, salita della testa, inclinazione del
+   manico, velocità. La rotazione del polso c'è, ma solo per la diagnostica (non validata). Campi `an` e `sh` nel
+   messaggio. Banco: `test/racket-sim.mjs`, test in `test/natpf-racchetta.test.mjs`.
+4. [~] Intenzione sul computer: `natpf_stroke_intent.js` (scritto, collegato in `natpfSwingToEngine` come
+   `natpf.intent`) ed esito `natpf_stroke_outcome.js` (scritto, da collegare nel motore). Strumento prima/dopo:
+   `scripts/audit/zip-replay.mjs <cartella> --prima=… --prima-face=…`.
 5. [ ] Esito deterministico nel motore (`natpf_skill.js`, `game_engine.js`): niente caso nel colpo di chi gioca;
    errori solo se la traiettoria esce.
 6. [ ] Finestra d'impatto con la traiettoria prevista. Swing in attesa fino all'arrivo della palla, mai impatti con la
