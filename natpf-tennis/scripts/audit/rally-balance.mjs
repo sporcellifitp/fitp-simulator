@@ -62,7 +62,9 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
   const P = typeof profile === 'string' ? PROFILES[profile] : profile;
   const rng = mulberry32(seed), engineRng = mulberry32(seed*7919 + 13);
   const realRandom = Math.random; Math.random = engineRng;
-  const out = { profile: typeof profile === 'string' ? profile : 'custom', difficulty, points: 0, won: 0, rallies: [], reasons: {}, capped: 0, whiffs: 0, grades: {}, landings: [], cpu: [] };
+  const out = { profile: typeof profile === 'string' ? profile : 'custom', difficulty, points: 0, won: 0, rallies: [], reasons: {}, capped: 0, whiffs: 0, grades: {}, landings: [], cpu: [],
+    // racchetta virtuale: colpi di chi gioca per tipo, al volo, falliti; piani d'intercetto per tipo
+    racket: { shots: {}, volleys: 0, failed: 0, plans: {} } };
   try {
     const e = createHeadlessEngine({ difficulty });
     const award = e._awardPoint.bind(e);
@@ -79,7 +81,7 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
     e.hud = new Proxy({}, { get: (t, k) => k === 'showTimingPopup' ? ({ grade = '' } = {}) => { const g = String(grade).split(' ')[0]; out.grades[g] = (out.grades[g] || 0) + 1; if (/WHIFF/.test(grade)) out.whiffs++; } : () => {} });
     void popup;
     e.startNewMatch({ showStartBanner: false });
-    let intent = null, serveAt = null, lastSeenShot = null, lastSeenCpu = null;
+    let intent = null, serveAt = null, lastSeenShot = null, lastSeenCpu = null, lastSeenRacket = null, lastSeenPlan = null;
     for (let t = 0; t < maxSeconds && out.points < points; t += DT){
       if (e.phase === 'SERVE_STANCE'){ intent = null; if (e.score.server === 'player' && e.phaseTimer > .6){ e._handleUserTossInput({}); serveAt = e.elapsedTime + .55 + gauss(rng)*P.timingSd*.6; } }
       if (e.phase === 'SERVE_TOSS' && e.score.server === 'player' && serveAt != null && e.elapsedTime >= serveAt){
@@ -110,6 +112,10 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
       if (lc && lc !== lastSeenCpu){ lastSeenCpu = lc; out.cpu.push(lc); }
       const ls = e.natpfSkill?.lastShot;
       if (ls && ls !== lastSeenShot){ lastSeenShot = ls; out.landings.push({ x: +ls.landingX.toFixed(2), z: +e.ball.targetLanding.z.toFixed(2), grade: ls.grade, power: ls.power }); }
+      const lr = e.natpfLastRacket, K = out.racket;
+      if (lr && lr !== lastSeenRacket && lr.who === 'player'){ lastSeenRacket = lr; const k = lr.out?.shot || '?'; K.shots[k] = (K.shots[k] || 0) + 1; if (lr.volley) K.volleys++; if (lr.out?.failed) K.failed++; }
+      const pl = e.natpfPlan;
+      if (pl && pl !== lastSeenPlan){ lastSeenPlan = pl; K.plans[pl.kind] = (K.plans[pl.kind] || 0) + 1; }
     }
   } finally { Math.random = realRandom; }
   const n = out.rallies.length || 1, sorted = [...out.rallies].sort((a, b) => a - b);

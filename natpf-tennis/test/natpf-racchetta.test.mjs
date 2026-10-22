@@ -6,6 +6,7 @@ import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
 import { parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { NatpfPhoneRacket } from '../src/natpf/natpf_phone_racket.js';
 import { racketSim, strokeDir } from './racket-sim.mjs';
+import { strokeIntent } from '../src/natpf/natpf_stroke_intent.js';
 
 /* ---------- mano unica ---------- */
 test('mano: una sola, quella del gioco; va al telefono, torna dal telefono e la calibrazione non la cambia', () => {
@@ -144,6 +145,41 @@ test('forma: swing orizzontale, obliquo e verticale; testa che sale o scende', (
     // il messaggio porta la forma al computer
     assert.ok(overhead.msg.shape && Math.abs(overhead.msg.shape.tilt - overhead.s.shape.tilt) < 1e-6);
   }
+});
+
+test('colpi vari dal gesto: orizzontale, obliquo, verticale, in discesa, morbido e corto; stesso gesto, stesso colpo', () => {
+  // dal telefono simulato al computer: messaggio letto (forma, picco, ampiezza) → intenzione (natpf_stroke_intent.js)
+  const cases = [
+    ['orizzontale forte', { side: 'forehand', peak: 1250 }, 'flat'],
+    ['orizzontale', { side: 'forehand', peak: 800 }, 'topspin'],
+    ['obliquo in salita (dritto arrotato)', { side: 'forehand', rise: 35, peak: 900 }, 'topspin'],
+    ['verticale in salita', { side: 'forehand', rise: 70, peak: 650 }, 'lob'],
+    ['obliquo in salita lento', { side: 'forehand', rise: 50, peak: 500 }, 'lob'],
+    ['obliquo in discesa', { side: 'backhand', rise: -35, peak: 800 }, 'slice'],
+    ['in discesa morbido', { side: 'backhand', rise: -35, peak: 380 }, 'drop'],
+    ['in discesa corto', { side: 'forehand', rise: -35, peak: 700, amp: 40 }, 'drop'],
+  ];
+  for (const hand of ['right', 'left']){
+    const sim = racketSim({ hand, seed: 6 }); sim.start();
+    for (const [name, o, want] of cases){
+      const [a, b] = [0, 1].map(() => { const { msg } = strokeOf(sim, o); return strokeIntent(msg); });
+      assert.equal(a.shot, want, `${hand} ${name}: ${JSON.stringify(a)}`);
+      // lo stesso gesto ripetuto (il telefono simulato non riparte da zero: differenze di millesimi) dà lo stesso colpo
+      assert.equal(b.shot, a.shot, `${hand} ${name}: lo stesso gesto due volte`);
+      for (const k of ['power', 'depth', 'rise', 'plane']) assert.ok(Math.abs(a[k] - b[k]) < .02, `${hand} ${name} ${k}: ${a[k]} ${b[k]}`);
+    }
+  }
+});
+
+test('swing corto e ampio: alla stessa velocità lo swing corto vuole meno profondità (un colpo bloccato resta corto)', () => {
+  const sim = racketSim({ hand: 'right', seed: 4 }); sim.start();
+  const short = strokeIntent(strokeOf(sim, { side: 'forehand', peak: 900, amp: 40 }).msg);
+  const wide = strokeIntent(strokeOf(sim, { side: 'forehand', peak: 900, amp: 140 }).msg);
+  assert.ok(short.reach < .3 && wide.reach > .9, `${short.reach} ${wide.reach}`);
+  assert.ok(short.depth < wide.depth - .2, `${short.depth} ${wide.depth}`);
+  // a parità di forza misurata la differenza è solo l'ampiezza: profondità = forza × (0,55 + 0,45 × ampiezza)
+  const same = p => strokeIntent({ shape: { rise: 0, plane: 1, tilt: .2 }, peak: 900, angle: p });
+  assert.ok(Math.abs(same(30).depth/same(100).depth - .55) < .01);
 });
 
 test('forma: il messaggio vecchio (senza forma) si legge come prima', () => {

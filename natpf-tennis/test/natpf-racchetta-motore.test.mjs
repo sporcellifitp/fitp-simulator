@@ -241,12 +241,27 @@ test('servizio dal gesto: stesso gesto stesso servizio; forza, verso e momento d
   assert.equal(tooSoon.phase, 'SERVE_TOSS');
 });
 
-test('scambi che finiscono: nessuno scambio infinito con il giocatore più regolare, a ogni livello', () => {
+test('scambi che finiscono e dinamici: nessuno scambio infinito; volée, palle lasciate andare, schiacciate e tagliati in partita', () => {
+  const all = { shots: {}, volleys: 0, plans: {} };
   for (const difficulty of ['casual', 'pro', 'leggenda']){
     const r = simulate({ profile: 'tennista', difficulty, points: 30, seed: 4 });
     assert.equal(r.capped, 0, `${difficulty}: ${r.maxHits} colpi`);
     assert.ok(r.maxHits < 60, `${difficulty}: ${r.maxHits}`);
+    // a ogni livello si gioca anche al volo e le palle che vanno fuori si lasciano andare
+    assert.ok(r.racket.volleys > 0 && r.racket.plans.letgo > 0, `${difficulty}: ${JSON.stringify(r.racket)}`);
+    for (const [k, v] of Object.entries(r.racket.shots)) all.shots[k] = (all.shots[k] || 0) + v;
+    for (const [k, v] of Object.entries(r.racket.plans)) all.plans[k] = (all.plans[k] || 0) + v;
   }
+  assert.ok(all.shots.SMASH > 0 && all.shots.SLICE > 0 && all.shots.LOB > 0 && all.plans.smash > 0, JSON.stringify(all));
+});
+
+test('swing corto e ampio nel motore: alla stessa forza il colpo corto rimbalza più vicino alla rete', () => {
+  // profondità voluta = forza × (0,55 + 0,45 × ampiezza): swing di 35° (ampiezza 0,07) e di 100° (1)
+  const run = depth => withEngine('casual', e => { cpuShot(e, { to: [1.2, 8.6] }); return play(e, [{ lead: .02, swing: phoneSwing({ shot: 'topspin', power: .6, depth }) }]); });
+  const short = run(.6*(.55 + .45*.07)), wide = run(.6);
+  assert.ok(short.hit && wide.hit);
+  // con forza 0,6: circa 0,9 m più corto (8,3 m contro 9,2 m dalla rete); con forza piena la differenza cresce
+  assert.ok(Math.abs(short.landing.z) < Math.abs(wide.landing.z) - .6, `corto ${short.landing.z}, ampio ${wide.landing.z}`);
 });
 
 test('diagnostica: esito, piano, servizio e colpi a vuoto nel registro; ripetibilità nelle metriche; rapporto valido', async t => {

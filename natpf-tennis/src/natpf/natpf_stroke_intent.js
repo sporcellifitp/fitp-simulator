@@ -17,7 +17,8 @@ const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 export const INTENT = Object.freeze({
   lobRise: .55,      // pallonetto: la testa sale decisa…
   lobPlane: .8,      // … con lo swing verticale o obliquo (|piano| fino a così) …
-  lobSoft: .55,      // … oppure con un gesto non troppo forte (con uno swing orizzontale e veloce è un top spin carico)
+  lobSoft: .3,       // … oppure con un gesto lento (circa 580 °/s: un pallonetto difensivo). Era .55 (850 °/s, un dritto
+                     // normale di chi gioca da amatore): ogni dritto in salita oltre 33° diventava un pallonetto
   topRise: .15,      // top spin: la testa sale almeno un poco
   sliceRise: -.22,   // tagliato: la testa scende
   dropPower: .36,    // palla corta: tagliato morbido (forza fino a così) …
