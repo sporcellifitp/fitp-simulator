@@ -70,3 +70,17 @@ test('first calibration gesture in the wrong direction around the vertical is a 
  // tre volte lo stesso verso «sbagliato»: è il telefono, si accetta (e gli altri gesti si leggono di conseguenza)
  r=run([-1,-1,-1]);assert.deepEqual(r.at.slice(0,3),['LR!','LR!','LL']);
 });
+
+// Colpo completo durante la calibrazione: apertura lenta nel verso opposto (picco a metà, 0,7 s) e poi il colpo. I picchi
+// distano circa mezzo secondo, oltre il gruppo di 380 ms: prima l'apertura veniva giudicata da sola («altro verso») e
+// il colpo, arrivato prima che la mano si fermasse, non contava. Adesso la calibrazione aspetta il colpo.
+test('calibration with full strokes: a slow backswing in the opposite direction is the preparation, the stroke counts',()=>{
+ const det=createSwingDetector(),cal=createCalibration(det);cal.start({quick:true});
+ let t=quiet(det,cal,0,800);
+ for(const d of QUICK_PLAN){const s=d==='L'?1:-1;
+  // γ: attorno al lato lungo, verticale (come sopra): apertura nel verso opposto, 80 ms, colpo
+  t=stroke(det,cal,t,{axis:[0,0,-s],peak:220,dur:700});t=quiet(det,cal,t,80);t=stroke(det,cal,t,{axis:[0,0,s],peak:850,dur:260});t=quiet(det,cal,t,900);}
+ assert.equal(cal.state.step,'review',JSON.stringify(cal.state.attempts.map(a=>[a.want,a.dir,a.peak])));
+ assert.equal(cal.state.result.pass,true);
+ assert.deepEqual(cal.state.result.attempts.map(a=>[a.want,a.dir,a.peak>800]),[['L','L',true],['R','R',true],['L','L',true],['R','R',true]]);
+});

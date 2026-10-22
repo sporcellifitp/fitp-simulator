@@ -27,6 +27,10 @@ export const CAL = {
   low: { on: 25, minPeak: 40, minAngle: 2.5 },  // soglie basse durante la calibrazione: si vedono anche i movimenti piccoli
   small: 90,                      // °/s: sotto, lo swing è troppo piccolo
   burst: 380,                      // ms: movimenti vicini sono un solo tentativo (apertura + colpo): vale il più forte
+  prepWait: 900,                   // ms: un gruppo nel verso opposto a quello chiesto può essere l'apertura lenta di un
+                                   // colpo completo (il suo picco è a metà apertura, il colpo arriva 0,5–0,6 s dopo): si
+                                   // aspetta il colpo prima di giudicarlo, finché la mano non si ferma davvero:
+  prepPause: 400,                  // ms di quiete (la fine lenta dell'apertura e il passaggio al colpo ne fanno ~200)
   maxTries: 3,                     // tentativi per swing prima di andare avanti segnando l'errore
   idleHint: 7000,                  // ms senza movimenti: suggerimento
   gripHold: 400,                   // ms in verticale per confermare l'impugnatura
@@ -168,13 +172,14 @@ export function createCalibration(det){
     const start = Math.min(...group.filter(s => !s.back).map(s => s.t - (s.dur || 0))) - 40;
     S.home = { t: S.lastT, rot: rotAt(start), path: S.track.filter(([t]) => t >= start).map(([, r]) => r) };
   }
+  const wantSignNow = () => (S.step === 'swings' ? SIGN[plan()[S.idx]] : S.step === 'shots' ? SIGN[GESTURE_PLAN[S.idx]?.want] : null);
+  // verso di ogni gesto: rispetto all'asse imparato, o (primo gesto, asse ancora da fissare) attorno alla verticale,
+  // così la preparazione nel verso opposto non diventa il primo gesto e non inverte la calibrazione
+  const way = s => (S.axis ? Math.sign(Math.trunc(dot(s.axis, S.axis)/.3)) : verticalTurn(s.axis, s.gravity));
   function pick(group){
     const best = group.reduce((a, s) => s.peak > a.peak ? s : a);
-    const wantSign = S.step === 'swings' ? SIGN[plan()[S.idx]] : S.step === 'shots' ? SIGN[GESTURE_PLAN[S.idx]?.want] : null;
+    const wantSign = wantSignNow();
     if (!wantSign) return best;
-    // verso di ogni gesto: rispetto all'asse imparato, o (primo gesto, asse ancora da fissare) attorno alla verticale,
-    // così la preparazione nel verso opposto non diventa il primo gesto e non inverte la calibrazione
-    const way = s => S.axis ? Math.sign(Math.trunc(dot(s.axis, S.axis)/.3)) : verticalTurn(s.axis, s.gravity);
     const match = group.filter(s => way(s) === wantSign && s.peak >= CAL.prefer*best.peak);
     return match.length ? match.reduce((a, s) => s.peak > a.peak ? s : a) : best;
   }
@@ -309,7 +314,10 @@ export function createCalibration(det){
         else if (S.gripT != null){ S.gripT = null; emit({ kind: 'grip', upright: false }); }
         if (!up && (t - (S.gripWarnT || 0) > 1000)){ S.gripWarnT = t; emit({ kind: 'grip', upright: false }); }
       }
-      if (S.burst.length && t - S.burstT >= CAL.burst){
+      // gruppo nel verso opposto a quello chiesto: forse l'apertura di un colpo completo, si aspetta ancora il colpo (tra
+      // apertura e colpo la mano non si ferma: se si ferma, era un gesto nel verso sbagliato)
+      const waitStroke = () => { const moves = S.burst.filter(s => !s.back), w = wantSignNow(); return moves.length > 0 && !!w && way(pick(moves)) === -w && t - S.burstT < CAL.prepWait && !(S.quietT != null && t - S.quietT >= CAL.prepPause); };
+      if (S.burst.length && t - S.burstT >= CAL.burst && !waitStroke()){
         const group = S.burst, moves = group.filter(s => !s.back); S.burst = [];
         if (moves.length) attempt(pick(moves), group);
         else { unready(); emit({ kind: 'warn', why: 'centro', peak: Math.max(...group.map(s => s.peak)) }); }

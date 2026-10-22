@@ -40,8 +40,9 @@ function qFromBasis(x, y, z){
 // verso del colpo: +1 da destra a sinistra (antiorario visto dall'alto), −1 al contrario
 export const strokeDir = (hand, side) => (side === 'forehand') === (hand !== 'left') ? 1 : -1;
 
-export function racketSim({ hand = 'right', seed = 3, profile = null, prep = true } = {}){
-  const R = rng(seed);
+// record: tiene anche i campioni (samples), per rigiocarli nel browser (racket-gestures.mjs)
+export function racketSim({ hand = 'right', seed = 3, profile = null, prep = true, record = false } = {}){
+  const R = rng(seed), samples = [];
   const det = createSwingDetector(), face = createFaceTracker({ quietHold: 400, relax: 2.5 });
   const swings = [], msgs = [];
   let seq = 0;
@@ -61,6 +62,7 @@ export function racketSim({ hand = 'right', seed = 3, profile = null, prep = tru
     const wd = rotate(qconj(q), wWorld).map(v => v/D + (R() - .5)*2*noise);
     const a = rotate(qconj(q), acc), g = rotate(qconj(q), [0, G, 0]);
     const k = { t, rot: [wd[2], wd[0], wd[1]], acc: a, accG: [g[0] + a[0], g[1] + a[1], g[2] + a[2]] };
+    if (record) samples.push(k);
     if (face.ready) face.feed(k);
     det.feed(k);
     t += DT;
@@ -96,8 +98,10 @@ export function racketSim({ hand = 'right', seed = 3, profile = null, prep = tru
   // un colpo. side: forehand/backhand; rise: gradi (piano inclinato: >0 la testa sale, <0 scende, ±90 swing
   // verticale di lato); peak: °/s al picco (= impatto); amp: gradi dello sweep (metà prima, metà dopo l'impatto);
   // roll: gradi di rotazione sul manico durante lo sweep; elev/turn: presa all'impatto; tremor: °/s di tremolio;
-  // noise: rumore del giroscopio (°/s); overhead: impatto sopra la testa con sweep in avanti e in basso (schiacciata).
-  const stroke = ({ side = 'forehand', rise = 0, peak = 900, amp = 120, roll: roll0 = 0, elev = 15, turn = 0, tremor = 0, noise = 0, arm = .6, settle = 700, overhead = false, expect = true } = {}) => {
+  // noise: rumore del giroscopio (°/s); overhead: impatto sopra la testa con sweep in avanti e in basso (schiacciata);
+  // aim: gradi di cui tutto il colpo è girato attorno alla verticale (> 0 verso destra: il piatto all'impatto guarda a
+  // destra, come chi mira a destra).
+  const stroke = ({ side = 'forehand', rise = 0, peak = 900, amp = 120, roll: roll0 = 0, elev = 15, turn = 0, tremor = 0, noise = 0, arm = .6, settle = 700, overhead = false, expect = true, aim = 0 } = {}) => {
     const dir = strokeDir(hand, side);
     let roll = roll0;
     const lateral = side === 'forehand' ? (hand === 'left' ? -1 : 1) : (hand === 'left' ? 1 : -1);
@@ -105,8 +109,9 @@ export function racketSim({ hand = 'right', seed = 3, profile = null, prep = tru
     let A, rC;
     if (overhead){ A = [-1, 0, 0]; rC = [.1*lateral, arm*.95, -.2]; }
     else { A = unit([0, Math.cos(rise*D), Math.sin(rise*D)].map(v => v*dir)); rC = [lateral*arm*.85, -.3, -.2]; }
+    if (aim){ const qa = qaxis([0, 1, 0], -aim); A = rotate(qa, A); rC = rotate(qa, rC); }
     // manico all'impatto: verso fuori nel piano del colpo (in alto nella schiacciata), alzato di elev verso l'alto
-    const lat = overhead ? [0, 1, 0] : [lateral, 0, 0];
+    const lat = overhead ? [0, 1, 0] : aim ? rotate(qaxis([0, 1, 0], -aim), [lateral, 0, 0]) : [lateral, 0, 0];
     const out = unit(lat.map((v, i) => v - dot(lat, A)*A[i]));
     const yC = unit(out.map((v, i) => v*Math.cos(elev*D) + [0, 1, 0][i]*Math.sin(elev*D)));
     let zC = unit(cross(yC, A)); if (len(zC) < .1) zC = unit(cross(yC, [1, 0, 0]));
@@ -145,7 +150,7 @@ export function racketSim({ hand = 'right', seed = 3, profile = null, prep = tru
     const hv = head(.01).map((v, i) => (v - head(-.01)[i])/.02);
     return { dir, plane: dot(A, [0, 1, 0]), rise: dot(unit(hv), [0, 1, 0]), tilt: dot(yC, [0, 1, 0]), impactT };
   };
-  return { det, face, swings, msgs, start, rest, shake, stroke, get t(){ return t; },
+  return { det, face, swings, msgs, samples, start, rest, shake, stroke, get t(){ return t; },
     last(){ const m = msgs[msgs.length - 1]; return m ? parseSwingMessage(m, { at: 10, now: 10020 }) : null; } };
 }
 function slerp(a, b, u){
