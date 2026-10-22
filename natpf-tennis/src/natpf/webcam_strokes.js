@@ -110,9 +110,9 @@ export function pickHand(hands, { track = null, others = [], t = 0, prefer = 'ri
     return { i, x: p.x, u: -p.y*aspect, size: handSize(h.lm, aspect), match: h.label ? (h.label === want ? 1 : -1)*(fin(h.score) ? h.score : .5) : 0 };
   });
   const ratio = h => (track.size > 1e-4 && h.size > 1e-4 ? h.size/track.size : 1);
-  // ogni altra mano già vista reclama al massimo una delle mani trovate, la più vicina entro NEAR_OTHER, se le è più
-  // vicina di quanto lo sia dove dovrebbe essere la mano di chi gioca (d). Una per una: quando sono vicine si vedono
-  // tutte e due, e la mano di chi gioca non va scartata solo perché è passata accanto all'altra
+  // una mano trovata è di un'altra persona se una delle altre mani già viste (da meno di keep) le sta entro NEAR_OTHER
+  // e più vicina di dove dovrebbe essere la mano di chi gioca (d). Quando le due mani passano accanto, la mano di chi
+  // gioca non si scarta: è più vicina alla sua traccia che all'altra
   const claimed = (d) => {
     const out = new Set();
     for (const h of c) for (const o of others){

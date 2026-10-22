@@ -38,6 +38,10 @@ tastiera come controlli nuovi.
   falliscono dopo l'unione (difetto 6), la partita intera col telefono della pagina storica (difetto 7), la presa del 19/10 (difetto 2), la forza degli swing corti (difetto 5), la
   diagnostica in parte doppia. **Validazione fisica non fatta** (passo 15): in questo ambiente non ci sono telefono,
   webcam né persone; procedura in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5.
+- Dopo il checkpoint 10 (22/10, notte) il branch contiene anche l'ultimo commit della seconda sessione (`40d58b2`):
+  salita abituale dalla calibrazione per la presa del 19/10 (da verificare nel browser, passo 16), telefono simulato
+  con la forma, prova nel browser della presa del 19/10 a parte (`tools/e2e/natpf-phone-upright-19-10.mjs`). Node:
+  `npm test` 279/279, `tools/test` 135/135.
 - Prove sul branch unito (22/10, sera):
   - Node: `npm test` 276/276, `tools/test` 135/135;
   - nel browser, gioco: telefono 10/10, allenamento 13/13, risposta al gesto 9/9, ricollegamento 6/6, rete che cade

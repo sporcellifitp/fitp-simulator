@@ -319,7 +319,7 @@ export class DiagRecorder {
       // (stroke-shape.js) e intenzione letta dal computer (natpf_stroke_intent.js); null con i telefoni di prima
       pk: s?.peak ?? null, ampiezza: r(s?.angle, 1),
       forma: s?.shape ? { piano: r(s.shape.plane, 3), salita: r(s.shape.rise, 3), polso: r(s.shape.roll, 3), manico: r(s.shape.tilt, 3), testa: r(s.shape.head, 2), mano: r(s.shape.hand, 2) } : null,
-      intenzione: n.intent ? { tipo: n.intent.shot, conf: r(n.intent.conf), forza: r(n.intent.power, 3), portata: r(n.intent.reach, 3), profondita: r(n.intent.depth, 3), piatto: r(n.intent.face, 3) } : null,
+      intenzione: n.intent ? { tipo: n.intent.shot, conf: r(n.intent.conf), forza: r(n.intent.power, 3), portata: r(n.intent.reach, 3), profondita: r(n.intent.depth, 3), piatto: r(n.intent.face, 3), abituale: r(n.intent.riseRef, 3) } : null,
     });
     if (ev?.side) this.lastInputSide = ev.side;
   }

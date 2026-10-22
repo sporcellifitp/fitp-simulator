@@ -32,6 +32,7 @@ export const INTENT = Object.freeze({
   peakLow: 250, peakHigh: 1350,   // °/s: forza assoluta da 0 a 1 (i dritti veri arrivano a 1200–1650 °/s)
   compact: 30, wide: 100,          // gradi: swing corto (profondità ridotta) … ampio (profondità piena)
   faceDead: 8, faceSpan: 28,       // gradi: zona morta e scarto per la mira piena del piatto
+  riseRefMin: -.6, riseRefMax: .3, // salita abituale (calibrazione) che si tiene in conto, al massimo
 });
 export const SHOTS = Object.freeze(['topspin', 'flat', 'slice', 'drop', 'lob', 'smash']);
 
@@ -46,21 +47,28 @@ export function strokePower(peak, ref = null){
 export const swingReach = angle => (Number.isFinite(angle) ? clamp((angle - INTENT.compact)/(INTENT.wide - INTENT.compact)) : .7);
 
 // Tipo di colpo dalla forma. ballHigh: la palla all'impatto sarà alta (zona della schiacciata); se non si sa, null.
+// riseRef: salita abituale dei propri colpi normali in quel verso (calibrazione, profile.rises). Con il telefono in
+// verticale nel pugno il polso che prona abbassa la testa della racchetta virtuale anche nel colpo normale (presa del
+// 19/10): top spin e piatto si leggono rispetto a questa, e le soglie dei colpi speciali si spostano solo per
+// renderli più difficili, mai più facili. Senza calibrazione (null) le soglie sono quelle assolute.
 // Restituisce { shot, conf (margine 0…1 dalla soglia più vicina), why }.
-export function classifyStroke(shape, { power = .5, angle = null, ballHigh = null } = {}){
+export function classifyStroke(shape, { power = .5, angle = null, ballHigh = null, riseRef = null } = {}){
   const I = INTENT, r = finite(shape?.rise), P = Math.abs(finite(shape?.plane, 1)), tilt = finite(shape?.tilt), p = clamp(finite(power, .5));
+  const ref = clamp(finite(riseRef), I.riseRefMin, I.riseRefMax), rel = r - ref;
+  const lobAt = I.lobRise + Math.max(0, ref), sliceAt = I.sliceRise + Math.min(0, ref), smashAt = I.smashRise + Math.min(0, ref);
   const m = (v, scale) => +clamp(Math.abs(v)/scale).toFixed(2);
-  if (ballHigh && p >= I.smashPower && (r <= I.smashRise || (P < I.smashPlane && tilt >= I.smashTilt)))
-    return { shot: 'smash', conf: Math.max(m(I.smashRise - r, .3), m(I.smashPlane - P, .3)), why: ['palla alta', r <= I.smashRise ? `dall'alto (${r.toFixed(2)})` : `swing verticale, manico alto (${tilt.toFixed(2)})`] };
-  if (r >= I.lobRise && (P <= I.lobPlane || p <= I.lobSoft))
-    return { shot: 'lob', conf: m(r - I.lobRise, .3), why: [`la testa sale decisa (${r.toFixed(2)})`, P <= I.lobPlane ? `swing verticale (${P.toFixed(2)})` : `gesto morbido (${p.toFixed(2)})`] };
-  if (r <= I.sliceRise){
+  const said = r.toFixed(2) + (ref ? `, abituale ${ref.toFixed(2)}` : '');
+  if (ballHigh && p >= I.smashPower && (r <= smashAt || (P < I.smashPlane && tilt >= I.smashTilt)))
+    return { shot: 'smash', conf: Math.max(m(smashAt - r, .3), m(I.smashPlane - P, .3)), why: ['palla alta', r <= smashAt ? `dall'alto (${said})` : `swing verticale, manico alto (${tilt.toFixed(2)})`] };
+  if (r >= lobAt && (P <= I.lobPlane || p <= I.lobSoft))
+    return { shot: 'lob', conf: m(r - lobAt, .3), why: [`la testa sale decisa (${said})`, P <= I.lobPlane ? `swing verticale (${P.toFixed(2)})` : `gesto morbido (${p.toFixed(2)})`] };
+  if (r <= sliceAt){
     const soft = p <= I.dropPower, short = Number.isFinite(angle) && angle <= I.dropAngle;
-    if (soft || short) return { shot: 'drop', conf: Math.min(m(I.sliceRise - r, .3), soft ? m(I.dropPower - p, .2) : m(I.dropAngle - angle, 20)), why: [`dall'alto in basso (${r.toFixed(2)})`, soft ? `morbido (${p.toFixed(2)})` : `corto (${Math.round(angle)}°)`] };
-    return { shot: 'slice', conf: m(I.sliceRise - r, .3), why: [`dall'alto in basso (${r.toFixed(2)})`] };
+    if (soft || short) return { shot: 'drop', conf: Math.min(m(sliceAt - r, .3), soft ? m(I.dropPower - p, .2) : m(I.dropAngle - angle, 20)), why: [`dall'alto in basso (${said})`, soft ? `morbido (${p.toFixed(2)})` : `corto (${Math.round(angle)}°)`] };
+    return { shot: 'slice', conf: m(sliceAt - r, .3), why: [`dall'alto in basso (${said})`] };
   }
-  if (r >= I.topRise) return { shot: 'topspin', conf: m(r - I.topRise, .3), why: [`dal basso verso l'alto (${r.toFixed(2)})`] };
-  if (p >= I.flatPower && Math.abs(r) <= I.flatRise) return { shot: 'flat', conf: Math.min(m(p - I.flatPower, .2), m(I.flatRise - Math.abs(r), .12)), why: [`in piano e forte (${p.toFixed(2)})`] };
+  if (rel >= I.topRise) return { shot: 'topspin', conf: m(rel - I.topRise, .3), why: [`dal basso verso l'alto (${said})`] };
+  if (p >= I.flatPower && Math.abs(rel) <= I.flatRise) return { shot: 'flat', conf: Math.min(m(p - I.flatPower, .2), m(I.flatRise - Math.abs(rel), .12)), why: [`in piano e forte (${p.toFixed(2)})`] };
   return { shot: 'topspin', conf: .5, why: ['colpo normale'] };
 }
 
@@ -74,15 +82,17 @@ export function faceAimFromDev(dev){
 
 // Intenzione completa da un colpo letto (parseSwingMessage) con la forma. null senza forma (telefono non aggiornato).
 //   ref: colpo tipico (°/s) dalla calibrazione · headingDev: scarto del piatto dal proprio colpo abituale (gradi)
-export function strokeIntent(s, { ref = null, ballHigh = null, headingDev = null } = {}){
+//   riseRef: salita abituale in quel verso dalla calibrazione (classifyStroke)
+export function strokeIntent(s, { ref = null, ballHigh = null, headingDev = null, riseRef = null } = {}){
   if (!s?.shape) return null;
   const power = strokePower(s.peak, ref), reach = swingReach(s.angle);
-  const cls = classifyStroke(s.shape, { power, angle: s.angle, ballHigh });
+  const cls = classifyStroke(s.shape, { power, angle: s.angle, ballHigh, riseRef });
   return {
     shot: cls.shot, conf: cls.conf, why: cls.why, power: +power.toFixed(3), reach: +reach.toFixed(3),
     // profondità voluta 0…1: la forza, ridotta se lo swing è corto (un colpo bloccato resta a metà campo)
     depth: +clamp(power*(.55 + .45*reach)).toFixed(3),
     rise: finite(s.shape.rise), plane: finite(s.shape.plane), tilt: finite(s.shape.tilt), roll: finite(s.shape.roll),
+    riseRef: Number.isFinite(riseRef) ? +clamp(riseRef, INTENT.riseRefMin, INTENT.riseRefMax).toFixed(3) : null,
     face: faceAimFromDev(headingDev),
   };
 }

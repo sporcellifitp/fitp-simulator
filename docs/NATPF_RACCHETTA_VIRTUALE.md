@@ -305,6 +305,12 @@ Nessun numero casuale nel colpo di chi gioca: lo stesso gesto, sulla stessa pall
      mira piena a 36°.
    - Il pallonetto «morbido» vale fino a forza 0,3 (circa 580 °/s). Era 0,55 (circa 850 °/s): un dritto arrotato da
      amatore, inclinato di 35°, diventava un pallonetto. Sui 55 colpi reali dello ZIP non cambia nessun tipo.
+   - **Salita abituale** (presa del 19/10): con il telefono in verticale nel pugno la rotazione principale del dritto è
+     attorno al lato lungo, e la testa della racchetta virtuale si muove solo con il polso; una pronazione di
+     450–800 °/s la abbassa (salita da −0,3 a −0,65) anche nel colpo normale. La calibrazione salva la salita dei due
+     gesti per verso (`profile.rises`); il computer legge top spin e piatto rispetto a questa e sposta le soglie dei
+     colpi speciali solo per renderli più difficili (pallonetto più in alto se l'abituale sale; tagliato, palla corta
+     e schiacciata dall'alto più in basso se scende), al massimo di 0,6. Con «Salta» restano le soglie della tabella.
 
 ### Dall'intenzione all'esito (motore)
 
@@ -532,7 +538,8 @@ diagnostica (Maiusc+D → Registra) e si salva il pacchetto.
 
 1. **Collegamento e mano** (test 13, 1). Mano destra nel gioco → il telefono la mostra; cambiarla sul telefono → il
    gioco la mostra. Ripetere con «mancino». Atteso: sempre la stessa mano sui due schermi.
-2. **Calibrazione con colpi completi** (test 13). Calibrazione rapida facendo colpi veri, con l'apertura. Atteso:
+2. **Calibrazione con colpi completi** (test 13). Calibrazione rapida facendo colpi veri, con l'apertura, con la presa e
+   il polso di sempre (da qui il gioco impara la salita abituale del proprio colpo). Atteso:
    superata al primo giro (evento `tel.cal` con `pass`). Poi «Salta» in una seconda sessione: atteso il gioco completo
    (verso del gesto negli eventi `tel.colpo`, campo `dir` diverso da 0 in più di 8 colpi su 10).
 3. **Prova guidata** (Maiusc+D → Prova guidata, circa 5 minuti), con il telefono, una volta per mano e per persona

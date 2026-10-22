@@ -9,7 +9,8 @@ import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
 import { createFaceTracker } from '@natpf/tennis/face-tracker.js';
 import { createCalibration, QUICK_PLAN } from '@natpf/tennis/calibration.js';
 import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js';
-import { natpfSwingToEngine, NORMAL_SHOTS } from '../src/natpf/natpf_phone_racket.js';
+import { strokeShape } from '@natpf/tennis/stroke-shape.js';
+import { natpfSwingToEngine, NORMAL_SHOTS, riseRefOf } from '../src/natpf/natpf_phone_racket.js';
 import { createLiftModel, createFaceModel, createAimModel, liftBaselineFromProfile, headBaselineFromProfile } from '../src/natpf/natpf_gestures.js';
 
 export const G = 9.81, DT = 1000/60;
@@ -20,12 +21,15 @@ const qaxis = (axis, deg) => { const h = deg*Math.PI/360, l = Math.hypot(...axis
 // generatore deterministico (rumore della mano)
 export function rng(seed = 1){ let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0)/4294967296; }; }
 
-export function simPhone({ hand = 'right', seed = 7 } = {}){
+// shape: anche la forma del colpo (stroke-shape.js), come la pagina del telefono di oggi; il computer legge allora
+// l'intenzione dalla forma (natpf_stroke_intent.js). Senza: il telefono di prima, letto con la tabella dei segnali.
+// habitual: false per leggere la forma senza la salita abituale della calibrazione (solo per i confronti)
+export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = true } = {}){
   const det = createSwingDetector(), face = createFaceTracker({ quietHold: 400, relax: 2.5 });
   const cal = createCalibration(det), R = rng(seed);
   det.on('status', s => { if (s.s === 'still-ok') face.setRest(s.gravity, det.profile.bias); });
   // come racchetta.js: piatto e verso del piatto all'impatto prima del messaggio
-  det.on('swing', s => { if (face.ready){ s.face = face.strokeFace(s.peakT, s.t - s.dur); s.head = face.headAt(s.peakT, s.axis); } });
+  det.on('swing', s => { if (face.ready){ s.face = face.strokeFace(s.peakT, s.t - s.dur); s.head = face.headAt(s.peakT, s.axis); if (shape) s.shape = strokeShape(face.history(), face.up, { peakT: s.peakT }); } });
   const msgs = [];
   let t = 0, seq = 0, ready = false, q = [0, 0, 0, 1];
   det.on('swing', s => { if (ready) msgs.push(JSON.parse(JSON.stringify(swingMessage(s, { grip: 'upright', faceRef: det.profile.faceRef, rtt: 20, now: s.t + 5, seq: ++seq })))); });
@@ -90,7 +94,8 @@ export function simPhone({ hand = 'right', seed = 7 } = {}){
     lifts.model ||= createLiftModel(liftBaselineFromProfile(prof()) ?? 0);
     heads.model ||= createLiftModel(headBaselineFromProfile(prof(), hand) ?? 0);
     const s = parseSwingMessage(d, { at: 10, now: 10020 });
-    const ev = natpfSwingToEngine(s, { hand, now: 10.02, ballHigh, liftBaseline: lifts.model.value, headBaseline: heads.model.value, faceCenter: faces.center(s.dir), aimModel: aims });
+    const p = prof(), ref = p && !p.simple && Number.isFinite(p.ref) ? p.ref : null;
+    const ev = natpfSwingToEngine(s, { hand, now: 10.02, ballHigh, liftBaseline: lifts.model.value, headBaseline: heads.model.value, faceCenter: faces.center(s.dir), aimModel: aims, ref, riseRef: habitual ? riseRefOf(p, s.dir) : null });
     if (NORMAL_SHOTS.has(ev.natpf.shot)){ lifts.model.add(s.dir, s.lift); heads.model.add(s.dir, ev.natpf.head); }
     faces.add(s.dir, s.face); aims.add(s.dir, s.heading);
     return { s, ev };

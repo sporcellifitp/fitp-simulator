@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
 import { parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { QUICK_PLAN } from '@natpf/tennis/calibration.js';
-import { NatpfPhoneRacket, natpfSwingToEngine } from '../src/natpf/natpf_phone_racket.js';
+import { NatpfPhoneRacket, natpfSwingToEngine, riseRefOf } from '../src/natpf/natpf_phone_racket.js';
+import { classifyStroke } from '../src/natpf/natpf_stroke_intent.js';
 import { racketSim, strokeDir } from './racket-sim.mjs';
 import { strokeIntent } from '../src/natpf/natpf_stroke_intent.js';
 import { simPhone } from './phone-sim.mjs';
@@ -245,6 +246,25 @@ test('forma: inclinazioni e rotazioni del telefono in mano non cambiano il gesto
   }
 });
 
+test('forma: swing corto e ampio (prova 3) — un colpo per gesto, verso giusto, e lo swing corto resta corto', () => {
+  for (const hand of ['right', 'left']){
+    const sim = racketSim({ hand, seed: 7 }); sim.start();
+    for (const side of ['forehand', 'backhand']){
+      const reach = [];
+      for (const amp of [40, 70, 110, 150]){
+        const n0 = sim.swings.length, truth = sim.stroke({ side, amp, peak: 900 }), got = sim.swings.slice(n0).filter(s => s.peak > 540), tag = `${hand} ${side} ${amp}°`;
+        assert.equal(got.length, 1, tag); assert.equal(got[0].dir, truth.dir, tag);
+        const it = natpfSwingToEngine(sim.last(), { hand }).natpf.intent;
+        assert.equal(it.shot, 'topspin', tag);
+        reach.push([it.reach, it.depth]);
+      }
+      // portata e profondità voluta crescono con l'ampiezza (alla stessa velocità di picco)
+      for (let i = 1; i < reach.length; i++) assert.ok(reach[i][0] > reach[i - 1][0] && reach[i][1] > reach[i - 1][1], `${hand} ${side}: ${JSON.stringify(reach)}`);
+      assert.ok(reach[0][1] < .5*reach[3][1], `${hand} ${side}: ${JSON.stringify(reach)}`);
+    }
+  }
+});
+
 test('forma: swing orizzontale, obliquo e verticale; testa che sale o scende', () => {
   for (const hand of ['right', 'left']){
     const sim = racketSim({ hand, seed: 6 }); sim.start();
@@ -302,4 +322,57 @@ test('forma: il messaggio vecchio (senza forma) si legge come prima', () => {
   const s = parseSwingMessage({ t: 'sw', p: .6, l: .1, dir: 1, pk: 100 }, { at: 1, now: 1000 });
   assert.equal(s.shape, undefined);
   assert.equal(s.dir, 1);
+});
+
+test('salita abituale (calibrazione): il colpo normale si legge rispetto a questa; i colpi speciali diventano solo più difficili', () => {
+  const sh = rise => ({ plane: .9, rise, roll: 0, tilt: .6 });
+  // telefono in verticale con il polso che prona: la testa della racchetta virtuale scende anche nel colpo normale
+  assert.equal(classifyStroke(sh(-.4), { power: .6 }).shot, 'slice');
+  assert.equal(classifyStroke(sh(-.4), { power: .6, riseRef: -.35 }).shot, 'topspin');
+  // il tagliato vero resta: la testa scende rispetto al proprio colpo di quanto serve senza calibrazione
+  const cut = classifyStroke(sh(-.62), { power: .6, riseRef: -.35 });
+  assert.equal(cut.shot, 'slice'); assert.match(cut.why.join(), /abituale -0\.35/);
+  // un riferimento positivo non rende più facile il tagliato; il pallonetto chiede di più
+  assert.equal(classifyStroke(sh(-.2), { power: .6, riseRef: .3 }).shot, 'topspin');
+  assert.equal(classifyStroke({ plane: .3, rise: .7, tilt: .5 }, { power: .5, riseRef: .3 }).shot, 'topspin');
+  assert.equal(classifyStroke({ plane: .3, rise: .9, tilt: .5 }, { power: .5, riseRef: .3 }).shot, 'lob');
+  // riferimento fuori misura: se ne tiene al massimo −0,6
+  assert.equal(classifyStroke(sh(-.85), { power: .6, riseRef: -2 }).shot, 'slice');
+  // il riferimento arriva solo dalla calibrazione vera e solo per i versi del dritto e del rovescio
+  assert.equal(riseRefOf({ rises: { 1: -.3, '-1': -.2 } }, -1), -.2);
+  assert.equal(riseRefOf({ simple: true, rises: { 1: -.3 } }, 1), null);
+  assert.equal(riseRefOf({ rises: { 1: -.3 } }, 0), null);
+});
+
+test('presa del 19/10 (telefono in verticale nel pugno, polso che prona) con la forma: calibrata con il proprio gesto, dritti e rovesci restano normali; il pallonetto vero resta un pallonetto', () => {
+  // la pagina del telefono di oggi manda la forma del colpo: prima, con la presa del video del 19/10, i dritti e i
+  // rovesci con la pronazione diventavano tagliati (la testa della racchetta virtuale scende quando il manico in
+  // verticale si inclina di lato). La calibrazione fatta con la stessa presa e lo stesso gesto dà la salita abituale
+  const grip = (p, tilt) => { p.pose([0, 1, 0], 30); p.pose([1, 0, 0], -tilt); p.rest(500, 4); };
+  const series = (tilt, gesture, { n = 3, yaw = true } = {}) => {
+    const p = simPhone({ seed: 7, shape: true });
+    if (yaw) grip(p, tilt); else { p.pose([1, 0, 0], -tilt); p.rest(500, 4); }
+    p.calibrate({ wrist: 500 });
+    for (let i = 0; i < n; i++){ gesture(p); p.rest(700, 6); }
+    return { rises: p.det.profile.rises, r: p.msgs.map(d => p.game(d)) };
+  };
+  for (const tilt of [0, 35, 60]){
+    for (const [axis, side, wrists] of [[[0, 1, 0], 'forehand', [0, 450, -450, 800]], [[0, -1, 0], 'backhand', [0, 450, -450]]]) for (const wrist of wrists){
+      const { rises, r } = series(tilt, p => p.swing({ axis, peak: 750, wrist, wristAxis: [0, 0, -1], tremor: 8 }));
+      const tag = `inclinazione ${tilt}°, ${side}, polso ${wrist}°/s, abituale ${JSON.stringify(rises)}`;
+      assert.equal(r.length, 3, tag);
+      assert.ok(r.every(x => x.ev.side === side && (x.ev.natpf.shot === 'topspin' || x.ev.natpf.shot === 'flat')), `${tag}: ${r.map(x => `${x.ev.side} ${x.ev.natpf.shot} ${x.ev.natpf.why}`).join(' | ')}`);
+    }
+  }
+  // la calibrazione con la pronazione dà una salita abituale negativa in tutti e due i versi
+  const { rises } = series(0, () => {}, { n: 0 });
+  assert.ok(rises[1] < -.2 && rises[-1] < -.2, JSON.stringify(rises));
+  // pallonetto: telefono inclinato in avanti, il braccio sale e la testa passa da avanti a sopra
+  for (const axis of [[1, 0, 0], [1, .5, 0]]){
+    const { r } = series(35, p => p.swing({ axis, peak: 650, vy: 9, push: 2, tremor: 6 }), { yaw: false });
+    assert.deepEqual(r.map(x => x.ev.natpf.shot), ['lob', 'lob', 'lob'], `asse ${axis}`);
+  }
+  // la mano che sale con il telefono che si inclina in avanti (la testa scende): non diventa un tagliato
+  const { r } = series(35, p => p.swing({ axis: [-1, 0, 0], peak: 650, vy: 9, push: 2, tremor: 6 }), { yaw: false });
+  assert.ok(r.every(x => x.ev.natpf.shot !== 'slice' && x.ev.natpf.shot !== 'drop'), r.map(x => x.ev.natpf.shot).join(' '));
 });

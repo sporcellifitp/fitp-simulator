@@ -101,3 +101,17 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
   - Prove sul branch unito: `npm test` 276/276, `tools/test` 135/135, prove del gioco nel browser tutte superate (LAN
     7/8, limite noto); presa del 19/10 con i gesti di prima 7/10. Aperti: difetto 6 (pagina storica), presa del 19/10,
     forza degli swing corti, diagnostica in parte doppia; validazione fisica.
+- Checkpoint 10 (22/10, notte): unito nel branch unico l'ultimo commit della seconda sessione (`40d58b2`, fatto sul
+  branch vecchio dopo il merge del checkpoint 9), con un merge e senza doppioni.
+  - Tenuto dal branch unico: piano d'intercetto valido solo per la sua palla (`livePlan`, traccia entro 0,6 m) e
+    lanciapalle con il piano. La correzione di `40d58b2` per lo stesso difetto (piano cancellato a ogni lancio e nella
+    palla della calibrazione, piano tolto a mano nella prova della latenza) e i suoi due test sono stati lasciati
+    fuori: il test «piano vecchio» del branch unico prova già lo stesso caso.
+  - Portato dentro: salita abituale per verso dalla calibrazione (`profile.rises`, `riseRefOf`, `classifyStroke` con
+    `riseRef`, campo `abituale` nell'intenzione della diagnostica) per la presa del 19/10; telefono simulato con la
+    forma del colpo (`simPhone({ shape })`) e audit della calibrazione con `--forma`; prova nel browser della presa
+    del 19/10 come file a parte (`tools/e2e/natpf-phone-upright-19-10.mjs`, gesti di `84ca878` resi fisicamente
+    coerenti), accanto a quella con i gesti della racchetta simulata; commento della webcam corretto; testo del
+    pulsante della prova guidata (5 minuti, tagliati e palle corte).
+  - Prove dopo l'unione: `npm test` 279/279, `tools/test` 135/135. Le prove nel browser e le misure della presa del
+    19/10 sul branch unito sono il primo lavoro del passo 16.
