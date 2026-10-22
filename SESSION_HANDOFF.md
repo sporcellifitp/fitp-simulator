@@ -33,8 +33,8 @@ tastiera come controlli nuovi.
 
 ## Diagnosi in breve (dettagli nel documento)
 
-- **P1 Mano**: il telefono era impostato da mancino, il gioco da destro, e nessuno sincronizza le due impostazioni.
-  Dai dati, chi giocava sembra destro (ipotesi, 9 colpi su 12).
+- **P1 Mano**: il telefono era impostato da mancino, il gioco da destro, e nessuno sincronizza le due impostazioni. Dai
+  dati non si sa quale mano usasse chi giocava: il confronto tra lato della palla e verso del gesto non la distingue.
 - **P2 Verso**: dopo «Salta» della calibrazione il verso del gesto era sempre 0, e il lato veniva dalla palla. Il
   verso si può misurare dalla gravità senza calibrazione: netto in 35 colpi su 54.
 - **P3 Mira**: veniva dalla rotazione del telefono senza centro per lato, ed era satura (|mira| ≥ 0,8 in 22 colpi su
@@ -45,7 +45,8 @@ tastiera come controlli nuovi.
 - **P6 Volée**: impossibili; chi gioca aspetta sempre 2,15 m dietro il rimbalzo.
 - **P7 Pallonetti**: decisi anche con confidenza bassa.
 - **P8 Caso**: dispersione, profondità ed errori del colpo di chi gioca sono casuali.
-- **P9 Calibrazione**: il passo «fermo» è troppo severo con il telefono in mano.
+- **P9 Calibrazione**: «Salta» lascia il gioco senza verso, e la deriva del giroscopio si calcola con il telefono che
+  si muove in mano. Il passo «fermo» funziona: passa quando il telefono si ferma davvero.
 - **P10 Webcam**: nessun dato utile nello ZIP.
 - **Funzionano**: collegamento e prestazioni (59,9 Hz, 31,8 + 6,7 ms, 60 fps).
 

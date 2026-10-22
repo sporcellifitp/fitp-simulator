@@ -85,7 +85,8 @@ export function createCalibration(det){
 
   det.on('status', s => {
     if (S.step !== 'still') return;
-    if (s.s === 'move') emit({ kind: 'warn', why: 'move' });
+    // «stai fermo» al massimo ogni mezzo secondo (prima uno per campione: 100 avvisi in 2,5 s nella sessione del 22/10)
+    if (s.s === 'move' && !(S.lastT - (S.moveWarnT ?? -1e9) < 500)){ S.moveWarnT = S.lastT; emit({ kind: 'warn', why: 'move' }); }
     if (s.s === 'still-ok'){
       // Any comfortable grip is a valid personal frame; no compulsory upright pose.
       S.step = S.options.quick ? 'swings' : 'grip'; S.gripT = null; S.idleT = S.lastT; unready();

@@ -46,8 +46,12 @@ Formato: problema → evidenza → causa → verifica → soluzione → criterio
   - sul computer, `NatpfHand` (`localStorage` `natpf-tennis.hand`), che specchia il personaggio.
   A calibrazione finita, `natpf_phone_racket.js` copia la mano del profilo in `natpfPhone.hand`. Da lì in poi i colpi
   vengono letti come da un mancino e giocati da un personaggio destro.
-- **[ipotesi]** Chi giocava è destro. In 12 tentativi con il lato della palla e il verso del gesto entrambi netti, 9
-  sono coerenti con un destro e 3 con un mancino. Il campione è piccolo.
+- **[insufficiente]** Con questi dati non si sa quale mano usasse chi giocava.
+  - In 12 tentativi con il lato della palla e il verso del gesto entrambi netti, in 9 lo swing va dal lato della palla
+    verso l'altro.
+  - Questo vale sia per un destro sia per un mancino (il dritto del mancino va da sinistra a destra con la palla a
+    sinistra), quindi non distingue la mano.
+  - La scelta «Sinistra» sul telefono è stata fatta a mano (il menu parte da «Destra» e non viene salvato).
 - **Soluzione**: una sola mano, quella del gioco sul computer. Va al telefono, la pagina del telefono la mostra, e la
   calibrazione non la cambia più.
 - **Criterio**:
@@ -185,16 +189,18 @@ Formato: problema → evidenza → causa → verifica → soluzione → criterio
   - Assistenza: i colpi ragionevoli restano in campo, quelli estremi escono.
 - **Criterio**: lo stesso colpo sulla stessa palla, ripetuto, dà lo stesso punto di caduta.
 
-### P9. Calibrazione: saltarla lasciava il gioco senza verso, rifarla falliva
+### P9. Calibrazione: saltarla lasciava il gioco senza verso; la deriva veniva dalla mano
 
 - **Evidenza [dati]**:
   - «Salta» a 7,7 s ha dato il profilo semplice senza verso (vedi P2);
-  - nella ricalibrazione finale (114,5 s) il passo «fermo» ha dato più di 100 avvisi «movimento» in 2,5 s.
-- **Causa [codice]**: il passo «fermo» chiede meno di 35 °/s per 600 ms con il telefono in mano, e prende come deriva
-  la media del movimento (vedi P3).
+  - nella ricalibrazione finale (114,5 s) il passo «fermo» ha dato più di 100 avvisi «movimento» in 2,5 s. In quei
+    secondi il telefono si muoveva davvero (mediana 30–110 °/s); quando si è fermato (mediana 15 °/s) il passo è
+    passato (117,6 s). Il passo «fermo» quindi funziona; gli avvisi sono uno per campione.
+- **Causa [codice]**: il passo «fermo» accetta fino a 35 °/s con il telefono in mano e prende come deriva del
+  giroscopio la media di quel movimento (vedi P3).
 - **Soluzione**: calibrazione breve e tollerante.
-  - Posa «pronto» con soglia sulla mediana, non sul massimo.
-  - Deriva solo se plausibile.
+  - Deriva solo se plausibile (piccola); altrimenti nessuna, perché il giroscopio del browser è già compensato.
+  - Avvisi «movimento» non più di uno ogni mezzo secondo.
   - Poi due swing facoltativi per la forza tipica.
   - Senza calibrazione il gioco funziona lo stesso: verso dalla gravità, forza dalla velocità assoluta.
 - **Criterio**:

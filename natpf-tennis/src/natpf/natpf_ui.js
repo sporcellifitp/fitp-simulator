@@ -80,6 +80,8 @@ export class NatpfUi {
     this.intro = new NatpfIntro({ onDone: () => { if (this.lobby.visible) this.lobby.go('menu'); } });
     $('btn-play-again')?.addEventListener('click', () => this.wipe('Rivincita'), true);
     this.hand.set(this.hand.hand);
+    // mano cambiata sulla pagina del telefono: vale per tutto il gioco (personaggio, webcam) e torna al telefono
+    if (this.phone) this.phone.onHand = h => { this.hand.set(h); this.paintTiles(); };
     this.onViewChange(engine.viewMode);
     this.phone.onChange(() => { this.paintPhone(); this.paintTiles(); if (this.lobby?.visible && this.lobby.step === 'connect') this.lobby.paint(); });
     // telefono che ricalibra in partita o in una sfida senza il pannello aperto (Ricalibra e pannello chiuso, pagina del

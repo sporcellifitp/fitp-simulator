@@ -130,7 +130,7 @@ test('presa: solo verticale; il gioco la manda al telefono appena è collegato',
   phone.link = { connected: true, send: m => sent.push(m) };
   phone._sendGrip(); phone._sendGrip();
   phone.setGrip('flat');
-  const cfg = { t: 'cfg', prep: 1, mo: 1 };          // con la presa: preparazione del colpo e flusso dei sensori
+  const cfg = { t: 'cfg', prep: 1, mo: 1, hand: 'right' };   // con la presa: preparazione, flusso dei sensori e mano del gioco
   assert.deepEqual(sent, [{ t: 'grip', g: 'upright' }, cfg, { t: 'grip', g: 'upright' }, cfg]);
   assert.equal(normalizeGrip('flat'), 'upright');
 });

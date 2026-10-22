@@ -1,6 +1,6 @@
 // Mano del giocatore (destra o mancino) e mano libera in prima persona.
 // - Mancino: il personaggio locale è specchiato (racchetta nella sinistra, anche in terza persona) e dritto/rovescio
-//   si scambiano per webcam e mouse; il telefono NATPF conosce già la mano dalla calibrazione.
+//   si scambiano per webcam e mouse; il telefono la riceve dal gioco (una sola impostazione, vedi natpfPhone.setHand).
 // - Prima persona: la mano libera (sinistra per un destro, destra per un mancino) si vede solo al proprio servizio,
 //   per il lancio di palla; nel resto del gioco resta solo la mano con la racchetta.
 export const HAND_KEY = 'natpf-tennis.hand';
@@ -48,7 +48,14 @@ export class NatpfHand {
       return emit({ ...e, side: leftySide(e, { ballX: engine.ball?.pos?.x || 0, actorX: a?.pos?.x || 0, facingNegativeZ: engine.playerRole !== 'p2' }) });
     };
   }
-  set(h){ this.hand = normalizeHand(h); writeHand(this.hand); if (this.engine.natpfPhone) this.engine.natpfPhone.hand = this.hand; if (this.engine.motionController) this.engine.motionController.handPreference = this.hand; this.apply(); }
+  // una sola mano per tutto il gioco: personaggio, telefono (che la riceve e la mostra) e webcam
+  set(h){
+    this.hand = normalizeHand(h); writeHand(this.hand);
+    const phone = this.engine.natpfPhone;
+    if (phone){ if (phone.setHand) phone.setHand(this.hand); else phone.hand = this.hand; }
+    if (this.engine.motionController) this.engine.motionController.handPreference = this.hand;
+    this.apply();
+  }
   // specchia il personaggio locale (una sola volta per cambio)
   apply(){
     const a = this.engine.localActor; if (!a?.root) return;

@@ -28,11 +28,18 @@ export const DEFAULTS = {
   recover: 300, quiet: 70, gap: 140,   // ms di calibrazione da fermo
   prepHold: 250,    // ms (modalità preparazione): un gesto nel verso opposto al colpo atteso aspetta così prima di valere
   prepMax: 700,     // ms: oltre, il gesto trattenuto vale comunque come colpo
-  recoverWindow: 600, // ms dopo un colpo in cui il gesto nel verso opposto è il rientro della mano, non un colpo
+  recoverWindow: 600, // ms dopo un colpo in cui il gesto nel verso opposto è il rientro della mano, non un colpo…
+  recoverStrong: 1.2, // … se non è più forte di così rispetto al colpo: allora era la preparazione, e questo è il colpo
+                      // (con una preparazione lenta presa per colpo, il colpo vero veniva scartato come rientro)
   rawDrop: .88,     // il colpo parte appena la velocità grezza scende sotto l'88% del suo picco (prima del calo della media)…
   rawFall: .97,     // … o dopo due campioni grezzi in calo sotto il 97% (picchi larghi: nei colpi veri 30–50 ms prima)
   prepWeak: .85,    // (modalità preparazione) si trattiene solo un gesto più debole dell'85% del proprio colpo tipico
   prepSlow: .45,    // gesto trattenuto e senza seguito: sotto il 45% del colpo tipico era una preparazione, non un colpo
+  biasMax: 1.5,     // °/s: deriva del giroscopio accettata dal passo «fermo»; oltre era la mano che si muoveva (il
+                    // giroscopio del browser è già compensato: nei tratti fermi della sessione del 22/10 dava meno di
+                    // 1,5 °/s, il passo «fermo» con il telefono in mano 8,7 °/s), e la deriva resta zero
+  signVotes: 4,     // senza asse di calibrazione: dopo almeno tanti colpi netti quasi tutti nel verso opposto a quello
+  signAgree: .25,   // atteso (da che parte arriva la palla) il segno dei sensori è invertito (alcuni browser) e si gira
   prepFollow: .8,   // il gesto opposto dopo quello trattenuto è il colpo solo se veloce almeno l'80% di quello: più debole
                     // è il rientro della mano, e il colpo era quello trattenuto (il rovescio lungolinea su palla centrale
                     // diventava un dritto: rovescio morbido trattenuto, poi il rientro verso il dritto preso per il colpo)
@@ -103,10 +110,12 @@ export function createSwingDetector(opts = {}){
   // atteso), un gesto nel verso opposto non parte subito: se entro poco arriva il gesto nel verso giusto era una
   // preparazione (evento 'prep'), altrimenti vale come colpo con il suo istante del picco (il tempo resta giusto).
   let prepMode = false, expectDir = 0, held = null, lastDir = 0, lastAxis = null;
+  // verso assoluto (senza asse di calibrazione): segno dei sensori e voti dei colpi rispetto al verso atteso
+  let absSign = 1, votes = { agree: 0, against: 0 };
   // ultimi tre campioni grezzi (tempo, modulo): l'istante vero del picco si ricava da una parabola sui tre attorno al
   // massimo, senza il ritardo della media mobile (che serve solo a decidere quando il colpo è partito)
   const raw = [];
-  let mode = 'run', still = null, cur = null, lastFire = -1e9, lastT = null, sm = 0, last = null;
+  let mode = 'run', still = null, cur = null, lastFire = -1e9, lastT = null, sm = 0, last = null, lastPeak = 0;
   const listeners = { swing: [], status: [], sample: [], phase: [], prep: [] };
   const emit = (k, v) => { for (const f of listeners[k]) f(v); };
   const serving = () => context === 'serve' || context === 'toss';
@@ -138,6 +147,10 @@ export function createSwingDetector(opts = {}){
     if (mode === 'still') return feedStill(k);
     if (mode !== 'run') return;
     const T = thr();
+    // dopo un gesto debole, una rotazione nel verso opposto chiaramente più forte è il colpo vero: il gesto di prima era
+    // la preparazione (riconoscerlo dopo, sul computer: lo swing più forte sostituisce quello in attesa). Non si aspetta
+    // la quiete del rientro, che tra preparazione e colpo non c'è
+    if (recovering && !serving() && w && lastAxis && dot(unit(w), lastAxis) < -.3 && mag > Math.max(T.minPeak, lastPeak*C.recoverStrong)){ recovering = false; quietSince = null; setPhase('ready'); }
     if (recovering && !serving()){
       if (k.t-lastFire>100) setPhase('follow');
       if (sm < T.on*.65){ if (quietSince == null) quietSince = k.t; } else quietSince = null;
@@ -189,7 +202,8 @@ export function createSwingDetector(opts = {}){
     if (k.accG) for (let i = 0; i < 3; i++) still.g[i] += k.accG[i];
     if (still.max > C.stillMax){ still = null; emit('status', { s: 'move' }); return; }
     if (k.t - still.t0 >= C.stillTime){
-      if (still.n) prof.bias = still.sum.map(v => v/still.n);
+      // deriva: la media da fermi solo se è piccola (altrimenti era il movimento della mano, e si tiene zero)
+      if (still.n){ const m = still.sum.map(v => v/still.n); prof.bias = len(m) <= C.biasMax ? m : [0, 0, 0]; }
       prof.noise = still.n ? Math.max(1, still.max - len(prof.bias)) : 5;
       const g = unit(still.g);
       prof.gravity = g;
@@ -209,6 +223,9 @@ export function createSwingDetector(opts = {}){
     // ancora nessun verso: il gesto è dominato dalla rotazione del polso (asse al picco quasi orizzontale), ma la mano
     // gira comunque attorno alla verticale; il segno si confronta con quello del colpo di calibrazione
     if (!dir && prof.axis){ const t = netTurn(c.turn, c.angle), ref = prof.gravity ? dot(unit(prof.axis), unit([prof.gravity[2], prof.gravity[0], prof.gravity[1]])) : 0; if (t && Math.abs(ref) >= .3) dir = t*Math.sign(ref); }
+    // senza calibrazione (profilo semplice, «Salta»): verso assoluto dalla rotazione attorno alla verticale, che non
+    // dipende da come si tiene il telefono. Prima restava 0 per ogni colpo e il lato lo decideva la palla
+    if (!dir && !prof.axis) dir = absSign*(netTurn(c.turn, c.angle, .2) || verticalTurn(axis, c.gravity || prof.gravity, .35));
     const vert = verticalGesture(axis, c.gravity || prof.gravity, lift, along);
     // istante del colpo: il picco grezzo interpolato, se c'è ed è vicino a quello della media mobile
     const peakT = c.rawPeak > 0 && Math.abs(c.truePeakT - c.peakT) < 60 ? +c.truePeakT.toFixed(1) : c.peakT;
@@ -222,7 +239,7 @@ export function createSwingDetector(opts = {}){
     const floor=prof.intentGate&&!serving()?thr().minPeak:Math.max(thr().minPeak,intent.floor*prof.sens);
     const minAngle=serving()?2:Math.min(prof.minAngles?.[dir]||prof.minAngle,...(prof.templates||[]).filter(t=>t.shot===intent.shot).map(t=>Math.max(2,t.angle*.35)));
     // rientro in posizione subito dopo un colpo, nel verso opposto: non è un colpo (né una preparazione)
-    if (!training && !serving() && lastDir && dir === -lastDir && c.peakT - lastFire < C.recoverWindow){ setPhase('follow'); return; }
+    if (!training && !serving() && lastDir && dir === -lastDir && c.peakT - lastFire < C.recoverWindow && c.peak < lastPeak*C.recoverStrong){ setPhase('follow'); return; }
     // gesto verticale (dal basso verso l'alto o dall'alto verso il basso): non è né dritto né rovescio, ma è un colpo
     const vertical = dir === 0 && !!vert && !serving() && c.peak >= Math.max(thr().minPeak, (prof.ref || 600)*.4);
     if (!training && ((prof.axis && dir === 0 && !vertical && !serving() && !(context==='practice' && intent.shot==='serve')) || (!vertical && c.peak < floor) || c.angle < minAngle)){
@@ -250,6 +267,14 @@ export function createSwingDetector(opts = {}){
     }
     commit(sw, t);
   }
+  // segno dei sensori senza calibrazione: i colpi netti (forza almeno da colpo normale) con il verso atteso noto votano;
+  // quasi tutti al contrario vuol dire sensori con il segno opposto (la calibrazione lo scopre con vsign)
+  function vote(sw){
+    if (!expectDir || !sw.dir || (sw.features?.speed ?? 0) < .6) return;
+    if (sw.dir === expectDir) votes.agree++; else votes.against++;
+    const n = votes.agree + votes.against;
+    if (n >= C.signVotes && votes.agree/n <= C.signAgree){ absSign = -absSign; sw.dir = -sw.dir; votes = { agree: votes.against, against: votes.agree }; emit('status', { s: 'sign', sign: absSign }); }
+  }
   // gesto trattenuto senza il colpo opposto: se è lento era una preparazione rimasta a metà (nelle registrazioni questi
   // gesti partivano 250 ms dopo come colpi lenti e quasi mai prendevano la palla), altrimenti vale come colpo
   function release(sw, now){
@@ -259,7 +284,8 @@ export function createSwingDetector(opts = {}){
   // now: istante in cui il colpo parte davvero (dopo l'eventuale attesa della preparazione), per misurare i ritardi
   function commit(sw, now = sw.t){
     sw.holdMs = +Math.max(0, now - sw.t).toFixed(1);
-    lastFire = sw.peakT; lastDir = sw.dir || 0; lastAxis = sw.axis || null;
+    if (!prof.axis && !training && !serving()) vote(sw);
+    lastFire = sw.peakT; lastDir = sw.dir || 0; lastAxis = sw.axis || null; lastPeak = sw.peak || 0;
     if (!training){ recovering = !serving(); quietSince = null; setPhase('contact'); }
     emit('swing', sw);
   }
@@ -282,7 +308,9 @@ export function createSwingDetector(opts = {}){
     feed,
     // telefono fermo: deriva e rumore del giroscopio, verso della gravità (come si tiene il telefono)
     still(){ mode = 'still'; still = null; cur = null; },
-    setProfile(p){ prof = { ...defaultProfile(), ...p, bias: p.bias || prof.bias }; armed = !prof.intentGate; reset(); },
+    // deriva solo se plausibile anche dai profili salvati prima (alcuni avevano il movimento della mano come deriva)
+    setProfile(p){ const b = p.bias || prof.bias; prof = { ...defaultProfile(), ...p, bias: b && len(b) <= C.biasMax ? b : [0, 0, 0] }; armed = !prof.intentGate; absSign = 1; votes = { agree: 0, against: 0 }; reset(); },
+    get absSign(){ return absSign; },
     setThresholds(t){ prof = { ...prof, ...t }; },
     setSensitivity(k){ prof = { ...prof, sens: k }; },      // k < 1 più sensibile
     stop(){ mode = 'off'; reset(); },

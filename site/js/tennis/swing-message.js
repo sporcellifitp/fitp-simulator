@@ -3,7 +3,9 @@
 // Campi: p forza, l verso verticale, dur, dir, a mira del gesto, c fiducia, pk istante del picco (ms sul telefono),
 // lat ritardo stimato, v velocità al picco (°/s), tw rotazione del polso, g/fy/fp/fr/fa piatto all'impatto,
 // fu piatto non credibile, sp velocità rispetto al proprio colpo tipico, he verso verticale del colpo (piatto che sale o
-// scende mentre ruota, face-tracker.headAt), fh direzione assoluta del piatto all'impatto (gradi), sd ms dal picco al riconoscimento, hd ms di attesa della preparazione, hz Hz dei sensori, n numero, vt gesto verticale.
+// scende mentre ruota, face-tracker.headAt), fh direzione assoluta del piatto all'impatto (gradi), sd ms dal picco al riconoscimento, hd ms di attesa della preparazione, hz Hz dei sensori, n numero, vt gesto verticale,
+// an ampiezza dello swing (gradi), sh forma del colpo [piano, salita, rotazione sul manico, inclinazione del manico,
+// velocità della testa m/s, velocità della mano m/s] (stroke-shape.js).
 import { aimFromFace } from './face-tracker.js';
 
 export function swingMessage(s, { flags = {}, grip = 'upright', faceRef = null, rtt = 80, now = s.t, sampleHz = 60, seq = 0 } = {}){
@@ -19,6 +21,8 @@ export function swingMessage(s, { flags = {}, grip = 'upright', faceRef = null, 
     ...(Number.isFinite(s.features?.speed) ? { sp: +s.features.speed.toFixed(3) } : {}),
     ...(Number.isFinite(s.head) ? { he: s.head } : {}),
     ...(Number.isFinite(s.face?.abs) && grip !== 'flat' ? { fh: +s.face.abs.toFixed(1) } : {}),
+    ...(Number.isFinite(s.angle) ? { an: Math.round(s.angle) } : {}),
+    ...(s.shape ? { sh: [s.shape.plane, s.shape.rise, s.shape.roll, s.shape.tilt, s.shape.head, s.shape.hand] } : {}),
     sd: s.detectMs, hd: s.holdMs, hz: Math.round(sampleHz), n: seq, ...(s.vert ? { vt: s.vert } : {}) };
 }
 
@@ -36,5 +40,9 @@ export function parseSwingMessage(d, { at, now }){
     ...(typeof d.fh === 'number' && isFinite(d.fh) ? { heading: n(d.fh, -180, 180, 0) } : {}),
     ...(typeof d.sd === 'number' ? { detectMs: n(d.sd, 0, 1000, 0) } : {}), ...(typeof d.hd === 'number' ? { holdMs: n(d.hd, 0, 2000, 0) } : {}),
     ...(typeof d.hz === 'number' ? { sampleHz: n(d.hz, 0, 1000, 0) } : {}), ...(Number.isInteger(d.n) ? { seq: d.n } : {}), ...(d.vt === 'up' || d.vt === 'down' ? { vert: d.vt } : {}),
+    ...(typeof d.an === 'number' && isFinite(d.an) ? { angle: n(d.an, 0, 720, 0) } : {}),
+    // forma del colpo (telefoni aggiornati): senza, il computer usa i segnali di prima
+    ...(Array.isArray(d.sh) && d.sh.length >= 6 && d.sh.slice(0, 6).every(x => typeof x === 'number' && isFinite(x))
+      ? { shape: { plane: n(d.sh[0], -1, 1, 0), rise: n(d.sh[1], -1, 1, 0), roll: n(d.sh[2], -1, 1, 0), tilt: n(d.sh[3], -1, 1, 0), head: n(d.sh[4], 0, 60, 0), hand: n(d.sh[5], 0, 30, 0) } } : {}),
     receivedAt: now/1000, sentLat: n(d.lat, 0, 5000, null) };
 }

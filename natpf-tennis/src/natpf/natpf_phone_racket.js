@@ -24,6 +24,7 @@ import { VIBRATION } from './natpf_shot_feedback.js';
 import { swingPower } from './natpf_skill.js';
 import { classifyPhoneShot, aimFromSignals, ENGINE_SHOT, liftBaselineFromProfile, headBaselineFromProfile, resolveLiftBaseline, createLiftModel, createFaceModel, createAimModel, centeredFace, learnSpecials } from './natpf_gestures.js';
 import { calReduce, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
+import { readHand, normalizeHand } from './natpf_hand.js';
 
 const NATPF_BASE = '/natpf/';
 const scripts = new Map();
@@ -210,7 +211,9 @@ export class NatpfPhoneRacket {
   constructor(engine){
     this.engine = engine;
     this.link = null;
-    this.hand = 'right';
+    // mano di chi gioca: una sola, quella del gioco (NatpfHand, salvata sul computer). Va al telefono con la configurazione
+    // e la calibrazione non la cambia più (nella sessione del 22/10 il telefono era «mancino» e il gioco «destro»)
+    this.hand = readHand();
     this.grip = normalizeGrip(readGrip());
     this.gripSent = false;
     this.listeners = new Set();
@@ -236,6 +239,18 @@ export class NatpfPhoneRacket {
   get ready(){ return !!this.link?.ready; }
   get state(){ return this.link?.L || { state: 'off', phone: null }; }
   // presa scelta nel gioco (lobby, pannello del telefono): va al telefono, che rifà la calibrazione se serve
+  // mano scelta nel gioco (NatpfHand.set): va subito al telefono, che la mostra e la usa nella calibrazione
+  setHand(h){
+    const next = normalizeHand(h);
+    if (next === this.hand) return;
+    this.hand = next; this.gripSent = false; this._sendGrip(); this._changed();
+  }
+  // mano cambiata sulla pagina del telefono: la decide il gioco (onHand la applica a NatpfHand, che la rimanda qui)
+  _onPhoneHand(h){
+    const next = normalizeHand(h);
+    if (next === this.hand) return;
+    if (this.onHand) this.onHand(next); else this.setHand(next);
+  }
   setGrip(g){
     this.grip = normalizeGrip(g); writeGrip(this.grip); this.gripSent = false; this._sendGrip(); this._changed();
   }
@@ -247,7 +262,7 @@ export class NatpfPhoneRacket {
     const joins = this.state.joins || 0;
     if (joins !== this.joins){ this.joins = joins; this.gripSent = false; this.lastPhase = null; this.lastExpect = null; }
     // diag: se la diagnostica sta registrando, anche dopo una riconnessione il telefono rimanda i campioni grezzi
-    if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.link.send({ t: 'cfg', prep: 1, mo: 1, ...(this.diagStream ? { diag: 1 } : {}) }); this.gripSent = true; this.lastExpect = null; }
+    if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.link.send({ t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}) }); this.gripSent = true; this.lastExpect = null; }
     if (!this.connected) this.gripSent = false;
   }
   get pairingUrl(){ return this.link ? pairingUrl(phonePageUrl(window.location, this.lanOrigin), testSearch(), this.link.session, this.link.token) : null; }
@@ -272,6 +287,7 @@ export class NatpfPhoneRacket {
     link.on('swing', s => this._onSwing(s));
     link.on('toss', () => this._onToss());
     link.on('prep', p => this._onPrep(p));
+    link.on('hand', e => this._onPhoneHand(e.hand));
     link.on('raw', k => { for (const fn of this.rawListeners) try { fn(k); } catch (e){ console.error(e); } });
     link.on('dropped', d => { for (const fn of this.dropListeners) try { fn(d.reason, { seq: d.seq, path: d.path }); } catch (e){ console.error(e); } });
     await link.start();
@@ -292,7 +308,7 @@ export class NatpfPhoneRacket {
     c.idle = e.kind === 'idle';
     if (e.kind === 'review'){ c.review = e; c.freeOk = false; if (e.pass) this.link.cmd('free'); }   // prova libera, poi conferma
     if (e.kind === 'free' && e.ok) c.freeOk = true;
-    if (e.kind === 'done'){ c.step = 'done'; this.profile = e.profile || null; this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline; this.liftModel.reset(this.liftBaseline); this.faceModel.reset(); this.aimModel.reset(); this.resetSpecials(); if (e.profile?.hand === 'left' || e.profile?.hand === 'right') this.hand = e.profile.hand; this.headModel.reset(headBaselineFromProfile(this.profile, this.hand) ?? 0); }
+    if (e.kind === 'done'){ c.step = 'done'; this.profile = e.profile || null; this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline; this.liftModel.reset(this.liftBaseline); this.faceModel.reset(); this.aimModel.reset(); this.resetSpecials(); if (e.profile && e.profile.hand !== this.hand){ this.gripSent = false; this._sendGrip(); } this.headModel.reset(headBaselineFromProfile(this.profile, this.hand) ?? 0); }
     c.last = e;
     for (const fn of this.calListeners) try { fn(e); } catch (err){ console.error(err); }
     this._changed();

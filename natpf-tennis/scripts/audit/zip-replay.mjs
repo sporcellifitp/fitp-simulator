@@ -1,0 +1,61 @@
+// Rigioca i campioni grezzi del telefono di una sessione registrata (pacchetto della diagnostica estratto in una
+// cartella) nella catena della pagina del telefono: rilevatore, filtro d'orientamento, forma del colpo. Serve a
+// confrontare, sugli stessi dati, cosa riconosce il codice di adesso con quello che era stato registrato in partita.
+//
+//   node --import ./test/register.mjs scripts/audit/zip-replay.mjs <cartella dello ZIP estratto> [--json=uscita.json]
+//
+// Il pacchetto non va nel repository (contiene il video della webcam): si estrae in una cartella qualsiasi fuori.
+// Limiti: il contesto del rilevatore è sempre «gioco» (i servizi non sono distinti) e il verso atteso della palla non è
+// noto (expect = 0), quindi la modalità preparazione trattiene meno gesti che in partita.
+import fs from 'node:fs';
+import path from 'node:path';
+import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
+import { createFaceTracker } from '@natpf/tennis/face-tracker.js';
+import { strokeShape } from '@natpf/tennis/stroke-shape.js';
+
+const args = process.argv.slice(2);
+const dir = args.find(a => !a.startsWith('--'));
+const out = (args.find(a => a.startsWith('--json=')) || '').slice(7) || null;
+if (!dir){ console.error('uso: zip-replay.mjs <cartella dello ZIP estratto> [--json=uscita.json]'); process.exit(2); }
+const lines = f => fs.readFileSync(path.join(dir, f), 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l));
+const events = lines('eventi.jsonl'), raw = lines('telefono-sensori.jsonl').sort((a, b) => a.k - b.k);
+
+export function replay(raw, profile, { prep = true } = {}){
+  const det = createSwingDetector(), face = createFaceTracker({ quietHold: 400, relax: 2.5 });
+  const swings = [];
+  det.on('swing', s => {
+    if (face.ready){ s.face = face.strokeFace(s.peakT, s.t - s.dur); s.head = face.headAt(s.peakT, s.axis); s.shape = strokeShape(face.history(), face.up, { peakT: s.peakT }); }
+    swings.push(s);
+  });
+  det.setProfile(profile); det.run(); det.setContext('play'); det.setPrepMode(prep);
+  face.setRest(profile.gravity, det.profile.bias);
+  for (const s of raw){
+    const k = { t: s.k, rot: s.r, acc: s.a, accG: s.g };
+    if (face.ready) face.feed(k);
+    det.feed(k);
+  }
+  return swings;
+}
+
+// profilo in uso: l'ultimo «tel.profilo» prima del primo colpo registrato (nella sessione del 22/10 quello semplice)
+const strokes = events.filter(e => e.k === 'tel.colpo');
+const profiles = events.filter(e => e.k === 'tel.profilo');
+const profile = (profiles.filter(p => !strokes.length || p.t <= strokes[0].t).pop() || profiles[0])?.profilo;
+if (!profile){ console.error('nessun profilo del telefono negli eventi'); process.exit(1); }
+const off = Math.min(...raw.map(s => s.t - s.k));                 // orologio del telefono → tempo della sessione
+const swings = replay(raw, profile);
+const r = v => (v == null || !Number.isFinite(v) ? '–' : (+v).toFixed(2));
+const rows = [];
+for (const s of swings){
+  const t = s.peakT + off;
+  const rec = strokes.find(c => Math.abs((c.picco ?? c.t) - t) < 80);
+  rows.push({ t: +(t/1000).toFixed(2), dir: s.dir, peak: s.peak, angle: s.angle, lift: s.lift, head: s.head, shape: s.shape || null,
+    rec: rec ? { n: rec.n, lato: rec.lato, tipo: rec.tipo, mira: rec.mira, dir: rec.dir, scartato: rec.scartato || null } : null });
+}
+console.log(`profilo: ${profile.simple ? 'semplice (senza asse)' : 'completo'}, mano ${profile.hand}; colpi registrati ${strokes.length}, rigiocati ${swings.length}, abbinati ${rows.filter(x => x.rec).length}`);
+console.log('   t     verso picco  ang | piano  sale  piatto  chiude  testa  mano | registrato');
+for (const x of rows){
+  const sh = x.shape || {};
+  console.log(`${String(x.t).padStart(7)} ${String(x.dir).padStart(4)} ${String(x.peak).padStart(5)} ${String(x.angle).padStart(4)} | ${r(sh.plane).padStart(5)} ${r(sh.rise).padStart(5)} ${r(sh.open).padStart(6)} ${r(sh.roll).padStart(6)} ${r(sh.head).padStart(6)} ${r(sh.hand).padStart(5)} | ${x.rec ? `${x.rec.scartato ? 'scartato' : `${x.rec.lato}/${x.rec.tipo}`} mira ${r(x.rec.mira)} verso ${x.rec.dir}` : '–'}`);
+}
+if (out) fs.writeFileSync(out, JSON.stringify({ profile: { simple: !!profile.simple, hand: profile.hand }, rows }, null, 1));

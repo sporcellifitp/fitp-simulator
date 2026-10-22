@@ -35,6 +35,7 @@ export const FACE = Object.freeze({
   aimYaw: 40,         // °: imbardata del piatto oltre il proprio colpo abituale che vale circa 3/4 della mira (curva morbida)
   maxAimYaw: 80,      // °: oltre, la misura non è credibile (gesto molto ampio, piatto quasi orizzontale): mira dal tempo
   baseFrom: 900, baseTo: 60,  // ms prima dell'inizio del colpo in cui cercare l'istante più fermo (la posa di partenza)
+  biasMax: 1.5,       // °/s: deriva accettata (come DEFAULTS.biasMax del rilevatore)
 });
 
 // gesti di calibrazione: il piatto «tipico» all'impatto per ogni verso del gesto (+1 / −1), da togliere in partita
@@ -84,7 +85,8 @@ export function createFaceTracker(opts = {}){
       if (len(fwd) < .2) fwd = [0, 1, 0].map((v, i) => v - up[i]*up[1]);       // telefono quasi piatto: avanti = lato lungo
       fwd = unit(fwd);
       frame = { up, fwd, right: cross(fwd, up), pitch0: Math.asin(clamp(-up[2], -1, 1))/D, roll0: Math.asin(clamp(up[1], -1, 1))/D };
-      bias = Array.isArray(gyroBias) && gyroBias.length === 3 ? gyroBias.slice() : [0, 0, 0];
+      // deriva del giroscopio solo se plausibile (come il rilevatore): oltre era il movimento della mano
+      bias = Array.isArray(gyroBias) && gyroBias.length === 3 && len(gyroBias) <= FACE.biasMax ? gyroBias.slice() : [0, 0, 0];
       q = [0, 0, 0, 1]; readyYaw = 0; quietSince = null; hist.length = 0; lastT = null; current = { yaw: 0, pitch: 0, roll: 0 };
       return true;
     },
@@ -112,10 +114,15 @@ export function createFaceTracker(opts = {}){
       if (rate < C.quietRate){ if (quietSince == null) quietSince = k.t; if (k.t - quietSince > C.quietHold) readyYaw += wrap(m.yaw - readyYaw)*Math.min(1, dt/C.relax); }
       else quietSince = null;
       current = { yaw: +wrap(m.yaw - readyYaw).toFixed(2), pitch: +m.pitch.toFixed(2), roll: +m.roll.toFixed(2) };
-      hist.push({ t: k.t, ...current, rate, q: q.slice() }); while (hist.length && k.t - hist[0].t > C.history) hist.shift();
+      // per la forma del colpo (stroke-shape.js): rotazione (°/s) e accelerazione della mano (m/s², senza gravità) nel
+      // riferimento della posa di riposo, dove l'alto è frame.up
+      hist.push({ t: k.t, ...current, rate, q: q.slice(), w: rotate(q, r), a: k.acc ? rotate(q, k.acc) : null }); while (hist.length && k.t - hist[0].t > C.history) hist.shift();
       return current;
     },
     get face(){ return current; },
+    // alto nel riferimento della posa di riposo e storia dei campioni (sola lettura), per la forma del colpo
+    get up(){ return frame ? frame.up.slice() : null; },
+    history(){ return hist; },
     // Verso verticale del colpo all'istante t: di quanto il piatto (normale del dorso, −z) si inclina verso l'alto o
     // verso il basso mentre ruota, (ω × n)·alto / |ω|, da −1 a +1. Dritto o rovescio piatti: il piatto ruota in
     // orizzontale (≈ 0). Dal basso verso l'alto (pallonetto, topspin): il piatto sale (> 0). Dall'alto verso il basso

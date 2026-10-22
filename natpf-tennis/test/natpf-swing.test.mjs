@@ -82,7 +82,7 @@ test('CPU: sbaglia sui colpi pericolosi, non sulle palle lente e corte', () => {
   assert.ok(strong > soft*1.8, `${strong} ${soft}`);
 });
 
-test('«Salta» la calibrazione: profilo semplice, il telefono è pronto e i gesti valgono tutti', () => {
+test('«Salta» la calibrazione: profilo semplice, il telefono è pronto, i gesti valgono tutti e il verso si misura', () => {
   const det = createSwingDetector(), cal = createCalibration(det);
   const events = []; cal.on(e => events.push(e));
   assert.equal(cal.skip(), null);                                           // prima di iniziare non c'è niente da saltare
@@ -93,9 +93,20 @@ test('«Salta» la calibrazione: profilo semplice, il telefono è pronto e i ges
   assert.equal(events.at(-1).kind, 'done');
   const swings = []; det.on('swing', s => swings.push(s));
   let t = 1000;
-  for (let i = 0; i <= 22; i++, t += 10) det.feed({ t, rot: [0, 0, 650*Math.sin(Math.PI*i/22)**2], acc: [0, 0, 0], accG: [0, 9.8, 0] });
-  for (let i = 0; i < 40; i++, t += 10) det.feed({ t, rot: [0, 0, 0], acc: [0, 0, 0], accG: [0, 9.8, 0] });
-  assert.equal(swings.length, 1); assert.equal(swings[0].dir, 0);          // il lato lo sceglie il gioco
+  // telefono in verticale (gravità lungo y): la rotazione attorno a y è attorno alla verticale, cioè uno swing
+  // orizzontale. Il verso viene dalla gravità senza calibrazione (prima era sempre 0 e il lato lo sceglieva la palla)
+  const stroke = sign => {
+    for (let i = 0; i <= 22; i++, t += 10) det.feed({ t, rot: [0, 0, sign*650*Math.sin(Math.PI*i/22)**2], acc: [0, 0, 0], accG: [0, 9.8, 0] });
+    for (let i = 0; i < 80; i++, t += 10) det.feed({ t, rot: [0, 0, 0], acc: [0, 0, 0], accG: [0, 9.8, 0] });
+  };
+  stroke(1); stroke(-1);
+  assert.equal(swings.length, 2);
+  assert.equal(swings[0].dir, 1);           // antiorario visto dall'alto: da destra a sinistra
+  assert.equal(swings[1].dir, -1);
+  // rotazione attorno a un asse orizzontale (gesto verticale): nessun verso, il colpo vale lo stesso
+  for (let i = 0; i <= 22; i++, t += 10) det.feed({ t, rot: [650*Math.sin(Math.PI*i/22)**2, 0, 0], acc: [0, 0, 0], accG: [0, 9.8, 0] });
+  for (let i = 0; i < 80; i++, t += 10) det.feed({ t, rot: [0, 0, 0], acc: [0, 0, 0], accG: [0, 9.8, 0] });
+  assert.equal(swings.length, 3); assert.equal(swings[2].dir, 0);
 });
 
 test('skill gap misurato (simulazione): contro la CPU esperta il tennista vince più dell’amatore, l’amatore più del bambino', () => {

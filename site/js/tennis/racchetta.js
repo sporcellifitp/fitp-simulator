@@ -9,6 +9,7 @@ import { LanPeer, isLanMode } from './lan-transport.js';
 import { encodeSensor, SENSOR_HZ } from './sensor-packet.js';
 import { peerConfig, loadPeer } from './link.js';
 import { createFaceTracker } from './face-tracker.js';
+import { strokeShape } from './stroke-shape.js';
 import { swingMessage } from './swing-message.js';
 
 const $ = s => document.querySelector(s);
@@ -30,7 +31,8 @@ const ALLOW_FLAT = false;
 // telefono solo dopo 0,4 s fermo e lentamente: le pause della preparazione non spostano il riferimento della mira.
 const det = createSwingDetector(), face = createFaceTracker(ALLOW_FLAT ? {} : { quietHold: 400, relax: 2.5 });
 // ogni gesto porta con sé il piatto all'istante del picco (l'impatto)
-det.on('swing', s => { if (face.ready){ s.face = face.strokeFace(s.peakT, s.t - s.dur); s.head = face.headAt(s.peakT, s.axis); } });
+// … e la forma del colpo (stroke-shape.js): piano, verso della testa della racchetta, rotazione sul manico
+det.on('swing', s => { if (face.ready){ s.face = face.strokeFace(s.peakT, s.t - s.dur); s.head = face.headAt(s.peakT, s.axis); s.shape = strokeShape(face.history(), face.up, { peakT: s.peakT }); } });
 det.on('status', s => { if (s.s === 'still-ok') face.setRest(s.gravity, det.profile.bias); });
 const cal = createCalibration(det);
 let lastFaceSent = -Infinity, lastFacePaint = -Infinity, lastAttemptOk = false;
@@ -45,6 +47,16 @@ let fast = null, fastOk = false, rawSeq = 0;
 let selectedShot = 'auto', inputMode = 'motion', portrait = true, shotsPaintKey = '';
 const preferences = () => ({ range: $('#motionRange').value, hand: $('#hand').value, intentGate: $('#intentGate').checked, gestural:true,quick:true, ...(grip === 'flat' ? { grip: 'flat' } : {}) });
 const ARROW = { L: '←', R: '→', '?': '?' };
+// mano scelta nel gioco (o qui, e confermata dal gioco): menu, calibrazione in corso e profilo salvato. Il verso del
+// gesto non dipende dalla mano: cambia solo quale verso è il dritto, quindi il profilo resta valido
+function applyHand(h){
+  const hand = h === 'left' ? 'left' : 'right';
+  if ($('#hand').value !== hand) $('#hand').value = hand;
+  if (cal.state.options) cal.state.options.hand = hand;
+  const saved = ss.get('profile');
+  if (saved && saved.hand !== hand){ saved.hand = hand; ss.set('profile', saved); }
+  if (sensor === 'cal') paint();
+}
 function ui(big, sub, ring = '', arrow = ''){ $('#big').textContent = big; $('#sub').textContent = sub; $('#ring').className = ring; $('#arrow').textContent = arrow; }
 function bar(){
   const b = $('#bar');
@@ -148,7 +160,7 @@ function onData(c, d){
     case 'dp': send({ t: 'dq', d: d.d, p: performance.now() }); break;
     case 'grip': setGrip(d.g); break;
     // il gioco chiede la modalità preparazione (prep) e il flusso dei sensori in JSON quando non c'è il canale binario (mo)
-    case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); streamJson = !!d.mo; diagStream = !!d.diag; sendState(); break;
+    case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); streamJson = !!d.mo; diagStream = !!d.diag; if (d.hand === 'left' || d.hand === 'right') applyHand(d.hand); sendState(); break;
     // verso del colpo atteso (da che parte arriva la palla): +1 da destra a sinistra, -1 da sinistra a destra, 0 non si sa
     case 'ex': det.setExpect(d.d); break;
     case 'practice': if (inputMode==='touch' && SHOT_NAMES[d.shot]){ selectedShot = d.shot; paintShots(); } break;
@@ -347,6 +359,8 @@ $('#touchHit').addEventListener('click', () => {
   send({ t:'sw',pk:performance.now(),p:power,dir,l:0,...shotFlags(selectedShot) });
 });
 $('#gripMode').addEventListener('change', e => setGrip(e.target.value));
+// mano: una sola per tutto il gioco. Cambiata qui va al computer, che la applica e la rimanda (cfg)
+$('#hand').addEventListener('change', e => { applyHand(e.target.value); send({ t: 'hand', h: $('#hand').value }); });
 $('#enableTouch').addEventListener('click', () => { lockOrientation(); inputMode='touch'; selectedShot='drive'; det.stop(); sensor='cal'; cal.useTouch(); sendState(); paint(); });
 det.on('phase', value => {
   $('#phaseFeedback').textContent = ({ ready:'Pronto',preparation:'Preparazione',contact:'Colpo riconosciuto',follow:'Accompagnamento' })[value] || '';
