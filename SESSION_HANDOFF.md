@@ -6,7 +6,8 @@ generale del progetto resta `MEMORY.md`; la cronologia delle decisioni è in `WO
 ## Obiettivo (richiesta del 22/10)
 
 Il telefono come racchetta virtuale: il gesto fisico è l'input del gameplay. Direzione, potenza, altezza e traiettoria
-vengono dal gesto in modo comprensibile, con assistenza arcade (riferimenti: Wii Sports Tennis, Switch Sports) e
+vengono dal gesto in modo comprensibile, con assistenza arcade (riferimenti: i giochi di tennis da console con il
+controller di movimento indicati nella richiesta) e
 senza caso (gesti simili danno risultati simili).
 
 Fasi della richiesta:

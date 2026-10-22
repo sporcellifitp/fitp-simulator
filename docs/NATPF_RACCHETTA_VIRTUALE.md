@@ -1,7 +1,8 @@
 # Telefono come racchetta virtuale: diagnosi e nuovo modello del colpo (22/10/2026)
 
 Richiesta: il gesto fisico è l'input del gameplay. Direzione, potenza, altezza e traiettoria vengono dal gesto, con
-un'assistenza arcade e senza caso: gesti simili danno risultati simili. Riferimenti: Wii Sports Tennis e Switch Sports.
+un'assistenza arcade e senza caso: gesti simili danno risultati simili. Riferimenti: i giochi di tennis da console con
+il controller di movimento indicati nella richiesta.
 
 Ogni affermazione è marcata così:
 - **[dati]**: dimostrato dai dati della sessione reale;
@@ -18,14 +19,15 @@ Ogni affermazione è marcata così:
 - Codice della catena: `site/js/tennis/swing-detect.js`, `face-tracker.js`, `calibration.js`, `racchetta.js`,
   `swing-message.js`; `natpf-tennis/src/natpf/natpf_phone_racket.js`, `natpf_gestures.js`, `natpf_skill.js`,
   `natpf_hand.js`; `natpf-tennis/src/game_engine.js` (swing, colpo, servizio, movimento automatico).
-- Video di riferimento (YouTube, `shorts/TQorjBl0vdU`): da qui il video non si scarica. Si leggono solo i metadati
-  (titolo «Nintendo switch sports: (56) #switchsports #tennis») e quattro immagini (tre miniature automatiche e la
-  copertina). Si vede Switch Sports Tennis in doppio: telecamera dietro chi gioca a media altezza, scia dello swing
-  ben visibile e lampo all'impatto del servizio. Le meccaniche non si possono osservare da quattro immagini statiche.
-  Dalla pagina dei consigli di Nintendo: topspin ruotando il polso sopra la palla all'impatto; effetto all'indietro e
-  palla che curva con una rotazione del polso «a cucchiaio»; pallonetto con uno swing dal basso verso l'alto. Che nel
-  tennis di Wii Sports e Switch Sports la direzione dipenda dal tempo del colpo (in anticipo incrociato, in ritardo
-  lungolinea) è conoscenza generale, non verificata dal video. Il doppio del video non si riprende: si resta al 1 contro 1.
+- Video di riferimento (breve video pubblico indicato nella richiesta): da qui il video non si scarica. Si leggono solo
+  i metadati (titolo con il nome del gioco di riferimento) e quattro immagini (tre miniature automatiche e la
+  copertina). Si vede il tennis del gioco di riferimento in doppio: telecamera dietro chi gioca a media altezza, scia
+  dello swing ben visibile e lampo all'impatto del servizio. Le meccaniche non si possono osservare da quattro
+  immagini statiche. Dalla pagina dei consigli del produttore del gioco: topspin ruotando il polso sopra la palla
+  all'impatto; effetto all'indietro e palla che curva con una rotazione del polso «a cucchiaio»; pallonetto con uno
+  swing dal basso verso l'alto. Che nei giochi di riferimento la direzione dipenda dal tempo del colpo (in anticipo
+  incrociato, in ritardo lungolinea) è conoscenza generale, non verificata dal video. Il doppio del video non si
+  riprende: si resta al 1 contro 1.
 
 Strumenti usati sui dati (fuori dal repository, ripetibili sullo ZIP):
 - la catena di ogni colpo, dal gesto all'esito;
