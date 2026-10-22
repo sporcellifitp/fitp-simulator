@@ -1385,6 +1385,15 @@ export class NatpfTennisEngine {
     }
     if (this.phase === "SERVE_TOSS" && this.score.server === "player") {
       if (this.phaseTimer < 0.16) return;
+      // NATPF racchetta virtuale: servizio dal gesto, colpito quando arriva. Il tempo rispetto al punto più alto del
+      // lancio (all'istante del gesto) ne decide la qualità; un gesto nella prima parte della salita fa ancora parte
+      // del lancio. Prima lo swing aspettava il punto più alto: sempre «POWER SERVE»
+      if (!this.autoPlayMode) {
+        const tau = this.ball.vel.y / L.GRAVITY + NS.eventLatency(e);
+        if (tau > NO.SERVE.ignoreBefore) return;
+        this._executeServeHit(this.player, { ...e, natpfServeTau: tau });
+        return;
+      }
       if (this.ball.pos.y >= 1.45 && this.ball.pos.y < 2.25 && this.ball.vel.y > 0.5) {
         this.pendingServeSwing = {
           actor: this.player,
@@ -1593,9 +1602,13 @@ export class NatpfTennisEngine {
     const i = this.ball.pos.y;
     if (i < 1.25) return;
     this.pendingServeSwing = null;
+    // NATPF racchetta virtuale: servizio dal gesto (natpf_stroke_outcome.serveOutcome), senza caso
+    const natpfServe = Number.isFinite(t.natpfServeTau)
+      ? NO.serveOutcome({ intent: NO.eventIntent(t), tau: t.natpfServeTau, boxSign: e.sideSign * (this.score.deuceSide ? -1 : 1) })
+      : null;
     const a = o.MathUtils.clamp(Number(t.speed || 1.18), 0.78, 1.68),
-      s = i >= 2.05 && i <= 3.55,
-      n = i < 1.72;
+      s = natpfServe ? natpfServe.grade === "POWER SERVE!" : i >= 2.05 && i <= 3.55,
+      n = natpfServe ? natpfServe.grade === "EARLY SERVE" : i < 1.72;
     (e.swingType = "serve"),
       (e.swingDuration = 0.38),
       (e.swingTimer = 0.38),
@@ -1621,20 +1634,24 @@ export class NatpfTennisEngine {
       f = s ? Math.max(0.58, 0.66 / Math.min(1.18, a * 0.92)) * c : n ? 0.94 * c : 0.8 * c,
       m = s ? 22 : n ? 8 : 15,
       d = Number(t.dirX || 0) * -8;
+    natpfServe && ((y = -e.sideSign * natpfServe.depth), (f = natpfServe.flight), (m = natpfServe.topspin), (d = natpfServe.sidespin));
     const b = !1,
       u = this.ball.pos.clone();
-    this._launchBallToTarget(this.ball.pos, new o.Vector3(p, 0, y), f, {
+    this._launchBallToTarget(this.ball.pos, new o.Vector3(natpfServe ? natpfServe.x : p, 0, y), f, {
       topspin: m,
       sidespin: d,
       allowNetFault: b,
     });
-    const w = Math.round(
-      s
-        ? 188 + Math.min(22, (a - 1) * 32)
-        : n
-          ? 128 + Math.random() * 14
-          : 158 + Math.min(22, (a - 0.9) * 28),
-    );
+    const w = natpfServe
+      ? Math.round(this.ball.vel.length() * 6.8) // NATPF: dalla velocità vera della palla, con la scala dei colpi dello scambio
+      : Math.round(
+          s
+            ? 188 + Math.min(22, (a - 1) * 32)
+            : n
+              ? 128 + Math.random() * 14
+              : 158 + Math.min(22, (a - 0.9) * 28),
+        );
+    natpfServe && (this.natpfLastServe = { ...natpfServe, kmh: w, tau: +t.natpfServeTau.toFixed(3) });
     this.natpfArena.setSpeed(w); // NATPF: velocità del servizio sui segnapunti dell'arena
     if (
       ((this.ball.inPlay = !0),
@@ -1671,7 +1688,7 @@ export class NatpfTennisEngine {
       e.role === "player" || (e.role === "opponent" && this.isMultiplayer))
     ) {
       const _ = e.role === "player" ? "p1" : "p2",
-        T = s ? "POWER SERVE!" : n ? "EARLY SERVE" : "GOOD SERVE",
+        T = natpfServe ? natpfServe.grade : s ? "POWER SERVE!" : n ? "EARLY SERVE" : "GOOD SERVE",
         M = `${w} KM/H \u2022 ${s ? "SWEET SPOT APEX" : n ? "LOW CONTACT" : "SERVICE BOX"}`,
         R = this._projectToScreen(e.pos.clone().add(new o.Vector3(0, 2.35, 0)));
       this.hud.showTimingPopup({ grade: T, detail: M, screenPos: R }),

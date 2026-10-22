@@ -147,3 +147,35 @@ export function smashAt(e = {}, ballY = 1){
   if (y < 1.75) return false;
   return e.side === 'overhead' || it.shot === 'smash' || String(e.shotType || '').toLowerCase() === 'smash' || (finite(it.rise) <= -.05 && finite(it.power, .5) >= .3);
 }
+
+// Servizio dal gesto (prima era sempre «POWER SERVE» con la posizione a caso: sessione del 22/10). Il lancio parte con il
+// primo gesto; il colpo è il gesto dopo, giocato quando arriva. Il tempo rispetto al punto più alto del lancio (tau, s,
+// + prima) decide la qualità; forza, effetto e angolo vengono dal gesto. Il servizio resta nel quadrato come prima
+// (assistenza: i falli di servizio non ci sono), ma un servizio sporco è più lento e più centrale.
+export const SERVE = Object.freeze({
+  ignoreBefore: .42,     // s prima del punto più alto: il gesto fa ancora parte del lancio, non è il colpo
+  perfect: .18,          // s attorno al punto più alto: qualità piena
+  span: .4,              // s oltre perfect in cui la qualità scende fino a 1 − drop
+  drop: .55,
+  boxCenter: 2.05, boxHalf: 1.6, margin: .28,   // m: centro e metà larghezza del quadrato, distanza minima dalle righe
+  planeAim: 1.5, faceAim: .8,                   // m di lato per il verso dello swing e per il piatto
+  depth: [4.3, 6.0],                            // m dalla rete, da forza 0 a forza 1 (riga del servizio a 6,4)
+  flight: Object.freeze({ flat: [.92, .56], slice: [.98, .64], kick: [1.12, .84] }),   // s di volo da forza 0 a 1
+  spin: Object.freeze({ flat: 14, slice: 9, kick: 24 }),
+});
+// boxSign: −1/+1 lato del campo del quadrato (segno della x del suo centro); tau: s prima del punto più alto
+export function serveOutcome({ intent = {}, tau = 0, boxSign = -1 } = {}){
+  const S = SERVE, q = 1 - S.drop*clamp((Math.abs(finite(tau)) - S.perfect)/S.span);
+  const power = clamp(finite(intent.power, .6)), pace = power*(.55 + .45*q);
+  const rise = finite(intent.rise), plane = finite(intent.plane);
+  const kind = rise > .12 ? 'kick' : Math.abs(plane) >= .4 ? 'slice' : 'flat';
+  // angolo: verso orizzontale dello swing (+ da destra a sinistra → palla a sinistra) e piatto; un servizio sporco va più
+  // verso il centro del quadrato
+  const xc = Math.sign(boxSign || -1)*S.boxCenter, dx = (-plane*S.planeAim + clamp(finite(intent.face), -1, 1)*S.faceAim)*q;
+  const lo = Math.min(0, xc*2) + S.margin, hi = Math.max(0, xc*2) - S.margin;
+  const x = clamp(xc + dx, Math.min(lo, hi), Math.max(lo, hi));
+  const depth = lerp(S.depth[0], S.depth[1], pace);
+  const F = S.flight[kind], flight = lerp(F[0], F[1], pace);
+  return { x: +x.toFixed(3), depth: +depth.toFixed(3), flight: +flight.toFixed(3), topspin: S.spin[kind], sidespin: kind === 'slice' ? -Math.sign(plane)*6 : 0,
+    kind, q: +q.toFixed(3), pace: +pace.toFixed(3), grade: q >= .9 && pace >= .62 ? 'POWER SERVE!' : q < .7 ? (tau > 0 ? 'EARLY SERVE' : 'LATE SERVE') : 'GOOD SERVE' };
+}
