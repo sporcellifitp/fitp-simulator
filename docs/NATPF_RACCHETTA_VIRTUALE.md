@@ -425,7 +425,7 @@ Tutti eseguiti in questo contenitore il 22/10/2026, con il codice finale del bra
   | `natpf-latency`: dal gesto alla risposta, un solo swing per gesto, swing all'istante del colpo | 9/9 |
   | `natpf-training-reconnect`, `natpf-phone-blackout`: telefono scollegato, rete che cade | 6/6, 6/6 |
   | `natpf-menu` | 22/22 |
-  | `natpf-1v1-p2p`: 1v1 tra due browser | 18/18 |
+  | `natpf-1v1-p2p`: 1v1 tra due browser (anche sul pacchetto Cloudflare estratto) | 18/18, 18/18 |
   | `natpf-diag-session`: diagnostica lunga, parti, spazio, ricarica, prova guidata | 23/23 |
   | `lan-e2e` | 7/8: la verifica che manca è il limite noto del contenitore (il browser di prova non raggiunge l'indirizzo di rete del contenitore), come nei giri precedenti |
 
