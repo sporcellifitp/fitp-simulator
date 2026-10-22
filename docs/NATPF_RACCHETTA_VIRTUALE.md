@@ -412,13 +412,41 @@ Tre risultati diversi, tenuti separati: codice implementato, test automatici sup
 
 Tutti eseguiti in questo contenitore il 22/10/2026, con il codice finale del branch.
 
-- **`natpf-tennis`**: `npm test`, 262 test su 262.
+- **`natpf-tennis`**: `npm test`, 263 test su 263.
 - **`tools/test`** (pagina del telefono e codice condiviso): 135 su 135. Il test nuovo della calibrazione con colpi
   completi fallisce con il codice di prima.
-- **Prove nel browser** (browser senza schermo, telefono simulato, pagina vera del telefono e collegamento vero):
-  `natpf-phone-upright` 10 su 10 (QR, calibrazione rapida con colpi completi, colpi normali mai pallonetti, pallonetto,
-  mira a destra e a sinistra). I gesti vengono dalla racchetta simulata (`natpf-tennis/test/racket-gestures.mjs`).
-  Le altre prove nel browser sono in §4.2.1.
+- **Prove nel browser** (browser senza schermo, telefono simulato, pagina vera del telefono e collegamento vero), con il
+  codice finale e la build:
+
+  | Prova | Esito |
+  |---|---|
+  | `natpf-phone-upright`: QR, calibrazione rapida con colpi completi, colpi normali mai pallonetti, pallonetto, mira | 10/10 |
+  | `natpf-training-flow`: allenamento dal menu, calibrazione in campo, esercizi | 13/13 |
+  | `natpf-latency`: dal gesto alla risposta, un solo swing per gesto, swing all'istante del colpo | 9/9 |
+  | `natpf-training-reconnect`, `natpf-phone-blackout`: telefono scollegato, rete che cade | 6/6, 6/6 |
+  | `natpf-menu` | 22/22 |
+  | `natpf-1v1-p2p`: 1v1 tra due browser | 18/18 |
+  | `natpf-diag-session`: diagnostica lunga, parti, spazio, ricarica, prova guidata | 23/23 |
+  | `lan-e2e` | 7/8: la verifica che manca è il limite noto del contenitore (il browser di prova non raggiunge l'indirizzo di rete del contenitore), come nei giri precedenti |
+
+  I gesti della prova del telefono vengono dalla racchetta simulata (`natpf-tennis/test/racket-gestures.mjs`).
+- **Pacchetti** (fuori dal repository): Cloudflare 23,7 MiB, 84 file, nessuno oltre 25 MiB; estratto e servito da un
+  server statico risponde su gioco, pagina del telefono (con il codice nuovo), risorse e `_headers`. LAN per Windows
+  57,2 MiB con Node 22.22.0 (somma SHA-256 uguale a quella ufficiale); estratto: certificato, server, gioco, pagina
+  del telefono e stanza 1v1 rispondono.
+
+#### Difetti trovati dalle prove nel browser e corretti
+
+- **Calibrazione con colpi completi**: l'apertura lenta nel verso opposto veniva giudicata da sola («altro verso») e il
+  colpo non contava. Corretto in `calibration.js`; test nuovo in `tools/test` (fallisce con il codice di prima).
+- **Piano d'intercetto vecchio**: una palla rimessa in gioco senza piano usava il tempo del piano precedente, lo swing
+  risultava «troppo presto» (prova della latenza 7/9 → 9/9). Corretto: il piano vale solo per la sua palla; il
+  lanciapalle calcola il piano. Test «piano vecchio» (fallisce con il codice di prima).
+- **Colpo della calibrazione in campo**: con la finestra d'impatto il colpo partiva al fotogramma dopo il gesto, e la
+  palla del gesto successivo (o la verifica, dopo l'ultimo) lo cancellava (prova dell'allenamento 11/13 → 13/13, con
+  la prova originale). Corretto in `natpf_training.js`; test nuovo in `natpf-flows` (fallisce con il codice di prima).
+- **Gesti della prova del telefono**: erano rotazioni del telefono sul proprio lato lungo, senza percorso della testa
+  della racchetta; ora vengono dalla racchetta simulata delle prove in Node.
 - **Audit della Leggenda** (`npm run audit:legend`, punti e semi predefiniti): tutti i criteri rispettati con i sei
   profili. Per esempio contro «preciso»: game vinti dalla CPU 89,2% (≥ 60%), incrociati 32,1% (30–50%), lungolinea
   29,1%; contro «tennista» 97,3% (≥ 85%).

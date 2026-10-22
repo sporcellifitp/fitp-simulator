@@ -28,9 +28,10 @@ tastiera come controlli nuovi.
 ## Stato corrente
 
 - Branch `claude/friendly-fermat-dwv2w2` (mai `main`). Prima di questo giro il branch era al commit `bfd629c`.
-- **Fase 1 (diagnosi) finita.** È in `docs/NATPF_RACCHETTA_VIRTUALE.md` §2, problemi P1–P10 con evidenze marcate
+- **Fase 1 (diagnosi) finita.** È in `docs/NATPF_RACCHETTA_VIRTUALE.md` §2, problemi P1–P11 con evidenze marcate
   [dati], [codice], [ipotesi] e [insufficiente].
-- Fase in corso: **implementazione** (passi qui sotto).
+- **Implementazione, test automatici, documento, build e zip finiti** (passi 1–14 qui sotto). Resta la **validazione
+  fisica** (passo 15), che in questo ambiente non si può fare: procedura in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5.
 
 ## Diagnosi in breve (dettagli nel documento)
 
@@ -114,14 +115,18 @@ tastiera come controlli nuovi.
     metriche `racchetta` (ripetibilità per colpo voluto: mediana e scarto interquartile); prova guidata con tagliati e
     palle corte in fondo (la prima parte resta uguale).
 13. [x] I 14 test obbligatori (tabella in `docs/NATPF_RACCHETTA_VIRTUALE.md` §3), prima/dopo sugli stessi dati
-    (ZIP del telefono con `zip-replay.mjs`, webcam con `webcam-crowd.mjs`, calibrazione), regressioni (`npm test` 262,
+    (ZIP del telefono con `zip-replay.mjs`, webcam con `webcam-crowd.mjs`, calibrazione), regressioni (`npm test` 263,
     `tools/test` 135, prove nel browser, audit della Leggenda completo, banco della webcam).
     - Trovati e corretti in questa fase: calibrazione che giudicava da sola l'apertura lenta di un colpo completo;
       piano d'intercetto vecchio usato per una palla nuova (lanciapalle, prove: swing «troppo presto»); lanciapalle
       senza piano; pallonetto «morbido» fino a 850 °/s (un dritto arrotato da amatore diventava pallonetto).
     - La prova nel browser del telefono usa i gesti fisici della racchetta simulata (`test/racket-gestures.mjs`).
-14. [ ] Documento finale (fatto: §3, §4 con codice, test automatici e validazione fisica separati, §5 procedura di
-    prova fisica), build, prove nel browser che chiedono la build (1v1, LAN, diagnostica), zip, resoconto.
+14. [x] Documento finale (§3 modello, §4 con codice, test automatici e validazione fisica separati, §5 procedura di
+    prova fisica); build; prove nel browser (telefono 10/10, allenamento 13/13, latenza 9/9, ricollegamento 6/6, rete
+    6/6, menu 22/22, 1v1 18/18, diagnostica 23/23, LAN 7/8 per il limite noto del contenitore); zip Cloudflare e LAN
+    estratti e provati (fuori dal repository); resoconto.
+15. [ ] **Validazione fisica** con telefono, webcam e persone vere: `docs/NATPF_RACCHETTA_VIRTUALE.md` §5. È il passo
+    che resta; nessuna verifica fisica è stata fatta in questo giro.
 
 ## Come riprendere
 

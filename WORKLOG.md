@@ -48,3 +48,6 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     piano vale solo per la sua palla); il lanciapalle non calcolava il piano.
   - Decisione: le prove nel browser rigiocano i gesti della racchetta simulata delle prove in Node; nella prova
     dell'allenamento il colpo si misura quando parte (finestra d'impatto), non nell'istante del gesto.
+- Checkpoint 7 (fine giro): build, prove nel browser (telefono 10/10, allenamento 13/13, latenza 9/9, ricollegamento
+  6/6, rete 6/6, menu 22/22, 1v1 18/18, diagnostica 23/23, LAN 7/8 per il limite noto), zip Cloudflare e LAN estratti
+  e provati. Validazione fisica non eseguita: procedura nel documento §5.
