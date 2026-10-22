@@ -226,14 +226,14 @@ test('P2: _emitSwing manda all’host natpf e mano; l’host li passa a onP2Swin
 });
 
 // palla in arrivo al P2 (lato −z), allo sweet spot; Math.random fisso per confrontare i colpi
-function p2Strike(evt){
+function p2Strike(evt, { ballX = -.5 } = {}){
   const realRandom = Math.random; Math.random = () => .5;
   try {
     const e = createHeadlessEngine({ difficulty: 'casual' });
     e.startNewMatch({ showStartBanner: false });
     e.isMultiplayer = true; e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'player';
     e.opponent.pos.set(-1, 0, -11.4); e.opponent.vel.set(0, 0, 0);
-    e.ball.pos.set(-.5, 1.0, -10.8); e.ball.vel.set(0, 0, -18);
+    e.ball.pos.set(ballX, 1.0, -10.8); e.ball.vel.set(0, 0, -18);
     const ok = e._attemptP2RallyStrike(evt);
     // altezza massima del volo (fino a quando la palla smette di salire)
     let peak = e.ball.pos.y;
@@ -252,14 +252,15 @@ test('P2 con i dati del telefono: palla corta e pallonetto veri, direzione da te
   const lob = p2Strike(natpfShot('lob')), baseLob = p2Strike({ source: 'phone', side: 'forehand', shotType: 'lob', speed: 1.2, dirX: 0 });
   assert.equal(lob.shot, 'LOB');
   assert.ok(lob.peak > baseLob.peak + 1, `pallonetto vero ${lob.peak.toFixed(2)} m, prima ${baseLob.peak.toFixed(2)} m`);
-  // mano: stesso gesto, destro e mancino colpiscono dai due lati del corpo → direzione specchiata attorno al centro
-  const right = p2Strike(natpfShot('topspin')), left = p2Strike(natpfShot('topspin', { hand: 'left' }));
-  assert.ok(right.x > .5 && left.x < -.5 && right.x - left.x > 1, `destro ${right.x}, mancino ${left.x}`);
+  // mano: il dritto del destro (palla alla sua destra, −x per chi guarda verso +z) e il dritto del mancino (palla alla sua
+  // sinistra) sono speculari → direzione specchiata attorno al centro (il lato della palla viene dalla sua posizione)
+  const right = p2Strike(natpfShot('topspin'), { ballX: -1.5 }), left = p2Strike(natpfShot('topspin', { hand: 'left' }), { ballX: -.5 });
+  assert.ok(Math.abs(right.x) > .5 && Math.abs(right.x + left.x) < .3, `destro ${right.x}, mancino ${left.x}`);
   // anche con la mano solo nel campo «hand» del colpo
-  const leftTop = p2Strike({ ...natpfShot('topspin', { hand: undefined }), hand: 'left' });
+  const leftTop = p2Strike({ ...natpfShot('topspin', { hand: undefined }), hand: 'left' }, { ballX: -.5 });
   assert.ok(Math.abs(leftTop.x - left.x) < 1e-6);
   // polso: verso la propria destra (−x per chi guarda verso +z)
-  const wristRight = p2Strike(natpfShot('topspin', { wrist: 1 }));
+  const wristRight = p2Strike(natpfShot('topspin', { wrist: 1 }), { ballX: -1.5 });
   assert.ok(wristRight.x < right.x - 1.5, `polso a destra ${wristRight.x} vs ${right.x}`);
   // senza natpf la mano non cambia nulla
   const plain = { source: 'phone', side: 'forehand', shotType: 'topspin', speed: 1.2, dirX: .4 };

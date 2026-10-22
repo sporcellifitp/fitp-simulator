@@ -1507,6 +1507,7 @@ export class NatpfTennisEngine {
     // l'host nel menu o contro la CPU) accendeva il 1v1 e ripristinava la durata a un game
     if (this.playerRole !== "p2" && !this._versusInMatch()) return;
     natpfHand && this.playerRole !== "p2" && this.natpfUi && this.natpfUi.hand && this.natpfUi.hand.mirrorRemote && this.natpfUi.hand.mirrorRemote(this.opponent, natpfHand);
+    natpfHand && (this.natpfP2Hand = natpfHand === "left" ? "left" : "right"); // NATPF racchetta virtuale: piano d'intercetto del P2 (natpf_impact.js)
     if (
       ((this.userHasInteracted = !0),
       (this.isMultiplayer = !0),
@@ -1710,7 +1711,7 @@ export class NatpfTennisEngine {
           });
     }
     const x = e.role === "player" ? this.opponent : this.player;
-    x === this.player ? this._natpfPlanPlayer() : this._predictBallIntercept(x);
+    x === this.player ? this._natpfPlanPlayer() : this._natpfPlanOpponent(x);
   }
   _attemptPlayerRallyStrike(e = {}, t = !1) {
     if (this.ball.lastHitter === "player") return !1;
@@ -1976,7 +1977,7 @@ export class NatpfTennisEngine {
         0,
         5.1,
       ),
-      this._predictBallIntercept(this.opponent),
+      this._natpfPlanOpponent(this.opponent),
       this.isMultiplayer || t || NS.planCpuRun(this), // NATPF skill gap: reazione e lettura della CPU
       !0
     );
@@ -1985,20 +1986,22 @@ export class NatpfTennisEngine {
   // laterale della palla; smash: colpo da sopra la testa; running: corsa al momento del colpo (0…1)
   _natpfRacketShot(e, p, { lateral = 0, smash = !1, running = 0 } = {}) {
     const lv = NS.skillLevel(this.matchConfig.difficulty), b = this.ball;
+    // chi colpisce verso −z (P1) o verso +z (P2 nel 1v1): l'esito è nel suo riferimento (x a destra), poi si specchia
+    const toward = p === this.opponent ? 1 : -1, mirror = toward === 1 ? -1 : 1;
     const intent = NO.eventIntent(e), shot = smash ? "smash" : intent.shot === "smash" ? "flat" : intent.shot;
     // lato della palla rispetto a chi colpisce (+ destra); al centro conta il lato del colpo
-    const dx = b.pos.x - p.pos.x, hand = (e.natpf && e.natpf.hand) || e.hand || "right", fh = hand === "left" ? -1 : 1,
+    const dx = (b.pos.x - p.pos.x) * mirror, hand = (e.natpf && e.natpf.hand) || e.hand || "right", fh = hand === "left" ? -1 : 1,
       contact = Math.abs(dx) >= 0.2 ? Math.sign(dx) : e.side === "backhand" ? -fh : fh;
     // allungo, corsa e preparazione; arrivare al limite su un angolo dell'avversario toglie qualità (natpf_impact.js)
     // … e una palla molto veloce (da 24 m/s, fino a −25% a 36 m/s), profonda (colpita oltre 30 cm dietro la riga, fino a
     // −15%) o con il rimbalzo alto sopra la spalla (fino a −12%, non la schiacciata) si controlla peggio
     const cl = (v) => Math.max(0, Math.min(1, v)),
       pace = (1 - 0.25 * cl((b.vel.length() - 24) / 12)) * (1 - 0.15 * cl((Math.abs(p.pos.z) - 12.2) / 1.2)) * (smash ? 1 : 1 - 0.12 * cl((b.pos.y - 1.5) / 0.6)),
-      quality = NS.reachQuality(lateral, running) * NS.prepQuality(e.natpf) * NI.stretchQuality(this) * pace * NO.rallyPressure(b.rallyStrokeCount, NO.assistOf(lv).pressureFrom),
-      volley = b.bounceCountOnCurrentSide === 0 && p.pos.z < 9;
+      quality = NS.reachQuality(lateral, running) * NS.prepQuality(e.natpf) * (!this.isDoubles && (p === this.player || p === this.opponent) ? NI.stretchQuality(this, p) : 1) * pace * NO.rallyPressure(b.rallyStrokeCount, NO.assistOf(lv).pressureFrom),
+      volley = b.bounceCountOnCurrentSide === 0 && Math.abs(p.pos.z) < 9;
     const out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, contact, quality, contactY: b.pos.y, volley, level: lv });
-    const R = p.pos.x >= 0 ? 1 : -1, N = -out.depth, engineShot = out.shot === "DROP" ? "SLICE" : out.shot === "SMASH" ? "FLAT" : out.shot;
-    const st = NS.registerPlayerShot(this, { grade: out.grade, quality: out.q, power: intent.power, landingX: out.x, landingZ: N, shot: out.shot, cpuZ: this.opponent.pos.z });
+    const R = p.pos.x >= 0 ? 1 : -1, N = toward * out.depth, X = out.x * mirror, engineShot = out.shot === "DROP" ? "SLICE" : out.shot === "SMASH" ? "FLAT" : out.shot;
+    const st = NS.registerPlayerShot(this, { grade: out.grade, quality: out.q, power: intent.power, landingX: X, landingZ: N, shot: out.shot, cpuZ: this.opponent.pos.z, who: toward === 1 ? "p2" : "player" });
     const fromY = Math.max(0.78, Math.min(out.shot === "SMASH" ? 3.1 : 1.92, b.pos.y));
     let I;
     if (out.shot === "LOB") I = out.flight;
@@ -2009,11 +2012,11 @@ export class NatpfTennisEngine {
       // il ritmo cresce un poco con lo scambio, come prima (fino a −16% del tempo di volo all'ottavo colpo)
       const K = Math.max(0.84, 1 - Math.min(8, b.rallyStrokeCount) * 0.015),
         base = out.shot === "SMASH" ? out.flight : Math.max(0.58, 0.84 / Math.min(1.2, (0.8 + intent.power * 0.85) * 0.94)) * K;
-      I = NO.outcomeFlight({ ...out, flight: null }, { fromY, fromZ: b.pos.z, toZ: N, flight: NS.mistimeFlight(NS.streakFlight(base, st.streak, lv), out.q) });
+      I = NO.outcomeFlight({ ...out, flight: null }, { fromY, fromZ: b.pos.z, toZ: N, flight: NS.mistimeFlight(NS.streakFlight(base, toward === 1 ? st.p2Streak : st.streak, lv), out.q) });
     }
-    this.natpfLastRacket = { intent, out, timing: e.natpfTau, contact, quality: +quality.toFixed(3), volley };
+    this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, quality: +quality.toFixed(3), volley };
     return {
-      E: out.x, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 : 0, O: out.netFault, T: engineShot,
+      E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 * mirror : 0, O: out.netFault, T: engineShot,
       drop: out.shot === "DROP", u: out.grade, w: out.cursor, q: out.q, power: intent.power, out,
       M: out.shot !== "DROP" && out.shot !== "LOB" && out.q >= 0.9 && intent.power >= 0.7 && Math.abs(out.t) <= 0.35,
       defensive: out.excess > 0.6,
@@ -2021,6 +2024,9 @@ export class NatpfTennisEngine {
   }
   _attemptP2RallyStrike(e = {}) {
     if (this.ball.lastHitter === "opponent") return !1;
+    // NATPF racchetta virtuale: palla che rimbalzerebbe fuori, il P2 la lascia andare (piano fresco, natpf_impact.js)
+    const natpfLet = NI.planOf(this, this.opponent);
+    if (!this.isDoubles && natpfLet && natpfLet.kind === "letgo" && this.elapsedTime <= natpfLet.at + natpfLet.t + 0.3) return !1;
     const t = this.opponent.pos.z - this.ball.pos.z,
       i = Math.abs(this.ball.pos.x - this.opponent.pos.x),
       a = Math.hypot(i, t),
@@ -2121,7 +2127,12 @@ export class NatpfTennisEngine {
     const natpfP2Q = natpfSwing
       ? NS.swingQuality(natpfTau, natpfLv) * NS.prepQuality(e.natpf) * NS.reachQuality(g, l.vel.length() / Math.max(1, l.maxSpeed))
       : e.sweetSpotAssisted && p >= -1.85 && p <= 0.78 ? NS.assistGrade(e.natpfLead, NS.skillLevel("1v1")).quality : NS.timingQuality(u, p);
-    T = natpfSwing
+    // NATPF racchetta virtuale: il colpo del P2 senza caso, con lo stesso esito del P1 specchiato (_natpfRacketShot)
+    const p2Racket = natpfSwing ? this._natpfRacketShot({ ...e, natpfTau }, l, { lateral: g, smash: d, running: l.vel.length() / Math.max(1, l.maxSpeed) }) : null;
+    p2Racket && (u = p2Racket.u);
+    T = p2Racket
+      ? p2Racket.E
+      : natpfSwing
       ? // NATPF: come il P1 (swingLandingX), specchiato: il P2 guarda verso +z, la sua destra è −x
         -NS.swingLandingX({
           timing: natpfTau,
@@ -2134,7 +2145,7 @@ export class NatpfTennisEngine {
         })
       : NS.landingScatter(T, { quality: natpfP2Q, power: NS.powerNorm(y), level: NS.skillLevel("1v1") });
     const natpfVery = u === "VERY EARLY" || u === "VERY LATE";
-    natpfVery && (T *= 0.75);
+    natpfVery && !p2Racket && (T *= 0.75);
     let M = 8 + Math.random() * 2.6,
       R = w ? 0.72 : 0.86,
       v = w ? 20 : 15,
@@ -2150,8 +2161,9 @@ export class NatpfTennisEngine {
         ? ((R = 1.3), (M = 9 + Math.random() * 2), (v = 4))
         : m === "SLICE" && ((R = 0.98), (M = 6.8 + Math.random() * 2.5), (v = -6), (E = x * 10));
     // NATPF: telefono in verticale → profondità dalla forza vera del gesto, come il P1 (z positiva: metà campo del P1)
-    natpfSwing && !natpfVery && !r && !natpfDrop && m !== "LOB" && m !== "SLICE" && (M = -NS.swingDepthZ(NS.powerNorm(y)));
-    {
+    natpfSwing && !p2Racket && !natpfVery && !r && !natpfDrop && m !== "LOB" && m !== "SLICE" && (M = -NS.swingDepthZ(NS.powerNorm(y)));
+    p2Racket && ((M = p2Racket.N), (R = p2Racket.I), (v = p2Racket.C), (E = p2Racket.V), (natpfP2Net = p2Racket.O));
+    if (!p2Racket) {
       const natpfS = NS.registerPlayerShot(this, { grade: u, quality: natpfP2Q, power: NS.powerNorm(y), landingX: T, shot: d ? "SMASH" : natpfDrop ? "DROP" : m, who: "p2" });
       (M = -NS.playerDepthZ(-M, { quality: natpfP2Q, power: NS.powerNorm(y), level: NS.skillLevel("1v1") }));
       // NATPF 1v1: rischio d'errore come il P1 (lungo con la potenza, largo vicino alle righe, in rete fuori tempo).
@@ -2226,7 +2238,10 @@ export class NatpfTennisEngine {
           speedKmh: O,
           intensity: w ? 1.45 : 1.1,
         }),
-      this.opponent.targetPos.set(o.MathUtils.clamp(-T * 0.22, -1.6, 1.6), 0, -S.BASELINE_Z + 0.25),
+      // NATPF racchetta virtuale: come chi gioca qui, a rete dopo un attacco o da avanti, altrimenti in fondo al campo
+      p2Racket && !r && !this.isDoubles
+        ? NI.recoverAfterShot(this, this.opponent, { landingX: T, landingZ: M, quality: p2Racket.q, power: p2Racket.power, contactZ: l.pos.z })
+        : this.opponent.targetPos.set(o.MathUtils.clamp(-T * 0.22, -1.6, 1.6), 0, -S.BASELINE_Z + 0.25),
       this.opponentPartner.targetPos.set(
         o.MathUtils.clamp(T * 0.35 + (this.score.deuceSide ? 1.4 : -1.4), -2.8, 2.8),
         0,
@@ -2347,6 +2362,10 @@ export class NatpfTennisEngine {
   // NATPF racchetta virtuale: chi gioca va dove prendere la palla, anche al volo (natpf_impact.js); nel doppio come prima
   _natpfPlanPlayer() {
     this.isDoubles ? this._predictBallIntercept(this.player) : NI.planPlayerIntercept(this, this.player);
+  }
+  // … e il Player 2 del 1v1 allo stesso modo nella sua metà campo; la CPU e il doppio come prima
+  _natpfPlanOpponent(e = this.opponent) {
+    this.isMultiplayer && !this.isDoubles && e === this.opponent ? NI.planPlayerIntercept(this, e) : this._predictBallIntercept(e);
   }
   _launchBallToTarget(e, t, i, { topspin: a = 14, sidespin: s = 0, allowNetFault: n = !1 } = {}) {
     const h = Math.max(0.45, i),

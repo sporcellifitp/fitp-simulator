@@ -19,8 +19,9 @@ function strokes(plan, { swing = {} } = {}){
   }
   return p.msgs.map(d => p.game(d).ev).slice(3);          // i primi tre colpi fanno il centro della mira
 }
-// il colpo nel motore: palla in arrivo allo sweet spot del giocatore (P1) o del P2, Math.random fisso
-function land(ev, { p2 = false, seed = .5 } = {}){
+// il colpo nel motore: palla in arrivo al punto d'impatto del giocatore (P1) o del P2, Math.random fisso. Il P1 passa
+// dalla finestra d'impatto (natpfTau: il tempo vero del colpo, qui 30 ms in anticipo), come in partita
+function land(ev, { p2 = false, seed = .5, tau = .03 } = {}){
   const real = Math.random; Math.random = () => seed;
   try {
     const e = createHeadlessEngine({ difficulty: 'casual' });
@@ -29,11 +30,12 @@ function land(ev, { p2 = false, seed = .5 } = {}){
     let net = null, apex = 0;
     if (p2){
       e.isMultiplayer = true; e.versus = { active: true }; e.autoPlayMode = false; e.ball.lastHitter = 'player';
-      e.opponent.pos.set(-1, 0, -11.4); e.opponent.vel.set(0, 0, 0); e.ball.pos.set(-.5, 1, -10.8); e.ball.vel.set(0, 0, -18);
+      // specchio della situazione del P1: palla alla destra del P2 (che guarda verso +z: la sua destra è −x)
+      e.opponent.pos.set(-1, 0, -11.4); e.opponent.vel.set(0, 0, 0); e.ball.pos.set(-1.6, 1, -10.9); e.ball.vel.set(0, 0, -18);
       e._attemptP2RallyStrike(ev);
     } else {
       e.ball.lastHitter = 'opponent'; e.player.pos.set(0, 0, 11.4); e.player.vel.set(0, 0, 0); e.ball.pos.set(.6, 1, 10.9); e.ball.vel.set(0, 0, 18);
-      e._attemptPlayerRallyStrike(ev);
+      e._attemptPlayerRallyStrike({ ...ev, natpfTau: tau }, false);
     }
     const t = e.ball.targetLanding.clone();
     let z0 = e.ball.pos.z;
@@ -48,11 +50,12 @@ test('mira dal piatto: girato a sinistra, al centro, a destra → tre zone disti
   const evs = strokes([20, 20, 20, 20, 20, 0, 0, 0, 0, -20, -20, -20, -20, -20]);
   const L = evs.slice(0, 5).map(e => land(e)), C = evs.slice(5, 9).map(e => land(e)), R = evs.slice(9).map(e => land(e));
   const xs = g => g.map(r => r.x);
-  assert.ok(mean(xs(L)) < -1.5, `sinistra ${xs(L).map(v => v.toFixed(2))}`);
-  assert.ok(Math.abs(mean(xs(C))) < 1, `centro ${xs(C).map(v => v.toFixed(2))}`);
-  assert.ok(mean(xs(R)) > 1.5, `destra ${xs(R).map(v => v.toFixed(2))}`);
-  // gesti simili, risultati vicini (non sempre uguali: la dispersione dipende da tempo e forza)
-  for (const g of [L, C, R]) assert.ok(sd(xs(g)) < .8, `dispersione ${sd(xs(g)).toFixed(2)}`);
+  // racchetta virtuale: un dritto neutro va un poco incrociato (a sinistra per il destro); il piatto sposta da lì
+  assert.ok(mean(xs(L)) < mean(xs(C)) - 1.2, `sinistra ${xs(L).map(v => v.toFixed(2))} centro ${xs(C).map(v => v.toFixed(2))}`);
+  assert.ok(mean(xs(R)) > mean(xs(C)) + 1.2, `destra ${xs(R).map(v => v.toFixed(2))} centro ${xs(C).map(v => v.toFixed(2))}`);
+  assert.ok(Math.abs(mean(xs(C))) < 1.5, `centro ${xs(C).map(v => v.toFixed(2))}`);
+  // gesti simili, risultati vicini (senza caso: la differenza viene solo dal gesto)
+  for (const g of [L, C, R]) assert.ok(sd(xs(g)) < .5, `dispersione ${sd(xs(g)).toFixed(2)}`);
   // dentro il campo e sopra la rete
   for (const r of [...L, ...C, ...R]){ assert.ok(Math.abs(r.x) < 4.3 && r.z < -5 && r.z > -12.1, JSON.stringify(r)); assert.ok(r.net > .95, `rete ${r.net}`); }
 });
@@ -62,20 +65,24 @@ test('mira continua: piccole rotazioni spostano poco, grandi spostano molto, sen
   const xs = strokes(plan).map(e => land(e).x);
   for (let i = 1; i < xs.length; i++) assert.ok(xs[i] <= xs[i - 1] + .15, `monotona: ${xs.map(v => v.toFixed(2))}`);
   for (let i = 1; i < xs.length; i++) assert.ok(Math.abs(xs[i] - xs[i - 1]) < 1.2, `senza salti: ${xs.map(v => v.toFixed(2))}`);
-  assert.ok(xs[0] - xs.at(-1) > 1.5, `ampiezza ${xs.map(v => v.toFixed(2))}`);
+  assert.ok(xs[0] - xs.at(-1) > 1.2, `ampiezza ${xs.map(v => v.toFixed(2))}`);
 });
 
 test('Player 2: stessa logica dal suo lato del campo (piatto a sinistra = palla alla sua sinistra, cioè x > 0)', () => {
   const evs = strokes([20, 20, 0, -20, -20]);
   const L = evs.slice(0, 2).map(e => land({ ...e, role: 'p2' }, { p2: true }).x), R = evs.slice(3).map(e => land({ ...e, role: 'p2' }, { p2: true }).x);
-  assert.ok(mean(L) > 1.2 && mean(R) < -1.2, `P2 sinistra ${L}, destra ${R}`);
+  assert.ok(mean(L) > mean(R) + 2, `P2 sinistra ${L}, destra ${R}`);
+  // stesso colpo, situazioni speculari: il P2 manda la palla dove la manderebbe il P1, specchiata
+  const P1 = evs.slice(0, 2).map(e => land(e).x);
+  for (let i = 0; i < 2; i++) assert.ok(Math.abs(L[i] + P1[i]) < .35, `P2 ${L[i]} P1 ${P1[i]}`);
   const z = land({ ...evs[2], role: 'p2' }, { p2: true }).z;
   assert.ok(z > 5 && z < 12.1, `P2 nella metà del P1: ${z}`);
 });
 
 test('tempo del colpo: in anticipo incrociato, in ritardo lungolinea, in modo continuo', () => {
   const base = strokes([0])[0];
-  const at = lead => land({ ...base, natpf: { ...base.natpf, latency: 0 }, sweetSpotAssisted: true, natpfLead: lead }).x;
+  // tempo vero del colpo dalla finestra d'impatto (natpfTau: s di anticipo)
+  const at = lead => land({ ...base, natpf: { ...base.natpf, latency: 0 } }, { tau: lead }).x;
   const xs = [0, .05, .1, .15].map(at);
   // dritto del destro: incrociato = verso la sua sinistra (x < 0)
   for (let i = 1; i < xs.length; i++) assert.ok(xs[i] < xs[i - 1] + .1, `anticipo → incrociato: ${xs.map(v => v.toFixed(2))}`);

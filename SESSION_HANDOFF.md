@@ -84,8 +84,19 @@ tastiera come controlli nuovi.
      - stima di quando chi gioca non arriva sulla palla (vincenti);
      - niente affondo durante la reazione;
      - misura della reazione corretta (la frenata non è una reazione).
-8. [ ] Servizio dal gesto.
-9. [ ] Avversario: l'angolo buono toglie qualità alla risposta; scambi che finiscono.
+8. [x] Servizio dal gesto (commit `e451473`, `serveOutcome` in `natpf_stroke_outcome.js`).
+   - Il colpo parte all'arrivo del gesto; la qualità dipende da quanto è lontano dal colmo del lancio.
+   - Un gesto entro 0,42 s dal colmo in salita fa parte del lancio e non serve.
+   - Piatto, kick (testa che sale) o slice (swing obliquo); posizione dal piano e dal piatto, sempre nel riquadro.
+     I falli di servizio non ci sono, come prima.
+9. [x] Avversario e Player 2 del 1v1.
+   - L'angolo buono toglie qualità: a chi gioca con la corsa del piano (`stretchQuality`); alla CPU con gli errori di
+     `cpuReturnPlan` (angolo, allungo, pressione, già c'era) e, a Leggenda, con la portata.
+   - Scambi che finiscono: palle fuori lasciate andare, pressione degli scambi lunghi, `failQ` per livello (test
+     «scambi che finiscono» a tutti i livelli).
+   - Player 2 del 1v1 con il telefono: stesso esito deterministico, specchiato; stesso piano d'intercetto nella sua
+     metà campo (volée, schiacciata al volo, palla fuori lasciata andare), recupero a rete o in fondo, mano dal suo
+     telefono (`natpfP2Hand`). Senza telefono il P2 colpisce come prima; si muove con il nuovo piano.
 10. [ ] Calibrazione tollerante; «Salta» con il gioco completo.
 11. [ ] Webcam: mano dall'impostazione unica; prove con più persone, perdita del tracciamento, tremolio.
 12. [ ] Diagnostica: forma, intenzione ed esito negli eventi; prova guidata con il colpo richiesto; metriche di

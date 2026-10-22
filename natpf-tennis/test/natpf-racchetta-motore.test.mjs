@@ -138,6 +138,77 @@ test('palla che va fuori: chi gioca la lascia andare e il punto è suo', () => {
   });
 });
 
+// 1v1: palla di chi gioca qui verso il Player 2 (metà campo z negative), che si prepara con il suo piano d'intercetto
+function p1Shot(e, { from, to, flight, topspin = 14, p2, rally = 3 }){
+  e.isMultiplayer = true; e.versus = { active: true }; e.natpfP2Hand = 'right';
+  e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'player'; e.ball.bounceCountOnCurrentSide = 0; e.ball.rallyStrokeCount = rally;
+  e.opponent.pos.set(p2[0], 0, p2[1]); e.opponent.targetPos.copy(e.opponent.pos); e.opponent.vel.set(0, 0, 0);
+  e.pendingP2Swing = null;
+  e.ball.pos.set(...from);
+  e._launchBallToTarget(e.ball.pos, new THREE.Vector3(to[0], 0, to[1]), flight, { topspin });
+  e._natpfPlanOpponent(e.opponent);
+  return NI.planOf(e, e.opponent);
+}
+// la stessa palla di cpuShot specchiata nella metà campo del Player 2 (x → −x, z → −z)
+const mirrored = ({ player = [.4, 11.7], from = [-.5, 1, -11], to = [1.6, 8.5], flight = 1.05, topspin = 14 } = {}) =>
+  ({ p2: [-player[0], -player[1]], from: [-from[0], from[1], -from[2]], to: [-to[0], -to[1]], flight, topspin });
+// il gesto del Player 2 arriva quando la palla è a «gap» metri da lui; poi si gioca fino al suo colpo (o alla fine del punto)
+function playP2(e, swing, { gap = 1.7, maxT = 4 } = {}){
+  let sent = false, hitZ = null;
+  for (let t = 0; t < maxT; t += DT){
+    if (!sent && e.ball.lastHitter === 'player' && e.ball.pos.z - e.opponent.pos.z <= gap){ e._handleP2SwingInput(swing); sent = true; }
+    const before = e.ball.lastHitter, z = e.ball.pos.z;
+    e.step(DT);
+    if (before === 'player' && e.ball.lastHitter === 'opponent'){ hitZ = z; break; }
+    if (e.phase !== 'RALLY') break;
+  }
+  return { hit: e.ball.lastHitter === 'opponent', racket: e.natpfLastRacket, hitZ, phase: e.phase, target: e.opponent.targetPos.clone() };
+}
+
+test('1v1: il Player 2 si muove con lo stesso piano, specchiato nella sua metà campo (rimbalzo, volée, schiacciata al volo, palla fuori)', () => {
+  const cases = [
+    { kind: 'ground', shot: { to: [1.6, 8.5] } },
+    { kind: 'volley', shot: { player: [.2, 4.6], to: [1.2, 9.5], flight: 1.1 } },
+    { kind: 'smash', shot: { player: [.3, 9.5], to: [.6, 7.2], flight: 2.0, topspin: 4 } },
+    { kind: 'letgo', shot: { player: [.4, 4.8], to: [5.2, 9], flight: 1 } },
+  ];
+  for (const c of cases){
+    const p1 = withEngine('pro', e => ({ plan: cpuShot(e, c.shot), target: e.player.targetPos.clone() }));
+    const p2 = withEngine('pro', e => ({ plan: p1Shot(e, mirrored(c.shot)), target: e.opponent.targetPos.clone() }));
+    assert.equal(p1.plan.kind, c.kind);
+    assert.equal(p2.plan.kind, c.kind, JSON.stringify(p2.plan));
+    const near = (a, b) => Math.abs(a + b) < .02;   // specchiati
+    assert.ok(near(p1.plan.contact.x, p2.plan.contact.x) && near(p1.plan.contact.z, p2.plan.contact.z), `${c.kind}: ${JSON.stringify(p1.plan.contact)} / ${JSON.stringify(p2.plan.contact)}`);
+    assert.ok(near(p1.target.x, p2.target.x) && near(p1.target.z, p2.target.z), `${c.kind}: ${p1.target.toArray()} / ${p2.target.toArray()}`);
+  }
+  const p2Swing = (intent, side = 'forehand') => ({ ...phoneSwing(intent, { side }), hand: 'right' });
+  // a rete il P2 prende la palla al volo; poi resta a rete
+  withEngine('pro', e => {
+    p1Shot(e, mirrored({ player: [.2, 4.6], to: [1.2, 9.5], flight: 1.1 }));
+    const r = playP2(e, p2Swing({ shot: 'flat', power: .6 }));
+    assert.ok(r.hit, r.phase);
+    assert.equal(r.racket.who, 'p2'); assert.equal(r.racket.volley, true);
+    assert.ok(r.hitZ > -6.5, `volée a z ${r.hitZ}`);
+    assert.ok(Math.abs(r.target.z + NI.PLAN.netZ) < 1e-9, `dopo la volée verso ${r.target.z}`);
+  });
+  // pallonetto corto: schiacciata al volo
+  withEngine('pro', e => {
+    p1Shot(e, mirrored({ player: [.3, 9.5], to: [.6, 7.2], flight: 2.0, topspin: 4 }));
+    const r = playP2(e, p2Swing({ shot: 'smash', power: .85, rise: -.4 }, 'overhead'), { gap: 2.2 });
+    assert.ok(r.hit, r.phase);
+    assert.equal(r.racket.out.shot, 'SMASH'); assert.equal(r.racket.volley, true);
+  });
+  // palla che va fuori: il P2 la lascia andare e il punto è suo
+  withEngine('pro', e => {
+    const won = [];
+    const award = e._awardPoint.bind(e); e._awardPoint = (who, why) => { won.push(`${who}:${why}`); return award(who, why); };
+    p1Shot(e, mirrored({ player: [.4, 4.8], to: [5.2, 9], flight: 1 }));
+    const r = playP2(e, p2Swing({ shot: 'flat', power: .7 }));
+    assert.equal(r.hit, false);
+    assert.equal(won[0], 'opponent:Out');
+  });
+});
+
 test('servizio dal gesto: stesso gesto stesso servizio; forza, verso e momento del lancio contano; il gesto del lancio non serve', () => {
   const serve = (intent, wait = .62) => withEngine('casual', e => {
     e.phase = 'SERVE_STANCE'; e.score.server = 'player'; e.phaseTimer = 1;

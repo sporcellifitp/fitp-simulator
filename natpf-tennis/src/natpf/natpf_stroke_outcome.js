@@ -135,7 +135,8 @@ export function eventIntent(e = {}){
   if (n.intent && typeof n.intent === 'object') return n.intent;
   const raw = String(n.shot || (e.natpfDrop ? 'drop' : e.shotType) || 'topspin').toLowerCase();
   const shot = ['topspin', 'flat', 'slice', 'drop', 'lob', 'smash'].includes(raw) ? raw : raw === 'power' ? 'flat' : 'topspin';
-  const power = Number.isFinite(n.power) ? clamp(n.power) : clamp((finite(e.speed, 1.18) - .8)/.88);
+  // forza dalla velocità del gesto che arriva al motore (come prima); natpf.power solo se manca
+  const power = Number.isFinite(Number(e.speed)) ? clamp((Number(e.speed) - .8)/.85) : Number.isFinite(n.power) ? clamp(n.power) : .5;
   const face = Number.isFinite(n.wrist) ? clamp(n.wrist, -1, 1) : clamp(finite(e.dirX), -1, 1);
   // la mira di questi controlli (dirX) è già una scelta di direzione: pesa più del piatto del telefono
   return { shot, power, depth: power, rise: RISE_OF[shot], face, faceWeight: .7, derived: true };

@@ -29,3 +29,8 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
   - Leggenda ritarata perché la sua forza veniva dagli errori casuali di chi gioca: CPU più veloce e con più portata,
     che cerca il vincente dove chi gioca non arriva.
   - Le palle che vanno fuori si lasciano andare: senza, gli scambi arrivavano a 60 colpi.
+- Checkpoint 4: servizio dal gesto; Player 2 del 1v1 con lo stesso modello della racchetta.
+  - Servizio: il gesto colpisce quando arriva, la qualità dipende dal momento rispetto al colmo del lancio; il gesto
+    del lancio non serve.
+  - Decisione: il P2 usa lo stesso esito e lo stesso piano d'intercetto di chi gioca qui, calcolati nel suo
+    riferimento e poi specchiati (test con la stessa palla specchiata: stesso piano).
