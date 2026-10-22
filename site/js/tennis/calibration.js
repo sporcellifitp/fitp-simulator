@@ -151,7 +151,7 @@ export function createCalibration(det){
       dir = v > 0 ? 'L' : v < 0 ? 'R' : along == null ? '?' : along > .3 ? 'L' : along < -.3 ? 'R' : '?';
     }
     const ok = !small && dir === want;
-    const a = { want, dir, peak: sw.peak, lift: sw.lift, axis: sw.axis, gravity: sw.gravity, angle: sw.angle || 6, features: sw.features, dur: sw.dur, ok, small, face: sw.face || null, head: Number.isFinite(sw.head) ? sw.head : null, preparations: group.filter(x => !x.back && x.peakT < sw.peakT && dot(x.axis, sw.axis) < -.3).map(x => ({ peak: x.peak, axis: x.axis })) };
+    const a = { want, dir, peak: sw.peak, lift: sw.lift, axis: sw.axis, gravity: sw.gravity, angle: sw.angle || 6, features: sw.features, dur: sw.dur, ok, small, face: sw.face || null, head: Number.isFinite(sw.head) ? sw.head : null, rise: Number.isFinite(sw.shape?.rise) ? sw.shape.rise : null, preparations: group.filter(x => !x.back && x.peakT < sw.peakT && dot(x.axis, sw.axis) < -.3).map(x => ({ peak: x.peak, axis: x.axis })) };
     S.attempts.push(a);
     if (ok){
       // asse aggiornato con tutti gli swing riusciti (con il loro segno)
@@ -215,6 +215,10 @@ export function createCalibration(det){
       // e palla corta sul computer. Prima partiva da 0 e imparava solo dai colpi «normali»: chi ha un dritto morbido con
       // il polso che prona aveva tutti i colpi letti come palle corte, e il riferimento non si correggeva più
       if (pass){ const heads = {}; for (const w of ['L', 'R']){ const h = ok.filter(a => a.want === w && Number.isFinite(a.head)).map(a => a.head); if (h.length) heads[SIGN[w]] = +median(h).toFixed(3); } if (Object.keys(heads).length) S.profile.heads = heads; }
+      // salita abituale della testa della racchetta (forma del colpo, stroke-shape.js) dei propri gesti normali, per
+      // verso: con il telefono in verticale nel pugno il polso che prona abbassa la testa anche nel colpo normale, e il
+      // computer leggeva tagliati (natpf_stroke_intent.js: le soglie dei colpi speciali si spostano da qui)
+      if (pass){ const rises = {}; for (const w of ['L', 'R']){ const r = ok.filter(a => a.want === w && Number.isFinite(a.rise)).map(a => a.rise); if (r.length) rises[SIGN[w]] = +median(r).toFixed(3); } if (Object.keys(rises).length) S.profile.rises = rises; }
       if (pass && S.options.quick){
         S.profile.templates = ok.map(a => ({ shot:'drive',dir:SIGN[a.want],peak:a.peak,angle:a.angle,features:templateFeatures(a,S.profile.refs[SIGN[a.want]],S.profile.refAngle,S.axis,SIGN[a.want]) }));
         S.profile.minPeak = Math.max((S.profile.noise || 3)*5, Math.min(S.profile.minPeak, base*.28));
@@ -305,7 +309,7 @@ export function createCalibration(det){
       return [];
     },
     touch(dir = 0, power = .65, shot = 'drive'){ if (S.step !== 'free' || S.profile?.input !== 'touch') return; S.practice++; emit({ kind: 'free', dir: dir > 0 ? 'L' : dir < 0 ? 'R' : '?', dirValue: dir, power, strength: power/.75, peak: power*600, ok: true, shot }); },
-    invert(){ if (!S.profile || !S.axis) return; S.axis = S.axis.map(v => -v); S.profile.axis = S.axis; const swap = o => o && ({ 1: o[-1], '-1': o[1] }); S.profile.refs = swap(S.profile.refs); S.profile.preparation = swap(S.profile.preparation); S.profile.minAngles = swap(S.profile.minAngles); if (S.profile.templates) S.profile.templates = S.profile.templates.map(t => ({ ...t, dir: -t.dir })); this.tryFree(); },
+    invert(){ if (!S.profile || !S.axis) return; S.axis = S.axis.map(v => -v); S.profile.axis = S.axis; const swap = o => o && ({ 1: o[-1], '-1': o[1] }); S.profile.refs = swap(S.profile.refs); S.profile.preparation = swap(S.profile.preparation); S.profile.minAngles = swap(S.profile.minAngles); S.profile.rises = swap(S.profile.rises); if (S.profile.templates) S.profile.templates = S.profile.templates.map(t => ({ ...t, dir: -t.dir })); this.tryFree(); },
     useTouch(){ S.practice = 0; S.burst = []; S.axis = null; S.profile = { version: 2, input: 'touch', ...S.options, ref: 1 }; S.result = { pass: true, touch: true, okL: 0, okR: 0 }; S.step = 'review'; emit({ kind: 'review', ...S.result }); },
     // da chiamare a ogni campione: impugnatura, gruppi di movimenti, suggerimenti se non arriva nulla
     tick(t, sample){

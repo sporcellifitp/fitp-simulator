@@ -2369,6 +2369,9 @@ export class NatpfTennisEngine {
     this.isMultiplayer && !this.isDoubles && e === this.opponent ? NI.planPlayerIntercept(this, e) : this._predictBallIntercept(e);
   }
   _launchBallToTarget(e, t, i, { topspin: a = 14, sidespin: s = 0, allowNetFault: n = !1 } = {}) {
+    // NATPF racchetta virtuale: palla nuova, il piano d'intercetto della palla di prima non conta più (chi la riceve ne fa
+    // uno nuovo; il lanciapalle dell'allenamento no: prima un «lascia andare» rimasto dalla partita scartava ogni swing)
+    (this.natpfPlan = null), (this.natpfPlanP2 = null);
     const h = Math.max(0.45, i),
       r = t.x - e.x,
       l = t.z - e.z,

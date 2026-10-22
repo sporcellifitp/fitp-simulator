@@ -204,7 +204,7 @@ test('registratore (racchetta virtuale): forma e intenzione del gesto, esito det
   const R = new DiagRecorder({ engine, ui, store, now: () => now, wallNow: () => Date.UTC(2026, 9, 22, 10, 0, 0) });
   const id = await R.start({ webcamVideo: false, gameVideo: false });
   t.after(() => { if (R.active) R.stop(); });
-  const intent = { shot: 'lob', conf: .4, power: .55, reach: .9, depth: .6, face: .2, rise: .72, plane: .31, why: ['la testa sale decisa (0.72)'] };
+  const intent = { shot: 'lob', conf: .4, power: .55, reach: .9, depth: .6, face: .2, rise: .72, plane: .31, riseRef: -.18, why: ['la testa sale decisa (0.72, abituale -0.18)'] };
   emitSwing({ side: 'forehand', natpf: { shot: 'lob', intent, seq: 12 } }, { seq: 12, at: (now - 30)/1000, receivedAt: now/1000, peak: 980, angle: 110, shape: { plane: .31, rise: .72, roll: -.1, tilt: .5, head: 9.3, hand: 2.1, from: 210 } });
   engine.natpfLastRacket = { who: 'player', at: 3.5, seq: 12, contact: 1, quality: .93, volley: false, out: { t: .42, excess: 0, q: .9, assisted: true, failed: false, netFault: false, shot: 'LOB', x: -1.2, depth: 10.4 } };
   R.onFeedback({ kind: 'hit', grade: 'PERFECT • LOB' }, { label: 'Ottimo' });
@@ -217,7 +217,7 @@ test('registratore (racchetta virtuale): forma e intenzione del gesto, esito det
   const [sw, old] = ev.filter(e => e.k === 'tel.colpo');
   assert.equal(sw.pk, 980); assert.equal(sw.ampiezza, 110);
   assert.deepEqual(sw.forma, { piano: .31, salita: .72, polso: -.1, manico: .5, testa: 9.3, mano: 2.1 });
-  assert.deepEqual(sw.intenzione, { tipo: 'lob', conf: .4, forza: .55, portata: .9, profondita: .6, piatto: .2 });
+  assert.deepEqual(sw.intenzione, { tipo: 'lob', conf: .4, forza: .55, portata: .9, profondita: .6, piatto: .2, abituale: -.18 });
   assert.equal(old.forma, null); assert.equal(old.intenzione, null);
   const [hit, miss] = ev.filter(e => e.k === 'colpo.gioco' && e.chi === 'giocatore');
   assert.deepEqual(hit.racchetta, { n: 12, tempo: .42, eccesso: 0, q: .9, qualita: .93, assistito: true, fallito: false, rete: false, tipo: 'LOB', x: -1.2, prof: 10.4, volee: false, contatto: 1 });

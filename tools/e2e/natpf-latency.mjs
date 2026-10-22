@@ -77,7 +77,10 @@ try {
     E._attemptPlayerRallyStrike = (e, t) => { const at = abs(), r = strike(e, t); if (!t) __strikes.push({ at, ok: r, ms: +(abs() - at).toFixed(1) }); return r; };
     // palla in arrivo verso il dritto del giocatore, da una distanza scelta (s prima dello sweet spot)
     window.__serveBall = lead => { E.phase = 'RALLY'; E.phaseTimer = 0; E.natpfPaused = false; E.player.pos.set(0, 0, 11.4); E.player.targetPos.copy(E.player.pos); E.player.swingCooldown = 0; E.pendingUserSwing = null;
-      const v = 16; Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 1, rallyStrokeCount: 2 }); E.ball.pos.set(.9, 1, 11.4 - .1 - v*lead); E.ball.vel.set(0, 0, v); E.ball.targetLanding.set(.9, 0, 11.4); };
+      const v = 16; Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 1, rallyStrokeCount: 2 }); E.ball.pos.set(.9, 1, 11.4 - .1 - v*lead); E.ball.vel.set(0, 0, v); E.ball.targetLanding.set(.9, 0, 11.4);
+      // palla messa a mano, senza lancio: il piano d'intercetto della risposta della CPU ancora in volo non vale (prima una
+      // palla sì e una no misurava il tempo su quella risposta e lo swing finiva a vuoto)
+      E.natpfPlan = null; };
     E.natpfPhone.lastPhase = 'play'; E.natpfPhone.link.send({ t: 'ph', ph: 'play' });
   });
   await phone.waitForFunction(() => __racchetta.state.phase === 'play', null, { timeout: 5000 }).catch(() => {});

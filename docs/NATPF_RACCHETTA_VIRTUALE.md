@@ -277,6 +277,11 @@ Formato: problema → evidenza → causa → verifica → soluzione → criterio
    La forma non dipende da come si tiene il telefono ed è speculare tra destri e mancini.
 4. **Intenzione** (computer):
    - tipo di colpo dalla forma, con margini chiari, più il contesto della palla (alta: schiacciata; a rete: volée);
+   - la salita si legge rispetto alla **salita abituale** dei propri colpi normali, per verso, misurata nei due gesti
+     della calibrazione (`profile.rises`). Top spin e piatto si leggono rispetto a questa. Le soglie dei colpi
+     speciali si spostano solo per renderli più difficili: pallonetto più in alto se l'abituale sale; tagliato,
+     palla corta e schiacciata dall'alto più in basso se scende. Lo spostamento arriva al massimo a 0,6. Con «Salta»
+     restano le soglie assolute (vedi «Presa verticale e salita abituale»);
    - direzione dal tempo dentro la finestra e dal piatto rispetto al proprio colpo abituale;
    - profondità dalla forza e dall'ampiezza;
    - altezza dal percorso.
@@ -288,6 +293,45 @@ Formato: problema → evidenza → causa → verifica → soluzione → criterio
 9. **Avversario**: un angolo buono lo fa correre e gli toglie qualità nella risposta, in modo sistematico. Gli scambi
    finiscono.
 10. **Diagnostica**: forma, intenzione ed esito di ogni colpo negli eventi; prova guidata con il colpo richiesto.
+
+### Presa verticale e salita abituale (passo 13)
+
+La prova nel browser con la presa del 19/10 (`natpf-phone-upright.mjs`) falliva già prima del passo 10. Le prove della
+presa vera (`test/natpf-gesture-grip.test.mjs`) passavano solo perché il telefono simulato non mandava la forma, e il
+computer usava la tabella di prima.
+
+- **Causa [codice]**: con il telefono in verticale nel pugno, la rotazione principale del dritto è attorno al lato lungo
+  del telefono. La testa della racchetta virtuale si muove quindi solo con il polso. Una pronazione di 450–800 °/s
+  inclina il manico di lato e abbassa la testa (salita da −0,3 a −0,65): il colpo veniva letto come tagliato.
+- **Soluzione**: salita abituale dalla calibrazione (sopra, punto 4). La calibrazione va fatta con il proprio colpo,
+  con la stessa presa e la stessa pronazione.
+- **Banco [simulatore]** (`scripts/audit/calibration-matrix.mjs --forma`): 432 prese e gesti per mano, 5184 colpi
+  normali, calibrazione con lo stesso gesto.
+
+  | Colpi speciali non voluti | Destri | Mancini |
+  |---|---|---|
+  | Forma, soglie assolute (`--senza-abituale`) | 1944 (37%) | — |
+  | Forma, salita abituale | 148 (2,9%) | 142 |
+  | Telefono di prima (tabella dei segnali) | 0 | 0 |
+
+  I colpi speciali rimasti sono tutti nei gesti più piccoli (picco 180–260 °/s) con 800 °/s di pronazione: lì la
+  salita abituale supera il limite di −0,6.
+- **Colpi speciali voluti nel banco** (gesti del simulatore di prima, destri; i mancini danno gli stessi numeri ±2):
+
+  | | Forma con salita abituale | Forma, soglie assolute | Telefono di prima |
+  |---|---|---|---|
+  | Pallonetti | 638/864 | 638/864 | 738/864 |
+  | Palle corte | 106/864 | 172/864 | 284/864 |
+
+  Pallonetti: 0/216 con il telefono perfettamente verticale. La testa di un manico verticale non può salire ruotando,
+  quindi conta che il telefono sia inclinato in avanti all'impatto (210/216 a 35°, 212/216 a 60°, 216/216 a 80°).
+  **[ipotesi]** Con il braccio vero il telefono all'impatto del pallonetto è inclinato in avanti; va verificato con il
+  telefono vero. La salita abituale costa palle corte quando il proprio colpo normale ha già la testa che scende.
+- **Prova nel browser**: 10/10 con il telefono finto reso fisicamente coerente (la gravità ruota con il telefono,
+  l'accelerazione della mano nel riferimento del campo). Prima la gravità restava sempre lungo il lato lungo, e anche la
+  mira dal piatto girato non si vedeva. Senza la salita abituale la prova dà 9/10: 4 dritti su 6 diventano tagliati.
+- **Limite**: con «Salta», o con gesti della calibrazione molto diversi da quelli in partita (più pronazione in
+  partita), un dritto con molta pronazione può ancora diventare un tagliato.
 
 ### Test obbligatori
 
@@ -317,3 +361,53 @@ Da completare a fine lavoro. Restano separati:
 - codice implementato;
 - test automatici superati;
 - validazione fisica (telefono e webcam veri).
+
+## 5. Procedura di prova fisica
+
+Serve a validare con il telefono vero (e la webcam, se si usa) quello che i test fanno con sensori simulati. Durata:
+circa 20 minuti, in due registrazioni della modalità diagnostica (`docs/NATPF_DIAGNOSTICA.md`): la prova guidata
+registra da sola, la partita e i disturbi si registrano a mano.
+
+**Prima di iniziare**
+- Gioco aggiornato (pacchetto LAN o sito) e pagina del telefono aperta dal **nuovo** QR: una pagina del telefono
+  vecchia non manda la forma del colpo.
+- Nel gioco scegli la mano con cui giochi.
+- Tieni il telefono come lo terrai giocando (in verticale nel pugno, come nel video del 19/10, o come ti viene).
+
+**1. Mano e calibrazione** (prove 1 e 13).
+- La pagina del telefono mostra la stessa mano scelta nel gioco.
+- «Allenamento»: un attimo fermo, poi i 2 gesti comodi **con il colpo vero** (stessa presa, stesso polso dei colpi in
+  partita): da qui il gioco impara la salita abituale del proprio colpo.
+- Criterio: la calibrazione finisce entro 10 s, senza tentativi scartati per il tremolio.
+
+**2. Prova guidata dei colpi** (prove 2, 3, 4, 5, 7; circa 5 minuti; prima registrazione). Torna al menu principale,
+Maiusc+D → «▶ Prova guidata dei colpi», poi fai quello che chiede la scritta. Alla fine la registrazione si ferma da
+sola e il pannello mostra il riassunto. Criteri:
+- verso giusto (dritto/rovescio) in almeno il 95% dei colpi;
+- dritti e rovesci normali: colpi speciali non voluti al massimo 5%;
+- pallonetti e palle corte voluti riconosciuti almeno al 90%;
+- incrociati e lungolinea distinti con il tempo del colpo in almeno il 90%;
+- ripetibilità: per ogni richiesta, la variazione (p90 − p10) di caduta e profondità resta piccola rispetto alla
+  differenza tra un incrociato e un lungolinea.
+
+**3. Partita e disturbi** (seconda registrazione). Maiusc+D → «● Avvia registrazione», con i campioni del telefono e
+il video della webcam che inquadra chi gioca. Maiusc+M segna un momento sbagliato («qui era un dritto»).
+- **Partita 1 contro 1** (prove 6, 8, 12; 3–5 minuti a livello normale):
+  - gesti in anticipo con la palla ancora lontana: la racchetta si carica e colpisce quando la palla arriva, mai un
+    colpo a vuoto «troppo presto» con la palla lontana;
+  - almeno una volée a rete e una schiacciata al volo su un pallonetto della CPU;
+  - servizio dal gesto: un servizio piano e uno forte;
+  - gli scambi finiscono (nessuno scambio infinito).
+- **Disturbi** (prove 9, 10, 11):
+  - telefono: 10 s fermo in mano, con la mano che trema naturalmente → nessun colpo; poi un dritto → un colpo, col
+    verso giusto;
+  - telefono: schermo coperto o app in secondo piano per 2 s → nessun colpo fantasma alla ripresa;
+  - webcam (se si usa): una seconda persona dietro o accanto per 30 s, anche muovendo le mani → la mano resta quella
+    di chi gioca, nessun colpo dall'altra persona; mano fuori dall'inquadratura 2–3 s → nessun colpo alla ripresa.
+- **«Salta»** (prova 13): nuova calibrazione con «Salta» subito, poi 10 dritti e rovesci alternati → verso giusto e
+  tipo normale; i colpi speciali restano possibili con un gesto deciso.
+- Maiusc+D → «■ Ferma la registrazione».
+
+**4. Pacchetti.** Dal pannello della diagnostica, «⬇ Scarica il pacchetto» per tutte e due le registrazioni. I
+pacchetti contengono il video della webcam con la persona: vanno consegnati a mano e non entrano nel repository. Con
+gli stessi pacchetti si fa anche il confronto prima/dopo (`scripts/audit/zip-replay.mjs`).

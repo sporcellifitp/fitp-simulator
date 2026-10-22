@@ -70,6 +70,9 @@ const SPECIALS_KEY = 'natpf-tennis.specials';
 // (il canale recapita tutto insieme quando torna), non si gioca. Di solito arrivano 30–60 ms dopo il picco
 export const PHONE_STALE_S = .6;
 export const NORMAL_SHOTS = new Set(['topspin', 'flat']);
+// salita abituale della testa della racchetta nel verso del colpo (+1/−1), dai gesti della calibrazione
+// (profile.rises); null con il profilo semplice («Salta»), senza dati o con il verso 0
+export const riseRefOf = (profile, dir) => (profile && !profile.simple && (dir === 1 || dir === -1) && Number.isFinite(profile.rises?.[dir]) ? profile.rises[dir] : null);
 const finiteOr = (v, d = 0) => (Number.isFinite(v) ? v : d);
 // ritardo dello schermo (ms) salvato su questo computer: 0 finché non lo si misura (pannello della diagnostica)
 export const DISPLAY_LAG_KEY = 'natpf.displayLagMs';
@@ -79,7 +82,7 @@ function readSpecials(){ try { return JSON.parse(localStorage.getItem(SPECIALS_K
 function writeSpecials(v){ try { localStorage.setItem(SPECIALS_KEY, JSON.stringify(v)); } catch {} }
 // displayLag (s): ritardo dello schermo misurato (impostazione della diagnostica, 0 se non misurato). Chi gioca colpisce
 // la palla che vede: con uno schermo in ritardo ogni colpo risulterebbe in ritardo di altrettanto
-export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaseline = 0, headBaseline = 0, faceCenter = null, aimModel = null, personal = null, now = null, prep = null, prepCapable = false, ballHigh = false, displayLag = 0, ref = null } = {}){
+export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaseline = 0, headBaseline = 0, faceCenter = null, aimModel = null, personal = null, now = null, prep = null, prepCapable = false, ballHigh = false, displayLag = 0, ref = null, riseRef = null } = {}){
   const flat = !!s.face && Number.isFinite(s.face.yaw) && (s.grip === 'flat' || grip === 'flat');
   if (flat) return faceSwingToEngine(s, { hand });
   const dirX = Math.max(-1, Math.min(1, gestureAim(s)));
@@ -104,7 +107,7 @@ export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaselin
   const heading = aimModel && Number.isFinite(s.heading) ? aimModel.aim(s.dir || 0, s.heading) : null;
   // telefoni con la forma del colpo (stroke-shape.js): intenzione dalla forma (natpf_stroke_intent.js), deterministica;
   // il motore aggiunge tempo ed esecuzione all'impatto (natpf_stroke_outcome.js). Senza forma, la tabella di prima.
-  const intent = chosen ? null : strokeIntent(s, { ref, ballHigh, headingDev: heading?.dev ?? null });
+  const intent = chosen ? null : strokeIntent(s, { ref, ballHigh, headingDev: heading?.dev ?? null, riseRef });
   const cls = chosen ? { shot: chosen, why: ['scelto sul telefono'] } : intent ? { shot: intent.shot, conf: intent.conf, why: intent.why } : classifyPhoneShot({ dir: s.dir || 0, vert: s.vert || null, lift, liftBaseline, head, headBaseline, personal, facePitch: face ? face.pitch : null, power, speed: Number.isFinite(s.speed) ? s.speed : null, ballHigh });
   const shot = cls.shot;
   const faceAim = heading ? heading.aim : face ? face.aim : null, faceUnreliable = heading ? heading.aim == null : !!face && !Number.isFinite(face.aim);
@@ -346,7 +349,9 @@ export class NatpfPhoneRacket {
       return;
     }
     const ref = this.profile && !this.profile.simple && Number.isFinite(this.profile.ref) ? this.profile.ref : null;
-    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, displayLag: this.displayLagMs/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine), ref }), role: this.engine.playerRole };
+    // salita abituale dei propri colpi in questo verso (gesti della calibrazione): vedi classifyStroke
+    const riseRef = riseRefOf(this.profile, s.dir);
+    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, displayLag: this.displayLagMs/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine), ref, riseRef }), role: this.engine.playerRole };
     // numero del colpo del telefono: la diagnostica lega così il gesto (tel.colpo) al suo esito nel motore (colpo.gioco)
     ev.natpf.seq = Number.isFinite(s.seq) ? s.seq : null;
     this.lastPrep = null;

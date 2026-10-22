@@ -1,8 +1,12 @@
 // NATPF motore base (natpf-tennis/): telefono simulato con la presa vera del gioco (verticale, «manico»), dal QR alla
 // partita. Avvia da solo il server PeerJS locale e il gioco (vite) su porte di prova, apre la pagina del telefono dal
 // link del QR, fa la calibrazione rapida e poi gioca dei colpi:
-//   • dritti con il polso che prona durante il gesto (video del 19/10) → colpi normali, non pallonetti;
-//   • un gesto dal basso verso l'alto con la mano che sale → pallonetto;
+//   • dritti con il polso che prona durante il gesto (video del 19/10) → colpi normali, non pallonetti né tagliati. La
+//     calibrazione si fa con lo stesso gesto (stessa presa, stessa pronazione): il tipo di colpo si legge dalla forma
+//     rispetto alla salita abituale dei propri gesti (natpf_stroke_intent.js);
+//   • un pallonetto: telefono inclinato in avanti, poi il braccio sale e la testa della racchetta passa da avanti a
+//     sopra, con la mano che sale → pallonetto. Il gesto di prima inclinava la cima in avanti mentre la mano saliva:
+//     con la forma del colpo la testa della racchetta virtuale scende, e non è un pallonetto;
 //   • il piatto girato a destra o a sinistra prima del colpo → palla a destra o a sinistra.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-phone-upright.mjs
 // Prende il posto di natpf-flat-grip.mjs, che prova la presa orizzontale non più offerta dal gioco.
@@ -30,18 +34,46 @@ check('gioco avviato con vite', await up(`http://127.0.0.1:${GAME_PORT}/`));
 // telefono in verticale, schermo verso di sé: la gravità lungo y. Rotazioni nel riferimento del telefono:
 // gamma (y) = attorno al lato lungo, cioè alla verticale (dritto e rovescio); beta (x) = attorno al lato corto
 // (dal basso verso l'alto); alpha (z) = attorno alla normale dello schermo (polso che prona).
+// L'orientamento del telefono finto segue le rotazioni (integrate con il tempo vero tra un campione e l'altro) e la
+// gravità ruota con lui, come nei sensori veri: prima restava sempre lungo il lato lungo, e un telefono inclinato
+// sembrava dritto al filtro d'orientamento (la forma del colpo si misura rispetto alla gravità).
 const PHONE_INIT = () => {
-  const G = 9.81;
+  const G = 9.81, D = Math.PI/180;
+  const qmul = (a, b) => [a[3]*b[0] + a[0]*b[3] + a[1]*b[2] - a[2]*b[1], a[3]*b[1] - a[0]*b[2] + a[1]*b[3] + a[2]*b[0], a[3]*b[2] + a[0]*b[1] - a[1]*b[0] + a[2]*b[3], a[3]*b[3] - a[0]*b[0] - a[1]*b[1] - a[2]*b[2]];
+  const qconj = q => [-q[0], -q[1], -q[2], q[3]];
+  const rotate = (q, v) => qmul(qmul(q, [v[0], v[1], v[2], 0]), qconj(q)).slice(0, 3);
   window.__up = {
-    emit(rot, acc = [0, 0, 0]){ window.dispatchEvent(new DeviceMotionEvent('devicemotion', { rotationRate: { alpha: rot[0], beta: rot[1], gamma: rot[2] }, acceleration: { x: acc[0], y: acc[1], z: acc[2] }, accelerationIncludingGravity: { x: acc[0], y: G + acc[1], z: acc[2] }, interval: 10 })); },
-    run(fn, ms){ return new Promise(r => { const t0 = performance.now(); const id = setInterval(() => { const u = (performance.now() - t0)/ms; const v = fn(Math.min(1, u)); this.emit(v.rot || v, v.acc); if (u >= 1){ clearInterval(id); r(); } }, 10); }); },
+    q: [0, 0, 0, 1], last: null,
+    // acc: accelerazione della mano nel riferimento del telefono; accW: nel riferimento del campo (x a destra, y in
+    // alto, −z verso la rete), girata nel riferimento del telefono come la gravità
+    emit(rot, acc = [0, 0, 0], accW = null){
+      const now = performance.now(), dt = this.last == null ? 0 : Math.min(.05, (now - this.last)/1000); this.last = now;
+      const w = [rot[1], rot[2], rot[0]].map(v => v*D), m = Math.hypot(...w);      // x = beta, y = gamma, z = alpha
+      if (m*dt > 1e-9){ const k = Math.sin(m*dt/2)/m; this.q = qmul(this.q, [w[0]*k, w[1]*k, w[2]*k, Math.cos(m*dt/2)]); }
+      if (accW) acc = rotate(qconj(this.q), accW);
+      const g = rotate(qconj(this.q), [0, G, 0]);
+      window.dispatchEvent(new DeviceMotionEvent('devicemotion', { rotationRate: { alpha: rot[0], beta: rot[1], gamma: rot[2] }, acceleration: { x: acc[0], y: acc[1], z: acc[2] }, accelerationIncludingGravity: { x: g[0] + acc[0], y: g[1] + acc[1], z: g[2] + acc[2] }, interval: 10 }));
+    },
+    run(fn, ms){ return new Promise(r => { const t0 = performance.now(); const id = setInterval(() => { const u = (performance.now() - t0)/ms; const v = fn(Math.min(1, u)); this.emit(v.rot || v, v.acc, v.accW); if (u >= 1){ clearInterval(id); r(); } }, 10); }); },
     still(ms){ return this.run(() => [0.4*Math.sin(performance.now()), -0.4, 0.3], ms); },
     turn(rate, ms){ return this.run(() => [0, 0, rate], ms); },
+    // torna lentamente (rate °/s) a un orientamento, ruotando attorno a un asse fisso: la mano che rientra nella posa
+    // «pronto» (anche il polso: la pronazione non si accumula da un colpo all'altro)
+    returnTo(q0, rate = 20){
+      const r = qmul(qconj(this.q), q0), s = r[3] < 0 ? -1 : 1, ang = 2*Math.acos(Math.min(1, r[3]*s)), l = Math.hypot(r[0], r[1], r[2]);
+      if (ang < 1e-4 || l < 1e-9) return Promise.resolve();
+      const ax = [r[0], r[1], r[2]].map(v => v*s/l), deg = ang/D;
+      return this.run(() => [ax[2]*rate, ax[0]*rate, ax[1]*rate], deg/rate*1000);
+    },
     // dritto/rovescio attorno alla verticale; wrist: rotazione del polso (alpha) nella seconda metà; push in avanti
-    swing(sign, { peak = 750, dur = 240, wrist = 0 } = {}){ return this.run(u => ({ rot: [wrist*Math.sin(Math.PI*Math.max(0, u*1.4 - .2))**2, 0, sign*peak*Math.sin(Math.PI*u)**2], acc: [0, 0, -4*Math.sin(Math.PI*u)] }), dur); },
-    back(sign, peak = 750, dur = 240){ const deg = peak*dur/2000, rate = 20; return this.run(() => [0, 0, -sign*rate], deg/rate*1000); },
-    // dal basso verso l'alto: rotazione attorno al lato corto e mano che sale
-    lob(){ return this.run(u => ({ rot: [0, -650*Math.sin(Math.PI*u)**2, 150*Math.sin(Math.PI*u)**2], acc: [0, 9*Math.sin(2*Math.PI*u), -2*Math.sin(Math.PI*u)] }), 240); },
+    swing(sign, { peak = 750, dur = 240, wrist = 0 } = {}){ this.start = this.q.slice(); return this.run(u => ({ rot: [wrist*Math.sin(Math.PI*Math.max(0, u*1.4 - .2))**2, 0, sign*peak*Math.sin(Math.PI*u)**2], acc: [0, 0, -4*Math.sin(Math.PI*u)] }), dur); },
+    back(){ return this.returnTo(this.start || this.q); },
+    // pallonetto: il telefono inclinato in avanti (presa del 19/10, 35°) e portato giù per metà corsa (lentamente), poi
+    // il braccio che sale fa ruotare la cima all'indietro attorno al lato corto con la mano che sale: all'impatto, a
+    // metà corsa, la testa è ancora davanti e sale (come in test/phone-sim.mjs); poi si torna dritti
+    lob(){ const q0 = this.q.slice(), tilt = 35 + 650*.24/4, rate = 60; return this.run(() => [0, -rate, 0], tilt/rate*1000).then(() => this.still(300))
+      .then(() => this.run(u => ({ rot: [0, 650*Math.sin(Math.PI*u)**2, 150*Math.sin(Math.PI*u)**2], accW: [0, 9*Math.sin(2*Math.PI*u), -2*Math.sin(Math.PI*u)] }), 240))
+      .then(() => this.returnTo(q0, rate)); },
   };
 };
 
@@ -63,11 +95,12 @@ try {
   await phone.waitForFunction(() => __racchetta.state.sensor === 'cal' && __racchetta.state.step === 'still', null, { timeout: 5000 });
   await phone.evaluate(() => __up.still(2400));
   await phone.waitForFunction(() => __racchetta.state.step === 'swings', null, { timeout: 5000 });
-  // i gesti nel verso che la calibrazione chiede (prima fermi: la calibrazione vuole la mano ferma prima di ogni gesto)
+  // i gesti nel verso che la calibrazione chiede (prima fermi: la calibrazione vuole la mano ferma prima di ogni gesto),
+  // con la pronazione abituale di chi gioca (la stessa dei colpi in partita)
   for (let i = 0; i < QUICK_PLAN.length; i++){
     const want = await phone.evaluate(() => __racchetta.state.want ?? __racchetta.cal?.state?.want ?? null);
     const sign = want === 'R' || want === 'right' || want === -1 ? -1 : 1;
-    await phone.evaluate(s => __up.still(500).then(() => __up.swing(s, { wrist: 0 })).then(() => __up.back(s)).then(() => __up.still(700)), i % 2 ? -sign : sign);
+    await phone.evaluate(s => __up.still(500).then(() => __up.swing(s, { wrist: 500 })).then(() => __up.back(s)).then(() => __up.still(700)), i % 2 ? -sign : sign);
   }
   await game.waitForFunction(() => __natpfTennis.natpfPhone.cal.review?.pass, null, { timeout: 8000 }).catch(() => {});
   const review = await game.evaluate(() => __natpfTennis.natpfPhone.cal.review);

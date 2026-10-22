@@ -292,6 +292,20 @@ test('Calibrazione in campo: il gesto riconosciuto colpisce la sua palla anche s
   }
 });
 
+test('Calibrazione in campo dopo una partita finita con una palla lasciata andare: il gesto colpisce lo stesso la sua palla', async () => {
+  const w = await makeWorld({ controller: 'phone' }); w.advance(300);
+  const { E, lobby } = w;
+  // piano d'intercetto rimasto dall'ultima palla della partita (fuori, lasciata andare): la palla della calibrazione
+  // non si lancia, e lo swing in attesa veniva scartato al punto d'impatto
+  E.natpfPlan = { kind: 'letgo', side: 0, contact: { x: 5.2, y: 0, z: 9 }, t: .8, at: E.elapsedTime - 5, stretch: 0 };
+  lobby.menu('training'); lobby.go('connect'); lobby.next();
+  w.cal({ kind: 'step', step: 'still' });
+  w.cal({ kind: 'step', step: 'swings', want: QUICK_PLAN[0], idx: 0, total: QUICK_PLAN.length });
+  w.cal({ kind: 'ready', want: QUICK_PLAN[0] }); w.advance(100);
+  w.cal({ kind: 'attempt', ok: true, idx: 0, want: QUICK_PLAN[0] }); w.advance(300);
+  assert.equal(E.ball.lastHitter, 'player');
+});
+
 test('Calibrazione rifatta dopo una verifica non superata: ogni gesto del secondo giro colpisce la sua palla', async () => {
   const w = await makeWorld({ controller: 'phone' }); w.advance(300);
   const { E, lobby, link } = w;

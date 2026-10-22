@@ -3,10 +3,12 @@
 // polso che prona e tremolio della mano, calibra come farebbe chi gioca (presa tenuta durante la calibrazione) e poi
 // gioca 6 dritti e 6 rovesci con lo stesso gesto. Riporta: calibrazione riuscita o no (e perché), colpi persi, lato
 // sbagliato, colpi speciali non voluti, ritardo del riconoscimento (dal picco alla decisione sul telefono).
-//   node --import ./test/register.mjs scripts/audit/calibration-matrix.mjs [--quick]
+//   node --import ./test/register.mjs scripts/audit/calibration-matrix.mjs [--quick] [--forma [--senza-abituale]]
+// --forma: il telefono di oggi, che manda la forma del colpo (tipo dalla forma, natpf_stroke_intent.js), con la salita
+// abituale dei gesti della calibrazione; --senza-abituale: la stessa forma letta con le soglie assolute (confronto).
 import { simPhone } from '../../test/phone-sim.mjs';
 
-const QUICK = process.argv.includes('--quick');
+const QUICK = process.argv.includes('--quick'), SHAPE = process.argv.includes('--forma'), HABITUAL = !process.argv.includes('--senza-abituale');
 const TILTS = QUICK ? [0, 60] : [0, 35, 60, 80];          // gradi: telefono inclinato in avanti nel pugno
 const YAWS = QUICK ? [0, 90] : [0, 45, 90];               // gradi: schermo girato di lato
 const GESTURES = QUICK
@@ -19,7 +21,7 @@ const HANDS = process.argv.includes('--lefty') ? ['right', 'left'] : ['right'];
 const rows = [];
 let seed = 1;
 for (const hand of HANDS) for (const tilt of TILTS) for (const yaw of YAWS) for (const g of GESTURES) for (const wrist of WRISTS) for (const tremor of TREMORS){
-  const p = simPhone({ seed: seed++, hand });
+  const p = simPhone({ seed: seed++, hand, shape: SHAPE, habitual: HABITUAL });
   // presa: schermo girato attorno alla verticale, poi inclinato in avanti; la si tiene per tutta la prova
   p.pose([0, 1, 0], yaw); p.pose([1, 0, 0], -tilt); p.rest(400, tremor);
   const gesture = { peak: g.peak, ms: g.ms, wrist, wristAxis: [0, 0, -1] };

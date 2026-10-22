@@ -56,3 +56,21 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
   - Decisioni: gesto ed esito si legano con il numero del colpo del telefono (non per vicinanza nel tempo); la
     ripetibilità è la variazione p90 − p10 per colpo richiesto, senza giudizio (il modello non ha caso, varia chi
     gioca); la direzione voluta si legge dal tempo nella finestra (±15%) accanto a quella ottenuta.
+- Checkpoint 8: regressioni del passo 13 (prove nel browser che fallivano già a `84ca878`).
+  - Latenza: la palla messa a mano dalla prova arrivava con la risposta della CPU ancora in volo, e il motore misurava
+    il tempo sul piano d'intercetto di quella risposta (una palla sì e una no, riprodotto senza browser). Cercando la
+    causa è emerso un errore vero: un piano «lascia andare» rimasto dalla partita scartava in silenzio ogni swing in
+    anticipo sulle palle del lanciapalle e su quelle della calibrazione in campo. Decisione: ogni lancio cancella il
+    piano della palla di prima; la palla della calibrazione (senza lancio) lo cancella da sé.
+  - Presa verticale: la forma del colpo leggeva tagliati nei dritti con il polso che prona (presa del 19/10). Le prove
+    della presa vera passavano solo perché il telefono simulato non mandava la forma. Decisione: salita abituale per
+    verso dai due gesti della calibrazione, come già il piatto e la mira («rispetto al proprio colpo abituale»); le
+    soglie dei colpi speciali si spostano solo per renderli più difficili, al massimo di 0,6. Scartate: il percorso
+    della mano (accelerazione integrata) come conferma del tagliato, perché nei colpi veloci veri l'orientamento
+    sbaglia e l'accelerazione centripeta finisce nella verticale (§2, dati insufficienti); una soglia legata
+    all'inclinazione del manico, che non separa: con la presa inclinata di 60° il manico all'impatto è inclinato quanto
+    nei tagliati veri del banco della racchetta (0,23 contro 0,26). Banco: colpi speciali non voluti da 1944 a 148 su
+    5184; pallonetti uguali (638/864), palle corte da 172 a 106.
+  - Prova nel browser della presa verticale: il telefono finto teneva la gravità sempre lungo il lato lungo; ora ruota
+    con il telefono (anche la mira dal piatto girato torna a vedersi) e il pallonetto parte con il telefono inclinato
+    in avanti, come il simulatore Node.

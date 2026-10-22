@@ -164,7 +164,7 @@ export class NatpfTraining {
     E.ball.pos.set(x, CAL_SPOT.height, z); E.ball.vel.set(0, 0, 2); E.ball.spin?.set?.(0, 0, 0);
     E.ball.targetLanding?.set?.(x, 0, p.pos.z);
     Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 1, rallyStrokeCount: 1, shotType: 'TOPSPIN', isPowerShot: false });
-    E.pendingUserSwing = null;
+    E.pendingUserSwing = null; E.natpfPlan = null;  // palla messa senza lancio: nessun piano d'intercetto di una palla vecchia
     E.phase = 'RALLY'; E.phaseTimer = 0; E.cameraMode = 'RALLY_CAM';
     E.natpfTimeScale = 0;                           // tutto fermo finché non arriva il gesto
     c.ballFor = v.idx; c.flightT = 0;

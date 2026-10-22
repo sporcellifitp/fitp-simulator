@@ -145,6 +145,22 @@ test('palla che va fuori: chi gioca la lascia andare e il punto è suo', () => {
   });
 });
 
+test('palla nuova senza piano (lanciapalle, palla della calibrazione): il «lascia andare» della palla di prima non scarta lo swing', () => {
+  withEngine('pro', e => {
+    // ultima palla della partita: fuori, lasciata andare
+    assert.equal(cpuShot(e, { player: [.4, 4.8], to: [5.2, 9], flight: 1 }).kind, 'letgo');
+    assert.equal(play(e, []).phase, 'POINT_OVER');
+    // il lanciapalle dell'allenamento lancia senza piano d'intercetto (natpf_training._feed)
+    e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'opponent'; e.ball.bounceCountOnCurrentSide = 0; e.ball.rallyStrokeCount = 1;
+    e.player.pos.set(0, 0, 11.4); e.player.targetPos.copy(e.player.pos); e.player.vel.set(0, 0, 0);
+    e.ball.pos.set(0, 1.05, -11.6);
+    e._launchBallToTarget(e.ball.pos, new THREE.Vector3(1.3, 0, 9), 1.15, { topspin: 10 });
+    e._predictBallIntercept(e.player);
+    assert.equal(NI.planOf(e, e.player), null);
+    assert.ok(play(e, [{ lead: .15, swing: phoneSwing({ shot: 'topspin', power: .7 }) }]).hit, 'lo swing in anticipo colpisce la palla del lanciapalle');
+  });
+});
+
 // 1v1: palla di chi gioca qui verso il Player 2 (metà campo z negative), che si prepara con il suo piano d'intercetto
 function p1Shot(e, { from, to, flight, topspin = 14, p2, rally = 3 }){
   e.isMultiplayer = true; e.versus = { active: true }; e.natpfP2Hand = 'right';

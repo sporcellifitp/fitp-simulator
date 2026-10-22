@@ -139,12 +139,31 @@ tastiera come controlli nuovi.
     - Prove: registratore e metriche (`natpf-diag.test.mjs`), legame del numero (`natpf-racchetta*.test.mjs`), nel
       browser `natpf-diag-session.mjs` 18/18 con la verifica nuova.
 13. [ ] I 14 test obbligatori, prima/dopo sullo ZIP (`scripts/audit/zip-replay.mjs`), regressioni (`npm test`, e2e).
-    Prove nel browser che falliscono già a `84ca878` (prima del passo 10), da chiarire qui:
-    - `natpf-phone-upright.mjs` 7/10: con il telefono sintetico della presa del 19/10 i dritti con il polso che prona
-      diventano tagliati («dall'alto in basso»), la mano che sale dà un tagliato invece del pallonetto, la mira dal
-      piatto girato prima del colpo si perde (intenzione dalla forma, passi 3–4);
-    - `natpf-latency.mjs` 7/9: gesti in anticipo di 0,05, 0,1 e 0,25 s senza colpo (0,15 s sì), mentre P4 chiede che
-      fino a 0,35 s la palla si prenda (finestra d'impatto, passo 6).
+    Fatto (checkpoint 8):
+    - `natpf-latency.mjs` 9/9 (era 7/9): la palla messa a mano dalla prova arrivava con la risposta della CPU ancora in
+      volo e il motore misurava il tempo sul piano d'intercetto di quella risposta. Cercando la causa, un errore vero
+      del motore: un piano «lascia andare» rimasto dalla partita scartava in silenzio ogni swing in anticipo sulle palle
+      del lanciapalle dell'allenamento e su quelle della calibrazione in campo. Ora ogni lancio cancella il piano della
+      palla di prima (`_launchBallToTarget`), e anche la palla della calibrazione (`_presentBall`). Test nel motore e
+      nei flussi.
+    - `natpf-phone-upright.mjs` 10/10 (era 7/10): con la presa del 19/10 (telefono in verticale nel pugno) il polso che
+      prona abbassa la testa della racchetta virtuale e la forma dava tagliati. Salita abituale dai gesti della
+      calibrazione (`profile.rises`, `riseRefOf`, `classifyStroke`). Banco `calibration-matrix --forma`: colpi speciali
+      non voluti da 1944 a 148 su 5184 (mancini 142). Il telefono finto della prova nel browser ora ha la gravità che
+      ruota con lui (con la gravità fissa anche la mira dal piatto girato non si vedeva) e il pallonetto parte con il
+      telefono inclinato in avanti. Documento: §3 «Presa verticale e salita abituale».
+    - Commento vecchio della webcam (`claimed`) corretto.
+    - `npm test` 273/273 (con `npm ci --prefix tools/lan` non salta più la prova LAN); `tools/test` 134/134.
+    - Prove nel browser (22/10, dopo le correzioni): diagnostica 24/24, menu 22/22, ricollegamento 6/6, blackout 6/6,
+      telefono solo 10/10, calibrazione a gesti 18/18, interfaccia rapida 6/6, contatto intuitivo 5/5, grafica arcade
+      9/9, latenza 9/9, presa verticale 10/10.
+    Da fare, in ordine:
+    1. Chiarire le prove nel browser che non passano, confrontandole con `c5b9337` in un worktree (fuori dal
+       repository): `natpf-training-flow.mjs` 12/13 («giocatore fermo mentre si aspetta il gesto»: 1 campione su 67 in
+       movimento), `timing-browser.mjs` (attesa scaduta alla riga 92), `phone-cal.mjs` (partita ferma, già nota),
+       `phone-failures.mjs` 9/11 (testi della calibrazione vecchia, già nota), `invite.mjs` e `invite-timing.mjs`.
+    2. Build, poi `natpf-1v1-p2p.mjs` e `natpf-tennis/test/e2e/lan-e2e.mjs`.
+    3. Prima/dopo sullo ZIP: bloccato finché lo ZIP non torna in questo ambiente (non è nel repository).
 14. [ ] Documento finale (codice, test automatici e validazione fisica separati), procedura di prova fisica, build e
     zip.
 

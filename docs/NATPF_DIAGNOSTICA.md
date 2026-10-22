@@ -45,7 +45,7 @@ Tutto è scritto in `eventi.jsonl`, un evento JSON per riga. `t` è in ms dall'i
 | Evento | Contenuto |
 |---|---|
 | `sessione`, `sessione.fine` | dispositivi, browser, scheda grafica, impostazioni, conteggi |
-| `tel.colpo` | colpo del telefono: numero, percorso (veloce o affidabile), lato, tipo, perché, mira, istante del picco, tempi di riconoscimento, preparazione, consegna e totale; anche i colpi scartati, con il motivo. Racchetta virtuale: velocità al picco (`pk`, °/s), ampiezza (gradi), `forma` del gesto (piano, salita della testa, polso, manico, velocità della testa e della mano) e `intenzione` letta dal computer (tipo, sicurezza, forza, portata, profondità voluta, mira del piatto); null con i telefoni di prima |
+| `tel.colpo` | colpo del telefono: numero, percorso (veloce o affidabile), lato, tipo, perché, mira, istante del picco, tempi di riconoscimento, preparazione, consegna e totale; anche i colpi scartati, con il motivo. Racchetta virtuale: velocità al picco (`pk`, °/s), ampiezza (gradi), `forma` del gesto (piano, salita della testa, polso, manico, velocità della testa e della mano) e `intenzione` letta dal computer (tipo, sicurezza, forza, portata, profondità voluta, mira del piatto, salita abituale della calibrazione in quel verso: `abituale`, null senza calibrazione); null con i telefoni di prima |
 | `tel.cal` | passi della calibrazione |
 | `tel.stato` | collegamento, stato del telefono, presa, pagina visibile o nascosta, blocco dello schermo |
 | `tel.orologio` | ogni scambio dell'orologio (invio e ricezione sul computer, ora del telefono) |
