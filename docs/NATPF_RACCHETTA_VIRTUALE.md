@@ -527,10 +527,11 @@ tagliato (−0,22), forza del pallonetto «morbido» (0,3), zona morta del piatt
 ### 4.4 Limiti noti
 
 - **Difetti verificati dopo la fine del giro** (misure in `SESSION_HANDOFF.md`, «Difetti verificati»):
-  - non riprodotto (fase B): le due prove della CI della pagina storica che fallivano dopo l'unione, «gesture and
-    calibration» e «timing-browser», passano 20 volte su 20 (5 per prova e per rilevatore, quello attuale e quello di
-    `84ca878`), a macchina scarica. Il rilevatore è lo stesso dei fallimenti di allora: l'ipotesi è il carico della
-    macchina (prove nel browser con la grafica software lanciate insieme ad altre), da verificare sotto carico;
+  - non è un difetto del rilevatore (fasi B ed E): le due prove della CI della pagina storica che fallivano dopo
+    l'unione, «gesture and calibration» e «timing-browser», passano 20 volte su 20 a macchina scarica (5 per prova e per
+    rilevatore, quello attuale e quello di `84ca878`); sotto carico falliscono allo stesso modo con tutti e due i
+    rilevatori (2 su 3 e 1 su 3 superate), e «timing-browser» non usa nemmeno il rilevatore. Sono prove sensibili al
+    carico della macchina: vanno lanciate una alla volta;
   - risolto (fase B): nella partita intera della pagina storica (`phone-cal.mjs`, fuori dalla CI) il telefono non
     lanciava e non colpiva. Le cause erano nella prova, non nel gioco: il controllo «mouse e tastiera non producono input»
     spegneva i comandi della partita e non li riaccendeva (da lì ogni colpo del telefono veniva scartato; prova e filtro

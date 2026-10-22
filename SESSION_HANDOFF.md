@@ -36,7 +36,7 @@ tastiera come controlli nuovi.
   [dati], [codice], [ipotesi] e [insufficiente].
 - **Passi 1–14 fatti** (codice e test automatici). **Passo 16 fatto nella fase B del passo 17** (difetti 5 e 7
   risolti, difetto 6 non riprodotto, presa del 19/10 verificata e corretta per chi salta la calibrazione, diagnostica
-  con una sola registrazione). **Passo 17** (gameplay come il gioco di riferimento): fasi A, B e C fatte, D ed E da fare.
+  con una sola registrazione). **Passo 17** (gameplay come il gioco di riferimento): fasi A–E fatte nel codice e nelle prove automatiche.
   **Validazione fisica non fatta** (passo 15): in questo ambiente non ci sono telefono, webcam né persone; procedura
   in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5.
 - Dopo il checkpoint 10 (22/10, notte) il branch contiene anche l'ultimo commit della seconda sessione (`40d58b2`):
@@ -80,14 +80,16 @@ Non fatto o aperto:
 - **validazione fisica** (passo 15);
 - presa del 19/10 con una calibrazione fatta senza la pronazione usata poi in partita: tagliati finché non si
   ricalibra (difetto 2);
-- difetto 6: prova sotto carico;
+- le prove degli inviti della pagina storica (`tools/e2e/invite.mjs`, `invite-timing.mjs`, fuori dalla CI) sono ferme dal 15/10: cliccano la scelta dei comandi (`#ctrlMouse`, `#ctrlPhone`), tolta quel giorno con i comandi solo dal telefono (`ca4548a`, `23e6cac`); vanno riscritte con un telefono simulato anche per chi invita;
 - il video di riferimento pubblico indicato nella richiesta non si scarica da qui (solo titolo e quattro immagini).
 
 Fatto nella fase C del passo 17: campo aperto continuo e movimento automatico contestuale (vedi il passo 17).
 
-Da fare, in ordine: fasi D ed E del passo 17 (sincronia, animazioni e prospettive; tutte le prove, documenti e
-rapporto finale), poi la validazione fisica (§5 del documento), la taratura delle soglie con i pacchetti della
-diagnostica e l'equilibrio della CPU con le partite vere.
+Fatto nelle fasi D ed E: verifiche nel browser di sincronia, animazioni, recupero e continuità (prova nuova dello
+scambio vero), regola di marchio nei documenti e nel codice, procedura di validazione fisica del campo aperto.
+
+Da fare, in ordine: la validazione fisica (§5 del documento, punti 1–14), la taratura delle soglie con i pacchetti
+della diagnostica e l'equilibrio della CPU con le partite vere.
 
 ## Unione dei due branch (22/10): cosa si è tenuto
 
@@ -159,11 +161,10 @@ Trovati confrontando il lavoro delle due sessioni e verificati qui; stato misura
    20% dall'ampiezza (prima 55/45). Test in `natpf-racchetta.test.mjs` («swing corti (difetto 5)»: a 700 e 1100 °/s
    swing di 90° e 150° con forza entro 0,05) e nel motore. Prima: a 1100 °/s, 50° → 72% del picco (forza 0,49), 120° →
    93% (0,70).
-6. **Pagina storica `site/tennis`, servizio e tempi: non riprodotto (fase B).** «gesture and calibration» e
+6. **Pagina storica `site/tennis`, servizio e tempi: non è un difetto del rilevatore (fasi B ed E).** «gesture and calibration» e
    «timing-browser» passano 20 volte su 20 (5 per prova e per rilevatore, quello attuale e quello di `84ca878` nella
-   stessa copia del branch), a macchina scarica; il rilevatore è lo stesso dei fallimenti visti dopo l'unione. Ipotesi:
-   carico della macchina (prove nel browser con la grafica software, allora lanciate insieme ad altre). Prova sotto
-   carico: vedi la fase B del passo 17. La CI automatica del repository non gira sui branch `claude/*` (solo su due branch
+   stessa copia del branch), a macchina scarica; il rilevatore è lo stesso dei fallimenti visti dopo l'unione. Sotto
+   carico (fasi D–E del passo 17): con due processi che occupano la CPU, «gesture and calibration» passa 2 volte su 3 sia con il rilevatore attuale sia con quello di `84ca878`, «timing-browser» 1 su 3 con tutti e due; «timing-browser» non usa nemmeno il rilevatore (manda pacchetti di colpo già pronti). Il difetto 6 non è nel passo «fermo»: le due prove sono sensibili al carico (a macchina scarica 20/20). Meccanismo visto in «gesture and calibration»: la prova congela la partita al colmo del lancio e aspetta il secondo gesto; sotto carico il gesto arriva oltre 0,8 s dopo l'ultimo fotogramma mostrato e il gioco lo scarta come colpo vecchio (regola voluta: i colpi non si rimappano su fotogrammi vecchi). Chiuso: le prove nel browser vanno lanciate una alla volta. La CI automatica del repository non gira sui branch `claude/*` (solo su due branch
    e sulle richieste di unione verso `main`): le prove si fanno qui con `full-ci` (elenco nel passo 17).
 7. **Pagina storica, partita intera col telefono: risolto (fase B), le cause erano nella prova.**
    `tools/e2e/phone-cal.mjs` (fuori dalla CI) ora passa 17/17 e gioca la partita fino alla fine (punti 4–6, 10 lanci,
@@ -200,7 +201,8 @@ Trovati confrontando il lavoro delle due sessioni e verificati qui; stato misura
    - Mai un impatto con la palla lontana. Colpi a vuoto con il motivo (presto, tardi, portata).
 7. [x] Movimento automatico (`planPlayerIntercept`, `recoverAfterShot`).
    - Dopo il rimbalzo all'altezza comoda; volée se si è avanti; schiacciata al volo sulle palle alte.
-   - Si sale a rete dopo un attacco.
+   - Si sale a rete dopo un attacco (cambiato nella fase C del passo 17: volée solo quando conviene, dopo il colpo verso
+     il fondo se c'è il tempo, a rete solo dopo una palla corta).
    - Le palle che vanno fuori si lasciano andare.
    - Leggenda ritarata (`audit:legend`, 4 semi × 120 punti, tutti i criteri di forza rispettati):
      - CPU a 8 m/s, portata 2,3 m, lettura ±0,18 m;
@@ -283,8 +285,18 @@ Trovati confrontando il lavoro delle due sessioni e verificati qui; stato misura
       volée 33–69% → 0–0,1% a Casual ed Esperto, impatto mediano 2,9–10,5 → 9,9–12,4 m dalla rete, Leggenda con tutti i
       criteri. Da rivedere con partite vere: a Esperto i profili del telefono vincono più punti (amatore 57% → 80%).
       CI completa: `tools/test` 135/135, `npm test` 293/293; CI del sito in locale: telefono 10/10, tempi 8/8, gesto e calibrazione 18/18, grafica 9/9, pacchetto ridotto 5/5, 6/6 e 10/10, LAN in Node 4/4, nel browser 3/3 e 7/8 (limite noto), pacchetti creati; motore base nel browser: scambio vero (`natpf-rally.mjs`, nuova) 7/7, diagnostica 24/24, allenamento 13/13, risposta al gesto 9/9, presa verticale 10/10, presa del 19/10 10/10, menu 22/22, ricollegamento 6/6, rete che cade 6/6, build e 1v1 18/18;
-    - D [ ] sincronia del colpo, animazioni, recupero, prospettive;
-    - E [ ] tutte le prove, CI del sito, documenti, protocollo di validazione fisica, rapporto finale.
+    - D [x] sincronia del colpo, animazioni, recupero, prospettive, continuità: verificati nel browser, nessun difetto
+      trovato da correggere. Scambio vero contro la CPU (`tools/e2e/natpf-rally.mjs`, 7/7; con `SHOTS=1` i fotogrammi):
+      racchetta sulla palla all'impatto dal lato del gesto, ritorno in fondo entro 0,7 s anche dopo una palla corta,
+      personaggio sempre rivolto alla rete (arretra senza girarsi), visuale alle spalle che segue; risposta al gesto
+      (`natpf-latency.mjs` 9/9: swing nell'istante del colpo entro 20 ms, uno per gesto); scambi che finiscono, partite
+      intere col telefono (pagina storica 17/17, 1v1 18/18). Visti solo nei fotogrammi del browser di prova (grafica
+      software): la resa vera va guardata sul computer del gioco;
+    - E [x] regola di marchio: tolti dai documenti e dal codice i nomi del gioco di riferimento e del suo editore
+      (documenti vecchi, un commento, nomi del materiale dei personaggi, un selettore CSS non usato; il passaggio del
+      17/10 ora è `docs/NATPF_PASSAGGIO_2026-10-17.md`); procedura di validazione fisica con il campo aperto
+      (`docs/NATPF_RACCHETTA_VIRTUALE.md` §5, punto 14); prova sotto carico del difetto 6: con due processi che occupano la CPU, «gesture and calibration» passa 2 volte su 3 sia con il rilevatore attuale sia con quello di `84ca878`, «timing-browser» 1 su 3 con tutti e due; «timing-browser» non usa nemmeno il rilevatore (manda pacchetti di colpo già pronti). Il difetto 6 non è nel passo «fermo»: le due prove sono sensibili al carico (a macchina scarica 20/20). Meccanismo visto in «gesture and calibration»: la prova congela la partita al colmo del lancio e aspetta il secondo gesto; sotto carico il gesto arriva oltre 0,8 s dopo l'ultimo fotogramma mostrato e il gioco lo scarta come colpo vecchio (regola voluta: i colpi non si rimappano su fotogrammi vecchi); CI
+      completa finale: `tools/test` 135/135, `npm test` 293/293; CI del sito in locale: telefono 10/10, tempi 8/8, gesto e calibrazione 18/18, grafica 9/9, pacchetto ridotto 5/5, 6/6 e 10/10, LAN in Node 4/4, nel browser 3/3 e 7/8 (limite noto), pacchetti creati; motore base nel browser: scambio vero 7/7, diagnostica 24/24, allenamento 13/13, risposta al gesto 9/9, presa verticale 10/10, presa del 19/10 10/10, menu 22/22, ricollegamento 6/6, rete che cade 6/6, build e 1v1 18/18.
 
 ## Come riprendere
 
@@ -294,8 +306,8 @@ Trovati confrontando il lavoro delle due sessioni e verificati qui; stato misura
 2. Leggere questo file (sezione «Per chi riprende»), poi `docs/NATPF_RACCHETTA_VIRTUALE.md` §3 e §4.4.
 3. Lo ZIP della sessione reale non è nel repository (contiene il video della webcam). Per rifare le analisi, estrarlo
    in una cartella vuota fuori dal repository e passare quella cartella agli script.
-4. Test: `cd natpf-tennis && npm test`; `node --test tools/test/*.test.mjs` dalla root. Il passo in corso è il passo
-   17, fase D (sincronia del colpo, animazioni, prospettive).
+4. Test: `cd natpf-tennis && npm test`; `node --test tools/test/*.test.mjs` dalla root. Il passo 17 è finito nel
+   codice e nelle prove automatiche; resta la validazione fisica (passo 15, `docs/NATPF_RACCHETTA_VIRTUALE.md` §5).
 5. Prove nel browser (`tools/e2e`, dopo `npm ci` lì): in questo ambiente il browser delle prove va indicato con
    `CHROMIUM_PATH=/opt/pw-browsers/chromium` (per esempio `CHROMIUM_PATH=/opt/pw-browsers/chromium node
    natpf-training-flow.mjs`); le prove della CI della pagina storica dalla root con `node tools/e2e/run-local.mjs

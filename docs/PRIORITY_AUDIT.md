@@ -45,7 +45,7 @@ La documentazione v0.8 dichiara che il progetto ha superato una precedente versi
 - Eseguire `tools/e2e/cpu-mouse.mjs` e la prova con telefono.
 - Verificare servizio, scambi, punteggio, fine partita, rivincita, pausa e ricalibrazione.
 - Verificare i livelli Facile e Normale: la CPU deve tenere scambi credibili ma non infiniti, senza errori casuali frustranti.
-- Confrontare l'esperienza con l'obiettivo dichiarato: telecamera alle spalle, movimenti e ritmo ispirati a Nintendo Switch Sports, senza usare asset Nintendo.
+- Confrontare l'esperienza con l'obiettivo dichiarato: telecamera alle spalle, movimenti e ritmo ispirati al gioco di riferimento con il controller di movimento, senza usarne gli asset.
 
 ### P1 — Verificare multiplayer tra amici e resilienza
 - Eseguire `tools/e2e/invite.mjs`: invito, join, QR sul computer del secondo giocatore, partita reale, esclusione del terzo utente, riconnessione e fine partita.

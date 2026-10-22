@@ -1,4 +1,4 @@
-# NATPF Simulator — passaggio a Codex
+# NATPF Simulator — passaggio di consegne del 17/10
 
 Checkpoint: 17 ottobre 2026. Repository `sergio4/foro-italico-world`, branch `refactor/natpf-audit-20261015`. La precedente versione arcade pubblicabile era `72e13a678a3abfec476acfc986938a8caf450e0c`. Questo documento accompagna le modifiche successive, da completare e validare prima del nuovo rilascio.
 
@@ -6,7 +6,7 @@ Checkpoint: 17 ottobre 2026. Repository `sergio4/foro-italico-world`, branch `re
 
 - Sviluppare **solo NATPF Simulator**, non ricostruire o ridisegnare mondo esplorabile, museo, negozio, minigiochi o padel. Preservare il resto del repository.
 - Il campo è sul computer; lo smartphone è soltanto la racchetta, collegata via QR. Niente movimento manuale: auto-run per entrambi.
-- Riferimento di gameplay/POV: Nintendo Switch Sports Tennis. Conta il gesto intuitivo vicino alla racchetta visibile, non l'attraversamento di un cerchietto sul terreno.
+- Riferimento di gameplay/POV: il tennis del gioco di riferimento con il controller di movimento. Conta il gesto intuitivo vicino alla racchetta visibile, non l'attraversamento di un cerchietto sul terreno.
 - Utenti anche inesperti di tennis, bambini e persone con mobilità limitata: linguaggio semplice, gesti comodi/compatti, impugnatura personale, alternativa assistita o touch.
 - Gesto, forza, velocità e inclinazione determinano il colpo; nessuna selezione obbligatoria del tipo durante lo scambio. Scambi divertenti con possibilità di chiusura e skill gap, senza interruzioni artificiali dopo N colpi.
 - Ultima istruzione sul lavoro parallelo: **al massimo due subagent contemporaneamente**, eventualmente collaboranti.

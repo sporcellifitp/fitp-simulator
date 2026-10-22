@@ -32,25 +32,25 @@ export function createDoubleRingShadowTexture() {
   );
 }
 function p(t, { rimStrength: o = 0.28, topBoost: s = 0.1 } = {}) {
-  if (!t || t.userData?.wiiRimInjected) return t;
+  if (!t || t.userData?.rimInjected) return t;
   (t.userData = t.userData || {}),
-    (t.userData.wiiRimInjected = !0),
+    (t.userData.rimInjected = !0),
     (t.userData.rimStrength = o),
     (t.userData.topBoost = s);
-  const a = `wii_mii_satin_rim_v1_${o.toFixed(2)}_${s.toFixed(2)}`;
+  const a = `arcade_satin_rim_v1_${o.toFixed(2)}_${s.toFixed(2)}`;
   return (
     (t.customProgramCacheKey = () => a),
     (t.onBeforeCompile = (r) => {
       r.fragmentShader = r.fragmentShader.replace(
         "#include <opaque_fragment>",
         `
-      // Nintendo arcade Rim-Lighting + Hemisphere Top-Light Boost
-      vec3 wiiViewDir = normalize( vViewPosition );
-      vec3 wiiNormal = normalize( vNormal );
-      float wiiRim = pow( 1.0 - max( dot( wiiNormal, wiiViewDir ), 0.0 ), 2.6 ) * ${o.toFixed(3)};
-      float wiiHemiTop = clamp( wiiNormal.y * 0.5 + 0.5, 0.0, 1.0 ) * ${s.toFixed(3)};
-      vec3 wiiRimTint = vec3( 1.0, 0.985, 0.94 );
-      outgoingLight += wiiRimTint * wiiRim + diffuseColor.rgb * wiiHemiTop;
+      // luce di contorno arcade e luce dall'alto
+      vec3 rimViewDir = normalize( vViewPosition );
+      vec3 rimNormal = normalize( vNormal );
+      float rimLight = pow( 1.0 - max( dot( rimNormal, rimViewDir ), 0.0 ), 2.6 ) * ${o.toFixed(3)};
+      float rimHemiTop = clamp( rimNormal.y * 0.5 + 0.5, 0.0, 1.0 ) * ${s.toFixed(3)};
+      vec3 rimTint = vec3( 1.0, 0.985, 0.94 );
+      outgoingLight += rimTint * rimLight + diffuseColor.rgb * rimHemiTop;
       #include <opaque_fragment>
       `,
       );
@@ -181,8 +181,8 @@ export function upgradeRacketMaterials(t) {
 export function upgradeCharacterShadowBlob(t) {
   if (!t || !t.shadowBlob) return;
   const o = t.shadowBlob;
-  if (o.userData?.wiiShadowUpgraded) return;
-  (o.userData = o.userData || {}), (o.userData.wiiShadowUpgraded = !0);
+  if (o.userData?.shadowUpgraded) return;
+  (o.userData = o.userData || {}), (o.userData.shadowUpgraded = !0);
   const s = o.material?.opacity ?? 0.82;
   o.userData.baseOpacity = s;
   const a = createDoubleRingShadowTexture();
@@ -201,7 +201,7 @@ export function upgradeCharacterShadowBlob(t) {
 }
 export function updateCharacterContactShadow(t, o = void 0) {
   if (!t || !t.shadowBlob) return;
-  t.shadowBlob.userData?.wiiShadowUpgraded || upgradeCharacterShadowBlob(t);
+  t.shadowBlob.userData?.shadowUpgraded || upgradeCharacterShadowBlob(t);
   const s = t.shadowBlob,
     a = typeof o == "number" ? Math.max(0, o) : Math.max(0, (t.root?.position?.y || 0) - (t.pos?.y || 0));
   t.pos && ((s.position.x = t.pos.x), (s.position.z = t.pos.z));

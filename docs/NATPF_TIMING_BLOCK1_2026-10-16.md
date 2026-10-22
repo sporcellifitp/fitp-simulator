@@ -1,6 +1,6 @@
 # Blocco 1 — contatto e sincronizzazione
 
-Il campo rimane sul computer; lo smartphone è la racchetta. Il portrait riguarda il controller. Il riferimento Nintendo Switch Sports Tennis guiderà il POV rialzato nel blocco camera, dopo la conferma di questo blocco.
+Il campo rimane sul computer; lo smartphone è la racchetta. Il portrait riguarda il controller. Il tennis del gioco di riferimento con il controller di movimento guiderà il POV rialzato nel blocco camera, dopo la conferma di questo blocco.
 
 ## Correzioni
 

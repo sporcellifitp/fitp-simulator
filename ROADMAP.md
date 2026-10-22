@@ -98,7 +98,7 @@ Problemi trovati, cause, modifiche, prove e limiti in [docs/v0.8-racchetta.md](d
 
 - [x] Colpo giudicato sulla palla con finestra larga; direzione dal gesto calibrato, timing per qualità/ritmo, feedback su colpo e palla persa (P0).
 - [x] Rilevatore del telefono riscritto: aperture ignorate, invio subito dopo il picco, soglie su misura (P0).
-- [x] Telecamera, movimento automatico e animazioni nello stile di Nintendo Switch Sports; servizio con lancio e colpo (P0).
+- [x] Telecamera, movimento automatico e animazioni nello stile del gioco di riferimento con il controller di movimento; servizio con lancio e colpo (P0).
 - [x] Calibrazione guidata in 5 passi con verifica dal vivo e conferma (P1).
 - [x] Partita contro la CPU (Facile, Normale, Esperto) e partita tra amici con un link, con telefono come unico controller (P2).
 - [x] Arena ricostruita sulle immagini di riferimento, personaggi originali arrotondati (P3).

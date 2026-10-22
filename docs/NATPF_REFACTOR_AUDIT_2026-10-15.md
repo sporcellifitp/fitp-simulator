@@ -114,6 +114,6 @@ Il blocco timing precede la mira perché il bug delle unità impedisce di giudic
 
 ## Chiarimento di prodotto ricevuto
 
-Confermato dall’utente: campo sul computer e telefono come racchetta; il portrait riguarda il controller. Per il POV il riferimento è Nintendo Switch Sports Tennis, con visuale rialzata e profonda. Il posizionamento preventivo richiederà una scelta effettiva sul telefono, oppure resterà dichiaratamente automatico.
+Confermato dall’utente: campo sul computer e telefono come racchetta; il portrait riguarda il controller. Per il POV il riferimento è il tennis del gioco con il controller di movimento indicato dall'utente, con visuale rialzata e profonda. Il posizionamento preventivo richiederà una scelta effettiva sul telefono, oppure resterà dichiaratamente automatico.
 
 Implementazione e verifica del primo blocco: [checkpoint del 16 ottobre](NATPF_TIMING_BLOCK1_2026-10-16.md). Gli altri blocchi attendono la conferma di funzionamento del precedente.

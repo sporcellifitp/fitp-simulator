@@ -27,4 +27,4 @@ Il personaggio rimane procedurale. Gli allunghi visivi sono limitati; non si pro
 3. In partita provare dritto e rovescio senza anticipare volontariamente il movimento per compensare il motore; verificare il feedback quando la palla è vicino alla racchetta.
 4. Ripetere con un altro utilizzatore e, se disponibile, un’altra impugnatura/dispositivo. Annotare i casi residui invece di dichiarare eliminati i falsi positivi.
 
-Il prossimo blocco resta subordinato alla conferma richiesta dall’utente. POV rialzato Nintendo Switch Sports, mira continua, solutore dei bersagli e skill gap tattico completo restano nella roadmap; non si dichiara completata l’intera revisione del gioco con questo checkpoint.
+Il prossimo blocco resta subordinato alla conferma richiesta dall’utente. POV rialzato del gioco di riferimento con il controller di movimento, mira continua, solutore dei bersagli e skill gap tattico completo restano nella roadmap; non si dichiara completata l’intera revisione del gioco con questo checkpoint.

@@ -190,7 +190,7 @@ export class ArcadeMatch extends MatchCore {
       return;
     }
     if (tt > .6 && b.p.y < 1.0){
-      // lancio non colpito: nessuna penalità, si rilancia (come in Switch Sports)
+      // lancio non colpito: nessuna penalità, si rilancia (come nel gioco di riferimento)
       const early = s.swings.some(w => w.at < Tc - .45), late = s.swings.some(w => w.at > Tc + .35);
       this.toss = null; s.swings = []; this.holdBall(); s.anim = null;
       this.emit({ type: 'tossCaught', player: s.id, why: early ? 'presto' : late ? 'tardi' : 'nessuno' });
