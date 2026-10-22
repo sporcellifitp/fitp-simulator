@@ -60,6 +60,20 @@ const handOf = (engine, actor) => (actor && actor === engine.opponent
 // piano in corso: di chi gioca qui (natpfPlan) o del Player 2 del 1v1 (natpfPlanP2)
 const planKey = (engine, actor) => (actor && actor === engine.opponent ? 'natpfPlanP2' : 'natpfPlan');
 export const planOf = (engine, actor = engine.player) => engine[planKey(engine, actor)] || null;
+// Il piano vale solo per la palla per cui è stato fatto: la palla di adesso è dove la traiettoria prevista dice (entro
+// 0,6 m). Una palla rimessa in gioco senza piano (lanciapalle, prove) o un piano vecchio non decidono tempo, palla fuori
+// e corsa (prima un piano di meno di 3 s prima valeva per qualunque palla).
+export function planMatches(plan, b, now){
+  const tr = plan?.track; if (!tr?.length || !b?.pos) return false;
+  const dt = finite(now) - finite(plan.at);
+  if (dt < -.02 || dt > tr[tr.length - 1][0] + .1) return false;
+  let k = 0; while (k < tr.length - 1 && tr[k + 1][0] <= dt) k++;
+  const a = tr[k], c = tr[Math.min(tr.length - 1, k + 1)], u = c[0] > a[0] ? clamp((dt - a[0])/(c[0] - a[0]), 0, 1) : 0;
+  return Math.hypot(a[1] + (c[1] - a[1])*u - b.pos.x, a[2] + (c[2] - a[2])*u - b.pos.z) <= .6;
+}
+// piano di questo attore valido per la palla di adesso, o null
+export const livePlan = (engine, actor = engine.player) => { const P = planOf(engine, actor); return P && planMatches(P, engine.ball, engine.elapsedTime) ? P : null; };
+const trackOf = path => path.filter((_, i) => i % 4 === 3 || i === path.length - 1).map(s => [+s.t.toFixed(3), +s.x.toFixed(2), +s.z.toFixed(2)]);
 
 // Piano d'intercetto per chi gioca: nella propria metà campo (z positive per chi gioca qui, negative per il Player 2 del
 // 1v1: tutto si calcola nel riferimento di chi colpisce). Imposta targetPos e il piano (planOf).
@@ -78,7 +92,7 @@ export function planPlayerIntercept(engine, actor){
   // palla che rimbalzerebbe fuori: si lascia andare (come fa chi gioca davvero), anche a rete
   const bounce = path.find(s => s.bounces === 1);
   if (bounce && Z(bounce.z) > 0 && (Math.abs(bounce.x) > COURT.OUT_X + PLAN.letGo || Z(bounce.z) > COURT.OUT_Z + PLAN.letGo)){
-    engine[key] = { kind: 'letgo', side: 0, contact: { x: +bounce.x.toFixed(3), y: 0, z: +bounce.z.toFixed(3) }, t: +bounce.t.toFixed(3), at: finite(engine.elapsedTime), stretch: 0 };
+    engine[key] = { kind: 'letgo', side: 0, contact: { x: +bounce.x.toFixed(3), y: 0, z: +bounce.z.toFixed(3) }, t: +bounce.t.toFixed(3), at: finite(engine.elapsedTime), stretch: 0, track: trackOf(path) };
     return engine[key];
   }
   let kind = null, s = null;
@@ -102,12 +116,12 @@ export function planPlayerIntercept(engine, actor){
   // in corsa: poco margine tra quando si arriva e quando arriva la palla (o non ci si arriva)
   const run = Math.hypot(p.x - actor.pos.x, p.z - actor.pos.z);
   const stretch = kind === 'stretch' ? 1 : Math.max(clamp(1 - (s.t - need(s))/PLAN.slackFull, 0, 1), PLAN.runWeight*clamp((run - PLAN.runFrom)/PLAN.runSpan, 0, 1));
-  engine[key] = { kind, side: p.side, contact: { x: +s.x.toFixed(3), y: +s.y.toFixed(3), z: +s.z.toFixed(3) }, t: +s.t.toFixed(3), at: finite(engine.elapsedTime), stretch: +stretch.toFixed(3) };
+  engine[key] = { kind, side: p.side, contact: { x: +s.x.toFixed(3), y: +s.y.toFixed(3), z: +s.z.toFixed(3) }, t: +s.t.toFixed(3), at: finite(engine.elapsedTime), stretch: +stretch.toFixed(3), track: trackOf(path) };
   return engine[key];
 }
 
 // Qualità che resta dopo la corsa sul piano in corso (1 se si è arrivati con calma)
-export const stretchQuality = (engine, actor = engine.player) => 1 - PLAN.stretchCost*clamp(finite(planOf(engine, actor)?.stretch), 0, 1);
+export const stretchQuality = (engine, actor = engine.player) => 1 - PLAN.stretchCost*clamp(finite(livePlan(engine, actor)?.stretch), 0, 1);
 
 // Dopo il colpo di chi gioca: a rete o in fondo al campo (nella propria metà, anche per il Player 2 del 1v1)
 export function recoverAfterShot(engine, actor, { landingX = 0, landingZ = -9, quality = 1, power = .6, contactZ = 11.5 } = {}){
@@ -126,8 +140,8 @@ export function timeToContact(engine, actor){
   const toward = Math.sign(actor.pos.z) || 1, vz = finite(b.vel.z)*toward;
   if (vz <= .5) return null;
   const zc = actor.pos.z - toward*IMPACT.contactAhead, gap = (zc - b.pos.z)*toward;
-  const plan = engine.natpfPlan, now = finite(engine.elapsedTime);
-  if (plan && actor === engine.player && Number.isFinite(plan.t) && gap > 0){ const left = plan.at + plan.t - now; if (left > -.05 && left < 3) return left; }
+  const plan = actor === engine.player ? livePlan(engine, actor) : null, now = finite(engine.elapsedTime);
+  if (plan && Number.isFinite(plan.t) && gap > 0){ const left = plan.at + plan.t - now; if (left > -.05 && left < 3) return left; }
   return gap/vz;
 }
 
@@ -164,7 +178,7 @@ export function resolvePending(engine, actor){
   if (arrived){
     engine.pendingUserSwing = null;
     // palla che va fuori: lo swing non la tocca (il punto è di chi gioca)
-    if (planOf(engine, actor)?.kind === 'letgo') return true;
+    if (livePlan(engine, actor)?.kind === 'letgo') return true;
     if (ps.lead > W.early){ engine._natpfEarlyWhiff?.(ps); return true; }
     if (Math.abs(b.pos.x - actor.pos.x) > IMPACT.reach || b.pos.y >= 3.4){ engine._natpfEarlyWhiff?.({ ...ps, natpfWhy: 'portata' }); return true; }
     engine._attemptPlayerRallyStrike(ps.evt, !1);

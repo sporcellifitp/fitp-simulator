@@ -41,3 +41,10 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     propria per 3 s; la mano ritrovata deve stare ferma prima dei colpi. Scartata la regola «la mano deve muoversi
     prima del salto»: con l'esposizione lunga faceva perdere swing veri (il banco della webcam lo mostrava).
   - Telefono: nessuno swing con il tremolio fino a 160 °/s; il tremolio vero è di pochi °/s.
+- Checkpoint 6: test obbligatori, prima/dopo, documento.
+  - Scoperte: la prova nel browser del telefono usava rotazioni del telefono sul proprio lato lungo (senza percorso
+    della testa); con i gesti fisici la calibrazione falliva sull'apertura lenta (difetto vero, corretto); la prova
+    della latenza falliva per un piano d'intercetto vecchio usato per una palla nuova (difetto vero, corretto: il
+    piano vale solo per la sua palla); il lanciapalle non calcolava il piano.
+  - Decisione: le prove nel browser rigiocano i gesti della racchetta simulata delle prove in Node; nella prova
+    dell'allenamento il colpo si misura quando parte (finestra d'impatto), non nell'istante del gesto.

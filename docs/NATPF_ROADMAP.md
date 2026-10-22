@@ -12,6 +12,19 @@ con hardware vero (telefono in mano, webcam con una persona, Wi-Fi di un evento)
 
 ## 1. Fatto in questo giro
 
+### Racchetta virtuale del 22/10 (documento [NATPF_RACCHETTA_VIRTUALE.md](NATPF_RACCHETTA_VIRTUALE.md))
+
+- Diagnosi della sessione reale (P1–P11): mano diversa tra telefono e gioco, verso del gesto mai misurato dopo
+  «Salta», mira satura, colpi a vuoto con la palla lontana, servizio sempre automatico, niente volée, pallonetti
+  incerti, caso nel colpo di chi gioca, colpi forti scartati dopo la preparazione.
+- Nuovo modello: forma del colpo sul telefono, intenzione sul computer, esito senza caso nel motore; finestra
+  d'impatto; movimento con volée, schiacciate al volo e palle fuori lasciate andare; servizio dal gesto; Player 2 del
+  1v1 con lo stesso modello; Leggenda ritarata.
+- Webcam con un solo soggetto e tremolio senza swing; calibrazione con colpi completi; diagnostica con forma,
+  intenzione, esito e ripetibilità; prova guidata con tagliati e palle corte.
+- Test automatici e prima/dopo sugli stessi dati superati; **validazione fisica non eseguita** (procedura nel
+  documento, §5).
+
 ### Quinto giro del 21/10: modalità diagnostica, colpi senza attesa di rete, app nativa (stato in [MEMORY.md](../MEMORY.md) §10)
 
 | Punto | Causa trovata | Correzione | Verifica |
@@ -111,7 +124,9 @@ certificato e firewall. Dettagli in [NATPF_GESTI_E_LATENZA.md](NATPF_GESTI_E_LAT
 
 ## 3. Aperto, in ordine di priorità
 
-1. **Prova guidata dei colpi con il telefono vero** (menu → Maiusc+D → «▶ Prova guidata», circa 4 minuti, con il
+0. **Validazione fisica della racchetta virtuale**: procedura in [NATPF_RACCHETTA_VIRTUALE.md](NATPF_RACCHETTA_VIRTUALE.md)
+   §5 (telefono Android e iPhone, webcam, più persone); poi tarare le soglie del §4.3 con i pacchetti registrati.
+1. **Prova guidata dei colpi con il telefono vero** (menu → Maiusc+D → «▶ Prova guidata», circa 5 minuti, con il
    video della webcam): dritti, rovesci, pallonetti, incrociati e lungolinea richiesti dal lanciapalle. Dà il
    riferimento per lato, tipo e direzione, la frequenza vera dei sensori, i tempi e la causa dei registri che si
    fermavano. Poi `node scripts/diag/diag.mjs colpi sessione.zip` e `replay-recording.mjs sessione.zip` per tarare

@@ -27,9 +27,11 @@ Serve a migliorare il gioco con dati veri invece che con impressioni. Il ciclo �
    si salva in parti da 30 minuti: ogni parte compare nell'elenco («parte 2», «parte 3»…) e si scarica da sola.
 6. Per confrontare due sessioni, spunta **confronta** su tutte e due: compare la tabella prima/dopo.
 
-**Prova guidata dei colpi**, circa 4 minuti, dal menu principale:
+**Prova guidata dei colpi**, circa 5 minuti, dal menu principale:
 
 - il lanciapalle chiede in ordine 10 dritti, 10 rovesci, 6 pallonetti, 8 + 8 dritti incrociati e lungolinea, 6 + 6 rovesci incrociati e lungolinea, 10 misti;
+- poi, dal 22/10, 6 rovesci tagliati e 5 palle corte (le palle corte solo con il telefono). Sono in fondo: la prima
+  parte resta uguale alle sessioni di prima;
 - ogni richiesta finisce nel registro;
 - alla fine la registrazione si ferma da sola e il pannello mostra il riassunto.
 
@@ -42,7 +44,7 @@ Tutto è scritto in `eventi.jsonl`, un evento JSON per riga. `t` è in ms dall'i
 | Evento | Contenuto |
 |---|---|
 | `sessione`, `sessione.fine` | dispositivi, browser, scheda grafica, impostazioni, conteggi |
-| `tel.colpo` | colpo del telefono: numero, percorso (veloce o affidabile), lato, tipo, perché, mira, istante del picco, tempi di riconoscimento, preparazione, consegna e totale; anche i colpi scartati, con il motivo |
+| `tel.colpo` | colpo del telefono: numero, percorso (veloce o affidabile), lato, tipo, perché, mira, istante del picco, tempi di riconoscimento, preparazione, consegna e totale; anche i colpi scartati, con il motivo. Dal 22/10 anche `forma` (piano, salita della testa, rotazione del polso, manico, velocità della testa e della mano), `ampiezza` dello swing e `intenzione` (colpo, forza, profondità, ampiezza, piatto, margine) |
 | `tel.cal` | passi della calibrazione |
 | `tel.stato` | collegamento, stato del telefono, presa, pagina visibile o nascosta, blocco dello schermo |
 | `tel.orologio` | ogni scambio dell'orologio (invio e ricezione sul computer, ora del telefono) |
@@ -51,6 +53,10 @@ Tutto è scritto in `eventi.jsonl`, un evento JSON per riga. `t` è in ms dall'i
 | `rimbalzo`, `punto`, `fase` | eventi del motore |
 | `tentativo` | swing del giocatore: distanza palla–giocatore, correzione della latenza, velocità, se l'ha colpita |
 | `colpo.gioco` | esito del colpo (tempo, qualità, punto di rimbalzo, direzione incrociato/lungolinea/centro) e colpi della CPU |
+| `racchetta` | esito deterministico del colpo (docs/NATPF_RACCHETTA_VIRTUALE.md): chi, colpo voluto e giocato, forza, profondità voluta, piatto, tempo rispetto all'impatto, oltre la finestra, qualità, assistito, fallito (in rete o lungo), punto di rimbalzo, al volo, lato, voto |
+| `piano` | piano d'intercetto del movimento automatico: rimbalzo (`ground`), volée, schiacciata al volo, palla lasciata andare (`letgo`), al limite (`stretch`); punto d'impatto, tempo, corsa |
+| `servizio` | servizio dal gesto: tipo (piatto, kick, slice), qualità, ritmo, ms dal punto più alto del lancio, punto di rimbalzo, km/h, voto |
+| `vuoto` | colpo a vuoto e il motivo: troppo presto, troppo tardi, palla fuori portata |
 | `input` | ogni comando arrivato al motore (telefono, webcam, mouse) |
 | `webcam.frame`, `webcam.evento` | tracciamento della webcam: istante di cattura, fonte, mani viste, mano scelta, ms di riconoscimento, perdite e riprese; colpo anticipato (`event`, quello che usa il gioco) e conferma a fine gesto (`confirm`, solo qui) |
 | `prestazioni` | ogni secondo: fps, fotogramma p50/p95/massimo, fotogrammi oltre 50 ms, aggiornamento e disegno p95, memoria, compiti lunghi, coda del disco, costo del registratore |
@@ -144,6 +150,9 @@ I campioni grezzi del telefono stanno in un file a parte, `telefono-sensori.json
 - `webcam`;
 - `gioco`, con il costo del registratore;
 - `colpi`: input, esiti, tempo, direzione;
+- `racchetta`: colpi voluti e giocati, falliti, al volo, tempo e qualità; ripetibilità per colpo voluto (mediana e
+  scarto interquartile di forza, tempo, punto di rimbalzo, qualità; di salita, piano e manico del gesto); piani
+  d'intercetto, colpi a vuoto per motivo, servizi;
 - `riferimento`, solo nella prova guidata;
 - `registrazione`.
 

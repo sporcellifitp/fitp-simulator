@@ -180,6 +180,7 @@ export class NatpfEvents {
     if (A.id === 'rally'){
       const b = E.ball, t = b.targetLanding.clone(), start = b.pos.clone();
       E._launchBallToTarget(start, t, rallyFlight(A.streak), { topspin: 12, sidespin: 0, allowNetFault: false });
+      E._natpfPlanPlayer?.();                     // piano sulla traiettoria rilanciata (finestra d'impatto)
     }
   }
   tick(dt){

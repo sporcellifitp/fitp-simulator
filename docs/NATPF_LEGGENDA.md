@@ -10,12 +10,23 @@ audit con soglie in `natpf-tennis/scripts/audit/legend.mjs`, test in `natpf-tenn
   `?mode=leggenda`; l'avversario si chiama «CPU Leggenda». Dopo una sfida torna il livello scelto, Leggenda compresa
   (prima tornava «casual»). «Sfida il campione» resta contro la CPU esperta.
 - **Chi gioca** ha le regole di Esperto: finestra dell'aiuto sul tempo, dispersione, errori, velocità (8,8 m/s).
+  Dal 22/10 il colpo di chi gioca segue il modello della racchetta virtuale (`docs/NATPF_RACCHETTA_VIRTUALE.md`), senza
+  caso a tutti i livelli; a Leggenda con meno assistenza (mira piena 3,1 m, colpo che fallisce sotto qualità 0,63,
+  pressione degli scambi dal 10° colpo).
 - **La CPU** usa la stessa fisica di chi gioca e le stesse regole d'esecuzione di Esperto: niente probabilità d'errore
   «a dado», niente errori che crescono da soli con la lunghezza dello scambio. Sceglie il colpo per utilità tra molti
   schemi, impara dagli errori dell'avversario, si muove come una persona (split-step, reazione, accelerazione e frenata
   limitate, affondo) e lascia passare le palle che vede fuori.
-- **casual, pro, 1v1 e le sfide** eseguono lo stesso codice di gioco di prima: per loro gli agganci di Leggenda sono
-  controlli che escono subito. Prova: firma di 36 simulazioni, `audit:rally` e `audit:variety` identici a `726b5e3`.
+- **casual, pro, 1v1 e le sfide**: gli agganci di Leggenda sono controlli che escono subito (prova del 20/10: firma di 36
+  simulazioni, `audit:rally` e `audit:variety` identici a `726b5e3`). Dal 22/10 il colpo di chi gioca è cambiato a tutti
+  i livelli (racchetta virtuale): il confronto con `726b5e3` non vale più per chi gioca.
+- **Ritaratura del 22/10.** La forza della Leggenda veniva dagli errori casuali di chi gioca, che il nuovo modello non ha
+  più: con lo stesso codice della CPU chi gioca vinceva. Cambiato:
+  - CPU a 8 m/s (affondo 8,6), portata 2,3 m, lettura della palla ±0,18 m;
+  - stima di quando chi gioca non arriva sulla palla (`humanReach`): il vincente vale dove chi gioca non arriva;
+  - niente affondo durante il tempo di reazione;
+  - pressione degli scambi lunghi anche sulla CPU, dal 10° colpo;
+  - misura della reazione nell'audit corretta (la frenata non è una reazione).
 
 ## Progetto
 
@@ -105,22 +116,28 @@ stancano.
 
 ### Criteri di accettazione (`audit:legend`, tutti rispettati)
 
+Audit completo del 22/10/2026, con il codice finale della racchetta virtuale (punti e semi predefiniti):
+
 | criterio | medio | amatore | tennista | preciso | bambino | impreciso |
 |---|---|---|---|---|---|---|
-| game vinti dalla CPU (soglia) | 96,3% (≥ 90) | 93,4% (≥ 90) | 92,5% (≥ 85) | 66,0% (≥ 60) | 98,7% (≥ 98) | 99,6% (≥ 98) |
-| errori della CPU per colpo (2–6%) | 3,5% | 3,9% | 3,7% | 4,8% | 3,6% | 3,7% |
-| incrociati (30–50%) | 32,8% | 34,2% | 32,9% | 32,8% | 34,3% | 36,8% |
-| lungolinea (≥ 10%) | 25,2% | 19,3% | 17,9% | 31,6% | 22,9% | 22,9% |
-| schemi sopra il 3% (≥ 6) | 8 | 9 | 8 | 9 | 8 | 8 |
-| schema più usato (≤ 35%) | 19,4% | 19,3% | 22,9% | 15,9% | 18,2% | 21,4% |
-| entropia delle 9 zone (≥ 2,3 bit) | 2,63 | 2,67 | 2,64 | 2,59 | 2,60 | 2,39 |
-| stessa zona del colpo prima (≤ 20%) | 12,7% | 12,8% | 12,9% | 17,0% | 11,6% | 15,1% |
-| scambi chiusi a 60 colpi (≤ 1%) | 0,22% | 0,37% | 0,48% | 0,80% | 0,04% | 0% |
-| velocità massima della CPU (≤ 8,8 m/s) | 7,54 | 7,58 | 7,72 | 7,96 | 7,48 | 7,41 |
-| reazione p10 (≥ 0,12 s) | 0,125 | 0,125 | 0,133 | 0,125 | 0,125 | 0,125 |
-| vincenti / errori della CPU (≥ 1, solo «medio») | 1,00 | | | | | |
+| game vinti dalla CPU (soglia) | 95,3% (≥ 90) | 99,8% (≥ 90) | 97,3% (≥ 85) | 89,2% (≥ 60) | 100% (≥ 98) | 99,3% (≥ 98) |
+| errori della CPU per colpo (2–6%) | 3,6% | 3,2% | 2,8% | 3,4% | 3,7% | 3,4% |
+| incrociati (30–50%) | 34,6% | 36,9% | 33,9% | 32,1% | 44,9% | 42,2% |
+| lungolinea (≥ 10%) | 24,4% | 19,2% | 25,8% | 29,1% | 17,4% | 22,5% |
+| schemi sopra il 3% (≥ 6) | 9 | 9 | 10 | 10 | 9 | 9 |
+| schema più usato (≤ 35%) | 14,3% | 21,2% | 18,6% | 19,4% | 26% | 15,7% |
+| entropia delle 9 zone (≥ 2,3 bit) | 2,73 | 2,76 | 2,78 | 2,74 | 2,81 | 2,70 |
+| stessa zona del colpo prima (≤ 20%) | 10,8% | 10,7% | 13,8% | 12,6% | 9,2% | 12,8% |
+| scambi chiusi a 60 colpi (≤ 1%) | 0% | 0% | 0% | 0% | 0% | 0% |
+| velocità massima della CPU (≤ 8,8 m/s) | 8,6 | 8,6 | 8,6 | 8,6 | 8,6 | 8,6 |
+| reazione p10 (≥ 0,12 s) | 0,133 | 0,133 | 0,133 | 0,142 | 0,133 | 0,133 |
+| vincenti / errori della CPU (≥ 1, solo «medio») | 1,76 | | | | | |
 
-Non regressione: contro «medio» il giocatore vince il 72,5% dei game a pro (70–85%) e il 98,8% a casual (≥ 95%).
+Non regressione: contro «medio» il giocatore vince l'83,3% dei game a pro (70–85%) e il 99,8% a casual (≥ 95%).
+
+Prima della ritaratura (21/10, colpo di chi gioca con il caso): CPU 96,3% contro «medio», 66,0% contro «preciso»,
+velocità massima 7,5–8,0 m/s, vincenti/errori 1,00. La Leggenda adesso è più forte contro chi gioca bene: la vittoria
+contro «preciso» sale dal 66% all'89%. Va confermato con persone vere che resti divertente.
 
 Il rapporto vincenti/errori contro «medio» è al limite (3,5% e 3,5% per colpo): con un errore di tempo della CPU di
 0,03 s era 0,99. La CPU fa punti soprattutto con gli errori dell'avversario (il giocatore simulato corre da solo su

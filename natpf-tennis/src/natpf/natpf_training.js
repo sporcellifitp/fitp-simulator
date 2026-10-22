@@ -29,7 +29,10 @@ export const DRILLS = Object.freeze([
 export const CAL_STAGE = Object.freeze({ id: 'cal', label: 'Calibrazione' });
 // posizione del giocatore (centro della riga di fondo) e della palla che aspetta il gesto: di lato quanto il braccio
 // con la racchetta, poco davanti, all'altezza del fianco. flight: s di volo della palla colpita prima della successiva
-export const CAL_SPOT = Object.freeze({ z: 11.4, reach: 1.05, ahead: .45, height: .95, flight: .9 });
+// ahead: la palla ferma appena oltre il punto d'impatto (0,35 m davanti, natpf_impact.js): il colpo del gesto accettato
+// parte nello stesso istante, come prima della finestra d'impatto (a 0,45 m partiva al fotogramma dopo, e la verifica
+// della calibrazione arrivava prima: l'ultimo gesto restava senza colpo)
+export const CAL_SPOT = Object.freeze({ z: 11.4, reach: 1.05, ahead: .34, height: .95, flight: .9 });
 // Gesto della calibrazione → colpo: «L» è il gesto da destra a sinistra, il dritto di un destro (il rovescio di un mancino)
 export function calCoach(want, hand = 'right'){
   const side = calSide(want, hand);
@@ -181,11 +184,14 @@ export class NatpfTraining {
     p.targetPos.copy(p.pos);                                                      // il giocatore non corre mai da solo
     const flying = this.ballLive() && E.ball.lastHitter === 'player';
     if (flying) c.flightT += dt;
+    // colpo del gesto accettato ancora in attesa: la palla arriva al punto d'impatto qualche centesimo dopo il gesto
+    // (finestra d'impatto, natpf_impact.js); la palla del gesto dopo aspetta, prima cancellava lo swing in attesa
+    const striking = c.hitFor === c.ballFor && this.ballLive() && E.ball.lastHitter !== 'player' && !!E.pendingUserSwing;
     if (v.stage === 'gesture'){
       // nuova palla per il gesto nuovo appena la palla colpita è passata, subito se non ce n'è una in volo, e comunque
       // prima che il telefono accetti il gesto (il tentativo arriva sempre dopo «ready», sullo stesso canale ordinato)
-      if (c.ballFor !== v.idx && (!flying || c.flightT >= CAL_SPOT.flight || v.ready)) this._presentBall(v);
-    } else if (!flying && E.ball.inPlay) this._idle();                             // fermo, verifica, fine: niente palla
+      if (!striking && c.ballFor !== v.idx && (!flying || c.flightT >= CAL_SPOT.flight || v.ready)) this._presentBall(v);
+    } else if (!flying && !striking && E.ball.inPlay) this._idle();               // fermo, verifica, fine: niente palla
     if (!this.ballLive() && E.phase === 'POINT_OVER') E.phaseTimer = 0;            // niente servizio automatico
   }
   // telefono che ricomincia a calibrare a esercizi già iniziati, senza il pannello del telefono aperto (Ricalibra e
@@ -275,7 +281,8 @@ export class NatpfTraining {
     E._launchBallToTarget(start, target, 1.15, { topspin: 10, sidespin: 0, allowNetFault: false });
     Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: 1, shotType: 'TOPSPIN', isPowerShot: false });
     E.phase = 'RALLY'; E.phaseTimer = 0; E.cameraMode = 'RALLY_CAM';
-    E._predictBallIntercept(p);
+    // come in partita: piano d'intercetto sulla traiettoria vera (finestra d'impatto e movimento, natpf_impact.js)
+    E._natpfPlanPlayer ? E._natpfPlanPlayer() : E._predictBallIntercept(p);
     E.audioEngine?.playRacketHit?.('topspin', 'good');
     this.fedSide = side;
     this.diagRun?.onFeed?.(this.drill, side);

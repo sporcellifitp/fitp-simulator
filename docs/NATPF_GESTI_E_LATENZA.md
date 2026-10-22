@@ -57,6 +57,12 @@ gravità in due ordini di assi diversi (i gesti verticali non venivano mai ricon
 
 ## 4. Mappatura dei gesti
 
+> **Dal 22/10/2026** i telefoni con la pagina aggiornata mandano la forma del colpo e il tipo di colpo, la forza, la
+> profondità e la mira vengono dal nuovo modello della racchetta virtuale: `docs/NATPF_RACCHETTA_VIRTUALE.md` §3
+> (`natpf_stroke_intent.js`, `natpf_stroke_outcome.js`). La direzione dipende soprattutto dal tempo dell'impatto,
+> il piatto pesa meno. Con «Salta» (modalità semplice) il verso H si legge dalla gravità. La tabella qui sotto vale
+> ancora solo per i messaggi senza forma (pagina del telefono vecchia).
+
 Segnali: **H** verso orizzontale (giroscopio, rispetto all'asse imparato in calibrazione), **V** gesto verticale
 riconosciuto sul telefono, **L** verso verticale della mano durante la spinta (accelerazione lungo la gravità,
 rispetto al proprio gesto abituale **nello stesso verso**: prima dalla calibrazione, poi la mediana degli ultimi 12

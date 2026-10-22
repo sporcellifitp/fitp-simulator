@@ -263,57 +263,253 @@ Formato: problema → evidenza → causa → verifica → soluzione → criterio
   Per questo il nuovo modello usa il percorso della testa della racchetta calcolato dal giroscopio
   (velocità di rotazione × asse lungo del telefono), non l'accelerazione integrata.
 
-## 3. Nuovo modello del colpo (in costruzione)
+## 3. Nuovo modello del colpo
 
-### Intenzione ed esecuzione
+Il gesto dice che colpo si vuole (intenzione); il tempo dell'impatto e la situazione dicono come riesce (esecuzione).
+Nessun numero casuale nel colpo di chi gioca: lo stesso gesto, sulla stessa palla, dà sempre lo stesso esito.
 
-1. **Lateralità unica** (P1): la mano del gioco sul computer va al telefono.
-2. **Verso del gesto** dalla gravità (P2).
-3. **Forma del gesto**, sul telefono, all'impatto, nel riferimento della gravità:
-   - **piano**: asse di rotazione rispetto alla verticale (orizzontale, obliquo, verticale);
-   - **percorso**: verso della testa della racchetta, cioè velocità di rotazione × asse lungo del telefono (su o giù);
-   - **ampiezza** dello swing e **velocità** al picco;
-   - **piatto all'impatto**: apertura e rotazione che lo chiude (topspin) o lo apre (taglio).
-   La forma non dipende da come si tiene il telefono ed è speculare tra destri e mancini.
-4. **Intenzione** (computer):
-   - tipo di colpo dalla forma, con margini chiari, più il contesto della palla (alta: schiacciata; a rete: volée);
-   - direzione dal tempo dentro la finestra e dal piatto rispetto al proprio colpo abituale;
-   - profondità dalla forza e dall'ampiezza;
-   - altezza dal percorso.
-5. **Esecuzione**: tempo fuori dalla finestra comoda e allungo tolgono qualità (palla più lenta, più corta, più alta)
-   in modo deterministico. Nessun numero casuale nel colpo di chi gioca.
-6. **Finestra d'impatto**: traiettoria prevista, swing in attesa fino all'arrivo, colpo a vuoto oltre la finestra (P4).
-7. **Movimento automatico** con volée e schiacciate al volo (P6).
-8. **Servizio** dal gesto (P5).
-9. **Avversario**: un angolo buono lo fa correre e gli toglie qualità nella risposta, in modo sistematico. Gli scambi
-   finiscono.
-10. **Diagnostica**: forma, intenzione ed esito di ogni colpo negli eventi; prova guidata con il colpo richiesto.
+### Dal gesto all'intenzione (telefono e computer)
+
+1. **Mano unica** (P1). La decide il gioco sul computer (`natpf_hand.js`) e va al telefono (`cfg.hand`). Se la si
+   cambia sul telefono, il telefono la rimanda (`{t:'hand'}`). La calibrazione non la cambia più.
+2. **Verso del gesto senza calibrazione** (P2, `site/js/tennis/swing-detect.js`).
+   - Viene dalla rotazione attorno alla verticale, misurata con la gravità.
+   - Un telefono con i sensori di segno opposto si riconosce dai colpi (voti contro il verso atteso).
+   - La deriva del giroscopio del passo «fermo» vale solo fino a 1,5 °/s: oltre era la mano che si muoveva (P9).
+3. **Preparazione e colpo** (P11). Una rotazione nel verso opposto più forte di 1,2 volte la precedente è il colpo, non
+   il «rientro». Il telefono manda anche la preparazione; il computer la sostituisce con il colpo (finestra d'impatto).
+4. **Forma del colpo** (`site/js/tennis/stroke-shape.js`), all'impatto, nel riferimento della gravità:
+   - **piano**: asse di rotazione rispetto alla verticale (1 orizzontale, 0 verticale);
+   - **salita**: componente verticale della velocità della testa della racchetta (mano + rotazione × 0,45 m di manico);
+   - **manico**: inclinazione del telefono sopra l'orizzonte;
+   - **rotazione del polso** sul manico: solo diagnostica, non validata;
+   - velocità della testa e della mano.
+   La forma non dipende da come si tiene il telefono ed è speculare tra destri e mancini (test 1 e 2).
+5. **Intenzione** (`natpf_stroke_intent.js`), sul computer:
+
+   | Colpo | Quando |
+   |---|---|
+   | Schiacciata | solo con la palla alta: testa che scende, o swing verticale con il manico alto |
+   | Pallonetto | testa che sale decisa (salita ≥ 0,55) con swing verticale od obliquo (piano ≤ 0,8) o gesto lento (forza ≤ 0,3) |
+   | Tagliato | testa che scende (salita ≤ −0,22) |
+   | Palla corta | tagliato morbido (forza ≤ 0,36) o corto (swing ≤ 48°) |
+   | Top spin | testa che sale un poco (≥ 0,15), oppure colpo normale |
+   | Piatto | testa in piano (\|salita\| ≤ 0,12) e gesto forte (forza ≥ 0,62) |
+
+   - **Forza**: velocità del telefono al picco, da 250 a 1350 °/s. Con la calibrazione completa è per metà relativa al
+     proprio colpo tipico.
+   - **Profondità voluta** = forza × (0,55 + 0,45 × ampiezza dello swing). Uno swing di 30° o meno vuole il 55%.
+   - **Piatto**: scarto della direzione del piatto all'impatto dal proprio colpo abituale per lato. Zona morta 8°,
+     mira piena a 36°.
+   - Il pallonetto «morbido» vale fino a forza 0,3 (circa 580 °/s). Era 0,55 (circa 850 °/s): un dritto arrotato da
+     amatore, inclinato di 35°, diventava un pallonetto. Sui 55 colpi reali dello ZIP non cambia nessun tipo.
+
+### Dall'intenzione all'esito (motore)
+
+6. **Esito** (`natpf_stroke_outcome.js`, `_natpfRacketShot` in `game_engine.js`).
+   - Il tempo dentro la finestra è una scelta: in anticipo incrociato, in ritardo lungolinea. Il lungolinea pieno vale
+     quanto la palla impiega a passare 1,4 m dietro il punto d'impatto.
+   - Oltre la finestra è esecuzione: qualità più bassa e palla spinta verso fuori.
+   - Qualità = portata × preparazione × corsa × palla difficile (veloce, profonda, alta) × pressione degli scambi lunghi.
+   - Assistenza per livello. Sotto `assistQ` la palla non è più tenuta in campo; sotto `failQ` il colpo fallisce (in rete
+     se colpito sotto 1 m, altrimenti lungo):
+
+     | Livello | mira piena (m) | assistQ | failQ |
+     |---|---|---|---|
+     | Casual | 3,65 | 0,5 | 0,2 |
+     | Esperto | 3,55 | 0,62 | 0,3 |
+     | 1v1 | 3,6 | 0,6 | 0,34 |
+     | Leggenda | 3,1 | 0,8 | 0,63 (pressione dal 10° colpo) |
+
+7. **Finestra d'impatto** (`natpf_impact.js`, P4).
+   - Lo swing resta in attesa fino a quando la palla arriva al punto d'impatto, 0,35 m davanti a chi colpisce.
+   - Uno swing più forte (di almeno il 15%) arrivato dopo sostituisce quello in attesa: era la preparazione.
+   - Colpo a vuoto, con il motivo: troppo presto (oltre 0,5 s a Casual, 0,42 a Esperto, 0,4 a Leggenda), troppo tardi,
+     palla fuori portata.
+   - Il tempo all'impatto viene dal piano d'intercetto (conta il rimbalzo) solo se il piano è di questa palla: la palla
+     di adesso è dove la traiettoria prevista dice, entro 0,6 m. Prima un piano di meno di 3 s prima valeva per
+     qualunque palla: una palla rimessa in gioco subito dopo (lanciapalle, prove) prendeva il tempo del piano vecchio
+     e lo swing poteva risultare «troppo presto» (test «piano vecchio», che fallisce con il codice di prima). Lo stesso
+     controllo vale per le palle lasciate andare e per la corsa.
+   - Il lanciapalle dell'allenamento e delle sfide calcola il piano come in partita (prima usava ancora il vecchio
+     posizionamento, 2,15 m dietro il rimbalzo, senza piano).
+8. **Movimento automatico** (P6). La traiettoria si prevede con la stessa fisica del motore.
+   - Dopo il rimbalzo all'altezza comoda; volée se si è avanti; schiacciata al volo sui pallonetti che salgono oltre 3,3 m.
+   - Le palle che rimbalzerebbero fuori si lasciano andare.
+   - Dopo un attacco riuscito da metà campo si sale a rete; dopo una volée si resta a rete.
+   - Arrivare al limite costa qualità (fino al 40%): un buon angolo dell'avversario si paga.
+9. **Servizio dal gesto** (P5). Il colpo parte all'arrivo del gesto. La qualità dipende da quanto il gesto è lontano dal
+   punto più alto del lancio; un gesto oltre 0,42 s prima fa ancora parte del lancio. Piatto, kick (testa che sale) o
+   slice (swing obliquo); posizione dal piano e dal piatto, sempre nel quadrato. I falli di servizio non ci sono, come
+   prima.
+10. **Avversario e scambi.**
+    - La CPU sbaglia di più con angolo, allungo e pressione (`cpuReturnPlan`, c'era già); a Leggenda conta anche la
+      portata.
+    - Leggenda ritarata, perché la sua forza veniva dagli errori casuali di chi gioca: CPU a 8 m/s con portata 2,3 m e
+      lettura ±0,18 m; cerca il vincente dove chi gioca non arriva; niente affondo durante la reazione.
+    - Gli scambi finiscono: palle fuori lasciate andare, pressione dal 16° colpo (dal 10° a Leggenda), `failQ`.
+11. **Player 2 del 1v1** con il telefono: stesso esito e stesso piano d'intercetto, calcolati nel suo riferimento e
+    specchiati; mano dal suo telefono. Senza telefono il P2 colpisce come prima (si muove con il nuovo piano).
+
+### Webcam, calibrazione, diagnostica
+
+12. **Webcam con un solo soggetto** (`webcam_strokes.js`, `motion_controls.js`).
+    - Le mani viste insieme a quella seguita sono di «altre persone»: non si prendono mai per continuità.
+    - Persa la propria mano per più di 0,5 s: per 3 s si riprende solo vicino a dove era, e mai una mano di un'altra
+      persona.
+    - La mano ritrovata deve stare ferma un momento (0,15 s) prima dei colpi: una mano che entra in movimento non fa
+      swing.
+13. **Calibrazione.**
+    - Con «Salta» il gioco è completo: verso dalla gravità, intenzione dalla forma, forza assoluta.
+    - Colpi completi accettati: un gesto nel verso opposto a quello chiesto può essere l'apertura lenta. Si aspetta fino
+      a 0,9 s il colpo nel verso giusto, finché la mano non si ferma davvero (0,4 s). Prima l'apertura veniva giudicata
+      da sola («altro verso») e il colpo non contava.
+14. **Diagnostica** (`docs/NATPF_DIAGNOSTICA.md`).
+    - `tel.colpo` con forma e intenzione.
+    - Eventi `racchetta` (esito), `piano`, `servizio`, `vuoto` (colpo a vuoto con il motivo).
+    - Metriche di ripetibilità per colpo voluto: mediana e scarto interquartile di gesto ed esito.
+    - Prova guidata con tagliati e palle corte in fondo (circa 5 minuti).
 
 ### Test obbligatori
 
-| # | Prova | Dove |
+| # | Prova | Test |
 |---|---|---|
-| 1 | Specchio destro/mancino | banco sintetico del telefono |
-| 2 | Inclinazioni diverse del telefono | banco sintetico del telefono |
-| 3 | Swing corto e ampio | banco sintetico del telefono |
-| 4 | Swing orizzontale, verticale e obliquo | banco sintetico del telefono |
-| 5 | Incrociato e lungolinea | motore vero, senza grafica |
-| 6 | Schiacciata prima del rimbalzo | motore vero |
-| 7 | Palla corta e pallonetto ripetibili | motore vero |
-| 8 | Finestra d'impatto | motore vero |
-| 9 | Webcam con più persone | banco sintetico della webcam |
-| 10 | Perdita del tracciamento | webcam e telefono |
-| 11 | Tremolio | telefono e webcam |
-| 12 | Scambi dinamici | motore vero, partite automatiche |
-| 13 | Collegamento del telefono | test esistenti più la mano sincronizzata |
-| 14 | Regressioni | `npm test`, e2e |
-
-Prima/dopo sugli stessi dati: i campioni grezzi dello ZIP rigiocati nella catena di prima e in quella nuova
-(`scripts/audit/zip-replay.mjs <cartella dello ZIP estratto>`; lo ZIP non entra nel repository).
+| 1 | Specchio destro/mancino | `natpf-racchetta`: «forma: specchio destro/mancino», «verso senza calibrazione»; `natpf-racchetta-motore`: «1v1 … specchiato» |
+| 2 | Inclinazioni diverse del telefono | `natpf-racchetta`: «forma: inclinazioni e rotazioni del telefono in mano» |
+| 3 | Swing corto e ampio | `natpf-racchetta`: «swing corto e ampio»; `natpf-racchetta-motore`: «swing corto e ampio nel motore» |
+| 4 | Swing orizzontale, verticale e obliquo | `natpf-racchetta`: «forma: swing orizzontale, obliquo e verticale», «colpi vari dal gesto» |
+| 5 | Incrociato e lungolinea | `natpf-racchetta-motore`: «incrociato e lungolinea»; prova nel browser `natpf-phone-upright` (mira) |
+| 6 | Schiacciata prima del rimbalzo | `natpf-racchetta-motore`: «schiacciata prima del rimbalzo», «1v1 … schiacciata al volo» |
+| 7 | Palla corta e pallonetto ripetibili | `natpf-racchetta-motore`: «palla corta e pallonetto ripetibili»; `natpf-racchetta`: «colpi vari dal gesto» |
+| 8 | Finestra d'impatto | `natpf-racchetta-motore`: «finestra d'impatto»; `natpf-webcam-classifier`: «nel motore: lo swing della webcam …» |
+| 9 | Webcam con più persone | `natpf-webcam-classifier`: «un solo soggetto», «webcam con più persone, mano persa e tremolio», «folla» |
+| 10 | Perdita del tracciamento | `natpf-webcam-classifier`: «flusso ottico di riserva», «webcam con più persone, mano persa …» |
+| 11 | Tremolio | `natpf-racchetta`: «tremolio»; `natpf-webcam-classifier`: «… e tremolio» |
+| 12 | Scambi dinamici | `natpf-racchetta-motore`: «scambi che finiscono e dinamici», «palla che va fuori»; audit della Leggenda |
+| 13 | Collegamento del telefono | `natpf-racchetta`: «mano: una sola»; `tools/test`; prove nel browser (§4.2) |
+| 14 | Regressioni | `npm test`, `tools/test`, prove nel browser, banco della webcam |
 
 ## 4. Risultati
 
-Da completare a fine lavoro. Restano separati:
-- codice implementato;
-- test automatici superati;
-- validazione fisica (telefono e webcam veri).
+Tre risultati diversi, tenuti separati: codice implementato, test automatici superati, validazione fisica.
+
+### 4.1 Codice implementato
+
+| Parte | File |
+|---|---|
+| Telefono: verso, preparazione, deriva, forma, messaggio, mano | `site/js/tennis/swing-detect.js`, `stroke-shape.js` (nuovo), `face-tracker.js`, `swing-message.js`, `racchetta.js`, `link.js` |
+| Calibrazione | `site/js/tennis/calibration.js` |
+| Intenzione ed esito | `natpf-tennis/src/natpf/natpf_stroke_intent.js`, `natpf_stroke_outcome.js` (nuovi), `natpf_phone_racket.js`, `natpf_hand.js`, `natpf_ui.js` |
+| Finestra d'impatto, movimento, servizio, Player 2 | `natpf-tennis/src/natpf/natpf_impact.js` (nuovo), `src/game_engine.js`, `natpf_shot_feedback.js` |
+| Avversario | `natpf-tennis/src/natpf/natpf_legend.js`, `natpf_skill.js` |
+| Webcam | `natpf-tennis/src/natpf/webcam_strokes.js`, `src/motion_controls.js` |
+| Diagnostica | `natpf-tennis/src/natpf/diag/` (registratore, metriche, rapporto, prova guidata), `natpf_diag.js` |
+| Testi della modalità semplice | `natpf_lobby.js`, `natpf_training.js` |
+
+### 4.2 Test automatici superati
+
+Tutti eseguiti in questo contenitore il 22/10/2026, con il codice finale del branch.
+
+- **`natpf-tennis`**: `npm test`, 262 test su 262.
+- **`tools/test`** (pagina del telefono e codice condiviso): 135 su 135. Il test nuovo della calibrazione con colpi
+  completi fallisce con il codice di prima.
+- **Prove nel browser** (browser senza schermo, telefono simulato, pagina vera del telefono e collegamento vero):
+  `natpf-phone-upright` 10 su 10 (QR, calibrazione rapida con colpi completi, colpi normali mai pallonetti, pallonetto,
+  mira a destra e a sinistra). I gesti vengono dalla racchetta simulata (`natpf-tennis/test/racket-gestures.mjs`).
+  Le altre prove nel browser sono in §4.2.1.
+- **Audit della Leggenda** (`npm run audit:legend`, punti e semi predefiniti): tutti i criteri rispettati con i sei
+  profili. Per esempio contro «preciso»: game vinti dalla CPU 89,2% (≥ 60%), incrociati 32,1% (30–50%), lungolinea
+  29,1%; contro «tennista» 97,3% (≥ 85%).
+- **Banco della webcam** (`webcam-sweep`, griglie ridotte): uscita identica riga per riga prima e dopo questo giro, 16
+  criteri su 18. I due che mancano mancavano già: tempo del colpo rispetto all'impatto negli swing secchi, pallonetto
+  voluto riconosciuto (19%).
+- **Scambi simulati** (`simulate`, profilo «tennista», 60 punti, seme 4):
+
+  | Livello | punti vinti | colpi/punto | colpi | al volo | schiacciate | tagliati | lasciate andare |
+  |---|---|---|---|---|---|---|---|
+  | Casual | 98,3% | 8,3 | 213 | 140 | 3 | 17 | 21 |
+  | Esperto | 95% | 13,2 | 353 | 239 | 5 | 27 | 33 |
+  | Leggenda | 6,7% | 9,8 | 272 | 103 | 28 | 21 | 5 |
+
+  A Leggenda il 19% dei colpi fallisce (pressione e `failQ` alto, senza caso). Nessuno scambio arriva a 60 colpi.
+
+#### 4.2.1 Prima e dopo sugli stessi dati
+
+- **Telefono, campioni grezzi della sessione reale** (`scripts/audit/zip-replay.mjs` con il rilevatore di `bfd629c`):
+
+  | | prima | adesso |
+  |---|---|---|
+  | colpi rigiocati | 40 | 55 |
+  | con il verso del gesto | 0 | 47 |
+  | colpi forti (900–1874 °/s) riconosciuti | — | 13 in più (prima al loro posto la preparazione, 175–528 °/s) |
+
+  La versione di prima, rigiocata, coincide con i colpi registrati in partita in 39 casi su 40: il rigioco è fedele.
+  Tipi sugli stessi 40 colpi: registrati in partita {pallonetto 15, top spin 14, tagliato 7, palla corta 4}; modello
+  nuovo {top spin 21, palla corta 9, tagliato 4, piatto 3, pallonetto 3}. Le palle corte sono soprattutto preparazioni
+  deboli, che in partita la finestra d'impatto sostituisce con il colpo.
+- **Webcam con più persone** (`scripts/audit/webcam-crowd.mjs`, stesse scene sintetiche): colpi fantasma nelle scene
+  con altre persone 6 prima, 0 adesso. Nella scena «chi gioca ritrovato dopo 0,9 s, poi rovescio»: prima un colpo
+  fantasma e il rovescio perso, adesso il rovescio. Tremolio fino a 3,6 cm a 2 m: 0 colpi prima e dopo (60 prove).
+- **Calibrazione con colpi completi** (apertura lenta e colpo): prima fallisce («altro verso» sull'apertura), adesso
+  passa con i quattro colpi (`tools/test`, test nuovo, e prova nel browser).
+
+### 4.3 Validazione fisica
+
+**Non eseguita.** In questo lavoro non c'erano un telefono, una webcam o lo schermo del gioco reali. I test sopra usano
+sensori e mani simulati: dicono che la catena fa quello che deve con gesti fisicamente plausibili, non che i gesti
+veri di chi gioca diano gli stessi numeri. Soglie da confermare con il telefono vero: salita del pallonetto (0,55), del
+tagliato (−0,22), forza del pallonetto «morbido» (0,3), zona morta del piatto (8°). La procedura è in §5.
+
+### 4.4 Limiti noti
+
+- Webcam: all'avvio vince la mano più grande con la lateralità giusta, quindi un'altra persona più vicina alla webcam
+  di chi gioca può essere scelta. Una mano nuova che compare lontano entro 0,5 s dalla perdita della propria si prende
+  ancora: non si distingue dalla propria che torna dopo il mosso di uno swing.
+- Webcam: un tremolio di 4,8 cm a 12 Hz (molto oltre un tremolio vero) fa colpi in 6 semi su 20.
+- Telefono: la rotazione del polso sul manico è misurata ma non usata (non validata).
+- La direzione dipende soprattutto dal tempo dell'impatto; il piatto sposta la palla di circa 0,7 m con 25° (per
+  progetto, pesa meno del tempo).
+- I falli di servizio non ci sono, come prima.
+
+## 5. Procedura di validazione fisica
+
+Serve: il computer del gioco, un telefono Android e un iPhone, una webcam, una seconda persona, una videocamera o un
+telefono che riprende a 240 fotogrammi al secondo (per il ritardo dello schermo). Ogni prova si registra con la
+diagnostica (Maiusc+D → Registra) e si salva il pacchetto.
+
+1. **Collegamento e mano** (test 13, 1). Mano destra nel gioco → il telefono la mostra; cambiarla sul telefono → il
+   gioco la mostra. Ripetere con «mancino». Atteso: sempre la stessa mano sui due schermi.
+2. **Calibrazione con colpi completi** (test 13). Calibrazione rapida facendo colpi veri, con l'apertura. Atteso:
+   superata al primo giro (evento `tel.cal` con `pass`). Poi «Salta» in una seconda sessione: atteso il gioco completo
+   (verso del gesto negli eventi `tel.colpo`, campo `dir` diverso da 0 in più di 8 colpi su 10).
+3. **Prova guidata** (Maiusc+D → Prova guidata, circa 5 minuti), con il telefono, una volta per mano e per persona
+   (almeno tre persone). Dal riassunto e da `metriche.json`:
+   - lato giusto ≥ 90%, tipo giusto ≥ 80% (dritti e rovesci normali);
+   - pallonetti: tipo giusto ≥ 70%; tagliati ≥ 70%; palle corte ≥ 60%;
+   - direzione giusta (incrociato e lungolinea) ≥ 70%;
+   - ogni errore va guardato nel video prima di cambiare una soglia (chi gioca può aver fatto un altro gesto).
+4. **Ripetibilità** (test 7). Dieci palle corte e dieci pallonetti uguali. In `metriche.json`, `racchetta.perColpo`:
+   scarto interquartile della profondità entro 1 m.
+5. **Inclinazioni e impugnature** (test 2). Dieci dritti tenendo il telefono più dritto, dieci più inclinato e dieci
+   ruotato nella mano. Atteso: stesso tipo (`tel.colpo.intenzione.colpo`) e salita entro ±0,15.
+6. **Swing corto e ampio** (test 3). Dieci colpi bloccati (corti) e dieci ampi alla stessa velocità. Atteso: profondità
+   dei colpi corti più vicina alla rete.
+7. **Swing orizzontale, verticale, obliquo** (test 4). Dieci per tipo: atteso top spin (orizzontale e obliquo in
+   salita), pallonetto (verticale dal basso), tagliato (dall'alto).
+8. **Schiacciata e volée** (test 6). Partita a Esperto: salire a rete dopo un attacco; sui pallonetti della CPU
+   schiacciare al volo. Negli eventi `piano`: `volley` e `smash`; negli eventi `racchetta`: `volee: true`.
+9. **Finestra d'impatto** (test 8). Swing volutamente in anticipo e in ritardo. Atteso: eventi `vuoto` con motivo
+   «presto» o «tardi», mai un colpo con la palla lontana.
+10. **Tremolio** (test 11). Telefono tenuto fermo 30 s in posizione di attesa. Atteso: nessun `tel.colpo`.
+11. **Webcam con più persone** (test 9, 10). Chi gioca al centro a 2 m; una seconda persona accanto che fa swing, poi
+    che passa davanti alla webcam; chi gioca nasconde la mano per 1–2 s. Atteso: nessun evento `input` della webcam per
+    gli swing dell'altra persona; i colpi di chi gioca riprendono dopo la mano nascosta. Ripetere con l'altra persona
+    più vicina alla webcam di chi gioca (limite noto: all'avvio può essere scelta lei).
+12. **Scambi dinamici** (test 12). Tre partite a Casual, Esperto e Leggenda. Atteso: scambi che finiscono, volée e
+    palle lasciate andare negli eventi; a Leggenda nessuno scambio oltre 40 colpi.
+13. **Ritardo dello schermo**. Video a 240 fotogrammi al secondo dello schermo e del telefono: se i colpi arrivano in
+    ritardo di più di 40 ms in ogni sessione (riassunto: «tempo dei colpi del telefono»), impostare il ritardo dello
+    schermo nella diagnostica.
+
+Analisi dei pacchetti: `node scripts/diag/diag.mjs colpi sessione.zip` e, per i campioni grezzi,
+`node --import ./test/register.mjs scripts/audit/zip-replay.mjs <cartella estratta>`.

@@ -112,9 +112,15 @@ tastiera come controlli nuovi.
 12. [x] Diagnostica: `tel.colpo` con forma e intenzione; eventi `racchetta` (esito), `piano`, `servizio`, `vuoto`;
     metriche `racchetta` (ripetibilità per colpo voluto: mediana e scarto interquartile); prova guidata con tagliati e
     palle corte in fondo (la prima parte resta uguale).
-13. [ ] I 14 test obbligatori, prima/dopo sullo ZIP (`scripts/audit/zip-replay.mjs`), regressioni (`npm test`, e2e).
-14. [ ] Documento finale (codice, test automatici e validazione fisica separati), procedura di prova fisica, build e
-    zip.
+13. [x] I 14 test obbligatori (tabella in `docs/NATPF_RACCHETTA_VIRTUALE.md` §3), prima/dopo sugli stessi dati
+    (ZIP del telefono con `zip-replay.mjs`, webcam con `webcam-crowd.mjs`, calibrazione), regressioni (`npm test` 262,
+    `tools/test` 135, prove nel browser, audit della Leggenda completo, banco della webcam).
+    - Trovati e corretti in questa fase: calibrazione che giudicava da sola l'apertura lenta di un colpo completo;
+      piano d'intercetto vecchio usato per una palla nuova (lanciapalle, prove: swing «troppo presto»); lanciapalle
+      senza piano; pallonetto «morbido» fino a 850 °/s (un dritto arrotato da amatore diventava pallonetto).
+    - La prova nel browser del telefono usa i gesti fisici della racchetta simulata (`test/racket-gestures.mjs`).
+14. [ ] Documento finale (fatto: §3, §4 con codice, test automatici e validazione fisica separati, §5 procedura di
+    prova fisica), build, prove nel browser che chiedono la build (1v1, LAN, diagnostica), zip, resoconto.
 
 ## Come riprendere
 

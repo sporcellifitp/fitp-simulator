@@ -143,6 +143,26 @@ test('palla che va fuori: chi gioca la lascia andare e il punto è suo', () => {
   });
 });
 
+test('piano vecchio: una palla rimessa in gioco senza piano non usa il tempo del piano di prima (né la palla fuori)', () => {
+  const fresh = (planShot, check) => withEngine('pro', e => {
+    cpuShot(e, planShot);
+    for (let k = 0; k < 6; k++) e.step(DT);
+    // palla nuova, buona, rimessa in gioco senza piano (lanciapalle, prova): 0,7 m prima del punto d'impatto a 14 m/s
+    e.player.pos.set(.4, 0, 11.4); e.player.targetPos.copy(e.player.pos); e.player.vel.set(0, 0, 0);
+    Object.assign(e.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 1 });
+    e.ball.pos.set(.9, 1, 11.05 - .7); e.ball.vel.set(0, 0, 14);
+    check(e);
+    e._handleUserSwingInput(phoneSwing({ shot: 'topspin', power: .6 }));
+    for (let k = 0; k < 120 && e.ball.lastHitter !== 'player' && e.phase === 'RALLY'; k++) e.step(DT);
+    return e.ball.lastHitter === 'player';
+  });
+  // piano di un pallonetto della CPU (contatto fra più di un secondo): prima il tempo veniva da lì, lo swing era
+  // «troppo presto» e la palla nuova passava
+  assert.ok(fresh({ player: [.3, 9.5], to: [.6, 7.2], flight: 2.0, topspin: 4 }, e => { assert.ok(e.natpfPlan.t > 1); assert.equal(NI.livePlan(e), null); assert.ok(NI.timeToContact(e, e.player) < .1); }));
+  // piano «lascia andare» di una palla che andava fuori: la palla nuova si colpisce
+  assert.ok(fresh({ player: [.4, 4.8], to: [5.2, 9], flight: 1 }, e => { assert.equal(e.natpfPlan.kind, 'letgo'); assert.equal(NI.livePlan(e), null); }));
+});
+
 // 1v1: palla di chi gioca qui verso il Player 2 (metà campo z negative), che si prepara con il suo piano d'intercetto
 function p1Shot(e, { from, to, flight, topspin = 14, p2, rally = 3 }){
   e.isMultiplayer = true; e.versus = { active: true }; e.natpfP2Hand = 'right';

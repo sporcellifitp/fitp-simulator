@@ -89,6 +89,31 @@ test('Chiosco: dopo il reset il gioco non resta in pausa per il visitatore succe
   assert.ok(w.stats.update - s0 > 100 && E.ball.pos.z < z0 - 5, `fotogrammi ${w.stats.update - s0}, palla ${z0.toFixed(2)} → ${E.ball.pos.z.toFixed(2)}`);
 });
 
+test('Calibrazione in campo: gesto accettato e subito il gesto dopo o la verifica (come il telefono vero) → la palla del gesto viene colpita subito, con il colpo del gesto', async () => {
+  // il telefono manda «attempt» e subito «next» (o la verifica, dopo l'ultimo): la palla della calibrazione è appena
+  // oltre il punto d'impatto, il colpo parte nello stesso istante. Con la palla 10 cm prima partiva al fotogramma dopo:
+  // la palla del gesto dopo cancellava lo swing in attesa, e dopo l'ultimo gesto la verifica arrivava prima del colpo
+  const w = await makeWorld({ controller: 'phone' }); w.advance(300);
+  const { E, ui, lobby } = w;
+  lobby.menu('training'); lobby.go('connect'); lobby.next();
+  w.cal({ kind: 'step', step: 'still' }); w.cal({ kind: 'step', step: 'swings', want: 'L', idx: 0, total: 4 }); w.cal({ kind: 'ready', want: 'L' });
+  w.advance(200);
+  const hits = [];
+  for (const [i, want] of [[0, 'L'], [1, 'R'], [2, 'L'], [3, 'R']]){
+    w.advance(100);
+    const struck = () => E.ball.lastHitter === 'player';
+    w.cal({ kind: 'attempt', ok: true, idx: i, want });
+    const hit = struck(), swing = E.player.swingType;
+    if (i < 3) w.cal({ kind: 'next', idx: i + 1, want: want === 'L' ? 'R' : 'L' });
+    hits.push({ want, hit, swing });
+    w.advance(1200);
+    if (i < 3) w.cal({ kind: 'ready', want: want === 'L' ? 'R' : 'L' });
+    w.advance(300);
+  }
+  assert.deepEqual(hits.map(h => h.hit), [true, true, true, true], JSON.stringify(hits));
+  assert.deepEqual(hits.map(h => h.swing), ['forehand', 'backhand', 'forehand', 'backhand'], JSON.stringify(hits));
+});
+
 test('Fine partita e ritorno al menu entro 1,8 s: la schermata finale non compare sopra il menu', async () => {
   const w = await cpuMatch();
   const { E, ui, lobby } = w;

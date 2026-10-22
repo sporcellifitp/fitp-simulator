@@ -2025,8 +2025,8 @@ export class NatpfTennisEngine {
   _attemptP2RallyStrike(e = {}) {
     if (this.ball.lastHitter === "opponent") return !1;
     // NATPF racchetta virtuale: palla che rimbalzerebbe fuori, il P2 la lascia andare (piano fresco, natpf_impact.js)
-    const natpfLet = NI.planOf(this, this.opponent);
-    if (!this.isDoubles && natpfLet && natpfLet.kind === "letgo" && this.elapsedTime <= natpfLet.at + natpfLet.t + 0.3) return !1;
+    const natpfLet = NI.livePlan(this, this.opponent);
+    if (!this.isDoubles && natpfLet && natpfLet.kind === "letgo") return !1;
     const t = this.opponent.pos.z - this.ball.pos.z,
       i = Math.abs(this.ball.pos.x - this.opponent.pos.x),
       a = Math.hypot(i, t),

@@ -28,6 +28,15 @@ ammessi solo gli header di copyright delle librerie open source). Loghi ufficial
   `link.js` → `natpf_phone_racket.js` (`natpfSwingToEngine`, modelli adattivi) → `natpf_gestures.js`
   (`classifyPhoneShot`: dritto/rovescio, lob, palla corta, tagliato) → `game_engine.js` (`_attemptPlayerRallyStrike`,
   `natpf_skill.js` per direzione e profondità).
+- **Racchetta virtuale** (22/10, documento `docs/NATPF_RACCHETTA_VIRTUALE.md`): il telefono misura la forma del colpo
+  (`site/js/tennis/stroke-shape.js`: piano, salita della testa, manico, velocità; campi `an` e `sh` del messaggio); il
+  computer ne ricava l'intenzione (`natpf_stroke_intent.js`, al posto di `classifyPhoneShot` quando c'è la forma) e il
+  motore l'esito senza caso (`natpf_stroke_outcome.js`, `_natpfRacketShot`): tempo dentro la finestra = direzione,
+  oltre = esecuzione; assistenza per livello (`ASSIST`). `natpf_impact.js`: finestra d'impatto (swing in attesa fino
+  al punto d'impatto, il più forte sostituisce la preparazione), piano d'intercetto (volée, schiacciata al volo, palle
+  fuori lasciate andare; vale solo per la sua palla, `livePlan`), recupero a rete, anche per il Player 2 del 1v1.
+  Servizio dal gesto (`serveOutcome`). Mano unica: la decide il computer (`cfg.hand`, `{t:'hand'}` dal telefono).
+  Webcam con un solo soggetto (`updateOthers` in `webcam_strokes.js`).
 - Tre parti separate del colpo: **rilevamento** (telefono: `swing-detect.js` decide quando c'è un colpo e il verso,
   `face-tracker.js` misura il piatto), **classificazione** (computer: `natpf_gestures.classifyPhoneShot`, deciso al
   picco con i dati di preparazione e spinta, mai cambiato dopo l'impatto) e **simulazione** (motore: `natpf_skill`
@@ -143,7 +152,12 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
   due computer veri né su reti diverse; senza TURN alcune reti non si collegano. Tra due giocatori automatici perfetti
   gli scambi possono durare a lungo (84 e 154 colpi nelle prove; `natpf-1v1-p2p.mjs` ora lascia passare la palla
   dopo 10 colpi, altrimenti il Player 2 poteva non arrivare mai a servire nel tempo della prova).
-- Colpi e mira: soglie (pallonetto con mano che sale ≥ 0,25, decisa ≥ 0,5; mira 26°, centro 10°) tarate sul simulatore
+- Racchetta virtuale (22/10): soglie del nuovo modello (salita del pallonetto 0,55, del tagliato −0,22, pallonetto
+  «morbido» fino a forza 0,3, zona morta del piatto 8°) tarate su simulazione e su una sola sessione reale senza
+  riferimento dell'intenzione: da validare con la procedura in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5. Webcam: all'avvio
+  un'altra persona più vicina alla webcam di chi gioca può essere scelta; una mano nuova che compare lontano entro
+  0,5 s dalla perdita della propria si prende ancora (§4.4 del documento).
+- Colpi e mira (telefoni senza forma del colpo, pagina vecchia): soglie (pallonetto con mano che sale ≥ 0,25, decisa ≥ 0,5; mira 26°, centro 10°) tarate sul simulatore
   che riproduce il video del 19/10, non su registrazioni vere (nel repository non ce ne sono). Nella prova nel browser
   la mira a destra è risultata più debole di quella a sinistra quando i colpi precedenti alternavano pronazioni
   opposte (centro spostato di ~15°): da verificare con il telefono vero e una registrazione (Maiusc+D).
@@ -307,6 +321,7 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 
 | Data | Commit | Cosa | File |
 |---|---|---|---|
+| 22/10/2026 | 51c83d2…(fine giro) | Racchetta virtuale: diagnosi della sessione reale (P1–P11), mano unica, verso dalla gravità, forma del colpo, intenzione ed esito senza caso, finestra d'impatto, volée e schiacciate al volo, palle fuori lasciate andare, servizio dal gesto, Player 2 specchiato, Leggenda ritarata, webcam con un solo soggetto, tremolio, calibrazione con colpi completi, piano valido solo per la sua palla, diagnostica (forma, intenzione, esito, piano, servizio, colpi a vuoto, ripetibilità), prima/dopo sugli stessi dati | `site/js/tennis/swing-detect.js`, `stroke-shape.js` (nuovo), `face-tracker.js`, `swing-message.js`, `calibration.js`, `racchetta.js`, `link.js`, `natpf-tennis/src/natpf/natpf_stroke_intent.js`, `natpf_stroke_outcome.js`, `natpf_impact.js` (nuovi), `natpf_phone_racket.js`, `natpf_hand.js`, `natpf_ui.js`, `natpf_legend.js`, `natpf_skill.js`, `webcam_strokes.js`, `motion_controls.js`, `natpf_training.js`, `natpf_events.js`, `natpf_lobby.js`, `diag/`, `src/game_engine.js`, test e prove (`racket-sim.mjs`, `racket-gestures.mjs`, `natpf-racchetta*.test.mjs`, `scripts/audit/zip-replay.mjs`, `webcam-crowd.mjs`, `tools/e2e/natpf-phone-upright.mjs`), `docs/NATPF_RACCHETTA_VIRTUALE.md` |
 | 21/10/2026 | d35629f, d198261, 1ef6014, 284c423, a307100, 41c6535 | Webcam: un evento per colpo, colpo anticipato, mano scelta per continuità, lancio solo quando serve, banco sintetico e prova nel motore | `natpf-tennis/src/natpf/webcam_strokes.js` (nuovo), `motion_controls.js`, `natpf_hand.js`, `test/webcam-sim.mjs`, `test/natpf-webcam-classifier.test.mjs`, `scripts/audit/webcam-sweep.mjs` |
 | 21/10/2026 | 70af03a, 77ba6fb, 65f809b, a220e4d | CPU Leggenda: modello, menu, allungo nel disegno, documento | `natpf-tennis/src/natpf/natpf_legend.js` (nuovo), `natpf_skill.js`, `game_engine.js`, `hud_ui.js`, `natpf_events.js`, `index.html`, `scripts/audit/legend.mjs`, `test/natpf-legend.test.mjs`, `test/natpf-flows.test.mjs`, `docs/NATPF_LEGGENDA.md` |
 | 21/10/2026 | e0b4f6a | Colpi senza attesa di ritrasmissione (copie sul percorso veloce), stato della pagina e del blocco dello schermo del telefono, colpi scartati segnalati | `site/js/tennis/link.js`, `lan-transport.js`, `racchetta.js`, `natpf-tennis/src/natpf/natpf_ui.js`, `tools/test/phone-link-fast.test.mjs`, `tools/e2e/natpf-swing-loss.mjs`, `test/natpf-flows.test.mjs` |
@@ -379,28 +394,38 @@ Quinto giro (21/10: app nativa e Bluetooth, modalità diagnostica, migliorie gi�
 
 ## 11. Prossimi passi
 
-0. Prova fisica del quarto giro (20/10) con telefono e computer veri, in quest'ordine: allenamento dal menu (le
+0. **Validazione fisica della racchetta virtuale** (22/10): procedura in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5 (telefono
+   Android e iPhone, webcam, più persone, prova guidata con il video), poi tarare le soglie del §4.3 con i pacchetti.
+1. Prova fisica del quarto giro (20/10) con telefono e computer veri, in quest'ordine: allenamento dal menu (le
    istruzioni del telefono e del computer coincidono? il giocatore resta fermo in calibrazione?), quattro gesti con la
    propria presa, esercizi; partita: un gesto un solo swing, nessun ritardo percepito; menu senza sfarfallio sulla
    propria scheda video; Wi-Fi spento e riacceso sul telefono durante calibrazione e partita (pausa, ripresa, stesso
    passo sui due schermi). Annotare fotogrammi al secondo e modello del computer (vedi §7, carico della scheda video).
-1. Prova con persone vere: **prova guidata** della modalità diagnostica (menu → Maiusc+D → «▶ Prova guidata», con il
+2. Prova con persone vere: **prova guidata** della modalità diagnostica (menu → Maiusc+D → «▶ Prova guidata», con il
    video della webcam), almeno tre sessioni per telefono; poi `node scripts/diag/diag.mjs colpi sessione.zip` e
    `node --import ./test/register.mjs scripts/audit/replay-recording.mjs sessione.zip` per tarare `GESTURE.lobMove`,
    `AIM.gain/settle`. Le stesse sessioni decidono l'app nativa (regola in `docs/NATPF_APP_NATIVA_E_TRASPORTI.md` §6),
    la causa dei registri che si fermavano e le raccomandazioni rimandate (pallonetto dal telefono, direzione). Palle
    corte e dritti girando il polso: registrazione libera con un segno (Maiusc+M) per gesto. Poi varietà dei colpi
    giocando e 1v1 su due computer.
-2. Unire `claude/friendly-fermat-dwv2w2` nel branch principale del lavoro (`feature/natpf-tennis-v2`) dopo la prova.
-3. Server TURN per il 1v1 su reti che bloccano WebRTC; compensazione del ritardo per mouse/webcam del P2.
-4. Se la prova 0 mostra fotogrammi sotto i 50 al secondo: pubblico diviso in settori (così si scarta quello fuori
+3. Unire `claude/friendly-fermat-dwv2w2` nel branch principale del lavoro (`feature/natpf-tennis-v2`) dopo la prova.
+4. Server TURN per il 1v1 su reti che bloccano WebRTC; compensazione del ritardo per mouse/webcam del P2.
+5. Se la prova 1 mostra fotogrammi sotto i 50 al secondo: pubblico diviso in settori (così si scarta quello fuori
    dall'inquadratura) e indicizzato, ombre solo da corpo, racchetta e palla, risoluzione massima 1,5×.
-5. Palla corta con lo schermo girato di lato (§7): segnale dallo spostamento della mano o indicazione della presa.
-6. 1v1: telefono del Player 2 che cade → pausa anche sull'host.
-7. Altri punti aperti: `docs/NATPF_ROADMAP.md` §3.
+6. Palla corta con lo schermo girato di lato (§7): segnale dallo spostamento della mano o indicazione della presa.
+7. 1v1: telefono del Player 2 che cade → pausa anche sull'host.
+8. Altri punti aperti: `docs/NATPF_ROADMAP.md` §3.
 
 ## 12. Test e verifiche
 
+- Giro «racchetta virtuale» (22/10): `natpf-tennis/test` **262** test (nuovi `natpf-racchetta.test.mjs`,
+  `natpf-racchetta-motore.test.mjs`, più webcam, diagnostica, 1v1), `tools/test` **135** (calibrazione con colpi
+  completi: fallisce con il codice di prima); audit della Leggenda completo, tutti i criteri; banco della webcam
+  ridotto identico a prima (16/18, i due che mancano già mancavano); prima/dopo sui campioni reali dello ZIP e sulle
+  scene della webcam con più persone (`docs/NATPF_RACCHETTA_VIRTUALE.md` §4.2.1). Prove nel browser: telefono in
+  verticale 10/10 con i gesti fisici della racchetta simulata (prima erano rotazioni del telefono sul proprio lato
+  lungo), ricollegamento 6/6, rete che cade 6/6, menu 22/22; latenza e allenamento in §4.2 del documento. Validazione
+  fisica non eseguita (§4.3).
 - Quinto giro (21/10): `natpf-tennis/test` **236** test, con Leggenda (`natpf-legend.test.mjs`, 11, e uno in
   `natpf-flows`) e webcam (`natpf-webcam-classifier.test.mjs`, 15); `tools/test` **134**; `npm run audit:legend`
   tutti i criteri; banco della webcam (`scripts/audit/webcam-sweep.mjs`) 16 criteri su 18. Nuovi: `natpf-diag.test.mjs` (16:
