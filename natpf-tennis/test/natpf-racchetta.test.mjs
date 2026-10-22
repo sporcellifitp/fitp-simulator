@@ -32,6 +32,18 @@ test('mano: una sola, quella del gioco; va al telefono, torna dal telefono e la 
   assert.equal(sent.filter(m => m.t === 'cfg').at(-1).hand, 'right');
 });
 
+test('diagnostica: il colpo del telefono arriva al motore con il suo numero (gesto ed esito si legano nel registro)', () => {
+  const got = [], phone = new NatpfPhoneRacket({ playerRole: 'p1', phase: 'RALLY', motionController: { _emitSwing: e => got.push(e) },
+    ball: { inPlay: true, lastHitter: 'opponent', pos: { x: .6, y: 1, z: 6 }, vel: { x: 0, y: 0, z: 12 } }, player: { pos: { x: 0, z: 11.4 } }, opponent: { pos: { x: 0, z: -11.4 } } });
+  phone.link = { ready: true, connected: true, send(){}, cmd(){} };
+  const sim = racketSim({ hand: 'right', seed: 2 }); sim.start(); sim.stroke({ side: 'forehand' });
+  const s = { ...sim.last(), at: performance.now()/1000 };
+  phone._onSwing(s);
+  assert.equal(got.length, 1);
+  assert.equal(got[0].natpf.seq, s.seq); assert.ok(Number.isInteger(s.seq));
+  assert.ok(got[0].natpf.intent, 'intenzione dalla forma');
+});
+
 /* ---------- deriva del giroscopio ---------- */
 test('deriva: dal passo «fermo» solo se plausibile; il movimento della mano non diventa deriva', () => {
   const still = mean => { const det = createSwingDetector(); det.still(); for (let t = 0; t <= 700; t += 16) det.feed({ t, rot: mean.map(v => v + Math.sin(t)*.3), acc: [0, 0, 0], accG: [0, 9.8, 0] }); return det.profile.bias; };

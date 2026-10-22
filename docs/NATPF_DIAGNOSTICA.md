@@ -27,9 +27,12 @@ Serve a migliorare il gioco con dati veri invece che con impressioni. Il ciclo �
    si salva in parti da 30 minuti: ogni parte compare nell'elenco («parte 2», «parte 3»…) e si scarica da sola.
 6. Per confrontare due sessioni, spunta **confronta** su tutte e due: compare la tabella prima/dopo.
 
-**Prova guidata dei colpi**, circa 4 minuti, dal menu principale:
+**Prova guidata dei colpi**, circa 5 minuti, dal menu principale:
 
-- il lanciapalle chiede in ordine 10 dritti, 10 rovesci, 6 pallonetti, 8 + 8 dritti incrociati e lungolinea, 6 + 6 rovesci incrociati e lungolinea, 10 misti;
+- il lanciapalle chiede in ordine 10 dritti, 10 rovesci, 6 pallonetti, 6 tagliati, 6 palle corte (solo con il telefono),
+  8 + 8 dritti incrociati e lungolinea, 6 + 6 rovesci incrociati e lungolinea, 10 misti;
+- con il telefono la richiesta dice come si ottiene la direzione (racchetta virtuale, dal 22/10): un attimo in anticipo
+  per l'incrociato, un attimo più tardi per il lungolinea;
 - ogni richiesta finisce nel registro;
 - alla fine la registrazione si ferma da sola e il pannello mostra il riassunto.
 
@@ -42,7 +45,7 @@ Tutto è scritto in `eventi.jsonl`, un evento JSON per riga. `t` è in ms dall'i
 | Evento | Contenuto |
 |---|---|
 | `sessione`, `sessione.fine` | dispositivi, browser, scheda grafica, impostazioni, conteggi |
-| `tel.colpo` | colpo del telefono: numero, percorso (veloce o affidabile), lato, tipo, perché, mira, istante del picco, tempi di riconoscimento, preparazione, consegna e totale; anche i colpi scartati, con il motivo |
+| `tel.colpo` | colpo del telefono: numero, percorso (veloce o affidabile), lato, tipo, perché, mira, istante del picco, tempi di riconoscimento, preparazione, consegna e totale; anche i colpi scartati, con il motivo. Racchetta virtuale: velocità al picco (`pk`, °/s), ampiezza (gradi), `forma` del gesto (piano, salita della testa, polso, manico, velocità della testa e della mano) e `intenzione` letta dal computer (tipo, sicurezza, forza, portata, profondità voluta, mira del piatto); null con i telefoni di prima |
 | `tel.cal` | passi della calibrazione |
 | `tel.stato` | collegamento, stato del telefono, presa, pagina visibile o nascosta, blocco dello schermo |
 | `tel.orologio` | ogni scambio dell'orologio (invio e ricezione sul computer, ora del telefono) |
@@ -50,7 +53,7 @@ Tutto è scritto in `eventi.jsonl`, un evento JSON per riga. `t` è in ms dall'i
 | `palla` | posizione e velocità a ogni fotogramma mentre la palla è in gioco |
 | `rimbalzo`, `punto`, `fase` | eventi del motore |
 | `tentativo` | swing del giocatore: distanza palla–giocatore, correzione della latenza, velocità, se l'ha colpita |
-| `colpo.gioco` | esito del colpo (tempo, qualità, punto di rimbalzo, direzione incrociato/lungolinea/centro) e colpi della CPU |
+| `colpo.gioco` | esito del colpo (tempo, qualità, punto di rimbalzo, direzione incrociato/lungolinea/centro) e colpi della CPU. Racchetta virtuale: `racchetta` con il numero del colpo del telefono (`n`, lo lega a `tel.colpo`), tempo nella finestra d'impatto (−1…+1, + anticipo), eccesso oltre la finestra, qualità, assistenza, fallito, in rete, tipo, punto di caduta nel riferimento di chi colpisce, volée |
 | `input` | ogni comando arrivato al motore (telefono, webcam, mouse) |
 | `webcam.frame`, `webcam.evento` | tracciamento della webcam: istante di cattura, fonte, mani viste, mano scelta, ms di riconoscimento, perdite e riprese; colpo anticipato (`event`, quello che usa il gioco) e conferma a fine gesto (`confirm`, solo qui) |
 | `prestazioni` | ogni secondo: fps, fotogramma p50/p95/massimo, fotogrammi oltre 50 ms, aggiornamento e disegno p95, memoria, compiti lunghi, coda del disco, costo del registratore |
@@ -127,6 +130,8 @@ I campioni grezzi del telefono stanno in un file a parte, `telefono-sensori.json
 
 **Automatico, ma solo con un riferimento**
 - lato, tipo e direzione giusti, solo nella prova guidata;
+- direzione voluta con il tempo del colpo (racchetta virtuale): dice se chi gioca ha colpito nel momento giusto per la
+  direzione chiesta, prima del piatto e dell'esecuzione;
 - il riferimento è il colpo richiesto, quindi resta da verificare nel video: chi gioca può aver fatto un altro gesto;
 - senza prova guidata le metriche riportano solo le distribuzioni (quanti dritti, quanti pallonetti…) e non dichiarano mai un colpo «riconosciuto male».
 
@@ -143,8 +148,12 @@ I campioni grezzi del telefono stanno in un file a parte, `telefono-sensori.json
 - `telefono`: sensori, colpi, tempi, orologio, collegamento, tipi;
 - `webcam`;
 - `gioco`, con il costo del registratore;
-- `colpi`: input, esiti, tempo, direzione;
-- `riferimento`, solo nella prova guidata;
+- `colpi`: input, esiti, tempo, direzione; `racchetta`: tempo nella finestra d'impatto, colpi oltre la finestra,
+  falliti, in rete, assistiti, volée, qualità;
+- `riferimento`, solo nella prova guidata (anche `direzioneDalTempoPercento`);
+- `ripetibilita`: per ogni colpo richiesto (o, senza prova guidata, per lato e tipo letti) quanto spesso il tipo letto è
+  lo stesso e quanto variano (p90 − p10) salita della testa, forza, tempo nella finestra e punto di caduta. Il modello
+  del colpo non ha caso: la variazione è di chi gioca e delle palle, ed è il riferimento per tarare le soglie;
 - `registrazione`.
 
 Per ogni distribuzione: quanti, media, mediana, p90, p99, massimo e jitter (p90 − p10).

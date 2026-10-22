@@ -292,6 +292,11 @@ export class DiagRecorder {
       rilevamento: det, attesa: hold, totale: r(total, 1), consegna: total != null && det != null ? r(Math.max(0, total - det - hold), 1) : null,
       hz: s?.sampleHz ?? null, potenza: r(s?.power), lift: r(s?.lift, 3), dir: s?.dir ?? null, heading: r(s?.heading, 1),
       piatto: s?.face ? [r(s.face.yaw, 1), r(s.face.pitch, 1), r(s.face.roll, 1)] : null,
+      // racchetta virtuale: velocità al picco (°/s), ampiezza (gradi), forma del gesto misurata dal telefono
+      // (stroke-shape.js) e intenzione letta dal computer (natpf_stroke_intent.js); null con i telefoni di prima
+      pk: s?.peak ?? null, ampiezza: s?.angle ?? null,
+      forma: s?.shape ? { piano: r(s.shape.plane, 3), salita: r(s.shape.rise, 3), polso: r(s.shape.roll, 3), manico: r(s.shape.tilt, 3), testa: r(s.shape.head, 2), mano: r(s.shape.hand, 2) } : null,
+      intenzione: n.intent ? { tipo: n.intent.shot, conf: r(n.intent.conf), forza: r(n.intent.power, 3), portata: r(n.intent.reach, 3), profondita: r(n.intent.depth, 3), piatto: r(n.intent.face, 3) } : null,
     });
     if (ev?.side) this.lastInputSide = ev.side;
   }
@@ -323,8 +328,16 @@ export class DiagRecorder {
     const side = /back/i.test(this.lastInputSide || '') ? 'backhand' : /fore/i.test(this.lastInputSide || '') ? 'forehand' : null;
     const contactSide = side ? ((side === 'forehand') === (hand !== 'left') ? 1 : -1) : null;
     const hit = e.kind === 'hit';
+    // esito deterministico della racchetta virtuale (natpf_stroke_outcome.js, natpfLastRacket del motore), solo se
+    // nuovo e di chi gioca qui. tempo: posizione nella finestra d'impatto, −1…+1 (+ anticipo: incrociato, − ritardo:
+    // lungolinea), oltre ±1 l'eccesso; x e prof nel riferimento di chi colpisce (x a destra, prof dalla rete)
+    const lr = this.engine.natpfLastRacket, mine = lr && lr.who === (this.engine.playerRole === 'p2' ? 'p2' : 'player') && lr.at !== this._racketAt;
+    if (mine) this._racketAt = lr.at;
+    const o = mine ? lr.out || {} : null;
+    const racchetta = mine && (hit || e.kind === 'fault') ? { n: lr.seq ?? null, tempo: r(o.t, 3), eccesso: r(o.excess, 3), q: r(o.q, 3), qualita: r(lr.quality, 3), assistito: !!o.assisted,
+      fallito: !!o.failed, rete: !!o.netFault, tipo: o.shot || null, x: r(o.x), prof: r(o.depth), volee: !!lr.volley, contatto: lr.contact ?? null } : null;
     this.log('colpo.gioco', { chi: 'giocatore', esito: e.kind || null, tempo: e.grade || null, qualita: q?.label || null, kmh: e.speedKmh ?? null, tipo: e.shotType || null,
-      x: hit && ls ? r(ls.landingX) : null, z: hit && ls ? r(ls.landingZ) : null, lato: side, direzione: hit && ls ? shotDirection(ls.landingX, contactSide) : null });
+      x: hit && ls ? r(ls.landingX) : null, z: hit && ls ? r(ls.landingZ) : null, lato: side, direzione: hit && ls ? shotDirection(ls.landingX, contactSide) : null, racchetta });
   }
   // misure al secondo: fotogrammi, aggiornamento, disegno, memoria; stato del collegamento del telefono
   _second(){

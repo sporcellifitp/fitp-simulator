@@ -52,3 +52,7 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     taglia di chi gioca. Provate e scartate: una regola nel riconoscimento per i viaggi partiti con la mano in
     movimento (inutile negli scenari realistici, peggiorava il solo flusso ottico) e la quiete misurata sulla media di
     più campioni (aiutava con il tremolio, rompeva la «folla»).
+- Checkpoint 7: campi nuovi della diagnostica (passo 12).
+  - Decisioni: gesto ed esito si legano con il numero del colpo del telefono (non per vicinanza nel tempo); la
+    ripetibilità è la variazione p90 − p10 per colpo richiesto, senza giudizio (il modello non ha caso, varia chi
+    gioca); la direzione voluta si legge dal tempo nella finestra (±15%) accanto a quella ottenuta.

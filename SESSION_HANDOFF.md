@@ -124,8 +124,20 @@ tastiera come controlli nuovi.
     - Limiti (in `docs/NATPF_WEBCAM.md`): all'inizio vince la persona più vicina; due mani della stessa taglia
       sovrapposte possono scambiarsi; con i punti che tremano e colpi a meno di 2 s il colpo dopo può perdersi (uguale
       a prima; la soluzione provata rompeva la «folla»).
-12. [ ] Diagnostica: forma, intenzione ed esito negli eventi; prova guidata con il colpo richiesto; metriche di
+12. [x] Diagnostica: forma, intenzione ed esito negli eventi; prova guidata con il colpo richiesto; metriche di
     ripetibilità.
+    - `tel.colpo`: `pk`, `ampiezza`, `forma` (piano, salita, polso, manico, velocità di testa e mano), `intenzione`
+      (tipo, sicurezza, forza, portata, profondità voluta, mira del piatto).
+    - `colpo.gioco` del giocatore: `racchetta` (esito deterministico da `natpfLastRacket`: tempo nella finestra,
+      eccesso, qualità, assistenza, fallito, rete, tipo, caduta, volée), legato al gesto con il numero del colpo del
+      telefono (`ev.natpf.seq` → `natpfLastRacket.seq`).
+    - Metriche: `telefono.forma`/`intenzione`, `colpi.racchetta`, `riferimento.direzioneDalTempoPercento` (direzione
+      voluta con il tempo), `ripetibilita` per colpo richiesto o per lato e tipo; riassunto e confronto aggiornati;
+      `diag.mjs colpi` con forma, forza ed esito.
+    - Prova guidata: tagliati e palle corte (solo telefono, `phoneOnly`), direzioni spiegate con il tempo del colpo,
+      circa 5 minuti.
+    - Prove: registratore e metriche (`natpf-diag.test.mjs`), legame del numero (`natpf-racchetta*.test.mjs`), nel
+      browser `natpf-diag-session.mjs` 18/18 con la verifica nuova.
 13. [ ] I 14 test obbligatori, prima/dopo sullo ZIP (`scripts/audit/zip-replay.mjs`), regressioni (`npm test`, e2e).
     Prove nel browser che falliscono già a `84ca878` (prima del passo 10), da chiarire qui:
     - `natpf-phone-upright.mjs` 7/10: con il telefono sintetico della presa del 19/10 i dritti con il polso che prona
