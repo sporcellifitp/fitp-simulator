@@ -420,7 +420,7 @@ Tutti eseguiti in questo contenitore il 22/10/2026, con il codice finale del bra
 
   | Prova | Esito |
   |---|---|
-  | `natpf-phone-upright`: QR, calibrazione rapida con colpi completi, colpi normali mai pallonetti, pallonetto, mira | 10/10 |
+  | `natpf-phone-upright`: QR, calibrazione rapida con colpi completi, colpi normali mai pallonetti, pallonetto, mira | 10/10 con i gesti della racchetta simulata; con i gesti di prima (presa del 19/10) 7/10, vedi §4.4 |
   | `natpf-training-flow`: allenamento dal menu, calibrazione in campo, esercizi | 13/13 |
   | `natpf-latency`: dal gesto alla risposta, un solo swing per gesto, swing all'istante del colpo | 9/9 |
   | `natpf-training-reconnect`, `natpf-phone-blackout`: telefono scollegato, rete che cade | 6/6, 6/6 |
@@ -446,7 +446,8 @@ Tutti eseguiti in questo contenitore il 22/10/2026, con il codice finale del bra
   palla del gesto successivo (o la verifica, dopo l'ultimo) lo cancellava (prova dell'allenamento 11/13 → 13/13, con
   la prova originale). Corretto in `natpf_training.js`; test nuovo in `natpf-flows` (fallisce con il codice di prima).
 - **Gesti della prova del telefono**: erano rotazioni del telefono sul proprio lato lungo, senza percorso della testa
-  della racchetta; ora vengono dalla racchetta simulata delle prove in Node.
+  della racchetta; ora vengono dalla racchetta simulata delle prove in Node. Questa non è una correzione del codice:
+  con i gesti di prima il codice finale fa 7/10 (§4.4).
 - **Audit della Leggenda** (`npm run audit:legend`, punti e semi predefiniti): tutti i criteri rispettati con i sei
   profili. Per esempio contro «preciso»: game vinti dalla CPU 89,2% (≥ 60%), incrociati 32,1% (30–50%), lungolinea
   29,1%; contro «tennista» 97,3% (≥ 85%).
@@ -492,6 +493,14 @@ tagliato (−0,22), forza del pallonetto «morbido» (0,3), zona morta del piatt
 
 ### 4.4 Limiti noti
 
+- **Difetti aperti, verificati dopo la fine del giro** (misure in `SESSION_HANDOFF.md`, «Difetti aperti»):
+  - la pagina storica `site/tennis` va in errore sull'evento `hand` del collegamento: la prova della CI «gesture and
+    calibration» fallisce (18/18 prima del giro e con `hand: []` in `link.js`);
+  - con i gesti sintetici della presa del 19/10 (polso che prona) i dritti diventano tagliati e il pallonetto un
+    tagliato: la prova del telefono di prima fa 7/10, prima del giro 10/10;
+  - la calibrazione rapida supera 10 s con un tremolio di 25 °/s in 4 prove su 6 (criterio di P9 non raggiunto);
+  - «Salta» durante il passo «fermo» lascia il rilevatore ad aspettare il telefono fermo;
+  - negli swing corti la forza è sottostimata (picco della media mobile).
 - Webcam: all'avvio vince la mano più grande con la lateralità giusta, quindi un'altra persona più vicina alla webcam
   di chi gioca può essere scelta. Una mano nuova che compare lontano entro 0,5 s dalla perdita della propria si prende
   ancora: non si distingue dalla propria che torna dopo il mosso di uno swing.

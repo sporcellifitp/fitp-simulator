@@ -30,8 +30,12 @@ tastiera come controlli nuovi.
 - Branch `claude/friendly-fermat-dwv2w2` (mai `main`). Prima di questo giro il branch era al commit `bfd629c`.
 - **Fase 1 (diagnosi) finita.** È in `docs/NATPF_RACCHETTA_VIRTUALE.md` §2, problemi P1–P11 con evidenze marcate
   [dati], [codice], [ipotesi] e [insufficiente].
-- **Implementazione, test automatici, documento, build e zip finiti** (passi 1–14 qui sotto). Resta la **validazione
-  fisica** (passo 15), che in questo ambiente non si può fare: procedura in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5.
+- **Implementazione, test automatici, documento, build e zip fatti** (passi 1–14 qui sotto), ma con **cinque difetti
+  aperti** trovati dopo la fine del giro (sezione «Difetti aperti», passo 16). Resta anche la **validazione fisica**
+  (passo 15), che in questo ambiente non si può fare: procedura in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5.
+- Lavoro parallelo: un'altra sessione è ripartita da `84ca878` (passo 9 di questo branch) e ha rifatto i passi 10–12
+  su `claude/determined-tesla-8dgaks` (ultimo commit `c5b9337`). I due branch non sono uniti e cambiano gli stessi
+  file (calibrazione, webcam, diagnostica, allenamento).
 
 ## Diagnosi in breve (dettagli nel documento)
 
@@ -54,6 +58,31 @@ tastiera come controlli nuovi.
   dal telefono perché arrivavano subito dopo la preparazione lenta, che il gioco ha giocato al loro posto. Spiega 3
   dei 6 colpi a vuoto «troppo presto».
 - **Funzionano**: collegamento e prestazioni (59,9 Hz, 31,8 + 6,7 ms, 60 fps).
+
+## Difetti aperti (verificati il 22/10, dopo il passo 14)
+
+Trovati confrontando questo branch con il lavoro dell'altra sessione, verificati qui sul codice di `61f037e`:
+
+1. **Pagina storica `site/tennis`** (regressione del passo 1, `78ea315`): l'evento `hand` del collegamento non ha
+   ascoltatori in quella pagina e `emit` va in errore. La prova della CI «gesture and calibration»
+   (`tools/e2e/gesture-calibration.mjs`) passa 18/18 a `bfd629c`, su questo branch si ferma al servizio (2 prove su
+   2) e torna 18/18 aggiungendo `hand: []` agli eventi di `link.js`. Le altre prove della CI passano: telefono e
+   tempi 10/10 e 8/8, grafica 9/9, pacchetto ridotto 5/5, 6/6 e 10/10, LAN in Node 4/4.
+2. **Presa del video del 19/10**: la prova del telefono com'era a `84ca878` (gesti sintetici con il polso che prona)
+   passa 10/10 a `bfd629c` e dà 7/10 sul codice finale: dritti con il polso che ruota letti come tagliati (4 su 6), il
+   gesto dal basso verso l'alto letto come tagliato invece che pallonetto, mira dal piatto girato 1,2 m (la prova
+   chiede più di 1,5 m; prima 3,9 m). Il 10/10 del passo 14 è con i gesti della racchetta simulata, che hanno preso il
+   posto di quelli. L'intenzione nuova legge salita e discesa con soglie fisse, senza il riferimento personale per
+   verso che il modello di prima prendeva dalla calibrazione e dai colpi normali.
+3. **Calibrazione, criterio di P9 non raggiunto**: il percorso rapido ha ancora quattro gesti. Con gesti perfetti
+   8,3 s; con un tremolio di 25 °/s il passo «fermo» dura 2,2–3,7 s (3–5 avvisi) e la calibrazione supera 10 s in 4
+   prove su 6 (9,8–11,3 s); con 15–20 °/s 8,3 s. Procedura della misura: come la prova «tremolio» di
+   `natpf-racchetta.test.mjs` sul branch dell'altra sessione, con i quattro gesti di qui.
+4. **«Salta» durante il passo «fermo»**: il rilevatore resta ad aspettare il telefono fermo; con un tremolio di
+   25 °/s il primo dritto non parte e si gioca dopo circa 3,5 s.
+5. **Swing corti**: la forza viene dal picco della media mobile, più basso del vero negli swing corti. A 1100 °/s:
+   swing di 50° → 72% del picco (forza 0,49), 120° → 93% (forza 0,70); a 700 °/s 82% e 95%. Lo swing corto perde
+   forza oltre alla portata, che invece è voluta.
 
 ## Prossimi passi (in ordine)
 
@@ -125,8 +154,11 @@ tastiera come controlli nuovi.
     prova fisica); build; prove nel browser (telefono 10/10, allenamento 13/13, latenza 9/9, ricollegamento 6/6, rete
     6/6, menu 22/22, 1v1 18/18, diagnostica 23/23, LAN 7/8 per il limite noto del contenitore); zip Cloudflare e LAN
     estratti e provati (fuori dal repository); resoconto.
-15. [ ] **Validazione fisica** con telefono, webcam e persone vere: `docs/NATPF_RACCHETTA_VIRTUALE.md` §5. È il passo
-    che resta; nessuna verifica fisica è stata fatta in questo giro.
+15. [ ] **Validazione fisica** con telefono, webcam e persone vere: `docs/NATPF_RACCHETTA_VIRTUALE.md` §5. Nessuna
+    verifica fisica è stata fatta in questo giro.
+16. [ ] **Difetti aperti 1–5** (sezione sopra): correggerli o portare le correzioni dal branch dell'altra sessione, poi
+    rifare tutte le prove, comprese quelle della CI della pagina storica (`.github/workflows/natpf-simulator-tests.yml`)
+    e la prova del telefono con i gesti della presa del 19/10. Si può fare qui, prima del passo 15.
 
 ## Come riprendere
 

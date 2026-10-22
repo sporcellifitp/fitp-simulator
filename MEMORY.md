@@ -394,6 +394,12 @@ Quinto giro (21/10: app nativa e Bluetooth, modalità diagnostica, migliorie gi�
 
 ## 11. Prossimi passi
 
+Prima di tutto: i **cinque difetti aperti della racchetta virtuale** (verificati il 22/10 dopo la fine del giro, elenco
+e misure in `SESSION_HANDOFF.md`, «Difetti aperti»): pagina storica in errore sull'evento `hand` (prova della CI
+«gesture and calibration»), presa del 19/10 (prova del telefono di prima 7/10, prima del giro 10/10), calibrazione
+oltre 10 s con il tremolio, «Salta» nel passo «fermo», forza degli swing corti. Un'altra sessione ha lavorato in
+parallelo da `84ca878` su `claude/determined-tesla-8dgaks`: i due branch vanno uniti o va scelto quale tenere.
+
 0. **Validazione fisica della racchetta virtuale** (22/10): procedura in `docs/NATPF_RACCHETTA_VIRTUALE.md` §5 (telefono
    Android e iPhone, webcam, più persone, prova guidata con il video), poi tarare le soglie del §4.3 con i pacchetti.
 1. Prova fisica del quarto giro (20/10) con telefono e computer veri, in quest'ordine: allenamento dal menu (le
@@ -429,7 +435,9 @@ Quinto giro (21/10: app nativa e Bluetooth, modalità diagnostica, migliorie gi�
   diagnostica lunga 23/23, LAN 7/8 (limite noto, §7). Tre difetti trovati da queste prove e corretti (calibrazione con
   colpi completi, piano vecchio, colpo della calibrazione in campo). Zip: `natpf-simulator-cloudflare-20261022.zip`
   (23,7 MiB, nessun file oltre 25 MiB) e `natpf-simulator-lan-windows-20261022.zip` (57,2 MiB, Node 22.22.0
-  verificato), estratti e provati. Validazione fisica non eseguita (§4.3 del documento).
+  verificato), estratti e provati. Validazione fisica non eseguita (§4.3 del documento). Verifica successiva (22/10):
+  la prova della CI «gesture and calibration» della pagina storica fallisce (evento `hand`), la prova del telefono con
+  i gesti della presa del 19/10 fa 7/10 (10/10 prima del giro): `SESSION_HANDOFF.md`, «Difetti aperti».
 - Quinto giro (21/10): `natpf-tennis/test` **236** test, con Leggenda (`natpf-legend.test.mjs`, 11, e uno in
   `natpf-flows`) e webcam (`natpf-webcam-classifier.test.mjs`, 15); `tools/test` **134**; `npm run audit:legend`
   tutti i criteri; banco della webcam (`scripts/audit/webcam-sweep.mjs`) 16 criteri su 18. Nuovi: `natpf-diag.test.mjs` (16:

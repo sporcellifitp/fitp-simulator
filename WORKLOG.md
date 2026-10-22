@@ -51,3 +51,11 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
 - Checkpoint 7 (fine giro): build, prove nel browser (telefono 10/10, allenamento 13/13, latenza 9/9, ricollegamento
   6/6, rete 6/6, menu 22/22, 1v1 18/18, diagnostica 23/23, LAN 7/8 per il limite noto), zip Cloudflare e LAN estratti
   e provati. Validazione fisica non eseguita: procedura nel documento §5.
+- Checkpoint 8 (verifica dopo il confronto con un'altra sessione, che da `84ca878` ha rifatto i passi 10–12 su
+  `claude/determined-tesla-8dgaks`): cinque difetti aperti, verificati qui (dettagli in `SESSION_HANDOFF.md`).
+  - Regressione mia: l'evento `hand` manda in errore la pagina storica; la prova della CI «gesture and calibration»,
+    che non avevo eseguito, fallisce (18/18 prima del giro e con la correzione di una riga).
+  - La prova del telefono con la presa del 19/10, com'era prima, passa a `bfd629c` (10/10) e non sul codice finale
+    (7/10): avevo sostituito i suoi gesti invece di correggere la lettura dei colpi.
+  - Non fatti: calibrazione entro 10 s con il tremolio (criterio di P9), «Salta» durante il passo «fermo»; trovata la
+    forza sottostimata negli swing corti.
