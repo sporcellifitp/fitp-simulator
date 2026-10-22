@@ -115,3 +115,10 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     pulsante della prova guidata (5 minuti, tagliati e palle corte).
   - Prove dopo l'unione: `npm test` 279/279, `tools/test` 135/135. Le prove nel browser e le misure della presa del
     19/10 sul branch unito sono il primo lavoro del passo 16.
+- Checkpoint 11 (22/10, notte): richiesta nuova, gameplay come il gioco di riferimento indicato (benchmark vincolante).
+  - Il nome del gioco è stato verificato in rete (uscito oggi): il tennis c'è; le meccaniche si conoscono solo dai testi
+    (pagina ufficiale e quattro recensioni), non dai video, che da qui non si guardano.
+  - Audit (fase A): la mira è continua ma schiacciata e satura (tempo pieno a 0,15–0,2 s mentre lo swing vale fino a
+    0,5 s prima; profondità dei colpi normali in 2,5 m; caduta indipendente dalla posizione di chi colpisce); il
+    recupero dopo il colpo manda e tiene a rete chi colpisce da dentro il campo (56–89% dei colpi nelle partite
+    simulate). Nuova sintesi `npm run audit:rally -- --campo`.

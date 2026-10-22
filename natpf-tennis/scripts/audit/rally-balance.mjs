@@ -64,7 +64,9 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
   const realRandom = Math.random; Math.random = engineRng;
   const out = { profile: typeof profile === 'string' ? profile : 'custom', difficulty, points: 0, won: 0, rallies: [], reasons: {}, capped: 0, whiffs: 0, grades: {}, landings: [], cpu: [],
     // racchetta virtuale: colpi di chi gioca per tipo, al volo, falliti; piani d'intercetto per tipo
-    racket: { shots: {}, volleys: 0, failed: 0, plans: {} } };
+    racket: { shots: {}, volleys: 0, failed: 0, plans: {} },
+    // movimento di chi gioca: dove colpisce e dove va subito dopo il colpo (recupero), per ogni colpo della racchetta
+    moves: [] };
   try {
     const e = createHeadlessEngine({ difficulty });
     const award = e._awardPoint.bind(e);
@@ -113,7 +115,8 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
       const ls = e.natpfSkill?.lastShot;
       if (ls && ls !== lastSeenShot){ lastSeenShot = ls; out.landings.push({ x: +ls.landingX.toFixed(2), z: +e.ball.targetLanding.z.toFixed(2), grade: ls.grade, power: ls.power }); }
       const lr = e.natpfLastRacket, K = out.racket;
-      if (lr && lr !== lastSeenRacket && lr.who === 'player'){ lastSeenRacket = lr; const k = lr.out?.shot || '?'; K.shots[k] = (K.shots[k] || 0) + 1; if (lr.volley) K.volleys++; if (lr.out?.failed) K.failed++; }
+      if (lr && lr !== lastSeenRacket && lr.who === 'player'){ lastSeenRacket = lr; const k = lr.out?.shot || '?'; K.shots[k] = (K.shots[k] || 0) + 1; if (lr.volley) K.volleys++; if (lr.out?.failed) K.failed++;
+        out.moves.push({ contactX: +e.player.pos.x.toFixed(2), contactZ: +e.player.pos.z.toFixed(2), targetX: +e.player.targetPos.x.toFixed(2), targetZ: +e.player.targetPos.z.toFixed(2), volley: !!lr.volley, landingX: +e.ball.targetLanding.x.toFixed(2), landingZ: +e.ball.targetLanding.z.toFixed(2) }); }
       const pl = e.natpfPlan;
       if (pl && pl !== lastSeenPlan){ lastSeenPlan = pl; K.plans[pl.kind] = (K.plans[pl.kind] || 0) + 1; }
     }
@@ -124,6 +127,24 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
   out.maxHits = sorted.at(-1) ?? 0;
   out.winPct = +(100*out.won/Math.max(1, out.points)).toFixed(1);
   return out;
+}
+
+// Campo aperto e movimento (dai colpi di chi gioca di più simulazioni): occupazione della metà campo avversaria in
+// celle di 1 m (larghezza del doppio, da rete a 1 m oltre la riga di fondo), quota delle tre celle più colpite,
+// profondità e lato in percentili; quante volte dopo il colpo chi gioca va verso la rete (bersaglio entro 7 m) e da
+// dove colpiva.
+export function courtStats(runs){
+  const L = runs.flatMap(r => r.landings), M = runs.flatMap(r => r.moves || []);
+  const cell = l => `${Math.max(-6, Math.min(5, Math.floor(l.x)))},${Math.max(0, Math.min(12, Math.floor(-l.z)))}`;
+  const cells = {}; for (const l of L) cells[cell(l)] = (cells[cell(l)] || 0) + 1;
+  const counts = Object.values(cells).sort((a, b) => b - a), n = Math.max(1, L.length);
+  const q = (a, f) => { const s = [...a].sort((x, y) => x - y); return s.length ? +s[Math.min(s.length - 1, Math.floor(f*s.length))].toFixed(2) : null; };
+  const depth = L.map(l => -l.z), side = L.map(l => l.x);
+  const net = M.filter(m => m.targetZ < 7), fromBack = net.filter(m => m.contactZ > 10);
+  return { shots: L.length, cells: counts.length, top3Pct: +(100*counts.slice(0, 3).reduce((a, b) => a + b, 0)/n).toFixed(1),
+    depth: { p10: q(depth, .1), p50: q(depth, .5), p90: q(depth, .9) }, side: { p10: q(side, .1), p50: q(side, .5), p90: q(side, .9) },
+    moves: M.length, toNetPct: +(100*net.length/Math.max(1, M.length)).toFixed(1), toNetFromBackPct: +(100*fromBack.length/Math.max(1, M.length)).toFixed(1),
+    volleyPct: +(100*M.filter(m => m.volley).length/Math.max(1, M.length)).toFixed(1), contactZ: { p10: q(M.map(m => m.contactZ), .1), p50: q(M.map(m => m.contactZ), .5) } };
 }
 
 export function auditAll({ points = 200, seeds = [7, 11, 23], difficulties = ['casual', 'pro'], profiles = Object.keys(PROFILES) } = {}){
@@ -139,7 +160,15 @@ export function auditAll({ points = 200, seeds = [7, 11, 23], difficulties = ['c
   return rows;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href){
+if (import.meta.url === pathToFileURL(process.argv[1]).href && process.argv.includes('--campo')){
+  // npm run audit:rally -- --campo [--points=150]: campo aperto e movimento con i profili del telefono
+  const arg = k => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1];
+  console.log('difficoltà  profilo     colpi  celle  3 celle  profondità p10/p50/p90  lato p10/p50/p90  verso la rete (dal fondo)  volée  impatto z p10/p50');
+  for (const difficulty of ['casual', 'pro']) for (const profile of Object.keys(PHONE_PROFILES)){
+    const c = courtStats([7, 11, 23].map(seed => simulate({ profile, difficulty, points: +(arg('points') || 150), seed })));
+    console.log(`${difficulty.padEnd(11)} ${profile.padEnd(10)} ${String(c.shots).padStart(6)} ${String(c.cells).padStart(6)} ${String(c.top3Pct).padStart(7)}%  ${[c.depth.p10, c.depth.p50, c.depth.p90].join('/').padStart(22)}  ${[c.side.p10, c.side.p50, c.side.p90].join('/').padStart(16)}  ${String(c.toNetPct).padStart(12)}% (${c.toNetFromBackPct}%)  ${String(c.volleyPct).padStart(5)}%  ${c.contactZ.p10}/${c.contactZ.p50}`);
+  }
+} else if (import.meta.url === pathToFileURL(process.argv[1]).href){
   const arg = k => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1];
   const rows = auditAll({ points: +(arg('points') || 200), difficulties: arg('difficulty') ? [arg('difficulty')] : undefined, profiles: arg('profiles') ? arg('profiles').split(',') : undefined });
   if (process.argv.includes('--json')) console.log(JSON.stringify(rows, null, 2));

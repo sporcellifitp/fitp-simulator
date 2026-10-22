@@ -573,3 +573,44 @@ diagnostica (Maiusc+D → Registra) e si salva il pacchetto.
 
 Analisi dei pacchetti: `node scripts/diag/diag.mjs colpi sessione.zip` e, per i campioni grezzi,
 `node --import ./test/register.mjs scripts/audit/zip-replay.mjs <cartella estratta>`.
+
+## 6. Confronto con il gioco di riferimento, campo aperto e movimento (fase A, 22/10 notte)
+
+### Il riferimento
+
+Il gioco di riferimento indicato nella richiesta esiste con quel nome ed è uscito il 22/10/2026 (pagina ufficiale
+dell'editore, enciclopedia, quattro recensioni del 20–22/10). Il tennis è uno dei suoi dodici sport. Da qui non si
+possono guardare video: le osservazioni vengono da testi. Le fonti, con i nomi, sono nel rapporto della sessione e non
+nei documenti (regola di marchio).
+
+Livelli di certezza: **[osservato]** detto da una fonte sul tennis di questo gioco; **[inferito]** detto per il tennis
+del gioco precedente della stessa serie, che una recensione dice identico («esattamente come lo ricordate»);
+**[ipotesi]** non detto da nessuna fonte.
+
+| Meccanica | Riferimento | NATPF adesso (misurato) | Differenza | Intervento | Verifica |
+|---|---|---|---|---|---|
+| Movimento | [osservato] il personaggio corre da solo dove va la palla; non si può muovere con la levetta | piano d'intercetto sulla traiettoria prevista; dopo il colpo «a rete» se si colpisce da dentro il campo o dopo un attacco: nelle partite simulate il bersaglio dopo il colpo è a rete nel 56–89% dei colpi, metà dei colpi del profilo migliore a 2,9 m dalla rete, 70% volée | il nostro giocatore va e resta a rete senza che la palla lo chieda | recupero dopo il colpo verso il fondo quanto il tempo permette; avanti solo per prendere una palla corta | `audit:rally --campo`: quota verso la rete, profondità dell'impatto; test del movimento |
+| Tempo e direzione | [osservato] in anticipo da una parte, in ritardo dall'altra; la direzione dipende molto dal tempo | stessa regola, ma piena già a 0,15–0,2 s di anticipo mentre lo swing si tiene fino a 0,42–0,5 s: oltre 0,26–0,32 s ogni colpo cade nello stesso punto (x −4,0 m) | il 40% della finestra dà la stessa palla | mappa continua su tutta la finestra, angolo dalla posizione di chi colpisce | test di continuità, copertura, ripetibilità |
+| Profondità e forza | [inferito] la velocità dello swing dà la velocità della palla | profondità di un colpo normale da 8,45 m (forza 0,3) a 10,9 m (forza 1): 2,5 m; con i gesti tipici 9,5–10,9 m, tetto 11,3 m | metà campo e centro irraggiungibili con un colpo normale | profondità continua su tutto il campo dalla forza rispetto al proprio colpo, dalla salita e dall'ampiezza; lunga possibile se si esagera | test della profondità controllabile |
+| Tipi di colpo | [osservato] più tipi di colpo, schiacciate; [inferito] polso sopra la palla = top spin, «a cucchiaio» = taglio, dal basso in alto = pallonetto | forma del colpo (salita della testa, piano), salita abituale dalla calibrazione | il polso sul manico è solo diagnostica | nessuno in questa fase | prova guidata (§5) |
+| Partita | [osservato] doppio due contro due; partita «tranquilla» con palla grande e lenta | 1 contro 1 per richiesta; nessuna palla lenta | voluta (niente doppio) | nessuno | — |
+| Assistenza | [osservato] le recensioni la trovano a volte «un po' casuale», «poco prevedibile» con gli avversari forti | nessun caso nel colpo di chi gioca; tetti e spinte deterministici | voluto: più controllo del riferimento | tenere la palla dentro senza cambiare la direzione voluta | test «l'assistenza non cancella l'intenzione» |
+| Grafica, telecamera | [ipotesi] non descritte dalle fonti | visuale alle spalle, specchiata per il P2 | non verificabile da qui | nessuno | prova fisica |
+
+### Campo aperto: cause trovate nel codice
+
+- **Saturazione del tempo** (`natpf_stroke_outcome.js`): `inside = clamp(t, −1, 1)` con t = anticipo / finestra della
+  direzione (0,15–0,2 s), mentre lo swing in attesa vale fino a 0,42–0,5 s prima (`IMPACT.early`). Oltre la finestra
+  l'anticipo diventa solo «errore» (spinta oltre la riga laterale), sempre uguale.
+- **Profondità compressa**: tabella `OUTCOME.depth` (top spin 7,4–10,9 m), tetto `maxDepth` 11,3 m, forza che satura a
+  1350 °/s (i dritti veri arrivano a 1200–1650 °/s).
+- **Mira assoluta**: la caduta laterale è `aim × xMax` indipendente da dove si trova chi colpisce; la posizione non
+  conta.
+- Non trovati: bersagli a zone, angoli quantizzati, caso. La continuità c'è, ma è schiacciata in pochi metri e
+  satura.
+
+### Movimento: cause trovate nel codice
+
+- `recoverAfterShot` (`natpf_impact.js`): colpito a meno di 8,2 m dalla rete → sempre a rete; colpo profondo e forte o
+  angolato da meno di 10,6 m → a rete («attacco»). Una palla corta porta avanti, e da lì non si torna più.
+- `planPlayerIntercept`: chi è entro 8 m dalla rete prende la palla al volo, quindi resta avanti.

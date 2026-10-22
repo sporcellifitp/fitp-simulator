@@ -256,6 +256,18 @@ Trovati confrontando il lavoro delle due sessioni e verificati qui; stato misura
     forza degli swing corti (difetto 5), diagnostica doppia (passo 12). Dopo ogni correzione: tutte le prove, comprese
     quelle della CI della pagina storica (`.github/workflows/natpf-simulator-tests.yml`) e la prova del telefono con i
     gesti della presa del 19/10.
+17. [ ] **Richiesta del 22/10 notte: gameplay come il gioco di riferimento** (benchmark vincolante; nome verificato,
+    uscito il 22/10/2026; confronto e cause in `docs/NATPF_RACCHETTA_VIRTUALE.md` §6). Fasi, in ordine:
+    - A [x] riferimento verificato, matrice di confronto, audit della mira e del movimento (`npm run audit:rally --
+      --campo`: base del 22/10 notte, verso la rete dopo il 56–89% dei colpi, profondità dei colpi normali 8,45–10,9 m,
+      direzione satura oltre 0,15–0,2 s di anticipo);
+    - B [ ] passo 16 (difetti 6 e 7, presa del 19/10 da verificare con le due prove nel browser, swing corti,
+      diagnostica doppia);
+    - C [ ] campo aperto (mappa continua del tempo su tutta la finestra, angolo dalla posizione di chi colpisce,
+      profondità su tutto il campo) e movimento (recupero verso il fondo secondo il tempo disponibile, avanti solo per
+      le palle corte), con i test di continuità, copertura, ripetibilità, profondità, fuori e in rete, assistenza;
+    - D [ ] sincronia del colpo, animazioni, recupero, prospettive;
+    - E [ ] tutte le prove, CI del sito, documenti, protocollo di validazione fisica, rapporto finale.
 
 ## Come riprendere
 
