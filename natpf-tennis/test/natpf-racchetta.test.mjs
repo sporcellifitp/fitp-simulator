@@ -1,5 +1,5 @@
 // Telefono come racchetta virtuale (docs/NATPF_RACCHETTA_VIRTUALE.md): mano unica, verso del gesto senza calibrazione,
-// forma del colpo misurata dai sensori, preparazione distinta dal colpo.
+// forma del colpo misurata dai sensori, preparazione distinta dal colpo, tremolio senza swing.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
@@ -87,6 +87,24 @@ test('preparazione lenta e poi colpo: il colpo vero è riconosciuto (prima era s
 /* ---------- forma del colpo ---------- */
 // i colpi veri (non le preparazioni) di una prova
 const strokeOf = (sim, opts) => { const n0 = sim.swings.length; const truth = sim.stroke(opts); const s = sim.swings.slice(n0).filter(x => x.peak > (opts.peak || 900)*.6).pop(); return { truth, s, msg: sim.last() }; };
+
+test('tremolio: il telefono tenuto fermo con la mano che trema non fa swing; dopo, il colpo vero si riconosce', () => {
+  // tremolio reale: pochi °/s, al massimo qualche decina; qui fino a 160 °/s da 5 a 12 Hz (oltre: 240 °/s a 3–6 Hz è
+  // già un gesto voluto, ampio una decina di gradi)
+  for (const hand of ['right', 'left']) for (const f of [5, 9, 12]) for (const amp of [40, 90, 160]){
+    const sim = racketSim({ hand, seed: f + amp });
+    sim.start(); sim.shake(3000, { amp, f });
+    assert.equal(sim.swings.length, 0, `${hand} ${amp} °/s a ${f} Hz: ${sim.swings.map(s => s.peak).join()}`);
+  }
+  for (const hand of ['right', 'left']) for (const side of ['forehand', 'backhand']){
+    const sim = racketSim({ hand, seed: 5 });
+    sim.start(); sim.shake(3000, { amp: 90, f: 9 });
+    const truth = sim.stroke({ side, peak: 900 });
+    // il telefono manda anche la preparazione (debole): il computer la sostituisce con il colpo (natpf_impact.js)
+    const top = [...sim.swings].sort((a, b) => b.peak - a.peak)[0];
+    assert.ok(top && top.peak > 700 && top.dir === truth.dir, `${hand} ${side}: ${sim.swings.map(s => `${s.dir}/${s.peak}`).join()}`);
+  }
+});
 
 test('forma: specchio destro/mancino — stesso gesto, stessa forma, piano e verso opposti', () => {
   const R = racketSim({ hand: 'right', seed: 2 }), L = racketSim({ hand: 'left', seed: 2 });

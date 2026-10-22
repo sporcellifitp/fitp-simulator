@@ -190,6 +190,15 @@ export function runCrowd(MC, { seed = 1, on = [1, 2.6], label = 'Left', size = .
   const ev = runLoop(f, { total: 4.2, fps, lat, rng, handsAt });
   return ev.map(e => ({ ...e, ts: e.t/1000 }));
 }
+// scena libera: handsAt(c, rng) → mani viste nel fotogramma catturato a c secondi (più persone, mano persa, tremolio);
+// flow(c) facoltativo: le sagome per il flusso ottico di riserva (flowCtx). Eventi con ts in secondi
+export function runScene(MC, { total, handsAt, flow = null, fps = 30, lat = 22, seed = 1, hand = 'right', aspect = .75, tracker = null }){
+  const rng = mulberry32(seed), f = makeFake(MC, { aspect, hand, tracker });
+  if (flow) f.offscreenCtx = flowCtx(f, flow, seed + 7);
+  const ev = runLoop(f, { total, fps, lat, rng, handsAt: c => handsAt(c, rng) });
+  return ev.map(e => ({ ...e, ts: e.t/1000 }));
+}
+export { LABEL as MODEL_LABEL, mj as minJerk };
 // Nel motore vero (senza disegno): la CPU manda la palla, il gesto ha l'impatto quando la palla è allo sweet spot
 // (0,1 m davanti al giocatore) e il colpo della webcam arriva dt secondi dopo (dt dal riconoscimento: negativo = prima).
 // Per ogni colpo: tenuto fino allo sweet spot o no, e il voto del motore (PERFECT, EARLY, LATE, VERY LATE, WHIFF, niente).

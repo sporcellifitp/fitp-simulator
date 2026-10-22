@@ -12,8 +12,9 @@
 //   - Spazio: ogni 10 s si controlla lo spazio libero del browser; sotto 200 MB si fermano i video (in 10 s ne scrivono al
 //     massimo ~4 MB), sotto 50 MB anche i campioni del telefono, sotto 20 MB la registrazione si chiude da sola, prima
 //     che le scritture falliscano. Niente si cancella da solo.
-// Tipi di evento (k): fase, palla, rimbalzo, punto, tentativo, colpo.gioco, input, tel.colpo, tel.cal, tel.stato,
-// tel.orologio, tel.link, webcam.frame, webcam.evento, prestazioni, video, video.frame, atteso, marca, avviso.
+// Tipi di evento (k): fase, palla, rimbalzo, punto, tentativo, colpo.gioco, racchetta, piano, servizio, vuoto, input,
+// tel.colpo, tel.cal, tel.stato, tel.orologio, tel.link, webcam.frame, webcam.evento, prestazioni, video, video.frame,
+// atteso, marca, avviso.
 import { latencyShift, eventLatency, swingTiming } from '../natpf_skill.js';
 import { shotDirection } from './diag_metrics.js';
 
@@ -225,6 +226,28 @@ export class DiagRecorder {
       R.log('tentativo', { ...info, colpito: !!out, auto: !!t });
       return out;
     });
+    // racchetta virtuale (docs/NATPF_RACCHETTA_VIRTUALE.md): esito deterministico del colpo (intenzione, tempo, qualità,
+    // dove va e perché), piano d'intercetto (rimbalzo, volée, schiacciata al volo, palla lasciata andare, corsa),
+    // servizio dal gesto e colpi a vuoto con il motivo
+    wrap('_natpfRacketShot', function(orig, ...a){
+      const out = orig(...a), L = E.natpfLastRacket, I = L?.intent || {}, O = L?.out || {};
+      if (out && L) R.log('racchetta', { chi: L.who || null, voluto: I.shot || null, colpo: O.shot || null, forza: r(I.power, 3), profondita: r(I.depth, 3), piatto: r(I.face, 3), ricavato: !!I.derived,
+        tempoMs: r(1000*L.timing, 1), oltre: r(O.excess, 3), qualita: r(O.q, 3), assistito: !!O.assisted, fallito: !!O.failed, rete: !!O.netFault,
+        x: r(out.E), z: r(out.N), volee: !!L.volley, lato: L.contact ?? null, voto: O.grade || null });
+      return out;
+    });
+    const plan = (who, P) => P && P.at === E.elapsedTime && R.log('piano', { chi: who, tipo: P.kind || null, contatto: P.contact ? [r(P.contact.x), r(P.contact.y), r(P.contact.z)] : null, t: r(P.t, 3), corsa: r(P.stretch, 3) });
+    wrap('_natpfPlanPlayer', function(orig, ...a){ const out = orig(...a); if (!E.isDoubles) plan('giocatore', E.natpfPlan); return out; });
+    wrap('_natpfPlanOpponent', function(orig, ...a){ const out = orig(...a); if (E.isMultiplayer && !E.isDoubles) plan('p2', E.natpfPlanP2); return out; });
+    wrap('_executeServeHit', function(orig, a, ...rest){
+      const before = E.natpfLastServe, out = orig(a, ...rest), S = E.natpfLastServe;
+      if (S && S !== before) R.log('servizio', { chi: a === E.player ? 'giocatore' : E.isMultiplayer ? 'p2' : 'cpu', tipo: S.kind || null, qualita: r(S.q, 3), ritmo: r(S.pace, 3), tauMs: r(1000*S.tau, 1), x: r(S.x), profondita: r(S.depth), kmh: S.kmh ?? null, voto: S.grade || null });
+      return out;
+    });
+    wrap('_natpfEarlyWhiff', function(orig, ps = {}){
+      R.log('vuoto', { perche: ps.natpfWhy || 'presto', anticipoMs: r(1000*ps.lead, 1), forza: r(ps.strength, 0) });
+      return orig(ps);
+    });
     const mc = E.motionController;
     if (mc?.on){
       const inp = tipo => s => {
@@ -292,6 +315,10 @@ export class DiagRecorder {
       rilevamento: det, attesa: hold, totale: r(total, 1), consegna: total != null && det != null ? r(Math.max(0, total - det - hold), 1) : null,
       hz: s?.sampleHz ?? null, potenza: r(s?.power), lift: r(s?.lift, 3), dir: s?.dir ?? null, heading: r(s?.heading, 1),
       piatto: s?.face ? [r(s.face.yaw, 1), r(s.face.pitch, 1), r(s.face.roll, 1)] : null,
+      // forma del colpo dal telefono (stroke-shape.js: piano, salita della testa, rotazione del polso, manico, velocità
+      // della testa e della mano) e intenzione che ne ricava il computer (natpf_stroke_intent.js)
+      forma: s?.shape ? ['plane', 'rise', 'roll', 'tilt', 'head', 'hand'].map(k => r(s.shape[k], 3)) : null, ampiezza: r(s?.angle, 1),
+      intenzione: n.intent ? { colpo: n.intent.shot || null, forza: r(n.intent.power, 3), profondita: r(n.intent.depth, 3), ampiezza: r(n.intent.reach, 3), piatto: r(n.intent.face, 3), conf: r(n.intent.conf) } : null,
     });
     if (ev?.side) this.lastInputSide = ev.side;
   }

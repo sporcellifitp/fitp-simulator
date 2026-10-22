@@ -74,6 +74,16 @@ export function racketSim({ hand = 'right', seed = 3, profile = null, prep = tru
     return qmul(qt, qFromBasis(x, y, z));
   };
   const rest = (ms, tremor = 0) => { for (const end = t + ms; t < end;){ const j = [0, 1, 2].map(() => (R() - .5)*2*tremor*D*DT/1000); sample(qnorm(qmul(qaxis(j, len(j)/D), q)), pos.slice(), 0); } };
+  // tremolio della mano che tiene il telefono fermo: rotazione oscillante a f Hz con velocità angolare di picco amp °/s
+  // attorno a un asse a caso (un poco diverso a ogni ciclo) e la mano che oscilla di pochi millimetri
+  const shake = (ms, { amp = 40, f = 9, mm = 2 } = {}) => {
+    const p0 = pos.slice(), ax0 = unit([R() - .5, R() - .5, R() - .5]);
+    for (const t0 = t, end = t + ms; t < end;){
+      const u = (t - t0)/1000, ax = unit(ax0.map((v, i) => v + .3*Math.sin(2*Math.PI*.7*u + i))), w = amp*Math.sin(2*Math.PI*f*u);
+      const j = ax.map(v => v*w*D*DT/1000), d = mm/1000*Math.sin(2*Math.PI*f*u);
+      sample(qnorm(qmul(qaxis(j, len(j)/D), q)), p0.map((v, i) => v + d*ax0[i]), 0);
+    }
+  };
   // calibrazione «Salta»: profilo semplice dalla posa ferma (come cal.skip())
   const start = ({ elev = 70, turn = 0, tremor = 0 } = {}) => {
     q = readyPose(elev, turn); pos = [hand === 'left' ? -.25 : .25, 1.1, -.35]; vel = [0, 0, 0];
@@ -135,7 +145,7 @@ export function racketSim({ hand = 'right', seed = 3, profile = null, prep = tru
     const hv = head(.01).map((v, i) => (v - head(-.01)[i])/.02);
     return { dir, plane: dot(A, [0, 1, 0]), rise: dot(unit(hv), [0, 1, 0]), tilt: dot(yC, [0, 1, 0]), impactT };
   };
-  return { det, face, swings, msgs, start, rest, stroke, get t(){ return t; },
+  return { det, face, swings, msgs, start, rest, shake, stroke, get t(){ return t; },
     last(){ const m = msgs[msgs.length - 1]; return m ? parseSwingMessage(m, { at: 10, now: 10020 }) : null; } };
 }
 function slerp(a, b, u){

@@ -1,14 +1,15 @@
 // Colpi della webcam (src/natpf/webcam_strokes.js dentro motion_controls.js): sottoinsieme veloce del banco completo
 // scripts/audit/webcam-sweep.mjs con le stesse soglie d'accettazione. Swing secchi in 2D per pendenza (destro e
-// mancino, 4:3 e 16:9), colpi completi in 3D, folla, lancio del servizio, scelta della mano, mancino nei ripieghi,
+// mancino, 4:3 e 16:9), colpi completi in 3D, folla (anche con la mano di chi gioca
+// persa), tremolio, lancio del servizio, scelta della mano, mancino nei ripieghi,
 // istante di cattura dei fotogrammi, flusso ottico di riserva, aggancio della diagnostica (onTrack) e, nel motore
 // vero, lo swing che arriva prima della palla.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MotionController } from '../src/motion_controls.js';
 import { NatpfHand } from '../src/natpf/natpf_hand.js';
-import { createStrokeTracker, pickHand, handPoint, handSize } from '../src/natpf/webcam_strokes.js';
-import { runSweep, runTrial, runCrowd, runDropout, engineSwings, sweep, engineView, handLandmarks, makeFake } from './webcam-sim.mjs';
+import { createStrokeTracker, pickHand, updateOthers, handPoint, handSize } from '../src/natpf/webcam_strokes.js';
+import { runSweep, runTrial, runCrowd, runDropout, runScene, engineSwings, sweep, engineView, handLandmarks, makeFake, gauss, MODEL_LABEL } from './webcam-sim.mjs';
 
 const MC = MotionController, tracker = () => createStrokeTracker();
 const pct = (n, d) => `${(100*n/d).toFixed(0)}% (${n}/${d})`;
@@ -38,9 +39,64 @@ test('scelta della mano: una mano che entra (più grande, in testa alla lista) n
   const p = handPoint(mine), track = { x: p.x, u: -p.y*.75, vx: 0, vu: 0, t: 1000, size: handSize(mine), k: 1, label: 'Right' };
   const r = pickHand([{ lm: other, label: 'Left', score: .99 }, { lm: mine, label: 'Right', score: .6 }], { track, t: 1033 });
   assert.deepEqual(r, { index: 1, reason: 'continuità' });
-  // la mano seguita sparisce: si aspetta (persa) invece di saltare sull'altra; dopo mezzo secondo si sceglie di nuovo
+  // la mano seguita sparisce: si aspetta (persa) invece di saltare sull'altra; dopo mezzo secondo si sceglie di nuovo,
+  // per 3 s solo vicino a dove era (un solo soggetto: chi passa davanti alla webcam no), poi qualsiasi mano
   assert.deepEqual(pickHand([{ lm: other, label: 'Left', score: .99 }], { track, t: 1100 }), { index: -1, reason: 'persa' });
-  assert.equal(pickHand([{ lm: other, label: 'Left', score: .99 }], { track, t: 1700 }).index, 0);
+  assert.deepEqual(pickHand([{ lm: other, label: 'Left', score: .99 }], { track, t: 1700 }), { index: -1, reason: 'lontana' });
+  const back = handLandmarks({ S: .5, y: .5, size: .04 });
+  assert.equal(pickHand([{ lm: other, label: 'Left', score: .99 }, { lm: back, label: 'Left', score: .9 }], { track, t: 1700 }).index, 1);
+  assert.equal(pickHand([{ lm: other, label: 'Left', score: .99 }], { track, t: 4100 }).index, 0);
+});
+
+test('un solo soggetto: le mani delle altre persone, viste insieme alla propria, non si prendono', () => {
+  const mine = handLandmarks({ S: .6, y: .55, size: .04 }), theirs = handLandmarks({ S: .3, y: .45, size: .04 });
+  const p = handPoint(mine), track = { x: p.x, u: -p.y*.75, vx: 0, vu: 0, t: 1000, size: handSize(mine), k: 1, label: 'Left' };
+  // viste insieme: quella di chi guarda diventa un'altra persona; persa la propria, non si salta su di lei…
+  const others = updateOthers([], [{ lm: mine }, { lm: theirs }], { chosen: 0, t: 1000 });
+  assert.equal(others.length, 1);
+  assert.deepEqual(pickHand([{ lm: theirs, label: 'Left', score: .95 }], { track, t: 1150, others }), { index: -1, reason: 'persa' });
+  // … nemmeno dopo mezzo secondo (finché si vede resta riconosciuta), e senza memoria il salto ci sarebbe stato
+  const still = updateOthers(others, [{ lm: theirs }], { chosen: -1, t: 1700 });
+  assert.deepEqual(pickHand([{ lm: theirs, label: 'Left', score: .95 }], { track, t: 1700, others: still }), { index: -1, reason: 'altra persona' });
+  assert.equal(pickHand([{ lm: theirs, label: 'Left', score: .95 }], { track: { ...track, vx: -1.2 }, t: 1150 }).index, 0);
+});
+
+test('webcam con più persone, mano persa e tremolio: nessuno swing fantasma, la propria mano ritrovata gioca', () => {
+  const aspect = .75, fmt = ev => ev.map(e => `${e.kind}:${e.side}@${e.ts.toFixed(2)}`).join() || '-';
+  // chi gioca: mano destra ferma (in pronto) al centro-destra; MODEL_LABEL.right è la lateralità vista dal modello
+  const still = (c, rng, { S = .62, y = .55, trem = 0, f = 9 } = {}) => ({ lm: handLandmarks({ S: S + gauss(rng)*.003 + trem*Math.sin(2*Math.PI*f*c), y: y + gauss(rng)*.003 + .6*trem*Math.cos(2*Math.PI*f*1.13*c), size: .04, aspect }), label: MODEL_LABEL.right });
+  // un'altra persona: la mano ferma a S0 e uno swing di dS larghezze in 0,25 s che parte a t0
+  const other = (t0, { dir = -1, dS = .35, S0 = .3, y = .45, label = MODEL_LABEL.right } = {}) => {
+    const sw = sweep({ dir, dS, ratio: .1, aspect, T: .25, curve: 1, yMid: y });
+    return c => { const p = sw(Math.max(0, Math.min(.25, c - t0))); return { lm: handLandmarks({ S: p.S - (sw(0).S - S0), y: p.y, size: .04, aspect }), label }; };
+  };
+  const run = (handsAt, total = 5) => runScene(MC, { total, handsAt, seed: 3, tracker: tracker() });
+  const lost = (c, a, b) => c >= a && c < b;
+  const scenes = {
+    'chi guarda fa due swing, chi gioca resta visibile': (c, rng) => [other(1.2)(c), other(2.4, { dir: 1 })(c), still(c, rng)],
+    'mano di chi gioca persa 0,8 s, chi guarda fa uno swing': (c, rng) => [other(1.5, { dS: .4 })(c), ...(lost(c, 1, 1.8) ? [] : [still(c, rng)])],
+    'persa 1,5 s, swing di chi guarda': (c, rng) => [other(2, { dS: .4 })(c), ...(lost(c, 1, 2.5) ? [] : [still(c, rng)])],
+    'persa 3 s, swing di chi guarda': (c, rng) => [other(3, { dS: .4 })(c), ...(lost(c, 1, 4) ? [] : [still(c, rng)])],
+    'persa 1,5 s, chi guarda con la mano opposta': (c, rng) => [other(2, { dS: .4, label: MODEL_LABEL.left })(c), ...(lost(c, 1, 2.5) ? [] : [still(c, rng)])],
+    // (una mano nuova che compare lontano entro 0,5 s si prende ancora: non si distingue dalla propria dopo il mosso)
+    'mano nuova che entra lontano dopo 0,6 s, si avvicina con uno swing': (c, rng) => [...(c >= 1.6 ? [other(2.2, { S0: .18, dir: 1 })(c)] : []), ...(lost(c, 1, 3.5) ? [] : [still(c, rng)])],
+  };
+  for (const [name, handsAt] of Object.entries(scenes)) assert.equal(fmt(run(handsAt)), '-', name);
+  // chi passa davanti alla webcam: la mano di chi gioca sparisce, una mano grande attraversa l'immagine
+  const passer = c => ({ lm: handLandmarks({ S: -.1 + .6*(c - 1.1), y: .6 + .02*Math.sin(9*c), size: .075, aspect }), label: MODEL_LABEL.right });
+  assert.equal(fmt(run((c, rng) => [...(c >= 1.1 && c < 3.3 ? [passer(c)] : []), ...(lost(c, 1, 3.4) ? [] : [still(c, rng)])])), '-', 'passante');
+  // tremolio della mano ferma: fino a 0,015 larghezze (3,6 cm a 2 m) da 4 a 12 Hz, 0,02 (4,8 cm) fino a 9 Hz: niente
+  // colpi (il tremolio vero è di millimetri; 4,8 cm a 12 Hz fa colpi in 6 semi su 20, docs/NATPF_RACCHETTA_VIRTUALE.md)
+  for (const trem of [.005, .01, .015, .02]) for (const f of [4, 6, 9, 12]){
+    if (trem > .015 && f > 9) continue;
+    assert.equal(fmt(run((c, rng) => [still(c, rng, { trem, f })], 6)), '-', `tremolio ${trem} a ${f} Hz`);
+  }
+  // chi gioca ritrovato dopo 0,9 s (vicino a dove era), con chi guarda accanto: il suo rovescio conta, una volta
+  const bh = sweep({ dir: 1, dS: .4, ratio: .2, aspect, T: .25, curve: 1, yMid: .55 });
+  const me = (c, rng) => { const p = bh(Math.max(0, Math.min(.25, c - 2.2))); return { lm: handLandmarks({ S: p.S + .12 + gauss(rng)*.003, y: p.y, size: .04, aspect }), label: MODEL_LABEL.right }; };
+  const ev = run((c, rng) => [other(1.6, { S0: .2 })(c), ...(lost(c, 1, 1.9) ? [] : [me(c, rng)])], 4);
+  assert.equal(ev.map(e => `${e.kind}:${e.side}`).join(), 'swing:backhand', fmt(ev));
+  assert.ok(Math.abs(ev[0].ts - 2.3) < .2, fmt(ev));
 });
 
 test('swing secchi da fermo (2D): lato giusto, niente pallonetti fino a pendenza 0,8, un solo evento', () => {

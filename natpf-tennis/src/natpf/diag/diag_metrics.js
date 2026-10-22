@@ -17,6 +17,10 @@ export function dist(a){
 }
 const count = (a, f) => a.reduce((n, x) => n + (f(x) ? 1 : 0), 0);
 const tally = (a, f) => { const o = {}; for (const x of a){ const k = f(x); if (k != null) o[k] = (o[k] || 0) + 1; } return o; };
+const groupBy = (a, f) => { const o = {}; for (const x of a){ const k = f(x); if (k != null) (o[k] ||= []).push(x); } return o; };
+const r2 = v => (Number.isFinite(v) ? Math.round(v*100)/100 : null);
+// mediana e scarto interquartile (da 3 valori): quanto sono ripetibili gesti ed esiti
+const spread = a => { const v = a.filter(Number.isFinite); return v.length ? { p50: r2(pct(v, .5)), iqr: v.length >= 3 ? r2(pct(v, .75) - pct(v, .25)) : null } : null; };
 
 // numeri dei colpi del telefono: quelli mancanti. Una pagina ricaricata riparte da 1 (nuovo tratto); sul percorso
 // veloce l'ordine d'arrivo può cambiare, quindi si contano i numeri che mancano tra il minimo e il massimo di ogni tratto
@@ -58,7 +62,7 @@ const NORMAL = new Set(['topspin', 'flat', 'drive', 'normale']);
 export const sameShot = (want, got) => (want === 'normale' ? NORMAL.has(String(got || '').toLowerCase()) : String(want) === String(got || '').toLowerCase());
 // tipi di evento che le metriche leggono: l'analisi a righe (diag_analysis.js) tiene in memoria solo questi
 export const METRIC_KINDS = new Set(['tel.colpo', 'tel.orologio', 'tel.stato', 'tel.link', 'webcam.frame', 'webcam.evento', 'prestazioni',
-  'colpo.gioco', 'input', 'punto', 'rimbalzo', 'tentativo', 'atteso', 'avviso', 'video']);
+  'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'punto', 'rimbalzo', 'tentativo', 'atteso', 'avviso', 'video']);
 // events: tutti gli eventi, oppure solo quelli di METRIC_KINDS con eventi (quanti erano in tutto) e spanMs (dal primo
 // all'ultimo); raw: campioni del telefono (bastano k e q)
 export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spanMs = null } = {}){
@@ -141,6 +145,25 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
       // tempo dei colpi del telefono rispetto all'impatto ideale (ms; positivo = anticipo, negativo = ritardo): una
       // mediana lontana da zero dice un ritardo sistematico (per esempio lo schermo)
       tempoTelefonoMs: dist(by('tentativo').filter(x => Number.isFinite(x.tauMs)).map(x => x.tauMs)),
+    };
+  }
+
+  // ---- racchetta virtuale: intenzione dal gesto, esito senza caso, ripetibilità (docs/NATPF_RACCHETTA_VIRTUALE.md) ----
+  const rk = by('racchetta').filter(x => x.chi === 'player'), vuoti = by('vuoto'), piani = by('piano').filter(p => p.chi === 'giocatore');
+  const serv = by('servizio').filter(x => x.chi === 'giocatore'), forme = by('tel.colpo').filter(c => !c.scartato && Array.isArray(c.forma));
+  if (rk.length || vuoti.length || piani.length || serv.length || forme.length){
+    const perColpo = {}, formaPerColpo = {};
+    for (const [k, g] of Object.entries(groupBy(rk, x => x.voluto || '?')))
+      perColpo[k] = { n: g.length, forza: spread(g.map(x => x.forza)), tempoMs: spread(g.map(x => x.tempoMs)), x: spread(g.map(x => x.x)), z: spread(g.map(x => x.z)),
+        qualita: spread(g.map(x => x.qualita)), falliti: count(g, x => x.fallito), alVolo: count(g, x => x.volee) };
+    for (const [k, g] of Object.entries(groupBy(forme, c => c.intenzione?.colpo || c.tipo || '?')))
+      formaPerColpo[k] = { n: g.length, salita: spread(g.map(c => c.forma[1])), piano: spread(g.map(c => c.forma[0])), manico: spread(g.map(c => c.forma[3])), forza: spread(g.map(c => c.intenzione?.forza)) };
+    out.racchetta = {
+      nota: 'per colpo voluto: mediana (p50) e scarto interquartile (iqr) di gesto ed esito. Il motore non aggiunge caso: gesti simili danno esiti simili, la dispersione degli esiti viene dai gesti e dal tempo',
+      colpi: rk.length, voluti: tally(rk, x => x.voluto), esiti: tally(rk, x => x.colpo), falliti: tally(rk.filter(x => x.fallito), x => (x.rete ? 'rete' : 'lungo')),
+      assistiti: count(rk, x => x.assistito), alVolo: count(rk, x => x.volee), tempoMs: dist(rk.map(x => x.tempoMs)), qualitaPercento: dist(rk.map(x => (Number.isFinite(x.qualita) ? 100*x.qualita : null))),
+      perColpo, formaPerColpo, piani: tally(piani, p => p.tipo), vuoti: tally(vuoti, v => v.perche),
+      servizi: serv.length ? { n: serv.length, tipi: tally(serv, x => x.tipo), voti: tally(serv, x => x.voto), qualitaPercento: dist(serv.map(x => (Number.isFinite(x.qualita) ? 100*x.qualita : null))), dalColmoMs: dist(serv.map(x => x.tauMs)) } : null,
     };
   }
 
@@ -242,6 +265,10 @@ export function summaryLines(m = {}){
   if (C?.tempoTelefonoMs?.n) L.push(`Tempo dei colpi del telefono rispetto all'impatto ideale: mediana ${C.tempoTelefonoMs.p50 > 0 ? '+' : ''}${C.tempoTelefonoMs.p50} ms (${C.tempoTelefonoMs.p50 > 0 ? 'anticipo' : 'ritardo'}) su ${C.tempoTelefonoMs.n} colpi`);
   if (C?.tempoTelefonoMs?.n >= 20 && C.tempoTelefonoMs.p50 < -40) L.push(`Ipotesi da verificare: i colpi del telefono arrivano in media ${-C.tempoTelefonoMs.p50} ms in ritardo. Se succede in ogni sessione, misura il ritardo dello schermo (video a 240 fps) prima di cambiare altro.`);
   if (R) L.push(`Prova guidata: lato giusto ${R.latoGiustoPercento ?? '–'}% · tipo giusto ${R.tipoGiustoPercento ?? '–'}% · direzione giusta ${R.direzioneGiustaPercento ?? '–'}% (da verificare nel video)`);
+  const K = m.racchetta, list = o => Object.entries(o || {}).map(([k, v]) => `${k} ${v}`).join(', ');
+  if (K?.colpi) L.push(`Racchetta: ${K.colpi} colpi · voluti ${list(K.voluti)} · falliti ${list(K.falliti) || '0'} · al volo ${K.alVolo} · tempo mediana ${K.tempoMs?.p50 ?? '–'} ms`);
+  if (K && Object.keys(K.vuoti || {}).length) L.push(`Colpi a vuoto: ${list(K.vuoti)}`);
+  if (K?.servizi) L.push(`Servizi dal gesto: ${K.servizi.n} · ${list(K.servizi.voti)}`);
   const av = m.registrazione?.avvisi || {};
   if (Object.keys(av).length) L.push(`Avvisi: ${Object.entries(av).map(([k, v]) => `${k} ×${v}`).join(', ')}`);
   return L;

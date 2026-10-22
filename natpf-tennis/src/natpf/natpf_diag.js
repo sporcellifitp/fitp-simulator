@@ -118,7 +118,7 @@ export class NatpfDiag {
       onEnd: ({ completed }) => { R.log('marca', { testo: completed ? 'prova guidata completata' : 'prova guidata interrotta' }); this.stop().then(() => this.open()); },
     };
     this.close();
-    if (!lobby.startDiag(protocolDrills(id), run)){ ui?.toast?.('Collega prima il telefono, poi riapri la prova guidata'); await this.stop(); }
+    if (!lobby.startDiag(protocolDrills(id, { controller: ui.controller }), run)){ ui?.toast?.('Collega prima il telefono, poi riapri la prova guidata'); await this.stop(); }
   }
   async stop(){
     if (!this.recorder.active) return;

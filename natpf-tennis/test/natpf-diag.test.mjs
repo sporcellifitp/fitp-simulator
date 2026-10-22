@@ -162,7 +162,8 @@ test('registratore: eventi del motore e del telefono, campioni a parte, scrittur
   engine.ball.lastHitter = 'opponent'; now += 16; engine.update(1/60);
   engine._spawnBounceRing(1.2, 6.5);
   engine.motionController.emit('swing', { source: 'phone', side: 'forehand', shotType: 'topspin', speed: 1.2 });
-  emitSwing({ side: 'forehand', natpf: { shot: 'topspin', wrist: .1, why: ['colpo normale'] } }, { seq: 7, path: 'fast', at: (now - 30)/1000, receivedAt: now/1000, detectMs: 24, holdMs: 0, sampleHz: 60 });
+  emitSwing({ side: 'forehand', natpf: { shot: 'topspin', wrist: .1, why: ['colpo normale'], intent: { shot: 'topspin', power: .71234, depth: .6, reach: .9, face: .1, conf: .5 } } },
+    { seq: 7, path: 'fast', at: (now - 30)/1000, receivedAt: now/1000, detectMs: 24, holdMs: 0, sampleHz: 60, angle: 84.26, shape: { plane: .912, rise: .3333, roll: 0, tilt: .1, head: 14.2, hand: 3.1 } });
   R.onFeedback({ kind: 'hit', grade: 'PERFECT • TOPSPIN' }, { label: 'Ottimo' });
   engine._awardPoint('player', 'Out');
   for (let i = 0; i < 5; i++) emitRaw({ t: 5000 + i*16, q: i, rot: [1, 2, 3], acc: [0, 0, 0], accG: [0, 9.8, 0], path: 'fast' });
@@ -172,6 +173,9 @@ test('registratore: eventi del motore e del telefono, campioni a parte, scrittur
   for (const k of ['sessione', 'tel.stato', 'fase', 'palla', 'colpo.gioco', 'rimbalzo', 'input', 'tel.colpo', 'punto']) assert.ok(kinds.includes(k), k);
   const sw = ev.find(e => e.k === 'tel.colpo');
   assert.equal(sw.n, 7); assert.equal(sw.via, 'fast'); assert.equal(sw.picco, 86); assert.equal(sw.consegna, 6);
+  // racchetta virtuale: forma del colpo dal telefono e intenzione ricavata dal computer
+  assert.deepEqual(sw.forma, [.912, .333, 0, .1, 14.2, 3.1]); assert.equal(sw.ampiezza, 84.3);
+  assert.deepEqual(sw.intenzione, { colpo: 'topspin', forza: .712, profondita: .6, ampiezza: .9, piatto: .1, conf: .5 });
   const fb = ev.find(e => e.k === 'colpo.gioco' && e.chi === 'giocatore');
   assert.equal(fb.direzione, 'incrociato'); assert.equal(fb.lato, 'forehand');
   assert.ok(ev.find(e => e.k === 'colpo.gioco' && e.chi === 'cpu'));

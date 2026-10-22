@@ -62,6 +62,7 @@ export const WEBCAM_STROKE = Object.freeze({
   homeStill: .3, homeTau: 1.5,  // posizione di riposo per le altezze: mano ferma da homeStill s, media su homeTau s
   flow: 1.3,                    // traccia del flusso ottico (rumorosa): soglie più alte
   gap: 350,                     // ms senza campioni (mano persa a lungo, flusso fermo): il viaggio riparte
+  settleStill: .15,             // s: mano ritrovata dopo un po' (reset con settle): ferma almeno così prima dei colpi
   // colpo anticipato, prima dell'impatto: il gioco tiene lo swing fino allo sweet spot solo se arriva prima della palla
   aWin: 90, aSpan: 50,          // ms: finestra e durata minima per la velocità di avvicinamento alla camera
   gEarly: .08,                  // dopo la preparazione la mano è tornata verso la camera di tanto (ln della taglia dal minimo)...
@@ -87,17 +88,50 @@ export function handSize(lm, aspect = .75){
 // punto seguito della mano, specchiato come nel motore base (destra dello schermo = destra del giocatore)
 export const handPoint = lm => ({ x: 1 - (lm[0].x*.45 + lm[9].x*.55), y: lm[0].y*.45 + lm[9].y*.55 });
 
+// Altre persone nell'inquadratura (chi guarda, chi aspetta il turno, un passante): le mani viste nello stesso
+// fotogramma di quella seguita. Una mano che era già altrove mentre si seguiva la propria non è la propria che si è
+// spostata in fretta: non si prende per continuità (prima il salto sulla mano vicina, con la propria nascosta per un
+// attimo, diventava uno swing) e, persa la propria, per qualche secondo nemmeno come mano nuova (i suoi swing non
+// contano). Dopo, una mano nuova si prende di nuovo: chi gioca può essere cambiato.
+export const HAND_OTHERS = Object.freeze({
+  near: .1, rate: 1.5,   // larghezze (+ larghezze/s dall'ultima volta che si è vista): ancora la stessa mano
+  keep: 1500,            // ms: un'altra mano non più vista da così si dimentica
+  lock: 3000,            // ms dall'ultima volta che si è vista la propria: le mani delle altre persone non si prendono…
+  reacquire: .3,         // … e una mano nuova solo vicino a dove era la propria (larghezze alla distanza tipica)
+});
+function otherAt(others, x, u, size, t){
+  for (const o of others || []){
+    if (t - o.t > HAND_OTHERS.keep || hyp(o.x - x, o.u - u) > HAND_OTHERS.near + HAND_OTHERS.rate*clamp((t - o.t)/1000, 0, .25)) continue;
+    if (o.size > 1e-4 && size > 1e-4 && (size/o.size < .6 || size/o.size > 1.6)) continue;
+    return o;
+  }
+  return null;
+}
+// Aggiorna le altre mani dopo la scelta: nuove solo se nello stesso fotogramma si vede anche la propria (chosen ≥ 0);
+// quelle già note si seguono anche mentre la propria è persa.
+export function updateOthers(others, hands, { chosen = -1, t = 0, aspect = .75 } = {}){
+  const out = (others || []).filter(o => t - o.t <= HAND_OTHERS.keep).map(o => ({ ...o }));
+  (hands || []).forEach((h, i) => {
+    if (i === chosen || !h?.lm) return;
+    const p = handPoint(h.lm), x = p.x, u = -p.y*aspect, size = handSize(h.lm, aspect), o = otherAt(out, x, u, size, t);
+    if (o) Object.assign(o, { x, u, size, t });
+    else if (chosen >= 0) out.push({ x, u, size, t });
+  });
+  return out;
+}
+
 // Scelta della mano tra quelle trovate (fino a due): non più la prima della lista, che una mano nuova (un passante,
 // la mano libera) prende e tiene. Con una mano seguita da poco vale la continuità (vicina alla posizione prevista, di
 // taglia simile e, se il modello ne è sicuro, della stessa lateralità: track.label); se non c'è, si aspetta (persa)
 // invece di saltare su un'altra mano. Senza mano seguita: la mano che impugna (lateralità dal modello, che vede
 // l'immagine non specchiata: la destra del giocatore è «Left»), poi la più grande (più vicina), poi la più centrale.
-export function pickHand(hands, { track = null, t = 0, prefer = 'right', aspect = .75, hold = 500 } = {}){
+// others: le mani delle altre persone (updateOthers), che non si prendono.
+export function pickHand(hands, { track = null, t = 0, prefer = 'right', aspect = .75, hold = 500, others = null } = {}){
   if (!hands?.length) return { index: -1, reason: 'nessuna mano' };
   const want = prefer === 'left' ? 'Right' : 'Left';
   const c = hands.map((h, i) => {
-    const p = handPoint(h.lm);
-    return { i, x: p.x, u: -p.y*aspect, size: handSize(h.lm, aspect), match: h.label ? (h.label === want ? 1 : -1)*(fin(h.score) ? h.score : .5) : 0 };
+    const p = handPoint(h.lm), x = p.x, u = -p.y*aspect, size = handSize(h.lm, aspect);
+    return { i, x, u, size, match: h.label ? (h.label === want ? 1 : -1)*(fin(h.score) ? h.score : .5) : 0, other: !!otherAt(others, x, u, size, t) };
   });
   if (track && t - track.t <= hold){
     const dt = clamp((t - track.t)/1000, 0, .25), px = track.x + track.vx*dt, pu = track.u + track.vu*dt;
@@ -107,17 +141,24 @@ export function pickHand(hands, { track = null, t = 0, prefer = 'right', aspect 
     for (const h of c){
       const d = hyp(h.x - px, h.u - pu), r = track.size > 1e-4 && h.size > 1e-4 ? h.size/track.size : 1;
       if (d > gate || r < .55 || r > 1.8) continue;
-      // l'altra mano (lateralità opposta, sicura) vale solo se è proprio dove era quella seguita
-      const g = hands[h.i];
-      if (track.label && g.label && g.label !== track.label && (fin(g.score) ? g.score : .5) >= .7 && d > .16*(track.k || 1)) continue;
+      // l'altra mano (lateralità opposta, sicura) o quella di un'altra persona valgono solo se sono proprio dove era
+      // quella seguita. Una mano nuova che compare lontano entro hold non si distingue dalla propria che torna dopo il
+      // mosso di uno swing (con l'esposizione lunga anche 0,3–0,4 s senza mano): si prende, come prima
+      const g = hands[h.i], close = d <= .16*(track.k || 1);
+      if (!close && (h.other || (track.label && g.label && g.label !== track.label && (fin(g.score) ? g.score : .5) >= .7))) continue;
       const cost = d/gate - .15*h.match;
       if (!best || cost < best.cost) best = { ...h, cost };
     }
     return best ? { index: best.i, reason: 'continuità' } : { index: -1, reason: 'persa' };
   }
-  const big = Math.max(...c.map(h => h.size), 1e-6);
+  // persa da poco la propria mano: le altre persone restano escluse e si riprende solo vicino a dove era (un solo
+  // soggetto: chi passa davanti alla webcam non diventa chi gioca)
+  const lock = track && t - track.t <= HAND_OTHERS.lock;
+  const pool = lock ? c.filter(h => !h.other && hyp(h.x - track.x, h.u - track.u) <= HAND_OTHERS.reacquire*(track.k || 1)) : c;
+  if (!pool.length) return { index: -1, reason: c.some(h => h.other) ? 'altra persona' : 'lontana' };
+  const big = Math.max(...pool.map(h => h.size), 1e-6);
   const score = h => 1.2*h.match + h.size/big - .6*Math.abs(h.x - .5);
-  const best = c.reduce((a, b) => (score(b) > score(a) ? b : a));
+  const best = pool.reduce((a, b) => (score(b) > score(a) ? b : a));
   return { index: best.i, reason: c.length === 1 ? 'unica' : best.match > 0 ? 'lateralità' : 'taglia' };
 }
 
@@ -130,6 +171,7 @@ export function createStrokeTracker(opt = {}){
   let k = 1, kSamples = [], home = null, hist = [], seg = null, pend = null, rec = null, stillSince = null, last = null, tossAt = -1e9;
   let rest = null, trip = null;          // ultimo punto in cui la mano era ferma e viaggio da lì (estremi, velocità)
   let zh = [], early = null;             // ln della taglia della mano nel tempo; colpo anticipato del viaggio
+  let settle = false;                    // mano ritrovata: si aspetta che stia ferma prima di riconoscere colpi
   const state = { get k(){ return k; }, get home(){ return home; }, get phase(){ return rec ? 'ritorno' : seg ? (seg.kind === 'after' ? 'colpo' : 'movimento') : pend ? 'attesa' : 'ferma'; } };
 
   // velocità (u/s, già divisa per la scala) dal campione di almeno 45 ms prima, stessa sorgente
@@ -267,6 +309,12 @@ export function createStrokeTracker(opt = {}){
     const cs = calm(s);
     if (cs != null && cs < C.vStill){ if (stillSince == null) stillSince = s.t; } else stillSince = null;
     const stillFor = stillSince == null ? 0 : (s.t - stillSince)/1000;
+    // mano ritrovata dopo un po' (o di un'altra persona che entra): i colpi contano da quando sta ferma un momento.
+    // Chi torna a giocare rimette la mano in posizione; una mano che entra già in movimento non fa uno swing
+    if (settle){
+      if (stillFor < C.settleStill){ last = s; return out; }
+      settle = false; seg = null; pend = null; home = { x: s.x, u: s.u }; startTrip(s);
+    }
     // posizione di riposo per le altezze: mano ferma da un po', fuori da colpi, attese e lanci
     if (!home) home = { x: s.x, u: s.u };
     else if (!seg && !pend && !rec && stillFor >= C.homeStill && s.t - tossAt > 1500){
@@ -443,7 +491,7 @@ export function createStrokeTracker(opt = {}){
       if (c.stroke){ out.push(swing(s, c, `swing secco: ${c.why}`)); rec = { at: s.t }; TR && TR('colpo', { t: s.t, ...c }); }
     }
   }
-  function reset(){ hist = []; seg = null; pend = null; rec = null; stillSince = null; last = null; rest = null; trip = null; zh = []; early = null; }
+  function reset({ settle: wait = false } = {}){ hist = []; seg = null; pend = null; rec = null; stillSince = null; last = null; rest = null; trip = null; zh = []; early = null; settle = !!wait; }
   // movimento attuale della mano per la racchetta a schermo (come il motore base: ultimi 160 ms)
   const motion = () => (last ? output(last) : null);
   return { push, reset, motion, state };

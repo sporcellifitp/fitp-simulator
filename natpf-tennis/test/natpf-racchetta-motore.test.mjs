@@ -1,6 +1,7 @@
 // Telefono come racchetta virtuale nel motore vero, senza grafica (docs/NATPF_RACCHETTA_VIRTUALE.md): esito senza caso,
 // incrociato e lungolinea, volée e schiacciata al volo, palla corta e pallonetto ripetibili, finestra d'impatto,
-// preparazione sostituita dal colpo, palle fuori lasciate andare, servizio dal gesto, scambi che finiscono.
+// preparazione sostituita dal colpo, palle fuori lasciate andare, servizio dal gesto, scambi che finiscono, Player 2 del
+// 1v1 specchiato, diagnostica (esito, piano, servizio e colpi a vuoto nel registro, metriche di ripetibilità).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -8,6 +9,10 @@ import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engi
 import { simulate } from '../scripts/audit/rally-balance.mjs';
 import * as NI from '../src/natpf/natpf_impact.js';
 import { ENGINE_SHOT } from '../src/natpf/natpf_gestures.js';
+import { DiagRecorder } from '../src/natpf/diag/diag_recorder.js';
+import { memoryStore } from '../src/natpf/diag/diag_store.js';
+import { computeMetrics } from '../src/natpf/diag/diag_metrics.js';
+import { viewerHtml } from '../src/natpf/diag/diag_viewer.js';
 
 const DT = 1/120;
 // motore con il generatore casuale fisso (la CPU e il resto del gioco restano vari, ma ripetibili)
@@ -242,4 +247,46 @@ test('scambi che finiscono: nessuno scambio infinito con il giocatore più regol
     assert.equal(r.capped, 0, `${difficulty}: ${r.maxHits} colpi`);
     assert.ok(r.maxHits < 60, `${difficulty}: ${r.maxHits}`);
   }
+});
+
+test('diagnostica: esito, piano, servizio e colpi a vuoto nel registro; ripetibilità nelle metriche; rapporto valido', async t => {
+  globalThis.requestAnimationFrame ??= cb => setTimeout(() => cb(performance.now()), 16);
+  globalThis.cancelAnimationFrame ??= id => clearTimeout(id);
+  const real = Math.random; Math.random = mulberry32(17);
+  try {
+    const e = createHeadlessEngine({ difficulty: 'pro' }); e.startNewMatch({ showStartBanner: false });
+    let now = 1000;
+    const store = memoryStore();
+    const R = new DiagRecorder({ engine: e, ui: { controller: 'phone', hand: { hand: 'right' }, training: { active: false } }, store, now: () => now, wallNow: () => Date.UTC(2026, 9, 22, 10, 0, 0) });
+    const id = await R.start({ webcamVideo: false, gameVideo: false });
+    t.after(() => { if (R.active) R.stop(); });
+    // tre volte lo stesso gesto sulla stessa palla, poi uno swing troppo presto
+    for (let i = 0; i < 3; i++){ now += 3000; cpuShot(e); play(e, [{ lead: .04, swing: phoneSwing({ shot: 'topspin', power: .7, face: .2 }) }]); }
+    now += 3000; cpuShot(e, { to: [1.4, 8.8] }); play(e, [{ lead: .9, swing: phoneSwing({ shot: 'topspin', power: .8 }) }]);
+    // servizio dal gesto
+    now += 3000; e.phase = 'SERVE_STANCE'; e.score.server = 'player'; e.phaseTimer = 1; e.ball.inPlay = false;
+    e._handleUserSwingInput(phoneSwing({ shot: 'topspin', power: .5 }));
+    for (let k = 0; k < 75; k++) e.step(DT);
+    e._handleUserSwingInput(phoneSwing({ shot: 'flat', power: .9, rise: -.2, plane: 0 }, { side: 'overhead' }));
+    await R.flush();
+    const ev = (await (await store.file(id, 'eventi.jsonl')).text()).trim().split('\n').map(l => JSON.parse(l));
+    const of = k => ev.filter(x => x.k === k);
+    const rk = of('racchetta');
+    assert.equal(rk.length, 3);
+    for (const x of rk){ assert.equal(x.chi, 'player'); assert.equal(x.voluto, 'topspin'); assert.equal(x.x, rk[0].x); assert.equal(x.z, rk[0].z); }
+    assert.ok(of('piano').filter(p => p.chi === 'giocatore' && p.tipo === 'ground').length >= 4);
+    assert.deepEqual(of('vuoto').map(v => v.perche), ['presto']);
+    const sv = of('servizio');
+    assert.equal(sv.length, 1); assert.equal(sv[0].chi, 'giocatore'); assert.ok(sv[0].qualita > .9, JSON.stringify(sv[0]));
+    const m = computeMetrics(ev).racchetta;
+    assert.equal(m.colpi, 3); assert.deepEqual(m.voluti, { topspin: 3 });
+    assert.equal(m.perColpo.topspin.x.iqr, 0);      // stesso gesto, stesso esito
+    assert.deepEqual(m.vuoti, { presto: 1 }); assert.equal(m.servizi.n, 1);
+    // la pagina del rapporto: lo script si legge (nessun apice che chiude una stringa)
+    const html = viewerHtml({ meta: { id }, metrics: computeMetrics(ev), events: ev });
+    const code = html.split('<script>').pop().split('</script>')[0];
+    assert.doesNotThrow(() => new Function(code));
+    assert.ok(html.includes('racchetta'));
+    await R.stop();
+  } finally { Math.random = real; }
 });
