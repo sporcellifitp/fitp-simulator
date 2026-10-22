@@ -35,11 +35,44 @@ Misure sul banco sintetico (colpi 3D con inferenza ad almeno 15 fotogrammi al se
 - **Lancio di palla** solo quando il gioco lo accetta (titolo o proprio servizio, anche per il Player 2); nello scambio
   lo stesso gesto non diventa un pallonetto.
 - **Tempi** dall'istante di cattura del fotogramma (richiamo della camera); senza, dall'invio al modello.
-- **Mano da seguire** scelta per continuità (posizione prevista, taglia, lateralità di chi gioca).
+- **Mano da seguire** scelta per continuità (posizione prevista, taglia, lateralità di chi gioca). La lateralità è
+  quella dell'impostazione unica del gioco (`NatpfHand`, la stessa del telefono).
 - **Flusso ottico** di riserva solo senza mano da più di 0,22 s, e solo intorno all'ultima mano vista o nella zona
   centrale; col solo flusso un movimento da fermo lungo più di 0,6 s non è uno swing (passanti).
 - **Diagnostica**: `motion_controls.onTrack` dà ogni fotogramma elaborato, ogni colpo, la conferma, la mano persa e
   ritrovata; il registratore li scrive come `webcam.frame` e `webcam.evento`.
+
+## Un solo soggetto (22/10/2026)
+
+Con un'altra persona nell'inquadratura (dietro, o accanto alla stessa distanza) il gioco poteva passare a lei:
+- la continuità durava 0,5 s con un raggio che cresceva di 2,5 larghezze al secondo (serve per il mosso negli swing
+  veloci): bastavano pochi fotogrammi senza la mano di chi gioca perché si prendesse quella dell'altra persona, e il
+  salto era un colpo;
+- dopo 0,5 s si sceglieva da capo tra le mani in vista.
+
+Ora (`pickHand`, `trackOthers` in `webcam_strokes.js`):
+- le altre mani viste insieme a quella di chi gioca si ricordano e si seguono per vicinanza; ognuna «reclama» la mano
+  trovata più vicina a lei che a dove dovrebbe essere quella di chi gioca, che non viene presa;
+- mentre la mano di chi gioca è persa, un'altra mano si aggiorna solo con una mano più vicina a lei che all'ultima
+  posizione di chi gioca (altrimenti la mano di chi gioca, persa vicino all'altra, ne prendeva il posto nell'elenco);
+- per 5 s (`HAND_KEEP`) dopo l'ultima volta che la si è vista si riprende solo una mano della taglia di chi gioca
+  (rapporto 0,7–1,43), anche altrove; poi si sceglie di nuovo (al chiosco arriva un'altra persona).
+
+Banco (`runTwoPeople`, sezione «Un solo soggetto» di `webcam-sweep.mjs`): chi gioca fa un dritto e un rovescio,
+l'altra persona fa un gesto ampio nella sua zona, la mano di chi gioca si perde per 0,3 s, 1,1 s o durante il ritorno
+dopo il dritto. Dritto e rovescio giusti e nessun colpo in più: **72/72**, prima 28/72 (con la mano persa dallo 0 al
+50%). Gli altri criteri del banco sono rimasti identici.
+
+Limiti:
+- **All'inizio** vince la mano che impugna, poi la più grande (la più vicina), poi la più centrale: chi gioca deve
+  essere la persona più vicina alla camera. Se è più vicina un'altra persona, il gioco segue lei.
+- Due mani della stessa taglia che si sovrappongono nell'immagine (il colpo di chi gioca che finisce sulla mano
+  dell'altra persona, e lei che si muove lungo il ritorno di chi gioca) possono scambiarsi.
+- **Tremolio dei punti della mano**: fino a 0,008 larghezze (5 px su 640) nessun colpo falso e i colpi restano, con i
+  colpi a 2,2 s di distanza; a 0,01 un colpo in più ogni 12 prove. Con i colpi a 1,8 s di distanza la mano non sembra
+  mai ferma, il ritorno dopo il colpo dura fino al massimo (`recMax`, 1,6 s) e il colpo dopo si perde (3 prove su 12 a
+  0,006, uguale a prima). Misurare la quiete sulla media di più campioni lo risolveva, ma rompeva la «folla» (0/18):
+  da rifare.
 
 ## Risultati (banco sintetico)
 
@@ -57,6 +90,7 @@ Misure sul banco sintetico (colpi 3D con inferenza ad almeno 15 fotogrammi al se
 | Pallonetto voluto (≥ 90%) | 39% | 95% | **13%, non rispettato** |
 | Schiacciata (≥ 80%) | 11% | 97% | 100% |
 | Folla: nessun colpo falso, mano tenuta | 0/18 | 18/18 | 18/18 |
+| Un solo soggetto (dal 22/10): colpi di chi gioca giusti, nessuno in più | – | – | 72/72 (prima del 22/10: 28/72) |
 | Lancio al servizio riconosciuto | 16/16 | 16/16 | 16/16 |
 | Lancio nello scambio diventato pallonetto | 16/16 | 0/16 | 0/16 |
 | Tipo giusto nei colpi a rimbalzo (informativo) | 35% | 71% | 63% |
@@ -112,7 +146,8 @@ Con la modalità diagnostica (video della webcam, prova guidata):
 - se il modello chiama davvero «Left» la mano destra di chi gioca, e se un mancino è seguito bene;
 - se l'istante di cattura arriva davvero dalla camera, e quanto vale il riconoscimento (`inferMs`);
 - top spin e tagliato con la camera sopra il televisore; pallonetti voluti; servizio vero (lancio e colpo dall'alto);
-- seconda persona nell'inquadratura e mano libera vicino a quella con la racchetta;
+- seconda persona nell'inquadratura (dietro e accanto) e mano libera vicino a quella con la racchetta: il gioco deve
+  restare su chi gioca anche quando la sua mano si perde (`webcam.evento` lost/found con il motivo «ritrovata»);
 - gioco col solo flusso ottico (modello delle mani che non si carica);
 - quanto spesso il colpo anticipato coincide con la conferma (`webcam.conferme` nelle metriche; nel simulatore 59%) e,
   nella prova guidata, lato e tipo rispetto al colpo richiesto.

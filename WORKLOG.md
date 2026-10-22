@@ -45,3 +45,10 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
   - Le prove nel browser hanno trovato due regressioni del giro, corrette: il riscaldamento non colpiva più le palle
     della calibrazione (finestra d'impatto), la pagina storica andava in errore sull'evento `hand`. Altre due
     (presa verticale e latenza) esistevano già a `84ca878`: annotate nel passo 13.
+- Checkpoint 6: webcam con un solo soggetto e la mano scelta (passo 11).
+  - Scoperta: con un'altra persona nell'inquadratura il gioco passava a lei dopo una perdita breve della mano di chi
+    gioca (raggio della continuità che cresce con il tempo, scelta da capo dopo 0,5 s): 28 scenari giusti su 72.
+  - Decisioni: le altre mani si ricordano e reclamano le mani vicine a loro; per 5 s si riprende solo una mano della
+    taglia di chi gioca. Provate e scartate: una regola nel riconoscimento per i viaggi partiti con la mano in
+    movimento (inutile negli scenari realistici, peggiorava il solo flusso ottico) e la quiete misurata sulla media di
+    più campioni (aiutava con il tremolio, rompeva la «folla»).

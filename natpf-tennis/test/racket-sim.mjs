@@ -147,7 +147,9 @@ export function racketSim({ hand = 'right', seed = 3, profile = null, prep = tru
     const hv = head(.01).map((v, i) => (v - head(-.01)[i])/.02);
     return { dir, plane: dot(A, [0, 1, 0]), rise: dot(unit(hv), [0, 1, 0]), tilt: dot(yC, [0, 1, 0]), impactT };
   };
-  return { det, face, swings, msgs, start, rest, stroke, get t(){ return t; },
+  // pausa nei campioni dei sensori (pagina in secondo piano, telefono che rallenta): il tempo passa senza campioni
+  const gap = ms => { t += ms; };
+  return { det, face, swings, msgs, start, rest, stroke, gap, get t(){ return t; },
     last(){ const m = msgs[msgs.length - 1]; return m ? parseSwingMessage(m, { at: 10, now: 10020 }) : null; } };
 }
 function slerp(a, b, u){

@@ -11,7 +11,7 @@
 //   RAPIDO=1 riduce le griglie (circa un decimo delle prove)
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { runTrial, runSweep, runCrowd, runDropout, engineSwings, sweep, engineView, STROKES } from '../../test/webcam-sim.mjs';
+import { runTrial, runSweep, runCrowd, runDropout, runTwoPeople, engineSwings, sweep, engineView, STROKES } from '../../test/webcam-sim.mjs';
 
 const opt = name => { const a = process.argv.find(x => x.startsWith(`--${name}=`)); return a ? path.resolve(a.slice(name.length + 3)) : null; };
 const file = opt('prima') || new URL('../../src/motion_controls.js', import.meta.url).pathname;
@@ -130,6 +130,22 @@ for (const label of ['Left', 'Right']) for (const size of [.03, .036, .045]) for
   if (s === 0) console.log(`  mano ${label}, taglia ${size}: ${ev.map(e => `${e.ts.toFixed(2)}s ${engineView(e, 'right').label}`).join(' | ') || 'nessun evento'}`);
 }
 check('folla: solo i due rovesci del giocatore, nessun colpo falso', `${crowdOk}/${crowdN}`, crowdOk === crowdN);
+
+/* ---------- 3b. un solo soggetto: un'altra persona sempre nell'inquadratura ---------- */
+console.log("\n=== Un solo soggetto: un'altra persona dietro o accanto, mano di chi gioca persa per un po' (dritto a 2,8 s, rovescio a 4,6 s) ===");
+let soloOk = 0, soloN = 0;
+const OTHERS = [{ name: 'dietro', S: .3, y: .42, size: .028 }, { name: 'accanto', S: .12, y: .5, size: .038 }, { name: 'accanto, poco più vicina', S: .15, y: .55, size: .041 }];
+for (const other of OTHERS) for (const lose of [null, [1.2, 1.5], [1.2, 2.3], [3.0, 3.6]]){
+  let ok = 0, n = 0, extra = 0;
+  for (const label of ['Left', 'Right']) for (let s = 1; s <= 3; s++){
+    const r = runTwoPeople(MC, { seed: s, other, label, lose, tracker: tracker() }), ev = r.events;
+    const good = ev.length === 2 && ev[0].side === 'forehand' && ev[1].side === 'backhand' && Math.abs(ev[0].ts - 2.9) < .3 && Math.abs(ev[1].ts - 4.7) < .3;
+    n++; ok += good ? 1 : 0; extra += Math.max(0, ev.length - 2);
+  }
+  soloN += n; soloOk += ok;
+  console.log(`  ${other.name.padEnd(24)} mano persa ${lose ? `${lose[0]}–${lose[1]} s` : 'mai'.padEnd(9)}: dritto e rovescio giusti ${pct(ok, n)}, colpi in più ${extra}`);
+}
+check('un solo soggetto: solo i colpi di chi gioca, anche con la sua mano persa', `${soloOk}/${soloN}`, soloOk === soloN);
 
 /* ---------- 4. lancio del servizio ---------- */
 let tossOk = 0, tossN = 0, hitOk = 0, rallyLob = 0;

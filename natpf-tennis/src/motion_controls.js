@@ -1,7 +1,7 @@
 // NATPF: posa continua della mano dalla webcam (racchetta e braccio), vedi src/natpf/webcam_hand_pose.js
 import { WebcamHandTracker, handPoseFromLandmarks, handPoseFromFlow } from "./natpf/webcam_hand_pose.js";
 // NATPF: colpi dalla traccia della mano (un evento per colpo) e scelta della mano da seguire, vedi src/natpf/webcam_strokes.js
-import { createStrokeTracker, pickHand, handPoint, handSize } from "./natpf/webcam_strokes.js";
+import { createStrokeTracker, pickHand, trackOthers, handPoint, handSize } from "./natpf/webcam_strokes.js";
 import { relayedNatpf } from "./natpf/natpf_skill.js";
 import { newSwings } from "./natpf/natpf_versus.js";
 // NATPF: MediaPipe Hands dal pacchetto offline (npm @mediapipe/hands, servito sotto /assets/); CDN fissato solo di riserva
@@ -41,6 +41,7 @@ export class MotionController {
       // gioco (NatpfHand: solo al proprio servizio) e aggancio facoltativo della diagnostica (onTrack)
       (this._strokes = createStrokeTracker()),
       (this._handTrack = null),
+      (this._handOthers = []),
       (this.handPreference = "right"),
       (this.canToss = null),
       (this.onTrack = typeof e.onTrack == "function" ? e.onTrack : null),
@@ -468,7 +469,7 @@ export class MotionController {
   }
   // NATPF: niente mano seguita e niente colpo a metà (webcam riaccesa, mano nuova)
   _resetHandTracking() {
-    (this._handTrack = null), (this._handLost = !1), (this._handPick = null), (this._handCapture = null), (this._handLastPos = null), (this._frameMeta = null), this._strokes && this._strokes.reset();
+    (this._handTrack = null), (this._handOthers = []), (this._handLost = !1), (this._handPick = null), (this._handCapture = null), (this._handLastPos = null), (this._frameMeta = null), this._strokes && this._strokes.reset();
   }
   // NATPF: istante di cattura dei fotogrammi della camera (requestVideoFrameCallback), per le velocità della mano
   // senza il ritardo variabile dell'inferenza; senza il supporto vale l'istante dell'invio al modello
@@ -506,19 +507,20 @@ export class MotionController {
     this._diag({ kind: "frame", t: e, captureT: s ? s.t : this._frameCaptureT(e), source: s ? s.src : null, hands: h ? h.hands : null, chosen: h ? h.chosen : null, reason: h ? h.reason : null, x: s ? s.x : null, y: s ? s.y : null, inferMs: this.lastInferMs ?? null, phase: this._strokes.state.phase });
   }
   // NATPF: risultato del modello delle mani: la mano da seguire tra quelle trovate (continuità, lateralità, taglia),
-  // non la prima della lista (una mano che entra, di un passante o la mano libera, la prendeva e la teneva)
+  // non la prima della lista (una mano che entra, di un passante o la mano libera, la prendeva e la teneva). Un solo
+  // soggetto: le altre mani viste (un'altra persona, la mano libera) si ricordano e non prendono il posto di quella di
+  // chi gioca quando si perde (trackOthers)
   _onHandResults(i) {
     this._mpBusy = !1;
     const now = performance.now(),
       lms = (i && i.multiHandLandmarks) || [],
       hd = (i && i.multiHandedness) || [],
       aspect = this._videoAspect(),
-      T = this._handTrack;
+      T = this._handTrack,
+      hands = lms.map((lm, k) => ({ lm, label: hd[k] && hd[k].label, score: hd[k] && hd[k].score }));
     this.lastInferMs = Number.isFinite(this._mpSentAt) ? now - this._mpSentAt : null;
-    const pick = pickHand(
-      lms.map((lm, k) => ({ lm, label: hd[k] && hd[k].label, score: hd[k] && hd[k].score })),
-      { track: T, t: now, prefer: this.handPreference, aspect },
-    );
+    const pick = pickHand(hands, { track: T, others: this._handOthers || [], t: now, prefer: this.handPreference, aspect });
+    this._handOthers = trackOthers(this._handOthers || [], hands, { chosen: pick.index, track: T, t: now, aspect });
     this._handPick = { hands: lms.length, chosen: pick.index, reason: pick.reason };
     if (pick.index < 0) {
       (this.latestHandLandmarks = null), T && !this._handLost && ((this._handLost = !0), this._diag({ kind: "lost", t: now, hands: lms.length, reason: pick.reason }));

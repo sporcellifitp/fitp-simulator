@@ -190,6 +190,40 @@ export function runCrowd(MC, { seed = 1, on = [1, 2.6], label = 'Left', size = .
   const ev = runLoop(f, { total: 4.2, fps, lat, rng, handsAt });
   return ev.map(e => ({ ...e, ts: e.t/1000 }));
 }
+// Un solo soggetto: chi gioca (destro, mano a riposo in rest) fa i colpi di strokes ([istante s, verso nell'immagine:
+// −1 dritto, +1 rovescio]: swing di dS larghezze in 0,25 s, tenuta 0,2 s, ritorno in 1 s); un'altra persona (other:
+// posizione, taglia e lateralità della sua mano; dietro = più piccola, accanto alla stessa distanza = stessa taglia)
+// resta nell'inquadratura tutto il tempo e a otherSwing s fa un gesto ampio nella sua zona (otherAmp larghezze di
+// lato, andata in 0,3 s e ritorno in 1 s). lose: [da, a] s in cui il modello non trova la mano di chi gioca (mosso,
+// fuori dall'inquadratura); jitter: rumore dei punti della mano (tremolio); other null: chi gioca da solo. Eventi con
+// ts in s; picks: mano persa e ritrovata (onTrack), con il motivo.
+export function runTwoPeople(MC, { seed = 1, rest = { S: .62, y: .55 }, dS = .3, strokes = [[2.8, -1], [4.6, 1]], other = { S: .3, y: .42, size: .028 }, label = 'Left', otherSwing = 3.4, otherAmp = .15, lose = null, jitter = .003, total = 6.2, fps = 30, lat = 22, tracker = null } = {}){
+  const rng = mulberry32(seed), aspect = .75, f = makeFake(MC, { aspect, tracker });
+  const picks = [];
+  f.onTrack = d => { if (d.kind === 'lost' || d.kind === 'found') picks.push({ t: performance.now()/1000, kind: d.kind, reason: d.reason }); };
+  const player = t => {
+    for (const [t0, dir] of strokes){
+      const u = t - t0, end = rest.S + dir*dS;
+      if (u >= 0 && u <= .25) return { S: rest.S + (end - rest.S)*mj(u/.25), y: rest.y - .03*Math.sin(Math.PI*u/.25) };
+      if (u > .25 && u <= .45) return { S: end, y: rest.y };
+      if (u > .45 && u <= 1.45) return { S: end + (rest.S - end)*mj(u - .45), y: rest.y };
+    }
+    return { S: rest.S + .004*Math.sin(5*t), y: rest.y };
+  };
+  const by = t => {
+    const u = t - otherSwing;
+    if (u >= 0 && u <= .3) return { S: other.S + otherAmp*mj(u/.3), y: other.y - .04*Math.sin(Math.PI*u/.3) };
+    if (u > .3 && u <= 1.3) return { S: other.S + otherAmp*(1 - mj(u - .3)), y: other.y };
+    return { S: other.S + .005*Math.sin(3*t), y: other.y };
+  };
+  const handsAt = c => {
+    const b = other && by(c), out = other ? [{ lm: handLandmarks({ S: b.S + gauss(rng)*jitter, y: b.y + gauss(rng)*jitter, size: other.size, aspect }), label }] : [];
+    if (!(lose && c >= lose[0] && c < lose[1])){ const p = player(c); out.push({ lm: handLandmarks({ S: p.S + gauss(rng)*jitter, y: p.y + gauss(rng)*jitter, aspect }), label: 'Left' }); }
+    return out;
+  };
+  const ev = runLoop(f, { total, fps, lat, rng, handsAt });
+  return { events: ev.map(e => ({ ...e, ts: e.t/1000 })), picks };
+}
 // Nel motore vero (senza disegno): la CPU manda la palla, il gesto ha l'impatto quando la palla è allo sweet spot
 // (0,1 m davanti al giocatore) e il colpo della webcam arriva dt secondi dopo (dt dal riconoscimento: negativo = prima).
 // Per ogni colpo: tenuto fino allo sweet spot o no, e il voto del motore (PERFECT, EARLY, LATE, VERY LATE, WHIFF, niente).

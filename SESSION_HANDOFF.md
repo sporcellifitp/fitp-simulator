@@ -112,7 +112,18 @@ tastiera come controlli nuovi.
         del gesto dopo la sostituiva prima del colpo (il telefono manda tentativo, gesto dopo e «pronto» insieme):
         il giocatore non colpiva più nessuna palla. Ora la palla resta finché il colpo parte e vola almeno 0,3 s;
       - `link.js`: l'evento `hand` (passo 1) senza ascoltatori mandava in errore la pagina storica (`site/tennis`).
-11. [ ] Webcam: mano dall'impostazione unica; prove con più persone, perdita del tracciamento, tremolio.
+11. [x] Webcam: mano dall'impostazione unica; prove con più persone, perdita del tracciamento, tremolio.
+    - La mano c'era già (`mc.handPreference` da `NatpfHand`): ora un test mostra che la stessa impostazione va a webcam
+      e telefono, e che quella cambiata sul telefono torna alla webcam.
+    - Un solo soggetto (`pickHand`, `trackOthers`): con un'altra persona nell'inquadratura, persa la mano di chi gioca
+      per pochi fotogrammi si prendeva la sua (il salto era un colpo) e dopo 0,5 s si sceglieva da capo. Ora le altre
+      mani si ricordano e per 5 s si riprende solo una mano della taglia di chi gioca: banco 72/72, prima 28/72.
+      Criterio nuovo in `webcam-sweep.mjs` (17/19, gli altri criteri identici a prima).
+    - Prove obbligatorie 9, 10, 11 per la webcam (`natpf-webcam-classifier.test.mjs`, banco `runTwoPeople`) e 10, 11
+      per il telefono (`natpf-racchetta.test.mjs`: tremolio in partita, pause nei campioni; `racketSim.gap`).
+    - Limiti (in `docs/NATPF_WEBCAM.md`): all'inizio vince la persona più vicina; due mani della stessa taglia
+      sovrapposte possono scambiarsi; con i punti che tremano e colpi a meno di 2 s il colpo dopo può perdersi (uguale
+      a prima; la soluzione provata rompeva la «folla»).
 12. [ ] Diagnostica: forma, intenzione ed esito negli eventi; prova guidata con il colpo richiesto; metriche di
     ripetibilità.
 13. [ ] I 14 test obbligatori, prima/dopo sullo ZIP (`scripts/audit/zip-replay.mjs`), regressioni (`npm test`, e2e).

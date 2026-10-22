@@ -87,26 +87,50 @@ export function handSize(lm, aspect = .75){
 // punto seguito della mano, specchiato come nel motore base (destra dello schermo = destra del giocatore)
 export const handPoint = lm => ({ x: 1 - (lm[0].x*.45 + lm[9].x*.55), y: lm[0].y*.45 + lm[9].y*.55 });
 
+// Un solo soggetto: la mano di chi gioca resta la sua anche quando si perde, finché non torna. Per keep ms dopo
+// l'ultima volta che la si è vista si riprende solo una mano della sua taglia; le altre mani viste insieme a lei (un'altra
+// persona, la mano libera) si ricordano e non si prendono al suo posto (trackOthers). Prima la continuità durava 0,5 s e
+// il raggio ammesso cresceva di 2,5 larghezze al secondo: bastavano pochi fotogrammi senza la mano di chi gioca perché
+// quella di chi stava accanto prendesse il suo posto (e il salto era un colpo), e dopo mezzo secondo si sceglieva da capo.
+export const HAND_KEEP = 5000;   // ms
+const NEAR_OTHER = .2;           // larghezze (alla distanza tipica): una mano così vicina a un'altra già vista è quella
+
 // Scelta della mano tra quelle trovate (fino a due): non più la prima della lista, che una mano nuova (un passante,
 // la mano libera) prende e tiene. Con una mano seguita da poco vale la continuità (vicina alla posizione prevista, di
 // taglia simile e, se il modello ne è sicuro, della stessa lateralità: track.label); se non c'è, si aspetta (persa)
 // invece di saltare su un'altra mano. Senza mano seguita: la mano che impugna (lateralità dal modello, che vede
 // l'immagine non specchiata: la destra del giocatore è «Left»), poi la più grande (più vicina), poi la più centrale.
-export function pickHand(hands, { track = null, t = 0, prefer = 'right', aspect = .75, hold = 500 } = {}){
+// others: le altre mani viste (trackOthers); una mano più vicina a una di loro che a dove dovrebbe essere quella di chi
+// gioca non è la sua.
+export function pickHand(hands, { track = null, others = [], t = 0, prefer = 'right', aspect = .75, hold = 500, keep = HAND_KEEP } = {}){
   if (!hands?.length) return { index: -1, reason: 'nessuna mano' };
   const want = prefer === 'left' ? 'Right' : 'Left';
   const c = hands.map((h, i) => {
     const p = handPoint(h.lm);
     return { i, x: p.x, u: -p.y*aspect, size: handSize(h.lm, aspect), match: h.label ? (h.label === want ? 1 : -1)*(fin(h.score) ? h.score : .5) : 0 };
   });
+  const ratio = h => (track.size > 1e-4 && h.size > 1e-4 ? h.size/track.size : 1);
+  // ogni altra mano già vista reclama al massimo una delle mani trovate, la più vicina entro NEAR_OTHER, se le è più
+  // vicina di quanto lo sia dove dovrebbe essere la mano di chi gioca (d). Una per una: quando sono vicine si vedono
+  // tutte e due, e la mano di chi gioca non va scartata solo perché è passata accanto all'altra
+  const claimed = (d) => {
+    const out = new Set();
+    for (const h of c) for (const o of others){
+      if (t - o.t > keep) continue;
+      const dd = hyp(h.x - o.x, h.u - o.u);
+      if (dd < Math.min(d(h), NEAR_OTHER*(track?.k || 1))) out.add(h.i);
+    }
+    return out;
+  };
   if (track && t - track.t <= hold){
     const dt = clamp((t - track.t)/1000, 0, .25), px = track.x + track.vx*dt, pu = track.u + track.vu*dt;
     // distanza ammessa: la mano può partire da ferma per uno swing veloce (fino a ~2,5 larghezze/s alla distanza tipica)
     const gate = .16*(track.k || 1) + .5*hyp(track.vx, track.vu)*dt + 2.5*(track.k || 1)*dt;
+    const dist = h => hyp(h.x - px, h.u - pu), taken = claimed(dist);
     let best = null;
     for (const h of c){
-      const d = hyp(h.x - px, h.u - pu), r = track.size > 1e-4 && h.size > 1e-4 ? h.size/track.size : 1;
-      if (d > gate || r < .55 || r > 1.8) continue;
+      const d = dist(h), r = ratio(h);
+      if (d > gate || r < .55 || r > 1.8 || taken.has(h.i)) continue;
       // l'altra mano (lateralità opposta, sicura) vale solo se è proprio dove era quella seguita
       const g = hands[h.i];
       if (track.label && g.label && g.label !== track.label && (fin(g.score) ? g.score : .5) >= .7 && d > .16*(track.k || 1)) continue;
@@ -115,10 +139,45 @@ export function pickHand(hands, { track = null, t = 0, prefer = 'right', aspect 
     }
     return best ? { index: best.i, reason: 'continuità' } : { index: -1, reason: 'persa' };
   }
+  if (track && t - track.t <= keep){
+    // persa da più di hold: si riprende la mano della taglia di chi gioca, la più vicina a dove era (anche rientrando
+    // nell'inquadratura da un'altra parte), mai una delle altre
+    const dist = h => hyp(h.x - track.x, h.u - track.u), taken = claimed(dist);
+    let best = null;
+    for (const h of c){
+      const d = dist(h), r = ratio(h);
+      if (r < .7 || r > 1.43 || taken.has(h.i)) continue;
+      const cost = d - .1*h.match;
+      if (!best || cost < best.cost) best = { ...h, cost };
+    }
+    return best ? { index: best.i, reason: 'ritrovata' } : { index: -1, reason: 'persa' };
+  }
   const big = Math.max(...c.map(h => h.size), 1e-6);
   const score = h => 1.2*h.match + h.size/big - .6*Math.abs(h.x - .5);
   const best = c.reduce((a, b) => (score(b) > score(a) ? b : a));
   return { index: best.i, reason: c.length === 1 ? 'unica' : best.match > 0 ? 'lateralità' : 'taglia' };
+}
+// Le altre mani dopo un fotogramma: quelle non scelte si seguono per vicinanza (come la mano di chi gioca, fino a 2,5
+// larghezze al secondo); una mano nuova entra nell'elenco solo se in quel fotogramma la mano di chi gioca è stata
+// scelta (altrimenti potrebbe essere proprio la sua che torna). Senza una mano scelta, un'altra mano si aggiorna solo
+// con una mano più vicina a lei che all'ultima posizione di chi gioca (track): la mano di chi gioca, persa vicino a
+// un'altra, ne prendeva il posto nell'elenco, e quella dell'altra persona diventava «ritrovata». Al massimo tre,
+// dimenticate dopo keep ms.
+export function trackOthers(others = [], hands = [], { chosen = -1, track = null, t = 0, aspect = .75, keep = HAND_KEEP } = {}){
+  const next = others.filter(o => t - o.t <= keep).map(o => ({ ...o })), used = new Set();
+  hands.forEach((h, i) => {
+    if (i === chosen || !h?.lm) return;
+    const p = handPoint(h.lm), x = p.x, u = -p.y*aspect, size = handSize(h.lm, aspect);
+    const mine = chosen < 0 && track ? hyp(x - track.x, u - track.u) : Infinity;
+    let best = null, bd = Infinity;
+    for (const o of next){
+      const d = hyp(x - o.x, u - o.u);
+      if (!used.has(o) && d < bd && d < mine && d <= NEAR_OTHER + 2.5*clamp((t - o.t)/1000, 0, .25)){ bd = d; best = o; }
+    }
+    if (best){ used.add(best); Object.assign(best, { x, u, size: size || best.size, t }); }
+    else if (chosen >= 0) next.push({ x, u, size, t });
+  });
+  return next.slice(-3);
 }
 
 // Riconoscimento dei colpi. push({ t (ms), x (larghezze, specchiata), y (altezze, verso il basso), aspect (altezza/

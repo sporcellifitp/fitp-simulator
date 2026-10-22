@@ -119,6 +119,33 @@ test('«Salta» anche durante il passo «fermo»: si gioca subito con verso, tip
   }
 });
 
+/* ---------- prove obbligatorie 10 e 11, parte del telefono (la webcam è in natpf-webcam-classifier.test.mjs) ---------- */
+test('tremolio in partita (prova 11, telefono): 10 s di attesa con la mano che trema non fanno colpi; il colpo dopo sì, col verso giusto', () => {
+  for (const tremor of [15, 25]) for (const skip of [null, 200]){
+    const tag = `tremolio ${tremor} °/s, «Salta» ${skip == null ? 'dopo il passo «fermo»' : 'durante il passo «fermo»'}`;
+    const sim = racketSim({ hand: 'right', seed: 3 }); sim.start({ tremor, ...(skip == null ? {} : { skip }) });
+    const n0 = sim.swings.length; sim.rest(10000, tremor);
+    assert.equal(sim.swings.length, n0, `${tag}: ${sim.swings.slice(n0).map(s => s.peak)}`);
+    const truth = sim.stroke({ side: 'backhand', tremor }), got = sim.swings.slice(n0).filter(s => s.peak > 500);
+    assert.equal(got.length, 1, tag); assert.equal(got[0].dir, truth.dir, tag);
+  }
+});
+
+test('perdita del tracciamento (prova 10, telefono): pause nei campioni dei sensori non fanno colpi fantasma; il colpo dopo arriva intero', () => {
+  // pagina in secondo piano o telefono che rallenta: oltre 140 ms senza campioni il rilevatore riparte (DEFAULTS.gap).
+  // Il collegamento che cade e torna è nelle prove nel browser (natpf-phone-blackout.mjs)
+  for (const hand of ['right', 'left']){
+    const sim = racketSim({ hand, seed: 9 }); sim.start();
+    for (const [ms, side] of [[200, 'backhand'], [600, 'forehand'], [2000, 'backhand']]){
+      const n0 = sim.swings.length; sim.gap(ms); sim.rest(300);
+      assert.equal(sim.swings.length, n0, `${hand}, pausa di ${ms} ms`);
+      const truth = sim.stroke({ side }), got = sim.swings.slice(n0).filter(s => s.peak > 500);
+      assert.equal(got.length, 1, `${hand}, pausa di ${ms} ms`); assert.equal(got[0].dir, truth.dir);
+      assert.ok(got[0].shape && natpfSwingToEngine(sim.last(), { hand }).natpf.intent, `${hand}, pausa di ${ms} ms: forma e intenzione`);
+    }
+  }
+});
+
 /* ---------- verso senza calibrazione ---------- */
 test('verso senza calibrazione: dalla gravità, per destri e mancini; sensori con il segno opposto si correggono', () => {
   for (const hand of ['right', 'left']){
