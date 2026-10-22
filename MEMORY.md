@@ -27,7 +27,8 @@ branch `backup/*` e gli altri `feature/natpf-*` sono già inclusi; il 22/10 vi �
   rete dopo il colpo da 46–89% a 0–0,1% nelle partite simulate).
 - **Fasi D ed E** (22/10 notte): sincronia, animazioni, recupero e continuità guardati nel browser (prova nuova dello
   scambio vero, `tools/e2e/natpf-rally.mjs`); regola di marchio applicata anche ai documenti vecchi e al codice
-  (`docs/NATPF_CODEX_HANDOFF.md` → `docs/NATPF_PASSAGGIO_2026-10-17.md`); procedura fisica del campo aperto (§5,
+  (il passaggio di consegne del 17/10, che aveva nel nome uno strumento esterno, ora è
+  `docs/NATPF_PASSAGGIO_2026-10-17.md`); procedura fisica del campo aperto (§5,
   punto 14).
 - **Non fatto o aperto**:
   - equilibrio della CPU dopo la fase C: a Esperto i profili del telefono simulati vincono più punti (amatore 57% →

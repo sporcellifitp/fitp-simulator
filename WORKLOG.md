@@ -155,7 +155,7 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     contro la CPU (`natpf-rally.mjs`): racchetta sulla palla all'impatto dal lato del gesto, ritorno in fondo dopo ogni
     colpo, personaggio rivolto alla rete, visuale che segue. Nessun difetto da correggere trovato.
   - Regola di marchio: tolti i nomi del gioco di riferimento e del suo editore da documenti vecchi e codice (commento,
-    nomi interni del materiale dei personaggi, selettore CSS non usato); `docs/NATPF_CODEX_HANDOFF.md` rinominato
+    nomi interni del materiale dei personaggi, selettore CSS non usato); il passaggio di consegne del 17/10 (con il nome di uno strumento esterno nel titolo) rinominato
     `docs/NATPF_PASSAGGIO_2026-10-17.md`.
   - Validazione fisica: punto 14 (campo aperto) nella procedura del §5 di `docs/NATPF_RACCHETTA_VIRTUALE.md`.
   - Difetto 6 sotto carico: con due processi che occupano la CPU, «gesture and calibration» passa 2 volte su 3 sia con il rilevatore attuale sia con quello di `84ca878`, «timing-browser» 1 su 3 con tutti e due; «timing-browser» non usa nemmeno il rilevatore (manda pacchetti di colpo già pronti). Il difetto 6 non è nel passo «fermo»: le due prove sono sensibili al carico (a macchina scarica 20/20). Meccanismo visto in «gesture and calibration»: la prova congela la partita al colmo del lancio e aspetta il secondo gesto; sotto carico il gesto arriva oltre 0,8 s dopo l'ultimo fotogramma mostrato e il gioco lo scarta come colpo vecchio (regola voluta: i colpi non si rimappano su fotogrammi vecchi).
