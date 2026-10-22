@@ -79,6 +79,11 @@ ammessi solo gli header di copyright delle librerie open source). Loghi ufficial
   - prova guidata (`diag_protocol.js`: `training.start({ drills, diag })`, evento `atteso` = colpo richiesto, unico
     riferimento per dire «riconosciuto male»);
   - script `scripts/diag/diag.mjs metriche|colpi|confronta`.
+- **Webcam, riconoscimento dei colpi** (21/10, `natpf-tennis/src/natpf/webcam_strokes.js`, documento
+  `docs/NATPF_WEBCAM.md`): posizioni divise per la taglia della mano, un «viaggio» per colpo dal punto in cui la mano
+  era ferma, colpo anticipato durante l'avanzamento (mano che torna verso la camera dopo la preparazione, o moto di
+  lato veloce) così il gioco tiene lo swing fino allo sweet spot, conferma a fine gesto solo per la diagnostica
+  (`onTrack`, `kind: 'confirm'`); mano scelta per continuità; flusso ottico di riserva solo vicino all'ultima mano.
 - **CPU Leggenda** (21/10, `natpf-tennis/src/natpf/natpf_legend.js`, documento `docs/NATPF_LEGGENDA.md`): terzo
   livello (`difficulty: 'leggenda'`, tessera «CPU Leggenda», `?mode=leggenda`). Chi gioca ha le regole di Esperto; la
   CPU usa la stessa fisica e le regole d'esecuzione di chi gioca, sceglie il colpo per utilità tra molti schemi,
@@ -170,6 +175,10 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
   codifica software): la sola webcam non pesa; con anche il video del gioco fotogrammi al 5° percentile da 59 a 48 e
   consegna dei colpi mediana da 4,7 a 17,9 ms. Per questo il video del gioco parte spento; su un PC vero lo dicono le
   `prestazioni` della prima sessione.
+- Webcam (21/10, banco sintetico): il pallonetto voluto si riconosce solo nel 13% dei casi (prima 39%: con la camera
+  di fronte la salita arriva dopo l'impatto, la vede solo la conferma, troppo tardi); il 28% degli swing piccoli o
+  lenti si decide a fine gesto (~0,5 s dopo) e risulta in ritardo; la mira dal colpo anticipato è quasi nulla. Mai
+  provata con una webcam e una persona vere (`docs/NATPF_WEBCAM.md`).
 - Ritardo dello schermo (televisore): impostazione nel pannello della diagnostica, ferma a 0 finché non si misura con
   un video a 240 fps; oggi il giudizio del tempo non lo compensa.
 
@@ -278,6 +287,11 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
   chiusura; mai cancellazioni automatiche). La prima soglia era 1 GB: il browser di prova (contesto temporaneo, simile
   a una finestra privata) ha una quota di 999 MB e i video non partivano. Metriche e rapporto si calcolano nel worker
   leggendo i file a righe (`diag_analysis.js`).
+- Webcam (21/10): il riconoscimento a fine gesto (lato giusto 97–98% invece di 30%) arrivava 0,1–0,3 s dopo
+  l'impatto e il gioco giudicava «molto in ritardo» o a vuoto il 97% dei colpi (prova nel motore): non integrato da
+  solo. Scelto il colpo anticipato (lato 99%, nel motore PERFECT 89% contro 60% di prima) accettando il pallonetto
+  voluto al 13%; scartate una soglia di velocità più bassa (eventi nella preparazione nel 17–22% dei rovesci) e la
+  correzione della latenza nel motore (la palla sarebbe già 2–4 m oltre chi gioca).
 - CPU Leggenda (21/10): niente errore «a dado» né errori che crescono con lo scambio; qualità del colpo e rischio
   con le funzioni del giocatore, scelta per utilità (rischio della CPU, probabilità d'errore dell'avversario stimata e
   imparata, valore dello scambio, penalità per le ripetizioni), mira corretta per l'aria laterale (0,865). Due
@@ -293,6 +307,7 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 
 | Data | Commit | Cosa | File |
 |---|---|---|---|
+| 21/10/2026 | d35629f, d198261, 1ef6014, 284c423, a307100, 41c6535 | Webcam: un evento per colpo, colpo anticipato, mano scelta per continuità, lancio solo quando serve, banco sintetico e prova nel motore | `natpf-tennis/src/natpf/webcam_strokes.js` (nuovo), `motion_controls.js`, `natpf_hand.js`, `test/webcam-sim.mjs`, `test/natpf-webcam-classifier.test.mjs`, `scripts/audit/webcam-sweep.mjs` |
 | 21/10/2026 | 70af03a, 77ba6fb, 65f809b, a220e4d | CPU Leggenda: modello, menu, allungo nel disegno, documento | `natpf-tennis/src/natpf/natpf_legend.js` (nuovo), `natpf_skill.js`, `game_engine.js`, `hud_ui.js`, `natpf_events.js`, `index.html`, `scripts/audit/legend.mjs`, `test/natpf-legend.test.mjs`, `test/natpf-flows.test.mjs`, `docs/NATPF_LEGGENDA.md` |
 | 21/10/2026 | e0b4f6a | Colpi senza attesa di ritrasmissione (copie sul percorso veloce), stato della pagina e del blocco dello schermo del telefono, colpi scartati segnalati | `site/js/tennis/link.js`, `lan-transport.js`, `racchetta.js`, `natpf-tennis/src/natpf/natpf_ui.js`, `tools/test/phone-link-fast.test.mjs`, `tools/e2e/natpf-swing-loss.mjs`, `test/natpf-flows.test.mjs` |
 | 21/10/2026 | 78e79e1 | Modalità diagnostica: registrazione su disco senza limite, video sincronizzati, metriche, confronto, prova guidata, ritardo dello schermo | `natpf-tennis/src/natpf/diag/` (nuovo), `natpf_diag.js`, `natpf_training.js`, `natpf_lobby.js`, `natpf_pause.js`, `natpf_phone_racket.js`, `index.html`, `natpf-flow.css`, `scripts/diag/diag.mjs`, `scripts/audit/replay-recording.mjs`, `test/natpf-diag.test.mjs`, `tools/e2e/natpf-diag-session.mjs`, `docs/NATPF_DIAGNOSTICA.md` |
@@ -359,6 +374,7 @@ Quinto giro (21/10: app nativa e Bluetooth, modalità diagnostica, migliorie gi�
 | 2 | Modalità diagnostica (video, registro completo, orologio, metriche, pacchetto, confronto, recupero, prova guidata) | fatto, provato nel browser con telefono simulato e webcam finta (19/19 su 150 s, ricarica a metà, prova guidata); telefono, webcam e persona veri **non provati** |
 | 2b | Registri che si fermano dopo ~30 s | causa nel codice di prima: stop a 60 s e tutto in memoria (corretto); causa sul telefono vero (schermo che si spegne) **ipotesi**, ora rilevata e annotata |
 | 3 | Migliorie validate: colpi senza attesa di rete (R12) | fatto, provato con perdita simulata (LAN e internet, 3% e 8%: nessun colpo oltre 50 ms, prima fino a 39 su 150); Wi-Fi vero **non provato** |
+| 3c | Migliorie validate: webcam passo 0 (R5) | fatto, banco sintetico 16 criteri su 18 (non rispettati: pallonetto voluto 13%, tempo degli swing piccoli), nel motore PERFECT 89% contro 60% di prima; webcam e persona vere **non provate** |
 | 3b | Migliorie validate: CPU Leggenda (R10) | fatto, tutti i criteri di `audit:legend` rispettati con i giocatori simulati (game vinti dalla CPU 66–99,6% secondo il profilo, errori 3,5–4,8% per colpo, 8–9 schemi, entropia 2,39–2,67 bit); casual e pro identici; persone vere **non provate** |
 
 ## 11. Prossimi passi
@@ -385,8 +401,9 @@ Quinto giro (21/10: app nativa e Bluetooth, modalità diagnostica, migliorie gi�
 
 ## 12. Test e verifiche
 
-- Quinto giro (21/10): `natpf-tennis/test` **220** test con Leggenda (`natpf-legend.test.mjs`, 11, e uno in
-  `natpf-flows`), `tools/test` **134**; `npm run audit:legend` tutti i criteri. Nuovi: `natpf-diag.test.mjs` (16:
+- Quinto giro (21/10): `natpf-tennis/test` **236** test, con Leggenda (`natpf-legend.test.mjs`, 11, e uno in
+  `natpf-flows`) e webcam (`natpf-webcam-classifier.test.mjs`, 15); `tools/test` **134**; `npm run audit:legend`
+  tutti i criteri; banco della webcam (`scripts/audit/webcam-sweep.mjs`) 16 criteri su 18. Nuovi: `natpf-diag.test.mjs` (16:
   metriche, zip, magazzino, registratore, analisi a righe uguale al calcolo su tutto il registro, rotazione senza
   eventi o campioni persi o doppi, spazio su disco, avviso del confronto), `tools/test/phone-link-fast.test.mjs` (5), in `natpf-flows`
   l'avviso del blocco dello schermo (fallisce senza la condizione sulla pagina nascosta). Prove nel browser:

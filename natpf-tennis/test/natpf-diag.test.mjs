@@ -313,3 +313,16 @@ test('confronto con video diversi: avviso (il video del gioco pesa sulle prestaz
   assert.match(compareNote(m(['video-webcam.webm']), m(['video-webcam.webm', 'video-gioco.webm'])), /prima: webcam; dopo: gioco \+ webcam/);
   assert.match(compareNote(m([]), m(['video-gioco.webm'])), /prima: nessuno/);
 });
+
+test('webcam: colpo anticipato e conferma a fine gesto, quanto coincidono (coerenza, non precisione)', () => {
+  const ev = [{ t: 0, k: 'sessione' }];
+  const pair = (t, side, type, cside, ctype) => ev.push({ t, k: 'webcam.evento', tipo: 'event', side, shotType: type }, { t: t + 600, k: 'webcam.evento', tipo: 'confirm', side: cside, shotType: ctype });
+  pair(1000, 'forehand', 'topspin', 'forehand', 'topspin');
+  pair(3000, 'backhand', 'topspin', 'backhand', 'slice');
+  pair(5000, 'forehand', 'topspin', 'backhand', 'lob');
+  ev.push({ t: 7000, k: 'webcam.evento', tipo: 'event', side: 'forehand', shotType: 'topspin' }, { t: 9000, k: 'webcam.evento', tipo: 'confirm', side: 'forehand', shotType: 'topspin' });   // conferma troppo tarda: non conta
+  const W = computeMetrics(ev).webcam;
+  assert.deepEqual(W.conferme, { n: 3, latoUgualePercento: 66.7, tipoUgualePercento: 33.3 });
+  assert.equal(W.eventi, 4);
+  assert.ok(summaryLines({ webcam: W }).some(l => /coincide con la conferma/.test(l)));
+});

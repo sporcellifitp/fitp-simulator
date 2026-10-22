@@ -97,13 +97,22 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
   // ---- webcam ----
   const frames = by('webcam.frame'), wev = by('webcam.evento');
   if (frames.length || wev.length){
-    let perse = 0, persaDa = null, persaMs = 0;
-    for (const e of wev){ if (e.tipo === 'lost'){ perse++; persaDa = e.t; } if (e.tipo === 'found' && persaDa != null){ persaMs += e.t - persaDa; persaDa = null; } }
+    let perse = 0, persaDa = null, persaMs = 0, prima = null;
+    // colpo anticipato (event, quello che il gioco usa) e conferma alla fine del gesto (confirm, solo per la diagnostica):
+    // quanto spesso coincidono. È coerenza, non precisione: la precisione si misura solo con la prova guidata
+    const coppie = [];
+    for (const e of wev){
+      if (e.tipo === 'lost'){ perse++; persaDa = e.t; }
+      if (e.tipo === 'found' && persaDa != null){ persaMs += e.t - persaDa; persaDa = null; }
+      if (e.tipo === 'event') prima = e;
+      else if (e.tipo === 'confirm' && prima && e.t - prima.t < 1500){ coppie.push([prima, e]); prima = null; }
+    }
     out.webcam = {
       fotogrammi: frames.length, fpsElaborazione: durata > 0 ? r1(frames.length/durata) : null,
       inferenzaMs: dist(frames.map(f => f.inferMs)), fonte: tally(frames, f => f.source || 'nessuna'),
       piuManiPercento: frames.length ? r1(100*count(frames, f => (f.hands || 0) > 1)/frames.length) : null,
       perdite: perse, perditeS: r1(persaMs/1000), eventi: count(wev, e => e.tipo === 'event'),
+      conferme: coppie.length ? { n: coppie.length, latoUgualePercento: r1(100*count(coppie, ([a, b]) => a.side === b.side)/coppie.length), tipoUgualePercento: r1(100*count(coppie, ([a, b]) => a.shotType === b.shotType)/coppie.length) } : null,
     };
   }
 
@@ -227,6 +236,7 @@ export function summaryLines(m = {}){
     L.push(`Collegamento: ${k.cadute ?? 0} cadute${k.fuoriLineaS ? ` (${k.fuoriLineaS} s)` : ''} · pagina del telefono nascosta ${k.paginaNascosta ?? 0} volte${k.bloccoSchermo && Object.keys(k.bloccoSchermo).length ? ' · schermo: ' + Object.keys(k.bloccoSchermo).join(', ') : ''}`);
   }
   if (W) L.push(`Webcam: ${W.fpsElaborazione ?? '–'} fotogrammi elaborati/s · riconoscimento mediana ${W.inferenzaMs?.p50 ?? '–'} ms · perdite ${W.perdite} (${W.perditeS} s) · più mani ${W.piuManiPercento ?? 0}% del tempo`);
+  if (W?.conferme) L.push(`Webcam: il colpo anticipato coincide con la conferma a fine gesto nel ${W.conferme.latoUgualePercento}% dei casi per il lato e nel ${W.conferme.tipoUgualePercento}% per il tipo (${W.conferme.n} colpi; coerenza, non precisione)`);
   if (G) L.push(`Gioco: ${G.fps?.p50 ?? '–'} fps (il 5% peggiore ${G.fps?.p5 ?? '–'}) · fotogrammi oltre 50 ms: ${G.fotogrammiLunghi}`);
   if (C?.tempo && Object.keys(C.tempo).length) L.push(`Tempo dei colpi: ${Object.entries(C.tempo).map(([k, v]) => `${k} ${v}`).join(', ')}`);
   if (C?.tempoTelefonoMs?.n) L.push(`Tempo dei colpi del telefono rispetto all'impatto ideale: mediana ${C.tempoTelefonoMs.p50 > 0 ? '+' : ''}${C.tempoTelefonoMs.p50} ms (${C.tempoTelefonoMs.p50 > 0 ? 'anticipo' : 'ritardo'}) su ${C.tempoTelefonoMs.n} colpi`);

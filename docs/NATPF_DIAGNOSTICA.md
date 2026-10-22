@@ -52,7 +52,7 @@ Tutto è scritto in `eventi.jsonl`, un evento JSON per riga. `t` è in ms dall'i
 | `tentativo` | swing del giocatore: distanza palla–giocatore, correzione della latenza, velocità, se l'ha colpita |
 | `colpo.gioco` | esito del colpo (tempo, qualità, punto di rimbalzo, direzione incrociato/lungolinea/centro) e colpi della CPU |
 | `input` | ogni comando arrivato al motore (telefono, webcam, mouse) |
-| `webcam.frame`, `webcam.evento` | tracciamento della webcam: istante di cattura, fonte, mani viste, mano scelta, ms di riconoscimento, perdite e riprese |
+| `webcam.frame`, `webcam.evento` | tracciamento della webcam: istante di cattura, fonte, mani viste, mano scelta, ms di riconoscimento, perdite e riprese; colpo anticipato (`event`, quello che usa il gioco) e conferma a fine gesto (`confirm`, solo qui) |
 | `prestazioni` | ogni secondo: fps, fotogramma p50/p95/massimo, fotogrammi oltre 50 ms, aggiornamento e disegno p95, memoria, compiti lunghi, coda del disco, costo del registratore |
 | `video`, `video.frame` | inizio e fine dei video; istante di cattura di ogni fotogramma della webcam |
 | `atteso` | colpo richiesto dalla prova guidata (riferimento) |
@@ -122,6 +122,7 @@ I campioni grezzi del telefono stanno in un file a parte, `telefono-sensori.json
 - cadute del collegamento e pagina del telefono nascosta;
 - fps e fotogrammi lunghi;
 - perdite del tracciamento della webcam e mani multiple;
+- quanto spesso il colpo anticipato della webcam coincide con la sua conferma a fine gesto (coerenza, non precisione);
 - costo del registratore.
 
 **Automatico, ma solo con un riferimento**
