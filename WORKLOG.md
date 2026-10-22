@@ -20,3 +20,12 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     - la direzione viene dal tempo dentro la finestra e dal piatto rispetto al proprio colpo abituale;
     - nessun numero casuale nel colpo di chi gioca;
     - finestra d'impatto arcade a tutti i livelli.
+- Checkpoint 3: intenzione ed esito deterministici, finestra d'impatto, movimento automatico con volée e
+  schiacciate.
+  - Scoperta (P11): rigiocando i campioni grezzi, 13 colpi forti venivano scartati dopo la preparazione lenta, che il
+    gioco giocava al loro posto.
+  - Decisioni: errori di chi gioca solo dall'esecuzione, deterministici: tempo oltre la finestra, qualità sotto
+    `failQ`, che dipende da corsa, palla pesante e pressione degli scambi lunghi.
+  - Leggenda ritarata perché la sua forza veniva dagli errori casuali di chi gioca: CPU più veloce e con più portata,
+    che cerca il vincente dove chi gioca non arriva.
+  - Le palle che vanno fuori si lasciano andare: senza, gli scambi arrivavano a 60 colpi.

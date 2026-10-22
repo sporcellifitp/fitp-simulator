@@ -35,29 +35,52 @@ export const OUTCOME = Object.freeze({
   assistQ: .6,        // sotto questa qualità l'assistenza non tiene la palla dentro
 });
 
+// Assistenza per livello: mira piena (xMax, m dal centro), qualità sotto la quale la palla non è più tenuta in campo
+// (assistQ) e sotto la quale il colpo fallisce (failQ: in rete se la palla è bassa, lunga se è alta), finestra della
+// direzione (span, s; altrimenti timingSpan del livello) e quanto il tempo sposta la direzione (timingAim). A Leggenda gli angoli pieni restano più dentro e il tempo conta meno sulla direzione: con una finestra
+// stretta l'imprecisione di tempo diventava angoli ampi e casuali, cioè vincenti imprevedibili per la CPU.
+export const ASSIST = Object.freeze({
+  casual: Object.freeze({ xMax: 3.65, assistQ: .5, failQ: .2 }),
+  '1v1': Object.freeze({ xMax: 3.6, assistQ: .6, failQ: .34 }),
+  pro: Object.freeze({ xMax: 3.55, assistQ: .62, failQ: .3 }),
+  leggenda: Object.freeze({ xMax: 3.1, assistQ: .8, failQ: .63, timingAim: .58, pressureFrom: 10 }),
+});
+export const assistOf = level => ASSIST[level?.name] || (level?.cpuLegend ? ASSIST.leggenda : level?.assistWindow <= .16 ? ASSIST.pro : level?.assistWindow >= .3 ? ASSIST.casual : ASSIST['1v1']);
+// finestra della direzione (s) del livello
+export const directionSpan = level => assistOf(level).span || level?.timingSpan || .16;
+
+// Pressione degli scambi lunghi: dal colpo «from» dello scambio la qualità di tutti e due cala di «step» a colpo (al
+// massimo di «max»). Senza, un giocatore molto regolare e la CPU Leggenda arrivavano a scambi senza fine (nel banco
+// 6–8 punti su 50 oltre i 60 colpi): ora uno dei due prima o poi lascia una palla corta e alta, o sbaglia.
+export const RALLY_PRESSURE = Object.freeze({ from: 16, step: .015, max: .45 });
+export const rallyPressure = (strokes, from = RALLY_PRESSURE.from) => 1 - Math.min(RALLY_PRESSURE.max, Math.max(0, finite(strokes) - from)*RALLY_PRESSURE.step);
+
 // Qualità del tempo: piena dentro la finestra, scende oltre (fino a metà)
 export const timingQualityOf = t => 1 - .5*clamp(Math.abs(finite(t)) - 1, 0, 1);
 
 // intent: { shot, power, depth, rise, face } (minuscolo o maiuscolo); timing: s di anticipo all'impatto (negativo = in
-// ritardo); contact: +1 se la palla è alla destra di chi colpisce, −1 a sinistra; quality: allungo × preparazione (0…1);
-// contactY: altezza della palla all'impatto; volley: presa al volo; level: parametri del livello (skillLevel).
+// ritardo); lateSpan: s di ritardo che valgono il lungolinea pieno (lateSpanOf: con le palle veloci è più breve, perché
+// la palla passa il corpo prima); contact: +1 se la palla è alla destra di chi colpisce, −1 a sinistra; quality:
+// allungo × preparazione (0…1); contactY: altezza della palla all'impatto; volley: presa al volo; level: parametri del
+// livello (skillLevel).
 // Restituisce, nel riferimento di chi colpisce (x a destra, depth in avanti dalla rete): { x, depth, clear, topspin,
 // flight (solo pallonetto e schiacciata), netFault, grade, cursor, t, excess, q, assisted }.
-export function strokeOutcome({ intent = {}, timing = 0, contact = 1, quality = 1, contactY = 1, volley = false, level = {} } = {}){
+export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contact = 1, quality = 1, contactY = 1, volley = false, level = {} } = {}){
   const O = OUTCOME, shot = String(intent.shot || 'topspin').toUpperCase();
   const power = clamp(finite(intent.power, .5)), want = clamp(finite(intent.depth, power)), rise = clamp(finite(intent.rise), -1, 1);
-  const c = finite(contact, 1) >= 0 ? 1 : -1, t = timingUnits(timing, level), inside = clamp(t, -1, 1), excess = Math.max(0, Math.abs(t) - 1);
+  const AS = assistOf(level), span = directionSpan(level), late = Number.isFinite(lateSpan) ? clamp(lateSpan, .04, span) : span;
+  const c = finite(contact, 1) >= 0 ? 1 : -1, t = clamp(finite(timing) >= 0 ? finite(timing)/span : finite(timing)/late, -1.6, 1.6), inside = clamp(t, -1, 1), excess = Math.max(0, Math.abs(t) - 1);
   const q = clamp(timingQualityOf(t)*clamp(finite(quality, 1)), .2, 1);
-  const assisted = excess === 0 && q >= O.assistQ;
+  const assisted = excess === 0 && q >= AS.assistQ, xMax = AS.xMax;
   // direzione: tempo dentro la finestra e piatto, poi la spinta oltre la finestra
-  const aim = clamp(-c*O.natural - c*inside*O.timingAim + clamp(finite(intent.face), -1, 1)*O.faceAim, -1, 1);
-  let x = aim*O.xMax - c*Math.sign(t)*excess*O.pushOut;
+  const aim = clamp(-c*O.natural - c*inside*finite(AS.timingAim, O.timingAim) + clamp(finite(intent.face), -1, 1)*finite(intent.faceWeight, O.faceAim), -1, 1);
+  let x = aim*xMax - c*Math.sign(t)*excess*O.pushOut;
   // profondità: forza voluta, meno per la qualità che manca e il tempo oltre la finestra
   const D = O.depth[shot] || O.depth.TOPSPIN;
   let depth = lerp(D[0], D[1], want) - (1 - q)*O.shortPerQ - excess*O.shortPerExcess - (volley ? O.volleyShort*(1 - power) : 0);
   if (shot === 'TOPSPIN') depth += clamp(rise - O.heavyRise, 0, .4)*O.heavyGain*power;
   if (shot !== 'DROP' && shot !== 'LOB') depth += (O.wideDepth - depth)*clamp((Math.abs(x) - O.wideFrom)/O.wideSpan)*(depth > O.wideDepth ? 1 : 0);
-  if (assisted){ x = clamp(x, -O.xMax, O.xMax); depth = Math.min(depth, O.maxDepth); }
+  if (assisted){ x = clamp(x, -xMax, xMax); depth = Math.min(depth, O.maxDepth); }
   depth = Math.max(shot === 'DROP' ? 1.6 : 3, depth);
   // altezza sulla rete ed effetto
   const A = ARC[shot === 'DROP' ? 'SLICE' : shot === 'SMASH' ? 'FLAT' : shot === 'LOB' ? 'MOON' : shot] || ARC.TOPSPIN, soft = 1 - power;
@@ -65,11 +88,19 @@ export function strokeOutcome({ intent = {}, timing = 0, contact = 1, quality = 
   const clear = Math.max(ARC.netY + .02, A.clear[0] + (A.clear[1] - A.clear[0])*soft + (1 - q)*O.floatPerQ - high + (shot === 'TOPSPIN' ? .6*clamp(rise - .15, 0, .6) : 0));
   const topspin = shot === 'TOPSPIN' ? 15 + 8*clamp(rise) + 6*soft : shot === 'FLAT' ? 12 : shot === 'SLICE' ? -6.5 : shot === 'DROP' ? -3 : shot === 'LOB' ? 5 : 9;
   const flight = shot === 'LOB' ? lerp(O.lobFlight[0], O.lobFlight[1], power) : shot === 'SMASH' ? Math.max(O.smashFlight, depth/26) : null;
-  const netFault = finite(contactY, 1) < O.netLowY && excess > O.netExcess;
-  const g = swingGrade(timing, level);
+  // colpo fallito: tempo molto sbagliato su una palla bassissima, o qualità sotto failQ (in corsa, sotto pressione, palla
+  // pesante): in rete se la palla è sotto il metro, altrimenti lunga oltre la riga di fondo. Deterministico
+  const failed = q < finite(AS.failQ, 0) && shot !== 'DROP';
+  const netFault = (finite(contactY, 1) < O.netLowY && excess > O.netExcess) || (failed && finite(contactY, 1) < 1);
+  if (failed && !netFault) depth = Math.max(depth, 12.6 + (finite(AS.failQ, 0) - q)*4);
+  const g = swingGrade(t*(level?.timingSpan || span), level);
   return { x: +x.toFixed(3), depth: +depth.toFixed(3), clear: +clear.toFixed(3), topspin: +topspin.toFixed(2), flight: flight == null ? null : +flight.toFixed(3),
-    netFault, grade: g.grade, cursor: g.cursor, t: +t.toFixed(3), excess: +excess.toFixed(3), q: +q.toFixed(3), assisted, shot };
+    netFault, failed, grade: g.grade, cursor: g.cursor, t: +t.toFixed(3), excess: +excess.toFixed(3), q: +q.toFixed(3), assisted, shot };
 }
+
+// Ritardo (s) che vale il lungolinea pieno: il tempo che la palla impiega a passare lateBehind metri dietro il punto
+// d'impatto, al massimo la finestra del livello. vz: velocità della palla lungo il campo (m/s).
+export const lateSpanOf = (vz, level = {}) => clamp(IMPACT.lateBehind/Math.max(1, Math.abs(finite(vz, 15))), .05, directionSpan(level));
 
 // Tempo di volo per arrivare alla profondità con l'altezza voluta sulla rete (come shotArc, senza caso)
 export function outcomeFlight(out, { fromY = 1, fromZ = 11, toZ = -9, flight = .8 } = {}){
@@ -82,12 +113,37 @@ export function outcomeFlight(out, { fromY = 1, fromZ = 11, toZ = -9, flight = .
 // d'impatto si colpisce ancora per «late» secondi. Arcade a tutti i livelli: i livelli cambiano quanto costa il tempo
 // sbagliato (timingSpan), non se si prende la palla. Prima a Esperto e Leggenda l'attesa era di 0,16 s: colpi a vuoto
 // con la palla ancora a 3–10 m (sessione del 22/10).
+// In ritardo il lungolinea pieno vale lateSpanOf (la palla passa lateBehind metri dietro il punto d'impatto); si colpisce
+// ancora fino a lateExtra volte quel tempo (spinta oltre la finestra, la palla può uscire di lato), poi è a vuoto.
 export const IMPACT = Object.freeze({
-  casual: Object.freeze({ early: .5, late: .16 }),
-  pro: Object.freeze({ early: .42, late: .13 }),
-  leggenda: Object.freeze({ early: .4, late: .12 }),
-  '1v1': Object.freeze({ early: .45, late: .14 }),
+  casual: Object.freeze({ early: .5, lateExtra: 2 }),
+  pro: Object.freeze({ early: .42, lateExtra: 1.8 }),
+  leggenda: Object.freeze({ early: .4, lateExtra: 1.5 }),
+  '1v1': Object.freeze({ early: .45, lateExtra: 1.8 }),
   contactAhead: .35,  // m: punto d'impatto davanti a chi colpisce (la palla poco davanti al corpo)
+  lateBehind: 1.4,    // m dietro il punto d'impatto: lungolinea pieno
+  lateExtra: 1.5,     // oltre questo multiplo del ritardo pieno la palla è passata (per livello: più tollerante a Casual)
   reach: 2.4,         // m: portata laterale della racchetta (il movimento automatico porta la palla a ~0,7 m)
 });
 export const impactWindow = difficulty => IMPACT[String(difficulty || 'casual').toLowerCase()] || IMPACT.casual;
+
+// Intenzione da qualunque colpo arrivato al motore: dal telefono con la forma (natpf.intent), altrimenti ricostruita
+// dai campi di sempre (tipo di colpo, forza, mira): telefoni non aggiornati, webcam, controlli di prova.
+const RISE_OF = Object.freeze({ lob: .8, topspin: .3, flat: 0, slice: -.4, drop: -.4, smash: -.3 });
+export function eventIntent(e = {}){
+  const n = e.natpf || {};
+  if (n.intent && typeof n.intent === 'object') return n.intent;
+  const raw = String(n.shot || (e.natpfDrop ? 'drop' : e.shotType) || 'topspin').toLowerCase();
+  const shot = ['topspin', 'flat', 'slice', 'drop', 'lob', 'smash'].includes(raw) ? raw : raw === 'power' ? 'flat' : 'topspin';
+  const power = Number.isFinite(n.power) ? clamp(n.power) : clamp((finite(e.speed, 1.18) - .8)/.88);
+  const face = Number.isFinite(n.wrist) ? clamp(n.wrist, -1, 1) : clamp(finite(e.dirX), -1, 1);
+  // la mira di questi controlli (dirX) è già una scelta di direzione: pesa più del piatto del telefono
+  return { shot, power, depth: power, rise: RISE_OF[shot], face, faceWeight: .7, derived: true };
+}
+// Schiacciata all'impatto: sopra 2,3 m solo da sopra la testa; tra 1,75 e 2,3 m se il gesto è una schiacciata o scende
+export function smashAt(e = {}, ballY = 1){
+  const y = finite(ballY, 1), it = eventIntent(e);
+  if (y >= 2.3) return true;
+  if (y < 1.75) return false;
+  return e.side === 'overhead' || it.shot === 'smash' || String(e.shotType || '').toLowerCase() === 'smash' || (finite(it.rise) <= -.05 && finite(it.power, .5) >= .3);
+}

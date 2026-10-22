@@ -212,12 +212,13 @@ export async function engineSwings(swings, { difficulty = 'casual', seed = 7, ma
           plan.sent = true; plan.from = grades.length; plan.ballSpeed = e.ball.vel.z;
           e._handleUserSwingInput({ source: 'webcam', side: plan.side, shotType: plan.shotType, speed: plan.speed, dirX: plan.dirX, dirY: plan.dirY });
           plan.held = !!e.pendingUserSwing?.waitForSweetSpot;
+          // racchetta virtuale: palla che va fuori, chi gioca la lascia andare (lo swing non la tocca)
         }
       }
       e.step(DT);
       // fine del colpo: la palla l'ha colpita il giocatore, oppure il punto è finito
       if (plan?.sent && (e.ball.lastHitter === 'player' || e.phase !== 'RALLY')){
-        const g = grades.slice(plan.from).find(s => !/^P2 /.test(s)) || 'niente';
+        const g = grades.slice(plan.from).find(s => !/^P2 /.test(s)) || (e.natpfPlan?.kind === 'letgo' ? 'lasciata' : 'niente');
         out.push({ dt: plan.dt, held: plan.held, ballSpeed: plan.ballSpeed, grade: /WHIFF/.test(g) ? 'WHIFF' : g.split(' • ')[0] || 'niente' });
         plan = null; i++;
       }

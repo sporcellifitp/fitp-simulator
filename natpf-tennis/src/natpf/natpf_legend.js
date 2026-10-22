@@ -18,6 +18,7 @@
 // Attiva solo con il livello «leggenda» contro la CPU: casual, pro, 1v1 e le sfide non passano mai da qui.
 // Il generatore casuale si può iniettare (engine.natpfLegendRng); l'audit scripts/audit/legend.mjs misura i criteri.
 import * as NS from './natpf_skill.js';
+import { rallyPressure } from './natpf_stroke_outcome.js';
 
 const C = NS.COURT;
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -43,7 +44,7 @@ export const LEGEND = Object.freeze({
   // affondo: se all'impatto la palla passerebbe a più di lungeFrom dal corpo, nelle ultime lungeTime secondi un passo
   // esplosivo (accelerazione lungeAccel, al massimo lungeSpeed, sotto la velocità del giocatore) porta il corpo a
   // lungeKeep dalla palla: la racchetta la tocca davvero, senza scatti
-  lungeFrom: 1.2, lungeKeep: 1.05, lungeTime: .32, lungeSpeed: 8.4, lungeAccel: 30,
+  lungeFrom: 1.2, lungeKeep: 1.05, lungeTime: .32, lungeSpeed: 8.6, lungeAccel: 30,
   // allungo visivo (solo disegno): la palla che passa oltre reachFrom m dal corpo, nelle ultime reachLead s prima
   // dell'impatto e per reachHold s dopo, porta racchetta e braccio verso di lei (al massimo reachMax m) e inclina il
   // corpo dalla stessa parte (fino a reachLean rad)
@@ -57,6 +58,11 @@ export const LEGEND = Object.freeze({
   // closeHard colpi gioca solo per chiudere
   closeFrom: 20, closeGain: .2, closeFloor: 0, closeAggr: .45, closeWiden: .6, closePower: [.85, .95], closeX: [3.2, 3.75],
   closeHard: 24, closeG: 1.6,
+  // vincente: chi gioca si muove da solo verso la palla (natpf_impact.js) e arriva quasi ovunque; la CPU stima se ci
+  // arriva in tempo: margine = volo + reachAfter s dopo il rimbalzo (la palla torna all'altezza comoda in discesa)
+  // − (reazione + strada / velocità). Margine negativo:
+  // probabilmente non ci arriva (vincente); piccolo: ci arriva in corsa e risponde peggio. reachSd: scala del margine (s)
+  reachAfter: .55, reachReact: .12, reachSide: .72, reachSd: .08, reachUse: 1,
 });
 // Solo per audit ed esperimenti (scripts/audit/legend.mjs): valori che sostituiscono LEGEND in tutte le partite.
 // Oltre alle chiavi di LEGEND: forceKind (sempre quel colpo), noLetGo (gioca anche le palle fuori), legacyMove (corsa
@@ -98,6 +104,17 @@ function noteHumanResult(m, erred){
   k.n++; k.exp += p.prior; if (erred) k.err++;
 }
 
+/* ---------- chi gioca arriva sulla palla? ---------- */
+// probabilità che non ci arrivi (vincente) e quanto arriva in corsa (0…1), dalla posizione e dalla corsa attuali
+function humanReach(L, c, ctx, h){
+  const flight = finite(c.flight, .9), vx = (c.x - ctx.bx)/Math.max(.3, flight);
+  const xc = c.x + vx*L.reachAfter, zc = c.z + 2;
+  const hx = h.pos.x + finite(h.vel?.x)*.1, hz = h.pos.z + finite(h.vel?.z)*.1;
+  const need = L.reachReact + Math.hypot(Math.max(0, Math.abs(xc - hx) - L.reachSide), zc - hz)/Math.max(4, finite(h.maxSpeed, 9));
+  const margin = flight + L.reachAfter - need;
+  return { pWin: 1/(1 + Math.exp(margin/L.reachSd)), stretch: clamp(1 - margin/.35), margin };
+}
+
 /* ---------- rischio d'errore della CPU con le regole del giocatore ---------- */
 function cpuRisk(c, q, lv){
   const p = c.power, x = Math.abs(c.x);
@@ -128,7 +145,8 @@ export function legendDecide(e, actor, rng = legendRng(e)){
   const lat = Math.abs(b.pos.x - actor.pos.x), running = actor.vel.length()/Math.max(1, actor.maxSpeed);
   const pace = clamp((b.vel.length()*3.6 - 55)/55);
   const tq = NS.swingQuality(NS.gauss(rng)*L.timingSd*(1 + .8*pace), lv);
-  const q = clamp(tq*NS.reachQuality(lat, running), .3, 1);
+  // pressione degli scambi lunghi, uguale a quella di chi gioca (natpf_stroke_outcome.rallyPressure)
+  const q = clamp(tq*NS.reachQuality(lat, running)*rallyPressure(b.rallyStrokeCount, 10), .3, 1);
   const R = (a, z) => a + rng()*(z - a), hx = h.pos.x, hz = h.pos.z, hv = h.vel.x;
   const away = -(Math.sign(hx) || -s);                    // angolo lontano dall'avversario
   const cands = [
@@ -168,8 +186,12 @@ export function legendDecide(e, actor, rng = legendRng(e)){
     // negli scambi lunghi la CPU prova a forzare l'errore anche contro chi finora non ha sbagliato: conta almeno
     // l'errore che quel colpo provoca di solito (stima iniziale), non solo quello visto in questa partita
     const eC = closing ? Math.max(c.eH, c.prior) : c.eH;
-    // utilità: palla dentro × (errore provocato + valore di uno scambio che continua), meno le ripetizioni
-    c.U = (1 - c.pErr)*(eC + (1 - eC)*V) - L.repeat*recent.filter(z => z === zone(c.x, c.z)).length
+    // chi gioca arriva sulla palla? (vincente, o risposta in corsa che vale come un errore provocato in parte)
+    const hr = L.reachUse ? humanReach(L, c, ctx, h) : { pWin: 0, stretch: 0 };
+    c.pWin = hr.pWin;
+    const eR = eC + (1 - eC)*.25*hr.stretch;
+    // utilità: palla dentro × (vincente + errore provocato + valore di uno scambio che continua), meno le ripetizioni
+    c.U = (1 - c.pErr)*(hr.pWin + (1 - hr.pWin)*(eR + (1 - eR)*V)) - L.repeat*recent.filter(z => z === zone(c.x, c.z)).length
       - L.repeatKind*last3.filter(l => l.kind === c.kind).length - L.capPenalty*Math.max(0, last10.filter(l => l.kind === c.kind).length/10 - L.maxShare);
     if (!best || c.U > best.U) best = c;
   }
@@ -237,8 +259,11 @@ export function legendStep(e, a, dt){
   if (L.vmax) a.maxSpeed = L.vmax;
   if (L.legacyMove) return false;
   let tx = a.targetPos.x, tz = a.targetPos.z, vmax = a.maxSpeed, acc = L.accel, lunge = false;
-  // affondo: palla in arrivo che all'impatto (la CPU colpisce quando la palla è a 1,32 m) passerebbe lontana dal corpo
-  if (b.inPlay && b.lastHitter !== 'opponent' && b.vel.z < -1){
+  // affondo: palla in arrivo che all'impatto (la CPU colpisce quando la palla è a 1,32 m) passerebbe lontana dal corpo.
+  // Mai durante il tempo di reazione (split-step, planCpuRun): con le volée di chi gioca la palla arriva in meno di
+  // lungeTime e l'affondo partiva subito, cioè la CPU reagiva in 25 ms
+  const plan = e.natpfSkill?.cpuPlan, reacting = !!plan?.legend && finite(e.elapsedTime) < finite(plan.readAt);
+  if (!reacting && b.inPlay && b.lastHitter !== 'opponent' && b.vel.z < -1){
     const t = (b.pos.z - a.pos.z - 1.32)/(-b.vel.z), reach = NS.cpuReach(e, 1.5);
     if (t > 0 && t < L.lungeTime){
       const px = b.pos.x + b.vel.x*t, gap = px - a.pos.x;

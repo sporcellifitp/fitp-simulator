@@ -46,7 +46,10 @@ export const SKILL_LEVELS = Object.freeze({
   // lettura umane, corsa con accelerazione e frenata limitate (cpuSpeed sotto la velocità del giocatore).
   leggenda: Object.freeze({
     ...EXPERT_PLAYER,
-    cpuReach: 1.85, cpuSpeed: 7.0, cpuReact: .15, cpuReactSd: .03, cpuReadSd: .25, cpuReadFix: .32, cpuCenterBias: 0,
+    // racchetta virtuale: chi gioca non sbaglia più a caso e il movimento automatico arriva quasi ovunque; la CPU difende
+    // più veloce (prima 7 m/s), legge meglio (prima ±0,25 m) e arriva con la racchetta quanto chi gioca (prima 1,85 m),
+    // sempre sotto la velocità di chi gioca (8,8 m/s)
+    cpuReach: 2.3, cpuSpeed: 8.0, cpuReact: .15, cpuReactSd: .03, cpuReadSd: .18, cpuReadFix: .32, cpuCenterBias: 0,
     cpuErr: null, cpuLegend: true,
   }),
   '1v1': Object.freeze({

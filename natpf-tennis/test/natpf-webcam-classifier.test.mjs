@@ -262,7 +262,7 @@ test('nel gioco (motore e interfaccia veri): la mano scelta e il lancio accettat
   w.ui.hand.set('right');
 });
 
-test('nel motore: lo swing della webcam arriva prima della palla, viene tenuto fino allo sweet spot e non è in ritardo', async () => {
+test('nel motore: lo swing della webcam arriva prima della palla, viene tenuto fino al punto d\'impatto e colpisce dentro la finestra', async () => {
   // colpi a rimbalzo simulati: il colpo che esce dal riconoscimento e quando arriva rispetto all'impatto del gesto
   const CAMS = [{ Hc: 1.1, tiltDeg: 0, aspect: 4/3 }, { Hc: 1.9, tiltDeg: 20, aspect: 16/9 }], swings = [];
   let seed = 500;
@@ -274,7 +274,10 @@ test('nel motore: lo swing della webcam arriva prima della palla, viene tenuto f
   assert.ok(swings.length >= 45, `colpi riconosciuti ${swings.length}/48`);
   // nel motore: la palla della CPU arriva, il gesto ha l'impatto quando la palla è allo sweet spot e il colpo arriva
   // al gioco con lo stesso scarto. Prima (evento ~0,15–0,25 s dopo l'impatto) la palla era già 2–4 m oltre: VERY LATE
-  const out = await engineSwings(swings, { difficulty: 'casual' }), n = out.length, by = g => out.filter(o => o.grade === g).length;
-  const held = out.filter(o => o.held).length, onTime = by('PERFECT') + by('EARLY'), bad = by('VERY LATE') + by('WHIFF') + by('niente');
-  assert.ok(onTime >= .85*n && bad <= .08*n && held >= .25*n, `tenuti ${pct(held, n)}, PERFECT o EARLY ${pct(onTime, n)}, VERY LATE o a vuoto ${pct(bad, n)}: ${JSON.stringify(out.map(o => o.grade))}`);
+  // finestra d'impatto (natpf_impact.js): EARLY, PERFECT e LATE sono colpi dentro la finestra (in anticipo incrociato, in
+  // ritardo lungolinea); le palle che vanno fuori chi gioca le lascia andare e non contano
+  const all = await engineSwings(swings, { difficulty: 'casual' }), out = all.filter(o => o.grade !== 'lasciata'), n = out.length, by = g => out.filter(o => o.grade === g).length;
+  const held = out.filter(o => o.held).length, onTime = by('PERFECT') + by('EARLY') + by('LATE'), bad = by('VERY LATE') + by('WHIFF') + by('niente');
+  assert.ok(n >= .9*all.length, `lasciate ${all.length - n}/${all.length}`);
+  assert.ok(onTime >= .88*n && bad <= .08*n && held >= .25*n, `tenuti ${pct(held, n)}, dentro la finestra ${pct(onTime, n)}, VERY LATE o a vuoto ${pct(bad, n)}: ${JSON.stringify(all.map(o => o.grade))}`);
 });

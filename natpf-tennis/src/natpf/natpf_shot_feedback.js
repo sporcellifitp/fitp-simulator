@@ -20,6 +20,7 @@ export function landsIn(target, { towardNegativeZ = true, serve = false } = {}){
 export function shotQuality(grade = '', { inCourt = true } = {}){
   const g = String(grade).toUpperCase();
   if (/WHIFF/.test(g) && /EARLY/.test(g)) return { color: 'red', label: 'Troppo presto' };
+  if (/WHIFF/.test(g) && /REACH/.test(g)) return { color: 'red', label: 'Troppo lontana' };
   if (/WHIFF|TOO LATE/.test(g)) return { color: 'red', label: 'Mancata' };
   if (!inCourt) return { color: 'red', label: 'Fuori' };
   if (/PERFECT|POWER/.test(g)) return { color: 'green', label: 'Perfetto' };

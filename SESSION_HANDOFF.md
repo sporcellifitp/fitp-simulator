@@ -62,14 +62,28 @@ tastiera come controlli nuovi.
 3. [x] Forma del gesto sul telefono (`site/js/tennis/stroke-shape.js`): piano, salita della testa, inclinazione del
    manico, velocità. La rotazione del polso c'è, ma solo per la diagnostica (non validata). Campi `an` e `sh` nel
    messaggio. Banco: `test/racket-sim.mjs`, test in `test/natpf-racchetta.test.mjs`.
-4. [~] Intenzione sul computer: `natpf_stroke_intent.js` (scritto, collegato in `natpfSwingToEngine` come
-   `natpf.intent`) ed esito `natpf_stroke_outcome.js` (scritto, da collegare nel motore). Strumento prima/dopo:
-   `scripts/audit/zip-replay.mjs <cartella> --prima=… --prima-face=…`.
-5. [ ] Esito deterministico nel motore (`natpf_skill.js`, `game_engine.js`): niente caso nel colpo di chi gioca;
-   errori solo se la traiettoria esce.
-6. [ ] Finestra d'impatto con la traiettoria prevista. Swing in attesa fino all'arrivo della palla, mai impatti con la
-   palla lontana. Finestra arcade a tutti i livelli.
-7. [ ] Movimento automatico con volée e schiacciate al volo; salita a rete dopo un attacco.
+4. [x] Intenzione sul computer: `natpf_stroke_intent.js` (collegato in `natpfSwingToEngine` come `natpf.intent`).
+   Strumento prima/dopo: `scripts/audit/zip-replay.mjs <cartella> --prima=… --prima-face=…`.
+5. [x] Esito deterministico nel motore (`natpf_stroke_outcome.js`, `_natpfRacketShot` in `game_engine.js`).
+   - Il tempo dentro la finestra è una scelta: in anticipo incrociato, in ritardo lungolinea. In ritardo il
+     lungolinea pieno vale quanto la palla impiega a passare 1,4 m dietro il punto d'impatto (`lateSpanOf`).
+   - Assistenza per livello (`ASSIST`): mira piena, qualità sotto la quale non tiene in campo, qualità sotto la quale il
+     colpo fallisce (rete o lungo).
+   - Qualità: allungo, corsa del movimento automatico (`stretch` del piano), palla veloce, profonda o alta, pressione
+     degli scambi lunghi (`rallyPressure`).
+6. [x] Finestra d'impatto (`natpf_impact.js`).
+   - Swing in attesa fino all'arrivo della palla al punto d'impatto; uno più forte lo sostituisce.
+   - In anticipo fino a `IMPACT.early`; in ritardo fino a `lateExtra` × il lungolinea pieno.
+   - Mai un impatto con la palla lontana. Colpi a vuoto con il motivo (presto, tardi, portata).
+7. [x] Movimento automatico (`planPlayerIntercept`, `recoverAfterShot`).
+   - Dopo il rimbalzo all'altezza comoda; volée se si è avanti; schiacciata al volo sulle palle alte.
+   - Si sale a rete dopo un attacco.
+   - Le palle che vanno fuori si lasciano andare.
+   - Leggenda ritarata (`audit:legend`, 4 semi × 120 punti, tutti i criteri di forza rispettati):
+     - CPU a 8 m/s, portata 2,3 m, lettura ±0,18 m;
+     - stima di quando chi gioca non arriva sulla palla (vincenti);
+     - niente affondo durante la reazione;
+     - misura della reazione corretta (la frenata non è una reazione).
 8. [ ] Servizio dal gesto.
 9. [ ] Avversario: l'angolo buono toglie qualità alla risposta; scambi che finiscono.
 10. [ ] Calibrazione tollerante; «Salta» con il gioco completo.

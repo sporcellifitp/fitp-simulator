@@ -6,7 +6,9 @@
 //   npm run audit:rally -- --points=300 --difficulty=pro
 import { pathToFileURL } from 'node:url';
 import { createHeadlessEngine, mulberry32, gauss } from './headless-engine.mjs';
-import { SWING_AIM, swingPower } from '../../src/natpf/natpf_skill.js';
+import { skillLevel } from '../../src/natpf/natpf_skill.js';
+import { strokePower } from '../../src/natpf/natpf_stroke_intent.js';
+import { OUTCOME, lateSpanOf, directionSpan } from '../../src/natpf/natpf_stroke_outcome.js';
 
 // Profili: errore di tempo (s, deviazione standard), mira (quanto cerca il campo aperto e con che dispersione),
 // forza del gesto (velocità del motore base 0,8…1,65) e uso dei colpi speciali.
@@ -29,26 +31,30 @@ const RALLY_CAP = 60;
 const IDEAL_R = -.45;           // m: palla poco davanti al giocatore, al centro della finestra «perfetto» del motore base           // oltre questi colpi lo scambio si considera «infinito» e si chiude d'ufficio
 const DT = 1/120;
 
-// Colpo del telefono: chi sa giocare sceglie il lato libero e ci arriva con tempo e polso (con il suo errore);
-// gli altri colpiscono quando capita.
+// Colpo del telefono (modello «racchetta virtuale», natpf_stroke_intent.js e natpf_stroke_outcome.js): chi sa giocare
+// sceglie il lato libero con il tempo (dentro la finestra della direzione del livello) e con il piatto, con il suo
+// errore; gli altri colpiscono quando capita. L'intenzione arriva al motore come quella dei telefoni con la forma.
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function phoneIntent(e, P, rng){
-  const S = SWING_AIM, open = e.opponent.pos.x >= 0 ? -1 : 1;
+  const span = directionSpan(skillLevel(e.matchConfig.difficulty)), open = e.opponent.pos.x >= 0 ? -1 : 1;
   const contact = e.ball.targetLanding.x >= e.player.pos.x ? 1 : -1;
-  let tau = 0, wrist = 0;
+  let tau = 0, face = 0;
   if (rng() < P.intent){
-    const target = open*(2.6 + rng()*.9);
-    // metà dell'angolo con il tempo, metà con il polso
-    tau = Math.max(-.2, Math.min(.2, ((-target/contact - S.naturalX)/S.timingX*.55)*S.timingSpan));
-    wrist = Math.max(-1, Math.min(1, target*.45/S.wristX));
+    // mira voluta (−1…1, piena a 0,45 m dalla riga): circa metà con il tempo, il resto con il piatto
+    // in anticipo fino alla finestra del livello; in ritardo poco (con le palle veloci la palla passa il corpo): il
+    // lungolinea lo dà soprattutto il piatto, come fa chi gioca davvero
+    const aim = open*(.7 + rng()*.3), want = clamp(-aim*.6/(contact*OUTCOME.timingAim), -1, 1), u = want >= 0 ? want : want*.5;
+    tau = u*(u >= 0 ? span : lateSpanOf(e.ball.vel.z, skillLevel(e.matchConfig.difficulty)))*.9;
+    face = clamp((aim + contact*u*OUTCOME.timingAim + contact*OUTCOME.natural)/OUTCOME.faceAim, -1, 1);
   }
-  const peak = Math.max(150, P.peak + gauss(rng)*P.peakSd);
+  const peak = Math.max(150, P.peak + gauss(rng)*P.peakSd), power = strokePower(peak);
   const special = rng() < (P.specials || 0);
   const shot = special ? (e.opponent.pos.z > -9 ? 'lob' : 'slice') : 'topspin';
-  const power = swingPower(P.rel, peak);
+  const intent = { shot, power: +power.toFixed(3), depth: +(power*.91).toFixed(3), rise: shot === 'lob' ? .8 : shot === 'slice' ? -.4 : .3, face: clamp(face + gauss(rng)*P.wristSd, -1, 1) };
   // error > 0 = in ritardo (come negli altri profili): per anticipare di tau si colpisce tau secondi prima dello sweet spot
   return { error: -tau + gauss(rng)*P.timingSd + (-.1 - IDEAL_R)/18, sent: false,
     swing: { source: 'audit', side: contact > 0 ? 'forehand' : 'backhand', shotType: shot, speed: .8 + power*.85, dirX: 0,
-      natpf: { aim: 'swing', shot, wrist: Math.max(-1, Math.min(1, wrist + gauss(rng)*P.wristSd)), power, latency: 0, hand: 'right',
+      natpf: { aim: 'swing', shot, intent, power, peak: Math.round(peak), latency: 0, hand: 'right',
         prepCapable: true, prep: rng() < (P.prep || 0) ? { lead: .35, amount: .8 } : null } } };
 }
 

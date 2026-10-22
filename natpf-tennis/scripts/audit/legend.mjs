@@ -58,7 +58,9 @@ P._stepPhysics = function(dt){
     const vx = (o.pos.x - ox)/dt, vz = (o.pos.z - oz)/dt, along = vx*curPlayer.ux + vz*curPlayer.uz;
     curPlayer.vmax = Math.max(curPlayer.vmax, Math.hypot(vx, vz));
     if (curPlayer.v0 == null) curPlayer.v0 = along;
-    if (curPlayer.react == null && along - curPlayer.v0 > .3) curPlayer.react = this.elapsedTime - curPlayer.t;
+    // verso il punto d'incontro, oltre la velocità che aveva già in quella direzione: la frenata durante lo split-step di
+    // una CPU che si stava allontanando (recupero) non è una reazione (prima contava, e dava reazioni di 17–33 ms)
+    if (curPlayer.react == null && along - Math.max(0, curPlayer.v0) > .3) curPlayer.react = this.elapsedTime - curPlayer.t;
   }
 };
 const award = P._awardPoint;

@@ -174,22 +174,28 @@ test('skill gap: gli errori della CPU crescono con angolo, velocità, pressione 
   assert.ok(e({ angle: .8, speed: 28 }, p) < e({ angle: .8, speed: 28 }, c));
 });
 
-test('motore: lo swing troppo anticipato non viene più aspettato a lungo (Pro), in Casual sì', () => {
-  const run = difficulty => {
+test('motore: finestra d\'impatto — lo swing in anticipo aspetta la palla a ogni livello, troppo in anticipo è a vuoto', () => {
+  // racchetta virtuale (natpf_impact.js): prima a Pro e Leggenda l'attesa era di 0,16 s e uno swing 0,29 s in anticipo
+  // era un colpo a vuoto con la palla ancora lontana (sessione del 22/10). Ora si aspetta fino a IMPACT.early
+  const run = (difficulty, z) => {
     const realRandom = Math.random; Math.random = mulberry32(5);
     try {
       const e = createHeadlessEngine({ difficulty });
       e.startNewMatch({ showStartBanner: false });
       e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'opponent';
       e.player.pos.set(1, 0, 11.4); e.player.targetPos.copy(e.player.pos);
-      e.ball.pos.set(1.2, 1.0, 8.4); e.ball.vel.set(0, 0, 10);         // 0,29 s allo sweet spot
+      e.ball.pos.set(1.7, 1.0, z); e.ball.vel.set(0, 0, 10);
       e._handleUserSwingInput({ source: 'test', speed: 1.2, dirX: .5 });
-      for (let i = 0; i < 40 && e.ball.lastHitter === 'opponent'; i++){ e.ball.vel.y = 0; e.step(1/120); }
-      return e.ball.lastHitter;
+      for (let i = 0; i < 110 && e.ball.lastHitter === 'opponent'; i++){ e.ball.vel.y = 0; e.step(1/120); }
+      return { hitter: e.ball.lastHitter, hitZ: e.ball.lastHitter === 'player' ? e.natpfLastRacket?.timing : null };
     } finally { Math.random = realRandom; }
   };
-  assert.equal(run('casual'), 'player');
-  assert.equal(run('pro'), 'opponent');
+  for (const difficulty of ['casual', 'pro', 'leggenda']){
+    const held = run(difficulty, 8.4);                      // 0,27 s prima del punto d'impatto
+    assert.equal(held.hitter, 'player', difficulty);
+    assert.ok(Math.abs(held.hitZ - .265) < .03, `${difficulty} ${held.hitZ}`);   // tempo vero dello swing, non quello dell'impatto
+    assert.equal(run(difficulty, 4.0).hitter, 'opponent', difficulty);           // 0,7 s prima: a vuoto
+  }
 });
 
 test('motore: col piatto girato a destra/sinistra la palla va a destra/sinistra', () => {
