@@ -424,7 +424,8 @@ Quinto giro (21/10: app nativa e Bluetooth, modalità diagnostica, migliorie gi�
   ridotto identico a prima (16/18, i due che mancano già mancavano); prima/dopo sui campioni reali dello ZIP e sulle
   scene della webcam con più persone (`docs/NATPF_RACCHETTA_VIRTUALE.md` §4.2.1). Prove nel browser (build finale):
   telefono in verticale 10/10 con i gesti fisici della racchetta simulata (prima erano rotazioni del telefono sul
-  proprio lato lungo), allenamento 13/13, latenza 9/9, ricollegamento 6/6, rete che cade 6/6, menu 22/22, 1v1 18/18,
+  proprio lato lungo), allenamento 13/13, latenza 9/9, ricollegamento 6/6, rete che cade 6/6, menu 22/22, 1v1 18/18
+  (anche sullo zip Cloudflare estratto),
   diagnostica lunga 23/23, LAN 7/8 (limite noto, §7). Tre difetti trovati da queste prove e corretti (calibrazione con
   colpi completi, piano vecchio, colpo della calibrazione in campo). Zip: `natpf-simulator-cloudflare-20261022.zip`
   (23,7 MiB, nessun file oltre 25 MiB) e `natpf-simulator-lan-windows-20261022.zip` (57,2 MiB, Node 22.22.0
