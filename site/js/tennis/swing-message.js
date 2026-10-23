@@ -39,7 +39,7 @@ export function parseSwingMessage(d, { at, now }){
     ...(typeof d.he === 'number' && isFinite(d.he) ? { head: n(d.he, -1, 1, 0) } : {}),
     ...(typeof d.fh === 'number' && isFinite(d.fh) ? { heading: n(d.fh, -180, 180, 0) } : {}),
     ...(typeof d.sd === 'number' ? { detectMs: n(d.sd, 0, 1000, 0) } : {}), ...(typeof d.hd === 'number' ? { holdMs: n(d.hd, 0, 2000, 0) } : {}),
-    ...(typeof d.hz === 'number' ? { sampleHz: n(d.hz, 0, 1000, 0) } : {}), ...(Number.isInteger(d.n) ? { seq: d.n } : {}), ...(d.vt === 'up' || d.vt === 'down' ? { vert: d.vt } : {}),
+    ...(typeof d.hz === 'number' ? { sampleHz: n(d.hz, 0, 1000, 0) } : {}), ...(Number.isInteger(d.n) ? { seq: d.n } : {}), ...(d.vt === 'up' || d.vt === 'down' || d.vt === 'v' ? { vert: d.vt } : {}),
     ...(typeof d.an === 'number' && isFinite(d.an) ? { angle: n(d.an, 0, 720, 0) } : {}),
     // forma del colpo (telefoni aggiornati): senza, il computer usa i segnali di prima
     ...(Array.isArray(d.sh) && d.sh.length >= 6 && d.sh.slice(0, 6).every(x => typeof x === 'number' && isFinite(x))

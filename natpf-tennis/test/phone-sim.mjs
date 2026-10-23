@@ -77,10 +77,11 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
   // calibrazione rapida vera: i gesti alternati del percorso rapido (QUICK_PLAN); opzioni del gesto (peak, ms, wrist,
   // tremor…) come in swing.
   // soft: restituisce l'esito invece di fermarsi (per le prove con prese e gesti diversi)
-  const calibrate = ({ soft = false, rest: pause = 500, tremor = 0, ...gesture } = {}) => {
+  // armGesture(w): il gesto della calibrazione fatto da fuori (braccio simulato, test/arm-sim.mjs), w = 'L' o 'R'
+  const calibrate = ({ soft = false, rest: pause = 500, tremor = 0, armGesture = null, ...gesture } = {}) => {
     const events = []; const off = cal.on(e => events.push(e));
     cal.start({ quick: true, hand }); rest(800, tremor);
-    for (const w of QUICK_PLAN){ swing({ axis: [0, w === 'L' ? 1 : -1, 0], tremor, ...gesture }); rest(pause, tremor); }
+    for (const w of QUICK_PLAN){ if (armGesture) armGesture(w); else swing({ axis: [0, w === 'L' ? 1 : -1, 0], tremor, ...gesture }); rest(pause, tremor); }
     const ok = cal.state.step === 'review' && !!cal.state.result?.pass;
     if (!ok && !soft) throw new Error('calibrazione non riuscita: ' + JSON.stringify(cal.state.result));
     if (ok){ cal.confirm(); ready = true; rest(600, tremor); }
@@ -93,12 +94,13 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
   const prof = () => det.profile;
   const lifts = { model: null }, heads = { model: null }, faces = createFaceModel(), aims = createAimModel(), rises = createRiseModel(), typical = createTypicalModel();
   // rally: colpo nello scambio (impara il colpo tipico, riferimento della forza dal terzo colpo come nel gioco)
-  const game = (d, { ballHigh = false, rally = true } = {}) => {
+  // own: prototipi dei propri gesti (pallonetto e palla corta degli esercizi, natpf_phone_racket.ownShapes)
+  const game = (d, { ballHigh = false, rally = true, own = null } = {}) => {
     lifts.model ||= createLiftModel(liftBaselineFromProfile(prof()) ?? 0);
     heads.model ||= createLiftModel(headBaselineFromProfile(prof(), hand) ?? 0);
     const s = parseSwingMessage(d, { at: 10, now: 10020 });
     const p = prof(), { ref, rawRef } = powerRefs(p, typical.value);
-    const ev = natpfSwingToEngine(s, { hand, now: 10.02, ballHigh, liftBaseline: lifts.model.value, headBaseline: heads.model.value, faceCenter: faces.center(s.dir), aimModel: aims, ref, rawRef, riseRef: habitual ? habitualRise(p, s.dir, rises) : null });
+    const ev = natpfSwingToEngine(s, { hand, now: 10.02, ballHigh, liftBaseline: lifts.model.value, headBaseline: heads.model.value, faceCenter: faces.center(s.dir), aimModel: aims, ref, rawRef, riseRef: habitual ? habitualRise(p, s.dir, rises) : null, own: typeof own === 'function' ? own(s, habitual ? habitualRise(p, s.dir, rises) : null) : own });
     if (NORMAL_SHOTS.has(ev.natpf.shot)){ lifts.model.add(s.dir, s.lift); heads.model.add(s.dir, ev.natpf.head); }
     faces.add(s.dir, s.face); aims.add(s.dir, s.heading);
     if (ev.natpf.intent) rises.add(s.dir, s.shape?.rise, ev.natpf.intent.shot);

@@ -42,6 +42,10 @@ export const SHAPE = Object.freeze({
 export function strokeShape(hist, up, { peakT, racket = SHAPE.racket } = {}){
   if (!Array.isArray(hist) || hist.length < 4 || !up || !Number.isFinite(peakT)) return null;
   const U = unit(up);
+  // la testa della racchetta virtuale è l'estremità del telefono che a riposo sta in alto: chi tiene il telefono con la
+  // cima in basso (nel pugno, palmo sui lati lunghi) aveva la testa che puntava in basso, e il pallonetto si leggeva
+  // come un colpo normale (salita 0,2–0,4 invece di 0,8). Segnalazione del 23/10, sera
+  const end = U[1] < 0 ? -1 : 1, Y0 = [0, end, 0];
   const H = hist.filter(h => h.t <= peakT + 1);
   if (H.length < 4 || peakT - H[0].t < SHAPE.planeMs || !H[H.length - 1].w) return null;
   // piano: asse di rotazione rispetto alla verticale, pesato con la velocità, sull'avanzamento
@@ -61,13 +65,13 @@ export function strokeShape(hist, up, { peakT, racket = SHAPE.racket } = {}){
   for (let i = i0 + 1; i < H.length; i++){
     const h = H[i], dt = Math.min(.06, (h.t - H[i - 1].t)/1000);
     if (h.a) v = v.map((x, j) => x + h.a[j]*dt);
-    if (h.t >= peakT - SHAPE.impactMs && h.w) heads.push({ head: v.map((x, j) => x + cross(h.w.map(c => c*D), rotate(h.q, [0, racket, 0]))[j]), h });
+    if (h.t >= peakT - SHAPE.impactMs && h.w) heads.push({ head: v.map((x, j) => x + cross(h.w.map(c => c*D), rotate(h.q, [0, end*racket, 0]))[j]), h });
   }
   if (!heads.length) return null;
   const head = [0, 1, 2].map(j => heads.reduce((s, x) => s + x.head[j], 0)/heads.length);
   const speed = len(head);
   const rise = speed > .05 ? clamp(dot(head, U)/speed, -1, 1) : 0;
-  const last = heads[heads.length - 1].h, Y = rotate(last.q, [0, 1, 0]);
+  const last = heads[heads.length - 1].h, Y = rotate(last.q, Y0);
   const tilt = clamp(dot(Y, U), -1, 1);
   // rotazione attorno al manico che gira il piatto che avanza (moto della testa perpendicolare al manico) verso l'alto
   // o verso il basso, mediata sugli ultimi rollMs. Dello swing si toglie la rotazione attorno al suo asse (direzione
@@ -77,7 +81,7 @@ export function strokeShape(hist, up, { peakT, racket = SHAPE.racket } = {}){
   let rs = 0, rn = 0;
   for (const h of H){
     if (h.t < peakT - SHAPE.rollMs || !h.w) continue;
-    const y = rotate(h.q, [0, 1, 0]), m = len(h.w);
+    const y = rotate(h.q, Y0), m = len(h.w);
     if (m < 1e-6) continue;
     const wr = h.w.map((x, j) => x - dot(h.w, axis)*axis[j]);
     rs += dot(wr, y)*dot(cross(y, n), U); rn += m;

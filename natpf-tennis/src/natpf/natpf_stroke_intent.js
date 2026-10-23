@@ -81,6 +81,35 @@ export function classifyStroke(shape, { power = .5, angle = null, ballHigh = nul
   return { shot: 'topspin', conf: .5, why: ['colpo normale'] };
 }
 
+// Pallonetto e palla corta personali: prototipi della forma dei propri gesti fatti a richiesta negli esercizi del
+// riscaldamento (lob, drop: { rise, plane (|piano|), power }) e del proprio colpo normale (normal, imparato giocando).
+// Segnalazione del 23/10, sera: pallonetti e palle corte quasi mai riconosciuti. Con il telefono dritto nel pugno e il
+// gesto fatto di polso la testa virtuale (asse lungo del telefono) si muove di lato: un pallonetto vero dava salita
+// 0,2 (soglia 0,6) e una palla corta −0,07, come un dritto. Le soglie fisse non vedono la differenza, il confronto con i
+// propri gesti sì. Il gesto è il colpo speciale se è più vicino al proprio pallonetto (o alla propria palla corta) che al
+// proprio colpo normale di almeno «margin», entro «maxDist»; un prototipo troppo simile al colpo normale (sotto
+// «minSep») non si usa. Distanze in unità di «scale».
+// riseGuard: se il proprio colpo speciale sale (o scende) di almeno tanto più del proprio colpo normale, il gesto deve
+// arrivare almeno a metà strada in quel verso (con il solo pallonetto imparato, una palla corta, verticale e morbida,
+// era più vicina al pallonetto che al colpo normale e si leggeva pallonetto)
+export const PERSONAL = Object.freeze({ scale: Object.freeze({ rise: .3, plane: .3, power: .25 }), maxDist: 1.6, margin: .2, minSep: .9, riseGuard: .12 });
+const shapeDist = (a, b) => { const S = PERSONAL.scale; return Math.hypot((a.rise - b.rise)/S.rise, (a.plane - b.plane)/S.plane, (a.power - b.power)/S.power); };
+// il proprio colpo speciale si distingue dal proprio colpo normale (altrimenti non si può riconoscere)
+export const shapeDistinct = (p, normal) => !!p && !!normal && shapeDist(p, normal) >= PERSONAL.minSep;
+export function personalSpecial(f, { normal = null, lob = null, drop = null } = {}){
+  if (!normal || !f) return null;
+  let best = null;
+  const sameWay = p => { const d = p.rise - normal.rise; return Math.abs(d) < PERSONAL.riseGuard || (f.rise - normal.rise)*Math.sign(d) >= .5*Math.abs(d); };
+  for (const [shot, p] of [['lob', lob], ['drop', drop]]){
+    if (!shapeDistinct(p, normal) || !sameWay(p)) continue;
+    const d = shapeDist(f, p);
+    if (!best || d < best.d) best = { shot, d };
+  }
+  if (!best) return null;
+  const dN = shapeDist(f, normal);
+  return best.d <= PERSONAL.maxDist && best.d + PERSONAL.margin < dN ? { shot: best.shot, d: +best.d.toFixed(2), dN: +dN.toFixed(2) } : null;
+}
+
 // Mira del piatto: scarto (gradi) della direzione del piatto all'impatto dal proprio colpo abituale per lato, con zona
 // morta. +1 piatto girato a destra … −1 a sinistra; 0 se non misurata.
 export function faceAimFromDev(dev){
@@ -95,11 +124,15 @@ export function faceAimFromDev(dev){
 //   rawRef: colpo tipico con la velocità vera al picco (calibrazione). Con rawPeak del telefono la forza si misura sul picco
 //   vero: il massimo della media mobile (peak) negli swing corti resta molto sotto (50° a 1100 °/s: 72%, forza 0,49
 //   contro 0,70 di uno swing ampio alla stessa velocità). Con un profilo senza rawRef si resta sul picco della media.
-export function strokeIntent(s, { ref = null, rawRef = null, ballHigh = null, headingDev = null, riseRef = null } = {}){
+//   personal: prototipi dei propri gesti (personalSpecial): pallonetto e palla corta come li fa chi gioca, tranne con
+//   la palla alta (la schiacciata resta quella)
+export function strokeIntent(s, { ref = null, rawRef = null, ballHigh = null, headingDev = null, riseRef = null, personal = null } = {}){
   if (!s?.shape) return null;
   const useRaw = Number.isFinite(s.rawPeak) && (Number.isFinite(rawRef) || !Number.isFinite(ref));
   const power = useRaw ? strokePower(s.rawPeak, Number.isFinite(rawRef) ? rawRef : null) : strokePower(s.peak, ref), reach = swingReach(s.angle);
-  const cls = classifyStroke(s.shape, { power, angle: s.angle, ballHigh, riseRef });
+  let cls = classifyStroke(s.shape, { power, angle: s.angle, ballHigh, riseRef });
+  const own = cls.shot === 'smash' ? null : personalSpecial({ rise: finite(s.shape.rise), plane: Math.abs(finite(s.shape.plane, 1)), power }, personal || {});
+  if (own && own.shot !== cls.shot) cls = { shot: own.shot, conf: +clamp((own.dN - own.d)/2).toFixed(2), why: [own.shot === 'lob' ? 'come il tuo pallonetto' : 'come la tua palla corta', `distanza ${own.d} (dal colpo normale ${own.dN})`] };
   return {
     shot: cls.shot, conf: cls.conf, why: cls.why, power: +power.toFixed(3), reach: +reach.toFixed(3),
     // profondità voluta 0…1: la forza, un poco ridotta se lo swing è corto (un colpo bloccato è più corto)

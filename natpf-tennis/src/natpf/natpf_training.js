@@ -44,6 +44,15 @@ export function calCoach(want, hand = 'right'){
 export const sideWant = (side, hand = 'right') => ((side === 'forehand') !== (hand === 'left') ? 'L' : 'R');
 // avanzamento di un esercizio (funzione pura, per i test)
 export const drillsFor = controller => DRILLS.filter(d => !d.phoneOnly || controller === 'phone');
+// Messaggio dopo un pallonetto o una palla corta non riconosciuti. learn: esito dell'apprendimento del gesto appena fatto
+// ({ kind, learned, distinct }, NatpfPhoneRacket.learnSpecial). Prima diceva «Ho imparato il tuo gesto» dal secondo
+// tentativo anche quando il gioco non imparava niente (telefoni con la forma del colpo)
+export function specialHint(shot, learn = null){
+  const mine = learn?.kind === shot && learn.learned;
+  if (mine && learn.distinct) return 'Ho imparato il tuo gesto: rifallo uguale';
+  if (mine) return shot === 'lob' ? 'Sembra il tuo colpo normale: la mano sale di più, dal basso verso l’alto' : 'Sembra il tuo colpo normale: più lento e corto, dall’alto verso il basso';
+  return shot === 'lob' ? 'Più dal basso verso l’alto' : 'Più lento, dall’alto verso il basso';
+}
 export function drillAfterShot(drill, progress, { side, inCourt, shot = null }){
   // prova guidata della diagnostica: ogni palla giocata è un campione (il giudizio lo fanno le metriche, con il video)
   if (drill.diag) return { ...progress, tries: progress.tries + 1, done: progress.done + 1, ok: true };
@@ -75,7 +84,8 @@ export class NatpfTraining {
     if (!this.active || this.cal || !ev?.natpf || ev.ignored) return;
     this.lastShot = ev.natpf.shot;
     const d = this.drill;
-    if (d?.shot && d.learn !== false){ this.ui.phone.learnSpecial?.(d.shot, ev.natpf); this.lastLearn = d.shot; }
+    // il gesto fatto a richiesta è un esempio del proprio colpo speciale: { kind, learned, distinct } (learnSpecial)
+    if (d?.shot && d.learn !== false) this.lastLearn = { kind: d.shot, ...(this.ui.phone.learnSpecial?.(d.shot, ev.natpf) || {}) };
   }
   get phoneCal(){ return this.ui.controller === 'phone' && !this.ui.phone.ready; }
   // calOnly: solo la calibrazione del telefono in campo (prima di una sfida), poi si torna a chi l'ha chiesta
@@ -251,7 +261,7 @@ export class NatpfTraining {
     this.progress = drillAfterShot(d, this.progress, { side: d.id === 'serve' ? 'serve' : side, inCourt: q.label !== 'Fuori' && q.label !== 'Mancata', shot: this.lastShot });
     this.lastShot = null;
     const ok = this.progress.done > before;
-    this.message = d.shot ? (ok ? `${d.label} ✓` : this.progress.tries >= 2 ? 'Ho imparato il tuo gesto: riprova uguale' : (d.shot === 'lob' ? 'Più dal basso verso l’alto' : 'Più lento, dall’alto verso il basso')) : ok ? `${q.label} ✓` : this.progress.wrongSide ? (d.id === 'forehand' ? 'Era un rovescio: la palla va sul dritto' : 'Era un dritto: la palla va sul rovescio') : q.label === 'Fuori' ? 'Fuori: meno angolo o meno forza' : q.label;
+    this.message = d.shot ? (ok ? `${d.label} ✓` : specialHint(d.shot, this.lastLearn)) : ok ? `${q.label} ✓` : this.progress.wrongSide ? (d.id === 'forehand' ? 'Era un rovescio: la palla va sul dritto' : 'Era un dritto: la palla va sul rovescio') : q.label === 'Fuori' ? 'Fuori: meno angolo o meno forza' : q.label;
     this.flash = { text: this.message, ok, until: performance.now() + 1200 };
     this.paint();
   }

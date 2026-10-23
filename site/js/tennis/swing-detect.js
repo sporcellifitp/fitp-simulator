@@ -72,15 +72,35 @@ export function classifySwingType({ power = .6, lift = 0, dur = 999 } = {}, lobL
 }
 
 // Gesto verticale: la rotazione avviene attorno a un asse orizzontale (perpendicolare alla gravità) e lontano
-// dall'asse del dritto/rovescio, e la mano sale o scende davvero (accelerazione lineare lungo la gravità).
-// Un solo segnale non basta: serve l'asse giusto E lo spostamento verticale. Restituisce 'up', 'down' o null.
-export const VERTICAL = Object.freeze({ maxAlong: .45, maxAxisUp: .6, minLift: .25 });
+// dall'asse del dritto/rovescio. Restituisce 'up' o 'down' se la mano sale o scende davvero (accelerazione lineare lungo
+// la gravità), 'v' se il verso non si capisce dall'accelerazione, null se il gesto non è verticale. Pallonetto e palla
+// corta li decide il computer dalla forma del colpo (natpf_stroke_intent.js), anche con 'v'.
+// minRef: un gesto verticale (senza verso di dritto o rovescio) vale come colpo da questa frazione del proprio colpo
+// tipico (era 0,4, ed era richiesto anche il verso dall'accelerazione). Segnalazione del 23/10, sera: pallonetti e palle
+// corte quasi mai riusciti. Con il braccio simulato una palla corta dall'alto verso il basso senza dritto veniva
+// scartata («verso») a ogni velocità, un pallonetto sotto i 260 °/s anche
+// slow*: gesto verticale lento (palla corta «lenta e morbida», pallonetto morbido). In gioco la soglia dei colpi è circa
+// il 28% del proprio dritto di calibrazione (con un dritto da 650 °/s una palla corta da 180 °/s non partiva mai): un
+// gesto con l'asse di rotazione nettamente orizzontale (|coseno con l'alto| fino a slowAxisUp) vale da slowRef del
+// proprio colpo (almeno slowPeak °/s) se al picco ha già percorso slowAngle gradi. I micro-movimenti restano sotto
+// Entro recoverLate dal colpo prima (DEFAULTS) la mano rientra, spesso in verticale (dopo un tagliato torna su): lì un
+// gesto verticale vale solo da nearRef del proprio colpo, come prima, e il gesto lento non vale
+// Il gesto lento può avere anche un poco di dritto o di rovescio (la palla corta fatta di polso: asse fino a slowAlong
+// lungo quello del colpo di calibrazione): conta che l'asse sia nettamente orizzontale (slowAxisUp)
+export const VERTICAL = Object.freeze({ maxAlong: .45, maxAxisUp: .6, minLift: .25, minRef: .25, nearRef: .4, slowAxisUp: .45, slowAlong: .65, slowRef: .15, slowPeak: 100, slowAngle: 15 });
+// asse di rotazione nettamente orizzontale (gesto nel piano verticale) e lontano da quello del dritto e del rovescio
+export function verticalAxis(axis, gravity, calibAxis = null, maxUp = VERTICAL.slowAxisUp, maxAlong = VERTICAL.slowAlong){
+  if (!axis || !gravity || !len(axis)) return false;
+  if (calibAxis && Math.abs(dot(unit(axis), unit(calibAxis))) > maxAlong) return false;
+  const g = unit([gravity[2], gravity[0], gravity[1]]);
+  return !!len(g) && Math.abs(dot(unit(axis), g)) <= maxUp;
+}
 export function verticalGesture(axis, gravity, lift, along = 0){
   if (!axis || !gravity || Math.abs(along) > VERTICAL.maxAlong) return null;
   // l'asse di rotazione è nell'ordine dei sensori [α(z), β(x), γ(y)], la gravità in [x, y, z]: stesso ordine prima del confronto
   const g = unit([gravity[2], gravity[0], gravity[1]]); if (!len(g)) return null;
   if (Math.abs(dot(unit(axis), g)) > VERTICAL.maxAxisUp) return null;
-  return lift >= VERTICAL.minLift ? 'up' : lift <= -VERTICAL.minLift ? 'down' : null;
+  return lift >= VERTICAL.minLift ? 'up' : lift <= -VERTICAL.minLift ? 'down' : 'v';
 }
 
 // Verso del colpo dalla rotazione attorno alla verticale: +1/−1 nello stesso senso del colpo di calibrazione (che si
@@ -134,7 +154,13 @@ export function createSwingDetector(opts = {}){
   let mode = 'run', still = null, finishAt = false, cur = null, lastFire = -1e9, lastT = null, sm = 0, last = null, lastPeak = 0;
   // discard: gesto valutato e non mandato come colpo, con il motivo (diagnostica: prima spariva senza traccia)
   const listeners = { swing: [], status: [], sample: [], phase: [], prep: [], discard: [] };
-  const discard = (why, c, dir = 0) => emit('discard', { why, peakT: c.peakT, peak: Math.round(c.peak), angle: Math.round(c.angle), dir });
+  // floor: la soglia che il gesto non ha raggiunto (°/s); slow: valeva come gesto verticale lento; up, along: asse di
+  // rotazione rispetto all'alto e al colpo di calibrazione (coseni)
+  const discard = (why, c, dir = 0, floor = null) => {
+    const a = c.peakW && len(c.peakW) ? unit(c.peakW) : null, g = c.gravity || prof.gravity, up = a && g ? unit([g[2], g[0], g[1]]) : null;
+    emit('discard', { why, peakT: c.peakT, peak: Math.round(c.peak), angle: Math.round(c.angle), dir, ...(floor != null ? { floor: Math.round(floor) } : {}), slow: !!c.slow,
+      ...(a && up ? { up: +dot(a, up).toFixed(2) } : {}), ...(a && prof.axis ? { along: +dot(a, unit(prof.axis)).toFixed(2) } : {}) });
+  };
   const emit = (k, v) => { for (const f of listeners[k]) f(v); };
   const serving = () => context === 'serve' || context === 'toss';
   // colpo tipico per verso: quello della calibrazione, ma se i colpi veri della partita (il 75° percentile degli ultimi:
@@ -157,6 +183,8 @@ export function createSwingDetector(opts = {}){
   };
   // ampiezza minima in gioco: quella del verso più ampio della calibrazione (minAngles è già un quarto del gesto)
   const playAngle = () => (inPlay() ? Math.max(C.playMinAngle, ...[prof.minAngles?.[1], prof.minAngles?.[-1]].filter(Number.isFinite)) : 0);
+  // soglia del gesto verticale lento (VERTICAL.slow*): una frazione del proprio colpo, mai sotto il rumore
+  const slowFloor = () => Math.max(C.playMinPeak, VERTICAL.slowPeak, (prof.noise || 1)*5, (scale() || prof.ref || 600)*VERTICAL.slowRef)*prof.sens;
 
   const setPhase = value => { if (phase !== value){ phase = value; emit('phase', value); } };
   const reset = () => { cur = null; sm = 0; lastT = null; recovering = false; quietSince = null; held = null; setPhase('ready'); };
@@ -230,10 +258,13 @@ export function createSwingDetector(opts = {}){
       if (gl > 5){ cur.up += dot(k.acc, g)/gl*dt; cur.tot += len(k.acc)*dt; }
     }
     const minAngle = serving() ? Math.min(2.5,prof.minAngle) : Math.max(playAngle(), Math.min(prof.minAngle,...(prof.templates||[]).map(t=>Math.max(2,t.angle*.35))));
-    const ready = cur.peak >= T.minPeak && cur.angle >= minAngle && k.t - cur.t0 >= C.minDur;
+    // gesto verticale lento e ampio (VERTICAL.slow*): soglia più bassa
+    cur.slow = inPlay() && cur.t0 - lastFire > C.recoverLate && cur.angle >= VERTICAL.slowAngle && verticalAxis(cur.peakW, cur.gravity || prof.gravity, prof.axis);
+    const minPeak = cur.slow ? Math.min(T.minPeak, slowFloor()) : T.minPeak;
+    const ready = cur.peak >= minPeak && cur.angle >= minAngle && k.t - cur.t0 >= C.minDur;
     // picco passato: la velocità grezza è già scesa (sotto l'88% del picco, o in calo da due campioni), prima della
     // media mobile; oppure è scesa la media, oppure niente di nuovo da «plateau» ms
-    const rawPast = cur.rawPeak > 0 && k.t > cur.truePeakT && cur.rawPeak >= T.minPeak && (mag < cur.rawPeak*C.rawDrop || (cur.fallN >= 2 && mag < cur.rawPeak*C.rawFall));
+    const rawPast = cur.rawPeak > 0 && k.t > cur.truePeakT && cur.rawPeak >= minPeak && (mag < cur.rawPeak*C.rawDrop || (cur.fallN >= 2 && mag < cur.rawPeak*C.rawFall));
     if (!cur.fired && ready && (rawPast || sm < cur.peak*.9 || k.t - cur.peakT >= C.plateau)){ cur.fired = true; fire(k.t); }
     if (sm < T.on*.6 || k.t - cur.t0 > C.maxDur){
       // gesto finito senza diventare colpo ma non da poco (oltre il 60% del picco minimo): per la diagnostica
@@ -267,7 +298,11 @@ export function createSwingDetector(opts = {}){
     const mean = rots.length ? [0, 1, 2].map(i => rots.reduce((a, s) => a + s.rot[i], 0)/rots.length) : [0, 0, 0];
     prof.bias = !forced && len(mean) <= C.biasMax ? mean : [0, 0, 0];
     const p90 = rots.length ? quantile(rots.map(s => len(s.rot.map((v, i) => v - prof.bias[i]))), .9) : null;
-    prof.noise = p90 == null ? 5 : Math.max(1, forced ? Math.min(C.stillMax, p90) : p90);
+    // rumore al massimo stillMax anche con il passo finito da solo: il passo vale con la mediana sotto stillMax e nessun
+    // campione oltre stillPeak, quindi la finestra può contenere la coda di un movimento lento (la presa sistemata con
+    // calma). Il 90° percentile la prendeva per tremolio: con 60 °/s le soglie diventavano 300 °/s (colpo) e 240 (inizio)
+    // per tutta la partita, e palle corte e colpi morbidi non partivano più (prova nel browser del 23/10, sera)
+    prof.noise = p90 == null ? 5 : Math.max(1, Math.min(C.stillMax, p90));
     const g = unit((steady.length ? steady : gs).reduce((a, s) => a.map((v, i) => v + s.g[i]), [0, 0, 0]));
     if (len(g) || !prof.gravity) prof.gravity = g;
     still = null; finishAt = false; mode = 'run'; emit('status', { s: 'still-ok', gravity: prof.gravity, ...(forced ? { forced: true } : {}) });
@@ -305,9 +340,11 @@ export function createSwingDetector(opts = {}){
     const since = c.peakT - lastFire;
     if (!training && !serving() && lastDir && dir === -lastDir && ((since < C.recoverWindow && c.peak < lastPeak*C.recoverStrong) || (since < C.recoverLate && c.peak < lastPeak*C.recoverLateWeak))){ setPhase('follow'); discard('rientro', c, dir); return; }
     // gesto verticale (dal basso verso l'alto o dall'alto verso il basso): non è né dritto né rovescio, ma è un colpo
-    const vertical = dir === 0 && !!vert && !serving() && c.peak >= Math.max(thr().minPeak, (prof.ref || 600)*.4);
-    if (!training && ((prof.axis && dir === 0 && !vertical && !serving() && !(context==='practice' && intent.shot==='serve')) || (!vertical && c.peak < floor) || c.angle < minAngle)){
-      discard(prof.axis && dir === 0 && !vertical && !serving() ? 'verso' : !vertical && c.peak < floor ? 'debole' : 'corto', c, dir);
+    // gesto verticale lento e ampio (VERTICAL.slow*): vale anche con un verso di dritto o rovescio, sotto la soglia dei colpi
+    const slowOk = !!c.slow && !serving() && c.peak >= slowFloor() && c.angle >= VERTICAL.slowAngle;
+    const vertical = dir === 0 && !!vert && !serving() && (c.peak >= Math.max(thr().minPeak, (prof.ref || 600)*(c.t0 - lastFire > C.recoverLate ? VERTICAL.minRef : VERTICAL.nearRef)) || slowOk);
+    if (!training && ((prof.axis && dir === 0 && !vertical && !serving() && !(context==='practice' && intent.shot==='serve')) || (!vertical && !slowOk && c.peak < floor) || (!slowOk && c.angle < minAngle))){
+      discard(prof.axis && dir === 0 && !vertical && !serving() ? 'verso' : !vertical && !slowOk && c.peak < floor ? 'debole' : 'corto', c, dir, !vertical && !slowOk && c.peak < floor ? floor : null);
       setPhase('preparation');
       // movimento troppo piccolo per un colpo: in modalità preparazione è la racchetta che si carica
       // (non dopo un gesto trattenuto nel verso opposto: lì è il rientro della mano)
