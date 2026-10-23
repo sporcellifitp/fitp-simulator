@@ -104,9 +104,14 @@ Due partite brevi a Leggenda:
 
 Con `ritmo=colmo` si colpisce più spesso vicino al colmo dopo il rimbalzo, con un po' più di tempo.
 
-Annotare quale delle due dà più tempo e meno colpi in ritardo. Nel rapporto contano il «tempo dei colpi» e i colpi
-oltre la finestra d'impatto. È la scelta lasciata aperta: nel banco simulato la palla presa al colmo a Leggenda costa
-punti, ma il banco non sa quando colpisce davvero una persona.
+Annotare quale delle due dà più tempo e meno colpi in ritardo. Nel rapporto contano:
+
+- il «tempo dei colpi»;
+- la quota «oltre la finestra» negli esiti della racchetta;
+- l'«impatto dopo il rimbalzo» (altezza della palla e tempo dal rimbalzo al colpo).
+
+È la scelta lasciata aperta: nel banco simulato la palla presa al colmo a Leggenda costa punti, ma il banco non sa
+quando colpisce davvero una persona.
 
 ## 2. Webcam del portatile (circa 12 minuti)
 
