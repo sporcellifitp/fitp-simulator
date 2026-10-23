@@ -1634,8 +1634,7 @@ export class NatpfTennisEngine {
       r = o.MathUtils.clamp(Number(t.dirX || 0), -1, 1) * 1.15,
       l = e.sideSign * h * (1.75 + Math.random() * 0.85),
       p = o.MathUtils.clamp(l + r, -S.SINGLES_X + 0.45, S.SINGLES_X - 0.45),
-      c =
-        e.role === "opponent" && !this.isMultiplayer ? (["pro", "leggenda"].includes(this.matchConfig.difficulty) ? 1 : 1.24) : 1;
+      c = e.role === "opponent" && !this.isMultiplayer ? NS.cpuServeFlight(this) : 1; // NATPF: servizio della CPU per livello (natpf_skill.js)
     let y = -e.sideSign * (4.4 + Math.random() * 1.35),
       f = s ? Math.max(0.58, 0.66 / Math.min(1.18, a * 0.92)) * c : n ? 0.94 * c : 0.8 * c,
       m = s ? 22 : n ? 8 : 15,
@@ -1717,6 +1716,11 @@ export class NatpfTennisEngine {
     }
     const x = e.role === "player" ? this.opponent : this.player;
     x === this.player ? this._natpfPlanPlayer() : this._natpfPlanOpponent(x);
+    // NATPF: la CPU che ha servito torna al centro dietro la riga di fondo durante il volo del servizio, come chi serve
+    // davvero (prima restava dove aveva servito, fuori centro: con la risposta presa da fondo campo il campo aperto
+    // regalava vincenti in risposta)
+    // (Leggenda ha il suo modello di posizione, natpf_legend.js)
+    e === this.opponent && !this.isMultiplayer && !this.isDoubles && !NL.isLegend(this) && e.targetPos.set(0, 0, -S.BASELINE_Z - 0.3);
   }
   _attemptPlayerRallyStrike(e = {}, t = !1) {
     if (this.ball.lastHitter === "player") return !1;
@@ -2614,7 +2618,8 @@ export class NatpfTennisEngine {
         this.ball.pos.y >= 2.75
       ) {
         const i = this.score.server === "player" ? this.player : this.opponent;
-        this._executeServeHit(i, i === this.opponent && NL.isLegend(this) ? NL.legendServe(this) : { timing: "PERFECT" }); // NATPF Leggenda: servizio vario
+        // NATPF: servizio vario della CPU (Leggenda: natpf_legend.js; Pro: natpf_skill.cpuServeEvent)
+        this._executeServeHit(i, i === this.opponent && NL.isLegend(this) ? NL.legendServe(this) : i === this.opponent && !this.autoPlayMode ? NS.cpuServeEvent(this) : { timing: "PERFECT" });
         return;
       }
       this.ball.pos.y <= 0.95 &&

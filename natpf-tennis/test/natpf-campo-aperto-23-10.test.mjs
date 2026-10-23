@@ -120,3 +120,35 @@ test('ritmo: con chi gioca arretrato la palla è «passata» solo oltre la fines
     assert.ok(awarded && awarded.who === 'opponent' && awarded.z > 13.7 + 2.8 - .1, JSON.stringify(awarded));
   } finally { Math.random = real; }
 });
+
+// Corsa in avanti dopo il servizio (richiesta del 23/10, sera): il servizio rimbalza sempre nel quadrato, e con la regola
+// della palla corta chi rispondeva correva in avanti fino a metà campo a ogni servizio, a tutti i livelli (banco: dalla
+// riga di fondo a 5,5–6,5 m dalla rete nel 100% delle risposte). Ora si prende dove arriva comodo, da fondo campo; e la
+// CPU che ha servito torna al centro (tranne Leggenda, che ha il suo modello).
+async function serveReturn(difficulty){
+  const { createHeadlessEngine, mulberry32 } = await import('../scripts/audit/headless-engine.mjs');
+  const real = Math.random; Math.random = mulberry32(9);
+  try {
+    const e = createHeadlessEngine({ difficulty }); e.startNewMatch({ showStartBanner: false });
+    e.score.server = 'opponent'; e._setupPointServe({ showBanner: false });
+    const z0 = e.player.pos.z, cpuX0 = e.opponent.pos.x;
+    // la CPU lancia e serve da sola; si segue la palla fino al colpo di chi risponde (o al rimbalzo fuori portata)
+    let minZ = z0, served = null;
+    for (let t = 0; t < 6 && !(e.ball.lastHitter === 'opponent' && e.ball.pos.z > e.player.pos.z); t += 1/120){
+      e.step(1/120);
+      if (e.phase === 'RALLY' && e.ball.lastHitter === 'opponent' && !served) served = { plan: e.natpfPlan, cpuTarget: e.opponent.targetPos.clone() };
+      if (served) minZ = Math.min(minZ, e.player.targetPos.z);
+      if (served && e.ball.bounceCountOnCurrentSide >= 1 && e.ball.pos.z > 10) break;
+    }
+    return { z0, minZ, plan: served?.plan, cpuX0, cpuTarget: served?.cpuTarget };
+  } finally { Math.random = real; }
+}
+test('risposta al servizio: niente corsa verso la rete, si prende la palla da fondo campo; la CPU che ha servito torna al centro', async () => {
+  for (const lv of ['casual', 'pro', 'leggenda']){
+    const r = await serveReturn(lv);
+    assert.ok(r.plan && r.plan.kind === 'ground', `${lv}: risposta dopo il rimbalzo (${r.plan?.kind})`);
+    assert.ok(r.z0 - r.minZ < 1.5, `${lv}: chi risponde avanza al più di poco (da ${r.z0.toFixed(1)} a ${r.minZ.toFixed(1)} m dalla rete)`);
+    assert.ok(Math.abs(r.plan.contact.z) > 9, `${lv}: impatto oltre 9 m dalla rete (${r.plan.contact.z})`);
+    if (lv !== 'leggenda') assert.ok(Math.abs(r.cpuTarget.x) < .05 && Math.abs(r.cpuX0) > .3, `${lv}: la CPU torna al centro (da x ${r.cpuX0.toFixed(2)} verso ${r.cpuTarget.x.toFixed(2)})`);
+  }
+});

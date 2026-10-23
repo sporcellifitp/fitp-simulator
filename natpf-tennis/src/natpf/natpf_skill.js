@@ -35,6 +35,7 @@ export const SKILL_LEVELS = Object.freeze({
     cpuAccel: 10, cpuDecel: 16,                         // m/s²: la CPU accelera e frena (23/10: prima cambiava verso all'istante)
     cpuErr: Object.freeze({ base: .03, angle: .2, speed: .12, pressure: .06, stretch: .25, rally: .014, drop: .32, lob: .3, smash: .5, max: .7 }),
     cpuWeak: .16, cpuAttack: .7, cpuAttackBase: .12, cpuAttackFlight: .7, playerSpeed: 10.2,  // su palle deboli la CPU attacca: angolo e ritmo
+    cpuServe: Object.freeze({ flight: 1, wide: 0 }),     // servizio della CPU lento e al centro del quadrato (cpuServe)
   }),
   pro: Object.freeze({
     ...EXPERT_PLAYER,
@@ -42,8 +43,9 @@ export const SKILL_LEVELS = Object.freeze({
     cpuAccel: 11, cpuDecel: 17,                         // 23/10: con l'inerzia la punta sale da 5,0 (corse lunghe)
     // 23/10: meno errori a caso (erano base .015, velocità .12, angolo .2): con la corsa che costa, i punti li decidono di più
     // il campo aperto e l'allungo (stretch), non il caso; Pro contro «medio» resta nel 70–85% dei game
-    cpuErr: Object.freeze({ base: .004, angle: .14, speed: .07, pressure: .045, stretch: .25, rally: .012, drop: .22, lob: .2, smash: .35, max: .5 }),
+    cpuErr: Object.freeze({ base: .004, angle: .08, speed: .04, pressure: .035, stretch: .18, rally: .012, drop: .22, lob: .2, smash: .35, max: .5 }),
     cpuWeak: .1, cpuAttack: .7, cpuAttackBase: .24, cpuAttackFlight: .62,
+    cpuServe: Object.freeze({ flight: .85, wide: .8 }),
   }),
   // Leggenda: per chi gioca le regole di Esperto. La CPU non ha una probabilità d'errore propria (cpuErr): colpisce
   // con le stesse regole del giocatore e sceglie il colpo per utilità (natpf_legend.js); split-step, reazione e
@@ -55,6 +57,7 @@ export const SKILL_LEVELS = Object.freeze({
     // sempre sotto la velocità di chi gioca (8,8 m/s)
     cpuReach: 2.3, cpuSpeed: 8.0, cpuReact: .15, cpuReactSd: .03, cpuReadSd: .18, cpuReadFix: .32, cpuCenterBias: 0,
     cpuErr: null, cpuLegend: true,
+    cpuServe: Object.freeze({ flight: .9 }),           // direzione: natpf_legend.legendServe
   }),
   '1v1': Object.freeze({
     assistWindow: .22, perfectLead: .12, timingSpan: .17, autoAim: .3,
@@ -64,6 +67,19 @@ export const SKILL_LEVELS = Object.freeze({
   }),
 });
 export const skillLevel = difficulty => SKILL_LEVELS[String(difficulty || 'casual').toLowerCase()] || SKILL_LEVELS.casual;
+
+// Servizio della CPU (23/10, sera): flight moltiplica il tempo di volo (sotto 1 più veloce), wide quanto va verso gli
+// angoli del quadrato (dirX del motore: ±1 l'angolo). A Pro e Leggenda il servizio è l'arma della CPU: fa correre di
+// lato chi risponde. Prima la risposta si giocava correndo in avanti fino a metà campo (planPlayerIntercept), un handicap
+// nascosto che a Leggenda faceva perdere il 94% dei punti in risposta; tolto quello, la difficoltà sta qui
+export const cpuServeFlight = engine => skillLevel(engine?.matchConfig?.difficulty).cpuServe?.flight ?? 1;
+export function cpuServeEvent(engine, rng = Math.random){
+  const wide = finite(skillLevel(engine?.matchConfig?.difficulty).cpuServe?.wide, 0);
+  if (!wide) return { timing: 'PERFECT' };
+  // due servizi su tre verso un angolo, gli altri al corpo
+  const r = rng(), dirX = r < .33 ? -wide : r < .66 ? wide : (rng() - .5)*.4;
+  return { timing: 'PERFECT', dirX };
+}
 
 // stato dello scambio sul motore: colpi perfetti consecutivi, pressione sulla CPU, piano di corsa della CPU
 export function skillState(engine){

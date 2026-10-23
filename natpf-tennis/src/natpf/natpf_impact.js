@@ -26,6 +26,10 @@ export const PHYS = Object.freeze({ GRAVITY: 9.15, AIR_DRAG: .012, BOUNCE: .77, 
 export const PLAN = Object.freeze({
   side: .72,                 // m: palla di lato al corpo all'impatto (dritto o rovescio)
   comfort: [.5, 1.45],       // m: altezza comoda dopo il rimbalzo
+  // risposta al servizio: fino a 1,72 m (sotto la zona della schiacciata, natpf_stroke_outcome.smashAt): il servizio della
+  // CPU rimbalza a 3,5–4,8 m dalla rete e a fondo campo è a 1,8–1,95 m; con l'altezza comoda dello scambio si andava a
+  // prenderlo a metà campo
+  returnTop: 1.72,
   volley: [.5, 1.95], volleyMinZ: 2.2,   // volée: altezza e distanza minima dalla rete
   // al volo solo se conviene: aspettare il rimbalzo costerebbe almeno volleySave secondi di corsa in più (chi è vicino
   // alla rete dovrebbe tornare indietro di metri) o il rimbalzo non si raggiunge. Prima bastava essere a meno di 8 m
@@ -130,20 +134,28 @@ export function planPlayerIntercept(engine, actor){
     // dopo il rimbalzo
     // palla corta (rimbalzo prima della riga del servizio): si prende presto, avanzando, come prima (approccio; poi a rete
     // se il tempo non basta per tornare, e lì volée e schiacciate)
-    const comfy = after.filter(p => p.y >= PLAN.comfort[0] && p.y <= PLAN.comfort[1] && reachable(p));
+    const serve = finite(b.rallyStrokeCount) <= 1, top1 = serve ? PLAN.returnTop : PLAN.comfort[1];
+    const comfy = after.filter(p => p.y >= PLAN.comfort[0] && p.y <= top1 && reachable(p));
     const early = comfy[0] || after.find(p => p.y >= PLAN.comfort[0] && reachable(p)) || after.find(p => reachable(p));
     const deep = apexOn && (!bounce || Z(bounce.z) > PLAN.serviceLine);
     // solo se il colmo (o la discesa) è davvero raggiungibile entro maxBack: altrimenti si arretrerebbe fino al limite per
     // colpire ancora in salita (pochi centesimi di secondo in più, a prezzo della posizione: a Leggenda le palle corte
     // della CPU lo punivano)
     const top = deep && comfy.length ? comfy.reduce((b, p) => (p.y > b.y + .02 || (p.y >= b.y - .02 && p.vy <= 0 && b.vy > 0) ? p : b)) : null;
-    const ground = (top && top.vy <= PLAN.apexVy ? top : null) || early;
+    // risposta al servizio: il servizio rimbalza sempre nel riquadro, ma è veloce e arriva comodo fino in fondo: non è una
+    // palla corta. Si prende dove arriva comodo con meno strada (a parità, più tardi: più tempo), cioè da dove si è,
+    // avanzando solo quanto serve. Prima valeva la regola della palla corta (il primo punto comodo dopo il rimbalzo): chi
+    // rispondeva correva in avanti di 5–6 m a ogni servizio, a tutti i livelli (banco: dalla riga di fondo a 5,5–6,5 m
+    // dalla rete nel 100% delle risposte)
+    const near = serve && comfy.length ? comfy.reduce((a, p) => (need(p) < need(a) - .02 || (need(p) <= need(a) + .02 && p.t > a.t) ? p : a)) : null;
+    const ground = near || (top && top.vy <= PLAN.apexVy ? top : null) || early;
     // al volo: solo se aspettare il rimbalzo costa molto più strada (si è vicini alla rete) o il rimbalzo non si
     // raggiunge; nel punto prima del rimbalzo che costa meno corsa. Il confronto è con il primo punto comodo dopo il
     // rimbalzo (si può sempre prendere la palla presto): con quello vicino al colmo, più indietro, la volée sembrava
     // conveniente anche da metà campo
     const volley = before.filter(p => Z(p.z) >= PLAN.volleyMinZ && p.y >= PLAN.volley[0] && p.y <= PLAN.volley[1] && reachable(p)).reduce((b, p) => (!b || need(p) < need(b) ? p : b), null);
-    if (volley && (!early || need(early) - need(volley) >= PLAN.volleySave)) s = volley, kind = 'volley';
+    const wait = serve ? ground : early;   // sulla risposta al servizio il confronto è con il punto scelto, da fondo campo
+    if (volley && (!wait || need(wait) - need(volley) >= PLAN.volleySave)) s = volley, kind = 'volley';
     else if (ground) s = ground, kind = 'ground';
   }
   // nessun punto raggiungibile: verso il rimbalzo (o la fine della traiettoria), il più vicino possibile
