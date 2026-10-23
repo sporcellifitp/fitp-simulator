@@ -836,3 +836,42 @@
     height: 40px;
   }
 }
+/* schermi bassi: la pagina «Collega» (QR, tre passi, figura dell'impugnatura) resta in una schermata con il pulsante in
+   vista anche con la barra dell'invito della sfida sopra (prima a 1366 × 657 il pulsante finiva sotto il bordo già
+   senza la barra) */
+@media (max-height: 860px) {
+  .connect-panel {
+    gap: 18px;
+    padding: 14px 20px;
+  }
+  .connect-steps {
+    gap: 8px;
+  }
+  .connect-steps li {
+    padding: 8px 14px;
+  }
+  .connect-grip {
+    max-width: 200px;
+  }
+  .lobby-stage > .natpf-invite {
+    padding-block: 6px;
+  }
+  .natpf-invite .versus-code b {
+    font-size: 24px;
+  }
+}
+@media (max-height: 700px) {
+  .lobby-stage {
+    gap: 8px;
+  }
+  .connect-qr .natpf-qr {
+    width: 170px;
+    height: 170px;
+  }
+  .connect-grip {
+    max-width: 170px;
+  }
+  .connect-steps li span {
+    font-size: 13.5px;
+  }
+}
