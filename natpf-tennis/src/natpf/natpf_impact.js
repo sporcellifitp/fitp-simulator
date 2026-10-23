@@ -7,7 +7,8 @@
 //   • Finestra d'impatto: la palla si colpisce solo quando arriva al punto d'impatto, mai prima. Uno swing arrivato in
 //     anticipo resta in attesa con il suo tempo vero; uno più forte arrivato dopo lo sostituisce (il primo era la
 //     preparazione). All'arrivo della palla: dentro la finestra si colpisce, prima della finestra è un colpo a vuoto.
-//     Dopo il punto d'impatto si colpisce ancora per poco (in ritardo).
+//     Dopo il punto d'impatto si colpisce ancora per poco (in ritardo). Un gesto debole rispetto ai propri colpi (WEAK)
+//     in anticipo non colpisce da solo: si aspetta per poco il colpo vero, che può arrivare anche dopo il punto d'impatto.
 //   • Dopo il colpo si torna verso il fondo se si fa in tempo prima del colpo dell'avversario; a rete si resta solo
 //     quando una palla corta ha portato lì e non c'è il tempo di tornare. Avanti si va per prendere una palla che lo
 //     chiede (corta, o al volo quando aspettare il rimbalzo costerebbe troppa strada). Prima chi colpiva da dentro il
@@ -158,15 +159,33 @@ export function timeToContact(engine, actor){
   return gap/vz;
 }
 
+// Gesto debole rispetto ai propri colpi (natpf.typical: colpo tipico di chi gioca, °/s): la preparazione o un
+// micro-movimento. Il 23/10 sette colpi veri (808–1269 °/s) arrivati 10–300 ms dopo l'arrivo della palla sono stati
+// scartati perché la palla l'aveva già colpita il gesto debole di prima (71–286 °/s), con palle corte, fuori e schiacciate
+// non volute. Ora un gesto debole in anticipo non colpisce da solo all'arrivo della palla: si aspetta per poco il colpo
+// vero (wait, dentro la finestra del ritardo); se non arriva, un gesto ampio (oltre «ample» gradi: un braccio che si muove
+// con il polso fermo ruota poco il telefono, 23/10 n. 77) si gioca lo stesso, un micro-movimento no e la palla passa,
+// senza swing a vuoto a schermo. Al servizio
+// un gesto debole prima del colmo aspetta il colpo vero fino a serveWait dopo il colmo. Senza colpo tipico (profilo
+// semplice, webcam) nessun gesto è debole. Chi gioca con colpetti piccoli ha un colpo tipico piccolo: i suoi colpi non
+// sono deboli.
+export const WEAK = Object.freeze({ rel: .3, early: .08, wait: .22, serveWait: .3, ample: 25 });
+export function weakSwing(e = {}){
+  const peak = finite(e.natpf?.peak, NaN), typ = finite(e.natpf?.typical, NaN);
+  return Number.isFinite(peak) && Number.isFinite(typ) && typ > 0 && peak < WEAK.rel*typ;
+}
+
 // Lo swing di chi gioca nello scambio: in attesa fino all'arrivo della palla (o subito, se è già passata da poco).
-// Restituisce 'held' (in attesa), 'late' (colpito in ritardo adesso), 'whiff' (a vuoto) o null (nessuna palla in arrivo).
+// Restituisce 'held' (in attesa), 'late' (colpito in ritardo adesso), 'whiff' (a vuoto), 'ignored' (gesto debole dopo il
+// punto d'impatto: il rientro della mano, niente a schermo) o null (nessuna palla in arrivo).
 export function queueUserSwing(engine, e, actor){
   const W = impactWindow(engine.matchConfig?.difficulty), ttc = timeToContact(engine, actor);
   if (ttc == null) return null;
   const lat = eventLatency(e), lead = ttc + lat, now = finite(engine.elapsedTime);
   const lateSpan = lateSpanOf(engine.ball.vel.z, skillLevel(engine.matchConfig?.difficulty));
-  const strength = finite(e.natpf?.peak, NaN) || finite(e.speed, 1)*600;
+  const strength = finite(e.natpf?.peak, NaN) || finite(e.speed, 1)*600, weak = weakSwing(e);
   if (ttc < 0){
+    if (weak) return 'ignored';
     const b = engine.ball, toward = Math.sign(actor.pos.z) || 1, behind = (b.pos.z - (actor.pos.z - toward*IMPACT.contactAhead))*toward;
     const extra = W.lateExtra || IMPACT.lateExtra;
     if (lead >= -lateSpan*extra && behind <= IMPACT.lateBehind*extra + .2 && Math.abs(b.pos.x - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4){
@@ -175,9 +194,12 @@ export function queueUserSwing(engine, e, actor){
     }
     return 'whiff';
   }
-  const cand = { evt: { ...e, natpfTau: lead, natpfLateSpan: lateSpan }, lead, strength, actor, at: now, prep: !0, waitForSweetSpot: !0, natpfWindow: !0, expiresAt: now + ttc + lateSpan*(W.lateExtra || IMPACT.lateExtra) + .12 };
+  const lateWin = lateSpan*(W.lateExtra || IMPACT.lateExtra);
+  const cand = { evt: { ...e, natpfTau: lead, natpfLateSpan: lateSpan }, lead, strength, weak, lateWin, actor, at: now, prep: !0, waitForSweetSpot: !0, natpfWindow: !0, expiresAt: now + ttc + lateWin + .12 };
   const cur = engine.pendingUserSwing;
-  const better = !cur || !cur.natpfWindow || strength >= cur.strength*1.15 || (Math.abs(lead) < Math.abs(cur.lead) && strength >= cur.strength*.6);
+  let better = !cur || !cur.natpfWindow || strength >= cur.strength*1.15 || (Math.abs(lead) < Math.abs(cur.lead) && strength >= cur.strength*.6);
+  // un colpo vero sostituisce sempre un gesto debole in attesa, mai il contrario
+  if (cur?.natpfWindow && !!cur.weak !== weak) better = !weak;
   if (better){ engine.pendingUserSwing = cand; holdSwingPrep(actor, e.side, ttc); }
   return 'held';
 }
@@ -187,7 +209,17 @@ export function queueUserSwing(engine, e, actor){
 export function resolvePending(engine, actor){
   const ps = engine.pendingUserSwing; if (!ps?.natpfWindow) return false;
   const b = engine.ball, W = impactWindow(engine.matchConfig?.difficulty), toward = Math.sign(actor.pos.z) || 1;
-  const zc = actor.pos.z - toward*IMPACT.contactAhead, arrived = (b.pos.z - zc)*toward >= 0;
+  const zc = actor.pos.z - toward*IMPACT.contactAhead, arrived = (b.pos.z - zc)*toward >= 0, now = finite(engine.elapsedTime);
+  // gesto debole in anticipo (WEAK): all'arrivo della palla si aspetta per poco il colpo vero (arriva da queueUserSwing,
+  // in ritardo, e prende il posto di questo); se non arriva, la palla passa senza swing a vuoto a schermo
+  if (arrived && ps.weak && ps.lead > WEAK.early){
+    if (ps.deferUntil == null){ ps.deferUntil = now + Math.min(WEAK.wait, Math.max(.05, finite(ps.lateWin, WEAK.wait))); return false; }
+    if (now < ps.deferUntil) return false;
+    engine.pendingUserSwing = null;
+    if (finite(ps.evt?.natpf?.angle) >= WEAK.ample && Math.abs(b.pos.x - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4) engine._attemptPlayerRallyStrike(ps.evt, !1);
+    else engine._natpfWeakDropped?.(ps);
+    return true;
+  }
   if (arrived){
     engine.pendingUserSwing = null;
     // palla che va fuori: lo swing non la tocca (il punto è di chi gioca)
@@ -197,6 +229,6 @@ export function resolvePending(engine, actor){
     engine._attemptPlayerRallyStrike(ps.evt, !1);
     return true;
   }
-  if (finite(engine.elapsedTime) > ps.expiresAt){ engine.pendingUserSwing = null; engine._natpfEarlyWhiff?.(ps); return true; }
+  if (now > ps.expiresAt){ engine.pendingUserSwing = null; if (ps.weak) engine._natpfWeakDropped?.(ps); else engine._natpfEarlyWhiff?.(ps); return true; }
   return false;
 }

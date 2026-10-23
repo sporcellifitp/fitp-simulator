@@ -253,15 +253,18 @@ async function phoneMatch(){
 const drop = w => { Object.assign(w.link, { connected: false, ready: false, L: { ...w.link.L, state: 'lost', phone: null } }); w.E.natpfPhone._changed(); };
 const back = w => { Object.assign(w.link, { connected: true, ready: true, L: { ...w.link.L, state: 'connected', phone: 'ready' } }); w.E.natpfPhone._changed(); };
 
-test('Partita: telefono che cade → pausa con il pannello del telefono; quando torna pronto si riprende da solo', async () => {
+test('Partita: telefono che cade → pausa con il pannello del telefono; quando torna pronto si riprende da solo, dopo il conto alla rovescia', async () => {
   const w = await phoneMatch(), { E } = w;
   assert.ok(E.natpfPhone.ready && !E.natpfPaused && !E.autoPlayMode);
   drop(w); w.advance(200);
-  assert.ok(!visible('natpf-phone-modal'), 'non subito: un ricollegamento normale dura meno');
-  w.advance(500);
+  assert.ok(!visible('natpf-phone-modal') && !E.natpfPaused, 'non subito: un ricollegamento lampo dura meno');
+  w.advance(300);
   assert.ok(visible('natpf-phone-modal') && E.natpfPaused);
-  back(w);
-  assert.ok(!visible('natpf-phone-modal') && !E.natpfPaused);
+  assert.ok(visible('natpf-phone-hold'), 'il riquadro della pausa dice perché');
+  back(w); w.advance(300);
+  assert.ok(E.natpfPaused, 'non si riparte appena torna: prima un tratto regolare e il conto alla rovescia');
+  w.advance(3200);
+  assert.ok(!visible('natpf-phone-modal') && !E.natpfPaused && !visible('natpf-phone-hold'));
 });
 
 test('Partita: ricollegamento rapido del telefono (meno di mezzo secondo) → nessuna pausa', async () => {

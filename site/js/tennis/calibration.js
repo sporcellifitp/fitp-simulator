@@ -58,6 +58,8 @@ export const CAL = {
   vertical: .35,                   // gesti dopo il primo: il verso viene dalla verticale se ci gira attorno almeno così
                                    // (coseno tra asse di rotazione e verticale), altrimenti dall'asse imparato
   netTurn: .2,                     // … o se la rotazione netta attorno alla verticale è almeno il 20% del percorso del gesto
+  balance: 3.5,                    // i due versi riusciti non possono differire di più di così (picco tipico): il 23/10
+                                   // un dritto da 143 °/s e un rovescio da 1105 davano soglie da rumore per tutta la partita
 };
 const median = a => { const s = [...a].sort((x, y) => x - y); return s.length ? (s.length % 2 ? s[(s.length - 1)/2] : (s[s.length/2 - 1] + s[s.length/2])/2) : 0; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -191,9 +193,11 @@ export function createCalibration(det){
   function review(){
     const ok = S.attempts.filter(a => a.ok), okL = ok.filter(a => a.want === 'L'), okR = ok.filter(a => a.want === 'R');
     const medL = median(okL.map(a => a.peak)), medR = median(okR.map(a => a.peak)), base = Math.min(medL || 1e9, medR || 1e9);
-    const need = calibrationNeed(S.options), pass = okL.length >= need && okR.length >= need;
+    const need = calibrationNeed(S.options), enough = okL.length >= need && okR.length >= need;
+    // un verso molto più debole dell'altro: quel gesto non era un colpo vero (si rifanno i due gesti)
+    const unbalanced = enough && medL > 0 && medR > 0 && Math.max(medL, medR) > CAL.balance*Math.min(medL, medR), pass = enough && !unbalanced;
     const fails = S.attempts.filter(a => !a.ok);
-    const why = pass ? null : fails.some(a => a.small) && fails.filter(a => a.small).length >= fails.length/2 ? 'piccolo' : 'direzione';
+    const why = pass ? null : unbalanced ? 'squilibrio' : fails.some(a => a.small) && fails.filter(a => a.small).length >= fails.length/2 ? 'piccolo' : 'direzione';
     S.profile = pass ? {
       version: S.options.quick ? 4 : S.options.gestural ? 3 : 2, automaticGesture: S.options.quick, ...S.options, bias: det.profile.bias, noise: det.profile.noise, gravity: det.profile.gravity, axis: S.axis, ref: Math.max(60, median(ok.map(a => a.peak))),
       refs: { 1: medL, '-1': medR }, refAngle: Math.max(2, median(ok.map(a => a.angle))),
@@ -207,7 +211,7 @@ export function createCalibration(det){
     const ambiguous = S.profile && [1,-1].some(d => (S.profile.preparation[d] || 0)*1.2 >= S.profile.refs[d]*.9);
     if (ambiguous && !S.options.quick) S.profile.intentGate = true;
     // need e per (gesti chiesti per verso): chi mostra il riepilogo non deve sapere quale percorso si è fatto
-    S.result = { pass, why, assisted: S.profile?.intentGate || false, okL: okL.length, okR: okR.length, need, per: plan().filter(w => w === 'L').length, medL: Math.round(medL), medR: Math.round(medR), attempts: S.attempts.map(a => ({ want: a.want, dir: a.dir, peak: a.peak, ok: a.ok })) };
+    S.result = { pass, why, ...(unbalanced ? { weak: medL < medR ? 'L' : 'R' } : {}), assisted: S.profile?.intentGate || false, okL: okL.length, okR: okR.length, need, per: plan().filter(w => w === 'L').length, medL: Math.round(medL), medR: Math.round(medR), attempts: S.attempts.map(a => ({ want: a.want, dir: a.dir, peak: a.peak, ok: a.ok })) };
     if (pass && S.options.gestural && !S.options.quick){
       S.templates = ok.map(a => ({ shot: 'drive', dir: SIGN[a.want], peak: a.peak, angle: a.angle, features: templateFeatures(a, S.profile.refs[SIGN[a.want]], S.profile.refAngle, S.axis, SIGN[a.want]) }));
       S.step = 'shots'; S.idx = 0; S.tries = 0; S.burst = []; unready();

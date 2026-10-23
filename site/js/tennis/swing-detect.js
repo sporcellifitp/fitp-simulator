@@ -47,6 +47,17 @@ export const DEFAULTS = {
   prepFollow: .8,   // il gesto opposto dopo quello trattenuto è il colpo solo se veloce almeno l'80% di quello: più debole
                     // è il rientro della mano, e il colpo era quello trattenuto (il rovescio lungolinea su palla centrale
                     // diventava un dritto: rovescio morbido trattenuto, poi il rientro verso il dritto preso per il colpo)
+  // Soglie in gioco (scambio e prova libera, non servizio né calibrazione) rispetto alla scala di chi gioca: il verso
+  // più deciso della calibrazione (o i colpi veri, se sono più forti). Il 23/10 il dritto di calibrazione era 143 °/s e
+  // il rovescio 1105: le soglie venivano dal più debole (40 e 50 °/s) e 28 gesti su 81 erano sotto 200 °/s
+  // (preparazioni giocate come colpi). Chi gioca con «colpetti» piccoli ha una scala piccola e soglie piccole, come
+  // prima. play*: minimi assoluti, solo contro un profilo fatto di rumore
+  scaleOn: .12, scaleMinPeak: .18, scaleAngle: .25,
+  playOn: 25, playMinPeak: 45, playMinAngle: 4,
+  recoverMax: 650,  // ms dopo un colpo: il rientro finisce anche senza quiete (braccio teso che trema, preparazione del
+                    // colpo dopo senza pausa); prima il rilevatore poteva restare in attesa e ignorare il colpo successivo
+  recoverLate: 900, recoverLateWeak: .7,   // fino a 0,9 s un gesto opposto sotto il 70% del colpo è ancora il rientro
+  typicalKeep: 8, typicalMin: 3,           // colpo tipico per verso imparato giocando: ultimi colpi, da almeno 3
 };
 // profilo di chi gioca (dalla calibrazione): deriva, asse del colpo (+ = da destra a sinistra), colpo tipico, soglie
 export const defaultProfile = () => ({ bias: [0, 0, 0], axis: null, ref: 600, on: DEFAULTS.on, minPeak: DEFAULTS.minPeak, minAngle: DEFAULTS.minAngle, lobLift: null, sens: 1, refs: null, preparation: null, minAngles: null, intentGate: false });
@@ -126,12 +137,26 @@ export function createSwingDetector(opts = {}){
   const discard = (why, c, dir = 0) => emit('discard', { why, peakT: c.peakT, peak: Math.round(c.peak), angle: Math.round(c.angle), dir });
   const emit = (k, v) => { for (const f of listeners[k]) f(v); };
   const serving = () => context === 'serve' || context === 'toss';
+  // colpo tipico per verso: quello della calibrazione, ma se i colpi veri della partita (il 75° percentile degli ultimi:
+  // i micro-movimenti passati non lo abbassano) dicono il contrario di oltre due volte vale quello dei colpi veri. Il
+  // 23/10 il dritto di calibrazione era 143 °/s e i dritti giocati 1005: ogni gesto valeva «forza piena» e un movimento
+  // di 112 °/s sembrava il 78% di un colpo
+  const played = { 1: [], '-1': [] };
+  const p75 = a => { const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(.75*s.length))]; };
+  const typicalOf = dir => { const h = played[dir]; return h && h.length >= C.typicalMin ? p75(h) : null; };
+  const effRef = dir => { const cal = prof.refs?.[dir] || prof.ref, t = typicalOf(dir); return t && (!(cal > 0) || cal < t*.5 || cal > t*2) ? t : cal; };
+  // scala di chi gioca: il verso più deciso (calibrazione o colpi veri); null se non si sa (profilo semplice)
+  const scale = () => { const v = [prof.refs?.[1], prof.refs?.[-1], typicalOf(1), typicalOf(-1)].filter(x => x > 0); return v.length ? Math.max(...v) : null; };
+  const inPlay = () => !training && !serving();
   const thr = () => {
     const examples = (prof.templates || []).filter(t => !serving() || t.shot === 'serve');
     const ref = examples.length ? Math.min(...examples.map(t => t.peak)) : serving() ? prof.ref*.5 : Infinity;
-    return { on: Math.max((prof.noise || 1)*4, Math.min(prof.on,ref*.2))*prof.sens,
-      minPeak: Math.max((prof.noise || 1)*5,Math.min(prof.minPeak,ref*.28))*prof.sens };
+    const S = inPlay() ? scale() : null;
+    const on = Math.max((prof.noise || 1)*4, Math.min(prof.on,ref*.2))*prof.sens, minPeak = Math.max((prof.noise || 1)*5,Math.min(prof.minPeak,ref*.28))*prof.sens;
+    return inPlay() ? { on: Math.max(C.playOn, on, S ? S*C.scaleOn*prof.sens : 0), minPeak: Math.max(C.playMinPeak, minPeak, S ? S*C.scaleMinPeak*prof.sens : 0) } : { on, minPeak };
   };
+  // ampiezza minima in gioco: quella del verso più ampio della calibrazione (minAngles è già un quarto del gesto)
+  const playAngle = () => (inPlay() ? Math.max(C.playMinAngle, ...[prof.minAngles?.[1], prof.minAngles?.[-1]].filter(Number.isFinite)) : 0);
 
   const setPhase = value => { if (phase !== value){ phase = value; emit('phase', value); } };
   const reset = () => { cur = null; sm = 0; lastT = null; recovering = false; quietSince = null; held = null; setPhase('ready'); };
@@ -164,8 +189,12 @@ export function createSwingDetector(opts = {}){
       // dice una volta per colpo (diagnostica dei gesti che il telefono non manda)
       if (!recoverNoted && k.t - lastFire > C.recoverWindow && mag > Math.max(T.minPeak*2, 150)){ recoverNoted = true; emit('discard', { why: 'in rientro', peakT: k.t, peak: Math.round(mag), angle: null, dir: 0 }); }
       if (sm < T.on*.65){ if (quietSince == null) quietSince = k.t; } else quietSince = null;
-      if (quietSince == null || k.t - quietSince < C.quiet || k.t - lastFire < C.recover) return;
+      // fine del rientro: quiete dopo il tempo minimo, oppure comunque dopo recoverMax (un nuovo gesto parte da qui;
+      // il rientro vero si riconosce dal verso e dalla forza in fire)
+      const settled = quietSince != null && k.t - quietSince >= C.quiet && k.t - lastFire >= C.recover;
+      if (!settled && k.t - lastFire < C.recoverMax) return;
       recovering = false; setPhase('ready');
+      if (!settled){ cur = null; sm = Math.min(sm, T.on*.9); }
     }
     if (!training && prof.intentGate && !armed && !serving()) { cur = null; setPhase('preparation'); return; }
     if (cur && w && dot(unit(w), unit(cur.peakW)) < -.3 && mag > T.on){ cur = null; sm = mag*C.smooth; }
@@ -200,7 +229,7 @@ export function createSwingDetector(opts = {}){
       const g = [k.accG[0] - k.acc[0], k.accG[1] - k.acc[1], k.accG[2] - k.acc[2]], gl = len(g);
       if (gl > 5){ cur.up += dot(k.acc, g)/gl*dt; cur.tot += len(k.acc)*dt; }
     }
-    const minAngle = serving() ? Math.min(2.5,prof.minAngle) : Math.min(prof.minAngle,...(prof.templates||[]).map(t=>Math.max(2,t.angle*.35)));
+    const minAngle = serving() ? Math.min(2.5,prof.minAngle) : Math.max(playAngle(), Math.min(prof.minAngle,...(prof.templates||[]).map(t=>Math.max(2,t.angle*.35))));
     const ready = cur.peak >= T.minPeak && cur.angle >= minAngle && k.t - cur.t0 >= C.minDur;
     // picco passato: la velocità grezza è già scesa (sotto l'88% del picco, o in calo da due campioni), prima della
     // media mobile; oppure è scesa la media, oppure niente di nuovo da «plateau» ms
@@ -263,16 +292,18 @@ export function createSwingDetector(opts = {}){
     // istante del colpo: il picco grezzo interpolato, se c'è ed è vicino a quello della media mobile
     const peakT = c.rawPeak > 0 && Math.abs(c.truePeakT - c.peakT) < 60 ? +c.truePeakT.toFixed(1) : c.peakT;
     const serveExamples=(prof.templates||[]).filter(t=>t.shot==='serve');
-    const reference = prof.refs?.[dir] || prof.ref;
+    const reference = effRef(dir);
     const powerReference=serving() && serveExamples.length ? serveExamples.reduce((s,t)=>s+t.peak,0)/serveExamples.length:reference;
     const gravity=c.gravity||prof.gravity||[0,1,0];
     const dur = t - c.t0;
     const features={lift,tilt:Math.max(-1,Math.min(1,gravity[2]-(prof.gravity?.[2]||0))),twist:canonicalTwist(axis,prof.axis,gravity,dir),speed:c.peak/reference,duration:dur,travel:c.angle/(prof.refAngle||c.angle||1)};
     const intent=gestureFloor(prof,dir,features,context);
     const floor=prof.intentGate&&!serving()?thr().minPeak:Math.max(thr().minPeak,intent.floor*prof.sens);
-    const minAngle=serving()?2:Math.min(prof.minAngles?.[dir]||prof.minAngle,...(prof.templates||[]).filter(t=>t.shot===intent.shot).map(t=>Math.max(2,t.angle*.35)));
-    // rientro in posizione subito dopo un colpo, nel verso opposto: non è un colpo (né una preparazione)
-    if (!training && !serving() && lastDir && dir === -lastDir && c.peakT - lastFire < C.recoverWindow && c.peak < lastPeak*C.recoverStrong){ setPhase('follow'); discard('rientro', c, dir); return; }
+    const minAngle=serving()?2:Math.max(playAngle(), Math.min(prof.minAngles?.[dir]||prof.minAngle,...(prof.templates||[]).filter(t=>t.shot===intent.shot).map(t=>Math.max(2,t.angle*.35))));
+    // rientro in posizione dopo un colpo, nel verso opposto: non è un colpo (né una preparazione). Subito dopo il colpo
+    // se non è chiaramente più forte; fino a 0,9 s se è molto più debole (rientro lento)
+    const since = c.peakT - lastFire;
+    if (!training && !serving() && lastDir && dir === -lastDir && ((since < C.recoverWindow && c.peak < lastPeak*C.recoverStrong) || (since < C.recoverLate && c.peak < lastPeak*C.recoverLateWeak))){ setPhase('follow'); discard('rientro', c, dir); return; }
     // gesto verticale (dal basso verso l'alto o dall'alto verso il basso): non è né dritto né rovescio, ma è un colpo
     const vertical = dir === 0 && !!vert && !serving() && c.peak >= Math.max(thr().minPeak, (prof.ref || 600)*.4);
     if (!training && ((prof.axis && dir === 0 && !vertical && !serving() && !(context==='practice' && intent.shot==='serve')) || (!vertical && c.peak < floor) || c.angle < minAngle)){
@@ -321,6 +352,8 @@ export function createSwingDetector(opts = {}){
   function commit(sw, now = sw.t){
     sw.holdMs = +Math.max(0, now - sw.t).toFixed(1);
     if (!prof.axis && !training && !serving()) vote(sw);
+    // colpo tipico imparato giocando (solo colpi dello scambio con un verso)
+    if (!training && !serving() && (sw.dir === 1 || sw.dir === -1)){ const h = played[sw.dir]; h.push(sw.peak); if (h.length > C.typicalKeep) h.shift(); }
     lastFire = sw.peakT; lastDir = sw.dir || 0; lastAxis = sw.axis || null; lastPeak = sw.peak || 0;
     if (!training){ recovering = !serving(); recoverNoted = false; quietSince = null; setPhase('contact'); }
     emit('swing', sw);
@@ -348,7 +381,9 @@ export function createSwingDetector(opts = {}){
     // che arriva). Prima il rilevatore restava ad aspettare il telefono fermo e nessun colpo partiva
     finishStill(){ if (mode !== 'still') return false; if (still?.length) settle(still, true); else finishAt = true; return true; },
     // deriva solo se plausibile anche dai profili salvati prima (alcuni avevano il movimento della mano come deriva)
-    setProfile(p){ const b = p.bias || prof.bias; prof = { ...defaultProfile(), ...p, bias: b && len(b) <= C.biasMax ? b : [0, 0, 0] }; armed = !prof.intentGate; absSign = 1; votes = { agree: 0, against: 0 }; reset(); },
+    setProfile(p){ const b = p.bias || prof.bias; prof = { ...defaultProfile(), ...p, bias: b && len(b) <= C.biasMax ? b : [0, 0, 0] }; armed = !prof.intentGate; absSign = 1; votes = { agree: 0, against: 0 }; played[1] = []; played[-1] = []; reset(); },
+    // colpo tipico per verso in uso (calibrazione o colpi veri), per la diagnostica e le prove
+    typical(dir){ return effRef(dir); },
     get absSign(){ return absSign; },
     setThresholds(t){ prof = { ...prof, ...t }; },
     setSensitivity(k){ prof = { ...prof, sens: k }; },      // k < 1 più sensibile

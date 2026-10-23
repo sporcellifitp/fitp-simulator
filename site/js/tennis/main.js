@@ -155,8 +155,8 @@ function onCal(e){
   if (e.kind === 'step' && e.step === 'shots'){ cal.idx = e.idx || 0; cal.marks.length = PLAN.length + GESTURE_PLAN.length; }
   if (e.kind === 'step' && e.step === 'still'){ cal.marks = []; cal.result = null; }
   if (e.kind === 'warn' && e.why === 'move') setGrip('Ti sei mosso: tieni fermo il telefono ancora un attimo', '');
-  if (e.kind === 'step' && e.step === 'grip') setGrip(e.upright ? 'Telefono in verticale ✓ un attimo…' : 'Mettilo in verticale nel palmo, come il manico', e.upright ? 'ok' : '');
-  if (e.kind === 'grip') setGrip(e.upright ? 'Telefono in verticale ✓' : 'Mettilo in verticale nel palmo, come il manico', e.upright ? 'ok' : '');
+  if (e.kind === 'step' && e.step === 'grip') setGrip(e.upright ? 'Telefono in verticale ✓ un attimo…' : 'Tienilo di taglio nel palmo, come il manico (display verso destra o sinistra)', e.upright ? 'ok' : '');
+  if (e.kind === 'grip') setGrip(e.upright ? 'Telefono in verticale ✓' : 'Tienilo di taglio nel palmo, come il manico (display verso destra o sinistra)', e.upright ? 'ok' : '');
   if (e.kind === 'attempt'){
     cal.marks[e.globalIdx ?? e.idx] = e.ok ? 'ok' : e.tries >= CAL.maxTries ? 'ko' : '';
     const dir = e.dir === 'L' ? '←' : e.dir === 'R' ? '→' : '?';
@@ -195,7 +195,7 @@ function paintReview(r){
   why.textContent = r.touch ? 'Scegli direzione e intensità sul telefono e premi Colpisci. Prova una volta, poi conferma.' : r.pass ? (r.assisted ? 'Apri il braccio, poi tieni premuto il pulsante sul telefono mentre colpisci. Prova una volta e conferma.' : 'Pronto! Prova un gesto guardando la palla, poi conferma. Muovi normalmente per rispondere; accompagna verso l’alto per alzare la palla, fai un tocco corto e morbido per mandarla vicino alla rete. Non serve conoscere il tennis.')
     : r.why === 'servizio' ? 'Non è stato registrato alcun gesto di servizio. Ripeti senza forzare il movimento oppure scegli i tocchi sul telefono.'
     : r.why === 'piccolo' ? 'Non riesco a distinguere questi gesti dal rumore. Scegli movimento compatto o controllo con i tocchi sul telefono, senza forzare il braccio.'
-    : 'Le due direzioni non si distinguono. Tieni il telefono sempre nello stesso modo (in verticale nel palmo) e fai gli swing davvero da una parte all\'altra.';
+    : 'Le due direzioni non si distinguono. Tieni il telefono sempre nello stesso modo (di taglio nel palmo) e fai gli swing davvero da una parte all\'altra.';
   if (r.pass && r.gestureWarnings?.length){
     const shots = [...new Set(r.gestureWarnings.map(w => SHOTS[w.shot] || w.shot))].join(', ');
     why.textContent += ` Gesti da distinguere meglio: ${shots}. Cambia l’inclinazione o l’accompagnamento, senza ampliare il movimento. Se sono ambigui verrà privilegiato il piatto; puoi ripetere la calibrazione.`;

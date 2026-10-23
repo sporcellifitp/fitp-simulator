@@ -16,6 +16,7 @@ import { NatpfDiag } from './natpf_diag.js';
 import { NatpfIntro } from './natpf_intro.js';
 import { NatpfEvents } from './natpf_events.js';
 import { NatpfKiosk } from './natpf_kiosk.js';
+import { phoneHealth, createPhoneWatch, holdText } from './natpf_phone_watch.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -48,6 +49,7 @@ const PHONE_ERR = {
 const REVIEW_FAIL = {
   servizio: 'Non è stato registrato alcun gesto di servizio. Ripeti senza forzare il movimento oppure scegli i tocchi sul telefono.',
   piccolo: 'Non riesco a distinguere questi gesti dal rumore. Sul telefono scegli movimento compatto o il controllo con i tocchi.',
+  squilibrio: 'Un gesto è stato molto più debole dell’altro: era un movimento piccolo, non un colpo. Rifai i due gesti con la stessa decisione, come colpi veri.',
 };
 
 export class NatpfUi {
@@ -93,6 +95,10 @@ export class NatpfUi {
       if (this.modal?.classList.contains('hidden')) this.openPhone();
     });
     this.phone.onChange(() => this._watchPhoneDrop());
+    // telefono in campo: salute del collegamento e dei sensori ogni 100 ms, anche a partita ferma (il tick del motore in
+    // pausa non gira): pausa subito, ripresa con il conto alla rovescia, punto rigiocato (natpf_phone_watch.js)
+    this.phoneWatch = createPhoneWatch(); this.phoneHold = null;
+    setInterval(() => { try { this._phoneWatchTick(); } catch (e){ console.error(e); } }, 100);
     $('btn-natpf-view')?.addEventListener('click', e => { e.stopPropagation(); this.engine.setViewMode(this.engine.viewMode === 'first' ? 'third' : 'first'); });
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){
@@ -138,7 +144,7 @@ export class NatpfUi {
   }
   // il gioco resta fermo mentre si leggono le istruzioni o si collega il telefono a partita in corso
   _syncPause(){
-    const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen || this.engine.natpfVersusWait;
+    const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen || this.engine.natpfVersusWait || !!this.phoneHold;
     this.engine.natpfPaused = !!busy && !this.engine.autoPlayMode && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(this.engine.phase);
   }
   tick(dt = 1/60){ this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.gesture.update(dt); }
@@ -337,7 +343,7 @@ export class NatpfUi {
   // si apre il pannello del telefono, che mette in pausa e dice come ricollegarlo; quando il telefono è di nuovo pronto il
   // pannello aperto così si chiude da solo e si riprende. In calibrazione il campo è già fermo e lo dice il pannello in campo
   _watchPhoneDrop(){
-    const ready = this.phone.ready, was = this.phoneWasReady; this.phoneWasReady = ready;
+    const ready = this.phone.ready;
     // telefono pronto senza blocco dello schermo (browser che non lo offre, risparmio energetico, permesso negato): dopo
     // il tempo del telefono lo schermo si spegne, la pagina si sospende e i colpi si fermano. Lo si dice una volta per
     // collegamento, prima che succeda (con la pagina nascosta il blocco si rilascia da solo: non è questo il problema)
@@ -346,17 +352,56 @@ export class NatpfUi {
       this.wakeWarned = joins;
       this.toast(L.wake === -1 ? 'Questo browser del telefono non tiene acceso lo schermo: disattiva il blocco automatico del telefono' : 'Lo schermo del telefono potrebbe spegnersi: disattiva il risparmio energetico o il blocco automatico');
     }
-    if (ready){
-      clearTimeout(this.dropT); this.dropT = null;
-      if (this.phoneDropOpened){ this.phoneDropOpened = false; if (!this.modal?.classList.contains('hidden')){ this.closePhone(); this.toast('Telefono di nuovo collegato: si riprende'); } }
-      return;
+  }
+  // Telefono in campo: pausa appena non è utilizzabile (scollegato, non pronto, pagina nascosta, sensori fermi), ripresa
+  // dopo un tratto regolare con il conto alla rovescia, punto rigiocato se si era nello scambio o nel lancio del servizio.
+  // Solo chi gioca qui con il telefono, in partita, esercizi o sfida (non nel menu, nella dimostrazione, nella
+  // calibrazione del riscaldamento né sul computer del Player 2, che segue l'host)
+  _phoneWatchTick(){
+    const E = this.engine, p = this.phone;
+    if (!p) return;
+    const inField = this.controller === 'phone' && !!p.link && !this.lobby?.visible && !E.autoPlayMode && E.playerRole !== 'p2'
+      && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(E.phase) && !(this.training?.active && this.training.cal);
+    if (!inField && this.phoneWatch.state === 'ok') return;
+    const L = p.state, st = p.link?.stats?.();
+    const h = phoneHealth({ connected: p.connected, phone: L.phone, vis: L.vis, rates: st?.rates, touch: !!L.touch });
+    const a = this.phoneWatch.update(h, { inField, rally: E.phase === 'RALLY' || E.phase === 'SERVE_TOSS', now: performance.now() });
+    if (a) this._phoneHoldAction(a);
+  }
+  _phoneHoldAction(a){
+    const E = this.engine, R = this.diag?.recorder;
+    if (a.kind === 'pause' || a.kind === 'wait'){
+      this.phoneHold = { why: a.why };
+      this._paintHold('Telefono in pausa', holdText(a.why));
+      R?.log?.('tel.pausa', { motivo: a.why, fase: E.phase });
+      // il telefono lo sa (se è collegato): niente colpi durante la pausa, e lo dice sullo schermo
+      if (this.phone.connected){ this.phone.link.send({ t: 'ph', ph: 'pause' }); this.phone.lastPhase = 'pause'; }
+      // collegamento perso: il pannello del telefono dice come ricollegarlo (QR)
+      if (a.why === 'scollegato' && this.modal?.classList.contains('hidden')){ this.phoneDropOpened = true; this.openPhone(); }
     }
-    if (!was || this.dropT) return;
-    this.dropT = setTimeout(() => {
-      this.dropT = null;
-      const inField = this.controller === 'phone' && !this.lobby?.visible && !this.engine.autoPlayMode && !(this.training?.active && this.training.cal);
-      if (!this.phone.ready && inField && this.modal?.classList.contains('hidden')){ this.phoneDropOpened = true; this.openPhone(); }
-    }, 500);
+    if (a.kind === 'countdown') this._paintHold('Telefono di nuovo pronto', `Si riprende tra ${a.left}…`);
+    if (a.kind === 'resume'){
+      this.phoneHold = null; this._paintHold(null);
+      if (this.phoneDropOpened){ this.phoneDropOpened = false; if (!this.modal?.classList.contains('hidden')) this.closePhone(); }
+      E.pendingUserSwing = null; E.natpfWeakServe = null;
+      const replay = a.replay && !E.isMultiplayer && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
+      if (replay){ E._setupPointServe({ showBanner: false }); this.toast('Il telefono si era fermato: il punto si rigioca'); }
+      R?.log?.('tel.ripresa', { rigiocato: replay });
+      this.phone.lastPhase = null;                 // la fase vera torna al telefono al prossimo fotogramma
+    }
+    this._syncPause();
+  }
+  // riquadro della pausa del telefono sopra il campo (titolo e testo), null per toglierlo
+  _paintHold(title, text = ''){
+    let el = $('natpf-phone-hold');
+    if (!title){ show(el, false); return; }
+    if (!el){
+      el = document.createElement('div'); el.id = 'natpf-phone-hold'; el.className = 'natpf-phone-hold hidden'; el.setAttribute('role', 'status');
+      el.innerHTML = '<b></b><p></p>';
+      el.style.cssText = 'position:fixed;left:50%;top:22%;transform:translateX(-50%);z-index:60;max-width:min(520px,90vw);padding:16px 20px;border-radius:14px;background:rgba(7,18,51,.94);color:#f3f6fb;text-align:center;font:600 17px/1.4 system-ui,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.4)';
+      document.body.appendChild(el);
+    }
+    el.querySelector('b').textContent = title; el.querySelector('p').textContent = text; show(el);
   }
   _bindPhoneModal(){
     const on = (id, fn) => $(id)?.addEventListener('click', e => { e.stopPropagation(); fn(); });
@@ -392,7 +437,7 @@ export class NatpfUi {
     if (L.state === 'lost'){ status = 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo'; tag = 'Scollegato'; }
     if (L.state === 'error'){ status = `Connessione non disponibile (${L.error}). Riprova o verifica la connessione a internet.`; tag = 'Errore'; }
     if (step === 'collega' && p.connected){ status = 'Telefono collegato: sul telefono tocca «Attiva i sensori»'; tag = 'Collegato'; }
-    if (step === 'impugna'){ status = cal.grip ? 'Telefono in verticale ✓ resta così un attimo…' : 'Tieni il telefono in verticale nel palmo, schermo verso il palmo, come il manico di una racchetta'; hint = 'Presa comoda, senza stringere: va bene anche da seduti.'; tag = 'Impugnatura'; }
+    if (step === 'impugna'){ status = cal.grip ? 'Presa letta ✓ resta così un attimo…' : 'Tieni il telefono di taglio, come il manico di una racchetta: il palmo sui lati lunghi, il display verso destra o verso sinistra'; hint = 'Presa comoda, senza stringere: va bene anche un po’ inclinato e da seduti.'; tag = 'Impugnatura'; }
     if (step === 'prova'){ status = 'Fai i gesti che chiede il telefono: un colpetto comodo verso sinistra o verso destra, poi fermati.'; hint = cal.idle ? 'Non sento movimenti: prova un gesto più deciso, oppure sul telefono scegli movimento compatto o i tocchi.' : 'Non serve conoscere il tennis: basta un gesto naturale.'; tag = 'Calibrazione'; }
     if (step === 'verifica'){
       const r = cal.review;

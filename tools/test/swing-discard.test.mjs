@@ -53,12 +53,13 @@ test('rientro della mano dopo il colpo, nel verso opposto e più debole: mai un 
   assert.ok(gx.some(d => d.why === 'rientro' && d.dir === -1), JSON.stringify(gx));
 });
 
-test('movimento deciso con il rilevatore ancora in attesa della quiete, ben dopo il colpo: detto una volta («in rientro»)', () => {
-  const { det, t: t0 } = calibrated(), gx = [];
-  det.on('discard', d => gx.push(d));
+test('la mano che non si ferma mai dopo il colpo non blocca il rilevatore: il colpo dopo un secondo parte (prima restava «in rientro»)', () => {
+  const { det, t: t0 } = calibrated(), sw = [], gx = [];
+  det.on('swing', s => sw.push(s)); det.on('discard', d => gx.push(d));
   let t = trace(det, t0 + 10, { axis: L, peak: 700 });
-  // la mano non si ferma mai: si muove continuamente a 120–160 °/s per un secondo, poi uno swing da 600 °/s
-  for (let i = 0; i < 100; i++){ t += 10; det.feed({ t, rot: [0, 140 + 20*Math.sin(i/3), 0], acc: [0, 0, 0], accG: [0, 9.81, 0] }); }
-  t = trace(det, t + 10, { axis: L, peak: 600 });
-  assert.equal(gx.filter(d => d.why === 'in rientro').length, 1, JSON.stringify(gx));
+  // la mano non si ferma mai: si muove continuamente a 60–100 °/s per un secondo (braccio teso che trema, preparazione)
+  for (let i = 0; i < 100; i++){ t += 10; det.feed({ t, rot: [0, 80 + 20*Math.sin(i/3), 0], acc: [0, 0, 0], accG: [0, 9.81, 0] }); }
+  t = trace(det, t + 10, { axis: R, peak: 600 });
+  t = still(det, t + 10, 400);
+  assert.deepEqual(sw.map(s => s.dir), [1, -1], JSON.stringify({ sw: sw.map(s => [s.dir, s.peak]), gx }));
 });

@@ -179,3 +179,22 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     buchi dei messaggi, fotogrammi doppi, altezza dell'impatto e tempo dal rimbalzo al colpo, segni.
   - Prove: `tools/test` 140/140 (nuovi: `swing-discard.test.mjs`, due prove in `phone-link-fast.test.mjs`), `npm test`
     295/295 (nuove due prove in `natpf-diag.test.mjs`).
+- Checkpoint 17 (23/10): passi 3a (telefono) e 3b (Android) della richiesta del 23/10; dettagli in
+  `docs/NATPF_DIAGNOSI_2026-10-23.md` §7.
+  - Telefono: soglie in proporzione a chi gioca e colpo tipico per direzione, calibrazione con il controllo dello
+    squilibrio, attesa del colpo vero dopo un gesto debole (anche al servizio), ritorno del braccio e recupero che non
+    blocca, palla corta solo da un gesto vero, pallonetto solo con il braccio che sale, mira dal piatto pesata,
+    impugnatura di taglio (forma del colpo rispetto alla gravità; la pagina non blocca più in orizzontale).
+  - Scoperta: la prova dello scambio (`natpf-rally.mjs`) non faceva più colpi (0 su 0) con la pausa dei sensori fermi:
+    il suo telefono simulato mandava i sensori solo durante i gesti. Un telefono vero li manda di continuo: corrette le
+    quattro prove che non lo facevano (scambio, latenza, presa verticale e del 19/10), come le altre cinque.
+  - Android: pausa e ripresa controllata sul computer (`natpf_phone_watch.js`), blocco dello schermo ripreso e avvisi sul
+    telefono (`phone-keep.js`), ritorno in primo piano senza chiudere un collegamento vivo. Prova nuova nel browser
+    `natpf-phone-keep.mjs`; il primo giro ha trovato un difetto mio (l'avviso dei sensori restava dopo la
+    riattivazione), corretto.
+  - Prove: `tools/test` 148/148, `npm test` 315/315 (prima di cambiare il codice del motore, 5 delle prove nuove
+    fallivano sul codice di prima: provano il difetto). CI completa in locale durante il lavoro: telefono 10/10, tempi
+    8/8, gesto e calibrazione 18/18, grafica 9/9, pacchetto ridotto 5/5, 6/6 e 10/10, LAN in Node 4/4, nel browser 3/3 e
+    7/8 (limite noto), pacchetti; motore nel browser: diagnostica 24/24, allenamento 13/13, latenza 9/9, presa verticale
+    10/10, presa del 19/10 10/10, menu 22/22, ricollegamento 6/6, rete che cade 6/6, build, 1v1 18/18; dopo le
+    correzioni: scambio 7/7, telefono che smette di funzionare 13/13. Validazione fisica non eseguita.

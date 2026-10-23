@@ -39,7 +39,10 @@
   #shotHint,#phaseFeedback{font-size:14px;color:var(--muted);text-align:center;margin:6px 0}
   #manualAim{display:grid;gap:8px} #manualAim label:first-child{display:flex;align-items:center;justify-content:space-between}
   #power{width:100%;min-height:36px} #touchHit{touch-action:none}
-  #rotate{position:fixed;inset:0;z-index:20;background:#071233;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:30px;font-size:24px}
+  #alert{margin-top:10px;background:#4a1830;border:1px solid var(--bad);border-radius:12px;padding:10px 14px;text-align:center;font-size:15px}
+  #alert p{margin:4px 0 0;color:#ffd9d4} #alert .btn{margin-top:8px;padding:12px;font-size:16px}
+  #rotate{position:fixed;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));z-index:20;background:#13245a;border:1px solid #405b9b;border-radius:12px;padding:10px 14px;text-align:center;font-size:15px}
+  #rotate p{margin:4px 0 0;color:var(--muted)}
   /* presa orizzontale «il telefono è il piatto»: si gioca in landscape, l'indicatore mostra dove punta il piatto */
   #faceDial{width:min(52vw,190px);height:auto}
   #faceDial .tick{stroke:#405b9b;stroke-width:3} #faceArrow{transition:transform .06s linear}
@@ -58,12 +61,15 @@
 </head>
 <body>
 <div id="bar"><i></i><span id="barTxt">Collegamento…</span><small id="lat"></small></div>
+<!-- sensori fermi o schermo che può spegnersi (phone-keep.js): cosa succede e cosa fare -->
+<div id="alert" class="hidden" role="alert"><b id="alertTitle"></b><p id="alertText"></p><button class="btn hidden" id="alertBtn"></button></div>
 <div id="stage">
   <div id="ring"><div id="arrow"></div><div id="big">NATPF</div></div>
-  <!-- impugnatura: telefono in verticale nel palmo, come il manico -->
-  <svg id="grip" class="hidden" viewBox="0 0 120 150" aria-label="Telefono in verticale nel palmo, come il manico di una racchetta">
-    <rect x="44" y="8" width="34" height="70" rx="7" fill="#dfe6ff" stroke="#0b1433" stroke-width="3"/>
-    <rect x="49" y="15" width="24" height="54" rx="3" fill="#2f6bff"/>
+  <!-- impugnatura di taglio: il telefono come il manico, il palmo sui lati lunghi, il display verso destra o sinistra -->
+  <svg id="grip" class="hidden" viewBox="0 0 120 150" aria-label="Telefono di taglio, come il manico di una racchetta: il palmo sui lati lunghi, il display verso destra o verso sinistra">
+    <rect x="54" y="6" width="14" height="76" rx="4" fill="#dfe6ff" stroke="#0b1433" stroke-width="3"/>
+    <rect x="64" y="11" width="3" height="66" rx="1" fill="#2f6bff"/>
+    <path d="M78 30 h22 M92 24 l8 6 l-8 6" stroke="#e8ff3a" stroke-width="4" fill="none" stroke-linecap="round"/>
     <path d="M30 70 q0 -14 14 -12 l40 2 q12 1 10 16 l-4 46 q-2 14 -18 14 h-22 q-18 0 -20 -18z" fill="#f0c7a0" stroke="#0b1433" stroke-width="3"/>
     <path d="M44 74 h40 M44 86 h40 M44 98 h38" stroke="#c99a74" stroke-width="3"/>
   </svg>
@@ -107,7 +113,7 @@
 </div>
 <!-- solo mentre il computer registra la diagnostica: segna nel registro l'istante di un problema -->
 <button class="btn alt hidden" id="mark">⚑ Segna un problema</button>
-<div id="rotate" class="hidden" role="alert"><b>Ruota il telefono in verticale</b><p>I comandi riprendono quando torni in portrait.</p></div>
+<div id="rotate" class="hidden" role="status"><b>Il telefono si è girato</b><p>Il gioco continua: tieni il telefono come preferisci. Per leggere meglio questa pagina, raddrizzalo.</p></div>
 <script type="module" src="../js/tennis/racchetta.js"></script>
 </body>
 </html>

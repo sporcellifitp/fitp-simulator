@@ -92,7 +92,7 @@ try {
  await p.selectOption('#aimDir','0');await p.click('#touchHit');await d.waitForFunction(()=>!document.querySelector('#rvConfirm').disabled);
  check('touch recalibration pauses play and confirms a central shot without gyro inversion',await d.evaluate(()=>/centrale/.test(document.querySelector('#frTxt').textContent)&&document.querySelector('#calInvert').classList.contains('hidden')));
  await p.setViewportSize({width:844,height:390});await p.waitForFunction(()=>!document.querySelector('#rotate').classList.contains('hidden'));
- check('landscape interface requests portrait',await p.locator('#rotate').isVisible());
+ check('landscape: the page says it turned, without blocking the controls',await p.locator('#rotate').isVisible()&&await p.evaluate(()=>getComputedStyle(document.querySelector('#rotate')).position==='fixed'&&document.querySelector('#rotate').getBoundingClientRect().height<innerHeight*.6));
  await p.setViewportSize({width:320,height:568});await p.waitForFunction(()=>document.querySelector('#rotate').classList.contains('hidden'));
  check('small portrait keeps controls reachable by scrolling',await p.evaluate(()=>getComputedStyle(document.body).overflowY!=='hidden'&&document.querySelector('#stage').getBoundingClientRect().bottom<=document.querySelector('#phaseFeedback').getBoundingClientRect().top+1&&document.documentElement.scrollWidth<=innerWidth));
  const rig=await d.evaluate(async()=>{

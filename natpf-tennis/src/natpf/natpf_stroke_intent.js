@@ -15,14 +15,16 @@ const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
 export const INTENT = Object.freeze({
-  lobRise: .55,      // pallonetto: la testa sale decisa…
-  lobPlane: .8,      // … con lo swing verticale o obliquo (|piano| fino a così) …
+  lobRise: .6,       // pallonetto: la testa sale decisa…
+  lobPlane: .55,     // … con lo swing nettamente verticale (|piano| fino a così: piano inclinato di oltre 57°). Era .8: il
+                     // 23/10 un dritto da 1005 °/s in top spin (piano 0,65, salita 0,63) è diventato un pallonetto in rete…
   lobSoft: .3,       // … oppure con un gesto lento (circa 580 °/s: un pallonetto difensivo). Era .55 (850 °/s, un dritto
                      // normale di chi gioca da amatore): ogni dritto in salita oltre 33° diventava un pallonetto
   topRise: .15,      // top spin: la testa sale almeno un poco
   sliceRise: -.22,   // tagliato: la testa scende
   dropPower: .36,    // palla corta: tagliato morbido (forza fino a così) …
-  dropAngle: 48,     // … o corto (ampiezza dello swing fino a così, gradi)
+  dropAngle: 48,     // … o corto (ampiezza dello swing fino a così, gradi), ma sempre un gesto vero (almeno dropMinAngle:
+  dropMinAngle: 15,  // il 23/10 12 palle corte su 14 venivano da micro-movimenti di 3–32°)
   flatRise: .12,     // piatto: testa in piano (|salita| fino a così) …
   flatPower: .62,    // … e gesto forte
   smashRise: -.08,   // schiacciata (solo con la palla alta): la testa scende o almeno non sale…
@@ -34,6 +36,9 @@ export const INTENT = Object.freeze({
   reachDepth: .8,                  // profondità voluta di uno swing corto rispetto a uno ampio alla stessa forza (era
                                    // 0,55: un colpo compatto ma veloce perdeva quasi metà della profondità)
   faceDead: 8, faceSpan: 28,       // gradi: zona morta e scarto per la mira piena del piatto
+  faceTrust: 45, faceTrustSpan: 15, // gradi: oltre faceTrust lo scarto è sempre meno credibile, oltre +span non conta. Il
+                                   // 23/10 26 mire su 67 erano sature (scarti di 50–77° da un centro imparato male):
+                                   // aggiungevano fino a 1,2 m di lato da una misura sbagliata
   riseRefMin: -.6, riseRefMax: .3, // salita abituale (calibrazione) che si tiene in conto, al massimo
 });
 export const SHOTS = Object.freeze(['topspin', 'flat', 'slice', 'drop', 'lob', 'smash']);
@@ -65,7 +70,9 @@ export function classifyStroke(shape, { power = .5, angle = null, ballHigh = nul
   if (r >= lobAt && (P <= I.lobPlane || p <= I.lobSoft))
     return { shot: 'lob', conf: m(r - lobAt, .3), why: [`la testa sale decisa (${said})`, P <= I.lobPlane ? `swing verticale (${P.toFixed(2)})` : `gesto morbido (${p.toFixed(2)})`] };
   if (r <= sliceAt){
-    const soft = p <= I.dropPower, short = Number.isFinite(angle) && angle <= I.dropAngle;
+    // palla corta: morbido o corto, ma un gesto vero (senza ampiezza misurata vale com'era)
+    const real = !Number.isFinite(angle) || angle >= I.dropMinAngle;
+    const soft = real && p <= I.dropPower, short = real && Number.isFinite(angle) && angle <= I.dropAngle;
     if (soft || short) return { shot: 'drop', conf: Math.min(m(sliceAt - r, .3), soft ? m(I.dropPower - p, .2) : m(I.dropAngle - angle, 20)), why: [`dall'alto in basso (${said})`, soft ? `morbido (${p.toFixed(2)})` : `corto (${Math.round(angle)}°)`] };
     return { shot: 'slice', conf: m(sliceAt - r, .3), why: [`dall'alto in basso (${said})`] };
   }
@@ -78,8 +85,8 @@ export function classifyStroke(shape, { power = .5, angle = null, ballHigh = nul
 // morta. +1 piatto girato a destra … −1 a sinistra; 0 se non misurata.
 export function faceAimFromDev(dev){
   if (!Number.isFinite(dev)) return 0;
-  const a = Math.max(0, Math.abs(dev) - INTENT.faceDead)/INTENT.faceSpan;
-  return +(Math.sign(dev)*clamp(a)).toFixed(3);
+  const a = Math.max(0, Math.abs(dev) - INTENT.faceDead)/INTENT.faceSpan, trust = 1 - clamp((Math.abs(dev) - INTENT.faceTrust)/INTENT.faceTrustSpan);
+  return +(Math.sign(dev)*clamp(a)*trust).toFixed(3);
 }
 
 // Intenzione completa da un colpo letto (parseSwingMessage) con la forma. null senza forma (telefono non aggiornato).

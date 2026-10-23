@@ -263,9 +263,46 @@ alla volta, con il prima e il dopo.
 | Passo | Contenuto | Stato |
 |---|---|---|
 | 1 | Diagnosi (questo documento) | fatto |
-| 2 | Misura: segnaposto del problema, gesti scartati dal telefono, webcam, fotogrammi, intervalli del collegamento, tempo del piano | — |
-| 3a | Telefono: soglie e colpo tipico (T1), attesa del colpo vero (T2), palla corta e pallonetto (T3, T4), mira dal piatto (T6), impugnatura di taglio (T7) | — |
-| 3b | Android: blocco dello schermo, pausa e ripresa controllata (A1–A4) | — |
+| 2 | Misura: segnaposto del problema, gesti scartati dal telefono, webcam, fotogrammi, intervalli del collegamento, tempo del piano | fatto per telefono, collegamento e gioco (`bce996f`); webcam con il passo 3c |
+| 3a | Telefono: soglie e colpo tipico (T1), attesa del colpo vero (T2), palla corta e pallonetto (T3, T4), mira dal piatto (T6), impugnatura di taglio (T7) | fatto nel codice, provato in automatico; prova fisica da fare |
+| 3b | Android: blocco dello schermo, pausa e ripresa controllata (A1–A4) | fatto nel codice, provato in automatico; prova fisica da fare |
 | 3c | Webcam: misura e catena (§5) | — |
 | 4 | Campo aperto e ritmo (C1–C5) | — |
 | 5 | Verifica, prova guidata, pacchetti | — |
+
+### Passo 3a · telefono (fatto)
+
+- **T1** Soglie del rilevatore in proporzione alla scala di chi gioca (la direzione più forte della calibrazione), con
+  minimi bassi solo di sicurezza: i «colpetti» lenti di chi gioca piano restano colpi, il tremolio no. Colpo tipico per
+  direzione imparato giocando (75° percentile degli ultimi 8). Calibrazione rifiutata se un verso è oltre 3,5 volte
+  l'altro («squilibrio», con il verso debole da rifare).
+- **T2** Gesto debole (picco sotto il 30% del colpo tipico) arrivato presto: si aspetta il colpo vero fino a 0,22 s
+  (0,3 s al servizio) e vince lui anche se arriva tardi; un gesto debole ma ampio (≥ 25°) si gioca; gli altri si
+  scartano senza colpo a vuoto, e il registro lo dice (`vuoto`, perché `debole`). Il ritorno del braccio entro 0,9 s e
+  più debole del colpo non è un secondo colpo; il rilevatore non resta bloccato nel recupero oltre 0,65 s. I gesti non
+  mandati hanno il motivo nel registro (debole, lento, corto).
+- **T3** Palla corta solo da un gesto vero (almeno 15° di arco): i micro-movimenti non la fanno più.
+- **T4** Pallonetto solo con il braccio che sale davvero (salita 0,6 e piano 0,55): il dritto in salita resta top spin.
+- **T6** Mira dal piatto pesata con la sua affidabilità (piena fino a 45°, a zero 15° oltre): niente salti a fondo scala.
+- **T7** Impugnatura di taglio: la forma del colpo si misura rispetto alla gravità, quindi il telefono ruotato di 90°
+  attorno al lato lungo (display a destra o a sinistra) dà lo stesso lato, lo stesso colpo e la stessa forza della presa
+  di riferimento, per destri e mancini, dritto o inclinato di 35° (`natpf-presa-di-taglio.test.mjs`). La pagina del
+  telefono non chiede più di raddrizzarlo (un avviso in basso, che non blocca); testi e disegni dicono la presa di taglio.
+- Cosa provano i test: il rilevatore e il motore con gesti simulati (telefono simulato completo). Non provano la mano
+  vera: soglie, attese e presa vanno provate con il telefono (prova guidata).
+
+### Passo 3b · Android (fatto)
+
+- **A2–A4** Sul computer (`natpf_phone_watch.js`): pausa appena il telefono non è utilizzabile in campo (scollegato, non
+  pronto, pagina nascosta: subito; sensori fermi da 0,4 s a collegamento vivo; tolleranza 0,3 s per i ricollegamenti
+  lampo), ripresa dopo 0,7 s di telefono regolare e il conto alla rovescia 3-2-1, punto rigiocato se la pausa è
+  arrivata nello scambio o nel lancio, colpi in sospeso cancellati, nessun punto assegnato. Con i tocchi non si
+  aspettano i sensori. Registro: `tel.pausa`, `tel.ripresa`.
+- **A1** Sul telefono (`phone-keep.js`): blocco dello schermo richiesto di nuovo dopo un rilascio o un rifiuto a pagina
+  visibile (1, 2, 4, 8 s), al ritorno in primo piano e a ogni tocco; avviso fisso sul telefono quando lo schermo può
+  spegnersi, con il pulsante o con cosa cambiare nelle impostazioni. Sensori fermi a pagina visibile: avviso con
+  «Riattiva i sensori» (poi «Ricarica la pagina», che tiene collegamento e calibrazione). Al ritorno in primo piano: un
+  ping e 2 s per la risposta prima di chiudere il collegamento, ricollegamento subito se era perso.
+- Cosa provano i test: `natpf-phone-keep.mjs` (telefono e computer veri nel browser, sensori, visibilità e blocco dello
+  schermo simulati) 13/13. Quando Android sospende i sensori, rilascia o nega il blocco si vede solo con il telefono.
+

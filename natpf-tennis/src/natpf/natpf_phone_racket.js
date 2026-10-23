@@ -4,7 +4,9 @@
 // Qui si traducono soltanto gli eventi NATPF negli eventi del motore base (gli stessi di mouse, webcam e tastiera):
 //   sw  → swing { side, shotType, speed, dirX, dirY }      toss → lancio di palla al servizio
 //   orientamento del telefono → inclinazione della racchetta virtuale (phoneState del motore base)
-// Impugnatura NATPF: telefono in verticale nel palmo, schermo verso il palmo. Con questa presa l'asse lungo del
+// Impugnatura NATPF (dal 23/10): telefono di taglio, come il manico, il palmo sui lati lunghi e il display verso destra o
+// sinistra (prima: schermo verso il palmo). Verso del colpo e forma del gesto si misurano rispetto alla gravità e non
+// cambiano con la rotazione del telefono attorno al suo lato lungo. Con la presa di prima l'asse lungo del
 // telefono (Y) è il manico della racchetta, la normale allo schermo (Z) è la normale del piatto e X corre lungo la
 // larghezza dell'ovale. La rotazione integrata dal giroscopio (racket-motion.js, nel riferimento del telefono e
 // relativa alla presa di riposo) si scompone quindi così:
@@ -26,6 +28,7 @@ import { classifyPhoneShot, aimFromSignals, ENGINE_SHOT, liftBaselineFromProfile
 import { calReduce, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
 import { readHand, normalizeHand } from './natpf_hand.js';
 import { strokeIntent } from './natpf_stroke_intent.js';
+import { weakSwing } from './natpf_impact.js';
 
 const NATPF_BASE = '/natpf/';
 const scripts = new Map();
@@ -79,6 +82,20 @@ export const riseRefOf = (profile, dir) => (profile && !profile.simple && (dir =
 // diventare tagliati per tutta la partita. Come quella della calibrazione sposta le soglie dei colpi speciali solo per
 // renderli più difficili (classifyStroke): con molti tagliati voluti i tagliati diventano più difficili, mai più facili
 export const RISE_LEARN = Object.freeze({ min: 3, keep: 9, skip: Object.freeze(['lob', 'smash']) });
+// Colpo tipico di chi gioca (velocità al picco, °/s): la mediana dei colpi dello scambio oltre «from», da «min» colpi in
+// poi; prima, il verso più deciso della calibrazione. Dice al motore se un gesto è debole rispetto ai propri colpi
+// (natpf_impact.WEAK: preparazione o micro-movimento, che da solo non colpisce in anticipo). Chi gioca con colpetti
+// piccoli ha un colpo tipico piccolo
+export const TYPICAL = Object.freeze({ keep: 9, min: 3, from: 200 });
+export function createTypicalModel({ keep = TYPICAL.keep, min = TYPICAL.min, from = TYPICAL.from } = {}){
+  const h = [];
+  return {
+    reset(){ h.length = 0; },
+    add(peak){ if (Number.isFinite(peak) && peak >= from){ h.push(peak); if (h.length > keep) h.shift(); } },
+    get value(){ if (h.length < min) return null; const v = [...h].sort((a, b) => a - b), m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m])/2; },
+  };
+}
+export const profileTypical = profile => { if (!profile || profile.simple) return null; const v = [profile.refs?.[1], profile.refs?.[-1], profile.ref].filter(x => Number.isFinite(x) && x > 0); return v.length ? Math.max(...v) : null; };
 export function createRiseModel({ min = RISE_LEARN.min, keep = RISE_LEARN.keep } = {}){
   const seen = { 1: [], '-1': [] };
   return {
@@ -256,6 +273,7 @@ export class NatpfPhoneRacket {
     this.aimModel = createAimModel();    // direzione abituale del piatto all'impatto (mira dei telefoni aggiornati)
     this.headModel = createLiftModel(0); // verso verticale abituale del piatto che colpisce, per verso del colpo
     this.riseModel = createRiseModel();  // salita abituale imparata giocando, se la calibrazione non la dà
+    this.typicalModel = createTypicalModel(); // colpo tipico imparato giocando (gesti deboli: natpf_impact.WEAK)
     // pallonetto e palla corta di chi gioca, imparati negli esercizi del riscaldamento (si azzerano con una nuova calibrazione)
     this.specialSamples = readSpecials(); this.personal = learnSpecials(this.specialSamples);
     this.calListeners = new Set();
@@ -341,7 +359,7 @@ export class NatpfPhoneRacket {
     c.idle = e.kind === 'idle';
     if (e.kind === 'review'){ c.review = e; c.freeOk = false; if (e.pass) this.link.cmd('free'); }   // prova libera, poi conferma
     if (e.kind === 'free' && e.ok) c.freeOk = true;
-    if (e.kind === 'done'){ c.step = 'done'; this.profile = e.profile || null; this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline; this.liftModel.reset(this.liftBaseline); this.faceModel.reset(); this.aimModel.reset(); this.riseModel.reset(); this.resetSpecials(); if (e.profile && e.profile.hand !== this.hand){ this.gripSent = false; this._sendGrip(); } this.headModel.reset(headBaselineFromProfile(this.profile, this.hand) ?? 0); }
+    if (e.kind === 'done'){ c.step = 'done'; this.profile = e.profile || null; this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline; this.liftModel.reset(this.liftBaseline); this.faceModel.reset(); this.aimModel.reset(); this.riseModel.reset(); this.typicalModel.reset(); this.resetSpecials(); if (e.profile && e.profile.hand !== this.hand){ this.gripSent = false; this._sendGrip(); } this.headModel.reset(headBaselineFromProfile(this.profile, this.hand) ?? 0); }
     c.last = e;
     for (const fn of this.calListeners) try { fn(e); } catch (err){ console.error(err); }
     this._changed();
@@ -379,12 +397,19 @@ export class NatpfPhoneRacket {
     const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, displayLag: this.displayLagMs/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine), ref, rawRef, riseRef }), role: this.engine.playerRole };
     // numero del colpo del telefono: la diagnostica lega così il gesto (tel.colpo) al suo esito nel motore (colpo.gioco)
     ev.natpf.seq = Number.isFinite(s.seq) ? s.seq : null;
+    // colpo tipico di chi gioca, prima di questo colpo: il motore decide così se il gesto è debole (natpf_impact.WEAK)
+    ev.natpf.typical = this.typicalModel.value ?? profileTypical(this.profile);
+    if (Number.isFinite(s.peak) && !Number.isFinite(ev.natpf.peak)) ev.natpf.peak = s.peak;
+    if (Number.isFinite(s.angle)) ev.natpf.angle = s.angle;
+    if (this.engine.phase === 'RALLY') this.typicalModel.add(s.peak);
     this.lastPrep = null;
     if (!ev.side) ev.side = sideFromBall(this.engine, this.hand);
     // riferimenti personali solo dai colpi normali: prima entravano anche pallonetti e palle corte, e dopo tre di fila il
     // quarto sembrava «normale» (usciva un dritto)
     if (NORMAL_SHOTS.has(ev.natpf.shot)){ this.liftModel.add(s.dir, s.lift); this.headModel.add(s.dir, ev.natpf.head); }
-    this.faceModel.add(s.dir, s.face); this.aimModel.add(s.dir, s.heading);
+    // piatto e direzione abituali solo dai colpi dello scambio non deboli: servizi, preparazioni e micro-movimenti
+    // spostavano il centro (il 23/10 scarti di 50–77° in quasi tutti i colpi)
+    if (this.engine.phase === 'RALLY' && !weakSwing(ev)){ this.faceModel.add(s.dir, s.face); this.aimModel.add(s.dir, s.heading); }
     if (this.engine.phase === 'RALLY' && ev.natpf.intent) this.riseModel.add(s.dir, s.shape?.rise, ev.natpf.intent.shot);
     for (const fn of this.swingListeners) try { fn(ev, s); } catch (e){ console.error(e); }
     // _emitSwing instrada già P1 in locale e P2 verso l'host (relay della stanza 1v1)

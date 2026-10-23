@@ -12,6 +12,7 @@ import { createFaceTracker } from './face-tracker.js';
 import { strokeShape } from './stroke-shape.js';
 import { swingMessage } from './swing-message.js';
 import { NATPF_BUILD } from './version.js';
+import { createWakeKeeper, createSensorWatch } from './phone-keep.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
@@ -40,12 +41,15 @@ let lastFaceSent = -Infinity, lastFacePaint = -Infinity, lastAttemptOk = false;
 let sensorSequence = 0, lastSensorSent = -Infinity;
 // richieste facoltative del gioco (messaggio cfg): preparazione del colpo e flusso dei sensori anche senza canale binario
 let streamJson = false, prepWanted = false, diagStream = false, sampleHz = 60, lastSampleT = null, swingSeq = 0;
-let peer = null, conn = null, linkState = 'off', rtt = 80, sensor = 'off', phase = 'menu', retryT = null, tries = 0, wake = null, motionSeen = false, flashT = null, lastRx = 0;
+let peer = null, conn = null, linkState = 'off', rtt = 80, sensor = 'off', phase = 'menu', retryT = null, tries = 0, motionSeen = false, flashT = null, lastRx = 0;
+// schermo acceso e sensori vivi (phone-keep.js): ogni cambio del blocco va al computer e sullo schermo (avvisi più giù)
+const awake = createWakeKeeper({ onChange: () => { sendState(); paintAlert(); } }), sensorWatch = createSensorWatch();
+let revivedAt = null, alertKey = '';
 // percorso veloce (link.js): via internet una seconda connessione non ordinata; in LAN il canale dei sensori
 let fast = null, fastOk = false, rawSeq = 0;
 
 /* ---------- interfaccia ---------- */
-let selectedShot = 'auto', inputMode = 'motion', portrait = true, shotsPaintKey = '';
+let selectedShot = 'auto', inputMode = 'motion', shotsPaintKey = '';
 const preferences = () => ({ range: $('#motionRange').value, hand: $('#hand').value, intentGate: $('#intentGate').checked, gestural:true,quick:true, ...(grip === 'flat' ? { grip: 'flat' } : {}) });
 const ARROW = { L: '←', R: '→', '?': '?' };
 // mano scelta nel gioco (o qui, e confermata dal gioco): menu, calibrazione in corso e profilo salvato. Il verso del
@@ -93,7 +97,7 @@ function calUi(){
   const st = cal.state;
   if (st.step === 'still' && grip === 'flat') ui('Pronto, fermo', 'Telefono in orizzontale nel palmo, display verso di te: il dorso guarda la rete come le corde. Resta fermo così per 2 secondi.');
   // stessi passi e stesse parole del computer (natpf_cal_view.js): si guarda il computer, qui c'è il riassunto
-  else if (st.step === 'still') ui('Tieni fermo', 'Telefono in verticale nel palmo, come il manico di una racchetta. Guarda il computer.');
+  else if (st.step === 'still') ui('Tieni fermo', 'Telefono di taglio, come il manico di una racchetta: il palmo sui lati lunghi, il display verso destra o verso sinistra. Guarda il computer.');
   else if (st.step === 'grip') ui('La tua presa', 'Tieni il telefono come ti è comodo, senza stringere troppo.');
   else if (st.step === 'swings'){
     const plan = calibrationPlan(st.options), w = plan[st.idx], stroke = (w === 'L') !== (st.options.hand === 'left') ? 'Dritto' : 'Rovescio';
@@ -106,7 +110,7 @@ function calUi(){
 }
 function phaseText(){
   if (grip === 'flat' && phase === 'play') return 'Colpisci quando la palla arriva alla racchetta: gira il piatto verso dove vuoi mandarla, aprilo per il lob, chiudilo per il coperto.';
-  return { menu: 'Guarda il computer per iniziare.', toss:'Colpisci quando la palla raggiunge la cima del lancio.', serve: 'Alza il telefono per far partire la palla. Poi dai un colpetto quando è in alto. Puoi anche toccare lo schermo per lanciarla.', play: 'Guarda il computer e colpisci quando la palla arriva alla racchetta. Muovi il telefono nella direzione desiderata.', pause: 'Partita in pausa.', over: 'Partita finita: guarda il computer.' }[phase] || '';
+  return { menu: 'Guarda il computer per iniziare.', toss:'Colpisci quando la palla raggiunge la cima del lancio.', serve: 'Alza il telefono per far partire la palla. Poi dai un colpetto quando è in alto. Puoi anche toccare lo schermo per lanciarla.', play: 'Guarda il computer e colpisci quando la palla arriva alla racchetta. Muovi il telefono nella direzione desiderata.', pause: 'Partita in pausa: guarda il computer. Si riprende da solo quando il telefono è di nuovo pronto.', over: 'Partita finita: guarda il computer.' }[phase] || '';
 }
 function flash(cls, big, sub, ms = 650, arrow = ''){ ui(big, sub, cls, arrow); clearTimeout(flashT); flashT = setTimeout(() => { flashT = null; paint(); }, ms); }
 
@@ -206,8 +210,8 @@ function openFast(){
 function closeFast(){ const f = fast; fast = null; if (f) try { f.close(); } catch (e){} }
 // vis: pagina in primo piano (0 = nascosta: schermo spento, altra app); wk: blocco dello schermo attivo (1), non
 // attivo (0, negato o perso: lo schermo può spegnersi dopo il tempo del telefono), non supportato dal browser (-1)
-const wakeState = () => (!('wakeLock' in navigator) ? -1 : wake && !wake.released ? 1 : 0);
-const sendState = () => send({ t: 'st', s: sensor === 'off' ? 'sensors' : sensor, b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}) });
+const wakeState = () => awake.state;
+const sendState = () => send({ t: 'st', s: sensor === 'off' ? 'sensors' : sensor, b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}) });
 // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
 const sendDevice = () => send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: screen.orientation?.type || null, sc: [screen.width, screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD });
 // gesti che il telefono non manda come colpo, con il motivo: al computer solo se la diagnostica registra, al massimo 8 al
@@ -233,11 +237,11 @@ const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e)
 
 /* ---------- sensori ---------- */
 async function enableSensors(){
-  inputMode = 'motion'; selectedShot='auto'; lockOrientation();
+  inputMode = 'motion'; selectedShot='auto'; fullScreen(); lockOrientation();
   // iPhone: il permesso va chiesto subito, dentro il tocco
   const ask = typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function' && window.isSecureContext
     ? DeviceMotionEvent.requestPermission().catch(() => 'denied') : null;
-  await keepAwake();
+  await awake.tap();
   if (!window.isSecureContext) return noMotion('insecure');
   if (typeof DeviceMotionEvent === 'undefined') return noMotion('nomotion');
   if (ask && (await ask) !== 'granted') return noMotion('denied');
@@ -260,8 +264,8 @@ function noMotion(why){
 }
 function onMotion(e){
   const k = sampleFromMotion(e, e.timeStamp || performance.now());   // istante dell'evento, non della lettura
-  if (!portrait || (!k.rot && !k.acc)) return;
-  motionSeen = true;
+  if (!k.rot && !k.acc) return;
+  motionSeen = true; sensorWatch.feed(performance.now());
   // Presentation stream is disposable; reliable swing packets retain the real sensor peak.
   if (linkState === 'on' && conn?.sendMotion && k.t - lastSensorSent >= 1000/SENSOR_HZ){
     const packet = encodeSensor(k, sensorSequence++);
@@ -332,8 +336,8 @@ cal.on(e => { sendCal(e);
   if (e.kind === 'free') flash(e.ok ? 'hit' : 'miss', e.ok && e.dirValue === 0 ? 'Centro' : ARROW[e.dir], `Forza ${Math.round(Math.min(1.5, e.strength)*100)}%`, 500);
 });
 det.on('swing', s => {
-  if (sensor !== 'ready' || linkState !== 'on' || !portrait || inputMode !== 'motion' || !['play','serve','toss'].includes(phase)){
-    if (sensor === 'ready' && inputMode === 'motion') sendDiscard(!portrait ? 'orientamento' : 'fase ' + phase, s);
+  if (sensor !== 'ready' || linkState !== 'on' || inputMode !== 'motion' || !['play','serve','toss'].includes(phase)){
+    if (sensor === 'ready' && inputMode === 'motion') sendDiscard('fase ' + phase, s);
     return;
   }
   const flags = shotFlags(selectedShot, s);
@@ -349,7 +353,7 @@ det.on('swing', s => {
 
 // preparazione del colpo (racchetta portata indietro): al gioco per animarla e per premiare chi si prepara
 det.on('prep', p => {
-  if (sensor !== 'ready' || linkState !== 'on' || !portrait || inputMode !== 'motion' || phase !== 'play') return;
+  if (sensor !== 'ready' || linkState !== 'on' || inputMode !== 'motion' || phase !== 'play') return;
   send({ t: 'pr', dir: p.dir, pk: p.peakT, v: p.peak, a: p.angle, lat: rtt/2 + (performance.now() - p.peakT) });
 });
 
@@ -357,21 +361,27 @@ function paintShots(){
   const key = `${inputMode}:${sensor === 'cal'}:${selectedShot}`; if (shotsPaintKey === key) return; shotsPaintKey = key;
   $('#shotChoices').innerHTML = Object.entries(SHOT_NAMES).filter(([k]) => sensor === 'cal' || !['serve','smash'].includes(k)).map(([key,label]) => `<button data-shot="${key}" class="${selectedShot===key?'on':''}" aria-pressed="${selectedShot===key}">${label}</button>`).join('');
 }
+// La presa fisica (telefono di taglio, inclinato, girato nella mano) e l'orientamento della pagina sono due cose diverse:
+// i sensori sono nel riferimento del telefono e il rilevatore non si ferma mai per il portrait o il landscape (prima in
+// landscape si fermava e i colpi sparivano: con il telefono di taglio e il lato lungo in avanti il sistema può girare la
+// pagina). La pagina prova a restare in verticale (a schermo intero dal primo tocco); se si gira, lo dice senza bloccare.
 function lockOrientation(){ try { screen.orientation?.lock?.(grip === 'flat' ? 'landscape' : 'portrait').catch(() => {}); } catch(e){} checkOrientation(); }
-// presa verticale: solo in portrait (in landscape i comandi si fermano). Presa orizzontale: si gioca in landscape.
+function fullScreen(){ try { if (!document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen({ navigationUI: 'hide' }).then(lockOrientation, () => {}); } catch(e){} }
+let landHint = false, landHintT = null;
 function checkOrientation(){
-  const was = portrait, land = matchMedia('(orientation: landscape)').matches;
+  const land = matchMedia('(orientation: landscape)').matches, turned = grip !== 'flat' && land;
   document.body.classList.toggle('flat', grip === 'flat'); document.body.classList.toggle('land', land);
-  portrait = grip === 'flat' || !land; show('#rotate', !portrait);
-  if (!portrait){ det.stop(); } else if (!was && inputMode === 'motion'){ if (sensor === 'cal') cal.start(preferences()); else det.run(); }
+  if (turned === landHint) return;
+  landHint = turned; show('#rotate', turned); clearTimeout(landHintT);
+  if (turned) landHintT = setTimeout(() => show('#rotate', false), 3000);
 }
 addEventListener('resize', checkOrientation); addEventListener('orientationchange', checkOrientation);
 $('#shotChoices').addEventListener('click', e => { const value=e.target.dataset.shot; if (SHOT_NAMES[value]){ selectedShot=value; paintShots(); send({ t:'cal',e:{kind:'selection',shot:value} }); } });
 $('#power').addEventListener('input', () => { $('#powerLabel').textContent = $('#power').value+'%'; });
-$('#touchHit').addEventListener('pointerdown', e => { if (!portrait) return; if (inputMode === 'motion'){ e.preventDefault(); e.currentTarget.setPointerCapture?.(e.pointerId); det.setArmed(true); } });
+$('#touchHit').addEventListener('pointerdown', e => { if (inputMode === 'motion'){ e.preventDefault(); e.currentTarget.setPointerCapture?.(e.pointerId); det.setArmed(true); } });
 for (const event of ['pointerup','pointercancel','lostpointercapture']) $('#touchHit').addEventListener(event, () => { if (inputMode === 'motion' && det.profile.intentGate) det.setArmed(false); });
 $('#touchHit').addEventListener('click', () => {
-  if (!portrait || inputMode !== 'touch' || linkState !== 'on') return;
+  if (inputMode !== 'touch' || linkState !== 'on') return;
   const power=+$('#power').value/100, dir=+$('#aimDir').value;
   if (sensor === 'cal'){ cal.touch(dir,power,selectedShot); return; }
   if (sensor !== 'ready' || !['play','serve','toss'].includes(phase)) return;
@@ -398,19 +408,71 @@ $('#bye').addEventListener('click', () => {
 });
 // tocco sullo schermo al servizio: lancia la palla
 $('#stage').addEventListener('pointerdown', () => { if (phase === 'serve' && sensor === 'ready') send({ t: 'toss', pk: performance.now() }); });
-// schermo sempre acceso durante il gioco (il telefono non si tocca): il blocco si perde quando la pagina va in secondo
-// piano e si riprende al ritorno. Prima la ripresa non ascoltava la perdita successiva: dal secondo ciclo restava un
-// blocco già rilasciato, lo schermo si spegneva e il collegamento cadeva
-async function keepAwake(){
-  if (!('wakeLock' in navigator) || (wake && !wake.released)) return;
-  try { const w = await navigator.wakeLock.request('screen'); wake = w; w.addEventListener('release', () => { if (wake === w) wake = null; sendState(); }); } catch (e){}
-}
-// pagina nascosta: il computer lo sa subito (prima che il telefono si sospenda); al ritorno prima si riprende il blocco,
-// poi si manda lo stato (il computer non deve vedere per un attimo un blocco che manca)
-document.addEventListener('visibilitychange', () => { if (document.hidden || sensor === 'off') sendState(); else keepAwake().then(sendState); });
+// schermo sempre acceso durante il gioco (il telefono non si tocca): phone-keep.js riprende il blocco al ritorno in primo
+// piano, dopo un rilascio o un rifiuto a pagina visibile e a ogni tocco. Pagina nascosta: il computer lo sa subito
+// (prima che il telefono si sospenda) e mette in pausa
+document.addEventListener('visibilitychange', () => { if (document.hidden || sensor === 'off') sendState(); else onVisible(); });
+// pagina sospesa dal browser e ripresa (Android): come il ritorno in primo piano
+document.addEventListener('resume', () => { if (!document.hidden && sensor !== 'off') onVisible(); });
+document.addEventListener('pointerdown', () => { if (sensor !== 'off') awake.tap(); }, { passive: true });
 addEventListener('pagehide', () => { try { conn && conn.close(); } catch (e){} });
+// di nuovo in primo piano: prima si riprende il blocco, poi si manda lo stato (il computer non deve vedere per un attimo
+// un blocco che manca); i sensori hanno il tempo di ripartire. Il computer non ha potuto rispondere mentre la pagina era
+// sospesa: un ping subito e 2 s per la risposta, poi il controllo dei 5 s (prima si chiudeva e riapriva anche un
+// collegamento vivo). Collegamento perso mentre il telefono dormiva: si riprova subito, con la chiave di ripresa
+function onVisible(){
+  const now = performance.now();
+  sensorWatch.restart(now);
+  if (conn?.open){ lastRx = Math.max(lastRx, now - 3000); send({ t: 'ping', c: now }); }
+  else if (linkState === 'lost' && pair){ tries = 0; connect(); }
+  awake.visible().then(sendState);
+  paintAlert();
+}
+
+/* ---------- avvisi: sensori fermi, schermo che può spegnersi ---------- */
+// Sensori fermi a pagina visibile (dopo lo schermo spento il browser non sempre li riprende): si dice qui, con il
+// pulsante per riattivarli; se non ripartono, si ricarica la pagina (collegamento e calibrazione restano in questa
+// scheda). Schermo che può spegnersi mentre si gioca (blocco negato, perso o non offerto dal browser): lo si dice qui,
+// con il pulsante per riprovare o con cosa cambiare nelle impostazioni del telefono
+function paintAlert(){
+  const now = performance.now(), motion = inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal');
+  let a = null;
+  if (linkState === 'on' && motion && sensorWatch.stalled(now, { visible: !document.hidden })){
+    a = revivedAt != null
+      ? { t: 'I sensori non sono ripartiti', p: 'Ricarica la pagina: il collegamento e la calibrazione restano.', b: 'Ricarica la pagina', act: 'reload' }
+      : { t: 'Sensori fermi', p: 'Il telefono non manda più il movimento al gioco.', b: 'Riattiva i sensori', act: 'revive' };
+  } else {
+    if (revivedAt != null && sensorWatch.last > revivedAt) revivedAt = null;
+    if (linkState === 'on' && sensor === 'ready' && inputMode === 'motion' && !document.hidden && awake.state !== 1 && !awake.busy)
+      a = awake.state === -1
+        ? { t: 'Lo schermo può spegnersi', p: 'Questo browser non tiene acceso lo schermo: nelle impostazioni del telefono allunga lo spegnimento automatico dello schermo.' }
+        : { t: 'Lo schermo può spegnersi', p: 'Il telefono non lascia tenere acceso lo schermo (spesso per il risparmio energetico). Tocca il pulsante; se ricapita, disattiva il risparmio energetico.', b: 'Tieni acceso lo schermo', act: 'wake' };
+  }
+  const key = a ? a.t + a.p : '';
+  if (key === alertKey) return;
+  alertKey = key; show('#alert', !!a);
+  if (!a) return;
+  $('#alertTitle').textContent = a.t; $('#alertText').textContent = a.p;
+  const b = $('#alertBtn'); b.textContent = a.b || ''; b.dataset.act = a.act || ''; show('#alertBtn', !!a.b);
+}
+setInterval(paintAlert, 500);
+$('#alertBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  const act = e.currentTarget.dataset.act;
+  if (act === 'revive') reviveSensors();
+  else if (act === 'reload') location.reload();
+  else if (act === 'wake') awake.tap().then(paintAlert);
+});
+// di nuovo in ascolto dei sensori, dentro il tocco (su iPhone il permesso va chiesto lì)
+function reviveSensors(){
+  const ask = typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function' ? DeviceMotionEvent.requestPermission().catch(() => 'denied') : null;
+  removeEventListener('devicemotion', onMotion); addEventListener('devicemotion', onMotion);
+  revivedAt = performance.now(); sensorWatch.restart(revivedAt); alertKey = null;   // si ridisegna comunque
+  paintAlert();
+  if (ask) ask.then(r => { if (r !== 'granted') noMotion('denied'); });
+}
 
 checkOrientation();
 connect();
 $('#gripMode').value = grip;
-window.__racchetta = { det, cal, face, setGrip, get state(){ return { linkState, sensor, phase, rtt, step: cal.state.step, grip }; } };
+window.__racchetta = { det, cal, face, setGrip, get state(){ return { linkState, sensor, phase, rtt, step: cal.state.step, grip, wake: awake.state }; } };

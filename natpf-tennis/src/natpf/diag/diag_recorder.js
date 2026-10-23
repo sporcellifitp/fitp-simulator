@@ -258,6 +258,11 @@ export class DiagRecorder {
       R.log('vuoto', { perche: ps.natpfWhy || 'presto', anticipoMs: r(1000*ps.lead, 1), forza: r(ps.strength, 0) });
       return orig(ps);
     });
+    // gesto debole in anticipo che non ha colpito (natpf_impact.WEAK): nessuno swing a schermo, solo qui
+    wrap('_natpfWeakDropped', function(orig, ps = {}){
+      R.log('vuoto', { perche: 'debole', anticipoMs: r(1000*ps.lead, 1), forza: r(ps.strength, 0), n: ps.evt?.natpf?.seq ?? null });
+      return orig(ps);
+    });
     const mc = E.motionController;
     if (mc?.on){
       const inp = tipo => s => {

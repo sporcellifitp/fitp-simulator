@@ -1391,6 +1391,11 @@ export class NatpfTennisEngine {
       if (!this.autoPlayMode) {
         const tau = this.ball.vel.y / L.GRAVITY + NS.eventLatency(e);
         if (tau > NO.SERVE.ignoreBefore) return;
+        // NATPF: gesto debole (assestamento dopo il lancio, preparazione) prima di serveWait dopo il colmo: si aspetta la
+        // battuta vera; se non arriva vale questo (natpf_impact.WEAK). Il 23/10 tre servizi su 13 erano battuti da gesti di
+        // 122–175 °/s e la battuta vera, 0,4 s dopo, era scartata
+        if (NI.weakSwing(e) && tau > -NI.WEAK.serveWait) { this.natpfWeakServe ||= { evt: e, tau }; return; }
+        this.natpfWeakServe = null;
         this._executeServeHit(this.player, { ...e, natpfServeTau: tau });
         return;
       }
@@ -1419,7 +1424,7 @@ export class NatpfTennisEngine {
       // palla al punto d'impatto, con il suo tempo vero; uno più forte lo sostituisce; mai un impatto con la palla lontana
       if (!this.isDoubles && this.ball.lastHitter === "opponent") {
         const q = NI.queueUserSwing(this, { ...e, side: t }, this.player);
-        if (q === "held" || q === "late") return;
+        if (q === "held" || q === "late" || q === "ignored") return;
         if (q === "whiff") {
           this.audioEngine && this.audioEngine.playSwingWhoosh(Number(e.speed || 1.15));
           this._natpfEarlyWhiff({ actor: this.player, evt: { ...e, side: t }, prep: !0, natpfWhy: "tardi" });
@@ -1591,7 +1596,7 @@ export class NatpfTennisEngine {
     }
   }
   _startServeToss(e) {
-    (this.phase = "SERVE_TOSS"), (this.phaseTimer = 0), (this.pendingServeSwing = null);
+    (this.phase = "SERVE_TOSS"), (this.phaseTimer = 0), (this.pendingServeSwing = null), (this.natpfWeakServe = null);
     const t = e.sideSign > 0 ? -0.32 : 0.32;
     this.ball.pos.set(e.pos.x + t, 1.18, e.pos.z - e.sideSign * 0.22),
       this.ball.vel.set(0, 6.32, 0),
@@ -2596,6 +2601,12 @@ export class NatpfTennisEngine {
         (this.pendingServeSwing = null), this._executeServeHit(i, a);
         return;
       }
+      // NATPF: gesto debole in attesa della battuta vera, che non è arrivata entro serveWait dopo il colmo: vale lui
+      if (this.natpfWeakServe && this.ball.vel.y / L.GRAVITY < -NI.WEAK.serveWait) {
+        const w = this.natpfWeakServe;
+        (this.natpfWeakServe = null), this._executeServeHit(this.player, { ...w.evt, natpfServeTau: w.tau });
+        return;
+      }
       if (
         ((this.score.server === "opponent" && !this.isMultiplayer) || this.autoPlayMode) &&
         this.ball.vel.y <= 0.25 &&
@@ -2860,6 +2871,12 @@ export class NatpfTennisEngine {
       this.motionController &&
         this.motionController.triggerHapticFeedback &&
         this.motionController.triggerHapticFeedback({ role: "p1", kind: "whiff", grade, shotType: this.selectedShotType || "TOPSPIN", speedKmh: 0, intensity: 0.65 });
+  }
+  // NATPF: gesto debole in anticipo che non ha colpito (il colpo vero non è arrivato): niente swing a schermo. Solo la
+  // diagnostica lo vede (evento «vuoto» con il motivo «debole»)
+  _natpfWeakDropped(ps) {
+    const a = ps?.actor || this.player;
+    a?.userData && (a.userData.natpfPrep = null);
   }
   _stepActorFootwork(e, t) {
     if (NL.legendStep(this, e, t)) return; // NATPF Leggenda: la CPU accelera e frena, niente velocità istantanea

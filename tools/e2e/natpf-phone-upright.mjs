@@ -36,10 +36,14 @@ check('gioco avviato con vite', await up(`http://127.0.0.1:${GAME_PORT}/`));
 const PHONE_INIT = () => {
   window.__up = {
     emit(k){ window.dispatchEvent(new DeviceMotionEvent('devicemotion', { rotationRate: { alpha: k[1], beta: k[2], gamma: k[3] }, acceleration: { x: k[4], y: k[5], z: k[6] }, accelerationIncludingGravity: { x: k[7], y: k[8], z: k[9] }, interval: 16.7 })); },
-    run(samples){ return new Promise(r => { const t0 = performance.now(); let i = 0, at = 0; const tick = () => { const now = performance.now() - t0; while (i < samples.length && at + samples[i][0] <= now + 1){ at += samples[i][0]; this.emit(samples[i++]); } if (i >= samples.length) r(); else setTimeout(tick, 4); }; tick(); }); },
+    run(samples){ window.__busy = (window.__busy || 0) + 1; return new Promise(r => { const t0 = performance.now(); let i = 0, at = 0; const tick = () => { const now = performance.now() - t0; while (i < samples.length && at + samples[i][0] <= now + 1){ at += samples[i][0]; this.emit(samples[i++]); } if (i >= samples.length){ window.__busy--; r(); } else setTimeout(tick, 4); }; tick(); }); },
     play(name){ return this.run(window.__G[name]); },
     still(ms){ const k = window.__G.still[0], n = Math.max(1, Math.round(ms/16.7)), j = () => (Math.random() - .5)*.6; return this.run(Array.from({ length: n }, () => [16.7, j(), j(), j(), 0, 0, 0, k[7], k[8], k[9]])); },
   };
+  // come un telefono vero: i sensori arrivano di continuo (posa «pronto» ferma tra un gesto e l'altro), dal primo
+  // campione in poi. Senza, il computer vedrebbe «sensori fermi» e metterebbe in pausa (natpf_phone_watch.js)
+  window.__hold = setInterval(() => { if (window.__busy || !window.__moved || !window.__G) return; const k = window.__G.still[0], j = () => (Math.random() - .5)*.6; window.__up.emit([16.7, j(), j(), j(), 0, 0, 0, k[7], k[8], k[9]]); }, 16);
+  window.addEventListener('devicemotion', () => { window.__moved = true; }, { once: true });
 };
 
 const B = await launch();

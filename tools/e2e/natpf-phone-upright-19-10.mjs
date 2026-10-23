@@ -56,7 +56,7 @@ const PHONE_INIT = () => {
       const g = rotate(qconj(this.q), [0, G, 0]);
       window.dispatchEvent(new DeviceMotionEvent('devicemotion', { rotationRate: { alpha: rot[0], beta: rot[1], gamma: rot[2] }, acceleration: { x: acc[0], y: acc[1], z: acc[2] }, accelerationIncludingGravity: { x: g[0] + acc[0], y: g[1] + acc[1], z: g[2] + acc[2] }, interval: 10 }));
     },
-    run(fn, ms){ return new Promise(r => { const t0 = performance.now(); const id = setInterval(() => { const u = (performance.now() - t0)/ms; const v = fn(Math.min(1, u)); this.emit(v.rot || v, v.acc, v.accW); if (u >= 1){ clearInterval(id); r(); } }, 10); }); },
+    run(fn, ms){ window.__busy = (window.__busy || 0) + 1; return new Promise(r => { const t0 = performance.now(); const id = setInterval(() => { const u = (performance.now() - t0)/ms; const v = fn(Math.min(1, u)); this.emit(v.rot || v, v.acc, v.accW); if (u >= 1){ clearInterval(id); window.__busy--; r(); } }, 10); }); },
     still(ms){ return this.run(() => [0.4*Math.sin(performance.now()), -0.4, 0.3], ms); },
     turn(rate, ms){ return this.run(() => [0, 0, rate], ms); },
     // torna lentamente (rate °/s) a un orientamento, ruotando attorno a un asse fisso: la mano che rientra nella posa
@@ -77,6 +77,11 @@ const PHONE_INIT = () => {
       .then(() => this.run(u => ({ rot: [0, 650*Math.sin(Math.PI*u)**2, 150*Math.sin(Math.PI*u)**2], accW: [0, 9*Math.sin(2*Math.PI*u), -2*Math.sin(Math.PI*u)] }), 240))
       .then(() => this.returnTo(q0, rate)); },
   };
+  // come un telefono vero: i sensori arrivano di continuo (fermo tra un gesto e l'altro, un filo di rumore a media
+  // nulla: la posa non deriva), dal primo campione in poi. Senza, il computer vedrebbe «sensori fermi» e metterebbe in
+  // pausa (natpf_phone_watch.js)
+  window.__hold = setInterval(() => { if (window.__busy || !window.__moved) return; const t = performance.now(); window.__up.emit([.3*Math.sin(t/37), .3*Math.sin(t/53), .3*Math.sin(t/71)]); }, 16);
+  window.addEventListener('devicemotion', () => { window.__moved = true; }, { once: true });
 };
 
 const B = await launch();

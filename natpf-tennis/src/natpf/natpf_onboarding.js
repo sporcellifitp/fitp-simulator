@@ -11,7 +11,7 @@ const grip = `<svg viewBox="0 0 160 120" class="guide-svg"><g class="gs-swing"><
 
 export const GUIDE = [
   { id: 'grip', title: 'Impugna la racchetta', art: () => grip, you: {
-    phone: 'Telefono <b>in verticale nel palmo</b>, schermo verso il palmo, come il manico. Nel riscaldamento fai due colpetti, un dritto e un rovescio: il telefono impara il tuo gesto.',
+    phone: 'Telefono <b>di taglio</b>, come il manico: il palmo sui lati lunghi, il display verso destra o verso sinistra. Nel riscaldamento fai due colpetti, un dritto e un rovescio: il telefono impara il tuo gesto.',
     webcam: 'Mettiti a <b>1,5–2 metri</b> dalla webcam, con la mano che colpisce ben visibile e la luce davanti.',
     mouse: '<b>Spazio</b> o un trascinamento del mouse colpiscono. Funziona sempre, anche insieme agli altri.',
   }, game: 'In campo la racchetta segue il tuo telefono (o la tua mano).' },

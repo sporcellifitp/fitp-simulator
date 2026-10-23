@@ -42,7 +42,7 @@ export const calSide = (want, hand = 'right') => ((want === 'L') !== (hand === '
 const ARROW = { L: '←', R: '→' };
 const WHY = { piccolo: 'Gesto troppo piccolo: un colpetto un po’ più deciso', direzione: 'Era nell’altro verso' };
 export function calPrompt(v, hand = 'right'){
-  if (v.stage === 'still') return { title: 'Tieni fermo il telefono', sub: v.note === 'fermo' ? 'Si è mosso: tienilo fermo ancora un attimo, in verticale nel palmo' : 'In verticale nel palmo, come il manico di una racchetta: misuro i sensori', state: 'wait', arrow: '', dir: null };
+  if (v.stage === 'still') return { title: 'Tieni fermo il telefono', sub: v.note === 'fermo' ? 'Si è mosso: tienilo fermo ancora un attimo, di taglio nel palmo' : 'Di taglio nel palmo, come il manico di una racchetta (display verso destra o sinistra): misuro i sensori', state: 'wait', arrow: '', dir: null };
   if (v.stage === 'gesture'){
     const side = calSide(v.want, hand), title = side === 'forehand' ? 'Dritto' : 'Rovescio', arrow = ARROW[v.want] || '';
     const move = v.want === 'L' ? 'verso sinistra' : 'verso destra';
@@ -52,7 +52,7 @@ export function calPrompt(v, hand = 'right'){
     return { title: `${title} ${arrow}`, sub: why || `Ora: muovi il telefono ${move}, come un colpetto, poi fermati`, state: 'go', arrow, dir: v.want, side };
   }
   if (v.stage === 'review') return v.pass === false
-    ? { title: 'Rifacciamo i gesti', sub: v.why === 'piccolo' ? 'Gesti troppo piccoli: più ampi e decisi' : 'Non ho distinto i due versi: fai i gesti davvero da una parte all’altra', state: 'retry', arrow: '', dir: null }
+    ? { title: 'Rifacciamo i gesti', sub: v.why === 'piccolo' ? 'Gesti troppo piccoli: più ampi e decisi' : v.why === 'squilibrio' ? 'Un gesto era molto più debole dell’altro: rifai i due con la stessa decisione' : 'Non ho distinto i due versi: fai i gesti davvero da una parte all’altra', state: 'retry', arrow: '', dir: null }
     : { title: 'Racchetta pronta ✓', sub: 'Ora le palle vere', state: 'ok', arrow: '', dir: null };
   if (v.stage === 'done') return { title: 'Racchetta pronta ✓', sub: 'Ora le palle vere', state: 'ok', arrow: '', dir: null };
   return { title: 'Collego il telefono…', sub: '', state: 'wait', arrow: '', dir: null };
