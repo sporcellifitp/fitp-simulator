@@ -245,6 +245,10 @@ export class NatpfPhoneRacket {
     this.swingListeners = new Set();
     this.rawListeners = new Set();
     this.dropListeners = new Set();       // colpi arrivati con il telefono non ancora pronto (solo diagnostica)
+    // diagnostica dal telefono: gesti scartati sul telefono (scartato), preparazioni (prep), segno «qui è successo un
+    // problema» (segno) e telefono/browser (dispositivo, l'ultimo resta in device per chi inizia a registrare dopo)
+    this.diagListeners = new Set();
+    this.device = null;
     this.displayLagMs = readDisplayLagMs(); // ritardo dello schermo misurato (0 finché non lo si misura)
     this.liftBaseline = 0;               // verso verticale abituale (calibrazione, per verso del colpo): lob e tagliato si leggono rispetto a questo
     this.liftModel = createLiftModel();  // … poi si adatta ai colpi veri della partita
@@ -316,6 +320,9 @@ export class NatpfPhoneRacket {
     link.on('hand', e => this._onPhoneHand(e.hand));
     link.on('raw', k => { for (const fn of this.rawListeners) try { fn(k); } catch (e){ console.error(e); } });
     link.on('dropped', d => { for (const fn of this.dropListeners) try { fn(d.reason, { seq: d.seq, path: d.path }); } catch (e){ console.error(e); } });
+    link.on('discard', d => this._diag('scartato', d));
+    link.on('mark', d => this._diag('segno', d));
+    link.on('device', d => { this.device = d; this._diag('dispositivo', d); });
     await link.start();
     this._changed();
     return this;
@@ -388,9 +395,12 @@ export class NatpfPhoneRacket {
   _onPrep(p){
     if (!this.ready) return;
     this.lastPrep = { ...p };
+    this._diag('prep', p);
     const side = strokeSide(-p.dir, this.hand), actor = this.engine.localActor || this.engine.player;
     if (actor && side) (actor.userData || (actor.userData = {})).natpfPrep = { side, until: performance.now() + 750, amount: clamp((p.angle || 30)/50, .45, 1) };
   }
+  onDiag(fn){ this.diagListeners.add(fn); return () => this.diagListeners.delete(fn); }
+  _diag(kind, d){ for (const fn of this.diagListeners) try { fn(kind, d); } catch (e){ console.error(e); } }
   onRaw(fn){ this.rawListeners.add(fn); return () => this.rawListeners.delete(fn); }
   onDropped(fn){ this.dropListeners.add(fn); return () => this.dropListeners.delete(fn); }
   onSwing(fn){ this.swingListeners.add(fn); return () => this.swingListeners.delete(fn); }

@@ -3,6 +3,21 @@
 Stato persistente del lavoro: da leggere all'inizio di ogni sessione e aggiornare a ogni checkpoint. La memoria
 generale del progetto resta `MEMORY.md`; la cronologia delle decisioni è in `WORKLOG.md`.
 
+## Giro del 23/10: affidabilità dei due ingressi, impugnatura di taglio, campo aperto, ritmo
+
+Richiesta del 23/10 (partita in LAN con il telefono Android, registro e video allegati): diagnosi dell'intera catena
+(telefono e webcam), impugnatura di taglio, riconoscimento dello swing, campo aperto, ritmo arcade, schermo e
+collegamento Android, prestazioni e continuità della webcam, diagnostica completa, verifica confrontabile. Ordine:
+analisi → misura → affidabilità dei due ingressi → campo aperto ed equilibrio → verifica e prova reale.
+
+- Documento di lavoro: **`docs/NATPF_DIAGNOSI_2026-10-23.md`** (materiale, misure, problemi T1–T7, C1–C5, A1–A4, R1–R3,
+  piano e stato). Lì c'è la tabella dei passi con lo stato aggiornato.
+- Materiale **mancante**, chiesto alla persona: video dell'impugnatura desiderata; `telefono-sensori.jsonl` della
+  sessione `20261023-080003-5tag` (per far ripassare i gesti nel rilevatore). Gli allegati ricevuti non sono nel
+  repository (il video contiene la persona).
+- Passi: 1 diagnosi [x] · 2 misura [x per telefono, collegamento, gioco; la webcam con il passo 3c] · 3a telefono [ ] ·
+  3b Android [ ] · 3c webcam [ ] · 4 campo aperto e ritmo [ ] · 5 verifica, prova guidata, pacchetti [ ].
+
 ## Obiettivo (richiesta del 22/10)
 
 Il telefono come racchetta virtuale: il gesto fisico è l'input del gameplay. Direzione, potenza, altezza e traiettoria

@@ -107,7 +107,7 @@ export function netTurn(turn, angle, min = .2){
 export function createSwingDetector(opts = {}){
   const C = { ...DEFAULTS, ...opts };
   let prof = defaultProfile();
-  let training = false, armed = true, recovering = false, quietSince = null, phase = 'ready';
+  let training = false, armed = true, recovering = false, recoverNoted = false, quietSince = null, phase = 'ready';
   let context = 'play';
   // Modalità preparazione (facoltativa, la chiede il gioco): prima del colpo si porta indietro la racchetta, cioè ci si
   // muove nel verso opposto al colpo. Se il gioco dice da che parte arriva la palla (expect: +1/-1, verso del colpo
@@ -121,7 +121,9 @@ export function createSwingDetector(opts = {}){
   const raw = [];
   // still: campioni della finestra del passo «fermo»; finishAt: «Salta» arrivato senza campioni, si finisce al primo
   let mode = 'run', still = null, finishAt = false, cur = null, lastFire = -1e9, lastT = null, sm = 0, last = null, lastPeak = 0;
-  const listeners = { swing: [], status: [], sample: [], phase: [], prep: [] };
+  // discard: gesto valutato e non mandato come colpo, con il motivo (diagnostica: prima spariva senza traccia)
+  const listeners = { swing: [], status: [], sample: [], phase: [], prep: [], discard: [] };
+  const discard = (why, c, dir = 0) => emit('discard', { why, peakT: c.peakT, peak: Math.round(c.peak), angle: Math.round(c.angle), dir });
   const emit = (k, v) => { for (const f of listeners[k]) f(v); };
   const serving = () => context === 'serve' || context === 'toss';
   const thr = () => {
@@ -158,6 +160,9 @@ export function createSwingDetector(opts = {}){
     if (recovering && !serving() && w && lastAxis && dot(unit(w), lastAxis) < -.3 && mag > Math.max(T.minPeak, lastPeak*C.recoverStrong)){ recovering = false; quietSince = null; setPhase('ready'); }
     if (recovering && !serving()){
       if (k.t-lastFire>100) setPhase('follow');
+      // movimento deciso con il rilevatore ancora in attesa della quiete, ben dopo il colpo: non viene valutato. Lo si
+      // dice una volta per colpo (diagnostica dei gesti che il telefono non manda)
+      if (!recoverNoted && k.t - lastFire > C.recoverWindow && mag > Math.max(T.minPeak*2, 150)){ recoverNoted = true; emit('discard', { why: 'in rientro', peakT: k.t, peak: Math.round(mag), angle: null, dir: 0 }); }
       if (sm < T.on*.65){ if (quietSince == null) quietSince = k.t; } else quietSince = null;
       if (quietSince == null || k.t - quietSince < C.quiet || k.t - lastFire < C.recover) return;
       recovering = false; setPhase('ready');
@@ -201,7 +206,14 @@ export function createSwingDetector(opts = {}){
     // media mobile; oppure è scesa la media, oppure niente di nuovo da «plateau» ms
     const rawPast = cur.rawPeak > 0 && k.t > cur.truePeakT && cur.rawPeak >= T.minPeak && (mag < cur.rawPeak*C.rawDrop || (cur.fallN >= 2 && mag < cur.rawPeak*C.rawFall));
     if (!cur.fired && ready && (rawPast || sm < cur.peak*.9 || k.t - cur.peakT >= C.plateau)){ cur.fired = true; fire(k.t); }
-    if (sm < T.on*.6 || k.t - cur.t0 > C.maxDur){ cur = null; }
+    if (sm < T.on*.6 || k.t - cur.t0 > C.maxDur){
+      // gesto finito senza diventare colpo ma non da poco (oltre il 60% del picco minimo): per la diagnostica
+      if (!cur.fired && !training && cur.peak >= Math.max(T.minPeak*.6, 120)){
+        const along = prof.axis ? dot(unit(cur.peakW), prof.axis) : 0;
+        discard(cur.peak < T.minPeak ? 'debole' : k.t - cur.t0 > C.maxDur ? 'lento' : 'corto', cur, along > .25 ? 1 : along < -.25 ? -1 : 0);
+      }
+      cur = null;
+    }
   }
   // Passo «fermo»: finestra scorrevole di stillTime ms. Fermo vuol dire rotazione mediana entro stillMax e nessun
   // campione oltre stillPeak: il tremolio della mano resta, un movimento vero no. Prima bastava un campione oltre 35 °/s
@@ -260,10 +272,11 @@ export function createSwingDetector(opts = {}){
     const floor=prof.intentGate&&!serving()?thr().minPeak:Math.max(thr().minPeak,intent.floor*prof.sens);
     const minAngle=serving()?2:Math.min(prof.minAngles?.[dir]||prof.minAngle,...(prof.templates||[]).filter(t=>t.shot===intent.shot).map(t=>Math.max(2,t.angle*.35)));
     // rientro in posizione subito dopo un colpo, nel verso opposto: non è un colpo (né una preparazione)
-    if (!training && !serving() && lastDir && dir === -lastDir && c.peakT - lastFire < C.recoverWindow && c.peak < lastPeak*C.recoverStrong){ setPhase('follow'); return; }
+    if (!training && !serving() && lastDir && dir === -lastDir && c.peakT - lastFire < C.recoverWindow && c.peak < lastPeak*C.recoverStrong){ setPhase('follow'); discard('rientro', c, dir); return; }
     // gesto verticale (dal basso verso l'alto o dall'alto verso il basso): non è né dritto né rovescio, ma è un colpo
     const vertical = dir === 0 && !!vert && !serving() && c.peak >= Math.max(thr().minPeak, (prof.ref || 600)*.4);
     if (!training && ((prof.axis && dir === 0 && !vertical && !serving() && !(context==='practice' && intent.shot==='serve')) || (!vertical && c.peak < floor) || c.angle < minAngle)){
+      discard(prof.axis && dir === 0 && !vertical && !serving() ? 'verso' : !vertical && c.peak < floor ? 'debole' : 'corto', c, dir);
       setPhase('preparation');
       // movimento troppo piccolo per un colpo: in modalità preparazione è la racchetta che si carica
       // (non dopo un gesto trattenuto nel verso opposto: lì è il rientro della mano)
@@ -281,7 +294,7 @@ export function createSwingDetector(opts = {}){
       ...(vert ? { vert } : {}), turn: +c.turn.toFixed(1), detectMs: +Math.max(0, t - peakT).toFixed(1) };
     if (prepMode && !training && !serving()){
       // un gesto trattenuto e ora quello opposto: il primo era la preparazione
-      if (held && dir !== 0 && dir === -held.sw.dir && c.peak < held.sw.peak*C.prepFollow){ const h = held; held = null; commit(h.sw, t); setPhase('follow'); return; }
+      if (held && dir !== 0 && dir === -held.sw.dir && c.peak < held.sw.peak*C.prepFollow){ const h = held; held = null; commit(h.sw, t); setPhase('follow'); discard('rientro', c, dir); return; }
       if (held && dir !== 0 && dir === -held.sw.dir){ emit('prep', { peakT: held.sw.peakT, dir: held.sw.dir, peak: held.sw.peak, angle: held.sw.angle }); held = null; }
       else if (held){ const h = held; held = null; release(h.sw, t); }
       // solo un gesto debole può essere la preparazione: un colpo pieno nel verso «sbagliato» parte subito (prima
@@ -309,7 +322,7 @@ export function createSwingDetector(opts = {}){
     sw.holdMs = +Math.max(0, now - sw.t).toFixed(1);
     if (!prof.axis && !training && !serving()) vote(sw);
     lastFire = sw.peakT; lastDir = sw.dir || 0; lastAxis = sw.axis || null; lastPeak = sw.peak || 0;
-    if (!training){ recovering = !serving(); quietSince = null; setPhase('contact'); }
+    if (!training){ recovering = !serving(); recoverNoted = false; quietSince = null; setPhase('contact'); }
     emit('swing', sw);
   }
 

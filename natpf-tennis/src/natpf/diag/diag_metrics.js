@@ -68,8 +68,20 @@ export function timingDirection(t){
 const NORMAL = new Set(['topspin', 'flat', 'drive', 'normale']);
 export const sameShot = (want, got) => (want === 'normale' ? NORMAL.has(String(got || '').toLowerCase()) : String(want) === String(got || '').toLowerCase());
 // tipi di evento che le metriche leggono: l'analisi a righe (diag_analysis.js) tiene in memoria solo questi
-export const METRIC_KINDS = new Set(['tel.colpo', 'tel.orologio', 'tel.stato', 'tel.link', 'webcam.frame', 'webcam.evento', 'prestazioni',
-  'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'punto', 'rimbalzo', 'tentativo', 'atteso', 'avviso', 'video']);
+export const METRIC_KINDS = new Set(['tel.colpo', 'tel.orologio', 'tel.stato', 'tel.link', 'tel.scartato', 'tel.prep', 'tel.dispositivo', 'webcam.frame', 'webcam.evento', 'prestazioni',
+  'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'punto', 'rimbalzo', 'tentativo', 'atteso', 'avviso', 'video', 'marca']);
+// ms dal rimbalzo della palla dell'avversario al colpo di chi gioca qui (evento racchetta entro 1,5 s, prima di un altro
+// rimbalzo o di un punto)
+function bounceToContact(events){
+  const out = [];
+  let b = null;
+  for (const e of events){
+    if (e.k === 'rimbalzo'){ b = e.da === 'opponent' || e.da === 'p2' ? e : null; continue; }
+    if (e.k === 'punto'){ b = null; continue; }
+    if (b && e.k === 'racchetta' && e.chi === 'player'){ if (e.t - b.t <= 1500) out.push(e.t - b.t); b = null; }
+  }
+  return out;
+}
 // events: tutti gli eventi, oppure solo quelli di METRIC_KINDS con eventi (quanti erano in tutto) e spanMs (dal primo
 // all'ultimo); raw: campioni del telefono (bastano k e q)
 // scarto (m) tra la caduta calcolata di un colpo della racchetta e il primo rimbalzo vero della sua palla, prima del colpo
@@ -87,11 +99,12 @@ function landingGap(k, events){
 export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spanMs = null } = {}){
   const by = k => events.filter(e => e.k === k);
   const durata = Number.isFinite(spanMs) ? spanMs/1000 : events.length ? (events.at(-1).t - events[0].t)/1000 : 0;
-  const out = { versione: 1, durataS: r1(meta.durationS ?? durata), controller: meta.controller ?? null, trasporto: meta.transport ?? null };
+  const out = { versione: 1, durataS: r1(meta.durationS ?? durata), controller: meta.controller ?? null, trasporto: meta.transport ?? null, build: meta.build ?? by('sessione')[0]?.build ?? null };
 
   // ---- telefono ----
   const colpi = by('tel.colpo');
-  if (colpi.length || raw.length || by('tel.orologio').length){
+  // anche senza colpi arrivati (il telefono li ha scartati tutti, o non ne sono partiti): conta cosa è successo là
+  if (colpi.length || raw.length || by('tel.orologio').length || by('tel.scartato').length || by('tel.link').length || by('tel.dispositivo').length){
     const ok = colpi.filter(c => !c.scartato), ns = colpi.map(c => c.n);
     const tipi = {}; for (const c of ok){ const k = `${c.lato || '?'}/${c.tipo || '?'}`; tipi[k] = (tipi[k] || 0) + 1; }
     const ts = raw.map(k => k.k).filter(Number.isFinite), dts = ts.slice(1).map((t, i) => t - ts[i]).filter(d => d > 0);
@@ -107,12 +120,20 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
       prev = up;
     }
     const percorsi = by('tel.link').at(-1)?.copie || null;
+    // buco più lungo tra due messaggi dei sensori (ms) e arrivi a grappolo, dai riassunti al secondo del collegamento
+    const links = by('tel.link'), gapOf = l => maxOf([l.gap?.rs, l.gap?.fo, l.gap?.bin].filter(Number.isFinite));
+    const scartatiTel = by('tel.scartato'), disp = by('tel.dispositivo').at(-1) || null;
     out.telefono = {
       sensori: { campioni: raw.length, hzMediana: dts.length ? r1(1000/pct(dts, .5)) : null, intervalloP95Ms: r1(pct(dts, .95)), buchiOltre50ms: gaps.length, buchiTotaleS: r1(gaps.reduce((a, d) => a + d, 0)/1000), persiInRete: lostRaw },
       colpi: { ricevuti: colpi.length, usati: ok.length, scartati: tally(colpi.filter(c => c.scartato), c => c.scartato), mancantiNellaNumerazione: missingInSequence(ns), primoPercorso: percorsi },
       tempiMs: { rilevamento: dist(ok.map(c => c.rilevamento)), attesaPreparazione: dist(ok.map(c => c.attesa)), consegna: dist(ok.map(c => c.consegna)), totale: dist(ok.map(c => c.totale)) },
       orologio: clockFit(by('tel.orologio')),
-      collegamento: { cadute, fuoriLineaS: r1(giuMs/1000), paginaNascosta: count(stati, s => s.visibile === false), bloccoSchermo: tally(stati.filter(s => s.schermo != null), s => s.schermo) },
+      collegamento: { cadute, fuoriLineaS: r1(giuMs/1000), paginaNascosta: count(stati, s => s.visibile === false), bloccoSchermo: tally(stati.filter(s => s.schermo != null), s => s.schermo),
+        ...(links.some(l => l.gap) ? { sensoriBuco: dist(links.map(gapOf)), secondiConBuchiOltre100ms: count(links, l => gapOf(l) > 100), grappoli: links.reduce((a, l) => a + Object.values(l.grappoli || {}).reduce((x, y) => x + y, 0), 0) } : {}) },
+      // gesti valutati sul telefono e non mandati come colpo, con il motivo (telefoni aggiornati, solo con la diagnostica)
+      ...(scartatiTel.length ? { scartatiSulTelefono: tally(scartatiTel, x => x.perche || '?') } : {}),
+      ...(by('tel.prep').length ? { preparazioni: by('tel.prep').length } : {}),
+      ...(disp ? { dispositivo: { browser: disp.ua || null, versione: disp.version || null, bloccoSchermo: disp.wakeLock ?? null, sensori: disp.motion ?? null } } : {}),
       tipi,
       // racchetta virtuale: quanti colpi portano la forma del gesto (telefono aggiornato) e come è fatta (salita della
       // testa −1…+1, |piano| 1 = orizzontale, 0 = verticale); intenzione letta dal computer
@@ -150,6 +171,8 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
       fps: { p5: r1(pct(perf.map(p => p.fps), .05)), p50: r1(pct(perf.map(p => p.fps), .5)) },
       fotogrammaMs: { p95: r1(pct(perf.map(p => p.p95), .5)), p99: r1(pct(perf.map(p => p.p95), .99)), max: r1(maxOf(perf.map(p => p.max))) },
       fotogrammiLunghi: perf.reduce((a, p) => a + (p.lunghi || 0), 0),
+      // fotogrammi oltre 25 ms (uno saltato a 60 Hz: scatto visibile), in percentuale dei fotogrammi
+      ...(perf.some(p => Number.isFinite(p.doppi)) ? { fotogrammiDoppiPercento: r1(100*perf.reduce((a, p) => a + (p.doppi || 0), 0)/Math.max(1, perf.reduce((a, p) => a + (Number.isFinite(p.n) ? p.n : p.fps || 0), 0))) } : {}),
       aggiornamentoMsP95: r1(pct(perf.map(p => p.upd95), .5)), disegnoMsP95: r1(pct(perf.map(p => p.ren95), .5)),
       memoriaMB: r1(maxOf(perf.map(p => p.heapMB))),
       compitiLunghi: perf.reduce((a, p) => a + (p.compiti || 0), 0),
@@ -186,6 +209,10 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
       // rimbalzo vero dopo il colpo (m): dice se la fisica porta la palla dove il modello dice
       mira: dist(rk.map(x => x.mira)), cadutaScartoM: dist(rk.map(x => landingGap(x, events))),
       piani: tally(piani, p => p.tipo), vuoti: tally(vuoti, v => v.perche),
+      // altezza della palla nel punto d'impatto previsto dopo il rimbalzo (m) e tempo dal rimbalzo della palla
+      // dell'avversario al proprio colpo (ms): con l'impatto appena dopo il rimbalzo chi gioca non vede la palla salire
+      contattoAltezzaCm: dist(piani.filter(p => p.tipo === 'ground' && Array.isArray(p.contatto)).map(p => 100*p.contatto[1])),
+      rimbalzoContattoMs: dist(bounceToContact(events)),
       servizi: serv.length ? { n: serv.length, tipi: tally(serv, x => x.tipo), voti: tally(serv, x => x.voto), qualitaPercento: dist(serv.map(x => (Number.isFinite(x.qualita) ? 100*x.qualita : null))), dalColmoMs: dist(serv.map(x => x.tauMs)) } : null,
     };
   }
@@ -252,6 +279,10 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
     }
   }
 
+  // ---- segni «qui è successo un problema» (tastiera, pannello o telefono) ----
+  const segni = by('marca');
+  if (segni.length) out.segni = segni.slice(0, 50).map(x => ({ t: r1(x.t), testo: x.testo || '' }));
+
   // ---- registrazione ----
   out.registrazione = {
     eventi: eventi ?? events.length, campioniTelefono: raw.length, avvisi: tally(by('avviso'), a => a.codice || a.testo),
@@ -307,7 +338,7 @@ export function compareMetrics(a, b){
 // riassunto in parole delle metriche (per chi non legge i JSON)
 export function summaryLines(m = {}){
   const L = [], T = m.telefono, W = m.webcam, G = m.gioco, R = m.riferimento, C = m.colpi;
-  L.push(`Durata ${m.durataS ?? '–'} s${m.controller ? ' · controller ' + m.controller : ''}${m.trasporto ? ' · ' + m.trasporto : ''}`);
+  L.push(`Durata ${m.durataS ?? '–'} s${m.controller ? ' · controller ' + m.controller : ''}${m.trasporto ? ' · ' + m.trasporto : ''}${m.build ? ' · build ' + m.build : ''}`);
   if (T){
     const c = T.colpi || {}, d = T.tempiMs?.consegna || {};
     L.push(`Telefono: ${c.usati ?? 0} colpi usati su ${c.ricevuti ?? 0} ricevuti · persi in rete ${c.mancantiNellaNumerazione ?? 0}${Object.keys(c.scartati || {}).length ? ' · scartati: ' + Object.entries(c.scartati).map(([k, v]) => `${k} ${v}`).join(', ') : ''}`);
@@ -315,10 +346,13 @@ export function summaryLines(m = {}){
     if (T.sensori?.campioni) L.push(`Sensori del telefono: ${T.sensori.hzMediana ?? '–'} Hz · buchi oltre 50 ms: ${T.sensori.buchiOltre50ms}${T.sensori.persiInRete ? ' · campioni persi ' + T.sensori.persiInRete : ''}`);
     const k = T.collegamento || {};
     L.push(`Collegamento: ${k.cadute ?? 0} cadute${k.fuoriLineaS ? ` (${k.fuoriLineaS} s)` : ''} · pagina del telefono nascosta ${k.paginaNascosta ?? 0} volte${k.bloccoSchermo && Object.keys(k.bloccoSchermo).length ? ' · schermo: ' + Object.keys(k.bloccoSchermo).join(', ') : ''}`);
+    if (k.sensoriBuco?.n) L.push(`Messaggi dei sensori: buco più lungo al secondo mediana ${k.sensoriBuco.p50} ms, massimo ${k.sensoriBuco.max} ms · secondi con buchi oltre 100 ms: ${k.secondiConBuchiOltre100ms} · arrivi a grappolo ${k.grappoli}`);
+    if (T.scartatiSulTelefono) L.push(`Gesti scartati sul telefono: ${Object.entries(T.scartatiSulTelefono).map(([x, v]) => `${x} ${v}`).join(', ')}${T.preparazioni ? ` · preparazioni ${T.preparazioni}` : ''}`);
+    if (T.dispositivo?.browser) L.push(`Telefono: ${T.dispositivo.browser}${T.dispositivo.versione ? ' · pagina ' + T.dispositivo.versione : ''}`);
   }
   if (W) L.push(`Webcam: ${W.fpsElaborazione ?? '–'} fotogrammi elaborati/s · riconoscimento mediana ${W.inferenzaMs?.p50 ?? '–'} ms · perdite ${W.perdite} (${W.perditeS} s) · più mani ${W.piuManiPercento ?? 0}% del tempo`);
   if (W?.conferme) L.push(`Webcam: il colpo anticipato coincide con la conferma a fine gesto nel ${W.conferme.latoUgualePercento}% dei casi per il lato e nel ${W.conferme.tipoUgualePercento}% per il tipo (${W.conferme.n} colpi; coerenza, non precisione)`);
-  if (G) L.push(`Gioco: ${G.fps?.p50 ?? '–'} fps (il 5% peggiore ${G.fps?.p5 ?? '–'}) · fotogrammi oltre 50 ms: ${G.fotogrammiLunghi}`);
+  if (G) L.push(`Gioco: ${G.fps?.p50 ?? '–'} fps (il 5% peggiore ${G.fps?.p5 ?? '–'}) · fotogrammi oltre 50 ms: ${G.fotogrammiLunghi}${G.fotogrammiDoppiPercento != null ? ` · fotogrammi oltre 25 ms: ${G.fotogrammiDoppiPercento}%` : ''}`);
   if (C?.tempo && Object.keys(C.tempo).length) L.push(`Tempo dei colpi: ${Object.entries(C.tempo).map(([k, v]) => `${k} ${v}`).join(', ')}`);
   if (C?.tempoTelefonoMs?.n) L.push(`Tempo dei colpi del telefono rispetto all'impatto ideale: mediana ${C.tempoTelefonoMs.p50 > 0 ? '+' : ''}${C.tempoTelefonoMs.p50} ms (${C.tempoTelefonoMs.p50 > 0 ? 'anticipo' : 'ritardo'}) su ${C.tempoTelefonoMs.n} colpi`);
   if (C?.tempoTelefonoMs?.n >= 20 && C.tempoTelefonoMs.p50 < -40) L.push(`Ipotesi da verificare: i colpi del telefono arrivano in media ${-C.tempoTelefonoMs.p50} ms in ritardo. Se succede in ogni sessione, misura il ritardo dello schermo (video a 240 fps) prima di cambiare altro.`);
@@ -329,7 +363,9 @@ export function summaryLines(m = {}){
   if (KR?.colpi) L.push(`Esiti della racchetta: ${KR.colpi} colpi · voluti ${list(KR.voluti)} · tempo nella finestra mediana ${KR.tempoInFinestraPercento?.p50 > 0 ? '+' : ''}${KR.tempoInFinestraPercento?.p50 ?? '–'}% (+ anticipo) · oltre la finestra ${KR.oltreLaFinestraPercento ?? 0}% · falliti ${list(KR.falliti) || '0'} · al volo ${KR.alVolo} · tempo mediana ${KR.tempoMs?.p50 ?? '–'} ms`);
   if (KR?.colpi && (KR.mira?.n || KR.cadutaScartoM?.n)) L.push(`Direzione della racchetta: mira mediana ${KR.mira?.p50 ?? '–'}, variazione ${KR.mira?.jitter ?? '–'} (−1 e +1 le righe) · scarto tra caduta calcolata e rimbalzo vero mediana ${KR.cadutaScartoM?.p50 ?? '–'} m, p90 ${KR.cadutaScartoM?.p90 ?? '–'} m`);
   if (KR && Object.keys(KR.vuoti || {}).length) L.push(`Colpi a vuoto: ${list(KR.vuoti)}`);
+  if (KR?.contattoAltezzaCm?.n || KR?.rimbalzoContattoMs?.n) L.push(`Impatto dopo il rimbalzo: altezza della palla mediana ${KR.contattoAltezzaCm?.p50 ?? '–'} cm · dal rimbalzo al colpo mediana ${KR.rimbalzoContattoMs?.p50 ?? '–'} ms`);
   if (KR?.servizi) L.push(`Servizi dal gesto: ${KR.servizi.n} · ${list(KR.servizi.voti)}`);
+  if (m.segni?.length) L.push(`Segni «qui è successo un problema»: ${m.segni.length} (${m.segni.slice(0, 8).map(x => `${(x.t/1000).toFixed(1)} s`).join(', ')}${m.segni.length > 8 ? ', …' : ''})`);
   const av = m.registrazione?.avvisi || {};
   if (Object.keys(av).length) L.push(`Avvisi: ${Object.entries(av).map(([k, v]) => `${k} ×${v}`).join(', ')}`);
   return L;

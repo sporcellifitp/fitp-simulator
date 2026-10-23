@@ -132,18 +132,18 @@ test('magazzino in memoria: scrittura a pezzi, CRC, metriche, limite', async () 
 
 // motore finto con le parti che il registratore aggancia
 function fakeWorld(){
-  const swing = new Set(), raw = new Set(), cal = new Set(), change = new Set(), mcl = { swing: [], toss: [] };
+  const swing = new Set(), raw = new Set(), cal = new Set(), change = new Set(), diag = new Set(), mcl = { swing: [], toss: [] };
   const engine = {
     phase: 'SERVE_STANCE', ball: { pos: { x: 0, y: 1, z: 5 }, vel: { x: 0, y: 0, z: -20 }, inPlay: false, lastHitter: null, bounceCountOnCurrentSide: 0 },
     player: { pos: { x: 0, y: 0, z: 11 } }, score: { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0 }, matchConfig: { difficulty: 'pro' },
-    updates: 0, update(){ this.updates++; }, render(){}, _spawnBounceRing(){}, _awardPoint(w){ this.score[w === 'player' ? 'playerPoints' : 'opponentPoints']++; }, _attemptPlayerRallyStrike(){ return true; },
+    updates: 0, update(){ this.updates++; }, render(){}, _spawnBounceRing(){}, _awardPoint(w){ this.score[w === 'player' ? 'playerPoints' : 'opponentPoints']++; }, _attemptPlayerRallyStrike(){ return true; }, _natpfPlanPlayer(){},
     natpfSkill: { lastShot: { landingX: -2.6, landingZ: -9 } },
     motionController: { on(k, f){ mcl[k].push(f); }, emit(k, v){ for (const f of mcl[k]) f(v); } },
     natpfPhone: { grip: 'upright', connected: true, diagStream: false, sent: [],
       link: { transport: 'lan-webrtc', L: { state: 'connected', phone: 'ready', rtt: 3, hz: 60 }, on(){ return this; }, send(m){ engine.natpfPhone.sent.push(m); }, stats(){ return { swings: { fast: 1, reliable: 0, dup: 2 }, rates: { fo: { hz: 60 } }, rtt: 3 }; } },
-      onSwing(f){ swing.add(f); }, onRaw(f){ raw.add(f); }, onCal(f){ cal.add(f); }, onChange(f){ change.add(f); } },
+      onSwing(f){ swing.add(f); }, onRaw(f){ raw.add(f); }, onCal(f){ cal.add(f); }, onChange(f){ change.add(f); }, onDiag(f){ diag.add(f); } },
   };
-  return { engine, emitSwing: (ev, s) => { for (const f of swing) f(ev, s); }, emitRaw: k => { for (const f of raw) f(k); } };
+  return { engine, emitSwing: (ev, s) => { for (const f of swing) f(ev, s); }, emitRaw: k => { for (const f of raw) f(k); }, emitDiag: (k, d) => { for (const f of diag) f(k, d); } };
 }
 const flushTimers = () => new Promise(r => setTimeout(r, 0));
 test('registratore: eventi del motore e del telefono, campioni a parte, scrittura a pezzi e arresto', async t => {
@@ -402,4 +402,65 @@ test('webcam: colpo anticipato e conferma a fine gesto, quanto coincidono (coere
   assert.deepEqual(W.conferme, { n: 3, latoUgualePercento: 66.7, tipoUgualePercento: 33.3 });
   assert.equal(W.eventi, 4);
   assert.ok(summaryLines({ webcam: W }).some(l => /coincide con la conferma/.test(l)));
+});
+
+test('registratore (misure del 23/10): gesti scartati sul telefono, preparazioni, segno dal telefono, dispositivo, piano con il suo tempo, fotogrammi doppi, buchi dei messaggi', async t => {
+  globalThis.requestAnimationFrame ??= cb => setTimeout(() => cb(performance.now()), 16);
+  globalThis.cancelAnimationFrame ??= id => clearTimeout(id);
+  let now = 1000;
+  const { engine, emitDiag } = fakeWorld(), store = memoryStore();
+  engine.natpfPhone.device = { ua: 'Telefono di prova', wakeLock: true, motion: true, orientation: 'portrait-primary', screen: [412, 915, 3.5], version: '2026-10-23.2' };
+  engine.natpfPhone.link.stats = () => ({ swings: { fast: 3, reliable: 0, dup: 9 }, rtt: 6, rates: { rs: { hz: 60, gap: 140, bunch: 4 }, fo: { hz: 61, gap: 21, bunch: 0 }, sw: { hz: 1, gap: null, bunch: 0 } } });
+  const ui = { controller: 'phone', hand: { hand: 'right' }, training: { active: false } }, notes = [];
+  const R = new DiagRecorder({ engine, ui, store, now: () => now, wallNow: () => Date.UTC(2026, 9, 23, 10, 0, 0) });
+  R.notify = s => notes.push(s);
+  const id = await R.start({ webcamVideo: false, gameVideo: false });
+  t.after(() => { if (R.active) R.stop(); });
+  now += 500;
+  emitDiag('scartato', { why: 'debole', peak: 71, angle: 13, dir: 1, at: (now - 20)/1000 });
+  emitDiag('scartato', { why: 'in rientro', peak: 640, angle: null, dir: 0, at: (now - 10)/1000 });
+  emitDiag('prep', { dir: -1, peak: 300, angle: 40, at: (now - 5)/1000 });
+  emitDiag('segno', { text: 'segno dal telefono' });
+  // piano d'intercetto: il suo istante (secondi al contatto) non copre più quello dell'evento
+  engine.elapsedTime = 12.5; engine.natpfPlan = { kind: 'ground', contact: { x: 1, y: .52, z: 11 }, t: 1.233, at: 12.5, stretch: .3 };
+  engine._natpfPlanPlayer();
+  // un secondo con 58 fotogrammi da 16,7 ms e 3 da 33,4 ms
+  R.perf.frames = [...Array(58).fill(16.7), 33.4, 33.4, 33.4];
+  now += 1000; R._second();
+  await R.flush();
+  const ev = (await (await store.file(id, 'eventi.jsonl')).text()).trim().split('\n').map(l => JSON.parse(l));
+  const of = k => ev.filter(e => e.k === k);
+  assert.equal(of('sessione')[0].build, '2026-10-23.2');
+  assert.deepEqual(of('tel.dispositivo')[0].ua, 'Telefono di prova');
+  assert.deepEqual(of('tel.scartato').map(e => [e.perche, e.pk, e.picco]), [['debole', 71, 480], ['in rientro', 640, 490]]);
+  assert.equal(of('tel.prep')[0].dir, -1);
+  assert.equal(of('marca')[0].testo, 'segno dal telefono'); assert.deepEqual(notes, ['Momento segnato dal telefono']);
+  const piano = of('piano')[0];
+  assert.equal(piano.tc, 1.233); assert.equal(piano.t, 500, 'tempo dell\'evento sull\'orologio del registro');
+  const perf = of('prestazioni')[0]; assert.equal(perf.doppi, 3); assert.equal(perf.lunghi, 0);
+  const link = of('tel.link')[0]; assert.deepEqual(link.gap, { rs: 140, fo: 21 }); assert.deepEqual(link.grappoli, { rs: 4 });
+  const m = computeMetrics(ev, { meta: { build: '2026-10-23.2' } });
+  assert.equal(m.build, '2026-10-23.2');
+  assert.deepEqual(m.telefono.scartatiSulTelefono, { debole: 1, 'in rientro': 1 });
+  assert.equal(m.telefono.preparazioni, 1);
+  assert.equal(m.telefono.dispositivo.browser, 'Telefono di prova');
+  assert.equal(m.telefono.collegamento.sensoriBuco.max, 140); assert.equal(m.telefono.collegamento.grappoli, 4);
+  assert.equal(m.gioco.fotogrammiDoppiPercento, 4.9);
+  assert.equal(m.racchetta.contattoAltezzaCm.p50, 52);
+  assert.equal(m.segni.length, 1);
+  const L = summaryLines(m);
+  for (const re of [/build 2026-10-23\.2/, /Gesti scartati sul telefono: debole 1, in rientro 1 · preparazioni 1/, /oltre 25 ms: 4\.9%/, /Impatto dopo il rimbalzo: altezza della palla mediana 52 cm/, /Segni «qui è successo un problema»: 1/, /buco più lungo al secondo/])
+    assert.ok(L.some(l => re.test(l)), String(re));
+  await R.stop(); await flushTimers();
+});
+
+test('metriche: dal rimbalzo della palla dell\'avversario al proprio colpo (ms)', () => {
+  const ev = [
+    { t: 1000, k: 'rimbalzo', da: 'opponent', x: 1, z: 9 }, { t: 1120, k: 'racchetta', chi: 'player', n: 1 },
+    { t: 3000, k: 'rimbalzo', da: 'player', x: 1, z: -9 }, { t: 3300, k: 'racchetta', chi: 'player', n: 2 },   // rimbalzo suo: non conta
+    { t: 5000, k: 'rimbalzo', da: 'opponent', x: 1, z: 9 }, { t: 5100, k: 'punto', vince: 'opponent' }, { t: 5200, k: 'racchetta', chi: 'player', n: 3 },
+    { t: 7000, k: 'rimbalzo', da: 'opponent', x: 1, z: 9 }, { t: 7380, k: 'racchetta', chi: 'player', n: 4 },
+  ];
+  const m = computeMetrics(ev);
+  assert.equal(m.racchetta.rimbalzoContattoMs.n, 2); assert.equal(m.racchetta.rimbalzoContattoMs.p50, 380);
 });

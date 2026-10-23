@@ -13,10 +13,12 @@
 //     massimo ~4 MB), sotto 50 MB anche i campioni del telefono, sotto 20 MB la registrazione si chiude da sola, prima
 //     che le scritture falliscano. Niente si cancella da solo.
 // Tipi di evento (k): fase, palla, rimbalzo, punto, tentativo, colpo.gioco, racchetta, piano, servizio, vuoto, input,
-// tel.colpo, tel.cal, tel.stato, tel.orologio, tel.link, webcam.frame, webcam.evento, prestazioni, video, video.frame,
+// tel.colpo, tel.cal, tel.stato, tel.orologio, tel.link, tel.scartato, tel.prep, tel.dispositivo, webcam.frame, webcam.evento,
+// prestazioni, video, video.frame,
 // atteso, marca, avviso.
 import { latencyShift, eventLatency, swingTiming } from '../natpf_skill.js';
 import { shotDirection } from './diag_metrics.js';
+import { NATPF_BUILD } from '@natpf/tennis/version.js';
 
 export const DIAG_VERSION = 1;
 const FLUSH_MS = 500, BACKLOG_LIMIT = 24*1024*1024, BALL_PHASES = new Set(['SERVE_TOSS', 'RALLY', 'POINT_OVER']);
@@ -73,7 +75,7 @@ export class DiagRecorder {
     this.part = 1; this.partT0 = this.t0; this._countsAtPart = { ...this.counts }; this._spaceAt = -Infinity; this.freeMB = null; this.videoOff = null;
     const controller = ui?.controller || null, transport = ph?.link?.transport || null;
     this.meta = {
-      id: this.id, versione: DIAG_VERSION, startedAt: this.startedWall, inizio: new Date(this.startedWall).toISOString(), label: String(label || '').slice(0, 80),
+      id: this.id, versione: DIAG_VERSION, build: NATPF_BUILD, startedAt: this.startedWall, inizio: new Date(this.startedWall).toISOString(), label: String(label || '').slice(0, 80),
       controller, transport, protocol: protocol?.id || null,
       origineMs: typeof performance !== 'undefined' ? performance.timeOrigin + this.t0 : null,
       browser: typeof navigator !== 'undefined' ? navigator.userAgent : null,
@@ -91,6 +93,7 @@ export class DiagRecorder {
     if (ph && phoneSamples){ ph.diagStream = true; ph.link?.send({ t: 'cfg', prep: 1, mo: 1, diag: 1 }); }
     this._phoneStato(true);
     if (ph?.profile) this.log('tel.profilo', { profilo: ph.profile, mano: ph.hand || null, liftBaseline: ph.liftBaseline ?? null });
+    if (ph?.device) this.log('tel.dispositivo', ph.device);
     // scrittura a pezzi e misure al secondo
     this._flushT = setInterval(() => this.flush(), FLUSH_MS);
     this._secT = setInterval(() => this._second(), 1000);
@@ -242,7 +245,8 @@ export class DiagRecorder {
         mira: r(O.aim, 3), neutro: r(O.x0), palla: r(L.hitX), aiuto: r(O.assist, 2), volo: r(L.flight, 3), rete_m: r(O.clear, 2), effetto: r(O.topspin, 1) });
       return out;
     });
-    const plan = (who, P) => P && P.at === E.elapsedTime && R.log('piano', { chi: who, tipo: P.kind || null, contatto: P.contact ? [r(P.contact.x), r(P.contact.y), r(P.contact.z)] : null, t: r(P.t, 3), corsa: r(P.stretch, 3) });
+    // tc: secondi da adesso all'impatto previsto (prima si chiamava t e copriva l'istante dell'evento)
+    const plan = (who, P) => P && P.at === E.elapsedTime && R.log('piano', { chi: who, tipo: P.kind || null, contatto: P.contact ? [r(P.contact.x), r(P.contact.y), r(P.contact.z)] : null, tc: r(P.t, 3), corsa: r(P.stretch, 3) });
     wrap('_natpfPlanPlayer', function(orig, ...a){ const out = orig(...a); if (!E.isDoubles) plan('giocatore', E.natpfPlan); return out; });
     wrap('_natpfPlanOpponent', function(orig, ...a){ const out = orig(...a); if (E.isMultiplayer && !E.isDoubles) plan('p2', E.natpfPlanP2); return out; });
     wrap('_executeServeHit', function(orig, a, ...rest){
@@ -279,6 +283,7 @@ export class DiagRecorder {
         if (e.kind === 'done' && e.profile) R.log('tel.profilo', { profilo: e.profile, mano: ph.hand || null });
       });
       ph.onChange?.(() => R.active && R._phoneStato());
+      ph.onDiag?.((kind, d) => R.active && R._phoneDiag(kind, d));
     }
     if (typeof PerformanceObserver !== 'undefined' && PerformanceObserver.supportedEntryTypes?.includes('longtask')){
       try { new PerformanceObserver(list => { if (R.active) R.perf.longTasks += list.getEntries().length; }).observe({ type: 'longtask', buffered: false }); } catch {}
@@ -329,6 +334,16 @@ export class DiagRecorder {
     });
     if (ev?.side) this.lastInputSide = ev.side;
   }
+  // dal telefono: gesto scartato sul telefono con il motivo (rientro, debole, corto, verso, in rientro, orientamento,
+  // fase …), preparazione, segno toccato sul telefono, telefono e browser. picco: istante del gesto sull'orologio del
+  // registro (ms), come in tel.colpo
+  _phoneDiag(kind, d = {}){
+    const picco = Number.isFinite(d.at) ? r(d.at*1000 - this.t0, 1) : null;
+    if (kind === 'scartato') this.log('tel.scartato', { perche: d.why || null, pk: d.peak ?? null, ampiezza: d.angle ?? null, dir: d.dir ?? null, picco });
+    else if (kind === 'prep') this.log('tel.prep', { dir: d.dir ?? null, pk: d.peak ?? null, ampiezza: d.angle ?? null, picco });
+    else if (kind === 'segno'){ this.mark(d.text || 'segno dal telefono'); this.notify?.('Momento segnato dal telefono'); }
+    else if (kind === 'dispositivo') this.log('tel.dispositivo', d);
+  }
   _phoneRaw(k){
     this.rawBuf.push({ t: r(this.now() - this.t0, 1), k: r(k.t, 1), q: k.q ?? null, r: k.rot || null, a: k.acc || null, g: k.accG || null, via: k.path || null });
     this.counts.campioni++;
@@ -367,12 +382,18 @@ export class DiagRecorder {
     const P = this.perf, now = this.now(), dt = Math.max(1, now - P.at);
     const fr = P.frames, q = (a, p) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(p*s.length))] : null; };
     const heap = globalThis.performance?.memory?.usedJSHeapSize;
-    this.log('prestazioni', { fps: r(fr.length*1000/dt, 1), p50: r(q(fr, .5), 1), p95: r(q(fr, .95), 1), max: r(fr.length ? Math.max(...fr) : null, 1), lunghi: fr.filter(x => x > 50).length,
+    // doppi: fotogrammi oltre 25 ms (a 60 Hz uno saltato: scatto visibile); lunghi: oltre 50 ms
+    this.log('prestazioni', { fps: r(fr.length*1000/dt, 1), n: fr.length, p50: r(q(fr, .5), 1), p95: r(q(fr, .95), 1), max: r(fr.length ? Math.max(...fr) : null, 1), doppi: fr.filter(x => x > 25).length, lunghi: fr.filter(x => x > 50).length,
       upd95: r(q(P.upd, .95), 2), ren95: r(q(P.ren, .95), 2), heapMB: Number.isFinite(heap) ? r(heap/1048576, 1) : null, compiti: P.longTasks, coda: this.store?.backlog ? r(this.store.backlog/1048576, 1) : 0,
       regMs: r(P.reg*1000/dt, 2), regMax: r(P.flushMax, 2), ...(this.freeMB != null ? { liberoMB: this.freeMB } : {}) });
     P.frames = []; P.upd = []; P.ren = []; P.longTasks = 0; P.reg = 0; P.flushMax = 0; P.at = now;
     const link = this.engine.natpfPhone?.link;
-    if (link?.stats && this.engine.natpfPhone?.connected){ const st = link.stats(); this.log('tel.link', { copie: st.swings || null, rtt: r(st.rtt, 1), hz: Object.fromEntries(Object.entries(st.rates || {}).map(([k, v]) => [k, v.hz])) }); }
+    // hz: messaggi arrivati nell'ultimo secondo per tipo; gap: buco più lungo tra due arrivi (ms, compreso il silenzio
+    // fino a ora); grappoli: arrivi a meno di 3 ms dal precedente (rete che consegna a pacchi)
+    if (link?.stats && this.engine.natpfPhone?.connected){
+      const st = link.stats(), R8 = Object.entries(st.rates || {});
+      this.log('tel.link', { copie: st.swings || null, rtt: r(st.rtt, 1), hz: Object.fromEntries(R8.map(([k, v]) => [k, v.hz])), gap: Object.fromEntries(R8.filter(([, v]) => v.gap != null).map(([k, v]) => [k, v.gap])), grappoli: Object.fromEntries(R8.filter(([, v]) => v.bunch).map(([k, v]) => [k, v.bunch])) });
+    }
     this._phoneStato();
     this._changed();
     if (this._rotation || this._stopping) return;

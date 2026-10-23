@@ -162,3 +162,20 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
   - Trovato: le prove degli inviti della pagina storica (`tools/e2e/invite.mjs`, `invite-timing.mjs`, fuori dalla CI) sono ferme dal 15/10: cliccano la scelta dei comandi (`#ctrlMouse`, `#ctrlPhone`), tolta quel giorno con i comandi solo dal telefono (`ca4548a`, `23e6cac`); vanno riscritte con un telefono simulato anche per chi invita.
   - Prove: `tools/test` 135/135, `npm test` 293/293; CI del sito in locale: telefono 10/10, tempi 8/8, gesto e calibrazione 18/18, grafica 9/9, pacchetto ridotto 5/5, 6/6 e 10/10, LAN in Node 4/4, nel browser 3/3 e 7/8 (limite noto), pacchetti creati; motore base nel browser: scambio vero 7/7, diagnostica 24/24, allenamento 13/13, risposta al gesto 9/9, presa verticale 10/10, presa del 19/10 10/10, menu 22/22, ricollegamento 6/6, rete che cade 6/6, build e 1v1 18/18.
 - Checkpoint 15 (23/10): Consegna del 23/10 (commit `9244b45`): `natpf-simulator-cloudflare-20261023.zip` (23,7 MiB, 84 file, nessuno oltre 25 MiB, contenuto di `dist` più `_headers`) e `natpf-simulator-lan-windows-20261023.zip` (57,2 MiB, Node.js 22.22.0 per Windows con SHA-256 verificato sull'elenco ufficiale). Provati estratti: lo zip Cloudflare servito come sito statico passa il 1v1 nel browser 18/18; il pacchetto LAN avvia il server HTTPS con il certificato locale e risponde con gioco, pagina del telefono, file della webcam, grafica e stanza del 1v1. Nessun certificato, chiave o nome vietato negli zip.
+- Checkpoint 16 (23/10): richiesta del 23/10, passi 1 e 2 (diagnosi e misura).
+  - Diagnosi in `docs/NATPF_DIAGNOSI_2026-10-23.md` dagli allegati (registro, metriche, rapporto, video della partita con
+    il riquadro della webcam; allineamento video = registro + 9,35 s). Cause verificate: calibrazione rapida con un dritto
+    da 143 °/s (soglie al livello del rumore, 28 gesti accettati sotto 200 °/s); preparazione giocata come colpo e colpo
+    vero scartato perché arriva 10–300 ms dopo l'arrivo della palla al punto d'impatto (episodi A e B nel video); palle
+    corte dai micro-movimenti; impatto sempre a 0,50–0,54 m appena dopo il rimbalzo (palla che dopo il rimbalzo sale
+    poco e ha il colmo dietro la posizione più arretrata); a Leggenda il lungolinea non supera 1,7 m dal centro; mira del
+    piatto satura in 26 colpi su 67. Mancano il video dell'impugnatura e i campioni grezzi del telefono (chiesti).
+  - Misura: il telefono manda i gesti scartati con il motivo (`gx` → `tel.scartato`: debole, corto, lento, verso, rientro,
+    in rientro, orientamento, fase), il dispositivo e il browser (`dev` → `tel.dispositivo`) e il segno «qui è successo
+    un problema» dal pulsante sulla pagina del telefono (`mk` → `marca`); preparazioni nel registro (`tel.prep`); evento
+    `piano` con il suo tempo al contatto in `tc` (prima copriva l'istante dell'evento); collegamento con arrivi al
+    secondo, buco più lungo e grappoli (prima una media mobile che segnava 200–520 «Hz»); fotogrammi oltre 25 ms;
+    versione della build (`site/js/tennis/version.js`) nella sessione. Metriche e riassunto: gesti scartati sul telefono,
+    buchi dei messaggi, fotogrammi doppi, altezza dell'impatto e tempo dal rimbalzo al colpo, segni.
+  - Prove: `tools/test` 140/140 (nuovi: `swing-discard.test.mjs`, due prove in `phone-link-fast.test.mjs`), `npm test`
+    295/295 (nuove due prove in `natpf-diag.test.mjs`).

@@ -11,6 +11,7 @@ import { peerConfig, loadPeer } from './link.js';
 import { createFaceTracker } from './face-tracker.js';
 import { strokeShape } from './stroke-shape.js';
 import { swingMessage } from './swing-message.js';
+import { NATPF_BUILD } from './version.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
@@ -78,6 +79,7 @@ function paint(){
   paintShots();
   show('#retry', (linkState === 'lost' || linkState === 'denied') && !!pair);
   show('#tools', linkState === 'on' && (sensor === 'ready' || sensor === 'cal'));
+  show('#mark', linkState === 'on' && diagStream);
   const holding = linkState === 'on' && sensor === 'cal' && (cal.state.step === 'grip' || cal.state.step === 'still');
   show('#grip', holding && grip !== 'flat'); show('#gripFlat', holding && grip === 'flat');
   const dial = grip === 'flat' && linkState === 'on' && face.ready && (sensor === 'ready' || ['free', 'swings'].includes(cal.state.step));
@@ -147,7 +149,7 @@ function onData(c, d){
   if (c === conn || d.t === 'welcome') lastRx = performance.now();
   switch (d.t){
     case 'welcome':
-      conn = c; linkState = 'on'; tries = 0; fastOk = d.f === 1; if (d.r) ss.set('resume', d.r); sendState(); openFast();
+      conn = c; linkState = 'on'; tries = 0; fastOk = d.f === 1; if (d.r) ss.set('resume', d.r); sendState(); openFast(); sendDevice();
       // ripresa a calibrazione in corso: gli eventi fatti mentre il collegamento era giù sono andati persi, il computer
       // riceve il passo attuale (prima restava al gesto di prima mentre il telefono era già alla verifica)
       if (sensor === 'cal') for (const e of cal.replay()) sendCal(e);
@@ -160,7 +162,7 @@ function onData(c, d){
     case 'dp': send({ t: 'dq', d: d.d, p: performance.now() }); break;
     case 'grip': setGrip(d.g); break;
     // il gioco chiede la modalità preparazione (prep) e il flusso dei sensori in JSON quando non c'è il canale binario (mo)
-    case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); streamJson = !!d.mo; diagStream = !!d.diag; if (d.hand === 'left' || d.hand === 'right') applyHand(d.hand); sendState(); break;
+    case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); streamJson = !!d.mo; diagStream = !!d.diag; if (d.hand === 'left' || d.hand === 'right') applyHand(d.hand); sendState(); paint(); break;
     // verso del colpo atteso (da che parte arriva la palla): +1 da destra a sinistra, -1 da sinistra a destra, 0 non si sa
     case 'ex': det.setExpect(d.d); break;
     case 'practice': if (inputMode==='touch' && SHOT_NAMES[d.shot]){ selectedShot = d.shot; paintShots(); } break;
@@ -206,6 +208,19 @@ function closeFast(){ const f = fast; fast = null; if (f) try { f.close(); } cat
 // attivo (0, negato o perso: lo schermo può spegnersi dopo il tempo del telefono), non supportato dal browser (-1)
 const wakeState = () => (!('wakeLock' in navigator) ? -1 : wake && !wake.released ? 1 : 0);
 const sendState = () => send({ t: 'st', s: sensor === 'off' ? 'sensors' : sensor, b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}) });
+// telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
+const sendDevice = () => send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: screen.orientation?.type || null, sc: [screen.width, screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD });
+// gesti che il telefono non manda come colpo, con il motivo: al computer solo se la diagnostica registra, al massimo 8 al
+// secondo (un tremolio continuo non deve intasare il collegamento)
+let discardWin = { at: 0, n: 0 };
+function sendDiscard(why, d = {}){
+  if (!diagStream || linkState !== 'on') return;
+  const now = performance.now();
+  if (now - discardWin.at > 1000) discardWin = { at: now, n: 0 };
+  if (++discardWin.n > 8) return;
+  send({ t: 'gx', r: why, v: Number.isFinite(d.peak) ? d.peak : null, a: Number.isFinite(d.angle) ? d.angle : null, d: d.dir ?? null, pk: Number.isFinite(d.peakT) ? d.peakT : now });
+}
+det.on('discard', d => { if (sensor === 'ready' && inputMode === 'motion') sendDiscard(d.why, d); });
 setInterval(() => {
   if (!(conn && conn.open)) return;
   // il computer manda qualcosa ogni secondo (risposte ai ping, misure dell'orologio): 5 s di silenzio vogliono dire
@@ -317,7 +332,10 @@ cal.on(e => { sendCal(e);
   if (e.kind === 'free') flash(e.ok ? 'hit' : 'miss', e.ok && e.dirValue === 0 ? 'Centro' : ARROW[e.dir], `Forza ${Math.round(Math.min(1.5, e.strength)*100)}%`, 500);
 });
 det.on('swing', s => {
-  if (sensor !== 'ready' || linkState !== 'on' || !portrait || inputMode !== 'motion' || !['play','serve','toss'].includes(phase)) return;
+  if (sensor !== 'ready' || linkState !== 'on' || !portrait || inputMode !== 'motion' || !['play','serve','toss'].includes(phase)){
+    if (sensor === 'ready' && inputMode === 'motion') sendDiscard(!portrait ? 'orientamento' : 'fase ' + phase, s);
+    return;
+  }
   const flags = shotFlags(selectedShot, s);
   const msg = swingMessage(s, { flags, grip, faceRef: det.profile.faceRef, rtt, now: performance.now(), sampleHz, seq: ++swingSeq });
   // il colpo parte su due strade: tre copie sul percorso veloce (se un pacchetto si perde arriva la copia dopo, nessuno
@@ -369,6 +387,8 @@ det.on('phase', value => {
 /* ---------- pulsanti ---------- */
 $('#enable').addEventListener('click', enableSensors);
 $('#retry').addEventListener('click', () => { tries = 0; connect(); });
+// «qui è successo un problema»: un segno nel registro della diagnostica, con l'ora del computer
+$('#mark').addEventListener('click', e => { e.stopPropagation(); if (linkState !== 'on') return; send({ t: 'mk', x: 'segno dal telefono' }); buzz([30, 60, 30]); flash('hit', 'Segnato', 'Il momento è nella registrazione del computer.', 900); });
 $('#recal').addEventListener('click', () => command('cal'));
 $('#bye').addEventListener('click', () => {
   ss.del('resume'); ss.del('pair'); ss.del('profile'); pair = null; closeFast();

@@ -2,7 +2,8 @@
 // Il computer è la «base»: si registra sul server di segnalazione con un id casuale e aspetta il telefono.
 // Dal telefono: hello {k|r}, ping, dq (risposta all'orologio), st (stato), cal (passi della calibrazione), sw (colpo, con v e tw facoltativi), toss,
 // fo (orientamento del piatto, solo con la presa orizzontale: facoltativo, chi non lo usa lo ignora), pr (preparazione
-// del colpo) e sm (giroscopio in JSON), facoltativi e solo se il gioco li chiede con cfg.
+// del colpo) e sm (giroscopio in JSON), facoltativi e solo se il gioco li chiede con cfg; per la diagnostica gx (gesto
+// scartato sul telefono, con il motivo), mk (segno «qui è successo un problema») e dev (telefono e browser).
 // Al telefono: welcome {r}, deny, pong, dp (orologio), cmd (comandi della calibrazione), ev (esito del colpo, punto), ph (fase),
 // e facoltativi cfg (preparazione, flusso dei sensori) ed ex (verso del colpo atteso).
 // Percorso veloce: i messaggi che valgono solo se arrivano subito (copie del colpo, piatto, campioni della diagnostica)
@@ -46,12 +47,19 @@ export function createPhoneLink(){
   let lastFaceK = -Infinity;                 // istante (telefono) dell'ultimo piatto: sul percorso veloce l'ordine non è garantito
   // copie del colpo: numeri già visti (ultimi 64) e da quale percorso è arrivata la prima copia
   const seen = new Set(), seenOrder = [], copies = { fast: 0, reliable: 0, dup: 0 };
-  // frequenza di arrivo per tipo di messaggio (Hz, media mobile) e ultimo arrivo: diagnostica, non entra nel gioco
+  // arrivi per tipo di messaggio (diagnostica, non entra nel gioco): quanti nell'ultimo secondo intero (hz), il buco più
+  // lungo tra due arrivi (gap, ms) e quanti arrivati a grappolo (meno di 3 ms dal precedente). Prima era una media
+  // mobile di 1000/intervallo: con i messaggi arrivati a grappoli segnava 200–520 «Hz» per un flusso da 60 (23/10)
   const rates = {};
-  const countMsg = k => { const now = performance.now(), r = rates[k] || (rates[k] = { hz: 0, last: null, count: 0 }); if (r.last != null){ const dt = Math.max(1, now - r.last); r.hz += (1000/dt - r.hz)*.1; } r.last = now; r.count++; };
+  const countMsg = k => {
+    const now = performance.now(), r = rates[k] || (rates[k] = { hz: 0, last: null, count: 0, win: { at: now, n: 0, gap: 0, bunch: 0 }, gap: null, bunch: 0 });
+    if (now - r.win.at >= 1000){ r.hz = Math.round(r.win.n*1000/(now - r.win.at)); r.gap = Math.round(r.win.gap); r.bunch = r.win.bunch; r.win = { at: now, n: 0, gap: 0, bunch: 0 }; }
+    if (r.last != null){ const dt = now - r.last; if (dt > r.win.gap) r.win.gap = dt; if (dt < 3) r.win.bunch++; }
+    r.win.n++; r.last = now; r.count++;
+  };
   // clock: ogni scambio dell'orologio { d invio, p telefono, r ricezione } (ms); state: ogni stato del telefono (st), per
   // la diagnostica
-  const handlers = { swing: [], toss: [], change: [], cal: [], prep: [], raw: [], clock: [], state: [], dropped: [], hand: [] };
+  const handlers = { swing: [], toss: [], change: [], cal: [], prep: [], raw: [], clock: [], state: [], dropped: [], hand: [], discard: [], mark: [], device: [] };
   let peer = null, conn = null, lastTok = gate.token, tick = null, lastSeen = 0;
   const clock = createClock(), racketMotion = createRacketMotion();
   // un evento senza ascoltatori non è un errore: la pagina storica non ascolta «hand» (mano cambiata sul telefono) e
@@ -152,6 +160,11 @@ export function createPhoneLink(){
         case 'toss': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); if (at != null) emit('toss', { at }); break; }
         // mano cambiata sulla pagina del telefono (la decide il gioco: il computer la applica e la rimanda)
         case 'hand': if (d.h === 'left' || d.h === 'right') emit('hand', { hand: d.h }); break;
+        // diagnostica: gesto scartato sul telefono, con il motivo (solo se la diagnostica lo chiede, al massimo pochi al
+        // secondo); segno «qui è successo un problema» toccato sul telefono; telefono e browser (una volta per collegamento)
+        case 'gx': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); emit('discard', { why: typeof d.r === 'string' ? d.r.slice(0, 40) : '?', peak: Number.isFinite(d.v) ? d.v : null, angle: Number.isFinite(d.a) ? d.a : null, dir: [-1, 0, 1].includes(d.d) ? d.d : null, at }); break; }
+        case 'mk': emit('mark', { text: typeof d.x === 'string' ? d.x.slice(0, 80) : 'segno dal telefono' }); break;
+        case 'dev': emit('device', { ua: typeof d.ua === 'string' ? d.ua.slice(0, 200) : null, wakeLock: d.wl ?? null, motion: d.dm ?? null, orientation: typeof d.or === 'string' ? d.or.slice(0, 30) : null, screen: Array.isArray(d.sc) ? d.sc.slice(0, 3) : null, version: typeof d.vr === 'string' ? d.vr.slice(0, 40) : null }); break;
       }
     });
     c.on('motion', buffer => { if (ok && c === conn){ countMsg('bin'); const sample = decodeSensor(buffer); if (sample) racketMotion.push(sample, performance.now()); } });
@@ -170,7 +183,9 @@ export function createPhoneLink(){
     get transport(){ return isLanMode() ? 'lan-webrtc' : 'webrtc'; },
     // diagnostica: frequenza e età dell'ultimo arrivo per tipo di messaggio (fo, sw, bin, sm, rs…), orologio
     // swings: da quale percorso è arrivata la prima copia di ogni colpo e quante copie in più sono state scartate
-    stats(now = performance.now()){ const out = {}; for (const [k, r] of Object.entries(rates)) out[k] = { hz: Math.round(r.hz), ageMs: r.last == null ? null : Math.round(now - r.last), count: r.count }; return { rates: out, rtt: clock.rtt ?? L.rtt, clockOk: clock.ok, clockSamples: clock.samples ?? null, swings: { ...copies } }; },
+    // gap: buco più lungo tra due arrivi nell'ultimo secondo intero (ms), contando anche il silenzio fino a ora; bunch:
+    // arrivi a grappolo nello stesso secondo
+    stats(now = performance.now()){ const out = {}; for (const [k, r] of Object.entries(rates)){ const age = r.last == null ? null : now - r.last; out[k] = { hz: r.hz, gap: r.gap == null && age == null ? null : Math.round(Math.max(r.gap || 0, age || 0)), bunch: r.bunch, ageMs: age == null ? null : Math.round(age), count: r.count }; } return { rates: out, rtt: clock.rtt ?? L.rtt, clockOk: clock.ok, clockSamples: clock.samples ?? null, swings: { ...copies } }; },
     // orientamento del piatto (presa orizzontale), se arrivato negli ultimi 250 ms
     face(now = performance.now()){ return faceSample && now - faceSample.at < 250 ? { ...faceSample, age: now - faceSample.at } : null; },
     get clock(){ return clock.ok ? { off: clock.off, rtt: clock.rtt } : null; },

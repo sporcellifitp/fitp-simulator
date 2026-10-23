@@ -4,7 +4,7 @@
 // l'allineamento della webcam (si vede il gesto e si fa combaciare con il suo colpo). Nessuna risorsa esterna.
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // eventi che vanno nella pagina (gli altri restano in eventi.jsonl): palla solo ogni 4 campioni (~15 al secondo)
-const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'webcam.evento', 'video', 'atteso', 'marca', 'avviso', 'sessione.fine']);
+const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'tel.scartato', 'tel.dispositivo', 'webcam.evento', 'video', 'atteso', 'marca', 'avviso', 'sessione.fine']);
 // filtro di un evento alla volta (anche nel worker, mentre legge il registro a righe): l'evento, la palla ridotta o null
 export function viewerFilter(){
   let i = 0;
@@ -58,7 +58,7 @@ let off = 0; $('off').oninput = e => { off = +e.target.value; $('offv').textCont
 // porta tutti i video all'istante t del registro (ms); il primo video guida gli altri
 function seek(t){ for (const v of vids){ const s = (t - v.start + (v.cam ? off : 0))/1000; if (s >= 0) v.el.currentTime = s; } $('now').textContent = fmt(t); draw(t); }
 let master = null; for (const v of vids){ v.el.addEventListener('play', () => { master = v; for (const o of vids) if (o !== v) o.el.play().catch(()=>{}); }); v.el.addEventListener('pause', () => { for (const o of vids) if (o !== v) o.el.pause(); }); v.el.addEventListener('timeupdate', () => { if (master === v){ const t = v.el.currentTime*1000 + v.start - (v.cam ? off : 0); $('now').textContent = fmt(t); draw(t); } }); }
-const end = E.length ? E[E.length - 1].t : 1, kinds = { 'tel.colpo': '#1f6feb', input: '#8e44ad', 'colpo.gioco': '#2e7d32', racchetta: '#00838f', vuoto: '#ad1457', rimbalzo: '#999', punto: '#e67e22', avviso: '#c62828', marca: '#f1c40f', atteso: '#16a085' };
+const end = E.length ? E[E.length - 1].t : 1, kinds = { 'tel.colpo': '#1f6feb', 'tel.scartato': '#90a4ae', input: '#8e44ad', 'colpo.gioco': '#2e7d32', racchetta: '#00838f', vuoto: '#ad1457', rimbalzo: '#999', punto: '#e67e22', avviso: '#c62828', marca: '#f1c40f', atteso: '#16a085' };
 function draw(cur){
   const c = $('tl'), w = c.clientWidth, h = 70; c.width = w*devicePixelRatio; c.height = h*devicePixelRatio; const g = c.getContext('2d'); g.scale(devicePixelRatio, devicePixelRatio);
   const ks = Object.keys(kinds), row = h/ks.length;
@@ -69,7 +69,9 @@ $('tl').onclick = e => { const r = e.target.getBoundingClientRect(); seek((e.cli
 const desc = e => ({
   'tel.colpo': () => (e.scartato ? 'telefono: scartato (' + e.scartato + ')' : 'telefono: ' + (e.lato || '?') + ' / ' + (e.tipo || '?') + (e.intenzione ? ' · forza ' + e.intenzione.forza + ' · profondità ' + e.intenzione.profondita + ' · piatto ' + e.intenzione.piatto : ' · mira ' + e.mira) + (e.forma ? ' · salita ' + e.forma.salita + ' · piano ' + e.forma.piano : '') + ' · consegna ' + e.consegna + ' ms · rilevamento ' + e.rilevamento + ' ms') + (e.n != null ? ' · #' + e.n : '') + (e.via ? ' · ' + e.via : ''),
   racchetta: () => 'esito ' + (e.chi || '') + ': ' + (e.voluto || '?') + ' → ' + (e.colpo || '?') + ' · ' + (e.voto || '') + ' · tempo ' + e.tempoMs + ' ms · qualità ' + e.qualita + (e.assistito ? ' (assistito)' : '') + (e.fallito ? ' · fallito' + (e.rete ? ' in rete' : ' lungo') : '') + ' · x ' + e.x + ' z ' + e.z + (e.volee ? ' · al volo' : ''),
-  piano: () => 'piano ' + (e.chi || '') + ': ' + (e.tipo || '?') + (e.contatto ? ' a z ' + e.contatto[2] + ', alta ' + e.contatto[1] + ' m' : '') + ' fra ' + e.t + ' s · corsa ' + e.corsa,
+  piano: () => 'piano ' + (e.chi || '') + ': ' + (e.tipo || '?') + (e.contatto ? ' a z ' + e.contatto[2] + ', alta ' + e.contatto[1] + ' m' : '') + ' fra ' + (e.tc ?? '?') + ' s · corsa ' + e.corsa,
+  'tel.scartato': () => 'telefono: gesto non mandato (' + (e.perche || '?') + ')' + (e.pk != null ? ' · ' + e.pk + ' °/s' : '') + (e.ampiezza != null ? ' · ' + e.ampiezza + '°' : ''),
+  'tel.dispositivo': () => 'telefono: ' + (e.ua || '?') + (e.version ? ' · pagina ' + e.version : '') + (e.wakeLock === false ? ' · niente blocco dello schermo' : ''),
   servizio: () => 'servizio ' + (e.chi || '') + ': ' + (e.tipo || '?') + ' · ' + (e.voto || '') + ' · qualità ' + e.qualita + ' · dal colmo ' + e.tauMs + ' ms · ' + (e.kmh ?? '?') + ' km/h',
   vuoto: () => 'colpo a vuoto: ' + (e.perche || '?') + (e.anticipoMs != null ? ' · ' + e.anticipoMs + ' ms prima del punto d’impatto' : ''),
   input: () => 'input ' + (e.fonte || '?') + ': ' + e.tipo + ' ' + (e.lato || '') + ' ' + (e.colpo || ''),
@@ -83,7 +85,7 @@ const desc = e => ({
 }[e.k] || (() => e.k))();
 function list(){
   const only = $('onlyShots').checked, rows = [];
-  for (const e of E){ if (e.k === 'palla') continue; if (only && !['tel.colpo', 'input', 'colpo.gioco', 'racchetta', 'servizio', 'vuoto', 'punto', 'avviso', 'marca', 'atteso'].includes(e.k)) continue; rows.push('<tr data-t="' + e.t + '"><td class="k">' + fmt(e.t) + '</td><td class="' + (e.k === 'avviso' ? 'warn' : '') + '">' + desc(e).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])) + '</td></tr>'); }
+  for (const e of E){ if (e.k === 'palla') continue; if (only && !['tel.colpo', 'tel.scartato', 'input', 'colpo.gioco', 'racchetta', 'servizio', 'vuoto', 'punto', 'avviso', 'marca', 'atteso'].includes(e.k)) continue; rows.push('<tr data-t="' + e.t + '"><td class="k">' + fmt(e.t) + '</td><td class="' + (e.k === 'avviso' ? 'warn' : '') + '">' + desc(e).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])) + '</td></tr>'); }
   $('list').innerHTML = '<table>' + rows.join('') + '</table>';
 }
 $('list').onclick = e => { const tr = e.target.closest('tr'); if (tr) seek(+tr.dataset.t - 1000); };

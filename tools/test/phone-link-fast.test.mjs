@@ -113,3 +113,40 @@ test('LAN: il canale dei sensori porta i JSON veloci e i pacchetti binari; sendF
   c.motion.bufferedAmount = 20000; assert.equal(c.sendFast({ t: 'fo', k: 2 }), false);
   c.motion.readyState = 'closed'; assert.equal(c.sendFast({ t: 'fo', k: 3 }), false);
 });
+
+test('diagnostica del collegamento: arrivi al secondo, buco più lungo e grappoli (prima una media mobile che esagerava)', async () => {
+  const realNow = performance.now.bind(performance);
+  let now = 50000;
+  performance.now = () => now;
+  const { link, main } = await linkWithPhone();
+  try {
+    // 60 al secondo regolari, poi un buco di 200 ms, poi 5 messaggi a grappolo (1 ms l'uno dall'altro)
+    let k = 0;
+    const fo = () => main.emit('data', { t: 'fo', k: ++k, y: 0, p: 0, r: 0 });
+    for (let i = 0; i < 30; i++){ fo(); now += 16.7; }
+    now += 200; fo();
+    for (let i = 0; i < 5; i++){ now += 1; fo(); }
+    now += 1000 - (now - 50000) % 1000; fo();                      // secondo chiuso: le misure valgono da qui
+    const r = link.stats(now).rates.fo;
+    assert.ok(r.hz >= 30 && r.hz <= 40, `arrivi al secondo ${r.hz}`);
+    assert.ok(r.gap >= 200 && r.gap < 400, `buco più lungo ${r.gap}`);
+    assert.equal(r.bunch, 5);
+    // silenzio fino a ora: il buco cresce anche senza arrivi (sensori fermi con il collegamento vivo)
+    assert.ok(link.stats(now + 900).rates.fo.gap >= 900);
+  } finally { link.stop(); performance.now = realNow; }
+});
+
+test('diagnostica dal telefono: gesto scartato con il motivo, segno «qui è successo un problema», telefono e browser', async () => {
+  const { link, main } = await linkWithPhone();
+  const got = [];
+  link.on('discard', d => got.push(['discard', d])).on('mark', d => got.push(['mark', d])).on('device', d => got.push(['device', d]));
+  try {
+    main.emit('data', { t: 'gx', r: 'in rientro', v: 640, a: null, d: 0, pk: performance.now() - 30 });
+    main.emit('data', { t: 'mk', x: 'segno dal telefono' });
+    main.emit('data', { t: 'dev', ua: 'Telefono di prova', wl: true, dm: true, or: 'portrait-primary', sc: [412, 915, 3.5], vr: '2026-10-23.2' });
+    assert.deepEqual(got.map(g => g[0]), ['discard', 'mark', 'device']);
+    assert.equal(got[0][1].why, 'in rientro'); assert.equal(got[0][1].peak, 640); assert.equal(got[0][1].dir, 0);
+    assert.equal(got[1][1].text, 'segno dal telefono');
+    assert.deepEqual(got[2][1], { ua: 'Telefono di prova', wakeLock: true, motion: true, orientation: 'portrait-primary', screen: [412, 915, 3.5], version: '2026-10-23.2' });
+  } finally { link.stop(); }
+});
