@@ -75,7 +75,7 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
     // movimento di chi gioca: dove colpisce e dove va subito dopo il colpo (recupero), per ogni colpo della racchetta
     moves: [],
     // campo aperto: ogni colpo di chi gioca con dove cade, dov'era la CPU quando è partito e com'è finito (vincente,
-    // errore della CPU, ripresa, errore proprio)
+    // errore della CPU, ripresa, errore proprio); se la CPU l'ha presa, dove l'ha colpita e quanto ha corso di lato
     shots: [] };
   let pending = null;
   try {
@@ -135,7 +135,8 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
       const ls = e.natpfSkill?.lastShot;
       if (ls && ls !== lastSeenShot){ lastSeenShot = ls; out.landings.push({ x: +ls.landingX.toFixed(2), z: +e.ball.targetLanding.z.toFixed(2), grade: ls.grade, power: ls.power }); }
       const lr = e.natpfLastRacket, K = out.racket;
-      if (pending && pending.res == null && e.ball.lastHitter === 'opponent') pending.res = 'ripresa';
+      // la CPU l'ha presa: dove (distanza dalla rete) e quanto ha corso di lato da quando il colpo è partito
+      if (pending && pending.res == null && e.ball.lastHitter === 'opponent'){ pending.res = 'ripresa'; pending.hitZ = +Math.abs(e.opponent.pos.z).toFixed(2); pending.run = +Math.abs(e.opponent.pos.x - pending.cpuX).toFixed(2); }
       if (pending && pending.res === 'ripresa' && e.ball.lastHitter === 'player') pending = null;
       if (lr && lr !== lastSeenRacket && lr.who === 'player'){ lastSeenRacket = lr; const k = lr.out?.shot || '?'; K.shots[k] = (K.shots[k] || 0) + 1; if (lr.volley) K.volleys++; if (lr.out?.failed) K.failed++;
         out.shots.push(pending = { x: +e.ball.targetLanding.x.toFixed(2), z: +e.ball.targetLanding.z.toFixed(2), cpuX: +e.opponent.pos.x.toFixed(2), cpuZ: +e.opponent.pos.z.toFixed(2), res: null });
@@ -178,9 +179,14 @@ export function openCourtStats(runs){
   const lat = s => { const d = Math.abs(s.x - s.cpuX); return d < 2 ? '<2' : d < 4 ? '2-4' : d < 6 ? '4-6' : '>6'; };
   const dep = s => (-s.z < 6.4 ? 'corta' : -s.z < 9.5 ? 'media' : 'fonda');
   const rows = {};
-  for (const s of S) for (const k of [`lato ${lat(s)} m`, `prof. ${dep(s)}`]){ const r = rows[k] || (rows[k] = { n: 0, vincente: 0, 'errore CPU': 0, ripresa: 0 }); r.n++; r[s.res]++; }
-  const pct = (a, n) => +(100*a/Math.max(1, n)).toFixed(1);
-  return Object.fromEntries(Object.entries(rows).map(([k, r]) => [k, { n: r.n, vincenti: pct(r.vincente, r.n), erroriCPU: pct(r['errore CPU'], r.n), riprese: pct(r.ripresa, r.n) }]));
+  for (const s of S) for (const k of [`lato ${lat(s)} m`, `prof. ${dep(s)}`]){
+    const r = rows[k] || (rows[k] = { n: 0, vincente: 0, 'errore CPU': 0, ripresa: 0, hitZ: [], run: [] }); r.n++; r[s.res]++;
+    if (s.hitZ != null){ r.hitZ.push(s.hitZ); r.run.push(s.run); }
+  }
+  const pct = (a, n) => +(100*a/Math.max(1, n)).toFixed(1), med = a => (a.length ? +[...a].sort((x, y) => x - y)[a.length >> 1].toFixed(1) : null);
+  // cpuColpisceM: mediana della distanza dalla rete a cui la CPU colpisce la palla (11,9 = sulla riga di fondo);
+  // corsaM: mediana della corsa laterale della CPU dal colpo di chi gioca al suo colpo
+  return Object.fromEntries(Object.entries(rows).map(([k, r]) => [k, { n: r.n, vincenti: pct(r.vincente, r.n), erroriCPU: pct(r['errore CPU'], r.n), riprese: pct(r.ripresa, r.n), cpuColpisceM: med(r.hitZ), corsaM: med(r.run) }]));
 }
 
 export function auditAll({ points = 200, seeds = [7, 11, 23], difficulties = ['casual', 'pro'], profiles = Object.keys(PROFILES) } = {}){
@@ -197,12 +203,13 @@ export function auditAll({ points = 200, seeds = [7, 11, 23], difficulties = ['c
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href && process.argv.includes('--cpu')){
-  // npm run audit:rally -- --cpu [--points=150]: vincenti, errori e riprese della CPU per dove cade la palla
+  // npm run audit:rally -- --cpu [--points=150]: vincenti, errori e riprese della CPU per dove cade la palla, e dove la
+  // CPU la colpisce (distanza dalla rete) e quanto corre di lato quando la prende
   const arg = k => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1];
   for (const difficulty of (arg('difficulty') ? [arg('difficulty')] : ['casual', 'pro'])) for (const profile of (arg('profiles') ? arg('profiles').split(',') : ['tennista', 'amatore', 'medio'])){
     const st = openCourtStats([7, 11, 23].map(seed => simulate({ profile, difficulty, points: +(arg('points') || 150), seed })));
     console.log(`\n${difficulty}/${profile}`);
-    for (const [k, r] of Object.entries(st).sort()) console.log(`  ${k.padEnd(14)} n ${String(r.n).padStart(5)}  vincenti ${String(r.vincenti).padStart(5)}%  errori CPU ${String(r.erroriCPU).padStart(5)}%  riprese ${String(r.riprese).padStart(5)}%`);
+    for (const [k, r] of Object.entries(st).sort()) console.log(`  ${k.padEnd(14)} n ${String(r.n).padStart(5)}  vincenti ${String(r.vincenti).padStart(5)}%  errori CPU ${String(r.erroriCPU).padStart(5)}%  riprese ${String(r.riprese).padStart(5)}%  CPU colpisce a ${String(r.cpuColpisceM ?? '–').padStart(4)} m  corsa ${String(r.corsaM ?? '–').padStart(4)} m`);
   }
 } else if (import.meta.url === pathToFileURL(process.argv[1]).href && process.argv.includes('--campo')){
   // npm run audit:rally -- --campo [--points=150]: campo aperto e movimento con i profili del telefono

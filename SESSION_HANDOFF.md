@@ -17,8 +17,15 @@ analisi → misura → affidabilità dei due ingressi → campo aperto ed equili
   repository (il video contiene la persona).
 - Passi: 1 diagnosi [x] · 2 misura [x per telefono, collegamento, gioco; la webcam con il passo 3c] · 3a telefono [x] ·
   3b Android [x] · 3c webcam [x] · 4 campo aperto e ritmo [C3–C5 x; C1–C2 a Casual, il resto da decidere con la prova
-  fisica: `?ritmo=colmo|prima`] · 5 verifica, prova guidata, pacchetti [ ]. I passi 3a, 3b e
-  3c sono provati in automatico; la prova fisica (telefono vero, webcam del portatile) è nella prova guidata del passo 5.
+  fisica: `?ritmo=colmo|prima`] · 5 verifica, prova guidata, pacchetti [x]. Tutto è provato in automatico; la prova
+  fisica (telefono vero, webcam del portatile) è da fare con **`docs/NATPF_PROVA_GUIDATA_2026-10-23.md`**.
+- Consegna (passo 5): pacchetti dal commit `90c4bc1`, build `2026-10-23.2` (la versione nella diagnostica di ogni
+  sessione): `natpf-simulator-cloudflare-20261023-2.zip` e `natpf-simulator-lan-windows-20261023-2.zip`, provati estratti.
+  I commit dopo `90c4bc1` toccano solo banchi e documenti.
+- Punti aperti per la prova fisica: ritmo a Leggenda (`?ritmo=colmo` contro l'indirizzo normale); costo vero del modello
+  delle mani sul portatile (`?webcamLivello=`); la palla profonda a Pro costa poco in errori alla CPU (banco `-- --cpu`);
+  quando Android sospende sensori e pagina; T5 (gesti non mandati) e verticale o in avanti del lato lungo nella presa di
+  taglio, che chiedono i campioni grezzi e il video dell'impugnatura.
 - Webcam: livello del modello imposto con `?webcamLivello=piena|leggera|minima` (confronto sullo stesso computer con
   due sessioni della diagnostica). La prova LAN nel browser con la webcam (`natpf-tennis/test/e2e/lan-e2e.mjs`,
   `ONLY=webcam`) qui non finisce in 240 s né con il codice nuovo né con quello di prima: il gioco disegna a 1–3 fps con

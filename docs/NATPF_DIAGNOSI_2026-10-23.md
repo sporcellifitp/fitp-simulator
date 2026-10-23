@@ -268,7 +268,7 @@ alla volta, con il prima e il dopo.
 | 3b | Android: blocco dello schermo, pausa e ripresa controllata (A1–A4) | fatto nel codice, provato in automatico; prova fisica da fare |
 | 3c | Webcam: misura e catena (§5) | fatto nel codice, provato in automatico e nel browser con la webcam finta; misura sul portatile da fare |
 | 4 | Campo aperto e ritmo (C1–C5) | C3, C4, C5 fatti e misurati nel banco; C1–C2 (ritmo) fatti in parte (Casual), con il confronto per la prova fisica |
-| 5 | Verifica, prova guidata, pacchetti | — |
+| 5 | Verifica, prova guidata, pacchetti | fatto: CI completa in locale sul commit finale, mappa dei rimbalzi nel rapporto, guida alla prova fisica (`NATPF_PROVA_GUIDATA_2026-10-23.md`), pacchetti Cloudflare e LAN provati estratti; prova fisica da fare |
 
 ### Passo 3a · telefono (fatto)
 
@@ -366,6 +366,17 @@ Base: commit `cd2aaa7` (stesso motore del 23/10 per il campo).
   | oltre 6 m | (mai: la CPU era sempre vicina) | 56–86% |
 
   Casual, profilo medio, 4–6 m: prima 1,5% vincenti, ora 41%.
+- **Dove la CPU colpisce e quanto corre** (misura aggiunta con il passo 5 al banco `-- --cpu`, codice finale, mediane):
+  - incrociato stretto: corsa laterale della CPU 0,7–0,9 m con la palla a meno di 2 m da lei, 1,9–2,4 m a 2–4 m,
+    2,9–3,6 m a 4–6 m, 4,3–4,8 m oltre;
+  - palla profonda (oltre 9,5 m dalla rete): la CPU colpisce a 11,8–12,1 m dalla rete (la riga di fondo è a 11,9 m),
+    contro 9,7–11,1 m con le palle a media profondità. Errori della CPU: a Casual di più (profilo medio 28,1% contro
+    16,0%), a Pro quasi uguali (tennista 15,6% contro 15,2%, medio 14,3% contro 11,8%);
+  - palla corta (entro 6,4 m dalla rete): la CPU viene avanti e colpisce a 5,4–8,6 m dalla rete; più vincenti che con
+    le palle a media profondità (Pro medio 6,5% contro 1,8%, Casual medio 15,2% contro 9,6%).
+
+  La palla profonda a Pro sposta indietro la CPU ma costa poco in errori: lo dirà la prova fisica (*Mappa dei rimbalzi*
+  ed esiti nel rapporto) se serve di più.
 - **Equilibrio** (punti vinti, prima → dopo): Casual medio 85,3 → 89,8%, bambino 45,1 → 60,2%, tennista 100 → 97,6%;
   Pro medio 61,6 → 68,0%, amatore 79,3 → 74,0%, tennista 99,8 → 94,2%, impreciso 22,7 → 21,1%. Colpi per punto: Casual
   9–13 → 5–9, Pro 7–13 → 5–11. Leggenda: tutti i criteri rispettati (preciso 71,9%, tennista 95,3% di game alla CPU);
@@ -403,3 +414,19 @@ rimbalzo all'impatto, altezza e posizione dell'impatto, velocità, colmo dopo il
   tagliava la finestra in ritardo a chi era arretrato); la volée si decide confrontandola con il primo punto comodo dopo
   il rimbalzo.
 
+### Passo 5 · verifica e preparazione della prova reale (fatto)
+
+- **Rapporto della sessione** (`rapporto.html`):
+  - mappa dei rimbalzi dall'alto: colpi di chi gioca e dell'avversario, i fuori vuoti; un clic porta i video un secondo
+    prima del rimbalzo;
+  - pause della partita per il telefono con il motivo, anche nel riassunto.
+- **Testi**: guida e allenamento spiegano che la direzione si sceglie con il tempo (prima incrociato, dopo lungolinea,
+  nel mezzo al centro; il dorso del telefono corregge poco). La profondità viene dalla forza rispetto al proprio colpo
+  solito.
+- **Prova fisica**: `NATPF_PROVA_GUIDATA_2026-10-23.md`, circa 30 minuti, prima il telefono Android poi la webcam del
+  portatile. Contiene:
+  - avvio, registrazione, segni, esportazione e condivisione;
+  - la sequenza ripetibile (*Prova guidata dei colpi*);
+  - cosa aspettarsi a ogni passo e cosa guardare nel rapporto;
+  - cosa provano i test automatici e cosa no.
+- **Banco**: `audit:rally -- --cpu` dice anche dove la CPU colpisce e quanto corre (misure nel passo 4, campo aperto).

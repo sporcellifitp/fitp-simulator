@@ -238,4 +238,16 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     confronto con la prova fisica. Le prove nuove del ritmo falliscono sul codice di prima.
   - Prove: `npm test` 335/335; `audit:legend` tutti i criteri (preciso 71,9%, tennista 95,3%, Pro contro medio 78,3%,
     Casual contro medio 99,8%). Validazione fisica non eseguita.
-
+- Checkpoint 21 (23/10): passo 5, verifica e preparazione della prova reale; dettagli in
+  `docs/NATPF_DIAGNOSI_2026-10-23.md` §7.
+  - Rapporto: mappa dei rimbalzi; pause per il telefono nelle metriche. Testi della mira con il tempo. Guida alla prova
+    fisica `docs/NATPF_PROVA_GUIDATA_2026-10-23.md`, controllata sul codice: corretti in bozza il numero dei gesti della
+    calibrazione rapida (due, non quattro), i nomi dei pulsanti della diagnostica, le opzioni già spuntate, i motivi
+    della pausa con la Wi-Fi spenta.
+  - Banco `-- --cpu` con dove la CPU colpisce e quanto corre. Scoperta: la palla profonda sposta indietro la CPU (colpisce
+    a 11,8–12,1 m dalla rete) ma a Pro costa poco in errori (15,6% contro 15,2%): punto aperto per la prova fisica.
+  - Pacchetti dal commit `90c4bc1` (build `2026-10-23.2`): `natpf-simulator-cloudflare-20261023-2.zip` (23,7 MiB, 73
+    file, nessuno oltre 25 MiB) e `natpf-simulator-lan-windows-20261023-2.zip` (57,2 MiB, Node.js 22.22.0 con SHA-256
+    verificato). Provati estratti: 1v1 nel browser sullo zip Cloudflare 18/18; pacchetto LAN con certificato creato e
+    server HTTPS che risponde con gioco, pagina del telefono, modelli delle mani, grafiche, avvio guidato e relay 1v1.
+    Nessuna chiave privata (gli unici certificati sono le radici pubbliche dentro `node.exe`), nessun nome vietato.
