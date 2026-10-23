@@ -668,9 +668,11 @@
   font-size: 14px;
 }
 .natpf-grip {
-  float: right;
-  width: 64px;
-  margin-left: 8px;
+  display: block;
+  width: min(100%, 250px);
+  height: auto;
+  margin: 0 auto 10px;
+  color: var(--lb-ink);
 }
 .natpf-phone-status {
   margin: 0 0 6px;
@@ -876,7 +878,7 @@
     width: 180px;
   }
   .natpf-grip {
-    float: none;
+    width: min(100%, 230px);
   }
 }
 @media (prefers-reduced-motion: reduce) {

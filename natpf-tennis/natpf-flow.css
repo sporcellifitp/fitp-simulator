@@ -177,10 +177,17 @@
   opacity: 1;
   box-shadow: inset 0 0 0 2px var(--q-red);
 }
+/* figura dell'impugnatura (site/js/tennis/grip-art.js): su una riga sua, sotto il testo del passo */
+.connect-steps li[data-connect="hold"] {
+  flex-wrap: wrap;
+}
 .connect-grip {
-  flex: none;
-  width: 54px;
+  flex: 1 0 100%;
+  width: 100%;
+  max-width: 250px;
   height: auto;
+  margin: 2px auto 0;
+  color: var(--lb-ink);
 }
 @keyframes step-blink {
   50% {
@@ -539,6 +546,16 @@
 .guide-svg {
   width: 82%;
   height: auto;
+}
+/* figura dell'impugnatura (quasi quadrata) nel riquadro 16:9 della guida: per altezza */
+.guide-clip.guide-art:has(.guide-grip) {
+  overflow: hidden;
+}
+.guide-svg.guide-grip {
+  width: auto;
+  height: 96%;
+  max-width: 100%;
+  color: var(--lb-ink);
 }
 .guide-svg .a-dev {
   fill: #dfe6ff;

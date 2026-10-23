@@ -25,7 +25,7 @@
   #arrow{font-size:64px;line-height:1;font-weight:800;color:var(--ball);min-height:0}
   #big{font-size:30px;font-weight:800;line-height:1.1;padding:0 14px}
   #sub{font-size:17px;color:var(--muted);line-height:1.4;max-width:340px;min-height:48px}
-  #grip{width:120px;height:auto}
+  #grip{width:min(84vw,300px);height:auto;color:var(--ink)}
   .btn{display:block;width:100%;border:0;border-radius:14px;padding:17px;font:inherit;font-size:19px;font-weight:700;background:var(--ball);color:#0b1433;margin-top:10px}
   .btn.alt{background:var(--panel);color:var(--ink);font-weight:600;font-size:16px;padding:14px}
   #tools{display:flex;gap:8px;margin-top:10px}
@@ -56,7 +56,7 @@
   body.flat.land #sub,body.flat.land #faceTxt{flex-basis:100%}
   body.flat.land #ring{width:min(36vh,150px)} body.flat.land #big{font-size:20px} body.flat.land #arrow{font-size:34px} body.flat.land #sub{font-size:14px;min-height:0}
   body.flat.land #faceDial{width:min(34vh,130px)} body.flat.land #gripFlat{width:min(36vh,140px)} body.flat.land .btn{padding:11px;font-size:16px}
-  @media(max-height:740px){#ring{width:min(54vw,170px)}#big{font-size:19px}#arrow{font-size:42px}#stage{gap:6px;min-height:170px}#grip{width:70px}#sub{font-size:15px;min-height:0}.btn{padding:12px}}
+  @media(max-height:740px){#ring{width:min(54vw,170px)}#big{font-size:19px}#arrow{font-size:42px}#stage{gap:6px;min-height:170px}#grip{width:min(66vw,220px)}#sub{font-size:15px;min-height:0}.btn{padding:12px}}
 </style>
 </head>
 <body>
@@ -65,14 +65,8 @@
 <div id="alert" class="hidden" role="alert"><b id="alertTitle"></b><p id="alertText"></p><button class="btn hidden" id="alertBtn"></button></div>
 <div id="stage">
   <div id="ring"><div id="arrow"></div><div id="big">NATPF</div></div>
-  <!-- impugnatura di taglio: il telefono come il manico, il palmo sui lati lunghi, il display verso destra o sinistra -->
-  <svg id="grip" class="hidden" viewBox="0 0 120 150" aria-label="Telefono di taglio, come il manico di una racchetta: il palmo sui lati lunghi, il display verso destra o verso sinistra">
-    <rect x="54" y="6" width="14" height="76" rx="4" fill="#dfe6ff" stroke="#0b1433" stroke-width="3"/>
-    <rect x="64" y="11" width="3" height="66" rx="1" fill="#2f6bff"/>
-    <path d="M78 30 h22 M92 24 l8 6 l-8 6" stroke="#e8ff3a" stroke-width="4" fill="none" stroke-linecap="round"/>
-    <path d="M30 70 q0 -14 14 -12 l40 2 q12 1 10 16 l-4 46 q-2 14 -18 14 h-22 q-18 0 -20 -18z" fill="#f0c7a0" stroke="#0b1433" stroke-width="3"/>
-    <path d="M44 74 h40 M44 86 h40 M44 98 h38" stroke="#c99a74" stroke-width="3"/>
-  </svg>
+  <!-- impugnatura: figura di grip-art.js (racchetta.js la mette qui) -->
+  <svg id="grip" class="hidden" aria-hidden="true"></svg>
   <!-- presa orizzontale: telefono in orizzontale nel palmo, display verso di sé, il dorso guarda la rete -->
   <svg id="gripFlat" class="hidden" viewBox="0 0 160 110" aria-label="Telefono in orizzontale nel palmo, display verso di te: il dorso è il piatto della racchetta">
     <path d="M40 92 q-8 -40 10 -52 l60 -4 q16 0 16 18 l-4 38 q-2 14 -18 14 h-46 q-14 0 -18 -14z" fill="#f0c7a0" stroke="#0b1433" stroke-width="3"/>

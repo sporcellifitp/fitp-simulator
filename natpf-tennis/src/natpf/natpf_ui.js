@@ -18,6 +18,7 @@ import { NatpfEvents } from './natpf_events.js';
 import { NatpfKiosk } from './natpf_kiosk.js';
 import { phoneHealth, createPhoneWatch, holdText } from './natpf_phone_watch.js';
 import { webcamHealth, createWebcamWatch, webcamHoldText } from './natpf_webcam_watch.js';
+import { gripSvg, GRIP_TEXT_PLAIN } from '@natpf/tennis/grip-art.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -69,6 +70,8 @@ export class NatpfUi {
     // diagnostica (Maiusc+D o ?diag=1): prima del menu, così il suo tasto arriva anche con il menu aperto
     this.diag = new NatpfDiag(engine, this);
     this._gateDesktopInput();
+    // figura dell'impugnatura (la stessa della pagina del telefono e della guida) al posto dei disegni di prima
+    for (const el of document.querySelectorAll('.connect-grip, .natpf-grip')) el.outerHTML = gripSvg({ cls: el.getAttribute('class'), compact: true });
     this.modal = $('natpf-phone-modal');
     this.qrToken = null;
     this._buildSetup();
@@ -454,7 +457,7 @@ export class NatpfUi {
     if (L.state === 'lost'){ status = 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo'; tag = 'Scollegato'; }
     if (L.state === 'error'){ status = `Connessione non disponibile (${L.error}). Riprova o verifica la connessione a internet.`; tag = 'Errore'; }
     if (step === 'collega' && p.connected){ status = 'Telefono collegato: sul telefono tocca «Attiva i sensori»'; tag = 'Collegato'; }
-    if (step === 'impugna'){ status = cal.grip ? 'Presa letta ✓ resta così un attimo…' : 'Tieni il telefono di taglio, come il manico di una racchetta: il palmo sui lati lunghi, il display verso destra o verso sinistra'; hint = 'Presa comoda, senza stringere: va bene anche un po’ inclinato e da seduti.'; tag = 'Impugnatura'; }
+    if (step === 'impugna'){ status = cal.grip ? 'Presa letta ✓ resta così un attimo…' : GRIP_TEXT_PLAIN; hint = 'Presa comoda, senza stringere: va bene anche da seduti.'; tag = 'Impugnatura'; }
     if (step === 'prova'){ status = 'Fai i gesti che chiede il telefono: un colpetto comodo verso sinistra o verso destra, poi fermati.'; hint = cal.idle ? 'Non sento movimenti: prova un gesto più deciso, oppure sul telefono scegli movimento compatto o i tocchi.' : 'Non serve conoscere il tennis: basta un gesto naturale.'; tag = 'Calibrazione'; }
     if (step === 'verifica'){
       const r = cal.review;

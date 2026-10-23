@@ -2,16 +2,19 @@
 // accanto una clip del gioco vero (fotogrammi del gioco in un'unica immagine, animati con CSS: public/guide/*.jpg,
 // generati da scripts/guide-clips.mjs) e due frasi: cosa fai tu, cosa succede in campo. Le istruzioni cambiano con la
 // racchetta (smartphone, webcam, mouse e tastiera). Si apre dal benvenuto, con «?» e con il tasto H.
+import { gripSvg, GRIP_TEXT } from '@natpf/tennis/grip-art.js';
 const $ = id => document.getElementById(id);
 const CONTROLLERS = [['phone', 'Smartphone'], ['webcam', 'Webcam'], ['mouse', 'Mouse e tastiera']];
 export const ONBOARDING_KEY = 'natpf-tennis.onboarded';
 // clip: nome del file in public/guide/ e numero di fotogrammi (orizzontali, 320×180 ciascuno)
 export const GUIDE_CLIPS = Object.freeze({ run: 12, hit: 12, aim: 12, serve: 12, shots: 12 });
-const grip = `<svg viewBox="0 0 160 120" class="guide-svg"><g class="gs-swing"><rect x="64" y="8" width="30" height="58" rx="7" class="a-dev"/><rect x="69" y="15" width="20" height="42" rx="3" class="a-scr"/><path d="M50 62q0-14 14-12l30 1q12 1 10 14l-4 32q-2 12-16 12H66q-16 0-17-15z" class="a-hand"/></g><path d="M30 96q50 22 100 0" class="a-arrow"/><path d="M38 92l-8 4 8 6M122 92l8 4-8 6" class="a-arrow"/></svg>`;
+// impugnatura: la figura condivisa con la pagina del telefono (prima il telefono con il display verso chi guarda, il
+// contrario della presa chiesta)
+const grip = gripSvg({ cls: 'guide-svg guide-grip', compact: true });
 
 export const GUIDE = [
   { id: 'grip', title: 'Impugna la racchetta', art: () => grip, you: {
-    phone: 'Telefono <b>di taglio</b>, come il manico: il palmo sui lati lunghi, il display verso destra o verso sinistra. Nel riscaldamento fai due colpetti, un dritto e un rovescio: il telefono impara il tuo gesto.',
+    phone: `${GRIP_TEXT} Nel riscaldamento fai due colpetti, un dritto e un rovescio: il telefono impara il tuo gesto.`,
     webcam: 'Mettiti a <b>1,5–2 metri</b> dalla webcam, con la mano che colpisce ben visibile e la luce davanti.',
     mouse: '<b>Spazio</b> o un trascinamento del mouse colpiscono. Funziona sempre, anche insieme agli altri.',
   }, game: 'In campo la racchetta segue il tuo telefono (o la tua mano).' },

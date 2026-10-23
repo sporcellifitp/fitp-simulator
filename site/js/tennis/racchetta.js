@@ -13,9 +13,12 @@ import { strokeShape } from './stroke-shape.js';
 import { swingMessage } from './swing-message.js';
 import { NATPF_BUILD } from './version.js';
 import { createWakeKeeper, createSensorWatch } from './phone-keep.js';
+import { gripSvg, GRIP_TEXT_PLAIN } from './grip-art.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
+// figura dell'impugnatura: la stessa del computer (grip-art.js), al posto del disegno di prima
+{ const g = $('#grip'); if (g) g.outerHTML = gripSvg({ id: 'grip', cls: g.getAttribute('class') || 'hidden', compact: true }); }
 const ss = { get(k){ try { return JSON.parse(sessionStorage.getItem('natpf-simulator.' + k)); } catch (e){ return null; } }, set(k, v){ try { sessionStorage.setItem('natpf-simulator.' + k, JSON.stringify(v)); } catch (e){} }, del(k){ try { sessionStorage.removeItem('natpf-simulator.' + k); } catch (e){} } };
 
 // i dati del QR: si leggono e si tolgono subito dalla barra degli indirizzi (restano solo in questa scheda)
@@ -97,7 +100,7 @@ function calUi(){
   const st = cal.state;
   if (st.step === 'still' && grip === 'flat') ui('Pronto, fermo', 'Telefono in orizzontale nel palmo, display verso di te: il dorso guarda la rete come le corde. Resta fermo così per 2 secondi.');
   // stessi passi e stesse parole del computer (natpf_cal_view.js): si guarda il computer, qui c'è il riassunto
-  else if (st.step === 'still') ui('Tieni fermo', 'Telefono di taglio, come il manico di una racchetta: il palmo sui lati lunghi, il display verso destra o verso sinistra. Guarda il computer.');
+  else if (st.step === 'still') ui('Tieni fermo', `${GRIP_TEXT_PLAIN} Guarda il computer.`);
   else if (st.step === 'grip') ui('La tua presa', 'Tieni il telefono come ti è comodo, senza stringere troppo.');
   else if (st.step === 'swings'){
     const plan = calibrationPlan(st.options), w = plan[st.idx], stroke = (w === 'L') !== (st.options.hand === 'left') ? 'Dritto' : 'Rovescio';
