@@ -52,8 +52,9 @@ export class NatpfPause {
     show(this.el.querySelector('[data-pause="move"]'), webcam && !!this.engine.natpfBody);
     if (webcam && this.engine.natpfBody) set('move', this.engine.natpfBody.enabled ? 'Segue il corpo' : 'Automatico', this.engine.natpfBody.enabled);
     show(this.el.querySelector('[data-pause="phone"]'), this.ui.controller === 'phone');
-    // niente moviola nel riscaldamento e nelle sfide (dopo il replay il lanciapalle non ripartiva)
-    show(this.el.querySelector('[data-pause="replay"]'), !this.ui.training?.active && !this.ui.events?.active);
+    // niente moviola nel riscaldamento e nelle sfide (dopo il replay il lanciapalle non ripartiva), né prima di aver finito
+    // un punto: la moviola rimette in scena l'ultimo punto giocato (natpf_replay.js)
+    show(this.el.querySelector('[data-pause="replay"]'), !this.ui.training?.active && !this.ui.events?.active && !!this.engine.natpfReplay?.available);
     set('diag', this.ui.diag?.recorder?.active ? 'In registrazione' : 'Registra la sessione', !!this.ui.diag?.recorder?.active);
     const kicker = this.el.querySelector('.sheet-kicker'); if (kicker) kicker.textContent = this.ui.training?.active ? 'Allenamento in pausa' : 'Partita in pausa';
   }

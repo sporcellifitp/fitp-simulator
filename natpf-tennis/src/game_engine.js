@@ -33,6 +33,8 @@ import * as NL from "./natpf/natpf_legend.js";
 import * as NO from "./natpf/natpf_stroke_outcome.js";
 import * as NI from "./natpf/natpf_impact.js";
 import * as NPC from "./natpf/natpf_point_call.js";
+import { NatpfReplay } from "./natpf/natpf_replay.js";
+const NR = { c: null }; // NATPF moviola: posa della telecamera
 import { NatpfBodyFollow } from "./natpf/webcam_body_follow.js";
 // NATPF: sfida tra due computer anche senza server (sito statico): relay nel browser dell'host e WebRTC
 import { installNatpfP2p } from "./natpf/natpf_p2p.js";
@@ -650,6 +652,8 @@ export class NatpfTennisEngine {
       t && (this.facialFX[e] = (i, ...a) => (i && i === this.fpBodyActor ? void 0 : t(i, ...a)));
     }
     this.natpfPhone = new NatpfPhoneRacket(this);
+    // NATPF moviola: registra ogni punto e rimette in scena l'ultimo (natpf_replay.js)
+    this.natpfReplay = new NatpfReplay(this);
     // NATPF: webcam → «Movimento: segui il corpo» (MediaPipe Pose), isolato dal movimento automatico del motore base
     this.natpfBody = new NatpfBodyFollow(this);
     const mc = this.motionController;
@@ -1283,6 +1287,11 @@ export class NatpfTennisEngine {
       this._predictBallIntercept(this.opponent);
   }
   _enterInstantReplayState({ persistent: e = !1 } = {}) {
+    // NATPF moviola: l'ultimo punto giocato (natpf_replay.js); prima sempre lo stesso scambio a rete messo in scena
+    if (!e && this.natpfReplay && this.natpfReplay.start()) {
+      this.audioEngine && this.audioEngine.playVoiceCallout("replay");
+      return;
+    }
     (this.phase = "REPLAY"),
       (this.phaseTimer = 0),
       (this.cameraMode = "REPLAY_CAM"),
@@ -2440,9 +2449,13 @@ export class NatpfTennisEngine {
   update(e) {
     (this.elapsedTime += e), (this.cameraTrauma = Math.max(0, this.cameraTrauma - e * 1.4));
     const t = this.swingVfx ? this.swingVfx.consumeHitStop(e) : e,
-      i = this.phase === "REPLAY" ? 0.38 : this.natpfTimeScale ?? 1; // NATPF: rallentatore del riscaldamento (natpf_training.js)
+      // NATPF: rallentatore del riscaldamento (natpf_training.js) e della moviola (natpf_replay.js)
+      rp = this.natpfReplay?.playing,
+      i = this.phase === "REPLAY" ? (rp ? this.natpfReplay.speed : 0.38) : this.natpfTimeScale ?? 1,
+      ea = rp ? e * this.natpfReplay.speed : e; // NATPF moviola: corpi e racchette rallentano come la palla
     // NATPF: tutto il tempo del fotogramma in passi uguali ≤ FIXED_DT (natpf_skill.physicsSteps), niente resto accumulato
     for (let k = 0, s = NS.physicsSteps(t * i, L.FIXED_DT); k < s.n; k++) this._stepPhysics(s.h);
+    this.natpfReplay && this.natpfReplay.record(t * i); // NATPF moviola: il punto in corso
     if (
       // NATPF 1v1: a partita in corso lo snapshot; con l'host in lobby solo lo stato della lobby (prima andavano al P2
       // anche la dimostrazione del menu e il riscaldamento)
@@ -2452,10 +2465,10 @@ export class NatpfTennisEngine {
         this.playerRole === "p1" &&
         this.elapsedTime - this.lastSyncSentAt >= (this._versusInMatch() ? VERSUS.matchEvery : VERSUS.lobbyEvery) &&
         ((this.lastSyncSentAt = this.elapsedTime), this._broadcastMultiplayerSnapshot()),
-      this._updatePlayerAnimation(this.player, e),
-      this.isDoubles && this._updatePlayerAnimation(this.playerPartner, e),
-      this._updatePlayerAnimation(this.opponent, e),
-      this.isDoubles && this._updatePlayerAnimation(this.opponentPartner, e),
+      this._updatePlayerAnimation(this.player, ea),
+      this.isDoubles && this._updatePlayerAnimation(this.playerPartner, ea),
+      this._updatePlayerAnimation(this.opponent, ea),
+      this.isDoubles && this._updatePlayerAnimation(this.opponentPartner, ea),
       this._updateNatpf(e),
       this._updateCrowdAnimation(e),
       this.swingVfx)
@@ -2518,6 +2531,7 @@ export class NatpfTennisEngine {
     this._updateEffects(e), this._updateCameraRig(e), this._updateProjectedHUD();
   }
   _stepPhysics(e) {
+    if (this.natpfReplay && this.natpfReplay.step(e)) return (this.phaseTimer += e), void 0; // NATPF moviola dell'ultimo punto
     if (
       ((this.phaseTimer += e),
       this.player.swingCooldown > 0 &&
@@ -3419,7 +3433,9 @@ export class NatpfTennisEngine {
       }
     else
       e === "REPLAY_CAM"
-        ? (t.set(2.35, 1.48, 4.15), i.set(-1.45, 0.95, -1.35))
+        ? this.natpfReplay?.playing
+          ? ((NR.c = this.natpfReplay.camera()), t.set(...NR.c.pos), i.set(...NR.c.look)) // NATPF moviola: di lato, segue la palla
+          : (t.set(2.35, 1.48, 4.15), i.set(-1.45, 0.95, -1.35))
         : this.playerRole === "p2"
           ? (t.set(this.opponent.pos.x * 0.16, 7.8, -22.8), i.set(this.ball.pos.x * 0.12, 0.35, -1.8))
           : (t.set(this.player.pos.x * 0.16, 7.8, 22.8), i.set(this.ball.pos.x * 0.12, 0.35, 1.8));

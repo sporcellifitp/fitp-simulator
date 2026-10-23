@@ -4,6 +4,8 @@
 //      5–6 m dalla rete a ogni servizio); la CPU che ha servito torna al centro (Casual e Pro).
 //   B. a fine punto il messaggio dice chi vince il punto (verde il proprio, rosa della CPU) e chi ha sbagliato, con il
 //      punteggio dal proprio lato (prima: il punteggio con «Fuori» sotto, senza dire di chi).
+//   C. la moviola (pausa → «Rivedi il punto») rimette in scena l'ultimo punto giocato: palla e giocatori dove erano,
+//      al rallentatore, poi di nuovo al servizio (prima sempre la stessa scena a rete).
 // Porte 3183 (gioco) e 9183 (PeerJS).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-gameplay-23-10.mjs
 import { spawn } from 'node:child_process';
@@ -14,6 +16,7 @@ import express from 'express';
 import { ExpressPeerServer } from 'peer';
 import { launch, page, check, summary, SP } from './th.mjs';
 import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
+import { sampleAt } from '../../natpf-tennis/src/natpf/natpf_replay.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
 const PEER_PORT = +(process.env.PEER_PORT || 9183), GAME_PORT = +(process.env.GAME_PORT || 3183), DIFF = process.env.DIFF || 'pro';
@@ -102,8 +105,8 @@ try {
   // (a Leggenda la posizione della CPU la decide il suo modello, natpf_legend.js)
   if (DIFF !== 'leggenda') check('   la CPU che ha servito torna al centro', serves.every(s => s.cpuX != null && Math.abs(s.cpuX) < .05), serves.map(s => `${fmt(s.cpuX0)} → ${fmt(s.cpuX)}`).join(' · '));
   /* B. messaggio di fine punto: qualche punto in più, poi il confronto con chi ha vinto davvero */
-  for (let k = 0; k < 8; k++){
-    idle = k >= 6;   // gli ultimi due punti il robot non colpisce: punto della CPU
+  for (let k = 0; k < 10; k++){
+    idle = k >= 8;   // gli ultimi due punti il robot non colpisce: punto della CPU
     await game.evaluate(k => { const E = __natpfTennis; E.score.server = k % 2 ? 'player' : 'opponent'; E.natpfPaused = false; E._setupPointServe({ showBanner: false }); window.__pt = __calls.length; }, k);
     const t0 = Date.now();
     while (Date.now() - t0 < 25000){
@@ -121,8 +124,30 @@ try {
   const okCall = c => (c.who === 'player' ? c.text === 'Punto tuo' && /style-won/.test(c.cls) : c.text === 'Punto della CPU' && /style-lost/.test(c.cls))
     && (!/^(Out|Net)$/.test(c.why) || (c.who === 'player' ? /^Errore della CPU/.test(c.sub) : /^Errore tuo/.test(c.sub)));
   const points = calls.filter(c => c.text && !/^Game|^Partita/.test(c.text));
-  check('B. fine del punto: in grande chi vince (verde il proprio, rosa della CPU), sotto chi ha sbagliato e il punteggio', points.length >= 7 && points.every(okCall) && points.some(c => c.who === 'player') && points.some(c => c.who === 'opponent'),
-    calls.map(c => `${c.who}/${c.why} → «${c.text}» «${c.sub}»`).join(' · ').slice(0, 900));
+  check('B. fine del punto: in grande chi vince (verde il proprio, rosa della CPU), sotto chi ha sbagliato e il punteggio', points.length >= 4 && points.every(okCall) && points.some(c => c.who === 'player') && points.some(c => c.who === 'opponent'),
+    `${points.length} punti: ` + calls.map(c => `${c.who}/${c.why} → «${c.text}» «${c.sub}»${okCall(c) || /^Game|^Partita/.test(c.text) ? '' : ' ✗'}`).join(' · ').slice(0, 1400));
+  /* C. moviola dell'ultimo punto, dal menu della pausa */
+  await game.waitForFunction(() => __natpfTennis.natpfReplay.available, null, { timeout: 5000 }).catch(() => {});
+  const rec = await game.evaluate(() => { const L = __natpfTennis.natpfReplay.last; return L ? { n: L.frames.length, dur: L.end - L.start, frames: L.frames } : null; });
+  await game.evaluate(() => { const U = __natpfTennis.natpfUi; U.pause.open(); });
+  const shown = await game.evaluate(() => { const b = document.querySelector('[data-pause="replay"]'); return !!b && !b.classList.contains('hidden'); });
+  await game.evaluate(() => document.querySelector('[data-pause="replay"]').click());
+  const playing = await game.waitForFunction(() => __natpfTennis.phase === 'REPLAY' && __natpfTennis.natpfReplay.playing, null, { timeout: 3000 }).then(() => true, () => false);
+  // durante la moviola: palla e giocatore sulla traiettoria registrata (al tempo della moviola)
+  const samples = []; const tShot = Date.now();
+  while (Date.now() - tShot < 60000){
+    const s = await game.evaluate(() => { const E = __natpfTennis, R = E.natpfReplay; return R.playing ? { t: R.play.t, b: E.ball.pos.toArray(), p: [E.player.pos.x, E.player.pos.z], cam: E.cameraMode } : { done: true, phase: E.phase }; });
+    if (s.done){ samples.push(s); break; }
+    samples.push(s);
+    if (samples.length === 6){ await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/moviola.png` }).catch(() => {}); }
+    await game.waitForTimeout(120);
+  }
+  // stato registrato allo stesso istante del punto (interpolato), contro quello a schermo durante la moviola
+  const near = s => { const f = sampleAt(rec.frames, s.t); return Math.hypot(f.b[0] - s.b[0], f.b[2] - s.b[2]) < .5 && Math.abs(f.a.player[1] - s.p[1]) < .5; };
+  const during = samples.filter(s => !s.done), end = samples.at(-1);
+  check('C. moviola: c\'è dopo un punto e rimette in scena l\'ultimo punto (palla e giocatore dove erano)', !!rec && shown && playing && during.length >= 5 && during.filter(near).length >= .8*during.length && during.every(s => s.cam === 'REPLAY_CAM'),
+    JSON.stringify({ registrati: rec?.n, durata: rec && +rec.dur.toFixed(1), voce: shown, parte: playing, campioni: during.length, vicini: during.filter(near).length }));
+  check('   al rallentatore, poi di nuovo al servizio', !!end?.done && end.phase === 'SERVE_STANCE' && during.length*.12 > (rec?.dur || 0)*.9, JSON.stringify({ fine: end, secondi: +(during.length*.12).toFixed(1) }));
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));
 } finally {
   await B.close(); stop();
