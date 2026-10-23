@@ -108,12 +108,9 @@ export class NatpfUi {
       show($('natpf-guest-modal'));
       // sfida senza server: stato del collegamento con l'host sotto il titolo
       if (engine.natpfP2p?.mode === 'guest'){ $('natpf-guest-modal')?.querySelector('.sheet-desc')?.insertAdjacentHTML('afterend', '<p class="natpf-p2p-status" data-p2p-status></p>'); this._watchP2p(); }
-      // «Sono pronto»: con il telefono scelto prima lo si collega; l'host vede il Player 2 pronto nella lobby
-      $('natpf-guest-go')?.addEventListener('click', () => {
-        if (this.versus.ready){ this.versus.setReady(false); return; }
-        if (this.controller === 'phone' && !this.phone.ready){ show($('natpf-guest-modal'), false); this.openPhone({ after: () => this.versus.setReady(true) }); return; }
-        this.versus.setReady(true);
-      });
+      // pulsante principale: con il telefono QR e calibrazione in campo, poi pronto da solo; altrimenti «Sono pronto»
+      // (natpf_versus_ui.js, primary). L'host vede il Player 2 pronto nella lobby
+      $('natpf-guest-go')?.addEventListener('click', () => this.versus.primary());
       document.documentElement.classList.add('versus-guest');
     }
     // la scelta salvata vale anche per motore base (webcam accesa all'avvio della partita)
@@ -305,7 +302,7 @@ export class NatpfUi {
     const { url, reachable } = await guestInviteUrl(room.roomId, { p2p, format: this.engine.matchFormat?.id });
     // lobby della sfida: codice, link da mandare e i tre passi con lo stato (natpf_versus_ui.js li aggiorna)
     box.innerHTML = `<div class="versus-code"><span>Codice stanza</span><b data-room-code>${room.roomId}</b></div>
-      <p class="versus-how">Manda questo link all’amico: lo apre sul suo computer, sceglie la racchetta e preme «Sono pronto».</p>
+      <p class="versus-how">Manda questo link all’amico: lo apre sul suo computer, collega il telefono e lo prova in campo. Quando è pronto, «Gioca» si accende.</p>
       <div class="versus-link"><a href="${url}" target="_blank" rel="noopener">${url}</a> <button type="button" class="nt-pill-btn" data-copy>Copia link</button></div>
       <ul class="versus-lines" data-versus-lines></ul>
       ${p2p ? '<small class="natpf-p2p-status" data-p2p-status></small>' : ''}

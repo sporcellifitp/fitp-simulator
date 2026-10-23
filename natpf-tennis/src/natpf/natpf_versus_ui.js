@@ -87,11 +87,50 @@ export class NatpfVersusUi {
     modal.querySelector('.sheet-actions')?.insertAdjacentHTML('afterbegin', '<button type="button" class="lobby-ghost" data-versus-leave>Esci</button>');
     modal.querySelector('[data-versus-leave]')?.addEventListener('click', e => { e.stopPropagation(); this.leave(); });
   }
-  // «Sono pronto» (natpf_ui apre prima il telefono se serve): l'host lo vede nella lobby
+  // «Sono pronto»: l'host lo vede nella lobby
   setReady(on = true){
     this.ready = !!on;
     const mc = this.engine.motionController; if (mc) mc.versusReady = this.ready;
     this._paintGuest();
+  }
+  // Pulsante principale del pannello. Con il telefono: QR, e appena il telefono ha i sensori attivi la calibrazione nel
+  // campo d'allenamento, come il Player 1 nel riscaldamento; finita, si è pronti da soli. Prima il P2 calibrava nel
+  // pannello del telefono, senza campo e senza palle: dopo i due gesti chiedeva un «colpetto libero» e due pulsanti
+  // («Conferma la racchetta», «Continua»), e chi non li trovava restava lì con l'host bloccato su «Gioca»
+  primary(){
+    const ui = this.ui, phone = ui.phone;
+    if (this.ready){ this.setReady(false); return; }
+    if (ui.controller !== 'phone' || phone.ready){ this.setReady(true); return; }
+    this.awaitPhone = true;
+    show($('natpf-guest-modal'), false);
+    ui.openPhone();
+  }
+  // telefono collegato con i sensori attivi, dal pannello del telefono: si chiude il pannello e si va in campo
+  _phoneLinked(){
+    const p = this.ui.phone, L = p.state;
+    return p.connected && (L.phone === 'cal' || L.phone === 'ready');
+  }
+  // Calibrazione del P2 nel campo d'allenamento. Il motore del P2 gioca in locale (ruolo del P1, colpi che restano qui,
+  // niente multigiocatore) finché dura; l'host intanto è in lobby e non manda la partita (snapshot «lobby»), e con il P2
+  // non pronto non può farla partire. Alla fine (calDone) tutto torna come prima.
+  startCal(){
+    const E = this.engine, ui = this.ui, mc = E.motionController;
+    if (!ui.training || ui.training.active) return;
+    this.awaitPhone = false;
+    this.local = { role: E.playerRole, multi: E.isMultiplayer, auto: E.autoPlayMode, touched: E.userHasInteracted };
+    E.playerRole = 'p1'; if (mc) mc.localPractice = true;
+    show($('natpf-guest-modal'), false);
+    ui.training.start({ calOnly: true, guest: true });
+  }
+  calDone({ completed = false, skipped = false } = {}){
+    const E = this.engine, mc = E.motionController, was = this.local; this.local = null;
+    if (mc) mc.localPractice = false;
+    if (was){ E.playerRole = was.role; E.isMultiplayer = was.multi; E.autoPlayMode = was.auto; E.userHasInteracted = was.touched; }
+    // calibrazione finita, o «Salta» (modalità semplice: si gioca lo stesso): pronto. Il telefono vero dice «pronto» un
+    // attimo dopo la fine della calibrazione in campo: non lo si aspetta qui (prima il P2 restava non pronto)
+    if (completed || skipped || this.ui.phone.ready) this.setReady(true);
+    this.ui.toast(this.ready ? 'Racchetta pronta ✓ ora aspetta che l’host avvii la partita' : 'Calibrazione interrotta: rifalla dal pannello');
+    this._tickGuest();
   }
   leave(){
     this.setReady(false);
@@ -108,17 +147,28 @@ export class NatpfVersusUi {
   }
   _paintGuest(){
     const st = this.guest, el = document.querySelector('[data-versus-guest]');
-    if (el){ el.textContent = guestText(st, { ready: this.ready, hostName: this.engine.roomStatus?.hostName || 'Player 1' }); el.dataset.state = st; }
+    const phone = this.ui.controller === 'phone' && !this.ui.phone.ready;
+    if (el){ el.textContent = guestText(st, { ready: this.ready, phone, hostName: this.engine.roomStatus?.hostName || 'Player 1' }); el.dataset.state = st; }
     const go = $('natpf-guest-go');
-    if (go){ go.disabled = st !== 'lobby' && st !== 'connecting'; go.textContent = this.ready ? 'Pronto ✓' : 'Sono pronto ✓'; go.classList.toggle('selected', this.ready); }
+    if (go){
+      go.disabled = st !== 'lobby' && st !== 'connecting';
+      const label = this.ready ? 'Pronto ✓' : phone ? 'Collega il telefono ›' : 'Sono pronto ✓';
+      if (go.textContent !== label) go.textContent = label;
+      go.classList.toggle('selected', this.ready);
+    }
     return st;
   }
   _tickGuest(){
     const st = this._paintGuest(), modal = $('natpf-guest-modal');
+    // telefono collegato dal pannello del telefono: in campo per la calibrazione (o pronto, se è già calibrato)
+    if (this.awaitPhone && this._phoneLinked()){
+      this.awaitPhone = false; this.ui.closePhone();
+      if (this.ui.phone.ready) this.setReady(true); else this.startCal();
+    }
     // il pannello resta aperto finché non si gioca; torna se l'host chiude, si perde il collegamento o si torna in lobby.
-    // Non sopra il pannello del telefono o la guida: prima, dopo «Sono pronto» con il telefono da collegare, tornava ogni
-    // 250 ms sopra il QR e lo copriva
-    const pm = this.ui.modal, other = (!!pm && !pm.classList.contains('hidden')) || !!this.ui.onboarding?.isOpen;
+    // Non sopra il pannello del telefono, la guida o la calibrazione in campo: prima, dopo «Sono pronto» con il telefono
+    // da collegare, tornava ogni 250 ms sopra il QR e lo copriva
+    const pm = this.ui.modal, other = (!!pm && !pm.classList.contains('hidden')) || !!this.ui.onboarding?.isOpen || !!this.ui.training?.active;
     if (modal) show(modal, st !== 'playing' && !other);
     if (this._last !== st){
       if (st === 'playing' && this._last) this.ui.toast('Si gioca!');

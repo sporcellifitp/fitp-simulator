@@ -233,13 +233,57 @@ test('1v1: la lobby dell’host riscrive le righe solo quando cambiano (il palli
   assert.ok(writes <= 1, `${writes} scritture in 2 s`);
 });
 
-test('Player 2: dopo «Sono pronto» con il telefono da collegare il pannello d’attesa non copre il QR', async () => {
-  const w = await makeWorld({ controller: 'phone', role: 'p2' }); w.advance(300);
+test('Player 2: «Collega il telefono» apre il QR e il pannello d’attesa non lo copre', async () => {
+  const w = await makeWorld({ controller: 'phone', role: 'p2' });
+  Object.assign(w.link, { connected: false, L: { state: 'waiting', phone: null } }); w.advance(300);
   assert.ok(visible('natpf-guest-modal'));
+  assert.match($('natpf-guest-go').textContent, /Collega il telefono/);
   $('natpf-guest-go').click();
   assert.ok(visible('natpf-phone-modal') && !visible('natpf-guest-modal'));
   w.advance(1500);
   assert.ok(visible('natpf-phone-modal') && !visible('natpf-guest-modal'));
+});
+
+// Player 2 con il telefono (richiesta del 23/10, sera): calibrava nel pannello del telefono, senza campo e senza palle;
+// dopo i due gesti chiedeva un «colpetto libero» e due pulsanti, e chi non li trovava restava lì con l'host bloccato
+const guestPhoneLinked = w => { Object.assign(w.link, { connected: true, L: { state: 'connected', phone: 'cal' } }); w.E.natpfPhone._changed(); };
+test('Player 2: collegato il telefono si calibra nel campo d’allenamento come il Player 1, poi è pronto da solo', async () => {
+  const w = await makeWorld({ controller: 'phone', role: 'p2' });
+  Object.assign(w.link, { connected: false, L: { state: 'waiting', phone: null } }); w.advance(300);
+  const { E, ui, mc, link } = w;
+  // come il telefono vero: «pronto» arriva un attimo dopo la conferma (prima il P2 restava non pronto)
+  const cmd = link.cmd.bind(link);
+  link.cmd = c => { if (c !== 'confirm') return cmd(c); link.cmds.push(c); setTimeout(() => { link.ready = true; link.L.phone = 'ready'; E.natpfPhone._changed(); }, 400); };
+  $('natpf-guest-go').click(); w.advance(500);
+  guestPhoneLinked(w); w.advance(600);
+  // in campo: pannelli chiusi, calibrazione del riscaldamento, motore in locale (ruolo del P1, colpi che restano qui)
+  assert.ok(!visible('natpf-phone-modal') && !visible('natpf-guest-modal'), 'niente pannelli sopra il campo');
+  assert.ok(ui.training.active && ui.training.cal, 'calibrazione in campo');
+  assert.ok(E.playerRole === 'p1' && E.isMultiplayer === false && mc.localPractice === true);
+  assert.ok(!ui.versus.ready && !mc.versusReady, 'non pronto finché calibra: l’host non può far partire la partita');
+  w.advance(2000);
+  assert.ok(!visible('natpf-guest-modal'), 'il pannello d’attesa non torna sopra il campo');
+  // il primo gesto colpisce la palla che aspetta, come nel riscaldamento del Player 1
+  w.cal({ kind: 'step', step: 'still' }); w.cal({ kind: 'step', step: 'swings', want: 'L', idx: 0, total: QUICK_PLAN.length });
+  const z0 = E.ball.pos.z; w.cal({ kind: 'ready', want: 'L' }); w.cal({ kind: 'attempt', ok: true, idx: 0, want: 'L' }); w.advance(1000);
+  assert.ok(E.ball.pos.z < z0 - 3, `palla colpita dal giocatore in campo (z da ${z0.toFixed(1)} a ${E.ball.pos.z.toFixed(1)})`);
+  // calibrazione finita: di nuovo Player 2 nella stanza, pronto senza altri pulsanti
+  calibrate(w); w.cal({ kind: 'done', profile: { hand: 'right' } }); w.advance(3000);
+  assert.ok(!ui.training.active, 'calibrazione chiusa');
+  assert.ok(E.playerRole === 'p2' && E.isMultiplayer === true && !mc.localPractice, 'motore di nuovo del Player 2');
+  assert.ok(ui.versus.ready && mc.versusReady, 'pronto da solo: l’host lo vede nella lobby');
+  assert.ok(visible('natpf-guest-modal') && $('natpf-guest-go').textContent === 'Pronto ✓');
+  assert.ok(!E.autoPlayMode, 'niente dimostrazione sotto il pannello');
+});
+
+test('Player 2: «Salta» nella calibrazione in campo → pronto in modalità semplice, motore di nuovo del Player 2', async () => {
+  const w = await makeWorld({ controller: 'phone', role: 'p2' }); w.advance(300);
+  const { E, ui, mc } = w;
+  $('natpf-guest-go').click(); w.advance(600);
+  assert.ok(ui.training.active && E.playerRole === 'p1');
+  ui.training.skip(); w.advance(300);
+  assert.ok(!ui.training.active && E.playerRole === 'p2' && E.isMultiplayer && !mc.localPractice);
+  assert.ok(ui.versus.ready && E.natpfPhone.ready && E.natpfPhone.simple);
 });
 
 // --- collegamento del telefono (audit del 20/10) ---

@@ -27,6 +27,9 @@ test('intro: completa la prima volta, breve nella stessa sessione, spenta con ?i
   assert.equal(introMode({ search: '', seen: true }), 'short');
   assert.equal(introMode({ search: '?intro=0' }), 'off');
   assert.equal(introMode({ search: '?diag=1' }), 'off');
+  // Player 2 dall'invito di una sfida: dritto nella stanza
+  assert.equal(introMode({ search: '?room=AT-AB12&role=p2&net=p2p' }), 'off');
+  assert.equal(introMode({ search: '?room=AT-AB12' }), 'full');
   assert.ok(INTRO_MS.full > INTRO_MS.short);
 });
 

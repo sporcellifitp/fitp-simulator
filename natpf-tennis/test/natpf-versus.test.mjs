@@ -31,6 +31,7 @@ test('Player 2: stato chiaro in ogni fase (collegamento, lobby, partita, perso, 
   assert.equal(guestState({ linked: true, closed: true }), 'closed');
   assert.equal(guestState({ invalid: true }), 'invalid');
   assert.match(guestText('lobby'), /Sono pronto/); assert.match(guestText('lobby', { ready: true }), /avvia/);
+  assert.match(guestText('lobby', { phone: true }), /Collega il telefono.*in campo/);
   assert.match(guestText('invalid'), /link nuovo/); assert.match(guestText('closed'), /nuovo link/);
 });
 

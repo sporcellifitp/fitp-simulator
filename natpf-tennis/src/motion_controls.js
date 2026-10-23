@@ -146,7 +146,9 @@ export class MotionController {
       s = this._inferShotTypeFromKinematics({ shotType: e.shotType, dirY: n, pitch: h, roll: p, speed: i }),
       l = {
         type: "swing",
-        role: e.role || this.role,
+        // NATPF 1v1: calibrazione del Player 2 nel campo d'allenamento (localPractice, natpf_versus_ui.js): i colpi restano
+        // su questo computer, con il ruolo del P1, e non vanno all'host
+        role: e.role || (this.localPractice ? "p1" : this.role),
         source: e.source || "manual",
         side: f,
         shotType: s,
@@ -171,7 +173,7 @@ export class MotionController {
         shotType: s,
         source: l.source,
       }),
-      this.role === "p2" && e.role !== "p1")
+      this.role === "p2" && e.role !== "p1" && !this.localPractice)
     )
       return (
         l.source !== "phone" &&
@@ -227,7 +229,7 @@ export class MotionController {
       f = Number(e.roll ?? this.phoneState.orientation.roll ?? 0),
       s = {
         type: "toss",
-        role: e.role || this.role,
+        role: e.role || (this.localPractice ? "p1" : this.role),
         source: e.source || "manual",
         side: n,
         shotType: h,
@@ -249,7 +251,7 @@ export class MotionController {
         shotType: "toss",
         source: s.source,
       }),
-      this.role === "p2" && e.role !== "p1")
+      this.role === "p2" && e.role !== "p1" && !this.localPractice)
     )
       return (
         s.source !== "phone" &&

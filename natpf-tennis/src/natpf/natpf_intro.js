@@ -1,7 +1,8 @@
 // Intro all'avvio, come l'accensione di un gioco su console: marchi (ESPORTS FITP «presenta», Nitto ATP Finals), titolo
 // NATPF Simulator con la palla che lo attraversa, poi «Premi un tasto per iniziare». Un tasto, un clic
 // o un tocco durante l'animazione la porta alla fine; alla fine fa partire il menu (e sblocca l'audio del browser,
-// che vuole un gesto). La seconda volta nella stessa sessione si vede solo il titolo. ?intro=0 la salta (prove).
+// che vuole un gesto). La seconda volta nella stessa sessione si vede solo il titolo. ?intro=0 la salta (prove), e
+// non c'è per il Player 2 che apre l'invito di una sfida.
 const $ = id => document.getElementById(id);
 export const INTRO_KEY = 'natpf-tennis.intro';
 // durata dell'animazione completa (ms) e di quella breve (sessione già vista): allineate a natpf-intro.css
@@ -9,6 +10,9 @@ export const INTRO_MS = { full: 5200, short: 1500 };
 export function introMode({ search = '', seen = false } = {}){
   const q = new URLSearchParams(search);
   if (q.get('intro') === '0' || q.get('diag') === '1') return 'off';
+  // Player 2 arrivato con il link di invito di una sfida: dritto nella stanza (prima l'intro con «Premi un tasto» copriva
+  // il pannello della stanza)
+  if ((q.get('role') || '').toLowerCase() === 'p2' && q.get('room')) return 'off';
   return seen ? 'short' : 'full';
 }
 

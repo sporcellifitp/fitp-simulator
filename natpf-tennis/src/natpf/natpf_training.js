@@ -80,8 +80,9 @@ export class NatpfTraining {
   get phoneCal(){ return this.ui.controller === 'phone' && !this.ui.phone.ready; }
   // calOnly: solo la calibrazione del telefono in campo (prima di una sfida), poi si torna a chi l'ha chiesta
   // drills/diag: esercizi su misura e richiami della prova guidata della diagnostica (onFeed a ogni palla, onEnd)
-  start({ calOnly = false, drills = null, diag = null } = {}){
-    this.calOnly = calOnly;
+  // guest: calibrazione del Player 2 di una sfida tra due computer: alla fine si torna alla stanza (natpf_versus_ui.js)
+  start({ calOnly = false, drills = null, diag = null, guest = false } = {}){
+    this.calOnly = calOnly; this.guest = guest;
     const E = this.engine;
     this.drills = calOnly ? [] : drills || drillsFor(this.ui.controller);
     this.diagRun = diag;
@@ -325,6 +326,14 @@ export class NatpfTraining {
     E._applyDifficultyTuning(this.prevDifficulty || 'casual');
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
     E._syncScoreboardHUD(); E.hud.hideCenterBanner();
+    // Player 2: niente dimostrazione né menu, si torna al pannello della stanza ad aspettare la partita dell'host
+    if (this.guest){
+      this.guest = false;
+      if (this.prevFormat) E.setMatchFormat?.(this.prevFormat);
+      this.ui.versus?.calDone({ completed, skipped, calibrated });
+      this.ui._syncPause?.();
+      return;
+    }
     E._setupMidRallyShowcase({}); E.autoPlayMode = true; E.userHasInteracted = false;
     // formato della partita scelto prima del riscaldamento (sempre in singolare) e pausa ricalcolata: prima il gioco
     // poteva restare in pausa dopo il reset del chiosco

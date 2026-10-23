@@ -29,7 +29,7 @@ export function hostLobbyLines(state, { roomId = '', p2Name = 'Player 2' } = {})
   return [
     { id: 'room', state: roomId ? 'ok' : 'on', text: roomId ? `Stanza creata · codice ${roomId}` : 'Creo la stanza…' },
     { id: 'joined', state: state === 'waiting' ? 'on' : 'ok', text: state === 'waiting' ? `Manda il link a ${p2Name}: lo apre sul suo computer` : `${p2Name} è entrato nella stanza` },
-    { id: 'ready', state: state === 'ready' ? 'ok' : state === 'joined' ? 'on' : '', text: state === 'ready' ? `${p2Name} è pronto` : `${p2Name} sceglie la racchetta e preme «Sono pronto»` },
+    { id: 'ready', state: state === 'ready' ? 'ok' : state === 'joined' ? 'on' : '', text: state === 'ready' ? `${p2Name} è pronto` : `${p2Name} collega la racchetta e la prova in campo` },
   ];
 }
 export function startLabel(state){
@@ -46,12 +46,13 @@ export function guestState({ linked = false, invalid = false, closed = false, ho
   if (lastSnapshotAgeMs != null && lastSnapshotAgeMs > VERSUS.lostMs) return 'lost';
   return hostLobby ? 'lobby' : 'playing';
 }
-export function guestText(state, { ready = false, hostName = 'Player 1' } = {}){
+// phone: con il telefono ancora da collegare o calibrare (il pulsante porta al QR e poi al campo d'allenamento)
+export function guestText(state, { ready = false, phone = false, hostName = 'Player 1' } = {}){
   switch (state){
     case 'invalid': return 'Questo link non porta a nessuna stanza: chiedi a chi ti ha invitato un link nuovo.';
     case 'closed': return `${hostName} ha chiuso la stanza. Chiedi un nuovo link per giocare ancora.`;
     case 'lost': return `Collegamento con ${hostName} perso: riprovo da solo. Se non torna, chiedi un nuovo link.`;
-    case 'lobby': return ready ? `Sei pronto ✓ ${hostName} avvia la partita.` : 'Collegato ✓ Scegli racchetta e visuale, poi premi «Sono pronto».';
+    case 'lobby': return ready ? `Sei pronto ✓ ${hostName} avvia la partita.` : phone ? 'Collegato ✓ Collega il telefono: lo calibri in campo con il lanciapalle, poi sei pronto.' : 'Collegato ✓ Scegli la racchetta e premi «Sono pronto».';
     case 'playing': return 'Partita in corso.';
     default: return `Mi collego alla stanza di ${hostName}…`;
   }
