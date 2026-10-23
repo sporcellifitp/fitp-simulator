@@ -32,6 +32,7 @@ import * as NS from "./natpf/natpf_skill.js";
 import * as NL from "./natpf/natpf_legend.js";
 import * as NO from "./natpf/natpf_stroke_outcome.js";
 import * as NI from "./natpf/natpf_impact.js";
+import * as NPC from "./natpf/natpf_point_call.js";
 import { NatpfBodyFollow } from "./natpf/webcam_body_follow.js";
 // NATPF: sfida tra due computer anche senza server (sito statico): relay nel browser dell'host e WebRTC
 import { installNatpfP2p } from "./natpf/natpf_p2p.js";
@@ -2965,10 +2966,10 @@ export class NatpfTennisEngine {
       ) {
         const p = this.score.playerGames > this.score.opponentGames;
         this.phase = "MATCH_OVER";
-        const g = this.isMultiplayer ? (p ? "P1 WINS!" : "P2 WINS!") : p ? "YOU WIN!" : "Game!",
-          c = `Final Games: ${this.score.playerGames} - ${this.score.opponentGames}`;
-        this._recordBannerBroadcast(g, "style-gold", c),
-          this.hud.showCenterBanner(g, { style: "style-gold", subText: c, durationMs: 2600 }),
+        // NATPF: chi ha vinto la partita, dal lato di chi guarda (natpf_point_call.js; prima «Game!» se vinceva la CPU)
+        const gc = NPC.gameCall({ winner: p ? "player" : "opponent", ...NPC.callContext(this), games: { player: this.score.playerGames, opponent: this.score.opponentGames }, match: !0 });
+        this._recordBannerBroadcast(gc.text, gc.style, gc.subText, { kind: "match", winner: p ? "player" : "opponent", games: { player: this.score.playerGames, opponent: this.score.opponentGames }, voice: "Game" }),
+          this.hud.showCenterBanner(gc.text, { style: gc.style, subText: gc.subText, durationMs: 2600 }),
           this.audioEngine &&
             (this.audioEngine.playMusicForState("victory"),
             this.audioEngine.announceScore(p ? "Game Set and Match" : "Game")),
@@ -2985,28 +2986,33 @@ export class NatpfTennisEngine {
           }, 1800);
         return;
       }
-      const l = `Games: ${this.score.playerGames} - ${this.score.opponentGames}`;
-      this._recordBannerBroadcast("Game!", "style-gold", l),
-        this.hud.showCenterBanner("Game!", { style: "style-gold", subText: l, durationMs: 1650 }),
+      // NATPF: di chi è il game, dal lato di chi guarda (natpf_point_call.js)
+      const gw = a > s ? "player" : "opponent", gg = { player: this.score.playerGames, opponent: this.score.opponentGames },
+        gl = NPC.gameCall({ winner: gw, ...NPC.callContext(this), games: gg });
+      this._recordBannerBroadcast(gl.text, gl.style, gl.subText, { kind: "game", winner: gw, games: gg, voice: "Game" }),
+        this.hud.showCenterBanner(gl.text, { style: gl.style, subText: gl.subText, durationMs: 1800 }),
         this.audioEngine && this.audioEngine.announceScore("Game");
       return;
     }
     this._syncScoreboardHUD();
     // NATPF: servizio vincente non toccato dall'avversario = ace (banner e voce)
     t === "Nice Shot!" && this.ball.rallyStrokeCount === 1 && (t = "Ace!");
-    const { bannerScoreText: n } = this._formatCurrentScore(),
-      h = t === "Out" || t === "Net" ? "style-fault" : "style-score";
-    this._recordBannerBroadcast(n, h, t || ""),
-      this.hud.showCenterBanner(n, { style: h, subText: t || "", durationMs: 1450 }),
+    // NATPF: in grande chi vince il punto, sotto chi ha sbagliato (o perché) e il punteggio dal proprio lato
+    // (natpf_point_call.js). Prima il punteggio con «Fuori» sotto: non si capiva chi avesse sbagliato
+    const { bannerScoreText: n, playerScoreText: ps, opponentScoreText: os } = this._formatCurrentScore(),
+      sc = { player: ps, opponent: os },
+      pc = NPC.pointCall({ winner: e, why: t, ...NPC.callContext(this), score: sc });
+    this._recordBannerBroadcast(pc.text, pc.style, pc.subText, { kind: "point", winner: e, why: t, score: sc, voice: n }),
+      this.hud.showCenterBanner(pc.text, { style: pc.style, subText: pc.subText, durationMs: 1800 }),
       this.audioEngine &&
         (t === "Out" || t === "Net" || t === "Nice Shot!" || t === "Ace!"
           ? (this.audioEngine.playVoiceCallout(t, { clearQueue: !0 }),
             this.audioEngine.announceScore(n, { delayMs: 680 }))
           : this.audioEngine.announceScore(n));
   }
-  _recordBannerBroadcast(e, t = "style-score", i = "") {
+  _recordBannerBroadcast(e, t = "style-score", i = "", call = null) {
     (this.bannerSeq += 1),
-      (this.lastBannerBroadcast = { seq: this.bannerSeq, text: e, style: t, subText: i });
+      (this.lastBannerBroadcast = { seq: this.bannerSeq, text: e, style: t, subText: i, ...(call ? { call } : {}) });
   }
   _broadcastMultiplayerSnapshot() {
     if (!this._versusInMatch()) {
@@ -3177,18 +3183,21 @@ export class NatpfTennisEngine {
           n.banner.seq &&
           n.banner.seq !== this.bannerSeq &&
           ((this.bannerSeq = n.banner.seq),
-          this.hud.showCenterBanner(n.banner.text, {
-            style: n.banner.style || "style-score",
-            subText: n.banner.subText || "",
-            durationMs: 1550,
+          // NATPF: messaggio ricomposto dal lato del Player 2 (chi vince il punto e perché, natpf_point_call.js)
+          (n.natpfCall = NPC.callFromBroadcast(this, n.banner)),
+          this.hud.showCenterBanner(n.natpfCall.text, {
+            style: n.natpfCall.style || "style-score",
+            subText: n.natpfCall.subText || "",
+            durationMs: 1700,
           }),
           this.audioEngine))
       ) {
-        const r = n.banner.subText || "";
+        // NATPF: voce dal motivo e dal punteggio dell'host (il testo del messaggio ora è «Punto tuo»…)
+        const r = n.banner.call?.why || n.banner.subText || "", vt = n.banner.call?.voice || n.banner.text;
         r === "Out" || r === "Net" || r === "Nice Shot!" || r === "Ace!" // NATPF: anche l'ace
           ? (this.audioEngine.playVoiceCallout(r, { clearQueue: !0 }),
-            this.audioEngine.announceScore(n.banner.text, { delayMs: 680 }))
-          : this.audioEngine.announceScore(n.banner.text);
+            this.audioEngine.announceScore(vt, { delayMs: 680 }))
+          : this.audioEngine.announceScore(vt);
       }
     }
   }

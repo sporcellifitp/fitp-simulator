@@ -282,7 +282,9 @@ body {
 .center-banner-text.style-gold,
 .center-banner-text.style-start,
 .center-banner-text.style-score,
-.center-banner-text.style-fault {
+.center-banner-text.style-fault,
+.center-banner-text.style-won,
+.center-banner-text.style-lost {
   font-family: var(--hud-font);
   font-size: clamp(42px, 6vw, 76px);
   font-weight: 800;
@@ -321,6 +323,17 @@ body {
 }
 .center-banner-text.style-fault {
   color: var(--hud-pink);
+}
+/* fine del punto (natpf_point_call.js): in grande chi vince il punto, verde se è il proprio e rosa se è dell'avversario;
+   sotto chi ha sbagliato o perché, e il punteggio dal proprio lato */
+.center-banner-text.style-won {
+  color: var(--hud-ok);
+}
+.center-banner-text.style-lost {
+  color: var(--hud-pink);
+}
+.center-banner-text.style-won + .center-banner-sub {
+  background: #0f7a3c;
 }
 .center-banner-sub {
   margin-top: 10px;

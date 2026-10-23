@@ -2,6 +2,8 @@
 // motore veri, telefono simulato che fa i gesti):
 //   A. dopo il servizio della CPU chi risponde non corre verso la rete: prende la palla da fondo campo (prima correva a
 //      5–6 m dalla rete a ogni servizio); la CPU che ha servito torna al centro (Casual e Pro).
+//   B. a fine punto il messaggio dice chi vince il punto (verde il proprio, rosa della CPU) e chi ha sbagliato, con il
+//      punteggio dal proprio lato (prima: il punteggio con «Fuori» sotto, senza dire di chi).
 // Porte 3183 (gioco) e 9183 (PeerJS).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-gameplay-23-10.mjs
 import { spawn } from 'node:child_process';
@@ -10,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
-import { launch, page, check, summary } from './th.mjs';
+import { launch, page, check, summary, SP } from './th.mjs';
 import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
@@ -58,17 +60,21 @@ try {
   // partita vera contro la CPU, livello DIFF
   await game.evaluate(diff => {
     const E = __natpfTennis; E.natpfUi.onboarding?.close?.(); E.hud.hideTitleModal(); E.autoPlayMode = false; E.userHasInteracted = true;
-    E._applyDifficultyTuning(diff); E.matchConfig.difficulty = diff; E.startNewMatch({ showStartBanner: false });
+    E._applyDifficultyTuning(diff); E.matchConfig.difficulty = diff; E.matchConfig.gamesToWin = 4; E.startNewMatch({ showStartBanner: false });
     E.natpfPhone.lastPhase = 'play'; E.natpfPhone.link.send({ t: 'ph', ph: 'play' });
-    window.__strikes = 0;
+    window.__strikes = 0; window.__calls = [];
+    // fine del punto: chi vince e perché (motore) e il messaggio a schermo, dal DOM
+    const award = E._awardPoint.bind(E);
+    E._awardPoint = (who, why) => { const r = award(who, why); const T = document.getElementById('center-banner-text'), S = document.getElementById('center-banner-sub');
+      __calls.push({ who, why, text: T?.textContent, sub: S?.classList.contains('hidden') ? '' : S?.textContent, cls: T?.className, score: [E.score.playerPoints, E.score.opponentPoints, E.score.playerGames, E.score.opponentGames] }); return r; };
     const strike = E._attemptPlayerRallyStrike.bind(E);
     E._attemptPlayerRallyStrike = (e, t) => { const r = strike(e, t); if (r && !t) window.__strikes++; return r; };
   }, DIFF);
   // il robot: gesto circa 0,12 s prima del punto d'impatto del piano, dal lato del piano
-  let lastPlan = null;
+  let lastPlan = null, idle = false;
   const robot = async () => {
     const s = await game.evaluate(() => { const E = __natpfTennis, P = E.natpfPlan; return { phase: E.phase, last: E.ball.lastHitter, left: P ? P.at + P.t - E.elapsedTime : null, at: P ? P.at : null, side: P ? P.side : 1 }; });
-    if (s.phase === 'RALLY' && s.last === 'opponent' && s.left != null && s.at !== lastPlan && s.left < .16){ lastPlan = s.at; await phone.evaluate(sign => { __up.swing(sign).then(() => __up.still(300)); }, s.side >= 0 ? 1 : -1); }
+    if (!idle && s.phase === 'RALLY' && s.last === 'opponent' && s.left != null && s.at !== lastPlan && s.left < .16){ lastPlan = s.at; await phone.evaluate(sign => { __up.swing(sign).then(() => __up.still(300)); }, s.side >= 0 ? 1 : -1); }
     return s;
   };
 
@@ -95,6 +101,28 @@ try {
     serves.map(s => `da ${fmt(s.z0)} al più a ${fmt(s.minZ)}, colpo a ${fmt(s.contactZ)}`).join(' · '));
   // (a Leggenda la posizione della CPU la decide il suo modello, natpf_legend.js)
   if (DIFF !== 'leggenda') check('   la CPU che ha servito torna al centro', serves.every(s => s.cpuX != null && Math.abs(s.cpuX) < .05), serves.map(s => `${fmt(s.cpuX0)} → ${fmt(s.cpuX)}`).join(' · '));
+  /* B. messaggio di fine punto: qualche punto in più, poi il confronto con chi ha vinto davvero */
+  for (let k = 0; k < 8; k++){
+    idle = k >= 6;   // gli ultimi due punti il robot non colpisce: punto della CPU
+    await game.evaluate(k => { const E = __natpfTennis; E.score.server = k % 2 ? 'player' : 'opponent'; E.natpfPaused = false; E._setupPointServe({ showBanner: false }); window.__pt = __calls.length; }, k);
+    const t0 = Date.now();
+    while (Date.now() - t0 < 25000){
+      const s = await robot();
+      // al servizio di chi gioca: lancio e colpo dal motore (come il banco), qui conta la fine del punto
+      await game.evaluate(() => { const E = __natpfTennis; if (E.score.server !== 'player') return;
+        if (E.phase === 'SERVE_STANCE' && E.phaseTimer > .6) E._handleUserTossInput({});
+        else if (E.phase === 'SERVE_TOSS' && E.ball.vel.y < 0 && E.ball.pos.y < 2.6) E._handleUserSwingInput({ source: 'test', speed: 1.2, dirX: 0 }); });
+      if (await game.evaluate(() => __calls.length > __pt)) break;
+      await game.waitForTimeout(10);
+    }
+    if (k === 0){ await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/fine-punto.png` }).catch(() => {}); }
+  }
+  const calls = await game.evaluate(() => __calls);
+  const okCall = c => (c.who === 'player' ? c.text === 'Punto tuo' && /style-won/.test(c.cls) : c.text === 'Punto della CPU' && /style-lost/.test(c.cls))
+    && (!/^(Out|Net)$/.test(c.why) || (c.who === 'player' ? /^Errore della CPU/.test(c.sub) : /^Errore tuo/.test(c.sub)));
+  const points = calls.filter(c => c.text && !/^Game|^Partita/.test(c.text));
+  check('B. fine del punto: in grande chi vince (verde il proprio, rosa della CPU), sotto chi ha sbagliato e il punteggio', points.length >= 7 && points.every(okCall) && points.some(c => c.who === 'player') && points.some(c => c.who === 'opponent'),
+    calls.map(c => `${c.who}/${c.why} → «${c.text}» «${c.sub}»`).join(' · ').slice(0, 900));
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));
 } finally {
   await B.close(); stop();
