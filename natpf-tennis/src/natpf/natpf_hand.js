@@ -38,7 +38,11 @@ export class NatpfHand {
     const mc = engine.motionController;
     // webcam: la mano che impugna (per scegliere quale seguire) e il lancio di palla solo quando il gioco lo accetta
     // (al proprio servizio): nello scambio la mano che sale di scatto segue le regole dei colpi, non diventa un pallonetto
-    if (mc){ mc.handPreference = this.hand; mc.canToss = () => engine.phase === 'TITLE' || (engine.phase === 'SERVE_STANCE' && isLocalServing(engine)); }
+    if (mc){
+      mc.handPreference = this.hand; mc.canToss = () => engine.phase === 'TITLE' || (engine.phase === 'SERVE_STANCE' && isLocalServing(engine));
+      // cambio del modello delle mani (ricaricarlo ferma il gioco per un attimo): non con un punto in gioco
+      mc.canReload = () => engine.phase !== 'RALLY' && engine.phase !== 'SERVE_TOSS';
+    }
     const emit = mc?._emitSwing?.bind(mc);
     if (emit) mc._emitSwing = (e0 = {}) => {
       // la mano viaggia con il colpo: il colpo del Player 2 arriva all'host con la mano di chi gioca (1v1 tra due computer)

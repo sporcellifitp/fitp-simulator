@@ -4,7 +4,7 @@
 // l'allineamento della webcam (si vede il gesto e si fa combaciare con il suo colpo). Nessuna risorsa esterna.
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // eventi che vanno nella pagina (gli altri restano in eventi.jsonl): palla solo ogni 4 campioni (~15 al secondo)
-const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'tel.scartato', 'tel.dispositivo', 'webcam.evento', 'video', 'atteso', 'marca', 'avviso', 'sessione.fine']);
+const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'tel.scartato', 'tel.dispositivo', 'webcam.evento', 'webcam.camera', 'webcam.carico', 'video', 'atteso', 'marca', 'avviso', 'sessione.fine']);
 // filtro di un evento alla volta (anche nel worker, mentre legge il registro a righe): l'evento, la palla ridotta o null
 export function viewerFilter(){
   let i = 0;
@@ -81,6 +81,7 @@ const desc = e => ({
   fase: () => 'fase ' + e.a, tentativo: () => 'tentativo: dz ' + e.dz + ' m · correzione ' + e.shift + ' m · ' + (e.colpito ? 'colpita' : 'non colpita'),
   'tel.stato': () => 'telefono: ' + e.collegamento + ' / ' + (e.telefono || '') + (e.visibile === false ? ' · pagina nascosta' : '') + (e.schermo ? ' · schermo ' + e.schermo : ''),
   'tel.cal': () => 'calibrazione: ' + e.kind + (e.step ? ' ' + e.step : '') + (e.ok != null ? (e.ok ? ' ok' : ' no') : ''), 'webcam.evento': () => 'webcam: ' + e.tipo + ' ' + (e.side || '') + ' ' + (e.shotType || ''),
+  'webcam.camera': () => 'webcam accesa: ' + (e.ottenuto ? e.ottenuto.w + '×' + e.ottenuto.h + ' a ' + (e.ottenuto.fps ?? '?') + ' fps' : '') + ', modello ' + (e.livello || ''), 'webcam.carico': () => 'webcam: modello ' + e.da + ' → ' + e.a + ' (inferenza ' + e.p50 + ' ms)',
   video: () => 'video ' + e.file + ' ' + e.stato, sessione: () => 'inizio sessione', 'sessione.fine': () => 'fine sessione',
 }[e.k] || (() => e.k))();
 function list(){

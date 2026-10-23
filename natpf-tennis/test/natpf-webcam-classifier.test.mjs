@@ -272,23 +272,34 @@ test('diagnostica (onTrack): un richiamo per fotogramma elaborato e uno per colp
   assert.doesNotThrow(() => f2._processWebcamFrame());
 });
 
-test('flusso ottico di riserva: con la mano persa per il mosso il colpo resta; solo flusso: riconosciuto; passanti: niente', () => {
+test('flusso ottico di riserva: con la mano persa per il mosso il colpo resta; senza il modello delle mani il solo flusso è riconosciuto; passanti: niente', () => {
   let seed = 40;
   for (const side of ['FH', 'BH']) for (const T of [.18, .3]){
     const pathFn = sweep({ dir: side === 'FH' ? -1 : 1, dS: .45, ratio: 0, aspect: .75, T, curve: 1, yMid: .5 });
-    for (const [blurLo, blurHi] of [[8, 20], [-2, -1]]){
-      const r = runDropout(MC, { pathFn, T, seed: seed++, exposure: 1/30, blurLo, blurHi, tracker: tracker() });
+    // mano persa per il mosso (il modello c'è); modello delle mani non disponibile (solo flusso)
+    for (const [blurLo, blurHi, model] of [[8, 20, true], [-2, -1, false]]){
+      const r = runDropout(MC, { pathFn, T, seed: seed++, exposure: 1/30, blurLo, blurHi, model, tracker: tracker() });
       const labels = r.events.map(e => engineView(e, 'right').label);
       assert.ok(labels.length === 1 && labels[0].startsWith(side + '·'), `${side} T ${T} mosso ${blurLo}: ${labels}`);
     }
   }
-  // nessuna mano vista: il flusso conta solo nella zona centrale; un passante sul bordo dell'immagine non fa colpi
-  const r = runDropout(MC, { pathFn: () => ({ S: .5, y: .55 }), T: 2.5, seed: 3, blurLo: -2, blurHi: -1, passante: t => ({ S: .04 + .03*Math.sin(4*t), y: .45 }), tracker: tracker() });
+  // solo flusso: conta solo nella zona centrale; un passante sul bordo dell'immagine non fa colpi
+  const r = runDropout(MC, { pathFn: () => ({ S: .5, y: .55 }), T: 2.5, seed: 3, blurLo: -2, blurHi: -1, model: false, passante: t => ({ S: .04 + .03*Math.sin(4*t), y: .45 }), tracker: tracker() });
   assert.equal(r.events.length, 0, JSON.stringify(r.events));
   // ... e uno che attraversa la zona centrale camminando (moto lungo e uniforme, non uno swing)
   for (const speed of [.35, .6, 1]){
-    const c = runDropout(MC, { pathFn: () => ({ S: .55, y: .55 }), T: 2.5, seed: 9, blurLo: -2, blurHi: -1, passante: t => ({ S: .05 + speed*t, y: .45 }), tracker: tracker() });
+    const c = runDropout(MC, { pathFn: () => ({ S: .55, y: .55 }), T: 2.5, seed: 9, blurLo: -2, blurHi: -1, model: false, passante: t => ({ S: .05 + speed*t, y: .45 }), tracker: tracker() });
     assert.equal(c.events.length, 0, `passante a ${speed}: ${JSON.stringify(c.events)}`);
+  }
+});
+
+test('mano mai vista o persa a lungo con il modello delle mani attivo: nessun colpo dal flusso ottico (richiesta del 23/10)', () => {
+  // prima: con la mano che il modello non trovava mai, il flusso ottico faceva colpi da qualunque movimento al centro
+  let seed = 70;
+  for (const side of ['FH', 'BH']) for (const T of [.18, .3]){
+    const pathFn = sweep({ dir: side === 'FH' ? -1 : 1, dS: .45, ratio: 0, aspect: .75, T, curve: 1, yMid: .5 });
+    const r = runDropout(MC, { pathFn, T, seed: seed++, exposure: 1/30, blurLo: -2, blurHi: -1, model: true, tracker: tracker() });
+    assert.equal(r.events.length, 0, `${side} T ${T}: ${JSON.stringify(r.events.map(e => e.src))}`);
   }
 });
 

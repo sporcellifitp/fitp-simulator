@@ -67,8 +67,50 @@ export function timingDirection(t){
 // colpo richiesto nella prova guidata: «normale» vale per dritto e rovescio piatti o arrotati
 const NORMAL = new Set(['topspin', 'flat', 'drive', 'normale']);
 export const sameShot = (want, got) => (want === 'normale' ? NORMAL.has(String(got || '').toLowerCase()) : String(want) === String(got || '').toLowerCase());
+// Webcam: camera chiesta e ottenuta, ritmo misurato al secondo (camera, inferenza, età del dato, thread occupato) e
+// livelli del modello delle mani, anche separati per livello (confronto sullo stesso computer)
+function webcamRhythm(cams, secs, changes){
+  const out = {};
+  const cam = cams.at(-1);
+  if (cam) out.camera = { chiesto: cam.chiesto ?? null, ottenuto: cam.ottenuto ?? null, nome: cam.nome ?? null, richiamiFotogrammi: cam.richiamiFotogrammi ?? null };
+  const live = secs.filter(s => (s.fps || 0) > 0 || (s.inferenze || 0) > 0);
+  if (live.length){
+    const sum = k => live.reduce((a, s) => a + (Number.isFinite(s[k]) ? s[k] : 0), 0);
+    const part = list => ({
+      secondi: list.length,
+      fpsCamera: { p5: r1(pct(list.map(s => s.fps), .05)), p50: r1(pct(list.map(s => s.fps), .5)) },
+      inferenzeAlSecondo: r1(pct(list.map(s => s.inferenzeAlSecondo), .5)),
+      inferenzaMs: { p50: r1(pct(list.map(s => s.inferenzaP50), .5)), p95: r1(pct(list.map(s => s.inferenzaP95), .95)), max: r1(maxOf(list.map(s => s.inferenzaMax))) },
+      caricoPercento: { p50: r1(pct(list.map(s => s.caricoPercento), .5)), max: r1(maxOf(list.map(s => s.caricoPercento))) },
+      etaDatoMs: { p50: r1(pct(list.map(s => s.etaP50), .5)), max: r1(maxOf(list.map(s => s.etaMax))) },
+    });
+    Object.assign(out, part(live), {
+      intervalloCameraMsP95: r1(pct(live.map(s => s.intervalloP95), .5)), bucoCameraMs: r1(maxOf(live.map(s => s.buco))),
+      fotogrammiSenzaInferenza: sum('senzaInferenza'), richiamiPersiDalBrowser: sum('persiDalBrowser'),
+    });
+    const levels = [...new Set(live.map(s => s.livello).filter(Boolean))];
+    if (levels.length) out.perLivello = Object.fromEntries(levels.map(l => [l, part(live.filter(s => s.livello === l))]));
+  }
+  // cambi decisi dalla misura, con l'istante in cui il modello nuovo è stato caricato (fuori dai punti)
+  const decided = changes.filter(c => !c.applicato), applied = changes.filter(c => c.applicato);
+  if (decided.length || cam) out.livello = { iniziale: decided[0]?.da ?? cam?.livello ?? null, finale: decided.at(-1)?.a ?? cam?.livello ?? null,
+    cambi: decided.map(c => ({ t: c.t, da: c.da, a: c.a, p50: c.p50, caricatoT: applied.find(x => x.a === c.a && x.t >= c.t)?.t ?? null })) };
+  return out;
+}
+// Stati della mano (webcam.stato: durata dello stato finito): secondi per stato, perdite (stato «persa») con la loro
+// durata, riprese, pause della partita per la mano persa o la camera ferma
+function webcamStates(changes, pauses){
+  if (!changes.length && !pauses.length) return {};
+  const secs = {}, lost = [];
+  for (const c of changes){
+    if (!c.da || !Number.isFinite(c.ms)) continue;
+    secs[c.da] = r1((secs[c.da] || 0) + c.ms/1000);
+    if (c.da === 'persa') lost.push(c.ms);
+  }
+  return { statiMano: { secondi: secs, perse: count(changes, c => c.a === 'persa'), persaMs: dist(lost), riprese: count(changes, c => c.a === 'ripresa') }, pause: pauses.length ? tally(pauses, p => p.motivo || '?') : null };
+}
 // tipi di evento che le metriche leggono: l'analisi a righe (diag_analysis.js) tiene in memoria solo questi
-export const METRIC_KINDS = new Set(['tel.colpo', 'tel.orologio', 'tel.stato', 'tel.link', 'tel.scartato', 'tel.prep', 'tel.dispositivo', 'webcam.frame', 'webcam.evento', 'prestazioni',
+export const METRIC_KINDS = new Set(['tel.colpo', 'tel.orologio', 'tel.stato', 'tel.link', 'tel.scartato', 'tel.prep', 'tel.dispositivo', 'webcam.frame', 'webcam.evento', 'webcam.camera', 'webcam.ritmo', 'webcam.carico', 'webcam.stato', 'webcam.pausa', 'tel.pausa', 'prestazioni',
   'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'punto', 'rimbalzo', 'tentativo', 'atteso', 'avviso', 'video', 'marca']);
 // ms dal rimbalzo della palla dell'avversario al colpo di chi gioca qui (evento racchetta entro 1,5 s, prima di un altro
 // rimbalzo o di un punto)
@@ -143,8 +185,8 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
   }
 
   // ---- webcam ----
-  const frames = by('webcam.frame'), wev = by('webcam.evento');
-  if (frames.length || wev.length){
+  const frames = by('webcam.frame'), wev = by('webcam.evento'), wcam = by('webcam.camera'), writ = by('webcam.ritmo'), wcar = by('webcam.carico'), wst = by('webcam.stato');
+  if (frames.length || wev.length || writ.length || wst.length){
     let perse = 0, persaDa = null, persaMs = 0, prima = null;
     // colpo anticipato (event, quello che il gioco usa) e conferma alla fine del gesto (confirm, solo per la diagnostica):
     // quanto spesso coincidono. È coerenza, non precisione: la precisione si misura solo con la prova guidata
@@ -161,6 +203,8 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
       piuManiPercento: frames.length ? r1(100*count(frames, f => (f.hands || 0) > 1)/frames.length) : null,
       perdite: perse, perditeS: r1(persaMs/1000), eventi: count(wev, e => e.tipo === 'event'),
       conferme: coppie.length ? { n: coppie.length, latoUgualePercento: r1(100*count(coppie, ([a, b]) => a.side === b.side)/coppie.length), tipoUgualePercento: r1(100*count(coppie, ([a, b]) => a.shotType === b.shotType)/coppie.length) } : null,
+      ...webcamRhythm(wcam, writ, wcar),
+      ...webcamStates(wst, by('webcam.pausa')),
     };
   }
 
@@ -315,6 +359,10 @@ export const COMPARE = [
   ['webcam.fpsElaborazione', 'Webcam: fotogrammi elaborati al secondo', +1, 2],
   ['webcam.inferenzaMs.p50', 'Webcam: riconoscimento p50 (ms)', -1, 3],
   ['webcam.perdite', 'Webcam: perdite del tracciamento', -1, 0],
+  ['webcam.fpsCamera.p50', 'Webcam: fotogrammi della camera al secondo', +1, 2],
+  ['webcam.inferenzeAlSecondo', 'Webcam: inferenze al secondo', +1, 2],
+  ['webcam.caricoPercento.p50', 'Webcam: thread del gioco occupato dal modello (%)', -1, 5],
+  ['webcam.etaDatoMs.p50', 'Webcam: età del dato della mano p50 (ms)', -1, 5],
   ['gioco.fps.p5', 'Gioco: fps (5° percentile)', +1, 2],
   ['gioco.fotogrammaMs.p95', 'Gioco: fotogramma p95 (ms)', -1, 2],
   ['gioco.fotogrammiLunghi', 'Gioco: fotogrammi oltre 50 ms', -1, 2],
@@ -351,6 +399,9 @@ export function summaryLines(m = {}){
     if (T.dispositivo?.browser) L.push(`Telefono: ${T.dispositivo.browser}${T.dispositivo.versione ? ' · pagina ' + T.dispositivo.versione : ''}`);
   }
   if (W) L.push(`Webcam: ${W.fpsElaborazione ?? '–'} fotogrammi elaborati/s · riconoscimento mediana ${W.inferenzaMs?.p50 ?? '–'} ms · perdite ${W.perdite} (${W.perditeS} s) · più mani ${W.piuManiPercento ?? 0}% del tempo`);
+  if (W?.fpsCamera) L.push(`Webcam: camera ${W.fpsCamera.p50} fotogrammi/s (5° percentile ${W.fpsCamera.p5}, buco più lungo ${W.bucoCameraMs ?? '–'} ms)${W.camera?.ottenuto ? `, ${W.camera.ottenuto.w}×${W.camera.ottenuto.h} a ${W.camera.ottenuto.fps ?? '?'} fps ottenuti` : ''} · inferenze ${W.inferenzeAlSecondo}/s, mediana ${W.inferenzaMs.p50} ms (p95 ${W.inferenzaMs.p95}) · thread del gioco occupato ${W.caricoPercento.p50}% · età del dato ${W.etaDatoMs.p50 ?? '–'} ms`);
+  if (W?.statiMano) L.push(`Webcam: mano valida ${W.statiMano.secondi.valida ?? 0} s, degradata ${W.statiMano.secondi.degradata ?? 0} s, persa ${W.statiMano.secondi.persa ?? 0} s (${W.statiMano.perse} volte, la più lunga ${W.statiMano.persaMs?.max ?? '–'} ms), riprese ${W.statiMano.riprese}${W.pause ? ` · partita in pausa: ${Object.entries(W.pause).map(([k, n]) => `${k} ${n}`).join(', ')}` : ''}`);
+  if (W?.livello) L.push(`Webcam: modello delle mani ${W.livello.finale}${W.livello.cambi.length ? ` (da ${W.livello.iniziale}: ${W.livello.cambi.map(c => `${c.da}→${c.a} con l'inferenza a ${c.p50} ms`).join(', ')})` : ''}`);
   if (W?.conferme) L.push(`Webcam: il colpo anticipato coincide con la conferma a fine gesto nel ${W.conferme.latoUgualePercento}% dei casi per il lato e nel ${W.conferme.tipoUgualePercento}% per il tipo (${W.conferme.n} colpi; coerenza, non precisione)`);
   if (G) L.push(`Gioco: ${G.fps?.p50 ?? '–'} fps (il 5% peggiore ${G.fps?.p5 ?? '–'}) · fotogrammi oltre 50 ms: ${G.fotogrammiLunghi}${G.fotogrammiDoppiPercento != null ? ` · fotogrammi oltre 25 ms: ${G.fotogrammiDoppiPercento}%` : ''}`);
   if (C?.tempo && Object.keys(C.tempo).length) L.push(`Tempo dei colpi: ${Object.entries(C.tempo).map(([k, v]) => `${k} ${v}`).join(', ')}`);

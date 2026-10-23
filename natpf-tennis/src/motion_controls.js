@@ -4,9 +4,13 @@ import { WebcamHandTracker, handPoseFromLandmarks, handPoseFromFlow } from "./na
 import { createStrokeTracker, pickHand, trackOthers, handPoint, handSize } from "./natpf/webcam_strokes.js";
 import { relayedNatpf } from "./natpf/natpf_skill.js";
 import { newSwings } from "./natpf/natpf_versus.js";
+// NATPF: misure della webcam (camera, inferenza, età del dato) e carico del modello delle mani, vedi src/natpf/webcam_load.js
+import { createLoadGovernor, createWebcamStats, WEBCAM_LEVELS } from "./natpf/webcam_load.js";
 // NATPF: MediaPipe Hands dal pacchetto offline (npm @mediapipe/hands, servito sotto /assets/); CDN fissato solo di riserva
 export const MEDIAPIPE_LOCAL_BASE = "/assets/mediapipe/hands/";
 export const MEDIAPIPE_CDN_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/";
+// NATPF: mano persa da più di così (ms) con il modello delle mani attivo: niente colpi dal flusso ottico (stato «persa»)
+export const HAND_FLOW_MAX_MS = 700;
 export class MotionController {
   constructor(e = {}) {
     (this.onSwing = typeof e.onSwing == "function" ? e.onSwing : null),
@@ -394,9 +398,10 @@ export class MotionController {
         const t = new window.Hands({
           locateFile: (i) => `${base}${i}`,
         });
+        // NATPF: modello e numero di mani dal livello di carico (webcam_load.js: si alleggerisce se l'inferenza è lenta)
         t.setOptions({
-          maxNumHands: 2,
-          modelComplexity: 1,
+          maxNumHands: this._wcLevel().maxNumHands,
+          modelComplexity: this._wcLevel().modelComplexity,
           minDetectionConfidence: 0.4,
           minTrackingConfidence: 0.4,
         }),
@@ -423,8 +428,9 @@ export class MotionController {
         !1
       );
     try {
+      // NATPF: anche la frequenza (prima nessuna richiesta): quello che la camera dà davvero va nel registro (camera)
       const e = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 }, facingMode: "user" },
         audio: !1,
       });
       return (
@@ -435,6 +441,7 @@ export class MotionController {
           (this.videoElem.muted = !0)),
         (this.videoElem.srcObject = e),
         await this.videoElem.play(),
+        this._wcStart(e),
         (this.webcamActive = !0),
         (this.hasPrevFrame = !1),
         (this.latestHandLandmarks = null),
@@ -471,6 +478,74 @@ export class MotionController {
   _resetHandTracking() {
     (this._handTrack = null), (this._handOthers = []), (this._handLost = !1), (this._handPick = null), (this._handCapture = null), (this._handLastPos = null), (this._frameMeta = null), this._strokes && this._strokes.reset();
   }
+  // NATPF: livello di carico del modello delle mani (webcam_load.js); prima dell'accensione quello di partenza
+  _wcLevel() {
+    return (this._wcGov && this._wcGov.level) || WEBCAM_LEVELS[0];
+  }
+  // NATPF: webcam accesa: video nella pagina (2 px, invisibile: un video fuori dal documento il browser può aggiornarlo
+  // di rado), misure e livello di carico (?webcamLivello=piena|leggera|minima lo impone, per confrontare i livelli sullo
+  // stesso computer), richiesta e risposta della camera per il registro
+  _wcStart(stream) {
+    const v = this.videoElem;
+    if (v && !v.isConnected && typeof document != "undefined" && document.body) {
+      v.style.cssText = "position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:0;pointer-events:none";
+      document.body.appendChild(v);
+    }
+    let forced = null;
+    try {
+      const q = new URLSearchParams(location.search).get("webcamLivello");
+      forced = WEBCAM_LEVELS.some((l) => l.id === q) ? q : null;
+    } catch {}
+    this._wcGov ? this._wcGov.restart() : (this._wcGov = createLoadGovernor({ start: forced || "piena", fixed: !!forced }));
+    this._wcApplied || (this._wcApplied = this._wcLevel().id);
+    this._wcStats = createWebcamStats();
+    this._wcFlushAt = null;
+    this._wcStartedAt = performance.now();
+    (this._handState = null), (this._handStateAt = null);
+    this._frameWaiting = !1;
+    const tr = stream && stream.getVideoTracks && stream.getVideoTracks()[0],
+      st = (tr && tr.getSettings && tr.getSettings()) || {};
+    this.webcamInfo = {
+      chiesto: { w: 640, h: 480, fps: 30 },
+      ottenuto: { w: st.width ?? null, h: st.height ?? null, fps: Number.isFinite(st.frameRate) ? Math.round(st.frameRate * 10) / 10 : null },
+      nome: (tr && tr.label) || null,
+      livello: this._wcLevel().id,
+      fisso: !!forced,
+      richiamiFotogrammi: !!(v && typeof v.requestVideoFrameCallback == "function"),
+    };
+    this._diag({ kind: "camera", ...this.webcamInfo });
+  }
+  // NATPF: inferenza sull'ultimo fotogramma, in un compito a sé subito dopo il fotogramma del gioco (prima partiva dentro
+  // il ciclo di disegno e ne allungava il fotogramma). Un fotogramma arrivato durante un'inferenza si elabora appena
+  // quella finisce; quelli superati dal successivo si saltano (solo l'ultimo conta)
+  _kickInference() {
+    if (this._kickQueued) return;
+    this._kickQueued = !0;
+    if (!this._kickCh) {
+      this._kickCh = new MessageChannel();
+      this._kickCh.port1.onmessage = () => {
+        (this._kickQueued = !1), this._frameWaiting && this._sendFrame(performance.now()) && (this._frameWaiting = !1);
+      };
+      // in Node (prove) il canale non deve tenere vivo il processo
+      this._kickCh.port1.unref && this._kickCh.port1.unref();
+    }
+    this._kickCh.port2.postMessage(0);
+  }
+  _sendFrame(e) {
+    if (!this.mpHands || this._mpBusy || !this.webcamActive || !this.videoElem || this.videoElem.readyState < 2) return !1;
+    // livello di carico cambiato: le opzioni nuove fuori dal richiamo dei risultati, prima dell'invio, e non con un punto
+    // in gioco (il modello nuovo si carica: il gioco si ferma per un attimo; canReload lo dà il gioco, natpf_hand.js)
+    this._wcPending &&
+      (typeof this.canReload != "function" || this.canReload()) &&
+      (this.mpHands.setOptions({ maxNumHands: this._wcPending.maxNumHands, modelComplexity: this._wcPending.modelComplexity }), this._diag({ kind: "carico", from: this._wcApplied || null, to: this._wcPending.id, applied: !0 }), (this._wcApplied = this._wcPending.id), (this._wcPending = null));
+    (this._mpBusy = !0),
+      (this._mpSentAt = e),
+      (this._mpSentCapT = this._frameCaptureT(e)),
+      this.mpHands.send({ image: this.videoElem }).catch(() => {
+        this._mpBusy = !1;
+      });
+    return !0;
+  }
   // NATPF: istante di cattura dei fotogrammi della camera (requestVideoFrameCallback), per le velocità della mano
   // senza il ritardo variabile dell'inferenza; senza il supporto vale l'istante dell'invio al modello
   _watchFrames() {
@@ -481,6 +556,9 @@ export class MotionController {
     const cb = (now, md) => {
       if (this._frameGen !== gen) return;
       this._frameMeta = { capture: md && Number.isFinite(md.captureTime) ? md.captureTime : now, at: now };
+      // NATPF: fotogramma nuovo della camera: misura e inferenza (fuori dal ciclo di disegno)
+      this._wcStats && this._wcStats.frame(now, md || {});
+      (this._frameWaiting = !0), this.mpHands && this._kickInference();
       this.webcamActive && this.videoElem === v && v.requestVideoFrameCallback(cb);
     };
     v.requestVideoFrameCallback(cb);
@@ -512,6 +590,8 @@ export class MotionController {
   // chi gioca quando si perde (trackOthers)
   _onHandResults(i) {
     this._mpBusy = !1;
+    // NATPF: un fotogramma arrivato durante l'inferenza: subito il prossimo
+    this._frameWaiting && this._kickCh && this._kickInference();
     const now = performance.now(),
       lms = (i && i.multiHandLandmarks) || [],
       hd = (i && i.multiHandedness) || [],
@@ -519,6 +599,12 @@ export class MotionController {
       T = this._handTrack,
       hands = lms.map((lm, k) => ({ lm, label: hd[k] && hd[k].label, score: hd[k] && hd[k].score }));
     this.lastInferMs = Number.isFinite(this._mpSentAt) ? now - this._mpSentAt : null;
+    // NATPF: misura dell'inferenza e livello di carico (il cambio si applica al prossimo invio)
+    if (this._wcStats) {
+      this._wcStats.infer(this.lastInferMs);
+      const ch = this._wcGov && this._wcGov.push(this.lastInferMs);
+      ch && ((this._wcPending = ch.level), this.webcamInfo && (this.webcamInfo.livello = ch.level.id), this._diag({ kind: "carico", from: ch.from.id, to: ch.level.id, p50: ch.p50, reason: ch.why }));
+    }
     const pick = pickHand(hands, { track: T, others: this._handOthers || [], t: now, prefer: this.handPreference, aspect });
     this._handOthers = trackOthers(this._handOthers || [], hands, { chosen: pick.index, track: T, t: now, aspect });
     this._handPick = { hands: lms.length, chosen: pick.index, reason: pick.reason };
@@ -571,6 +657,38 @@ export class MotionController {
         : this._emitSwing({ source: "webcam", side: v.side, shotType: v.shotType, speed: v.speed, dirX: v.dirX, dirY: v.dirY });
     }
   }
+  // NATPF: stato della mano, nel registro a ogni cambio con la durata dello stato finito: valida (vista ora), degradata
+  // (persa da 0,25 s: il flusso ottico può finire un colpo), persa (oltre HAND_FLOW_MAX_MS o mai vista: nessun colpo),
+  // ripresa (ritrovata dopo una perdita: per 0,6 s; i colpi contano da quando sta ferma, webcam_strokes.js), movimento
+  // (modello delle mani non disponibile: solo flusso ottico)
+  _handStateTick(e) {
+    const seen = this._handSeenForFlow,
+      age = seen == null || (this._wcStartedAt != null && seen < this._wcStartedAt) ? Infinity : e - seen,
+      prev = this._handState;
+    const st = !this.mpHands
+      ? "movimento"
+      : age > HAND_FLOW_MAX_MS
+        ? "persa"
+        : age > 250
+          ? prev === "persa" ? "persa" : "degradata"
+          : prev === "persa" || (prev === "ripresa" && e - this._handStateAt < 600) ? "ripresa" : "valida";
+    if (st === prev) return;
+    this._diag({ kind: "stato", t: e, from: prev || null, to: st, ms: this._handStateAt != null ? Math.round(e - this._handStateAt) : null });
+    (this._handState = st), (this._handStateAt = e);
+  }
+  // NATPF: salute della webcam per la pausa della partita (natpf_webcam_watch.js): accesa, modello delle mani, da quanto
+  // non si vede la mano (dall'accensione se mai vista), da quanto non arriva un fotogramma della camera
+  webcamHealth(now = performance.now()) {
+    const seen = this._handSeenForFlow,
+      from = this._wcStartedAt ?? now;
+    return {
+      active: !!this.webcamActive,
+      model: !!this.mpHands,
+      handAgeMs: seen == null || seen < from ? now - from : now - seen,
+      frameAgeMs: this._frameMeta && Number.isFinite(this._frameMeta.at) ? now - this._frameMeta.at : null,
+      state: this._handState || null,
+    };
+  }
   // NATPF: posa della mano per la racchetta (liveInput), null se la webcam è spenta o la mano non si vede
   webcamLiveInput(e = performance.now()) {
     return this.webcamActive ? this.handTracker.sample(e) : null;
@@ -582,16 +700,18 @@ export class MotionController {
     if (!this.webcamActive || !this.videoElem || this.videoElem.readyState < 2) return;
     const e = performance.now(),
       t = this.videoElem.currentTime !== this._lastVideoTime;
+    // NATPF: misure della webcam, una volta al secondo nel registro
+    if (this._wcStats) {
+      this._wcFlushAt == null && (this._wcFlushAt = e);
+      e - this._wcFlushAt >= 1000 && (this._diag({ kind: "ritmo", ...this._wcStats.flush(e - this._wcFlushAt), livello: this._wcLevel().id }), (this._wcFlushAt = e));
+    }
+    this._wcStats && this._handStateTick(e);
+    // NATPF: l'inferenza la fanno partire i richiami dei fotogrammi (_watchFrames); qui solo se non arrivano (browser
+    // senza il supporto, richiami fermi da 150 ms: thread molto occupato). Con i richiami visti almeno una volta anche
+    // da qui in un compito a sé dopo il fotogramma; senza (browser che non li ha), subito come prima
     t &&
       ((this._lastVideoTime = this.videoElem.currentTime),
-      this.mpHands &&
-        !this._mpBusy &&
-        ((this._mpBusy = !0),
-        (this._mpSentAt = e),
-        (this._mpSentCapT = this._frameCaptureT(e)),
-        this.mpHands.send({ image: this.videoElem }).catch(() => {
-          this._mpBusy = !1;
-        })));
+      (!this._frameMeta || e - this._frameMeta.at > 150) && (this._frameMeta && this.mpHands ? ((this._frameWaiting = !0), this._kickInference()) : this._sendFrame(e)));
     if (this.latestHandLandmarks && e - (this.latestHandSeenAt || 0) < 240) {
       if (!this._hasNewHandResult) return;
       this._hasNewHandResult = !1;
@@ -605,6 +725,7 @@ export class MotionController {
         (this._handSeenForFlow = e),
         (this._handLastPos = { x: p.x, y: p.y }),
         this.handTracker.push(handPoseFromLandmarks(c), e),
+        this._wcStats && this._wcStats.use(e - cap),
         this._strokeSample({ t: cap, x: p.x, y: p.y, src: "hands", scale: handSize(c, this._videoAspect()) }, e);
       return;
     }
@@ -612,6 +733,13 @@ export class MotionController {
     // NATPF: mano persa da poco (il mosso nella parte veloce dello swing): si aspetta che torni, il colpo continua sulla
     // traccia della mano invece di ripartire sul flusso ottico
     if (e - (this._handSeenForFlow ?? -1e9) < 220) {
+      this.onTrack && this._diagFrame(e, null);
+      return;
+    }
+    // NATPF: mano persa da oltre HAND_FLOW_MAX_MS (o mai vista) con il modello delle mani attivo: niente colpi dal flusso
+    // ottico, che sarebbero inventati (il corpo, l'altra mano, chi passa), e niente lettura dei pixel. Il flusso resta
+    // per finire un colpo appena perso per il mosso e come unico ingresso quando il modello non c'è
+    if (this.mpHands && e - (this._handSeenForFlow ?? -1e9) > HAND_FLOW_MAX_MS) {
       this.onTrack && this._diagFrame(e, null);
       return;
     }

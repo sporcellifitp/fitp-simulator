@@ -198,3 +198,19 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     7/8 (limite noto), pacchetti; motore nel browser: diagnostica 24/24, allenamento 13/13, latenza 9/9, presa verticale
     10/10, presa del 19/10 10/10, menu 22/22, ricollegamento 6/6, rete che cade 6/6, build, 1v1 18/18; dopo le
     correzioni: scambio 7/7, telefono che smette di funzionare 13/13. Validazione fisica non eseguita.
+  - CI completa in locale sul commit `cf3a27d` (copia separata, senza modifiche in corso): tutto come sopra, più scambio
+    7/7 e telefono che smette di funzionare 13/13; LAN nel browser 7/8 (limite noto).
+- Checkpoint 18 (23/10): passo 3c (webcam), dettagli in `docs/NATPF_DIAGNOSI_2026-10-23.md` §7.
+  - Misura: camera chiesta e ottenuta, ritmo al secondo (fotogrammi presentati, buchi, inferenze, età del dato, thread
+    occupato), stati della mano, cambi del modello; metriche per livello e nel confronto tra sessioni.
+  - Catena: inferenza dal fotogramma nuovo, fuori dal ciclo di disegno, una alla volta sull'ultimo fotogramma; carico
+    adattivo del modello (completo → leggero → una mano) con il cambio fuori dai punti.
+  - Continuità: niente colpi dal flusso ottico con la mano persa da oltre 0,7 s o mai vista (la prova nuova fallisce
+    sul codice di prima); pausa della partita con le istruzioni, ripresa con il conto alla rovescia, punto rigiocato.
+  - Scoperte nel browser con la webcam finta e la grafica software: inferenza ~240 ms, thread al 98%, la pagina vede pochi
+    richiami dei fotogrammi (per questo i fotogrammi si contano da quelli presentati); ricaricare il modello ferma il
+    gioco 2,2–2,4 s (per questo il cambio aspetta la fine del punto). Il video del modello fuori dal documento qui riceve
+    i fotogrammi come quello nella pagina (20 Hz): messo comunque nella pagina, come il video della diagnostica.
+  - Prove: `npm test` 328/328, `tools/test` 148/148, `natpf-webcam-pipeline.mjs` (nuova) 10/10. Validazione fisica
+    non eseguita.
+

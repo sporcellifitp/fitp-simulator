@@ -17,6 +17,7 @@ import { NatpfIntro } from './natpf_intro.js';
 import { NatpfEvents } from './natpf_events.js';
 import { NatpfKiosk } from './natpf_kiosk.js';
 import { phoneHealth, createPhoneWatch, holdText } from './natpf_phone_watch.js';
+import { webcamHealth, createWebcamWatch, webcamHoldText } from './natpf_webcam_watch.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -98,7 +99,9 @@ export class NatpfUi {
     // telefono in campo: salute del collegamento e dei sensori ogni 100 ms, anche a partita ferma (il tick del motore in
     // pausa non gira): pausa subito, ripresa con il conto alla rovescia, punto rigiocato (natpf_phone_watch.js)
     this.phoneWatch = createPhoneWatch(); this.phoneHold = null;
-    setInterval(() => { try { this._phoneWatchTick(); } catch (e){ console.error(e); } }, 100);
+    // webcam in campo: lo stesso per la mano persa a lungo e la camera ferma (natpf_webcam_watch.js)
+    this.webcamWatch = createWebcamWatch(); this.webcamHold = null;
+    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); } catch (e){ console.error(e); } }, 100);
     $('btn-natpf-view')?.addEventListener('click', e => { e.stopPropagation(); this.engine.setViewMode(this.engine.viewMode === 'first' ? 'third' : 'first'); });
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){
@@ -144,7 +147,7 @@ export class NatpfUi {
   }
   // il gioco resta fermo mentre si leggono le istruzioni o si collega il telefono a partita in corso
   _syncPause(){
-    const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen || this.engine.natpfVersusWait || !!this.phoneHold;
+    const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen || this.engine.natpfVersusWait || !!this.phoneHold || !!this.webcamHold;
     this.engine.natpfPaused = !!busy && !this.engine.autoPlayMode && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(this.engine.phase);
   }
   tick(dt = 1/60){ this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.gesture.update(dt); }
@@ -368,26 +371,43 @@ export class NatpfUi {
     const a = this.phoneWatch.update(h, { inField, rally: E.phase === 'RALLY' || E.phase === 'SERVE_TOSS', now: performance.now() });
     if (a) this._phoneHoldAction(a);
   }
-  _phoneHoldAction(a){
-    const E = this.engine, R = this.diag?.recorder;
+  // Webcam in campo: pausa quando la mano non si vede da 1,5 s o la camera si ferma, ripresa con la mano di nuovo vista
+  // con continuità e il conto alla rovescia, punto rigiocato (natpf_webcam_watch.js). Solo chi gioca qui con la webcam
+  _webcamWatchTick(){
+    const E = this.engine, mc = E.motionController;
+    if (!mc?.webcamHealth) return;
+    const inField = this.controller === 'webcam' && !this.lobby?.visible && !E.autoPlayMode && E.playerRole !== 'p2'
+      && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(E.phase) && !(this.training?.active && this.training.cal);
+    if (!inField && this.webcamWatch.state === 'ok') return;
+    const now = performance.now(), rally = E.phase === 'RALLY' || E.phase === 'SERVE_TOSS';
+    const h = webcamHealth(mc.webcamHealth(now), { paused: this.webcamWatch.state !== 'ok', rally });
+    const a = this.webcamWatch.update(h, { inField, rally, now });
+    if (a) this._holdAction(a, 'webcam');
+  }
+  _phoneHoldAction(a){ return this._holdAction(a, 'telefono'); }
+  // pausa e ripresa per il telefono o la webcam: riquadro sopra il campo, registro, colpi in sospeso cancellati, punto
+  // rigiocato se la pausa è arrivata nello scambio o nel lancio
+  _holdAction(a, src = 'telefono'){
+    const E = this.engine, R = this.diag?.recorder, phone = src === 'telefono';
     if (a.kind === 'pause' || a.kind === 'wait'){
-      this.phoneHold = { why: a.why };
-      this._paintHold('Telefono in pausa', holdText(a.why));
-      R?.log?.('tel.pausa', { motivo: a.why, fase: E.phase });
+      if (phone) this.phoneHold = { why: a.why }; else this.webcamHold = { why: a.why };
+      this._paintHold(phone ? 'Telefono in pausa' : 'Webcam in pausa', phone ? holdText(a.why) : webcamHoldText(a.why));
+      R?.log?.(phone ? 'tel.pausa' : 'webcam.pausa', { motivo: a.why, fase: E.phase });
       // il telefono lo sa (se è collegato): niente colpi durante la pausa, e lo dice sullo schermo
-      if (this.phone.connected){ this.phone.link.send({ t: 'ph', ph: 'pause' }); this.phone.lastPhase = 'pause'; }
+      if (phone && this.phone.connected){ this.phone.link.send({ t: 'ph', ph: 'pause' }); this.phone.lastPhase = 'pause'; }
       // collegamento perso: il pannello del telefono dice come ricollegarlo (QR)
-      if (a.why === 'scollegato' && this.modal?.classList.contains('hidden')){ this.phoneDropOpened = true; this.openPhone(); }
+      if (phone && a.why === 'scollegato' && this.modal?.classList.contains('hidden')){ this.phoneDropOpened = true; this.openPhone(); }
     }
-    if (a.kind === 'countdown') this._paintHold('Telefono di nuovo pronto', `Si riprende tra ${a.left}…`);
+    if (a.kind === 'countdown') this._paintHold(phone ? 'Telefono di nuovo pronto' : 'Mano di nuovo vista', `Si riprende tra ${a.left}…`);
     if (a.kind === 'resume'){
-      this.phoneHold = null; this._paintHold(null);
-      if (this.phoneDropOpened){ this.phoneDropOpened = false; if (!this.modal?.classList.contains('hidden')) this.closePhone(); }
+      if (phone) this.phoneHold = null; else this.webcamHold = null;
+      this._paintHold(null);
+      if (phone && this.phoneDropOpened){ this.phoneDropOpened = false; if (!this.modal?.classList.contains('hidden')) this.closePhone(); }
       E.pendingUserSwing = null; E.natpfWeakServe = null;
       const replay = a.replay && !E.isMultiplayer && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
-      if (replay){ E._setupPointServe({ showBanner: false }); this.toast('Il telefono si era fermato: il punto si rigioca'); }
-      R?.log?.('tel.ripresa', { rigiocato: replay });
-      this.phone.lastPhase = null;                 // la fase vera torna al telefono al prossimo fotogramma
+      if (replay){ E._setupPointServe({ showBanner: false }); this.toast(phone ? 'Il telefono si era fermato: il punto si rigioca' : 'La webcam aveva perso la mano: il punto si rigioca'); }
+      R?.log?.(phone ? 'tel.ripresa' : 'webcam.ripresa', { rigiocato: replay });
+      if (phone) this.phone.lastPhase = null;      // la fase vera torna al telefono al prossimo fotogramma
     }
     this._syncPause();
   }

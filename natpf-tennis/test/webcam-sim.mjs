@@ -91,12 +91,13 @@ function deliver(f, hands, now){
   f._mpBusy = false;
   if (hands.length){ f.latestHandLandmarks = hands[0].lm; f.latestHandSeenAt = now; f._hasNewHandResult = true; } else f.latestHandLandmarks = null;
 }
-// ciclo del gioco a 60 Hz: fotogrammi della camera a fps, inferenza con latenza lat (ms) e un solo invio in volo
-function runLoop(f, { total, fps, lat, rng, handsAt }){
+// ciclo del gioco a 60 Hz: fotogrammi della camera a fps, inferenza con latenza lat (ms) e un solo invio in volo.
+// model false: il modello delle mani non c'è (non caricato): resta solo il flusso ottico
+function runLoop(f, { total, fps, lat, rng, handsAt, model = true }){
   const realNow = performance.now; let NOW = 0; performance.now = () => NOW;
   try {
     let inflight = null, frameT = 0;
-    f.mpHands = { send: () => { inflight = { capT: frameT, doneT: NOW + lat*(.85 + .3*rng()) }; return Promise.resolve(); } };
+    f.mpHands = model ? { send: () => { inflight = { capT: frameT, doneT: NOW + lat*(.85 + .3*rng()) }; return Promise.resolve(); } } : null;
     for (let T = 0; T <= total; T += 1/60){
       NOW = T*1000;
       const k = Math.floor((T - .008)*fps); frameT = Math.max(0, k/fps); f.videoElem.currentTime = frameT;
@@ -155,7 +156,7 @@ export function flowCtx(f, scene, seed = 99){
 }
 // swing 2D con la mano persa dal modello per il mosso (probabilità che cresce con lo spostamento durante l'esposizione,
 // da blurLo a blurHi pixel su 640×480) e il flusso ottico di riserva sui fotogrammi sintetici; passante(t) facoltativo
-export function runDropout(MC, { pathFn, T, fps = 30, lat = 22, noise = .003, seed = 1, hand = 'right', exposure = 1/60, blurLo = 8, blurHi = 20, passante = null, tracker = null }){
+export function runDropout(MC, { pathFn, T, fps = 30, lat = 22, noise = .003, seed = 1, hand = 'right', exposure = 1/60, blurLo = 8, blurHi = 20, passante = null, tracker = null, model = true }){
   const rng = mulberry32(seed), aspect = .75, f = makeFake(MC, { aspect, hand, tracker }), lead = .5;
   const at = c => pathFn(Math.max(0, c - lead));
   f.offscreenCtx = flowCtx(f, c => { const p = at(c), s = [{ S: p.S, y: p.y, rx: .045, ry: .05, c: .9 }]; if (passante){ const b = passante(c); s.push({ S: b.S, y: b.y, rx: .05, ry: .2, c: .08 }); } return s; }, seed + 7);
@@ -165,7 +166,7 @@ export function runDropout(MC, { pathFn, T, fps = 30, lat = 22, noise = .003, se
     if (rng() < Math.max(0, Math.min(1, (blur - blurLo)/(blurHi - blurLo)))){ lost++; return []; }
     seen++; return [{ lm: handLandmarks({ S: a.S + gauss(rng)*noise, y: a.y + gauss(rng)*noise, aspect }), label: LABEL[hand] }];
   };
-  const ev = runLoop(f, { total: lead + T + .9, fps, lat, rng, handsAt });
+  const ev = runLoop(f, { total: lead + T + .9, fps, lat, rng, handsAt, model });
   return { events: ev.map(e => ({ ...e, ts: e.t/1000 - lead })), lost, seen };
 }
 // folla: una seconda mano (passante o mano libera) visibile da on[0] a on[1] s, che il modello mette in testa alla

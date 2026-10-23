@@ -14,6 +14,7 @@
 //     che le scritture falliscano. Niente si cancella da solo.
 // Tipi di evento (k): fase, palla, rimbalzo, punto, tentativo, colpo.gioco, racchetta, piano, servizio, vuoto, input,
 // tel.colpo, tel.cal, tel.stato, tel.orologio, tel.link, tel.scartato, tel.prep, tel.dispositivo, webcam.frame, webcam.evento,
+// webcam.camera, webcam.ritmo, webcam.carico, webcam.stato, webcam.pausa, webcam.ripresa, tel.pausa, tel.ripresa,
 // prestazioni, video, video.frame,
 // atteso, marca, avviso.
 import { latencyShift, eventLatency, swingTiming } from '../natpf_skill.js';
@@ -94,6 +95,9 @@ export class DiagRecorder {
     this._phoneStato(true);
     if (ph?.profile) this.log('tel.profilo', { profilo: ph.profile, mano: ph.hand || null, liftBaseline: ph.liftBaseline ?? null });
     if (ph?.device) this.log('tel.dispositivo', ph.device);
+    // webcam già accesa: camera chiesta e ottenuta, livello del modello delle mani (motion_controls.webcamInfo)
+    const mc0 = E.motionController;
+    if (mc0?.webcamActive && mc0.webcamInfo) this.log('webcam.camera', { ...mc0.webcamInfo, livello: mc0._wcLevel?.().id ?? mc0.webcamInfo.livello });
     // scrittura a pezzi e misure al secondo
     this._flushT = setInterval(() => this.flush(), FLUSH_MS);
     this._secT = setInterval(() => this._second(), 1000);
@@ -355,6 +359,13 @@ export class DiagRecorder {
   }
   _webcam(d){
     if (!d) return;
+    // camera chiesta e ottenuta (all'accensione), misure al secondo, cambi del livello del modello delle mani
+    if (d.kind === 'camera') return this.log('webcam.camera', { chiesto: d.chiesto ?? null, ottenuto: d.ottenuto ?? null, nome: d.nome ?? null, livello: d.livello ?? null, fisso: !!d.fisso, richiamiFotogrammi: d.richiamiFotogrammi ?? null });
+    if (d.kind === 'ritmo'){ const { kind, ...rest } = d; return this.log('webcam.ritmo', rest); }
+    // cambio di livello: deciso dalla misura, poi applicato al primo invio senza un punto in gioco (applicato)
+    if (d.kind === 'carico') return this.log('webcam.carico', { da: d.from ?? null, a: d.to ?? null, p50: d.p50 ?? null, perche: d.reason || null, ...(d.applied ? { applicato: true } : {}) });
+    // stato della mano: valida, degradata, persa, ripresa, movimento (ms: durata dello stato finito)
+    if (d.kind === 'stato') return this.log('webcam.stato', { da: d.from ?? null, a: d.to ?? null, ms: d.ms ?? null });
     if (d.kind && d.kind !== 'frame') this.log('webcam.evento', { tipo: d.kind, ...pick(d, ['type', 'side', 'shotType', 'source', 'speed', 'dirX', 'dirY', 'reason', 'hands']) });
     else this.log('webcam.frame', { ct: Number.isFinite(d.captureT) ? r(d.captureT - this.t0, 1) : null, source: d.source || null, hands: d.hands ?? null, chosen: d.chosen ?? null, reason: d.reason || null, x: r(d.x, 3), y: r(d.y, 3), inferMs: r(d.inferMs, 1) });
   }

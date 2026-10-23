@@ -266,7 +266,7 @@ alla volta, con il prima e il dopo.
 | 2 | Misura: segnaposto del problema, gesti scartati dal telefono, webcam, fotogrammi, intervalli del collegamento, tempo del piano | fatto per telefono, collegamento e gioco (`bce996f`); webcam con il passo 3c |
 | 3a | Telefono: soglie e colpo tipico (T1), attesa del colpo vero (T2), palla corta e pallonetto (T3, T4), mira dal piatto (T6), impugnatura di taglio (T7) | fatto nel codice, provato in automatico; prova fisica da fare |
 | 3b | Android: blocco dello schermo, pausa e ripresa controllata (A1–A4) | fatto nel codice, provato in automatico; prova fisica da fare |
-| 3c | Webcam: misura e catena (§5) | — |
+| 3c | Webcam: misura e catena (§5) | fatto nel codice, provato in automatico e nel browser con la webcam finta; misura sul portatile da fare |
 | 4 | Campo aperto e ritmo (C1–C5) | — |
 | 5 | Verifica, prova guidata, pacchetti | — |
 
@@ -305,4 +305,33 @@ alla volta, con il prima e il dopo.
   ping e 2 s per la risposta prima di chiudere il collegamento, ricollegamento subito se era perso.
 - Cosa provano i test: `natpf-phone-keep.mjs` (telefono e computer veri nel browser, sensori, visibilità e blocco dello
   schermo simulati) 13/13. Quando Android sospende i sensori, rilascia o nega il blocco si vede solo con il telefono.
+
+### Passo 3c · webcam (fatto)
+
+- **Misura** (registro e rapporto): camera chiesta (640×480, ora anche 30 fps) e ottenuta, con il nome del dispositivo;
+  ogni secondo fotogrammi della camera (dai fotogrammi presentati, non dai richiami: con il thread occupato il browser ne
+  salta), intervallo p95 e buco più lungo, fotogrammi che la pagina non ha visto, inferenze al secondo con p50/p95/max,
+  fotogrammi senza inferenza, età del dato della mano quando il gioco lo usa, quota del thread del gioco occupata dal
+  modello; stati della mano con le durate; cambi del modello. Metriche anche per livello del modello (confronto sullo
+  stesso computer) e nel confronto tra due sessioni.
+- **Catena**: l'inferenza parte dal fotogramma nuovo della camera (richiamo del fotogramma), in un compito a sé dopo il
+  fotogramma del gioco (prima partiva dentro il ciclo di disegno e ne allungava il fotogramma); una alla volta, sempre
+  sull'ultimo fotogramma; quello arrivato durante un'inferenza si elabora appena finisce. Se i richiami non arrivano
+  (browser senza supporto, thread molto occupato) la fa partire il ciclo di disegno, sempre in un compito a sé. Il video
+  del modello è nella pagina (2 px, invisibile).
+- **Carico adattivo** (`webcam_load.js`): modello completo con 2 mani → leggero con 2 mani → leggero con 1 mano, quando
+  la mediana dell'inferenza supera 16 ms (metà del thread con la camera a 30 Hz; dopo 10 misure se è oltre 48 ms). Il
+  modello nuovo si carica solo senza un punto in gioco (ricaricarlo ferma il gioco per un attimo: 2,2–2,4 s qui con la
+  grafica software). `?webcamLivello=piena|leggera|minima` lo impone per confrontare i livelli sullo stesso computer.
+  Il costo vero sul portatile della prova si sa solo dal registro: qui l'inferenza dura ~240 ms (grafica software).
+- **Continuità**: stati della mano valida, degradata (persa da 0,25 s), persa (da 0,7 s o mai vista), ripresa (0,6 s
+  dopo una perdita). Con il modello attivo il flusso ottico di riserva può solo finire un colpo appena perso per il
+  mosso (fino a 0,7 s): niente colpi inventati con la mano persa a lungo o mai vista (prima sì, dalla zona centrale).
+  Senza modello delle mani il flusso resta l'unico ingresso. La ripresa: i colpi contano da quando la mano è ferma (già
+  prima). Partita in pausa con le istruzioni (`natpf_webcam_watch.js`): mano persa da 0,8 s nello scambio o nel lancio
+  (prima che il punto sia perso: si rigioca), da 1,5 s nelle altre fasi; webcam ferma da 1 s; ripresa con la mano vista
+  di nuovo per 0,7 s e il conto alla rovescia.
+- Cosa provano i test: simulatore della webcam (stesso codice del gioco) per colpi, flusso e stati; partita con
+  l'orologio virtuale per pausa e ripresa; nel browser (`natpf-webcam-pipeline.mjs`, modello vero sulla webcam finta)
+  10/10. Non provano la mano vera, la luce della stanza né la webcam del portatile: quelle con la prova guidata.
 

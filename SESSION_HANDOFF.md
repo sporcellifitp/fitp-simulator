@@ -16,8 +16,12 @@ analisi → misura → affidabilità dei due ingressi → campo aperto ed equili
   sessione `20261023-080003-5tag` (per far ripassare i gesti nel rilevatore). Gli allegati ricevuti non sono nel
   repository (il video contiene la persona).
 - Passi: 1 diagnosi [x] · 2 misura [x per telefono, collegamento, gioco; la webcam con il passo 3c] · 3a telefono [x] ·
-  3b Android [x] · 3c webcam [ ] · 4 campo aperto e ritmo [ ] · 5 verifica, prova guidata, pacchetti [ ]. I passi 3a e 3b
-  sono provati in automatico; la prova fisica (telefono vero) è nella prova guidata del passo 5.
+  3b Android [x] · 3c webcam [x] · 4 campo aperto e ritmo [ ] · 5 verifica, prova guidata, pacchetti [ ]. I passi 3a, 3b e
+  3c sono provati in automatico; la prova fisica (telefono vero, webcam del portatile) è nella prova guidata del passo 5.
+- Webcam: livello del modello imposto con `?webcamLivello=piena|leggera|minima` (confronto sullo stesso computer con
+  due sessioni della diagnostica). La prova LAN nel browser con la webcam (`natpf-tennis/test/e2e/lan-e2e.mjs`,
+  `ONLY=webcam`) qui non finisce in 240 s né con il codice nuovo né con quello di prima: il gioco disegna a 1–3 fps con
+  la grafica software. La catena della webcam la prova `tools/e2e/natpf-webcam-pipeline.mjs` (senza disegno).
 - Prove nel browser con il telefono simulato: il telefono manda i sensori di continuo come uno vero (`__hold`, fermo
   tra un gesto e l'altro). Senza, il computer vede «sensori fermi» e mette in pausa: è il comportamento voluto.
 
