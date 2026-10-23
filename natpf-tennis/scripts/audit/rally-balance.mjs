@@ -41,13 +41,13 @@ function phoneIntent(e, P, rng){
   let tau = 0, face = 0;
   if (rng() < P.intent){
     // punto voluto sul lato libero (dal 70% della mira piena alla mira piena), come mira attorno al punto neutro, che
-    // segue la palla (natpf_stroke_outcome.js): circa metà con il tempo, il resto con il piatto. In anticipo fino alla
-    // finestra del livello; in ritardo poco (con le palle veloci la palla passa il corpo): il lungolinea lo dà
-    // soprattutto il piatto, come fa chi gioca davvero
+    // segue la palla (natpf_stroke_outcome.js). Dal 23/10 il tempo copre da una riga all'altra: si mira soprattutto con
+    // il tempo (in anticipo l'incrociato, in ritardo il lungolinea, dentro la finestra del livello) e il piatto
+    // corregge il resto. Prima (regola vecchia) metà con il tempo e il lungolinea quasi tutto con il piatto
     const aim = aimForLanding(open*(.7 + rng()*.3)*xMax, neutralX(e.ball.targetLanding.x, xMax), xMax);
-    const want = clamp(-aim*.6/(contact*OUTCOME.timingAim), -1, 1), u = want >= 0 ? want : want*.5;
+    const u = clamp(-aim*.85/(contact*OUTCOME.timingAim), -1, 1);
     tau = u*(u >= 0 ? span : lateSpanOf(e.ball.vel.z, skillLevel(e.matchConfig.difficulty)))*.9;
-    face = clamp((aim + contact*u*OUTCOME.timingAim + contact*OUTCOME.natural)/OUTCOME.faceAim, -1, 1);
+    face = clamp((aim + contact*.9*u*OUTCOME.timingAim + contact*OUTCOME.natural*(1 - Math.abs(.9*u)))/OUTCOME.faceAim, -1, 1);
   }
   const peak = Math.max(150, P.peak + gauss(rng)*P.peakSd), power = strokePower(peak);
   const special = rng() < (P.specials || 0);
@@ -68,12 +68,21 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
     // racchetta virtuale: colpi di chi gioca per tipo, al volo, falliti; piani d'intercetto per tipo
     racket: { shots: {}, volleys: 0, failed: 0, plans: {} },
     // movimento di chi gioca: dove colpisce e dove va subito dopo il colpo (recupero), per ogni colpo della racchetta
-    moves: [] };
+    moves: [],
+    // campo aperto: ogni colpo di chi gioca con dove cade, dov'era la CPU quando è partito e com'è finito (vincente,
+    // errore della CPU, ripresa, errore proprio)
+    shots: [] };
+  let pending = null;
   try {
     const e = createHeadlessEngine({ difficulty });
     const award = e._awardPoint.bind(e);
     e._awardPoint = (who, why = '') => {
       const hits = e.ball.rallyStrokeCount;
+      if (pending){
+        if (pending.res == null) pending.res = who === 'player' ? 'vincente' : 'errore proprio';
+        else if (pending.res === 'ripresa' && who === 'player') pending.res = 'errore CPU';
+        pending = null;
+      }
       out.points++; if (who === 'player') out.won++;
       out.rallies.push(hits);
       const last = e.natpfSkill?.lastShot, detail = process.env.AUDIT_DETAIL && who !== 'player' && e.ball.lastHitter === 'player' && last ? ` [${last.shot} ${last.grade}${e.ball.isPowerShot ? ' power' : ''}]` : '';
@@ -117,7 +126,10 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
       const ls = e.natpfSkill?.lastShot;
       if (ls && ls !== lastSeenShot){ lastSeenShot = ls; out.landings.push({ x: +ls.landingX.toFixed(2), z: +e.ball.targetLanding.z.toFixed(2), grade: ls.grade, power: ls.power }); }
       const lr = e.natpfLastRacket, K = out.racket;
+      if (pending && pending.res == null && e.ball.lastHitter === 'opponent') pending.res = 'ripresa';
+      if (pending && pending.res === 'ripresa' && e.ball.lastHitter === 'player') pending = null;
       if (lr && lr !== lastSeenRacket && lr.who === 'player'){ lastSeenRacket = lr; const k = lr.out?.shot || '?'; K.shots[k] = (K.shots[k] || 0) + 1; if (lr.volley) K.volleys++; if (lr.out?.failed) K.failed++;
+        out.shots.push(pending = { x: +e.ball.targetLanding.x.toFixed(2), z: +e.ball.targetLanding.z.toFixed(2), cpuX: +e.opponent.pos.x.toFixed(2), cpuZ: +e.opponent.pos.z.toFixed(2), res: null });
         out.moves.push({ contactX: +e.player.pos.x.toFixed(2), contactZ: +e.player.pos.z.toFixed(2), targetX: +e.player.targetPos.x.toFixed(2), targetZ: +e.player.targetPos.z.toFixed(2), volley: !!lr.volley, landingX: +e.ball.targetLanding.x.toFixed(2), landingZ: +e.ball.targetLanding.z.toFixed(2) }); }
       const pl = e.natpfPlan;
       if (pl && pl !== lastSeenPlan){ lastSeenPlan = pl; K.plans[pl.kind] = (K.plans[pl.kind] || 0) + 1; }
@@ -149,6 +161,19 @@ export function courtStats(runs){
     volleyPct: +(100*M.filter(m => m.volley).length/Math.max(1, M.length)).toFixed(1), contactZ: { p10: q(M.map(m => m.contactZ), .1), p50: q(M.map(m => m.contactZ), .5) } };
 }
 
+// Campo aperto (richiesta del 23/10, C5): per distanza laterale tra dove cade la palla e dov'era la CPU quando è partita,
+// e per profondità, quante palle sono vincenti, errori della CPU, riprese, errori propri. Dice se spostare l'avversario,
+// spingerlo in fondo o farlo venire avanti conta.
+export function openCourtStats(runs){
+  const S = runs.flatMap(r => r.shots || []).filter(s => s.res && s.res !== 'errore proprio' && Math.abs(s.x) <= 4.2 && -s.z <= 12.2);
+  const lat = s => { const d = Math.abs(s.x - s.cpuX); return d < 2 ? '<2' : d < 4 ? '2-4' : d < 6 ? '4-6' : '>6'; };
+  const dep = s => (-s.z < 6.4 ? 'corta' : -s.z < 9.5 ? 'media' : 'fonda');
+  const rows = {};
+  for (const s of S) for (const k of [`lato ${lat(s)} m`, `prof. ${dep(s)}`]){ const r = rows[k] || (rows[k] = { n: 0, vincente: 0, 'errore CPU': 0, ripresa: 0 }); r.n++; r[s.res]++; }
+  const pct = (a, n) => +(100*a/Math.max(1, n)).toFixed(1);
+  return Object.fromEntries(Object.entries(rows).map(([k, r]) => [k, { n: r.n, vincenti: pct(r.vincente, r.n), erroriCPU: pct(r['errore CPU'], r.n), riprese: pct(r.ripresa, r.n) }]));
+}
+
 export function auditAll({ points = 200, seeds = [7, 11, 23], difficulties = ['casual', 'pro'], profiles = Object.keys(PROFILES) } = {}){
   const rows = [];
   for (const difficulty of difficulties) for (const profile of profiles){
@@ -162,7 +187,15 @@ export function auditAll({ points = 200, seeds = [7, 11, 23], difficulties = ['c
   return rows;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href && process.argv.includes('--campo')){
+if (import.meta.url === pathToFileURL(process.argv[1]).href && process.argv.includes('--cpu')){
+  // npm run audit:rally -- --cpu [--points=150]: vincenti, errori e riprese della CPU per dove cade la palla
+  const arg = k => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1];
+  for (const difficulty of (arg('difficulty') ? [arg('difficulty')] : ['casual', 'pro'])) for (const profile of (arg('profiles') ? arg('profiles').split(',') : ['tennista', 'amatore', 'medio'])){
+    const st = openCourtStats([7, 11, 23].map(seed => simulate({ profile, difficulty, points: +(arg('points') || 150), seed })));
+    console.log(`\n${difficulty}/${profile}`);
+    for (const [k, r] of Object.entries(st).sort()) console.log(`  ${k.padEnd(14)} n ${String(r.n).padStart(5)}  vincenti ${String(r.vincenti).padStart(5)}%  errori CPU ${String(r.erroriCPU).padStart(5)}%  riprese ${String(r.riprese).padStart(5)}%`);
+  }
+} else if (import.meta.url === pathToFileURL(process.argv[1]).href && process.argv.includes('--campo')){
   // npm run audit:rally -- --campo [--points=150]: campo aperto e movimento con i profili del telefono
   const arg = k => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1];
   console.log('difficoltà  profilo     colpi  celle  3 celle  profondità p10/p50/p90  lato p10/p50/p90  verso la rete (dal fondo)  volée  impatto z p10/p50');

@@ -2880,6 +2880,7 @@ export class NatpfTennisEngine {
   }
   _stepActorFootwork(e, t) {
     if (NL.legendStep(this, e, t)) return; // NATPF Leggenda: la CPU accelera e frena, niente velocità istantanea
+    if (NS.cpuStep(this, e, t)) return; // NATPF: anche a Casual e Pro (natpf_skill.js), più lenta che a Leggenda
     const i = e.targetPos.x - e.pos.x,
       a = e.targetPos.z - e.pos.z,
       s = Math.hypot(i, a);

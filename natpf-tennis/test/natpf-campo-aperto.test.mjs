@@ -25,8 +25,7 @@ test('direzione continua su tutta la finestra: ogni anticipo diverso dà una cad
       const xs = steps(from, to, 120).map(timing => shotOf({ timing, lateSpan: late, contact, hitX }, lv).x);
       // in anticipo la palla va dalla parte opposta al lato del colpo (dritto del destro: verso sinistra)
       for (let i = 1; i < xs.length; i++) assert.ok(-contact*(xs[i] - xs[i - 1]) > 1e-4, `${difficulty} lato ${contact} da ${hitX}: ${xs[i - 1]} → ${xs[i]} a ${i}`);
-      // ampiezza: almeno 6 m con il solo tempo (il resto lo dà il piatto; in ritardo si va meno in là che in anticipo,
-      // perché la palla passa il corpo: il lungolinea pieno chiede anche il piatto)
+      // ampiezza: almeno 6 m con il solo tempo (dal 23/10 da una riga all'altra: natpf-campo-aperto-23-10.test.mjs)
       assert.ok(Math.max(...xs) - Math.min(...xs) > 6, `${difficulty} ${contact} ${hitX}: ${Math.min(...xs)}…${Math.max(...xs)}`);
     }
   }

@@ -59,7 +59,9 @@ try {
   await game.waitForFunction(() => __natpfTennis.natpfPhone.cal.review?.pass, null, { timeout: 8000 }).catch(() => {});
   await game.evaluate(() => __natpfTennis.natpfPhone.confirm());
   check('telefono calibrato', await game.waitForFunction(() => __natpfTennis.natpfPhone.ready, null, { timeout: 5000 }).then(() => true, () => false));
-  // scambio vero: una palla della CPU verso chi gioca, poi il motore va avanti da solo (CPU compresa)
+  // scambio vero: una palla della CPU verso chi gioca, poi il motore va avanti da solo (CPU compresa). Dal 23/10 la CPU non
+  // riprende tutto (corsa con accelerazione e frenata, natpf_skill.js): a fine punto se ne gioca un altro dallo stesso
+  // inizio, e contano i colpi del telefono su tutti i punti
   await game.evaluate(diff => {
     const E = __natpfTennis; E.natpfUi.onboarding?.close?.(); E.hud.hideTitleModal(); E.autoPlayMode = false; E.userHasInteracted = true;
     if (E.matchConfig) E.matchConfig.difficulty = diff;
@@ -70,16 +72,22 @@ try {
       if (r && !t){ window.__contact++; const L = E.natpfLastRacket; __log.push({ pz: +E.player.pos.z.toFixed(2), gesto: e.side, lato: L?.contact ?? null, mano: L?.intent ? 'ok' : null, x: L?.out?.x, depth: L?.out?.depth, mira: L?.out?.aim, neutro: L?.out?.x0, target: +E.player.targetPos.z.toFixed(2), volee: !!L?.volley }); }
       return r;
     };
-    E.phase = 'RALLY'; E.phaseTimer = 0; E.natpfPaused = false; E.player.pos.set(0, 0, 11.4); E.player.targetPos.copy(E.player.pos);
-    Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: 1 });
-    E.ball.pos.set(-.5, 1, -11); E._launchBallToTarget(E.ball.pos, new E.ball.pos.constructor(1.4, 0, 8.6), 1.05, { topspin: 14 }); E._natpfPlanPlayer();
-    E.natpfPhone.lastPhase = 'play'; E.natpfPhone.link.send({ t: 'ph', ph: 'play' });
+    window.__rally = () => {
+      E.phase = 'RALLY'; E.phaseTimer = 0; E.natpfPaused = false; E.player.pos.set(0, 0, 11.4); E.player.targetPos.copy(E.player.pos);
+      Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: 1 });
+      E.ball.pos.set(-.5, 1, -11); E._launchBallToTarget(E.ball.pos, new E.ball.pos.constructor(1.4, 0, 8.6), 1.05, { topspin: 14 }); E._natpfPlanPlayer();
+      E.natpfPhone.lastPhase = 'play'; E.natpfPhone.link.send({ t: 'ph', ph: 'play' });
+    };
+    const award = E._awardPoint.bind(E); window.__ends = [];
+    E._awardPoint = (who, why) => { __ends.push(`${who}:${why}`); return award(who, why); };
+    __rally();
   }, DIFF);
   await phone.waitForFunction(() => __racchetta.state.phase === 'play', null, { timeout: 5000 }).catch(() => {});
-  const t0 = Date.now(); let lastPlan = null, shots = 0, after = [], gestures = 0, phaseEnd = null;
-  while (Date.now() - t0 < 40000){
+  const t0 = Date.now(); let lastPlan = null, shots = 0, after = [], gestures = 0, rallies = 1;
+  while (Date.now() - t0 < 60000){
     const s = await game.evaluate(() => { const E = __natpfTennis, P = E.natpfPlan; return { phase: E.phase, last: E.ball.lastHitter, left: P ? P.at + P.t - E.elapsedTime : null, at: P ? P.at : null, side: P ? P.side : 1, contact: window.__contact }; });
-    if (s.phase !== 'RALLY'){ phaseEnd = s.phase; break; }
+    // punto finito: se ne gioca un altro (al massimo 8), dopo che il gesto in corso è finito
+    if (s.phase !== 'RALLY'){ if (rallies >= 8) break; await game.waitForTimeout(600); await game.evaluate(() => __rally()); rallies++; lastPlan = null; continue; }
     // gesto circa 0,12 s prima del punto d'impatto (picco a metà dei 240 ms); il lato dal piano: + destra = dritto
     if (s.last === 'opponent' && s.left != null && s.at !== lastPlan && s.left < .16){ lastPlan = s.at; gestures++; await phone.evaluate(sign => { __up.swing(sign).then(() => __up.still(300)); }, s.side >= 0 ? 1 : -1); }
     if (s.contact > shots){ shots = s.contact; if (process.env.SHOTS === '1' && shots <= 4){ await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/rally-impatto-${shots}.png` }); after.push({ n: shots, at: Date.now() + 700 }); } }
@@ -87,9 +95,11 @@ try {
     if (shots >= 10) break;
     await game.waitForTimeout(10);
   }
-  const log = await game.evaluate(() => __log);
+  const log = await game.evaluate(() => __log), ends = await game.evaluate(() => __ends);
   if (process.env.DEBUG) console.log(JSON.stringify(log));
-  check('scambio vero contro la CPU: almeno 6 colpi di fila del telefono', log.length >= 6, `${log.length} colpi su ${gestures} gesti${phaseEnd ? `, fine dello scambio: ${phaseEnd}` : ''}`);
+  // ogni gesto colpisce, tranne quelli per una palla della CPU che esce (chi gioca la lascia andare): punto vinto
+  const outs = ends.filter(k => /^player:(Out|Net)/.test(k)).length;
+  check('scambio vero contro la CPU: almeno 6 colpi del telefono, ogni gesto colpisce (tranne le palle fuori della CPU)', log.length >= 6 && gestures - log.length <= outs, `${log.length} colpi su ${gestures} gesti in ${rallies} punti; fine dei punti: ${ends.join(', ')}`);
   check('il lato del colpo è quello del gesto (dritto o rovescio), con l’intenzione dalla forma', log.every(l => l.gesto === (l.lato > 0 ? 'forehand' : 'backhand') && l.mano === 'ok'), JSON.stringify(log.map(l => [l.gesto, l.lato])));
   // a rete si resta solo se una palla corta ha portato vicino alla rete (colpo da meno di 6 m) e non c'è il tempo di tornare
   check('dopo ogni colpo si torna in fondo, anche dopo le palle prese dentro il campo (niente corsa a rete)', log.every(l => l.target > 11 || l.pz < 6) && log.filter(l => l.pz > 9).every(l => l.target > 11), JSON.stringify(log.map(l => [l.pz, l.target])));

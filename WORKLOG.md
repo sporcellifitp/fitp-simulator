@@ -213,4 +213,18 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     i fotogrammi come quello nella pagina (20 Hz): messo comunque nella pagina, come il video della diagnostica.
   - Prove: `npm test` 328/328, `tools/test` 148/148, `natpf-webcam-pipeline.mjs` (nuova) 10/10. Validazione fisica
     non eseguita.
+- Checkpoint 19 (23/10): passo 4, campo aperto (C3, C4, C5); misure prima e dopo in `docs/NATPF_DIAGNOSI_2026-10-23.md` §7.
+  - C3: il tempo copre da una riga all'altra a tutti i livelli, stessa ampiezza; passo oltre la finestra per livello;
+    incrociato stretto solo dalla parte dell'incrociato. Le prove nuove (`natpf-campo-aperto-23-10.test.mjs`) falliscono
+    sul codice di prima (lungolinea e ampiezza per livello).
+  - Scoperta: con il lungolinea pieno al bordo della finestra il passo oltre la finestra (1,4 m per unità) mandava fuori
+    appena oltre il bordo (Pro amatore 79 → 67% al primo tentativo): passo per livello. E l'accorciamento degli angoli
+    valeva anche per il lungolinea: palle ammucchiate a 6,5–7 m vicino alle righe (prova della concentrazione 2,02%).
+  - C4: forza rispetto al colpo tipico imparato giocando (`powerRefs`, anche nel telefono simulato).
+  - C5: misura nuova (`audit:rally -- --cpu`): a Pro 0% di vincenti anche con la palla a 4–6 m dalla CPU; causa: la CPU
+    di Casual e Pro cambiava verso all'istante. Ora accelera e frena; a Pro meno errori a caso per restare nel 70–85% di
+    game contro «medio» (primo tentativo 89%, KO). Leggenda invariata.
+  - La prova nel browser dello scambio (`natpf-rally.mjs`) contava su una CPU che riprende tutto (6 colpi in un punto):
+    ora gioca più punti e conta i colpi su tutti; ogni gesto colpisce tranne quelli per una palla della CPU che esce.
+  - Prove: `npm test` 333/333, scambio nel browser 7/7. Validazione fisica non eseguita.
 

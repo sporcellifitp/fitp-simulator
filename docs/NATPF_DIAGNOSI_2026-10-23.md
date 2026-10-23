@@ -267,7 +267,7 @@ alla volta, con il prima e il dopo.
 | 3a | Telefono: soglie e colpo tipico (T1), attesa del colpo vero (T2), palla corta e pallonetto (T3, T4), mira dal piatto (T6), impugnatura di taglio (T7) | fatto nel codice, provato in automatico; prova fisica da fare |
 | 3b | Android: blocco dello schermo, pausa e ripresa controllata (A1–A4) | fatto nel codice, provato in automatico; prova fisica da fare |
 | 3c | Webcam: misura e catena (§5) | fatto nel codice, provato in automatico e nel browser con la webcam finta; misura sul portatile da fare |
-| 4 | Campo aperto e ritmo (C1–C5) | — |
+| 4 | Campo aperto e ritmo (C1–C5) | C3, C4, C5 fatti nel codice e misurati nel banco; C1–C2 (ritmo) da fare |
 | 5 | Verifica, prova guidata, pacchetti | — |
 
 ### Passo 3a · telefono (fatto)
@@ -334,4 +334,42 @@ alla volta, con il prima e il dopo.
 - Cosa provano i test: simulatore della webcam (stesso codice del gioco) per colpi, flusso e stati; partita con
   l'orologio virtuale per pausa e ripresa; nel browser (`natpf-webcam-pipeline.mjs`, modello vero sulla webcam finta)
   10/10. Non provano la mano vera, la luce della stanza né la webcam del portatile: quelle con la prova guidata.
+
+### Passo 4 · campo aperto (C3, C4, C5: fatti) — misure del banco prima e dopo
+
+Banco: `npm run audit:rally` (punti vinti e colpi per punto, 3 semi × 150 punti), `-- --cpu` (nuovo: per ogni colpo di chi
+gioca, distanza laterale tra la caduta e la CPU quando il colpo parte, profondità, ed esito: vincente, errore della CPU,
+ripresa), `-- --campo` (distribuzione delle cadute), `npm run audit:legend` (criteri di Leggenda e di non regressione).
+Base: commit `cd2aaa7` (stesso motore del 23/10 per il campo).
+
+- **C3 direzione**: il tempo dentro la finestra copre da una riga all'altra a tutti i livelli (peso del tempo 1, prima
+  0,72 e 0,58 a Leggenda; la spinta naturale verso l'incrociato vale solo vicino al tempo neutro); stessa mira piena a
+  tutti i livelli (3,65 m; Leggenda era 3,1). Lungolinea al bordo della finestra: prima il 57% della mira (43% a
+  Leggenda), ora la riga (3,6 m dal centro). Oltre la finestra la palla va verso l'esterno con un passo per livello (0,8
+  m per unità a Casual, 0,9 a Pro e 1v1, 1,1 a Leggenda: prima 1,4 per tutti, che con il lungolinea pieno portava fuori
+  appena oltre il bordo). L'incrociato stretto (più corto) solo dalla parte dell'incrociato: il lungolinea resta profondo.
+  Cadute di chi gioca, 10° e 90° percentile laterale: prima ±3,1–3,2 m, ora ±3,6–3,9 m; le tre celle più colpite
+  scendono (es. Pro tennista 26,3% → 22%).
+- **C4 profondità**: la forza (e la profondità voluta) si misura rispetto al proprio colpo tipico imparato giocando
+  (mediana degli ultimi colpi dello scambio), non più rispetto ai gesti della calibrazione: con i colpetti della
+  calibrazione la parte relativa era sempre piena. Nel telefono simulato: colpo solito a metà, più forte più in fondo,
+  più morbido più corto, con differenze circa una volta e mezzo quelle di prima.
+- **C5 CPU**: a Casual e Pro la CPU accelera e frena (10 e 16 m/s² a Casual, 11 e 17 a Pro; prima cambiava verso
+  all'istante); a Pro meno errori a caso (base 0,004, velocità 0,07, angolo 0,14; erano 0,015, 0,12, 0,2) e punta 5,3 m/s
+  (era 5,0): restano gli errori forzati dall'allungo. Vincenti di chi gioca per distanza della caduta dalla CPU:
+
+  | Pro, profilo tennista | prima | dopo |
+  |---|---|---|
+  | palla a meno di 2 m dalla CPU | 0% vincenti, 15% errori CPU | 0%, 15% |
+  | 2–4 m | 0%, 20% | 0,4%, 17–20% |
+  | 4–6 m | 0%, 23% | 13–21%, 18–21% |
+  | oltre 6 m | (mai: la CPU era sempre vicina) | 56–86% |
+
+  Casual, profilo medio, 4–6 m: prima 1,5% vincenti, ora 41%.
+- **Equilibrio** (punti vinti, prima → dopo): Casual medio 85,3 → 89,8%, bambino 45,1 → 60,2%, tennista 100 → 97,6%;
+  Pro medio 61,6 → 68,0%, amatore 79,3 → 74,0%, tennista 99,8 → 94,2%, impreciso 22,7 → 21,1%. Colpi per punto: Casual
+  9–13 → 5–9, Pro 7–13 → 5–11. Leggenda: tutti i criteri rispettati (preciso 71,9%, tennista 95,3% di game alla CPU);
+  non regressione Pro contro medio 81,3% (70–85%), Casual contro medio 99,8% (≥ 95%).
+- Cosa provano: il banco usa le regole vere del motore con profili simulati (tempo, mira, forza). Non dice se il ritmo e
+  la difficoltà sono giusti per una persona: questo lo dice la prova guidata.
 

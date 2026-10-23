@@ -95,6 +95,13 @@ export function createTypicalModel({ keep = TYPICAL.keep, min = TYPICAL.min, fro
     get value(){ if (h.length < min) return null; const v = [...h].sort((a, b) => a - b), m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m])/2; },
   };
 }
+// riferimento della forza (natpf_stroke_intent.strokeIntent): il colpo tipico imparato giocando, nella stessa misura del
+// picco (peak); finché non c'è, quelli della calibrazione (ref sul picco, rawRef sul picco vero)
+export function powerRefs(profile, typical = null){
+  if (Number.isFinite(typical)) return { ref: typical, rawRef: null };
+  const ok = profile && !profile.simple;
+  return { ref: ok && Number.isFinite(profile.ref) ? profile.ref : null, rawRef: ok && Number.isFinite(profile.rawRef) ? profile.rawRef : null };
+}
 export const profileTypical = profile => { if (!profile || profile.simple) return null; const v = [profile.refs?.[1], profile.refs?.[-1], profile.ref].filter(x => Number.isFinite(x) && x > 0); return v.length ? Math.max(...v) : null; };
 export function createRiseModel({ min = RISE_LEARN.min, keep = RISE_LEARN.keep } = {}){
   const seen = { 1: [], '-1': [] };
@@ -390,8 +397,12 @@ export class NatpfPhoneRacket {
       for (const fn of this.swingListeners) try { fn({ ignored: 'palla che si allontana', natpf: {} }, s); } catch (e){ console.error(e); }
       return;
     }
-    const ref = this.profile && !this.profile.simple && Number.isFinite(this.profile.ref) ? this.profile.ref : null;
-    const rawRef = this.profile && !this.profile.simple && Number.isFinite(this.profile.rawRef) ? this.profile.rawRef : null;
+    // forza e profondità voluta rispetto al proprio colpo tipico imparato giocando (richiesta del 23/10, C4): un colpo più
+    // forte del solito va più in fondo, uno più morbido più corto. Prima il riferimento era il gesto della calibrazione,
+    // spesso un colpetto (il 23/10 143 °/s): la parte relativa della forza era sempre piena e la profondità non seguiva
+    // l'intensità. Il colpo tipico è nella stessa misura del picco (peak), quindi la forza si legge su quello. Finché non
+    // c'è (primi colpi dello scambio), il riferimento della calibrazione
+    const { ref, rawRef } = powerRefs(this.profile, this.typicalModel.value);
     // salita abituale dei propri colpi in questo verso (gesti della calibrazione, o imparata giocando): classifyStroke
     const riseRef = habitualRise(this.profile, s.dir, this.riseModel);
     const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, displayLag: this.displayLagMs/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine), ref, rawRef, riseRef }), role: this.engine.playerRole };

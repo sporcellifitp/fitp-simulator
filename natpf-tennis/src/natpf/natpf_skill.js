@@ -32,13 +32,17 @@ export const SKILL_LEVELS = Object.freeze({
     playerErr: Object.freeze({ base: .008, power: .1, timing: .28, max: .45 }),  // rischio d'errore del giocatore
     streakGain: .045, streakMin: .82,                   // tempo di volo −4,5% per colpo perfetto consecutivo, fino a −18%
     cpuReach: 1.4, cpuSpeed: 4.7, cpuReact: .24, cpuReadSd: .45, cpuReadFix: .38, cpuCenterBias: .35,
+    cpuAccel: 10, cpuDecel: 16,                         // m/s²: la CPU accelera e frena (23/10: prima cambiava verso all'istante)
     cpuErr: Object.freeze({ base: .03, angle: .2, speed: .12, pressure: .06, stretch: .25, rally: .014, drop: .32, lob: .3, smash: .5, max: .7 }),
     cpuWeak: .16, cpuAttack: .7, cpuAttackBase: .12, cpuAttackFlight: .7, playerSpeed: 10.2,  // su palle deboli la CPU attacca: angolo e ritmo
   }),
   pro: Object.freeze({
     ...EXPERT_PLAYER,
-    cpuReach: 1.5, cpuSpeed: 5.0, cpuReact: .2, cpuReadSd: .36, cpuReadFix: .3, cpuCenterBias: .22,
-    cpuErr: Object.freeze({ base: .015, angle: .2, speed: .12, pressure: .045, stretch: .25, rally: .012, drop: .22, lob: .2, smash: .35, max: .5 }),
+    cpuReach: 1.5, cpuSpeed: 5.3, cpuReact: .2, cpuReadSd: .36, cpuReadFix: .3, cpuCenterBias: .22,
+    cpuAccel: 11, cpuDecel: 17,                         // 23/10: con l'inerzia la punta sale da 5,0 (corse lunghe)
+    // 23/10: meno errori a caso (erano base .015, velocità .12, angolo .2): con la corsa che costa, i punti li decidono di più
+    // il campo aperto e l'allungo (stretch), non il caso; Pro contro «medio» resta nel 70–85% dei game
+    cpuErr: Object.freeze({ base: .004, angle: .14, speed: .07, pressure: .045, stretch: .25, rally: .012, drop: .22, lob: .2, smash: .35, max: .5 }),
     cpuWeak: .1, cpuAttack: .7, cpuAttackBase: .24, cpuAttackFlight: .62,
   }),
   // Leggenda: per chi gioca le regole di Esperto. La CPU non ha una probabilità d'errore propria (cpuErr): colpisce
@@ -314,6 +318,26 @@ export function tickCpuRun(engine){
   else cpu.targetPos.copy(plan.hold);
 }
 export const cpuReach = (engine, base) => { const lv = skillLevel(engine.matchConfig?.difficulty); return lv.cpuReach ?? base; };
+// Corsa della CPU con accelerazione e frenata (Casual e Pro; Leggenda ha la sua, natpf_legend.js). Richiesta del 23/10:
+// prima la CPU andava alla velocità piena verso il bersaglio e cambiava verso all'istante, quindi arrivava ovunque
+// (nel banco 0% di vincenti a Pro anche con la palla a 4–6 m da lei): spostarla non costava niente. Ora una CPU ferma,
+// o che corre dalla parte sbagliata, ha bisogno di tempo per arrivare dall'altra parte. Fisica, non caso.
+// true se ha mosso lei la CPU (altrimenti il motore la muove come prima)
+export function cpuStep(engine, actor, dt){
+  if (actor !== engine.opponent || engine.isMultiplayer || !(dt > 0)) return false;
+  const lv = skillLevel(engine.matchConfig?.difficulty);
+  if (!lv.cpuAccel || lv.cpuLegend) return false;
+  const a = actor, dx = a.targetPos.x - a.pos.x, dz = a.targetPos.z - a.pos.z, d = Math.hypot(dx, dz), vmax = a.maxSpeed;
+  // velocità voluta: piena lontano dal bersaglio, poi quella che permette di fermarsi frenando
+  const vDes = d > .05 ? Math.min(vmax, Math.sqrt(2*lv.cpuDecel*Math.max(0, d - .05))) : 0;
+  const wx = d > 1e-6 ? dx/d*vDes : 0, wz = d > 1e-6 ? dz/d*vDes : 0;
+  let ax = wx - a.vel.x, az = wz - a.vel.z; const am = Math.hypot(ax, az);
+  const lim = (Math.hypot(wx, wz) < a.vel.length() ? lv.cpuDecel : lv.cpuAccel)*dt;
+  if (am > lim){ ax *= lim/am; az *= lim/am; }
+  a.vel.set(a.vel.x + ax, 0, a.vel.z + az);
+  a.pos.x += a.vel.x*dt; a.pos.z += a.vel.z*dt; a.stridePhase += a.vel.length()*dt*4.4;
+  return true;
+}
 
 // Probabilità d'errore della CPU sul colpo che sta per rimandare.
 // quality: qualità del colpo in arrivo (un angolo preso fuori tempo mette meno in difficoltà)

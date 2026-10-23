@@ -10,7 +10,7 @@ import { createFaceTracker } from '@natpf/tennis/face-tracker.js';
 import { createCalibration, QUICK_PLAN } from '@natpf/tennis/calibration.js';
 import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { strokeShape } from '@natpf/tennis/stroke-shape.js';
-import { natpfSwingToEngine, NORMAL_SHOTS, habitualRise, createRiseModel } from '../src/natpf/natpf_phone_racket.js';
+import { natpfSwingToEngine, NORMAL_SHOTS, habitualRise, createRiseModel, createTypicalModel, powerRefs } from '../src/natpf/natpf_phone_racket.js';
 import { createLiftModel, createFaceModel, createAimModel, liftBaselineFromProfile, headBaselineFromProfile } from '../src/natpf/natpf_gestures.js';
 
 export const G = 9.81, DT = 1000/60;
@@ -91,16 +91,18 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
   const skip = ({ tremor = 0 } = {}) => { cal.start({ quick: true, hand }); rest(800, tremor); const p = cal.skip(); ready = true; rest(600, tremor); return p; };
   // sul computer: come NatpfPhoneRacket._onSwing, con i riferimenti che si adattano ai colpi della partita
   const prof = () => det.profile;
-  const lifts = { model: null }, heads = { model: null }, faces = createFaceModel(), aims = createAimModel(), rises = createRiseModel();
-  const game = (d, { ballHigh = false } = {}) => {
+  const lifts = { model: null }, heads = { model: null }, faces = createFaceModel(), aims = createAimModel(), rises = createRiseModel(), typical = createTypicalModel();
+  // rally: colpo nello scambio (impara il colpo tipico, riferimento della forza dal terzo colpo come nel gioco)
+  const game = (d, { ballHigh = false, rally = true } = {}) => {
     lifts.model ||= createLiftModel(liftBaselineFromProfile(prof()) ?? 0);
     heads.model ||= createLiftModel(headBaselineFromProfile(prof(), hand) ?? 0);
     const s = parseSwingMessage(d, { at: 10, now: 10020 });
-    const p = prof(), ref = p && !p.simple && Number.isFinite(p.ref) ? p.ref : null, rawRef = p && !p.simple && Number.isFinite(p.rawRef) ? p.rawRef : null;
+    const p = prof(), { ref, rawRef } = powerRefs(p, typical.value);
     const ev = natpfSwingToEngine(s, { hand, now: 10.02, ballHigh, liftBaseline: lifts.model.value, headBaseline: heads.model.value, faceCenter: faces.center(s.dir), aimModel: aims, ref, rawRef, riseRef: habitual ? habitualRise(p, s.dir, rises) : null });
     if (NORMAL_SHOTS.has(ev.natpf.shot)){ lifts.model.add(s.dir, s.lift); heads.model.add(s.dir, ev.natpf.head); }
     faces.add(s.dir, s.face); aims.add(s.dir, s.heading);
     if (ev.natpf.intent) rises.add(s.dir, s.shape?.rise, ev.natpf.intent.shot);
+    if (rally) typical.add(s.peak);
     return { s, ev };
   };
   return { det, face, cal, msgs, rest, pose, swing, calibrate, skip, game, sampleWorld, get t(){ return t; }, get q(){ return q; } };

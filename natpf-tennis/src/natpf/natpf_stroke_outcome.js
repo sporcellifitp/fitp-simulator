@@ -20,12 +20,14 @@ const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 const lerp = (a, b, u) => a + (b - a)*clamp(u);
 
 export const OUTCOME = Object.freeze({
-  natural: .15,       // un colpo neutro va un poco incrociato (il colpo più sicuro)
-  timingAim: .72,     // tempo dentro la finestra → mira (a ±1 unità quasi piena)
+  natural: .15,       // un colpo neutro va un poco incrociato (il colpo più sicuro); la spinta sparisce verso i bordi della
+                      // finestra (23/10: prima valeva anche in ritardo e il lungolinea pieno chiedeva anche il piatto)
+  timingAim: 1,       // tempo dentro la finestra → mira: ai bordi (±1 unità) incrociato e lungolinea pieni (era .72)
   faceAim: .32,       // piatto girato rispetto al proprio colpo abituale
   xMax: 3.65,         // m: mira piena, 0,45 m dentro la riga laterale del singolare
   follow: .4,         // il punto neutro segue di tanto la posizione laterale della palla all'impatto (0: sempre il centro)
-  pushOut: 1.4,       // m di lato per unità di tempo oltre la finestra, fino alla fine della finestra (la palla esce)
+  pushOut: 1.4,       // m di lato per unità di tempo oltre la finestra (per livello in ASSIST: con il lungolinea e
+                      // l'incrociato pieni al bordo della finestra la palla esce nell'ultima parte della finestra d'impatto)
   // profondità del rimbalzo (m dalla rete) per tipo, da profondità voluta 0 a 1: dalla riga del servizio (e prima)
   // alla riga di fondo; il proprio colpo tipico (profondità voluta circa 0,5) cade attorno a 8,7 m. Prima un colpo
   // normale andava da 7,4 a 10,9 m (2,5 m con i gesti tipici: metà campo e centro irraggiungibili)
@@ -38,9 +40,10 @@ export const OUTCOME = Object.freeze({
   shortPerQ: 2.4,     // m più corta per la qualità che manca
   shortPerExcess: .8, // m più corta per unità di tempo oltre la finestra
   heavyRise: .45, heavyGain: 4,   // top spin con la testa che sale molto e forte: va lunga (può uscire)
-  // angolo stretto: oltre wideFrom di lato la palla cade più corta, verso wideDepth in proporzione (widePull): la
-  // differenza di profondità voluta resta (prima tutte le palle molto angolate cadevano a 6 m)
-  wideFrom: 2.9, wideSpan: 1, wideDepth: 6, widePull: .6,
+  // incrociato stretto: dalla parte dell'incrociato, oltre wideFrom di lato, la palla cade più corta, verso wideDepth in
+  // proporzione (widePull): la differenza di profondità voluta resta. Il lungolinea non è un angolo: resta profondo
+  // (23/10: con il lungolinea pieno al bordo della finestra anche lui cadeva a 6,5–7 m, e le palle si ammucchiavano lì)
+  wideFrom: 3.2, wideSpan: .8, wideDepth: 6, widePull: .6,
   floatPerQ: .35,     // m più alta sulla rete per la qualità che manca (palla «galleggiante» per l'avversario)
   lobFlight: [2.2, 1.75], smashFlight: .42,
   volleyShort: 1,     // m: la volée spinge meno
@@ -50,13 +53,16 @@ export const OUTCOME = Object.freeze({
 
 // Assistenza per livello: mira piena (xMax, m dal centro), qualità sotto la quale la palla non è più tenuta in campo
 // (assistQ) e sotto la quale il colpo fallisce (failQ: in rete se la palla è bassa, lunga se è alta), finestra della
-// direzione (span, s; altrimenti timingSpan del livello) e quanto il tempo sposta la direzione (timingAim). A Leggenda gli angoli pieni restano più dentro e il tempo conta meno sulla direzione: con una finestra
-// stretta l'imprecisione di tempo diventava angoli ampi e casuali, cioè vincenti imprevedibili per la CPU.
+// direzione (span, s; altrimenti timingSpan del livello). Richiesta del 23/10: il livello cambia la precisione chiesta
+// (finestra del tempo, qualità sotto cui la palla non è tenuta dentro o fallisce), non dove si può mandare la palla:
+// stessa mira piena e stesso peso del tempo a tutti i livelli. Prima a Leggenda 3,1 m e 0,58 (lungolinea al 43%).
+// pushOut: m di lato per unità di tempo oltre la finestra della direzione (quanto presto un colpo troppo in anticipo o
+// in ritardo esce di lato: a Casual nell'ultima parte della finestra d'impatto, a Leggenda prima)
 export const ASSIST = Object.freeze({
-  casual: Object.freeze({ xMax: 3.65, assistQ: .5, failQ: .2 }),
-  '1v1': Object.freeze({ xMax: 3.6, assistQ: .6, failQ: .34 }),
-  pro: Object.freeze({ xMax: 3.55, assistQ: .62, failQ: .3 }),
-  leggenda: Object.freeze({ xMax: 3.1, assistQ: .8, failQ: .63, timingAim: .58, pressureFrom: 10 }),
+  casual: Object.freeze({ xMax: 3.65, assistQ: .5, failQ: .2, pushOut: .8 }),
+  '1v1': Object.freeze({ xMax: 3.65, assistQ: .6, failQ: .34, pushOut: .9 }),
+  pro: Object.freeze({ xMax: 3.65, assistQ: .62, failQ: .3, pushOut: .9 }),
+  leggenda: Object.freeze({ xMax: 3.65, assistQ: .8, failQ: .63, pressureFrom: 10, pushOut: 1.1 }),
 });
 export const assistOf = level => ASSIST[level?.name] || (level?.cpuLegend ? ASSIST.leggenda : level?.assistWindow <= .16 ? ASSIST.pro : level?.assistWindow >= .3 ? ASSIST.casual : ASSIST['1v1']);
 // finestra della direzione (s) del livello
@@ -101,15 +107,16 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contac
   const q = clamp(timingQualityOf(t)*clamp(finite(quality, 1)), .2, 1);
   // assistenza: piena dentro la finestra e sopra la qualità del livello, sfuma oltre (prima un gradino)
   const assist = clamp(1 - excess/O.assistFade)*clamp((q - AS.assistQ)/O.assistQSpan + .5), xMax = AS.xMax, k = xMax/O.xMax;
-  // direzione: mira dal tempo e dal piatto attorno al punto neutro, poi la spinta oltre la finestra
-  const aim = -c*O.natural - c*inside*finite(AS.timingAim, O.timingAim) + clamp(finite(intent.face), -1, 1)*finite(intent.faceWeight, O.faceAim);
-  const x0 = neutralX(hitX, xMax), raw = landingFromAim(aim, x0, xMax) - c*Math.sign(t)*excess*O.pushOut;
+  // direzione: mira dal tempo (ai bordi della finestra le due righe; la spinta naturale verso l'incrociato solo vicino al
+  // tempo neutro) e dal piatto attorno al punto neutro, poi la spinta oltre la finestra
+  const aim = -c*O.natural*(1 - Math.abs(inside)) - c*inside*finite(AS.timingAim, O.timingAim) + clamp(finite(intent.face), -1, 1)*finite(intent.faceWeight, O.faceAim);
+  const x0 = neutralX(hitX, xMax), raw = landingFromAim(aim, x0, xMax) - c*Math.sign(t)*excess*finite(AS.pushOut, O.pushOut);
   const x = raw + (Math.sign(raw)*softEdge(Math.abs(raw), O.sideKnee*k, O.sideEdge*k) - raw)*assist;
   // profondità: voluta (forza e ampiezza dello swing), meno per la qualità che manca e il tempo oltre la finestra
   const D = O.depth[shot] || O.depth.TOPSPIN;
   let depth = lerp(D[0], D[1], want) - (1 - q)*O.shortPerQ - excess*O.shortPerExcess - (volley ? O.volleyShort*(1 - power) : 0);
   if (shot === 'TOPSPIN') depth += clamp(rise - O.heavyRise, 0, .4)*O.heavyGain*power;
-  if (shot !== 'DROP' && shot !== 'LOB') depth -= Math.max(0, depth - O.wideDepth)*O.widePull*clamp((Math.abs(x) - O.wideFrom)/O.wideSpan);
+  if (shot !== 'DROP' && shot !== 'LOB' && -c*x > 0) depth -= Math.max(0, depth - O.wideDepth)*O.widePull*clamp((Math.abs(x) - O.wideFrom)/O.wideSpan);
   depth += (softEdge(depth, O.depthKnee, O.maxDepth) - depth)*assist;
   depth = shot === 'DROP' ? softFloor(depth, O.dropMin, O.dropMin + .6) : softFloor(depth, O.minDepth, O.minDepth + .6);
   // altezza sulla rete ed effetto
