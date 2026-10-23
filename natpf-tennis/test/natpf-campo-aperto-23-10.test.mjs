@@ -70,3 +70,53 @@ test('profondità dall\'intensità rispetto al proprio colpo tipico imparato gio
   assert.ok((strong.depth - soft.depth) > 1.3*(first[1].depth - first[2].depth), `prima ${first[2].depth}…${first[1].depth}, ora ${soft.depth}…${strong.depth}`);
   assert.ok(typ.depth > .4 && typ.depth < .6, `il proprio colpo solito cade a metà campo-fondo: ${typ.depth}`);
 });
+
+// --- ritmo (C1–C2): contatto al colmo dopo il rimbalzo quando è raggiungibile ---
+async function rhythmEngine(difficulty, ritmo = null){
+  const THREE = await import('three');
+  const { createHeadlessEngine, mulberry32 } = await import('../scripts/audit/headless-engine.mjs');
+  const real = Math.random; Math.random = mulberry32(5);
+  try {
+    const e = createHeadlessEngine({ difficulty }); e.startNewMatch({ showStartBanner: false });
+    if (ritmo) e.params = new URLSearchParams(`ritmo=${ritmo}`);
+    // palla della CPU profonda (rimbalzo oltre la riga del servizio, con l'aria a circa 8 m), il cui colmo dopo il
+    // rimbalzo è a circa 12 m: raggiungibile
+    e.phase = 'RALLY'; Object.assign(e.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: 3 });
+    e.player.pos.set(.5, 0, 11.7); e.player.targetPos.copy(e.player.pos);
+    e.ball.pos.set(-.6, 1, -10.5); e._launchBallToTarget(e.ball.pos, new THREE.Vector3(.9, 0, 9.5), 1.2, { topspin: 14 });
+    e._natpfPlanPlayer();
+    return e.natpfPlan;
+  } finally { Math.random = real; }
+}
+test('ritmo: palla della CPU con il colmo raggiungibile → a Casual e Pro si colpisce al colmo (più tempo, più alta); a Leggenda come prima, se non si chiede', async () => {
+  const NI = await import('../src/natpf/natpf_impact.js');
+  const casual = await rhythmEngine('casual'), pro = await rhythmEngine('pro'), legend = await rhythmEngine('leggenda');
+  // a Leggenda il primo punto comodo (come prima del 23/10)
+  assert.equal(legend.kind, 'ground');
+  for (const [name, p] of [['casual', casual], ['pro', pro]]){
+    assert.equal(p.kind, 'ground', name);
+    assert.ok(p.t > legend.t + .12 && p.contact.y > legend.contact.y + .2, `${name}: impatto a ${p.t} s e ${p.contact.y} m (Leggenda ${legend.t} s, ${legend.contact.y} m)`);
+    assert.ok(Math.abs(p.contact.z) <= NI.PLAN.apexBack + .01, `${name}: entro la posizione più arretrata (${p.contact.z})`);
+  }
+  // per confrontare sullo stesso computer: ?ritmo=colmo lo accende anche a Leggenda, ?ritmo=prima lo spegne
+  const legendOn = await rhythmEngine('leggenda', 'colmo'), casualOff = await rhythmEngine('casual', 'prima');
+  assert.ok(Math.abs(legendOn.t - casual.t) < .05, `Leggenda con ?ritmo=colmo: ${legendOn.t} (Casual ${casual.t})`);
+  assert.ok(Math.abs(casualOff.t - legend.t) < .05, `Casual con ?ritmo=prima: ${casualOff.t} (Leggenda ${legend.t})`);
+});
+
+test('ritmo: con chi gioca arretrato la palla è «passata» solo oltre la finestra d\'impatto in ritardo (prima: a 15,6 m fissi)', async () => {
+  const THREE = await import('three');
+  const { createHeadlessEngine, mulberry32 } = await import('../scripts/audit/headless-engine.mjs');
+  const real = Math.random; Math.random = mulberry32(9);
+  try {
+    const e = createHeadlessEngine({ difficulty: 'pro' }); e.startNewMatch({ showStartBanner: false });
+    let awarded = null; const award = e._awardPoint.bind(e); e._awardPoint = (who, why) => { awarded = { who, why, z: +e.ball.pos.z.toFixed(2) }; return award(who, why); };
+    e.phase = 'RALLY'; Object.assign(e.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 1, rallyStrokeCount: 3 });
+    e.player.pos.set(0, 0, 13.7); e.player.targetPos.copy(e.player.pos);
+    e.ball.pos.set(.4, .9, 14.6); e.ball.vel.set(0, -.5, 9); e.ball.spin.set(0, 0, 0);
+    for (let i = 0; i < 400 && !awarded && e.ball.pos.z < 16.1; i++) e.step(1/120);
+    assert.equal(awarded, null, `oltre 15,6 m ma a meno di 2,8 m dietro chi gioca la finestra in ritardo è ancora aperta (palla a ${e.ball.pos.z.toFixed(2)} m)`);
+    for (let i = 0; i < 120 && !awarded; i++) e.step(1/120);
+    assert.ok(awarded && awarded.who === 'opponent' && awarded.z > 13.7 + 2.8 - .1, JSON.stringify(awarded));
+  } finally { Math.random = real; }
+});

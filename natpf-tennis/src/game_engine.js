@@ -2326,6 +2326,7 @@ export class NatpfTennisEngine {
       const A = NS.shotArc({ shot: natpfArc.shot, power: natpfArc.power, fromY: d.y, fromZ: d.z, toZ: c, flight: f });
       (f = A.flight), (natpfSpin = A.topspin);
     }
+
     this._launchBallToTarget(d, new o.Vector3(g, 0, c), f, {
         topspin: natpfSpin,
         sidespin: 0,
@@ -2851,7 +2852,10 @@ export class NatpfTennisEngine {
           this.ball.pos.y < 1.75
         )
           this._attemptPlayerRallyStrike({ timing: "PERFECT" }, !0);
-        else if (this.ball.pos.z > 15.6) {
+        // NATPF: palla passata solo oltre la finestra d'impatto in ritardo dietro chi gioca (fino a 2,8 m dietro il punto
+        // d'impatto): dal 23/10 si arretra fino a 14,6 m per colpire vicino al colmo, e il limite fisso di 15,6 m tagliava
+        // i colpi appena in ritardo (punti persi senza colpire)
+        else if (this.ball.pos.z > Math.max(15.6, this.player.pos.z + 2.8)) {
           this._awardPoint("opponent", this.isMultiplayer ? "Nice Shot!" : "Point");
           return;
         }

@@ -25,6 +25,10 @@ export const PHONE_PROFILES = {
   tennista: { swing: true, prep: .9, intent: .9, timingSd: .035, wristSd: .12, peak: 1150, peakSd: 150, rel: .8, specials: .1 },
   amatore:  { swing: true, prep: .55, intent: .5, timingSd: .075, wristSd: .3,  peak: 700,  peakSd: 160, rel: .7, specials: .04 },
   bambino:  { swing: true, prep: .1, intent: 0,  timingSd: .14,  wristSd: .45, peak: 380,  peakSd: 90,  rel: .75, specials: 0 },
+  // come «amatore», ma il gesto parte dal rimbalzo, non dal punto d'impatto del motore: dopo il rimbalzo di afterBounce
+  // secondi (± afterBounceSd), quando la palla arriva all'altezza comoda. Dato della partita del 23/10 (video): chi gioca
+  // faceva il gesto 0,2–0,3 s dopo il rimbalzo. Sulle palle al volo vale il tempo del motore
+  umano:    { swing: true, prep: .55, intent: .5, timingSd: .075, wristSd: .3,  peak: 700,  peakSd: 160, rel: .7, specials: .04, afterBounce: .25, afterBounceSd: .05 },
 };
 Object.assign(PROFILES, PHONE_PROFILES);
 const RALLY_CAP = 60;
@@ -54,13 +58,14 @@ function phoneIntent(e, P, rng){
   const shot = special ? (e.opponent.pos.z > -9 ? 'lob' : 'slice') : 'topspin';
   const intent = { shot, power: +power.toFixed(3), depth: +(power*.91).toFixed(3), rise: shot === 'lob' ? .8 : shot === 'slice' ? -.4 : .3, face: clamp(face + gauss(rng)*P.wristSd, -1, 1) };
   // error > 0 = in ritardo (come negli altri profili): per anticipare di tau si colpisce tau secondi prima dello sweet spot
-  return { error: -tau + gauss(rng)*P.timingSd + (-.1 - IDEAL_R)/18, sent: false,
+  return { error: -tau + gauss(rng)*P.timingSd + (-.1 - IDEAL_R)/18, sent: false, after: P.afterBounce ? P.afterBounce - tau + gauss(rng)*(P.afterBounceSd || 0) : null,
     swing: { source: 'audit', side: contact > 0 ? 'forehand' : 'backhand', shotType: shot, speed: .8 + power*.85, dirX: 0,
       natpf: { aim: 'swing', shot, intent, power, peak: Math.round(peak), latency: 0, hand: 'right',
         prepCapable: true, prep: rng() < (P.prep || 0) ? { lead: .35, amount: .8 } : null } } };
 }
 
-export function simulate({ profile = 'medio', difficulty = 'casual', points = 200, seed = 7, maxSeconds = 4000 } = {}){
+// onStep(e): facoltativo, dopo ogni passo della fisica (misure di altri banchi: scripts/audit/rhythm.mjs)
+export function simulate({ profile = 'medio', difficulty = 'casual', points = 200, seed = 7, maxSeconds = 4000, onStep = null } = {}){
   const P = typeof profile === 'string' ? PROFILES[profile] : profile;
   const rng = mulberry32(seed), engineRng = mulberry32(seed*7919 + 13);
   const realRandom = Math.random; Math.random = engineRng;
@@ -94,19 +99,22 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
     e.hud = new Proxy({}, { get: (t, k) => k === 'showTimingPopup' ? ({ grade = '' } = {}) => { const g = String(grade).split(' ')[0]; out.grades[g] = (out.grades[g] || 0) + 1; if (/WHIFF/.test(grade)) out.whiffs++; } : () => {} });
     void popup;
     e.startNewMatch({ showStartBanner: false });
-    let intent = null, serveAt = null, lastSeenShot = null, lastSeenCpu = null, lastSeenRacket = null, lastSeenPlan = null;
+    let intent = null, serveAt = null, lastSeenShot = null, lastSeenCpu = null, lastSeenRacket = null, lastSeenPlan = null, bounceAt = null;
     for (let t = 0; t < maxSeconds && out.points < points; t += DT){
-      if (e.phase === 'SERVE_STANCE'){ intent = null; if (e.score.server === 'player' && e.phaseTimer > .6){ e._handleUserTossInput({}); serveAt = e.elapsedTime + .55 + gauss(rng)*P.timingSd*.6; } }
+      if (e.phase === 'SERVE_STANCE'){ intent = null; bounceAt = null; if (e.score.server === 'player' && e.phaseTimer > .6){ e._handleUserTossInput({}); serveAt = e.elapsedTime + .55 + gauss(rng)*P.timingSd*.6; } }
       if (e.phase === 'SERVE_TOSS' && e.score.server === 'player' && serveAt != null && e.elapsedTime >= serveAt){
         serveAt = null; e._handleUserSwingInput({ source: 'audit', speed: P.speed + gauss(rng)*P.speedSd, dirX: gauss(rng)*.3 });
       }
       if (e.phase === 'RALLY' && e.ball.inPlay){
-        if (e.ball.lastHitter === 'player') intent = null;
+        if (e.ball.lastHitter === 'player'){ intent = null; bounceAt = null; }
         else if (e.ball.vel.z > .5 && e.ball.pos.z > -6){
           if (!intent && P.swing) intent = phoneIntent(e, P, rng);
           if (!intent) intent = { error: gauss(rng)*P.timingSd, sent: false };
           const r = e.ball.pos.z - e.player.pos.z, tti = (IDEAL_R - r)/Math.max(.5, e.ball.vel.z - e.player.vel.z);   // tempo all'impatto ideale (il giocatore corre)
-          if (!intent.sent && tti <= -intent.error && intent.swing){
+          // profilo «umano»: dal rimbalzo nella propria metà (se la palla rimbalza prima del colpo)
+          if (intent.after != null && bounceAt == null && e.ball.bounceCountOnCurrentSide === 1 && e.ball.pos.z > 0) bounceAt = e.elapsedTime;
+          const human = intent.after != null && e.natpfPlan?.kind === 'ground';
+          if (!intent.sent && intent.swing && (human ? bounceAt != null && e.elapsedTime >= bounceAt + intent.after : tti <= -intent.error)){
             intent.sent = true;
             e._handleUserSwingInput(intent.swing);
           } else if (!intent.sent && tti <= -intent.error){
@@ -121,6 +129,7 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
         if (e.ball.rallyStrokeCount >= RALLY_CAP){ out.capped++; e._awardPoint('opponent', 'scambio infinito'); }
       }
       e.step(DT);
+      onStep?.(e);
       const lc = e.natpfSkill?.lastCpu;
       if (lc && lc !== lastSeenCpu){ lastSeenCpu = lc; out.cpu.push(lc); }
       const ls = e.natpfSkill?.lastShot;

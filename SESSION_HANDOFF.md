@@ -16,8 +16,8 @@ analisi → misura → affidabilità dei due ingressi → campo aperto ed equili
   sessione `20261023-080003-5tag` (per far ripassare i gesti nel rilevatore). Gli allegati ricevuti non sono nel
   repository (il video contiene la persona).
 - Passi: 1 diagnosi [x] · 2 misura [x per telefono, collegamento, gioco; la webcam con il passo 3c] · 3a telefono [x] ·
-  3b Android [x] · 3c webcam [x] · 4 campo aperto e ritmo [C3–C5 x, C1–C2 ritmo da fare] · 5 verifica, prova guidata,
-  pacchetti [ ]. I passi 3a, 3b e
+  3b Android [x] · 3c webcam [x] · 4 campo aperto e ritmo [C3–C5 x; C1–C2 a Casual, il resto da decidere con la prova
+  fisica: `?ritmo=colmo|prima`] · 5 verifica, prova guidata, pacchetti [ ]. I passi 3a, 3b e
   3c sono provati in automatico; la prova fisica (telefono vero, webcam del portatile) è nella prova guidata del passo 5.
 - Webcam: livello del modello imposto con `?webcamLivello=piena|leggera|minima` (confronto sullo stesso computer con
   due sessioni della diagnostica). La prova LAN nel browser con la webcam (`natpf-tennis/test/e2e/lan-e2e.mjs`,

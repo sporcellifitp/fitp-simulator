@@ -227,4 +227,15 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
   - La prova nel browser dello scambio (`natpf-rally.mjs`) contava su una CPU che riprende tutto (6 colpi in un punto):
     ora gioca più punti e conta i colpi su tutti; ogni gesto colpisce tranne quelli per una palla della CPU che esce.
   - Prove: `npm test` 333/333, scambio nel browser 7/7. Validazione fisica non eseguita.
+  - CI completa in locale sul commit `4623ea1` (copia separata): tutto passa (scambio 7/7, Android 13/13, webcam 10/10,
+    diagnostica 24/24, 1v1 18/18…), LAN nel browser 7/8 (limite noto).
+- Checkpoint 20 (23/10): passo 4, ritmo (C1–C2), dettagli in `docs/NATPF_DIAGNOSI_2026-10-23.md` §7.
+  - Banco nuovo `audit:rhythm`; profilo nuovo «umano» nel banco degli scambi (gesto dal rimbalzo, dato del 23/10).
+  - Scoperte: il limite fisso della palla passata (15,6 m) tagliava la finestra in ritardo a chi arretra (Pro medio
+    68 → 42% al primo tentativo, «perso: Point» da 64 a 204); arretrare per il colmo a Leggenda costa (palle corte della
+    CPU); un volo della CPU più lungo peggiora Leggenda (palle alte → lunghe).
+  - Scelta prudente: colmo quando è raggiungibile a Casual, Pro e 1v1; Leggenda invariata; `?ritmo=colmo|prima` per il
+    confronto con la prova fisica. Le prove nuove del ritmo falliscono sul codice di prima.
+  - Prove: `npm test` 335/335; `audit:legend` tutti i criteri (preciso 71,9%, tennista 95,3%, Pro contro medio 78,3%,
+    Casual contro medio 99,8%). Validazione fisica non eseguita.
 

@@ -36,7 +36,10 @@ export const PLAN = Object.freeze({
   slackFull: .35,            // s di margine con cui si arriva sul punto d'impatto senza fretta; meno è un colpo in corsa
   runFrom: 2, runSpan: 4, runWeight: .7,   // m: una corsa lunga (oltre runFrom) è un colpo in corsa anche se si arriva
   stretchCost: .4,           // qualità che si perde arrivando al limite (un buon angolo dell'avversario costa)
-  baseline: 11.74, maxBack: 13.4,
+  // maxBack: fin dove si arretra per colpire; apexBack: fin dove si arretra per prendere la palla al colmo (contatto al
+  // colmo: apexContactOn). apexVy: velocità verticale massima perché il punto valga «al colmo» (in salita lenta o in
+  // discesa)
+  baseline: 11.74, maxBack: 13.4, apexBack: 13.8, serviceLine: 6.4, apexVy: .8,
   netZ: 4.6,                 // m: posizione a rete (posizione d'attesa del doppio)
   letGo: .15,                // m: la palla che rimbalzerebbe fuori di almeno tanto si lascia andare (non si gioca al volo)
   // recupero dopo il colpo: tempo fino al colpo dell'avversario (volo del proprio colpo più oppTake, il tempo che
@@ -85,17 +88,31 @@ const trackOf = path => path.filter((_, i) => i % 4 === 3 || i === path.length -
 
 // Piano d'intercetto per chi gioca: nella propria metà campo (z positive per chi gioca qui, negative per il Player 2 del
 // 1v1: tutto si calcola nel riferimento di chi colpisce). Imposta targetPos e il piano (planOf).
+// Contatto al colmo dopo il rimbalzo (richiesta del 23/10, C1–C2: più tempo per il colpo). Nel banco (scripts/audit/
+// rhythm.mjs) a Casual il tempo dal colpo della CPU all'impatto passa da 1,17 a circa 1,45 s; a Pro e Leggenda le palle
+// della CPU sono più veloci e il colmo è quasi sempre oltre la posizione più arretrata, quindi cambia poco, e a Leggenda
+// arretrare costa (le palle corte della CPU puniscono la posizione: +8 punti di game alla CPU contro il profilo
+// «preciso»). Per questo: a Casual, Pro e 1v1 sì, a Leggenda no; ?ritmo=colmo lo accende a tutti i livelli e
+// ?ritmo=prima lo spegne, per confrontare sullo stesso computer con la prova guidata
+export function apexContactOn(engine){
+  let q = null;
+  try { q = engine?.params?.get?.('ritmo') ?? new URLSearchParams(globalThis.location?.search || '').get('ritmo'); } catch {}
+  if (q === 'colmo') return true;
+  if (q === 'prima') return false;
+  return !skillLevel(engine?.matchConfig?.difficulty).cpuLegend;
+}
+
 export function planPlayerIntercept(engine, actor){
   const b = engine.ball; if (!b || !actor) return null;
-  const path = predictBall(b), speed = Math.max(4, finite(actor.maxSpeed, 9)), key = planKey(engine, actor);
+  const path = predictBall(b), speed = Math.max(4, finite(actor.maxSpeed, 9)), key = planKey(engine, actor), apexOn = apexContactOn(engine), back = apexOn ? PLAN.apexBack : PLAN.maxBack;
   const half = Math.sign(actor.pos.z) || 1, Z = z => z*half;
   // lato del dritto in x: la destra di chi guarda verso −z (qui) è +x, di chi guarda verso +z (Player 2) è −x
   const fh = (handOf(engine, actor) === 'left' ? -1 : 1)*half;
   // dove stare per prendere la palla nel punto s: di lato (dal lato in cui arriva), poco dietro il punto d'impatto
-  const stand = s => { const dx = s.x - actor.pos.x, side = Math.abs(dx) > .3 ? Math.sign(dx) : fh; return { side, x: clamp(s.x - side*PLAN.side, -COURT.SINGLES_X - 1.4, COURT.SINGLES_X + 1.4), z: half*clamp(Z(s.z) + IMPACT.contactAhead, 1.2, PLAN.maxBack) }; };
+  const stand = s => { const dx = s.x - actor.pos.x, side = Math.abs(dx) > .3 ? Math.sign(dx) : fh; return { side, x: clamp(s.x - side*PLAN.side, -COURT.SINGLES_X - 1.4, COURT.SINGLES_X + 1.4), z: half*clamp(Z(s.z) + IMPACT.contactAhead, 1.2, back) }; };
   const need = s => { const p = stand(s); return PLAN.react + Math.hypot(p.x - actor.pos.x, p.z - actor.pos.z)/speed; };
   const reachable = s => need(s) <= s.t;
-  const before = path.filter(s => s.bounces === 0 && Z(s.z) > 0), after = path.filter(s => s.bounces === 1 && Z(s.z) <= PLAN.maxBack);
+  const before = path.filter(s => s.bounces === 0 && Z(s.z) > 0), after = path.filter(s => s.bounces === 1 && Z(s.z) <= back);
   const apex = before.reduce((m, s) => Math.max(m, s.y), 0);
   // palla che rimbalzerebbe fuori: si lascia andare (come fa chi gioca davvero), anche a rete
   const bounce = path.find(s => s.bounces === 1);
@@ -107,15 +124,26 @@ export function planPlayerIntercept(engine, actor){
   // schiacciata al volo: palla alta che scende nella zona della schiacciata
   if (apex >= PLAN.lobApex) s = before.find(p => p.vy < 0 && p.y >= PLAN.smash[0] && p.y <= PLAN.smash[1] && Z(p.z) >= PLAN.smashMinZ && reachable(p)), kind = s ? 'smash' : null;
   if (!s){
-    // dopo il rimbalzo: il primo punto comodo (in discesa dopo il colmo, o al colmo se è basso) raggiungibile
-    const top = after.reduce((m, p) => Math.max(m, p.y), 0);
-    const ground = after.find(p => p.y >= PLAN.comfort[0] && p.y <= PLAN.comfort[1] && (p.vy <= 0 || top <= PLAN.comfort[1]) && reachable(p))
-      || after.find(p => p.y >= PLAN.comfort[0] && reachable(p))
-      || after.find(p => reachable(p));
+    // dopo il rimbalzo: il punto comodo raggiungibile più vicino al colmo (a parità d'altezza quello in discesa), cioè il
+    // più alto entro l'altezza comoda e entro maxBack (richiesta del 23/10, C1–C2: più tempo per il colpo e la palla più
+    // alta). Prima il primo punto comodo: con il colmo oltre la posizione più arretrata era in salita, a 0,5 m, 0,12 s
+    // dopo il rimbalzo
+    // palla corta (rimbalzo prima della riga del servizio): si prende presto, avanzando, come prima (approccio; poi a rete
+    // se il tempo non basta per tornare, e lì volée e schiacciate)
+    const comfy = after.filter(p => p.y >= PLAN.comfort[0] && p.y <= PLAN.comfort[1] && reachable(p));
+    const early = comfy[0] || after.find(p => p.y >= PLAN.comfort[0] && reachable(p)) || after.find(p => reachable(p));
+    const deep = apexOn && (!bounce || Z(bounce.z) > PLAN.serviceLine);
+    // solo se il colmo (o la discesa) è davvero raggiungibile entro maxBack: altrimenti si arretrerebbe fino al limite per
+    // colpire ancora in salita (pochi centesimi di secondo in più, a prezzo della posizione: a Leggenda le palle corte
+    // della CPU lo punivano)
+    const top = deep && comfy.length ? comfy.reduce((b, p) => (p.y > b.y + .02 || (p.y >= b.y - .02 && p.vy <= 0 && b.vy > 0) ? p : b)) : null;
+    const ground = (top && top.vy <= PLAN.apexVy ? top : null) || early;
     // al volo: solo se aspettare il rimbalzo costa molto più strada (si è vicini alla rete) o il rimbalzo non si
-    // raggiunge; nel punto prima del rimbalzo che costa meno corsa
+    // raggiunge; nel punto prima del rimbalzo che costa meno corsa. Il confronto è con il primo punto comodo dopo il
+    // rimbalzo (si può sempre prendere la palla presto): con quello vicino al colmo, più indietro, la volée sembrava
+    // conveniente anche da metà campo
     const volley = before.filter(p => Z(p.z) >= PLAN.volleyMinZ && p.y >= PLAN.volley[0] && p.y <= PLAN.volley[1] && reachable(p)).reduce((b, p) => (!b || need(p) < need(b) ? p : b), null);
-    if (volley && (!ground || need(ground) - need(volley) >= PLAN.volleySave)) s = volley, kind = 'volley';
+    if (volley && (!early || need(early) - need(volley) >= PLAN.volleySave)) s = volley, kind = 'volley';
     else if (ground) s = ground, kind = 'ground';
   }
   // nessun punto raggiungibile: verso il rimbalzo (o la fine della traiettoria), il più vicino possibile

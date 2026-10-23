@@ -19,7 +19,8 @@
     "test:e2e-lan": "node test/e2e/lan-e2e.mjs",
     "audit:rally": "node --import ./test/register.mjs scripts/audit/rally-balance.mjs",
     "audit:variety": "node --import ./test/register.mjs scripts/audit/variety.mjs",
-    "audit:legend": "node --import ./test/register.mjs scripts/audit/legend.mjs"
+    "audit:legend": "node --import ./test/register.mjs scripts/audit/legend.mjs",
+    "audit:rhythm": "node --import ./test/register.mjs scripts/audit/rhythm.mjs"
   },
   "dependencies": {
     "@mediapipe/hands": "0.4.1675469240",

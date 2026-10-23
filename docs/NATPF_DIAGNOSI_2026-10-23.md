@@ -267,7 +267,7 @@ alla volta, con il prima e il dopo.
 | 3a | Telefono: soglie e colpo tipico (T1), attesa del colpo vero (T2), palla corta e pallonetto (T3, T4), mira dal piatto (T6), impugnatura di taglio (T7) | fatto nel codice, provato in automatico; prova fisica da fare |
 | 3b | Android: blocco dello schermo, pausa e ripresa controllata (A1–A4) | fatto nel codice, provato in automatico; prova fisica da fare |
 | 3c | Webcam: misura e catena (§5) | fatto nel codice, provato in automatico e nel browser con la webcam finta; misura sul portatile da fare |
-| 4 | Campo aperto e ritmo (C1–C5) | C3, C4, C5 fatti nel codice e misurati nel banco; C1–C2 (ritmo) da fare |
+| 4 | Campo aperto e ritmo (C1–C5) | C3, C4, C5 fatti e misurati nel banco; C1–C2 (ritmo) fatti in parte (Casual), con il confronto per la prova fisica |
 | 5 | Verifica, prova guidata, pacchetti | — |
 
 ### Passo 3a · telefono (fatto)
@@ -372,4 +372,34 @@ Base: commit `cd2aaa7` (stesso motore del 23/10 per il campo).
   non regressione Pro contro medio 81,3% (70–85%), Casual contro medio 99,8% (≥ 95%).
 - Cosa provano: il banco usa le regole vere del motore con profili simulati (tempo, mira, forza). Non dice se il ritmo e
   la difficoltà sono giusti per una persona: questo lo dice la prova guidata.
+
+### Passo 4 · ritmo (C1–C2): fatto in parte, da decidere con la prova fisica
+
+Banco nuovo: `npm run audit:rhythm` (per ogni palla della CPU ripresa: tempo dal colpo della CPU all'impatto e dal
+rimbalzo all'impatto, altezza e posizione dell'impatto, velocità, colmo dopo il rimbalzo).
+
+- **Misura di base** (conferma C1): impatto 0,12 s dopo il rimbalzo a 0,8 m, colpi dopo il colmo 0–3%, colmo dopo il
+  rimbalzo a 14–17 m dalla rete (oltre la posizione più arretrata, 13,4 m). Dal colpo della CPU all'impatto: Casual
+  1,17 s, Pro 1,03 s, Leggenda 1,12–1,15 s.
+- **Provato e misurato**:
+  - contatto al colmo dopo il rimbalzo arretrando fino a 14,6 m: Casual +0,35 s, Pro +0,13 s, Leggenda +0,08 s; ma a
+    Leggenda la CPU vince l'85,6% dei game contro il profilo «preciso» (prima 71,9%): le sue palle corte puniscono chi
+    è arretrato (il proprio colpo non è più lento: lo è la posizione);
+  - con il colmo solo quando è davvero raggiungibile (13,8 m): Leggenda 80,3%, e a Pro e Leggenda il guadagno di tempo è
+    quasi nullo (le palle della CPU sono veloci, il colmo resta oltre);
+  - volo della CPU più lungo dell'8% (un parametro di ritmo unico): peggio, Leggenda 92,4% (palle più alte, più palle
+    lunghe di chi gioca a Leggenda). Tolto;
+  - un profilo che colpisce dal rimbalzo come la persona del 23/10 (0,2–0,3 s dopo): il contatto al colmo non lo aiuta
+    nel banco (la finestra d'impatto tollera già quel ritardo). Il modello a ritardo fisso è grossolano: la prova fisica
+    lo dirà meglio.
+- **Scelta**: contatto al colmo quando è raggiungibile (fino a 13,8 m), sulle palle oltre la riga del servizio, a Casual,
+  Pro e 1v1; a Leggenda come prima. Le palle corte si prendono presto, avanzando (approccio, poi volée e schiacciate
+  dove la palla le chiede). Risultato: Casual da 1,17 a circa 1,46 s, un quarto delle palle prese al colmo o in discesa;
+  Pro e Leggenda invariati; equilibrio come dopo C3–C5, tutti i criteri di Leggenda rispettati.
+- **Per la prova fisica**: `?ritmo=colmo` accende il contatto al colmo a tutti i livelli (anche Leggenda), `?ritmo=prima`
+  lo spegne. Due partite brevi a Leggenda con la diagnostica, una per modo, si confrontano nel rapporto (tempo dei
+  colpi, colpi in ritardo, punti).
+- **Correzioni nate qui** (valgono sempre): la palla è «passata» solo 2,8 m dietro chi gioca (prima a 15,6 m fissi:
+  tagliava la finestra in ritardo a chi era arretrato); la volée si decide confrontandola con il primo punto comodo dopo
+  il rimbalzo.
 
