@@ -32,6 +32,7 @@ header,main{max-width:1200px;margin:0 auto;padding:12px 16px}h1{font-size:20px;m
 <div class="card"><div class="row"><b>Linea del tempo</b><span class="mut" id="now"></span>
 <label>Allineamento webcam <input id="off" type="range" min="-1000" max="1000" step="10" value="0"> <span id="offv">0 ms</span></label></div><canvas id="tl"></canvas></div>
 <div class="card"><div class="row"><b>Eventi</b><label><input type="checkbox" id="onlyShots" checked> solo colpi, punti e avvisi</label></div><div id="list"></div></div>
+<div class="card"><div class="row"><b>Mappa dei rimbalzi</b><span class="mut">dall'alto, chi gioca qui in basso · <span style="color:var(--acc)">●</span> colpi di chi gioca · <span style="color:#e67e22">●</span> colpi dell'avversario · ○ fuori · un clic porta i video lì</span></div><svg id="map" viewBox="-6.5 -14.5 13 29" style="width:100%;max-width:340px;height:auto;display:block;margin:6px auto"></svg></div>
 <h2>Metriche</h2><div class="card"><pre id="metrics"></pre></div>
 <p class="mut">I colpi «sbagliati» si giudicano solo con un riferimento: nella prova guidata il colpo richiesto, da controllare comunque nel video. Tempi in ms dall'inizio della sessione, orologio del computer.</p>
 </main>
@@ -42,6 +43,22 @@ const fmt = ms => { const s = Math.max(0, ms/1000); return Math.floor(s/60) + ':
 const m = D.meta || {};
 $('head').textContent = [m.inizio, m.controller && 'controller: ' + m.controller, m.transport && 'collegamento: ' + m.transport, m.label, D.metrics?.durataS != null && 'durata ' + D.metrics.durataS + ' s'].filter(Boolean).join(' · ');
 $('metrics').textContent = JSON.stringify(D.metrics, null, 2);
+// mappa dei rimbalzi: campo del singolare (righe a 4,115 m e 11,89 m, servizio a 6,4 m), un punto per rimbalzo
+(() => {
+  const NS = 'http://www.w3.org/2000/svg', svg = $('map'), X = 4.115, Z = 11.89, S = 6.4;
+  const el = (tag, a) => { const n = document.createElementNS(NS, tag); for (const k in a) n.setAttribute(k, a[k]); svg.appendChild(n); return n; };
+  el('rect', { x: -X, y: -Z, width: 2*X, height: 2*Z, fill: 'rgba(46,125,50,.15)', stroke: 'currentColor', 'stroke-width': .06 });
+  for (const z of [-S, S]) el('line', { x1: -X, x2: X, y1: z, y2: z, stroke: 'currentColor', 'stroke-width': .04 });
+  el('line', { x1: 0, x2: 0, y1: -S, y2: S, stroke: 'currentColor', 'stroke-width': .04 });
+  el('line', { x1: -X - .9, x2: X + .9, y1: 0, y2: 0, stroke: 'currentColor', 'stroke-width': .1, 'stroke-dasharray': '.2 .15' });
+  for (const e of E){
+    if (e.k !== 'rimbalzo' || !isFinite(e.x) || !isFinite(e.z)) continue;
+    const out = Math.abs(e.x) > X + .03 || Math.abs(e.z) > Z + .03, mine = e.da === 'player' || e.da === 'p1';
+    const c = mine ? 'var(--acc)' : '#e67e22', dot = el('circle', { cx: e.x, cy: e.z, r: .18, fill: out ? 'none' : c, stroke: out ? 'var(--bad)' : c, 'stroke-width': .06, opacity: .8 });
+    dot.style.cursor = 'pointer'; dot.addEventListener('click', () => seek(e.t - 1000));
+    const ti = document.createElementNS(NS, 'title'); ti.textContent = fmt(e.t) + ' · x ' + e.x + ' z ' + e.z; dot.appendChild(ti);
+  }
+})();
 // video: inizio di ciascuno sul registro (evento «video» inizio). Per i file senza durata nota (registrazione del
 // browser) si forza il calcolo della durata prima di cercare
 const starts = {}; for (const e of E) if (e.k === 'video' && e.stato === 'inizio') starts[e.file] = e.t;

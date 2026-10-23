@@ -156,3 +156,16 @@ test('cambio di modello deciso nello scambio: si carica solo al primo invio senz
   assert.deepEqual(opts, [{ maxNumHands: 2, modelComplexity: 0 }]);
   assert.deepEqual(logs.map(l => [l.from, l.to, !!l.applied]), [['piena', 'leggera', true]]);
 });
+
+test('rapporto: mappa dei rimbalzi e pause del telefono nelle metriche', async () => {
+  const { viewerHtml } = await import('../src/natpf/diag/diag_viewer.js');
+  const { computeMetrics, summaryLines } = await import('../src/natpf/diag/diag_metrics.js');
+  const ev = [{ k: 'sessione', t: 0 }, { k: 'rimbalzo', t: 1000, x: 1.2, z: -9.1, da: 'player', n: 1 }, { k: 'rimbalzo', t: 2000, x: -4.5, z: 8.2, da: 'opponent', n: 1 },
+    { k: 'tel.pausa', t: 3000, motivo: 'pagina nascosta' }, { k: 'tel.pausa', t: 9000, motivo: 'sensori fermi' }, { k: 'tel.pausa', t: 12000, motivo: 'pagina nascosta' }];
+  const m = computeMetrics(ev, { spanMs: 15000 });
+  assert.deepEqual(m.pauseTelefono, { 'pagina nascosta': 2, 'sensori fermi': 1 });
+  assert.match(summaryLines(m).join('\n'), /Partita in pausa per il telefono: pagina nascosta 2, sensori fermi 1/);
+  const html = viewerHtml({ meta: {}, metrics: m, events: ev });
+  assert.match(html, /Mappa dei rimbalzi/); assert.match(html, /id="map"/);
+  assert.match(html, /"k":"rimbalzo"/, 'i rimbalzi arrivano alla pagina');
+});

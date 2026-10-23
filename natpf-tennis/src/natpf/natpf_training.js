@@ -24,7 +24,7 @@ export const DRILLS = Object.freeze([
   { id: 'lob', label: 'Pallonetto', need: 1, shot: 'lob', phoneOnly: true, maxTries: 4, hint: { phone: 'Colpisci dal basso verso l’alto: la mano sale, come per mandare la palla in alto' } },
   { id: 'drop', label: 'Palla corta', need: 1, shot: 'drop', phoneOnly: true, maxTries: 4, hint: { phone: 'Colpo lento e morbido, dall’alto verso il basso, come per accarezzare la palla sotto' } },
   { id: 'serve', label: 'Servizio', need: 1, hint: { phone: 'Alza il telefono per lanciare la palla, poi un colpetto quando è in alto', webcam: 'Alza la mano per lanciare, poi swing in alto', mouse: '↑ o W per lanciare, poi Spazio' } },
-  { id: 'free', label: 'Angoli', need: 3, hint: { phone: 'Al colpo gira il dorso del telefono verso dove vuoi la palla: destra o sinistra', webcam: 'Prova a mirare: lo swing sposta la palla', mouse: 'Q/E o A/D per mirare' } },
+  { id: 'free', label: 'Angoli', need: 3, hint: { phone: 'Colpisci un attimo prima: incrociato. Un attimo dopo: lungolinea. Il dorso del telefono la sposta ancora un poco', webcam: 'Colpisci prima per l’incrociato, dopo per il lungolinea', mouse: 'Q/E o A/D per mirare' } },
 ]);
 // Calibrazione dentro il riscaldamento (solo smartphone)
 export const CAL_STAGE = Object.freeze({ id: 'cal', label: 'Calibrazione' });

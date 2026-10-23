@@ -323,6 +323,10 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
     }
   }
 
+  // ---- pause della partita per il telefono (pagina nascosta, sensori fermi, scollegato) ----
+  const telPause = by('tel.pausa');
+  if (telPause.length) out.pauseTelefono = tally(telPause, p => p.motivo || '?');
+
   // ---- segni «qui è successo un problema» (tastiera, pannello o telefono) ----
   const segni = by('marca');
   if (segni.length) out.segni = segni.slice(0, 50).map(x => ({ t: r1(x.t), testo: x.testo || '' }));
@@ -416,6 +420,7 @@ export function summaryLines(m = {}){
   if (KR && Object.keys(KR.vuoti || {}).length) L.push(`Colpi a vuoto: ${list(KR.vuoti)}`);
   if (KR?.contattoAltezzaCm?.n || KR?.rimbalzoContattoMs?.n) L.push(`Impatto dopo il rimbalzo: altezza della palla mediana ${KR.contattoAltezzaCm?.p50 ?? '–'} cm · dal rimbalzo al colpo mediana ${KR.rimbalzoContattoMs?.p50 ?? '–'} ms`);
   if (KR?.servizi) L.push(`Servizi dal gesto: ${KR.servizi.n} · ${list(KR.servizi.voti)}`);
+  if (m.pauseTelefono) L.push(`Partita in pausa per il telefono: ${Object.entries(m.pauseTelefono).map(([k, n]) => `${k} ${n}`).join(', ')}`);
   if (m.segni?.length) L.push(`Segni «qui è successo un problema»: ${m.segni.length} (${m.segni.slice(0, 8).map(x => `${(x.t/1000).toFixed(1)} s`).join(', ')}${m.segni.length > 8 ? ', …' : ''})`);
   const av = m.registrazione?.avvisi || {};
   if (Object.keys(av).length) L.push(`Avvisi: ${Object.entries(av).map(([k, v]) => `${k} ×${v}`).join(', ')}`);

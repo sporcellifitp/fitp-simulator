@@ -24,10 +24,10 @@ export const GUIDE = [
     mouse: '<kbd>Spazio</kbd> quando la palla arriva alla racchetta.',
   }, game: 'La racchetta in campo si carica con te. A terra compare un anello: <b class="q-g">verde</b> perfetto, <b class="q-y">giallo</b> buono, <b class="q-r">rosso</b> fuori tempo.' },
   { id: 'aim', title: 'Scegli dove va la palla', clip: 'aim', you: {
-    phone: 'Al momento del colpo <b>gira il dorso del telefono verso dove vuoi mandare la palla</b>: a destra va a destra, a sinistra va a sinistra, di dritto e di rovescio. Più veloce il gesto, più forte la palla.',
-    webcam: 'La direzione dello swing sposta la palla; colpire prima la incrocia, colpire dopo la manda lungolinea.',
+    phone: 'Il <b>tempo</b> sceglie la direzione: colpisci <b>un attimo prima</b> e la palla va <b>incrociata</b>, <b>un attimo dopo</b> e va <b>lungolinea</b>, nel mezzo verso il centro. Girare il dorso del telefono la sposta ancora un poco. Un colpo <b>più forte del tuo solito</b> va più in fondo, uno più morbido resta più corto.',
+    webcam: 'Colpire <b>prima</b> la incrocia, colpire <b>dopo</b> la manda lungolinea, nel mezzo va al centro. Uno swing più veloce la manda più in fondo.',
     mouse: '<kbd>Q</kbd>/<kbd>E</kbd> o <kbd>A</kbd>/<kbd>D</kbd> mirano a sinistra o a destra.',
-  }, game: 'Conta anche il tempo: un attimo prima la palla si incrocia un po’ di più. Vicino alle righe si rischia il fuori.' },
+  }, game: 'Con il tempo si va da una riga all’altra: un incrociato stretto fa correre l’avversario, una palla profonda lo spinge indietro. Troppo presto o troppo tardi la palla esce di lato.' },
   { id: 'serve', title: 'Il servizio', clip: 'serve', you: {
     phone: '<b>1</b> alza il telefono (o tocca lo schermo): lanci la palla. <b>2</b> un colpetto quando è in alto: servizio.',
     webcam: '<b>1</b> alza la mano di scatto: lanci la palla. <b>2</b> swing quando è in alto.',
