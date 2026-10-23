@@ -12,16 +12,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { phoneWith, armSwing, returnTo, STROKES } from './arm-sim.mjs';
 import { simPhone } from './phone-sim.mjs';
-import { personalSpecial, shapeDistinct, PERSONAL } from '../src/natpf/natpf_stroke_intent.js';
-import { learnShapeSpecials, ownShapes, createShapeModel, NORMAL_SHOTS, NORMAL_SHAPE } from '../src/natpf/natpf_phone_racket.js';
+import { personalSpecial, shapeDistinct, PERSONAL, strokeIntent, strokePower } from '../src/natpf/natpf_stroke_intent.js';
+import { learnShapeSpecials, ownShapes, createShapeModel, NORMAL_SHOTS, NORMAL_SHAPE, teachesNormal, profileShapePower } from '../src/natpf/natpf_phone_racket.js';
 import { specialHint } from '../src/natpf/natpf_training.js';
 
 // gesti di prova, uno alla volta, con quello che manda il telefono, quello che scarta (con il motivo) e come lo legge il gioco
-function gestures(p, g, n, { own = null } = {}){
+function gestures(p, g, n, { own = null, expect = null } = {}){
   const disc = [], off = p.det.on('discard', d => disc.push(d.why)), out = [];
-  for (let i = 0; i < n; i++){ const b = p.msgs.length; armSwing(p, g); p.rest(900, 6); for (const d of p.msgs.slice(b)) out.push(p.game(d, { own })); }
+  for (let i = 0; i < n; i++){ const b = p.msgs.length; armSwing(p, g); p.rest(900, 6); for (const d of p.msgs.slice(b)) out.push(p.game(d, { own, expect })); }
   void off;
-  return { shots: out.map(r => r.ev.natpf.shot), intents: out.map(r => r.ev.natpf.intent), disc };
+  return { shots: out.map(r => r.ev.natpf.shot), intents: out.map(r => r.ev.natpf.intent), evs: out.map(r => r.ev), disc };
 }
 const LOB = (peak, rc = [.3, -.55, -.3]) => ({ axis: [1, 0, 0], peak, ms: Math.round(Math.max(220, Math.min(380, 140000/peak))), rc });
 const DROP = (peak, rc = [.3, -.35, -.45]) => ({ axis: [-1, 0, 0], peak, ms: Math.round(Math.max(220, Math.min(380, 140000/peak))), rc });
@@ -86,14 +86,26 @@ test('presa sistemata con calma mentre il telefono misura il «fermo»: il rumor
 });
 
 // esercizi del riscaldamento: 3 pallonetti e 3 palle corte nel proprio stile (prototipi), poi colpi normali (forma
-// abituale) e in gioco pallonetti, palle corte e dritti
-function withDrills(tilt, style){
+// abituale) e in gioco pallonetti, palle corte e dritti. Come nel gioco (NatpfPhoneRacket._onSwing, learnSpecial): forma
+// del colpo normale dai colpi che la insegnano (teachesNormal: non i gesti chiesti dagli esercizi), prototipi e colpo
+// normale con la forza assoluta del gesto (shapePower), colpo normale che parte da quello della calibrazione
+function drillWorld(tilt){
   const p = phoneWith({ tilt }), shape = createShapeModel(), samples = { lob: [], drop: [] };
+  shape.seed(profileShapePower(p.det.profile));
   const own = () => ownShapes(learnShapeSpecials(samples), { forehandRise: p.det.profile.rises?.[1] ?? null, normal: shape.value });
-  const play = (g, n) => { const r = gestures(p, g, n, { own: (s, rr) => { const o = own(); return o && { ...o, normal: { ...o.normal, rise: Number.isFinite(rr) ? rr : o.normal.rise } }; } }); r.intents.forEach((I, i) => { if (I && NORMAL_SHOTS.has(r.shots[i])) shape.add(I.plane, I.power); }); return r; };
-  for (const k of ['lob', 'drop']) for (const I of play(style[k], 3).intents) if (I) samples[k].push({ rise: I.rise, plane: Math.abs(I.plane), power: I.power });
+  const play = (g, n, expect = null) => {
+    const r = gestures(p, g, n, { expect, own: (s, rr) => { const o = own(); return o && { ...o, normal: { ...o.normal, rise: Number.isFinite(rr) ? rr : o.normal.rise } }; } });
+    r.evs.forEach(ev => { const I = ev.natpf.intent; if (I && teachesNormal(ev, { expect })) shape.add(I.plane, I.shapePower); if (I && expect) samples[expect].push({ rise: I.rise, plane: Math.abs(I.plane), power: I.shapePower }); });
+    return r;
+  };
+  const drills = style => { for (const k of ['lob', 'drop']) play(style[k], 3, k); };
+  return { p, shape, own, play, drills };
+}
+function withDrills(tilt, style){
+  const W = drillWorld(tilt), { play } = W;
+  W.drills(style);
   play(STROKES.dritto, 3); play(STROKES.rovescio, 3);
-  return { lob: play(style.lob, 3).shots, drop: play(style.drop, 3).shots, normal: [...play(STROKES.dritto, 3).shots, ...play(STROKES.rovescio, 3).shots], own: own() };
+  return { lob: play(style.lob, 3).shots, drop: play(style.drop, 3).shots, normal: [...play(STROKES.dritto, 3).shots, ...play(STROKES.rovescio, 3).shots], own: W.own() };
 }
 const WRIST = { lob: { axis: [1, .25, 0], peak: 480, ms: 260, rc: [.04, -.06, -.04] }, drop: { axis: [-1, .35, 0], peak: 300, ms: 240, rc: [.04, -.04, -.06] } };
 
@@ -107,6 +119,41 @@ test('telefono dritto nel pugno, gesto di polso: senza esercizi pallonetto e pal
     assert.deepEqual(r.drop, ['drop', 'drop', 'drop'], `inclinazione ${tilt}°: ${r.drop}`);
     assert.ok(r.normal.every(s => s === 'topspin' || s === 'flat'), `inclinazione ${tilt}°: dritti e rovesci ${r.normal}`);
   }
+});
+
+// prova nel browser della sera del 23/10 (natpf-gesti-speciali.mjs, parte C): dopo gli esercizi, in partita pallonetto,
+// palla corta e dritto alternati. Prima, deterministico: la seconda e la terza palla corta erano «colpo normale». I primi
+// gesti degli esercizi, letti normali prima che il gioco li avesse imparati, finivano nel colpo normale (che in partita
+// diventava la propria palla corta: piano 0,33), e la forza del confronto seguiva il colpo tipico, che si sposta con i
+// colpi della partita (stesso pallonetto: 0,31 negli esercizi, poi 0,39–0,58)
+test('in partita dopo gli esercizi: pallonetto, palla corta e dritto alternati restano riconosciuti (prima la palla corta diventava un dritto)', () => {
+  for (const tilt of [0, 30]){
+    const W = drillWorld(tilt);
+    W.drills(WRIST);
+    const plan = ['lob', 'drop', 'dritto', 'lob', 'drop', 'dritto', 'lob', 'drop', 'dritto', 'drop', 'drop', 'lob'];
+    const got = plan.map(k => W.play(k === 'dritto' ? STROKES.dritto : WRIST[k], 1).shots[0]);
+    const want = plan.map(k => (k === 'dritto' ? 'dritto' : k)), ok = got.map((s, i) => (want[i] === 'dritto' ? s === 'topspin' || s === 'flat' : s === want[i]));
+    assert.ok(ok.every(Boolean), `inclinazione ${tilt}°: ${plan.map((k, i) => `${k}→${got[i]}`).join(' · ')} · colpo normale ${JSON.stringify(W.shape.value)} · ${JSON.stringify(W.own())}`);
+    // il colpo normale resta il proprio dritto, non la propria palla corta
+    assert.ok(W.shape.value.plane > .6, `colpo normale ${JSON.stringify(W.shape.value)}`);
+  }
+});
+
+test('i gesti chiesti dagli esercizi speciali non insegnano il colpo normale; la forza del confronto non dipende dal colpo tipico', () => {
+  const normal = { natpf: { shot: 'topspin', intent: { plane: .9, power: .6, shapePower: .4 } } };
+  assert.equal(teachesNormal(normal), true);
+  assert.equal(teachesNormal(normal, { expect: 'drop' }), false, 'esercizio della palla corta: è un esempio della palla corta');
+  assert.equal(teachesNormal(normal, { rally: false }), false);
+  assert.equal(teachesNormal({ natpf: { shot: 'lob', intent: {} } }), false);
+  // stesso gesto con colpi tipici diversi: la forza dell'intenzione cambia, quella del confronto no
+  const s = { peak: 300, rawPeak: 320, angle: 40, dir: 1, shape: { rise: -.1, plane: .3, tilt: 0, roll: 0 } };
+  const a = strokeIntent(s, { ref: 455 }), b = strokeIntent(s, { ref: 281 });
+  assert.notEqual(a.power, b.power); assert.equal(a.shapePower, b.shapePower);
+  assert.equal(a.shapePower, +strokePower(320).toFixed(3));
+  // colpo normale prima dei colpi della partita: la forza del colpo della calibrazione
+  assert.equal(profileShapePower({ rawRef: 714 }), +strokePower(714).toFixed(3));
+  assert.equal(profileShapePower({ simple: true, ref: 700 }), null);
+  const m = createShapeModel(); m.seed(.42); assert.deepEqual(m.value, { plane: NORMAL_SHAPE.plane, power: .42 });
 });
 
 test('prototipi personali: il gesto è il colpo speciale solo se è più vicino al proprio pallonetto o alla propria palla corta che al proprio colpo normale', () => {

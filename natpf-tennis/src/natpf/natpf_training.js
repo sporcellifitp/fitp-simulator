@@ -75,8 +75,11 @@ export class NatpfTraining {
     const award = engine._awardPoint.bind(engine);
     engine._awardPoint = (winner, why = '') => this.active ? this._ballOver(winner, why) : award(winner, why);
     ui.phone?.onCal?.(e => this._onCal(e));
-    // colpi del telefono: negli esercizi dei colpi speciali ogni tentativo è un esempio del gesto di chi gioca
+    // colpi del telefono: negli esercizi dei colpi speciali ogni tentativo è un esempio del gesto di chi gioca, e non un
+    // colpo normale (il telefono-racchetta non ne impara i riferimenti del colpo normale, natpf_phone_racket.teachesNormal)
     ui.phone?.onSwing?.(ev => this._onPhoneSwing(ev));
+    // (anche nella prova guidata della diagnostica, che i prototipi non li impara: learn false)
+    if (ui.phone) ui.phone.expectSpecial = () => (this.active && !this.cal && ['lob', 'drop'].includes(this.drill?.shot) ? this.drill.shot : null);
   }
   get drill(){ return (this.drills || DRILLS)[this.idx]; }
   get view(){ return this.ui.phone?.calView || CAL_VIEW_EMPTY; }

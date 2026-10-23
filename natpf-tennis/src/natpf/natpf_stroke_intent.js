@@ -50,6 +50,11 @@ export function strokePower(peak, ref = null){
   const abs = clamp((p - INTENT.peakLow)/(INTENT.peakHigh - INTENT.peakLow));
   return Number.isFinite(ref) && ref > 60 ? clamp(.5*abs + .5*clamp(.6*p/ref)) : abs;
 }
+// Forza del gesto per il confronto con i propri gesti (personalSpecial): la parte assoluta, dal picco vero se c'è.
+// Non dipende dal colpo tipico, che si sposta con i colpi della partita: prima i prototipi del pallonetto e della palla
+// corta, imparati negli esercizi con la forza relativa alla calibrazione, non erano più confrontabili con i gesti della
+// partita (stesso gesto: forza 0,31 negli esercizi, poi 0,39–0,58) e la palla corta finiva letta come un dritto
+export const shapePower = s => strokePower(Number.isFinite(s?.rawPeak) ? s.rawPeak : s?.peak);
 // Quanto è ampio lo swing: 0 corto … 1 ampio (la profondità voluta lo segue)
 export const swingReach = angle => (Number.isFinite(angle) ? clamp((angle - INTENT.compact)/(INTENT.wide - INTENT.compact)) : .7);
 
@@ -88,7 +93,7 @@ export function classifyStroke(shape, { power = .5, angle = null, ballHigh = nul
 // 0,2 (soglia 0,6) e una palla corta −0,07, come un dritto. Le soglie fisse non vedono la differenza, il confronto con i
 // propri gesti sì. Il gesto è il colpo speciale se è più vicino al proprio pallonetto (o alla propria palla corta) che al
 // proprio colpo normale di almeno «margin», entro «maxDist»; un prototipo troppo simile al colpo normale (sotto
-// «minSep») non si usa. Distanze in unità di «scale».
+// «minSep») non si usa. Distanze in unità di «scale»; power è la forza assoluta del gesto (shapePower).
 // riseGuard: se il proprio colpo speciale sale (o scende) di almeno tanto più del proprio colpo normale, il gesto deve
 // arrivare almeno a metà strada in quel verso (con il solo pallonetto imparato, una palla corta, verticale e morbida,
 // era più vicina al pallonetto che al colpo normale e si leggeva pallonetto)
@@ -131,10 +136,11 @@ export function strokeIntent(s, { ref = null, rawRef = null, ballHigh = null, he
   const useRaw = Number.isFinite(s.rawPeak) && (Number.isFinite(rawRef) || !Number.isFinite(ref));
   const power = useRaw ? strokePower(s.rawPeak, Number.isFinite(rawRef) ? rawRef : null) : strokePower(s.peak, ref), reach = swingReach(s.angle);
   let cls = classifyStroke(s.shape, { power, angle: s.angle, ballHigh, riseRef });
-  const own = cls.shot === 'smash' ? null : personalSpecial({ rise: finite(s.shape.rise), plane: Math.abs(finite(s.shape.plane, 1)), power }, personal || {});
+  const sp = shapePower(s);
+  const own = cls.shot === 'smash' ? null : personalSpecial({ rise: finite(s.shape.rise), plane: Math.abs(finite(s.shape.plane, 1)), power: sp }, personal || {});
   if (own && own.shot !== cls.shot) cls = { shot: own.shot, conf: +clamp((own.dN - own.d)/2).toFixed(2), why: [own.shot === 'lob' ? 'come il tuo pallonetto' : 'come la tua palla corta', `distanza ${own.d} (dal colpo normale ${own.dN})`] };
   return {
-    shot: cls.shot, conf: cls.conf, why: cls.why, power: +power.toFixed(3), reach: +reach.toFixed(3),
+    shot: cls.shot, conf: cls.conf, why: cls.why, power: +power.toFixed(3), shapePower: +sp.toFixed(3), reach: +reach.toFixed(3),
     // profondità voluta 0…1: la forza, un poco ridotta se lo swing è corto (un colpo bloccato è più corto)
     depth: +clamp(power*(INTENT.reachDepth + (1 - INTENT.reachDepth)*reach)).toFixed(3),
     rise: finite(s.shape.rise), plane: finite(s.shape.plane), tilt: finite(s.shape.tilt), roll: finite(s.shape.roll),

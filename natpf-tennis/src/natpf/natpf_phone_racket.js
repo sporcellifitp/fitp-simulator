@@ -27,7 +27,7 @@ import { swingPower } from './natpf_skill.js';
 import { classifyPhoneShot, aimFromSignals, ENGINE_SHOT, liftBaselineFromProfile, headBaselineFromProfile, resolveLiftBaseline, createLiftModel, createFaceModel, createAimModel, centeredFace, learnSpecials } from './natpf_gestures.js';
 import { calReduce, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
 import { readHand, normalizeHand } from './natpf_hand.js';
-import { strokeIntent, shapeDistinct } from './natpf_stroke_intent.js';
+import { strokeIntent, shapeDistinct, strokePower } from './natpf_stroke_intent.js';
 import { weakSwing } from './natpf_impact.js';
 
 const NATPF_BASE = '/natpf/';
@@ -114,17 +114,28 @@ export function createRiseModel({ min = RISE_LEARN.min, keep = RISE_LEARN.keep }
 // salita abituale per il colpo: quella della calibrazione, altrimenti quella imparata giocando (o null)
 export const habitualRise = (profile, dir, model = null) => riseRefOf(profile, dir) ?? model?.ref(dir) ?? null;
 // Forma del proprio colpo normale per il confronto con i propri colpi speciali (natpf_stroke_intent.personalSpecial):
-// |piano| e forza dei colpi normali dello scambio (mediana degli ultimi «keep», da «min» in poi; prima, un dritto tipico)
-export const NORMAL_SHAPE = Object.freeze({ keep: 9, min: 3, plane: .8, power: .55, rise: -.05 });
+// |piano| e forza assoluta (shapePower) dei colpi normali dello scambio (mediana degli ultimi «keep», da «min» in poi;
+// prima, un dritto con la forza del colpo della calibrazione, seed, o di un dritto tipico)
+export const NORMAL_SHAPE = Object.freeze({ keep: 9, min: 3, plane: .8, power: .4, rise: -.05 });
 const median = a => { const v = [...a].sort((x, y) => x - y), m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m])/2; };
 export function createShapeModel({ keep = NORMAL_SHAPE.keep, min = NORMAL_SHAPE.min } = {}){
   const h = [];
+  let base = NORMAL_SHAPE.power;
   return {
     reset(){ h.length = 0; },
+    // forza del proprio colpo normale prima dei colpi della partita: quella del colpo della calibrazione
+    seed(power){ base = Number.isFinite(power) ? power : NORMAL_SHAPE.power; },
     add(plane, power){ if (Number.isFinite(plane) && Number.isFinite(power)){ h.push({ plane: Math.abs(plane), power }); if (h.length > keep) h.shift(); } },
-    get value(){ return h.length < min ? { plane: NORMAL_SHAPE.plane, power: NORMAL_SHAPE.power } : { plane: +median(h.map(x => x.plane)).toFixed(3), power: +median(h.map(x => x.power)).toFixed(3) }; },
+    get value(){ return h.length < min ? { plane: NORMAL_SHAPE.plane, power: base } : { plane: +median(h.map(x => x.plane)).toFixed(3), power: +median(h.map(x => x.power)).toFixed(3) }; },
   };
 }
+// forza assoluta del colpo della calibrazione (picco vero, se c'è): il colpo normale prima dei colpi della partita
+export const profileShapePower = profile => (profile && !profile.simple && (Number.isFinite(profile.rawRef) || Number.isFinite(profile.ref)) ? +strokePower(Number.isFinite(profile.rawRef) ? profile.rawRef : profile.ref).toFixed(3) : null);
+// Il colpo insegna i riferimenti del colpo normale (forma, colpo tipico, salita, piatto, mira)? Solo un colpo normale dello
+// scambio, e mai un gesto fatto a richiesta negli esercizi del pallonetto e della palla corta (expect). Prima i primi gesti
+// degli esercizi, letti «normali» prima che il gioco li avesse imparati, finivano nel colpo normale: in partita il colpo
+// normale diventava la propria palla corta e la palla corta si leggeva come un dritto
+export const teachesNormal = (ev, { rally = true, expect = null } = {}) => !!rally && !expect && !!ev?.natpf && NORMAL_SHOTS.has(ev.natpf.shot) && !weakSwing(ev);
 // prototipi del proprio pallonetto e della propria palla corta dai gesti degli esercizi (mediana degli ultimi 6): { lob, drop }
 export function learnShapeSpecials(samples = {}){
   const out = {};
@@ -313,7 +324,10 @@ export class NatpfPhoneRacket {
     // pallonetto e palla corta di chi gioca, imparati negli esercizi del riscaldamento (si azzerano con una nuova calibrazione)
     this.specialSamples = readSpecials(); this.personal = learnSpecials(this.specialSamples);
     // … e con la forma del colpo (telefoni di oggi): prototipi dei propri gesti, confrontati con il proprio colpo normale
-    this.shapeModel = createShapeModel(); this.ownShape = learnShapeSpecials(this.specialSamples.shape);
+    // (in «forma», con la forza assoluta del gesto: gli esempi di prima, con la forza relativa, non si usano)
+    this.shapeModel = createShapeModel(); this.ownShape = learnShapeSpecials(this.specialSamples.forma);
+    // gesto speciale chiesto in questo momento («lob», «drop» o null): lo dice l'allenamento (natpf_training.js)
+    this.expectSpecial = null;
     this.calListeners = new Set();
     this.lastPhase = null;
     this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false };
@@ -397,7 +411,7 @@ export class NatpfPhoneRacket {
     c.idle = e.kind === 'idle';
     if (e.kind === 'review'){ c.review = e; c.freeOk = false; if (e.pass) this.link.cmd('free'); }   // prova libera, poi conferma
     if (e.kind === 'free' && e.ok) c.freeOk = true;
-    if (e.kind === 'done'){ c.step = 'done'; this.profile = e.profile || null; this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline; this.liftModel.reset(this.liftBaseline); this.faceModel.reset(); this.aimModel.reset(); this.riseModel.reset(); this.typicalModel.reset(); this.shapeModel.reset(); this.resetSpecials(); if (e.profile && e.profile.hand !== this.hand){ this.gripSent = false; this._sendGrip(); } this.headModel.reset(headBaselineFromProfile(this.profile, this.hand) ?? 0); }
+    if (e.kind === 'done'){ c.step = 'done'; this.profile = e.profile || null; this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline; this.liftModel.reset(this.liftBaseline); this.faceModel.reset(); this.aimModel.reset(); this.riseModel.reset(); this.typicalModel.reset(); this.shapeModel.reset(); this.shapeModel.seed(profileShapePower(this.profile)); this.resetSpecials(); if (e.profile && e.profile.hand !== this.hand){ this.gripSent = false; this._sendGrip(); } this.headModel.reset(headBaselineFromProfile(this.profile, this.hand) ?? 0); }
     c.last = e;
     for (const fn of this.calListeners) try { fn(e); } catch (err){ console.error(err); }
     this._changed();
@@ -410,9 +424,9 @@ export class NatpfPhoneRacket {
   learnSpecial(kind, natpf){
     if (!natpf || !['lob', 'drop'].includes(kind)) return { learned: false };
     const I = natpf.intent;
-    if (I && Number.isFinite(I.rise) && Number.isFinite(I.plane) && Number.isFinite(I.power)){
-      const shapes = this.specialSamples.shape || (this.specialSamples.shape = {});
-      shapes[kind] = [...(shapes[kind] || []), { rise: I.rise, plane: Math.abs(I.plane), power: I.power }].slice(-6);
+    if (I && Number.isFinite(I.rise) && Number.isFinite(I.plane) && Number.isFinite(I.shapePower)){
+      const shapes = this.specialSamples.forma || (this.specialSamples.forma = {});
+      shapes[kind] = [...(shapes[kind] || []), { rise: I.rise, plane: Math.abs(I.plane), power: I.shapePower }].slice(-6);
       this.ownShape = learnShapeSpecials(shapes); writeSpecials(this.specialSamples);
       const own = ownShapes(this.ownShape, { rise: this.profileRise(this.hand === 'left' ? -1 : 1), normal: this.shapeModel.value });
       return { learned: true, distinct: !!own && !!own[kind] && shapeDistinct(own[kind], own.normal) };
@@ -459,17 +473,19 @@ export class NatpfPhoneRacket {
     ev.natpf.typical = this.typicalModel.value ?? profileTypical(this.profile);
     if (Number.isFinite(s.peak) && !Number.isFinite(ev.natpf.peak)) ev.natpf.peak = s.peak;
     if (Number.isFinite(s.angle)) ev.natpf.angle = s.angle;
-    if (this.engine.phase === 'RALLY') this.typicalModel.add(s.peak);
+    // gesto fatto a richiesta negli esercizi del pallonetto e della palla corta: non insegna niente del colpo normale
+    const expect = typeof this.expectSpecial === 'function' ? this.expectSpecial() || null : null, rally = this.engine.phase === 'RALLY';
+    if (rally && !expect) this.typicalModel.add(s.peak);
     this.lastPrep = null;
     if (!ev.side) ev.side = sideFromBall(this.engine, this.hand);
     // riferimenti personali solo dai colpi normali: prima entravano anche pallonetti e palle corte, e dopo tre di fila il
     // quarto sembrava «normale» (usciva un dritto)
-    if (NORMAL_SHOTS.has(ev.natpf.shot)){ this.liftModel.add(s.dir, s.lift); this.headModel.add(s.dir, ev.natpf.head); }
+    if (!expect && NORMAL_SHOTS.has(ev.natpf.shot)){ this.liftModel.add(s.dir, s.lift); this.headModel.add(s.dir, ev.natpf.head); }
     // piatto e direzione abituali solo dai colpi dello scambio non deboli: servizi, preparazioni e micro-movimenti
     // spostavano il centro (il 23/10 scarti di 50–77° in quasi tutti i colpi)
-    if (this.engine.phase === 'RALLY' && !weakSwing(ev)){ this.faceModel.add(s.dir, s.face); this.aimModel.add(s.dir, s.heading); }
-    if (this.engine.phase === 'RALLY' && ev.natpf.intent) this.riseModel.add(s.dir, s.shape?.rise, ev.natpf.intent.shot);
-    if (this.engine.phase === 'RALLY' && ev.natpf.intent && NORMAL_SHOTS.has(ev.natpf.shot) && !weakSwing(ev)) this.shapeModel.add(ev.natpf.intent.plane, ev.natpf.intent.power);
+    if (rally && !expect && !weakSwing(ev)){ this.faceModel.add(s.dir, s.face); this.aimModel.add(s.dir, s.heading); }
+    if (rally && !expect && ev.natpf.intent) this.riseModel.add(s.dir, s.shape?.rise, ev.natpf.intent.shot);
+    if (ev.natpf.intent && teachesNormal(ev, { rally, expect })) this.shapeModel.add(ev.natpf.intent.plane, ev.natpf.intent.shapePower);
     for (const fn of this.swingListeners) try { fn(ev, s); } catch (e){ console.error(e); }
     // _emitSwing instrada già P1 in locale e P2 verso l'host (relay della stanza 1v1)
     mc._emitSwing(ev);

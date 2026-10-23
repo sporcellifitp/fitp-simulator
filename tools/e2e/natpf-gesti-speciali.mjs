@@ -94,7 +94,7 @@ try {
   await game.waitForFunction(() => window.__natpfTennis?.natpfPhone && window.__natpfTennis.natpfUi && window.__natpfTennis.player?.model, null, { timeout: 120000 });
   await game.evaluate(() => { const E = __natpfTennis; E.__render = E.render.bind(E); E.render = () => {}; });   // grafica software lenta
   // colpi del telefono come li legge il gioco (anche quelli che non colpiscono) e gesti scartati dal telefono
-  await game.evaluate(() => { const E = __natpfTennis; window.__sw = []; window.__drop = []; E.natpfPhone.onSwing?.(ev => __sw.push({ shot: ev.natpf?.shot, why: (ev.natpf?.why || []).join(', '), ignored: ev.ignored || null, t: E.elapsedTime })); E.natpfPhone.onDropped?.((why, d) => __drop.push({ why, t: E.elapsedTime })); });
+  await game.evaluate(() => { const E = __natpfTennis, P = E.natpfPhone, r = v => (Number.isFinite(v) ? +v.toFixed(3) : v); window.__sw = []; window.__drop = []; P.onSwing?.((ev, s) => { const I = ev.natpf?.intent; __sw.push({ shot: ev.natpf?.shot, why: (ev.natpf?.why || []).join(', '), ignored: ev.ignored || null, t: r(E.elapsedTime), dir: s?.dir, peak: r(s?.peak), raw: r(s?.rawPeak), f: I ? [r(I.rise), r(Math.abs(I.plane)), r(I.shapePower)] : null, normal: P.shapeModel?.value, typ: r(P.typicalModel?.value), own: P.ownShape }); }); P.onDropped?.((why, d) => __drop.push({ why, t: E.elapsedTime })); });
   await game.evaluate(() => { __natpfTennis.natpfUi.selectController('phone', { open: false }); return __natpfTennis.natpfPhone.start(); });
   await game.waitForFunction(() => __natpfTennis.natpfPhone.link?.L.state === 'waiting' && __natpfTennis.natpfPhone.pairingUrl, null, { timeout: 30000 });
   const url = await game.evaluate(() => __natpfTennis.natpfPhone.pairingUrl);
@@ -189,6 +189,7 @@ try {
   check('   pallonetto profondo e palla corta corta, dentro il campo', played.filter(p => p.shot === 'LOB').every(p => inCourt(p) && p.z < -8) && played.filter(p => p.shot === 'DROP').every(p => inCourt(p) && p.z > -5.5),
     played.filter(p => p.shot === 'LOB' || p.shot === 'DROP').map(p => `${p.shot} (${p.x}, ${p.z})`).join(' · '));
   const sw = await game.evaluate(() => __sw);
+  if (process.env.DEBUG) console.log('DEBUG colpi letti', JSON.stringify(sw));
   if (process.env.DEBUG) console.log('DEBUG telefono', JSON.stringify(await phone.evaluate(() => __det)), 'robot', JSON.stringify(await game.evaluate(() => window.__robot)), 'persi', JSON.stringify(await game.evaluate(() => ({ drop: __drop, ready: __natpfTennis.natpfPhone.ready, phase: __natpfTennis.phase, auto: __natpfTennis.autoPlayMode, sw: __sw.length }))));
   check('   nessun gesto del pallonetto o della palla corta scartato dal telefono durante esercizi e partita', !disc.some(w => w === 'verso' || w === 'debole'), `scartati: ${disc.join(', ') || 'nessuno'} · colpi letti: ${sw.length}`);
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));
