@@ -243,6 +243,9 @@ export class DiagRecorder {
       // registrato della racchetta (prima anche un campo racchetta in colpo.gioco, solo per chi gioca qui)
       if (out && L) R.log('racchetta', { chi: L.who || null, n: L.seq ?? null, voluto: I.shot || null, colpo: O.shot || null, forza: r(I.power, 3), profondita: r(I.depth, 3), piatto: r(I.face, 3), ricavato: !!I.derived,
         tempoMs: r(1000*L.timing, 1), tempo: r(O.t, 3), oltre: r(O.excess, 3), qualita: r(O.q, 3), assistito: !!O.assisted, fallito: !!O.failed, rete: !!O.netFault,
+        // a rete con il tempo perfetto: palla debole invece dell'errore; pressione degli scambi lunghi; causa del colpo
+        // debole o fallito («in corsa», «in allungo», «palla veloce», «senza preparazione», «scambio lungo»)
+        debole: !!O.weak, pressione: r(L.pressure, 3), causa: L.cause || null,
         x: r(out.E), z: r(out.N), volee: !!L.volley, lato: L.contact ?? null, voto: O.grade || null,
         // direzione calcolata: mira (−1…+1 tra le righe, 0 il punto neutro), punto neutro e posizione della palla
         // all'impatto (riferimento di chi colpisce), assistenza (0…1); traiettoria: volo (s), altezza sulla rete, effetto

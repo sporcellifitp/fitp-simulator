@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { LOBBY_STEPS, EGG_WORD, stepReady, initialStep, eggTyped, autoAdvance, progressSteps, previousStep } from '../src/natpf/natpf_lobby.js';
 import { introMode, INTRO_MS } from '../src/natpf/natpf_intro.js';
 import { controllerTiles, viewTiles, controllerStatus, CONTROLLER_TILES } from '../src/natpf/natpf_tiles.js';
-import { shotQuality, landsIn, VIBRATION, QUALITY_COLORS } from '../src/natpf/natpf_shot_feedback.js';
+import { shotQuality, shotWhy, landsIn, VIBRATION, QUALITY_COLORS } from '../src/natpf/natpf_shot_feedback.js';
 import { leftySide, isLocalServing, normalizeHand } from '../src/natpf/natpf_hand.js';
 import { DRILLS, drillsFor, drillAfterShot, calSide, calCoach, CAL_SPOT, sideWant } from '../src/natpf/natpf_training.js';
 
@@ -74,6 +74,17 @@ test('esito del colpo: verde perfetto, giallo anticipo/ritardo, rosso fuori o ma
   assert.deepEqual(shotQuality('PERFECT • FOREHAND', { inCourt: false }), { color: 'red', label: 'Fuori' });
   assert.deepEqual(shotQuality('TOO LATE! • WHIFF'), { color: 'red', label: 'Mancata' });
   assert.ok(QUALITY_COLORS.green && QUALITY_COLORS.yellow && QUALITY_COLORS.red);
+});
+
+test('palla in rete: il messaggio dice «In rete», non «Perfetto» (il bersaglio del motore resta in campo); colpo debole con il motivo (23/10, sera)', () => {
+  assert.deepEqual(shotQuality('PERFECT • FOREHAND TOPSPIN', { inCourt: true, net: true }), { color: 'red', label: 'In rete' });
+  assert.deepEqual(shotQuality('TOO LATE! • WHIFF', { net: true }), { color: 'red', label: 'Mancata' });
+  const shot = (out, o = {}) => ({ who: 'player', at: 12.5, cause: 'in allungo', out: { failed: true, weak: false, ...out }, ...o });
+  assert.equal(shotWhy(shot({ weak: true }), { now: 12.5 }), 'palla debole: in allungo');
+  assert.equal(shotWhy(shot({}, { cause: 'scambio lungo' }), { now: 12.5 }), 'scambio lungo');
+  assert.equal(shotWhy(shot({ failed: false }), { now: 12.5 }), null);                  // colpo riuscito: niente motivo
+  assert.equal(shotWhy(shot({ weak: true }), { now: 13 }), null);                        // non è il colpo appena fatto
+  assert.equal(shotWhy(shot({ weak: true }, { who: 'p2' }), { now: 12.5 }), null);       // colpo dell'altro giocatore
 });
 
 test('dentro o fuori: campo avversario e riquadro del servizio, per P1 e P2', () => {

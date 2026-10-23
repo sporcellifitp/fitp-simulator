@@ -82,6 +82,28 @@ test('fuori e in rete possibili: tempo molto sbagliato, qualità scarsa, palla b
   assert.equal(net.netFault, true);
 });
 
+test('a rete con il tempo perfetto la palla passa la rete: la situazione la rende debole, non la manda in rete (23/10, sera)', () => {
+  const lv = skillLevel('leggenda'), late = lateSpanOf(18, lv), Q = .55;        // sotto failQ di Leggenda (.63): in corsa sulla palla corta
+  const good = shotOf({ net: true, contactY: .4 }, lv);
+  for (const o of [{ net: true, contactY: .4 }, { volley: true, contactY: .7 }, { volley: true, net: true, contactY: 1.1 }]){
+    const s = shotOf({ ...o, quality: Q }, lv);
+    // passa (niente rete né lunga), corta e più alta sulla rete: una palla facile da attaccare
+    assert.ok(s.grade === 'PERFECT' && s.failed && s.weak && !s.netFault && s.depth <= OUTCOME.weakDepth && s.depth < BASELINE, JSON.stringify(s));
+    assert.ok(s.clear > good.clear + .5, `${s.clear} contro ${good.clear}`);
+  }
+  // da fondo campo resta l'errore forzato (palla bassa: in rete)
+  const back = shotOf({ quality: Q, contactY: .6 }, lv);
+  assert.ok(back.failed && !back.weak && back.netFault, JSON.stringify(back));
+  // a rete senza il tempo perfetto resta l'errore
+  const off = shotOf({ quality: Q, net: true, contactY: .4, timing: .95*late, lateSpan: late }, lv);
+  assert.ok(off.grade !== 'PERFECT' && off.failed && !off.weak && off.netFault, JSON.stringify(off));
+  // scambio lungo: la situazione da sola terrebbe la palla (.7), la pressione la porta sotto failQ: errore anche a rete
+  const tired = shotOf({ quality: .7, pressure: .8, net: true, contactY: .4 }, lv);
+  assert.ok(tired.failed && tired.pressured && !tired.weak && tired.netFault, JSON.stringify(tired));
+  // stessa qualità totale, tutta dalla situazione: passa
+  assert.ok(shotOf({ quality: .56, net: true, contactY: .4 }, lv).weak);
+});
+
 test('l\'assistenza tiene dentro senza cambiare la direzione voluta: ordine delle direzioni uguale, palle dentro le righe', () => {
   const lv = skillLevel('casual'), span = directionSpan(lv);
   // dentro la finestra, con il piatto che spinge oltre la riga: assistita resta dentro, e più si spinge più va di lato

@@ -6,6 +6,9 @@
 //      punteggio dal proprio lato (prima: il punteggio con «Fuori» sotto, senza dire di chi).
 //   C. la moviola (pausa → «Rivedi il punto») rimette in scena l'ultimo punto giocato: palla e giocatori dove erano,
 //      al rallentatore, poi di nuovo al servizio (prima sempre la stessa scena a rete).
+//   D. a Leggenda, palla corta della CPU ripresa a rete con il tempo perfetto: la palla passa la rete (prima, in corsa,
+//      finiva in rete con il messaggio «Perfetto»); se è debole il messaggio dice perché.
+//   E. a Leggenda, scambio lunghissimo: se la palla va in rete il messaggio dice «In rete», non «Perfetto».
 // Porte 3183 (gioco) e 9183 (PeerJS).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-gameplay-23-10.mjs
 import { spawn } from 'node:child_process';
@@ -148,6 +151,48 @@ try {
   check('C. moviola: c\'è dopo un punto e rimette in scena l\'ultimo punto (palla e giocatore dove erano)', !!rec && shown && playing && during.length >= 5 && during.filter(near).length >= .8*during.length && during.every(s => s.cam === 'REPLAY_CAM'),
     JSON.stringify({ registrati: rec?.n, durata: rec && +rec.dur.toFixed(1), voce: shown, parte: playing, campioni: during.length, vicini: during.filter(near).length }));
   check('   al rallentatore, poi di nuovo al servizio', !!end?.done && end.phase === 'SERVE_STANCE' && during.length*.12 > (rec?.dur || 0)*.9, JSON.stringify({ fine: end, secondi: +(during.length*.12).toFixed(1) }));
+  /* D–E. Leggenda: palle messe in gioco dalla CPU, il telefono simulato colpisce come il robot */
+  await game.evaluate(() => { const E = __natpfTennis; E.natpfReplay.stop(); E._applyDifficultyTuning('leggenda'); E.matchConfig.difficulty = 'leggenda'; window.__shots = [];
+    // esito di ogni colpo di chi gioca e messaggio a schermo, subito dopo il colpo
+    const strike = E._attemptPlayerRallyStrike.bind(E);
+    E._attemptPlayerRallyStrike = (e, t) => { const r = strike(e, t), L = E.natpfLastRacket;
+      if (r && !t && L?.who === 'player') __shots.push({ grade: L.out.grade, weak: L.out.weak, failed: L.out.failed, pressured: L.out.pressured, net: L.out.netFault, cause: L.cause, z: +Math.abs(E.player.pos.z).toFixed(2),
+        pop: document.getElementById('timing-popup-grade')?.textContent, detail: document.getElementById('timing-popup-detail')?.textContent, netFlag: !!E.ball.natpfNetFault, crossed: false, end: null });
+      return r; }; });
+  // palla della CPU da (−0,5, 1, −9) verso (x, z) con il volo dato; chi gioca parte da fondo campo; rally: colpi già giocati
+  const stage = (o) => game.evaluate(({ x, z, flight, spin, rally, pz }) => { const E = __natpfTennis;
+    E.natpfPaused = false; E.phase = 'RALLY'; E.phaseTimer = 0; E.hud.hideCenterBanner?.();
+    E.player.pos.set(0, 0, pz); E.player.targetPos.set(0, 0, pz); E.player.vel?.set?.(0, 0, 0);
+    Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: rally });
+    E.ball.pos.set(-.5, 1, -9); E._launchBallToTarget(E.ball.pos.clone(), E.ball.pos.clone().set(x, 0, z), flight, { topspin: spin }); E._natpfPlanPlayer();
+    window.__st = { n: __shots.length, calls: __calls.length }; }, o);
+  // fino a quando la palla di chi gioca passa la rete o il punto finisce
+  const follow = async () => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < 9000){
+      await robot();
+      const done = await game.evaluate(() => { const E = __natpfTennis, S = __shots[__st.n];
+        if (S && E.ball.lastHitter === 'player' && E.ball.pos.z < -.3) S.crossed = true;
+        if (S && __calls.length > __st.calls) S.end = __calls[__st.calls];
+        return !!S && (S.crossed || !!S.end) || (!S && E.phase !== 'RALLY'); });
+      if (done) break;
+      await game.waitForTimeout(10);
+    }
+    return game.evaluate(() => __shots[__st.n] || null);
+  };
+  idle = false;
+  const drops = [];
+  for (const [x, z] of [[0, 2.6], [-1.5, 3.2], [1.5, 3.2], [-2.6, 3.8], [2.6, 3.8], [0, 4.4], [-1, 2.4], [1, 4]]){ await stage({ x, z, flight: 1.3, spin: -3, rally: 5, pz: 11 }); drops.push(await follow()); }
+  const perf = drops.filter(d => d?.grade === 'PERFECT' && d.z < 5);
+  check('D. Leggenda, palla corta ripresa a rete con il tempo perfetto: passa la rete, mai «In rete»', perf.length >= 3 && perf.every(d => d.crossed && !d.net && !d.netFlag && d.pop === 'Perfetto' && !/Net/.test(d.end?.why || '')),
+    drops.map(d => (d ? `${d.grade} a ${d.z} m: ${d.crossed ? 'passa' : 'non passa'}${d.weak ? ', debole' : ''} «${d.pop}» «${d.detail}»` : 'non presa')).join(' · '));
+  check('   colpo debole: il messaggio dice perché', perf.filter(d => d.weak).every(d => /palla debole: /.test(d.detail)), perf.filter(d => d.weak).map(d => d.detail).join(' · ') || 'nessun colpo debole');
+  // E. scambio al 40° colpo (pressione piena): palla bassa della CPU
+  const tired = [];
+  for (const [x, z] of [[.5, 7.5], [-.5, 7], [1, 8]]){ await stage({ x, z, flight: .95, spin: 12, rally: 40, pz: 11.5 }); tired.push(await follow()); }
+  const failed = tired.filter(d => d?.failed);
+  check('E. Leggenda, scambio lunghissimo: un colpo che va in rete dice «In rete» (e la palla lunga «Fuori»), non «Perfetto»', failed.length >= 1 && failed.every(d => (d.netFlag ? d.pop === 'In rete' : d.pop === 'Fuori') && d.pressured),
+    tired.map(d => (d ? `${d.grade}${d.failed ? ' fallito' : ''}${d.pressured ? ' (pressione)' : ''}${d.netFlag ? ' in rete' : ''}: «${d.pop}» «${d.detail}» → ${d.end ? `${d.end.who}/${d.end.why} «${d.end.sub}»` : d.crossed ? 'passa' : '?'}` : 'non presa')).join(' · '));
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));
 } finally {
   await B.close(); stop();

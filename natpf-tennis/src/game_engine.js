@@ -2019,9 +2019,15 @@ export class NatpfTennisEngine {
     // −15%) o con il rimbalzo alto sopra la spalla (fino a −12%, non la schiacciata) si controlla peggio
     const cl = (v) => Math.max(0, Math.min(1, v)),
       pace = (1 - 0.25 * cl((b.vel.length() - 24) / 12)) * (1 - 0.15 * cl((Math.abs(p.pos.z) - 12.2) / 1.2)) * (smash ? 1 : 1 - 0.12 * cl((b.pos.y - 1.5) / 0.6)),
-      quality = NS.reachQuality(lateral, running) * NS.prepQuality(e.natpf) * (!this.isDoubles && (p === this.player || p === this.opponent) ? NI.stretchQuality(this, p) : 1) * pace * NO.rallyPressure(b.rallyStrokeCount, NO.assistOf(lv).pressureFrom),
+      // situazione di chi colpisce (corsa e palla lontana, preparazione, allungo, palla veloce) e, a parte, pressione degli
+      // scambi lunghi: a rete con il tempo perfetto la situazione non manda la palla in rete (natpf_stroke_outcome.js)
+      Q = { reach: NS.reachQuality(lateral, running), prep: NS.prepQuality(e.natpf), stretch: !this.isDoubles && (p === this.player || p === this.opponent) ? NI.stretchQuality(this, p) : 1, pace },
+      quality = Q.reach * Q.prep * Q.stretch * Q.pace,
+      pressure = NO.rallyPressure(b.rallyStrokeCount, NO.assistOf(lv).pressureFrom),
       volley = b.bounceCountOnCurrentSide === 0 && Math.abs(p.pos.z) < 9;
-    const out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, contact, hitX, quality, contactY: b.pos.y, volley, level: lv });
+    const out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, contact, hitX, quality, pressure, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, level: lv });
+    // colpo fallito o debole: la causa che pesa di più, per il messaggio del colpo e la diagnostica
+    const cause = out.failed ? (out.pressured ? "scambio lungo" : [["reach", running > 0.5 ? "in corsa" : "palla lontana"], ["prep", "senza preparazione"], ["stretch", "in allungo"], ["pace", "palla veloce"]].reduce((a, k) => (Q[k[0]] < Q[a[0]] ? k : a))[1]) : null;
     const R = p.pos.x >= 0 ? 1 : -1, N = toward * out.depth, X = out.x * mirror, engineShot = out.shot === "DROP" ? "SLICE" : out.shot === "SMASH" ? "FLAT" : out.shot;
     const st = NS.registerPlayerShot(this, { grade: out.grade, quality: out.q, power: intent.power, landingX: X, landingZ: N, shot: out.shot, cpuZ: this.opponent.pos.z, who: toward === 1 ? "p2" : "player" });
     const fromY = Math.max(0.78, Math.min(out.shot === "SMASH" ? 3.1 : 1.92, b.pos.y));
@@ -2037,7 +2043,7 @@ export class NatpfTennisEngine {
       I = NO.outcomeFlight({ ...out, flight: null }, { fromY, fromZ: b.pos.z, toZ: N, flight: NS.mistimeFlight(NS.streakFlight(base, toward === 1 ? st.p2Streak : st.streak, lv), out.q) });
     }
     // seq: numero del colpo del telefono (diagnostica); at: istante del motore, per riconoscere un esito nuovo
-    this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, hitX: +hitX.toFixed(3), quality: +quality.toFixed(3), volley, flight: +I.toFixed(3), seq: (e.natpf && e.natpf.seq) ?? null, at: this.elapsedTime };
+    this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, hitX: +hitX.toFixed(3), quality: +(quality * pressure).toFixed(3), pressure: +pressure.toFixed(3), cause, volley, flight: +I.toFixed(3), seq: (e.natpf && e.natpf.seq) ?? null, at: this.elapsedTime };
     return {
       E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 * mirror : 0, O: out.netFault, T: engineShot,
       drop: out.shot === "DROP", u: out.grade, w: out.cursor, q: out.q, power: intent.power, out,
@@ -2401,6 +2407,8 @@ export class NatpfTennisEngine {
       y = l / h,
       f = (p + 0.5 * g * h * h) / h;
     this.ball.vel.set(c, f, y), this.ball.spin.set(a, s, 0), this.ball.targetLanding.copy(t);
+    // NATPF: palla mandata in rete (il bersaglio resta in campo): il messaggio del colpo dice «In rete», non «Perfetto»
+    this.ball.natpfNetFault = !!n;
     const m = Math.abs(e.z) / Math.max(1, Math.abs(y));
     if (m > 0 && m < h) {
       const d = e.y + f * m - 0.5 * g * m * m;

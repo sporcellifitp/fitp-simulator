@@ -2,7 +2,8 @@
 // - anello di arrivo a terra, nel punto in cui atterrerà la palla (noto già al momento del colpo), colorato:
 //   verde = perfetto, giallo = buono / in anticipo / in ritardo, rosso = finirà fuori; al rimbalzo pulsa;
 // - lampo dello stesso colore sulla racchetta;
-// - messaggio breve («Perfetto», «Anticipo», «Ritardo», «Buono», «Fuori», «Mancata»).
+// - messaggio breve («Perfetto», «Anticipo», «Ritardo», «Buono», «Fuori», «In rete», «Mancata»), con il motivo quando la
+//   situazione rende il colpo debole o lo fa fallire («palla debole: in corsa», «scambio lungo»).
 // I colpi dell'avversario restano con l'anello bianco di rimbalzo del motore base.
 import * as THREE from 'three';
 
@@ -16,12 +17,15 @@ export function landsIn(target, { towardNegativeZ = true, serve = false } = {}){
   if (Math.abs(target.x) > COURT.halfW + .02) return false;
   return serve ? z > 0 && z <= COURT.service + .02 : z > 0 && z <= COURT.halfL + .02;
 }
-// grade del motore (es. «PERFECT • FOREHAND TOPSPIN», «POWER SERVE!», «EARLY SERVE», «TOO LATE! • WHIFF») → esito
-export function shotQuality(grade = '', { inCourt = true } = {}){
+// grade del motore (es. «PERFECT • FOREHAND TOPSPIN», «POWER SERVE!», «EARLY SERVE», «TOO LATE! • WHIFF») → esito.
+// net: la palla va in rete. Il motore lascia il bersaglio in campo e abbassa la traiettoria: prima il messaggio diceva
+// «Perfetto», con l'anello verde in campo, e poi la palla finiva in rete (segnalazione del 23/10, sera)
+export function shotQuality(grade = '', { inCourt = true, net = false } = {}){
   const g = String(grade).toUpperCase();
   if (/WHIFF/.test(g) && /EARLY/.test(g)) return { color: 'red', label: 'Troppo presto' };
   if (/WHIFF/.test(g) && /REACH/.test(g)) return { color: 'red', label: 'Troppo lontana' };
   if (/WHIFF|TOO LATE/.test(g)) return { color: 'red', label: 'Mancata' };
+  if (net) return { color: 'red', label: 'In rete' };
   if (!inCourt) return { color: 'red', label: 'Fuori' };
   if (/PERFECT|POWER/.test(g)) return { color: 'green', label: 'Perfetto' };
   if (/EARLY/.test(g)) return { color: 'yellow', label: 'Anticipo' };
@@ -34,6 +38,12 @@ export function shotName(grade = ''){
   const g = String(grade).toUpperCase();
   if (/SERVE/.test(g)) return null;
   return /DROP SHOT/.test(g) ? 'Palla corta' : /SMASH/.test(g) ? 'Schiacciata' : /\bLOB\b/.test(g) ? 'Pallonetto' : /\bSLICE\b/.test(g) ? 'Tagliato' : null;
+}
+// motivo del colpo debole o fallito della racchetta (natpfLastRacket del motore, solo se è il colpo appena fatto da chi):
+// «palla debole: in corsa» a rete con il tempo perfetto, altrimenti la causa («in allungo», «scambio lungo», …)
+export function shotWhy(L, { now = null, who = 'player' } = {}){
+  if (!L?.out?.failed || !L.cause || L.who !== who || (now != null && L.at !== now)) return null;
+  return L.out.weak ? `palla debole: ${L.cause}` : L.cause;
 }
 // vibrazione del telefono: lunga per il perfetto, breve per il buono, doppia corta per l'errore
 export const VIBRATION = Object.freeze({ green: [70], yellow: [25], red: [25, 60, 25] });
@@ -62,13 +72,13 @@ export class NatpfShotFeedback {
     // (il motore mostra il messaggio subito dopo aver lanciato la palla: il punto di arrivo è già noto)
     if (popup) engine.hud.showTimingPopup = (o = {}) => {
       const g = String(o.grade || ''), p2 = /^P2\b/.test(g);
-      const q = shotQuality(g, { inCourt: landsIn(engine.ball?.targetLanding, { towardNegativeZ: !p2, serve: /SERVE/i.test(g) }) });
+      const q = shotQuality(g, { inCourt: landsIn(engine.ball?.targetLanding, { towardNegativeZ: !p2, serve: /SERVE/i.test(g) }), net: !!engine.ball?.natpfNetFault });
       const kmh = String(o.detail || '').match(/\d+\s*KM\/H/i)?.[0] || '';
       // in prima persona il proprio messaggio va al centro, sotto la linea dello sguardo (non sopra il tabellone)
       const mine = p2 === (engine.playerRole === 'p2');
       const screenPos = mine && engine._isFirstPersonActive?.() ? { x: window.innerWidth/2, y: window.innerHeight*.64, visible: true } : o.screenPos;
-      const name = shotName(g);
-      popup({ ...o, screenPos, grade: q.label, detail: [name, kmh.toLowerCase()].filter(Boolean).join(' · ') });
+      const name = shotName(g), why = shotWhy(engine.natpfLastRacket, { now: engine.elapsedTime, who: p2 ? 'p2' : 'player' });
+      popup({ ...o, screenPos, grade: q.label, detail: [name, why, kmh.toLowerCase()].filter(Boolean).join(' · ') });
       const el = document.getElementById('timing-popup-grade');
       if (el){ el.classList.remove('grade-early', 'grade-late', 'grade-perfect', 'q-green', 'q-yellow', 'q-red'); el.classList.add('q-' + q.color); }
     };
@@ -79,10 +89,11 @@ export class NatpfShotFeedback {
     const e = this.engine, towardNegativeZ = e.playerRole !== 'p2';
     if (kind === 'whiff'){ const q = shotQuality(/EARLY/i.test(grade || '') ? grade : 'WHIFF'); this.pending = q; return q; }
     if (kind !== 'hit') return null;
-    const serve = /SERVE/i.test(grade), target = e.ball?.targetLanding;
-    const q = shotQuality(grade, { inCourt: landsIn(target, { towardNegativeZ, serve }) });
+    const serve = /SERVE/i.test(grade), target = e.ball?.targetLanding, net = !!e.ball?.natpfNetFault;
+    const q = shotQuality(grade, { inCourt: landsIn(target, { towardNegativeZ, serve }), net });
     this.pending = q; this.last = q;
-    this._marker(target, q.color);
+    // in rete: niente anello nel campo (il bersaglio del motore resta in campo)
+    if (!net) this._marker(target, q.color);
     this._flash(q.color);
     return q;
   }

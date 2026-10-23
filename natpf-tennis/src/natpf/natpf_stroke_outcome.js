@@ -48,6 +48,7 @@ export const OUTCOME = Object.freeze({
   lobFlight: [2.2, 1.75], smashFlight: .42,
   volleyShort: 1,     // m: la volée spinge meno
   netLowY: .42, netExcess: .45,   // palla presa sotto 0,42 m molto fuori tempo: in rete
+  weakDepth: 6.8, weakFloat: .9,  // a rete, colpo fallito con il tempo perfetto: al massimo a 6,8 m dalla rete, 0,9 m più alto
   assistQ: .6,        // sotto questa qualità l'assistenza non tiene la palla dentro
 });
 
@@ -92,11 +93,13 @@ export const aimForLanding = (x, x0, xMax = OUTCOME.xMax) => (x - x0)/Math.max(.
 // ritardo); lateSpan: s di ritardo che valgono il lungolinea pieno (lateSpanOf: con le palle veloci è più breve, perché
 // la palla passa il corpo prima); contact: +1 colpo di dritto del destro (o di rovescio del mancino), −1 l'altro lato:
 // dice da che parte va la palla in anticipo; hitX: posizione laterale della palla all'impatto (m, riferimento di chi
-// colpisce, + a destra); quality: allungo × preparazione (0…1); contactY: altezza della palla all'impatto; volley:
-// presa al volo; level: parametri del livello (skillLevel).
+// colpisce, + a destra); quality: la situazione di chi colpisce, allungo × corsa × preparazione × palla veloce (0…1);
+// pressure: pressione degli scambi lunghi (rallyPressure, 0…1); contactY: altezza della palla all'impatto; volley: presa
+// al volo; net: chi colpisce è a rete (entro 5 m dalla rete, anche dopo il rimbalzo); level: parametri del livello.
 // Restituisce, nel riferimento di chi colpisce (x a destra, depth in avanti dalla rete): { x, depth, clear, topspin,
-// flight (solo pallonetto e schiacciata), netFault, grade, cursor, t, excess, q, aim, x0, assist, assisted }.
-export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contact = 1, hitX = 0, quality = 1, contactY = 1, volley = false, level = {} } = {}){
+// flight (solo pallonetto e schiacciata), netFault, failed, weak, pressured, grade, cursor, t, excess, q, aim, x0,
+// assist, assisted }.
+export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contact = 1, hitX = 0, quality = 1, pressure = 1, contactY = 1, volley = false, net = false, level = {} } = {}){
   const O = OUTCOME, shot = String(intent.shot || 'topspin').toUpperCase();
   const power = clamp(finite(intent.power, .5)), want = clamp(finite(intent.depth, power)), rise = clamp(finite(intent.rise), -1, 1);
   const AS = assistOf(level), span = directionSpan(level), late = Number.isFinite(lateSpan) ? clamp(lateSpan, .04, span) : span;
@@ -104,7 +107,7 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contac
   // fino alla fine della finestra d'impatto (prima si fermava a 1,6 unità: nell'ultimo 40% della finestra tutte le
   // palle uguali). ±4 è oltre ogni finestra d'impatto, solo per sicurezza
   const c = finite(contact, 1) >= 0 ? 1 : -1, t = clamp(finite(timing) >= 0 ? finite(timing)/span : finite(timing)/late, -4, 4), inside = clamp(t, -1, 1), excess = Math.max(0, Math.abs(t) - 1);
-  const q = clamp(timingQualityOf(t)*clamp(finite(quality, 1)), .2, 1);
+  const qs = clamp(timingQualityOf(t)*clamp(finite(quality, 1)), .2, 1), q = clamp(qs*clamp(finite(pressure, 1)), .2, 1);
   // assistenza: piena dentro la finestra e sopra la qualità del livello, sfuma oltre (prima un gradino)
   const assist = clamp(1 - excess/O.assistFade)*clamp((q - AS.assistQ)/O.assistQSpan + .5), xMax = AS.xMax, k = xMax/O.xMax;
   // direzione: mira dal tempo (ai bordi della finestra le due righe; la spinta naturale verso l'incrociato solo vicino al
@@ -125,14 +128,25 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contac
   const clear = Math.max(ARC.netY + .02, A.clear[0] + (A.clear[1] - A.clear[0])*soft + (1 - q)*O.floatPerQ - high + (shot === 'TOPSPIN' ? .6*clamp(rise - .15, 0, .6) : 0));
   const topspin = shot === 'TOPSPIN' ? 15 + 8*clamp(rise) + 6*soft : shot === 'FLAT' ? 12 : shot === 'SLICE' ? -6.5 : shot === 'DROP' ? -3 : shot === 'LOB' ? 5 : 9;
   const flight = shot === 'LOB' ? lerp(O.lobFlight[0], O.lobFlight[1], power) : shot === 'SMASH' ? Math.max(O.smashFlight, depth/26) : null;
-  // colpo fallito: tempo molto sbagliato su una palla bassissima, o qualità sotto failQ (in corsa, sotto pressione, palla
-  // pesante): in rete se la palla è sotto il metro, altrimenti lunga oltre la riga di fondo. Deterministico
-  const failed = q < finite(AS.failQ, 0) && shot !== 'DROP';
-  const netFault = (finite(contactY, 1) < O.netLowY && excess > O.netExcess) || (failed && finite(contactY, 1) < 1);
-  if (failed && !netFault) depth = Math.max(depth, 12.6 + (finite(AS.failQ, 0) - q)*4);
-  const g = swingGrade(t*(level?.timingSpan || span), level);
-  return { x: +x.toFixed(3), depth: +depth.toFixed(3), clear: +clear.toFixed(3), topspin: +topspin.toFixed(2), flight: flight == null ? null : +flight.toFixed(3),
-    netFault, failed, grade: g.grade, cursor: g.cursor, t: +t.toFixed(3), excess: +excess.toFixed(3), q: +q.toFixed(3),
+  // colpo fallito: tempo molto sbagliato su una palla bassissima, o qualità sotto failQ (in corsa, in allungo, palla
+  // veloce, sotto pressione): in rete se la palla è sotto il metro, altrimenti lunga oltre la riga di fondo. Deterministico.
+  // A rete (entro 5 m dalla rete, al volo o dopo il rimbalzo) con il tempo perfetto la situazione non manda più la palla in
+  // rete né lunga: passa, corta e alta, una palla facile da attaccare (weak). Segnalazione del 23/10, sera: a rete colpi
+  // con il tempo perfetto finivano in rete. A Leggenda (failQ .63) la palla corta della CPU (un colpo su tre contro
+  // «amatore») ripresa di corsa arrivava a qualità .55–.62: nel banco, contro «amatore», 245 colpi a rete su 1200 punti
+  // finivano in rete con il tempo perfetto, 215 per la situazione. Resta l'errore degli scambi lunghi (pressured: senza la
+  // pressione la qualità sarebbe sopra failQ), il modo in cui finiscono gli scambi senza fine: contro «preciso» tutti i
+  // colpi falliti con il tempo perfetto sono di questo tipo (dal 15° colpo); senza, la CPU Leggenda vinceva il 43% dei game
+  // contro di lui (criterio ≥ 60%)
+  const g = swingGrade(t*(level?.timingSpan || span), level), fq = finite(AS.failQ, 0);
+  const failed = q < fq && shot !== 'DROP', pressured = failed && qs >= fq;
+  const weak = failed && !pressured && (!!volley || !!net) && g.grade === 'PERFECT';
+  const netFault = (finite(contactY, 1) < O.netLowY && excess > O.netExcess) || (failed && !weak && finite(contactY, 1) < 1);
+  if (failed && !weak && !netFault) depth = Math.max(depth, 12.6 + (fq - q)*4);
+  let lift = clear;
+  if (weak){ depth = Math.min(depth, O.weakDepth); lift = clear + O.weakFloat; }
+  return { x: +x.toFixed(3), depth: +depth.toFixed(3), clear: +lift.toFixed(3), topspin: +topspin.toFixed(2), flight: flight == null ? null : +flight.toFixed(3),
+    netFault, failed, weak, pressured, grade: g.grade, cursor: g.cursor, t: +t.toFixed(3), excess: +excess.toFixed(3), q: +q.toFixed(3),
     aim: +aim.toFixed(3), x0: +x0.toFixed(3), assist: +assist.toFixed(3), assisted: assist >= .5, shot };
 }
 
