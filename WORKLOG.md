@@ -251,3 +251,4 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     verificato). Provati estratti: 1v1 nel browser sullo zip Cloudflare 18/18; pacchetto LAN con certificato creato e
     server HTTPS che risponde con gioco, pagina del telefono, modelli delle mani, grafiche, avvio guidato e relay 1v1.
     Nessuna chiave privata (gli unici certificati sono le radici pubbliche dentro `node.exe`), nessun nome vietato.
+  - CI completa in locale sul commit `90c4bc1` (copia separata): tutto passa, LAN nel browser 7/8 (limite noto). Validazione fisica non eseguita.

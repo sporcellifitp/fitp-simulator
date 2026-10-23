@@ -430,3 +430,27 @@ rimbalzo all'impatto, altezza e posizione dell'impatto, velocità, colmo dopo il
   - cosa aspettarsi a ogni passo e cosa guardare nel rapporto;
   - cosa provano i test automatici e cosa no.
 - **Banco**: `audit:rally -- --cpu` dice anche dove la CPU colpisce e quanto corre (misure nel passo 4, campo aperto).
+- **CI completa in locale** sul commit `90c4bc1` (copia separata, senza modifiche in corso), tutto passa:
+  - `tools/test` 148/148, `npm test` 336/336;
+  - CI del sito: telefono 10/10, tempi 8/8, gesto e calibrazione 18/18, grafica 9/9, pacchetto ridotto 5/5, 6/6 e
+    10/10, LAN in Node 4/4 e nel browser 3/3;
+  - motore base nel browser: scambio 7/7, diagnostica 24/24, allenamento 13/13, risposta al gesto 9/9, presa verticale
+    10/10, presa del 19/10 10/10, menu 22/22, ricollegamento 6/6, rete che cade 6/6, telefono che smette di funzionare
+    (Android) 13/13, catena della webcam 10/10, build e 1v1 18/18.
+
+  Unica eccezione, come nei giri precedenti: LAN nel browser 7/8, la prova WebRTC diretta, perché il browser di prova
+  non raggiunge l'indirizzo di rete del contenitore.
+- **Pacchetti** dal commit `90c4bc1`, build `2026-10-23.2` (la versione che finisce nella diagnostica di ogni sessione):
+  - `natpf-simulator-cloudflare-20261023-2.zip`: 23,7 MiB, 73 file, nessuno oltre 25 MiB, contenuto di `dist` più
+    `_headers`;
+  - `natpf-simulator-lan-windows-20261023-2.zip`: 57,2 MiB, con Node.js 22.22.0 per Windows (SHA-256 verificato
+    sull'elenco ufficiale).
+
+  Provati estratti in cartelle nuove:
+  - lo zip Cloudflare servito come sito statico passa il 1v1 nel browser 18/18;
+  - il pacchetto LAN crea il certificato e il server HTTPS risponde con gioco, pagina del telefono (anche
+    `phone-keep.js`), modelli delle mani completo e leggero, grafiche, avvio guidato e relay del 1v1.
+
+  Nessuna chiave privata (gli unici certificati sono le radici pubbliche dentro `node.exe`), nessun nome vietato nei
+  file del gioco.
+- **Non provato**: la prova fisica (mano, telefono, Wi-Fi, webcam e luce veri); l'elenco è nella guida, §4.
