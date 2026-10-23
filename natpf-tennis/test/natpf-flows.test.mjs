@@ -222,15 +222,87 @@ test('Sfide: il riquadro del punteggio si riscrive solo quando cambia (prima a o
   assert.ok(writes <= 4, `${writes} scritture in 2 s`);
 });
 
-test('1v1: la lobby dell’host riscrive le righe solo quando cambiano (il pallino in attesa non riparte ogni 250 ms)', async () => {
+test('1v1: la lobby dell’host riscrive la riga di stato solo quando cambia (il pallino in attesa non riparte ogni 250 ms)', async () => {
   const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
   const { E, lobby, hud } = w;
   lobby.menu('play'); hud.selectedDifficulty = '1v1'; E._applyDifficultyTuning('1v1'); await E.createMultiplayerRoom(); await w.flush();
   lobby.setMode('friend'); lobby.go('match'); w.advance(300);
-  const list = $('natpf-invite').querySelector('[data-versus-lines]');
-  let writes = 0, html = ''; Object.defineProperty(list, 'innerHTML', { get: () => html, set: v => { writes++; html = v; }, configurable: true });
+  const line = $('natpf-invite').querySelector('[data-versus-state]');
+  assert.match(line.textContent, /In attesa di Player 2.*link/);
+  let writes = 0, text = line.textContent; Object.defineProperty(line, 'textContent', { get: () => text, set: v => { writes++; text = v; }, configurable: true });
   w.advance(2000);
   assert.ok(writes <= 1, `${writes} scritture in 2 s`);
+  // il Player 2 entra e poi è pronto: la riga lo dice, «Gioca» si accende solo con il P2 pronto
+  E.roomStatus = { ...E.roomStatus, p2Online: true }; w.advance(400);
+  assert.match(text, /è entrato/); assert.ok($('btn-start-match').disabled);
+  E.roomStatus = { ...E.roomStatus, p2Online: true, p2Ready: true }; w.advance(400);
+  assert.match(text, /è pronto/); assert.ok(!$('btn-start-match').disabled);
+});
+
+// richiesta del 23/10: lobby 1v1 online «più semplice e immediata». Prima codice e link comparivano solo nella pagina
+// «Partita», dopo racchetta, telefono e riscaldamento: l'amico non poteva entrare mentre l'host si preparava
+test('Sfida un amico: l’invito (codice, link, stato del Player 2) è in vista subito, dalla racchetta alla partita', async () => {
+  const w = await makeWorld({ controller: 'phone' }); w.advance(300);
+  const { E, ui, lobby } = w;
+  const box = $('natpf-invite');
+  lobby.menu('play');
+  assert.ok(box.classList.contains('hidden'), 'nel menu e nella scelta della modalità no');
+  lobby.setMode('friend'); lobby.go('controller');
+  // la stanza si crea scegliendo la modalità (click sulla tessera 1v1 dell'HUD → createMultiplayerRoom)
+  if (!E.versus?.active) await E.createMultiplayerRoom();
+  await w.flush(); w.advance(400);
+  assert.ok(!box.classList.contains('hidden'), 'già nella pagina della racchetta');
+  assert.match(box.innerHTML, /data-room-code>AT-AB12</); assert.match(box.innerHTML, /Copia link/);
+  assert.match(ui.inviteUrl, /room=AT-AB12&role=p2/);
+  for (const step of ['connect', 'match']){ lobby.go(step); w.advance(350); assert.ok(!box.classList.contains('hidden'), step); }
+  // un'altra modalità chiude la stanza: niente invito
+  lobby.go('menu'); w.advance(350); assert.ok(box.classList.contains('hidden'));
+  lobby.setMode('cpu'); w.advance(350);
+  assert.equal(ui.inviteUrl, null); assert.equal(box.innerHTML, '');
+});
+
+test('Sfida un amico: finché la stanza non c’è «Creo la stanza…», dopo 20 s l’errore con «Riprova»', async () => {
+  const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
+  const { E, lobby } = w;
+  E.createMultiplayerRoom = async () => null;              // server o rete che non rispondono
+  const box = $('natpf-invite');
+  lobby.menu('play'); lobby.setMode('friend'); lobby.go('controller'); w.advance(400);
+  assert.ok(!box.classList.contains('hidden')); assert.match(box.innerHTML, /Creo la stanza/);
+  w.advance(15000); assert.match(box.innerHTML, /Creo la stanza/, 'dopo un ricaricamento la stanza può impiegare ~13 s');
+  w.advance(5500);
+  assert.match(box.innerHTML, /non è stata creata/); assert.match(box.innerHTML, /data-room-retry/);
+  assert.equal(box.dataset.pending, 'failed');
+});
+
+test('Ti hanno invitato: il codice scritto a mano porta alla pagina del Player 2; un codice sbagliato lo dice', async () => {
+  const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
+  const { lobby } = w;
+  lobby.menu('play');
+  assert.equal(await lobby.joinWithCode('ciao'), null);
+  assert.ok(visible('join-warn')); assert.match($('join-warn').textContent, /AT-K3ZQ/);
+  // sito senza server (/api/match/state non dà JSON): collegamento diretto con l'host
+  const url = await lobby.joinWithCode(' at k3zq ');
+  assert.equal(url, '/?room=AT-K3ZQ&role=p2&net=p2p');
+  assert.equal(location.href, url); assert.ok(!visible('join-warn'));
+});
+
+// HUD del Player 2: il telefono-racchetta NATPF si collega al suo computer, non al relay; prima il P2 leggeva sempre
+// «Player 1 pronto • inquadra il QR per usare il telefono», anche con il telefono collegato e calibrato
+test('Player 2: l’HUD non chiede più di inquadrare il QR del vecchio telefono', async () => {
+  await makeWorld({ controller: 'mouse', role: 'p2' });
+  const { HudUI } = await import('../src/hud_ui.js');
+  const pill = $('opponent-presence-pill'), text = $('opponent-presence-text');
+  const hud = { selectedDifficulty: '1v1', currentRoomId: 'AT-AB12', playerRole: 'p2', elOpponentPresencePill: pill, elOpponentPresenceText: text, _lastOtherReady: false };
+  HudUI.prototype.updateOpponentPresence.call(hud, { isMultiplayer: true, p1Online: true, hostName: 'Ada' });
+  assert.equal(text.textContent, 'Ada in campo • pronti al servizio!');
+  HudUI.prototype.updateOpponentPresence.call(hud, { isMultiplayer: true, p1Online: false, hostName: 'Ada' });
+  assert.equal(text.textContent, 'In attesa di Ada…');
+  // host: sotto l'avatar «pronto» solo con il Player 2 pronto (prima bastava che fosse entrato)
+  const host = { ...hud, playerRole: 'p1' }, label = $('setup-opponent-label');
+  HudUI.prototype.updateOpponentPresence.call(host, { isMultiplayer: true, p2Online: true, guestName: 'Bea' });
+  assert.equal(label.textContent, 'Bea entrato');
+  HudUI.prototype.updateOpponentPresence.call(host, { isMultiplayer: true, p2Online: true, p2Ready: true, guestName: 'Bea' });
+  assert.equal(label.textContent, '🟢 Bea pronto');
 });
 
 test('Player 2: «Collega il telefono» apre il QR e il pannello d’attesa non lo copre', async () => {

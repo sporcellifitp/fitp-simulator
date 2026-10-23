@@ -756,8 +756,7 @@
 }
 .lobby-page:not([data-page="menu"]) > .lobby-tiles,
 .lobby-page:not([data-page="menu"]) > .lobby-result,
-.lobby-page:not([data-page="menu"]) > .connect-panel,
-.lobby-page:not([data-page="menu"]) > .natpf-invite {
+.lobby-page:not([data-page="menu"]) > .connect-panel {
   width: 100%;
 }
 .lobby-page:not([data-page="menu"]) > .lobby-title,

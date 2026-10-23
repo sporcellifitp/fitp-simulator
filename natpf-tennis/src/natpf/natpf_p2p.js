@@ -22,7 +22,38 @@ const REMOTE_ALLOWED = new Set(['GET /api/match/state', 'GET /api/racket/state',
 export const remoteAllowed = (method, pathname) => REMOTE_ALLOWED.has(`${String(method || 'GET').toUpperCase()} ${pathname}`);
 export const LIVE_MS = 5000;          // senza messaggi per 5 s il collegamento è perso (come il telefono)
 export const CLOSED_MS = 20000;       // host introvabile per 20 s: probabilmente ha chiuso la stanza
+export const OPEN_MS = 12000;         // P2: il canale con l'host non si apre in 12 s → si chiude e si riprova (prima 8 s)
+export const HOST_OPEN_MS = 15000;    // host: un P2 che non apre il canale in 15 s ha la rete che lo blocca
 const RPC_TIMEOUT_MS = 4000;
+
+/* ---------- collegamento diretto (ICE): perché un canale non si apre ---------- */
+// Segnalazione e canale sono due cose diverse. Il server pubblico mette in contatto i due computer (offerta e risposta);
+// poi i browser cercano una strada diretta (ICE): rete locale (candidati «host»), indirizzo pubblico trovato con STUN
+// («srflx»), server TURN («relay»). Se l'altro computer risponde (stato ICE «checking») ma il canale non si apre, è la
+// rete a bloccare la strada diretta (firewall, NAT simmetrico, VPN): prima il P2 restava su «Mi collego…» e l'host su
+// «In attesa del Player 2…», senza dire niente.
+export function candidateType(c){
+  if (!c) return null;
+  if (c.type) return String(c.type);
+  return / typ ([a-z]+)/.exec(String(c.candidate || ''))?.[1] || null;
+}
+// Segue una DataConnection di PeerJS: stato ICE (iceStateChanged), se l'altro ha risposto, se ICE è fallito, tipi dei
+// candidati trovati da questo browser
+export function watchIce(c){
+  const info = { ice: 'new', answered: false, failed: false, local: new Set() };
+  try { c.peerConnection?.addEventListener?.('icecandidate', e => { const t = candidateType(e.candidate); if (t) info.local.add(t); }); } catch {}
+  c.on?.('iceStateChanged', st => {
+    info.ice = String(st);
+    if (st === 'checking' || st === 'connected' || st === 'completed') info.answered = true;
+    if (st === 'failed') info.failed = true;
+  });
+  c.on?.('error', e => { if (e?.type === 'negotiation-failed') info.failed = true; });
+  return info;
+}
+// riassunto per la diagnostica: «checking · host+srflx» (senza srflx: STUN bloccato; senza relay: nessun TURN)
+export const iceSummary = info => info ? `${info.ice} · ${[...info.local].sort().join('+') || 'nessun candidato'}` : null;
+// canale mai aperto: la rete lo blocca se l'altro computer aveva risposto (o ICE è fallito)
+export const iceBlocked = info => !!info && (info.failed || info.answered);
 
 /* ---------- relay della partita nel browser ---------- */
 // Esegue il middleware (req, res, next) di match-relay.mjs con una richiesta e una risposta finte: stesse stanze,
@@ -108,12 +139,15 @@ const emitter = () => {
 
 /* ---------- host: Peer con l'id della stanza, un Player 2 alla volta ---------- */
 // status: starting → waiting (nessun P2) → connected → lost (P2 sparito: si ricollega da solo) · error (segnalazione)
-export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => Date.now(), timers = globalThis }){
+// error 'rete' (status in attesa o P2 perso): un P2 ha aperto il link ma il canale diretto non si apre (detail: stato
+// ICE e candidati di questo computer, blocked: quante volte)
+export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => Date.now(), timers = globalThis, openMs = HOST_OPEN_MS }){
   const ev = emitter();
-  const S = { status: 'starting', error: null, peerId: peerIdForRoom(roomId), lastSeen: 0, guests: 0 };
-  const set = patch => { const before = S.status + S.error; Object.assign(S, patch); if (before !== S.status + S.error) ev.emit({ ...S }); };
+  const S = { status: 'starting', error: null, peerId: peerIdForRoom(roomId), lastSeen: 0, guests: 0, blocked: 0, detail: null };
+  const set = patch => { const before = S.status + S.error + S.blocked; Object.assign(S, patch); if (before !== S.status + S.error + S.blocked) ev.emit({ ...S }); };
   let conn = null, destroyed = false, settle, peer = null, again = null;
   const ready = new Promise(r => { settle = r; });
+  const pending = new Set();          // tempi massimi dei canali in apertura (si annullano alla chiusura della stanza)
   // un errore della segnalazione prima di registrarsi distrugge il Peer (PeerJS): se ne crea uno nuovo con lo stesso
   // id dopo qualche secondo (prima l'invito restava legato a un Peer distrutto)
   const restart = () => { if (destroyed || again) return; again = timers.setTimeout(() => { again = null; if (!destroyed && (!peer || peer.destroyed)) make(); }, 3000); };
@@ -121,8 +155,21 @@ export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => 
   peer = new Peer(S.peerId, options);
   peer.on('open', () => { set({ status: conn?.open ? 'connected' : 'waiting', error: null }); settle({ ok: true }); });
   peer.on('connection', c => {
-    let ok = false;
+    let ok = false, opened = false, flagged = false;
     const seen = () => { if (c === conn) S.lastSeen = now(); };
+    // un P2 che ha aperto il link ma non arriva: ICE fallito o canale ancora chiuso dopo openMs. Non se c'è già un P2
+    // in partita (un secondo tentativo non cambia nulla per chi gioca). Lo stato resta (in attesa o P2 perso)
+    const ice = watchIce(c);
+    const openT = timers.setTimeout(() => blocked(), openMs); pending.add(openT);
+    const stopT = () => { timers.clearTimeout(openT); pending.delete(openT); };
+    const blocked = () => {
+      stopT();
+      if (flagged || ok || opened || destroyed || conn?.open) return;
+      flagged = true; S.detail = iceSummary(ice);
+      set({ error: 'rete', blocked: S.blocked + 1 });
+    };
+    c.on('iceStateChanged', st => { if (st === 'failed') blocked(); });
+    c.on('open', () => { opened = true; stopT(); });
     c.on('data', d => {
       if (!ok){
         // presentazione: solo chi conosce la stanza; un nuovo P2 (o lo stesso che si ricollega) prende il posto del vecchio
@@ -131,17 +178,17 @@ export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => 
         // nuovo prendeva il posto del vecchio, che si ricollegava e lo scalzava, all'infinito. Chi ricarica la pagina
         // rientra appena il vecchio collegamento tace (LIVE_MS)
         if (conn && conn !== c && conn.open && now() - S.lastSeen <= LIVE_MS){ try { c.send({ t: 'no', why: 'occupata' }); } catch {} timers.setTimeout(() => c.close(), 200); return; }
-        ok = true;
+        ok = true; stopT();
         if (conn && conn !== c) try { conn.close(); } catch {}
-        conn = c; S.guests++; seen(); set({ status: 'connected', error: null });
+        conn = c; S.guests++; S.blocked = 0; seen(); set({ status: 'connected', error: null });
         try { c.send({ t: 'ok', room: roomId }); } catch {}
         return;
       }
       seen();
     });
     serveRpc(c, { roomId, handle: req => ok && c === conn ? handle(req) : Promise.resolve({ status: 403, text: '' }) });
-    c.on('close', () => { if (c === conn){ conn = null; set({ status: destroyed ? 'off' : 'lost' }); } });
-    c.on('error', () => {});
+    c.on('close', () => { if (!opened && iceBlocked(ice)) blocked(); stopT(); if (c === conn){ conn = null; set({ status: destroyed ? 'off' : 'lost' }); } });
+    c.on('error', e => { if (e?.type === 'negotiation-failed') blocked(); });
   });
   // persa la segnalazione: le connessioni aperte restano, ci si registra di nuovo per le prossime
   peer.on('disconnected', () => { if (!destroyed) timers.setTimeout(() => { if (!destroyed && !peer.destroyed) try { peer.reconnect(); } catch {} }, 1500); });
@@ -159,16 +206,18 @@ export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => 
   return {
     get state(){ return { ...S }; },
     ready, onStatus: ev.on,
-    destroy(){ destroyed = true; timers.clearInterval(watch); timers.clearTimeout(again); try { conn?.close(); } catch {} try { peer?.destroy(); } catch {} set({ status: 'off' }); },
+    destroy(){ destroyed = true; timers.clearInterval(watch); timers.clearTimeout(again); for (const t of pending) timers.clearTimeout(t); pending.clear(); try { conn?.close(); } catch {} try { peer?.destroy(); } catch {} set({ status: 'off' }); },
   };
 }
 
 /* ---------- Player 2: si collega all'host e si ricollega da solo ---------- */
 // status: starting → connecting → connected → lost (riprova ogni pochi secondi) · error (segnalazione non raggiungibile)
-export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.now(), timers = globalThis, retryMs = [1000, 2000, 3000, 5000] }){
+// error mentre riprova: 'rete' (l'host risponde ma il canale diretto non si apre: blocked tentativi, detail ICE),
+// 'chiusa' (host introvabile o muto da CLOSED_MS), 'occupata' (c'è già un altro Player 2)
+export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.now(), timers = globalThis, retryMs = [1000, 2000, 3000, 5000], openMs = OPEN_MS }){
   const ev = emitter();
-  const S = { status: 'starting', error: null, hostId: peerIdForRoom(roomId), attempts: 0, lastSeen: 0, missingSince: 0 };
-  const set = patch => { const before = S.status + S.error; Object.assign(S, patch); if (before !== S.status + S.error) ev.emit({ ...S }); };
+  const S = { status: 'starting', error: null, hostId: peerIdForRoom(roomId), attempts: 0, lastSeen: 0, missingSince: 0, blocked: 0, detail: null };
+  const set = patch => { const before = S.status + S.error + S.blocked; Object.assign(S, patch); if (before !== S.status + S.error + S.blocked) ev.emit({ ...S }); };
   let conn = null, rpc = null, destroyed = false, retryT = null, openT = null, peerOpen = false, peer = null;
   const retry = (wait = retryMs[Math.min(S.attempts, retryMs.length - 1)]) => {
     if (destroyed || retryT) return;
@@ -178,6 +227,12 @@ export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.no
   };
   // host introvabile da molto (ha chiuso la scheda o ricaricato senza tornare): lo si dice, continuando a riprovare
   const missing = () => { S.missingSince ||= now(); if (now() - S.missingSince > CLOSED_MS) set({ error: 'chiusa' }); };
+  // tentativo finito senza canale: se l'host aveva risposto (o ICE è fallito) la rete blocca la strada diretta; se non
+  // ha risposto è come introvabile (scheda chiusa o ferma)
+  const failed = ice => {
+    if (iceBlocked(ice)){ S.detail = iceSummary(ice); S.missingSince = 0; set({ error: 'rete', blocked: S.blocked + 1 }); }
+    else missing();
+  };
   function drop(c, wait){
     if (c !== conn) return;
     conn = null; rpc = null; timers.clearTimeout(openT);
@@ -189,20 +244,25 @@ export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.no
     if (S.status !== 'lost') set({ status: 'connecting' });
     const c = conn = peer.connect(S.hostId, { reliable: true, serialization: 'json' });
     if (!c){ conn = null; retry(); return; }
-    let ok = false;
+    let ok = false, opened = false;
+    const ice = watchIce(c);
+    // fine del tentativo (chiuso, errore, tempo scaduto): un canale mai aperto dice perché
+    const end = () => { if (c !== conn) return; if (!opened) failed(ice); drop(c); };
     rpc = createRpcClient(c, { onMessage: d => {
       if (c !== conn) return;
       S.lastSeen = now();
-      if (d?.t === 'ok' && !ok){ ok = true; S.attempts = 0; S.missingSince = 0; set({ status: 'connected', error: null }); }
-      // stanza occupata da un altro Player 2: si riprova più tardi (entra se l'altro esce)
-      if (d?.t === 'no' && d.why === 'occupata'){ set({ status: 'error', error: 'occupata' }); try { c.close(); } catch {} drop(c, 4000); return; }
+      if (d?.t === 'ok' && !ok){ ok = true; S.attempts = 0; S.missingSince = 0; S.blocked = 0; set({ status: 'connected', error: null }); }
+      // stanza occupata da un altro Player 2: si riprova più tardi (entra se l'altro esce). Prima si chiudeva il canale
+      // e poi si lasciava: la chiusura riprovava subito, senza i 4 s
+      if (d?.t === 'no' && d.why === 'occupata'){ set({ status: 'error', error: 'occupata' }); drop(c, 4000); try { c.close(); } catch {} return; }
       if (d?.t === 'no'){ set({ status: 'error', error: 'stanza' }); }
     } });
-    c.on('open', () => { try { c.send({ t: 'hi', room: roomId }); } catch {} });
-    c.on('close', () => drop(c));
-    c.on('error', () => { try { c.close(); } catch {} drop(c); });
-    // l'host non risponde entro 8 s (non è online, rete che blocca WebRTC): si chiude e si riprova
-    openT = timers.setTimeout(() => { if (c === conn && !ok){ try { c.close(); } catch {} drop(c); } }, 8000);
+    c.on('open', () => { opened = true; try { c.send({ t: 'hi', room: roomId }); } catch {} });
+    c.on('close', end);
+    c.on('error', () => { try { c.close(); } catch {} end(); });
+    // il canale non si apre entro openMs (host fermo, rete che blocca il collegamento diretto): si chiude e si riprova.
+    // PeerJS non manda «close» per un canale mai aperto: si chiude il tentativo qui
+    openT = timers.setTimeout(() => { if (c === conn && !ok){ try { c.close(); } catch {} end(); } }, openMs);
   }
   function makePeer(){
     peerOpen = false;
@@ -248,11 +308,15 @@ export function installNatpfP2p({ win = globalThis.window, Peer = null, peerOpti
   const room = (params.get('room') || '').trim().toUpperCase();
   const forced = p2pRequested(win?.location?.search || '');
   const api = {
-    mode: null, status: 'off', error: null, roomId: null, local: null, host: null, guest: null,
+    mode: null, status: 'off', error: null, detail: null, blocked: 0, roomId: null, local: null, host: null, guest: null,
     onStatus: ev.on,
     get active(){ return !!api.mode; },
   };
-  const relayStatus = s => { api.status = s.status; api.error = s.error || null; ev.emit({ mode: api.mode, status: api.status, error: api.error, roomId: api.roomId }); };
+  // detail e blocked: perché il canale diretto non si apre (stato ICE e candidati, quante volte), per la diagnostica
+  const relayStatus = s => {
+    api.status = s.status; api.error = s.error || null; api.detail = s.detail || null; api.blocked = s.blocked || 0;
+    ev.emit({ mode: api.mode, status: api.status, error: api.error, detail: api.detail, blocked: api.blocked, roomId: api.roomId });
+  };
   const getPeer = async () => Peer || await loadPeer();
   // server di segnalazione: quello del telefono-racchetta (pubblico di PeerJS, o ?peer=… per le prove)
   const options = () => { if (peerOptions) return peerOptions; try { return peerConfig(); } catch { return { debug: 0 }; } };

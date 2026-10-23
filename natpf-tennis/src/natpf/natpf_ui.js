@@ -19,6 +19,7 @@ import { NatpfKiosk } from './natpf_kiosk.js';
 import { phoneHealth, createPhoneWatch, holdText } from './natpf_phone_watch.js';
 import { webcamHealth, createWebcamWatch, webcamHoldText } from './natpf_webcam_watch.js';
 import { gripSvg, GRIP_TEXT_PLAIN } from '@natpf/tennis/grip-art.js';
+import { p2pStatusText, P2P_NET_HINT } from './natpf_versus.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -26,22 +27,8 @@ const store = {
   set(k, v){ try { localStorage.setItem('natpf-tennis.' + k, v); } catch {} },
 };
 const CONTROLLERS = ['phone', 'webcam', 'mouse'].map(id => ({ id }));
-// testi dello stato della sfida senza server (natpf_p2p.js), per l'host e per il Player 2
-export function p2pStatusText(mode, status, error = null){
-  const host = mode === 'host';
-  // Player 2: host introvabile da tempo, o stanza già occupata da un altro Player 2
-  if (!host && error === 'chiusa' && status !== 'connected') return 'L’host non risponde: forse ha chiuso la partita. Riprovo da solo; se non torna, chiedi un nuovo link';
-  if (!host && error === 'occupata') return 'Nella stanza c’è già un Player 2: riprovo tra poco, entri appena si libera';
-  switch (status){
-    case 'waiting': return 'In attesa del Player 2…';
-    case 'connected': return host ? 'Player 2 collegato ✓' : 'Collegato all’host ✓';
-    case 'lost': return host ? 'Player 2 scollegato: si ricollega da solo appena torna la rete' : 'Collegamento con l’host perso: mi ricollego…';
-    case 'connecting': return 'Mi collego all’host…';
-    case 'error': return error === 'stanza' ? 'Stanza non valida: chiedi all’host un nuovo link' : `Collegamento non disponibile (${error || 'rete'}): controlla la connessione a internet${host ? '' : ', riprovo da solo'}`;
-    case 'off': return 'Collegamento chiuso';
-    default: return 'Preparo il collegamento…';
-  }
-}
+// testi dello stato della sfida senza server: in natpf_versus.js (funzioni pure), qui per chi li importava da qui
+export { p2pStatusText, P2P_NET_HINT };
 const STEPS = ['collega', 'impugna', 'prova', 'verifica', 'pronto'];
 const PHONE_ERR = {
   denied: 'Sul telefono è stato negato l’accesso ai sensori di movimento. Su iPhone ricarica la pagina del telefono e tocca «Consenti»; su Android consenti «Sensori di movimento» dal lucchetto nella barra degli indirizzi.',
@@ -109,8 +96,8 @@ export class NatpfUi {
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){
       show($('natpf-guest-modal'));
-      // sfida senza server: stato del collegamento con l'host sotto il titolo
-      if (engine.natpfP2p?.mode === 'guest'){ $('natpf-guest-modal')?.querySelector('.sheet-desc')?.insertAdjacentHTML('afterend', '<p class="natpf-p2p-status" data-p2p-status></p>'); this._watchP2p(); }
+      // sfida senza server: lo stato del collegamento con l'host sta nella riga di stato del pannello (natpf_versus_ui.js)
+      if (engine.natpfP2p?.mode === 'guest') this._watchP2p();
       // pulsante principale: con il telefono QR e calibrazione in campo, poi pronto da solo; altrimenti «Sono pronto»
       // (natpf_versus_ui.js, primary). L'host vede il Player 2 pronto nella lobby
       $('natpf-guest-go')?.addEventListener('click', () => this.versus.primary());
@@ -297,37 +284,43 @@ export class NatpfUi {
   }
 
   /* ---------- invito del Player 2 (1v1 tra due computer, relay del motore base) ---------- */
+  // La barra dell'invito sta in cima alla lobby e resta in vista dalla racchetta alla partita (natpf_lobby.js decide
+  // quando): prima codice e link comparivano solo nell'ultima pagina, dopo racchetta, telefono e riscaldamento, e
+  // l'amico non poteva entrare mentre l'host si preparava
   async onRoomCreated(room){
     const box = $('natpf-invite'); if (!box || !room?.roomId) return;
     // in LAN (lan/server.mjs) l'indirizzo di rete del computer al posto di localhost, con ?lan=1 (natpf_lan.js);
     // senza server (sito statico) la stanza vive in questo browser e il P2 si collega in WebRTC (natpf_p2p.js)
     const p2p = room.net === 'p2p';
     const { url, reachable } = await guestInviteUrl(room.roomId, { p2p, format: this.engine.matchFormat?.id });
-    // lobby della sfida: codice, link da mandare e i tre passi con lo stato (natpf_versus_ui.js li aggiorna)
-    box.innerHTML = `<div class="versus-code"><span>Codice stanza</span><b data-room-code>${room.roomId}</b></div>
-      <p class="versus-how">Manda questo link all’amico: lo apre sul suo computer, collega il telefono e lo prova in campo. Quando è pronto, «Gioca» si accende.</p>
-      <div class="versus-link"><a href="${url}" target="_blank" rel="noopener">${url}</a> <button type="button" class="nt-pill-btn" data-copy>Copia link</button></div>
-      <ul class="versus-lines" data-versus-lines></ul>
-      ${p2p ? '<small class="natpf-p2p-status" data-p2p-status></small>' : ''}
+    // nel frattempo l'host ha scelto un'altra modalità (la stanza è chiusa): niente invito
+    if (this.engine.roomId !== room.roomId) return;
+    this.inviteUrl = url; box.dataset.pending = '';
+    const share = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+    // codice da dettare, link da mandare (copia o condividi), una riga con lo stato del Player 2 (natpf_versus_ui.js)
+    box.innerHTML = `<div class="versus-code"><span>Sfida un amico · codice</span><b data-room-code>${room.roomId}</b></div>
+      <div class="versus-link"><a href="${url}" target="_blank" rel="noopener" data-invite-url>${url}</a><button type="button" class="nt-pill-btn" data-copy>Copia link</button>${share ? '<button type="button" class="nt-pill-btn" data-share>Condividi</button>' : ''}</div>
+      <p class="versus-state" data-versus-state data-state="on" aria-live="polite">In attesa del Player 2…</p>
       ${!reachable ? '<small>Il gioco è aperto da localhost: per un altro computer usa l’indirizzo di rete (avvia-lan.cmd lo mostra, es. https://192.168.x.x:8443).</small>' : ''}`;
     box.querySelector('[data-copy]')?.addEventListener('click', ev => { ev.stopPropagation(); navigator.clipboard?.writeText(url).then(() => { ev.target.textContent = 'Copiato ✓'; }).catch(() => {}); });
-    show(box);
+    // condividi (telefono, alcuni computer): il testo dice di aprirlo sul computer, il telefono servirà come racchetta
+    box.querySelector('[data-share]')?.addEventListener('click', ev => {
+      ev.stopPropagation();
+      navigator.share({ title: 'NATPF Simulator · Sfida un amico', text: `Sfida a tennis: apri il link sul computer (codice ${room.roomId}). Il telefono ti servirà come racchetta.`, url }).catch(() => {});
+    });
     this.versus?.paintLobby();
+    this.lobby?.paint();
     if (p2p) this._watchP2p();
   }
-  // stato del collegamento senza server: nell'invito (host) e nel pannello del Player 2, con un avviso quando cambia
+  // collegamento senza server: lo stato si legge nella barra dell'invito (host) e nel pannello del Player 2
+  // (natpf_versus_ui.js); qui l'avviso quando cambia
   _watchP2p(){
-    const p2p = this.engine.natpfP2p; if (!p2p?.active) return;
-    const paint = () => {
-      const text = p2pStatusText(p2p.mode, p2p.status, p2p.error);
-      for (const el of document.querySelectorAll('[data-p2p-status]')){ el.textContent = text; el.dataset.state = p2p.status; }
-    };
-    paint();
-    if (this._p2pOff) return;
+    const p2p = this.engine.natpfP2p; if (!p2p?.active || this._p2pOff) return;
     let last = p2p.status;
     this._p2pOff = p2p.onStatus(s => {
-      paint();
-      // avviso solo sui cambi che contano (collegato / perso), non a ogni tentativo
+      this.versus?.paintLobby(); this.versus?._paintGuest?.();
+      // avviso solo sui cambi che contano (collegato / perso), non a ogni tentativo; la rete bloccata la spiegano la
+      // barra dell'invito e il pannello del Player 2 (testo lungo, un avviso di 2,6 s non si legge)
       if (s.status !== last && (s.status === 'connected' || s.status === 'lost')) this.toast(p2pStatusText(s.mode, s.status, s.error));
       last = s.status;
     });

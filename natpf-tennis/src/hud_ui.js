@@ -615,10 +615,12 @@ export class HudUI {
       r = "";
     s
       ? ((a = !!(t.p2Phone || t.p1Phone || t.p1Online)),
+        // NATPF 1v1: il telefono-racchetta del P2 si collega al suo computer, non al relay (p2Phone resta falso): prima
+        // il P2 leggeva sempre \u00abinquadra il QR per usare il telefono\u00bb, anche con il telefono collegato e calibrato
         t.p2Phone
           ? (r = `Racchetta pronta \u2022 ${i} in campo`)
           : t.p1Phone || t.p1Online
-            ? (r = `${i} pronto \u2022 inquadra il QR per usare il telefono`)
+            ? (r = `${i} in campo \u2022 pronti al servizio!`)
             : (r = `In attesa di ${i}\u2026`))
       : ((a = !!(t.p2Phone || t.p2Online)),
         t.p2Phone && t.p2Online
@@ -644,7 +646,9 @@ export class HudUI {
       this.elOpponentPresenceText && (this.elOpponentPresenceText.textContent = r),
       e && e.classList.toggle("opponent-ready", a);
     const m = document.getElementById("setup-opponent-label");
-    m && this.selectedDifficulty === "1v1" && !s && (m.textContent = a ? `\u{1F7E2} ${o} pronto` : o),
+    // NATPF 1v1: «pronto» solo con il Player 2 pronto (prima bastava che fosse entrato, mentre la lobby diceva «sta
+    // preparando la racchetta» e «Gioca» restava spento)
+    m && this.selectedDifficulty === "1v1" && !s && (m.textContent = a && t.p2Ready ? `\u{1F7E2} ${o} pronto` : a ? `${o} entrato` : o),
       (this._lastOtherReady = a);
   }
 }

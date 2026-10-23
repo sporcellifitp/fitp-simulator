@@ -157,7 +157,10 @@
 .lobby-stage {
   display: flex;
   flex: 1;
-  align-items: center;
+  /* in colonna: sopra la pagina la barra dell'invito della sfida (natpf_lobby.js, _paintInvite) */
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
   width: min(1120px, 100%);
   margin: 0 auto;
 }
@@ -418,28 +421,6 @@
 .lobby-result.hidden,
 .natpf-invite.hidden {
   display: none;
-}
-/* sfida senza server (src/natpf/natpf_p2p.js): stato del collegamento tra i due computer */
-.natpf-p2p-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  word-break: normal;
-}
-.natpf-p2p-status::before {
-  content: "";
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #f5b942;
-  flex: none;
-}
-.natpf-p2p-status[data-state="connected"]::before {
-  background: #3fd47a;
-}
-.natpf-p2p-status[data-state="lost"]::before,
-.natpf-p2p-status[data-state="error"]::before {
-  background: #ff5a5a;
 }
 .lobby-result b {
   color: var(--lb-ball);
@@ -908,74 +889,128 @@ html:not(.autoplay-mode) #hud-root {
   right: 14px;
   font-size: 15px;
 }
-/* sfida un amico (src/natpf/natpf_versus_ui.js): lobby dell'host e stato del Player 2 */
+/* sfida un amico (src/natpf/natpf_versus_ui.js): barra dell'invito dell'host, in cima alla lobby dalla racchetta alla
+   partita: codice, link con copia e condividi, una riga con lo stato del Player 2 */
+.lobby-stage > .natpf-invite {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 20px;
+  width: 100%;
+  padding: 10px 18px;
+  word-break: normal;
+}
+.lobby-stage > .natpf-invite.hidden {
+  display: none;
+}
+/* stanza in preparazione o non creata: solo la riga (e «Riprova») */
+.lobby-stage > .natpf-invite[data-pending="wait"],
+.lobby-stage > .natpf-invite[data-pending="failed"] {
+  display: flex;
+}
+.lobby-stage > .natpf-invite[data-pending].hidden {
+  display: none;
+}
 .natpf-invite .versus-code {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
-  width: 100%;
-  word-break: normal;
+  flex-direction: column;
+  grid-row: span 2;
 }
 .natpf-invite .versus-code span {
   color: var(--lb-muted);
-  font-size: 12.5px;
+  font-size: 11.5px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .natpf-invite .versus-code b {
   color: var(--lb-ball);
-  font: 800 28px var(--lb-font);
+  font: 800 30px var(--lb-font);
   letter-spacing: 0.08em;
-}
-.natpf-invite .versus-how {
-  width: 100%;
-  margin: 0;
-  color: var(--lb-muted);
-  word-break: normal;
+  line-height: 1.1;
 }
 .natpf-invite .versus-link {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
-  width: 100%;
+  min-width: 0;
 }
-.versus-lines {
-  width: 100%;
-  margin: 4px 0 0;
-  padding: 0;
-  list-style: none;
-  word-break: normal;
+.natpf-invite .versus-link a {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.versus-lines li {
+.natpf-invite .versus-link .nt-pill-btn {
+  flex: none;
+}
+.natpf-invite .versus-state {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 3px 0;
-  color: var(--lb-muted);
+  margin: 0;
+  color: var(--lb-ink);
+  font-weight: 700;
 }
-.versus-lines li::before {
+.natpf-invite .versus-state::before {
   content: "";
   width: 10px;
   height: 10px;
-  border: 2px solid var(--lb-line);
   border-radius: 50%;
-  flex: none;
-}
-.versus-lines li.on {
-  color: var(--lb-ink);
-}
-.versus-lines li.on::before {
-  border-color: #f5b942;
   background: #f5b942;
+  flex: none;
   animation: versus-pulse 1.2s ease-in-out infinite;
 }
-.versus-lines li.ok {
-  color: var(--lb-ink);
-}
-.versus-lines li.ok::before {
-  border-color: #3fd47a;
+.natpf-invite .versus-state[data-state="ok"]::before {
   background: #3fd47a;
+  animation: none;
+}
+.natpf-invite .versus-state[data-state="error"] {
+  color: #ffd58a;
+}
+.natpf-invite .versus-state[data-state="error"]::before {
+  background: #ff5a5a;
+  animation: none;
+}
+.natpf-invite small {
+  grid-column: 1 / -1;
+}
+/* sfida un amico: la modalità è già scelta, nella pagina «Partita» la sua tessera non serve */
+#title-modal[data-flow="friend"] #difficulty-mode-group {
+  display: none;
+}
+/* «Ti hanno invitato?»: codice della stanza per entrare come Player 2 (natpf_lobby.js, joinWithCode) */
+.lobby-join {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin: 4px 0 0;
+}
+.lobby-join label {
+  color: var(--lb-muted);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+.lobby-join input {
+  width: 9.5ch;
+  padding: 8px 12px;
+  border: 1px solid var(--lb-line);
+  border-radius: 999px;
+  background: rgba(7, 18, 51, 0.72);
+  color: var(--lb-ink);
+  font: 800 18px var(--lb-font);
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.lobby-join input:focus-visible {
+  outline: 2px solid var(--lb-ball);
+  outline-offset: 2px;
+}
+.lobby-join small {
+  width: 100%;
+  text-align: center;
 }
 @keyframes versus-pulse {
   50% { opacity: 0.35; }
@@ -997,8 +1032,27 @@ html:not(.autoplay-mode) #hud-root {
 }
 .natpf-versus-status[data-state="lost"],
 .natpf-versus-status[data-state="closed"],
-.natpf-versus-status[data-state="invalid"] {
+.natpf-versus-status[data-state="invalid"],
+.natpf-versus-status[data-state="error"] {
   border-color: #ff5a5a;
+}
+/* invito aperto sul telefono: si gioca dal computer */
+.natpf-versus-phone {
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  border-left: 4px solid var(--lb-pink);
+  background: var(--lb-panel, rgba(255, 255, 255, 0.06));
+  font-weight: 700;
+}
+.natpf-versus-phone .nt-pill-btn {
+  margin-left: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--lb-line);
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--lb-ink);
+  font: 700 12px var(--lb-font);
 }
 /* il Player 2 non riavvia la partita: la rivincita la decide l'host */
 .versus-guest #btn-play-again {

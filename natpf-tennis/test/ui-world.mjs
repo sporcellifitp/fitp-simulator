@@ -67,7 +67,8 @@ const { NatpfPhoneRacket } = await import('../src/natpf/natpf_phone_racket.js');
 const { NatpfUi } = await import('../src/natpf/natpf_ui.js');
 
 // controller: 'phone' (telefono collegato con i sensori attivi, calibrazione da fare) o 'mouse' (modalità prova)
-export async function makeWorld({ controller = 'phone', difficulty = 'casual', role = 'p1' } = {}){
+// p2p: collegamento senza server finto ({ mode, status, error, active, onStatus }) per la sfida tra due computer
+export async function makeWorld({ controller = 'phone', difficulty = 'casual', role = 'p1', p2p = null } = {}){
   // mondo nuovo: DOM, timer, ascoltatori, archivio e indirizzo da capo
   els.clear(); for (const k of Object.keys(winLs)) delete winLs[k];
   timeouts.length = 0; intervals.length = 0; fetches.length = 0;
@@ -99,6 +100,7 @@ export async function makeWorld({ controller = 'phone', difficulty = 'casual', r
     triggerHapticFeedback: e => { const q = E.natpfUi?.feedback?.(e); E.natpfPhone.feedback({ ...e, quality: q }); },
   };
   if (role === 'p2'){ Object.assign(E, { playerRole: 'p2', urlRoom: 'AT-AB12', roomId: 'at-ab12', isMultiplayer: true }); hud.selectedDifficulty = '1v1'; }
+  if (p2p) E.natpfP2p = p2p;
   E.natpfPhone = new NatpfPhoneRacket(E);
   // telefono finto, già collegato con i sensori attivi; «confirm» e «skip» lo rendono pronto, «cal» lo rimette a calibrare
   const link = E.natpfPhone.link = {

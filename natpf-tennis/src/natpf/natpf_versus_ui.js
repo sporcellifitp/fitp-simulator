@@ -1,14 +1,20 @@
 // Interfaccia della sfida tra due computer (1v1), sopra natpf_versus.js:
-//   • host, pagina «Partita» del menu: codice della stanza, link da mandare, tre passi con lo stato (stanza creata ·
-//     Player 2 entrato · Player 2 pronto) e «Gioca» attivo solo quando il Player 2 è pronto;
+//   • host, dalla racchetta alla partita: barra dell'invito (codice, link, copia o condividi) con una riga di stato
+//     (in attesa · Player 2 entrato · Player 2 pronto · problema di rete) e «Gioca» attivo solo con il Player 2 pronto;
 //   • host in partita: se il Player 2 sparisce la partita si ferma con la spiegazione e riprende da sola quando torna;
 //     «Torna al menu» per chiudere;
 //   • Player 2: un pannello unico con lo stato (mi collego · collegato · pronto · partita · collegamento perso · stanza
-//     chiusa o inesistente), racchetta e visuale, «Sono pronto» ed «Esci».
+//     chiusa o inesistente · rete che blocca il collegamento diretto), racchetta e visuale, «Sono pronto» ed «Esci»;
+//     sul telefono un avviso: l'invito si apre sul computer.
 // Lo stato arriva ogni 50 ms dal relay (/api/match/state) attraverso il motore (roomStatus, versusGuest).
-import { VERSUS, lobbyState, canStart, hostLobbyLines, startLabel, guestState, guestText } from './natpf_versus.js';
+import { VERSUS, lobbyState, canStart, hostLobbyStatus, startLabel, guestState, guestLine } from './natpf_versus.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
+// browser di un telefono (sistema mobile e tocco): l'invito va aperto sul computer
+export const onPhone = (nav = globalThis.navigator, mm = globalThis.matchMedia) => {
+  const ua = String(nav?.userAgent || '');
+  return /Android|iPhone|iPod|Mobile/i.test(ua) && (!mm || !!mm('(pointer: coarse)')?.matches);
+};
 
 export class NatpfVersusUi {
   constructor(engine, ui){
@@ -26,17 +32,17 @@ export class NatpfVersusUi {
   get hostActive(){ return !this.p2 && !!this.engine.versus?.active; }
   get state(){ const r = this.engine.roomStatus || {}; return lobbyState({ p2Online: r.p2Online, p2Ready: r.p2Ready }); }
   canStart(){ return canStart(this.state); }
-  // pagina «Partita» in modalità amico: righe di stato e pulsante «Gioca»
+  // modalità amico: riga di stato della barra dell'invito e pulsante «Gioca»
   paintLobby(){
     const box = $('natpf-invite'), btn = $('btn-start-match');
     if (!this.hostActive || this.ui.lobby?.mode !== 'friend'){ if (btn){ btn.disabled = false; btn.classList.remove('waiting'); } return; }
-    const st = this.state, r = this.engine.roomStatus || {};
-    const list = box?.querySelector('[data-versus-lines]');
+    const st = this.state, r = this.engine.roomStatus || {}, p2p = this.engine.natpfP2p;
+    const line = hostLobbyStatus(st, { roomId: this.engine.roomId, p2Name: r.guestName || 'Player 2', net: p2p?.mode === 'host' ? { mode: 'host', status: p2p.status, error: p2p.error } : null });
     // solo se cambia: prima le righe si riscrivevano ogni 250 ms e l'animazione del pallino in attesa ripartiva da capo
     // (lampeggiava invece di pulsare)
-    const html = hostLobbyLines(st, { roomId: this.engine.roomId, p2Name: r.guestName || 'Player 2' })
-      .map(l => `<li class="${l.state}" data-line="${l.id}">${l.text}</li>`).join('');
-    if (list && list.dataset.html !== html){ list.innerHTML = html; list.dataset.html = html; }
+    const el = box?.querySelector('[data-versus-state]');
+    if (el && (el.textContent !== line.text || el.dataset.state !== line.state)){ el.textContent = line.text; el.dataset.state = line.state; }
+    if (el) el.title = p2p?.mode === 'host' && p2p.detail ? `collegamento diretto: ${p2p.detail}` : '';
     if (btn){
       const ok = canStart(st);
       btn.disabled = !ok; btn.classList.toggle('waiting', !ok);
@@ -82,6 +88,11 @@ export class NatpfVersusUi {
     const modal = $('natpf-guest-modal'); if (!modal) return;
     const desc = modal.querySelector('.sheet-desc');
     desc?.insertAdjacentHTML('beforebegin', '<p class="natpf-versus-status" data-versus-guest aria-live="polite"></p>');
+    // invito aperto sul telefono (arriva in una chat): la partita si gioca dal computer, il telefono è la racchetta
+    if (onPhone()){
+      desc?.insertAdjacentHTML('beforebegin', '<p class="natpf-versus-phone" data-versus-phone>Stai aprendo l’invito sul telefono: la partita si gioca dal computer. Apri questo link sul computer; il telefono ti servirà dopo, come racchetta. <button type="button" class="nt-pill-btn" data-versus-copy>Copia link</button></p>');
+      modal.querySelector('[data-versus-copy]')?.addEventListener('click', ev => { ev.stopPropagation(); navigator.clipboard?.writeText(location.href).then(() => { ev.target.textContent = 'Copiato ✓'; }).catch(() => {}); });
+    }
     const go = $('natpf-guest-go');
     if (go){ go.textContent = 'Sono pronto ✓'; }
     modal.querySelector('.sheet-actions')?.insertAdjacentHTML('afterbegin', '<button type="button" class="lobby-ghost" data-versus-leave>Esci</button>');
@@ -146,9 +157,17 @@ export class NatpfVersusUi {
     return guestState({ linked, invalid, closed: G.closed, hostLobby: G.lobby !== false, lastSnapshotAgeMs: G.lobby === false ? age : null, everLinked: G.everLinked });
   }
   _paintGuest(){
+    if (!this.p2) return null;
     const st = this.guest, el = document.querySelector('[data-versus-guest]');
     const phone = this.ui.controller === 'phone' && !this.ui.phone.ready;
-    if (el){ el.textContent = guestText(st, { ready: this.ready, phone, hostName: this.engine.roomStatus?.hostName || 'Player 1' }); el.dataset.state = st; }
+    // sfida senza server, non ancora collegati: la riga dice perché (natpf_versus.guestLine)
+    const p2p = this.engine.natpfP2p;
+    if (el){
+      const line = guestLine(st, { ready: this.ready, phone, hostName: this.engine.roomStatus?.hostName || 'Player 1', net: p2p?.mode === 'guest' ? { mode: 'guest', status: p2p.status, error: p2p.error } : null });
+      if (el.textContent !== line.text) el.textContent = line.text;
+      el.dataset.state = line.state;
+      el.title = p2p?.mode === 'guest' && p2p.detail ? `collegamento diretto: ${p2p.detail}` : '';
+    }
     const go = $('natpf-guest-go');
     if (go){
       go.disabled = st !== 'lobby' && st !== 'connecting';

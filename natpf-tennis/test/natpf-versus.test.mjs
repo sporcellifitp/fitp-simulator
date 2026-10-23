@@ -2,7 +2,7 @@
 // Ogni test riproduce un difetto trovato nella revisione del 1v1 (fallisce con il codice di prima).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lobbyState, canStart, hostLobbyLines, startLabel, guestState, guestText, seqGate, newSwings, VERSUS } from '../src/natpf/natpf_versus.js';
+import { lobbyState, canStart, hostLobbyStatus, startLabel, guestState, guestText, guestLine, roomCode, joinUrl, p2pStatusText, seqGate, newSwings, VERSUS } from '../src/natpf/natpf_versus.js';
 import { createMatchRelay, ROOM_RE, newRoomId } from '../scripts/match-relay.mjs';
 import { createLocalRelay } from '../src/natpf/natpf_p2p.js';
 import { createHeadlessEngine } from '../scripts/audit/headless-engine.mjs';
@@ -13,13 +13,50 @@ test('lobby dell’host: in attesa → P2 entrato → P2 pronto; «Gioca» solo 
   assert.equal(lobbyState({ p2Online: true, p2Ready: true }), 'ready');
   assert.equal(lobbyState({ p2Online: false, p2Ready: true }), 'waiting', 'pronto ma uscito non conta');
   assert.ok(!canStart('waiting') && !canStart('joined') && canStart('ready'));
-  const lines = hostLobbyLines('waiting', { roomId: 'AT-AB12', p2Name: 'Player 2' });
-  assert.deepEqual(lines.map(l => l.state), ['ok', 'on', '']);
-  assert.match(lines[0].text, /AT-AB12/); assert.match(lines[1].text, /link/);
-  assert.deepEqual(hostLobbyLines('ready', { roomId: 'AT-AB12' }).map(l => l.state), ['ok', 'ok', 'ok']);
+  // una riga nella barra dell'invito: cosa succede e cosa fare
+  assert.deepEqual(hostLobbyStatus('waiting', { roomId: 'AT-AB12', p2Name: 'Luca' }), { state: 'on', text: 'In attesa di Luca: mandagli il link (lo apre sul suo computer) o dettagli il codice' });
+  assert.match(hostLobbyStatus('joined', { roomId: 'AT-AB12' }).text, /entrato.*racchetta/);
+  assert.equal(hostLobbyStatus('ready', { roomId: 'AT-AB12' }).state, 'ok');
+  assert.match(hostLobbyStatus('ready', { roomId: 'AT-AB12' }).text, /pronto.*Gioca/);
   assert.match(startLabel('waiting'), /attesa/); assert.equal(startLabel('ready'), 'Gioca ›');
   // niente più «Challenger»: ogni testo dice cosa fare
-  for (const st of ['waiting', 'joined', 'ready']) for (const l of hostLobbyLines(st, { roomId: 'AT-AB12' })) assert.doesNotMatch(l.text, /challenger/i);
+  for (const st of ['waiting', 'joined', 'ready']) assert.doesNotMatch(hostLobbyStatus(st, { roomId: 'AT-AB12' }).text, /challenger/i);
+});
+
+test('lobby dell’host: stanza in preparazione o non creata, problemi del collegamento senza server al posto dell’attesa', () => {
+  assert.deepEqual(hostLobbyStatus('waiting', { roomId: '' }), { state: 'on', text: 'Creo la stanza…' });
+  assert.equal(hostLobbyStatus('waiting', { roomId: '', failed: true }).state, 'error');
+  const net = (status, error = null) => ({ mode: 'host', status, error });
+  assert.match(hostLobbyStatus('waiting', { roomId: 'AT-AB12', net: net('starting') }).text, /Apro la stanza/);
+  const blocked = hostLobbyStatus('waiting', { roomId: 'AT-AB12', net: net('waiting', 'rete') });
+  assert.equal(blocked.state, 'error'); assert.match(blocked.text, /Il Player 2 ha aperto il link, ma la rete blocca/);
+  assert.match(hostLobbyStatus('waiting', { roomId: 'AT-AB12', net: net('error', 'network') }).text, /server che mette in contatto.*\(network\)/);
+  // con il Player 2 dentro conta il Player 2 (il canale funziona)
+  assert.equal(hostLobbyStatus('joined', { roomId: 'AT-AB12', net: net('connected', null) }).state, 'on');
+  assert.equal(hostLobbyStatus('waiting', { roomId: 'AT-AB12', net: net('waiting', null) }).state, 'on');
+});
+
+test('Player 2: una riga sola, e senza server il perché quando non si collega', () => {
+  const net = (status, error) => ({ mode: 'guest', status, error });
+  assert.deepEqual(guestLine('lobby', { ready: true }), { state: 'lobby', text: guestText('lobby', { ready: true }) });
+  const r = guestLine('connecting', { net: net('connecting', 'rete') });
+  assert.equal(r.state, 'error'); assert.match(r.text, /L’host c’è, ma la rete blocca il collegamento diretto/);
+  assert.match(guestLine('lost', { net: net('lost', 'chiusa') }).text, /forse ha chiuso la partita/);
+  assert.match(guestLine('connecting', { net: net('connecting', 'occupata') }).text, /già un Player 2/);
+  // collegato: lo stato della sfida, anche se è rimasto un errore vecchio
+  assert.equal(guestLine('lobby', { net: net('connected', 'rete') }).state, 'lobby');
+  assert.equal(guestLine('connecting', { net: net('connecting', null) }).text, guestText('connecting'));
+  assert.equal(p2pStatusText('guest', 'connecting', 'rete'), guestLine('connecting', { net: net('connecting', 'rete') }).text);
+});
+
+test('codice della stanza scritto a mano e pagina del Player 2', () => {
+  for (const t of ['AT-K3ZQ', 'at-k3zq', ' at k3zq ', 'K3ZQ', 'atk3zq', 'AT_K3ZQ']) assert.equal(roomCode(t), 'AT-K3ZQ', t);
+  // lettere che il codice non usa (0, O, 1, I), lunghezza sbagliata, vuoto
+  for (const t of ['AT-K3Z0', 'AT-OIQQ', 'AT-K3Z', 'AT-K3ZQQ', '', null, 'ciao']) assert.equal(roomCode(t), null, String(t));
+  assert.equal(joinUrl('AT-K3ZQ', { pathname: '/gioco/', search: '?intro=0', p2p: true }), '/gioco/?room=AT-K3ZQ&role=p2&net=p2p');
+  assert.equal(joinUrl('AT-K3ZQ', { search: '?lan=1' }), '/?room=AT-K3ZQ&role=p2&lan=1');
+  assert.equal(joinUrl('AT-K3ZQ', { search: '?peer=127.0.0.1:9000', p2p: true }), '/?room=AT-K3ZQ&role=p2&net=p2p&peer=127.0.0.1%3A9000');
+  assert.equal(joinUrl('AT-K3ZQ', { search: '?peer=x' }), '/?room=AT-K3ZQ&role=p2', 'il server di prova vale solo senza server');
 });
 
 test('Player 2: stato chiaro in ogni fase (collegamento, lobby, partita, perso, chiusa, inesistente)', () => {

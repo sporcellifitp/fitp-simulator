@@ -15,7 +15,7 @@
 // Tipi di evento (k): fase, palla, rimbalzo, punto, tentativo, colpo.gioco, racchetta, piano, servizio, vuoto, input,
 // tel.colpo, tel.cal, tel.stato, tel.orologio, tel.link, tel.scartato, tel.prep, tel.dispositivo, webcam.frame, webcam.evento,
 // webcam.camera, webcam.ritmo, webcam.carico, webcam.stato, webcam.pausa, webcam.ripresa, tel.pausa, tel.ripresa,
-// prestazioni, video, video.frame,
+// prestazioni, video, video.frame, sfida.collegamento,
 // atteso, marca, avviso.
 import { latencyShift, eventLatency, swingTiming } from '../natpf_skill.js';
 import { shotDirection } from './diag_metrics.js';
@@ -95,6 +95,7 @@ export class DiagRecorder {
     this._phoneStato(true);
     if (ph?.profile) this.log('tel.profilo', { profilo: ph.profile, mano: ph.hand || null, liftBaseline: ph.liftBaseline ?? null });
     if (ph?.device) this.log('tel.dispositivo', ph.device);
+    if (E.natpfP2p?.active) this._p2p(E.natpfP2p);
     // webcam già accesa: camera chiesta e ottenuta, livello del modello delle mani (motion_controls.webcamInfo)
     const mc0 = E.motionController;
     if (mc0?.webcamActive && mc0.webcamInfo) this.log('webcam.camera', { ...mc0.webcamInfo, livello: mc0._wcLevel?.().id ?? mc0.webcamInfo.livello });
@@ -297,6 +298,9 @@ export class DiagRecorder {
       ph.onChange?.(() => R.active && R._phoneStato());
       ph.onDiag?.((kind, d) => R.active && R._phoneDiag(kind, d));
     }
+    // sfida un amico senza server (natpf_p2p.js): stato del collegamento tra i due computer e, se il canale diretto non
+    // si apre, perché (stato ICE e candidati di questo computer)
+    E.natpfP2p?.onStatus?.(s => R.active && R._p2p(s));
     if (typeof PerformanceObserver !== 'undefined' && PerformanceObserver.supportedEntryTypes?.includes('longtask')){
       try { new PerformanceObserver(list => { if (R.active) R.perf.longTasks += list.getEntries().length; }).observe({ type: 'longtask', buffered: false }); } catch {}
     }
@@ -318,6 +322,7 @@ export class DiagRecorder {
   }
 
   /* ---------- sorgenti ---------- */
+  _p2p(s){ this.log('sfida.collegamento', { modo: s.mode || null, stato: s.status || null, errore: s.error || null, bloccati: s.blocked || 0, dettaglio: s.detail || null, stanza: s.roomId || null }); }
   _phoneStato(force = false, extra = {}){
     const ph = this.engine.natpfPhone, L = ph?.link?.L || ph?.state || {};
     this._hookLink();

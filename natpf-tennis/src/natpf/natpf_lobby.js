@@ -16,6 +16,8 @@
 // Easter egg: digitando «natpf» nel menu compaiono mouse e tastiera (modalità prova per il computer).
 import { FORMAT_KEY } from './match_format.js';
 import { CHALLENGES, challengeById, validNickname } from './natpf_events.js';
+import { hostLobbyStatus, roomCode, joinUrl } from './natpf_versus.js';
+import { p2pRequested } from './natpf_p2p.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -36,6 +38,11 @@ export function previousStep(step, mode){
   return null;
 }
 export const EGG_WORD = 'natpf';
+// sfida un amico: la barra dell'invito resta in vista in questi passi dell'host; la stanza che non nasce entro 20 s è
+// un errore (con «Riprova»). Senza server, dopo un ricaricamento, l'id della stanza può restare occupato per qualche
+// secondo (natpf_p2p.createHostRoom riprova per ~13 s)
+export const INVITE_STEPS = ['controller', 'connect', 'match'];
+export const ROOM_WAIT_MS = 20000;
 // Il controller è pronto per entrare in campo? (funzione pura, per i test)
 //   telefono: collegato e con i sensori attivi (la calibrazione si fa in campo, nel riscaldamento)
 export function stepReady(step, { controller, phoneLinked, webcamActive }){
@@ -92,6 +99,8 @@ export class NatpfLobby {
     $('lobby-help').addEventListener('click', e => { e.stopPropagation(); this.onboarding.open(); });
     $('setup-cam-go').addEventListener('click', async e => { e.stopPropagation(); await this.ui.startWebcam(); this.paint(); });
     $('connect-other')?.addEventListener('click', e => { e.stopPropagation(); this.ui.selectController(this.ui.controller === 'phone' ? 'webcam' : 'phone', { open: false }); this.go('connect'); });
+    // «Ti hanno invitato?»: il codice della stanza scritto a mano porta alla pagina del Player 2 (senza aspettare il link)
+    $('join-form')?.addEventListener('submit', e => { e.preventDefault(); e.stopPropagation(); this.joinWithCode($('join-code')?.value); });
     this.el.addEventListener('pointerdown', e => e.stopPropagation());
     // menu principale: sotto le voci la descrizione di quella scelta (frecce, mouse o tocco)
     const describe = e => { const m = e.target?.closest?.('[data-menu]'), d = $('menu-desc'); if (m && d && m.dataset.desc && d.textContent !== m.dataset.desc) d.textContent = m.dataset.desc; };
@@ -131,7 +140,8 @@ export class NatpfLobby {
   }
   setMode(mode){
     if (!MODES.includes(mode)) return;
-    this.mode = mode;
+    if (mode === 'friend' && this.mode !== 'friend') this.roomAskedAt = performance.now();
+    this.mode = mode; this.el.dataset.flow = mode;
     for (const t of this.el.querySelectorAll('[data-mode]')){ const on = t.dataset.mode === mode; t.classList.toggle('selected', on); t.setAttribute('aria-checked', String(on)); }
     // la scelta della modalità decide gli avversari della pagina «Partita»: CPU (facile, esperta o Leggenda) o 1v1 con invito
     const diff = this.engine.hud?.selectedDifficulty;
@@ -140,7 +150,7 @@ export class NatpfLobby {
     // un'altra modalità la stanza si chiude e il Player 2 lo sa (prima restava aperta e i suoi colpi dirottavano la
     // partita contro la CPU)
     if (mode === 'friend' && diff === '1v1' && !this.engine.versus?.active && this.engine.playerRole !== 'p2') this.engine.createMultiplayerRoom?.();
-    if (mode !== 'friend') this.engine.endVersus?.();
+    if (mode !== 'friend'){ this.engine.endVersus?.(); this.ui.inviteUrl = null; const box = $('natpf-invite'); if (box){ box.innerHTML = ''; box.dataset.pending = ''; } }
     // lasciando «Sfida un amico» (anche per allenamento o sfide) si torna alla CPU: prima allenamento e sfide ripristinavano
     // alla fine il 1v1 senza stanza
     if (mode !== 'friend' && diff === '1v1') document.querySelector('#difficulty-mode-group [data-difficulty="casual"]')?.click();
@@ -272,6 +282,7 @@ export class NatpfLobby {
     if (this.step === 'connect' && st.controller === 'phone') this.ui.paintConnect();
     if (this.step === 'options') this._paintOptions();
     this.ui.paintWebcamSetup?.();
+    this._paintInvite();
     const note = $('lobby-match-note');
     if (note) note.textContent = st.controller === 'phone' && !st.phoneReady ? 'Il telefono va ricollegato: premendo «Gioca» compare il QR.' : '';
     // telefono con i sensori attivi o mano vista dalla webcam: si entra in campo da soli, ma non con la guida aperta (prima
@@ -280,6 +291,36 @@ export class NatpfLobby {
       this.autoFrom = this.step;
       setTimeout(() => { if (this.visible && this.step === 'connect' && !this.onboarding.isOpen) this.go('warmup'); else this.autoFrom = null; }, 700);
     }
+  }
+  // Sfida un amico (host): la barra dell'invito (codice, link, stato del Player 2) resta in vista dalla racchetta alla
+  // partita, così il link parte subito e l'amico entra mentre ci si prepara. Finché la stanza non c'è, «Creo la
+  // stanza…»; dopo ROOM_WAIT_MS l'errore con «Riprova»
+  _paintInvite(){
+    const box = $('natpf-invite'); if (!box) return;
+    const on = this.mode === 'friend' && this.engine.playerRole !== 'p2' && INVITE_STEPS.includes(this.step);
+    show(box, on);
+    if (!on || (this.ui.inviteUrl && this.ui.versus?.hostActive)) return;
+    const failed = performance.now() - (this.roomAskedAt || 0) > ROOM_WAIT_MS, key = failed ? 'failed' : 'wait';
+    if (box.dataset.pending === key) return;
+    box.dataset.pending = key;
+    const line = hostLobbyStatus('waiting', { roomId: '', failed });
+    box.innerHTML = `<p class="versus-state" data-versus-state data-state="${line.state}">${line.text}</p>${failed ? '<button type="button" class="nt-pill-btn" data-room-retry>Riprova</button>' : ''}`;
+    box.querySelector('[data-room-retry]')?.addEventListener('click', ev => { ev.stopPropagation(); this.roomAskedAt = performance.now(); box.dataset.pending = ''; this.engine.createMultiplayerRoom?.(); this.paint(); });
+  }
+  // Player 2 con il codice (dettato a voce, scritto su un foglio): stessa pagina con stanza e ruolo. Con il server (LAN,
+  // npm run dev) la stanza la tiene il server; sul sito pubblicato ci si collega al computer dell'host (net=p2p)
+  async joinWithCode(text){
+    const warn = $('join-warn'), code = roomCode(text);
+    if (!code){ if (warn){ warn.textContent = 'Il codice è AT- e quattro lettere o cifre, come AT-K3ZQ'; show(warn); } return null; }
+    show(warn, false);
+    let p2p = p2pRequested(location.search) || this.engine.natpfP2p?.mode === 'host';
+    if (!p2p){
+      try { const r = await fetch(`/api/match/state?room=${encodeURIComponent(code)}&role=p2`, { cache: 'no-store' }); p2p = !/json/i.test(r.headers?.get?.('content-type') || ''); }
+      catch { p2p = true; }
+    }
+    const url = joinUrl(code, { pathname: location.pathname, search: location.search, p2p });
+    location.href = url;
+    return url;
   }
   next(){
     if (!stepReady(this.step, this.state())) return;

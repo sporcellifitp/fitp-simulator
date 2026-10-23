@@ -24,13 +24,64 @@ export function lobbyState({ p2Online = false, p2Ready = false } = {}){
 }
 export const canStart = state => state === 'ready';
 
-// Righe della lobby dell'host: cosa è fatto, cosa si sta aspettando e cosa fare
-export function hostLobbyLines(state, { roomId = '', p2Name = 'Player 2' } = {}){
-  return [
-    { id: 'room', state: roomId ? 'ok' : 'on', text: roomId ? `Stanza creata · codice ${roomId}` : 'Creo la stanza…' },
-    { id: 'joined', state: state === 'waiting' ? 'on' : 'ok', text: state === 'waiting' ? `Manda il link a ${p2Name}: lo apre sul suo computer` : `${p2Name} è entrato nella stanza` },
-    { id: 'ready', state: state === 'ready' ? 'ok' : state === 'joined' ? 'on' : '', text: state === 'ready' ? `${p2Name} è pronto` : `${p2Name} collega la racchetta e la prova in campo` },
-  ];
+// Testi dello stato della sfida senza server (natpf_p2p.js), per l'host e per il Player 2. Tra parentesi il codice
+// dell'errore della segnalazione, per chi aiuta a capire il problema
+export const P2P_NET_HINT = 'Provate con un’altra rete (per esempio quella di casa invece di quella dell’ufficio o della scuola), senza VPN, oppure con i due computer sulla stessa rete Wi-Fi.';
+export function p2pStatusText(mode, status, error = null){
+  const host = mode === 'host';
+  // Player 2: host introvabile da tempo, o stanza già occupata da un altro Player 2
+  if (!host && error === 'chiusa' && status !== 'connected') return 'L’host non risponde: forse ha chiuso la partita. Riprovo da solo; se non torna, chiedi un nuovo link';
+  if (!host && error === 'occupata') return 'Nella stanza c’è già un Player 2: riprovo tra poco, entri appena si libera';
+  // l'altro computer risponde ma il canale diretto non si apre: è la rete (firewall, NAT, VPN). Prima: «Mi collego…» e
+  // «In attesa del Player 2…» per sempre
+  if (error === 'rete' && status !== 'connected' && status !== 'off')
+    return `${host ? 'Il Player 2 ha aperto il link' : 'L’host c’è'}, ma la rete blocca il collegamento diretto tra i due computer. ${P2P_NET_HINT} ${host ? 'Il Player 2 riprova da solo.' : 'Riprovo da solo.'}`;
+  switch (status){
+    case 'waiting': return 'In attesa del Player 2…';
+    case 'connected': return host ? 'Player 2 collegato ✓' : 'Collegato all’host ✓';
+    case 'lost': return host ? 'Player 2 scollegato: si ricollega da solo appena torna la rete' : 'Collegamento con l’host perso: mi ricollego…';
+    case 'connecting': return 'Mi collego all’host…';
+    case 'error':
+      if (error === 'stanza') return 'Stanza non valida: chiedi all’host un nuovo link';
+      if (error === 'libreria') return 'Il collegamento tra i due computer non si è caricato: ricarica la pagina';
+      if (error === 'browser-incompatible') return 'Questo browser non permette il collegamento diretto tra due computer: usa un browser aggiornato (Chrome, Edge, Firefox o Safari)';
+      // errore del browser sul canale diretto (PeerJS «webrtc»): non è la segnalazione né per forza il browser
+      if (error === 'webrtc') return `Il collegamento diretto si è interrotto (${error}): riprovo da solo`;
+      if (error === 'unavailable-id') return 'Questa stanza è ancora aperta in un’altra scheda: chiudila e torna qui, oppure crea una nuova sfida';
+      return `Il server che mette in contatto i due computer non risponde (${error || 'rete'}): controlla la connessione a internet, riprovo da solo`;
+    case 'off': return 'Collegamento chiuso';
+    default: return 'Preparo il collegamento…';
+  }
+}
+
+// Stato della lobby dell'host in una riga, nella barra dell'invito che resta in vista dalla racchetta alla partita (prima
+// codice e link comparivano solo nell'ultima pagina, dopo racchetta, collegamento e riscaldamento, sotto tre righe di
+// passi). state: 'on' (si aspetta) · 'ok' (pronto) · 'error'. net: collegamento senza server { mode, status, error }:
+// un problema di rete si dice al posto dell'attesa. failed: la stanza non è nata
+export function hostLobbyStatus(state, { roomId = '', p2Name = 'Player 2', net = null, failed = false } = {}){
+  if (!roomId) return failed ? { state: 'error', text: 'La stanza non è stata creata: controlla la connessione e riprova' } : { state: 'on', text: 'Creo la stanza…' };
+  if (net?.mode === 'host' && state === 'waiting'){
+    if (net.status === 'starting') return { state: 'on', text: 'Apro la stanza su internet…' };
+    if (net.error) return { state: 'error', text: p2pStatusText('host', net.status, net.error) };
+  }
+  if (state === 'ready') return { state: 'ok', text: `${p2Name} è pronto ✓ Premi «Gioca»` };
+  if (state === 'joined') return { state: 'on', text: `${p2Name} è entrato: collega la racchetta e la prova in campo` };
+  return { state: 'on', text: `In attesa di ${p2Name}: mandagli il link (lo apre sul suo computer) o dettagli il codice` };
+}
+// Codice della stanza scritto a mano («at-k3zq», «K3ZQ», «AT K3ZQ») → «AT-K3ZQ»; null se non è un codice (quattro
+// lettere o cifre senza 0, O, 1 e I, come scripts/match-relay.mjs)
+export function roomCode(text){
+  const s = String(text || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const code = s.length === 6 && s.startsWith('AT') ? s.slice(2) : s;
+  return /^[A-HJ-NP-Z2-9]{4}$/.test(code) ? `AT-${code}` : null;
+}
+// Pagina del Player 2 per un codice: stessa pagina, ruolo p2; p2p: sito senza server (collegamento diretto). Restano
+// i parametri di prova (lan, peer)
+export function joinUrl(code, { pathname = '/', search = '', p2p = false } = {}){
+  const q = new URLSearchParams(search), params = new URLSearchParams({ room: code, role: 'p2' });
+  if (q.get('lan') === '1') params.set('lan', '1');
+  if (p2p){ params.set('net', 'p2p'); if (q.get('peer')) params.set('peer', q.get('peer')); }
+  return `${pathname || '/'}?${params}`;
 }
 export function startLabel(state){
   return state === 'ready' ? 'Gioca ›' : state === 'joined' ? 'Aspetto che il Player 2 sia pronto…' : 'In attesa del Player 2…';
@@ -56,6 +107,14 @@ export function guestText(state, { ready = false, phone = false, hostName = 'Pla
     case 'playing': return 'Partita in corso.';
     default: return `Mi collego alla stanza di ${hostName}…`;
   }
+}
+
+// Riga di stato del pannello del Player 2: lo stato della sfida o, nella sfida senza server non ancora collegata,
+// perché (rete che blocca il collegamento diretto, host muto, stanza occupata, server della segnalazione). Prima una
+// seconda riga «Mi collego all’host…» sotto la prima, e nessuna spiegazione. net: { mode, status, error }
+export function guestLine(state, { ready = false, phone = false, hostName = 'Player 1', net = null } = {}){
+  if (net?.mode === 'guest' && (state === 'connecting' || state === 'lost') && net.error) return { state: 'error', text: p2pStatusText('guest', net.status, net.error) };
+  return { state, text: guestText(state, { ready, phone, hostName }) };
 }
 
 // Presenza dell'avversario durante la partita (host): quanto manca all'avviso di uscita

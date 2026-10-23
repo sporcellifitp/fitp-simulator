@@ -3,7 +3,7 @@
 // a _attemptP2RallyStrike. Niente rete: canali e Peer finti in memoria.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createLocalRelay, createRpcClient, serveRpc, createP2pHost, createP2pGuest, installNatpfP2p, peerIdForRoom, isRelayPath, remoteAllowed, serverHasMatchApi, p2pRequested } from '../src/natpf/natpf_p2p.js';
+import { createLocalRelay, createRpcClient, serveRpc, createP2pHost, createP2pGuest, installNatpfP2p, peerIdForRoom, isRelayPath, remoteAllowed, serverHasMatchApi, p2pRequested, candidateType, iceSummary, iceBlocked, watchIce } from '../src/natpf/natpf_p2p.js';
 import { natpfSwingExtras } from '../scripts/match-relay.mjs';
 import { guestInviteUrl } from '../src/natpf/natpf_lan.js';
 import { p2pStatusText } from '../src/natpf/natpf_ui.js';
@@ -21,14 +21,23 @@ class FakeConn {
   on(ev, fn){ (this.h[ev] ||= []).push(fn); return this; }
   emit(ev, v){ for (const fn of this.h[ev] || []) fn(v); }
   send(d){ if (!this.open) throw new Error('chiuso'); const o = this.other, copy = JSON.parse(JSON.stringify(d)); setTimeout(() => o.open && o.emit('data', copy), 0); }
-  close(){ if (this.closed) return; this.closed = true; this.open = false; this.emit('close'); this.other?.close(); }
+  // come PeerJS: un canale mai aperto si chiude senza «close» (e l'altro computer non lo sa)
+  close(){ if (this.closed) return; this.closed = true; const was = this.open; this.open = false; if (was){ this.emit('close'); this.other?.close(); } }
 }
 function channelPair(){
   const a = new FakeConn('b'), b = new FakeConn('a'); a.other = b; b.other = a; a.open = b.open = true;
   return [a, b];
 }
+// rete finta: net.blocked = true → l'host risponde (ICE «checking») ma il canale non si apre mai; 'failed' → poi ICE
+// fallisce (PeerJS: errore negotiation-failed); net.silent → l'host è registrato ma non risponde. Candidati di chi
+// chiama: uno «host» e uno «srflx» (come con STUN)
+class FakePc {
+  constructor(){ this.fns = []; }
+  addEventListener(ev, fn){ if (ev === 'icecandidate') this.fns.push(fn); }
+  fire(c){ for (const fn of this.fns) fn({ candidate: c }); }
+}
 function fakeNetwork(){
-  const peers = new Map(), conns = [];
+  const peers = new Map(), conns = [], net = { blocked: false, silent: false };
   let n = 0;
   class Peer {
     constructor(id){
@@ -42,18 +51,29 @@ function fakeNetwork(){
     emit(ev, v){ for (const fn of this.h[ev] || []) fn(v); }
     connect(id){
       const a = new FakeConn(id);
+      a.peerConnection = new FakePc();
       setTimeout(() => {
         const host = peers.get(id);
         if (!host || host.destroyed){ this.emit('error', { type: 'peer-unavailable' }); return; }
+        a.peerConnection.fire({ type: 'host' }); a.peerConnection.fire({ candidate: 'candidate:1 1 udp 1686052607 203.0.113.7 51000 typ srflx raddr 0.0.0.0 rport 0' });
+        if (net.silent) return;
         const b = new FakeConn(this.id); a.other = b; b.other = a; conns.push(b);
-        host.emit('connection', b); a.open = b.open = true; b.emit('open'); a.emit('open');
+        b.peerConnection = new FakePc();
+        host.emit('connection', b);
+        if (net.blocked){
+          for (const x of [a, b]) x.emit('iceStateChanged', 'checking');
+          // PeerJS: errore, chiusura (senza «close»: il canale non si era aperto), poi lo stato «failed»
+          if (net.blocked === 'failed') setTimeout(() => { for (const x of [a, b]){ x.emit('error', { type: 'negotiation-failed' }); x.closed = true; x.emit('iceStateChanged', 'failed'); } }, 5);
+          return;
+        }
+        a.open = b.open = true; b.emit('open'); a.emit('open');
       }, 0);
       return a;
     }
     reconnect(){}
     destroy(){ this.destroyed = true; if (peers.get(this.id) === this) peers.delete(this.id); }
   }
-  return { Peer, peers, conns };
+  return { Peer, peers, conns, net };
 }
 // finestra del browser finta: location e fetch del «server» (statico o con le API)
 function fakeWindow(href, serverFetch){
@@ -148,6 +168,80 @@ test('host e P2 con Peer finti: in attesa → collegato, rete persa → si ricol
   void other; await tick(30);
   assert.notEqual(intruder.state.status, 'connected');
   for (const x of [guest, host, intruder, other]) x.destroy();
+});
+
+test('ICE: tipo dei candidati, riassunto, canale bloccato se l’altro aveva risposto', () => {
+  assert.equal(candidateType({ type: 'relay' }), 'relay');
+  assert.equal(candidateType({ candidate: 'candidate:9 1 udp 41885439 198.51.100.4 3478 typ relay raddr 203.0.113.7 rport 51000' }), 'relay');
+  assert.equal(candidateType({ candidate: 'qualcosa' }), null); assert.equal(candidateType(null), null);
+  const c = new FakeConn('x'); c.peerConnection = new FakePc();
+  const info = watchIce(c);
+  assert.equal(iceSummary(info), 'new · nessun candidato'); assert.equal(iceBlocked(info), false, 'nessuna risposta: non è la rete');
+  c.peerConnection.fire({ type: 'srflx' }); c.peerConnection.fire({ type: 'host' });
+  c.emit('iceStateChanged', 'checking');
+  assert.equal(iceSummary(info), 'checking · host+srflx'); assert.equal(iceBlocked(info), true);
+  const d = new FakeConn('y'), info2 = watchIce(d); d.emit('error', { type: 'negotiation-failed' });
+  assert.equal(info2.failed, true); assert.equal(iceBlocked(info2), true);
+});
+
+test('rete che blocca il canale diretto: P2 e host lo dicono (non più «Mi collego…» e «In attesa…» per sempre), poi rete libera → collegati', async () => {
+  const net = fakeNetwork(), L = createLocalRelay();
+  const room = JSON.parse((await L.handle({ method: 'POST', url: '/api/match/create', body: {} })).text);
+  const host = createP2pHost({ Peer: net.Peer, roomId: room.roomId, handle: L.handle, openMs: 60 });
+  await host.ready;
+  net.net.blocked = true;
+  const guest = createP2pGuest({ Peer: net.Peer, roomId: room.roomId, retryMs: [20], openMs: 40 });
+  const hostSeen = [], guestSeen = [];
+  host.onStatus(s => hostSeen.push(s)); guest.onStatus(s => guestSeen.push(s));
+  await until(() => guest.state.error === 'rete' && host.state.error === 'rete');
+  assert.equal(guest.state.status, 'connecting'); assert.equal(host.state.status, 'waiting');
+  assert.match(guest.state.detail, /^checking · host\+srflx$/); assert.match(host.state.detail, /^checking/);
+  assert.match(p2pStatusText('guest', guest.state.status, guest.state.error), /rete blocca il collegamento diretto.*stessa rete Wi-Fi.*Riprovo da solo/);
+  assert.match(p2pStatusText('host', host.state.status, host.state.error), /Il Player 2 ha aperto il link.*rete blocca/);
+  // ogni tentativo bloccato si conta (diagnostica), e lo si dice una volta sola per tentativo
+  await until(() => guest.state.blocked >= 2 && host.state.blocked >= 2);
+  assert.ok(guestSeen.some(s => s.blocked >= 2), 'ogni tentativo arriva a chi ascolta');
+  // la rete torna libera (altra rete, stessa Wi-Fi): al tentativo dopo si entra e gli avvisi spariscono
+  net.net.blocked = false;
+  await until(() => guest.connected && host.state.status === 'connected');
+  assert.equal(guest.state.error, null); assert.equal(host.state.error, null);
+  assert.equal(guest.state.blocked, 0); assert.equal(host.state.blocked, 0);
+  assert.equal(p2pStatusText('guest', 'connected', null), 'Collegato all’host ✓');
+  host.destroy(); guest.destroy();
+});
+
+test('ICE fallito (PeerJS: negotiation-failed) → «rete» subito, senza aspettare il tempo massimo; host muto → «chiusa»', async () => {
+  const net = fakeNetwork(), L = createLocalRelay();
+  const room = JSON.parse((await L.handle({ method: 'POST', url: '/api/match/create', body: {} })).text);
+  const host = createP2pHost({ Peer: net.Peer, roomId: room.roomId, handle: L.handle, openMs: 60000 });
+  await host.ready;
+  net.net.blocked = 'failed';
+  const guest = createP2pGuest({ Peer: net.Peer, roomId: room.roomId, retryMs: [5000], openMs: 60000 });
+  await until(() => guest.state.error === 'rete' && host.state.error === 'rete', 500);
+  guest.destroy();
+  // host registrato ma che non risponde (scheda ferma): non è la rete; dopo CLOSED_MS «forse ha chiuso la partita»
+  net.net.blocked = false; net.net.silent = true;
+  let clock = 1000;
+  const mute = createP2pGuest({ Peer: net.Peer, roomId: room.roomId, retryMs: [10], openMs: 20, now: () => clock });
+  await until(() => mute.state.attempts >= 2);
+  assert.equal(mute.state.error, null, 'un tentativo senza risposta non è la rete');
+  clock += 30000;
+  await until(() => mute.state.error === 'chiusa');
+  assert.match(p2pStatusText('guest', mute.state.status, mute.state.error), /forse ha chiuso la partita/);
+  mute.destroy(); host.destroy();
+});
+
+test('testi degli errori della segnalazione: chiari, con il codice tra parentesi', () => {
+  assert.match(p2pStatusText('host', 'error', 'server-error'), /server che mette in contatto i due computer non risponde \(server-error\)/);
+  assert.match(p2pStatusText('guest', 'error', 'network'), /riprovo da solo/);
+  assert.match(p2pStatusText('guest', 'error', 'browser-incompatible'), /browser aggiornato/);
+  assert.match(p2pStatusText('guest', 'error', 'webrtc'), /collegamento diretto si è interrotto \(webrtc\)/);
+  assert.match(p2pStatusText('host', 'error', 'unavailable-id'), /altra scheda/);
+  assert.match(p2pStatusText('guest', 'error', 'libreria'), /ricarica la pagina/);
+  assert.match(p2pStatusText('guest', 'error', 'stanza'), /nuovo link/);
+  // «rete» non copre il collegamento riuscito né quello chiuso
+  assert.equal(p2pStatusText('host', 'connected', 'rete'), 'Player 2 collegato ✓');
+  assert.equal(p2pStatusText('host', 'off', 'rete'), 'Collegamento chiuso');
 });
 
 test('fetch intercettato: sito statico (404) → stanza nel browser dell’host, link p2p, il P2 gioca via RPC con natpf e mano', async () => {

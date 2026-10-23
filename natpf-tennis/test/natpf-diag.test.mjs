@@ -454,6 +454,28 @@ test('registratore (misure del 23/10): gesti scartati sul telefono, preparazioni
   await R.stop(); await flushTimers();
 });
 
+// sfida tra due computer senza server: prima nel registro non c'era nulla del collegamento (richiesta del 23/10, «la
+// modalità multiplayer non va»): ora stato, errore, tentativi bloccati e perché (stato ICE e candidati)
+test('registratore: collegamento della sfida senza server (stato, rete che blocca il canale diretto, dettaglio ICE)', async t => {
+  globalThis.requestAnimationFrame ??= cb => setTimeout(() => cb(performance.now()), 16);
+  globalThis.cancelAnimationFrame ??= id => clearTimeout(id);
+  let now = 1000;
+  const { engine } = fakeWorld(), store = memoryStore(), fns = new Set();
+  engine.natpfP2p = { active: true, mode: 'host', status: 'waiting', error: null, blocked: 0, detail: null, roomId: 'AT-AB12', onStatus: fn => { fns.add(fn); return () => fns.delete(fn); } };
+  const R = new DiagRecorder({ engine, ui: { controller: 'phone', training: { active: false } }, store, now: () => now, wallNow: () => Date.UTC(2026, 9, 23, 22, 0, 0) });
+  const id = await R.start({ webcamVideo: false, gameVideo: false });
+  t.after(() => { if (R.active) R.stop(); });
+  now += 300;
+  for (const fn of fns) fn({ mode: 'host', status: 'waiting', error: 'rete', blocked: 1, detail: 'checking · host+srflx', roomId: 'AT-AB12' });
+  now += 300;
+  for (const fn of fns) fn({ mode: 'host', status: 'connected', error: null, blocked: 0, detail: null, roomId: 'AT-AB12' });
+  await R.flush();
+  const ev = (await (await store.file(id, 'eventi.jsonl')).text()).trim().split('\n').map(l => JSON.parse(l)).filter(e => e.k === 'sfida.collegamento');
+  assert.deepEqual(ev.map(e => [e.stato, e.errore, e.bloccati]), [['waiting', null, 0], ['waiting', 'rete', 1], ['connected', null, 0]]);
+  assert.equal(ev[1].dettaglio, 'checking · host+srflx'); assert.equal(ev[1].stanza, 'AT-AB12'); assert.equal(ev[1].modo, 'host');
+  await R.stop(); await flushTimers();
+});
+
 test('metriche: dal rimbalzo della palla dell\'avversario al proprio colpo (ms)', () => {
   const ev = [
     { t: 1000, k: 'rimbalzo', da: 'opponent', x: 1, z: 9 }, { t: 1120, k: 'racchetta', chi: 'player', n: 1 },
