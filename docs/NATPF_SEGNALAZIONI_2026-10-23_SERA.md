@@ -244,6 +244,14 @@ risolve. Tre strade, da scegliere:
   - gesti speciali 9/9 (tre volte su tre), gioco del 23/10 11/11;
   - 1v1 25/25, LAN 1v1 10/10.
 
+- **Pacchetti** dal commit `21dc579`, build `2026-10-23.3` (la versione nella diagnostica di ogni sessione), provati
+  estratti in cartelle nuove:
+  - `natpf-simulator-cloudflare-20261023-3.zip`: 23,7 MiB, 74 file, nessuno oltre 25 MiB; la sfida 1v1 nel browser sullo
+    zip servito come sito statico 25/25;
+  - `natpf-simulator-lan-windows-20261023-3.zip`: 57,2 MiB, Node.js 22.22.0 per Windows verificato; certificato creato e
+    server HTTPS che risponde con gioco, pagina del telefono, modelli delle mani, grafiche, avvio guidato e relay 1v1;
+  - nessun file di certificati o chiavi, nessun nome vietato.
+
 ## 10. Prova fisica (da fare)
 
 Con la diagnostica accesa (`NATPF_PROVA_GUIDATA_2026-10-23.md` §0):

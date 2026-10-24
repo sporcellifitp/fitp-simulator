@@ -22,6 +22,8 @@ fine del punto, moviola, pallonetto e palla corta, figura dell'impugnatura, cors
   - `f0e5abb` prova LAN della sfida aggiornata.
 - Tutto provato in automatico (test, banchi, gioco vero nel browser con il telefono simulato); **prova fisica non
   eseguita**.
+- Consegna: pacchetti dal commit `21dc579`, build `2026-10-23.3`: `natpf-simulator-cloudflare-20261023-3.zip` e
+  `natpf-simulator-lan-windows-20261023-3.zip`, provati estratti (§9 del documento).
 - **Decisione aperta** (chiesta alla persona): un relay perché la sfida online funzioni su ogni rete (TURN con Worker,
   relay della partita su Worker, oppure niente relay), §8.4 del documento. Senza, il gioco ora dice quando è la rete a
   bloccare il collegamento diretto e cosa provare.
