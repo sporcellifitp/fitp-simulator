@@ -152,7 +152,12 @@ try {
   if (run('1v1')){
     /* ---------- 3. 1v1 tra due istanze attraverso il server LAN ---------- */
     const p1Ctx = await newContext({ viewport: { width: 1100, height: 680 } });
-    const p1 = await openGame(p1Ctx, BASE + '/', 'P1');
+    // senza l'intro (come le altre prove nel browser): con l'intro attiva il gioco resta nel menu e il servizio dell'host
+    // non parte (dal 20/10 la prova restava ferma su «Premi un tasto per iniziare»: 7/10)
+    const p1 = await openGame(p1Ctx, BASE + '/?lan=1&intro=0', 'P1');
+    // racchetta di prova (mouse) anche per l'host, come il P2 qui sotto e natpf-1v1-p2p.mjs: con il telefono (predefinito)
+    // e nessun telefono collegato la partita si mette in pausa e l'host non serve mai
+    await p1.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.testInput = true; ui.selectController('mouse', { open: false }); });
     await p1.evaluate(() => __natpfTennis.hud.callbacks.onSelectDifficulty('1v1'));
     await p1.waitForFunction(() => document.querySelector('#natpf-invite a')?.href, null, { timeout: 15000 });
     const invite = await p1.evaluate(() => document.querySelector('#natpf-invite a').href);
