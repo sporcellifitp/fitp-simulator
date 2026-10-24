@@ -252,3 +252,33 @@ Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo 
     server HTTPS che risponde con gioco, pagina del telefono, modelli delle mani, grafiche, avvio guidato e relay 1v1.
     Nessuna chiave privata (gli unici certificati sono le radici pubbliche dentro `node.exe`), nessun nome vietato.
   - CI completa in locale sul commit `90c4bc1` (copia separata): tutto passa, LAN nel browser 7/8 (limite noto). Validazione fisica non eseguita.
+- Checkpoint 22 (23/10, sera): due richieste dopo la consegna (sfida online, Player 2, sei punti di gioco); dettagli in
+  `docs/NATPF_SEGNALAZIONI_2026-10-23_SERA.md`.
+  - Commit: `4699a2e` (Player 2 calibra nel campo d'allenamento), `186d898` (risposta al servizio da fondo campo),
+    `9ab1c7f` (fine del punto: chi vince e chi ha sbagliato), `d5a4333` (moviola dell'ultimo punto), `8fe6f27` (a rete
+    con il tempo perfetto la palla passa), `3f84f1a` (pallonetto e palla corta), `d216f73` (figura dell'impugnatura),
+    `dbc41b4` e `4b6ec72` (sfida online), `da5d1b0` (palla corta in partita), `f0e5abb` (prova LAN della sfida).
+  - Scoperte:
+    - la risposta al servizio correva a rete nel 100% dei servizi;
+    - la moviola non registrava nulla;
+    - a Leggenda la palla corta ripresa di corsa andava in rete 67 volte su 70 con il tempo perfetto;
+    - il telefono scartava i gesti verticali (44 su 96 riconosciuti) e il tremolio del passo «fermo» alzava le soglie
+      a 300 °/s;
+    - la sfida online funziona con il server di segnalazione pubblico (collegati in 0,5 s), ma quando la rete blocca il
+      collegamento diretto il gioco non lo diceva.
+  - Decisioni:
+    - a rete con il tempo perfetto la situazione dà una palla debole, non l'errore; la pressione degli scambi lunghi
+      resta;
+    - i gesti speciali si imparano negli esercizi (prototipi del proprio gesto);
+    - nella sfida online, diagnosi del collegamento e lobby più semplice;
+    - il relay (TURN o Worker) non è stato aggiunto: decisione chiesta alla persona (§8.4 del documento).
+  - CI completa su `dbc41b4`: tutto passa tranne LAN nel browser 7/8 (limite noto), webcam 9/10 una volta (da sola
+    10/10 tre volte) e gesti speciali 8/9.
+  - Il fallimento dei gesti speciali è un difetto vero, già in `3f84f1a`: il «8 su 8» scritto in quel commit non si
+    riproduceva. Causa: gli esercizi speciali insegnavano il colpo normale e la forza del confronto seguiva il colpo
+    tipico. Corretto in `da5d1b0`: 9/9 tre volte su tre.
+  - La prova LAN della sfida (fuori dalla CI) era ferma dal 20/10 per l'intro e il telefono predefinito: aggiornata,
+    10/10.
+  - Prove sul codice finale: `npm test` 370/370, `tools/test` 148/148; nel browser 1v1 25/25, gesti speciali 9/9, gioco
+    del 23/10 11/11, allenamento 13/13, diagnostica 24/24, scambio 7/7, menu 22/22, LAN 1v1 10/10. Validazione fisica
+    non eseguita.

@@ -3,6 +3,32 @@
 Stato persistente del lavoro: da leggere all'inizio di ogni sessione e aggiornare a ogni checkpoint. La memoria
 generale del progetto resta `MEMORY.md`; la cronologia delle decisioni è in `WORKLOG.md`.
 
+## Sera del 23/10: segnalazioni di gioco e sfida online
+
+Due richieste dopo la consegna del giorno: (1) la sfida online sul sito pubblicato «non va», la calibrazione del
+Player 2 non usa il campo d'allenamento, la lobby 1v1 online va resa più semplice; (2) sei punti di gioco (colpi a rete,
+fine del punto, moviola, pallonetto e palla corta, figura dell'impugnatura, corsa dopo il servizio).
+
+- Documento: **`docs/NATPF_SEGNALAZIONI_2026-10-23_SERA.md`** (cause, correzioni, verifiche §9, prova fisica §10).
+- Commit:
+  - `4699a2e` Player 2 in campo;
+  - `186d898` risposta al servizio;
+  - `9ab1c7f` fine del punto;
+  - `d5a4333` moviola;
+  - `8fe6f27` a rete;
+  - `3f84f1a` pallonetto e palla corta, `da5d1b0` palla corta in partita (il «8 su 8» di `3f84f1a` non si riproduceva);
+  - `d216f73` impugnatura;
+  - `dbc41b4` e `4b6ec72` sfida online (diagnosi del collegamento e lobby);
+  - `f0e5abb` prova LAN della sfida aggiornata.
+- Tutto provato in automatico (test, banchi, gioco vero nel browser con il telefono simulato); **prova fisica non
+  eseguita**.
+- **Decisione aperta** (chiesta alla persona): un relay perché la sfida online funzioni su ogni rete (TURN con Worker,
+  relay della partita su Worker, oppure niente relay), §8.4 del documento. Senza, il gioco ora dice quando è la rete a
+  bloccare il collegamento diretto e cosa provare.
+- Prove nel browser nuove o estese: `tools/e2e/natpf-gameplay-23-10.mjs` (risposta, fine del punto, moviola, rete),
+  `tools/e2e/natpf-gesti-speciali.mjs` (braccio simulato nella pagina), `tools/e2e/natpf-1v1-p2p.mjs` (invito subito,
+  ingresso con il codice, rete che blocca il canale).
+
 ## Giro del 23/10: affidabilità dei due ingressi, impugnatura di taglio, campo aperto, ritmo
 
 Richiesta del 23/10 (partita in LAN con il telefono Android, registro e video allegati): diagnosi dell'intera catena

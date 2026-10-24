@@ -31,8 +31,12 @@ sessione della diagnostica, così il rapporto dà i numeri. Cosa è cambiato e p
 ### 1.1 Collegamento, presa, calibrazione
 
 1. QR sul computer, poi sul telefono *Attiva i sensori*.
-2. **Presa di taglio**: il telefono come il manico, il palmo sui lati lunghi, il display verso destra o verso sinistra,
-   non verso di sé. La pagina può restare in orizzontale: compare solo un avviso per qualche secondo.
+2. **Presa di taglio**, come nella figura della lobby e della pagina del telefono:
+   - il telefono in piedi nel pugno, come il manico di una racchetta;
+   - la cima in alto, un poco in avanti;
+   - il display di lato (a destra o a sinistra), non verso di sé: dallo schermo si vede solo il bordo.
+
+   La pagina può restare in orizzontale: compare solo un avviso per qualche secondo.
 3. **Calibrazione rapida**: due gesti comodi nel verso indicato, un dritto e un rovescio.
 
    Atteso: calibrazione superata. Se dice che *un gesto era molto più debole dell'altro*, rifare i due gesti con la

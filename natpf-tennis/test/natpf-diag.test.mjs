@@ -12,6 +12,7 @@ import { viewerHtml, viewerEvents } from '../src/natpf/diag/diag_viewer.js';
 import { createAnalysis, lineSplitter } from '../src/natpf/diag/diag_analysis.js';
 import { summaryLines } from '../src/natpf/natpf_diag.js';
 import { natpfSwingToEngine } from '../src/natpf/natpf_phone_racket.js';
+import { NATPF_BUILD } from '@natpf/tennis/version.js';
 
 test('CRC-32 come lo zip, anche a pezzi', () => {
   const b = new TextEncoder().encode('123456789');
@@ -430,7 +431,7 @@ test('registratore (misure del 23/10): gesti scartati sul telefono, preparazioni
   await R.flush();
   const ev = (await (await store.file(id, 'eventi.jsonl')).text()).trim().split('\n').map(l => JSON.parse(l));
   const of = k => ev.filter(e => e.k === k);
-  assert.equal(of('sessione')[0].build, '2026-10-23.2');
+  assert.equal(of('sessione')[0].build, NATPF_BUILD, 'versione della build di questa consegna');
   assert.deepEqual(of('tel.dispositivo')[0].ua, 'Telefono di prova');
   assert.deepEqual(of('tel.scartato').map(e => [e.perche, e.pk, e.picco]), [['debole', 71, 480], ['in rientro', 640, 490]]);
   assert.equal(of('tel.prep')[0].dir, -1);

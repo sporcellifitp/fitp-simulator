@@ -31,7 +31,17 @@ Arcade/LAN: `node run-local.mjs arcade-visuals.mjs` controlla camera, smash, sci
 
 NATPF motore base (`natpf-tennis/`):
 - `node natpf-phone-upright.mjs` avvia da solo vite (porta 3108) e PeerJS (9108) e prova il telefono simulato con la presa del gioco (verticale): link del QR, calibrazione rapida, dritti con il polso che ruota (mai pallonetti), pallonetto con la mano che sale, piatto girato a destra/sinistra → palla a destra/sinistra. Prende il posto di `natpf-flat-grip.mjs` (presa orizzontale, non più offerta). Su Windows usa Chrome installato (`CHROMIUM_PATH`).
-- `node natpf-1v1-p2p.mjs` (dopo la build di `natpf-tennis`): sfida un amico sul sito statico con due sessioni del browser e WebRTC: stanza dal menu, link, «Sono pronto», partita con il servizio di tutti e due, uscita e rientro del P2, stanza chiusa, link inesistente. `DIST=cartella` per provarla su uno zip estratto.
+- `node natpf-1v1-p2p.mjs` (dopo la build di `natpf-tennis`): sfida un amico sul sito statico con due sessioni del browser e WebRTC. Prova:
+  - l'invito già in vista nella pagina della racchetta;
+  - il P2 che entra scrivendo il codice;
+  - la riga di stato (in attesa → entrato → pronto) e «Sono pronto»;
+  - la partita con il servizio di tutti e due, l'uscita e il rientro del P2 con il link;
+  - la stanza chiusa, il link inesistente, l'avviso sul telefono;
+  - la rete che blocca il collegamento diretto: candidati ICE riscritti su un indirizzo irraggiungibile, poi rete libera.
+
+  `DIST=cartella` per provarla su uno zip estratto.
+- `node natpf-gameplay-23-10.mjs` (3183, 9183): i difetti di gioco della sera del 23/10 nel gioco vero con il telefono simulato: risposta al servizio da fondo campo, messaggio di fine punto (chi vince, chi ha sbagliato), moviola dell'ultimo punto, palla corta ripresa a rete a Leggenda, «In rete» negli scambi lunghi.
+- `node natpf-gesti-speciali.mjs` (3184, 9184): pallonetto e palla corta con il telefono mosso da un braccio fisico (presa di taglio, telefono dritto, gesti di polso): calibrazione, esercizi del lanciapalle che imparano il proprio gesto, partita con pallonetti, palle corte e dritti letti giusti.
 - `node natpf-training-flow.mjs` (vite 3109, PeerJS 9109): «Allenamento» dal menu con il telefono simulato: gesto nel verso sbagliato, quattro gesti della calibrazione con la palla ferma dal lato del gesto chiesto, giocatore fermo, stesso gesto sui due schermi (con il ritardo del computer a ogni cambio), primo esercizio. `SHOTS=1` salva le schermate del computer.
 - `node natpf-training-reconnect.mjs` (3111, 9111): pagina del telefono ricaricata a metà calibrazione → «Telefono scollegato» sul computer, sensori riattivati → calibrazione che riparte e finisce.
 - `node natpf-phone-blackout.mjs` (3117, 9117): collegamento che cade e torna (messaggi fermati nelle pagine, canale aperto): il telefono se ne accorge da solo e si ricollega, la calibrazione si riallinea alla ripresa, durante gli esercizi pausa con il pannello del telefono e ripresa automatica.

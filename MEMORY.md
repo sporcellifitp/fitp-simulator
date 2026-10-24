@@ -10,6 +10,11 @@ branch `backup/*` e gli altri `feature/natpf-*` sono già inclusi; il 22/10 vi �
 
 ## 0. Per chi riprende (22/10, notte)
 
+- **Sera del 23/10** (ultimo lavoro): segnalazioni di gioco e sfida online, `docs/NATPF_SEGNALAZIONI_2026-10-23_SERA.md`
+  (commit `4699a2e`…`dbc41b4`). Tutto provato in automatico, prova fisica da fare (§9 del documento). **Decisione aperta,
+  chiesta alla persona**: un relay perché la sfida online funzioni su ogni rete (§8.4). Senza, il gioco dice quando la
+  rete blocca il collegamento diretto.
+
 - **Un solo branch: `claude/friendly-fermat-dwv2w2`.** Contiene il lavoro delle due sessioni del 22/10: la seconda,
   su `claude/determined-tesla-8dgaks`, è stata unita qui con un merge (anche l'ultimo commit `40d58b2`, nel
   checkpoint 10). Non si lavora più su altri branch; commit nuovi fatti altrove vanno portati qui con un merge (mai
@@ -170,7 +175,8 @@ e provare da un server statico, cercare le parole vietate dal white label.
 
 ## 6. Funzionalità principali
 
-Intro, menu da console (frecce/Invio/Esc), modalità contro CPU / sfida un amico, 1v1 e 2v2, allenamento con
+Intro, menu da console (frecce/Invio/Esc), modalità contro CPU / sfida un amico (invito subito in vista, ingresso con
+il codice della stanza), 1v1 e 2v2, moviola dell'ultimo punto, allenamento con
 calibrazione ed esercizi (dritto, rovescio, pallonetto, palla corta, servizio, angoli), sfide per eventi (Radar,
 Bersagli 60", Scambio infinito, Sfida il campione), nickname e classifica del giorno (solo nel browser), modalità
 chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica e registrazione dei gesti (Maiusc+D).
@@ -178,8 +184,13 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 ## 7. Problemi noti
 
 - Prove con telefoni veri, webcam con persone e due computer reali non possibili in questo ambiente.
-- p2p su Cloudflare senza server TURN: alcune reti (NAT simmetrici) possono non collegarsi.
+- p2p su Cloudflare senza un relay proprio (si usano STUN e TURN pubblici della libreria, senza garanzie): dietro
+  firewall, NAT simmetrici o VPN i due computer possono non collegarsi. Dal 23/10 sera il gioco lo dice (host e
+  Player 2, con i consigli; evento `sfida.collegamento` nella diagnostica). Decisione sul relay aperta
+  (`docs/NATPF_SEGNALAZIONI_2026-10-23_SERA.md` §8.4).
 - Il browser di prova usa la grafica software: fotogrammi lenti (1,6–1,8 s), tempi delle prove automatiche imprecisi.
+- Webcam sotto carico (23/10 sera, CI completa): una volta un colpo con la webcam finta senza mano, mentre il modello
+  cambiava livello (inferenza di 2,1 s); da sola la prova passa 10/10. Da tenere d'occhio su un computer molto lento.
 - Test e2e LAN: il telefono simulato non chiude la connessione WebRTC verso l'indirizzo di rete del contenitore, e il
   browser di prova non raggiunge quell'indirizzo (il P2 apre l'invito su 127.0.0.1, ripiego nella prova).
 - 1v1: il ritardo di rete P2 → host è compensato solo per il telefono e solo per il tempo nel relay; mai provato con
@@ -355,6 +366,9 @@ chiosco e pannello dell'addetto (Ctrl+Maiusc+K o logo premuto 3 s), diagnostica 
 
 | Data | Commit | Cosa | File |
 |---|---|---|---|
+| 23/10/2026 sera | da5d1b0, 4b6ec72, f0e5abb | Palla corta in partita non più letta come dritto (esercizi speciali che non insegnano il colpo normale, forza assoluta del gesto per i prototipi); pagina «Collega» compatta sugli schermi bassi; prova LAN della sfida aggiornata | `natpf_stroke_intent.js`, `natpf_phone_racket.js`, `natpf_training.js`, `natpf-intro.css`, `test/phone-sim.mjs`, `test/natpf-gesti-speciali.test.mjs`, `test/e2e/lan-e2e.mjs` |
+| 23/10/2026 sera | dbc41b4 | Sfida online: diagnosi del collegamento (rete che blocca, host muto, host introvabile) con i consigli; invito subito in vista dalla racchetta alla partita, una riga di stato, «Condividi»; ingresso con il codice; Player 2 con una riga sola e l'avviso sul telefono; HUD del P2 senza «inquadra il QR» | `natpf-tennis/src/natpf/natpf_p2p.js`, `natpf_versus.js`, `natpf_versus_ui.js`, `natpf_lobby.js`, `natpf_ui.js`, `src/hud_ui.js`, `diag/diag_recorder.js`, `diag_viewer.js`, `index.html`, `natpf.css`, test, `tools/e2e/natpf-1v1-p2p.mjs` |
+| 23/10/2026 sera | 4699a2e, 186d898, 9ab1c7f, d5a4333, 8fe6f27, 3f84f1a, d216f73 | Player 2 calibra nel campo d'allenamento; risposta al servizio da fondo campo; fine del punto con chi vince e chi ha sbagliato; moviola dell'ultimo punto; a rete con il tempo perfetto la palla passa e il messaggio dice «In rete»; pallonetto e palla corta (gesti verticali e lenti, tremolio, telefono capovolto, prototipi del proprio gesto); figura dell'impugnatura | `natpf_versus_ui.js`, `natpf_training.js`, `game_engine.js`, `natpf_skill.js`, `natpf_point_call.js` (nuovo), `natpf_replay.js` (nuovo), `natpf_stroke_outcome.js`, `natpf_shot_feedback.js`, `site/js/tennis/swing-detect.js`, `stroke-shape.js`, `grip-art.js` (nuovo), `natpf_stroke_intent.js`, `natpf_phone_racket.js`, test (`arm-sim.mjs` nuovo), `tools/e2e/natpf-gameplay-23-10.mjs`, `natpf-gesti-speciali.mjs` (nuove), `docs/NATPF_SEGNALAZIONI_2026-10-23_SERA.md` |
 | 22/10/2026 | 51c83d2…(fine giro) | Racchetta virtuale: diagnosi della sessione reale (P1–P11), mano unica, verso dalla gravità, forma del colpo, intenzione ed esito senza caso, finestra d'impatto, volée e schiacciate al volo, palle fuori lasciate andare, servizio dal gesto, Player 2 specchiato, Leggenda ritarata, webcam con un solo soggetto, tremolio, calibrazione con colpi completi, piano valido solo per la sua palla, diagnostica (forma, intenzione, esito, piano, servizio, colpi a vuoto, ripetibilità), prima/dopo sugli stessi dati | `site/js/tennis/swing-detect.js`, `stroke-shape.js` (nuovo), `face-tracker.js`, `swing-message.js`, `calibration.js`, `racchetta.js`, `link.js`, `natpf-tennis/src/natpf/natpf_stroke_intent.js`, `natpf_stroke_outcome.js`, `natpf_impact.js` (nuovi), `natpf_phone_racket.js`, `natpf_hand.js`, `natpf_ui.js`, `natpf_legend.js`, `natpf_skill.js`, `webcam_strokes.js`, `motion_controls.js`, `natpf_training.js`, `natpf_events.js`, `natpf_lobby.js`, `diag/`, `src/game_engine.js`, test e prove (`racket-sim.mjs`, `racket-gestures.mjs`, `natpf-racchetta*.test.mjs`, `scripts/audit/zip-replay.mjs`, `webcam-crowd.mjs`, `tools/e2e/natpf-phone-upright.mjs`), `docs/NATPF_RACCHETTA_VIRTUALE.md` |
 | 21/10/2026 | d35629f, d198261, 1ef6014, 284c423, a307100, 41c6535 | Webcam: un evento per colpo, colpo anticipato, mano scelta per continuità, lancio solo quando serve, banco sintetico e prova nel motore | `natpf-tennis/src/natpf/webcam_strokes.js` (nuovo), `motion_controls.js`, `natpf_hand.js`, `test/webcam-sim.mjs`, `test/natpf-webcam-classifier.test.mjs`, `scripts/audit/webcam-sweep.mjs` |
 | 21/10/2026 | 70af03a, 77ba6fb, 65f809b, a220e4d | CPU Leggenda: modello, menu, allungo nel disegno, documento | `natpf-tennis/src/natpf/natpf_legend.js` (nuovo), `natpf_skill.js`, `game_engine.js`, `hud_ui.js`, `natpf_events.js`, `index.html`, `scripts/audit/legend.mjs`, `test/natpf-legend.test.mjs`, `test/natpf-flows.test.mjs`, `docs/NATPF_LEGGENDA.md` |
