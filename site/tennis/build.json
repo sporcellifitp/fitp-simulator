@@ -1,9 +1,9 @@
 {
-  "version": "intuitive-arcade-2026-10-16",
-  "branch": "refactor/natpf-audit-20261015",
+  "version": "2026-10-27.1",
+  "branch": "claude/friendly-fermat-dwv2w2",
   "validation": "automated-tests-plus-physical-user-validation-pending",
   "cameraModes": ["third", "first"],
-  "calibrationGestures": 4,
+  "calibrationGestures": 2,
   "contact": "visible-racket-volume",
   "display": "computer",
   "controller": "smartphone",

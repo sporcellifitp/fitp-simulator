@@ -10,11 +10,17 @@ calibrazione alla mira del primo colpo, inversione dei riferimenti, protezione d
 non assorbe i colpi mirati. Gioco **377/377**, sito **148/148**, build riuscita (Node 24.22.1).
 **Blocco 2 completato:** polso Pose ai colpi anche con movimento automatico, continuità del soggetto e sottrazione
 del moto del busto, slot condiviso Hands/Pose, campioni freschi e pausa/ripresa coerenti. Gioco **385/385**, sito
-**148/148**, build riuscita. Prossimo passo: tutorial che verifichi incrociato/lungolinea e colpi speciali.
+**148/148**, build riuscita.
+**Blocco 3 completato, build `2026-10-27.1`:** tutorial con Incrociato/Lungolinea verificati dal bersaglio effettivo,
+Tagliato e Schiacciata con lancio alto; figura della presa nel passo da fermo, anche per mancini. Prenotazione dello
+slot Pose per evitare attese indefinite dietro Hands. Verifica finale: **390/390 gioco**, **148/148 sito**, build riuscita.
+Procedura e risultati in `docs/NATPF_RIPRESA_2026-10-27.md`. Prossimo passo: prove fisiche e browser E2E su ambiente
+con Chromium funzionante; nessun nuovo pacchetto ZIP o deploy. Aggiornare il checkout Windows dal branch remoto.
 Nessuna prova fisica eseguita; E2E bloccati dal Chromium dell'ambiente (SIGSEGV prima della pagina).
 Lo storico sotto precede il WIP e questi interventi. Dettagli e limiti nella sezione 27/10 di `SESSION_HANDOFF.md`.
 
-Ultimo aggiornamento: 22 ottobre 2026, notte (racchetta virtuale; unione dei due branch; passo 17 fasi A–E) · **branch unico**
+Ultimo aggiornamento: **27 ottobre 2026**, blocchi 1–3 sopra. Contesto storico del 22 ottobre, notte
+(racchetta virtuale; unione dei due branch; passo 17 fasi A–E) · **branch unico**
 `claude/friendly-fermat-dwv2w2` (ripartito da `feature/natpf-tennis-v2`, che contiene tutto il lavoro precedente; i
 branch `backup/*` e gli altri `feature/natpf-*` sono già inclusi; il 22/10 vi è stato unito
 `claude/determined-tesla-8dgaks`). Stato per chi riprende: §0.

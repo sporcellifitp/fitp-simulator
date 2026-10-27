@@ -80,7 +80,8 @@ test('Pose resta disponibile con movimento automatico e condivide lo slot di inf
   await new Promise(r => setTimeout(r, 0));
   mc.videoElem.currentTime = 2; body.tick(1010); assert.equal(calls, 1, 'limite della frequenza');
   mc._mpBusy = true; body.tick(1100); assert.equal(calls, 1, 'Hands sta lavorando');
-  mc._mpBusy = false; body.tick(1100); assert.equal(calls, 2);
+  assert.equal(mc._poseRequested, true, 'il primo slot libero è prenotato per Pose');
+  mc._mpBusy = false; body.tick(1100); assert.equal(calls, 2); assert.equal(mc._poseRequested, false);
   assert.equal(body.enabled, false, 'il movimento automatico non viene cambiato');
 });
 
@@ -126,6 +127,9 @@ test('scheduler: Hands aspetta Pose e durante il fallback verifica le dita con f
   const mc = Object.create(MotionController.prototype); let sends = 0;
   Object.assign(mc, { webcamActive: true, videoElem: { readyState: 4 }, mpHands: { send: async () => { sends++; } }, _poseInferenceBusy: true });
   assert.equal(mc._sendFrame(1000), false);
+  mc._poseInferenceBusy = false; mc._poseRequested = true;
+  assert.equal(mc._sendFrame(1000), false, 'rispetta la prenotazione di Pose dopo Hands');
+  mc._poseRequested = false;
   mc._poseInferenceBusy = false; mc._poseUseUntil = 1800; mc._mpSentAt = 900;
   assert.equal(mc._sendFrame(1100), false);
   assert.equal(mc._sendFrame(1500), true); assert.equal(sends, 1);

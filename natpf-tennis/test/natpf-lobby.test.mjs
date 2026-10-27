@@ -122,10 +122,10 @@ test('mano libera in vista solo al proprio servizio', () => {
   assert.equal(isLocalServing({ phase: 'SERVE_STANCE', playerRole: 'p2', score: { server: 'opponent' } }), true);
 });
 
-test('riscaldamento: calibrazione in campo, poi dritto, rovescio, servizio, angoli; conta solo il lato giusto', () => {
-  assert.deepEqual(DRILLS.map(d => d.id), ['forehand', 'backhand', 'lob', 'drop', 'serve', 'free']);
+test('riscaldamento: colpi di base, speciali e direzioni verificate; conta solo il gesto chiesto', () => {
+  assert.deepEqual(DRILLS.map(d => d.id), ['forehand', 'backhand', 'lob', 'drop', 'slice', 'smash', 'serve', 'cross', 'line']);
   for (const d of DRILLS) for (const c of ['phone', 'webcam', 'mouse']) if (!d.phoneOnly || c === 'phone') assert.ok(d.hint[c], `${d.id}/${c}`);
-  assert.deepEqual(drillsFor('mouse').map(d => d.id), ['forehand', 'backhand', 'serve', 'free']);
+  assert.deepEqual(drillsFor('mouse').map(d => d.id), ['forehand', 'backhand', 'serve', 'cross', 'line']);
   const lob = DRILLS.find(d => d.id === 'lob');
   assert.equal(drillAfterShot(lob, { done: 0, tries: 0 }, { shot: 'lob', inCourt: false }).done, 1, 'pallonetto riconosciuto: vale anche fuori');
   assert.equal(drillAfterShot(lob, { done: 0, tries: 0 }, { shot: 'topspin', inCourt: true }).done, 0);
@@ -133,7 +133,10 @@ test('riscaldamento: calibrazione in campo, poi dritto, rovescio, servizio, ango
   assert.deepEqual(drillAfterShot(fh, p0, { side: 'forehand', inCourt: true }), { done: 1, tries: 1, ok: true, wrongSide: false });
   assert.equal(drillAfterShot(fh, p0, { side: 'backhand', inCourt: true }).done, 0);
   assert.equal(drillAfterShot(fh, p0, { side: 'forehand', inCourt: false }).done, 0);
-  assert.equal(drillAfterShot(DRILLS.find(d => d.id === 'free'), p0, { side: 'backhand', inCourt: true }).done, 1);
+  const cross = DRILLS.find(d => d.id === 'cross');
+  assert.equal(drillAfterShot(cross, p0, { side: 'backhand', inCourt: true }).done, 0, 'una palla qualunque non basta');
+  assert.equal(drillAfterShot(cross, p0, { side: 'backhand', inCourt: true, direction: 'line' }).done, 0);
+  assert.equal(drillAfterShot(cross, p0, { side: 'backhand', inCourt: true, direction: 'cross' }).done, 1);
   // i gesti della calibrazione diventano colpi: «L» (da destra a sinistra) è il dritto del destro e il rovescio del mancino
   assert.equal(calSide('L', 'right'), 'forehand'); assert.equal(calSide('R', 'right'), 'backhand');
   assert.equal(calSide('L', 'left'), 'backhand'); assert.equal(calSide('R', 'left'), 'forehand');

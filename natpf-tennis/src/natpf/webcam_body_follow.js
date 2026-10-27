@@ -188,7 +188,7 @@ export class NatpfBodyFollow {
     } catch (err){
       console.warn('[NATPF] MediaPipe Pose non disponibile: movimento automatico', err);
       this._setStatus('unavailable');
-    } finally { this._loading = false; if (mc) mc._poseLoading = false; }
+    } finally { this._loading = false; if (mc){ mc._poseLoading = false; mc._poseRequested = false; } }
   }
   onPoseResults(r, now = performance.now()){
     this._busy = false;
@@ -202,11 +202,15 @@ export class NatpfBodyFollow {
     const mc = this.mc, e = this.engine;
     this._hookRoomState();
     if (!mc?.webcamActive){ if (this.enabled && this.status !== 'unavailable') this._setStatus('loading'); this._paint(); return; }
-    if (!this.pose){ this._ensurePose(); return; }
+    if (!this.pose){ if (this.status !== 'unavailable') mc._poseRequested = true; this._ensurePose(); return; }
     mc._poseModelReady = true;
     const v = mc.videoElem;
     const needWrist = !mc.latestHandLandmarks || now - (mc.latestHandSeenAt ?? -Infinity) >= 240;
-    if (v && v.readyState >= 2 && (this.enabled || needWrist) && !this._busy && !mc._mpBusy && !mc._mpLoading && now - (this._poseSentAt ?? -Infinity) >= POSE_INPUT.intervalMs && v.currentTime !== this._lastVideoTime){
+    const due = v && v.readyState >= 2 && (this.enabled || needWrist) && now - (this._poseSentAt ?? -Infinity) >= POSE_INPUT.intervalMs && v.currentTime !== this._lastVideoTime;
+    // Prenota il primo slot libero: Hands lento con fotogrammi sempre in attesa non deve affamare Pose.
+    mc._poseRequested = !!due && !this._busy;
+    if (due && !this._busy && !mc._mpBusy && !mc._mpLoading){
+      mc._poseRequested = false;
       this._lastVideoTime = v.currentTime; this._busy = true; mc._poseInferenceBusy = true;
       this._poseSentAt = now; this._poseCaptureT = mc._frameCaptureT?.(now) ?? now;
       this.pose.send({ image: v }).catch(() => {}).finally(() => { this._busy = false; mc._poseInferenceBusy = false; });

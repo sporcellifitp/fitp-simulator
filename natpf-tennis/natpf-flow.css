@@ -296,6 +296,7 @@
   box-shadow: inset 0 0 0 3px var(--q-green), 0 14px 34px rgba(0, 0, 0, 0.35);
 }
 .coach-words {
+  grid-column: 2;
   display: grid;
   gap: 4px;
   min-width: 0;
@@ -377,6 +378,7 @@
 /* il gesto: il telefono nella mano che va nel verso della freccia (dal punto di vista di chi guarda lo schermo, come
    il giocatore inquadrato da dietro: il dritto del destro va da destra a sinistra) */
 .coach-cue {
+  grid-column: 1;
   position: relative;
   width: 132px;
   height: 84px;
@@ -384,6 +386,10 @@
 .coach-cue[data-dir=""] {
   display: none;
 }
+.coach-grip { grid-column: 1; width: clamp(96px, 18vw, 145px); }
+.coach-grip.hidden { display: none; }
+.coach-grip-art { display: block; width: 100%; height: auto; }
+.coach-side { grid-column: 3; }
 .gesture-phone {
   position: absolute;
   left: 50%;

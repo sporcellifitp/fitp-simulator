@@ -34,14 +34,15 @@ const no = cx => `<rect x="${cx - 20}" y="34" width="40" height="76" rx="7" fill
   <path d="M${cx - 27} 38 L${cx + 27} 106 M${cx + 27} 38 L${cx - 27} 106" stroke="${C.no}" stroke-width="6" stroke-linecap="round"/>`;
 
 // compact: solo le due viste giuste (spazi piccoli)
-export function gripSvg({ cls = 'natpf-grip-art', compact = false, id = '' } = {}){
+export function gripSvg({ cls = 'natpf-grip-art', compact = false, id = '', hand = 'right' } = {}){
   const W = compact ? 220 : 330;
   const aria = 'Impugnatura: il telefono in piedi nel pugno come il manico di una racchetta, la cima in alto e un poco in avanti, il display che guarda a destra o a sinistra; dallo schermo si vede solo il bordo stretto. Non tenerlo piatto con il display verso lo schermo o verso di te.';
-  const parts = [side(55), tick(10, 22), text(55, 176, 'DI LATO'), text(55, 190, 'display a destra o a sinistra', 7.5, 500),
-    front(165), tick(128, 22), text(165, 176, 'DALLO SCHERMO'), text(165, 190, 'si vede solo il bordo', 7.5, 500)];
+  const draw = (shape, cx) => hand === 'left' ? `<g transform="translate(${2*cx} 0) scale(-1 1)">${shape}</g>` : shape;
+  const parts = [draw(side(55), 55), tick(10, 22), text(55, 176, 'DI LATO'), text(55, 190, 'display a destra o a sinistra', 7.5, 500),
+    draw(front(165), 165), tick(128, 22), text(165, 176, 'DALLO SCHERMO'), text(165, 190, 'si vede solo il bordo', 7.5, 500)];
   if (!compact) parts.push(no(275), text(275, 176, 'COSÌ NO', 10, 700, C.no), text(275, 190, 'display verso lo schermo', 7.5, 500));
-  return `<svg ${id ? `id="${id}" ` : ''}class="${cls}" viewBox="0 0 ${W} 196" role="img" aria-label="${aria}">${parts.join('')}</svg>`;
+  return `<svg ${id ? `id="${id}" ` : ''}class="${cls}" data-hand="${hand === 'left' ? 'left' : 'right'}" viewBox="0 0 ${W} 196" role="img" aria-label="${hand === 'left' ? 'Mano sinistra. ' : 'Mano destra. '}${aria}">${parts.join('')}</svg>`;
 }
 // la presa in parole (stessa cosa della figura), per i pannelli e la guida
-export const GRIP_TEXT = 'Telefono <b>in piedi nel pugno</b>, come il manico di una racchetta: la cima in alto, un poco in avanti; il <b>display di lato</b> (a destra o a sinistra); dallo schermo si vede solo il bordo.';
+export const GRIP_TEXT = 'Telefono <b>in piedi nel pugno</b>, dita attorno ai lati lunghi, cima in alto e un poco in avanti. Ruotalo di un quarto di giro: il <b>display guarda di lato</b>, a destra o a sinistra. Dal computer si vede solo il bordo. Calibra e gioca con la stessa presa.';
 export const GRIP_TEXT_PLAIN = GRIP_TEXT.replace(/<\/?b>/g, '');

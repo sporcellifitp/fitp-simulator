@@ -49,7 +49,7 @@ export function calPrompt(v, hand = 'right'){
     const failed = v.last && !v.last.ok && v.last.idx === v.idx;
     const why = failed ? (v.last.why === 'direzione' ? `${WHY.direzione} (${ARROW[v.last.dir] || '?'}): muovi ${move} ${arrow}` : WHY[v.last.why] || 'Riprova') : null;
     if (!v.ready) return { title: `${title} ${arrow}`, sub: why || (v.note === 'idle' ? `Non sento movimenti: un colpetto ${move}` : 'Fermo un attimo al centro…'), state: why ? 'retry' : 'wait', arrow, dir: v.want, side };
-    return { title: `${title} ${arrow}`, sub: why || `Ora: muovi il telefono ${move}, come un colpetto, poi fermati`, state: 'go', arrow, dir: v.want, side };
+    return { title: `${title} ${arrow}`, sub: why || `Ora: gesto naturale ${move}, con la stessa presa che userai in partita, poi fermati`, state: 'go', arrow, dir: v.want, side };
   }
   if (v.stage === 'review') return v.pass === false
     ? { title: 'Rifacciamo i gesti', sub: v.why === 'piccolo' ? 'Gesti troppo piccoli: più ampi e decisi' : v.why === 'squilibrio' ? 'Un gesto era molto più debole dell’altro: rifai i due con la stessa decisione' : 'Non ho distinto i due versi: fai i gesti davvero da una parte all’altra', state: 'retry', arrow: '', dir: null }

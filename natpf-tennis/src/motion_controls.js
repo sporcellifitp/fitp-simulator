@@ -538,7 +538,7 @@ export class MotionController {
   _sendFrame(e) {
     if (!this.mpHands || this._mpBusy || !this.webcamActive || !this.videoElem || this.videoElem.readyState < 2) return !1;
     // Un solo lavoro WASM alla volta. A distanza Pose legge il polso; Hands verifica periodicamente le dita.
-    if (this._poseLoading || this._poseInferenceBusy || (e < (this._poseUseUntil || 0) && e - (this._mpSentAt ?? -Infinity) < POSE_INPUT.handProbeMs)) return !1;
+    if (this._poseRequested || this._poseLoading || this._poseInferenceBusy || (e < (this._poseUseUntil || 0) && e - (this._mpSentAt ?? -Infinity) < POSE_INPUT.handProbeMs)) return !1;
     // livello di carico cambiato: le opzioni nuove fuori dal richiamo dei risultati, prima dell'invio, e non con un punto
     // in gioco (il modello nuovo si carica: il gioco si ferma per un attimo; canReload lo dà il gioco, natpf_hand.js)
     this._wcPending &&

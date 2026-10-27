@@ -27,8 +27,6 @@
     **build di produzione riuscita**. Nuovi test sul primo colpo reale per P1/P2 e mani destra/sinistra, heading
     circolare, inversione e cinque colpi mirati ripetuti. Suite mirata riprodotta anche sul WIP precedente per
     verificare che rilevi i difetti. I test dei telefoni precedenti restano separati e attivi.
-- Dopo: verifiche del campo aperto e della catena telefono; webcam a distanza e tutorial. Ispezionare prima le
-  implementazioni esistenti. Le prove fisiche con Android e webcam del portatile restano da fare sul PC dell'utente.
 - **Blocco 2 completato e verificato automaticamente (base del blocco 1: `ba8b455`):**
   - `webcam_pose_strokes.js`: polso anatomico destro/sinistro con visibilità minima, scala del busto, acquisizione
     stabile e continuità di posizione/taglia. Si sottrae lo spostamento del busto: camminare non è uno swing.
@@ -44,12 +42,26 @@
     continuità, lateralità, scheduler e salute webcam.
   - Limiti da verificare fisicamente: prestazioni sul Lenovo E14 a 2–3 m, jitter/occlusioni reali e soggetti di taglia
     simile sovrapposti. Pose fornisce il polso, non l'orientamento fine delle dita; non promettere equivalenza ai sensori.
-- **Prossimo passo concreto:** tutorial. `drillAfterShot()` accetta ancora qualunque palla in campo nell'esercizio
-  «Angoli». Separare e verificare incrociato/lungolinea dall'esito, aggiungere tagliato/schiacciata con lanci adeguati
-  e rendere esplicita la stessa impugnatura fra calibrazione e partita.
+- **Blocco 3 completato, build `2026-10-27.1` (base del blocco 2: `88b08d9`):**
+  - Tutorial con Incrociato e Lungolinea distinti, verificati dal bersaglio e dalla posizione d'impatto nel riferimento
+    del giocatore. Palle al centro o in rete non fanno avanzare l'esercizio. Tagliato e Schiacciata aggiunti per il
+    telefono; lo smash riceve una palla alta. Si conta il tipo applicato dal motore, non solo quello richiesto.
+  - Figura della presa nel passo da fermo del riscaldamento, specchiata per mancini con scritte leggibili; sparisce
+    durante i gesti. Telefono e computer chiedono la stessa presa e lo stesso gesto della partita.
+  - Raffinamento dello scheduler webcam: Pose prenota il primo slot libero, evitando che Hands lento lo affami.
+  - Prove finali: **390/390 gioco**, **148/148 sito**, **build di produzione riuscita**. Cinque test nuovi del tutorial
+    con motore vero e DOM simulato. Audit deterministici: tutte le nove zone del campo occupate; nessuna corsa
+    automatica a rete dal fondo nei profili provati. POV, movimento e trasporto LAN non sono stati riscritti.
+- **Prossimo passo concreto:** prove fisiche sul PC e browser E2E con Chromium funzionante. Procedura aggiornata,
+  comandi, risultati e limiti: **`docs/NATPF_RIPRESA_2026-10-27.md`**. Verificare la build `2026-10-27.1`, mira dal primo
+  colpo (entrambi i lati e P1/P2), tutorial e webcam a 2–3 m, poi esportare la diagnostica. Non considerare la suite
+  simulata una validazione del telefono Android o della webcam del portatile. Nessun nuovo pacchetto ZIP o deploy.
 - **E2E non eseguiti:** il download Chromium di Playwright restituisce archivi vuoti. È stato estratto un Chromium
   153 alternativo, ma termina in SIGSEGV prima di aprire pagine (anche smoke test `about:blank` senza GPU).
   Non è una verifica del gioco e non va contata come un test passato. Riprovare su ambiente con Chromium funzionante.
+- **Continuità:** codice e documenti di ogni blocco sono pubblicati sul branch sopra; il PC dell'utente va aggiornato
+  con un pull fast-forward dopo aver salvato eventuali nuove modifiche locali. A ogni altro checkpoint aggiornare
+  questa sezione, `MEMORY.md` e `WORKLOG.md`, annotando verifiche mancanti e prossimo passo. Non fare reset o force push.
 
 Questa sezione descrive lo stato del 27/10; le sezioni successive sono lo storico delle consegne del 22–23/10.
 

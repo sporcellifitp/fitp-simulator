@@ -14,6 +14,7 @@
 // tipico e il piatto abituale, che il gioco impara dai colpi). Non conta per il punteggio.
 import * as THREE from 'three';
 import { calSide, calPrompt, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
+import { gripSvg } from '@natpf/tennis/grip-art.js';
 export { calSide };
 
 export const DRILLS = Object.freeze([
@@ -23,8 +24,11 @@ export const DRILLS = Object.freeze([
   // natpf_gestures.learnSpecials). Si passa avanti anche senza riuscirci, dopo 4 tentativi.
   { id: 'lob', label: 'Pallonetto', need: 1, shot: 'lob', phoneOnly: true, maxTries: 4, hint: { phone: 'Colpisci dal basso verso l’alto: la mano sale, come per mandare la palla in alto' } },
   { id: 'drop', label: 'Palla corta', need: 1, shot: 'drop', phoneOnly: true, maxTries: 4, hint: { phone: 'Colpo lento e morbido, dall’alto verso il basso, come per accarezzare la palla sotto' } },
+  { id: 'slice', label: 'Tagliato', need: 1, shot: 'slice', phoneOnly: true, learn: false, maxTries: 4, hint: { phone: 'Accompagna dall’alto verso il basso con un gesto più ampio della palla corta' } },
+  { id: 'smash', label: 'Schiacciata', need: 1, shot: 'smash', phoneOnly: true, learn: false, maxTries: 4, hint: { phone: 'Arriva una palla alta: alza il braccio e colpisci dall’alto verso il basso, prima del rimbalzo' } },
   { id: 'serve', label: 'Servizio', need: 1, hint: { phone: 'Alza il telefono per lanciare la palla, poi un colpetto quando è in alto', webcam: 'Alza la mano per lanciare, poi swing in alto', mouse: '↑ o W per lanciare, poi Spazio' } },
-  { id: 'free', label: 'Angoli', need: 3, hint: { phone: 'Colpisci un attimo prima: incrociato. Un attimo dopo: lungolinea. Il dorso del telefono la sposta ancora un poco', webcam: 'Colpisci prima per l’incrociato, dopo per il lungolinea', mouse: 'Q/E o A/D per mirare' } },
+  { id: 'cross', label: 'Incrociato', need: 1, direction: 'cross', feed: 'forehand', hint: { phone: 'Colpisci un attimo prima e orienta il piatto verso l’altra metà del campo: deve arrivare oltre il centro', webcam: 'Colpisci prima: manda la palla nell’altra metà del campo', mouse: 'Mira nell’altra metà del campo, oltre il centro' } },
+  { id: 'line', label: 'Lungolinea', need: 1, direction: 'line', feed: 'forehand', hint: { phone: 'Colpisci un attimo dopo e orienta il piatto lungo il lato da cui colpisci', webcam: 'Colpisci un attimo dopo: manda la palla lungo il tuo lato', mouse: 'Mira lungo il lato da cui colpisci' } },
 ]);
 // Calibrazione dentro il riscaldamento (solo smartphone)
 export const CAL_STAGE = Object.freeze({ id: 'cal', label: 'Calibrazione' });
@@ -53,12 +57,22 @@ export function specialHint(shot, learn = null){
   if (mine) return shot === 'lob' ? 'Sembra il tuo colpo normale: la mano sale di più, dal basso verso l’alto' : 'Sembra il tuo colpo normale: più lento e corto, dall’alto verso il basso';
   return shot === 'lob' ? 'Più dal basso verso l’alto' : 'Più lento, dall’alto verso il basso';
 }
-export function drillAfterShot(drill, progress, { side, inCourt, shot = null }){
+export function trainingDirection({ x, hitX = 0, contact = 1 } = {}){
+  if (!Number.isFinite(x) || !Number.isFinite(hitX) || Math.abs(x) < 1.25) return null;
+  const from = Math.abs(hitX) >= .6 ? Math.sign(hitX) : Math.sign(contact) || 1;
+  if (x*from < 0) return Math.abs(x - hitX) >= 2 ? 'cross' : null;
+  return Math.abs(x - hitX) <= 2.6 ? 'line' : null;
+}
+export function drillAfterShot(drill, progress, { side, inCourt, shot = null, direction = null }){
   // prova guidata della diagnostica: ogni palla giocata è un campione (il giudizio lo fanno le metriche, con il video)
   if (drill.diag) return { ...progress, tries: progress.tries + 1, done: progress.done + 1, ok: true };
   // colpi speciali: conta il colpo riconosciuto, anche se finisce fuori (si impara il gesto, non la mira)
   if (drill.shot) return { ...progress, tries: progress.tries + 1, done: progress.done + (shot === drill.shot ? 1 : 0), ok: shot === drill.shot, wrongShot: shot !== drill.shot };
   if (!inCourt) return { ...progress, tries: progress.tries + 1, ok: false };
+  if (drill.direction){
+    const ok = direction === drill.direction;
+    return { ...progress, tries: progress.tries + 1, done: progress.done + (ok ? 1 : 0), ok, wrongDirection: !ok };
+  }
   const sideOk = drill.id === 'forehand' ? side === 'forehand' : drill.id === 'backhand' ? side === 'backhand' : true;
   return { ...progress, tries: progress.tries + 1, done: progress.done + (sideOk ? 1 : 0), ok: sideOk, wrongSide: !sideOk };
 }
@@ -261,10 +275,18 @@ export class NatpfTraining {
     const side = E.player.swingType === 'backhand' ? 'backhand' : E.player.swingType === 'smash' ? 'smash' : 'forehand';
     // il servizio si conta qui; gli altri esercizi quando la palla è giocabile (anche fuori conta come tentativo)
     const before = this.progress.done;
-    this.progress = drillAfterShot(d, this.progress, { side: d.id === 'serve' ? 'serve' : side, inCourt: q.label !== 'Fuori' && q.label !== 'Mancata', shot: this.lastShot });
+    const mirror = E.playerRole === 'p2' ? -1 : 1, record = E.natpfLastRacket;
+    const racket = record && Math.abs(E.elapsedTime - record.at) < .1 ? record : null;
+    const direction = trainingDirection({ x: E.ball.targetLanding?.x*mirror, hitX: racket?.hitX ?? E.ball.pos.x*mirror,
+      contact: racket?.contact ?? (side === 'backhand' ? -1 : 1)*(this.ui.hand?.hand === 'left' ? -1 : 1) });
+    const appliedShot = racket?.out?.shot?.toLowerCase() || this.lastShot;
+    this.progress = drillAfterShot(d, this.progress, { side: d.id === 'serve' ? 'serve' : side,
+      inCourt: q.color !== 'red' && !['Fuori', 'Mancata', 'In rete'].includes(q.label), shot: appliedShot, direction });
     this.lastShot = null;
     const ok = this.progress.done > before;
-    this.message = d.shot ? (ok ? `${d.label} ✓` : specialHint(d.shot, this.lastLearn)) : ok ? `${q.label} ✓` : this.progress.wrongSide ? (d.id === 'forehand' ? 'Era un rovescio: la palla va sul dritto' : 'Era un dritto: la palla va sul rovescio') : q.label === 'Fuori' ? 'Fuori: meno angolo o meno forza' : q.label;
+    this.message = d.shot ? (ok ? `${d.label} ✓` : ['lob', 'drop'].includes(d.shot) ? specialHint(d.shot, this.lastLearn) : d.hint.phone)
+      : ok ? `${d.label} ✓` : this.progress.wrongDirection ? (d.direction === 'cross' ? 'Serve un incrociato: mira nell’altra metà, oltre il centro' : 'Serve un lungolinea: mira lungo il lato da cui colpisci')
+      : this.progress.wrongSide ? (d.id === 'forehand' ? 'Era un rovescio: la palla va sul dritto' : 'Era un dritto: la palla va sul rovescio') : q.label === 'Fuori' ? 'Fuori: meno angolo o meno forza' : q.label;
     this.flash = { text: this.message, ok, until: performance.now() + 1200 };
     this.paint();
   }
@@ -304,8 +326,9 @@ export class NatpfTraining {
     const start = new THREE.Vector3((Math.random() - .5)*2, 1.05, -11.6), target = new THREE.Vector3(x, 0, 8.4 + Math.random()*1.4);
     E.ballTrail?.clear(); E.swingVfx?.clearAllTrails?.();
     E.ball.pos.copy(start);
-    E._launchBallToTarget(start, target, 1.15, { topspin: 10, sidespin: 0, allowNetFault: false });
-    Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: 1, shotType: 'TOPSPIN', isPowerShot: false });
+    const high = this.drill?.shot === 'smash';
+    E._launchBallToTarget(start, target, high ? 1.9 : 1.15, { topspin: high ? 5 : 10, sidespin: 0, allowNetFault: false });
+    Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: 1, shotType: high ? 'MOON' : 'TOPSPIN', isPowerShot: false });
     E.phase = 'RALLY'; E.phaseTimer = 0; E.cameraMode = 'RALLY_CAM';
     // come in partita: piano d'intercetto sulla traiettoria vera (finestra d'impatto e movimento, natpf_impact.js)
     E._natpfPlanPlayer ? E._natpfPlanPlayer() : E._predictBallIntercept(p);
@@ -361,7 +384,7 @@ export class NatpfTraining {
   paint(){
     if (!this.active || !this.coach) return;
     const $ = sel => this.coach.querySelector(sel);
-    const c = this.ui.controller, hand = this.ui.hand?.hand, now = performance.now();
+    const c = this.ui.controller, hand = this.ui.hand?.hand || 'right', now = performance.now();
     const stages = this.withCal ? [CAL_STAGE, ...this.drills] : this.drills;
     const cur = this.cal ? 0 : stages.indexOf(this.drill);
     const list = $('#coach-stages'), key = stages.map(x => x.id).join() + cur;
@@ -370,6 +393,9 @@ export class NatpfTraining {
     const flash = this.flash && now < this.flash.until ? this.flash : null;
     const mode = this.ui.flow?.mode === 'training' ? 'Allenamento' : 'Riscaldamento';
     const P = this.ui.phone, lost = c === 'phone' && P && (!P.connected || (P.state?.phone && !['cal', 'ready'].includes(P.state.phone)));
+    const grip = $('#coach-grip'), showGrip = c === 'phone' && !!this.cal && this.view.stage === 'still' && !lost;
+    if (grip && showGrip && grip.dataset.hand !== hand){ grip.innerHTML = gripSvg({ compact: true, hand, cls: 'coach-grip-art' }); grip.dataset.hand = hand; }
+    show(grip, showGrip);
     let view;
     // telefono scollegato o senza sensori (pagina ricaricata, schermo spento): prima il pannello restava su «Ora»
     if (lost) view = { kicker: mode, title: 'Telefono scollegato', sub: !P.connected ? 'Riapri la pagina sul telefono: si ricollega da solo e si riparte da qui' : 'Sul telefono tocca «Attiva i sensori»', state: 'retry', dir: null, count: '' };

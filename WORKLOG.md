@@ -2,6 +2,14 @@
 
 ## 27/10/2026 · ripresa del WIP e continuità tra agenti
 
+- Blocco 3 completato, build `2026-10-27.1`: Incrociato/Lungolinea verificati da bersaglio e punto d'impatto; centro
+  e rete non fanno avanzare. Tagliato e Schiacciata per il telefono, lancio alto e tipo applicato dal motore. Figura
+  della presa nel passo da fermo, specchiata per mancini; stessa presa e gesto nella calibrazione e nella partita.
+  Pose prenota lo slot libero anche quando Hands è lento. Cinque test nuovi del tutorial. Verifica finale: gioco
+  390/390, sito 148/148, build riuscita. Audit varietà: nove zone occupate; audit movimento: niente corsa automatica
+  a rete dal fondo nei profili provati. Browser e hardware restano da verificare, non sono prove passate.
+  Risultati e prova guidata aggiornati in `docs/NATPF_RIPRESA_2026-10-27.md`; prossimo passo: PC reale e browser.
+
 - Blocco 2: fallback dal polso Pose con movimento automatico, continuità del busto e sottrazione del suo moto,
   visibilità e timestamp controllati, slot condiviso Hands/Pose, nessun duplicato nel cambio di sorgente. Otto test
   nuovi, incluso un gesto reale nel tempo simulato di 240 ms a 12,5 Hz fino all'evento del controller.

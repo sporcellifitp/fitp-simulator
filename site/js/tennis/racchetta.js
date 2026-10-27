@@ -60,6 +60,8 @@ const ARROW = { L: '←', R: '→', '?': '?' };
 function applyHand(h){
   const hand = h === 'left' ? 'left' : 'right';
   if ($('#hand').value !== hand) $('#hand').value = hand;
+  const art = $('#grip');
+  if (art && art.dataset.hand !== hand) art.outerHTML = gripSvg({ id: 'grip', cls: art.getAttribute('class') || 'hidden', compact: true, hand });
   if (cal.state.options) cal.state.options.hand = hand;
   const saved = ss.get('profile');
   if (saved && saved.hand !== hand){ saved.hand = hand; ss.set('profile', saved); }
@@ -105,7 +107,7 @@ function calUi(){
   else if (st.step === 'swings'){
     const plan = calibrationPlan(st.options), w = plan[st.idx], stroke = (w === 'L') !== (st.options.hand === 'left') ? 'Dritto' : 'Rovescio';
     if (!st.ready) ui(`${stroke} ${ARROW[w]}`, 'Fermo un attimo al centro…', '', '');
-    else ui(`${stroke} ${ARROW[w]}`, `Ora: muovi il telefono ${w === 'L' ? 'verso sinistra' : 'verso destra'}, come un colpetto, poi fermati. Gesto ${st.idx + 1} di ${plan.length}.`, 'ready', ARROW[w]);
+    else ui(`${stroke} ${ARROW[w]}`, `Ora: gesto naturale ${w === 'L' ? 'verso sinistra' : 'verso destra'}, con la stessa presa che userai in partita, poi fermati. Gesto ${st.idx + 1} di ${plan.length}.`, 'ready', ARROW[w]);
   }
   else if(st.step==='shots'){const g=GESTURE_PLAN[st.idx];ui(SHOT_NAMES[g.shot],`Gesto ${PLAN.length+st.idx+1} di ${PLAN.length+GESTURE_PLAN.length}: ${g.hint}`, '',g.want?ARROW[g.want]:'↑');}
   else if (st.step === 'review') ui(st.result && st.result.pass ? 'Fatto!' : 'Da rifare', st.result && st.result.pass ? 'Guarda il computer e conferma.' : 'Guarda il computer: ti dice cosa cambiare.', st.result && st.result.pass ? 'ready' : 'miss');
