@@ -23,7 +23,11 @@ export const OUTCOME = Object.freeze({
   natural: .15,       // un colpo neutro va un poco incrociato (il colpo più sicuro); la spinta sparisce verso i bordi della
                       // finestra (23/10: prima valeva anche in ritardo e il lungolinea pieno chiedeva anche il piatto)
   timingAim: 1,       // tempo dentro la finestra → mira: ai bordi (±1 unità) incrociato e lungolinea pieni (era .72)
-  faceAim: .32,       // piatto girato rispetto al proprio colpo abituale
+  // piatto girato rispetto al proprio colpo abituale: fino a .6 della mira piena (circa 2,2 m). Era .32 (1,2 m):
+  // chi colpisce «a tempo» (t ≈ 0, come fa chiunque guardi la palla) mandava ogni palla nello stesso punto, perché il
+  // tempo è il controllo principale ma un umano lo varia poco senza volerlo; il piatto, che si gira apposta, è il
+  // controllo che si sceglie. Il tempo resta più forte: al bordo della finestra il piatto non lo scavalca (27/10)
+  faceAim: .6,
   xMax: 3.65,         // m: mira piena, 0,45 m dentro la riga laterale del singolare
   follow: .4,         // il punto neutro segue di tanto la posizione laterale della palla all'impatto (0: sempre il centro)
   pushOut: 1.4,       // m di lato per unità di tempo oltre la finestra (per livello in ASSIST: con il lungolinea e
@@ -31,13 +35,17 @@ export const OUTCOME = Object.freeze({
   // profondità del rimbalzo (m dalla rete) per tipo, da profondità voluta 0 a 1: dalla riga del servizio (e prima)
   // alla riga di fondo; il proprio colpo tipico (profondità voluta circa 0,5) cade attorno a 8,7 m. Prima un colpo
   // normale andava da 7,4 a 10,9 m (2,5 m con i gesti tipici: metà campo e centro irraggiungibili)
-  depth: Object.freeze({ TOPSPIN: [6, 11.4], FLAT: [6.4, 11.6], SLICE: [5.2, 10.6], DROP: [1.8, 4.6], LOB: [8.6, 11.4], SMASH: [5.6, 10.8] }),
+  // 27/10: il banco (audit:variety, profilo medio/umano) dava p50 8,0 m e p90 9,25 m: la zona di fondo (oltre 9,5 m)
+  // non si raggiungeva quasi mai. La profondità voluta non è lineare: il colpo tipico (voluta .5) cade a 9,4 m, un colpo
+  // morbido resta corto e uno pieno arriva alla riga (depthCurve). TOPSPIN 6,2–11,5, FLAT 6,6–11,7
+  depth: Object.freeze({ TOPSPIN: [6.2, 11.5], FLAT: [6.6, 11.7], SLICE: [5.4, 10.8], DROP: [1.8, 4.6], LOB: [8.6, 11.4], SMASH: [5.6, 10.8] }),
+  depthCurve: .7,     // esponente della profondità voluta (1 = lineare; sotto 1 il colpo medio cade più in fondo)
   depthKnee: 10.8, maxDepth: 11.6,   // m: con l'assistenza la palla si avvicina alla riga di fondo (11,89) senza superarla
   sideKnee: 3.1, sideEdge: 4,        // m: con l'assistenza la palla si avvicina alla riga laterale (4,115) senza superarla
   minDepth: 3, dropMin: 1.6,         // m: un colpo (una palla corta) non cade più vicino alla rete di così
   assistFade: .25,    // unità di tempo oltre la finestra in cui l'assistenza sparisce (prima di colpo, alla finestra)
   assistQSpan: .1,    // qualità attorno alla soglia del livello in cui l'assistenza sparisce (prima di colpo)
-  shortPerQ: 2.4,     // m più corta per la qualità che manca
+  shortPerQ: 1.8,     // m più corta per la qualità che manca (era 2,4: con la qualità tipica .85 toglieva 0,36 m a ogni colpo)
   shortPerExcess: .8, // m più corta per unità di tempo oltre la finestra
   heavyRise: .45, heavyGain: 4,   // top spin con la testa che sale molto e forte: va lunga (può uscire)
   // incrociato stretto: dalla parte dell'incrociato, oltre wideFrom di lato, la palla cade più corta, verso wideDepth in
@@ -117,7 +125,9 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contac
   const x = raw + (Math.sign(raw)*softEdge(Math.abs(raw), O.sideKnee*k, O.sideEdge*k) - raw)*assist;
   // profondità: voluta (forza e ampiezza dello swing), meno per la qualità che manca e il tempo oltre la finestra
   const D = O.depth[shot] || O.depth.TOPSPIN;
-  let depth = lerp(D[0], D[1], want) - (1 - q)*O.shortPerQ - excess*O.shortPerExcess - (volley ? O.volleyShort*(1 - power) : 0);
+  // profondità voluta con la curva (DROP e LOB restano lineari: la palla corta vuole restare corta)
+  const wantD = shot === 'DROP' || shot === 'LOB' ? want : Math.pow(want, O.depthCurve);
+  let depth = lerp(D[0], D[1], wantD) - (1 - q)*O.shortPerQ - excess*O.shortPerExcess - (volley ? O.volleyShort*(1 - power) : 0);
   if (shot === 'TOPSPIN') depth += clamp(rise - O.heavyRise, 0, .4)*O.heavyGain*power;
   if (shot !== 'DROP' && shot !== 'LOB' && -c*x > 0) depth -= Math.max(0, depth - O.wideDepth)*O.widePull*clamp((Math.abs(x) - O.wideFrom)/O.wideSpan);
   depth += (softEdge(depth, O.depthKnee, O.maxDepth) - depth)*assist;
