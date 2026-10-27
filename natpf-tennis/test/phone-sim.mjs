@@ -24,7 +24,7 @@ export function rng(seed = 1){ let a = seed >>> 0; return () => { a = (a + 0x6D2
 // shape: anche la forma del colpo (stroke-shape.js), come la pagina del telefono di oggi; il computer legge allora
 // l'intenzione dalla forma (natpf_stroke_intent.js). Senza: il telefono di prima, letto con la tabella dei segnali.
 // habitual: false per leggere la forma senza la salita abituale della calibrazione (solo per i confronti)
-export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = true } = {}){
+export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = true, calibrationHeading = true } = {}){
   const det = createSwingDetector(), face = createFaceTracker({ quietHold: 400, relax: 2.5 });
   const cal = createCalibration(det), R = rng(seed);
   det.on('status', s => { if (s.s === 'still-ok') face.setRest(s.gravity, det.profile.bias); });
@@ -93,6 +93,12 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
   // sul computer: come NatpfPhoneRacket._onSwing, con i riferimenti che si adattano ai colpi della partita
   const prof = () => det.profile;
   const lifts = { model: null }, heads = { model: null }, faces = createFaceModel(), aims = createAimModel(), rises = createRiseModel(), typical = createTypicalModel();
+  cal.on(e => {
+    if (e.kind !== 'done') return;
+    aims.reset();
+    // false riproduce i telefoni precedenti, il cui profilo non contiene l'heading assoluto.
+    if (calibrationHeading && !e.profile?.simple) for (const dir of [1, -1]) aims.seed(dir, e.profile?.faceRef?.[dir]?.heading);
+  });
   // rally: colpo nello scambio (impara il colpo tipico, riferimento della forza dal terzo colpo come nel gioco)
   // own: prototipi dei propri gesti (pallonetto e palla corta degli esercizi, natpf_phone_racket.ownShapes)
   // expect: gesto speciale chiesto da un esercizio («lob», «drop»): come nel gioco, non insegna il colpo normale

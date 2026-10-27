@@ -44,7 +44,13 @@ export function faceReference(samples){
   const out = {};
   for (const dir of [1, -1]){
     const xs = samples.filter(s => s && s.dir === dir && Number.isFinite(s.yaw));
-    if (xs.length) out[dir] = { yaw: +med(xs.map(s => s.yaw)).toFixed(1), pitch: +med(xs.map(s => s.pitch)).toFixed(1), angle: med(xs.map(s => s.angle || 0)) };
+    if (xs.length){
+      out[dir] = { yaw: +med(xs.map(s => s.yaw)).toFixed(1), pitch: +med(xs.map(s => s.pitch)).toFixed(1), angle: med(xs.map(s => s.angle || 0)) };
+      // Stessa misura assoluta di swingMessage.fh, non la rotazione relativa durante lo swing (yaw).
+      // Mediana circolare: +179° e −179° sono vicini, non un riferimento a 0°.
+      const headings = xs.map(s => s.abs).filter(Number.isFinite);
+      if (headings.length) out[dir].heading = +wrap(headings[0] + med(headings.map(h => wrap(h - headings[0])))).toFixed(1);
+    }
   }
   return out;
 }

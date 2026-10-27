@@ -44,12 +44,18 @@ test('centro voluto: con il tempo giusto la palla va al centro; il colpo neutro 
   }
 });
 
-test('il piatto corregge poco: a tempo neutro sposta la palla al più di un metro e mezzo, e non scavalca il tempo', () => {
+test('il piatto permette di scegliere circa due metri a tempo neutro, e non scavalca il tempo ai bordi', () => {
   const lv = skillLevel('pro'), span = directionSpan(lv);
   const base = shot(lv, { timing: 0, lateSpan: span }).x, right = shot(lv, { timing: 0, lateSpan: span, intent: { face: 1 } }).x, left = shot(lv, { timing: 0, lateSpan: span, intent: { face: -1 } }).x;
-  assert.ok(Math.abs(right - base) < 1.5 && Math.abs(left - base) < 1.5 && right > base && left < base, `${left} ${base} ${right}`);
+  for (const x of [right, left]) assert.ok(Math.abs(x - base) > 2 && Math.abs(x - base) < 2.25, `${left} ${base} ${right}`);
+  assert.ok(right > base && left < base);
   // incrociato pieno con il piatto tutto verso il lungolinea: resta incrociato
-  assert.ok(shot(lv, { timing: span, lateSpan: span, intent: { face: 1 } }).x < -1.5);
+  assert.ok(shot(lv, { timing: span, lateSpan: span, intent: { face: 1 } }).x < -1.4);
+  // Anche sul lato opposto e per il rovescio il tempo conserva il verso scelto.
+  for (const contact of [1, -1]){
+    assert.ok(shot(lv, { contact, timing: span, lateSpan: span, intent: { face: contact } }).x*contact < -1.4);
+    assert.ok(shot(lv, { contact, timing: -span, lateSpan: span, intent: { face: -contact } }).x*contact > 1.4);
+  }
 });
 
 test('profondità dall\'intensità rispetto al proprio colpo tipico imparato giocando (C4): più forte del solito va più in fondo, più morbido più corto', async () => {

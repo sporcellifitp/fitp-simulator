@@ -7,10 +7,12 @@ import assert from 'node:assert/strict';
 import { simPhone } from './phone-sim.mjs';
 import { createAimModel, AIM } from '../src/natpf/natpf_gestures.js';
 import { createHeadlessEngine } from '../scripts/audit/headless-engine.mjs';
+import { eventLatency } from '../src/natpf/natpf_skill.js';
 
 // colpi del telefono con il piatto girato di «deg» gradi (+ = a sinistra, attorno alla verticale) e un gesto (opzioni di swing)
 function strokes(plan, { swing = {} } = {}){
-  const p = simPhone({ seed: 21 }); p.calibrate(); p.pose([1, 0, 0], -35); p.rest(400, 4);
+  // Compatibilità dei vecchi telefoni senza heading nel profilo: imparano il centro dai tre colpi iniziali.
+  const p = simPhone({ seed: 21, calibrationHeading: false }); p.calibrate(); p.pose([1, 0, 0], -35); p.rest(400, 4);
   for (const deg of [0, 0, 0, ...plan]){
     if (deg) p.pose([0, 1, 0], deg, 80);
     p.rest(300, 4); p.swing({ axis: [0, 1, 0], peak: 750, wrist: 500, wristAxis: [0, 0, -1], tremor: 6, ...swing }); p.rest(200, 4);
@@ -32,7 +34,7 @@ function land(ev, { p2 = false, seed = .5, tau = .03 } = {}){
       e.isMultiplayer = true; e.versus = { active: true }; e.autoPlayMode = false; e.ball.lastHitter = 'player';
       // specchio della situazione del P1: palla alla destra del P2 (che guarda verso +z: la sua destra è −x)
       e.opponent.pos.set(-1, 0, -11.4); e.opponent.vel.set(0, 0, 0); e.ball.pos.set(-1.6, 1, -10.9); e.ball.vel.set(0, 0, -18);
-      e._attemptP2RallyStrike(ev);
+      e._attemptP2RallyStrike({ ...ev, sweetSpotAssisted: true, natpfLead: tau - eventLatency(ev) });
     } else {
       e.ball.lastHitter = 'opponent'; e.player.pos.set(0, 0, 11.4); e.player.vel.set(0, 0, 0); e.ball.pos.set(.6, 1, 10.9); e.ball.vel.set(0, 0, 18);
       e._attemptPlayerRallyStrike({ ...ev, natpfTau: tau }, false);
@@ -45,6 +47,28 @@ function land(ev, { p2 = false, seed = .5, tau = .03 } = {}){
 }
 const mean = a => a.reduce((s, v) => s + v, 0)/a.length;
 const sd = a => Math.sqrt(mean(a.map(v => (v - mean(a))**2)));
+
+test('telefono attuale: sinistra, centro e destra dal primo colpo, senza tre colpi preliminari', () => {
+  for (const hand of ['right', 'left']){
+    const landings = [20, 0, -20].map(deg => {
+      const p = simPhone({ hand, seed: 21, shape: true });
+      p.pose([1, 0, 0], -35); p.rest(400, 4);
+      p.calibrate({ wrist: 500, wristAxis: [0, 0, -1] });
+      if (deg) p.pose([0, 1, 0], deg, 80);
+      p.rest(300, 4);
+      p.swing({ axis: [0, hand === 'left' ? -1 : 1, 0], peak: 750, wrist: 500, wristAxis: [0, 0, -1], tremor: 6 });
+      p.rest(200, 4);
+      assert.equal(p.msgs.length, 1, 'un solo swing di gioco, senza riscaldamento nascosto');
+      const ev = p.game(p.msgs[0]).ev;
+      assert.ok(Number.isFinite(ev.natpf.aimDev));
+      return { p1: land(ev, { tau: 0 }), p2: land({ ...ev, role: 'p2' }, { p2: true, tau: 0 }) };
+    });
+    const xs = landings.map(r => r.p1.x);
+    assert.ok(xs[0] < xs[1] - .7 && xs[2] > xs[1] + .7, `${hand}: ${xs}`);
+    const p2 = landings.map(r => r.p2.x);
+    assert.ok(p2[0] > p2[1] + .7 && p2[2] < p2[1] - .7, `${hand} P2: ${p2}`);
+  }
+});
 
 test('mira dal piatto: girato a sinistra, al centro, a destra → tre zone distinte e ripetibili, anche cinque volte di fila', () => {
   const evs = strokes([20, 20, 20, 20, 20, 0, 0, 0, 0, -20, -20, -20, -20, -20]);

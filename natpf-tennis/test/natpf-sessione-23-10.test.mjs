@@ -126,8 +126,10 @@ test('palla corta solo da un gesto vero: un micro-movimento che scende (13°) no
   assert.equal(classifyStroke({ rise: -.45, plane: .5 }, { power: .2, angle: 40 }).shot, 'drop');
 });
 
-test('mira dal piatto: fino a 45° di scarto come prima, poi sempre meno credibile, da 60° non conta (il 23/10 scarti di 50–77°)', () => {
-  assert.equal(faceAimFromDev(5), 0); assert.equal(faceAimFromDev(22), .5); assert.equal(faceAimFromDev(-36), -1);
+test('mira dal piatto: risposta da 5° a 30°, poi meno credibile oltre 45° e assente da 60°', () => {
+  assert.equal(faceAimFromDev(5), 0); assert.equal(faceAimFromDev(15), .4); assert.equal(faceAimFromDev(30), 1); assert.equal(faceAimFromDev(-30), -1);
+  const values = Array.from({ length: 26 }, (_, i) => faceAimFromDev(i + 5));
+  for (let i = 1; i < values.length; i++) assert.ok(values[i] > values[i - 1]);
   assert.ok(faceAimFromDev(52) > .4 && faceAimFromDev(52) < .6);
   assert.equal(faceAimFromDev(60), 0); assert.equal(Math.abs(faceAimFromDev(-73.4)), 0);
 });

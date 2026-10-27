@@ -37,8 +37,8 @@ export const OUTCOME = Object.freeze({
   // normale andava da 7,4 a 10,9 m (2,5 m con i gesti tipici: metà campo e centro irraggiungibili)
   // 27/10: il banco (audit:variety, profilo medio/umano) dava p50 8,0 m e p90 9,25 m: la zona di fondo (oltre 9,5 m)
   // non si raggiungeva quasi mai. La profondità voluta non è lineare: il colpo tipico (voluta .5) cade a 9,4 m, un colpo
-  // morbido resta corto e uno pieno arriva alla riga (depthCurve). TOPSPIN 6,2–11,5, FLAT 6,6–11,7
-  depth: Object.freeze({ TOPSPIN: [6.2, 11.5], FLAT: [6.6, 11.7], SLICE: [5.4, 10.8], DROP: [1.8, 4.6], LOB: [8.6, 11.4], SMASH: [5.6, 10.8] }),
+  // morbido resta corto e uno pieno arriva alla riga (depthCurve). TOPSPIN 6,2–11,5, FLAT 6,4–11,7
+  depth: Object.freeze({ TOPSPIN: [6.2, 11.5], FLAT: [6.4, 11.7], SLICE: [5.4, 10.8], DROP: [1.8, 4.6], LOB: [8.6, 11.4], SMASH: [5.6, 10.8] }),
   depthCurve: .7,     // esponente della profondità voluta (1 = lineare; sotto 1 il colpo medio cade più in fondo)
   depthKnee: 10.8, maxDepth: 11.6,   // m: con l'assistenza la palla si avvicina alla riga di fondo (11,89) senza superarla
   sideKnee: 3.1, sideEdge: 4,        // m: con l'assistenza la palla si avvicina alla riga laterale (4,115) senza superarla

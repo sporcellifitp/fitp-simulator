@@ -174,5 +174,6 @@ test('pagina del telefono: tutti i moduli si leggono senza errori di sintassi (r
   const { execFileSync } = await import('node:child_process');
   const fs = await import('node:fs'), path = await import('node:path');
   const dir = path.resolve(import.meta.dirname, '../../site/js/tennis');
-  for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) execFileSync(process.execPath, ['--experimental-default-type=module', '--check', path.join(dir, f)], { stdio: 'pipe' });
+  // Stdin come modulo esplicito: funziona anche quando Node non accetta più il vecchio flag di default.
+  for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) execFileSync(process.execPath, ['--input-type=module', '--check'], { input: fs.readFileSync(path.join(dir, f)), stdio: 'pipe' });
 });

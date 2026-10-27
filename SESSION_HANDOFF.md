@@ -8,19 +8,32 @@
 - L'utente ha chiesto di proseguire l'implementazione e conservare checkpoint durevoli per il prossimo agente.
   Il passaggio di consegne resta nel repository: questa sezione, `MEMORY.md` e `WORKLOG.md`.
 - Nel WIP: `OUTCOME.faceAim .6`, nuova curva della profondità `.7`, `shortPerQ 1.8`, soglie del piatto 5°/25° e
-  `createAimModel.seed()`. **Incompleto:** la calibrazione non salva l'heading assoluto e il computer non chiama
-  `aimModel.seed()`. Il solo metodo nuovo non abilita la mira dal primo colpo.
+  `createAimModel.seed()`. Il collegamento mancante è ora completato (blocco 1, sotto).
 - Baseline riprodotta su Node 24.22.1: gioco **370 test: 365 passati, 4 falliti, 1 saltato**; sito **148/148**.
   Tre fallimenti riguardano i cambiamenti WIP di mira/profondità; uno usa il flag non accettato
   `--experimental-default-type=module`. Il minimo della profondità FLAT salito a 6,6 m viola la verifica esistente
   di accesso alla riga del servizio: preservare i colpi morbidi mentre si aumenta la profondità tipica.
-- Primo blocco in corso: registrare heading per verso nella calibrazione e inizializzare il modello sul computer;
-  verificare inversione, mancinismo, «Salta», ricalibrazione e riferimento dopo il ricaricamento della pagina.
+- **Blocco 1 completato e verificato automaticamente:**
+  - `faceReference()` conserva `faceRef[dir].heading` dal `face.abs` dello swing, con mediana circolare;
+    `calibration.js` lo porta nel profilo; `_onCal(done)` inizializza entrambi i versi del modello sul computer.
+  - Invertire la calibrazione scambia anche `faceRef` e `heads` (prima restavano nel verso precedente).
+    «Salta», profili vecchi o parziali e ricalibrazione non riusano heading mancanti o precedenti.
+  - Un nuovo collegamento azzera il riferimento del frame precedente: senza nuova calibrazione il centro si impara
+    dai colpi, come per i profili vecchi. Non è ancora implementata una risincronizzazione del profilo a frame noto.
+  - I primi colpi mirati non sono più assorbiti dal centro: l'adattamento iniziale rapido vale solo entro `settle`.
+  - FLAT resta raggiungibile dalla riga del servizio (minimo 6,4 m); mantenuti curva `.7` e piatto `.6` del WIP.
+  - Il controllo di sintassi usa stdin ESM (`--input-type=module --check`), compatibile con Node 24.
+  - Prove: gioco **377/377, nessun test saltato** (installate anche le dipendenze LAN); sito **148/148**;
+    **build di produzione riuscita**. Nuovi test sul primo colpo reale per P1/P2 e mani destra/sinistra, heading
+    circolare, inversione e cinque colpi mirati ripetuti. Suite mirata riprodotta anche sul WIP precedente per
+    verificare che rilevi i difetti. I test dei telefoni precedenti restano separati e attivi.
 - Dopo: verifiche del campo aperto e della catena telefono; webcam a distanza e tutorial. Ispezionare prima le
   implementazioni esistenti. Le prove fisiche con Android e webcam del portatile restano da fare sul PC dell'utente.
-- Prossimo passo concreto: `site/js/tennis/calibration.js` oggi conserva `attempt.face.abs` ma non lo porta al
-  profilo; `natpf_phone_racket.js` nell'evento `done` fa solo `aimModel.reset()`. Collegare i due con test sulla catena
-  vera, evitando un riferimento obsoleto dopo `face.setRest()` o un ricaricamento del telefono.
+- **Prossimo passo concreto:** webcam a distanza. `NatpfBodyFollow.tick()` avvia Pose solo con movimento `body`;
+  i polsi di Pose non arrivano ai colpi. `MotionController` usa Hands o un breve flusso ottico e poi mette in pausa.
+  Valutare una sorgente Pose controllata, mantenendo movimento automatico e un solo soggetto. Poi esercizi del
+  tutorial che verifichino davvero incrociato/lungolinea. Le prove browser sono in preparazione: il download
+  Chromium di Playwright in questo ambiente restituisce archivi vuoti; non dichiarare E2E o prove fisiche eseguite.
 
 Questa sezione descrive lo stato del 27/10; le sezioni successive sono lo storico delle consegne del 22–23/10.
 

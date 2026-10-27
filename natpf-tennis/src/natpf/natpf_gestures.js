@@ -141,7 +141,7 @@ export function createAimModel({ gain = AIM.gain, settle = AIM.settle, alpha = A
       if (Math.abs(dev) > AIM.maxDev) return;
       // centro seminato dalla calibrazione: i primi colpi veri lo correggono con decisione (ma un colpo mirato oltre
       // settle lo sposta come sempre di poco)
-      if (st.seeded > 0) { st.seeded--; st.center = wrapDeg(st.center + (Math.abs(dev) < 2 * settle ? AIM.seedAlpha : drift) * dev); return; }
+      if (st.seeded > 0) { st.seeded--; st.center = wrapDeg(st.center + (Math.abs(dev) < settle ? AIM.seedAlpha : drift) * dev); return; }
       // vicino al centro: colpo normale, il centro lo segue; lontano: colpo mirato, il centro si sposta appena (una
       // deriva che dura si recupera in una trentina di colpi, qualche colpo mirato non sposta il centro)
       st.center = wrapDeg(st.center + (Math.abs(dev) < settle ? alpha : drift) * dev);

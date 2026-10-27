@@ -2,6 +2,13 @@
 
 ## 27/10/2026 · ripresa del WIP e continuità tra agenti
 
+- Blocco 1 completato: heading circolare in `faceRef[dir].heading`, trasferito dalla calibrazione al modello del
+  computer. Inversione coerente anche per piatto e altezza, fallback per Salta/profili vecchi e riferimento azzerato
+  su nuovo collegamento. Riferimenti mirati non inseguiti dall'adattamento iniziale. FLAT minimo 6,4 m e controllo
+  sintassi compatibile con Node 24. Nuove prove di primo colpo per P1/P2 e destri/mancini e dei casi di fallback.
+  Gioco 377/377 (incluse dipendenze LAN), sito 148/148, build riuscita. E2E e hardware reale ancora da verificare.
+  Prossimo blocco: fallback Pose della webcam a distanza, poi tutorial.
+
 - Base effettiva `76b4657`, branch unico `claude/friendly-fermat-dwv2w2`. L'utente ha pubblicato le tre modifiche
   locali recuperate dalla sessione interrotta, poi ha chiesto di proseguire e mantenere un passaggio durevole.
 - Ricostruita una copia Git esatta del checkpoint; file verificati tramite SHA dei blob. Baseline Node 24.22.1:

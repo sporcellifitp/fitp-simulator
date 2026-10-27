@@ -221,7 +221,7 @@ export function createCalibration(det){
       // presa orizzontale: il piatto abituale all'impatto del proprio gesto dritto, per leggere poi la mira dal piatto
       // il piatto abituale all'impatto del proprio dritto e rovescio: in partita la mira è lo scarto da questo (entrambe le prese)
       if (pass && S.options.grip === 'flat') S.profile.grip = 'flat';
-      if (pass && ok.some(a => a.face)) S.profile.faceRef = faceReference(ok.filter(a => a.face).map(a => ({ dir: SIGN[a.want], yaw: a.face.yaw, pitch: a.face.pitch, angle: a.angle })));
+      if (pass && ok.some(a => a.face)) S.profile.faceRef = faceReference(ok.filter(a => a.face).map(a => ({ dir: SIGN[a.want], yaw: a.face.yaw, pitch: a.face.pitch, abs: a.face.abs, angle: a.angle })));
       // verso verticale del piatto (headAt) dei propri gesti normali, per verso: è il riferimento di pallonetto, tagliato
       // e palla corta sul computer. Prima partiva da 0 e imparava solo dai colpi «normali»: chi ha un dritto morbido con
       // il polso che prona aveva tutti i colpi letti come palle corte, e il riferimento non si correggeva più
@@ -320,7 +320,7 @@ export function createCalibration(det){
       return [];
     },
     touch(dir = 0, power = .65, shot = 'drive'){ if (S.step !== 'free' || S.profile?.input !== 'touch') return; S.practice++; emit({ kind: 'free', dir: dir > 0 ? 'L' : dir < 0 ? 'R' : '?', dirValue: dir, power, strength: power/.75, peak: power*600, ok: true, shot }); },
-    invert(){ if (!S.profile || !S.axis) return; S.axis = S.axis.map(v => -v); S.profile.axis = S.axis; const swap = o => o && ({ 1: o[-1], '-1': o[1] }); S.profile.refs = swap(S.profile.refs); S.profile.preparation = swap(S.profile.preparation); S.profile.minAngles = swap(S.profile.minAngles); S.profile.rises = swap(S.profile.rises); if (S.profile.templates) S.profile.templates = S.profile.templates.map(t => ({ ...t, dir: -t.dir })); this.tryFree(); },
+    invert(){ if (!S.profile || !S.axis) return; S.axis = S.axis.map(v => -v); S.profile.axis = S.axis; const swap = o => o && ({ 1: o[-1], '-1': o[1] }); S.profile.refs = swap(S.profile.refs); S.profile.preparation = swap(S.profile.preparation); S.profile.minAngles = swap(S.profile.minAngles); S.profile.rises = swap(S.profile.rises); S.profile.heads = swap(S.profile.heads); S.profile.faceRef = swap(S.profile.faceRef); if (S.profile.templates) S.profile.templates = S.profile.templates.map(t => ({ ...t, dir: -t.dir })); this.tryFree(); },
     useTouch(){ S.practice = 0; S.burst = []; S.axis = null; S.profile = { version: 2, input: 'touch', ...S.options, ref: 1 }; S.result = { pass: true, touch: true, okL: 0, okR: 0 }; S.step = 'review'; emit({ kind: 'review', ...S.result }); },
     // da chiamare a ogni campione: impugnatura, gruppi di movimenti, suggerimenti se non arriva nulla
     tick(t, sample){

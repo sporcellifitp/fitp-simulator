@@ -360,7 +360,12 @@ export class NatpfPhoneRacket {
     // impostazioni, fase e verso atteso vanno rimandati. Prima la fase restava quella vecchia sul computer e il telefono
     // ricaricato, fermo su «menu», scartava i colpi fino al punto dopo
     const joins = this.state.joins || 0;
-    if (joins !== this.joins){ this.joins = joins; this.gripSent = false; this.lastPhase = null; this.lastExpect = null; }
+    if (joins !== this.joins){
+      this.joins = joins; this.gripSent = false; this.lastPhase = null; this.lastExpect = null;
+      // Un nuovo collegamento può essere una pagina ricaricata: il suo frame d'orientamento riparte da zero.
+      // Senza una nuova calibrazione il riferimento si reimpara dai colpi, mai da heading del frame precedente.
+      this.aimModel.reset(); this.faceModel.reset();
+    }
     // diag: se la diagnostica sta registrando, anche dopo una riconnessione il telefono rimanda i campioni grezzi
     if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.link.send({ t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}) }); this.gripSent = true; this.lastExpect = null; }
     if (!this.connected) this.gripSent = false;
@@ -411,7 +416,19 @@ export class NatpfPhoneRacket {
     c.idle = e.kind === 'idle';
     if (e.kind === 'review'){ c.review = e; c.freeOk = false; if (e.pass) this.link.cmd('free'); }   // prova libera, poi conferma
     if (e.kind === 'free' && e.ok) c.freeOk = true;
-    if (e.kind === 'done'){ c.step = 'done'; this.profile = e.profile || null; this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline; this.liftModel.reset(this.liftBaseline); this.faceModel.reset(); this.aimModel.reset(); this.riseModel.reset(); this.typicalModel.reset(); this.shapeModel.reset(); this.shapeModel.seed(profileShapePower(this.profile)); this.resetSpecials(); if (e.profile && e.profile.hand !== this.hand){ this.gripSent = false; this._sendGrip(); } this.headModel.reset(headBaselineFromProfile(this.profile, this.hand) ?? 0); }
+    if (e.kind === 'done'){
+      c.step = 'done'; this.profile = e.profile || null;
+      this.liftBaseline = liftBaselineFromProfile(this.profile) ?? this.liftBaseline;
+      this.liftModel.reset(this.liftBaseline); this.faceModel.reset();
+      // Allinea prima il collegamento: _sendGrip azzera i riferimenti di un eventuale frame precedente.
+      if (e.profile && e.profile.hand !== this.hand) this.gripSent = false;
+      this._sendGrip();
+      this.aimModel.reset();
+      if (!this.profile?.simple) for (const dir of [1, -1]) this.aimModel.seed(dir, this.profile?.faceRef?.[dir]?.heading);
+      this.riseModel.reset(); this.typicalModel.reset(); this.shapeModel.reset();
+      this.shapeModel.seed(profileShapePower(this.profile)); this.resetSpecials();
+      this.headModel.reset(headBaselineFromProfile(this.profile, this.hand) ?? 0);
+    }
     c.last = e;
     for (const fn of this.calListeners) try { fn(e); } catch (err){ console.error(err); }
     this._changed();
