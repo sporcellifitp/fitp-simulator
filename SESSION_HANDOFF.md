@@ -1,5 +1,29 @@
 # SESSION_HANDOFF · NATPF Simulator, giro «racchetta virtuale» (dal 22/10/2026)
 
+## Ripresa del 27/10/2026 — leggere prima dello storico
+
+- Branch unico: `claude/friendly-fermat-dwv2w2`. Base recuperata e pubblicata dall'utente: **`76b4657`**, figlio di
+  `2c7ede1` (WIP mira e profondità). Le modifiche locali Cline sono state esportate, ricostruite e confrontate con i
+  tre blob del commit: coincidono. Nessun lavoro di quel diff è da ricreare a memoria.
+- L'utente ha chiesto di proseguire l'implementazione e conservare checkpoint durevoli per il prossimo agente.
+  Il passaggio di consegne resta nel repository: questa sezione, `MEMORY.md` e `WORKLOG.md`.
+- Nel WIP: `OUTCOME.faceAim .6`, nuova curva della profondità `.7`, `shortPerQ 1.8`, soglie del piatto 5°/25° e
+  `createAimModel.seed()`. **Incompleto:** la calibrazione non salva l'heading assoluto e il computer non chiama
+  `aimModel.seed()`. Il solo metodo nuovo non abilita la mira dal primo colpo.
+- Baseline riprodotta su Node 24.22.1: gioco **370 test: 365 passati, 4 falliti, 1 saltato**; sito **148/148**.
+  Tre fallimenti riguardano i cambiamenti WIP di mira/profondità; uno usa il flag non accettato
+  `--experimental-default-type=module`. Il minimo della profondità FLAT salito a 6,6 m viola la verifica esistente
+  di accesso alla riga del servizio: preservare i colpi morbidi mentre si aumenta la profondità tipica.
+- Primo blocco in corso: registrare heading per verso nella calibrazione e inizializzare il modello sul computer;
+  verificare inversione, mancinismo, «Salta», ricalibrazione e riferimento dopo il ricaricamento della pagina.
+- Dopo: verifiche del campo aperto e della catena telefono; webcam a distanza e tutorial. Ispezionare prima le
+  implementazioni esistenti. Le prove fisiche con Android e webcam del portatile restano da fare sul PC dell'utente.
+- Prossimo passo concreto: `site/js/tennis/calibration.js` oggi conserva `attempt.face.abs` ma non lo porta al
+  profilo; `natpf_phone_racket.js` nell'evento `done` fa solo `aimModel.reset()`. Collegare i due con test sulla catena
+  vera, evitando un riferimento obsoleto dopo `face.setRest()` o un ricaricamento del telefono.
+
+Questa sezione descrive lo stato del 27/10; le sezioni successive sono lo storico delle consegne del 22–23/10.
+
 Stato persistente del lavoro: da leggere all'inizio di ogni sessione e aggiornare a ogni checkpoint. La memoria
 generale del progetto resta `MEMORY.md`; la cronologia delle decisioni è in `WORKLOG.md`.
 

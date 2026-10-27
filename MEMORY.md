@@ -3,6 +3,12 @@
 Memoria di lavoro del progetto: da leggere all'inizio di ogni sessione e da aggiornare alla fine di ogni attività.
 Non contiene password, token o altri segreti.
 
+**Ripresa attuale: 27/10/2026.** Il WIP locale interrotto è al sicuro su GitHub nel commit `76b4657`, branch unico
+`claude/friendly-fermat-dwv2w2`. L'utente ha chiesto di proseguire e salvare lo stato per il prossimo agente.
+Leggere prima la nuova sezione del 27/10 in `SESSION_HANDOFF.md`: `seed()` è presente ma va ancora collegato alla
+calibrazione. Baseline Node 24.22.1: gioco 370 test (365 passati, 4 falliti, 1 saltato), sito 148/148.
+Nessuna prova fisica eseguita. Lo storico sotto precede questo WIP e non ne costituisce la verifica.
+
 Ultimo aggiornamento: 22 ottobre 2026, notte (racchetta virtuale; unione dei due branch; passo 17 fasi A–E) · **branch unico**
 `claude/friendly-fermat-dwv2w2` (ripartito da `feature/natpf-tennis-v2`, che contiene tutto il lavoro precedente; i
 branch `backup/*` e gli altri `feature/natpf-*` sono già inclusi; il 22/10 vi è stato unito

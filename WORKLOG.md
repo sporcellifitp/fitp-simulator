@@ -1,5 +1,16 @@
 # WORKLOG · decisioni e checkpoint
 
+## 27/10/2026 · ripresa del WIP e continuità tra agenti
+
+- Base effettiva `76b4657`, branch unico `claude/friendly-fermat-dwv2w2`. L'utente ha pubblicato le tre modifiche
+  locali recuperate dalla sessione interrotta, poi ha chiesto di proseguire e mantenere un passaggio durevole.
+- Ricostruita una copia Git esatta del checkpoint; file verificati tramite SHA dei blob. Baseline Node 24.22.1:
+  gioco 370 test (365 passati, 4 falliti, 1 saltato), sito 148/148.
+- Confermato il primo punto incompleto: `seed()` esiste ma la calibrazione non salva gli heading nel profilo e il
+  computer azzera soltanto il modello. Prima completare la catena, poi webcam a distanza e tutorial.
+- Stato e prossimo passo registrati all'inizio di `SESSION_HANDOFF.md` e `MEMORY.md`. La validazione fisica resta
+  esplicitamente separata dalle prove automatiche.
+
 Cronologia breve delle decisioni e dei checkpoint dei giri di lavoro lunghi. Lo stato da cui ripartire è in
 `SESSION_HANDOFF.md`; la memoria del progetto in `MEMORY.md`.
 
