@@ -29,11 +29,27 @@
     verificare che rilevi i difetti. I test dei telefoni precedenti restano separati e attivi.
 - Dopo: verifiche del campo aperto e della catena telefono; webcam a distanza e tutorial. Ispezionare prima le
   implementazioni esistenti. Le prove fisiche con Android e webcam del portatile restano da fare sul PC dell'utente.
-- **Prossimo passo concreto:** webcam a distanza. `NatpfBodyFollow.tick()` avvia Pose solo con movimento `body`;
-  i polsi di Pose non arrivano ai colpi. `MotionController` usa Hands o un breve flusso ottico e poi mette in pausa.
-  Valutare una sorgente Pose controllata, mantenendo movimento automatico e un solo soggetto. Poi esercizi del
-  tutorial che verifichino davvero incrociato/lungolinea. Le prove browser sono in preparazione: il download
-  Chromium di Playwright in questo ambiente restituisce archivi vuoti; non dichiarare E2E o prove fisiche eseguite.
+- **Blocco 2 completato e verificato automaticamente (base del blocco 1: `ba8b455`):**
+  - `webcam_pose_strokes.js`: polso anatomico destro/sinistro con visibilità minima, scala del busto, acquisizione
+    stabile e continuità di posizione/taglia. Si sottrae lo spostamento del busto: camminare non è uno swing.
+    Un busto che salta altrove e un polso lontano dalla mano già seguita sono rifiutati.
+  - `NatpfBodyFollow` esegue Pose anche con movimento automatico; il movimento resta indipendente. Pose e Hands
+    condividono lo slot di inferenza. Pose lavora al massimo ogni 80 ms; durante il fallback Hands verifica le dita
+    ogni 500 ms. I risultati vecchi sono scartati, il campione è consumato una volta sola.
+  - `MotionController`: campioni Pose alla stessa macchina dei colpi, sorgente e tempo d'inferenza nel registro,
+    Pose valido considerato dalla pausa/ripresa e ritorno a Hands senza colpi fantasma. Cambio mano azzera la traccia.
+    Preparazione webcam e istruzioni di pausa nominano anche il braccio, senza chiedere la mano vicino alla camera.
+  - Prove: gioco **385/385**, sito **148/148**, build riuscita. Otto test nuovi, compreso un gesto di 240 ms
+    campionato a 12,5 Hz attraverso il controller vero (un solo colpo), movimento del busto senza colpi,
+    continuità, lateralità, scheduler e salute webcam.
+  - Limiti da verificare fisicamente: prestazioni sul Lenovo E14 a 2–3 m, jitter/occlusioni reali e soggetti di taglia
+    simile sovrapposti. Pose fornisce il polso, non l'orientamento fine delle dita; non promettere equivalenza ai sensori.
+- **Prossimo passo concreto:** tutorial. `drillAfterShot()` accetta ancora qualunque palla in campo nell'esercizio
+  «Angoli». Separare e verificare incrociato/lungolinea dall'esito, aggiungere tagliato/schiacciata con lanci adeguati
+  e rendere esplicita la stessa impugnatura fra calibrazione e partita.
+- **E2E non eseguiti:** il download Chromium di Playwright restituisce archivi vuoti. È stato estratto un Chromium
+  153 alternativo, ma termina in SIGSEGV prima di aprire pagine (anche smoke test `about:blank` senza GPU).
+  Non è una verifica del gioco e non va contata come un test passato. Riprovare su ambiente con Chromium funzionante.
 
 Questa sezione descrive lo stato del 27/10; le sezioni successive sono lo storico delle consegne del 22–23/10.
 

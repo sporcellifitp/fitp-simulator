@@ -184,11 +184,12 @@ export class NatpfUi {
   }
   paintWebcamSetup(){
     const mc = this.engine.motionController, on = !!mc?.webcamActive;
-    const hand = on && performance.now() - (mc.latestHandSeenAt || -1e9) < 1200;
+    const now = performance.now(), wrist = on && now - (mc._poseSeenAt ?? -Infinity) < 400;
+    const hand = on && (now - (mc.latestHandSeenAt || -1e9) < 1200 || wrist);
     const dot = $('setup-cam-dot'), txt = $('setup-cam-text'), badge = $('setup-cam-badge'), go = $('setup-cam-go');
     if (dot) dot.className = 'setup-dot ' + (hand ? 'ok' : on ? 'mid' : '');
-    if (txt) txt.textContent = hand ? 'Mano vista ✓ sei pronto' : on ? 'Webcam accesa: mostra la mano che colpisce' : 'Mettiti a 1,5–2 m, mano ben visibile e luce davanti';
-    if (badge){ badge.textContent = on ? (hand ? 'Mano vista' : 'Cerco la mano…') : 'Webcam spenta'; badge.classList.toggle('ok', hand); }
+    if (txt) txt.textContent = hand ? (wrist ? 'Braccio visto ✓ sei pronto' : 'Mano vista ✓ sei pronto') : on ? 'Mostra spalle e braccio che colpisce, con luce davanti' : 'Mettiti a circa 2 m: spalle e braccio interi nell’inquadratura';
+    if (badge){ badge.textContent = on ? (hand ? (wrist ? 'Braccio visto' : 'Mano vista') : 'Cerco il braccio…') : 'Webcam spenta'; badge.classList.toggle('ok', hand); }
     show(go, !on);
     const body = !!this.engine.natpfBody?.enabled;
     for (const b of document.querySelectorAll('[data-natpf-move]')){ const sel = (b.dataset.natpfMove === 'body') === body; b.classList.toggle('selected', sel); b.setAttribute('aria-checked', String(sel)); }

@@ -57,7 +57,11 @@ export class NatpfHand {
     this.hand = normalizeHand(h); writeHand(this.hand);
     const phone = this.engine.natpfPhone;
     if (phone){ if (phone.setHand) phone.setHand(this.hand); else phone.hand = this.hand; }
-    if (this.engine.motionController) this.engine.motionController.handPreference = this.hand;
+    const mc = this.engine.motionController;
+    if (mc){
+      if (mc.handPreference !== this.hand){ mc._resetHandTracking?.(); mc.handTracker?.reset?.(); }
+      mc.handPreference = this.hand;
+    }
     this.apply();
   }
   // specchia il personaggio locale (una sola volta per cambio)

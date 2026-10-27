@@ -2,7 +2,8 @@
 // motore base muove da solo il giocatore verso la palla (targetPos scelto da _predictBallIntercept, passi in
 // _stepActorFootwork). Con «segui il corpo» MediaPipe Pose (pacchetto offline, modello lite) trova spalle e anche
 // davanti alla webcam: spostarsi a destra/sinistra porta il giocatore a destra/sinistra sul campo, avvicinarsi alla
-// webcam lo porta verso la rete, allontanarsi verso il fondo. Il colpo resta legato alla mano (Hands, motore base).
+// webcam lo porta verso la rete, allontanarsi verso il fondo. Pose offre anche il polso ai colpi quando Hands perde
+// le dita a distanza: questa sorgente resta disponibile con movimento automatico.
 //
 // Isolato dal motore: non si toccano _predictBallIntercept né _stepActorFootwork. Durante lo scambio, solo per il
 // passo del giocatore che segue il corpo, si sostituisce per un istante il bersaglio del motore base con quello del corpo
@@ -12,6 +13,7 @@
 // relay (/api/body, scripts/match-relay.mjs), perché è l'host a simulare la partita.
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const finite = v => typeof v === 'number' && Number.isFinite(v);
+import { POSE_INPUT } from './webcam_pose_strokes.js';
 
 export const MOVEMENT_MODES = ['auto', 'body'];
 export const MOVEMENT_STORAGE_KEY = 'natpf-tennis.movement';
@@ -169,8 +171,10 @@ export class NatpfBodyFollow {
     if (this.pose || this._loading || this.status === 'unavailable') return;
     // Hands e Pose non si inizializzano insieme: il caricatore dei file di MediaPipe è globale e i due si
     // sovrascrivono a vicenda (Hands ricadrebbe sull'optical flow). Pose aspetta che Hands abbia finito.
-    if (this.mc?._mpLoading) return;
+    if (this.mc?._mpLoading || this.mc?._mpBusy) return;
     this._loading = true;
+    const mc = this.mc;
+    if (mc) mc._poseLoading = true;
     try {
       let base = MEDIAPIPE_POSE_LOCAL_BASE;
       if (!window.Pose) try { await loadScript(`${base}pose.js`); } catch { base = MEDIAPIPE_POSE_CDN_BASE; await loadScript(`${base}pose.js`); }
@@ -179,30 +183,37 @@ export class NatpfBodyFollow {
       pose.onResults(r => this.onPoseResults(r));
       await pose.initialize();
       this.pose = pose; this.base = base;
+      if (mc) mc._poseModelReady = true;
       this._setStatus('searching');
     } catch (err){
       console.warn('[NATPF] MediaPipe Pose non disponibile: movimento automatico', err);
       this._setStatus('unavailable');
-    } finally { this._loading = false; }
+    } finally { this._loading = false; if (mc) mc._poseLoading = false; }
   }
   onPoseResults(r, now = performance.now()){
     this._busy = false;
+    if (!this.mc?.webcamActive) return;
+    this.mc._poseInferMs = Number.isFinite(this._poseSentAt) ? Math.max(0, now - this._poseSentAt) : null;
     const body = bodyPoseFromLandmarks(r?.poseLandmarks);
     if (body) this.tracker.push(body, now);
+    this.mc._onPoseResults?.(r, this._poseCaptureT ?? now, now);
   }
   tick(now = performance.now()){
     const mc = this.mc, e = this.engine;
     this._hookRoomState();
-    if (!this.enabled || !mc?.webcamActive){ if (this.enabled && this.status !== 'unavailable') this._setStatus('loading'); this._paint(); return; }
+    if (!mc?.webcamActive){ if (this.enabled && this.status !== 'unavailable') this._setStatus('loading'); this._paint(); return; }
     if (!this.pose){ this._ensurePose(); return; }
+    mc._poseModelReady = true;
     const v = mc.videoElem;
-    if (v && v.readyState >= 2 && !this._busy && v.currentTime !== this._lastVideoTime){
-      this._lastVideoTime = v.currentTime; this._busy = true;
-      this.pose.send({ image: v }).catch(() => { this._busy = false; });
+    const needWrist = !mc.latestHandLandmarks || now - (mc.latestHandSeenAt ?? -Infinity) >= 240;
+    if (v && v.readyState >= 2 && (this.enabled || needWrist) && !this._busy && !mc._mpBusy && !mc._mpLoading && now - (this._poseSentAt ?? -Infinity) >= POSE_INPUT.intervalMs && v.currentTime !== this._lastVideoTime){
+      this._lastVideoTime = v.currentTime; this._busy = true; mc._poseInferenceBusy = true;
+      this._poseSentAt = now; this._poseCaptureT = mc._frameCaptureT?.(now) ?? now;
+      this.pose.send({ image: v }).catch(() => {}).finally(() => { this._busy = false; mc._poseInferenceBusy = false; });
     }
     this._setStatus(this.tracker.visible(now) ? (this.tracker.calibrated ? 'following' : 'searching') : this.tracker.calibrated ? 'lost' : 'searching');
     // P2: il bersaglio va all'host, che simula la partita
-    if (e.playerRole === 'p2' && e.isMultiplayer && now - this._lastSend >= BODY_FOLLOW.sendMs){
+    if (this.enabled && e.playerRole === 'p2' && e.isMultiplayer && now - this._lastSend >= BODY_FOLLOW.sendMs){
       this._lastSend = now;
       const t = courtTargetFromBody(this.tracker.sample(now), e.opponent, this._court());
       const room = mc.roomId || 'default';

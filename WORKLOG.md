@@ -2,6 +2,12 @@
 
 ## 27/10/2026 · ripresa del WIP e continuità tra agenti
 
+- Blocco 2: fallback dal polso Pose con movimento automatico, continuità del busto e sottrazione del suo moto,
+  visibilità e timestamp controllati, slot condiviso Hands/Pose, nessun duplicato nel cambio di sorgente. Otto test
+  nuovi, incluso un gesto reale nel tempo simulato di 240 ms a 12,5 Hz fino all'evento del controller.
+  Gioco 385/385, sito 148/148, build riuscita. Prove browser non eseguite: Chromium va in SIGSEGV anche su about:blank.
+  Da misurare sul portatile: costo del modello e stabilità a 2–3 m. Prossimo blocco: tutorial direzionale e colpi speciali.
+
 - Blocco 1 completato: heading circolare in `faceRef[dir].heading`, trasferito dalla calibrazione al modello del
   computer. Inversione coerente anche per piatto e altezza, fallback per Salta/profili vecchi e riferimento azzerato
   su nuovo collegamento. Riferimenti mirati non inseguiti dall'adattamento iniziale. FLAT minimo 6,4 m e controllo

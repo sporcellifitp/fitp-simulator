@@ -8,8 +8,11 @@ Non contiene password, token o altri segreti.
 Leggere prima la nuova sezione del 27/10 in `SESSION_HANDOFF.md`: **blocco 1 completato**, heading circolare dalla
 calibrazione alla mira del primo colpo, inversione dei riferimenti, protezione da frame precedenti e adattamento che
 non assorbe i colpi mirati. Gioco **377/377**, sito **148/148**, build riuscita (Node 24.22.1).
-Prossimo passo: collegare Pose ai colpi webcam senza imporre il movimento del corpo, poi tutorial direzionale.
-Nessuna prova fisica eseguita; prove browser in preparazione. Lo storico sotto precede il WIP e questi interventi.
+**Blocco 2 completato:** polso Pose ai colpi anche con movimento automatico, continuità del soggetto e sottrazione
+del moto del busto, slot condiviso Hands/Pose, campioni freschi e pausa/ripresa coerenti. Gioco **385/385**, sito
+**148/148**, build riuscita. Prossimo passo: tutorial che verifichi incrociato/lungolinea e colpi speciali.
+Nessuna prova fisica eseguita; E2E bloccati dal Chromium dell'ambiente (SIGSEGV prima della pagina).
+Lo storico sotto precede il WIP e questi interventi. Dettagli e limiti nella sezione 27/10 di `SESSION_HANDOFF.md`.
 
 Ultimo aggiornamento: 22 ottobre 2026, notte (racchetta virtuale; unione dei due branch; passo 17 fasi A–E) · **branch unico**
 `claude/friendly-fermat-dwv2w2` (ripartito da `feature/natpf-tennis-v2`, che contiene tutto il lavoro precedente; i

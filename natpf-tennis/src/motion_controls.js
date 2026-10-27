@@ -6,6 +6,7 @@ import { relayedNatpf } from "./natpf/natpf_skill.js";
 import { newSwings } from "./natpf/natpf_versus.js";
 // NATPF: misure della webcam (camera, inferenza, età del dato) e carico del modello delle mani, vedi src/natpf/webcam_load.js
 import { createLoadGovernor, createWebcamStats, WEBCAM_LEVELS } from "./natpf/webcam_load.js";
+import { PoseStrokeSource, POSE_INPUT } from "./natpf/webcam_pose_strokes.js";
 // NATPF: MediaPipe Hands dal pacchetto offline (npm @mediapipe/hands, servito sotto /assets/); CDN fissato solo di riserva
 export const MEDIAPIPE_LOCAL_BASE = "/assets/mediapipe/hands/";
 export const MEDIAPIPE_CDN_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/";
@@ -479,6 +480,7 @@ export class MotionController {
   // NATPF: niente mano seguita e niente colpo a metà (webcam riaccesa, mano nuova)
   _resetHandTracking() {
     (this._handTrack = null), (this._handOthers = []), (this._handLost = !1), (this._handPick = null), (this._handCapture = null), (this._handLastPos = null), (this._frameMeta = null), this._strokes && this._strokes.reset();
+    this._poseCapture = null; this._poseSeenAt = null; this._poseUseUntil = 0; this._hasNewPoseResult = !1; this._poseHand = null; this._poseSource?.reset();
   }
   // NATPF: livello di carico del modello delle mani (webcam_load.js); prima dell'accensione quello di partenza
   _wcLevel() {
@@ -535,6 +537,8 @@ export class MotionController {
   }
   _sendFrame(e) {
     if (!this.mpHands || this._mpBusy || !this.webcamActive || !this.videoElem || this.videoElem.readyState < 2) return !1;
+    // Un solo lavoro WASM alla volta. A distanza Pose legge il polso; Hands verifica periodicamente le dita.
+    if (this._poseLoading || this._poseInferenceBusy || (e < (this._poseUseUntil || 0) && e - (this._mpSentAt ?? -Infinity) < POSE_INPUT.handProbeMs)) return !1;
     // livello di carico cambiato: le opzioni nuove fuori dal richiamo dei risultati, prima dell'invio, e non con un punto
     // in gioco (il modello nuovo si carica: il gioco si ferma per un attimo; canReload lo dà il gioco, natpf_hand.js)
     this._wcPending &&
@@ -584,7 +588,7 @@ export class MotionController {
   // NATPF: diagnostica di un fotogramma elaborato (s: campione della mano o del flusso; senza, source null)
   _diagFrame(e, s) {
     const h = this._handPick;
-    this._diag({ kind: "frame", t: e, captureT: s ? s.t : this._frameCaptureT(e), source: s ? s.src : null, hands: h ? h.hands : null, chosen: h ? h.chosen : null, reason: h ? h.reason : null, x: s ? s.x : null, y: s ? s.y : null, inferMs: this.lastInferMs ?? null, phase: this._strokes.state.phase });
+    this._diag({ kind: "frame", t: e, captureT: s ? s.t : this._frameCaptureT(e), source: s ? s.src : null, hands: h ? h.hands : null, chosen: h ? h.chosen : null, reason: h ? h.reason : null, x: s ? s.x : null, y: s ? s.y : null, inferMs: s?.src === "pose" ? this._poseInferMs ?? null : this.lastInferMs ?? null, phase: this._strokes.state.phase });
   }
   // NATPF: risultato del modello delle mani: la mano da seguire tra quelle trovate (continuità, lateralità, taglia),
   // non la prima della lista (una mano che entra, di un passante o la mano libera, la prendeva e la teneva). Un solo
@@ -634,10 +638,25 @@ export class MotionController {
       fresh && this._strokes.reset(),
       (fresh || this._handLost) && this._diag({ kind: "found", t: now, hands: lms.length, reason: pick.reason }),
       (this._handLost = !1),
+      (this._poseUseUntil = 0),
       (this.latestHandLandmarks = lm),
       (this.latestHandSeenAt = now),
       (this._handCapture = { lm, t: Number.isFinite(this._mpSentCapT) ? this._mpSentCapT : now }),
       (this._hasNewHandResult = !0);
+  }
+  _onPoseResults(results, captureT, now = performance.now()) {
+    if (!this.webcamActive || captureT < (this._wcStartedAt ?? -Infinity)) return;
+    this._poseSource ||= new PoseStrokeSource();
+    if (this._poseHand && this._poseHand !== this.handPreference){
+      this._poseCapture = null; this._poseSeenAt = null; this._hasNewPoseResult = !1; this._poseUseUntil = 0;
+      if (this._lastWebcamSource === "pose"){ this._strokes.reset(); this.handTracker.reset(); }
+    }
+    this._poseHand = this.handPreference;
+    const anchor = this._handTrack ? { ...this._handTrack, y: -this._handTrack.u/this._videoAspect() } : null;
+    const sample = this._poseSource.push(results?.poseLandmarks, { now, captureT, hand: this.handPreference, aspect: this._videoAspect(), anchor });
+    if (!sample) return;
+    this._poseCapture = sample; this._hasNewPoseResult = !0; this._poseSeenAt = now;
+    if (!this.latestHandLandmarks || now - (this.latestHandSeenAt || 0) >= 240) this._poseUseUntil = now + POSE_INPUT.freshMs;
   }
   // NATPF: un campione della mano (o del flusso ottico) al riconoscimento dei colpi, poi gli eventi decisi
   _strokeSample(s, e) {
@@ -664,10 +683,10 @@ export class MotionController {
   // ripresa (ritrovata dopo una perdita: per 0,6 s; i colpi contano da quando sta ferma, webcam_strokes.js), movimento
   // (modello delle mani non disponibile: solo flusso ottico)
   _handStateTick(e) {
-    const seen = this._handSeenForFlow,
+    const seen = this._webcamSeenAt(),
       age = seen == null || (this._wcStartedAt != null && seen < this._wcStartedAt) ? Infinity : e - seen,
       prev = this._handState;
-    const st = !this.mpHands
+    const st = !this.mpHands && !this._poseModelReady
       ? "movimento"
       : age > HAND_FLOW_MAX_MS
         ? "persa"
@@ -681,15 +700,19 @@ export class MotionController {
   // NATPF: salute della webcam per la pausa della partita (natpf_webcam_watch.js): accesa, modello delle mani, da quanto
   // non si vede la mano (dall'accensione se mai vista), da quanto non arriva un fotogramma della camera
   webcamHealth(now = performance.now()) {
-    const seen = this._handSeenForFlow,
+    const seen = this._webcamSeenAt(),
       from = this._wcStartedAt ?? now;
     return {
       active: !!this.webcamActive,
-      model: !!this.mpHands,
+      model: !!this.mpHands || !!this._poseModelReady,
       handAgeMs: seen == null || seen < from ? now - from : now - seen,
       frameAgeMs: this._frameMeta && Number.isFinite(this._frameMeta.at) ? now - this._frameMeta.at : null,
       state: this._handState || null,
     };
+  }
+  _webcamSeenAt() {
+    const seen = Math.max(this._handSeenForFlow ?? -Infinity, this._poseSeenAt ?? -Infinity);
+    return Number.isFinite(seen) ? seen : null;
   }
   // NATPF: posa della mano per la racchetta (liveInput), null se la webcam è spenta o la mano non si vede
   webcamLiveInput(e = performance.now()) {
@@ -731,6 +754,17 @@ export class MotionController {
         this._strokeSample({ t: cap, x: p.x, y: p.y, src: "hands", scale: handSize(c, this._videoAspect()) }, e);
       return;
     }
+    const pose = this._poseCapture;
+    if (pose && e - (this._poseSeenAt ?? -Infinity) < POSE_INPUT.freshMs) {
+      if (!this._hasNewPoseResult) return;
+      this._hasNewPoseResult = !1;
+      this.smoothedCentroid.x = pose.x; this.smoothedCentroid.y = pose.y;
+      this._lastWebcamSource = "pose"; this._handLastPos = { x: pose.x, y: pose.y };
+      this.handTracker.push(pose.pose, e);
+      this._wcStats && this._wcStats.use(e - pose.t);
+      this._strokeSample(pose, e);
+      return;
+    }
     if (!t) return;
     // NATPF: mano persa da poco (il mosso nella parte veloce dello swing): si aspetta che torni, il colpo continua sulla
     // traccia della mano invece di ripartire sul flusso ottico
@@ -741,7 +775,7 @@ export class MotionController {
     // NATPF: mano persa da oltre HAND_FLOW_MAX_MS (o mai vista) con il modello delle mani attivo: niente colpi dal flusso
     // ottico, che sarebbero inventati (il corpo, l'altra mano, chi passa), e niente lettura dei pixel. Il flusso resta
     // per finire un colpo appena perso per il mosso e come unico ingresso quando il modello non c'è
-    if (this.mpHands && e - (this._handSeenForFlow ?? -1e9) > HAND_FLOW_MAX_MS) {
+    if ((this.mpHands || this._poseModelReady) && e - (this._webcamSeenAt() ?? -1e9) > HAND_FLOW_MAX_MS) {
       this.onTrack && this._diagFrame(e, null);
       return;
     }
