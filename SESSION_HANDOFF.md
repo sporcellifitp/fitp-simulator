@@ -1,5 +1,15 @@
 # SESSION_HANDOFF · NATPF Simulator, giro «racchetta virtuale» (dal 22/10/2026)
 
+## Branch attuale dal 28/10/2026
+
+L'utente ha chiesto un nuovo branch per proseguire. Il branch di lavoro è ora **`natpf-simulator`**, creato da
+`30fba542831b4a8cd2d26c66ba9e54399aab7d81` di `claude/friendly-fermat-dwv2w2`, con tutto il codice e la consegna LAN
+2026-10-27.1. Questa indicazione sostituisce le precedenti istruzioni di «branch unico» presenti nello storico e in
+`MEMORY.md`. I prossimi checkpoint di NATPF vanno su `natpf-simulator`.
+
+`main` esiste già ed è ancora il branch predefinito del repository. Non è stato eseguito un merge su `main` né è
+stato cambiato il branch predefinito. Il precedente branch conserva il checkpoint da cui è partita questa copia.
+
 ## Consegna LAN del 28/10/2026
 
 - Su richiesta dell'utente generato `natpf-simulator-lan-windows-20261027-1.zip`, build **2026-10-27.1**, dal codice
