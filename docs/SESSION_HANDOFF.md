@@ -10,7 +10,7 @@ e interventi in `docs/WORK_PROGRESS.md` («Analisi della sessione del 28/10 sera
 `bfcc6e9` (webcam: il motivo quando non si apre, mano/polso/avambraccio), `ec380d4` (telefono: verso con asse di
 calibrazione orizzontale, soglia nel verso atteso, rientro dopo un colpo debole), `8f1435e` (schiacciata a rete) e
 l'aggiornamento dei documenti. Test: gioco 440/440, sito 157/157; banco Leggenda invariato (3 KO già presenti).
-Non provati con telefono e webcam veri. I pacchetti 2026-10-28.3 consegnati **non** li contengono.
+Non provati con telefono e webcam veri. I pacchetti 2026-10-28.3 non li contengono; il LAN 2026-10-28.4 sì.
 
 Aperti, da decidere con l'utente:
 1. Pallonetto alzando il braccio: il gesto si vede dopo il picco di rotazione; proposta: esercizio «Pallonetto» del
@@ -19,8 +19,11 @@ Aperti, da decidere con l'utente:
    Proposta: prova guidata (Diagnostica → «Prova guidata dei colpi», chiede incrociati e lungolinea) per misurare
    quale segnale segue l'intenzione, poi decidere i pesi.
 3. Banco Leggenda: 3 criteri KO già presenti prima di queste modifiche (CPU contro «tennista» e «preciso»).
-4. Push: solo con autorizzazione. Pacchetti 2026-10-28.4 (con queste correzioni e, se l'utente conferma, gli elementi
-   di confezione dello zip dell'altro agente: `_headers` senza cache, `build.json`, istruzioni, impronte) da fare.
+4. Fatto su richiesta: pacchetto **LAN 2026-10-28.4** con queste correzioni (SHA256 `f4eb5394…b0c6`, dettagli in
+   `docs/WORK_PROGRESS.md`), senza gli elementi dello zip dell'altro agente (l'utente non li vuole); nessun pacchetto
+   Cloudflare .4. Push autorizzato e fatto su `origin/natpf-simulator`.
+5. Prossima azione: prova del pacchetto LAN 2026-10-28.4 su Windows con il telefono (rovescio con presa dritta, colpi
+   morbidi nel verso della palla, schiacciata a rete) e con la webcam senza OBS; poi prova guidata per la direzione.
 
 ## Pacchetti 2026-10-28.3 (28/10 sera)
 

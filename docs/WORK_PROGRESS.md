@@ -312,3 +312,17 @@ Interventi:
       Banco `npm run audit:legend`: stessi risultati di prima (3 criteri KO già presenti anche senza la modifica:
       CPU contro «tennista» 81,5% → 81,7% con soglia 85%, contro «preciso» 28,4% con soglia 60%, incrociati 50,1%
       contro «bambino»): da guardare a parte.
+
+## Pacchetto LAN 2026-10-28.4 (28/10 sera, sessione Claude): solo LAN, con le correzioni della sessione del 28/10
+Richiesta dell'utente: solo il pacchetto LAN con queste correzioni, senza gli elementi dello zip dell'altro agente.
+- [x] Versione 2026-10-28.4 (`site/js/tennis/version.js`, `site/tennis/build.json`); gioco 440/440, sito 157/157, build.
+- [x] `natpf-simulator-lan-windows-20261028-4.zip` (`lan/pacchetto.mjs`, Node.js 22.22.0 win-x64 con SHA256 uguale a
+      SHASUMS256 di nodejs.org, `node.exe` identico), 277 file, 61.092.054 byte, nessun certificato né chiave, nessuna
+      parola vietata, nessun file dello zip dell'altro agente. SHA256
+      `f4eb5394024ed9bf175c807aac783cd3bdab984b129b8f21ac9ddf8d0222b0c6`.
+- [x] Estratto e provato (Linux): certificato, HTTPS con la CA del pacchetto, versione 2026-10-28.4, rilevatore del
+      telefono servito con le correzioni (`weakRefMin`, `TOWARD_FLOOR`), voci, intro video, MediaPipe offline; browser:
+      47 clip, «Stesso schermo» con due QR, partita divisa, pagina del telefono, pannello della webcam senza webcam →
+      «Nessuna webcam» con il motivo (NotFoundError), nessun errore in console.
+- [ ] Non provato: Windows, telefono vero, webcam occupata da OBS (solo nei test).
+- Nessun pacchetto Cloudflare 2026-10-28.4.
