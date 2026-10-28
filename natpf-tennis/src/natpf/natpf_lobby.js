@@ -104,7 +104,12 @@ export class NatpfLobby {
     $('join-form')?.addEventListener('submit', e => { e.preventDefault(); e.stopPropagation(); this.joinWithCode($('join-code')?.value); });
     this.el.addEventListener('pointerdown', e => e.stopPropagation());
     // menu principale: sotto le voci la descrizione di quella scelta (frecce, mouse o tocco)
-    const describe = e => { const m = e.target?.closest?.('[data-menu]'), d = $('menu-desc'); if (m && d && m.dataset.desc && d.textContent !== m.dataset.desc) d.textContent = m.dataset.desc; };
+    // a sinistra la voce evidenziata in grande (titolo e descrizione), come nei menu delle console
+    const describe = e => {
+      const m = e.target?.closest?.('[data-menu]'), d = $('menu-desc'), t = $('lobby-t-menu');
+      if (m && d && m.dataset.desc && d.textContent !== m.dataset.desc) d.textContent = m.dataset.desc;
+      if (m && t && m.dataset.title && t.textContent !== m.dataset.title) t.textContent = m.dataset.title;
+    };
     this.el.addEventListener('focusin', describe); this.el.addEventListener('pointerover', describe);
     // tastiera del menu prima di quella del motore (che con Spazio/Invio/frecce colpirebbe)
     window.addEventListener('keydown', e => this._key(e), true);

@@ -5,7 +5,7 @@
 // non c'è per il Player 2 che apre l'invito di una sfida.
 const $ = id => document.getElementById(id);
 export const INTRO_KEY = 'natpf-tennis.intro';
-// durata dell'animazione completa (ms) e di quella breve (sessione già vista): allineate a natpf-intro.css
+// durata dell'animazione completa (ms) e di quella breve (sessione già vista): allineate alle animazioni dell'intro in natpf-ui.css
 export const INTRO_MS = { full: 5200, short: 1500 };
 export function introMode({ search = '', seen = false } = {}){
   const q = new URLSearchParams(search);

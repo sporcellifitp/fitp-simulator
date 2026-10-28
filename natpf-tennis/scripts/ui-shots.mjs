@@ -80,5 +80,14 @@ for (const id of ['targets', 'machine', 'rally', 'radar']){
   await page.waitForTimeout(1200);
   await shot('result-' + id);
 }
+// finestre: guida, pausa, telefono, vittoria
+await ui(() => { const U = window.__natpfTennis.natpfUi; U.lobby.go('menu'); U.onboarding.open(); });
+await shot('sheet-guide');
+await ui(() => { const U = window.__natpfTennis.natpfUi; U.onboarding.close?.(); document.getElementById('natpf-onboarding')?.classList.add('hidden'); U.training.start({}); U.pause?.open?.() ?? U.pause?.toggle?.(); });
+await shot('sheet-pause');
+await ui(() => { const U = window.__natpfTennis.natpfUi; U.pause?.close?.(); document.getElementById('natpf-pause')?.classList.add('hidden'); U.training.stop({ completed: false, silent: true }); document.getElementById('natpf-phone-modal')?.classList.remove('hidden'); });
+await shot('sheet-phone');
+await ui(() => { document.getElementById('natpf-phone-modal')?.classList.add('hidden'); const E = window.__natpfTennis; E.hud.hideTitleModal?.(); E.hud.showVictoryModal?.({ playerWon: true, playerGames: 1, opponentGames: 0 }); document.getElementById('victory-modal')?.classList.remove('hidden'); });
+await shot('victory');
 console.log(errors.length ? 'Errori nella pagina:\n' + [...new Set(errors)].slice(0, 20).join('\n') : 'Nessun errore nella pagina');
 await browser.close();

@@ -22,7 +22,6 @@ checkpoint pubblicato su GitHub è `59ce56c`; quelli successivi sono solo nel ch
 
 ## Prossima azione esatta
 
-T2 (tutorial) completato. Prossimo: T3 redesign del menu e delle pagine (`#title-modal` in `index.html`,
-`natpf_lobby.js`) dentro `natpf-ui.css`, togliendo le regole corrispondenti da `natpf-intro.css` / `natpf.css` /
-`natpf-round.css` / `natpf-flow.css`. Verificare con `node scripts/ui-shots.mjs --out <cartella>` (desktop) e
-`--mobile`, con `npm run dev` attivo.
+T3 (redesign UI) completato nelle parti principali. Prossimo: T4 audio — volumi separati musica/effetti/voci
+(`audio_engine.js`: `musicGain`, `sfxGain`, `voice.volume`; cursori in Opzioni e Pausa), playlist e brani nuovi in
+`natpf_music.js`, effetti per tipo di colpo e vocalizzazioni in `natpf_sfx.js`. Poi T5 minigiochi.
