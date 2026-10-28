@@ -23,6 +23,7 @@ import { webcamHealth, createWebcamWatch, webcamHoldText } from './natpf_webcam_
 import { gripSvg, GRIP_TEXT_PLAIN } from '@natpf/tennis/grip-art.js';
 import { p2pStatusText, P2P_NET_HINT } from './natpf_versus.js';
 import { NatpfSplitUi } from './natpf_split_ui.js';
+import { NatpfScreen } from './natpf_screen.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -77,6 +78,8 @@ export class NatpfUi {
     this.versus = new NatpfVersusUi(engine, this);
     // stesso schermo (split screen): due telefoni, pannelli della pagina «Collega» ed etichette in partita
     this.split = new NatpfSplitUi(engine, this);
+    // schermo: finestra intera o area di un ledwall 2×2 / 3×2 (natpf_screen.js)
+    this.screen = new NatpfScreen(engine);
     this.kiosk = new NatpfKiosk(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
     this.intro = new NatpfIntro({ onDone: () => { if (this.lobby.visible) this.lobby.go('menu'); } });

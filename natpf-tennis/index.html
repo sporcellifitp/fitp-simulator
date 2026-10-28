@@ -358,6 +358,16 @@
               ><button type="button" class="seg-btn" data-option="intro">Rivedi l’intro</button>
             </div>
           </div>
+          <!-- schermo: finestra intera o area con le proporzioni di un ledwall (natpf_screen.js) -->
+          <div class="lobby-row">
+            <span class="lobby-label">Schermo</span>
+            <div class="lobby-seg" role="radiogroup" aria-label="Schermo">
+              <button type="button" class="seg-btn" data-natpf-screen="full">Intero</button
+              ><button type="button" class="seg-btn" data-natpf-screen="2x2">Ledwall 2×2</button
+              ><button type="button" class="seg-btn" data-natpf-screen="3x2">Ledwall 3×2</button>
+            </div>
+          </div>
+          <p class="lobby-note" id="screen-note">Ledwall: il gioco usa un’area con le proporzioni del ledwall al centro dello schermo del PC. Per un’area precisa del processore LED aggiungi all’indirizzo <code>?area=x,y,larghezza,altezza</code> (pixel).</p>
         </section>
 
         <section class="lobby-page" data-page="controller" aria-labelledby="lobby-t-controller">

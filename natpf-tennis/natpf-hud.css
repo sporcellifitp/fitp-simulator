@@ -262,7 +262,7 @@ body {
 .center-banner-streak {
   left: 0;
   right: 0;
-  height: clamp(64px, 9vw, 104px);
+  height: clamp(64px, 9cqw, 104px);
   background: linear-gradient(90deg, rgba(7, 18, 51, 0) 0, rgba(7, 18, 51, 0.88) 18%, rgba(7, 18, 51, 0.88) 82%, rgba(7, 18, 51, 0) 100%);
   border-top: 2px solid rgba(232, 255, 58, 0.55);
   border-bottom: 2px solid rgba(232, 255, 58, 0.55);
@@ -286,7 +286,7 @@ body {
 .center-banner-text.style-won,
 .center-banner-text.style-lost {
   font-family: var(--hud-font);
-  font-size: clamp(42px, 6vw, 76px);
+  font-size: clamp(42px, 6cqw, 76px);
   font-weight: 800;
   font-style: italic;
   letter-spacing: 0.01em;
@@ -616,7 +616,7 @@ body {
   background: var(--hud-navy);
 }
 .victory-result-banner {
-  font-size: clamp(34px, 5vw, 46px);
+  font-size: clamp(34px, 5cqw, 46px);
   font-weight: 800;
   font-style: italic;
   line-height: 1;
@@ -661,7 +661,7 @@ body {
   font-size: 18px;
 }
 
-@media (max-width: 768px) {
+@container natpf (max-width: 768px) {
   .nt-games-pill {
     height: 40px;
     padding: 0 6px;
@@ -707,7 +707,7 @@ body {
 .natpf-gesture {
   position: fixed;
   left: 50%;
-  bottom: max(18px, 3vh);
+  bottom: max(18px, 3cqh);
   z-index: 30;
   display: flex;
   align-items: center;
@@ -775,5 +775,5 @@ body {
 }
 /* nel riscaldamento sta sopra il pannello dell'allenatore */
 body.natpf-training .natpf-gesture {
-  bottom: calc(max(16px, 3.5vh) + 132px);
+  bottom: calc(max(16px, 3.5cqh) + 132px);
 }

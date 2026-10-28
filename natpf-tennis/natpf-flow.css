@@ -201,8 +201,8 @@
 .natpf-sheet.natpf-guide {
   display: flex;
   flex-direction: column;
-  width: min(980px, 96vw);
-  max-height: 92vh;
+  width: min(980px, 96cqw);
+  max-height: 92cqh;
   padding: 22px 24px 18px;
 }
 .guide-head {
@@ -369,7 +369,7 @@
     animation: none;
   }
 }
-@media (max-width: 760px) {
+@container natpf (max-width: 760px) {
   .lobby-progress span {
     display: none;
   }
@@ -391,7 +391,7 @@
   left: 12px;
   bottom: 12px;
   z-index: 200;
-  max-width: min(980px, calc(100vw - 24px));
+  max-width: min(980px, calc(100cqw - 24px));
   padding: 10px 12px;
   border-radius: 14px;
   background: rgba(4, 10, 28, 0.9);
@@ -429,8 +429,8 @@
 }
 /* modalità diagnostica: registrazione delle sessioni, elenco, confronto */
 .natpf-diag {
-  width: min(820px, calc(100vw - 24px));
-  max-height: calc(100vh - 24px);
+  width: min(820px, calc(100cqw - 24px));
+  max-height: calc(100cqh - 24px);
   overflow: auto;
   font-family: system-ui, sans-serif;
   font-size: 13px;

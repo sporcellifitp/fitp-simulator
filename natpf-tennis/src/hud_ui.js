@@ -1,6 +1,7 @@
 import { renderAllHudPlayerAvatars as P, renderPlayerAvatar as L } from "./player_avatars.js";
 // NATPF: testi dell'HUD in italiano (traduzione al momento della visualizzazione)
 import { t as tr, scoreText as sc } from "./natpf/natpf_i18n.js";
+import { viewport } from "./natpf/natpf_screen.js"; // NATPF: finestra intera o area del ledwall
 export class HudUI {
   constructor(t = {}) {
     (this.callbacks = t),
@@ -426,8 +427,8 @@ export class HudUI {
       return;
     }
     this.elServerTag.classList.remove("hidden");
-    const e = Math.max(80, Math.min(window.innerWidth - 80, t.x)),
-      i = Math.max(95, Math.min(window.innerHeight - 90, t.y));
+    const e = Math.max(80, Math.min(viewport().w - 80, t.x)),
+      i = Math.max(95, Math.min(viewport().h - 90, t.y));
     (this.elServerTag.style.left = `${e.toFixed(1)}px`), (this.elServerTag.style.top = `${i.toFixed(1)}px`);
   }
   updatePlayerNameplate(t, n) {
@@ -437,8 +438,8 @@ export class HudUI {
       return;
     }
     this.elPlayerNameplate.classList.remove("hidden");
-    const e = Math.max(90, Math.min(window.innerWidth - 90, t.x)),
-      i = Math.max(120, Math.min(window.innerHeight - 50, t.y));
+    const e = Math.max(90, Math.min(viewport().w - 90, t.x)),
+      i = Math.max(120, Math.min(viewport().h - 50, t.y));
     (this.elPlayerNameplate.style.left = `${e.toFixed(1)}px`),
       (this.elPlayerNameplate.style.top = `${i.toFixed(1)}px`);
   }
@@ -461,8 +462,8 @@ export class HudUI {
         (this.elTimingDetail.textContent = tr(n)),
         e && e.visible)
       ) {
-        const o = Math.max(110, Math.min(window.innerWidth - 110, e.x)),
-          s = Math.max(110, Math.min(window.innerHeight - 120, e.y));
+        const o = Math.max(110, Math.min(viewport().w - 110, e.x)),
+          s = Math.max(110, Math.min(viewport().h - 120, e.y));
         (this.elTimingPopup.style.left = `${o.toFixed(1)}px`),
           (this.elTimingPopup.style.top = `${s.toFixed(1)}px`);
       } else (this.elTimingPopup.style.left = "50%"), (this.elTimingPopup.style.top = "54%");

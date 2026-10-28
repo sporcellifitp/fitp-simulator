@@ -6,6 +6,7 @@
 //   situazione rende il colpo debole o lo fa fallire («palla debole: in corsa», «scambio lungo»).
 // I colpi dell'avversario restano con l'anello bianco di rimbalzo del motore base.
 import * as THREE from 'three';
+import { viewport } from './natpf_screen.js';
 
 export const QUALITY_COLORS = Object.freeze({ green: 0x3be37f, yellow: 0xffd23f, red: 0xff4d5e });
 const COURT = { halfW: 4.115, halfL: 11.885, service: 6.4 };
@@ -76,7 +77,7 @@ export class NatpfShotFeedback {
       const kmh = String(o.detail || '').match(/\d+\s*KM\/H/i)?.[0] || '';
       // in prima persona il proprio messaggio va al centro, sotto la linea dello sguardo (non sopra il tabellone)
       const mine = p2 === (engine.playerRole === 'p2');
-      const screenPos = mine && engine._isFirstPersonActive?.() ? { x: window.innerWidth/2, y: window.innerHeight*.64, visible: true } : o.screenPos;
+      const screenPos = mine && engine._isFirstPersonActive?.() ? { x: viewport().w/2, y: viewport().h*.64, visible: true } : o.screenPos;
       const name = shotName(g), why = shotWhy(engine.natpfLastRacket, { now: engine.elapsedTime, who: p2 ? 'p2' : 'player' });
       popup({ ...o, screenPos, grade: q.label, detail: [name, why, kmh.toLowerCase()].filter(Boolean).join(' · ') });
       const el = document.getElementById('timing-popup-grade');

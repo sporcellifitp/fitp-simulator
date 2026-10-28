@@ -102,6 +102,7 @@ export class NatpfLobby {
       const m = e.target.closest('[data-menu]'); if (m){ e.stopPropagation(); this.menu(m.dataset.menu); return; }
       const t = e.target.closest('[data-mode]'); if (t){ e.stopPropagation(); this.setMode(t.dataset.mode); setTimeout(() => this.go(this.mode === 'split' ? 'connect' : 'controller'), 160); return; }
       const o = e.target.closest('[data-option]'); if (o){ e.stopPropagation(); this.option(o.dataset.option); return; }
+      const sc = e.target.closest('[data-natpf-screen]'); if (sc){ e.stopPropagation(); this.ui.screen?.set(sc.dataset.natpfScreen); this.paint(); return; }
       const f = e.target.closest('[data-natpf-format]'); if (f){ e.stopPropagation(); this.setFormat(f.dataset.natpfFormat); return; }
       const ch = e.target.closest('[data-challenge]'); if (ch){ e.stopPropagation(); this.pickChallenge(ch.dataset.challenge); return; }
       const tab = e.target.closest('[data-ranking]'); if (tab){ e.stopPropagation(); this.rankingTab = tab.dataset.ranking; this._paintRanking(); return; }
@@ -286,6 +287,9 @@ export class NatpfLobby {
     const set = (k, on) => { const b = this.el.querySelector(`[data-option="${k}"] b`); if (b) b.textContent = on ? 'Sì' : 'No'; };
     set('music', audio ? !audio.muted : true);
     set('voice', audio?.voice ? !!audio.voice.enabled : true);
+    // schermo: con un'area dall'indirizzo (?area=) nessuna scelta è accesa (vale l'indirizzo)
+    const scr = this.ui.screen, cur = scr?.area ? null : scr?.preset;
+    for (const b of this.el.querySelectorAll('[data-natpf-screen]')){ const on = b.dataset.natpfScreen === cur; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
   }
   go(step){
     if (!LOBBY_STEPS.includes(step)) return;

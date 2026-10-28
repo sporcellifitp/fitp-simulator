@@ -13,6 +13,7 @@ import { MODES, modeById, recordGame, RECORDS_KEY, levelOf, comboMultiplier, rus
 import { TargetField } from './natpf_targets.js';
 import { feedForLevel } from './natpf_ball_machine.js';
 import { trainingDirection } from './natpf_training.js';
+import { viewport } from './natpf_screen.js';
 
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
@@ -134,7 +135,7 @@ export class NatpfEvents {
     const E = this.engine; if (typeof document === 'undefined' || !E.camera || !world) return;
     let layer = $('natpf-popups');
     if (!layer){ layer = document.createElement('div'); layer.id = 'natpf-popups'; layer.className = 'natpf-popups'; document.body.appendChild(layer); }
-    const v = world.clone().project(E.camera), w = globalThis.innerWidth || 1280, h = globalThis.innerHeight || 720;
+    const v = world.clone().project(E.camera), { w, h } = viewport();
     if (v.z > 1) return;
     const el = document.createElement('div');
     el.className = `natpf-pop ${cls}`; el.textContent = text;

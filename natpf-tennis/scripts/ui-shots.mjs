@@ -36,8 +36,11 @@ await page.goto(URL, { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => window.__natpfTennis?.natpfUi?.lobby, null, { timeout: 60000 });
 await page.waitForTimeout(2500);
 await shot('intro');
-await page.keyboard.press('Enter');
-await page.waitForTimeout(1200);
+// il primo tasto porta l'intro alla fine (titolo e «Premi un tasto»), il secondo entra nel menu
+for (let i = 0; i < 4 && await page.evaluate(() => !document.getElementById('natpf-intro')?.classList.contains('hidden')); i++){
+  await page.keyboard.press('Enter'); await page.waitForTimeout(700);
+}
+await page.waitForTimeout(600);
 await shot('menu');
 for (const step of ['mode', 'challenges', 'ranking', 'options', 'controller', 'connect', 'match']){
   await ui(s => window.__natpfTennis.natpfUi.lobby.go(s), step);

@@ -177,3 +177,21 @@ test('stesso schermo dal menu alla partita: due telefoni, calibrazione automatic
   ui.backToMenu();
   assert.equal(E.natpfSplit.active, false); assert.equal(E.versus.active, false);
 });
+
+import { parseArea, screenArea, readScreen, SCREENS } from '../src/natpf/natpf_screen.js';
+
+test('schermo: intero, ledwall 2×2 (1:1) e 3×2 (3:2) al centro, area esatta per il processore LED', () => {
+  assert.deepEqual(screenArea({ preset: 'full' }, 1920, 1080), { x: 0, y: 0, w: 1920, h: 1080, full: true });
+  assert.deepEqual(screenArea({ preset: '2x2' }, 1920, 1080), { x: 420, y: 0, w: 1080, h: 1080, full: false });
+  assert.deepEqual(screenArea({ preset: '3x2' }, 1920, 1080), { x: 150, y: 0, w: 1620, h: 1080, full: false });
+  assert.deepEqual(screenArea({ preset: '3x2' }, 1000, 1000), { x: 0, y: 167, w: 1000, h: 667, full: false }, 'finestra stretta: si adatta in larghezza');
+  assert.deepEqual(parseArea('0,0,768,512'), { x: 0, y: 0, w: 768, h: 512 });
+  assert.equal(parseArea('0,0,20,20'), null); assert.equal(parseArea('abc'), null);
+  // area dal processore LED: vince sulla scelta, e non esce dalla finestra
+  assert.deepEqual(screenArea({ preset: '2x2', area: { x: 0, y: 0, w: 768, h: 512 } }, 1920, 1080), { x: 0, y: 0, w: 768, h: 512, full: false });
+  assert.deepEqual(screenArea({ area: { x: 1800, y: 0, w: 768, h: 512 } }, 1920, 1080).w, 1920 - 1800);
+  assert.equal(readScreen('?schermo=2x2', 'full').preset, '2x2'); assert.equal(readScreen('?schermo=intero', '3x2').preset, 'full');
+  assert.equal(readScreen('', '3x2').preset, '3x2'); assert.equal(readScreen('', 'boh').preset, 'full');
+  assert.deepEqual(readScreen('?area=10,20,800,600', null).area, { x: 10, y: 20, w: 800, h: 600 });
+  assert.equal(SCREENS['2x2'].ratio, 1); assert.equal(SCREENS['3x2'].ratio, 1.5);
+});

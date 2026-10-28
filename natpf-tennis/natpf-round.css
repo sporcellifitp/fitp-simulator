@@ -493,7 +493,7 @@ html:not(.autoplay-mode) .natpf-pause-btn {
 .pause-grid button:hover {
   background: rgba(166, 182, 220, 0.18);
 }
-@media (max-width: 760px) {
+@container natpf (max-width: 760px) {
   .howto-cards {
     grid-template-columns: 1fr;
   }

@@ -42,8 +42,8 @@ html.autoplay-mode #title-modal {
 #canvas-container {
   position: fixed;
   inset: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100cqw;
+  height: 100cqh;
   z-index: 1;
   background: linear-gradient(180deg, #56abff, #9fd4ff 48%, #55a224 50%, #468a1c);
 }
@@ -405,7 +405,7 @@ canvas.pl-canvas-backed {
   z-index: -1;
 }
 .center-banner-text {
-  font-size: clamp(50px, 6.4vw, 78px);
+  font-size: clamp(50px, 6.4cqw, 78px);
   font-weight: 900;
   letter-spacing: 0.02em;
   line-height: 1.05;
@@ -716,8 +716,8 @@ html[data-url-state="replay"] .hud-corner-dock {
   backdrop-filter: blur(5px);
 }
 .nt-title-card {
-  width: min(520px, 94vw);
-  max-height: 92vh;
+  width: min(520px, 94cqw);
+  max-height: 92cqh;
   overflow-y: auto;
   border-radius: 26px;
   padding: 22px 26px;
@@ -735,7 +735,7 @@ html[data-url-state="replay"] .hud-corner-dock {
   text-align: center;
 }
 .natpf-logo-title {
-  font-size: clamp(32px, 4.4vw, 44px);
+  font-size: clamp(32px, 4.4cqw, 44px);
   font-weight: 900;
   letter-spacing: -0.02em;
   line-height: 1.02;
@@ -887,7 +887,7 @@ html[data-url-state="replay"] .hud-corner-dock {
   box-shadow: 0 8px 24px #0078eb99;
 }
 .nt-dialog-box {
-  width: min(350px, 92vw);
+  width: min(350px, 92cqw);
   padding: 22px 24px;
   border-radius: 24px;
   background: linear-gradient(180deg, #fff, #f4faff);
@@ -973,7 +973,7 @@ html[data-url-state="replay"] .hud-corner-dock {
   box-shadow: 0 4px 12px #0050aa59;
 }
 .nt-skill-card {
-  width: min(560px, 94vw);
+  width: min(560px, 94cqw);
   border-radius: 22px;
   background: #1c222aeb;
   border: 3px solid rgba(220, 235, 250, 0.8);
@@ -1076,7 +1076,7 @@ html[data-url-state="replay"] .hud-corner-dock {
   background: linear-gradient(180deg, #fff, #dde6f0);
   color: #2c3a47;
 }
-@media (max-width: 768px) {
+@container natpf (max-width: 768px) {
   #top-hud-bar {
     top: 10px;
     left: 8px;
@@ -1096,7 +1096,7 @@ html[data-url-state="replay"] .hud-corner-dock {
   .nt-scoreboard-pill {
     min-width: 0;
     flex: 1 1 auto;
-    max-width: calc(100vw - 108px);
+    max-width: calc(100cqw - 108px);
     height: 42px;
     padding: 0 6px;
     border-width: 2px;

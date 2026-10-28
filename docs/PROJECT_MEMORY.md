@@ -13,7 +13,9 @@ prende una decisione che un agente futuro deve conoscere. Stato operativo in `WO
     `natpf_training.js` (riscaldamento/tutorial in campo con lanciapalle), `natpf_events.js` (sfide/minigiochi e
     classifica), `natpf_phone_racket.js` (telefono come racchetta), `natpf_gestures.js` (gesto → colpo),
     `natpf_music.js` (musica generativa Web Audio), `natpf_voice.js` (voce del gioco in inglese: clip registrate,
-    ripiego sulla sintesi del browser), `natpf_media.js` (foto reali del tutorial).
+    ripiego sulla sintesi del browser), `natpf_media.js` (foto reali del tutorial), `natpf_split.js` +
+    `natpf_split_ui.js` (split screen: 1v1 sullo stesso schermo con due telefoni), `natpf_screen.js` (schermo intero o
+    area di un ledwall).
   - `src/audio_engine.js` — effetti sintetizzati (colpo, rimbalzo, rete, pubblico, UI).
   - CSS: `styles.css` (motore base), `natpf*.css` (strati NATPF). Vedi «Decisioni UI».
   - `test/*.test.mjs` — node:test con DOM simulato (`test/ui-world.mjs`), `npm test`.
@@ -64,6 +66,16 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   passate al controllo fotogramma per fotogramma) e poi rifiutate dall'utente: il telefono sembrava un telecomando e le
   pose non erano coerenti con il tennis né con i testi. Non riproporle senza una richiesta esplicita. Per i mancini
   le foto sono specchiate in CSS.
+- **Split screen «Stesso schermo»** (28/10 sera): 1v1 su un computer con due telefoni. È il 1v1 dell'host con una
+  sessione locale (`engine.startSplit()`: `versus = { active, local: true }`, nessuna stanza, singolare, regole 1v1
+  sempre); il secondo telefono è `NatpfPhoneRacket(engine, { role: 'p2' })` e i suoi colpi entrano da
+  `_emitP2Swing/_emitP2Toss` come quelli del P2 in rete. La partita si disegna due volte con lo scissor (P1 a sinistra
+  dal suo lato, P2 a destra dal lato opposto), terza persona; camera per metà adattata alle metà strette (ledwall).
+  Non usare la prima persona né il doppio in split.
+- **Schermo e ledwall**: tutto il gioco può stare in un'area (preset 1:1 / 3:2 centrati, o `?area=x,y,w,h` per il
+  processore LED). Regola per chi scrive CSS: misure e regole che dipendono dallo schermo con **`cqw/cqh` e
+  `@container natpf`**, non `vw/vh` e `@media` (il body è il contenitore «natpf»); nel JS `viewport()` di
+  `natpf_screen.js`, non `window.innerWidth/innerHeight`.
 - **Intro**: video `public/media/intro.mp4` (Cinema Studio 3.0, senza scritte né marchi) con titolo in HTML; il solo
   titolo grande è «NATPF Simulator», i partner (Esports FITP, Nitto ATP Finals) sono sempre una riga piccola in
   secondo piano (intro e menu), mai schermate di loghi a tutto schermo.
@@ -91,6 +103,8 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   servizio senza lezione (`WARMUP_IDS` in `natpf_training.js`). La volée si allena a rete (`VOLLEY_Z`).
 
 ## Storico modifiche significative
+
+- 28/10/2026 (sera) — split screen «Stesso schermo» (due telefoni, due viste) e schermo per ledwall 2×2 / 3×2 / area.
 
 - 28/10/2026 (sera) — tolte le clip video dei colpi (tutorial di nuovo con l'animazione 3D, foto reali nella lezione);
   voce rifatta solo in inglese con una voce cartoon (47 clip, 10,8 crediti Higgsfield).

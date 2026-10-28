@@ -40,6 +40,7 @@ import { NatpfBodyFollow } from "./natpf/webcam_body_follow.js";
 import { installNatpfP2p } from "./natpf/natpf_p2p.js";
 import { VERSUS, MATCH_PHASES, seqGate } from "./natpf/natpf_versus.js";
 import { NatpfSplit } from "./natpf/natpf_split.js";
+import { viewport } from "./natpf/natpf_screen.js";
 const VERSUS_ROOM_KEY = "natpf.versus.room";
 const readStoredView = () => {
   try {
@@ -274,7 +275,7 @@ export class NatpfTennisEngine {
         powerPreference: "high-performance",
       })),
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)),
-      this.renderer.setSize(window.innerWidth, window.innerHeight),
+      this.renderer.setSize(viewport().w, viewport().h), // NATPF: finestra intera o area del ledwall (natpf_screen.js)
       (this.renderer.shadowMap.enabled = !0),
       (this.renderer.shadowMap.type = o.PCFSoftShadowMap),
       (this.renderer.outputColorSpace = o.SRGBColorSpace),
@@ -283,7 +284,7 @@ export class NatpfTennisEngine {
       (this.scene = new o.Scene()),
       (this.scene.background = new o.Color(7914239)),
       (this.scene.fog = new o.FogExp2(12313855, 0.0038)),
-      (this.camera = new o.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 260)),
+      (this.camera = new o.PerspectiveCamera(45, viewport().w / viewport().h, 0.1, 260)),
       (this.cameraMode = "RALLY_CAM"),
       (this.manualCameraOverride = null),
       (this.cameraPosSmooth = new o.Vector3(0, 7.8, 22.8)),
@@ -3513,8 +3514,8 @@ export class NatpfTennisEngine {
   _projectToScreen(e) {
     const t = e.clone().project(this.camera),
       i = t.z >= -1 && t.z <= 1,
-      a = (t.x * 0.5 + 0.5) * window.innerWidth,
-      s = (-t.y * 0.5 + 0.5) * window.innerHeight;
+      a = (t.x * 0.5 + 0.5) * viewport().w,
+      s = (-t.y * 0.5 + 0.5) * viewport().h;
     return { x: a, y: s, visible: i };
   }
   _updateProjectedHUD() {
@@ -3533,9 +3534,12 @@ export class NatpfTennisEngine {
     } else this.hud.updateServerTag(null, !1);
   }
   _onResize() {
-    (this.camera.aspect = window.innerWidth / window.innerHeight),
+    // NATPF: finestra intera o area del ledwall (natpf_screen.js)
+    const vp = viewport();
+    if (!this.camera || !this.renderer) return;
+    (this.camera.aspect = vp.w / vp.h),
       this.camera.updateProjectionMatrix(),
-      this.renderer.setSize(window.innerWidth, window.innerHeight),
+      this.renderer.setSize(vp.w, vp.h),
       (this.natpfBackdropDirty = !0);
   }
   // NATPF: sfondo del menu. Prima dietro il menu girava una partita dimostrativa (camera che segue la palla, scie,

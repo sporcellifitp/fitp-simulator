@@ -230,5 +230,14 @@ computer (`createPhoneLink()` crea sessioni indipendenti: due QR nella stessa pa
       «Telefono in pausa»); telefono del P2 che cade → pausa e ripresa con conto alla rovescia; menu → fine sessione.
       File: `natpf_split_ui.js`, `natpf_lobby.js`, `natpf_ui.js`, `index.html`, `natpf-ui.css`. Test: percorso intero
       (13 test in `natpf-split.test.mjs`), gioco 434/434. Browser 1280×720: percorso e partita senza errori.
-- [ ] S4 Schermo: intero / ledwall 2×2 (1:1) / 3×2 (3:2), `?area=x,y,w,h` per mappare l'area del processore LED;
-      screenshot 16:9, 1:1, 3:2
+- [x] S4 Schermo (`natpf_screen.js`): Opzioni → Schermo «Intero / Ledwall 2×2 (1:1) / Ledwall 3×2 (3:2)», area
+      centrata e nero fuori; `?schermo=2x2|3x2|intero` e `?area=x,y,larghezza,altezza` (pixel, per il processore LED)
+      nell'indirizzo. Il body diventa il riquadro dell'area (transform: anche gli elementi fissi restano dentro) e il
+      contenitore CSS «natpf»: nei sei fogli di stile `@media (max-/min-width|height)` → `@container natpf`, `vw/vh` →
+      `cqw/cqh` (56 unità, 14 regole), così menu e HUD si adattano all'area; a schermo intero nessun cambiamento
+      (screenshot di confronto). Motore, HUD, minigiochi: `viewport()` al posto di `window.innerWidth/innerHeight`.
+      Menu in colonna nelle aree quadrate o alte. `ui-shots.mjs`: preme finché l'intro non si chiude.
+      Verifica nel browser: finestra 1280×720 con `?schermo=2x2` (area 720×720) e `?area=0,0,768,512`: menu, pagina
+      dei due telefoni e partita divisa dentro l'area, nessun errore. Test: gioco 435/435, sito 152/152, build.
+- Da provare dal vivo: due telefoni veri sullo stesso PC, ledwall vero (mappatura del processore), prestazioni con le
+  due viste su un PC con scheda grafica (nel browser di prova senza GPU ogni fotogramma diviso costa molto).

@@ -25,7 +25,7 @@
   align-items: stretch;
   justify-content: space-between;
   gap: 16px;
-  padding: max(18px, 3vh) max(18px, 4vw);
+  padding: max(18px, 3cqh) max(18px, 4cqw);
   /* arena ferma dietro (game_engine._natpfBackdropFrame), sfocata e scurita ai bordi. Il blur resta (leggibilità),
      ma ora sopra un'immagine ferma: prima il canvas si ridisegnava a ogni fotogramma e il blur di tutto lo schermo si
      ricalcolava di continuo (sfarfallio, fotogrammi persi) */
@@ -52,7 +52,7 @@
   column-gap: 8px;
 }
 .lobby-mark {
-  font-size: clamp(30px, 4vw, 46px);
+  font-size: clamp(30px, 4cqw, 46px);
   font-weight: 800;
   font-style: italic;
   letter-spacing: 0.02em;
@@ -61,7 +61,7 @@
   padding-bottom: 2px;
 }
 .lobby-word {
-  font-size: clamp(16px, 2vw, 22px);
+  font-size: clamp(16px, 2cqw, 22px);
   font-weight: 700;
   font-style: italic;
   text-transform: uppercase;
@@ -181,7 +181,7 @@
 }
 .lobby-title {
   margin: 0;
-  font-size: clamp(24px, 3.4vw, 38px);
+  font-size: clamp(24px, 3.4cqw, 38px);
   font-weight: 800;
   font-style: italic;
   letter-spacing: 0.02em;
@@ -460,8 +460,8 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  width: min(660px, 94vw);
-  max-height: 92vh;
+  width: min(660px, 94cqw);
+  max-height: 92cqh;
   overflow-y: auto;
   padding: 24px 26px;
   border: 1px solid var(--lb-line);
@@ -696,7 +696,7 @@
 
 /* ---------- onboarding ---------- */
 .natpf-sheet.natpf-onboarding {
-  width: min(780px, 94vw);
+  width: min(780px, 94cqw);
 }
 .onb-head {
   display: flex;
@@ -839,7 +839,7 @@
   background: var(--lb-ball);
 }
 
-@media (max-width: 760px) {
+@container natpf (max-width: 760px) {
   .lobby-tiles,
   .lobby-tiles.lobby-tiles-2 {
     grid-template-columns: 1fr;
