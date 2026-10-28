@@ -34,7 +34,12 @@ export const courtWordTurn = viewer => (viewer < 0 ? Math.PI : 0);
 // sedia dell'arbitro e telecamere come nelle schermate di riferimento (prese dal fondo del P1, z > 0): sedia a destra
 // (x > 0) a 10 m dal centro sulla linea della rete, panchine ai lati a z = ±4 m, telecamere nella buca sul lato opposto
 export const UMPIRE = Object.freeze({ x: 10, benchZ: [-4, 4], tvSide: -1 });
-export const COURT_WORD = Object.freeze({ width: 3.6, back: 2.1 });   // m: larghezza (proporzioni del file 1360 × 385) e distanza dalla riga di fondo
+export const COURT_WORD = Object.freeze({ width: 3.6, back: 2.1 });
+// Fronte dell'anello basso delle tribune (rettangolo con gli angoli arrotondati) e pannelli LED vicino agli angoli del
+// muro del campo. I pannelli stanno sul tratto dritto, prima della curva della tribuna: con il raggio di 6 m la curva
+// entra nell'angolo del muro e nascondeva metà dei pannelli che c'erano (28/10 sera: «monitor tagliati»)
+export const STAND_FRONT = Object.freeze({ hx: 12.9, hz: 22.4, R: 6 });
+export const CORNER_LED = Object.freeze({ w: 2.05, h: 1.07, d: .14, backX: 8, sideZ: 18 });   // m: larghezza (proporzioni del file 1360 × 385) e distanza dalla riga di fondo
 const plainTex = () => canvas(64, 64, (x, W, H) => {
   const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#16378f'); g.addColorStop(1, '#0a2163'); x.fillStyle = g; x.fillRect(0, 0, W, H);
 });
@@ -281,18 +286,18 @@ export function buildArena(scene, { quality = 1, anisotropy = 8 } = {}){
   // loghi sul lato interno del muro, con le proporzioni dei file
   const deco = (tex, w, h, x, z, ry, y = WH/2) => add(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }), x, y, z, { ry });
   const hor = ART('nitto-atp-finals.png'), stack = ART('logo-impilato.png'), esp = ART('esports.png'), led = ART('pannello-led.png');
-  const ledPanel = (x, z, ry) => add(new THREE.BoxGeometry(2.05, 1.07, .14), new THREE.MeshBasicMaterial({ map: led }), x, .54, z, { ry });
+  const ledPanel = (x, z, ry) => add(new THREE.BoxGeometry(CORNER_LED.w, CORNER_LED.h, CORNER_LED.d), new THREE.MeshBasicMaterial({ map: led }), x, CORNER_LED.h/2, z, { ry });
   for (const s of [-1, 1]){
     // fondo: ESPORTS · Nitto ATP FINALS · ESPORTS, pannelli LED negli angoli
     const z = s*(WZ - .01), ry = s > 0 ? Math.PI : 0;
     deco(hor, 7.2, 7.2*210/2048, 0, z, ry);
     for (const e of [-1, 1]) deco(esp, 1.6, 1.6*530/1024, e*5.4, z, ry);
-    for (const e of [-1, 1]) ledPanel(e*(WX - 1.25), s*(WZ - .1), ry);
+    for (const e of [-1, 1]) ledPanel(e*CORNER_LED.backX, s*(WZ - .1), ry);
     // lati lunghi: logo impilato e ESPORTS alternati, pannelli LED negli angoli, logo orizzontale grande verso gli angoli
     const x = s*(WX - .01), ry2 = s > 0 ? -Math.PI/2 : Math.PI/2;
     for (const zz of [-16, -7, 7, 16]) deco(stack, 1.1, .88, x, zz, ry2);
     for (const zz of [-11.8, 11.8]) deco(esp, 1.6, 1.6*530/1024, x, zz, ry2);
-    for (const e of [-1, 1]) ledPanel(s*(WX - .1), e*(WZ - 1.25), ry2);
+    for (const e of [-1, 1]) ledPanel(s*(WX - .1), e*CORNER_LED.sideZ, ry2);
   }
   // segnapunti (arancione su nero) sopra il tabellone di fondo: punteggio in game e velocità dell'ultimo servizio
   const seg7 = (txt, w, h) => canvas(w, h, (x, W, H) => { x.fillStyle = '#070707'; x.fillRect(0, 0, W, H); x.strokeStyle = '#3a2a10'; x.lineWidth = 6; x.strokeRect(3, 3, W - 6, H - 6); x.fillStyle = '#ff9a1f'; x.font = `700 ${H*.72}px "Courier New",monospace`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, W/2, H*.54); });
@@ -370,8 +375,8 @@ export function buildArena(scene, { quality = 1, anisotropy = 8 } = {}){
   const people = [[], []], seats = [], steps = [], aisles = [], nosing = [];
   let crowd = null;
   const tiers = [
-    { hx: 12.9, hz: 22.4, R: 6, rows: 12, d: .82, rise: .5, y0: 1.5, gapEnd: 4.2 },
-    { hx: 12.9 + 11.2, hz: 22.4 + 11.2, R: 6 + 11.2, rows: Math.round(14*quality + 4*(1 - quality)), d: .8, rise: .62, y0: 9.4, gapEnd: 0 },
+    { ...STAND_FRONT, rows: 12, d: .82, rise: .5, y0: 1.5, gapEnd: 4.2 },
+    { hx: STAND_FRONT.hx + 11.2, hz: STAND_FRONT.hz + 11.2, R: STAND_FRONT.R + 11.2, rows: Math.round(14*quality + 4*(1 - quality)), d: .8, rise: .62, y0: 9.4, gapEnd: 0 },
   ];
   const SP = .56, SEC = 14;
   tiers.forEach((T, t) => {

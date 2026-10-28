@@ -26,3 +26,24 @@ test('arena: sedia dell\'arbitro come nelle schermate di riferimento (a destra d
   assert.equal(UMPIRE.tvSide, -Math.sign(UMPIRE.x), 'telecamere sul lato opposto');
   assert.deepEqual([...UMPIRE.benchZ].map(Math.abs), [4, 4]);
 });
+
+// 28/10 sera: «monitor tagliati». La base della tribuna gira negli angoli con un raggio di 6 m ed entra nell'angolo del
+// muro del campo: i pannelli LED che stavano lì erano nascosti a metà. Ogni punto della faccia di un pannello deve stare
+// dentro il fronte della tribuna (con un margine), e i pannelli non devono coprire i loghi del muro.
+test('arena: i pannelli LED degli angoli sono interi, fuori dalla curva della tribuna e lontani dai loghi', async () => {
+  const { STAND_FRONT: F, CORNER_LED: P } = await import('@natpf/tennis/arena.js');
+  const WX = 12.2, WZ = 21, margin = .15;
+  // distanza (positiva = dentro) dal fronte della tribuna: rettangolo ±hx × ±hz con gli angoli di raggio R
+  const inside = (x, z) => { const ax = Math.abs(x), az = Math.abs(z), cx = F.hx - F.R, cz = F.hz - F.R;
+    if (ax > cx && az > cz) return F.R - Math.hypot(ax - cx, az - cz);
+    return Math.min(F.hx - ax, F.hz - az); };
+  const half = P.w/2;
+  for (const t of [-half, 0, half]){
+    const back = [P.backX + t, WZ - .1 - P.d/2], side = [WX - .1 - P.d/2, P.sideZ + t];
+    assert.ok(inside(...back) >= margin, `fondo: ${back.map(v => v.toFixed(2))} a ${inside(...back).toFixed(2)} m dal fronte`);
+    assert.ok(inside(...side) >= margin, `lato: ${side.map(v => v.toFixed(2))} a ${inside(...side).toFixed(2)} m dal fronte`);
+  }
+  // loghi del muro: ESPORTS sul fondo (±5,4 ± 0,8) e logo impilato sui lati (±16 ± 0,55)
+  assert.ok(P.backX - half > 5.4 + .8 + .3, 'il pannello di fondo non tocca il logo ESPORTS');
+  assert.ok(P.sideZ - half > 16 + .55 + .3, 'il pannello laterale non tocca il logo impilato');
+});

@@ -374,3 +374,8 @@ Segnalazione: pallonetti e palle corte non escono mai; lungolinea e angoli diver
 - [x] «Gioca ancora» (fine partita): apre la pagina «Partita» del menu con la modalità di prima, per scegliere di nuovo
       livello, formato e lunghezza (`natpf_ui.backToMenu('match')`); nel 1v1 tra due computer resta la rivincita
       immediata. Test in `natpf-flows.test.mjs` (fallisce con il codice di prima).
+- [x] Pannelli LED («monitor») tagliati negli angoli: la base della tribuna gira con un raggio di 6 m ed entra
+      nell'angolo del muro del campo, e nascondeva metà dei pannelli (sul fondo restava «TP FINALS»). Pannelli spostati sul
+      tratto dritto (`site/js/tennis/arena.js`: `CORNER_LED` fondo x ±8, lati z ±18; `STAND_FRONT` esportato). Prova
+      geometrica in `natpf-arena-court.test.mjs` e screenshot della build: loghi interi. L'angolo scuro tra muro e
+      tribuna resta (forma dell'arena).
