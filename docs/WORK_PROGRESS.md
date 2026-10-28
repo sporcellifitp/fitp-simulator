@@ -189,3 +189,19 @@ Nota: tra le 15:10 e le 15:30 l'account ha anche spese **non fatte da questa ses
 - [x] Zip estratto e provato: certificato, HTTPS, gioco, intro video, clip, pagina del telefono, versione, nessun
       errore in console. SHA256 e dettagli in `SESSION_HANDOFF.md`.
 - [ ] Prova su Windows e con telefono reale: da fare (utente).
+
+## Revisione del 28/10 sera — video dei colpi tolti, voce inglese cartoon (sessione Claude)
+Richiesta dell'utente: i video della persona non sono coerenti (sembra un telecomando, pose non da tennis né come
+nei testi); voce cartoon coerente con il gioco, una sola lingua (meglio inglese), niente voce maschile cupa.
+- [x] Clip dei colpi tolte: `public/media/colpi/` eliminata, `CLIPS`/`clipFor`/`_paintClip` e `<video>` della scheda
+      tolti; «Guarda e ripeti» torna all'animazione 3D verificata. Restano foto della lezione e intro video.
+- [x] Voce: 47 clip nuove in inglese con il preset Higgsfield «Pixie» (ElevenLabs v4): punteggi («Fifteen love»,
+      «Deuce», «Advantage»…), annunci («Game point», «Out», «Ace»…), minigiochi («Three, two, one… Go!», «Combo!»,
+      «Gold medal!»…), versi («Hup!», «Yes!», «Aww, no!»). Clip italiane eliminate; annuncio «bersaglio» mai usato
+      e non rifatto. `natpf_voice.js`: `callout()` (prima `italianCallout`), `pickEnglishVoice`, nomi dei file.
+- [x] Verifica: Vosk inglese, 47/47 frasi corrispondenti; altezza 220–350 Hz (vecchio arbitro 144 Hz); browser:
+      47 clip caricate, «30 - 15» → «Thirty fifteen», «Parità» → «Deuce», cue e versi suonano, nessun errore.
+- [x] Test: gioco 421/421 (test dei media riscritti per foto + 3D; test della voce per l'inglese e per l'assenza di
+      file fuori elenco), sito 152/152, build riuscita.
+- [ ] Ascolto umano della voce; nuovo pacchetto LAN 2026-10-28.3 (quello 2026-10-28.2 ha ancora clip e voci vecchie).
+- Crediti Higgsfield: 47 × 0,23 = 10,81 (saldo 738,93 → 728,12). Totale della richiesta media/voce: 136,3.

@@ -1,10 +1,10 @@
 // Audio di NATPF Simulator. Tutto è sintetizzato con Web Audio, senza file esterni né licenze:
 // - musica: brani originali generati in tempo reale dal sequencer di src/natpf/natpf_music.js;
 // - effetti di colpo, rimbalzo, rete, lancio, pubblico e interfaccia: sintesi del motore base, invariata;
-// - voce del punteggio in italiano con speechSynthesis (src/natpf/natpf_voice.js).
+// - voce del punteggio e degli annunci in inglese: clip registrate, ripiego speechSynthesis (src/natpf/natpf_voice.js).
 // API pubblica invariata per il motore di gioco: playMusicForState, announceScore, playVoiceCallout, play*.
 import { NATPF_TRACKS, NatpfMusic, trackForState } from "./natpf/natpf_music.js";
-import { NatpfVoice, italianCallout } from "./natpf/natpf_voice.js";
+import { NatpfVoice, callout } from "./natpf/natpf_voice.js";
 import * as SFX from "./natpf/natpf_sfx.js";
 export { NATPF_TRACKS };
 // Annunci che fanno passare la musica al brano dei punti decisivi (e ritorno allo scambio sugli altri punteggi)
@@ -81,11 +81,7 @@ export class AudioEngine {
     label && (label.textContent = on ? "sì" : "no"),
       dot && dot.classList.toggle("music-on", on),
       b.setAttribute("aria-pressed", String(on)),
-      (b.title = on
-        ? this.voice.available || !this.voice.synth
-          ? "Voce del punteggio accesa (clic per spegnerla)"
-          : "Voce accesa, ma il browser non ha una voce italiana: gli annunci restano in silenzio"
-        : "Voce del punteggio spenta (clic per accenderla)");
+      (b.title = on ? "Voce del punteggio accesa (clic per spegnerla)" : "Voce del punteggio spenta (clic per accenderla)");
   }
   setVoiceEnabled(on) {
     const r = this.voice.setEnabled(on);
@@ -483,7 +479,7 @@ export class AudioEngine {
       e &&
         this._voiceTimers.length > 0 &&
         (this._voiceTimers.forEach((n) => clearTimeout(n)), (this._voiceTimers = []));
-    if (!italianCallout(a)) return;
+    if (!callout(a)) return;
     const o = () => {
       this.muted || this.voice.say(a);
     };

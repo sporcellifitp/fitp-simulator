@@ -1,6 +1,10 @@
 Foto e video di NATPF Simulator (tutorial e intro) — provenienza e diritti
 ==========================================================================
 
+Aggiornamento 28/10/2026: le clip dei colpi (cartella colpi/) sono state tolte su richiesta dell'utente (oggetto in
+mano simile a un telecomando, pose non coerenti con il tennis). Il tutorial mostra i gesti con l'animazione 3D.
+Le righe colpi/… qui sotto restano solo come storico (i file non sono più nel gioco).
+
 Generati il 28/10/2026 con Higgsfield (account del progetto, piano Ultra), connettore Higgsfield di Claude Code.
 Condizioni d'uso di Higgsfield (centro assistenza, §4.4): i contenuti generati possono essere usati anche a fini
 commerciali e Higgsfield non ne rivendica la proprietà; non vanno usati per addestrare modelli di IA.

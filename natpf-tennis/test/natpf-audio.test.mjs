@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { NATPF_TRACKS, NatpfMusic, trackForState, parseChord, noteToMidi, TRACK_GROUPS, groupOf } from '../src/natpf/natpf_music.js';
-import { italianCallout, pickItalianVoice, NatpfVoice } from '../src/natpf/natpf_voice.js';
+import { callout, pickEnglishVoice, NatpfVoice } from '../src/natpf/natpf_voice.js';
 import { t, scoreText } from '../src/natpf/natpf_i18n.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -89,32 +89,33 @@ test('sequencer: note programmate in anticipo, ingresso in campo che passa da so
   assert.equal(music.playing, false);
 });
 
-test('voce: annunci del motore → frasi italiane', () => {
+test('voce: annunci del motore (e dell\u2019HUD in italiano) → frasi inglesi', () => {
   const cases = {
-    '15 - 00': 'quindici zero', '00 - 30': 'zero trenta', '30 - 30': 'trenta pari', '40 - 15': 'quaranta quindici',
-    Deuce: 'Parità', 'Ad In': 'Vantaggio', 'Ad Out': 'Vantaggio', 'Game Point': 'Palla game', 'Break Point': 'Palla break',
-    'Match Point': 'Palla match', Game: 'Game', 'Game Set and Match': 'Game, set e partita', Out: 'Fuori', Net: 'Rete',
-    'Ace!': 'Ace', 'Nice Shot!': 'Bel colpo', Start: 'Inizio partita', 'Palla game': 'Palla game', parità: 'Parità',
+    '15 - 00': 'Fifteen love', '00 - 30': 'Love thirty', '30 - 30': 'Thirty all', '00 - 00': 'Love all', '40 - 15': 'Forty fifteen',
+    '40 - 40': 'Deuce', Deuce: 'Deuce', 'Ad In': 'Advantage', 'Ad Out': 'Advantage', 'AD - 40': 'Advantage', 'Game Point': 'Game point',
+    'Break Point': 'Break point', 'Match Point': 'Match point', Game: 'Game', 'Game Set and Match': 'Game, set and match', Out: 'Out',
+    Net: 'Net', 'Ace!': 'Ace', 'Nice Shot!': 'Nice shot', Start: 'Ready? Play!', 'Palla game': 'Game point', parità: 'Deuce',
+    Fuori: 'Out', 'Power serve': 'Big serve',
   };
-  for (const [en, it] of Object.entries(cases)) assert.equal(italianCallout(en), it, en);
-  assert.equal(italianCallout('qualcosa di strano'), null);
-  assert.equal(italianCallout(''), null);
+  for (const [label, phrase] of Object.entries(cases)) assert.equal(callout(label), phrase, label);
+  assert.equal(callout('qualcosa di strano'), null);
+  assert.equal(callout(''), null);
 });
 
-test('voce: solo voci italiane, silenzio senza; si può spegnere', () => {
-  const en = { name: 'English', lang: 'en-US' }, it = { name: 'Elsa', lang: 'it-IT' }, itNat = { name: 'Isabella Online (Natural)', lang: 'it-IT' };
-  assert.equal(pickItalianVoice([en]), null);
-  assert.equal(pickItalianVoice([en, it]), it);
-  assert.equal(pickItalianVoice([it, itNat]), itNat);
+test('voce: una sola lingua, l\u2019inglese; senza clip ripiega su una voce inglese del browser; si può spegnere', () => {
+  const it = { name: 'Elsa', lang: 'it-IT' }, en = { name: 'English', lang: 'en-US' }, enNat = { name: 'Libby Online (Natural)', lang: 'en-GB' };
+  assert.equal(pickEnglishVoice([it]), null);
+  assert.equal(pickEnglishVoice([it, en]), en);
+  assert.equal(pickEnglishVoice([en, enNat]), enNat);
   const spoken = [];
   globalThis.SpeechSynthesisUtterance = class { constructor(text){ this.text = text; } };
   const synth = voices => ({ getVoices: () => voices, speak: u => spoken.push(u), cancel(){}, addEventListener(){} });
-  const silent = new NatpfVoice({ synth: synth([en]) });
+  const silent = new NatpfVoice({ synth: synth([it]) });
   assert.equal(silent.say('15 - 00'), null);
-  assert.equal(spoken.length, 0, 'nessuna voce inglese di ripiego');
-  const voice = new NatpfVoice({ synth: synth([en, it]) });
-  assert.equal(voice.say('Deuce'), 'Parità');
-  assert.equal(spoken[0].lang, 'it-IT'); assert.equal(spoken[0].voice, it);
+  assert.equal(spoken.length, 0, 'nessuna voce italiana di ripiego: una sola lingua');
+  const voice = new NatpfVoice({ synth: synth([it, en]) });
+  assert.equal(voice.say('Deuce'), 'Deuce');
+  assert.equal(spoken[0].lang, 'en-US'); assert.equal(spoken[0].voice, en);
   voice.setEnabled(false);
   assert.equal(voice.say('Game'), null);
   assert.equal(spoken.length, 1);

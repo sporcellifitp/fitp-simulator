@@ -1,33 +1,33 @@
-// Voce del giudice di sedia in italiano. Dal 28/10/2026 le frasi sono clip registrate (public/voce/, generate con
-// ElevenLabs Eleven v4 tramite Higgsfield, vedi public/voce/LEGGIMI.txt) suonate con Web Audio sul bus delle voci;
-// se una clip manca o non si carica si usa la sintesi vocale del browser (speechSynthesis), come prima.
-// Il motore annuncia con le sue etichette («15 - 00», «Deuce», «Game Point», «Out»…) o con quelle italiane
-// dell'HUD: italianCallout() le trasforma nella frase da dire. Se il browser non ha una voce italiana e manca la clip
-// resta in silenzio (niente voce inglese di ripiego). La voce si spegne dal pulsante «Voce»; la scelta resta salvata.
-// Oltre all'arbitro: annunci dei minigiochi (cue) e vocalizzazioni dei giocatori (effort, cheer).
+// Voce del gioco, solo in inglese (richiesta dell'utente del 28/10/2026: un'unica lingua, timbro cartoon, niente voce
+// maschile cupa). Le frasi sono clip registrate (public/voce/, ElevenLabs Eleven v4 tramite Higgsfield con la voce
+// preimpostata «Pixie», vedi public/voce/LEGGIMI.txt) suonate con Web Audio sul bus delle voci; se una clip manca o
+// non si carica si usa la sintesi vocale inglese del browser (speechSynthesis). Il motore annuncia con le sue etichette
+// («15 - 00», «Deuce», «Game Point», «Out»…) o con quelle italiane dell'HUD («Parità», «Palla game»…): callout() le
+// trasforma nella frase inglese da dire. La voce si spegne dal pulsante «Voce»; la scelta resta salvata.
+// Oltre all'arbitro: annunci dei minigiochi (cue) e versi del giocatore (effort, cheer, groan), con la stessa voce.
 
-const NUMBERS = { "00": "zero", 0: "zero", 15: "quindici", 30: "trenta", 40: "quaranta", ad: "vantaggio" };
+const NUMBERS = { "00": "love", 0: "love", 15: "fifteen", 30: "thirty", 40: "forty" };
 
 const PHRASES = [
-  [/^(start|match[ _]start|inizio partita|si gioca)$/, "Inizio partita"],
-  [/^(deuce|parit[aà])$/, "Parità"],
-  [/^(ad in|ad out|vantaggio.*)$/, "Vantaggio"],
-  [/^(game[ _]point|palla game)$/, "Palla game"],
-  [/^(break[ _]point|palla break)$/, "Palla break"],
-  [/^(match[ _]point|palla match)$/, "Palla match"],
-  [/^(game[ _]set[ _]and[ _]match|game[ _]set[ _]match|game, set e partita)$/, "Game, set e partita"],
+  [/^(start|match[ _]start|inizio partita|si gioca)$/, "Ready? Play!"],
+  [/^(deuce|parit[aà])$/, "Deuce"],
+  [/^(ad in|ad out|advantage.*|vantaggio.*)$/, "Advantage"],
+  [/^(game[ _]point|palla game)$/, "Game point"],
+  [/^(break[ _]point|palla break)$/, "Break point"],
+  [/^(match[ _]point|palla match)$/, "Match point"],
+  [/^(game[ _]set[ _]and[ _]match|game[ _]set[ _]match|game, set and match|game, set e partita)$/, "Game, set and match"],
   [/^(game|game[ _]won)$/, "Game"],
-  [/^(out|call[ _]out|fuori)$/, "Fuori"],
-  [/^(net|call[ _]net|rete)$/, "Rete"],
+  [/^(out|call[ _]out|fuori)$/, "Out"],
+  [/^(net|call[ _]net|rete)$/, "Net"],
   [/^(ace)$/, "Ace"],
-  [/^(nice shot|call[ _]nice[ _]shot|bel colpo)$/, "Bel colpo"],
-  [/^(power serve|call[ _]power[ _]serve|gran servizio|servizio potente)$/, "Gran servizio"],
+  [/^(nice shot|call[ _]nice[ _]shot|bel colpo)$/, "Nice shot"],
+  [/^(power serve|big serve|call[ _]power[ _]serve|gran servizio|servizio potente)$/, "Big serve"],
   [/^(smash|call[ _]power[ _]smash|schiacciata)$/, "Smash"],
-  [/^(replay|call[ _]replay|moviola)$/, "Rivediamolo"],
+  [/^(replay|call[ _]replay|moviola)$/, "Replay"],
 ];
 
-// Etichetta del motore o dell'HUD → frase italiana da pronunciare (null se non è un annuncio noto).
-export function italianCallout(text) {
+// Etichetta del motore o dell'HUD → frase inglese da pronunciare (null se non è un annuncio noto).
+export function callout(text) {
   const raw = String(text ?? "")
     .trim()
     .toLowerCase()
@@ -37,15 +37,16 @@ export function italianCallout(text) {
   const score = /^(00|0|15|30|40|ad)\s*[-–]\s*(00|0|15|30|40|ad)$/.exec(raw);
   if (score) {
     const [a, b] = [score[1], score[2]];
-    if (a === b) return a === "40" ? "Parità" : `${NUMBERS[a]} pari`;
-    if (a === "ad" || b === "ad") return "Vantaggio";
-    return `${NUMBERS[a]} ${NUMBERS[b]}`;
+    if (a === "ad" || b === "ad") return "Advantage";
+    if (NUMBERS[a] === NUMBERS[b]) return a === "40" ? "Deuce" : `${cap(NUMBERS[a])} all`;
+    return `${cap(NUMBERS[a])} ${NUMBERS[b]}`;
   }
   for (const [re, phrase] of PHRASES) if (re.test(raw)) return phrase;
   return null;
 }
+const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
 
-// nome del file della clip per una frase: minuscole senza accenti, parole separate da «-» («Parità» → parita)
+// nome del file della clip per una frase: minuscole, parole separate da «-» («Ready? Play!» → ready-play)
 export const clipName = (phrase) =>
   String(phrase || "")
     .toLowerCase()
@@ -55,18 +56,17 @@ export const clipName = (phrase) =>
     .replace(/^-+|-+$/g, "");
 // clip disponibili (stessi nomi dei file in public/voce/)
 export const UMPIRE_CLIPS = Object.freeze([
-  "quindici-zero", "trenta-zero", "quaranta-zero", "zero-quindici", "zero-trenta", "zero-quaranta", "quindici-trenta",
-  "trenta-quindici", "quindici-quaranta", "quaranta-quindici", "trenta-quaranta", "quaranta-trenta", "zero-pari",
-  "quindici-pari", "trenta-pari", "parita", "vantaggio", "inizio-partita", "palla-game", "palla-break", "palla-match",
-  "game", "game-set-e-partita", "fuori", "rete", "ace", "bel-colpo", "gran-servizio", "smash", "rivediamolo",
+  "fifteen-love", "thirty-love", "forty-love", "love-fifteen", "love-thirty", "love-forty", "fifteen-thirty",
+  "thirty-fifteen", "fifteen-forty", "forty-fifteen", "thirty-forty", "forty-thirty", "love-all", "fifteen-all",
+  "thirty-all", "deuce", "advantage", "ready-play", "game-point", "break-point", "match-point", "game",
+  "game-set-and-match", "out", "net", "ace", "nice-shot", "big-serve", "smash", "replay",
 ]);
 export const CUE_CLIPS = Object.freeze({
-  go: "ann-tre-due-uno-via", time: "ann-tempo-scaduto", combo: "ann-combo", superCombo: "ann-super-combo",
-  target: "ann-bersaglio", bullseye: "ann-centro-perfetto", record: "ann-nuovo-record", gold: "ann-medaglia-d-oro",
-  silver: "ann-medaglia-d-argento", bronze: "ann-medaglia-di-bronzo", last: "ann-ultima-palla",
-  level: "ann-livello-successivo", perfect: "ann-perfetto",
+  go: "cue-go", time: "cue-time-up", combo: "cue-combo", superCombo: "cue-super-combo", bullseye: "cue-bullseye",
+  record: "cue-new-record", gold: "cue-gold-medal", silver: "cue-silver-medal", bronze: "cue-bronze-medal",
+  last: "cue-last-ball", level: "cue-next-level", perfect: "cue-perfect",
 });
-export const PLAYER_CLIPS = Object.freeze({ effort: ["sforzo-1", "sforzo-2", "sforzo-3"], cheer: ["esulta"], groan: ["delusione"] });
+export const PLAYER_CLIPS = Object.freeze({ effort: ["effort-1", "effort-2", "effort-3"], cheer: ["cheer"], groan: ["groan"] });
 
 const STORAGE_KEY = "natpf.voice";
 const readPref = () => {
@@ -77,13 +77,14 @@ const readPref = () => {
   }
 };
 
-// Sceglie la voce italiana migliore tra quelle del sistema: prima it-IT, poi le voci «naturali»/online.
-export function pickItalianVoice(voices = []) {
-  const it = voices.filter((v) => /^it([-_]|$)/i.test(v.lang || ""));
-  if (!it.length) return null;
+// Sceglie la voce inglese migliore tra quelle del sistema (ripiego quando manca una clip): prima en-GB/en-US, poi le
+// voci «naturali»/online.
+export function pickEnglishVoice(voices = []) {
+  const en = voices.filter((v) => /^en([-_]|$)/i.test(v.lang || ""));
+  if (!en.length) return null;
   const score = (v) =>
-    (/^it[-_]it$/i.test(v.lang) ? 4 : 0) + (/natural|neural|online|google/i.test(v.name) ? 2 : 0) + (v.default ? 1 : 0);
-  return it.slice().sort((a, b) => score(b) - score(a))[0];
+    (/^en[-_](gb|us)$/i.test(v.lang) ? 4 : 0) + (/natural|neural|online|google/i.test(v.name) ? 2 : 0) + (v.default ? 1 : 0);
+  return en.slice().sort((a, b) => score(b) - score(a))[0];
 }
 
 export class NatpfVoice {
@@ -105,7 +106,7 @@ export class NatpfVoice {
   }
   _loadVoices() {
     try {
-      this.voice = pickItalianVoice(this.synth ? this.synth.getVoices() : []);
+      this.voice = pickEnglishVoice(this.synth ? this.synth.getVoices() : []);
     } catch {
       this.voice = null;
     }
@@ -127,7 +128,7 @@ export class NatpfVoice {
     } catch {}
     this._stopClip();
   }
-  // Collega le clip registrate al contesto audio (bus delle voci) e le carica in sottofondo (≈420 kB in tutto).
+  // Collega le clip registrate al contesto audio (bus delle voci) e le carica in sottofondo (≈410 kB in tutto).
   attach(ctx, dest, { base = this.base } = {}) {
     if (!ctx || this.ctx === ctx) return;
     this.ctx = ctx; this.dest = dest; this.base = base;
@@ -185,9 +186,9 @@ export class NatpfVoice {
     if (ok) this._lastPlayer = now;
     return ok;
   }
-  // Pronuncia l'annuncio; restituisce la frase detta, o null (voce spenta, annuncio sconosciuto, nessuna voce italiana).
+  // Pronuncia l'annuncio; restituisce la frase detta, o null (voce spenta, annuncio sconosciuto, nessuna voce inglese).
   say(text, { interrupt = true } = {}) {
-    const phrase = italianCallout(text);
+    const phrase = callout(text);
     if (!phrase || !this.enabled) return null;
     // clip registrata, se c'è
     if (this.playClip(clipName(phrase), { interrupt })) {
@@ -202,7 +203,7 @@ export class NatpfVoice {
       if (interrupt) this.synth.cancel();
       const u = new SpeechSynthesisUtterance(phrase);
       u.voice = this.voice;
-      u.lang = this.voice.lang || "it-IT";
+      u.lang = this.voice.lang || "en-GB";
       u.rate = 1.04;
       u.pitch = 1;
       u.volume = Math.max(0, Math.min(1, this.volume));

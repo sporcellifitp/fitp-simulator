@@ -50,4 +50,5 @@ Il controllo dei tipi (`npm run lint`) non è affidabile come gate (codice JS co
   (vedi `docs/PROJECT_MEMORY.md` §Gesti).
 - Niente dipendenze o asset pesanti; buone prestazioni su desktop e Android.
 - Audio solo originale o con licenza verificata. Il nome del gioco di riferimento commerciale non va nei file.
-- Testi dell'interfaccia in italiano.
+- Testi dell'interfaccia in italiano; **voce del gioco solo in inglese**, una voce cartoon (vedi `docs/PROJECT_MEMORY.md`).
+- Niente clip video generate per mostrare i gesti (rifiutate dall'utente il 28/10): animazione 3D verificata e foto.

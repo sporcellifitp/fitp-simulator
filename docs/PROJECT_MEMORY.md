@@ -12,7 +12,8 @@ prende una decisione che un agente futuro deve conoscere. Stato operativo in `WO
   - `src/natpf/` — tutto ciò che è NATPF: `natpf_ui.js` (collega i moduli), `natpf_lobby.js` (menu e percorso),
     `natpf_training.js` (riscaldamento/tutorial in campo con lanciapalle), `natpf_events.js` (sfide/minigiochi e
     classifica), `natpf_phone_racket.js` (telefono come racchetta), `natpf_gestures.js` (gesto → colpo),
-    `natpf_music.js` (musica generativa Web Audio), `natpf_voice.js` (voce arbitro, sintesi del browser).
+    `natpf_music.js` (musica generativa Web Audio), `natpf_voice.js` (voce del gioco in inglese: clip registrate,
+    ripiego sulla sintesi del browser), `natpf_media.js` (foto reali del tutorial).
   - `src/audio_engine.js` — effetti sintetizzati (colpo, rimbalzo, rete, pubblico, UI).
   - CSS: `styles.css` (motore base), `natpf*.css` (strati NATPF). Vedi «Decisioni UI».
   - `test/*.test.mjs` — node:test con DOM simulato (`test/ui-world.mjs`), `npm test`.
@@ -55,23 +56,27 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 
 ## Decisioni (28/10/2026, sessione redesign)
 
-- **Tutorial: foto e clip reali dove verificate, animazione 3D come ripiego** (aggiornato il 28/10, su richiesta
-  dell'utente). Foto e video generati con Higgsfield (`public/media/`, elenco e job in `public/media/LEGGIMI.txt`),
-  collegati da `src/natpf/natpf_media.js`. Un video generato non garantisce il gesto giusto: ogni clip si accetta solo
-  dopo il controllo fotogramma per fotogramma contro le regole qui sopra (asse, verso, telefono sempre nel pugno, il
-  telefono non deve trasformarsi). Su 11 clip generate ne sono passate 6. Per rigenerarle: `kling3_0_turbo`, 720p,
-  4–6 s, `start_image` = job della foto `posizione.webp`, prompt con «He holds only a small black smartphone, there is
-  no racket and no ball» e il verso del gesto descritto rispetto al corpo (il rovescio è riuscito come «backhand
-  frisbee throw»). L'animazione 3D (`natpf_gesture_demo.js`, telefono stile S24 Ultra in three.js) resta per
-  incrociato, lungolinea, volée, piatto, calibrazione e se una clip non si carica. Per i mancini foto e clip sono
-  specchiate in CSS.
+- **Tutorial: foto reali nella lezione, gesti con l'animazione 3D** (decisione finale del 28/10 sera, su richiesta
+  dell'utente). Foto Higgsfield in `public/media/` (presa di lato con «Così no», presa vista dallo schermo, posizione
+  di partenza; elenco e job in `public/media/LEGGIMI.txt`), collegate da `src/natpf/natpf_media.js`. I gesti dei colpi
+  si mostrano con l'animazione 3D (`natpf_gesture_demo.js`, telefono stile S24 Ultra in three.js), verificata con il
+  rilevatore vero. **Niente clip video generate dei colpi**: sono state provate (Kling 3.0 Turbo, 11 generate, 6
+  passate al controllo fotogramma per fotogramma) e poi rifiutate dall'utente: il telefono sembrava un telecomando e le
+  pose non erano coerenti con il tennis né con i testi. Non riproporle senza una richiesta esplicita. Per i mancini
+  le foto sono specchiate in CSS.
 - **Intro**: video `public/media/intro.mp4` (Cinema Studio 3.0, senza scritte né marchi) con titolo in HTML; il solo
   titolo grande è «NATPF Simulator», i partner (Esports FITP, Nitto ATP Finals) sono sempre una riga piccola in
   secondo piano (intro e menu), mai schermate di loghi a tutto schermo.
-- **Voci registrate** (28/10): `natpf-tennis/public/voce/*.mp3` da ElevenLabs Eleven v4 via Higgsfield (voci preset
-  Marcus/Brooks/Julian, 0,23 crediti a frase). Per rigenerarle: `generate_audio_batch` con `model: elevenlabs_v4`,
-  `dialogue: [{ text, voice_type: 'preset', voice_id }]`; il limite di frequenza rifiuta alcune richieste (ripeterle).
-  Poi ffmpeg: silenceremove + loudnorm −16 LUFS, MP3 mono 48 kb/s (usare `-nostdin` nei cicli).
+- **Voce solo in inglese, timbro cartoon** (decisione finale del 28/10 sera, su richiesta dell'utente: una sola lingua,
+  coerente con il gioco, niente voce maschile cupa). `natpf-tennis/public/voce/*.mp3`: 47 clip con una sola voce,
+  il preset Higgsfield «Pixie» (`voice_id 0178ef57-ada4-43d9-992b-8d9221045bb4`), per arbitro, annunci dei minigiochi
+  e versi del giocatore. Il motore e l'HUD italiano passano etichette («15 - 00», «Parità»…): `callout()` in
+  `natpf_voice.js` le traduce nella frase inglese, il nome del file è la frase (`clipName`). Ripiego: sintesi inglese del
+  browser (`pickEnglishVoice`), mai una voce italiana. I testi a schermo restano in italiano.
+  Per rigenerarle: `generate_audio_batch` con `model: elevenlabs_v4`, `prompt` = testo e
+  `dialogue: [{ text, voice_type: 'preset', voice_id }]`, 0,23 crediti a frase; il limite di frequenza (429) rifiuta
+  qualche richiesta (ripeterla). Poi ffmpeg: silenceremove + loudnorm −16 LUFS, MP3 mono 48 kb/s (`-nostdin` nei
+  cicli); verifica con Vosk inglese (`vosk-model-small-en-us-0.15`). Non usare le voci personalizzate dell'account.
 - **Audio**: il connettore Higgsfield non offre un modello musicale utilizzabile per asset autonomi
   (`sonilo_music` è riservato alla pipeline dei giochi; Suno non presente nel catalogo il 28/10/2026). La musica
   resta quindi **generativa e originale** in `natpf_music.js` (nessun file, nessuna licenza esterna).
@@ -86,6 +91,9 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   servizio senza lezione (`WARMUP_IDS` in `natpf_training.js`). La volée si allena a rete (`VOLLEY_Z`).
 
 ## Storico modifiche significative
+
+- 28/10/2026 (sera) — tolte le clip video dei colpi (tutorial di nuovo con l'animazione 3D, foto reali nella lezione);
+  voce rifatta solo in inglese con una voce cartoon (47 clip, 10,8 crediti Higgsfield).
 
 - 28/10/2026 — media reali Higgsfield nel tutorial (foto della presa e della posizione, 6 clip dei colpi verificate),
   intro con video, «NATPF Simulator» unico titolo e partner in secondo piano (125,5 crediti Higgsfield).

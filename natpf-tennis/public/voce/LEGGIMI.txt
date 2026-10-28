@@ -3,10 +3,13 @@ Voci di NATPF Simulator (cartella public/voce)
 
 Provenienza
 - Generate il 28/10/2026 con il modello di sintesi vocale ElevenLabs «Eleven v4» tramite il connettore Higgsfield
-  (account del progetto, piano a pagamento Ultra). Testi scritti per il gioco, in italiano.
-- Voci predefinite del catalogo Higgsfield: «Marcus» (giudice di sedia, file senza prefisso), «Brooks» (annunci dei
-  minigiochi, prefisso ann-), «Julian» (vocalizzazioni del giocatore: sforzo-1..3, esulta, delusione).
-- Nessuna voce clonata da persone reali.
+  (account del progetto, piano a pagamento Ultra). Testi scritti per il gioco, solo in inglese.
+- Una sola voce per tutto il gioco: la voce predefinita del catalogo Higgsfield «Pixie» (descritta come voce giovane,
+  allegra ed energica, adatta a spiegazioni): arbitro (file senza prefisso), annunci dei minigiochi (cue-…) e versi
+  del giocatore (effort-1..3, cheer, groan).
+- Sostituiscono le clip italiane della prima versione (voci maschili «Marcus», «Brooks», «Julian»): l'utente ha chiesto
+  un timbro cartoon coerente con il gioco, una sola lingua (inglese) e niente voce maschile cupa.
+- Nessuna voce clonata da persone reali (le voci personalizzate dell'account non sono state usate).
 
 Diritti d'uso (verificati il 28/10/2026)
 - Centro assistenza Higgsfield, «Who owns my generations and can I use them commercially?»: i Termini d'uso non
@@ -18,9 +21,11 @@ Diritti d'uso (verificati il 28/10/2026)
 
 Lavorazione
 - Silenzi iniziali e finali tolti, volume normalizzato (EBU R128, −16 LUFS), MP3 mono 44,1 kHz 48 kb/s (ffmpeg).
-- Verifica: le frasi italiane sono state trascritte con un riconoscitore vocale offline (Vosk, modello italiano) e
-  corrispondono al testo; i termini inglesi del tennis (game, break, match, ace, smash) e le vocalizzazioni non sono
-  verificabili così e vanno ascoltati da una persona.
+- Verifica: tutte le 47 frasi trascritte con un riconoscitore vocale offline (Vosk, modello inglese small en-us 0.15)
+  e corrispondenti al testo; altezza media della voce 220–350 Hz (la vecchia voce dell'arbitro era a 144 Hz).
+  Il timbro «cartoon» va comunque giudicato ascoltando.
+- 47 clip, 412 kB in tutto. Il nome di ogni file è la frase pronunciata (clipName in src/natpf/natpf_voice.js);
+  per le frasi dei minigiochi e i versi vale CUE_CLIPS / PLAYER_CLIPS.
 
-Uso nel gioco: src/natpf/natpf_voice.js (clipName, UMPIRE_CLIPS, CUE_CLIPS, PLAYER_CLIPS). Se una clip manca, il gioco
-usa la sintesi vocale del browser.
+Uso nel gioco: src/natpf/natpf_voice.js (callout, clipName, UMPIRE_CLIPS, CUE_CLIPS, PLAYER_CLIPS). Se una clip manca, il
+gioco usa la sintesi vocale inglese del browser.

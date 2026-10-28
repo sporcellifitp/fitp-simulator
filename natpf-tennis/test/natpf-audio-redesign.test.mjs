@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { NATPF_TRACKS, NatpfMusic, ARRANGEMENT, arrangementFor, TRACK_GROUPS, groupOf, trackForState } from '../src/natpf/natpf_music.js';
-import { italianCallout, clipName, UMPIRE_CLIPS, CUE_CLIPS, PLAYER_CLIPS, NatpfVoice } from '../src/natpf/natpf_voice.js';
+import { callout, clipName, UMPIRE_CLIPS, CUE_CLIPS, PLAYER_CLIPS, NatpfVoice } from '../src/natpf/natpf_voice.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mem = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) }; };
@@ -50,8 +50,11 @@ test('brani per contesto: tutorial e minigiochi hanno due brani ciascuno, la par
 test('voci registrate: ogni annuncio del motore ha la sua clip e tutti i file esistono', () => {
   const files = new Set(fs.readdirSync(path.join(ROOT, 'public/voce')).filter(f => f.endsWith('.mp3')).map(f => f.slice(0, -4)));
   const labels = ['15 - 00', '30 - 00', '40 - 00', '00 - 15', '00 - 30', '00 - 40', '15 - 30', '30 - 15', '15 - 40', '40 - 15', '30 - 40', '40 - 30', '00 - 00', '15 - 15', '30 - 30', '40 - 40', 'AD - 40', 'Start', 'Game Point', 'Break Point', 'Match Point', 'Game', 'Game Set and Match', 'Out', 'Net', 'Ace', 'Nice shot', 'Power serve', 'Smash', 'Replay'];
-  for (const l of labels){ const p = italianCallout(l); assert.ok(p, l); assert.ok(files.has(clipName(p)), `${l} → ${clipName(p)}`); }
-  for (const n of [...UMPIRE_CLIPS, ...Object.values(CUE_CLIPS), ...Object.values(PLAYER_CLIPS).flat()]) assert.ok(files.has(n), n);
+  for (const l of labels){ const p = callout(l); assert.ok(p, l); assert.ok(files.has(clipName(p)), `${l} → ${clipName(p)}`); }
+  const all = new Set([...UMPIRE_CLIPS, ...Object.values(CUE_CLIPS), ...Object.values(PLAYER_CLIPS).flat()]);
+  for (const n of all) assert.ok(files.has(n), n);
+  // una sola lingua: nessun file fuori elenco (le clip italiane della prima versione sono state tolte)
+  for (const f of files) assert.ok(all.has(f), `clip non usata: ${f}`);
   assert.ok(fs.existsSync(path.join(ROOT, 'public/voce/LEGGIMI.txt')), 'provenienza e diritti delle clip');
   // peso contenuto: meno di 600 kB in tutto
   const bytes = [...files].reduce((n, f) => n + fs.statSync(path.join(ROOT, 'public/voce', f + '.mp3')).size, 0);
@@ -62,12 +65,12 @@ test('voce: con la clip caricata suona la clip (bus delle voci), senza clip ripi
   const ctx = fakeAudioContext();
   const spoken = [];
   globalThis.SpeechSynthesisUtterance = class { constructor(t){ this.text = t; } };
-  const synth = { getVoices: () => [{ lang: 'it-IT', name: 'Google italiano' }], speak: u => spoken.push(u.text), cancel(){}, addEventListener(){} };
+  const synth = { getVoices: () => [{ lang: 'en-GB', name: 'Google UK English Female' }], speak: u => spoken.push(u.text), cancel(){}, addEventListener(){} };
   const v = new NatpfVoice({ synth });
   v.ctx = ctx; v.dest = ctx.createGain();
-  v.clips.set('quindici-zero', { duration: .6 });
-  assert.equal(v.say('15 - 00'), 'quindici zero'); assert.equal(ctx.started, 1); assert.deepEqual(spoken, []);
-  assert.equal(v.say('30 - 00'), 'trenta zero'); assert.deepEqual(spoken, ['trenta zero'], 'senza clip: sintesi');
-  v.clips.set('ann-combo', {}); assert.equal(v.cue('combo'), true);
+  v.clips.set('fifteen-love', { duration: .6 });
+  assert.equal(v.say('15 - 00'), 'Fifteen love'); assert.equal(ctx.started, 1); assert.deepEqual(spoken, []);
+  assert.equal(v.say('30 - 00'), 'Thirty love'); assert.deepEqual(spoken, ['Thirty love'], 'senza clip: sintesi');
+  v.clips.set('cue-combo', {}); assert.equal(v.cue('combo'), true);
   v.setEnabled(false); assert.equal(v.cue('combo'), false); v.setEnabled(true);
 });
