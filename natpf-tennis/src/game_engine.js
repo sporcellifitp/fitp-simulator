@@ -514,10 +514,7 @@ export class NatpfTennisEngine {
       onSelectMatchLength: (i) => {
         this.matchConfig.gamesToWin = i;
       },
-      onSelectDifficulty: (i) => {
-        this._applyDifficultyTuning(i),
-          i === "1v1" && (!this.roomId || this.roomId === "default") && this.createMultiplayerRoom();
-      },
+      onSelectDifficulty: (i) => this._onSelectDifficulty(i),
       onCreateMultiplayerRoom: async (i = {}) => await this.createMultiplayerRoom(i),
       onSelectInputMode: (i) => {
         (this.matchConfig.inputMode = i),
@@ -709,6 +706,11 @@ export class NatpfTennisEngine {
     for (const e of [this.playerPartner, this.opponentPartner])
       (e.root.visible = this.isDoubles), e.shadowBlob && (e.shadowBlob.visible = this.isDoubles);
     document.body.classList.toggle("format-singles", !this.isDoubles);
+  }
+  _onSelectDifficulty(i) {
+    this._applyDifficultyTuning(i),
+      // NATPF split screen: con «Stesso schermo» il 1v1 è su questo computer, nessuna stanza in rete
+      i === "1v1" && (!this.roomId || this.roomId === "default") && this.natpfUi?.lobby?.mode !== "split" && this.createMultiplayerRoom();
   }
   async createMultiplayerRoom({ p1Name: e = "Player 1", p2Name: t = "Player 2" } = {}) {
     try {

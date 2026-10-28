@@ -195,3 +195,14 @@ test('schermo: intero, ledwall 2×2 (1:1) e 3×2 (3:2) al centro, area esatta pe
   assert.deepEqual(readScreen('?area=10,20,800,600', null).area, { x: 10, y: 20, w: 800, h: 600 });
   assert.equal(SCREENS['2x2'].ratio, 1); assert.equal(SCREENS['3x2'].ratio, 1.5);
 });
+
+test('stesso schermo: scegliere il 1v1 non crea una stanza in rete (la crea solo «Sfida un amico»)', async () => {
+  const { E, lobby } = await makeWorld({ controller: 'phone' });
+  let rooms = 0; E.createMultiplayerRoom = async () => { rooms++; return null; };
+  lobby.setMode('split');
+  E._onSelectDifficulty('1v1');
+  assert.equal(rooms, 0);
+  lobby.setMode('friend'); rooms = 0;
+  E._onSelectDifficulty('1v1');
+  assert.ok(rooms >= 1, 'sfida un amico: la stanza sì');
+});
