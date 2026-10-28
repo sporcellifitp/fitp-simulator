@@ -15,21 +15,75 @@
 import * as THREE from 'three';
 import { calSide, calPrompt, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
 import { gripSvg } from '@natpf/tennis/grip-art.js';
+import { getGestureDemo } from './natpf_gesture_demo.js';
+import { GESTURES } from './natpf_gesture_motion.js';
 export { calSide };
 
+// Esercizi del tutorial, in ordine progressivo: i colpi di base, il servizio, la direzione, la rete, il tocco, la
+// potenza. demo: animazione 3D del gesto (natpf_gesture_motion.GESTURES, verificata con il rilevatore vero).
 export const DRILLS = Object.freeze([
-  { id: 'forehand', label: 'Dritto', need: 2, cue: 'forehand', hint: { phone: 'Il giocatore va da solo verso la palla: tu colpisci quando arriva alla racchetta', webcam: 'Swing quando la palla arriva alla racchetta', mouse: 'Spazio quando la palla arriva' } },
-  { id: 'backhand', label: 'Rovescio', need: 2, cue: 'backhand', hint: { phone: 'Palla sull’altro lato: colpisci nel verso opposto quando arriva alla racchetta', webcam: 'Swing verso l’altro lato', mouse: 'Spazio o trascina verso l’altro lato' } },
+  { id: 'forehand', label: 'Dritto', need: 2, cue: 'forehand', demo: 'forehand', hint: { phone: 'Ruota attorno a te in orizzontale, dall’esterno verso il corpo, quando la palla arriva alla racchetta', webcam: 'Swing quando la palla arriva alla racchetta', mouse: 'Spazio quando la palla arriva' } },
+  { id: 'backhand', label: 'Rovescio', need: 2, cue: 'backhand', demo: 'backhand', hint: { phone: 'Palla sull’altro lato: stessa rotazione orizzontale, nel verso opposto', webcam: 'Swing verso l’altro lato', mouse: 'Spazio o trascina verso l’altro lato' } },
+  { id: 'serve', label: 'Servizio', need: 1, demo: 'serve', hint: { phone: 'Alza il telefono per lanciare la palla, poi colpisci dall’alto quando è in cima', webcam: 'Alza la mano per lanciare, poi swing in alto', mouse: '↑ o W per lanciare, poi Spazio' } },
+  { id: 'cross', label: 'Incrociato', need: 1, direction: 'cross', feed: 'forehand', demo: 'cross', hint: { phone: 'Gira il display verso il centro e colpisci un attimo prima: la palla va oltre il centro', webcam: 'Colpisci prima: manda la palla nell’altra metà del campo', mouse: 'Mira nell’altra metà del campo, oltre il centro' } },
+  { id: 'line', label: 'Lungolinea', need: 1, direction: 'line', feed: 'forehand', demo: 'line', hint: { phone: 'Gira il display verso l’esterno e colpisci un attimo dopo: la palla corre lungo il tuo lato', webcam: 'Colpisci un attimo dopo: manda la palla lungo il tuo lato', mouse: 'Mira lungo il lato da cui colpisci' } },
+  // volée: il giocatore aspetta a rete, la palla si prende al volo (il motore lo decide dalla posizione, natpf_impact)
+  { id: 'volley', label: 'Volée', need: 1, volley: true, feed: 'forehand', demo: 'volley', maxTries: 4, hint: { phone: 'Sei a rete: gesto corto e compatto, palla al volo prima del rimbalzo', webcam: 'Sei a rete: swing corto, palla al volo', mouse: 'Sei a rete: Spazio prima che la palla rimbalzi' } },
   // colpi speciali (solo smartphone): il gioco impara il TUO pallonetto e la TUA palla corta (soglie personali,
   // natpf_gestures.learnSpecials). Si passa avanti anche senza riuscirci, dopo 4 tentativi.
-  { id: 'lob', label: 'Pallonetto', need: 1, shot: 'lob', phoneOnly: true, maxTries: 4, hint: { phone: 'Colpisci dal basso verso l’alto: la mano sale, come per mandare la palla in alto' } },
-  { id: 'drop', label: 'Palla corta', need: 1, shot: 'drop', phoneOnly: true, maxTries: 4, hint: { phone: 'Colpo lento e morbido, dall’alto verso il basso, come per accarezzare la palla sotto' } },
-  { id: 'slice', label: 'Tagliato', need: 1, shot: 'slice', phoneOnly: true, learn: false, maxTries: 4, hint: { phone: 'Accompagna dall’alto verso il basso con un gesto più ampio della palla corta' } },
-  { id: 'smash', label: 'Schiacciata', need: 1, shot: 'smash', phoneOnly: true, learn: false, maxTries: 4, hint: { phone: 'Arriva una palla alta: alza il braccio e colpisci dall’alto verso il basso, prima del rimbalzo' } },
-  { id: 'serve', label: 'Servizio', need: 1, hint: { phone: 'Alza il telefono per lanciare la palla, poi un colpetto quando è in alto', webcam: 'Alza la mano per lanciare, poi swing in alto', mouse: '↑ o W per lanciare, poi Spazio' } },
-  { id: 'cross', label: 'Incrociato', need: 1, direction: 'cross', feed: 'forehand', hint: { phone: 'Colpisci un attimo prima e orienta il piatto verso l’altra metà del campo: deve arrivare oltre il centro', webcam: 'Colpisci prima: manda la palla nell’altra metà del campo', mouse: 'Mira nell’altra metà del campo, oltre il centro' } },
-  { id: 'line', label: 'Lungolinea', need: 1, direction: 'line', feed: 'forehand', hint: { phone: 'Colpisci un attimo dopo e orienta il piatto lungo il lato da cui colpisci', webcam: 'Colpisci un attimo dopo: manda la palla lungo il tuo lato', mouse: 'Mira lungo il lato da cui colpisci' } },
+  { id: 'lob', label: 'Pallonetto', need: 1, shot: 'lob', phoneOnly: true, maxTries: 4, demo: 'lob', hint: { phone: 'Gesto in verticale dal basso verso l’alto: la mano sale davvero' } },
+  { id: 'drop', label: 'Palla corta', need: 1, shot: 'drop', phoneOnly: true, maxTries: 4, demo: 'drop', hint: { phone: 'Dall’alto verso il basso, lento e morbido, come una carezza' } },
+  { id: 'slice', label: 'Tagliato', need: 1, shot: 'slice', phoneOnly: true, learn: false, maxTries: 4, demo: 'slice', hint: { phone: 'Dall’alto verso il basso, deciso: più ampio e veloce della palla corta' } },
+  { id: 'smash', label: 'Schiacciata', need: 1, shot: 'smash', phoneOnly: true, learn: false, maxTries: 4, demo: 'smash', hint: { phone: 'Arriva una palla alta: braccio in alto, poi giù deciso prima del rimbalzo' } },
+  { id: 'flat', label: 'Colpo piatto', need: 1, shot: 'flat', phoneOnly: true, learn: false, maxTries: 4, feed: 'forehand', demo: 'flat', hint: { phone: 'Come il dritto ma più veloce, in orizzontale, senza alzare la mano' } },
 ]);
+// Riscaldamento prima della partita: solo i colpi di base (il tutorial completo è «Allenamento» nel menu)
+export const WARMUP_IDS = Object.freeze(['forehand', 'backhand', 'serve']);
+export const warmupDrills = controller => drillsFor(controller).filter(d => WARMUP_IDS.includes(d.id));
+// Lezione prima degli esercizi: presa, orientamento e mano, posizione di partenza (con l'animazione 3D)
+export const LESSON = Object.freeze([
+  { id: 'grip', demo: 'grip', title: 'Impugnatura', text: 'Il telefono sta in piedi nel pugno, come il manico di una racchetta. Dita attorno ai lati lunghi, cima in alto e un poco in avanti.' },
+  { id: 'hand', demo: 'ready', title: 'Orientamento e mano', text: 'Il display guarda di lato, verso l’esterno: dal computer si vede solo il bordo. Con quale mano giochi?', hand: true },
+  { id: 'ready', demo: 'ready', title: 'Posizione di partenza', text: 'In piedi a 1,5–2 m dallo schermo, al centro. Braccio rilassato davanti a te. Calibrazione e partita si fanno con questa stessa presa.' },
+]);
+export const WEBCAM_LESSON = Object.freeze([
+  { id: 'ready', title: 'Posizione di partenza', text: 'In piedi a 1,5–2 m dalla webcam, al centro dell’inquadratura. La mano che colpisce deve restare sempre visibile.' },
+]);
+const SHOT_NAME = Object.freeze({ topspin: 'Topspin', flat: 'Piatto', lob: 'Pallonetto', drop: 'Palla corta', slice: 'Tagliato', smash: 'Schiacciata' });
+const SIDE_NAME = Object.freeze({ forehand: 'Dritto', backhand: 'Rovescio' });
+// Feedback immediato sul gesto appena riconosciuto dal telefono (prima dell'esito della palla): cosa ha letto il gioco,
+// se è il gesto chiesto dall'esercizio e, se no, che cosa cambiare. Funzione pura: natpf è ev.natpf del telefono.
+export function liveFeedback(drill, natpf, { side = null, hand = 'right' } = {}){
+  if (!drill || !natpf) return null;
+  const shot = natpf.shot, normal = shot === 'topspin' || shot === 'flat';
+  const sideName = SIDE_NAME[side] || null, shotName = SHOT_NAME[shot] || 'Colpo';
+  const recognized = normal && sideName ? `${sideName} ${shot === 'flat' ? 'piatto' : 'in topspin'}` : sideName && shot !== 'smash' ? `${shotName} di ${sideName.toLowerCase()}` : shotName;
+  const power = Number.isFinite(natpf.power) ? Math.max(0, Math.min(1, natpf.power)) : null, aim = Number.isFinite(natpf.wrist) ? natpf.wrist : null;
+  const out = (ok, tip = '') => ({ ok, recognized, tip, power, aim });
+  const rtl = (want) => ((want === 'forehand') !== (hand === 'left') ? 'da destra verso sinistra' : 'da sinistra verso destra');
+  if (drill.id === 'serve') return out(true, 'Gesto riconosciuto: colpisci quando la palla è in cima');
+  if (drill.shot){
+    if (shot === drill.shot) return out(true);
+    const tips = {
+      lob: ['drop', 'slice', 'smash'].includes(shot) ? 'Verso sbagliato: dal basso verso l’alto' : 'Era orizzontale: porta il telefono dal basso verso l’alto, in verticale',
+      drop: shot === 'slice' ? 'Troppo veloce: più lento e morbido' : shot === 'lob' ? 'Verso sbagliato: dall’alto verso il basso' : 'Dall’alto verso il basso, lento e corto',
+      slice: shot === 'drop' ? 'Più deciso: il tagliato non è lento' : shot === 'lob' ? 'Verso sbagliato: dall’alto verso il basso' : 'Dall’alto verso il basso, con decisione',
+      smash: shot === 'slice' ? 'Aspetta la palla alta sopra la testa, poi giù deciso' : 'Braccio in alto, poi dall’alto verso il basso',
+      flat: shot === 'topspin' ? 'Più veloce, e senza alzare la mano' : 'Gesto orizzontale e veloce, come un dritto deciso',
+    };
+    return out(false, tips[drill.shot] || '');
+  }
+  const want = drill.id === 'backhand' ? 'backhand' : 'forehand';
+  if (!normal) return out(false, `Il gioco ha letto un ${shotName.toLowerCase()}: tieni il gesto orizzontale`);
+  if (side && side !== want) return out(false, `Era un ${sideName.toLowerCase()}: per il ${SIDE_NAME[want].toLowerCase()} il telefono va ${rtl(want)}`);
+  if (drill.direction && aim != null){
+    // lato del contatto nel riferimento del giocatore: il dritto del destro colpisce a destra (+1)
+    const contact = (want === 'forehand') !== (hand === 'left') ? 1 : -1, toward = aim*contact;
+    if (drill.direction === 'cross') return toward < -.25 ? out(true, 'Display girato verso il centro') : out(false, 'Gira di più il display verso il centro del campo');
+    return toward > .25 ? out(true, 'Display girato verso l’esterno') : out(false, 'Gira di più il display verso l’esterno, lungo il tuo lato');
+  }
+  return out(true);
+}
 // Calibrazione dentro il riscaldamento (solo smartphone)
 export const CAL_STAGE = Object.freeze({ id: 'cal', label: 'Calibrazione' });
 // posizione del giocatore (centro della riga di fondo) e della palla che aspetta il gesto: di lato quanto il braccio
@@ -38,6 +92,8 @@ export const CAL_STAGE = Object.freeze({ id: 'cal', label: 'Calibrazione' });
 // ahead: la palla ferma appena oltre il punto d'impatto (0,35 m davanti, natpf_impact.js): il colpo del gesto accettato
 // parte nello stesso istante, come prima della finestra d'impatto (a 0,45 m partiva al fotogramma dopo, e la verifica
 // della calibrazione arrivava prima: l'ultimo gesto restava senza colpo)
+// volée: posizione d'attesa a rete (m dalla rete, lato del giocatore)
+export const VOLLEY_Z = 3.3;
 export const CAL_SPOT = Object.freeze({ z: 11.4, reach: 1.05, ahead: .34, height: .95, flight: .9, seen: .3 });
 // Gesto della calibrazione → colpo: «L» è il gesto da destra a sinistra, il dritto di un destro (il rovescio di un mancino)
 export function calCoach(want, hand = 'right'){
@@ -63,12 +119,14 @@ export function trainingDirection({ x, hitX = 0, contact = 1 } = {}){
   if (x*from < 0) return Math.abs(x - hitX) >= 2 ? 'cross' : null;
   return Math.abs(x - hitX) <= 2.6 ? 'line' : null;
 }
-export function drillAfterShot(drill, progress, { side, inCourt, shot = null, direction = null }){
+export function drillAfterShot(drill, progress, { side, inCourt, shot = null, direction = null, volley = false }){
   // prova guidata della diagnostica: ogni palla giocata è un campione (il giudizio lo fanno le metriche, con il video)
   if (drill.diag) return { ...progress, tries: progress.tries + 1, done: progress.done + 1, ok: true };
   // colpi speciali: conta il colpo riconosciuto, anche se finisce fuori (si impara il gesto, non la mira)
   if (drill.shot) return { ...progress, tries: progress.tries + 1, done: progress.done + (shot === drill.shot ? 1 : 0), ok: shot === drill.shot, wrongShot: shot !== drill.shot };
   if (!inCourt) return { ...progress, tries: progress.tries + 1, ok: false };
+  // volée: conta solo la palla presa al volo (prima del rimbalzo)
+  if (drill.volley) return { ...progress, tries: progress.tries + 1, done: progress.done + (volley ? 1 : 0), ok: !!volley, notVolley: !volley };
   if (drill.direction){
     const ok = direction === drill.direction;
     return { ...progress, tries: progress.tries + 1, done: progress.done + (ok ? 1 : 0), ok, wrongDirection: !ok };
@@ -85,6 +143,18 @@ export class NatpfTraining {
     document.getElementById('coach-exit')?.addEventListener('click', e => { e.stopPropagation(); this.skip(); });
     document.getElementById('coach-simple')?.addEventListener('click', e => { e.stopPropagation(); this.simpleMode(); });
     this.coach?.addEventListener('pointerdown', e => e.stopPropagation());
+    // lezione iniziale: avanti / indietro / mano, anche da tastiera (Invio, frecce)
+    this.coach?.addEventListener('click', e => {
+      const b = e.target?.closest?.('[data-lesson]'); if (!b) return;
+      e.stopPropagation(); this.lessonAction(b.dataset.lesson);
+    });
+    if (typeof window !== 'undefined') window.addEventListener('keydown', e => {
+      if (!this.active || !this.lesson) return;
+      const a = e.code === 'Enter' || e.code === 'ArrowRight' ? 'next' : e.code === 'ArrowLeft' || e.code === 'Backspace' ? 'back' : null;
+      if (!a) return;
+      e.preventDefault(); e.stopImmediatePropagation(); this.lessonAction(a);
+    }, true);
+    this.introSeen = {};
     // durante il riscaldamento i punti non contano: il motore chiede un punto, qui si passa alla palla successiva
     const award = engine._awardPoint.bind(engine);
     engine._awardPoint = (winner, why = '') => this.active ? this._ballOver(winner, why) : award(winner, why);
@@ -103,13 +173,20 @@ export class NatpfTraining {
     const d = this.drill;
     // il gesto fatto a richiesta è un esempio del proprio colpo speciale: { kind, learned, distinct } (learnSpecial)
     if (d?.shot && d.learn !== false) this.lastLearn = { kind: d.shot, ...(this.ui.phone.learnSpecial?.(d.shot, ev.natpf) || {}) };
+    // feedback immediato dal tracking: cosa ha letto il gioco e, se non è il gesto chiesto, cosa cambiare
+    const fb = liveFeedback(d, ev.natpf, { side: ev.side ?? ev.natpf.side ?? null, hand: this.ui.hand?.hand || 'right' });
+    if (fb){ this.live = { ...fb, until: performance.now() + 2600 }; this.paint(); }
   }
   get phoneCal(){ return this.ui.controller === 'phone' && !this.ui.phone.ready; }
   // calOnly: solo la calibrazione del telefono in campo (prima di una sfida), poi si torna a chi l'ha chiesta
   // drills/diag: esercizi su misura e richiami della prova guidata della diagnostica (onFeed a ogni palla, onEnd)
   // guest: calibrazione del Player 2 di una sfida tra due computer: alla fine si torna alla stanza (natpf_versus_ui.js)
-  start({ calOnly = false, drills = null, diag = null, guest = false } = {}){
+  // intro: lezione su presa, orientamento, mano e posizione prima della calibrazione e degli esercizi (dal menu)
+  start({ calOnly = false, drills = null, diag = null, guest = false, intro = false } = {}){
     this.calOnly = calOnly; this.guest = guest;
+    const ctrl = this.ui.controller, steps = ctrl === 'phone' ? LESSON : ctrl === 'webcam' ? WEBCAM_LESSON : [];
+    this.lesson = intro && !guest && !diag && !calOnly && steps.length && !this.introSeen[ctrl] ? { steps, idx: 0 } : null;
+    this.live = null;
     const E = this.engine;
     this.drills = calOnly ? [] : drills || drillsFor(this.ui.controller);
     this.diagRun = diag;
@@ -125,6 +202,15 @@ export class NatpfTraining {
     if (this.ui.controller === 'webcam' && E.motionController && !E.motionController.webcamActive) E.motionController.enableWebcam();
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true }); E._syncScoreboardHUD();
     this._hideOpponent(true);
+    if (this.lesson){ this._idle(); this._centerPlayer(); }
+    else this._begin();
+    E.hud.showCenterBanner(this.lesson ? 'Allenamento' : this.cal ? 'Calibrazione' : 'Riscaldamento', { style: 'style-start', subText: this.lesson ? 'Prima, come si tiene il telefono' : this.cal ? 'Il gioco impara i tuoi due gesti' : 'Solo tu e il lanciapalle', durationMs: 1300 });
+    this.coach?.classList.remove('hidden');
+    this.paint();
+  }
+  // dopo la lezione (o subito): calibrazione del telefono o primo esercizio
+  _begin(){
+    const E = this.engine;
     if (this.cal){
       // calibrazione: niente servizio e niente corse, il giocatore aspetta fermo al centro
       this._idle(); this._centerPlayer();
@@ -133,9 +219,18 @@ export class NatpfTraining {
       const step = this.ui.phone.cal?.step;
       if (!step || ['done', 'review', 'free'].includes(step) || this.view.stage === 'off') this.ui.phone.recalibrate();
     } else E._setupPointServe({ showBanner: false });
-    E.hud.showCenterBanner(this.cal ? 'Calibrazione' : 'Riscaldamento', { style: 'style-start', subText: this.cal ? 'Il gioco impara i tuoi due gesti' : 'Solo tu e il lanciapalle', durationMs: 1300 });
-    this.coach?.classList.remove('hidden');
-    this.paint();
+  }
+  lessonAction(a){
+    const L = this.lesson; if (!this.active || !L) return;
+    if (a === 'right' || a === 'left'){ this.ui.hand?.set?.(a); this.ui.paintTiles?.(); this.paint(); return; }
+    if (a === 'back'){ L.idx = Math.max(0, L.idx - 1); this.paint(); return; }
+    if (a === 'next' && L.idx < L.steps.length - 1){ L.idx++; this.paint(); return; }
+    if (a === 'next' || a === 'skip'){
+      this.introSeen[this.ui.controller] = true; this.lesson = null;
+      this._begin();
+      this.engine.hud.showCenterBanner(this.cal ? 'Calibrazione' : 'Si comincia', { style: 'style-start', subText: this.cal ? 'Tieni fermo il telefono, poi i due gesti' : 'Guarda il gesto in alto a destra', durationMs: 1300 });
+      this.paint();
+    }
   }
   _hideOpponent(on){
     const o = this.engine.opponent;
@@ -159,7 +254,7 @@ export class NatpfTraining {
   }
   /* ---------- calibrazione in campo ---------- */
   _onCal(e){
-    if (!this.active) return;
+    if (!this.active || this.lesson) return;       // durante la lezione la calibrazione non è ancora partita
     if (!this.cal){ if (e.kind !== 'done' && this._phoneRecalibrating()) this._recal(); else return; }
     const c = this.cal, v = this.view, hand = this.ui.hand?.hand;
     this._calTick(0);                                      // palla del passo attuale subito, senza aspettare il fotogramma
@@ -282,11 +377,12 @@ export class NatpfTraining {
       contact: racket?.contact ?? (side === 'backhand' ? -1 : 1)*(this.ui.hand?.hand === 'left' ? -1 : 1) });
     const appliedShot = racket?.out?.shot?.toLowerCase() || this.lastShot;
     this.progress = drillAfterShot(d, this.progress, { side: d.id === 'serve' ? 'serve' : side,
-      inCourt: q.color !== 'red' && !['Fuori', 'Mancata', 'In rete'].includes(q.label), shot: appliedShot, direction });
+      inCourt: q.color !== 'red' && !['Fuori', 'Mancata', 'In rete'].includes(q.label), shot: appliedShot, direction, volley: !!racket?.volley });
     this.lastShot = null;
     const ok = this.progress.done > before;
     this.message = d.shot ? (ok ? `${d.label} ✓` : ['lob', 'drop'].includes(d.shot) ? specialHint(d.shot, this.lastLearn) : d.hint.phone)
       : ok ? `${d.label} ✓` : this.progress.wrongDirection ? (d.direction === 'cross' ? 'Serve un incrociato: mira nell’altra metà, oltre il centro' : 'Serve un lungolinea: mira lungo il lato da cui colpisci')
+      : this.progress.notVolley ? 'La palla ha rimbalzato: colpiscila prima, al volo'
       : this.progress.wrongSide ? (d.id === 'forehand' ? 'Era un rovescio: la palla va sul dritto' : 'Era un dritto: la palla va sul rovescio') : q.label === 'Fuori' ? 'Fuori: meno angolo o meno forza' : q.label;
     this.flash = { text: this.message, ok, until: performance.now() + 1200 };
     this.paint();
@@ -315,6 +411,8 @@ export class NatpfTraining {
     if (this.ballLive() && E.ball.lastHitter === 'opponent') return;     // c'è già una palla in arrivo
     if (this.idx >= this.drills.length) return this.stop({ completed: true });
     if (this.drill.id === 'serve'){ E.score.server = 'player'; E._setupPointServe({ showBanner: false }); return; }
+    // volée: si lancia solo quando il giocatore è arrivato a rete
+    if (this.drill.volley && Math.abs(E.player.pos.z - VOLLEY_Z) > .6){ this.wait = .25; return; }
     if (this.drill.feed) return this._feed(this.drill.feed === 'random' ? (Math.random() < .5 ? 'forehand' : 'backhand') : this.drill.feed);
     // pallonetto e palla corta: sul dritto, il colpo più comodo
     this._feed(this.drill.id === 'backhand' ? 'backhand' : this.drill.id === 'forehand' || this.drill.shot ? 'forehand' : Math.random() < .5 ? 'forehand' : 'backhand');
@@ -349,6 +447,9 @@ export class NatpfTraining {
     // il lanciapalle non corre e non risponde: l'avversario resta fuori dal campo
     if (o){ o.pos.set(0, 0, -40); o.targetPos.copy(o.pos); }
     this.ui.machine?.tick(dt);
+    if (this.lesson){ this.paint(); return; }
+    // volée: il giocatore aspetta a rete tra una palla e l'altra
+    if (!this.cal && this.drill?.volley && !this.ballLive()) this.engine.player.targetPos.set(0, 0, VOLLEY_Z);
     if (!this.cal && this._phoneRecalibrating()) this._recal();
     if (this.cal) this._calTick(dt);
     if (this.wait > 0){ this.wait -= dt; if (this.wait <= 0) this._next(); }
@@ -364,7 +465,8 @@ export class NatpfTraining {
   stop({ completed, skipped = false, calibrated = false, silent = false }){
     if (!this.active) return;
     const E = this.engine;
-    this.active = false; this.cal = null; E.natpfTimeScale = 1; clearTimeout(this.retryT);
+    this.active = false; this.cal = null; this.lesson = null; this.live = null; E.natpfTimeScale = 1; clearTimeout(this.retryT);
+    if (this.demoOn){ getGestureDemo().stop(); this.demoOn = false; }
     this.coach?.classList.add('hidden'); this._hideOpponent(false);
     E.opponent.pos.set(-1.35, 0, -11.89); E.opponent.targetPos.copy(E.opponent.pos);
     E._applyDifficultyTuning(this.prevDifficulty || 'casual');
@@ -398,6 +500,11 @@ export class NatpfTraining {
     const list = $('#coach-stages'), key = stages.map(x => x.id).join() + cur;
     if (list && list.dataset.key !== key){ list.dataset.key = key; list.innerHTML = stages.map((x, i) => `<li class="${i < cur ? 'done' : i === cur ? 'on' : ''}">${x.label}</li>`).join(''); }
     show($('#coach-simple'), !!this.cal && this.cal.fails >= 1);
+    // lezione iniziale: pannello a sinistra con l'animazione grande, il campo resta libero
+    const L = this.lesson;
+    if (this.coach.dataset.mode !== (L ? 'lesson' : 'drill')) this.coach.dataset.mode = L ? 'lesson' : 'drill';
+    show($('#coach-lesson'), !!L);
+    if (L) this._paintLesson($, hand);
     const flash = this.flash && now < this.flash.until ? this.flash : null;
     const mode = this.ui.flow?.mode === 'training' ? 'Allenamento' : 'Riscaldamento';
     const P = this.ui.phone, lost = c === 'phone' && P && (!P.connected || (P.state?.phone && !['cal', 'ready'].includes(P.state.phone)));
@@ -428,8 +535,63 @@ export class NatpfTraining {
     const cue = $('#coach-cue'); if (cue){ const dir = view.dir || ''; if (cue.dataset.dir !== dir) cue.dataset.dir = dir; }
     const dots = $('#coach-dots'), dk = (view.dots || []).join();
     if (dots && dots.dataset.key !== dk){ dots.dataset.key = dk; dots.innerHTML = (view.dots || []).map(x => `<i class="${x}"></i>`).join(''); }
-    const badge = $('#coach-badge'), bt = { go: 'Ora', wait: '…', retry: 'Riprova', ok: '✓' }[view.state] || '';
+    const badge = $('#coach-badge'), bt = { go: 'Ora!', wait: 'Aspetta', retry: 'Riprova', ok: '✓' }[view.state] || '';
     if (badge && badge.textContent !== bt) badge.textContent = bt;
+    this._paintLive($, now);
+    this._paintDemo($, lost, hand);
+  }
+  _paintLesson($, hand){
+    const L = this.lesson, st = L.steps[L.idx], last = L.idx === L.steps.length - 1;
+    const set = (sel, v) => { const el = $(sel); if (el && el.textContent !== v) el.textContent = v; };
+    set('#coach-lesson-step', `Passo ${L.idx + 1} di ${L.steps.length}`);
+    set('#coach-lesson-title', st.title); set('#coach-lesson-text', st.text);
+    set('#coach-lesson-next', last ? (this.cal ? 'Calibra ›' : 'Inizia ›') : 'Avanti ›');
+    const back = $('#coach-lesson-back'); if (back) back.disabled = L.idx === 0;
+    show($('#coach-lesson-hand'), !!st.hand);
+    for (const h of ['right', 'left']){ const b = $(`#coach-hand-${h}`); if (b){ b.classList.toggle('selected', hand === h); b.setAttribute('aria-pressed', String(hand === h)); } }
+    const dots = $('#coach-lesson-dots'), dk = `${L.idx}/${L.steps.length}`;
+    if (dots && dots.dataset.key !== dk){ dots.dataset.key = dk; dots.innerHTML = L.steps.map((_, i) => `<i class="${i < L.idx ? 'done' : i === L.idx ? 'on' : ''}"></i>`).join(''); }
+  }
+  // riga del feedback in tempo reale (gesto letto dal telefono): riconosciuto, giusto o da migliorare, forza
+  _paintLive($, now){
+    const box = $('#coach-live'); if (!box) return;
+    const L = this.live && now < this.live.until && !this.cal && !this.lesson ? this.live : null;
+    const key = L ? `${L.recognized}|${L.ok}|${L.tip}|${L.power}` : '';
+    if (box.dataset.key === key) return;
+    box.dataset.key = key; show(box, !!L);
+    if (!L) return;
+    const bars = L.power == null ? '' : `<span class="live-power" aria-label="Forza ${Math.round(L.power*100)}%">${[.25, .5, .75, .95].map(t => `<i class="${L.power >= t ? 'on' : ''}"></i>`).join('')}</span>`;
+    box.dataset.ok = L.ok ? 'yes' : 'no';
+    box.innerHTML = `<span class="live-mark" aria-hidden="true">${L.ok ? '✓' : '!'}</span><span class="live-text"><b>${L.recognized}</b>${L.tip ? `<small>${L.tip}</small>` : ''}</span>${bars}`;
+  }
+  // animazione 3D del gesto: grande nella lezione, piccola in alto a destra durante gli esercizi (solo smartphone: con la
+  // webcam si colpisce senza telefono in mano). Un solo canvas WebGL che si sposta tra i due riquadri
+  _paintDemo($, lost, hand){
+    const phone = this.ui.controller === 'phone';
+    const step = this.lesson?.steps[this.lesson.idx];
+    let id = null;
+    // nella lezione l'animazione c'è anche con il telefono non ancora collegato (si spiega come tenerlo)
+    if (phone && step) id = step.demo || null;
+    else if (phone && !lost){
+      if (this.cal) id = this.view.stage === 'gesture' ? calSide(this.view.want, hand) : 'ready';
+      else id = this.drill?.demo || null;
+    }
+    const card = $('#coach-demo'), big = $('#coach-lesson-demo');
+    show(card, !!id && !step); show(big, !!id && !!step);
+    const demo = id ? getGestureDemo() : null;
+    if (!demo){ this.demoOn && getGestureDemo().stop(); this.demoOn = false; return; }
+    const g = GESTURES[id];
+    demo.mount(step ? big : $('#coach-demo-stage'));
+    if (demo.available) demo.setSize(step ? 300 : 200, step ? 300 : 200);
+    demo.play(id, { hand, speed: g.still ? 1 : step ? .6 : .5 });
+    this.demoOn = true;
+    const key = `${id}|${hand}`, title = $('#coach-demo-title'), cues = $('#coach-demo-cues');
+    if (card.dataset.key !== key){
+      card.dataset.key = key;
+      if (title) title.textContent = g.label;
+      if (cues) cues.innerHTML = g.cues.map(c => `<li>${c}</li>`).join('');
+      card.classList.toggle('no-webgl', !demo.available);
+    }
   }
 }
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);

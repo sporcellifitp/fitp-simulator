@@ -22,6 +22,7 @@ checkpoint pubblicato su GitHub è `59ce56c`; quelli successivi sono solo nel ch
 
 ## Prossima azione esatta
 
-T1 completato (lanciapalle 3D). Prossimo: T2 tutorial — creare `src/natpf/natpf_gesture_demo.js` (mano + telefono
-3D con gesti dalle regole di `docs/PROJECT_MEMORY.md` §Gesti) e agganciarlo a `natpf_training.js` (mini-loop in alto
-a destra, passi introduttivi presa/orientamento/mano/posizione, feedback dal tracking).
+T2 (tutorial) completato. Prossimo: T3 redesign del menu e delle pagine (`#title-modal` in `index.html`,
+`natpf_lobby.js`) dentro `natpf-ui.css`, togliendo le regole corrispondenti da `natpf-intro.css` / `natpf.css` /
+`natpf-round.css` / `natpf-flow.css`. Verificare con `node scripts/ui-shots.mjs --out <cartella>` (desktop) e
+`--mobile`, con `npm run dev` attivo.

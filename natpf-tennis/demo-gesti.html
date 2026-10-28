@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gesti del tutorial</title>
+    <!-- Pagina di sviluppo (npm run dev → /demo-gesti.html): tutte le animazioni 3D del tutorial affiancate, con la mano
+         scelta e la velocità. Non fa parte della build del gioco. -->
+    <style>
+      :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+      body { margin: 0; padding: 16px; background: #0b1023; color: #eef2ff; }
+      header { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+      h1 { font-size: 20px; margin: 0 12px 0 0; }
+      button { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid #3a4a8a; background: #16224f; color: inherit; cursor: pointer; }
+      button[aria-pressed="true"] { background: #e8ff3a; color: #0b1023; }
+      main { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+      figure { margin: 0; background: radial-gradient(circle at 50% 35%, #22337a, #0f1738); border-radius: 14px; padding: 8px; }
+      figure canvas { width: 100%; aspect-ratio: 1; display: block; }
+      figcaption { font-weight: 700; padding: 4px 4px 0; }
+      figcaption small { display: block; font-weight: 400; opacity: .7; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Gesti del tutorial</h1>
+      <button data-hand="right" aria-pressed="true">Destro</button><button data-hand="left">Mancino</button>
+      <button data-speed="1">Tempo reale</button><button data-speed=".5" aria-pressed="true">×0,5</button><button data-speed=".25">×0,25</button>
+    </header>
+    <main id="grid"></main>
+    <script type="module">
+      import { NatpfGestureDemo } from './src/natpf/natpf_gesture_demo.js';
+      import { GESTURES } from './src/natpf/natpf_gesture_motion.js';
+      const grid = document.getElementById('grid'), demos = [];
+      let hand = new URLSearchParams(location.search).get('hand') || 'right', speed = .5;
+      for (const id of Object.keys(GESTURES)){
+        const fig = document.createElement('figure'), g = GESTURES[id];
+        fig.innerHTML = `<figcaption>${g.label}<small>${g.cues.join(' · ')}</small></figcaption>`;
+        grid.append(fig);
+        const d = new NatpfGestureDemo({ width: 220, height: 220 }); d.mount(fig); fig.prepend(d.canvas); demos.push([d, id]);
+      }
+      const replay = () => demos.forEach(([d, id]) => d.play(id, { hand, speed }));
+      document.querySelector('header').addEventListener('click', e => {
+        const b = e.target.closest('button'); if (!b) return;
+        const k = b.dataset.hand ? 'hand' : 'speed';
+        for (const x of document.querySelectorAll(`[data-${k}]`)) x.setAttribute('aria-pressed', String(x === b));
+        if (b.dataset.hand) hand = b.dataset.hand; else speed = +b.dataset.speed;
+        replay();
+      });
+      replay();
+      window.__demos = demos;
+    </script>
+  </body>
+</html>

@@ -6,7 +6,7 @@ import { introMode, INTRO_MS } from '../src/natpf/natpf_intro.js';
 import { controllerTiles, viewTiles, controllerStatus, CONTROLLER_TILES } from '../src/natpf/natpf_tiles.js';
 import { shotQuality, shotWhy, landsIn, VIBRATION, QUALITY_COLORS } from '../src/natpf/natpf_shot_feedback.js';
 import { leftySide, isLocalServing, normalizeHand } from '../src/natpf/natpf_hand.js';
-import { DRILLS, drillsFor, drillAfterShot, calSide, calCoach, CAL_SPOT, sideWant } from '../src/natpf/natpf_training.js';
+import { DRILLS, drillsFor, drillAfterShot, calSide, calCoach, CAL_SPOT, sideWant, warmupDrills } from '../src/natpf/natpf_training.js';
 
 test('percorso da console: menu → modalità → racchetta → collega → riscaldamento → partita; allenamento a parte', () => {
   assert.deepEqual(LOBBY_STEPS, ['menu', 'mode', 'options', 'challenges', 'ranking', 'result', 'controller', 'connect', 'warmup', 'match']);
@@ -123,9 +123,16 @@ test('mano libera in vista solo al proprio servizio', () => {
 });
 
 test('riscaldamento: colpi di base, speciali e direzioni verificate; conta solo il gesto chiesto', () => {
-  assert.deepEqual(DRILLS.map(d => d.id), ['forehand', 'backhand', 'lob', 'drop', 'slice', 'smash', 'serve', 'cross', 'line']);
+  // ordine progressivo del tutorial (28/10): base, servizio, direzione, rete, tocco, potenza
+  assert.deepEqual(DRILLS.map(d => d.id), ['forehand', 'backhand', 'serve', 'cross', 'line', 'volley', 'lob', 'drop', 'slice', 'smash', 'flat']);
   for (const d of DRILLS) for (const c of ['phone', 'webcam', 'mouse']) if (!d.phoneOnly || c === 'phone') assert.ok(d.hint[c], `${d.id}/${c}`);
-  assert.deepEqual(drillsFor('mouse').map(d => d.id), ['forehand', 'backhand', 'serve', 'cross', 'line']);
+  for (const d of DRILLS) assert.ok(d.demo, `${d.id}: animazione del gesto`);
+  assert.deepEqual(drillsFor('mouse').map(d => d.id), ['forehand', 'backhand', 'serve', 'cross', 'line', 'volley']);
+  // riscaldamento prima della partita: solo i colpi di base
+  assert.deepEqual(warmupDrills('phone').map(d => d.id), ['forehand', 'backhand', 'serve']);
+  const vol = DRILLS.find(d => d.id === 'volley');
+  assert.equal(drillAfterShot(vol, { done: 0, tries: 0 }, { side: 'forehand', inCourt: true, volley: false }).done, 0, 'dopo il rimbalzo non è una volée');
+  assert.equal(drillAfterShot(vol, { done: 0, tries: 0 }, { side: 'forehand', inCourt: true, volley: true }).done, 1);
   const lob = DRILLS.find(d => d.id === 'lob');
   assert.equal(drillAfterShot(lob, { done: 0, tries: 0 }, { shot: 'lob', inCourt: false }).done, 1, 'pallonetto riconosciuto: vale anche fuori');
   assert.equal(drillAfterShot(lob, { done: 0, tries: 0 }, { shot: 'topspin', inCourt: true }).done, 0);

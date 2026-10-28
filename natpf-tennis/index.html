@@ -29,6 +29,7 @@
     <link rel="stylesheet" href="./natpf-round.css" />
     <link rel="stylesheet" href="./natpf-flow.css" />
     <link rel="stylesheet" href="./natpf-intro.css" />
+    <link rel="stylesheet" href="./natpf-ui.css" />
   </head>
   <body>
     <div id="root" class="hidden" aria-hidden="true"></div>
@@ -604,26 +605,47 @@
         </div>
       </div>
     </div>
-    <!-- NATPF: allenatore del riscaldamento in campo (src/natpf/natpf_training.js): in alto le tappe e i pulsanti, in
-         basso al centro, sotto il giocatore (dove si guarda mentre si gioca), il gesto da fare in grande con la freccia,
-         lo stato (aspetta / ora / riprova / ✓) e l'esito dell'ultimo gesto -->
-    <div id="natpf-coach" class="natpf-coach hidden" aria-live="polite">
+    <!-- NATPF: allenatore del riscaldamento e del tutorial in campo (src/natpf/natpf_training.js). Il campo resta libero:
+         in alto la barra delle tappe, in alto a destra l'animazione 3D del gesto in loop (natpf_gesture_demo.js), in basso
+         a sinistra la scheda dell'esercizio con lo stato e il feedback del gesto letto dal telefono. Prima degli esercizi
+         dell'«Allenamento», la lezione su presa, orientamento, mano e posizione (pannello a sinistra). -->
+    <div id="natpf-coach" class="natpf-coach hidden" aria-live="polite" data-mode="drill">
       <div class="coach-top">
         <span class="coach-kicker" id="coach-kicker">Riscaldamento</span>
-        <ol class="coach-stages" id="coach-stages" aria-label="Tappe del riscaldamento"></ol>
+        <ol class="coach-stages" id="coach-stages" aria-label="Tappe"></ol>
         <div class="coach-actions">
-          <button type="button" id="coach-simple" class="lobby-ghost hidden">Modalità semplice</button
-          ><button type="button" id="coach-exit" class="lobby-secondary">Salta ›</button>
+          <button type="button" id="coach-simple" class="btn btn-ghost btn-sm hidden">Modalità semplice</button
+          ><button type="button" id="coach-exit" class="btn btn-ghost btn-sm">Salta ›</button>
         </div>
       </div>
+      <section class="coach-lesson hidden" id="coach-lesson" aria-labelledby="coach-lesson-title">
+        <div class="lesson-demo" id="coach-lesson-demo"></div>
+        <div class="lesson-body">
+          <p class="lesson-step" id="coach-lesson-step"></p>
+          <h2 class="lesson-title" id="coach-lesson-title"></h2>
+          <p class="lesson-text" id="coach-lesson-text"></p>
+          <div class="seg lesson-hand hidden" id="coach-lesson-hand" role="group" aria-label="Mano">
+            <button type="button" class="seg-btn" id="coach-hand-right" data-lesson="right">Destra</button
+            ><button type="button" class="seg-btn" id="coach-hand-left" data-lesson="left">Sinistra</button>
+          </div>
+          <div class="lesson-nav">
+            <span class="lesson-dots" id="coach-lesson-dots" aria-hidden="true"></span>
+            <button type="button" class="btn btn-ghost" id="coach-lesson-back" data-lesson="back">‹ Indietro</button
+            ><button type="button" class="btn btn-primary" id="coach-lesson-next" data-lesson="next">Avanti ›</button>
+          </div>
+        </div>
+      </section>
+      <aside class="coach-demo hidden" id="coach-demo" aria-label="Gesto da ripetere">
+        <header><span>Guarda e ripeti</span><b id="coach-demo-title"></b><i class="demo-speed">×0,5</i></header>
+        <div class="demo-stage" id="coach-demo-stage"></div>
+        <ul class="demo-cues" id="coach-demo-cues"></ul>
+      </aside>
       <div class="coach-main" id="coach-main" data-state="wait">
         <div class="coach-grip hidden" id="coach-grip"></div>
-        <div class="coach-cue" id="coach-cue" data-dir="" aria-hidden="true">
-          <svg class="gesture-phone" viewBox="0 0 60 100"><rect x="14" y="4" width="32" height="60" rx="7" /><rect x="19" y="11" width="22" height="44" rx="3" class="scr" /><path d="M6 60 q0 -10 10 -9 l28 1 q10 1 8 12 l-3 26 q-2 8 -12 8 h-16 q-14 0 -15 -12z" class="hand" /></svg>
-          <span class="gesture-arrow"></span>
-        </div>
+        <div class="coach-cue" id="coach-cue" data-dir="" aria-hidden="true"><span class="gesture-arrow"></span></div>
         <div class="coach-words"><b id="coach-text"></b><small id="coach-sub"></small></div>
         <div class="coach-side"><span class="coach-badge" id="coach-badge"></span><span class="coach-count" id="coach-count"></span><span class="coach-dots" id="coach-dots"></span></div>
+        <div class="coach-live hidden" id="coach-live" data-ok="yes"></div>
       </div>
     </div>
     <script type="module">

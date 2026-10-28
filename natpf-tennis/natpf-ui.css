@@ -1,0 +1,327 @@
+/* NATPF Simulator · sistema di design (redesign del 28/10/2026)
+   Un solo linguaggio per menu, pagine, fogli, tutorial in campo, minigiochi e risultati. Caricato per ultimo.
+   - Font: Barlow Condensed (titoli, etichette, numeri) e Barlow (testo), SIL OFL, in public/fonts (offline, LAN).
+   - Colori: notte blu dell'arena, giallo palla per l'azione principale, rosa FITP eSeries come accento, blu campo.
+   - Spaziatura su base 4 px; raggi 10/16/22 px; un'ombra sola; animazioni brevi (160–320 ms) e con prefers-reduced-motion. */
+
+@font-face { font-family: "Barlow Condensed"; font-weight: 600; font-style: normal; font-display: swap; src: url("./fonts/barlow-condensed-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Barlow Condensed"; font-weight: 700; font-style: italic; font-display: swap; src: url("./fonts/barlow-condensed-latin-700-italic.woff2") format("woff2"); }
+@font-face { font-family: "Barlow Condensed"; font-weight: 800; font-style: italic; font-display: swap; src: url("./fonts/barlow-condensed-latin-800-italic.woff2") format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 400; font-style: normal; font-display: swap; src: url("./fonts/barlow-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 500; font-style: normal; font-display: swap; src: url("./fonts/barlow-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 600; font-style: normal; font-display: swap; src: url("./fonts/barlow-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 700; font-style: normal; font-display: swap; src: url("./fonts/barlow-latin-700-normal.woff2") format("woff2"); }
+
+:root {
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-text: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* superfici */
+  --ink-950: #050a1c;
+  --ink-900: #0a1330;
+  --ink-800: #101c44;
+  --ink-700: #182a5f;
+  --panel: rgba(10, 19, 48, 0.88);
+  --panel-solid: #0d1838;
+  --line: rgba(176, 194, 255, 0.16);
+  --line-strong: rgba(176, 194, 255, 0.34);
+  /* testo */
+  --text: #f4f6fc;
+  --text-2: #b6c1e0;
+  --text-3: #7e8bb3;
+  /* colori del marchio */
+  --ball: #e3ff36;
+  --ball-ink: #0a1330;
+  --pink: #ff3d8b;
+  --blue: #2f6bff;
+  --ok: #36e07a;
+  --warn: #ffc640;
+  --bad: #ff4f61;
+  --gold: #ffd257;
+  --silver: #d6dcea;
+  --bronze: #e39a62;
+  /* forma */
+  --r-s: 10px;
+  --r-m: 16px;
+  --r-l: 22px;
+  --r-pill: 999px;
+  --shadow: 0 18px 44px rgba(2, 6, 22, 0.45);
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --t-fast: 160ms;
+  --t-med: 260ms;
+  --gutter: clamp(12px, 2.2vw, 24px);
+}
+
+/* ---------- pulsanti ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 22px;
+  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+  font: 700 italic 17px/1 var(--font-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform var(--t-fast) var(--ease), background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), opacity var(--t-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.14); }
+.btn:active { transform: translateY(0) scale(0.98); }
+.btn:focus-visible { outline: 3px solid var(--ball); outline-offset: 3px; }
+.btn:disabled { opacity: 0.4; cursor: default; transform: none; }
+.btn-primary { background: var(--ball); color: var(--ball-ink); box-shadow: 0 8px 22px rgba(227, 255, 54, 0.22); }
+.btn-primary:hover { background: #efff7a; box-shadow: 0 10px 28px rgba(227, 255, 54, 0.32); }
+.btn-ghost { background: transparent; border-color: var(--line-strong); color: var(--text-2); }
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.06); color: var(--text); border-color: rgba(176, 194, 255, 0.55); }
+.btn-sm { height: 36px; padding: 0 16px; font-size: 15px; }
+
+/* controllo a segmenti (scelte esclusive) */
+.seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: var(--r-pill); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); }
+.seg .seg-btn {
+  height: 38px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--text-2);
+  font: 600 16px/1 var(--font-text);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast);
+}
+.seg .seg-btn:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+.seg .seg-btn.selected,
+.seg .seg-btn[aria-pressed="true"] { background: var(--text); color: var(--ink-900); }
+.seg .seg-btn:focus-visible { outline: 3px solid var(--ball); outline-offset: 2px; }
+
+/* etichetta piccola in maiuscolo */
+.label-caps { font: 600 13px/1.2 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
+
+/* =====================================================================================================================
+   Tutorial e riscaldamento in campo (natpf_training.js)
+   Il campo resta libero: tappe in alto, animazione del gesto in alto a destra (sotto la pausa), scheda dell'esercizio in
+   basso a sinistra, lezione iniziale in un pannello a sinistra. Il punteggio (0-0) durante l'allenamento non si mostra.
+   ===================================================================================================================== */
+body.natpf-training #top-hud-bar,
+body.natpf-training #natpf-games-line { opacity: 0; pointer-events: none; }
+
+.natpf-coach { position: fixed; inset: 0; z-index: 40; pointer-events: none; font-family: var(--font-text); color: var(--text); }
+.natpf-coach.hidden { display: none; }
+.natpf-coach > * { pointer-events: auto; }
+.natpf-coach .hidden { display: none !important; }
+
+.coach-top {
+  position: absolute;
+  top: var(--gutter);
+  left: var(--gutter);
+  right: calc(var(--gutter) + 64px);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 40px;
+  pointer-events: none;
+}
+.coach-top > * { pointer-events: auto; }
+.coach-kicker {
+  flex: none;
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  font: 600 14px/1 var(--font-display);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ball);
+  backdrop-filter: blur(10px);
+}
+/* tappe: barrette compatte, solo quella in corso con il nome */
+.coach-stages { display: flex; align-items: center; gap: 4px; margin: 0; padding: 0; list-style: none; min-width: 0; overflow: hidden; }
+.coach-stages li {
+  flex: none;
+  height: 6px;
+  width: 22px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 0;
+  color: transparent;
+  transition: width var(--t-med) var(--ease), background var(--t-med);
+}
+.coach-stages li.done { background: var(--ok); }
+.coach-stages li.on {
+  width: auto;
+  height: 28px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  background: var(--ball);
+  color: var(--ball-ink);
+  font: 700 italic 15px/1 var(--font-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.coach-actions { margin-left: auto; display: flex; gap: 8px; }
+.coach-actions .btn { background: var(--panel); backdrop-filter: blur(10px); }
+
+/* animazione del gesto, in alto a destra */
+.coach-demo {
+  position: absolute;
+  top: calc(var(--gutter) + 56px);
+  right: var(--gutter);
+  width: 232px;
+  padding: 12px;
+  border-radius: var(--r-l);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+  animation: coach-in var(--t-med) var(--ease);
+}
+.coach-demo header { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 0 8px; margin-bottom: 8px; }
+.coach-demo header span { grid-column: 1 / -1; font: 600 12px/1.2 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-3); }
+.coach-demo header b { font: 800 italic 24px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.01em; }
+.coach-demo .demo-speed { font: 600 13px/1 var(--font-display); font-style: normal; color: var(--ink-900); background: var(--text-2); border-radius: var(--r-pill); padding: 4px 8px; }
+.demo-stage,
+.lesson-demo {
+  aspect-ratio: 1;
+  border-radius: var(--r-m);
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 30%, #25387d 0%, #121f4d 55%, #0b1435 100%);
+}
+.gesture-demo-canvas { display: block; width: 100%; height: 100%; }
+.demo-cues { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.demo-cues li { position: relative; padding-left: 16px; font: 500 14px/1.3 var(--font-text); color: var(--text-2); }
+.demo-cues li::before { content: ""; position: absolute; left: 2px; top: 0.5em; width: 6px; height: 6px; border-radius: 50%; background: var(--ball); }
+
+/* scheda dell'esercizio, in basso a sinistra */
+.coach-main {
+  position: absolute;
+  left: var(--gutter);
+  bottom: var(--gutter);
+  width: min(460px, calc(100vw - 2 * var(--gutter)));
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 16px 18px;
+  border-radius: var(--r-l);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+  transition: border-color var(--t-med), box-shadow var(--t-med);
+}
+.coach-main[data-state="go"] { border-color: var(--ball); box-shadow: var(--shadow), 0 0 0 3px rgba(227, 255, 54, 0.25); }
+.coach-main[data-state="ok"] { border-color: var(--ok); }
+.coach-main[data-state="retry"] { border-color: var(--warn); }
+.coach-grip { grid-column: 1 / -1; }
+.coach-grip svg { width: 100%; max-height: 170px; color: var(--text); }
+.coach-cue { grid-row: 1; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, 0.08); }
+.coach-cue[data-dir=""] { display: none; }
+.coach-cue .gesture-arrow::before { font: 800 30px/1 var(--font-display); color: var(--ball); }
+.coach-cue[data-dir="L"] .gesture-arrow::before { content: "←"; }
+.coach-cue[data-dir="R"] .gesture-arrow::before { content: "→"; }
+.coach-words { grid-row: 1; display: grid; gap: 4px; min-width: 0; }
+.coach-words b { font: 800 italic clamp(26px, 3.2vw, 34px)/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.01em; }
+.coach-words small { font: 500 15px/1.35 var(--font-text); color: var(--text-2); }
+.coach-side { grid-row: 1; display: grid; justify-items: center; gap: 6px; }
+.coach-badge {
+  min-width: 76px;
+  padding: 8px 12px;
+  border-radius: var(--r-pill);
+  text-align: center;
+  font: 700 italic 16px/1 var(--font-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-2);
+}
+.coach-main[data-state="go"] .coach-badge { background: var(--ball); color: var(--ball-ink); animation: badge-pulse 0.7s var(--ease) infinite alternate; }
+.coach-main[data-state="ok"] .coach-badge { background: var(--ok); color: var(--ink-900); }
+.coach-main[data-state="retry"] .coach-badge { background: var(--warn); color: var(--ink-900); }
+.coach-count { font: 600 13px/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
+.coach-dots { display: flex; gap: 5px; }
+.coach-dots i,
+.lesson-dots i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, 0.22); }
+.coach-dots i.done,
+.lesson-dots i.done { background: var(--ok); }
+.coach-dots i.on,
+.lesson-dots i.on { background: var(--ball); }
+
+/* feedback del gesto letto dal telefono */
+.coach-live {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-m);
+  background: rgba(54, 224, 122, 0.12);
+  border: 1px solid rgba(54, 224, 122, 0.4);
+  animation: coach-in var(--t-fast) var(--ease);
+}
+.coach-live[data-ok="no"] { background: rgba(255, 198, 64, 0.12); border-color: rgba(255, 198, 64, 0.45); }
+.live-mark { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font: 800 16px/1 var(--font-display); background: var(--ok); color: var(--ink-900); }
+.coach-live[data-ok="no"] .live-mark { background: var(--warn); }
+.live-text { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.live-text b { font: 700 italic 18px/1.1 var(--font-display); text-transform: uppercase; letter-spacing: 0.02em; }
+.live-text small { font: 500 14px/1.3 var(--font-text); color: var(--text-2); }
+.live-power { display: flex; align-items: flex-end; gap: 3px; height: 22px; }
+.live-power i { width: 6px; border-radius: 2px; background: rgba(255, 255, 255, 0.2); }
+.live-power i:nth-child(1) { height: 30%; }
+.live-power i:nth-child(2) { height: 55%; }
+.live-power i:nth-child(3) { height: 78%; }
+.live-power i:nth-child(4) { height: 100%; }
+.live-power i.on { background: var(--ball); }
+
+/* lezione iniziale: pannello a sinistra, il campo resta visibile a destra */
+.natpf-coach[data-mode="lesson"] .coach-main,
+.natpf-coach[data-mode="lesson"] .coach-demo,
+.natpf-coach[data-mode="lesson"] .coach-stages { display: none !important; }
+.coach-lesson {
+  position: absolute;
+  left: var(--gutter);
+  top: calc(var(--gutter) + 56px);
+  width: min(720px, calc(100vw - 2 * var(--gutter)));
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 24px;
+  padding: 20px;
+  border-radius: var(--r-l);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+  animation: coach-in var(--t-med) var(--ease);
+}
+.lesson-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.lesson-step { margin: 0; font: 600 13px/1 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--pink); }
+.lesson-title { margin: 0; font: 800 italic 40px/0.95 var(--font-display); text-transform: uppercase; letter-spacing: 0.005em; }
+.lesson-text { margin: 0; font: 500 18px/1.45 var(--font-text); color: var(--text-2); }
+.lesson-hand { align-self: flex-start; }
+.lesson-nav { margin-top: auto; display: flex; align-items: center; gap: 10px; }
+.lesson-dots { display: flex; gap: 6px; margin-right: auto; }
+
+@keyframes coach-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes badge-pulse { from { transform: scale(1); } to { transform: scale(1.06); } }
+
+@media (max-width: 860px), (max-height: 560px) {
+  .coach-stages { display: none; }
+  .coach-demo { width: 150px; padding: 8px; top: calc(var(--gutter) + 48px); }
+  .coach-demo header b { font-size: 18px; }
+  .demo-cues, .coach-demo .demo-speed { display: none; }
+  .coach-main { width: min(380px, calc(100vw - 2 * var(--gutter) - 160px)); padding: 12px 14px; }
+  .coach-words b { font-size: 24px; }
+  .coach-words small { font-size: 13px; }
+  .coach-lesson { grid-template-columns: 180px 1fr; gap: 14px; padding: 14px; top: calc(var(--gutter) + 44px); bottom: var(--gutter); overflow: auto; }
+  .lesson-title { font-size: 28px; }
+  .lesson-text { font-size: 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .coach-main[data-state="go"] .coach-badge, .coach-demo, .coach-live, .coach-lesson { animation: none; }
+}

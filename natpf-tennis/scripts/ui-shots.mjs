@@ -49,6 +49,28 @@ await page.waitForTimeout(2500);
 await shot('warmup');
 await page.waitForTimeout(3000);
 await shot('warmup-2');
+// tutorial con uno smartphone simulato (nessun telefono vero qui): lezione, poi esercizi con l'animazione e il feedback
+await ui(() => {
+  const U = window.__natpfTennis.natpfUi, P = U.phone;
+  U.training.active && U.training.stop({ completed: false, silent: true });
+  // telefono collegato e calibrato, simulato (il pannello del QR non si apre)
+  Object.defineProperty(P, 'connected', { get: () => true, configurable: true });
+  P.state.phone = 'ready';
+  U.controller = 'phone'; U.training.introSeen = {}; U.training.start({ intro: true });
+});
+await page.waitForTimeout(2500); await shot('lesson-1');
+await ui(() => window.__natpfTennis.natpfUi.training.lessonAction('next')); await page.waitForTimeout(1500); await shot('lesson-2');
+await ui(() => {
+  const U = window.__natpfTennis.natpfUi, T = U.training;
+  Object.defineProperty(U.phone, 'ready', { get: () => true, configurable: true });
+  T.stop({ completed: false, silent: true }); T.start({});
+  T.idx = T.drills.findIndex(d => d.id === 'lob');
+  T.live = { ok: false, recognized: 'Dritto in topspin', tip: 'Era orizzontale: porta il telefono dal basso verso l’alto, in verticale', power: .7, until: performance.now() + 60000 };
+});
+await page.waitForTimeout(2500); await shot('drill-lob');
+await ui(() => { const T = window.__natpfTennis.natpfUi.training; T.idx = 0; T.live = { ok: true, recognized: 'Dritto in topspin', tip: '', power: .85, until: performance.now() + 60000 }; });
+await page.waitForTimeout(2000); await shot('drill-forehand');
+await ui(() => { const U = window.__natpfTennis.natpfUi; U.training.stop({ completed: false, silent: true }); delete U.phone.ready; delete U.phone.connected; U.controller = 'mouse'; });
 for (const id of ['targets', 'machine', 'rally', 'radar']){
   const ok = await ui(i => { const U = window.__natpfTennis.natpfUi; if (!U.events.constructor.prototype || !U.events.start) return false; U.training.active && U.training.stop({ completed: false, silent: true }); U.events.start(i); return !!U.events.active; }, id);
   if (!ok) continue;

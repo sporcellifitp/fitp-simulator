@@ -16,6 +16,7 @@
 // Easter egg: digitando «natpf» nel menu compaiono mouse e tastiera (modalità prova per il computer).
 import { FORMAT_KEY } from './match_format.js';
 import { CHALLENGES, challengeById, validNickname } from './natpf_events.js';
+import { warmupDrills } from './natpf_training.js';
 import { hostLobbyStatus, roomCode, joinUrl } from './natpf_versus.js';
 import { p2pRequested } from './natpf_p2p.js';
 const $ = id => document.getElementById(id);
@@ -379,7 +380,11 @@ export class NatpfLobby {
       else ui.events.start(this.challenge);
       return;
     }
-    ui.training.start();
+    // Allenamento dal menu: tutorial completo, sempre con la lezione su presa e posizione. Riscaldamento prima della
+    // partita: solo dritto, rovescio e servizio, senza lezione (la presa è già nella pagina «Collega»: in fiera si gioca)
+    const full = this.mode === 'training';
+    if (full) ui.training.introSeen = {};
+    ui.training.start({ drills: full ? null : warmupDrills(ui.controller), intro: full });
   }
   // prova guidata della modalità diagnostica: come l'allenamento, con esercizi che dicono quale colpo serve (riferimento
   // delle metriche). Con il telefono non collegato si va prima al collegamento

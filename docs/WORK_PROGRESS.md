@@ -27,15 +27,27 @@ Legenda: [x] fatto e verificato · [~] in corso · [ ] da fare.
       (usati dai minigiochi in T5). Test: `test/natpf-ball-machine.test.mjs` (3). Suite 392/393 (1 saltato LAN).
 
 ### T2 · Tutorial
-- [ ] `natpf_gesture_demo.js`: mano + telefono stile S24 Ultra in 3D, gesti dalle regole reali
-- [ ] Passi introduttivi: presa, orientamento, mano destra/sinistra, posizione iniziale
-- [ ] Mini-animazione in loop in alto a destra durante ogni esercizio
-- [ ] Feedback in tempo reale dal tracking (colpo riconosciuto, corretto / da migliorare con il motivo)
-- [ ] Esercizi: dritto, rovescio, topspin, piatto?, pallonetto, palla corta, tagliato, smash, volée, servizio,
-      incrociato, lungolinea (solo quelli che il riconoscimento distingue davvero)
-- [ ] Test
+- [x] `src/natpf/natpf_gesture_motion.js`: moti dei gesti (formato del braccio simulato) per dritto, rovescio, piatto,
+      volée, pallonetto, palla corta, tagliato, schiacciata, servizio (lancio + battuta), incrociato, lungolinea;
+      specchio per il mancino. `test/natpf-gesture-demo.test.mjs`: gli stessi moti, eseguiti dal telefono simulato
+      completo (destro/mancino, presa 15–45°), sono riconosciuti come il colpo mostrato (mira compresa). Verificato
+      che il test fallisce con un moto sbagliato (mutazione).
+- [x] `src/natpf/natpf_gesture_demo.js`: giocatore stilizzato, braccio con cinematica inversa, pugno e telefono tipo
+      S24 Ultra, schermo e campo di riferimento, palla sincronizzata con l'impatto, scia del gesto; un solo contesto
+      WebGL (`getGestureDemo`), 30 fps massimo, fermo quando non visibile. Anteprima di sviluppo: `/demo-gesti.html`.
+- [x] Lezione iniziale (solo «Allenamento»): impugnatura → orientamento e mano (Destra/Sinistra) → posizione;
+      la calibrazione del telefono parte dopo. Riscaldamento prima della partita: solo dritto, rovescio, servizio.
+- [x] Riquadro «Guarda e ripeti» in alto a destra con l'animazione in loop (×0,5) e tre indicazioni.
+- [x] Feedback in tempo reale (`liveFeedback`): colpo letto dal telefono, giusto/da migliorare con il motivo, forza.
+- [x] Esercizi nuovi: volée (giocatore a rete, conta solo la palla al volo) e colpo piatto. Ordine progressivo.
+- [x] Coach ridisegnato (`natpf-ui.css`, markup in `index.html`): scheda in basso a sinistra, campo libero,
+      punteggio nascosto durante l'allenamento. Test: `test/natpf-tutorial.test.mjs` (3) + aggiornati
+      `natpf-lobby` e `natpf-flows` (la lezione si salta con `lessonAction('skip')`). Suite 398/399, build ok.
+- [ ] Da provare con un telefono Android vero: leggibilità dell'animazione, ritmo della lezione.
 
 ### T3 · Redesign UI/UX
+- [x] Sistema di design in `natpf-ui.css` (token, Barlow/Barlow Condensed OFL in `natpf-tennis/fonts/`, pulsanti
+      `.btn`, `.seg`), caricato per ultimo. Coach già migrato; vecchio coach tolto da `natpf-flow.css`.
 - [ ] Un solo foglio di stile coerente per menu, pagine, fogli, coach, HUD delle sfide, risultati
 - [ ] Percorso intro → menu → modalità → tutorial → partita/minigioco → risultati
 - [ ] Verifica con screenshot desktop e mobile

@@ -75,7 +75,7 @@ test('Chiosco: dopo il reset il gioco non resta in pausa per il visitatore succe
   const w = await makeWorld({ controller: 'phone' });
   const { E, ui, lobby, link } = w;
   ui.kiosk.enabled = true; ui.kiosk.limit = 30; w.advance(300);
-  lobby.menu('training'); lobby.go('connect'); lobby.next();
+  lobby.menu('training'); lobby.go('connect'); lobby.next(); w.ui.training.lessonAction('skip');   // lezione iniziale (28/10)
   w.cal({ kind: 'step', step: 'still' }); w.advance(500);
   w.key('Escape', 'Escape'); assert.ok(E.natpfPaused);
   w.advance(61000, { dt: 1/30 });                                       // nessuno per due volte il limite
@@ -83,7 +83,7 @@ test('Chiosco: dopo il reset il gioco non resta in pausa per il visitatore succe
   assert.equal(!!E.natpfPaused, false);
   // visitatore successivo: allenamento, gesto riconosciuto → la palla parte (prima il gioco restava fermo)
   link.connected = true; link.L = { state: 'connected', phone: 'cal' };
-  lobby.menu('training'); lobby.go('connect'); lobby.next();
+  lobby.menu('training'); lobby.go('connect'); lobby.next(); w.ui.training.lessonAction('skip');   // lezione iniziale (28/10)
   w.cal({ kind: 'step', step: 'still' }); w.cal({ kind: 'step', step: 'swings', want: 'L', idx: 0, total: QUICK_PLAN.length }); w.cal({ kind: 'ready', want: 'L' });
   const z0 = E.ball.pos.z, s0 = w.stats.update;
   w.cal({ kind: 'attempt', ok: true, idx: 0, want: 'L' }); w.advance(2000);
@@ -96,7 +96,7 @@ test('Calibrazione in campo: gesto accettato e subito il gesto dopo o la verific
   // la palla del gesto dopo cancellava lo swing in attesa, e dopo l'ultimo gesto la verifica arrivava prima del colpo
   const w = await makeWorld({ controller: 'phone' }); w.advance(300);
   const { E, ui, lobby } = w;
-  lobby.menu('training'); lobby.go('connect'); lobby.next();
+  lobby.menu('training'); lobby.go('connect'); lobby.next(); w.ui.training.lessonAction('skip');   // lezione iniziale (28/10)
   w.cal({ kind: 'step', step: 'still' }); w.cal({ kind: 'step', step: 'swings', want: 'L', idx: 0, total: 4 }); w.cal({ kind: 'ready', want: 'L' });
   w.advance(200);
   const hits = [];
@@ -127,7 +127,7 @@ test('Fine partita e ritorno al menu entro 1,8 s: la schermata finale non compar
 test('Ricalibra durante gli esercizi con il pannello del telefono chiuso: il campo guida la calibrazione, la conferma e si riprende', async () => {
   const w = await makeWorld({ controller: 'phone' }); w.advance(300);
   const { E, ui, lobby, link } = w;
-  lobby.menu('training'); lobby.go('connect'); lobby.next();
+  lobby.menu('training'); lobby.go('connect'); lobby.next(); w.ui.training.lessonAction('skip');   // lezione iniziale (28/10)
   calibrate(w); w.cal({ kind: 'done', profile: { hand: 'right' } }); w.advance(2500);
   assert.ok(!ui.training.cal && E.natpfPhone.ready && ui.training.drill?.id === 'forehand');
   w.key('Escape', 'Escape'); ui.pause.run('phone');
@@ -415,7 +415,7 @@ test('Calibrazione in campo: il gesto riconosciuto colpisce la sua palla anche s
   // (prova nel browser del 22/10)
   const w = await makeWorld({ controller: 'phone' }); w.advance(300);
   const { E, lobby } = w;
-  lobby.menu('training'); lobby.go('connect'); lobby.next();
+  lobby.menu('training'); lobby.go('connect'); lobby.next(); w.ui.training.lessonAction('skip');   // lezione iniziale (28/10)
   w.cal({ kind: 'step', step: 'still' });
   const strokes = [];
   QUICK_PLAN.forEach((want, idx) => {
@@ -442,7 +442,7 @@ test('Calibrazione in campo: il gesto riconosciuto colpisce la sua palla anche s
 test('Calibrazione rifatta dopo una verifica non superata: ogni gesto del secondo giro colpisce la sua palla', async () => {
   const w = await makeWorld({ controller: 'phone' }); w.advance(300);
   const { E, lobby, link } = w;
-  lobby.menu('training'); lobby.go('connect'); lobby.next();
+  lobby.menu('training'); lobby.go('connect'); lobby.next(); w.ui.training.lessonAction('skip');   // lezione iniziale (28/10)
   w.cal({ kind: 'step', step: 'still' });
   const round = check => QUICK_PLAN.forEach((want, idx) => {
     w.cal({ kind: idx ? 'next' : 'step', step: 'swings', want, idx, total: QUICK_PLAN.length }); w.cal({ kind: 'ready', want }); w.advance(100);
