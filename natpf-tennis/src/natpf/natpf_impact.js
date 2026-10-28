@@ -215,9 +215,13 @@ export function timeToContact(engine, actor){
 // semplice, webcam) nessun gesto è debole. Chi gioca con colpetti piccoli ha un colpo tipico piccolo: i suoi colpi non
 // sono deboli.
 export const WEAK = Object.freeze({ rel: .3, early: .08, wait: .22, serveWait: .3, ample: 25 });
+export const KEEP = Object.freeze({ conf: .5, within: .45 });
+// palla corta o pallonetto confermati dalla forma del colpo (natpf_stroke_intent.js)
+export const deliberateSpecial = (e = {}, conf = .15) => ['drop', 'lob'].includes(e.natpf?.intent?.shot) && finite(e.natpf.intent.conf) >= conf && finite(e.natpf.angle) >= 15;
 export function weakSwing(e = {}){
-  // Una palla corta confermata dalla forma è volutamente lenta, non una preparazione da scartare.
-  if (e.natpf?.intent?.shot === 'drop' && finite(e.natpf.intent.conf) >= .15 && finite(e.natpf.angle) >= 15) return false;
+  // Palla corta e pallonetto confermati dalla forma sono volutamente lenti, non una preparazione da scartare (28/10 sera:
+  // a rete un pallonetto da 356 °/s, 0,1 s dopo il punto d'impatto, era ignorato come il rientro della mano)
+  if (deliberateSpecial(e)) return false;
   const peak = finite(e.natpf?.peak, NaN), typ = finite(e.natpf?.typical, NaN);
   return Number.isFinite(peak) && Number.isFinite(typ) && typ > 0 && peak < WEAK.rel*typ;
 }
@@ -247,6 +251,11 @@ export function queueUserSwing(engine, e, actor){
   let better = !cur || !cur.natpfWindow || strength >= cur.strength*1.15 || (Math.abs(lead) < Math.abs(cur.lead) && strength >= cur.strength*.6);
   // un colpo vero sostituisce sempre un gesto debole in attesa, mai il contrario
   if (cur?.natpfWindow && !!cur.weak !== weak) better = !weak;
+  // palla corta o pallonetto voluti in attesa (forma chiara: KEEP.conf) e subito dopo un gesto dall'altra parte: è il
+  // braccio che torna, più veloce del colpo morbido. 28/10 sera: la palla corta di rovescio (451 °/s) sostituita 0,2 s
+  // dopo dal rientro (1292 °/s), giocato come tagliato di dritto. La preparazione seguita dal colpo resta come prima: la
+  // preparazione non ha la forma di una palla corta o di un pallonetto
+  if (better && cur?.natpfWindow && deliberateSpecial(cur.evt, KEEP.conf) && cur.evt.side && e.side && e.side !== cur.evt.side && now - cur.at < KEEP.within) better = false;
   if (better){ engine.pendingUserSwing = cand; holdSwingPrep(actor, e.side, ttc); }
   return 'held';
 }

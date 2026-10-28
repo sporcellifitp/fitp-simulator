@@ -357,3 +357,35 @@ test('diagnostica: esito, piano, servizio e colpi a vuoto nel registro; ripetibi
     await R.stop();
   } finally { Math.random = real; }
 });
+
+// Sessione del 28/10 sera (diagnostica 20261028-213510-ukua, video): a rete il pallonetto (braccio alzato sopra la
+// testa: salita 0,71, forza 0,13, 356 °/s) restava un top spin ed era ignorato perché debole e 0,1 s dopo il punto
+// d'impatto; la palla corta di rovescio (451 °/s) era sostituita 0,2 s dopo dal rientro del braccio (1292 °/s).
+test('28/10 sera: il pallonetto morbido a rete è un pallonetto e non è ignorato in leggero ritardo', async () => {
+  const { classifyStroke } = await import('../src/natpf/natpf_stroke_intent.js');
+  assert.equal(classifyStroke({ rise: .711, plane: .889, tilt: .2 }, { power: .131, angle: 63, riseRef: .3 }).shot, 'lob');
+  // un dritto forte che sale (n 167: salita 0,68, piano 0,47, forza 0,92) resta un top spin
+  assert.equal(classifyStroke({ rise: .68, plane: .47, tilt: .3 }, { power: .92, angle: 106, riseRef: .3 }).shot, 'topspin');
+  const lob = { natpf: { intent: { shot: 'lob', conf: .5 }, angle: 63, peak: 356, typical: 1250 } };
+  assert.equal(NI.weakSwing(lob), false);
+  assert.equal(NI.weakSwing({ natpf: { ...lob.natpf, intent: { shot: 'topspin', conf: .5 } } }), true);
+  withEngine('leggenda', e => {
+    cpuShot(e, { player: [.6, 11.6], to: [.15, 3.4], flight: 1.25, topspin: -6 });
+    const sw = phoneSwing({ shot: 'lob', power: .13, rise: .71, conf: .5 }, { peak: 356 }); sw.natpf.angle = 63; sw.natpf.typical = 1250;
+    const r = play(e, [{ lead: -.08, swing: sw }]);
+    assert.ok(r.hit, r.phase);
+    assert.equal(r.racket.out.shot, 'LOB');
+  });
+});
+
+test('28/10 sera: la palla corta voluta in attesa non è sostituita dal braccio che torna dall\'altra parte', () => {
+  const drop = () => { const s = phoneSwing({ shot: 'drop', power: .21, rise: -.8, conf: .76 }, { side: 'backhand', peak: 451 }); s.natpf.angle = 68; return s; };
+  const back = phoneSwing({ shot: 'slice', power: .86, rise: -.45 }, { side: 'forehand', peak: 1292 });
+  const run = first => withEngine('leggenda', e => { cpuShot(e, { to: [-1.6, 8.6] }); return play(e, [{ lead: .25, swing: first }, { lead: .05, swing: back }]); });
+  const r = run(drop());
+  assert.ok(r.hit, r.phase);
+  assert.equal(r.racket.out.shot, 'DROP');
+  // senza la forma della palla corta il primo gesto era la preparazione: il colpo vero lo sostituisce come prima
+  const prep = phoneSwing({ shot: 'topspin', power: .2, rise: .1 }, { side: 'backhand', peak: 451 }); prep.natpf.angle = 68;
+  assert.equal(run(prep).racket.intent.shot, 'slice');
+});

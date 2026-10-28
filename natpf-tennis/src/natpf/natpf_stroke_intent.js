@@ -20,6 +20,9 @@ export const INTENT = Object.freeze({
                      // 23/10 un dritto da 1005 °/s in top spin (piano 0,65, salita 0,63) è diventato un pallonetto in rete…
   lobSoft: .3,       // … oppure con un gesto lento (circa 580 °/s: un pallonetto difensivo). Era .55 (850 °/s, un dritto
                      // normale di chi gioca da amatore): ogni dritto in salita oltre 33° diventava un pallonetto
+  lobSoftOver: .35,  // gesto lento: basta che la testa salga di tanto oltre la propria salita abituale (almeno lobRise).
+                     // 28/10 sera: a rete il braccio alzato sopra la testa (salita 0,71, forza 0,13) restava un top spin
+                     // perché con la salita abituale 0,3 la soglia era 0,9
   topRise: .15,      // top spin: la testa sale almeno un poco
   sliceRise: -.22,   // tagliato: la testa scende
   dropPower: .36,    // palla corta: tagliato morbido (forza fino a così) …
@@ -74,8 +77,11 @@ export function classifyStroke(shape, { power = .5, angle = null, ballHigh = nul
   const said = r.toFixed(2) + (ref ? `, abituale ${ref.toFixed(2)}` : '');
   if (ballHigh && p >= I.smashPower && (r <= smashAt || (P < I.smashPlane && tilt >= I.smashTilt)))
     return { shot: 'smash', conf: Math.max(m(smashAt - r, .3), m(I.smashPlane - P, .3)), why: ['palla alta', r <= smashAt ? `dall'alto (${said})` : `swing verticale, manico alto (${tilt.toFixed(2)})`] };
-  if (r >= lobAt && (P <= I.lobPlane || p <= I.lobSoft))
-    return { shot: 'lob', conf: m(r - lobAt, .3), why: [`la testa sale decisa (${said})`, P <= I.lobPlane ? `swing verticale (${P.toFixed(2)})` : `gesto morbido (${p.toFixed(2)})`] };
+  const softLobAt = Math.max(I.lobRise, ref + I.lobSoftOver);
+  if (r >= lobAt && P <= I.lobPlane)
+    return { shot: 'lob', conf: m(r - lobAt, .3), why: [`la testa sale decisa (${said})`, `swing verticale (${P.toFixed(2)})`] };
+  if (p <= I.lobSoft && r >= softLobAt)
+    return { shot: 'lob', conf: m(r - softLobAt, .3), why: [`la testa sale decisa (${said})`, `gesto morbido (${p.toFixed(2)})`] };
   // Una carezza verticale resta una palla corta: non deve scendere ancora oltre la pronazione del dritto.
   if ((!Number.isFinite(angle) || angle >= I.dropMinAngle) && r <= I.dropSoftRise && P <= I.dropVerticalPlane && p <= I.dropPower)
     return { shot: 'drop', conf: Math.min(m(I.dropSoftRise - r, .3), m(I.dropPower - p, .2)), why: ['taglio verticale morbido', `discesa ${r.toFixed(2)}, forza ${p.toFixed(2)}`] };

@@ -352,3 +352,22 @@ mano…». Solo LAN, senza gli elementi dello zip dell'altro agente.
 - [x] Estratto e provato in https: webcam finta con la mano aperta → «Mano vista» entro 5 s (modello nella pagina);
       voci, due QR, partita divisa, pagina del telefono, nessun errore in console.
 - [ ] Non provato: Windows, webcam e telefono veri.
+
+## Analisi della diagnostica 20261028-213510-ukua (Leggenda, telefono, build 2026-10-28.4, con video webcam e gioco)
+Segnalazione: pallonetti e palle corte non escono mai; lungolinea e angoli diversi mai; monitor dell'arena tagliati;
+«Gioca ancora» deve riportare alle impostazioni.
+- Pallonetto (punto a 22,6 s, video: braccio alzato sopra la testa a rete): gesto da 356 °/s, salita 0,71, forza 0,13 →
+  top spin (soglia del pallonetto 0,9 con la salita abituale 0,3) e, arrivato 0,1 s dopo il punto d'impatto, ignorato
+  perché «debole» (meno del 30% del colpo tipico). → [x] `classifyStroke`: gesto morbido (forza ≤ 0,3) è pallonetto se la
+  testa sale di 0,35 oltre l'abituale (almeno 0,6); `weakSwing`: pallonetto e palla corta confermati dalla forma non sono
+  deboli (si giocano anche in leggero ritardo).
+- Palla corta (17,5 s): riconosciuta (rovescio, «taglio verticale morbido», confidenza 0,76) e sostituita 0,2 s dopo
+  dal braccio che tornava (dritto da 1292 °/s, giocato come tagliato). → [x] `queueUserSwing`: palla corta o pallonetto
+  voluti (confidenza ≥ 0,5) in attesa non sono sostituiti da un gesto dall'altra parte entro 0,45 s. La regola sul
+  telefono (verso atteso) è stata provata e scartata: scartava un dritto vero da 1390 °/s a 15,6 s.
+- Provato e tolto: impatto al colmo del rimbalzo sulle palle corte (più tempo) → nelle partite simulate spariscono volée
+  e schiacciate (il giocatore non resta più a rete); il test della dinamica degli scambi lo blocca.
+- Direzione: 9 incrociati, 3 centro, 1 lungolinea; tempo mediano +0,51 unità (anticipo). Calibrazione rapida debole
+  (dritto 204 °/s, rovescio 361 °/s contro 1100–1400 in partita): riferimento del piatto sbagliato, mira del piatto
+  valida in 17 colpi su 36. Da fare: tempo relativo al proprio ritmo.
+- Test: `natpf-racchetta-motore.test.mjs` (+2, falliscono con il codice di prima). Gioco 445/445.
