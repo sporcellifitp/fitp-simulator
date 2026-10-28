@@ -2,6 +2,22 @@
 
 Aggiornato: 28/10/2026 · branch `natpf-simulator`.
 
+## Ultimo pacchetto LAN: 2026-10-28.2 (sessione Claude, 28/10)
+
+`natpf-simulator-lan-windows-20261028-2.zip` · 61.518.360 byte · 290 file (cartella principale
+`natpf-simulator-lan-windows-20261028-2/`).
+SHA256: `8d2e5f9d386577259a5175be4bfe85217008724828f471b3ba412e1316a08928`.
+Contenuto: consegna LAN 2026-10-28.1 + redesign, media reali Higgsfield (foto, 6 clip, intro video), «NATPF
+Simulator» unico titolo. Node.js 22.22.0 Windows x64 incluso (zip ufficiale verificato con SHASUMS256 di nodejs.org;
+`node.exe` identico). Nessun certificato né chiave privata (controllato sull'elenco dello zip).
+Correzione nel pacchetto: i video `.mp4` erano serviti come `application/octet-stream` con `nosniff`; ora `video/mp4`
+(`scripts/offline-assets.mjs`).
+Verifica sullo zip estratto (Linux, non Windows): certificato creato, server HTTPS con CA del pacchetto (curl con
+`--cacert`), gioco `/?lan=1`, video dell'intro e clip riprodotti in Chromium, pagina del telefono
+`/natpf/tennis/racchetta.html`, versione 2026-10-28.2, MediaPipe offline; nessun errore in console.
+Non provato: avvio su Windows (`AVVIA NATPF LAN.cmd`, certutil, firewall), telefono reale, 1v1 su due PC.
+Prossima azione: prova fisica come per la 2026-10-28.1 (sotto), più intro, lezione con foto e clip dei colpi.
+
 Due linee di lavoro unite con un merge il 28/10 (nessuna riscrittura di storia):
 - **Consegna LAN 2026-10-28.1** (sessione di sergio4, commit `e4af4ce`, `2401fc9`, `641fa02`): riconnessione del
   telefono, webcam in worker, palle corte a Leggenda. Sotto, invariata.

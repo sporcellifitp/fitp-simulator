@@ -179,3 +179,13 @@ Nota: tra le 15:10 e le 15:30 l'account ha anche spese **non fatte da questa ses
   conflitti solo in `SESSION_HANDOFF.md` e `WORK_PROGRESS.md` (testi affiancati, niente perso).
 - Verifica dopo il merge: gioco 422/422 (`npm test`), sito 152/152 (`node --test tools/test/*.test.mjs`), build
   riuscita, browser (menu, lezione, esercizio con clip, Target Rush) senza errori in console.
+
+## Pacchetto LAN 2026-10-28.2 (28/10, sessione Claude)
+- [x] Versione 2026-10-28.2 (`site/js/tennis/version.js`, `site/tennis/build.json`).
+- [x] `npm ci` in `tools/lan`, build, test: gioco 422/422, sito 152/152.
+- [x] Node.js 22.22.0 win-x64 da nodejs.org, SHA256 uguale a SHASUMS256.txt (firma GPG del file non verificata).
+- [x] `node natpf-tennis/lan/pacchetto.mjs --out=… --node=…`, zip con percorsi «/»: 290 file, 61,5 MB.
+- [x] Corretto: `.mp4` servito come `video/mp4` (prima octet-stream + nosniff); test in `natpf-media.test.mjs`.
+- [x] Zip estratto e provato: certificato, HTTPS, gioco, intro video, clip, pagina del telefono, versione, nessun
+      errore in console. SHA256 e dettagli in `SESSION_HANDOFF.md`.
+- [ ] Prova su Windows e con telefono reale: da fare (utente).

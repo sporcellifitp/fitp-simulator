@@ -44,6 +44,8 @@ export const MIME = {
   '.json': 'application/json; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8',
   '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.LICENSE': 'text/plain; charset=utf-8',
+  // foto e clip del tutorial e video dell'intro (public/media/): il server LAN manda nosniff, il tipo deve essere giusto
+  '.mp4': 'video/mp4',
 };
 export const mimeFor = file => MIME[path.extname(file)] || 'application/octet-stream';
 

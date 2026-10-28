@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { PHOTOS, CLIPS, LESSON_PHOTOS, clipFor, lessonPhotos, rateLabel } from '../src/natpf/natpf_media.js';
 import { DRILLS, LESSON } from '../src/natpf/natpf_training.js';
 import { makeWorld } from './ui-world.mjs';
+import { mimeFor } from '../scripts/offline-assets.mjs';
 
 const pub = rel => fileURLToPath(new URL('../public/' + rel.replace(/^\.\//, ''), import.meta.url));
 const size = rel => fs.statSync(pub(rel)).size;
@@ -17,6 +18,9 @@ test('media del tutorial: ogni file esiste ed è leggero, con la provenienza doc
     assert.ok(size(c.src) < 200_000, `${c.src} ${size(c.src)} B`);
     assert.ok(size(c.poster) < 30_000, c.poster);
   }
+  // il server LAN risponde con nosniff: senza il tipo giusto il browser può rifiutare i video
+  for (const c of Object.values(CLIPS)){ assert.equal(mimeFor(c.src), 'video/mp4'); assert.equal(mimeFor(c.poster), 'image/webp'); }
+  assert.equal(mimeFor('media/intro.mp4'), 'video/mp4');
   const notes = fs.readFileSync(pub('media/LEGGIMI.txt'), 'utf8');
   for (const f of new Set([...Object.values(PHOTOS).map(p => p.src), ...Object.values(CLIPS).map(c => c.src)])) assert.ok(notes.includes(f.split('/').pop()), `${f} non è in LEGGIMI.txt`);
 });
