@@ -57,15 +57,15 @@ export class BallFx {
   constructor(scene, camera) {
     this.camera = camera;
     this.group = new THREE.Group();
-    this.core = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), new THREE.MeshBasicMaterial({ color: '#eaff2e', toneMapped: false }));
+    this.core = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), new THREE.MeshStandardMaterial({ color: '#e2f532', emissive: '#4a5600', roughness: 0.75 }));
     // contorno scuro (faccia interna di una sfera un po' più grande): stacca la palla dal campo azzurro
-    this.outline = new THREE.Mesh(new THREE.SphereGeometry(1.22, 16, 12), new THREE.MeshBasicMaterial({ color: '#1d2200', side: THREE.BackSide, toneMapped: false }));
+    this.outline = new THREE.Mesh(new THREE.SphereGeometry(1.12, 16, 12), new THREE.MeshBasicMaterial({ color: '#1d2200', side: THREE.BackSide, toneMapped: false }));
     // riga bianca della pallina
     const seam = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.07, 6, 28), new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false }));
     seam.rotation.x = 0.6;
     this.seam = seam;
-    this.glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: ringTexture('glow'), color: '#f2ff70', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, opacity: 0.85 }));
-    this.glow.scale.setScalar(4.2);
+    this.glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: ringTexture('glow'), color: '#f2ff70', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, opacity: 0.22 }));
+    this.glow.scale.setScalar(2.6);
     this.group.add(this.glow, this.outline, this.core, seam);
     this.group.renderOrder = 6;
     // ombra a terra
@@ -101,9 +101,9 @@ export class BallFx {
     const vis = y > -0.5;
     this.group.visible = this.shadow.visible = vis;
     if (!vis) { this.trail.visible = false; return; }
-    // raggio visibile: almeno ~5 pixel anche dall'altra parte del campo
+    // raggio visibile: poco più grande del vero da vicino, ingrandito con moderazione da lontano (~3 px di raggio)
     const d = this.camera.position.distanceTo(new THREE.Vector3(x, y, z));
-    const r = Math.max(0.06, 0.0078 * d);
+    const r = Math.max(0.048, 0.0042 * d);
     this.group.position.set(x, Math.max(y, r * 0.9), z);
     this.group.scale.setScalar(r);
     this.spinA += dt * (8 + Math.hypot(...ball.v) * 0.6);
@@ -125,13 +125,13 @@ export class BallFx {
       const k = n ? i / (this.N - 1) : 0; // 0 = coda, 1 = palla
       const dir = new THREE.Vector3(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
       const view = new THREE.Vector3(cam.x - p[0], cam.y - p[1], cam.z - p[2]);
-      const side = dir.cross(view).normalize().multiplyScalar(r * 0.85 * k);
+      const side = dir.cross(view).normalize().multiplyScalar(r * 0.6 * k);
       for (const [j, sgn] of [[0, 1], [1, -1]]) {
         pos[(i * 2 + j) * 3] = p[0] + side.x * sgn;
         pos[(i * 2 + j) * 3 + 1] = p[1] + side.y * sgn;
         pos[(i * 2 + j) * 3 + 2] = p[2] + side.z * sgn;
         col[(i * 2 + j) * 4] = 1; col[(i * 2 + j) * 4 + 1] = 1; col[(i * 2 + j) * 4 + 2] = 0.55;
-        col[(i * 2 + j) * 4 + 3] = k * k * 0.75;
+        col[(i * 2 + j) * 4 + 3] = k * k * 0.4;
       }
     }
     this.trail.geometry.attributes.position.needsUpdate = true;
