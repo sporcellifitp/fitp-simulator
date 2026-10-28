@@ -2,7 +2,23 @@
 
 Aggiornato: 28/10/2026 · branch `natpf-simulator`.
 
-## Ultima aggiunta: split screen «Stesso schermo» e ledwall (28/10 sera) — leggere per primo
+## Pacchetti 2026-10-28.3 (28/10 sera) — leggere per primo
+
+Consegnati all'utente (non nel repository: zip nella cartella temporanea della sessione): Cloudflare
+`natpf-simulator-cloudflare-20261028-3.zip` (SHA256 `14d19029…abc60`) e LAN Windows
+`natpf-simulator-lan-windows-20261028-3.zip` (SHA256 `87d9efe2…fb910`); misure, contenuto e prove in
+`docs/WORK_PROGRESS.md` («Pacchetti 2026-10-28.3»). Contengono voce inglese cartoon, tutorial con foto e 3D, split
+screen e schermo per ledwall, più la correzione della stanza in rete creata per sbaglio con «Stesso schermo».
+Commit locali non pubblicati: da `265e687` all'ultimo (`git log origin/natpf-simulator..`); push solo se l'utente lo
+autorizza.
+
+Prossima azione esatta:
+1. Se l'utente autorizza: `git push -u origin natpf-simulator`.
+2. Prova dal vivo del pacchetto LAN su Windows con due smartphone («Stesso schermo») e, se c'è, su un ledwall
+   (Opzioni → Schermo, o `?area=x,y,w,h`).
+3. Caricare lo zip Cloudflare su Pages e provarlo dal telefono (sul sito statico il 1v1 tra due computer usa la rete p2p).
+
+## Split screen «Stesso schermo» e ledwall (28/10 sera)
 
 Commit locali (non pubblicati finché l'utente non autorizza il push): `265e687` voce inglese e via le clip,
 `5e93a5f` S1 secondo telefono, `88c607a` S2 due viste nel motore, `cae8a54` S3 menu, `44c2a73` S4 schermo/ledwall
@@ -14,8 +30,8 @@ Commit locali (non pubblicati finché l'utente non autorizza il push): `265e687`
   CSS con `@container natpf` e `cqw/cqh` (regola in `CLAUDE.md`).
 - Verificato: gioco 435/435, sito 152/152, build; browser (senza telefoni veri) a 1280×720, 900×900, 1200×800, area
   720×720 e 768×512. **Non verificato**: due telefoni veri insieme, ledwall vero, fluidità su un PC con GPU.
-- Prossima azione: prova dal vivo con due smartphone sullo stesso PC (rete con https: `npm run dev:https` o pacchetto
-  LAN); poi, se l'utente lo chiede, pacchetto LAN 2026-10-28.3 con voce inglese + split screen.
+- Prova dal vivo da fare con due smartphone sullo stesso PC (rete con https: `npm run dev:https` o pacchetto LAN
+  2026-10-28.3, sopra).
 
 ## Stato finale (28/10/2026, sera) — voce e tutorial
 
