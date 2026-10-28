@@ -7,6 +7,7 @@ const noop = () => {};
 if (!globalThis.window) globalThis.window = { addEventListener: noop, removeEventListener: noop, location: { search: '' }, innerWidth: 1280, innerHeight: 720 };
 const { NatpfTennisEngine } = await import('../../src/game_engine.js');
 const { NatpfReplay } = await import('../../src/natpf/natpf_replay.js');
+const { NatpfSplit } = await import('../../src/natpf/natpf_split.js');
 
 // HUD, scia e arena finti: ogni metodo esiste e non fa nulla
 const sink = () => new Proxy({}, { get: (t, k) => (k in t ? t[k] : noop) });
@@ -43,6 +44,7 @@ export function createHeadlessEngine({ difficulty = 'casual' } = {}){
   e._projectToScreen = () => ({ x: 0, y: 0 });
   e._applyMatchFormat = noop; e._spawnStarBurst = noop; e._spawnBounceRing = noop;
   e.natpfReplay = new NatpfReplay(e);
+  e.natpfSplit = new NatpfSplit(e);   // split screen (sessione 1v1 locale), senza renderer: solo lo stato
   // un passo fisso della fisica (come update() del gioco, senza disegno)
   e.step = dt => { e.elapsedTime += dt; e._stepPhysics(dt); e.natpfReplay?.record(dt); };   // con la moviola che registra
   return e;

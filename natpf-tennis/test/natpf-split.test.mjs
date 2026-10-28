@@ -66,3 +66,50 @@ test('secondo telefono: riceve solo i propri esiti', async () => {
   assert.ok(P2.link.sent.some(m => m.t === 'ev' && m.k === 'point' && m.mine));
   assert.equal(E.natpfPhone.link.sent.filter(m => m.t === 'ev').length, E.natpfPhone.link.sent.slice(0, p1).filter(m => m.t === 'ev').length, 'il P1 non riceve l’esito del P2');
 });
+
+import * as THREE from 'three';
+import { splitViewports, splitCameraPose, splitVisible, SPLIT_CAM } from '../src/natpf/natpf_split.js';
+
+test('split: due metà affiancate con una linea in mezzo, P1 a sinistra e P2 a destra', () => {
+  const v = splitViewports(1920, 1080);
+  assert.equal(v.p1.x, 0); assert.equal(v.p2.x + v.p2.w, 1920);
+  assert.equal(v.p1.w, v.p2.w); assert.ok(v.p2.x > v.p1.x + v.p1.w, 'linea di separazione');
+  assert.equal(v.p1.h, 1080);
+});
+
+// in ogni metà (monitor 16:9, ledwall 3×2 e 2×2 divisi in due) si vede tutto il singolare: le righe laterali al fondo
+// campo di chi gioca e la rete; il P2 vede il campo dal suo lato (rovesciato)
+for (const [name, aspect] of [['monitor 16:9', 8/9], ['ledwall 3×2', .75], ['ledwall 2×2', .5], ['schermo largo', 1.6]]){
+  test(`split: camera della metà (${name}) — singolare tutto in vista, rete in vista`, () => {
+    for (const side of [1, -1]){
+      const p = splitCameraPose({ side, actorX: side*3, ballX: 2, aspect });
+      const cam = new THREE.PerspectiveCamera(p.fov, aspect, .1, 500);
+      cam.position.set(...p.pos); cam.lookAt(new THREE.Vector3(...p.look)); cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+      const inView = (x, y, z) => { const q = new THREE.Vector3(x, y, z).project(cam); return Math.abs(q.x) <= 1 && Math.abs(q.y) <= 1 && q.z < 1; };
+      const B = SPLIT_CAM.baseline*side;
+      assert.ok(inView(4.115, 0, B) && inView(-4.115, 0, B), `${name} lato ${side}: righe laterali al fondo campo`);
+      assert.ok(inView(0, 1, 0) && inView(4.1, 1, 0) && inView(-4.1, 1, 0), `${name} lato ${side}: rete`);
+      assert.ok(inView(0, 0, -B), `${name} lato ${side}: fondo campo dell'avversario`);
+      assert.ok(side*p.pos[2] > SPLIT_CAM.baseline, 'camera dietro il proprio fondo campo');
+      assert.ok(p.fov >= 45 && p.fov <= 58);
+    }
+  });
+}
+
+test('split: sessione 1v1 locale (niente rete), terza persona, singolare; uscita pulita', async () => {
+  const { E } = await makeWorld({ controller: 'phone' });
+  E.viewMode = 'first'; E.setMatchFormat('doubles');
+  assert.equal(E.startSplit(), true);
+  assert.deepEqual({ ...E.versus }, { active: true, closing: false, local: true });
+  assert.equal(E.isMultiplayer, true); assert.equal(E.roomId, 'default'); assert.equal(E.isDoubles, false, 'singolare');
+  E.autoPlayMode = false; E.startNewMatch({ showStartBanner: false });
+  assert.equal(E._versusInMatch(), true, 'i colpi del P2 contano');
+  assert.equal(E._isFirstPersonActive(), false, 'terza persona nelle due viste');
+  assert.equal(splitVisible(E), true);
+  // la sessione locale non la chiude endVersus (la chiamano le altre modalità del menu e l'uscita dalla stanza)
+  E.endVersus(); assert.equal(E.versus.active, true);
+  assert.equal(E.natpfUi.versus.hostActive, false, 'nessuna attesa del P2 in rete');
+  E.cameraMode = 'REPLAY_CAM'; assert.equal(splitVisible(E), false, 'moviola a schermo intero'); E.cameraMode = 'RALLY_CAM';
+  E.endSplit();
+  assert.equal(E.versus.active, false); assert.equal(E.isMultiplayer, false); assert.equal(splitVisible(E), false);
+});

@@ -999,3 +999,9 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
 @media (max-width: 980px) { #title-modal .challenge-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-height: 560px) { #title-modal .arcade-tile .tile-desc, #title-modal .arcade-tile .tile-best { display: none; } .arcade-progress { padding: 6px 10px; } }
 @media (prefers-reduced-motion: reduce) { .natpf-pop, #title-modal .result-medal { animation-duration: 0.01s; } }
+
+/* =====================================================================================================================
+   Split screen (natpf_split.js): 1v1 sullo stesso schermo. Il Player 2 è su questo computer: niente «In attesa di
+   Player 2» del 1v1 in rete.
+   ===================================================================================================================== */
+body.natpf-split #opponent-presence-pill { display: none !important; }

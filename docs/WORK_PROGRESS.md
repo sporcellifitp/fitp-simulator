@@ -215,7 +215,13 @@ computer (`createPhoneLink()` crea sessioni indipendenti: due QR nella stessa pa
 - [x] S1 Secondo telefono come Player 2 locale (`natpf_phone_racket.js` con ruolo fisso `p2`): funzioni d'appoggio
       con il ruolo, colpi e lancio via `_emitP2Swing/_emitP2Toss`, esiti per ruolo, mano e gesti con chiavi «.p2»;
       motore: `natpfPhone2` aggiornato a ogni fotogramma. Test `natpf-split.test.mjs` (4), gioco 425/425
-- [ ] S2 Motore: sessione split locale e rendering a due viste (`natpf_split.js`, blocchi «NATPF split» nel motore)
+- [x] S2 Motore: sessione split locale e rendering a due viste. `natpf_split.js`: metà affiancate con linea scura,
+      camera per metà (dietro il proprio fondo campo; con metà strette e alte fov fino a 58°, arretra quanto serve
+      per vedere tutto il singolare, sguardo oltre la rete), ombre calcolate una volta per fotogramma; split solo a
+      partita in corso (moviola e menu a schermo intero). Motore: `startSplit/endSplit` (sessione 1v1 locale, nessuna
+      rete, singolare), terza persona forzata, etichetta del servizio nascosta, `endVersus` non chiude la sessione
+      locale; pillola «In attesa di Player 2» nascosta. Test: copertura del campo con metà 8:9, 3:4, 1:2, 1,6;
+      sessione. Browser: 1280×720, 900×900, 1200×800 senza errori.
 - [ ] S3 Menu: modalità «Stesso schermo», collega due telefoni (calibrazione guidata dal telefono o «Salta»), partita
 - [ ] S4 Schermo: intero / ledwall 2×2 (1:1) / 3×2 (3:2), `?area=x,y,w,h` per mappare l'area del processore LED;
       screenshot 16:9, 1:1, 3:2

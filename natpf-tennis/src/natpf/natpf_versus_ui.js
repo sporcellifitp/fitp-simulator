@@ -29,7 +29,8 @@ export class NatpfVersusUi {
     this._timer = setInterval(() => this.tick(), 250);
   }
   /* ---------- host ---------- */
-  get hostActive(){ return !this.p2 && !!this.engine.versus?.active; }
+  // sessione 1v1 con un Player 2 in rete (non lo split screen, dove il P2 è sullo stesso computer: natpf_split.js)
+  get hostActive(){ return !this.p2 && !!this.engine.versus?.active && !this.engine.versus.local; }
   get state(){ const r = this.engine.roomStatus || {}; return lobbyState({ p2Online: r.p2Online, p2Ready: r.p2Ready }); }
   canStart(){ return canStart(this.state); }
   // modalità amico: riga di stato della barra dell'invito e pulsante «Gioca»

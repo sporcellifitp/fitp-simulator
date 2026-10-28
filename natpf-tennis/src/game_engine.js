@@ -39,6 +39,7 @@ import { NatpfBodyFollow } from "./natpf/webcam_body_follow.js";
 // NATPF: sfida tra due computer anche senza server (sito statico): relay nel browser dell'host e WebRTC
 import { installNatpfP2p } from "./natpf/natpf_p2p.js";
 import { VERSUS, MATCH_PHASES, seqGate } from "./natpf/natpf_versus.js";
+import { NatpfSplit } from "./natpf/natpf_split.js";
 const VERSUS_ROOM_KEY = "natpf.versus.room";
 const readStoredView = () => {
   try {
@@ -654,6 +655,8 @@ export class NatpfTennisEngine {
     this.natpfPhone = new NatpfPhoneRacket(this);
     // NATPF moviola: registra ogni punto e rimette in scena l'ultimo (natpf_replay.js)
     this.natpfReplay = new NatpfReplay(this);
+    // NATPF split screen: 1v1 sullo stesso schermo con due telefoni, due viste (natpf_split.js)
+    this.natpfSplit = new NatpfSplit(this);
     // NATPF: webcam → «Movimento: segui il corpo» (MediaPipe Pose), isolato dal movimento automatico del motore base
     this.natpfBody = new NatpfBodyFollow(this);
     const mc = this.motionController;
@@ -687,6 +690,7 @@ export class NatpfTennisEngine {
   _isFirstPersonActive() {
     return (
       this.viewMode === "first" &&
+      !this.natpfSplit?.active && // NATPF split screen: due viste in terza persona
       !this.manualCameraOverride &&
       !this.autoPlayMode &&
       ["SERVE_STANCE", "SERVE_TOSS", "RALLY", "POINT_OVER"].includes(this.phase)
@@ -753,7 +757,7 @@ export class NatpfTennisEngine {
   // NATPF 1v1: l'host lascia la sfida (sceglie un'altra modalità): il P2 riceve «stanza chiusa», la stanza smette di
   // comandare il motore (prima un colpo del P2 trasformava una partita contro la CPU in un 1v1 senza avversario)
   endVersus() {
-    if (!this.versus?.active || this.playerRole === "p2") return;
+    if (!this.versus?.active || this.playerRole === "p2" || this.versus.local) return; // la sessione locale la chiude endSplit
     this.versus = { active: !1, closing: !1 };
     try { sessionStorage.removeItem(VERSUS_ROOM_KEY); } catch {}
     const room = this.roomId;
@@ -763,6 +767,25 @@ export class NatpfTennisEngine {
     this.motionController?.setRoomConfig?.({ roomId: "default", role: "p1" });
     this.roomStatus = { ...this.roomStatus, roomId: "default", p2Online: !1, p2Ready: !1, isMultiplayer: !1 };
     this.hud?.updateMultiplayerRoomInfo?.(this.roomStatus);
+  }
+  // NATPF split screen: sessione 1v1 locale (nessuna stanza, nessuna rete). Il P2 gioca con il secondo telefono
+  // (natpfPhone2, role 'p2'), le regole sono quelle del 1v1 dell'host; singolare, due viste in terza persona.
+  startSplit() {
+    if (this.playerRole === "p2") return !1;
+    this.versus?.active && !this.versus.local && this.endVersus();
+    (this.versus = { active: !0, closing: !1, local: !0 }), (this.roomId = "default"), (this.pendingP2Swing = null);
+    this._applyDifficultyTuning("1v1");
+    this.setMatchFormat("singles");
+    this.natpfSplit.active = !0;
+    typeof document < "u" && document.body.classList.add("natpf-split");
+    return !0;
+  }
+  endSplit() {
+    if (!this.natpfSplit?.active) return;
+    this.natpfSplit.active = !1;
+    (this.versus = { active: !1, closing: !1 }), (this.isMultiplayer = !1), (this.pendingP2Swing = null);
+    typeof document < "u" && document.body.classList.remove("natpf-split");
+    // la camera del motore torna a schermo intero al primo fotogramma non diviso (NatpfSplit.render)
   }
   async loadAssetsAndStart() {
     const e = new D(),
@@ -3497,6 +3520,7 @@ export class NatpfTennisEngine {
     if (
       (this.phase === "SERVE_STANCE" || this.phase === "SERVE_TOSS") &&
       this.cameraMode !== "REPLAY_CAM" &&
+      !this.natpfSplit?.active && // NATPF split screen: chi serve lo dice il tabellone (l'etichetta è di una sola vista)
       !(this._isFirstPersonActive() && t === this.localActor) // NATPF: in prima persona niente etichetta sopra di sé
     ) {
       const i = t.pos
@@ -3560,6 +3584,8 @@ export class NatpfTennisEngine {
   render() {
     // NATPF: varianti di colore e arti dei personaggi, dopo tutte le animazioni del fotogramma
     updateNatpfCharacters(this);
+    // NATPF split screen: a partita in corso due viste, P1 a sinistra e P2 a destra (natpf_split.js)
+    if (this.natpfSplit && this.natpfSplit.render()) return;
     this.renderer.render(this.scene, this.camera);
   }
 }
