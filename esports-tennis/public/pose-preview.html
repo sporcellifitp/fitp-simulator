@@ -1,0 +1,45 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#334">
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from './vendor/addons/loaders/GLTFLoader.js';
+import { Player, loadPlayers } from './js/player.js';
+const q = new URLSearchParams(location.search);
+const kind = q.get('k') || 'drive', spinKind = q.get('s') || 'topspin', side = +(q.get('side') || 1);
+const W = 1200, H = 420;
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(W, H); r.autoClear = false; document.body.appendChild(r.domElement);
+const scene = new THREE.Scene(); scene.add(new THREE.HemisphereLight('#fff', '#556', 2.2));
+const d = new THREE.DirectionalLight('#fff', 1.5); d.position.set(3, 5, 2); scene.add(d);
+const grid = new THREE.GridHelper(10, 20, '#889', '#556'); scene.add(grid);
+const assets = await loadPlayers(new GLTFLoader());
+const pl = new Player(assets.hero, assets.clips.hero[0], {});
+pl.pos.set(0, 0, 0); pl.target.set(0, 0, 0); pl.side = 1; pl.yaw = Math.PI; pl.bodyYaw = Math.PI;
+scene.add(pl.root, pl.racket);
+const ball = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), new THREE.MeshBasicMaterial({ color: '#e6ff3a' })); scene.add(ball);
+// contatto: davanti a destra (dritto) o sinistra (rovescio), altezza variabile
+const cy = kind === 'serve' ? 2.42 : kind === 'volley' ? 1.1 : +(q.get('y') || 0.95);
+const local = kind === 'serve' ? new THREE.Vector3(0.2, cy, 0.35) : new THREE.Vector3(side * 0.75, cy, 0.45);
+const contact = pl.toWorld(local);
+for (let i = 0; i < 20; i++) pl.update(1 / 60, i / 60);
+const t0 = 1.0, tC = 1.8;
+pl.prepare(kind === 'drive' ? 'drive' : kind, contact, tC, t0, { aim: +(q.get('aim') || 0), spinKind, side });
+const times = [0.9, 1.4, tC - 0.09, tC, tC + 0.15, tC + 0.32];
+const cams = [[2.6, 1.6, -2.4], [-2.6, 1.6, -2.4]];
+const cam = new THREE.PerspectiveCamera(40, (W / times.length) / (H / 2), 0.1, 50);
+let t = 0.33;
+const info = [];
+r.clear();
+times.forEach((tt, i) => {
+  while (t < tt - 1e-6) { const dt = Math.min(1 / 120, tt - t); t += dt; pl.update(dt, t); }
+  ball.position.copy(contact); ball.visible = Math.abs(tt - tC) < 0.01;
+  const head = pl.racketHead();
+  info.push({ t: tt.toFixed(2), err: +head.distanceTo(contact).toFixed(3) });
+  cams.forEach((c, j) => {
+    cam.position.set(...c); cam.lookAt(0, 1.1, 0); cam.updateProjectionMatrix();
+    r.setViewport(i * W / times.length, j * H / 2, W / times.length, H / 2);
+    r.setScissor(i * W / times.length, j * H / 2, W / times.length, H / 2); r.setScissorTest(true);
+    r.render(scene, cam);
+  });
+});
+window.INFO = info; document.title = 'ok';
+</script></body></html>
