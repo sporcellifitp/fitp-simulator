@@ -241,3 +241,18 @@ computer (`createPhoneLink()` crea sessioni indipendenti: due QR nella stessa pa
       dei due telefoni e partita divisa dentro l'area, nessun errore. Test: gioco 435/435, sito 152/152, build.
 - Da provare dal vivo: due telefoni veri sullo stesso PC, ledwall vero (mappatura del processore), prestazioni con le
   due viste su un PC con scheda grafica (nel browser di prova senza GPU ogni fotogramma diviso costa molto).
+
+## Pacchetti 2026-10-28.3 (28/10 sera, sessione Claude): Cloudflare e LAN
+Contenuto: tutto il lavoro della giornata (redesign, foto della lezione, intro video, voce inglese cartoon, gesti con
+l'animazione 3D, split screen «Stesso schermo», schermo per ledwall) più la consegna LAN 2026-10-28.1 di sergio4.
+- [x] Versione 2026-10-28.3 (`site/js/tennis/version.js`, `site/tennis/build.json`); build; gioco 435/435, sito 152/152.
+- [x] Cloudflare: `natpf-simulator-cloudflare-20261028-3.zip` = contenuto di `natpf-tennis/dist` + `_headers` (da
+      `site/_headers`), 137 file, 26.039.600 byte, file più grande 6,1 MB (< 25 MiB), percorsi con «/», nessuna parola
+      vietata. SHA256 `b74f39e260f6dabe68454985915d46c2b2d65fd1d94c49ce9969f4333e7afa7c`.
+- [x] LAN Windows: `natpf-simulator-lan-windows-20261028-3.zip` (`lan/pacchetto.mjs`, Node.js 22.22.0 win-x64 con
+      SHA256 uguale a SHASUMS256 di nodejs.org, `node.exe` identico), 277 file, 61.089.899 byte, nessun certificato né
+      chiave, nessuna parola vietata. SHA256 `04d02bacb67d06975ddf557300fc158a36470f03051abe644e501397ce0a7ddd`.
+- [x] LAN estratto e provato (Linux): certificato creato, HTTPS con la CA del pacchetto, gioco, intro video
+      (`video/mp4`), foto, 47 voci inglesi (`audio/mpeg`), pagina del telefono, MediaPipe offline, versione
+      2026-10-28.3; browser: 47 clip caricate, «Parità» → «Deuce», «Stesso schermo» con i due QR sull'indirizzo di rete,
+      partita divisa, nessun errore in console. Vecchie clip dei colpi assenti (404).
