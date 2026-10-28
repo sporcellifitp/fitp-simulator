@@ -2025,7 +2025,8 @@ export class NatpfTennisEngine {
       quality = Q.reach * Q.prep * Q.stretch * Q.pace,
       pressure = NO.rallyPressure(b.rallyStrokeCount, NO.assistOf(lv).pressureFrom),
       volley = b.bounceCountOnCurrentSide === 0 && Math.abs(p.pos.z) < 9;
-    const out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, contact, hitX, quality, pressure, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, level: lv });
+    const shortBall = b.bounceCountOnCurrentSide > 0 && b.rallyStrokeCount > 1 && Math.abs(b.targetLanding.z) <= 6.4 && Math.abs(b.pos.z) <= 7;
+    const out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, contact, hitX, quality, pressure, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, shortBall, level: lv });
     // colpo fallito o debole: la causa che pesa di più, per il messaggio del colpo e la diagnostica
     const cause = out.failed ? (out.pressured ? "scambio lungo" : [["reach", running > 0.5 ? "in corsa" : "palla lontana"], ["prep", "senza preparazione"], ["stretch", "in allungo"], ["pace", "palla veloce"]].reduce((a, k) => (Q[k[0]] < Q[a[0]] ? k : a))[1]) : null;
     const R = p.pos.x >= 0 ? 1 : -1, N = toward * out.depth, X = out.x * mirror, engineShot = out.shot === "DROP" ? "SLICE" : out.shot === "SMASH" ? "FLAT" : out.shot;

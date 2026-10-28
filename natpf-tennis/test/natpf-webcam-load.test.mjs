@@ -67,6 +67,7 @@ test('inferenza dai fotogrammi della camera: fuori dal richiamo, una alla volta,
   Object.assign(mc, { webcamActive: true, _mpBusy: false, _handOthers: [], handPreference: 'right', onTrack: d => logs.push(d),
     videoElem: { readyState: 4, currentTime: 0, videoWidth: 640, videoHeight: 480, requestVideoFrameCallback: f => { cb = f; } } });
   mc.mpHands = { send: ({ image }) => { sends.push(image.currentTime); return Promise.resolve(); }, setOptions: o => opts.push(o) };
+  mc._wcGov = createLoadGovernor({ start: 'piena' });
   mc._wcStart(null);
   assert.equal(logs[0].kind, 'camera'); assert.equal(logs[0].livello, 'piena'); assert.equal(logs[0].richiamiFotogrammi, true);
   mc._watchFrames();
@@ -78,6 +79,7 @@ test('inferenza dai fotogrammi della camera: fuori dal richiamo, una alla volta,
   // inferenza in corso: arrivano i fotogrammi 2 e 3; un solo invio in volo
   frame(2, 1033); await wait(); frame(3, 1066); await wait();
   assert.deepEqual(sends, [1]);
+  await new Promise(r => setTimeout(r, 70));
   // risultato: subito l'ultimo fotogramma (3); il 2 è superato e non si elabora
   mc._onHandResults({ multiHandLandmarks: [], multiHandedness: [] });
   await wait();
@@ -91,7 +93,7 @@ test('inferenza dai fotogrammi della camera: fuori dal richiamo, una alla volta,
     let NOW = 2000; performance.now = () => NOW;
     for (let i = 0; i < 60 && !opts.length; i++){
       frame(4 + i, NOW); await wait();
-      NOW += 30; mc._onHandResults({ multiHandLandmarks: [], multiHandedness: [] }); NOW += 3; await wait();
+      NOW += 30; mc._onHandResults({ multiHandLandmarks: [], multiHandedness: [] }); NOW += 50; await wait();
     }
   } finally { performance.now = realNow; }
   const change = logs.find(l => l.kind === 'carico');
@@ -115,7 +117,7 @@ test('richiami dei fotogrammi fermi o assenti: l\'inferenza la fa partire il cic
     mc._mpBusy = false; mc.videoElem.currentTime = 2; mc._frameMeta = { capture: NOW - 20, at: NOW - 10 };
     mc._processWebcamFrame();
     assert.deepEqual(sends, [1], 'richiami vivi: il ciclo di disegno non invia');
-    mc._frameMeta = null; mc.videoElem.currentTime = 3;
+    NOW += 70; mc._frameMeta = null; mc.videoElem.currentTime = 3;
     mc._processWebcamFrame();
     assert.deepEqual(sends, [1, 3], 'browser senza richiami dei fotogrammi: come prima');
   } finally { performance.now = realNow; }
@@ -148,9 +150,10 @@ test('cambio di modello deciso nello scambio: si carica solo al primo invio senz
   let playing = true;
   Object.assign(mc, { webcamActive: true, _mpBusy: false, onTrack: d => d.kind === 'carico' && logs.push(d), canReload: () => !playing, videoElem: { readyState: 4, currentTime: 0 } });
   mc.mpHands = { send: () => Promise.resolve(), setOptions: o => opts.push(o) };
+  mc._wcGov = createLoadGovernor({ start: 'piena' });
   mc._wcStart(null);
   mc._wcPending = { id: 'leggera', maxNumHands: 2, modelComplexity: 0 };
-  for (let i = 0; i < 5; i++){ mc._mpBusy = false; assert.equal(mc._sendFrame(1000 + i), true); }
+  for (let i = 0; i < 5; i++){ mc._mpBusy = false; assert.equal(mc._sendFrame(1000 + i*70), true); }
   assert.equal(opts.length, 0, 'con il punto in gioco il modello non si ricarica (fermerebbe il gioco)');
   playing = false; mc._mpBusy = false; mc._sendFrame(2000);
   assert.deepEqual(opts, [{ maxNumHands: 2, modelComplexity: 0 }]);

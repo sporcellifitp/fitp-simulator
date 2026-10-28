@@ -139,7 +139,8 @@ export function createPhoneLink(){
         const res = gate.admit(c.peer, d.r ? { r: d.r } : d);
         if (!res.ok){ c.send({ t: 'deny', why: res.why }); setTimeout(() => c.close(), 200); return; }
         ok = true; clearTimeout(timer);
-        if (conn && conn !== c) try { conn.close(); } catch (e){}
+        const previous = conn; conn = c;
+        if (previous && previous !== c) try { previous.close(); } catch (e){}
         conn = c; lastSeen = Date.now(); clock.reset(); faceSample = null; lastFaceK = -Infinity; seen.clear(); seenOrder.length = 0; racketMotion.setBias([0,0,0]); racketMotion.reset(); c.send({ t: 'welcome', r: res.resume, f: 1 });
         // joins: un collegamento nuovo (anche lo stesso telefono che si ricollega senza che il computer l'abbia visto
         // cadere): chi usa il collegamento rimanda al telefono quello che la pagina ricaricata ha perso

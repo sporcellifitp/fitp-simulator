@@ -1,20 +1,22 @@
 # SESSION_HANDOFF · ultimo stato verificato
 
-Aggiornato: 28/10/2026 · branch `natpf-simulator`.
+Aggiornato 28/10/2026 · branch `natpf-simulator`.
 
-## Stato
+## Priorità attuale
 
-- Ultimo commit verificato: vedere `git log -1` (questo file è aggiornato a ogni task; se il log mostra commit
-  successivi non descritti qui, fidarsi del repository e aggiornare questo file).
-- Test: baseline 389/390 (1 saltato per dipendenze LAN). Build: da verificare dopo le modifiche UI.
-- Ambiente: Chromium di Playwright funziona (`node scripts/ui-shots.mjs` con `npm run dev` attivo).
+Quattro problemi segnalati: loop del telefono dopo riapertura browser, freeze webcam, palla corta poco riconosciuta, risposte alle palle corte CPU a Leggenda sempre sbagliate. Vedere la sezione finale di `WORK_PROGRESS.md`. Il redesign precedente resta in coda.
 
-## Problemi aperti
+## Checkpoint
 
-- Musica: nessun modello musicale Higgsfield utilizzabile per asset autonomi → musica generativa originale.
-- Prove fisiche con telefono Android reale e webcam: mai eseguite in questo ambiente.
+Base: `59ce56c6640e03884a9ff4da4f7feac892904286` (memoria di Claude preservata). Il commit che contiene questo file salva le correzioni e i test; usare `git log -1` per lo SHA.
+399/399 test gioco, 152/152 test root; quattro test di riconnessione falliscono tutti sulla base precedente. Versione impostata 2026-10-28.1. Build e LAN da completare.
 
 ## Prossima azione esatta
 
-T1: lanciapalle 3D (`natpf-tennis/src/natpf/natpf_ball_machine.js`), agganciato a `natpf_training._feed`.
-Poi T2 tutorial (vedi `docs/WORK_PROGRESS.md`).
+1. `cd natpf-tennis && npm run build`; controllare il bundle worker e gli asset offline.
+2. Verificare e creare pacchetto LAN Windows aggiornato; salvare ZIP durevole e aggiornare questo handoff con la consegna.
+3. Prova fisica S24 Ultra + Lenovo E14: riaprire browser telefono ripetutamente, accendere/spegnere webcam, palle corte e recuperi a Leggenda. Mai dichiararla già eseguita.
+
+## Limiti dell'ambiente
+
+Chromium Playwright in questa sessione non scaricabile: archivio ricevuto vuoto/troncato. L'ambiente di Claude che aveva Chromium funzionante era diverso. I test webcam sono simulazioni e test del protocollo worker, non misure hardware.

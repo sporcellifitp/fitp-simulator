@@ -1,3 +1,4 @@
+import { WorkerVision, workerVisionAvailable } from './webcam_inference.js';
 // Webcam → movimento del giocatore in campo («Movimento: segui il corpo»), opzione della racchetta Webcam.
 // motore base muove da solo il giocatore verso la palla (targetPos scelto da _predictBallIntercept, passi in
 // _stepActorFootwork). Con «segui il corpo» MediaPipe Pose (pacchetto offline, modello lite) trova spalle e anche
@@ -102,7 +103,7 @@ const loadScript = src => new Promise((resolve, reject) => {
 
 export class NatpfBodyFollow {
   constructor(engine, { autostart = true } = {}){
-    this.engine = engine;
+    this.engine = engine; this._cameraEpoch = this.mc?._visionEpoch || 0;
     this.mode = readMode();
     this.tracker = new BodyFollowTracker();
     this.remote = null;               // host: bersaglio del corpo del P2 dal relay
@@ -173,22 +174,25 @@ export class NatpfBodyFollow {
     // sovrascrivono a vicenda (Hands ricadrebbe sull'optical flow). Pose aspetta che Hands abbia finito.
     if (this.mc?._mpLoading || this.mc?._mpBusy) return;
     this._loading = true;
-    const mc = this.mc;
+    const mc = this.mc, epoch = mc?._visionEpoch || 0;
     if (mc) mc._poseLoading = true;
     try {
       let base = MEDIAPIPE_POSE_LOCAL_BASE;
-      if (!window.Pose) try { await loadScript(`${base}pose.js`); } catch { base = MEDIAPIPE_POSE_CDN_BASE; await loadScript(`${base}pose.js`); }
-      const pose = new window.Pose({ locateFile: f => `${base}${f}` });
+      const worker = workerVisionAvailable();
+      if (!worker && !window.Pose) try { await loadScript(`${base}pose.js`); } catch { base = MEDIAPIPE_POSE_CDN_BASE; await loadScript(`${base}pose.js`); }
+      const pose = worker ? new WorkerVision({ kind: 'Pose', base: new URL(base, location.href).href }) : new window.Pose({ locateFile: f => `${base}${f}` });
+      this._loadingModel = pose;
       pose.setOptions({ modelComplexity: 0, smoothLandmarks: true, enableSegmentation: false, minDetectionConfidence: .5, minTrackingConfidence: .5 });
-      pose.onResults(r => this.onPoseResults(r));
-      await pose.initialize();
+      pose.onResults(r => { if (epoch === (mc?._visionEpoch || 0)) this.onPoseResults(r); });
+      try { await pose.initialize(); } catch (error) { pose.close?.(); throw error; }
+      if (!mc?.webcamActive || epoch !== (mc._visionEpoch || 0)){ pose.close?.(); return; }
       this.pose = pose; this.base = base;
       if (mc) mc._poseModelReady = true;
       this._setStatus('searching');
     } catch (err){
       console.warn('[NATPF] MediaPipe Pose non disponibile: movimento automatico', err);
       this._setStatus('unavailable');
-    } finally { this._loading = false; if (mc){ mc._poseLoading = false; mc._poseRequested = false; } }
+    } finally { this._loading = false; this._loadingModel = null; if (mc){ mc._poseLoading = false; mc._poseRequested = false; } }
   }
   onPoseResults(r, now = performance.now()){
     this._busy = false;
@@ -200,6 +204,14 @@ export class NatpfBodyFollow {
   }
   tick(now = performance.now()){
     const mc = this.mc, e = this.engine;
+    if (this._cameraEpoch !== (mc?._visionEpoch || 0)){
+      this._cameraEpoch = mc?._visionEpoch || 0;
+      if (this.pose) Promise.resolve(this.pose.close?.()).catch(() => {});
+      if (this._loadingModel) Promise.resolve(this._loadingModel.close?.()).catch(() => {});
+      this.pose = null; this._busy = false; this._lastVideoTime = null;
+      if (mc){ mc._poseModelReady = false; mc._poseRequested = false; mc._poseInferenceBusy = false; }
+      if (this.status === 'unavailable') this._setStatus('loading');
+    }
     this._hookRoomState();
     if (!mc?.webcamActive){ if (this.enabled && this.status !== 'unavailable') this._setStatus('loading'); this._paint(); return; }
     if (!this.pose){ if (this.status !== 'unavailable') mc._poseRequested = true; this._ensurePose(); return; }
@@ -213,7 +225,8 @@ export class NatpfBodyFollow {
       mc._poseRequested = false;
       this._lastVideoTime = v.currentTime; this._busy = true; mc._poseInferenceBusy = true;
       this._poseSentAt = now; this._poseCaptureT = mc._frameCaptureT?.(now) ?? now;
-      this.pose.send({ image: v }).catch(() => {}).finally(() => { this._busy = false; mc._poseInferenceBusy = false; });
+      const model = this.pose, epoch = this._cameraEpoch;
+      model.send({ image: v }).catch(() => { if (this.pose === model && model.closed){ this.pose = null; mc._poseModelReady = false; this._setStatus('unavailable'); } }).finally(() => { if (epoch === (mc._visionEpoch || 0)){ this._busy = false; mc._poseInferenceBusy = false; } });
     }
     this._setStatus(this.tracker.visible(now) ? (this.tracker.calibrated ? 'following' : 'searching') : this.tracker.calibrated ? 'lost' : 'searching');
     // P2: il bersaglio va all'host, che simula la partita

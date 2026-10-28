@@ -211,6 +211,8 @@ export function timeToContact(engine, actor){
 // sono deboli.
 export const WEAK = Object.freeze({ rel: .3, early: .08, wait: .22, serveWait: .3, ample: 25 });
 export function weakSwing(e = {}){
+  // Una palla corta confermata dalla forma è volutamente lenta, non una preparazione da scartare.
+  if (e.natpf?.intent?.shot === 'drop' && finite(e.natpf.intent.conf) >= .15 && finite(e.natpf.angle) >= 15) return false;
   const peak = finite(e.natpf?.peak, NaN), typ = finite(e.natpf?.typical, NaN);
   return Number.isFinite(peak) && Number.isFinite(typ) && typ > 0 && peak < WEAK.rel*typ;
 }

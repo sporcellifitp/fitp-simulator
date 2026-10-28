@@ -107,7 +107,7 @@ export const aimForLanding = (x, x0, xMax = OUTCOME.xMax) => (x - x0)/Math.max(.
 // Restituisce, nel riferimento di chi colpisce (x a destra, depth in avanti dalla rete): { x, depth, clear, topspin,
 // flight (solo pallonetto e schiacciata), netFault, failed, weak, pressured, grade, cursor, t, excess, q, aim, x0,
 // assist, assisted }.
-export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contact = 1, hitX = 0, quality = 1, pressure = 1, contactY = 1, volley = false, net = false, level = {} } = {}){
+export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contact = 1, hitX = 0, quality = 1, pressure = 1, contactY = 1, volley = false, net = false, shortBall = false, level = {} } = {}){
   const O = OUTCOME, shot = String(intent.shot || 'topspin').toUpperCase();
   const power = clamp(finite(intent.power, .5)), want = clamp(finite(intent.depth, power)), rise = clamp(finite(intent.rise), -1, 1);
   const AS = assistOf(level), span = directionSpan(level), late = Number.isFinite(lateSpan) ? clamp(lateSpan, .04, span) : span;
@@ -150,7 +150,8 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contac
   // contro di lui (criterio ≥ 60%)
   const g = swingGrade(t*(level?.timingSpan || span), level), fq = finite(AS.failQ, 0);
   const failed = q < fq && shot !== 'DROP', pressured = failed && qs >= fq;
-  const weak = failed && !pressured && (!!volley || !!net) && g.grade === 'PERFECT';
+  // Palla corta raggiunta nella finestra utile: corsa e pressione producono una risposta debole, non errore obbligato.
+  const weak = failed && ((shortBall && excess === 0) || (!pressured && (!!volley || !!net) && g.grade === 'PERFECT'));
   const netFault = (finite(contactY, 1) < O.netLowY && excess > O.netExcess) || (failed && !weak && finite(contactY, 1) < 1);
   if (failed && !weak && !netFault) depth = Math.max(depth, 12.6 + (fq - q)*4);
   let lift = clear;
