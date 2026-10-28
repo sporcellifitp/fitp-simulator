@@ -36,6 +36,10 @@ export const PLAN = Object.freeze({
   // dalla rete, e dopo una volée si restava a rete
   volleySave: .35,
   smash: [1.9, 2.95], lobApex: 3.3, smashMinZ: 2.6,   // schiacciata al volo sulle palle che salgono oltre lobApex
+  // a rete (entro netSmashZ dalla rete) anche senza pallonetto: ogni palla raggiungibile che passa sopra netSmashY.
+  // Sessione del 28/10: a rete una palla a 2,7 m si giocava di volée a 1,67 m (sotto l'altezza della schiacciata) e la
+  // schiacciata non partiva mai
+  netSmashZ: 7, netSmashY: 2.05,
   react: .12,                // s: prima di muoversi
   slackFull: .35,            // s di margine con cui si arriva sul punto d'impatto senza fretta; meno è un colpo in corsa
   runFrom: 2, runSpan: 4, runWeight: .7,   // m: una corsa lunga (oltre runFrom) è un colpo in corsa anche se si arriva
@@ -125,8 +129,9 @@ export function planPlayerIntercept(engine, actor){
     return engine[key];
   }
   let kind = null, s = null;
-  // schiacciata al volo: palla alta che scende nella zona della schiacciata
-  if (apex >= PLAN.lobApex) s = before.find(p => p.vy < 0 && p.y >= PLAN.smash[0] && p.y <= PLAN.smash[1] && Z(p.z) >= PLAN.smashMinZ && reachable(p)), kind = s ? 'smash' : null;
+  // schiacciata al volo: palla alta che scende nella zona della schiacciata (un pallonetto; a rete ogni palla alta)
+  const low = apex >= PLAN.lobApex ? PLAN.smash[0] : Z(actor.pos.z) <= PLAN.netSmashZ ? PLAN.netSmashY : Infinity;
+  if (apex >= low) s = before.find(p => p.vy < 0 && p.y >= low && p.y <= PLAN.smash[1] && Z(p.z) >= PLAN.smashMinZ && reachable(p)), kind = s ? 'smash' : null;
   if (!s){
     // dopo il rimbalzo: il punto comodo raggiungibile più vicino al colmo (a parità d'altezza quello in discesa), cioè il
     // più alto entro l'altezza comoda e entro maxBack (richiesta del 23/10, C1–C2: più tempo per il colpo e la palla più

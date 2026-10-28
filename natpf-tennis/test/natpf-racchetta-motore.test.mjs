@@ -105,6 +105,23 @@ test('schiacciata prima del rimbalzo: palla alta raggiungibile, gesto dall\'alto
   });
 });
 
+// Sessione del 28/10: a rete una palla che passa a 2,7 m (non un pallonetto) si giocava di volée a 1,67 m, sotto
+// l'altezza della schiacciata: il gesto dall'alto non diventava mai una schiacciata
+test('a rete, palla alta che non è un pallonetto: si prende in alto e con il gesto dall\'alto è una schiacciata', () => {
+  withEngine('leggenda', e => {
+    const plan = cpuShot(e, { player: [.2, 4.6], to: [1.2, 10.5], flight: 1.4, topspin: 8 });
+    assert.equal(plan.kind, 'smash', JSON.stringify(plan));
+    assert.ok(plan.contact.y >= NI.PLAN.netSmashY, JSON.stringify(plan.contact));
+    const r = play(e, [{ lead: .02, swing: phoneSwing({ shot: 'smash', power: .85, rise: -.4 }, { side: 'overhead' }) }]);
+    assert.ok(r.hit, r.phase);
+    assert.equal(r.racket.out.shot, 'SMASH');
+    assert.equal(r.racket.volley, true, 'colpita al volo');
+  });
+  // la stessa palla vista da fondo campo resta un colpo dopo il rimbalzo; una palla bassa a rete resta una volée
+  withEngine('leggenda', e => assert.notEqual(cpuShot(e, { player: [.2, 11.7], to: [1.2, 10.5], flight: 1.4, topspin: 8 }).kind, 'smash'));
+  withEngine('pro', e => assert.equal(cpuShot(e, { player: [.2, 4.6], to: [1.2, 9.5], flight: 1.1 }).kind, 'volley'));
+});
+
 test('palla corta e pallonetto ripetibili: stessa intenzione, stesso punto; corta davvero corta, pallonetto alto e profondo', () => {
   const run = intent => withEngine('casual', e => { cpuShot(e, { to: [1.2, 8.6] }); return play(e, [{ lead: .02, swing: phoneSwing(intent) }]); });
   const d1 = run({ shot: 'drop', power: .2, rise: -.4 }), d2 = run({ shot: 'drop', power: .2, rise: -.4 });

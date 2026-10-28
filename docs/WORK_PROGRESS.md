@@ -305,3 +305,10 @@ Interventi:
       Test: `tools/test/session-28-10.test.mjs` con i campioni veri della sessione (`session-28-10.data.mjs`, solo
       numeri dei sensori). Sito 157/157, gioco 440/440.
 - Non provato con il telefono vero dopo le correzioni.
+- [x] S · `natpf_impact.planPlayerIntercept`: a rete (entro 7 m dalla rete) ogni palla raggiungibile che passa sopra
+      2,05 m si prende al volo in alto, come la schiacciata (prima solo i pallonetti oltre 3,3 m). Con il gesto
+      dall'alto è una schiacciata; con un colpo normale sotto 2,3 m resta una volée alta. Da fondo campo non cambia.
+      Test: `natpf-racchetta-motore.test.mjs` (fallisce con il piano di prima). Gioco 440/440.
+      Banco `npm run audit:legend`: stessi risultati di prima (3 criteri KO già presenti anche senza la modifica:
+      CPU contro «tennista» 81,5% → 81,7% con soglia 85%, contro «preciso» 28,4% con soglia 60%, incrociati 50,1%
+      contro «bambino»): da guardare a parte.
