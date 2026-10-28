@@ -55,10 +55,19 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 
 ## Decisioni (28/10/2026, sessione redesign)
 
-- **Tutorial con animazioni 3D procedurali, non video generati**: una mano stilizzata con un telefono in stile
-  S24 Ultra (bordi piatti, angoli squadrati, quattro fotocamere) costruita in three.js, con traiettorie scritte a
-  partire dalle regole sopra. Un video generato da IA non garantisce che il gesto mostrato corrisponda al
-  rilevatore (asse di rotazione, verso, velocità) e pesa molto di più. Vedi `src/natpf/natpf_gesture_demo.js`.
+- **Tutorial: foto e clip reali dove verificate, animazione 3D come ripiego** (aggiornato il 28/10, su richiesta
+  dell'utente). Foto e video generati con Higgsfield (`public/media/`, elenco e job in `public/media/LEGGIMI.txt`),
+  collegati da `src/natpf/natpf_media.js`. Un video generato non garantisce il gesto giusto: ogni clip si accetta solo
+  dopo il controllo fotogramma per fotogramma contro le regole qui sopra (asse, verso, telefono sempre nel pugno, il
+  telefono non deve trasformarsi). Su 11 clip generate ne sono passate 6. Per rigenerarle: `kling3_0_turbo`, 720p,
+  4–6 s, `start_image` = job della foto `posizione.webp`, prompt con «He holds only a small black smartphone, there is
+  no racket and no ball» e il verso del gesto descritto rispetto al corpo (il rovescio è riuscito come «backhand
+  frisbee throw»). L'animazione 3D (`natpf_gesture_demo.js`, telefono stile S24 Ultra in three.js) resta per
+  incrociato, lungolinea, volée, piatto, calibrazione e se una clip non si carica. Per i mancini foto e clip sono
+  specchiate in CSS.
+- **Intro**: video `public/media/intro.mp4` (Cinema Studio 3.0, senza scritte né marchi) con titolo in HTML; il solo
+  titolo grande è «NATPF Simulator», i partner (Esports FITP, Nitto ATP Finals) sono sempre una riga piccola in
+  secondo piano (intro e menu), mai schermate di loghi a tutto schermo.
 - **Voci registrate** (28/10): `natpf-tennis/public/voce/*.mp3` da ElevenLabs Eleven v4 via Higgsfield (voci preset
   Marcus/Brooks/Julian, 0,23 crediti a frase). Per rigenerarle: `generate_audio_batch` con `model: elevenlabs_v4`,
   `dialogue: [{ text, voice_type: 'preset', voice_id }]`; il limite di frequenza rifiuta alcune richieste (ripeterle).
@@ -77,6 +86,9 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   servizio senza lezione (`WARMUP_IDS` in `natpf_training.js`). La volée si allena a rete (`VOLLEY_Z`).
 
 ## Storico modifiche significative
+
+- 28/10/2026 — media reali Higgsfield nel tutorial (foto della presa e della posizione, 6 clip dei colpi verificate),
+  intro con video, «NATPF Simulator» unico titolo e partner in secondo piano (125,5 crediti Higgsfield).
 
 - 28/10/2026 — minigiochi arcade (`natpf_arcade.js`, `natpf_targets.js`, `natpf_events.js` riscritto): Target Rush,
   Precision, Combo Challenge, Survival, Radar, Campione; medaglie, record personali (`natpf-tennis.records`), XP.

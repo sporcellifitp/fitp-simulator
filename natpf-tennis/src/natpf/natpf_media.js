@@ -19,12 +19,15 @@ export const LESSON_PHOTOS = Object.freeze({
   ready: { main: 'ready' },
 });
 
-// clip verificate: dritto (da destra verso sinistra, finisce sopra la spalla sinistra), pallonetto (dal basso verso
-// l'alto, la mano sale davvero), tagliato (dall'alto verso il basso, deciso), schiacciata (braccio in alto, poi giù).
-// La palla corta è lo stesso gesto del tagliato ma lento: stessa clip a metà velocità.
+// clip verificate: dritto (da destra verso sinistra, finisce sopra la spalla sinistra), rovescio (telefono al fianco
+// sinistro, poi fuori verso destra), servizio (lancio, telefono in alto, colpo in avanti e in basso), pallonetto (dal
+// basso verso l'alto, la mano sale davvero), tagliato (dall'alto verso il basso, deciso), schiacciata (braccio in alto,
+// poi giù). La palla corta è lo stesso gesto del tagliato ma lento: stessa clip a metà velocità.
 const CLIP = (name, rate = 1) => Object.freeze({ src: `${BASE}colpi/${name}.mp4`, poster: `${BASE}colpi/${name}.webp`, rate });
 export const CLIPS = Object.freeze({
   forehand: CLIP('dritto'),
+  backhand: CLIP('rovescio'),
+  serve: CLIP('servizio'),
   lob: CLIP('pallonetto'),
   slice: CLIP('tagliato'),
   drop: CLIP('tagliato', .5),

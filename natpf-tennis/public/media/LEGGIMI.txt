@@ -19,6 +19,8 @@ presa-sbagliata.webp      nano_banana_2 (2k)       a2045cb4-cd4c-465c-b1e2-9c743
 posizione.webp            gpt_image_2_5 (medium)   58762eab-4f47-4f17-9eb3-1d2e0413c06b   lezione: posizione di partenza;
                                                                                           primo fotogramma delle clip
 colpi/dritto.mp4/.webp    kling3_0_turbo 720p 4 s  e84592af-811b-461c-ab91-e0ce6796270c   esercizio dritto (*)
+colpi/rovescio.mp4/.webp  kling3_0_turbo 720p 4 s  e6674233-1991-49ff-8f94-bb393a561eed   esercizio rovescio (3° tentativo)
+colpi/servizio.mp4/.webp  kling3_0_turbo 720p 6 s  7969e92c-4abf-49d0-a37f-777f85894f8d   esercizio servizio (3° tentativo)
 colpi/pallonetto.mp4/.webp kling3_0_turbo 720p 4 s 90eb8e1a-cbc7-45c4-9591-637ec3e45612   esercizio pallonetto
 colpi/tagliato.mp4/.webp  kling3_0_turbo 720p 4 s  b26fa593-5959-4421-88c7-c3c1f1b5d412   tagliato; palla corta a ×0,5
 colpi/schiacciata.mp4/.webp kling3_0_turbo 720p 4 s b9cd0907-4aaf-4a2a-89eb-e94a659cdf38  esercizio schiacciata

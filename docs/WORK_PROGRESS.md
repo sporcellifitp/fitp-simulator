@@ -106,21 +106,49 @@ Legenda: [x] fatto e verificato · [~] in corso · [ ] da fare.
 
 Budget Higgsfield: **250 crediti massimo** (saldo iniziale 992,96 → non scendere sotto 742,96). Registro spese sotto.
 
-### T7 · Media reali per tutorial e impugnatura (Higgsfield)
-- [ ] Foto realistiche dell'impugnatura (di lato, dallo schermo, posizione sbagliata) e della posizione di partenza
-- [ ] Clip video dei colpi (persona reale generata, vista da dietro, telefono in mano), verificate fotogramma per
-      fotogramma contro le regole di `docs/PROJECT_MEMORY.md` §Gesti; scartate quelle sbagliate
-- [ ] Integrazione nel tutorial (lezione e riquadro «Guarda e ripeti») e nella pagina «Collega»; animazione 3D solo
-      come ripiego per i colpi senza clip valida
+### T7 · Media reali per tutorial e impugnatura (Higgsfield) — fatto
+- [x] Foto: presa di lato, presa vista dallo schermo (solo il bordo), presa sbagliata («Così no»), posizione di
+      partenza di spalle davanti al televisore (`public/media/*.webp`, 8–38 kB). Scartate: due «posizione» con il
+      telefono orizzontale/dietro la schiena e un televisore con scritte da broadcast.
+- [x] Clip dei colpi (`public/media/colpi/*.mp4`, 44–76 kB, 480×360, + poster WebP), tutte dalla stessa foto di
+      partenza, controllate fotogramma per fotogramma (griglie ffmpeg) contro §Gesti:
+      - accettate: dritto (in realtà generato come «rovescio»: da destra verso sinistra, fine sopra la spalla sinistra),
+        rovescio (3° tentativo, telefono al fianco sinistro poi fuori verso destra), servizio (3° tentativo: lancio,
+        telefono in alto, colpo avanti e in basso), pallonetto (2° tentativo, dal basso verso l'alto), tagliato,
+        schiacciata; palla corta = clip del tagliato a ×0,5.
+      - scartate: dritto v1 (il telefono diventa un oggetto bianco), servizio v1 (il telefono diventa una racchetta),
+        servizio v2 (finisce prima del colpo), pallonetto v1 (sembra uno smash), rovescio v1 e v2 (sono dritti).
+      - restano in 3D: incrociato e lungolinea (conta il display all'impatto, il video non lo mostra), volée, piatto,
+        calibrazione.
+- [x] Integrazione: `src/natpf/natpf_media.js`; lezione con foto (specchiate per i mancini, «Così no» sulla presa);
+      «Guarda e ripeti» con la clip (muta, in loop, `preload="none"`, ripiego sul 3D se non si carica); foto della
+      presa nella calibrazione e nella pagina «Collega». Provenienza e diritti in `public/media/LEGGIMI.txt`.
+- Test: `test/natpf-media.test.mjs` (file presenti e leggeri, clip solo per gesti verificati, foto/clip nel
+  tutorial, specchio per il mancino, 3D per l'incrociato); `natpf-training-directions` aggiornato. 412/412.
 
-### T8 · UI meno ridondante e intro nuova
-- [ ] Titolo principale solo «NATPF Simulator»; loghi Esports FITP / Nitto ATP Finals in secondo piano
-- [ ] Intro con video generato su Higgsfield (arena, palla, luci) e titolo sovrapposto in HTML
+### T8 · UI meno ridondante e intro nuova — fatto
+- [x] Menu: «NATPF Simulator» titolo principale (la voce scelta sotto, più piccola); partner in una riga piccola
+      sotto la descrizione; tolti i loghi dalla barra in alto e dalla transizione verso il campo («NATPF Simulator»).
+- [x] Intro: video Cinema Studio 3.0 (8 s: luci dell'arena che si accendono, palla che rimbalza, vista dall'alto del
+      campo blu e rosa; nessuna scritta/logo), titolo e «Premi un tasto» in HTML, partner in una riga in basso;
+      senza video resta l'ultima inquadratura (`intro-fine.webp`). `intro.mp4` 667 kB.
+- Verifica nel browser (Chromium headless): intro a 1,2/3/5/6,2/8 s, menu, lezione, esercizi, «Collega»: nessun
+  errore in console. Build: `dist/media` 1,1 MB.
 
 ### Registro spese Higgsfield (crediti)
-| Data | Cosa | Modello | Crediti | Saldo |
+| Data | Cosa | Modello | Crediti | Saldo dopo |
 |---|---|---|---|---|
 | 28/10 | (partenza) | — | — | 992,96 |
+| 28/10 | 6 foto presa/posizione (2k) | nano_banana_pro → nano_banana_2 | 12 | 980,96 |
+| 28/10 | 3 foto posizione/presa | gpt_image_2_5 medium | 1,5 | |
+| 28/10 | 6 clip colpi v1 (5×4 s + 1×5 s) | kling3_0_turbo 720p | 37,5 | |
+| 28/10 | intro 8 s | cinematic_studio_3_0 720p | 40 | |
+| 28/10 | 3 clip v2 (rovescio, pallonetto, servizio) | kling3_0_turbo 720p | 19,5 | |
+| 28/10 | 2 clip v3 (rovescio 4 s, servizio 6 s) | kling3_0_turbo 720p | 15 | |
+| | **Totale di questa sessione** | | **125,5** | |
+
+Nota: tra le 15:10 e le 15:30 l'account ha anche spese **non fatte da questa sessione** (2 × «Voice Element» 40 e
+4 × «Eleven v4» ≈ 12, in tutto 128,5 crediti): per questo il saldo alla fine è 738,93 e non 867,46.
 
 ## Da fare (proposte per le prossime sessioni)
 - Prova fisica con lo smartphone: tutorial completo, leggibilità del riquadro 3D, bilanciamento delle medaglie.
