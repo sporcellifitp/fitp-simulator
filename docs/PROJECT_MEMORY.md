@@ -59,6 +59,10 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   S24 Ultra (bordi piatti, angoli squadrati, quattro fotocamere) costruita in three.js, con traiettorie scritte a
   partire dalle regole sopra. Un video generato da IA non garantisce che il gesto mostrato corrisponda al
   rilevatore (asse di rotazione, verso, velocità) e pesa molto di più. Vedi `src/natpf/natpf_gesture_demo.js`.
+- **Voci registrate** (28/10): `natpf-tennis/public/voce/*.mp3` da ElevenLabs Eleven v4 via Higgsfield (voci preset
+  Marcus/Brooks/Julian, 0,23 crediti a frase). Per rigenerarle: `generate_audio_batch` con `model: elevenlabs_v4`,
+  `dialogue: [{ text, voice_type: 'preset', voice_id }]`; il limite di frequenza rifiuta alcune richieste (ripeterle).
+  Poi ffmpeg: silenceremove + loudnorm −16 LUFS, MP3 mono 48 kb/s (usare `-nostdin` nei cicli).
 - **Audio**: il connettore Higgsfield non offre un modello musicale utilizzabile per asset autonomi
   (`sonilo_music` è riservato alla pipeline dei giochi; Suno non presente nel catalogo il 28/10/2026). La musica
   resta quindi **generativa e originale** in `natpf_music.js` (nessun file, nessuna licenza esterna).

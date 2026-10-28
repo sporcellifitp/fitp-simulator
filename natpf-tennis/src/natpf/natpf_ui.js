@@ -12,6 +12,7 @@ import { NatpfShotFeedback } from './natpf_shot_feedback.js';
 import { NatpfHand } from './natpf_hand.js';
 import { NatpfTraining } from './natpf_training.js';
 import { NatpfBallMachine } from './natpf_ball_machine.js';
+import { bindAudioSliders } from './natpf_audio_settings.js';
 import { NatpfGestureHud } from './natpf_gesture_hud.js';
 import { NatpfDiag } from './natpf_diag.js';
 import { NatpfIntro } from './natpf_intro.js';
@@ -69,6 +70,8 @@ export class NatpfUi {
     this.onboarding = new NatpfOnboarding({ getController: () => this.controller, onPractice: () => this.lobby.startPractice(), onOpen: () => this._syncPause(), onClose: () => this._syncPause() });
     this.lobby = this.flow = new NatpfLobby(engine, this, this.onboarding);
     this.pause = new NatpfPause(engine, this);
+    // volumi separati di musica, effetti e voci (Opzioni e Pausa)
+    this.syncVolumes = bindAudioSliders(engine.audioEngine);
     this.versus = new NatpfVersusUi(engine, this);
     this.kiosk = new NatpfKiosk(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale

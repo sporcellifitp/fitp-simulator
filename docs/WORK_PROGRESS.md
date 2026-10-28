@@ -60,10 +60,22 @@ Legenda: [x] fatto e verificato · [~] in corso · [ ] da fare.
 - [ ] Da rifinire con T4/T5: opzioni audio (cursori), pagina dei minigiochi con medaglie e record.
 
 ### T4 · Audio
-- [ ] Impostazioni separate: musica, effetti, voci (volumi persistenti)
-- [ ] Nuovi brani generativi (menu, partita, tutorial, minigiochi) + playlist senza ripetizioni, crossfade
-- [ ] Effetti differenziati per tipo di colpo e situazione; vocalizzazioni dei giocatori
-- [ ] Voci con ElevenLabs via Higgsfield solo se i diritti d'uso sono verificati
+- [x] Volumi separati musica / effetti / voci: bus `voiceGain` in `audio_engine.js`, `setVolume(kind)`, salvati in
+      `natpf.audio`; cursori in Opzioni e Pausa (`natpf_audio_settings.js`).
+- [x] Musica (`natpf_music.js`): 5 brani nuovi originali (tutorial ×2, minigiochi ×2, partita ×1) → 17 in tutto;
+      arrangiamento che cambia a ogni giro (intro → pieno → break con riser → lift con crash), rullante di raccordo,
+      dissolvenza incrociata di 1,6 s tra brani, scaletta casuale per sessione senza ripetere l'ultimo brano
+      (`natpf.music.last`). Contesti: tutorial e minigiochi tengono il loro brano durante lo scambio.
+- [x] Voci (`public/voce/`, 48 clip, 420 kB): arbitro, annunci dei minigiochi, sforzo/esultanza; ElevenLabs Eleven v4
+      via Higgsfield. Diritti e provenienza in `public/voce/LEGGIMI.txt`. Verifica: trascrizione automatica (Vosk
+      italiano) delle clip e della registrazione dal browser; termini inglesi e vocalizzazioni da ascoltare.
+- [x] Effetti (`natpf_sfx.js`): impatto diverso per topspin / piatto / tagliato / pallonetto / schiacciata con
+      variazioni casuali, rimbalzo per velocità, rete, effetti arcade (bersaglio, combo, timer, errore, medaglia),
+      lanciapalle. Voce di sforzo sulle schiacciate e su alcuni colpi perfetti.
+- [x] Verificato nel browser (Chromium, registrazione dell'uscita): musica −31 dB medi, voci −21 dB, nessun clipping.
+- [ ] Musica generata con IA: **non disponibile** — Higgsfield non espone un modello musicale utilizzabile per asset
+      autonomi (`sonilo_music` riservato alla pipeline giochi, Suno assente). Brani composti nel codice.
+- [ ] Da ascoltare da una persona: mix e gusto dei brani, naturalezza delle vocalizzazioni.
 
 ### T5 · Minigiochi arcade
 - [ ] Bersagli 3D fisici colpibili, zone di punteggio, mobili, bonus, combo, timer, difficoltà progressiva

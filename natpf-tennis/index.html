@@ -329,9 +329,13 @@
           <div class="lobby-row">
             <span class="lobby-label">Audio</span>
             <div class="lobby-seg">
-              <button type="button" class="seg-btn" data-option="music">Musica: <b>Sì</b></button
-              ><button type="button" class="seg-btn" data-option="voice">Voce: <b>Sì</b></button>
+              <button type="button" class="seg-btn" data-option="music">Audio: <b>Sì</b></button
+              ><button type="button" class="seg-btn" data-option="voice">Voci: <b>Sì</b></button>
             </div>
+          </div>
+          <div class="lobby-row lobby-row-volumes">
+            <span class="lobby-label">Volumi</span>
+            <div class="vol-group" data-audio-sliders></div>
           </div>
           <div class="lobby-row">
             <span class="lobby-label">Telefono</span>
@@ -576,6 +580,7 @@
       <div class="natpf-sheet natpf-pause-sheet">
         <p class="sheet-kicker">Partita in pausa</p>
         <h2 class="sheet-title" id="natpf-pause-title">Pausa</h2>
+        <div class="vol-group pause-volumes" data-audio-sliders></div>
         <div class="pause-grid">
           <button type="button" data-pause="music"><span>Musica</span><b>Sì</b></button
           ><button type="button" data-pause="voice"><span>Voce</span><b>Sì</b></button

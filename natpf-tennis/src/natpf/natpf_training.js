@@ -202,6 +202,8 @@ export class NatpfTraining {
     if (this.ui.controller === 'webcam' && E.motionController && !E.motionController.webcamActive) E.motionController.enableWebcam();
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true }); E._syncScoreboardHUD();
     this._hideOpponent(true);
+    // musica del tutorial (solo nell'Allenamento dal menu; il riscaldamento prima della partita resta com'era)
+    if (!guest && !diag && drills == null && !calOnly) E.audioEngine?.setMusicContext?.('training');
     if (this.lesson){ this._idle(); this._centerPlayer(); }
     else this._begin();
     E.hud.showCenterBanner(this.lesson ? 'Allenamento' : this.cal ? 'Calibrazione' : 'Riscaldamento', { style: 'style-start', subText: this.lesson ? 'Prima, come si tiene il telefono' : this.cal ? 'Il gioco impara i tuoi due gesti' : 'Solo tu e il lanciapalle', durationMs: 1300 });
@@ -467,6 +469,7 @@ export class NatpfTraining {
     const E = this.engine;
     this.active = false; this.cal = null; this.lesson = null; this.live = null; E.natpfTimeScale = 1; clearTimeout(this.retryT);
     if (this.demoOn){ getGestureDemo().stop(); this.demoOn = false; }
+    if (E.audioEngine?.musicContext === 'training') E.audioEngine.musicContext = null;
     this.coach?.classList.add('hidden'); this._hideOpponent(false);
     E.opponent.pos.set(-1.35, 0, -11.89); E.opponent.targetPos.copy(E.opponent.pos);
     E._applyDifficultyTuning(this.prevDifficulty || 'casual');

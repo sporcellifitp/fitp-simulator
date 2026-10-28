@@ -20,7 +20,7 @@ export class NatpfPause {
   get isOpen(){ return !!this.el && !this.el.classList.contains('hidden'); }
   // in campo (lobby chiusa): partita, allenamento o P2 in una stanza
   get inGame(){ return document.documentElement.classList.contains('autoplay-mode') && !this.engine.autoPlayMode; }
-  open(){ if (!this.el || !this.inGame) return; show(this.el); this.paint(); this.ui._syncPause(); this.el.querySelector('[data-pause="resume"]')?.focus(); }
+  open(){ if (!this.el || !this.inGame) return; show(this.el); this.paint(); this.ui.syncVolumes?.(); this.ui._syncPause(); this.el.querySelector('[data-pause="resume"]')?.focus(); }
   close(){ show(this.el, false); this.ui._syncPause(); }
   toggle(){ this.isOpen ? this.close() : this.open(); }
   run(cmd){

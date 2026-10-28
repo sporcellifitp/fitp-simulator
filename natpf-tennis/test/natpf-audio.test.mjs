@@ -23,9 +23,9 @@ function fakeAudioContext(){
 
 // nomi del gioco di partenza, composti così da non comparire nei sorgenti
 const ORIGIN = new RegExp(['ar' + 'gon', 'ly' + 'ria', 'ai st' + 'udio', '\\bm' + 'ii\\b'].join('|'), 'i');
-test('colonna sonora: dodici brani originali, battute da 16 passi, accordi e note validi', () => {
+test('colonna sonora: diciassette brani originali, battute da 16 passi, accordi e note validi', () => {
   const ids = Object.keys(NATPF_TRACKS);
-  assert.deepEqual(ids.sort(), ['court_intro', 'game_point', 'game_point_tension', 'match_rally', 'menu_lounge', 'menu_palazzetto', 'menu_theme', 'rally_baseline', 'rally_volley', 'replay', 'victory_fanfare', 'victory_parade']);
+  assert.deepEqual(ids.sort(), ['arcade_combo', 'arcade_rush', 'court_intro', 'game_point', 'game_point_tension', 'match_night', 'match_rally', 'menu_lounge', 'menu_palazzetto', 'menu_theme', 'rally_baseline', 'rally_volley', 'replay', 'tutorial_drift', 'tutorial_flow', 'victory_fanfare', 'victory_parade']);
   const melodies = new Set();
   for (const tr of Object.values(NATPF_TRACKS)){
     const bars = tr.chords.length;
@@ -73,15 +73,18 @@ test('sequencer: note programmate in anticipo, ingresso in campo che passa da so
     assert.ok(music.nextTime >= lastNext, 'il tempo delle note non torna indietro');
     lastNext = music.nextTime;
   }
-  assert.equal(music.currentId, 'match_rally');
-  assert.deepEqual(switched, ['match_rally']);
+  // dopo l'ingresso un brano dello scambio (la scaletta parte da un brano a caso del gruppo, 28/10)
+  assert.equal(groupOf(music.currentId), 'match_rally');
+  assert.equal(switched.length, 1); assert.equal(switched[0], music.currentId);
   assert.ok(music.scheduledNotes > 100);
-  assert.ok(music.nextTime <= ctx.currentTime + 0.2, 'look-ahead breve');
+  // look-ahead breve: al massimo 0,14 s più un sedicesimo (con lo swing) del brano che suona
+  const sixteenth = 60/NATPF_TRACKS[music.currentId].bpm/4*(1 + (NATPF_TRACKS[music.currentId].swing || 0));
+  assert.ok(music.nextTime <= ctx.currentTime + 0.14 + sixteenth + 0.026, 'look-ahead breve');
   // il loop dello scambio riparte dalla prima battuta senza fermarsi
-  const loopLength = NATPF_TRACKS.match_rally.chords.length*4*60/NATPF_TRACKS.match_rally.bpm;
+  const rally = music.currentId, loopLength = NATPF_TRACKS[rally].chords.length*4*60/NATPF_TRACKS[rally].bpm;
   const t0 = ctx.currentTime;
   for (; ctx.currentTime < t0 + loopLength*1.5; ctx.currentTime += 0.025) music._tick();
-  assert.equal(music.currentId, 'match_rally');
+  assert.equal(music.currentId, rally);
   music.timer = null; music.stop();
   assert.equal(music.playing, false);
 });

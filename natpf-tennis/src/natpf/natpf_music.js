@@ -135,6 +135,7 @@ export const NATPF_TRACKS = {
   },
   game_point: {
     id: "game_point",
+    arrange: false,
     title: "Punto decisivo",
     subtitle: "Palla game, break o match",
     bpm: 134,
@@ -164,6 +165,7 @@ export const NATPF_TRACKS = {
   },
   victory_fanfare: {
     id: "victory_fanfare",
+    arrange: false,
     title: "Gloria al Pala",
     subtitle: "Vittoria",
     bpm: 120,
@@ -202,6 +204,7 @@ export const NATPF_TRACKS = {
   },
   replay: {
     id: "replay",
+    arrange: false,
     title: "Moviola",
     subtitle: "Replay",
     bpm: 92,
@@ -360,6 +363,7 @@ export const NATPF_TRACKS = {
   },
   game_point_tension: {
     id: "game_point_tension",
+    arrange: false,
     title: "Palla break",
     subtitle: "Palla game, break o match",
     bpm: 128,
@@ -389,6 +393,7 @@ export const NATPF_TRACKS = {
   },
   victory_parade: {
     id: "victory_parade",
+    arrange: false,
     title: "Festa sul Po",
     subtitle: "Vittoria",
     bpm: 126,
@@ -419,10 +424,182 @@ export const NATPF_TRACKS = {
       shaker: "x x x x x x x x x x x x x x x x",
     },
   },
+  // ---------- brani del 28/10/2026 ----------
+  // Tutorial: house leggera e luminosa, mai invadente (si ascoltano le istruzioni)
+  tutorial_flow: {
+    id: "tutorial_flow",
+    title: "Campo d'allenamento",
+    subtitle: "Tutorial",
+    bpm: 102,
+    volume: 0.42,
+    loopFrom: 0,
+    swing: 0.1,
+    chords: ["Dmaj7", "Bm7", "Gmaj7", "A", "Dmaj7", "F#m7", "Gmaj7", "Asus4"],
+    lead: {
+      voice: "softLead",
+      octave: 0,
+      bars: bars(
+        "F#5 - - . A5 - F#5 - E5 - - . D5 - - .",
+        "D5 - - . F#5 - D5 - C#5 - B4 - - . . .",
+        "B4 - D5 - F#5 - - . E5 - D5 - B4 - - .",
+        "C#5 - - - E5 - - . A4 - - - . . . .",
+        "F#5 - A5 - D6 - - . C#6 - A5 - F#5 - - .",
+        "E5 - F#5 - A5 - - . C#6 - - . A5 - - .",
+        "B5 - A5 - F#5 - D5 - E5 - F#5 - G5 - - .",
+        "A5 - - - - - . . E5 - - - D5 - - .",
+      ),
+    },
+    bass: { octave: 2, pattern: "R - . . . . R . R - . . . O . ." },
+    arp: { octave: 4, pattern: "0 . 2 . 1 . 3 . 0 . 2 . + . 3 .", voice: "bell" },
+    pad: { octave: 3, level: 0.55 },
+    drums: {
+      kick: "x . . . x . . . x . . . x . . .",
+      clap: ". . . . x . . . . . . . x . . .",
+      hat: ". . x . . . x . . . x . . . x .",
+      shaker: "x x x x x x x x x x x x x x x x",
+    },
+  },
+  // Tutorial: seconda variante, più morbida e in minore, alternata a «Campo d'allenamento»
+  tutorial_drift: {
+    id: "tutorial_drift",
+    title: "Palleggio lento",
+    subtitle: "Tutorial",
+    bpm: 96,
+    volume: 0.42,
+    loopFrom: 0,
+    swing: 0.12,
+    chords: ["Am7", "Fmaj7", "Cmaj7", "G", "Am7", "Dm7", "Fmaj7", "Esus4"],
+    lead: {
+      voice: "softLead",
+      octave: 0,
+      bars: bars(
+        "E5 - - . C5 - E5 - G5 - - . E5 - - .",
+        "A5 - - . F5 - C5 - E5 - - . . . . .",
+        "G5 - E5 - C5 - - . D5 - E5 - G5 - - .",
+        "B4 - - - D5 - - . G5 - - - . . . .",
+        "C6 - - . A5 - E5 - G5 - - . E5 - - .",
+        "F5 - - . A5 - D5 - F5 - - . A5 - - .",
+        "C6 - A5 - F5 - C5 - E5 - F5 - A5 - - .",
+        "B5 - - - A5 - - . E5 - - - . . . .",
+      ),
+    },
+    bass: { octave: 2, pattern: "R - - . . . F . R - . . O . . ." },
+    arp: { octave: 4, pattern: ". 0 . 2 . 1 . 3 . 0 . 2 . + . 1", voice: "bell" },
+    pad: { octave: 3, level: 0.6 },
+    drums: {
+      kick: "x . . . . . . . x . . x . . . .",
+      clap: ". . . . x . . . . . . . x . . .",
+      shaker: "x . x x x . x x x . x x x . x x",
+    },
+  },
+  // Minigiochi: arcade a 150 bpm, cassa dritta, arpeggio in sedicesimi e melodia squadrata
+  arcade_rush: {
+    id: "arcade_rush",
+    title: "Corsa ai bersagli",
+    subtitle: "Minigiochi",
+    bpm: 150,
+    volume: 0.38,
+    loopFrom: 0,
+    chords: ["Am", "F", "C", "G", "Am", "F", "G", "E"],
+    lead: {
+      voice: "squareLead",
+      octave: 0,
+      bars: bars(
+        "A5 - E5 - A5 - C6 - B5 - A5 - E5 - - .",
+        "F5 - A5 - C6 - - . A5 - F5 - A5 - - .",
+        "G5 - E5 - C5 - E5 - G5 - - . C6 - B5 -",
+        "B5 - - - G5 - D5 - G5 - B5 - D6 - - .",
+        "C6 - B5 - A5 - E5 - A5 - C6 - E6 - - .",
+        "F6 - E6 - C6 - A5 - F5 - A5 - C6 - - .",
+        "D6 - - . B5 - G5 - D6 - - . G6 - - .",
+        "G#5 - - - B5 - - - E6 - - - . . . .",
+      ),
+    },
+    bass: { octave: 2, pattern: "R . O . R . O . R . O . R . O F" },
+    arp: { octave: 4, pattern: "0 1 2 + 2 1 0 1 2 + 2 1 0 1 2 +", voice: "pluck" },
+    pad: { octave: 3, level: 0.35 },
+    drums: {
+      kick: "o . . . x . . . o . . . x . . .",
+      clap: ". . . . x . . . . . . . x . . .",
+      hat: ". . x . . . x . . . x . . . x x",
+      tick: "x . x . x . x . x . x . x . x .",
+    },
+  },
+  // Minigiochi: break più funky con fiati, alternato a «Corsa ai bersagli»
+  arcade_combo: {
+    id: "arcade_combo",
+    title: "Combo Torino",
+    subtitle: "Minigiochi",
+    bpm: 140,
+    volume: 0.4,
+    loopFrom: 0,
+    swing: 0.05,
+    chords: ["Em", "C", "G", "D", "Em", "C", "Am", "B7"],
+    lead: {
+      voice: "brass",
+      octave: 0,
+      bars: bars(
+        "E5 - . E5 . G5 - . B5 - - . A5 - G5 .",
+        "E5 - - . . . C5 - E5 - G5 - E5 - - .",
+        "D5 - . D5 . G5 - . B5 - D6 - B5 - - .",
+        "A5 - - - F#5 - - . D5 - F#5 - A5 - - .",
+        "B5 - . B5 . A5 - . G5 - E5 - G5 - B5 -",
+        "C6 - - . B5 - - . G5 - - . E5 - - .",
+        "A5 - . A5 . C6 - . E6 - - . C6 - A5 .",
+        "B5 - - - D#6 - - - F#6 - - - . . . .",
+      ),
+    },
+    bass: { octave: 2, pattern: "R . . R . . O . R . F . O . R ." },
+    arp: { octave: 4, pattern: ". . 0 . . . 2 . . . 1 . . . 3 .", voice: "pluck" },
+    pad: { octave: 3, level: 0.4 },
+    drums: {
+      kick: "o . . x . . x . . . x . . . . .",
+      snare: ". . . . x . . . . . . . x . . x",
+      hat: "x . x x x . x . x . x x x . x .",
+      openhat: ". . . . . . . x . . . . . . . .",
+    },
+  },
+  // Partita: nuovo brano notturno e incalzante, entra nella rotazione dello scambio
+  match_night: {
+    id: "match_night",
+    title: "Finale al Pala",
+    subtitle: "Musica della partita",
+    bpm: 138,
+    volume: 0.38,
+    loopFrom: 0,
+    chords: ["C#m", "A", "E", "B", "C#m", "A", "F#m", "G#7"],
+    lead: {
+      voice: "pluckLead",
+      octave: 0,
+      bars: bars(
+        "G#5 - E5 - C#5 - E5 - G#5 - - . F#5 - E5 -",
+        "E5 - C#5 - A4 - C#5 - E5 - - . A5 - - .",
+        "G#5 - - . B5 - G#5 - E5 - - . F#5 - G#5 -",
+        "F#5 - - - D#5 - - . B4 - D#5 - F#5 - - .",
+        "C#6 - - . B5 - G#5 - E5 - G#5 - C#6 - E6 -",
+        "C#6 - - . A5 - E5 - C#5 - E5 - A5 - - .",
+        "A5 - G#5 - F#5 - C#5 - F#5 - A5 - C#6 - - .",
+        "C6 - - - B5 - - - G#5 - - - . . . .",
+      ),
+    },
+    bass: { octave: 2, pattern: "R . R . O . R . R . R . O . F ." },
+    arp: { octave: 4, pattern: "0 . 1 . 2 . 1 . 0 . 1 . 2 . 3 .", voice: "pluck" },
+    pad: { octave: 3, level: 0.45 },
+    drums: {
+      kick: "o . . . x . . . o . x . x . . .",
+      snare: ". . . . x . . . . . . . x . . .",
+      hat: "x . x . x . x . x . x . x . x x",
+      tom: ". . . . . . . . . . . . . . . .",
+    },
+  },
 };
 
 // Stato del gioco → brano (stessi nomi di stato che usa il motore base)
 const STATE_TO_TRACK = {
+  training: "tutorial_flow",
+  tutorial: "tutorial_flow",
+  minigame: "arcade_rush",
+  arcade: "arcade_rush",
   title: "menu_theme",
   menu: "menu_theme",
   lobby: "menu_theme",
@@ -456,14 +633,31 @@ export const trackForState = (state) => STATE_TO_TRACK[String(state || "rally").
 // suonato) e durante il menu e lo scambio si passa al successivo dopo `rotate` giri, alla fine del giro e in
 // dissolvenza. Prima ogni schermata aveva un solo brano che si ripeteva per tutta la sessione.
 export const TRACK_GROUPS = {
-  menu_theme: { tracks: ["menu_theme", "menu_lounge", "menu_palazzetto"], rotate: 3 },
-  match_rally: { tracks: ["match_rally", "rally_baseline", "rally_volley"], rotate: 3 },
+  menu_theme: { tracks: ["menu_theme", "menu_lounge", "menu_palazzetto"], rotate: 4 },
+  match_rally: { tracks: ["match_night", "match_rally", "rally_baseline", "rally_volley"], rotate: 4 },
+  tutorial_flow: { tracks: ["tutorial_flow", "tutorial_drift"], rotate: 4 },
+  arcade_rush: { tracks: ["arcade_rush", "arcade_combo"], rotate: 4 },
   game_point: { tracks: ["game_point", "game_point_tension"], rotate: 0 },
   victory_fanfare: { tracks: ["victory_fanfare", "victory_parade"], rotate: 0 },
 };
 const GROUP_OF = {};
 for (const [head, g] of Object.entries(TRACK_GROUPS)) for (const id of g.tracks) GROUP_OF[id] = head;
 export const groupOf = (id) => GROUP_OF[id] || id;
+
+// Arrangiamento a ogni giro dei brani in loop (28/10): prima un brano di 8 battute si ripeteva identico, ora ogni
+// giro cambia strumentazione come una canzone vera. intro: senza melodia né battimani; full: tutto; break: senza
+// cassa né basso, con la salita di rumore alla fine; lift: tutto, piatti aperti e crash. Ogni passaggio ha il
+// rullante di raccordo nell'ultima mezza battuta. arrange: false per i brani brevi (ingresso, punti decisivi, vittoria).
+export const ARRANGEMENT = Object.freeze([
+  { name: "intro", lead: false, kick: true, bass: true, clap: false, lift: false, riser: false },
+  { name: "full", lead: true, kick: true, bass: true, clap: true, lift: false, riser: false },
+  { name: "break", lead: true, kick: false, bass: false, clap: false, lift: false, riser: true },
+  { name: "lift", lead: true, kick: true, bass: true, clap: true, lift: true, riser: false },
+]);
+export const arrangementFor = (track, pass) =>
+  !track || track.arrange === false || track.loopFrom === null ? ARRANGEMENT[1] : ARRANGEMENT[pass % ARRANGEMENT.length];
+const ROTATE_FADE_S = 1.6;   // dissolvenza incrociata tra un brano e l'altro della stessa schermata
+const LAST_KEY = "natpf.music.last";
 
 // Brani della partita: se arrivano mentre suona l'ingresso in campo, aspettano che finisca.
 const MATCH_TRACKS = new Set(["match_rally", "game_point"]);
@@ -502,7 +696,12 @@ export class NatpfMusic {
     this.onSwitch = null; // chiamato quando un brano passa da solo al successivo (ingresso in campo → scambio, rotazione)
     this.rotation = {}; // per gruppo: indice del prossimo brano
     this.lastInGroup = {}; // per gruppo: ultimo brano suonato
-    this.loops = 0; // giri completi del brano corrente
+    this.loops = 0; // giri completi del brano corrente (anche l'arrangiamento dipende da questo)
+    // ordine diverso a ogni sessione, e mai lo stesso brano dell'ultima volta in apertura
+    try {
+      Object.assign(this.lastInGroup, JSON.parse(localStorage.getItem(LAST_KEY) || "{}"));
+    } catch {}
+    for (const [head, g] of Object.entries(TRACK_GROUPS)) this.rotation[head] = Math.floor(Math.random() * g.tracks.length);
   }
 
   // Prossimo brano del gruppo di «id» (un brano del gruppo chiesto per nome vale così com'è, se non è la testa):
@@ -565,37 +764,40 @@ export class NatpfMusic {
     this._tick();
   }
 
-  _switch(track, { fade = true, fromLoop = false, at = null } = {}) {
+  _switch(track, { fade = true, fromLoop = false, at = null, fadeS = FADE_S } = {}) {
     const ctx = this.ctx,
       t0 = at ?? ctx.currentTime + 0.04;
-    if (this.bus) this._fadeOutBus(this.bus, fade ? t0 : t0 + 1.2);
+    if (this.bus) this._fadeOutBus(this.bus, fade ? t0 : t0 + 1.2, fadeS);
     const bus = ctx.createGain();
     const target = track.volume * this.volume;
     if (fade) {
       bus.gain.setValueAtTime(0.0001, t0);
-      bus.gain.exponentialRampToValueAtTime(Math.max(0.0002, target), t0 + FADE_S);
+      bus.gain.exponentialRampToValueAtTime(Math.max(0.0002, target), t0 + fadeS);
     } else bus.gain.setValueAtTime(target, t0);
     bus.connect(this.out);
     this.bus = bus;
     this.track = track;
     this.loops = 0;
     this.lastInGroup[groupOf(track.id)] = track.id;
+    try {
+      localStorage.setItem(LAST_KEY, JSON.stringify(this.lastInGroup));
+    } catch {}
     this.step = fromLoop && track.loopFrom ? track.loopFrom * STEPS : 0;
     this.nextTime = t0;
     this.echo.delayTime.setValueAtTime((60 / track.bpm) * 0.75, t0); // ottavo puntato
   }
 
-  _fadeOutBus(bus, t) {
+  _fadeOutBus(bus, t, fadeS = FADE_S) {
     try {
       bus.gain.cancelScheduledValues(t);
       bus.gain.setValueAtTime(Math.max(0.0002, bus.gain.value), t);
-      bus.gain.exponentialRampToValueAtTime(0.0001, t + FADE_S);
+      bus.gain.exponentialRampToValueAtTime(0.0001, t + fadeS);
     } catch {}
     setTimeout(() => {
       try {
         bus.disconnect();
       } catch {}
-    }, (t - this.ctx.currentTime + FADE_S + 2.5) * 1000);
+    }, (t - this.ctx.currentTime + fadeS + 2.5) * 1000);
   }
 
   _tick() {
@@ -616,8 +818,9 @@ export class NatpfMusic {
         }
         // rotazione nel gruppo dopo qualche giro: il brano successivo entra alla fine del giro, in dissolvenza
         const g = TRACK_GROUPS[groupOf(track.id)];
-        if (g && g.rotate && g.tracks.length > 1 && ++this.loops >= g.rotate) {
-          this._switch(this._pick(groupOf(track.id)), { fade: true, at: this.nextTime });
+        this.loops += 1;
+        if (g && g.rotate && g.tracks.length > 1 && this.loops >= g.rotate) {
+          this._switch(this._pick(groupOf(track.id)), { fade: true, at: this.nextTime, fadeS: ROTATE_FADE_S });
           if (typeof this.onSwitch === "function") this.onSwitch(this.track.id);
           continue;
         }
@@ -636,7 +839,10 @@ export class NatpfMusic {
       s = absStep % STEPS,
       sixteenth = 60 / track.bpm / 4,
       chord = parseChord(track.chords[bar]) || parseChord("C"),
-      bus = this.bus;
+      bus = this.bus,
+      arr = arrangementFor(track, this.loops),
+      next = arrangementFor(track, this.loops + 1),
+      lastBar = bar === track.chords.length - 1;
     const holdLength = (row, i) => {
       let n = 1;
       while (i + n < row.length && row[i + n] === "-") n++;
@@ -648,7 +854,7 @@ export class NatpfMusic {
       chord.tones.slice(0, 4).forEach((iv, k) => this._pad(bus, t, midiToFreq(base + iv), sixteenth * 8.4, track.pad.level / (k === 0 ? 1 : 1.25)));
     }
     // melodia
-    if (track.lead) {
+    if (track.lead && arr.lead) {
       const row = track.lead.bars[bar % track.lead.bars.length],
         tok = row[s];
       if (tok && tok !== "-" && tok !== ".") {
@@ -657,7 +863,7 @@ export class NatpfMusic {
       }
     }
     // basso
-    if (track.bass) {
+    if (track.bass && arr.bass) {
       const row = track.bass.pattern.split(/\s+/),
         tok = row[s];
       const iv = { R: 0, O: 12, F: 7, T: chord.tones[1] }[tok];
@@ -674,11 +880,17 @@ export class NatpfMusic {
     // batteria (un pattern per tutte le battute o uno per battuta; l'ultimo si ripete)
     const kit = Array.isArray(track.drums) ? track.drums[Math.min(bar, track.drums.length - 1)] : track.drums;
     for (const [piece, pattern] of Object.entries(kit || {})) {
+      if ((piece === "kick" && !arr.kick) || ((piece === "clap" || piece === "snare") && !arr.clap && track.arrange !== false && track.loopFrom !== null)) continue;
       const tok = pattern.split(/\s+/)[s];
       if (tok === "x" || tok === "o") this._drum(piece, bus, t, tok === "o" ? 1.25 : 1, s);
     }
-    // salita di rumore nelle ultime due battute del giro (tensione dei punti decisivi)
-    if (track.riser && s === 0 && bar === track.chords.length - 2) this._riser(bus, t, sixteenth * STEPS * 2);
+    // lift: piatto aperto in levare e crash in apertura del giro
+    if (arr.lift && s % 4 === 2) this._drum("openhat", bus, t, 0.8, s);
+    if ((arr.lift || (arr.name === "full" && this.loops > 0)) && s === 0 && bar === 0) this._drum("crash", bus, t, 0.8, s);
+    // rullante di raccordo quando il giro dopo cambia arrangiamento
+    if (lastBar && s >= 12 && next.name !== arr.name && track.loopFrom !== null && track.arrange !== false) this._drum("snare", bus, t, 0.5 + (s - 12) * 0.18, s);
+    // salita di rumore nelle ultime due battute del giro (tensione dei punti decisivi, fine del break)
+    if ((track.riser || arr.riser) && s === 0 && bar === track.chords.length - 2) this._riser(bus, t, sixteenth * STEPS * 2);
   }
 
   // ---------- strumenti ----------

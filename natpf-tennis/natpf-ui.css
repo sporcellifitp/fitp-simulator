@@ -905,3 +905,14 @@ body.natpf-training #natpf-games-line { opacity: 0; pointer-events: none; }
 .natpf-sheet-backdrop .natpf-sheet.natpf-guide { width: min(1000px, calc(100vw - 2 * var(--gutter))); }
 .natpf-sheet-backdrop .natpf-sheet.natpf-phone-dialog { width: min(780px, calc(100vw - 2 * var(--gutter))); }
 .natpf-sheet .natpf-qr { background: #fff; border-radius: var(--r-m); }
+
+/* cursori dei volumi (natpf_audio_settings.js) */
+.vol-group { display: grid; gap: 14px; min-width: min(380px, 100%); }
+.vol-row { display: grid; grid-template-columns: 76px 1fr 36px; align-items: center; gap: 12px; font: 600 15px/1 var(--font-text); color: var(--text-2); }
+.vol-row output { font: 700 16px/1 var(--font-display); color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+.vol-row input[type="range"] { -webkit-appearance: none; appearance: none; height: 8px; border-radius: var(--r-pill); background: linear-gradient(90deg, var(--ball) var(--v, 50%), rgba(255, 255, 255, 0.14) var(--v, 50%)); cursor: pointer; }
+.vol-row input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 3px solid var(--ball); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); }
+.vol-row input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 3px solid var(--ball); }
+.vol-row input[type="range"]:focus-visible { outline: 3px solid var(--ball); outline-offset: 4px; }
+#title-modal .lobby-row-volumes { align-items: flex-start; padding-top: 14px; padding-bottom: 14px; }
+.natpf-sheet .pause-volumes { margin: 4px 0 16px; padding: 14px 16px; border-radius: var(--r-m); background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); }

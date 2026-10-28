@@ -22,6 +22,7 @@ checkpoint pubblicato su GitHub è `59ce56c`; quelli successivi sono solo nel ch
 
 ## Prossima azione esatta
 
-T3 (redesign UI) completato nelle parti principali. Prossimo: T4 audio — volumi separati musica/effetti/voci
-(`audio_engine.js`: `musicGain`, `sfxGain`, `voice.volume`; cursori in Opzioni e Pausa), playlist e brani nuovi in
-`natpf_music.js`, effetti per tipo di colpo e vocalizzazioni in `natpf_sfx.js`. Poi T5 minigiochi.
+T4 (audio) completato. Prossimo: T5 minigiochi — riscrivere `src/natpf/natpf_events.js` con bersagli 3D fisici
+(`natpf_targets.js`), modalità Target Rush, Precision Challenge, Combo Challenge, Survival (oltre a Radar e Campione),
+record personali e medaglie (localStorage), schermata risultati con medaglia. Usare `ui.machine` (profili
+`FEED_PROFILES`/`feedForLevel`), `audioEngine.playArcade()` e `audioEngine.cue()`.

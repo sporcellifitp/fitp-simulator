@@ -236,6 +236,7 @@ export class NatpfLobby {
   }
   _paintOptions(){
     const audio = this.engine.audioEngine;
+    this.ui.syncVolumes?.();
     const set = (k, on) => { const b = this.el.querySelector(`[data-option="${k}"] b`); if (b) b.textContent = on ? 'Sì' : 'No'; };
     set('music', audio ? !audio.muted : true);
     set('voice', audio?.voice ? !!audio.voice.enabled : true);

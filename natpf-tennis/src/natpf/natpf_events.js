@@ -114,6 +114,7 @@ export class NatpfEvents {
       this._opponentAway(true); this.ui.training._idle();
     }
     if (id === 'targets') this._showTargets(true);
+    if (id !== 'champion') E.audioEngine?.setMusicContext?.('minigame');
     E.hud.showCenterBanner(c.label, { style: 'style-start', subText: this.nickname ? `Tocca a ${this.nickname}` : c.short, durationMs: 1500 });
     show(this.hud); this.paint();
   }
@@ -218,6 +219,7 @@ export class NatpfEvents {
   }
   _restore(){
     const E = this.engine;
+    if (E.audioEngine?.musicContext === 'minigame') E.audioEngine.musicContext = null;
     show(this.hud, false); this._showTargets(false); this._opponentAway(false);
     E.natpfTimeScale = 1; E.pendingUserSwing = E.pendingP2Swing = E.pendingServeSwing = null;
     E.opponent.pos.set(-1.35, 0, -11.89); E.opponent.targetPos.copy(E.opponent.pos);
