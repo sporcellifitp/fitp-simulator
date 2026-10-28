@@ -102,6 +102,26 @@ Legenda: [x] fatto e verificato · [~] in corso · [ ] da fare.
 - [ ] Non verificabile qui: telefono Android reale (sensori), webcam reale, ascolto umano di musica e voci,
       prestazioni su hardware modesto (il riquadro 3D del tutorial usa un secondo contesto WebGL a 30 fps massimi).
 
+## Richiesta del 28/10 (seconda parte) — media reali Higgsfield e UI meno ridondante
+
+Budget Higgsfield: **250 crediti massimo** (saldo iniziale 992,96 → non scendere sotto 742,96). Registro spese sotto.
+
+### T7 · Media reali per tutorial e impugnatura (Higgsfield)
+- [ ] Foto realistiche dell'impugnatura (di lato, dallo schermo, posizione sbagliata) e della posizione di partenza
+- [ ] Clip video dei colpi (persona reale generata, vista da dietro, telefono in mano), verificate fotogramma per
+      fotogramma contro le regole di `docs/PROJECT_MEMORY.md` §Gesti; scartate quelle sbagliate
+- [ ] Integrazione nel tutorial (lezione e riquadro «Guarda e ripeti») e nella pagina «Collega»; animazione 3D solo
+      come ripiego per i colpi senza clip valida
+
+### T8 · UI meno ridondante e intro nuova
+- [ ] Titolo principale solo «NATPF Simulator»; loghi Esports FITP / Nitto ATP Finals in secondo piano
+- [ ] Intro con video generato su Higgsfield (arena, palla, luci) e titolo sovrapposto in HTML
+
+### Registro spese Higgsfield (crediti)
+| Data | Cosa | Modello | Crediti | Saldo |
+|---|---|---|---|---|
+| 28/10 | (partenza) | — | — | 992,96 |
+
 ## Da fare (proposte per le prossime sessioni)
 - Prova fisica con lo smartphone: tutorial completo, leggibilità del riquadro 3D, bilanciamento delle medaglie.
 - Eventuale pulizia dei fogli di stile storici (`natpf.css`, `natpf-round.css`, `natpf-flow.css`): oggi
