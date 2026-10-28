@@ -25,7 +25,8 @@ Lo storico precedente al 28/10/2026 (racchetta virtuale, mira, webcam, LAN) è i
 - A fine di ogni task rilevante aggiornare `docs/SESSION_HANDOFF.md` con ultimo commit, problemi aperti e prossima
   azione esatta. Decisioni tecniche durature in `docs/PROJECT_MEMORY.md`.
 - Prima di operazioni rischiose o ampie: commit di checkpoint (anche WIP, purché i test passino o sia dichiarato).
-- Push su `origin natpf-simulator` dopo ogni checkpoint (la fonte di verità è GitHub, non la chat).
+- Push su `origin natpf-simulator` **solo con autorizzazione esplicita dell'utente** (richiesta del 28/10/2026).
+  Senza autorizzazione: commit locali, e lo stato scritto nei documenti del repository.
 - Non fingere: se qualcosa non è stato provato (telefono reale, browser, audio generato), scriverlo.
 
 ## Comandi
