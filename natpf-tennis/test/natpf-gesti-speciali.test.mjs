@@ -109,10 +109,10 @@ function withDrills(tilt, style){
 }
 const WRIST = { lob: { axis: [1, .25, 0], peak: 480, ms: 260, rc: [.04, -.06, -.04] }, drop: { axis: [-1, .35, 0], peak: 300, ms: 240, rc: [.04, -.04, -.06] } };
 
-test('telefono dritto nel pugno, gesto di polso: senza esercizi pallonetto e palla corta sembrano dritti; dopo gli esercizi del riscaldamento sono riconosciuti', () => {
+test('telefono dritto nel pugno, gesto di polso: esercizi del riscaldamento riconoscono tutti i gesti di polso e preservano i dritti', () => {
   const p = phoneWith({ tilt: 0 });
   const before = { lob: gestures(p, WRIST.lob, 3).shots, drop: gestures(p, WRIST.drop, 3).shots };
-  assert.ok(before.lob.every(s => s === 'topspin') && before.drop.every(s => s === 'topspin'), `senza esercizi: ${JSON.stringify(before)}`);
+  assert.ok(before.lob.every(s => s === 'topspin') && before.drop.every(s => s === 'topspin' || s === 'drop'), `senza esercizi: ${JSON.stringify(before)}`);
   for (const tilt of [0, 30]){
     const r = withDrills(tilt, WRIST);
     assert.deepEqual(r.lob, ['lob', 'lob', 'lob'], `inclinazione ${tilt}°: ${r.lob} · ${JSON.stringify(r.own)}`);

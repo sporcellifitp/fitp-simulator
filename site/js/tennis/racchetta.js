@@ -44,6 +44,7 @@ let lastFaceSent = -Infinity, lastFacePaint = -Infinity, lastAttemptOk = false;
 let sensorSequence = 0, lastSensorSent = -Infinity;
 // richieste facoltative del gioco (messaggio cfg): preparazione del colpo e flusso dei sensori anche senza canale binario
 let streamJson = false, prepWanted = false, diagStream = false, sampleHz = 60, lastSampleT = null, swingSeq = 0;
+let connectEpoch = 0, pendingConn = null;
 let peer = null, conn = null, linkState = 'off', rtt = 80, sensor = 'off', phase = 'menu', retryT = null, tries = 0, motionSeen = false, flashT = null, lastRx = 0;
 // schermo acceso e sensori vivi (phone-keep.js): ogni cambio del blocco va al computer e sullo schermo (avvisi più giù)
 const awake = createWakeKeeper({ onChange: () => { sendState(); paintAlert(); } }), sensorWatch = createSensorWatch();
@@ -121,34 +122,37 @@ function flash(cls, big, sub, ms = 650, arrow = ''){ ui(big, sub, cls, arrow); c
 
 /* ---------- collegamento ---------- */
 async function connect(){
-  clearTimeout(retryT);
+  clearTimeout(retryT); clearTimeout(connect.t);
+  const epoch = ++connectEpoch, previous = peer;
+  peer = null; conn = null; pendingConn = null; closeFast();
+  if (previous && !previous.destroyed) previous.destroy();
   if (!pair){ linkState = 'denied'; bar(); ui('Nessuna partita', 'Inquadra il codice QR che compare sul computer.'); show('#retry', false); return; }
   linkState = 'connecting'; paint(); ui('Collegamento…', 'Mi collego al gioco sul computer.');
-  // se la connessione non si apre entro 12 s (rete lenta, telefono che si addormenta) si riprova da capo
-  clearTimeout(connect.t); connect.t = setTimeout(() => { if (linkState === 'connecting') lost(); }, 12000);
+  connect.t = setTimeout(() => { if (epoch === connectEpoch && linkState === 'connecting') lost(); }, 12000);
   try {
     const Peer = isLanMode() ? LanPeer : await loadPeer();
-    if (peer && !peer.destroyed) peer.destroy();
-    peer = new Peer(peerConfig());
-    peer.on('open', () => {
-      const c = peer.connect(pair.session, { reliable: true, serialization: 'json' });
-      c.on('open', () => { const r = ss.get('resume'); c.send(r ? { t: 'hello', v: 2, r } : { t: 'hello', v: 2, k: pair.token }); });
-      c.on('data', d => onData(c, d));
-      c.on('close', () => { if (c === conn) lost(); });
-      c.on('error', () => {});
+    if (epoch !== connectEpoch) return;
+    const p = peer = new Peer(peerConfig());
+    const current = () => epoch === connectEpoch && peer === p;
+    p.on('open', () => {
+      if (!current() || conn?.open || pendingConn) return;
+      const c = pendingConn = p.connect(pair.session, { reliable: true, serialization: 'json' });
+      c.on('open', () => { if (!current() || pendingConn !== c) return; const r = ss.get('resume'); c.send(r ? { t: 'hello', v: 2, r } : { t: 'hello', v: 2, k: pair.token }); });
+      c.on('data', d => { if (current() && (c === conn || c === pendingConn)) onData(c, d); });
+      c.on('close', () => { if (current() && (c === conn || c === pendingConn)) lost(); });
+      c.on('error', () => { if (current() && (c === conn || c === pendingConn)) lost(); });
     });
-    peer.on('error', e => {
-      // canale con il computer ancora aperto: un errore del solo server di segnalazione (sua rete, websocket caduto) non
-      // tocca il collegamento diretto. Prima ogni errore chiudeva tutto e un canale sano andava perso
+    p.on('error', e => {
+      if (!current()) return;
       if (conn?.open && SIGNAL_ERRORS.has(e.type)) return;
-      // computer non registrato sul server: con la chiave di ripresa si riprova (gioco che si ricarica, rete del computer
-      // che torna); senza, il codice del QR non porta più a una partita. Prima anche con la chiave si cancellava tutto
-      if (e.type === 'peer-unavailable' && !ss.get('resume')){ linkState = 'denied'; paint(); ui('Partita non trovata', 'Il gioco sul computer è stato chiuso o ricaricato. Inquadra di nuovo il codice QR.'); return; }
+      if (e.type === 'peer-unavailable' && !ss.get('resume')){ linkState = 'denied'; clearTimeout(connect.t); paint(); ui('Partita non trovata', 'Il gioco sul computer è stato chiuso o ricaricato. Inquadra di nuovo il codice QR.'); return; }
       lost();
     });
-    // server di segnalazione perso con il canale aperto: ci si ricollega al server senza toccare il canale (come il computer)
-    peer.on('disconnected', () => { const p = peer; setTimeout(() => { if (p === peer && !p.destroyed && conn?.open) try { p.reconnect(); } catch (e){} }, 1500); });
-  } catch (e){ lost(); }
+    p.on('disconnected', () => {
+      if (!current()) return;
+      setTimeout(() => { if (!current() || p.destroyed) return; if (conn?.open) { try { p.reconnect(); } catch {} } else lost(); }, 1500);
+    });
+  } catch (e){ if (epoch === connectEpoch) lost(); }
 }
 const SIGNAL_ERRORS = new Set(['network', 'disconnected', 'socket-error', 'socket-closed', 'server-error', 'unavailable-id', 'lan-signaling']);
 // eventi della calibrazione al computer (anche quelli che descrivono il passo attuale dopo una ripresa del collegamento)
@@ -158,6 +162,7 @@ function onData(c, d){
   if (c === conn || d.t === 'welcome') lastRx = performance.now();
   switch (d.t){
     case 'welcome':
+      clearTimeout(connect.t); clearTimeout(retryT); pendingConn = null;
       conn = c; linkState = 'on'; tries = 0; fastOk = d.f === 1; if (d.r) ss.set('resume', d.r); sendState(); openFast(); sendDevice();
       // ripresa a calibrazione in corso: gli eventi fatti mentre il collegamento era giù sono andati persi, il computer
       // riceve il passo attuale (prima restava al gesto di prima mentre il telefono era già alla verifica)
@@ -188,9 +193,12 @@ function onData(c, d){
   }
 }
 function lost(){
-  if (linkState === 'denied') return;
-  closeFast();
-  conn = null; linkState = 'lost'; paint(); ui('Connessione persa', 'Riprovo da solo tra poco. Sul computer puoi riprovare il collegamento.');
+  if (linkState === 'denied' || linkState === 'lost') return;
+  clearTimeout(retryT); clearTimeout(connect.t); ++connectEpoch;
+  const previous = peer; peer = null; pendingConn = null;
+  closeFast(); conn = null; linkState = 'lost';
+  if (previous && !previous.destroyed) previous.destroy();
+  paint(); ui('Connessione persa', 'Riprovo da solo tra poco. Sul computer puoi riprovare il collegamento.');
   if (tries++ < 10) retryT = setTimeout(connect, Math.min(6000, 1000*tries));
 }
 const send = m => { if (conn && conn.open) try { conn.send(m); } catch (e){} };
@@ -406,8 +414,10 @@ $('#retry').addEventListener('click', () => { tries = 0; connect(); });
 $('#mark').addEventListener('click', e => { e.stopPropagation(); if (linkState !== 'on') return; send({ t: 'mk', x: 'segno dal telefono' }); buzz([30, 60, 30]); flash('hit', 'Segnato', 'Il momento è nella registrazione del computer.', 900); });
 $('#recal').addEventListener('click', () => command('cal'));
 $('#bye').addEventListener('click', () => {
+  linkState = 'denied'; ++connectEpoch; clearTimeout(retryT); clearTimeout(connect.t); pendingConn = null;
   ss.del('resume'); ss.del('pair'); ss.del('profile'); pair = null; closeFast();
   try { conn && conn.close(); } catch (e){} conn = null; linkState = 'denied';
+  if (peer && !peer.destroyed) peer.destroy(); peer = null;
   removeEventListener('devicemotion', onMotion); sensor = 'off'; paint();
   ui('Scollegato', 'Per giocare di nuovo inquadra il codice QR sul computer.');
 });

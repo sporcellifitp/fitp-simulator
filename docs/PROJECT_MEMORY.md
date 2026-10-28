@@ -98,3 +98,10 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 - 28/10/2026 — lanciapalle 3D (`natpf_ball_machine.js`) e tutorial con animazioni 3D verificate (T1, T2).
 - 28/10/2026 — nuova memoria persistente (`CLAUDE.md`, `docs/PROJECT_MEMORY.md`, `docs/WORK_PROGRESS.md`,
   `docs/SESSION_HANDOFF.md`) e `scripts/ui-shots.mjs`.
+
+### Correzioni gameplay e connessioni · 28/10
+
+- Ogni connessione del telefono ha una generazione: chiudere un peer vecchio non deve modificare quello nuovo né programmare retry. Sul desktop assegnare il nuovo canale prima di chiudere il precedente.
+- MediaPipe Hands/Pose fissati nei pacchetti npm supportano `importScripts` e `OffscreenCanvas`. Modelli in worker classici separati, fotogrammi ImageBitmap trasferiti, solo landmark restituiti; limite 30 Hz e modello leggero. Nessuna coda di frame vecchi. Ripiego sul thread principale solo sui browser privi delle API worker richieste.
+- Palla corta da `strokeIntent`: taglio verticale (|piano| ≤ .55), discesa ≤ −.12, forza ≤ .36 e ampiezza ≥15°. Un gesto riconosciuto con confidenza ≥.15 non è preparazione anche se lento rispetto al dritto tipico.
+- `shortBall` nell'esito: scambio dopo rimbalzo, bersaglio entro linea servizio e contatto entro 7 m dalla rete. Se raggiunta in tempo, la qualità bassa dà palla debole e attaccabile; non forza la rete per la corsa automatica. Le regole geometriche d'impatto restano valide.

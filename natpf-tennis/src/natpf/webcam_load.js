@@ -1,7 +1,7 @@
 // Webcam: misure del ritmo (camera, inferenza, età del dato) e carico del modello delle mani (richiesta del 23/10,
 // docs/NATPF_DIAGNOSI_2026-10-23.md §5). Senza DOM: lo usa motion_controls.js, i test lo provano da solo.
 //
-// Il modello delle mani gira nel thread del gioco: mentre lavora il gioco non disegna. Con la camera a 30 fotogrammi
+// Il modello delle mani gira in un worker dove supportato; nel ripiego sul thread del gioco può rallentare il disegno. Con la camera a 30 fotogrammi
 // al secondo, un'inferenza di 25 ms occupa tre quarti del thread e il gioco salta fotogrammi; e più l'inferenza è lenta,
 // più la mano si sposta tra due letture e il modello la perde. Livelli, dal più preciso al più leggero:
 //   piena:   modello completo, fino a 2 mani (la scelta della mano di chi gioca vede anche l'altra mano)
@@ -88,7 +88,7 @@ export function createWebcamStats(){
         inferenzaP50: r1(pct(w.inf, .5)), inferenzaP95: r1(pct(w.inf, .95)), inferenzaMax: r1(w.inf.length ? Math.max(...w.inf) : null),
         senzaInferenza: Math.max(0, w.frames - w.inf.length),
         etaP50: r1(pct(w.ages, .5)), etaMax: r1(w.ages.length ? Math.max(...w.ages) : null),
-        // thread del gioco occupato dall'inferenza (%)
+        // tempo di inferenza (%): nel worker se disponibile, altrimenti sul thread del gioco
         caricoPercento: r1(100*w.inf.reduce((a, b) => a + b, 0)/(s*1000)),
       };
       reset();

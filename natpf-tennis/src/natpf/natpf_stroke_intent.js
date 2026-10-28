@@ -25,6 +25,7 @@ export const INTENT = Object.freeze({
   dropPower: .36,    // palla corta: tagliato morbido (forza fino a così) …
   dropAngle: 48,     // … o corto (ampiezza dello swing fino a così, gradi), ma sempre un gesto vero (almeno dropMinAngle:
   dropMinAngle: 15,  // il 23/10 12 palle corte su 14 venivano da micro-movimenti di 3–32°)
+  dropSoftRise: -.12, dropVerticalPlane: .55, // taglio verticale morbido anche con pronazione abituale
   flatRise: .12,     // piatto: testa in piano (|salita| fino a così) …
   flatPower: .62,    // … e gesto forte
   smashRise: -.08,   // schiacciata (solo con la palla alta): la testa scende o almeno non sale…
@@ -75,6 +76,9 @@ export function classifyStroke(shape, { power = .5, angle = null, ballHigh = nul
     return { shot: 'smash', conf: Math.max(m(smashAt - r, .3), m(I.smashPlane - P, .3)), why: ['palla alta', r <= smashAt ? `dall'alto (${said})` : `swing verticale, manico alto (${tilt.toFixed(2)})`] };
   if (r >= lobAt && (P <= I.lobPlane || p <= I.lobSoft))
     return { shot: 'lob', conf: m(r - lobAt, .3), why: [`la testa sale decisa (${said})`, P <= I.lobPlane ? `swing verticale (${P.toFixed(2)})` : `gesto morbido (${p.toFixed(2)})`] };
+  // Una carezza verticale resta una palla corta: non deve scendere ancora oltre la pronazione del dritto.
+  if ((!Number.isFinite(angle) || angle >= I.dropMinAngle) && r <= I.dropSoftRise && P <= I.dropVerticalPlane && p <= I.dropPower)
+    return { shot: 'drop', conf: Math.min(m(I.dropSoftRise - r, .3), m(I.dropPower - p, .2)), why: ['taglio verticale morbido', `discesa ${r.toFixed(2)}, forza ${p.toFixed(2)}`] };
   if (r <= sliceAt){
     // palla corta: morbido o corto, ma un gesto vero (senza ampiezza misurata vale com'era)
     const real = !Number.isFinite(angle) || angle >= I.dropMinAngle;

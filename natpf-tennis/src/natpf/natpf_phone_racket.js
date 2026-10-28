@@ -500,7 +500,7 @@ export class NatpfPhoneRacket {
     if (!expect && NORMAL_SHOTS.has(ev.natpf.shot)){ this.liftModel.add(s.dir, s.lift); this.headModel.add(s.dir, ev.natpf.head); }
     // piatto e direzione abituali solo dai colpi dello scambio non deboli: servizi, preparazioni e micro-movimenti
     // spostavano il centro (il 23/10 scarti di 50–77° in quasi tutti i colpi)
-    if (rally && !expect && !weakSwing(ev)){ this.faceModel.add(s.dir, s.face); this.aimModel.add(s.dir, s.heading); }
+    if (teachesNormal(ev, { rally, expect })){ this.faceModel.add(s.dir, s.face); this.aimModel.add(s.dir, s.heading); }
     if (rally && !expect && ev.natpf.intent) this.riseModel.add(s.dir, s.shape?.rise, ev.natpf.intent.shot);
     if (ev.natpf.intent && teachesNormal(ev, { rally, expect })) this.shapeModel.add(ev.natpf.intent.plane, ev.natpf.intent.shapePower);
     for (const fn of this.swingListeners) try { fn(ev, s); } catch (e){ console.error(e); }
