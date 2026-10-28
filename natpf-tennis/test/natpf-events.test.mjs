@@ -1,11 +1,11 @@
 // Sfide per gli eventi, nickname, classifica del giorno e chiosco (funzioni senza DOM).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CHALLENGES, validNickname, addScore, topScores, freshBoard, dayKey, boardCsv, targetPoints, TARGETS, rallyFlight, championScore, CHAMPION_TARGET } from '../src/natpf/natpf_events.js';
+import { CHALLENGES, validNickname, addScore, topScores, freshBoard, dayKey, boardCsv, championScore, CHAMPION_TARGET } from '../src/natpf/natpf_events.js';
 import { kioskAction, IDLE_STEPS } from '../src/natpf/natpf_kiosk.js';
 
-test('quattro sfide con unità e descrizione', () => {
-  assert.deepEqual(CHALLENGES.map(c => c.id), ['radar', 'targets', 'rally', 'champion']);
+test('sei minigiochi con unità, descrizione e medaglie', () => {
+  assert.deepEqual(CHALLENGES.map(c => c.id), ['rush', 'precision', 'combo', 'survival', 'radar', 'champion']);
   for (const c of CHALLENGES) assert.ok(c.label && c.unit && c.short && c.facts.length === 3, c.id);
 });
 
@@ -30,15 +30,7 @@ test('classifica del giorno: ordine, posizione, parità al primo arrivato, nuovo
   assert.match(dayKey(new Date(2026, 9, 5)), /^2026-10-05$/);
 });
 
-test('bersagli: angoli 3, palla corta 5, dentro 1, fuori 0', () => {
-  assert.equal(targetPoints({ x: TARGETS[0].x, z: TARGETS[0].z }, true).points, 3);
-  assert.equal(targetPoints({ x: 0, z: -3.2 }, true).points, 5);
-  assert.equal(targetPoints({ x: 0, z: -7 }, true).points, 1);
-  assert.equal(targetPoints({ x: TARGETS[1].x, z: TARGETS[1].z }, false).points, 0);
-});
-
-test('scambio infinito più veloce a ogni colpo, con un limite; campione a 3 punti', () => {
-  assert.ok(rallyFlight(0) > rallyFlight(5) && rallyFlight(100) >= .72);
+test('campione a 3 punti', () => {
   assert.equal(CHAMPION_TARGET, 3);
   assert.equal(championScore(3, 1), 19); assert.equal(championScore(2, 3), 6);
 });

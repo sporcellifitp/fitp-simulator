@@ -22,7 +22,6 @@ checkpoint pubblicato su GitHub è `59ce56c`; quelli successivi sono solo nel ch
 
 ## Prossima azione esatta
 
-T4 (audio) completato. Prossimo: T5 minigiochi — riscrivere `src/natpf/natpf_events.js` con bersagli 3D fisici
-(`natpf_targets.js`), modalità Target Rush, Precision Challenge, Combo Challenge, Survival (oltre a Radar e Campione),
-record personali e medaglie (localStorage), schermata risultati con medaglia. Usare `ui.machine` (profili
-`FEED_PROFILES`/`feedForLevel`), `audioEngine.playArcade()` e `audioEngine.cue()`.
+T5 (minigiochi) completato. Prossimo: T6 verifica finale — `npm test`, `npm run build`, test LAN (installare le
+dipendenze in `tools/lan` per il test saltato), screenshot desktop e mobile con `scripts/ui-shots.mjs`, aggiornare
+`docs/PROJECT_MEMORY.md` e questo file con l'ultimo commit; poi riepilogo all'utente.

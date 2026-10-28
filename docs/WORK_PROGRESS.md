@@ -78,9 +78,20 @@ Legenda: [x] fatto e verificato · [~] in corso · [ ] da fare.
 - [ ] Da ascoltare da una persona: mix e gusto dei brani, naturalezza delle vocalizzazioni.
 
 ### T5 · Minigiochi arcade
-- [ ] Bersagli 3D fisici colpibili, zone di punteggio, mobili, bonus, combo, timer, difficoltà progressiva
-- [ ] Target Rush, Precision Challenge, Combo Challenge, Survival
-- [ ] Record personali, medaglie, progressione, schermata risultati
+- [x] `src/natpf/natpf_arcade.js` (regole pure): 6 minigiochi con meccaniche distinte — Target Rush, Precision,
+      Combo Challenge, Survival, Radar del servizio, Sfida il campione; medaglie bronzo/argento/oro per gioco, record
+      personali (`natpf-tennis.records`), esperienza e livello (500 XP per livello), conteggio medaglie.
+- [x] `src/natpf/natpf_targets.js`: bersagli 3D ad anelli su supporto, colpiti dalla traiettoria vera della palla
+      (attraversamento del piano), zone 50/30/10, molla, rotazione, schegge, rimbalzo della palla; bersagli mobili e
+      d'oro (×2 e +5"); zone a terra pulsanti per Precision con il segno dell'atterraggio.
+- [x] `natpf_events.js` riscritto: combo ×1…×4, difficoltà progressiva (dimensione/movimento dei bersagli, profilo
+      del lanciapalle `feedForLevel`), catene di colpi più lunghe a ogni catena, vite e livelli in Survival, punteggi
+      fluttuanti sul punto d'impatto, timer che batte negli ultimi 5", annunci vocali, suoni arcade, medaglia e record
+      a fine partita. Tabellone 0-0 nascosto durante i minigiochi.
+- [x] Lobby: pagina «Minigiochi» con livello/XP, medaglie raccolte, per gioco medaglia migliore, record personale,
+      prossima medaglia e record del giorno; risultato con medaglia animata, «Nuovo record personale», XP e statistiche.
+- [x] Test: `test/natpf-arcade.test.mjs` (7, incluse partite intere nel motore), aggiornati `natpf-events`/`flows`.
+- [ ] Da provare con telefono reale: frequenza dei bersagli colpiti con la mira vera, bilanciamento delle medaglie.
 
 ### T6 · Verifica finale e consegna
 - [ ] Test, build, screenshot, prestazioni, riepilogo

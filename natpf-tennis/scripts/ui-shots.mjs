@@ -71,12 +71,12 @@ await page.waitForTimeout(2500); await shot('drill-lob');
 await ui(() => { const T = window.__natpfTennis.natpfUi.training; T.idx = 0; T.live = { ok: true, recognized: 'Dritto in topspin', tip: '', power: .85, until: performance.now() + 60000 }; });
 await page.waitForTimeout(2000); await shot('drill-forehand');
 await ui(() => { const U = window.__natpfTennis.natpfUi; U.training.stop({ completed: false, silent: true }); delete U.phone.ready; delete U.phone.connected; U.controller = 'mouse'; });
-for (const id of ['targets', 'machine', 'rally', 'radar']){
+for (const id of ['rush', 'precision', 'combo', 'survival']){
   const ok = await ui(i => { const U = window.__natpfTennis.natpfUi; if (!U.events.constructor.prototype || !U.events.start) return false; U.training.active && U.training.stop({ completed: false, silent: true }); U.events.start(i); return !!U.events.active; }, id);
   if (!ok) continue;
-  await page.waitForTimeout(3500);
+  await page.waitForTimeout(4500);
   await shot('challenge-' + id);
-  await ui(() => window.__natpfTennis.natpfUi.events.finish());
+  await ui(i => { const ev = window.__natpfTennis.natpfUi.events; ev.active.score = { rush: 720, precision: 510, combo: 260, survival: 22 }[i] || 0; ev.finish(); }, id);
   await page.waitForTimeout(1200);
   await shot('result-' + id);
 }

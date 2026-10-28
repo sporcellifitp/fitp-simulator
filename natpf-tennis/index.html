@@ -286,7 +286,7 @@
         </section>
 
         <section class="lobby-page" data-page="challenges" aria-labelledby="lobby-t-challenges">
-          <header class="page-head"><h2 class="lobby-title" id="lobby-t-challenges">Minigiochi</h2><p class="lobby-sub">Ogni minigioco ha il suo record personale e le sue medaglie.</p></header>
+          <header class="page-head page-head-row"><div><h2 class="lobby-title" id="lobby-t-challenges">Minigiochi</h2><p class="lobby-sub">Record personali, medaglie e livello: ogni partita vale esperienza.</p></div><div class="arcade-progress" id="arcade-progress"></div></header>
           <div class="lobby-tiles challenge-tiles" id="challenge-tiles" role="radiogroup"></div>
           <p class="lobby-note" id="challenge-nick-note"></p>
         </section>
@@ -299,8 +299,10 @@
 
         <section class="lobby-page" data-page="result" aria-labelledby="lobby-t-result">
           <p class="welcome-kicker" id="result-kicker">Sfida</p>
+          <div class="result-medal hidden" id="result-medal" aria-live="polite"></div>
           <h2 class="lobby-title result-title" id="lobby-t-result">Risultato</h2>
           <div class="result-score" id="result-score"></div>
+          <div class="result-badges" id="result-badges"></div>
           <p class="result-rank" id="result-rank"></p>
           <ol class="ranking-list compact" id="result-top"></ol>
           <div class="welcome-actions">

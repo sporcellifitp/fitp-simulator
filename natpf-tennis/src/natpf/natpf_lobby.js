@@ -16,6 +16,16 @@
 // Easter egg: digitando «natpf» nel menu compaiono mouse e tastiera (modalità prova per il computer).
 import { FORMAT_KEY } from './match_format.js';
 import { CHALLENGES, challengeById, validNickname } from './natpf_events.js';
+import { MEDAL_LABEL, nextMedal, medalCount } from './natpf_arcade.js';
+// icone dei minigiochi (natpf_arcade.MODES[].icon)
+const ARCADE_ICONS = {
+  target: '<svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="17"/><circle cx="24" cy="24" r="10"/><circle cx="24" cy="24" r="3"/><path d="M36 12l6-6M38 6h4v4"/></svg>',
+  zone: '<svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M6 40 14 8h20l8 32z"/><path d="M10 26h28M24 8v32"/><circle cx="31" cy="33" r="4"/></svg>',
+  chain: '<svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="18" width="16" height="12" rx="6"/><rect x="27" y="18" width="16" height="12" rx="6"/><path d="M17 24h14"/></svg>',
+  heart: '<svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 40S7 29 7 17a8 8 0 0 1 17-4 8 8 0 0 1 17 4c0 12-17 23-17 23z"/></svg>',
+  radar: '<svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M8 34a17 17 0 1 1 32 0"/><path d="M24 34l9-13"/><circle cx="24" cy="34" r="3"/></svg>',
+  crown: '<svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M9 36h30M11 36 8 16l9 8 7-13 7 13 9-8-3 20"/></svg>',
+};
 import { warmupDrills } from './natpf_training.js';
 import { hostLobbyStatus, roomCode, joinUrl } from './natpf_versus.js';
 import { p2pRequested } from './natpf_p2p.js';
@@ -187,14 +197,27 @@ export class NatpfLobby {
       });
     }
   }
+  // Minigiochi: in testa livello, esperienza e medaglie raccolte; per ogni gioco icona, regole, medaglia migliore,
+  // record personale, prossima medaglia e record del giorno
   _paintChallenges(){
     const box = $('challenge-tiles'); if (!box) return;
+    const ev = this.ui.events;
     if (!box.dataset.built){
       box.dataset.built = '1';
-      box.innerHTML = CHALLENGES.map(c => `<button type="button" class="lobby-tile mode-tile" data-challenge="${c.id}" role="radio"><span class="tile-name">${c.label}</span><span class="tile-desc">${c.short}</span><ul class="mode-facts">${c.facts.map(f => `<li>${f}</li>`).join('')}</ul><span class="tile-best" data-best="${c.id}"></span></button>`).join('');
+      box.innerHTML = CHALLENGES.map(c => `<button type="button" class="lobby-tile mode-tile arcade-tile" data-challenge="${c.id}" role="radio">${ARCADE_ICONS[c.icon] || ''}<span class="tile-medal" data-medal-of="${c.id}"></span><span class="tile-name">${c.label}</span><span class="tile-desc">${c.short}</span><ul class="mode-facts">${c.facts.map(f => `<li>${f}</li>`).join('')}</ul><span class="tile-record" data-record="${c.id}"></span><span class="tile-best" data-best="${c.id}"></span></button>`).join('');
     }
-    for (const el of box.querySelectorAll('[data-best]')){ const top = this.ui.events.top(el.dataset.best, 1)[0]; const c = challengeById(el.dataset.best); el.textContent = top ? `Record di oggi: ${top.score} ${c.unit} · ${top.nick}` : 'Nessun record oggi: il primo è tuo'; }
-    const note = $('challenge-nick-note'); if (note) note.textContent = this.ui.events.nickname ? `Giochi come ${this.ui.events.nickname}` : 'Prima della sfida ti chiediamo solo un nickname.';
+    for (const c of CHALLENGES){
+      const rec = ev.record?.(c.id), medal = box.querySelector(`[data-medal-of="${c.id}"]`), recEl = box.querySelector(`[data-record="${c.id}"]`), best = box.querySelector(`[data-best="${c.id}"]`);
+      if (medal){ medal.dataset.medal = rec?.medal || ''; medal.textContent = rec?.medal ? MEDAL_LABEL[rec.medal] : ''; }
+      const nx = nextMedal(c.id, rec?.best ?? 0);
+      if (recEl) recEl.textContent = rec?.best != null ? `Record personale ${rec.best} ${c.unit}${nx ? ` · ${MEDAL_LABEL[nx.medal]} a ${nx.need}` : ' · tutte le medaglie'}` : `Bronzo a ${c.medals[0]} ${c.unit}`;
+      const top = ev.top(c.id, 1)[0];
+      if (best) best.textContent = top ? `Oggi: ${top.score} ${c.unit} · ${top.nick}` : 'Nessun record oggi: il primo è tuo';
+    }
+    const L = ev.level || { level: 1, into: 0, next: 500 }, mc = medalCount(ev.records || {});
+    const head = $('arcade-progress');
+    if (head) head.innerHTML = `<span class="ap-level"><b>Livello ${L.level}</b><i style="--p:${Math.round(100*L.into/L.next)}%"></i><small>${L.into}/${L.next} XP</small></span><span class="ap-medals"><i data-medal="gold">${mc.gold}</i><i data-medal="silver">${mc.silver}</i><i data-medal="bronze">${mc.bronze}</i></span>`;
+    const note = $('challenge-nick-note'); if (note) note.textContent = ev.nickname ? `Giochi come ${ev.nickname}` : 'Prima del minigioco ti chiediamo solo un nickname per la classifica.';
   }
   _paintRanking(){
     const tabs = $('ranking-tabs'), list = $('ranking-list'); if (!tabs || !list) return;
@@ -207,8 +230,13 @@ export class NatpfLobby {
     this.lastResult = r; this.rankingTab = r.id;
     this.go('result');
     $('result-kicker').textContent = r.label;
-    $('lobby-t-result').textContent = r.id === 'champion' ? (r.won > r.lost ? 'Hai battuto il campione!' : 'Il campione ha vinto') : `Bravo, ${r.nick}!`;
+    $('lobby-t-result').textContent = r.id === 'champion' ? (r.won > r.lost ? 'Hai battuto il campione!' : 'Il campione ha vinto') : r.medal ? `${MEDAL_LABEL[r.medal]}, ${r.nick}!` : `Bravo, ${r.nick}!`;
+    const medal = $('result-medal');
+    if (medal){ medal.dataset.medal = r.medal || ''; medal.innerHTML = r.medal ? `<b>${MEDAL_LABEL[r.medal]}</b>` : ''; show(medal, !!r.medal); }
     $('result-score').innerHTML = r.id === 'champion' ? `${r.won}<small>–</small>${r.lost}<i>${r.score} punti</i>` : `${r.score}<small>${r.unit}</small>`;
+    const badges = [r.isRecord && r.prevBest != null ? '<span class="rb rb-record">Nuovo record personale</span>' : r.best != null ? `<span class="rb">Record personale ${r.best} ${r.unit}</span>` : '',
+      r.xp ? `<span class="rb rb-xp">+${r.xp} XP · livello ${r.level?.level ?? 1}</span>` : '', ...(r.stats || []).map(x => `<span class="rb">${esc(x)}</span>`)].filter(Boolean);
+    const b = $('result-badges'); if (b) b.innerHTML = badges.join('');
     $('result-rank').textContent = `${r.rank}° posto su ${r.total} di oggi`;
     const c = challengeById(r.id);
     $('result-top').innerHTML = this.ui.events.top(r.id, 5).map((e, i) => `<li class="${i + 1 === r.rank ? 'me' : ''}"><b>${i + 1}</b><span>${esc(e.nick)}</span><em>${e.score} ${c.unit}</em></li>`).join('');

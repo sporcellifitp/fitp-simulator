@@ -108,7 +108,9 @@
    basso a sinistra, lezione iniziale in un pannello a sinistra. Il punteggio (0-0) durante l'allenamento non si mostra.
    ===================================================================================================================== */
 body.natpf-training #top-hud-bar,
-body.natpf-training #natpf-games-line { opacity: 0; pointer-events: none; }
+body.natpf-training #natpf-games-line,
+body.natpf-arcade #top-hud-bar,
+body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
 
 .natpf-coach { position: fixed; inset: 0; z-index: 40; pointer-events: none; font-family: var(--font-text); color: var(--text); }
 .natpf-coach.hidden { display: none; }
@@ -916,3 +918,72 @@ body.natpf-training #natpf-games-line { opacity: 0; pointer-events: none; }
 .vol-row input[type="range"]:focus-visible { outline: 3px solid var(--ball); outline-offset: 4px; }
 #title-modal .lobby-row-volumes { align-items: flex-start; padding-top: 14px; padding-bottom: 14px; }
 .natpf-sheet .pause-volumes { margin: 4px 0 16px; padding: 14px 16px; border-radius: var(--r-m); background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); }
+
+/* =====================================================================================================================
+   Minigiochi (natpf_arcade.js, natpf_events.js): pagina con livello e medaglie, HUD in campo, punteggi fluttuanti,
+   risultato con medaglia
+   ===================================================================================================================== */
+#title-modal .page-head-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+#title-modal .page-head-row > div:first-child { display: grid; gap: 8px; }
+.arcade-progress { display: flex; align-items: center; gap: 16px; padding: 10px 14px; border-radius: var(--r-m); background: rgba(13, 24, 56, 0.85); border: 1px solid var(--line); }
+.arcade-progress:empty { display: none; }
+.ap-level { display: grid; grid-template-columns: auto 140px; gap: 4px 12px; align-items: center; }
+.ap-level b { font: 800 italic 20px/1 var(--font-display); text-transform: uppercase; }
+.ap-level i { height: 8px; border-radius: var(--r-pill); background: linear-gradient(90deg, var(--ball) var(--p, 0%), rgba(255, 255, 255, 0.14) var(--p, 0%)); }
+.ap-level small { grid-column: 2; font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; color: var(--text-3); text-align: right; }
+.ap-medals { display: flex; gap: 8px; }
+.ap-medals i, .tile-medal, .result-medal { --m: var(--bronze); }
+.ap-medals i { display: grid; place-items: center; min-width: 30px; height: 30px; padding: 0 6px; border-radius: 50%; font: 800 15px/1 var(--font-display); font-style: normal; color: var(--ink-900); background: radial-gradient(circle at 35% 30%, #fff8, transparent 45%), var(--m); }
+[data-medal="gold"] { --m: var(--gold); }
+[data-medal="silver"] { --m: var(--silver); }
+[data-medal="bronze"] { --m: var(--bronze); }
+#title-modal .challenge-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#title-modal .arcade-tile { padding: 18px; gap: 6px; }
+#title-modal .arcade-tile .tile-icon { width: 34px; height: 34px; padding: 7px; color: var(--ball); }
+#title-modal .arcade-tile .tile-name { font-size: 26px; }
+#title-modal .arcade-tile .tile-desc { font-size: 15px; }
+#title-modal .arcade-tile .mode-facts li { font-size: 12px; padding: 4px 8px; }
+#title-modal .tile-medal { position: absolute; top: 16px; right: 16px; padding: 5px 10px; border-radius: var(--r-pill); font: 700 12px/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-900); background: var(--m); }
+#title-modal .tile-medal:empty { display: none; }
+#title-modal .arcade-tile.selected .tile-medal { right: 52px; }
+#title-modal .tile-record { margin-top: auto; padding-top: 8px; font: 600 14px/1.3 var(--font-text); color: var(--text); }
+#title-modal .arcade-tile .tile-best { margin-top: 0; padding-top: 2px; font-size: 13px; color: var(--text-3); }
+
+/* risultato */
+#title-modal .result-medal { position: relative; display: grid; place-items: center; width: 120px; height: 120px; margin: 0 auto -6px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffffffaa, transparent 42%), var(--m); box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.12), 0 18px 44px rgba(0, 0, 0, 0.45), 0 0 60px color-mix(in srgb, var(--m) 55%, transparent); animation: medal-in 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+#title-modal .result-medal.hidden { display: none; }
+#title-modal .result-medal::before { content: ""; position: absolute; inset: 12px; border-radius: 50%; border: 3px dashed rgba(10, 19, 48, 0.25); }
+#title-modal .result-medal b { font: 800 italic 22px/1 var(--font-display); text-transform: uppercase; color: var(--ink-900); }
+@keyframes medal-in { from { opacity: 0; transform: scale(0.3) rotate(-20deg); } to { opacity: 1; transform: none; } }
+#title-modal .result-badges { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+#title-modal .result-badges:empty { display: none; }
+.rb { padding: 7px 12px; border-radius: var(--r-pill); background: rgba(255, 255, 255, 0.08); border: 1px solid var(--line); font: 600 14px/1 var(--font-text); color: var(--text-2); }
+.rb-record { background: var(--pink); border-color: var(--pink); color: #fff; font: 700 italic 15px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; animation: badge-pulse 0.6s ease-in-out 3 alternate; }
+.rb-xp { color: var(--ball); border-color: rgba(227, 255, 54, 0.4); }
+
+/* HUD in campo: elementi in più */
+.natpf-challenge-hud { max-width: min(360px, calc(100vw - 2 * var(--gutter))); }
+.natpf-challenge-hud .ch-time.urgent { color: var(--bad); animation: badge-pulse 0.5s ease-in-out infinite alternate; }
+.natpf-challenge-hud .ch-combo { grid-column: 1 / -1; justify-self: start; padding: 5px 10px; border-radius: var(--r-pill); background: rgba(255, 255, 255, 0.08); font: 700 italic 16px/1 var(--font-display); text-transform: uppercase; color: var(--text-2); transition: background var(--t-fast), color var(--t-fast); }
+.natpf-challenge-hud .ch-combo[data-on="true"] { background: var(--pink); color: #fff; }
+.natpf-challenge-hud .ch-chain { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 0; padding: 0; list-style: none; }
+.natpf-challenge-hud .ch-chain li { padding: 5px 9px; border-radius: var(--r-pill); background: rgba(255, 255, 255, 0.08); font: 700 italic 14px/1 var(--font-display); text-transform: uppercase; color: var(--text-3); }
+.natpf-challenge-hud .ch-chain li.done { background: var(--ok); color: var(--ink-900); }
+.natpf-challenge-hud .ch-chain li.on { background: var(--ball); color: var(--ink-900); box-shadow: 0 0 0 2px rgba(227, 255, 54, 0.35); }
+.natpf-challenge-hud .ch-lives { grid-column: 1 / -1; display: flex; gap: 6px; }
+.natpf-challenge-hud .ch-lives i { width: 22px; height: 20px; background: rgba(255, 255, 255, 0.15); clip-path: path("M11 20 C3 14 0 10 0 6 A5.5 5.5 0 0 1 11 3.5 A5.5 5.5 0 0 1 22 6 C22 10 19 14 11 20Z"); }
+.natpf-challenge-hud .ch-lives i.on { background: var(--pink); }
+.natpf-challenge-hud .ch-best { grid-column: 1 / -1; font: 600 12px/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
+.natpf-challenge-hud .ch-last[data-ok="false"] { color: var(--warn); }
+
+/* punteggi che salgono dal punto d'impatto */
+.natpf-popups { position: fixed; inset: 0; z-index: 35; pointer-events: none; overflow: hidden; }
+.natpf-pop { position: absolute; transform: translate(-50%, -50%); font: 800 italic 30px/1 var(--font-display); color: #fff; text-shadow: 0 3px 0 rgba(10, 19, 48, 0.8), 0 0 18px rgba(0, 0, 0, 0.4); white-space: nowrap; animation: pop-up 1.1s cubic-bezier(0.2, 0.9, 0.3, 1) forwards; }
+.natpf-pop.ok { color: var(--ok); }
+.natpf-pop.big { color: var(--ball); font-size: 40px; }
+.natpf-pop.gold { color: var(--gold); font-size: 44px; }
+.natpf-pop.bad { color: var(--bad); }
+@keyframes pop-up { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.6); } 15% { opacity: 1; transform: translate(-50%, -60%) scale(1.15); } 30% { transform: translate(-50%, -70%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -190%) scale(0.95); } }
+@media (max-width: 980px) { #title-modal .challenge-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-height: 560px) { #title-modal .arcade-tile .tile-desc, #title-modal .arcade-tile .tile-best { display: none; } .arcade-progress { padding: 6px 10px; } }
+@media (prefers-reduced-motion: reduce) { .natpf-pop, #title-modal .result-medal { animation-duration: 0.01s; } }

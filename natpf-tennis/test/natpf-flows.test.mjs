@@ -53,7 +53,7 @@ test('1v1: «Player 2 di nuovo collegato» solo quando torna davvero, non uscend
 test('«Torna al menu» durante la calibrazione prima di una sfida: si torna al menu e la sfida non parte', async () => {
   const w = await makeWorld({ controller: 'phone' }); w.advance(300);
   const { E, ui, lobby } = w;
-  lobby.menu('challenges'); ui.events.nickname = 'Mario'; lobby.pickChallenge('targets'); lobby.go('connect'); lobby.next();
+  lobby.menu('challenges'); ui.events.nickname = 'Mario'; lobby.pickChallenge('rush'); lobby.go('connect'); lobby.next();
   assert.ok(ui.training.active && ui.training.calOnly);
   w.advance(500); w.key('Escape', 'Escape'); assert.ok(ui.pause.isOpen && E.natpfPaused);
   ui.pause.run('menu'); w.advance(3000);
@@ -216,7 +216,7 @@ test('Player 2: «Torna al menu» lascia la stanza (prima restava dentro e i suo
 test('Sfide: il riquadro del punteggio si riscrive solo quando cambia (prima a ogni fotogramma)', async () => {
   const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
   const { ui, lobby } = w;
-  lobby.menu('challenges'); ui.events.nickname = 'Ana'; lobby.pickChallenge('targets'); lobby.go('connect'); lobby.next(); w.advance(500);
+  lobby.menu('challenges'); ui.events.nickname = 'Ana'; lobby.pickChallenge('rush'); lobby.go('connect'); lobby.next(); w.advance(500);
   let writes = 0, html = ''; Object.defineProperty(ui.events.hud, 'innerHTML', { get: () => html, set: v => { writes++; html = v; }, configurable: true });
   w.advance(2000);
   assert.ok(writes <= 4, `${writes} scritture in 2 s`);
