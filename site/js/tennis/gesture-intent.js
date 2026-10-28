@@ -51,13 +51,17 @@ export function classifyGesture(features,profile={},dir=0,context='play'){
  return {shot,confidence:+confidence.toFixed(3),aim:+aim.toFixed(3),lob:shot==='lob',slice:shot==='slice',drop:shot==='drop'};
 }
 // Personalized acceptance floor. Slice/lob/soft drop can be slower than a drive.
+// toward: floor for a gesture in the direction the ball asks for (the phone knows it from the game): it cannot be the
+// preparation, which goes the other way, so the preparation term does not apply (session of 28/10).
+export const TOWARD_FLOOR=.4;
 export function gestureFloor(profile,dir,features,context='play'){
  const result=classifyGesture(features,profile,dir,context);
  const examples=(profile.templates||[]).filter(t=>t.shot===result.shot&&(t.dir===dir||t.dir===0||result.shot==='serve'));
  const ref=examples.length?Math.min(...examples.map(t=>t.peak)):profile.refs?.[dir]||profile.ref||600;
  const noise=Math.max(1,profile.noise||3);
+ const pack=floor=>({floor,toward:Math.min(floor,Math.max(noise*5,ref*TOWARD_FLOOR)),...result});
  if(context==='serve'||context==='toss')return {floor:Math.max(noise*5,ref*.28),...result};
- if(profile.automaticGesture&&result.shot!=='drive'&&result.confidence>=.5)return {floor:Math.max(noise*5,ref*.28),...result};
- if(examples.length&&result.shot!=='drive'&&result.confidence>=.5)return {floor:Math.max(noise*5,ref*.4),...result};
- return {floor:Math.max((profile.preparation?.[dir]||0)*1.2,ref*.5),...result};
+ if(profile.automaticGesture&&result.shot!=='drive'&&result.confidence>=.5)return pack(Math.max(noise*5,ref*.28));
+ if(examples.length&&result.shot!=='drive'&&result.confidence>=.5)return pack(Math.max(noise*5,ref*.4));
+ return pack(Math.max((profile.preparation?.[dir]||0)*1.2,ref*.5));
 }

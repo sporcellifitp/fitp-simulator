@@ -58,6 +58,13 @@ export const DEFAULTS = {
                     // colpo dopo senza pausa); prima il rilevatore poteva restare in attesa e ignorare il colpo successivo
   recoverLate: 900, recoverLateWeak: .7,   // fino a 0,9 s un gesto opposto sotto il 70% del colpo è ancora il rientro
   typicalKeep: 8, typicalMin: 3,           // colpo tipico per verso imparato giocando: ultimi colpi, da almeno 3
+  // verso dalla rotazione attorno alla verticale con un asse di calibrazione quasi orizzontale (telefono dritto nel pugno:
+  // il 28/10 coseno con l'alto 0,29): il segno della sua parte verticale vale da weakRefMin, con un gesto che gira attorno
+  // alla verticale almeno per weakRefTurn del percorso (con l'asse di calibrazione attorno alla verticale basta 0,2)
+  weakRefMin: .1, weakRefTurn: .3,
+  // dopo un colpo debole (sotto weakRef del proprio colpo tipico) un gesto oltre afterWeak volte più forte è il colpo vero,
+  // in qualunque verso: il primo era la preparazione (sul computer lo swing più forte sostituisce quello in attesa)
+  weakRef: .6, afterWeak: 2,
 };
 // profilo di chi gioca (dalla calibrazione): deriva, asse del colpo (+ = da destra a sinistra), colpo tipico, soglie
 export const defaultProfile = () => ({ bias: [0, 0, 0], axis: null, ref: 600, on: DEFAULTS.on, minPeak: DEFAULTS.minPeak, minAngle: DEFAULTS.minAngle, lobLift: null, sens: 1, refs: null, preparation: null, minAngles: null, intentGate: false });
@@ -151,7 +158,7 @@ export function createSwingDetector(opts = {}){
   // massimo, senza il ritardo della media mobile (che serve solo a decidere quando il colpo è partito)
   const raw = [];
   // still: campioni della finestra del passo «fermo»; finishAt: «Salta» arrivato senza campioni, si finisce al primo
-  let mode = 'run', still = null, finishAt = false, cur = null, lastFire = -1e9, lastT = null, sm = 0, last = null, lastPeak = 0;
+  let mode = 'run', still = null, finishAt = false, cur = null, lastFire = -1e9, lastT = null, sm = 0, last = null, lastPeak = 0, lastWeak = false;
   // discard: gesto valutato e non mandato come colpo, con il motivo (diagnostica: prima spariva senza traccia)
   const listeners = { swing: [], status: [], sample: [], phase: [], prep: [], discard: [] };
   // floor: la soglia che il gesto non ha raggiunto (°/s); slow: valeva come gesto verticale lento; up, along: asse di
@@ -211,6 +218,8 @@ export function createSwingDetector(opts = {}){
     // la preparazione (riconoscerlo dopo, sul computer: lo swing più forte sostituisce quello in attesa). Non si aspetta
     // la quiete del rientro, che tra preparazione e colpo non c'è
     if (recovering && !serving() && w && lastAxis && dot(unit(w), lastAxis) < -.3 && mag > Math.max(T.minPeak, lastPeak*C.recoverStrong)){ recovering = false; quietSince = null; setPhase('ready'); }
+    // dopo un colpo debole (la soglia nel verso atteso lo lascia passare) un gesto molto più forte, in qualunque verso
+    else if (recovering && !serving() && lastWeak && mag > Math.max(T.minPeak, lastPeak*C.afterWeak)){ recovering = false; quietSince = null; setPhase('ready'); }
     if (recovering && !serving()){
       if (k.t-lastFire>100) setPhase('follow');
       // movimento deciso con il rilevatore ancora in attesa della quiete, ben dopo il colpo: non viene valutato. Lo si
@@ -319,7 +328,13 @@ export function createSwingDetector(opts = {}){
     if (turn) dir = turn;
     // ancora nessun verso: il gesto è dominato dalla rotazione del polso (asse al picco quasi orizzontale), ma la mano
     // gira comunque attorno alla verticale; il segno si confronta con quello del colpo di calibrazione
-    if (!dir && prof.axis){ const t = netTurn(c.turn, c.angle), ref = prof.gravity ? dot(unit(prof.axis), unit([prof.gravity[2], prof.gravity[0], prof.gravity[1]])) : 0; if (t && Math.abs(ref) >= .3) dir = t*Math.sign(ref); }
+    // Con il telefono dritto nel pugno l'asse imparato è quasi orizzontale e prima qui serviva un coseno di 0,3 con l'alto:
+    // il 28/10 (0,29) un rovescio da 957 °/s è stato scartato per «verso» e ha chiuso la partita (DEFAULTS.weakRef*)
+    if (!dir && prof.axis){
+      const ref = prof.gravity ? dot(unit(prof.axis), unit([prof.gravity[2], prof.gravity[0], prof.gravity[1]])) : 0;
+      const t = netTurn(c.turn, c.angle, Math.abs(ref) >= .3 ? .2 : C.weakRefTurn);
+      if (t && Math.abs(ref) >= C.weakRefMin) dir = t*Math.sign(ref);
+    }
     // senza calibrazione (profilo semplice, «Salta»): verso assoluto dalla rotazione attorno alla verticale, che non
     // dipende da come si tiene il telefono. Prima restava 0 per ogni colpo e il lato lo decideva la palla
     if (!dir && !prof.axis) dir = absSign*(netTurn(c.turn, c.angle, .2) || verticalTurn(axis, c.gravity || prof.gravity, .35));
@@ -333,7 +348,11 @@ export function createSwingDetector(opts = {}){
     const dur = t - c.t0;
     const features={lift,tilt:Math.max(-1,Math.min(1,gravity[2]-(prof.gravity?.[2]||0))),twist:canonicalTwist(axis,prof.axis,gravity,dir),speed:c.peak/reference,duration:dur,travel:c.angle/(prof.refAngle||c.angle||1)};
     const intent=gestureFloor(prof,dir,features,context);
-    const floor=prof.intentGate&&!serving()?thr().minPeak:Math.max(thr().minPeak,intent.floor*prof.sens);
+    // verso del colpo atteso noto (la palla arriva da quella parte) e gesto in quel verso: non è la preparazione, che va
+    // nel verso opposto, e la soglia della preparazione non serve (gestureFloor: toward). Il 28/10 un dritto da 619 °/s
+    // era scartato «debole» (soglia 630: la preparazione di calibrazione × 1,2), e così i gesti morbidi voluti
+    const toward=prepMode&&inPlay()&&expectDir!==0&&dir===expectDir&&Number.isFinite(intent.toward);
+    const floor=prof.intentGate&&!serving()?thr().minPeak:Math.max(thr().minPeak,(toward?intent.toward:intent.floor)*prof.sens);
     const minAngle=serving()?2:Math.max(playAngle(), Math.min(prof.minAngles?.[dir]||prof.minAngle,...(prof.templates||[]).filter(t=>t.shot===intent.shot).map(t=>Math.max(2,t.angle*.35))));
     // rientro in posizione dopo un colpo, nel verso opposto: non è un colpo (né una preparazione). Subito dopo il colpo
     // se non è chiaramente più forte; fino a 0,9 s se è molto più debole (rientro lento)
@@ -392,6 +411,7 @@ export function createSwingDetector(opts = {}){
     // colpo tipico imparato giocando (solo colpi dello scambio con un verso)
     if (!training && !serving() && (sw.dir === 1 || sw.dir === -1)){ const h = played[sw.dir]; h.push(sw.peak); if (h.length > C.typicalKeep) h.shift(); }
     lastFire = sw.peakT; lastDir = sw.dir || 0; lastAxis = sw.axis || null; lastPeak = sw.peak || 0;
+    lastWeak = !training && !serving() && lastPeak < (effRef(lastDir) || Infinity)*C.weakRef;
     if (!training){ recovering = !serving(); recoverNoted = false; quietSince = null; setPhase('contact'); }
     emit('swing', sw);
   }

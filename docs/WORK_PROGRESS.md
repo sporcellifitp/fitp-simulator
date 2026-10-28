@@ -265,3 +265,43 @@ l'animazione 3D, split screen «Stesso schermo», schermo per ledwall) più la c
       il relay anche senza stanza, comportamento precedente) e `GET /lan/status`.
 - [x] Prova 1v1 tra due computer (rete p2p) sullo zip Cloudflare estratto: `tools/e2e/natpf-1v1-p2p.mjs` 25/25.
 - [ ] Non provato: Cloudflare Pages vero, Windows, telefoni veri.
+
+## Analisi della sessione del 28/10 sera (diagnostica 20261028-205124-7isv + video OBS, Leggenda, telefono Android)
+Materiale dell'utente: pacchetto della diagnostica (71 s, build 2026-10-28.3, 27 colpi del telefono) e video OBS di
+55 s (schermo + webcam specchiata in sovrimpressione; il video parte circa 11,4 s dopo la sessione). Strumenti:
+`scripts/audit/zip-replay.mjs` e rigiocata dei sensori con il contesto (servizio/gioco) e il verso atteso ricostruito.
+Segnalazioni e cause trovate:
+1. Webcam «non rileva nulla»: nella sessione la webcam era tenuta da OBS (avviso «Device in use»). Il pannello diceva
+   solo «Mettiti a circa 2 m: spalle e braccio interi», senza il motivo. → corretto (sotto, W).
+2. Colpi persi sul telefono: 16 gesti «debole», 2 «verso». Il rovescio del match point (957 °/s, v51,2) scartato per
+   «verso»: asse di calibrazione quasi orizzontale (coseno 0,29 con l'alto, telefono dritto nel pugno) e la regola del
+   verso dalla rotazione attorno alla verticale chiedeva 0,3. → corretto (T1).
+3. Soglia del colpo normale = max(preparazione di calibrazione × 1,2; colpo × 0,5) = 630 °/s per il dritto: un dritto
+   da 619 °/s (v7,6, braccio alzato sopra la testa: tentativo di pallonetto) scartato «debole». Lì la palla era sul
+   rovescio e il gesto nel verso del dritto: resta una preparazione anche dopo la correzione. → nel verso atteso (T2).
+4. Pallonetto (v7,6 e v33,4): il braccio sale soprattutto dopo il picco di rotazione, che decide il colpo; al picco la
+   forma era piana (salita 0,07) oppure in salita (0,81) ma il gesto (399 °/s, verso opposto alla palla) era trattenuto
+   come preparazione. Con i segnali di oggi i tentativi non si distinguono dai dritti di chi gioca (finiscono anche loro
+   con il telefono verticale): non toccato, da rivedere con gli esercizi «Pallonetto» del riscaldamento.
+5. Direzione «quasi sempre centrale» (12 colpi): la mira è tempo (peso 1) + piatto (peso 0,6). Chi gioca è quasi sempre
+   in anticipo (+0,4 unità: incrociato) e girando il piatto verso la riga le due spinte si annullano (n 99: piatto +1,
+   tempo +0,36 → x 0,22 m). 8 scarti del piatto su 21 oltre 45° (non credibili, valgono 0). Non toccato: serve la prova
+   guidata (incrociati e lungolinea chiesti) per sapere quale segnale segue l'intenzione.
+6. Schiacciata: in questa sessione nessuna palla alta (contatti tutti a 0,5 m: a Leggenda la palla si prende presto) e
+   la CPU non ha mai fatto pallonetti. Dal piano d'intercetto: a rete una palla che passa a 2,7 m si gioca di volée a
+   1,67 m (sotto 1,75 m la schiacciata non c'è). → S (sotto).
+Interventi:
+- [x] W · webcam: `motion_controls.enableWebcam` tiene il motivo (`webcamError`), `natpf_webcam_watch.webcamOpenError`
+      lo traduce (occupata da OBS/Teams/Zoom, negata, assente, senza https) e il pannello lo mostra al posto delle
+      istruzioni. Inquadratura: per colpire basta mano, polso e avambraccio (spalle solo con «Segui il corpo»).
+      Test: `natpf-webcam-watch.test.mjs` (+3).
+- [x] T1 · `site/js/tennis/swing-detect.js`: verso dalla rotazione attorno alla verticale anche con un asse di
+      calibrazione quasi orizzontale (segno della sua parte verticale da 0,1, gesto che gira attorno alla verticale per
+      almeno il 30% del percorso). Rigiocata della sessione: il rovescio del match point diventa un rovescio (991 °/s),
+      gli altri colpi restano uguali.
+- [x] T2 · nel verso del colpo atteso (il telefono lo sa dal gioco) la soglia è il 40% del proprio colpo, senza il termine
+      della preparazione (`gesture-intent.js`, `toward`); dopo un colpo debole un gesto oltre il doppio, in qualunque
+      verso, chiude il rientro (il colpo vero che segue senza pausa non si perde; sul computer sostituisce il primo).
+      Test: `tools/test/session-28-10.test.mjs` con i campioni veri della sessione (`session-28-10.data.mjs`, solo
+      numeri dei sensori). Sito 157/157, gioco 440/440.
+- Non provato con il telefono vero dopo le correzioni.
