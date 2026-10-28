@@ -3,6 +3,11 @@
 Memoria di lavoro del progetto: da leggere all'inizio di ogni sessione e da aggiornare alla fine di ogni attività.
 Non contiene password, token o altri segreti.
 
+**Consegna del 28/10/2026:** ZIP LAN Windows completo `natpf-simulator-lan-windows-20261027-1.zip` dal commit
+`9b7857b`, con Node portatile e risorse offline. 56,97 MiB; archivio estratto e 9 controlli server passati. Consegnato
+in chat e conservato; identificativo, SHA-256 e limiti nella prima sezione di `SESSION_HANDOFF.md`. Restano le prove
+reali sul PC. Il codice del gioco è quello della build 2026-10-27.1 descritta sotto.
+
 **Ripresa attuale: 27/10/2026.** Il WIP locale interrotto è al sicuro su GitHub nel commit `76b4657`, branch unico
 `claude/friendly-fermat-dwv2w2`. L'utente ha chiesto di proseguire e salvare lo stato per il prossimo agente.
 Leggere prima la nuova sezione del 27/10 in `SESSION_HANDOFF.md`: **blocco 1 completato**, heading circolare dalla

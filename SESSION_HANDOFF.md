@@ -1,5 +1,21 @@
 # SESSION_HANDOFF · NATPF Simulator, giro «racchetta virtuale» (dal 22/10/2026)
 
+## Consegna LAN del 28/10/2026
+
+- Su richiesta dell'utente generato `natpf-simulator-lan-windows-20261027-1.zip`, build **2026-10-27.1**, dal codice
+  esatto di **`9b7857b29e8b3cc526c4a80f7012e3cfee07fd6c`**. Nessuna ulteriore modifica al gameplay.
+- 59.739.478 byte (56,97 MiB), 216 file. SHA-256:
+  `55859d02e6f2acbb35ad01783beb01fa5e149c2f7b16a501b080e1ddd8c5094a`.
+- Preparato con `natpf-tennis/lan/pacchetto.mjs`, Node.js 22.22.0 Windows x64 incluso e verificato rispetto agli hash
+  ufficiali. Manifest dei file e `VERSIONE.txt` inclusi; nessun certificato o chiave locale nello ZIP.
+- Archivio estratto in una cartella nuova e verificato: 9 controlli del server passati, inclusi HTTPS con CA valida,
+  73 file browser serviti con byte identici, risorse offline complete, pagina telefono aggiornata, configurazione,
+  relay 1v1, segnalazione fra due client e distribuzione del solo certificato pubblico. Prove su loopback: ambiente
+  senza LAN fisica. Eseguibile Windows non avviato qui; browser e telefono/webcam reali restano da provare sul PC.
+- Consegnato in chat e conservato come `libfile_025eb7109d188191b18956d4c7e6baf2`. Per usare il pacchetto estrarre
+  tutto in una cartella nuova, chiudere la precedente versione e aprire `AVVIA NATPF LAN.cmd`; seguire `LEGGIMI.txt`
+  e `PREPARA I TELEFONI.cmd` per il certificato della nuova cartella. Prossimo passo: prova reale e diagnostica.
+
 ## Ripresa del 27/10/2026 — leggere prima dello storico
 
 - Branch unico: `claude/friendly-fermat-dwv2w2`. Base recuperata e pubblicata dall'utente: **`76b4657`**, figlio di

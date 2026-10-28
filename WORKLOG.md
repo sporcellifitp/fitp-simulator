@@ -1,5 +1,14 @@
 # WORKLOG · decisioni e checkpoint
 
+## 28/10/2026 · pacchetto LAN Windows aggiornato
+
+- Consegnato lo ZIP della build 2026-10-27.1 dal commit `9b7857b`: Node Windows x64 22.22.0 incluso, hash ufficiale
+  verificato, manifest dei 215 file più il manifest stesso. ZIP 56,97 MiB, senza chiavi o certificati generati.
+- Verifica sul pacchetto estratto: 9 controlli server passati; 73 file browser serviti via HTTPS e confrontati byte
+  per byte, versione telefono, risorse offline, relay 1v1, segnalazione e preparazione certificato. Avvio eseguibile
+  Windows, browser e dispositivi reali non provati nell'ambiente. Prossimo passo invariato: prova sul PC e diagnostica.
+- Dettagli, SHA-256 e identificativo del file consegnato nella sezione del 28/10 di `SESSION_HANDOFF.md`.
+
 ## 27/10/2026 · ripresa del WIP e continuità tra agenti
 
 - Blocco 3 completato, build `2026-10-27.1`: Incrociato/Lungolinea verificati da bersaglio e punto d'impatto; centro
