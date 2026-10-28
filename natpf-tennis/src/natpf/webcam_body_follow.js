@@ -190,8 +190,7 @@ export class NatpfBodyFollow {
       if (mc) mc._poseModelReady = true;
       this._setStatus('searching');
     } catch (err){
-      console.warn('[NATPF] MediaPipe Pose non disponibile: movimento automatico', err);
-      this._setStatus('unavailable');
+      if (epoch === (mc?._visionEpoch || 0)){ console.warn('[NATPF] MediaPipe Pose non disponibile: movimento automatico', err); this._setStatus('unavailable'); }
     } finally { this._loading = false; this._loadingModel = null; if (mc){ mc._poseLoading = false; mc._poseRequested = false; } }
   }
   onPoseResults(r, now = performance.now()){

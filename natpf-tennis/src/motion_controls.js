@@ -426,9 +426,10 @@ export class MotionController {
         if (!this.webcamActive || epoch !== (this._visionEpoch || 0)){ await t.close?.(); this.mpHands = null; }
       }
     } catch (t) {
-      console.warn("[MotionController] MediaPipe Hands CDN fallback to Optical Flow:", t);
+      if (epoch === (this._visionEpoch || 0)) console.warn("[MotionController] MediaPipe Hands non disponibile, ripiego optical flow:", t);
     } finally {
       this._handsLoadingModel = null; this._mpLoading = !1;
+      if (this.webcamActive && epoch !== (this._visionEpoch || 0)) this._ensureMediaPipeHands();
     }
   }
   async enableWebcam() {
@@ -563,11 +564,13 @@ export class MotionController {
     this._wcPending &&
       (typeof this.canReload != "function" || this.canReload()) &&
       (this.mpHands.setOptions({ maxNumHands: this._wcPending.maxNumHands, modelComplexity: this._wcPending.modelComplexity }), this._diag({ kind: "carico", from: this._wcApplied || null, to: this._wcPending.id, applied: !0 }), (this._wcApplied = this._wcPending.id), (this._wcPending = null));
+    const model = this.mpHands, epoch = this._visionEpoch || 0;
     (this._mpBusy = !0),
       (this._nextHandFrameAt = e + 33),
       (this._mpSentAt = e),
       (this._mpSentCapT = this._frameCaptureT(e)),
-      this.mpHands.send({ image: this.videoElem }).catch(() => {
+      model.send({ image: this.videoElem }).catch(() => {
+        if (epoch !== (this._visionEpoch || 0) || this.mpHands !== model) return;
         this._mpBusy = !1;
         if (this.mpHands?.closed) this.mpHands = null;
       });

@@ -51,3 +51,27 @@ test('webcam leggera, al massimo un frame ogni 33 ms', async () => {
   assert.equal(mc._sendFrame(1000), true); mc._mpBusy = false;
   assert.equal(mc._sendFrame(1016), false); assert.equal(mc._sendFrame(1033), true); assert.equal(count, 2);
 });
+test('webcam spenta e riaccesa durante initialize: il modello nuovo parte e quello vecchio non lo sostituisce', async () => {
+  const { MotionController } = await import('../src/motion_controls.js');
+  const names = ['Worker','OffscreenCanvas','createImageBitmap','location'];
+  const saved = names.map(k => Object.getOwnPropertyDescriptor(globalThis,k));
+  const workers = [];
+  class FakeWorker {
+    constructor(){ workers.push(this); }
+    postMessage(d){ if (workers.length > 1) queueMicrotask(() => this.onmessage({ data: { id:d.id } })); }
+    terminate(){ this.terminated = true; }
+  }
+  const mc = Object.create(MotionController.prototype);
+  try {
+    Object.assign(globalThis,{Worker:FakeWorker,OffscreenCanvas:class{},createImageBitmap:async()=>({close(){}}),location:{href:'https://localhost/'}});
+    Object.assign(mc,{webcamActive:true,phoneState:{},_notifyStatus(){},_updateWebcamBadgeUI(){}});
+    const init = mc._ensureMediaPipeHands(); assert.equal(workers.length,1);
+    mc.disableWebcam(); mc.webcamActive = true;
+    await mc._ensureMediaPipeHands(); await init;
+    await new Promise(r=>setImmediate(r));
+    assert.equal(workers[0].terminated,true);assert.equal(workers.length,2);assert.equal(mc.mpHands.worker,workers[1]);assert.equal(mc._mpLoading,false);
+  } finally {
+    mc.disableWebcam();
+    names.forEach((k,i)=>{ if(saved[i])Object.defineProperty(globalThis,k,saved[i]);else delete globalThis[k]; });
+  }
+});
