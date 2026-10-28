@@ -65,7 +65,8 @@ di tennis per mobile. Branch di sessione: `claude/higgsfield-connector-modify-gp
 - [x] Partita contro la CPU (3 livelli), gesto a scorrimento → colpo, tempismo (perfetto / anticipo / ritardo)
 - [x] Online: stanza Higgsfield con relay `rt`; provato in locale con due browser (`tools/online.mjs`), colpi
       sincronizzati
-- [x] Pubblicato su <https://supertennis-arena.higgsfield.app> (deploy riuscito il 28/10/2026). La pagina chiede
-      l'accesso Higgsfield (`/__auth/login`): non verificabile da qui; non pubblicato nella community
+- [x] Pubblicato su <https://supertennis-arena.higgsfield.app> (deploy riuscito il 28/10/2026). Pubblicato nella
+      community il 28/10/2026 (scheda: https://higgsfield.ai/supercomputer/apps/4ef2c26a-2186-4df7-a095-40b24b9e4608/view):
+      ora la pagina è pubblica. Prova sul sito vero con due browser: stanza creata, nomi sincronizzati, partita avviata
 - [ ] Prova su telefoni reali (mai fatta: solo Chromium software, ~7 fps, non rappresentativo delle prestazioni)
 - [ ] Logo SuperTennis ufficiale da sostituire a quello ricreato
