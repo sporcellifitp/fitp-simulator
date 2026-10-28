@@ -9,3 +9,4 @@ public/assets/qr/
 public/assets/manifest.json
 # certificati del server LAN (lan/server.mjs --autofirmato)
 lan/certs/
+shots/
