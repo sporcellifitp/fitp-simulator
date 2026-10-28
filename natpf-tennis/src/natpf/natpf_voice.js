@@ -1,7 +1,10 @@
-// Voce del giudice di sedia in italiano con la sintesi vocale del browser (speechSynthesis), senza file audio.
+// Voce del giudice di sedia in italiano. Dal 28/10/2026 le frasi sono clip registrate (public/voce/, generate con
+// ElevenLabs Eleven v4 tramite Higgsfield, vedi public/voce/LEGGIMI.txt) suonate con Web Audio sul bus delle voci;
+// se una clip manca o non si carica si usa la sintesi vocale del browser (speechSynthesis), come prima.
 // Il motore annuncia con le sue etichette («15 - 00», «Deuce», «Game Point», «Out»…) o con quelle italiane
-// dell'HUD: italianCallout() le trasforma nella frase da dire. Se il browser non ha una voce italiana resta in
-// silenzio (niente voce inglese di ripiego). La voce si spegne dal pulsante «Voce» dell'HUD; la scelta resta salvata.
+// dell'HUD: italianCallout() le trasforma nella frase da dire. Se il browser non ha una voce italiana e manca la clip
+// resta in silenzio (niente voce inglese di ripiego). La voce si spegne dal pulsante «Voce»; la scelta resta salvata.
+// Oltre all'arbitro: annunci dei minigiochi (cue) e vocalizzazioni dei giocatori (effort, cheer).
 
 const NUMBERS = { "00": "zero", 0: "zero", 15: "quindici", 30: "trenta", 40: "quaranta", ad: "vantaggio" };
 
@@ -42,6 +45,29 @@ export function italianCallout(text) {
   return null;
 }
 
+// nome del file della clip per una frase: minuscole senza accenti, parole separate da «-» («Parità» → parita)
+export const clipName = (phrase) =>
+  String(phrase || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+// clip disponibili (stessi nomi dei file in public/voce/)
+export const UMPIRE_CLIPS = Object.freeze([
+  "quindici-zero", "trenta-zero", "quaranta-zero", "zero-quindici", "zero-trenta", "zero-quaranta", "quindici-trenta",
+  "trenta-quindici", "quindici-quaranta", "quaranta-quindici", "trenta-quaranta", "quaranta-trenta", "zero-pari",
+  "quindici-pari", "trenta-pari", "parita", "vantaggio", "inizio-partita", "palla-game", "palla-break", "palla-match",
+  "game", "game-set-e-partita", "fuori", "rete", "ace", "bel-colpo", "gran-servizio", "smash", "rivediamolo",
+]);
+export const CUE_CLIPS = Object.freeze({
+  go: "ann-tre-due-uno-via", time: "ann-tempo-scaduto", combo: "ann-combo", superCombo: "ann-super-combo",
+  target: "ann-bersaglio", bullseye: "ann-centro-perfetto", record: "ann-nuovo-record", gold: "ann-medaglia-d-oro",
+  silver: "ann-medaglia-d-argento", bronze: "ann-medaglia-di-bronzo", last: "ann-ultima-palla",
+  level: "ann-livello-successivo", perfect: "ann-perfetto",
+});
+export const PLAYER_CLIPS = Object.freeze({ effort: ["sforzo-1", "sforzo-2", "sforzo-3"], cheer: ["esulta"], groan: ["delusione"] });
+
 const STORAGE_KEY = "natpf.voice";
 const readPref = () => {
   try {
@@ -68,6 +94,11 @@ export class NatpfVoice {
     this.volume = 0.9;
     this.lastSpoken = null;
     this.spokenCount = 0;
+    this.clips = new Map(); // nome → AudioBuffer
+    this.ctx = null;
+    this.dest = null;
+    this.base = "./voce/";
+    this._current = null;
     this._loadVoices();
     if (this.synth && typeof this.synth.addEventListener === "function")
       this.synth.addEventListener("voiceschanged", () => this._loadVoices());
@@ -94,11 +125,77 @@ export class NatpfVoice {
     try {
       this.synth && this.synth.cancel();
     } catch {}
+    this._stopClip();
+  }
+  // Collega le clip registrate al contesto audio (bus delle voci) e le carica in sottofondo (≈420 kB in tutto).
+  attach(ctx, dest, { base = this.base } = {}) {
+    if (!ctx || this.ctx === ctx) return;
+    this.ctx = ctx; this.dest = dest; this.base = base;
+    if (typeof fetch !== "function") return;
+    const names = [...UMPIRE_CLIPS, ...Object.values(CUE_CLIPS), ...Object.values(PLAYER_CLIPS).flat()];
+    let i = 0;
+    // pochi alla volta: non deve rallentare l'avvio del gioco
+    const next = () => {
+      const name = names[i++];
+      if (!name) return;
+      fetch(this.base + name + ".mp3")
+        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+        .then((b) => ctx.decodeAudioData(b))
+        .then((buf) => this.clips.set(name, buf))
+        .catch(() => {})
+        .finally(next);
+    };
+    for (let k = 0; k < 4; k++) next();
+  }
+  _stopClip() {
+    try {
+      this._current && this._current.stop();
+    } catch {}
+    this._current = null;
+  }
+  // suona una clip; rate: velocità (cambia anche l'altezza), gain: livello relativo. true se suonata
+  playClip(name, { interrupt = false, rate = 1, gain = 1 } = {}) {
+    const buf = this.clips.get(name);
+    if (!buf || !this.ctx || !this.dest) return false;
+    try {
+      if (interrupt) this._stopClip();
+      const src = this.ctx.createBufferSource(), g = this.ctx.createGain();
+      src.buffer = buf; src.playbackRate.value = rate; g.gain.value = gain;
+      src.connect(g).connect(this.dest);
+      src.start();
+      if (interrupt || !this._current) { this._current = src; src.onended = () => { if (this._current === src) this._current = null; }; }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  // annuncio dei minigiochi (CUE_CLIPS): solo con la clip, niente sintesi
+  cue(id) {
+    if (!this.enabled) return false;
+    return this.playClip(CUE_CLIPS[id] || id, { interrupt: true });
+  }
+  // vocalizzazione del giocatore (sforzo, esultanza): pitch diverso per l'avversario, mai due insieme
+  player(kind = "effort", { opponent = false } = {}) {
+    if (!this.enabled) return false;
+    const now = this.ctx ? this.ctx.currentTime : 0;
+    if (now - (this._lastPlayer || -9) < 0.35) return false;
+    const list = PLAYER_CLIPS[kind] || [];
+    const name = list[Math.floor(Math.random() * list.length)];
+    const ok = !!name && this.playClip(name, { rate: (opponent ? 0.88 : 1) * (0.96 + Math.random() * 0.1), gain: 0.8 });
+    if (ok) this._lastPlayer = now;
+    return ok;
   }
   // Pronuncia l'annuncio; restituisce la frase detta, o null (voce spenta, annuncio sconosciuto, nessuna voce italiana).
   say(text, { interrupt = true } = {}) {
     const phrase = italianCallout(text);
-    if (!phrase || !this.enabled || !this.synth || typeof SpeechSynthesisUtterance === "undefined") return null;
+    if (!phrase || !this.enabled) return null;
+    // clip registrata, se c'è
+    if (this.playClip(clipName(phrase), { interrupt })) {
+      this.lastSpoken = phrase;
+      this.spokenCount += 1;
+      return phrase;
+    }
+    if (!this.synth || typeof SpeechSynthesisUtterance === "undefined") return null;
     if (!this.voice) this._loadVoices();
     if (!this.voice) return null; // ripiego silenzioso
     try {

@@ -9,6 +9,22 @@ import * as SFX from "./natpf/natpf_sfx.js";
 export { NATPF_TRACKS };
 // Annunci che fanno passare la musica al brano dei punti decisivi (e ritorno allo scambio sugli altri punteggi)
 const HIGH_STAKES = /^(game point|break point|match point|palla (game|break|match))$/i;
+// Volumi separati di musica, effetti e voci (0…1), salvati nel browser (Opzioni e Pausa)
+export const AUDIO_KEY = "natpf.audio";
+export const DEFAULT_VOLUMES = Object.freeze({ music: 0.65, sfx: 0.85, voice: 0.9 });
+export function readVolumes() {
+  try {
+    const v = JSON.parse(localStorage.getItem(AUDIO_KEY) || "null") || {};
+    const out = {};
+    for (const k of Object.keys(DEFAULT_VOLUMES)) out[k] = Number.isFinite(v[k]) ? Math.max(0, Math.min(1, v[k])) : DEFAULT_VOLUMES[k];
+    return out;
+  } catch {
+    return { ...DEFAULT_VOLUMES };
+  }
+}
+// Contesti musicali (tutorial, minigiochi): durante lo scambio il brano resta quello del contesto
+const CONTEXT_TRACK = { training: "tutorial_flow", minigame: "arcade_rush" };
+const RALLY_STATES = /^(serve|serve_wait|serve_toss|rally|playing|match|point|start|intro|court_intro|flyover|gamepoint|game_point|breakpoint|matchpoint|replay)$/i;
 export class AudioEngine {
   constructor(s = {}) {
     (this.ctx = null),
@@ -19,8 +35,12 @@ export class AudioEngine {
       (this.music = null),
       (this.voice = new NatpfVoice()),
       (this.muted = !!(s.muted ?? !1)),
-      (this.musicVolume = Number(s.musicVolume ?? 0.65)),
-      (this.sfxVolume = Number(s.sfxVolume ?? 0.85)),
+      (this.volumes = readVolumes()),
+      (this.musicVolume = Number(s.musicVolume ?? this.volumes.music)),
+      (this.sfxVolume = Number(s.sfxVolume ?? this.volumes.sfx)),
+      (this.voiceVolume = this.volumes.voice),
+      (this.voiceGain = null),
+      (this.musicContext = null),
       (this._voiceTimers = []),
       (this.currentTrackId = null),
       (this.desiredTrackId = "menu_theme"),
@@ -28,7 +48,7 @@ export class AudioEngine {
       (this.onTrackChange = typeof s.onTrackChange == "function" ? s.onTrackChange : null),
       (this._noiseBuffer = null),
       (this._pinkNoiseBuffer = null),
-      (this.voice.volume = Math.min(1, this.sfxVolume)),
+      (this.voice.volume = Math.min(1, this.voiceVolume)),
       this._attachAutoplayUnlock(),
       this._bindVoiceToggle();
   }
@@ -84,7 +104,12 @@ export class AudioEngine {
         this.sfxGain.connect(this.masterGain),
         (this.musicGain = this.ctx.createGain()),
         (this.musicGain.gain.value = this.musicVolume),
-        this.musicGain.connect(this.masterGain);
+        this.musicGain.connect(this.masterGain),
+        // voci (arbitro, annunci, giocatori): bus a parte con il suo volume
+        (this.voiceGain = this.ctx.createGain()),
+        (this.voiceGain.gain.value = this.voiceVolume),
+        this.voiceGain.connect(this.masterGain),
+        this.voice.attach(this.ctx, this.voiceGain);
       const t = this.ctx.createDelay(0.5);
       t.delayTime.value = 0.095;
       const e = this.ctx.createGain();
@@ -138,7 +163,14 @@ export class AudioEngine {
       (this.unlocked = !0),
       this.music && !this.muted && !this.music.playing && this._startTrack(this.desiredTrackId);
   }
+  // tutorial e minigiochi hanno i loro brani: durante lo scambio non si torna alla musica della partita
+  setMusicContext(ctx = null) {
+    this.musicContext = CONTEXT_TRACK[ctx] ? ctx : null;
+    this.playMusicForState(this.musicContext ? CONTEXT_TRACK[this.musicContext] : "title");
+  }
   playMusicForState(s) {
+    if (this.musicContext && RALLY_STATES.test(String(s || ""))) s = CONTEXT_TRACK[this.musicContext];
+    if (this.musicContext && /^(title|menu|lobby|select)$/i.test(String(s || ""))) this.musicContext = null;
     const e = trackForState(s);
     return (
       (this.desiredTrackId = e),
@@ -207,12 +239,38 @@ export class AudioEngine {
   }
   setMusicVolume(s) {
     (this.musicVolume = Math.max(0, Math.min(1, Number(s)))),
-      this.musicGain && this.ctx && this.musicGain.gain.setTargetAtTime(this.musicVolume, this.ctx.currentTime, 0.05);
+      this.musicGain && this.ctx && this.musicGain.gain.setTargetAtTime(this.musicVolume, this.ctx.currentTime, 0.05),
+      this._saveVolumes();
   }
   setSfxVolume(s) {
     (this.sfxVolume = Math.max(0, Math.min(1, Number(s)))),
-      (this.voice.volume = this.sfxVolume),
-      this.sfxGain && this.ctx && this.sfxGain.gain.setValueAtTime(this.sfxVolume, this.ctx.currentTime);
+      this.sfxGain && this.ctx && this.sfxGain.gain.setTargetAtTime(this.sfxVolume, this.ctx.currentTime, 0.03),
+      this._saveVolumes();
+  }
+  setVoiceVolume(s) {
+    (this.voiceVolume = Math.max(0, Math.min(1, Number(s)))),
+      (this.voice.volume = this.voiceVolume),
+      this.voiceGain && this.ctx && this.voiceGain.gain.setTargetAtTime(this.voiceVolume, this.ctx.currentTime, 0.03),
+      this._saveVolumes();
+  }
+  // volume per tipo: «music», «sfx», «voice»
+  setVolume(kind, v) {
+    kind === "music" ? this.setMusicVolume(v) : kind === "voice" ? this.setVoiceVolume(v) : this.setSfxVolume(v);
+  }
+  getVolume(kind) {
+    return kind === "music" ? this.musicVolume : kind === "voice" ? this.voiceVolume : this.sfxVolume;
+  }
+  _saveVolumes() {
+    try {
+      localStorage.setItem(AUDIO_KEY, JSON.stringify({ music: this.musicVolume, sfx: this.sfxVolume, voice: this.voiceVolume }));
+    } catch {}
+  }
+  // annunci dei minigiochi e vocalizzazioni dei giocatori (clip registrate, natpf_voice.js)
+  cue(id) {
+    return !this.muted && (this._ensureContext(), this.voice.cue(id));
+  }
+  playerVoice(kind = "effort", opts = {}) {
+    return !this.muted && (this._ensureContext(), this.voice.player(kind, opts));
   }
   _updateHudMusicBadge(s) {
     const t = document.getElementById("hud-music-title") || document.getElementById("music-track-label");
@@ -251,150 +309,32 @@ export class AudioEngine {
       m.start(e),
       m.stop(e + i + 0.01);
   }
+  // impatto della racchetta per tipo di colpo (natpf_sfx.racketHit); sui colpi potenti la voce di sforzo
   playRacketHit(s = "topspin", t = "good") {
     if (this.muted) return;
     const e = this._ensureContext();
     if (!e || !this._noiseBuffer) return;
-    const a = e.currentTime,
-      i = String(s || "topspin").toLowerCase(),
-      o = i === "smash" || i === "power_smash",
-      n = t === "perfect" || t === "sweet_spot" || o,
-      r = e.createBufferSource();
-    r.buffer = this._noiseBuffer;
-    const m = e.createBiquadFilter();
-    (m.type = "bandpass"),
-      m.frequency.setValueAtTime(i === "slice" ? 3600 : 2450, a),
-      m.Q.setValueAtTime(1.75, a);
-    const p = e.createGain();
-    p.gain.setValueAtTime(0.001, a),
-      p.gain.linearRampToValueAtTime(o ? 0.14 : 0.1, a + 0.004),
-      p.gain.exponentialRampToValueAtTime(0.001, a + 0.028),
-      r.connect(m).connect(p).connect(this.sfxGain),
-      r.start(a, Math.random() * 0.5, 0.035);
-    let u = 320,
-      l = 132,
-      c = 0.14;
-    i === "slice"
-      ? ((u = 460), (l = 185), (c = 0.16))
-      : i === "lob"
-        ? ((u = 250), (l = 165), (c = 0.19))
-        : o && ((u = 395), (l = 98), (c = 0.21));
-    const h = e.createOscillator(),
-      f = e.createOscillator();
-    (h.type = "triangle"),
-      (f.type = "sine"),
-      f.detune.setValueAtTime(12, a),
-      h.frequency.setValueAtTime(u, a),
-      h.frequency.exponentialRampToValueAtTime(l, a + c),
-      f.frequency.setValueAtTime(u * 1.5, a),
-      f.frequency.exponentialRampToValueAtTime(l, a + c * 0.85);
-    const T = e.createGain();
-    T.gain.setValueAtTime(0.001, a),
-      T.gain.linearRampToValueAtTime(o ? 0.13 : 0.095, a + 0.006),
-      T.gain.exponentialRampToValueAtTime(0.001, a + c),
-      h.connect(T),
-      f.connect(T),
-      T.connect(this.sfxGain),
-      this.reverbSend && T.connect(this.reverbSend),
-      h.start(a),
-      f.start(a),
-      h.stop(a + c + 0.01),
-      f.stop(a + c + 0.01),
-      n &&
-        [523.25, 659.25, 783.99, 1046.5].forEach((A, V) => {
-          const d = a + V * 0.026,
-            g = e.createOscillator(),
-            y = e.createOscillator();
-          (g.type = "sine"),
-            (y.type = "triangle"),
-            y.detune.setValueAtTime(10, d),
-            g.frequency.setValueAtTime(A, d),
-            y.frequency.setValueAtTime(A, d);
-          const _ = e.createGain();
-          _.gain.setValueAtTime(0.001, d),
-            _.gain.linearRampToValueAtTime(0.048, d + 0.006),
-            _.gain.exponentialRampToValueAtTime(8e-4, d + 0.24),
-            g.connect(_),
-            y.connect(_),
-            _.connect(this.sfxGain),
-            this.reverbSend && _.connect(this.reverbSend),
-            g.start(d),
-            y.start(d),
-            g.stop(d + 0.25),
-            y.stop(d + 0.25);
-        });
+    const shot = String(s || "topspin").toLowerCase().replace("power_smash", "smash");
+    SFX.racketHit(e, this.sfxGain, { noise: this._noiseBuffer, pink: this._pinkNoiseBuffer, reverb: this.reverbSend }, shot, t);
+    (shot === "smash" ? Math.random() < 0.75 : t === "perfect" && Math.random() < 0.3) && this.voice.player("effort");
   }
   playBallBounce(s = 1) {
     if (this.muted) return;
     const t = this._ensureContext();
-    if (!t) return;
-    const e = t.currentTime,
-      a = Math.max(0.4, Math.min(1.2, Number(s || 1))),
-      i = t.createOscillator(),
-      o = t.createGain();
-    if (
-      ((i.type = "sine"),
-      i.frequency.setValueAtTime(140, e),
-      i.frequency.exponentialRampToValueAtTime(55, e + 0.095),
-      o.gain.setValueAtTime(0.001, e),
-      o.gain.linearRampToValueAtTime(0.11 * a, e + 0.005),
-      o.gain.exponentialRampToValueAtTime(0.001, e + 0.1),
-      i.connect(o).connect(this.sfxGain),
-      i.start(e),
-      i.stop(e + 0.11),
-      this._pinkNoiseBuffer)
-    ) {
-      const n = t.createBufferSource();
-      n.buffer = this._pinkNoiseBuffer;
-      const r = t.createBiquadFilter();
-      (r.type = "lowpass"), r.frequency.setValueAtTime(950, e);
-      const m = t.createGain();
-      m.gain.setValueAtTime(0.001, e),
-        m.gain.linearRampToValueAtTime(0.045 * a, e + 0.004),
-        m.gain.exponentialRampToValueAtTime(0.001, e + 0.04),
-        n.connect(r).connect(m).connect(this.sfxGain),
-        n.start(e, Math.random() * 0.4, 0.05);
-    }
+    t && SFX.ballBounce(t, this.sfxGain, { noise: this._noiseBuffer, pink: this._pinkNoiseBuffer }, Number(s || 1));
   }
   playNetCord() {
     if (this.muted) return;
-    const s = this._ensureContext();
-    if (!s) return;
-    const t = s.currentTime,
-      e = s.createOscillator(),
-      a = s.createGain();
-    (e.type = "triangle"),
-      e.frequency.setValueAtTime(98, t),
-      e.frequency.exponentialRampToValueAtTime(42, t + 0.13);
-    const i = s.createBiquadFilter();
-    if (
-      ((i.type = "lowpass"),
-      i.frequency.setValueAtTime(360, t),
-      a.gain.setValueAtTime(0.001, t),
-      a.gain.linearRampToValueAtTime(0.11, t + 0.006),
-      a.gain.exponentialRampToValueAtTime(0.001, t + 0.14),
-      e.connect(i).connect(a).connect(this.sfxGain),
-      e.start(t),
-      e.stop(t + 0.15),
-      this._noiseBuffer)
-    ) {
-      const o = s.createBufferSource();
-      o.buffer = this._noiseBuffer;
-      const n = s.createBiquadFilter();
-      (n.type = "bandpass"), n.frequency.setValueAtTime(620, t), n.Q.setValueAtTime(2.2, t);
-      const r = s.createGain();
-      r.gain.setValueAtTime(0.001, t),
-        r.gain.linearRampToValueAtTime(0.065, t + 0.005),
-        r.gain.exponentialRampToValueAtTime(0.001, t + 0.075),
-        o.connect(n).connect(r).connect(this.sfxGain),
-        o.start(t, 0.1, 0.085);
-    }
+    const t = this._ensureContext();
+    t && SFX.netHit(t, this.sfxGain, { noise: this._noiseBuffer, pink: this._pinkNoiseBuffer });
   }
-  // lanciapalle 3D del riscaldamento e dei minigiochi (natpf_ball_machine.js)
-  playMachineLaunch(profile = "rally") {
+  // effetti dei minigiochi (natpf_sfx.js): target, bullseye, combo, tick, miss, medal
+  playArcade(kind, opt = {}) {
     if (this.muted) return;
     const c = this._ensureContext();
-    c && SFX.machineLaunch(c, this.sfxGain, { noise: this._noiseBuffer, pink: this._pinkNoiseBuffer }, profile);
+    if (!c) return;
+    const d = this.sfxGain, n = { noise: this._noiseBuffer };
+    kind === "target" ? SFX.targetHit(c, d, n, opt) : kind === "combo" ? SFX.comboUp(c, d, opt.level) : kind === "tick" ? SFX.timerTick(c, d, opt.urgent) : kind === "miss" ? SFX.miss(c, d) : kind === "medal" && SFX.medal(c, d, opt.tier);
   }
   playServeToss() {
     if (this.muted) return;
