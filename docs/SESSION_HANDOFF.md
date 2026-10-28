@@ -2,7 +2,15 @@
 
 Aggiornato: 28/10/2026 · branch `natpf-simulator`.
 
-## Webcam ferma su «Cerco la mano…» — corretta (28/10 sera, leggere per primo)
+## Ultimo giro (28/10 notte) — leggere per primo
+
+Commit locali non pubblicati (push solo con autorizzazione): `b167fff` webcam nella pagina, `21ea7b8` pacchetto LAN .5,
+`796e2b8` pallonetto morbido e palla corta non sostituita, `d454b76` «Gioca ancora» → impostazioni, `4f3d751` pannelli LED
+degli angoli interi, `a686300` direzione rispetto al ritmo di chi gioca, più i documenti. Gioco 448/448, sito 157/157.
+Webcam: l'utente la giudica da rifare; diagnosi e piano (rilevatore dal movimento, verificato sui video: 36 colpi su 36)
+in `docs/WORK_PROGRESS.md`, in attesa della sua conferma. Nessun pacchetto con queste ultime correzioni.
+
+## Webcam ferma su «Cerco la mano…» — corretta (28/10 sera)
 
 Sul pacchetto 2026-10-28.4 l'utente ha mandato uno screenshot: webcam accesa, mano in vista, «Cerco la mano…». Causa
 vera (riprodotta con una webcam finta in Chromium): dal commit `e4af4ce` i modelli MediaPipe partivano in un worker, dove

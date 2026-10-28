@@ -383,3 +383,18 @@ Segnalazione: pallonetti e palle corte non escono mai; lungolinea e angoli diver
       in `_natpfRacketShot`): con il tempo solito al centro, dopo il solito lungolinea, prima incrociato; il voto resta sul
       tempo vero. Etichetta CROSS/LINE dalla caduta vera. Testi del tutorial («prima/dopo il solito») allineati.
       Test: 2 in `natpf-racchetta-motore.test.mjs`. Gioco 448/448.
+
+## Webcam: diagnostica 20261028-214227-grj6 (build 2026-10-28.5, Casual, webcam Logitech C925e) e piano di rifacimento
+Segnalazione: «il tracciamento non va, il browser lagga, nessuna sincronizzazione: webcam tutta da rifare».
+- Misure: camera a 24 fps (luce della stanza), modello delle mani 14,7 ms (p95 37,7, max 128) **sul thread del gioco**,
+  solo 11 inferenze al secondo (Hands e Pose a turno), nessuna fonte nel 59% dei fotogrammi, mano persa/ritrovata di
+  continuo, livello sceso a «minima» dopo 7,5 s (soglia 16 ms), 4 colpi riconosciuti in 38 s.
+- Video: seduto a ~1 m, nello swing la mano è mossa e sfocata (24 fps) e spesso davanti al viso: il modello delle mani la
+  perde proprio nel colpo. Con il modello sulla pagina ogni inferenza ferma il disegno per 15–40 ms (scatti).
+- Prova di fattibilità (non nel repository): sul video webcam della diagnostica 213510 (giocata con il telefono, 36 colpi
+  con l'istante del telefono) la differenza tra fotogrammi a 80×60 trova un picco di movimento per **36 colpi su 36**
+  entro ±250 ms (ritardo tipico +80 ms), verso leggibile dal baricentro nei dritti pieni (+17…+27 px), 8 picchi in 55 s
+  lontani da ogni gesto con soglia 300× la mediana.
+- Piano proposto (da confermare con l'utente): rilevatore del colpo dal movimento (differenza tra fotogrammi a bassa
+  risoluzione, < 1 ms a fotogramma, nessun modello), lato del colpo da dove sta la mano prima dello swing (modello delle
+  mani solo a riposo e a bassa frequenza, fuori dagli scambi), ritardo misurato e compensato, calibrazione con 3 swing.
