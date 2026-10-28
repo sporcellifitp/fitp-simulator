@@ -127,6 +127,17 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 - 28/10/2026 — nuova memoria persistente (`CLAUDE.md`, `docs/PROJECT_MEMORY.md`, `docs/WORK_PROGRESS.md`,
   `docs/SESSION_HANDOFF.md`) e `scripts/ui-shots.mjs`.
 
+### Webcam: rifacimento deciso il 28/10 notte (richiesta dell'utente: «webcam tutta da rifare»)
+
+- Il colpo con la webcam si riconosce **dal movimento nell'immagine** (differenza tra fotogrammi a bassa risoluzione),
+  non dalla forma della mano: con 24–30 fps e la luce di casa la mano nello swing è mossa e il modello delle mani la
+  perde proprio nel colpo (diagnostica 20261028-214227-grj6: nessuna fonte nel 59% dei fotogrammi, 4 colpi in 38 s).
+  Prova sui video: il movimento trova 36 colpi su 36 del telefono entro ±250 ms (ritardo tipico +80 ms).
+- Il modello delle mani (MediaPipe, nella pagina: nel worker non parte) non deve girare durante gli scambi: ferma il
+  disegno 15–40 ms a inferenza. Serve solo a riposo (la mano si vede, il lato del colpo, «Mano vista» nel pannello).
+- Verifica di ogni modifica al rilevatore della webcam: rigiocare i video delle diagnostiche (fuori dal repository: sono
+  immagini di chi gioca) e confrontare con i colpi del telefono della stessa sessione.
+
 ### Dalla sessione del 28/10 sera (diagnostica + video, docs/WORK_PROGRESS.md «Analisi della sessione del 28/10»)
 
 - Webcam: se non si apre si dice perché (`webcamOpenError`: occupata da OBS/Teams/Zoom, negata, assente, senza https).

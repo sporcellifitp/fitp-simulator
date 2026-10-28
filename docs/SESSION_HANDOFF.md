@@ -7,8 +7,8 @@ Aggiornato: 28/10/2026 · branch `natpf-simulator`.
 Commit locali non pubblicati (push solo con autorizzazione): `b167fff` webcam nella pagina, `21ea7b8` pacchetto LAN .5,
 `796e2b8` pallonetto morbido e palla corta non sostituita, `d454b76` «Gioca ancora» → impostazioni, `4f3d751` pannelli LED
 degli angoli interi, `a686300` direzione rispetto al ritmo di chi gioca, più i documenti. Gioco 448/448, sito 157/157.
-Webcam: l'utente la giudica da rifare; diagnosi e piano (rilevatore dal movimento, verificato sui video: 36 colpi su 36)
-in `docs/WORK_PROGRESS.md`, in attesa della sua conferma. Nessun pacchetto con queste ultime correzioni.
+Webcam: l'utente ha confermato il rifacimento (rilevatore dal movimento, verificato sui video: 36 colpi su 36; decisione
+in `docs/PROJECT_MEMORY.md`) e chiede un pacchetto LAN con le correzioni della webcam. In corso.
 
 ## Webcam ferma su «Cerco la mano…» — corretta (28/10 sera)
 
