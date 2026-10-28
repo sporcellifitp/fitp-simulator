@@ -46,15 +46,19 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 - **Tagliato (slice)**: gesto **dall'alto verso il basso** (verticale senza verso, palla bassa) oppure orizzontale con
   la mano che scende, **non lento**.
 - **Palla corta**: dall'alto verso il basso, **lento e morbido** (potenza < 0,45 o velocità bassa).
-- **Schiacciata**: palla alta + gesto verso il basso (verticale o orizzontale con la mano che scende).
+- **Schiacciata**: palla alta + gesto verso il basso (verticale o orizzontale con la mano che scende). Il punto
+  d'impatto alto lo sceglie il movimento automatico (`natpf_impact.js`): sui pallonetti (oltre 3,3 m) e, a rete (entro
+  7 m), su ogni palla raggiungibile sopra 2,05 m; da 2,3 m è sempre schiacciata.
 - **Servizio** (`game_engine.js` ~1392): in `SERVE_STANCE` il primo gesto (o un tocco sullo schermo del telefono)
   **lancia la palla**; in `SERVE_TOSS` il gesto successivo la colpisce: la qualità dipende da quanto è vicino al
   **punto più alto** del lancio. Un gesto debole subito dopo il lancio viene ignorato.
 - **Volée**: non è un gesto diverso. Il motore (`natpf_impact.js`) prende la palla al volo quando conviene
   (giocatore avanti); il gesto è un dritto o rovescio **corto**.
-- **Direzione** (incrociato / lungolinea): soprattutto l'**orientamento del piatto all'impatto** (imbardata rispetto
-  al proprio colpo abituale: piatto girato a destra → palla a destra), poi il **tempo**: in anticipo → incrociato,
-  in ritardo → lungolinea (`natpf_skill.swingLandingX`, barra «Anticipo / Centro / Ritardo»).
+- **Direzione** (incrociato / lungolinea), `natpf_stroke_outcome.strokeOutcome`: il **tempo** pesa di più (in
+  anticipo → incrociato, in ritardo → lungolinea, pieni ai bordi della finestra: peso 1), poi l'**orientamento del
+  piatto all'impatto** rispetto al proprio colpo abituale (piatto girato a destra → palla a destra: peso 0,6; scarti
+  oltre 45° sempre meno credibili, oltre 60° non contano). Barra «Anticipo / Centro / Ritardo». Corretto il 28/10 sera:
+  qui prima c'era scritto il contrario.
 
 ## Decisioni (28/10/2026, sessione redesign)
 
@@ -120,6 +124,18 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 - 28/10/2026 — lanciapalle 3D (`natpf_ball_machine.js`) e tutorial con animazioni 3D verificate (T1, T2).
 - 28/10/2026 — nuova memoria persistente (`CLAUDE.md`, `docs/PROJECT_MEMORY.md`, `docs/WORK_PROGRESS.md`,
   `docs/SESSION_HANDOFF.md`) e `scripts/ui-shots.mjs`.
+
+### Dalla sessione del 28/10 sera (diagnostica + video, docs/WORK_PROGRESS.md «Analisi della sessione del 28/10»)
+
+- Webcam: se non si apre si dice perché (`webcamOpenError`: occupata da OBS/Teams/Zoom, negata, assente, senza https).
+  OBS che usa la stessa webcam la blocca al gioco: per registrarsi usare la registrazione della diagnostica.
+- Telefono, verso: con un asse di calibrazione quasi orizzontale (telefono dritto nel pugno) il verso viene dal segno
+  della sua parte verticale da coseno 0,1 (`weakRefMin`), con un gesto che gira attorno alla verticale per il 30%.
+- Telefono, soglia: nel verso del colpo atteso (messaggio `ex` dal gioco) la soglia è il 40% del proprio colpo
+  (`gesture-intent.TOWARD_FLOOR`), senza il termine della preparazione; nel verso opposto resta (lì il gesto è la
+  preparazione). Dopo un colpo debole un gesto oltre il doppio chiude il rientro (`afterWeak`).
+- Limiti noti: il pallonetto fatto alzando il braccio si vede soprattutto dopo il picco di rotazione, che decide il
+  colpo; la direzione con il braccio angolato dà scarti del piatto oltre 45° che non contano.
 
 ### Correzioni gameplay e connessioni · 28/10
 

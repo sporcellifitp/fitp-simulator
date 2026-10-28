@@ -2,7 +2,27 @@
 
 Aggiornato: 28/10/2026 · branch `natpf-simulator`.
 
-## Pacchetti 2026-10-28.3 (28/10 sera) — leggere per primo
+## Analisi della sessione del 28/10 sera e correzioni — leggere per primo
+
+L'utente ha mandato una diagnostica (Leggenda, telefono) e un video OBS con sei problemi: webcam che non rileva,
+schiacciata a rete, palla corta, pallonetto, schiacciata sulle palle alte, direzione «sempre centrale». Analisi completa
+e interventi in `docs/WORK_PROGRESS.md` («Analisi della sessione del 28/10 sera»). Commit locali, non pubblicati:
+`bfcc6e9` (webcam: il motivo quando non si apre, mano/polso/avambraccio), `ec380d4` (telefono: verso con asse di
+calibrazione orizzontale, soglia nel verso atteso, rientro dopo un colpo debole), `8f1435e` (schiacciata a rete) e
+l'aggiornamento dei documenti. Test: gioco 440/440, sito 157/157; banco Leggenda invariato (3 KO già presenti).
+Non provati con telefono e webcam veri. I pacchetti 2026-10-28.3 consegnati **non** li contengono.
+
+Aperti, da decidere con l'utente:
+1. Pallonetto alzando il braccio: il gesto si vede dopo il picco di rotazione; proposta: esercizio «Pallonetto» del
+   riscaldamento (prototipo personale) e misura del braccio che sale dopo il picco quando lo swing arriva in anticipo.
+2. Direzione: 10 scarti del piatto su 21 oltre 45° (non contano) e anticipo medio +0,34 unità che porta incrociato.
+   Proposta: prova guidata (Diagnostica → «Prova guidata dei colpi», chiede incrociati e lungolinea) per misurare
+   quale segnale segue l'intenzione, poi decidere i pesi.
+3. Banco Leggenda: 3 criteri KO già presenti prima di queste modifiche (CPU contro «tennista» e «preciso»).
+4. Push: solo con autorizzazione. Pacchetti 2026-10-28.4 (con queste correzioni e, se l'utente conferma, gli elementi
+   di confezione dello zip dell'altro agente: `_headers` senza cache, `build.json`, istruzioni, impronte) da fare.
+
+## Pacchetti 2026-10-28.3 (28/10 sera)
 
 Consegnati all'utente (non nel repository: zip nella cartella temporanea della sessione): Cloudflare
 `natpf-simulator-cloudflare-20261028-3.zip` (SHA256 `14d19029…abc60`) e LAN Windows
