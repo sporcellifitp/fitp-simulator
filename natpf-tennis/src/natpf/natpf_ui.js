@@ -19,7 +19,7 @@ import { NatpfIntro } from './natpf_intro.js';
 import { NatpfEvents } from './natpf_events.js';
 import { NatpfKiosk } from './natpf_kiosk.js';
 import { phoneHealth, createPhoneWatch, holdText } from './natpf_phone_watch.js';
-import { webcamHealth, createWebcamWatch, webcamHoldText } from './natpf_webcam_watch.js';
+import { webcamHealth, createWebcamWatch, webcamHoldText, webcamOpenError } from './natpf_webcam_watch.js';
 import { gripSvg, GRIP_TEXT_PLAIN } from '@natpf/tennis/grip-art.js';
 import { p2pStatusText, P2P_NET_HINT } from './natpf_versus.js';
 import { NatpfSplitUi } from './natpf_split_ui.js';
@@ -201,11 +201,15 @@ export class NatpfUi {
     const now = performance.now(), wrist = on && now - (mc._poseSeenAt ?? -Infinity) < 400;
     const hand = on && (now - (mc.latestHandSeenAt || -1e9) < 1200 || wrist);
     const dot = $('setup-cam-dot'), txt = $('setup-cam-text'), badge = $('setup-cam-badge'), go = $('setup-cam-go');
-    if (dot) dot.className = 'setup-dot ' + (hand ? 'ok' : on ? 'mid' : '');
-    if (txt) txt.textContent = hand ? (wrist ? 'Braccio visto ✓ sei pronto' : 'Mano vista ✓ sei pronto') : on ? 'Mostra spalle e braccio che colpisce, con luce davanti' : 'Mettiti a circa 2 m: spalle e braccio interi nell’inquadratura';
-    if (badge){ badge.textContent = on ? (hand ? (wrist ? 'Braccio visto' : 'Mano vista') : 'Cerco il braccio…') : 'Webcam spenta'; badge.classList.toggle('ok', hand); }
+    // per colpire basta la mano (con polso e avambraccio); «Segui il corpo» vuole anche le spalle. Webcam che non si
+    // apre: il motivo (occupata da un altro programma, negata, assente), non le istruzioni per l'inquadratura
+    const body = !!this.engine.natpfBody?.enabled, err = on ? null : webcamOpenError(mc?.webcamError);
+    if (dot) dot.className = 'setup-dot ' + (hand ? 'ok' : on ? 'mid' : err ? 'ko' : '');
+    if (txt) txt.textContent = hand ? (wrist ? 'Braccio visto ✓ sei pronto' : 'Mano vista ✓ sei pronto') : err ? err.text
+      : on ? (body ? 'Mostra spalle e braccio che colpisce, con luce davanti' : 'Mostra la mano che colpisce, con polso e avambraccio, con luce davanti')
+      : body ? 'Mettiti a circa 2 m: spalle e braccio interi nell’inquadratura' : 'Mettiti a 1–2 m: mano, polso e avambraccio ben visibili';
+    if (badge){ badge.textContent = on ? (hand ? (wrist ? 'Braccio visto' : 'Mano vista') : 'Cerco la mano…') : err ? err.badge : 'Webcam spenta'; badge.classList.toggle('ok', hand); }
     show(go, !on);
-    const body = !!this.engine.natpfBody?.enabled;
     for (const b of document.querySelectorAll('[data-natpf-move]')){ const sel = (b.dataset.natpfMove === 'body') === body; b.classList.toggle('selected', sel); b.setAttribute('aria-checked', String(sel)); }
   }
   /* ---------- pagina «Collega» del menu: QR e tre passi sul telefono ---------- */

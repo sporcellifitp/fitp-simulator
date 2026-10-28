@@ -4,7 +4,7 @@
 // La mano è simulata: quanto spesso il modello la perde con la webcam vera e la luce della stanza lo dice il registro.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { webcamHealth, createWebcamWatch, webcamHoldText, WEBCAM_WATCH } from '../src/natpf/natpf_webcam_watch.js';
+import { webcamHealth, createWebcamWatch, webcamHoldText, webcamOpenError, WEBCAM_WATCH } from '../src/natpf/natpf_webcam_watch.js';
 
 test('salute della webcam: accesa, fotogrammi che arrivano, mano vista; in pausa la mano deve vedersi adesso', () => {
   const ok = { active: true, model: true, handAgeMs: 40, frameAgeMs: 30 };
@@ -109,3 +109,45 @@ test('nel gioco: fuori dallo scambio (attesa del servizio) la mano persa ferma l
   assert.ok(E.natpfPaused && ui.webcamHold?.why === 'webcam ferma', JSON.stringify(ui.webcamHold));
 });
 
+
+// Sessione del 28/10: OBS teneva la webcam («Device in use»): il pannello diceva solo di mostrare spalle e braccio
+test('webcam che non si apre: il motivo (occupata, negata, assente, senza https) al posto delle istruzioni', () => {
+  assert.equal(webcamOpenError(null), null);
+  assert.equal(webcamOpenError({ name: 'NotReadableError', message: 'Device in use' }).badge, 'Webcam occupata');
+  assert.match(webcamOpenError({ name: 'NotReadableError' }).text, /OBS/);
+  assert.equal(webcamOpenError({ name: 'AbortError', message: 'Could not start video source: device already in use' }).badge, 'Webcam occupata');
+  assert.equal(webcamOpenError({ name: 'NotAllowedError' }).badge, 'Webcam negata');
+  assert.equal(webcamOpenError({ name: 'NotFoundError' }).badge, 'Nessuna webcam');
+  assert.equal(webcamOpenError({ name: 'insecure', message: 'HTTPS required for browser camera access' }).badge, 'Serve https');
+  assert.match(webcamOpenError({ name: 'Boh' }).text, /Boh/);
+  assert.match(webcamHoldText('mano persa'), /mano, polso e avambraccio/);
+});
+
+test('controller: la webcam occupata da un altro programma lascia il motivo (NotReadableError)', async () => {
+  const { MotionController: MC } = await import('../src/motion_controls.js');
+  const had = Object.getOwnPropertyDescriptor(globalThis.navigator, 'mediaDevices');
+  const busy = Object.assign(new Error('Device in use'), { name: 'NotReadableError' });
+  try {
+    Object.defineProperty(globalThis.navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => { throw busy; } } });
+    const mc = Object.create(MC.prototype);
+    Object.assign(mc, { webcamActive: false, phoneState: { connected: false }, _notifyStatus(){}, _updateWebcamBadgeUI(){} });
+    const realWarn = console.warn; console.warn = () => {};
+    try { assert.equal(await mc.enableWebcam(), false); } finally { console.warn = realWarn; }
+    assert.deepEqual(mc.webcamError, { name: 'NotReadableError', message: 'Device in use' });
+    assert.equal(webcamOpenError(mc.webcamError).badge, 'Webcam occupata');
+  } finally {
+    if (had) Object.defineProperty(globalThis.navigator, 'mediaDevices', had); else delete globalThis.navigator.mediaDevices;
+  }
+});
+
+test('pannello della webcam: con la webcam occupata dice perché; accesa chiede la mano (le spalle solo con «Segui il corpo»)', async () => {
+  const { makeWorld } = await import('./ui-world.mjs');
+  const { E, ui } = await makeWorld({ controller: 'mouse' });
+  const text = () => document.getElementById('setup-cam-text').textContent, badge = () => document.getElementById('setup-cam-badge').textContent;
+  E.motionController.webcamError = { name: 'NotReadableError', message: 'Device in use' };
+  ui.paintWebcamSetup();
+  assert.match(text(), /già usata da un altro programma/); assert.equal(badge(), 'Webcam occupata');
+  E.motionController.webcamError = null; E.motionController.webcamActive = true;
+  ui.paintWebcamSetup();
+  assert.match(text(), /mano che colpisce, con polso e avambraccio/); assert.equal(badge(), 'Cerco la mano…');
+});

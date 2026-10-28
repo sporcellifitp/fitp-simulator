@@ -434,8 +434,11 @@ export class MotionController {
   }
   async enableWebcam() {
     if (this.webcamActive) return !0;
+    // NATPF: motivo per cui la webcam non si apre (natpf_webcam_watch.webcamOpenError, pannello della racchetta)
+    this.webcamError = null;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
       return (
+        (this.webcamError = { name: "insecure", message: "HTTPS required for browser camera access" }),
         this._notifyStatus({ webcam: !1, error: "HTTPS required for browser camera access" }),
         window.location.protocol === "http:" &&
           window.location.hostname !== "localhost" &&
@@ -474,6 +477,7 @@ export class MotionController {
     } catch (e) {
       return (
         console.warn("[MotionController] Webcam access denied or unavailable:", e),
+        (this.webcamError = { name: e?.name || "", message: e?.message || "" }),
         (this.webcamActive = !1),
         this._notifyStatus({ webcam: !1, error: e.message || "Camera permission denied" }),
         this._updateWebcamBadgeUI(!1),
