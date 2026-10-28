@@ -50,3 +50,21 @@ Legenda: [x] fatto e verificato · [~] in corso · [ ] da fare.
 
 ### T6 · Verifica finale e consegna
 - [ ] Test, build, screenshot, prestazioni, riepilogo
+
+## Progetto parallelo · SuperTennis Arena (`esports-tennis/`, dal 28/10/2026)
+
+Richiesta: dal gioco Higgsfield «Swipe Smash» → arena ESPORTS FITP / SuperTennis fedele agli screenshot, colpi che
+corrispondono al gesto, menu con 1v1, multigiocatore online, inquadratura alta dietro il giocatore come nei giochi
+di tennis per mobile. Branch di sessione: `claude/higgsfield-connector-modify-gph02v`.
+
+- [x] Asset di Swipe Smash estratti (personaggi GLB, clip di corsa, suoni) — `public/assets/`
+- [x] Arena in three.js con loghi (ESPORTS ufficiale, SuperTennis ricreato), tribune, pubblico, cielo, skyline
+      — confronto visivo con gli screenshot fatto con `tools/compare.sh`
+- [x] Fisica deterministica + punteggio + regole della stanza — `npm test` 12/12 passati
+- [x] Colpi procedurali con IK (scarto racchetta-palla all'impatto: dritto 4 cm, rovescio 14 cm, servizio 12 cm)
+- [x] Partita contro la CPU (3 livelli), gesto a scorrimento → colpo, tempismo (perfetto / anticipo / ritardo)
+- [x] Online: stanza Higgsfield con relay `rt`; provato in locale con due browser (`tools/online.mjs`), colpi
+      sincronizzati
+- [~] Pubblicazione su <https://supertennis-arena.higgsfield.app>
+- [ ] Prova su telefoni reali (mai fatta: solo Chromium software, ~7 fps, non rappresentativo delle prestazioni)
+- [ ] Logo SuperTennis ufficiale da sostituire a quello ricreato

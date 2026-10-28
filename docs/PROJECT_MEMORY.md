@@ -66,6 +66,14 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 - **Mai usare** `sonilo_music`, `mirelo_text_to_audio`, `inworld_text_to_speech` per asset del progetto (riservati
   alla pipeline di generazione giochi di Higgsfield).
 
+## SuperTennis Arena (`esports-tennis/`)
+
+- Colpi animati in modo procedurale (pose chiave + IK a due ossa) perché il modello Tripo di Swipe Smash ha solo
+  le clip corsa/attacco/morte e il catalogo animazioni Higgsfield non ha colpi da tennis.
+- Online: il telefono di chi difende è l'arbitro del colpo in arrivo; la fisica è deterministica e uguale sui due
+  telefoni. Il server (logic.js) valida solo il turno e tiene il punteggio.
+- Il nome del gioco di riferimento commerciale non compare nei file (regola di CLAUDE.md).
+
 ## Storico modifiche significative
 
 - 28/10/2026 — nuova memoria persistente (`CLAUDE.md`, `docs/PROJECT_MEMORY.md`, `docs/WORK_PROGRESS.md`,
