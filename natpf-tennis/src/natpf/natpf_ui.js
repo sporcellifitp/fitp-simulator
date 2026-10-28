@@ -11,6 +11,7 @@ import { NatpfPause } from './natpf_pause.js';
 import { NatpfShotFeedback } from './natpf_shot_feedback.js';
 import { NatpfHand } from './natpf_hand.js';
 import { NatpfTraining } from './natpf_training.js';
+import { NatpfBallMachine } from './natpf_ball_machine.js';
 import { NatpfGestureHud } from './natpf_gesture_hud.js';
 import { NatpfDiag } from './natpf_diag.js';
 import { NatpfIntro } from './natpf_intro.js';
@@ -51,6 +52,7 @@ export class NatpfUi {
     if (!CONTROLLERS.some(c => c.id === this.controller) || (this.controller === 'mouse' && !this.testInput)) this.controller = 'phone';
     this.hand = new NatpfHand(engine);
     this.shot = new NatpfShotFeedback(engine);
+    this.machine = new NatpfBallMachine(engine);      // lanciapalle 3D del riscaldamento e dei minigiochi
     this.training = new NatpfTraining(engine, this);
     this.gesture = new NatpfGestureHud(engine, this);   // etichetta del gesto: rilevato, letto, applicato
     this.events = new NatpfEvents(engine, this);      // sfide per gli eventi (dopo il riscaldamento: ne avvolge i punti)

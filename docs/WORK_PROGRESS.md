@@ -19,9 +19,12 @@ Legenda: [x] fatto e verificato · [~] in corso · [ ] da fare.
 - [x] `natpf-tennis/scripts/ui-shots.mjs`
 
 ### T1 · Lanciapalle 3D
-- [ ] Modello 3D leggero (primitive three.js) sul lato avversario, visibile in riscaldamento e sfide
-- [ ] La palla parte dalla bocca del lanciapalle; animazione di rinculo/rotazione e suono sincronizzati
-- [ ] Traiettorie, velocità e difficoltà variabili (profili di lancio)
+- [x] Modello 3D leggero (primitive three.js, scala 1,6×) dietro la riga di fondo avversaria, visibile in
+      riscaldamento e sfide — `src/natpf/natpf_ball_machine.js`, istanza `ui.machine` (`natpf_ui.js`)
+- [x] La palla parte dalla bocca della canna (`natpf_training._feed`); rinculo, lampo, ruote, spia e suono
+      pneumatico (`natpf_sfx.machineLaunch`, `audio_engine.playMachineLaunch`) nello stesso istante
+- [x] Profili di lancio `FEED_PROFILES` e `feedForLevel(level)`; `_feed(side, { profile, depth })` li accetta
+      (usati dai minigiochi in T5). Test: `test/natpf-ball-machine.test.mjs` (3). Suite 392/393 (1 saltato LAN).
 
 ### T2 · Tutorial
 - [ ] `natpf_gesture_demo.js`: mano + telefono stile S24 Ultra in 3D, gesti dalle regole reali

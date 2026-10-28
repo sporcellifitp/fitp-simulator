@@ -121,6 +121,7 @@ export class NatpfEvents {
     const o = this.engine.opponent;
     if (o?.root) o.root.visible = !on;
     if (o?.shadowBlob) o.shadowBlob.visible = !on;
+    this.ui.machine?.show(on);
   }
   _showTargets(on){
     const E = this.engine;
@@ -188,6 +189,7 @@ export class NatpfEvents {
     const E = this.engine;
     if (A.id !== 'champion'){
       const o = E.opponent; if (o){ o.pos.set(0, 0, -40); o.targetPos.copy(o.pos); }
+      this.ui.machine?.tick(dt);
       if (E.phase === 'POINT_OVER') E.phaseTimer = 0;
       const ballLive = E.phase === 'RALLY' && E.ball.inPlay;
       if (A.wait > 0 && !ballLive && !(A.id === 'radar' && /SERVE/.test(E.phase))){ A.wait -= dt; if (A.wait <= 0) this._next(); }

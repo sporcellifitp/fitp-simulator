@@ -5,6 +5,7 @@
 // API pubblica invariata per il motore di gioco: playMusicForState, announceScore, playVoiceCallout, play*.
 import { NATPF_TRACKS, NatpfMusic, trackForState } from "./natpf/natpf_music.js";
 import { NatpfVoice, italianCallout } from "./natpf/natpf_voice.js";
+import * as SFX from "./natpf/natpf_sfx.js";
 export { NATPF_TRACKS };
 // Annunci che fanno passare la musica al brano dei punti decisivi (e ritorno allo scambio sugli altri punteggi)
 const HIGH_STAKES = /^(game point|break point|match point|palla (game|break|match))$/i;
@@ -388,6 +389,12 @@ export class AudioEngine {
         o.connect(n).connect(r).connect(this.sfxGain),
         o.start(t, 0.1, 0.085);
     }
+  }
+  // lanciapalle 3D del riscaldamento e dei minigiochi (natpf_ball_machine.js)
+  playMachineLaunch(profile = "rally") {
+    if (this.muted) return;
+    const c = this._ensureContext();
+    c && SFX.machineLaunch(c, this.sfxGain, { noise: this._noiseBuffer, pink: this._pinkNoiseBuffer }, profile);
   }
   playServeToss() {
     if (this.muted) return;

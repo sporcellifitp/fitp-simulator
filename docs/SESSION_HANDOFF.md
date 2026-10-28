@@ -9,6 +9,12 @@ Aggiornato: 28/10/2026 · branch `natpf-simulator`.
 - Test: baseline 389/390 (1 saltato per dipendenze LAN). Build: da verificare dopo le modifiche UI.
 - Ambiente: Chromium di Playwright funziona (`node scripts/ui-shots.mjs` con `npm run dev` attivo).
 
+## Push
+
+L'utente ha chiesto di non fare push senza autorizzazione esplicita: il push di un checkpoint è stato bloccato il
+28/10. I commit restano **locali** sul branch `natpf-simulator` finché l'utente non autorizza il push. Il primo
+checkpoint pubblicato su GitHub è `59ce56c`; quelli successivi sono solo nel checkout locale.
+
 ## Problemi aperti
 
 - Musica: nessun modello musicale Higgsfield utilizzabile per asset autonomi → musica generativa originale.
@@ -16,5 +22,6 @@ Aggiornato: 28/10/2026 · branch `natpf-simulator`.
 
 ## Prossima azione esatta
 
-T1: lanciapalle 3D (`natpf-tennis/src/natpf/natpf_ball_machine.js`), agganciato a `natpf_training._feed`.
-Poi T2 tutorial (vedi `docs/WORK_PROGRESS.md`).
+T1 completato (lanciapalle 3D). Prossimo: T2 tutorial — creare `src/natpf/natpf_gesture_demo.js` (mano + telefono
+3D con gesti dalle regole di `docs/PROJECT_MEMORY.md` §Gesti) e agganciarlo a `natpf_training.js` (mini-loop in alto
+a destra, passi introduttivi presa/orientamento/mano/posizione, feedback dal tracking).

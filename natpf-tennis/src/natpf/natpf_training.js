@@ -141,6 +141,7 @@ export class NatpfTraining {
     const o = this.engine.opponent;
     if (o?.root) o.root.visible = !on;
     if (o?.shadowBlob) o.shadowBlob.visible = !on;
+    this.ui.machine?.show(on);
     document.body.classList.toggle('natpf-training', on);
     // campo d'allenamento: tribune vuote e luci di lavoro (natpf_arena.js)
     this.engine.natpfArena?.setPractice?.(on);
@@ -319,20 +320,26 @@ export class NatpfTraining {
     this._feed(this.drill.id === 'backhand' ? 'backhand' : this.drill.id === 'forehand' || this.drill.shot ? 'forehand' : Math.random() < .5 ? 'forehand' : 'backhand');
   }
   // lanciapalle: palla dal fondo avversario verso il dritto o il rovescio del giocatore locale (destro o mancino)
-  _feed(side){
+  // profile: profilo di lancio del lanciapalle (natpf_ball_machine.FEED_PROFILES), dai minigiochi; depth: z del rimbalzo
+  _feed(side, { profile = null, depth = null } = {}){
     const E = this.engine, p = E.player, lefty = this.ui.hand?.hand === 'left';
     const toRight = (side === 'forehand') !== lefty;            // P1 guarda verso -z: la sua destra è +x
     const x = THREE.MathUtils.clamp(p.pos.x + (toRight ? 1.3 : -1.3) + (Math.random() - .5)*.6, -3.4, 3.4);
-    const start = new THREE.Vector3((Math.random() - .5)*2, 1.05, -11.6), target = new THREE.Vector3(x, 0, 8.4 + Math.random()*1.4);
+    const high = this.drill?.shot === 'smash' || profile?.id === 'lob';
+    const z = Number.isFinite(depth) ? depth : profile?.id === 'short' ? 4.6 + Math.random()*1.2 : 8.4 + Math.random()*1.4;
+    const target = new THREE.Vector3(x, 0, z);
+    // la palla esce dalla bocca del lanciapalle 3D (prima nasceva dal nulla oltre la rete)
+    const machine = this.ui.machine;
+    const start = machine ? machine.fire(target, { profile: profile || (high ? { id: 'lob' } : null) }) : new THREE.Vector3((Math.random() - .5)*2, 1.05, -11.6);
     E.ballTrail?.clear(); E.swingVfx?.clearAllTrails?.();
     E.ball.pos.copy(start);
-    const high = this.drill?.shot === 'smash';
-    E._launchBallToTarget(start, target, high ? 1.9 : 1.15, { topspin: high ? 5 : 10, sidespin: 0, allowNetFault: false });
+    const flight = high ? 1.9 : profile?.flight ?? 1.15, spin = high ? 5 : profile?.spin ?? 10;
+    E._launchBallToTarget(start, target, flight, { topspin: spin, sidespin: 0, allowNetFault: false });
     Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: 1, shotType: high ? 'MOON' : 'TOPSPIN', isPowerShot: false });
     E.phase = 'RALLY'; E.phaseTimer = 0; E.cameraMode = 'RALLY_CAM';
     // come in partita: piano d'intercetto sulla traiettoria vera (finestra d'impatto e movimento, natpf_impact.js)
     E._natpfPlanPlayer ? E._natpfPlanPlayer() : E._predictBallIntercept(p);
-    E.audioEngine?.playRacketHit?.('topspin', 'good');
+    if (!machine) E.audioEngine?.playRacketHit?.('topspin', 'good');
     this.fedSide = side;
     this.diagRun?.onFeed?.(this.drill, side);
   }
@@ -341,6 +348,7 @@ export class NatpfTraining {
     const E = this.engine, o = E.opponent;
     // il lanciapalle non corre e non risponde: l'avversario resta fuori dal campo
     if (o){ o.pos.set(0, 0, -40); o.targetPos.copy(o.pos); }
+    this.ui.machine?.tick(dt);
     if (!this.cal && this._phoneRecalibrating()) this._recal();
     if (this.cal) this._calTick(dt);
     if (this.wait > 0){ this.wait -= dt; if (this.wait <= 0) this._next(); }
