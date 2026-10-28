@@ -342,3 +342,13 @@ Il messaggio sull'errore di apertura (W, sopra) non c'entrava: la webcam era acc
 - [x] Test: `natpf-webcam-worker.test.mjs` (worker solo a richiesta; worker che non parte → modello nella pagina; riavvio
       durante il caricamento come prima). Gioco 442/442.
 - [ ] Da provare con la webcam vera su Windows (pacchetto LAN 2026-10-28.5).
+
+## Pacchetto LAN 2026-10-28.5 (28/10 sera): webcam con il modello delle mani nella pagina
+Sostituisce il 2026-10-28.4, che ha le correzioni del rilevatore e della schiacciata ma la webcam ferma su «Cerco la
+mano…». Solo LAN, senza gli elementi dello zip dell'altro agente.
+- [x] Versione 2026-10-28.5; gioco 442/442, sito 157/157, build.
+- [x] `natpf-simulator-lan-windows-20261028-5.zip`: 277 file, 61.092.235 byte, Node.js 22.22.0 verificato, nessun
+      certificato né chiave, nessuna parola vietata. SHA256 `3a8ca6213addcb7c7a7cf1ae70688a8de60d90908020e5d32c59b52ad04b4693`.
+- [x] Estratto e provato in https: webcam finta con la mano aperta → «Mano vista» entro 5 s (modello nella pagina);
+      voci, due QR, partita divisa, pagina del telefono, nessun errore in console.
+- [ ] Non provato: Windows, webcam e telefono veri.

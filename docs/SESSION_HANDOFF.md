@@ -2,7 +2,16 @@
 
 Aggiornato: 28/10/2026 · branch `natpf-simulator`.
 
-## Analisi della sessione del 28/10 sera e correzioni — leggere per primo
+## Webcam ferma su «Cerco la mano…» — corretta (28/10 sera, leggere per primo)
+
+Sul pacchetto 2026-10-28.4 l'utente ha mandato uno screenshot: webcam accesa, mano in vista, «Cerco la mano…». Causa
+vera (riprodotta con una webcam finta in Chromium): dal commit `e4af4ce` i modelli MediaPipe partivano in un worker, dove
+non si inizializzano mai (`importScripts` dei file `.tflite`). Commit `b167fff`: modelli nella pagina (worker solo con
+`?webcamWorker=1`). Pacchetto **LAN 2026-10-28.5** (SHA256 `3a8ca621…4b4693`) consegnato; dettagli in
+`docs/WORK_PROGRESS.md`. Commit `b167fff` e versione .5 **non pubblicati**: push solo se l'utente lo autorizza di nuovo.
+Prossima azione: prova del pacchetto 2026-10-28.5 su Windows con la webcam vera (mano, polso e avambraccio) e il telefono.
+
+## Analisi della sessione del 28/10 sera e correzioni
 
 L'utente ha mandato una diagnostica (Leggenda, telefono) e un video OBS con sei problemi: webcam che non rileva,
 schiacciata a rete, palla corta, pallonetto, schiacciata sulle palle alte, direzione «sempre centrale». Analisi completa
