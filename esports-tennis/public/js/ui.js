@@ -22,6 +22,7 @@ export class UI {
         <div class="banner"></div>
         <div class="popup"></div>
         <div class="hint"><span></span></div>
+        <div class="shot-type"></div>
         <div class="net-status"></div>
       </div>
       <div class="versus hidden"><div class="vs-a"></div><div class="vs-mid">VS</div><div class="vs-b"></div></div>
@@ -124,8 +125,10 @@ export class UI {
       <h2>COME SI GIOCA</h2>
       <div class="rules">
         <div><b>Corsa automatica</b><span>Il tuo giocatore corre da solo verso la palla. Tu decidi il colpo.</span></div>
-        <div><b>Scorri verso l'alto</b><span>Colpo in topspin. La direzione del dito sceglie dove va la palla (diagonale o lungolinea), la lunghezza quanto va profonda, la velocità quanto è forte.</span></div>
-        <div><b>Scorri verso il basso</b><span>Lungo: pallonetto. Corto: smorzata in back.</span></div>
+        <div><b>Il gesto è il colpo</b><span>La direzione del dito sceglie dove va la palla (diagonale o lungolinea), la lunghezza quanto va profonda. Mentre trascini vedi il mirino, la traiettoria e il nome del colpo; in rosso se finirebbe fuori.</span></div>
+        <div><b>↑ Su</b><span><i>Topspin</i>, il colpo base. Su <i>veloce e lungo</i>: <i>piatto</i>, più forte ma più rischioso. Su <i>lento</i>: <i>pallonetto</i>.</span></div>
+        <div><b>↓ Giù</b><span>Lungo: <i>tagliato</i>, basso e profondo (il rovescio tagliato è a una mano). Corto: <i>palla corta</i>, rimbalza appena oltre la rete.</span></div>
+        <div><b>Bersaglio e anello</b><span>Il bersaglio verde mostra dove rimbalzerà la palla dell'avversario. L'anello attorno al tuo giocatore si stringe e diventa verde quando è il momento giusto per scorrere.</span></div>
         <div><b>Tempismo</b><span>Scorri quando la palla sta arrivando: nell'ultimo mezzo secondo prima dell'impatto il colpo è <i>PERFETTO</i>, più preciso e veloce. Troppo presto sbagli di più; se non scorri, non colpisci.</span></div>
         <div><b>Servizio</b><span>Scorri verso l'alto: a destra o a sinistra per angolare, più veloce per servire più forte (ma rischi il fallo).</span></div>
         <div><b>Rete</b><span>Se sei vicino alla rete il giocatore gioca la volée; sui pallonetti alti schiaccia.</span></div>
@@ -175,6 +178,16 @@ export class UI {
     if (!text) { e.classList.remove('show'); return; }
     $('span', e).textContent = text;
     e.dataset.kind = kind || '';
+    e.classList.add('show');
+  }
+
+  // Nome del colpo che si sta preparando col gesto (colorato come il mirino).
+  shotType(name, color) {
+    const e = $('.shot-type', this.root);
+    if (!name) { e.classList.remove('show'); return; }
+    e.textContent = name;
+    e.style.color = color;
+    e.style.borderColor = color;
     e.classList.add('show');
   }
 

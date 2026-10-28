@@ -56,16 +56,25 @@ export class Swipe {
 
 // Traduce il gesto in un colpo: obiettivo nel campo avversario in coordinate "di chi colpisce"
 // (lateral: -1 sinistra … +1 destra; depth: metri dalla rete), tipo, potenza 0..1.
+//   su (normale)        → topspin            su veloce e lungo → piatto (più forte, più rischioso)
+//   su lento            → pallonetto         giù lungo         → tagliato (basso e profondo)
+//   giù corto           → palla corta
+export const SHOT_NAMES = { topspin: 'TOPSPIN', flat: 'PIATTO', slice: 'TAGLIO', drop: 'PALLA CORTA', lob: 'PALLONETTO', volley: 'VOLÉE', smash: 'SMASH', serve: 'SERVIZIO' };
+export const SHOT_COLORS = { topspin: '#d8f23a', flat: '#ff9a2e', slice: '#38e1ff', drop: '#ff6fd0', lob: '#b99bff', serve: '#ffffff' };
+
 export function swipeToShot(g, { serve = false } = {}) {
   const ang = Math.atan2(g.dx, g.up ? -g.dy : g.dy); // 0 = dritto avanti
   const lateral = Math.max(-1, Math.min(1, ang / 0.62));
   const power = Math.max(0, Math.min(1, (g.speed - 0.8) / 2.6));
+  const deep = Math.min(1, g.len / 0.42);
   if (serve) {
     return { kind: 'serve', spinKind: 'flat', lateral, depth: 5.2 + Math.min(1, g.len / 0.4) * 0.9, power };
   }
   if (!g.up) {
-    if (g.len < 0.13) return { kind: 'drive', spinKind: 'slice', lateral, depth: 2.6 + g.len * 8, power: 0.15 };
-    return { kind: 'drive', spinKind: 'lob', lateral, depth: 9.2 + Math.min(1, g.len / 0.4) * 1.6, power: 0.2 };
+    if (g.len < 0.16) return { kind: 'drive', spinKind: 'drop', lateral, depth: 1.7 + g.len * 9, power: 0 };
+    return { kind: 'drive', spinKind: 'slice', lateral, depth: 5.6 + deep * 5, power: Math.min(0.7, power) };
   }
-  return { kind: 'drive', spinKind: 'topspin', lateral, depth: 5.0 + Math.min(1, g.len / 0.42) * 5.8, power };
+  if (g.speed < 1.0 && g.len > 0.1) return { kind: 'drive', spinKind: 'lob', lateral, depth: 9.2 + deep * 1.6, power: 0.2 };
+  if (g.speed > 3.4 && g.len > 0.28) return { kind: 'drive', spinKind: 'flat', lateral, depth: 6.2 + deep * 4.6, power: Math.max(0.6, power) };
+  return { kind: 'drive', spinKind: 'topspin', lateral, depth: 5.0 + deep * 5.8, power };
 }

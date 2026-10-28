@@ -20,9 +20,12 @@ export function cpuShot(level, rng, { oppLateral = 0, oppDepth = 12, contactHeig
   let lateral = away * (0.35 + rng() * 0.6);
   if (rng() < 0.25) lateral = (rng() - 0.5) * 0.6;
   let spinKind = 'topspin', depth = 7.5 + rng() * 3, power = Math.min(1, L.power + (rng() - 0.4) * 0.35);
-  if (isVolley) { depth = 6 + rng() * 4; power = 0.5 + rng() * 0.3; }
-  else if (oppDepth < 7 && rng() < 0.45) { spinKind = 'lob'; depth = 9.5 + rng() * 1.2; power = 0.2; } // avversario a rete: pallonetto
-  else if (oppDepth > 13 && rng() < 0.12 * (0.5 + L.aggress)) { spinKind = 'slice'; depth = 2.8 + rng() * 1.2; power = 0.15; } // avversario lontano: smorzata
-  else if (contactHeight < 0.55 && rng() < 0.5) { spinKind = 'slice'; depth = 7 + rng() * 2.5; power = 0.3; }
+  const r = rng();
+  if (isVolley) { depth = 6 + rng() * 4; power = 0.5 + rng() * 0.3; if (oppDepth > 12 && r < 0.3) { spinKind = 'drop'; depth = 1.8 + rng(); } }
+  else if (oppDepth < 7 && r < 0.45) { spinKind = 'lob'; depth = 9.5 + rng() * 1.2; power = 0.2; } // avversario a rete: pallonetto
+  else if (oppDepth > 13 && r < 0.14 * (0.5 + L.aggress)) { spinKind = 'drop'; depth = 2 + rng() * 1.2; power = 0; } // avversario lontano: palla corta
+  else if (contactHeight < 0.6 && r < 0.55) { spinKind = 'slice'; depth = 7 + rng() * 2.5; power = 0.35; } // palla bassa: tagliato
+  else if (r > 1 - 0.18 * L.aggress && contactHeight > 0.8) { spinKind = 'flat'; depth = 8 + rng() * 2.2; power = 0.75 + rng() * 0.25; } // palla comoda: piatto
+  else if (r < 0.12) { spinKind = 'slice'; depth = 7.5 + rng() * 2.5; power = 0.4; }
   return { kind: isVolley ? 'volley' : 'drive', spinKind, lateral, depth, power, sigma: L.sigma };
 }

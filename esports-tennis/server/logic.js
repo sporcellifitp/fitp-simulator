@@ -104,7 +104,7 @@ function callout(s) {
 export const meta = { game: 'SuperTennis Arena', minPlayers: 2, maxPlayers: 2 };
 
 const KINDS = ['serve', 'drive', 'volley', 'smash'];
-const SPINS = ['flat', 'topspin', 'slice', 'lob'];
+const SPINS = ['flat', 'topspin', 'slice', 'drop', 'lob'];
 const REASONS = ['out', 'net', 'winner', 'ace', 'miss'];
 
 export function setup(players) {

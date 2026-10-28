@@ -36,9 +36,11 @@ export function stepBall(b, dt = DT) {
   if (b.p[1] < BALL_R && b.v[1] < 0) {
     b.p[1] = BALL_R;
     const vin = -b.v[1];
-    b.v[1] = vin * 0.74;
-    // attrito orizzontale: il topspin accelera in avanti, il backspin frena
-    const keep = 0.72 + Math.max(-0.12, Math.min(0.1, b.spin * 0.04));
+    // il topspin rimbalza più alto e "scappa" in avanti; il back resta basso e si frena (palla corta)
+    // back molto forte (palla corta): la palla si "siede" e quasi si ferma
+    const heavyBack = b.spin < -1.4;
+    b.v[1] = vin * (heavyBack ? 0.5 : 0.74 + Math.max(-0.26, Math.min(0.07, b.spin * 0.12)));
+    const keep = heavyBack ? 0.3 : 0.72 + Math.max(-0.3, Math.min(0.1, b.spin * 0.08));
     b.v[0] *= keep; b.v[2] *= keep;
     b.spin *= 0.4;
     event = { type: 'bounce', x: b.p[0], z: b.p[2], vin };

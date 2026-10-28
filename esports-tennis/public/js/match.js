@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import * as P from './physics.js';
 import * as R from './rules.js';
 import { Player } from './player.js';
-import { swipeToShot } from './input.js';
+import { swipeToShot, SHOT_NAMES, SHOT_COLORS } from './input.js';
+import { BallFx, Markers } from './fx.js';
 import { LEVELS, cpuShot } from './ai.js';
 
 const SIDE = [1, -1];
@@ -39,19 +40,8 @@ export class Match {
 
     // pallina, ombra, scia e indicatori
     this.ball = { p: [0, -5, 0], v: [0, 0, 0], spin: 0 };
-    this.ballMesh = new THREE.Mesh(new THREE.SphereGeometry(P.BALL_R * 1.25, 14, 10), new THREE.MeshStandardMaterial({ color: '#e4ff3a', emissive: '#6a7a00', roughness: 0.6 }));
-    this.ballMesh.castShadow = true;
-    this.shadow = new THREE.Mesh(new THREE.CircleGeometry(0.06, 16), new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.35, depthWrite: false }));
-    this.shadow.rotation.x = -Math.PI / 2;
-    const trailGeo = new THREE.BufferGeometry();
-    trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 14), 3));
-    this.trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: '#f6ffb0', transparent: true, opacity: 0.55 }));
-    this.trail.frustumCulled = false;
-    this.trailPts = [];
-    this.marker = this.makeRing('#ffffff', 0.32);
-    this.aimMarker = this.makeRing('#ffd23a', 0.42);
-    this.bounceMark = this.makeRing('#ffffff', 0.12, true);
-    this.scene.add(this.ballMesh, this.shadow, this.trail);
+    this.fx = new BallFx(this.scene, this.cam.cam);
+    this.marks = new Markers(this.scene);
 
     this.now = 0;
     this.state = 'intro';
@@ -70,20 +60,11 @@ export class Match {
     this.swipe.onRelease = (g) => this.onSwipe(g);
   }
 
-  makeRing(color, r, filled = false) {
-    const g = filled ? new THREE.CircleGeometry(r, 24) : new THREE.RingGeometry(r * 0.78, r, 32);
-    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false }));
-    m.rotation.x = -Math.PI / 2;
-    m.position.y = 0.012;
-    m.visible = false;
-    this.scene.add(m);
-    return m;
-  }
-
   dispose() {
     this.disposed = true;
     for (const p of this.players) this.scene.remove(p.root, p.racket);
-    this.scene.remove(this.ballMesh, this.shadow, this.trail, this.marker, this.aimMarker, this.bounceMark);
+    this.fx.dispose(this.scene);
+    this.marks.dispose();
     this.swipe.onMove = this.swipe.onRelease = null;
   }
 
@@ -119,8 +100,8 @@ export class Match {
     this.rally = null;
     this.plan = null;
     this.pendingSwipe = null;
-    this.marker.visible = this.aimMarker.visible = false;
-    this.trailPts = [];
+    this.marks.hideAll();
+    this.fx.clearTrail();
     this.setState('serve-wait');
     this.serveWaitUntil = this.now + (this.ctrl[server] === 'cpu' ? 1.1 + this.rng() * 0.6 : 0);
     if (this.ctrl[server] === 'human') this.ui.hint(this.faults ? 'Seconda di servizio: scorri verso l\'alto' : 'Scorri verso l\'alto per servire', 'serve');
@@ -155,31 +136,41 @@ export class Match {
 
   // ── colpo: calcola la velocità della palla e la lancia ────────────────────
   // shot: {kind, spinKind, lateral, depth, power, sigma?}, quality: 'perfect'|'good'|'early'|'late'
-  executeHit(seat, shot, quality = 'good') {
+  // Bersaglio, velocità ed effetto di un colpo (senza l'errore di esecuzione).
+  shotParams(seat, shot) {
     const pl = this.players[seat];
     const s = SIDE[seat];
-    const p0 = this.ball.p.slice();
-    let tx, tz, speed, spin, minClear = 0.3;
-    const isServe = shot.kind === 'serve';
-    if (isServe) {
+    let tx, tz, speed, spin, minClear = 0.3, risk = 0;
+    if (shot.kind === 'serve') {
       [tx, tz] = this.serveTarget(shot, seat);
       const second = this.faults > 0;
       speed = second ? 29 + shot.power * 6 : 36 + shot.power * 15;
       spin = second ? 1.4 : 0.25;
       minClear = second ? 0.35 : 0.05;
-    } else {
-      const rightX = pl.right.x;
-      tx = rightX * shot.lateral * 3.55;
-      tz = -s * shot.depth;
-      if (shot.spinKind === 'lob') { speed = 12 + shot.power * 2; spin = 0.4; minClear = 2.6; }
-      else if (shot.spinKind === 'slice') { speed = shot.depth < 4.5 ? 10.5 : 17 + shot.power * 4; spin = -1.1; minClear = shot.depth < 4.5 ? 0.25 : 0.35; }
-      else if (shot.kind === 'smash') { speed = 30 + shot.power * 8; spin = 0.2; minClear = 0.1; }
-      else if (shot.kind === 'volley') { speed = 15 + shot.power * 8; spin = 0.3; minClear = 0.15; }
-      else { speed = 19 + shot.power * 13; spin = 0.9 + shot.power * 0.5; }
+      return { tx, tz, speed, spin, minClear, risk };
     }
-    // precisione: tempismo, potenza, corsa
+    tx = pl.right.x * shot.lateral * 3.55;
+    tz = -s * shot.depth;
+    const k = shot.spinKind;
+    if (shot.kind === 'smash') { speed = 30 + shot.power * 8; spin = 0.2; minClear = 0.1; }
+    else if (k === 'lob') { speed = 12 + shot.power * 2; spin = 0.4; minClear = 2.6; }
+    else if (k === 'drop') { speed = shot.kind === 'volley' ? 7 : Math.abs(this.ball.p[2]) > 8 ? 11 : 8.5; spin = -1.7; minClear = 0.18; tz = -s * Math.min(shot.depth, 3.4); risk = 0.1; }
+    else if (k === 'slice') { speed = 16 + shot.power * 5; spin = -1.0; minClear = 0.22; }
+    else if (shot.kind === 'volley') { speed = 15 + shot.power * 8; spin = 0.3; minClear = 0.15; }
+    else if (k === 'flat') { speed = 26 + shot.power * 12; spin = 0.15; minClear = 0.12; risk = 0.18; }
+    else { speed = 19 + shot.power * 13; spin = 0.9 + shot.power * 0.5; }
+    return { tx, tz, speed, spin, minClear, risk };
+  }
+
+  executeHit(seat, shot, quality = 'good') {
+    const pl = this.players[seat];
+    const s = SIDE[seat];
+    const p0 = this.ball.p.slice();
+    const isServe = shot.kind === 'serve';
+    let { tx, tz, speed, spin, minClear, risk } = this.shotParams(seat, shot);
+    // precisione: tempismo, potenza, corsa, colpo rischioso
     let sigma = shot.sigma ?? (quality === 'perfect' ? 0.16 : quality === 'good' ? 0.34 : quality === 'early' ? 0.7 : 0.95);
-    sigma += shot.power * 0.22 + Math.min(1, pl.vel.length() / 5) * 0.25;
+    sigma += shot.power * 0.22 + Math.min(1, pl.vel.length() / 5) * 0.25 + risk;
     if (isServe) sigma = shot.sigma ?? (this.faults > 0 ? 0.18 : 0.22 + shot.power * 0.38);
     if (quality === 'perfect') speed *= 1.08;
     if (quality === 'late') tx += pl.right.x * -1.2; // in ritardo la palla scappa verso il lato del colpitore
@@ -202,9 +193,23 @@ export class Match {
     this.arena.setBoards?.(kmh, this.scoreBoardText());
     this.ui.speed(kmh, seat === this.me);
     this.audio.hit(Math.min(1, kmh / 160));
-    if (quality === 'perfect' && seat === this.me) this.ui.popup('PERFETTO!', 'gold');
-    else if (quality === 'early' && seat === this.me) this.ui.popup('IN ANTICIPO', 'bad');
-    else if (quality === 'late' && seat === this.me) this.ui.popup('IN RITARDO', 'bad');
+    const name = SHOT_NAMES[shot.kind === 'drive' ? shot.spinKind : shot.kind === 'volley' && shot.spinKind === 'drop' ? 'drop' : shot.kind];
+    if (seat === this.me && !serve) {
+      const q = quality === 'perfect' ? ' · PERFETTO!' : quality === 'early' ? ' · IN ANTICIPO' : quality === 'late' ? ' · IN RITARDO' : '';
+      this.ui.popup(`${name}${q}`, quality === 'perfect' ? 'gold' : quality === 'good' ? '' : 'bad');
+    } else if (seat !== this.me && !serve && (shot.spinKind === 'drop' || shot.spinKind === 'lob' || shot.kind === 'smash')) {
+      this.ui.popup(name, 'bad'); // avviso dei colpi che costringono a correre
+    }
+    this.players[other(seat)].splitStep(this.now);
+    this.fx.clearTrail();
+    this.marks.hideTiming();
+    if (seat === this.me) {
+      const pr = P.predict(this.ball, 4, 2);
+      if (pr.firstBounce && !pr.net) {
+        const inside = serve ? P.inServiceBox(pr.firstBounce.x, pr.firstBounce.z, SIDE[other(seat)], this.serveInfo.box) : P.inCourt(pr.firstBounce.x, pr.firstBounce.z, SIDE[other(seat)]);
+        this.marks.showOutgoing(pr.firstBounce.x, pr.firstBounce.z, inside);
+      }
+    }
     if (kmh > 150 && !serve) this.cam.shake = 0.6;
     // online: comunico il colpo
     if (this.mode === 'online' && seat === this.me && !remote) {
@@ -220,7 +225,10 @@ export class Match {
     const s = SIDE[seat];
     const pred = P.predict(this.ball, 5, 1);
     this.pred = pred;
-    if (pred.firstBounce) { this.marker.position.set(pred.firstBounce.x, 0.012, pred.firstBounce.z); this.marker.visible = seat === this.me; }
+    if (seat === this.me) {
+      this.marks.hideOutgoing();
+      if (pred.firstBounce && !pred.net) this.marks.showLanding(pred.firstBounce.x, pred.firstBounce.z, this.now + pred.firstBounce.t, this.now);
+    }
     const nearNet = s * pl.pos.z < 7.5;
     const cands = [];
     for (const pt of pred.pts) {
@@ -263,7 +271,10 @@ export class Match {
     const atNet = hs * hitter.pos.z < 7.5;
     hitter.moveTo(THREE.MathUtils.clamp(-contact.x * 0.25, -1.5, 1.5) * 0.6, hs * (atNet ? Math.max(2.5, hs * hitter.pos.z) : BASE_Z + 0.9));
     if (this.ctrl[seat] === 'cpu') this.cpuDecide();
-    if (this.ctrl[seat] === 'human') this.ui.hint(this.rally.serve ? 'Scorri per rispondere' : null, 'hit');
+    if (this.ctrl[seat] === 'human') {
+      this.ui.hint(this.rally.serve ? 'Scorri per rispondere' : null, 'hit');
+      this.marks.showTiming(pl, this.plan.t);
+    }
   }
 
   // Dove mettersi per colpire la palla nel punto `p`: di fianco (dritto o rovescio) e un passo dietro.
@@ -294,25 +305,57 @@ export class Match {
   }
 
   // ── gesto del giocatore ──────────────────────────────────────────────────
+  // Il colpo che il gesto produrrebbe adesso (per la mira), adattato a volée e smash.
+  shotFromGesture(g) {
+    const shot = swipeToShot(g);
+    const plan = this.plan;
+    if (plan?.kind === 'volley') shot.kind = 'volley';
+    if (plan?.kind === 'smash') { shot.kind = 'smash'; shot.spinKind = 'flat'; }
+    return shot;
+  }
+
   onSwipeMove(g) {
-    if (!g) { this.aimMarker.visible = false; return; }
-    const me = this.players[this.me];
+    if (!g) { this.marks.hideAim(); this.ui.shotType(null); return; }
+    let shot = null, from = null;
     if (this.state === 'serve-wait' && this.serveInfo?.server === this.me) {
-      const shot = swipeToShot(g, { serve: true });
-      const [x, z] = this.serveTarget(shot, this.me);
-      this.aimMarker.position.set(x, 0.013, z);
-      this.aimMarker.visible = g.up;
+      if (!g.up) { this.marks.hideAim(); this.ui.shotType(null); return; }
+      shot = swipeToShot(g, { serve: true });
+      from = this.players[this.me].toWorld(new THREE.Vector3(0.2, 2.42, 0.35));
+    } else if (this.state === 'rally' && this.plan?.seat === this.me && !this.plan.swipe && !this.plan.none) {
+      shot = this.shotFromGesture(g);
+      from = this.plan.contact;
+    }
+    if (!shot) return;
+    const key = shot.kind === 'drive' ? shot.spinKind : shot.kind === 'volley' && shot.spinKind === 'drop' ? 'drop' : shot.kind;
+    const color = SHOT_COLORS[key] || '#d8f23a';
+    this.ui.shotType(SHOT_NAMES[key], color);
+    // traiettoria prevista (al massimo ~16 volte al secondo)
+    if (this.now - (this.aimT || 0) < 0.06 && this.aimLast) {
+      const a = this.aimLast;
+      this.marks.showAim(a.x, a.z, color, a.inside, a.path);
       return;
     }
-    if (this.state === 'rally' && this.plan?.seat === this.me && !this.plan.swipe) {
-      const shot = swipeToShot(g);
-      this.aimMarker.position.set(me.right.x * shot.lateral * 3.55, 0.013, -SIDE[this.me] * shot.depth);
-      this.aimMarker.visible = true;
+    this.aimT = this.now;
+    const pr = this.shotParams(this.me, shot);
+    const p0 = [from.x, from.y, from.z];
+    const sol = P.solveShot(p0, pr.tx, pr.tz, pr.speed, pr.spin, pr.minClear);
+    let path = null, x = pr.tx, z = pr.tz;
+    if (sol) {
+      const tr = P.predict({ p: p0, v: sol.v, spin: sol.spin }, 3, 3);
+      path = [];
+      for (const pt of tr.pts) { path.push(pt.p); if (pt.bounces > 0) break; }
+      if (tr.firstBounce) { x = tr.firstBounce.x; z = tr.firstBounce.z; }
     }
+    const opp = SIDE[other(this.me)];
+    const inside = shot.kind === 'serve' ? P.inServiceBox(x, z, opp, this.serveInfo.box) : P.inCourt(x, z, opp);
+    this.aimLast = { x, z, inside, path };
+    this.marks.showAim(x, z, color, inside, path);
   }
 
   onSwipe(g) {
-    this.aimMarker.visible = false;
+    this.marks.hideAim();
+    this.ui.shotType(null);
+    this.aimLast = null;
     if (this.state === 'serve-wait' && this.serveInfo?.server === this.me) {
       if (!g.up) return;
       this.beginServe(swipeToShot(g, { serve: true }));
@@ -320,9 +363,7 @@ export class Match {
     }
     const plan = this.plan;
     if (this.state !== 'rally' || !plan || plan.seat !== this.me || plan.swipe || plan.done) return;
-    const shot = swipeToShot(g);
-    if (plan.kind === 'volley' && shot.spinKind === 'topspin') shot.kind = 'volley';
-    if (plan.kind === 'smash') { shot.kind = 'smash'; shot.spinKind = 'flat'; }
+    const shot = this.shotFromGesture(g);
     const early = plan.t - this.now;
     plan.swipe = { shot, at: this.now, early };
     const me = this.players[this.me];
@@ -330,6 +371,7 @@ export class Match {
     me.prepare(shot.kind === 'smash' ? 'smash' : shot.kind === 'volley' ? 'volley' : 'drive', plan.contact, plan.t, this.now, { aim, spinKind: shot.spinKind, side: plan.side });
     plan.prepared = true;
     this.ui.hint(null);
+    this.marks.hideTiming();
   }
 
   // ── ciclo principale ─────────────────────────────────────────────────────
@@ -383,7 +425,8 @@ export class Match {
       }
       p.update(dt, this.now);
     }
-    this.renderBall();
+    this.fx.update(this.ball, dt, this.state === 'rally');
+    this.marks.update(dt, this.now);
     this.cam.update(dt, this.players[this.me], this.state === 'rally' ? this.ball : null);
     if (this.mode === 'online') this.net.tick(dt, this.players[this.me]);
   }
@@ -400,8 +443,9 @@ export class Match {
       }
       if (this.ctrl[plan.seat] === 'human' && !plan.swipe && window.__autoplay && plan.t - this.now < 0.35) {
         // prove automatiche: colpo casuale al momento giusto
-        const r = this.rng();
-        this.onSwipe({ dx: (r - 0.5) * 0.5, dy: -0.25 - this.rng() * 0.2, len: 0.35, dur: 0.15, speed: 1.5 + this.rng() * 2, up: true });
+        const r = this.rng(), kind = this.rng(), dx = (r - 0.5) * 0.4;
+        const g = kind < 0.45 ? { dy: -0.3, speed: 2 } : kind < 0.6 ? { dy: -0.38, speed: 4 } : kind < 0.75 ? { dy: 0.3, speed: 2 } : kind < 0.9 ? { dy: 0.1, speed: 1.5 } : { dy: -0.25, speed: 0.7 };
+        this.onSwipe({ dx, dy: g.dy, len: Math.hypot(dx, g.dy), dur: 0.15, speed: g.speed, up: g.dy < 0 });
       }
       if (this.ctrl[plan.seat] === 'human' && !plan.prepared && plan.t - this.now < 0.55) {
         // preparazione automatica (apertura); il gesto decide il colpo
@@ -443,8 +487,7 @@ export class Match {
 
   physStep(h) {
     const ev = P.stepBall(this.ball, h);
-    this.trailPts.push(this.ball.p.slice());
-    if (this.trailPts.length > 14) this.trailPts.shift();
+    this.fx.push(this.ball.p);
     if (!ev) {
       // palla uscita dall'arena dopo un rimbalzo valido
       if (this.rally.bounces >= 1 && (Math.abs(this.ball.p[2]) > 18 || Math.abs(this.ball.p[0]) > 10)) this.decide(this.rally.hitter, 'winner');
@@ -457,16 +500,15 @@ export class Match {
     }
     // rimbalzo
     this.audio.bounce();
-    this.bounceMark.position.set(ev.x, 0.012, ev.z);
-    this.bounceMark.visible = true;
-    this.bounceMarkT = this.now;
     const r = this.rally;
     const defender = other(r.hitter);
     r.bounces++;
     if (r.bounces === 1) {
       const ok = r.serve ? P.inServiceBox(ev.x, ev.z, SIDE[defender], this.serveInfo.box) : P.inCourt(ev.x, ev.z, SIDE[defender]);
+      this.marks.markBounce(ev.x, ev.z, ok);
+      this.marks.hideLanding();
+      this.marks.hideOutgoing();
       if (!ok) this.decide(defender, r.serve ? 'fault' : 'out');
-      else this.marker.visible = false;
     } else if (r.bounces === 2) {
       this.decide(r.hitter, r.serve ? 'ace' : 'winner');
     }
@@ -536,7 +578,9 @@ export class Match {
     const prev = this.score;
     this.score = newScore || R.pointWon(this.score, winner);
     this.pointWinner = winner;
-    this.marker.visible = false;
+    this.marks.hideLanding();
+    this.marks.hideTiming();
+    this.marks.hideOutgoing();
     const mine = winner === this.me;
     const txt = {
       ace: 'ACE!', winner: mine ? 'VINCENTE!' : 'PUNTO AVVERSARIO', out: 'FUORI', net: 'RETE', double: 'DOPPIO FALLO',
@@ -624,26 +668,6 @@ export class Match {
   onRemotePos(m) { this.remotePos = m; }
 
   // ── disegno ──────────────────────────────────────────────────────────────
-  renderBall() {
-    const [x, y, z] = this.ball.p;
-    this.ballMesh.position.set(x, y, z);
-    this.ballMesh.visible = y > -1;
-    this.shadow.position.set(x, 0.011, z);
-    this.shadow.visible = this.ballMesh.visible;
-    const sc = Math.max(0.4, 1.4 - y * 0.25);
-    this.shadow.scale.setScalar(sc);
-    this.shadow.material.opacity = Math.max(0.12, 0.42 - y * 0.08);
-    const arr = this.trail.geometry.attributes.position.array;
-    const pts = this.state === 'rally' ? this.trailPts : [];
-    for (let i = 0; i < 14; i++) {
-      const p = pts[Math.max(0, pts.length - 14 + i)] || this.ball.p;
-      arr[i * 3] = p[0]; arr[i * 3 + 1] = p[1]; arr[i * 3 + 2] = p[2];
-    }
-    this.trail.geometry.attributes.position.needsUpdate = true;
-    if (this.bounceMark.visible && this.now - this.bounceMarkT > 0.8) this.bounceMark.visible = false;
-    if (this.bounceMark.visible) this.bounceMark.material.opacity = 0.8 * (1 - (this.now - this.bounceMarkT) / 0.8);
-  }
-
   scoreBoardText() {
     const g = this.score.games;
     return `${g[0]}-${g[1]}`;

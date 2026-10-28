@@ -31,7 +31,10 @@ export class GameCamera {
     this.t += dt;
     const wantX = THREE.MathUtils.clamp(me.pos.x * 0.6 + (ball ? ball.p[0] * 0.15 : 0), -3.2, 3.2);
     this.x += (wantX - this.x) * Math.min(1, dt * 3.2);
-    const baseZ = s * (11.885 + f.back + Math.max(0, s * me.pos.z - 12.5) * 0.4);
+    // la telecamera segue anche la profondità del giocatore (quando arretra non esce dallo schermo)
+    const depth = THREE.MathUtils.clamp(s * me.pos.z - 12.2, -4, 5);
+    this.depth = (this.depth ?? depth) + (depth - (this.depth ?? depth)) * Math.min(1, dt * 2.5);
+    const baseZ = s * (11.885 + f.back + this.depth * (this.depth > 0 ? 0.9 : 0.55));
     let px = this.x, py = f.h, pz = baseZ;
     let lx = this.x * 0.45, ly = f.lookY, lz = -s * Math.abs(f.lookZ);
     if (this.mode === 'intro') {

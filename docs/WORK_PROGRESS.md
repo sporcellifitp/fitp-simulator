@@ -70,3 +70,15 @@ di tennis per mobile. Branch di sessione: `claude/higgsfield-connector-modify-gp
       ora la pagina è pubblica. Prova sul sito vero con due browser: stanza creata, nomi sincronizzati, partita avviata
 - [ ] Prova su telefoni reali (mai fatta: solo Chromium software, ~7 fps, non rappresentativo delle prestazioni)
 - [ ] Logo SuperTennis ufficiale da sostituire a quello ricreato
+
+### Seconda richiesta (28/10/2026): movimenti, colpi, indicatori, palla
+- [x] Movimenti: passi procedurali con piedi piantati (IK gambe), passi laterali verso la rete, corsa con clip solo
+      sugli spostamenti lunghi, split step quando colpisce l'avversario, passo d'appoggio (piede avanti) nei colpi,
+      anche che ruotano, busto in avanti e piegato verso la palla, mano su spline (`public/js/player.js`)
+- [x] Colpi: piatto, tagliato (rovescio a una mano), palla corta, oltre a topspin, pallonetto, volée, smash;
+      rimbalzo che dipende dall'effetto (`physics.js`); gesti in `input.js`; CPU in `ai.js`; stanza (`SPINS`)
+- [x] Indicatori (`fx.js`): bersaglio animato sul rimbalzo in arrivo con anello che si chiude, anello del tempismo
+      attorno al giocatore, mirino colorato + traiettoria a puntini + nome del colpo (rosso se fuori), segno dove
+      cadrà il proprio colpo
+- [x] Palla: più grande con la distanza, contorno scuro, alone, scia a nastro
+- Test: `npm test` 14/14; partita automatica e online locale senza errori. Non provato su telefono reale.
