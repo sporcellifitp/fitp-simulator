@@ -26,7 +26,7 @@ import { VIBRATION } from './natpf_shot_feedback.js';
 import { swingPower } from './natpf_skill.js';
 import { classifyPhoneShot, aimFromSignals, ENGINE_SHOT, liftBaselineFromProfile, headBaselineFromProfile, resolveLiftBaseline, createLiftModel, createFaceModel, createAimModel, centeredFace, learnSpecials } from './natpf_gestures.js';
 import { calReduce, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
-import { readHand, normalizeHand } from './natpf_hand.js';
+import { readHand, readP2Hand, writeP2Hand, normalizeHand } from './natpf_hand.js';
 import { strokeIntent, shapeDistinct, strokePower } from './natpf_stroke_intent.js';
 import { weakSwing } from './natpf_impact.js';
 
@@ -157,8 +157,8 @@ const finiteOr = (v, d = 0) => (Number.isFinite(v) ? v : d);
 export const DISPLAY_LAG_KEY = 'natpf.displayLagMs';
 export function readDisplayLagMs(){ try { const v = +localStorage.getItem(DISPLAY_LAG_KEY); return Number.isFinite(v) ? Math.max(0, Math.min(200, Math.round(v))) : 0; } catch { return 0; } }
 export function writeDisplayLagMs(ms){ const v = Math.max(0, Math.min(200, Math.round(+ms || 0))); try { localStorage.setItem(DISPLAY_LAG_KEY, String(v)); } catch {} return v; }
-function readSpecials(){ try { return JSON.parse(localStorage.getItem(SPECIALS_KEY) || '{}') || {}; } catch { return {}; } }
-function writeSpecials(v){ try { localStorage.setItem(SPECIALS_KEY, JSON.stringify(v)); } catch {} }
+function readSpecials(key = SPECIALS_KEY){ try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch { return {}; } }
+function writeSpecials(v, key = SPECIALS_KEY){ try { localStorage.setItem(key, JSON.stringify(v)); } catch {} }
 // displayLag (s): ritardo dello schermo misurato (impostazione della diagnostica, 0 se non misurato). Chi gioca colpisce
 // la palla che vede: con uno schermo in ritardo ogni colpo risulterebbe in ritardo di altrettanto
 // own: prototipi dei propri gesti per i telefoni con la forma (ownShapes); personal: soglie personali della tabella di prima
@@ -237,12 +237,16 @@ export function racketTiltFromRotation(rotation, confidence = 1){
   return { pitch: euler.x*deg, roll: euler.y*deg, yaw: euler.z*deg };
 }
 
+// Le funzioni qui sotto guardano la partita dal lato di chi tiene il telefono: role 'p1' (player) o 'p2' (opponent),
+// predefinito il ruolo di questo computer. Nello split screen (natpf_split.js) il secondo telefono è il P2 locale.
+const mineOf = (engine, role = engine.playerRole) => (role === 'p2' ? 'opponent' : 'player');
+const actorOf = (engine, role = engine.playerRole) => (role === 'p2' ? engine.opponent : engine.player);
 // Fase di gioco mandata al telefono: decide se e come il telefono riconosce i gesti (vedi racchetta.js).
 function readGrip(){ try { return globalThis.localStorage?.getItem(GRIP_STORAGE_KEY); } catch { return null; } }
 function writeGrip(g){ try { globalThis.localStorage?.setItem(GRIP_STORAGE_KEY, g); } catch {} }
 
-export function phoneGamePhase(engine){
-  const local = engine.playerRole === 'p2' ? 'opponent' : 'player';
+export function phoneGamePhase(engine, role = engine.playerRole){
+  const local = mineOf(engine, role);
   switch (engine.phase){
     case 'SERVE_STANCE': return engine.score.server === local ? 'serve' : 'play';
     case 'SERVE_TOSS': return engine.score.server === local ? 'toss' : 'play';
@@ -255,14 +259,14 @@ export function phoneGamePhase(engine){
 // Palla da schiacciata: alta sopra la testa del giocatore locale, o in arrivo e ancora in salita sopra i 2 m
 // Palla alta per chi gioca qui: alta E vicina (entro 6 m). Prima contava solo l'altezza: a metà volo la palla è sempre
 // alta e un dritto anticipato con la mano che scende diventava una schiacciata (nelle registrazioni succedeva).
-export function ballIsHigh(engine){
+export function ballIsHigh(engine, role = engine.playerRole){
   const b = engine.ball; if (!b || !b.inPlay) return false;
-  const me = engine.playerRole === 'p2' ? engine.opponent : engine.player;
+  const me = actorOf(engine, role);
   if (me?.pos && Number.isFinite(b.pos?.z) && Math.abs(b.pos.z - me.pos.z) > 6) return false;
   return b.pos.y > 1.7 || (b.pos.y > 1.2 && b.targetLanding && Math.abs(b.vel.y) < 2 && b.pos.y > 1.5);
 }
-export function ballMovingAway(engine){
-  const b = engine.ball, mine = engine.playerRole === 'p2' ? 'opponent' : 'player';
+export function ballMovingAway(engine, role = engine.playerRole){
+  const b = engine.ball, mine = mineOf(engine, role);
   return engine.phase === 'RALLY' && !!b?.inPlay && b.lastHitter === mine;
 }
 // Lato del colpo dal verso del gesto (+1 da destra a sinistra = dritto del destro)
@@ -272,37 +276,42 @@ export const strokeSide = (dir, hand = 'right') => { const fh = hand === 'left' 
 // palla «diretta»: entro 0,6 m dal corpo si gioca sia di dritto sia di rovescio, il telefono non deve aspettarsi un
 // verso (prima bastavano 0,25 m: il rovescio su una palla appena a destra veniva trattenuto come preparazione)
 export const BODY_ZONE = .6;
-function ballRel(engine){
-  const b = engine.ball, p2 = engine.playerRole === 'p2', me = p2 ? engine.opponent : engine.player;
+function ballRel(engine, role = engine.playerRole){
+  const b = engine.ball, p2 = role === 'p2', me = actorOf(engine, role);
   if (!b || !me) return null;
   const x = Number.isFinite(b.targetLanding?.x) ? b.targetLanding.x : b.pos.x;
   return (x - me.pos.x)*(p2 ? -1 : 1);                                         // + alla sua destra
 }
 // lato del colpo dalla posizione della palla, per i gesti senza verso orizzontale (verticali): prima lo decideva la
 // mira nel motore, e un colpo mirato verso sinistra diventava sempre un dritto
-export function sideFromBall(engine, hand = 'right'){
-  const rel = ballRel(engine);
+export function sideFromBall(engine, hand = 'right', role = engine.playerRole){
+  const rel = ballRel(engine, role);
   if (rel == null) return null;
   return (rel >= 0) !== (hand === 'left') ? 'forehand' : 'backhand';
 }
-export function expectedStrokeDir(engine, hand = 'right'){
-  const b = engine.ball, p2 = engine.playerRole === 'p2', me = p2 ? engine.opponent : engine.player;
+export function expectedStrokeDir(engine, hand = 'right', role = engine.playerRole){
+  const b = engine.ball, p2 = role === 'p2', me = actorOf(engine, role);
   if (!b || !me || !b.inPlay || engine.phase !== 'RALLY' || b.lastHitter === (p2 ? 'opponent' : 'player')) return 0;
   const toward = p2 ? b.vel.z < -.5 : b.vel.z > .5;
   if (!toward) return 0;
-  const rel = ballRel(engine);
+  const rel = ballRel(engine, role);
   if (Math.abs(rel) < BODY_ZONE) return 0;
   const fh = hand === 'left' ? -1 : 1;                                        // verso del dritto
   return (rel > 0) !== (hand === 'left') ? fh : -fh;
 }
 
 export class NatpfPhoneRacket {
-  constructor(engine){
+  // role: null = il giocatore di questo computer (P1, o P2 sul computer del Player 2); 'p2' = Player 2 locale dello
+  // split screen (secondo telefono sullo stesso computer): i suoi colpi vanno all'avversario come quelli del P2 in rete,
+  // e mano e gesti imparati si salvano a parte (chiavi con «.p2»)
+  constructor(engine, { role = null } = {}){
     this.engine = engine;
+    this.fixedRole = role === 'p2' ? 'p2' : null;
+    this.keySuffix = this.fixedRole ? '.p2' : '';
     this.link = null;
     // mano di chi gioca: una sola, quella del gioco (NatpfHand, salvata sul computer). Va al telefono con la configurazione
     // e la calibrazione non la cambia più (nella sessione del 22/10 il telefono era «mancino» e il gioco «destro»)
-    this.hand = readHand();
+    this.hand = this.fixedRole ? readP2Hand() : readHand();
     this.grip = normalizeGrip(readGrip());
     this.gripSent = false;
     this.listeners = new Set();
@@ -322,7 +331,7 @@ export class NatpfPhoneRacket {
     this.riseModel = createRiseModel();  // salita abituale imparata giocando, se la calibrazione non la dà
     this.typicalModel = createTypicalModel(); // colpo tipico imparato giocando (gesti deboli: natpf_impact.WEAK)
     // pallonetto e palla corta di chi gioca, imparati negli esercizi del riscaldamento (si azzerano con una nuova calibrazione)
-    this.specialSamples = readSpecials(); this.personal = learnSpecials(this.specialSamples);
+    this.specialSamples = readSpecials(SPECIALS_KEY + this.keySuffix); this.personal = learnSpecials(this.specialSamples);
     // … e con la forma del colpo (telefoni di oggi): prototipi dei propri gesti, confrontati con il proprio colpo normale
     // (in «forma», con la forza assoluta del gesto: gli esempi di prima, con la forza relativa, non si usano)
     this.shapeModel = createShapeModel(); this.ownShape = learnShapeSpecials(this.specialSamples.forma);
@@ -335,6 +344,10 @@ export class NatpfPhoneRacket {
     // anche prima di entrare in campo, così il riscaldamento parte sempre dal passo vero
     this.calView = CAL_VIEW_EMPTY;
   }
+  // ruolo di chi tiene questo telefono ('p1' o 'p2') e P2 locale (split screen: colpi all'avversario su questo computer)
+  get role(){ return this.fixedRole || this.engine.playerRole || 'p1'; }
+  get localP2(){ return this.fixedRole === 'p2' && this.engine.playerRole !== 'p2'; }
+  get actor(){ return actorOf(this.engine, this.role); }
   get connected(){ return !!this.link?.connected; }
   get ready(){ return !!this.link?.ready; }
   get state(){ return this.link?.L || { state: 'off', phone: null }; }
@@ -343,7 +356,7 @@ export class NatpfPhoneRacket {
   setHand(h){
     const next = normalizeHand(h);
     if (next === this.hand) return;
-    this.hand = next; this.gripSent = false; this._sendGrip(); this._changed();
+    this.hand = next; if (this.fixedRole) writeP2Hand(next); this.gripSent = false; this._sendGrip(); this._changed();
   }
   // mano cambiata sulla pagina del telefono: la decide il gioco (onHand la applica a NatpfHand, che la rimanda qui)
   _onPhoneHand(h){
@@ -444,18 +457,18 @@ export class NatpfPhoneRacket {
     if (I && Number.isFinite(I.rise) && Number.isFinite(I.plane) && Number.isFinite(I.shapePower)){
       const shapes = this.specialSamples.forma || (this.specialSamples.forma = {});
       shapes[kind] = [...(shapes[kind] || []), { rise: I.rise, plane: Math.abs(I.plane), power: I.shapePower }].slice(-6);
-      this.ownShape = learnShapeSpecials(shapes); writeSpecials(this.specialSamples);
+      this.ownShape = learnShapeSpecials(shapes); writeSpecials(this.specialSamples, SPECIALS_KEY + this.keySuffix);
       const own = ownShapes(this.ownShape, { rise: this.profileRise(this.hand === 'left' ? -1 : 1), normal: this.shapeModel.value });
       return { learned: true, distinct: !!own && !!own[kind] && shapeDistinct(own[kind], own.normal) };
     }
     if (!Number.isFinite(natpf.v)) return { learned: false };
     this.specialSamples[kind] = [...(this.specialSamples[kind] || []), kind === 'lob' ? natpf.v : { v: natpf.v, speed: natpf.speed }].slice(-6);
-    this.personal = learnSpecials(this.specialSamples); writeSpecials(this.specialSamples);
+    this.personal = learnSpecials(this.specialSamples); writeSpecials(this.specialSamples, SPECIALS_KEY + this.keySuffix);
     return { learned: true, distinct: Number.isFinite(kind === 'lob' ? this.personal.lob : this.personal.cut) };
   }
   // salita abituale del colpo nel verso dir (calibrazione o imparata giocando), per i prototipi
   profileRise(dir){ return habitualRise(this.profile, dir, this.riseModel); }
-  resetSpecials(){ this.specialSamples = {}; this.personal = {}; this.ownShape = {}; writeSpecials({}); }
+  resetSpecials(){ this.specialSamples = {}; this.personal = {}; this.ownShape = {}; writeSpecials({}, SPECIALS_KEY + this.keySuffix); }
   _onSwing(s){
     const mc = this.engine.motionController;
     if (!mc || !this.ready){ for (const fn of this.dropListeners) try { fn('telefono non pronto', s); } catch (e){ console.error(e); } return; }
@@ -468,7 +481,7 @@ export class NatpfPhoneRacket {
     }
     // la palla si allontana (l'ha appena colpita chi gioca qui): è il rientro della mano o un gesto a vuoto, non un
     // colpo. Prima il motore faceva comunque partire swing e fruscio della racchetta.
-    if (ballMovingAway(this.engine)){
+    if (ballMovingAway(this.engine, this.role)){
       this.ignoredSwings = (this.ignoredSwings || 0) + 1;
       for (const fn of this.swingListeners) try { fn({ ignored: 'palla che si allontana', natpf: {} }, s); } catch (e){ console.error(e); }
       return;
@@ -483,7 +496,7 @@ export class NatpfPhoneRacket {
     const riseRef = habitualRise(this.profile, s.dir, this.riseModel);
     // pallonetto e palla corta come li fa chi gioca (esercizi del riscaldamento), rispetto al proprio colpo normale
     const own = ownShapes(this.ownShape, { rise: riseRef, forehandRise: this.profileRise(this.hand === 'left' ? -1 : 1), normal: this.shapeModel.value });
-    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, own, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, displayLag: this.displayLagMs/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine), ref, rawRef, riseRef }), role: this.engine.playerRole };
+    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, own, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, displayLag: this.displayLagMs/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine, this.role), ref, rawRef, riseRef }), role: this.role };
     // numero del colpo del telefono: la diagnostica lega così il gesto (tel.colpo) al suo esito nel motore (colpo.gioco)
     ev.natpf.seq = Number.isFinite(s.seq) ? s.seq : null;
     // colpo tipico di chi gioca, prima di questo colpo: il motore decide così se il gesto è debole (natpf_impact.WEAK)
@@ -494,7 +507,7 @@ export class NatpfPhoneRacket {
     const expect = typeof this.expectSpecial === 'function' ? this.expectSpecial() || null : null, rally = this.engine.phase === 'RALLY';
     if (rally && !expect) this.typicalModel.add(s.peak);
     this.lastPrep = null;
-    if (!ev.side) ev.side = sideFromBall(this.engine, this.hand);
+    if (!ev.side) ev.side = sideFromBall(this.engine, this.hand, this.role);
     // riferimenti personali solo dai colpi normali: prima entravano anche pallonetti e palle corte, e dopo tre di fila il
     // quarto sembrava «normale» (usciva un dritto)
     if (!expect && NORMAL_SHOTS.has(ev.natpf.shot)){ this.liftModel.add(s.dir, s.lift); this.headModel.add(s.dir, ev.natpf.head); }
@@ -504,8 +517,10 @@ export class NatpfPhoneRacket {
     if (rally && !expect && ev.natpf.intent) this.riseModel.add(s.dir, s.shape?.rise, ev.natpf.intent.shot);
     if (ev.natpf.intent && teachesNormal(ev, { rally, expect })) this.shapeModel.add(ev.natpf.intent.plane, ev.natpf.intent.shapePower);
     for (const fn of this.swingListeners) try { fn(ev, s); } catch (e){ console.error(e); }
+    // P2 locale dello split screen: come un colpo del Player 2 arrivato dalla rete (natpf_split.js); altrimenti
     // _emitSwing instrada già P1 in locale e P2 verso l'host (relay della stanza 1v1)
-    mc._emitSwing(ev);
+    if (this.localP2) mc._emitP2Swing({ ...ev, source: 'phone', hand: this.hand });
+    else mc._emitSwing(ev);
   }
   // Preparazione del colpo (racchetta portata indietro, nel verso opposto al colpo): la racchetta in gioco si carica
   // da quella parte e il colpo che segue vale come «preparato» (natpfSwingToEngine → prep).
@@ -513,7 +528,7 @@ export class NatpfPhoneRacket {
     if (!this.ready) return;
     this.lastPrep = { ...p };
     this._diag('prep', p);
-    const side = strokeSide(-p.dir, this.hand), actor = this.engine.localActor || this.engine.player;
+    const side = strokeSide(-p.dir, this.hand), actor = this.fixedRole ? this.actor : this.engine.localActor || this.engine.player;
     if (actor && side) (actor.userData || (actor.userData = {})).natpfPrep = { side, until: performance.now() + 750, amount: clamp((p.angle || 30)/50, .45, 1) };
   }
   onDiag(fn){ this.diagListeners.add(fn); return () => this.diagListeners.delete(fn); }
@@ -523,7 +538,9 @@ export class NatpfPhoneRacket {
   onSwing(fn){ this.swingListeners.add(fn); return () => this.swingListeners.delete(fn); }
   _onToss(){
     const mc = this.engine.motionController;
-    if (mc && this.ready) mc._emitToss({ source: 'natpf-phone', shotType: 'lob', speed: 1.1, dirX: 0, dirY: -.9, role: this.engine.playerRole });
+    if (!mc || !this.ready) return;
+    if (this.localP2) mc._emitP2Toss({ source: 'phone', shotType: 'lob', speed: 1.1, dirX: 0, dirY: -.9 });
+    else mc._emitToss({ source: 'natpf-phone', shotType: 'lob', speed: 1.1, dirX: 0, dirY: -.9, role: this.engine.playerRole });
   }
 
   // comandi della calibrazione (vedi racchetta.js → command)
@@ -539,7 +556,7 @@ export class NatpfPhoneRacket {
 
   // Esito dei colpi al telefono (vibrazione e scritta), dalle stesse chiamate che motore base usa per l'aptica.
   feedback({ role, kind, grade = '', shotType = '', quality = null } = {}){
-    if (!this.ready || (role || 'p1') !== this.engine.playerRole) return;
+    if (!this.ready || (role || 'p1') !== this.role) return;
     const shot = /SMASH/i.test(shotType) ? 'smash' : /LOB/i.test(shotType) ? 'lob' : /SLICE/i.test(shotType) ? 'slice' : 'drive';
     // vib: vibrazione per esito (lunga = perfetto, breve = buono, doppia = errore); i telefoni senza supporto la ignorano
     const vib = quality ? VIBRATION[quality.color] : undefined;
@@ -551,17 +568,18 @@ export class NatpfPhoneRacket {
   // Ogni fotogramma: fase al telefono e orientamento del telefono alla racchetta del motore base.
   update(){
     if (!this.link) return;
-    const phase = this.connected ? phoneGamePhase(this.engine) : null;
+    const phase = this.connected ? phoneGamePhase(this.engine, this.role) : null;
     if (phase && phase !== this.lastPhase){ this.lastPhase = phase; this.link.send({ t: 'ph', ph: phase }); }
     // verso del colpo atteso: il telefono distingue così la preparazione (verso opposto) dal colpo
-    const ex = phase === 'play' && this.ready ? expectedStrokeDir(this.engine, this.hand) : 0;
+    const ex = phase === 'play' && this.ready ? expectedStrokeDir(this.engine, this.hand, this.role) : 0;
     if (this.connected && ex !== this.lastExpect){ this.lastExpect = ex; this.link.send({ t: 'ex', d: ex }); }
     if (!this.connected) this.lastPhase = null;
     this._syncPhoneState();
   }
   _syncPhoneState(){
     const mc = this.engine.motionController;
-    if (!mc) return;
+    // il P2 locale non tocca lo stato del telefono del motore: quello inclina la racchetta del P1
+    if (!mc || this.fixedRole) return;
     const ready = this.ready, was = mc.externalRacket === 'natpf-phone';
     if (!ready && !was) return;                                  // telefono NATPF non in uso: stato del relay del motore base
     // finché il telefono NATPF è pronto il polling del relay non sovrascrive stato e orientamento

@@ -664,6 +664,8 @@ export class NatpfTennisEngine {
         haptic(e);
         const q = this.natpfUi && this.natpfUi.feedback ? this.natpfUi.feedback(e) : null;
         this.natpfPhone.feedback({ ...e, quality: q });
+        // NATPF split screen: il secondo telefono (Player 2 locale) riceve i suoi esiti (role «p2»)
+        this.natpfPhone2 && this.natpfPhone2.feedback({ ...e, quality: q });
       };
     }
   }
@@ -3340,7 +3342,7 @@ export class NatpfTennisEngine {
   }
   // NATPF: arena (pubblico, LED), telefono e corpo nascosto in prima persona, a ogni fotogramma
   _updateNatpf(e) {
-    this.natpfArena.update(this.elapsedTime, this.cheerEnergy), this.natpfPhone && this.natpfPhone.update();
+    this.natpfArena.update(this.elapsedTime, this.cheerEnergy), this.natpfPhone && this.natpfPhone.update(), this.natpfPhone2 && this.natpfPhone2.update();
     this.natpfUi && this.natpfUi.tick && this.natpfUi.tick(e);
     const t = this._isFirstPersonActive() ? this.localActor : null;
     t !== this.fpBodyActor &&
@@ -3530,7 +3532,7 @@ export class NatpfTennisEngine {
       this.playerRole === "p1" &&
       this.elapsedTime - this.lastSyncSentAt >= VERSUS.lobbyEvery &&
       ((this.lastSyncSentAt = this.elapsedTime), this._broadcastMultiplayerSnapshot());
-    this.natpfPhone && this.natpfPhone.update(), this.natpfUi && this.natpfUi.tick && this.natpfUi.tick(dt);
+    this.natpfPhone && this.natpfPhone.update(), this.natpfPhone2 && this.natpfPhone2.update(), this.natpfUi && this.natpfUi.tick && this.natpfUi.tick(dt);
     // si ridisegna solo quando serve: all'ingresso, a ogni ridimensionamento e, nei primi 8 s, una volta al secondo
     // (texture dei loghi che arrivano dopo il primo disegno); poi l'immagine resta quella. Tempo vero, non quello del
     // gioco (che a fotogrammi lenti avanza meno)

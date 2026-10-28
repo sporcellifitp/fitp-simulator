@@ -7,6 +7,10 @@ export const HAND_KEY = 'natpf-tennis.hand';
 export const normalizeHand = h => (h === 'left' ? 'left' : 'right');
 export function readHand(){ try { return normalizeHand(localStorage.getItem(HAND_KEY)); } catch { return 'right'; } }
 export function writeHand(h){ try { localStorage.setItem(HAND_KEY, normalizeHand(h)); } catch {} }
+// mano del Player 2 dello split screen (secondo telefono sullo stesso computer), salvata a parte
+export const P2_HAND_KEY = 'natpf-tennis.hand.p2';
+export function readP2Hand(){ try { return normalizeHand(localStorage.getItem(P2_HAND_KEY)); } catch { return 'right'; } }
+export function writeP2Hand(h){ try { localStorage.setItem(P2_HAND_KEY, normalizeHand(h)); } catch {} }
 
 const swap = s => (s === 'forehand' ? 'backhand' : s === 'backhand' ? 'forehand' : s);
 // Lato del colpo per un mancino. Il motore ragiona da destro: un gesto o una palla «da rovescio» per un destro

@@ -96,8 +96,11 @@ export async function makeWorld({ controller = 'phone', difficulty = 'casual', r
     webcamActive: false, latestHandSeenAt: 0, phoneState: { connected: false, orientation: {} }, role: 'p1', roomId: 'default',
     _emitSwing: e => (e.role === 'p2' ? E._handleP2SwingInput(e) : E._handleUserSwingInput(e)),
     _emitToss: e => (e.role === 'p2' ? E._handleP2TossInput(e) : E._handleUserTossInput(e)),
+    // colpi del Player 2 come li consegna il controller vero (rete, o secondo telefono dello split screen)
+    _emitP2Swing: e => E._handleP2SwingInput({ ...e, role: 'p2' }),
+    _emitP2Toss: e => { const t = { ...e, role: 'p2' }; if (E._handleP2TossInput(t) === false) E._handleP2SwingInput(t); },
     _notifyStatus: noop, setRoomConfig: noop, enableWebcam: async () => { mc.webcamActive = true; return true; }, disableWebcam(){ mc.webcamActive = false; },
-    triggerHapticFeedback: e => { const q = E.natpfUi?.feedback?.(e); E.natpfPhone.feedback({ ...e, quality: q }); },
+    triggerHapticFeedback: e => { const q = E.natpfUi?.feedback?.(e); E.natpfPhone.feedback({ ...e, quality: q }); E.natpfPhone2?.feedback({ ...e, quality: q }); },
   };
   if (role === 'p2'){ Object.assign(E, { playerRole: 'p2', urlRoom: 'AT-AB12', roomId: 'at-ab12', isMultiplayer: true }); hud.selectedDifficulty = '1v1'; }
   if (p2p) E.natpfP2p = p2p;

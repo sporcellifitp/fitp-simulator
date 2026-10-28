@@ -205,3 +205,17 @@ nei testi); voce cartoon coerente con il gioco, una sola lingua (meglio inglese)
       file fuori elenco), sito 152/152, build riuscita.
 - [ ] Ascolto umano della voce; nuovo pacchetto LAN 2026-10-28.3 (quello 2026-10-28.2 ha ancora clip e voci vecchie).
 - Crediti Higgsfield: 47 × 0,23 = 10,81 (saldo 738,93 → 728,12). Totale della richiesta media/voce: 136,3.
+
+## Split screen (richiesta del 28/10 sera): 1v1 sullo stesso schermo, anche su ledwall 2×2 o 3×2
+Analisi: il 1v1 tra due computer è già simulato tutto dall'host (P2 umano, servizio del P2, punteggio); i colpi del
+P2 entrano da `motionController._emitP2Swing/_emitP2Toss` → `_handleP2SwingInput`. Lo split screen riusa questa
+logica con una sessione 1v1 **locale** (niente stanza, niente rete) e un **secondo telefono** collegato allo stesso
+computer (`createPhoneLink()` crea sessioni indipendenti: due QR nella stessa pagina). La vista si disegna due volte
+(scissor): sinistra P1 da dietro il suo lato, destra P2 dal lato opposto; terza persona.
+- [x] S1 Secondo telefono come Player 2 locale (`natpf_phone_racket.js` con ruolo fisso `p2`): funzioni d'appoggio
+      con il ruolo, colpi e lancio via `_emitP2Swing/_emitP2Toss`, esiti per ruolo, mano e gesti con chiavi «.p2»;
+      motore: `natpfPhone2` aggiornato a ogni fotogramma. Test `natpf-split.test.mjs` (4), gioco 425/425
+- [ ] S2 Motore: sessione split locale e rendering a due viste (`natpf_split.js`, blocchi «NATPF split» nel motore)
+- [ ] S3 Menu: modalità «Stesso schermo», collega due telefoni (calibrazione guidata dal telefono o «Salta»), partita
+- [ ] S4 Schermo: intero / ledwall 2×2 (1:1) / 3×2 (3:2), `?area=x,y,w,h` per mappare l'area del processore LED;
+      screenshot 16:9, 1:1, 3:2
