@@ -1,0 +1,11 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="css/fonts.css"></head><body style="margin:0;background:#3b2fd8">
+<img src="../tools/ref_logo.png" style="display:block;width:940px"><div id=o></div>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
+<script type="module">
+import { superTennisCanvas } from './js/textures.js';
+await Promise.all(['italic 300 40px Kanit','italic 900 40px Kanit','italic 200 40px Kanit'].map(f=>document.fonts.load(f)));
+const c = superTennisCanvas(90, '#dfe3ff', {}); c.style.cssText='position:absolute;left:45px;top:15px;opacity:.6;outline:1px solid #f0f';
+o.appendChild(c);
+const c2 = superTennisCanvas(50, '#dfe3ff', {arena:true}); c2.style.cssText='display:block;margin:260px 10px;outline:1px solid #f0f'; o.appendChild(c2);
+document.title='ok';
+</script></body></html>

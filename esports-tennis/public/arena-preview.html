@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="css/fonts.css">
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#000}</style></head><body>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { buildArena } from './js/arena.js';
+const q = new URLSearchParams(location.search);
+const r = new THREE.WebGLRenderer({ antialias: true });
+r.setSize(innerWidth, innerHeight); r.setPixelRatio(1);
+r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = +(q.get('exp') || 1.0);
+r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(r.domElement);
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(+(q.get('fov') || 50), innerWidth / innerHeight, 0.1, 2000);
+const P = {
+  p2: [[0, 15, 30], [0, 0, -2], 42],
+  p3: [[-17, 3.2, 17], [6, 1.5, -6], 55],
+  p4: [[1, 2.2, 6.5], [2, 1.0, -15], 60],
+  p5: [[-9, 1.4, 16], [2, 2.2, -10], 70],
+  p1: [[-28, 30, 22], [2, 0, -4], 40],
+  phone: [[0, 4.6, 19.5], [0, 0.4, -2], 52],
+};
+const v = P[q.get('v') || 'p2'];
+cam.position.set(...v[0]); cam.lookAt(...v[1]); cam.fov = v[2]; cam.updateProjectionMatrix();
+const t0 = performance.now();
+await buildArena(scene, {});
+r.render(scene, cam);
+window.INFO = { buildMs: Math.round(performance.now() - t0), calls: r.info.render.calls, tris: r.info.render.triangles };
+document.title = 'ok';
+</script></body></html>

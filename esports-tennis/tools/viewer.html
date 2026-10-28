@@ -1,0 +1,20 @@
+<!doctype html><html><body style="margin:0;background:#888">
+<script type="importmap">{"imports":{"three":"../public/vendor/three.module.min.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from '../public/vendor/addons/loaders/GLTFLoader.js';
+const q=new URLSearchParams(location.search);const name=q.get('m')||'hero';
+const r=new THREE.WebGLRenderer({antialias:true});r.setSize(900,600);document.body.appendChild(r.domElement);
+const sc=new THREE.Scene();sc.add(new THREE.HemisphereLight(0xffffff,0x444444,2.5));
+const cam=new THREE.PerspectiveCamera(35,1.5,0.1,100);
+const g=await new GLTFLoader().loadAsync('../public/assets/models/'+name+'.glb');
+const m=g.scene;sc.add(m);
+const box=new THREE.Box3().setFromObject(m);const sz=box.getSize(new THREE.Vector3());const c=box.getCenter(new THREE.Vector3());
+const ang=+(q.get('a')||0);cam.position.set(Math.sin(ang)*4,1,Math.cos(ang)*4);cam.lookAt(0,0.9,0);
+const info={box:[box.min.toArray(),box.max.toArray()],bones:[]};
+m.traverse(o=>{if(o.isBone)info.bones.push([o.name,o.position.toArray().map(v=>+v.toFixed(3)),o.quaternion.toArray().map(v=>+v.toFixed(3)),o.parent.name]);if(o.isMesh)info.mesh={name:o.name,mat:o.material.type,skinned:o.isSkinnedMesh,verts:o.geometry.attributes.position.count}});
+const clipName=q.get('c');
+if(clipName){const clips=await (await fetch('clips.json')).json();const cj=clips[name].find(x=>x.name===clipName);const clip=THREE.AnimationClip.parse(cj);const mx=new THREE.AnimationMixer(m);mx.clipAction(clip).play();mx.update(+(q.get('t')||0));}
+else if(q.get('idle')){const mx=new THREE.AnimationMixer(m);mx.clipAction(g.animations[0]).play();mx.update(+(q.get('t')||0));}
+r.render(sc,cam);window.INFO=info;document.title='ok';
+</script></body></html>
