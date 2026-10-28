@@ -370,4 +370,7 @@ Segnalazione: pallonetti e palle corte non escono mai; lungolinea e angoli diver
 - Direzione: 9 incrociati, 3 centro, 1 lungolinea; tempo mediano +0,51 unità (anticipo). Calibrazione rapida debole
   (dritto 204 °/s, rovescio 361 °/s contro 1100–1400 in partita): riferimento del piatto sbagliato, mira del piatto
   valida in 17 colpi su 36. Da fare: tempo relativo al proprio ritmo.
-- Test: `natpf-racchetta-motore.test.mjs` (+2, falliscono con il codice di prima). Gioco 445/445.
+- Test: `natpf-racchetta-motore.test.mjs` (+2, falliscono con il codice di prima). Gioco 444/444.
+- [x] «Gioca ancora» (fine partita): apre la pagina «Partita» del menu con la modalità di prima, per scegliere di nuovo
+      livello, formato e lunghezza (`natpf_ui.backToMenu('match')`); nel 1v1 tra due computer resta la rivincita
+      immediata. Test in `natpf-flows.test.mjs` (fallisce con il codice di prima).

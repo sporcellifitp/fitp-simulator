@@ -474,3 +474,17 @@ test('Blocco dello schermo del telefono: avviso una volta per collegamento, mai 
   link.L.joins = 3; delete link.L.vis; delete link.L.wake;
   assert.equal(state({}), '');
 });
+
+// Richiesta del 28/10 sera: «Gioca ancora» deve far scegliere di nuovo le impostazioni della partita (prima ripartiva
+// subito la stessa partita)
+test('fine partita, «Gioca ancora»: si torna alla pagina «Partita» con le impostazioni, la partita non riparte da sola', async () => {
+  const { E, lobby, pressStart } = await makeWorld({ controller: 'mouse' });
+  pressStart();
+  let restarted = 0; const real = E.startNewMatch.bind(E); E.startNewMatch = o => { restarted++; return real(o); };
+  E.hud.showVictoryModal();
+  document.getElementById('btn-play-again').click();
+  assert.equal(restarted, 0);
+  assert.ok(lobby.visible, 'menu aperto'); assert.equal(lobby.step, 'match');
+  assert.ok(!visible('victory-modal'));
+  assert.equal(E.autoPlayMode, true, 'la partita dietro al menu è quella dimostrativa');
+});

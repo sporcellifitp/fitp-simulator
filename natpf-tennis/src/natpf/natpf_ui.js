@@ -83,7 +83,14 @@ export class NatpfUi {
     this.kiosk = new NatpfKiosk(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
     this.intro = new NatpfIntro({ onDone: () => { if (this.lobby.visible) this.lobby.go('menu'); } });
-    $('btn-play-again')?.addEventListener('click', () => this.wipe('Rivincita'), true);
+    // «Gioca ancora» (fine partita): si torna alla pagina «Partita» per scegliere di nuovo livello, formato e lunghezza,
+    // con la modalità di prima (richiesta del 28/10 sera: prima ripartiva subito la stessa partita). Nel 1v1 tra due
+    // computer resta la rivincita immediata: l'altro computer aspetta la stessa partita
+    $('btn-play-again')?.addEventListener('click', e => {
+      if (this.lobby?.mode === 'friend' || this.engine.playerRole === 'p2' || this.versus?.hostActive){ this.wipe('Rivincita'); return; }
+      e.stopImmediatePropagation();
+      this.backToMenu('match');
+    }, true);
     this.hand.set(this.hand.hand);
     // mano cambiata sulla pagina del telefono: vale per tutto il gioco (personaggio, webcam) e torna al telefono
     if (this.phone) this.phone.onHand = h => { this.hand.set(h); this.paintTiles(); };
@@ -174,7 +181,8 @@ export class NatpfUi {
   // dal menu di pausa (e dal chiosco): fine partita, allenamento o sfida, ritorno al menu principale. Prima, in
   // allenamento, lo stop passava dalla fine dell'allenamento: dal riscaldamento si finiva sulla pagina «Partita» e dalla
   // calibrazione di una sfida partiva la sfida; e il gioco poteva restare in pausa per chi arrivava dopo
-  backToMenu(){
+  // step: la pagina del menu da aprire («match» per «Gioca ancora»: le impostazioni della partita)
+  backToMenu(step = 'menu'){
     const E = this.engine;
     // Player 2 dell'invito: tornare al menu vuol dire lasciare la stanza (prima restava dentro e i suoi colpi passavano)
     if (E.playerRole === 'p2' && this.versus?.p2){ this.versus.leave(); return; }
@@ -184,7 +192,7 @@ export class NatpfUi {
     E.natpfPaused = false; E.hud.hideVictoryModal?.(); E.hud.hideCenterBanner();
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
     E._syncScoreboardHUD(); E._setupMidRallyShowcase({}); E.autoPlayMode = true;
-    E.userHasInteracted = false; E.hud.showTitleModal(); this.flow.go('menu'); this._syncPause();
+    E.userHasInteracted = false; E.hud.showTitleModal(); this.flow.go(step); this._syncPause();
   }
   /* ---------- webcam nella tappa di preparazione ---------- */
   async startWebcam(){
