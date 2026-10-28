@@ -2,7 +2,22 @@
 
 Aggiornato: 28/10/2026 · branch `natpf-simulator`.
 
-## Stato finale (28/10/2026, sera) — leggere per primo
+## Ultima aggiunta: split screen «Stesso schermo» e ledwall (28/10 sera) — leggere per primo
+
+Commit locali (non pubblicati finché l'utente non autorizza il push): `265e687` voce inglese e via le clip,
+`5e93a5f` S1 secondo telefono, `88c607a` S2 due viste nel motore, `cae8a54` S3 menu, `44c2a73` S4 schermo/ledwall
+(+ questo aggiornamento dei documenti, vedere `git log -1`).
+- Menu → Gioca → «Stesso schermo» → «Collega i due telefoni» (due QR, calibrazione guidata sui telefoni, o «Gioca senza
+  calibrare») → Partita → schermo diviso: P1 a sinistra, P2 a destra, etichette con l'esito dei colpi; telefono del
+  P2 che cade → pausa e ripresa. Codice: `natpf_split.js`, `natpf_split_ui.js`, `startSplit/endSplit` nel motore.
+- Opzioni → Schermo: Intero / Ledwall 2×2 / Ledwall 3×2; `?area=x,y,larghezza,altezza` per il processore LED.
+  CSS con `@container natpf` e `cqw/cqh` (regola in `CLAUDE.md`).
+- Verificato: gioco 435/435, sito 152/152, build; browser (senza telefoni veri) a 1280×720, 900×900, 1200×800, area
+  720×720 e 768×512. **Non verificato**: due telefoni veri insieme, ledwall vero, fluidità su un PC con GPU.
+- Prossima azione: prova dal vivo con due smartphone sullo stesso PC (rete con https: `npm run dev:https` o pacchetto
+  LAN); poi, se l'utente lo chiede, pacchetto LAN 2026-10-28.3 con voce inglese + split screen.
+
+## Stato finale (28/10/2026, sera) — voce e tutorial
 
 Branch `natpf-simulator`; ultimo commit pubblicato su GitHub `2533180` (pacchetto LAN 2026-10-28.2). Dopo, solo in
 locale finché l'utente non autorizza il push: **revisione voce e tutorial** (vedere `git log -1`).
