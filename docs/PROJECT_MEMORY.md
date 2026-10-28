@@ -54,8 +54,10 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   **punto più alto** del lancio. Un gesto debole subito dopo il lancio viene ignorato.
 - **Volée**: non è un gesto diverso. Il motore (`natpf_impact.js`) prende la palla al volo quando conviene
   (giocatore avanti); il gesto è un dritto o rovescio **corto**.
-- **Direzione** (incrociato / lungolinea), `natpf_stroke_outcome.strokeOutcome`: il **tempo** pesa di più (in
-  anticipo → incrociato, in ritardo → lungolinea, pieni ai bordi della finestra: peso 1), poi l'**orientamento del
+- **Direzione** (incrociato / lungolinea), `natpf_stroke_outcome.strokeOutcome`: il **tempo rispetto al proprio
+  ritmo** pesa di più (`createRhythm`: mediana degli ultimi colpi × 0,8, al massimo ±0,6 unità, da 4 colpi, si reimpara a
+  ogni partita): prima del solito → incrociato, dopo il solito → lungolinea, pieni ai bordi della finestra (peso 1);
+  il voto anticipo/perfetto/ritardo resta sul tempo vero. Poi l'**orientamento del
   piatto all'impatto** rispetto al proprio colpo abituale (piatto girato a destra → palla a destra: peso 0,6; scarti
   oltre 45° sempre meno credibili, oltre 60° non contano). Barra «Anticipo / Centro / Ritardo». Corretto il 28/10 sera:
   qui prima c'era scritto il contrario.

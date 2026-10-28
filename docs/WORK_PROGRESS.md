@@ -379,3 +379,7 @@ Segnalazione: pallonetti e palle corte non escono mai; lungolinea e angoli diver
       tratto dritto (`site/js/tennis/arena.js`: `CORNER_LED` fondo x ±8, lati z ±18; `STAND_FRONT` esportato). Prova
       geometrica in `natpf-arena-court.test.mjs` e screenshot della build: loghi interi. L'angolo scuro tra muro e
       tribuna resta (forma dell'arena).
+- [x] Direzione relativa al ritmo di chi gioca (`natpf_stroke_outcome.createRhythm`, `rhythm` in `strokeOutcome`, motore
+      in `_natpfRacketShot`): con il tempo solito al centro, dopo il solito lungolinea, prima incrociato; il voto resta sul
+      tempo vero. Etichetta CROSS/LINE dalla caduta vera. Testi del tutorial («prima/dopo il solito») allineati.
+      Test: 2 in `natpf-racchetta-motore.test.mjs`. Gioco 448/448.

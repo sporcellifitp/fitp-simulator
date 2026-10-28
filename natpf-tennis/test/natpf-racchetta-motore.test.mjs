@@ -389,3 +389,39 @@ test('28/10 sera: la palla corta voluta in attesa non è sostituita dal braccio 
   const prep = phoneSwing({ shot: 'topspin', power: .2, rise: .1 }, { side: 'backhand', peak: 451 }); prep.natpf.angle = 68;
   assert.equal(run(prep).racket.intent.shot, 'slice');
 });
+
+// Diagnostica del 28/10 sera: tempo mediano +0,51 unità (anticipo), 9 incrociati, 3 al centro, 1 lungolinea su 13. La
+// direzione si misura attorno al ritmo di chi gioca: con il tempo solito al centro, dopo il solito lungolinea.
+test('ritmo di chi gioca: con il tempo solito la palla va al centro, dopo il solito lungolinea, prima incrociata', async () => {
+  const NO = await import('../src/natpf/natpf_stroke_outcome.js');
+  const r = NO.createRhythm();
+  for (const t of [.5, .6, .4]) r.add(t);
+  assert.equal(r.value, 0, 'servono almeno 4 colpi');
+  r.add(.5); r.add(2.4);                                     // un colpo fuori dalla finestra non conta
+  assert.equal(r.count, 4); assert.ok(Math.abs(r.value - .4) < 1e-9, `${r.value}`);
+  for (let i = 0; i < 8; i++) r.add(1.2);
+  assert.equal(r.value, NO.RHYTHM.max);
+  // dritto del destro (contatto +1): incrociato = x negativa, lungolinea = x positiva
+  const at = (t, rhythm) => NO.strokeOutcome({ intent: { shot: 'topspin', power: .6 }, timing: t*.15, contact: 1, rhythm, level: { timingSpan: .15 } }).x;
+  assert.ok(at(.5, 0) < -1.5, `senza ritmo, in anticipo: incrociato ${at(.5, 0)}`);
+  assert.ok(Math.abs(at(.5, .5)) < 1, `con il ritmo +0,5 lo stesso tempo va al centro: ${at(.5, .5)}`);
+  assert.ok(at(0, .5) > 1, `«in tempo» per chi colpisce sempre in anticipo è dopo il solito: lungolinea ${at(0, .5)}`);
+  assert.ok(at(1, .5) < at(.5, .5) - 1, 'prima del solito: incrociato');
+});
+
+test('ritmo nel motore: dopo colpi sempre in anticipo, lo stesso colpo in anticipo non va più incrociato', () => {
+  const swing = () => phoneSwing({ shot: 'topspin', power: .7 });
+  const fresh = withEngine('casual', e => { cpuShot(e, { to: [1.8, 8.4] }); return play(e, [{ lead: .16, swing: swing() }]); });
+  const learned = withEngine('casual', e => {
+    // cinque colpi dello scambio in anticipo come quelli della partita (+0,5–0,9 unità)
+    for (const lead of [.1, .12, .14, .12, .16]){ cpuShot(e, { to: [1.8, 8.4] }); play(e, [{ lead, swing: swing() }]); }
+    assert.ok(e.natpfRhythm.player.value > .3, `ritmo ${e.natpfRhythm.player.value}`);
+    cpuShot(e, { to: [1.8, 8.4] });
+    return play(e, [{ lead: .16, swing: swing() }]);
+  });
+  assert.ok(fresh.hit && learned.hit);
+  assert.ok(fresh.landing.x < -1.5, `senza ritmo: incrociato ${fresh.landing.x}`);
+  assert.ok(learned.landing.x > fresh.landing.x + 1, `con il ritmo imparato meno incrociato: ${learned.landing.x} contro ${fresh.landing.x}`);
+  // a ogni partita il ritmo si reimpara
+  withEngine('casual', e => { e.natpfRhythm = { player: { value: .5 } }; e.startNewMatch({ showStartBanner: false }); assert.equal(e.natpfRhythm, null); });
+});

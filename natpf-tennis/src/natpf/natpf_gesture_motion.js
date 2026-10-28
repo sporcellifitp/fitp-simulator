@@ -52,9 +52,9 @@ export const GESTURES = Object.freeze({
   serve: { id: 'serve', label: 'Servizio', toss: S.toss, stroke: S.smash, ball: 'toss', ballHigh: true, expect: { messages: 2 },
     cues: ['1 · Alza il telefono: lanci la palla', '2 · Aspetta che arrivi in alto', '3 · Colpisci dall’alto, deciso'] },
   cross: { id: 'cross', label: 'Incrociato', stroke: S.forehand, preYaw: 22, ball: 'ground', aim: -1, expect: { shot: ['topspin'], side: 'forehand', aim: -1 },
-    cues: ['Display girato verso il centro', 'Colpisci un attimo prima', 'La palla va nell’altra metà del campo'] },
+    cues: ['Display girato verso il centro', 'Colpisci un attimo prima del solito', 'La palla va nell’altra metà del campo'] },
   line: { id: 'line', label: 'Lungolinea', stroke: S.forehand, preYaw: -22, ball: 'ground', aim: 1, expect: { shot: ['topspin'], side: 'forehand', aim: 1 },
-    cues: ['Display girato verso l’esterno', 'Colpisci un attimo dopo', 'La palla corre lungo il tuo lato'] },
+    cues: ['Display girato verso l’esterno', 'Colpisci un attimo dopo il solito', 'La palla corre lungo il tuo lato'] },
 });
 export const gestureById = id => GESTURES[id] || null;
 

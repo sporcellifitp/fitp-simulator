@@ -1172,6 +1172,7 @@ export class NatpfTennisEngine {
   }
   startNewMatch({ showStartBanner: e = !0 } = {}) {
     NL.resetLegend(this); // NATPF Leggenda: il modello dell'avversario riparte da zero a ogni partita
+    this.natpfRhythm = null; // NATPF: il ritmo di chi gioca (direzione) si reimpara a ogni partita
     (this.score.playerPoints = 0),
       (this.score.opponentPoints = 0),
       (this.score.playerGames = 0),
@@ -1990,12 +1991,17 @@ export class NatpfTennisEngine {
       H = d ? "SMASH" : m ? "BACKHAND" : "FOREHAND",
       // NATPF: i colpi speciali si vedono sempre per nome (prima «anticipo/ritardo» copriva pallonetto e palla corta)
       natpfSpecial = d ? "SMASH" : natpfDrop ? "DROP SHOT" : T === "LOB" ? "LOB" : T === "SLICE" ? "SLICE" : null,
+      // NATPF: con la racchetta virtuale incrociato e lungolinea dalla caduta vera (la direzione segue il ritmo di chi
+      // gioca, non solo il voto del tempo)
+      natpfDir = racketShot && racketShot.out ? Math.sign(racketShot.contact || 1) * racketShot.out.x : null,
       X = l
         ? "NET VOLLEY"
         : _
           ? "DEFENSIVE"
           : natpfSpecial && !t
             ? (d ? "SMASH" : `${H} ${natpfSpecial}`)
+          : natpfDir != null
+            ? (natpfDir <= -1 ? `${H} CROSS` : natpfDir >= 1 ? `${H} LINE` : `${H} ${T}`)
           : u === "EARLY"
             ? `${H} CROSS`
             : u === "LATE"
@@ -2056,7 +2062,10 @@ export class NatpfTennisEngine {
       pressure = NO.rallyPressure(b.rallyStrokeCount, NO.assistOf(lv).pressureFrom),
       volley = b.bounceCountOnCurrentSide === 0 && Math.abs(p.pos.z) < 9;
     const shortBall = b.bounceCountOnCurrentSide > 0 && b.rallyStrokeCount > 1 && Math.abs(b.targetLanding.z) <= 6.4 && Math.abs(b.pos.z) <= 7;
-    const out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, contact, hitX, quality, pressure, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, shortBall, level: lv });
+    // ritmo di chi colpisce (natpf_stroke_outcome.createRhythm): la direzione si misura attorno al suo tempo abituale
+    const rhythms = (this.natpfRhythm ||= { player: NO.createRhythm(), p2: NO.createRhythm() }), rhythm = rhythms[toward === 1 ? "p2" : "player"];
+    const out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, contact, hitX, quality, pressure, rhythm: rhythm.value, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, shortBall, level: lv });
+    rhythm.add(out.t);
     // colpo fallito o debole: la causa che pesa di più, per il messaggio del colpo e la diagnostica
     const cause = out.failed ? (out.pressured ? "scambio lungo" : [["reach", running > 0.5 ? "in corsa" : "palla lontana"], ["prep", "senza preparazione"], ["stretch", "in allungo"], ["pace", "palla veloce"]].reduce((a, k) => (Q[k[0]] < Q[a[0]] ? k : a))[1]) : null;
     const R = p.pos.x >= 0 ? 1 : -1, N = toward * out.depth, X = out.x * mirror, engineShot = out.shot === "DROP" ? "SLICE" : out.shot === "SMASH" ? "FLAT" : out.shot;
@@ -2077,7 +2086,7 @@ export class NatpfTennisEngine {
     this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, hitX: +hitX.toFixed(3), quality: +(quality * pressure).toFixed(3), pressure: +pressure.toFixed(3), cause, volley, flight: +I.toFixed(3), seq: (e.natpf && e.natpf.seq) ?? null, at: this.elapsedTime };
     return {
       E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 * mirror : 0, O: out.netFault, T: engineShot,
-      drop: out.shot === "DROP", u: out.grade, w: out.cursor, q: out.q, power: intent.power, out,
+      drop: out.shot === "DROP", u: out.grade, w: out.cursor, q: out.q, power: intent.power, out, contact,
       M: out.shot !== "DROP" && out.shot !== "LOB" && out.q >= 0.9 && intent.power >= 0.7 && Math.abs(out.t) <= 0.35,
       defensive: out.excess > 0.6,
     };

@@ -27,8 +27,8 @@ export const GUIDE = [
     mouse: '<kbd>Spazio</kbd> quando la palla arriva alla racchetta.',
   }, game: 'La racchetta in campo si carica con te. A terra compare un anello: <b class="q-g">verde</b> perfetto, <b class="q-y">giallo</b> buono, <b class="q-r">rosso</b> fuori tempo.' },
   { id: 'aim', title: 'Scegli dove va la palla', clip: 'aim', you: {
-    phone: 'Il <b>tempo</b> sceglie la direzione: colpisci <b>un attimo prima</b> e la palla va <b>incrociata</b>, <b>un attimo dopo</b> e va <b>lungolinea</b>, nel mezzo verso il centro. Girare il dorso del telefono la sposta ancora un poco. Un colpo <b>più forte del tuo solito</b> va più in fondo, uno più morbido resta più corto.',
-    webcam: 'Colpire <b>prima</b> la incrocia, colpire <b>dopo</b> la manda lungolinea, nel mezzo va al centro. Uno swing più veloce la manda più in fondo.',
+    phone: 'Il <b>tempo</b> sceglie la direzione, rispetto al <b>tuo ritmo</b>: colpisci <b>un attimo prima del solito</b> e la palla va <b>incrociata</b>, <b>un attimo dopo il solito</b> e va <b>lungolinea</b>; con il tuo tempo solito va al centro. Girare il dorso del telefono la sposta ancora un poco. Un colpo <b>più forte del tuo solito</b> va più in fondo, uno più morbido resta più corto.',
+    webcam: 'Colpire <b>prima del solito</b> la incrocia, colpire <b>dopo il solito</b> la manda lungolinea, con il tuo tempo solito va al centro. Uno swing più veloce la manda più in fondo.',
     mouse: '<kbd>Q</kbd>/<kbd>E</kbd> o <kbd>A</kbd>/<kbd>D</kbd> mirano a sinistra o a destra.',
   }, game: 'Con il tempo si va da una riga all’altra: un incrociato stretto fa correre l’avversario, una palla profonda lo spinge indietro. Troppo presto o troppo tardi la palla esce di lato.' },
   { id: 'serve', title: 'Il servizio', clip: 'serve', you: {

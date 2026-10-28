@@ -77,6 +77,26 @@ export const assistOf = level => ASSIST[level?.name] || (level?.cpuLegend ? ASSI
 // finestra della direzione (s) del livello
 export const directionSpan = level => assistOf(level).span || level?.timingSpan || .16;
 
+// Ritmo di chi gioca: il suo tempo abituale (unità della finestra della direzione, + anticipo), mediana degli ultimi
+// colpi, un poco ridotta e limitata. La direzione si misura attorno a questo: con il tempo solito la palla va al centro,
+// prima del solito incrociata, dopo il solito lungolinea. Il voto (anticipo, perfetto, ritardo) resta sul tempo vero.
+// Diagnostica del 28/10 sera: chi gioca colpiva quasi sempre in anticipo (mediana +0,51 unità): 9 incrociati, 3 al centro
+// e un solo lungolinea su 13, e il lungolinea voluto non usciva mai
+export const RHYTHM = Object.freeze({ keep: 8, min: 4, gain: .8, max: .6, inside: 1.3 });
+export function createRhythm(){
+  const h = [];
+  return {
+    add(t){ if (Number.isFinite(t) && Math.abs(t) <= RHYTHM.inside){ h.push(t); if (h.length > RHYTHM.keep) h.shift(); } },
+    get value(){
+      if (h.length < RHYTHM.min) return 0;
+      const s = [...h].sort((a, b) => a - b), m = s.length >> 1, med = s.length % 2 ? s[m] : (s[m - 1] + s[m])/2;
+      return clamp(med*RHYTHM.gain, -RHYTHM.max, RHYTHM.max);
+    },
+    get count(){ return h.length; },
+    reset(){ h.length = 0; },
+  };
+}
+
 // Pressione degli scambi lunghi: dal colpo «from» dello scambio la qualità di tutti e due cala di «step» a colpo (al
 // massimo di «max»). Senza, un giocatore molto regolare e la CPU Leggenda arrivavano a scambi senza fine (nel banco
 // 6–8 punti su 50 oltre i 60 colpi): ora uno dei due prima o poi lascia una palla corta e alta, o sbaglia.
@@ -102,12 +122,13 @@ export const aimForLanding = (x, x0, xMax = OUTCOME.xMax) => (x - x0)/Math.max(.
 // la palla passa il corpo prima); contact: +1 colpo di dritto del destro (o di rovescio del mancino), −1 l'altro lato:
 // dice da che parte va la palla in anticipo; hitX: posizione laterale della palla all'impatto (m, riferimento di chi
 // colpisce, + a destra); quality: la situazione di chi colpisce, allungo × corsa × preparazione × palla veloce (0…1);
-// pressure: pressione degli scambi lunghi (rallyPressure, 0…1); contactY: altezza della palla all'impatto; volley: presa
+// pressure: pressione degli scambi lunghi (rallyPressure, 0…1); rhythm: tempo abituale di chi gioca (createRhythm, unità):
+// la direzione si misura attorno a questo; contactY: altezza della palla all'impatto; volley: presa
 // al volo; net: chi colpisce è a rete (entro 5 m dalla rete, anche dopo il rimbalzo); level: parametri del livello.
 // Restituisce, nel riferimento di chi colpisce (x a destra, depth in avanti dalla rete): { x, depth, clear, topspin,
 // flight (solo pallonetto e schiacciata), netFault, failed, weak, pressured, grade, cursor, t, excess, q, aim, x0,
 // assist, assisted }.
-export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contact = 1, hitX = 0, quality = 1, pressure = 1, contactY = 1, volley = false, net = false, shortBall = false, level = {} } = {}){
+export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contact = 1, hitX = 0, quality = 1, pressure = 1, rhythm = 0, contactY = 1, volley = false, net = false, shortBall = false, level = {} } = {}){
   const O = OUTCOME, shot = String(intent.shot || 'topspin').toUpperCase();
   const power = clamp(finite(intent.power, .5)), want = clamp(finite(intent.depth, power)), rise = clamp(finite(intent.rise), -1, 1);
   const AS = assistOf(level), span = directionSpan(level), late = Number.isFinite(lateSpan) ? clamp(lateSpan, .04, span) : span;
@@ -120,7 +141,8 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contac
   const assist = clamp(1 - excess/O.assistFade)*clamp((q - AS.assistQ)/O.assistQSpan + .5), xMax = AS.xMax, k = xMax/O.xMax;
   // direzione: mira dal tempo (ai bordi della finestra le due righe; la spinta naturale verso l'incrociato solo vicino al
   // tempo neutro) e dal piatto attorno al punto neutro, poi la spinta oltre la finestra
-  const aim = -c*O.natural*(1 - Math.abs(inside)) - c*inside*finite(AS.timingAim, O.timingAim) + clamp(finite(intent.face), -1, 1)*finite(intent.faceWeight, O.faceAim);
+  const aimT = clamp(t - clamp(finite(rhythm), -RHYTHM.max, RHYTHM.max), -1, 1);   // tempo rispetto al proprio ritmo
+  const aim = -c*O.natural*(1 - Math.abs(aimT)) - c*aimT*finite(AS.timingAim, O.timingAim) + clamp(finite(intent.face), -1, 1)*finite(intent.faceWeight, O.faceAim);
   const x0 = neutralX(hitX, xMax), raw = landingFromAim(aim, x0, xMax) - c*Math.sign(t)*excess*finite(AS.pushOut, O.pushOut);
   const x = raw + (Math.sign(raw)*softEdge(Math.abs(raw), O.sideKnee*k, O.sideEdge*k) - raw)*assist;
   // profondità: voluta (forza e ampiezza dello swing), meno per la qualità che manca e il tempo oltre la finestra
