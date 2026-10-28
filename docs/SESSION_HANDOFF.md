@@ -4,9 +4,11 @@ Aggiornato: 28/10/2026 · branch `natpf-simulator`.
 
 ## Stato
 
-- Ultimo commit verificato: vedere `git log -1` (questo file è aggiornato a ogni task; se il log mostra commit
-  successivi non descritti qui, fidarsi del repository e aggiornare questo file).
-- Test: baseline 389/390 (1 saltato per dipendenze LAN). Build: da verificare dopo le modifiche UI.
+- Commit della sessione del 28/10 (tutti su `natpf-simulator`, **solo il primo pubblicato** su GitHub):
+  `59ce56c` memoria · `636a5e2` lanciapalle 3D · `4b170f1` moti dei gesti verificati · `ee97d2a` tutorial 3D ·
+  `76989a1` redesign UI · `ce7d7c9` voci e effetti · `046acd5` musica e volumi · `b3e0338` minigiochi ·
+  ultimo: verifica finale e documenti (vedere `git log -1`).
+- Test: gioco 409/409 (nessuno saltato, con `npm ci` anche in `tools/lan`), sito 148/148, build riuscita.
 - Ambiente: Chromium di Playwright funziona (`node scripts/ui-shots.mjs` con `npm run dev` attivo).
 
 ## Push
@@ -22,6 +24,6 @@ checkpoint pubblicato su GitHub è `59ce56c`; quelli successivi sono solo nel ch
 
 ## Prossima azione esatta
 
-T5 (minigiochi) completato. Prossimo: T6 verifica finale — `npm test`, `npm run build`, test LAN (installare le
-dipendenze in `tools/lan` per il test saltato), screenshot desktop e mobile con `scripts/ui-shots.mjs`, aggiornare
-`docs/PROJECT_MEMORY.md` e questo file con l'ultimo commit; poi riepilogo all'utente.
+1. Se l'utente autorizza: `git push -u origin natpf-simulator` (i commit dopo `59ce56c` sono solo locali).
+2. Prova fisica con smartphone Android e webcam (vedi «Da fare» in `docs/WORK_PROGRESS.md`).
+3. Ascolto di musica e voci da parte di una persona; eventuali ritocchi di volume in `NATPF_TRACKS[].volume`.

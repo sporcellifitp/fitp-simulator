@@ -93,5 +93,18 @@ Legenda: [x] fatto e verificato · [~] in corso · [ ] da fare.
 - [x] Test: `test/natpf-arcade.test.mjs` (7, incluse partite intere nel motore), aggiornati `natpf-events`/`flows`.
 - [ ] Da provare con telefono reale: frequenza dei bersagli colpiti con la mira vera, bilanciamento delle medaglie.
 
-### T6 · Verifica finale e consegna
-- [ ] Test, build, screenshot, prestazioni, riepilogo
+### T6 · Verifica finale (28/10/2026)
+- [x] `npm test` (natpf-tennis): **409/409**, nessun test saltato (installate le dipendenze di `tools/lan`).
+- [x] `node --test tools/test/*.test.mjs` (sito e telefono): **148/148**.
+- [x] `npm run build`: riuscita; font e 48 clip vocali inclusi in `dist/`.
+- [x] Browser (Chromium headless): intro, menu, tutte le pagine, tutorial, minigiochi, risultati, finestre, partita
+      contro la CPU senza errori in console; desktop 1280×720 e telefono orizzontale 915×412.
+- [ ] Non verificabile qui: telefono Android reale (sensori), webcam reale, ascolto umano di musica e voci,
+      prestazioni su hardware modesto (il riquadro 3D del tutorial usa un secondo contesto WebGL a 30 fps massimi).
+
+## Da fare (proposte per le prossime sessioni)
+- Prova fisica con lo smartphone: tutorial completo, leggibilità del riquadro 3D, bilanciamento delle medaglie.
+- Eventuale pulizia dei fogli di stile storici (`natpf.css`, `natpf-round.css`, `natpf-flow.css`): oggi
+  `natpf-ui.css` li sovrascrive dove serve; la diagnostica e la sfida online usano ancora i loro stili.
+- Pagina del telefono (`site/tennis/racchetta.html`): non ridisegnata in questa sessione.
+- Musica generata con IA: solo se un connettore con un modello musicale utilizzabile diventa disponibile.

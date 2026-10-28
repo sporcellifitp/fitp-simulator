@@ -78,6 +78,11 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 
 ## Storico modifiche significative
 
+- 28/10/2026 — minigiochi arcade (`natpf_arcade.js`, `natpf_targets.js`, `natpf_events.js` riscritto): Target Rush,
+  Precision, Combo Challenge, Survival, Radar, Campione; medaglie, record personali (`natpf-tennis.records`), XP.
+- 28/10/2026 — audio: 5 brani nuovi + arrangiamenti per giro, 48 clip vocali registrate, effetti per tipo di colpo,
+  volumi separati (`natpf.audio`).
+- 28/10/2026 — redesign UI (`natpf-ui.css`), `natpf-intro.css` eliminato.
 - 28/10/2026 — lanciapalle 3D (`natpf_ball_machine.js`) e tutorial con animazioni 3D verificate (T1, T2).
 - 28/10/2026 — nuova memoria persistente (`CLAUDE.md`, `docs/PROJECT_MEMORY.md`, `docs/WORK_PROGRESS.md`,
   `docs/SESSION_HANDOFF.md`) e `scripts/ui-shots.mjs`.
