@@ -1,0 +1,34 @@
+Foto e video di NATPF Simulator (tutorial e intro) — provenienza e diritti
+==========================================================================
+
+Generati il 28/10/2026 con Higgsfield (account del progetto, piano Ultra), connettore Higgsfield di Claude Code.
+Condizioni d'uso di Higgsfield (centro assistenza, §4.4): i contenuti generati possono essere usati anche a fini
+commerciali e Higgsfield non ne rivendica la proprietà; non vanno usati per addestrare modelli di IA.
+Nessuna persona reale, nessun marchio: i prompt chiedevano esplicitamente niente scritte, loghi o insegne.
+I loghi dei partner (Esports FITP, Nitto ATP Finals) NON sono in questi file: sono in natpf/assets/brand/.
+
+Ogni clip dei colpi è stata controllata fotogramma per fotogramma contro le regole del rilevatore
+(docs/PROJECT_MEMORY.md §Gesti). Quelle sbagliate sono state scartate (vedi docs/WORK_PROGRESS.md, T7).
+
+File                      Modello Higgsfield       Job                                    Uso
+------------------------  -----------------------  -------------------------------------  --------------------------------
+presa-lato.webp           nano_banana_2 (2k)       05c2fc37-c7df-4576-9665-b14a0837d82d   lezione: impugnatura
+presa-schermo.webp        nano_banana_2 (2k)       4cee6f89-3bf2-4bad-adaa-f3f59a0d9fe3   lezione: dallo schermo solo il
+                                                                                          bordo; calibrazione; collega
+presa-sbagliata.webp      nano_banana_2 (2k)       a2045cb4-cd4c-465c-b1e2-9c7439c20a88   lezione: «Così no»
+posizione.webp            gpt_image_2_5 (medium)   58762eab-4f47-4f17-9eb3-1d2e0413c06b   lezione: posizione di partenza;
+                                                                                          primo fotogramma delle clip
+colpi/dritto.mp4/.webp    kling3_0_turbo 720p 4 s  e84592af-811b-461c-ab91-e0ce6796270c   esercizio dritto (*)
+colpi/pallonetto.mp4/.webp kling3_0_turbo 720p 4 s 90eb8e1a-cbc7-45c4-9591-637ec3e45612   esercizio pallonetto
+colpi/tagliato.mp4/.webp  kling3_0_turbo 720p 4 s  b26fa593-5959-4421-88c7-c3c1f1b5d412   tagliato; palla corta a ×0,5
+colpi/schiacciata.mp4/.webp kling3_0_turbo 720p 4 s b9cd0907-4aaf-4a2a-89eb-e94a659cdf38  esercizio schiacciata
+intro.mp4                 cinematic_studio_3_0     32ab262f-e89f-4a0c-b679-321769d190dc   video dell'intro (8 s, 720p)
+intro-fine.webp           ultimo fotogramma di intro.mp4                                   intro breve / senza video
+
+(*) chiesto come rovescio, il modello ha prodotto un dritto corretto (da destra verso sinistra, fine sopra la spalla
+    sinistra): usato come dritto.
+
+Elaborazione: ffmpeg. Foto in WebP (qualità 82). Clip: taglio della parte ferma iniziale, ritaglio 4:3 sul
+giocatore, 480×360, H.264 CRF 29 senza audio, faststart; poster WebP dal primo fotogramma. Intro: H.264 1280×720
+CRF 27 senza audio.
+Per i mancini il gioco specchia foto e clip (CSS scaleX(-1)): il gesto specchiato è quello corretto per la sinistra.

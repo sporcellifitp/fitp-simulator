@@ -171,19 +171,19 @@
         </div>
       </div>
     </div>
-    <!-- NATPF: intro all'avvio, come l'accensione di una console (src/natpf/natpf_intro.js): marchi, titolo del gioco
-         e «Premi un tasto». Un tasto o un tocco la salta; il tocco finale sblocca anche l'audio. -->
+    <!-- NATPF: intro all'avvio (src/natpf/natpf_intro.js): video dell'arena che si accende (public/media/intro.mp4,
+         Higgsfield, senza scritte né marchi), poi il titolo NATPF Simulator e «Premi un tasto». I partner sono una riga
+         piccola in basso. Un tasto o un tocco porta alla fine; il tocco finale sblocca anche l'audio. -->
     <div id="natpf-intro" class="natpf-intro" aria-label="NATPF Simulator">
-      <div class="intro-court" aria-hidden="true"></div>
+      <img class="intro-still" src="./media/intro-fine.webp" alt="" aria-hidden="true" />
+      <video class="intro-video" id="intro-video" src="./media/intro.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
+      <div class="intro-shade" aria-hidden="true"></div>
       <div class="intro-stage">
-        <img class="intro-logo intro-esports" src="./natpf/assets/brand/esports-fitp-neg.png" alt="ESPORTS FITP" />
-        <p class="intro-presents">presenta</p>
-        <img class="intro-logo intro-nitto" src="./natpf/assets/brand/nitto-atp-finals-white.png" alt="Nitto ATP Finals" />
-        <div class="intro-title"><span class="intro-ball" aria-hidden="true"></span><b>NATPF</b><i>Simulator</i></div>
-        <p class="intro-tag">Il tennis delle Nitto ATP Finals · Torino</p>
+        <h1 class="intro-title"><span class="intro-ball" aria-hidden="true"></span><b>NATPF</b><i>Simulator</i></h1>
+        <p class="intro-tag">Tennis 3D · il telefono è la racchetta</p>
         <button type="button" class="intro-start" id="intro-start">Premi un tasto per iniziare</button>
       </div>
-      <div class="intro-partners" aria-hidden="true"><img src="./natpf/assets/brand/esports-fitp-neg.png" alt="" /><img src="./natpf/assets/brand/nitto-atp-finals-white.png" alt="" /></div>
+      <footer class="intro-partners"><span>Un progetto</span><img src="./natpf/assets/brand/esports-fitp-neg.png" alt="Esports FITP" /><span>per le</span><img src="./natpf/assets/brand/nitto-atp-finals-white.png" alt="Nitto ATP Finals" /></footer>
       <button type="button" class="intro-skip" id="intro-skip">Salta ›</button>
     </div>
     <!-- nickname per sfide e classifica (solo il nickname, nessun altro dato) -->
@@ -218,7 +218,7 @@
       </div>
     </div>
     <!-- passaggio dal menu al campo -->
-    <div id="natpf-wipe" class="natpf-wipe" aria-hidden="true"><div class="wipe-band"><img src="./natpf/assets/brand/nitto-atp-finals-white.png" alt="" /><b id="natpf-wipe-text">Si gioca</b></div></div>
+    <div id="natpf-wipe" class="natpf-wipe" aria-hidden="true"><div class="wipe-band"><span class="wipe-mark">NATPF <i>Simulator</i></span><b id="natpf-wipe-text">Si gioca</b></div></div>
     <!-- NATPF: menu (src/natpf/natpf_lobby.js), percorso come in un gioco da console:
          menu principale → modalità (contro la CPU o un amico) → racchetta → collega (QR e passi del telefono, o la
          webcam) → riscaldamento in campo (calibrazione + lanciapalle, src/natpf/natpf_training.js) → partita.
@@ -229,7 +229,6 @@
       <header class="lobby-top">
         <div class="lobby-brand">
           <span class="lobby-mark">NATPF</span><span class="lobby-word">Simulator</span>
-          <span class="lobby-partners"><img src="./natpf/assets/brand/nitto-atp-finals-white.png" alt="Nitto ATP Finals" /><img src="./natpf/assets/brand/esports-fitp-neg.png" alt="ESPORTS FITP" /></span>
         </div>
         <ol class="lobby-progress" id="lobby-progress" aria-label="Avanzamento"></ol>
         <button type="button" id="lobby-help" class="lobby-ghost lobby-help-btn" title="Come si gioca (H)"><span aria-hidden="true">?</span> Come si gioca</button>
@@ -244,10 +243,12 @@
         <section class="lobby-page" data-page="menu" aria-labelledby="lobby-t-menu">
           <div class="menu-layout">
             <div class="menu-hero">
-              <p class="menu-kicker">Il tennis delle Nitto ATP Finals · Torino</p>
+              <h1 class="menu-brand"><b>NATPF</b><i>Simulator</i></h1>
+              <p class="menu-kicker">Tennis 3D · il telefono è la racchetta</p>
               <h2 class="menu-hero-title" id="lobby-t-menu" aria-live="polite">Gioca</h2>
               <p class="menu-desc" id="menu-desc" aria-live="polite">Partita veloce in arena contro la CPU, oppure sfida un amico su un altro computer.</p>
               <div id="lobby-menu-result" class="lobby-result hidden" aria-live="polite"></div>
+              <footer class="menu-partners" aria-label="Partner"><span>Un progetto</span><img src="./natpf/assets/brand/esports-fitp-neg.png" alt="Esports FITP" /><span>per le</span><img src="./natpf/assets/brand/nitto-atp-finals-white.png" alt="Nitto ATP Finals" /></footer>
             </div>
             <nav class="main-menu" aria-label="Menu principale">
               <button type="button" class="menu-item menu-primary" data-menu="play" data-title="Gioca" data-desc="Partita veloce in arena contro la CPU, oppure sfida un amico su un altro computer."><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" /><path d="M11 18c8 3 18 3 26 0M11 30c8-3 18-3 26 0" /></svg><span class="mi-text"><b>Gioca</b><span>CPU · Sfida un amico</span></span><i class="mi-go" aria-hidden="true">›</i></button>
@@ -372,7 +373,7 @@
               <li data-connect="scan"><i aria-hidden="true"></i><div><b>Inquadra il QR</b><span>Apri la fotocamera del telefono e tocca il link che compare.</span></div></li>
               <li data-connect="sensors"><i aria-hidden="true"></i><div><b>Tocca «Attiva i sensori»</b><span>Sul telefono. Su iPhone poi tocca «Consenti».</span></div></li>
               <li data-connect="hold"><i aria-hidden="true"></i><div><b>Impugna il telefono come un manico</b><span>In piedi nel pugno, la cima in alto e un poco in avanti, il display di lato (a destra o a sinistra): dallo schermo si vede solo il bordo. Si parte da soli.</span></div>
-                <svg class="connect-grip" aria-hidden="true"></svg></li>
+                <img class="connect-grip connect-grip-photo" src="./media/presa-schermo.webp" alt="Visto dallo schermo: del telefono si vede solo il bordo" /></li>
             </ol>
           </div>
           <p id="connect-warn" class="natpf-warn hidden"></p>
@@ -629,6 +630,7 @@
       </div>
       <section class="coach-lesson hidden" id="coach-lesson" aria-labelledby="coach-lesson-title">
         <div class="lesson-demo" id="coach-lesson-demo"></div>
+        <figure class="lesson-media hidden" id="coach-lesson-media"></figure>
         <div class="lesson-body">
           <p class="lesson-step" id="coach-lesson-step"></p>
           <h2 class="lesson-title" id="coach-lesson-title"></h2>
@@ -647,6 +649,7 @@
       <aside class="coach-demo hidden" id="coach-demo" aria-label="Gesto da ripetere">
         <header><span>Guarda e ripeti</span><b id="coach-demo-title"></b><i class="demo-speed">×0,5</i></header>
         <div class="demo-stage" id="coach-demo-stage"></div>
+        <video class="demo-video hidden" id="coach-demo-video" muted loop playsinline preload="none" aria-hidden="true"></video>
         <ul class="demo-cues" id="coach-demo-cues"></ul>
       </aside>
       <div class="coach-main" id="coach-main" data-state="wait">

@@ -17,6 +17,7 @@ import { calSide, calPrompt, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
 import { gripSvg } from '@natpf/tennis/grip-art.js';
 import { getGestureDemo } from './natpf_gesture_demo.js';
 import { GESTURES } from './natpf_gesture_motion.js';
+import { PHOTOS, clipFor, lessonPhotos, rateLabel } from './natpf_media.js';
 export { calSide };
 
 // Esercizi del tutorial, in ordine progressivo: i colpi di base, il servizio, la direzione, la rete, il tocco, la
@@ -469,6 +470,7 @@ export class NatpfTraining {
     const E = this.engine;
     this.active = false; this.cal = null; this.lesson = null; this.live = null; E.natpfTimeScale = 1; clearTimeout(this.retryT);
     if (this.demoOn){ getGestureDemo().stop(); this.demoOn = false; }
+    this._paintClip(document.getElementById('coach-demo-video'), null);
     if (E.audioEngine?.musicContext === 'training') E.audioEngine.musicContext = null;
     this.coach?.classList.add('hidden'); this._hideOpponent(false);
     E.opponent.pos.set(-1.35, 0, -11.89); E.opponent.targetPos.copy(E.opponent.pos);
@@ -512,7 +514,12 @@ export class NatpfTraining {
     const mode = this.ui.flow?.mode === 'training' ? 'Allenamento' : 'Riscaldamento';
     const P = this.ui.phone, lost = c === 'phone' && P && (!P.connected || (P.state?.phone && !['cal', 'ready'].includes(P.state.phone)));
     const grip = $('#coach-grip'), showGrip = c === 'phone' && !!this.cal && this.view.stage === 'still' && !lost;
-    if (grip && showGrip && grip.dataset.hand !== hand){ grip.innerHTML = gripSvg({ compact: true, hand, cls: 'coach-grip-art' }); grip.dataset.hand = hand; }
+    // foto reale della presa vista dallo schermo (solo il bordo); la figura disegnata resta se la foto non si carica
+    if (grip && showGrip && grip.dataset.hand !== hand){
+      grip.innerHTML = `<img class="coach-grip-photo${hand === 'left' ? ' mirror' : ''}" src="${PHOTOS.edge.src}" alt="${PHOTOS.edge.alt}" />`;
+      if (grip.firstChild) grip.firstChild.onerror = () => { grip.innerHTML = gripSvg({ compact: true, hand, cls: 'coach-grip-art' }); };
+      grip.dataset.hand = hand;
+    }
     show(grip, showGrip);
     let view;
     // telefono scollegato o senza sensori (pagina ricaricata, schermo spento): prima il pannello restava su «Ora»
@@ -567,34 +574,69 @@ export class NatpfTraining {
     box.dataset.ok = L.ok ? 'yes' : 'no';
     box.innerHTML = `<span class="live-mark" aria-hidden="true">${L.ok ? '✓' : '!'}</span><span class="live-text"><b>${L.recognized}</b>${L.tip ? `<small>${L.tip}</small>` : ''}</span>${bars}`;
   }
-  // animazione 3D del gesto: grande nella lezione, piccola in alto a destra durante gli esercizi (solo smartphone: con la
-  // webcam si colpisce senza telefono in mano). Un solo canvas WebGL che si sposta tra i due riquadri
+  // gesto da guardare: nella lezione le foto reali (presa, bordo verso lo schermo, posizione), negli esercizi la clip
+  // reale verificata se c'è (natpf_media.js), altrimenti l'animazione 3D. Grande nella lezione, piccola in alto a destra
+  // durante gli esercizi (solo smartphone: con la webcam si colpisce senza telefono in mano). Un solo canvas WebGL che si
+  // sposta tra i due riquadri; per i mancini foto e clip sono specchiate
   _paintDemo($, lost, hand){
     const phone = this.ui.controller === 'phone';
     const step = this.lesson?.steps[this.lesson.idx];
     let id = null;
-    // nella lezione l'animazione c'è anche con il telefono non ancora collegato (si spiega come tenerlo)
+    // nella lezione l'immagine c'è anche con il telefono non ancora collegato (si spiega come tenerlo)
     if (phone && step) id = step.demo || null;
     else if (phone && !lost){
       if (this.cal) id = this.view.stage === 'gesture' ? calSide(this.view.want, hand) : 'ready';
       else id = this.drill?.demo || null;
     }
-    const card = $('#coach-demo'), big = $('#coach-lesson-demo');
-    show(card, !!id && !step); show(big, !!id && !!step);
-    const demo = id ? getGestureDemo() : null;
-    if (!demo){ this.demoOn && getGestureDemo().stop(); this.demoOn = false; return; }
-    const g = GESTURES[id];
-    demo.mount(step ? big : $('#coach-demo-stage'));
-    if (demo.available) demo.setSize(step ? 300 : 200, step ? 300 : 200);
-    demo.play(id, { hand, speed: g.still ? 1 : step ? .6 : .5 });
-    this.demoOn = true;
-    const key = `${id}|${hand}`, title = $('#coach-demo-title'), cues = $('#coach-demo-cues');
+    const photos = phone && step ? lessonPhotos(step.id) : null;
+    const c = id && !step && !this.cal ? clipFor(id) : null, clip = c && !this.badClips?.has(c.src) ? c : null;
+    const card = $('#coach-demo'), big = $('#coach-lesson-demo'), media = $('#coach-lesson-media'), video = $('#coach-demo-video');
+    show(card, !!id && !step); show(big, !!id && !!step && !photos); show(media, !!photos);
+    if (photos){
+      const key = `${step.id}|${hand}`;
+      if (media && media.dataset.key !== key){
+        media.dataset.key = key;
+        const m = hand === 'left' ? ' mirror' : '';
+        media.innerHTML = `<img class="lesson-photo${m}" src="${photos.main.src}" alt="${photos.main.alt}" />`
+          + (photos.no ? `<figcaption class="lesson-no"><img src="${photos.no.src}" alt="${photos.no.alt}" /><b>Così no</b></figcaption>` : '');
+      }
+    }
+    this._paintClip(video, clip, hand);
+    const demo = id && !photos && !clip ? getGestureDemo() : null;
+    show($('#coach-demo-stage'), !clip);
+    if (!demo){ this.demoOn && getGestureDemo().stop(); this.demoOn = false; }
+    else {
+      const g = GESTURES[id];
+      demo.mount(step ? big : $('#coach-demo-stage'));
+      if (demo.available) demo.setSize(step ? 300 : 200, step ? 300 : 200);
+      demo.play(id, { hand, speed: g.still ? 1 : step ? .6 : .5 });
+      this.demoOn = true;
+    }
+    if (!id || step || !card) return;
+    const g = GESTURES[id], key = `${id}|${hand}|${clip ? 'clip' : '3d'}`, title = $('#coach-demo-title'), cues = $('#coach-demo-cues');
     if (card.dataset.key !== key){
       card.dataset.key = key;
       if (title) title.textContent = g.label;
       if (cues) cues.innerHTML = g.cues.map(c => `<li>${c}</li>`).join('');
-      card.classList.toggle('no-webgl', !demo.available);
+      const speed = card.querySelector('.demo-speed');
+      if (speed) speed.textContent = rateLabel(clip ? clip.rate : .5);
+      card.classList.toggle('is-clip', !!clip);
+      card.classList.toggle('no-webgl', !clip && !demo?.available);
     }
+  }
+  // clip reale nella scheda «Guarda e ripeti»: muta, in loop, caricata solo quando serve
+  _paintClip(video, clip, hand){
+    if (!video) return;
+    show(video, !!clip);
+    video.classList.toggle('mirror', hand === 'left');
+    if (!clip){ if (video.dataset.src){ video.pause?.(); video.removeAttribute?.('src'); delete video.dataset.src; video.load?.(); } return; }
+    if (video.dataset.src !== clip.src){
+      video.dataset.src = clip.src; video.poster = clip.poster; video.src = clip.src;
+      // file mancante o formato non supportato: si torna all'animazione 3D
+      video.onerror = () => { (this.badClips ||= new Set()).add(clip.src); delete video.dataset.src; };
+    }
+    video.playbackRate = clip.rate; video.defaultPlaybackRate = clip.rate;
+    if (video.paused) video.play?.()?.catch?.(() => {});
   }
 }
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);

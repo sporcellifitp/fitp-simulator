@@ -195,6 +195,16 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
   background: radial-gradient(circle at 50% 30%, #25387d 0%, #121f4d 55%, #0b1435 100%);
 }
 .gesture-demo-canvas { display: block; width: 100%; height: 100%; }
+/* foto e clip reali (natpf_media.js): per i mancini si specchiano */
+.lesson-media { position: relative; margin: 0; aspect-ratio: 1; border-radius: var(--r-m); overflow: hidden; background: #0b1435; }
+.lesson-photo { display: block; width: 100%; height: 100%; object-fit: cover; }
+.lesson-media[data-key^="ready"] .lesson-photo { object-position: 30% 50%; }
+.lesson-no { position: absolute; right: 10px; bottom: 10px; width: 44%; margin: 0; border-radius: var(--r-s); overflow: hidden; border: 2px solid var(--pink); box-shadow: var(--shadow); }
+.lesson-no img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.lesson-no b { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 8px; background: var(--pink); color: #fff; font: 800 italic 14px/1.1 var(--font-display); letter-spacing: 0.04em; text-transform: uppercase; }
+.demo-video { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--r-m); background: #0b1435; }
+.lesson-photo.mirror, .demo-video.mirror, .coach-grip-photo.mirror { transform: scaleX(-1); }
+.coach-grip-photo { display: block; width: 100%; max-height: 170px; object-fit: cover; border-radius: var(--r-m); }
 .demo-cues { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 .demo-cues li { position: relative; padding-left: 16px; font: 500 14px/1.3 var(--font-text); color: var(--text-2); }
 .demo-cues li::before { content: ""; position: absolute; left: 2px; top: 0.5em; width: 6px; height: 6px; border-radius: 50%; background: var(--ball); }
@@ -329,8 +339,9 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
 }
 
 /* =====================================================================================================================
-   Intro (natpf_intro.js): marchi → titolo con la palla → «Premi un tasto». Classi: mode-full, mode-short, is-ready,
-   leaving. Durate allineate a INTRO_MS (5,2 s completa, 1,5 s breve).
+   Intro (natpf_intro.js): video dell'arena (public/media/intro.mp4) → titolo NATPF Simulator con la palla → «Premi un
+   tasto». Un solo titolo grande; i partner sono una riga piccola in basso. Classi: mode-full, mode-short, is-ready,
+   no-video, leaving. Durate allineate a INTRO_MS (7,8 s completa, 1,5 s breve).
    ===================================================================================================================== */
 .natpf-intro {
   position: fixed;
@@ -339,41 +350,29 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: radial-gradient(ellipse 80% 70% at 50% 45%, #13286b 0%, #0a1438 45%, var(--ink-950) 100%);
+  background: var(--ink-950);
   color: var(--text);
   font-family: var(--font-text);
   transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
 }
 .natpf-intro.hidden { display: none; }
 .natpf-intro.leaving { opacity: 0; transform: scale(1.04); pointer-events: none; }
-.intro-court {
-  position: absolute;
-  left: 50%;
-  bottom: -12vh;
-  width: 140vw;
-  height: 46vh;
-  transform: translateX(-50%) perspective(600px) rotateX(58deg);
-  background:
-    linear-gradient(90deg, transparent 49.8%, rgba(255, 255, 255, 0.5) 49.8% 50.2%, transparent 50.2%),
-    linear-gradient(0deg, transparent 0 30%, rgba(255, 255, 255, 0.45) 30% 30.8%, transparent 30.8%),
-    linear-gradient(90deg, transparent 0 18%, rgba(255, 255, 255, 0.45) 18% 18.4%, transparent 18.4% 81.6%, rgba(255, 255, 255, 0.45) 81.6% 82%, transparent 82%),
-    linear-gradient(180deg, #2f6bff 0%, #1d47c4 100%);
-  opacity: 0.55;
-  mask-image: linear-gradient(180deg, transparent, #000 60%);
-}
-.intro-stage { position: relative; display: grid; justify-items: center; text-align: center; gap: 14px; width: min(92vw, 980px); }
-.intro-logo { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); opacity: 0; }
-.intro-esports { width: min(36vw, 260px); }
-.intro-nitto { width: min(60vw, 460px); }
-.intro-presents { position: absolute; left: 50%; top: calc(50% + 90px); transform: translateX(-50%); margin: 0; opacity: 0; font: 600 15px/1 var(--font-display); letter-spacing: 0.4em; text-transform: uppercase; color: var(--text-2); }
-.intro-title { position: relative; display: flex; align-items: baseline; justify-content: center; gap: 0.18em; opacity: 0; }
-.intro-title b { font: 800 italic clamp(84px, 15vw, 196px)/0.85 var(--font-display); letter-spacing: -0.01em; text-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); }
+.intro-video, .intro-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* l'ultima inquadratura come immagine: intro breve, video non disponibile, e sotto il video quando è finito */
+.intro-still { opacity: 0; transition: opacity 0.4s var(--ease); }
+.natpf-intro.mode-short .intro-still, .natpf-intro.no-video .intro-still, .natpf-intro.is-ready .intro-still { opacity: 1; }
+.natpf-intro.mode-short .intro-video, .natpf-intro.no-video .intro-video { display: none; }
+/* scurisce in alto (titolo) e in basso (partner) senza coprire il campo */
+.intro-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(4, 8, 24, 0.7) 0%, rgba(4, 8, 24, 0) 42%, rgba(4, 8, 24, 0) 70%, rgba(4, 8, 24, 0.8) 100%); }
+.intro-stage { position: relative; align-self: stretch; display: grid; grid-template-rows: auto auto 1fr auto; justify-items: center; text-align: center; gap: 12px; width: min(92vw, 980px); padding: clamp(28px, 9vh, 96px) 0 clamp(64px, 15vh, 140px); }
+.intro-title { position: relative; display: flex; align-items: baseline; justify-content: center; gap: 0.18em; margin: 0; opacity: 0; }
+.intro-title b { font: 800 italic clamp(76px, 13vw, 176px)/0.85 var(--font-display); letter-spacing: -0.01em; text-shadow: 0 12px 40px rgba(0, 0, 0, 0.55); }
 .intro-title b::after { content: ""; display: block; height: 0.06em; margin-top: 0.06em; background: var(--ball); transform-origin: left; }
-.intro-title i { font: 700 italic clamp(30px, 4.6vw, 60px)/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--pink); }
-.intro-ball { position: absolute; top: 34%; left: -10%; width: 0.22em; height: 0.22em; font-size: clamp(84px, 15vw, 196px); border-radius: 50%; background: radial-gradient(circle at 35% 35%, #f6ffb0, var(--ball) 55%, #b6d01a); box-shadow: -40px 0 30px rgba(227, 255, 54, 0.25); opacity: 0; }
-.intro-tag { margin: 6px 0 0; opacity: 0; font: 600 clamp(14px, 1.6vw, 18px)/1.2 var(--font-display); letter-spacing: 0.3em; text-transform: uppercase; color: var(--text-2); }
+.intro-title i { font: 700 italic clamp(28px, 4.2vw, 56px)/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--pink); text-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); }
+.intro-ball { position: absolute; top: 34%; left: -10%; width: 0.22em; height: 0.22em; font-size: clamp(76px, 13vw, 176px); border-radius: 50%; background: radial-gradient(circle at 35% 35%, #f6ffb0, var(--ball) 55%, #b6d01a); box-shadow: -40px 0 30px rgba(227, 255, 54, 0.25); opacity: 0; }
+.intro-tag { margin: 0; opacity: 0; font: 600 clamp(14px, 1.5vw, 18px)/1.2 var(--font-display); letter-spacing: 0.3em; text-transform: uppercase; color: var(--text); text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6); }
 .intro-start {
-  margin-top: 28px;
+  grid-row: 4;
   opacity: 0;
   height: 54px;
   padding: 0 34px;
@@ -388,41 +387,47 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
   box-shadow: 0 10px 34px rgba(227, 255, 54, 0.3);
 }
 .intro-start:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
-.intro-partners { position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 28px; opacity: 0; }
-.intro-partners img { height: 30px; width: auto; }
-.intro-skip { position: absolute; right: 22px; bottom: 22px; height: 36px; padding: 0 16px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: transparent; color: var(--text-2); font: 600 14px/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+/* partner: una riga piccola e discreta in basso, mai in primo piano */
+.intro-partners { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; opacity: 0; white-space: nowrap; font: 600 12px/1 var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-3); }
+.intro-partners img { height: 20px; width: auto; opacity: 0.85; }
+.intro-skip { position: absolute; right: 22px; bottom: 18px; height: 36px; padding: 0 16px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: rgba(4, 8, 24, 0.4); color: var(--text-2); font: 600 14px/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
 .natpf-intro.is-ready .intro-skip { display: none; }
-/* sequenza completa */
-.natpf-intro.mode-full .intro-esports { animation: intro-brand 1.4s var(--ease) 0.15s both; }
-.natpf-intro.mode-full .intro-presents { animation: intro-fade-out 1.4s var(--ease) 0.35s both; }
-.natpf-intro.mode-full .intro-nitto { animation: intro-brand 1.3s var(--ease) 1.55s both; }
-.natpf-intro.mode-full .intro-title { animation: intro-title 0.7s cubic-bezier(0.2, 1.3, 0.4, 1) 2.95s both; }
-.natpf-intro.mode-full .intro-title b::after { animation: intro-line 0.5s var(--ease) 3.4s both; }
-.natpf-intro.mode-full .intro-ball { animation: intro-ball 0.9s cubic-bezier(0.3, 0.6, 0.5, 1) 2.85s both; }
-.natpf-intro.mode-full .intro-tag { animation: intro-up 0.6s var(--ease) 3.8s both; }
-.natpf-intro.mode-full .intro-partners { animation: intro-up 0.6s var(--ease) 4.2s both; }
-/* sequenza breve (già vista in questa sessione) */
+/* intro completa: il titolo entra quando la camera sale sopra il campo (≈5,7 s del video) */
+.natpf-intro.mode-full .intro-title { animation: intro-title 0.7s cubic-bezier(0.2, 1.3, 0.4, 1) 5.7s both; }
+.natpf-intro.mode-full .intro-title b::after { animation: intro-line 0.5s var(--ease) 6.15s both; }
+.natpf-intro.mode-full .intro-ball { animation: intro-ball 0.9s cubic-bezier(0.3, 0.6, 0.5, 1) 5.6s both; }
+.natpf-intro.mode-full .intro-tag { animation: intro-up 0.6s var(--ease) 6.5s both; }
+.natpf-intro.mode-full .intro-partners { animation: intro-up 0.6s var(--ease) 7s both; }
+/* senza video il titolo non aspetta l'arena */
+.natpf-intro.mode-full.no-video .intro-title { animation-delay: 0.2s; }
+.natpf-intro.mode-full.no-video .intro-title b::after { animation-delay: 0.6s; }
+.natpf-intro.mode-full.no-video .intro-ball { animation-delay: 0.1s; }
+.natpf-intro.mode-full.no-video .intro-tag { animation-delay: 0.9s; }
+.natpf-intro.mode-full.no-video .intro-partners { animation-delay: 1.2s; }
+/* intro breve (già vista nella sessione): solo il titolo */
 .natpf-intro.mode-short .intro-title { animation: intro-title 0.6s cubic-bezier(0.2, 1.3, 0.4, 1) 0.1s both; }
 .natpf-intro.mode-short .intro-title b::after { animation: intro-line 0.4s var(--ease) 0.45s both; }
 .natpf-intro.mode-short .intro-tag,
 .natpf-intro.mode-short .intro-partners { animation: intro-up 0.5s var(--ease) 0.6s both; }
-/* pronto: tutto visibile, «Premi un tasto» che respira */
+/* fine (o salto): tutto in vista, «Premi un tasto» respira */
 .natpf-intro.is-ready .intro-title,
 .natpf-intro.is-ready .intro-tag,
-.natpf-intro.is-ready .intro-partners { animation: none; opacity: 1; transform: none; }
+.natpf-intro.is-ready .intro-partners { animation: none; opacity: 1; }
+.natpf-intro.is-ready .intro-title, .natpf-intro.is-ready .intro-tag { transform: none; }
+.natpf-intro.is-ready .intro-partners { transform: translateX(-50%); }
 .natpf-intro.is-ready .intro-title b::after { animation: none; transform: none; }
-.natpf-intro.is-ready .intro-logo,
-.natpf-intro.is-ready .intro-presents,
 .natpf-intro.is-ready .intro-ball { animation: none; opacity: 0; }
 .natpf-intro.is-ready .intro-start { opacity: 1; animation: intro-breathe 1.6s ease-in-out infinite; }
-@keyframes intro-brand { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.92); } 20%, 75% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.03); } }
-@keyframes intro-fade-out { 0% { opacity: 0; } 25%, 70% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes intro-title { from { opacity: 0; transform: scale(1.35); filter: blur(8px); } to { opacity: 1; transform: none; filter: none; } }
 @keyframes intro-line { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes intro-ball { 0% { opacity: 0; left: -10%; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; left: 105%; } }
-@keyframes intro-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes intro-up { from { opacity: 0; translate: 0 14px; } to { opacity: 1; translate: 0 0; } }
 @keyframes intro-breathe { 0%, 100% { transform: scale(1); box-shadow: 0 10px 34px rgba(227, 255, 54, 0.3); } 50% { transform: scale(1.04); box-shadow: 0 12px 44px rgba(227, 255, 54, 0.5); } }
-.intro-partners img + img { border-left: 1px solid var(--line-strong); padding-left: 28px; }
+@media (max-height: 560px) {
+  .intro-stage { padding: 18px 0 64px; }
+  .intro-partners { bottom: 12px; font-size: 10px; }
+  .intro-partners img { height: 16px; }
+}
 
 /* =====================================================================================================================
    Menu e pagine (#title-modal, natpf_lobby.js): barra in alto (marchio, avanzamento, guida), pagina al centro su una
@@ -456,8 +461,6 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
 #title-modal .lobby-brand { display: flex; align-items: center; gap: 14px; justify-self: start; }
 #title-modal .lobby-mark { border: 0; padding: 0; font: 800 italic 34px/1 var(--font-display); letter-spacing: 0; color: var(--text); }
 #title-modal .lobby-word { font: 700 italic 18px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--pink); }
-#title-modal .lobby-partners { display: flex; align-items: center; gap: 14px; margin-left: 10px; padding-left: 14px; border-left: 1px solid var(--line-strong); }
-#title-modal .lobby-partners img { height: 22px; width: auto; }
 /* avanzamento: tappe con il numero, la corrente con il nome */
 #title-modal .lobby-progress { display: flex; align-items: center; gap: 6px; margin: 0; padding: 0; list-style: none; justify-self: center; background: none; box-shadow: none; border-radius: 0; }
 #title-modal .lobby-progress:empty { display: none; }
@@ -491,10 +494,19 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
 /* ---------- menu principale ---------- */
 #title-modal .lobby-page[data-page="menu"] { justify-content: center; }
 #title-modal .menu-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 440px); align-items: center; gap: clamp(24px, 5vw, 72px); }
-#title-modal .menu-hero { display: grid; gap: 14px; align-content: center; }
-#title-modal .menu-kicker { margin: 0; font: 600 14px/1 var(--font-display); letter-spacing: 0.24em; text-transform: uppercase; color: var(--pink); }
-#title-modal .menu-hero-title { margin: 0; font: 800 italic clamp(64px, 8.6vw, 116px)/0.86 var(--font-display); text-transform: uppercase; letter-spacing: -0.005em; text-align: left; }
+#title-modal .menu-hero { display: grid; gap: 10px; align-content: center; }
+#title-modal .menu-kicker { margin: 0; font: 600 14px/1 var(--font-display); letter-spacing: 0.24em; text-transform: uppercase; color: var(--text-2); }
+/* titolo principale: NATPF Simulator; sotto, più piccolo, la voce scelta del menu */
+#title-modal .menu-brand { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 0.22em; margin: 0; }
+#title-modal .menu-brand b { font: 800 italic clamp(64px, 8.4vw, 112px)/0.86 var(--font-display); letter-spacing: -0.01em; color: var(--text); }
+#title-modal .menu-brand b::after { content: ""; display: block; height: 0.06em; margin-top: 0.06em; background: var(--ball); }
+#title-modal .menu-brand i { font: 700 italic clamp(24px, 3vw, 38px)/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--pink); }
+#title-modal[data-step="menu"] .lobby-brand { visibility: hidden; }
+#title-modal .menu-hero-title { margin: 14px 0 0; font: 800 italic clamp(28px, 3vw, 38px)/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.01em; text-align: left; }
 #title-modal .menu-desc { margin: 0; min-height: 3.1em; max-width: 36ch; font: 500 clamp(17px, 1.6vw, 20px)/1.45 var(--font-text); color: var(--text-2); text-align: left; border: 0; padding: 0; }
+/* partner: in secondo piano sotto la descrizione, piccoli e senza riquadri (il titolo è NATPF Simulator) */
+#title-modal .menu-partners { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); white-space: nowrap; font: 600 12px/1 var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-3); }
+#title-modal .menu-partners img { height: 18px; width: auto; opacity: 0.8; }
 #title-modal .main-menu { display: grid; gap: 10px; }
 #title-modal .menu-item {
   position: relative;
@@ -788,7 +800,6 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
    ===================================================================================================================== */
 @media (max-width: 980px) {
   #title-modal .lobby-top { grid-template-columns: auto 1fr auto; }
-  #title-modal .lobby-partners { display: none; }
   #title-modal .menu-layout { grid-template-columns: 1fr minmax(300px, 380px); gap: 24px; }
   #title-modal .connect-panel { grid-template-columns: 200px 1fr; }
   #title-modal .connect-qr .natpf-qr { width: 190px; height: 190px; }
@@ -848,7 +859,8 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
   background: linear-gradient(100deg, var(--ink-950) 0 28%, var(--ink-700) 28% 72%, var(--ink-950) 72%);
   transform: translateX(-130%) skewX(-14deg);
 }
-.natpf-wipe .wipe-band img { width: min(46vw, 480px); transform: skewX(14deg); }
+.natpf-wipe .wipe-band .wipe-mark { font: 800 italic clamp(22px, 2.6vw, 34px)/1 var(--font-display); letter-spacing: 0.02em; text-transform: uppercase; color: var(--text); transform: skewX(14deg); }
+.natpf-wipe .wipe-band .wipe-mark i { color: var(--pink); letter-spacing: 0.08em; }
 .natpf-wipe .wipe-band b { color: var(--ball); font: 800 italic clamp(48px, 8vw, 104px)/1 var(--font-display); text-transform: uppercase; transform: skewX(14deg); }
 .natpf-wipe.run .wipe-band { animation: wipe-run 1.35s cubic-bezier(0.7, 0, 0.3, 1) forwards; }
 @keyframes wipe-run { 0% { transform: translateX(-130%) skewX(-14deg); } 38%, 62% { transform: translateX(0) skewX(-14deg); } 100% { transform: translateX(130%) skewX(-14deg); } }
@@ -902,6 +914,7 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
 #title-modal [data-page="match"] .lobby-versus { margin-top: -6px; }
 #title-modal [data-page="match"] .versus-side canvas, #title-modal [data-page="match"] .versus-side .nt-pl-svg { width: 52px; height: 52px; }
 #title-modal .connect-steps li .connect-grip { max-height: 130px; justify-self: start; }
+#title-modal .connect-steps li .connect-grip-photo { width: 130px; height: 130px; max-height: none; object-fit: cover; border-radius: var(--r-m); border: 1px solid var(--line); }
 #title-modal .connect-panel { align-items: start; }
 /* fogli larghi: guida con le clip, collegamento del telefono */
 .natpf-sheet-backdrop .natpf-sheet.natpf-guide { width: min(1000px, calc(100vw - 2 * var(--gutter))); }

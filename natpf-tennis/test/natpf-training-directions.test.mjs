@@ -50,14 +50,15 @@ test('lanciapalle della schiacciata: traiettoria alta prima del rimbalzo, non il
   assert.ok(w.E.ball.vel.y > 7, `velocità verticale ${w.E.ball.vel.y}`);
 });
 
-test('impugnatura nel riscaldamento: figura solo da fermo, mano sinistra specchiata senza capovolgere le scritte', async () => {
+test('impugnatura nel riscaldamento: foto reale solo da fermo, specchiata per la mano sinistra (figura disegnata di riserva)', async () => {
   const w = await makeWorld(); w.cal({ kind: 'step', step: 'still' });
   const T = w.ui.training; T.start(); T.paint();
   const art = T.coach.querySelector('#coach-grip');
   assert.equal(art.classList.contains('hidden'), false);
-  assert.match(art.innerHTML, /data-hand="right"/);
+  assert.match(art.innerHTML, /presa-schermo\.webp/);
+  assert.doesNotMatch(art.innerHTML, /mirror/);
   w.ui.hand.set('left'); T.paint();
-  assert.match(art.innerHTML, /data-hand="left"/);
+  assert.match(art.innerHTML, /coach-grip-photo mirror/);
   assert.match(gripSvg({ hand: 'left' }), /Mano sinistra/);
   assert.match(gripSvg({ hand: 'left' }), /DI LATO/);
   w.cal({ kind: 'step', step: 'swings', want: 'L', idx: 0, total: 2 }); T.paint();

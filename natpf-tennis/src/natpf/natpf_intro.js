@@ -1,12 +1,14 @@
-// Intro all'avvio, come l'accensione di un gioco su console: marchi (ESPORTS FITP «presenta», Nitto ATP Finals), titolo
-// NATPF Simulator con la palla che lo attraversa, poi «Premi un tasto per iniziare». Un tasto, un clic
-// o un tocco durante l'animazione la porta alla fine; alla fine fa partire il menu (e sblocca l'audio del browser,
-// che vuole un gesto). La seconda volta nella stessa sessione si vede solo il titolo. ?intro=0 la salta (prove), e
-// non c'è per il Player 2 che apre l'invito di una sfida.
+// Intro all'avvio, come l'accensione di un gioco su console: il video dell'arena che si accende (public/media/intro.mp4,
+// generato con Higgsfield, senza scritte né marchi), poi il titolo NATPF Simulator con la palla che lo attraversa e
+// «Premi un tasto per iniziare»; i partner sono una riga piccola in basso. Un tasto, un clic o un tocco durante il video
+// mostra subito il titolo; alla fine fa partire il menu (e sblocca l'audio del browser, che vuole un gesto). La seconda
+// volta nella stessa sessione si vede solo il titolo sull'ultima inquadratura. Senza video (file mancante, autoplay
+// negato) resta l'ultima inquadratura come immagine. ?intro=0 la salta (prove), e non c'è per il Player 2 che apre
+// l'invito di una sfida.
 const $ = id => document.getElementById(id);
 export const INTRO_KEY = 'natpf-tennis.intro';
 // durata dell'animazione completa (ms) e di quella breve (sessione già vista): allineate alle animazioni dell'intro in natpf-ui.css
-export const INTRO_MS = { full: 5200, short: 1500 };
+export const INTRO_MS = { full: 7800, short: 1500 };
 export function introMode({ search = '', seen = false } = {}){
   const q = new URLSearchParams(search);
   if (q.get('intro') === '0' || q.get('diag') === '1') return 'off';
@@ -36,8 +38,19 @@ export class NatpfIntro {
     this.el.classList.remove('hidden', 'leaving', 'is-ready', 'mode-full', 'mode-short');
     void this.el.offsetWidth;                                        // riparte l'animazione CSS
     this.el.classList.add(`mode-${mode}`);
+    this._video(mode);
     window.addEventListener('keydown', this._key, true);
     clearTimeout(this._t); this._t = setTimeout(() => this.finishAnimation(), INTRO_MS[mode] || INTRO_MS.full);
+  }
+  // video di sfondo solo nell'intro completa; se non parte resta l'immagine finale
+  _video(mode){
+    const v = $('intro-video'); if (!v) return;
+    this.el.classList.remove('no-video');
+    const fail = () => this.el.classList.add('no-video');
+    if (mode !== 'full'){ v.pause?.(); return fail(); }
+    v.onerror = fail;
+    try { v.currentTime = 0; } catch {}
+    const p = v.play?.(); if (p?.catch) p.catch(fail); else if (!p) fail();
   }
   // fine dell'animazione: resta «Premi un tasto per iniziare»
   finishAnimation(){

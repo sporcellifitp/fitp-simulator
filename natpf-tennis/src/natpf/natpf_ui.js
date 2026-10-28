@@ -60,8 +60,9 @@ export class NatpfUi {
     // diagnostica (Maiusc+D o ?diag=1): prima del menu, così il suo tasto arriva anche con il menu aperto
     this.diag = new NatpfDiag(engine, this);
     this._gateDesktopInput();
-    // figura dell'impugnatura (la stessa della pagina del telefono e della guida) al posto dei disegni di prima
-    for (const el of document.querySelectorAll('.connect-grip, .natpf-grip')) el.outerHTML = gripSvg({ cls: el.getAttribute('class'), compact: true });
+    // impugnatura: foto reale nella pagina «Collega» (img.connect-grip, natpf_media.js); la figura disegnata (la stessa della
+    // pagina del telefono e della guida) resta dove c'è ancora un <svg>
+    for (const el of document.querySelectorAll('svg.connect-grip, svg.natpf-grip')) el.outerHTML = gripSvg({ cls: el.getAttribute('class'), compact: true });
     this.modal = $('natpf-phone-modal');
     this.qrToken = null;
     this._buildSetup();
