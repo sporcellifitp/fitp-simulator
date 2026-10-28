@@ -22,6 +22,7 @@ import { phoneHealth, createPhoneWatch, holdText } from './natpf_phone_watch.js'
 import { webcamHealth, createWebcamWatch, webcamHoldText } from './natpf_webcam_watch.js';
 import { gripSvg, GRIP_TEXT_PLAIN } from '@natpf/tennis/grip-art.js';
 import { p2pStatusText, P2P_NET_HINT } from './natpf_versus.js';
+import { NatpfSplitUi } from './natpf_split_ui.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -74,6 +75,8 @@ export class NatpfUi {
     // volumi separati di musica, effetti e voci (Opzioni e Pausa)
     this.syncVolumes = bindAudioSliders(engine.audioEngine);
     this.versus = new NatpfVersusUi(engine, this);
+    // stesso schermo (split screen): due telefoni, pannelli della pagina «Collega» ed etichette in partita
+    this.split = new NatpfSplitUi(engine, this);
     this.kiosk = new NatpfKiosk(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
     this.intro = new NatpfIntro({ onDone: () => { if (this.lobby.visible) this.lobby.go('menu'); } });
@@ -97,7 +100,7 @@ export class NatpfUi {
     this.phoneWatch = createPhoneWatch(); this.phoneHold = null;
     // webcam in campo: lo stesso per la mano persa a lungo e la camera ferma (natpf_webcam_watch.js)
     this.webcamWatch = createWebcamWatch(); this.webcamHold = null;
-    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); } catch (e){ console.error(e); } }, 100);
+    setInterval(() => { try { this._phoneWatchTick(); this._webcamWatchTick(); this.split?.tick(); } catch (e){ console.error(e); } }, 100);
     $('btn-natpf-view')?.addEventListener('click', e => { e.stopPropagation(); this.engine.setViewMode(this.engine.viewMode === 'first' ? 'third' : 'first'); });
     // Player 2 arrivato con il link di invito: sceglie racchetta e visuale prima di entrare
     if (engine.playerRole === 'p2' && engine.urlRoom && engine.urlRoom !== 'DEFAULT'){
@@ -140,7 +143,7 @@ export class NatpfUi {
   }
   // il gioco resta fermo mentre si leggono le istruzioni o si collega il telefono a partita in corso
   _syncPause(){
-    const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen || this.engine.natpfVersusWait || !!this.phoneHold || !!this.webcamHold;
+    const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen || this.engine.natpfVersusWait || !!this.phoneHold || !!this.webcamHold || !!this.split?.hold;
     this.engine.natpfPaused = !!busy && !this.engine.autoPlayMode && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(this.engine.phase);
   }
   tick(dt = 1/60){ this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.gesture.update(dt); }
@@ -149,6 +152,7 @@ export class NatpfUi {
   menuBackdrop(){ return !!this.lobby?.visible && !this.training?.active && !this.events?.active && this.engine.playerRole !== 'p2'; }
   // esito dei colpi del giocatore locale: anello colorato, allenamento; il valore torna al telefono (vibrazione)
   feedback(e = {}){
+    this.split?.onFeedback(e);                    // split screen: esito sotto la metà di chi ha colpito (anche il P2)
     if ((e.role || 'p1') !== this.engine.playerRole) return null;
     const q = this.shot.onLocalFeedback(e);
     this.diag?.onFeedback(e, q);
@@ -173,6 +177,7 @@ export class NatpfUi {
     if (E.playerRole === 'p2' && this.versus?.p2){ this.versus.leave(); return; }
     if (this.training.active) this.training.stop({ completed: false, silent: true });
     this.events.abort();
+    this.split?.end();
     E.natpfPaused = false; E.hud.hideVictoryModal?.(); E.hud.hideCenterBanner();
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
     E._syncScoreboardHUD(); E._setupMidRallyShowcase({}); E.autoPlayMode = true;
@@ -202,8 +207,8 @@ export class NatpfUi {
   }
   /* ---------- pagina «Collega» del menu: QR e tre passi sul telefono ---------- */
   // QR del collegamento in un riquadro (pagina «Collega» e pannello del telefono): cambia a ogni nuovo codice monouso
-  renderQr(box, link, key){
-    const p = this.phone, L = p.state, url = p.pairingUrl;
+  renderQr(box, link, key, p = this.phone){
+    const L = p.state, url = p.pairingUrl;
     if (!box) return;
     if (p.connected){ if (box.dataset.token !== 'ok'){ box.innerHTML = '<div class="natpf-qr-ok">✓</div>'; box.dataset.token = 'ok'; } }
     else if (url && (L.state === 'waiting' || L.state === 'lost') && box.dataset.token !== p.link.token && window.qrcode){
@@ -276,6 +281,11 @@ export class NatpfUi {
   // Con lo smartphone scelto si entra in campo quando la racchetta è pronta (mouse e tastiera restano attivi).
   _bindStart(){
     $('btn-start-match')?.addEventListener('click', e => {
+      // stesso schermo: si parte con i due telefoni pronti; la sessione split nasce qui (natpf_split_ui.js)
+      if (this.lobby?.mode === 'split'){
+        if (!this.split.bothReady()){ e.stopImmediatePropagation(); this.toast('Servono i due telefoni pronti: torna a «Telefoni»'); this.lobby.go('connect'); return; }
+        this.split.start(); this.wipe('Stesso schermo'); return;
+      }
       // sfida tra due computer: si parte solo con il Player 2 entrato e pronto
       if (this.lobby?.mode === 'friend' && this.versus?.hostActive && !this.versus.canStart()){ e.stopImmediatePropagation(); this.toast(this.versus.state === 'waiting' ? 'Manda il link al Player 2: la partita parte quando è pronto' : 'Il Player 2 sta scegliendo la racchetta: aspetta «pronto»'); return; }
       if (this.controller === 'phone' && !this.phone.ready){ e.stopImmediatePropagation(); this.openPhone({ after: () => $('btn-start-match')?.click() }); return; }
@@ -391,7 +401,7 @@ export class NatpfUi {
     const E = this.engine, R = this.diag?.recorder, phone = src === 'telefono';
     if (a.kind === 'pause' || a.kind === 'wait'){
       if (phone) this.phoneHold = { why: a.why }; else this.webcamHold = { why: a.why };
-      this._paintHold(phone ? 'Telefono in pausa' : 'Webcam in pausa', phone ? holdText(a.why) : webcamHoldText(a.why));
+      this._paintHold(phone ? (this.engine.natpfSplit?.active ? 'Telefono del Player 1 in pausa' : 'Telefono in pausa') : 'Webcam in pausa', phone ? holdText(a.why) : webcamHoldText(a.why));
       R?.log?.(phone ? 'tel.pausa' : 'webcam.pausa', { motivo: a.why, fase: E.phase });
       // il telefono lo sa (se è collegato): niente colpi durante la pausa, e lo dice sullo schermo
       if (phone && this.phone.connected){ this.phone.link.send({ t: 'ph', ph: 'pause' }); this.phone.lastPhase = 'pause'; }

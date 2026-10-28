@@ -374,7 +374,9 @@ export class NatpfTennisEngine {
     };
   }
   _applyDifficultyTuning(e = "casual") {
-    const t = String(e || "casual").toLowerCase();
+    // NATPF split screen: con la sessione sullo stesso schermo l'avversario è sempre il Player 2 (1v1), qualunque sia la
+    // tessera rimasta selezionata nell'HUD
+    const t = this.natpfSplit?.active ? "1v1" : String(e || "casual").toLowerCase();
     (this.matchConfig.difficulty = t),
       t === "1v1"
         ? ((this.isMultiplayer = !0),

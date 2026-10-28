@@ -218,6 +218,12 @@
       </div>
     </div>
     <!-- passaggio dal menu al campo -->
+    <!-- split screen in partita (natpf_split_ui.js): sotto ogni metà chi gioca e l'esito del suo ultimo colpo, o il suo
+         telefono in pausa -->
+    <div id="natpf-split-hud" class="natpf-split-hud hidden" aria-live="polite">
+      <div class="split-tag" data-split-tag="p1"><b>Player 1</b><span></span></div>
+      <div class="split-tag" data-split-tag="p2"><b>Player 2</b><span></span></div>
+    </div>
     <div id="natpf-wipe" class="natpf-wipe" aria-hidden="true"><div class="wipe-band"><span class="wipe-mark">NATPF <i>Simulator</i></span><b id="natpf-wipe-text">Si gioca</b></div></div>
     <!-- NATPF: menu (src/natpf/natpf_lobby.js), percorso come in un gioco da console:
          menu principale → modalità (contro la CPU o un amico) → racchetta → collega (QR e passi del telefono, o la
@@ -264,8 +270,8 @@
         </section>
 
         <section class="lobby-page" data-page="mode" aria-labelledby="lobby-t-mode">
-          <header class="page-head"><h2 class="lobby-title" id="lobby-t-mode">Scegli la modalità</h2><p class="lobby-sub">Da solo contro la CPU o contro un amico su un altro computer.</p></header>
-          <div class="lobby-tiles lobby-tiles-2 mode-tiles" role="radiogroup">
+          <header class="page-head"><h2 class="lobby-title" id="lobby-t-mode">Scegli la modalità</h2><p class="lobby-sub">Da solo contro la CPU, contro un amico su un altro computer o sullo stesso schermo.</p></header>
+          <div class="lobby-tiles mode-tiles" role="radiogroup">
             <button type="button" class="lobby-tile mode-tile" data-mode="cpu" role="radio">
               <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" /><path d="M11 18c8 3 18 3 26 0M11 30c8-3 18-3 26 0" /></svg>
               <span class="tile-name">Contro la CPU</span><span class="tile-desc">Una partita veloce in arena contro un avversario facile, esperto o Leggenda.</span>
@@ -275,6 +281,11 @@
               <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="16" cy="16" r="6" /><circle cx="32" cy="16" r="6" /><path d="M6 38c1-8 6-12 10-12s9 4 10 12M22 38c1-8 6-12 10-12s9 4 10 12" /></svg>
               <span class="tile-name">Sfida un amico</span><span class="tile-desc">1 contro 1 su due computer: tu da un lato del campo, l’amico dall’altro.</span>
               <ul class="mode-facts"><li>2 giocatori · 2 computer in rete</li><li>Ognuno con il suo smartphone o la sua webcam</li><li>1v1, oppure 2v2 ognuno con un compagno CPU</li></ul>
+            </button
+            ><button type="button" class="lobby-tile mode-tile" data-mode="split" role="radio">
+              <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="10" width="38" height="24" rx="3" /><path d="M24 10v24M17 40h14M24 34v6" /><circle cx="14.5" cy="22" r="3" /><circle cx="33.5" cy="22" r="3" /></svg>
+              <span class="tile-name">Stesso schermo</span><span class="tile-desc">1 contro 1 su un solo computer: lo schermo si divide in due, ognuno gioca con il suo telefono.</span>
+              <ul class="mode-facts"><li>2 giocatori · 1 computer · 2 smartphone</li><li>Player 1 a sinistra, Player 2 a destra</li><li>Anche su ledwall 2×2 e 3×2 (Opzioni → Schermo)</li></ul>
             </button>
           </div>
           <!-- Player 2 con il codice dell'amico (dettato a voce o scritto): entra nella sua stanza senza il link -->
@@ -375,6 +386,31 @@
               <li data-connect="hold"><i aria-hidden="true"></i><div><b>Impugna il telefono come un manico</b><span>In piedi nel pugno, la cima in alto e un poco in avanti, il display di lato (a destra o a sinistra): dallo schermo si vede solo il bordo. Si parte da soli.</span></div>
                 <img class="connect-grip connect-grip-photo" src="./media/presa-schermo.webp" alt="Visto dallo schermo: del telefono si vede solo il bordo" /></li>
             </ol>
+          </div>
+          <!-- stesso schermo (split screen, natpf_split_ui.js): un telefono per giocatore, ognuno con il suo QR e la sua
+               calibrazione guidata sul telefono; si va alla partita quando sono pronti tutti e due -->
+          <div class="setup-panel split-setup" data-setup="split">
+            <div class="split-player" data-split-player="p1">
+              <header class="split-head"><b>Player 1</b><span>gioca a sinistra</span></header>
+              <div class="split-qr"><div id="split-qr-p1" class="natpf-qr"></div><a id="split-link-p1" class="sheet-link" target="_blank" rel="noopener">Apri il link ↗</a></div>
+              <p class="split-status" id="split-status-p1" data-state="wait"><b>Preparo il QR…</b><span></span></p>
+              <div class="split-actions">
+                <div class="seg" role="group" aria-label="Mano del Player 1"><button type="button" class="seg-btn" data-split-hand="p1:right">Destra</button
+                  ><button type="button" class="seg-btn" data-split-hand="p1:left">Sinistra</button></div>
+                <button type="button" class="lobby-link" data-split-skip="p1">Gioca senza calibrare</button>
+              </div>
+            </div>
+            <div class="split-player" data-split-player="p2">
+              <header class="split-head"><b>Player 2</b><span>gioca a destra</span></header>
+              <div class="split-qr"><div id="split-qr-p2" class="natpf-qr"></div><a id="split-link-p2" class="sheet-link" target="_blank" rel="noopener">Apri il link ↗</a></div>
+              <p class="split-status" id="split-status-p2" data-state="wait"><b>Preparo il QR…</b><span></span></p>
+              <div class="split-actions">
+                <div class="seg" role="group" aria-label="Mano del Player 2"><button type="button" class="seg-btn" data-split-hand="p2:right">Destra</button
+                  ><button type="button" class="seg-btn" data-split-hand="p2:left">Sinistra</button></div>
+                <button type="button" class="lobby-link" data-split-skip="p2">Gioca senza calibrare</button>
+              </div>
+            </div>
+            <p class="split-grip">Telefono in piedi nel pugno, come il manico di una racchetta, display di lato. Ognuno segue i passi sul suo telefono.</p>
           </div>
           <p id="connect-warn" class="natpf-warn hidden"></p>
           <div class="setup-panel" data-setup="webcam">

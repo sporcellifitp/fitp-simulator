@@ -113,3 +113,67 @@ test('split: sessione 1v1 locale (niente rete), terza persona, singolare; uscita
   E.endSplit();
   assert.equal(E.versus.active, false); assert.equal(E.isMultiplayer, false); assert.equal(splitVisible(E), false);
 });
+
+import { progressSteps, previousStep, stepReady, autoAdvance } from '../src/natpf/natpf_lobby.js';
+import { splitPlayerStatus, splitShotLabel, SPLIT_CAL_TRIES } from '../src/natpf/natpf_split_ui.js';
+
+test('menu: «Stesso schermo» va da modalità a telefoni a partita, e si prosegue con i due telefoni pronti', () => {
+  assert.deepEqual(progressSteps('split').map(([id]) => id), ['mode', 'connect', 'match']);
+  assert.equal(previousStep('connect', 'split'), 'mode'); assert.equal(previousStep('connect', 'cpu'), 'controller');
+  assert.equal(stepReady('connect', { mode: 'split', controller: 'phone', phoneLinked: true, splitReady: false }), false, 'un solo telefono non basta');
+  assert.equal(stepReady('connect', { mode: 'split', splitReady: true }), true);
+  assert.equal(autoAdvance('connect', { mode: 'split', controller: 'phone', phoneLinked: true, splitReady: false }), false);
+  assert.equal(autoAdvance('connect', { mode: 'split', splitReady: true }), true);
+});
+
+test('pannello di un giocatore: QR, sensori, passi della calibrazione, pronto; esiti dei colpi', () => {
+  const p = { link: {}, state: { state: 'waiting' }, connected: false, ready: false, calView: { stage: 'off' } };
+  assert.equal(splitPlayerStatus(p).state, 'qr');
+  Object.assign(p, { connected: true, state: { state: 'connected', phone: null } });
+  assert.match(splitPlayerStatus(p).title, /Attiva i sensori/);
+  p.state.phone = 'cal'; p.calView = { stage: 'gesture', want: 'L', ready: true, idx: 0, total: 2 };
+  assert.equal(splitPlayerStatus(p, 'right').state, 'go'); assert.match(splitPlayerStatus(p, 'right').title, /Dritto/);
+  assert.match(splitPlayerStatus(p, 'left').title, /Rovescio/, 'mancino: stesso gesto, colpo opposto');
+  Object.assign(p, { ready: true, simple: true });
+  assert.equal(splitPlayerStatus(p).state, 'ok'); assert.match(splitPlayerStatus(p).sub, /Senza calibrazione/);
+  assert.equal(splitShotLabel({ kind: 'hit', grade: 'PERFECT • FOREHAND' }), 'Perfetto!');
+  assert.equal(splitShotLabel({ kind: 'hit', grade: 'LATE' }), 'In ritardo');
+  assert.equal(splitShotLabel({ kind: 'fault' }), null);
+});
+
+test('stesso schermo dal menu alla partita: due telefoni, calibrazione automatica, partita divisa, P2 che cade, menu', async () => {
+  const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
+  const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
+  const l2 = P2.link = { ...fakeLink(), ready: false, L: { state: 'connected', phone: 'cal' },
+    cmd(c){ this.cmds.push(c); if (c === 'skip' || c === 'confirm'){ this.ready = true; this.L.phone = 'ready'; } if (c === 'cal'){ this.ready = false; this.L.phone = 'cal'; } } };
+  lobby.go('mode'); lobby.setMode('split'); lobby.go('connect');
+  assert.equal(ui.controller, 'phone');
+  assert.equal(lobby.state().splitReady, false);
+  // P1 e P2 con i sensori attivi: la calibrazione parte da sola sui due telefoni
+  ui.split.paint();
+  assert.ok(w.link.cmds.includes('cal'), 'calibrazione chiesta al P1'); assert.ok(l2.cmds.includes('cal'), 'calibrazione chiesta al P2');
+  // verifica riuscita del P1: confermata da sola; quella del P2 non riesce tre volte → profilo semplice
+  E.natpfPhone._onCal({ kind: 'review', pass: true });
+  assert.ok(w.link.cmds.includes('confirm'));
+  for (let i = 0; i < SPLIT_CAL_TRIES; i++) P2._onCal({ kind: 'review', pass: false, why: 'piccolo' });
+  assert.ok(l2.cmds.includes('skip'), 'dopo tre verifiche non riuscite si gioca senza calibrazione');
+  assert.equal(lobby.state().splitReady, true);
+  lobby.next(); assert.equal(lobby.step, 'match');
+  // mano del P2 (a parte) e «Gioca»
+  ui.split.setHand('p2', 'left'); assert.equal(P2.hand, 'left');
+  assert.equal(w.pressStart(), true);
+  assert.equal(E.natpfSplit.active, true); assert.equal(E.isDoubles, false); assert.equal(E.isMultiplayer, true);
+  // esito di un colpo del P2 sotto la sua metà
+  E.motionController.triggerHapticFeedback({ role: 'p2', kind: 'hit', grade: 'PERFECT' });
+  assert.equal(ui.split.labels.p2.text, 'Perfetto!');
+  // telefono del P2 che cade a partita in corso: pausa, poi ripresa quando torna
+  E.phase = 'RALLY'; l2.connected = false; l2.ready = false; l2.L = { state: 'lost', phone: null };
+  w.advance(900);
+  assert.ok(ui.split.hold, 'pausa per il telefono del P2'); assert.equal(E.natpfPaused, true);
+  l2.connected = true; l2.ready = true; l2.L = { state: 'connected', phone: 'ready' };
+  w.advance(4000);
+  assert.equal(ui.split.hold, null); assert.equal(E.natpfPaused, false);
+  // torna al menu: la sessione split finisce
+  ui.backToMenu();
+  assert.equal(E.natpfSplit.active, false); assert.equal(E.versus.active, false);
+});

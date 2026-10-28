@@ -1,5 +1,6 @@
 // Menu di NATPF Simulator, con il percorso di un gioco da console (dopo l'intro, natpf_intro.js):
 //   menu principale ─ Gioca ─────────→ modalità (contro la CPU · sfida un amico) → racchetta (smartphone o webcam,
+//                   │                   (stesso schermo: modalità → i due telefoni → partita, natpf_split_ui.js)
 //                   │                   mano) → collega (QR e tre passi sul telefono, o la webcam) → riscaldamento in
 //                   │                   campo (calibrazione + lanciapalle, natpf_training.js, saltabile) → partita
 //                   │                   (livello o invito dell'amico, durata, visuale) → «Gioca»: passaggio al campo
@@ -33,10 +34,11 @@ const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const LOBBY_STEPS = ['menu', 'mode', 'options', 'challenges', 'ranking', 'result', 'controller', 'connect', 'warmup', 'match'];
-export const MODES = ['cpu', 'friend', 'training', 'challenge'];
+export const MODES = ['cpu', 'friend', 'training', 'challenge', 'split'];
 // tappe mostrate nella barra di avanzamento, per modalità
 export function progressSteps(mode){
   if (mode === 'challenge') return [['challenges', 'Sfida'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'In campo']];
+  if (mode === 'split') return [['mode', 'Modalità'], ['connect', 'Telefoni'], ['match', 'Partita']];
   return mode === 'training' ? [['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Allenamento']]
     : [['mode', 'Modalità'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Riscaldamento'], ['match', 'Partita']];
 }
@@ -44,7 +46,7 @@ export function progressSteps(mode){
 export function previousStep(step, mode){
   if (['mode', 'options', 'challenges', 'ranking', 'result'].includes(step)) return 'menu';
   if (step === 'controller') return mode === 'training' ? 'menu' : mode === 'challenge' ? 'challenges' : 'mode';
-  if (step === 'connect') return 'controller';
+  if (step === 'connect') return mode === 'split' ? 'mode' : 'controller';
   if (step === 'match') return 'connect';
   return null;
 }
@@ -56,12 +58,15 @@ export const INVITE_STEPS = ['controller', 'connect', 'match'];
 export const ROOM_WAIT_MS = 20000;
 // Il controller è pronto per entrare in campo? (funzione pura, per i test)
 //   telefono: collegato e con i sensori attivi (la calibrazione si fa in campo, nel riscaldamento)
-export function stepReady(step, { controller, phoneLinked, webcamActive }){
+//   stesso schermo: i due telefoni pronti (calibrati o con il profilo semplice)
+export function stepReady(step, { controller, phoneLinked, webcamActive, mode = null, splitReady = false }){
+  if (step === 'connect' && mode === 'split') return !!splitReady;
   if (step === 'connect') return controller === 'phone' ? !!phoneLinked : controller === 'webcam' ? !!webcamActive : true;
   return true;
 }
 // Si entra in campo da soli quando il controller è pronto (telefono con i sensori attivi, webcam che vede la mano)
-export function autoAdvance(step, { controller, phoneLinked, handSeen }){
+export function autoAdvance(step, { controller, phoneLinked, handSeen, mode = null, splitReady = false }){
+  if (mode === 'split') return step === 'connect' && !!splitReady;
   return step === 'connect' && (controller === 'phone' ? !!phoneLinked : controller === 'webcam' ? !!handSeen : false);
 }
 // Ogni visitatore riparte dal menu principale (dopo l'intro)
@@ -95,7 +100,7 @@ export class NatpfLobby {
     this.step = initialStep();
     this.el.addEventListener('click', e => {
       const m = e.target.closest('[data-menu]'); if (m){ e.stopPropagation(); this.menu(m.dataset.menu); return; }
-      const t = e.target.closest('[data-mode]'); if (t){ e.stopPropagation(); this.setMode(t.dataset.mode); setTimeout(() => this.go('controller'), 160); return; }
+      const t = e.target.closest('[data-mode]'); if (t){ e.stopPropagation(); this.setMode(t.dataset.mode); setTimeout(() => this.go(this.mode === 'split' ? 'connect' : 'controller'), 160); return; }
       const o = e.target.closest('[data-option]'); if (o){ e.stopPropagation(); this.option(o.dataset.option); return; }
       const f = e.target.closest('[data-natpf-format]'); if (f){ e.stopPropagation(); this.setFormat(f.dataset.natpfFormat); return; }
       const ch = e.target.closest('[data-challenge]'); if (ch){ e.stopPropagation(); this.pickChallenge(ch.dataset.challenge); return; }
@@ -128,7 +133,7 @@ export class NatpfLobby {
     // formato della partita (1v1 o 2v2): vale da «Gioca»; il riscaldamento è sempre in singolare
     let fmt = 'singles'; try { fmt = localStorage.getItem(FORMAT_KEY) || 'singles'; } catch {}
     this.setFormat(fmt);
-    $('btn-start-match')?.addEventListener('click', () => this.engine.setMatchFormat?.(this.format), true);
+    $('btn-start-match')?.addEventListener('click', () => this.engine.setMatchFormat?.(this.mode === 'split' ? 'singles' : this.format), true);
     // partite brevi: in fiera si gioca un game
     document.querySelector('#match-length-group [data-games="1"]')?.click();
     this.go(this.step);
@@ -138,6 +143,7 @@ export class NatpfLobby {
   state(){
     const p = this.ui.phone, L = p.state, mc = this.engine.motionController;
     return {
+      mode: this.mode, splitReady: this.mode === 'split' && !!this.ui.split?.bothReady(),
       controller: this.ui.controller,
       phoneConnected: p.connected, phoneReady: p.ready,
       phoneLinked: p.connected && (L.phone === 'cal' || L.phone === 'ready'),
@@ -160,8 +166,11 @@ export class NatpfLobby {
     this.mode = mode; this.el.dataset.flow = mode;
     for (const t of this.el.querySelectorAll('[data-mode]')){ const on = t.dataset.mode === mode; t.classList.toggle('selected', on); t.setAttribute('aria-checked', String(on)); }
     // la scelta della modalità decide gli avversari della pagina «Partita»: CPU (facile, esperta o Leggenda) o 1v1 con invito
-    const diff = this.engine.hud?.selectedDifficulty;
-    if (mode === 'friend' && diff !== '1v1') document.querySelector('#difficulty-mode-group [data-difficulty="1v1"]')?.click();
+    const diff = this.engine.hud?.selectedDifficulty, versus = mode === 'friend' || mode === 'split';
+    if (versus && diff !== '1v1') document.querySelector('#difficulty-mode-group [data-difficulty="1v1"]')?.click();
+    // stesso schermo: due telefoni sullo stesso computer (niente stanza in rete); lasciandolo la sessione split finisce
+    if (mode === 'split'){ this.ui.selectController?.('phone', { open: false }); this.ui.split?.prepare(); }
+    else this.ui.split?.end();
     // sfida un amico: la stanza nasce subito (così l'amico può entrare mentre si prepara la racchetta); scegliendo
     // un'altra modalità la stanza si chiude e il Player 2 lo sa (prima restava aperta e i suoi colpi dirottavano la
     // partita contro la CPU)
@@ -169,8 +178,17 @@ export class NatpfLobby {
     if (mode !== 'friend'){ this.engine.endVersus?.(); this.ui.inviteUrl = null; const box = $('natpf-invite'); if (box){ box.innerHTML = ''; box.dataset.pending = ''; } }
     // lasciando «Sfida un amico» (anche per allenamento o sfide) si torna alla CPU: prima allenamento e sfide ripristinavano
     // alla fine il 1v1 senza stanza
-    if (mode !== 'friend' && diff === '1v1') document.querySelector('#difficulty-mode-group [data-difficulty="casual"]')?.click();
-    for (const b of document.querySelectorAll('#difficulty-mode-group [data-difficulty]')) show(b, mode === 'friend' ? b.dataset.difficulty === '1v1' : b.dataset.difficulty !== '1v1');
+    if (!versus && diff === '1v1') document.querySelector('#difficulty-mode-group [data-difficulty="casual"]')?.click();
+    for (const b of document.querySelectorAll('#difficulty-mode-group [data-difficulty]')) show(b, versus ? b.dataset.difficulty === '1v1' : b.dataset.difficulty !== '1v1');
+    // stesso schermo: solo singolare (una metà per giocatore)
+    for (const b of this.el.querySelectorAll('[data-natpf-format="doubles"]')) show(b, mode !== 'split');
+    // la tessera del 1v1 nella pagina «Partita» dice quale 1v1: su due computer o sullo stesso schermo
+    const tile = document.querySelector('#difficulty-mode-group [data-difficulty="1v1"]');
+    if (tile){
+      const n = tile.querySelector('.tile-name'), d = tile.querySelector('.tile-desc');
+      if (n) n.textContent = mode === 'split' ? 'Stesso schermo' : 'Sfida un amico';
+      if (d) d.textContent = mode === 'split' ? '1v1 su un computer, due telefoni' : '1v1 su due computer';
+    }
     this.paint();
   }
   /* ---------- sfide, nickname, classifica ---------- */
@@ -251,8 +269,8 @@ export class NatpfLobby {
     try { localStorage.setItem(FORMAT_KEY, this.format); } catch {}
     for (const b of this.el.querySelectorAll('[data-natpf-format]')){ const on = b.dataset.natpfFormat === this.format; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
     const opp = $('setup-opponent-label');
-    if (opp) opp.textContent = this.mode === 'friend' ? (this.format === 'doubles' ? 'Amico + CPU' : 'Amico') : this.format === 'doubles' ? '2 CPU' : 'CPU';
-    const you = this.el.querySelector('.you-tag'); if (you) you.textContent = this.format === 'doubles' ? 'Tu + CPU' : 'Tu';
+    if (opp) opp.textContent = this.mode === 'split' ? 'Player 2 · stesso schermo' : this.mode === 'friend' ? (this.format === 'doubles' ? 'Amico + CPU' : 'Amico') : this.format === 'doubles' ? '2 CPU' : 'CPU';
+    const you = this.el.querySelector('.you-tag'); if (you) you.textContent = this.mode === 'split' ? 'Player 1' : this.format === 'doubles' ? 'Tu + CPU' : 'Tu';
   }
   option(name){
     const click = id => $(id)?.click();
@@ -271,7 +289,7 @@ export class NatpfLobby {
   }
   go(step){
     if (!LOBBY_STEPS.includes(step)) return;
-    if (step === 'warmup'){ this.startWarmup(); return; }
+    if (step === 'warmup'){ if (this.mode === 'split') step = 'match'; else { this.startWarmup(); return; } }
     if (step !== 'ranking') document.documentElement.classList.remove('ranking-full');
     if (step === 'menu' && this.step !== 'menu' && (this.mode === 'training' || this.mode === 'challenge')) this.mode = 'cpu';
     this.step = step; this.el.dataset.step = step; this.el.dataset.flow = this.mode;
@@ -283,7 +301,8 @@ export class NatpfLobby {
     if (step === 'connect'){
       // si entra in campo da soli solo quando il controller diventa pronto mentre si è qui (non tornando indietro)
       this.autoFrom = autoAdvance('connect', this.state()) ? 'connect' : null;
-      if (this.ui.controller === 'phone') this.ui.phone.start().catch(err => this.ui._warn(`Collegamento non disponibile (${err.message}).`));
+      if (this.mode === 'split') this.ui.split?.prepare();
+      else if (this.ui.controller === 'phone') this.ui.phone.start().catch(err => this.ui._warn(`Collegamento non disponibile (${err.message}).`));
       if (this.ui.controller === 'webcam' && !this.engine.motionController?.webcamActive) this.ui.startWebcam().then(() => this.paint());
     }
     this.paint();
@@ -301,30 +320,32 @@ export class NatpfLobby {
     show($('lobby-back'), !menu && this.step !== 'result');
     show($('lobby-next'), !menu && !match && !pick);
     show($('btn-start-match'), match);
-    show($('lobby-warmup'), match);
+    show($('lobby-warmup'), match && this.mode !== 'split');
     // tasti come su una console: nel menu le frecce scelgono, nelle altre pagine Invio va avanti
     const keys = this.el.querySelector('.lobby-keys'), kt = menu ? '↑ ↓ ← → scegli · Invio conferma · H come si gioca' : 'Invio avanti · Esc indietro';
     if (keys && keys.textContent !== kt) keys.textContent = kt;
     const next = $('lobby-next');
     next.disabled = !stepReady(this.step, st);
-    next.textContent = this.step === 'connect' ? (this.mode === 'training' ? 'Al campo d’allenamento ›' : 'In campo ›') : 'Avanti ›';
-    // collega: pannello del controller scelto
-    for (const p of this.el.querySelectorAll('[data-setup]')) show(p, p.dataset.setup === st.controller);
+    const split = this.mode === 'split';
+    next.textContent = this.step === 'connect' ? (split ? 'Alla partita ›' : this.mode === 'training' ? 'Al campo d’allenamento ›' : 'In campo ›') : 'Avanti ›';
+    // collega: pannello del controller scelto (stesso schermo: i due telefoni)
+    for (const p of this.el.querySelectorAll('[data-setup]')) show(p, p.dataset.setup === (split ? 'split' : st.controller));
     const other = $('connect-other');
-    if (other){ show(other, st.controller !== 'mouse'); other.textContent = st.controller === 'phone' ? 'Non hai il telefono a portata? Usa la webcam' : 'Preferisci il telefono? Usa lo smartphone'; }
-    $('lobby-t-connect').textContent = st.controller === 'phone' ? 'Collega il telefono' : st.controller === 'webcam' ? 'Accendi la webcam' : 'Mouse e tastiera';
-    $('lobby-t-match').textContent = this.mode === 'friend' ? 'Sfida un amico' : 'Pronto per la partita';
-    if (this.step === 'connect' && st.controller === 'phone') this.ui.paintConnect();
+    if (other){ show(other, st.controller !== 'mouse' && !split); other.textContent = st.controller === 'phone' ? 'Non hai il telefono a portata? Usa la webcam' : 'Preferisci il telefono? Usa lo smartphone'; }
+    $('lobby-t-connect').textContent = split ? 'Collega i due telefoni' : st.controller === 'phone' ? 'Collega il telefono' : st.controller === 'webcam' ? 'Accendi la webcam' : 'Mouse e tastiera';
+    $('lobby-t-match').textContent = split ? 'Stesso schermo' : this.mode === 'friend' ? 'Sfida un amico' : 'Pronto per la partita';
+    if (this.step === 'connect' && split) this.ui.split?.paint();
+    else if (this.step === 'connect' && st.controller === 'phone') this.ui.paintConnect();
     if (this.step === 'options') this._paintOptions();
     this.ui.paintWebcamSetup?.();
     this._paintInvite();
     const note = $('lobby-match-note');
-    if (note) note.textContent = st.controller === 'phone' && !st.phoneReady ? 'Il telefono va ricollegato: premendo «Gioca» compare il QR.' : '';
+    if (note) note.textContent = split ? (st.splitReady ? 'Player 1 a sinistra, Player 2 a destra. Ognuno guarda la sua metà.' : 'Un telefono non è pronto: torna a «Telefoni».') : st.controller === 'phone' && !st.phoneReady ? 'Il telefono va ricollegato: premendo «Gioca» compare il QR.' : '';
     // telefono con i sensori attivi o mano vista dalla webcam: si entra in campo da soli, ma non con la guida aperta (prima
     // il riscaldamento partiva sotto la guida e il suo «Prova» lo faceva ripartire come allenamento)
     if (this.visible && autoAdvance(this.step, st) && this.autoFrom !== this.step && !this.onboarding.isOpen){
       this.autoFrom = this.step;
-      setTimeout(() => { if (this.visible && this.step === 'connect' && !this.onboarding.isOpen) this.go('warmup'); else this.autoFrom = null; }, 700);
+      setTimeout(() => { if (this.visible && this.step === 'connect' && !this.onboarding.isOpen) this.go(split ? 'match' : 'warmup'); else this.autoFrom = null; }, 700);
     }
   }
   // Sfida un amico (host): la barra dell'invito (codice, link, stato del Player 2) resta in vista dalla racchetta alla
@@ -361,7 +382,7 @@ export class NatpfLobby {
     if (!stepReady(this.step, this.state())) return;
     if (this.step === 'mode') return this.go('controller');
     if (this.step === 'controller') return this.go('connect');
-    if (this.step === 'connect') return this.go('warmup');
+    if (this.step === 'connect') return this.go(this.mode === 'split' ? 'match' : 'warmup');
     if (this.step === 'match') $('btn-start-match').click();
   }
   back(){ const p = previousStep(this.step, this.mode); if (p) this.go(p); }

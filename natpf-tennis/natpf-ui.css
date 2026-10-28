@@ -1005,3 +1005,40 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
    Player 2» del 1v1 in rete.
    ===================================================================================================================== */
 body.natpf-split #opponent-presence-pill { display: none !important; }
+
+/* pagina «Collega» con lo stesso schermo: un pannello per giocatore (QR, stato del telefono, mano) */
+#title-modal .split-setup { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+#title-modal .split-setup.hidden { display: none; }
+#title-modal .split-player { display: grid; grid-template-columns: 150px 1fr; grid-template-areas: "head head" "qr status" "qr actions"; gap: 10px 16px; align-items: start; padding: 16px; border-radius: var(--r-l); background: var(--panel); border: 1px solid var(--line); }
+#title-modal .split-player.ready { border-color: var(--ok); box-shadow: 0 0 0 2px rgba(64, 214, 128, 0.25); }
+#title-modal .split-player[data-split-player="p2"] { border-top: 4px solid var(--pink); }
+#title-modal .split-player[data-split-player="p1"] { border-top: 4px solid var(--ball); }
+#title-modal .split-head { grid-area: head; display: flex; align-items: baseline; gap: 10px; }
+#title-modal .split-head b { font: 800 italic 26px/1 var(--font-display); text-transform: uppercase; }
+#title-modal .split-head span { font: 600 13px/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
+#title-modal .split-qr { grid-area: qr; display: grid; gap: 6px; justify-items: center; }
+#title-modal .split-qr .natpf-qr { width: 150px; height: 150px; }
+#title-modal .split-status { grid-area: status; display: grid; gap: 4px; margin: 0; }
+#title-modal .split-status b { font: 800 italic 22px/1.1 var(--font-display); text-transform: uppercase; }
+#title-modal .split-status span { font: 500 15px/1.35 var(--font-text); color: var(--text-2); }
+#title-modal .split-status[data-state="ok"] b { color: var(--ok); }
+#title-modal .split-status[data-state="go"] b { color: var(--ball); }
+#title-modal .split-status[data-state="ko"] b { color: var(--warn); }
+#title-modal .split-actions { grid-area: actions; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+#title-modal .split-grip { grid-column: 1 / -1; margin: 0; font: 500 15px/1.4 var(--font-text); color: var(--text-2); }
+@media (max-width: 860px) {
+  #title-modal .split-setup { grid-template-columns: 1fr; }
+  #title-modal .split-player { grid-template-columns: 110px 1fr; }
+  #title-modal .split-qr .natpf-qr { width: 110px; height: 110px; }
+}
+/* in partita: sotto ogni metà chi gioca e l'esito dell'ultimo colpo. Misure in vh/vw: su un ledwall (pochi pixel, visto
+   da lontano) restano grandi quanto la vista */
+.natpf-split-hud { position: fixed; inset: auto 0 0 0; z-index: 30; display: grid; grid-template-columns: 1fr 1fr; pointer-events: none; padding: 0 0 clamp(10px, 3vh, 36px); }
+.natpf-split-hud.hidden { display: none; }
+.natpf-split-hud .split-tag { justify-self: center; display: flex; align-items: center; gap: 0.6em; padding: 0.4em 0.9em; border-radius: var(--r-pill); background: rgba(5, 9, 28, 0.78); font-size: clamp(14px, min(2.6vh, 1.6vw), 34px); color: var(--text); box-shadow: var(--shadow); }
+.natpf-split-hud .split-tag b { font: 800 italic 1em/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.02em; }
+.natpf-split-hud [data-split-tag="p1"] b { color: var(--ball); }
+.natpf-split-hud [data-split-tag="p2"] b { color: var(--pink); }
+.natpf-split-hud .split-tag span { font: 700 italic 1em/1 var(--font-display); text-transform: uppercase; }
+.natpf-split-hud .split-tag span:empty { display: none; }
+.natpf-split-hud .split-tag.warn span { color: var(--warn); }

@@ -222,6 +222,13 @@ computer (`createPhoneLink()` crea sessioni indipendenti: due QR nella stessa pa
       rete, singolare), terza persona forzata, etichetta del servizio nascosta, `endVersus` non chiude la sessione
       locale; pillola «In attesa di Player 2» nascosta. Test: copertura del campo con metà 8:9, 3:4, 1:2, 1,6;
       sessione. Browser: 1280×720, 900×900, 1200×800 senza errori.
-- [ ] S3 Menu: modalità «Stesso schermo», collega due telefoni (calibrazione guidata dal telefono o «Salta»), partita
+- [x] S3 Menu: tessera «Stesso schermo» (modalità → Telefoni → Partita). Pagina «Collega i due telefoni»: un pannello
+      per giocatore con QR, stato, passo della calibrazione (guidata sul telefono, chiesta appena i sensori sono
+      attivi; verifica riuscita confermata da sola, tre non riuscite → profilo semplice), mano, «Gioca senza
+      calibrare»; si va alla partita da soli con i due pronti. «Gioca»: `split.start()` (solo singolare, 1v1 locale
+      anche se l'HUD avesse un'altra difficoltà). In partita: etichette sotto le metà (nome, esito dell'ultimo colpo,
+      «Telefono in pausa»); telefono del P2 che cade → pausa e ripresa con conto alla rovescia; menu → fine sessione.
+      File: `natpf_split_ui.js`, `natpf_lobby.js`, `natpf_ui.js`, `index.html`, `natpf-ui.css`. Test: percorso intero
+      (13 test in `natpf-split.test.mjs`), gioco 434/434. Browser 1280×720: percorso e partita senza errori.
 - [ ] S4 Schermo: intero / ledwall 2×2 (1:1) / 3×2 (3:2), `?area=x,y,w,h` per mappare l'area del processore LED;
       screenshot 16:9, 1:1, 3:2
