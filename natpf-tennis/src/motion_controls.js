@@ -393,15 +393,25 @@ export class MotionController {
     try {
       // NATPF: prima i file locali (LAN/offline), poi la stessa versione dal CDN; se mancano entrambi resta l'optical flow
       let base = this.mediapipeBase || MEDIAPIPE_LOCAL_BASE;
-      if (workerVisionAvailable()) {
+      // NATPF: nel worker solo a richiesta (webcam_inference.js); se lì non parte, il modello gira nella pagina (prima
+      // restava il solo optical flow e la mano non si vedeva mai)
+      if (workerVisionAvailable() && !this._mpWorkerFailed) {
         const model = new WorkerVision({ kind: 'Hands', base: new URL(base, location.href).href });
         this._handsLoadingModel = model;
         model.setOptions({ maxNumHands: this._wcLevel().maxNumHands, modelComplexity: this._wcLevel().modelComplexity, minDetectionConfidence: .4, minTrackingConfidence: .4 });
         model.onResults(r => { if (this.webcamActive && epoch === (this._visionEpoch || 0)) this._onHandResults(r); });
-        try { await model.initialize(); } catch (error) { model.close(); throw error; }
-        if (!this.webcamActive || epoch !== (this._visionEpoch || 0)){ model.close(); return; }
-        this.mpHands = model;
-        return;
+        let ok = !0;
+        try { await model.initialize(); } catch (error) {
+          model.close();
+          // webcam spenta (o riaccesa) durante il caricamento: non è un errore del worker
+          if (epoch !== (this._visionEpoch || 0)) throw error;
+          ok = !1; this._mpWorkerFailed = !0; console.warn("[MotionController] MediaPipe Hands nel worker non disponibile, modello nella pagina:", error);
+        }
+        if (ok) {
+          if (!this.webcamActive || epoch !== (this._visionEpoch || 0)){ model.close(); return; }
+          this.mpHands = model;
+          return;
+        }
       }
       if (!window.Hands)
         try {
@@ -576,7 +586,9 @@ export class MotionController {
       model.send({ image: this.videoElem }).catch(() => {
         if (epoch !== (this._visionEpoch || 0) || this.mpHands !== model) return;
         this._mpBusy = !1;
-        if (this.mpHands?.closed) this.mpHands = null;
+        // NATPF: modello del worker chiuso (un fotogramma oltre il tempo limite): si ricarica nella pagina, invece di
+        // restare senza modello con la webcam accesa
+        if (this.mpHands?.closed) { this.mpHands = null; this._mpWorkerFailed = !0; this._ensureMediaPipeHands(); }
       });
     return !0;
   }

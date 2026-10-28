@@ -177,14 +177,29 @@ export class NatpfBodyFollow {
     const mc = this.mc, epoch = mc?._visionEpoch || 0;
     if (mc) mc._poseLoading = true;
     try {
-      let base = MEDIAPIPE_POSE_LOCAL_BASE;
-      const worker = workerVisionAvailable();
-      if (!worker && !window.Pose) try { await loadScript(`${base}pose.js`); } catch { base = MEDIAPIPE_POSE_CDN_BASE; await loadScript(`${base}pose.js`); }
-      const pose = worker ? new WorkerVision({ kind: 'Pose', base: new URL(base, location.href).href }) : new window.Pose({ locateFile: f => `${base}${f}` });
-      this._loadingModel = pose;
-      pose.setOptions({ modelComplexity: 0, smoothLandmarks: true, enableSegmentation: false, minDetectionConfidence: .5, minTrackingConfidence: .5 });
-      pose.onResults(r => { if (epoch === (mc?._visionEpoch || 0)) this.onPoseResults(r); });
-      try { await pose.initialize(); } catch (error) { pose.close?.(); throw error; }
+      let base = MEDIAPIPE_POSE_LOCAL_BASE, pose = null;
+      const setup = model => {
+        this._loadingModel = model;
+        model.setOptions({ modelComplexity: 0, smoothLandmarks: true, enableSegmentation: false, minDetectionConfidence: .5, minTrackingConfidence: .5 });
+        model.onResults(r => { if (epoch === (mc?._visionEpoch || 0)) this.onPoseResults(r); });
+        return model;
+      };
+      // nel worker solo a richiesta (webcam_inference.js); se lì non parte, nella pagina (prima: «non disponibile»)
+      if (workerVisionAvailable() && !this._workerFailed){
+        const w = setup(new WorkerVision({ kind: 'Pose', base: new URL(base, location.href).href }));
+        try { await w.initialize(); pose = w; }
+        catch (error){
+          w.close?.();
+          if (epoch !== (mc?._visionEpoch || 0)) throw error;            // webcam spenta durante il caricamento
+          this._workerFailed = true; console.warn('[NATPF] MediaPipe Pose nel worker non disponibile, modello nella pagina', error);
+        }
+      }
+      if (!pose){
+        if (!window.Pose) try { await loadScript(`${base}pose.js`); } catch { base = MEDIAPIPE_POSE_CDN_BASE; await loadScript(`${base}pose.js`); }
+        const p = setup(new window.Pose({ locateFile: f => `${base}${f}` }));
+        try { await p.initialize(); } catch (error) { p.close?.(); throw error; }
+        pose = p;
+      }
       if (!mc?.webcamActive || epoch !== (mc._visionEpoch || 0)){ pose.close?.(); return; }
       this.pose = pose; this.base = base;
       if (mc) mc._poseModelReady = true;
@@ -225,7 +240,8 @@ export class NatpfBodyFollow {
       this._lastVideoTime = v.currentTime; this._busy = true; mc._poseInferenceBusy = true;
       this._poseSentAt = now; this._poseCaptureT = mc._frameCaptureT?.(now) ?? now;
       const model = this.pose, epoch = this._cameraEpoch;
-      model.send({ image: v }).catch(() => { if (this.pose === model && model.closed){ this.pose = null; mc._poseModelReady = false; this._setStatus('unavailable'); } }).finally(() => { if (epoch === (mc._visionEpoch || 0)){ this._busy = false; mc._poseInferenceBusy = false; } });
+      // modello del worker chiuso (fotogramma oltre il tempo limite): si ricarica nella pagina
+      model.send({ image: v }).catch(() => { if (this.pose === model && model.closed){ this.pose = null; mc._poseModelReady = false; this._workerFailed = true; this._setStatus(this.enabled ? 'loading' : 'off'); } }).finally(() => { if (epoch === (mc._visionEpoch || 0)){ this._busy = false; mc._poseInferenceBusy = false; } });
     }
     this._setStatus(this.tracker.visible(now) ? (this.tracker.calibrated ? 'following' : 'searching') : this.tracker.calibrated ? 'lost' : 'searching');
     // P2: il bersaglio va all'host, che simula la partita

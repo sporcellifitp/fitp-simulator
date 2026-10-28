@@ -1,5 +1,11 @@
 // Modelli della webcam fuori dal thread del gioco: una sola immagine in volo e scadenza dei lavori bloccati.
-export const workerVisionAvailable = () => typeof Worker === 'function' && typeof OffscreenCanvas === 'function' && typeof createImageBitmap === 'function';
+// Solo a richiesta (?webcamWorker=1): dentro un worker le soluzioni MediaPipe di questa versione caricano con
+// importScripts anche i file del modello (.tflite, .binarypb), che non sono script, e l'inizializzazione fallisce sempre.
+// Sessione del 28/10: la webcam accesa con la mano in vista restava su «Cerco la mano…» (prova con una webcam finta:
+// «importScripts … hand_landmark_lite.tflite failed to load», poi solo il movimento). Di norma i modelli girano nella
+// pagina, come prima.
+export const workerVisionRequested = (search = globalThis.location?.search || '') => new URLSearchParams(search).get('webcamWorker') === '1';
+export const workerVisionAvailable = (search) => workerVisionRequested(search) && typeof Worker === 'function' && typeof OffscreenCanvas === 'function' && typeof createImageBitmap === 'function';
 export class WorkerVision {
   constructor({ kind, base, workerFactory = () => new Worker(new URL('./webcam_inference_worker.js', import.meta.url)), bitmap = (...args) => createImageBitmap(...args), timeoutMs = 3000 } = {}) {
     this.kind = kind; this.base = base; this.options = {}; this.pending = new Map(); this.seq = 0;

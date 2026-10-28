@@ -326,3 +326,19 @@ Richiesta dell'utente: solo il pacchetto LAN con queste correzioni, senza gli el
       «Nessuna webcam» con il motivo (NotFoundError), nessun errore in console.
 - [ ] Non provato: Windows, telefono vero, webcam occupata da OBS (solo nei test).
 - Nessun pacchetto Cloudflare 2026-10-28.4.
+
+## Webcam «Cerco la mano…» con la mano in vista (28/10 sera, segnalazione con screenshot sul pacchetto 2026-10-28.4)
+Il messaggio sull'errore di apertura (W, sopra) non c'entrava: la webcam era accesa, il modello delle mani non partiva.
+- Riprodotto: pacchetto LAN 2026-10-28.4 estratto, Chromium con webcam finta (`--use-file-for-fake-video-capture`, la
+  mano aperta dello screenshot dell'utente): «Cerco la mano…» per sempre, nella console «importScripts … 
+  hand_landmark_lite.tflite failed to load» e lo stesso per Pose. Causa: dal commit `e4af4ce` (webcam in worker) i modelli
+  partivano in un worker, dove MediaPipe carica con `importScripts` anche i file del modello; l'errore portava al solo
+  optical flow. Nessuna prova con la webcam vera era stata fatta (lo diceva anche la consegna di quel commit).
+- [x] `webcam_inference.workerVisionAvailable`: worker solo con `?webcamWorker=1`; `motion_controls._ensureMediaPipeHands`
+      e `webcam_body_follow._ensurePose`: se il worker non parte (non per la webcam spenta durante il caricamento) il
+      modello si carica nella pagina; un modello del worker chiuso per un fotogramma lento si ricarica nella pagina.
+- [x] Prova nel browser con la webcam finta sulla build: «Mano vista» entro 5 s (modello nella pagina; inferenza
+      200–560 ms in questo container senza scheda grafica), Pose con «Segui il corpo» → «following».
+- [x] Test: `natpf-webcam-worker.test.mjs` (worker solo a richiesta; worker che non parte → modello nella pagina; riavvio
+      durante il caricamento come prima). Gioco 442/442.
+- [ ] Da provare con la webcam vera su Windows (pacchetto LAN 2026-10-28.5).

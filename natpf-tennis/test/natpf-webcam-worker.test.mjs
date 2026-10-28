@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
-import { WorkerVision } from '../src/natpf/webcam_inference.js';
+import { WorkerVision, workerVisionAvailable } from '../src/natpf/webcam_inference.js';
 function harness(options = {}){
   const messages = []; let terminated = false, closes = 0;
   const worker = { postMessage(d, transfer){ messages.push({ d, transfer }); }, terminate(){ terminated = true; } };
@@ -63,7 +63,7 @@ test('webcam spenta e riaccesa durante initialize: il modello nuovo parte e quel
   }
   const mc = Object.create(MotionController.prototype);
   try {
-    Object.assign(globalThis,{Worker:FakeWorker,OffscreenCanvas:class{},createImageBitmap:async()=>({close(){}}),location:{href:'https://localhost/'}});
+    Object.assign(globalThis,{Worker:FakeWorker,OffscreenCanvas:class{},createImageBitmap:async()=>({close(){}}),location:{href:'https://localhost/?webcamWorker=1',search:'?webcamWorker=1'}});
     Object.assign(mc,{webcamActive:true,phoneState:{},_notifyStatus(){},_updateWebcamBadgeUI(){}});
     const init = mc._ensureMediaPipeHands(); assert.equal(workers.length,1);
     mc.disableWebcam(); mc.webcamActive = true;
@@ -73,5 +73,49 @@ test('webcam spenta e riaccesa durante initialize: il modello nuovo parte e quel
   } finally {
     mc.disableWebcam();
     names.forEach((k,i)=>{ if(saved[i])Object.defineProperty(globalThis,k,saved[i]);else delete globalThis[k]; });
+  }
+});
+
+// Sessione del 28/10: con la webcam accesa e la mano in vista il gioco restava su «Cerco la mano…». Nel worker le soluzioni
+// MediaPipe caricano con importScripts anche i file del modello (.tflite) e non partono mai (prova nel browser con una
+// webcam finta): il worker è solo a richiesta, e se non parte il modello gira nella pagina.
+test('worker della webcam solo a richiesta (?webcamWorker=1)', () => {
+  const names = ['Worker', 'OffscreenCanvas', 'createImageBitmap'], saved = names.map(k => Object.getOwnPropertyDescriptor(globalThis, k));
+  try {
+    Object.assign(globalThis, { Worker: class {}, OffscreenCanvas: class {}, createImageBitmap: async () => ({}) });
+    assert.equal(workerVisionAvailable(''), false);
+    assert.equal(workerVisionAvailable('?lan=1'), false);
+    assert.equal(workerVisionAvailable('?webcamWorker=1'), true);
+  } finally { names.forEach((k, i) => { if (saved[i]) Object.defineProperty(globalThis, k, saved[i]); else delete globalThis[k]; }); }
+});
+
+test('modello delle mani: se il worker non parte gira nella pagina (prima restava il solo movimento)', async () => {
+  const { MotionController } = await import('../src/motion_controls.js');
+  const names = ['Worker', 'OffscreenCanvas', 'createImageBitmap', 'location', 'window'];
+  const saved = names.map(k => Object.getOwnPropertyDescriptor(globalThis, k));
+  const workers = [], pages = [];
+  // il worker risponde come quello vero: importScripts del file del modello fallito
+  class FakeWorker { constructor(){ workers.push(this); } postMessage(d){ queueMicrotask(() => this.onmessage({ data: { id: d.id, error: "Failed to execute 'importScripts': hand_landmark_lite.tflite failed to load" } })); } terminate(){ this.terminated = true; } }
+  class FakeHands { constructor(o){ this.o = o; pages.push(this); } setOptions(){} onResults(f){ this.cb = f; } async initialize(){} send(){ return Promise.resolve(); } }
+  const mc = Object.create(MotionController.prototype);
+  const warn = console.warn; console.warn = () => {};
+  try {
+    Object.assign(globalThis, { Worker: FakeWorker, OffscreenCanvas: class {}, createImageBitmap: async () => ({ close(){} }), location: { href: 'https://localhost/?webcamWorker=1', search: '?webcamWorker=1' } });
+    globalThis.window = globalThis; globalThis.window.Hands = FakeHands;
+    Object.assign(mc, { webcamActive: true, phoneState: {}, _notifyStatus(){}, _updateWebcamBadgeUI(){} });
+    await mc._ensureMediaPipeHands();
+    assert.equal(workers.length, 1); assert.equal(workers[0].terminated, true);
+    assert.equal(pages.length, 1, 'modello nella pagina');
+    assert.equal(mc.mpHands, pages[0]); assert.equal(mc._mpWorkerFailed, true); assert.equal(mc._mpLoading, false);
+    // senza la richiesta del worker: subito nella pagina
+    const mc2 = Object.create(MotionController.prototype);
+    Object.assign(mc2, { webcamActive: true, phoneState: {}, _notifyStatus(){}, _updateWebcamBadgeUI(){} });
+    globalThis.location = { href: 'https://localhost/', search: '' };
+    await mc2._ensureMediaPipeHands();
+    assert.equal(workers.length, 1, 'nessun worker'); assert.equal(mc2.mpHands, pages[1]);
+  } finally {
+    console.warn = warn; mc.disableWebcam?.();
+    delete globalThis.Hands;
+    names.forEach((k, i) => { if (saved[i]) Object.defineProperty(globalThis, k, saved[i]); else delete globalThis[k]; });
   }
 });
