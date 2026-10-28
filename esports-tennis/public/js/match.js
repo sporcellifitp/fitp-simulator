@@ -348,6 +348,7 @@ export class Match {
       const bounceY = 0.25 + Math.abs(Math.sin(this.now * 3.2)) * 0.8;
       const hold = sp.toWorld(new THREE.Vector3(-0.15, bounceY, 0.45));
       this.ball.p = [hold.x, hold.y, hold.z];
+      if (this.ctrl[server] === 'human' && window.__autoplay && this.stateT > 0.6) this.beginServe({ kind: 'serve', spinKind: 'flat', lateral: this.rng() - 0.5, depth: 5.6, power: this.rng() });
       if (this.ctrl[server] === 'cpu' && this.now > this.serveWaitUntil) {
         const shot = cpuShot(this.level, this.rng, { serve: true, second: this.faults > 0 });
         this.beginServe(shot);
@@ -396,6 +397,11 @@ export class Match {
         const sh = plan.cpuShot;
         pl.prepare(plan.kind === 'drive' ? 'drive' : plan.kind, plan.contact, plan.t, this.now, { aim: sh.lateral * 0.35, spinKind: sh.spinKind, side: plan.side });
         plan.prepared = true;
+      }
+      if (this.ctrl[plan.seat] === 'human' && !plan.swipe && window.__autoplay && plan.t - this.now < 0.35) {
+        // prove automatiche: colpo casuale al momento giusto
+        const r = this.rng();
+        this.onSwipe({ dx: (r - 0.5) * 0.5, dy: -0.25 - this.rng() * 0.2, len: 0.35, dur: 0.15, speed: 1.5 + this.rng() * 2, up: true });
       }
       if (this.ctrl[plan.seat] === 'human' && !plan.prepared && plan.t - this.now < 0.55) {
         // preparazione automatica (apertura); il gesto decide il colpo

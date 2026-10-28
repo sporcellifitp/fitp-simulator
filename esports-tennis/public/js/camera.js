@@ -15,12 +15,14 @@ export class GameCamera {
 
   setSide(side) { this.side = side; this.x = 0; }
 
-  // Parametri dell'inquadratura (verticale): altezza, distanza dietro la linea di fondo, campo visivo.
+  // Inquadratura: alta dietro la linea di fondo; il campo visivo verticale si adatta perché in verticale
+  // la larghezza del campo del singolare stia tutta nello schermo.
   frame(aspect) {
-    // in orizzontale la stessa inquadratura si avvicina e si abbassa
-    if (aspect < 0.75) return { h: 6.6, back: 6.6, fov: 54, lookZ: -6.2, lookY: 0 };
-    if (aspect < 1.2) return { h: 6.0, back: 6.0, fov: 46, lookZ: -6.8, lookY: 0.2 };
-    return { h: 5.2, back: 5.0, fov: 38, lookZ: -7.5, lookY: 0.6 };
+    const hfov = aspect < 0.75 ? 44 : 40;
+    const vfov = THREE.MathUtils.clamp((2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(hfov / 2)) / aspect) * 180) / Math.PI, 34, 78);
+    if (aspect < 0.75) return { h: 8.4, back: 7.4, fov: vfov, lookZ: -4.5, lookY: 0 };
+    if (aspect < 1.2) return { h: 7.6, back: 7.0, fov: vfov, lookZ: -5.5, lookY: 0 };
+    return { h: 6.4, back: 6.6, fov: 42, lookZ: -6.5, lookY: 0.4 };
   }
 
   update(dt, me, ball) {
