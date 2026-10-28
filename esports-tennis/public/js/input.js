@@ -26,6 +26,7 @@ export class Swipe {
     const up = () => {
       if (!this.active) return;
       const g = this.read();
+      this.onEnd?.(this.active.pts);
       this.active = null;
       if (g && g.len > 0.035) this.onRelease?.(g);
       else this.onMove?.(null);

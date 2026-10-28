@@ -82,3 +82,12 @@ di tennis per mobile. Branch di sessione: `claude/higgsfield-connector-modify-gp
       cadrà il proprio colpo
 - [x] Palla: più grande con la distanza, contorno scuro, alone, scia a nastro
 - Test: `npm test` 14/14; partita automatica e online locale senza errori. Non provato su telefono reale.
+
+### Terza richiesta (28/10/2026): uguale al gioco di riferimento
+- Video di riferimento analizzato fotogramma per fotogramma (10 fps, 93 fotogrammi): telecamera che si avvicina e
+  ruota durante lo scambio, scia azzurra del gesto, nome del colpo sopra il giocatore, disco a terra e onde ai
+  piedi, lampo all'impatto, scritte di qualità, ovale dove cade la palla, barre dell'energia.
+- [x] Implementati tutti i punti sopra (`camera.js`, `swipefx.js`, `fx.js`, `ui.js`, `match.js`), più il ritorno
+      camminando in posizione tra un punto e l'altro.
+- [ ] Animazioni da motion capture (Mixamo): in attesa dei file FBX dall'utente; la libreria animazioni di
+      Higgsfield non ha colpi da tennis. Piano: conversione offline FBX → clip JSON retargettate sul rig Tripo.

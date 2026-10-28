@@ -25,7 +25,9 @@ export class GameCamera {
     return { h: 6.4, back: 6.6, fov: 42, lookZ: -6.5, lookY: 0.4 };
   }
 
-  update(dt, me, ball) {
+  // focus: { incoming: palla in arrivo verso di me, ballX: dove arriva } — durante lo scambio la telecamera si
+  // avvicina dietro al mio giocatore e ruota verso il lato da cui arriva la palla, poi torna larga.
+  update(dt, me, ball, focus = null) {
     const s = this.side;
     const f = this.frame(this.cam.aspect);
     this.t += dt;
@@ -37,6 +39,23 @@ export class GameCamera {
     const baseZ = s * (11.885 + f.back + this.depth * (this.depth > 0 ? 0.9 : 0.55));
     let px = this.x, py = f.h, pz = baseZ;
     let lx = this.x * 0.45, ly = f.lookY, lz = -s * Math.abs(f.lookZ);
+    // ── avvicinamento durante lo scambio ──
+    const wantK = this.mode === 'play' && focus?.incoming ? 1 : 0;
+    this.k = (this.k ?? 0) + (wantK - (this.k ?? 0)) * Math.min(1, dt * (wantK ? 1.6 : 1.1));
+    const wantYaw = focus?.incoming ? THREE.MathUtils.clamp((focus.ballX - me.pos.x) * s * -0.07, -0.42, 0.42) : 0;
+    this.yaw = (this.yaw ?? 0) + (wantYaw - (this.yaw ?? 0)) * Math.min(1, dt * 1.8);
+    if (this.k > 0.001) {
+      const k = this.k * this.k * (3 - 2 * this.k);
+      const back = new THREE.Vector3(Math.sin(this.yaw) * s, 0, Math.cos(this.yaw) * s); // dietro al giocatore, ruotato
+      let cx = me.pos.x + back.x * 5.6, cz = me.pos.z + back.z * 5.6, cy = f.h * 0.62;
+      // mai oltre il muro di fondo: se il giocatore è molto arretrato la telecamera si alza invece di uscire
+      const over = s * cz - 18.0;
+      if (over > 0) { cz -= s * over; cy += over * 0.9; }
+      const fl = new THREE.Vector3(-back.x, 0, -back.z);
+      const tx = me.pos.x + fl.x * 9 + (focus.ballX - me.pos.x) * 0.25, tz = me.pos.z + fl.z * 9;
+      px += (cx - px) * k; py += (cy - py) * k; pz += (cz - pz) * k;
+      lx += (tx - lx) * k; ly += (0.2 - ly) * k; lz += (tz - lz) * k;
+    }
     if (this.mode === 'intro') {
       // giro iniziale attorno al campo
       const a = Math.min(1, this.t / 3.2);

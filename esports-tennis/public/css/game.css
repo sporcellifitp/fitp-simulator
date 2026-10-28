@@ -110,3 +110,13 @@ button{font-family:var(--font);cursor:pointer}
 @media (orientation:landscape) and (max-height:500px){.rotate{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:#2a1690;font-size:20px;text-align:center;padding:20px}}
 .shot-type{position:absolute;left:50%;bottom:calc(84px + var(--safe-b));transform:translateX(-50%) skewX(-6deg);font-weight:900;font-style:italic;font-size:22px;letter-spacing:1px;padding:6px 18px;border-radius:12px;border:3px solid;background:rgba(18,10,70,.82);opacity:0;transition:opacity .12s;pointer-events:none;white-space:nowrap;-webkit-text-stroke:.5px rgba(0,0,0,.4)}
 .shot-type.show{opacity:1}
+.en{height:5px;background:rgba(0,0,0,.45)}
+.en i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#3be36a,#9dff5a);transition:width .25s}
+.en.op i{background:linear-gradient(90deg,#3be36a,#9dff5a)}
+.en.low i{background:#ff7a1a}
+.wl{position:absolute;left:0;top:0;font-weight:800;font-style:italic;font-size:17px;color:#fff;-webkit-text-stroke:1px rgba(0,0,0,.55);paint-order:stroke fill;text-shadow:0 2px 4px rgba(0,0,0,.45);opacity:0;transition:opacity .15s;pointer-events:none;white-space:nowrap}
+.wl.show{opacity:1}
+.ft{position:absolute;transform:translate(-50%,0);font-weight:900;font-style:italic;font-size:clamp(20px,6vw,30px);color:#fff;-webkit-text-stroke:1.5px rgba(0,0,0,.5);paint-order:stroke fill;opacity:0;pointer-events:none;white-space:nowrap}
+.ft.show{animation:ftup .9s ease-out}
+.ft.crit{color:#ffe15a}
+@keyframes ftup{0%{opacity:0;transform:translate(-50%,10px) scale(.7)}15%{opacity:1;transform:translate(-50%,0) scale(1.08)}70%{opacity:1}100%{opacity:0;transform:translate(-50%,-34px) scale(1)}}

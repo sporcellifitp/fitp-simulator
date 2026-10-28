@@ -5,6 +5,7 @@ import { buildArena } from './arena.js';
 import { loadPlayers } from './player.js';
 import { GameCamera } from './camera.js';
 import { Swipe } from './input.js';
+import { SwipeTrail } from './swipefx.js';
 import { Match } from './match.js';
 import { UI } from './ui.js';
 import { Audio } from './audio.js';
@@ -31,6 +32,7 @@ const ui = new UI(document.getElementById('ui'), prefs);
 const audio = new Audio();
 audio.muted = prefs.muted;
 const swipe = new Swipe(document.getElementById('touch'));
+const trail = new SwipeTrail(swipe);
 
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
@@ -192,6 +194,7 @@ function frame() {
     if (camera.fov !== 50) { camera.fov = 50; camera.updateProjectionMatrix(); }
   }
   renderer.render(scene, camera);
+  trail.draw();
 }
 frame();
 boot().catch((e) => {

@@ -15,7 +15,9 @@ export class UI {
       <div class="hud hidden">
         <div class="sb">
           <div class="sb-row me"><span class="srv"></span><span class="nm"></span><span class="gm"></span><span class="pt"></span></div>
+          <div class="en me"><i></i></div>
           <div class="sb-row op"><span class="srv"></span><span class="nm"></span><span class="gm"></span><span class="pt"></span></div>
+          <div class="en op"><i></i></div>
         </div>
         <button class="hud-btn pause" aria-label="Pausa">II</button>
         <div class="spd"></div>
@@ -23,6 +25,8 @@ export class UI {
         <div class="popup"></div>
         <div class="hint"><span></span></div>
         <div class="shot-type"></div>
+        <div class="wl wl-0"></div><div class="wl wl-1"></div>
+        <div class="ft"></div>
         <div class="net-status"></div>
       </div>
       <div class="versus hidden"><div class="vs-a"></div><div class="vs-mid">VS</div><div class="vs-b"></div></div>
@@ -179,6 +183,34 @@ export class UI {
     $('span', e).textContent = text;
     e.dataset.kind = kind || '';
     e.classList.add('show');
+  }
+
+  // Etichetta sopra un giocatore (nome del colpo che sta preparando), in pixel dello schermo.
+  worldLabel(i, text, x, y) {
+    const e = $(`.wl-${i}`, this.root);
+    if (!text) { e.classList.remove('show'); return; }
+    if (e.textContent !== text) e.textContent = text;
+    e.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px) translate(-50%, -100%)`;
+    e.classList.add('show');
+  }
+
+  // Scritta che sale dal giocatore: +PRECISIONE, CRITICO!
+  floatText(text, cls, x, y) {
+    const e = $('.ft', this.root);
+    e.textContent = text;
+    e.className = `ft ${cls || ''}`;
+    e.style.left = `${Math.round(x)}px`;
+    e.style.top = `${Math.round(y)}px`;
+    void e.offsetWidth;
+    e.classList.add('show');
+    clearTimeout(this._ft);
+    this._ft = setTimeout(() => e.classList.remove('show'), 900);
+  }
+
+  energy(me, op) {
+    $('.en.me i', this.root).style.width = `${Math.round(me * 100)}%`;
+    $('.en.op i', this.root).style.width = `${Math.round(op * 100)}%`;
+    $('.en.me', this.root).classList.toggle('low', me < 0.3);
   }
 
   // Nome del colpo che si sta preparando col gesto (colorato come il mirino).

@@ -32,6 +32,15 @@ function ringTexture(kind) {
     for (const [a, b, c2, d] of [[C, 6, C, 70], [C, 186, C, 250], [6, C, 70, C], [186, C, 250, C]]) { x.beginPath(); x.moveTo(a, b); x.lineTo(c2, d); x.stroke(); }
     x.fillStyle = 'rgba(255,255,255,1)';
     x.beginPath(); x.arc(C, C, 14, 0, Math.PI * 2); x.fill();
+  } else if (kind === 'disc') {
+    // disco grigio trasparente con bordo chiaro (zona del giocatore)
+    x.fillStyle = 'rgba(235,235,240,0.32)';
+    x.beginPath(); x.arc(C, C, 118, 0, Math.PI * 2); x.fill();
+    x.lineWidth = 6; x.strokeStyle = 'rgba(255,255,255,0.9)';
+    x.beginPath(); x.arc(C, C, 118, 0, Math.PI * 2); x.stroke();
+  } else if (kind === 'thin') {
+    x.lineWidth = 6; x.strokeStyle = 'rgba(255,255,255,1)';
+    x.beginPath(); x.arc(C, C, 118, 0, Math.PI * 2); x.stroke();
   } else if (kind === 'glow') {
     const g = x.createRadialGradient(C, C, 0, C, C, 128);
     g.addColorStop(0, 'rgba(255,255,255,0.9)');
@@ -125,12 +134,12 @@ export class BallFx {
       const k = n ? i / (this.N - 1) : 0; // 0 = coda, 1 = palla
       const dir = new THREE.Vector3(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
       const view = new THREE.Vector3(cam.x - p[0], cam.y - p[1], cam.z - p[2]);
-      const side = dir.cross(view).normalize().multiplyScalar(r * 0.6 * k);
+      const side = dir.cross(view).normalize().multiplyScalar(r * 0.45 * (0.3 + 0.7 * k));
       for (const [j, sgn] of [[0, 1], [1, -1]]) {
         pos[(i * 2 + j) * 3] = p[0] + side.x * sgn;
         pos[(i * 2 + j) * 3 + 1] = p[1] + side.y * sgn;
         pos[(i * 2 + j) * 3 + 2] = p[2] + side.z * sgn;
-        col[(i * 2 + j) * 4] = 1; col[(i * 2 + j) * 4 + 1] = 1; col[(i * 2 + j) * 4 + 2] = 0.55;
+        col[(i * 2 + j) * 4] = 1; col[(i * 2 + j) * 4 + 1] = 0.55 + 0.45 * k; col[(i * 2 + j) * 4 + 2] = 0.75 - 0.35 * k;
         col[(i * 2 + j) * 4 + 3] = k * k * 0.4;
       }
     }
@@ -143,18 +152,28 @@ export class BallFx {
 export class Markers {
   constructor(scene) {
     this.scene = scene;
-    const target = ringTexture('target'), ring = ringTexture('ring'), cross = ringTexture('cross');
+    const target = ringTexture('target'), ring = ringTexture('ring'), cross = ringTexture('cross'), disc = ringTexture('disc'), thin = ringTexture('thin');
+    this.glowTex = ringTexture('glow');
     this.landing = flat(target, '#d8f23a', 1.0, 5);   // dove rimbalza la palla che arriva
     this.closing = flat(ring, '#ffffff', 1.0, 5);     // anello che si chiude fino al rimbalzo
-    this.outgoing = flat(target, '#38e1ff', 0.8, 5);  // dove rimbalzerà il mio colpo
+    this.outgoing = flat(thin, '#ffffff', 0.9, 5);    // ovale bianco dove rimbalzerà il mio colpo
     this.aim = flat(cross, '#d8f23a', 1.1, 7);        // mira durante il gesto
-    this.timing = flat(ring, '#ffffff', 1.0, 6);      // tempismo attorno al mio giocatore
+    this.timing = flat(disc, '#ffffff', 1.0, 4);      // zona del giocatore: si stringe fino al momento giusto
     this.bounce = flat(ring, '#ffffff', 0.35, 5);     // segno del rimbalzo appena avvenuto
     this.dots = new THREE.InstancedMesh(new THREE.SphereGeometry(0.06, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.9, toneMapped: false, depthWrite: false }), 26);
     this.dots.renderOrder = 7;
     this.dots.visible = false;
     this.dots.frustumCulled = false;
-    this.all = [this.landing, this.closing, this.outgoing, this.aim, this.timing, this.bounce, this.dots];
+    // onde ai piedi sui colpi precisi e lampo all'impatto
+    this.ripples = [0, 1, 2].map(() => flat(thin, '#ffffff', 1.0, 5));
+    this.flashes = [0, 1].map(() => {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.glowTex, color: '#fff2b0', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+      sp.visible = false;
+      sp.renderOrder = 8;
+      return sp;
+    });
+    this.fxT = [];
+    this.all = [this.landing, this.closing, this.outgoing, this.aim, this.timing, this.bounce, this.dots, ...this.ripples, ...this.flashes];
     scene.add(...this.all);
     this.t = 0;
   }
@@ -173,7 +192,7 @@ export class Markers {
 
   showOutgoing(x, z, inside) {
     this.outgoing.position.set(x, 0.015, z);
-    this.outgoing.material.color.set(inside ? '#38e1ff' : '#ff4f6a');
+    this.outgoing.material.color.set(inside ? '#ffffff' : '#ff4f6a');
     this.outgoing.visible = true;
     this.outInfo = { t0: this.t };
   }
@@ -184,6 +203,19 @@ export class Markers {
     this.bounce.material.color.set(inside ? '#ffffff' : '#ff4f6a');
     this.bounce.visible = true;
     this.bounceT = this.t;
+  }
+
+  // Onde concentriche ai piedi (colpo preciso).
+  ripple(x, z) {
+    this.rippleInfo = { x, z, t0: this.t };
+  }
+
+  // Lampo nel punto d'impatto.
+  flash(p, big) {
+    const sp = this.flashes[(this.flashI = ((this.flashI || 0) + 1) % 2)];
+    sp.position.set(p[0], p[1], p[2]);
+    sp.userData = { t0: this.t, size: big ? 1.6 : 0.9 };
+    sp.visible = true;
   }
 
   // Mira durante il gesto: mirino colorato per tipo di colpo e traiettoria a puntini.
@@ -238,19 +270,34 @@ export class Markers {
     if (T) {
       const left = T.tContact - now; // secondi all'impatto
       const p = T.player.pos;
-      this.timing.position.set(p.x, 0.02, p.z);
-      this.timing.visible = left > -0.05 && left < 1.6;
+      this.timing.position.set(p.x, 0.015, p.z);
+      this.timing.visible = left > -0.05 && left < 1.8;
       if (left > 0.55) {
-        this.timing.scale.setScalar(1.2 + (left - 0.55) * 1.6);
+        this.timing.scale.setScalar(1.6 + (left - 0.55) * 1.2);
         this.timing.material.color.set('#ffffff');
-        this.timing.material.opacity = 0.75;
+        this.timing.material.opacity = 0.8;
       } else if (left > 0.04) {
-        this.timing.scale.setScalar(1.15 + Math.sin(this.t * 16) * 0.05);
-        this.timing.material.color.set('#7dff6a');
+        this.timing.scale.setScalar(1.55 + Math.sin(this.t * 16) * 0.04);
+        this.timing.material.color.set('#c8ffb8');
         this.timing.material.opacity = 1;
       } else {
-        this.timing.material.color.set('#ff9a2e');
+        this.timing.material.color.set('#ffc890');
       }
+    }
+    const RP = this.rippleInfo;
+    this.ripples.forEach((m, i) => {
+      if (!RP) { m.visible = false; return; }
+      const k = (this.t - RP.t0 - i * 0.12) / 0.6;
+      m.visible = k > 0 && k < 1;
+      if (m.visible) { m.position.set(RP.x, 0.02, RP.z); m.scale.setScalar(0.4 + k * 1.6); m.material.opacity = 0.9 * (1 - k); }
+    });
+    if (RP && this.t - RP.t0 > 1) this.rippleInfo = null;
+    for (const sp of this.flashes) {
+      if (!sp.visible) continue;
+      const k = (this.t - sp.userData.t0) / 0.28;
+      if (k >= 1) { sp.visible = false; continue; }
+      sp.scale.setScalar(sp.userData.size * (0.4 + k * 1.2));
+      sp.material.opacity = 1 - k;
     }
   }
 }

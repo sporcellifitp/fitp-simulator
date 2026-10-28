@@ -80,7 +80,7 @@ export class Match {
   setState(s) { this.state = s; this.stateT = 0; }
 
   // ── preparazione del punto ───────────────────────────────────────────────
-  setupPoint() {
+  setupPoint(walk = true) {
     const server = R.currentServer(this.score);
     const box = R.serviceBox(this.score);
     const receiver = other(server);
@@ -88,20 +88,31 @@ export class Match {
     const sp = this.players[server], rp = this.players[receiver];
     const sSide = SIDE[server], rSide = SIDE[receiver];
     // chi serve: dietro la linea di fondo, a destra del centro a punti pari (deuce)
-    const sRight = sp.right.x;
-    sp.pos.set(sRight * (box === 'deuce' ? 0.7 : -0.7), 0, sSide * (BASE_Z + 0.35));
-    sp.vel.set(0, 0, 0);
-    sp.target.copy(sp.pos);
-    const rRight = rp.right.x;
-    rp.pos.set(rRight * (box === 'deuce' ? 2.3 : -2.3), 0, rSide * (BASE_Z + 0.6));
-    rp.vel.set(0, 0, 0);
-    rp.target.copy(rp.pos);
+    // posizioni: chi serve dietro la linea di fondo, chi risponde dalla parte del riquadro
+    this.spots = [null, null];
+    this.spots[server] = new THREE.Vector3(sp.right.x * (box === 'deuce' ? 0.7 : -0.7), 0, sSide * (BASE_Z + 0.35));
+    this.spots[receiver] = new THREE.Vector3(rp.right.x * (box === 'deuce' ? 2.3 : -2.3), 0, rSide * (BASE_Z + 0.6));
     for (const p of this.players) { p.cancelStroke(); p.celebrate = 0; p.tossBall = null; }
     this.rally = null;
     this.plan = null;
     this.pendingSwipe = null;
     this.marks.hideAll();
     this.fx.clearTrail();
+    this.ui.hint(null);
+    const far = this.players.some((p, i) => p.pos.distanceTo(this.spots[i]) > 0.3);
+    if (walk && far) {
+      // i giocatori tornano camminando al loro posto
+      this.players.forEach((p, i) => { p.moveTo(this.spots[i].x, this.spots[i].z); p.walkSpeed = 3.0; });
+      this.setState('positioning');
+      this.updateHud();
+      return;
+    }
+    this.readyToServe();
+  }
+
+  readyToServe() {
+    const { server } = this.serveInfo;
+    this.players.forEach((p, i) => { p.pos.copy(this.spots[i]); p.vel.set(0, 0, 0); p.target.copy(p.pos); p.walkSpeed = 0; });
     this.setState('serve-wait');
     this.serveWaitUntil = this.now + (this.ctrl[server] === 'cpu' ? 1.1 + this.rng() * 0.6 : 0);
     if (this.ctrl[server] === 'human') this.ui.hint(this.faults ? 'Seconda di servizio: scorri verso l\'alto' : 'Scorri verso l\'alto per servire', 'serve');
@@ -194,9 +205,15 @@ export class Match {
     this.ui.speed(kmh, seat === this.me);
     this.audio.hit(Math.min(1, kmh / 160));
     const name = SHOT_NAMES[shot.kind === 'drive' ? shot.spinKind : shot.kind === 'volley' && shot.spinKind === 'drop' ? 'drop' : shot.kind];
+    this.marks.flash(p0, quality === 'perfect' || kmh > 140);
     if (seat === this.me && !serve) {
-      const q = quality === 'perfect' ? ' · PERFETTO!' : quality === 'early' ? ' · IN ANTICIPO' : quality === 'late' ? ' · IN RITARDO' : '';
-      this.ui.popup(`${name}${q}`, quality === 'perfect' ? 'gold' : quality === 'good' ? '' : 'bad');
+      if (quality === 'perfect') {
+        const crit = (shot.power || 0) >= 0.6 || shot.spinKind === 'flat' || shot.kind === 'smash';
+        const sp = this.screenOf(new THREE.Vector3(this.players[seat].pos.x, 1.2, this.players[seat].pos.z));
+        if (sp) this.ui.floatText(crit ? 'CRITICO!' : '+PRECISIONE', crit ? 'crit' : '', sp.x, sp.y);
+        this.marks.ripple(this.players[seat].pos.x, this.players[seat].pos.z);
+      } else if (quality !== 'good') this.ui.popup(quality === 'early' ? 'IN ANTICIPO' : 'IN RITARDO', 'bad');
+      void name;
     } else if (seat !== this.me && !serve && (shot.spinKind === 'drop' || shot.spinKind === 'lob' || shot.kind === 'smash')) {
       this.ui.popup(name, 'bad'); // avviso dei colpi che costringono a correre
     }
@@ -382,7 +399,10 @@ export class Match {
     const st = this.state;
 
     if (st === 'intro') {
-      if (this.stateT > 3.0) { this.ui.hideVersus(); this.setupPoint(); }
+      if (this.stateT > 3.0) { this.ui.hideVersus(); this.setupPoint(false); }
+    } else if (st === 'positioning') {
+      const done = this.players.every((p, i) => p.pos.distanceTo(this.spots[i]) < 0.25);
+      if (done || this.stateT > 2.6) this.readyToServe();
     } else if (st === 'serve-wait') {
       const { server } = this.serveInfo;
       const sp = this.players[server];
@@ -427,7 +447,11 @@ export class Match {
     }
     this.fx.update(this.ball, dt, this.state === 'rally');
     this.marks.update(dt, this.now);
-    this.cam.update(dt, this.players[this.me], this.state === 'rally' ? this.ball : null);
+    const plan = this.plan;
+    const incoming = this.state === 'rally' && plan && !plan.none && plan.seat === this.me && !plan.done;
+    this.cam.update(dt, this.players[this.me], this.state === 'rally' ? this.ball : null, { incoming, ballX: incoming ? plan.contact.x : 0 });
+    this.updateEnergy(dt);
+    this.updateLabels();
     if (this.mode === 'online') this.net.tick(dt, this.players[this.me]);
   }
 
@@ -668,6 +692,43 @@ export class Match {
   onRemotePos(m) { this.remotePos = m; }
 
   // ── disegno ──────────────────────────────────────────────────────────────
+  // Energia: cala negli scatti, torna camminando e tra i punti; con poca energia si corre più piano.
+  updateEnergy(dt) {
+    if (!this.energy) { this.energy = [1, 1]; this.baseSpeed = this.players.map((p) => p.maxSpeed); this.enT = 0; }
+    const rest = this.state === 'point-over' || this.state === 'positioning' || this.state === 'serve-wait' || this.state === 'fault';
+    this.players.forEach((p, i) => {
+      const v = p.vel.length();
+      let e = this.energy[i];
+      if (v > 3.4) e -= dt * 0.05 * (v - 3.4);
+      else e += dt * (rest ? 0.1 : 0.035);
+      e = Math.min(1, Math.max(0, e));
+      this.energy[i] = e;
+      p.maxSpeed = p.walkSpeed ? p.walkSpeed : this.baseSpeed[i] * (0.72 + 0.28 * e);
+    });
+    this.enT += dt;
+    if (this.enT > 0.12) { this.enT = 0; this.ui.energy(this.energy[this.me], this.energy[other(this.me)]); }
+  }
+
+  // Posizione sullo schermo (pixel CSS) di un punto della scena, o null se dietro la telecamera.
+  screenOf(v) {
+    const p = v.clone().project(this.cam.cam);
+    if (p.z > 1) return null;
+    return { x: (p.x * 0.5 + 0.5) * window.innerWidth, y: (-p.y * 0.5 + 0.5) * window.innerHeight };
+  }
+
+  // Nome del colpo sopra il giocatore mentre lo prepara (e "Servizio" sopra chi deve servire).
+  updateLabels() {
+    [this.me, other(this.me)].forEach((seat, i) => {
+      const p = this.players[seat];
+      let text = null;
+      const st = p.stroke;
+      if (st && this.now < st.tContact + 0.45) text = strokeLabel(st);
+      else if ((this.state === 'serve-wait' || this.state === 'serving') && this.serveInfo?.server === seat) text = 'Servizio';
+      const sp = text ? this.screenOf(new THREE.Vector3(p.pos.x, 2.25, p.pos.z)) : null;
+      this.ui.worldLabel(i, sp ? text : null, sp?.x, sp?.y);
+    });
+  }
+
   scoreBoardText() {
     const g = this.score.games;
     return `${g[0]}-${g[1]}`;
@@ -685,6 +746,17 @@ export class Match {
       tiebreak: s.tiebreak,
     });
   }
+}
+
+function strokeLabel(st) {
+  if (st.kind === 'serve') return 'Servizio';
+  if (st.kind === 'smash') return 'Smash';
+  if (st.spinKind === 'drop') return 'Palla corta';
+  if (st.spinKind === 'lob') return 'Pallonetto';
+  const base = st.kind === 'volley' ? (st.side > 0 ? 'Volée di dritto' : 'Volée di rovescio') : st.side > 0 ? 'Dritto' : 'Rovescio';
+  if (st.spinKind === 'slice') return `${base} tagliato`;
+  if (st.spinKind === 'flat' && st.kind !== 'volley') return `${base} piatto`;
+  return base;
 }
 
 // Timer legati al tempo di gioco (si fermano con la pausa).
