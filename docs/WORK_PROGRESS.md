@@ -392,9 +392,58 @@ Segnalazione: «il tracciamento non va, il browser lagga, nessuna sincronizzazio
 - Video: seduto a ~1 m, nello swing la mano è mossa e sfocata (24 fps) e spesso davanti al viso: il modello delle mani la
   perde proprio nel colpo. Con il modello sulla pagina ogni inferenza ferma il disegno per 15–40 ms (scatti).
 - Prova di fattibilità (non nel repository): sul video webcam della diagnostica 213510 (giocata con il telefono, 36 colpi
-  con l'istante del telefono) la differenza tra fotogrammi a 80×60 trova un picco di movimento per **36 colpi su 36**
-  entro ±250 ms (ritardo tipico +80 ms), verso leggibile dal baricentro nei dritti pieni (+17…+27 px), 8 picchi in 55 s
-  lontani da ogni gesto con soglia 300× la mediana.
+  con l'istante del telefono) la differenza tra fotogrammi a 80×60 trovava un picco di movimento per «36 colpi su 36»
+  entro ±250 ms. **Correzione (29/10): il dato era gonfiato.** Il video, decodificato a 30 fotogrammi al secondo fissi,
+  ripete i fotogrammi (la camera ne dava 15): la mediana dell'energia veniva quasi zero e ogni movimento sembrava un
+  picco. Con i fotogrammi veri l'energia da sola si sovrappone molto ai movimenti fuori dal colpo, e il verso dal
+  baricentro indovina il lato in 22 colpi su 36 (quasi a caso). Da qui il progetto rifatto qui sotto: il movimento conta
+  solo quando la palla arriva, il lato viene dalla palla.
 - Piano proposto (da confermare con l'utente): rilevatore del colpo dal movimento (differenza tra fotogrammi a bassa
   risoluzione, < 1 ms a fotogramma, nessun modello), lato del colpo da dove sta la mano prima dello swing (modello delle
   mani solo a riposo e a bassa frequenza, fuori dagli scambi), ritardo misurato e compensato, calibrazione con 3 swing.
+
+## Webcam rifatta: colpi dal movimento (29/10)
+Richiesta: «procedi con questo rifacimento webcam e dammi pacchetto lan con correzioni webcam».
+- `src/natpf/webcam_motion.js` (nuovo): immagine della camera ridotta a 96×72 in grigio, energia del movimento tra due
+  fotogrammi (pixel cambiati oltre 18 livelli, pesati per la differenza), fotogrammi ripetuti ignorati. Lo swing parte
+  quando l'energia supera la soglia: 3 volte il fondo (mediana dei fotogrammi fuori dai colpi), almeno 0,012, e, imparati
+  3 colpi, metà del proprio colpo tipico. Istante del colpo stimato 94 ms dopo l'attraversamento della soglia.
+  Fine dello swing sotto il 45% del picco; 250 ms refrattari dopo (il braccio che torna).
+- Misure sul video webcam della diagnostica 213510 (giocata con il telefono, webcam a 15 fps; strumenti nella cartella
+  temporanea della sessione, non nel repository): rispetto al picco del telefono il picco del movimento arriva +95 ms
+  (scarto mediano ±59), l'attraversamento di metà del colpo tipico −94 ms (scarto mediano ±25, 9 colpi su 14 entro
+  ±80 ms; fuori: 4 colpi con la preparazione già in movimento, −240…−360 ms). Con la finestra della palla (sotto) il
+  rilevatore dà **uno swing per ogni palla giocata (15 su 15)**; scarto dal telefono mediana −24 ms, entro ±80 ms 9 su 14,
+  entro ±150 ms 10 su 14; 20 swing fuori dalle finestre (non vanno al gioco). Costo 0,05 ms a fotogramma in Node,
+  0,7–2 ms nella pagina (Chromium senza GPU, con il gioco che disegna).
+- Diagnostica 214227 (giocata con la mano, webcam a 30 fps): sulla prima palla uno swing a −10 ms dall'impatto (con il
+  riconoscimento di prima il colpo era arrivato −148 ms in ritardo); sulla seconda lo swing a −485 ms (colpo in anticipo).
+- `natpf_impact.webcamGate` (nuovo): colpo solo con la palla in arrivo a meno di 0,7 s dall'impatto (o passata da meno di
+  0,3 s), lancio e servizio solo al proprio servizio; null in pausa, nel menu, con la palla già colpita. Lato dalla
+  palla: piano d'intercetto (dove sarà all'impatto) o punto di caduta, con la mano di chi gioca (`handedSide`: il
+  mancino non viene scambiato due volte in `natpf_hand.leftySide`).
+- `motion_controls.js`: movimento a ogni fotogramma della camera (`_watchFrames` → `_motionStep`, in un compito a sé);
+  colpo con `natpf: { aim: 'swing', latency, wrist: 0, source: 'webcam' }` (direzione dal tempo, nessun piatto), forza
+  1,15–1,6 dalla salita. In partita (`webcamInPlay`) il modello delle mani non gira; la mano e il flusso ottico non
+  fanno più colpi; nessuna pausa «mano persa» (solo «webcam ferma»/«spenta»). `?webcamMano=1` riporta il riconoscimento
+  di prima, per confronto. Una sola apertura della webcam alla volta (`enableWebcam` → `_openWebcam`): due richieste
+  insieme davano «AbortError» (visto nella prova in Chromium).
+- `webcam_body_follow.js`: con i colpi dal movimento il modello del corpo si carica e gira solo con «Segui il corpo»
+  (prima sempre, per il polso).
+- `natpf_skill.eventLatency` e `relayedNatpf`: latenza fino a −0,15 s (la webcam manda lo swing prima del colpo vero; il
+  telefono resta ≥ 0 come prima).
+- Testi: pannello della webcam «Fai un colpo…» → «Colpo visto ✓ sei pronto» (si entra in campo anche senza il modello
+  delle mani: `natpf_lobby` handSeen), guida e riscaldamento (dritto o rovescio dalla palla, lancio con un movimento
+  deciso, pallonetto/palla corta/tagliato con la webcam non riconosciuti), sottotitolo del menu.
+- Registro: `webcam.frame` con `source: 'motion'`, energia e soglia (×1000); `webcam.evento` con il motivo («movimento
+  N× la soglia, stroke a T ms dalla palla» o «fuori dalla finestra del colpo»).
+- Test: `test/natpf-webcam-motion.test.mjs` (7: fotogrammi sintetici, soglia dal colpo tipico, refrattario, latenza,
+  finestra nel motore vero, controller, colpo nel motore all'impatto con la latenza negativa, modello del corpo), +1 in
+  `natpf-webcam-watch` (doppia apertura), +1 in `natpf-p2p` (relay). Gioco 456/456, sito 157/157, build ok.
+  `test/e2e/lan-e2e.mjs` (non eseguito qui) apre la parte webcam con `?webcamMano=1`: prova la mano → racchetta.
+- Prova in Chromium con la webcam finta che riproduce il video vero: pannello «Colpo visto», ingresso in campo, lancio e
+  servizio dal movimento arrivati al gioco, nessuna inferenza delle mani né del corpo in partita, nessun errore. Il
+  browser della prova disegna a ~1 fotogramma al secondo (grafica software): tempi e ritmo del gioco qui non sono
+  misurabili (la pausa «webcam ferma» scatta per questo).
+- **Non provato**: webcam vera su Windows, partita intera con la webcam, tempi reali dei colpi a 30 e a 15 fps.
+

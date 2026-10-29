@@ -127,16 +127,29 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 - 28/10/2026 — nuova memoria persistente (`CLAUDE.md`, `docs/PROJECT_MEMORY.md`, `docs/WORK_PROGRESS.md`,
   `docs/SESSION_HANDOFF.md`) e `scripts/ui-shots.mjs`.
 
-### Webcam: rifacimento deciso il 28/10 notte (richiesta dell'utente: «webcam tutta da rifare»)
+### Webcam: colpi dal movimento (deciso il 28/10 notte, fatto il 29/10)
 
-- Il colpo con la webcam si riconosce **dal movimento nell'immagine** (differenza tra fotogrammi a bassa risoluzione),
-  non dalla forma della mano: con 24–30 fps e la luce di casa la mano nello swing è mossa e il modello delle mani la
-  perde proprio nel colpo (diagnostica 20261028-214227-grj6: nessuna fonte nel 59% dei fotogrammi, 4 colpi in 38 s).
-  Prova sui video: il movimento trova 36 colpi su 36 del telefono entro ±250 ms (ritardo tipico +80 ms).
-- Il modello delle mani (MediaPipe, nella pagina: nel worker non parte) non deve girare durante gli scambi: ferma il
-  disegno 15–40 ms a inferenza. Serve solo a riposo (la mano si vede, il lato del colpo, «Mano vista» nel pannello).
+- Il colpo con la webcam si riconosce **dal movimento nell'immagine** (`src/natpf/webcam_motion.js`: 96×72 in grigio,
+  energia della differenza tra fotogrammi), non dalla forma della mano: con 15–30 fps e la luce di casa la mano nello
+  swing è mossa e il modello delle mani la perde proprio nel colpo (diagnostica 20261028-214227-grj6: nessuna fonte nel
+  59% dei fotogrammi, 4 colpi in 38 s).
+- Il movimento è un colpo **solo quando può esserlo**: palla in arrivo a meno di 0,7 s dall'impatto, o al proprio
+  servizio (`natpf_impact.webcamGate`). Fuori è chi si sposta o si sistema. Il lato (dritto o rovescio) viene dalla
+  palla: il verso del movimento è quasi a caso (22 colpi su 36 dal baricentro). Direzione dal tempo, come per tutti.
+- Istante: lo swing parte quando il movimento supera metà del proprio colpo tipico; il colpo vero è 94 ms dopo
+  (`MOTION.lead`, misurato sul video della diagnostica 213510 contro il picco del telefono: scarto mediano ±25 ms). Il
+  picco del movimento arriva troppo tardi per la palla (+95 ms, e a 15 fps la sua fine altri 60–130 ms dopo). La latenza
+  del colpo della webcam può essere negativa (fino a −0,15 s, `eventLatency`).
+- In partita non girano né il modello delle mani né quello del corpo (ognuno ferma il disegno 15–40 ms a inferenza: era
+  il «browser che lagga»). Le mani servono solo nel menu (pannello, posa della racchetta); il corpo solo con «Segui il
+  corpo». Nessuna pausa per la mano persa, solo per la camera ferma o spenta.
+- Pallonetto, palla corta e tagliato dalla webcam non si riconoscono (dichiarato nella guida); la schiacciata parte da
+  sola sulle palle alte. `?webcamMano=1` riporta il riconoscimento dalla mano, per confronto.
+- Il dato «36 colpi su 36» della prima prova di fattibilità era gonfiato da fotogrammi ripetuti nel video decodificato:
+  nelle prove sui video usare i fotogrammi veri (pts del file) e l'istante di cattura degli eventi `video.frame`.
 - Verifica di ogni modifica al rilevatore della webcam: rigiocare i video delle diagnostiche (fuori dal repository: sono
-  immagini di chi gioca) e confrontare con i colpi del telefono della stessa sessione.
+  immagini di chi gioca) e confrontare con i colpi del telefono della stessa sessione e con gli istanti d'impatto
+  (`piano`: t + tc).
 
 ### Dalla sessione del 28/10 sera (diagnostica + video, docs/WORK_PROGRESS.md «Analisi della sessione del 28/10»)
 
