@@ -22,13 +22,35 @@ import { phoneInputTime } from './input-time.js';
 import { parseSwingMessage } from './swing-message.js';
 import { createGate, newSessionId, pairingUrl, createClock } from './pairing.js';
 
+// Strade per il collegamento diretto (ICE) via internet. Prima quelle di serie di PeerJS: STUN di Google e i TURN
+// pubblici di PeerJS solo in UDP. Su reti che bloccano l'UDP o isolano i dispositivi (Wi-Fi aziendale o per ospiti,
+// alcune reti mobili) non restava nessuna strada: il telefono ripeteva «Connessione persa» (segnalazione del 29/10 sera,
+// Pixel con la versione Cloudflare). In più: STUN di Cloudflare e gli stessi TURN anche in TCP.
+export const ICE_SERVERS = Object.freeze([
+  { urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] },
+  { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478', 'turn:eu-0.turn.peerjs.com:3478?transport=tcp', 'turn:us-0.turn.peerjs.com:3478?transport=tcp'], username: 'peerjs', credential: 'peerjsp' },
+]);
 // server di segnalazione: quello pubblico di PeerJS; per le prove «?peer=127.0.0.1:9000»
 export function peerConfig(){
+  const config = { iceServers: ICE_SERVERS.map(s => ({ ...s })), sdpSemantics: 'unified-plan' };
   const m = /[?&]peer=([^&#]+)/.exec(location.search);
-  if (!m) return { debug: 0 };
+  if (!m) return { debug: 0, config };
   const [host, port] = decodeURIComponent(m[1]).split(':');
-  return { host, port: +(port || 443), path: '/fiw', secure: location.protocol === 'https:' && !/^(127\.|localhost)/.test(host), debug: 0 };
+  return { host, port: +(port || 443), path: '/fiw', secure: location.protocol === 'https:' && !/^(127\.|localhost)/.test(host), debug: 0, config };
 }
+// Tempi del collegamento del telefono: il canale diretto può metterci più di 6 s ad aprirsi quando passa da un server di
+// inoltro (TURN); prima il computer chiudeva chi non diceva «hello» entro 6 s dal primo contatto, cioè spesso prima
+// ancora che il canale fosse aperto, e il telefono rinunciava a 12 s: con quelle reti il collegamento non riusciva mai
+export const LINK_TIMES = Object.freeze({ negotiateMs: 30000, helloMs: 6000, phoneMs: 12000, phoneSlowMs: 30000 });
+// motivo di un collegamento del telefono non riuscito, da quello che il tentativo ha visto ({ signal, ice }, racchetta.js)
+export function netWhy(n){
+  if (!n) return null;
+  if (!n.signal) return 'Il telefono non raggiunge il server di collegamento: controlla che abbia internet (Wi-Fi o dati), poi «Riprova».';
+  if (n.ice === 'failed' || n.ice === 'checking' || n.ice === 'disconnected') return 'La rete non lascia passare il collegamento tra telefono e computer. Prova: telefono e computer sulla stessa rete Wi-Fi (non quella per ospiti), oppure il computer collegato all’hotspot del telefono, oppure la versione LAN.';
+  if (n.ice === 'new') return 'Il computer non risponde: se il gioco sul computer è stato ricaricato, inquadra di nuovo il QR.';
+  return null;
+}
+
 // solo il parametro di prova passa al telefono e all'amico, nient'altro dell'indirizzo
 export const testSearch = () => { if (isLanMode()) return '?lan=1'; const m = /[?&](peer=[^&#]+)/.exec(location.search); return m ? '?' + m[1] : ''; };
 
@@ -128,7 +150,10 @@ export function createPhoneLink(){
   function accept(c){
     if (typeof c.label === 'string' && c.label.startsWith('fast-')) return acceptFast(c);
     let ok = false;
-    const timer = setTimeout(() => { if (!ok) c.close(); }, 6000);                           // chi non si presenta entro 6 s viene chiuso
+    // chi non si presenta entro 6 s dall'apertura del canale viene chiuso; prima che il canale si apra c'è più tempo
+    // (LINK_TIMES: il percorso attraverso un server di inoltro è lento)
+    let timer = setTimeout(() => { if (!ok) c.close(); }, LINK_TIMES.negotiateMs);
+    c.on('open', () => { if (ok) return; clearTimeout(timer); timer = setTimeout(() => { if (!ok) c.close(); }, LINK_TIMES.helloMs); });
     c.on('data', d => {
       if (!d || typeof d !== 'object') return;
       if (c === conn) lastSeen = Date.now();

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
+import { LINK_TIMES, netWhy } from '../../site/js/tennis/link.js';
 const source = readFileSync(process.env.NATPF_PHONE_SOURCE || new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
 const section = source.slice(source.indexOf('async function connect(){'), source.indexOf('// messaggi che valgono solo se arrivano subito'));
 function setup(){
@@ -15,7 +16,7 @@ function setup(){
     reconnect(){ this.emit('open'); }
   }
   const store = new Map([['resume', 'key']]);
-  const sandbox = { LanPeer: Peer, isLanMode: () => true, peerConfig: () => ({}), performance: { now: () => 100 },
+  const sandbox = { LanPeer: Peer, isLanMode: () => true, peerConfig: () => ({}), LINK_TIMES, netWhy, performance: { now: () => 100 },
     ss: { get: k => store.get(k), set: (k,v) => store.set(k,v), del: k => store.delete(k) },
     setTimeout: (f, ms) => { timers.set(++seq, { f, ms }); return seq; }, clearTimeout: id => timers.delete(id),
     paint(){}, bar(){}, ui(){}, show(){}, closeFast(){}, openFast(){}, sendState(){}, sendDevice(){} };
@@ -59,4 +60,21 @@ test('«Ricollega»: peer nuovo, hello con la chiave di ripresa e rl, una sola c
   // il collegamento successivo (non chiesto) non porta più rl
   await h.api.connect();const p2=h.peers.at(-1);p2.emit('open');const c2=p2.connections.at(-1);c2.emit('open');
   assert.equal(c2.sent[0].rl,undefined);
+});
+// segnalazione del 29/10 sera (versione Cloudflare, Pixel): il tentativo si buttava a 12 s anche con la strada diretta in
+// via di apertura (server di inoltro, lento); ora, se il computer ha risposto (ICE «checking»), si aspetta fino a 30 s
+test('collegamento lento: a 12 s con la strada diretta in corso si aspetta fino a 30 s; senza risposta si riprova a 12 s', async () => {
+  const h = setup();
+  await h.api.connect();
+  const p = h.peers.at(-1); p.emit('open');
+  const c = p.connections.at(-1); c.open = false; c.emit('iceStateChanged', 'checking');
+  await h.run(LINK_TIMES.phoneMs);
+  assert.equal(h.api.state, 'connecting', 'non si butta a 12 s');
+  await h.run(LINK_TIMES.phoneSlowMs - LINK_TIMES.phoneMs);
+  assert.equal(h.api.state, 'lost');
+  // senza risposta del computer: dopo 12 s si riprova, come prima
+  const k = setup();
+  await k.api.connect(); k.peers.at(-1).emit('open');
+  await k.run(LINK_TIMES.phoneMs);
+  assert.equal(k.api.state, 'lost');
 });

@@ -7,7 +7,7 @@ import { createSwingDetector, sampleFromMotion } from './swing-detect.js';
 import { createCalibration, PLAN, GESTURE_PLAN, calibrationPlan, CAL } from './calibration.js';
 import { LanPeer, isLanMode } from './lan-transport.js';
 import { encodeSensor, SENSOR_HZ } from './sensor-packet.js';
-import { peerConfig, loadPeer } from './link.js';
+import { peerConfig, loadPeer, LINK_TIMES, netWhy } from './link.js';
 import { createFaceTracker } from './face-tracker.js';
 import { strokeShape } from './stroke-shape.js';
 import { swingMessage } from './swing-message.js';
@@ -134,15 +134,26 @@ async function connect(){
   if (previous && !previous.destroyed) previous.destroy();
   if (!pair){ linkState = 'denied'; bar(); ui('Nessuna partita', 'Inquadra il codice QR che compare sul computer.'); show('#retry', false); return; }
   linkState = 'connecting'; paint(); ui('Collegamento…', 'Mi collego al gioco sul computer.');
-  connect.t = setTimeout(() => { if (epoch === connectEpoch && linkState === 'connecting') lost(); }, 12000);
+  // a che punto è il collegamento di questo tentativo: server di segnalazione raggiunto, risposta del computer e stato
+  // della strada diretta (ICE). A 12 s, se la strada si sta ancora cercando (il computer ha risposto), si aspetta fino a
+  // 30 s invece di ricominciare da capo (LINK_TIMES); se non riesce, il motivo (netWhy)
+  const net = netInfo = { signal: false, ice: 'new' };
+  const giveUp = () => { if (epoch === connectEpoch && linkState === 'connecting') lost(); };
+  connect.t = setTimeout(() => {
+    if (epoch !== connectEpoch || linkState !== 'connecting') return;
+    if (net.ice === 'checking' || net.ice === 'connected') connect.t = setTimeout(giveUp, LINK_TIMES.phoneSlowMs - LINK_TIMES.phoneMs);
+    else giveUp();
+  }, LINK_TIMES.phoneMs);
   try {
     const Peer = isLanMode() ? LanPeer : await loadPeer();
     if (epoch !== connectEpoch) return;
     const p = peer = new Peer(peerConfig());
     const current = () => epoch === connectEpoch && peer === p;
     p.on('open', () => {
+      if (current()) net.signal = true;
       if (!current() || conn?.open || pendingConn) return;
       const c = pendingConn = p.connect(pair.session, { reliable: true, serialization: 'json' });
+      c.on('iceStateChanged', st => { if (current()) net.ice = String(st); });
       c.on('open', () => { if (!current() || pendingConn !== c) return; const r = ss.get('resume'); c.send(r ? { t: 'hello', v: 2, r, ...(relinking ? { rl: 1 } : {}) } : { t: 'hello', v: 2, k: pair.token }); relinking = false; });
       c.on('data', d => { if (current() && (c === conn || c === pendingConn)) onData(c, d); });
       c.on('close', () => { if (current() && (c === conn || c === pendingConn)) lost(); });
@@ -204,13 +215,17 @@ function onData(c, d){
     case 'bye': ss.del('resume'); ss.del('pair'); pair = null; closeFast(); linkState = 'denied'; paint(); ui('Scollegato', 'Il computer ha scollegato il telefono. Per giocare di nuovo inquadra il nuovo QR.'); try { c.close(); } catch (e){} break;
   }
 }
+// motivo di un collegamento non riuscito, da quello che il tentativo ha visto (connect: netInfo). Prima il telefono
+// diceva sempre «Connessione persa», anche quando la rete bloccava la strada diretta e riprovare non serviva
+let netInfo = null;
 function lost(){
   if (linkState === 'denied' || linkState === 'lost') return;
+  const why = linkState === 'connecting' ? netWhy(netInfo) : null;
   clearTimeout(retryT); clearTimeout(connect.t); ++connectEpoch;
   const previous = peer; peer = null; pendingConn = null;
   closeFast(); conn = null; linkState = 'lost';
   if (previous && !previous.destroyed) previous.destroy();
-  paint(); ui('Connessione persa', 'Riprovo da solo tra poco. Sul computer puoi riprovare il collegamento.');
+  paint(); ui('Connessione persa', why ? `${why} Riprovo da solo tra poco.` : 'Riprovo da solo tra poco. Sul computer puoi riprovare il collegamento.');
   if (tries++ < 10) retryT = setTimeout(connect, Math.min(6000, 1000*tries));
 }
 const send = m => { if (conn && conn.open) try { conn.send(m); } catch (e){} };
