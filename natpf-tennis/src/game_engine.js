@@ -2183,10 +2183,14 @@ export class NatpfTennisEngine {
                 ? !1
                 : this.ball.pos.x > l.pos.x + 0.04 || this.ball.targetLanding.x > 0.12,
       m = this.p2SelectedShotType || "TOPSPIN",
-      d =
-        e.side === "overhead" ||
-        ((m === "FLAT" || e.shotType === "smash") && this.ball.pos.y > 1.5) ||
-        this.ball.pos.y > 1.78;
+      // NATPF: il P2 con il telefono in verticale schiaccia con la regola del P1 (gesto e altezza della palla). Prima ogni
+      // palla sopra 1,78 m era una schiacciata: diagnostica del 29/10 (stesso schermo), risposte al servizio a fondo campo
+      // con il gesto del pallonetto giocate come schiacciate
+      d = e.natpf && e.natpf.aim === "swing" && !e.timing
+        ? NO.smashAt(e, this.ball.pos.y)
+        : e.side === "overhead" ||
+          ((m === "FLAT" || e.shotType === "smash") && this.ball.pos.y > 1.5) ||
+          this.ball.pos.y > 1.78;
     if (
       ((l.swingType = d ? "smash" : f ? "backhand" : "forehand"),
       (l.swingDuration = 0.36),

@@ -110,7 +110,7 @@ function webcamStates(changes, pauses){
   return { statiMano: { secondi: secs, perse: count(changes, c => c.a === 'persa'), persaMs: dist(lost), riprese: count(changes, c => c.a === 'ripresa') }, pause: pauses.length ? tally(pauses, p => p.motivo || '?') : null };
 }
 // tipi di evento che le metriche leggono: l'analisi a righe (diag_analysis.js) tiene in memoria solo questi
-export const METRIC_KINDS = new Set(['tel.colpo', 'tel.orologio', 'tel.stato', 'tel.link', 'tel.scartato', 'tel.prep', 'tel.dispositivo', 'webcam.frame', 'webcam.evento', 'webcam.camera', 'webcam.ritmo', 'webcam.carico', 'webcam.stato', 'webcam.pausa', 'tel.pausa', 'prestazioni',
+export const METRIC_KINDS = new Set(['tel.colpo', 'tel.orologio', 'tel.stato', 'tel.link', 'tel.scartato', 'tel.prep', 'tel.dispositivo', 'webcam.frame', 'webcam.evento', 'webcam.camera', 'webcam.ritmo', 'webcam.carico', 'webcam.stato', 'webcam.pausa', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.link', 'tel2.colpo', 'prestazioni',
   'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'punto', 'rimbalzo', 'tentativo', 'atteso', 'avviso', 'video', 'marca']);
 // ms dal rimbalzo della palla dell'avversario al colpo di chi gioca qui (evento racchetta entro 1,5 s, prima di un altro
 // rimbalzo o di un punto)
@@ -325,7 +325,9 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
 
   // ---- pause della partita per il telefono (pagina nascosta, sensori fermi, scollegato) ----
   const telPause = by('tel.pausa');
-  if (telPause.length) out.pauseTelefono = tally(telPause, p => p.motivo || '?');
+  if (telPause.length) out.pauseTelefono = tally(telPause, p => (p.chi === 'p2' ? 'P2 ' : '') + (p.motivo || '?'));
+  const ricolleghi = by('tel.ricollega');
+  if (ricolleghi.length) out.ricollegamenti = tally(ricolleghi, x => (x.chi === 'p2' ? 'P2' : 'P1') + (x.auto ? ' automatico' : ''));
 
   // ---- segni «qui è successo un problema» (tastiera, pannello o telefono) ----
   const segni = by('marca');

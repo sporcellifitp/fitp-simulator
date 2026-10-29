@@ -20,7 +20,7 @@ function setup(){
     setTimeout: (f, ms) => { timers.set(++seq, { f, ms }); return seq; }, clearTimeout: id => timers.delete(id),
     paint(){}, bar(){}, ui(){}, show(){}, closeFast(){}, openFast(){}, sendState(){}, sendDevice(){} };
   vm.createContext(sandbox);
-  vm.runInContext("let peer=null,conn=null,pendingConn=null,connectEpoch=0,retryT=null,tries=0,linkState='off',pair={session:'game',token:'token'},lastRx=0,fastOk=false,sensor='ready',rtt=80;\n" + section + "\nglobalThis.api={connect,lost,get state(){return linkState},get conn(){return conn}};", sandbox);
+  vm.runInContext("let peer=null,conn=null,pendingConn=null,connectEpoch=0,retryT=null,tries=0,linkState='off',pair={session:'game',token:'token'},lastRx=0,fastOk=false,sensor='ready',rtt=80;\n" + section + "\nglobalThis.api={connect,lost,relink,get state(){return linkState},get conn(){return conn}};", sandbox);
   const connect = async () => { await sandbox.api.connect(); const p = peers.at(-1); p.emit('open'); const c = p.connections.at(-1); c.emit('open'); c.emit('data', { t:'welcome',r:'key',f:1 }); return { p,c }; };
   const run = async ms => { for (const [id,t] of [...timers]) if (t.ms === ms){ timers.delete(id); await t.f(); } };
   return { api:sandbox.api,peers,timers,connect,run };
@@ -44,4 +44,19 @@ test('riapertura segnalazione non crea una seconda connessione', async () => {
 test('welcome tardivo della pagina precedente non sostituisce il telefono attuale', async () => {
   const h=setup(),old=await h.connect(),fresh=await h.connect();old.c.emit('data',{t:'welcome',r:'stale'});
   assert.equal(h.api.conn,fresh.c);assert.equal(h.api.state,'on');
+});
+
+// «Ricollega» (dal telefono o chiesto dal computer): canali nuovi con la chiave di ripresa e rl (stessa pagina); il
+// collegamento di prima si chiude senza far partire i tentativi della connessione persa
+test('«Ricollega»: peer nuovo, hello con la chiave di ripresa e rl, una sola connessione viva', async () => {
+  const h=setup(),old=await h.connect();
+  await h.api.relink();
+  const p=h.peers.at(-1);assert.notEqual(p,old.p);assert.equal(old.p.destroyed,true);
+  p.emit('open');const c=p.connections.at(-1);c.emit('open');
+  assert.equal(JSON.stringify(c.sent[0]),JSON.stringify({t:'hello',v:2,r:'key',rl:1}));
+  c.emit('data',{t:'welcome',r:'key',f:1});
+  assert.equal(h.api.state,'on');assert.equal(h.api.conn,c);assert.equal(h.timers.size,0);
+  // il collegamento successivo (non chiesto) non porta più rl
+  await h.api.connect();const p2=h.peers.at(-1);p2.emit('open');const c2=p2.connections.at(-1);c2.emit('open');
+  assert.equal(c2.sent[0].rl,undefined);
 });

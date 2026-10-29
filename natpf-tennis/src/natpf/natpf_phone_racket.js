@@ -377,7 +377,8 @@ export class NatpfPhoneRacket {
       this.joins = joins; this.gripSent = false; this.lastPhase = null; this.lastExpect = null;
       // Un nuovo collegamento può essere una pagina ricaricata: il suo frame d'orientamento riparte da zero.
       // Senza una nuova calibrazione il riferimento si reimpara dai colpi, mai da heading del frame precedente.
-      this.aimModel.reset(); this.faceModel.reset();
+      // «Ricollega» (relinked: stessa pagina, canali nuovi) tiene il frame: i riferimenti restano
+      if (!this.state.relinked){ this.aimModel.reset(); this.faceModel.reset(); }
     }
     // diag: se la diagnostica sta registrando, anche dopo una riconnessione il telefono rimanda i campioni grezzi
     if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.link.send({ t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}) }); this.gripSent = true; this.lastExpect = null; }
@@ -553,6 +554,9 @@ export class NatpfPhoneRacket {
   // salta i gesti della calibrazione: il telefono usa un profilo semplice (verso dalla gravità, tipo di colpo dalla forma,
   // forza dalla velocità vera; manca solo il colpo tipico)
   skipCalibration(){ this.simple = true; this.link?.cmd('skip'); this._changed(); }
+  // «Ricollega»: il telefono rifà il collegamento con la sua chiave di ripresa (canali nuovi), senza ricaricare la pagina.
+  // false se non è collegato (allora si ricollega da solo o con il QR)
+  relink(){ return !!this.link?.relink?.(); }
 
   // Esito dei colpi al telefono (vibrazione e scritta), dalle stesse chiamate che motore base usa per l'aptica.
   feedback({ role, kind, grade = '', shotType = '', quality = null } = {}){

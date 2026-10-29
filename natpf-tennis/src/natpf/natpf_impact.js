@@ -50,6 +50,11 @@ export const PLAN = Object.freeze({
   // colmo: apexContactOn). apexVy: velocità verticale massima perché il punto valga «al colmo» (in salita lenta o in
   // discesa)
   baseline: 11.74, maxBack: 13.4, apexBack: 13.8, serviceLine: 6.4, apexVy: .8,
+  // palla profonda e veloce che a maxBack (o apexBack) è ancora sotto l'altezza comoda: si arretra fino a deepBack e la
+  // si prende nel punto più alto raggiungibile. Diagnostica del 29/10 (stesso schermo): tre palle forti del Player 2 a
+  // 10,5–11,6 m, piano sul rimbalzo (palla a 7 cm da terra) e una finita in rete. deepBack resta prima della fine della
+  // traiettoria prevista (predictBall, stopZ)
+  deepBack: 14.3,
   netZ: 4.6,                 // m: posizione a rete (posizione d'attesa del doppio)
   letGo: .15,                // m: la palla che rimbalzerebbe fuori di almeno tanto si lascia andare (non si gioca al volo)
   // recupero dopo il colpo: tempo fino al colpo dell'avversario (volo del proprio colpo più oppTake, il tempo che
@@ -122,7 +127,7 @@ export function planPlayerIntercept(engine, actor){
   // lato del dritto in x: la destra di chi guarda verso −z (qui) è +x, di chi guarda verso +z (Player 2) è −x
   const fh = (handOf(engine, actor) === 'left' ? -1 : 1)*half;
   // dove stare per prendere la palla nel punto s: di lato (dal lato in cui arriva), poco dietro il punto d'impatto
-  const stand = s => { const dx = s.x - actor.pos.x, side = Math.abs(dx) > .3 ? Math.sign(dx) : fh; return { side, x: clamp(s.x - side*PLAN.side, -COURT.SINGLES_X - 1.4, COURT.SINGLES_X + 1.4), z: half*clamp(Z(s.z) + IMPACT.contactAhead, 1.2, back) }; };
+  const stand = s => { const dx = s.x - actor.pos.x, side = Math.abs(dx) > .3 ? Math.sign(dx) : fh; return { side, x: clamp(s.x - side*PLAN.side, -COURT.SINGLES_X - 1.4, COURT.SINGLES_X + 1.4), z: half*clamp(Z(s.z) + IMPACT.contactAhead, 1.2, Math.max(back, Z(s.z) > back ? PLAN.deepBack + IMPACT.contactAhead : back)) }; };
   const need = s => { const p = stand(s); return PLAN.react + Math.hypot(p.x - actor.pos.x, p.z - actor.pos.z)/speed; };
   const reachable = s => need(s) <= s.t;
   const before = path.filter(s => s.bounces === 0 && Z(s.z) > 0), after = path.filter(s => s.bounces === 1 && Z(s.z) <= back);
@@ -146,7 +151,11 @@ export function planPlayerIntercept(engine, actor){
     // se il tempo non basta per tornare, e lì volée e schiacciate)
     const serve = finite(b.rallyStrokeCount) <= 1, top1 = serve ? PLAN.returnTop : PLAN.comfort[1];
     const comfy = after.filter(p => p.y >= PLAN.comfort[0] && p.y <= top1 && reachable(p));
-    const early = comfy[0] || after.find(p => p.y >= PLAN.comfort[0] && reachable(p)) || after.find(p => reachable(p));
+    // nessun punto all'altezza comoda entro maxBack: il primo oltre (fino a deepBack) o, se nemmeno lì, il più alto
+    // raggiungibile (prima: il primo raggiungibile, cioè il rimbalzo stesso)
+    const deepPts = path.filter(p => p.bounces === 1 && Z(p.z) <= PLAN.deepBack && p.y <= top1 && reachable(p));
+    const early = comfy[0] || after.find(p => p.y >= PLAN.comfort[0] && reachable(p)) || deepPts.find(p => p.y >= PLAN.comfort[0])
+      || deepPts.reduce((b, p) => (!b || p.y > b.y + .01 ? p : b), null) || after.find(p => reachable(p));
     const deep = apexOn && (!bounce || Z(bounce.z) > PLAN.serviceLine);
     // solo se il colmo (o la discesa) è davvero raggiungibile entro maxBack: altrimenti si arretrerebbe fino al limite per
     // colpire ancora in salita (pochi centesimi di secondo in più, a prezzo della posizione: a Leggenda le palle corte

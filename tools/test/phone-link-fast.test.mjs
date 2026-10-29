@@ -150,3 +150,30 @@ test('diagnostica dal telefono: gesto scartato con il motivo, segno «qui è suc
     assert.deepEqual(got[2][1], { ua: 'Telefono di prova', wakeLock: true, motion: true, orientation: 'portrait-primary', screen: [412, 915, 3.5], version: '2026-10-23.2' });
   } finally { link.stop(); }
 });
+
+// Diagnostica del 29/10 (stesso schermo): il computer non riceveva più il movimento del Player 2 mentre il telefono era
+// su «Pronto». Il segnale di ogni secondo del telefono dice da quanto ha l'ultimo campione dei sensori (sa); il computer
+// può chiedere al telefono di rifare il collegamento («Ricollega»), e il telefono che si ricollega da sé lo dice (rl)
+test('segnale del telefono con l\'età dei sensori; «Ricollega» chiesto al telefono e ricollegamento della stessa pagina', async () => {
+  const { link, main } = await linkWithPhone();
+  try {
+    main.emit('data', { t: 'st', s: 'ready', sa: 34, vis: 1 });
+    assert.equal(link.L.sensorAge, 34); assert.ok(Number.isFinite(link.L.beatAt));
+    main.emit('data', { t: 'st', s: 'ready' });
+    assert.equal(link.L.sensorAge, null, 'telefono di prima: età sconosciuta');
+    assert.equal(link.relink(), true);
+    assert.deepEqual(main.sent.at(-1), { t: 'cmd', c: 'relink' });
+    // il telefono rifà il collegamento con la chiave di ripresa e rl: stessa pagina
+    const again = new FakeConn('phone-1b');
+    FakePeer.last.emit('connection', again);
+    again.emit('data', { t: 'hello', v: 2, r: main.sent[0].r, rl: 1 });
+    assert.equal(again.sent[0]?.t, 'welcome');
+    assert.equal(link.L.relinked, true); assert.equal(link.L.joins, 2);
+    // pagina ricaricata (senza rl)
+    const fresh = new FakeConn('phone-1c');
+    FakePeer.last.emit('connection', fresh);
+    fresh.emit('data', { t: 'hello', v: 2, r: again.sent[0].r });
+    assert.equal(link.L.relinked, false);
+    fresh.close(); assert.equal(link.relink(), false, 'scollegato: niente da chiedere');
+  } finally { link.stop(); }
+});

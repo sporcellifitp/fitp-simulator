@@ -738,6 +738,13 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
 #title-modal .lobby-primary { min-width: 170px; height: 52px; font-size: 19px; }
 #title-modal .lobby-primary.hidden, #title-modal .lobby-ghost.hidden, #title-modal .lobby-secondary.hidden { display: none; }
 
+/* ---------- telefono o webcam in pausa (natpf_ui._paintHold): titolo, testo, pulsante facoltativo ---------- */
+.natpf-phone-hold { position: fixed; left: 50%; top: 22cqh; transform: translateX(-50%); z-index: 60; width: max-content; max-width: min(540px, 90cqw); padding: 16px 20px; border-radius: 14px; background: rgba(7, 18, 51, 0.94); color: #f3f6fb; text-align: center; font: 600 clamp(15px, 2.2cqh, 22px)/1.4 system-ui, sans-serif; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4); }
+.natpf-phone-hold.hidden { display: none; }
+.natpf-phone-hold p { margin: 6px 0 0; font-weight: 500; }
+.natpf-phone-hold button { margin-top: 12px; padding: 0.55em 1.2em; border: 0; border-radius: var(--r-pill); background: var(--ball); color: var(--ball-ink); font: 700 1em/1.2 system-ui, sans-serif; cursor: pointer; }
+.natpf-phone-hold button.hidden { display: none; }
+
 /* ---------- toast ---------- */
 .natpf-toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 260; padding: 12px 20px; border-radius: var(--r-pill); background: var(--panel-solid); border: 1px solid var(--line-strong); box-shadow: var(--shadow); color: var(--text); font: 600 15px/1.3 var(--font-text); animation: coach-in var(--t-med) var(--ease); }
 .natpf-toast.hidden { display: none; }

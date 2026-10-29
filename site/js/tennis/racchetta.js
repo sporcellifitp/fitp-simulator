@@ -117,7 +117,7 @@ function calUi(){
 }
 function phaseText(){
   if (grip === 'flat' && phase === 'play') return 'Colpisci quando la palla arriva alla racchetta: gira il piatto verso dove vuoi mandarla, aprilo per il lob, chiudilo per il coperto.';
-  return { menu: 'Guarda il computer per iniziare.', toss:'Colpisci quando la palla raggiunge la cima del lancio.', serve: 'Alza il telefono per far partire la palla. Poi dai un colpetto quando è in alto. Puoi anche toccare lo schermo per lanciarla.', play: 'Guarda il computer e colpisci quando la palla arriva alla racchetta. Muovi il telefono nella direzione desiderata.', pause: 'Partita in pausa: guarda il computer. Si riprende da solo quando il telefono è di nuovo pronto.', over: 'Partita finita: guarda il computer.' }[phase] || '';
+  return { menu: 'Guarda il computer per iniziare.', toss:'Colpisci quando la palla raggiunge la cima del lancio.', serve: 'Alza il telefono per far partire la palla. Poi dai un colpetto quando è in alto. Puoi anche toccare lo schermo per lanciarla.', play: 'Guarda il computer e colpisci quando la palla arriva alla racchetta. Muovi il telefono nella direzione desiderata.', pause: 'Partita in pausa: guarda il computer. Si riprende da solo quando il telefono è di nuovo pronto; se resta ferma, tocca «Ricollega».', over: 'Partita finita: guarda il computer.' }[phase] || '';
 }
 function flash(cls, big, sub, ms = 650, arrow = ''){ ui(big, sub, cls, arrow); clearTimeout(flashT); flashT = setTimeout(() => { flashT = null; paint(); }, ms); }
 
@@ -138,7 +138,7 @@ async function connect(){
     p.on('open', () => {
       if (!current() || conn?.open || pendingConn) return;
       const c = pendingConn = p.connect(pair.session, { reliable: true, serialization: 'json' });
-      c.on('open', () => { if (!current() || pendingConn !== c) return; const r = ss.get('resume'); c.send(r ? { t: 'hello', v: 2, r } : { t: 'hello', v: 2, k: pair.token }); });
+      c.on('open', () => { if (!current() || pendingConn !== c) return; const r = ss.get('resume'); c.send(r ? { t: 'hello', v: 2, r, ...(relinking ? { rl: 1 } : {}) } : { t: 'hello', v: 2, k: pair.token }); relinking = false; });
       c.on('data', d => { if (current() && (c === conn || c === pendingConn)) onData(c, d); });
       c.on('close', () => { if (current() && (c === conn || c === pendingConn)) lost(); });
       c.on('error', () => { if (current() && (c === conn || c === pendingConn)) lost(); });
@@ -155,6 +155,12 @@ async function connect(){
     });
   } catch (e){ if (epoch === connectEpoch) lost(); }
 }
+// «Ricollega» (toccato qui o chiesto dal computer, che vede il telefono pronto ma non riceve più il movimento): canali
+// nuovi con la chiave di ripresa, senza ricaricare la pagina; il computer tiene calibrazione e riferimenti (hello con rl).
+// Diagnostica del 29/10 (stesso schermo): il computer non riceveva più il movimento del Player 2 per 16 s mentre il
+// telefono era su «Pronto»
+let relinking = false;
+function relink(){ if (!pair || !ss.get('resume')) return; relinking = true; tries = 0; connect(); }
 const SIGNAL_ERRORS = new Set(['network', 'disconnected', 'socket-error', 'socket-closed', 'server-error', 'unavailable-id', 'lan-signaling']);
 // eventi della calibrazione al computer (anche quelli che descrivono il passo attuale dopo una ripresa del collegamento)
 const sendCal = e => send({ t: 'cal', e: { ...e, shot: e.shot || (inputMode === 'touch' ? selectedShot : 'drive') } });
@@ -225,7 +231,9 @@ function closeFast(){ const f = fast; fast = null; if (f) try { f.close(); } cat
 // vis: pagina in primo piano (0 = nascosta: schermo spento, altra app); wk: blocco dello schermo attivo (1), non
 // attivo (0, negato o perso: lo schermo può spegnersi dopo il tempo del telefono), non supportato dal browser (-1)
 const wakeState = () => awake.state;
-const sendState = () => send({ t: 'st', s: sensor === 'off' ? 'sensors' : sensor, b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}) });
+// sa: ms dall'ultimo campione dei sensori (con i sensori attivi): il computer sa che il telefono il movimento lo ha, anche
+// quando il canale veloce non glielo porta
+const sendState = () => send({ t: 'st', s: sensor === 'off' ? 'sensors' : sensor, b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}) });
 // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
 const sendDevice = () => send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: screen.orientation?.type || null, sc: [screen.width, screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD });
 // gesti che il telefono non manda come colpo, con il motivo: al computer solo se la diagnostica registra, al massimo 8 al
@@ -332,6 +340,7 @@ function command(c){
   // avvio con un attimo di attesa (CAL.lead): chi ha appena toccato «Ricalibra» sta ancora prendendo il telefono
   if (c === 'cal'){ if (sensor === 'off') return; ss.del('profile'); sensor = 'cal'; if (inputMode === 'touch') cal.useTouch(); else cal.start(preferences(), { lead: CAL.lead }); sendState(); paint(); }
   if (c === 'retry' && sensor === 'cal') cal.retry();
+  if (c === 'relink') relink();
   if (c === 'invert') cal.invert();
   if (c === 'skipGrip') cal.skipGrip();
   if (c === 'free') cal.tryFree();
@@ -412,6 +421,7 @@ det.on('phase', value => {
 /* ---------- pulsanti ---------- */
 $('#enable').addEventListener('click', enableSensors);
 $('#retry').addEventListener('click', () => { tries = 0; connect(); });
+$('#relink').addEventListener('click', e => { e.stopPropagation(); relink(); });
 // «qui è successo un problema»: un segno nel registro della diagnostica, con l'ora del computer
 $('#mark').addEventListener('click', e => { e.stopPropagation(); if (linkState !== 'on') return; send({ t: 'mk', x: 'segno dal telefono' }); buzz([30, 60, 30]); flash('hit', 'Segnato', 'Il momento è nella registrazione del computer.', 900); });
 $('#recal').addEventListener('click', () => command('cal'));

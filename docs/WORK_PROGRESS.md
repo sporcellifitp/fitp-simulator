@@ -574,3 +574,34 @@ Segnalazioni: (1) stesso schermo: schermo del telefono spento, «Ricalibra», ca
       pagina del telefono (con la calibrazione nuova), nessun errore (su Cloudflare solo i 404 attesi).
 - [ ] Non provato: Windows, telefoni veri (ricalibrazione in partita, schiacciata), Cloudflare Pages vero.
 
+
+## Diagnostica 20261029-104712-2qez (stesso schermo, 1v1, telefoni) — segnalazione: «il player 2 si è disconnesso da solo»
+Partita di 96 s, 8 punti. Il registro ha solo il telefono del P1 (il P2 non si registrava).
+- Pausa del P2: da 52,4 s a 69,0 s il gioco è rimasto fermo (palla congelata a metà scambio, `palla` assente per 16 s);
+  il collegamento del P1 era regolare (rtt 7–9 ms). Il telefono del P2 era su «Pronto» (sotto il titolo, «Partita in
+  pausa»): dal codice, l'unica pausa compatibile è «sensori fermi» del computer (nessun messaggio del movimento del P2
+  da 0,4 s, canale veloce non affidabile) con il canale affidabile vivo. Causa sulla rete del P2 non verificabile.
+  Alla ripresa lo scambio è ripartito da dove era fermo (il P2 non rigiocava il punto: c'era solo per il P1) e il punto
+  è andato al P2. Nella webcam, chi teneva il secondo telefono lo guarda durante la pausa e nei 3 punti dopo (servizi
+  del P1 senza risposta: il registro non ha colpi del P2, non è un difetto dimostrato).
+- [x] Salute del telefono (`natpf_phone_watch.phoneHealth`): il telefono manda nel segnale di ogni secondo l'età del suo
+      ultimo campione dei sensori (`st.sa`, `racchetta.js`; `link.js` → `L.sensorAge`, `L.beatAt`). Movimento che non
+      arriva ma telefono con i sensori vivi (segnale < 2,5 s, sensori < 0,7 s, rtt < 150 ms) → `degraded: 'canale'`,
+      la partita non si ferma (i colpi arrivano anche sul canale affidabile). Telefoni di prima: come prima.
+- [x] Ricollegamento: `link.relink()` → comando `relink` al telefono, che rifà il collegamento con la chiave di ripresa
+      e `rl` (stessa pagina: il computer tiene i riferimenti della mira, `relinked`). Automatico (`createResync`) dopo
+      2,5 s di movimento assente, al massimo ogni 12 s, durante lo scambio solo se la partita è in pausa. Pulsante
+      «Ricollega il telefono» nel riquadro della pausa (P1 e P2, `natpf_ui.relinkAction`) e «Ricollega» sul telefono
+      (strumenti; nel testo della pausa). Stile del riquadro spostato in `natpf-ui.css` (cqw/cqh).
+- [x] P2 come il P1: punto rigiocato se la pausa arriva nello scambio o nel lancio; anche il P1 sullo stesso schermo
+      (prima `!isMultiplayer` lo escludeva). Registro: `tel.pausa`/`tel.ripresa`/`tel.ricollega` con `chi`, e per il
+      secondo telefono `tel2.link` (ogni secondo) e `tel2.colpo`; metriche `pauseTelefono` e `ricollegamenti`.
+- [x] Schiacciate del P2: per il P2 valeva ancora la regola di prima (ogni palla sopra 1,78 m = schiacciata): due
+      risposte al servizio con il gesto del pallonetto giocate come schiacciate da 8,1–8,7 m. Ora `smashAt` come il P1
+      (gesto e altezza; sopra 2,3 m sempre).
+- [x] Palle forti e profonde: tre palle del P2 a 10,5–11,6 m (26 m/s) con il piano di chi gioca sul rimbalzo (palla a
+      7 cm), una in rete. A 13,8 m la palla era ancora sotto 0,5 m: ora si arretra fino a `PLAN.deepBack` 14,3 m e si
+      prende nel punto più alto raggiungibile (nel caso del registro 0,52 m a 14,05 m invece di 0,075 m).
+- Test: `test/natpf-split-ricollega.test.mjs` (5), `test/natpf-scambi-split.test.mjs` (2), `tools/test/
+  phone-link-fast.test.mjs` (+1), `tools/test/phone-reconnect.test.mjs` (+1). Gioco 476/476, sito 160/160.
+- [ ] Non provato: telefoni veri sulla rete dell'utente (ricollegamento vero, durata), Windows.

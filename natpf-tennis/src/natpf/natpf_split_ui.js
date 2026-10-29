@@ -9,7 +9,7 @@
 //     conto alla rovescia, come per il P1 (natpf_phone_watch.js).
 import { NatpfPhoneRacket } from './natpf_phone_racket.js';
 import { calPrompt } from './natpf_cal_view.js';
-import { createPhoneWatch, phoneHealth, holdText } from './natpf_phone_watch.js';
+import { createPhoneWatch, createResync, phoneHealthOf, holdText } from './natpf_phone_watch.js';
 import { splitVisible } from './natpf_split.js';
 
 const $ = id => document.getElementById(id);
@@ -47,7 +47,7 @@ export class NatpfSplitUi {
     this.fails = { p1: 0, p2: 0 };          // verifiche non riuscite di fila
     this.calAsked = { p1: false, p2: false }; // calibrazione già chiesta per questo collegamento
     this.labels = { p1: null, p2: null };     // esito dell'ultimo colpo { text, until }
-    this.watch = createPhoneWatch(); this.hold = null;
+    this.watch = createPhoneWatch(); this.hold = null; this.resync = createResync();
     const box = document.querySelector('[data-setup="split"]');
     box?.addEventListener('click', e => {
       const h = e.target.closest('[data-split-hand]'); if (h){ e.stopPropagation(); const [id, hand] = h.dataset.splitHand.split(':'); this.setHand(id, hand); return; }
@@ -150,21 +150,31 @@ export class NatpfSplitUi {
     }
     this._watchP2(on);
   }
-  // Telefono del P2 in partita: stessa salute e stessa pausa del P1 (natpf_phone_watch.js)
+  // Telefono del P2 in partita: stessa salute, stessa pausa e stessa ripresa del P1 (natpf_phone_watch.js): punto
+  // rigiocato se la pausa è arrivata nello scambio o nel lancio, ricollegamento automatico e pulsante «Ricollega il
+  // telefono». Diagnostica del 29/10 (stesso schermo): partita ferma 16 s per il P2 con il telefono su «Pronto», poi lo
+  // scambio è ripartito da dove era fermo e il punto è andato al P2 (il P1 non era pronto)
   _watchP2(inField){
     const E = this.engine, p = E.natpfPhone2;
     if (!p || (!inField && this.watch.state === 'ok')) return;
-    const L = p.state, st = p.link?.stats?.();
-    const h = phoneHealth({ connected: p.connected, phone: L.phone, vis: L.vis, rates: st?.rates, touch: !!L.touch });
-    const a = this.watch.update(h, { inField, rally: E.phase === 'RALLY' || E.phase === 'SERVE_TOSS', now: performance.now() });
+    const now = performance.now(), h = phoneHealthOf(p, now), rally = E.phase === 'RALLY' || E.phase === 'SERVE_TOSS';
+    const a = this.watch.update(h, { inField, rally, now });
+    const R = this.ui.diag?.recorder;
+    if (inField && this.resync.update(h, { paused: this.watch.state !== 'ok', busy: rally, now }) && p.relink()) R?.log?.('tel.ricollega', { chi: 'p2', motivo: h.why || h.degraded, auto: true });
     if (!a) return;
     if (a.kind === 'pause' || a.kind === 'wait'){
       this.hold = { why: a.why };
-      this.ui._paintHold('Telefono del Player 2 in pausa', holdText(a.why));
+      this.ui._paintHold('Telefono del Player 2 in pausa', holdText(a.why), this.ui.relinkAction?.(p, 'Player 2'));
+      R?.log?.('tel.pausa', { chi: 'p2', motivo: a.why, fase: E.phase, ...(h.gapMs ? { gapMs: h.gapMs } : {}), ...(Number.isFinite(p.state.sensorAge) ? { sensoriTelefonoMs: p.state.sensorAge } : {}) });
       if (p.connected){ p.link.send({ t: 'ph', ph: 'pause' }); p.lastPhase = 'pause'; }
     }
     if (a.kind === 'countdown') this.ui._paintHold('Telefono del Player 2 di nuovo pronto', `Si riprende tra ${a.left}…`);
-    if (a.kind === 'resume'){ this.hold = null; this.ui._paintHold(null); E.pendingP2Swing = null; p.lastPhase = null; }
+    if (a.kind === 'resume'){
+      this.hold = null; this.ui._paintHold(null); E.pendingP2Swing = null; E.pendingUserSwing = null; p.lastPhase = null;
+      const replay = a.replay && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
+      if (replay){ E._setupPointServe({ showBanner: false }); this.ui.toast?.('Il telefono del Player 2 si era fermato: il punto si rigioca'); }
+      R?.log?.('tel.ripresa', { chi: 'p2', rigiocato: replay });
+    }
     this.ui._syncPause();
   }
 }

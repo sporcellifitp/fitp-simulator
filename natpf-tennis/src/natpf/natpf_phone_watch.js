@@ -13,21 +13,60 @@
 //     il motore scarta quelli più vecchi di 0,6 s).
 // graceMs: un problema deve durare almeno così prima della pausa (un ricollegamento lampo non ferma la partita), tranne
 // la pagina nascosta, che il telefono dice da sé: lì la pausa è subito
-export const WATCH = Object.freeze({ sensorGapMs: 400, steadyMs: 700, countdownMs: 2400, graceMs: 300 });
+export const WATCH = Object.freeze({ sensorGapMs: 400, steadyMs: 700, countdownMs: 2400, graceMs: 300,
+  // canale veloce bloccato: il flusso dei sensori non arriva da sensorGapMs, ma il segnale del telefono (ogni secondo, sul
+  // canale affidabile) è di meno di beatMs fa e dice che i sensori sul telefono vanno (ultimo campione da meno di
+  // phoneSensorMs), con il collegamento rapido (rtt sotto rttMax): i colpi arrivano lo stesso (anche sul canale
+  // affidabile) e la partita non si ferma. Diagnostica del 29/10 (stesso schermo): partita ferma 16 s per il Player 2,
+  // il cui telefono era su «Pronto»
+  beatMs: 2500, phoneSensorMs: 700, rttMax: 150 });
 // stream dei sensori che arrivano a ritmo regolare dal telefono pronto: orientamento (fo), pacchetti binari della LAN
 // (bin), giroscopio in JSON via internet (sm), campioni della diagnostica (rs)
 const STREAMS = ['fo', 'bin', 'sm', 'rs'];
 
-// salute del telefono: { ok, why } con why 'scollegato' | 'non pronto' | 'pagina nascosta' | 'sensori fermi'.
-// touch: si gioca con i tocchi, senza sensori (non si giudicano)
-export function phoneHealth({ connected = false, phone = null, vis = null, rates = null, touch = false, gapMs = WATCH.sensorGapMs } = {}){
+// salute del telefono: { ok, why } con why 'scollegato' | 'non pronto' | 'pagina nascosta' | 'sensori fermi'; ok con
+// degraded 'canale' se il flusso dei sensori non arriva ma il telefono dice di averli (vedi WATCH.beatMs).
+// touch: si gioca con i tocchi, senza sensori (non si giudicano). sensorAge: ms dall'ultimo campione sul telefono, nel suo
+// ultimo segnale; beatAgeMs: ms da quel segnale (telefoni di prima: null, si giudica solo il flusso)
+export function phoneHealth({ connected = false, phone = null, vis = null, rates = null, touch = false, gapMs = WATCH.sensorGapMs, sensorAge = null, beatAgeMs = null, rtt = null } = {}){
   if (!connected) return { ok: false, why: 'scollegato' };
   if (phone !== 'ready') return { ok: false, why: 'non pronto' };
   if (vis === false) return { ok: false, why: 'pagina nascosta' };
   const ages = touch ? [] : STREAMS.map(k => rates?.[k]?.ageMs).filter(Number.isFinite);
   // nessuno stream visto (telefono di prima): non si giudica
-  if (ages.length && Math.min(...ages) > gapMs) return { ok: false, why: 'sensori fermi', gapMs: Math.round(Math.min(...ages)) };
+  if (ages.length && Math.min(...ages) > gapMs){
+    const gap = Math.round(Math.min(...ages));
+    if (Number.isFinite(sensorAge) && sensorAge <= WATCH.phoneSensorMs && Number.isFinite(beatAgeMs) && beatAgeMs <= WATCH.beatMs && !(Number.isFinite(rtt) && rtt > WATCH.rttMax))
+      return { ok: true, why: null, degraded: 'canale', gapMs: gap };
+    return { ok: false, why: 'sensori fermi', gapMs: gap };
+  }
   return { ok: true, why: null };
+}
+// ingressi di phoneHealth dal telefono (NatpfPhoneRacket) adesso
+export function phoneHealthOf(p, now = globalThis.performance?.now?.() ?? 0){
+  const L = p?.state || {}, st = p?.link?.stats?.();
+  return phoneHealth({ connected: !!p?.connected, phone: L.phone, vis: L.vis, rates: st?.rates, touch: !!L.touch, sensorAge: L.sensorAge ?? null, beatAgeMs: Number.isFinite(L.beatAt) ? now - L.beatAt : null, rtt: st?.rtt ?? L.rtt ?? null });
+}
+
+// Ricollegamento automatico («resync») nei casi estremi: il telefono è collegato ma il movimento non arriva (pausa per
+// «sensori fermi», o partita che va avanti con il canale veloce bloccato) da afterMs. Si chiede al telefono di rifare il
+// collegamento (link.relink) al massimo ogni everyMs; con la partita che va avanti, solo tra un punto e l'altro (rifare
+// il collegamento lo interrompe per un attimo). update(h, { paused, busy, now }) → true quando chiederlo.
+export const RESYNC = Object.freeze({ afterMs: 2500, everyMs: 12000 });
+export function createResync({ afterMs = RESYNC.afterMs, everyMs = RESYNC.everyMs } = {}){
+  let since = null, last = -Infinity;
+  return {
+    reset(){ since = null; },
+    update(h, { paused = false, busy = false, now = 0 } = {}){
+      const stuck = !!h && ((h.ok && h.degraded === 'canale') || (!h.ok && h.why === 'sensori fermi'));
+      if (!stuck){ since = null; return false; }
+      if (since == null) since = now;
+      if (now - since < afterMs || now - last < everyMs) return false;
+      if (h.ok && busy && !paused) return false;     // partita in corso, canale lento ma colpi che arrivano: tra i punti
+      last = now; since = null;
+      return true;
+    },
+  };
 }
 
 // macchina a stati: update(health, { inField, rally }) a ogni fotogramma restituisce un'azione o null

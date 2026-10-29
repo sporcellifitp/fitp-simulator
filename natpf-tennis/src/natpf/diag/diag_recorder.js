@@ -331,11 +331,12 @@ export class DiagRecorder {
     if (!force && key === this.lastStato) return;
     this.lastStato = key; this.log('tel.stato', s);
   }
-  _phoneSwing(ev, s){
+  // kind: 'tel.colpo' (telefono di chi gioca qui) o 'tel2.colpo' (secondo telefono, Player 2 dello stesso schermo)
+  _phoneSwing(ev, s, kind = 'tel.colpo'){
     const n = ev?.natpf || {}, t0s = this.t0/1000;
     const total = Number.isFinite(s?.receivedAt) && Number.isFinite(s?.at) ? (s.receivedAt - s.at)*1000 : null;
     const det = Number.isFinite(s?.detectMs) ? s.detectMs : null, hold = Number.isFinite(s?.holdMs) ? s.holdMs : 0;
-    this.log('tel.colpo', {
+    this.log(kind, {
       n: s?.seq ?? null, via: s?.path || null, scartato: ev?.ignored || null,
       lato: ev?.side || null, tipo: n.shot || null, perche: Array.isArray(n.why) ? n.why.join(' · ').slice(0, 160) : null,
       mira: r(n.wrist, 3), fonteMira: n.aimSource || null, scarto: r(n.aimDev, 1), conf: r(n.conf), v: r(n.v, 3), move: r(n.move, 3), head: r(n.head, 3),
@@ -349,7 +350,18 @@ export class DiagRecorder {
       forma: s?.shape ? { piano: r(s.shape.plane, 3), salita: r(s.shape.rise, 3), polso: r(s.shape.roll, 3), manico: r(s.shape.tilt, 3), testa: r(s.shape.head, 2), mano: r(s.shape.hand, 2) } : null,
       intenzione: n.intent ? { tipo: n.intent.shot, conf: r(n.intent.conf), forza: r(n.intent.power, 3), portata: r(n.intent.reach, 3), profondita: r(n.intent.depth, 3), piatto: r(n.intent.face, 3), abituale: r(n.intent.riseRef, 3) } : null,
     });
-    if (ev?.side) this.lastInputSide = ev.side;
+    if (ev?.side && kind === 'tel.colpo') this.lastInputSide = ev.side;
+  }
+  // Secondo telefono (Player 2 dello stesso schermo): colpi e, ogni secondo, stato e collegamento (prima non si registrava
+  // niente: diagnostica del 29/10, partita ferma 16 s per il P2 senza una riga che dicesse perché)
+  _phone2(){
+    const E = this.engine, p2 = E.natpfPhone2;
+    if (!p2) return;
+    if (p2 !== this._p2Hooked){ this._p2Hooked = p2; p2.onSwing?.((ev, s) => this.active && this._phoneSwing(ev, s, 'tel2.colpo')); }
+    if (!p2.link || (!E.natpfSplit?.active && !p2.connected)) return;
+    const L = p2.state || {}, st = p2.link.stats?.() || {}, R8 = Object.entries(st.rates || {});
+    this.log('tel2.link', { collegamento: L.state || 'off', telefono: L.phone || null, visibile: L.vis ?? null, sensoriTelefonoMs: L.sensorAge ?? null, segnaleMs: Number.isFinite(L.beatAt) ? Math.round(performance.now() - L.beatAt) : null,
+      rtt: r(st.rtt, 1), hz: Object.fromEntries(R8.map(([k, v]) => [k, v.hz])), gap: Object.fromEntries(R8.filter(([, v]) => v.gap != null).map(([k, v]) => [k, v.gap])) });
   }
   // dal telefono: gesto scartato sul telefono con il motivo (rientro, debole, corto, verso, in rientro, orientamento,
   // fase …), preparazione, segno toccato sul telefono, telefono e browser. picco: istante del gesto sull'orologio del
@@ -421,6 +433,7 @@ export class DiagRecorder {
       this.log('tel.link', { copie: st.swings || null, rtt: r(st.rtt, 1), hz: Object.fromEntries(R8.map(([k, v]) => [k, v.hz])), gap: Object.fromEntries(R8.filter(([, v]) => v.gap != null).map(([k, v]) => [k, v.gap])), grappoli: Object.fromEntries(R8.filter(([, v]) => v.bunch).map(([k, v]) => [k, v.bunch])) });
     }
     this._phoneStato();
+    this._phone2();
     this._changed();
     if (this._rotation || this._stopping) return;
     if (now - this.partT0 >= this.rotateMs || this._partBytes() >= this.rotateBytes){ this._rotate().catch(e => this.warn('parte', `parte nuova non riuscita: ${e?.message || e}`)); return; }

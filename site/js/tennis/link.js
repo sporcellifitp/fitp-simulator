@@ -144,7 +144,9 @@ export function createPhoneLink(){
         conn = c; lastSeen = Date.now(); clock.reset(); faceSample = null; lastFaceK = -Infinity; seen.clear(); seenOrder.length = 0; racketMotion.setBias([0,0,0]); racketMotion.reset(); c.send({ t: 'welcome', r: res.resume, f: 1 });
         // joins: un collegamento nuovo (anche lo stesso telefono che si ricollega senza che il computer l'abbia visto
         // cadere): chi usa il collegamento rimanda al telefono quello che la pagina ricaricata ha perso
-        set({ state: 'connected', phone: 'sensors', error: null, joins: (L.joins || 0) + 1 });
+        // relinked: lo stesso telefono, senza ricaricare la pagina, ha rifatto il collegamento («Ricollega»): calibrazione e
+        // riferimenti della pagina restano validi
+        set({ state: 'connected', phone: 'sensors', error: null, joins: (L.joins || 0) + 1, relinked: d.rl === 1, sensorAge: null, beatAt: null });
         return;
       }
       if (c !== conn) return;
@@ -153,7 +155,9 @@ export function createPhoneLink(){
       switch (d.t){
         case 'ping': c.send({ t: 'pong', c: d.c }); break;
         case 'dq': if (typeof d.p === 'number'){ const now = performance.now(); clock.add(d.d, d.p, now); emit('clock', { d: d.d, p: d.p, r: now }); } break;
-        case 'st': emit('state', d); if (d.s === 'ready' && d.b) racketMotion.setBias(d.b); if (d.s === 'ready' && L.phone !== 'ready') racketMotion.reset(); set({ phone: String(d.s || ''), rtt: clock.rtt != null ? Math.round(clock.rtt) : L.rtt, grip: d.gp === 'flat' || d.gp === 'upright' ? d.gp : L.grip, prep: d.pm === 1, hz: typeof d.hz === 'number' && isFinite(d.hz) ? Math.round(d.hz) : L.hz, ...(d.vis === 0 || d.vis === 1 ? { vis: d.vis === 1 } : {}), ...([-1, 0, 1].includes(d.wk) ? { wake: d.wk } : {}), touch: d.in === 't' }); break;
+        // sa: ms dall'ultimo campione dei sensori sul telefono (telefoni dal 29/10), con l'istante di arrivo (beatAt): il
+        // computer distingue i sensori fermi sul telefono dal flusso dei sensori che non arriva (canale veloce bloccato)
+        case 'st': emit('state', d); if (d.s === 'ready' && d.b) racketMotion.setBias(d.b); if (d.s === 'ready' && L.phone !== 'ready') racketMotion.reset(); set({ phone: String(d.s || ''), rtt: clock.rtt != null ? Math.round(clock.rtt) : L.rtt, grip: d.gp === 'flat' || d.gp === 'upright' ? d.gp : L.grip, prep: d.pm === 1, hz: typeof d.hz === 'number' && isFinite(d.hz) ? Math.round(d.hz) : L.hz, ...(d.vis === 0 || d.vis === 1 ? { vis: d.vis === 1 } : {}), ...([-1, 0, 1].includes(d.wk) ? { wake: d.wk } : {}), touch: d.in === 't', sensorAge: typeof d.sa === 'number' && isFinite(d.sa) ? Math.max(0, Math.round(d.sa)) : null, beatAt: performance.now() }); break;
         case 'cal': if (d.e?.kind === 'done') racketMotion.setBias(d.e.profile?.bias || [0,0,0]); emit('cal', d.e || {}); break;
         // facoltativi: preparazione del colpo (pr) e giroscopio in JSON quando non c'è il canale binario (sm)
         case 'pr': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: d.lat }); if (at != null && (d.dir === 1 || d.dir === -1)) emit('prep', { dir: d.dir, peak: typeof d.v === 'number' ? d.v : null, angle: typeof d.a === 'number' ? d.a : null, at }); break; }
@@ -196,6 +200,8 @@ export function createPhoneLink(){
     get latency(){ return ((clock.rtt ?? 80)/2 + 40)/1000; },
     send(m){ if (conn && conn.open) try { conn.send(m); } catch (e){} },
     cmd(c){ this.send({ t: 'cmd', c }); },
+    // «Ricollega»: il telefono rifà il collegamento (canali nuovi) con la sua chiave di ripresa, senza ricaricare la pagina
+    relink(){ if (!this.connected) return false; this.cmd('relink'); return true; },
     // «Scollega»: il telefono perde la chiave di ripresa, per ricollegarsi serve un QR nuovo
     forget(){ this.send({ t: 'bye' }); gate.forget(); if (conn) try { conn.close(); } catch (e){} conn = null; set({ state: peer && !peer.destroyed ? 'waiting' : 'off', phone: null }); },
     stop(){ clearInterval(tick); if (peer) peer.destroy(); peer = null; conn = null; set({ state: 'off', phone: null }); },

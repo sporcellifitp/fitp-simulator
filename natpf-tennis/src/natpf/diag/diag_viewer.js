@@ -4,7 +4,7 @@
 // l'allineamento della webcam (si vede il gesto e si fa combaciare con il suo colpo). Nessuna risorsa esterna.
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // eventi che vanno nella pagina (gli altri restano in eventi.jsonl): palla solo ogni 4 campioni (~15 al secondo)
-const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'tel.scartato', 'tel.dispositivo', 'webcam.evento', 'webcam.camera', 'webcam.carico', 'video', 'atteso', 'marca', 'avviso', 'sfida.collegamento', 'sessione.fine']);
+const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'tel.scartato', 'tel.dispositivo', 'webcam.evento', 'webcam.camera', 'webcam.carico', 'video', 'atteso', 'marca', 'avviso', 'sfida.collegamento', 'sessione.fine', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.colpo']);
 // filtro di un evento alla volta (anche nel worker, mentre legge il registro a righe): l'evento, la palla ridotta o null
 export function viewerFilter(){
   let i = 0;
@@ -96,6 +96,10 @@ const desc = e => ({
   rimbalzo: () => 'rimbalzo x ' + e.x + ' z ' + e.z + ' (' + (e.da || '') + ')', punto: () => 'punto a ' + e.vince + ' · ' + e.motivo,
   avviso: () => 'avviso: ' + e.testo, marca: () => 'segno: ' + e.testo, atteso: () => 'richiesto: ' + [e.lato, e.colpo, e.direzione].filter(Boolean).join(' '),
   fase: () => 'fase ' + e.a, tentativo: () => 'tentativo: dz ' + e.dz + ' m · correzione ' + e.shift + ' m · ' + (e.colpito ? 'colpita' : 'non colpita'),
+  'tel.pausa': () => 'partita in pausa per il telefono' + (e.chi === 'p2' ? ' del Player 2' : '') + ': ' + (e.motivo || '?') + (e.gapMs ? ' · movimento fermo da ' + e.gapMs + ' ms' : '') + (e.sensoriTelefonoMs != null ? ' · sensori sul telefono ' + e.sensoriTelefonoMs + ' ms fa' : ''),
+  'tel.ripresa': () => 'ripresa' + (e.chi === 'p2' ? ' (Player 2)' : '') + (e.rigiocato ? ' · punto rigiocato' : ''),
+  'tel.ricollega': () => 'ricollego il telefono' + (e.chi === 'p2' ? ' del Player 2' : '') + (e.auto ? ' (automatico)' : '') + ': ' + (e.motivo || ''),
+  'tel2.colpo': () => 'telefono P2: ' + (e.scartato ? 'scartato (' + e.scartato + ')' : (e.lato || '?') + ' / ' + (e.tipo || '?') + ' · mira ' + e.mira + ' (' + (e.fonteMira || '?') + ')'),
   'tel.stato': () => 'telefono: ' + e.collegamento + ' / ' + (e.telefono || '') + (e.visibile === false ? ' · pagina nascosta' : '') + (e.schermo ? ' · schermo ' + e.schermo : ''),
   'sfida.collegamento': () => 'sfida (' + (e.modo || '?') + '): ' + (e.stato || '?') + (e.errore ? ' · ' + e.errore : '') + (e.bloccati ? ' · ' + e.bloccati + ' tentativi bloccati' : '') + (e.dettaglio ? ' · ' + e.dettaglio : ''),
   'tel.cal': () => 'calibrazione: ' + e.kind + (e.step ? ' ' + e.step : '') + (e.ok != null ? (e.ok ? ' ok' : ' no') : ''), 'webcam.evento': () => 'webcam: ' + e.tipo + ' ' + (e.side || '') + ' ' + (e.shotType || ''),
