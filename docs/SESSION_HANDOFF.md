@@ -1,14 +1,28 @@
 # SESSION_HANDOFF · ultimo stato verificato
 
-Aggiornato: 28/10/2026 · branch `natpf-simulator`.
+Aggiornato: 29/10/2026 · branch `natpf-simulator`.
 
-## Ultimo giro (28/10 notte) — leggere per primo
+## Ultimo giro (29/10) — leggere per primo
 
-Commit locali non pubblicati (push solo con autorizzazione): `b167fff` webcam nella pagina, `21ea7b8` pacchetto LAN .5,
-`796e2b8` pallonetto morbido e palla corta non sostituita, `d454b76` «Gioca ancora» → impostazioni, `4f3d751` pannelli LED
-degli angoli interi, `a686300` direzione rispetto al ritmo di chi gioca, più i documenti. Gioco 448/448, sito 157/157.
-Webcam: l'utente ha confermato il rifacimento (rilevatore dal movimento, verificato sui video: 36 colpi su 36; decisione
-in `docs/PROJECT_MEMORY.md`) e chiede un pacchetto LAN con le correzioni della webcam. In corso.
+Webcam rifatta (richiesta: «webcam tutta da rifare»): i colpi vengono dal **movimento nell'immagine**
+(`src/natpf/webcam_motion.js`), solo con la palla in arrivo o al proprio servizio (`natpf_impact.webcamGate`), lato
+dalla palla, istante stimato 94 ms dopo l'attraversamento della soglia; in partita non girano più i modelli delle mani
+e del corpo (erano il «browser che lagga»). Misure sui video veri, limiti e test in `docs/WORK_PROGRESS.md` («Webcam
+rifatta»); decisione in `docs/PROJECT_MEMORY.md`. Il dato «36 su 36» della prova di fattibilità era gonfiato: corretto.
+Pacchetto **LAN 2026-10-28.6** (SHA256 `f5b40b69…a6822b`) consegnato all'utente, provato estratto in https con una
+webcam finta (video vero) e nella prova generale.
+
+Commit locali non pubblicati (push solo con autorizzazione esplicita): `b167fff`, `21ea7b8`, `796e2b8`, `d454b76`,
+`4f3d751`, `a686300`, `3b093bb`, `2b255f9`, `21810a5` (webcam dal movimento), `53d657d` (documenti), più il commit del
+pacchetto .6 (`git log origin/natpf-simulator..`). Gioco 456/456, sito 157/157.
+
+Prossima azione esatta:
+1. L'utente prova il pacchetto 2026-10-28.6 su Windows con la webcam vera: pannello («Fai un colpo…» → «Colpo visto»),
+   una partita, il registro della diagnostica (eventi `webcam.evento` con «movimento N× la soglia», `racchetta` con il
+   tempo). Con la sua diagnostica: misurare lo scarto tra lo swing e l'impatto e, se serve, regolare `MOTION.lead` e
+   `GATE.ahead`.
+2. Se l'utente autorizza: `git push -u origin natpf-simulator`.
+3. Aperti di prima (pallonetto alzando il braccio, direzione con la prova guidata, banco Leggenda: 3 KO già presenti).
 
 ## Webcam ferma su «Cerco la mano…» — corretta (28/10 sera)
 

@@ -447,3 +447,15 @@ Richiesta: «procedi con questo rifacimento webcam e dammi pacchetto lan con cor
   misurabili (la pausa «webcam ferma» scatta per questo).
 - **Non provato**: webcam vera su Windows, partita intera con la webcam, tempi reali dei colpi a 30 e a 15 fps.
 
+## Pacchetto LAN 2026-10-28.6 (29/10): webcam con i colpi dal movimento
+Sostituisce il 2026-10-28.5. Solo LAN, senza gli elementi dello zip dell'altro agente.
+- [x] Versione 2026-10-28.6; gioco 456/456, sito 157/157, build.
+- [x] `natpf-simulator-lan-windows-20261028-6.zip`: 277 file, 61.095.112 byte, Node.js 22.22.0 verificato (node.exe
+      `bae898ad…`), nessun certificato né chiave, nessuna parola vietata. SHA256
+      `f5b40b694088a40aea81f8c8a8f4c9be368e4be14f7b92249698610cb4a6822b`.
+- [x] Estratto e provato in https (certificato creato dal pacchetto, server con `--offline`): webcam finta che riproduce
+      il video vero della diagnostica 213510 → «Colpo visto» e ingresso in campo; in partita nessuna inferenza del
+      modello delle mani né del corpo, movimento 0,9 ms a fotogramma (mediana; Chromium senza GPU). Prova generale: 47
+      voci, due QR, partita divisa, pagina del telefono, senza webcam il motivo «Nessuna webcam», nessun errore.
+- [ ] Non provato: Windows, webcam vera, partita intera con la webcam (tempi dei colpi), telefono vero.
+
