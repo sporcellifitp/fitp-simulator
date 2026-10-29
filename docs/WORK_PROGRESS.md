@@ -570,4 +570,7 @@ Segnalazioni: (1) stesso schermo: schermo del telefono spento, «Ricalibra», ca
       né chiave, nessuna parola vietata. SHA256 `f78648ff4ac49e8079745e6888d6ba9f81ea50faf5c06c7343a0143eb424a57a`.
 - [x] Cloudflare `natpf-simulator-cloudflare-20261028-9.zip`: 137 file, 26.062.033 byte. SHA256
       `5389ad4eeeb9b523a0754014a9a96b5ccbed0c1776d54f7aad5c0549cd696566`.
+- [x] Estratti e provati: LAN in https (certificato del pacchetto) e Cloudflare statico: 47 voci, due QR, partita divisa,
+      pagina del telefono (con la calibrazione nuova), nessun errore (su Cloudflare solo i 404 attesi).
+- [ ] Non provato: Windows, telefoni veri (ricalibrazione in partita, schiacciata), Cloudflare Pages vero.
 
