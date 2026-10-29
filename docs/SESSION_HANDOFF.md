@@ -2,7 +2,21 @@
 
 Aggiornato: 29/10/2026 · branch `natpf-simulator`.
 
-## Ultimissimo (29/10, tarda mattina): stesso schermo, calibrazione, schiacciata; pacchetti 2026-10-28.9
+## Ultimissimo (29/10, primo pomeriggio): richieste dopo il .9 e diagnostica 104712; pacchetti 2026-10-28.10
+
+Richieste: (1) angolazione più sensibile, (2) telefono inclinato in avanti nel palmo, (3) colpi super potenti nel
+contesto giusto, (4) stanchezza dopo tanta corsa laterale; poi la diagnostica 104712 (stesso schermo: «il player 2 si è
+disconnesso da solo», con il telefono su «Pronto») e l'analisi degli scambi. Fatto, con test, nei commit `e0f9bfb`
+(pausa del P2 con punto rigiocato, «Ricollega il telefono» e ricollegamento automatico, schiacciata del P2 dal gesto,
+palle profonde non più sul rimbalzo), `bc72092` (centro della mira che si corregge sui colpi veri, curva 3–23°, presa
+inclinata 60–75° provata), `d94217d` (colpo super potente, stanchezza). Dettagli e misure in `docs/WORK_PROGRESS.md`.
+Consegnati LAN (`8afee2b2…e1368fb537`) e Cloudflare (`f1e8f9f0…ec616dfa5f`) 2026-10-28.10. Gioco 486/486, sito 160/160.
+Push non fatto (solo con autorizzazione esplicita).
+Prossima azione: l'utente prova il .10 (anche sullo stesso schermo) con la diagnostica accesa; con il registro:
+mire nei due versi (`tel.colpo` mira/scarto), colpi super (`racchetta.super`/`superNo`), pause e ricollegamenti del P2
+(`tel.pausa`, `tel.ricollega`, `tel2.link`). Se il P2 si ferma ancora, dal `tel2.link` si vede quale flusso manca.
+
+## Prima (29/10, tarda mattina): stesso schermo, calibrazione, schiacciata; pacchetti 2026-10-28.9
 
 Dalle diagnostiche 101056, 101209 (e 090144): sullo stesso schermo la calibrazione rifatta in partita ora si conferma
 da sola (`5a7f04e`), la calibrazione avviata dal telefono parte con 1,5 s di attesa e 0,6 s di quiete prima del primo

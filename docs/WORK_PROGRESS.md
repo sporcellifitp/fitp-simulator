@@ -660,3 +660,15 @@ La misura alternativa (rotazione attorno alla verticale) sugli stessi colpi era 
   fanno anche colpi super); Pro e Casual contro «medio» nei criteri (81,6% e 100%).
 - [ ] Non provato con il telefono vero: quanto spesso esce il colpo super con i gesti di chi gioca (dal registro:
       `racchetta.super` e `superNo`).
+
+## Pacchetti 2026-10-28.10 (29/10): LAN e Cloudflare
+- [x] Versione 2026-10-28.10; gioco 486/486, sito 160/160, build.
+- [x] LAN `natpf-simulator-lan-windows-20261028-10.zip`: 277 file, 61.102.650 byte, Node.js verificato (`bae898ad…`),
+      nessun certificato né chiave, nessuna parola vietata. SHA256
+      `8afee2b27285f268f4df514ebf5022166575bad0f5c22b5b3ec57fe1368fb537`.
+- [x] Cloudflare `natpf-simulator-cloudflare-20261028-10.zip`: 137 file, 26.065.760 byte. SHA256
+      `f1e8f9f0f8907b89a56ca1278c7815b67cd9145dce77020e7cae2eec616dfa5f`.
+- [x] Estratti e provati: LAN in https (certificato del pacchetto) e Cloudflare statico: 47 voci, due QR, partita divisa,
+      riquadro «Telefono del Player 2 in pausa» con il pulsante «Ricollega il telefono», pagina del telefono con
+      «Ricollega», nessun errore (su Cloudflare solo i 404 attesi). Il browser di prova è lento: la pausa compare dopo ~3 s.
+- [ ] Non provato: Windows, telefoni veri (ricollegamento, mira, colpo super, stanchezza), Cloudflare Pages vero.

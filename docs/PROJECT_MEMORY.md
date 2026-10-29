@@ -58,9 +58,25 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   ritmo** pesa di più (`createRhythm`: mediana degli ultimi colpi × 0,8, al massimo ±0,6 unità, da 4 colpi, si reimpara a
   ogni partita): prima del solito → incrociato, dopo il solito → lungolinea, pieni ai bordi della finestra (peso 1);
   il voto anticipo/perfetto/ritardo resta sul tempo vero. Poi l'**orientamento del
-  piatto all'impatto** rispetto al proprio colpo abituale (piatto girato a destra → palla a destra: peso 0,6; scarti
-  oltre 45° sempre meno credibili, oltre 60° non contano). Barra «Anticipo / Centro / Ritardo». Corretto il 28/10 sera:
-  qui prima c'era scritto il contrario.
+  piatto all'impatto** rispetto al proprio colpo abituale (piatto girato a destra → palla a destra: peso 0,6; mira
+  piena a 23° dal 29/10, prima 30°; scarti oltre 45° sempre meno credibili, oltre 60° non contano). Barra «Anticipo /
+  Centro / Ritardo». Corretto il 28/10 sera: qui prima c'era scritto il contrario.
+  **Centro della mira** (`natpf_gestures.createAimModel`, 29/10): il piatto abituale dei colpetti della calibrazione è
+  solo un punto di partenza (con il telefono inclinato in avanti nel palmo era lontano dai colpi veri 25–150°): si
+  verifica sui primi 4 colpi veri, segue la pendenza comune di dritti e rovesci (riferimento girato) e, dal decimo
+  colpo, quella di un solo verso. Le mire volute restano (5–6 colpi mirati di fila, mire opposte tra dritto e rovescio).
+- **Colpo super potente** (29/10, richiesta dell'utente): `natpf_stroke_outcome.superShot` (`SUPER`), tutte le condizioni
+  insieme e senza caso: gesto fortissimo, colpo naturale dalla parte giusta del corpo, a tempo, da fermo, palla alta,
+  lenta o corta (o la schiacciata). Più veloce (volo ÷1,4), profondo, carico e 16 cm sopra il nastro (`netClear` del
+  lancio, solo per lui); chi riceve lo legge in ritardo (`ball.natpfSuper`). Non è casuale: è il gesto a deciderlo.
+- **Stanchezza** (29/10): `natpf_skill.fatigueStep`/`moveFactor`, solo per i personaggi di chi gioca e solo in partita,
+  dalla corsa laterale; al massimo −10% di velocità, recupero tra i punti. La CPU non si stanca (banchi di
+  bilanciamento invariati per lei).
+- **Telefono che non manda il movimento** (29/10): il segnale di ogni secondo del telefono porta l'età dei suoi sensori
+  (`st.sa`); se il computer non riceve il movimento ma il telefono dice di averlo, la partita non si ferma. «Ricollega»
+  (`link.relink()` → comando `relink`, hello con `rl`) rifà il collegamento senza ricaricare la pagina, a mano (riquadro
+  della pausa e pagina del telefono) o da solo (`createResync`). Sullo stesso schermo il secondo telefono si registra
+  nella diagnostica (`tel2.link`, `tel2.colpo`, `tel.pausa` con `chi`).
 
 ## Decisioni (28/10/2026, sessione redesign)
 
@@ -109,6 +125,10 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   servizio senza lezione (`WARMUP_IDS` in `natpf_training.js`). La volée si allena a rete (`VOLLEY_Z`).
 
 ## Storico modifiche significative
+
+- 29/10/2026 — diagnostica 104712 (stesso schermo): pausa del P2 con punto rigiocato, «Ricollega il telefono»,
+  schiacciata del P2 dal gesto, palle profonde non più sul rimbalzo; mira del piatto con il centro che si corregge,
+  angolazione più sensibile, presa inclinata provata; colpo super potente; stanchezza. Pacchetti 2026-10-28.10.
 
 - 28/10/2026 (sera) — split screen «Stesso schermo» (due telefoni, due viste) e schermo per ledwall 2×2 / 3×2 / area.
 
