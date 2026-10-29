@@ -1,11 +1,12 @@
 // Sfide per gli eventi, nickname, classifica del giorno e chiosco (funzioni senza DOM).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CHALLENGES, validNickname, addScore, topScores, freshBoard, dayKey, boardCsv, championScore, CHAMPION_TARGET } from '../src/natpf/natpf_events.js';
+import { CHALLENGES, validNickname, addScore, topScores, freshBoard, dayKey, boardCsv } from '../src/natpf/natpf_events.js';
 import { kioskAction, IDLE_STEPS } from '../src/natpf/natpf_kiosk.js';
 
 test('sei minigiochi con unità, descrizione e medaglie', () => {
-  assert.deepEqual(CHALLENGES.map(c => c.id), ['rush', 'precision', 'combo', 'survival', 'radar', 'champion']);
+  // «Sfida il campione» tolto il 29/10 su richiesta dell'utente
+  assert.deepEqual(CHALLENGES.map(c => c.id), ['rush', 'precision', 'combo', 'survival', 'radar']);
   for (const c of CHALLENGES) assert.ok(c.label && c.unit && c.short && c.facts.length === 3, c.id);
 });
 
@@ -30,9 +31,11 @@ test('classifica del giorno: ordine, posizione, parità al primo arrivato, nuovo
   assert.match(dayKey(new Date(2026, 9, 5)), /^2026-10-05$/);
 });
 
-test('campione a 3 punti', () => {
-  assert.equal(CHAMPION_TARGET, 3);
-  assert.equal(championScore(3, 1), 19); assert.equal(championScore(2, 3), 6);
+test('«Sfida il campione» tolto: non c\'è tra i minigiochi né nella pagina', async () => {
+  const fs = await import('node:fs');
+  assert.ok(!CHALLENGES.some(c => /campion/i.test(c.label) || c.id === 'champion'));
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.doesNotMatch(html, /campione/i);
 });
 
 test('chiosco: menu dopo il tempo di inattività, partita chiusa dopo il doppio, spento non fa nulla', () => {

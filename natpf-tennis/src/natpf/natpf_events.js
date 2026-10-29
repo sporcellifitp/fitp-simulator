@@ -1,7 +1,7 @@
 // Minigiochi arcade (dal 28/10/2026) e sfide per gli eventi: partite brevi con punteggio, nickname, classifica del
 // giorno, record personali, medaglie e livello. Regole e punteggi in natpf_arcade.js (funzioni pure), bersagli 3D in
 // natpf_targets.js, lanciapalle in natpf_ball_machine.js. Minigiochi: Target Rush, Precision, Combo Challenge,
-// Survival, Radar del servizio, Sfida il campione.
+// Survival, Radar del servizio («Sfida il campione» tolto il 29/10).
 // Le sfide con il lanciapalle si giocano nell'arena piena (pubblico e luci della partita) con l'avversario fuori dal
 // campo; la palla parte come nel riscaldamento (natpf_training.js, _feed). Con lo smartphone non ancora calibrato prima
 // si fa solo la calibrazione in campo (training.start({ calOnly: true })).
@@ -55,11 +55,6 @@ export function boardCsv(board){
   return rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
 }
 
-/* ---------- sfida il campione (funzioni pure) ---------- */
-// sfida il campione: prima a 3 punti
-export const CHAMPION_TARGET = 3;
-export const championScore = (won, lost) => won*3 + (won >= CHAMPION_TARGET && won > lost ? 10 : 0);
-
 /* ---------- minigiochi in campo ---------- */
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 export class NatpfEvents {
@@ -95,22 +90,16 @@ export class NatpfEvents {
     const c = challengeById(id), E = this.engine; if (!c) return;
     this.ui.training.active && this.ui.training.stop({ completed: false, silent: true });
     this.active = { id, c, score: 0, shots: 0, serves: 0, best: 0, streak: 0, bestStreak: 0, hits: 0, time: c.time || 0, elapsed: 0,
-      wait: 2.2, over: false, last: '', lastOk: true, won: 0, lost: 0, lives: SURVIVAL.lives, returned: 0, level: 0, ball: 0,
+      wait: 2.2, over: false, last: '', lastOk: true, lives: SURVIVAL.lives, returned: 0, level: 0, ball: 0,
       chainLen: 2, chain: id === 'combo' ? comboChain(2, { phone: this.phone }) : null, chainIdx: 0, chains: 0, zoneIdx: 0, zonePts: [],
       resolved: true, tick: 0 };
     E.hud.hideTitleModal(); E.hud.hideCenterBanner();
     E.setMatchFormat?.('singles'); E.isMultiplayer = false;
     E.autoPlayMode = false; E.userHasInteracted = true; E.persistentStateLock = false;
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true }); E._syncScoreboardHUD();
-    if (id === 'champion'){
-      // partita vera contro la CPU esperta; i punti li conta la sfida
-      E._applyDifficultyTuning('pro'); E.matchConfig.gamesToWin = 1;
-      E.startNewMatch({ showStartBanner: false });
-    } else {
-      E._applyDifficultyTuning('casual');
-      this._opponentAway(true); this.ui.training._idle();
-      E.audioEngine?.setMusicContext?.('minigame');
-    }
+    E._applyDifficultyTuning('casual');
+    this._opponentAway(true); this.ui.training._idle();
+    E.audioEngine?.setMusicContext?.('minigame');
     this.field.clear();
     if (id === 'rush') for (let i = 0; i < 4; i++) this._spawnTarget();
     if (id === 'precision') this.field.zone(PRECISION_ZONES[0]);
@@ -201,13 +190,6 @@ export class NatpfEvents {
   }
   _ballOver(winner, why, award){
     const A = this.active, E = this.engine;
-    if (A.id === 'champion'){
-      // punto vero: lo conta la sfida, il motore continua come in partita (servizio successivo)
-      if (winner === 'player') A.won++; else A.lost++;
-      A.score = championScore(A.won, A.lost); this._say(winner === 'player' ? 'Punto tuo!' : 'Punto della CPU', winner === 'player');
-      if (A.won >= CHAMPION_TARGET || A.lost >= CHAMPION_TARGET){ this.finish(); return; }
-      award(winner, why); this.paint(); return;
-    }
     // palla del lanciapalle non presa
     if (!A.resolved && E.ball.lastHitter === 'opponent'){
       if (A.id === 'survival') this._loseLife('Palla persa');
@@ -242,13 +224,11 @@ export class NatpfEvents {
   tick(dt){
     const A = this.active; if (!A || A.over) return;
     const E = this.engine;
-    if (A.id !== 'champion'){
-      const o = E.opponent; if (o){ o.pos.set(0, 0, -40); o.targetPos.copy(o.pos); }
-      this.ui.machine?.tick(dt);
-      if (E.phase === 'POINT_OVER') E.phaseTimer = 0;
-      const ballLive = E.phase === 'RALLY' && E.ball.inPlay;
-      if (A.wait > 0 && !ballLive && !(A.id === 'radar' && /SERVE/.test(E.phase))){ A.wait -= dt; if (A.wait <= 0) this._next(); }
-    }
+    const o = E.opponent; if (o){ o.pos.set(0, 0, -40); o.targetPos.copy(o.pos); }
+    this.ui.machine?.tick(dt);
+    if (E.phase === 'POINT_OVER') E.phaseTimer = 0;
+    const ballLive = E.phase === 'RALLY' && E.ball.inPlay;
+    if (A.wait > 0 && !ballLive && !(A.id === 'radar' && /SERVE/.test(E.phase))){ A.wait -= dt; if (A.wait <= 0) this._next(); }
     A.elapsed += dt;
     if (A.time > 0){
       const before = Math.ceil(A.time);
@@ -293,8 +273,8 @@ export class NatpfEvents {
       : A.id === 'precision' ? [`${A.zonePts.filter(p => p >= 50).length} zone su ${PRECISION_ZONES.length}`, `migliore ${Math.max(0, ...A.zonePts)}`]
       : A.id === 'combo' ? [`${A.chains} catene complete`, `serie migliore ${A.bestStreak}`]
       : A.id === 'survival' ? [`livello ${A.level + 1}`, `${A.returned} palle rimandate`]
-      : A.id === 'radar' ? [`${A.serves} servizi`] : [`${A.won}–${A.lost}`];
-    this.ui.flow?.showResult({ id: A.id, label: A.c.label, unit: A.c.unit, score: A.score, rank: r.rank, total: r.total, nick, won: A.won, lost: A.lost,
+      : [`${A.serves} servizi`];
+    this.ui.flow?.showResult({ id: A.id, label: A.c.label, unit: A.c.unit, score: A.score, rank: r.rank, total: r.total, nick,
       medal: rec.medal, isRecord: rec.isRecord, prevBest: rec.prevBest, best: rec.records[A.id].best, xp: rec.xp, level: levelOf(rec.records.xp), stats });
   }
   // interrotta dalla pausa («Torna al menu»): nessun risultato, ma il motore torna com'era
@@ -315,14 +295,13 @@ export class NatpfEvents {
   paint(){
     const A = this.active; if (!A || !this.hud) return;
     const time = A.time > 0 ? `<span class="ch-time ${A.time <= 10 ? 'urgent' : ''}">${Math.ceil(A.time)}"</span>` : '';
-    const main = A.id === 'radar' ? `${A.best || 0}<small>km/h</small>` : A.id === 'champion' ? `${A.won}<small>–</small>${A.lost}` : `${A.score}<small>${A.c.unit}</small>`;
+    const main = A.id === 'radar' ? `${A.best || 0}<small>km/h</small>` : `${A.score}<small>${A.c.unit}</small>`;
     let extra = '', sub = '';
     if (A.id === 'rush'){ const m = comboMultiplier(Math.max(0, A.streak - 1) + 1); extra = `<span class="ch-combo" data-on="${A.streak >= 3}">Combo ${A.streak} · ×${m}</span>`; sub = 'Centro 50 · anello 30 · bordo 10'; }
     if (A.id === 'precision'){ sub = `Palla ${Math.min(A.ball + 1, PRECISION_ZONES.length)} di ${PRECISION_ZONES.length} · ${PRECISION_ZONES[A.zoneIdx].label}`; }
     if (A.id === 'combo') extra = `<ol class="ch-chain">${A.chain.map((k, i) => `<li class="${i < A.chainIdx ? 'done' : i === A.chainIdx ? 'on' : ''}">${COMBO_STEPS[k].label}</li>`).join('')}</ol>`;
     if (A.id === 'survival'){ extra = `<span class="ch-lives" aria-label="${A.lives} vite">${'<i class="on"></i>'.repeat(A.lives)}${'<i></i>'.repeat(SURVIVAL.lives - A.lives)}</span>`; sub = `Livello ${A.level + 1} · prossimo a ${(A.level + 1)*SURVIVAL.perLevel}`; }
     if (A.id === 'radar') sub = `Servizio ${Math.min(3, A.serves + 1)} di 3`;
-    if (A.id === 'champion') sub = 'Prima a 3 punti';
     const rec = this.records[A.id]?.best;
     const html = `<span class="ch-kicker">${A.c.label}${this.nickname ? ` · ${esc(this.nickname)}` : ''}</span><b class="ch-score">${main}</b>${time}${extra}${sub ? `<span class="ch-sub">${sub}</span>` : ''}${rec != null ? `<span class="ch-best">Record ${rec} ${A.c.unit}</span>` : ''}${A.last ? `<span class="ch-last" data-ok="${A.lastOk}">${A.last}</span>` : ''}`;
     // solo se cambia (regione «aria-live»)

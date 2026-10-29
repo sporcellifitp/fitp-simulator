@@ -176,27 +176,20 @@ test('Guida aperta sulla pagina «Collega»: il riscaldamento non parte sotto la
   assert.ok(ui.training.active);
 });
 
-test('Sfide: «Torna al menu» da un «Campione» rimette la CPU scelta e la durata della partita', async () => {
-  const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
+// «Sfida il campione» tolto il 29/10: i minigiochi giocano contro il lanciapalle (CPU «casual»); dopo torna quella scelta
+test('Sfide: «Torna al menu» da un minigioco rimette la CPU scelta e la durata della partita', async () => {
+  const w = await makeWorld({ controller: 'mouse', difficulty: 'leggenda' }); w.advance(300);
   const { E, ui, lobby, hud } = w;
   hud.selectedGamesToWin = 2;
-  lobby.menu('challenges'); ui.events.nickname = 'Ana'; lobby.pickChallenge('champion'); lobby.go('connect'); lobby.next(); w.advance(2000);
-  assert.equal(ui.events.active?.id, 'champion');
-  assert.equal(E.matchConfig.difficulty, 'pro');
-  w.key('Escape', 'Escape'); ui.pause.run('menu');
+  lobby.menu('challenges'); ui.events.nickname = 'Ana'; lobby.pickChallenge('rush'); lobby.go('connect'); lobby.next(); w.advance(2000);
+  assert.equal(ui.events.active?.id, 'rush');
   assert.equal(E.matchConfig.difficulty, 'casual');
-  assert.equal(E.matchConfig.gamesToWin, 2);
-});
-
-test('Sfide: il «Campione» resta contro la CPU esperta anche con Leggenda scelta, e dopo torna Leggenda', async () => {
-  const w = await makeWorld({ controller: 'mouse', difficulty: 'leggenda' }); w.advance(300);
-  const { E, ui, lobby } = w;
-  assert.equal(E.matchConfig.difficulty, 'leggenda');
-  lobby.menu('challenges'); ui.events.nickname = 'Eva'; lobby.pickChallenge('champion'); lobby.go('connect'); lobby.next(); w.advance(2000);
-  assert.equal(ui.events.active?.id, 'champion');
-  assert.equal(E.matchConfig.difficulty, 'pro');
   w.key('Escape', 'Escape'); ui.pause.run('menu');
   assert.equal(E.matchConfig.difficulty, 'leggenda');
+  assert.equal(E.matchConfig.gamesToWin, 2);
+  // il minigioco tolto non si sceglie più
+  lobby.menu('challenges'); lobby.pickChallenge('champion');
+  assert.notEqual(ui.events.active?.id, 'champion');
 });
 
 test('Moviola: nascosta nel menu di pausa durante le sfide', async () => {

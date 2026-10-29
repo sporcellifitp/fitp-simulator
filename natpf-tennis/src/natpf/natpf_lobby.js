@@ -25,7 +25,6 @@ const ARCADE_ICONS = {
   chain: '<svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="18" width="16" height="12" rx="6"/><rect x="27" y="18" width="16" height="12" rx="6"/><path d="M17 24h14"/></svg>',
   heart: '<svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 40S7 29 7 17a8 8 0 0 1 17-4 8 8 0 0 1 17 4c0 12-17 23-17 23z"/></svg>',
   radar: '<svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M8 34a17 17 0 1 1 32 0"/><path d="M24 34l9-13"/><circle cx="24" cy="34" r="3"/></svg>',
-  crown: '<svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M9 36h30M11 36 8 16l9 8 7-13 7 13 9-8-3 20"/></svg>',
 };
 import { warmupDrills } from './natpf_training.js';
 import { hostLobbyStatus, roomCode, joinUrl } from './natpf_versus.js';
@@ -250,10 +249,10 @@ export class NatpfLobby {
     this.lastResult = r; this.rankingTab = r.id;
     this.go('result');
     $('result-kicker').textContent = r.label;
-    $('lobby-t-result').textContent = r.id === 'champion' ? (r.won > r.lost ? 'Hai battuto il campione!' : 'Il campione ha vinto') : r.medal ? `${MEDAL_LABEL[r.medal]}, ${r.nick}!` : `Bravo, ${r.nick}!`;
+    $('lobby-t-result').textContent = r.medal ? `${MEDAL_LABEL[r.medal]}, ${r.nick}!` : `Bravo, ${r.nick}!`;
     const medal = $('result-medal');
     if (medal){ medal.dataset.medal = r.medal || ''; medal.innerHTML = r.medal ? `<b>${MEDAL_LABEL[r.medal]}</b>` : ''; show(medal, !!r.medal); }
-    $('result-score').innerHTML = r.id === 'champion' ? `${r.won}<small>–</small>${r.lost}<i>${r.score} punti</i>` : `${r.score}<small>${r.unit}</small>`;
+    $('result-score').innerHTML = `${r.score}<small>${r.unit}</small>`;
     const badges = [r.isRecord && r.prevBest != null ? '<span class="rb rb-record">Nuovo record personale</span>' : r.best != null ? `<span class="rb">Record personale ${r.best} ${r.unit}</span>` : '',
       r.xp ? `<span class="rb rb-xp">+${r.xp} XP · livello ${r.level?.level ?? 1}</span>` : '', ...(r.stats || []).map(x => `<span class="rb">${esc(x)}</span>`)].filter(Boolean);
     const b = $('result-badges'); if (b) b.innerHTML = badges.join('');

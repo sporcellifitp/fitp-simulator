@@ -6,14 +6,13 @@
 //   Combo Challenge   90" di catene di colpi diversi da fare in ordine; catena più lunga a ogni catena completata
 //   Survival          3 vite contro un lanciapalle che sale di livello ogni 5 palle; conta le palle rimandate
 //   Radar             3 servizi, vale il più veloce dentro il campo
-//   Campione          punti contro la CPU esperta, primo a 3
+// «Sfida il campione» (contro la CPU esperta, primo a 3) tolto il 29/10 su richiesta dell'utente.
 export const MODES = Object.freeze([
   { id: 'rush', label: 'Target Rush', unit: 'punti', icon: 'target', time: 60, short: 'Un minuto per abbattere più bersagli possibile.', facts: ['Bersagli 3D, anche mobili', 'Centro 50 · anello 30 · bordo 10', 'Combo fino a ×4 · bersaglio d’oro +5"'], medals: [250, 600, 1100] },
   { id: 'precision', label: 'Precision', unit: 'punti', icon: 'zone', balls: 10, short: 'Dieci palle, dieci zone del campo: più vicino al centro, più punti.', facts: ['10 palle', 'Zone sempre più piccole', 'Fino a 100 punti a palla'], medals: [250, 480, 700] },
   { id: 'combo', label: 'Combo Challenge', unit: 'punti', icon: 'chain', time: 90, short: 'Esegui in ordine le sequenze di colpi richieste.', facts: ['90 secondi', 'Catene sempre più lunghe', 'Colpo sbagliato: catena da capo'], medals: [150, 400, 800] },
   { id: 'survival', label: 'Survival', unit: 'palle', icon: 'heart', short: 'Tre vite contro un lanciapalle sempre più cattivo.', facts: ['3 vite', 'Livello su ogni 5 palle', 'Più veloce, tagli, pallonetti, angoli'], medals: [8, 20, 35] },
   { id: 'radar', label: 'Radar del servizio', unit: 'km/h', icon: 'radar', time: 30, short: 'Tre servizi: vale il più veloce dentro il campo.', facts: ['3 servizi', 'Vale il più veloce dentro', '30 secondi'], medals: [110, 140, 165] },
-  { id: 'champion', label: 'Sfida il campione', unit: 'punti', icon: 'crown', short: 'Contro la CPU esperta: vince chi arriva prima a 3 punti.', facts: ['Avversario esperto', 'Prima a 3 punti', 'Vittoria: 10 punti in più'], medals: [3, 6, 19] },
 ]);
 export const modeById = id => MODES.find(m => m.id === id) || null;
 
