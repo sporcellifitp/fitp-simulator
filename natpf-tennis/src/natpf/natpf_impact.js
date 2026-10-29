@@ -56,7 +56,10 @@ export const PLAN = Object.freeze({
   oppTake: .45, recoverEff: .55, safeZ: 10,
 });
 
-// Traiettoria della palla da adesso: [{ t, x, y, z, vy, bounces }] (bounces: rimbalzi da adesso in poi)
+// Traiettoria della palla da adesso: [{ t, x, y, z, vy, bounces }] (bounces: rimbalzi da adesso in poi). Si ferma
+// quando la palla è oltre stopZ dalla rete nel verso in cui va (oltre il fondo di chi la deve prendere), non dove parte:
+// diagnostica del 29/10 (1v1), il Player 2 colpiva in ritardo da 15,4 m, la traiettoria finiva al primo passo e chi
+// gioca correva a rete (piano «stretch» verso la palla dall'altra parte) e perdeva il punto
 export function predictBall(b, { maxT = 2.8, dt = PHYS.DT, stopZ = 14.5 } = {}){
   let x = finite(b.pos.x), y = finite(b.pos.y), z = finite(b.pos.z), vx = finite(b.vel.x), vy = finite(b.vel.y), vz = finite(b.vel.z);
   const sx = finite(b.spin?.x), sy = finite(b.spin?.y), bs = bounceSpin(sx), out = [];
@@ -67,7 +70,7 @@ export function predictBall(b, { maxT = 2.8, dt = PHYS.DT, stopZ = 14.5 } = {}){
     x += vx*dt; y += vy*dt; z += vz*dt;
     if (y <= .075 && vy < 0){ y = .075; vy = -vy*PHYS.BOUNCE*bs.up; vx *= PHYS.FRICTION; vz *= PHYS.FRICTION*bs.along; bounces++; }
     out.push({ t, x, y, z, vy, bounces });
-    if (Math.abs(z) > stopZ || bounces > 1) break;
+    if ((vz >= 0 ? z : -z) > stopZ || bounces > 1) break;
   }
   return out;
 }
@@ -163,9 +166,11 @@ export function planPlayerIntercept(engine, actor){
     if (volley && (!wait || need(wait) - need(volley) >= PLAN.volleySave)) s = volley, kind = 'volley';
     else if (ground) s = ground, kind = 'ground';
   }
-  // nessun punto raggiungibile: verso il rimbalzo (o la fine della traiettoria), il più vicino possibile
-  if (!s){ s = after[0] || path[path.length - 1]; kind = 'stretch'; }
-  if (!s) return null;
+  // nessun punto raggiungibile: verso il rimbalzo (o la fine della traiettoria), il più vicino possibile; mai verso un
+  // punto fuori dalla propria metà campo (la posizione verrebbe portata a rete: corsa a vuoto). Una palla che non arriva
+  // nella propria metà non sposta chi gioca
+  if (!s){ s = after[0] || [...path].reverse().find(p => Z(p.z) > 0); kind = 'stretch'; }
+  if (!s){ engine[key] = null; return null; }
   const p = stand(s);
   actor.targetPos.set(p.x, 0, p.z);
   // in corsa: poco margine tra quando si arriva e quando arriva la palla (o non ci si arriva)
