@@ -2,7 +2,20 @@
 
 Aggiornato: 29/10/2026 · branch `natpf-simulator`.
 
-## Ultimissimo (29/10, sera): diagnostica 145416, webcam, impugnatura a martello, «Sfida il campione» tolto; pacchetti 2026-10-28.12
+## Ultimissimo (29/10, notte): diagnostica 191023 (iPhone), chi batte, colpo super ed energia; pacchetti 2026-10-28.13
+
+Stesso schermo con Android (P1) e iPhone (P2). Fatto, con test (dettagli in `docs/WORK_PROGRESS.md`, «Diagnostica
+20261029-191023»): `8e6cfcb` iPhone con dritto e rovescio invertiti → accelerazione dei sensori riportata al segno di
+Android (`site/js/tennis/motion-sign.js`), registro completo del P2; `caf0ddf` «Batte per primo» nel menu, barra della
+potenza con il colpo super in oro, palla super con l'alone, energia sempre in vista. Gioco 516/516, sito 160/160.
+Pacchetti .13 provati estratti: LAN (`5ffdf48b…ad24377f71c`) e Cloudflare (`94699280…e619c3cfe76`). Push non fatto.
+Non riprodotto: «personaggio dell'iPhone che si muoveva sempre» (da chiarire con l'utente).
+Da provare su un iPhone vero: calibrazione e lati dei colpi; se il segno fosse già quello di Android, 4 tocchi sullo
+schermo lo correggono (registro: `tel2.dispositivo` accSign).
+Prossima azione: l'utente riprova lo stesso schermo con l'iPhone (ricalibrando) e la diagnostica; dire cosa intende con il
+personaggio che si muove.
+
+## Prima (29/10, sera): diagnostica 145416, webcam, impugnatura a martello, «Sfida il campione» tolto; pacchetti 2026-10-28.12
 
 Richieste: (1) webcam che non traccia bene (distanza, interruzioni, servizio, recupero) sul Lenovo E14; (2) impugnatura
 a martello come posizione neutra di tutto il controllo col telefono; (3) togliere «Sfida il campione»; (4) audit e

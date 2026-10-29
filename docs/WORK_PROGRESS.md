@@ -837,3 +837,46 @@ Verifiche:
 - [x] Cloudflare `natpf-simulator-cloudflare-20261028-12.zip` (sha256 `78f084370b470cbc2fe74e8d03eac582cd2f57e6bfbe3b31c50079bf38274258`)
       estratto su server statico: stesse prove; i soli 404 sono `/api/match/state` e `/lan/status`, che il server
       statico di prova non ha (contenuto uguale al .11 salvo foto della presa e file ricompilati).
+
+## Diagnostica 20261029-191023-4z55 (stesso schermo, Android P1 + iPhone P2, build .12) — 29/10 sera
+Segnalazioni: (1) iPhone con dritto e rovescio invertiti; (2) iPhone «con il personaggio che si muoveva sempre»;
+(3) scegliere chi batte, barra/effetto del colpo super, indicatore della stanchezza.
+
+### 1. iPhone: dritto e rovescio invertiti — causa trovata e corretta (commit `8e6cfcb`)
+- Misura: lato del gesto rispetto alla palla all'impatto (`racchetta` lato/palla, palla oltre 0,8 m): P2 iPhone
+  concorde 1 volta su 12; P2 Android delle sessioni 145416 e 131307 7/8 e 14/16; P1 Android qui 9/12.
+- Causa: Safari su iPhone dà `accelerationIncludingGravity` (e `acceleration`) con il segno opposto a Chrome Android
+  (il giroscopio è uguale). Tutto è tarato su Android: verso del primo gesto di calibrazione (`verticalTurn`), alto
+  della racchetta e posa «pronto» (`face-tracker`), verso del colpo senza calibrazione («Salta»).
+- Simulazione (presa a martello, `phone-sim` con `ios`): calibrazione che legge il primo dritto come rovescio e non
+  passa; con «Salta» 4 colpi su 4 dal lato opposto. Con la correzione: calibrazione e lati come Android (3 semi).
+- Correzione: `site/js/tennis/motion-sign.js` (segno dal sistema, iPhone/iPad −1, confermato dai tocchi sullo schermo:
+  4 tocchi concordi lo correggono se un browser cambiasse), applicato in `racchetta.js` a ogni campione; il profilo
+  salvato porta il segno (profilo con il segno di prima → si ricalibra); il telefono comunica il segno (`dev.as`).
+- Registro: ora anche `tel2.dispositivo`, `tel2.cal`, `tel2.profilo`, `tel2.scartato`, `tel2.prep` (nella 191023
+  dell'iPhone non c'erano né modello né profilo).
+- Test: `natpf-iphone-sensori` (segno, voti, normalizzazione, simulazione prima/dopo). **Da provare su un iPhone vero.**
+
+### 2. «Personaggio che si muoveva sempre» (iPhone) — non riprodotto
+- Video del gioco: nelle attese del servizio P1 e P2 hanno lo stesso piccolo dondolio (animazione d'attesa e camera che
+  segue); nello scambio si muovono entrambi verso la palla (piani `piano`, corsa del P2 0–0,3). Il telefono del P2 non
+  muove il personaggio (solo i colpi). Dalle 62,5 s il P2 è in pausa («pagina nascosta», poi «scollegato»).
+- Da chiarire con l'utente: personaggio in campo, racchetta, o la schermata del telefono?
+
+### 3. Chi batte, colpo super, stanchezza (commit `caf0ddf`)
+- [x] «Batte per primo» nella pagina «Partita»: Tu (Player 1) / CPU (Player 2, Amico) / Sorteggio, ricordato;
+      `match_format.firstServer` in `startNewMatch`. Test `natpf-battuta` (CPU batte da sola; sullo stesso schermo il P2
+      batte con il suo gesto, la CPU non batte al posto suo).
+- [x] `natpf_power_hud.js`: dopo ogni colpo la barra della potenza del gesto con la tacca della soglia del super; il
+      colpo super la riempie d'oro con «SUPER!»; alone arancione sulla palla super in volo; l'esito del colpo super è
+      «Super!» in oro (prima «Perfetto» copriva «SUPER SHOT»).
+- [x] Energia sempre in vista in partita (1 − stanchezza di `natpf_skill`): verde, «Affaticato» giallo, «Stanco!»
+      rosso pulsante. Sullo stesso schermo un gruppo per metà, sopra le etichette dei giocatori.
+- [x] Verifica nel browser (Chromium): menu, singolo e stesso schermo (schermate), alone sulla palla. Test
+      `natpf-potenza-energia`.
+
+### Pacchetti 2026-10-28.13
+- [x] Versione `2026-10-28.13`. Gioco 516/516, sito 160/160, build ok.
+- [x] LAN Windows `natpf-simulator-lan-windows-20261028-13.zip` (sha256 `5ffdf48b04ae2925e6e3e9cad60619b3add358f09b591b73a6e99ad24377f71c`)
+      e Cloudflare `natpf-simulator-cloudflare-20261028-13.zip` (sha256 `94699280e2ea566128365b45d9574002308488ea99291d6a12643e619c3cfe76`)
+      estratti e provati come il .12; pagina del telefono aperta come iPhone (segno −1, nessun errore) su entrambi.

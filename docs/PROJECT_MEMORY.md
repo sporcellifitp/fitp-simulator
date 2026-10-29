@@ -142,6 +142,10 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 
 ## Storico modifiche significative
 
+- 29/10/2026 notte — iPhone: Safari dà l'accelerazione (con e senza gravità) con il segno opposto ad Android; la pagina
+  del telefono la riporta al segno di Android (`motion-sign.js`, segno dal sistema confermato dai tocchi) prima di
+  tutto il riconoscimento. Non togliere: senza, su iPhone dritto e rovescio si invertono (`8e6cfcb`). Menu «Batte per
+  primo», barra della potenza/super e energia (`natpf_power_hud.js`, `caf0ddf`).
 - 29/10/2026 sera — webcam (Lenovo E14, diagnostica 101056 e video della 145416): continuità nei colpi veloci, mano
   uscita dal bordo, distanza, una sola mano agganciata, modello e camera che si riprendono da soli (`cd6b949`, `409bf44`).
 - 29/10/2026 sera — diagnostica 145416: impugnatura a martello come presa di riferimento (testa della racchetta virtuale
