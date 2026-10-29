@@ -123,7 +123,8 @@ test('finestra del colpo della webcam: lancio e servizio solo al proprio servizi
 
 test('controller: lo swing dal movimento va al gioco solo nella finestra, con lato dalla palla, latenza e senza piatto; in partita il modello delle mani non gira', async () => {
   const { MotionController: MC, webcamModeFrom } = await import('../src/motion_controls.js');
-  assert.equal(webcamModeFrom(''), 'motion'); assert.equal(webcamModeFrom('?webcamMano=1'), 'hands');
+  // predefinita la webcam di argon-tennis (29/10); il movimento solo a richiesta
+  assert.equal(webcamModeFrom(''), 'argon'); assert.equal(webcamModeFrom('?webcamMano=1'), 'hands'); assert.equal(webcamModeFrom('?webcamMovimento=1'), 'motion');
   const mc = Object.create(MC.prototype), swings = [], tosses = [];
   Object.assign(mc, { webcamMode: 'motion', handPreference: 'right', onTrack: null, _emitSwing: e => swings.push(e), _emitToss: e => tosses.push(e) });
   let gate = null; mc.webcamGate = () => gate;

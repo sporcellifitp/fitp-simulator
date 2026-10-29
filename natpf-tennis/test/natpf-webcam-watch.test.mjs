@@ -140,7 +140,7 @@ test('controller: la webcam occupata da un altro programma lascia il motivo (Not
   }
 });
 
-test('pannello della webcam: con la webcam occupata dice perché; accesa chiede un colpo con mano, polso e avambraccio; pronto al primo colpo visto', async () => {
+test('pannello della webcam: con la webcam occupata dice perché; accesa chiede la mano con polso e avambraccio; pronto con la mano o un colpo visti', async () => {
   const { makeWorld } = await import('./ui-world.mjs');
   const { E, ui } = await makeWorld({ controller: 'mouse' });
   const text = () => document.getElementById('setup-cam-text').textContent, badge = () => document.getElementById('setup-cam-badge').textContent;
@@ -149,8 +149,8 @@ test('pannello della webcam: con la webcam occupata dice perché; accesa chiede 
   assert.match(text(), /già usata da un altro programma/); assert.equal(badge(), 'Webcam occupata');
   E.motionController.webcamError = null; E.motionController.webcamActive = true;
   ui.paintWebcamSetup();
-  assert.match(text(), /Fai un dritto davanti alla webcam: mano, polso e avambraccio/); assert.equal(badge(), 'Fai un colpo…');
-  // colpi dal movimento (webcam_motion.js): un colpo visto basta, anche senza il modello delle mani
+  assert.match(text(), /mano che colpisce, con polso e avambraccio/); assert.equal(badge(), 'Cerco la mano…');
+  // un colpo già riconosciuto basta, anche prima della mano vista
   E.motionController.webcamMotionAt = performance.now();
   ui.paintWebcamSetup();
   assert.match(text(), /Colpo visto ✓ sei pronto/); assert.equal(badge(), 'Colpo visto');

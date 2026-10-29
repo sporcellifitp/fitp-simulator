@@ -24,10 +24,10 @@ export { calSide };
 // potenza. demo: animazione 3D del gesto (natpf_gesture_motion.GESTURES, verificata con il rilevatore vero).
 export const DRILLS = Object.freeze([
   { id: 'forehand', label: 'Dritto', need: 2, cue: 'forehand', demo: 'forehand', hint: { phone: 'Ruota attorno a te in orizzontale, dall’esterno verso il corpo, quando la palla arriva alla racchetta', webcam: 'Swing quando la palla arriva alla racchetta', mouse: 'Spazio quando la palla arriva' } },
-  { id: 'backhand', label: 'Rovescio', need: 2, cue: 'backhand', demo: 'backhand', hint: { phone: 'Palla sull’altro lato: stessa rotazione orizzontale, nel verso opposto', webcam: 'Palla sull’altro lato: swing quando arriva (il lato lo sceglie la palla)', mouse: 'Spazio o trascina verso l’altro lato' } },
-  { id: 'serve', label: 'Servizio', need: 1, demo: 'serve', hint: { phone: 'Alza il telefono per lanciare la palla, poi colpisci dall’alto quando è in cima', webcam: 'Un movimento deciso del braccio lancia la palla, poi swing quando è in alto', mouse: '↑ o W per lanciare, poi Spazio' } },
-  { id: 'cross', label: 'Incrociato', need: 1, direction: 'cross', feed: 'forehand', demo: 'cross', hint: { phone: 'Gira il display verso il centro e colpisci un attimo prima del solito: la palla va oltre il centro', webcam: 'Colpisci prima del solito: manda la palla nell’altra metà del campo', mouse: 'Mira nell’altra metà del campo, oltre il centro' } },
-  { id: 'line', label: 'Lungolinea', need: 1, direction: 'line', feed: 'forehand', demo: 'line', hint: { phone: 'Gira il display verso l’esterno e colpisci un attimo dopo il solito: la palla corre lungo il tuo lato', webcam: 'Colpisci un attimo dopo il solito: manda la palla lungo il tuo lato', mouse: 'Mira lungo il lato da cui colpisci' } },
+  { id: 'backhand', label: 'Rovescio', need: 2, cue: 'backhand', demo: 'backhand', hint: { phone: 'Palla sull’altro lato: stessa rotazione orizzontale, nel verso opposto', webcam: 'Swing verso l’altro lato', mouse: 'Spazio o trascina verso l’altro lato' } },
+  { id: 'serve', label: 'Servizio', need: 1, demo: 'serve', hint: { phone: 'Alza il telefono per lanciare la palla, poi colpisci dall’alto quando è in cima', webcam: 'Alza la mano per lanciare, poi swing in alto', mouse: '↑ o W per lanciare, poi Spazio' } },
+  { id: 'cross', label: 'Incrociato', need: 1, direction: 'cross', feed: 'forehand', demo: 'cross', hint: { phone: 'Gira il display verso il centro e colpisci un attimo prima del solito: la palla va oltre il centro', webcam: 'Colpisci prima: manda la palla nell’altra metà del campo', mouse: 'Mira nell’altra metà del campo, oltre il centro' } },
+  { id: 'line', label: 'Lungolinea', need: 1, direction: 'line', feed: 'forehand', demo: 'line', hint: { phone: 'Gira il display verso l’esterno e colpisci un attimo dopo il solito: la palla corre lungo il tuo lato', webcam: 'Colpisci un attimo dopo: manda la palla lungo il tuo lato', mouse: 'Mira lungo il lato da cui colpisci' } },
   // volée: il giocatore aspetta a rete, la palla si prende al volo (il motore lo decide dalla posizione, natpf_impact)
   { id: 'volley', label: 'Volée', need: 1, volley: true, feed: 'forehand', demo: 'volley', maxTries: 4, hint: { phone: 'Sei a rete: gesto corto e compatto, palla al volo prima del rimbalzo', webcam: 'Sei a rete: swing corto, palla al volo', mouse: 'Sei a rete: Spazio prima che la palla rimbalzi' } },
   // colpi speciali (solo smartphone): il gioco impara il TUO pallonetto e la TUA palla corta (soglie personali,
@@ -48,7 +48,7 @@ export const LESSON = Object.freeze([
   { id: 'ready', demo: 'ready', title: 'Posizione di partenza', text: 'In piedi a 1,5–2 m dallo schermo, al centro. Braccio rilassato davanti a te. Calibrazione e partita si fanno con questa stessa presa.' },
 ]);
 export const WEBCAM_LESSON = Object.freeze([
-  { id: 'ready', title: 'Posizione di partenza', text: 'In piedi a 1,5–2 m dalla webcam, al centro dell’inquadratura, con mano, polso e avambraccio in vista e la luce davanti. La webcam vede il movimento del colpo: tra un colpo e l’altro resta fermo.' },
+  { id: 'ready', title: 'Posizione di partenza', text: 'In piedi a 1,5–2 m dalla webcam, al centro dell’inquadratura. La mano che colpisce deve restare sempre visibile.' },
 ]);
 const SHOT_NAME = Object.freeze({ topspin: 'Topspin', flat: 'Piatto', lob: 'Pallonetto', drop: 'Palla corta', slice: 'Tagliato', smash: 'Schiacciata' });
 const SIDE_NAME = Object.freeze({ forehand: 'Dritto', backhand: 'Rovescio' });

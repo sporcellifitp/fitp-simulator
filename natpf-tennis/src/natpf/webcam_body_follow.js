@@ -228,9 +228,10 @@ export class NatpfBodyFollow {
     }
     this._hookRoomState();
     if (!mc?.webcamActive){ if (this.enabled && this.status !== 'unavailable') this._setStatus('loading'); this._paint(); return; }
-    // colpi dal movimento (webcam_motion.js, predefiniti dal 29/10): il polso dal corpo non serve, il modello del corpo
-    // gira solo con «Segui il corpo». Prima si caricava e girava sempre con la webcam (anche 20–40 ms a inferenza)
-    const wristFromPose = mc.webcamMode !== 'motion';
+    // il polso dal corpo serve solo alla traccia della mano NATPF (?webcamMano=1): con la webcam di argon-tennis
+    // (predefinita) e con quella dal movimento il modello del corpo gira solo con «Segui il corpo». Prima si caricava e
+    // girava sempre con la webcam (anche 20–40 ms a inferenza)
+    const wristFromPose = mc.webcamMode === 'hands';
     if (!this.enabled && !wristFromPose){ if (mc._poseRequested) mc._poseRequested = false; this._paint(); return; }
     if (!this.pose){ if (this.status !== 'unavailable') mc._poseRequested = true; this._ensurePose(); return; }
     mc._poseModelReady = true;

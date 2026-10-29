@@ -1420,6 +1420,9 @@ export class NatpfTennisEngine {
       ["TOPSPIN", "SLICE", "LOB", "SMASH", "FLAT"].includes(t) &&
         (this.selectedShotType = t === "SMASH" ? "FLAT" : t);
     }
+    // NATPF: webcam di argon-tennis (zip consegnato dall'utente il 29/10): servizio e scambio come nel motore dello zip,
+    // con il colpo assistito (lo swing aspetta il punto giusto fino a 0,48 s), senza la finestra d'impatto del telefono
+    if (e.source === "webcam" && !e.natpf && this.motionController?.webcamMode === "argon") return void this._argonWebcamSwing(e);
     if (this.phase === "SERVE_STANCE" && this.score.server === "player") {
       (this.persistentStateLock = !1), this.hud.hideCenterBanner(), this._startServeToss(this.player);
       return;
@@ -1523,6 +1526,59 @@ export class NatpfTennisEngine {
               timing: "sweet",
               dirX: Number(e.dirX || 0),
             });
+      }
+    }
+  }
+  // NATPF: colpo della webcam come in _handleUserSwingInput dello zip argon-tennis (dopo il titolo e la scelta del colpo)
+  _argonWebcamSwing(e = {}) {
+    if (this.phase === "SERVE_STANCE" && this.score.server === "player") {
+      (this.persistentStateLock = !1), this.hud.hideCenterBanner(), this._startServeToss(this.player);
+      return;
+    }
+    if (this.phase === "SERVE_TOSS" && this.score.server === "player") {
+      if (this.phaseTimer < 0.16) return;
+      if (this.ball.pos.y >= 1.45 && this.ball.pos.y < 2.25 && this.ball.vel.y > 0.5) {
+        this.pendingServeSwing = { actor: this.player, evt: { ...e, speed: Math.max(1.22, Number(e.speed || 1.22)) } };
+        return;
+      }
+      this._executeServeHit(this.player, e);
+      return;
+    }
+    if (this.phase === "RALLY") {
+      this.autoPlayMode = !1;
+      const t =
+          e.side === "backhand" || (Number(e.dirX || 0) > 0.12 && e.side !== "forehand")
+            ? "backhand"
+            : e.side === "forehand" || Number(e.dirX || 0) < -0.12
+              ? "forehand"
+              : this.ball.pos.x < this.player.pos.x - 0.05 || this.ball.targetLanding.x < -0.15
+                ? "backhand"
+                : "forehand",
+        i = String(e.shotType || this.selectedShotType || "topspin").toLowerCase();
+      if (this.ball.lastHitter === "opponent") {
+        const s = this.ball.pos.z - this.player.pos.z,
+          n = this.ball.pos.z - this.playerPartner.pos.z,
+          // il compagno solo nel doppio (nello zip anche nel singolo, dove è nascosto: lo swing partiva subito)
+          h = this.isDoubles && this.ball.pos.z > 0.3 && this.ball.pos.z <= 7.5 && Math.abs(this.ball.pos.x - this.playerPartner.pos.x) < 3.4,
+          r = h ? n : s;
+        if (r < -0.95 && r >= -7.8) {
+          const l = h ? this.playerPartner : this.player;
+          this.racketKinematics && this.racketKinematics.triggerSwing(l, { shotType: i, side: t, speed: Number(e.speed || 1.2), timing: "early", dirX: Number(e.dirX || 0) }),
+            this.audioEngine && this.audioEngine.playSwingWhoosh(Number(e.speed || 1.15)),
+            (this.pendingUserSwing = { evt: { ...e, side: t, sweetSpotAssisted: !0 }, expiresAt: this.elapsedTime + 0.48, waitForSweetSpot: !0 });
+          return;
+        }
+      }
+      if (
+        !this._attemptPlayerRallyStrike({ ...e, side: t }, !1) &&
+        (this.racketKinematics && this.racketKinematics.triggerSwing(this.player, { shotType: i, side: t, speed: Number(e.speed || 1.2), timing: "sweet", dirX: Number(e.dirX || 0) }),
+        this.audioEngine && this.audioEngine.playSwingWhoosh(Number(e.speed || 1.15)),
+        this.ball.lastHitter === "opponent")
+      ) {
+        const s = this.ball.pos.z - this.player.pos.z,
+          n = this.ball.pos.z - this.playerPartner.pos.z;
+        ((s >= -8 && s <= 0.9) || (this.isDoubles && n >= -5.5 && n <= 0.9)) &&
+          (this.pendingUserSwing = { evt: { ...e, side: t, sweetSpotAssisted: !0 }, expiresAt: this.elapsedTime + 0.48, waitForSweetSpot: !0 });
       }
     }
   }

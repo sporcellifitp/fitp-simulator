@@ -207,7 +207,7 @@ export class NatpfUi {
   paintWebcamSetup(){
     const mc = this.engine.motionController, on = !!mc?.webcamActive;
     const now = performance.now(), wrist = on && now - (mc._poseSeenAt ?? -Infinity) < 400;
-    // colpi dal movimento (webcam_motion.js): pronto appena si vede un colpo; la mano vista dal modello vale ancora
+    // la mano vista dal modello (webcam di argon-tennis) o un colpo già riconosciuto
     const swing = on && now - (mc.webcamMotionAt ?? -Infinity) < 2500;
     const hand = on && (swing || now - (mc.latestHandSeenAt || -1e9) < 1200 || wrist);
     const dot = $('setup-cam-dot'), txt = $('setup-cam-text'), badge = $('setup-cam-badge'), go = $('setup-cam-go');
@@ -217,9 +217,9 @@ export class NatpfUi {
     const seen = swing ? 'Colpo visto' : wrist ? 'Braccio visto' : 'Mano vista';
     if (dot) dot.className = 'setup-dot ' + (hand ? 'ok' : on ? 'mid' : err ? 'ko' : '');
     if (txt) txt.textContent = hand ? `${seen} ✓ sei pronto` : err ? err.text
-      : on ? (body ? 'Mostra spalle e braccio che colpisce, con luce davanti, e fai un colpo' : 'Fai un dritto davanti alla webcam: mano, polso e avambraccio in vista, con luce davanti')
+      : on ? (body ? 'Mostra spalle e braccio che colpisce, con luce davanti' : 'Mostra la mano che colpisce, con polso e avambraccio, con luce davanti')
       : body ? 'Mettiti a circa 2 m: spalle e braccio interi nell’inquadratura' : 'Mettiti a 1–2 m: mano, polso e avambraccio ben visibili';
-    if (badge){ badge.textContent = on ? (hand ? seen : 'Fai un colpo…') : err ? err.badge : 'Webcam spenta'; badge.classList.toggle('ok', hand); }
+    if (badge){ badge.textContent = on ? (hand ? seen : 'Cerco la mano…') : err ? err.badge : 'Webcam spenta'; badge.classList.toggle('ok', hand); }
     show(go, !on);
     for (const b of document.querySelectorAll('[data-natpf-move]')){ const sel = (b.dataset.natpfMove === 'body') === body; b.classList.toggle('selected', sel); b.setAttribute('aria-checked', String(sel)); }
   }

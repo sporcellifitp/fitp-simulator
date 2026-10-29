@@ -69,8 +69,9 @@ test('traccia Pose: uno swing laterale a distanza produce un solo colpo, il rito
   assert.notEqual(shots[0].shotType, 'lob');
 });
 
+// con la traccia della mano NATPF (?webcamMano=1): con la webcam di argon-tennis (predefinita) il polso dal corpo non serve
 test('Pose resta disponibile con movimento automatico e condivide lo slot di inferenza con Hands', async () => {
-  const mc = { webcamActive: true, handPreference: 'right', videoElem: { readyState: 4, currentTime: 1 } };
+  const mc = { webcamActive: true, webcamMode: 'hands', handPreference: 'right', videoElem: { readyState: 4, currentTime: 1 } };
   const e = { motionController: mc, phase: 'RALLY', playerRole: 'p1' };
   const body = new NatpfBodyFollow(e, { autostart: false });
   body.mode = 'auto';
@@ -87,7 +88,7 @@ test('Pose resta disponibile con movimento automatico e condivide lo slot di inf
 
 test('salute webcam: il polso Pose valido mantiene il gioco attivo, un campione vecchio no', () => {
   const mc = Object.create(MotionController.prototype);
-  Object.assign(mc, { webcamActive: true, _wcStartedAt: 0, _poseModelReady: true, _poseSeenAt: 1000, _frameMeta: { at: 1000 } });
+  Object.assign(mc, { webcamActive: true, webcamMode: 'hands', _wcStartedAt: 0, _poseModelReady: true, _poseSeenAt: 1000, _frameMeta: { at: 1000 } });
   const good = mc.webcamHealth(1100);
   assert.equal(good.model, true); assert.equal(good.handAgeMs, 100);
   assert.ok(mc.webcamHealth(2000).handAgeMs > POSE_INPUT.freshMs);

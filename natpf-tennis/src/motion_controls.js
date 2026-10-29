@@ -15,11 +15,18 @@ export const MEDIAPIPE_LOCAL_BASE = "/assets/mediapipe/hands/";
 export const MEDIAPIPE_CDN_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/";
 // NATPF: mano persa da più di così (ms) con il modello delle mani attivo: niente colpi dal flusso ottico (stato «persa»)
 export const HAND_FLOW_MAX_MS = 700;
-// NATPF: da dove vengono i colpi della webcam: dal movimento (predefinito) o dalla mano (?webcamMano=1, il riconoscimento
-// di prima, per confrontare sullo stesso computer)
+// NATPF: da dove vengono i colpi della webcam. Predefinito «argon»: il riconoscimento dello zip argon-tennis consegnato
+// dall'utente il 29/10 (motore base: mano di MediaPipe e flusso ottico, scia breve, _argonFrame), che lo ha chiesto come
+// unico per la webcam. Per confronto sullo stesso computer: ?webcamMano=1 (traccia della mano NATPF, webcam_strokes.js),
+// ?webcamMovimento=1 (movimento nella finestra della palla, webcam_motion.js)
 export function webcamModeFrom(search = ""){
-  try { return new URLSearchParams(search).get("webcamMano") === "1" ? "hands" : "motion"; } catch { return "motion"; }
+  try {
+    const q = new URLSearchParams(search);
+    return q.get("webcamMano") === "1" ? "hands" : q.get("webcamMovimento") === "1" ? "motion" : "argon";
+  } catch { return "argon"; }
 }
+// NATPF: opzioni del modello delle mani dello zip argon-tennis (fisse: niente livelli di carico)
+export const ARGON_HANDS_OPTIONS = Object.freeze({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.4, minTrackingConfidence: 0.4 });
 export class MotionController {
   constructor(e = {}) {
     (this.onSwing = typeof e.onSwing == "function" ? e.onSwing : null),
@@ -58,9 +65,8 @@ export class MotionController {
       (this.handPreference = "right"),
       (this.canToss = null),
       (this.onTrack = typeof e.onTrack == "function" ? e.onTrack : null),
-      // NATPF: colpi dal movimento (webcam_motion.js; ?webcamMano=1 per i colpi dalla mano di prima, per confronto),
-      // finestra del colpo data dal gioco (webcamGate: natpf_impact.webcamGate) e partita in corso (webcamInPlay: il
-      // modello delle mani non gira, il movimento basta), natpf_hand.js
+      // NATPF: da dove vengono i colpi della webcam (webcamModeFrom: argon-tennis, predefinito); per i colpi dal movimento
+      // (?webcamMovimento=1) la finestra del colpo data dal gioco (webcamGate) e la partita in corso (webcamInPlay)
       (this.webcamMode = webcamModeFrom(typeof location != "undefined" ? location.search : "")),
       (this._motion = createMotionStrokes()),
       (this.webcamGate = null),
@@ -311,9 +317,9 @@ export class MotionController {
         console.error(o);
       }
     // NATPF: lancio rifiutato (fuori dal proprio servizio) → swing, passando da _emitSwing come gli altri colpi: così
-    // anche qui il mancino ha il lato giusto (NatpfHand) e vale il blocco della pausa. Dalla webcam niente: nello
-    // scambio la mano che sale segue le regole dei colpi (canToss), non diventa un pallonetto
-    return !l && s.source !== "webcam" && this._emitSwing({ source: s.source, side: s.side, shotType: s.shotType, speed: s.speed, dirX: s.dirX, dirY: s.dirY, pitch: s.pitch, roll: s.roll }), s;
+    // anche qui il mancino ha il lato giusto (NatpfHand) e vale il blocco della pausa. Dalla webcam solo come nello zip
+    // argon-tennis (la mano che sale veloce nello scambio è un pallonetto); con la traccia della mano NATPF niente
+    return !l && (s.source !== "webcam" || this.webcamMode === "argon") && this._emitSwing({ source: s.source, side: s.side, shotType: s.shotType, speed: s.speed, dirX: s.dirX, dirY: s.dirY, pitch: s.pitch, roll: s.roll }), s;
   }
   _emitP2Swing(e = {}) {
     const t = Math.max(0.5, Math.min(2, Number(e.speed ?? 1.15))),
@@ -410,7 +416,8 @@ export class MotionController {
       let base = this.mediapipeBase || MEDIAPIPE_LOCAL_BASE;
       // NATPF: nel worker solo a richiesta (webcam_inference.js); se lì non parte, il modello gira nella pagina (prima
       // restava il solo optical flow e la mano non si vedeva mai)
-      if (workerVisionAvailable() && !this._mpWorkerFailed) {
+      const argon = this.webcamMode === "argon";
+      if (!argon && workerVisionAvailable() && !this._mpWorkerFailed) {
         const model = new WorkerVision({ kind: 'Hands', base: new URL(base, location.href).href });
         this._handsLoadingModel = model;
         model.setOptions({ maxNumHands: this._wcLevel().maxNumHands, modelComplexity: this._wcLevel().modelComplexity, minDetectionConfidence: .4, minTrackingConfidence: .4 });
@@ -438,14 +445,15 @@ export class MotionController {
         const t = new window.Hands({
           locateFile: (i) => `${base}${i}`,
         });
-        // NATPF: modello e numero di mani dal livello di carico (webcam_load.js: si alleggerisce se l'inferenza è lenta)
-        t.setOptions({
+        // NATPF: modello e numero di mani dal livello di carico (webcam_load.js: si alleggerisce se l'inferenza è lenta);
+        // con la webcam di argon-tennis le opzioni e i risultati dello zip
+        t.setOptions(argon ? { ...ARGON_HANDS_OPTIONS } : {
           maxNumHands: this._wcLevel().maxNumHands,
           modelComplexity: this._wcLevel().modelComplexity,
           minDetectionConfidence: 0.4,
           minTrackingConfidence: 0.4,
         }),
-          t.onResults((i) => { if (this.webcamActive && epoch === (this._visionEpoch || 0)) this._onHandResults(i); }),
+          t.onResults((i) => { if (this.webcamActive && epoch === (this._visionEpoch || 0)) argon ? this._onArgonHandResults(i) : this._onHandResults(i); }),
           await t.initialize(),
           (this.mpHands = t);
         if (!this.webcamActive || epoch !== (this._visionEpoch || 0)){ await t.close?.(); this.mpHands = null; }
@@ -594,6 +602,8 @@ export class MotionController {
     this._kickCh.port2.postMessage(0);
   }
   _sendFrame(e) {
+    // NATPF: con la webcam di argon-tennis i fotogrammi al modello li manda _argonFrame (come nello zip)
+    if (this.webcamMode === "argon") return !1;
     if (!this.mpHands || this._mpBusy || !this.webcamActive || !this.videoElem || this.videoElem.readyState < 2) return !1;
     if (e < (this._nextHandFrameAt ?? -Infinity)) return !1;
     // NATPF: colpi dal movimento e partita in corso: il modello delle mani non serve (ogni inferenza ferma il gioco per
@@ -679,6 +689,170 @@ export class MotionController {
       source: "webcam", side: g.side || null, handedSide: !!g.side, shotType: g.kind === "serve" ? "flat" : "topspin", speed, dirX: 0, dirY: -0.4,
       natpf: { aim: "swing", latency, wrist: 0, source: "webcam", hand: this.handPreference || "right" },
     });
+  }
+  // NATPF: webcam di argon-tennis (zip consegnato dall'utente il 29/10, src/motion_controls.js del motore base):
+  // risultati del modello delle mani, fotogramma (mano o, senza, flusso ottico) e scia del movimento → colpo o lancio.
+  // Il codice è quello dello zip; da NATPF solo le misure e la diagnostica (onTrack) e webcamMotionAt (pannello)
+  _onArgonHandResults(i) {
+    this._mpBusy = false;
+    const now = performance.now();
+    Number.isFinite(this._mpSentAt) && ((this.lastInferMs = now - this._mpSentAt), this._wcStats && this._wcStats.infer(this.lastInferMs));
+    i && i.multiHandLandmarks && i.multiHandLandmarks.length > 0
+      ? ((this.latestHandLandmarks = i.multiHandLandmarks[0]), (this.latestHandSeenAt = now), (this._handSeenForFlow = now), (this._hasNewHandResult = true))
+      : (this.latestHandLandmarks = null);
+  }
+  _argonFrame(e) {
+    const t = this.videoElem.currentTime !== this._lastVideoTime;
+    if (
+      (t &&
+        ((this._lastVideoTime = this.videoElem.currentTime),
+        this.mpHands &&
+          !this._mpBusy &&
+          ((this._mpBusy = true),
+          (this._mpSentAt = e),
+          this.mpHands.send({ image: this.videoElem }).catch(() => {
+            this._mpBusy = false;
+          }))),
+      this.latestHandLandmarks && e - (this.latestHandSeenAt || 0) < 240)
+    ) {
+      if (!this._hasNewHandResult) return;
+      this._hasNewHandResult = false;
+      const c = this.latestHandLandmarks,
+        b = c[0],
+        w = c[9],
+        S = 1 - (b.x * 0.45 + w.x * 0.55),
+        _ = b.y * 0.45 + w.y * 0.55;
+      for (
+        this.smoothedCentroid.x = S,
+          this.smoothedCentroid.y = _,
+          (!this._webcamTrail || this._lastWebcamSource !== "mediapipe") && (this._webcamTrail = []),
+          this._lastWebcamSource = "mediapipe",
+          this._webcamTrail.push({ x: S, y: _, t: e });
+        this._webcamTrail.length > 5 || (this._webcamTrail.length > 2 && e - this._webcamTrail[0].t > 160);
+
+      )
+        this._webcamTrail.shift();
+      this.onTrack && this._diag({ kind: "frame", t: e, captureT: e, source: "hands", x: S, y: _, inferMs: this.lastInferMs ?? null });
+      this._argonEvaluateHandTrail(e, true);
+      return;
+    }
+    if (!t) return;
+    const a = this.flowWidth,
+      n = this.flowHeight,
+      h = this.offscreenCtx;
+    h.save(), h.scale(-1, 1), h.drawImage(this.videoElem, -a, 0, a, n), h.restore();
+    const p = h.getImageData(0, 0, a, n).data;
+    let f = 0;
+    const s = 8,
+      l = 6,
+      r = a / s,
+      o = n / l,
+      y = new Float32Array(s * l),
+      P = new Float32Array(s * l),
+      d = new Float32Array(s * l);
+    for (let c = 0; c < n; c++) {
+      const b = Math.min(l - 1, Math.floor(c / o));
+      for (let w = 0; w < a; w++) {
+        const S = c * a + w,
+          _ = S * 4,
+          C = (p[_] * 0.299 + p[_ + 1] * 0.587 + p[_ + 2] * 0.114) / 255;
+        if (this.hasPrevFrame) {
+          const X = Math.abs(C - this.prevLuma[S]),
+            M = X > 0.11 ? X : 0;
+          if (((this.motionEnergyMap[S] = this.motionEnergyMap[S] * 0.45 + M * 0.55), M > 0.13)) {
+            const v = M;
+            f += v;
+            const I = Math.min(s - 1, Math.floor(w / r)),
+              k = b * s + I;
+            (y[k] += v), (P[k] += (w / a) * v), (d[k] += (c / n) * v);
+          }
+        }
+        this.prevLuma[S] = C;
+      }
+    }
+    if (!this.hasPrevFrame) {
+      (this.hasPrevFrame = true), (this._webcamTrail = []);
+      return;
+    }
+    let m = 0,
+      g = 0,
+      T = 0;
+    for (let c = 0; c < l; c++)
+      for (let b = 0; b < s; b++) {
+        let w = 0,
+          S = 0,
+          _ = 0;
+        for (let C = -1; C <= 1; C++) {
+          const X = c + C;
+          if (!(X < 0 || X >= l))
+            for (let M = -1; M <= 1; M++) {
+              const v = b + M;
+              if (v < 0 || v >= s) continue;
+              const I = X * s + v;
+              (w += y[I]), (S += P[I]), (_ += d[I]);
+            }
+        }
+        w > m && ((m = w), (g = S), (T = _));
+      }
+    const u = f > 1e-3 ? m / f : 0;
+    if (m > 3.2 && u >= 0.45) {
+      const c = g / m,
+        b = T / m;
+      for (
+        this.smoothedCentroid.x = this.smoothedCentroid.x * 0.35 + c * 0.65,
+          this.smoothedCentroid.y = this.smoothedCentroid.y * 0.35 + b * 0.65,
+          (!this._webcamTrail || this._lastWebcamSource !== "flow") && (this._webcamTrail = []),
+          this._lastWebcamSource = "flow",
+          this._webcamTrail.push({ x: this.smoothedCentroid.x, y: this.smoothedCentroid.y, t: e });
+        this._webcamTrail.length > 5 || (this._webcamTrail.length > 2 && e - this._webcamTrail[0].t > 160);
+
+      )
+        this._webcamTrail.shift();
+      this.onTrack && this._diag({ kind: "frame", t: e, captureT: e, source: "flow", x: this.smoothedCentroid.x, y: this.smoothedCentroid.y });
+      this._argonEvaluateHandTrail(e, false);
+    } else
+      (this.motionVector.vx *= 0.72),
+        (this.motionVector.vy *= 0.72),
+        (this.motionVector.mag *= 0.72),
+        this._webcamTrail && this._webcamTrail.length > 0 && e - this._webcamTrail[this._webcamTrail.length - 1].t > 150 && (this._webcamTrail = []);
+  }
+  _argonEvaluateHandTrail(e, t) {
+    if (!this._webcamTrail || this._webcamTrail.length < 2) return;
+    const i = this._webcamTrail[0],
+      a = this._webcamTrail[this._webcamTrail.length - 1],
+      n = Math.max(0.025, (a.t - i.t) / 1e3),
+      h = a.x - i.x,
+      p = a.y - i.y,
+      f = Math.hypot(h, p);
+    let s = 0;
+    for (let m = 1; m < this._webcamTrail.length; m++) s += Math.hypot(this._webcamTrail[m].x - this._webcamTrail[m - 1].x, this._webcamTrail[m].y - this._webcamTrail[m - 1].y);
+    const l = s > 1e-3 ? f / s : 0,
+      r = t ? 0.065 : 0.1,
+      o = t ? 0.62 : 0.7,
+      y = t ? 0.62 : 0.85,
+      P = h / n,
+      d = p / n;
+    if (
+      ((this.motionVector.vx = P * 0.65),
+      (this.motionVector.vy = d * 0.65),
+      (this.motionVector.mag = l >= o ? Math.hypot(this.motionVector.vx, this.motionVector.vy) : 0),
+      f >= r && l >= o && this.motionVector.mag >= y && e - this.lastWebcamTriggerMs > 320)
+    ) {
+      (this.lastWebcamTriggerMs = e), (this._webcamTrail = [a]), (this.webcamMotionAt = e);
+      const m = Math.min(1.65, Math.max(0.85, 0.75 + this.motionVector.mag * 0.45)),
+        g = Math.max(-1, Math.min(1, this.motionVector.vx * 0.85)),
+        T = Math.max(-1, Math.min(1, this.motionVector.vy * 0.85));
+      let u = null;
+      if ((P > 0.15 ? (u = "backhand") : P < -0.15 && (u = "forehand"), (a.y < 0.35 && p < -0.045 && d < -0.45) || (d < -0.85 && Math.abs(d) > Math.abs(P) * 1.15))) {
+        this.onTrack && this._diag({ kind: "event", t: e, captureT: e, source: t ? "hands" : "flow", type: "toss", side: u, shotType: "lob", speed: m, dirX: g, dirY: -0.9, reason: "argon-tennis: mano che sale veloce" });
+        this._emitToss({ source: "webcam", side: u, shotType: "lob", speed: m, dirX: g, dirY: -0.9 });
+      } else {
+        let c = "topspin";
+        (d > 0.85 && m > 1.18) || m >= 1.46 ? (c = "smash") : d > 0.32 ? (c = "slice") : d < -0.58 && (c = "lob");
+        this.onTrack && this._diag({ kind: "event", t: e, captureT: e, source: t ? "hands" : "flow", type: "swing", side: u, shotType: c, speed: m, dirX: g, dirY: T, reason: "argon-tennis: scia veloce e dritta" });
+        this._emitSwing({ source: "webcam", side: u, shotType: c, speed: m, dirX: g, dirY: T });
+      }
+    }
   }
   _videoAspect() {
     const v = this.videoElem;
@@ -812,7 +986,8 @@ export class MotionController {
     return {
       active: !!this.webcamActive,
       // NATPF: con i colpi dal movimento la mano non si giudica (il modello non gira in partita): pausa solo per la camera
-      model: this.webcamMode !== "motion" && (!!this.mpHands || !!this._poseModelReady),
+      // (né con la webcam di argon-tennis: nello zip la partita non si ferma mai)
+      model: this.webcamMode === "hands" && (!!this.mpHands || !!this._poseModelReady),
       handAgeMs: seen == null || seen < from ? now - from : now - seen,
       frameAgeMs: this._frameMeta && Number.isFinite(this._frameMeta.at) ? now - this._frameMeta.at : null,
       state: this._handState || null,
@@ -839,6 +1014,7 @@ export class MotionController {
       e - this._wcFlushAt >= 1000 && (this._diag({ kind: "ritmo", ...this._wcStats.flush(e - this._wcFlushAt), worker: !!this.mpHands?.inWorker, livello: this._wcLevel().id }), (this._wcFlushAt = e));
     }
     this._wcStats && this._handStateTick(e);
+    if (this.webcamMode === "argon") return void this._argonFrame(e);
     // NATPF: l'inferenza la fanno partire i richiami dei fotogrammi (_watchFrames); qui solo se non arrivano (browser
     // senza il supporto, richiami fermi da 150 ms: thread molto occupato). Con i richiami visti almeno una volta anche
     // da qui in un compito a sé dopo il fotogramma; senza (browser che non li ha), subito come prima
