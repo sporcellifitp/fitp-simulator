@@ -2,6 +2,18 @@
 
 Aggiornato: 29/10/2026 · branch `natpf-simulator`.
 
+## Ultimissimo (29/10, mattina): corsa a rete a vuoto corretta, pacchetti 2026-10-28.7
+
+Diagnostica `20261029-090144-aimd` (1v1 sullo stesso schermo): chi gioca correva a rete a vuoto e perdeva il punto
+quando il Player 2 colpiva da dietro la sua riga di fondo (la traiettoria prevista finiva subito oltre 14,5 m). Corretto
+nel piano comune a tutte le modalità in singolo (commit `87c8075`), test `test/natpf-corsa-a-rete.test.mjs`, dettagli
+in `docs/WORK_PROGRESS.md` («Corsa a rete a vuoto»). Consegnati **LAN** (`89a73703…98e8f7c`) e **Cloudflare**
+(`4fd67368…48c6735f`) 2026-10-28.7, provati estratti. Gioco 460/460, sito 157/157.
+Push non fatto (solo con autorizzazione esplicita): `git log origin/natpf-simulator..` per l'elenco.
+Prossima azione: l'utente riprova il 1v1 sullo stesso schermo con il pacchetto .7; poi la webcam (vedi sotto).
+Telefono Xiaomi 15T Pro che non raggiunge il server LAN (lo S24 Ultra sì): indicazioni date (stessa rete, dati mobili e
+assistente Wi-Fi spenti, permesso di Chrome per la rete locale); in attesa del codice d'errore se non si risolve.
+
 ## Ultimo giro (29/10) — leggere per primo
 
 Webcam rifatta (richiesta: «webcam tutta da rifare»): i colpi vengono dal **movimento nell'immagine**

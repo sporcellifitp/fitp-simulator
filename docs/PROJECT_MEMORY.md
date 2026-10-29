@@ -127,6 +127,14 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 - 28/10/2026 — nuova memoria persistente (`CLAUDE.md`, `docs/PROJECT_MEMORY.md`, `docs/WORK_PROGRESS.md`,
   `docs/SESSION_HANDOFF.md`) e `scripts/ui-shots.mjs`.
 
+### Movimento di chi gioca (piano d'intercetto)
+
+- `natpf_impact.planPlayerIntercept` muove chi gioca in tutte le modalità in singolo (contro la CPU, 1v1, stesso
+  schermo, allenamento) e il Player 2; CPU e doppio usano `_predictBallIntercept`. La traiettoria prevista
+  (`predictBall`) si ferma oltre il fondo solo nel verso in cui va la palla: l'avversario può colpire da dietro la sua
+  riga (fino a 2,7 m oltre il punto d'impatto con i colpi in ritardo). Il piano non porta mai fuori dalla propria metà
+  (diagnostica del 29/10: corsa a rete a vuoto e punti persi). Test: `test/natpf-corsa-a-rete.test.mjs`.
+
 ### Webcam: colpi dal movimento (deciso il 28/10 notte, fatto il 29/10)
 
 - Il colpo con la webcam si riconosce **dal movimento nell'immagine** (`src/natpf/webcam_motion.js`: 96×72 in grigio,

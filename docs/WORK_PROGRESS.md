@@ -459,3 +459,38 @@ Sostituisce il 2026-10-28.5. Solo LAN, senza gli elementi dello zip dell'altro a
       voci, due QR, partita divisa, pagina del telefono, senza webcam il motivo «Nessuna webcam», nessun errore.
 - [ ] Non provato: Windows, webcam vera, partita intera con la webcam (tempi dei colpi), telefono vero.
 
+## Corsa a rete a vuoto: diagnostica 20261029-090144-aimd (1v1 sullo stesso schermo, build 2026-10-28.6)
+Segnalazione: «tra i due scambi il mio personaggio va a rete a vuoto»; da correggere in tutte le versioni e modalità.
+- Causa (registro e video): due punti persi con «Nice Shot!» (43,6 s e 62,0 s), entrambi dopo un colpo del Player 2
+  in ritardo da dietro la sua riga di fondo (palla colpita a 15,4 e 14,7 m dalla rete). `natpf_impact.predictBall` si
+  fermava appena |z| > 14,5 m, cioè al primo passo: traiettoria di un punto, nessun impatto raggiungibile, piano
+  «stretch» verso quel punto nell'altra metà, e la posizione (`stand`, limitata alla propria metà) finiva a 1,2 m dalla
+  rete. Chi gioca correva a rete e la palla gli passava dietro (colpo a vuoto «tardi»).
+- Correzione (`src/natpf/natpf_impact.js`): la traiettoria si ferma oltre 14,5 m solo nel verso in cui va la palla;
+  il piano non porta mai verso un punto fuori dalla propria metà (una palla che non arriva nella propria metà non
+  sposta chi gioca, piano annullato).
+- Modalità coperte: lo stesso piano (`planPlayerIntercept`) muove chi gioca contro la CPU, nel 1v1 in rete, sullo
+  stesso schermo, nell'allenamento e il Player 2 (1v1 e stesso schermo). La CPU e il doppio usano
+  `_predictBallIntercept` (dal punto di caduta), che non ha questo difetto.
+- Test: `test/natpf-corsa-a-rete.test.mjs` (4: le due palle del registro per chi gioca, la stessa per il Player 2,
+  240 palle profonde da 10,5–17 m a Casual, Pro, Leggenda e 1v1, palla che non arriva). Senza la correzione falliscono
+  tutti e 4. Gioco 460/460, sito 157/157. Banco Leggenda: 2 criteri KO, identici con e senza la correzione (già noti).
+- Nei pacchetti estratti (LAN in https, Cloudflare statico), nella pagina vera: sulla palla del registro piano «ground»,
+  impatto a 11,07 m e posizione a 11,42 m dalla rete, per chi gioca e per il Player 2 (prima 1,2 m).
+- Osservazione (non cambiata): sul pallonetto corto del P2 a 39,4 s il piano ha scelto la schiacciata al volo a 5,25 m
+  dalla rete (corsa in avanti voluta, punto più alto raggiungibile della zona della schiacciata).
+
+## Pacchetti 2026-10-28.7 (29/10): LAN e Cloudflare con la correzione della corsa a rete
+Contenuto: tutto il lavoro fino alla 2026-10-28.6 (webcam dal movimento compresa) più la correzione qui sopra; niente
+dello zip dell'altro agente.
+- [x] Versione 2026-10-28.7; gioco 460/460, sito 157/157, build.
+- [x] LAN Windows `natpf-simulator-lan-windows-20261028-7.zip`: 277 file, 61.095.132 byte, Node.js 22.22.0 verificato
+      (`bae898ad…`), nessun certificato né chiave, nessuna parola vietata. SHA256
+      `89a737039aca474205c14318fd0cc3449b8cf5fc026c2a4a2edf8f41b98e8f7c`.
+- [x] Cloudflare `natpf-simulator-cloudflare-20261028-7.zip` (`dist` + `_headers`): 137 file, 26.060.073 byte, file più
+      grande 6,1 MB, nessuna parola vietata. SHA256 `4fd6736856c7d98994d3127e5e93f355b3f22880ec52b51600f9716248c6735f`.
+- [x] Estratti e provati: LAN in https (certificato del pacchetto) e Cloudflare come sito statico: 47 voci, due QR,
+      partita divisa, pagina del telefono, palla da 15,4 m giocata da fondo campo; nessun errore (su Cloudflare i 404
+      attesi di un sito statico: `/api/match/state`, `/lan/status`).
+- [ ] Non provato: Windows, telefoni veri, Cloudflare Pages vero.
+
