@@ -912,3 +912,27 @@ webcam prevede un campo visivo più ampio, alla massima grandezza disponibile».
       `natpf-simulator-lan-windows-20261028-14.zip` (sha256 `19cf8443d6a2a33c808556ad35c9b32300015b9ba3e956b92f1eed901a255489`)
       e Cloudflare `natpf-simulator-cloudflare-20261028-14.zip` (sha256 `719debd6cee557ec4e540d7b6bbff05991e32a1e937ca4bd04eeeabfe7ab3be0`)
       estratti e provati come il .13; sul LAN anche la webcam per due con il video a due persone fino alla partita divisa.
+
+## Telefono che non si collega con la versione Cloudflare (29/10 notte) — commit della correzione e pacchetti .15
+Segnalazione: «Sfida un amico» con la versione Cloudflare; l'amico (Player 2 su un altro computer, Pixel) inquadra il QR
+e il telefono resta su «Connessione persa».
+- Prova completa qui (host, P2 con `net=p2p`, pagina del telefono del P2, pacchetto Cloudflare servito come sito
+  statico, segnalazione pubblica di PeerJS vera): il telefono del P2 si collega. Quindi niente di specifico del P2: il
+  telefono raggiunge il computer (altrimenti avrebbe detto «Partita non trovata») ma il canale diretto non si apre.
+- Causa nel codice (`site/js/tennis/link.js`): il computer chiudeva il collegamento in arrivo se il telefono non diceva
+  «hello» entro 6 s **dal primo contatto**, anche prima che il canale fosse aperto; il telefono rinunciava a 12 s. Con
+  le reti che non lasciano la strada diretta (Wi-Fi che isola i dispositivi o per ospiti, NAT dei dati mobili) il canale
+  passa da un server di inoltro (TURN) e ci mette di più: chiuso sempre a metà, «Connessione persa» all'infinito.
+- Correzioni: computer 6 s dall'apertura del canale (prima fino a 30 s); telefono fino a 30 s se la strada diretta si
+  sta aprendo (ICE «checking»); strade in più: STUN di Cloudflare e i TURN di PeerJS anche in TCP (reti senza UDP);
+  sul telefono il motivo (server non raggiunto / computer che non risponde / rete che blocca, con i rimedi: stessa rete
+  Wi-Fi non per ospiti, hotspot del telefono per il computer, versione LAN).
+- Test: `tools/test/phone-link-net` (strade, tempi del computer con i timer finti, motivi), `phone-reconnect`
+  (collegamento lento sul telefono). Prova nel browser rifatta: collegamento in 5–9 s con le strade nuove.
+- **Non verificato**: la rete dell'amico. Se la rete blocca anche i server di inoltro pubblici di PeerJS (gratuiti, non
+  garantiti), serve un server TURN nostro: Cloudflare ne ha uno (Realtime TURN) ma richiede un Worker con una chiave,
+  oggi il sito Cloudflare è solo statico.
+- [x] Pacchetti 2026-10-28.15: Cloudflare `natpf-simulator-cloudflare-20261028-15.zip` (sha256
+      `21ea32b6dc512b7aa28df45abcb6588d78d6268e30478dfe4a1304a2cc7c6251`; estratto: host → P2 `net=p2p` → telefono
+      del P2 collegato) e LAN Windows `natpf-simulator-lan-windows-20261028-15.zip` (sha256
+      `977d85b62459da6ea77012aa21e5a15af7e62a423099c1b1b7381f9fdd1800f2`; estratto: prova di sempre, nessun errore).

@@ -2,7 +2,16 @@
 
 Aggiornato: 29/10/2026 · branch `natpf-simulator`.
 
-## Ultimissimo (29/10, notte tarda): stesso schermo con una webcam per due; pacchetti 2026-10-28.14
+## Ultimissimo (29/10, notte): telefono che non si collega con la versione Cloudflare; pacchetti 2026-10-28.15
+
+Segnalazione: con la versione Cloudflare il telefono del P2 (Pixel) restava su «Connessione persa». Il computer chiudeva i
+collegamenti lenti (passati da un server di inoltro) prima che il canale si aprisse; corretto con tempi, strade di rete in
+più (STUN Cloudflare, TURN anche in TCP) e il motivo sul telefono. Dettagli in `docs/WORK_PROGRESS.md`. Pacchetti .15 provati estratti: Cloudflare (`21ea32b6…2cc7c6251`), LAN (`977d85b6…fdd1800f2`). Sito 164/164,
+gioco 525/525. Push fatto fino a `d504be3`; i commit dopo sono locali (push solo con autorizzazione).
+Da provare: il telefono dell'amico sulla sua rete; se non va ancora, leggere il motivo sul telefono e valutare un TURN
+nostro (Cloudflare Realtime TURN, serve un Worker con chiave).
+
+## Prima (29/10, notte tarda): stesso schermo con una webcam per due; pacchetti 2026-10-28.14
 
 Richiesta: schermo condiviso con una sola webcam per due giocatori, campo visivo al massimo. Fatto nel commit `98f1f7b`
 (dettagli e verifiche in `docs/WORK_PROGRESS.md`, «Stesso schermo con una webcam per due»): `webcam_duo.js` (due corsie,
