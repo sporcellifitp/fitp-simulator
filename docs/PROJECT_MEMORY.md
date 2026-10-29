@@ -142,6 +142,9 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 
 ## Storico modifiche significative
 
+- 29/10/2026 notte — stesso schermo con una webcam per due (`webcam_duo.js`, `98f1f7b`): P1 a sinistra e P2 a destra
+  nell'immagine specchiata; stesse regole del colpo della webcam per uno (`argonTrailEvent`, `argonFlowBlob`, non
+  duplicarle); camera al formato più largo fino a 1920×1080 preferendo almeno 24 fps.
 - 29/10/2026 notte — iPhone: Safari dà l'accelerazione (con e senza gravità) con il segno opposto ad Android; la pagina
   del telefono la riporta al segno di Android (`motion-sign.js`, segno dal sistema confermato dai tocchi) prima di
   tutto il riconoscimento. Non togliere: senza, su iPhone dritto e rovescio si invertono (`8e6cfcb`). Menu «Batte per

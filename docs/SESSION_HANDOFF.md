@@ -2,7 +2,18 @@
 
 Aggiornato: 29/10/2026 · branch `natpf-simulator`.
 
-## Ultimissimo (29/10, notte): diagnostica 191023 (iPhone), chi batte, colpo super ed energia; pacchetti 2026-10-28.13
+## Ultimissimo (29/10, notte tarda): stesso schermo con una webcam per due; pacchetti 2026-10-28.14
+
+Richiesta: schermo condiviso con una sola webcam per due giocatori, campo visivo al massimo. Fatto nel commit `98f1f7b`
+(dettagli e verifiche in `docs/WORK_PROGRESS.md`, «Stesso schermo con una webcam per due»): `webcam_duo.js` (due corsie,
+P1 a sinistra e P2 a destra), camera al formato più largo fino a 1920×1080 con almeno 24 fps quando possibile, pagina
+«Collega» con «Due telefoni / Una webcam per due». Gioco 525/525, sito 160/160. Pacchetti .14 provati estratti: LAN (`19cf8443…01a255489`) e Cloudflare (`719debd6…fe7ab3be0`).
+Push non fatto (solo con autorizzazione esplicita).
+Da provare con la webcam vera: frequenza e carico con 4 mani, due giocatori a 2–3 m.
+Prossima azione: l'utente prova lo stesso schermo con la webcam per due (diagnostica accesa: `webcam.frame` con `chosen`
+p1/p2, `webcam.evento`, `webcam.camera` «per due»).
+
+## Prima (29/10, notte): diagnostica 191023 (iPhone), chi batte, colpo super ed energia; pacchetti 2026-10-28.13
 
 Stesso schermo con Android (P1) e iPhone (P2). Fatto, con test (dettagli in `docs/WORK_PROGRESS.md`, «Diagnostica
 20261029-191023»): `8e6cfcb` iPhone con dritto e rovescio invertiti → accelerazione dei sensori riportata al segno di

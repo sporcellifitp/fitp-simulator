@@ -880,3 +880,35 @@ Segnalazioni: (1) iPhone con dritto e rovescio invertiti; (2) iPhone «con il pe
 - [x] LAN Windows `natpf-simulator-lan-windows-20261028-13.zip` (sha256 `5ffdf48b04ae2925e6e3e9cad60619b3add358f09b591b73a6e99ad24377f71c`)
       e Cloudflare `natpf-simulator-cloudflare-20261028-13.zip` (sha256 `94699280e2ea566128365b45d9574002308488ea99291d6a12643e619c3cfe76`)
       estratti e provati come il .12; pagina del telefono aperta come iPhone (segno −1, nessun errore) su entrambi.
+
+## Stesso schermo con una webcam per due (richiesta del 29/10 notte) — commit `98f1f7b`
+Richiesta: «una modalità webcam che funzioni per due persone contemporaneamente: schermo condiviso con una webcam; se la
+webcam prevede un campo visivo più ampio, alla massima grandezza disponibile».
+- [x] `src/natpf/webcam_duo.js`: due corsie (P1 a sinistra, P2 a destra nell'immagine specchiata, come sullo schermo e
+      come le metà dello schermo diviso), ognuna con la webcam per uno (scia dello zip argon-tennis, buco breve
+      attraversato, scala con la distanza, flusso ottico per metà della griglia). Aggancio: la mano più grande nella propria
+      metà, poi la stessa mano anche oltre il centro (il dritto di chi sta a sinistra lo attraversa); le corsie non si
+      scambiano mai le mani. Colpi: P1 come la webcam per uno, P2 come i colpi del Player 2 (colpo assistito del 1v1).
+- [x] Regole del colpo estratte in `webcam_argon_track.argonTrailEvent` e `argonFlowBlob`: le usano entrambe le webcam
+      (riproduzione dei tre video della webcam per uno identica a prima del cambio).
+- [x] Camera per due: il formato più largo che la camera dà (`getCapabilities`), fino a 1920×1080, zoom al minimo; tra le
+      risoluzioni dello stesso campo visivo prima quella con almeno 24 fotogrammi al secondo (1080p, poi 1280 di larghezza),
+      poi senza vincolo. Modello delle mani con fino a 4 mani. Spegnendo la modalità la camera torna a 640×480.
+- [x] Pagina «Collega» dello stesso schermo: «Si gioca con: Due telefoni / Una webcam per due» (ricordato), anteprima
+      specchiata nel formato vero della camera con la linea di mezzo e le etichette, stato per giocatore («Alza la mano che
+      colpisce» → «Mano vista ✓»); pronti (e si passa da soli alla pagina «Partita») quando la webcam ha visto le mani di
+      tutti e due; in partita niente pausa per il telefono del P2. Passo del menu ora «Racchette».
+- Verifiche: `natpf-webcam-duo` (8 prove: aggancio, centro attraversato, mani che non si scambiano, buco breve, una sola
+  persona, flusso per metà, camera, controller vero), `natpf-split` (dal menu alla partita con la webcam per due);
+  riproduzione sul video reale della 145416 (due persone a 2–3 m, 15 inferenze/s): 16 colpi separati per giocatore;
+  Chromium con il video come camera: pagina, mani viste, passaggio alla «Partita», partita divisa; camera finta di
+  Chromium (fino a 3840×2160): scelto 1920×1080.
+- **Da provare con la webcam vera**: frequenza ottenuta a 1080p o 720p, carico del modello con 4 mani (sull'E14 una mano
+  in più costa un'inferenza in più), distanza e posizione dei due giocatori. Qui (senza scheda grafica, 1,5 s a
+  inferenza) in partita scatta la pausa «la webcam non manda immagini»: è l'ambiente, non il codice.
+- Limite (come la webcam per uno dello zip): dritto e rovescio dal verso del movimento, senza la mano: per i mancini sono
+  invertiti.
+- [x] Pacchetti 2026-10-28.14 (gioco 525/525, sito 160/160, build ok): LAN Windows
+      `natpf-simulator-lan-windows-20261028-14.zip` (sha256 `19cf8443d6a2a33c808556ad35c9b32300015b9ba3e956b92f1eed901a255489`)
+      e Cloudflare `natpf-simulator-cloudflare-20261028-14.zip` (sha256 `719debd6cee557ec4e540d7b6bbff05991e32a1e937ca4bd04eeeabfe7ab3be0`)
+      estratti e provati come il .13; sul LAN anche la webcam per due con il video a due persone fino alla partita divisa.
