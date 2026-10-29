@@ -23,6 +23,10 @@ Poi T2 tutorial (vedi `docs/WORK_PROGRESS.md`).
 
 - Gioco su Higgsfield: sito *game* `supertennis-arena` (id `99c4516a-0d2b-4aa6-8f10-6cfcd9dc7a88`); il repository
   del sito vive su Higgsfield, la fonte di verità del codice è `esports-tennis/` qui (vedi il suo README).
+- Online dal 29/10/2026 l'aggiornamento «parità col video» (commit 7129e48 + bb72d6b, repo Higgsfield f3b93ff);
+  verificato: file pubblicati identici a quelli locali, partita automatica senza errori in Chromium. Il primo deploy
+  è fallito per un 401 di Cloudflare lato Higgsfield; il secondo è riuscito.
 - Problemi aperti: logo SuperTennis ricreato (serve il file ufficiale); prestazioni e comandi mai provati su
-  telefono reale; online provato solo con server locale e due browser automatici.
-- Prossima azione: feedback dell'utente sulla partita dal telefono (inquadratura, difficoltà, sensibilità del gesto).
+  telefono reale; movimenti ancora procedurali.
+- Prossima azione: quando arrivano i file FBX di Mixamo, conversione offline FBX → clip JSON sul rig Tripo
+  (piano in `docs/WORK_PROGRESS.md`, terza richiesta).

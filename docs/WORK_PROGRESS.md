@@ -89,5 +89,7 @@ di tennis per mobile. Branch di sessione: `claude/higgsfield-connector-modify-gp
   piedi, lampo all'impatto, scritte di qualità, ovale dove cade la palla, barre dell'energia.
 - [x] Implementati tutti i punti sopra (`camera.js`, `swipefx.js`, `fx.js`, `ui.js`, `match.js`), più il ritorno
       camminando in posizione tra un punto e l'altro.
+- [x] Pubblicato il 29/10/2026 (file live identici ai locali; partita automatica in Chromium senza errori).
+      Test: `npm test` 12/12. Non provato su telefono reale.
 - [ ] Animazioni da motion capture (Mixamo): in attesa dei file FBX dall'utente; la libreria animazioni di
       Higgsfield non ha colpi da tennis. Piano: conversione offline FBX → clip JSON retargettate sul rig Tripo.
