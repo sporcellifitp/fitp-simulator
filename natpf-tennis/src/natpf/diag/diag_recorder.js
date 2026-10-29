@@ -248,6 +248,8 @@ export class DiagRecorder {
         // debole o fallito («in corsa», «in allungo», «palla veloce», «senza preparazione», «scambio lungo»)
         debole: !!O.weak, pressione: r(L.pressure, 3), causa: L.cause || null,
         x: r(out.E), z: r(out.N), volee: !!L.volley, lato: L.contact ?? null, voto: O.grade || null,
+        // colpo super potente: la palla che lo ha permesso (alta, lenta, corta, schiacciata), o perché no (gesti forti)
+        super: L.super || null, ...(!L.super && I.power >= .8 && Array.isArray(L.superWhy) ? { superNo: L.superWhy[0] } : {}),
         // direzione calcolata: mira (−1…+1 tra le righe, 0 il punto neutro), punto neutro e posizione della palla
         // all'impatto (riferimento di chi colpisce), assistenza (0…1); traiettoria: volo (s), altezza sulla rete, effetto
         mira: r(O.aim, 3), neutro: r(O.x0), palla: r(L.hitX), aiuto: r(O.assist, 2), volo: r(L.flight, 3), rete_m: r(O.clear, 2), effetto: r(O.topspin, 1) });

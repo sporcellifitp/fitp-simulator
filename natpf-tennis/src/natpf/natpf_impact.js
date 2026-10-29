@@ -13,7 +13,7 @@
 //     quando una palla corta ha portato lì e non c'è il tempo di tornare. Avanti si va per prendere una palla che lo
 //     chiede (corta, o al volo quando aspettare il rimbalzo costerebbe troppa strada). Prima chi colpiva da dentro il
 //     campo andava e restava a rete (56–89% dei colpi nelle partite simulate), anche senza che la palla lo chiedesse.
-import { bounceSpin, eventLatency, holdSwingPrep, COURT } from './natpf_skill.js';
+import { bounceSpin, eventLatency, holdSwingPrep, COURT, moveFactor } from './natpf_skill.js';
 import { IMPACT, impactWindow, lateSpanOf } from './natpf_stroke_outcome.js';
 import { skillLevel } from './natpf_skill.js';
 
@@ -122,7 +122,8 @@ export function apexContactOn(engine){
 
 export function planPlayerIntercept(engine, actor){
   const b = engine.ball; if (!b || !actor) return null;
-  const path = predictBall(b), speed = Math.max(4, finite(actor.maxSpeed, 9)), key = planKey(engine, actor), apexOn = apexContactOn(engine), back = apexOn ? PLAN.apexBack : PLAN.maxBack;
+  // velocità di corsa con la stanchezza e la palla super potente in arrivo (natpf_skill.moveFactor), come nel movimento
+  const path = predictBall(b), speed = Math.max(4, finite(actor.maxSpeed, 9)*moveFactor(engine, actor)), key = planKey(engine, actor), apexOn = apexContactOn(engine), back = apexOn ? PLAN.apexBack : PLAN.maxBack;
   const half = Math.sign(actor.pos.z) || 1, Z = z => z*half;
   // lato del dritto in x: la destra di chi guarda verso −z (qui) è +x, di chi guarda verso +z (Player 2) è −x
   const fh = (handOf(engine, actor) === 'left' ? -1 : 1)*half;

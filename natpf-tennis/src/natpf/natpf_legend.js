@@ -145,8 +145,9 @@ export function legendDecide(e, actor, rng = legendRng(e)){
   const lat = Math.abs(b.pos.x - actor.pos.x), running = actor.vel.length()/Math.max(1, actor.maxSpeed);
   const pace = clamp((b.vel.length()*3.6 - 55)/55);
   const tq = NS.swingQuality(NS.gauss(rng)*L.timingSd*(1 + .8*pace), lv);
-  // pressione degli scambi lunghi, uguale a quella di chi gioca (natpf_stroke_outcome.rallyPressure)
-  const q = clamp(tq*NS.reachQuality(lat, running)*rallyPressure(b.rallyStrokeCount, 10), .3, 1);
+  // pressione degli scambi lunghi, uguale a quella di chi gioca (natpf_stroke_outcome.rallyPressure); il colpo super
+  // potente di chi gioca (natpf_stroke_outcome.superShot) mette in difficoltà anche la Leggenda (b.natpfSuper.legendQ)
+  const q = clamp(tq*NS.reachQuality(lat, running)*rallyPressure(b.rallyStrokeCount, 10)*finite(b.natpfSuper?.legendQ, 1), .3, 1);
   const R = (a, z) => a + rng()*(z - a), hx = h.pos.x, hz = h.pos.z, hv = h.vel.x;
   const away = -(Math.sign(hx) || -s);                    // angolo lontano dall'avversario
   const cands = [

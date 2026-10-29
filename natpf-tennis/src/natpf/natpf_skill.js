@@ -302,20 +302,21 @@ export function planCpuRun(engine, { rng = Math.random } = {}){
   if (lv.cpuLegend){
     // Leggenda: split-step all'impatto dell'avversario (ferma per il tempo di reazione, 0,15 ± 0,03 s), poi verso il
     // punto d'incontro con un errore di lettura che si azzera mentre la palla vola (in cpuReadFix secondi)
-    const truth = cpu.targetPos.clone(), speed = finite(engine.ball?.vel?.length?.(), 24), now = finite(engine.elapsedTime);
-    const react = clamp(lv.cpuReact + gauss(rng)*(lv.cpuReactSd || 0), .1, .25);
-    const err = gauss(rng)*lv.cpuReadSd*(.6 + .4*clamp((speed - 18)/14));
+    const truth = cpu.targetPos.clone(), speed = finite(engine.ball?.vel?.length?.(), 24), now = finite(engine.elapsedTime), sup = engine.ball?.natpfSuper;
+    const react = clamp(lv.cpuReact + gauss(rng)*(lv.cpuReactSd || 0), .1, .25) + (sup ? finite(sup.react) : 0);
+    const err = gauss(rng)*lv.cpuReadSd*(.6 + .4*clamp((speed - 18)/14))*(sup ? finite(sup.misread, 1) : 1);
     s.cpuPlan = { legend: true, hold: cpu.pos.clone(), truth, err, readAt: now + react, fixDur: lv.cpuReadFix };
     cpu.targetPos.copy(s.cpuPlan.hold);
     return s.cpuPlan;
   }
-  const truth = cpu.targetPos.clone(), speed = finite(engine.ball?.vel?.length?.(), 24);
+  const truth = cpu.targetPos.clone(), speed = finite(engine.ball?.vel?.length?.(), 24), sup = engine.ball?.natpfSuper;
   const angle = clamp(Math.abs(finite(engine.ball?.targetLanding?.x))/COURT.SINGLES_X);
-  // la CPU legge male le palle veloci e angolate e, all'inizio, si aspetta la palla più al centro
-  const misread = gauss(rng)*lv.cpuReadSd*(.5 + .5*clamp((speed - 18)/14))*(1 + angle)*(1 + .25*s.pressure);
+  // la CPU legge male le palle veloci e angolate e, all'inizio, si aspetta la palla più al centro; il colpo super
+  // potente lo legge ancora peggio e in ritardo (sup.react, sup.misread)
+  const misread = gauss(rng)*lv.cpuReadSd*(.5 + .5*clamp((speed - 18)/14))*(1 + angle)*(1 + .25*s.pressure)*(sup ? finite(sup.misread, 1) : 1);
   const read = truth.clone(); read.x = read.x*(1 - (lv.cpuCenterBias || 0)*angle) + misread;
-  const now = finite(engine.elapsedTime);
-  s.cpuPlan = { hold: cpu.pos.clone(), read, truth, readAt: now + lv.cpuReact*(1 + .15*s.pressure), fixAt: now + lv.cpuReact + lv.cpuReadFix };
+  const now = finite(engine.elapsedTime), late = sup ? finite(sup.react) : 0;
+  s.cpuPlan = { hold: cpu.pos.clone(), read, truth, readAt: now + lv.cpuReact*(1 + .15*s.pressure) + late, fixAt: now + lv.cpuReact + lv.cpuReadFix + late };
   cpu.targetPos.copy(s.cpuPlan.hold);
   return s.cpuPlan;
 }
@@ -341,6 +342,43 @@ export const cpuReach = (engine, base) => { const lv = skillLevel(engine.matchCo
 // (nel banco 0% di vincenti a Pro anche con la palla a 4–6 m da lei): spostarla non costava niente. Ora una CPU ferma,
 // o che corre dalla parte sbagliata, ha bisogno di tempo per arrivare dall'altra parte. Fisica, non caso.
 // true se ha mosso lei la CPU (altrimenti il motore la muove come prima)
+// Stanchezza di chi gioca (richiesta del 29/10: «dopo tanti movimenti da destra e sinistra il personaggio si stanchi,
+// ma non troppo»). Solo i personaggi mossi da chi gioca (P1, e il P2 del 1v1 e dello stesso schermo), non la CPU (le sue
+// prove di bilanciamento restano quelle). Ogni metro di corsa laterale (lungo x) durante il punto aggiunge perMeter
+// alla stanchezza (0…1), il cambio di verso di corsa ne aggiunge turn; ferma (sotto restSpeed) si recupera restRecover
+// al secondo, tra un punto e l'altro pointRecover al secondo. Effetto: velocità massima fino a −maxSlow (10%): uno
+// scambio lungo da una riga all'altra (una decina di colpi, 35–40 m di corsa laterale) toglie il 5–6%, qualche scambio
+// così di fila arriva al 10%, e torna giù nelle pause.
+export const FATIGUE = Object.freeze({ perMeter: .012, turn: .015, turnSpeed: 2, restSpeed: 1.2, restRecover: .03, pointRecover: .12, maxSlow: .1 });
+const fatigueOf = (engine, actor) => {
+  const F = engine.natpfFatigue || (engine.natpfFatigue = new Map());
+  let f = F.get(actor); if (!f) F.set(actor, f = { level: 0, dir: 0 });
+  return f;
+};
+// livello di stanchezza (0…1) di un personaggio
+export const fatigueLevel = (engine, actor) => (engine.natpfFatigue?.get(actor)?.level ?? 0);
+// a ogni passo del movimento di un personaggio di chi gioca: vx velocità laterale (m/s), dt (s)
+export function fatigueStep(engine, actor, { vx = 0, speed = 0, dt = 0, inPoint = true } = {}){
+  if (!actor || !(dt > 0)) return 0;
+  const f = fatigueOf(engine, actor), F = FATIGUE;
+  if (inPoint){
+    f.level += F.perMeter*Math.abs(vx)*dt;
+    const dir = Math.abs(vx) > F.turnSpeed ? Math.sign(vx) : 0;
+    if (dir && f.dir && dir !== f.dir) f.level += F.turn;
+    if (dir) f.dir = dir;
+    if (speed < F.restSpeed) f.level -= F.restRecover*dt;
+  } else { f.level -= F.pointRecover*dt; f.dir = 0; }
+  f.level = clamp(f.level, 0, 1);
+  return f.level;
+}
+// Fattore della velocità di corsa (≤ 1): stanchezza, e palla super potente in arrivo (natpf_stroke_outcome.superShot:
+// chi la riceve la legge in ritardo, ball.natpfSuper.reach). mine: palla colpita da questo lato (non in arrivo)
+export function moveFactor(engine, actor){
+  const b = engine.ball, sup = b?.natpfSuper;
+  const incoming = !!sup && !!b.inPlay && !!actor && Math.sign(finite(actor.pos?.z, 1)) === Math.sign(finite(b.vel?.z));   // va verso di lui
+  return (1 - FATIGUE.maxSlow*fatigueLevel(engine, actor))*(incoming ? clamp(finite(sup.reach, 1), .5, 1) : 1);
+}
+
 export function cpuStep(engine, actor, dt){
   if (actor !== engine.opponent || engine.isMultiplayer || !(dt > 0)) return false;
   const lv = skillLevel(engine.matchConfig?.difficulty);

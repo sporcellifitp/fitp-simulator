@@ -2012,7 +2012,8 @@ export class NatpfTennisEngine {
     const B = this.ball.pos.clone();
     (B.y = Math.max(0.78, Math.min(racketShot && racketShot.T === "FLAT" && d ? 3.1 : 1.92, B.y))), // NATPF: la schiacciata parte da dove si colpisce
       this.ball.pos.copy(B),
-      this._launchBallToTarget(B, new o.Vector3(E, 0, N), I, { topspin: C, sidespin: V, allowNetFault: O, ...(racketShot?.out?.shot === "SMASH" ? { minFlight: NO.OUTCOME.smashFlight } : {}) }),
+      this._launchBallToTarget(B, new o.Vector3(E, 0, N), I, { topspin: C, sidespin: V, allowNetFault: O, ...(racketShot?.out?.shot === "SMASH" ? { minFlight: NO.OUTCOME.smashFlight / (racketShot.super ? NO.SUPER.smashUp : 1) } : {}), ...(racketShot?.super ? { netClear: NO.SUPER.netGap } : {}) }),
+      (this.ball.natpfSuper = racketShot?.super || null),
       // NATPF varietà: il lancio non considera l'aria e ogni colpo cadeva circa 2 m prima del bersaglio (palle «in fondo»
       // a metà campo, errori «lunghi» che restavano dentro): la velocità si corregge perché la palla cada alla profondità voluta
       O || NS.fixAir(this.ball, { from: B, to: { x: E, z: N }, topspin: C, sidespin: V, gravity: L.GRAVITY, drag: L.AIR_DRAG }),
@@ -2036,13 +2037,15 @@ export class NatpfTennisEngine {
           speed: this.ball.vel.length(),
         }),
       this.facialFX && this.facialFX.setExpression(p, M ? "effort_shout" : "focused_squint", 0.55),
-      M && ((this.cameraTrauma = d ? 0.42 : 0.26), this._spawnStarBurst(B, d ? 18 : 11)), // NATPF: la schiacciata si sente di più
+      M && ((this.cameraTrauma = racketShot?.super ? 0.55 : d ? 0.42 : 0.26), this._spawnStarBurst(B, racketShot?.super ? 26 : d ? 18 : 11)), // NATPF: la schiacciata e il colpo super si sentono di più
       this.audioEngine &&
         (this.audioEngine.playRacketHit(
-          T === "FLAT" || d ? "smash" : T.toLowerCase(),
-          u === "PERFECT" ? "perfect" : "good",
+          T === "FLAT" || d || racketShot?.super ? "smash" : T.toLowerCase(),
+          u === "PERFECT" || racketShot?.super ? "perfect" : "good",
         ),
-        p.swingType === "smash" && !this.autoPlayMode && this.audioEngine.playVoiceCallout("smash"));
+        p.swingType === "smash" && !this.autoPlayMode && this.audioEngine.playVoiceCallout("smash"),
+        // NATPF: colpo super potente: sforzo e il pubblico che trattiene il fiato
+        racketShot?.super && !this.autoPlayMode && (this.audioEngine.playerVoice?.("effort"), this.audioEngine.playCrowdReaction?.("ooh")));
     const F = Math.round(this.ball.vel.length() * 6.8),
       H = d ? "SMASH" : m ? "BACKHAND" : "FOREHAND",
       // NATPF: i colpi speciali si vedono sempre per nome (prima «anticipo/ritardo» copriva pallonetto e palla corta)
@@ -2050,7 +2053,9 @@ export class NatpfTennisEngine {
       // NATPF: con la racchetta virtuale incrociato e lungolinea dalla caduta vera (la direzione segue il ritmo di chi
       // gioca, non solo il voto del tempo)
       natpfDir = racketShot && racketShot.out ? Math.sign(racketShot.contact || 1) * racketShot.out.x : null,
-      X = l
+      X = racketShot?.super
+        ? "SUPER SHOT"
+        : l
         ? "NET VOLLEY"
         : _
           ? "DEFENSIVE"
@@ -2120,8 +2125,12 @@ export class NatpfTennisEngine {
     const shortBall = b.bounceCountOnCurrentSide > 0 && b.rallyStrokeCount > 1 && Math.abs(b.targetLanding.z) <= 6.4 && Math.abs(b.pos.z) <= 7;
     // ritmo di chi colpisce (natpf_stroke_outcome.createRhythm): la direzione si misura attorno al suo tempo abituale
     const rhythms = (this.natpfRhythm ||= { player: NO.createRhythm(), p2: NO.createRhythm() }), rhythm = rhythms[toward === 1 ? "p2" : "player"];
-    const out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, contact, hitX, quality, pressure, rhythm: rhythm.value, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, shortBall, level: lv });
+    let out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, contact, hitX, quality, pressure, rhythm: rhythm.value, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, shortBall, level: lv });
     rhythm.add(out.t);
+    // NATPF: colpo super potente (natpf_stroke_outcome.superShot): gesto fortissimo, naturale, a tempo, su una palla alta,
+    // lenta o corta → in fondo, più piatto e molto più veloce; l'avversario lo legge in ritardo (ball.natpfSuper)
+    const sup = NO.superShot({ intent, out, contact, ballSide: dx, contactY: b.pos.y, ballVz: b.vel.z, shortBall });
+    if (sup.on) out = { ...out, depth: Math.max(out.depth, NO.SUPER.minDepth), clear: S.NET_HEIGHT_CENTER + NO.SUPER.netGap, topspin: out.shot === "SMASH" ? out.topspin : NO.SUPER.topspin };
     // colpo fallito o debole: la causa che pesa di più, per il messaggio del colpo e la diagnostica
     const cause = out.failed ? (out.pressured ? "scambio lungo" : [["reach", running > 0.5 ? "in corsa" : "palla lontana"], ["prep", "senza preparazione"], ["stretch", "in allungo"], ["pace", "palla veloce"]].reduce((a, k) => (Q[k[0]] < Q[a[0]] ? k : a))[1]) : null;
     const R = p.pos.x >= 0 ? 1 : -1, N = toward * out.depth, X = out.x * mirror, engineShot = out.shot === "DROP" ? "SLICE" : out.shot === "SMASH" ? "FLAT" : out.shot;
@@ -2130,7 +2139,7 @@ export class NatpfTennisEngine {
     let I;
     if (out.shot === "LOB") I = out.flight;
     // NATPF: schiacciata a velocità piena (OUTCOME.smashSpeed): dal punto d'impatto al punto di caduta, più lenta se fallita
-    else if (out.shot === "SMASH") I = Math.max(NO.OUTCOME.smashFlight, (Math.abs(b.pos.z) + out.depth) / NO.OUTCOME.smashSpeed) * (out.failed || out.weak ? 1.5 : 1);
+    else if (out.shot === "SMASH") I = Math.max(NO.OUTCOME.smashFlight / (sup.on ? NO.SUPER.smashUp : 1), (Math.abs(b.pos.z) + out.depth) / (NO.OUTCOME.smashSpeed * (sup.on ? NO.SUPER.smashUp : 1))) * (out.failed || out.weak ? 1.5 : 1);
     else if (out.shot === "DROP") I = Math.max(1.32, (Math.abs(b.pos.z) + out.depth) / 10);
     else {
       // forza → tempo di volo base (come prima), più veloce con lo scambio e con i perfetti consecutivi; poi abbastanza
@@ -2138,15 +2147,17 @@ export class NatpfTennisEngine {
       // il ritmo cresce un poco con lo scambio, come prima (fino a −16% del tempo di volo all'ottavo colpo)
       const K = Math.max(0.84, 1 - Math.min(8, b.rallyStrokeCount) * 0.015),
         base = out.shot === "SMASH" ? out.flight : Math.max(0.58, 0.84 / Math.min(1.2, (0.8 + intent.power * 0.85) * 0.94)) * K;
-      I = NO.outcomeFlight({ ...out, flight: null }, { fromY, fromZ: b.pos.z, toZ: N, flight: NS.mistimeFlight(NS.streakFlight(base, toward === 1 ? st.p2Streak : st.streak, lv), out.q) });
+      I = NO.outcomeFlight({ ...out, flight: null }, { fromY, fromZ: b.pos.z, toZ: N, flight: NS.mistimeFlight(NS.streakFlight(base, toward === 1 ? st.p2Streak : st.streak, lv), out.q) / (sup.on ? NO.SUPER.speedUp : 1) });
     }
     // seq: numero del colpo del telefono (diagnostica); at: istante del motore, per riconoscere un esito nuovo
-    this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, hitX: +hitX.toFixed(3), quality: +(quality * pressure).toFixed(3), pressure: +pressure.toFixed(3), cause, volley, flight: +I.toFixed(3), seq: (e.natpf && e.natpf.seq) ?? null, at: this.elapsedTime };
+    this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, hitX: +hitX.toFixed(3), quality: +(quality * pressure).toFixed(3), pressure: +pressure.toFixed(3), cause, volley, flight: +I.toFixed(3), seq: (e.natpf && e.natpf.seq) ?? null, at: this.elapsedTime, super: sup.on ? sup.ball : null, superWhy: sup.why };
     return {
       E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 * mirror : 0, O: out.netFault, T: engineShot,
       drop: out.shot === "DROP", u: out.grade, w: out.cursor, q: out.q, power: intent.power, out, contact,
-      // colpo potente (stelle, scossa della camera): anche ogni schiacciata riuscita
-      M: (out.shot === "SMASH" && !out.failed && !out.weak) || (out.shot !== "DROP" && out.shot !== "LOB" && out.q >= 0.9 && intent.power >= 0.7 && Math.abs(out.t) <= 0.35),
+      // colpo potente (stelle, scossa della camera): anche ogni schiacciata riuscita e ogni colpo super potente
+      M: sup.on || (out.shot === "SMASH" && !out.failed && !out.weak) || (out.shot !== "DROP" && out.shot !== "LOB" && out.q >= 0.9 && intent.power >= 0.7 && Math.abs(out.t) <= 0.35),
+      // per chi riceve: legge la palla in ritardo (CPU) e corre più piano verso di lei (chi gioca con il telefono)
+      super: sup.on ? { ball: sup.ball, react: NO.SUPER.react, misread: NO.SUPER.misread, legendQ: NO.SUPER.legendQ, reach: NO.SUPER.reach } : null,
       defensive: out.excess > 0.6,
     };
   }
@@ -2316,7 +2327,8 @@ export class NatpfTennisEngine {
     const k = this.ball.pos.clone();
     (k.y = Math.max(0.78, Math.min(1.92, k.y))),
       this.ball.pos.copy(k),
-      this._launchBallToTarget(k, new o.Vector3(T, 0, M), R, { topspin: v, sidespin: E, allowNetFault: natpfP2Net, ...(p2Racket?.out?.shot === "SMASH" ? { minFlight: NO.OUTCOME.smashFlight } : {}) }),
+      this._launchBallToTarget(k, new o.Vector3(T, 0, M), R, { topspin: v, sidespin: E, allowNetFault: natpfP2Net, ...(p2Racket?.out?.shot === "SMASH" ? { minFlight: NO.OUTCOME.smashFlight / (p2Racket.super ? NO.SUPER.smashUp : 1) } : {}), ...(p2Racket?.super ? { netClear: NO.SUPER.netGap } : {}) }),
+      (this.ball.natpfSuper = p2Racket?.super || null),
       natpfP2Net || NS.fixAir(this.ball, { from: k, to: { x: T, z: M }, topspin: v, sidespin: E, gravity: L.GRAVITY, drag: L.AIR_DRAG }), // NATPF varietà: la palla cade alla profondità voluta, come per il P1
       // NATPF: palla corta e pallonetto veri del P2, compensati per l'attrito dell'aria come quelli del P1
       (this.ball.inPlay = !0),
@@ -2339,7 +2351,8 @@ export class NatpfTennisEngine {
           speed: this.ball.vel.length(),
         }),
       this.facialFX && this.facialFX.setExpression(l, w ? "effort_shout" : "focused_squint", 0.55),
-      w && ((this.cameraTrauma = 0.24), this._spawnStarBurst(k, 10)),
+      (w || p2Racket?.super) && ((this.cameraTrauma = p2Racket?.super ? 0.5 : 0.24), this._spawnStarBurst(k, p2Racket?.super ? 24 : 10)),
+      p2Racket?.super && this.audioEngine && (this.audioEngine.playerVoice?.("effort"), this.audioEngine.playCrowdReaction?.("ooh")),
       this.audioEngine &&
         this.audioEngine.playRacketHit(
           m === "FLAT" || d ? "smash" : m.toLowerCase(),
@@ -2348,7 +2361,9 @@ export class NatpfTennisEngine {
     const O = Math.round(this.ball.vel.length() * 6.8),
       // NATPF: i colpi speciali del P2 si vedono per nome, come quelli del P1
       natpfP2Special = natpfSwing || natpfDrop ? (d ? "SMASH" : natpfDrop ? "DROP SHOT" : m === "LOB" ? "LOB" : m === "SLICE" ? "SLICE" : null) : null,
-      N = r
+      N = p2Racket?.super
+        ? "SUPER SHOT"
+        : r
         ? "NET VOLLEY"
         : natpfP2Special
           ? natpfP2Special
@@ -2501,7 +2516,9 @@ export class NatpfTennisEngine {
     this.isMultiplayer && !this.isDoubles && e === this.opponent ? NI.planPlayerIntercept(this, e) : this._predictBallIntercept(e);
   }
   // NATPF: minFlight, volo minimo (0,45 s come nel motore base; la schiacciata scende sotto, OUTCOME.smashFlight)
-  _launchBallToTarget(e, t, i, { topspin: a = 14, sidespin: s = 0, allowNetFault: n = !1, minFlight: mf = 0.45 } = {}) {
+  // netClear: altezza minima sopra il nastro al centro (m); più bassa solo per il colpo super potente (NO.SUPER.netGap)
+  _launchBallToTarget(e, t, i, { topspin: a = 14, sidespin: s = 0, allowNetFault: n = !1, minFlight: mf = 0.45, netClear: nc = 0.34 } = {}) {
+    this.ball.natpfSuper = null; // NATPF: colpo super potente, lo rimette chi lancia (dopo il lancio)
     const h = Math.max(mf, i),
       r = t.x - e.x,
       l = t.z - e.z,
@@ -2520,7 +2537,7 @@ export class NatpfTennisEngine {
         const u = (S.NET_HEIGHT_CENTER - 0.12 - d) / m;
         this.ball.vel.y += u;
       } else {
-        const b = S.NET_HEIGHT_CENTER + 0.34;
+        const b = S.NET_HEIGHT_CENTER + nc;
         if (d < b) {
           const u = (b - d) / m;
           this.ball.vel.y += u;
@@ -3020,8 +3037,13 @@ export class NatpfTennisEngine {
     const i = e.targetPos.x - e.pos.x,
       a = e.targetPos.z - e.pos.z,
       s = Math.hypot(i, a);
+    // NATPF: stanchezza di chi gioca dopo tanta corsa laterale (solo in partita) e palla super potente in arrivo
+    // (natpf_skill.moveFactor, fatigueStep)
+    const natpfHuman = e === this.player || (e === this.opponent && (this.isMultiplayer || !!this.versus?.active)),
+      natpfMatch = natpfHuman && !this.autoPlayMode && !this.natpfUi?.training?.active && !this.natpfUi?.events?.active;
+    natpfMatch && NS.fatigueStep(this, e, { vx: e.vel.x, speed: e.vel.length(), dt: t, inPoint: this.phase === "RALLY" || this.phase === "SERVE_TOSS" });
     if (s > 0.08) {
-      const n = Math.min(s, e.maxSpeed * t),
+      const n = Math.min(s, e.maxSpeed * (natpfHuman ? NS.moveFactor(this, e) : 1) * t),
         h = (i / s) * (n / t),
         r = (a / s) * (n / t);
       e.vel.set(h, 0, r), (e.pos.x += (i / s) * n), (e.pos.z += (a / s) * n), (e.stridePhase += n * 4.4);

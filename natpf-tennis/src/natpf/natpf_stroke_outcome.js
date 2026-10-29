@@ -186,6 +186,42 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contac
     aim: +aim.toFixed(3), x0: +x0.toFixed(3), assist: +assist.toFixed(3), assisted: assist >= .5, shot };
 }
 
+// Colpo super potente (richiesta del 29/10: «se rilevi una forte accelerazione o un forte gesto del braccio, un colpo
+// quasi fortissimo che l'avversario non sempre prende; contestualizzato al colpo, alla naturalezza del movimento e al
+// momento dello scambio: non un rovescio innaturale; magari sulle palle molto alte o sulle palle lente in ricezione»).
+// Tutte le condizioni insieme, senza caso:
+//   • gesto fortissimo: forza dell'intenzione (picco del gesto, anche rispetto al proprio colpo tipico) da `power`; nei
+//     registri del 29/10 (146 colpi) mediana 0,54, il 10% più forte oltre 0,86;
+//   • colpo naturale: dritto, colpo piatto o schiacciata (non pallonetto, palla corta, tagliato), tipo letto con
+//     sicurezza, e dalla parte giusta del corpo (un dritto su una palla dalla parte del rovescio, o il contrario, oltre
+//     `sideWrong` m, è innaturale);
+//   • esecuzione: a tempo (entro `timing` unità della finestra, mai oltre) e da fermo (qualità di corsa, allungo e palla
+//     veloce da `quality`), colpo riuscito;
+//   • palla giusta: alta all'impatto (da `highY` m: nei registri il 10% più alto) o lenta in arrivo (sotto `slowVz` m/s
+//     lungo il campo: il 25% più lento) o corta, e la schiacciata.
+// Effetto (motore, _natpfRacketShot): tempo di volo diviso per `speedUp` (la schiacciata per `smashUp`), in fondo (da
+// `minDepth`), carico (`topspin`) e basso sulla rete (`netGap` m sopra il nastro al centro invece dei 34 cm di ogni altro
+// colpo: con quella regola da 1 m d'altezza una palla profonda non poteva andare oltre il 15% più forte), e
+// l'avversario lo legge in ritardo (`react` s in più alla CPU, errore di lettura × `misread`, qualità del colpo della
+// Leggenda × `legendQ`, `reach` della velocità di corsa a chi gioca con il telefono): ci arriva solo a volte.
+export const SUPER = Object.freeze({ power: .86, conf: .5, sideWrong: .35, timing: .6, quality: .8, highY: 1.25, slowVz: 12.5,
+  speedUp: 1.4, smashUp: 1.2, minDepth: 10.2, netGap: .16, topspin: 26, react: .16, misread: 1.5, legendQ: .55, reach: .8 });
+// { on, why[], ball } — ball: 'alta' | 'lenta' | 'corta' | 'schiacciata'
+export function superShot({ intent = {}, out = null, contact = 1, ballSide = 0, contactY = 1, ballVz = 15, shortBall = false } = {}){
+  const no = why => ({ on: false, why: [why], ball: null });
+  if (!out || out.failed || out.weak || out.netFault) return no('colpo non riuscito');
+  const shot = String(out.shot || '').toUpperCase();
+  if (!['TOPSPIN', 'FLAT', 'SMASH'].includes(shot)) return no(`colpo ${shot.toLowerCase()}`);
+  if (finite(intent.power) < SUPER.power) return no('gesto non abbastanza forte');
+  if (Number.isFinite(intent.conf) && intent.conf < SUPER.conf) return no('gesto poco chiaro');
+  if (shot !== 'SMASH' && finite(ballSide)*(finite(contact, 1) >= 0 ? 1 : -1) < -SUPER.sideWrong) return no('colpo innaturale (palla dall\'altra parte)');
+  if (finite(out.excess) > 0 || Math.abs(finite(out.t)) > SUPER.timing) return no('fuori tempo');
+  if (finite(out.q, 1) < SUPER.quality) return no('in corsa o in allungo');
+  const ball = shot === 'SMASH' ? 'schiacciata' : finite(contactY, 1) >= SUPER.highY ? 'alta' : Math.abs(finite(ballVz, 15)) <= SUPER.slowVz ? 'lenta' : shortBall ? 'corta' : null;
+  if (!ball) return no('palla né alta, né lenta, né corta');
+  return { on: true, why: ['gesto fortissimo', `palla ${ball}`], ball };
+}
+
 // Ritardo (s) che vale il lungolinea pieno: il tempo che la palla impiega a passare lateBehind metri dietro il punto
 // d'impatto, al massimo la finestra del livello. vz: velocità della palla lungo il campo (m/s).
 export const lateSpanOf = (vz, level = {}) => clamp(IMPACT.lateBehind/Math.max(1, Math.abs(finite(vz, 15))), .05, directionSpan(level));

@@ -633,3 +633,30 @@ La misura alternativa (rotazione attorno alla verticale) sugli stessi colpi era 
 - Test: `natpf-calibration-aim.test.mjs` (+3), `natpf-gesture-demo.test.mjs` (+1), aggiornato
   `natpf-sessione-23-10.test.mjs` (curva 3–23°).
 - [ ] Non provato con il telefono vero: serve una partita con la diagnostica per vedere le mire nei due versi.
+
+## Richiesta del 29/10, punti 3–4: colpi super potenti nel contesto giusto; stanchezza dopo tanta corsa laterale
+- [x] Colpo super (`natpf_stroke_outcome.superShot`, `SUPER`; motore `_natpfRacketShot`, P1 e P2 con il telefono), tutte
+      le condizioni insieme e senza caso: gesto fortissimo (forza dell'intenzione ≥ 0,86: nei registri del 29/10, 146
+      colpi, il 10% più forte), colpo naturale (dritto/piatto/schiacciata, tipo letto con sicurezza, dalla parte giusta
+      del corpo: un rovescio su una palla dalla parte del dritto oltre 35 cm no), a tempo (entro 0,6 unità) e da fermo
+      (qualità ≥ 0,8), su una palla alta (≥ 1,25 m all'impatto: il 10% più alto dei registri), lenta (≤ 12,5 m/s lungo il
+      campo: il 25% più lento) o corta, o la schiacciata. Effetto: volo diviso per 1,4 (schiacciata 1,2), in fondo (≥ 10,2
+      m), topspin 26 e 16 cm sopra il nastro (ogni altro colpo deve passare 34 cm sopra: con quella regola da 1 m d'altezza
+      la palla profonda non poteva andare oltre il +15%; `_launchBallToTarget` ha l'opzione `netClear`). Sulla palla lenta
+      di prova da fondo campo: 159–161 km/h contro 110 del colpo forte normale, volo 0,57–0,60 s contro 0,85.
+      «SUPER SHOT» nel messaggio del colpo, stelle e scossa più forti, sforzo e pubblico («ooh»).
+- [x] Chi riceve lo legge in ritardo (`ball.natpfSuper`): CPU Casual/Pro +0,16 s di reazione ed errore di lettura ×1,5;
+      Leggenda qualità del colpo ×0,55; chi gioca con il telefono (P2) corsa all'80% verso quella palla. Rimandate in campo
+      su 60 prove (palla verso il centro, mire varie): Casual 26 (colpo forte normale 43), Pro 32 (57), Leggenda 50 (59).
+- [x] Stanchezza (`natpf_skill.fatigueStep`, `moveFactor`, `FATIGUE`): solo i personaggi di chi gioca (P1; P2 nel 1v1 e
+      nello stesso schermo), solo in partita (non allenamento, sfide, dimostrazione). Ogni metro di corsa laterale nel
+      punto +0,012, cambio di verso +0,015; ferma recupera 0,03/s, tra un punto e l'altro 0,12/s. Velocità massima fino
+      a −10%: uno scambio lungo da una riga all'altra (36 m di corsa laterale) toglie il 5–6%, alcuni di fila il 10%; la
+      pausa tra i punti ne toglie più di metà. Anche il piano d'intercetto usa la velocità ridotta (arriva dove arriva
+      davvero). Nessun segno a schermo della stanchezza (non richiesto).
+- Registro: `racchetta` con `super` (la palla che lo ha permesso) e, per i gesti forti senza super, `superNo` (perché).
+- Test: `test/natpf-super-stanchezza.test.mjs` (6). Gioco 486/486. Banco Leggenda: gli stessi 2 criteri già KO, un po'
+  più lontani (CPU contro «tennista» 78,7 → 76,9% dei game, contro «preciso» 39,4 → 37,7%: i giocatori simulati ora
+  fanno anche colpi super); Pro e Casual contro «medio» nei criteri (81,6% e 100%).
+- [ ] Non provato con il telefono vero: quanto spesso esce il colpo super con i gesti di chi gioca (dal registro:
+      `racchetta.super` e `superNo`).
