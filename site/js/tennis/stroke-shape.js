@@ -29,6 +29,8 @@ const rotate = (q, v) => qmul(qmul(q, [v[0], v[1], v[2], 0]), qconj(q)).slice(0,
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const D = Math.PI/180;
 
+// seno dell'angolo sotto l'orizzontale oltre il quale la cima del telefono a riposo vale «capovolto» (30°)
+const STROKE_FLIP = .5;
 export const SHAPE = Object.freeze({
   racket: .45,        // m: dalla mano alla testa della racchetta virtuale
   planeMs: 110,       // ms prima del picco su cui si misura il piano dello swing
@@ -42,10 +44,12 @@ export const SHAPE = Object.freeze({
 export function strokeShape(hist, up, { peakT, racket = SHAPE.racket } = {}){
   if (!Array.isArray(hist) || hist.length < 4 || !up || !Number.isFinite(peakT)) return null;
   const U = unit(up);
-  // la testa della racchetta virtuale è l'estremità del telefono che a riposo sta in alto: chi tiene il telefono con la
-  // cima in basso (nel pugno, palmo sui lati lunghi) aveva la testa che puntava in basso, e il pallonetto si leggeva
-  // come un colpo normale (salita 0,2–0,4 invece di 0,8). Segnalazione del 23/10, sera
-  const end = U[1] < 0 ? -1 : 1, Y0 = [0, end, 0];
+  // la testa della racchetta virtuale è la cima del telefono (l'estremità che esce dal pugno), tranne con il telefono
+  // chiaramente capovolto (cima più di 30° sotto l'orizzontale, a riposo): chi lo tiene con la cima in basso nel pugno
+  // aveva la testa che puntava in basso e il pallonetto si leggeva come un colpo normale (23/10, sera). Prima bastava la
+  // cima appena sotto l'orizzontale: con l'impugnatura a martello (telefono in avanti, 29/10) 15° in giù invertivano
+  // pallonetto e palla corta, tagliato e top spin
+  const end = U[1] < -STROKE_FLIP ? -1 : 1, Y0 = [0, end, 0];
   const H = hist.filter(h => h.t <= peakT + 1);
   if (H.length < 4 || peakT - H[0].t < SHAPE.planeMs || !H[H.length - 1].w) return null;
   // piano: asse di rotazione rispetto alla verticale, pesato con la velocità, sull'avanzamento

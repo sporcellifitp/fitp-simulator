@@ -28,14 +28,18 @@ prende una decisione che un agente futuro deve conoscere. Stato operativo in `WO
 
 ## Gesti reali (fonte per il tutorial — non disegnare gesti diversi da questi)
 
-Presa di riferimento dal 29/10 (foto dell'utente; `grip-art.js`, `GRIP_TEXT`, `natpf_gesture_motion.GRIP_TILT` 65°):
-**base del telefono nel palmo** come il manico di una racchetta, **cima che punta in avanti** verso lo schermo e un poco in
-alto, **schermo che guarda in alto** (verso chi gioca). Calibrazione e partita con la stessa presa. La presa di prima (in
-piedi nel pugno, display di lato) resta riconosciuta (test `natpf-gesture-demo`, secondo test). La direzione del piatto
-si legge dalla rotazione di tutto il telefono attorno alla verticale (`face-tracker.js`), non dalla normale del dorso:
-con il dorso verso il basso quella girava con il polso. Foto della lezione: `presa-palmo.webp` (Higgsfield).
-Il colpo normale (salita abituale) si impara giocando anche con la calibrazione (`habitualRise`, dopo 5 colpi per verso):
-pallonetto, tagliato e schiacciata si leggono rispetto a quello.
+Presa di riferimento dal 29/10 sera (scelta dell'utente): **impugnatura a martello** (`grip-art.js`, `GRIP_TEXT`,
+`natpf_gesture_motion.GRIP_TILT` 80°, foto `presa-martello.webp`). Il pugno stringe la base del telefono come il manico di
+un martello e il telefono prosegue in avanti dall'avambraccio: **cima verso lo schermo** (un poco in alto), **bordo stretto
+in alto**, **display di lato**. È la posizione neutra della calibrazione e del tutorial. Il riconoscimento è nel
+riferimento della gravità e regge anche le prese di prima (in piedi nel pugno; base nel palmo con lo schermo in alto):
+test `natpf-gesture-demo` (martello con la cima da 20° sopra a 15° sotto l'orizzontale, display dentro o fuori, destro e
+mancino; prese di prima). Con il telefono orizzontale la testa della racchetta virtuale è sempre la cima
+(`stroke-shape.js`, `STROKE_FLIP`: solo oltre 30° sotto l'orizzontale vale «capovolto»): prima bastava la cima appena
+sotto l'orizzontale per invertire pallonetto e palla corta, tagliato e top spin. La direzione del piatto si legge dalla
+rotazione di tutto il telefono attorno alla verticale (`face-tracker.js`), quindi non dipende da quale faccia guarda
+dove. Il colpo normale (salita abituale) si impara giocando anche con la calibrazione (`habitualRise`, dopo 5 colpi per
+verso): pallonetto, tagliato e schiacciata si leggono rispetto a quello.
 
 Rilevatore sul telefono (`site/js/tennis/swing-detect.js`): il colpo è un picco della **velocità di rotazione**
 (giroscopio): inizio > ~140 °/s (scalato sul proprio colpo), picco minimo, almeno 18° percorsi, durata 30–700 ms.
@@ -138,6 +142,9 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 
 ## Storico modifiche significative
 
+- 29/10/2026 sera — diagnostica 145416: impugnatura a martello come presa di riferimento (testa della racchetta virtuale
+  sempre la cima, tutorial, figura, 3D, foto); «Sfida il campione» tolto dai minigiochi; webcam (WORK_PROGRESS,
+  «Diagnostica 20261029-145416»).
 - 29/10/2026 pomeriggio — diagnostica 131307 e foto della presa: presa di riferimento nel palmo (tutorial, figura, 3D,
   foto), direzione del piatto dalla rotazione attorno alla verticale, piatto a peso pieno, colpo normale imparato giocando,
   pallonetto relativo e più alto, schiacciata dalla spalla, chiusure a rete, palla corta al colmo, tempo sulla strada

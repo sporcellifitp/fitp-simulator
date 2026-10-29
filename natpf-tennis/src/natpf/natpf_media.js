@@ -1,13 +1,13 @@
 // Foto reali del tutorial (public/media/, generate con Higgsfield, vedi public/media/LEGGIMI.txt): impugnatura e posizione
-// di partenza. Presa di riferimento dal 29/10 (foto dell'utente): base del telefono nel palmo, cima in avanti, schermo in
-// alto; le foto della presa di prima (in piedi nel pugno, bordo verso lo schermo, «Così no» con lo schermo in alto) sono
-// state tolte. Il passo «Orientamento e mano» mostra l'animazione 3D. I gesti dei colpi si mostrano con l'animazione 3D
+// di partenza. Presa di riferimento dal 29/10 sera (scelta dell'utente): impugnatura a martello, il pugno sulla base, il
+// telefono in avanti con il bordo stretto in alto e il display di lato. Tolte le foto delle prese di prima (in piedi nel
+// pugno, bordo verso lo schermo, «Così no», base nel palmo). Il passo «Orientamento e mano» mostra l'animazione 3D. I gesti dei colpi si mostrano con l'animazione 3D
 // (natpf_gesture_demo.js), verificata con il rilevatore vero: le clip video generate sono state tolte il 28/10 su
 // richiesta dell'utente. Per i mancini le foto si specchiano.
 const BASE = './media/';
 
 export const PHOTOS = Object.freeze({
-  grip: { src: BASE + 'presa-palmo.webp', alt: 'La base del telefono nel palmo, la cima in avanti e un poco in alto, lo schermo verso l’alto' },
+  grip: { src: BASE + 'presa-martello.webp', alt: 'Impugnatura a martello: il pugno sulla base del telefono, che prosegue in avanti con il display di lato' },
   ready: { src: BASE + 'posizione.webp', alt: 'Giocatore di spalle davanti al televisore, telefono in mano davanti al fianco' },
 });
 

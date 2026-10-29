@@ -8,11 +8,12 @@
 // Prima la preparazione lenta (−metà dell'angolo a 90 °/s), poi il colpo, poi il ritorno lento. `wrist`: rotazione del
 // polso (°/s di picco) attorno a `wristAxis` nella seconda metà del colpo. `preYaw`: gradi di rotazione del piatto
 // attorno alla verticale prima del colpo (mira: positivo = piatto girato a sinistra).
-// Presa di riferimento (29/10, foto dell'utente): base del telefono nel palmo come il manico di una racchetta, cima in
-// avanti verso lo schermo e un poco in alto, schermo verso l'alto (verso chi gioca). Prima: in piedi nel pugno, display
-// di lato, cima in avanti di ~30° (il riconoscimento la regge ancora: test/natpf-gesture-demo.test.mjs).
+// Presa di riferimento (29/10, scelta dell'utente): impugnatura a martello. Il pugno stringe la base del telefono come il
+// manico di un martello, il telefono prosegue in avanti dall'avambraccio: cima verso lo schermo (un poco in alto), bordo
+// stretto in alto, display di lato. Il riconoscimento regge anche le prese di prima (in piedi nel pugno; base nel palmo
+// con lo schermo in alto): test/natpf-gesture-demo.test.mjs e test/natpf-presa-palmo-29-10.test.mjs.
 
-export const GRIP_TILT = 65;     // gradi: cima del telefono in avanti dalla verticale (figura della presa, grip-art.js)
+export const GRIP_TILT = 80;     // gradi: cima del telefono in avanti dalla verticale (figura della presa, grip-art.js)
 const D = Math.PI/180;
 
 // colpi tipici del destro, gli stessi verificati nei test dei gesti (arm-sim.STROKES) o varianti verificate qui
@@ -32,9 +33,9 @@ const S = Object.freeze({
 // ball: come arriva la palla nell'animazione ('ground' dopo il rimbalzo, 'volley' al volo, 'high' alta, 'toss' lancio)
 export const GESTURES = Object.freeze({
   ready: { id: 'ready', label: 'Posizione di partenza', still: true,
-    cues: ['Base del telefono nel palmo', 'Cima in avanti, schermo verso l’alto', 'Braccio rilassato, di fronte allo schermo'] },
+    cues: ['Il telefono nel pugno, come un martello', 'Cima in avanti, display di lato', 'Braccio rilassato, di fronte allo schermo'] },
   grip: { id: 'grip', label: 'Impugnatura', still: true, turntable: true,
-    cues: ['Come il manico di una racchetta', 'Base nel palmo, cima verso lo schermo', 'Lo schermo guarda in alto, verso di te'] },
+    cues: ['Come il manico di un martello', 'Cima in avanti, verso lo schermo', 'Bordo stretto in alto, display di lato'] },
   forehand: { id: 'forehand', label: 'Dritto', stroke: S.forehand, ball: 'ground', expect: { shot: ['topspin'], side: 'forehand' },
     cues: ['Rotazione attorno a te, in orizzontale', 'Dall’esterno verso il corpo', 'Un poco dal basso verso l’alto'] },
   backhand: { id: 'backhand', label: 'Rovescio', stroke: S.backhand, ball: 'ground', expect: { shot: ['topspin'], side: 'backhand' },
@@ -121,7 +122,7 @@ export function wristAngle(s, t, tl = strokeTimeline(s)){
   return 0;
 }
 // Posa al tempo t: posizione della mano rispetto alla spalla (m, campo) e rotazioni da applicare al telefono, nell'ordine:
-// presa (GRIP_TILT, schermo in alto) → preYaw → braccio (axis, φ) → polso (asse del polso ruotato con il braccio, ψ).
+// presa (GRIP_TILT, display di lato) → preYaw → braccio (axis, φ) → polso (asse del polso ruotato con il braccio, ψ).
 export function strokePose(s, t, { hand = 'right', short = false, preYaw = 0 } = {}){
   const st = strokeFor(s, hand), tl = strokeTimeline(st, { short });
   const A = unit(st.axis), phi = strokeAngle(st, t, tl)*D;

@@ -42,7 +42,7 @@ export const calSide = (want, hand = 'right') => ((want === 'L') !== (hand === '
 const ARROW = { L: '←', R: '→' };
 const WHY = { piccolo: 'Gesto troppo piccolo: un colpetto un po’ più deciso', direzione: 'Era nell’altro verso' };
 export function calPrompt(v, hand = 'right'){
-  if (v.stage === 'still') return { title: 'Tieni fermo il telefono', sub: v.note === 'fermo' ? 'Si è mosso: tienilo fermo ancora un attimo, con la base nel palmo' : 'La base nel palmo come il manico di una racchetta, la cima in avanti, lo schermo verso l’alto: misuro i sensori', state: 'wait', arrow: '', dir: null };
+  if (v.stage === 'still') return { title: 'Tieni fermo il telefono', sub: v.note === 'fermo' ? 'Si è mosso: tienilo fermo ancora un attimo, nel pugno come un martello' : 'Nel pugno come il manico di un martello, la cima in avanti, il bordo stretto in alto: misuro i sensori', state: 'wait', arrow: '', dir: null };
   if (v.stage === 'gesture'){
     const side = calSide(v.want, hand), title = side === 'forehand' ? 'Dritto' : 'Rovescio', arrow = ARROW[v.want] || '';
     const move = v.want === 'L' ? 'verso sinistra' : 'verso destra';

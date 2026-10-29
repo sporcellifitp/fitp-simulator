@@ -39,8 +39,9 @@ function labelTexture(text){
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: .6, metalness: 0, ...o });
 const capsule = (r, l, m) => new THREE.Mesh(new THREE.CapsuleGeometry(r, l, 4, 10), m);
 
-// Telefono nella mano, nel riferimento del telefono: asse lungo y, display verso +z. La mano stringe il terzo inferiore
-// come il manico di una racchetta: il palmo e le dita sotto il dorso (−z), il pollice lungo il bordo +x.
+// Telefono nel pugno, nel riferimento del telefono: asse lungo y, display verso +z, bordo +x verso lo schermo (con la
+// presa del destro). Il pugno stringe il terzo inferiore come il manico di un martello (impugnatura di riferimento del
+// 29/10): con la cima in avanti il bordo +x sta in alto, il display guarda di lato.
 function buildGrip(){
   const g = new THREE.Group();
   const phone = new THREE.Group(); g.add(phone);
@@ -57,15 +58,15 @@ function buildGrip(){
     const lens = new THREE.Mesh(new THREE.CylinderGeometry(r*.7, r*.7, .0018, 16), lensM); lens.rotation.x = Math.PI/2; lens.position.set(-x, y, -PHONE.d/2 - .0012); phone.add(lens);
   });
   phone.position.y = .042;
-  // mano: palmo e dita sotto il dorso, pollice lungo il bordo (la foto della presa di riferimento, 29/10)
+  // pugno: dita attorno ai lati lunghi, pollice sul bordo
   const skin = std(C.skin, { roughness: .75 });
-  const fist = new THREE.Mesh(new RoundedBoxGeometry(.098, .084, .07, 3, .022), skin); fist.position.set(0, -.012, -.03); g.add(fist);
+  const fist = new THREE.Mesh(new RoundedBoxGeometry(.098, .084, .07, 3, .022), skin); fist.position.set(0, -.012, -.004); g.add(fist);
   for (let i = 0; i < 4; i++){
-    const f = capsule(.0125, .07, skin); f.rotation.z = Math.PI/2; f.position.set(-.004, -.044 + i*.021, -.012); g.add(f);
+    const f = capsule(.0125, .07, skin); f.rotation.z = Math.PI/2; f.position.set(.004, -.044 + i*.021, .033); g.add(f);
   }
-  const thumb = capsule(.012, .05, skin); thumb.rotation.z = -.25; thumb.position.set(.046, .012, .004); g.add(thumb);
+  const thumb = capsule(.012, .045, skin); thumb.rotation.z = -.6; thumb.rotation.x = .2; thumb.position.set(.03, .03, -.028); g.add(thumb);
   g.scale.setScalar(PHONE.scale);
-  g.userData = { phone, wrist: new THREE.Vector3(-.005, -.055, -.04) };
+  g.userData = { phone, wrist: new THREE.Vector3(-.01, -.05, -.01) };
   return g;
 }
 
@@ -192,7 +193,7 @@ export class NatpfGestureDemo {
   // posa al tempo t (s, tempo reale del gesto): giocatore, telefono, palla, scia e camera
   pose(t){
     const g = GESTURES[this.id] || GESTURES.ready, hand = this.hand, P = this.grip;
-    const q0 = new THREE.Quaternion().setFromEuler(new THREE.Euler(-GRIP_TILT*D, 0, 0, 'XYZ'));   // cima in avanti, schermo in alto
+    const q0 = new THREE.Quaternion().setFromEuler(new THREE.Euler(-GRIP_TILT*D, 90*D, 0, 'XYZ'));   // martello: display a destra, cima in avanti
     let handPos, q = q0.clone(), hit = null, ballPos = null, fast = false;
     const wq = (axis, ang) => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(...axis), ang);
     // il mondo è specchiato per il mancino: i moti si scrivono sempre da destro
@@ -237,11 +238,13 @@ export class NatpfGestureDemo {
     this.ball.visible = !!ballPos; if (ballPos) this.ball.position.copy(ballPos);
     // camera: da dietro, sopra la spalla del braccio che colpisce (il mondo specchiato porta la spalla a sinistra)
     const m = hand === 'left' ? -1 : 1;
-    if (g.turntable){ this.camera.position.set((handW.x + .62)*m, handW.y + .16, handW.z + .42); this.camera.lookAt(handW.x*m, handW.y + .05, handW.z); }
-    else if (g.ballHigh){ this.camera.position.set(1.25*m, 2.0, 1.9); this.camera.lookAt(.15*m, 1.55, -.3); }
+    // impugnatura a martello: il telefono punta verso lo schermo, quindi di profilo (da destra, dove guarda il display) e
+    // le altre inquadrature più di lato che alle spalle, perché il telefono non sparisca dietro il pugno
+    if (g.turntable){ this.camera.position.set((handW.x + .5)*m, handW.y + .2, handW.z - .12); this.camera.lookAt(handW.x*m, handW.y + .02, handW.z - .16); }
+    else if (g.ballHigh){ this.camera.position.set(1.45*m, 2.0, 1.5); this.camera.lookAt(.15*m, 1.55, -.3); }
     // rovescio: la mano passa davanti al corpo, si guarda dall'altra spalla
-    else if (g.id === 'backhand'){ this.camera.position.set(-.85*m, 1.85, 1.45); this.camera.lookAt(-.15*m, 1.12, -.38); }
-    else { this.camera.position.set(1.05*m, 1.85, 1.45); this.camera.lookAt(.22*m, 1.12, -.38); }
+    else if (g.id === 'backhand'){ this.camera.position.set(-1.25*m, 1.85, 1.0); this.camera.lookAt(-.15*m, 1.12, -.38); }
+    else { this.camera.position.set(1.5*m, 1.8, .95); this.camera.lookAt(.22*m, 1.12, -.38); }
     void hit;
   }
   // palla dell'animazione: arriva al punto d'impatto nell'istante del colpo, poi riparte nella direzione mostrata

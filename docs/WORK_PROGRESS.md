@@ -749,3 +749,27 @@ Interventi (commit di questa sezione):
       misura nuova del piatto, nessun errore (su Cloudflare solo i 404 attesi `/api/match/state` e `/lan/status`).
 - [ ] Non provato: Windows, telefoni veri (direzione, pallonetto, schiacciata, chiusure con la presa nel palmo),
       Cloudflare Pages vero.
+
+## Diagnostica 20261029-145416-lqa9 (stesso schermo, 1v1, build .11) — 29/10 sera
+Richieste: (1) webcam che non traccia bene (distanza, interruzioni, servizio, recupero), Lenovo E14; (2) impugnatura a
+martello come posizione neutra di tutto il controllo; (3) togliere «Sfida il campione»; (4) audit e verifica.
+La diagnostica è di una partita con i telefoni (controller «phone», 55 s): non contiene dati della webcam di gioco, solo
+il video della webcam di registrazione. Per la webcam vedi la sezione più sotto.
+
+### «Sfida il campione» tolto
+- [x] `natpf_arcade.MODES`, `natpf_events.js` (punteggio, punti veri, HUD, risultati), `natpf_lobby.js` (risultato,
+      icona della corona); test aggiornati (`natpf-events`, `natpf-flows`: il ripristino della CPU scelta si prova con
+      un altro minigioco) e un test che non ci sia più. Commit `dad3699`.
+
+### Impugnatura a martello
+- [x] Scelta chiarita con l'utente: pugno sulla base, telefono in avanti, bordo stretto in alto, display di lato.
+- [x] Simulazione di tutta la catena (calibrazione, rilevatore, forma, intenzione) con la presa a martello: 216 colpi su
+      240 giusti; sbagliati tutti quelli con la cima 15° sotto l'orizzontale (pallonetto → palla corta, tagliato → top
+      spin, schiacciata → top spin). Causa: la testa della racchetta virtuale era l'estremità che a riposo sta più in alto,
+      e con il telefono orizzontale bastavano pochi gradi per scambiare cima e base. Ora è sempre la cima, tranne oltre
+      30° sotto l'orizzontale (`stroke-shape.js`, `STROKE_FLIP`). Dopo: 240 su 240. Test con la mutazione: con la regola
+      vecchia il test del tutorial fallisce.
+- [x] Rigiocati i sensori di questa diagnostica (`zip-replay.mjs`): colpi riconosciuti come prima, verso del colpo 22/25.
+- [x] Tutorial: figura a due viste, testi (lezione, calibrazione, Collega, Stesso schermo), animazione 3D (cima in avanti
+      a 80°, display di lato, inquadrature più di lato), foto `presa-martello.webp` (una di sei generate, 9 crediti).
+- [x] Test `natpf-gesture-demo`: martello (cima 70/80/90/105°, display fuori o dentro, destro e mancino), prese di prima.
