@@ -11,12 +11,22 @@ import { NatpfPhoneRacket } from './natpf_phone_racket.js';
 import { calPrompt } from './natpf_cal_view.js';
 import { createPhoneWatch, createResync, phoneHealthOf, holdText } from './natpf_phone_watch.js';
 import { splitVisible } from './natpf_split.js';
+import { webcamOpenError } from './natpf_webcam_watch.js';
 
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const SPLIT_PLAYERS = Object.freeze(['p1', 'p2']);
 // calibrazioni non riuscite di fila prima del profilo semplice
 export const SPLIT_CAL_TRIES = 3;
+// con che cosa si gioca sullo stesso schermo: due telefoni o una webcam per due (webcam_duo.js; richiesta del 29/10 notte)
+export const SPLIT_INPUT_KEY = 'natpf-tennis.splitInput';
+export const splitInputOf = v => (v === 'webcam' ? 'webcam' : 'phones');
+
+// Stato di un giocatore con la webcam per due (funzione pura): webcam spenta, mano cercata, mano vista
+export function splitCamStatus({ active = false, seen = false, error = null } = {}){
+  if (!active) return error ? { state: 'ko', title: error.badge, sub: error.text } : { state: 'wait', title: 'Webcam spenta', sub: 'Accendi la webcam qui sopra' };
+  return seen ? { state: 'ok', title: 'Mano vista ✓', sub: 'Pronto: un colpo veloce e dritto è un colpo' } : { state: 'on', title: 'Alza la mano che colpisce', sub: 'Nella tua metà dell’inquadratura, con il polso visibile' };
+}
 const PHONE_ERR = { denied: 'Sensori negati sul telefono: ricarica la pagina e consenti', nomotion: 'Il browser del telefono non manda i sensori: usa Chrome (Android) o Safari (iPhone)', insecure: 'Pagina senza https: i sensori non funzionano' };
 
 // Stato di un giocatore nella pagina «Collega» (funzione pura): state 'wait' | 'qr' | 'on' | 'go' | 'ok' | 'ko'
@@ -48,8 +58,12 @@ export class NatpfSplitUi {
     this.calAsked = { p1: false, p2: false }; // calibrazione già chiesta per questo collegamento
     this.labels = { p1: null, p2: null };     // esito dell'ultimo colpo { text, until }
     this.watch = createPhoneWatch(); this.hold = null; this.resync = createResync();
+    let saved = 'phones'; try { saved = localStorage.getItem(SPLIT_INPUT_KEY) || 'phones'; } catch {}
+    this.input = splitInputOf(saved);
     const box = document.querySelector('[data-setup="split"]');
     box?.addEventListener('click', e => {
+      const inp = e.target.closest('[data-split-input]'); if (inp){ e.stopPropagation(); this.setInput(inp.dataset.splitInput); return; }
+      if (e.target.closest('#split-cam-go')){ e.stopPropagation(); this._camOn(); return; }
       const h = e.target.closest('[data-split-hand]'); if (h){ e.stopPropagation(); const [id, hand] = h.dataset.splitHand.split(':'); this.setHand(id, hand); return; }
       const s = e.target.closest('[data-split-skip]'); if (s){ e.stopPropagation(); this.phone(s.dataset.splitSkip)?.skipCalibration(); this.paint(); }
     });
@@ -70,9 +84,36 @@ export class NatpfSplitUi {
     if (!this.p1Bound){ this.p1Bound = true; this.ui.phone.onCal?.(e => this._onCal('p1', e)); this.ui.phone.onChange(() => this._resetIfNew('p1')); }
     for (const id of SPLIT_PLAYERS) this.phone(id).start().catch(err => this.ui.toast(`Collegamento del ${id.toUpperCase()} non disponibile (${err.message})`));
   }
-  bothReady(){ return SPLIT_PLAYERS.every(id => !!this.phone(id)?.ready); }
+  get webcam(){ return this.input === 'webcam'; }
+  // webcam per due: pronti quando la camera è accesa e ha visto le mani di entrambi (anche non in questo momento: tra la
+  // pagina «Collega» e «Gioca» si scelgono le impostazioni); altrimenti i due telefoni pronti
+  bothReady(){
+    if (this.webcam){ const mc = this.engine.motionController, d = mc?._duo, now = performance.now(); return !!mc?.webcamActive && !!mc.webcamDuo && !!d && SPLIT_PLAYERS.every(id => d.seen(id, now, Infinity)); }
+    return SPLIT_PLAYERS.every(id => !!this.phone(id)?.ready);
+  }
+  // due telefoni o una webcam per due: la scelta si ricorda; con la webcam il P1 gioca con la webcam (controller del
+  // gioco) in modalità per due, con i telefoni la webcam per due si spegne
+  setInput(v){
+    this.input = splitInputOf(v);
+    try { localStorage.setItem(SPLIT_INPUT_KEY, this.input); } catch {}
+    this.applyInput();
+    this.ui.lobby?.paint?.();
+  }
+  applyInput(){
+    const mc = this.engine.motionController;
+    if (this.webcam){ mc?.setWebcamDuo?.(true); if (mc) mc.p2HandPreference = this.hand('p2'); this.ui.selectController?.('webcam', { open: false }); this._camOn(); }
+    else { mc?.setWebcamDuo?.(false); this.ui.selectController?.('phone', { open: false }); }
+    this.paint();
+  }
+  async _camOn(){
+    const mc = this.engine.motionController; if (!mc) return false;
+    mc.setWebcamDuo?.(true);
+    const ok = mc.webcamActive || await mc.enableWebcam();
+    this.paint();
+    return ok;
+  }
   setHand(id, hand){
-    if (id === 'p2'){ this.engine.natpfPhone2?.setHand(hand); this.ui.hand.mirrorRemote?.(this.engine.opponent, hand); }
+    if (id === 'p2'){ this.engine.natpfPhone2?.setHand(hand); this.ui.hand.mirrorRemote?.(this.engine.opponent, hand); if (this.engine.motionController) this.engine.motionController.p2HandPreference = hand; }
     else { this.ui.hand.set(hand); this.ui.paintTiles?.(); }
     this.paint();
   }
@@ -101,11 +142,21 @@ export class NatpfSplitUi {
     if (p.connected && L.phone === 'cal' && !p.ready && !this.calAsked[id] && p.calView?.stage === 'off'){ this.calAsked[id] = true; p.recalibrate(); }
   }
   paint(){
+    const box = document.querySelector('[data-setup="split"]'), cam = this.webcam, mc = this.engine.motionController, now = performance.now();
+    if (box) box.dataset.input = this.input;
+    for (const b of document.querySelectorAll('[data-split-input]')){ const on = b.dataset.splitInput === this.input; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
+    if (cam){
+      const v = $('split-webcam-video');
+      if (v && mc?.webcamStream && v.srcObject !== mc.webcamStream){ v.srcObject = mc.webcamStream; v.play?.().catch(() => {}); }
+      // riquadro nel formato vero della camera (16:9, 4:3…): la linea di mezzo è la metà dell'immagine
+      const view = v?.parentElement;
+      if (view && v.videoWidth > 0 && v.videoHeight > 0){ const ar = `${v.videoWidth} / ${v.videoHeight}`; if (view.style.aspectRatio !== ar) view.style.aspectRatio = ar; }
+      show($('split-cam-go'), !mc?.webcamActive);
+    }
     for (const id of SPLIT_PLAYERS){
       const p = this.phone(id); if (!p) continue;
-      this._drive(id);
-      this.ui.renderQr($(`split-qr-${id}`), $(`split-link-${id}`), null, p);
-      const st = splitPlayerStatus(p, this.hand(id)), el = $(`split-status-${id}`);
+      const st = cam ? splitCamStatus({ active: !!mc?.webcamActive, seen: !!mc?._duo?.seen(id, now), error: mc?.webcamActive ? null : webcamOpenError(mc?.webcamError) }) : (this._drive(id), this.ui.renderQr($(`split-qr-${id}`), $(`split-link-${id}`), null, p), splitPlayerStatus(p, this.hand(id)));
+      const el = $(`split-status-${id}`);
       if (el){
         el.dataset.state = st.state;
         const b = el.querySelector('b'), s = el.querySelector('span');
@@ -113,8 +164,8 @@ export class NatpfSplitUi {
         if (s.textContent !== st.sub) s.textContent = st.sub;
       }
       for (const btn of document.querySelectorAll(`[data-split-hand^="${id}:"]`)){ const on = btn.dataset.splitHand.endsWith(':' + this.hand(id)); btn.classList.toggle('selected', on); btn.setAttribute('aria-pressed', String(on)); }
-      show(document.querySelector(`[data-split-skip="${id}"]`), p.connected && !p.ready && p.state.phone === 'cal');
-      document.querySelector(`[data-split-player="${id}"]`)?.classList.toggle('ready', !!p.ready);
+      show(document.querySelector(`[data-split-skip="${id}"]`), !cam && p.connected && !p.ready && p.state.phone === 'cal');
+      document.querySelector(`[data-split-player="${id}"]`)?.classList.toggle('ready', cam ? st.state === 'ok' : !!p.ready);
     }
   }
   // «Gioca»: sessione split nel motore, mano del P2 sul suo personaggio
@@ -141,14 +192,15 @@ export class NatpfSplitUi {
     if (on){
       const now = performance.now();
       for (const id of SPLIT_PLAYERS){
-        const tag = hud.querySelector(`[data-split-tag="${id}"] span`), p = this.phone(id);
+        const tag = hud.querySelector(`[data-split-tag="${id}"] span`), p = this.webcam ? null : this.phone(id);
         const lbl = this.labels[id] && now < this.labels[id].until ? this.labels[id].text : '';
         const text = p && !p.ready ? 'Telefono in pausa' : lbl;
         if (tag && tag.textContent !== text) tag.textContent = text;
         tag?.parentElement?.classList.toggle('warn', !!p && !p.ready);
       }
     }
-    this._watchP2(on);
+    // con la webcam per due il telefono del P2 non c'è: niente pausa per lui (la webcam ha la sua, natpf_webcam_watch)
+    this._watchP2(on && !this.webcam);
   }
   // Telefono del P2 in partita: stessa salute, stessa pausa e stessa ripresa del P1 (natpf_phone_watch.js): punto
   // rigiocato se la pausa è arrivata nello scambio o nel lancio, ricollegamento automatico e pulsante «Ricollega il

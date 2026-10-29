@@ -304,7 +304,7 @@ export class NatpfUi {
     $('btn-start-match')?.addEventListener('click', e => {
       // stesso schermo: si parte con i due telefoni pronti; la sessione split nasce qui (natpf_split_ui.js)
       if (this.lobby?.mode === 'split'){
-        if (!this.split.bothReady()){ e.stopImmediatePropagation(); this.toast('Servono i due telefoni pronti: torna a «Telefoni»'); this.lobby.go('connect'); return; }
+        if (!this.split.bothReady()){ e.stopImmediatePropagation(); this.toast(this.split.webcam ? 'La webcam deve vedere le mani di tutti e due: torna a «Racchette»' : 'Servono i due telefoni pronti: torna a «Racchette»'); this.lobby.go('connect'); return; }
         this.split.start(); this.wipe('Stesso schermo'); return;
       }
       // sfida tra due computer: si parte solo con il Player 2 entrato e pronto

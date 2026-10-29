@@ -1,12 +1,14 @@
 // Riproduce la webcam «argon» del gioco (MotionController._argonFrame vero) sui risultati della sonda
 // (webcam-probe.mjs, mani; con la passata del corpo unita le chiavi lw/rw/ls/rs restano solo informative) e sui fotogrammi
 // 64×48 specchiati per il flusso ottico. Stampa quanti fotogrammi da mano e da flusso e gli eventi (colpi e lanci).
-//   node --import ./test/register.mjs scripts/audit/webcam-argon-replay.mjs mani.jsonl clip.rgba [motion_controls.js]
+//   node --import ./test/register.mjs scripts/audit/webcam-argon-replay.mjs mani.jsonl clip.rgba [motion_controls.js] [--duo]
+//   --duo: webcam per due (stesso schermo con una webcam, webcam_duo.js): colpi del P1 (sinistra) e del P2 (destra)
 // Con un motion_controls.js di prima (git show <commit>:natpf-tennis/src/motion_controls.js > src/__prima.js) il
 // confronto prima/dopo sugli stessi fotogrammi.
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-const [jsonl, rgba, mcFile = new URL('../../src/motion_controls.js', import.meta.url).pathname] = process.argv.slice(2);
+const args = process.argv.slice(2).filter(a => a !== '--duo'), duo = process.argv.includes('--duo');
+const [jsonl, rgba, mcFile = new URL('../../src/motion_controls.js', import.meta.url).pathname] = args;
 const { MotionController: MC } = await import(pathToFileURL(mcFile).href);
 const rows = fs.readFileSync(jsonl, 'utf8').trim().split('\n').map(l => JSON.parse(l));
 const px = fs.readFileSync(rgba), FR = 64*48*4;
@@ -21,9 +23,10 @@ Object.assign(mc, {
 let cur = 0;
 mc.offscreenCtx = { save(){}, scale(){}, drawImage(){}, restore(){}, getImageData: () => { const k = Math.round(rows[cur].t*30); return { data: px.subarray(k*FR, k*FR + FR) }; } };
 mc.onTrack = d => { if (d.kind === 'frame') frames.push({ t: d.t, s: d.source, x: d.x, y: d.y }); if (d.kind === 'event') events.push(d); };
-mc._emitSwing = () => {}; mc._emitToss = () => {};
+mc._emitSwing = () => {}; mc._emitToss = () => {}; mc._emitP2Swing = () => {}; mc._emitP2Toss = () => {};
 const lmOf = h => { const d = (h.s || 0)/.75, a = Array.from({ length: 21 }, () => ({ x: h.x, y: h.y, z: 0 })); a[0] = { x: h.x, y: h.y - .55*d, z: 0 }; a[9] = { x: h.x, y: h.y + .45*d, z: 0 }; return a; };
 mc.mpHands = { send(){ const r = rows[cur]; Promise.resolve().then(() => mc._onArgonHandResults({ multiHandLandmarks: r.hands.map(lmOf) })); return Promise.resolve(); } };
+if (duo) mc.setWebcamDuo(true);
 const realNow = performance.now;
 const step = rows.length > 1 ? Math.round((rows[1].t - rows[0].t)*30) : 1;
 for (let i = 0; i < rows.length; i++){
@@ -38,4 +41,4 @@ for (let i = 0; i < rows.length; i++){
 performance.now = realNow;
 const by = s => frames.filter(f => f.s === s).length;
 console.log(JSON.stringify({ fotogrammi: rows.length, passo: step, mano: by('hands'), flusso: by('flow'), eventi: events.length, dalFlusso: events.filter(e => e.source === 'flow').length, alLimite: events.filter(e => e.speed >= 1.649).length }));
-for (const e of events) console.log(Math.round(e.t - 1000), e.source, e.type, e.shotType, 'side', e.side, 'dirX', e.dirX?.toFixed(2), 'dirY', e.dirY?.toFixed(2), 'speed', e.speed?.toFixed(2));
+for (const e of events) console.log(Math.round(e.t - 1000), ...(duo ? [e.chosen] : []), e.source, e.type, e.shotType, 'side', e.side, 'dirX', e.dirX?.toFixed(2), 'dirY', e.dirY?.toFixed(2), 'speed', e.speed?.toFixed(2));

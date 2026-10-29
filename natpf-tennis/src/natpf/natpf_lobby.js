@@ -37,7 +37,7 @@ export const MODES = ['cpu', 'friend', 'training', 'challenge', 'split'];
 // tappe mostrate nella barra di avanzamento, per modalità
 export function progressSteps(mode){
   if (mode === 'challenge') return [['challenges', 'Sfida'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'In campo']];
-  if (mode === 'split') return [['mode', 'Modalità'], ['connect', 'Telefoni'], ['match', 'Partita']];
+  if (mode === 'split') return [['mode', 'Modalità'], ['connect', 'Racchette'], ['match', 'Partita']];
   return mode === 'training' ? [['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Allenamento']]
     : [['mode', 'Modalità'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Riscaldamento'], ['match', 'Partita']];
 }
@@ -174,8 +174,9 @@ export class NatpfLobby {
     const diff = this.engine.hud?.selectedDifficulty, versus = mode === 'friend' || mode === 'split';
     if (versus && diff !== '1v1') document.querySelector('#difficulty-mode-group [data-difficulty="1v1"]')?.click();
     // stesso schermo: due telefoni sullo stesso computer (niente stanza in rete); lasciandolo la sessione split finisce
-    if (mode === 'split'){ this.ui.selectController?.('phone', { open: false }); this.ui.split?.prepare(); }
-    else this.ui.split?.end();
+    // (con due telefoni o con una webcam per due: la scelta della pagina «Collega», natpf_split_ui.applyInput)
+    if (mode === 'split'){ this.ui.split?.prepare(); this.ui.split?.applyInput?.(); }
+    else { this.ui.split?.end(); this.engine.motionController?.setWebcamDuo?.(false); }
     // sfida un amico: la stanza nasce subito (così l'amico può entrare mentre si prepara la racchetta); scegliendo
     // un'altra modalità la stanza si chiude e il Player 2 lo sa (prima restava aperta e i suoi colpi dirottavano la
     // partita contro la CPU)
@@ -192,7 +193,7 @@ export class NatpfLobby {
     if (tile){
       const n = tile.querySelector('.tile-name'), d = tile.querySelector('.tile-desc');
       if (n) n.textContent = mode === 'split' ? 'Stesso schermo' : 'Sfida un amico';
-      if (d) d.textContent = mode === 'split' ? '1v1 su un computer, due telefoni' : '1v1 su due computer';
+      if (d) d.textContent = mode === 'split' ? '1v1 su un computer, due telefoni o una webcam' : '1v1 su due computer';
     }
     this.paint();
   }
@@ -357,7 +358,7 @@ export class NatpfLobby {
     for (const p of this.el.querySelectorAll('[data-setup]')) show(p, p.dataset.setup === (split ? 'split' : st.controller));
     const other = $('connect-other');
     if (other){ show(other, st.controller !== 'mouse' && !split); other.textContent = st.controller === 'phone' ? 'Non hai il telefono a portata? Usa la webcam' : 'Preferisci il telefono? Usa lo smartphone'; }
-    $('lobby-t-connect').textContent = split ? 'Collega i due telefoni' : st.controller === 'phone' ? 'Collega il telefono' : st.controller === 'webcam' ? 'Accendi la webcam' : 'Mouse e tastiera';
+    $('lobby-t-connect').textContent = split ? (this.ui.split?.webcam ? 'Una webcam per due' : 'Collega i due telefoni') : st.controller === 'phone' ? 'Collega il telefono' : st.controller === 'webcam' ? 'Accendi la webcam' : 'Mouse e tastiera';
     $('lobby-t-match').textContent = split ? 'Stesso schermo' : this.mode === 'friend' ? 'Sfida un amico' : 'Pronto per la partita';
     if (this.step === 'connect' && split) this.ui.split?.paint();
     else if (this.step === 'connect' && st.controller === 'phone') this.ui.paintConnect();
@@ -365,7 +366,7 @@ export class NatpfLobby {
     this.ui.paintWebcamSetup?.();
     this._paintInvite();
     const note = $('lobby-match-note');
-    if (note) note.textContent = split ? (st.splitReady ? 'Player 1 a sinistra, Player 2 a destra. Ognuno guarda la sua metà.' : 'Un telefono non è pronto: torna a «Telefoni».') : st.controller === 'phone' && !st.phoneReady ? 'Il telefono va ricollegato: premendo «Gioca» compare il QR.' : '';
+    if (note) note.textContent = split ? (st.splitReady ? 'Player 1 a sinistra, Player 2 a destra. Ognuno guarda la sua metà.' : this.ui.split?.webcam ? 'La webcam non vede ancora tutti e due: torna a «Racchette».' : 'Un telefono non è pronto: torna a «Racchette».') : st.controller === 'phone' && !st.phoneReady ? 'Il telefono va ricollegato: premendo «Gioca» compare il QR.' : '';
     // telefono con i sensori attivi o mano vista dalla webcam: si entra in campo da soli, ma non con la guida aperta (prima
     // il riscaldamento partiva sotto la guida e il suo «Prova» lo faceva ripartire come allenamento)
     if (this.visible && autoAdvance(this.step, st) && this.autoFrom !== this.step && !this.onboarding.isOpen){

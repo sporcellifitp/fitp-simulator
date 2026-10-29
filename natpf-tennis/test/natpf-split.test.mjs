@@ -233,3 +233,39 @@ test('stesso schermo: scegliere il 1v1 non crea una stanza in rete (la crea solo
   E._onSelectDifficulty('1v1');
   assert.ok(rooms >= 1, 'sfida un amico: la stanza sì');
 });
+
+// Stesso schermo con una webcam per due (richiesta del 29/10 notte): niente telefoni; pronti quando la webcam vede le mani
+// di tutti e due; in partita i colpi di sinistra vanno al P1 e quelli di destra al P2, e non c'è la pausa del telefono
+// del P2 (non c'è). Corsie della webcam: src/natpf/webcam_duo.js (natpf-webcam-duo.test.mjs)
+test('stesso schermo con una webcam per due: scelta ricordata, pronti con le due mani viste, partita senza telefoni', async () => {
+  const { DuoTracker } = await import('../src/natpf/webcam_duo.js');
+  const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w, mc = E.motionController;
+  mc.setWebcamDuo = on => { on = !!on; if (mc.webcamDuo === on) return; mc.webcamDuo = on; mc._duo = new DuoTracker(); };   // come quello vero
+  const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
+  P2.link = { ...fakeLink(), connected: false, ready: false, L: { state: 'waiting', phone: null } };
+  lobby.go('mode'); lobby.setMode('split'); lobby.go('connect');
+  ui.split.setInput('webcam');
+  for (let i = 0; i < 3; i++) await Promise.resolve();
+  assert.equal(ui.controller, 'webcam'); assert.equal(mc.webcamDuo, true); assert.equal(mc.webcamActive, true);
+  assert.equal(lobby.state().splitReady, false, 'la webcam non ha ancora visto le mani');
+  // le due mani viste dalla webcam (centro della mano: P1 a sinistra, P2 a destra)
+  const hand = (S, y = .55) => { const a = Array.from({ length: 21 }, () => ({ x: 1 - S, y, z: 0 })); a[0] = { x: 1 - S, y: y - .05, z: 0 }; a[9] = { x: 1 - S, y: y + .04, z: 0 }; return a; };
+  mc._duo.hands([hand(.3)], performance.now());
+  assert.equal(lobby.state().splitReady, false, 'solo il P1');
+  mc._duo.hands([hand(.3), hand(.75)], performance.now());
+  assert.equal(lobby.state().splitReady, true);
+  lobby.next(); assert.equal(lobby.step, 'match');
+  assert.equal(w.pressStart(), true);
+  assert.equal(E.natpfSplit.active, true);
+  // a partita in corso il telefono del P2 non c'è: nessuna pausa per lui
+  E.phase = 'RALLY'; w.advance(2000);
+  assert.ok(!ui.split.hold && !E.natpfPaused, 'nessuna pausa');
+  // il colpo della webcam per il P2 arriva al P2 (servizio del P2: il suo gesto lancia la palla)
+  E._setupPointServe({ showBanner: false }); E.score.server = 'opponent'; E._setupPointServe({ showBanner: false });
+  mc._emitP2Swing({ source: 'webcam', side: 'forehand', shotType: 'topspin', speed: 1.3, dirX: -.4, dirY: -.2 });
+  assert.equal(E.phase, 'SERVE_TOSS');
+  // la scelta resta: tornando ai telefoni la webcam per due si spegne
+  ui.backToMenu(); lobby.go('mode'); lobby.setMode('split');
+  assert.equal(ui.split.input, 'webcam');
+  ui.split.setInput('phones'); assert.equal(mc.webcamDuo, false); assert.equal(ui.controller, 'phone');
+});

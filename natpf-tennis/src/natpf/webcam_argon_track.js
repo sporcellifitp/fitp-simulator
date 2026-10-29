@@ -93,3 +93,51 @@ export function argonHandSize(lm, aspect = .75){
 export function argonScale(size){
   return finite(size) && size > 0 ? Math.min(ARGON_TRACK.scaleMax, Math.max(1, ARGON_TRACK.handRef/size)) : 1;
 }
+
+// Scia della mano (o del flusso ottico) → movimento e, se è un colpo, l'evento. Le regole sono quelle dello zip
+// argon-tennis (soglie, lato dal verso, lancio, tipo di colpo, 320 ms tra due colpi); scale: ingrandimento della mano
+// lontana (argonScale), solo per la mano. Funzione pura: la usano la webcam per uno (motion_controls._argonEvaluateHandTrail)
+// e quella per due (webcam_duo.js), una scia per giocatore.
+// → null (scia troppo corta) | { motion: { vx, vy, mag }, event: null | { type: 'toss'|'swing', side, shotType, speed, dirX, dirY, last } }
+export function argonTrailEvent(trail, { hand = true, scale = 1, now = 0, lastTrigger = 0 } = {}){
+  if (!trail || trail.length < 2) return null;
+  const k = hand ? scale : 1, i = trail[0], a = trail[trail.length - 1], n = Math.max(.025, (a.t - i.t)/1e3);
+  const h = (a.x - i.x)*k, p = (a.y - i.y)*k, f = Math.hypot(h, p);
+  let s = 0;
+  for (let m = 1; m < trail.length; m++) s += k*Math.hypot(trail[m].x - trail[m - 1].x, trail[m].y - trail[m - 1].y);
+  const l = s > 1e-3 ? f/s : 0, r = hand ? .065 : .1, o = hand ? .62 : .7, y = hand ? .62 : .85, P = h/n, d = p/n;
+  const vx = P*.65, vy = d*.65, mag = l >= o ? Math.hypot(vx, vy) : 0, motion = { vx, vy, mag };
+  if (!(f >= r && l >= o && mag >= y && now - lastTrigger > 320)) return { motion, event: null };
+  const speed = Math.min(1.65, Math.max(.85, .75 + mag*.45)), dirX = Math.max(-1, Math.min(1, vx*.85)), dirY = Math.max(-1, Math.min(1, vy*.85));
+  const side = P > .15 ? 'backhand' : P < -.15 ? 'forehand' : null;
+  if ((a.y < .35 && p < -.045 && d < -.45) || (d < -.85 && Math.abs(d) > Math.abs(P)*1.15))
+    return { motion, event: { type: 'toss', side, shotType: 'lob', speed, dirX, dirY: -.9, last: a } };
+  const shotType = (d > .85 && speed > 1.18) || speed >= 1.46 ? 'smash' : d > .32 ? 'slice' : d < -.58 ? 'lob' : 'topspin';
+  return { motion, event: { type: 'swing', side, shotType, speed, dirX, dirY, last: a } };
+}
+
+// Flusso ottico dello zip su una fascia di colonne della griglia 8×6 (from…to, colonne incluse): il blocco 3×3 con più
+// movimento, se abbastanza forte e raccolto. luma e prev: luminosità 0…1 dell'immagine piccola (w×h, già specchiata).
+// → null | { x, y } centro del movimento (0…1). Con tutte le colonne è il flusso della webcam per uno.
+export function argonFlowBlob(luma, prev, w, h, { from = 0, to = 7 } = {}){
+  const s = 8, l = 6, r = w/s, o = h/l, y = new Float32Array(s*l), P = new Float32Array(s*l), d = new Float32Array(s*l);
+  let f = 0;
+  for (let c = 0; c < h; c++){
+    const b = Math.min(l - 1, Math.floor(c/o));
+    for (let x = 0; x < w; x++){
+      const I = Math.min(s - 1, Math.floor(x/r));
+      if (I < from || I > to) continue;
+      const S = c*w + x, X = Math.abs(luma[S] - prev[S]), M = X > .11 ? X : 0;
+      if (M > .13){ const k = b*s + I; f += M; y[k] += M; P[k] += (x/w)*M; d[k] += (c/h)*M; }
+    }
+  }
+  let m = 0, g = 0, T = 0;
+  for (let c = 0; c < l; c++) for (let b = from; b <= to; b++){
+    let W = 0, Sx = 0, Sy = 0;
+    for (let C = -1; C <= 1; C++){ const X = c + C; if (X < 0 || X >= l) continue;
+      for (let M = -1; M <= 1; M++){ const v = b + M; if (v < from || v > to) continue; const I = X*s + v; W += y[I]; Sx += P[I]; Sy += d[I]; } }
+    if (W > m){ m = W; g = Sx; T = Sy; }
+  }
+  const u = f > 1e-3 ? m/f : 0;
+  return m > 3.2 && u >= .45 ? { x: g/m, y: T/m } : null;
+}
