@@ -157,7 +157,10 @@ export function planPlayerIntercept(engine, actor){
     const deepPts = path.filter(p => p.bounces === 1 && Z(p.z) <= PLAN.deepBack && p.y <= top1 && reachable(p));
     const early = comfy[0] || after.find(p => p.y >= PLAN.comfort[0] && reachable(p)) || deepPts.find(p => p.y >= PLAN.comfort[0])
       || deepPts.reduce((b, p) => (!b || p.y > b.y + .01 ? p : b), null) || after.find(p => reachable(p));
-    const deep = apexOn && (!bounce || Z(bounce.z) > PLAN.serviceLine);
+    // anche la palla corta (rimbalzo prima della riga del servizio) si prende al colmo quando ci si arriva: più alta e con
+    // più tempo per arrivare. 29/10 pomeriggio: presa sempre in salita a 0,5 m, vicino alla rete doveva risalire sopra il
+    // nastro (niente chiusure né colpi potenti) e si arrivava di corsa (qualità .72)
+    const deep = apexOn;
     // solo se il colmo (o la discesa) è davvero raggiungibile entro maxBack: altrimenti si arretrerebbe fino al limite per
     // colpire ancora in salita (pochi centesimi di secondo in più, a prezzo della posizione: a Leggenda le palle corte
     // della CPU lo punivano)

@@ -73,7 +73,13 @@ export function createFaceTracker(opts = {}){
   function measure(){
     if (!frame) return null;
     const n = rotate(q, [0, 0, -1]), y = rotate(q, [0, 1, 0]);
-    const yaw = Math.atan2(dot(n, frame.right), dot(n, frame.fwd))/D;
+    // imbardata: rotazione di tutto il telefono attorno alla verticale dalla posa di riposo (scomposizione swing-twist),
+    // non la direzione orizzontale della normale del dorso. Con la presa di riferimento del 29/10 (base del telefono nel
+    // palmo, cima in avanti, schermo verso l'alto) il dorso guarda in basso: la sua proiezione orizzontale girava con il
+    // polso (pronazione) più che con la direzione del colpo. Rigiocando i sensori di quattro sessioni (presa inclinata e
+    // verticale) la dispersione dei colpi dello stesso verso scende circa della metà e le direzioni oltre 60° dal centro,
+    // non credibili, da 36 a 11 (WORK_PROGRESS, «Direzione del piatto con la presa nel palmo»)
+    const yaw = -twistAbout(q, frame.up)/D;
     const pitch = Math.asin(clamp(dot(n, frame.up), -1, 1))/D - frame.pitch0;
     const roll = Math.asin(clamp(dot(y, frame.up), -1, 1))/D - frame.roll0;
     return { yaw, pitch, roll };

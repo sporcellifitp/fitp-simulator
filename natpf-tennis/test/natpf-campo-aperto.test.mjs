@@ -109,7 +109,8 @@ test('l\'assistenza tiene dentro senza cambiare la direzione voluta: ordine dell
   // dentro la finestra, con il piatto che spinge oltre la riga: assistita resta dentro, e più si spinge più va di lato
   const xs = steps(-1, 1, 40).map(face => shotOf({ timing: .9*span, intent: { face } }, lv));
   for (const o of xs) assert.ok(o.assisted && Math.abs(o.x) < SIDELINE && o.depth < BASELINE, JSON.stringify(o));
-  for (let i = 1; i < xs.length; i++) assert.ok(xs[i].x > xs[i - 1].x, `${xs[i - 1].x} → ${xs[i].x}`);
+  // in ordine; a 3 decimali la curva dolce dell'assistenza arriva a 4 m e lì resta (sulla riga, mai oltre)
+  for (let i = 1; i < xs.length; i++) assert.ok(xs[i].x > xs[i - 1].x || (Math.abs(xs[i].x) >= 3.99 && xs[i].x === xs[i - 1].x), `${xs[i - 1].x} → ${xs[i].x}`);
   // la mira (direzione voluta) è la stessa con e senza assistenza; dentro le righe la caduta non cambia
   const calm = shotOf({ timing: .3*span }, lv), weak = shotOf({ timing: .3*span, quality: .35 }, lv);
   assert.equal(calm.aim, weak.aim); assert.equal(calm.assisted, true); assert.equal(weak.assisted, false);

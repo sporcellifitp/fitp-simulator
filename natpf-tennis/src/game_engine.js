@@ -2012,7 +2012,7 @@ export class NatpfTennisEngine {
     const B = this.ball.pos.clone();
     (B.y = Math.max(0.78, Math.min(racketShot && racketShot.T === "FLAT" && d ? 3.1 : 1.92, B.y))), // NATPF: la schiacciata parte da dove si colpisce
       this.ball.pos.copy(B),
-      this._launchBallToTarget(B, new o.Vector3(E, 0, N), I, { topspin: C, sidespin: V, allowNetFault: O, ...(racketShot?.out?.shot === "SMASH" ? { minFlight: NO.OUTCOME.smashFlight / (racketShot.super ? NO.SUPER.smashUp : 1) } : {}), ...(racketShot?.super ? { netClear: NO.SUPER.netGap } : {}) }),
+      this._launchBallToTarget(B, new o.Vector3(E, 0, N), I, { topspin: C, sidespin: V, allowNetFault: O, ...(racketShot?.out?.shot === "SMASH" ? { minFlight: NO.OUTCOME.smashFlight / (racketShot.super ? NO.SUPER.smashUp : 1) } : {}), ...(racketShot?.netClear != null ? { netClear: racketShot.netClear } : {}) }),
       (this.ball.natpfSuper = racketShot?.super || null),
       // NATPF varietà: il lancio non considera l'aria e ogni colpo cadeva circa 2 m prima del bersaglio (palle «in fondo»
       // a metà campo, errori «lunghi» che restavano dentro): la velocità si corregge perché la palla cada alla profondità voluta
@@ -2125,7 +2125,7 @@ export class NatpfTennisEngine {
     const shortBall = b.bounceCountOnCurrentSide > 0 && b.rallyStrokeCount > 1 && Math.abs(b.targetLanding.z) <= 6.4 && Math.abs(b.pos.z) <= 7;
     // ritmo di chi colpisce (natpf_stroke_outcome.createRhythm): la direzione si misura attorno al suo tempo abituale
     const rhythms = (this.natpfRhythm ||= { player: NO.createRhythm(), p2: NO.createRhythm() }), rhythm = rhythms[toward === 1 ? "p2" : "player"];
-    let out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, contact, hitX, quality, pressure, rhythm: rhythm.value, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, shortBall, level: lv });
+    let out = NO.strokeOutcome({ intent: { ...intent, shot }, timing: e.natpfTau, lateSpan: e.natpfLateSpan, ballVz: b.vel.z, contact, hitX, hitZ: Math.abs(b.pos.z), quality, pressure, rhythm: rhythm.value, contactY: b.pos.y, volley, net: Math.abs(p.pos.z) < 5, shortBall, level: lv });
     rhythm.add(out.t);
     // NATPF: colpo super potente (natpf_stroke_outcome.superShot): gesto fortissimo, naturale, a tempo, su una palla alta,
     // lenta o corta → in fondo, più piatto e molto più veloce; l'avversario lo legge in ritardo (ball.natpfSuper)
@@ -2137,7 +2137,8 @@ export class NatpfTennisEngine {
     const st = NS.registerPlayerShot(this, { grade: out.grade, quality: out.q, power: intent.power, landingX: X, landingZ: N, shot: out.shot, cpuZ: this.opponent.pos.z, who: toward === 1 ? "p2" : "player" });
     const fromY = Math.max(0.78, Math.min(out.shot === "SMASH" ? 3.1 : 1.92, b.pos.y));
     let I;
-    if (out.shot === "LOB") I = out.flight;
+    // pallonetto e chiusura sopra la rete (natpf_stroke_outcome: volo che passa basso sul nastro): il volo dell'esito
+    if (out.shot === "LOB" || (out.attack && out.shot !== "SMASH")) I = out.flight;
     // NATPF: schiacciata a velocità piena (OUTCOME.smashSpeed): dal punto d'impatto al punto di caduta, più lenta se fallita
     else if (out.shot === "SMASH") I = Math.max(NO.OUTCOME.smashFlight / (sup.on ? NO.SUPER.smashUp : 1), (Math.abs(b.pos.z) + out.depth) / (NO.OUTCOME.smashSpeed * (sup.on ? NO.SUPER.smashUp : 1))) * (out.failed || out.weak ? 1.5 : 1);
     else if (out.shot === "DROP") I = Math.max(1.32, (Math.abs(b.pos.z) + out.depth) / 10);
@@ -2151,8 +2152,10 @@ export class NatpfTennisEngine {
     }
     // seq: numero del colpo del telefono (diagnostica); at: istante del motore, per riconoscere un esito nuovo
     this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, hitX: +hitX.toFixed(3), quality: +(quality * pressure).toFixed(3), pressure: +pressure.toFixed(3), cause, volley, flight: +I.toFixed(3), seq: (e.natpf && e.natpf.seq) ?? null, at: this.elapsedTime, super: sup.on ? sup.ball : null, superWhy: sup.why };
+    // altezza minima sopra il nastro per il lancio: più bassa per il colpo super, la chiusura sopra la rete e la schiacciata
+    const netClear = sup.on ? NO.SUPER.netGap : out.attack ? Math.max(0.05, out.clear - S.NET_HEIGHT_CENTER) : null;
     return {
-      E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 * mirror : 0, O: out.netFault, T: engineShot,
+      netClear, E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 * mirror : 0, O: out.netFault, T: engineShot,
       drop: out.shot === "DROP", u: out.grade, w: out.cursor, q: out.q, power: intent.power, out, contact,
       // colpo potente (stelle, scossa della camera): anche ogni schiacciata riuscita e ogni colpo super potente
       M: sup.on || (out.shot === "SMASH" && !out.failed && !out.weak) || (out.shot !== "DROP" && out.shot !== "LOB" && out.q >= 0.9 && intent.power >= 0.7 && Math.abs(out.t) <= 0.35),
@@ -2327,7 +2330,7 @@ export class NatpfTennisEngine {
     const k = this.ball.pos.clone();
     (k.y = Math.max(0.78, Math.min(1.92, k.y))),
       this.ball.pos.copy(k),
-      this._launchBallToTarget(k, new o.Vector3(T, 0, M), R, { topspin: v, sidespin: E, allowNetFault: natpfP2Net, ...(p2Racket?.out?.shot === "SMASH" ? { minFlight: NO.OUTCOME.smashFlight / (p2Racket.super ? NO.SUPER.smashUp : 1) } : {}), ...(p2Racket?.super ? { netClear: NO.SUPER.netGap } : {}) }),
+      this._launchBallToTarget(k, new o.Vector3(T, 0, M), R, { topspin: v, sidespin: E, allowNetFault: natpfP2Net, ...(p2Racket?.out?.shot === "SMASH" ? { minFlight: NO.OUTCOME.smashFlight / (p2Racket.super ? NO.SUPER.smashUp : 1) } : {}), ...(p2Racket?.netClear != null ? { netClear: p2Racket.netClear } : {}) }),
       (this.ball.natpfSuper = p2Racket?.super || null),
       natpfP2Net || NS.fixAir(this.ball, { from: k, to: { x: T, z: M }, topspin: v, sidespin: E, gravity: L.GRAVITY, drag: L.AIR_DRAG }), // NATPF varietà: la palla cade alla profondità voluta, come per il P1
       // NATPF: palla corta e pallonetto veri del P2, compensati per l'attrito dell'aria come quelli del P1

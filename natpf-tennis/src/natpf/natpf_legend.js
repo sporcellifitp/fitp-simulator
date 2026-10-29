@@ -37,6 +37,11 @@ export const LEGEND = Object.freeze({
   priorErr: .07,            // errore dell'avversario atteso prima di vederlo giocare
   paceW: .025,              // quanto la velocità della palla fa sbagliare l'avversario (× e^(paceW·(km/h − 95)))
   learn: true,              // impara dagli errori che l'avversario fa davvero (per tipo di colpo)
+  // … e dai vincenti con cui risponde (per tipo di colpo): un colpo che l'avversario punisce vale meno (lo scambio che
+  // continua vale × (1 − punizione stimata), Beta con punPrior di peso punW). 29/10 pomeriggio: con la schiacciata
+  // dall'altezza della spalla e le chiusure sopra la rete i giocatori precisi punivano le palle alte e lente («alta»),
+  // e la CPU continuava a giocarle (contro «preciso» dal 37,7 al 29,6% dei game)
+  punPrior: .08, punW: 3,
   kLat: .865,               // spostamento laterale vero / voluto per l'aria (misurato sul motore)
   accel: 14, decel: 22,     // m/s²: accelerazione e frenata
   recoverZ: -11.35,         // profondità di attesa
@@ -97,12 +102,15 @@ function humanErr(m, L, c, ctx, learn){
   if (learn && L.learn){ const g = (m.err + 2)/(m.exp + 2); p *= g; const k = m.kinds[c.kind]; if (k) p *= (k.err + 2)/(k.exp*g + 2); }
   return clamp(p, .002, .6);
 }
-function noteHumanResult(m, erred){
+// erred: l'avversario ha sbagliato; punished: ha risposto con un vincente (la CPU non ha più colpito)
+function noteHumanResult(m, erred, punished = false){
   const p = m.pending; if (!p) return;
   m.pending = null; m.n++; m.exp += p.prior; if (erred) m.err++;
-  const k = m.kinds[p.kind] || (m.kinds[p.kind] = { err: 0, exp: 0, n: 0 });
-  k.n++; k.exp += p.prior; if (erred) k.err++;
+  const k = m.kinds[p.kind] || (m.kinds[p.kind] = { err: 0, exp: 0, n: 0, pun: 0 });
+  k.n++; k.exp += p.prior; if (erred) k.err++; if (punished) k.pun = (k.pun || 0) + 1;
 }
+// probabilità stimata che l'avversario risponda a questo tipo di colpo con un vincente
+const punishOf = (m, L, kind) => { const k = m.kinds[kind]; return L.learn ? ((k?.pun || 0) + L.punPrior*L.punW)/((k?.n || 0) + L.punW) : L.punPrior; };
 
 /* ---------- chi gioca arriva sulla palla? ---------- */
 // probabilità che non ci arrivi (vincente) e quanto arriva in corsa (0…1), dalla posizione e dalla corsa attuali
@@ -192,7 +200,8 @@ export function legendDecide(e, actor, rng = legendRng(e)){
     c.pWin = hr.pWin;
     const eR = eC + (1 - eC)*.25*hr.stretch;
     // utilità: palla dentro × (vincente + errore provocato + valore di uno scambio che continua), meno le ripetizioni
-    c.U = (1 - c.pErr)*(hr.pWin + (1 - hr.pWin)*(eR + (1 - eR)*V)) - L.repeat*recent.filter(z => z === zone(c.x, c.z)).length
+    c.pPun = punishOf(m, L, c.kind);
+    c.U = (1 - c.pErr)*(hr.pWin + (1 - hr.pWin)*(eR + (1 - eR)*V*(1 - c.pPun))) - L.repeat*recent.filter(z => z === zone(c.x, c.z)).length
       - L.repeatKind*last3.filter(l => l.kind === c.kind).length - L.capPenalty*Math.max(0, last10.filter(l => l.kind === c.kind).length/10 - L.maxShare);
     if (!best || c.U > best.U) best = c;
   }
@@ -365,5 +374,6 @@ export function legendServe(e, rng = legendRng(e)){
 //   who: chi vince il punto ('player' | 'opponent')
 export function legendPointEnd(e, who){
   if (!isLegend(e) || !e.natpfLegend?.pending) return;
-  noteHumanResult(e.natpfLegend, who === 'opponent');
+  // con un colpo della CPU ancora in sospeso il punto finisce sulla risposta dell'avversario: se lo vince lui è un vincente
+  noteHumanResult(e.natpfLegend, who === 'opponent', who === 'player');
 }

@@ -672,3 +672,54 @@ La misura alternativa (rotazione attorno alla verticale) sugli stessi colpi era 
       riquadro «Telefono del Player 2 in pausa» con il pulsante «Ricollega il telefono», pagina del telefono con
       «Ricollega», nessun errore (su Cloudflare solo i 404 attesi). Il browser di prova è lento: la pausa compare dopo ~3 s.
 - [ ] Non provato: Windows, telefoni veri (ricollegamento, mira, colpo super, stanchezza), Cloudflare Pages vero.
+
+## Diagnostica 20261029-131307-yn48 (stesso schermo, 1v1, build .10) e foto della presa di riferimento — 29/10 pomeriggio
+Segnalazioni: (1) palla quasi sempre al centro «indipendentemente dal movimento»; (2) presa di riferimento nuova: base
+del telefono nel palmo, cima in avanti, schermo verso l'alto (foto); (3) schiacciata e pallonetto che non riescono;
+(4) vicino alla rete il colpo finisce in rete, niente colpi potenti o angolati. Materiale: eventi, metriche, video della
+webcam e del gioco (zip diviso, riunito); i sensori grezzi di questa partita non sono arrivati.
+
+Analisi (registro, video, rigiocando i sensori di quattro sessioni precedenti con `scripts/audit/zip-replay.mjs`):
+- Cadute di chi gioca tra −2,5 e +3,3 m (mediana |x| 1,7 m su 41 colpi in campo), quasi tutte a 10 m di profondità. Il
+  tempo (controllo principale) restava quasi uguale: colpi trattenuti fino all'arrivo della palla e ritmo personale al
+  centro, mediana 0,2 unità; il piatto, che cambia con il movimento, contava il 60%.
+- Il piatto si leggeva dalla normale del dorso: con lo schermo verso l'alto il dorso guarda in basso e la sua direzione
+  orizzontale girava con il polso. Con la presa a 65° un rollio di 40° sul manico valeva 63° di direzione.
+- Video: gesti brevi di polso e avambraccio, dall'altezza del petto verso il fianco. Il rovescio normale in partita
+  scendeva (salita mediana −0,45) mentre la calibrazione dava +0,30: 15 rovesci su 21 erano tagliati. Tre gesti su quattro
+  dal basso verso l'alto (salita 0,53–0,64, piano 0,47–0,61) restavano top spin.
+- Le due schiacciate (riconosciute) arrivavano su palle a 1,55–1,70 m, sotto la soglia di 1,75 m: colpi piatti di dritto
+  o rovescio. Da 1,5–2 m d'altezza la schiacciata andava a 95–105 km/h: il lancio imponeva 34 cm sopra il nastro.
+- Il pallonetto in partita passava 2,8 m sopra il nastro (colmo circa 4 m): schiacciato dall'altro giocatore.
+- Palla corta: il movimento automatico la prendeva in salita a 0,5 m; da lì ogni colpo doveva risalire 34 cm sopra il
+  nastro (niente chiusure); il tempo in secondi rendeva «molto in anticipo» (fuori, in rete) gli swing di 0,2 s sulle palle
+  lente. Nei registri pochi colpi a rete: confermato con il motore senza grafica (sonde fuori dal repository).
+
+Interventi (commit di questa sezione):
+- [x] Telefono `site/js/tennis/face-tracker.js`: imbardata dalla rotazione di tutto il telefono attorno alla verticale
+      (scomposizione swing-twist). Rigiocando quattro sessioni: dispersione dei colpi dello stesso verso circa dimezzata,
+      direzioni oltre 60° da 36 a 11. Rollio di 40° con la presa a 65°: 17,5° invece di 63°. Provata anche la direzione del
+      manico pesata con quella del dorso: non migliore sui dati veri.
+- [x] `natpf_stroke_outcome.js`: piatto con peso 1 (era 0,6), tempo e piatto si sommano; profondità come lunghezza del
+      colpo (in diagonale la palla cade più corta). Provata e tolta una curva di risposta della mira: poco utile sui dati
+      veri (mediana 2,23 contro 2,04 m) e amplificava il rumore del polso (banco Leggenda).
+- [x] Colpo normale imparato giocando (`natpf_phone_racket.habitualRise`, `RISE_LEARN.verified` 5): vale anche con la
+      calibrazione. Pallonetto rispetto al proprio colpo normale (`INTENT.lobRelMin` .5, `lobRel` .45, `lobRelPlane` .7),
+      soglie assolute di prima senza salita abituale.
+- [x] Schiacciata: con il gesto da 1,5 m (`SMASH_FROM`, prima 1,75), palla alta dal piano d'intercetto
+      (`ballIsHigh`), 10 cm sopra il nastro e 46 m/s (era 40).
+- [x] Pallonetto più alto, scalato con la distanza (`lobFlight` [2,6, 1,95], `lobRef`, `lobScale`): da fondo campo colmo
+      5,4–6,5 m, sopra i 4,4 m a 4,5 m dalla rete.
+- [x] Rete e palle corte: palla corta presa al colmo del rimbalzo (`natpf_impact`, livelli con il contatto al colmo);
+      chiusura sopra la rete (`OUTCOME.attack*`: entro 6,4 m, palla sopra 0,9 m, gesto deciso, qualità del livello
+      `ASSIST.attackQ`) bassa sul nastro e veloce, angolo stretto possibile; volée sotto il nastro che sale come prima.
+      Tempo sulla strada della palla (`SLOW`, `slowFactor`: da 15 m/s in giù, al massimo 1,8 volte).
+- [x] CPU Leggenda: impara anche dai vincenti dell'avversario per tipo di colpo (`LEGEND.punPrior`, `punW`).
+- [x] Test `test/natpf-presa-palmo-29-10.test.mjs` (10): tutti i gesti del tutorial con la presa nel palmo (destro e
+      mancino, cima a 50/65/80°, rollio ±25°), direzione con il rollio, colpo normale imparato, pallonetto relativo,
+      pallonetto alto, schiacciata da 1,55 m, direzione, palle lente, palla corta e chiusura, volée. Aggiornati
+      `natpf-campo-aperto*.test.mjs` (nuova regola: il piatto arriva alle righe, tempo e piatto si sommano).
+- [x] Gioco 496/496, sito 160/160, build. Banco Leggenda: stessi 2 criteri non rispettati di prima (CPU contro
+      «tennista» 76,5%, era 76,9%; contro «preciso» 35,2%, era 37,7%), «medio» 93,1% (era 96,1%); Pro contro «medio»
+      81,6% come prima. Senza l'apprendimento dai vincenti: «preciso» 29,6%; con il tempo largo 18/2,2: Pro 86,5%.
+- [ ] Non provato con i telefoni veri: direzione con la presa nel palmo, pallonetto e schiacciata, chiusure a rete.

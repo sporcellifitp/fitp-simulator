@@ -10,6 +10,7 @@ import { skillLevel } from '../src/natpf/natpf_skill.js';
 
 const LEVELS = ['casual', 'pro', 'leggenda', '1v1'];
 const shot = (lv, o = {}) => strokeOutcome({ contact: 1, hitX: 0, quality: 1, contactY: 1, level: lv, ...o, intent: { shot: 'topspin', power: .6, depth: .6, rise: .25, face: 0, ...(o.intent || {}) } });
+const SIDE = 4.115;   // riga laterale del singolare
 
 test('lungolinea e incrociato pieni con il solo tempo, da tutte e due le parti e da ogni posizione, a tutti i livelli', () => {
   for (const name of LEVELS){
@@ -44,17 +45,23 @@ test('centro voluto: con il tempo giusto la palla va al centro; il colpo neutro 
   }
 });
 
-test('il piatto permette di scegliere circa due metri a tempo neutro, e non scavalca il tempo ai bordi', () => {
+// 29/10 pomeriggio: il piatto (che cambia con il movimento) da solo arriva vicino alle righe, e tempo e piatto si
+// sommano (prima il piatto valeva il 60% e ai bordi della finestra il tempo vinceva sempre: con il tempo che a chi gioca
+// resta quasi uguale, le palle cadevano tutte al centro)
+test('il piatto da solo porta la palla vicino alle righe a tempo neutro; tempo e piatto si sommano', () => {
   const lv = skillLevel('pro'), span = directionSpan(lv);
   const base = shot(lv, { timing: 0, lateSpan: span }).x, right = shot(lv, { timing: 0, lateSpan: span, intent: { face: 1 } }).x, left = shot(lv, { timing: 0, lateSpan: span, intent: { face: -1 } }).x;
-  for (const x of [right, left]) assert.ok(Math.abs(x - base) > 2 && Math.abs(x - base) < 2.25, `${left} ${base} ${right}`);
-  assert.ok(right > base && left < base);
-  // incrociato pieno con il piatto tutto verso il lungolinea: resta incrociato
-  assert.ok(shot(lv, { timing: span, lateSpan: span, intent: { face: 1 } }).x < -1.4);
-  // Anche sul lato opposto e per il rovescio il tempo conserva il verso scelto.
+  assert.ok(right > 3.2 && left < -3.2 && right < SIDE && left > -SIDE, `${left} ${base} ${right}`);
+  // un piatto girato a metà porta la palla a metà strada (continuo, in ordine)
+  const half = shot(lv, { timing: 0, lateSpan: span, intent: { face: .5 } }).x;
+  assert.ok(half - base > .4*(right - base) && half < right, `${base} ${half} ${right}`);
+  // incrociato pieno dal tempo e piatto tutto verso il lungolinea: si annullano (verso il centro); nello stesso verso
+  // la palla va sulla riga e resta dentro
   for (const contact of [1, -1]){
-    assert.ok(shot(lv, { contact, timing: span, lateSpan: span, intent: { face: contact } }).x*contact < -1.4);
-    assert.ok(shot(lv, { contact, timing: -span, lateSpan: span, intent: { face: -contact } }).x*contact > 1.4);
+    const mixed = shot(lv, { contact, timing: span, lateSpan: span, intent: { face: contact } }).x;
+    assert.ok(Math.abs(mixed) < 1.5, `${contact}: ${mixed}`);
+    const same = shot(lv, { contact, timing: span, lateSpan: span, intent: { face: -contact } }).x*contact;
+    assert.ok(same < -3.5 && same > -SIDE, `${contact}: ${same}`);
   }
 });
 

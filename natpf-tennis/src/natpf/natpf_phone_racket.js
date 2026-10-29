@@ -28,7 +28,8 @@ import { classifyPhoneShot, aimFromSignals, ENGINE_SHOT, liftBaselineFromProfile
 import { calReduce, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
 import { readHand, readP2Hand, writeP2Hand, normalizeHand } from './natpf_hand.js';
 import { strokeIntent, shapeDistinct, strokePower } from './natpf_stroke_intent.js';
-import { weakSwing } from './natpf_impact.js';
+import { weakSwing, livePlan } from './natpf_impact.js';
+import { SMASH_FROM } from './natpf_stroke_outcome.js';
 
 const NATPF_BASE = '/natpf/';
 const scripts = new Map();
@@ -81,7 +82,10 @@ export const riseRefOf = (profile, dir) => (profile && !profile.simple && (dir =
 // tiene il telefono in verticale con il polso che prona (presa del 19/10) e salta la calibrazione vedeva i dritti
 // diventare tagliati per tutta la partita. Come quella della calibrazione sposta le soglie dei colpi speciali solo per
 // renderli più difficili (classifyStroke): con molti tagliati voluti i tagliati diventano più difficili, mai più facili
-export const RISE_LEARN = Object.freeze({ min: 3, keep: 9, skip: Object.freeze(['lob', 'smash']) });
+// 29/10 pomeriggio: anche con la calibrazione, dopo «verified» colpi in quel verso vale quella imparata giocando. Con il
+// telefono nel palmo e la cima in avanti la calibrazione dava al rovescio +0,30 e in partita il rovescio normale scendeva
+// (mediana −0,45): 15 rovesci su 21 erano tagliati, e i colpi dal basso verso l'alto non arrivavano al pallonetto
+export const RISE_LEARN = Object.freeze({ min: 3, verified: 5, keep: 9, skip: Object.freeze(['lob', 'smash']) });
 // Colpo tipico di chi gioca (velocità al picco, °/s): la mediana dei colpi dello scambio oltre «from», da «min» colpi in
 // poi; prima, il verso più deciso della calibrazione. Dice al motore se un gesto è debole rispetto ai propri colpi
 // (natpf_impact.WEAK: preparazione o micro-movimento, che da solo non colpisce in anticipo). Chi gioca con colpetti
@@ -108,11 +112,12 @@ export function createRiseModel({ min = RISE_LEARN.min, keep = RISE_LEARN.keep }
   return {
     reset(){ seen[1] = []; seen[-1] = []; },
     add(dir, rise, shot){ if ((dir === 1 || dir === -1) && Number.isFinite(rise) && !RISE_LEARN.skip.includes(shot)){ const h = seen[dir]; h.push(rise); if (h.length > keep) h.shift(); } },
-    ref(dir){ const h = seen[dir]; if (!h || h.length < min) return null; const v = [...h].sort((a, b) => a - b), m = v.length >> 1; return +(v.length % 2 ? v[m] : (v[m - 1] + v[m])/2).toFixed(3); },
+    ref(dir, need = min){ const h = seen[dir]; if (!h || h.length < need) return null; const v = [...h].sort((a, b) => a - b), m = v.length >> 1; return +(v.length % 2 ? v[m] : (v[m - 1] + v[m])/2).toFixed(3); },
   };
 }
-// salita abituale per il colpo: quella della calibrazione, altrimenti quella imparata giocando (o null)
-export const habitualRise = (profile, dir, model = null) => riseRefOf(profile, dir) ?? model?.ref(dir) ?? null;
+// salita abituale per il colpo: quella imparata giocando (da RISE_LEARN.verified colpi in quel verso se c'è la
+// calibrazione, da min senza), altrimenti quella della calibrazione (o null)
+export const habitualRise = (profile, dir, model = null) => { const cal = riseRefOf(profile, dir); return model?.ref(dir, cal == null ? RISE_LEARN.min : RISE_LEARN.verified) ?? cal ?? null; };
 // Forma del proprio colpo normale per il confronto con i propri colpi speciali (natpf_stroke_intent.personalSpecial):
 // |piano| e forza assoluta (shapePower) dei colpi normali dello scambio (mediana degli ultimi «keep», da «min» in poi;
 // prima, un dritto con la forza del colpo della calibrazione, seed, o di un dritto tipico)
@@ -259,9 +264,13 @@ export function phoneGamePhase(engine, role = engine.playerRole){
 // Palla da schiacciata: alta sopra la testa del giocatore locale, o in arrivo e ancora in salita sopra i 2 m
 // Palla alta per chi gioca qui: alta E vicina (entro 6 m). Prima contava solo l'altezza: a metà volo la palla è sempre
 // alta e un dritto anticipato con la mano che scende diventava una schiacciata (nelle registrazioni succedeva).
+// Palla alta all'impatto (zona della schiacciata, natpf_stroke_outcome.SMASH_FROM): dal piano d'intercetto in corso,
+// che sa dove si colpirà (29/10 pomeriggio: con la sola posizione di adesso un gesto arrivato con la palla ancora
+// lontana non era «palla alta»); senza piano, dalla palla vicina come prima
 export function ballIsHigh(engine, role = engine.playerRole){
   const b = engine.ball; if (!b || !b.inPlay) return false;
-  const me = actorOf(engine, role);
+  const me = actorOf(engine, role), plan = me ? livePlan(engine, me) : null;
+  if (plan && plan.kind !== 'letgo' && Number.isFinite(plan.contact?.y)) return plan.kind === 'smash' || plan.contact.y >= SMASH_FROM.gesture;
   if (me?.pos && Number.isFinite(b.pos?.z) && Math.abs(b.pos.z - me.pos.z) > 6) return false;
   return b.pos.y > 1.7 || (b.pos.y > 1.2 && b.targetLanding && Math.abs(b.vel.y) < 2 && b.pos.y > 1.5);
 }

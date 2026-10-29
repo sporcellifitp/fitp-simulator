@@ -28,7 +28,11 @@ export const OUTCOME = Object.freeze({
   // chi colpisce «a tempo» (t ≈ 0, come fa chiunque guardi la palla) mandava ogni palla nello stesso punto, perché il
   // tempo è il controllo principale ma un umano lo varia poco senza volerlo; il piatto, che si gira apposta, è il
   // controllo che si sceglie. Il tempo resta più forte: al bordo della finestra il piatto non lo scavalca (27/10)
-  faceAim: .6,
+  // 29/10 pomeriggio (segnalazione «la palla finisce quasi sempre al centro, indipendentemente dal movimento»): 1. Il
+  // tempo, il controllo principale, a chi gioca resta quasi uguale (colpi trattenuti fino all'arrivo della palla e
+  // ritmo personale al centro: nella partita 131307 mediana 0,2 unità), e il piatto, che cambia con il movimento, era
+  // tenuto al 60%: le palle cadevano tra −2,5 e +3 m. Ora il piatto da solo arriva alle righe; tempo e piatto si sommano
+  faceAim: 1,
   xMax: 3.65,         // m: mira piena, 0,45 m dentro la riga laterale del singolare
   follow: .4,         // il punto neutro segue di tanto la posizione laterale della palla all'impatto (0: sempre il centro)
   pushOut: 1.4,       // m di lato per unità di tempo oltre la finestra (per livello in ASSIST: con il lungolinea e
@@ -53,15 +57,37 @@ export const OUTCOME = Object.freeze({
   // proporzione (widePull): la differenza di profondità voluta resta. Il lungolinea non è un angolo: resta profondo
   // (23/10: con il lungolinea pieno al bordo della finestra anche lui cadeva a 6,5–7 m, e le palle si ammucchiavano lì)
   wideFrom: 3.2, wideSpan: .8, wideDepth: 6, widePull: .6,
+  hitZ: 11.5,         // m dalla rete del punto d'impatto se non si sa (fondo campo)
   floatPerQ: .35,     // m più alta sulla rete per la qualità che manca (palla «galleggiante» per l'avversario)
   // schiacciata: velocità lungo il campo (m/s) e volo minimo. Segnalazione del 29/10: «dovrebbe essere un colpo molto
   // più forte»; con 0,42 s andava a 28–29 m/s (191–200 km/h sul tabellone), poco più di un piatto (26 m/s, 179 km/h)
-  lobFlight: [2.2, 1.75], smashFlight: .26, smashSpeed: 40,
+  // 29/10 pomeriggio: 46 m/s (circa 166 km/h, era 40): con la palla presa più in alto i piatti pieni arrivano a 31 m/s
+  // di media e la schiacciata a 40 non era più nettamente più forte
+  // pallonetto: volo da forza 0 a forza 1 per un colpo da fondo a fondo (lobRef m), più corto da più vicino. 29/10
+  // pomeriggio: con [2,2, 1,75] il pallonetto passava 2,8 m sopra il nastro e saliva a circa 4 m: l'altro giocatore lo
+  // schiacciava da metà campo. Ora il difensivo sale a 6–7 m, quello forte (d'attacco) a 4,5–5 m
+  lobFlight: [2.6, 1.95], lobRef: 22, lobScale: [.85, 1.1], smashFlight: .26, smashSpeed: 46,
   volleyShort: 1,     // m: la volée spinge meno
   netLowY: .42, netExcess: .45,   // palla presa sotto 0,42 m molto fuori tempo: in rete
   weakDepth: 6.8, weakFloat: .9,  // a rete, colpo fallito con il tempo perfetto: al massimo a 6,8 m dalla rete, 0,9 m più alto
   assistQ: .6,        // sotto questa qualità l'assistenza non tiene la palla dentro
+  // Colpo d'attacco sopra la rete (chiusura) e schiacciata (29/10 pomeriggio: «vicino alla rete il colpo finisce in rete,
+  // non riesco a rispondere con un colpo potente o angolato»). Ogni colpo doveva passare almeno 34 cm sopra il nastro e
+  // salire di nuovo verso il fondo: da vicino alla rete la palla presa sopra il nastro tornava una parabola lenta, e la
+  // schiacciata da 1,5–2 m arrivava a 95–105 km/h invece di 144. Ora, da entro attackZ dalla rete con la palla sopra
+  // attackY e un gesto deciso (o la schiacciata), la palla passa bassa sopra il nastro (attackGap, più alta se il gesto è
+  // morbido) e veloce (attackSpeed lungo il campo, dalla forza), con l'angolo stretto possibile (attackWideDepth). Con la
+  // palla sotto il nastro resta una volée che deve salire, come nella realtà
+  attackZ: 6.4, attackY: .9, attackPower: .45, attackGap: [.08, .3], attackSpeed: [20, 34], attackWideDepth: 4.2, smashGap: .1,
 });
+
+// Tempo misurato sulla strada della palla, non solo in secondi: su una palla lenta (palla corta, rimbalzo alto, colpo
+// morbido) lo stesso anticipo in secondi è molto più vicino al punto d'impatto. La finestra della direzione e quella
+// si allarga di vRef/|vz| (fino a max) sotto vRef m/s lungo il campo. 29/10 pomeriggio: sulle palle corte raggiunte
+// vicino alla rete i colpi arrivavano 0,2–0,5 s prima, «molto in anticipo»: fuori o in rete. vRef e max tarati con il
+// banco (Pro contro «medio» resta all'81,6% dei game come prima; con 18 e 2,2 saliva all'86,5%)
+export const SLOW = Object.freeze({ vRef: 15, max: 1.8 });
+export const slowFactor = vz => (vz == null || !Number.isFinite(Number(vz)) ? 1 : clamp(SLOW.vRef/Math.max(1, Math.abs(Number(vz))), 1, SLOW.max));
 
 // Assistenza per livello: mira piena (xMax, m dal centro), qualità sotto la quale la palla non è più tenuta in campo
 // (assistQ) e sotto la quale il colpo fallisce (failQ: in rete se la palla è bassa, lunga se è alta), finestra della
@@ -70,11 +96,13 @@ export const OUTCOME = Object.freeze({
 // stessa mira piena e stesso peso del tempo a tutti i livelli. Prima a Leggenda 3,1 m e 0,58 (lungolinea al 43%).
 // pushOut: m di lato per unità di tempo oltre la finestra della direzione (quanto presto un colpo troppo in anticipo o
 // in ritardo esce di lato: a Casual nell'ultima parte della finestra d'impatto, a Leggenda prima)
+// attackQ: qualità sotto la quale non c'è la chiusura sopra la rete (OUTCOME.attackZ…): come il resto, il livello cambia la
+// precisione chiesta (29/10 pomeriggio)
 export const ASSIST = Object.freeze({
-  casual: Object.freeze({ xMax: 3.65, assistQ: .5, failQ: .2, pushOut: .8 }),
-  '1v1': Object.freeze({ xMax: 3.65, assistQ: .6, failQ: .34, pushOut: .9 }),
-  pro: Object.freeze({ xMax: 3.65, assistQ: .62, failQ: .3, pushOut: .9 }),
-  leggenda: Object.freeze({ xMax: 3.65, assistQ: .8, failQ: .63, pressureFrom: 10, pushOut: 1.1 }),
+  casual: Object.freeze({ xMax: 3.65, assistQ: .5, failQ: .2, pushOut: .8, attackQ: .45 }),
+  '1v1': Object.freeze({ xMax: 3.65, assistQ: .6, failQ: .34, pushOut: .9, attackQ: .6 }),
+  pro: Object.freeze({ xMax: 3.65, assistQ: .62, failQ: .3, pushOut: .9, attackQ: .65 }),
+  leggenda: Object.freeze({ xMax: 3.65, assistQ: .8, failQ: .63, pressureFrom: 10, pushOut: 1.1, attackQ: .82 }),
 });
 export const assistOf = level => ASSIST[level?.name] || (level?.cpuLegend ? ASSIST.leggenda : level?.assistWindow <= .16 ? ASSIST.pro : level?.assistWindow >= .3 ? ASSIST.casual : ASSIST['1v1']);
 // finestra della direzione (s) del livello
@@ -131,10 +159,10 @@ export const aimForLanding = (x, x0, xMax = OUTCOME.xMax) => (x - x0)/Math.max(.
 // Restituisce, nel riferimento di chi colpisce (x a destra, depth in avanti dalla rete): { x, depth, clear, topspin,
 // flight (solo pallonetto e schiacciata), netFault, failed, weak, pressured, grade, cursor, t, excess, q, aim, x0,
 // assist, assisted }.
-export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contact = 1, hitX = 0, quality = 1, pressure = 1, rhythm = 0, contactY = 1, volley = false, net = false, shortBall = false, level = {} } = {}){
+export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz = null, contact = 1, hitX = 0, hitZ = null, quality = 1, pressure = 1, rhythm = 0, contactY = 1, volley = false, net = false, shortBall = false, level = {} } = {}){
   const O = OUTCOME, shot = String(intent.shot || 'topspin').toUpperCase();
   const power = clamp(finite(intent.power, .5)), want = clamp(finite(intent.depth, power)), rise = clamp(finite(intent.rise), -1, 1);
-  const AS = assistOf(level), span = directionSpan(level), late = Number.isFinite(lateSpan) ? clamp(lateSpan, .04, span) : span;
+  const AS = assistOf(level), span = directionSpan(level)*slowFactor(ballVz), late = Number.isFinite(lateSpan) ? clamp(lateSpan, .04, span) : span;
   // tempo in unità della finestra della direzione (+ anticipo). Oltre ±1 la palla continua ad andare verso l'esterno
   // fino alla fine della finestra d'impatto (prima si fermava a 1,6 unità: nell'ultimo 40% della finestra tutte le
   // palle uguali). ±4 è oltre ogni finestra d'impatto, solo per sicurezza
@@ -153,8 +181,15 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contac
   // profondità voluta con la curva (DROP e LOB restano lineari: la palla corta vuole restare corta)
   const wantD = shot === 'DROP' || shot === 'LOB' ? want : Math.pow(want, O.depthCurve);
   let depth = lerp(D[0], D[1], wantD) - (1 - q)*O.shortPerQ - excess*O.shortPerExcess - (volley ? O.volleyShort*(1 - power) : 0);
+  // in diagonale la palla fa la stessa strada: la profondità voluta è la lunghezza del colpo dritto, e un colpo che va
+  // di lato cade più vicino alla rete di quanto va di lato (prima la profondità era la stessa per ogni direzione: gli
+  // incrociati e i lungolinea cadevano tutti alla stessa distanza, gli angoli non si vedevano)
+  const zc = Math.abs(finite(hitZ, O.hitZ)), along = zc + depth, side = x - clamp(finite(hitX), -6, 6);
+  if (shot !== 'DROP' && shot !== 'LOB' && along > Math.abs(side)) depth = Math.sqrt(along*along - side*side) - zc;
   if (shot === 'TOPSPIN') depth += clamp(rise - O.heavyRise, 0, .4)*O.heavyGain*power;
-  if (shot !== 'DROP' && shot !== 'LOB' && -c*x > 0) depth -= Math.max(0, depth - O.wideDepth)*O.widePull*clamp((Math.abs(x) - O.wideFrom)/O.wideSpan);
+  const yc = finite(contactY, 1);
+  const attack = shot === 'SMASH' || (shot !== 'DROP' && shot !== 'LOB' && zc <= O.attackZ && yc >= O.attackY && power >= O.attackPower);
+  if (shot !== 'DROP' && shot !== 'LOB' && -c*x > 0) depth -= Math.max(0, depth - (attack ? O.attackWideDepth : O.wideDepth))*O.widePull*clamp((Math.abs(x) - O.wideFrom)/O.wideSpan);
   depth += (softEdge(depth, O.depthKnee, O.maxDepth) - depth)*assist;
   depth = shot === 'DROP' ? softFloor(depth, O.dropMin, O.dropMin + .6) : softFloor(depth, O.minDepth, O.minDepth + .6);
   // altezza sulla rete ed effetto
@@ -162,7 +197,7 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contac
   const high = clamp((finite(contactY, 1) - 1.5)/.5)*.18;
   const clear = Math.max(ARC.netY + .02, A.clear[0] + (A.clear[1] - A.clear[0])*soft + (1 - q)*O.floatPerQ - high + (shot === 'TOPSPIN' ? .6*clamp(rise - .15, 0, .6) : 0));
   const topspin = shot === 'TOPSPIN' ? 15 + 8*clamp(rise) + 6*soft : shot === 'FLAT' ? 12 : shot === 'SLICE' ? -6.5 : shot === 'DROP' ? -3 : shot === 'LOB' ? 5 : 9;
-  const flight = shot === 'LOB' ? lerp(O.lobFlight[0], O.lobFlight[1], power) : shot === 'SMASH' ? Math.max(O.smashFlight, depth/26) : null;
+  let flight = shot === 'LOB' ? lerp(O.lobFlight[0], O.lobFlight[1], power)*clamp((zc + depth)/O.lobRef, O.lobScale[0], O.lobScale[1]) : shot === 'SMASH' ? Math.max(O.smashFlight, depth/26) : null;
   // colpo fallito: tempo molto sbagliato su una palla bassissima, o qualità sotto failQ (in corsa, in allungo, palla
   // veloce, sotto pressione): in rete se la palla è sotto il metro, altrimenti lunga oltre la riga di fondo. Deterministico.
   // A rete (entro 5 m dalla rete, al volo o dopo il rimbalzo) con il tempo perfetto la situazione non manda più la palla in
@@ -181,8 +216,15 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, contac
   if (failed && !weak && !netFault) depth = Math.max(depth, 12.6 + (fq - q)*4);
   let lift = clear;
   if (weak){ depth = Math.min(depth, O.weakDepth); lift = clear + O.weakFloat; }
+  // chiusura sopra la rete e schiacciata riuscite: bassa sul nastro e veloce (la schiacciata ha la sua velocità nel
+  // motore, OUTCOME.smashSpeed); il volo è quello che passa il nastro a quell'altezza, mai più corto
+  const attacked = attack && !failed && !weak && !netFault && (shot === 'SMASH' || q >= finite(AS.attackQ, 0));
+  if (attacked){
+    lift = ARC.netY - .34 + (shot === 'SMASH' ? O.smashGap : lerp(O.attackGap[1], O.attackGap[0], power));
+    if (shot !== 'SMASH') flight = flightForClear({ fromY: yc, fromZ: zc, toZ: -depth, flight: (zc + depth)/lerp(O.attackSpeed[0], O.attackSpeed[1], power), topspin, clear: lift });
+  }
   return { x: +x.toFixed(3), depth: +depth.toFixed(3), clear: +lift.toFixed(3), topspin: +topspin.toFixed(2), flight: flight == null ? null : +flight.toFixed(3),
-    netFault, failed, weak, pressured, grade: g.grade, cursor: g.cursor, t: +t.toFixed(3), excess: +excess.toFixed(3), q: +q.toFixed(3),
+    netFault, failed, weak, pressured, attack: attacked, grade: g.grade, cursor: g.cursor, t: +t.toFixed(3), excess: +excess.toFixed(3), q: +q.toFixed(3),
     aim: +aim.toFixed(3), x0: +x0.toFixed(3), assist: +assist.toFixed(3), assisted: assist >= .5, shot };
 }
 
@@ -265,12 +307,17 @@ export function eventIntent(e = {}){
   // la mira di questi controlli (dirX) è già una scelta di direzione: pesa più del piatto del telefono
   return { shot, power, depth: power, rise: RISE_OF[shot], face, faceWeight: .7, derived: true };
 }
-// Schiacciata all'impatto: sopra 2,3 m solo da sopra la testa; tra 1,75 e 2,3 m se il gesto è una schiacciata o scende
+// Schiacciata all'impatto: sopra 2,3 m (always) solo da sopra la testa; da SMASH_FROM.gesture (all'altezza della spalla) se il
+// gesto è una schiacciata o scende deciso rispetto al proprio colpo normale. 29/10 pomeriggio: i due gesti di
+// schiacciata della partita (riconosciuti come tali) arrivavano su palle a 1,55–1,70 m, sotto la soglia di prima (1,75 m),
+// e diventavano un colpo piatto con il movimento del dritto o del rovescio: «non sono riuscito a fare uno smash»
+export const SMASH_FROM = Object.freeze({ gesture: 1.5, always: 2.3, rise: -.15, power: .3 });
 export function smashAt(e = {}, ballY = 1){
   const y = finite(ballY, 1), it = eventIntent(e);
-  if (y >= 2.3) return true;
-  if (y < 1.75) return false;
-  return e.side === 'overhead' || it.shot === 'smash' || String(e.shotType || '').toLowerCase() === 'smash' || (finite(it.rise) <= -.05 && finite(it.power, .5) >= .3);
+  if (y >= SMASH_FROM.always) return true;
+  if (y < SMASH_FROM.gesture) return false;
+  const rel = finite(it.rise) - finite(it.riseRef);
+  return e.side === 'overhead' || it.shot === 'smash' || String(e.shotType || '').toLowerCase() === 'smash' || (rel <= SMASH_FROM.rise && finite(it.power, .5) >= SMASH_FROM.power);
 }
 
 // Servizio dal gesto (prima era sempre «POWER SERVE» con la posizione a caso: sessione del 22/10). Il lancio parte con il

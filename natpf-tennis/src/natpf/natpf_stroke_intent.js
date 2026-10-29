@@ -15,9 +15,15 @@ const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
 export const INTENT = Object.freeze({
-  lobRise: .6,       // pallonetto: la testa sale decisa…
+  lobRise: .6,       // pallonetto, senza la propria salita abituale: la testa sale decisa…
   lobPlane: .55,     // … con lo swing nettamente verticale (|piano| fino a così: piano inclinato di oltre 57°). Era .8: il
-                     // 23/10 un dritto da 1005 °/s in top spin (piano 0,65, salita 0,63) è diventato un pallonetto in rete…
+                     // 23/10 un dritto da 1005 °/s in top spin (piano 0,65, salita 0,63) è diventato un pallonetto in rete
+  // Con la salita abituale (calibrazione o, dopo qualche colpo, imparata giocando): la testa sale almeno lobRelMin e
+  // lobRel più del proprio colpo normale, con lo swing più verticale che orizzontale (|piano| fino a lobRelPlane).
+  // 29/10 pomeriggio: con il telefono nel palmo e la cima in avanti i colpi normali di chi gioca scendono (salita
+  // −0,3…0) e i suoi gesti dal basso verso l'alto arrivavano a 0,53–0,64 con il piano a 0,47–0,61: tre su quattro
+  // restavano top spin. Il top spin pieno di chi ha la salita abituale 0,3 (0,63, piano 0,65) resta un top spin
+  lobRelMin: .5, lobRel: .45, lobRelPlane: .7,
   lobSoft: .3,       // … oppure con un gesto lento (circa 580 °/s: un pallonetto difensivo). Era .55 (850 °/s, un dritto
                      // normale di chi gioca da amatore): ogni dritto in salita oltre 33° diventava un pallonetto
   lobSoftOver: .35,  // gesto lento: basta che la testa salga di tanto oltre la propria salita abituale (almeno lobRise).
@@ -66,21 +72,23 @@ export const shapePower = s => strokePower(Number.isFinite(s?.rawPeak) ? s.rawPe
 export const swingReach = angle => (Number.isFinite(angle) ? clamp((angle - INTENT.compact)/(INTENT.wide - INTENT.compact)) : .7);
 
 // Tipo di colpo dalla forma. ballHigh: la palla all'impatto sarà alta (zona della schiacciata); se non si sa, null.
-// riseRef: salita abituale dei propri colpi normali in quel verso (calibrazione, profile.rises). Con il telefono in
-// verticale nel pugno il polso che prona abbassa la testa della racchetta virtuale anche nel colpo normale (presa del
-// 19/10): top spin e piatto si leggono rispetto a questa, e le soglie dei colpi speciali si spostano solo per
-// renderli più difficili, mai più facili. Senza calibrazione (null) le soglie sono quelle assolute.
+// riseRef: salita abituale dei propri colpi normali in quel verso (imparata giocando o dalla calibrazione,
+// natpf_phone_racket.habitualRise). Con il telefono in verticale nel pugno il polso che prona abbassa la testa della
+// racchetta virtuale anche nel colpo normale (presa del 19/10), con il telefono nel palmo e la cima in avanti il colpo
+// normale scende (29/10): top spin e piatto si leggono rispetto a questa; tagliato e schiacciata si spostano solo per
+// diventare più difficili, il pallonetto si misura sopra il proprio colpo normale. Senza (null) le soglie assolute.
 // Restituisce { shot, conf (margine 0…1 dalla soglia più vicina), why }.
 export function classifyStroke(shape, { power = .5, angle = null, ballHigh = null, riseRef = null } = {}){
   const I = INTENT, r = finite(shape?.rise), P = Math.abs(finite(shape?.plane, 1)), tilt = finite(shape?.tilt), p = clamp(finite(power, .5));
   const ref = clamp(finite(riseRef), I.riseRefMin, I.riseRefMax), rel = r - ref;
-  const lobAt = I.lobRise + Math.max(0, ref), sliceAt = I.sliceRise + Math.min(0, ref), smashAt = I.smashRise + Math.min(0, ref);
+  const known = Number.isFinite(Number(riseRef)) && riseRef !== null;
+  const lobAt = known ? Math.max(I.lobRelMin, ref + I.lobRel) : I.lobRise, lobPlane = known ? I.lobRelPlane : I.lobPlane, sliceAt = I.sliceRise + Math.min(0, ref), smashAt = I.smashRise + Math.min(0, ref);
   const m = (v, scale) => +clamp(Math.abs(v)/scale).toFixed(2);
   const said = r.toFixed(2) + (ref ? `, abituale ${ref.toFixed(2)}` : '');
   if (ballHigh && p >= I.smashPower && (r <= smashAt || (P < I.smashPlane && tilt >= I.smashTilt)))
     return { shot: 'smash', conf: Math.max(m(smashAt - r, .3), m(I.smashPlane - P, .3)), why: ['palla alta', r <= smashAt ? `dall'alto (${said})` : `swing verticale, manico alto (${tilt.toFixed(2)})`] };
   const softLobAt = Math.max(I.lobRise, ref + I.lobSoftOver);
-  if (r >= lobAt && P <= I.lobPlane)
+  if (r >= lobAt && P <= lobPlane)
     return { shot: 'lob', conf: m(r - lobAt, .3), why: [`la testa sale decisa (${said})`, `swing verticale (${P.toFixed(2)})`] };
   if (p <= I.lobSoft && r >= softLobAt)
     return { shot: 'lob', conf: m(r - softLobAt, .3), why: [`la testa sale decisa (${said})`, `gesto morbido (${p.toFixed(2)})`] };
