@@ -8,9 +8,11 @@
 // Prima la preparazione lenta (−metà dell'angolo a 90 °/s), poi il colpo, poi il ritorno lento. `wrist`: rotazione del
 // polso (°/s di picco) attorno a `wristAxis` nella seconda metà del colpo. `preYaw`: gradi di rotazione del piatto
 // attorno alla verticale prima del colpo (mira: positivo = piatto girato a sinistra).
-// Presa: telefono in piedi nel pugno, display di lato (a destra per il destro), cima inclinata in avanti di ~30°.
+// Presa di riferimento (29/10, foto dell'utente): base del telefono nel palmo come il manico di una racchetta, cima in
+// avanti verso lo schermo e un poco in alto, schermo verso l'alto (verso chi gioca). Prima: in piedi nel pugno, display
+// di lato, cima in avanti di ~30° (il riconoscimento la regge ancora: test/natpf-gesture-demo.test.mjs).
 
-export const GRIP_TILT = 30;     // gradi: cima del telefono in avanti (figura della presa, grip-art.js)
+export const GRIP_TILT = 65;     // gradi: cima del telefono in avanti dalla verticale (figura della presa, grip-art.js)
 const D = Math.PI/180;
 
 // colpi tipici del destro, gli stessi verificati nei test dei gesti (arm-sim.STROKES) o varianti verificate qui
@@ -30,9 +32,9 @@ const S = Object.freeze({
 // ball: come arriva la palla nell'animazione ('ground' dopo il rimbalzo, 'volley' al volo, 'high' alta, 'toss' lancio)
 export const GESTURES = Object.freeze({
   ready: { id: 'ready', label: 'Posizione di partenza', still: true,
-    cues: ['Telefono in piedi nel pugno', 'Display di lato, cima un poco in avanti', 'Braccio rilassato, di fronte allo schermo'] },
+    cues: ['Base del telefono nel palmo', 'Cima in avanti, schermo verso l’alto', 'Braccio rilassato, di fronte allo schermo'] },
   grip: { id: 'grip', label: 'Impugnatura', still: true, turntable: true,
-    cues: ['Come il manico di una racchetta', 'Dita attorno ai lati lunghi', 'Dal computer si vede solo il bordo'] },
+    cues: ['Come il manico di una racchetta', 'Base nel palmo, cima verso lo schermo', 'Lo schermo guarda in alto, verso di te'] },
   forehand: { id: 'forehand', label: 'Dritto', stroke: S.forehand, ball: 'ground', expect: { shot: ['topspin'], side: 'forehand' },
     cues: ['Rotazione attorno a te, in orizzontale', 'Dall’esterno verso il corpo', 'Un poco dal basso verso l’alto'] },
   backhand: { id: 'backhand', label: 'Rovescio', stroke: S.backhand, ball: 'ground', expect: { shot: ['topspin'], side: 'backhand' },
@@ -52,9 +54,9 @@ export const GESTURES = Object.freeze({
   serve: { id: 'serve', label: 'Servizio', toss: S.toss, stroke: S.smash, ball: 'toss', ballHigh: true, expect: { messages: 2 },
     cues: ['1 · Alza il telefono: lanci la palla', '2 · Aspetta che arrivi in alto', '3 · Colpisci dall’alto, deciso'] },
   cross: { id: 'cross', label: 'Incrociato', stroke: S.forehand, preYaw: 22, ball: 'ground', aim: -1, expect: { shot: ['topspin'], side: 'forehand', aim: -1 },
-    cues: ['Display girato verso il centro', 'Colpisci un attimo prima del solito', 'La palla va nell’altra metà del campo'] },
+    cues: ['Cima girata verso il centro', 'Colpisci un attimo prima del solito', 'La palla va nell’altra metà del campo'] },
   line: { id: 'line', label: 'Lungolinea', stroke: S.forehand, preYaw: -22, ball: 'ground', aim: 1, expect: { shot: ['topspin'], side: 'forehand', aim: 1 },
-    cues: ['Display girato verso l’esterno', 'Colpisci un attimo dopo il solito', 'La palla corre lungo il tuo lato'] },
+    cues: ['Cima girata verso l’esterno', 'Colpisci un attimo dopo il solito', 'La palla corre lungo il tuo lato'] },
 });
 export const gestureById = id => GESTURES[id] || null;
 
@@ -119,7 +121,7 @@ export function wristAngle(s, t, tl = strokeTimeline(s)){
   return 0;
 }
 // Posa al tempo t: posizione della mano rispetto alla spalla (m, campo) e rotazioni da applicare al telefono, nell'ordine:
-// presa (GRIP_TILT, display di lato) → preYaw → braccio (axis, φ) → polso (asse del polso ruotato con il braccio, ψ).
+// presa (GRIP_TILT, schermo in alto) → preYaw → braccio (axis, φ) → polso (asse del polso ruotato con il braccio, ψ).
 export function strokePose(s, t, { hand = 'right', short = false, preYaw = 0 } = {}){
   const st = strokeFor(s, hand), tl = strokeTimeline(st, { short });
   const A = unit(st.axis), phi = strokeAngle(st, t, tl)*D;

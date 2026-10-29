@@ -13,6 +13,13 @@ const dot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
 const rot = (v, a, ang) => { const c = Math.cos(ang), s = Math.sin(ang), k = cross(a, v), d = dot(a, v); return v.map((x, j) => x*c + k[j]*s + a[j]*d*(1 - c)); };
 // presa: display a destra (side 1) o a sinistra (−1), asse lungo inclinato in avanti di tilt gradi dalla verticale
 export function grip(p, { tilt = 30, side = 1 } = {}){ p.pose([0, 1, 0], 90*side); p.pose([1, 0, 0], -tilt); p.rest(500, 4); }
+// presa di riferimento dal 29/10 (foto dell'utente): base nel palmo, schermo verso chi gioca, poi la cima in avanti di
+// tilt gradi dalla verticale (lo schermo guarda in alto e indietro) e un rollio attorno all'asse lungo
+export function palmGrip(p, { tilt = 65, roll = 0 } = {}){
+  p.pose([1, 0, 0], -tilt);
+  if (roll){ const t = tilt*D; p.pose([0, Math.cos(t), -Math.sin(t)], roll); }
+  p.rest(500, 4);
+}
 // colpo del braccio: rotazione attorno all'asse axis (campo, per la spalla) con picco peak °/s in ms, il braccio (spalla →
 // mano) al momento dell'impatto è rc (m). wrist: rotazione del polso (°/s di picco) attorno a wristAxis (campo, all'impatto),
 // nella seconda metà. back: apertura lenta prima, rientro dopo.

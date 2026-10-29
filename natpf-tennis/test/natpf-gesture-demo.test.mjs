@@ -4,14 +4,15 @@
 // gesto, mano destra e sinistra, varie inclinazioni della presa: il colpo riconosciuto deve essere quello mostrato.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { armSwing, grip, STROKES } from './arm-sim.mjs';
+import { armSwing, grip, palmGrip, STROKES } from './arm-sim.mjs';
 import { simPhone } from './phone-sim.mjs';
 import { GESTURES, strokeFor, strokePose, strokeTimeline, serveTimeline, tossBall, mirrorStroke, GRIP_TILT } from '../src/natpf/natpf_gesture_motion.js';
 
-// playTilt: la presa in gioco, se diversa da quella della calibrazione (il telefono scivola in avanti nel palmo)
-function player(hand, { tilt = GRIP_TILT, playTilt = null, seed = 7 } = {}){
+// palm: presa di riferimento (base nel palmo, cima in avanti, schermo in alto); altrimenti quella di prima (in piedi nel
+// pugno, display di lato). playTilt: la presa in gioco, se diversa da quella della calibrazione (il telefono scivola)
+function player(hand, { tilt = GRIP_TILT, playTilt = null, seed = 7, palm = false } = {}){
   const p = simPhone({ seed, shape: true, hand });
-  grip(p, { tilt, side: hand === 'left' ? -1 : 1 });
+  if (palm) palmGrip(p, { tilt }); else grip(p, { tilt, side: hand === 'left' ? -1 : 1 });
   // calibrazione: «L» è il gesto da destra a sinistra (dritto del destro, rovescio del mancino)
   const cal = w => hand === 'left' ? mirrorStroke(w === 'L' ? STROKES.rovescio : STROKES.dritto) : (w === 'L' ? STROKES.dritto : STROKES.rovescio);
   p.calibrate({ armGesture: w => armSwing(p, cal(w)) });
@@ -29,9 +30,9 @@ function play(p, g, hand){
 }
 const SHOTS = ['forehand', 'backhand', 'flat', 'volley', 'lob', 'drop', 'slice', 'smash', 'cross', 'line'];
 
-test('tutorial: ogni gesto animato è riconosciuto dal gioco come il colpo mostrato (destro e mancino, presa 15–45°)', () => {
-  for (const hand of ['right', 'left']) for (const tilt of [15, 30, 45]) for (const id of SHOTS){
-    const g = GESTURES[id], p = player(hand, { tilt });
+test('tutorial: ogni gesto animato è riconosciuto dal gioco come il colpo mostrato (destro e mancino, presa nel palmo a 50–80°)', () => {
+  for (const hand of ['right', 'left']) for (const tilt of [50, GRIP_TILT, 80]) for (const id of SHOTS){
+    const g = GESTURES[id], p = player(hand, { tilt, palm: true });
     // mira: prima tre colpi normali (centro del piatto abituale), come in partita
     if (g.expect.aim) for (let i = 0; i < 3; i++) play(p, GESTURES.forehand, hand);
     const out = play(p, g, hand), tag = `${hand}, presa ${tilt}°, ${g.label}`;
@@ -47,8 +48,9 @@ test('tutorial: ogni gesto animato è riconosciuto dal gioco come il colpo mostr
 // Richiesta del 29/10: «il telefono in mano non rimane mai fisso nell'impugnatura verticale, tende a inclinarsi in
 // avanti». Nei registri, prima dei colpi, il telefono era inclinato di 30–90° dalla verticale. Stessi gesti con la cima
 // del telefono molto in avanti, e con la presa che cambia tra la calibrazione e il gioco
-test('presa inclinata in avanti fino a 75°, anche diversa da quella della calibrazione: ogni gesto resta il colpo mostrato', () => {
-  for (const [tilt, playTilt] of [[60, null], [75, null], [30, 65], [60, 30]]) for (const hand of ['right', 'left']) for (const id of SHOTS){
+// presa di prima (in piedi nel pugno, display di lato, 15–75°): i gesti restano riconosciuti
+test('presa di prima, in piedi nel pugno e inclinata in avanti fino a 75°, anche diversa da quella della calibrazione: ogni gesto resta il colpo mostrato', () => {
+  for (const [tilt, playTilt] of [[15, null], [30, null], [45, null], [60, null], [75, null], [30, 65], [60, 30]]) for (const hand of ['right', 'left']) for (const id of SHOTS){
     const g = GESTURES[id], p = player(hand, { tilt, playTilt });
     if (g.expect.aim) for (let i = 0; i < 3; i++) play(p, GESTURES.forehand, hand);
     const out = play(p, g, hand), tag = `${hand}, presa ${tilt}°${playTilt != null ? ` → ${playTilt}° in gioco` : ''}, ${g.label}`;
@@ -62,7 +64,7 @@ test('presa inclinata in avanti fino a 75°, anche diversa da quella della calib
 
 test('tutorial: il servizio animato sono due gesti (lancio e battuta) e il telefono li manda entrambi', () => {
   for (const hand of ['right', 'left']){
-    const p = player(hand), g = GESTURES.serve;
+    const p = player(hand, { palm: true }), g = GESTURES.serve;
     p.det.setContext('serve');
     const b = p.msgs.length;
     armSwing(p, { ...strokeFor(g.toss, hand), back: false }); p.rest(250, 3);

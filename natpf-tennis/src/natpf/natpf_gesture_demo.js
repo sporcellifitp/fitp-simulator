@@ -39,8 +39,8 @@ function labelTexture(text){
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: .6, metalness: 0, ...o });
 const capsule = (r, l, m) => new THREE.Mesh(new THREE.CapsuleGeometry(r, l, 4, 10), m);
 
-// Telefono nel pugno, nel riferimento del telefono: asse lungo y, display verso +z, bordo +x verso lo schermo (con la
-// presa del destro). Il pugno stringe il terzo inferiore.
+// Telefono nella mano, nel riferimento del telefono: asse lungo y, display verso +z. La mano stringe il terzo inferiore
+// come il manico di una racchetta: il palmo e le dita sotto il dorso (−z), il pollice lungo il bordo +x.
 function buildGrip(){
   const g = new THREE.Group();
   const phone = new THREE.Group(); g.add(phone);
@@ -57,15 +57,15 @@ function buildGrip(){
     const lens = new THREE.Mesh(new THREE.CylinderGeometry(r*.7, r*.7, .0018, 16), lensM); lens.rotation.x = Math.PI/2; lens.position.set(-x, y, -PHONE.d/2 - .0012); phone.add(lens);
   });
   phone.position.y = .042;
-  // pugno: dita attorno ai lati lunghi, pollice sopra
+  // mano: palmo e dita sotto il dorso, pollice lungo il bordo (la foto della presa di riferimento, 29/10)
   const skin = std(C.skin, { roughness: .75 });
-  const fist = new THREE.Mesh(new RoundedBoxGeometry(.098, .084, .07, 3, .022), skin); fist.position.set(0, -.012, -.004); g.add(fist);
+  const fist = new THREE.Mesh(new RoundedBoxGeometry(.098, .084, .07, 3, .022), skin); fist.position.set(0, -.012, -.03); g.add(fist);
   for (let i = 0; i < 4; i++){
-    const f = capsule(.0125, .07, skin); f.rotation.z = Math.PI/2; f.position.set(.004, -.044 + i*.021, .033); g.add(f);
+    const f = capsule(.0125, .07, skin); f.rotation.z = Math.PI/2; f.position.set(-.004, -.044 + i*.021, -.012); g.add(f);
   }
-  const thumb = capsule(.012, .045, skin); thumb.rotation.z = -.6; thumb.rotation.x = .2; thumb.position.set(.03, .03, -.028); g.add(thumb);
+  const thumb = capsule(.012, .05, skin); thumb.rotation.z = -.25; thumb.position.set(.046, .012, .004); g.add(thumb);
   g.scale.setScalar(PHONE.scale);
-  g.userData = { phone, wrist: new THREE.Vector3(-.01, -.05, -.01) };
+  g.userData = { phone, wrist: new THREE.Vector3(-.005, -.055, -.04) };
   return g;
 }
 
@@ -192,7 +192,7 @@ export class NatpfGestureDemo {
   // posa al tempo t (s, tempo reale del gesto): giocatore, telefono, palla, scia e camera
   pose(t){
     const g = GESTURES[this.id] || GESTURES.ready, hand = this.hand, P = this.grip;
-    const q0 = new THREE.Quaternion().setFromEuler(new THREE.Euler(-GRIP_TILT*D, 90*D, 0, 'XYZ'));   // display a destra, cima in avanti
+    const q0 = new THREE.Quaternion().setFromEuler(new THREE.Euler(-GRIP_TILT*D, 0, 0, 'XYZ'));   // cima in avanti, schermo in alto
     let handPos, q = q0.clone(), hit = null, ballPos = null, fast = false;
     const wq = (axis, ang) => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(...axis), ang);
     // il mondo è specchiato per il mancino: i moti si scrivono sempre da destro

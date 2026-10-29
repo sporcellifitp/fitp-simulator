@@ -43,8 +43,8 @@ export const WARMUP_IDS = Object.freeze(['forehand', 'backhand', 'serve']);
 export const warmupDrills = controller => drillsFor(controller).filter(d => WARMUP_IDS.includes(d.id));
 // Lezione prima degli esercizi: presa, orientamento e mano, posizione di partenza (con l'animazione 3D)
 export const LESSON = Object.freeze([
-  { id: 'grip', demo: 'grip', title: 'Impugnatura', text: 'Il telefono sta in piedi nel pugno, come il manico di una racchetta. Dita attorno ai lati lunghi, cima in alto e un poco in avanti.' },
-  { id: 'hand', demo: 'ready', title: 'Orientamento e mano', text: 'Il display guarda di lato, verso l’esterno: dal computer si vede solo il bordo. Con quale mano giochi?', hand: true },
+  { id: 'grip', demo: 'grip', title: 'Impugnatura', text: 'La base del telefono nel palmo, come il manico di una racchetta. La cima punta in avanti, verso lo schermo e un poco in alto.' },
+  { id: 'hand', demo: 'ready', title: 'Orientamento e mano', text: 'Lo schermo del telefono guarda in alto, verso di te. Il polso resta libero: il gioco segue anche le sue rotazioni. Con quale mano giochi?', hand: true },
   { id: 'ready', demo: 'ready', title: 'Posizione di partenza', text: 'In piedi a 1,5–2 m dallo schermo, al centro. Braccio rilassato davanti a te. Calibrazione e partita si fanno con questa stessa presa.' },
 ]);
 export const WEBCAM_LESSON = Object.freeze([
@@ -513,9 +513,9 @@ export class NatpfTraining {
     const mode = this.ui.flow?.mode === 'training' ? 'Allenamento' : 'Riscaldamento';
     const P = this.ui.phone, lost = c === 'phone' && P && (!P.connected || (P.state?.phone && !['cal', 'ready'].includes(P.state.phone)));
     const grip = $('#coach-grip'), showGrip = c === 'phone' && !!this.cal && this.view.stage === 'still' && !lost;
-    // foto reale della presa vista dallo schermo (solo il bordo); la figura disegnata resta se la foto non si carica
+    // foto reale della presa (base nel palmo, cima in avanti); la figura disegnata resta se la foto non si carica
     if (grip && showGrip && grip.dataset.hand !== hand){
-      grip.innerHTML = `<img class="coach-grip-photo${hand === 'left' ? ' mirror' : ''}" src="${PHOTOS.edge.src}" alt="${PHOTOS.edge.alt}" />`;
+      grip.innerHTML = `<img class="coach-grip-photo${hand === 'left' ? ' mirror' : ''}" src="${PHOTOS.grip.src}" alt="${PHOTOS.grip.alt}" />`;
       if (grip.firstChild) grip.firstChild.onerror = () => { grip.innerHTML = gripSvg({ compact: true, hand, cls: 'coach-grip-art' }); };
       grip.dataset.hand = hand;
     }

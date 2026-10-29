@@ -28,9 +28,14 @@ prende una decisione che un agente futuro deve conoscere. Stato operativo in `WO
 
 ## Gesti reali (fonte per il tutorial — non disegnare gesti diversi da questi)
 
-Presa (`grip-art.js`, `GRIP_TEXT`): telefono **in piedi nel pugno come il manico di una racchetta**, dita attorno ai
-lati lunghi, cima (fotocamera) in alto e un poco in avanti, **display rivolto di lato** (a destra o a sinistra); dal
-computer si vede solo il bordo. Mai piatto con il display verso lo schermo. Calibrazione e partita con la stessa presa.
+Presa di riferimento dal 29/10 (foto dell'utente; `grip-art.js`, `GRIP_TEXT`, `natpf_gesture_motion.GRIP_TILT` 65°):
+**base del telefono nel palmo** come il manico di una racchetta, **cima che punta in avanti** verso lo schermo e un poco in
+alto, **schermo che guarda in alto** (verso chi gioca). Calibrazione e partita con la stessa presa. La presa di prima (in
+piedi nel pugno, display di lato) resta riconosciuta (test `natpf-gesture-demo`, secondo test). La direzione del piatto
+si legge dalla rotazione di tutto il telefono attorno alla verticale (`face-tracker.js`), non dalla normale del dorso:
+con il dorso verso il basso quella girava con il polso. Foto della lezione: `presa-palmo.webp` (Higgsfield).
+Il colpo normale (salita abituale) si impara giocando anche con la calibrazione (`habitualRise`, dopo 5 colpi per verso):
+pallonetto, tagliato e schiacciata si leggono rispetto a quello.
 
 Rilevatore sul telefono (`site/js/tennis/swing-detect.js`): il colpo è un picco della **velocità di rotazione**
 (giroscopio): inizio > ~140 °/s (scalato sul proprio colpo), picco minimo, almeno 18° percorsi, durata 30–700 ms.
@@ -42,13 +47,18 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 - **Topspin** (colpo normale): orizzontale con la mano che **sale un poco** (dal basso verso l'alto).
 - **Piatto**: orizzontale **veloce** (potenza ≥ 0,78 del proprio colpo) con piatto dritto.
 - **Pallonetto**: gesto **verticale verso l'alto** (asse di rotazione orizzontale, la mano sale davvero), oppure
-  orizzontale con la mano che sale molto.
+  orizzontale con la mano che sale molto. Con la salita abituale: la testa sale almeno 0,5 e 0,45 più del proprio colpo
+  normale, piano fino a 0,7 (`INTENT.lobRel*`). Volo scalato con la distanza: colmo 5,4–6,5 m da fondo campo.
 - **Tagliato (slice)**: gesto **dall'alto verso il basso** (verticale senza verso, palla bassa) oppure orizzontale con
   la mano che scende, **non lento**.
 - **Palla corta**: dall'alto verso il basso, **lento e morbido** (potenza < 0,45 o velocità bassa).
 - **Schiacciata**: palla alta + gesto verso il basso (verticale o orizzontale con la mano che scende). Il punto
-  d'impatto alto lo sceglie il movimento automatico (`natpf_impact.js`): sui pallonetti (oltre 3,3 m) e, a rete (entro
-  7 m), su ogni palla raggiungibile sopra 2,05 m; da 2,3 m è sempre schiacciata.
+  d'impatto alto lo sceglie il movimento automatico (`natpf_impact.js`): sui pallonetti (oltre 3,0 m) e, a rete (entro
+  7 m), su ogni palla raggiungibile sopra 2,05 m; con il gesto da 1,5 m (`SMASH_FROM`), da 2,3 m sempre. Passa 10 cm
+  sopra il nastro a 46 m/s.
+- **Chiusura sopra la rete** (29/10): entro 6,4 m dalla rete, palla sopra 0,9 m, gesto deciso e qualità del livello
+  (`OUTCOME.attack*`, `ASSIST.attackQ`): bassa sul nastro e veloce, anche angolata. La palla corta si prende al colmo del
+  rimbalzo (livelli con il contatto al colmo). Il tempo si misura sulla strada della palla (`SLOW`: palle lente più larghe).
 - **Servizio** (`game_engine.js` ~1392): in `SERVE_STANCE` il primo gesto (o un tocco sullo schermo del telefono)
   **lancia la palla**; in `SERVE_TOSS` il gesto successivo la colpisce: la qualità dipende da quanto è vicino al
   **punto più alto** del lancio. Un gesto debole subito dopo il lancio viene ignorato.
@@ -58,7 +68,9 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   ritmo** pesa di più (`createRhythm`: mediana degli ultimi colpi × 0,8, al massimo ±0,6 unità, da 4 colpi, si reimpara a
   ogni partita): prima del solito → incrociato, dopo il solito → lungolinea, pieni ai bordi della finestra (peso 1);
   il voto anticipo/perfetto/ritardo resta sul tempo vero. Poi l'**orientamento del
-  piatto all'impatto** rispetto al proprio colpo abituale (piatto girato a destra → palla a destra: peso 0,6; mira
+  piatto all'impatto** rispetto al proprio colpo abituale (piatto girato a destra → palla a destra: peso 1 dal 29/10
+  pomeriggio, prima 0,6: tempo e piatto si sommano e il piatto da solo arriva alle righe; in diagonale la palla cade più
+  corta; mira
   piena a 23° dal 29/10, prima 30°; scarti oltre 45° sempre meno credibili, oltre 60° non contano). Barra «Anticipo /
   Centro / Ritardo». Corretto il 28/10 sera: qui prima c'era scritto il contrario.
   **Centro della mira** (`natpf_gestures.createAimModel`, 29/10): il piatto abituale dei colpetti della calibrazione è
@@ -125,6 +137,11 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   servizio senza lezione (`WARMUP_IDS` in `natpf_training.js`). La volée si allena a rete (`VOLLEY_Z`).
 
 ## Storico modifiche significative
+
+- 29/10/2026 pomeriggio — diagnostica 131307 e foto della presa: presa di riferimento nel palmo (tutorial, figura, 3D,
+  foto), direzione del piatto dalla rotazione attorno alla verticale, piatto a peso pieno, colpo normale imparato giocando,
+  pallonetto relativo e più alto, schiacciata dalla spalla, chiusure a rete, palla corta al colmo, tempo sulla strada
+  della palla, CPU Leggenda che impara dai vincenti (WORK_PROGRESS, «Diagnostica 20261029-131307»).
 
 - 29/10/2026 — diagnostica 104712 (stesso schermo): pausa del P2 con punto rigiocato, «Ricollega il telefono»,
   schiacciata del P2 dal gesto, palle profonde non più sul rimbalzo; mira del piatto con il centro che si corregge,

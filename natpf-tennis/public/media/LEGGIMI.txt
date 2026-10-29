@@ -1,6 +1,11 @@
 Foto e video di NATPF Simulator (tutorial e intro) — provenienza e diritti
 ==========================================================================
 
+Aggiornamento 29/10/2026: presa di riferimento nuova (base del telefono nel palmo, cima in avanti, schermo in alto, dalla
+foto dell'utente). Tolte presa-lato, presa-schermo e presa-sbagliata (presa di prima; il «Così no» mostrava proprio lo
+schermo in alto). presa-palmo.webp: una di quattro generate (job ba6f35bc…, 0054545d…, b7c4d37f… scartati: due con il
+telefono dritto in verticale come un telecomando); 1,5 crediti ciascuna, 6 in tutto.
+
 Aggiornamento 28/10/2026: le clip dei colpi (cartella colpi/) sono state tolte su richiesta dell'utente (oggetto in
 mano simile a un telecomando, pose non coerenti con il tennis). Il tutorial mostra i gesti con l'animazione 3D.
 Le righe colpi/… qui sotto restano solo come storico (i file non sono più nel gioco).
@@ -16,10 +21,9 @@ Ogni clip dei colpi è stata controllata fotogramma per fotogramma contro le reg
 
 File                      Modello Higgsfield       Job                                    Uso
 ------------------------  -----------------------  -------------------------------------  --------------------------------
-presa-lato.webp           nano_banana_2 (2k)       05c2fc37-c7df-4576-9665-b14a0837d82d   lezione: impugnatura
-presa-schermo.webp        nano_banana_2 (2k)       4cee6f89-3bf2-4bad-adaa-f3f59a0d9fe3   lezione: dallo schermo solo il
-                                                                                          bordo; calibrazione; collega
-presa-sbagliata.webp      nano_banana_2 (2k)       a2045cb4-cd4c-465c-b1e2-9c7439c20a88   lezione: «Così no»
+presa-palmo.webp          nano_banana_2 (1:1)      4da324e7-d299-4836-913a-ead9e2e99c7d   lezione: impugnatura; calibrazione
+                                                                                          (29/10, presa di riferimento:
+                                                                                          base nel palmo, cima in avanti)
 posizione.webp            gpt_image_2_5 (medium)   58762eab-4f47-4f17-9eb3-1d2e0413c06b   lezione: posizione di partenza;
                                                                                           primo fotogramma delle clip
 colpi/dritto.mp4/.webp    kling3_0_turbo 720p 4 s  e84592af-811b-461c-ab91-e0ce6796270c   esercizio dritto (*)

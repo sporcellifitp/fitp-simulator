@@ -19,8 +19,11 @@ test('media del tutorial: ogni foto esiste ed è leggera, con la provenienza doc
   assert.ok(!fs.existsSync(pub('media/colpi')), 'clip dei colpi tolte');
   const notes = fs.readFileSync(pub('media/LEGGIMI.txt'), 'utf8');
   for (const p of Object.values(PHOTOS)) assert.ok(notes.includes(p.src.split('/').pop()), `${p.src} non è in LEGGIMI.txt`);
-  for (const st of LESSON) assert.ok(lessonPhotos(st.id)?.main, `foto per il passo ${st.id}`);
-  assert.ok(LESSON_PHOTOS.grip.no, 'la presa ha anche l’esempio sbagliato');
+  // presa di riferimento dal 29/10: foto della base nel palmo; «Orientamento e mano» con l'animazione 3D, niente «Così no»
+  assert.ok(lessonPhotos('grip')?.main && lessonPhotos('ready')?.main && !lessonPhotos('hand'));
+  assert.ok(!LESSON_PHOTOS.grip.no, 'nessun esempio sbagliato');
+  for (const old of ['presa-lato', 'presa-schermo', 'presa-sbagliata']) assert.ok(!fs.existsSync(pub(`media/${old}.webp`)), `${old} tolta`);
+  assert.ok(LESSON.some(st => st.id === 'hand'));
 });
 
 test('lezione con foto reali (specchiate per il mancino), esercizi con l’animazione 3D verificata', async () => {
@@ -29,12 +32,14 @@ test('lezione con foto reali (specchiate per il mancino), esercizi con l’anima
   T.start({ intro: true }); T.paint();
   const media = $('coach-lesson-media');
   assert.equal(media.classList.contains('hidden'), false);
-  assert.equal($('coach-lesson-demo').classList.contains('hidden'), true, 'niente 3D nella lezione');
-  assert.match(media.innerHTML, /presa-lato\.webp/); assert.match(media.innerHTML, /Così no/);
-  T.lessonAction('next'); T.paint();
-  assert.match(media.innerHTML, /presa-schermo\.webp/); assert.doesNotMatch(media.innerHTML, /mirror/);
-  T.lessonAction('left'); T.paint();
+  assert.equal($('coach-lesson-demo').classList.contains('hidden'), true, 'niente 3D con la foto');
+  assert.match(media.innerHTML, /presa-palmo\.webp/); assert.doesNotMatch(media.innerHTML, /Così no|mirror/);
+  w.ui.hand.set('left'); T.paint();
   assert.match(media.innerHTML, /lesson-photo mirror/);
+  w.ui.hand.set('right');
+  T.lessonAction('next'); T.paint();
+  assert.equal(media.classList.contains('hidden'), true, 'orientamento e mano: animazione 3D');
+  assert.equal($('coach-lesson-demo').classList.contains('hidden'), false);
   T.lessonAction('right'); T.stop({ completed: false, silent: true });
 
   w.E.natpfPhone.link.cmd('skip');

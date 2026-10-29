@@ -723,3 +723,14 @@ Interventi (commit di questa sezione):
       «tennista» 76,5%, era 76,9%; contro «preciso» 35,2%, era 37,7%), «medio» 93,1% (era 96,1%); Pro contro «medio»
       81,6% come prima. Senza l'apprendimento dai vincenti: «preciso» 29,6%; con il tempo largo 18/2,2: Pro 86,5%.
 - [ ] Non provato con i telefoni veri: direzione con la presa nel palmo, pallonetto e schiacciata, chiusure a rete.
+
+### Presa di riferimento nel tutorial (stessa richiesta)
+- [x] Figura della presa (`grip-art.js`): due viste, di lato e da dietro, base nel palmo, cima in avanti, schermo in alto;
+      tolto il «Così no» (era lo schermo in alto). Testo della presa, lezione, calibrazione (`natpf_cal_view`).
+- [x] Animazione 3D (`natpf_gesture_demo.js`, `GRIP_TILT` 65°): telefono con la cima in avanti e lo schermo in alto, mano
+      sotto il dorso. Test `natpf-gesture-demo`: i gesti del tutorial con la presa nel palmo (destro e mancino, 50–80°),
+      e con la presa di prima (15–75°).
+- [x] Foto `presa-palmo.webp` (Higgsfield, nano_banana_2, una di quattro; due scartate con il telefono dritto come un
+      telecomando, 6 crediti); tolte `presa-lato`, `presa-schermo`, `presa-sbagliata`. Passo «Orientamento e mano» con
+      l'animazione 3D. Screenshot della lezione controllati.
+- [x] Gioco 496/496, sito 160/160, build.

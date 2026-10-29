@@ -1,21 +1,19 @@
-// Foto reali del tutorial (public/media/, generate con Higgsfield il 28/10/2026, vedi public/media/LEGGIMI.txt): presa
-// di lato, presa vista dallo schermo, presa sbagliata, posizione di partenza. I gesti dei colpi si mostrano con
-// l'animazione 3D (natpf_gesture_demo.js), verificata con il rilevatore vero: le clip video generate sono state tolte
-// il 28/10 su richiesta dell'utente (oggetto in mano simile a un telecomando, pose non credibili). Per i mancini le foto
-// si specchiano.
+// Foto reali del tutorial (public/media/, generate con Higgsfield, vedi public/media/LEGGIMI.txt): impugnatura e posizione
+// di partenza. Presa di riferimento dal 29/10 (foto dell'utente): base del telefono nel palmo, cima in avanti, schermo in
+// alto; le foto della presa di prima (in piedi nel pugno, bordo verso lo schermo, «Così no» con lo schermo in alto) sono
+// state tolte. Il passo «Orientamento e mano» mostra l'animazione 3D. I gesti dei colpi si mostrano con l'animazione 3D
+// (natpf_gesture_demo.js), verificata con il rilevatore vero: le clip video generate sono state tolte il 28/10 su
+// richiesta dell'utente. Per i mancini le foto si specchiano.
 const BASE = './media/';
 
 export const PHOTOS = Object.freeze({
-  grip: { src: BASE + 'presa-lato.webp', alt: 'Telefono in piedi nel pugno, la cima un poco in avanti' },
-  edge: { src: BASE + 'presa-schermo.webp', alt: 'Visto dallo schermo: del telefono si vede solo il bordo' },
-  wrong: { src: BASE + 'presa-sbagliata.webp', alt: 'Telefono tenuto piatto, con il display in alto: così no' },
-  ready: { src: BASE + 'posizione.webp', alt: 'Giocatore di spalle davanti al televisore, telefono nel pugno all’altezza del fianco' },
+  grip: { src: BASE + 'presa-palmo.webp', alt: 'La base del telefono nel palmo, la cima in avanti e un poco in alto, lo schermo verso l’alto' },
+  ready: { src: BASE + 'posizione.webp', alt: 'Giocatore di spalle davanti al televisore, telefono in mano davanti al fianco' },
 });
 
-// passo della lezione → foto (con l'eventuale esempio sbagliato accanto)
+// passo della lezione → foto (con l'eventuale esempio sbagliato accanto); senza foto, l'animazione 3D
 export const LESSON_PHOTOS = Object.freeze({
-  grip: { main: 'grip', no: 'wrong' },
-  hand: { main: 'edge' },
+  grip: { main: 'grip' },
   ready: { main: 'ready' },
 });
 

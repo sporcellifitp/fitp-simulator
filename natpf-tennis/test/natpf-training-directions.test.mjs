@@ -55,7 +55,7 @@ test('impugnatura nel riscaldamento: foto reale solo da fermo, specchiata per la
   const T = w.ui.training; T.start(); T.paint();
   const art = T.coach.querySelector('#coach-grip');
   assert.equal(art.classList.contains('hidden'), false);
-  assert.match(art.innerHTML, /presa-schermo\.webp/);
+  assert.match(art.innerHTML, /presa-palmo\.webp/);
   assert.doesNotMatch(art.innerHTML, /mirror/);
   w.ui.hand.set('left'); T.paint();
   assert.match(art.innerHTML, /coach-grip-photo mirror/);
