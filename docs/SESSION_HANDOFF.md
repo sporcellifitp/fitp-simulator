@@ -2,6 +2,16 @@
 
 Aggiornato: 29/10/2026 · branch `natpf-simulator`.
 
+## Ultimo (29/10): webcam dello zip argon-tennis, pacchetti 2026-10-28.8
+
+L'utente ha chiesto la webcam presa esclusivamente dallo zip argon-tennis (motore base). Fatto nel commit `ffb83a8`:
+riconoscimento (mano di MediaPipe con le opzioni dello zip, scia, flusso ottico) e gioco del colpo (servizio, colpo
+assistito fino a 0,48 s) come nello zip; dettagli e limiti in `docs/WORK_PROGRESS.md` («Webcam come nello zip
+argon-tennis»), decisione in `docs/PROJECT_MEMORY.md`. Consegnati LAN (`a743f3c2…60d94ad4`) e Cloudflare
+(`b15a7339…7c55b5f`) 2026-10-28.8. Gioco 467/467, sito 157/157. Push non fatto (solo con autorizzazione).
+Prossima azione: l'utente prova la webcam del pacchetto .8 su Windows; se il gioco rallenta (modello delle mani a
+complessità 1 nella pagina, come nello zip) chiedergli se alleggerire il modello prima di cambiare qualcosa.
+
 ## Ultimissimo (29/10, mattina): corsa a rete a vuoto corretta, pacchetti 2026-10-28.7
 
 Diagnostica `20261029-090144-aimd` (1v1 sullo stesso schermo): chi gioca correva a rete a vuoto e perdeva il punto

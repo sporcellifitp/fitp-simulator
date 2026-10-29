@@ -494,3 +494,45 @@ dello zip dell'altro agente.
       attesi di un sito statico: `/api/match/state`, `/lan/status`).
 - [ ] Non provato: Windows, telefoni veri, Cloudflare Pages vero.
 
+## Webcam come nello zip argon-tennis (29/10)
+Segnalazione: «ho riverificato la webcam e continua a non funzionare»; richiesta: ristabilire il gioco con la webcam
+prendendolo **esclusivamente** dallo zip `remix-argon-tennis.zip` (app di AI Studio, motore base; i primi due allegati
+erano la pagina «Cookie check» di AI Studio, non lo zip). Lo zip resta fuori dal repository.
+- Cosa fa la webcam dello zip (`src/motion_controls.js` del motore base): modello delle mani di MediaPipe nella pagina
+  (2 mani, complessità 1, confidenza 0,4) a ogni fotogramma nuovo; punto della mano tra polso e nocca del medio; scia
+  di al massimo 5 punti in 160 ms; colpo quando la scia è lunga (0,065), dritta (0,62) e veloce (0,62), 320 ms tra due
+  colpi; lato dal verso orizzontale, tipo dal verticale (tagliato, pallonetto, schiacciata), lancio con la mano che sale
+  veloce in alto; senza mano il flusso ottico 64×48. Nel motore: servizio subito o al colmo; nello scambio il colpo
+  assistito (lo swing aspetta il punto giusto fino a 0,48 s); un lancio rifiutato nello scambio è un pallonetto.
+- Fatto: predefinita la webcam dello zip (`webcamMode` «argon»): `_argonFrame`, `_argonEvaluateHandTrail`,
+  `_onArgonHandResults` con il codice dello zip; opzioni del modello dello zip (`ARGON_HANDS_OPTIONS`, niente worker e
+  livelli di carico); nel motore `_argonWebcamSwing` (servizio e scambio dello zip, senza la finestra d'impatto del
+  telefono). Da NATPF restano: file di MediaPipe locali prima del CDN (il pacchetto LAN funziona senza internet), mano
+  mancina, motivo quando la webcam non si apre, una sola apertura alla volta, diagnostica, blocchi del menu e della
+  pausa. Una correzione allo zip: il compagno del doppio solo nel doppio (nello zip anche nel singolo, dove è nascosto e
+  faceva partire subito lo swing; il resto del motore NATPF lo aveva già corretto). Niente pausa «mano persa» (lo zip non
+  la ha); il modello del corpo solo con «Segui il corpo».
+- Per confronto sullo stesso computer: `?webcamMano=1` (traccia della mano NATPF), `?webcamMovimento=1` (colpi dal
+  movimento del 28–29/10). Testi della guida, del riscaldamento e del pannello come prima del 29/10 (mano, lato dal verso).
+- Test: `test/natpf-webcam-argon.test.mjs` (7: opzioni, scia → colpo con lato e tipo, 320 ms, mano lenta, lancio,
+  tagliato, flusso ottico, lancio rifiutato → pallonetto, colpo assistito nel motore, servizio, modello con le opzioni
+  dello zip); aggiornati 4 test della webcam. Gioco 467/467, sito 157/157, build.
+- Prova in Chromium (webcam finta): pacchetto LAN estratto in https, mano del video → «Mano vista»; con il video dei
+  colpi veri in sviluppo un dritto e un lancio riconosciuti e il dritto arrivato al gioco. Il browser della prova non ha
+  la scheda grafica: il modello delle mani impiega 0,8–5 s a fotogramma, quindi qui ritmo e tempi non sono misurabili.
+- Attenzione: come nello zip il modello delle mani gira nella pagina a ogni fotogramma con la complessità 1 (più pesante
+  del livello «leggera» di NATPF): su un portatile il gioco può rallentare. Non cambiato senza chiedere.
+- **Non provato**: Windows con la webcam vera.
+
+## Pacchetti 2026-10-28.8 (29/10): LAN e Cloudflare con la webcam dello zip argon-tennis
+- [x] Versione 2026-10-28.8; gioco 467/467, sito 157/157, build.
+- [x] LAN `natpf-simulator-lan-windows-20261028-8.zip`: 277 file, 61.096.349 byte, Node.js 22.22.0 verificato
+      (`bae898ad…`), nessun certificato né chiave, nessuna parola vietata. SHA256
+      `a743f3c2d42e2ecccdfe141a7972b65ae6fae5c0b146a250057c781a60d94ad4`.
+- [x] Cloudflare `natpf-simulator-cloudflare-20261028-8.zip`: 137 file, 26.061.290 byte. SHA256
+      `b15a7339aa6d7f93f4adc919267b27fb180bac916c7ac58651767c6257c55b5f`.
+- [x] LAN estratto in https: «Mano vista» con la webcam finta; prova generale (47 voci, due QR, partita divisa, telefono,
+      senza webcam il motivo), nessun errore. Cloudflare estratto e servito statico: stesse prove, solo i 404 attesi
+      (`/api/match/state`, `/lan/status`).
+- [ ] Non provato: Windows, webcam vera, telefoni veri, Cloudflare Pages vero.
+

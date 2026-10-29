@@ -135,7 +135,16 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   riga (fino a 2,7 m oltre il punto d'impatto con i colpi in ritardo). Il piano non porta mai fuori dalla propria metà
   (diagnostica del 29/10: corsa a rete a vuoto e punti persi). Test: `test/natpf-corsa-a-rete.test.mjs`.
 
-### Webcam: colpi dal movimento (deciso il 28/10 notte, fatto il 29/10)
+### Webcam: quella dello zip argon-tennis (decisione dell'utente, 29/10)
+
+- L'utente ha chiesto di ristabilire il gioco con la webcam **prendendolo esclusivamente dallo zip argon-tennis**
+  (motore base, app di AI Studio). Predefinita la webcam dello zip (`webcamMode` «argon» in `motion_controls.js`:
+  `_argonFrame`, `_argonEvaluateHandTrail`, `ARGON_HANDS_OPTIONS`; nel motore `_argonWebcamSwing`). Non sostituirla
+  con altri riconoscimenti senza chiederlo: le alternative restano solo per confronto (`?webcamMano=1`,
+  `?webcamMovimento=1`). Del codice NATPF attorno restano solo file locali di MediaPipe, mancino, motivi d'errore,
+  diagnostica e blocchi del menu/pausa. Il nome del gioco commerciale citato nel LEGGIMI dello zip non va nei file.
+
+### Webcam: colpi dal movimento (28–29/10, ora solo con ?webcamMovimento=1)
 
 - Il colpo con la webcam si riconosce **dal movimento nell'immagine** (`src/natpf/webcam_motion.js`: 96×72 in grigio,
   energia della differenza tra fotogrammi), non dalla forma della mano: con 15–30 fps e la luce di casa la mano nello
