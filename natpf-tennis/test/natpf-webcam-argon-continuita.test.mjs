@@ -4,7 +4,7 @@
 // fotogramma senza mano (confrontando con un'immagine vecchia) e 16 colpi su 18 venivano da lì, al limite di velocità.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ARGON_TRACK, argonPickHand, argonBridging, argonBridgeStart, argonNearEdge } from '../src/natpf/webcam_argon_track.js';
+import { ARGON_TRACK, argonPickHand, argonBridging, argonBridgeStart, argonNearEdge, argonScale } from '../src/natpf/webcam_argon_track.js';
 
 const { MotionController: MC } = await import('../src/motion_controls.js');
 
@@ -25,7 +25,12 @@ function rig(){
   mc._emitSwing = e => events.push({ kind: 'swing', ...e });
   mc._emitToss = e => events.push({ kind: 'toss', ...e });
   let hands = null;
-  const lm = h => Array.from({ length: 21 }, () => ({ x: 1 - h.S, y: h.y, z: 0 }));
+  // mano di grandezza h.size (polso → nocca del medio, in larghezze dell'immagine), centro in (S, y)
+  const lm = h => {
+    const d = (h.size || 0)/.75, a = Array.from({ length: 21 }, () => ({ x: 1 - h.S, y: h.y, z: 0 }));
+    a[0] = { x: 1 - h.S, y: h.y - .55*d, z: 0 }; a[9] = { x: 1 - h.S, y: h.y + .45*d, z: 0 };
+    return a;
+  };
   mc.mpHands = { send(){ mc._onArgonHandResults({ multiHandLandmarks: hands ? hands.map(lm) : [] }); return Promise.resolve(); } };
   const realNow = performance.now;
   let t = 1000;
@@ -164,4 +169,34 @@ test('webcam: camera ferma o chiusa dal sistema → si riapre da sola (una volta
   } finally {
     if (had) Object.defineProperty(globalThis.navigator, 'mediaDevices', had); else delete globalThis.navigator.mediaDevices;
   }
+});
+
+test('webcam argon: a distanza (mano piccola) lo stesso colpo conta; vicino le soglie restano quelle dello zip', () => {
+  assert.equal(argonScale(.09), 1); assert.equal(argonScale(.07), 1); assert.equal(argonScale(.035), 2); assert.equal(argonScale(.01), ARGON_TRACK.scaleMax);
+  const swing = size => {
+    const { events, frame } = rig();
+    for (let i = 0; i < 8; i++) frame({ S: .5, y: .55, size });
+    for (let i = 1; i <= 4; i++) frame({ S: .5 - .0225*i, y: .55, size });   // 0,09 di immagine in 133 ms
+    return events;
+  };
+  assert.equal(swing(.08).length, 0, 'mano vicina: movimento piccolo, niente (come lo zip)');
+  const far = swing(.035);
+  assert.equal(far.length, 1, 'mano a distanza doppia: lo stesso colpo ridotto a metà nell\'immagine conta');
+  assert.equal(far[0].side, 'forehand');
+});
+
+test('webcam argon: più persone in vista → si aggancia la mano più grande e non si salta su un\'altra persona (niente colpi finti)', () => {
+  const { mc, events, frame } = rig();
+  // chi gioca davanti (mano grande) e una persona dietro (mano piccola), il modello le dà in ordine qualsiasi
+  for (let i = 0; i < 6; i++) frame(...(i % 2 ? [{ S: .85, y: .5, size: .03 }, { S: .4, y: .55, size: .07 }] : [{ S: .4, y: .55, size: .07 }, { S: .85, y: .5, size: .03 }]));
+  assert.ok(Math.abs(mc._argonHand.x - .4) < 1e-6, 'agganciata la mano di chi gioca');
+  // chi gioca sparisce per 3 fotogrammi (mosso): resta solo l'altra persona, che non prende il posto
+  for (let i = 0; i < 3; i++) frame({ S: .85, y: .5, size: .03 });
+  assert.ok(Math.abs(mc._argonHand.x - .4) < 1e-6, JSON.stringify(mc._argonHand));
+  assert.equal(events.length, 0, JSON.stringify(events));
+  // persa a lungo (oltre pickMs): si riaggancia quella che c'è
+  for (let i = 0; i < Math.ceil(ARGON_TRACK.pickMs/(1000/30)) + 2; i++) frame(null);
+  frame({ S: .85, y: .5, size: .03 });
+  assert.ok(Math.abs(mc._argonHand.x - .85) < 1e-6);
+  assert.equal(events.length, 0);
 });

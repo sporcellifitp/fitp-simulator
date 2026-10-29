@@ -82,6 +82,7 @@ test('metriche: colpi persi, scartati, consegna, cadute, pagina nascosta, presta
   assert.equal(m.gioco.fps.p50, 60);
   assert.equal(m.webcam.perdite, 1); assert.equal(m.webcam.perditeS, 1.5);
   assert.equal(m.webcam.fonte.flow, 10);
+  assert.deepEqual(m.webcam.recupero, { modelloSbloccato: 0, modelloRicaricato: 0, cameraRiaperta: 0, cameraNonRiaperta: 0 });
   assert.equal(m.riferimento, undefined, 'senza prova guidata nessuna percentuale di colpi giusti');
   assert.ok(summaryLines(m).some(l => /persi in rete 1/.test(l)));
 });
@@ -486,4 +487,25 @@ test('metriche: dal rimbalzo della palla dell\'avversario al proprio colpo (ms)'
   ];
   const m = computeMetrics(ev);
   assert.equal(m.racchetta.rimbalzoContattoMs.n, 2); assert.equal(m.racchetta.rimbalzoContattoMs.p50, 380);
+});
+
+test('webcam: recupero automatico (modello sbloccato o ricaricato, camera riaperta), mani di altri scartate e passaggi al flusso ottico nel registro e nelle metriche', async () => {
+  const logged = [];
+  const R = Object.create(DiagRecorder.prototype);
+  R.log = (k, d) => logged.push({ k, ...d });
+  R._webcam({ kind: 'modello', stato: 'sbloccato', blocchi: 1 });
+  R._webcam({ kind: 'riapertura', motivo: 'camera ferma', stato: 'riuscita' });
+  R._webcam({ kind: 'riapertura', motivo: 'camera chiusa', stato: 'fallita', errore: 'NotReadableError' });
+  assert.deepEqual(logged[0], { k: 'webcam.modello', stato: 'sbloccato', blocchi: 1 });
+  assert.deepEqual(logged[2], { k: 'webcam.riapertura', motivo: 'camera chiusa', stato: 'fallita', errore: 'NotReadableError' });
+  const ev = [
+    { t: 100, k: 'webcam.frame', source: 'hands' }, { t: 200, k: 'webcam.frame', source: null, reason: 'mano diversa da quella seguita' },
+    { t: 300, k: 'webcam.frame', source: null, reason: 'mano non tornata' }, { t: 400, k: 'webcam.frame', source: null, reason: 'mano uscita dal bordo' },
+    { t: 500, k: 'webcam.modello', stato: 'sbloccato' }, { t: 600, k: 'webcam.modello', stato: 'ricaricato' },
+    ...logged.filter(l => l.k === 'webcam.riapertura').map((l, i) => ({ t: 700 + i, ...l })),
+  ];
+  const m = computeMetrics(ev, { meta: { controller: 'webcam' } });
+  assert.deepEqual(m.webcam.recupero, { modelloSbloccato: 1, modelloRicaricato: 1, cameraRiaperta: 1, cameraNonRiaperta: 1 });
+  assert.equal(m.webcam.maniScartate, 1);
+  assert.deepEqual(m.webcam.alFlusso, { manoNonTornata: 1, manoUscita: 1 });
 });

@@ -14,7 +14,7 @@
 //     che le scritture falliscano. Niente si cancella da solo.
 // Tipi di evento (k): fase, palla, rimbalzo, punto, tentativo, colpo.gioco, racchetta, piano, servizio, vuoto, input,
 // tel.colpo, tel.cal, tel.stato, tel.orologio, tel.link, tel.scartato, tel.prep, tel.dispositivo, webcam.frame, webcam.evento,
-// webcam.camera, webcam.ritmo, webcam.carico, webcam.stato, webcam.pausa, webcam.ripresa, tel.pausa, tel.ripresa,
+// webcam.camera, webcam.ritmo, webcam.carico, webcam.stato, webcam.modello, webcam.riapertura, webcam.pausa, webcam.ripresa, tel.pausa, tel.ripresa,
 // prestazioni, video, video.frame, sfida.collegamento,
 // atteso, marca, avviso.
 import { latencyShift, eventLatency, swingTiming } from '../natpf_skill.js';
@@ -386,6 +386,9 @@ export class DiagRecorder {
     if (d.kind === 'ritmo'){ const { kind, ...rest } = d; return this.log('webcam.ritmo', rest); }
     // cambio di livello: deciso dalla misura, poi applicato al primo invio senza un punto in gioco (applicato)
     if (d.kind === 'carico') return this.log('webcam.carico', { da: d.from ?? null, a: d.to ?? null, p50: d.p50 ?? null, perche: d.reason || null, ...(d.applied ? { applicato: true } : {}) });
+    // recupero automatico della webcam (webcam_argon_track.js): modello delle mani sbloccato o ricaricato, camera riaperta
+    if (d.kind === 'modello') return this.log('webcam.modello', { stato: d.stato || null, blocchi: d.blocchi ?? null });
+    if (d.kind === 'riapertura') return this.log('webcam.riapertura', { motivo: d.motivo || null, stato: d.stato || null, ...(d.errore ? { errore: d.errore } : {}) });
     // stato della mano: valida, degradata, persa, ripresa, movimento (ms: durata dello stato finito)
     if (d.kind === 'stato') return this.log('webcam.stato', { da: d.from ?? null, a: d.to ?? null, ms: d.ms ?? null });
     // movimento (colpi della webcam dal movimento): ct dell'attraversamento della soglia

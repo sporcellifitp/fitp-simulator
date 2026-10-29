@@ -110,7 +110,7 @@ function webcamStates(changes, pauses){
   return { statiMano: { secondi: secs, perse: count(changes, c => c.a === 'persa'), persaMs: dist(lost), riprese: count(changes, c => c.a === 'ripresa') }, pause: pauses.length ? tally(pauses, p => p.motivo || '?') : null };
 }
 // tipi di evento che le metriche leggono: l'analisi a righe (diag_analysis.js) tiene in memoria solo questi
-export const METRIC_KINDS = new Set(['tel.colpo', 'tel.orologio', 'tel.stato', 'tel.link', 'tel.scartato', 'tel.prep', 'tel.dispositivo', 'webcam.frame', 'webcam.evento', 'webcam.camera', 'webcam.ritmo', 'webcam.carico', 'webcam.stato', 'webcam.pausa', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.link', 'tel2.colpo', 'prestazioni',
+export const METRIC_KINDS = new Set(['tel.colpo', 'tel.orologio', 'tel.stato', 'tel.link', 'tel.scartato', 'tel.prep', 'tel.dispositivo', 'webcam.frame', 'webcam.evento', 'webcam.camera', 'webcam.ritmo', 'webcam.carico', 'webcam.stato', 'webcam.modello', 'webcam.riapertura', 'webcam.pausa', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.link', 'tel2.colpo', 'prestazioni',
   'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'punto', 'rimbalzo', 'tentativo', 'atteso', 'avviso', 'video', 'marca']);
 // ms dal rimbalzo della palla dell'avversario al colpo di chi gioca qui (evento racchetta entro 1,5 s, prima di un altro
 // rimbalzo o di un punto)
@@ -203,6 +203,12 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
       piuManiPercento: frames.length ? r1(100*count(frames, f => (f.hands || 0) > 1)/frames.length) : null,
       perdite: perse, perditeS: r1(persaMs/1000), eventi: count(wev, e => e.tipo === 'event'),
       conferme: coppie.length ? { n: coppie.length, latoUgualePercento: r1(100*count(coppie, ([a, b]) => a.side === b.side)/coppie.length), tipoUgualePercento: r1(100*count(coppie, ([a, b]) => a.shotType === b.shotType)/coppie.length) } : null,
+      // passaggi al flusso ottico (mano non tornata dopo l'attesa, mano uscita dal bordo), mani di altri scartate, recupero
+      // automatico (webcam_argon_track.js)
+      alFlusso: { manoNonTornata: count(frames, f => f.reason === 'mano non tornata'), manoUscita: count(frames, f => f.reason === 'mano uscita dal bordo') },
+      maniScartate: count(frames, f => f.reason === 'mano diversa da quella seguita'),
+      recupero: { modelloSbloccato: count(by('webcam.modello'), m => m.stato === 'sbloccato'), modelloRicaricato: count(by('webcam.modello'), m => m.stato === 'ricaricato'),
+        cameraRiaperta: count(by('webcam.riapertura'), m => m.stato === 'riuscita'), cameraNonRiaperta: count(by('webcam.riapertura'), m => m.stato === 'fallita') },
       ...webcamRhythm(wcam, writ, wcar),
       ...webcamStates(wst, by('webcam.pausa')),
     };

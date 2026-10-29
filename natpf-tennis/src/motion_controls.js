@@ -8,7 +8,7 @@ import { newSwings } from "./natpf/natpf_versus.js";
 // NATPF: misure della webcam (camera, inferenza, età del dato) e carico del modello delle mani, vedi src/natpf/webcam_load.js
 import { createLoadGovernor, createWebcamStats, WEBCAM_LEVELS } from "./natpf/webcam_load.js";
 import { PoseStrokeSource, POSE_INPUT } from "./natpf/webcam_pose_strokes.js";
-import { ARGON_TRACK, argonPickHand, argonBridging, argonBridgeStart, argonNearEdge } from "./natpf/webcam_argon_track.js";
+import { ARGON_TRACK, argonPickHand, argonBridging, argonBridgeStart, argonNearEdge, argonHandSize, argonScale, argonSameHand, argonHandPoint } from "./natpf/webcam_argon_track.js";
 // NATPF: colpi della webcam dal movimento dell'immagine (rifacimento del 28–29/10), vedi src/natpf/webcam_motion.js
 import { createMotionStrokes, grayFromRGBA, swingSpeed, MOTION } from "./natpf/webcam_motion.js";
 // NATPF: MediaPipe Hands dal pacchetto offline (npm @mediapipe/hands, servito sotto /assets/); CDN fissato solo di riserva
@@ -580,7 +580,7 @@ export class MotionController {
     (this._handTrack = null), (this._handOthers = []), (this._handLost = !1), (this._handPick = null), (this._handCapture = null), (this._handLastPos = null), (this._frameMeta = null), this._strokes && this._strokes.reset();
     this._poseCapture = null; this._poseSeenAt = null; this._poseUseUntil = 0; this._hasNewPoseResult = !1; this._poseHand = null; this._poseSource?.reset();
     this._motion && this._motion.reset(); this._motionWaiting = !1;
-    this._argonHand = null; this._argonStalls = 0;
+    this._argonHand = null; this._argonStalls = 0; this._argonSize = null;
   }
   // NATPF: livello di carico del modello delle mani (webcam_load.js); prima dell'accensione quello di partenza
   _wcLevel() {
@@ -735,10 +735,16 @@ export class MotionController {
     const now = performance.now();
     Number.isFinite(this._mpSentAt) && ((this.lastInferMs = now - this._mpSentAt), this._wcStats && this._wcStats.infer(this.lastInferMs));
     this._argonStalls = 0;
-    // NATPF: con due mani quella più vicina all'ultima seguita (webcam_argon_track.js), non sempre la prima della lista
-    const k = argonPickHand(i && i.multiHandLandmarks, this._argonHand, now);
-    k >= 0
-      ? ((this.latestHandLandmarks = i.multiHandLandmarks[k]), (this.latestHandSeenAt = now), (this._handSeenForFlow = now), (this._hasNewHandResult = true))
+    // NATPF: una sola mano seguita (webcam_argon_track.js): al primo aggancio la più grande, poi la più vicina a quella
+    // e solo se compatibile (velocità possibile, grandezza); le altre (mano libera, altre persone) come non viste
+    const aspect = this._videoAspect(),
+      list = i && i.multiHandLandmarks,
+      k = argonPickHand(list, this._argonHand, now, aspect),
+      lm = k >= 0 ? list[k] : null,
+      ok = lm && argonSameHand(argonHandPoint(lm), argonHandSize(lm, aspect), this._argonHand && { ...this._argonHand, size: this._argonSize }, now);
+    lm && !ok && this.onTrack && this._diag({ kind: "frame", t: now, captureT: now, source: null, hands: list.length, reason: "mano diversa da quella seguita" });
+    ok
+      ? ((this.latestHandLandmarks = lm), (this.latestHandSeenAt = now), (this._handSeenForFlow = now), (this._hasNewHandResult = true))
       : (this.latestHandLandmarks = null);
   }
   // NATPF: modello delle mani senza risposta da ARGON_TRACK.stallMs: si sblocca; dopo stallReload blocchi di fila si
@@ -785,6 +791,8 @@ export class MotionController {
         this.smoothedCentroid.x = S,
           this.smoothedCentroid.y = _,
           this._argonHand = { x: S, y: _, t: e },
+          // grandezza della mano (media lenta): a distanza i movimenti contano in proporzione
+          (this._argonSize = ((z) => (z == null ? this._argonSize : this._argonSize == null ? z : this._argonSize + (z - this._argonSize) * 0.2))(argonHandSize(c, this._videoAspect()))),
           (!this._webcamTrail || this._lastWebcamSource !== "mediapipe") && (this._webcamTrail = from ? [from] : []),
           this._lastWebcamSource = "mediapipe",
           this._webcamTrail.push({ x: S, y: _, t: e });
@@ -887,14 +895,17 @@ export class MotionController {
   }
   _argonEvaluateHandTrail(e, t) {
     if (!this._webcamTrail || this._webcamTrail.length < 2) return;
-    const i = this._webcamTrail[0],
+    // NATPF: mano lontana: movimento ingrandito in proporzione alla sua grandezza (webcam_argon_track.argonScale; il
+    // flusso ottico no, non sa quanto è lontana)
+    const k = t ? argonScale(this._argonSize) : 1,
+      i = this._webcamTrail[0],
       a = this._webcamTrail[this._webcamTrail.length - 1],
       n = Math.max(0.025, (a.t - i.t) / 1e3),
-      h = a.x - i.x,
-      p = a.y - i.y,
+      h = (a.x - i.x) * k,
+      p = (a.y - i.y) * k,
       f = Math.hypot(h, p);
     let s = 0;
-    for (let m = 1; m < this._webcamTrail.length; m++) s += Math.hypot(this._webcamTrail[m].x - this._webcamTrail[m - 1].x, this._webcamTrail[m].y - this._webcamTrail[m - 1].y);
+    for (let m = 1; m < this._webcamTrail.length; m++) s += k * Math.hypot(this._webcamTrail[m].x - this._webcamTrail[m - 1].x, this._webcamTrail[m].y - this._webcamTrail[m - 1].y);
     const l = s > 1e-3 ? f / s : 0,
       r = t ? 0.065 : 0.1,
       o = t ? 0.62 : 0.7,
