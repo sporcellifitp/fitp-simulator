@@ -2,6 +2,22 @@
 
 Aggiornato: 29/10/2026 · branch `natpf-simulator`.
 
+## Ultimissimo (29/10, pomeriggio): diagnostica 131307, presa nel palmo, pacchetti 2026-10-28.11
+
+Richiesta: palla sempre al centro, presa di riferimento nuova (foto: base nel palmo, cima in avanti, schermo in alto),
+schiacciata e pallonetto che non riescono, colpi a rete in rete. Analisi su registro, video webcam e gioco, sensori di
+quattro sessioni rigiocati; cause e interventi in `docs/WORK_PROGRESS.md` («Diagnostica 20261029-131307»). Commit
+`d1e9dec` (gioco: direzione del piatto dalla rotazione attorno alla verticale, piatto a peso pieno, colpo normale
+imparato giocando, pallonetto relativo e più alto, schiacciata da 1,5 m a 46 m/s, palla corta al colmo, chiusure sopra la
+rete, tempo sulla strada della palla, CPU Leggenda che impara dai vincenti), `dac4d4b` (tutorial: figura, testi, 3D,
+foto `presa-palmo.webp`), più il commit dei pacchetti. Gioco 496/496, sito 160/160; banco Leggenda con gli stessi 2 KO
+di prima. Consegnati LAN (`88fd306f…a0a04f24aa`) e Cloudflare (`6f7cc554…202841b40c`) 2026-10-28.11.
+Push non fatto (solo con autorizzazione esplicita).
+Prossima azione: l'utente prova il .11 con la presa nel palmo e la diagnostica accesa (meglio con il file
+`telefono-sensori.jsonl`, che per la 131307 non è arrivato): cadute di lato (`racchetta` x), pallonetti e tagliati
+(`tel.colpo` tipo e «abituale»), schiacciate (`voluto smash`), chiusure (`racchetta` attacco). Se la direzione è ancora
+poco controllabile: prova guidata dei colpi per misurare quanto il piatto segue l'intenzione.
+
 ## Ultimissimo (29/10, primo pomeriggio): richieste dopo il .9 e diagnostica 104712; pacchetti 2026-10-28.10
 
 Richieste: (1) angolazione più sensibile, (2) telefono inclinato in avanti nel palmo, (3) colpi super potenti nel

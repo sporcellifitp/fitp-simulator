@@ -734,3 +734,18 @@ Interventi (commit di questa sezione):
       telecomando, 6 crediti); tolte `presa-lato`, `presa-schermo`, `presa-sbagliata`. Passo «Orientamento e mano» con
       l'animazione 3D. Screenshot della lezione controllati.
 - [x] Gioco 496/496, sito 160/160, build.
+- [x] Trovato con la prova del pacchetto: la pagina «Collega» chiedeva ancora `presa-schermo.webp` (404) e due testi
+      (Collega, Stesso schermo) descrivevano la presa di prima: corretti; test che nessuna pagina punti a foto tolte.
+
+## Pacchetti 2026-10-28.11 (29/10 pomeriggio): LAN e Cloudflare
+- [x] Versione 2026-10-28.11; gioco 496/496, sito 160/160, build.
+- [x] LAN `natpf-simulator-lan-windows-20261028-11.zip`: 275 file, 61.313.498 byte, Node.js verificato (`bae898ad…`),
+      nessun certificato né chiave, nessuna parola vietata. SHA256
+      `88fd306f806630992ecdc043d73357c7c48da66699142b50d236a3a0a04f24aa`.
+- [x] Cloudflare `natpf-simulator-cloudflare-20261028-11.zip`: 135 file, 26.121.829 byte. SHA256
+      `6f7cc554406506b2dc0b714fda03025c78816a9d374a94a4f27ebc202841b40c`.
+- [x] Estratti e provati: LAN in https (certificato del pacchetto, porta 8443) e Cloudflare statico: 47 voci, due QR,
+      partita divisa, pausa del P2 con «Ricollega il telefono», lezione con `presa-palmo.webp`, pagina del telefono con la
+      misura nuova del piatto, nessun errore (su Cloudflare solo i 404 attesi `/api/match/state` e `/lan/status`).
+- [ ] Non provato: Windows, telefoni veri (direzione, pallonetto, schiacciata, chiusure con la presa nel palmo),
+      Cloudflare Pages vero.

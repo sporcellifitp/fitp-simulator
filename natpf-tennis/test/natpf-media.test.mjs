@@ -24,6 +24,11 @@ test('media del tutorial: ogni foto esiste ed è leggera, con la provenienza doc
   assert.ok(!LESSON_PHOTOS.grip.no, 'nessun esempio sbagliato');
   for (const old of ['presa-lato', 'presa-schermo', 'presa-sbagliata']) assert.ok(!fs.existsSync(pub(`media/${old}.webp`)), `${old} tolta`);
   assert.ok(LESSON.some(st => st.id === 'hand'));
+  // nessuna pagina punta a una foto che non c'è (29/10: la pagina «Collega» chiedeva ancora presa-schermo.webp, 404)
+  for (const page of ['../index.html', '../../site/tennis/racchetta.html']){
+    const html = fs.readFileSync(fileURLToPath(new URL(page, import.meta.url)), 'utf8');
+    for (const [, src] of html.matchAll(/src="\.\/(media\/[^"]+)"/g)) assert.ok(fs.existsSync(pub(src)), `${page}: ${src} non esiste`);
+  }
 });
 
 test('lezione con foto reali (specchiate per il mancino), esercizi con l’animazione 3D verificata', async () => {
