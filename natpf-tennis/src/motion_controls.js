@@ -8,6 +8,7 @@ import { newSwings } from "./natpf/natpf_versus.js";
 // NATPF: misure della webcam (camera, inferenza, età del dato) e carico del modello delle mani, vedi src/natpf/webcam_load.js
 import { createLoadGovernor, createWebcamStats, WEBCAM_LEVELS } from "./natpf/webcam_load.js";
 import { PoseStrokeSource, POSE_INPUT } from "./natpf/webcam_pose_strokes.js";
+import { ARGON_TRACK, argonPickHand, argonBridging, argonBridgeStart, argonNearEdge } from "./natpf/webcam_argon_track.js";
 // NATPF: colpi della webcam dal movimento dell'immagine (rifacimento del 28–29/10), vedi src/natpf/webcam_motion.js
 import { createMotionStrokes, grayFromRGBA, swingSpeed, MOTION } from "./natpf/webcam_motion.js";
 // NATPF: MediaPipe Hands dal pacchetto offline (npm @mediapipe/hands, servito sotto /assets/); CDN fissato solo di riserva
@@ -500,6 +501,7 @@ export class MotionController {
           (this.videoElem.muted = !0)),
         (this.videoElem.srcObject = e),
         await this.videoElem.play(),
+        this._watchTrackEnd(e),
         this._wcStart(e),
         (this.webcamActive = !0),
         (this.hasPrevFrame = !1),
@@ -524,6 +526,40 @@ export class MotionController {
       );
     }
   }
+  // NATPF: camera chiusa dal sistema (driver, risparmio energetico, privacy, un altro programma) o ferma da
+  // ARGON_TRACK.frameStallMs: si riapre da sola, senza toccare il modello delle mani né la partita (prima la webcam restava
+  // spenta o ferma fino a «Accendi la webcam»; natpf_webcam_watch dava solo la pausa)
+  _watchTrackEnd(stream) {
+    const tr = stream && stream.getVideoTracks && stream.getVideoTracks()[0];
+    tr && tr.addEventListener && tr.addEventListener("ended", () => { this.webcamStream === stream && this._reopenCamera("camera chiusa"); });
+  }
+  async _reopenCamera(why, now = performance.now()) {
+    if (!this.webcamActive || this._reopening || now - (this._reopenedAt ?? -Infinity) < ARGON_TRACK.reopenEveryMs) return !1;
+    this._reopening = !0; this._reopenedAt = now;
+    this._diag({ kind: "riapertura", t: now, motivo: why, stato: "inizio" });
+    try {
+      const old = this.webcamStream;
+      old && old.getTracks().forEach((t) => t.stop());
+      const e = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 }, facingMode: "user" },
+        audio: !1,
+      });
+      // spenta durante la riapertura: la camera nuova non serve
+      if (!this.webcamActive) { e.getTracks().forEach((t) => t.stop()); return !1; }
+      this.webcamStream = e;
+      this.videoElem.srcObject = e;
+      await this.videoElem.play();
+      this._watchTrackEnd(e);
+      this.hasPrevFrame = !1; this._lastNewFrameAt = performance.now();
+      this._watchFrames();
+      this._diag({ kind: "riapertura", t: performance.now(), motivo: why, stato: "riuscita" });
+      return !0;
+    } catch (err) {
+      this.webcamError = { name: err?.name || "", message: err?.message || "" };
+      this._diag({ kind: "riapertura", t: performance.now(), motivo: why, stato: "fallita", errore: err?.name || String(err) });
+      return !1;
+    } finally { this._reopening = !1; }
+  }
   disableWebcam() {
     this._visionEpoch = (this._visionEpoch || 0) + 1;
     this._handsLoadingModel?.close();
@@ -544,6 +580,7 @@ export class MotionController {
     (this._handTrack = null), (this._handOthers = []), (this._handLost = !1), (this._handPick = null), (this._handCapture = null), (this._handLastPos = null), (this._frameMeta = null), this._strokes && this._strokes.reset();
     this._poseCapture = null; this._poseSeenAt = null; this._poseUseUntil = 0; this._hasNewPoseResult = !1; this._poseHand = null; this._poseSource?.reset();
     this._motion && this._motion.reset(); this._motionWaiting = !1;
+    this._argonHand = null; this._argonStalls = 0;
   }
   // NATPF: livello di carico del modello delle mani (webcam_load.js); prima dell'accensione quello di partenza
   _wcLevel() {
@@ -697,12 +734,31 @@ export class MotionController {
     this._mpBusy = false;
     const now = performance.now();
     Number.isFinite(this._mpSentAt) && ((this.lastInferMs = now - this._mpSentAt), this._wcStats && this._wcStats.infer(this.lastInferMs));
-    i && i.multiHandLandmarks && i.multiHandLandmarks.length > 0
-      ? ((this.latestHandLandmarks = i.multiHandLandmarks[0]), (this.latestHandSeenAt = now), (this._handSeenForFlow = now), (this._hasNewHandResult = true))
+    this._argonStalls = 0;
+    // NATPF: con due mani quella più vicina all'ultima seguita (webcam_argon_track.js), non sempre la prima della lista
+    const k = argonPickHand(i && i.multiHandLandmarks, this._argonHand, now);
+    k >= 0
+      ? ((this.latestHandLandmarks = i.multiHandLandmarks[k]), (this.latestHandSeenAt = now), (this._handSeenForFlow = now), (this._hasNewHandResult = true))
       : (this.latestHandLandmarks = null);
+  }
+  // NATPF: modello delle mani senza risposta da ARGON_TRACK.stallMs: si sblocca; dopo stallReload blocchi di fila si
+  // ricarica (prima restava «occupato» per sempre: solo flusso ottico fino a riaccendere la webcam)
+  _argonWatchModel(e) {
+    if (!this._mpBusy || !Number.isFinite(this._mpSentAt) || e - this._mpSentAt < ARGON_TRACK.stallMs) return;
+    this._mpBusy = false;
+    this._argonStalls = (this._argonStalls || 0) + 1;
+    const reload = this._argonStalls >= ARGON_TRACK.stallReload && !this._mpLoading;
+    this._diag({ kind: "modello", t: e, stato: reload ? "ricaricato" : "sbloccato", blocchi: this._argonStalls });
+    if (!reload) return;
+    const old = this.mpHands;
+    this._argonStalls = 0;
+    this.mpHands = null;
+    old && Promise.resolve(old.close?.()).catch(() => {});
+    typeof this._ensureMediaPipeHands == "function" && this._ensureMediaPipeHands();
   }
   _argonFrame(e) {
     const t = this.videoElem.currentTime !== this._lastVideoTime;
+    this._argonWatchModel(e);
     if (
       (t &&
         ((this._lastVideoTime = this.videoElem.currentTime),
@@ -721,11 +777,15 @@ export class MotionController {
         b = c[0],
         w = c[9],
         S = 1 - (b.x * 0.45 + w.x * 0.55),
-        _ = b.y * 0.45 + w.y * 0.55;
+        _ = b.y * 0.45 + w.y * 0.55,
+        // NATPF: mano ritrovata dopo un buco breve senza colpi: la scia riparte dall'ultimo punto prima del buco
+        // (lo spostamento attraverso il buco è il colpo; webcam_argon_track.js)
+        from = this._lastWebcamSource !== "mediapipe" ? argonBridgeStart(this._argonHand, e, this.lastWebcamTriggerMs) : null;
       for (
         this.smoothedCentroid.x = S,
           this.smoothedCentroid.y = _,
-          (!this._webcamTrail || this._lastWebcamSource !== "mediapipe") && (this._webcamTrail = []),
+          this._argonHand = { x: S, y: _, t: e },
+          (!this._webcamTrail || this._lastWebcamSource !== "mediapipe") && (this._webcamTrail = from ? [from] : []),
           this._lastWebcamSource = "mediapipe",
           this._webcamTrail.push({ x: S, y: _, t: e });
         this._webcamTrail.length > 5 || (this._webcamTrail.length > 2 && e - this._webcamTrail[0].t > 160);
@@ -737,6 +797,15 @@ export class MotionController {
       return;
     }
     if (!t) return;
+    // NATPF: mano persa da poco a metà immagine (mosso del colpo): si aspetta che torni, niente flusso ottico; uscita dal
+    // bordo o assente da più di ARGON_TRACK.bridgeMs: flusso ottico, che riparte da un'immagine nuova (prima
+    // confrontava con l'ultima elaborata, anche di secondi prima: movimento enorme e colpi al limite)
+    if (this._lastWebcamSource === "mediapipe" || argonBridging(this._argonHand, e)) {
+      this.hasPrevFrame = !1;
+      if (argonBridging(this._argonHand, e)) return;
+      this._lastWebcamSource = "attesa";
+      this.onTrack && this._diag({ kind: "frame", t: e, captureT: e, source: null, reason: argonNearEdge(this._argonHand) ? "mano uscita dal bordo" : "mano non tornata" });
+    }
     const a = this.flowWidth,
       n = this.flowHeight,
       h = this.offscreenCtx;
@@ -1014,6 +1083,10 @@ export class MotionController {
       e - this._wcFlushAt >= 1000 && (this._diag({ kind: "ritmo", ...this._wcStats.flush(e - this._wcFlushAt), worker: !!this.mpHands?.inWorker, livello: this._wcLevel().id }), (this._wcFlushAt = e));
     }
     this._wcStats && this._handStateTick(e);
+    // NATPF: camera ferma (nessun fotogramma nuovo da ARGON_TRACK.frameStallMs): si riapre da sola
+    // (dopo una pausa del ciclo del gioco, scheda nascosta, si riparte da adesso)
+    t || this._lastNewFrameAt == null || e - (this._frameCheckAt ?? e) > 500 ? (this._lastNewFrameAt = e) : e - this._lastNewFrameAt > ARGON_TRACK.frameStallMs && this._reopenCamera("camera ferma", e);
+    this._frameCheckAt = e;
     if (this.webcamMode === "argon") return void this._argonFrame(e);
     // NATPF: l'inferenza la fanno partire i richiami dei fotogrammi (_watchFrames); qui solo se non arrivano (browser
     // senza il supporto, richiami fermi da 150 ms: thread molto occupato). Con i richiami visti almeno una volta anche
