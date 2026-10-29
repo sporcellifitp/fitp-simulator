@@ -142,6 +142,8 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 
 ## Storico modifiche significative
 
+- 29/10/2026 sera — webcam (Lenovo E14, diagnostica 101056 e video della 145416): continuità nei colpi veloci, mano
+  uscita dal bordo, distanza, una sola mano agganciata, modello e camera che si riprendono da soli (`cd6b949`, `409bf44`).
 - 29/10/2026 sera — diagnostica 145416: impugnatura a martello come presa di riferimento (testa della racchetta virtuale
   sempre la cima, tutorial, figura, 3D, foto); «Sfida il campione» tolto dai minigiochi; webcam (WORK_PROGRESS,
   «Diagnostica 20261029-145416»).
@@ -197,6 +199,21 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   con altri riconoscimenti senza chiederlo: le alternative restano solo per confronto (`?webcamMano=1`,
   `?webcamMovimento=1`). Del codice NATPF attorno restano solo file locali di MediaPipe, mancino, motivi d'errore,
   diagnostica e blocchi del menu/pausa. Il nome del gioco commerciale citato nel LEGGIMI dello zip non va nei file.
+- Continuità e recupero attorno allo zip (29/10 sera, `src/natpf/webcam_argon_track.js`; le regole del colpo restano
+  quelle dello zip): nei colpi veloci Hands perde la mano 100–170 ms (mosso) e la ritrova dall'altra parte, quindi un
+  buco breve a metà immagine **si attraversa con la mano** (`bridgeMs` 260: niente flusso ottico, lo spostamento nel
+  buco è il colpo); flusso ottico solo con la mano uscita dal bordo o non tornata, **sempre da un'immagine nuova**; a
+  distanza i movimenti contano **in proporzione alla grandezza della mano** (`argonScale`, riferimento 0,07 ≈ 1 m, fino a
+  ×2,5); **una sola mano agganciata** (la più grande al primo aggancio, poi solo una compatibile per velocità e
+  grandezza: con più persone in vista prima partivano colpi finti); modello senza risposta da 2 s sbloccato, ricaricato
+  dopo 2 blocchi; camera ferma da 2,5 s o chiusa dal sistema riaperta da sola (al massimo una volta ogni 5 s).
+- MediaPipe Pose (corpo) **non** gira con la webcam predefinita: misurato sul video dell'E14 e a 2–3 m (vede il polso
+  +9–17% dei fotogrammi, attraversa il mosso con 1–2 fotogrammi di ritardo) ma raddoppierebbe l'inferenza su un
+  computer già all'85% di carico; Hands vede la mano a 2–3 m reali nell'81% dei fotogrammi. Se servirà oltre 3 m:
+  Pose al posto di Hands solo quando la mano è più piccola di ~0,03 (non insieme).
+- Misure ripetibili su un video della webcam: `scripts/audit/webcam-probe.mjs` (Hands o Pose fotogramma per fotogramma,
+  Chromium senza schermo, passate separate: nella stessa pagina il caricatore globale di MediaPipe rompe Hands; immagini
+  JPEG, non `<video>`: il seek senza schermo non aggiorna il fotogramma) e `webcam-argon-replay.mjs` (logica vera).
 
 ### Webcam: colpi dal movimento (28–29/10, ora solo con ?webcamMovimento=1)
 

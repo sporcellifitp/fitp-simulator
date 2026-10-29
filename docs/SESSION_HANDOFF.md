@@ -2,7 +2,25 @@
 
 Aggiornato: 29/10/2026 · branch `natpf-simulator`.
 
-## Ultimissimo (29/10, pomeriggio): diagnostica 131307, presa nel palmo, pacchetti 2026-10-28.11
+## Ultimissimo (29/10, sera): diagnostica 145416, webcam, impugnatura a martello, «Sfida il campione» tolto; pacchetti 2026-10-28.12
+
+Richieste: (1) webcam che non traccia bene (distanza, interruzioni, servizio, recupero) sul Lenovo E14; (2) impugnatura
+a martello come posizione neutra di tutto il controllo col telefono; (3) togliere «Sfida il campione»; (4) audit e
+verifica. Dettagli, cause, misure e cosa resta da provare in `docs/WORK_PROGRESS.md` («Diagnostica 20261029-145416»).
+Commit: `dad3699` (minigioco tolto), `2610a16` (martello: testa della racchetta virtuale sempre la cima, tutorial,
+figura, 3D, foto), `cd6b949` e `409bf44` (webcam: buco nel colpo attraversato con la mano, flusso ottico solo a mano
+uscita o non tornata e da immagine nuova, distanza in proporzione alla mano, una sola mano agganciata, modello e camera
+che si riprendono da soli, strumenti `webcam-probe`/`webcam-argon-replay`), più il commit dei pacchetti.
+Gioco 505/505, sito 160/160, build ok; motore di gioco non toccato (banco Leggenda non rifatto). Pacchetti
+2026-10-28.12 provati estratti: LAN (`22a1adf4…b4e3742901`, anche la webcam con un video come camera finta) e
+Cloudflare (`78f08437…bf38274258`). Push non fatto (solo con autorizzazione esplicita).
+Da provare sui dispositivi (non verificabile qui): webcam dell'E14 in piedi a 2–3 m, servizio a braccio alzato, colpi
+ampi, carico; telefono con la presa a martello (calibrazione e tutti i colpi, destro e mancino).
+Prossima azione: l'utente prova il .12 con la diagnostica accesa — webcam: `webcam.frame` (fonte, «mano non tornata»,
+«mano uscita dal bordo», «mano diversa da quella seguita»), `webcam.ritmo`, metriche `recupero`; telefono: `tel.colpo`
+con la presa a martello. Se a più di 3 m la mano non si vede: valutare Pose al posto di Hands (vedi PROJECT_MEMORY).
+
+## Prima (29/10, pomeriggio): diagnostica 131307, presa nel palmo, pacchetti 2026-10-28.11
 
 Richiesta: palla sempre al centro, presa di riferimento nuova (foto: base nel palmo, cima in avanti, schermo in alto),
 schiacciata e pallonetto che non riescono, colpi a rete in rete. Analisi su registro, video webcam e gioco, sensori di

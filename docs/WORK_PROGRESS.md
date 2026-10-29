@@ -773,3 +773,67 @@ il video della webcam di registrazione. Per la webcam vedi la sezione più sotto
 - [x] Tutorial: figura a due viste, testi (lezione, calibrazione, Collega, Stesso schermo), animazione 3D (cima in avanti
       a 80°, display di lato, inquadrature più di lato), foto `presa-martello.webp` (una di sei generate, 9 crediti).
 - [x] Test `natpf-gesture-demo`: martello (cima 70/80/90/105°, display fuori o dentro, destro e mancino), prese di prima.
+
+### Webcam: tracciamento a distanza, continuo, nel servizio, con recupero (Lenovo E14)
+Dati: la 145416 non ha dati della webcam di gioco; usati la diagnostica `20261029-101056-2cyg` (webcam di gioco, build .8,
+«Integrated Camera (174f:1826)» 640×480 a 30 Hz, seduto a circa 1 m) e il video della webcam della 145416 (persone in
+piedi a 2–3 m, tre in vista). Misure ripetibili: `scripts/audit/webcam-probe.mjs` (MediaPipe del gioco su ogni
+fotogramma del video, Chromium senza schermo) e `scripts/audit/webcam-argon-replay.mjs` (la logica vera della webcam
+sui risultati). Video e fotogrammi restano fuori dal repository.
+
+Diagnosi (cause, dalla 101056):
+- Hands perde la mano **nel colpo**: 24 buchi oltre 100 ms, quasi tutti di 100–170 ms, sempre su movimenti veloci; la
+  mano ricompare dall'altra parte (es. da 0,77 a 0,42 della larghezza in 171 ms): il colpo avviene tutto nel buco.
+  Causa: mosso a 30 Hz con la luce di casa (fotogrammi del video: mano sfocata), non il carico (inferenza p50 23 ms,
+  36 al secondo) né la camera (30 Hz costanti, nessun fotogramma perso).
+- Al primo fotogramma senza mano partiva il flusso ottico, che confrontava con l'ultima immagine elaborata da lui
+  (anche di secondi prima) e azzerava la scia della mano: 16 eventi su 18 dal flusso, velocità al limite (1,65) in 10,
+  lato opposto allo spostamento vero della mano in 2, un dritto letto come lancio (→ pallonetto).
+- Servizio: nel video l'utente prova il lancio 5 volte (9,1–13,3 s) prima che parta; i gesti c'erano ma la mano spariva.
+- Mano che esce dal bordo alto/laterale (braccio alzato vicino alla camera): lì il flusso ottico è l'unica fonte.
+- Distanza: a 2–3 m la mano è grande 0,03 della larghezza (0,07 a 1 m) e il colpo percorre metà immagine: con le soglie
+  dello zip i colpi non bastano. Hands la vede comunque nell'81% dei fotogrammi (video della 145416).
+- Più persone in vista: lo zip prende la prima mano della lista; un salto da una mano (o persona) all'altra è una
+  «scia» velocissima, cioè un colpo (30 eventi in 20 s nello spezzone a 2–3 m, 14 al limite).
+- Recupero: un modello che non risponde restava «occupato» per sempre (solo flusso ottico) e una camera chiusa dal
+  sistema non si riapriva (la pausa diceva «si riprende da solo» ma nessuno la riapriva).
+- Connessione: la webcam è locale (nessuna rete); latenza = cattura → inferenza (registro `webcam.ritmo`). Il
+  collegamento del telefono (LAN) non è toccato.
+
+Interventi (`src/natpf/webcam_argon_track.js`, `motion_controls.js`; regole del colpo dello zip invariate), commit
+`cd6b949`, `409bf44`:
+- [x] buco breve a metà immagine attraversato con la mano (260 ms): niente flusso ottico, lo spostamento nel buco è il
+      colpo; flusso solo con la mano uscita dal bordo o non tornata, sempre da un'immagine nuova
+- [x] movimenti in proporzione alla grandezza della mano (riferimento 0,07, fino a ×2,5): vicino nulla cambia
+- [x] una sola mano agganciata: la più grande al primo aggancio, poi solo una compatibile (velocità ≤ 6 larghezze/s
+      in proporzione, grandezza entro ×1,7); riaggancio dopo 0,5 s
+- [x] modello senza risposta da 2 s sbloccato, ricaricato dopo 2 blocchi; camera ferma 2,5 s o chiusa riaperta
+      (al massimo ogni 5 s), senza toccare modello e partita
+- [x] registro: `webcam.modello`, `webcam.riapertura`, fotogrammi «mano diversa da quella seguita», «mano non
+      tornata», «mano uscita dal bordo»; metriche `recupero`, `maniScartate`, `alFlusso`
+- [ ] MediaPipe Pose non aggiunto alla webcam predefinita (vede il polso nel 9–17% di fotogrammi in più e attraversa il
+      mosso, ma raddoppierebbe l'inferenza su un computer già all'85%): prossimo passo solo se oltre 3 m non basta
+
+Verifiche:
+- Test: `natpf-webcam-argon-continuita` (9 prove: regole, buco nel colpo nei due versi, mano ferma, mano non tornata,
+  uscita dal bordo, due mani, più persone, modello bloccato e ricaricato, camera ferma/chiusa riaperta, distanza),
+  `natpf-diag` (recupero nel registro e nelle metriche); `natpf-webcam-argon` dello zip invariato e verde.
+- Riproduzione sugli stessi fotogrammi (codice di prima → nuovo): video E14 vicino, colpi dal flusso 8/10 → 1/17, al
+  limite 4 → 1, il dritto a 17,3 s non più lancio, i tentativi di lancio del servizio riconosciuti al primo gesto;
+  lontano simulato (persona al 55%) 8/8 dal flusso → 2/13, stessi colpi e lati del vicino in 7 su 7; 2–3 m reali con
+  tre persone a 15 inferenze/s: 30 eventi (14 al limite) → 12 (5), la mano seguita resta quella di chi gioca.
+- Pagina vera in Chromium con il video come camera finta: webcam accesa, mano vista, passaggio «mano non tornata»
+  attraversato, nessuna riapertura falsa, nessun errore (inferenza ~1 s senza scheda grafica: tempi non indicativi).
+- Ritardo: il colpo arriva quando la mano ricompare, 25–60 ms dopo l'evento che prima dava il flusso ottico (ma con
+  direzione e lato della mano); il colpo assistito del gioco aspetta fino a 0,48 s, quindi resta in tempo.
+- **Da provare sull'E14 vero**: distanza reale di gioco (in piedi a 2–3 m), servizio con il braccio alzato, colpi
+  ampi e veloci, carico e fluidità; con la diagnostica: `webcam.frame` fonte e motivi, `webcam.ritmo`, `recupero`.
+
+### Pacchetti 2026-10-28.12 (29/10 sera)
+- [x] Versione `2026-10-28.12` (`site/js/tennis/version.js`, `site/tennis/build.json`). Gioco 505/505, sito 160/160, build ok.
+- [x] LAN Windows `natpf-simulator-lan-windows-20261028-12.zip` (sha256 `22a1adf4c46669dbd06785d021d3ebdc2909a23688d30805eac236b4e3742901`)
+      estratto e avviato: voce 47 clip, QR dei due telefoni, stesso schermo con pausa del P2, lezione con la foto della
+      presa a martello, pagina del telefono, nessun errore; webcam con un video come camera finta (modelli locali).
+- [x] Cloudflare `natpf-simulator-cloudflare-20261028-12.zip` (sha256 `78f084370b470cbc2fe74e8d03eac582cd2f57e6bfbe3b31c50079bf38274258`)
+      estratto su server statico: stesse prove; i soli 404 sono `/api/match/state` e `/lan/status`, che il server
+      statico di prova non ha (contenuto uguale al .11 salvo foto della presa e file ricompilati).
