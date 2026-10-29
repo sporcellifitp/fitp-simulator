@@ -127,6 +127,16 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 - 28/10/2026 — nuova memoria persistente (`CLAUDE.md`, `docs/PROJECT_MEMORY.md`, `docs/WORK_PROGRESS.md`,
   `docs/SESSION_HANDOFF.md`) e `scripts/ui-shots.mjs`.
 
+### Stesso schermo e calibrazione del telefono (29/10)
+
+- Sullo stesso schermo la verifica della calibrazione la conferma il computer (`natpf_split_ui._onCal`) in ogni momento
+  della sessione, anche a partita in corso (Ricalibra sul telefono): mai solo dalla pagina «Collega».
+- Calibrazione avviata dal telefono (comando): `CAL.lead` 1,5 s di attesa, poi il passo «fermo», poi `CAL.firstSettle`
+  0,6 s di quiete da quando compare il primo gesto. Il percorso rapido accetta gesti da 40 °/s (accessibilità): non
+  alzare la soglia per filtrare i movimenti involontari, usare i tempi.
+- Schiacciata: `OUTCOME.smashSpeed` (40 m/s) e `minFlight` di `_launchBallToTarget` (il motore base non scende sotto
+  0,45 s di volo: ogni colpo più veloce va passato da lì).
+
 ### Movimento di chi gioca (piano d'intercetto)
 
 - `natpf_impact.planPlayerIntercept` muove chi gioca in tutte le modalità in singolo (contro la CPU, 1v1, stesso

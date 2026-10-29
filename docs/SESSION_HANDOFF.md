@@ -2,6 +2,18 @@
 
 Aggiornato: 29/10/2026 · branch `natpf-simulator`.
 
+## Ultimissimo (29/10, tarda mattina): stesso schermo, calibrazione, schiacciata; pacchetti 2026-10-28.9
+
+Dalle diagnostiche 101056, 101209 (e 090144): sullo stesso schermo la calibrazione rifatta in partita ora si conferma
+da sola (`5a7f04e`), la calibrazione avviata dal telefono parte con 1,5 s di attesa e 0,6 s di quiete prima del primo
+gesto (`5a7f04e`), la schiacciata va a 38 m/s con gli effetti del colpo potente e si prepara dai pallonetti oltre 3,0 m
+(`e9bab41`). Palle in rete e pallonetti: non nei registri (dettagli in `docs/WORK_PROGRESS.md`, «Diagnostiche del 29/10
+mattina»); servono una diagnostica con «Segna» sul telefono al momento, o la «Prova guidata dei colpi».
+Consegnati LAN (`f78648ff…b424a57a`) e Cloudflare (`5389ad4e…cd696566`) 2026-10-28.9. Gioco 469/469, sito 158/158.
+Push non fatto (solo con autorizzazione esplicita).
+Prossima azione: l'utente riprova lo stesso schermo (schermo spento → Ricalibra → Pronto), la schiacciata, e manda una
+diagnostica con «Segna» quando un colpo va in rete o un pallonetto non esce.
+
 ## Ultimo (29/10): webcam dello zip argon-tennis, pacchetti 2026-10-28.8
 
 L'utente ha chiesto la webcam presa esclusivamente dallo zip argon-tennis (motore base). Fatto nel commit `ffb83a8`:

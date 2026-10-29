@@ -536,3 +536,38 @@ erano la pagina «Cookie check» di AI Studio, non lo zip). Lo zip resta fuori d
       (`/api/match/state`, `/lan/status`).
 - [ ] Non provato: Windows, webcam vera, telefoni veri, Cloudflare Pages vero.
 
+## Diagnostiche del 29/10 mattina (LAN): 101056 (webcam, Casual), 101209 (telefono, Casual), 090144 (già vista)
+Segnalazioni: (1) stesso schermo: schermo del telefono spento, «Ricalibra», calibrazione rifatta e non torna più
+«Pronto»; la calibrazione parte troppo in fretta e vede movimenti non fatti; (2) palle in rete con qualsiasi colpo;
+(3) schiacciate che dovrebbero essere molto più forti e non riuscite; pallonetti mai riusciti; palle corte quasi perfette.
+- (1) Causa nel codice (il registro non ha la ricalibrazione): sullo stesso schermo la verifica della calibrazione la
+  conferma `natpf_split_ui._onCal`, che agiva solo con la pagina «Collega» aperta. In partita nessuno confermava e il
+  telefono restava su «Guarda il computer e conferma». Corretto: conferma (o nuovo tentativo, o profilo semplice) anche
+  a partita in corso per i due telefoni; il pannello del telefono del P1 non si apre sopra lo schermo diviso. Test in
+  `natpf-split.test.mjs` (fallisce senza la correzione).
+  Calibrazione: dopo un comando (Ricalibra, sensori attivati, presa cambiata) 0,6 s fermi bastavano per passare ai
+  gesti, la richiesta del primo gesto era pronta subito (contava la quiete del passo «fermo») e ogni movimento oltre
+  40 °/s valeva: sistemare la presa diventava il primo gesto. Ora 1,5 s di attesa («Preparati») prima del passo «fermo»
+  e 0,6 s di quiete misurati da quando compare il primo gesto (`CAL.lead`, `CAL.firstSettle`; `cal.leading`). La soglia
+  di 40 °/s resta (gesti piccoli accessibili, test esistente). Test in `tools/test/calibration-quick.test.mjs`.
+- (2) Non nel registro: in 101056, 101209 e 090144 nessun colpo di chi gioca in rete (passaggio sopra la rete misurato
+  dalla palla: 1,08–4,35 m); i punti «Net» sono palle della CPU. I due colpi in rete del 28/10 (213510, Leggenda) erano
+  swing 1,8–2,4 volte oltre la finestra su palle a 0,5 m: la regola del colpo fallito (molto fuori tempo su una palla
+  sotto il metro = rete). Non cambiato: serve una diagnostica in cui succede (pulsante «Segna» sul telefono al momento).
+- (3) Schiacciata: andava a 26–27 m/s di media (volo minimo 0,45 s del motore base in `_launchBallToTarget`), un piatto
+  pieno a 23. Ora `OUTCOME.smashSpeed` 40 m/s dal punto d'impatto (volo minimo 0,26 s, `minFlight`, anche per il P2):
+  38 m/s (258 km/h); stelle e scossa del colpo potente; schiacciata al volo dai pallonetti oltre 3,0 m (era 3,3; il
+  pallonetto della CPU a Casual del registro arrivava a 3,04 m, ma dal fondo campo il punto non era raggiungibile:
+  rimbalzo, come prima). Test in `natpf-racchetta-motore.test.mjs`. Banco Leggenda: gli stessi 2 criteri KO.
+  Pallonetto: nei registri ogni gesto da pallonetto fatto in uno scambio è stato riconosciuto (101209 a 19,0 s
+  «PERFECT LOB», salita 0,76; 090144 a 35,8 s); gli altri gesti dal basso in alto (salita 0,4–0,66) erano tra un punto
+  e l'altro, al servizio. I colpi normali in scambio arrivano a salita 0,38: soglia non cambiata senza un registro dei
+  tentativi (proposta: «Prova guidata dei colpi» in Diagnostica, che chiede pallonetti, o «Segna» sul telefono).
+
+## Pacchetti 2026-10-28.9 (29/10): LAN e Cloudflare
+- [x] Versione 2026-10-28.9; gioco 469/469, sito 158/158, build.
+- [x] LAN `natpf-simulator-lan-windows-20261028-9.zip`: 277 file, 61.097.712 byte, Node.js verificato, nessun certificato
+      né chiave, nessuna parola vietata. SHA256 `f78648ff4ac49e8079745e6888d6ba9f81ea50faf5c06c7343a0143eb424a57a`.
+- [x] Cloudflare `natpf-simulator-cloudflare-20261028-9.zip`: 137 file, 26.062.033 byte. SHA256
+      `5389ad4eeeb9b523a0754014a9a96b5ccbed0c1776d54f7aad5c0549cd696566`.
+
