@@ -53,7 +53,9 @@ export const OUTCOME = Object.freeze({
   // (23/10: con il lungolinea pieno al bordo della finestra anche lui cadeva a 6,5–7 m, e le palle si ammucchiavano lì)
   wideFrom: 3.2, wideSpan: .8, wideDepth: 6, widePull: .6,
   floatPerQ: .35,     // m più alta sulla rete per la qualità che manca (palla «galleggiante» per l'avversario)
-  lobFlight: [2.2, 1.75], smashFlight: .42,
+  // schiacciata: velocità lungo il campo (m/s) e volo minimo. Segnalazione del 29/10: «dovrebbe essere un colpo molto
+  // più forte»; con 0,42 s andava a 28–29 m/s (191–200 km/h sul tabellone), poco più di un piatto (26 m/s, 179 km/h)
+  lobFlight: [2.2, 1.75], smashFlight: .26, smashSpeed: 40,
   volleyShort: 1,     // m: la volée spinge meno
   netLowY: .42, netExcess: .45,   // palla presa sotto 0,42 m molto fuori tempo: in rete
   weakDepth: 6.8, weakFloat: .9,  // a rete, colpo fallito con il tempo perfetto: al massimo a 6,8 m dalla rete, 0,9 m più alto

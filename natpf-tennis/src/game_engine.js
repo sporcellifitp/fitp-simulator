@@ -2012,7 +2012,7 @@ export class NatpfTennisEngine {
     const B = this.ball.pos.clone();
     (B.y = Math.max(0.78, Math.min(racketShot && racketShot.T === "FLAT" && d ? 3.1 : 1.92, B.y))), // NATPF: la schiacciata parte da dove si colpisce
       this.ball.pos.copy(B),
-      this._launchBallToTarget(B, new o.Vector3(E, 0, N), I, { topspin: C, sidespin: V, allowNetFault: O }),
+      this._launchBallToTarget(B, new o.Vector3(E, 0, N), I, { topspin: C, sidespin: V, allowNetFault: O, ...(racketShot?.out?.shot === "SMASH" ? { minFlight: NO.OUTCOME.smashFlight } : {}) }),
       // NATPF varietà: il lancio non considera l'aria e ogni colpo cadeva circa 2 m prima del bersaglio (palle «in fondo»
       // a metà campo, errori «lunghi» che restavano dentro): la velocità si corregge perché la palla cada alla profondità voluta
       O || NS.fixAir(this.ball, { from: B, to: { x: E, z: N }, topspin: C, sidespin: V, gravity: L.GRAVITY, drag: L.AIR_DRAG }),
@@ -2036,7 +2036,7 @@ export class NatpfTennisEngine {
           speed: this.ball.vel.length(),
         }),
       this.facialFX && this.facialFX.setExpression(p, M ? "effort_shout" : "focused_squint", 0.55),
-      M && ((this.cameraTrauma = 0.26), this._spawnStarBurst(B, 11)),
+      M && ((this.cameraTrauma = d ? 0.42 : 0.26), this._spawnStarBurst(B, d ? 18 : 11)), // NATPF: la schiacciata si sente di più
       this.audioEngine &&
         (this.audioEngine.playRacketHit(
           T === "FLAT" || d ? "smash" : T.toLowerCase(),
@@ -2129,6 +2129,8 @@ export class NatpfTennisEngine {
     const fromY = Math.max(0.78, Math.min(out.shot === "SMASH" ? 3.1 : 1.92, b.pos.y));
     let I;
     if (out.shot === "LOB") I = out.flight;
+    // NATPF: schiacciata a velocità piena (OUTCOME.smashSpeed): dal punto d'impatto al punto di caduta, più lenta se fallita
+    else if (out.shot === "SMASH") I = Math.max(NO.OUTCOME.smashFlight, (Math.abs(b.pos.z) + out.depth) / NO.OUTCOME.smashSpeed) * (out.failed || out.weak ? 1.5 : 1);
     else if (out.shot === "DROP") I = Math.max(1.32, (Math.abs(b.pos.z) + out.depth) / 10);
     else {
       // forza → tempo di volo base (come prima), più veloce con lo scambio e con i perfetti consecutivi; poi abbastanza
@@ -2143,7 +2145,8 @@ export class NatpfTennisEngine {
     return {
       E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 * mirror : 0, O: out.netFault, T: engineShot,
       drop: out.shot === "DROP", u: out.grade, w: out.cursor, q: out.q, power: intent.power, out, contact,
-      M: out.shot !== "DROP" && out.shot !== "LOB" && out.q >= 0.9 && intent.power >= 0.7 && Math.abs(out.t) <= 0.35,
+      // colpo potente (stelle, scossa della camera): anche ogni schiacciata riuscita
+      M: (out.shot === "SMASH" && !out.failed && !out.weak) || (out.shot !== "DROP" && out.shot !== "LOB" && out.q >= 0.9 && intent.power >= 0.7 && Math.abs(out.t) <= 0.35),
       defensive: out.excess > 0.6,
     };
   }
@@ -2309,7 +2312,7 @@ export class NatpfTennisEngine {
     const k = this.ball.pos.clone();
     (k.y = Math.max(0.78, Math.min(1.92, k.y))),
       this.ball.pos.copy(k),
-      this._launchBallToTarget(k, new o.Vector3(T, 0, M), R, { topspin: v, sidespin: E, allowNetFault: natpfP2Net }),
+      this._launchBallToTarget(k, new o.Vector3(T, 0, M), R, { topspin: v, sidespin: E, allowNetFault: natpfP2Net, ...(p2Racket?.out?.shot === "SMASH" ? { minFlight: NO.OUTCOME.smashFlight } : {}) }),
       natpfP2Net || NS.fixAir(this.ball, { from: k, to: { x: T, z: M }, topspin: v, sidespin: E, gravity: L.GRAVITY, drag: L.AIR_DRAG }), // NATPF varietà: la palla cade alla profondità voluta, come per il P1
       // NATPF: palla corta e pallonetto veri del P2, compensati per l'attrito dell'aria come quelli del P1
       (this.ball.inPlay = !0),
@@ -2493,8 +2496,9 @@ export class NatpfTennisEngine {
   _natpfPlanOpponent(e = this.opponent) {
     this.isMultiplayer && !this.isDoubles && e === this.opponent ? NI.planPlayerIntercept(this, e) : this._predictBallIntercept(e);
   }
-  _launchBallToTarget(e, t, i, { topspin: a = 14, sidespin: s = 0, allowNetFault: n = !1 } = {}) {
-    const h = Math.max(0.45, i),
+  // NATPF: minFlight, volo minimo (0,45 s come nel motore base; la schiacciata scende sotto, OUTCOME.smashFlight)
+  _launchBallToTarget(e, t, i, { topspin: a = 14, sidespin: s = 0, allowNetFault: n = !1, minFlight: mf = 0.45 } = {}) {
+    const h = Math.max(mf, i),
       r = t.x - e.x,
       l = t.z - e.z,
       p = 0.08 - e.y,

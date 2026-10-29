@@ -35,7 +35,9 @@ export const PLAN = Object.freeze({
   // alla rete dovrebbe tornare indietro di metri) o il rimbalzo non si raggiunge. Prima bastava essere a meno di 8 m
   // dalla rete, e dopo una volée si restava a rete
   volleySave: .35,
-  smash: [1.9, 2.95], lobApex: 3.3, smashMinZ: 2.6,   // schiacciata al volo sulle palle che salgono oltre lobApex
+  // schiacciata al volo sulle palle che salgono oltre lobApex (29/10: era 3,3 m; il pallonetto della CPU a Casual arriva
+  // a 3,2 m e si prendeva dopo il rimbalzo: il gesto dall'alto diventava un piatto)
+  smash: [1.9, 2.95], lobApex: 3.0, smashMinZ: 2.6,
   // a rete (entro netSmashZ dalla rete) anche senza pallonetto: ogni palla raggiungibile che passa sopra netSmashY.
   // Sessione del 28/10: a rete una palla a 2,7 m si giocava di volée a 1,67 m (sotto l'altezza della schiacciata) e la
   // schiacciata non partiva mai

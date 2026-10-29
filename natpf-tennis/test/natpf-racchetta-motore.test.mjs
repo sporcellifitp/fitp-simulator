@@ -425,3 +425,27 @@ test('ritmo nel motore: dopo colpi sempre in anticipo, lo stesso colpo in antici
   // a ogni partita il ritmo si reimpara
   withEngine('casual', e => { e.natpfRhythm = { player: { value: .5 } }; e.startNewMatch({ showStartBanner: false }); assert.equal(e.natpfRhythm, null); });
 });
+
+// Segnalazione del 29/10: «le schiacciate dovrebbero essere un colpo molto più forte». Prima andavano a 26–27 m/s di
+// media (volo minimo 0,45 s del motore base), un piatto pieno a 23: ora la schiacciata parte a OUTCOME.smashSpeed
+test('schiacciata molto più forte di un colpo piatto, con gli effetti del colpo potente', () => {
+  // velocità media dal colpo al rimbalzo
+  const speed = (cpu, swing, diff = 'pro') => withEngine(diff, e => {
+    cpuShot(e, cpu);
+    let sent = false, t0 = null, p0 = null;
+    for (let i = 0; i < 900; i++){
+      const ttc = NI.timeToContact(e, e.player);
+      if (!sent && ttc != null && ttc <= .02){ e._handleUserSwingInput(swing); sent = true; }
+      const before = e.ball.lastHitter; e.step(DT);
+      if (before !== 'player' && e.ball.lastHitter === 'player'){ t0 = e.elapsedTime; p0 = e.ball.pos.clone(); }
+      if (t0 != null && e.elapsedTime > t0 + .05 && e.ball.pos.y < .1) return { v: Math.hypot(e.ball.pos.x - p0.x, e.ball.pos.z - p0.z)/(e.elapsedTime - t0), shot: e.natpfLastRacket.out.shot, power: e.ball.isPowerShot };
+    }
+    return null;
+  });
+  const smash = speed({ player: [.3, 9.5], to: [.6, 7.2], flight: 2.0, topspin: 4 }, phoneSwing({ shot: 'smash', power: .85, rise: -.4 }, { side: 'overhead' }));
+  const flat = speed({ to: [1.4, 8.6] }, phoneSwing({ shot: 'flat', power: .85 }));
+  assert.equal(smash.shot, 'SMASH'); assert.equal(flat.shot, 'FLAT');
+  assert.ok(smash.v >= 34, `schiacciata a ${smash.v.toFixed(1)} m/s`);
+  assert.ok(smash.v >= 1.4*flat.v, `schiacciata ${smash.v.toFixed(1)} contro piatto ${flat.v.toFixed(1)} m/s`);
+  assert.equal(smash.power, true, 'stelle e scossa del colpo potente');
+});
