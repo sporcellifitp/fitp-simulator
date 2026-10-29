@@ -20,8 +20,9 @@ const finite = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 const lerp = (a, b, u) => a + (b - a)*clamp(u);
 
 export const OUTCOME = Object.freeze({
-  natural: .15,       // un colpo neutro va un poco incrociato (il colpo più sicuro); la spinta sparisce verso i bordi della
-                      // finestra (23/10: prima valeva anche in ritardo e il lungolinea pieno chiedeva anche il piatto)
+  natural: .1,        // un colpo neutro va un poco incrociato (il colpo più sicuro); la spinta sparisce verso i bordi della
+                      // finestra (23/10: prima valeva anche in ritardo e il lungolinea pieno chiedeva anche il piatto).
+                      // 29/10: era .15; richiesta «angolazione più sensibile, vanno quasi tutti nella stessa direzione»
   timingAim: 1,       // tempo dentro la finestra → mira: ai bordi (±1 unità) incrociato e lungolinea pieni (era .72)
   // piatto girato rispetto al proprio colpo abituale: fino a .6 della mira piena (circa 2,2 m). Era .32 (1,2 m):
   // chi colpisce «a tempo» (t ≈ 0, come fa chiunque guardi la palla) mandava ogni palla nello stesso punto, perché il

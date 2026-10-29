@@ -39,8 +39,10 @@ export const INTENT = Object.freeze({
   compact: 30, wide: 100,          // gradi: swing corto (profondità ridotta) … ampio (profondità piena)
   reachDepth: .8,                  // profondità voluta di uno swing corto rispetto a uno ampio alla stessa forza (era
                                    // 0,55: un colpo compatto ma veloce perdeva quasi metà della profondità)
-  faceDead: 5, faceSpan: 25,       // gradi: zona morta e scarto per la mira piena del piatto (27/10: era 8 e 28; un
-                                   // piatto girato apposta di 15° vale ora .4, prima .25: la mira risponde prima)
+  faceDead: 3, faceSpan: 20,       // gradi: zona morta e scarto per la mira piena del piatto (27/10: era 8 e 28; un
+                                   // piatto girato apposta di 15° vale ora .4, prima .25: la mira risponde prima).
+                                   // 29/10: era 5 e 25; richiesta «angolazione più sensibile»: 15° valgono .6, la
+                                   // mira piena a 23° (con il centro che si corregge sui colpi veri, createAimModel)
   faceTrust: 45, faceTrustSpan: 15, // gradi: oltre faceTrust lo scarto è sempre meno credibile, oltre +span non conta. Il
                                    // 23/10 26 mire su 67 erano sature (scarti di 50–77° da un centro imparato male):
                                    // aggiungevano fino a 1,2 m di lato da una misura sbagliata

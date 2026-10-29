@@ -116,35 +116,73 @@ export function createFaceModel({ keep = 12, min = 3 } = {}) {
 // la mira tornava a zero (in prova la palla cadeva sempre a x ≈ −0,4 m). Ora:
 //   • il centro nasce dalla mediana dei primi `min` colpi e poi segue i colpi vicini (scarto < settle gradi) di una
 //     frazione alpha, quelli lontani solo di drift: assorbe la deriva del giroscopio e del corpo, non i colpi mirati;
-//   • mira continua tanh(scarto/gain): 10° → 0,37, 20° → 0,65, 30° → 0,82; oltre maxDev gradi la misura non è credibile.
+//   • mira continua tanh(scarto/gain): 10° → 0,44, 20° → 0,72, 30° → 0,82; oltre maxDev gradi la misura non è credibile.
 // seedAlpha: quanto il primo colpo vero corregge un centro seminato dalla calibrazione (i gesti della calibrazione sono
 // colpetti da fermo: il piatto abituale del colpo vero può stare qualche grado più in là; i primi colpi lo portano lì)
-export const AIM = Object.freeze({ gain: 26, settle: 10, alpha: .12, drift: .03, min: 3, maxDev: 80, seedAlpha: .35 });
+// Centro sbagliato (29/10, diagnostiche 101209, 090144, 104712): i colpetti della calibrazione, con il telefono
+// inclinato in avanti nel palmo, davano un piatto abituale lontano dai colpi veri di 25–30° e fino a 150°. Lontani più
+// di settle, i colpi veri spostavano il centro solo di drift (oltre maxDev per niente): la mira restava tutta da una
+// parte (104712: 33 colpi su 36 a destra) o veniva scartata e la direzione la decideva solo il tempo (101209: 7 su 11,
+// quasi tutte incrociate). Ora il centro seminato si verifica dopo `verify` colpi veri (più lontano di verifyDev dalla
+// loro mediana, oltre ogni mira voluta: si prende quella) e uno sbilanciamento che dura (mediana degli ultimi `keep`
+// colpi, almeno `biasFrom`, a più di biasDev dal centro) lo sposta di biasPull a colpo. Una mira voluta resta: cinque o
+// sei colpi mirati di fila dalla stessa parte (richiesta del 27/10) non spostano il centro.
+// Pendenza comune: dritti e rovesci recenti (almeno commonFrom per verso) tutti e due dalla stessa parte del proprio
+// centro, oltre commonDev: è il riferimento che si è girato (corpo girato, deriva del giroscopio), non una mira, perché
+// chi mira incrociato o lungolinea gira il piatto in versi opposti nel dritto e nel rovescio. I due centri si spostano
+// insieme di commonPull della pendenza più piccola, a ogni colpo (104712: dritti +33°, rovesci +21°)
+export const AIM = Object.freeze({ gain: 22, settle: 10, alpha: .12, drift: .03, min: 3, maxDev: 80, seedAlpha: .35,
+  verify: 4, verifyDev: 35, keep: 12, biasFrom: 10, biasDev: 12, biasPull: .3, commonFrom: 3, commonDev: 8, commonPull: .3 });
 const wrapDeg = a => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };
+// mediana circolare (gradi): +179° e −179° sono vicini
+const circMedian = a => (a.length ? wrapDeg(a[0] + median(a.map(h => wrapDeg(h - a[0])))) : null);
 export function createAimModel({ gain = AIM.gain, settle = AIM.settle, alpha = AIM.alpha, drift = AIM.drift, min = AIM.min } = {}) {
-  const S = { 1: { first: [], center: null, seeded: 0 }, '-1': { first: [], center: null, seeded: 0 } };
+  const fresh = () => ({ first: [], center: null, seeded: 0, verify: 0, since: [], recent: [] });
+  const S = { 1: fresh(), '-1': fresh() };
   return {
-    reset() { for (const d of [1, -1]) { S[d].first = []; S[d].center = null; S[d].seeded = 0; } },
+    reset() { for (const d of [1, -1]) Object.assign(S[d], fresh()); },
     center(dir) { return S[dir]?.center ?? null; },
     // centro dalla calibrazione (direzione del piatto all'impatto dei gesti chiesti, per verso): la mira vale dal primo
     // colpo della partita. Prima il centro nasceva solo dopo «min» colpi veri (e dopo ogni ricalibrazione): nei primi
     // colpi, proprio quelli del riscaldamento in cui si impara a mirare, il piatto non contava niente (27/10)
     seed(dir, heading) {
       const st = S[dir]; if (!st || !Number.isFinite(heading)) return;
-      st.center = wrapDeg(heading); st.first = []; st.seeded = 2;      // i primi due colpi veri lo correggono di più
+      Object.assign(st, fresh(), { center: wrapDeg(heading), seeded: 2, verify: AIM.verify });   // i primi colpi veri lo correggono di più
     },
     get seeded() { return S[1].seeded > 0 || S[-1].seeded > 0; },
     add(dir, heading) {
       const st = S[dir]; if (!st || !Number.isFinite(heading)) return;
-      if (st.center == null) { st.first.push(heading); if (st.first.length >= min) { const base = st.first[0]; st.center = wrapDeg(base + median(st.first.map(h => wrapDeg(h - base)))); } return; }
+      st.recent.push(heading); if (st.recent.length > AIM.keep) st.recent.shift();
+      if (st.center == null) { st.first.push(heading); if (st.first.length >= min) st.center = circMedian(st.first); return; }
+      // centro della calibrazione verificato sui primi colpi veri: molto lontano dalla loro mediana, si prende quella
+      if (st.verify > 0) {
+        st.since.push(heading);
+        if (--st.verify === 0) { const m = circMedian(st.since); st.since = []; if (Math.abs(wrapDeg(m - st.center)) > AIM.verifyDev) { st.center = m; st.seeded = 0; return; } }
+      }
       const dev = wrapDeg(heading - st.center);
-      if (Math.abs(dev) > AIM.maxDev) return;
       // centro seminato dalla calibrazione: i primi colpi veri lo correggono con decisione (ma un colpo mirato oltre
       // settle lo sposta come sempre di poco)
-      if (st.seeded > 0) { st.seeded--; st.center = wrapDeg(st.center + (Math.abs(dev) < settle ? AIM.seedAlpha : drift) * dev); return; }
-      // vicino al centro: colpo normale, il centro lo segue; lontano: colpo mirato, il centro si sposta appena (una
-      // deriva che dura si recupera in una trentina di colpi, qualche colpo mirato non sposta il centro)
-      st.center = wrapDeg(st.center + (Math.abs(dev) < settle ? alpha : drift) * dev);
+      if (Math.abs(dev) <= AIM.maxDev) {
+        if (st.seeded > 0) { st.seeded--; st.center = wrapDeg(st.center + (Math.abs(dev) < settle ? AIM.seedAlpha : drift) * dev); }
+        // vicino al centro: colpo normale, il centro lo segue; lontano: colpo mirato, il centro si sposta appena (una
+        // deriva che dura si recupera in una trentina di colpi, qualche colpo mirato non sposta il centro)
+        else st.center = wrapDeg(st.center + (Math.abs(dev) < settle ? alpha : drift) * dev);
+      }
+      // tutti i colpi recenti da una parte: il centro va verso di loro (anche da oltre maxDev: un centro molto sbagliato
+      // si recupera)
+      if (st.recent.length >= AIM.biasFrom) {
+        const off = wrapDeg(circMedian(st.recent) - st.center);
+        if (Math.abs(off) > AIM.biasDev) st.center = wrapDeg(st.center + AIM.biasPull * off);
+      }
+      // dritti e rovesci dalla stessa parte: il riferimento si è girato, i due centri vanno insieme
+      const A = S[1], B = S[-1];
+      if (A.center != null && B.center != null && A.recent.length >= AIM.commonFrom && B.recent.length >= AIM.commonFrom) {
+        const a = wrapDeg(circMedian(A.recent) - A.center), b = wrapDeg(circMedian(B.recent) - B.center);
+        if (Math.sign(a) === Math.sign(b) && Math.min(Math.abs(a), Math.abs(b)) > AIM.commonDev) {
+          const shift = Math.sign(a) * AIM.commonPull * Math.min(Math.abs(a), Math.abs(b));
+          A.center = wrapDeg(A.center + shift); B.center = wrapDeg(B.center + shift);
+        }
+      }
     },
     // mira per questo colpo: { aim, dev } (aim null se lo scarto non è credibile), null se il centro non c'è ancora
     aim(dir, heading) {

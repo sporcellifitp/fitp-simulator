@@ -605,3 +605,31 @@ Partita di 96 s, 8 punti. Il registro ha solo il telefono del P1 (il P2 non si r
 - Test: `test/natpf-split-ricollega.test.mjs` (5), `test/natpf-scambi-split.test.mjs` (2), `tools/test/
   phone-link-fast.test.mjs` (+1), `tools/test/phone-reconnect.test.mjs` (+1). Gioco 476/476, sito 160/160.
 - [ ] Non provato: telefoni veri sulla rete dell'utente (ricollegamento vero, durata), Windows.
+
+## Richiesta del 29/10 (dopo il pacchetto .9), punti 1–2: angolazione più sensibile; telefono inclinato in avanti nel palmo
+Misure sui registri (101209, 090144, 213510, 205124, 104712) ripassando i campioni grezzi del telefono nel filtro del
+piatto (`face-tracker.js`): la direzione del piatto all'impatto (`fh`) è coerente tra un colpo e l'altro (±28° in
+104712), ma il «piatto abituale» preso dai colpetti della calibrazione era lontano dai colpi veri: 25–30° (104712, presa
+inclinata di 42° in calibrazione e fino a 90° prima dei colpi) e fino a 150° (101209, 090144). Lontani più di 10° i colpi
+veri spostavano il centro solo del 3% (oltre 80° per niente): in 104712 33 mire su 36 a destra; in 101209 e 090144 la
+mira del piatto scartata in quasi tutti i dritti (direzione solo dal tempo, quasi tutto incrociato).
+La misura alternativa (rotazione attorno alla verticale) sugli stessi colpi era più dispersa (±70° nei dritti): non usata.
+- [x] `natpf_gestures.createAimModel`: il centro della calibrazione si verifica dopo 4 colpi veri (più lontano di 35°
+      dalla loro mediana: si prende quella); pendenza comune di dritti e rovesci dalla stessa parte (riferimento girato:
+      corpo o deriva) → i due centri si spostano insieme; pendenza di un solo verso dal decimo colpo. Le mire volute
+      restano: cinque-sei colpi mirati di fila e mire opposte tra dritto e rovescio (tutto incrociato) non vengono
+      assorbite (test di prima e nuovi). Curva della mira `AIM.gain` 22 (era 26).
+- [x] Sensibilità: `INTENT.faceDead/faceSpan` 3°/20° (era 5°/25°: mira piena a 23° invece di 30°, 15° valgono 0,6);
+      spinta naturale verso l'incrociato `OUTCOME.natural` 0,1 (era 0,15). Il peso massimo del piatto resta 0,6 (regola
+      del 27/10: ai bordi della finestra il tempo resta più forte).
+- Ripasso dei registri con il modello nuovo (mira del piatto > 0,25 a destra/sinistra): dritti di 101209 da 0/0 a 1/6,
+  di 090144 da 0/0 a 6/0; 104712 rovesci da 7/3 (media +0,23) a 6/6 (+0,05), dritti da 7/0 (+0,38) a 7/2 (+0,36).
+  La pendenza di un solo verso in partite corte resta in parte (si corregge dal decimo colpo).
+- [x] Presa inclinata (punto 2): il riconoscimento (lato, tipo di colpo, mira) con il braccio e il telefono simulati
+      tiene con la cima del telefono in avanti di 60° e 75° e con la presa che cambia tra calibrazione e gioco (30→65°,
+      60→30°): 20/20 gesti per ogni caso, destro e mancino (`natpf-gesture-demo.test.mjs`, nuovo test). Lato e forma
+      del colpo usano già la gravità (alto vero) e l'asse della propria calibrazione; la calibrazione veloce non chiede
+      la presa verticale. Il punto debole era il centro della mira (sopra).
+- Test: `natpf-calibration-aim.test.mjs` (+3), `natpf-gesture-demo.test.mjs` (+1), aggiornato
+  `natpf-sessione-23-10.test.mjs` (curva 3–23°).
+- [ ] Non provato con il telefono vero: serve una partita con la diagnostica per vedere le mire nei due versi.

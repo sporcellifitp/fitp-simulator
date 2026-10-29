@@ -8,12 +8,14 @@ import { armSwing, grip, STROKES } from './arm-sim.mjs';
 import { simPhone } from './phone-sim.mjs';
 import { GESTURES, strokeFor, strokePose, strokeTimeline, serveTimeline, tossBall, mirrorStroke, GRIP_TILT } from '../src/natpf/natpf_gesture_motion.js';
 
-function player(hand, { tilt = GRIP_TILT, seed = 7 } = {}){
+// playTilt: la presa in gioco, se diversa da quella della calibrazione (il telefono scivola in avanti nel palmo)
+function player(hand, { tilt = GRIP_TILT, playTilt = null, seed = 7 } = {}){
   const p = simPhone({ seed, shape: true, hand });
   grip(p, { tilt, side: hand === 'left' ? -1 : 1 });
   // calibrazione: «L» è il gesto da destra a sinistra (dritto del destro, rovescio del mancino)
   const cal = w => hand === 'left' ? mirrorStroke(w === 'L' ? STROKES.rovescio : STROKES.dritto) : (w === 'L' ? STROKES.dritto : STROKES.rovescio);
   p.calibrate({ armGesture: w => armSwing(p, cal(w)) });
+  if (playTilt != null){ p.pose([1, 0, 0], -(playTilt - tilt)); p.rest(500, 4); }
   return p;
 }
 function play(p, g, hand){
@@ -38,6 +40,22 @@ test('tutorial: ogni gesto animato è riconosciuto dal gioco come il colpo mostr
     assert.ok(g.expect.shot.includes(shot), `${tag}: riconosciuto «${shot}»`);
     if (g.expect.side) assert.equal(ev.side ?? ev.natpf.side, g.expect.side, `${tag}: lato`);
     // mira nel riferimento del giocatore: il mancino incrocia dall'altra parte
+    if (g.expect.aim){ const want = g.expect.aim*(hand === 'left' ? -1 : 1); assert.ok(ev.natpf.wrist*want > .4, `${tag}: mira ${ev.natpf.wrist}`); }
+  }
+});
+
+// Richiesta del 29/10: «il telefono in mano non rimane mai fisso nell'impugnatura verticale, tende a inclinarsi in
+// avanti». Nei registri, prima dei colpi, il telefono era inclinato di 30–90° dalla verticale. Stessi gesti con la cima
+// del telefono molto in avanti, e con la presa che cambia tra la calibrazione e il gioco
+test('presa inclinata in avanti fino a 75°, anche diversa da quella della calibrazione: ogni gesto resta il colpo mostrato', () => {
+  for (const [tilt, playTilt] of [[60, null], [75, null], [30, 65], [60, 30]]) for (const hand of ['right', 'left']) for (const id of SHOTS){
+    const g = GESTURES[id], p = player(hand, { tilt, playTilt });
+    if (g.expect.aim) for (let i = 0; i < 3; i++) play(p, GESTURES.forehand, hand);
+    const out = play(p, g, hand), tag = `${hand}, presa ${tilt}°${playTilt != null ? ` → ${playTilt}° in gioco` : ''}, ${g.label}`;
+    assert.equal(out.length, 1, `${tag}: ${out.length} colpi`);
+    const ev = out[0].ev;
+    assert.ok(g.expect.shot.includes(ev.natpf.shot), `${tag}: riconosciuto «${ev.natpf.shot}»`);
+    if (g.expect.side) assert.equal(ev.side ?? ev.natpf.side, g.expect.side, `${tag}: lato`);
     if (g.expect.aim){ const want = g.expect.aim*(hand === 'left' ? -1 : 1); assert.ok(ev.natpf.wrist*want > .4, `${tag}: mira ${ev.natpf.wrist}`); }
   }
 });

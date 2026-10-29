@@ -85,3 +85,36 @@ test('primi colpi mirati ripetuti: il centro seminato non insegue il bersaglio v
     }
   }
 });
+
+// Diagnostiche del 29/10 (101209, 090144, 104712; telefono inclinato in avanti nel palmo): il piatto abituale della
+// calibrazione era lontano dai colpi veri di 25–30° e fino a 150°; la mira restava tutta da una parte o veniva scartata
+test('centro della calibrazione lontano 150° dai colpi veri: dopo quattro colpi si prende il centro dei colpi', () => {
+  const m = createAimModel(); m.seed(1, -133);
+  const game = [20, 35, 5, 22, 10, 30, 15, 25];
+  assert.equal(m.aim(1, game[0]).aim, null, 'prima della verifica: scarto non credibile');
+  for (const h of game.slice(0, 4)) m.add(1, h);
+  assert.ok(Math.abs(m.center(1) - 21) < 1.5, `centro ${m.center(1)}`);
+  // ora la mira risponde nei due versi attorno al colpo abituale
+  assert.ok(m.aim(1, 45).aim > .6 && m.aim(1, -5).aim < -.6, JSON.stringify([m.aim(1, 45), m.aim(1, -5)]));
+});
+
+test('dritti e rovesci tutti spostati dalla stessa parte: è il riferimento, i due centri lo seguono', () => {
+  const m = createAimModel(); m.seed(1, -3); m.seed(-1, 0);
+  // 104712: dritti a +33° di media, rovesci a +21° dal centro della calibrazione, con la loro varietà
+  const fh = [30, 41, 22, 36, 28, 45, 25, 33], bh = [18, 26, 12, 30, 20, 15, 28, 21];
+  const first = m.aim(1, 33).aim;
+  for (let i = 0; i < fh.length; i++){ m.add(1, fh[i]); m.add(-1, bh[i]); }
+  assert.ok(first > .8, `all'inizio tutto a destra: ${first}`);
+  // la parte comune (i rovesci, +21°) si recupera nei primi otto colpi per verso
+  assert.ok(Math.abs(m.aim(-1, 21).aim) < .3, `rovescio abituale al centro: ${JSON.stringify(m.aim(-1, 21))} centro ${m.center(-1)}`);
+  assert.ok(m.aim(1, 33).dev < 20, `dritto: scarto ridotto da 36° a ${m.aim(1, 33).dev}°`);
+  // il resto del dritto (solo da una parte) con la pendenza di quel verso, dal decimo colpo
+  for (const h of [31, 38, 27, 35]) m.add(1, h);
+  assert.ok(Math.abs(m.aim(1, 33).aim) < .5, `dritto abituale non più tutto a destra: ${JSON.stringify(m.aim(1, 33))} centro ${m.center(1)}`);
+});
+
+test('mira voluta in versi opposti nel dritto e nel rovescio (tutto incrociato): i centri non la assorbono', () => {
+  const m = createAimModel(); m.seed(1, 0); m.seed(-1, 0);
+  for (let i = 0; i < 8; i++){ m.add(1, -20); m.add(-1, 20); }
+  assert.ok(m.aim(1, -20).aim < -.55 && m.aim(-1, 20).aim > .55, JSON.stringify([m.center(1), m.center(-1)]));
+});
