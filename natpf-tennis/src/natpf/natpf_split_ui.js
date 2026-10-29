@@ -81,9 +81,11 @@ export class NatpfSplitUi {
     const p = this.phone(id), joins = p?.state?.joins || 0, key = `${id}Joins`;
     if (this[key] !== joins){ this[key] = joins; this.calAsked[id] = false; this.fails[id] = 0; }
   }
-  // calibrazione guidata dal telefono: si conferma da sola se riesce, si ripete se no (poi profilo semplice)
+  // calibrazione guidata dal telefono: si conferma da sola se riesce, si ripete se no (poi profilo semplice). Anche a
+  // partita in corso: sessione del 29/10, schermo del telefono spento, «Ricalibra» sul telefono, calibrazione rifatta e
+  // il telefono restava su «Guarda il computer e conferma» (nessuno confermava: lo faceva solo la pagina «Collega»)
   _onCal(id, e){
-    if (!this.ui.lobby?.visible || this.ui.lobby.mode !== 'split') return;
+    if (!this.session && !(this.ui.lobby?.visible && this.ui.lobby.mode === 'split')) return;
     const p = this.phone(id);
     if (e?.kind === 'review'){
       if (e.pass){ this.fails[id] = 0; p.confirm(); }

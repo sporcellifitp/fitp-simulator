@@ -101,7 +101,8 @@ export class NatpfUi {
     // riapre il pannello del telefono (in allenamento la calibrazione la guida il campo, natpf_training)
     this.phone.onCal?.(e => {
       if (!e || e.kind === 'done' || this.controller !== 'phone' || this.phone.ready) return;
-      if (this.lobby?.visible || this.engine.autoPlayMode || this.training?.active) return;
+      // stesso schermo: la calibrazione la conferma natpf_split_ui (il pannello coprirebbe le due metà)
+      if (this.lobby?.visible || this.engine.autoPlayMode || this.training?.active || this.split?.session) return;
       if (this.modal?.classList.contains('hidden')) this.openPhone();
     });
     this.phone.onChange(() => this._watchPhoneDrop());

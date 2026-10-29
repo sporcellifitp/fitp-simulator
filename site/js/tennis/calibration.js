@@ -44,6 +44,10 @@ export const CAL = {
   // Ogni gesto parte da fermo. Dopo un gesto la mano torna al centro, e quel rientro va nel verso del gesto successivo
   // (dopo «verso destra» si torna verso sinistra): finché la mano non si ferma un attimo nessun movimento è un tentativo.
   settle: 220,                     // ms di quiete prima di accettare il gesto successivo
+  // Il primo gesto e l'avvio. Sessione del 29/10 (stesso schermo, «Ricalibra» dopo lo schermo spento): la calibrazione
+  // partiva subito, mentre il telefono si prendeva ancora in mano, e sistemare la presa diventava il primo gesto
+  firstSettle: 600,                // ms di quiete prima del primo gesto (poi settle), con l'avvio da un comando (lead)
+  lead: 1500,                      // ms dopo «Ricalibra» (o la richiesta del computer) prima di misurare il telefono fermo
   quiet: 50,                       // °/s: sotto (o sotto 3 volte il rumore misurato, o il 30% del proprio gesto) è «fermo»
   settleHint: 1500,                // ms senza fermarsi: si chiede di fermarsi al centro
   tremor: 4,                       // gradi (fino al picco): un movimento debole che percorre meno di così è un tremolio
@@ -68,7 +72,7 @@ export const upright = g => !!g && Math.abs(g[1])/Math.max(1e-6, Math.hypot(g[0]
 
 export function createCalibration(det){
   const L = [];
-  const S = { step: 'idle', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, burst: [], burstT: 0, idleT: 0, gripT: null, lastT: 0, options: { range: 'standard', hand: 'right', intentGate: false }, practice: 0, templates: [], shotAttempts: [], ready: false, readyAt: 0, quietT: null, settleT: 0, settleHinted: false, rot: [0, 0, 0], track: [], home: null, quietSpan: 0, flipTries: 0, vsign: 1 };
+  const S = { step: 'idle', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, burst: [], burstT: 0, idleT: 0, gripT: null, lastT: 0, options: { range: 'standard', hand: 'right', intentGate: false }, practice: 0, templates: [], shotAttempts: [], ready: false, readyAt: 0, quietT: null, settleT: 0, settleHinted: false, rot: [0, 0, 0], track: [], home: null, quietSpan: 0, flipTries: 0, vsign: 1, first: false, slow: false, leadUntil: 0 };
   const plan = () => calibrationPlan(S.options);
   const total = () => plan().length + (S.options.gestural && !S.options.quick ? GESTURE_PLAN.length : 0);
   const emit = e => { for (const f of L) f({ ...e, step: S.step }); };
@@ -95,12 +99,15 @@ export function createCalibration(det){
   const motion = k => { const b = det.profile.bias || [0, 0, 0]; return k?.rot ? len(k.rot.map((v, i) => v - (b[i] || 0))) : k?.acc ? len(k.acc)*30 : 0; };
 
   det.on('status', s => {
-    if (S.step !== 'still') return;
+    if (S.step !== 'still' || S.leadUntil !== 0) return;
     // «stai fermo» al massimo ogni mezzo secondo (prima uno per campione: 100 avvisi in 2,5 s nella sessione del 22/10)
     if (s.s === 'move' && !(S.lastT - (S.moveWarnT ?? -1e9) < 500)){ S.moveWarnT = S.lastT; emit({ kind: 'warn', why: 'move' }); }
     if (s.s === 'still-ok'){
       // Any comfortable grip is a valid personal frame; no compulsory upright pose.
       S.step = S.options.quick ? 'swings' : 'grip'; S.gripT = null; S.idleT = S.lastT; unready();
+      // avvio da un comando: la quiete per il primo gesto si conta da quando compare la richiesta (quella del passo
+      // «fermo» non vale: subito dopo si sistema la presa, e quel movimento era preso per il primo gesto)
+      if (S.first) S.quietT = null;
       emit({ kind: 'step', gravity: s.gravity, upright: upright(s.gravity), ...(S.options.grip === 'flat' ? { grip: 'flat', flat: flatGrip(s.gravity) } : {}), ...(S.options.quick ? { want: plan()[0], shot:'drive', idx:0, total:total(), quick:true } : {}) });
     }
   });
@@ -281,19 +288,22 @@ export function createCalibration(det){
 
   return {
     get state(){ return S; },
+    // nell'attesa dopo l'avvio (il telefono si sta prendendo in mano)
+    get leading(){ return S.step === 'still' && S.leadUntil !== 0; },
     on(f){ L.push(f); return this; },
-    start(options = S.options){
+    // lead: ms di attesa prima del passo «fermo» (avvio da un comando: il telefono si sta ancora prendendo in mano)
+    start(options = S.options, { lead = 0 } = {}){
       const flat = options.grip === 'flat';
       // presa orizzontale («il telefono è il piatto»): sempre il percorso rapido, con 2 s fermi in posizione «pronto»
       S.options = { range: options.range === 'compact' ? 'compact' : 'standard', hand: options.hand === 'left' ? 'left' : 'right', intentGate: options.intentGate === true, gestural: flat ? false : options.gestural === true, quick: flat || options.quick === true, ...(flat ? { grip: 'flat' } : {}) };
       if (det.config){ if (S.baseStill == null) S.baseStill = det.config.stillTime; det.config.stillTime = flat ? CAL.flatStill : S.baseStill; }
       S.practice = 0; det.setTraining(true);
-      Object.assign(S, { step: 'still', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT, home: null, track: [], rot: [0, 0, 0], flipTries: 0, vsign: 1 }); unready();
+      Object.assign(S, { step: 'still', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT, home: null, track: [], rot: [0, 0, 0], flipTries: 0, vsign: 1, slow: lead > 0, first: lead > 0, leadUntil: lead > 0 ? -lead : 0 }); unready();
       det.setProfile({ bias: [0, 0, 0], ...CAL.low, axis: null }); det.still();
       emit({ kind: 'step' });
     },
     skipGrip(){ if (S.step === 'grip'){ S.step = 'swings'; S.idleT = S.lastT; unready(); emit({ kind: 'step', want: plan()[0], shot: 'drive', idx: 0, total: total() }); } },
-    retry(){ S.practice = 0; det.setTraining(true); Object.assign(S, { step: 'swings', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT, home: null, track: [], rot: [0, 0, 0], flipTries: 0, vsign: 1 }); unready(); det.setThresholds({ ...CAL.low, axis: null }); emit({ kind: 'step', want: plan()[0], shot: 'drive', idx: 0, total: total() }); },
+    retry(){ S.practice = 0; det.setTraining(true); Object.assign(S, { step: 'swings', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT, home: null, track: [], rot: [0, 0, 0], flipTries: 0, vsign: 1, first: !!S.slow }); unready(); det.setThresholds({ ...CAL.low, axis: null }); emit({ kind: 'step', want: plan()[0], shot: 'drive', idx: 0, total: total() }); },
     // prova libera con il profilo proposto: direzione e forza di ogni swing, prima di confermare
     tryFree(){ if (!S.profile) return; S.step = 'free'; det.setProfile(S.profile); det.setTraining(false); det.setContext?.('practice'); emit({ kind: 'step' }); },
     // salta i gesti: profilo semplice dalla posa ferma (deriva e rumore), senza asse del colpo. Il gioco è completo lo
@@ -326,6 +336,10 @@ export function createCalibration(det){
     tick(t, sample){
       const dt = Math.max(0, Math.min(60, t - S.lastT));
       S.lastT = t;
+      // attesa dopo l'avvio (leadUntil: −lead finché non arriva il primo campione, poi l'istante di fine): finita, il passo
+      // «fermo» riparte da capo, senza i campioni di quando si prendeva il telefono
+      if (S.step === 'still' && S.leadUntil < 0) S.leadUntil = t - S.leadUntil;
+      if (S.step === 'still' && S.leadUntil > 0 && t >= S.leadUntil){ S.leadUntil = 0; det.still(); emit({ kind: 'step' }); }
       if (sample?.rot){ const b = det.profile.bias || [0, 0, 0]; S.rot = S.rot.map((v, i) => v + (sample.rot[i] - (b[i] || 0))*dt/1000); }
       S.track.push([t, S.rot]); while (S.track.length && t - S.track[0][0] > CAL.homeKeep) S.track.shift();
       if (S.step === 'grip'){
@@ -347,7 +361,7 @@ export function createCalibration(det){
       if (sample){ if (motion(sample) < quietLimit()){ if (S.quietT == null) S.quietT = t; } else { if (S.quietT != null) S.quietSpan = t - S.quietT; S.quietT = null; } }
       else if (S.quietT == null) S.quietT = t;
       if (guided() && !S.ready && !S.burst.length){
-        if (S.quietT != null){ if (t - S.quietT >= CAL.settle){ S.ready = true; S.readyAt = t; emit({ kind: 'ready', want: S.step === 'swings' ? plan()[S.idx] : GESTURE_PLAN[S.idx]?.want ?? null }); } }
+        if (S.quietT != null){ if (t - S.quietT >= (S.first ? CAL.firstSettle : CAL.settle)){ S.ready = true; S.readyAt = t; S.first = false; emit({ kind: 'ready', want: S.step === 'swings' ? plan()[S.idx] : GESTURE_PLAN[S.idx]?.want ?? null }); } }
         if (!S.ready && !S.settleHinted && t - S.settleT > CAL.settleHint){ S.settleHinted = true; emit({ kind: 'settle' }); }
       }
       if (['swings','shots'].includes(S.step) && t - S.idleT > CAL.idleHint){ S.idleT = t; emit({ kind: 'idle' }); }

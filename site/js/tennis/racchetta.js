@@ -4,7 +4,7 @@
 import { SHOT_NAMES, shotFlags } from './shot-options.js';
 import { parsePairing } from './pairing.js';
 import { createSwingDetector, sampleFromMotion } from './swing-detect.js';
-import { createCalibration, PLAN, GESTURE_PLAN, calibrationPlan } from './calibration.js';
+import { createCalibration, PLAN, GESTURE_PLAN, calibrationPlan, CAL } from './calibration.js';
 import { LanPeer, isLanMode } from './lan-transport.js';
 import { encodeSensor, SENSOR_HZ } from './sensor-packet.js';
 import { peerConfig, loadPeer } from './link.js';
@@ -101,7 +101,8 @@ function paint(){
 }
 function calUi(){
   const st = cal.state;
-  if (st.step === 'still' && grip === 'flat') ui('Pronto, fermo', 'Telefono in orizzontale nel palmo, display verso di te: il dorso guarda la rete come le corde. Resta fermo così per 2 secondi.');
+  if (cal.leading) ui('Preparati', 'Prendi il telefono come in partita: tra un attimo misuro la presa. Non serve muoverlo.');
+  else if (st.step === 'still' && grip === 'flat') ui('Pronto, fermo', 'Telefono in orizzontale nel palmo, display verso di te: il dorso guarda la rete come le corde. Resta fermo così per 2 secondi.');
   // stessi passi e stesse parole del computer (natpf_cal_view.js): si guarda il computer, qui c'è il riassunto
   else if (st.step === 'still') ui('Tieni fermo', `${GRIP_TEXT_PLAIN} Guarda il computer.`);
   else if (st.step === 'grip') ui('La tua presa', 'Tieni il telefono come ti è comodo, senza stringere troppo.');
@@ -263,7 +264,7 @@ async function enableSensors(){
   setTimeout(() => { if (!motionSeen && inputMode === 'motion') noMotion('nomotion'); }, 1500);
   const saved = ss.get('profile');
   if (saved?.version === 4 && saved.input !== 'touch' && (saved.grip || 'upright') === grip){ det.setProfile(saved); det.run(); sensor = 'ready'; face.setRest(saved.gravity, saved.bias); }
-  else { sensor = 'cal'; cal.start(preferences()); }
+  else { sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); }
   sendState(); paint();
 }
 function noMotion(why){
@@ -324,11 +325,12 @@ function setGrip(value){
   if (next === grip) return;
   grip = next; ss.set('grip', grip); face.reset(); lockOrientation();
   // profilo fatto con l'altra presa: si rifà la calibrazione (breve)
-  if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); sensor = 'cal'; cal.start(preferences()); }
+  if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); }
   sendState(); paint();
 }
 function command(c){
-  if (c === 'cal'){ if (sensor === 'off') return; ss.del('profile'); sensor = 'cal'; if (inputMode === 'touch') cal.useTouch(); else cal.start(preferences()); sendState(); paint(); }
+  // avvio con un attimo di attesa (CAL.lead): chi ha appena toccato «Ricalibra» sta ancora prendendo il telefono
+  if (c === 'cal'){ if (sensor === 'off') return; ss.del('profile'); sensor = 'cal'; if (inputMode === 'touch') cal.useTouch(); else cal.start(preferences(), { lead: CAL.lead }); sendState(); paint(); }
   if (c === 'retry' && sensor === 'cal') cal.retry();
   if (c === 'invert') cal.invert();
   if (c === 'skipGrip') cal.skipGrip();

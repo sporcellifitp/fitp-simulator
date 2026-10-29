@@ -178,6 +178,33 @@ test('stesso schermo dal menu alla partita: due telefoni, calibrazione automatic
   assert.equal(E.natpfSplit.active, false); assert.equal(E.versus.active, false);
 });
 
+// Sessione del 29/10: a partita in corso lo schermo di un telefono si spegne, sul telefono «Ricalibra», calibrazione
+// rifatta… e il telefono restava su «Guarda il computer e conferma»: la conferma automatica valeva solo nella pagina
+// «Collega». Ora vale anche in partita, per tutti e due i telefoni, e il pannello del P1 non copre lo schermo diviso
+test('stesso schermo: calibrazione rifatta a partita in corso (Ricalibra sul telefono) confermata da sola, si riprende', async () => {
+  const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
+  const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
+  const l2 = P2.link = { ...fakeLink(), ready: false, L: { state: 'connected', phone: 'cal' },
+    cmd(c){ this.cmds.push(c); if (c === 'skip' || c === 'confirm'){ this.ready = true; this.L.phone = 'ready'; } if (c === 'cal'){ this.ready = false; this.L.phone = 'cal'; } } };
+  lobby.go('mode'); lobby.setMode('split'); lobby.go('connect'); ui.split.paint();
+  E.natpfPhone._onCal({ kind: 'review', pass: true }); P2._onCal({ kind: 'review', pass: true });
+  lobby.next(); assert.equal(w.pressStart(), true); assert.equal(E.natpfSplit.active, true);
+  assert.equal(lobby.visible, false);
+  for (const [who, phone, link] of [['P2', P2, l2], ['P1', E.natpfPhone, w.link]]){
+    // schermo spento, poi «Ricalibra» sul telefono: il telefono è in calibrazione (non pronto), la partita in pausa
+    E.phase = 'RALLY'; link.ready = false; link.L = { ...link.L, phone: 'cal' };
+    w.advance(900);
+    assert.equal(E.natpfPaused, true, `${who}: pausa durante la calibrazione`);
+    const confirms = link.cmds.filter(c => c === 'confirm').length;
+    phone._onCal({ kind: 'step', step: 'still' });
+    assert.ok(ui.modal?.classList.contains('hidden') ?? true, `${who}: nessun pannello sopra lo schermo diviso`);
+    phone._onCal({ kind: 'review', pass: true });
+    assert.equal(link.cmds.filter(c => c === 'confirm').length, confirms + 1, `${who}: verifica confermata dal computer`);
+    w.advance(4000);
+    assert.equal(E.natpfPaused, false, `${who}: si riprende`);
+  }
+});
+
 import { parseArea, screenArea, readScreen, SCREENS } from '../src/natpf/natpf_screen.js';
 
 test('schermo: intero, ledwall 2×2 (1:1) e 3×2 (3:2) al centro, area esatta per il processore LED', () => {

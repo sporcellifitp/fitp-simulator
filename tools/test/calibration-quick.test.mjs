@@ -86,3 +86,29 @@ test('calibration with full strokes: a slow backswing in the opposite direction 
  assert.equal(cal.state.result.pass,true);
  assert.deepEqual(cal.state.result.attempts.map(a=>[a.want,a.dir,a.peak>800]),QUICK_PLAN.map(d=>[d,d,true]));
 });
+// Sessione del 29/10 (stesso schermo): dopo «Ricalibra» la calibrazione partiva subito, con il telefono ancora da prendere
+// in mano, e sistemare la presa diventava il primo gesto. Avvio da un comando: 1,5 s di attesa, poi il passo «fermo»
+// (un movimento nell'attesa non conta), poi 0,6 s di quiete prima del primo gesto
+test('avvio da «Ricalibra»: attesa per prendere il telefono, poi fermo, poi quiete prima del primo gesto', async () => {
+ const {CAL}=await import('../../site/js/tennis/calibration.js');
+ const det=createSwingDetector(),cal=createCalibration(det),ev=[];cal.on(e=>ev.push(e));
+ cal.start({quick:true},{lead:CAL.lead});
+ // fermo da subito: nell'attesa il passo non finisce
+ let t=quiet(det,cal,0,CAL.lead-200);
+ assert.equal(cal.state.step,'still');assert.equal(cal.leading,true);
+ // il telefono preso in mano nell'attesa (movimento vero) non conta e non lascia tracce nel passo «fermo»
+ t=stroke(det,cal,t,{axis:[0,1,0],peak:200,dur:180});
+ t=quiet(det,cal,t,700);
+ assert.equal(cal.leading,false);assert.equal(cal.state.step,'swings');
+ assert.ok(ev.some(e=>e.kind==='step'&&e.step==='still'),'il computer rivede il passo «fermo» alla fine dell\'attesa');
+ // subito dopo, la presa sistemata (mano non ancora ferma per 0,6 s): non è il primo gesto
+ const at=cal.state.attempts.length;
+ t=stroke(det,cal,t,{axis:[0,1,0],peak:70,dur:160});t=quiet(det,cal,t,200);
+ t=stroke(det,cal,t,{axis:[0,1,0],peak:70,dur:160});t=quiet(det,cal,t,450);
+ assert.equal(cal.state.attempts.length,at,'nessun tentativo prima della quiete');
+ // fermo 0,6 s: il primo gesto vale
+ t=quiet(det,cal,t,CAL.firstSettle+50);t=stroke(det,cal,t,{axis:[0,1,0],peak:180});t=quiet(det,cal,t,650);
+ assert.equal(cal.state.attempts.filter(a=>a.ok).length,1,JSON.stringify(cal.state.attempts));
+ // senza comando (prove, riscaldamento guidato dal computer) come prima: nessuna attesa
+ const c2=createCalibration(createSwingDetector());c2.start({quick:true});assert.equal(c2.leading,false);
+});
