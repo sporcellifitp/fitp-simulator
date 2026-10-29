@@ -13,3 +13,13 @@ export function resolveMatchFormat(requested, { doublesEnabled = DOUBLES_ENABLED
   const id = String(requested || '').toLowerCase();
   return id === 'doubles' && doublesEnabled ? MATCH_FORMATS.doubles : MATCH_FORMATS.singles;
 }
+
+// Chi batte per primo (richiesta del 29/10 sera): si sceglie nella pagina «Partita» del menu. 'player' chi gioca qui
+// (Player 1 sullo stesso schermo), 'opponent' l'avversario (CPU, amico o Player 2), 'random' sorteggio a ogni partita.
+export const SERVE_KEY = 'natpf-tennis.serve';
+export const SERVE_CHOICES = Object.freeze(['player', 'opponent', 'random']);
+export const serveChoice = v => (SERVE_CHOICES.includes(v) ? v : 'player');
+export function firstServer(choice, rnd = Math.random){
+  const c = serveChoice(choice);
+  return c === 'random' ? (rnd() < .5 ? 'player' : 'opponent') : c;
+}

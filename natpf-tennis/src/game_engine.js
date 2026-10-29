@@ -23,7 +23,7 @@ import {
   setFirstPersonBody,
   FIRST_PERSON,
 } from "./natpf/natpf_camera.js";
-import { resolveMatchFormat } from "./natpf/match_format.js";
+import { resolveMatchFormat, firstServer } from "./natpf/match_format.js";
 import { NatpfUi } from "./natpf/natpf_ui.js";
 // NATPF: personaggio, racchetta e pallina procedurali (niente GLB esterni)
 import { createNatpfCast, finishNatpfActor, updateNatpfCharacters } from "./natpf/natpf_character.js";
@@ -1177,7 +1177,8 @@ export class NatpfTennisEngine {
       (this.score.opponentPoints = 0),
       (this.score.playerGames = 0),
       (this.score.opponentGames = 0),
-      (this.score.server = "player"),
+      // NATPF: chi batte per primo dalla scelta del menu (match_format.firstServer; prima sempre chi gioca qui)
+      (this.score.server = firstServer(this.natpfServeFirst)),
       (this.score.deuceSide = !0),
       this._syncScoreboardHUD(),
       this.hud.setReplayMode(!1),

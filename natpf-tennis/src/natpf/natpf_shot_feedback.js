@@ -73,7 +73,9 @@ export class NatpfShotFeedback {
     // (il motore mostra il messaggio subito dopo aver lanciato la palla: il punto di arrivo è già noto)
     if (popup) engine.hud.showTimingPopup = (o = {}) => {
       const g = String(o.grade || ''), p2 = /^P2\b/.test(g);
-      const q = shotQuality(g, { inCourt: landsIn(engine.ball?.targetLanding, { towardNegativeZ: !p2, serve: /SERVE/i.test(g) }), net: !!engine.ball?.natpfNetFault });
+      // colpo super potente: «Super!» in oro (prima l'esito breve copriva la scritta «SUPER SHOT» del motore)
+      const sup = /SUPER SHOT/i.test(g);
+      const q = sup ? { color: 'super', label: 'Super!' } : shotQuality(g, { inCourt: landsIn(engine.ball?.targetLanding, { towardNegativeZ: !p2, serve: /SERVE/i.test(g) }), net: !!engine.ball?.natpfNetFault });
       const kmh = String(o.detail || '').match(/\d+\s*KM\/H/i)?.[0] || '';
       // in prima persona il proprio messaggio va al centro, sotto la linea dello sguardo (non sopra il tabellone)
       const mine = p2 === (engine.playerRole === 'p2');
@@ -81,7 +83,7 @@ export class NatpfShotFeedback {
       const name = shotName(g), why = shotWhy(engine.natpfLastRacket, { now: engine.elapsedTime, who: p2 ? 'p2' : 'player' });
       popup({ ...o, screenPos, grade: q.label, detail: [name, why, kmh.toLowerCase()].filter(Boolean).join(' · ') });
       const el = document.getElementById('timing-popup-grade');
-      if (el){ el.classList.remove('grade-early', 'grade-late', 'grade-perfect', 'q-green', 'q-yellow', 'q-red'); el.classList.add('q-' + q.color); }
+      if (el){ el.classList.remove('grade-early', 'grade-late', 'grade-perfect', 'q-green', 'q-yellow', 'q-red', 'q-super'); el.classList.add('q-' + q.color); }
     };
   }
   get localActor(){ return this.engine.playerRole === 'p2' ? this.engine.opponent : this.engine.player; }

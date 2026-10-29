@@ -15,7 +15,7 @@
 // Dietro il menu gira una dimostrazione: nessun gesto la trasforma in partita (natpf_ui.js, _gateInput).
 // Pausa, «Torna al menu» e il «Menu» della schermata finale riportano al menu principale.
 // Easter egg: digitando «natpf» nel menu compaiono mouse e tastiera (modalità prova per il computer).
-import { FORMAT_KEY } from './match_format.js';
+import { FORMAT_KEY, SERVE_KEY, serveChoice } from './match_format.js';
 import { CHALLENGES, challengeById, validNickname } from './natpf_events.js';
 import { MEDAL_LABEL, nextMedal, medalCount } from './natpf_arcade.js';
 // icone dei minigiochi (natpf_arcade.MODES[].icon)
@@ -103,6 +103,7 @@ export class NatpfLobby {
       const o = e.target.closest('[data-option]'); if (o){ e.stopPropagation(); this.option(o.dataset.option); return; }
       const sc = e.target.closest('[data-natpf-screen]'); if (sc){ e.stopPropagation(); this.ui.screen?.set(sc.dataset.natpfScreen); this.paint(); return; }
       const f = e.target.closest('[data-natpf-format]'); if (f){ e.stopPropagation(); this.setFormat(f.dataset.natpfFormat); return; }
+      const sv = e.target.closest('[data-natpf-serve]'); if (sv){ e.stopPropagation(); this.setServe(sv.dataset.natpfServe); return; }
       const ch = e.target.closest('[data-challenge]'); if (ch){ e.stopPropagation(); this.pickChallenge(ch.dataset.challenge); return; }
       const tab = e.target.closest('[data-ranking]'); if (tab){ e.stopPropagation(); this.rankingTab = tab.dataset.ranking; this._paintRanking(); return; }
       const r = e.target.closest('[data-result]'); if (r){ e.stopPropagation(); this._resultAction(r.dataset.result); return; }
@@ -133,6 +134,9 @@ export class NatpfLobby {
     // formato della partita (1v1 o 2v2): vale da «Gioca»; il riscaldamento è sempre in singolare
     let fmt = 'singles'; try { fmt = localStorage.getItem(FORMAT_KEY) || 'singles'; } catch {}
     this.setFormat(fmt);
+    // chi batte per primo (match_format.firstServer): si ricorda tra una partita e l'altra
+    let srv = 'player'; try { srv = localStorage.getItem(SERVE_KEY) || 'player'; } catch {}
+    this.setServe(srv);
     $('btn-start-match')?.addEventListener('click', () => this.engine.setMatchFormat?.(this.mode === 'split' ? 'singles' : this.format), true);
     // partite brevi: in fiera si gioca un game
     document.querySelector('#match-length-group [data-games="1"]')?.click();
@@ -272,6 +276,23 @@ export class NatpfLobby {
     const opp = $('setup-opponent-label');
     if (opp) opp.textContent = this.mode === 'split' ? 'Player 2 · stesso schermo' : this.mode === 'friend' ? (this.format === 'doubles' ? 'Amico + CPU' : 'Amico') : this.format === 'doubles' ? '2 CPU' : 'CPU';
     const you = this.el.querySelector('.you-tag'); if (you) you.textContent = this.mode === 'split' ? 'Player 1' : this.format === 'doubles' ? 'Tu + CPU' : 'Tu';
+    this._paintServe();
+  }
+  // chi batte per primo: chi gioca qui, l'avversario o sorteggio (lo usa engine.startNewMatch)
+  setServe(id){
+    this.serve = serveChoice(id);
+    this.engine.natpfServeFirst = this.serve;
+    try { localStorage.setItem(SERVE_KEY, this.serve); } catch {}
+    this._paintServe();
+  }
+  _paintServe(){
+    const names = { player: this.mode === 'split' ? 'Player 1' : this.format === 'doubles' ? 'Voi' : 'Tu',
+      opponent: this.mode === 'split' ? 'Player 2' : this.mode === 'friend' ? 'Amico' : 'CPU', random: 'Sorteggio' };
+    for (const b of this.el.querySelectorAll('[data-natpf-serve]')){
+      const on = b.dataset.natpfServe === this.serve;
+      b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); b.setAttribute('role', 'radio');
+      b.textContent = names[b.dataset.natpfServe] || b.textContent;
+    }
   }
   option(name){
     const click = id => $(id)?.click();
