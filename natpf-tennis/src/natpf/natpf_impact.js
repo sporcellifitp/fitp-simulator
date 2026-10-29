@@ -204,6 +204,28 @@ export function timeToContact(engine, actor){
   return gap/vz;
 }
 
+// Webcam (colpi dal movimento, webcam_motion.js): quando un movimento di chi gioca qui può essere un colpo, e da che lato.
+// { kind: 'toss' } al proprio servizio prima del lancio, { kind: 'serve' } nel lancio, { kind: 'stroke', ttc, side } con
+// la palla in arrivo a meno di ahead secondi dal punto d'impatto (o passata da meno di behind: colpo in ritardo); null
+// altrimenti (la palla va via, è lontana, il punto è finito, partita in pausa). Il movimento da solo non dice dritto o
+// rovescio: il lato è quello della palla rispetto a chi gioca, dal piano d'intercetto (dove sarà la palla all'impatto) o,
+// senza, da dove cade. ahead: uno swing partito prima di così sarebbe un colpo a vuoto in anticipo (IMPACT: 0,40–0,50 s
+// oltre il centro della finestra); è quasi sempre la preparazione o chi si sposta
+export const GATE = Object.freeze({ ahead: .7, behind: .3 });
+export function webcamGate(engine, hand = handOf(engine, engine?.localActor)){
+  const E = engine, me = E?.localActor, b = E?.ball;
+  if (!me || !b || E.natpfPaused || E.autoPlayMode) return null;
+  const mine = E.playerRole === 'p2' ? 'opponent' : 'player';
+  if (E.phase === 'SERVE_STANCE' || E.phase === 'SERVE_TOSS') return E.score?.server === mine ? { kind: E.phase === 'SERVE_STANCE' ? 'toss' : 'serve' } : null;
+  if (E.phase !== 'RALLY' || b.lastHitter === mine) return null;
+  const ttc = timeToContact(E, me);
+  if (ttc == null || ttc > GATE.ahead || ttc < -GATE.behind) return null;
+  const plan = livePlan(E, me), x = Number.isFinite(b.targetLanding?.x) ? b.targetLanding.x : b.pos.x;
+  // + alla destra di chi gioca: chi sta nella metà positiva guarda verso −z (la sua destra è +x)
+  const rel = (plan && plan.side ? plan.side : x - me.pos.x)*(Math.sign(me.pos.z) || 1);
+  return { kind: 'stroke', ttc: +ttc.toFixed(3), side: (rel >= 0) !== (hand === 'left') ? 'forehand' : 'backhand' };
+}
+
 // Gesto debole rispetto ai propri colpi (natpf.typical: colpo tipico di chi gioca, °/s): la preparazione o un
 // micro-movimento. Il 23/10 sette colpi veri (808–1269 °/s) arrivati 10–300 ms dopo l'arrivo della palla sono stati
 // scartati perché la palla l'aveva già colpita il gesto debole di prima (71–286 °/s), con palle corte, fuori e schiacciate

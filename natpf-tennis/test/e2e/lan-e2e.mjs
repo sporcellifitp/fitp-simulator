@@ -220,7 +220,9 @@ try {
   if (run('webcam')){
     /* ---------- 4. webcam: stream finto di Chrome, MediaPipe offline, mano → racchetta ---------- */
     const camCtx = await newContext({ viewport: { width: 1100, height: 680 }, permissions: ['camera'] });
-    const cam = await openGame(camCtx, BASE + '/', 'webcam');
+    // con i colpi dalla mano (?webcamMano=1): qui si prova la mano → racchetta, che con i colpi dal movimento (predefiniti
+    // dal 29/10, webcam_motion.js) in partita non gira; i colpi dal movimento li prova test/natpf-webcam-motion.test.mjs
+    const cam = await openGame(camCtx, BASE + '/?webcamMano=1', 'webcam');
     const fps = () => cam.evaluate(() => new Promise(r => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 1500) requestAnimationFrame(f); else r({ fps: Math.round(n/(performance.now() - t0)*1000), visible: document.visibilityState }); }; requestAnimationFrame(f); }));
     console.log('fps prima della webcam', JSON.stringify(await fps()));
     const mpRequests = [];

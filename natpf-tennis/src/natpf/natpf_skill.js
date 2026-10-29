@@ -165,7 +165,9 @@ export function swingTiming(r, velZ, latency = 0){
   return v > .5 ? (-.1 - finite(r))/v + lat : 0;
 }
 // Ritardo del colpo del telefono (s, dal picco a quando il computer lo riceve) e spostamento della palla in quel tempo
-export const eventLatency = e => (e && e.natpf && e.natpf.aim === 'swing' ? clamp(finite(e.natpf.latency), 0, .3) : 0);
+// latenza del colpo (s): da quanto è avvenuto il gesto quando il gioco lo riceve. Negativa solo per la webcam, che manda
+// lo swing appena il movimento parte e stima il colpo vero poco dopo (webcam_motion.js)
+export const eventLatency = e => (e && e.natpf && e.natpf.aim === 'swing' ? clamp(finite(e.natpf.latency), -.15, .3) : 0);
 export const latencyShift = (e, velZ) => Math.abs(finite(velZ))*eventLatency(e);
 // Colpo del Player 2 letto dal relay (1v1 tra due computer): alla latenza misurata sul suo computer si aggiunge il tempo
 // passato nel relay prima che l'host lo leggesse (serverTimeMs è sull'orologio del relay: nel browser dell'host è lo
@@ -176,7 +178,7 @@ export function relayedNatpf(swing, nowMs = Date.now()){
   if (!n || typeof n !== 'object') return null;
   if (n.aim !== 'swing' || !Number.isFinite(Number(swing.serverTimeMs))) return n;
   const wait = (finite(nowMs) - Number(swing.serverTimeMs))/1000;
-  return wait >= 0 && wait <= .25 ? { ...n, latency: +clamp(finite(n.latency, .06) + wait, 0, .3).toFixed(3) } : n;
+  return wait >= 0 && wait <= .25 ? { ...n, latency: +clamp(finite(n.latency, .06) + wait, -.15, .3).toFixed(3) } : n;
 }
 // Tempo in unità della finestra (più larga contro la CPU facile): 0 centro, ±1 anticipo/ritardo deciso, oltre ±1,6 non
 // conta di più.

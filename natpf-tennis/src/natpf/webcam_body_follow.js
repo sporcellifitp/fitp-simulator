@@ -228,10 +228,14 @@ export class NatpfBodyFollow {
     }
     this._hookRoomState();
     if (!mc?.webcamActive){ if (this.enabled && this.status !== 'unavailable') this._setStatus('loading'); this._paint(); return; }
+    // colpi dal movimento (webcam_motion.js, predefiniti dal 29/10): il polso dal corpo non serve, il modello del corpo
+    // gira solo con «Segui il corpo». Prima si caricava e girava sempre con la webcam (anche 20–40 ms a inferenza)
+    const wristFromPose = mc.webcamMode !== 'motion';
+    if (!this.enabled && !wristFromPose){ if (mc._poseRequested) mc._poseRequested = false; this._paint(); return; }
     if (!this.pose){ if (this.status !== 'unavailable') mc._poseRequested = true; this._ensurePose(); return; }
     mc._poseModelReady = true;
     const v = mc.videoElem;
-    const needWrist = !mc.latestHandLandmarks || now - (mc.latestHandSeenAt ?? -Infinity) >= 240;
+    const needWrist = wristFromPose && (!mc.latestHandLandmarks || now - (mc.latestHandSeenAt ?? -Infinity) >= 240);
     const due = v && v.readyState >= 2 && (this.enabled || needWrist) && now - (this._poseSentAt ?? -Infinity) >= POSE_INPUT.intervalMs && v.currentTime !== this._lastVideoTime;
     // Prenota il primo slot libero: Hands lento con fotogrammi sempre in attesa non deve affamare Pose.
     mc._poseRequested = !!due && !this._busy;

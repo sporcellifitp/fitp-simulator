@@ -207,16 +207,19 @@ export class NatpfUi {
   paintWebcamSetup(){
     const mc = this.engine.motionController, on = !!mc?.webcamActive;
     const now = performance.now(), wrist = on && now - (mc._poseSeenAt ?? -Infinity) < 400;
-    const hand = on && (now - (mc.latestHandSeenAt || -1e9) < 1200 || wrist);
+    // colpi dal movimento (webcam_motion.js): pronto appena si vede un colpo; la mano vista dal modello vale ancora
+    const swing = on && now - (mc.webcamMotionAt ?? -Infinity) < 2500;
+    const hand = on && (swing || now - (mc.latestHandSeenAt || -1e9) < 1200 || wrist);
     const dot = $('setup-cam-dot'), txt = $('setup-cam-text'), badge = $('setup-cam-badge'), go = $('setup-cam-go');
     // per colpire basta la mano (con polso e avambraccio); «Segui il corpo» vuole anche le spalle. Webcam che non si
     // apre: il motivo (occupata da un altro programma, negata, assente), non le istruzioni per l'inquadratura
     const body = !!this.engine.natpfBody?.enabled, err = on ? null : webcamOpenError(mc?.webcamError);
+    const seen = swing ? 'Colpo visto' : wrist ? 'Braccio visto' : 'Mano vista';
     if (dot) dot.className = 'setup-dot ' + (hand ? 'ok' : on ? 'mid' : err ? 'ko' : '');
-    if (txt) txt.textContent = hand ? (wrist ? 'Braccio visto ✓ sei pronto' : 'Mano vista ✓ sei pronto') : err ? err.text
-      : on ? (body ? 'Mostra spalle e braccio che colpisce, con luce davanti' : 'Mostra la mano che colpisce, con polso e avambraccio, con luce davanti')
+    if (txt) txt.textContent = hand ? `${seen} ✓ sei pronto` : err ? err.text
+      : on ? (body ? 'Mostra spalle e braccio che colpisce, con luce davanti, e fai un colpo' : 'Fai un dritto davanti alla webcam: mano, polso e avambraccio in vista, con luce davanti')
       : body ? 'Mettiti a circa 2 m: spalle e braccio interi nell’inquadratura' : 'Mettiti a 1–2 m: mano, polso e avambraccio ben visibili';
-    if (badge){ badge.textContent = on ? (hand ? (wrist ? 'Braccio visto' : 'Mano vista') : 'Cerco la mano…') : err ? err.badge : 'Webcam spenta'; badge.classList.toggle('ok', hand); }
+    if (badge){ badge.textContent = on ? (hand ? seen : 'Fai un colpo…') : err ? err.badge : 'Webcam spenta'; badge.classList.toggle('ok', hand); }
     show(go, !on);
     for (const b of document.querySelectorAll('[data-natpf-move]')){ const sel = (b.dataset.natpfMove === 'body') === body; b.classList.toggle('selected', sel); b.setAttribute('aria-checked', String(sel)); }
   }
@@ -423,7 +426,7 @@ export class NatpfUi {
       // collegamento perso: il pannello del telefono dice come ricollegarlo (QR)
       if (phone && a.why === 'scollegato' && this.modal?.classList.contains('hidden')){ this.phoneDropOpened = true; this.openPhone(); }
     }
-    if (a.kind === 'countdown') this._paintHold(phone ? 'Telefono di nuovo pronto' : 'Mano di nuovo vista', `Si riprende tra ${a.left}…`);
+    if (a.kind === 'countdown') this._paintHold(phone ? 'Telefono di nuovo pronto' : 'Webcam di nuovo pronta', `Si riprende tra ${a.left}…`);
     if (a.kind === 'resume'){
       if (phone) this.phoneHold = null; else this.webcamHold = null;
       this._paintHold(null);

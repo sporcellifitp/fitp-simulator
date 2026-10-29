@@ -3,6 +3,7 @@
 //   si scambiano per webcam e mouse; il telefono la riceve dal gioco (una sola impostazione, vedi natpfPhone.setHand).
 // - Prima persona: la mano libera (sinistra per un destro, destra per un mancino) si vede solo al proprio servizio,
 //   per il lancio di palla; nel resto del gioco resta solo la mano con la racchetta.
+import { webcamGate } from './natpf_impact.js';
 export const HAND_KEY = 'natpf-tennis.hand';
 export const normalizeHand = h => (h === 'left' ? 'left' : 'right');
 export function readHand(){ try { return normalizeHand(localStorage.getItem(HAND_KEY)); } catch { return 'right'; } }
@@ -16,7 +17,8 @@ const swap = s => (s === 'forehand' ? 'backhand' : s === 'backhand' ? 'forehand'
 // Lato del colpo per un mancino. Il motore ragiona da destro: un gesto o una palla «da rovescio» per un destro
 // è «da dritto» per un mancino. Il telefono NATPF manda già il lato giusto.
 export function leftySide(evt = {}, { ballX = 0, actorX = 0, facingNegativeZ = true } = {}){
-  if (evt.source === 'natpf-phone' && evt.side) return evt.side;
+  // il telefono NATPF e la webcam dal movimento (lato dalla palla, già con la mano di chi gioca) mandano il lato giusto
+  if ((evt.source === 'natpf-phone' || evt.handedSide) && evt.side) return evt.side;
   const dirX = Number(evt.dirX || 0);
   const right = evt.side || (dirX > .12 ? 'backhand' : dirX < -.12 ? 'forehand' : null);
   if (right && right !== 'overhead') return swap(right);
@@ -46,6 +48,10 @@ export class NatpfHand {
       mc.handPreference = this.hand; mc.canToss = () => engine.phase === 'TITLE' || (engine.phase === 'SERVE_STANCE' && isLocalServing(engine));
       // cambio del modello delle mani (ricaricarlo ferma il gioco per un attimo): non con un punto in gioco
       mc.canReload = () => engine.phase !== 'RALLY' && engine.phase !== 'SERVE_TOSS';
+      // colpi dal movimento (webcam_motion.js): quando un movimento può essere un colpo e da che lato; in partita il
+      // modello delle mani non gira
+      mc.webcamGate = () => webcamGate(engine, this.hand);
+      mc.webcamInPlay = () => !engine.autoPlayMode && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(engine.phase);
     }
     const emit = mc?._emitSwing?.bind(mc);
     if (emit) mc._emitSwing = (e0 = {}) => {

@@ -149,7 +149,8 @@ export class NatpfLobby {
       phoneConnected: p.connected, phoneReady: p.ready,
       phoneLinked: p.connected && (L.phone === 'cal' || L.phone === 'ready'),
       webcamActive: !!mc?.webcamActive,
-      handSeen: !!mc?.webcamActive && performance.now() - (mc.latestHandSeenAt || -1e9) < 600,
+      // mano vista dal modello o un colpo visto dal movimento (webcam_motion.js)
+      handSeen: !!mc?.webcamActive && (performance.now() - (mc.latestHandSeenAt || -1e9) < 600 || performance.now() - (mc.webcamMotionAt ?? -1e9) < 1500),
     };
   }
   /* ---------- menu principale, modalità, opzioni ---------- */

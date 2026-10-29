@@ -316,6 +316,8 @@ test('P2: _emitSwing manda all’host natpf e mano; l’host li passa a onP2Swin
   assert.equal(relayedNatpf(swing, 1100).latency, .15);
   assert.equal(relayedNatpf(swing, 5000).latency, .05);
   assert.equal(relayedNatpf({ serverTimeMs: 1 }, 2), null);
+  // webcam (colpi dal movimento): latenza negativa, il colpo vero poco dopo l'evento; l'attesa nel relay si somma
+  assert.equal(relayedNatpf({ natpf: { aim: 'swing', latency: -.06 }, serverTimeMs: 1000 }, 1020).latency, -.04);
   assert.equal(relayedNatpf({ natpf: { aim: 'face' }, serverTimeMs: 1000 }, 1100).latency, undefined);
 });
 

@@ -140,7 +140,7 @@ test('controller: la webcam occupata da un altro programma lascia il motivo (Not
   }
 });
 
-test('pannello della webcam: con la webcam occupata dice perché; accesa chiede la mano (le spalle solo con «Segui il corpo»)', async () => {
+test('pannello della webcam: con la webcam occupata dice perché; accesa chiede un colpo con mano, polso e avambraccio; pronto al primo colpo visto', async () => {
   const { makeWorld } = await import('./ui-world.mjs');
   const { E, ui } = await makeWorld({ controller: 'mouse' });
   const text = () => document.getElementById('setup-cam-text').textContent, badge = () => document.getElementById('setup-cam-badge').textContent;
@@ -149,5 +149,23 @@ test('pannello della webcam: con la webcam occupata dice perché; accesa chiede 
   assert.match(text(), /già usata da un altro programma/); assert.equal(badge(), 'Webcam occupata');
   E.motionController.webcamError = null; E.motionController.webcamActive = true;
   ui.paintWebcamSetup();
-  assert.match(text(), /mano che colpisce, con polso e avambraccio/); assert.equal(badge(), 'Cerco la mano…');
+  assert.match(text(), /Fai un dritto davanti alla webcam: mano, polso e avambraccio/); assert.equal(badge(), 'Fai un colpo…');
+  // colpi dal movimento (webcam_motion.js): un colpo visto basta, anche senza il modello delle mani
+  E.motionController.webcamMotionAt = performance.now();
+  ui.paintWebcamSetup();
+  assert.match(text(), /Colpo visto ✓ sei pronto/); assert.equal(badge(), 'Colpo visto');
+});
+
+// Prova nel browser del 29/10: il menu accende la webcam da solo e il pulsante «Accendi la webcam» la richiede di nuovo;
+// la seconda apertura interrompeva il play() della prima («AbortError»: webcam non disponibile)
+test('controller: due richieste di accendere la webcam insieme aprono la camera una volta sola', async () => {
+  const { MotionController: MC } = await import('../src/motion_controls.js');
+  const mc = Object.create(MC.prototype);
+  let opens = 0, done;
+  Object.assign(mc, { webcamActive: false, _openWebcam(){ opens++; return new Promise(r => { done = () => { mc.webcamActive = true; r(true); }; }); } });
+  const a = mc.enableWebcam(), b = mc.enableWebcam();
+  assert.equal(opens, 1);
+  done();
+  assert.deepEqual(await Promise.all([a, b]), [true, true]);
+  assert.equal(await mc.enableWebcam(), true); assert.equal(opens, 1, 'già accesa: nessuna nuova apertura');
 });

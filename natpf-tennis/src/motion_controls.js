@@ -8,11 +8,18 @@ import { newSwings } from "./natpf/natpf_versus.js";
 // NATPF: misure della webcam (camera, inferenza, età del dato) e carico del modello delle mani, vedi src/natpf/webcam_load.js
 import { createLoadGovernor, createWebcamStats, WEBCAM_LEVELS } from "./natpf/webcam_load.js";
 import { PoseStrokeSource, POSE_INPUT } from "./natpf/webcam_pose_strokes.js";
+// NATPF: colpi della webcam dal movimento dell'immagine (rifacimento del 28–29/10), vedi src/natpf/webcam_motion.js
+import { createMotionStrokes, grayFromRGBA, swingSpeed, MOTION } from "./natpf/webcam_motion.js";
 // NATPF: MediaPipe Hands dal pacchetto offline (npm @mediapipe/hands, servito sotto /assets/); CDN fissato solo di riserva
 export const MEDIAPIPE_LOCAL_BASE = "/assets/mediapipe/hands/";
 export const MEDIAPIPE_CDN_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/";
 // NATPF: mano persa da più di così (ms) con il modello delle mani attivo: niente colpi dal flusso ottico (stato «persa»)
 export const HAND_FLOW_MAX_MS = 700;
+// NATPF: da dove vengono i colpi della webcam: dal movimento (predefinito) o dalla mano (?webcamMano=1, il riconoscimento
+// di prima, per confrontare sullo stesso computer)
+export function webcamModeFrom(search = ""){
+  try { return new URLSearchParams(search).get("webcamMano") === "1" ? "hands" : "motion"; } catch { return "motion"; }
+}
 export class MotionController {
   constructor(e = {}) {
     (this.onSwing = typeof e.onSwing == "function" ? e.onSwing : null),
@@ -51,6 +58,14 @@ export class MotionController {
       (this.handPreference = "right"),
       (this.canToss = null),
       (this.onTrack = typeof e.onTrack == "function" ? e.onTrack : null),
+      // NATPF: colpi dal movimento (webcam_motion.js; ?webcamMano=1 per i colpi dalla mano di prima, per confronto),
+      // finestra del colpo data dal gioco (webcamGate: natpf_impact.webcamGate) e partita in corso (webcamInPlay: il
+      // modello delle mani non gira, il movimento basta), natpf_hand.js
+      (this.webcamMode = webcamModeFrom(typeof location != "undefined" ? location.search : "")),
+      (this._motion = createMotionStrokes()),
+      (this.webcamGate = null),
+      (this.webcamInPlay = null),
+      (this.webcamMotionAt = null),
       (this.phonePollIntervalMs = e.phonePollIntervalMs || 50),
       (this.phonePollTimer = null),
       (this.phoneState = {
@@ -442,7 +457,13 @@ export class MotionController {
       if (this.webcamActive && epoch !== (this._visionEpoch || 0)) this._ensureMediaPipeHands();
     }
   }
-  async enableWebcam() {
+  // NATPF: una sola apertura alla volta: una seconda richiesta (il menu che la accende da solo e il pulsante «Accendi la
+  // webcam») aspetta la prima. Prima la seconda interrompeva il play() della prima («AbortError»: webcam non disponibile)
+  enableWebcam() {
+    if (this.webcamActive) return Promise.resolve(!0);
+    return (this._webcamOpening ||= this._openWebcam().finally(() => { this._webcamOpening = null; }));
+  }
+  async _openWebcam() {
     if (this.webcamActive) return !0;
     // NATPF: motivo per cui la webcam non si apre (natpf_webcam_watch.webcamOpenError, pannello della racchetta)
     this.webcamError = null;
@@ -514,6 +535,7 @@ export class MotionController {
     this.latestHandSeenAt = null; this._hasNewHandResult = false; this._nextHandFrameAt = -Infinity;
     (this._handTrack = null), (this._handOthers = []), (this._handLost = !1), (this._handPick = null), (this._handCapture = null), (this._handLastPos = null), (this._frameMeta = null), this._strokes && this._strokes.reset();
     this._poseCapture = null; this._poseSeenAt = null; this._poseUseUntil = 0; this._hasNewPoseResult = !1; this._poseHand = null; this._poseSource?.reset();
+    this._motion && this._motion.reset(); this._motionWaiting = !1;
   }
   // NATPF: livello di carico del modello delle mani (webcam_load.js); prima dell'accensione quello di partenza
   _wcLevel() {
@@ -561,7 +583,10 @@ export class MotionController {
     if (!this._kickCh) {
       this._kickCh = new MessageChannel();
       this._kickCh.port1.onmessage = () => {
-        (this._kickQueued = !1), this._frameWaiting && this._sendFrame(performance.now()) && (this._frameWaiting = !1);
+        this._kickQueued = !1;
+        // NATPF: prima il movimento (meno di un millisecondo, è il colpo), poi l'eventuale inferenza
+        this._motionWaiting && ((this._motionWaiting = !1), this._motionStep(performance.now()));
+        this._frameWaiting && this._sendFrame(performance.now()) && (this._frameWaiting = !1);
       };
       // in Node (prove) il canale non deve tenere vivo il processo
       this._kickCh.port1.unref && this._kickCh.port1.unref();
@@ -571,6 +596,9 @@ export class MotionController {
   _sendFrame(e) {
     if (!this.mpHands || this._mpBusy || !this.webcamActive || !this.videoElem || this.videoElem.readyState < 2) return !1;
     if (e < (this._nextHandFrameAt ?? -Infinity)) return !1;
+    // NATPF: colpi dal movimento e partita in corso: il modello delle mani non serve (ogni inferenza ferma il gioco per
+    // 15–40 ms: era il ritardo del browser con la webcam). Gira nel menu e tra una partita e l'altra (mano vista, posa)
+    if (this.webcamMode === "motion" && typeof this.webcamInPlay == "function" && this.webcamInPlay()) return !1;
     // Un solo lavoro WASM alla volta. A distanza Pose legge il polso; Hands verifica periodicamente le dita.
     if (this._poseRequested || this._poseLoading || this._poseInferenceBusy || (e < (this._poseUseUntil || 0) && e - (this._mpSentAt ?? -Infinity) < POSE_INPUT.handProbeMs)) return !1;
     // livello di carico cambiato: le opzioni nuove fuori dal richiamo dei risultati, prima dell'invio, e non con un punto
@@ -604,7 +632,8 @@ export class MotionController {
       this._frameMeta = { capture: md && Number.isFinite(md.captureTime) ? md.captureTime : now, at: now };
       // NATPF: fotogramma nuovo della camera: misura e inferenza (fuori dal ciclo di disegno)
       this._wcStats && this._wcStats.frame(now, md || {});
-      (this._frameWaiting = !0), this.mpHands && this._kickInference();
+      (this._frameWaiting = !0), (this._motionWaiting = this.webcamMode === "motion");
+      (this.mpHands || this._motionWaiting) && this._kickInference();
       this.webcamActive && this.videoElem === v && v.requestVideoFrameCallback(cb);
     };
     v.requestVideoFrameCallback(cb);
@@ -612,6 +641,44 @@ export class MotionController {
   _frameCaptureT(e) {
     const m = this._frameMeta;
     return m && e >= m.capture && e - m.capture < 250 ? m.capture : e;
+  }
+  // NATPF: movimento del fotogramma della camera appena arrivato (webcam_motion.js): immagine ridotta in grigio, poi lo
+  // swing che parte. Al gioco solo dentro la finestra che il gioco stesso dà (webcamGate: palla in arrivo, proprio
+  // servizio): fuori il movimento è chi si sposta, si sistema, torna in posizione
+  _motionStep(e) {
+    const v = this.videoElem;
+    if (!this.webcamActive || !v || v.readyState < 2) return;
+    const W = MOTION.w, H = MOTION.h;
+    if (!this._motionCtx) {
+      const c = document.createElement("canvas");
+      (c.width = W), (c.height = H), (this._motionCtx = c.getContext("2d", { willReadFrequently: !0 })), (this._motionGray = new Uint8Array(W * H));
+    }
+    const ctx = this._motionCtx;
+    if (!ctx) return;
+    ctx.drawImage(v, 0, 0, W, H);
+    const cap = this._frameCaptureT(e),
+      o = this._motion.push({ t: cap, gray: grayFromRGBA(ctx.getImageData(0, 0, W, H).data, W * H, this._motionGray), w: W, h: H });
+    if (!o.frame) return;
+    this.onTrack && this._diag({ kind: "frame", t: e, captureT: o.frame.t, source: "motion", energy: o.frame.energy, thr: o.frame.thr, x: o.frame.cx, y: o.frame.cy, phase: this._motion.active ? "swing" : "idle" });
+    o.start && this._motionSwing(o.start, e);
+  }
+  // NATPF: swing dal movimento → colpo o lancio, con l'istante stimato del colpo (latenza: anche negativa, il colpo vero
+  // è poco dopo l'evento; natpf_skill.eventLatency) e il lato dalla palla (webcamGate). Senza piatto: la direzione viene
+  // dal tempo
+  _motionSwing(st, e) {
+    this.webcamMotionAt = e;
+    const g = typeof this.webcamGate == "function" ? this.webcamGate() : null,
+      speed = swingSpeed(st.rel),
+      latency = +((e - st.swingT) / 1000).toFixed(3),
+      type = !g ? null : g.kind === "toss" ? "toss" : "swing";
+    this.onTrack && this._diag({ kind: "event", t: e, captureT: st.t, source: "motion", type: type || "nessuno", side: g?.side || null, speed, reason: `movimento ${st.rel.toFixed(1)}× la soglia${g ? `, ${g.kind}${Number.isFinite(g.ttc) ? ` a ${Math.round(g.ttc * 1000)} ms dalla palla` : ""}` : ", fuori dalla finestra del colpo"}` });
+    if (!g) return;
+    this.lastWebcamTriggerMs = e;
+    if (type === "toss") return void this._emitToss({ source: "webcam", shotType: "lob", speed, dirX: 0, dirY: -0.9 });
+    this._emitSwing({
+      source: "webcam", side: g.side || null, handedSide: !!g.side, shotType: g.kind === "serve" ? "flat" : "topspin", speed, dirX: 0, dirY: -0.4,
+      natpf: { aim: "swing", latency, wrist: 0, source: "webcam", hand: this.handPreference || "right" },
+    });
   }
   _videoAspect() {
     const v = this.videoElem;
@@ -726,7 +793,7 @@ export class MotionController {
     const seen = this._webcamSeenAt(),
       age = seen == null || (this._wcStartedAt != null && seen < this._wcStartedAt) ? Infinity : e - seen,
       prev = this._handState;
-    const st = !this.mpHands && !this._poseModelReady
+    const st = this.webcamMode === "motion" || (!this.mpHands && !this._poseModelReady)
       ? "movimento"
       : age > HAND_FLOW_MAX_MS
         ? "persa"
@@ -744,7 +811,8 @@ export class MotionController {
       from = this._wcStartedAt ?? now;
     return {
       active: !!this.webcamActive,
-      model: !!this.mpHands || !!this._poseModelReady,
+      // NATPF: con i colpi dal movimento la mano non si giudica (il modello non gira in partita): pausa solo per la camera
+      model: this.webcamMode !== "motion" && (!!this.mpHands || !!this._poseModelReady),
       handAgeMs: seen == null || seen < from ? now - from : now - seen,
       frameAgeMs: this._frameMeta && Number.isFinite(this._frameMeta.at) ? now - this._frameMeta.at : null,
       state: this._handState || null,
@@ -776,7 +844,12 @@ export class MotionController {
     // da qui in un compito a sé dopo il fotogramma; senza (browser che non li ha), subito come prima
     t &&
       ((this._lastVideoTime = this.videoElem.currentTime),
-      (!this._frameMeta || e - this._frameMeta.at > 150) && (this._frameMeta && this.mpHands ? ((this._frameWaiting = !0), this._kickInference()) : this._sendFrame(e)));
+      (!this._frameMeta || e - this._frameMeta.at > 150) && (this._frameMeta && this.mpHands ? ((this._frameWaiting = !0), this._kickInference()) : this._sendFrame(e)),
+      // NATPF: movimento da qui solo senza i richiami dei fotogrammi (o fermi): con i richiami lo misura _watchFrames
+      this.webcamMode === "motion" && (!this._frameMeta || e - this._frameMeta.at > 150) && this._motionStep(e));
+    // NATPF: colpi dal movimento (_motionStep): la mano e il corpo, quando i modelli girano, danno solo la posa della
+    // racchetta; niente colpi dalla mano né dal flusso ottico
+    const motion = this.webcamMode === "motion";
     if (this.latestHandLandmarks && e - (this.latestHandSeenAt || 0) < 240) {
       if (!this._hasNewHandResult) return;
       this._hasNewHandResult = !1;
@@ -791,7 +864,7 @@ export class MotionController {
         (this._handLastPos = { x: p.x, y: p.y }),
         this.handTracker.push(handPoseFromLandmarks(c), e),
         this._wcStats && this._wcStats.use(e - cap),
-        this._strokeSample({ t: cap, x: p.x, y: p.y, src: "hands", scale: handSize(c, this._videoAspect()) }, e);
+        motion || this._strokeSample({ t: cap, x: p.x, y: p.y, src: "hands", scale: handSize(c, this._videoAspect()) }, e);
       return;
     }
     const pose = this._poseCapture;
@@ -802,10 +875,10 @@ export class MotionController {
       this._lastWebcamSource = "pose"; this._handLastPos = { x: pose.x, y: pose.y };
       this.handTracker.push(pose.pose, e);
       this._wcStats && this._wcStats.use(e - pose.t);
-      this._strokeSample(pose, e);
+      motion || this._strokeSample(pose, e);
       return;
     }
-    if (!t) return;
+    if (!t || motion) return;
     // NATPF: mano persa da poco (il mosso nella parte veloce dello swing): si aspetta che torni, il colpo continua sulla
     // traccia della mano invece di ripartire sul flusso ottico
     if (e - (this._handSeenForFlow ?? -1e9) < 220) {

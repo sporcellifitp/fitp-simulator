@@ -374,7 +374,9 @@ export class DiagRecorder {
     if (d.kind === 'carico') return this.log('webcam.carico', { da: d.from ?? null, a: d.to ?? null, p50: d.p50 ?? null, perche: d.reason || null, ...(d.applied ? { applicato: true } : {}) });
     // stato della mano: valida, degradata, persa, ripresa, movimento (ms: durata dello stato finito)
     if (d.kind === 'stato') return this.log('webcam.stato', { da: d.from ?? null, a: d.to ?? null, ms: d.ms ?? null });
-    if (d.kind && d.kind !== 'frame') this.log('webcam.evento', { tipo: d.kind, ...pick(d, ['type', 'side', 'shotType', 'source', 'speed', 'dirX', 'dirY', 'reason', 'hands']) });
+    // movimento (colpi della webcam dal movimento): ct dell'attraversamento della soglia
+    if (d.kind && d.kind !== 'frame') this.log('webcam.evento', { tipo: d.kind, ...pick(d, ['type', 'side', 'shotType', 'source', 'speed', 'dirX', 'dirY', 'reason', 'hands']), ...(d.source === 'motion' && Number.isFinite(d.captureT) ? { ct: r(d.captureT - this.t0, 1) } : {}) });
+    else if (d.source === 'motion') this.log('webcam.frame', { ct: Number.isFinite(d.captureT) ? r(d.captureT - this.t0, 1) : null, source: 'motion', energia: r(d.energy*1000, 2), soglia: r(d.thr*1000, 2), x: r(d.x, 3), y: r(d.y, 3), fase: d.phase || null });
     else this.log('webcam.frame', { ct: Number.isFinite(d.captureT) ? r(d.captureT - this.t0, 1) : null, source: d.source || null, hands: d.hands ?? null, chosen: d.chosen ?? null, reason: d.reason || null, x: r(d.x, 3), y: r(d.y, 3), inferMs: r(d.inferMs, 1) });
   }
   // dopo ogni aggiornamento del motore: fase, palla (solo in gioco) e chi l'ha colpita
