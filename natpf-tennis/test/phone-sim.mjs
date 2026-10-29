@@ -10,6 +10,7 @@ import { createFaceTracker } from '@natpf/tennis/face-tracker.js';
 import { createCalibration, QUICK_PLAN } from '@natpf/tennis/calibration.js';
 import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { strokeShape } from '@natpf/tennis/stroke-shape.js';
+import { normalizeSample } from '@natpf/tennis/motion-sign.js';
 import { natpfSwingToEngine, NORMAL_SHOTS, habitualRise, createRiseModel, createTypicalModel, powerRefs } from '../src/natpf/natpf_phone_racket.js';
 import { createLiftModel, createFaceModel, createAimModel, liftBaselineFromProfile, headBaselineFromProfile } from '../src/natpf/natpf_gestures.js';
 
@@ -24,7 +25,9 @@ export function rng(seed = 1){ let a = seed >>> 0; return () => { a = (a + 0x6D2
 // shape: anche la forma del colpo (stroke-shape.js), come la pagina del telefono di oggi; il computer legge allora
 // l'intenzione dalla forma (natpf_stroke_intent.js). Senza: il telefono di prima, letto con la tabella dei segnali.
 // habitual: false per leggere la forma senza la salita abituale della calibrazione (solo per i confronti)
-export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = true, calibrationHeading = true } = {}){
+// ios: accelerazione con il segno di Safari su iPhone (opposto ad Android, motion-sign.js); fix: la pagina del telefono
+// la riporta al segno di Android (normalizeSample), come racchetta.js
+export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = true, calibrationHeading = true, ios = false, fix = false } = {}){
   const det = createSwingDetector(), face = createFaceTracker({ quietHold: 400, relax: 2.5 });
   const cal = createCalibration(det), R = rng(seed);
   det.on('status', s => { if (s.s === 'still-ok') face.setRest(s.gravity, det.profile.bias); });
@@ -41,7 +44,9 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
     if (th > 1e-9) q = qmul(qaxis(wr, th*180/Math.PI), q);
     const g = rotate(qconj(q), [0, G, 0]), a = rotate(qconj(q), acc);
     const rot = [wd[2], wd[0], wd[1]].map(v => v*180/Math.PI);          // ordine del browser: α(z), β(x), γ(y)
-    const k = { t, rot, acc: a, accG: [g[0] + a[0], g[1] + a[1], g[2] + a[2]] };
+    let k = { t, rot, acc: a, accG: [g[0] + a[0], g[1] + a[1], g[2] + a[2]] };
+    if (ios) k = { ...k, acc: k.acc.map(v => -v), accG: k.accG.map(v => -v) };
+    if (fix) k = normalizeSample(k, ios ? -1 : 1);
     if (face.ready) face.feed(k);
     det.feed(k); if (cal.state.step !== 'done' && cal.state.step !== 'idle') cal.tick(t, k);
     t += DT;

@@ -359,7 +359,24 @@ export class DiagRecorder {
   _phone2(){
     const E = this.engine, p2 = E.natpfPhone2;
     if (!p2) return;
-    if (p2 !== this._p2Hooked){ this._p2Hooked = p2; p2.onSwing?.((ev, s) => this.active && this._phoneSwing(ev, s, 'tel2.colpo')); }
+    if (p2 !== this._p2Hooked){
+      this._p2Hooked = p2; this._p2Logged = null;
+      p2.onSwing?.((ev, s) => this.active && this._phoneSwing(ev, s, 'tel2.colpo'));
+      // anche telefono e browser, calibrazione, profilo e gesti scartati del P2 (diagnostica 191023: iPhone come P2 con
+      // dritto e rovescio invertiti e nessuna riga che dicesse quale telefono fosse né come era calibrato)
+      p2.onCal?.(e => {
+        if (!this.active) return;
+        this.log('tel2.cal', pick(e, ['kind', 'step', 'idx', 'globalIdx', 'ok', 'why', 'want', 'dir', 'pass', 'stage', 'lift', 'strength', 'shot']));
+        if (e.kind === 'done' && e.profile) this.log('tel2.profilo', { profilo: e.profile, mano: p2.hand || null });
+      });
+      p2.onDiag?.((kind, d) => this.active && this._phoneDiag(kind, d, 'tel2'));
+    }
+    // profilo e dispositivo già noti all'inizio della registrazione (una volta per telefono)
+    if (this._p2Logged !== p2.link && (p2.profile || p2.device)){
+      this._p2Logged = p2.link;
+      if (p2.profile) this.log('tel2.profilo', { profilo: p2.profile, mano: p2.hand || null });
+      if (p2.device) this.log('tel2.dispositivo', p2.device);
+    }
     if (!p2.link || (!E.natpfSplit?.active && !p2.connected)) return;
     const L = p2.state || {}, st = p2.link.stats?.() || {}, R8 = Object.entries(st.rates || {});
     this.log('tel2.link', { collegamento: L.state || 'off', telefono: L.phone || null, visibile: L.vis ?? null, sensoriTelefonoMs: L.sensorAge ?? null, segnaleMs: Number.isFinite(L.beatAt) ? Math.round(performance.now() - L.beatAt) : null,
@@ -368,12 +385,12 @@ export class DiagRecorder {
   // dal telefono: gesto scartato sul telefono con il motivo (rientro, debole, corto, verso, in rientro, orientamento,
   // fase …), preparazione, segno toccato sul telefono, telefono e browser. picco: istante del gesto sull'orologio del
   // registro (ms), come in tel.colpo
-  _phoneDiag(kind, d = {}){
+  _phoneDiag(kind, d = {}, who = 'tel'){
     const picco = Number.isFinite(d.at) ? r(d.at*1000 - this.t0, 1) : null;
-    if (kind === 'scartato') this.log('tel.scartato', { perche: d.why || null, pk: d.peak ?? null, ampiezza: d.angle ?? null, dir: d.dir ?? null, picco });
-    else if (kind === 'prep') this.log('tel.prep', { dir: d.dir ?? null, pk: d.peak ?? null, ampiezza: d.angle ?? null, picco });
+    if (kind === 'scartato') this.log(`${who}.scartato`, { perche: d.why || null, pk: d.peak ?? null, ampiezza: d.angle ?? null, dir: d.dir ?? null, picco });
+    else if (kind === 'prep') this.log(`${who}.prep`, { dir: d.dir ?? null, pk: d.peak ?? null, ampiezza: d.angle ?? null, picco });
     else if (kind === 'segno'){ this.mark(d.text || 'segno dal telefono'); this.notify?.('Momento segnato dal telefono'); }
-    else if (kind === 'dispositivo') this.log('tel.dispositivo', d);
+    else if (kind === 'dispositivo') this.log(`${who}.dispositivo`, d);
   }
   _phoneRaw(k){
     this.rawBuf.push({ t: r(this.now() - this.t0, 1), k: r(k.t, 1), q: k.q ?? null, r: k.rot || null, a: k.acc || null, g: k.accG || null, via: k.path || null });

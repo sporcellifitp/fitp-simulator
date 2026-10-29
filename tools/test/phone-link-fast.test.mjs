@@ -147,7 +147,7 @@ test('diagnostica dal telefono: gesto scartato con il motivo, segno «qui è suc
     assert.deepEqual(got.map(g => g[0]), ['discard', 'mark', 'device']);
     assert.equal(got[0][1].why, 'in rientro'); assert.equal(got[0][1].peak, 640); assert.equal(got[0][1].dir, 0);
     assert.equal(got[1][1].text, 'segno dal telefono');
-    assert.deepEqual(got[2][1], { ua: 'Telefono di prova', wakeLock: true, motion: true, orientation: 'portrait-primary', screen: [412, 915, 3.5], version: '2026-10-23.2' });
+    assert.deepEqual(got[2][1], { ua: 'Telefono di prova', wakeLock: true, motion: true, orientation: 'portrait-primary', screen: [412, 915, 3.5], version: '2026-10-23.2', accSign: null });
   } finally { link.stop(); }
 });
 

@@ -14,6 +14,7 @@ import { swingMessage } from './swing-message.js';
 import { NATPF_BUILD } from './version.js';
 import { createWakeKeeper, createSensorWatch } from './phone-keep.js';
 import { gripSvg, GRIP_TEXT_PLAIN } from './grip-art.js';
+import { platformAccSign, createAccSign, normalizeSample } from './motion-sign.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
@@ -35,6 +36,10 @@ const ALLOW_FLAT = false;
 // direzione del colpo all'impatto e fa seguire la racchetta in gioco. Con la presa verticale la posa «pronto» segue il
 // telefono solo dopo 0,4 s fermo e lentamente: le pause della preparazione non spostano il riferimento della mira.
 const det = createSwingDetector(), face = createFaceTracker(ALLOW_FLAT ? {} : { quietHold: 400, relax: 2.5 });
+// accelerazione con il segno di Android su tutti i telefoni (motion-sign.js: Safari su iPhone la dà al contrario, e
+// dritto e rovescio risultavano invertiti); il segno si conferma con i tocchi sullo schermo
+const accSign = createAccSign({ prior: platformAccSign(navigator.userAgent, navigator.maxTouchPoints || 0) });
+let lastRawG = null;
 // ogni gesto porta con sé il piatto all'istante del picco (l'impatto)
 // … e la forma del colpo (stroke-shape.js): piano, verso della testa della racchetta, rotazione sul manico
 det.on('swing', s => { if (face.ready){ s.face = face.strokeFace(s.peakT, s.t - s.dur); s.head = face.headAt(s.peakT, s.axis); s.shape = strokeShape(face.history(), face.up, { peakT: s.peakT }); } });
@@ -235,7 +240,7 @@ const wakeState = () => awake.state;
 // quando il canale veloce non glielo porta
 const sendState = () => send({ t: 'st', s: sensor === 'off' ? 'sensors' : sensor, b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}) });
 // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
-const sendDevice = () => send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: screen.orientation?.type || null, sc: [screen.width, screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD });
+const sendDevice = () => send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: screen.orientation?.type || null, sc: [screen.width, screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign });
 // gesti che il telefono non manda come colpo, con il motivo: al computer solo se la diagnostica registra, al massimo 8 al
 // secondo (un tremolio continuo non deve intasare il collegamento)
 let discardWin = { at: 0, n: 0 };
@@ -271,7 +276,8 @@ async function enableSensors(){
   motionSeen = false;
   setTimeout(() => { if (!motionSeen && inputMode === 'motion') noMotion('nomotion'); }, 1500);
   const saved = ss.get('profile');
-  if (saved?.version === 4 && saved.input !== 'touch' && (saved.grip || 'upright') === grip){ det.setProfile(saved); det.run(); sensor = 'ready'; face.setRest(saved.gravity, saved.bias); }
+  // (profilo fatto con il segno dei sensori di prima, per esempio su iPhone prima della correzione: si ricalibra)
+  if (saved?.version === 4 && saved.input !== 'touch' && (saved.grip || 'upright') === grip && (saved.accSign ?? 1) === accSign.sign){ det.setProfile(saved); det.run(); sensor = 'ready'; face.setRest(saved.gravity, saved.bias); }
   else { sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); }
   sendState(); paint();
 }
@@ -285,7 +291,9 @@ function noMotion(why){
   }[why], 'miss');
 }
 function onMotion(e){
-  const k = sampleFromMotion(e, e.timeStamp || performance.now());   // istante dell'evento, non della lettura
+  const raw = sampleFromMotion(e, e.timeStamp || performance.now());   // istante dell'evento, non della lettura
+  lastRawG = raw.accG;
+  const k = normalizeSample(raw, accSign.sign);
   if (!k.rot && !k.acc) return;
   motionSeen = true; sensorWatch.feed(performance.now());
   // Presentation stream is disposable; reliable swing packets retain the real sensor peak.
@@ -347,7 +355,7 @@ function command(c){
   // dal computer: «Salta» durante la calibrazione, anche nel passo «fermo» → profilo semplice: verso, tipo di colpo e
   // forza vengono comunque dal gesto (manca solo il colpo tipico)
   if (c === 'skip' && sensor === 'cal' && inputMode === 'motion'){ const p = cal.skip(); det.setContext(phase); if (p){ sensor = 'ready'; sendState(); paint(); } }
-  if (c === 'confirm'){ const p = cal.confirm(); det.setContext(phase); if (p){ ss.set('profile', p); sensor = 'ready'; sendState(); paint(); } }
+  if (c === 'confirm'){ const p = cal.confirm(); det.setContext(phase); if (p){ ss.set('profile', { ...p, accSign: accSign.sign }); sensor = 'ready'; sendState(); paint(); } }
 }
 cal.on(e => { sendCal(e);
   // gesto successivo pronto: il «Riconosciuto» del gesto prima lascia subito il posto alla nuova freccia (come sul
@@ -442,6 +450,13 @@ document.addEventListener('visibilitychange', () => { if (document.hidden || sen
 // pagina sospesa dal browser e ripresa (Android): come il ritorno in primo piano
 document.addEventListener('resume', () => { if (!document.hidden && sensor !== 'off') onVisible(); });
 document.addEventListener('pointerdown', () => { if (sensor !== 'off') awake.tap(); }, { passive: true });
+// tocco con il telefono in mano: conferma del segno dei sensori (motion-sign.js). Se cambia, la calibrazione fatta con
+// il segno di prima non vale: si rifà
+document.addEventListener('pointerdown', () => {
+  if (!lastRawG || !accSign.vote(lastRawG)) return;
+  sendDevice();
+  if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); face.reset(); sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); sendState(); paint(); }
+}, { passive: true });
 addEventListener('pagehide', () => { try { conn && conn.close(); } catch (e){} });
 // di nuovo in primo piano: prima si riprende il blocco, poi si manda lo stato (il computer non deve vedere per un attimo
 // un blocco che manca); i sensori hanno il tempo di ripartire. Il computer non ha potuto rispondere mentre la pagina era
