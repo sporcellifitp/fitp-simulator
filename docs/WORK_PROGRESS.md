@@ -1057,3 +1057,7 @@ Lavoro in tre rami paralleli (worktree) con revisione avversaria, poi correzioni
 - [x] Pacchetto Cloudflare 2026-10-28.17 con `/natpf/turn.json` → `https://natpf-turn.s-porcelli.workers.dev/` (nome del
       Worker da creare: `natpf-turn`): `natpf-simulator-cloudflare-20261028-17.zip`, 138 file, 26.156.608 byte, sha256
       `464fafc5a50a2f7a2235be86e8c9a3f06c4d0d16a4b6cfdf88442014e367070e`. Guida per l'utente: `docs/GUIDA_TURN_CLOUDFLARE.md`.
+- [x] Worker `natpf-turn` creato dall'utente (30/10): prima «Cloudflare ha risposto 404» (valori di un'altra sezione di
+      Realtime, poi corretti con la chiave di «TURN Server»); il Worker ora toglie spazi e a capo dai valori, prova
+      anche `credentials/generate` e spiega 404/401 con le sole lunghezze (commit `be08240`, `20c1d0b`). L'utente
+      conferma: «ora funziona». Da verificare ancora: il telefono del P2 senza VPN con il .17 e `tel.strada`.
