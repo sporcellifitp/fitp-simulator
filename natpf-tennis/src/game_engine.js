@@ -764,7 +764,7 @@ export class NatpfTennisEngine {
   endVersus() {
     if (!this.versus?.active || this.playerRole === "p2" || this.versus.local) return; // la sessione locale la chiude endSplit
     this.versus = { active: !1, closing: !1 };
-    try { sessionStorage.removeItem(VERSUS_ROOM_KEY); } catch {}
+    try { sessionStorage.removeItem(VERSUS_ROOM_KEY); sessionStorage.removeItem("natpf.versus.checkpoint"); } catch {} // NATPF: anche il punteggio salvato (natpf_versus.CHECKPOINT_KEY)
     const room = this.roomId;
     room && room !== "default" &&
       fetch("/api/match/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room, snapshot: { closed: !0 } }) }).catch(() => {});

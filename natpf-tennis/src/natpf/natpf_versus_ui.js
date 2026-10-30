@@ -7,7 +7,7 @@
 //     chiusa o inesistente · rete che blocca il collegamento diretto), racchetta e visuale, «Sono pronto» ed «Esci»;
 //     sul telefono un avviso: l'invito si apre sul computer.
 // Lo stato arriva ogni 50 ms dal relay (/api/match/state) attraverso il motore (roomStatus, versusGuest).
-import { VERSUS, lobbyState, canStart, hostLobbyStatus, startLabel, guestState, guestLine, p2HoldWhy, createHoldReporter, opponentHealth, hostHoldText, guestHoldNotice } from './natpf_versus.js';
+import { VERSUS, lobbyState, canStart, hostLobbyStatus, startLabel, guestState, guestLine, p2HoldWhy, createHoldReporter, opponentHealth, hostHoldText, guestHoldNotice, CHECKPOINT_KEY, makeCheckpoint, checkpointFor } from './natpf_versus.js';
 import { createPhoneWatch, phoneHealthOf, holdText } from './natpf_phone_watch.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
@@ -110,14 +110,37 @@ export class NatpfVersusUi {
     if (this.ui.phoneHold) return { who: 'host', why: 'telefono' };
     return { who: 'host', why: 'pausa' };
   }
+  // punteggio salvato nella scheda dell'host (natpf_versus.makeCheckpoint): ripresa dopo un ricaricamento della pagina
+  clearCheckpoint(){ this._cpText = null; try { sessionStorage.removeItem(CHECKPOINT_KEY); } catch {} }
+  _checkpoint(inMatch){
+    const E = this.engine, info = { roomId: E.roomId, fmt: E.matchFormat?.id ?? null, gamesToWin: E.matchConfig?.gamesToWin ?? 1, score: E.score };
+    // partita appena iniziata nella stessa stanza, da 0-0: si riprende il punteggio salvato prima del ricaricamento
+    if (inMatch && !this._wasInMatch){
+      let cp = null; try { cp = JSON.parse(sessionStorage.getItem(CHECKPOINT_KEY) || 'null'); } catch {}
+      const s = checkpointFor(cp, info);
+      if (s){
+        Object.assign(E.score, s); E._syncScoreboardHUD?.(); E._setupPointServe?.({ showBanner: false });
+        this.ui.toast('Partita ripresa dal punteggio di prima del ricaricamento');
+        this.ui.diag?.recorder?.log?.('sfida.ripresa', { motivo: 'punteggio salvato', punteggio: s });
+      }
+    }
+    this._wasInMatch = inMatch;
+    if (E.phase === 'MATCH_OVER'){ if (this._cpText !== null) this.clearCheckpoint(); return; }
+    if (!inMatch) return;
+    const text = JSON.stringify(makeCheckpoint(info).score);
+    if (text === this._cpText) return;
+    this._cpText = text;
+    try { sessionStorage.setItem(CHECKPOINT_KEY, JSON.stringify(makeCheckpoint(info))); } catch {}
+  }
   tick(){
     const E = this.engine;
     if (this.p2){ this._tickGuest(); return; }
-    if (!this.hostActive){ this.p2Gone = 0; if (this.watch.state !== 'ok') this.watch.reset(); this.holdWhy = null; this.holdLeft = null; this._setWaiting(false); return; }
+    if (!this.hostActive){ this.p2Gone = 0; this._wasInMatch = false; if (this.watch.state !== 'ok') this.watch.reset(); this.holdWhy = null; this.holdLeft = null; this._setWaiting(false); return; }
     if (this.ui.lobby?.visible) this.paintLobby();
     const now = performance.now(), online = !!E.roomStatus?.p2Online;
     this.p2Gone = online ? 0 : (this.p2Gone || now);
     const inMatch = E._versusInMatch?.() && E.phase !== 'MATCH_OVER';
+    this._checkpoint(inMatch);
     const h = opponentHealth({ absentMs: this.p2Gone ? now - this.p2Gone : 0, hold: online ? E.roomStatus?.p2Hold : null, hostHidden: !!globalThis.document?.hidden });
     const a = this.watch.update(h, { inField: inMatch, rally: E.phase === 'RALLY' || E.phase === 'SERVE_TOSS', now });
     if (a) this._watchAction(a);

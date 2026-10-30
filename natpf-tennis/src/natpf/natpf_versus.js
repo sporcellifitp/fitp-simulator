@@ -205,3 +205,25 @@ export function guestHoldNotice(hold = {}, { hostName = 'Player 1', phoneText = 
   if (h.why === 'telefono') return { title: 'Partita in pausa', text: `Il telefono di ${hostName} è in pausa: riprende quando torna pronto.` };
   return { title: 'Partita in pausa', text: `${hostName} ha messo in pausa la partita.` };
 }
+
+/* ---------- punteggio salvato dall'host (ripresa dopo un ricaricamento) ---------- */
+// Prima, se la pagina dell'host si ricaricava a partita in corso, la stanza tornava (stesso codice, il P2 si ricollega)
+// ma la partita ripartiva da 0-0. Ora l'host salva il punteggio nella scheda (sessionStorage) a ogni cambio; la prossima
+// partita nella stessa stanza, con la stessa durata e da 0-0, riparte da lì. Si cancella a fine partita, tornando al
+// menu o lasciando la sfida: vale solo per il ricaricamento.
+export const CHECKPOINT_KEY = 'natpf.versus.checkpoint';
+export const CHECKPOINT_MAX_MS = 30 * 60e3;
+const SCORE_KEYS = ['playerPoints', 'opponentPoints', 'playerGames', 'opponentGames', 'server', 'deuceSide'];
+export function makeCheckpoint({ roomId, fmt = null, gamesToWin = 1, score = {} }, now = Date.now()){
+  return { roomId, fmt, gamesToWin, at: now, score: Object.fromEntries(SCORE_KEYS.map(k => [k, score[k]])) };
+}
+const zero = s => !s.playerPoints && !s.opponentPoints && !s.playerGames && !s.opponentGames;
+// il punteggio da riprendere per questa partita, o null
+export function checkpointFor(cp, { roomId, fmt = null, gamesToWin = 1, score = {} }, now = Date.now()){
+  if (!cp || typeof cp !== 'object' || !cp.score || cp.roomId !== roomId || cp.gamesToWin !== gamesToWin || (cp.fmt || null) !== (fmt || null)) return null;
+  if (!(now - cp.at >= 0 && now - cp.at <= CHECKPOINT_MAX_MS) || zero(cp.score) || !zero(score)) return null;
+  const s = cp.score;
+  if (![s.playerPoints, s.opponentPoints, s.playerGames, s.opponentGames].every(n => Number.isInteger(n) && n >= 0 && n < 50)) return null;
+  if (s.playerGames >= gamesToWin || s.opponentGames >= gamesToWin) return null;
+  return { ...s, server: s.server === 'opponent' ? 'opponent' : 'player', deuceSide: s.deuceSide !== false };
+}

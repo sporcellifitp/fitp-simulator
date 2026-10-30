@@ -189,6 +189,7 @@ export class NatpfUi {
     const E = this.engine;
     // Player 2 dell'invito: tornare al menu vuol dire lasciare la stanza (prima restava dentro e i suoi colpi passavano)
     if (E.playerRole === 'p2' && this.versus?.p2){ this.versus.leave(); return; }
+    this.versus?.clearCheckpoint?.();     // tornare al menu chiude la partita: il punteggio salvato serve solo a un ricaricamento
     if (this.training.active) this.training.stop({ completed: false, silent: true });
     this.events.abort();
     this.split?.end();

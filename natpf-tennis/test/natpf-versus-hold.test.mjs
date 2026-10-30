@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeWorld, $, fetches, visible } from './ui-world.mjs';
-import { p2HoldWhy, createHoldReporter, opponentHealth, hostHoldText, guestHoldNotice, HOLD_GRACE_MS } from '../src/natpf/natpf_versus.js';
+import { p2HoldWhy, createHoldReporter, opponentHealth, hostHoldText, guestHoldNotice, HOLD_GRACE_MS, CHECKPOINT_KEY, CHECKPOINT_MAX_MS, makeCheckpoint, checkpointFor } from '../src/natpf/natpf_versus.js';
 import { createMatchRelay } from '../scripts/match-relay.mjs';
 import { createLocalRelay } from '../src/natpf/natpf_p2p.js';
 
@@ -54,8 +54,8 @@ test('relay: il motivo del P2 arriva all’host (e si cancella), solo finché il
 });
 
 // host in partita 1v1 con un P2 collegato e pronto
-async function hostMatch(){
-  const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
+async function hostMatch(before = null){
+  const w = await makeWorld({ controller: 'mouse' }); before?.(); w.advance(300);
   const { E, lobby, hud, ui } = w;
   lobby.menu('play'); hud.selectedDifficulty = '1v1'; E._applyDifficultyTuning('1v1'); await E.createMultiplayerRoom(); await w.flush();
   lobby.setMode('friend'); lobby.go('match'); w.advance(300);
@@ -104,4 +104,34 @@ test('host: computer del P2 sparito → «si è scollegato»; torna → riprende
   assert.match(waitText('[data-versus-wait-text]'), /Riconnetti/);
   E.roomStatus = { ...E.roomStatus, p2Online: true }; w.advance(3500);
   assert.ok(!ui.versus.waiting && !E.natpfPaused);
+});
+
+test('punteggio salvato dall’host: solo stessa stanza e durata, da 0-0, recente, partita non finita', () => {
+  const info = { roomId: 'AT-AB12', fmt: 'singles', gamesToWin: 2 };
+  const cp = makeCheckpoint({ ...info, score: { playerPoints: 2, opponentPoints: 1, playerGames: 1, opponentGames: 0, server: 'opponent', deuceSide: false } }, 1000);
+  const zero = { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0 };
+  assert.deepEqual(checkpointFor(cp, { ...info, score: zero }, 2000), { playerPoints: 2, opponentPoints: 1, playerGames: 1, opponentGames: 0, server: 'opponent', deuceSide: false });
+  assert.equal(checkpointFor(cp, { ...info, roomId: 'AT-ZZZZ', score: zero }, 2000), null, 'altra stanza');
+  assert.equal(checkpointFor(cp, { ...info, gamesToWin: 1, score: zero }, 2000), null, 'altra durata');
+  assert.equal(checkpointFor(cp, { ...info, score: { ...zero, playerPoints: 1 } }, 2000), null, 'partita già avviata');
+  assert.equal(checkpointFor(cp, { ...info, score: zero }, 1000 + CHECKPOINT_MAX_MS + 1), null, 'troppo vecchio');
+  assert.equal(checkpointFor({ ...cp, score: { ...cp.score, playerGames: 2 } }, { ...info, score: zero }, 2000), null, 'partita già vinta');
+  assert.equal(checkpointFor(null, { ...info, score: zero }), null);
+});
+
+test('host che ricarica la pagina a partita in corso: stessa stanza, la nuova partita riparte dal punteggio salvato', async () => {
+  // partita a un game in questo mondo di prova (gamesToWin 1): 30-15 con il servizio al P2
+  let w = await hostMatch();
+  Object.assign(w.E.score, { playerPoints: 2, opponentPoints: 1, playerGames: 0, opponentGames: 0, server: 'opponent' });
+  w.advance(300);
+  const saved = sessionStorage.getItem(CHECKPOINT_KEY);
+  assert.ok(saved && JSON.parse(saved).score.playerPoints === 2, saved);
+  // «ricaricamento»: mondo nuovo con la scheda che conserva stanza e punteggio
+  const room = sessionStorage.getItem('natpf.versus.room');
+  w = await hostMatch(() => { sessionStorage.setItem(CHECKPOINT_KEY, saved); sessionStorage.setItem('natpf.versus.room', room); });
+  const { E } = w;
+  assert.deepEqual([E.score.playerPoints, E.score.opponentPoints, E.score.playerGames, E.score.opponentGames, E.score.server], [2, 1, 0, 0, 'opponent']);
+  // tornare al menu chiude la partita: niente ripresa la volta dopo
+  w.ui.backToMenu();
+  assert.equal(sessionStorage.getItem(CHECKPOINT_KEY), null);
 });
