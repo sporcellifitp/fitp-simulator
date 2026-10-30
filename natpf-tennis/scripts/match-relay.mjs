@@ -93,6 +93,9 @@ export function natpfSwingExtras(e = {}) {
     } catch {}
   }
   (e.hand === "left" || e.hand === "right") && (out.hand = e.hand);
+  // NATPF 1v1: ora dell'orologio di questo relay stimata dal computer del P2 all'invio del colpo (natpf_versus.p2SwingAgeMs:
+  // l'host scarta i colpi troppo vecchi). Solo un numero finito
+  typeof e.sentAtHost === "number" && Number.isFinite(e.sentAtHost) && (out.sentAtHost = e.sentAtHost);
   return out;
 }
 // publicUrl: indirizzo restituito nei link della stanza (stringa o funzione della richiesta). Il default è quello
@@ -199,6 +202,9 @@ export function createMatchRelay({ publicUrl = PUBLIC_URL } = {}) {
         tunnelUrl: r,
         // NATPF: bersaglio in campo dal corpo davanti alla webcam («segui il corpo», src/natpf/webcam_body_follow.js)
         body: bodyState(e),
+        // NATPF 1v1: ora di questo relay (Date.now()): il computer del P2 ci allinea il suo orologio (min-RTT, come
+        // pairing.createClock) e manda con i colpi l'ora del relay, per l'età del colpo sull'host
+        now: h,
       });
       return;
     }

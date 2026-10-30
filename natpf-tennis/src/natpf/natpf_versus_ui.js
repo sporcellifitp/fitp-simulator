@@ -30,6 +30,7 @@ export class NatpfVersusUi {
     this.reporter = createHoldReporter();   // P2: perché non può giocare, detto all'host
     this._buildWait();
     if (this.p2) this._bindGuest();
+    this._hookTiming();
     // il motore si ferma con la pausa: il controllo gira a parte, e durante la pausa l'host dice al P2 che è in pausa
     this._timer = setInterval(() => this.tick(), 250);
   }
@@ -132,9 +133,41 @@ export class NatpfVersusUi {
     this._cpText = text;
     try { sessionStorage.setItem(CHECKPOINT_KEY, JSON.stringify(makeCheckpoint(info))); } catch {}
   }
+  /* ---------- tempi dei colpi del P2 nella diagnostica (analisi del 30/10: prima misurare) ---------- */
+  // Il controller (motion_controls.js) può nascere dopo questa interfaccia: l'aggancio si rifà a ogni tick finché serve
+  _hookTiming(){
+    const mc = this.engine.motionController;
+    if (!mc || mc._versusTiming === this) return;
+    mc._versusTiming = this;
+    mc.onP2Stale = info => this._p2Stale(info);
+    mc.onP2Played = info => this._p2Played(info);
+  }
+  // host: colpo o lancio del P2 troppo vecchio, non giocato (natpf_versus.P2_STALE_MS)
+  _p2Stale(info = {}){
+    this.ui.diag?.recorder?.log?.('sfida.colpo_vecchio', { eta: info.eta ?? null, tipo: info.tipo || null, fase: this.engine.phase || null, n: info.n ?? null, max: info.max ?? null });
+  }
+  // host: colpo del P2 giocato, con l'età (ms dal picco sul telefono; null se il P2 non manda l'ora) e, se il motore lo
+  // ha già colpito in questo istante, il tempo del colpo come lo valuta (tempoMs: + anticipo, − ritardo; lo stesso
+  // dell'evento «racchetta», legato da n). Con il colpo in attesa del punto d'impatto il tempo arriva solo con «racchetta»
+  _p2Played(info = {}){
+    const R = this.ui.diag?.recorder; if (!R?.active) return;
+    const E = this.engine, L = E.natpfLastRacket;
+    const now = L && L.who === 'p2' && L.at === E.elapsedTime && (info.n == null || L.seq == null || L.seq === info.n) ? L : null;
+    R.log?.('sfida.colpo', { eta: info.eta ?? null, tipo: info.tipo || null, fase: E.phase || null, n: info.n ?? null, tempoMs: now && Number.isFinite(now.timing) ? +(1000*now.timing).toFixed(1) : null });
+  }
+  // P2: orologio dell'host (rtt e offset in ms, motion_controls.hostClockEstimate) nella diagnostica ogni ~5 s, da quando
+  // c'è la prima stima
+  _logClock(now){
+    const R = this.ui.diag?.recorder; if (!R?.active) return;
+    if (this._clockAt != null && now - this._clockAt < 5000) return;
+    const c = this.engine.motionController?.hostClockEstimate; if (!c) return;
+    this._clockAt = now;
+    R.log?.('sfida.orologio', { rtt: c.rtt, offset: c.offset });
+  }
   tick(){
     const E = this.engine;
-    if (this.p2){ this._tickGuest(); return; }
+    this._hookTiming();
+    if (this.p2){ this._tickGuest(); this._logClock(performance.now()); return; }
     if (!this.hostActive){ this.p2Gone = 0; this._wasInMatch = false; if (this.watch.state !== 'ok') this.watch.reset(); this.holdWhy = null; this.holdLeft = null; this._setWaiting(false); return; }
     if (this.ui.lobby?.visible) this.paintLobby();
     const now = performance.now(), online = !!E.roomStatus?.p2Online;

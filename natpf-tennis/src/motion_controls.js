@@ -4,7 +4,9 @@ import { WebcamHandTracker, handPoseFromLandmarks, handPoseFromFlow } from "./na
 // NATPF: colpi dalla traccia della mano (un evento per colpo) e scelta della mano da seguire, vedi src/natpf/webcam_strokes.js
 import { createStrokeTracker, pickHand, trackOthers, handPoint, handSize } from "./natpf/webcam_strokes.js";
 import { relayedNatpf } from "./natpf/natpf_skill.js";
-import { newSwings } from "./natpf/natpf_versus.js";
+import { newSwings, p2SwingAgeMs, p2SwingStale, P2_STALE_MS } from "./natpf/natpf_versus.js";
+// NATPF 1v1: orologio del computer del P2 allineato a quello del relay (min-RTT, come telefono ↔ computer)
+import { createClock } from "@natpf/tennis/pairing.js";
 // NATPF: misure della webcam (camera, inferenza, età del dato) e carico del modello delle mani, vedi src/natpf/webcam_load.js
 import { createLoadGovernor, createWebcamStats, WEBCAM_LEVELS } from "./natpf/webcam_load.js";
 import { PoseStrokeSource, POSE_INPUT } from "./natpf/webcam_pose_strokes.js";
@@ -124,8 +126,26 @@ export class MotionController {
       (this.phonePollInitialized = !1),
       (this.p2PhonePollInitialized = !1),
       (this.lastProcessedPhoneSeq = 0),
-      (this.lastProcessedP2PhoneSeq = 0)),
+      (this.lastProcessedP2PhoneSeq = 0),
+      this._hostClock && this._hostClock.reset()),
       t && (this.role = String(t).toLowerCase() === "p2" ? "p2" : "p1");
+  }
+  // NATPF 1v1 (computer del P2): orologio dell'host stimato dalle letture dello stato (campo now del relay: nella sfida
+  // senza server il relay gira nel browser dell'host, in LAN nel server). Vale lo scambio con il viaggio più breve
+  // (pairing.createClock): relay ≈ locale + offset
+  get hostClock() {
+    return (this._hostClock ||= createClock());
+  }
+  // stima corrente { offset, rtt } in ms, o null prima della prima lettura con l'ora del relay
+  get hostClockEstimate() {
+    const c = this._hostClock;
+    return c && c.ok ? { offset: Math.round(c.off), rtt: Math.round(c.rtt) } : null;
+  }
+  // campo del colpo e del lancio del P2: ora del relay stimata all'invio (natpf_versus.p2SwingAgeMs sull'host). Niente
+  // finché l'orologio non ha un campione: l'host gioca il colpo come prima
+  _sentAtHost() {
+    const c = this._hostClock;
+    return c && c.ok ? { sentAtHost: Math.round(c.toRemote(Date.now())) } : {};
   }
   on(e, t) {
     return (
@@ -227,6 +247,8 @@ export class MotionController {
               // NATPF: colpo speciale, mira, latenza e mano del telefono del P2, per l'host come per il P1
               ...(l.natpf ? { natpf: l.natpf } : {}),
               ...(l.hand ? { hand: l.hand } : {}),
+              // NATPF 1v1: ora dell'host all'invio, per l'età del colpo sull'host
+              ...this._sentAtHost(),
             }),
           })
             .then((r) => (r.ok ? r.json() : null))
@@ -302,6 +324,8 @@ export class MotionController {
               pitch: s.pitch,
               roll: s.roll,
               source: s.source,
+              // NATPF 1v1: ora dell'host all'invio: un lancio vecchio non fa partire il servizio del P2
+              ...this._sentAtHost(),
             }),
           })
             .then((r) => (r.ok ? r.json() : null))
@@ -1275,11 +1299,19 @@ export class MotionController {
           // online) e, dal P2, se è pronto in lobby e se in partita non può giocare (hold: telefono scollegato, pagina
           // nascosta…, natpf_versus.p2HoldWhy; vuoto = può giocare)
           const t = `?room=${encodeURIComponent(this.roomId || "default")}&role=${encodeURIComponent(this.role || "p1")}&touch=${this.role === "p2" ? "p2" : "p1"}${this.role === "p2" && this.versusReady != null ? `&ready=${this.versusReady ? 1 : 0}` : ""}${this.role === "p2" && this.versusHold !== undefined ? `&hold=${encodeURIComponent(this.versusHold || "")}` : ""}`,
+            t0 = Date.now(),
             i = await fetch(`/api/match/state${t}`, { cache: "no-store" });
           // NATPF 1v1: stanza che non esiste (link vecchio o sbagliato)
           if (i.status === 404 && this.role === "p2") { typeof this.onRoomState == "function" && this.onRoomState({ invalidRoom: !0 }); return; }
           if (i.ok) {
-            const a = await i.json();
+            const a = await i.json(),
+              t1 = Date.now(),
+              relayAt = typeof a.now == "number" && Number.isFinite(a.now) ? a.now : null;
+            // NATPF 1v1: il P2 allinea il suo orologio a quello del relay (lettura partita a t0, risposta a t1, ora del
+            // relay a.now). L'host misura l'età dei colpi del P2 sull'orologio del relay, portato a ora (relayNow): nella
+            // sfida senza server è il suo stesso orologio, in LAN quello del server
+            this.role === "p2" && relayAt != null && this.hostClock.add(t0, relayAt, t1);
+            const relayNow = relayAt != null ? relayAt + (Date.now() - t1) : Date.now();
             // NATPF 1v1: relay ripartito (epoca nuova): i contatori dei colpi ricominciano da capo
             a.epoch && a.epoch !== this.relayEpoch && (this.relayEpoch != null && ((this.lastProcessedPhoneSeq = 0), (this.lastProcessedP2PhoneSeq = 0)), (this.relayEpoch = a.epoch));
             typeof this.onRoomState == "function" && this.onRoomState(a);
@@ -1367,6 +1399,16 @@ export class MotionController {
               // colpo del servizio nella stessa lettura perdevano il lancio)
               for (const o of newSwings(h.swingHistory, this.lastProcessedP2PhoneSeq, h.lastSwing)) {
                 (this.lastProcessedP2PhoneSeq = o.seq), (this.p2PhoneState.lastSwing = o);
+                // NATPF 1v1: sull'host un colpo o un lancio del P2 più vecchio di P2_STALE_MS (dal picco sul telefono,
+                // natpf_versus.p2SwingAgeMs) non si gioca: resta contato come letto e lo si dice alla diagnostica
+                // (onP2Stale). Prima si giocava sempre: un lancio arrivato 2–3 s dopo faceva partire il servizio del P2.
+                // Senza l'ora dell'host nel colpo (P2 di prima, orologio non ancora stimato) si gioca come prima
+                const age = this.role === "p2" ? null : p2SwingAgeMs(o, relayNow),
+                  info = { eta: age == null ? null : Math.round(age), tipo: o.type === "toss" ? "toss" : "swing", seq: o.seq, n: o.natpf?.seq ?? null };
+                if (p2SwingStale(age)) {
+                  try { this.onP2Stale?.({ ...info, max: P2_STALE_MS }); } catch (x) { console.error(x); }
+                  continue;
+                }
                 o.type === "toss"
                   ? this._emitP2Toss({
                       source: "phone",
@@ -1393,6 +1435,8 @@ export class MotionController {
                       natpf: relayedNatpf(o),
                       hand: o.hand,
                     });
+                // NATPF 1v1: età del colpo giocato (null senza l'ora dell'host), per la diagnostica dell'host
+                if (this.role !== "p2") try { this.onP2Played?.(info); } catch (x) { console.error(x); }
               }
             } else
               this.p2PhonePollInitialized ||
