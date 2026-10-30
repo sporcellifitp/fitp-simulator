@@ -987,4 +987,10 @@ sembrava andare meglio. Il rapporto non aveva trovato la causa (solo una condizi
       `natpf-simulator-cloudflare-20261028-16.zip` = `natpf-tennis/dist` + `_headers`, 150 file, 26.142.488 byte, sha256
       `9aaeb5eef8e2b21a16e1b2a7c24b953b0611a5ae030da9c56d8686299be6b1aa`; estratto e provato come sito statico con
       `tools/e2e/natpf-1v1-p2p.mjs` (DIST=cartella estratta): 27/27, 21 colpi del P2 con i dati del telefono, snapshot più
-      vecchio 65 ms. Nessun pacchetto LAN .16.
+      vecchio 65 ms.
+- [x] Pacchetto LAN Windows 2026-10-28.16 (richiesto dall'utente il 30/10, dopo il push): `natpf-tennis/lan/pacchetto.mjs`
+      con `npm run build`, Node.js 22.22.0 win-x64 (sha256 `c97fa376…66a645c77a` uguale a SHASUMS256 di nodejs.org):
+      `natpf-simulator-lan-windows-20261028-16.zip`, 316 voci, 61.347.924 byte, sha256
+      `b054396ed2b0eec3ab1d4ed623010276164df09eb0d6e9e7a38ffe892df1b138`, nessun certificato né chiave. Estratto e provato
+      (Linux): certificato, server HTTPS, versione 2026-10-28.16, relay con `p2Hold`; Chromium: gioco, «Sfida un amico» con
+      la stanza LAN, pagina del telefono, nessun errore in console. Non provato su Windows.

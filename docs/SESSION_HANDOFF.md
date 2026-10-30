@@ -13,8 +13,8 @@ Commit `69f1563` (stato compatto e a pezzi, una lettura alla volta, pausa per tu
 «Riconnetti», id di ripresa, canale fino a 30 s), il commit del punteggio salvato dall'host, più documenti e versione
 .16. Gioco 534/534, sito 164/164, `tools/e2e/natpf-1v1-p2p.mjs` 27/27 (22/27 sulla `2734cd8`, che si blocca come nello
 screenshot). Pacchetto Cloudflare `natpf-simulator-cloudflare-20261028-16.zip` (sha256 `9aaeb5ee…99be6b1aa`), solo nella
-cartella temporanea della sessione; nessun pacchetto LAN .16 (il guasto è solo della versione senza server).
-Push non fatto (solo con autorizzazione esplicita).
+cartella temporanea della sessione, e LAN `natpf-simulator-lan-windows-20261028-16.zip` (sha256 `b054396e…2df1b138`).
+Push autorizzato dall'utente il 30/10 e fatto.
 Da provare dal vivo: la sfida Cloudflare tra due computer su reti diverse con due telefoni, almeno due game; spegnere
 lo schermo del telefono del P2 a metà scambio (pausa per tutti e due, punto rigiocato); «Riconnetti».
 Prossima azione: l'utente pubblica il .16 su Cloudflare e riprova la partita al meglio di 3 con il P2; poi decidere se
