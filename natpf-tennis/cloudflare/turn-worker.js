@@ -30,6 +30,10 @@
 
 const TTL = 86400;   // 24 h: un collegamento lungo tiene le credenziali con cui è nato
 const API = id => `https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(id)}/credentials/generate-ice-servers`;
+// indirizzo più vecchio della stessa API (developers.cloudflare.com/realtime/turn/replacing-existing/): risponde con un
+// solo oggetto { urls, username, credential }. Si prova se il primo dà 404 (prova dal vivo del 30/10: 404 con ID e token
+// delle lunghezze giuste)
+const API_OLD = id => `https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(id)}/credentials/generate`;
 // porta 53: i browser la bloccano (Cloudflare la offre per altri usi), inutile mandarla
 const PORT_53 = /:53(?:[?/]|$)/;
 
@@ -68,7 +72,7 @@ const clean = v => String(v ?? '').trim().replace(/^["'«]+|["'»]+$/g, '').trim
 export function explain(status, id, token){
   const lens = `TURN_KEY_ID ${id.length} caratteri, TURN_KEY_API_TOKEN ${token.length} caratteri`;
   const swapped = id.length > token.length ? ' Sembrano scambiati: l’ID di solito è il più corto (32 caratteri), il token il più lungo (64).' : '';
-  if (status === 404) return `Cloudflare non trova una chiave TURN con questo ID (404). TURN_KEY_ID deve essere il «Turn Token ID» della chiave creata in Realtime → TURN (non l’ID di un’app SFU né quello dell’account).${swapped} (${lens})`;
+  if (status === 404) return `Cloudflare non trova una chiave TURN con questo ID (404, provati i due indirizzi dell’API). TURN_KEY_ID deve essere il «Turn Token ID» della chiave creata in Realtime → TURN (non l’ID di un’app SFU né quello dell’account).${swapped} (${lens})`;
   if (status === 401 || status === 403) return `Cloudflare non accetta il token (${status}): TURN_KEY_API_TOKEN deve essere l’«API Token» della stessa chiave TURN.${swapped} (${lens})`;
   return `Cloudflare ha risposto ${status} (${lens})`;
 }
@@ -84,13 +88,11 @@ export default {
     if (!c.ok) return reply(403, { ok: false, error: 'origine non permessa' }, c.headers);
     const id = clean(env.TURN_KEY_ID), token = clean(env.TURN_KEY_API_TOKEN);
     if (!id || !token) return reply(500, { ok: false, error: 'variabili TURN_KEY_ID e TURN_KEY_API_TOKEN da impostare nel Worker' }, c.headers);
+    const ask = url => fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ttl: TTL }) });
     let res;
     try {
-      res = await fetch(API(id), {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ttl: TTL }),
-      });
+      res = await ask(API(id));
+      if (res.status === 404) res = await ask(API_OLD(id));
     } catch { return reply(502, { ok: false, error: 'Cloudflare non raggiungibile' }, c.headers); }
     // il codice e cosa controllare: il corpo dell'errore di Cloudflare non torna al browser
     if (!res.ok) return reply(502, { ok: false, error: explain(res.status, id, token) }, c.headers);

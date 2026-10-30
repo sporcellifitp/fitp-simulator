@@ -89,6 +89,10 @@ test('Worker TURN: valori copiati con spazi, a capo o virgolette funzionano; 404
   // ID e token scambiati: lo dice
   const sw = await call({ env: { ...ENV, TURN_KEY_ID: tok64, TURN_KEY_API_TOKEN: id32 }, cf: () => new Response('{}', { status: 404 }) });
   assert.match(sw.body.error, /scambiati/); assert.match(sw.body.error, /TURN_KEY_ID 64 caratteri, TURN_KEY_API_TOKEN 32 caratteri/);
+  assert.deepEqual(nf.calls.map(c => c.url.split('/credentials/')[1]), ['generate-ice-servers', 'generate'], 'su 404 anche l’indirizzo vecchio');
+  // l'indirizzo vecchio risponde (un solo oggetto): credenziali date
+  const old = await call({ cf: (() => { let n = 0; return () => n++ ? new Response(JSON.stringify({ iceServers: { urls: ['turns:turn.cloudflare.com:443?transport=tcp'], username: 'u', credential: 'c' } }), { status: 201 }) : new Response('{}', { status: 404 }); })() });
+  assert.equal(old.res.status, 200); assert.deepEqual(old.body.iceServers, [{ urls: ['turns:turn.cloudflare.com:443?transport=tcp'], username: 'u', credential: 'c' }]);
   assert.match(explain(401, id32, tok64), /non accetta il token/);
   assert.match(explain(500, 'x', 'y'), /ha risposto 500/);
 });
