@@ -25,7 +25,7 @@ export const splitInputOf = v => (v === 'webcam' ? 'webcam' : 'phones');
 // Stato di un giocatore con la webcam per due (funzione pura): webcam spenta, mano cercata, mano vista
 export function splitCamStatus({ active = false, seen = false, error = null } = {}){
   if (!active) return error ? { state: 'ko', title: error.badge, sub: error.text } : { state: 'wait', title: 'Webcam spenta', sub: 'Accendi la webcam qui sopra' };
-  return seen ? { state: 'ok', title: 'Mano vista ✓', sub: 'Pronto: un colpo veloce e dritto è un colpo' } : { state: 'on', title: 'Alza la mano che colpisce', sub: 'Nella tua metà dell’inquadratura, con il polso visibile' };
+  return seen ? { state: 'ok', title: 'Mano vista ✓', sub: 'Pronto: un colpo veloce e dritto è un colpo' } : { state: 'on', title: 'Alza la mano che colpisce', sub: 'Dalla tua parte dell’inquadratura, con il polso visibile' };
 }
 const PHONE_ERR = { denied: 'Sensori negati sul telefono: ricarica la pagina e consenti', nomotion: 'Il browser del telefono non manda i sensori: usa Chrome (Android) o Safari (iPhone)', insecure: 'Pagina senza https: i sensori non funzionano' };
 

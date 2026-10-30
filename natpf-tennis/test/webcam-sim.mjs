@@ -279,3 +279,114 @@ export function engineView(ev, hand){
   const shot = ev.kind === 'toss' ? 'lob(lancio)' : ev.shotType;
   return { side, shot, label: `${side === 'forehand' ? 'FH' : side === 'backhand' ? 'BH' : '?'}·${shot}` };
 }
+
+// ---------- Webcam «argon» (predefinita, motion_controls._argonFrame) da 1 a 4 m ----------
+// Camere: sensore 16:9 con il suo campo orizzontale; «prima» la webcam si apriva a 640×480 (4:3: di solito i lati del
+// sensore tagliati, campo più stretto), «dopo» al formato dentro 1280×720 (webcam_roi.js). Integrate dei portatili
+// (720p, 70–78°, all'altezza del portatile) ed esterne (1080p, 78–90°, sopra lo schermo e inclinate in giù).
+export const ARGON_CAMS = {
+  'portatile 720p 70°': { hfovDeg: 70, nativeW: 1280, nativeH: 720, Hc: 1.1, tiltDeg: 0 },
+  'portatile 720p 78°': { hfovDeg: 78, nativeW: 1280, nativeH: 720, Hc: 1.1, tiltDeg: 0 },
+  'esterna 1080p 78°': { hfovDeg: 78, nativeW: 1920, nativeH: 1080, Hc: 1.5, tiltDeg: 10 },
+  'esterna 1080p 90°': { hfovDeg: 90, nativeW: 1920, nativeH: 1080, Hc: 1.5, tiltDeg: 10 },
+};
+// formato in cui si apre la camera: { w, h, hfovDeg } (campo orizzontale dell'immagine data)
+export function argonCapture(cam, after){
+  if (!after) return { w: 640, h: 480, hfovDeg: 2*Math.atan(Math.tan(cam.hfovDeg*Math.PI/360)*.75)*180/Math.PI };
+  const k = Math.min(1, 1280/cam.nativeW, 720/cam.nativeH);
+  return { w: Math.round(cam.nativeW*k), h: Math.round(cam.nativeH*k), hfovDeg: cam.hfovDeg };
+}
+// Modello delle mani IPOTIZZATO (non misurato oltre i 3 m; tarato perché a 2–3 m con 640×480 4:3 veda la mano quasi
+// sempre, come l'81% dei fotogrammi del video dell'E14 con il mosso): il palmo si trova se la mano è almeno
+// detMin–detFull della larghezza dell'immagine data al modello (ridotta a 192×192 per la ricerca del palmo); una mano già
+// seguita resta se ha abbastanza pixel veri (trkPx); il mosso nell'esposizione oltre metà della mano la fa perdere.
+// Rumore dei punti: noisePx pixel dell'immagine data al modello più noiseRel della mano.
+export const ARGON_MODEL = { detMin: .014, detFull: .03, trkPxMin: 5, trkPxFull: 12, blurLo: .4, blurHi: 1.2, exposure: 1/60, noisePx: 1, noiseRel: .03, maxModelW: 640 };
+const ramp = (v, a, b) => Math.max(0, Math.min(1, (v - a)/(b - a)));
+const FULL_ROI = { x: 0, y: 0, w: 1, h: 1, full: true };
+// controller per la webcam argon: come makeFake, con il modo «argon», la camera dell'esperimento e un canvas finto per
+// il ritaglio (il codice di prima non lo usa)
+export function makeArgonFake(MC, { cap, hand = 'right', canToss = () => false } = {}){
+  const f = makeFake(MC, { aspect: cap.h/cap.w, hand, canToss });
+  Object.assign(f, { webcamMode: 'argon', latestHandSeenAt: null, lastWebcamTriggerMs: 0 });
+  f.videoElem.videoWidth = cap.w; f.videoElem.videoHeight = cap.h;
+  f._roiCtx = { canvas: { width: 0, height: 0 }, drawImage(){} };
+  return f;
+}
+// ciclo a 60 Hz con il modello ipotizzato: pathAt(c) → punto 3D della mano al tempo c (o null); il risultato arriva
+// sul ritaglio dato al modello (f._mpRoi al momento dell'invio) con i punti nelle sue coordinate
+function runArgonLoop(f, { total, fps, lat, rng, cap, proj, pathAt, flow = true, M = ARGON_MODEL }){
+  const realNow = performance.now; let NOW = 0; performance.now = () => NOW;
+  const tanH = Math.tan(cap.hfovDeg*Math.PI/360), aspect = cap.h/cap.w;
+  const stats = { sent: 0, seen: 0, inImage: 0, crop: 0, inputPx: 0 };
+  let tracked = false;
+  const look = c => { const P = pathAt(c); if (!P) return null; const p = proj(P); return p.depth > .2 ? { ...p, size: .095/(2*p.depth*tanH) } : null; };
+  if (flow) f.offscreenCtx = flowCtx(f, c => { const h = look(c); if (!h || h.S < 0 || h.S > 1 || h.y < 0 || h.y > 1) return []; const r = Math.max(.008, h.size*.8); return [{ S: h.S, y: h.y, rx: r, ry: r*1.1, c: .9 }]; }, 4242);
+  try {
+    let inflight = null, frameT = 0;
+    f.mpHands = { send: () => { const roi = f._mpRoi && !f._mpRoi.full ? { ...f._mpRoi } : FULL_ROI; inflight = { capT: frameT, doneT: NOW + lat*(.85 + .3*rng()), roi }; return Promise.resolve(); } };
+    for (let T = 0; T <= total; T += 1/60){
+      NOW = T*1000;
+      const k = Math.floor((T - .008)*fps); frameT = Math.max(0, k/fps); f.videoElem.currentTime = frameT;
+      if (inflight && inflight.doneT <= NOW){
+        const { capT, roi } = inflight; inflight = null; f._mpBusy = false;
+        const h = look(capT), inputW = roi.full ? cap.w : Math.min(M.maxModelW, roi.w*cap.w);
+        stats.sent++; stats.inputPx += inputW*inputW*aspect; if (!roi.full) stats.crop++;
+        let lm = null;
+        if (h && h.S >= 0 && h.S <= 1 && h.y >= 0 && h.y <= 1){
+          stats.inImage++;
+          const rx = 1 - h.S, inRoi = rx >= roi.x && rx <= roi.x + roi.w && h.y >= roi.y && h.y <= roi.y + roi.h;
+          const hb = look(capT + M.exposure), blur = hb ? Math.hypot(hb.S - h.S, (hb.y - h.y)*aspect)/h.size : 0;
+          const px = h.size*Math.min(cap.w, inputW/roi.w), det = ramp(h.size/roi.w, M.detMin, M.detFull), trk = ramp(px, M.trkPxMin, M.trkPxFull);
+          const p = inRoi ? (tracked ? trk : Math.min(det, trk))*(1 - ramp(blur, M.blurLo, M.blurHi)) : 0;
+          if (rng() < p){
+            const sd = Math.hypot(M.noisePx*roi.w/inputW, M.noiseRel*h.size);
+            const full = handLandmarks({ S: h.S + gauss(rng)*sd, y: h.y + gauss(rng)*sd, size: h.size, aspect, angle: .3 });
+            lm = full.map(q => ({ x: (q.x - roi.x)/roi.w, y: (q.y - roi.y)/roi.h, z: 0 }));
+          }
+        }
+        tracked = !!lm; if (lm) stats.seen++;
+        f._onArgonHandResults({ multiHandLandmarks: lm ? [lm] : [] });
+      }
+      f._processWebcamFrame();
+    }
+  } finally { performance.now = realNow; }
+  return stats;
+}
+// colpo completo in 3D (strokePath) a D metri dalla camera cam (after false: 640×480 come prima, true: formato nuovo)
+export function runArgonTrial(MC, { stroke, hand = 'right', D = 2, cam, after = true, amp = 1, tempo = 1, fps = 30, lat = 30, seed = 1, M = ARGON_MODEL }){
+  const rng = mulberry32(seed), cap = argonCapture(cam, after), f = makeArgonFake(MC, { cap, hand });
+  const path = strokePath(stroke, { hand, amp, tempo, x0: (rng() - .5)*.5, hScale: .88 + rng()*.17 });
+  const proj = makeCamera({ D, Hc: cam.Hc, tiltDeg: cam.tiltDeg, hfovDeg: cap.hfovDeg, aspect: cap.w/cap.h }), lead = 1.2;
+  const stats = runArgonLoop(f, { total: lead + path.tEnd + .3, fps, lat, rng, cap, proj, pathAt: c => path.at(c - lead), M });
+  return { events: f.events.map(e => ({ ...e, ts: e.t/1000 - lead })), path, stats };
+}
+// lo swing della guida della webcam («uno swing della mano verso sinistra o verso destra quando la palla arriva»): la
+// mano attraversa davanti al corpo di width metri in T secondi (profilo minimum-jerk, un po' in avanti a metà e rise
+// metri in su), resta ferma 0,4 s e torna in back×T secondi. dir: verso nel mondo (+1 = verso la destra di chi gioca:
+// rovescio del destro, dritto del mancino). Eventi con ts dall'inizio dello swing (s)
+export function runArgonSwing(MC, { dir = -1, width = .8, T = .25, rise = .1, back = 4, hand = 'right', D = 2, cam, after = true, fps = 30, lat = 30, seed = 1, M = ARGON_MODEL }){
+  const rng = mulberry32(seed), cap = argonCapture(cam, after), f = makeArgonFake(MC, { cap, hand });
+  const proj = makeCamera({ D, Hc: cam.Hc, tiltDeg: cam.tiltDeg, hfovDeg: cap.hfovDeg, aspect: cap.w/cap.h }), lead = 1.2;
+  const x0 = (rng() - .5)*.4 + (hand === 'left' ? -1 : 1)*.1, A = x0 - dir*width/2, B = x0 + dir*width/2, y0 = 1.05 + (rng() - .5)*.15;
+  const pathAt = c => {
+    const t = c - lead;
+    if (t < 0) return [A + .01*Math.sin(3*c), y0 + .01*Math.sin(2*c), .25];
+    if (t <= T){ const s = mj(t/T); return [A + (B - A)*s, y0 + rise*s, .25 + .15*Math.sin(Math.PI*s)]; }
+    if (t <= T + .4) return [B, y0 + rise, .25];
+    const s = mj((t - T - .4)/(back*T)); return [B + (A - B)*s, y0 + rise*(1 - s), .25];
+  };
+  const stats = runArgonLoop(f, { total: lead + T + .4 + back*T + .4, fps, lat, rng, cap, proj, pathAt, M });
+  // lo swing resta nell'inquadratura (inizio, metà e fine con la mano dentro): vicino alla camera uno swing largo esce
+  const inFrame = [0, T/2, T].every(t => { const p = proj(pathAt(lead + t)); return p.S > .03 && p.S < .97 && p.y > .03 && p.y < .97; });
+  return { events: f.events.map(e => ({ ...e, ts: e.t/1000 - lead })), stats, inFrame };
+}
+// chi gioca fermo in attesa (dondola, sposta la mano di qualche centimetro) per total secondi: colpi falsi
+export function runArgonIdle(MC, { hand = 'right', D = 2, cam, after = true, total = 8, fps = 30, lat = 30, seed = 1, sway = .05, M = ARGON_MODEL }){
+  const rng = mulberry32(seed), cap = argonCapture(cam, after), f = makeArgonFake(MC, { cap, hand });
+  const proj = makeCamera({ D, Hc: cam.Hc, tiltDeg: cam.tiltDeg, hfovDeg: cap.hfovDeg, aspect: cap.w/cap.h });
+  const ph = [rng()*6, rng()*6, rng()*6], x0 = (rng() - .5)*.4, mir = hand === 'left' ? -1 : 1;
+  const pathAt = c => [x0 + mir*.18 + sway*Math.sin(1.3*c + ph[0]) + .5*sway*Math.sin(3.1*c + ph[1]), 1.05 + .6*sway*Math.sin(2.2*c + ph[2]), .3 + .4*sway*Math.sin(.9*c)];
+  const stats = runArgonLoop(f, { total, fps, lat, rng, cap, proj, pathAt, M });
+  return { events: f.events, stats };
+}

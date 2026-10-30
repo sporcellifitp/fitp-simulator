@@ -10,7 +10,8 @@ import { createClock } from "@natpf/tennis/pairing.js";
 // NATPF: misure della webcam (camera, inferenza, età del dato) e carico del modello delle mani, vedi src/natpf/webcam_load.js
 import { createLoadGovernor, createWebcamStats, WEBCAM_LEVELS } from "./natpf/webcam_load.js";
 import { PoseStrokeSource, POSE_INPUT } from "./natpf/webcam_pose_strokes.js";
-import { DuoTracker, DUO, DUO_PLAYERS, widestCamera, cameraAttempts } from "./natpf/webcam_duo.js";
+import { DuoTracker, DUO_PLAYERS, widestCamera, cameraAttempts } from "./natpf/webcam_duo.js";
+import { ROI_FULL, RoiPlanner, roiToFull, roiPixels, singleCameraAttempts } from "./natpf/webcam_roi.js";
 import { ARGON_TRACK, argonPickHand, argonBridging, argonBridgeStart, argonNearEdge, argonHandSize, argonScale, argonSameHand, argonHandPoint, argonTrailEvent, argonFlowBlob } from "./natpf/webcam_argon_track.js";
 // NATPF: colpi della webcam dal movimento dell'immagine (rifacimento del 28–29/10), vedi src/natpf/webcam_motion.js
 import { createMotionStrokes, grayFromRGBA, swingSpeed, MOTION } from "./natpf/webcam_motion.js";
@@ -534,7 +535,8 @@ export class MotionController {
           (this.videoElem.muted = !0)),
         (this.videoElem.srcObject = e),
         await this.videoElem.play(),
-        this.webcamDuo && (await this._applyCameraSize(e)),
+        // NATPF: webcam per due al campo più largo; per uno (argon) 1280×720 se la camera lo dà a ≥24 fps (webcam_roi.js)
+        (this.webcamDuo || this.webcamMode === "argon") && (await this._applyCameraSize(e)),
         this._watchTrackEnd(e),
         this._wcStart(e),
         (this.webcamActive = !0),
@@ -583,7 +585,7 @@ export class MotionController {
       this.webcamStream = e;
       this.videoElem.srcObject = e;
       await this.videoElem.play();
-      this.webcamDuo && (await this._applyCameraSize(e));
+      (this.webcamDuo || this.webcamMode === "argon") && (await this._applyCameraSize(e));
       this._watchTrackEnd(e);
       this.hasPrevFrame = !1; this._lastNewFrameAt = performance.now();
       this._watchFrames();
@@ -617,6 +619,7 @@ export class MotionController {
     this._motion && this._motion.reset(); this._motionWaiting = !1;
     this._argonHand = null; this._argonStalls = 0; this._argonSize = null;
     this._duo = null; this._hasNewDuo = false; this._duoList = [];
+    this._roiPlan = null; this._mpRoi = ROI_FULL; this._mpResultAt = null;
   }
   // NATPF: livello di carico del modello delle mani (webcam_load.js); prima dell'accensione quello di partenza
   _wcLevel() {
@@ -646,7 +649,7 @@ export class MotionController {
     const tr = stream && stream.getVideoTracks && stream.getVideoTracks()[0],
       st = (tr && tr.getSettings && tr.getSettings()) || {};
     this.webcamInfo = {
-      chiesto: { w: 640, h: 480, fps: 30 },
+      chiesto: this._camAsked || { w: 640, h: 480, fps: 30 },
       ottenuto: { w: st.width ?? null, h: st.height ?? null, fps: Number.isFinite(st.frameRate) ? Math.round(st.frameRate * 10) / 10 : null },
       nome: (tr && tr.label) || null,
       livello: this._wcLevel().id,
@@ -771,6 +774,10 @@ export class MotionController {
     const now = performance.now();
     Number.isFinite(this._mpSentAt) && ((this.lastInferMs = now - this._mpSentAt), this._wcStats && this._wcStats.infer(this.lastInferMs));
     this._argonStalls = 0;
+    this._mpResultAt = now;
+    // NATPF: mani trovate su un ritaglio (mano lontana, webcam_roi.js): punti riportati all'immagine intera
+    const roi = this._mpRoi;
+    if (roi && !roi.full && i && Array.isArray(i.multiHandLandmarks)) i = { ...i, multiHandLandmarks: i.multiHandLandmarks.map((lm) => roiToFull(lm, roi)) };
     // NATPF: webcam per due: tutte le mani trovate, le assegna webcam_duo.js (_duoFrame)
     if (this.webcamDuo) {
       const list = (i && i.multiHandLandmarks) || [];
@@ -816,7 +823,8 @@ export class MotionController {
           !this._mpBusy &&
           ((this._mpBusy = true),
           (this._mpSentAt = e),
-          this.mpHands.send({ image: this.videoElem }).catch(() => {
+          // NATPF: immagine intera o, con la mano lontana, un ritaglio attorno alla mano (webcam_roi.js, _argonModelImage)
+          this.mpHands.send({ image: this._argonModelImage(e) }).catch(() => {
             this._mpBusy = false;
           }))),
       this.latestHandLandmarks && e - (this.latestHandSeenAt || 0) < 240)
@@ -844,7 +852,7 @@ export class MotionController {
 
       )
         this._webcamTrail.shift();
-      this.onTrack && this._diag({ kind: "frame", t: e, captureT: e, source: "hands", x: S, y: _, inferMs: this.lastInferMs ?? null });
+      this.onTrack && this._diag({ kind: "frame", t: e, captureT: e, source: "hands", x: S, y: _, inferMs: this.lastInferMs ?? null, ...(this._mpRoi && !this._mpRoi.full ? { zoom: 1 / this._mpRoi.w } : {}) });
       this._argonEvaluateHandTrail(e, true);
       return;
     }
@@ -904,7 +912,7 @@ export class MotionController {
     if (t) {
       this._lastVideoTime = v.currentTime;
       if (this.mpHands && !this._mpBusy) {
-        (this._mpBusy = true), (this._mpSentAt = e);
+        (this._mpBusy = true), (this._mpSentAt = e), (this._mpRoi = ROI_FULL);
         this.mpHands.send({ image: v }).catch(() => { this._mpBusy = false; });
       }
     }
@@ -923,7 +931,7 @@ export class MotionController {
     if (this.hasPrevFrame)
       for (const id of DUO_PLAYERS) {
         if (!this._duo.wantsFlow(id, e)) continue;
-        const blob = argonFlowBlob(cur, this.prevLuma, a, n, DUO.cols[id]), ev = this._duo.flow(id, blob, e);
+        const blob = argonFlowBlob(cur, this.prevLuma, a, n, this._duo.cols(id)), ev = this._duo.flow(id, blob, e);
         blob && this.onTrack && this._diag({ kind: "frame", t: e, captureT: e, source: "flow", chosen: id, x: blob.x, y: blob.y });
         ev && this._duoEmit(ev, e);
       }
@@ -943,7 +951,7 @@ export class MotionController {
     if (this.webcamDuo === on) return;
     this.webcamDuo = on;
     this._duo = new DuoTracker(); this._hasNewDuo = false; this._duoList = [];
-    this._webcamTrail = null; this._lastWebcamSource = null; this._argonHand = null;
+    this._webcamTrail = null; this._lastWebcamSource = null; this._argonHand = null; this._roiPlan = null; this._mpRoi = ROI_FULL;
     this.mpHands?.setOptions?.({ maxNumHands: on ? DUO_HANDS : ARGON_HANDS_OPTIONS.maxNumHands });
     this.webcamStream && this._applyCameraSize(this.webcamStream);
   }
@@ -952,7 +960,20 @@ export class MotionController {
   async _applyCameraSize(stream) {
     const tr = stream && stream.getVideoTracks && stream.getVideoTracks()[0];
     if (!tr || !tr.applyConstraints) return null;
-    if (!this.webcamDuo) { await tr.applyConstraints({ width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }).catch(() => {}); return null; }
+    if (!this.webcamDuo) {
+      // NATPF: webcam per uno da 1 a 4 m (webcam_roi.js): il formato della camera dentro 1280×720 con almeno 24 fotogrammi al
+      // secondo, altrimenti 640×480 come prima (?webcam640=1 lo impone, per confrontare sullo stesso computer)
+      let small = this.webcamMode !== "argon";
+      try { small ||= new URLSearchParams(location.search).get("webcam640") === "1"; } catch {}
+      const tries = small ? [{ width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }] : singleCameraAttempts(tr.getCapabilities ? tr.getCapabilities() : null);
+      for (const a of tries) if (await tr.applyConstraints(a).then(() => !0, () => !1)) { this._camAsked = { w: a.width?.ideal ?? a.width, h: a.height?.ideal ?? a.height, fps: 30 }; break; }
+      if (small) return null;
+      const st = (tr.getSettings && tr.getSettings()) || {}, got = { w: st.width ?? null, h: st.height ?? null, fps: Number.isFinite(st.frameRate) ? Math.round(st.frameRate * 10) / 10 : null };
+      this.webcamInfo && ((this.webcamInfo.chiesto = this._camAsked || this.webcamInfo.chiesto), (this.webcamInfo.ottenuto = got));
+      // all'apertura lo registra _wcStart (con quanto chiesto qui); dopo (riapertura, webcam per due spenta) qui
+      this.webcamActive && this._diag({ kind: "camera", chiesto: this._camAsked || null, ottenuto: got, nome: tr.label || null, livello: "per uno", fisso: !1, richiamiFotogrammi: null });
+      return st;
+    }
     const c = widestCamera(tr.getCapabilities ? tr.getCapabilities() : null);
     if (!c) return null;
     // (webcam_duo.cameraAttempts: la più grande con almeno 24 fotogrammi al secondo, poi 1280 di larghezza, poi senza vincolo)
@@ -961,6 +982,29 @@ export class MotionController {
     const st = (tr.getSettings && tr.getSettings()) || {};
     this._diag({ kind: "camera", chiesto: { w: c.width, h: c.height, fps: 30 }, ottenuto: { w: st.width ?? null, h: st.height ?? null, fps: Number.isFinite(st.frameRate) ? Math.round(st.frameRate * 10) / 10 : null }, nome: tr.label || null, livello: "per due", fisso: !1, richiamiFotogrammi: null });
     return st;
+  }
+  // NATPF: immagine data al modello delle mani (webcam_roi.js): il video intero come prima (nessuna copia) o, con la mano
+  // lontana, un ritaglio attorno alla mano ai pixel veri della camera (canvas, mai più di 640 pixel di larghezza); i
+  // punti trovati tornano all'immagine intera (_onArgonHandResults). Il ritaglio usato resta in _mpRoi fino al risultato
+  // (un fotogramma in volo alla volta). Senza canvas (prove senza browser) il video intero; le prove danno un _roiCtx finto
+  _argonModelImage(e) {
+    const v = this.videoElem, vw = v.videoWidth || 640, vh = v.videoHeight || 480;
+    this._roiPlan ||= new RoiPlanner();
+    const h = this._argonHand, seenAt = this.latestHandSeenAt;
+    const hand = h && Number.isFinite(seenAt) ? { x: h.x, y: h.y, size: this._argonSize, seenAt } : null;
+    const roi = this._roiPlan.next(e, hand, Number.isFinite(this._mpResultAt) && Number.isFinite(seenAt) && this._mpResultAt > seenAt);
+    if (roi.full) return (this._mpRoi = ROI_FULL), v;
+    if (!this._roiCtx && typeof document != "undefined" && document.createElement) {
+      const c = document.createElement("canvas");
+      this._roiCtx = (c.getContext && c.getContext("2d", { alpha: !1 })) || null;
+    }
+    const ctx = this._roiCtx;
+    if (!ctx) return (this._mpRoi = ROI_FULL), v;
+    const px = roiPixels(roi, vw, vh), c = ctx.canvas;
+    if (c && (c.width !== px.cw || c.height !== px.ch)) (c.width = px.cw), (c.height = px.ch);
+    ctx.drawImage(v, px.sx, px.sy, px.sw, px.sh, 0, 0, px.cw, px.ch);
+    this._mpRoi = roi;
+    return c || v;
   }
   _argonEvaluateHandTrail(e, t) {
     // NATPF: regole dello zip in webcam_argon_track.argonTrailEvent (la stessa funzione della webcam per due); mano lontana:

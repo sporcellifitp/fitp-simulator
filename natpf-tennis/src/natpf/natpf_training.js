@@ -48,7 +48,7 @@ export const LESSON = Object.freeze([
   { id: 'ready', demo: 'ready', title: 'Posizione di partenza', text: 'In piedi a 1,5–2 m dallo schermo, al centro. Braccio rilassato davanti a te. Calibrazione e partita si fanno con questa stessa presa.' },
 ]);
 export const WEBCAM_LESSON = Object.freeze([
-  { id: 'ready', title: 'Posizione di partenza', text: 'In piedi a 1,5–2 m dalla webcam, al centro dell’inquadratura. La mano che colpisce deve restare sempre visibile.' },
+  { id: 'ready', title: 'Posizione di partenza', text: 'In piedi tra 1 e 4 m dalla webcam, al centro dell’inquadratura. La mano che colpisce deve restare sempre visibile: vicino alla webcam fai swing più corti.' },
 ]);
 const SHOT_NAME = Object.freeze({ topspin: 'Topspin', flat: 'Piatto', lob: 'Pallonetto', drop: 'Palla corta', slice: 'Tagliato', smash: 'Schiacciata' });
 const SIDE_NAME = Object.freeze({ forehand: 'Dritto', backhand: 'Rovescio' });

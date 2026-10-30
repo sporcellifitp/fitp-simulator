@@ -428,7 +428,7 @@ export class DiagRecorder {
     // movimento (colpi della webcam dal movimento): ct dell'attraversamento della soglia
     if (d.kind && d.kind !== 'frame') this.log('webcam.evento', { tipo: d.kind, ...pick(d, ['type', 'side', 'shotType', 'source', 'speed', 'dirX', 'dirY', 'reason', 'hands']), ...(d.source === 'motion' && Number.isFinite(d.captureT) ? { ct: r(d.captureT - this.t0, 1) } : {}) });
     else if (d.source === 'motion') this.log('webcam.frame', { ct: Number.isFinite(d.captureT) ? r(d.captureT - this.t0, 1) : null, source: 'motion', energia: r(d.energy*1000, 2), soglia: r(d.thr*1000, 2), x: r(d.x, 3), y: r(d.y, 3), fase: d.phase || null });
-    else this.log('webcam.frame', { ct: Number.isFinite(d.captureT) ? r(d.captureT - this.t0, 1) : null, source: d.source || null, hands: d.hands ?? null, chosen: d.chosen ?? null, reason: d.reason || null, x: r(d.x, 3), y: r(d.y, 3), inferMs: r(d.inferMs, 1) });
+    else this.log('webcam.frame', { ct: Number.isFinite(d.captureT) ? r(d.captureT - this.t0, 1) : null, source: d.source || null, hands: d.hands ?? null, chosen: d.chosen ?? null, reason: d.reason || null, x: r(d.x, 3), y: r(d.y, 3), inferMs: r(d.inferMs, 1), ...(Number.isFinite(d.zoom) ? { zoom: r(d.zoom, 2) } : {}) });
   }
   // dopo ogni aggiornamento del motore: fase, palla (solo in gioco) e chi l'ha colpita
   _afterUpdate(){

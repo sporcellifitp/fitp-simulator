@@ -222,7 +222,7 @@ export class NatpfUi {
     if (dot) dot.className = 'setup-dot ' + (hand ? 'ok' : on ? 'mid' : err ? 'ko' : '');
     if (txt) txt.textContent = hand ? `${seen} ✓ sei pronto` : err ? err.text
       : on ? (body ? 'Mostra spalle e braccio che colpisce, con luce davanti' : 'Mostra la mano che colpisce, con polso e avambraccio, con luce davanti')
-      : body ? 'Mettiti a circa 2 m: spalle e braccio interi nell’inquadratura' : 'Mettiti a 1–2 m: mano, polso e avambraccio ben visibili';
+      : body ? 'Mettiti a circa 2 m: spalle e braccio interi nell’inquadratura' : 'Mettiti tra 1 e 4 m: mano, polso e avambraccio ben visibili';
     if (badge){ badge.textContent = on ? (hand ? seen : 'Cerco la mano…') : err ? err.badge : 'Webcam spenta'; badge.classList.toggle('ok', hand); }
     show(go, !on);
     for (const b of document.querySelectorAll('[data-natpf-move]')){ const sel = (b.dataset.natpfMove === 'body') === body; b.classList.toggle('selected', sel); b.setAttribute('aria-checked', String(sel)); }

@@ -15,7 +15,7 @@ const grip = gripSvg({ cls: 'guide-svg guide-grip', compact: true });
 export const GUIDE = [
   { id: 'grip', title: 'Impugna la racchetta', art: () => grip, you: {
     phone: `${GRIP_TEXT} Nel riscaldamento fai due colpetti, un dritto e un rovescio: il telefono impara il tuo gesto.`,
-    webcam: 'Mettiti a <b>1,5–2 metri</b> dalla webcam, con la mano che colpisce ben visibile e la luce davanti.',
+    webcam: 'Mettiti <b>tra 1 e 4 metri</b> dalla webcam (quella del portatile o una separata), con la mano che colpisce ben visibile e la luce davanti. Vicino (1 m) fai swing più corti, davanti al corpo.',
     mouse: '<b>Spazio</b> o un trascinamento del mouse colpiscono. Funziona sempre, anche insieme agli altri.',
   }, game: 'In campo la racchetta segue il tuo telefono (o la tua mano).' },
   { id: 'run', title: 'Il giocatore corre da solo', clip: 'run', you: {
