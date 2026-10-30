@@ -31,6 +31,9 @@ export class NatpfVersusUi {
     this._buildWait();
     if (this.p2) this._bindGuest();
     this._hookTiming();
+    // P2: ogni ~5 s il motore riassume come arrivano gli snapshot dell'host (età, correzioni della palla, blocchi della
+    // previsione locale, natpf_guest_view.takeReport) e lo scrive nella diagnostica
+    if (this.p2) engine.natpfGuestReport = r => this.ui.diag?.recorder?.log?.('sfida.vista', r);
     // il motore si ferma con la pausa: il controllo gira a parte, e durante la pausa l'host dice al P2 che è in pausa
     this._timer = setInterval(() => this.tick(), 250);
   }
