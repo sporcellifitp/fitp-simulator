@@ -251,6 +251,30 @@ test('testi degli errori della segnalazione: chiari, con il codice tra parentesi
   assert.equal(p2pStatusText('host', 'off', 'rete'), 'Collegamento chiuso');
 });
 
+// strada del collegamento tra i due computer (ice-route.js, watchRoute): letta quando il P2 entra, sui due lati, dalla
+// RTCPeerConnection della DataConnection; si smette di leggerla quando il collegamento finisce
+test('strada del collegamento host ↔ P2: letta all\'ingresso sui due lati (onRoute, route), fermata alla chiusura', async () => {
+  const net = fakeNetwork();
+  const L = createLocalRelay();
+  const room = JSON.parse((await L.handle({ method: 'POST', url: '/api/match/create', body: {} })).text);
+  const relay = { locale: 'relay', remoto: 'srflx', protocollo: 'udp', relay: 'tls', rtt: 40, server: 'turns:turn.cloudflare.com:443', nostro: true, turn: true };
+  const pcs = [], stops = [];
+  const watch = (pc, cb, { timers } = {}) => { pcs.push(pc); assert.ok(timers); cb(relay); const stop = () => stops.push(pc); return stop; };
+  const host = createP2pHost({ Peer: net.Peer, roomId: room.roomId, handle: L.handle, watch });
+  const hostRoutes = []; host.onRoute(r => hostRoutes.push(r));
+  const guest = createP2pGuest({ Peer: net.Peer, roomId: room.roomId, retryMs: [10], watch });
+  const guestRoutes = []; guest.onRoute(r => guestRoutes.push(r));
+  await until(() => guest.connected && host.state.status === 'connected');
+  assert.equal(host.route.relay, 'tls'); assert.equal(guest.route.nostro, true);
+  assert.equal(hostRoutes.length, 1); assert.equal(guestRoutes.length, 1);
+  assert.equal(pcs.length, 2); assert.ok(pcs.every(pc => pc instanceof FakePc), 'la RTCPeerConnection della DataConnection');
+  guest.destroy();
+  await until(() => host.state.status !== 'connected');
+  assert.equal(host.route, null); assert.equal(guest.route, null);
+  assert.ok(stops.length >= 2, 'lettura fermata sui due lati');
+  host.destroy();
+});
+
 test('fetch intercettato: sito statico (404) → stanza nel browser dell’host, link p2p, il P2 gioca via RPC con natpf e mano', async () => {
   const net = fakeNetwork();
   const H = fakeWindow('https://natpf.example/gioco/', staticSite);

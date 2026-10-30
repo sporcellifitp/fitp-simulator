@@ -478,6 +478,35 @@ test('registratore: collegamento della sfida senza server (stato, rete che blocc
   await R.stop(); await flushTimers();
 });
 
+// strada scelta (ice-route.js): serve a confermare dal vivo se telefono e sfida passano dal TURN nostro (30/10: il
+// telefono del P2 si collegava solo con la VPN). Quella già scelta all'inizio della registrazione, poi i cambi
+test('registratore: strada del telefono e della sfida (tel.strada, sfida.strada) e testo nel rapporto', async t => {
+  globalThis.requestAnimationFrame ??= cb => setTimeout(() => cb(performance.now()), 16);
+  globalThis.cancelAnimationFrame ??= id => clearTimeout(id);
+  let now = 1000;
+  const { engine } = fakeWorld(), store = memoryStore(), routeFns = new Set(), linkFns = {};
+  const relay = { locale: 'relay', remoto: 'srflx', protocollo: 'udp', relay: 'tls', rtt: 41, server: 'turns:turn.cloudflare.com:443', nostro: true, turn: true };
+  engine.natpfPhone.link = { ...engine.natpfPhone.link, route: relay, on(k, f){ (linkFns[k] ||= []).push(f); return this; } };
+  engine.natpfP2p = { active: true, mode: 'guest', status: 'connected', error: null, blocked: 0, detail: null, roomId: 'AT-AB12', route: { ...relay, locale: 'srflx', relay: null, nostro: null, turn: false }, onStatus: () => () => {}, onRoute: fn => { routeFns.add(fn); return () => routeFns.delete(fn); } };
+  const R = new DiagRecorder({ engine, ui: { controller: 'phone', training: { active: false } }, store, now: () => now, wallNow: () => Date.UTC(2026, 9, 30, 22, 0, 0) });
+  const id = await R.start({ webcamVideo: false, gameVideo: false });
+  t.after(() => { if (R.active) R.stop(); });
+  now += 300;
+  for (const fn of linkFns.route || []) fn({ ...relay, locale: 'host', remoto: 'host', relay: null, nostro: null, turn: false });
+  for (const fn of routeFns) fn({ ...relay, modo: 'guest' });
+  await R.flush();
+  const all = (await (await store.file(id, 'eventi.jsonl')).text()).trim().split('\n').map(l => JSON.parse(l));
+  const tel = all.filter(e => e.k === 'tel.strada'), sfida = all.filter(e => e.k === 'sfida.strada');
+  assert.deepEqual(tel.map(e => [e.locale, e.relay, e.nostro]), [['relay', 'tls', true], ['host', null, null]]);
+  assert.deepEqual(sfida.map(e => [e.modo, e.locale, e.turn]), [['guest', 'srflx', false], ['guest', 'relay', true]]);
+  assert.equal(tel[0].rtt, 41); assert.equal(tel[0].server, 'turns:turn.cloudflare.com:443');
+  // nel rapporto: righe leggibili
+  const html = viewerHtml({ meta: { id }, metrics: {}, events: all });
+  assert.match(html, /strada telefono: /); assert.match(html, /TURN nostro/);
+  assert.equal(viewerEvents(all).filter(e => /strada$/.test(e.k)).length, 4);
+  await R.stop(); await flushTimers();
+});
+
 test('metriche: dal rimbalzo della palla dell\'avversario al proprio colpo (ms)', () => {
   const ev = [
     { t: 1000, k: 'rimbalzo', da: 'opponent', x: 1, z: 9 }, { t: 1120, k: 'racchetta', chi: 'player', n: 1 },

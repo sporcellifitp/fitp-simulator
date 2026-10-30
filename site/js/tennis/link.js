@@ -7,8 +7,11 @@
 // Al telefono: welcome {r}, deny, pong, dp (orologio), cmd (comandi della calibrazione), ev (esito del colpo, punto), ph (fase),
 // e facoltativi cfg (preparazione, flusso dei sensori) ed ex (verso del colpo atteso).
 // Percorso veloce: i messaggi che valgono solo se arrivano subito (copie del colpo, piatto, campioni della diagnostica)
-// viaggiano anche senza ritrasmissioni e senza ordine (in LAN sul canale dei sensori, via internet su una seconda
-// connessione non ordinata «fast-…» dello stesso telefono). Un pacchetto perso non ferma più quelli dopo: il colpo
+// viaggiano anche su una seconda strada senza ordine. In LAN è il canale dei sensori, davvero senza ritrasmissioni
+// (lan-transport.js: maxRetransmits 0): un pacchetto perso non ferma quelli dopo. Via internet è una seconda connessione
+// WebRTC «fast-…» dello stesso telefono: PeerJS 1.5.4 con reliable false imposta solo ordered false, quindi è non
+// ordinata ma con le ritrasmissioni (prima questo commento diceva «senza ritrasmissioni» anche qui); essendo una
+// connessione separata non aspetta le code della principale. Il colpo
 // arriva con la prima copia buona e le altre si scartano con il numero del colpo (n). Il computer lo annuncia nel
 // benvenuto (f: 1): un telefono aggiornato con un gioco più vecchio usa solo il canale affidabile, come prima. Il
 // controllo di vita resta sul canale principale (ping e stato ogni secondo).
@@ -21,18 +24,24 @@ import { createRacketMotion } from './racket-motion.js';
 import { phoneInputTime } from './input-time.js';
 import { parseSwingMessage } from './swing-message.js';
 import { createGate, newSessionId, pairingUrl, createClock } from './pairing.js';
+import { iceReady, ourIceServers, mergeIceServers, followIce, watchRoute } from './ice-route.js';
+export { iceReady } from './ice-route.js';
 
 // Strade per il collegamento diretto (ICE) via internet. Prima quelle di serie di PeerJS: STUN di Google e i TURN
 // pubblici di PeerJS solo in UDP. Su reti che bloccano l'UDP o isolano i dispositivi (Wi-Fi aziendale o per ospiti,
 // alcune reti mobili) non restava nessuna strada: il telefono ripeteva «Connessione persa» (segnalazione del 29/10 sera,
 // Pixel con la versione Cloudflare). In più: STUN di Cloudflare e gli stessi TURN anche in TCP.
+// Con il TURN di Cloudflare configurato nel pacchetto (ice-route.js, iceReady) i suoi server vanno prima di questi, che
+// restano come riserva.
 export const ICE_SERVERS = Object.freeze([
   { urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] },
   { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478', 'turn:eu-0.turn.peerjs.com:3478?transport=tcp', 'turn:us-0.turn.peerjs.com:3478?transport=tcp'], username: 'peerjs', credential: 'peerjsp' },
 ]);
-// server di segnalazione: quello pubblico di PeerJS; per le prove «?peer=127.0.0.1:9000»
+// server di segnalazione: quello pubblico di PeerJS; per le prove «?peer=127.0.0.1:9000». Resta sincrona: chi crea un
+// Peer via internet aspetta prima iceReady() (al massimo ICE_WAIT_MS, una volta per pagina) per avere anche i TURN nostri
 export function peerConfig(){
-  const config = { iceServers: ICE_SERVERS.map(s => ({ ...s })), sdpSemantics: 'unified-plan' };
+  // followIce: credenziali arrivate dopo la creazione del Peer valgono per i suoi collegamenti successivi
+  const config = followIce({ iceServers: mergeIceServers(ourIceServers(), ICE_SERVERS), sdpSemantics: 'unified-plan' }, ICE_SERVERS);
   const m = /[?&]peer=([^&#]+)/.exec(location.search);
   if (!m) return { debug: 0, config };
   const [host, port] = decodeURIComponent(m[1]).split(':');
@@ -81,19 +90,33 @@ export function createPhoneLink(){
   };
   // clock: ogni scambio dell'orologio { d invio, p telefono, r ricezione } (ms); state: ogni stato del telefono (st), per
   // la diagnostica
-  const handlers = { swing: [], toss: [], change: [], cal: [], prep: [], raw: [], clock: [], state: [], dropped: [], hand: [], discard: [], mark: [], device: [] };
-  let peer = null, conn = null, lastTok = gate.token, tick = null, lastSeen = 0;
+  // route: strada scelta del collegamento con il telefono (ice-route.js, routeSummary), all'apertura e a ogni cambio
+  const handlers = { swing: [], toss: [], change: [], cal: [], prep: [], raw: [], clock: [], state: [], dropped: [], hand: [], discard: [], mark: [], device: [], route: [] };
+  let peer = null, conn = null, lastTok = gate.token, tick = null, lastSeen = 0, starting = null, startEpoch = 0;
+  // strada del collegamento con il telefono (ice-route.js): letta all'apertura e poi ogni 10 s, «route» se cambia
+  let stopRoute = () => {};
   const clock = createClock(), racketMotion = createRacketMotion();
   // un evento senza ascoltatori non è un errore: la pagina storica non ascolta «hand» (mano cambiata sul telefono) e
   // l'errore fermava la gestione del messaggio
   const emit = (k, v) => { for (const f of handlers[k] || []) try { f(v); } catch (e){ console.error(e); } };
   const set = patch => { Object.assign(L, patch); emit('change', L); };
 
-  async function start(){
+  // due start() ravvicinati (o uno stop() nel frattempo) non devono creare due Peer: ora l'avvio può aspettare i server
+  // TURN (iceReady)
+  function start(){
+    if (starting) return starting;
+    const p = starting = run().finally(() => { if (starting === p) starting = null; });
+    return p;
+  }
+  async function run(){
     if (peer && !peer.destroyed) return;
+    const epoch = ++startEpoch;
     set({ state: 'starting', error: null });
     try {
       const Peer = isLanMode() ? LanPeer : await loadPeer();
+      // TURN nostri, se il pacchetto li ha (niente in LAN): un errore o un ritardo non ferma il collegamento
+      if (!isLanMode()) await iceReady().catch(() => null);
+      if (epoch !== startEpoch) return;
       peer = new Peer(session, peerConfig());
       peer.on('open', () => set({ state: conn ? 'connected' : 'waiting' }));
       peer.on('connection', c => accept(c));
@@ -167,6 +190,9 @@ export function createPhoneLink(){
         const previous = conn; conn = c;
         if (previous && previous !== c) try { previous.close(); } catch (e){}
         conn = c; lastSeen = Date.now(); clock.reset(); faceSample = null; lastFaceK = -Infinity; seen.clear(); seenOrder.length = 0; racketMotion.setBias([0,0,0]); racketMotion.reset(); c.send({ t: 'welcome', r: res.resume, f: 1 });
+        // strada di questo collegamento (via internet c.peerConnection di PeerJS, in LAN c.pc)
+        stopRoute(); L.route = null;
+        stopRoute = watchRoute(c.peerConnection || c.pc, r => { if (c === conn){ L.route = r; emit('route', r); } });
         // joins: un collegamento nuovo (anche lo stesso telefono che si ricollega senza che il computer l'abbia visto
         // cadere): chi usa il collegamento rimanda al telefono quello che la pagina ricaricata ha perso
         // relinked: lo stesso telefono, senza ricaricare la pagina, ha rifatto il collegamento («Ricollega»): calibrazione e
@@ -200,7 +226,7 @@ export function createPhoneLink(){
     c.on('motion', buffer => { if (ok && c === conn){ countMsg('bin'); const sample = decodeSensor(buffer); if (sample) racketMotion.push(sample, performance.now()); } });
     // LAN: percorso veloce sul canale dei sensori
     c.on('fast', d => { if (ok && c === conn && d && typeof d === 'object') onTimely(d, 'fast'); });
-    c.on('close', () => { clearTimeout(timer); if (c === conn){ conn = null; gate.release(); set({ state: peer && !peer.destroyed ? 'lost' : 'off', phone: null }); } });
+    c.on('close', () => { clearTimeout(timer); if (c === conn){ conn = null; stopRoute(); gate.release(); set({ state: peer && !peer.destroyed ? 'lost' : 'off', phone: null }); } });
     c.on('error', () => {});
   }
   return {
@@ -211,11 +237,13 @@ export function createPhoneLink(){
     get token(){ return gate.token; },
     motion(now = performance.now()){ const sample = racketMotion.sample(now); return sample ? { ...sample, rtt: clock.rtt ?? L.rtt, transport: isLanMode() ? 'lan-webrtc' : 'webrtc' } : null; },
     get transport(){ return isLanMode() ? 'lan-webrtc' : 'webrtc'; },
+    // strada attuale del collegamento con il telefono (null se non collegato o non ancora letta)
+    get route(){ return conn ? L.route || null : null; },
     // diagnostica: frequenza e età dell'ultimo arrivo per tipo di messaggio (fo, sw, bin, sm, rs…), orologio
     // swings: da quale percorso è arrivata la prima copia di ogni colpo e quante copie in più sono state scartate
     // gap: buco più lungo tra due arrivi nell'ultimo secondo intero (ms), contando anche il silenzio fino a ora; bunch:
     // arrivi a grappolo nello stesso secondo
-    stats(now = performance.now()){ const out = {}; for (const [k, r] of Object.entries(rates)){ const age = r.last == null ? null : now - r.last; out[k] = { hz: r.hz, gap: r.gap == null && age == null ? null : Math.round(Math.max(r.gap || 0, age || 0)), bunch: r.bunch, ageMs: age == null ? null : Math.round(age), count: r.count }; } return { rates: out, rtt: clock.rtt ?? L.rtt, clockOk: clock.ok, clockSamples: clock.samples ?? null, swings: { ...copies } }; },
+    stats(now = performance.now()){ const out = {}; for (const [k, r] of Object.entries(rates)){ const age = r.last == null ? null : now - r.last; out[k] = { hz: r.hz, gap: r.gap == null && age == null ? null : Math.round(Math.max(r.gap || 0, age || 0)), bunch: r.bunch, ageMs: age == null ? null : Math.round(age), count: r.count }; } return { rates: out, rtt: clock.rtt ?? L.rtt, clockOk: clock.ok, clockSamples: clock.samples ?? null, swings: { ...copies }, route: conn ? L.route || null : null }; },
     // orientamento del piatto (presa orizzontale), se arrivato negli ultimi 250 ms
     face(now = performance.now()){ return faceSample && now - faceSample.at < 250 ? { ...faceSample, age: now - faceSample.at } : null; },
     get clock(){ return clock.ok ? { off: clock.off, rtt: clock.rtt } : null; },
@@ -228,7 +256,7 @@ export function createPhoneLink(){
     // «Ricollega»: il telefono rifà il collegamento (canali nuovi) con la sua chiave di ripresa, senza ricaricare la pagina
     relink(){ if (!this.connected) return false; this.cmd('relink'); return true; },
     // «Scollega»: il telefono perde la chiave di ripresa, per ricollegarsi serve un QR nuovo
-    forget(){ this.send({ t: 'bye' }); gate.forget(); if (conn) try { conn.close(); } catch (e){} conn = null; set({ state: peer && !peer.destroyed ? 'waiting' : 'off', phone: null }); },
-    stop(){ clearInterval(tick); if (peer) peer.destroy(); peer = null; conn = null; set({ state: 'off', phone: null }); },
+    forget(){ this.send({ t: 'bye' }); gate.forget(); if (conn) try { conn.close(); } catch (e){} conn = null; stopRoute(); set({ state: peer && !peer.destroyed ? 'waiting' : 'off', phone: null }); },
+    stop(){ ++startEpoch; starting = null; clearInterval(tick); stopRoute(); if (peer) peer.destroy(); peer = null; conn = null; set({ state: 'off', phone: null }); },
   };
 }
