@@ -994,3 +994,33 @@ sembrava andare meglio. Il rapporto non aveva trovato la causa (solo una condizi
       `b054396ed2b0eec3ab1d4ed623010276164df09eb0d6e9e7a38ffe892df1b138`, nessun certificato né chiave. Estratto e provato
       (Linux): certificato, server HTTPS, versione 2026-10-28.16, relay con `p2Hold`; Chromium: gioco, «Sfida un amico» con
       la stanza LAN, pagina del telefono, nessun errore in console. Non provato su Windows.
+
+## Domande aperte della sfida tra due computer: analisi verificata (30/10)
+Cinque analisi indipendenti (codice e documentazione ufficiale) con cinque verifiche avversarie; nessun file del gioco
+modificato. Decisioni da prendere con l'utente:
+1. **TURN nostro su TLS 443** (Cloudflare Realtime TURN: 1000 GB/mese gratis, poi 0,05 $/GB; endpoint
+   `rtc.live.cloudflare.com/v1/turn/keys/<id>/credentials/generate-ice-servers`, URL `turns:turn.cloudflare.com:443`).
+   Serve uno script nel Worker (`/api/turn`) con la chiave come Secret. Nel client: promessa `iceReady()` in `link.js`
+   aspettata anche da `natpf_p2p.js` (ha una sua `loadPeer`), risposta accettata solo se JSON con `iceServers`, rinnovo
+   per i Peer lunghi (usano la config della creazione). `wrangler.jsonc` del repository NON è la config del Worker
+   `weathered-heart-53ed`. Il controllo dell'Origin non protegge (le GET della stessa origine non lo mandano).
+   Da sapere dall'utente: come pubblica il Worker (dashboard o wrangler), se crea lui la TURN key.
+2. **Canale «fast» del telefono**: via internet è affidabile ma non ordinato (connessione WebRTC separata), non «senza
+   ritrasmissioni» come dicono i commenti (`link.js:9-11`, `racchetta.js:231-233`). Raccomandazione: correggere solo
+   commenti e PROJECT_MEMORY (i `docs/NATPF_*.md` sono archivio); le misure del 21/10 erano su loopback (RTT ≈ 0). Se mai
+   si cambia: solo lato telefono, valutare `maxPacketLifeTime` 100–150 ms, e il limite di `bufferedAmount` deve scartare
+   (oggi `sendFast` falso ripiega sul canale ordinato).
+3. **Tempi dei colpi del P2**: il viaggio P2→host non è misurato e i colpi non portano l'ora; sull'host nessuna scadenza
+   per età (solo `PHONE_STALE_S` 0,6 s sul tratto telefono→P2). Rischio vero: un colpo arrivato 2–3 s dopo può far partire
+   il servizio del P2. Asimmetria: il P2 non riceve `natpfLateSpan` (solo `natpf_impact.js` lo passa al P1), quindi la
+   sua finestra del ritardo è 0,17 s (PERFECT→LATE a ~60 ms). Proposta: prima misurare (ping/pong con `createClock`,
+   colpo con l'ora dell'host, età nella diagnostica), poi scarto per età e regola del servizio (colpo < ~0,3 s).
+4. **Palla sul P2**: fisica locale tra gli snapshot, ma ogni snapshot sovrascrive palla e attori (65%) senza fusione
+   (`game_engine.js:3302-3318`). Scatto più visibile probabile: dopo un colpo locale del P2 gli snapshot dell'host
+   ancora senza il colpo riportano la palla indietro. Proposta: ignorare la palla degli snapshot più vecchi del colpo
+   locale (rallyStrokeCount) fino a ~300 ms, poi correzione morbida solo visiva; misura dell'età nella diagnostica.
+5. **VPN**: non può cambiare il limite dei 16300 byte. Spiegazioni plausibili: problema di avvio (telefono↔computer,
+   rete), partita più corta, host ricaricato (nella .15 il relay dell'host ripartiva vuoto e «sbloccava» il P2 a 0-0),
+   riconnessione forzata dal cambio di IP. Segno distintivo: col blocco da 16300 byte l'host vedeva il P2 collegato.
+   Proposta: prova con la .16 con e senza VPN e `chrome://webrtc-internals` (o registrare nella diagnostica la coppia
+   di candidati scelta con `getStats`).
