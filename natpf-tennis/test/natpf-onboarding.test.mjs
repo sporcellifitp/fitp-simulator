@@ -11,10 +11,10 @@ const fire = (id, type, ev) => { for (const l of $(id).ls[type] || []) l.fn(ev);
 const touch = (x, y) => ({ changedTouches: [{ clientX: x, clientY: y }] });
 const state = ui => ({ i: ui.onboarding.index, open: ui.onboarding.isOpen, count: $('onb-count').textContent, next: $('onb-next').textContent, prevOff: $('onb-prev').disabled });
 
-test('contenuti: sei passi, testi per ogni racchetta, webcam «1–4 metri»', () => {
+test('contenuti: sei passi, testi per ogni racchetta, webcam «tra 1 e 4 metri»', () => {
   assert.deepEqual(GUIDE.map(g => g.id), ['grip', 'run', 'hit', 'aim', 'serve', 'shots']);
   for (const g of GUIDE) for (const [c] of GUIDE_CONTROLLERS) assert.ok(guideText(g, c), `${g.id}/${c}`);
-  assert.match(GUIDE[0].you.webcam, /Mettiti a <b>1–4 metri<\/b> dalla webcam/);
+  assert.match(GUIDE[0].you.webcam, /Mettiti <b>tra 1 e 4 metri<\/b> dalla webcam/);
   assert.doesNotMatch(GUIDE.map(g => g.you.webcam || '').join(' '), /1,5–2 metri/);
 });
 
@@ -108,7 +108,7 @@ test('racchetta: si parte da quella in uso, la scelta cambia i testi e lascia il
   w.key('ArrowRight'); w.key('ArrowRight');
   ui.onboarding.ctrlBox.ls.click.forEach(l => l.fn({ target: { closest: () => ({ dataset: { onbCtrl: 'webcam' } }) } }));
   assert.equal(ui.onboarding.controller, 'webcam'); assert.equal(ui.onboarding.index, 2, 'il passo resta');
-  assert.match($('onb-track').innerHTML, /Mettiti a <b>1–4 metri<\/b> dalla webcam/);
+  assert.match($('onb-track').innerHTML, /Mettiti <b>tra 1 e 4 metri<\/b> dalla webcam/);
   assert.match($('onb-track').innerHTML, /Uno <b>swing della mano<\/b>/);
   assert.match(ui.onboarding.ctrlBox.innerHTML, /data-onb-ctrl="webcam" aria-pressed="true"/);
   ui.onboarding.setController('phone');
