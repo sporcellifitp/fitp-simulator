@@ -5,6 +5,10 @@
 // arriva prima della palla (sezione 8: lo stesso scarto nel motore vero).
 // Informativi, senza criterio: swing secco seguito dal ritorno, mano persa per il mosso (flusso ottico di riserva),
 // passante sullo sfondo senza mani viste ed esito nel motore.
+// Attenzione: le sezioni 1–8 passano dal riconoscimento «mano» NATPF (_onHandResults, ?webcamMano=1), non dalla webcam
+// predefinita «argon» (lo zip argon-tennis, _argonFrame). La sezione 9 (dal 30/10) è la webcam argon da 1 a 4 m con
+// webcam integrate dei portatili ed esterne, con i suoi criteri (scripts/audit/webcam-distanza.mjs: lì anche il
+// confronto con una cartella src di prima, camera di prima compresa).
 //   node --import ./test/register.mjs scripts/audit/webcam-sweep.mjs                 codice attuale
 //   node --import ./test/register.mjs scripts/audit/webcam-sweep.mjs --prima=<file>  un motion_controls.js di prima
 //     (--riconoscimento=<file>: anche un webcam_strokes.js di prima)
@@ -12,6 +16,7 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { runTrial, runSweep, runCrowd, runDropout, runTwoPeople, engineSwings, sweep, engineView, STROKES } from '../../test/webcam-sim.mjs';
+import { measure as argonMeasure, report as argonReport, criteria as argonCriteria } from './webcam-distanza.mjs';
 
 const opt = name => { const a = process.argv.find(x => x.startsWith(`--${name}=`)); return a ? path.resolve(a.slice(name.length + 3)) : null; };
 const file = opt('prima') || new URL('../../src/motion_controls.js', import.meta.url).pathname;
@@ -220,6 +225,15 @@ for (const difficulty of ['casual', 'pro']){
   const out = await engineSwings(sample, { difficulty }), t = {};
   for (const o of out) t[o.grade] = (t[o.grade] || 0) + 1;
   console.log(`${difficulty.padEnd(6)} n=${out.length} | tenuti fino allo sweet spot ${pct(out.filter(o => o.held).length, out.length).padStart(4)} | ${['PERFECT', 'EARLY', 'LATE', 'VERY LATE', 'WHIFF', 'niente'].map(g => `${g} ${pct(t[g] || 0, out.length)}`).join(', ')}`);
+}
+
+/* ---------- 9. webcam argon (predefinita) da 1 a 4 m, webcam integrate ed esterne ---------- */
+// swing della guida, colpi completi in 3D (informativi) e attesa da fermi a 1, 2, 3 e 4 m; il modello delle mani è
+// ipotizzato (test/webcam-sim.mjs, ARGON_MODEL). Il codice di prima (senza _argonModelImage) con la camera di allora
+{
+  const after = typeof MC.prototype._argonModelImage === 'function', res = argonMeasure(MC, { after });
+  argonReport(res, after ? 'camera fino a 1280×720, ritaglio attorno alla mano lontana' : 'codice di prima, camera a 640×480');
+  argonCriteria(res, check);
 }
 
 console.log(`\n${crit.filter(Boolean).length}/${crit.length} criteri soddisfatti`);

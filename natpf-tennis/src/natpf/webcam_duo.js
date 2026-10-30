@@ -2,26 +2,57 @@
 // camera, il Player 1 a sinistra e il Player 2 a destra (nell'immagine specchiata, come si vedono sullo schermo; sono
 // anche le loro metà dello schermo diviso). Ogni giocatore ha una sua «corsia» con la stessa webcam per uno
 // (webcam_argon_track.js: scia dello zip argon-tennis, buco breve attraversato con la mano, movimenti in proporzione alla
-// grandezza della mano, flusso ottico solo a mano uscita o non tornata):
-//  - aggancio: una corsia senza mano prende la mano più grande nella sua metà dell'immagine; poi segue quella mano anche
-//    oltre la metà (il dritto di chi sta a sinistra attraversa il centro), finché è compatibile per velocità e grandezza
-//    (argonSameHand). Le due corsie non prendono mai la stessa mano: prima le corsie agganciate, la più vicina vince;
-//  - flusso ottico per metà (colonne 0–3 per il P1, 4–7 per il P2 della griglia 8×6 dello zip), dall'immagine prima;
+// grandezza della mano, flusso ottico solo a mano uscita o non tornata).
+// Corsie larghe e tolleranti (richiesta del 30/10: «le persone si muovono e le finestre si sovrappongono»; prima una
+// corsia senza mano cercava solo nella sua metà fissa, e chi passava oltre il centro poteva finire all'altro):
+//  - ogni giocatore ha una «casa» (dove sta: segue la sua mano lentamente) e il confine tra le corsie è a metà tra le
+//    due case (tra 0,3 e 0,7 dell'immagine), non fisso a metà immagine;
+//  - mano agganciata (vista da meno di pickMs): resta di quel giocatore ovunque vada, finché è compatibile per velocità e
+//    grandezza (argonSameHand); tra due mani vicine o che si incrociano vince la più vicina a dove la mano stava andando
+//    (posizione prevista con la velocità), così le mani dei due non si scambiano;
+//  - mano persa da poco (meno di memoryMs): il giocatore ha diritto alla mano che ricompare vicino a dove l'aveva persa,
+//    anche oltre il confine (zona condivisa larga shared), finché non è più vicina all'altro giocatore: con una sola
+//    mano in vista va a chi l'aveva;
+//  - mano mai vista o persa da tanto: la più grande dalla propria parte del confine (come prima, con la metà mobile);
+//  - le due corsie non prendono mai la stessa mano: si sceglie l'assegnazione migliore delle due insieme (prima le
+//    corsie agganciate, poi quelle che l'avevano da poco, poi le libere; a parità, le distanze più piccole);
+//  - flusso ottico per parte (colonne della griglia 8×6 dello zip ai due lati del confine), dall'immagine prima;
 //  - ogni colpo esce con il giocatore (who: 'p1' | 'p2').
 // Funzioni pure, senza DOM né modello: motion_controls._duoFrame passa i risultati del modello e il flusso.
 import { ARGON_TRACK, argonHandPoint, argonHandSize, argonScale, argonSameHand, argonBridging, argonBridgeStart, argonTrailEvent } from './webcam_argon_track.js';
 
 export const DUO_PLAYERS = Object.freeze(['p1', 'p2']);
-export const DUO = Object.freeze({ mid: .5, seenMs: 1500, cols: Object.freeze({ p1: Object.freeze({ from: 0, to: 3 }), p2: Object.freeze({ from: 4, to: 7 }) }) });
+export const DUO = Object.freeze({
+  mid: .5, seenMs: 1500,
+  home: Object.freeze({ p1: .25, p2: .75 }),   // case di partenza (prima di vedere le mani)
+  splitMin: .3, splitMax: .7,                  // il confine tra le corsie resta in questa fascia
+  homeTau: 1.2,       // s: la casa segue la mano del giocatore con questo ritardo
+  shared: .15,        // zona condivisa: una mano persa da poco si riprende fino a tanto oltre il confine…
+  hyst: .04,          // …se non è più vicina all'altro giocatore (con questo margine a favore di chi l'aveva)
+  memoryMs: 4000,     // mano persa da meno di così: il giocatore ha diritto alla mano che ricompare dove l'aveva persa
+  predictMs: 100,     // posizione prevista con la velocità al massimo fino a così dopo l'ultima vista
+  // colonne del flusso ottico con il confine a metà (si spostano con il confine, duoFlowCols)
+  cols: Object.freeze({ p1: Object.freeze({ from: 0, to: 3 }), p2: Object.freeze({ from: 4, to: 7 }) })
+});
 
-const inHalf = (id, p) => (id === 'p1' ? p.x < DUO.mid : p.x >= DUO.mid);
+const finite = Number.isFinite;
 const pushTrail = (trail, pt) => {
   trail.push(pt);
   while (trail.length > 5 || (trail.length > 2 && pt.t - trail[0].t > 160)) trail.shift();
 };
+const other = id => (id === 'p1' ? 'p2' : 'p1');
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+// la mano è dalla parte del giocatore rispetto al confine (spostato di margin verso l'altro)
+const onSide = (id, p, split, margin = 0) => (id === 'p1' ? p.x < split + margin : p.x >= split - margin);
 
 function newLane(id){
-  return { id, hand: null, size: null, trail: [], source: null, lastTrigger: -Infinity, smooth: { x: id === 'p1' ? .25 : .75, y: .5 }, handNow: false, seenAt: null };
+  return { id, hand: null, vel: { x: 0, y: 0 }, home: { x: DUO.home[id], y: .5 }, homeSet: false, size: null, trail: [], source: null, lastTrigger: -Infinity, smooth: { x: DUO.home[id], y: .5 }, handNow: false, seenAt: null };
+}
+
+// colonne della griglia 8×6 del flusso ottico per ciascun giocatore, ai due lati del confine (da 0–1 a 0–5 per il P1)
+export function duoFlowCols(split = DUO.mid){
+  const k = Math.max(1, Math.min(6, Math.round(split*8) - 1));
+  return { p1: { from: 0, to: k }, p2: { from: k + 1, to: 7 } };
 }
 
 export class DuoTracker {
@@ -29,36 +60,60 @@ export class DuoTracker {
   reset(){ this.lanes = { p1: newLane('p1'), p2: newLane('p2') }; }
   // la mano di questo giocatore si è vista da poco (pagina «Collega»: pronti quando si vedono entrambe)
   seen(id, now, within = DUO.seenMs){ const s = this.lanes[id]?.seenAt; return Number.isFinite(s) && now - s <= within; }
+  // confine tra le corsie: a metà tra le case dei due giocatori, nella fascia splitMin–splitMax
+  split(){
+    const a = this.lanes.p1.home.x, b = this.lanes.p2.home.x;
+    return a < b ? Math.max(DUO.splitMin, Math.min(DUO.splitMax, (a + b)/2)) : DUO.mid;
+  }
+  // colonne del flusso ottico del giocatore (motion_controls._duoFrame)
+  cols(id){ return duoFlowCols(this.split())[id]; }
+  // dove il giocatore aspetta la sua mano: agganciata → posizione prevista; persa da poco → dove l'ha persa; se no la casa
+  _anchor(L, now){
+    const h = L.hand, age = h ? now - h.t : Infinity;
+    if (h && age <= ARGON_TRACK.pickMs){ const k = Math.min(age, DUO.predictMs)/1000; return { tier: 3, p: { x: h.x + L.vel.x*k, y: h.y + L.vel.y*k } }; }
+    if (h && age <= DUO.memoryMs) return { tier: 2, p: { x: h.x, y: h.y } };
+    return { tier: 1, p: L.home };
+  }
   // risultati del modello delle mani (landmark nell'immagine non specchiata) → eventi [{ who, type, side, … }]
   hands(list, now, aspect = .75){
     const cands = (Array.isArray(list) ? list : []).map(lm => ({ lm, p: argonHandPoint(lm), size: argonHandSize(lm, aspect) })).filter(c => c.p);
-    const taken = new Set(), got = {};
-    // corsie agganciate (mano vista da poco): coppie corsia–mano compatibili, la più vicina per prima
-    const pairs = [];
+    const split = this.split(), A = { p1: this._anchor(this.lanes.p1, now), p2: this._anchor(this.lanes.p2, now) };
+    // mani possibili per ogni giocatore, con il valore dell'assegnazione (prima il livello, poi la distanza)
+    const opts = {};
     for (const id of DUO_PLAYERS){
-      const L = this.lanes[id];
-      if (!L.hand || now - L.hand.t > ARGON_TRACK.pickMs) continue;
-      cands.forEach((c, i) => { if (argonSameHand(c.p, c.size, { ...L.hand, size: L.size }, now)) pairs.push({ id, i, d: Math.hypot(c.p.x - L.hand.x, c.p.y - L.hand.y) }); });
+      const L = this.lanes[id], a = A[id], o = A[other(id)];
+      opts[id] = [];
+      cands.forEach((c, i) => {
+        const d = dist(c.p, a.p);
+        if (a.tier === 3){ if (argonSameHand(c.p, c.size, { ...L.hand, size: L.size }, now)) opts[id].push({ i, v: 3 - d }); return; }
+        // persa da poco: dalla sua parte del confine, o nella zona condivisa se non è più vicina all'altro giocatore
+        if (a.tier === 2){ if (onSide(id, c.p, split) || (onSide(id, c.p, split, DUO.shared) && d < dist(c.p, o.p) + DUO.hyst)) opts[id].push({ i, v: 2 - d }); return; }
+        // libera: dalla sua parte del confine, la più grande (a pari grandezza la più vicina alla casa)
+        if (onSide(id, c.p, split)) opts[id].push({ i, v: 1 + 2*(c.size || 0) - .01*d });
+      });
     }
-    pairs.sort((a, b) => a.d - b.d);
-    for (const q of pairs) if (!got[q.id] && !taken.has(q.i)){ got[q.id] = cands[q.i]; taken.add(q.i); }
-    // corsie libere: la mano più grande nella propria metà
-    for (const id of DUO_PLAYERS){
-      const L = this.lanes[id];
-      if (got[id] || (L.hand && now - L.hand.t <= ARGON_TRACK.pickMs)) continue;
-      let best = -1;
-      cands.forEach((c, i) => { if (!taken.has(i) && inHalf(id, c.p) && (best < 0 || (c.size || 0) > (cands[best].size || 0))) best = i; });
-      if (best >= 0){ got[id] = cands[best]; taken.add(best); }
+    // assegnazione migliore dei due insieme (nessuna mano a due giocatori)
+    let best = { v: 0, p1: null, p2: null };
+    for (const x of [null, ...opts.p1]) for (const y of [null, ...opts.p2]){
+      if (x && y && x.i === y.i) continue;
+      const v = (x ? x.v : 0) + (y ? y.v : 0);
+      if (v > best.v) best = { v, p1: x, p2: y };
     }
     const out = [];
     for (const id of DUO_PLAYERS){
-      const L = this.lanes[id], c = got[id];
+      const L = this.lanes[id], c = best[id] ? cands[best[id].i] : null;
       L.handNow = !!c;
       if (!c) continue;
       // mano ritrovata dopo un buco breve senza colpi: la scia riparte dall'ultimo punto prima del buco
       if (L.source !== 'hand'){ const from = argonBridgeStart(L.hand, now, L.lastTrigger); L.trail = from ? [from] : []; }
       L.source = 'hand'; L.seenAt = now;
       if (c.size != null) L.size = L.size == null ? c.size : L.size + (c.size - L.size)*.2;
+      // velocità (per prevedere dove va la mano) solo tra due viste vicine; casa che segue la mano lentamente
+      const prev = L.hand, dt = prev ? (now - prev.t)/1000 : Infinity;
+      if (dt > 0 && dt <= .2){ const k = .5; L.vel = { x: L.vel.x*(1 - k) + k*(c.p.x - prev.x)/dt, y: L.vel.y*(1 - k) + k*(c.p.y - prev.y)/dt }; }
+      else L.vel = { x: 0, y: 0 };
+      if (!L.homeSet){ L.home = { x: c.p.x, y: c.p.y }; L.homeSet = true; }
+      else { const k = 1 - Math.exp(-Math.min(1, finite(dt) ? dt : 1)/DUO.homeTau); L.home = { x: L.home.x + (c.p.x - L.home.x)*k, y: L.home.y + (c.p.y - L.home.y)*k }; }
       L.hand = { x: c.p.x, y: c.p.y, t: now }; L.smooth = { x: c.p.x, y: c.p.y };
       pushTrail(L.trail, { x: c.p.x, y: c.p.y, t: now });
       const ev = this._eval(L, now, true);

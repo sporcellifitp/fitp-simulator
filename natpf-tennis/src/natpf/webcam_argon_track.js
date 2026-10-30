@@ -15,7 +15,10 @@
 //  - modello delle mani fermo (nessuna risposta da stallMs): si sblocca, e dopo stallReload blocchi si ricarica;
 //  - camera che si ferma o si chiude (driver, risparmio energetico, un altro programma): si riapre da sola;
 //  - a distanza la mano è più piccola e il colpo percorre meno immagine: le soglie dello zip (tarate a circa 1 m) si
-//    applicano al movimento ingrandito in proporzione (argonScale), così il colpo conta anche a 2–3 m.
+//    applicano al movimento ingrandito in proporzione (argonScale), così il colpo conta anche a 2–3 m. Dal 30/10 (webcam
+//    da 1 a 4 m, webcam_roi.js) fino a ×6 (prima ×2,5: oltre ~2,5 m uno swing di mezzo metro non bastava più) e con la
+//    grandezza della mano in 3D (la z del modello): una mano girata verso la camera sembra corta nell'immagine e, con
+//    l'ingrandimento più alto, renderebbe troppo sensibile chi gioca vicino.
 export const ARGON_TRACK = Object.freeze({
   bridgeMs: 260,      // attesa massima della mano persa a metà immagine prima del flusso ottico
   edge: .07,          // mano persa entro questa distanza dal bordo: uscita dall'immagine, flusso ottico subito
@@ -27,7 +30,7 @@ export const ARGON_TRACK = Object.freeze({
   frameStallMs: 2500, // camera senza fotogrammi nuovi da così: si riapre
   reopenEveryMs: 5000, // al massimo una riapertura ogni così
   handRef: .07,       // mano (polso → nocca del medio, in larghezze dell'immagine) a circa 1 m, dove lo zip è tarato
-  scaleMax: 2.5       // ingrandimento massimo dei movimenti di una mano lontana
+  scaleMax: 6         // ingrandimento massimo dei movimenti di una mano lontana (6: mano di 0,012, a 4 m con una webcam da 90°)
 });
 
 const finite = Number.isFinite;
@@ -80,11 +83,13 @@ export function argonBridgeStart(last, now, lastTriggerMs){
   return { x: last.x, y: last.y, t: last.t };
 }
 
-// grandezza della mano nell'immagine (polso → nocca del medio, con le proporzioni della camera)
+// grandezza della mano nell'immagine (polso → nocca del medio, con le proporzioni della camera; con la profondità del
+// modello, z nella scala di x, quando c'è: la mano girata verso la camera non sembra più piccola, cioè più lontana)
 export function argonHandSize(lm, aspect = .75){
   const b = lm && lm[0], w = lm && lm[9];
   if (!b || !w || !finite(b.x) || !finite(w.x)) return null;
-  const s = Math.hypot(w.x - b.x, (w.y - b.y)*aspect);
+  const dz = finite(b.z) && finite(w.z) ? w.z - b.z : 0;
+  const s = Math.hypot(w.x - b.x, (w.y - b.y)*aspect, dz);
   return s > 1e-4 ? s : null;
 }
 

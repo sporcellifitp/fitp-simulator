@@ -2,8 +2,63 @@
 // specchiata; ogni colpo esce con il suo giocatore; la mano di uno non diventa quella dell'altro.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DuoTracker, widestCamera, DUO } from '../src/natpf/webcam_duo.js';
-import { argonFlowBlob } from '../src/natpf/webcam_argon_track.js';
+import { DuoTracker, widestCamera, DUO, duoFlowCols } from '../src/natpf/webcam_duo.js';
+import { argonFlowBlob, ARGON_TRACK } from '../src/natpf/webcam_argon_track.js';
+import { SCENES } from './webcam-duo-scenes.mjs';
+
+// Corsie larghe e tolleranti (richiesta del 30/10): scene con giocatori che si muovono (test/webcam-duo-scenes.mjs),
+// dieci semi ciascuna. Con il codice di prima: attraversamento senza colpo (mano mai ripresa), attraversamento da solo
+// e una mano sola al centro con il colpo all'altro giocatore, incrocio con le mani scambiate e nessun colpo.
+const seeds = Array.from({ length: 10 }, (_, i) => i + 1);
+const whoSide = r => r.events.map(e => `${e.who}·${e.side}`);
+test('due giocatori si avvicinano fino a sovrapporsi e si riallontanano: nessuno scambio di mani, nessun colpo', () => {
+  for (const seed of seeds){ const r = SCENES.avvicinamento(DuoTracker, { seed }); assert.equal(r.swaps, 0, `seme ${seed}`); assert.deepEqual(r.events, [], `seme ${seed}`); }
+});
+test('il P1 passa oltre il centro e perde la mano più a lungo di pickMs: la riprende lì e il suo colpo è suo', () => {
+  for (const seed of seeds){
+    const r = SCENES.attraversamento(DuoTracker, { seed });
+    assert.equal(r.swaps, 0, `seme ${seed}`); assert.deepEqual(whoSide(r), ['p1·backhand'], `seme ${seed}`);
+    assert.ok(r.tr.split() > .6, `confine spostato con le case: ${r.tr.split()}`);
+  }
+});
+test('il P1 oltre il centro con il P2 assente: la mano del P1 non diventa del P2 (niente colpi finti del P2)', () => {
+  for (const seed of seeds){ const r = SCENES.attraversamentoDaSolo(DuoTracker, { seed }); assert.equal(r.swaps, 0, `seme ${seed}`); assert.deepEqual(whoSide(r), ['p1·backhand'], `seme ${seed}`); }
+});
+test('una sola mano in vista va a chi l\'aveva, anche appena oltre il centro', () => {
+  for (const seed of seeds){
+    for (const [name, want] of [['unaManoSola', 'p2·forehand'], ['unaManoSolaAlCentro', 'p2·backhand']]){
+      const r = SCENES[name](DuoTracker, { seed });
+      assert.equal(r.swaps, 0, `${name} seme ${seed}`); assert.deepEqual(whoSide(r), [want], `${name} seme ${seed}`);
+    }
+  }
+});
+test('mani che si incrociano veloci: ognuno segue la sua (velocità prevista), un colpo per ciascuno col lato giusto', () => {
+  for (const seed of seeds){
+    const r = SCENES.incrocio(DuoTracker, { seed });
+    assert.deepEqual(whoSide(r).sort(), ['p1·backhand', 'p2·forehand'], `seme ${seed}`);
+    assert.ok(Math.abs(r.tr.lanes.p1.hand.x - .42) < .02 && Math.abs(r.tr.lanes.p2.hand.x - .58) < .02, `seme ${seed}: ${r.tr.lanes.p1.hand.x} ${r.tr.lanes.p2.hand.x}`);
+    assert.ok(r.swaps <= 3, `seme ${seed}: ${r.swaps} fotogrammi scambiati nell'istante in cui le mani si toccano`);
+  }
+});
+test('confine tra le corsie e colonne del flusso: a metà tra le case, nella fascia 0,3–0,7; a metà immagine come prima', () => {
+  assert.deepEqual(duoFlowCols(.5), DUO.cols);
+  assert.deepEqual(duoFlowCols(.7), { p1: { from: 0, to: 5 }, p2: { from: 6, to: 7 } });
+  assert.deepEqual(duoFlowCols(.1), { p1: { from: 0, to: 1 }, p2: { from: 2, to: 7 } });
+  const tr = new DuoTracker();
+  assert.equal(tr.split(), .5);
+  tr.lanes.p1.home = { x: .55, y: .5 }; tr.lanes.p2.home = { x: .95, y: .5 };
+  assert.equal(tr.split(), DUO.splitMax);
+  tr.lanes.p1.home = { x: .8, y: .5 }; tr.lanes.p2.home = { x: .6, y: .5 };
+  assert.equal(tr.split(), .5, 'case invertite: metà immagine');
+});
+test('mano libera dell\'altro giocatore: una corsia mai agganciata prende solo dalla sua parte del confine', () => {
+  const tr = new DuoTracker(); let t = 1000;
+  // solo il P1 con le due mani (racchetta a 0,3, mano libera a 0,45): il P2 non c'è e non prende la mano libera del P1
+  for (let i = 0; i < 20; i++){ t += 1000/30; tr.hands([L(.3, .55, .045), L(.45, .6, .045)], t); }
+  assert.equal(tr.lanes.p2.hand, null);
+  assert.ok(Math.abs(tr.lanes.p1.hand.x - .3) < 1e-6 || Math.abs(tr.lanes.p1.hand.x - .45) < 1e-6);
+  assert.ok(ARGON_TRACK.pickMs < DUO.memoryMs);
+});
 
 // mano con centro in (S, y) nell'immagine specchiata e grandezza size (landmark nell'immagine non specchiata)
 const L = (S, y, size = .07) => { const d = size/.75, a = Array.from({ length: 21 }, () => ({ x: 1 - S, y, z: 0 })); a[0] = { x: 1 - S, y: y - .55*d, z: 0 }; a[9] = { x: 1 - S, y: y + .45*d, z: 0 }; return a; };
