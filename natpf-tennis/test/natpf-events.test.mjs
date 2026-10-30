@@ -1,13 +1,15 @@
 // Sfide per gli eventi, nickname, classifica del giorno e chiosco (funzioni senza DOM).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CHALLENGES, validNickname, addScore, topScores, freshBoard, dayKey, boardCsv } from '../src/natpf/natpf_events.js';
+import { CHALLENGES, ALL_CHALLENGES, validNickname, addScore, topScores, freshBoard, dayKey, boardCsv } from '../src/natpf/natpf_events.js';
 import { kioskAction, IDLE_STEPS } from '../src/natpf/natpf_kiosk.js';
 
-test('sei minigiochi con unità, descrizione e medaglie', () => {
+test('minigiochi con unità, descrizione e medaglie (tre nel menu, cinque nel codice)', () => {
   // «Sfida il campione» tolto il 29/10 su richiesta dell'utente
-  assert.deepEqual(CHALLENGES.map(c => c.id), ['rush', 'precision', 'combo', 'survival', 'radar']);
-  for (const c of CHALLENGES) assert.ok(c.label && c.unit && c.short && c.facts.length === 3, c.id);
+  // Radar e Survival nascosti dal 30/10 (natpf_arcade.HIDDEN_MODES): nel menu tre minigiochi, nel codice ancora cinque
+  assert.deepEqual(CHALLENGES.map(c => c.id), ['rush', 'precision', 'combo']);
+  assert.deepEqual(ALL_CHALLENGES.map(c => c.id), ['rush', 'precision', 'combo', 'survival', 'radar']);
+  for (const c of ALL_CHALLENGES) assert.ok(c.label && c.unit && c.short && c.facts.length === 3, c.id);
 });
 
 test('nickname: solo il nickname, ripulito e filtrato', () => {

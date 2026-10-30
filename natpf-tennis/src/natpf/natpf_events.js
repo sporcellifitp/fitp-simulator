@@ -1,14 +1,15 @@
 // Minigiochi arcade (dal 28/10/2026) e sfide per gli eventi: partite brevi con punteggio, nickname, classifica del
 // giorno, record personali, medaglie e livello. Regole e punteggi in natpf_arcade.js (funzioni pure), bersagli 3D in
 // natpf_targets.js, lanciapalle in natpf_ball_machine.js. Minigiochi: Target Rush, Precision, Combo Challenge,
-// Survival, Radar del servizio («Sfida il campione» tolto il 29/10).
+// Survival, Radar del servizio («Sfida il campione» tolto il 29/10). Survival e Radar sono nascosti dal 30/10
+// (natpf_arcade.HIDDEN_MODES): non si scelgono dal menu, ma il codice resta e start('survival') funziona ancora.
 // Le sfide con il lanciapalle si giocano nell'arena piena (pubblico e luci della partita) con l'avversario fuori dal
 // campo; la palla parte come nel riscaldamento (natpf_training.js, _feed). Con lo smartphone non ancora calibrato prima
 // si fa solo la calibrazione in campo (training.start({ calOnly: true })).
 // Classifica del giorno: per sfida, sul computer dello stand (localStorage), azzerata ogni giorno o dal pannello
 // dell'addetto; dei visitatori si chiede solo il nickname.
 import * as THREE from 'three';
-import { MODES, modeById, recordGame, RECORDS_KEY, levelOf, comboMultiplier, rushLevel, rushTarget, PRECISION_ZONES, precisionPoints,
+import { MODES, VISIBLE_MODES, HIDDEN_MODES, modeById, recordGame, RECORDS_KEY, levelOf, comboMultiplier, rushLevel, rushTarget, PRECISION_ZONES, precisionPoints,
   COMBO_STEPS, comboChain, comboStepOk, comboStepPoints, comboChainBonus, SURVIVAL, survivalLevel, MEDAL_LABEL } from './natpf_arcade.js';
 import { TargetField } from './natpf_targets.js';
 import { feedForLevel } from './natpf_ball_machine.js';
@@ -20,9 +21,14 @@ const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const BOARD_KEY = 'natpf-tennis.classifica';
 export const NICK_KEY = 'natpf-tennis.nickname';
 
-// i minigiochi (natpf_arcade.MODES): stessa forma delle sfide di prima (id, label, unit, short, facts)
-export const CHALLENGES = MODES;
+// i minigiochi che si scelgono (menu, classifica): natpf_arcade.VISIBLE_MODES, stessa forma delle sfide di prima (id,
+// label, unit, short, facts). ALL_CHALLENGES comprende anche quelli nascosti (HIDDEN_CHALLENGES), che restano giocabili
+// dal codice; challengeById li trova tutti, pickableChallenge solo quelli visibili.
+export const CHALLENGES = VISIBLE_MODES;
+export const ALL_CHALLENGES = MODES;
+export const HIDDEN_CHALLENGES = HIDDEN_MODES;
 export const challengeById = modeById;
+export const pickableChallenge = id => CHALLENGES.find(c => c.id === id) || null;
 
 /* ---------- nickname ---------- */
 // Parole che non si mostrano sul maxischermo di uno stand (elenco breve, minuscole, senza accenti)
@@ -51,7 +57,7 @@ export function addScore(board, mode, nick, score, { day = dayKey(), at = Date.n
 export const topScores = (board, mode, n = 10, day = dayKey()) => (freshBoard(board, day).modes[mode] || []).slice(0, n);
 export function boardCsv(board){
   const rows = [['giorno', 'sfida', 'posizione', 'nickname', 'punteggio', 'ora']];
-  for (const c of CHALLENGES) (board?.modes?.[c.id] || []).forEach((e, i) => rows.push([board.day, c.label, i + 1, e.nick, e.score, new Date(e.at).toLocaleTimeString('it-IT')]));
+  for (const c of ALL_CHALLENGES) (board?.modes?.[c.id] || []).forEach((e, i) => rows.push([board.day, c.label, i + 1, e.nick, e.score, new Date(e.at).toLocaleTimeString('it-IT')]));
   return rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
 }
 
