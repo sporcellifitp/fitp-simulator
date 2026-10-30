@@ -1259,12 +1259,22 @@ export class MotionController {
   }
   startPhonePolling() {
     if (this.phonePollTimer) return;
+    // NATPF: una lettura alla volta. Prima ne partiva una ogni 50 ms senza aspettare la precedente: con il collegamento
+    // tra i due computer lento (sfida senza server, server di inoltro) si accodavano fino a 80 richieste, le risposte
+    // arrivavano sempre più tardi e tutte insieme. Una lettura ferma da più di 5 s non blocca le successive
     const e = async () => {
+      const now = Date.now();
+      if (this._pollBusyAt && now - this._pollBusyAt < 5e3) return;
+      const tok = (this._pollBusyAt = now);
+      try { await poll(); } finally { this._pollBusyAt === tok && (this._pollBusyAt = 0); }
+    };
+    const poll = async () => {
       if (!this._disposed)
         try {
           // NATPF 1v1: touch con il proprio ruolo (prima «touch=1», che il relay ignorava: l'host non vedeva mai il P2
-          // online) e, dal P2, se è pronto in lobby
-          const t = `?room=${encodeURIComponent(this.roomId || "default")}&role=${encodeURIComponent(this.role || "p1")}&touch=${this.role === "p2" ? "p2" : "p1"}${this.role === "p2" && this.versusReady != null ? `&ready=${this.versusReady ? 1 : 0}` : ""}`,
+          // online) e, dal P2, se è pronto in lobby e se in partita non può giocare (hold: telefono scollegato, pagina
+          // nascosta…, natpf_versus.p2HoldWhy; vuoto = può giocare)
+          const t = `?room=${encodeURIComponent(this.roomId || "default")}&role=${encodeURIComponent(this.role || "p1")}&touch=${this.role === "p2" ? "p2" : "p1"}${this.role === "p2" && this.versusReady != null ? `&ready=${this.versusReady ? 1 : 0}` : ""}${this.role === "p2" && this.versusHold !== undefined ? `&hold=${encodeURIComponent(this.versusHold || "")}` : ""}`,
             i = await fetch(`/api/match/state${t}`, { cache: "no-store" });
           // NATPF 1v1: stanza che non esiste (link vecchio o sbagliato)
           if (i.status === 404 && this.role === "p2") { typeof this.onRoomState == "function" && this.onRoomState({ invalidRoom: !0 }); return; }

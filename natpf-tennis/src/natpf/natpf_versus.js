@@ -136,3 +136,72 @@ export function newSwings(history = [], last = 0, fallback = null){
   if (!list.length && fallback && typeof fallback.seq === 'number' && fallback.seq > last) list.push(fallback);
   return list;
 }
+
+/* ---------- partita ferma per tutti e due quando uno non può giocare (diagnosi del 30/10) ---------- */
+// Prima l'host vedeva solo il computer del P2: con il telefono del P2 scollegato, la pagina del telefono nascosta o i
+// sensori fermi la partita andava avanti e il P2 non poteva colpire (il controllo del telefono escludeva il P2). Ora il
+// computer del P2 dice all'host perché non può giocare (hold nella lettura dello stato) e l'host ferma la partita per
+// tutti e due, con lo stesso conto alla rovescia e il punto rigiocato del telefono del P1 (natpf_phone_watch.js).
+
+// Motivi detti subito (li sa il dispositivo stesso); gli altri devono durare HOLD_GRACE_MS (un ricollegamento lampo non
+// ferma la partita)
+export const HOLD_GRACE_MS = 300;
+const HOLD_NOW = new Set(['pagina nascosta', 'computer nascosto']);
+// Lato P2: perché non può giocare adesso. playing: partita in corso sul P2; hidden: finestra del gioco nascosta sul suo
+// computer; health: salute del telefono (phoneHealthOf) se gioca con il telefono, altrimenti null
+export function p2HoldWhy({ playing = false, hidden = false, health = null } = {}){
+  if (!playing) return null;
+  if (hidden) return 'computer nascosto';
+  return health && !health.ok ? health.why || 'scollegato' : null;
+}
+// Il motivo si dice all'host dopo HOLD_GRACE_MS (subito se il dispositivo lo sa da sé); null appena torna tutto a posto
+export function createHoldReporter({ graceMs = HOLD_GRACE_MS } = {}){
+  let since = null, cur = null;
+  return {
+    get why(){ return cur; },
+    update(why, now = 0){
+      if (!why){ since = null; cur = null; return null; }
+      if (cur && why !== cur) cur = why;
+      if (cur) return cur;
+      if (since == null) since = now;
+      if (HOLD_NOW.has(why) || now - since >= graceMs){ cur = why; since = null; }
+      return cur;
+    },
+  };
+}
+// Lato host: l'avversario può giocare? absentMs: da quanto il computer del P2 non si sente; hold: motivo detto dal P2;
+// hostHidden: la finestra dell'host è nascosta (il motore si ferma con lei)
+export function opponentHealth({ absentMs = 0, hold = null, hostHidden = false, lostMs = VERSUS.lostMs } = {}){
+  if (hostHidden) return { ok: false, why: 'host nascosto' };
+  if (absentMs > lostMs) return { ok: false, why: 'avversario' };
+  if (hold) return { ok: false, why: String(hold) };
+  return { ok: true, why: null };
+}
+// Testo del riquadro di attesa sull'host
+export function hostHoldText(why, { p2Name = 'Player 2' } = {}){
+  const resume = 'La partita è ferma per tutti e due, il punteggio resta. Riprende da sola con un breve conto alla rovescia; se lo scambio era in corso, il punto si rigioca.';
+  switch (why){
+    case 'avversario': return { title: `${p2Name} si è scollegato`, text: `${resume} Sul suo computer può premere «Riconnetti».` };
+    case 'host nascosto': return { title: 'Partita in pausa', text: `Hai messo il gioco in secondo piano. ${resume}` };
+    case 'computer nascosto': return { title: `${p2Name} ha messo il gioco in secondo piano`, text: resume };
+    case 'scollegato': return { title: `Il telefono di ${p2Name} è scollegato`, text: resume };
+    case 'non pronto': return { title: `Il telefono di ${p2Name} non è pronto`, text: `Sta finendo la calibrazione. ${resume}` };
+    case 'pagina nascosta': return { title: `Il telefono di ${p2Name} ha lo schermo spento`, text: `O un’altra app aperta. ${resume}` };
+    case 'sensori fermi': return { title: `Il telefono di ${p2Name} non manda il movimento`, text: resume };
+    default: return { title: `${p2Name} non può giocare`, text: resume };
+  }
+}
+// Cosa vede il P2 con la partita ferma. hold (dallo snapshot dell'host): { who: 'p2' | 'host', why, left } — who 'p2':
+// il motivo è suo (il telefono: lo dice holdText del telefono); left: secondi alla ripresa
+export function guestHoldNotice(hold = {}, { hostName = 'Player 1', phoneText = null } = {}){
+  const h = hold || {};
+  if (Number.isFinite(h.left)) return { title: 'Si riprende', text: `Tra ${h.left}…` };
+  if (h.who === 'p2'){
+    if (h.why === 'avversario') return { title: 'Collegamento con l’host interrotto', text: `${hostName} non riceve più il tuo computer: la partita è ferma. Premi «Riconnetti» se non torna da solo.` };
+    if (h.why === 'computer nascosto') return { title: 'Partita in pausa', text: 'Torna alla finestra del gioco: la partita riprende con il conto alla rovescia.' };
+    return { title: 'Il tuo telefono è in pausa', text: phoneText || 'Il telefono non è utilizzabile: guarda il telefono.', phone: true };
+  }
+  if (h.why === 'host nascosto') return { title: 'Partita in pausa', text: `${hostName} ha messo il gioco in secondo piano: riprende quando torna.` };
+  if (h.why === 'telefono') return { title: 'Partita in pausa', text: `Il telefono di ${hostName} è in pausa: riprende quando torna pronto.` };
+  return { title: 'Partita in pausa', text: `${hostName} ha messo in pausa la partita.` };
+}

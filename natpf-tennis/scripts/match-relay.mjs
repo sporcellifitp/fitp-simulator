@@ -167,6 +167,9 @@ export function createMatchRelay({ publicUrl = PUBLIC_URL } = {}) {
       (m === "p1" || m === "p2") &&
         (m === "p2" ? (e.p2DesktopSeenTs = Date.now()) : (e.p1DesktopSeenTs = Date.now()));
       m === "p2" && w.searchParams.has("ready") && (e.p2Ready = w.searchParams.get("ready") === "1");
+      // NATPF 1v1: il P2 dice se in partita non può giocare (telefono scollegato o non pronto, pagina nascosta…): l'host
+      // ferma la partita per tutti e due. Prima l'host vedeva solo il computer del P2 e andava avanti
+      m === "p2" && w.searchParams.has("hold") && (e.p2Hold = String(w.searchParams.get("hold") || "").slice(0, 40) || null);
       const h = Date.now(),
         k = T(e.rackets.p1),
         i = T(e.rackets.p2),
@@ -182,6 +185,7 @@ export function createMatchRelay({ publicUrl = PUBLIC_URL } = {}) {
         p1Online: o,
         p2Online: s,
         p2Ready: s && !!e.p2Ready,
+        p2Hold: s ? e.p2Hold || null : null,
         epoch: e.epoch,
         p1DesktopOnline: o,
         p2DesktopOnline: s,

@@ -438,8 +438,9 @@ export class NatpfUi {
       this._paintHold(null);
       if (phone && this.phoneDropOpened){ this.phoneDropOpened = false; if (!this.modal?.classList.contains('hidden')) this.closePhone(); }
       E.pendingUserSwing = null; E.natpfWeakServe = null;
-      // stesso schermo: tutto su questo computer, il punto si rigioca anche lì (il 1v1 in rete lo decide l'host)
-      const replay = a.replay && (!E.isMultiplayer || !!E.natpfSplit?.active) && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
+      // il punto lo rigioca chi decide i punti: questo computer, anche l'host del 1v1 in rete (il P2 segue l'host; prima
+      // nel 1v1 in rete la pausa del telefono dell'host non rigiocava lo scambio interrotto)
+      const replay = a.replay && E.playerRole !== 'p2' && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
       if (replay){ E._setupPointServe({ showBanner: false }); this.toast(phone ? 'Il telefono si era fermato: il punto si rigioca' : 'La webcam aveva perso la mano: il punto si rigioca'); }
       R?.log?.(phone ? 'tel.ripresa' : 'webcam.ripresa', { rigiocato: replay });
       if (phone) this.phone.lastPhase = null;      // la fase vera torna al telefono al prossimo fotogramma

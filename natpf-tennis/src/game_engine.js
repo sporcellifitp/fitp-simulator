@@ -3250,6 +3250,7 @@ export class NatpfTennisEngine {
         p1Online: !!e.p1Online,
         p2Online: !!e.p2Online,
         p2Ready: !!e.p2Ready,
+        p2Hold: e.p2Hold || null, // NATPF 1v1: perché il P2 non può giocare (natpf_versus.p2HoldWhy)
         p1Phone: !!e.p1?.connected,
         p2Phone: !!e.p2?.connected,
         isMultiplayer: !!(this.isMultiplayer || (this.roomId && this.roomId !== "default")),
@@ -3276,13 +3277,16 @@ export class NatpfTennisEngine {
         G.lobby = !0;
         return;
       }
-      // host in pausa (o in attesa del P2): la partita resta com'è, il collegamento è vivo
+      // host in pausa (o in attesa del P2): la partita resta com'è, il collegamento è vivo; hold: perché è ferma
+      // (natpf_versus.pauseNotice), il P2 lo vede sopra il campo
       if (n.paused) {
         G.lobby = !1;
+        G.hold = n.hold || {};
+        n.score && ((this.score = { ...this.score, ...n.score }), this._syncScoreboardHUD());
         return;
       }
       const wasOver = this.phase === "MATCH_OVER";
-      G.lobby = !1;
+      (G.lobby = !1), (G.hold = null);
       n.phase &&
         n.phase !== "TITLE" &&
         (this.phase === "TITLE" && this.hud.hideTitleModal(),

@@ -9,7 +9,11 @@
 //      resta bloccato;
 //   4. P2 «Sono pronto»: l'host lo vede pronto, «Gioca» si sblocca;
 //   5. «Gioca»: si gioca al meglio di 3, servono tutti e due, punteggio uguale sulle due sessioni;
-//   6. P2 chiude la pagina: l'host si ferma con la spiegazione; P2 rientra con il link: si riprende;
+//      Il P2 colpisce con i dati del telefono (~1,4 KB a colpo, come natpf_phone_racket.js): fino al 30/10 dopo una decina
+//      di suoi colpi lo stato della partita superava i 16300 byte, PeerJS lo scartava e il P2 restava su «collegamento
+//      perso» (verso la fine del primo game); ora si gioca oltre i 15 colpi del P2 e il P2 resta aggiornato;
+//   6. P2 chiude la pagina: l'host si ferma con la spiegazione; P2 rientra con il link: ha subito il punteggio, l'host
+//      aspetta che abbia la racchetta pronta (dal 30/10), poi si riprende con il conto alla rovescia;
 //   7. P1 sceglie «Contro la CPU»: il P2 vede «stanza chiusa»; un link a una stanza che non esiste lo dice; aperto sul
 //      telefono, l'invito dice di aprirlo sul computer;
 //   8. rete che blocca il collegamento diretto (candidati ICE riscritti su un indirizzo irraggiungibile, su tutti e due i
@@ -44,17 +48,22 @@ const GAME = `http://127.0.0.1:${GAME_PORT}`;
 // giocatore automatico (gli stessi eventi del mouse): lancio e colpo al servizio, swing quando la palla arriva vicino
 const BOT = () => {
   let last = 0;
-  window.__served = { player: 0, opponent: 0 }; window.__maxRally = 0;
+  window.__served = { player: 0, opponent: 0 }; window.__maxRally = 0; window.__hits = 0; window.__maxAge = 0;
+  // colpo del P2 con i dati del telefono (stessa forma e misura di natpf_phone_racket.js), lancio senza
+  const NATPF = { aim: 'face', shot: 'topspin', face: { yaw: 0, pitch: 0, roll: 0 }, head: .12, v: .5, move: 'h', conf: .8, speed: 3.2, power: .81, latency: .06, hand: 'right',
+    why: ['dritto', 'salita 0,12 sopra il solito', 'piatto 8° a destra', 'tempo giusto'], prep: { lead: .23, amount: .7 }, prepCapable: true, intent: { shot: 'topspin', conf: .8, power: .7, why: ['gesto orizzontale', 'mano che sale un poco'] }, peak: 612 };
+  const hit = mc => { window.__hits++; return __natpfTennis.playerRole === 'p2' ? mc._emitSwing({ source: 'synthetic', speed: 1.18, dirX: 0, dirY: -.45, natpf: NATPF, hand: 'right' }) : mc.triggerSyntheticSwing({}); };
   clearInterval(window.__bot);
   window.__bot = setInterval(() => {
     const e = window.__natpfTennis, mc = e.motionController, me = e.playerRole === 'p2' ? 'opponent' : 'player', a = e[me], b = e.ball, now = performance.now();
     window.__maxRally = Math.max(window.__maxRally || 0, b.rallyStrokeCount || 0);
+    const G = e.versusGuest; if (G?.lastSnapshotAt && G.lobby === false) window.__maxAge = Math.max(window.__maxAge, now - G.lastSnapshotAt);
     if (now - last < 380) return;
     if (e.phase === 'SERVE_STANCE' && e.score.server === me){ last = now + 400; mc.triggerSyntheticSwing({ type: 'toss' }); }
-    else if (e.phase === 'SERVE_TOSS' && e.score.server === me && b.vel.y < 0){ last = now; window.__served[me]++; mc.triggerSyntheticSwing({}); }
+    else if (e.phase === 'SERVE_TOSS' && e.score.server === me && b.vel.y < 0){ last = now; window.__served[me]++; hit(mc); }
     // dopo una decina di colpi si lascia passare la palla: due giocatori automatici perfetti non sbagliano mai e uno
     // scambio poteva durare più del tempo della prova (154 colpi in 4 minuti), senza mai arrivare al cambio del servizio
-    else if (e.phase === 'RALLY' && b.inPlay && (b.rallyStrokeCount || 0) < 10 && (a.pos.z - b.pos.z)*b.vel.z > 0 && Math.hypot(b.pos.x - a.pos.x, b.pos.z - a.pos.z) < 1.7){ last = now; mc.triggerSyntheticSwing({}); }
+    else if (e.phase === 'RALLY' && b.inPlay && (b.rallyStrokeCount || 0) < 10 && (a.pos.z - b.pos.z)*b.vel.z > 0 && Math.hypot(b.pos.x - a.pos.x, b.pos.z - a.pos.z) < 1.7){ last = now; hit(mc); }
   }, 8);
 };
 // il disegno con WebGL software rallenta i fotogrammi a 1–2 s: si toglie solo il render, la partita resta
@@ -77,7 +86,7 @@ const BLOCK_ICE = () => {
   };
 };
 const guestStatus = p => p.evaluate(() => document.querySelector('[data-versus-guest]')?.dataset.state || '');
-const state = p => p.evaluate(() => { const e = __natpfTennis; return { score: ['playerPoints', 'opponentPoints', 'playerGames', 'opponentGames'].map(k => e.score[k]), server: e.score.server, phase: e.phase, rally: window.__maxRally, served: window.__served, gamesToWin: e.matchConfig.gamesToWin }; });
+const state = p => p.evaluate(() => { const e = __natpfTennis; return { score: ['playerPoints', 'opponentPoints', 'playerGames', 'opponentGames'].map(k => e.score[k]), server: e.score.server, phase: e.phase, rally: window.__maxRally, served: window.__served, gamesToWin: e.matchConfig.gamesToWin, hits: window.__hits, maxAge: Math.round(window.__maxAge || 0), guest: document.querySelector('[data-versus-guest]')?.dataset.state || null }; });
 const until = async (p, fn, arg, ms = 30000) => p.waitForFunction(fn, arg, { timeout: ms, polling: 250 }).then(() => true, () => false);
 
 const B = await launch();
@@ -129,7 +138,7 @@ try {
   for (const t = Date.now(); Date.now() - t < 240000;){
     await sleep(3000);
     [s1, s2] = await Promise.all([state(p1), state(p2)]);
-    if (s2.served?.opponent >= 1 && s1.rally >= 3) break;
+    if (s2.served?.opponent >= 1 && s1.rally >= 3 && s2.hits >= 15) break;
   }
   await sleep(1500);
   [s1, s2] = await Promise.all([state(p1), state(p2)]);
@@ -137,6 +146,7 @@ try {
   check('   al meglio di 3 (prima sempre un game)', s1.gamesToWin === 2 && s2.gamesToWin === 2, `${s1.gamesToWin}/${s2.gamesToWin}`);
   check('   scambio tra le due sessioni', s1.rally >= 3, `scambio più lungo: ${s1.rally} colpi`);
   check('   servono tutti e due (cambio del servizio dopo il primo game)', s1.served.player >= 1 && s2.served.opponent >= 1, `P1 ${s1.served.player}, P2 ${s2.served.opponent}`);
+  check('   oltre 15 colpi del P2 con i dati del telefono: il P2 resta aggiornato (prima stato >16300 byte, scartato)', s2.hits >= 15 && s2.maxAge < 3000 && s2.guest === 'playing', `${s2.hits} colpi, snapshot più vecchio ${s2.maxAge} ms, stato ${s2.guest}`);
   check('   punteggio e servizio uguali sulle due sessioni', JSON.stringify(s1.score) === JSON.stringify(s2.score) && s1.server === s2.server, `P1 ${s1.score} ${s1.server} · P2 ${s2.score} ${s2.server}`);
 
   /* 6: il P2 esce e rientra */
@@ -145,6 +155,14 @@ try {
   check('6. P2 uscito: l’host si ferma e spiega cosa succede', waited && await p1.evaluate(() => __natpfTennis.natpfPaused));
   const { ctx: c3, p: p2b, errs: e3 } = await page(B, invite, { w: 1100, h: 680 });
   await ready(p2b); await p2b.evaluate(NO_RENDER);
+  // il punteggio arriva già durante la pausa (snapshot di pausa con il punteggio)
+  const scoreEarly = await until(p2b, s => JSON.stringify(['playerPoints', 'opponentPoints', 'playerGames', 'opponentGames'].map(k => __natpfTennis.score[k])) === s, JSON.stringify((await state(p1)).score), 20000);
+  // prima «avversario» (computer del P2 assente), poi il motivo che il P2 dice appena rientra: telefono non collegato
+  await until(p1, () => /scollegato|non pronto/.test(__natpfTennis.natpfUi.versus.holdWhy || ''), null, 20000);
+  const holdWhy = await p1.evaluate(() => __natpfTennis.natpfUi.versus.holdWhy);
+  check('   P2 rientrato senza racchetta pronta: l’host resta fermo e dice perché; il P2 ha già il punteggio', /scollegato|non pronto/.test(holdWhy || '') && scoreEarly, `motivo ${holdWhy}`);
+  // il P2 sceglie la racchetta (come la prima volta): la partita riprende da sola con il conto alla rovescia
+  await p2b.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.testInput = true; ui.selectController('mouse', { open: false }); });
   const resumed = await until(p1, () => __natpfTennis.natpfVersusWait === false && !__natpfTennis.natpfPaused, null, 45000);
   check('   P2 rientra con il link d’invito: la partita riprende da sola', resumed);
   const synced = await until(p2b, s => JSON.stringify(['playerPoints', 'opponentPoints', 'playerGames', 'opponentGames'].map(k => __natpfTennis.score[k])) === s, JSON.stringify(s1.score.length ? (await state(p1)).score : []), 15000);
@@ -182,7 +200,7 @@ try {
   log(`rete bloccata: segnalata in ${((Date.now() - t8)/1000).toFixed(0)} s · P2 ${d8[0]} · host ${d8[1]}`);
   check('8. rete che blocca il collegamento diretto: il P2 lo dice con i consigli (stessa Wi-Fi, altra rete, senza VPN)', guestBlocked && /stessa rete Wi-Fi/.test(await g8.evaluate(() => document.querySelector('[data-versus-guest]').textContent)), await g8.evaluate(() => document.querySelector('[data-versus-guest]')?.textContent));
   check('   l’host sa che il P2 ha aperto il link ma la rete lo blocca', hostBlocked, await line(h8));
-  check('   dettaglio per la diagnostica: stato ICE e candidati', /checking|failed/.test(d8[0] || '') && /host/.test(d8[0] || ''), d8.join(' | '));
+  check('   dettaglio per la diagnostica: stato ICE e candidati', /checking|failed|disconnected/.test(d8[0] || '') && /host/.test(d8[0] || ''), d8.join(' | '));
   await Promise.all([g8.evaluate(() => { window.__blockIce = false; }), h8.evaluate(() => { window.__blockIce = false; })]);
   const freed = await until(h8, () => /è entrato/.test(document.querySelector('#natpf-invite [data-versus-state]')?.textContent || ''), null, 60000);
   check('   rete di nuovo libera: il P2 entra da solo e gli avvisi spariscono', freed && await g8.evaluate(() => __natpfTennis.natpfP2p.status === 'connected' && !__natpfTennis.natpfP2p.error), await line(h8));

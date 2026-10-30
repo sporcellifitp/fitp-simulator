@@ -24,7 +24,13 @@ export const LIVE_MS = 5000;          // senza messaggi per 5 s il collegamento 
 export const CLOSED_MS = 20000;       // host introvabile per 20 s: probabilmente ha chiuso la stanza
 export const OPEN_MS = 12000;         // P2: il canale con l'host non si apre in 12 s → si chiude e si riprova (prima 8 s)
 export const HOST_OPEN_MS = 15000;    // host: un P2 che non apre il canale in 15 s ha la rete che lo blocca
+// … ma se l'altro computer ha risposto (ICE «checking») la strada si sta cercando, magari attraverso un server di inoltro
+// (TURN): si aspetta fino a 30 s, come il telefono (link.js). Prima il P2 chiudeva a 12 s le reti lente
+export const OPEN_MAX_MS = 30000;
 const RPC_TIMEOUT_MS = 4000;
+// PeerJS (serializzazione «json», la nostra) scarta in silenzio i messaggi da 16300 byte in su («Message too big for
+// JSON channel»): la risposta si manda a pezzi sotto questa misura. In caratteri: al massimo 3 byte UTF-8 ciascuno
+export const RPC_CHUNK_CHARS = 4500;
 
 /* ---------- collegamento diretto (ICE): perché un canale non si apre ---------- */
 // Segnalazione e canale sono due cose diverse. Il server pubblico mette in contatto i due computer (offerta e risposta);
@@ -74,9 +80,33 @@ export function createLocalRelay({ relay = createMatchRelay({ publicUrl: '' }), 
 }
 const toResponse = ({ status, text }) => new Response(status === 204 ? null : text, { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
 
+/* ---------- stato della partita per il P2: solo quello che gli serve ---------- */
+// Diagnosi del 30/10 (blocco nel secondo game con la versione Cloudflare): /api/match/state portava al P2 lo storico dei
+// colpi due volte (p1/p2 e rackets) con i dati NATPF di ogni colpo, ~1,4 KB a colpo. Dopo una decina di colpi del P2 la
+// risposta superava i 16300 byte e PeerJS la scartava senza dirlo: il P2 non riceveva più niente («Collegamento con
+// Player 1 perso») mentre l'host lo vedeva collegato (le sue richieste arrivavano). Anche sotto quella misura erano fino
+// a 400 KB/s verso il P2 (20 letture al secondo). Ora al P2 vanno gli ultimi COMPACT_SWINGS colpi di ciascuno, senza la
+// copia «rackets» (nessuno la legge). L'host legge il relay in locale e resta com'era.
+export const COMPACT_SWINGS = 3;
+export function compactMatchState(text, { keep = COMPACT_SWINGS } = {}){
+  let j;
+  try { j = JSON.parse(text); } catch { return text; }
+  if (!j || typeof j !== 'object') return text;
+  delete j.rackets;
+  for (const k of ['p1', 'p2']) if (Array.isArray(j[k]?.swingHistory)) j[k].swingHistory = j[k].swingHistory.slice(-keep);
+  return JSON.stringify(j);
+}
+// risposta divisa in pezzi da mandare uno per messaggio (un solo pezzo se è piccola)
+export function chunkText(text, size = RPC_CHUNK_CHARS){
+  const s = String(text ?? ''), out = [];
+  for (let i = 0; i < s.length; i += size) out.push(s.slice(i, i + size));
+  return out.length ? out : [''];
+}
+
 /* ---------- RPC su un canale (DataConnection di PeerJS o canale finto nei test) ---------- */
 // Canale: send(obj), on('data'|'open'|'close'|'error', fn), close(), open. Messaggi:
-//   P2 → host  { t: 'hi', room }  { t: 'rq', i, m, u, b }      host → P2  { t: 'rs', i, s, b }  { t: 'no', why }
+//   P2 → host  { t: 'hi', room, id }  { t: 'rq', i, m, u, b }      host → P2  { t: 'rs', i, s, b[, k, n] }  { t: 'no', why }
+// Una risposta grande arriva in n pezzi (k = 0…n−1) con lo stesso i: si ricompone qui.
 export function createRpcClient(conn, { timeoutMs = RPC_TIMEOUT_MS, onMessage = null } = {}){
   let seq = 0;
   const pending = new Map();
@@ -85,7 +115,16 @@ export function createRpcClient(conn, { timeoutMs = RPC_TIMEOUT_MS, onMessage = 
     onMessage?.(d);
     if (!d || d.t !== 'rs') return;
     const p = pending.get(d.i); if (!p) return;
-    pending.delete(d.i); clearTimeout(p.timer); p.resolve({ status: Number(d.s) || 200, text: typeof d.b === 'string' ? d.b : '' });
+    let text = typeof d.b === 'string' ? d.b : '';
+    const n = Number(d.n) || 1;
+    if (n > 1){
+      const k = Number(d.k);
+      if (!Number.isInteger(k) || k < 0 || k >= n || n > 64) return;
+      (p.parts ||= new Array(n))[k] = text;
+      if (p.parts.filter(x => x != null).length < n) return;
+      text = p.parts.join('');
+    }
+    pending.delete(d.i); clearTimeout(p.timer); p.resolve({ status: Number(d.s) || 200, text });
   });
   conn.on('close', () => fail('collegamento con l’host chiuso'));
   return {
@@ -110,14 +149,18 @@ export function serveRpc(conn, { roomId, handle, onMessage = null }){
     if (!d || d.t !== 'rq' || typeof d.u !== 'string' || d.u.length > 2048) return;
     let url;
     try { url = new URL(d.u, 'http://p2p.invalid'); } catch { return; }
-    const reply = (s, b = '') => { try { if (conn.open) conn.send({ t: 'rs', i: d.i, s, b }); } catch {} };
+    // a pezzi se serve (vedi RPC_CHUNK_CHARS): prima una risposta troppo grande non partiva e il P2 aspettava invano
+    const reply = (s, b = '') => {
+      const parts = chunkText(b);
+      try { if (conn.open) parts.forEach((part, k) => conn.send(parts.length > 1 ? { t: 'rs', i: d.i, s, b: part, k, n: parts.length } : { t: 'rs', i: d.i, s, b: part })); } catch {}
+    };
     if (!remoteAllowed(d.m, url.pathname)) return reply(403, JSON.stringify({ ok: false, error: 'non permesso' }));
     // il P2 parla sempre della stanza dell'host
     url.searchParams.set('room', roomId);
     let body = typeof d.b === 'string' && d.b.length <= 65536 ? d.b : null;
     if (body){ try { const o = JSON.parse(body); if (o && typeof o === 'object'){ o.room = roomId; body = JSON.stringify(o); } } catch {} }
     const res = await handle({ method: d.m, url: url.pathname + url.search, body });
-    reply(res.status, res.text);
+    reply(res.status, d.m === 'GET' && url.pathname === '/api/match/state' && res.status === 200 ? compactMatchState(res.text) : res.text);
   });
 }
 
@@ -141,9 +184,9 @@ const emitter = () => {
 // status: starting → waiting (nessun P2) → connected → lost (P2 sparito: si ricollega da solo) · error (segnalazione)
 // error 'rete' (status in attesa o P2 perso): un P2 ha aperto il link ma il canale diretto non si apre (detail: stato
 // ICE e candidati di questo computer, blocked: quante volte)
-export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => Date.now(), timers = globalThis, openMs = HOST_OPEN_MS }){
+export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => Date.now(), timers = globalThis, openMs = HOST_OPEN_MS, openMaxMs = OPEN_MAX_MS }){
   const ev = emitter();
-  const S = { status: 'starting', error: null, peerId: peerIdForRoom(roomId), lastSeen: 0, guests: 0, blocked: 0, detail: null };
+  const S = { status: 'starting', error: null, peerId: peerIdForRoom(roomId), lastSeen: 0, guests: 0, blocked: 0, detail: null, guestId: null };
   const set = patch => { const before = S.status + S.error + S.blocked; Object.assign(S, patch); if (before !== S.status + S.error + S.blocked) ev.emit({ ...S }); };
   let conn = null, destroyed = false, settle, peer = null, again = null;
   const ready = new Promise(r => { settle = r; });
@@ -159,8 +202,11 @@ export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => 
     const seen = () => { if (c === conn) S.lastSeen = now(); };
     // un P2 che ha aperto il link ma non arriva: ICE fallito o canale ancora chiuso dopo openMs. Non se c'è già un P2
     // in partita (un secondo tentativo non cambia nulla per chi gioca). Lo stato resta (in attesa o P2 perso)
-    const ice = watchIce(c);
-    const openT = timers.setTimeout(() => blocked(), openMs); pending.add(openT);
+    const ice = watchIce(c), t0 = now();
+    // tempo massimo di apertura: openMs, fino a OPEN_MAX_MS se ICE sta ancora cercando la strada («checking»)
+    let openT = null;
+    const arm = ms => { openT = timers.setTimeout(() => { pending.delete(openT); if (ice.ice === 'checking' && !ice.failed && now() - t0 < openMaxMs) arm(openMaxMs - (now() - t0)); else blocked(); }, ms); pending.add(openT); };
+    arm(openMs);
     const stopT = () => { timers.clearTimeout(openT); pending.delete(openT); };
     const blocked = () => {
       stopT();
@@ -176,11 +222,13 @@ export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => 
         if (!d || d.t !== 'hi' || String(d.room || '').toUpperCase() !== String(roomId).toUpperCase()){ try { c.send({ t: 'no', why: 'stanza' }); } catch {} timers.setTimeout(() => c.close(), 200); return; }
         // un secondo P2 mentre il primo è vivo (link aperto due volte, inoltrato in un gruppo): rifiutato. Prima il
         // nuovo prendeva il posto del vecchio, che si ricollegava e lo scalzava, all'infinito. Chi ricarica la pagina
-        // rientra appena il vecchio collegamento tace (LIVE_MS)
-        if (conn && conn !== c && conn.open && now() - S.lastSeen <= LIVE_MS){ try { c.send({ t: 'no', why: 'occupata' }); } catch {} timers.setTimeout(() => c.close(), 200); return; }
+        // rientra appena il vecchio collegamento tace (LIVE_MS). Lo stesso P2 (stesso id di ripresa, «Riconnetti» o pagina
+        // ricaricata) prende subito il posto del suo vecchio collegamento
+        const same = !!d.id && d.id === S.guestId;
+        if (conn && conn !== c && conn.open && now() - S.lastSeen <= LIVE_MS && !same){ try { c.send({ t: 'no', why: 'occupata' }); } catch {} timers.setTimeout(() => c.close(), 200); return; }
         ok = true; stopT();
         if (conn && conn !== c) try { conn.close(); } catch {}
-        conn = c; S.guests++; S.blocked = 0; seen(); set({ status: 'connected', error: null });
+        conn = c; S.guests++; S.blocked = 0; S.guestId = typeof d.id === 'string' ? d.id.slice(0, 40) : null; seen(); set({ status: 'connected', error: null });
         try { c.send({ t: 'ok', room: roomId }); } catch {}
         return;
       }
@@ -214,7 +262,9 @@ export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => 
 // status: starting → connecting → connected → lost (riprova ogni pochi secondi) · error (segnalazione non raggiungibile)
 // error mentre riprova: 'rete' (l'host risponde ma il canale diretto non si apre: blocked tentativi, detail ICE),
 // 'chiusa' (host introvabile o muto da CLOSED_MS), 'occupata' (c'è già un altro Player 2)
-export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.now(), timers = globalThis, retryMs = [1000, 2000, 3000, 5000], openMs = OPEN_MS }){
+// resumeId: identità di ripresa di questo P2 (resta la stessa se ricarica la pagina, resumeIdFor): l'host lo riconosce e gli
+// ridà subito il posto. reconnect(): «Riconnetti», un nuovo tentativo subito (un solo tentativo alla volta)
+export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.now(), timers = globalThis, retryMs = [1000, 2000, 3000, 5000], openMs = OPEN_MS, openMaxMs = OPEN_MAX_MS, resumeId = null }){
   const ev = emitter();
   const S = { status: 'starting', error: null, hostId: peerIdForRoom(roomId), attempts: 0, lastSeen: 0, missingSince: 0, blocked: 0, detail: null };
   const set = patch => { const before = S.status + S.error + S.blocked; Object.assign(S, patch); if (before !== S.status + S.error + S.blocked) ev.emit({ ...S }); };
@@ -245,7 +295,7 @@ export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.no
     const c = conn = peer.connect(S.hostId, { reliable: true, serialization: 'json' });
     if (!c){ conn = null; retry(); return; }
     let ok = false, opened = false;
-    const ice = watchIce(c);
+    const ice = watchIce(c), t0 = now();
     // fine del tentativo (chiuso, errore, tempo scaduto): un canale mai aperto dice perché
     const end = () => { if (c !== conn) return; if (!opened) failed(ice); drop(c); };
     rpc = createRpcClient(c, { onMessage: d => {
@@ -257,12 +307,18 @@ export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.no
       if (d?.t === 'no' && d.why === 'occupata'){ set({ status: 'error', error: 'occupata' }); drop(c, 4000); try { c.close(); } catch {} return; }
       if (d?.t === 'no'){ set({ status: 'error', error: 'stanza' }); }
     } });
-    c.on('open', () => { opened = true; try { c.send({ t: 'hi', room: roomId }); } catch {} });
+    c.on('open', () => { opened = true; try { c.send(resumeId ? { t: 'hi', room: roomId, id: resumeId } : { t: 'hi', room: roomId }); } catch {} });
     c.on('close', end);
     c.on('error', () => { try { c.close(); } catch {} end(); });
     // il canale non si apre entro openMs (host fermo, rete che blocca il collegamento diretto): si chiude e si riprova.
     // PeerJS non manda «close» per un canale mai aperto: si chiude il tentativo qui
-    openT = timers.setTimeout(() => { if (c === conn && !ok){ try { c.close(); } catch {} end(); } }, openMs);
+    // Con ICE ancora «checking» (strada in cerca, magari attraverso un server di inoltro) si aspetta fino a OPEN_MAX_MS
+    const arm = ms => { openT = timers.setTimeout(() => {
+      if (c !== conn || ok) return;
+      if (!opened && ice.ice === 'checking' && !ice.failed && now() - t0 < openMaxMs) return arm(openMaxMs - (now() - t0));
+      try { c.close(); } catch {} end();
+    }, ms); };
+    arm(openMs);
   }
   function makePeer(){
     peerOpen = false;
@@ -288,8 +344,29 @@ export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.no
     get connected(){ return S.status === 'connected' && !!conn?.open; },
     onStatus: ev.on,
     request(req){ return rpc && S.status === 'connected' ? rpc.request(req) : Promise.reject(new TypeError('host non collegato')); },
+    // «Riconnetti»: chiude il tentativo (o il collegamento muto) e ne fa subito uno nuovo, senza una nuova partita
+    reconnect(){
+      if (destroyed) return false;
+      timers.clearTimeout(retryT); retryT = null; S.attempts = 0;
+      const c = conn;
+      if (c){ conn = null; rpc = null; timers.clearTimeout(openT); try { c.close(); } catch {} }
+      set({ status: S.lastSeen ? 'lost' : 'connecting' });
+      if (!peer || peer.destroyed) makePeer();
+      else if (peerOpen) connect();
+      else { try { peer.reconnect(); } catch {} retry(500); }
+      return true;
+    },
     destroy(){ destroyed = true; timers.clearInterval(watch); timers.clearTimeout(retryT); timers.clearTimeout(openT); try { conn?.close(); } catch {} try { peer?.destroy(); } catch {} set({ status: 'off' }); },
   };
+}
+
+// identità di ripresa del P2 per la stanza: resta nella scheda (sessionStorage) anche se la pagina si ricarica
+export function resumeIdFor(roomId, storage = globalThis.sessionStorage, rnd = Math.random){
+  const key = `natpf.p2p.id.${String(roomId || '').toUpperCase()}`;
+  try { const v = storage?.getItem(key); if (v && /^[a-z0-9]{6,40}$/.test(v)) return v; } catch {}
+  const id = Array.from({ length: 12 }, () => '0123456789abcdefghijklmnopqrstuvwxyz'[Math.floor(rnd() * 36)]).join('');
+  try { storage?.setItem(key, id); } catch {}
+  return id;
 }
 
 /* ---------- il server ha le API della partita? ---------- */
@@ -326,7 +403,7 @@ export function installNatpfP2p({ win = globalThis.window, Peer = null, peerOpti
   // P2 arrivato con il link di invito p2p: le richieste vanno all'host
   if (forced && role === 'p2' && room && room !== 'DEFAULT'){
     api.mode = 'guest'; api.roomId = room; api.status = 'starting';
-    getPeer().then(P => { api.guest = createP2pGuest({ Peer: P, roomId: room, options: options() }); api.guest.onStatus(relayStatus); relayStatus(api.guest.state); })
+    getPeer().then(P => { api.guest = createP2pGuest({ Peer: P, roomId: room, options: options(), resumeId: resumeIdFor(room, win.sessionStorage) }); api.guest.onStatus(relayStatus); relayStatus(api.guest.state); })
       .catch(() => relayStatus({ status: 'error', error: 'libreria' }));
   }
   // una stanza alla volta: due richieste ravvicinate non devono lasciare il motore su una stanza senza Peer

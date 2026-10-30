@@ -7,7 +7,8 @@
 //     chiusa o inesistente · rete che blocca il collegamento diretto), racchetta e visuale, «Sono pronto» ed «Esci»;
 //     sul telefono un avviso: l'invito si apre sul computer.
 // Lo stato arriva ogni 50 ms dal relay (/api/match/state) attraverso il motore (roomStatus, versusGuest).
-import { VERSUS, lobbyState, canStart, hostLobbyStatus, startLabel, guestState, guestLine } from './natpf_versus.js';
+import { VERSUS, lobbyState, canStart, hostLobbyStatus, startLabel, guestState, guestLine, p2HoldWhy, createHoldReporter, opponentHealth, hostHoldText, guestHoldNotice } from './natpf_versus.js';
+import { createPhoneWatch, phoneHealthOf, holdText } from './natpf_phone_watch.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 // browser di un telefono (sistema mobile e tocco): l'invito va aperto sul computer
@@ -23,6 +24,10 @@ export class NatpfVersusUi {
     this.ready = false;
     this.p2Gone = 0;            // host: da quando il P2 non si vede (ms, 0 = presente)
     this.waiting = false;       // host: partita ferma in attesa del P2
+    // host: il P2 può giocare? (computer collegato, telefono utilizzabile, finestre in primo piano) → pausa per tutti e
+    // due, conto alla rovescia, punto rigiocato. Senza tolleranza qui: la mette il P2 prima di dirlo (createHoldReporter)
+    this.watch = createPhoneWatch({ graceMs: 0 }); this.holdWhy = null; this.holdLeft = null;
+    this.reporter = createHoldReporter();   // P2: perché non può giocare, detto all'host
     this._buildWait();
     if (this.p2) this._bindGuest();
     // il motore si ferma con la pausa: il controllo gira a parte, e durante la pausa l'host dice al P2 che è in pausa
@@ -58,6 +63,7 @@ export class NatpfVersusUi {
     document.body.insertAdjacentHTML('beforeend', `<div id="natpf-versus-wait" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="natpf-versus-wait-title">
       <div class="natpf-sheet"><p class="sheet-kicker">Sfida un amico · 1v1</p><h2 class="sheet-title" id="natpf-versus-wait-title">Il Player 2 si è scollegato</h2>
       <p class="sheet-desc" data-versus-wait-text>La partita è ferma. Riprende da sola appena il Player 2 riapre il link.</p>
+      <p class="sheet-desc" data-versus-wait-count></p>
       <div class="sheet-actions"><button type="button" class="lobby-ghost" data-versus-menu>Torna al menu</button></div></div></div>`);
     const el = $('natpf-versus-wait');
     el.addEventListener('pointerdown', e => e.stopPropagation());
@@ -70,19 +76,56 @@ export class NatpfVersusUi {
     this.engine.natpfVersusWait = on; this.ui._syncPause();
     if (!on && back) this.ui.toast('Player 2 di nuovo collegato: si riprende');
   }
+  // titolo e testo del riquadro di attesa (motivo e conto alla rovescia)
+  _paintWait(){
+    const el = $('natpf-versus-wait'); if (!el) return;
+    const t = hostHoldText(this.holdWhy, { p2Name: this.engine.roomStatus?.guestName || 'Player 2' });
+    const set = (sel, txt) => { const x = el.querySelector(sel); if (x && x.textContent !== txt) x.textContent = txt; };
+    set('#natpf-versus-wait-title', t.title); set('[data-versus-wait-text]', t.text);
+    set('[data-versus-wait-count]', this.holdLeft ? `Si riprende tra ${this.holdLeft}…` : '');
+  }
+  // azioni della macchina a stati (natpf_phone_watch.createPhoneWatch): pausa, motivo cambiato, conto alla rovescia, ripresa
+  _watchAction(a){
+    const E = this.engine, R = this.ui.diag?.recorder;
+    if (a.kind === 'pause' || a.kind === 'wait'){
+      this.holdWhy = a.why; this.holdLeft = null; this._setWaiting(true); this._paintWait();
+      R?.log?.('sfida.pausa', { motivo: a.why, fase: E.phase });
+    }
+    if (a.kind === 'countdown'){ this.holdLeft = a.left; this._paintWait(); }
+    if (a.kind === 'resume'){
+      const replay = a.replay && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
+      this.holdLeft = null; this._setWaiting(false, this.holdWhy === 'avversario' && !replay);
+      // lo scambio interrotto non dà punti a nessuno: si rigioca dal servizio (stesso punteggio, stesso battitore)
+      if (replay){ E._setupPointServe?.({ showBanner: false }); this.ui.toast('Si riprende: il punto interrotto si rigioca'); }
+      R?.log?.('sfida.ripresa', { motivo: this.holdWhy, rigiocato: replay });
+      this.holdWhy = null;
+    }
+  }
+  // perché la partita è ferma, per il P2 (natpf_versus.guestHoldNotice)
+  _holdForGuest(){
+    if (this.waiting && this.holdWhy){
+      const who = this.holdWhy === 'host nascosto' ? 'host' : 'p2';
+      return this.holdLeft ? { who, why: this.holdWhy, left: this.holdLeft } : { who, why: this.holdWhy };
+    }
+    if (this.ui.phoneHold) return { who: 'host', why: 'telefono' };
+    return { who: 'host', why: 'pausa' };
+  }
   tick(){
     const E = this.engine;
     if (this.p2){ this._tickGuest(); return; }
-    if (!this.hostActive){ this.p2Gone = 0; this._setWaiting(false); return; }
+    if (!this.hostActive){ this.p2Gone = 0; if (this.watch.state !== 'ok') this.watch.reset(); this.holdWhy = null; this.holdLeft = null; this._setWaiting(false); return; }
     if (this.ui.lobby?.visible) this.paintLobby();
     const now = performance.now(), online = !!E.roomStatus?.p2Online;
     this.p2Gone = online ? 0 : (this.p2Gone || now);
     const inMatch = E._versusInMatch?.() && E.phase !== 'MATCH_OVER';
-    if (inMatch && this.p2Gone && now - this.p2Gone > VERSUS.lostMs) this._setWaiting(true);
-    else if (this.waiting && (online || !inMatch)) this._setWaiting(false, online);
-    // con il motore fermo (pausa o attesa) non partono snapshot: si dice al P2 che la partita è in pausa
-    if (E.natpfPaused && inMatch && E.roomId && E.roomId !== 'default')
-      fetch('/api/match/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room: E.roomId, snapshot: { paused: true, waitingP2: this.waiting } }) }).catch(() => {});
+    const h = opponentHealth({ absentMs: this.p2Gone ? now - this.p2Gone : 0, hold: online ? E.roomStatus?.p2Hold : null, hostHidden: !!globalThis.document?.hidden });
+    const a = this.watch.update(h, { inField: inMatch, rally: E.phase === 'RALLY' || E.phase === 'SERVE_TOSS', now });
+    if (a) this._watchAction(a);
+    // con il motore fermo (pausa o attesa, o finestra nascosta) non partono snapshot: si dice al P2 che la partita è in
+    // pausa e perché
+    if ((E.natpfPaused || this.waiting) && inMatch && E.roomId && E.roomId !== 'default')
+      // con il punteggio e chi batte: un P2 che rientra durante la pausa li vede subito (prima 0-0 fino alla ripresa)
+      fetch('/api/match/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room: E.roomId, snapshot: { paused: true, waitingP2: this.waiting, hold: this._holdForGuest(), score: { ...E.score }, fmt: E.matchFormat?.id, gamesToWin: E.matchConfig?.gamesToWin } }) }).catch(() => {});
   }
   /* ---------- Player 2 ---------- */
   _bindGuest(){
@@ -96,8 +139,10 @@ export class NatpfVersusUi {
     }
     const go = $('natpf-guest-go');
     if (go){ go.textContent = 'Sono pronto ✓'; }
-    modal.querySelector('.sheet-actions')?.insertAdjacentHTML('afterbegin', '<button type="button" class="lobby-ghost" data-versus-leave>Esci</button>');
+    modal.querySelector('.sheet-actions')?.insertAdjacentHTML('afterbegin', '<button type="button" class="lobby-ghost" data-versus-leave>Esci</button><button type="button" class="lobby-ghost hidden" data-versus-reconnect>Riconnetti</button>');
     modal.querySelector('[data-versus-leave]')?.addEventListener('click', e => { e.stopPropagation(); this.leave(); });
+    // sfida senza server: «Riconnetti» rifà subito il collegamento con l'host (stessa partita)
+    modal.querySelector('[data-versus-reconnect]')?.addEventListener('click', e => { e.stopPropagation(); this.reconnectAction().run(); });
   }
   // «Sono pronto»: l'host lo vede nella lobby
   setReady(on = true){
@@ -169,6 +214,7 @@ export class NatpfVersusUi {
       el.dataset.state = line.state;
       el.title = p2p?.mode === 'guest' && p2p.detail ? `collegamento diretto: ${p2p.detail}` : '';
     }
+    show(document.querySelector('[data-versus-reconnect]'), p2p?.mode === 'guest' && (st === 'lost' || st === 'connecting'));
     const go = $('natpf-guest-go');
     if (go){
       go.disabled = st !== 'lobby' && st !== 'connecting';
@@ -178,8 +224,32 @@ export class NatpfVersusUi {
     }
     return st;
   }
+  // P2 in partita: perché non può giocare (detto all'host con la lettura dello stato, motion_controls «hold») e cosa
+  // vede quando la partita è ferma (riquadro sopra il campo, con «Ricollega il telefono» o «Riconnetti»)
+  _guestHold(st){
+    const E = this.engine, ui = this.ui, mc = E.motionController, now = performance.now();
+    const playing = st === 'playing' && !this.local && !ui.training?.active;
+    const health = playing && ui.controller === 'phone' && ui.phone ? phoneHealthOf(ui.phone, now) : null;
+    const why = this.reporter.update(p2HoldWhy({ playing, hidden: !!globalThis.document?.hidden, health }), now);
+    if (mc) mc.versusHold = why || '';
+    if (why !== this._lastHold){ ui.diag?.recorder?.log?.('tel2.pausa', { motivo: why || 'ok' }); this._lastHold = why; }
+    // collegamento con l'host perso: lo dice il pannello del P2 (con «Riconnetti»), non questo riquadro
+    const G = E.versusGuest || {}, p2p = E.natpfP2p, hold = st === 'playing' ? G.hold : null;
+    if (!hold){ if (this._holdShown){ this._holdShown = false; ui._paintHold(null); } return; }
+    const n = guestHoldNotice(hold, { hostName: E.roomStatus?.hostName || 'Player 1', phoneText: holdText(hold.why) });
+    const action = n.phone ? ui.relinkAction(ui.phone) : hold.why === 'avversario' && p2p?.mode === 'guest' ? this.reconnectAction() : null;
+    ui._paintHold(n.title, n.text, action); this._holdShown = true;
+  }
+  // «Riconnetti» (sfida senza server): un nuovo collegamento con l'host subito, senza una nuova partita
+  reconnectAction(){
+    return { label: 'Riconnetti', run: () => {
+      const g = this.engine.natpfP2p?.guest;
+      if (g?.reconnect?.()){ this.ui.toast('Mi ricollego all’host…'); this.ui.diag?.recorder?.log?.('sfida.riconnetti', { stato: this.engine.natpfP2p?.status }); }
+    } };
+  }
   _tickGuest(){
     const st = this._paintGuest(), modal = $('natpf-guest-modal');
+    this._guestHold(st);
     // telefono collegato dal pannello del telefono: in campo per la calibrazione (o pronto, se è già calibrato)
     if (this.awaitPhone && this._phoneLinked()){
       this.awaitPhone = false; this.ui.closePhone();

@@ -3,7 +3,7 @@
 // a _attemptP2RallyStrike. Niente rete: canali e Peer finti in memoria.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createLocalRelay, createRpcClient, serveRpc, createP2pHost, createP2pGuest, installNatpfP2p, peerIdForRoom, isRelayPath, remoteAllowed, serverHasMatchApi, p2pRequested, candidateType, iceSummary, iceBlocked, watchIce } from '../src/natpf/natpf_p2p.js';
+import { createLocalRelay, createRpcClient, serveRpc, createP2pHost, createP2pGuest, installNatpfP2p, peerIdForRoom, isRelayPath, remoteAllowed, serverHasMatchApi, p2pRequested, candidateType, iceSummary, iceBlocked, watchIce, compactMatchState, chunkText, resumeIdFor, COMPACT_SWINGS, OPEN_MAX_MS } from '../src/natpf/natpf_p2p.js';
 import { natpfSwingExtras } from '../scripts/match-relay.mjs';
 import { guestInviteUrl } from '../src/natpf/natpf_lan.js';
 import { p2pStatusText } from '../src/natpf/natpf_ui.js';
@@ -20,7 +20,14 @@ class FakeConn {
   constructor(peer){ this.peer = peer; this.open = false; this.closed = false; this.h = {}; this.other = null; }
   on(ev, fn){ (this.h[ev] ||= []).push(fn); return this; }
   emit(ev, v){ for (const fn of this.h[ev] || []) fn(v); }
-  send(d){ if (!this.open) throw new Error('chiuso'); const o = this.other, copy = JSON.parse(JSON.stringify(d)); setTimeout(() => o.open && o.emit('data', copy), 0); }
+  // come PeerJS con la serializzazione «json»: da 16300 byte in su il messaggio non parte («Message too big for JSON
+  // channel», solo un evento di errore)
+  send(d){
+    if (!this.open) throw new Error('chiuso');
+    const text = JSON.stringify(d);
+    if (new TextEncoder().encode(text).byteLength >= 16300){ (this.tooBig ||= []).push(text.length); this.emit('error', { type: 'message-too-big' }); return; }
+    const o = this.other, copy = JSON.parse(text); setTimeout(() => o.open && o.emit('data', copy), 0);
+  }
   // come PeerJS: un canale mai aperto si chiude senza «close» (e l'altro computer non lo sa)
   close(){ if (this.closed) return; this.closed = true; const was = this.open; this.open = false; if (was){ this.emit('close'); this.other?.close(); } }
 }
@@ -187,10 +194,10 @@ test('ICE: tipo dei candidati, riassunto, canale bloccato se l’altro aveva ris
 test('rete che blocca il canale diretto: P2 e host lo dicono (non più «Mi collego…» e «In attesa…» per sempre), poi rete libera → collegati', async () => {
   const net = fakeNetwork(), L = createLocalRelay();
   const room = JSON.parse((await L.handle({ method: 'POST', url: '/api/match/create', body: {} })).text);
-  const host = createP2pHost({ Peer: net.Peer, roomId: room.roomId, handle: L.handle, openMs: 60 });
+  const host = createP2pHost({ Peer: net.Peer, roomId: room.roomId, handle: L.handle, openMs: 60, openMaxMs: 120 });
   await host.ready;
   net.net.blocked = true;
-  const guest = createP2pGuest({ Peer: net.Peer, roomId: room.roomId, retryMs: [20], openMs: 40 });
+  const guest = createP2pGuest({ Peer: net.Peer, roomId: room.roomId, retryMs: [20], openMs: 40, openMaxMs: 80 });
   const hostSeen = [], guestSeen = [];
   host.onStatus(s => hostSeen.push(s)); guest.onStatus(s => guestSeen.push(s));
   await until(() => guest.state.error === 'rete' && host.state.error === 'rete');
@@ -363,3 +370,100 @@ test('P2 con i dati del telefono: palla corta e pallonetto veri, direzione da te
   const plain = { source: 'phone', side: 'forehand', shotType: 'topspin', speed: 1.2, dirX: .4 };
   assert.deepEqual(p2Strike(plain), p2Strike({ ...plain, hand: 'left' }));
 });
+
+/* ---------- blocco nel secondo game con la versione Cloudflare (diagnosi del 30/10) ---------- */
+// Colpo del P2 come lo manda il suo computer (dati NATPF veri: ~1,4 KB a colpo nella risposta di /api/match/state)
+const BIG_NATPF = { aim: 'swing', shot: 'topspin', head: .12, v: .5, move: 'h', conf: .8, speed: 3.2, wrist: .12, aimSource: 'face', power: .81, latency: .06, hand: 'right', aimDev: 12.3,
+  why: ['dritto', 'salita 0,12 sopra il solito', 'piatto 8° a destra'], prep: { lead: .23, amount: .7 }, prepCapable: true, intent: { shot: 'topspin', conf: .8, power: .7, why: ['a', 'b'] }, peak: 612 };
+const SNAP = { phase: 'RALLY', phaseTimer: 1.2, score: { playerPoints: 0, opponentPoints: 0, playerGames: 1, opponentGames: 0, server: 'opponent', deuceSide: true }, ball: { px: 1, py: 1, pz: 1, vx: 0, vy: 0, vz: 0, inPlay: true } };
+
+test('secondo game: dopo tanti colpi del P2 lo stato della partita arriva ancora (prima >16300 byte, scartato da PeerJS)', async () => {
+  const L = createLocalRelay();
+  const room = JSON.parse((await L.handle({ method: 'POST', url: '/api/match/create', body: {} })).text);
+  await L.handle({ method: 'POST', url: `/api/match/sync?room=${room.roomId}`, body: { room: room.roomId, snapshot: SNAP } });
+  // un game e mezzo: 30 colpi del P2 e qualche lancio del servizio
+  for (let i = 0; i < 30; i++) await L.handle({ method: 'POST', url: `/api/racket/swing?room=${room.roomId}&role=p2`, body: { role: 'p2', type: i % 6 ? 'swing' : 'toss', natpf: BIG_NATPF, hand: 'right' } });
+  const full = (await L.handle({ url: `/api/match/state?room=${room.roomId}&role=p2&touch=p2` })).text;
+  assert.ok(new TextEncoder().encode(full).byteLength > 16300, `il relay intero supera la misura (${full.length})`);
+  const [guestSide, hostSide] = channelPair();
+  serveRpc(hostSide, { roomId: room.roomId, handle: L.handle });
+  const rpc = createRpcClient(guestSide, { timeoutMs: 500 });
+  const st = JSON.parse((await rpc.request({ url: `/api/match/state?room=${room.roomId}&role=p2&touch=p2` })).text);
+  assert.equal(st.snapshot.score.playerGames, 1); assert.equal(st.snapshot.phase, 'RALLY');
+  // al P2 gli ultimi colpi (con i dati NATPF), non la copia «rackets»
+  assert.equal(st.p2.swingHistory.length, COMPACT_SWINGS); assert.equal(st.p2.lastSwing.seq, 30); assert.equal(st.p2.swingHistory.at(-1).natpf.shot, 'topspin');
+  assert.ok(!('rackets' in st));
+  assert.equal(hostSide.tooBig, undefined, 'nessun messaggio scartato');
+  // risposta comunque grande (altro percorso): a pezzi, ricomposta uguale
+  const big = 'x'.repeat(40000) + 'è'.repeat(9000);
+  assert.deepEqual(chunkText(big).join(''), big);
+  const [g2, h2] = channelPair();
+  serveRpc(h2, { roomId: room.roomId, handle: async () => ({ status: 200, text: big }) });
+  const r = await createRpcClient(g2, { timeoutMs: 500 }).request({ url: '/api/racket/state' });
+  assert.equal(r.text, big); assert.equal(h2.tooBig, undefined);
+  // compatto: JSON non valido resta com'è
+  assert.equal(compactMatchState('non json'), 'non json');
+});
+
+test('P2: «Riconnetti» rifà subito il collegamento; lo stesso P2 (id di ripresa) riprende il posto senza aspettare', async () => {
+  const net = fakeNetwork();
+  const L = createLocalRelay();
+  const room = JSON.parse((await L.handle({ method: 'POST', url: '/api/match/create', body: {} })).text);
+  const host = createP2pHost({ Peer: net.Peer, roomId: room.roomId, handle: L.handle });
+  await host.ready;
+  const store = new Map(), storage = { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) };
+  const id = resumeIdFor(room.roomId, storage);
+  assert.equal(resumeIdFor(room.roomId, storage), id, 'stessa scheda, stesso id');
+  assert.notEqual(resumeIdFor('AT-ALTR', storage), id);
+  const guest = createP2pGuest({ Peer: net.Peer, roomId: room.roomId, retryMs: [5000], resumeId: id });
+  await until(() => guest.connected);
+  // collegamento vivo ma da rifare: «Riconnetti» → nuovo canale subito (senza i 5 s dei tentativi)
+  const before = net.conns.length;
+  assert.equal(guest.reconnect(), true);
+  await until(() => guest.connected && net.conns.length > before, 1000);
+  assert.equal(host.state.status, 'connected'); assert.equal(host.state.guestId, id);
+  // pagina ricaricata (nuovo P2 con lo stesso id) mentre il vecchio collegamento è ancora vivo: entra subito
+  const again = createP2pGuest({ Peer: net.Peer, roomId: room.roomId, retryMs: [5000], resumeId: id });
+  await until(() => again.connected, 1000);
+  // un altro P2 (id diverso) resta fuori
+  const other = createP2pGuest({ Peer: net.Peer, roomId: room.roomId, retryMs: [5000], resumeId: 'altro123' });
+  await until(() => other.state.error === 'occupata', 1000);
+  for (const x of [guest, again, other, host]) x.destroy();
+});
+
+test('canale lento (ICE «checking», server di inoltro): il P2 aspetta fino a OPEN_MAX_MS invece di chiudere a openMs', async () => {
+  assert.equal(OPEN_MAX_MS, 30000);
+  const net = fakeNetwork();
+  const L = createLocalRelay();
+  const room = JSON.parse((await L.handle({ method: 'POST', url: '/api/match/create', body: {} })).text);
+  const host = createP2pHost({ Peer: net.Peer, roomId: room.roomId, handle: L.handle, openMs: 30, openMaxMs: 400 });
+  await host.ready;
+  net.net.blocked = true;
+  const guest = createP2pGuest({ Peer: net.Peer, roomId: room.roomId, retryMs: [5000], openMs: 30, openMaxMs: 400 });
+  await tick(150);
+  // oltre openMs: il tentativo è ancora aperto (prima era chiuso e dichiarato «rete»)
+  assert.equal(guest.state.error, null); assert.equal(net.conns.length, 1);
+  assert.equal(host.state.error, null);
+  // alla fine del tempo massimo: rete che blocca
+  await until(() => guest.state.error === 'rete' && host.state.error === 'rete', 1500);
+  for (const x of [guest, host]) x.destroy();
+});
+
+test('P2: la lettura dello stato porta hold; una sola lettura alla volta (prima una ogni 50 ms senza aspettare: fino a 80 in coda)', async () => {
+  const urls = []; let release;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async url => { urls.push(String(url)); await new Promise(r => { release = r; }); return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  try {
+    const mc = Object.create(MotionController.prototype);
+    Object.assign(mc, { role: 'p2', roomId: 'AT-AB12', phonePollIntervalMs: 5, phoneState: { connected: false, orientation: {} }, p2PhoneState: { connected: false }, _listeners: { swing: [] }, versusHold: 'scollegato', versusReady: true });
+    mc._notifyStatus = () => {}; mc._updatePhoneBadgeUI = () => {};
+    mc.startPhonePolling();
+    await new Promise(r => setTimeout(r, 120));
+    assert.equal(urls.length, 1, `${urls.length} letture in corso`);
+    assert.match(urls[0], /touch=p2&ready=1&hold=scollegato/);
+    release(); await new Promise(r => setTimeout(r, 40));
+    assert.ok(urls.length >= 2, 'finita una, parte la successiva');
+    mc.stopPhonePolling(); mc._disposed = true; release();
+  } finally { globalThis.fetch = realFetch; }
+});
+
