@@ -7,7 +7,7 @@ import { createSwingDetector, sampleFromMotion } from './swing-detect.js';
 import { createCalibration, PLAN, GESTURE_PLAN, calibrationPlan, CAL } from './calibration.js';
 import { LanPeer, isLanMode } from './lan-transport.js';
 import { encodeSensor, SENSOR_HZ } from './sensor-packet.js';
-import { peerConfig, loadPeer, LINK_TIMES, netWhy } from './link.js';
+import { peerConfig, loadPeer, LINK_TIMES, netWhy, iceReady } from './link.js';
 import { createFaceTracker } from './face-tracker.js';
 import { strokeShape } from './stroke-shape.js';
 import { swingMessage } from './swing-message.js';
@@ -146,6 +146,9 @@ async function connect(){
   }, LINK_TIMES.phoneMs);
   try {
     const Peer = isLanMode() ? LanPeer : await loadPeer();
+    // TURN di Cloudflare, se il pacchetto lo ha configurato (ice-route.js): la rete del telefono del P2 bloccava tutte
+    // le strade di prima (30/10). Al massimo 2,5 s la prima volta, poi subito; se non riesce si va avanti come prima
+    if (!isLanMode()) await iceReady().catch(() => null);
     if (epoch !== connectEpoch) return;
     const p = peer = new Peer(peerConfig());
     const current = () => epoch === connectEpoch && peer === p;
@@ -229,15 +232,18 @@ function lost(){
   if (tries++ < 10) retryT = setTimeout(connect, Math.min(6000, 1000*tries));
 }
 const send = m => { if (conn && conn.open) try { conn.send(m); } catch (e){} };
-// messaggi che valgono solo se arrivano subito: senza ritrasmissioni e senza ordine, così un pacchetto perso non ferma
-// quelli dopo. false se il percorso non c'è (allora chi chiama usa send)
+// messaggi che valgono solo se arrivano subito: su una strada senza ordine, così un pacchetto perso non ferma quelli
+// dopo. In LAN senza ritrasmissioni (canale dei sensori); via internet PeerJS 1.5.4 con reliable false imposta solo
+// ordered false: non ordinata ma con le ritrasmissioni, su una connessione separata dalla principale (prima questo
+// commento diceva «senza ritrasmissioni» anche via internet). false se il percorso non c'è (allora chi chiama usa send)
 const sendFast = m => {
   if (!(conn && conn.open) || !fastOk) return false;
   if (conn.sendFast) return conn.sendFast(m);
   if (fast?.open) try { fast.send(m); return true; } catch (e){}
   return false;
 };
-// via internet: seconda connessione dello stesso telefono, non ordinata (il computer la accetta solo da questo peer)
+// via internet: seconda connessione dello stesso telefono, non ordinata ma affidabile (vedi sopra; il computer la accetta
+// solo da questo peer)
 function openFast(){
   if (!fastOk || isLanMode() || !peer || peer.destroyed || fast?.open) return;
   closeFast();

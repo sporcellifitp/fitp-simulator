@@ -8,7 +8,8 @@
 // Si attiva da sola quando il server non ha le API (/api/match/create risponde 404, HTML o errore di rete), oppure con
 // ?net=p2p. Il link di invito porta ?room=<id>&role=p2&net=p2p. In LAN e con npm run dev resta tutto come prima.
 import { createMatchRelay } from '../../scripts/match-relay.mjs';
-import { peerConfig } from '@natpf/tennis/link.js';
+import { peerConfig, iceReady } from '@natpf/tennis/link.js';
+import { watchRoute } from '@natpf/tennis/ice-route.js';
 
 export const P2P_PREFIX = 'natpf-sfida-';
 const NATPF_BASE = '/natpf/';
@@ -184,8 +185,12 @@ const emitter = () => {
 // status: starting → waiting (nessun P2) → connected → lost (P2 sparito: si ricollega da solo) · error (segnalazione)
 // error 'rete' (status in attesa o P2 perso): un P2 ha aperto il link ma il canale diretto non si apre (detail: stato
 // ICE e candidati di questo computer, blocked: quante volte)
-export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => Date.now(), timers = globalThis, openMs = HOST_OPEN_MS, openMaxMs = OPEN_MAX_MS }){
-  const ev = emitter();
+// onRoute / route: strada del collegamento con il P2 (ice-route.js: tipi dei candidati, protocollo, TURN), letta
+// all'ingresso del P2 e poi al massimo ogni 10 s; avvisa solo se cambia (diagnostica: sfida.strada)
+export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => Date.now(), timers = globalThis, openMs = HOST_OPEN_MS, openMaxMs = OPEN_MAX_MS, watch = watchRoute }){
+  const ev = emitter(), routeEv = emitter();
+  let route = null, stopRoute = () => {};
+  const follow = c => { stopRoute(); route = null; stopRoute = watch(c.peerConnection, r => { if (c === conn){ route = r; routeEv.emit(r); } }, { timers }); };
   const S = { status: 'starting', error: null, peerId: peerIdForRoom(roomId), lastSeen: 0, guests: 0, blocked: 0, detail: null, guestId: null };
   const set = patch => { const before = S.status + S.error + S.blocked; Object.assign(S, patch); if (before !== S.status + S.error + S.blocked) ev.emit({ ...S }); };
   let conn = null, destroyed = false, settle, peer = null, again = null;
@@ -229,13 +234,14 @@ export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => 
         ok = true; stopT();
         if (conn && conn !== c) try { conn.close(); } catch {}
         conn = c; S.guests++; S.blocked = 0; S.guestId = typeof d.id === 'string' ? d.id.slice(0, 40) : null; seen(); set({ status: 'connected', error: null });
+        follow(c);
         try { c.send({ t: 'ok', room: roomId }); } catch {}
         return;
       }
       seen();
     });
     serveRpc(c, { roomId, handle: req => ok && c === conn ? handle(req) : Promise.resolve({ status: 403, text: '' }) });
-    c.on('close', () => { if (!opened && iceBlocked(ice)) blocked(); stopT(); if (c === conn){ conn = null; set({ status: destroyed ? 'off' : 'lost' }); } });
+    c.on('close', () => { if (!opened && iceBlocked(ice)) blocked(); stopT(); if (c === conn){ conn = null; stopRoute(); route = null; set({ status: destroyed ? 'off' : 'lost' }); } });
     c.on('error', e => { if (e?.type === 'negotiation-failed') blocked(); });
   });
   // persa la segnalazione: le connessioni aperte restano, ci si registra di nuovo per le prossime
@@ -250,11 +256,12 @@ export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => 
   }
   make();
   // il P2 interroga lo stato ogni 50 ms: se tace per 5 s è scollegato (anche se WebRTC non se ne è ancora accorto)
-  const watch = timers.setInterval(() => { if (conn && S.status === 'connected' && now() - S.lastSeen > LIVE_MS) set({ status: 'lost' }); if (conn && S.status === 'lost' && now() - S.lastSeen <= LIVE_MS) set({ status: 'connected' }); }, 1000);
+  const alive = timers.setInterval(() => { if (conn && S.status === 'connected' && now() - S.lastSeen > LIVE_MS) set({ status: 'lost' }); if (conn && S.status === 'lost' && now() - S.lastSeen <= LIVE_MS) set({ status: 'connected' }); }, 1000);
   return {
     get state(){ return { ...S }; },
-    ready, onStatus: ev.on,
-    destroy(){ destroyed = true; timers.clearInterval(watch); timers.clearTimeout(again); for (const t of pending) timers.clearTimeout(t); pending.clear(); try { conn?.close(); } catch {} try { peer?.destroy(); } catch {} set({ status: 'off' }); },
+    get route(){ return route; },
+    ready, onStatus: ev.on, onRoute: routeEv.on,
+    destroy(){ destroyed = true; stopRoute(); timers.clearInterval(alive); timers.clearTimeout(again); for (const t of pending) timers.clearTimeout(t); pending.clear(); try { conn?.close(); } catch {} try { peer?.destroy(); } catch {} set({ status: 'off' }); },
   };
 }
 
@@ -264,8 +271,10 @@ export function createP2pHost({ Peer, roomId, handle, options = {}, now = () => 
 // 'chiusa' (host introvabile o muto da CLOSED_MS), 'occupata' (c'è già un altro Player 2)
 // resumeId: identità di ripresa di questo P2 (resta la stessa se ricarica la pagina, resumeIdFor): l'host lo riconosce e gli
 // ridà subito il posto. reconnect(): «Riconnetti», un nuovo tentativo subito (un solo tentativo alla volta)
-export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.now(), timers = globalThis, retryMs = [1000, 2000, 3000, 5000], openMs = OPEN_MS, openMaxMs = OPEN_MAX_MS, resumeId = null }){
-  const ev = emitter();
+export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.now(), timers = globalThis, retryMs = [1000, 2000, 3000, 5000], openMs = OPEN_MS, openMaxMs = OPEN_MAX_MS, resumeId = null, watch = watchRoute }){
+  const ev = emitter(), routeEv = emitter();
+  // strada del collegamento con l'host (come createP2pHost)
+  let route = null, stopRoute = () => {};
   const S = { status: 'starting', error: null, hostId: peerIdForRoom(roomId), attempts: 0, lastSeen: 0, missingSince: 0, blocked: 0, detail: null };
   const set = patch => { const before = S.status + S.error + S.blocked; Object.assign(S, patch); if (before !== S.status + S.error + S.blocked) ev.emit({ ...S }); };
   let conn = null, rpc = null, destroyed = false, retryT = null, openT = null, peerOpen = false, peer = null;
@@ -285,7 +294,7 @@ export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.no
   };
   function drop(c, wait){
     if (c !== conn) return;
-    conn = null; rpc = null; timers.clearTimeout(openT);
+    conn = null; rpc = null; timers.clearTimeout(openT); stopRoute(); route = null;
     if (!destroyed){ if (S.error !== 'occupata') set({ status: S.lastSeen ? 'lost' : 'connecting' }); retry(wait); }
   }
   function connect(){
@@ -301,7 +310,10 @@ export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.no
     rpc = createRpcClient(c, { onMessage: d => {
       if (c !== conn) return;
       S.lastSeen = now();
-      if (d?.t === 'ok' && !ok){ ok = true; S.attempts = 0; S.missingSince = 0; S.blocked = 0; set({ status: 'connected', error: null }); }
+      if (d?.t === 'ok' && !ok){
+        ok = true; S.attempts = 0; S.missingSince = 0; S.blocked = 0; set({ status: 'connected', error: null });
+        stopRoute(); stopRoute = watch(c.peerConnection, r => { if (c === conn){ route = r; routeEv.emit(r); } }, { timers });
+      }
       // stanza occupata da un altro Player 2: si riprova più tardi (entra se l'altro esce). Prima si chiudeva il canale
       // e poi si lasciava: la chiusura riprovava subito, senza i 4 s
       if (d?.t === 'no' && d.why === 'occupata'){ set({ status: 'error', error: 'occupata' }); drop(c, 4000); try { c.close(); } catch {} return; }
@@ -336,27 +348,28 @@ export function createP2pGuest({ Peer, roomId, options = {}, now = () => Date.no
   }
   makePeer();
   // l'host tace da 5 s (scheda chiusa, rete persa): si chiude e si riprova
-  const watch = timers.setInterval(() => {
+  const alive = timers.setInterval(() => {
     if (conn && S.status === 'connected' && now() - S.lastSeen > LIVE_MS){ const c = conn; try { c.close(); } catch {} drop(c); }
   }, 1000);
   return {
     get state(){ return { ...S }; },
     get connected(){ return S.status === 'connected' && !!conn?.open; },
-    onStatus: ev.on,
+    get route(){ return route; },
+    onStatus: ev.on, onRoute: routeEv.on,
     request(req){ return rpc && S.status === 'connected' ? rpc.request(req) : Promise.reject(new TypeError('host non collegato')); },
     // «Riconnetti»: chiude il tentativo (o il collegamento muto) e ne fa subito uno nuovo, senza una nuova partita
     reconnect(){
       if (destroyed) return false;
       timers.clearTimeout(retryT); retryT = null; S.attempts = 0;
       const c = conn;
-      if (c){ conn = null; rpc = null; timers.clearTimeout(openT); try { c.close(); } catch {} }
+      if (c){ conn = null; rpc = null; timers.clearTimeout(openT); stopRoute(); route = null; try { c.close(); } catch {} }
       set({ status: S.lastSeen ? 'lost' : 'connecting' });
       if (!peer || peer.destroyed) makePeer();
       else if (peerOpen) connect();
       else { try { peer.reconnect(); } catch {} retry(500); }
       return true;
     },
-    destroy(){ destroyed = true; timers.clearInterval(watch); timers.clearTimeout(retryT); timers.clearTimeout(openT); try { conn?.close(); } catch {} try { peer?.destroy(); } catch {} set({ status: 'off' }); },
+    destroy(){ destroyed = true; stopRoute(); timers.clearInterval(alive); timers.clearTimeout(retryT); timers.clearTimeout(openT); try { conn?.close(); } catch {} try { peer?.destroy(); } catch {} set({ status: 'off' }); },
   };
 }
 
@@ -379,14 +392,15 @@ export async function serverHasMatchApi(response){
 
 /* ---------- installazione: intercetta fetch per i percorsi del relay ---------- */
 export function installNatpfP2p({ win = globalThis.window, Peer = null, peerOptions = null } = {}){
-  const ev = emitter();
+  const ev = emitter(), routeEv = emitter();
   const params = new URLSearchParams(win?.location?.search || '');
   const role = (params.get('role') || 'p1').toLowerCase() === 'p2' ? 'p2' : 'p1';
   const room = (params.get('room') || '').trim().toUpperCase();
   const forced = p2pRequested(win?.location?.search || '');
   const api = {
     mode: null, status: 'off', error: null, detail: null, blocked: 0, roomId: null, local: null, host: null, guest: null,
-    onStatus: ev.on,
+    // route: strada del collegamento tra i due computer (ice-route.js), onRoute a ogni cambio (diagnostica: sfida.strada)
+    route: null, onStatus: ev.on, onRoute: routeEv.on,
     get active(){ return !!api.mode; },
   };
   // detail e blocked: perché il canale diretto non si apre (stato ICE e candidati, quante volte), per la diagnostica
@@ -394,7 +408,10 @@ export function installNatpfP2p({ win = globalThis.window, Peer = null, peerOpti
     api.status = s.status; api.error = s.error || null; api.detail = s.detail || null; api.blocked = s.blocked || 0;
     ev.emit({ mode: api.mode, status: api.status, error: api.error, detail: api.detail, blocked: api.blocked, roomId: api.roomId });
   };
-  const getPeer = async () => Peer || await loadPeer();
+  // TURN nostri prima di creare il Peer (link.js, iceReady: al massimo 2,5 s una volta per pagina, niente con ?peer=):
+  // un errore o un ritardo non ferma la sfida, si va avanti con le strade di prima
+  const getPeer = async () => { const P = Peer || await loadPeer(); if (!peerOptions) await iceReady().catch(() => null); return P; };
+  const followRoute = side => side.onRoute(r => { api.route = r; routeEv.emit({ ...r, modo: api.mode }); });
   // server di segnalazione: quello del telefono-racchetta (pubblico di PeerJS, o ?peer=… per le prove)
   const options = () => { if (peerOptions) return peerOptions; try { return peerConfig(); } catch { return { debug: 0 }; } };
   if (!win?.fetch) return api;
@@ -403,7 +420,7 @@ export function installNatpfP2p({ win = globalThis.window, Peer = null, peerOpti
   // P2 arrivato con il link di invito p2p: le richieste vanno all'host
   if (forced && role === 'p2' && room && room !== 'DEFAULT'){
     api.mode = 'guest'; api.roomId = room; api.status = 'starting';
-    getPeer().then(P => { api.guest = createP2pGuest({ Peer: P, roomId: room, options: options(), resumeId: resumeIdFor(room, win.sessionStorage) }); api.guest.onStatus(relayStatus); relayStatus(api.guest.state); })
+    getPeer().then(P => { api.guest = createP2pGuest({ Peer: P, roomId: room, options: options(), resumeId: resumeIdFor(room, win.sessionStorage) }); api.guest.onStatus(relayStatus); followRoute(api.guest); relayStatus(api.guest.state); })
       .catch(() => relayStatus({ status: 'error', error: 'libreria' }));
   }
   // una stanza alla volta: due richieste ravvicinate non devono lasciare il motore su una stanza senza Peer
@@ -425,7 +442,7 @@ export function installNatpfP2p({ win = globalThis.window, Peer = null, peerOpti
       try {
         const P = await getPeer();
         api.host = createP2pHost({ Peer: P, roomId: json.roomId, handle: api.local.handle, options: options() });
-        api.host.onStatus(relayStatus); relayStatus(api.host.state);
+        api.host.onStatus(relayStatus); followRoute(api.host); api.route = null; relayStatus(api.host.state);
         const r = await Promise.race([api.host.ready, new Promise(ok => setTimeout(() => ok({ ok: false, error: 'timeout' }), 8000))]);
         if (r.ok || r.error !== 'unavailable-id') break;
       } catch { relayStatus({ status: 'error', error: 'libreria' }); break; }

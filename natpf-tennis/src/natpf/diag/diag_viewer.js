@@ -4,7 +4,7 @@
 // l'allineamento della webcam (si vede il gesto e si fa combaciare con il suo colpo). Nessuna risorsa esterna.
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // eventi che vanno nella pagina (gli altri restano in eventi.jsonl): palla solo ogni 4 campioni (~15 al secondo)
-const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'tel.scartato', 'tel.dispositivo', 'webcam.evento', 'webcam.camera', 'webcam.carico', 'video', 'atteso', 'marca', 'avviso', 'sfida.collegamento', 'sessione.fine', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.colpo']);
+const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'tel.scartato', 'tel.dispositivo', 'webcam.evento', 'webcam.camera', 'webcam.carico', 'video', 'atteso', 'marca', 'avviso', 'sfida.collegamento', 'sessione.fine', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.colpo', 'tel.strada', 'tel2.strada', 'sfida.strada']);
 // filtro di un evento alla volta (anche nel worker, mentre legge il registro a righe): l'evento, la palla ridotta o null
 export function viewerFilter(){
   let i = 0;
@@ -83,6 +83,8 @@ function draw(cur){
   if (cur != null){ g.fillStyle = 'rgba(127,127,127,.9)'; g.fillRect(cur/end*w - 1, 0, 2, h); }
 }
 $('tl').onclick = e => { const r = e.target.getBoundingClientRect(); seek((e.clientX - r.left)/r.width*end); };
+// strada del collegamento (tel.strada, tel2.strada, sfida.strada): «relay (tls, TURN nostro) ↔ srflx · udp · 42 ms»
+const strada = e => (e.locale || '?') + (e.relay ? ' (' + e.relay + (e.nostro ? ', TURN nostro' : e.nostro === false ? ', altro TURN' : '') + ')' : '') + ' ↔ ' + (e.remoto || '?') + ' · ' + (e.protocollo || '?') + (e.rtt != null ? ' · ' + e.rtt + ' ms' : '') + (e.turn ? '' : ' · senza TURN');
 const desc = e => ({
   'tel.colpo': () => (e.scartato ? 'telefono: scartato (' + e.scartato + ')' : 'telefono: ' + (e.lato || '?') + ' / ' + (e.tipo || '?') + (e.intenzione ? ' · forza ' + e.intenzione.forza + ' · profondità ' + e.intenzione.profondita + ' · piatto ' + e.intenzione.piatto : ' · mira ' + e.mira) + (e.forma ? ' · salita ' + e.forma.salita + ' · piano ' + e.forma.piano : '') + ' · consegna ' + e.consegna + ' ms · rilevamento ' + e.rilevamento + ' ms') + (e.n != null ? ' · #' + e.n : '') + (e.via ? ' · ' + e.via : ''),
   racchetta: () => 'esito ' + (e.chi || '') + ': ' + (e.voluto || '?') + ' → ' + (e.colpo || '?') + ' · ' + (e.voto || '') + ' · tempo ' + e.tempoMs + ' ms · qualità ' + e.qualita + (e.assistito ? ' (assistito)' : '') + (e.fallito ? ' · fallito' + (e.rete ? ' in rete' : ' lungo') : '') + ' · x ' + e.x + ' z ' + e.z + (e.volee ? ' · al volo' : ''),
@@ -102,6 +104,7 @@ const desc = e => ({
   'tel2.colpo': () => 'telefono P2: ' + (e.scartato ? 'scartato (' + e.scartato + ')' : (e.lato || '?') + ' / ' + (e.tipo || '?') + ' · mira ' + e.mira + ' (' + (e.fonteMira || '?') + ')'),
   'tel.stato': () => 'telefono: ' + e.collegamento + ' / ' + (e.telefono || '') + (e.visibile === false ? ' · pagina nascosta' : '') + (e.schermo ? ' · schermo ' + e.schermo : ''),
   'sfida.collegamento': () => 'sfida (' + (e.modo || '?') + '): ' + (e.stato || '?') + (e.errore ? ' · ' + e.errore : '') + (e.bloccati ? ' · ' + e.bloccati + ' tentativi bloccati' : '') + (e.dettaglio ? ' · ' + e.dettaglio : ''),
+  'tel.strada': () => 'strada telefono: ' + strada(e), 'tel2.strada': () => 'strada telefono P2: ' + strada(e), 'sfida.strada': () => 'strada sfida (' + (e.modo || '?') + '): ' + strada(e),
   'tel.cal': () => 'calibrazione: ' + e.kind + (e.step ? ' ' + e.step : '') + (e.ok != null ? (e.ok ? ' ok' : ' no') : ''), 'webcam.evento': () => 'webcam: ' + e.tipo + ' ' + (e.side || '') + ' ' + (e.shotType || ''),
   'webcam.camera': () => 'webcam accesa: ' + (e.ottenuto ? e.ottenuto.w + '×' + e.ottenuto.h + ' a ' + (e.ottenuto.fps ?? '?') + ' fps' : '') + ', modello ' + (e.livello || ''), 'webcam.carico': () => 'webcam: modello ' + e.da + ' → ' + e.a + ' (inferenza ' + e.p50 + ' ms)',
   video: () => 'video ' + e.file + ' ' + e.stato, sessione: () => 'inizio sessione', 'sessione.fine': () => 'fine sessione',

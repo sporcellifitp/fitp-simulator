@@ -15,7 +15,7 @@
 // Tipi di evento (k): fase, palla, rimbalzo, punto, tentativo, colpo.gioco, racchetta, piano, servizio, vuoto, input,
 // tel.colpo, tel.cal, tel.stato, tel.orologio, tel.link, tel.scartato, tel.prep, tel.dispositivo, webcam.frame, webcam.evento,
 // webcam.camera, webcam.ritmo, webcam.carico, webcam.stato, webcam.modello, webcam.riapertura, webcam.pausa, webcam.ripresa, tel.pausa, tel.ripresa,
-// prestazioni, video, video.frame, sfida.collegamento,
+// prestazioni, video, video.frame, sfida.collegamento, tel.strada, tel2.strada, sfida.strada,
 // atteso, marca, avviso.
 import { latencyShift, eventLatency, swingTiming } from '../natpf_skill.js';
 import { shotDirection } from './diag_metrics.js';
@@ -96,6 +96,10 @@ export class DiagRecorder {
     if (ph?.profile) this.log('tel.profilo', { profilo: ph.profile, mano: ph.hand || null, liftBaseline: ph.liftBaseline ?? null });
     if (ph?.device) this.log('tel.dispositivo', ph.device);
     if (E.natpfP2p?.active) this._p2p(E.natpfP2p);
+    // strade già scelte prima dell'inizio della registrazione (poi solo i cambi)
+    if (E.natpfP2p?.route) this.log('sfida.strada', this._route(E.natpfP2p.route, { modo: E.natpfP2p.mode || null }));
+    if (ph?.link?.route) this.log('tel.strada', this._route(ph.link.route));
+    if (E.natpfPhone2?.link?.route) this.log('tel2.strada', this._route(E.natpfPhone2.link.route));
     // webcam già accesa: camera chiesta e ottenuta, livello del modello delle mani (motion_controls.webcamInfo)
     const mc0 = E.motionController;
     if (mc0?.webcamActive && mc0.webcamInfo) this.log('webcam.camera', { ...mc0.webcamInfo, livello: mc0._wcLevel?.().id ?? mc0.webcamInfo.livello });
@@ -303,6 +307,8 @@ export class DiagRecorder {
     // sfida un amico senza server (natpf_p2p.js): stato del collegamento tra i due computer e, se il canale diretto non
     // si apre, perché (stato ICE e candidati di questo computer)
     E.natpfP2p?.onStatus?.(s => R.active && R._p2p(s));
+    // strada scelta tra i due computer (tipi dei candidati, protocollo, TURN nostro o no): all'apertura e a ogni cambio
+    E.natpfP2p?.onRoute?.(r => R.active && R.log('sfida.strada', R._route(r, { modo: r.modo || E.natpfP2p.mode || null })));
     if (typeof PerformanceObserver !== 'undefined' && PerformanceObserver.supportedEntryTypes?.includes('longtask')){
       try { new PerformanceObserver(list => { if (R.active) R.perf.longTasks += list.getEntries().length; }).observe({ type: 'longtask', buffered: false }); } catch {}
     }
@@ -313,6 +319,8 @@ export class DiagRecorder {
     if (!link || link === this._link) return;
     this._link = link;
     link.on?.('clock', c => this.active && this.log('tel.orologio', { d: r(c.d - this.t0, 1), p: r(c.p, 1), r: r(c.r - this.t0, 1) }));
+    // strada del collegamento con il telefono (link.js, ice-route.js): passa da un TURN? quale, con che protocollo
+    link.on?.('route', rt => this.active && this.log('tel.strada', this._route(rt)));
     link.on?.('state', st => {
       if (!this.active) return;
       const visibile = st.vis == null ? null : st.vis !== 0, schermo = st.wk == null ? null : st.wk === 1 ? 'acceso' : st.wk === -1 ? 'non supportato' : 'non garantito';
@@ -324,6 +332,9 @@ export class DiagRecorder {
   }
 
   /* ---------- sorgenti ---------- */
+  // strada del collegamento (ice-route.js, routeSummary): locale e remoto host | srflx | prflx | relay, protocollo,
+  // relay (udp, tcp, tls verso il TURN), rtt in ms, server del candidato locale, nostro (TURN di Cloudflare)
+  _route(rt, extra = {}){ return { ...pick(rt, ['locale', 'remoto', 'protocollo', 'relay', 'rtt', 'server', 'nostro', 'turn']), ...extra }; }
   _p2p(s){ this.log('sfida.collegamento', { modo: s.mode || null, stato: s.status || null, errore: s.error || null, bloccati: s.blocked || 0, dettaglio: s.detail || null, stanza: s.roomId || null }); }
   _phoneStato(force = false, extra = {}){
     const ph = this.engine.natpfPhone, L = ph?.link?.L || ph?.state || {};
@@ -370,6 +381,11 @@ export class DiagRecorder {
         if (e.kind === 'done' && e.profile) this.log('tel2.profilo', { profilo: e.profile, mano: p2.hand || null });
       });
       p2.onDiag?.((kind, d) => this.active && this._phoneDiag(kind, d, 'tel2'));
+    }
+    // strada del collegamento del secondo telefono (il suo link nasce quando si apre il QR)
+    if (p2.link && p2.link !== this._p2RouteLink){
+      this._p2RouteLink = p2.link;
+      p2.link.on?.('route', rt => this.active && this.log('tel2.strada', this._route(rt)));
     }
     // profilo e dispositivo già noti all'inizio della registrazione (una volta per telefono)
     if (this._p2Logged !== p2.link && (p2.profile || p2.device)){

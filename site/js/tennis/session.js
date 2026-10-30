@@ -5,7 +5,7 @@
 // Dall'amico: join {k|r, name, ctrl, ready}, tq (orologio), info, in (comandi), bye.
 // All'amico: welcome {r, host}, deny {why}, tr (orologio), lobby, start, s (stato), e (eventi), pause, end, bye.
 import { createGate, newSessionId, INVITE_PREFIX, inviteUrl, createClock } from './pairing.js';
-import { peerConfig, loadPeer, testSearch } from './link.js';
+import { peerConfig, loadPeer, testSearch, iceReady } from './link.js';
 
 const HEART = 1000, LOST = 5000;
 
@@ -23,6 +23,9 @@ export function hostSession(){
     set({ state: 'starting', error: null });
     try {
       const Peer = await loadPeer();
+      // TURN nostri, se configurati (ice-route.js): un errore o un ritardo non ferma il collegamento
+      await iceReady().catch(() => null);
+      if ((peer && !peer.destroyed) || S.state !== 'starting') return;          // già avviato, o chiuso nel frattempo
       peer = new Peer(id, peerConfig());
       peer.on('open', () => set({ state: 'open' }));
       peer.on('connection', accept);
@@ -88,6 +91,8 @@ export function joinSession(invite){
     clearTimeout(connect.t); connect.t = setTimeout(() => { if (S.state === 'connecting') lost(); }, 25000);   // niente risposta: si riprova
     try {
       const Peer = await loadPeer();
+      await iceReady().catch(() => null);
+      if (closing) return;
       if (peer && !peer.destroyed) peer.destroy();
       peer = new Peer(peerConfig());
       peer.on('open', () => {
