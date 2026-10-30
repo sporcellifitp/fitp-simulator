@@ -4,7 +4,7 @@
 // l'allineamento della webcam (si vede il gesto e si fa combaciare con il suo colpo). Nessuna risorsa esterna.
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // eventi che vanno nella pagina (gli altri restano in eventi.jsonl): palla solo ogni 4 campioni (~15 al secondo)
-const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'tel.scartato', 'tel.dispositivo', 'webcam.evento', 'webcam.camera', 'webcam.carico', 'video', 'atteso', 'marca', 'avviso', 'sfida.collegamento', 'sessione.fine', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.colpo']);
+const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'tel.scartato', 'tel.dispositivo', 'webcam.evento', 'webcam.camera', 'webcam.carico', 'video', 'atteso', 'marca', 'avviso', 'sfida.collegamento', 'sfida.colpo', 'sfida.colpo_vecchio', 'sfida.orologio', 'sessione.fine', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.colpo']);
 // filtro di un evento alla volta (anche nel worker, mentre legge il registro a righe): l'evento, la palla ridotta o null
 export function viewerFilter(){
   let i = 0;
@@ -102,6 +102,9 @@ const desc = e => ({
   'tel2.colpo': () => 'telefono P2: ' + (e.scartato ? 'scartato (' + e.scartato + ')' : (e.lato || '?') + ' / ' + (e.tipo || '?') + ' · mira ' + e.mira + ' (' + (e.fonteMira || '?') + ')'),
   'tel.stato': () => 'telefono: ' + e.collegamento + ' / ' + (e.telefono || '') + (e.visibile === false ? ' · pagina nascosta' : '') + (e.schermo ? ' · schermo ' + e.schermo : ''),
   'sfida.collegamento': () => 'sfida (' + (e.modo || '?') + '): ' + (e.stato || '?') + (e.errore ? ' · ' + e.errore : '') + (e.bloccati ? ' · ' + e.bloccati + ' tentativi bloccati' : '') + (e.dettaglio ? ' · ' + e.dettaglio : ''),
+  'sfida.colpo': () => (e.tipo === 'toss' ? 'lancio' : 'colpo') + ' del Player 2 giocato' + (e.eta != null ? ' · ' + e.eta + ' ms dal gesto' : ' · senza ora') + (e.tempoMs != null ? ' · tempo ' + e.tempoMs + ' ms' : ''),
+  'sfida.colpo_vecchio': () => (e.tipo === 'toss' ? 'lancio' : 'colpo') + ' del Player 2 non giocato: arrivato ' + e.eta + ' ms dopo il gesto (fase ' + (e.fase || '?') + ')',
+  'sfida.orologio': () => 'orologio dell’host: viaggio ' + e.rtt + ' ms · scarto ' + e.offset + ' ms',
   'tel.cal': () => 'calibrazione: ' + e.kind + (e.step ? ' ' + e.step : '') + (e.ok != null ? (e.ok ? ' ok' : ' no') : ''), 'webcam.evento': () => 'webcam: ' + e.tipo + ' ' + (e.side || '') + ' ' + (e.shotType || ''),
   'webcam.camera': () => 'webcam accesa: ' + (e.ottenuto ? e.ottenuto.w + '×' + e.ottenuto.h + ' a ' + (e.ottenuto.fps ?? '?') + ' fps' : '') + ', modello ' + (e.livello || ''), 'webcam.carico': () => 'webcam: modello ' + e.da + ' → ' + e.a + ' (inferenza ' + e.p50 + ' ms)',
   video: () => 'video ' + e.file + ' ' + e.stato, sessione: () => 'inizio sessione', 'sessione.fine': () => 'fine sessione',

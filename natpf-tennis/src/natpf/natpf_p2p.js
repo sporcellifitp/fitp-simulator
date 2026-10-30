@@ -86,7 +86,8 @@ const toResponse = ({ status, text }) => new Response(status === 204 ? null : te
 // risposta superava i 16300 byte e PeerJS la scartava senza dirlo: il P2 non riceveva più niente («Collegamento con
 // Player 1 perso») mentre l'host lo vedeva collegato (le sue richieste arrivavano). Anche sotto quella misura erano fino
 // a 400 KB/s verso il P2 (20 letture al secondo). Ora al P2 vanno gli ultimi COMPACT_SWINGS colpi di ciascuno, senza la
-// copia «rackets» (nessuno la legge). L'host legge il relay in locale e resta com'era.
+// copia «rackets» (nessuno la legge). L'host legge il relay in locale e resta com'era. Il resto resta com'è, compreso now
+// (ora del relay: il P2 ci allinea il suo orologio, motion_controls.hostClock).
 export const COMPACT_SWINGS = 3;
 export function compactMatchState(text, { keep = COMPACT_SWINGS } = {}){
   let j;

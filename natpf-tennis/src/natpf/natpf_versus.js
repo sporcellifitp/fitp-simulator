@@ -137,6 +137,31 @@ export function newSwings(history = [], last = 0, fallback = null){
   return list;
 }
 
+/* ---------- età dei colpi del P2 sull'host (analisi del 30/10: «prima misurare, poi proteggere») ---------- */
+// Prima il viaggio computer del P2 → host non era misurato e l'host giocava ogni colpo del P2 letto dal relay, per
+// quanto vecchio: un colpo o un lancio arrivato 2–3 s dopo (canale fermo e poi ripartito) poteva far partire il servizio
+// del P2 o essere giocato come nuovo. Ora il computer del P2 allinea il suo orologio a quello del relay (campo now di
+// /api/match/state, motion_controls.js) e manda con il colpo sentAtHost: l'ora del relay stimata all'invio. Il relay
+// è nel browser dell'host (sfida senza server) o nel server LAN: l'età si misura sul suo orologio.
+// Come PHONE_STALE_S (natpf_phone_racket.js) per il tratto telefono → computer: un colpo più vecchio di così non si gioca
+export const P2_STALE_MS = 600;
+// Istante del colpo sull'orologio del relay: sentAtHost meno la latenza dal picco sul telefono all'arrivo sul computer
+// del P2 (natpf.latency, s), se c'è; null se il P2 non ha mandato l'ora (P2 di prima, orologio non ancora stimato,
+// telefono che scrive da solo nel relay in LAN)
+export function p2SwingHitAt(swing){
+  const sent = swing?.sentAtHost;
+  if (typeof sent !== 'number' || !Number.isFinite(sent)) return null;
+  const lat = swing.natpf?.latency;
+  return typeof lat === 'number' && Number.isFinite(lat) ? sent - lat*1000 : sent;
+}
+// Età del colpo (ms dal picco, o dall'invio se manca la latenza) a nowMs (orologio del relay); null senza i dati:
+// allora il colpo si gioca come prima
+export function p2SwingAgeMs(swing, nowMs){
+  const hit = p2SwingHitAt(swing);
+  return hit == null || typeof nowMs !== 'number' || !Number.isFinite(nowMs) ? null : nowMs - hit;
+}
+export const p2SwingStale = (ageMs, maxMs = P2_STALE_MS) => ageMs != null && ageMs > maxMs;
+
 /* ---------- partita ferma per tutti e due quando uno non può giocare (diagnosi del 30/10) ---------- */
 // Prima l'host vedeva solo il computer del P2: con il telefono del P2 scollegato, la pagina del telefono nascosta o i
 // sensori fermi la partita andava avanti e il P2 non poteva colpire (il controllo del telefono escludeva il P2). Ora il

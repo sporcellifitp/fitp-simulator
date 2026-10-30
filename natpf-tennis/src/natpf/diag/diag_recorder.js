@@ -15,7 +15,7 @@
 // Tipi di evento (k): fase, palla, rimbalzo, punto, tentativo, colpo.gioco, racchetta, piano, servizio, vuoto, input,
 // tel.colpo, tel.cal, tel.stato, tel.orologio, tel.link, tel.scartato, tel.prep, tel.dispositivo, webcam.frame, webcam.evento,
 // webcam.camera, webcam.ritmo, webcam.carico, webcam.stato, webcam.modello, webcam.riapertura, webcam.pausa, webcam.ripresa, tel.pausa, tel.ripresa,
-// prestazioni, video, video.frame, sfida.collegamento,
+// prestazioni, video, video.frame, sfida.collegamento, sfida.colpo, sfida.colpo_vecchio, sfida.orologio (natpf_versus_ui.js),
 // atteso, marca, avviso.
 import { latencyShift, eventLatency, swingTiming } from '../natpf_skill.js';
 import { shotDirection } from './diag_metrics.js';
