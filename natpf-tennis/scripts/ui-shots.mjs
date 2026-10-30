@@ -74,7 +74,8 @@ await page.waitForTimeout(2500); await shot('drill-lob');
 await ui(() => { const T = window.__natpfTennis.natpfUi.training; T.idx = 0; T.live = { ok: true, recognized: 'Dritto in topspin', tip: '', power: .85, until: performance.now() + 60000 }; });
 await page.waitForTimeout(2000); await shot('drill-forehand');
 await ui(() => { const U = window.__natpfTennis.natpfUi; U.training.stop({ completed: false, silent: true }); delete U.phone.ready; delete U.phone.connected; U.controller = 'mouse'; });
-for (const id of ['rush', 'precision', 'combo', 'survival']){
+// solo i minigiochi del menu (Radar e Survival nascosti dal 30/10: natpf_arcade.HIDDEN_MODES)
+for (const id of ['rush', 'precision', 'combo']){
   const ok = await ui(i => { const U = window.__natpfTennis.natpfUi; if (!U.events.constructor.prototype || !U.events.start) return false; U.training.active && U.training.stop({ completed: false, silent: true }); U.events.start(i); return !!U.events.active; }, id);
   if (!ok) continue;
   await page.waitForTimeout(4500);
@@ -86,6 +87,13 @@ for (const id of ['rush', 'precision', 'combo', 'survival']){
 // finestre: guida, pausa, telefono, vittoria
 await ui(() => { const U = window.__natpfTennis.natpfUi; U.lobby.go('menu'); U.onboarding.open(); });
 await shot('sheet-guide');
+// guida a schede: passo della mira (testo più lungo), servizio con la webcam, ultima scheda con «Fine»
+await ui(() => { const O = window.__natpfTennis.natpfUi.onboarding; O.setController('phone'); O.go(3); });
+await shot('sheet-guide-4');
+await ui(() => { const O = window.__natpfTennis.natpfUi.onboarding; O.setController('webcam'); O.go(4); });
+await shot('sheet-guide-5-webcam');
+await ui(() => window.__natpfTennis.natpfUi.onboarding.go(5));
+await shot('sheet-guide-6');
 await ui(() => { const U = window.__natpfTennis.natpfUi; U.onboarding.close?.(); document.getElementById('natpf-onboarding')?.classList.add('hidden'); U.training.start({}); U.pause?.open?.() ?? U.pause?.toggle?.(); });
 await shot('sheet-pause');
 await ui(() => { const U = window.__natpfTennis.natpfUi; U.pause?.close?.(); document.getElementById('natpf-pause')?.classList.add('hidden'); U.training.stop({ completed: false, silent: true }); document.getElementById('natpf-phone-modal')?.classList.remove('hidden'); });

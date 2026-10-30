@@ -35,7 +35,7 @@ try {
     for (const k of ['ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowRight', 'ArrowRight', 'ArrowUp']){ await p.keyboard.press(k); seq.push(await p.evaluate(() => document.activeElement?.dataset?.menu)); }
     check(`${tag}: frecce come un joypad`, seq.join() === 'training,challenges,guide,options,options,challenges', seq.join());
     const desc = await p.evaluate(() => document.getElementById('menu-desc').textContent);
-    check(`${tag}: descrizione della voce scelta`, /Radar del servizio/.test(desc), desc);
+    check(`${tag}: descrizione della voce scelta`, /bersagli/i.test(desc) && !/Radar|Survival|sopravvivenza/i.test(desc), desc);
     // sfondo fermo: lo stato del gioco non cambia e il canvas non si ridisegna dopo i primi secondi
     await p.waitForTimeout(9000);
     const s0 = await p.evaluate(() => { const E = __natpfTennis, r = E.render.bind(E); window.__r = 0; E.render = () => { __r++; r(); }; return { t: E.phaseTimer, x: E.player.pos.x, ball: E.ball.inPlay }; });

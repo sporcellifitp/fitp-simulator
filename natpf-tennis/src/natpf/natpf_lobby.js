@@ -16,7 +16,7 @@
 // Pausa, «Torna al menu» e il «Menu» della schermata finale riportano al menu principale.
 // Easter egg: digitando «natpf» nel menu compaiono mouse e tastiera (modalità prova per il computer).
 import { FORMAT_KEY, SERVE_KEY, serveChoice } from './match_format.js';
-import { CHALLENGES, challengeById, validNickname } from './natpf_events.js';
+import { CHALLENGES, challengeById, pickableChallenge, validNickname } from './natpf_events.js';
 import { MEDAL_LABEL, nextMedal, medalCount } from './natpf_arcade.js';
 // icone dei minigiochi (natpf_arcade.MODES[].icon)
 const ARCADE_ICONS = {
@@ -199,7 +199,8 @@ export class NatpfLobby {
   }
   /* ---------- sfide, nickname, classifica ---------- */
   pickChallenge(id){
-    if (!challengeById(id)) return;
+    // solo i minigiochi visibili (natpf_arcade.HIDDEN_MODES: Radar e Survival nascosti dal 30/10)
+    if (!pickableChallenge(id)) return;
     this.challenge = id; this.setMode('challenge');
     // solo il nickname: chiesto una volta per visitatore (il chiosco lo dimentica quando lo stand torna libero)
     this.askNickname(() => this.go('controller'));
@@ -245,7 +246,7 @@ export class NatpfLobby {
   }
   _paintRanking(){
     const tabs = $('ranking-tabs'), list = $('ranking-list'); if (!tabs || !list) return;
-    this.rankingTab = challengeById(this.rankingTab) ? this.rankingTab : CHALLENGES[0].id;
+    this.rankingTab = pickableChallenge(this.rankingTab) ? this.rankingTab : CHALLENGES[0].id;
     tabs.innerHTML = CHALLENGES.map(c => `<button type="button" class="seg-btn ${c.id === this.rankingTab ? 'selected' : ''}" data-ranking="${c.id}" role="tab">${c.label}</button>`).join('');
     const c = challengeById(this.rankingTab), top = this.ui.events.top(c.id, 10);
     list.innerHTML = top.length ? top.map((e, i) => `<li><b>${i + 1}</b><span>${esc(e.nick)}</span><em>${e.score} ${c.unit}</em></li>`).join('') : '<li class="empty">Ancora nessun risultato oggi</li>';

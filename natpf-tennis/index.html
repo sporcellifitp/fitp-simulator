@@ -259,7 +259,7 @@
             <nav class="main-menu" aria-label="Menu principale">
               <button type="button" class="menu-item menu-primary" data-menu="play" data-title="Gioca" data-desc="Partita veloce in arena contro la CPU, oppure sfida un amico su un altro computer."><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" /><path d="M11 18c8 3 18 3 26 0M11 30c8-3 18-3 26 0" /></svg><span class="mi-text"><b>Gioca</b><span>CPU · Sfida un amico</span></span><i class="mi-go" aria-hidden="true">›</i></button>
               <button type="button" class="menu-item" data-menu="training" data-title="Allenamento" data-desc="Il tutorial completo: come tenere il telefono, calibrazione e tutti i colpi, con il gesto da copiare."><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="16" y="6" width="16" height="30" rx="4" /><path d="M20 30h8M14 40h20" /></svg><span class="mi-text"><b>Allenamento</b><span>Tutorial e colpi</span></span><i class="mi-go" aria-hidden="true">›</i></button>
-              <button type="button" class="menu-item" data-menu="challenges" data-title="Minigiochi" data-desc="Sfide arcade con bersagli, lanciapalle e combo: record personali, medaglie e classifica del giorno."><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="16" /><circle cx="24" cy="24" r="9" /><circle cx="24" cy="24" r="2.5" /></svg><span class="mi-text"><b>Minigiochi</b><span>Bersagli, combo, sopravvivenza</span></span><i class="mi-go" aria-hidden="true">›</i></button>
+              <button type="button" class="menu-item" data-menu="challenges" data-title="Minigiochi" data-desc="Sfide arcade con bersagli, zone di precisione e combo: record personali, medaglie e classifica del giorno."><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="16" /><circle cx="24" cy="24" r="9" /><circle cx="24" cy="24" r="2.5" /></svg><span class="mi-text"><b>Minigiochi</b><span>Bersagli, precisione, combo</span></span><i class="mi-go" aria-hidden="true">›</i></button>
               <div class="menu-row">
                 <button type="button" class="menu-item menu-small" data-menu="ranking" data-title="Classifica" data-desc="I migliori di oggi in ogni minigioco."><b>Classifica</b></button
                 ><button type="button" class="menu-item menu-small" data-menu="guide" data-title="Come si gioca" data-desc="La guida in breve: come tenere il telefono e come colpire."><b>Guida</b></button
@@ -668,19 +668,28 @@
         </div>
       </div>
     </div>
-    <!-- NATPF: «Come si gioca», tutte le istruzioni in una finestra con le clip del gioco (src/natpf/natpf_onboarding.js) -->
-    <div id="natpf-onboarding" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="onb-title">
+    <!-- NATPF: «Come si gioca», modale a schede: una scheda per passo con la clip del gioco (o la figura della presa),
+         «Cosa fai tu» e «Cosa succede in campo»; puntini, Indietro/Avanti/Fine, frecce, swipe, Esc
+         (src/natpf/natpf_onboarding.js) -->
+    <div id="natpf-onboarding" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="onb-title" aria-describedby="onb-count">
       <div class="natpf-sheet natpf-guide">
-        <div class="guide-head">
-          <div><p class="sheet-kicker">Guida</p><h2 class="sheet-title" id="onb-title">Come si gioca</h2></div>
-          <div class="onb-ctrl" role="group" aria-label="Istruzioni per"></div>
-          <button type="button" class="guide-close" id="onb-close" aria-label="Chiudi">×</button>
+        <header class="guide-head">
+          <div class="guide-titles"><p class="sheet-kicker">Guida · <span id="onb-count">Passo 1 di 6</span></p><h2 class="sheet-title" id="onb-title">Come si gioca</h2></div>
+          <div class="seg onb-ctrl" role="group" aria-label="Istruzioni per la racchetta"></div>
+          <button type="button" class="guide-close" id="onb-close" aria-label="Chiudi la guida (Esc)">×</button>
+        </header>
+        <div class="guide-viewport" id="onb-cards" aria-roledescription="carosello" aria-label="Passi della guida">
+          <div class="guide-track" id="onb-track"></div>
         </div>
-        <div class="guide-rows" id="onb-rows"></div>
-        <div class="sheet-actions">
-          <button type="button" class="lobby-secondary" id="onb-practice">Prova nel riscaldamento</button
-          ><button type="button" class="lobby-primary" id="onb-next">Ho capito ›</button>
-        </div>
+        <p class="guide-sr" id="onb-live" aria-live="polite"></p>
+        <footer class="guide-foot">
+          <button type="button" class="btn btn-ghost guide-prev" id="onb-prev">‹ Indietro</button>
+          <div class="guide-dots" id="onb-dots" role="group" aria-label="Vai al passo"></div>
+          <div class="guide-foot-end">
+            <button type="button" class="btn btn-ghost hidden" id="onb-practice">Prova nel riscaldamento</button
+            ><button type="button" class="btn btn-primary guide-next" id="onb-next">Avanti ›</button>
+          </div>
+        </footer>
       </div>
     </div>
     <!-- NATPF: allenatore del riscaldamento e del tutorial in campo (src/natpf/natpf_training.js). Il campo resta libero:

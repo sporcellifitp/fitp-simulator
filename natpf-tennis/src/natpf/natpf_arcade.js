@@ -15,6 +15,13 @@ export const MODES = Object.freeze([
   { id: 'radar', label: 'Radar del servizio', unit: 'km/h', icon: 'radar', time: 30, short: 'Tre servizi: vale il più veloce dentro il campo.', facts: ['3 servizi', 'Vale il più veloce dentro', '30 secondi'], medals: [110, 140, 165] },
 ]);
 export const modeById = id => MODES.find(m => m.id === id) || null;
+// Minigiochi nascosti (30/10/2026, richiesta dell'utente: «togli Radar del servizio e Survival, nascondili, non
+// eliminarli»). Interruttore unico: un id in questo elenco non compare come scelta (pagina «Minigiochi», classifica del
+// menu e del chiosco), ma regole, motore (natpf_events.start) e test restano. Per rimetterlo basta toglierlo da qui.
+export const HIDDEN_MODES = Object.freeze(['radar', 'survival']);
+export const isHiddenMode = id => HIDDEN_MODES.includes(id);
+// i minigiochi che si possono scegliere, nell'ordine di MODES
+export const VISIBLE_MODES = Object.freeze(MODES.filter(m => !isHiddenMode(m.id)));
 
 /* ---------- medaglie, record personali, progressione ---------- */
 export const MEDALS = Object.freeze(['bronze', 'silver', 'gold']);

@@ -1,10 +1,13 @@
-// «Come si gioca»: una sola finestra con tutte le istruzioni visibili insieme (non schede da sfogliare). Ogni riga ha
-// accanto una clip del gioco vero (fotogrammi del gioco in un'unica immagine, animati con CSS: public/guide/*.jpg,
-// generati da scripts/guide-clips.mjs) e due frasi: cosa fai tu, cosa succede in campo. Le istruzioni cambiano con la
-// racchetta (smartphone, webcam, mouse e tastiera). Si apre dal benvenuto, con «?» e con il tasto H.
+// «Come si gioca» (rifatta il 30/10/2026 su richiesta dell'utente: «testi a caso, rendili più grandi e intuitivi, una
+// modale che scorre card per card»). Una modale a schede: una scheda per passo, con il titolo grande, la clip del gioco
+// vero (fotogrammi in un'unica immagine animata con CSS: public/guide/*.jpg, generati da scripts/guide-clips.mjs) o la
+// figura della presa, e due blocchi di testo grande: «Cosa fai tu» e «Cosa succede in campo». Si sfoglia con
+// Indietro/Avanti (sull'ultima «Fine»), con i puntini, con le frecce ←/→ (Home/Fine, 1–6), con uno swipe del dito;
+// Esc chiude. In alto si sceglie la racchetta (smartphone, webcam, mouse e tastiera): cambiano i testi, non il passo.
+// Si apre dal benvenuto, con «?», con il tasto H, dal menu (Guida) e dalla pausa. API: open(), close(), isOpen, key(e).
 import { gripSvg, GRIP_TEXT } from '@natpf/tennis/grip-art.js';
 const $ = id => document.getElementById(id);
-const CONTROLLERS = [['phone', 'Smartphone'], ['webcam', 'Webcam'], ['mouse', 'Mouse e tastiera']];
+export const GUIDE_CONTROLLERS = Object.freeze([['phone', 'Smartphone'], ['webcam', 'Webcam'], ['mouse', 'Mouse e tastiera']]);
 export const ONBOARDING_KEY = 'natpf-tennis.onboarded';
 // clip: nome del file in public/guide/ e numero di fotogrammi (orizzontali, 320×180 ciascuno)
 export const GUIDE_CLIPS = Object.freeze({ run: 12, hit: 12, aim: 12, serve: 12, shots: 12 });
@@ -42,46 +45,152 @@ export const GUIDE = [
     mouse: '<kbd>1</kbd> topspin · <kbd>2</kbd> tagliato · <kbd>3</kbd> lob · <kbd>4</kbd> smash.',
   }, game: 'Il lob scavalca chi è a rete, la palla corta sorprende chi sta in fondo.' },
 ];
+// testo «Cosa fai tu» di un passo per una racchetta
+export const guideText = (step, controller) => step.you[controller] || step.you.all || step.you.phone;
+// passo successivo/precedente, sempre dentro la guida (niente giro dall'ultimo al primo)
+export const guideStep = (index, delta, count = GUIDE.length) => Math.max(0, Math.min(count - 1, index + delta));
+// swipe: almeno SWIPE_PX in orizzontale e più orizzontale che verticale. 1 = avanti (dito verso sinistra), -1 = indietro
+export const SWIPE_PX = 48;
+export function swipeDirection(dx, dy){
+  if (!Number.isFinite(dx) || Math.abs(dx) < SWIPE_PX || Math.abs(dx) < Math.abs(dy || 0)*1.3) return 0;
+  return dx < 0 ? 1 : -1;
+}
 const clipHtml = id => `<div class="guide-clip" style="--frames:${GUIDE_CLIPS[id]};background-image:url('./guide/${id}.jpg')" role="img" aria-label="Clip del gioco"></div>`;
+const plain = html => String(html).replace(/<[^>]+>/g, '');
 
 export class NatpfOnboarding {
   constructor({ getController, onPractice, onOpen, onClose } = {}){
     this.el = $('natpf-onboarding');
     this.getController = getController || (() => 'phone');
     this.onPractice = onPractice; this.onOpen = onOpen; this.onClose = onClose;
-    this.controller = null;
+    this.controller = null; this.index = 0; this._swipe = null;
     this.ctrlBox = this.el.querySelector('.onb-ctrl');
-    this.ctrlBox.addEventListener('click', e => { const b = e.target.closest('[data-onb-ctrl]'); if (b){ this.controller = b.dataset.onbCtrl; this.paint(); } });
+    this.ctrlBox.addEventListener('click', e => { const b = e.target.closest?.('[data-onb-ctrl]'); if (b) this.setController(b.dataset.onbCtrl); });
     $('onb-close').addEventListener('click', () => this.close());
-    $('onb-next').addEventListener('click', () => this.close());
+    $('onb-prev').addEventListener('click', () => this.prev());
+    $('onb-next').addEventListener('click', () => this.next());
     $('onb-practice').addEventListener('click', () => { this.close(); this.onPractice?.(); });
+    $('onb-dots').addEventListener('click', e => { const d = e.target.closest?.('[data-onb-step]'); if (d) this.go(+d.dataset.onbStep); });
+    // swipe sulle schede: con il dito dagli eventi touch (arrivano anche quando il browser fa scorrere il testo e
+    // annulla i pointer), con mouse o penna dai pointer (trascinamento)
+    const cards = $('onb-cards');
+    const start = (x, y) => { this._swipe = { x, y }; };
+    const end = (x, y) => {
+      const s = this._swipe; this._swipe = null; if (!s) return;
+      const d = swipeDirection(x - s.x, y - s.y);
+      if (d) this.go(this.index + d);
+    };
+    cards.addEventListener('touchstart', e => { const t = e.changedTouches?.[0]; if (t) start(t.clientX, t.clientY); }, { passive: true });
+    cards.addEventListener('touchend', e => { const t = e.changedTouches?.[0]; if (t) end(t.clientX, t.clientY); }, { passive: true });
+    cards.addEventListener('touchcancel', () => { this._swipe = null; }, { passive: true });
+    cards.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') start(e.clientX, e.clientY); });
+    cards.addEventListener('pointerup', e => { if (e.pointerType !== 'touch') end(e.clientX, e.clientY); });
+    // testo più lungo della scheda (schermi bassi): sfuma in fondo finché non lo si scorre tutto
+    cards.addEventListener('scroll', e => { if (e.target?.classList?.contains('guide-copy')) this._markMore(e.target); }, true);
     this.el.addEventListener('pointerdown', e => e.stopPropagation());
     this.el.addEventListener('click', e => { if (e.target === this.el) this.close(); });
     for (const b of document.querySelectorAll('[data-open-onboarding]')) b.addEventListener('click', e => { e.stopPropagation(); this.open(); });
   }
   get isOpen(){ return !this.el.classList.contains('hidden'); }
-  open(){
-    this.controller = this.getController(); this.el.classList.remove('hidden'); this.paint();
-    // in campo (partita o riscaldamento) niente «Prova nel riscaldamento»
-    $('onb-practice').classList.toggle('hidden', document.documentElement.classList.contains('autoplay-mode'));
-    $('onb-rows').scrollTop = 0; $('onb-next').focus(); this.onOpen?.();
+  get count(){ return GUIDE.length; }
+  get isLast(){ return this.index >= GUIDE.length - 1; }
+  // racchette tra cui scegliere: mouse e tastiera solo se la modalità prova è attiva (o se è la racchetta in uso)
+  controllers(){
+    const c = this.controller;
+    return GUIDE_CONTROLLERS.filter(([id]) => id !== 'mouse' || id === c || document.querySelector('[data-natpf-controller="mouse"]:not(.hidden)'));
   }
-  close(){ if (!this.isOpen) return; this.el.classList.add('hidden'); try { localStorage.setItem(ONBOARDING_KEY, '1'); } catch {} this.onClose?.(); }
+  open(at = 0){
+    const known = id => GUIDE_CONTROLLERS.some(([k]) => k === id);
+    const c = this.getController(); this.controller = known(c) ? c : 'phone';
+    this.index = guideStep(0, Number.isFinite(at) ? at : 0); this._prevFocus = document.activeElement;
+    this.el.classList.remove('hidden'); this.paint();
+    $('onb-next').focus?.(); this.onOpen?.();
+  }
+  close(){
+    if (!this.isOpen) return;
+    this.el.classList.add('hidden'); this._swipe = null;
+    try { localStorage.setItem(ONBOARDING_KEY, '1'); } catch {}
+    // il fuoco torna dove era (il pulsante «?» o la voce del menu), se si vede ancora
+    const back = this._prevFocus; this._prevFocus = null;
+    if (back && back !== document.body && back.offsetParent !== null) back.focus?.();
+    this.onClose?.();
+  }
   static seen(){ try { return localStorage.getItem(ONBOARDING_KEY) === '1'; } catch { return true; } }
+  go(i){
+    const n = guideStep(0, Number.isFinite(i) ? i : this.index);
+    if (n === this.index) return;
+    this.index = n; this.paint();
+    // il fuoco non resta su «Indietro» quando si spegne (primo passo)
+    if (this.index === 0 && document.activeElement === $('onb-prev')) $('onb-next').focus?.();
+  }
+  // «Avanti»; sull'ultima scheda «Fine» chiude
+  next(){ if (this.isLast) this.close(); else this.go(this.index + 1); }
+  prev(){ this.go(this.index - 1); }
+  setController(id){
+    if (!GUIDE_CONTROLLERS.some(([k]) => k === id) || id === this.controller) return;
+    this.controller = id; this.paint();
+  }
+  // tasti mentre la guida è aperta (dalla lobby, prima di ogni altro gestore): true se il tasto è della guida
   key(e){
-    if (e.code === 'Escape' || e.code === 'Enter'){ this.close(); return true; }
-    if (e.code === 'ArrowDown' || e.code === 'ArrowUp'){ $('onb-rows').scrollBy({ top: e.code === 'ArrowDown' ? 160 : -160, behavior: 'smooth' }); return true; }
+    const code = e.code, active = document.activeElement;
+    if (code === 'Escape'){ this.close(); return true; }
+    if (code === 'ArrowRight' || code === 'PageDown'){ this.go(this.index + 1); return true; }
+    if (code === 'ArrowLeft' || code === 'PageUp'){ this.go(this.index - 1); return true; }
+    if (code === 'Home'){ this.go(0); return true; }
+    if (code === 'End'){ this.go(GUIDE.length - 1); return true; }
+    if (/^Digit[1-9]$/.test(code) && +code.slice(5) <= GUIDE.length){ this.go(+code.slice(5) - 1); return true; }
+    // ↑/↓ scorrono il testo della scheda se non ci sta tutto (schermi bassi)
+    if (code === 'ArrowDown' || code === 'ArrowUp'){
+      this.el.querySelector?.('.guide-card.on .guide-copy')?.scrollBy?.({ top: code === 'ArrowDown' ? 120 : -120, behavior: 'smooth' });
+      return true;
+    }
+    // Invio e Spazio su un pulsante della guida: lo preme il browser; altrimenti Invio = Avanti/Fine
+    const onButton = active && active !== document.body && active.tagName === 'BUTTON' && this.el.contains?.(active);
+    if (code === 'Enter' || code === 'NumpadEnter'){ if (onButton) return false; this.next(); return true; }
+    if (code === 'Tab') return this._trapTab(e);
+    return false;
+  }
+  // il fuoco resta dentro la finestra (Tab dall'ultimo pulsante torna al primo e viceversa)
+  _trapTab(e){
+    const list = [...(this.el.querySelectorAll?.('button') || [])].filter(b => !b.disabled && !b.classList.contains('hidden') && b.offsetParent !== null && !b.closest?.('[inert]'));
+    if (list.length < 2) return false;
+    const i = list.indexOf(document.activeElement), last = list.length - 1;
+    if (i < 0){ list[e.shiftKey ? last : 0].focus(); return true; }
+    if (!e.shiftKey && i === last){ list[0].focus(); return true; }
+    if (e.shiftKey && i === 0){ list[last].focus(); return true; }
     return false;
   }
   paint(){
-    const c = this.controller;
-    // mouse e tastiera solo se la modalità prova è attiva
-    const ctrls = CONTROLLERS.filter(([id]) => id !== 'mouse' || document.querySelector('[data-natpf-controller="mouse"]:not(.hidden)'));
-    this.ctrlBox.innerHTML = ctrls.map(([id, label]) => `<button type="button" data-onb-ctrl="${id}" class="${id === c ? 'on' : ''}">${label}</button>`).join('');
-    $('onb-rows').innerHTML = GUIDE.map((g, i) => `<article class="guide-row">
-      ${g.clip ? clipHtml(g.clip) : `<div class="guide-clip guide-art">${g.art()}</div>`}
-      <div class="guide-text"><h3><i>${i + 1}</i>${g.title}</h3>
-        <p class="guide-you"><span>Tu</span><em>${g.you[c] || g.you.all}</em></p>
-        <p class="guide-game"><span>In campo</span><em>${g.game}</em></p></div></article>`).join('');
+    const c = this.controller, i = this.index, n = GUIDE.length, step = GUIDE[i];
+    // puntini e racchette si ridisegnano: il fuoco della tastiera passa al pulsante nuovo corrispondente
+    const f = document.activeElement, refocus = f?.dataset?.onbStep != null ? `#onb-dots [data-onb-step="${i}"]`
+      : f?.dataset?.onbCtrl ? `.onb-ctrl [data-onb-ctrl="${c}"]` : null;
+    this.ctrlBox.innerHTML = this.controllers().map(([id, label]) => `<button type="button" class="seg-btn${id === c ? ' selected' : ''}" data-onb-ctrl="${id}" aria-pressed="${id === c}">${label}</button>`).join('');
+    const track = $('onb-track');
+    track.innerHTML = GUIDE.map((g, k) => `<article class="guide-card${k === i ? ' on' : ''}" data-step="${g.id}" role="group" aria-roledescription="scheda" aria-label="Passo ${k + 1} di ${n}: ${g.title}"${k === i ? '' : ' aria-hidden="true" inert'}>
+      <div class="guide-media">${g.clip ? clipHtml(g.clip) : `<div class="guide-clip guide-art">${g.art()}</div>`}</div>
+      <div class="guide-copy">
+        <h3 class="guide-card-title"><i aria-hidden="true">${k + 1}</i>${g.title}</h3>
+        <section class="guide-block guide-you"><h4>Cosa fai tu</h4><p>${guideText(g, c)}</p></section>
+        <section class="guide-block guide-game"><h4>Cosa succede in campo</h4><p>${g.game}</p></section>
+      </div></article>`).join('');
+    track.style.setProperty?.('--i', String(i));
+    track.dataset.step = String(i);
+    $('onb-dots').innerHTML = GUIDE.map((g, k) => `<button type="button" class="guide-dot${k === i ? ' on' : ''}" data-onb-step="${k}" aria-label="Passo ${k + 1}: ${g.title}"${k === i ? ' aria-current="step"' : ''}></button>`).join('');
+    $('onb-count').textContent = `Passo ${i + 1} di ${n}`;
+    $('onb-live').textContent = `Passo ${i + 1} di ${n}: ${plain(step.title)}`;
+    const prev = $('onb-prev'), next = $('onb-next');
+    prev.disabled = i === 0;
+    next.textContent = this.isLast ? 'Fine ✓' : 'Avanti ›';
+    next.setAttribute('aria-label', this.isLast ? 'Fine: chiudi la guida' : `Avanti: passo ${i + 2} di ${n}`);
+    // «Prova nel riscaldamento» sull'ultima scheda, solo dal menu (in campo, partita o riscaldamento, no)
+    $('onb-practice').classList.toggle('hidden', !this.isLast || document.documentElement.classList.contains('autoplay-mode'));
+    this.el.dataset.controller = c;
+    if (refocus) this.el.querySelector?.(refocus)?.focus?.();
+    requestAnimationFrame(() => this._markMore(this.el.querySelector?.('.guide-card.on .guide-copy')));
+  }
+  _markMore(el){
+    if (!el?.classList) return;
+    el.classList.toggle('more', el.scrollHeight - el.clientHeight - el.scrollTop > 4);
   }
 }

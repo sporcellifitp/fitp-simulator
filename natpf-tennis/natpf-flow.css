@@ -197,58 +197,8 @@
 
 /* allenatore in campo: natpf-ui.css (redesign del 28/10/2026) */
 
-/* ---------- guida «Come si gioca» ---------- */
-.natpf-sheet.natpf-guide {
-  display: flex;
-  flex-direction: column;
-  width: min(980px, 96cqw);
-  max-height: 92cqh;
-  padding: 22px 24px 18px;
-}
-.guide-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 12px;
-}
-.guide-head > div:first-child {
-  flex: 1;
-}
-.guide-head .onb-ctrl {
-  display: flex;
-  gap: 4px;
-}
-.guide-close {
-  width: 42px;
-  height: 42px;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(166, 182, 220, 0.16);
-  color: var(--lb-ink);
-  font-size: 26px;
-  line-height: 1;
-  cursor: pointer;
-}
-.guide-rows {
-  display: grid;
-  gap: 12px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-.guide-row {
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  align-items: center;
-  gap: 18px;
-  padding: 12px;
-  border-radius: 20px;
-  background: rgba(7, 18, 51, 0.55);
-  box-shadow: inset 0 0 0 1px var(--lb-line);
-}
+/* ---------- guida «Come si gioca»: impaginazione a schede in natpf-ui.css (30/10); qui clip e figure ---------- */
 .guide-clip {
-  width: 240px;
-  aspect-ratio: 16 / 9;
   border-radius: 14px;
   background-color: #0a1a4a;
   background-repeat: no-repeat;
@@ -311,57 +261,6 @@
     transform: rotate(22deg);
   }
 }
-.guide-text h3 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 6px;
-  font: italic 800 21px var(--lb-font);
-  text-transform: uppercase;
-}
-.guide-text h3 i {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--lb-ball);
-  color: var(--lb-navy);
-  font-size: 15px;
-  font-style: normal;
-}
-.guide-text p {
-  display: grid;
-  grid-template-columns: 72px 1fr;
-  gap: 10px;
-  margin: 4px 0;
-  font-size: 15.5px;
-  line-height: 1.4;
-}
-.guide-text p em {
-  font-style: normal;
-}
-.guide-text p span {
-  color: var(--lb-pink);
-  font: 700 11px/2 var(--lb-font);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-.guide-game {
-  color: var(--lb-muted);
-}
-.guide-text .q-g {
-  color: var(--q-green);
-}
-.guide-text .q-y {
-  color: var(--q-yellow);
-}
-.guide-text .q-r {
-  color: var(--q-red);
-}
-.natpf-guide .sheet-actions .hidden {
-  display: none;
-}
 @media (prefers-reduced-motion: reduce) {
   .guide-clip,
   .guide-svg .gs-swing,
@@ -372,12 +271,6 @@
 @container natpf (max-width: 760px) {
   .lobby-progress span {
     display: none;
-  }
-  .guide-row {
-    grid-template-columns: 1fr;
-  }
-  .guide-clip {
-    width: 100%;
   }
   .connect-qr .natpf-qr {
     width: 180px;
