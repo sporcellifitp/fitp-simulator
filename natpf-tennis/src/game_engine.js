@@ -39,6 +39,7 @@ import { NatpfBodyFollow } from "./natpf/webcam_body_follow.js";
 // NATPF: sfida tra due computer anche senza server (sito statico): relay nel browser dell'host e WebRTC
 import { installNatpfP2p } from "./natpf/natpf_p2p.js";
 import { VERSUS, MATCH_PHASES, seqGate } from "./natpf/natpf_versus.js";
+import * as GV from "./natpf/natpf_guest_view.js";
 import { NatpfSplit } from "./natpf/natpf_split.js";
 import { viewport } from "./natpf/natpf_screen.js";
 const VERSUS_ROOM_KEY = "natpf.versus.room";
@@ -2339,6 +2340,9 @@ export class NatpfTennisEngine {
       (this.ball.lastHitter = "opponent"),
       (this.ball.bounceCountOnCurrentSide = 0),
       (this.ball.rallyStrokeCount += 1),
+      // NATPF 1v1: sul computer del P2 il colpo è una previsione locale; gli snapshot dell'host fatti prima di riceverlo
+      // non devono riportare indietro la palla (natpf_guest_view.holdBall)
+      this.playerRole === "p2" && this.isMultiplayer && GV.markLocalHit((this.natpfGuestView ||= GV.createGuestView()), { count: this.ball.rallyStrokeCount, now: performance.now() }),
       (this.ball.shotType = m),
       (this.ball.isPowerShot = w),
       this.ballTrail.setStyle(m, w),
@@ -2589,6 +2593,7 @@ export class NatpfTennisEngine {
     // NATPF: tutto il tempo del fotogramma in passi uguali ≤ FIXED_DT (natpf_skill.physicsSteps), niente resto accumulato
     for (let k = 0, s = NS.physicsSteps(t * i, L.FIXED_DT); k < s.n; k++) this._stepPhysics(s.h);
     this.natpfReplay && this.natpfReplay.record(t * i); // NATPF moviola: il punto in corso
+    this._natpfGuestFrame(e); // NATPF 1v1: sul P2 palla disegnata e attori recuperano lo scarto dall'host
     if (
       // NATPF 1v1: a partita in corso lo snapshot; con l'host in lobby solo lo stato della lobby (prima andavano al P2
       // anche la dimostrazione del menu e il riscaldamento)
@@ -2820,7 +2825,7 @@ export class NatpfTennisEngine {
         this.ball.mesh &&
           ((this.ball.mesh.rotation.x += this.ball.vel.z * e * 1.8),
           (this.ball.mesh.rotation.z -= this.ball.vel.x * e * 1.8)),
-        this.ballTrail.pushPoint(this.ball.pos),
+        this.ballTrail.pushPoint(this._natpfBallDrawPos()), // NATPF 1v1: la scia segue la palla disegnata (sul P2 con lo scarto)
         this.ball.isPowerShot && Math.random() < 0.45 && this._spawnStarBurst(this.ball.pos, 1),
         ((t > 0 && this.ball.pos.z <= 0) || (t < 0 && this.ball.pos.z >= 0)) &&
           this.ball.pos.y < S.NET_HEIGHT_CENTER + 0.04)
@@ -3299,9 +3304,19 @@ export class NatpfTennisEngine {
           !wasOver &&
           n.score &&
           setTimeout(() => this.phase === "MATCH_OVER" && this.hud.showVictoryModal({ playerWon: n.score.opponentGames > n.score.playerGames, playerGames: n.score.playerGames, opponentGames: n.score.opponentGames }), 1800),
-        n.score && ((this.score = { ...this.score, ...n.score }), this._syncScoreboardHUD()),
-        n.ball &&
-          (this.ball.pos.set(n.ball.px, n.ball.py, n.ball.pz),
+        n.score && ((this.score = { ...this.score, ...n.score }), this._syncScoreboardHUD());
+      // NATPF 1v1: palla dell'host. Prima sovrascriveva sempre la palla del P2: dopo un suo colpo locale gli snapshot
+      // fatti dall'host prima di riceverlo la riportavano indietro oltre la racchetta. Ora quella palla si ignora (per al
+      // massimo GV.GUEST_VIEW.holdMs); applicata, la fisica è dell'host e la palla disegnata recupera lo scarto
+      // (natpf_guest_view.js). Fase, punteggio, banner e attori si applicano sempre
+      const V = (this.natpfGuestView ||= GV.createGuestView()), now = performance.now();
+      GV.noteAge(V.stats, e.snapshotAgeMs);
+      const held = !!n.ball && GV.holdBall(V.hit, n.ball, { now, phase: n.phase });
+      n.ball && !held && (V.hit = null);
+      if (held) GV.noteBall(V.stats, { held: !0 });
+      else if (n.ball) {
+        const prev = { pos: this.ball.pos.clone(), count: this.ball.rallyStrokeCount, hitter: this.ball.lastHitter };
+        this.ball.pos.set(n.ball.px, n.ball.py, n.ball.pz),
           this.ball.vel.set(n.ball.vx, n.ball.vy, n.ball.vz),
           (this.ball.inPlay = !!n.ball.inPlay),
           (this.ball.lastHitter = n.ball.lastHitter || this.ball.lastHitter),
@@ -3310,12 +3325,20 @@ export class NatpfTennisEngine {
           (this.ball.rallyStrokeCount = Number(n.ball.rallyStrokeCount || 0)),
           Array.isArray(n.spin) && this.ball.spin.set(Number(n.spin[0]) || 0, Number(n.spin[1]) || 0, 0),
           typeof n.bounces == "number" && (this.ball.bounceCountOnCurrentSide = n.bounces),
-          this.ballTrail.setStyle(this.ball.shotType, this.ball.isPowerShot));
+          this.ballTrail.setStyle(this.ball.shotType, this.ball.isPowerShot);
+        const c = GV.ballCorrection(prev, { pos: this.ball.pos, count: this.ball.rallyStrokeCount, hitter: this.ball.lastHitter }, V.off);
+        Object.assign(V.off, c.off), GV.noteBall(V.stats, c);
+      }
+      const report = GV.takeReport(V, now);
+      report && this.natpfGuestReport && this.natpfGuestReport(report);
       const h = (r, l) => {
+        if (!l) return;
+        // NATPF 1v1: prima l'attore saltava al 65% verso la posizione dell'host a ogni snapshot (uno scatto ogni 50 ms);
+        // ora lo scarto si recupera un po' a ogni fotogramma (_natpfGuestFrame), salto netto solo se è lontano
+        const fx = GV.actorFix(r.pos, l);
+        fx.snap ? ((r.pos.x = l.px), (r.pos.z = l.pz), (r.natpfNetFix = null)) : (r.natpfNetFix = fx.fix);
         l &&
-          ((r.pos.x = o.MathUtils.lerp(r.pos.x, l.px, 0.65)),
-          (r.pos.z = o.MathUtils.lerp(r.pos.z, l.pz, 0.65)),
-          r.targetPos.set(l.tx, 0, l.tz),
+          (r.targetPos.set(l.tx, 0, l.tz),
           l.sw > 0 &&
             r.swingTimer <= 0.05 &&
             ((r.swingType = l.st || "forehand"),
@@ -3515,12 +3538,34 @@ export class NatpfTennisEngine {
         i++);
     }
   }
+  // NATPF 1v1: dove si disegna la palla. Sul P2 la fisica dell'host più lo scarto che decade (natpf_guest_view.js);
+  // sull'host e nello stesso schermo la palla stessa
+  _natpfBallDrawPos() {
+    const off = this.natpfGuestView?.off;
+    if (this.playerRole !== "p2" || !off || (!off.x && !off.y && !off.z)) return this.ball.pos;
+    return (this._natpfDrawTmp ||= new o.Vector3()).set(this.ball.pos.x + off.x, this.ball.pos.y + off.y, this.ball.pos.z + off.z);
+  }
+  // NATPF 1v1: un fotogramma sul P2 (dt in secondi): decade lo scarto della palla disegnata, gli attori fanno un passo
+  // verso la posizione dell'host. Sull'host e nello stesso schermo niente
+  _natpfGuestFrame(dt) {
+    const V = this.natpfGuestView;
+    if (this.playerRole !== "p2" || !V) return;
+    const ms = dt * 1000;
+    GV.decayOffset(V.off, ms);
+    for (const a of [this.player, this.playerPartner, this.opponent, this.opponentPartner]) {
+      if (!a || !a.natpfNetFix) continue;
+      const s = GV.actorStep(a.natpfNetFix, ms);
+      (a.pos.x += s.step.x), (a.pos.z += s.step.z), (a.natpfNetFix = s.fix);
+    }
+  }
   _updateEffects(e) {
-    if ((this.ball.mesh && this.ball.mesh.position.copy(this.ball.pos), this.ballShadowBlob)) {
-      (this.ballShadowBlob.position.x = this.ball.pos.x), (this.ballShadowBlob.position.z = this.ball.pos.z);
-      const t = o.MathUtils.clamp(1.15 - this.ball.pos.y * 0.16, 0.45, 1.15);
+    // NATPF 1v1: palla e ombra dove si disegna la palla (sul P2 la fisica dell'host più lo scarto che decade)
+    const bp = this._natpfBallDrawPos();
+    if ((this.ball.mesh && this.ball.mesh.position.copy(bp), this.ballShadowBlob)) {
+      (this.ballShadowBlob.position.x = bp.x), (this.ballShadowBlob.position.z = bp.z);
+      const t = o.MathUtils.clamp(1.15 - bp.y * 0.16, 0.45, 1.15);
       this.ballShadowBlob.scale.setScalar(t),
-        (this.ballShadowBlob.material.opacity = o.MathUtils.clamp(0.88 - this.ball.pos.y * 0.14, 0.28, 0.88));
+        (this.ballShadowBlob.material.opacity = o.MathUtils.clamp(0.88 - bp.y * 0.14, 0.28, 0.88));
     }
     for (const t of this.bounceRings) {
       if (!t.active) continue;

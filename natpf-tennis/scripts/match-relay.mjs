@@ -196,6 +196,8 @@ export function createMatchRelay({ publicUrl = PUBLIC_URL } = {}) {
         rackets: { p1: k, p2: i },
         snapshotSeq: e.stateSeq,
         snapshot: e.matchSnapshot,
+        // NATPF 1v1: età dello snapshot alla lettura (ms, ora del relay): il P2 la misura per la diagnostica (sfida.vista)
+        snapshotAgeMs: e.matchSnapshot?.serverTimeMs ? Math.max(0, h - e.matchSnapshot.serverTimeMs) : null,
         tunnelUrl: r,
         // NATPF: bersaglio in campo dal corpo davanti alla webcam («segui il corpo», src/natpf/webcam_body_follow.js)
         body: bodyState(e),
