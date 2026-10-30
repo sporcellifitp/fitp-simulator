@@ -2,6 +2,19 @@
 
 Aggiornato: 30/10/2026 · branch `natpf-simulator`.
 
+## Ultimissimo (30/10, sera): colpi del P2, palla del P2, TURN di Cloudflare; pacchetto Cloudflare 2026-10-28.17
+
+Decisioni dell'utente e lavoro fatto: `docs/WORK_PROGRESS.md` («Colpi del P2, palla del P2, TURN di Cloudflare»);
+regole in `docs/PROJECT_MEMORY.md`. Commit da `dd2c96b` a `1bb570e` più documenti e versione .17. Gioco 566/566, sito
+178/178, `tools/e2e/natpf-1v1-p2p.mjs` 27/27. Pacchetto Cloudflare `natpf-simulator-cloudflare-20261028-17.zip`
+(estratto: e2e 27/27; sha256 `464fafc5…e367070e`, con `/natpf/turn.json` → `https://natpf-turn.s-porcelli.workers.dev/`), nella cartella
+temporanea della sessione; nessun pacchetto LAN .17.
+Da fare dall'utente: creare la chiave TURN e il Worker `natpf-turn` seguendo `docs/GUIDA_TURN_CLOUDFLARE.md`, caricare
+il .17, provare il telefono del P2 senza VPN con la diagnostica accesa.
+Prossima azione: leggere la diagnostica della prova (`tel.strada`/`tel2.strada`: «relay (tls, TURN nostro)»?;
+`sfida.colpo`/`sfida.colpo_vecchio`: età dei colpi del P2 e quanti scartati; `sfida.vista`: età degli snapshot e
+correzioni) e con quei numeri decidere compensazione della latenza e finestra del tempo del P2.
+
 ## Ultimissimo (30/10): blocco tra primo e secondo game nella sfida Cloudflare; pacchetto Cloudflare 2026-10-28.16
 
 Segnalazione: rapporto esterno su `2734cd8` (.15) con screenshot: «Sfida un amico» sulla versione Cloudflare, il P2 resta

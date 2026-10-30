@@ -106,6 +106,16 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   l'host. Lo snapshot di pausa porta `hold` (perché) e il punteggio.
 - Identità di ripresa del P2 (`resumeIdFor`, sessionStorage per stanza) e `guest.reconnect()` («Riconnetti»).
 - Punteggio dell'host salvato nella scheda (`natpf.versus.checkpoint`) solo per la ripresa dopo un ricaricamento.
+- Colpi del P2 (30/10): età dal gesto con l'ora dell'host (`sentAtHost` solo con orologio preciso, viaggio ≤ 300 ms);
+  oltre `P2_STALE_MS` 600 ms non si giocano. La compensazione della latenza e la finestra del tempo del P2 (0,17 s, il P2
+  non riceve `natpfLateSpan`) sono invariate: si decidono con le misure della diagnostica.
+- Vista del P2 (`natpf_guest_view.js`): la fisica resta allineata all'host, la correzione è solo visiva; dopo un colpo
+  locale del P2 la palla non deve mai tornare verso la sua racchetta.
+- Strade di rete: TURN di Cloudflare tramite un Worker separato che genera credenziali temporanee
+  (`natpf-tennis/cloudflare/turn-worker.js`), indirizzo nel pacchetto in `/natpf/turn.json` (`pacchetto-cloudflare.mjs
+  --turn-url`). La chiave TURN non va mai nei file del gioco né nel repository. Senza il file o con il Worker giù: le
+  strade di sempre. Il canale «fast» del telefono via internet è affidabile ma non ordinato (PeerJS imposta solo
+  ordered:false): lasciato così per decisione dell'utente.
 
 ## Decisioni (28/10/2026, sessione redesign)
 

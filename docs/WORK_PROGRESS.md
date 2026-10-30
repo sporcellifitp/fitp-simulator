@@ -1024,3 +1024,36 @@ modificato. Decisioni da prendere con l'utente:
    riconnessione forzata dal cambio di IP. Segno distintivo: col blocco da 16300 byte l'host vedeva il P2 collegato.
    Proposta: prova con la .16 con e senza VPN e `chrome://webrtc-internals` (o registrare nella diagnostica la coppia
    di candidati scelta con `getStats`).
+
+## Colpi del P2, palla del P2, TURN di Cloudflare (30/10, decisioni dell'utente) — pacchetto Cloudflare .17
+Decisioni: canale «fast» lasciato com'è (corretti solo i commenti); colpi del P2 «ok misurare, ok proteggere» (soglia
+scelta 600 ms, come PHONE_STALE_S; compensazione e finestra del P2 invariate fino alle misure); palla del P2 come
+proposto; TURN di Cloudflare con la chiave creata dall'utente. VPN: era sul **telefono del P2** e serviva a far
+collegare il telefono al suo computer → la rete del telefono bloccava le strade di oggi: è il caso del TURN su 443.
+Lavoro in tre rami paralleli (worktree) con revisione avversaria, poi correzioni verificate (commit da `dd2c96b` a
+`1bb570e`):
+- Colpi del P2: orologio host↔P2 dalle letture dello stato (`now` nella risposta del relay, createClock con 200
+  campioni); il colpo porta `sentAtHost` solo se il viaggio migliore è ≤ 300 ms; sull'host `p2SwingAgeMs` dal picco del
+  gesto, oltre `P2_STALE_MS` 600 ms il colpo o il lancio non si gioca (`sfida.colpo_vecchio`); diagnostica
+  `sfida.colpo` (età, tempo) e `sfida.orologio`. Test `test/natpf-versus-tempi.test.mjs`.
+- Palla del P2 (`src/natpf/natpf_guest_view.js`): dopo un colpo locale del P2 gli snapshot che non lo contengono non
+  toccano la palla (fino a 500 ms); lo snapshot di conferma prende la traiettoria dell'host senza riportare indietro la
+  palla disegnata; correzione solo visiva in ~100 ms (salto netto per colpi nuovi o scarti > 1,5 m); attori fusi per
+  fotogramma; diagnostica `sfida.vista` (età degli snapshot nel relay, correzioni, blocchi). Test
+  `test/natpf-guest-view.test.mjs`.
+- TURN: Worker separato `natpf-tennis/cloudflare/turn-worker.js` (credenziali 24 h da
+  `generate-ice-servers`, porta 53 tolta, CORS con `ALLOWED_ORIGINS`); client `site/js/tennis/ice-route.js` (legge
+  `/natpf/turn.json`, chiede le credenziali in ≤ 2,5 s, accetta solo JSON valido, server Cloudflare per primi e quelli
+  di sempre come riserva, rinnovo anche sui collegamenti già aperti, niente richieste in LAN, con `?peer=`, file:);
+  pacchetto `natpf-tennis/scripts/pacchetto-cloudflare.mjs --turn-url=`; diagnostica della strada scelta (`tel.strada`,
+  `tel2.strada`, `sfida.strada`: host/srflx/relay, udp/tcp/tls, rtt, se è il nostro TURN). Test `turn-worker`,
+  `phone-link-net` e altri.
+- Verifiche: gioco 566/566, sito 178/178, build; `tools/e2e/natpf-1v1-p2p.mjs` 27/27; nel browser con abbinamento vero
+  del telefono (segnalazione pubblica PeerJS): con `/natpf/turn.json` verso un Worker finto gioco e telefono mettono i
+  server Cloudflare per primi su tutti e due i collegamenti, senza il file le strade di sempre; nessun errore.
+- **Non verificato**: Cloudflare Realtime vero (nessuna chiave), un collegamento che passi davvero dal TURN in TLS 443,
+  telefoni veri, due computer su reti diverse, il comportamento delle costanti (300/600/500 ms) in partite vere: si
+  legge dalla diagnostica (`sfida.*`, `tel.strada`).
+- [x] Pacchetto Cloudflare 2026-10-28.17 con `/natpf/turn.json` → `https://natpf-turn.s-porcelli.workers.dev/` (nome del
+      Worker da creare: `natpf-turn`): `natpf-simulator-cloudflare-20261028-17.zip`, 138 file, 26.156.608 byte, sha256
+      `464fafc5a50a2f7a2235be86e8c9a3f06c4d0d16a4b6cfdf88442014e367070e`. Guida per l'utente: `docs/GUIDA_TURN_CLOUDFLARE.md`.
