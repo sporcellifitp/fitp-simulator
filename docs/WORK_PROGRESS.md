@@ -936,3 +936,55 @@ e il telefono resta su «Connessione persa».
       `21ea32b6dc512b7aa28df45abcb6588d78d6268e30478dfe4a1304a2cc7c6251`; estratto: host → P2 `net=p2p` → telefono
       del P2 collegato) e LAN Windows `natpf-simulator-lan-windows-20261028-15.zip` (sha256
       `977d85b62459da6ea77012aa21e5a15af7e62a423099c1b1b7381f9fdd1800f2`; estratto: prova di sempre, nessun errore).
+
+## Sfida tra due computer (Cloudflare): blocco tra primo e secondo game, pause, riconnessione (30/10) — commit `69f1563` e seguente
+Segnalazione (rapporto esterno su `2734cd8`, pacchetti .15, con screenshot): sfida «Sfida un amico» sulla versione
+Cloudflare; dopo il primo game il P2 resta su «Collegamento con Player 1 perso» e la partita non riparte; con una VPN
+sembrava andare meglio. Il rapporto non aveva trovato la causa (solo una condizione che dà lo stesso messaggio).
+- **Causa trovata e riprodotta**: la PeerJS inclusa (`site/js/vendor/peerjs.min.js`, serializzazione «json») scarta in
+  silenzio i messaggi da 16300 byte in su («Message too big for JSON channel», solo un evento d'errore che l'host
+  ignorava). La risposta di `/api/match/state` al P2 conteneva lo storico dei colpi due volte (`p1`/`p2` e `rackets`)
+  con i dati NATPF di ogni colpo del telefono: 2,2 KB a inizio partita, +1,4 KB per colpo del P2, oltre 16300 byte dopo
+  ~10 colpi del P2, cioè verso la fine del primo game. Da lì il P2 non riceveva più niente («collegamento perso»),
+  mentre l'host lo vedeva collegato (le richieste del P2 arrivavano) e restava fermo ad aspettare il servizio del P2 a
+  inizio secondo game. In LAN (HTTP vero) il problema non c'è. Anche sotto la soglia erano fino a 420 KB/s verso il P2.
+  Misura: build `2734cd8` con `tools/e2e/natpf-1v1-p2p.mjs` (due Chromium, PeerJS vero, P2 automatico con i dati del
+  telefono): dopo 8 colpi del P2 il suo schermo resta su 15-15 «lost» per 219 s, l'host a 1-0 in SERVE_STANCE con il
+  servizio al P2. La VPN non può spiegarlo: non tocca la misura dei messaggi (forse partite più corte, non verificabile).
+- Correzioni (`natpf-tennis/src/natpf/natpf_p2p.js`): al P2 solo gli ultimi 3 colpi di ciascuno, senza la copia
+  `rackets` (`compactMatchState`, ~2–6 KB); risposte comunque grandi a pezzi da 4500 caratteri ricomposti dal P2
+  (`chunkText`, RPC con `k`/`n`). Una lettura dello stato alla volta (`motion_controls.startPhonePolling`, prima una
+  ogni 50 ms senza aspettare: fino a 80 in coda). Canale tra i computer: fino a 30 s (`OPEN_MAX_MS`) se ICE è ancora
+  «checking» (prima 12 s P2 / 15 s host), come il telefono.
+- Pausa per tutti e due quando uno non può giocare (`natpf_versus.js` p2HoldWhy/createHoldReporter/opponentHealth/
+  hostHoldText/guestHoldNotice, `natpf_versus_ui.js`): il computer del P2 manda `hold=<motivo>` con la lettura dello
+  stato (telefono scollegato, non pronto, schermo spento, sensori fermi, finestra del gioco nascosta; tolleranza 300 ms),
+  il relay lo passa all'host (`p2Hold`), l'host ferma la partita con la stessa macchina a stati del telefono
+  (`createPhoneWatch`: tratto regolare, conto alla rovescia, scambio interrotto rigiocato). Anche per il computer del P2
+  sparito (5 s) e per la finestra dell'host nascosta. Il P2 vede sopra il campo perché è ferma (suo telefono con
+  «Ricollega il telefono», host in pausa, host in secondo piano, conto alla rovescia); lo snapshot di pausa porta
+  punteggio e durata (chi rientra li vede subito). La pausa del telefono dell'host nel 1v1 in rete ora rigioca lo scambio
+  (`natpf_ui._holdAction`, condizione `playerRole !== 'p2'`; senza un test dedicato).
+- «Riconnetti» (pannello del P2 quando il collegamento è perso o non parte, sfida senza server): `guest.reconnect()`,
+  un tentativo subito, stessa partita. Identità di ripresa (`resumeIdFor`, sessionStorage): lo stesso P2 (pagina
+  ricaricata, «Riconnetti») riprende subito il posto; prima doveva aspettare 5 s di silenzio del vecchio collegamento.
+- Punteggio salvato dall'host (`makeCheckpoint`/`checkpointFor`): se la pagina dell'host si ricarica, la partita
+  successiva nella stessa stanza, stessa durata, da 0-0 e entro 30 min riparte dal punteggio salvato (con chi batte).
+  Si cancella a fine partita, tornando al menu o lasciando la sfida.
+- Test: `test/natpf-p2p.test.mjs` (canale finto con il limite di PeerJS: fallisce sulla `2734cd8` con «host senza
+  risposta»; pezzi; «Riconnetti» e id di ripresa; attesa con ICE «checking»; una lettura alla volta con `hold`),
+  `test/natpf-versus-hold.test.mjs` (nuovo: motivi, relay, pausa per il telefono del P2 con conto alla rovescia e punto
+  rigiocato, computer del P2 sparito, punteggio salvato). Gioco 534/534 (1 saltato), sito 164/164, build ok.
+  `tools/e2e/natpf-1v1-p2p.mjs` esteso (P2 con i dati del telefono, ≥15 colpi, rientro con la racchetta da scegliere):
+  27/27 sulla build nuova, 22/27 sulla `2734cd8`.
+- **Non verificato**: Cloudflare vero, due computer su reti diverse, telefoni veri (Pixel, iPhone), rete con UDP bloccato.
+- Non fatto (da decidere con l'utente): TURN gestito con TLS sulla 443 (Cloudflare Realtime TURN: serve una funzione lato
+  server con la chiave, oggi il sito è statico); canale «fast» del telefono senza ritrasmissioni (`reliable:false` di
+  PeerJS imposta solo `ordered:false`: confermato nel codice; tocca il collegamento del telefono che funziona e i colpi
+  passano già anche dal canale affidabile); misura del viaggio P2→host per i tempi dei colpi del P2 e scadenza dei colpi
+  vecchi (`relayedNatpf` compensa solo fino a 0,25 s nel relay); interpolazione della palla sul P2.
+- [x] Pacchetto Cloudflare 2026-10-28.16 (versione in `site/js/tennis/version.js` e `site/tennis/build.json`):
+      `natpf-simulator-cloudflare-20261028-16.zip` = `natpf-tennis/dist` + `_headers`, 150 file, 26.142.488 byte, sha256
+      `9aaeb5eef8e2b21a16e1b2a7c24b953b0611a5ae030da9c56d8686299be6b1aa`; estratto e provato come sito statico con
+      `tools/e2e/natpf-1v1-p2p.mjs` (DIST=cartella estratta): 27/27, 21 colpi del P2 con i dati del telefono, snapshot più
+      vecchio 65 ms. Nessun pacchetto LAN .16.

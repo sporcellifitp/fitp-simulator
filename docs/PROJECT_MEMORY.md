@@ -94,6 +94,19 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   della pausa e pagina del telefono) o da solo (`createResync`). Sullo stesso schermo il secondo telefono si registra
   nella diagnostica (`tel2.link`, `tel2.colpo`, `tel.pausa` con `chi`).
 
+## Sfida tra due computer senza server (PeerJS): regole durevoli (30/10)
+
+- **Mai messaggi da 16300 byte in su sulla DataConnection** (PeerJS 1.5, serializzazione «json»: il messaggio non parte,
+  solo un evento `error` «message-too-big»). Le risposte RPC dell'host passano da `natpf_p2p.serveRpc`, che compatta lo
+  stato per il P2 (`compactMatchState`: ultimi 3 colpi, niente `rackets`) e divide il resto a pezzi (`chunkText`). Chi
+  aggiunge campi allo snapshot o al relay deve tenerne conto: è stata la causa del blocco tra primo e secondo game.
+- Una lettura di `/api/match/state` alla volta (`motion_controls`), non un intervallo che non aspetta.
+- Il P2 dice all'host perché non può giocare (`hold` nella lettura → `p2Hold`); l'host decide la pausa per tutti e due
+  con `createPhoneWatch` (conto alla rovescia, scambio interrotto rigiocato). Il P2 non mette in pausa da solo: segue
+  l'host. Lo snapshot di pausa porta `hold` (perché) e il punteggio.
+- Identità di ripresa del P2 (`resumeIdFor`, sessionStorage per stanza) e `guest.reconnect()` («Riconnetti»).
+- Punteggio dell'host salvato nella scheda (`natpf.versus.checkpoint`) solo per la ripresa dopo un ricaricamento.
+
 ## Decisioni (28/10/2026, sessione redesign)
 
 - **Tutorial: foto reali nella lezione, gesti con l'animazione 3D** (decisione finale del 28/10 sera, su richiesta

@@ -1,8 +1,26 @@
 # SESSION_HANDOFF · ultimo stato verificato
 
-Aggiornato: 29/10/2026 · branch `natpf-simulator`.
+Aggiornato: 30/10/2026 · branch `natpf-simulator`.
 
-## Ultimissimo (29/10, notte): telefono che non si collega con la versione Cloudflare; pacchetti 2026-10-28.15
+## Ultimissimo (30/10): blocco tra primo e secondo game nella sfida Cloudflare; pacchetto Cloudflare 2026-10-28.16
+
+Segnalazione: rapporto esterno su `2734cd8` (.15) con screenshot: «Sfida un amico» sulla versione Cloudflare, il P2 resta
+su «Collegamento con Player 1 perso» dopo il primo game. **Causa trovata e riprodotta**: PeerJS (json) scarta in
+silenzio i messaggi ≥16300 byte e lo stato mandato al P2 cresceva di ~1,4 KB per colpo del suo telefono: dopo ~10 colpi
+il P2 non riceveva più niente, l'host lo vedeva collegato e aspettava il suo servizio. Dettagli, misure e cosa non è
+fatto in `docs/WORK_PROGRESS.md` («Sfida tra due computer (Cloudflare)…»); regole in `docs/PROJECT_MEMORY.md`.
+Commit `69f1563` (stato compatto e a pezzi, una lettura alla volta, pausa per tutti e due quando il P2 non può giocare,
+«Riconnetti», id di ripresa, canale fino a 30 s), il commit del punteggio salvato dall'host, più documenti e versione
+.16. Gioco 534/534, sito 164/164, `tools/e2e/natpf-1v1-p2p.mjs` 27/27 (22/27 sulla `2734cd8`, che si blocca come nello
+screenshot). Pacchetto Cloudflare `natpf-simulator-cloudflare-20261028-16.zip` (sha256 `9aaeb5ee…99be6b1aa`), solo nella
+cartella temporanea della sessione; nessun pacchetto LAN .16 (il guasto è solo della versione senza server).
+Push non fatto (solo con autorizzazione esplicita).
+Da provare dal vivo: la sfida Cloudflare tra due computer su reti diverse con due telefoni, almeno due game; spegnere
+lo schermo del telefono del P2 a metà scambio (pausa per tutti e due, punto rigiocato); «Riconnetti».
+Prossima azione: l'utente pubblica il .16 su Cloudflare e riprova la partita al meglio di 3 con il P2; poi decidere se
+fare il TURN nostro su TLS 443 (serve una chiave Cloudflare Realtime e una funzione lato server).
+
+## Prima (29/10, notte): telefono che non si collega con la versione Cloudflare; pacchetti 2026-10-28.15
 
 Segnalazione: con la versione Cloudflare il telefono del P2 (Pixel) restava su «Connessione persa». Il computer chiudeva i
 collegamenti lenti (passati da un server di inoltro) prima che il canale si aprisse; corretto con tempi, strade di rete in
