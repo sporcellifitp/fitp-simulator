@@ -108,14 +108,19 @@ export function createPhoneLink(){
     const p = starting = run().finally(() => { if (starting === p) starting = null; });
     return p;
   }
+  // credenziali TURN nostre (ice-route.js): in cache fino a metà della loro durata, poi si richiedono. Il Peer del
+  // computer nasce una volta sola e la pagina può restare aperta per giorni (chiosco, ledwall): senza queste chiamate
+  // dopo 24 h i collegamenti nuovi del telefono avrebbero usato credenziali scadute. Non si aspetta: le credenziali
+  // nuove (o, se scadute, le sole strade di base) arrivano nella configurazione del Peer (followIce)
+  const renewIce = () => { if (!isLanMode()) iceReady().catch(() => null); };
   async function run(){
-    if (peer && !peer.destroyed) return;
+    if (peer && !peer.destroyed){ renewIce(); return; }
     const epoch = ++startEpoch;
     set({ state: 'starting', error: null });
     try {
-      const Peer = isLanMode() ? LanPeer : await loadPeer();
-      // TURN nostri, se il pacchetto li ha (niente in LAN): un errore o un ritardo non ferma il collegamento
-      if (!isLanMode()) await iceReady().catch(() => null);
+      // libreria e TURN nostri (niente in LAN) insieme: l'attesa delle credenziali (al massimo 2,5 s) non si somma al
+      // caricamento della libreria. Un errore o un ritardo delle credenziali non ferma il collegamento
+      const Peer = isLanMode() ? LanPeer : (await Promise.all([loadPeer(), iceReady().catch(() => null)]))[0];
       if (epoch !== startEpoch) return;
       peer = new Peer(session, peerConfig());
       peer.on('open', () => set({ state: conn ? 'connected' : 'waiting' }));
@@ -125,6 +130,7 @@ export function createPhoneLink(){
     } catch (e){ set({ state: 'error', error: 'libreria' }); }
     clearInterval(tick);
     tick = setInterval(() => {
+      renewIce();
       if (gate.expired && !conn) gate.rotate();
       if (gate.token !== lastTok){ lastTok = gate.token; emit('change', L); }                 // QR nuovo
       if (conn) conn.send({ t: 'dp', d: performance.now() });

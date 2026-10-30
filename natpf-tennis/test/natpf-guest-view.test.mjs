@@ -3,7 +3,7 @@
 // Il test del ritorno indietro fallisce con il codice di prima (lo snapshot vecchio riportava la palla oltre la racchetta).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GUEST_VIEW, createGuestView, markLocalHit, holdBall, ballCorrection, decayOffset, blendFactor, actorFix, actorStep, newStats, noteAge, noteBall, takeReport } from '../src/natpf/natpf_guest_view.js';
+import { GUEST_VIEW, createGuestView, markLocalHit, confirmsHit, holdBall, ballCorrection, applyBall, decayOffset, blendFactor, actorFix, actorStep, newStats, noteAge, noteBall, takeReport } from '../src/natpf/natpf_guest_view.js';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
 import { createMatchRelay } from '../scripts/match-relay.mjs';
 import { createLocalRelay, compactMatchState } from '../src/natpf/natpf_p2p.js';
@@ -20,6 +20,15 @@ test('blocco della previsione: solo snapshot senza il colpo locale, solo per hol
   assert.equal(holdBall(hit, { rallyStrokeCount: 2 }, { now: 1001 + GUEST_VIEW.holdMs }), false, 'dopo il limite vince l’host');
   assert.equal(holdBall(hit, { rallyStrokeCount: 2 }, { now: 1100, phase: 'POINT_OVER' }), false, 'punto chiuso dall’host');
   assert.deepEqual(markLocalHit(createGuestView(), { count: 5, now: 7 }), { count: 5, at: 7 });
+  // colpo locale: lo scarto di prima non resta sulla palla appena colpita
+  const v = createGuestView(); v.off.z = 1.2; v.own = 3;
+  markLocalHit(v, { count: 4, now: 0 });
+  assert.deepEqual(v.off, { x: 0, y: 0, z: 0 }); assert.equal(v.own, null);
+  // conferma del colpo locale: stesso conteggio e battitore il P2, anche dopo holdMs
+  assert.equal(confirmsHit(hit, { rallyStrokeCount: 3, lastHitter: 'opponent' }), true);
+  assert.equal(confirmsHit(hit, { rallyStrokeCount: 3, lastHitter: 'player' }), false);
+  assert.equal(confirmsHit(hit, { rallyStrokeCount: 4, lastHitter: 'opponent' }), false);
+  assert.equal(confirmsHit(null, { rallyStrokeCount: 3, lastHitter: 'opponent' }), false);
 });
 
 test('correzione della palla: fusione per gli scarti piccoli, salto netto con un colpo nuovo o uno scarto grande', () => {
@@ -36,6 +45,49 @@ test('correzione della palla: fusione per gli scarti piccoli, salto netto con un
     const k = ballCorrection(at(0, 1, -5), next, { x: 0.4, y: 0, z: 0 });
     assert.equal(k.kind, 'colpo'); assert.deepEqual(k.off, zero, 'colpo nuovo: niente fusione');
   }
+  // colpo del P2 confermato: limite di salto ownSnapM
+  assert.equal(ballCorrection(at(0, 1, -5), at(0, 1, -7), zero, { own: true }).kind, 'fuso');
+  assert.equal(ballCorrection(at(0, 1, -5), at(0, 1, -5 - GUEST_VIEW.ownSnapM - 0.1), zero, { own: true }).kind, 'salto');
+});
+
+test('valori non finiti: l’offset torna a zero invece di restare NaN per sempre', () => {
+  const at = (x, y, z) => ({ pos: { x, y, z }, count: 2, hitter: 'player' });
+  const zero = { x: 0, y: 0, z: 0 };
+  let c = ballCorrection(at(0, 1, -5), at(0, NaN, -5.2), zero);
+  assert.equal(c.kind, 'salto'); assert.deepEqual(c.off, zero); assert.equal(c.size, 0, 'statistiche non avvelenate');
+  c = ballCorrection(at(0, 1, -5), at(0, 1, -5.2), { x: NaN, y: 0, z: 0 });
+  assert.equal(c.kind, 'salto'); assert.deepEqual(c.off, zero, 'un offset già NaN si azzera alla correzione dopo');
+  assert.deepEqual(decayOffset({ x: NaN, y: 0, z: 0.5 }, 16), zero, 'e anche al fotogramma');
+  const s = noteBall(newStats(), c);
+  assert.ok(Number.isFinite(s.corrSum));
+});
+
+test('conferma del colpo del P2: offset grande fuso per tutto il colpo; recupero senza tornare indietro', () => {
+  const at = (z, count = 2, hitter = 'opponent') => ({ pos: { x: 0, y: 1, z }, count, hitter });
+  const v = createGuestView();
+  let c = applyBall(v, at(-7), at(-9.1), { confirm: true });
+  assert.equal(c.kind, 'conferma'); assert.ok(Math.abs(v.off.z - 2.1) < 1e-9, 'la palla disegnata resta dov’era'); assert.equal(v.own, 2);
+  // snapshot dopo, stesso colpo: ancora limite largo (offset rimasto + scarto piccolo oltre 1,5 m)
+  c = applyBall(v, at(-6), at(-6.05));
+  assert.equal(c.kind, 'fuso'); assert.ok(v.off.z > GUEST_VIEW.snapM);
+  // l'host risponde: colpo nuovo, si torna al limite normale
+  c = applyBall(v, at(-6), at(10, 3, 'player'));
+  assert.equal(c.kind, 'colpo'); assert.equal(v.own, null); assert.deepEqual(v.off, { x: 0, y: 0, z: 0 });
+  assert.equal(applyBall(v, at(10, 3, 'player'), at(8, 3, 'player')).kind, 'salto');
+  // recupero: palla a 30 m/s verso +z, offset in avanti di 2 m: per fotogramma la palla disegnata avanza almeno minSpeed
+  const vel = { x: 0, y: 0, z: 30 }, off = { x: 0, y: 0, z: 2 };
+  let t = 0;
+  while (off.z > 0.02 && t < 1000){
+    const before = off.z;
+    decayOffset(off, 1000/60, { vel });
+    assert.ok(30 / 60 - (before - off.z) >= GUEST_VIEW.minSpeed * 30 / 60 - 1e-9, 'avanza almeno al 30%');
+    t += 1000/60;
+  }
+  assert.ok(t > 60 && t < 250, `sotto 2 cm in un tempo ragionevole: ${t} ms`);
+  // fermo del colpo (fisica ferma): lo scarto in avanti aspetta; all'indietro e palla ferma decade come prima
+  assert.equal(decayOffset({ x: 0, y: 0, z: 1 }, 16, { vel, physMs: 0 }).z, 1);
+  assert.ok(decayOffset({ x: 0, y: 0, z: -1 }, 16, { vel }).z > -0.7);
+  assert.ok(decayOffset({ x: 0, y: 0, z: 1 }, 16, { vel: { x: 0, y: 0, z: 0 } }).z < 0.7);
 });
 
 test('l’offset visivo decade in ~100 ms, gli attori recuperano a ogni fotogramma', () => {
@@ -58,9 +110,9 @@ test('diagnostica: età degli snapshot, correzioni, blocchi, ogni 5 s', () => {
   assert.equal(takeReport(v, 1000), null, 'il primo giro fissa l’inizio');
   noteAge(v.stats, 40); noteAge(v.stats, 80); noteAge(v.stats, undefined);
   noteBall(v.stats, { kind: 'fuso', size: 0.1 }); noteBall(v.stats, { kind: 'salto', size: 2 });
-  noteBall(v.stats, { kind: 'colpo', size: 9 }); noteBall(v.stats, { held: true });
+  noteBall(v.stats, { kind: 'colpo', size: 9 }); noteBall(v.stats, { held: true }); noteBall(v.stats, { kind: 'conferma', size: 2.1 });
   assert.equal(takeReport(v, 3000), null);
-  assert.deepEqual(takeReport(v, 6000), { snapshot: 3, etaMediaMs: 60, etaMaxMs: 80, correzioneMediaCm: 105, correzioneMaxCm: 200, salti: 1, colpiNuovi: 1, blocchi: 1 });
+  assert.deepEqual(takeReport(v, 6000), { snapshot: 3, etaMediaMs: 60, etaMaxMs: 80, correzioneMediaCm: 105, correzioneMaxCm: 200, salti: 1, colpiNuovi: 1, blocchi: 1, conferme: 1, confermaMaxCm: 210 });
   assert.deepEqual(v.stats, newStats(), 'si riparte da zero');
   assert.equal(takeReport(v, 12000), null, 'niente snapshot, niente evento');
 });
@@ -125,6 +177,7 @@ test('P2: lo snapshot con il colpo arrivato all’host si applica (fuso se vicin
   snap({ px: p.x + 0.2, py: p.y, pz: p.z + 0.1, vx: v.x, vy: v.y, vz: v.z, inPlay: true, lastHitter: 'opponent', shotType: 'TOPSPIN', rallyStrokeCount: 2 });
   assert.ok(Math.abs(e.ball.pos.x - (p.x + 0.2)) < 1e-6, 'la fisica è quella dell’host');
   assert.equal(e.natpfGuestView.hit, null, 'il blocco è finito');
+  assert.equal(e.natpfGuestView.stats.confN, 1, 'riconosciuto come conferma del colpo locale');
   const off = e.natpfGuestView.off;
   assert.ok(Math.abs(off.x + 0.2) < 1e-6 && Math.abs(off.z + 0.1) < 1e-6, 'la palla disegnata resta dov’era');
   const d = e._natpfBallDrawPos();
@@ -134,7 +187,7 @@ test('P2: lo snapshot con il colpo arrivato all’host si applica (fuso se vicin
   assert.ok(Math.hypot(off.x, off.y, off.z) < 0.02, `dopo ~115 ms quasi zero: ${off.x}`);
 });
 
-test('P2: dopo 300 ms anche uno snapshot vecchio si applica; un colpo nuovo dell’host azzera l’offset', () => {
+test('P2: dopo holdMs anche uno snapshot vecchio si applica; un colpo nuovo dell’host azzera l’offset', () => {
   const { e, snap, old } = rallyAtP2();
   e.natpfGuestView.hit.at -= GUEST_VIEW.holdMs + 1;
   snap({ ...old, pz: -11.2 });
@@ -183,6 +236,43 @@ test('host e stesso schermo: nessuna vista del P2, palla disegnata = fisica', ()
   // il colpo del P2 sull'host non arma il blocco
   e.isMultiplayer = true; e.versus = { active: true }; e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'player';
   e.opponent.pos.set(-1, 0, -11.4); e.ball.pos.set(-.5, 1.0, -10.6); e.ball.vel.set(0, 0, -18);
-  e._attemptP2RallyStrike({ source: 'mouse', side: 'forehand', shotType: 'topspin', speed: 1.3, dirX: 0 });
+  const real = Math.random; Math.random = mulberry32(7);
+  let ok;
+  try { ok = e._attemptP2RallyStrike({ source: 'mouse', side: 'forehand', shotType: 'topspin', speed: 1.3, dirX: 0 }); } finally { Math.random = real; }
+  assert.ok(ok !== false, 'il colpo sull’host va a segno (altrimenti il controllo sotto passerebbe per il motivo sbagliato)');
+  assert.equal(e.ball.lastHitter, 'opponent'); assert.equal(e.ball.rallyStrokeCount, 1);
   assert.equal(e.natpfGuestView, undefined);
+});
+
+// Scenario della revisione: il P2 colpisce, la sua previsione vola 120 ms; poi arriva lo snapshot che CONFERMA il colpo
+// (stesso conteggio, battitore il P2) con la palla dell'host 70 ms indietro (l'host ha ricevuto il colpo in ritardo).
+// Prima: fuso oltre 1,5 m → salto netto, la palla disegnata tornava di ~2 m verso la racchetta del P2 e ripartiva.
+test('P2: lo snapshot che conferma il colpo locale non riporta la palla verso la racchetta, la palla rallenta e converge', () => {
+  const { e, snap } = rallyAtP2();
+  const frame = () => { e.step(1/120); e.step(1/120); e._natpfGuestFrame(1/60, 1/60); };
+  let host = null;
+  for (let t = 1; t <= 12; t++){   // 120 ms di volo della previsione locale
+    e.step(1/100);
+    if (t === 5) host = { p: e.ball.pos.clone(), v: e.ball.vel.clone(), s: e.ball.spin.clone() };   // 50 ms dopo il colpo
+  }
+  const drawn0 = e._natpfBallDrawPos().z;
+  assert.ok(drawn0 - host.p.z > 1.5, `scarto oltre il vecchio limite di salto: ${drawn0 - host.p.z}`);
+  snap({ px: host.p.x, py: host.p.y, pz: host.p.z, vx: host.v.x, vy: host.v.y, vz: host.v.z, inPlay: true, lastHitter: 'opponent', shotType: 'TOPSPIN', rallyStrokeCount: 2 },
+    { spin: [host.s.x, host.s.y] });
+  assert.ok(Math.abs(e.ball.pos.z - host.p.z) < 1e-9, 'la fisica è quella dell’host');
+  assert.ok(Math.abs(e._natpfBallDrawPos().z - drawn0) < 1e-9, `nessun salto all’arrivo dello snapshot: ${e._natpfBallDrawPos().z} contro ${drawn0}`);
+  assert.equal(e.natpfGuestView.stats.jumps, 0);
+  let z = e._natpfBallDrawPos().z;
+  const speed = Math.hypot(e.ball.vel.x, e.ball.vel.z);
+  for (let i = 0; i < 24; i++){   // 400 ms
+    frame();
+    const nz = e._natpfBallDrawPos().z;
+    assert.ok(nz - z >= 0.25 * speed / 60, `fotogramma ${i}: la palla disegnata va sempre verso l’host (rallenta, non torna indietro): ${z} → ${nz}`);
+    z = nz;
+  }
+  const off = e.natpfGuestView.off;
+  assert.ok(Math.hypot(off.x, off.y, off.z) < 0.02, `converge alla palla dell’host: ${off.z}`);
+  // gli snapshot successivi dello stesso colpo (ancora indietro di 70 ms) non fanno salti
+  snap({ px: e.ball.pos.x, py: e.ball.pos.y, pz: e.ball.pos.z - 0.05, vx: e.ball.vel.x, vy: e.ball.vel.y, vz: e.ball.vel.z, inPlay: true, lastHitter: 'opponent', shotType: 'TOPSPIN', rallyStrokeCount: 2 });
+  assert.equal(e.natpfGuestView.stats.jumps, 0);
 });

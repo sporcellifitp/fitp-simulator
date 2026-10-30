@@ -228,3 +228,106 @@ test('TURN: il computer crea il Peer con i server ottenuti; se la richiesta fall
     forgetIceServers();
   } finally { globalThis.fetch = saved; delete globalThis.isSecureContext; }
 });
+
+// Revisione del 30/10: il computer crea il Peer per il telefono una volta sola e la pagina (chiosco, ledwall) può
+// restare aperta per giorni. Prima run() usciva prima di iceReady se il Peer c'era già e nessuno richiedeva più le
+// credenziali: dopo 24 h la configurazione del Peer teneva username e credential scaduti e i telefoni nuovi, su reti
+// che bloccano la 3478, non si collegavano più. Ora si rinnovano a ogni start() e nel controllo di ogni secondo; scadute
+// e non rinnovabili, nella configurazione restano solo le strade di base
+test('TURN: computer acceso per giorni → credenziali rinnovate sul Peer già creato, scadute tolte', async () => {
+  const realNow = Date.now, realSetInterval = globalThis.setInterval, realClearInterval = globalThis.clearInterval, saved = globalThis.fetch;
+  let clock = realNow(), worker = 'u1', failing = false;
+  const ticks = [];
+  Date.now = () => clock;
+  globalThis.window = { Peer: FakePeer };
+  globalThis.location = page();
+  globalThis.isSecureContext = true;
+  globalThis.setInterval = (f, ms) => { ticks.push(f); return realSetInterval(() => {}, 1e9); };
+  globalThis.clearInterval = id => realClearInterval(id);
+  const flush = async () => { for (let i = 0; i < 6; i++) await new Promise(r => setImmediate(r)); };
+  const net = fakeFetch({
+    'https://gioco.esempio.workers.dev/natpf/turn.json': jsonRes({ url: WORKER }),
+    [WORKER]: () => { if (failing) throw new TypeError('rete'); return jsonRes({ ...CF, iceServers: CF.iceServers.map(s => s.username ? { ...s, username: worker, credential: 'c-' + worker } : s) }); },
+  });
+  globalThis.fetch = net.fetch;
+  const { forgetIceServers } = await iceModule();
+  const { createPhoneLink, ICE_SERVERS } = await import('../../site/js/tennis/link.js');
+  const link = createPhoneLink();
+  try {
+    await link.start();
+    const peer = FakePeer.last, config = peer.options.config;
+    assert.equal(config.iceServers[1].username, 'u1');
+    // 13 h dopo (oltre metà della durata di 24 h): start() di nuovo (natpf_phone_racket lo richiama), stesso Peer
+    clock += 13*3600e3; worker = 'u2';
+    await link.start();
+    await flush();
+    assert.equal(FakePeer.last, peer, 'nessun Peer nuovo');
+    assert.equal(config.iceServers[1].username, 'u2', 'credenziali nuove nella configurazione del Peer già creato');
+    // altre 13 h: basta il controllo di ogni secondo, senza start()
+    clock += 13*3600e3; worker = 'u3';
+    ticks.at(-1)();
+    await flush();
+    assert.equal(config.iceServers[1].username, 'u3');
+    // il Worker non risponde più: dopo la scadenza (24 h dall'ultima risposta) via le credenziali, restano le strade di base
+    failing = true;
+    clock += 25*3600e3;
+    ticks.at(-1)();
+    await flush();
+    assert.ok(!config.iceServers.some(s => /^u\d$/.test(s.username || '')), 'niente credenziali scadute');
+    assert.deepEqual(config.iceServers.flatMap(s => s.urls), ICE_SERVERS.flatMap(s => s.urls));
+    // il controllo di ogni secondo non chiede a ogni giro: in cache fino al riprova di un minuto
+    const calls = net.calls.length;
+    for (let i = 0; i < 5; i++){ clock += 1000; ticks.at(-1)(); }
+    await flush();
+    assert.equal(net.calls.length, calls);
+  } finally {
+    link.stop(); forgetIceServers();
+    Date.now = realNow; globalThis.setInterval = realSetInterval; globalThis.clearInterval = realClearInterval; globalThis.fetch = saved;
+    delete globalThis.isSecureContext;
+  }
+});
+
+test('TURN: risposta lenta che dice «nessuna configurazione» → non si richiede più (prima ogni minuto)', async () => {
+  const realNow = Date.now;
+  let clock = realNow(), answer = null, fire = null;
+  Date.now = () => clock;
+  try {
+    const { iceReady, forgetIceServers } = await iceModule();
+    const timers = { setTimeout: (f, ms) => { if (ms === 2500) fire = f; return 1; }, clearTimeout(){} };
+    const net = fakeFetch({ 'https://gioco.esempio.workers.dev/natpf/turn.json': () => new Promise(r => { answer = r; }) });
+    const p = iceReady({ fetch: net.fetch, loc: page(), secure: true, timers });
+    await new Promise(r => setImmediate(r));
+    fire();
+    assert.deepEqual(await p, []);
+    answer(jsonRes('<!doctype html>', 404));                  // il pacchetto non ha turn.json
+    await new Promise(r => setTimeout(r, 0));
+    clock += 5*60e3;
+    iceReady({ fetch: net.fetch, loc: page(), secure: true, timers });   // senza aspettare: conta solo se richiede
+    await new Promise(r => setImmediate(r));
+    assert.equal(net.calls.length, 1, 'una sola richiesta per pagina');
+    forgetIceServers();
+  } finally { Date.now = realNow; }
+});
+
+// telefono (racchetta.js, connect): libreria PeerJS e credenziali TURN insieme, non una dopo l'altra: i 2,5 s
+// dell'attesa delle credenziali non si sommano al caricamento della libreria dentro i 12 s del tentativo
+test('telefono: loadPeer e iceReady partono insieme', async () => {
+  const { readFileSync } = await import('node:fs');
+  const vm = await import('node:vm');
+  const { LINK_TIMES: T, netWhy: why } = await import('../../site/js/tennis/link.js');
+  const source = readFileSync(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
+  const section = source.slice(source.indexOf('async function connect(){'), source.indexOf('// messaggi che valgono solo se arrivano subito'));
+  let lib = null, iceCalls = 0;
+  const peers = [];
+  class P extends Emitter { constructor(o){ super(); this.o = o; this.destroyed = false; peers.push(this); } destroy(){ this.destroyed = true; } }
+  const sandbox = { LanPeer: P, isLanMode: () => false, loadPeer: () => new Promise(r => { lib = r; }), iceReady: () => { iceCalls++; return new Promise(() => {}); },
+    peerConfig: () => ({}), LINK_TIMES: T, netWhy: why, performance: { now: () => 0 }, ss: { get(){}, set(){}, del(){} },
+    setTimeout: () => 0, clearTimeout(){}, paint(){}, bar(){}, ui(){}, show(){}, closeFast(){}, openFast(){}, sendState(){}, sendDevice(){} };
+  vm.createContext(sandbox);
+  vm.runInContext("let peer=null,conn=null,pendingConn=null,connectEpoch=0,retryT=null,tries=0,linkState='off',pair={session:'game',token:'token'},lastRx=0,fastOk=false,sensor='ready',rtt=80;\n" + section + "\nglobalThis.api={connect};", sandbox);
+  sandbox.api.connect();
+  await new Promise(r => setImmediate(r));
+  assert.ok(lib, 'libreria richiesta');
+  assert.equal(iceCalls, 1, 'credenziali richieste senza aspettare la libreria');
+  assert.equal(peers.length, 0);
+});

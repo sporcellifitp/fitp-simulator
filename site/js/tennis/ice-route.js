@@ -88,31 +88,44 @@ export async function fetchIceServers({ fetch: get = globalThis.fetch, loc = glo
   try { return await Promise.race([work, late]); } finally { timers.clearTimeout(timer); }
 }
 
-// Una volta per pagina (chi arriva durante la richiesta aspetta la stessa): le credenziali si richiedono a metà della
-// loro durata (una pagina del chiosco resta aperta per giorni) e si smette di usarle quando scadono
+// Una volta per pagina (chi arriva durante la richiesta aspetta la stessa). Rinnovo: una chiamata a iceReady dopo metà
+// della durata delle credenziali le richiede di nuovo (senza far aspettare chi chiama, quelle di prima valgono ancora).
+// Chi chiama: il telefono e l'host della sfida a ogni Peer nuovo; il computer, che crea il Peer per il telefono una
+// volta sola e può restare acceso per giorni (chiosco, ledwall), a ogni start() e ogni secondo nel suo controllo
+// (link.js). Credenziali scadute e non rinnovate: via anche dalle configurazioni dei Peer già creati, restano le strade
+// di base (un TURN con credenziali scadute rifiuta l'allocazione: meglio non offrirlo)
 const ice = { p: null, until: 0, servers: null, expires: 0, why: null };
 // configurazioni dei Peer già creati (peerConfig in link.js, followIce): PeerJS legge options.config a ogni nuova
 // connessione, quindi credenziali arrivate in ritardo valgono per i collegamenti successivi dello stesso Peer (il
 // computer crea il suo una volta sola, all'avvio). Solo le ultime 8: una pagina del telefono ne crea una per tentativo
 const live = [];
 export function followIce(config, base){ live.push({ config, base }); if (live.length > 8) live.shift(); return config; }
+const syncLive = () => { for (const { config, base } of live) config.iceServers = mergeIceServers(ourIceServers(), base); };
 function store(r){
   ice.why = r.why || null;
   if (!r.servers) return false;
   const ttl = Math.min(r.ttl || 86400, 7*86400);
   Object.assign(ice, { servers: r.servers, expires: Date.now() + ttl*1000, until: Date.now() + Math.max(60, ttl/2)*1000 });
-  for (const { config, base } of live) config.iceServers = mergeIceServers(ourIceServers(), base);
+  syncLive();
   return true;
 }
+// credenziali scadute (rinnovo non riuscito): si tolgono una volta, anche dalle configurazioni vive
+function dropExpired(){ if (ice.servers && Date.now() >= ice.expires){ ice.servers = null; syncLive(); } }
 export function iceReady(opts = {}){
+  dropExpired();
   const loc = opts.loc ?? globalThis.location;
   if (!iceAllowed(loc, opts.secure ?? globalThis.isSecureContext)) return Promise.resolve(null);
   if (ice.p && Date.now() < ice.until) return ice.p;
   const p = ice.p = fetchIceServers({ ...opts, loc }).then(r => {
     if (ice.p !== p) return ourIceServers();
     if (!store(r)) ice.until = r.final ? Infinity : Date.now() + RETRY_MS;
-    // risposta lenta: si va avanti senza, e quando arriva vale per i collegamenti dopo
-    r.pending?.then(late => { if (ice.p === p && store(late)) ice.p = Promise.resolve(ourIceServers()); }, () => {});
+    // risposta lenta: si va avanti senza, e quando arriva vale per i collegamenti dopo. Se arriva «final» (il pacchetto
+    // non ha la configurazione) vale come subito: non si richiede più (prima restava il riprova di un minuto)
+    r.pending?.then(late => {
+      if (ice.p !== p) return;
+      if (store(late)) ice.p = Promise.resolve(ourIceServers());
+      else if (late.final) ice.until = Infinity;
+    }, () => {});
     return ourIceServers();
   }, () => { ice.until = Date.now() + RETRY_MS; return ourIceServers(); });
   ice.until = Infinity;

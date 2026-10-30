@@ -275,6 +275,35 @@ test('strada del collegamento host ↔ P2: letta all\'ingresso sui due lati (onR
   host.destroy();
 });
 
+// revisione del 30/10: la strada della sfida (api.route, letta dalla diagnostica all'avvio come sfida.strada) restava
+// all'ultima anche dopo l'uscita del P2; ora è quella del lato attivo, che la azzera quando il collegamento finisce
+test('sfida: api.route segue il collegamento e si azzera quando il P2 cade', async () => {
+  const net = fakeNetwork();
+  // RTCPeerConnection finta con una strada (formato di Firefox: coppia selected)
+  FakePc.prototype.getStats = async () => [
+    { id: 'p', type: 'candidate-pair', selected: true, localCandidateId: 'l', remoteCandidateId: 'r' },
+    { id: 'l', type: 'local-candidate', candidateType: 'relay', protocol: 'udp', relayProtocol: 'tls', url: 'turns:turn.cloudflare.com:443' },
+    { id: 'r', type: 'remote-candidate', candidateType: 'srflx', protocol: 'udp' },
+  ];
+  const H = fakeWindow('https://natpf.example/gioco/', staticSite);
+  const host = installNatpfP2p({ win: H.win, Peer: net.Peer });
+  const routes = []; host.onRoute(r => routes.push(r));
+  let guest = null;
+  try {
+    const room = await H.win.fetch('/api/match/create', { method: 'POST', body: JSON.stringify({ p1Name: 'A' }) }).then(json);
+    await until(() => host.status === 'waiting');
+    const G = fakeWindow(`https://natpf.example/gioco/?room=${room.roomId}&role=p2&net=p2p`, staticSite);
+    guest = installNatpfP2p({ win: G.win, Peer: net.Peer });
+    await until(() => guest.status === 'connected' && host.status === 'connected' && host.route && guest.route);
+    assert.equal(host.route.relay, 'tls'); assert.equal(guest.route.nostro, true);
+    assert.equal(routes.at(-1).modo, 'host');
+    guest.guest.destroy();
+    await until(() => host.status !== 'connected');
+    assert.equal(host.route, null, 'P2 uscito: nessuna strada');
+    assert.equal(guest.route, null);
+  } finally { delete FakePc.prototype.getStats; guest?.guest?.destroy(); host.host?.destroy(); }
+});
+
 test('fetch intercettato: sito statico (404) → stanza nel browser dell’host, link p2p, il P2 gioca via RPC con natpf e mano', async () => {
   const net = fakeNetwork();
   const H = fakeWindow('https://natpf.example/gioco/', staticSite);

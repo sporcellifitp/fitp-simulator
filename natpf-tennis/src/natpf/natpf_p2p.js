@@ -400,9 +400,14 @@ export function installNatpfP2p({ win = globalThis.window, Peer = null, peerOpti
   const forced = p2pRequested(win?.location?.search || '');
   const api = {
     mode: null, status: 'off', error: null, detail: null, blocked: 0, roomId: null, local: null, host: null, guest: null,
-    // route: strada del collegamento tra i due computer (ice-route.js), onRoute a ogni cambio (diagnostica: sfida.strada)
-    route: null, onStatus: ev.on, onRoute: routeEv.on,
+    onStatus: ev.on, onRoute: routeEv.on,
     get active(){ return !!api.mode; },
+    // route: strada del collegamento tra i due computer (ice-route.js), onRoute a ogni cambio (diagnostica: sfida.strada).
+    // Letta dal lato attivo, che la azzera quando il P2 cade: prima era una copia che restava all'ultima strada anche a
+    // P2 scollegato, e la diagnostica avviata dopo la registrava come strada attuale
+    // solo con il collegamento vivo: un host che ha perso il P2 (5 s di silenzio, canale ancora aperto) non riporta la
+    // strada vecchia nella diagnostica
+    get route(){ const side = api.mode === 'host' ? api.host : api.mode === 'guest' ? api.guest : null; return side?.state?.status === 'connected' ? side.route ?? null : null; },
   };
   // detail e blocked: perché il canale diretto non si apre (stato ICE e candidati, quante volte), per la diagnostica
   const relayStatus = s => {
@@ -410,9 +415,10 @@ export function installNatpfP2p({ win = globalThis.window, Peer = null, peerOpti
     ev.emit({ mode: api.mode, status: api.status, error: api.error, detail: api.detail, blocked: api.blocked, roomId: api.roomId });
   };
   // TURN nostri prima di creare il Peer (link.js, iceReady: al massimo 2,5 s una volta per pagina, niente con ?peer=):
-  // un errore o un ritardo non ferma la sfida, si va avanti con le strade di prima
-  const getPeer = async () => { const P = Peer || await loadPeer(); if (!peerOptions) await iceReady().catch(() => null); return P; };
-  const followRoute = side => side.onRoute(r => { api.route = r; routeEv.emit({ ...r, modo: api.mode }); });
+  // un errore o un ritardo non ferma la sfida, si va avanti con le strade di prima. Insieme al caricamento della
+  // libreria, così i due tempi non si sommano
+  const getPeer = async () => { const [P] = await Promise.all([Peer || loadPeer(), peerOptions ? null : iceReady().catch(() => null)]); return P; };
+  const followRoute = side => side.onRoute(r => routeEv.emit({ ...r, modo: api.mode }));
   // server di segnalazione: quello del telefono-racchetta (pubblico di PeerJS, o ?peer=… per le prove)
   const options = () => { if (peerOptions) return peerOptions; try { return peerConfig(); } catch { return { debug: 0 }; } };
   if (!win?.fetch) return api;
@@ -443,7 +449,7 @@ export function installNatpfP2p({ win = globalThis.window, Peer = null, peerOpti
       try {
         const P = await getPeer();
         api.host = createP2pHost({ Peer: P, roomId: json.roomId, handle: api.local.handle, options: options() });
-        api.host.onStatus(relayStatus); followRoute(api.host); api.route = null; relayStatus(api.host.state);
+        api.host.onStatus(relayStatus); followRoute(api.host); relayStatus(api.host.state);
         const r = await Promise.race([api.host.ready, new Promise(ok => setTimeout(() => ok({ ok: false, error: 'timeout' }), 8000))]);
         if (r.ok || r.error !== 'unavailable-id') break;
       } catch { relayStatus({ status: 'error', error: 'libreria' }); break; }

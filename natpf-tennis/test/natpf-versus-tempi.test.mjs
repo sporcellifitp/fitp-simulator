@@ -9,13 +9,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createMatchRelay, natpfSwingExtras } from '../scripts/match-relay.mjs';
 import { createLocalRelay, compactMatchState } from '../src/natpf/natpf_p2p.js';
-import { p2SwingHitAt, p2SwingAgeMs, p2SwingStale, P2_STALE_MS } from '../src/natpf/natpf_versus.js';
+import { p2SwingHitAt, p2SwingAgeMs, p2SwingStale, p2SwingSentAtHost, P2_STALE_MS, P2_CLOCK_MAX_RTT_MS, P2_CLOCK_SAMPLES } from '../src/natpf/natpf_versus.js';
+import { createClock } from '@natpf/tennis/pairing.js';
 import { NatpfVersusUi } from '../src/natpf/natpf_versus_ui.js';
 import { MotionController } from '../src/motion_controls.js';
 import { createHeadlessEngine } from '../scripts/audit/headless-engine.mjs';
 
 const tick = (ms = 0) => new Promise(r => setTimeout(r, ms));
-async function until(fn, ms = 2000){ const t0 = Date.now(); while (!fn()){ if (Date.now() - t0 > ms) throw new Error('tempo scaduto'); await tick(2); } }
+// scadenza su performance.now, non su Date.now: un test che sostituisce Date.now (orologio virtuale del P2) e non lo fa
+// avanzare resterebbe appeso invece di fallire
+async function until(fn, ms = 2000){ const t0 = performance.now(); while (!fn()){ if (performance.now() - t0 > ms) throw new Error('tempo scaduto'); await tick(2); } }
 const json = r => JSON.parse(r.text);
 
 async function room(){
@@ -164,6 +167,78 @@ test('P2 che è lui a leggere i propri colpi dal relay: nessuna scadenza (l’et
   mc.onP2Swing = s => played.push(s); mc.onP2Stale = i => stale.push(i);
   await pollOnce(mc, fetchFn, () => mc.lastProcessedP2PhoneSeq >= 1);
   assert.equal(played.length, 1); assert.equal(stale.length, 0);
+});
+
+/* ---------- precisione dell'orologio del P2 (revisione del 30/10) ---------- */
+// letture dello stato sul tempo vero di questo processo (il relay di prova usa lo stesso Date.now: offset vero 0), con
+// andata e ritorno dati; l'ultima risposta arriva adesso
+function readings(clock, list){
+  let t = Date.now() - list.reduce((a, [go, back]) => a + go + back, 0);
+  for (const [go, back] of list){ const t0 = t; t += go; const remote = t; t += back; clock.add(t0, remote, t); }
+  return clock;
+}
+const times = (n, x) => Array.from({ length: n }, () => x);
+// colpo del telefono del P2 mandato dal suo computer con l'orologio dato (corpo della richiesta al relay); shiftMs sposta
+// l'istante dell'invio (−2000: mandato 2 s fa, canale fermo e poi ripartito)
+function guestSwing(clock, natpf, shiftMs = 0){
+  const mc = guestController(), sent = [], realFetch = globalThis.fetch, realNow = Date.now;
+  mc._hostClock = clock;
+  globalThis.fetch = async (url, init) => { sent.push(JSON.parse(init.body)); return new Response('{}', { status: 200 }); };
+  if (shiftMs) Date.now = () => realNow() + shiftMs;
+  try { mc._emitSwing({ source: 'natpf-phone', side: 'forehand', speed: 1.1, role: 'p2', natpf }); }
+  finally { Date.now = realNow; globalThis.fetch = realFetch; mc._disposed = true; }
+  const { room: _r, role: _o, ...body } = sent[0];
+  return body;
+}
+async function hostReads(R, n){
+  const { mc, fetchFn } = hostController(R.handle, R.roomId);
+  const played = [], stale = [];
+  mc.onP2Swing = s => played.push(s); mc.onP2Stale = i => stale.push(i);
+  await pollOnce(mc, fetchFn, () => mc.lastProcessedP2PhoneSeq >= n);
+  return { played, stale };
+}
+
+test('orologio del P2: sentAtHost solo con una stima precisa (rtt del campione migliore ≤ 300 ms)', () => {
+  assert.equal(P2_CLOCK_MAX_RTT_MS, 300); assert.equal(P2_CLOCK_SAMPLES, 200);
+  assert.equal(p2SwingSentAtHost(null, 1000), null); assert.equal(p2SwingSentAtHost(createClock(), 1000), null, 'nessun campione');
+  const good = createClock(); good.add(0, 5020, 40);
+  assert.equal(p2SwingSentAtHost(good, 1000), 6000); assert.equal(p2SwingSentAtHost(good, NaN), null);
+  const edge = createClock(); edge.add(0, 150, 300); assert.equal(p2SwingSentAtHost(edge, 1000), 1000, 'rtt 300: ancora buono');
+  const slow = createClock(); slow.add(0, 30, 1030);
+  assert.equal(p2SwingSentAtHost(slow, 1000), null, 'rtt 1030: incertezza ±515 ms, oltre la soglia del colpo vecchio');
+  // finestra lunga: dopo un tratto lento (13 letture, più dei 12 campioni di base) resta il campione buono di prima
+  const long = readings(createClock(P2_CLOCK_SAMPLES), [[20, 20], ...times(13, [30, 1000])]);
+  assert.equal(long.rtt, 40); assert.notEqual(p2SwingSentAtHost(long, Date.now()), null);
+  const short = readings(createClock(), [[20, 20], ...times(13, [30, 1000])]);
+  assert.equal(short.rtt, 1030, 'con 12 campioni il campione buono è già uscito');
+  // l'orologio del computer del P2 usa la finestra lunga
+  const mc = guestController(); readings(mc.hostClock, [[20, 20], ...times(13, [30, 1000])]);
+  assert.equal(mc.hostClock.rtt, 40); assert.equal(typeof mc._sentAtHost().sentAtHost, 'number');
+});
+
+test('sfida: ritorno lento e asimmetrico (andata 30 ms, ritorno 1000 ms) e poi un colpo fresco: l’host lo gioca', async () => {
+  const clock = readings(createClock(P2_CLOCK_SAMPLES), times(13, [30, 1000]));
+  // la stima min-RTT sbaglia l'offset di ~−485 ms: con quell'ora il colpo sembrerebbe vecchio di 485 ms + 150 di latenza
+  assert.ok(clock.off < -480 && clock.off > -490, `offset ${clock.off}`);
+  const wrongAge = p2SwingAgeMs({ sentAtHost: Math.round(clock.toRemote(Date.now())), natpf: { latency: .15 } }, Date.now());
+  assert.ok(p2SwingStale(wrongAge), `con la stima imprecisa sarebbe scartato (età ${wrongAge})`);
+  const body = guestSwing(clock, { aim: 'swing', latency: .15, seq: 3 });
+  assert.ok(!('sentAtHost' in body), 'stima imprecisa: niente ora dell’host');
+  const R = await room(); await R.swing(body);
+  const { played, stale } = await hostReads(R, 1);
+  assert.equal(played.length, 1, 'colpo fresco giocato come prima della misura'); assert.equal(stale.length, 0);
+});
+
+test('sfida: con un orologio preciso un colpo fresco si gioca e uno mandato 2 s fa resta scartato', async () => {
+  // campione buono e simmetrico, poi un tratto lento: la finestra lunga tiene il buono
+  const clock = readings(createClock(P2_CLOCK_SAMPLES), [[20, 20], ...times(13, [30, 1000])]);
+  const fresh = guestSwing(clock, { aim: 'swing', latency: .08, seq: 1 });
+  const old = guestSwing(clock, { aim: 'swing', latency: .08, seq: 2 }, -2000);
+  assert.equal(typeof fresh.sentAtHost, 'number'); assert.equal(typeof old.sentAtHost, 'number');
+  const R = await room(); await R.swing({ ...fresh, shotType: 'slice' }); await R.swing({ ...old, shotType: 'lob' });
+  const { played, stale } = await hostReads(R, 2);
+  assert.deepEqual(played.map(s => s.shotType), ['slice']);
+  assert.equal(stale.length, 1); assert.equal(stale[0].n, 2); assert.ok(stale[0].eta >= 2080 && stale[0].eta < 2600, `età ${stale[0].eta}`);
 });
 
 /* ---------- diagnostica ---------- */

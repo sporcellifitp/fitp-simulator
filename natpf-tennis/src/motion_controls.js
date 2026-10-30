@@ -4,7 +4,7 @@ import { WebcamHandTracker, handPoseFromLandmarks, handPoseFromFlow } from "./na
 // NATPF: colpi dalla traccia della mano (un evento per colpo) e scelta della mano da seguire, vedi src/natpf/webcam_strokes.js
 import { createStrokeTracker, pickHand, trackOthers, handPoint, handSize } from "./natpf/webcam_strokes.js";
 import { relayedNatpf } from "./natpf/natpf_skill.js";
-import { newSwings, p2SwingAgeMs, p2SwingStale, P2_STALE_MS } from "./natpf/natpf_versus.js";
+import { newSwings, p2SwingAgeMs, p2SwingStale, p2SwingSentAtHost, P2_STALE_MS, P2_CLOCK_SAMPLES } from "./natpf/natpf_versus.js";
 // NATPF 1v1: orologio del computer del P2 allineato a quello del relay (min-RTT, come telefono ↔ computer)
 import { createClock } from "@natpf/tennis/pairing.js";
 // NATPF: misure della webcam (camera, inferenza, età del dato) e carico del modello delle mani, vedi src/natpf/webcam_load.js
@@ -132,9 +132,10 @@ export class MotionController {
   }
   // NATPF 1v1 (computer del P2): orologio dell'host stimato dalle letture dello stato (campo now del relay: nella sfida
   // senza server il relay gira nel browser dell'host, in LAN nel server). Vale lo scambio con il viaggio più breve
-  // (pairing.createClock): relay ≈ locale + offset
+  // (pairing.createClock): relay ≈ locale + offset. Finestra lunga (P2_CLOCK_SAMPLES, ~10 s): dopo un tratto lento resta
+  // il campione buono di prima
   get hostClock() {
-    return (this._hostClock ||= createClock());
+    return (this._hostClock ||= createClock(P2_CLOCK_SAMPLES));
   }
   // stima corrente { offset, rtt } in ms, o null prima della prima lettura con l'ora del relay
   get hostClockEstimate() {
@@ -142,10 +143,11 @@ export class MotionController {
     return c && c.ok ? { offset: Math.round(c.off), rtt: Math.round(c.rtt) } : null;
   }
   // campo del colpo e del lancio del P2: ora del relay stimata all'invio (natpf_versus.p2SwingAgeMs sull'host). Niente
-  // finché l'orologio non ha un campione: l'host gioca il colpo come prima
+  // finché l'orologio non ha un campione con rtt ≤ P2_CLOCK_MAX_RTT_MS (natpf_versus.p2SwingSentAtHost): con una stima
+  // imprecisa l'host scarterebbe colpi freschi, senza l'ora li gioca come prima
   _sentAtHost() {
-    const c = this._hostClock;
-    return c && c.ok ? { sentAtHost: Math.round(c.toRemote(Date.now())) } : {};
+    const t = p2SwingSentAtHost(this._hostClock, Date.now());
+    return t == null ? {} : { sentAtHost: t };
   }
   on(e, t) {
     return (

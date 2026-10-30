@@ -162,6 +162,34 @@ export function p2SwingAgeMs(swing, nowMs){
 }
 export const p2SwingStale = (ageMs, maxMs = P2_STALE_MS) => ageMs != null && ageMs > maxMs;
 
+// Precisione dell'orologio del P2 (revisione del 30/10). La stima min-RTT (pairing.createClock) sbaglia l'offset fino a
+// metà del viaggio del campione migliore: con andata 30 ms e ritorno 1000 ms (rtt 1030: risposta lenta su TURN o VPN
+// congestionata) l'offset era sbagliato di ~500 ms e l'host scartava come «vecchio» un colpo appena fatto, che prima
+// si giocava. sentAtHost si manda quindi solo se il campione migliore ha rtt ≤ P2_CLOCK_MAX_RTT_MS (incertezza ≤ ±150
+// ms); altrimenti niente: l'host gioca il colpo come prima della misura.
+// Perché la soglia P2_STALE_MS (600) resta giusta: sul tratto P2 → relay l'errore dell'offset e il viaggio del colpo
+// si compensano. Errore = (ritorno − andata)/2 del campione migliore, viaggio del colpo ≈ andata (stessa direzione della
+// richiesta di lettura), quindi l'età calcolata dalla rete è ≈ rtt/2 ≤ 150 ms se il collegamento è come nel campione
+// (di più solo se è davvero più lento: ritardo vero, giusto contarlo). Somma per un colpo fresco: natpf.latency fino
+// a 300 ms (tratto telefono → P2 più il displayLag misurato, fino a 200 ms: natpf_phone_racket.js) + rtt/2 ≤ 150 +
+// attesa della lettura dell'host (phonePollIntervalMs 50 ms più la lettura) ≈ 500 ms: sotto 600 con ~100 ms di margine
+// per le oscillazioni. Un canale fermo e poi ripartito (il caso da fermare) dà secondi, non centinaia di ms.
+export const P2_CLOCK_MAX_RTT_MS = 300;
+// Campioni tenuti dall'orologio del P2: ~10 s di letture a 20 Hz (createClock di base ne tiene 12, ~0,6 s, pensati per
+// il telefono). Su qualche secondo gli orologi non derivano in modo apprezzabile, e così dopo un tratto lento resta il
+// campione buono di prima invece di valere il «più breve» tra soli viaggi lenti
+export const P2_CLOCK_SAMPLES = 200;
+// sentAtHost da mandare con colpo o lancio: ora del relay stimata a localNow (ms, orologio del P2) dall'orologio clock
+// (pairing.createClock), o null se manca la stima o non è abbastanza precisa (rtt del campione migliore oltre
+// P2_CLOCK_MAX_RTT_MS)
+export function p2SwingSentAtHost(clock, localNow, maxRttMs = P2_CLOCK_MAX_RTT_MS){
+  if (!clock || !clock.ok || typeof localNow !== 'number' || !Number.isFinite(localNow)) return null;
+  const rtt = clock.rtt;
+  if (typeof rtt !== 'number' || !(rtt <= maxRttMs)) return null;
+  const t = clock.toRemote(localNow);
+  return Number.isFinite(t) ? Math.round(t) : null;
+}
+
 /* ---------- partita ferma per tutti e due quando uno non può giocare (diagnosi del 30/10) ---------- */
 // Prima l'host vedeva solo il computer del P2: con il telefono del P2 scollegato, la pagina del telefono nascosta o i
 // sensori fermi la partita andava avanti e il P2 non poteva colpire (il controllo del telefono escludeva il P2). Ora il

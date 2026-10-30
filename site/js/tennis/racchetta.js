@@ -145,10 +145,11 @@ async function connect(){
     else giveUp();
   }, LINK_TIMES.phoneMs);
   try {
-    const Peer = isLanMode() ? LanPeer : await loadPeer();
     // TURN di Cloudflare, se il pacchetto lo ha configurato (ice-route.js): la rete del telefono del P2 bloccava tutte
-    // le strade di prima (30/10). Al massimo 2,5 s la prima volta, poi subito; se non riesce si va avanti come prima
-    if (!isLanMode()) await iceReady().catch(() => null);
+    // le strade di prima (30/10). Al massimo 2,5 s la prima volta, poi subito; se non riesce si va avanti come prima.
+    // Insieme al caricamento della libreria: i due tempi non si sommano dentro i 12 s del tentativo (connect.t). In LAN
+    // niente attesa, il Peer nasce subito come prima
+    const Peer = isLanMode() ? LanPeer : (await Promise.all([loadPeer(), iceReady().catch(() => null)]))[0];
     if (epoch !== connectEpoch) return;
     const p = peer = new Peer(peerConfig());
     const current = () => epoch === connectEpoch && peer === p;
