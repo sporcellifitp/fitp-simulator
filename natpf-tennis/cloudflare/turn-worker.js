@@ -60,6 +60,19 @@ function cleanIceServers(j){
   return out;
 }
 
+// Valori delle variabili ripuliti: spazi, a capo e virgolette copiati insieme al valore (incollando dalla dashboard o da
+// un Blocco note) rendevano l'ID irriconoscibile e Cloudflare rispondeva 404
+const clean = v => String(v ?? '').trim().replace(/^["'«]+|["'»]+$/g, '').trim();
+// Perché Cloudflare rifiuta, in parole semplici, con solo le lunghezze dei valori (mai i valori: sono segreti). Di solito
+// il «Turn Token ID» ha 32 caratteri e l'«API Token» 64 (API: uid e key della chiave TURN)
+export function explain(status, id, token){
+  const lens = `TURN_KEY_ID ${id.length} caratteri, TURN_KEY_API_TOKEN ${token.length} caratteri`;
+  const swapped = id.length > token.length ? ' Sembrano scambiati: l’ID di solito è il più corto (32 caratteri), il token il più lungo (64).' : '';
+  if (status === 404) return `Cloudflare non trova una chiave TURN con questo ID (404). TURN_KEY_ID deve essere il «Turn Token ID» della chiave creata in Realtime → TURN (non l’ID di un’app SFU né quello dell’account).${swapped} (${lens})`;
+  if (status === 401 || status === 403) return `Cloudflare non accetta il token (${status}): TURN_KEY_API_TOKEN deve essere l’«API Token» della stessa chiave TURN.${swapped} (${lens})`;
+  return `Cloudflare ha risposto ${status} (${lens})`;
+}
+
 export default {
   async fetch(request, env = {}){
     const c = cors(request, env);
@@ -69,17 +82,18 @@ export default {
     }
     if (request.method !== 'GET' && request.method !== 'POST') return reply(405, { ok: false, error: 'metodo non permesso' }, { ...c.headers, Allow: 'GET, POST, OPTIONS' });
     if (!c.ok) return reply(403, { ok: false, error: 'origine non permessa' }, c.headers);
-    if (!env.TURN_KEY_ID || !env.TURN_KEY_API_TOKEN) return reply(500, { ok: false, error: 'variabili TURN_KEY_ID e TURN_KEY_API_TOKEN da impostare nel Worker' }, c.headers);
+    const id = clean(env.TURN_KEY_ID), token = clean(env.TURN_KEY_API_TOKEN);
+    if (!id || !token) return reply(500, { ok: false, error: 'variabili TURN_KEY_ID e TURN_KEY_API_TOKEN da impostare nel Worker' }, c.headers);
     let res;
     try {
-      res = await fetch(API(env.TURN_KEY_ID), {
+      res = await fetch(API(id), {
         method: 'POST',
-        headers: { Authorization: `Bearer ${env.TURN_KEY_API_TOKEN}`, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ ttl: TTL }),
       });
     } catch { return reply(502, { ok: false, error: 'Cloudflare non raggiungibile' }, c.headers); }
-    // solo il codice: il corpo di un errore non torna al browser
-    if (!res.ok) return reply(502, { ok: false, error: `Cloudflare ha risposto ${res.status}` }, c.headers);
+    // il codice e cosa controllare: il corpo dell'errore di Cloudflare non torna al browser
+    if (!res.ok) return reply(502, { ok: false, error: explain(res.status, id, token) }, c.headers);
     let j = null;
     try { j = await res.json(); } catch {}
     const iceServers = cleanIceServers(j);

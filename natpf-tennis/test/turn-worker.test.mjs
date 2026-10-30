@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import worker from '../cloudflare/turn-worker.js';
+import worker, { explain } from '../cloudflare/turn-worker.js';
 import { makePackage, checkTurnUrl, headersProblems, TURN_JSON } from '../scripts/pacchetto-cloudflare.mjs';
 
 const ENV = { TURN_KEY_ID: 'chiave-id', TURN_KEY_API_TOKEN: 'segreto-123', ALLOWED_ORIGINS: 'https://gioco.example.workers.dev, https://altro.example/' };
@@ -72,6 +72,25 @@ test('Worker TURN: errori in JSON senza segreti (variabili mancanti, Cloudflare 
     assert.ok(!r.text.includes('segreto-123') && !r.text.includes('chiave-id'), 'nessun segreto nella risposta');
     assert.equal(r.res.headers.get('Cache-Control'), 'no-store');
   }
+});
+
+test('Worker TURN: valori copiati con spazi, a capo o virgolette funzionano; 404 e 401 dicono cosa controllare', async () => {
+  // prova dal vivo del 30/10: «Cloudflare ha risposto 404» senza altro
+  const dirty = await call({ env: { ...ENV, TURN_KEY_ID: '  chiave-id\n', TURN_KEY_API_TOKEN: '"segreto-123" ' } });
+  assert.equal(dirty.res.status, 200);
+  assert.equal(dirty.calls[0].url, 'https://rtc.live.cloudflare.com/v1/turn/keys/chiave-id/credentials/generate-ice-servers');
+  assert.equal(dirty.calls[0].init.headers.Authorization, 'Bearer segreto-123');
+  const id32 = 'a'.repeat(32), tok64 = 'b'.repeat(64);
+  const nf = await call({ env: { ...ENV, TURN_KEY_ID: id32, TURN_KEY_API_TOKEN: tok64 }, cf: () => new Response('{}', { status: 404 }) });
+  assert.equal(nf.res.status, 502);
+  assert.match(nf.body.error, /non trova una chiave TURN.*Turn Token ID/);
+  assert.doesNotMatch(nf.body.error, /scambiati/);
+  assert.ok(!nf.text.includes(id32) && !nf.text.includes(tok64), 'mai i valori, solo le lunghezze');
+  // ID e token scambiati: lo dice
+  const sw = await call({ env: { ...ENV, TURN_KEY_ID: tok64, TURN_KEY_API_TOKEN: id32 }, cf: () => new Response('{}', { status: 404 }) });
+  assert.match(sw.body.error, /scambiati/); assert.match(sw.body.error, /TURN_KEY_ID 64 caratteri, TURN_KEY_API_TOKEN 32 caratteri/);
+  assert.match(explain(401, id32, tok64), /non accetta il token/);
+  assert.match(explain(500, 'x', 'y'), /ha risposto 500/);
 });
 
 test('pacchetto Cloudflare: dist + _headers + natpf/turn.json; senza --turn-url nessun file; controlli', () => {

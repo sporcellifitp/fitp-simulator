@@ -50,15 +50,22 @@ più simile.
    | Text | `ALLOWED_ORIGINS` | `https://weathered-heart-53ed.s-porcelli.workers.dev` |
 
 10. Premete **Deploy**: le variabili valgono solo dopo il Deploy. Il Secret dopo il salvataggio non si rilegge più.
+    Controllo: nell'elenco «Runtime variables and secrets» `TURN_KEY_API_TOKEN` deve avere il tipo **Secret**, non
+    «Variable» (una variabile normale si legge in chiaro nella dashboard). Se è «Variable», cancellatela e aggiungetela
+    di nuovo scegliendo **Secret**, poi Deploy.
 
 ## D · Controllare che il Worker funzioni
 
 11. Aprite nel browser https://natpf-turn.s-porcelli.workers.dev (o l'indirizzo mostrato nella pagina del Worker).
 12. Giusto: un testo che comincia con `{"iceServers":[` e contiene `turn.cloudflare.com`, `username` e `credential`, e
     finisce con `"ttl":86400`. Ricaricando, username e credential cambiano: è normale.
-13. Se invece compare un errore:
-    - `{"ok":false,...}` con 500: manca una variabile o il nome è scritto diverso, oppure non avete premuto Deploy;
-    - 502: la chiave non è valida (ID e token scambiati o token sbagliato): rifate la chiave e il passo 9;
+13. Se invece compare un errore, il testo dice cosa controllare (con il codice aggiornato del 30/10, che toglie da solo
+    spazi, a capo e virgolette copiati insieme ai valori):
+    - 500 «variabili … da impostare»: manca una variabile o il nome è scritto diverso, oppure non avete premuto Deploy;
+    - «non trova una chiave TURN con questo ID (404)»: `TURN_KEY_ID` non è il «Turn Token ID» della chiave TURN. Spesso
+      è l'ID di un'altra cosa (un'app «SFU» di Realtime, l'account) oppure ID e token sono scambiati: il messaggio
+      riporta quanti caratteri ha ciascuno (di solito l'ID 32, il token 64) e se sembrano scambiati;
+    - «non accetta il token (401/403)»: `TURN_KEY_API_TOKEN` non è l'«API Token» della stessa chiave;
     - pagina non raggiungibile subito dopo la creazione: aspettate un paio di minuti.
     - Se l'indirizzo del Worker non è `natpf-turn.s-porcelli.workers.dev`, ditemelo: preparo lo zip con quello giusto.
 
