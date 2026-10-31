@@ -78,6 +78,8 @@ export function createClock(max = 12){
   return {
     add(sent, remote, recv){ const rtt = recv - sent; if (!(rtt >= 0 && rtt < 2000)) return; S.push({ rtt, off: remote - (sent + recv)/2 }); if (S.length > max) S.shift(); },
     get ok(){ return S.length > 0; },
+    // quanti scambi ci sono (diagnostica: link.stats().clockSamples era sempre null perché mancava)
+    get samples(){ return S.length; },
     get best(){ return S.reduce((a, k) => !a || k.rtt < a.rtt ? k : a, null); },
     get off(){ const b = this.best; return b ? b.off : 0; },
     get rtt(){ const b = this.best; return b ? b.rtt : null; },

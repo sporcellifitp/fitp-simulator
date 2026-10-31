@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { NATPF_TRACKS, NatpfMusic, trackForState, parseChord, noteToMidi, TRACK_GROUPS, groupOf } from '../src/natpf/natpf_music.js';
+import { NATPF_TRACKS, NatpfMusic, trackForState, parseChord, noteToMidi, TRACK_GROUPS, groupOf, LOOKAHEAD_S } from '../src/natpf/natpf_music.js';
 import { callout, pickEnglishVoice, NatpfVoice } from '../src/natpf/natpf_voice.js';
 import { t, scoreText } from '../src/natpf/natpf_i18n.js';
 
@@ -77,14 +77,22 @@ test('sequencer: note programmate in anticipo, ingresso in campo che passa da so
   assert.equal(groupOf(music.currentId), 'match_rally');
   assert.equal(switched.length, 1); assert.equal(switched[0], music.currentId);
   assert.ok(music.scheduledNotes > 100);
-  // look-ahead breve: al massimo 0,14 s più un sedicesimo (con lo swing) del brano che suona
+  // look-ahead breve: al massimo LOOKAHEAD_S più un sedicesimo (con lo swing) del brano che suona
   const sixteenth = 60/NATPF_TRACKS[music.currentId].bpm/4*(1 + (NATPF_TRACKS[music.currentId].swing || 0));
-  assert.ok(music.nextTime <= ctx.currentTime + 0.14 + sixteenth + 0.026, 'look-ahead breve');
+  assert.ok(LOOKAHEAD_S <= .3, 'look-ahead breve');
+  assert.ok(music.nextTime <= ctx.currentTime + LOOKAHEAD_S + sixteenth + 0.026, 'look-ahead breve');
   // il loop dello scambio riparte dalla prima battuta senza fermarsi
   const rally = music.currentId, loopLength = NATPF_TRACKS[rally].chords.length*4*60/NATPF_TRACKS[rally].bpm;
   const t0 = ctx.currentTime;
   for (; ctx.currentTime < t0 + loopLength*1.5; ctx.currentTime += 0.025) music._tick();
   assert.equal(music.currentId, rally);
+  // 31/10: un blocco del thread di 130 ms (inferenza della webcam sui portatili lenti) più il timer da 25 ms non
+  // lascia buchi: alla ripresa le note già programmate coprono ancora l'istante attuale (prima 0,14 s non bastavano)
+  for (let i = 0; i < 40; i++){
+    ctx.currentTime += i % 8 === 7 ? .155 : .025;
+    assert.ok(music.nextTime >= ctx.currentTime, `buco nella musica a ${ctx.currentTime.toFixed(3)} s`);
+    music._tick();
+  }
   music.timer = null; music.stop();
   assert.equal(music.playing, false);
 });

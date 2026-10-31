@@ -61,3 +61,31 @@ test('esito del colpo: «SUPER SHOT» del motore diventa «Super!» in oro (prim
     assert.equal(shown[0].grade, 'Super!'); assert.equal(shown[1].grade, 'Perfetto');
   } finally { if (had === undefined) delete globalThis.document; else globalThis.document = had; }
 });
+
+// Ottimizzazione del 31/10: update gira a ogni fotogramma; prima querySelector e textContent riscritti sempre (un
+// ricalcolo dello stile per fotogramma). Ora si scrive solo quando un valore cambia
+test('barre in partita: niente scritture nel DOM se energia e potenza non cambiano', () => {
+  const writes = [];
+  const node = name => { let text = '', w = ''; return { name, classList: { toggle(){} }, dataset: {}, style: { get width(){ return w; }, set width(v){ writes.push(`${name}.width`); w = v; } }, get textContent(){ return text; }, set textContent(v){ writes.push(`${name}.text`); text = v; } }; };
+  const bar = id => { const b = node(id), q = { i: node(`${id}.bar`), '.meter-label': node(`${id}.label`) }; b.q = q; b.querySelector = s => q[s]; return b; };
+  const group = id => { const g = node(id), eb = bar(`${id}.energy`), pb = bar(`${id}.power`); g.dataset = { meter: id }; g.eb = eb; g.querySelector = s => (s === '[data-energy]' ? eb : s === '[data-power]' ? pb : null); return g; };
+  const meters = [group('p1'), group('p2')];
+  const e = { phase: 'RALLY', autoPlayMode: false, player: {}, opponent: {}, playerRole: 'p1', natpfFatigue: new Map(), elapsedTime: 0 };
+  const hud = Object.create(NatpfPowerHud.prototype);
+  Object.assign(hud, { engine: e, lastShot: null, shown: { player: null, p2: null }, glow: null, root: { classList: { toggle(){} }, querySelectorAll: () => meters } });
+  hud.update(1/60, 1);
+  const first = writes.length;
+  assert.ok(first >= 2, `prima volta scritte larghezza e scritta dell'energia (${first})`);
+  for (let i = 0; i < 60; i++) hud.update(1/60, 1 + i/60);
+  assert.equal(writes.length, first, 'fotogrammi uguali: nessuna scrittura');
+  // la stanchezza cambia: si riscrive solo l'energia
+  e.natpfFatigue.set(e.player, { level: .8 });
+  hud.update(1/60, 3);
+  assert.deepEqual(writes.slice(first).sort(), ['p1.energy.bar.width', 'p1.energy.label.text']);
+  assert.equal(meters[0].eb.q['.meter-label'].textContent, 'Stanco!');
+  // colpo: la barra della potenza una volta
+  e.natpfLastRacket = { who: 'player', intent: { power: .7 }, super: null };
+  const before = writes.length;
+  hud.update(1/60, 3.1); hud.update(1/60, 3.2);
+  assert.deepEqual(writes.slice(before).sort(), ['p1.power.bar.width', 'p1.power.label.text']);
+});

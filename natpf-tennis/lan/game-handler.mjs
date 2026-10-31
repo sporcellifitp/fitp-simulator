@@ -56,8 +56,9 @@ export function createGameHandler({ root = ROOT, distDir = path.join(root, 'dist
     if (!file.startsWith(dist + path.sep)) return notFound(res);
     fs.stat(file, (err, stat) => {
       if (err || !stat.isFile()) return notFound(res);
-      // i bundle di Vite hanno l'hash nel nome: si possono tenere in cache
-      const hashed = /^\/assets\/[^/]+-[\w-]{8}\.(js|css)$/.test(pathname);
+      // i bundle di Vite hanno l'hash nel nome: si possono tenere in cache (anche i font woff2, 31/10: prima si
+      // riscaricavano a ogni caricamento)
+      const hashed = /^\/assets\/[^/]+-[\w-]{8}\.(js|css|woff2)$/.test(pathname);
       sendFile(req, res, file, hashed ? 'public, max-age=31536000, immutable' : 'no-cache');
     });
   };

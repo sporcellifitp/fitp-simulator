@@ -350,6 +350,9 @@ test('online: orologi allineati col viaggio più breve, istantanee interpolate, 
   const clock = createClock();
   clock.add(1000, 6050, 1100); clock.add(2000, 7015, 2030);          // il secondo viaggio è più breve: vale quello
   assert.equal(clock.off, 5000); assert.equal(clock.rtt, 30);
+  // numero di scambi per la diagnostica (link.stats().clockSamples, prima sempre null)
+  assert.equal(clock.samples, 2); clock.add(3000, 0, 1000); assert.equal(clock.samples, 2, 'viaggio troppo lungo: scartato');
+  assert.equal(createClock(3).samples, 0);
   const core = new ArcadeMatch({ teams: [[{ human: true, id: 'h' }], [{ human: true, id: 'g' }]], rng: mulberry32(1) });
   core.players[1].anim = { kind: 'slice', side: 'bh', at: 10 };
   core.players[1].inc = { Tc: 10.2, x: .5, z: 1, side: 'bh', y: 1.25 };

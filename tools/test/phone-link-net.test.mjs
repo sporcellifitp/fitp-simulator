@@ -79,6 +79,60 @@ test('telefono: il motivo del collegamento non riuscito', async () => {
   for (const ice of ['checking', 'failed', 'disconnected']) assert.match(netWhy({ signal: true, ice }), /stessa rete Wi-Fi.*hotspot.*LAN/);
   assert.equal(netWhy({ signal: true, ice: 'connected' }), null);
   assert.equal(netWhy(null), null);
+  // LAN (31/10): consigli della rete locale, niente internet né «versione LAN» a chi la sta già usando
+  for (const ice of ['checking', 'failed', 'disconnected']){
+    const t = netWhy({ signal: true, ice }, { lan: true });
+    assert.match(t, /stessa rete Wi-Fi.*ospiti.*Chrome o Edge.*hotspot/); assert.doesNotMatch(t, /versione LAN/);
+  }
+  assert.match(netWhy({ signal: false, ice: 'new' }, { lan: true }), /non raggiunge il computer.*SBLOCCA LA RETE\.cmd/);
+  assert.doesNotMatch(netWhy({ signal: false, ice: 'new' }, { lan: true }), /internet/);
+});
+
+// LAN (31/10): LanConnection non diceva lo stato ICE (solo PeerJS emette iceStateChanged): il telefono restava a 'new'
+// e a 12 s diceva «il computer non risponde, inquadra di nuovo il QR» anche quando era la rete a bloccare
+test('LAN: la connessione dice lo stato della strada diretta, e il motivo diventa quello della rete', async () => {
+  class FakeChannel { constructor(label){ this.label = label; this.readyState = 'connecting'; } send(){} close(){} }
+  let pc = null;
+  globalThis.RTCPeerConnection = class { constructor(){ pc = this; this.connectionState = 'new'; this.iceConnectionState = 'new'; } createDataChannel(label){ return new FakeChannel(label); } close(){} };
+  globalThis.crypto ??= (await import('node:crypto')).webcrypto;
+  const { LanConnection } = await import('../../site/js/tennis/lan-transport.js');
+  const { netWhy } = await import('../../site/js/tennis/link.js');
+  const c = new LanConnection({ connections: new Map(), signal(){} }, 'pc', true);
+  const net = { signal: true, ice: 'new' }, seen = [];
+  c.on('iceStateChanged', st => { seen.push(st); net.ice = String(st); });
+  for (const st of ['checking', 'failed']){ pc.iceConnectionState = st; pc.oniceconnectionstatechange(); }
+  assert.deepEqual(seen, ['checking', 'failed']);
+  assert.match(netWhy(net, { lan: true }), /La rete non lascia passare.*Chrome o Edge/);
+});
+
+// LAN (31/10): l'attesa lunga a 12 s (fino a 30, pensata per il TURN via internet) non vale in LAN, dove le strade sono
+// solo locali: con lo stato ICE ora noto anche in LAN, senza questa esclusione il telefono avrebbe aspettato 30 s
+test('telefono in LAN: a 12 s con la strada ancora in prova rinuncia come prima (niente attesa da 30 s)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const vm = await import('node:vm');
+  const { LINK_TIMES: T, netWhy: why } = await import('../../site/js/tennis/link.js');
+  const source = readFileSync(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
+  const section = source.slice(source.indexOf('async function connect(){'), source.indexOf('// messaggi che valgono solo se arrivano subito'));
+  for (const lan of [true, false]){
+    const peers = [], timers = [], shown = [];
+    class Conn extends Emitter { send(){} }
+    class P extends Emitter { constructor(){ super(); this.destroyed = false; peers.push(this); } connect(){ const c = new Conn(); this.c = c; return c; } destroy(){ this.destroyed = true; } }
+    const sandbox = { LanPeer: P, isLanMode: () => lan, loadPeer: async () => P, iceReady: async () => null,
+      peerConfig: () => ({}), LINK_TIMES: T, netWhy: n => why(n, { lan }), performance: { now: () => 0 }, ss: { get(){}, set(){}, del(){} },
+      setTimeout: (f, ms) => { timers.push({ f, ms }); return timers.length; }, clearTimeout(){}, paint(){}, bar(){}, ui: (a, b) => shown.push(b), show(){}, closeFast(){}, openFast(){}, sendState(){}, sendDevice(){} };
+    vm.createContext(sandbox);
+    vm.runInContext("let peer=null,conn=null,pendingConn=null,connectEpoch=0,retryT=null,tries=0,linkState='off',pair={session:'game',token:'token'},lastRx=0,fastOk=false,sensor='ready',rtt=80;\n" + section + "\nglobalThis.api={connect,get state(){return linkState}};", sandbox);
+    await sandbox.api.connect();
+    peers[0].emit('open'); peers[0].c.emit('iceStateChanged', 'checking');
+    timers.find(t => t.ms === T.phoneMs).f();
+    if (lan){
+      assert.equal(sandbox.api.state, 'lost', 'LAN: a 12 s si rinuncia');
+      assert.match(shown.at(-1), /La rete non lascia passare.*Chrome o Edge/);
+    } else {
+      assert.equal(sandbox.api.state, 'connecting', 'via internet: si aspetta il TURN');
+      assert.ok(timers.some(t => t.ms === T.phoneSlowMs - T.phoneMs));
+    }
+  }
 });
 
 /* ---------- TURN di Cloudflare: /natpf/turn.json e credenziali dal Worker ---------- */

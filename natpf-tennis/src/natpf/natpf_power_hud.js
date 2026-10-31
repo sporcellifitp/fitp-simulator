@@ -90,19 +90,35 @@ export class NatpfPowerHud {
     this.root.classList.toggle('hidden', !inMatch);
     this.root.classList.toggle('split', !!E.natpfSplit?.active);
     if (!inMatch) return;
+    // gira a ogni fotogramma: elementi trovati una volta sola e scritti solo quando il valore cambia (prima
+    // querySelector e textContent a ogni fotogramma, cioè un ricalcolo dello stile per fotogramma, due nello split)
+    const refs = this._refs ||= this._findRefs();
     const groups = this._groups(), visible = new Set(groups.map(g => g[0]));
-    for (const el of this.root.querySelectorAll('[data-meter]')) el.classList.toggle('hidden', !visible.has(el.dataset.meter));
+    for (const id in refs) refs[id].el.classList.toggle('hidden', !visible.has(id));
     for (const [id, actor, who] of groups){
-      const el = this.root.querySelector(`[data-meter="${id}"]`);
-      if (!el) continue;
-      const en = energyView(fatigueLevel(E, actor)), eb = el.querySelector('[data-energy]');
-      eb.dataset.state = en.state;
-      eb.querySelector('i').style.width = `${(en.fill*100).toFixed(1)}%`;
-      eb.querySelector('.meter-label').textContent = en.state === 'stanco' ? 'Stanco!' : en.state === 'affaticato' ? 'Affaticato' : 'Energia';
-      const p = this.shown[who], pb = el.querySelector('[data-power]'), on = !!p && (now || 0) < p.until;
-      pb.classList.toggle('on', on);
-      pb.classList.toggle('super', on && p.super);
-      if (on){ pb.querySelector('i').style.width = `${(p.fill*100).toFixed(1)}%`; pb.querySelector('.meter-label').textContent = p.label; }
+      const r = refs[id];
+      if (!r) continue;
+      const en = energyView(fatigueLevel(E, actor));
+      this._set(r, 'state', en.state, v => { r.eb.dataset.state = v; });
+      this._set(r, 'ew', `${(en.fill*100).toFixed(1)}%`, v => { r.ebBar.style.width = v; });
+      this._set(r, 'el', en.state === 'stanco' ? 'Stanco!' : en.state === 'affaticato' ? 'Affaticato' : 'Energia', v => { r.ebLabel.textContent = v; });
+      const p = this.shown[who], on = !!p && (now || 0) < p.until;
+      r.pb.classList.toggle('on', on);
+      r.pb.classList.toggle('super', on && p.super);
+      if (on){
+        this._set(r, 'pw', `${(p.fill*100).toFixed(1)}%`, v => { r.pbBar.style.width = v; });
+        this._set(r, 'pl', p.label, v => { r.pbLabel.textContent = v; });
+      }
     }
   }
+  _findRefs(){
+    const out = {};
+    for (const el of this.root.querySelectorAll('[data-meter]')){
+      const eb = el.querySelector('[data-energy]'), pb = el.querySelector('[data-power]');
+      if (!eb || !pb) continue;
+      out[el.dataset.meter] = { el, eb, pb, ebBar: eb.querySelector('i'), ebLabel: eb.querySelector('.meter-label'), pbBar: pb.querySelector('i'), pbLabel: pb.querySelector('.meter-label'), last: {} };
+    }
+    return out;
+  }
+  _set(r, key, value, write){ if (r.last[key] !== value){ r.last[key] = value; write(value); } }
 }

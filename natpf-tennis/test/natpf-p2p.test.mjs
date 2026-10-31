@@ -437,7 +437,13 @@ test('secondo game: dopo tanti colpi del P2 lo stato della partita arriva ancora
   // un game e mezzo: 30 colpi del P2 e qualche lancio del servizio
   for (let i = 0; i < 30; i++) await L.handle({ method: 'POST', url: `/api/racket/swing?room=${room.roomId}&role=p2`, body: { role: 'p2', type: i % 6 ? 'swing' : 'toss', natpf: BIG_NATPF, hand: 'right' } });
   const full = (await L.handle({ url: `/api/match/state?room=${room.roomId}&role=p2&touch=p2` })).text;
-  assert.ok(new TextEncoder().encode(full).byteLength > 16300, `il relay intero supera la misura (${full.length})`);
+  // dal 31/10 il relay stesso risponde in forma compatta a chi legge come P2 (prima >16300 byte da qui)
+  assert.ok(new TextEncoder().encode(full).byteLength < 6000, `lettura del P2 dal relay piccola (${full.length})`);
+  assert.ok(!('rackets' in JSON.parse(full)));
+  // un relay vecchio (stato intero) passa comunque compattato dall'RPC
+  const fat = JSON.parse(full); fat.rackets = { p1: fat.p1, p2: fat.p2 }; fat.p2.swingHistory = Array.from({ length: 15 }, (_, i) => ({ ...fat.p2.lastSwing, seq: 16 + i }));
+  const slim = JSON.parse(compactMatchState(JSON.stringify(fat)));
+  assert.equal(slim.p2.swingHistory.length, COMPACT_SWINGS); assert.ok(!('rackets' in slim));
   const [guestSide, hostSide] = channelPair();
   serveRpc(hostSide, { roomId: room.roomId, handle: L.handle });
   const rpc = createRpcClient(guestSide, { timeoutMs: 500 });

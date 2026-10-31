@@ -8,7 +8,8 @@ import path from 'node:path';
 import http from 'node:http';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { createMatchRelay } from '../scripts/match-relay.mjs';
+import { createMatchRelay, STATE_SWINGS, HOST_STATE_SWINGS } from '../scripts/match-relay.mjs';
+import { newSwings } from '../src/natpf/natpf_versus.js';
 import { sourceAssetList, createAssetMiddleware, localAsset, offlineStatus, MEDIAPIPE_FILES, MEDIAPIPE_POSE_FILES, mediapipeAssets, LICENSES, assetCategory } from '../scripts/offline-assets.mjs';
 import { createGameHandler, lanRedirect } from '../lan/game-handler.mjs';
 import { buildIsStale } from '../lan/prepare.mjs';
@@ -41,9 +42,46 @@ test('relay 1v1 estratto da vite.config: stanza, snapshot dell\'host, colpo del 
     assert.equal(swing.swing.role, 'p2'); near(swing.swing.dirX, .4);
     const state = await fetch(`${s.base}/api/match/state?room=${room.roomId}&role=p2&touch=p2`).then(r => r.json());
     assert.equal(state.snapshot.phase, 'RALLY'); assert.equal(state.p2.lastSwing.seq, 1); assert.equal(state.p2DesktopOnline, true);
+    // risposta di sync: solo la conferma (prima anche p2Racket con lo storico dei colpi, ~10 KB che nessuno leggeva)
+    const sync = await post(`/api/match/sync?room=${room.roomId}`, { room: room.roomId, snapshot: { phase: 'RALLY' } });
+    assert.deepEqual(Object.keys(sync).sort(), ['ok', 'roomId', 'seq']);
     assert.equal((await fetch(s.base + '/altro')).status, 404);                       // non-API: passa avanti
     assert.equal(await fetch(s.base + '//api/match/state').then(r => r.status), 200);  // «//» non fa cadere il server
     assert.equal(createMatchRelay().length, 3);                                        // middleware connect (vite)
+  } finally { await s.close(); }
+});
+
+// Ottimizzazione del 31/10: con 30 colpi del P2 (dati del telefono veri, ~1 KB a colpo) la lettura del P2 era di ~20 KB,
+// 20 volte al secondo verso il computer del P2 in Wi-Fi. Ora gli ultimi colpi, senza la copia «rackets», e l'host vede
+// comunque tutti i colpi in ordine (anche lancio e colpo nella stessa lettura)
+test('relay 1v1 in LAN: letture piccole con tanti colpi del P2, l\'host li vede tutti in ordine', async () => {
+  const relay = createMatchRelay({ publicUrl: req => `https://${req.headers.host}` });
+  const s = await serve(relay);
+  try {
+    const NATPF = { aim: 'swing', shot: 'topspin', head: .12, v: .5, move: 'h', conf: .8, speed: 3.2, wrist: .12, aimSource: 'face', power: .81, latency: .06, hand: 'right', aimDev: 12.3,
+      why: ['dritto', 'salita 0,12 sopra il solito', 'piatto 8° a destra'], prep: { lead: .23, amount: .7 }, prepCapable: true, intent: { shot: 'topspin', conf: .8, power: .7, why: ['a', 'b'] }, peak: 612 };
+    const post = (p, body) => fetch(s.base + p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+    const room = (await post('/api/match/create', {})).roomId;
+    await post(`/api/match/sync?room=${room}`, { room, snapshot: { phase: 'RALLY' } });
+    const read = role => fetch(`${s.base}/api/match/state?room=${room}&role=${role}&touch=${role}`).then(async r => { const t = await r.text(); return { bytes: Buffer.byteLength(t), j: JSON.parse(t) }; });
+    const seen = [];
+    let last = 0;
+    for (let i = 1; i <= 30; i++){
+      // ogni 6 colpi un lancio e il colpo del servizio nella stessa lettura dell'host
+      await post(`/api/racket/swing?room=${room}&role=p2`, { room, role: 'p2', type: i % 6 === 1 ? 'toss' : 'swing', natpf: NATPF, hand: 'right' });
+      if (i % 6 === 1) continue;
+      const { j } = await read('p1');
+      for (const sw of newSwings(j.p2.swingHistory, last, j.p2.lastSwing)){ seen.push(sw.seq); last = sw.seq; }
+    }
+    assert.deepEqual(seen, Array.from({ length: 30 }, (_, i) => i + 1), 'tutti i colpi, in ordine');
+    const p2 = await read('p2'), p1 = await read('p1');
+    assert.ok(p2.bytes < 6000, `lettura del P2 ${p2.bytes} B`);
+    assert.ok(p1.bytes < 6000, `lettura dell'host ${p1.bytes} B`);
+    assert.equal(p2.j.p2.swingHistory.length, STATE_SWINGS); assert.equal(p1.j.p2.swingHistory.length, HOST_STATE_SWINGS);
+    assert.equal(p2.j.rackets, undefined); assert.equal(p1.j.rackets, undefined);
+    assert.equal(p2.j.p2.lastSwing.seq, 30); assert.equal(p2.j.p2.swingHistory.at(-1).natpf.shot, 'topspin');
+    // lo storico intero resta nel relay
+    assert.equal(relay.rooms.get(room).rackets.p2.swingHistory.length, 30);
   } finally { await s.close(); }
 });
 
@@ -126,6 +164,26 @@ test('server LAN: ?lan=1 sempre, build, pagina del telefono NATPF, relay, file n
     const phone = await go('/natpf/tennis/racchetta.html');
     assert.equal(phone.status, 200); assert.match(await phone.text(), /racchetta/i);
     assert.equal((await go('/natpf/js/tennis/lan-transport.js')).status, 200);
+    // 31/10: ETag e 304 senza corpo (prima con no-cache si riscaricava tutto a ogni apertura); font con hash in cache
+    // come i bundle; Range per l'audio invariato
+    const tag = phone.headers.get('etag');
+    assert.match(tag || '', /^W\/"[0-9a-z]+-[0-9a-z]+"$/, 'ETag');
+    const again = await go('/natpf/tennis/racchetta.html', { headers: { 'If-None-Match': tag } });
+    assert.equal(again.status, 304); assert.equal(await again.text(), ''); assert.equal(again.headers.get('cache-control'), 'no-cache');
+    assert.equal(again.headers.get('etag'), tag);
+    assert.equal((await go('/natpf/tennis/racchetta.html', { headers: { 'If-None-Match': 'W/"0-0"' } })).status, 200, 'altra versione: intero');
+    assert.equal((await go('/?lan=1', { headers: { 'If-None-Match': page.headers.get('etag') } })).status, 304);
+    // file cambiato (anche con la data che torna indietro, come un pacchetto più vecchio copiato sopra): intero
+    const idx = path.join(dist, 'index.html'), before = page.headers.get('etag');
+    fs.writeFileSync(idx, '<title>gioco v2</title>'); fs.utimesSync(idx, new Date(Date.now() - 86400e3), new Date(Date.now() - 86400e3));
+    const changed = await go('/?lan=1', { headers: { 'If-None-Match': before } });
+    assert.equal(changed.status, 200); assert.equal(await changed.text(), '<title>gioco v2</title>'); assert.notEqual(changed.headers.get('etag'), before);
+    fs.writeFileSync(path.join(dist, 'assets/barlow-latin-400-normal-qiz4-Cze.woff2'), 'font');
+    assert.match((await go('/assets/barlow-latin-400-normal-qiz4-Cze.woff2')).headers.get('cache-control'), /immutable/);
+    fs.writeFileSync(path.join(dist, 'assets/suono.mp3'), '0123456789');
+    const mp3 = await go('/assets/suono.mp3');
+    const part = await go('/assets/suono.mp3', { headers: { Range: 'bytes=2-5', 'If-None-Match': mp3.headers.get('etag') } });
+    assert.equal(part.status, 206); assert.equal(await part.text(), '2345');
     for (const p of ['/natpf/js/main.js', '/natpf/data/foro.json', '/natpf/../natpf-tennis/vite.config.ts', '/%2e%2e/package.json', '/natpf/js/tennis/%2e%2e/%2e%2e/%2e%2e/tools/lan/certs/key.pem'])
       assert.equal((await go(p)).status, 404, p);
     assert.equal((await go('/api/match/state?room=default')).status, 200);

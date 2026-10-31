@@ -141,7 +141,8 @@ async function connect(){
   const giveUp = () => { if (epoch === connectEpoch && linkState === 'connecting') lost(); };
   connect.t = setTimeout(() => {
     if (epoch !== connectEpoch || linkState !== 'connecting') return;
-    if (net.ice === 'checking' || net.ice === 'connected') connect.t = setTimeout(giveUp, LINK_TIMES.phoneSlowMs - LINK_TIMES.phoneMs);
+    // l'attesa lunga è per il TURN via internet: in LAN le strade sono solo locali e restano i 12 s di sempre
+    if (!isLanMode() && (net.ice === 'checking' || net.ice === 'connected')) connect.t = setTimeout(giveUp, LINK_TIMES.phoneSlowMs - LINK_TIMES.phoneMs);
     else giveUp();
   }, LINK_TIMES.phoneMs);
   try {
@@ -181,7 +182,9 @@ async function connect(){
 // telefono era su «Pronto»
 let relinking = false;
 function relink(){ if (!pair || !ss.get('resume')) return; relinking = true; tries = 0; connect(); }
-const SIGNAL_ERRORS = new Set(['network', 'disconnected', 'socket-error', 'socket-closed', 'server-error', 'unavailable-id', 'lan-signaling']);
+// errori della sola segnalazione: con il canale aperto non lo chiudono. 'id-unavailable' è il nome della LAN
+// (lan-transport.js) per l'id ancora registrato dal socket di prima: prima chiudeva un canale WebRTC buono
+const SIGNAL_ERRORS = new Set(['network', 'disconnected', 'socket-error', 'socket-closed', 'server-error', 'unavailable-id', 'id-unavailable', 'lan-signaling']);
 // eventi della calibrazione al computer (anche quelli che descrivono il passo attuale dopo una ripresa del collegamento)
 const sendCal = e => send({ t: 'cal', e: { ...e, shot: e.shot || (inputMode === 'touch' ? selectedShot : 'drive') } });
 function onData(c, d){

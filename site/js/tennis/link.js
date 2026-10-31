@@ -52,10 +52,14 @@ export function peerConfig(){
 // ancora che il canale fosse aperto, e il telefono rinunciava a 12 s: con quelle reti il collegamento non riusciva mai
 export const LINK_TIMES = Object.freeze({ negotiateMs: 30000, helloMs: 6000, phoneMs: 12000, phoneSlowMs: 30000 });
 // motivo di un collegamento del telefono non riuscito, da quello che il tentativo ha visto ({ signal, ice }, racchetta.js)
-export function netWhy(n){
+// In LAN (lan: versione con il server sul computer) i consigli sono quelli della rete locale: niente internet né «versione
+// LAN» a chi la sta già usando
+export function netWhy(n, { lan = isLanMode() } = {}){
   if (!n) return null;
-  if (!n.signal) return 'Il telefono non raggiunge il server di collegamento: controlla che abbia internet (Wi-Fi o dati), poi «Riprova».';
-  if (n.ice === 'failed' || n.ice === 'checking' || n.ice === 'disconnected') return 'La rete non lascia passare il collegamento tra telefono e computer. Prova: telefono e computer sulla stessa rete Wi-Fi (non quella per ospiti), oppure il computer collegato all’hotspot del telefono, oppure la versione LAN.';
+  if (!n.signal) return lan ? 'Il telefono non raggiunge il computer: controlla che sia sulla stessa rete Wi-Fi del computer (sul computer apri «SBLOCCA LA RETE.cmd» nella cartella del gioco), poi «Riprova».' : 'Il telefono non raggiunge il server di collegamento: controlla che abbia internet (Wi-Fi o dati), poi «Riprova».';
+  if (n.ice === 'failed' || n.ice === 'checking' || n.ice === 'disconnected') return lan
+    ? 'La rete non lascia passare il collegamento tra telefono e computer. Prova: telefono e computer sulla stessa rete Wi-Fi (non quella per ospiti); sul computer consenti Chrome o Edge se Windows chiede il permesso del firewall, oppure collega il computer all’hotspot del telefono.'
+    : 'La rete non lascia passare il collegamento tra telefono e computer. Prova: telefono e computer sulla stessa rete Wi-Fi (non quella per ospiti), oppure il computer collegato all’hotspot del telefono, oppure la versione LAN.';
   if (n.ice === 'new') return 'Il computer non risponde: se il gioco sul computer è stato ricaricato, inquadra di nuovo il QR.';
   return null;
 }

@@ -67,7 +67,7 @@ if not exist "tools\\lan\\certs\\pc-attendibile.txt" (
   if not errorlevel 1 echo ok> "tools\\lan\\certs\\pc-attendibile.txt"
 )
 echo.
-rem una volta sola: firewall aperto per il gioco (porte 8443 e 8081 e WebRTC, solo dalla rete locale)
+rem una volta sola: firewall aperto per il gioco (porte 8443 e 8081 e node.exe, solo dalla rete locale)
 if not exist "tools\\lan\\certs\\rete-sbloccata.txt" (
   echo.
   echo Ora Windows chiede i permessi di amministratore per aprire il firewall al gioco: rispondi Si'.
@@ -81,8 +81,10 @@ pause
 `));
 fs.writeFileSync(path.join(OUT, 'SBLOCCA LA RETE.cmd'), crlf(`@echo off
 rem Apre il firewall di Windows al gioco, solo per i dispositivi della rete locale (telefoni e secondo computer):
-rem HTTPS 8443, pagina dei certificati 8081 e WebRTC di node.exe. Toglie i blocchi che Windows crea su Node.js
-rem quando l'avviso del firewall viene chiuso o rifiutato. Chiede i permessi di amministratore.
+rem HTTPS 8443, pagina dei certificati 8081 e node.exe (gioco e segnalazione del telefono). Toglie i blocchi che
+rem Windows crea su Node.js quando l'avviso del firewall viene chiuso o rifiutato. Chiede i permessi di amministratore.
+rem Nota: il collegamento WebRTC telefono-computer termina nel browser (Chrome o Edge), non in node.exe: queste regole
+rem non lo riguardano (regole per il browser non aggiunte: da provare prima su un PC Windows con la rete Pubblica).
 chcp 65001 >nul
 set "MODO=%~1"
 if "%MODO%"=="" set "MODO=mano"
