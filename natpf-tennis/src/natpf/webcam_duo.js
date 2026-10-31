@@ -122,7 +122,11 @@ export class DuoTracker {
         if (a.tier === 3){
           const ok = argonSameHand(c.p, c.size, { ...L.hand, size: L.size }, now) && onSide(id, c.p, split, DUO.shared);
           const otherHere = own[other(id)] != null && own[other(id)] !== i;
-          if (ok && (this._next(L) || (this._reach(L, c, a, now) && (otherHere || d <= dOther + DUO.hyst)))) opts[id].push({ i, tier: 3, d });
+          // il confronto con l'altro giocatore vale solo se lo si sta seguendo (tier 3): con la sua mano persa da tempo la
+          // sua ultima posizione è vecchia (verifica del 31/10: dritto veloce del P2 con il P1 fuori campo da 1 s, la mano
+          // del P2 finiva al P1)
+          const otherLive = o.tier === 3;
+          if (ok && (this._next(L) || (this._reach(L, c, a, now) && (otherHere || !otherLive || d <= dOther + DUO.hyst)))) opts[id].push({ i, tier: 3, d });
           return;
         }
         // persa da poco: dalla sua parte del confine, o nella zona condivisa se non è più vicina all'altro giocatore
