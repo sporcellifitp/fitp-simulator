@@ -87,29 +87,43 @@ export function argonBridgeStart(last, now, lastTriggerMs){
 // modello, z nella scala di x, quando c'è: la mano girata verso la camera non sembra più piccola, cioè più lontana)
 export function argonHandSize(lm, aspect = .75){
   const b = lm && lm[0], w = lm && lm[9];
-  if (!b || !w || !finite(b.x) || !finite(w.x)) return null;
+  if (!b || !w || !finite(b.x) || !finite(w.x) || !finite(b.y) || !finite(w.y)) return null;
   const dz = finite(b.z) && finite(w.z) ? w.z - b.z : 0;
   const s = Math.hypot(w.x - b.x, (w.y - b.y)*aspect, dz);
   return s > 1e-4 ? s : null;
 }
 
+// Geometria dello zip: le soglie (argonTrailEvent) e handRef sono tarate su una camera 4:3 (640×480), in coordinate
+// normalizzate alla larghezza e all'altezza dell'immagine. Con una camera più larga (16:9, 1280×720: lo stesso campo
+// verticale e i lati in più) la stessa mano e lo stesso movimento orizzontale sono 0,75 volte più piccoli in larghezze
+// dell'immagine, quello verticale no: senza riportarli a 4:3 l'ingrandimento della mano (argonScale) sale di 1,33 e la
+// parte verticale del colpo pesa il 33% in più (più smash, lanci e pallonetti; revisione del 31/10). Fattore per le x e
+// per le grandezze in larghezze dell'immagine: x4:3 = 0,5 + (x − 0,5)·argonAspectK(aspect), con aspect = altezza/larghezza.
+// Il ritaglio (webcam_roi.js), il bordo (argonNearEdge) e la mano seguita restano sulle coordinate vere dell'immagine.
+export const argonAspectK = aspect => (finite(aspect) && aspect > 0 ? .75/aspect : 1);
+
 // ingrandimento dei movimenti di una mano lontana: 1 fino a handRef, poi in proporzione (al massimo scaleMax). Una mano
-// più vicina non riduce niente: vicino resta tutto come nello zip
-export function argonScale(size){
-  return finite(size) && size > 0 ? Math.min(ARGON_TRACK.scaleMax, Math.max(1, ARGON_TRACK.handRef/size)) : 1;
+// più vicina non riduce niente: vicino resta tutto come nello zip. size in larghezze dell'immagine della camera con
+// proporzioni aspect (altezza/larghezza): riportata a 4:3 prima del confronto con handRef
+export function argonScale(size, aspect = .75){
+  const s = finite(size) ? size*argonAspectK(aspect) : NaN;
+  return s > 0 ? Math.min(ARGON_TRACK.scaleMax, Math.max(1, ARGON_TRACK.handRef/s)) : 1;
 }
 
 // Scia della mano (o del flusso ottico) → movimento e, se è un colpo, l'evento. Le regole sono quelle dello zip
 // argon-tennis (soglie, lato dal verso, lancio, tipo di colpo, 320 ms tra due colpi); scale: ingrandimento della mano
 // lontana (argonScale), solo per la mano. Funzione pura: la usano la webcam per uno (motion_controls._argonEvaluateHandTrail)
-// e quella per due (webcam_duo.js), una scia per giocatore.
+// e quella per due (webcam_duo.js), una scia per giocatore. aspect: proporzioni della camera (altezza/larghezza): gli
+// spostamenti orizzontali sono riportati alla geometria 4:3 dello zip (argonAspectK; la y non cambia), per la mano e per il
+// flusso ottico; scale va calcolata con lo stesso aspect (argonScale(size, aspect)).
 // → null (scia troppo corta) | { motion: { vx, vy, mag }, event: null | { type: 'toss'|'swing', side, shotType, speed, dirX, dirY, last } }
-export function argonTrailEvent(trail, { hand = true, scale = 1, now = 0, lastTrigger = 0 } = {}){
+export function argonTrailEvent(trail, { hand = true, scale = 1, now = 0, lastTrigger = 0, aspect = .75 } = {}){
   if (!trail || trail.length < 2) return null;
-  const k = hand ? scale : 1, i = trail[0], a = trail[trail.length - 1], n = Math.max(.025, (a.t - i.t)/1e3);
-  const h = (a.x - i.x)*k, p = (a.y - i.y)*k, f = Math.hypot(h, p);
+  const k = hand ? (finite(scale) && scale > 0 ? scale : 1) : 1, kx = argonAspectK(aspect), i = trail[0], a = trail[trail.length - 1], n = Math.max(.025, (a.t - i.t)/1e3);
+  const h = (a.x - i.x)*kx*k, p = (a.y - i.y)*k, f = Math.hypot(h, p);
+  if (!finite(f) || !finite(n)) return null;
   let s = 0;
-  for (let m = 1; m < trail.length; m++) s += k*Math.hypot(trail[m].x - trail[m - 1].x, trail[m].y - trail[m - 1].y);
+  for (let m = 1; m < trail.length; m++) s += k*Math.hypot((trail[m].x - trail[m - 1].x)*kx, trail[m].y - trail[m - 1].y);
   const l = s > 1e-3 ? f/s : 0, r = hand ? .065 : .1, o = hand ? .62 : .7, y = hand ? .62 : .85, P = h/n, d = p/n;
   const vx = P*.65, vy = d*.65, mag = l >= o ? Math.hypot(vx, vy) : 0, motion = { vx, vy, mag };
   if (!(f >= r && l >= o && mag >= y && now - lastTrigger > 320)) return { motion, event: null };

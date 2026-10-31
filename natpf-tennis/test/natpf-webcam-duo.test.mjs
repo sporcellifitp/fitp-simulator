@@ -40,6 +40,53 @@ test('mani che si incrociano veloci: ognuno segue la sua (velocità prevista), u
     assert.ok(r.swaps <= 3, `seme ${seed}: ${r.swaps} fotogrammi scambiati nell'istante in cui le mani si toccano`);
   }
 });
+// Revisione del 31/10: con le mani libere in vista (il modello ne cerca quattro, DUO_HANDS) restavano scambi di mani.
+// Una corsia agganciata accettava qualunque mano compatibile (dopo un buco di 130–200 ms anche la mano libera dell'altro
+// giocatore, a mezza immagine) e l'assegnazione sommava i valori. Con il codice di prima: caso A 73 fotogrammi scambiati
+// per seme, B 56, C 91 (P2 assente) e 113 (P2 in vista fino a 1,5 s) con colpi doppi o del giocatore sbagliato,
+// attraversamento con la mano libera senza il rovescio del P1 (corsia sulla mano libera)
+const run10 = (name, o = {}) => seeds.map(seed => ({ seed, r: SCENES[name](DuoTracker, { seed, ...o }) }));
+test('mani libere di entrambi in vista: nessuno scambio, la corsia segue la racchetta, colpi giusti', () => {
+  for (const [name, want] of [['avvicinamentoMani', []], ['attraversamentoMani', ['p1·backhand']], ['incrocioMani', ['p1·backhand', 'p2·forehand']]]){
+    for (const { seed, r } of run10(name)){
+      const ev = whoSide(r);
+      assert.deepEqual(name === 'incrocioMani' ? ev.sort() : ev, want, `${name} seme ${seed}`);
+      assert.ok(r.swaps <= (name === 'incrocioMani' ? 3 : 0), `${name} seme ${seed}: ${r.swaps} fotogrammi scambiati`);
+      assert.equal(r.onFree, 0, `${name} seme ${seed}: corsia sulla mano libera`);
+    }
+  }
+});
+test('caso A: il P2 perde la mano per 0,2 s accanto alla mano libera del P1: la corsia del P2 non ci salta e il suo dritto è suo', () => {
+  for (const { seed, r } of run10('manoLiberaBuco')){
+    assert.equal(r.swaps, 0, `seme ${seed}`); assert.deepEqual(whoSide(r), ['p2·forehand'], `seme ${seed}`);
+    assert.ok(Math.abs(r.tr.lanes.p2.hand.x - .56) < .02 && Math.abs(r.tr.lanes.p1.hand.x - .30) < .02, `seme ${seed}`);
+  }
+});
+test('caso B: il modello perde il P2 per 170 ms a metà dritto: nessun salto sulla mano libera del P1', () => {
+  for (const { seed, r } of run10('bucoNelDritto')){
+    assert.equal(r.swaps, 0, `seme ${seed}`); assert.deepEqual(whoSide(r), ['p2·forehand'], `seme ${seed}`);
+    assert.ok(Math.abs(r.tr.lanes.p2.hand.x - .55) < .02, `seme ${seed}: ${r.tr.lanes.p2.hand.x}`);
+  }
+});
+test('caso C: rovescio a due mani del P1 oltre il centro: il P1 resta sulla racchetta, il P2 non la prende (un colpo per volta, del P1)', () => {
+  for (const p2Until of [0, 1.5, 99]) for (const { seed, r } of run10('rovescioADueMani', { p2Until })){
+    assert.equal(r.swaps, 0, `P2 fino a ${p2Until} s, seme ${seed}`); assert.equal(r.onFree, 0, `P2 fino a ${p2Until} s, seme ${seed}`);
+    assert.deepEqual(whoSide(r), ['p1·backhand', 'p1·forehand'], `P2 fino a ${p2Until} s, seme ${seed}`);
+  }
+});
+test('corsia agganciata: dopo un buco non salta oltre quattro mani di distanza né sulla mano vista insieme alla sua', () => {
+  const tr = new DuoTracker(); let t = 1000;
+  // P1 a 0,30 con la mano libera a 0,40, P2 a 0,66; il P2 sparisce per 150 ms: la sua corsia resta vuota
+  for (let i = 0; i < 15; i++){ t += DT; tr.hands([L(.3, .55, .045), L(.4, .62, .042), L(.66, .55, .045)], t); }
+  for (let i = 0; i < 5; i++){ t += DT; tr.hands([L(.3, .55, .045), L(.4, .62, .042)], t); assert.equal(tr.lanes.p2.handNow, false, `fotogramma ${i}`); }
+  assert.ok(Math.abs(tr.lanes.p1.hand.x - .3) < 1e-9);
+  // la mano del P2 ritorna più in là (0,52): è sua
+  t += DT; tr.hands([L(.3, .55, .045), L(.4, .62, .042), L(.52, .55, .045)], t);
+  assert.ok(Math.abs(tr.lanes.p2.hand.x - .52) < 1e-9);
+  // valori non finiti dal modello: ignorati
+  t += DT; assert.deepEqual(tr.hands([L(NaN, .5), [{ x: Infinity, y: .5 }], null], t), []);
+});
+
 test('confine tra le corsie e colonne del flusso: a metà tra le case, nella fascia 0,3–0,7; a metà immagine come prima', () => {
   assert.deepEqual(duoFlowCols(.5), DUO.cols);
   assert.deepEqual(duoFlowCols(.7), { p1: { from: 0, to: 5 }, p2: { from: 6, to: 7 } });

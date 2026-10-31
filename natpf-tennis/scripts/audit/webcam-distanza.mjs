@@ -9,7 +9,8 @@
 //  - chi gioca fermo in attesa (runArgonIdle): colpi falsi.
 // Confronta il codice attuale con uno di prima (--prima=<cartella src di prima>, con la camera di allora a 640×480 4:3).
 //   node --import ./test/register.mjs scripts/audit/webcam-distanza.mjs [--prima=<cartella src>] [--criteri] [--3d]
-//   RAPIDO=1 riduce le griglie. Con --criteri: codice d'uscita 1 se un criterio manca (anche in webcam-sweep.mjs, sez. 9)
+//   RAPIDO=1 riduce le griglie. Con --criteri: codice d'uscita 1 se un criterio manca (anche in webcam-sweep.mjs, sez. 9;
+//   i criteri sul tipo di colpo con la camera 16:9, shotMixCriteria, solo qui)
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { runArgonTrial, runArgonSwing, runArgonIdle, ARGON_CAMS, ARGON_MODEL, engineView } from '../../test/webcam-sim.mjs';
@@ -81,6 +82,34 @@ export function criteria({ swings, idle }, check){
   check('webcam argon 1–4 m: colpi falsi da fermo', `${fp} in ${idle.reduce((a, r) => a + r.secs, 0)} s`, fp === 0, 'nessuno');
 }
 
+// Tipo di colpo con la camera larga (revisione del 31/10): le soglie dello zip sono tarate su 640×480 4:3, e con la
+// camera 16:9 la parte verticale del colpo pesava il 33% in più (a 2 m smash all'impatto dal 33% al 51%, lanci da 79 a
+// 120). Stesso codice, stessi colpi 3D e stessi semi con la camera a 640×480 (after false) e a 1280×720 (after true):
+// quota di smash, lanci e pallonetti del colpo più vicino all'impatto, e lanci in tutto il colpo, da 1 a 3 m
+export const MIX_DISTANCES = [1, 2, 3];
+export function shotMix(MC, { after, D }){
+  let seed = 1;
+  const out = { n: 0, smash: 0, toss: 0, lob: 0, tossAll: 0 };
+  for (const cam of Object.values(ARGON_CAMS)) for (const stroke of GROUND) for (const hand of ['right', 'left']) for (const tempo of [.8, 1.25]){
+    const r = runArgonTrial(MC, { stroke, hand, D, cam, after, tempo, seed: seed++, M: MODEL }), tc = r.path.tContact;
+    const hit = r.events.filter(e => e.ts >= tc - .25 && e.ts <= tc + .3).sort((a, b) => Math.abs(a.ts - tc) - Math.abs(b.ts - tc))[0];
+    out.n++; out.tossAll += r.events.filter(e => e.kind === 'toss').length;
+    if (hit?.kind === 'toss') out.toss++; else if (hit?.shotType === 'smash') out.smash++; else if (hit?.shotType === 'lob') out.lob++;
+  }
+  return out;
+}
+// criteri: quote all'impatto entro 10 punti e lanci in tutto entro il 25% di quelli a 640×480, a ogni distanza
+export function shotMixCriteria(MC, check){
+  for (const D of MIX_DISTANCES){
+    const a = shotMix(MC, { after: false, D }), b = shotMix(MC, { after: true, D });
+    const q = (o, k) => o[k]/o.n, worst = ['smash', 'toss', 'lob'].map(k => ({ k, d: Math.abs(q(b, k) - q(a, k)) })).sort((x, y) => y.d - x.d)[0];
+    const fmt = o => `smash ${pct(o.smash, o.n)}, lanci ${pct(o.toss, o.n)}, pallonetti ${pct(o.lob, o.n)}, lanci in tutto ${o.tossAll}`;
+    check(`webcam argon a ${D} m: tipo di colpo all'impatto con la camera 16:9 come a 640×480 (${fmt(b)}; a 640×480 ${fmt(a)})`, `scarto massimo ${(100*worst.d).toFixed(0)} punti (${worst.k})`, worst.d <= .1, '≤10 punti');
+    const r = b.tossAll/Math.max(1, a.tossAll);
+    check(`webcam argon a ${D} m: lanci in tutto con la camera 16:9 rispetto a 640×480`, `${b.tossAll} contro ${a.tossAll} (×${r.toFixed(2)})`, Math.abs(r - 1) <= .25, 'entro ±25%');
+  }
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1]).href){
   const crit = [];
   const check = (name, value, ok, info = '') => { crit.push(ok); console.log(`${ok ? 'OK ' : 'KO '} ${name}: ${value}${info ? ` (${info})` : ''}`); };
@@ -94,6 +123,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href){
   report(now, 'codice attuale (camera fino a 1280×720, ritaglio attorno alla mano lontana)');
   if (process.argv.includes('--criteri')){
     criteria(now, check);
+    shotMixCriteria(MC, check);
     console.log(`\n${crit.filter(Boolean).length}/${crit.length} criteri soddisfatti`);
     process.exitCode = crit.every(Boolean) ? 0 : 1;
   }

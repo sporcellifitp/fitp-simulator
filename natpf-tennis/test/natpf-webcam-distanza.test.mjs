@@ -4,8 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ROI, ROI_FULL, RoiPlanner, roiFrac, roiAt, roiToFull, roiPixels, singleCameraAttempts, SINGLE_CAMERA } from '../src/natpf/webcam_roi.js';
-import { ARGON_TRACK, argonHandSize, argonScale } from '../src/natpf/webcam_argon_track.js';
-import { runArgonSwing, runArgonIdle, ARGON_CAMS } from './webcam-sim.mjs';
+import { ARGON_TRACK, argonHandSize, argonScale, argonAspectK, argonTrailEvent } from '../src/natpf/webcam_argon_track.js';
+import { runArgonSwing, runArgonIdle, runArgonTrial, ARGON_CAMS } from './webcam-sim.mjs';
 
 const { MotionController: MC } = await import('../src/motion_controls.js');
 const near = (a, b, e = 1e-9) => Math.abs(a - b) <= e;
@@ -159,4 +159,67 @@ test('banco: swing della guida a 1, 2, 3 e 4 m con una webcam da portatile e una
     const r = runArgonIdle(MC, { D, cam: ARGON_CAMS['esterna 1080p 90°'], seed: 3, total: 8 });
     assert.equal(r.events.length, 0, `${D} m: ${JSON.stringify(r.events)}`);
   }
+});
+
+// Revisione del 31/10: con la camera 16:9 (1280×720) la x e la grandezza della mano, in larghezze dell'immagine, sono 0,75
+// volte quelle a 640×480 4:3, la y no: le soglie dello zip (tarate su 4:3) vedevano la parte verticale del colpo il 33%
+// più grande (più smash, lanci e pallonetti). Ora x e grandezza sono riportate a 4:3 (argonAspectK) prima della scia.
+test('camera 16:9: lo stesso movimento dà lo stesso colpo che a 640×480 4:3 (tipo, velocità, lato); i valori non finiti non fanno colpi', () => {
+  const A = 720/1280, size = .035, asp = { '4:3': .75, '16:9': A };
+  assert.ok(near(argonAspectK(.75), 1) && near(argonAspectK(A), 4/3) && argonAspectK(NaN) === 1 && argonAspectK(0) === 1);
+  assert.ok(near(argonScale(size*.75, A), argonScale(size)), 'la mano 16:9 ha la grandezza 4:3 corrispondente');
+  assert.equal(argonScale(NaN, A), 1); assert.equal(argonScale(.03, NaN), argonScale(.03));
+  // dy (in altezze dell'immagine, uguali nei due formati) scelti al confine tra due tipi di colpo
+  let wrong = 0;
+  for (const [dy, want] of [[.02, 'topspin'], [.05, 'slice'], [-.03, 'topspin'], [.06, 'smash'], [-.04, 'lob']]){
+    const t43 = [0, 1, 2, 3, 4].map(i => ({ x: .6 - .02*i, y: .5 + dy*i/4, t: 1000 + i*33 }));
+    const t169 = t43.map(q => ({ ...q, x: .5 + (q.x - .5)*.75 }));
+    const a = argonTrailEvent(t43, { scale: argonScale(size, asp['4:3']), aspect: asp['4:3'], now: 1200 }).event;
+    const b = argonTrailEvent(t169, { scale: argonScale(size*.75, A), aspect: A, now: 1200 }).event;
+    assert.equal(a.shotType, want, `dy ${dy}`);
+    assert.deepEqual([b.type, b.side, b.shotType], [a.type, a.side, a.shotType], `dy ${dy}`);
+    assert.ok(near(b.speed, a.speed, 1e-9) && near(b.dirX, a.dirX, 1e-9) && near(b.dirY, a.dirY, 1e-9), `dy ${dy}`);
+    // le coordinate 16:9 date allo zip così come sono (prima della correzione): tipo diverso al confine
+    const c = argonTrailEvent(t169, { scale: argonScale(size*.75), now: 1200 }).event;
+    if (c.shotType !== a.shotType) wrong++;
+  }
+  assert.ok(wrong >= 3, `senza riportare a 4:3 cambiano ${wrong} colpi su 5`);
+  const bad = [{ x: .5, y: .5, t: 1000 }, { x: NaN, y: .5, t: 1033 }];
+  assert.equal(argonTrailEvent(bad, { now: 1200 }), null);
+  assert.equal(argonTrailEvent([{ x: .5, y: .5, t: 1000 }, { x: .3, y: .5, t: NaN }], { now: 1200 }), null);
+});
+
+test('banco: colpi 3D a 2 m con la camera 640×480 e 1280×720 → stesso tipo di colpo all\'impatto, lanci quasi uguali', () => {
+  const GROUND = ['FH_TOP', 'FH_FLAT', 'FH_SLICE', 'BH_TOP', 'BH_FLAT', 'BH_SLICE'];
+  const impact = r => { const tc = r.path.tContact, h = r.events.filter(e => e.ts >= tc - .25 && e.ts <= tc + .3).sort((x, y) => Math.abs(x.ts - tc) - Math.abs(y.ts - tc))[0]; return h ? (h.kind === 'toss' ? 'toss' : h.shotType) : 'none'; };
+  let n = 0, same = 0, toss = [0, 0];
+  const diff = [];
+  for (const camName of ['portatile 720p 70°', 'esterna 1080p 90°']){
+    let seed = 1;
+    for (const stroke of GROUND) for (const hand of ['right', 'left']){
+      const [a, b] = [false, true].map(after => runArgonTrial(MC, { stroke, hand, D: 2, cam: ARGON_CAMS[camName], after, seed }));
+      seed++; n++;
+      if (impact(a) === impact(b)) same++; else diff.push(`${camName} ${stroke} ${hand}: ${impact(a)} → ${impact(b)}`);
+      toss[0] += a.events.filter(e => e.kind === 'toss').length; toss[1] += b.events.filter(e => e.kind === 'toss').length;
+    }
+  }
+  // con le coordinate 16:9 date allo zip così come sono: 15/24 e lanci da 33 a 51
+  assert.ok(same >= n - 2, `${same}/${n}: ${diff.join('; ')}`);
+  assert.ok(Math.abs(toss[1] - toss[0]) <= Math.max(3, .2*toss[0]), `lanci ${toss[0]} → ${toss[1]}`);
+});
+
+test('riquadro della webcam (160×120): il video 16:9 si taglia ai lati invece di schiacciarsi, i punti della mano restano sopra la mano', () => {
+  const mc = Object.create(MC.prototype);
+  mc.videoElem = { videoWidth: 1280, videoHeight: 720 };
+  const c = mc._hudCrop(160, 120);
+  assert.deepEqual([c.sx, c.sy, c.sw, c.sh], [160, 0, 960, 720]);
+  assert.ok(near(c.sw/c.sh, 160/120), 'proporzioni del riquadro');
+  // punto dell'immagine a 1/8 dal bordo (pixel 160, l'inizio del taglio) → bordo del riquadro; centro → centro
+  assert.ok(near(c.X(.125), 0) && near(c.X(.5), 80) && near(c.X(.875), 160) && near(c.Y(.5), 60) && near(c.Y(1), 120));
+  mc.videoElem = { videoWidth: 640, videoHeight: 480 };
+  const d = mc._hudCrop(160, 120);
+  assert.deepEqual([d.sx, d.sy, d.sw, d.sh], [0, 0, 640, 480]);
+  assert.ok(near(d.X(.3), 48) && near(d.Y(.3), 36), '4:3 come prima');
+  mc.videoElem = { videoWidth: 0, videoHeight: 0 };
+  assert.ok(near(mc._hudCrop(160, 120).X(.5), 80), 'video non ancora pronto');
 });

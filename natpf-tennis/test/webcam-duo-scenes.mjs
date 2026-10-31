@@ -9,8 +9,10 @@ export const DT = 1000/30;
 export const handLm = (S, y, size = .045) => { const d = size/.75, a = Array.from({ length: 21 }, () => ({ x: 1 - S, y, z: 0 })); a[0] = { x: 1 - S, y: y - .55*d, z: 0 }; a[9] = { x: 1 - S, y: y + .45*d, z: 0 }; return a; };
 const mj = t => (t <= 0 ? 0 : t >= 1 ? 1 : 10*t**3 - 15*t**4 + 6*t**5);
 
-// motore delle scene: frame(t) → [{ who, S, y }] (who solo per sapere di chi è la mano, il tracker non lo vede);
-// rumore dei punti, ordine delle mani a caso (come il modello)
+// motore delle scene: frame(t) → [{ who, S, y, size?, free? }] (who e free solo per sapere di chi è la mano e se è la
+// mano libera, il tracker non lo vede); rumore dei punti, ordine delle mani a caso (come il modello). swaps: fotogrammi
+// in cui una corsia segue una mano dell'altro giocatore; onFree: fotogrammi in cui segue la mano libera del suo
+// giocatore mentre la racchetta è in vista
 export function play(Tracker, { total, frame, seed = 1, jitter = .002 }){
   const tr = new Tracker(), rng = mulberry32(seed), out = [], owner = [];
   let t = 1000;
@@ -23,12 +25,14 @@ export function play(Tracker, { total, frame, seed = 1, jitter = .002 }){
     for (const id of ['p1', 'p2']){
       const L = tr.lanes[id];
       if (!L.handNow) continue;
-      const h = hands.reduce((b, x) => (!b || Math.abs(x.S - L.hand.x) < Math.abs(b.S - L.hand.x) ? x : b), null);
-      if (h) owner.push({ lane: id, who: h.who, t: (t - 1000)/1000 });
+      const h = hands.reduce((b, x) => (!b || Math.hypot(x.S - L.hand.x, x.y - L.hand.y) < Math.hypot(b.S - L.hand.x, b.y - L.hand.y) ? x : b), null);
+      if (h) owner.push({ lane: id, who: h.who, free: !!h.free, racketSeen: hands.some(x => x.who === id && !x.free), t: (t - 1000)/1000 });
     }
   }
-  return { events: out, owner, tr, swaps: owner.filter(o => o.lane !== o.who).length, now: t };
+  return { events: out, owner, tr, swaps: owner.filter(o => o.lane !== o.who).length, onFree: owner.filter(o => o.lane === o.who && o.free && o.racketSeen).length, now: t };
 }
+// mano libera (più piccola, più in basso, ferma o che segue piano il corpo)
+const free = (who, S, y = .62) => ({ who, S, y, size: .042, free: true });
 // swing di una mano: da S0 di dS (con il segno) in T secondi a partire da t0, poi fermo
 const swingAt = (t, t0, S0, dS, T = .2) => S0 + dS*mj((t - t0)/T);
 
@@ -71,4 +75,48 @@ export const SCENES = {
     { who: 'p1', S: t < 2.5 ? swingAt(t, 1.5, .42, .16, .25) : swingAt(t, 2.5, .58, -.16, 1), y: .55 },
     { who: 'p2', S: t < 2.5 ? swingAt(t, 1.5, .58, -.16, .25) : swingAt(t, 2.5, .42, .16, 1), y: .57 },
   ] }),
+
+  // Con le mani libere di entrambi (il modello ne cerca quattro, DUO_HANDS; revisione del 31/10: con una sola mano per
+  // giocatore le scene non vedevano gli scambi di mani).
+  // avvicinamento con le mani libere all'esterno
+  avvicinamentoMani: (Tracker, o = {}) => play(Tracker, { ...o, total: 6, frame: t => {
+    const k = mj(t/2) - mj((t - 4)/2), S1 = .3 + .17*k, S2 = .7 - .17*k;
+    return [{ who: 'p1', S: S1, y: .55 }, { who: 'p2', S: S2, y: .56 }, free('p1', S1 - .09), free('p2', S2 + .09)];
+  } }),
+  // attraversamento con la mano libera del P1 sempre in vista (anche quando il modello perde la racchetta) e quella del
+  // P2 verso il centro
+  attraversamentoMani: (Tracker, o = {}) => play(Tracker, { ...o, total: 5.5, frame: t => {
+    const S1 = .35 + .27*mj((t - .5)/1.5), out = [{ who: 'p2', S: .86, y: .55 }, free('p2', .78), free('p1', S1 - .08)];
+    if (!(t >= 2.5 && t < 3.3)) out.push({ who: 'p1', S: t >= 4 ? swingAt(t, 4, S1, .1) : S1, y: .56 });
+    return out;
+  } }),
+  // incrocio con le mani libere ferme all'esterno
+  incrocioMani: (Tracker, o = {}) => play(Tracker, { ...o, total: 4, frame: t => [
+    { who: 'p1', S: t < 2.5 ? swingAt(t, 1.5, .42, .16, .25) : swingAt(t, 2.5, .58, -.16, 1), y: .55 },
+    { who: 'p2', S: t < 2.5 ? swingAt(t, 1.5, .58, -.16, .25) : swingAt(t, 2.5, .42, .16, 1), y: .57 },
+    free('p1', .3), free('p2', .7),
+  ] }),
+  // caso A della revisione: il P1 ha la racchetta a 0,30 e la mano libera a 0,38; il P2 (0,68) perde la mano per 0,2 s,
+  // poi fa un dritto (verso sinistra). Prima la corsia del P2 saltava sulla mano libera del P1 e ci restava
+  manoLiberaBuco: (Tracker, o = {}) => play(Tracker, { ...o, total: 3.5, frame: t => {
+    const out = [{ who: 'p1', S: .30, y: .55 }, free('p1', .38)];
+    if (!(t >= 1 && t < 1.2)) out.push({ who: 'p2', S: t >= 2.2 ? swingAt(t, 2.2, .68, -.12) : .68, y: .55 });
+    return out;
+  } }),
+  // caso B: il P2 fa un dritto da 0,70 a 0,55 e il modello lo perde per 170 ms a metà colpo; la mano libera del P1 è a
+  // 0,40. Prima la corsia del P2 saltava sulla mano libera del P1
+  bucoNelDritto: (Tracker, o = {}) => play(Tracker, { ...o, total: 3, frame: t => {
+    const out = [{ who: 'p1', S: .30, y: .55 }, free('p1', .40)];
+    if (!(t >= 1.08 && t < 1.25)) out.push({ who: 'p2', S: swingAt(t, 1, .70, -.15, .3), y: .55 });
+    return out;
+  } }),
+  // caso C: rovescio a due mani del P1 (racchetta e mano libera a 0,06) che attraversa da 0,40 a 0,64, poi un dritto di
+  // ritorno; il P2 in vista a 0,75 fino a p2Until (0: mai). Prima il P1 finiva sulla mano libera e il P2 sulla racchetta
+  // del P1: al dritto due colpi, del P1 e del P2
+  rovescioADueMani: (Tracker, o = {}) => play(Tracker, { ...o, total: 5.3, frame: t => {
+    const x = .40 + .24*mj((t - 2)/.5) - .24*mj((t - 3.6)/.3);
+    const out = t < 1 ? [{ who: 'p1', S: .40, y: .55 }] : [{ who: 'p1', S: x, y: .55 }, free('p1', x - .06, .58)];
+    if (t < (o.p2Until ?? 0)) out.push({ who: 'p2', S: .75, y: .55 });
+    return out;
+  } }),
 };
