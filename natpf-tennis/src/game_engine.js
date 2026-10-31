@@ -1746,6 +1746,9 @@ export class NatpfTennisEngine {
       sidespin: d,
       allowNetFault: b,
     });
+    // NATPF (diagnostiche del 30/10, C4): il servizio dal gesto cade alla profondità voluta, con l'aria come gli altri
+    // colpi (prima 0,9–1,4 m più corto), e passa sopra la rete anche con l'aria
+    natpfServe && NS.fixAirServe(this.ball, { from: u, to: { x: natpfServe.x, z: y }, topspin: m, sidespin: d, gravity: L.GRAVITY, drag: L.AIR_DRAG, netY: S.NET_HEIGHT_CENTER });
     const w = natpfServe
       ? Math.round(this.ball.vel.length() * 6.8) // NATPF: dalla velocità vera della palla, con la scala dei colpi dello scambio
       : Math.round(
@@ -2516,12 +2519,20 @@ export class NatpfTennisEngine {
       this._natpfPlanPlayer();
   }
   // NATPF racchetta virtuale: chi gioca va dove prendere la palla, anche al volo (natpf_impact.js); nel doppio come prima
-  _natpfPlanPlayer() {
-    this.isDoubles ? this._predictBallIntercept(this.player) : NI.planPlayerIntercept(this, this.player);
+  _natpfPlanPlayer(opts) {
+    this.isDoubles ? this._predictBallIntercept(this.player) : NI.planPlayerIntercept(this, this.player, opts);
   }
   // … e il Player 2 del 1v1 allo stesso modo nella sua metà campo; la CPU e il doppio come prima
-  _natpfPlanOpponent(e = this.opponent) {
-    this.isMultiplayer && !this.isDoubles && e === this.opponent ? NI.planPlayerIntercept(this, e) : this._predictBallIntercept(e);
+  _natpfPlanOpponent(e = this.opponent, opts) {
+    this.isMultiplayer && !this.isDoubles && e === this.opponent ? NI.planPlayerIntercept(this, e, opts) : this._predictBallIntercept(e);
+  }
+  // NATPF (diagnostiche del 30/10, C7): schiacciata o volée prevista e non colpita, finestra in ritardo passata: il piano
+  // si rifà con i soli punti dopo il rimbalzo (natpf_impact.missedPlan), al massimo una volta per colpo. Prima chi gioca
+  // restava fermo sotto il punto della schiacciata e la palla rimbalzava alle sue spalle. Lo decide l'host
+  _natpfReplanMissed() {
+    if (this.isDoubles || (this.playerRole === "p2" && this.isMultiplayer)) return;
+    NI.missedPlan(this, this.player) && this._natpfPlanPlayer({ groundOnly: !0 });
+    this.isMultiplayer && NI.missedPlan(this, this.opponent) && this._natpfPlanOpponent(this.opponent, { groundOnly: !0 });
   }
   // NATPF: minFlight, volo minimo (0,45 s come nel motore base; la schiacciata scende sotto, OUTCOME.smashFlight)
   // netClear: altezza minima sopra il nastro al centro (m); più bassa solo per il colpo super potente (NO.SUPER.netGap)
@@ -2867,6 +2878,7 @@ export class NatpfTennisEngine {
       }
       if (
         (this.isMultiplayer || NS.tickCpuRun(this), // NATPF skill gap: la CPU parte dopo il tempo di reazione
+        this._natpfReplanMissed(), // NATPF: schiacciata o volée mancata, piano dopo il rimbalzo (C7)
         this._stepActorFootwork(this.player, e),
         this._stepActorFootwork(this.playerPartner, e),
         this._stepActorFootwork(this.opponent, e),

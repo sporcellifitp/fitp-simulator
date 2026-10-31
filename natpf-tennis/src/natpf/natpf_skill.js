@@ -502,6 +502,42 @@ export function airScale({ from, vel, to, topspin = 14, sidespin = 0, gravity = 
 }
 // Applica la correzione alla velocità della palla (solo la componente lungo il campo).
 export function fixAir(ball, opts){ ball.vel.z *= airScale({ ...opts, vel: ball.vel }); return ball; }
+// Volo con la fisica del motore fino al primo rimbalzo: punto di rimbalzo, tempo, altezza e tempo al passaggio sulla rete.
+export function flyAir({ from, vel, topspin = 14, sidespin = 0, gravity = 9.15, drag = .012, dt = 1/120 } = {}){
+  const g = gravity + finite(topspin)*.14;
+  let x = from.x, y = from.y, z = from.z, vx = vel.x, vy = vel.y, vz = vel.z, net = null, netT = null, t = 0, px = x, py = y, pz = z;
+  for (let i = 0; i < 900 && !(y <= .075 && vy < 0); i++){
+    const d = Math.max(0, 1 - drag*Math.hypot(vx, vy, vz)*dt);
+    vx *= d; vy *= d; vz *= d; vy -= g*dt; vx += finite(sidespin)*.12*dt;
+    px = x; py = y; pz = z;
+    x += vx*dt; y += vy*dt; z += vz*dt; t += dt;
+    if (net == null && Math.sign(pz) !== Math.sign(z) && pz !== z){ const f = pz/(pz - z); net = py + (y - py)*f; netT = t - dt*(1 - f); }
+  }
+  // punto di rimbalzo continuo (tra i due passi attorno a terra): il motore lo trova al passo, cioè fino a ~0,2 m dopo
+  const f = py > y ? clamp((py - .075)/(py - y)) : 1;
+  return { x, z, t, net, netT, landX: px + (x - px)*f, landZ: pz + (z - pz)*f };
+}
+// Servizio alla profondità voluta (diagnostiche del 30/10, C4: tutti i servizi cadevano 0,9–1,4 m prima, 11 su 11,
+// perché al servizio mancava fixAir). Come fixAir corregge la velocità lungo il campo, e anche quella di lato perché il
+// servizio resti nel punto scelto del quadrato; poi controlla con l'aria che la palla passi sopra la rete di almeno
+// netGap (il controllo di _launchBallToTarget è senz'aria): se no la alza e rifà la profondità.
+export function fixAirServe(ball, { from, to, topspin = 14, sidespin = 0, gravity = 9.15, drag = .012, netY = .914, netGap = .16 } = {}){
+  const o = { from, topspin, sidespin, gravity, drag };
+  for (let pass = 0; pass < 4; pass++){
+    for (let i = 0; i < 8; i++){
+      // il motore vede il rimbalzo al primo passo sotto terra (fino a un passo dopo il punto continuo): si mira a metà strada
+      const f = flyAir({ ...o, vel: ball.vel }), want = to.z - from.z, got = (f.landZ + f.z)/2 - from.z;
+      const okZ = Math.abs(got - want) < .02, okX = Math.abs(f.landX - to.x) < .02;
+      if (okZ && okX) break;
+      if (got && Math.sign(got) === Math.sign(want)) ball.vel.z *= clamp(want/got, .8, 1.25);
+      ball.vel.x += clamp((to.x - f.landX)/Math.max(.3, f.t), -3, 3);
+    }
+    const f = flyAir({ ...o, vel: ball.vel });
+    if (f.net == null || f.net >= netY + netGap) break;
+    ball.vel.y += (netY + netGap + .03 - f.net)/Math.max(.15, f.netT);
+  }
+  return ball;
+}
 // Angolo stretto: una palla molto angolata deve cadere più corta per restare in campo (come nel tennis vero).
 // z: profondità proposta (negativa o positiva, è il segno della metà campo) · x: punto di rimbalzo laterale
 export function angleDepth(x, z, { rng = Math.random } = {}){

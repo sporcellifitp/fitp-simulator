@@ -261,7 +261,15 @@ export class DiagRecorder {
       return out;
     });
     // tc: secondi da adesso all'impatto previsto (prima si chiamava t e copriva l'istante dell'evento)
-    const plan = (who, P) => P && P.at === E.elapsedTime && R.log('piano', { chi: who, tipo: P.kind || null, contatto: P.contact ? [r(P.contact.x), r(P.contact.y), r(P.contact.z)] : null, tc: r(P.t, 3), corsa: r(P.stretch, 3) });
+    // pos, meta: dove è chi gioca e dove va (targetPos) quando nasce il piano; ripiano: piano rifatto dopo una schiacciata o
+    // una volée prevista e non colpita (diagnostiche del 30/10, C7: il P2 restava fermo, causa da capire)
+    const v2 = v => (v ? [r(v.x), r(v.z)] : null);
+    const plan = (who, P) => {
+      if (!P || P.at !== E.elapsedTime) return;
+      const A = who === 'p2' ? E.opponent : E.player;
+      R.log('piano', { chi: who, tipo: P.kind || null, contatto: P.contact ? [r(P.contact.x), r(P.contact.y), r(P.contact.z)] : null, tc: r(P.t, 3), corsa: r(P.stretch, 3),
+        pos: v2(A?.pos), meta: v2(A?.targetPos), ...(P.replan ? { ripiano: true } : {}) });
+    };
     wrap('_natpfPlanPlayer', function(orig, ...a){ const out = orig(...a); if (!E.isDoubles) plan('giocatore', E.natpfPlan); return out; });
     wrap('_natpfPlanOpponent', function(orig, ...a){ const out = orig(...a); if (E.isMultiplayer && !E.isDoubles) plan('p2', E.natpfPlanP2); return out; });
     wrap('_executeServeHit', function(orig, a, ...rest){
