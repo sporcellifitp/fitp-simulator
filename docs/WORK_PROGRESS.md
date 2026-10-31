@@ -1061,3 +1061,19 @@ Lavoro in tre rami paralleli (worktree) con revisione avversaria, poi correzioni
       Realtime, poi corretti con la chiave di «TURN Server»); il Worker ora toglie spazi e a capo dai valori, prova
       anche `credentials/generate` e spiega 404/401 con le sole lunghezze (commit `be08240`, `20c1d0b`). L'utente
       conferma: «ora funziona». Da verificare ancora: il telefono del P2 senza VPN con il .17 e `tel.strada`.
+
+## Richiesta del 30/10 sera (5 punti) e diagnostiche 20261030-142317 / -142438 — in corso
+Richiesta: (1) webcam da 1 a 4 m, integrate e separate; (2) webcam per due con corsie più larghe; (3) Radar del servizio
+e Survival nascosti; (4) guida a schede più grande; (5) LAN analizzata e ottimizzata con le impostazioni esistenti;
+poi: webcam del P2 invitato che non si configura; analisi delle due diagnostiche e audit di entrambe le versioni.
+Fatto e unito (rami paralleli con revisione): webcam 1–4 m e webcam per due (`ad01623`, unione `0ee317d`), guida a
+schede e minigiochi nascosti (`dc47ef3`, unione `eb780d2`), webcam del P2 con il flusso del P1 (`74edfdc`, unione
+`ada351d`). Gioco 602/602, sito 178/178.
+Diagnostiche (1v1 build .17, host col telefono, rete locale): 22 riscontri verificati (sintesi completa nella cartella
+temporanea della sessione, `diag-confirmed.json`). Principale: un gesto preliminare morbido prende il posto del colpo
+vero (3 colpi su 13 nella 142317). Decisioni dell'utente (31/10): servizio alla profondità vera sì; in risposta al
+servizio schiacciata solo se voluta sì; pallonetto profondo schiacciabile al volo lasciato com'è; telecamera che arretra
+oltre ~12,5 m sì. Non fatti ora: anticipo sistematico (C13), prova su reti diverse con la diagnostica sul P2 (C20).
+In lavorazione (ultimo giro, rami paralleli con revisione): LAN ottimizzata; correzioni webcam dalle revisioni (geometria
+16:9 contro le soglie 4:3 dello zip; scambi di mani nella webcam per due); gesti e impatto (C1, C5, C6, C12, C14, C15,
+C19); equità del P2 (C2, C3, C10, C11, C18); motore (C4, C7, C8, C9, C16, C17, C21). Poi audit e pacchetti .18.
