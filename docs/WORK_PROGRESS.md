@@ -1107,5 +1107,10 @@ Revisione del codice unito: gli agenti sono stati fermati dal limite d'uso; cont
       `6f0121a1857715370766b63dd70a3b56f73f77a74acbecb989e667be1fc16653`.
 - [x] LAN Windows `natpf-simulator-lan-windows-20261028-18.zip`, 318 voci, 61.382.787 byte, sha256
       `a1c6c30cdad12ea2eb0b2b29199f2353d260146a3051b3abfeb0fcabc77d0905`, nessun certificato né chiave.
+- Altre prove nel browser sulla build .18 (`tools/e2e`): `natpf-phone-keep`, `natpf-phone-blackout` (4/6),
+  `natpf-training-flow` (6/13), `natpf-rally` (4/7), `natpf-menu` (19/22), `lan-browser` (7/8) hanno KO **identici
+  rifatti sulla build .17 (`d3cf8ab`)**: non sono regressioni. Causa comune (da sistemare negli script): il telefono
+  simulato non completa più la calibrazione dopo i cambi di presa e calibrazione del 29/10; il menu controlla un centro
+  vecchio. [ ] Aggiornare questi script di prova.
 - **Non verificato**: telefoni e webcam veri, Windows, due computer su reti diverse, TURN in uso reale, persone a 1–4 m,
   webcam per due con due persone; costanti nuove (rinvio 60–70 ms, margine del P2, telecamera) in partite vere.
