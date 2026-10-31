@@ -253,7 +253,7 @@ test('diagnostica: colpo vecchio e colpo giocato sull’host (età, fase, tempo 
   // colpo giocato subito dal motore (stesso istante, stesso numero): con il tempo del colpo; in attesa: senza
   engine.phase = 'RALLY'; engine.natpfLastRacket = { who: 'p2', at: 12.5, seq: 8, timing: -.0423 };
   mc.onP2Played({ eta: 140, tipo: 'swing', n: 8 });
-  assert.deepEqual(logs[1], { k: 'sfida.colpo', eta: 140, tipo: 'swing', fase: 'RALLY', n: 8, tempoMs: -42.3 });
+  assert.deepEqual(logs[1], { k: 'sfida.colpo', eta: 140, tipo: 'swing', fase: 'RALLY', n: 8, esito: null, tempoMs: -42.3 });
   engine.natpfLastRacket = { who: 'p2', at: 11, seq: 7, timing: .01 };
   mc.onP2Played({ eta: null, tipo: 'swing', n: 9 });
   assert.equal(logs[2].tempoMs, null); assert.equal(logs[2].eta, null);
@@ -265,4 +265,38 @@ test('diagnostica: colpo vecchio e colpo giocato sull’host (età, fase, tempo 
   // registratore spento: niente
   recorder.active = false; recorder.log = () => assert.fail('registratore spento');
   mc.onP2Played({ eta: 1, tipo: 'swing' }); v._logClock(20000);
+});
+
+/* ---------- C10: lettura subito dopo un colpo del P2 (diagnostiche 142317/142438) ---------- */
+// I colpi del P2 si leggevano dal relay solo a ogni giro (50 ms): in media 25 ms in più prima del motore. L'host della
+// sfida senza server chiede ora una lettura appena il P2 manda un colpo (natpf_p2p.onP2Input → pollNow)
+test('C10: pollNow legge subito il colpo del P2 (senza aspettare il giro), una lettura alla volta e nessun doppione', async () => {
+  const R = await room(), { mc, fetchFn } = hostController(R.handle, R.roomId);
+  mc.phonePollIntervalMs = 5000;   // il giro non arriva durante il test
+  const played = []; mc.onP2Swing = s => played.push(s);
+  // relay lento a comando: la lettura in corso (con lo stato di quando è partita) resta aperta finché non la si libera
+  let hold = null, reads = 0;
+  const slow = async (url, init) => { const res = await fetchFn(url, init); if (String(url).startsWith('/api/match/state')){ reads++; if (hold) await hold.p; } return res; };
+  const realFetch = globalThis.fetch; globalThis.fetch = slow;
+  try {
+    assert.equal(mc.pollNow(), false, 'senza lettura avviata non fa niente');
+    mc.startPhonePolling();
+    await until(() => reads === 1 && !mc._pollBusyAt);
+    await R.swing({ type: 'swing', shotType: 'slice', sentAtHost: Date.now(), natpf: { aim: 'swing', latency: .05, seq: 21 } });
+    const t0 = performance.now();
+    assert.equal(mc.pollNow(), true);
+    await until(() => played.length === 1, 500);
+    assert.ok(performance.now() - t0 < 200, 'subito, non al giro dopo 5 s');
+    // lettura in corso: pollNow ne chiede un'altra appena finisce (il colpo arrivato durante la lettura non aspetta il giro)
+    let free; hold = { p: new Promise(r => { free = r; }) };
+    mc.pollNow(); await until(() => reads === 3);
+    await R.swing({ type: 'swing', shotType: 'flat', sentAtHost: Date.now(), natpf: { aim: 'swing', latency: .05, seq: 22 } });
+    assert.equal(mc.pollNow(), true); mc.pollNow(); mc.pollNow();
+    assert.equal(reads, 3, 'una lettura alla volta');
+    hold = null; free();
+    await until(() => played.length === 2, 500);
+    await tick(30);
+    assert.deepEqual(played.map(s => s.natpf?.seq), [21, 22], 'ogni colpo una volta sola');
+    assert.equal(reads, 4, 'una sola lettura in più dopo quella in corso');
+  } finally { mc.stopPhonePolling(); mc._disposed = true; globalThis.fetch = realFetch; }
 });

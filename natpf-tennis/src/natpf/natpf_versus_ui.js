@@ -160,7 +160,11 @@ export class NatpfVersusUi {
     const R = this.ui.diag?.recorder; if (!R?.active) return;
     const E = this.engine, L = E.natpfLastRacket;
     const now = L && L.who === 'p2' && L.at === E.elapsedTime && (info.n == null || L.seq == null || L.seq === info.n) ? L : null;
-    R.log?.('sfida.colpo', { eta: info.eta ?? null, tipo: info.tipo || null, fase: E.phase || null, n: info.n ?? null, tempoMs: now && Number.isFinite(now.timing) ? +(1000*now.timing).toFixed(1) : null });
+    // esito: che cosa ne ha fatto il motore (game_engine._natpfP2Outcome: colpito, in attesa del punto d'impatto, servizio,
+    // lancio, vuoto, fuori fase…); lo swing in attesa che poi scade si legge in «vuoto» con chi p2
+    const I = E.natpfP2Input, esito = I && I.at === E.elapsedTime && (info.n == null || I.n == null || I.n === info.n) ? I.esito
+      : info.tipo === 'toss' ? (E.phase === 'SERVE_TOSS' ? 'lancio' : 'ignorato') : null;
+    R.log?.('sfida.colpo', { eta: info.eta ?? null, tipo: info.tipo || null, fase: E.phase || null, n: info.n ?? null, esito, tempoMs: now && Number.isFinite(now.timing) ? +(1000*now.timing).toFixed(1) : null });
   }
   // P2: orologio dell'host (rtt e offset in ms, motion_controls.hostClockEstimate) nella diagnostica ogni ~5 s, da quando
   // c'è la prima stima

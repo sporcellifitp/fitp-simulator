@@ -1613,7 +1613,27 @@ export class NatpfTennisEngine {
           : !1
     );
   }
+  // NATPF 1v1: esito di ogni colpo del Player 2 arrivato al motore (natpfP2Input), per la diagnostica dell'host
+  // (sfida.colpo, campo esito). Diagnostica 142438 (C11): il registro diceva «giocato» per ogni colpo ricevuto, ma solo 33
+  // su 84 erano diventati un colpo
   _handleP2SwingInput(e = {}) {
+    const b = this.ball, before = { phase: this.phase, hitter: b?.lastHitter, pend: this.pendingP2Swing, racket: this.natpfLastRacket, weak: this.natpfWeakServeP2 };
+    const out = this._p2SwingInput(e);
+    this.natpfP2Input = { n: e.natpf?.seq ?? null, at: this.elapsedTime, esito: this._natpfP2Outcome(before) };
+    return out;
+  }
+  _natpfP2Outcome(B) {
+    const L = this.natpfLastRacket, P = this.pendingP2Swing;
+    if (B.phase === "SERVE_STANCE" && this.phase === "SERVE_TOSS") return "lancio";
+    if (B.phase === "SERVE_TOSS") return this.phase === "RALLY" && this.ball.lastHitter === "opponent" ? "servizio" : this.natpfWeakServeP2 && this.natpfWeakServeP2 !== B.weak ? "servizio in attesa" : "servizio ignorato";
+    if (this.phase !== "RALLY") return "fase";
+    if ((L !== B.racket && L?.who === "p2") || (B.hitter === "player" && this.ball.lastHitter === "opponent")) return "colpito";
+    if (P && P !== B.pend) return "in attesa";
+    if (P && P === B.pend) return "non sostituisce";
+    if (B.hitter === "opponent") return "palla via";
+    return "vuoto";
+  }
+  _p2SwingInput(e = {}) {
     // NATPF: Player 2 mancino → il suo personaggio è specchiato anche sul computer dell'host
     const natpfHand = e.hand || (e.natpf && e.natpf.hand);
     // NATPF 1v1: sull'host il colpo del P2 vale solo a partita 1v1 in corso. Prima ogni colpo del P2 (anche con
@@ -1643,6 +1663,17 @@ export class NatpfTennisEngine {
     }
     if (this.phase === "SERVE_TOSS" && this.score.server === "opponent") {
       if (this.phaseTimer < 0.16) return;
+      // NATPF: servizio del Player 2 dal gesto, con le regole del P1 (tempo rispetto al punto più alto, gesto nella salita
+      // ignorato, gesto debole in attesa della battuta vera, natpfWeakServeP2). Diagnostica 142438 (C3): prima il P2
+      // batteva sempre «POWER» con la palla in un punto a caso del quadrato. Senza il campo natpf (webcam, tastiera) come prima
+      if (e.natpf && e.natpf.aim === "swing" && !e.timing) {
+        const tau = this.ball.vel.y / L.GRAVITY + NS.eventLatency(e);
+        if (tau > NO.SERVE.ignoreBefore) return;
+        if (NI.weakSwing(e) && tau > -NI.WEAK.serveWait) { this.natpfWeakServeP2 ||= { evt: e, tau }; return; }
+        this.natpfWeakServeP2 = null;
+        this._executeServeHit(this.opponent, { ...e, natpfServeTau: tau });
+        return;
+      }
       if (this.ball.pos.y >= 1.45 && this.ball.pos.y < 2.25 && this.ball.vel.y > 0.5) {
         this.pendingServeSwing = {
           actor: this.opponent,
@@ -1664,6 +1695,18 @@ export class NatpfTennisEngine {
                 ? "backhand"
                 : "forehand",
         i = String(e.shotType || this.p2SelectedShotType || "topspin").toLowerCase();
+      // NATPF racchetta virtuale: lo swing del P2 con il telefono passa dalla finestra d'impatto come quello del P1
+      // (natpf_impact.queueUserSwing, attesa in pendingP2Swing). Diagnostica 142438 (C2): prima aspettava solo 0,22 s
+      // (il P1 fino all'arrivo della palla) e scadeva prima del rimbalzo. Webcam e tastiera (senza natpf) come prima
+      if (!this.isDoubles && this.ball.lastHitter === "player" && e.natpf && e.natpf.aim === "swing" && !e.timing) {
+        const q = NI.queueUserSwing(this, { ...e, side: t }, this.opponent);
+        if (q === "held" || q === "late" || q === "ignored") return;
+        if (q === "whiff") {
+          this.audioEngine && this.audioEngine.playSwingWhoosh(Number(e.speed || 1.15));
+          this._natpfEarlyWhiff({ actor: this.opponent, evt: { ...e, side: t }, prep: !0, natpfWhy: "tardi" });
+          return;
+        }
+      }
       if (this.ball.lastHitter === "player") {
         const s = this.opponent.pos.z - this.ball.pos.z;
         if (s < -0.95 && s >= -7.8) {
@@ -1704,7 +1747,7 @@ export class NatpfTennisEngine {
     }
   }
   _startServeToss(e) {
-    (this.phase = "SERVE_TOSS"), (this.phaseTimer = 0), (this.pendingServeSwing = null), (this.natpfWeakServe = null);
+    (this.phase = "SERVE_TOSS"), (this.phaseTimer = 0), (this.pendingServeSwing = null), (this.natpfWeakServe = null), (this.natpfWeakServeP2 = null);
     const t = e.sideSign > 0 ? -0.32 : 0.32;
     this.ball.pos.set(e.pos.x + t, 1.18, e.pos.z - e.sideSign * 0.22),
       this.ball.vel.set(0, 6.32, 0),
@@ -1717,9 +1760,13 @@ export class NatpfTennisEngine {
     if (i < 1.25) return;
     this.pendingServeSwing = null;
     // NATPF racchetta virtuale: servizio dal gesto (natpf_stroke_outcome.serveOutcome), senza caso
-    const natpfServe = Number.isFinite(t.natpfServeTau)
-      ? NO.serveOutcome({ intent: NO.eventIntent(t), tau: t.natpfServeTau, boxSign: e.sideSign * (this.score.deuceSide ? -1 : 1) })
-      : null;
+    // … nel riferimento di chi batte: il Player 2 guarda verso +z (la sua destra è −x), quadrato, angolo ed effetto
+    // laterale si specchiano come nei colpi dello scambio (_natpfRacketShot)
+    const natpfMir = e === this.opponent ? -1 : 1,
+      natpfServe0 = Number.isFinite(t.natpfServeTau)
+        ? NO.serveOutcome({ intent: NO.eventIntent(t), tau: t.natpfServeTau, boxSign: natpfMir * e.sideSign * (this.score.deuceSide ? -1 : 1) })
+        : null,
+      natpfServe = natpfServe0 && natpfMir < 0 ? { ...natpfServe0, x: -natpfServe0.x, sidespin: -natpfServe0.sidespin } : natpfServe0;
     const a = o.MathUtils.clamp(Number(t.speed || 1.18), 0.78, 1.68),
       s = natpfServe ? natpfServe.grade === "POWER SERVE!" : i >= 2.05 && i <= 3.55,
       n = natpfServe ? natpfServe.grade === "EARLY SERVE" : i < 1.72;
@@ -2266,7 +2313,9 @@ export class NatpfTennisEngine {
     // polso, mano mancina, palla corta e pallonetto veri. Senza il campo natpf (webcam, tastiera, server vecchio) come prima.
     const natpfSwing = !!(e.natpf && e.natpf.aim === "swing" && !e.timing),
       natpfLv = NS.skillLevel("1v1"),
-      natpfTau = natpfSwing ? (e.sweetSpotAssisted ? Number(e.natpfLead || 0) + NS.eventLatency(e) : NS.swingTiming(p, this.ball.vel.z)) : 0,
+      // tempo dalla finestra d'impatto (natpf_impact.queueUserSwing: quanto prima dell'arrivo della palla, con la palla
+      // rimbalzata) come per il P1; altrimenti come prima
+      natpfTau = natpfSwing ? (Number.isFinite(e.natpfTau) ? e.natpfTau : e.sweetSpotAssisted ? Number(e.natpfLead || 0) + NS.eventLatency(e) : NS.swingTiming(p, this.ball.vel.z)) : 0,
       natpfDrop = !!(e.natpfDrop || (e.natpf && e.natpf.shot === "drop")),
       natpfLob = !!e.natpf && m === "LOB";
     natpfSwing && (u = NS.swingGrade(natpfTau, natpfLv).grade);
@@ -2774,6 +2823,12 @@ export class NatpfTennisEngine {
         (this.natpfWeakServe = null), this._executeServeHit(this.player, { ...w.evt, natpfServeTau: w.tau });
         return;
       }
+      // … e quello del Player 2 al suo servizio
+      if (this.natpfWeakServeP2 && this.ball.vel.y / L.GRAVITY < -NI.WEAK.serveWait) {
+        const w = this.natpfWeakServeP2;
+        (this.natpfWeakServeP2 = null), this._executeServeHit(this.opponent, { ...w.evt, natpfServeTau: w.tau });
+        return;
+      }
       if (
         ((this.score.server === "opponent" && !this.isMultiplayer) || this.autoPlayMode) &&
         this.ball.vel.y <= 0.25 &&
@@ -2900,13 +2955,14 @@ export class NatpfTennisEngine {
                 r >= -1.45 && r <= 0.68 ? "SWEET SPOT!" : r < -1.45 ? "EARLY (CROSS)" : "LATE (LINE)",
             });
           }
-          if (this.pendingP2Swing)
+          // NATPF racchetta virtuale: lo swing del P2 in attesa si gioca quando la palla arriva al suo punto d'impatto (C2)
+          if (this.pendingP2Swing && this.pendingP2Swing.natpfWindow) {
+            if (NI.resolvePending(this, this.opponent)) return;
+          } else if (this.pendingP2Swing)
             if (this.elapsedTime > this.pendingP2Swing.expiresAt) {
-              // NATPF: gesto del P2 troppo in anticipo: swing a vuoto visibile (come per il P1)
+              // NATPF: gesto del P2 troppo in anticipo: swing a vuoto visibile, messaggio e diagnostica come per il P1
               const ps = this.pendingP2Swing;
-              (this.pendingP2Swing = null),
-                ps.prep && ps.actor && (ps.actor.userData && (ps.actor.userData.natpfPrep = null),
-                this.racketKinematics && this.racketKinematics.triggerSwing(ps.actor, { shotType: String(ps.evt?.shotType || "topspin").toLowerCase(), side: ps.evt?.side, speed: Number(ps.evt?.speed || 1.15), timing: "early", dirX: Number(ps.evt?.dirX || 0) }));
+              (this.pendingP2Swing = null), ps.prep && this._natpfEarlyWhiff(ps);
             }
             else {
               const p = h === this.opponentPartner ? 3.95 : 4.65;
@@ -2916,7 +2972,8 @@ export class NatpfTennisEngine {
                 return;
               }
             }
-          if (this.ball.pos.z < -15.6) {
+          // NATPF: palla passata oltre la finestra in ritardo dietro il P2, come per il P1 (C18: prima fissa a 15,6 m)
+          if (this.ball.pos.z < -Math.max(15.6, -this.opponent.pos.z + 2.8)) {
             this._awardPoint("player", "Nice Shot!");
             return;
           }
@@ -3031,17 +3088,17 @@ export class NatpfTennisEngine {
   }
   // NATPF: swing a vuoto di un gesto troppo in anticipo (lo swing in attesa è scaduto prima che arrivasse la palla)
   _natpfEarlyWhiff(ps) {
-    const a = ps.actor || this.player, ev = ps.evt || {};
+    const a = ps.actor || this.player, ev = ps.evt || {}, p2 = a === this.opponent || a === this.opponentPartner; // NATPF: anche il Player 2 (C2)
     a.userData && (a.userData.natpfPrep = null);
     this.racketKinematics &&
       this.racketKinematics.triggerSwing(a, { shotType: String(ev.shotType || "topspin").toLowerCase(), side: ev.side, speed: Number(ev.speed || 1.15), timing: "early", dirX: Number(ev.dirX || 0) });
     // NATPF racchetta virtuale: perché è a vuoto (troppo presto, troppo tardi, palla fuori portata)
-    const why = ps.natpfWhy, grade = why === "tardi" ? "TOO LATE! \u2022 WHIFF" : why === "portata" ? "OUT OF REACH \u2022 WHIFF" : "VERY EARLY \u2022 WHIFF",
+    const why = ps.natpfWhy, grade = (p2 ? "P2 " : "") + (why === "tardi" ? "TOO LATE! \u2022 WHIFF" : why === "portata" ? "OUT OF REACH \u2022 WHIFF" : "VERY EARLY \u2022 WHIFF"),
       G = this._projectToScreen(a.pos.clone().add(new o.Vector3(0, 2.35, 0)));
     this.hud.showTimingPopup({ grade, detail: why === "tardi" ? "TOO LATE" : why === "portata" ? "BALL TOO FAR" : "TOO EARLY", screenPos: G, durationMs: 750 }),
       this.motionController &&
         this.motionController.triggerHapticFeedback &&
-        this.motionController.triggerHapticFeedback({ role: "p1", kind: "whiff", grade, shotType: this.selectedShotType || "TOPSPIN", speedKmh: 0, intensity: 0.65 });
+        this.motionController.triggerHapticFeedback({ role: p2 ? "p2" : "p1", kind: "whiff", grade, shotType: (p2 ? this.p2SelectedShotType : this.selectedShotType) || "TOPSPIN", speedKmh: 0, intensity: 0.65 });
   }
   // NATPF: gesto debole in anticipo che non ha colpito (il colpo vero non è arrivato): niente swing a schermo. Solo la
   // diagnostica lo vede (evento «vuoto» con il motivo «debole»)
@@ -3785,4 +3842,6 @@ window.addEventListener("DOMContentLoaded", () => {
   const p2p = installNatpfP2p();
   const P = new NatpfTennisEngine();
   (P.natpfP2p = p2p), (P.natpfUi = new NatpfUi(P)), (window.__natpfTennis = P), P.loadAssetsAndStart();
+  // NATPF 1v1 senza server: colpo o lancio del P2 arrivato all'host → lettura dello stato subito (C10)
+  p2p.onP2Input?.(() => P.motionController?.pollNow?.());
 });

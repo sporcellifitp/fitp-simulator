@@ -1349,8 +1349,13 @@ export class MotionController {
       if (this._pollBusyAt && now - this._pollBusyAt < (this.phonePoll || PHONE_POLL).guardMs) return;
       if ((this.roomId || "default") === "default" && this._pollStartedAt && now - this._pollStartedAt < (this.phonePoll || PHONE_POLL).idleMs) return;
       const tok = (this._pollBusyAt = this._pollStartedAt = now);
-      try { await poll(); } finally { this._pollBusyAt === tok && (this._pollBusyAt = 0); }
+      try { await poll(); } finally {
+        this._pollBusyAt === tok && (this._pollBusyAt = 0);
+        // lettura chiesta da pollNow mentre questa era in corso: subito un'altra, che vede il colpo nuovo
+        this._pollAgain && this.phonePollTimer && !this._disposed && ((this._pollAgain = !1), e());
+      }
     };
+    this._pollTick = e;
     const poll = async () => {
       let abortTimer = null;
       if (!this._disposed)
@@ -1510,6 +1515,17 @@ export class MotionController {
   }
   stopPhonePolling() {
     this.phonePollTimer && (clearInterval(this.phonePollTimer), (this.phonePollTimer = null));
+    (this._pollTick = null), (this._pollAgain = !1);
+  }
+  // NATPF 1v1: lettura dello stato subito, senza aspettare il prossimo giro (phonePollIntervalMs). La chiama l'host della
+  // sfida senza server quando il P2 gli manda un colpo o un lancio (natpf_p2p.onP2Input): in media 25 ms in meno prima che
+  // il colpo arrivi al motore (diagnostiche 142317/142438, C10: i colpi del P2 si leggevano solo a ogni giro di 50 ms).
+  // Una lettura alla volta come sempre: se ce n'è una in corso, un'altra parte appena finisce. Nessun doppione: i colpi
+  // si giocano una volta sola (lastProcessedP2PhoneSeq)
+  pollNow() {
+    if (!this.phonePollTimer || !this._pollTick || this._disposed) return !1;
+    if (this._pollBusyAt && Date.now() - this._pollBusyAt < (this.phonePoll || PHONE_POLL).guardMs) return (this._pollAgain = !0), !0;
+    return this._pollTick(), !0;
   }
   triggerHapticFeedback({
     kind: e = "hit",

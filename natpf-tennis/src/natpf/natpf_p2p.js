@@ -391,9 +391,12 @@ export async function serverHasMatchApi(response){
   try { const j = await response.clone().json(); return !!j?.roomId; } catch { return false; }
 }
 
+// colpo o lancio del P2 arrivato all'host e accettato dal relay
+export const isP2Input = (req, res) => String(req?.method || '').toUpperCase() === 'POST' && /^\/api\/racket\/swing(\?|$)/.test(String(req?.url || '')) && res?.status >= 200 && res?.status < 300;
+
 /* ---------- installazione: intercetta fetch per i percorsi del relay ---------- */
 export function installNatpfP2p({ win = globalThis.window, Peer = null, peerOptions = null } = {}){
-  const ev = emitter(), routeEv = emitter();
+  const ev = emitter(), routeEv = emitter(), inputEv = emitter();
   const params = new URLSearchParams(win?.location?.search || '');
   const role = (params.get('role') || 'p1').toLowerCase() === 'p2' ? 'p2' : 'p1';
   const room = (params.get('room') || '').trim().toUpperCase();
@@ -401,6 +404,9 @@ export function installNatpfP2p({ win = globalThis.window, Peer = null, peerOpti
   const api = {
     mode: null, status: 'off', error: null, detail: null, blocked: 0, roomId: null, local: null, host: null, guest: null,
     onStatus: ev.on, onRoute: routeEv.on,
+    // host: il P2 ha mandato un colpo o un lancio (POST /api/racket/swing accettato dal relay locale). Il motore legge
+    // subito lo stato (motion_controls.pollNow) invece di aspettare il prossimo giro (C10)
+    onP2Input: inputEv.on,
     get active(){ return !!api.mode; },
     // route: strada del collegamento tra i due computer (ice-route.js), onRoute a ogni cambio (diagnostica: sfida.strada).
     // Letta dal lato attivo, che la azzera quando il P2 cade: prima era una copia che restava all'ultima strada anche a
@@ -433,6 +439,12 @@ export function installNatpfP2p({ win = globalThis.window, Peer = null, peerOpti
   // una stanza alla volta: due richieste ravvicinate non devono lasciare il motore su una stanza senza Peer
   let creating = Promise.resolve();
   const startHost = body => (creating = creating.then(() => createHostRoom(body), () => createHostRoom(body)));
+  // richieste del P2 al relay locale: dopo un colpo o un lancio accettato, onP2Input
+  const p2Handle = async req => {
+    const res = await api.local.handle(req);
+    if (isP2Input(req, res)) inputEv.emit({ at: Date.now() });
+    return res;
+  };
   async function createHostRoom(body){
     api.mode = 'host'; api.local ||= createLocalRelay({ host: win.location?.host || 'localhost' });
     let res = null, json = null;
@@ -448,7 +460,7 @@ export function installNatpfP2p({ win = globalThis.window, Peer = null, peerOpti
       api.host?.destroy();
       try {
         const P = await getPeer();
-        api.host = createP2pHost({ Peer: P, roomId: json.roomId, handle: api.local.handle, options: options() });
+        api.host = createP2pHost({ Peer: P, roomId: json.roomId, handle: p2Handle, options: options() });
         api.host.onStatus(relayStatus); followRoute(api.host); relayStatus(api.host.state);
         const r = await Promise.race([api.host.ready, new Promise(ok => setTimeout(() => ok({ ok: false, error: 'timeout' }), 8000))]);
         if (r.ok || r.error !== 'unavailable-id') break;

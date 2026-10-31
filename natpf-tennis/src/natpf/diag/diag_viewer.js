@@ -4,7 +4,7 @@
 // l'allineamento della webcam (si vede il gesto e si fa combaciare con il suo colpo). Nessuna risorsa esterna.
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // eventi che vanno nella pagina (gli altri restano in eventi.jsonl): palla solo ogni 4 campioni (~15 al secondo)
-const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'tel.scartato', 'tel.dispositivo', 'webcam.evento', 'webcam.camera', 'webcam.carico', 'video', 'atteso', 'marca', 'avviso', 'sfida.collegamento', 'sfida.colpo', 'sfida.colpo_vecchio', 'sfida.orologio', 'sfida.vista', 'sessione.fine', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.colpo', 'tel.strada', 'tel2.strada', 'sfida.strada']);
+const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'tel.scartato', 'tel.dispositivo', 'webcam.evento', 'webcam.camera', 'webcam.carico', 'video', 'atteso', 'marca', 'avviso', 'sfida.collegamento', 'sfida.colpo', 'sfida.colpo_vecchio', 'sfida.orologio', 'sfida.vista', 'sessione.fine', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.colpo', 'tel.strada', 'tel2.strada', 'sfida.strada', 'popup']);
 // filtro di un evento alla volta (anche nel worker, mentre legge il registro a righe): l'evento, la palla ridotta o null
 export function viewerFilter(){
   let i = 0;
@@ -92,10 +92,11 @@ const desc = e => ({
   'tel.scartato': () => 'telefono: gesto non mandato (' + (e.perche || '?') + ')' + (e.pk != null ? ' · ' + e.pk + ' °/s' : '') + (e.ampiezza != null ? ' · ' + e.ampiezza + '°' : ''),
   'tel.dispositivo': () => 'telefono: ' + (e.ua || '?') + (e.version ? ' · pagina ' + e.version : '') + (e.wakeLock === false ? ' · niente blocco dello schermo' : ''),
   servizio: () => 'servizio ' + (e.chi || '') + ': ' + (e.tipo || '?') + ' · ' + (e.voto || '') + ' · qualità ' + e.qualita + ' · dal colmo ' + e.tauMs + ' ms · ' + (e.kmh ?? '?') + ' km/h',
-  vuoto: () => 'colpo a vuoto: ' + (e.perche || '?') + (e.anticipoMs != null ? ' · ' + e.anticipoMs + ' ms prima del punto d’impatto' : ''),
+  vuoto: () => 'colpo a vuoto' + (e.chi === 'p2' ? ' del Player 2' : '') + ': ' + (e.perche || '?') + (e.anticipoMs != null ? ' · ' + e.anticipoMs + ' ms prima del punto d’impatto' : ''),
   input: () => 'input ' + (e.fonte || '?') + ': ' + e.tipo + ' ' + (e.lato || '') + ' ' + (e.colpo || ''),
   'colpo.gioco': () => e.chi + (e.esito ? ': ' + e.esito : '') + (e.tempo ? ' · ' + e.tempo : '') + (e.qualita ? ' · ' + e.qualita : '') + (e.x != null ? ' · rimbalzo x ' + e.x : '') + (e.direzione ? ' · ' + e.direzione : ''),
-  rimbalzo: () => 'rimbalzo x ' + e.x + ' z ' + e.z + ' (' + (e.da || '') + ')', punto: () => 'punto a ' + e.vince + ' · ' + e.motivo,
+  popup: () => 'a schermo' + (e.chi === 'p2' ? ' (Player 2)' : '') + ': ' + (e.testo || '') + (e.dettaglio ? ' · ' + e.dettaglio : ''),
+  rimbalzo: () => 'rimbalzo x ' + e.x + ' z ' + e.z + ' (' + (e.da || '') + ')', punto: () => 'punto a ' + e.vince + ' · ' + e.motivo + (e['1v1'] ? ' · 1v1' : ''),
   avviso: () => 'avviso: ' + e.testo, marca: () => 'segno: ' + e.testo, atteso: () => 'richiesto: ' + [e.lato, e.colpo, e.direzione].filter(Boolean).join(' '),
   fase: () => 'fase ' + e.a, tentativo: () => 'tentativo: dz ' + e.dz + ' m · correzione ' + e.shift + ' m · ' + (e.colpito ? 'colpita' : 'non colpita'),
   'tel.pausa': () => 'partita in pausa per il telefono' + (e.chi === 'p2' ? ' del Player 2' : '') + ': ' + (e.motivo || '?') + (e.gapMs ? ' · movimento fermo da ' + e.gapMs + ' ms' : '') + (e.sensoriTelefonoMs != null ? ' · sensori sul telefono ' + e.sensoriTelefonoMs + ' ms fa' : ''),
@@ -104,7 +105,8 @@ const desc = e => ({
   'tel2.colpo': () => 'telefono P2: ' + (e.scartato ? 'scartato (' + e.scartato + ')' : (e.lato || '?') + ' / ' + (e.tipo || '?') + ' · mira ' + e.mira + ' (' + (e.fonteMira || '?') + ')'),
   'tel.stato': () => 'telefono: ' + e.collegamento + ' / ' + (e.telefono || '') + (e.visibile === false ? ' · pagina nascosta' : '') + (e.schermo ? ' · schermo ' + e.schermo : ''),
   'sfida.collegamento': () => 'sfida (' + (e.modo || '?') + '): ' + (e.stato || '?') + (e.errore ? ' · ' + e.errore : '') + (e.bloccati ? ' · ' + e.bloccati + ' tentativi bloccati' : '') + (e.dettaglio ? ' · ' + e.dettaglio : ''),
-  'sfida.colpo': () => (e.tipo === 'toss' ? 'lancio' : 'colpo') + ' del Player 2 giocato' + (e.eta != null ? ' · ' + e.eta + ' ms dal gesto' : ' · senza ora') + (e.tempoMs != null ? ' · tempo ' + e.tempoMs + ' ms' : ''),
+  // ricevuto, non per forza giocato: che cosa ne ha fatto il motore è in esito (colpito, in attesa, vuoto, servizio…)
+  'sfida.colpo': () => (e.tipo === 'toss' ? 'lancio' : 'colpo') + ' del Player 2 ricevuto' + (e.esito ? ' · ' + e.esito : '') + (e.eta != null ? ' · ' + e.eta + ' ms dal gesto' : ' · senza ora') + (e.tempoMs != null ? ' · tempo ' + e.tempoMs + ' ms' : ''),
   'sfida.colpo_vecchio': () => (e.tipo === 'toss' ? 'lancio' : 'colpo') + ' del Player 2 non giocato: arrivato ' + e.eta + ' ms dopo il gesto (fase ' + (e.fase || '?') + ')',
   'sfida.orologio': () => 'orologio dell’host: viaggio ' + e.rtt + ' ms · scarto ' + e.offset + ' ms',
   'sfida.vista': () => 'vista del P2: ' + e.snapshot + ' aggiornamenti · età ' + (e.etaMediaMs ?? '?') + ' ms (max ' + (e.etaMaxMs ?? '?') + ') · correzione palla ' + e.correzioneMediaCm + ' cm (max ' + e.correzioneMaxCm + ') · salti ' + e.salti + (e.blocchi != null ? ' · previsione tenuta ' + e.blocchi : ''),
