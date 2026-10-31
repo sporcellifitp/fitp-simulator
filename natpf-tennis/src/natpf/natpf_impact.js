@@ -9,12 +9,14 @@
 //     preparazione). All'arrivo della palla: dentro la finestra si colpisce, prima della finestra è un colpo a vuoto.
 //     Dopo il punto d'impatto si colpisce ancora per poco (in ritardo). Un gesto debole rispetto ai propri colpi (WEAK)
 //     in anticipo non colpisce da solo: si aspetta per poco il colpo vero, che può arrivare anche dopo il punto d'impatto.
+//     Con un gesto morbido in attesa (SOFT) o un colpo a vuoto, all'arrivo della palla si aspettano ancora 65 ms: il colpo
+//     vero arriva al computer 30–45 ms dopo il suo picco e prende il posto di quello in attesa.
 //   • Dopo il colpo si torna verso il fondo se si fa in tempo prima del colpo dell'avversario; a rete si resta solo
 //     quando una palla corta ha portato lì e non c'è il tempo di tornare. Avanti si va per prendere una palla che lo
 //     chiede (corta, o al volo quando aspettare il rimbalzo costerebbe troppa strada). Prima chi colpiva da dentro il
 //     campo andava e restava a rete (56–89% dei colpi nelle partite simulate), anche senza che la palla lo chiedesse.
 import { bounceSpin, eventLatency, holdSwingPrep, COURT, moveFactor } from './natpf_skill.js';
-import { IMPACT, impactWindow, lateSpanOf } from './natpf_stroke_outcome.js';
+import { IMPACT, impactWindow, lateSpanOf, directionSpan, slowFactor } from './natpf_stroke_outcome.js';
 import { skillLevel } from './natpf_skill.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -258,8 +260,35 @@ export function webcamGate(engine, hand = handOf(engine, engine?.localActor)){
 // sono deboli.
 export const WEAK = Object.freeze({ rel: .3, early: .08, wait: .22, serveWait: .3, ample: 25 });
 export const KEEP = Object.freeze({ conf: .5, within: .45 });
+// Servizio battuto da un gesto intermedio (diagnostica 20261030-142438 n. 101/102): un gesto da 732 °/s (0,68 del colpo
+// tipico, 1082) 368 ms prima del colmo batteva subito, e la battuta vera (1022 °/s, 25 ms prima del colmo) arrivava dopo
+// ed era scartata. Ora anche un gesto sotto «rel» del colpo tipico fatto prima del colmo aspetta la battuta vera, come
+// quello debole (fino a WEAK.serveWait dopo il colmo; se non arriva vale lui, con il suo tempo); uno più forte lo
+// sostituisce. Nelle due sessioni le battute vere erano tutte oltre 0,9 del colpo tipico
+export const SERVE_MID = Object.freeze({ rel: .75 });
+export function serveMidSwing(e = {}, tau = 0){
+  if (!(finite(tau) > 0) || weakSwing(e)) return false;
+  const peak = finite(e.natpf?.peak, NaN), typ = finite(e.natpf?.typical, NaN);
+  return Number.isFinite(peak) && Number.isFinite(typ) && typ > 0 && peak < SERVE_MID.rel*typ;
+}
+// forza di un gesto per il confronto tra due gesti (picco del telefono, °/s; altrimenti dalla velocità del motore)
+export const swingStrength = (e = {}) => finite(e.natpf?.peak, NaN) || finite(e.speed, 1)*600;
 // palla corta o pallonetto confermati dalla forma del colpo (natpf_stroke_intent.js)
 export const deliberateSpecial = (e = {}, conf = .15) => ['drop', 'lob'].includes(e.natpf?.intent?.shot) && finite(e.natpf.intent.conf) >= conf && finite(e.natpf.angle) >= 15;
+// Gesto morbido in attesa all'arrivo della palla (diagnostica 20261030-142317, 3 colpi su 13): una palla corta o un gesto
+// lento fatto prima del colpo (la preparazione con la forma di una palla corta, 369 °/s con confidenza 1; un top spin
+// da 478 °/s) era giocato all'arrivo della palla, e il colpo vero (1335–1394 °/s, quasi perfetto) arrivava al computer
+// 13–32 ms dopo: scartato come «palla che si allontana», o mostrato dopo un «VERY EARLY • WHIFF». Ora con un gesto
+// morbido (sotto rel del colpo tipico, o palla corta e pallonetto della forma: deliberateSpecial) e con ogni colpo a vuoto
+// in anticipo la decisione aspetta «wait» secondi dopo l'arrivo della palla: uno swing almeno «replace» volte più forte
+// arrivato intanto (queueUserSwing, in ritardo) prende il posto di quello in attesa; se non arriva niente si gioca quello
+// in attesa con il suo tempo vero (il voto non cambia, la palla parte «wait» più tardi).
+export const SOFT = Object.freeze({ rel: .5, wait: .065, replace: 1.15 });
+export function softSwing(e = {}){
+  if (deliberateSpecial(e)) return true;
+  const peak = finite(e.natpf?.peak, NaN), typ = finite(e.natpf?.typical, NaN);
+  return Number.isFinite(peak) && Number.isFinite(typ) && typ > 0 && peak < SOFT.rel*typ;
+}
 export function weakSwing(e = {}){
   // Palla corta e pallonetto confermati dalla forma sono volutamente lenti, non una preparazione da scartare (28/10 sera:
   // a rete un pallonetto da 356 °/s, 0,1 s dopo il punto d'impatto, era ignorato come il rientro della mano)
@@ -276,16 +305,21 @@ export function queueUserSwing(engine, e, actor){
   if (ttc == null) return null;
   const lat = eventLatency(e), lead = ttc + lat, now = finite(engine.elapsedTime);
   const lateSpan = lateSpanOf(engine.ball.vel.z, skillLevel(engine.matchConfig?.difficulty));
-  const strength = finite(e.natpf?.peak, NaN) || finite(e.speed, 1)*600, weak = weakSwing(e);
+  const strength = swingStrength(e), weak = weakSwing(e);
   if (ttc < 0){
     if (weak) return 'ignored';
+    // decisione rinviata su un gesto morbido in attesa (SOFT): lo sostituisce solo uno swing chiaramente più forte; la
+    // palla corta o il pallonetto voluti e fatti in tempo restano anche qui (KEEP: il braccio che torna dall'altra parte).
+    // Al posto di un colpo a vuoto in anticipo va bene ogni swing che prende la palla
+    const cur = engine.pendingUserSwing, deferred = !!cur?.natpfWindow && cur.softDefer;
+    if (deferred && cur.lead <= W.early && !cur.weak && (strength < cur.strength*SOFT.replace || keepsSpecial(engine, cur, e, now))) return 'ignored';
     const b = engine.ball, toward = Math.sign(actor.pos.z) || 1, behind = (b.pos.z - (actor.pos.z - toward*IMPACT.contactAhead))*toward;
     const extra = W.lateExtra || IMPACT.lateExtra;
     if (lead >= -lateSpan*extra && behind <= IMPACT.lateBehind*extra + .2 && Math.abs(b.pos.x - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4){
       engine.pendingUserSwing = null;
       return engine._attemptPlayerRallyStrike({ ...e, natpfTau: lead, natpfLateSpan: lateSpan }, !1) ? 'late' : 'whiff';
     }
-    return 'whiff';
+    return deferred ? 'ignored' : 'whiff';
   }
   const lateWin = lateSpan*(W.lateExtra || IMPACT.lateExtra);
   const cand = { evt: { ...e, natpfTau: lead, natpfLateSpan: lateSpan }, lead, strength, weak, lateWin, actor, at: now, prep: !0, waitForSweetSpot: !0, natpfWindow: !0, expiresAt: now + ttc + lateWin + .12 };
@@ -300,6 +334,14 @@ export function queueUserSwing(engine, e, actor){
   if (better && cur?.natpfWindow && deliberateSpecial(cur.evt, KEEP.conf) && cur.evt.side && e.side && e.side !== cur.evt.side && now - cur.at < KEEP.within) better = false;
   if (better){ engine.pendingUserSwing = cand; holdSwingPrep(actor, e.side, ttc); }
   return 'held';
+}
+// Durante il rinvio (SOFT) la regola KEEP vale solo per la palla corta o il pallonetto fatti in tempo (entro la finestra
+// della direzione): fatti molto prima (142317 n. 81: palla corta 233 ms prima, confidenza 1) erano la preparazione, e il
+// colpo forte dall'altra parte, quasi perfetto, è il colpo vero
+function keepsSpecial(engine, cur, e, now){
+  if (!deliberateSpecial(cur.evt, KEEP.conf) || !cur.evt.side || !e.side || e.side === cur.evt.side || now - cur.at >= KEEP.within) return false;
+  const span = directionSpan(skillLevel(engine.matchConfig?.difficulty))*slowFactor(engine.ball?.vel?.z);
+  return cur.lead <= span;
 }
 
 // A ogni passo, con la palla che arriva: lo swing in attesa si gioca quando la palla raggiunge il punto d'impatto.
@@ -319,9 +361,13 @@ export function resolvePending(engine, actor){
     return true;
   }
   if (arrived){
-    engine.pendingUserSwing = null;
     // palla che va fuori: lo swing non la tocca (il punto è di chi gioca)
-    if (livePlan(engine, actor)?.kind === 'letgo') return true;
+    if (livePlan(engine, actor)?.kind === 'letgo'){ engine.pendingUserSwing = null; return true; }
+    // gesto morbido o colpo a vuoto in anticipo: si aspetta SOFT.wait il colpo vero, che può arrivare al computer poco
+    // dopo l'arrivo della palla (queueUserSwing lo gioca in ritardo al posto di questo)
+    if (ps.deferUntil == null && (ps.lead > W.early || softSwing(ps.evt))){ ps.deferUntil = now + SOFT.wait; ps.softDefer = true; return false; }
+    if (ps.softDefer && now < ps.deferUntil) return false;
+    engine.pendingUserSwing = null;
     if (ps.lead > W.early){ engine._natpfEarlyWhiff?.(ps); return true; }
     if (Math.abs(b.pos.x - actor.pos.x) > IMPACT.reach || b.pos.y >= 3.4){ engine._natpfEarlyWhiff?.({ ...ps, natpfWhy: 'portata' }); return true; }
     engine._attemptPlayerRallyStrike(ps.evt, !1);
