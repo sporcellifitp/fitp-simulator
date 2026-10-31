@@ -543,9 +543,11 @@ export class DiagRecorder {
     const track = stream.getVideoTracks?.()[0], set = track?.getSettings?.() || {};
     const v = { kind, info: { file: name, mime, w: set.width ?? null, h: set.height ?? null, fps: set.frameRate ?? null, byte: 0 }, chain: Promise.resolve() };
     const sid = this.id;                                     // la parte a cui appartiene (anche per gli ultimi pezzi)
-    let startT = null, resolveDone;
+    // asked: subito prima di rec.start(). onstart arriva dopo il primo fotogramma registrato (C8: 176–388 ms dopo nelle
+    // sessioni del 30/10); il visore usa fine − durata del file, poi asked (diag_viewer.videoStart)
+    let startT = null, asked = null, resolveDone;
     v.done = new Promise(res => { resolveDone = res; });
-    rec.onstart = () => { startT = this.now(); this.log('video', { file: name, stato: 'inizio', mime, w: v.info.w, h: v.info.h, fps: v.info.fps }); };
+    rec.onstart = () => { startT = this.now(); this.log('video', { file: name, stato: 'inizio', richiesto: asked, mime, w: v.info.w, h: v.info.h, fps: v.info.fps }); };
     rec.ondataavailable = e => {
       if (!e.data?.size) return;
       const blob = e.data;
@@ -558,6 +560,7 @@ export class DiagRecorder {
     };
     rec.onerror = e => this.warn('video-' + kind, `video ${kind}: errore del registratore (${e?.error?.name || 'sconosciuto'})`);
     v.stop = () => { v.stopped = true; try { if (rec.state !== 'inactive') rec.stop(); else resolveDone(); } catch { resolveDone(); } };
+    asked = this.t;
     rec.start(1000);
     this.videos.push(v);
   }

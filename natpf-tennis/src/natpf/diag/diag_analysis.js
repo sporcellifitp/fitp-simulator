@@ -15,7 +15,7 @@ export function createAnalysis({ viewer = false } = {}){
       if (METRIC_KINDS.has(e.k)) events.push(e);
       if (view){ const v = keep(e); if (v) view.push(v); }
     },
-    raw(s){ if (s && typeof s === 'object') raw.push({ k: s.k, q: s.q }); },
+    raw(s){ if (s && typeof s === 'object') raw.push({ t: s.t, k: s.k, q: s.q }); },   // t: arrivo sul computer (buchi della sessione, C8)
     result(meta = {}){
       const metrics = computeMetrics(events, { raw, meta, eventi: total, spanMs: first != null ? last - first : 0 });
       return { metrics, eventsJson: view ? JSON.stringify(view) : null };
