@@ -45,6 +45,7 @@ export function installNatpfArena(engine, { quality = 1 } = {}){
 
   const arena = buildArena(scene, { quality, anisotropy: engine.renderer?.capabilities?.getMaxAnisotropy?.() || 8 });
   let lastScore = '', lastSpeed = null, practice = false, viewer = 1;
+  arena.setSpeed?.(null);
   const look = L => {
     scene.background = new THREE.Color(L.background); scene.fog = new THREE.Fog(...L.fog);
     if (hemi){ hemi.color.setHex(L.hemi.sky); hemi.groundColor.setHex(L.hemi.ground); hemi.intensity = L.hemi.intensity*CHARACTER_LIFT.hemi; }
@@ -71,6 +72,9 @@ export function installNatpfArena(engine, { quality = 1 } = {}){
     },
     // punteggio sui tabelloni in italiano: «0-15», «PARITÀ», «VANT.»
     setScore(text){ if (practice) return; const t = scoreText(text, { short: true }).slice(0, 7); if (t !== lastScore){ lastScore = t; arena.setScore(t); } },
-    setSpeed(kmh){ if (Number.isFinite(kmh) && kmh !== lastSpeed){ lastSpeed = kmh; arena.setSpeed(kmh); } },
+    // velocità dell'ultimo servizio; null: nessun servizio ancora (inizio partita), «---» (diagnostica del 30/10, C21)
+    setSpeed(kmh){ kmh = Number.isFinite(kmh) ? kmh : null; if (kmh !== lastSpeed){ lastSpeed = kmh; arena.setSpeed(kmh); } },
+    get lastScore(){ return lastScore; },
+    get lastSpeed(){ return lastSpeed; },
   };
 }

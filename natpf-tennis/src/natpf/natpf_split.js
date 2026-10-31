@@ -5,6 +5,7 @@
 // i colpi del P2 arrivano dal secondo telefono (natpf_phone_racket.js con role 'p2') come quelli del P2 in rete.
 // Qui: geometria delle due metà, camera di ciascuna metà (adattata a viste strette e alte) e disegno con lo scissor.
 import * as THREE from 'three';
+import { deepCamShift } from './natpf_camera_depth.js';
 
 // fasi in cui si vede la partita divisa in due; menu, moviola e fine partita restano a schermo intero
 export const SPLIT_PHASES = Object.freeze(['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER']);
@@ -24,17 +25,19 @@ export function splitViewports(w, h, { gap = Math.max(2, Math.round(w*.004)) } =
 // del motore base; più la metà è stretta e alta (16:9 diviso in due: 8:9; ledwall 2×2: 1:2) più la camera si allarga
 // (fino a 58°), arretra quanto serve per vedere tutto il singolare di lato e sale, così il campo riempie l'altezza;
 // lo sguardo va un po' oltre la rete, così il campo sta al centro della metà (meno tribune sopra, meno pavimento sotto).
-export function splitCameraPose({ side = 1, actorX = 0, ballX = 0, aspect = 1 } = {}){
+// actorZ: con chi gioca oltre ~12,5 m dal fondo la camera arretra e guarda più giù come quella a schermo intero (C16)
+export function splitCameraPose({ side = 1, actorX = 0, actorZ = 0, ballX = 0, aspect = 1 } = {}){
   const C = SPLIT_CAM, tall = clamp((1.2 - aspect)/.7, 0, 1);
   const fov = C.fov + C.tallFov*tall;
   const tanH = Math.tan(fov*Math.PI/360)*aspect;
   const back = Math.max(C.back, C.halfWidth/tanH);                  // dal fondo campo alla camera
   const elevation = (C.elevation + C.tallElevation*tall)*Math.PI/180;
   const height = Math.tan(elevation)*(C.baseline + back - C.lookZ);
+  const deep = deepCamShift(actorZ*side);
   return {
     fov,
-    pos: [actorX*.16, height, side*(C.baseline + back)],
-    look: [ballX*.12, C.lookY, side*(C.lookZ - C.tallLook*tall)],
+    pos: [actorX*.16, height, side*(C.baseline + back + deep.back)],
+    look: [ballX*.12, C.lookY, side*(C.lookZ - C.tallLook*tall + deep.look)],
   };
 }
 
@@ -56,7 +59,7 @@ export class NatpfSplit {
   }
   // camera di una metà, con lo stesso inseguimento morbido della camera del motore
   _pose(cam, side, actor, v, dt, snap){
-    const E = this.e, aspect = v.w/v.h, p = splitCameraPose({ side, actorX: actor.pos.x, ballX: E.ball?.pos?.x || 0, aspect });
+    const E = this.e, aspect = v.w/v.h, p = splitCameraPose({ side, actorX: actor.pos.x, actorZ: actor.pos.z, ballX: E.ball?.pos?.x || 0, aspect });
     const s = this.smooth[side] || (this.smooth[side] = { pos: new THREE.Vector3(...p.pos), look: new THREE.Vector3(...p.look) });
     const k = snap ? 1 : 1 - Math.exp(-SPLIT_CAM.follow*dt);
     s.pos.lerp(new THREE.Vector3(...p.pos), k); s.look.lerp(new THREE.Vector3(...p.look), k);

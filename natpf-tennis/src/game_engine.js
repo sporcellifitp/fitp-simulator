@@ -42,6 +42,7 @@ import { VERSUS, MATCH_PHASES, seqGate } from "./natpf/natpf_versus.js";
 import * as GV from "./natpf/natpf_guest_view.js";
 import { NatpfSplit } from "./natpf/natpf_split.js";
 import { viewport } from "./natpf/natpf_screen.js";
+import { deepCamShift, actorDepth } from "./natpf/natpf_camera_depth.js";
 const VERSUS_ROOM_KEY = "natpf.versus.room";
 const readStoredView = () => {
   try {
@@ -1173,6 +1174,7 @@ export class NatpfTennisEngine {
   }
   startNewMatch({ showStartBanner: e = !0 } = {}) {
     NL.resetLegend(this); // NATPF Leggenda: il modello dell'avversario riparte da zero a ogni partita
+    this.natpfArena.setSpeed(null); // NATPF: velocità «---» fino al primo servizio (C21: restava quella della partita prima)
     this.natpfRhythm = null; // NATPF: il ritmo di chi gioca (direzione) si reimpara a ogni partita
     (this.score.playerPoints = 0),
       (this.score.opponentPoints = 0),
@@ -3438,8 +3440,14 @@ export class NatpfTennisEngine {
   _syncScoreboardHUD() {
     const e = this._formatCurrentScore();
     this.natpfUi && this.natpfUi.onScore && this.natpfUi.onScore(this.score, this.matchConfig.gamesToWin);
-    // NATPF: punteggio del game anche sui segnapunti arancioni dell'arena
-    this.natpfArena.setScore(e.deuceLabel || `${e.playerScoreText}-${e.opponentScoreText}`);
+    // NATPF: punteggio del game anche sui segnapunti arancioni dell'arena, prima quello di chi serve come nel tennis
+    // (diagnostica del 30/10, C21: era sempre prima quello dell'host, «15-0» nel game servito dal P2 sotto 0-15)
+    this.natpfArena.setScore(
+      e.deuceLabel ||
+        (this.score.server === "opponent"
+          ? `${e.opponentScoreText}-${e.playerScoreText}`
+          : `${e.playerScoreText}-${e.opponentScoreText}`),
+    );
     this.hud.updateScoreboard({
       playerScoreText: e.playerScoreText,
       opponentScoreText: e.opponentScoreText,
@@ -3634,14 +3642,19 @@ export class NatpfTennisEngine {
         const a = this.player.pos.x;
         t.set(a * 0.16, 7.8, 22.8), i.set(a * 0.08, 0.35, 1.8);
       }
-    else
-      e === "REPLAY_CAM"
-        ? this.natpfReplay?.playing
-          ? ((NR.c = this.natpfReplay.camera()), t.set(...NR.c.pos), i.set(...NR.c.look)) // NATPF moviola: di lato, segue la palla
-          : (t.set(2.35, 1.48, 4.15), i.set(-1.45, 0.95, -1.35))
-        : this.playerRole === "p2"
-          ? (t.set(this.opponent.pos.x * 0.16, 7.8, -22.8), i.set(this.ball.pos.x * 0.12, 0.35, -1.8))
-          : (t.set(this.player.pos.x * 0.16, 7.8, 22.8), i.set(this.ball.pos.x * 0.12, 0.35, 1.8));
+    else if (e === "REPLAY_CAM")
+      this.natpfReplay?.playing
+        ? ((NR.c = this.natpfReplay.camera()), t.set(...NR.c.pos), i.set(...NR.c.look)) // NATPF moviola: di lato, segue la palla
+        : (t.set(2.35, 1.48, 4.15), i.set(-1.45, 0.95, -1.35));
+    else {
+      // camera di gioco dietro chi gioca qui (P2: dall'altra metà). NATPF (diagnostica del 30/10, C16): chi gioca oltre
+      // ~12,5 m dalla rete, la camera arretra un poco e lo sguardo scende verso di lui, in modo morbido (natpf_camera_depth.js)
+      const p2 = this.playerRole === "p2",
+        a = p2 ? this.opponent : this.player,
+        side = p2 ? -1 : 1,
+        d = deepCamShift(actorDepth(a, side));
+      t.set(a.pos.x * 0.16, 7.8, side * (22.8 + d.back)), i.set(this.ball.pos.x * 0.12, 0.35, side * (1.8 + d.look));
+    }
     return { targetPos: t, targetLook: i };
   }
   _snapCameraImmediate() {
