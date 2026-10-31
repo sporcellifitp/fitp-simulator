@@ -111,7 +111,7 @@ function webcamStates(changes, pauses){
 }
 // tipi di evento che le metriche leggono: l'analisi a righe (diag_analysis.js) tiene in memoria solo questi
 export const METRIC_KINDS = new Set(['tel.colpo', 'tel.orologio', 'tel.stato', 'tel.link', 'tel.scartato', 'tel.prep', 'tel.dispositivo', 'webcam.frame', 'webcam.evento', 'webcam.camera', 'webcam.ritmo', 'webcam.carico', 'webcam.stato', 'webcam.modello', 'webcam.riapertura', 'webcam.pausa', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.link', 'tel2.colpo', 'prestazioni',
-  'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'punto', 'rimbalzo', 'tentativo', 'atteso', 'avviso', 'video', 'marca']);
+  'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'punto', 'rimbalzo', 'tentativo', 'atteso', 'avviso', 'video', 'marca', 'sfida.colpo', 'sfida.colpo_vecchio', 'popup']);
 // ms dal rimbalzo della palla dell'avversario al colpo di chi gioca qui (evento racchetta entro 1,5 s, prima di un altro
 // rimbalzo o di un punto)
 function bounceToContact(events){
@@ -245,7 +245,7 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
   }
 
   // ---- racchetta virtuale: intenzione dal gesto, esito senza caso, ripetibilità (docs/NATPF_RACCHETTA_VIRTUALE.md) ----
-  const rk = by('racchetta').filter(x => x.chi === 'player'), vuoti = by('vuoto'), piani = by('piano').filter(p => p.chi === 'giocatore');
+  const rk = by('racchetta').filter(x => x.chi === 'player'), vuoti = by('vuoto').filter(v => v.chi !== 'p2'), piani = by('piano').filter(p => p.chi === 'giocatore');
   const serv = by('servizio').filter(x => x.chi === 'giocatore'), forme = by('tel.colpo').filter(c => !c.scartato && c.forma);
   if (rk.length || vuoti.length || piani.length || serv.length || forme.length){
     // esito di ogni colpo della racchetta (evento «racchetta»); la variazione tra colpi uguali è in «ripetibilita»
@@ -264,6 +264,20 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
       contattoAltezzaCm: dist(piani.filter(p => p.tipo === 'ground' && Array.isArray(p.contatto)).map(p => 100*p.contatto[1])),
       rimbalzoContattoMs: dist(bounceToContact(events)),
       servizi: serv.length ? { n: serv.length, tipi: tally(serv, x => x.tipo), voti: tally(serv, x => x.voto), qualitaPercento: dist(serv.map(x => (Number.isFinite(x.qualita) ? 100*x.qualita : null))), dalColmoMs: dist(serv.map(x => x.tauMs)) } : null,
+    };
+  }
+
+  // ---- Player 2 del 1v1 (tra due computer o sullo stesso schermo): colpi ricevuti dall'host e che cosa ne è stato,
+  // esiti della racchetta, colpi a vuoto, servizi dal gesto (diagnostica 142438, C11: prima il P2 non aveva una sezione)
+  const rk2 = by('racchetta').filter(x => x.chi === 'p2'), vuoti2 = by('vuoto').filter(v => v.chi === 'p2'), serv2 = by('servizio').filter(x => x.chi === 'p2');
+  const ric2 = by('sfida.colpo'), vecchi2 = by('sfida.colpo_vecchio'), piani2 = by('piano').filter(p => p.chi === 'p2');
+  if (rk2.length || vuoti2.length || serv2.length || ric2.length || vecchi2.length){
+    out.p2 = {
+      ricevuti: ric2.length, esitiRicevuti: tally(ric2, x => x.esito || '?'), etaMs: dist(ric2.map(x => x.eta)), vecchi: vecchi2.length,
+      colpi: rk2.length, voluti: tally(rk2, x => x.voluto), esiti: tally(rk2, x => x.colpo), falliti: tally(rk2.filter(x => x.fallito), x => (x.rete ? 'rete' : 'lungo')),
+      tempoMs: dist(rk2.map(x => x.tempoMs)), oltreLaFinestraPercento: rk2.length ? r1(100*count(rk2, x => x.oltre > 0)/rk2.length) : null,
+      vuoti: tally(vuoti2, v => v.perche), piani: tally(piani2, p => p.tipo),
+      servizi: serv2.length ? { n: serv2.length, tipi: tally(serv2, x => x.tipo), voti: tally(serv2, x => x.voto), dalColmoMs: dist(serv2.map(x => x.tauMs)) } : null,
     };
   }
 
@@ -428,6 +442,8 @@ export function summaryLines(m = {}){
   if (KR && Object.keys(KR.vuoti || {}).length) L.push(`Colpi a vuoto: ${list(KR.vuoti)}`);
   if (KR?.contattoAltezzaCm?.n || KR?.rimbalzoContattoMs?.n) L.push(`Impatto dopo il rimbalzo: altezza della palla mediana ${KR.contattoAltezzaCm?.p50 ?? '–'} cm · dal rimbalzo al colpo mediana ${KR.rimbalzoContattoMs?.p50 ?? '–'} ms`);
   if (KR?.servizi) L.push(`Servizi dal gesto: ${KR.servizi.n} · ${list(KR.servizi.voti)}`);
+  const P2 = m.p2;
+  if (P2) L.push(`Player 2: ${P2.ricevuti} colpi ricevuti${Object.keys(P2.esitiRicevuti || {}).length ? ' (' + list(P2.esitiRicevuti) + ')' : ''}${P2.etaMs?.n ? ` · età mediana ${P2.etaMs.p50} ms` : ''}${P2.vecchi ? ` · troppo vecchi ${P2.vecchi}` : ''} · ${P2.colpi} colpi della racchetta${P2.tempoMs?.n ? `, tempo mediana ${P2.tempoMs.p50} ms` : ''}${Object.keys(P2.vuoti || {}).length ? ' · a vuoto: ' + list(P2.vuoti) : ''}${P2.servizi ? ` · servizi dal gesto ${P2.servizi.n} (${list(P2.servizi.voti)})` : ''}`);
   if (m.pauseTelefono) L.push(`Partita in pausa per il telefono: ${Object.entries(m.pauseTelefono).map(([k, n]) => `${k} ${n}`).join(', ')}`);
   if (m.segni?.length) L.push(`Segni «qui è successo un problema»: ${m.segni.length} (${m.segni.slice(0, 8).map(x => `${(x.t/1000).toFixed(1)} s`).join(', ')}${m.segni.length > 8 ? ', …' : ''})`);
   const av = m.registrazione?.avvisi || {};

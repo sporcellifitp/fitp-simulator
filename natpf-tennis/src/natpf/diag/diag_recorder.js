@@ -17,7 +17,7 @@
 // webcam.camera, webcam.ritmo, webcam.carico, webcam.stato, webcam.modello, webcam.riapertura, webcam.pausa, webcam.ripresa, tel.pausa, tel.ripresa,
 // prestazioni, video, video.frame, sfida.collegamento, sfida.colpo, sfida.colpo_vecchio, sfida.orologio (natpf_versus_ui.js),
 // sfida.vista (natpf_guest_view.js), tel.strada, tel2.strada, sfida.strada,
-// atteso, marca, avviso.
+// atteso, marca, avviso, popup (messaggio del colpo a schermo).
 import { latencyShift, eventLatency, swingTiming } from '../natpf_skill.js';
 import { shotDirection } from './diag_metrics.js';
 import { NATPF_BUILD } from '@natpf/tennis/version.js';
@@ -220,7 +220,9 @@ export class DiagRecorder {
     wrap('_spawnBounceRing', function(orig, x, z){ R.log('rimbalzo', { x: r(x), z: r(z), da: E.ball?.lastHitter || null, n: E.ball?.bounceCountOnCurrentSide ?? null }); return orig(x, z); });
     wrap('_awardPoint', function(orig, winner, why = ''){
       const out = orig(winner, why);
-      R.log('punto', { vince: winner, motivo: String(why || ''), punteggio: [E.score?.playerPoints, E.score?.opponentPoints, E.score?.playerGames, E.score?.opponentGames], allenamento: !!R.ui?.training?.active, sfida: !!R.ui?.events?.active });
+      R.log('punto', { vince: winner, motivo: String(why || ''), punteggio: [E.score?.playerPoints, E.score?.opponentPoints, E.score?.playerGames, E.score?.opponentGames], allenamento: !!R.ui?.training?.active, sfida: !!R.ui?.events?.active,
+        // partita tra due persone (sfida tra due computer o stesso schermo); «sfida» è la modalità eventi (minigiochi)
+        '1v1': !!(E.versus?.active || E.isMultiplayer) });
       return out;
     });
     // tentativo di colpo del giocatore: distanza palla–giocatore lungo il campo al momento dello swing (prima della
@@ -266,18 +268,30 @@ export class DiagRecorder {
     wrap('_natpfPlanOpponent', function(orig, ...a){ const out = orig(...a); if (E.isMultiplayer && !E.isDoubles) plan('p2', E.natpfPlanP2); return out; });
     wrap('_executeServeHit', function(orig, a, ...rest){
       const before = E.natpfLastServe, out = orig(a, ...rest), S = E.natpfLastServe;
-      if (S && S !== before) R.log('servizio', { chi: a === E.player ? 'giocatore' : E.isMultiplayer ? 'p2' : 'cpu', tipo: S.kind || null, qualita: r(S.q, 3), ritmo: r(S.pace, 3), tauMs: r(1000*S.tau, 1), x: r(S.x), profondita: r(S.depth), kmh: S.kmh ?? null, voto: S.grade || null });
+      if (S && S !== before) R.log('servizio', { chi: a === E.player ? 'giocatore' : E.isMultiplayer || E.versus?.active ? 'p2' : 'cpu', tipo: S.kind || null, qualita: r(S.q, 3), ritmo: r(S.pace, 3), tauMs: r(1000*S.tau, 1), x: r(S.x), profondita: r(S.depth), kmh: S.kmh ?? null, voto: S.grade || null });
       return out;
     });
+    // chi: di chi è lo swing a vuoto (anche il Player 2 del 1v1, natpf_impact per attore); n: numero del colpo del telefono
+    const chiDi = ps => (ps?.actor && (ps.actor === E.opponent || ps.actor === E.opponentPartner) ? 'p2' : 'giocatore');
     wrap('_natpfEarlyWhiff', function(orig, ps = {}){
-      R.log('vuoto', { perche: ps.natpfWhy || 'presto', anticipoMs: r(1000*ps.lead, 1), forza: r(ps.strength, 0) });
+      R.log('vuoto', { chi: chiDi(ps), perche: ps.natpfWhy || 'presto', anticipoMs: r(1000*ps.lead, 1), forza: r(ps.strength, 0), n: ps.evt?.natpf?.seq ?? null });
       return orig(ps);
     });
     // gesto debole in anticipo che non ha colpito (natpf_impact.WEAK): nessuno swing a schermo, solo qui
     wrap('_natpfWeakDropped', function(orig, ps = {}){
-      R.log('vuoto', { perche: 'debole', anticipoMs: r(1000*ps.lead, 1), forza: r(ps.strength, 0), n: ps.evt?.natpf?.seq ?? null });
+      R.log('vuoto', { chi: chiDi(ps), perche: 'debole', anticipoMs: r(1000*ps.lead, 1), forza: r(ps.strength, 0), n: ps.evt?.natpf?.seq ?? null });
       return orig(ps);
     });
+    // messaggi del colpo a schermo (esito, swing a vuoto, servizio), di chi gioca qui e del Player 2: prima non erano nel
+    // registro e il video registra solo la tela 3D (diagnostica 142438, C11)
+    const hud = E.hud;
+    if (hud && typeof hud.showTimingPopup === 'function'){
+      const pop = hud.showTimingPopup;
+      hud.showTimingPopup = function(o = {}, ...a){
+        if (R.active){ const g = String(o?.grade || ''); R.log('popup', { chi: /^P2\b/.test(g) ? 'p2' : 'giocatore', testo: g.slice(0, 80), dettaglio: String(o?.detail || '').slice(0, 80) || null }); }
+        return pop.call(this, o, ...a);
+      };
+    }
     const mc = E.motionController;
     if (mc?.on){
       const inp = tipo => s => {
@@ -438,7 +452,8 @@ export class DiagRecorder {
     if (b.inPlay || BALL_PHASES.has(E.phase)) this.log('palla', { p: vec(b.pos), v: vec(b.vel, 1), in: !!b.inPlay, da: b.lastHitter || null });
     if (b.lastHitter !== this.lastHitter){
       const who = b.lastHitter;
-      if (who && who !== 'player') this.log('colpo.gioco', { chi: who === 'opponent' ? 'cpu' : who, x: r(b.pos.x), z: r(b.pos.z), y: r(b.pos.y), tipo: b.shotType || null, verso: vec(b.targetLanding) });
+      // nel 1v1 l'avversario è il Player 2, non la CPU (prima sempre «cpu»)
+      if (who && who !== 'player') this.log('colpo.gioco', { chi: who === 'opponent' ? (E.isMultiplayer || E.versus?.active ? 'p2' : 'cpu') : who, x: r(b.pos.x), z: r(b.pos.z), y: r(b.pos.y), tipo: b.shotType || null, verso: vec(b.targetLanding) });
       this.lastHitter = who;
     }
   }

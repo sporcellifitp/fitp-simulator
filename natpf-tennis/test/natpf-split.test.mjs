@@ -52,11 +52,13 @@ test('secondo telefono: lancio e servizio del P2 arrivano all’avversario (non 
   E.phase = 'SERVE_STANCE'; E.score.server = 'opponent';
   P2._onToss();
   assert.equal(E.phase, 'SERVE_TOSS', 'il P2 lancia la palla');
-  // colpo verso il punto più alto del lancio (il motore ignora un gesto nei primi 0,16 s): servizio del P2
-  let t = 0; while (E.phaseTimer < 0.3 && t++ < 400) E.update(1/120);
+  // colpo verso il punto più alto del lancio: servizio del P2 dal gesto, con le regole del P1 (un gesto nella salita, oltre
+  // NO.SERVE.ignoreBefore prima del colmo, fa ancora parte del lancio). Prima a 0,3 s: il P2 batteva con qualunque gesto
+  let t = 0; while (E.phaseTimer < 0.55 && t++ < 400) E.update(1/120);
   P2._onSwing({ dir: 1, power: .9, peak: 700, at: performance.now()/1000 - .03 });
   for (let i = 0; i < 60 && E.phase === 'SERVE_TOSS'; i++) E.update(1/60);
   assert.equal(E.phase, 'RALLY'); assert.equal(E.ball.lastHitter, 'opponent', 'ha servito il P2');
+  assert.ok(E.natpfLastServe && Number.isFinite(E.natpfLastServe.tau), 'servizio dal gesto (natpfLastServe)');
 });
 
 test('secondo telefono: riceve solo i propri esiti', async () => {

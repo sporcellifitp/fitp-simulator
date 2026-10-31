@@ -3,7 +3,7 @@
 // a _attemptP2RallyStrike. Niente rete: canali e Peer finti in memoria.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createLocalRelay, createRpcClient, serveRpc, createP2pHost, createP2pGuest, installNatpfP2p, peerIdForRoom, isRelayPath, remoteAllowed, serverHasMatchApi, p2pRequested, candidateType, iceSummary, iceBlocked, watchIce, compactMatchState, chunkText, resumeIdFor, COMPACT_SWINGS, OPEN_MAX_MS } from '../src/natpf/natpf_p2p.js';
+import { createLocalRelay, createRpcClient, serveRpc, createP2pHost, createP2pGuest, installNatpfP2p, peerIdForRoom, isRelayPath, remoteAllowed, serverHasMatchApi, p2pRequested, candidateType, iceSummary, iceBlocked, watchIce, compactMatchState, chunkText, resumeIdFor, COMPACT_SWINGS, OPEN_MAX_MS, isP2Input } from '../src/natpf/natpf_p2p.js';
 import { natpfSwingExtras } from '../scripts/match-relay.mjs';
 import { guestInviteUrl } from '../src/natpf/natpf_lan.js';
 import { p2pStatusText } from '../src/natpf/natpf_ui.js';
@@ -335,6 +335,37 @@ test('fetch intercettato: sito statico (404) → stanza nel browser dell’host,
     assert.equal(G.calls.length, 0, 'il P2 non chiede nulla al server statico');
     guest.guest.destroy();
   } finally { delete globalThis.location; host.host.destroy(); }
+});
+
+// C10 (diagnostiche 142317/142438): l'host legge subito lo stato quando il P2 manda un colpo o un lancio, invece di
+// aspettare il giro della lettura (50 ms)
+test('host: colpo o lancio del P2 arrivato via RPC → onP2Input (lettura subito); altre richieste e le proprie no', async () => {
+  assert.equal(isP2Input({ method: 'POST', url: '/api/racket/swing?room=AT-AB12&role=p2' }, { status: 200 }), true);
+  assert.equal(isP2Input({ method: 'post', url: '/api/racket/swing' }, { status: 200 }), true);
+  assert.equal(isP2Input({ method: 'POST', url: '/api/racket/swing' }, { status: 404 }), false, 'rifiutato dal relay');
+  assert.equal(isP2Input({ method: 'GET', url: '/api/match/state?room=x' }, { status: 200 }), false);
+  assert.equal(isP2Input({ method: 'POST', url: '/api/racket/telemetry' }, { status: 200 }), false);
+  assert.equal(isP2Input({ method: 'POST', url: '/api/racket/swingx' }, { status: 200 }), false);
+  const net = fakeNetwork();
+  const H = fakeWindow('https://natpf.example/gioco/', staticSite);
+  const host = installNatpfP2p({ win: H.win, Peer: net.Peer });
+  const inputs = []; host.onP2Input(i => inputs.push(i));
+  const room = await H.win.fetch('/api/match/create', { method: 'POST', body: JSON.stringify({ p1Name: 'A' }) }).then(json);
+  await until(() => host.status === 'waiting');
+  let guest = null;
+  try {
+    const G = fakeWindow(`https://natpf.example/gioco/?room=${room.roomId}&role=p2&net=p2p`, staticSite);
+    guest = installNatpfP2p({ win: G.win, Peer: net.Peer });
+    await until(() => guest.status === 'connected' && host.status === 'connected');
+    await G.win.fetch(`/api/match/state?room=${room.roomId}&role=p2&touch=p2`).then(json);
+    assert.equal(inputs.length, 0, 'la lettura dello stato del P2 non conta');
+    await G.win.fetch(`/api/racket/swing?room=${room.roomId}&role=p2`, { method: 'POST', body: JSON.stringify({ room: room.roomId, role: 'p2', type: 'swing', natpf: NATPF }) }).then(json);
+    await G.win.fetch(`/api/racket/swing?room=${room.roomId}&role=p2`, { method: 'POST', body: JSON.stringify({ room: room.roomId, role: 'p2', type: 'toss' }) }).then(json);
+    assert.equal(inputs.length, 2, 'colpo e lancio');
+    // le richieste dell'host al proprio relay (i colpi del suo telefono passano dal collegamento diretto) non contano
+    await H.win.fetch(`/api/racket/swing?room=${room.roomId}&role=p1`, { method: 'POST', body: JSON.stringify({ room: room.roomId, role: 'p1', type: 'swing' }) });
+    assert.equal(inputs.length, 2);
+  } finally { guest?.guest?.destroy(); host.host.destroy(); }
 });
 
 test('fetch intercettato: con il server (LAN, npm run dev) resta tutto come prima; ?net=p2p forza la stanza nel browser', async () => {

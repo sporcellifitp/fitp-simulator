@@ -219,7 +219,9 @@ export function timeToContact(engine, actor){
   const toward = Math.sign(actor.pos.z) || 1, vz = finite(b.vel.z)*toward;
   if (vz <= .5) return null;
   const zc = actor.pos.z - toward*IMPACT.contactAhead, gap = (zc - b.pos.z)*toward;
-  const plan = actor === engine.player ? livePlan(engine, actor) : null, now = finite(engine.elapsedTime);
+  // anche per il Player 2 del 1v1 (natpfPlanP2): prima solo per chi gioca qui, e lo swing del P2 sulla palla rimbalzata
+  // aveva il tempo della palla in linea retta (diagnostica 142438, C2)
+  const plan = actor === engine.player || actor === engine.opponent ? livePlan(engine, actor) : null, now = finite(engine.elapsedTime);
   if (plan && Number.isFinite(plan.t) && gap > 0){ const left = plan.at + plan.t - now; if (left > -.05 && left < 3) return left; }
   return gap/vz;
 }
@@ -258,6 +260,16 @@ export function webcamGate(engine, hand = handOf(engine, engine?.localActor)){
 // sono deboli.
 export const WEAK = Object.freeze({ rel: .3, early: .08, wait: .22, serveWait: .3, ample: 25 });
 export const KEEP = Object.freeze({ conf: .5, within: .45 });
+// Attesa dello swing per attore: chi gioca qui (pendingUserSwing) e il Player 2 del 1v1, tra due computer o sullo stesso
+// schermo (pendingP2Swing), con il suo colpo (_attemptP2RallyStrike). Diagnostiche 142317/142438 (C2): lo swing del P2
+// passava dal percorso vecchio, con 0,22 s di attesa contro 0,45 s del P1 e senza la finestra in ritardo della palla.
+// Al P2 tra due computer il ritardo pieno vale P2_LATE_MARGIN in più: l'età dei suoi colpi (relay, rete) è meno certa di
+// quella del telefono collegato a questo computer. Sullo stesso schermo (versus.local) il suo telefono è collegato qui: niente
+export const P2_LATE_MARGIN = .03;
+const isP2 = (engine, actor) => !!actor && actor === engine.opponent;
+export const lateMargin = (engine, actor) => (isP2(engine, actor) && !engine.versus?.local ? P2_LATE_MARGIN : 0);
+const pendKey = (engine, actor) => (isP2(engine, actor) ? 'pendingP2Swing' : 'pendingUserSwing');
+const strike = (engine, actor, evt) => (isP2(engine, actor) ? engine._attemptP2RallyStrike(evt) : engine._attemptPlayerRallyStrike(evt, !1));
 // palla corta o pallonetto confermati dalla forma del colpo (natpf_stroke_intent.js)
 export const deliberateSpecial = (e = {}, conf = .15) => ['drop', 'lob'].includes(e.natpf?.intent?.shot) && finite(e.natpf.intent.conf) >= conf && finite(e.natpf.angle) >= 15;
 export function weakSwing(e = {}){
@@ -275,21 +287,21 @@ export function queueUserSwing(engine, e, actor){
   const W = impactWindow(engine.matchConfig?.difficulty), ttc = timeToContact(engine, actor);
   if (ttc == null) return null;
   const lat = eventLatency(e), lead = ttc + lat, now = finite(engine.elapsedTime);
-  const lateSpan = lateSpanOf(engine.ball.vel.z, skillLevel(engine.matchConfig?.difficulty));
+  const lateSpan = lateSpanOf(engine.ball.vel.z, skillLevel(engine.matchConfig?.difficulty)) + lateMargin(engine, actor), key = pendKey(engine, actor);
   const strength = finite(e.natpf?.peak, NaN) || finite(e.speed, 1)*600, weak = weakSwing(e);
   if (ttc < 0){
     if (weak) return 'ignored';
     const b = engine.ball, toward = Math.sign(actor.pos.z) || 1, behind = (b.pos.z - (actor.pos.z - toward*IMPACT.contactAhead))*toward;
     const extra = W.lateExtra || IMPACT.lateExtra;
     if (lead >= -lateSpan*extra && behind <= IMPACT.lateBehind*extra + .2 && Math.abs(b.pos.x - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4){
-      engine.pendingUserSwing = null;
-      return engine._attemptPlayerRallyStrike({ ...e, natpfTau: lead, natpfLateSpan: lateSpan }, !1) ? 'late' : 'whiff';
+      engine[key] = null;
+      return strike(engine, actor, { ...e, natpfTau: lead, natpfLateSpan: lateSpan }) ? 'late' : 'whiff';
     }
     return 'whiff';
   }
   const lateWin = lateSpan*(W.lateExtra || IMPACT.lateExtra);
   const cand = { evt: { ...e, natpfTau: lead, natpfLateSpan: lateSpan }, lead, strength, weak, lateWin, actor, at: now, prep: !0, waitForSweetSpot: !0, natpfWindow: !0, expiresAt: now + ttc + lateWin + .12 };
-  const cur = engine.pendingUserSwing;
+  const cur = engine[key];
   let better = !cur || !cur.natpfWindow || strength >= cur.strength*1.15 || (Math.abs(lead) < Math.abs(cur.lead) && strength >= cur.strength*.6);
   // un colpo vero sostituisce sempre un gesto debole in attesa, mai il contrario
   if (cur?.natpfWindow && !!cur.weak !== weak) better = !weak;
@@ -298,14 +310,14 @@ export function queueUserSwing(engine, e, actor){
   // dopo dal rientro (1292 °/s), giocato come tagliato di dritto. La preparazione seguita dal colpo resta come prima: la
   // preparazione non ha la forma di una palla corta o di un pallonetto
   if (better && cur?.natpfWindow && deliberateSpecial(cur.evt, KEEP.conf) && cur.evt.side && e.side && e.side !== cur.evt.side && now - cur.at < KEEP.within) better = false;
-  if (better){ engine.pendingUserSwing = cand; holdSwingPrep(actor, e.side, ttc); }
+  if (better){ engine[key] = cand; holdSwingPrep(actor, e.side, ttc); }
   return 'held';
 }
 
 // A ogni passo, con la palla che arriva: lo swing in attesa si gioca quando la palla raggiunge il punto d'impatto.
 // true se ha fatto qualcosa (colpo o colpo a vuoto).
 export function resolvePending(engine, actor){
-  const ps = engine.pendingUserSwing; if (!ps?.natpfWindow) return false;
+  const key = pendKey(engine, actor), ps = engine[key]; if (!ps?.natpfWindow) return false;
   const b = engine.ball, W = impactWindow(engine.matchConfig?.difficulty), toward = Math.sign(actor.pos.z) || 1;
   const zc = actor.pos.z - toward*IMPACT.contactAhead, arrived = (b.pos.z - zc)*toward >= 0, now = finite(engine.elapsedTime);
   // gesto debole in anticipo (WEAK): all'arrivo della palla si aspetta per poco il colpo vero (arriva da queueUserSwing,
@@ -313,20 +325,20 @@ export function resolvePending(engine, actor){
   if (arrived && ps.weak && ps.lead > WEAK.early){
     if (ps.deferUntil == null){ ps.deferUntil = now + Math.min(WEAK.wait, Math.max(.05, finite(ps.lateWin, WEAK.wait))); return false; }
     if (now < ps.deferUntil) return false;
-    engine.pendingUserSwing = null;
-    if (finite(ps.evt?.natpf?.angle) >= WEAK.ample && Math.abs(b.pos.x - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4) engine._attemptPlayerRallyStrike(ps.evt, !1);
+    engine[key] = null;
+    if (finite(ps.evt?.natpf?.angle) >= WEAK.ample && Math.abs(b.pos.x - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4) strike(engine, actor, ps.evt);
     else engine._natpfWeakDropped?.(ps);
     return true;
   }
   if (arrived){
-    engine.pendingUserSwing = null;
+    engine[key] = null;
     // palla che va fuori: lo swing non la tocca (il punto è di chi gioca)
     if (livePlan(engine, actor)?.kind === 'letgo') return true;
     if (ps.lead > W.early){ engine._natpfEarlyWhiff?.(ps); return true; }
     if (Math.abs(b.pos.x - actor.pos.x) > IMPACT.reach || b.pos.y >= 3.4){ engine._natpfEarlyWhiff?.({ ...ps, natpfWhy: 'portata' }); return true; }
-    engine._attemptPlayerRallyStrike(ps.evt, !1);
+    strike(engine, actor, ps.evt);
     return true;
   }
-  if (now > ps.expiresAt){ engine.pendingUserSwing = null; if (ps.weak) engine._natpfWeakDropped?.(ps); else engine._natpfEarlyWhiff?.(ps); return true; }
+  if (now > ps.expiresAt){ engine[key] = null; if (ps.weak) engine._natpfWeakDropped?.(ps); else engine._natpfEarlyWhiff?.(ps); return true; }
   return false;
 }
