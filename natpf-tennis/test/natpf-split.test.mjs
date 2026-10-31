@@ -115,7 +115,12 @@ test('split: sessione 1v1 locale (niente rete), terza persona, singolare; uscita
 });
 
 import { progressSteps, previousStep, stepReady, autoAdvance } from '../src/natpf/natpf_lobby.js';
-import { splitPlayerStatus, splitShotLabel, SPLIT_CAL_TRIES } from '../src/natpf/natpf_split_ui.js';
+import { splitPlayerStatus, splitShotLabel, SPLIT_CAL_TRIES, splitCamLine } from '../src/natpf/natpf_split_ui.js';
+
+test('webcam per due: la linea nel riquadro della camera segue il confine tra le corsie (prima fissa a metà)', () => {
+  assert.equal(splitCamLine(.5), '50.0%'); assert.equal(splitCamLine(.62), '62.0%'); assert.equal(splitCamLine(.3), '30.0%');
+  assert.equal(splitCamLine(undefined), '50.0%'); assert.equal(splitCamLine(NaN), '50.0%'); assert.equal(splitCamLine(Infinity), '50.0%');
+});
 
 test('menu: «Stesso schermo» va da modalità a telefoni a partita, e si prosegue con i due telefoni pronti', () => {
   assert.deepEqual(progressSteps('split').map(([id]) => id), ['mode', 'connect', 'match']);

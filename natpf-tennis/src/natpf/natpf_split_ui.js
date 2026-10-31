@@ -27,6 +27,8 @@ export function splitCamStatus({ active = false, seen = false, error = null } = 
   if (!active) return error ? { state: 'ko', title: error.badge, sub: error.text } : { state: 'wait', title: 'Webcam spenta', sub: 'Accendi la webcam qui sopra' };
   return seen ? { state: 'ok', title: 'Mano vista ✓', sub: 'Pronto: un colpo veloce e dritto è un colpo' } : { state: 'on', title: 'Alza la mano che colpisce', sub: 'Dalla tua parte dell’inquadratura, con il polso visibile' };
 }
+// posizione della linea del confine nel riquadro della camera (specchiato come lo schermo): CSS left; metà se manca
+export const splitCamLine = split => `${(100*(Number.isFinite(split) ? Math.max(0, Math.min(1, split)) : .5)).toFixed(1)}%`;
 const PHONE_ERR = { denied: 'Sensori negati sul telefono: ricarica la pagina e consenti', nomotion: 'Il browser del telefono non manda i sensori: usa Chrome (Android) o Safari (iPhone)', insecure: 'Pagina senza https: i sensori non funzionano' };
 
 // Stato di un giocatore nella pagina «Collega» (funzione pura): state 'wait' | 'qr' | 'on' | 'go' | 'ok' | 'ko'
@@ -148,9 +150,12 @@ export class NatpfSplitUi {
     if (cam){
       const v = $('split-webcam-video');
       if (v && mc?.webcamStream && v.srcObject !== mc.webcamStream){ v.srcObject = mc.webcamStream; v.play?.().catch(() => {}); }
-      // riquadro nel formato vero della camera (16:9, 4:3…): la linea di mezzo è la metà dell'immagine
+      // riquadro nel formato vero della camera (16:9, 4:3…); la linea è il confine tra le corsie dei due giocatori, che si
+      // sposta con loro tra 0,3 e 0,7 dell'immagine (webcam_duo.split; prima restava fissa a metà)
       const view = v?.parentElement;
       if (view && v.videoWidth > 0 && v.videoHeight > 0){ const ar = `${v.videoWidth} / ${v.videoHeight}`; if (view.style.aspectRatio !== ar) view.style.aspectRatio = ar; }
+      const mid = view?.querySelector('.split-cam-mid');
+      if (mid){ const left = splitCamLine(mc?._duo?.split?.()); if (mid.style.left !== left) mid.style.left = left; }
       show($('split-cam-go'), !mc?.webcamActive);
     }
     for (const id of SPLIT_PLAYERS){

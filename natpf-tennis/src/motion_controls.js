@@ -931,7 +931,7 @@ export class MotionController {
     if (this.hasPrevFrame)
       for (const id of DUO_PLAYERS) {
         if (!this._duo.wantsFlow(id, e)) continue;
-        const blob = argonFlowBlob(cur, this.prevLuma, a, n, this._duo.cols(id)), ev = this._duo.flow(id, blob, e);
+        const blob = argonFlowBlob(cur, this.prevLuma, a, n, this._duo.cols(id)), ev = this._duo.flow(id, blob, e, this._videoAspect());
         blob && this.onTrack && this._diag({ kind: "frame", t: e, captureT: e, source: "flow", chosen: id, x: blob.x, y: blob.y });
         ev && this._duoEmit(ev, e);
       }
@@ -1008,8 +1008,11 @@ export class MotionController {
   }
   _argonEvaluateHandTrail(e, t) {
     // NATPF: regole dello zip in webcam_argon_track.argonTrailEvent (la stessa funzione della webcam per due); mano lontana:
-    // movimento ingrandito in proporzione alla sua grandezza (argonScale; il flusso ottico no, non sa quanto è lontana)
-    const o = argonTrailEvent(this._webcamTrail, { hand: t, scale: argonScale(this._argonSize), now: e, lastTrigger: this.lastWebcamTriggerMs });
+    // movimento ingrandito in proporzione alla sua grandezza (argonScale; il flusso ottico no, non sa quanto è lontana).
+    // Camera 16:9 (webcam_roi.js): x e grandezza della mano riportate alla geometria 4:3 su cui lo zip è tarato
+    // (argonAspectK); la scia, il ritaglio e il bordo restano sulle coordinate vere
+    const aspect = this._videoAspect();
+    const o = argonTrailEvent(this._webcamTrail, { hand: t, scale: argonScale(this._argonSize, aspect), aspect, now: e, lastTrigger: this.lastWebcamTriggerMs });
     if (!o) return;
     (this.motionVector.vx = o.motion.vx), (this.motionVector.vy = o.motion.vy), (this.motionVector.mag = o.motion.mag);
     const v = o.event;
@@ -1667,9 +1670,19 @@ export class MotionController {
     };
     this._rafId = requestAnimationFrame(e);
   }
+  // NATPF: parte del video mostrata nel riquadro della webcam (160×120, 4:3): il centro dell'immagine nelle proporzioni
+  // del riquadro (con la camera 16:9 i lati tagliati, prima il video era schiacciato); X, Y: da coordinate dell'immagine
+  // (0–1, specchiate o no: il taglio è simmetrico) al riquadro
+  _hudCrop(t, i) {
+    const v = this.videoElem, vw = v && v.videoWidth, vh = v && v.videoHeight;
+    if (!(vw > 0 && vh > 0 && t > 0 && i > 0)) return { sx: 0, sy: 0, sw: vw || t, sh: vh || i, X: (x) => x * t, Y: (y) => y * i };
+    const k = Math.min(vw / t, vh / i), sw = t * k, sh = i * k, ox = (vw - sw) / 2 / vw, oy = (vh - sh) / 2 / vh, kw = sw / vw, kh = sh / vh;
+    return { sx: (vw - sw) / 2, sy: (vh - sh) / 2, sw, sh, X: (x) => ((x - ox) / kw) * t, Y: (y) => ((y - oy) / kh) * i };
+  }
   _drawHudCanvas(e, t, i) {
+    const C = this._hudCrop(t, i);
     if ((e.clearRect(0, 0, t, i), this.webcamActive && this.videoElem && this.videoElem.readyState >= 2)) {
-      e.save(), e.scale(-1, 1), e.drawImage(this.videoElem, -t, 0, t, i), e.restore();
+      e.save(), e.scale(-1, 1), e.drawImage(this.videoElem, C.sx, C.sy, C.sw, C.sh, -t, 0, t, i), e.restore();
       const d = performance.now();
       if (this.latestHandLandmarks && d - (this.latestHandSeenAt || 0) < 240) {
         const g = this.latestHandLandmarks,
@@ -1702,22 +1715,22 @@ export class MotionController {
         for (const [u, c] of T) {
           const b = g[u],
             w = g[c];
-          e.beginPath(), e.moveTo((1 - b.x) * t, b.y * i), e.lineTo((1 - w.x) * t, w.y * i), e.stroke();
+          e.beginPath(), e.moveTo(C.X(1 - b.x), C.Y(b.y)), e.lineTo(C.X(1 - w.x), C.Y(w.y)), e.stroke();
         }
         for (let u = 0; u < g.length; u++) {
           const c = g[u];
           (e.fillStyle = u === 0 || u === 8 || u === 9 ? "#dfff00" : "#ffffff"),
             e.beginPath(),
-            e.arc((1 - c.x) * t, c.y * i, u === 0 || u === 9 ? 3.5 : 2, 0, Math.PI * 2),
+            e.arc(C.X(1 - c.x), C.Y(c.y), u === 0 || u === 9 ? 3.5 : 2, 0, Math.PI * 2),
             e.fill();
         }
       } else {
-        const g = t / this.flowWidth,
-          T = i / this.flowHeight;
+        const g = C.X(1 / this.flowWidth) - C.X(0),
+          T = C.Y(1 / this.flowHeight) - C.Y(0);
         e.fillStyle = "rgba(223, 255, 0, 0.35)";
         for (let u = 0; u < this.flowHeight; u += 2)
           for (let c = 0; c < this.flowWidth; c += 2)
-            this.motionEnergyMap[u * this.flowWidth + c] > 0.14 && e.fillRect(c * g, u * T, g * 1.8, T * 1.8);
+            this.motionEnergyMap[u * this.flowWidth + c] > 0.14 && e.fillRect(C.X(c / this.flowWidth), C.Y(u / this.flowHeight), g * 1.8, T * 1.8);
       }
     } else {
       const d = e.createRadialGradient(t * 0.5, i * 0.5, 6, t * 0.5, i * 0.5, t * 0.65);
@@ -1737,8 +1750,8 @@ export class MotionController {
     }
     const n = performance.now() - this.lastVisualSwing.timestamp,
       h = n < 550,
-      p = this.webcamActive ? this.smoothedCentroid.x * t : t * 0.5,
-      f = this.webcamActive ? this.smoothedCentroid.y * i : i * 0.52;
+      p = this.webcamActive ? C.X(this.smoothedCentroid.x) : t * 0.5,
+      f = this.webcamActive ? C.Y(this.smoothedCentroid.y) : i * 0.52;
     e.save();
     const s = ((this.phoneState.orientation.roll || this.aimBiasX * 28) * Math.PI) / 180;
     e.translate(p, f),
