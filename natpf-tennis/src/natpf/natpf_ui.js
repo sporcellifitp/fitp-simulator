@@ -35,6 +35,12 @@ const CONTROLLERS = ['phone', 'webcam', 'mouse'].map(id => ({ id }));
 // testi dello stato della sfida senza server: in natpf_versus.js (funzioni pure), qui per chi li importava da qui
 export { p2pStatusText, P2P_NET_HINT };
 const STEPS = ['collega', 'impugna', 'prova', 'verifica', 'pronto'];
+// pannelli della webcam con anteprima e stato: la pagina «Collega» del menu e quello del Player 2 dell'invito
+// (natpf_versus_ui.js: il P2 non passa dal menu)
+const WEBCAM_PANELS = [
+  { video: 'setup-webcam-video', dot: 'setup-cam-dot', text: 'setup-cam-text', badge: 'setup-cam-badge', go: 'setup-cam-go' },
+  { video: 'guest-cam-video', dot: 'guest-cam-dot', text: 'guest-cam-text', badge: 'guest-cam-badge', go: 'guest-cam-go' },
+];
 const PHONE_ERR = {
   denied: 'Sul telefono è stato negato l’accesso ai sensori di movimento. Su iPhone ricarica la pagina del telefono e tocca «Consenti»; su Android consenti «Sensori di movimento» dal lucchetto nella barra degli indirizzi.',
   nomotion: 'Il browser del telefono non manda i dati dei sensori di movimento. Usa Chrome su Android o Safari su iPhone e inquadra di nuovo il QR.',
@@ -203,18 +209,30 @@ export class NatpfUi {
     const mc = this.engine.motionController; if (!mc) return false;
     const ok = mc.webcamActive || await mc.enableWebcam();
     this.engine.hud?.updateMotionStatus?.({ webcamActive: !!ok, phoneConnected: this.phone.ready });
-    const v = $('setup-webcam-video');
-    if (v && mc.webcamStream && v.srcObject !== mc.webcamStream){ v.srcObject = mc.webcamStream; v.play?.().catch(() => {}); }
     this.paintWebcamSetup();
     return ok;
   }
+  // anteprima e stato della webcam in tutti i pannelli (pagina «Collega» e pannello del Player 2); { on, hand, err }
   paintWebcamSetup(){
+    const mc = this.engine.motionController;
+    let out = null;
+    for (const P of WEBCAM_PANELS){
+      const r = this._paintWebcamPanel(P);
+      out ||= r;
+    }
+    for (const b of document.querySelectorAll('[data-natpf-move]')){ const sel = (b.dataset.natpfMove === 'body') === !!this.engine.natpfBody?.enabled; b.classList.toggle('selected', sel); b.setAttribute('aria-checked', String(sel)); }
+    return out || { on: !!mc?.webcamActive, hand: false, err: null };
+  }
+  _paintWebcamPanel(P){
     const mc = this.engine.motionController, on = !!mc?.webcamActive;
     const now = performance.now(), wrist = on && now - (mc._poseSeenAt ?? -Infinity) < 400;
     // la mano vista dal modello (webcam di argon-tennis) o un colpo già riconosciuto
     const swing = on && now - (mc.webcamMotionAt ?? -Infinity) < 2500;
     const hand = on && (swing || now - (mc.latestHandSeenAt || -1e9) < 1200 || wrist);
-    const dot = $('setup-cam-dot'), txt = $('setup-cam-text'), badge = $('setup-cam-badge'), go = $('setup-cam-go');
+    const dot = $(P.dot), txt = $(P.text), badge = $(P.badge), go = $(P.go), v = $(P.video);
+    // anteprima: lo stream della camera (anche quello riaperto da sola dopo un blocco, motion_controls._reopenCamera)
+    const stream = on ? mc.webcamStream || null : null;
+    if (v && stream && v.srcObject !== stream){ v.srcObject = stream; v.play?.()?.catch?.(() => {}); }
     // per colpire basta la mano (con polso e avambraccio); «Segui il corpo» vuole anche le spalle. Webcam che non si
     // apre: il motivo (occupata da un altro programma, negata, assente), non le istruzioni per l'inquadratura
     const body = !!this.engine.natpfBody?.enabled, err = on ? null : webcamOpenError(mc?.webcamError);
@@ -225,7 +243,7 @@ export class NatpfUi {
       : body ? 'Mettiti a circa 2 m: spalle e braccio interi nell’inquadratura' : 'Mettiti a 1–2 m: mano, polso e avambraccio ben visibili';
     if (badge){ badge.textContent = on ? (hand ? seen : 'Cerco la mano…') : err ? err.badge : 'Webcam spenta'; badge.classList.toggle('ok', hand); }
     show(go, !on);
-    for (const b of document.querySelectorAll('[data-natpf-move]')){ const sel = (b.dataset.natpfMove === 'body') === body; b.classList.toggle('selected', sel); b.setAttribute('aria-checked', String(sel)); }
+    return { on, hand, err };
   }
   /* ---------- pagina «Collega» del menu: QR e tre passi sul telefono ---------- */
   // QR del collegamento in un riquadro (pagina «Collega» e pannello del telefono): cambia a ogni nuovo codice monouso
@@ -294,6 +312,8 @@ export class NatpfUi {
     if (id === 'webcam' && open) hud?.callbacks?.onSelectInputMode?.('webcam');
     if (id !== 'webcam' && mc?.webcamActive){ mc.disableWebcam(); hud?.updateMotionStatus?.({ webcamActive: false, phoneConnected: this.phone.ready }); }
     if (id === 'phone'){ this.phone.start().catch(err => this._warn(`Collegamento non disponibile (${err.message}).`)); if (open) this.openPhone(); }
+    // Player 2 dell'invito: un'altra racchetta si prepara di nuovo (natpf_versus_ui.onController)
+    this.versus?.onController?.(id);
     this.paintTiles?.();
   }
   onViewChange(view){

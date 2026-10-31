@@ -934,6 +934,17 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
 /* fogli larghi: guida con le clip, collegamento del telefono */
 .natpf-sheet-backdrop .natpf-sheet.natpf-guide { width: min(1000px, calc(100cqw - 2 * var(--gutter))); }
 .natpf-sheet-backdrop .natpf-sheet.natpf-phone-dialog { width: min(780px, calc(100cqw - 2 * var(--gutter))); }
+/* Player 2 con la webcam (natpf_versus_ui.js): anteprima e stato come nella pagina «Collega» del menu */
+.natpf-sheet-backdrop .natpf-sheet.natpf-guest-cam-dialog { width: min(820px, calc(100cqw - 2 * var(--gutter))); }
+.natpf-guest-cam-dialog .setup-panel { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 18px; padding: 18px; border-radius: var(--r-l); background: rgba(13, 24, 56, 0.85); border: 1px solid var(--line); box-shadow: none; }
+.natpf-guest-cam-dialog .setup-cam { width: 100%; border-radius: var(--r-m); }
+.natpf-guest-cam-dialog .setup-cam-badge { left: 10px; top: 10px; bottom: auto; }
+.natpf-guest-cam-dialog .setup-side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.natpf-guest-cam-dialog .setup-status { font: 500 16px/1.4 var(--font-text); color: var(--text-2); }
+.natpf-guest-cam-dialog .lobby-row { flex-wrap: wrap; }
+@container natpf (max-width: 640px) {
+  .natpf-guest-cam-dialog .setup-panel { grid-template-columns: 1fr; }
+}
 .natpf-sheet .natpf-qr { background: #fff; border-radius: var(--r-m); }
 
 /* cursori dei volumi (natpf_audio_settings.js) */

@@ -97,13 +97,15 @@ export function guestState({ linked = false, invalid = false, closed = false, ho
   if (lastSnapshotAgeMs != null && lastSnapshotAgeMs > VERSUS.lostMs) return 'lost';
   return hostLobby ? 'lobby' : 'playing';
 }
-// phone: con il telefono ancora da collegare o calibrare (il pulsante porta al QR e poi al campo d'allenamento)
-export function guestText(state, { ready = false, phone = false, hostName = 'Player 1' } = {}){
+// phone: con il telefono ancora da collegare o calibrare (il pulsante porta al QR e poi al campo d'allenamento);
+// webcam: con la webcam ancora da accendere e provare (il pulsante porta al pannello della webcam e poi in campo)
+export function guestText(state, { ready = false, phone = false, webcam = false, hostName = 'Player 1' } = {}){
   switch (state){
     case 'invalid': return 'Questo link non porta a nessuna stanza: chiedi a chi ti ha invitato un link nuovo.';
     case 'closed': return `${hostName} ha chiuso la stanza. Chiedi un nuovo link per giocare ancora.`;
     case 'lost': return `Collegamento con ${hostName} perso: riprovo da solo. Se non torna, chiedi un nuovo link.`;
-    case 'lobby': return ready ? `Sei pronto ✓ ${hostName} avvia la partita.` : phone ? 'Collegato ✓ Collega il telefono: lo calibri in campo con il lanciapalle, poi sei pronto.' : 'Collegato ✓ Scegli la racchetta e premi «Sono pronto».';
+    case 'lobby': return ready ? `Sei pronto ✓ ${hostName} avvia la partita.` : phone ? 'Collegato ✓ Collega il telefono: lo calibri in campo con il lanciapalle, poi sei pronto.'
+      : webcam ? 'Collegato ✓ Accendi la webcam: quando vede la tua mano la provi in campo con il lanciapalle, poi sei pronto.' : 'Collegato ✓ Scegli la racchetta e premi «Sono pronto».';
     case 'playing': return 'Partita in corso.';
     default: return `Mi collego alla stanza di ${hostName}…`;
   }
@@ -112,9 +114,9 @@ export function guestText(state, { ready = false, phone = false, hostName = 'Pla
 // Riga di stato del pannello del Player 2: lo stato della sfida o, nella sfida senza server non ancora collegata,
 // perché (rete che blocca il collegamento diretto, host muto, stanza occupata, server della segnalazione). Prima una
 // seconda riga «Mi collego all’host…» sotto la prima, e nessuna spiegazione. net: { mode, status, error }
-export function guestLine(state, { ready = false, phone = false, hostName = 'Player 1', net = null } = {}){
+export function guestLine(state, { ready = false, phone = false, webcam = false, hostName = 'Player 1', net = null } = {}){
   if (net?.mode === 'guest' && (state === 'connecting' || state === 'lost') && net.error) return { state: 'error', text: p2pStatusText('guest', net.status, net.error) };
-  return { state, text: guestText(state, { ready, phone, hostName }) };
+  return { state, text: guestText(state, { ready, phone, webcam, hostName }) };
 }
 
 // Presenza dell'avversario durante la partita (host): quanto manca all'avviso di uscita
@@ -196,12 +198,15 @@ export function p2SwingSentAtHost(clock, localNow, maxRttMs = P2_CLOCK_MAX_RTT_M
 // computer del P2 dice all'host perché non può giocare (hold nella lettura dello stato) e l'host ferma la partita per
 // tutti e due, con lo stesso conto alla rovescia e il punto rigiocato del telefono del P1 (natpf_phone_watch.js).
 
-// Motivi detti subito (li sa il dispositivo stesso); gli altri devono durare HOLD_GRACE_MS (un ricollegamento lampo non
-// ferma la partita)
+// Motivi detti subito (li sa il dispositivo stesso, o la loro soglia comprende già la tolleranza: la webcam,
+// natpf_webcam_watch.WEBCAM_WATCH); gli altri devono durare HOLD_GRACE_MS (un ricollegamento lampo non ferma la partita)
 export const HOLD_GRACE_MS = 300;
-const HOLD_NOW = new Set(['pagina nascosta', 'computer nascosto']);
+// motivi della webcam del P2 (natpf_webcam_watch.webcamHealth)
+export const WEBCAM_HOLDS = Object.freeze(['webcam spenta', 'webcam ferma', 'mano persa']);
+const HOLD_NOW = new Set(['pagina nascosta', 'computer nascosto', ...WEBCAM_HOLDS]);
 // Lato P2: perché non può giocare adesso. playing: partita in corso sul P2; hidden: finestra del gioco nascosta sul suo
-// computer; health: salute del telefono (phoneHealthOf) se gioca con il telefono, altrimenti null
+// computer; health: salute della racchetta, { ok, why }: del telefono (phoneHealthOf) o della webcam (webcamHealth, dal
+// 30/10: prima il P2 con la webcam spenta o senza mano restava in campo e l'host non lo sapeva), null con mouse e tastiera
 export function p2HoldWhy({ playing = false, hidden = false, health = null } = {}){
   if (!playing) return null;
   if (hidden) return 'computer nascosto';
@@ -241,17 +246,21 @@ export function hostHoldText(why, { p2Name = 'Player 2' } = {}){
     case 'non pronto': return { title: `Il telefono di ${p2Name} non è pronto`, text: `Sta finendo la calibrazione. ${resume}` };
     case 'pagina nascosta': return { title: `Il telefono di ${p2Name} ha lo schermo spento`, text: `O un’altra app aperta. ${resume}` };
     case 'sensori fermi': return { title: `Il telefono di ${p2Name} non manda il movimento`, text: resume };
+    case 'webcam spenta': return { title: `La webcam di ${p2Name} è spenta`, text: resume };
+    case 'webcam ferma': return { title: `La webcam di ${p2Name} non manda immagini`, text: resume };
+    case 'mano persa': return { title: `La webcam di ${p2Name} non vede la mano`, text: resume };
     default: return { title: `${p2Name} non può giocare`, text: resume };
   }
 }
 // Cosa vede il P2 con la partita ferma. hold (dallo snapshot dell'host): { who: 'p2' | 'host', why, left } — who 'p2':
-// il motivo è suo (il telefono: lo dice holdText del telefono); left: secondi alla ripresa
-export function guestHoldNotice(hold = {}, { hostName = 'Player 1', phoneText = null } = {}){
+// il motivo è suo (il telefono: lo dice holdText del telefono; la webcam: webcamText); left: secondi alla ripresa
+export function guestHoldNotice(hold = {}, { hostName = 'Player 1', phoneText = null, webcamText = null } = {}){
   const h = hold || {};
   if (Number.isFinite(h.left)) return { title: 'Si riprende', text: `Tra ${h.left}…` };
   if (h.who === 'p2'){
     if (h.why === 'avversario') return { title: 'Collegamento con l’host interrotto', text: `${hostName} non riceve più il tuo computer: la partita è ferma. Premi «Riconnetti» se non torna da solo.` };
     if (h.why === 'computer nascosto') return { title: 'Partita in pausa', text: 'Torna alla finestra del gioco: la partita riprende con il conto alla rovescia.' };
+    if (WEBCAM_HOLDS.includes(h.why)) return { title: 'La tua webcam è in pausa', text: webcamText || 'La webcam non ti vede: guarda l’anteprima e mostra la mano che colpisce.', webcam: true };
     return { title: 'Il tuo telefono è in pausa', text: phoneText || 'Il telefono non è utilizzabile: guarda il telefono.', phone: true };
   }
   if (h.why === 'host nascosto') return { title: 'Partita in pausa', text: `${hostName} ha messo il gioco in secondo piano: riprende quando torna.` };
