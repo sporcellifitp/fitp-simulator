@@ -298,11 +298,14 @@ export function sideFromBall(engine, hand = 'right', role = engine.playerRole){
   if (rel == null) return null;
   return (rel >= 0) !== (hand === 'left') ? 'forehand' : 'backhand';
 }
+// Palla alta o piano della schiacciata (ballIsHigh): 0. La schiacciata si fa dall'alto, di dritto o di rovescio, e il
+// lato della palla non dice il verso del gesto: diagnostica 20261030-142438 n. 124, una schiacciata di rovescio con la
+// palla dal lato del dritto è stata trattenuta 300 ms sul telefono come preparazione e colpita lontano dalla racchetta
 export function expectedStrokeDir(engine, hand = 'right', role = engine.playerRole){
   const b = engine.ball, p2 = role === 'p2', me = actorOf(engine, role);
   if (!b || !me || !b.inPlay || engine.phase !== 'RALLY' || b.lastHitter === (p2 ? 'opponent' : 'player')) return 0;
   const toward = p2 ? b.vel.z < -.5 : b.vel.z > .5;
-  if (!toward) return 0;
+  if (!toward || ballIsHigh(engine, role)) return 0;
   const rel = ballRel(engine, role);
   if (Math.abs(rel) < BODY_ZONE) return 0;
   const fh = hand === 'left' ? -1 : 1;                                        // verso del dritto

@@ -1442,7 +1442,14 @@ export class NatpfTennisEngine {
         // NATPF: gesto debole (assestamento dopo il lancio, preparazione) prima di serveWait dopo il colmo: si aspetta la
         // battuta vera; se non arriva vale questo (natpf_impact.WEAK). Il 23/10 tre servizi su 13 erano battuti da gesti di
         // 122–175 °/s e la battuta vera, 0,4 s dopo, era scartata
-        if (NI.weakSwing(e) && tau > -NI.WEAK.serveWait) { this.natpfWeakServe ||= { evt: e, tau }; return; }
+        // Anche un gesto intermedio prima del colmo (NI.SERVE_MID, diagnostica 20261030-142438 n. 101/102); quello più
+        // forte prende il posto di quello in attesa, un gesto pieno batte subito
+        const natpfWeak = NI.weakSwing(e) && tau > -NI.WEAK.serveWait, natpfMid = !natpfWeak && NI.serveMidSwing(e, tau);
+        if (natpfWeak || natpfMid) {
+          const w = this.natpfWeakServe, strength = NI.swingStrength(e);
+          if (!w || (natpfMid && strength > w.strength)) this.natpfWeakServe = { evt: e, tau, strength };
+          return;
+        }
         this.natpfWeakServe = null;
         this._executeServeHit(this.player, { ...e, natpfServeTau: tau });
         return;
@@ -1853,7 +1860,7 @@ export class NatpfTennisEngine {
                 ? !1
                 : this.ball.pos.x < p.pos.x - 0.04 || this.ball.targetLanding.x < -0.12,
       d = !t && Number.isFinite(e.natpfTau)
-        ? NO.smashAt(e, this.ball.pos.y) // NATPF racchetta virtuale: schiacciata dal gesto e dall'altezza della palla
+        ? NO.smashAt(e, this.ball.pos.y, { serveReturn: Number(this.ball.rallyStrokeCount || 0) <= 1 }) // NATPF racchetta virtuale: schiacciata dal gesto e dall'altezza della palla (in risposta al servizio solo dal gesto)
         : e.side === "overhead" ||
           ((this.selectedShotType === "FLAT" || e.shotType === "smash") && this.ball.pos.y > 1.5) ||
           this.ball.pos.y > 1.78;

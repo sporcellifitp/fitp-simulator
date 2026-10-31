@@ -33,6 +33,13 @@ export const OUTCOME = Object.freeze({
   // ritmo personale al centro: nella partita 131307 mediana 0,2 unità), e il piatto, che cambia con il movimento, era
   // tenuto al 60%: le palle cadevano tra −2,5 e +3 m. Ora il piatto da solo arriva alle righe; tempo e piatto si sommano
   faceAim: 1,
+  // palla fuori di lato: quanto fuori, al massimo (m oltre la riga laterale del singolare, sideLine). Oltre la finestra
+  // tempo e piatto nello stesso verso si sommano senza limite (diagnostica 20261030-142317 n. 76: troppo presto, piatto
+  // −1, mira −1,89, palla a x −8,5, fuori di 4 m). Fino a outKnee nulla cambia (oltre la riga del doppio, 1,37 m, la palla
+  // resta fuori anche nel doppio), poi la distanza si avvicina a outMax senza superarlo. Dentro o fuori non cambia mai:
+  // limitare la mira (proposta della diagnostica, ±1,3) toglieva errori ai colpi fuori tempo e nel banco Pro contro «medio»
+  // il giocatore passava dall'84% al 91% dei game (40 semi), fuori dal criterio 70–85%
+  sideLine: 4.115, outKnee: 1.4, outMax: 1.9,
   xMax: 3.65,         // m: mira piena, 0,45 m dentro la riga laterale del singolare
   follow: .4,         // il punto neutro segue di tanto la posizione laterale della palla all'impatto (0: sempre il centro)
   pushOut: 1.4,       // m di lato per unità di tempo oltre la finestra (per livello in ASSIST: con il lungolinea e
@@ -175,7 +182,8 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   const aimT = clamp(t - clamp(finite(rhythm), -RHYTHM.max, RHYTHM.max), -1, 1);   // tempo rispetto al proprio ritmo
   const aim = -c*O.natural*(1 - Math.abs(aimT)) - c*aimT*finite(AS.timingAim, O.timingAim) + clamp(finite(intent.face), -1, 1)*finite(intent.faceWeight, O.faceAim);
   const x0 = neutralX(hitX, xMax), raw = landingFromAim(aim, x0, xMax) - c*Math.sign(t)*excess*finite(AS.pushOut, O.pushOut);
-  const x = raw + (Math.sign(raw)*softEdge(Math.abs(raw), O.sideKnee*k, O.sideEdge*k) - raw)*assist;
+  const xa = raw + (Math.sign(raw)*softEdge(Math.abs(raw), O.sideKnee*k, O.sideEdge*k) - raw)*assist;
+  const x = Math.abs(xa) <= O.sideLine ? xa : Math.sign(xa)*(O.sideLine + softEdge(Math.abs(xa) - O.sideLine, O.outKnee, O.outMax));
   // profondità: voluta (forza e ampiezza dello swing), meno per la qualità che manca e il tempo oltre la finestra
   const D = O.depth[shot] || O.depth.TOPSPIN;
   // profondità voluta con la curva (DROP e LOB restano lineari: la palla corta vuole restare corta)
@@ -311,13 +319,17 @@ export function eventIntent(e = {}){
 // gesto è una schiacciata o scende deciso rispetto al proprio colpo normale. 29/10 pomeriggio: i due gesti di
 // schiacciata della partita (riconosciuti come tali) arrivavano su palle a 1,55–1,70 m, sotto la soglia di prima (1,75 m),
 // e diventavano un colpo piatto con il movimento del dritto o del rovescio: «non sono riuscito a fare uno smash»
+// serveReturn (risposta al servizio, decisione dell'utente del 31/10): sotto «always» schiacciata solo dal gesto della
+// schiacciata. La risposta si prende fino a 1,72 m (natpf_impact.PLAN.returnTop) e un tagliato che scende deciso diventava
+// una schiacciata vincente a 338 km/h (diagnostica 20261030-142438 n. 143); negli altri colpi la regola del 29/10 resta
 export const SMASH_FROM = Object.freeze({ gesture: 1.5, always: 2.3, rise: -.15, power: .3 });
-export function smashAt(e = {}, ballY = 1){
+export function smashAt(e = {}, ballY = 1, { serveReturn = false } = {}){
   const y = finite(ballY, 1), it = eventIntent(e);
   if (y >= SMASH_FROM.always) return true;
   if (y < SMASH_FROM.gesture) return false;
   const rel = finite(it.rise) - finite(it.riseRef);
-  return e.side === 'overhead' || it.shot === 'smash' || String(e.shotType || '').toLowerCase() === 'smash' || (rel <= SMASH_FROM.rise && finite(it.power, .5) >= SMASH_FROM.power);
+  const gesture = e.side === 'overhead' || it.shot === 'smash' || String(e.shotType || '').toLowerCase() === 'smash';
+  return gesture || (!serveReturn && rel <= SMASH_FROM.rise && finite(it.power, .5) >= SMASH_FROM.power);
 }
 
 // Servizio dal gesto (prima era sempre «POWER SERVE» con la posizione a caso: sessione del 22/10). Il lancio parte con il
