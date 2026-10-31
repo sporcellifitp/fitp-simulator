@@ -117,6 +117,20 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   strade di sempre. Il canale «fast» del telefono via internet è affidabile ma non ordinato (PeerJS imposta solo
   ordered:false): lasciato così per decisione dell'utente.
 
+## Decisioni del 31/10 (diagnostiche 142317/142438 e richiesta in 5 punti)
+
+- Servizio dal gesto alla profondità voluta (`NS.fixAirServe`, P1 e P2). In risposta al servizio la schiacciata solo se
+  voluta (gesto di schiacciata o palla molto alta). Il pallonetto profondo resta schiacciabile al volo (decisione).
+  Telecamera che arretra in modo morbido oltre 12,5 m dalla rete (`natpf_camera_depth.js`).
+- Colpo del P2: stesse regole del P1 per attore (`natpf_impact` `pendKey`), con `P2_LATE_MARGIN` 30 ms solo tra due
+  computer. Gesti morbidi in attesa: decisione rinviata di ~60–70 ms (`SOFT`) perché il colpo vero arriva dopo.
+- Webcam: camera fino a 1280×720 se regge 24 fps, ritaglio attorno alla mano oltre ~2,5 m (`webcam_roi.js`),
+  coordinate riportate a 4:3 prima delle soglie dello zip. Webcam per due: confine mobile tra le «case», mani perse da
+  poco restano di chi le aveva, etichette delle mani libere con scadenza.
+- Minigiochi nascosti con un interruttore (`HIDDEN_MODES`), codice conservato. Guida «Come si gioca» a schede.
+- LAN: relay compatto (`STATE_SWINGS`), letture con `PHONE_POLL` (guardia 2,5 s, 0,5 s senza stanza), ping della
+  segnalazione, ETag.
+
 ## Decisioni (28/10/2026, sessione redesign)
 
 - **Tutorial: foto reali nella lezione, gesti con l'animazione 3D** (decisione finale del 28/10 sera, su richiesta

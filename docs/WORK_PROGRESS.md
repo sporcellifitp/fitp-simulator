@@ -1077,3 +1077,35 @@ oltre ~12,5 m sì. Non fatti ora: anticipo sistematico (C13), prova su reti dive
 In lavorazione (ultimo giro, rami paralleli con revisione): LAN ottimizzata; correzioni webcam dalle revisioni (geometria
 16:9 contro le soglie 4:3 dello zip; scambi di mani nella webcam per due); gesti e impatto (C1, C5, C6, C12, C14, C15,
 C19); equità del P2 (C2, C3, C10, C11, C18); motore (C4, C7, C8, C9, C16, C17, C21). Poi audit e pacchetti .18.
+
+## Ultimo giro e audit finale (31/10) — pacchetti 2026-10-28.18 (Cloudflare con il TURN e LAN)
+Uniti su `natpf-simulator` (rami paralleli in worktree, ciascuno con revisione avversaria, conflitti risolti a mano):
+- LAN (`d40fe7b`): relay senza la copia `rackets`, ultimi 3 colpi al P2 e 5 all'host, `/api/match/sync` risponde
+  `{ok, roomId, seq}` (lettura del P2 20.311 → 3.224 B, sync 9.770 → 39 B); letture senza stanza 1v1 ogni 0,5 s; lettura
+  bloccata annullata a 2 s (`PHONE_POLL`); ping della segnalazione LAN ogni 10 s (registrazioni morte libere in ~14 s);
+  `id-unavailable` non chiude più il canale aperto del telefono; keep-alive 65 s, ETag e 304, font immutabili; pausa
+  ridisegnata a 2 Hz (600 → 43 disegni in 10 s); HUD che scrive solo i cambiamenti; musica con anticipo 0,22 s. 11 delle
+  30 proposte fatte (verdetti nel resoconto dell'agente); banchi di bilanciamento identici byte per byte.
+- Webcam dalle revisioni (`445bd7c`, `5a610f5`, `362d479`): camera 16:9 riportata a 4:3 prima delle soglie dello zip;
+  webcam per due con il limite di salto solo dopo un buco, etichette delle mani libere con scadenza, confronto con l'altro
+  giocatore solo se lo si segue (configurazioni peggiori della base 28 → 18 su 3600, solo a velocità estreme e 10–12 Hz).
+- Gesti dalle diagnostiche (`8d74020`): rinvio di ~60–70 ms sui gesti morbidi (C1), niente attesa della preparazione
+  sulle schiacciate (C5), mira limitata oltre la finestra (C6), schiacciata in risposta al servizio solo se voluta
+  (C12), servizio non battuto da un gesto intermedio (C15), mira e ampiezza minima (C14, C19, dove sicuri).
+- Equità del P2 (`3b9c936`): stesse regole del P1 per attore (`pendKey`, `lateMargin` 30 ms tra due computer), servizio
+  dal gesto, limite della palla passata come il P1, lettura subito dopo un colpo del P2 (`pollNow`), diagnostica del P2.
+- Motore (`6ef8e1f`, `a883224`): servizio alla profondità voluta (`NS.fixAirServe`, anche per il P2), schiacciata o
+  volée mancata con il piano rifatto, animazione del servizio con la posa del lancio (il motore ora passa chi batte),
+  telecamera che arretra oltre 12,5 m (`natpf_camera_depth.js`), lampo dell'esito rotondo (era il «rettangolo chiaro»),
+  tabellone con chi serve, misure della diagnostica corrette.
+Audit finale (build .18): gioco 673/673, sito 182/182, server LAN 5/5, build ok; pacchetto Cloudflare estratto:
+`natpf-1v1-p2p.mjs` 27/27, `natpf-1v1-webcam-p2.mjs` 14/14, `natpf-webcam-distanza.mjs` 7/7; pacchetto LAN estratto:
+certificato, HTTPS, versione .18, offline 21/21, relay con `p2Hold` e `now`, gioco e pagina del telefono senza errori.
+Revisione del codice unito: gli agenti sono stati fermati dal limite d'uso; controllati a mano i punti d'incrocio
+(attese per attore con il rinvio SOFT, colpo a vuoto del P2, campi del relay compatto, letture).
+- [x] Cloudflare `natpf-simulator-cloudflare-20261028-18.zip` (con `/natpf/turn.json`), 153 voci, 26.169.386 byte, sha256
+      `6f0121a1857715370766b63dd70a3b56f73f77a74acbecb989e667be1fc16653`.
+- [x] LAN Windows `natpf-simulator-lan-windows-20261028-18.zip`, 318 voci, 61.382.787 byte, sha256
+      `a1c6c30cdad12ea2eb0b2b29199f2353d260146a3051b3abfeb0fcabc77d0905`, nessun certificato né chiave.
+- **Non verificato**: telefoni e webcam veri, Windows, due computer su reti diverse, TURN in uso reale, persone a 1–4 m,
+  webcam per due con due persone; costanti nuove (rinvio 60–70 ms, margine del P2, telecamera) in partite vere.

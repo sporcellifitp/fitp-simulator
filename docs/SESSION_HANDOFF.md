@@ -1,6 +1,19 @@
 # SESSION_HANDOFF · ultimo stato verificato
 
-Aggiornato: 30/10/2026 · branch `natpf-simulator`.
+Aggiornato: 31/10/2026 · branch `natpf-simulator`.
+
+## Ultimissimo (31/10): richiesta in 5 punti, diagnostiche 142317/142438, audit; pacchetti 2026-10-28.18
+
+Fatto e unito (dettagli e misure in `docs/WORK_PROGRESS.md`, «Ultimo giro e audit finale»): webcam 1–4 m e webcam per
+due, guida a schede, Radar e Survival nascosti (`HIDDEN_MODES` in `natpf_arcade.js`), webcam del P2 invitato con il
+flusso del P1, LAN ottimizzata, correzioni dalle diagnostiche (gesti, equità del P2, motore) con le decisioni
+dell'utente. Gioco 673/673, sito 182/182, LAN 5/5; e2e sui pacchetti estratti 27/27, 14/14, 7/7. TURN di Cloudflare
+funzionante (Worker `natpf-turn` dell'utente), il .18 ha `/natpf/turn.json`. Push fatto.
+Da provare dal vivo: telefono del P2 senza VPN su un'altra rete (`tel.strada` «relay (tls, TURN nostro)»?), webcam a
+1–4 m e per due, guida su telefono, LAN su Windows; prossima diagnostica anche sul computer del P2 (C20).
+Decisioni aperte: anticipo sistematico (C13); compensazione della latenza del P2 dopo misure su internet.
+Prossima azione: leggere le diagnostiche della prova dell'utente con il .18.
+
 
 ## Ultimissimo (30/10, sera): colpi del P2, palla del P2, TURN di Cloudflare; pacchetto Cloudflare 2026-10-28.17
 
