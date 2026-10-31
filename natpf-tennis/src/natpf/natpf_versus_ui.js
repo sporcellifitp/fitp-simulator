@@ -5,10 +5,14 @@
 //     «Torna al menu» per chiudere;
 //   • Player 2: un pannello unico con lo stato (mi collego · collegato · pronto · partita · collegamento perso · stanza
 //     chiusa o inesistente · rete che blocca il collegamento diretto), racchetta e visuale, «Sono pronto» ed «Esci»;
-//     sul telefono un avviso: l'invito si apre sul computer.
+//     sul telefono un avviso: l'invito si apre sul computer. Racchetta da preparare come il Player 1 nel menu: telefono
+//     (QR → calibrazione in campo) o webcam (pannello della webcam → prova in campo), poi pronto da solo.
 // Lo stato arriva ogni 50 ms dal relay (/api/match/state) attraverso il motore (roomStatus, versusGuest).
 import { VERSUS, lobbyState, canStart, hostLobbyStatus, startLabel, guestState, guestLine, p2HoldWhy, createHoldReporter, opponentHealth, hostHoldText, guestHoldNotice, CHECKPOINT_KEY, makeCheckpoint, checkpointFor } from './natpf_versus.js';
 import { createPhoneWatch, phoneHealthOf, holdText } from './natpf_phone_watch.js';
+import { webcamHealth, webcamHoldText } from './natpf_webcam_watch.js';
+import { warmupDrills } from './natpf_training.js';
+import { autoAdvance } from './natpf_lobby.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 // browser di un telefono (sistema mobile e tocco): l'invito va aperto sul computer
@@ -202,6 +206,12 @@ export class NatpfVersusUi {
     modal.querySelector('[data-versus-leave]')?.addEventListener('click', e => { e.stopPropagation(); this.leave(); });
     // sfida senza server: «Riconnetti» rifà subito il collegamento con l'host (stessa partita)
     modal.querySelector('[data-versus-reconnect]')?.addEventListener('click', e => { e.stopPropagation(); this.reconnectAction().run(); });
+    // pannello della webcam del P2: accendi (o riprova dopo un errore), indietro, in campo
+    const cam = $('natpf-guest-cam');
+    cam?.addEventListener('pointerdown', e => e.stopPropagation());
+    $('guest-cam-go')?.addEventListener('click', e => { e.stopPropagation(); this.ui.startWebcam().then(() => this._paintCam()); });
+    $('guest-cam-back')?.addEventListener('click', e => { e.stopPropagation(); this.closeCam(); this._tickGuest(); });
+    $('guest-cam-field')?.addEventListener('click', e => { e.stopPropagation(); if (this.engine.motionController?.webcamActive) this.startCal(); });
   }
   // «Sono pronto»: l'host lo vede nella lobby
   setReady(on = true){
@@ -213,13 +223,51 @@ export class NatpfVersusUi {
   // campo d'allenamento, come il Player 1 nel riscaldamento; finita, si è pronti da soli. Prima il P2 calibrava nel
   // pannello del telefono, senza campo e senza palle: dopo i due gesti chiedeva un «colpetto libero» e due pulsanti
   // («Conferma la racchetta», «Continua»), e chi non li trovava restava lì con l'host bloccato su «Gioca»
+  // Con la webcam (segnalazione del 30/10: prima «Sono pronto» e basta, senza camera né prova): il pannello della webcam
+  // come la pagina «Collega» del Player 1 (permesso, anteprima, motivi d'errore, mano vista), appena vede la mano la
+  // prova in campo con il lanciapalle, poi pronto da solo
   primary(){
     const ui = this.ui, phone = ui.phone;
     if (this.ready){ this.setReady(false); return; }
+    if (ui.controller === 'webcam' && this._webcamSetup()){ this.openCam(); return; }
     if (ui.controller !== 'phone' || phone.ready){ this.setReady(true); return; }
     this.awaitPhone = true;
     show($('natpf-guest-modal'), false);
     ui.openPhone();
+  }
+  // la webcam va (ri)preparata: spenta, o non ancora provata in campo
+  _webcamSetup(){ return this.ui.controller === 'webcam' && (!this.engine.motionController?.webcamActive || !this.camTried); }
+  // racchetta cambiata nel pannello: se quella nuova va preparata, non si è più pronti (prima si restava pronti con la
+  // webcam spenta o il telefono da collegare, e la partita partiva con il P2 che non poteva colpire)
+  onController(id){
+    if (!this.p2) return;
+    if (id !== 'webcam' && this.awaitCam) this.closeCam();
+    if (this.ready && this.guest !== 'playing' && ((id === 'phone' && !this.ui.phone.ready) || (id === 'webcam' && this._webcamSetup()))) this.setReady(false);
+    else this._paintGuest();      // pulsante e riga di stato subito con la racchetta nuova (non al prossimo giro)
+  }
+  get camOpen(){ const el = $('natpf-guest-cam'); return !!el && !el.classList.contains('hidden'); }
+  // pannello della webcam: si accende subito (il browser chiede il permesso), poi stato e anteprima ogni 250 ms
+  openCam(){
+    const ui = this.ui;
+    this.awaitCam = true;
+    // si entra in campo da soli quando la mano si vede mentre si è qui (come la pagina «Collega» del Player 1)
+    this.camAutoFrom = this._handSeen() ? 'cam' : null;
+    show($('natpf-guest-modal'), false); show($('natpf-guest-cam'));
+    this._paintCam();
+    if (!this.engine.motionController?.webcamActive) ui.startWebcam().then(() => this._paintCam());
+  }
+  closeCam(){ this.awaitCam = false; clearTimeout(this._camT); this._camT = null; show($('natpf-guest-cam'), false); }
+  _handSeen(){ return !!this.ui.lobby?.state?.().handSeen; }
+  _paintCam(){
+    if (!this.camOpen) return;
+    const ui = this.ui, mc = this.engine.motionController, on = !!mc?.webcamActive;
+    ui.paintWebcamSetup?.();
+    const field = $('guest-cam-field'); if (field) field.disabled = !on;
+    // mano vista: in campo da soli dopo un attimo, ma non con la guida aperta
+    if (this.awaitCam && autoAdvance('connect', { controller: 'webcam', handSeen: this._handSeen() }) && this.camAutoFrom !== 'cam' && !ui.onboarding?.isOpen){
+      this.camAutoFrom = 'cam';
+      this._camT = setTimeout(() => { this._camT = null; if (this.awaitCam && this.camOpen && !ui.onboarding?.isOpen && mc?.webcamActive) this.startCal(); else this.camAutoFrom = null; }, 700);
+    }
   }
   // telefono collegato con i sensori attivi, dal pannello del telefono: si chiude il pannello e si va in campo
   _phoneLinked(){
@@ -229,23 +277,31 @@ export class NatpfVersusUi {
   // Calibrazione del P2 nel campo d'allenamento. Il motore del P2 gioca in locale (ruolo del P1, colpi che restano qui,
   // niente multigiocatore) finché dura; l'host intanto è in lobby e non manda la partita (snapshot «lobby»), e con il P2
   // non pronto non può farla partire. Alla fine (calDone) tutto torna come prima.
+  // Con la webcam, che non ha una calibrazione: il riscaldamento del Player 1 con la webcam (dritto, rovescio, servizio,
+  // natpf_training.warmupDrills), saltabile con «Salta»
   startCal(){
     const E = this.engine, ui = this.ui, mc = E.motionController;
     if (!ui.training || ui.training.active) return;
-    this.awaitPhone = false;
-    this.local = { role: E.playerRole, multi: E.isMultiplayer, auto: E.autoPlayMode, touched: E.userHasInteracted };
+    const webcam = ui.controller === 'webcam';
+    this.awaitPhone = false; this.closeCam();
+    this.local = { role: E.playerRole, multi: E.isMultiplayer, auto: E.autoPlayMode, touched: E.userHasInteracted, webcam };
     E.playerRole = 'p1'; if (mc) mc.localPractice = true;
     show($('natpf-guest-modal'), false);
-    ui.training.start({ calOnly: true, guest: true });
+    ui.training.start(webcam ? { drills: warmupDrills('webcam'), guest: true } : { calOnly: true, guest: true });
+    ui.diag?.recorder?.log?.('sfida.prova', { racchetta: ui.controller, stato: 'inizio' });
   }
   calDone({ completed = false, skipped = false } = {}){
     const E = this.engine, mc = E.motionController, was = this.local; this.local = null;
     if (mc) mc.localPractice = false;
     if (was){ E.playerRole = was.role; E.isMultiplayer = was.multi; E.autoPlayMode = was.auto; E.userHasInteracted = was.touched; }
+    const webcam = was ? !!was.webcam : this.ui.controller === 'webcam';
     // calibrazione finita, o «Salta» (modalità semplice: si gioca lo stesso): pronto. Il telefono vero dice «pronto» un
-    // attimo dopo la fine della calibrazione in campo: non lo si aspetta qui (prima il P2 restava non pronto)
-    if (completed || skipped || this.ui.phone.ready) this.setReady(true);
-    this.ui.toast(this.ready ? 'Racchetta pronta ✓ ora aspetta che l’host avvii la partita' : 'Calibrazione interrotta: rifalla dal pannello');
+    // attimo dopo la fine della calibrazione in campo: non lo si aspetta qui (prima il P2 restava non pronto). Con la
+    // webcam: riscaldamento finito o saltato
+    if (webcam && (completed || skipped)) this.camTried = true;
+    if (completed || skipped || (!webcam && this.ui.phone.ready)) this.setReady(true);
+    this.ui.toast(this.ready ? `${webcam ? 'Webcam pronta' : 'Racchetta pronta'} ✓ ora aspetta che l’host avvii la partita` : webcam ? 'Prova interrotta: rifalla dal pannello' : 'Calibrazione interrotta: rifalla dal pannello');
+    this.ui.diag?.recorder?.log?.('sfida.prova', { racchetta: webcam ? 'webcam' : 'phone', stato: completed ? 'finita' : skipped ? 'saltata' : 'interrotta', pronto: this.ready });
     this._tickGuest();
   }
   leave(){
@@ -265,10 +321,11 @@ export class NatpfVersusUi {
     if (!this.p2) return null;
     const st = this.guest, el = document.querySelector('[data-versus-guest]');
     const phone = this.ui.controller === 'phone' && !this.ui.phone.ready;
+    const webcam = !phone && this._webcamSetup();
     // sfida senza server, non ancora collegati: la riga dice perché (natpf_versus.guestLine)
     const p2p = this.engine.natpfP2p;
     if (el){
-      const line = guestLine(st, { ready: this.ready, phone, hostName: this.engine.roomStatus?.hostName || 'Player 1', net: p2p?.mode === 'guest' ? { mode: 'guest', status: p2p.status, error: p2p.error } : null });
+      const line = guestLine(st, { ready: this.ready, phone, webcam, hostName: this.engine.roomStatus?.hostName || 'Player 1', net: p2p?.mode === 'guest' ? { mode: 'guest', status: p2p.status, error: p2p.error } : null });
       if (el.textContent !== line.text) el.textContent = line.text;
       el.dataset.state = line.state;
       el.title = p2p?.mode === 'guest' && p2p.detail ? `collegamento diretto: ${p2p.detail}` : '';
@@ -277,7 +334,7 @@ export class NatpfVersusUi {
     const go = $('natpf-guest-go');
     if (go){
       go.disabled = st !== 'lobby' && st !== 'connecting';
-      const label = this.ready ? 'Pronto ✓' : phone ? 'Collega il telefono ›' : 'Sono pronto ✓';
+      const label = this.ready ? 'Pronto ✓' : phone ? 'Collega il telefono ›' : webcam ? 'Accendi la webcam ›' : 'Sono pronto ✓';
       if (go.textContent !== label) go.textContent = label;
       go.classList.toggle('selected', this.ready);
     }
@@ -288,15 +345,24 @@ export class NatpfVersusUi {
   _guestHold(st){
     const E = this.engine, ui = this.ui, mc = E.motionController, now = performance.now();
     const playing = st === 'playing' && !this.local && !ui.training?.active;
-    const health = playing && ui.controller === 'phone' && ui.phone ? phoneHealthOf(ui.phone, now) : null;
+    const G = E.versusGuest || {}, p2p = E.natpfP2p, hold = st === 'playing' ? G.hold : null;
+    // salute della racchetta: telefono, o webcam (spenta, ferma, mano persa a lungo: natpf_webcam_watch.webcamHealth, con
+    // le soglie del Player 1; già in pausa per un motivo del P2, per riprendere la mano deve vedersi adesso)
+    let health = null;
+    if (playing && ui.controller === 'phone' && ui.phone) health = phoneHealthOf(ui.phone, now);
+    else if (playing && ui.controller === 'webcam' && mc?.webcamHealth){
+      const paused = !!this.reporter.why || hold?.who === 'p2';
+      health = webcamHealth(mc.webcamHealth(now), { paused, rally: E.phase === 'RALLY' || E.phase === 'SERVE_TOSS' });
+    }
     const why = this.reporter.update(p2HoldWhy({ playing, hidden: !!globalThis.document?.hidden, health }), now);
     if (mc) mc.versusHold = why || '';
-    if (why !== this._lastHold){ ui.diag?.recorder?.log?.('tel2.pausa', { motivo: why || 'ok' }); this._lastHold = why; }
+    if (why !== this._lastHold){ ui.diag?.recorder?.log?.('tel2.pausa', { motivo: why || 'ok', racchetta: ui.controller }); this._lastHold = why; }
     // collegamento con l'host perso: lo dice il pannello del P2 (con «Riconnetti»), non questo riquadro
-    const G = E.versusGuest || {}, p2p = E.natpfP2p, hold = st === 'playing' ? G.hold : null;
     if (!hold){ if (this._holdShown){ this._holdShown = false; ui._paintHold(null); } return; }
-    const n = guestHoldNotice(hold, { hostName: E.roomStatus?.hostName || 'Player 1', phoneText: holdText(hold.why) });
-    const action = n.phone ? ui.relinkAction(ui.phone) : hold.why === 'avversario' && p2p?.mode === 'guest' ? this.reconnectAction() : null;
+    const webcamText = hold.why === 'webcam spenta' ? 'La webcam è spenta: premi «Accendi la webcam». La partita riprende quando ti rivede.' : webcamHoldText(hold.why);
+    const n = guestHoldNotice(hold, { hostName: E.roomStatus?.hostName || 'Player 1', phoneText: holdText(hold.why), webcamText });
+    const action = n.phone ? ui.relinkAction(ui.phone) : n.webcam && hold.why === 'webcam spenta' ? { label: 'Accendi la webcam', run: () => ui.startWebcam() }
+      : hold.why === 'avversario' && p2p?.mode === 'guest' ? this.reconnectAction() : null;
     ui._paintHold(n.title, n.text, action); this._holdShown = true;
   }
   // «Riconnetti» (sfida senza server): un nuovo collegamento con l'host subito, senza una nuova partita
@@ -309,6 +375,14 @@ export class NatpfVersusUi {
   _tickGuest(){
     const st = this._paintGuest(), modal = $('natpf-guest-modal');
     this._guestHold(st);
+    // pannello della webcam: stato, anteprima e ingresso in campo con la mano vista; si chiude se la stanza non c'è più o
+    // la partita parte. Collegamento con l'host perso per un attimo: lascia il posto al pannello del P2 (che lo dice, con
+    // «Riconnetti») e torna da solo quando il collegamento torna (prima si chiudeva e si ripartiva dal pannello del P2)
+    if (this.awaitCam){
+      if (st === 'playing' || st === 'closed' || st === 'invalid') this.closeCam();
+      else if (st === 'lost') show($('natpf-guest-cam'), false);
+      else { if (!this.camOpen && !this.ui.training?.active) show($('natpf-guest-cam')); this._paintCam(); }
+    }
     // telefono collegato dal pannello del telefono: in campo per la calibrazione (o pronto, se è già calibrato)
     if (this.awaitPhone && this._phoneLinked()){
       this.awaitPhone = false; this.ui.closePhone();
@@ -317,7 +391,7 @@ export class NatpfVersusUi {
     // il pannello resta aperto finché non si gioca; torna se l'host chiude, si perde il collegamento o si torna in lobby.
     // Non sopra il pannello del telefono, la guida o la calibrazione in campo: prima, dopo «Sono pronto» con il telefono
     // da collegare, tornava ogni 250 ms sopra il QR e lo copriva
-    const pm = this.ui.modal, other = (!!pm && !pm.classList.contains('hidden')) || !!this.ui.onboarding?.isOpen || !!this.ui.training?.active;
+    const pm = this.ui.modal, other = (!!pm && !pm.classList.contains('hidden')) || this.camOpen || !!this.ui.onboarding?.isOpen || !!this.ui.training?.active;
     if (modal) show(modal, st !== 'playing' && !other);
     if (this._last !== st){
       if (st === 'playing' && this._last) this.ui.toast('Si gioca!');

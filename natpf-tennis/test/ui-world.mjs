@@ -34,7 +34,7 @@ export class El {
 export function mkEvent(type, target, extra = {}){ return { type, target, code: '', key: '', _stopImm: false, defaultPrevented: false, stopPropagation(){}, stopImmediatePropagation(){ this._stopImm = true; }, preventDefault(){ this.defaultPrevented = true; }, ...extra }; }
 const els = new Map();
 export const $ = id => { if (!els.has(id)) els.set(id, new El(id)); return els.get(id); };
-const SHEETS = ['natpf-nick', 'natpf-staff', 'natpf-phone-modal', 'natpf-guest-modal', 'natpf-pause', 'natpf-onboarding', 'natpf-versus-wait'];
+const SHEETS = ['natpf-nick', 'natpf-staff', 'natpf-phone-modal', 'natpf-guest-modal', 'natpf-guest-cam', 'natpf-pause', 'natpf-onboarding', 'natpf-versus-wait'];
 const winLs = {};
 globalThis.document = {
   getElementById: $,

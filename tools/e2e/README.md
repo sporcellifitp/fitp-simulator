@@ -38,6 +38,10 @@ NATPF motore base (`natpf-tennis/`):
   - la partita con il servizio di tutti e due, l'uscita e il rientro del P2 con il link;
   - la stanza chiusa, il link inesistente, l'avviso sul telefono;
   - la rete che blocca il collegamento diretto: candidati ICE riscritti su un indirizzo irraggiungibile, poi rete libera.
+- `node natpf-1v1-webcam-p2.mjs` (dopo la build): Player 2 dell'invito con la webcam finta di Chromium. Prova il pannello
+  della webcam del P2 (accensione, anteprima, «Cerco la mano…»), la prova in campo in locale con la mano vista
+  (simulata), «Salta» → pronto da solo, la webcam spenta in partita detta all'host, la webcam negata. `NOSHOT=1` salta le
+  schermate: con il disegno WebGL software acceso per gli scatti il collegamento diretto può cadere per qualche secondo.
 
   `DIST=cartella` per provarla su uno zip estratto.
 - `node natpf-gameplay-23-10.mjs` (3183, 9183): i difetti di gioco della sera del 23/10 nel gioco vero con il telefono simulato: risposta al servizio da fondo campo, messaggio di fine punto (chi vince, chi ha sbagliato), moviola dell'ultimo punto, palla corta ripresa a rete a Leggenda, «In rete» negli scambi lunghi.

@@ -645,6 +645,33 @@
         </div>
       </div>
     </div>
+    <!-- NATPF: Player 2 con la webcam (natpf_versus_ui.js): accensione, permesso e mano vista come nella pagina «Collega»
+         del Player 1, poi la prova in campo con il lanciapalle e «pronto» da solo -->
+    <div id="natpf-guest-cam" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="natpf-guest-cam-title">
+      <div class="natpf-sheet natpf-guest-cam-dialog">
+        <p class="sheet-kicker">Sfida un amico · webcam</p>
+        <h2 class="sheet-title" id="natpf-guest-cam-title">Accendi la webcam</h2>
+        <p class="sheet-desc">Quando la webcam vede la mano che colpisce si va in campo: qualche palla con il lanciapalle, poi sei pronto.</p>
+        <div class="setup-panel guest-cam-panel">
+          <div class="setup-cam"><video id="guest-cam-video" autoplay playsinline muted></video><span id="guest-cam-badge" class="setup-cam-badge">Webcam spenta</span></div>
+          <div class="setup-side">
+            <div class="setup-status"><span class="setup-dot" id="guest-cam-dot"></span><span id="guest-cam-text">Mettiti a 1–2 m: mano, polso e avambraccio ben visibili</span></div>
+            <div class="lobby-row">
+              <span class="lobby-label">Movimento</span>
+              <div class="lobby-seg" role="radiogroup" aria-label="Movimento">
+                <button type="button" class="seg-btn" data-natpf-move="auto">Automatico</button
+                ><button type="button" class="seg-btn" data-natpf-move="body">Segui il corpo</button>
+              </div>
+            </div>
+            <button type="button" id="guest-cam-go" class="lobby-primary">Accendi la webcam</button>
+          </div>
+        </div>
+        <div class="sheet-actions">
+          <button type="button" class="lobby-ghost" id="guest-cam-back">Indietro</button
+          ><button type="button" class="lobby-primary" id="guest-cam-field">In campo ›</button>
+        </div>
+      </div>
+    </div>
     <!-- NATPF: pausa (src/natpf/natpf_pause.js): in partita l'HUD mostra solo tabellone, game ed esito del colpo -->
     <button id="natpf-pause-btn" class="natpf-pause-btn" type="button" aria-label="Pausa (Esc)" title="Pausa (Esc)"><span aria-hidden="true">❚❚</span></button>
     <div id="natpf-pause" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="natpf-pause-title">
