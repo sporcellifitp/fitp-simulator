@@ -8,13 +8,21 @@
 //  - ogni giocatore ha una «casa» (dove sta: segue la sua mano lentamente) e il confine tra le corsie è a metà tra le
 //    due case (tra 0,3 e 0,7 dell'immagine), non fisso a metà immagine;
 //  - mano agganciata (vista da meno di pickMs): resta di quel giocatore ovunque vada, finché è compatibile per velocità e
-//    grandezza (argonSameHand), dalla sua parte del confine o nella zona condivisa e non più vicina all'altro giocatore;
-//    dopo un buco salta al massimo di jumpHands grandezze della mano. Tra due mani vicine o che si incrociano vince la
-//    più vicina a dove la mano stava andando (posizione prevista con la velocità), così le mani dei due non si scambiano
-//    (revisione del 31/10: prima, dopo un buco di 130–200 ms, la corsia poteva saltare sulla mano libera dell'altro);
+//    grandezza (argonSameHand), dalla sua parte del confine o nella zona condivisa. Dopo un buco (la corsia ha saltato
+//    almeno un risultato) inoltre non oltre jumpHands grandezze della mano dalla posizione prevista più quanto fa nel
+//    buco un colpo veloce (jumpSpeed) e, se la mano dell'altro giocatore non è in vista dove lui l'aspetta, non più
+//    vicina all'altro giocatore; tra due risultati consecutivi la mano resta di chi la segue. Tra due mani vicine o che
+//    si incrociano vince la più vicina a dove la mano stava andando (posizione prevista con la velocità), così le mani
+//    dei due non si scambiano (revisioni del 31/10: prima, dopo un buco di 130–200 ms, la corsia
+//    poteva saltare sulla mano libera dell'altro; poi il limite di salto, misurato dall'ultima vista, valeva anche tra due
+//    risultati consecutivi e a 10–15 Hz con la mano piccola la corsia perdeva la sua mano a metà di un dritto veloce);
 //  - mani libere (il modello ne cerca quattro, DUO_HANDS): una mano rimasta senza giocatore si ritrova nel risultato
 //    dopo (vicino a dove era, con la sua velocità) e, se è stata vista insieme alla mano di un giocatore, non è la sua:
-//    quel giocatore non la prende (né quando perde la racchetta né nel rovescio a due mani);
+//    quel giocatore non la prende (né quando perde la racchetta né nel rovescio a due mani). Le mani agganciate si
+//    ritrovano insieme a quelle libere (abbinamento con la distanza totale minima): con le due mani di un giocatore
+//    vicine e la mano libera persa per un risultato, l'etichetta della mano libera non passa alla racchetta (prima ci
+//    restava per sempre: il giocatore non la riprendeva più e la prendeva l'altro). Un'etichetta vale per memoryMs
+//    dall'ultima volta che la mano è stata vista insieme a quella del giocatore;
 //  - mano persa da poco (meno di memoryMs): il giocatore ha diritto alla mano che ricompare vicino a dove l'aveva persa,
 //    anche oltre il confine (zona condivisa larga shared), finché non è più vicina all'altro giocatore: con una sola
 //    mano in vista va a chi l'aveva;
@@ -36,10 +44,12 @@ export const DUO = Object.freeze({
   hyst: .04,          // …se non è più vicina all'altro giocatore (con questo margine a favore di chi l'aveva)
   memoryMs: 4000,     // mano persa da meno di così: il giocatore ha diritto alla mano che ricompare dove l'aveva persa
   predictMs: 100,     // posizione prevista con la velocità al massimo fino a così dopo l'ultima vista
-  jumpHands: 4,       // mano agganciata: salto massimo dall'ultima vista, in grandezze della mano (circa 40 cm)…
-  jumpMin: .08,       // …e almeno così (larghezze dell'immagine)
+  jumpHands: 4,       // mano agganciata, dopo un buco: salto massimo dalla posizione prevista, in grandezze della mano
+  jumpMin: .08,       // (circa 40 cm) e almeno così (larghezze dell'immagine)…
+  jumpSpeed: 60,      // …più quanto si sposta nel buco a questa velocità (grandezze della mano al secondo: circa 6 m/s,
+                      // un colpo veloce) o alla sua, se più veloce
   decoyMs: 200,       // mani non assegnate ricordate dall'ultimo risultato se arrivato da meno di così…
-  decoyHands: 1,      // …e ritrovate se si sono spostate al massimo di così (in grandezze della mano)…
+  decoyHands: 1,      // …e ritrovate (come le mani agganciate) se si sono spostate al massimo di così (in grandezze della mano)…
   decoyMin: .025,     // …o di così (larghezze dell'immagine), dalla posizione prevista con la sua velocità
   decoyMaxV: 3,       // velocità massima di una mano non assegnata nella previsione (larghezze dell'immagine al secondo)
   // colonne del flusso ottico con il confine a metà (si spostano con il confine, duoFlowCols)
@@ -52,6 +62,9 @@ const pushTrail = (trail, pt) => {
   while (trail.length > 5 || (trail.length > 2 && pt.t - trail[0].t > 160)) trail.shift();
 };
 const other = id => (id === 'p1' ? 'p2' : 'p1');
+// etichetta «non è del giocatore id» di una mano non assegnata: istante dell'ultima volta che è stata vista insieme alla
+// sua mano, valida per memoryMs (come il diritto del giocatore alla mano persa)
+const notOf = (m, id, now) => !!m && finite(m[id]) && now - m[id] <= DUO.memoryMs;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 // la mano è dalla parte del giocatore rispetto al confine (spostato di margin verso l'altro)
 const onSide = (id, p, split, margin = 0) => (id === 'p1' ? p.x < split + margin : p.x >= split - margin);
@@ -68,7 +81,7 @@ export function duoFlowCols(split = DUO.mid){
 
 export class DuoTracker {
   constructor(){ this.reset(); }
-  reset(){ this.lanes = { p1: newLane('p1'), p2: newLane('p2') }; this.aspect = .75; this._decoys = []; this._decoyT = null; }
+  reset(){ this.lanes = { p1: newLane('p1'), p2: newLane('p2') }; this.aspect = .75; this._decoys = []; this._lastT = null; }
   // la mano di questo giocatore si è vista da poco (pagina «Collega»: pronti quando si vedono entrambe)
   seen(id, now, within = DUO.seenMs){ const s = this.lanes[id]?.seenAt; return Number.isFinite(s) && now - s <= within; }
   // confine tra le corsie: a metà tra le case dei due giocatori, nella fascia splitMin–splitMax
@@ -91,8 +104,8 @@ export class DuoTracker {
     const cands = (Array.isArray(list) ? list : []).map(lm => ({ lm, p: argonHandPoint(lm), size: argonHandSize(lm, aspect) })).filter(c => c.p);
     const split = this.split(), A = { p1: this._anchor(this.lanes.p1, now), p2: this._anchor(this.lanes.p2, now) };
     // mani non assegnate nell'ultimo risultato (mani libere, altre persone) ritrovate qui, con i giocatori di cui di
-    // sicuro non sono (viste insieme alla loro mano)
-    const decoys = this._matchDecoys(cands, now);
+    // sicuro non sono (viste insieme alla loro mano), e mani agganciate ritrovate vicino a dove erano previste
+    const { decoys, own } = this._matchDecoys(cands, now, A);
     // mani possibili per ogni giocatore: livello e distanza dall'ancora (per la corsia libera il valore di prima)
     const opts = {};
     for (const id of DUO_PLAYERS){
@@ -100,14 +113,16 @@ export class DuoTracker {
       opts[id] = [];
       cands.forEach((c, i) => {
         // una mano vista insieme alla mano di questo giocatore non è la sua (la sua mano libera, l'altro giocatore)
-        if (decoys.get(i)?.[id]) return;
+        if (notOf(decoys.get(i), id, now)) return;
         const d = dist(c.p, a.p), dOther = dist(c.p, o.p);
-        // agganciata: compatibile (velocità e grandezza), dalla sua parte del confine o nella zona condivisa e non più
-        // vicina all'altro giocatore; dopo un buco il salto è limitato dalla grandezza della mano (prima, con il limite
-        // di velocità, dopo 130–200 ms si poteva saltare di mezza immagine, sulla mano libera dell'altro)
+        // agganciata: compatibile (velocità e grandezza), dalla sua parte del confine o nella zona condivisa. Dopo un
+        // buco anche non troppo lontana dalla posizione prevista (_reach) e non più vicina all'altro giocatore, se la
+        // mano dell'altro non è in vista dove lui l'aspetta (se c'è, questa non è la sua). Tra due risultati consecutivi
+        // la mano resta di chi la segue anche quando un dritto veloce arriva vicino all'altro giocatore
         if (a.tier === 3){
-          const reach = Math.max(DUO.jumpMin, DUO.jumpHands*(finite(L.size) ? L.size : finite(c.size) ? c.size : 0));
-          if (dist(c.p, L.hand) <= reach && argonSameHand(c.p, c.size, { ...L.hand, size: L.size }, now) && onSide(id, c.p, split, DUO.shared) && d <= dOther + DUO.hyst) opts[id].push({ i, tier: 3, d });
+          const ok = argonSameHand(c.p, c.size, { ...L.hand, size: L.size }, now) && onSide(id, c.p, split, DUO.shared);
+          const otherHere = own[other(id)] != null && own[other(id)] !== i;
+          if (ok && (this._next(L) || (this._reach(L, c, a, now) && (otherHere || d <= dOther + DUO.hyst)))) opts[id].push({ i, tier: 3, d });
           return;
         }
         // persa da poco: dalla sua parte del confine, o nella zona condivisa se non è più vicina all'altro giocatore
@@ -140,9 +155,9 @@ export class DuoTracker {
     this._decoys = cands.flatMap((c, i) => {
       if (taken.has(i)) return [];
       const m = decoys.get(i), v = k => (m && finite(m[k]) ? Math.max(-DUO.decoyMaxV, Math.min(DUO.decoyMaxV, m[k])) : 0);
-      return [{ x: c.p.x, y: c.p.y, vx: v('vx'), vy: v('vy'), size: c.size, not: { p1: !!m?.p1 || !!best.p1, p2: !!m?.p2 || !!best.p2 } }];
+      return [{ x: c.p.x, y: c.p.y, t: now, vx: v('vx'), vy: v('vy'), size: c.size, not: { p1: best.p1 ? now : m?.p1 ?? null, p2: best.p2 ? now : m?.p2 ?? null } }];
     });
-    this._decoyT = now;
+    this._lastT = now;
     const out = [];
     for (const id of DUO_PLAYERS){
       const L = this.lanes[id], c = best[id] ? cands[best[id].i] : null;
@@ -165,25 +180,51 @@ export class DuoTracker {
     }
     return out;
   }
-  // mani non assegnate nell'ultimo risultato ritrovate tra quelle nuove (una per una, la più vicina entro poco: una mano
-  // libera si muove poco tra due risultati, o come prima) → Map(indice → { p1, p2: di quali giocatori di sicuro non è,
-  // vx, vy })
-  _matchDecoys(cands, now){
-    const out = new Map(), dt = (now - this._decoyT)/1000, prev = finite(dt) && dt > 0 && dt*1000 <= DUO.decoyMs ? this._decoys || [] : [];
-    const pairs = [];
-    prev.forEach((q, j) => {
-      // dove la mano dovrebbe essere ora con la sua velocità (la mano libera nel rovescio a due mani si muove veloce)
-      const at = { x: q.x + q.vx*dt, y: q.y + q.vy*dt }, r = Math.max(DUO.decoyMin, DUO.decoyHands*(finite(q.size) ? q.size : 0));
-      cands.forEach((c, i) => { const d = dist(c.p, at); if (d <= r) pairs.push({ i, j, d }); });
+  // mani non assegnate nell'ultimo risultato e mani agganciate ritrovate tra quelle nuove, tutte insieme: ogni «traccia»
+  // (mano non assegnata, dalla posizione prevista con la sua velocità; corsia agganciata, dalla sua posizione prevista)
+  // prende al massimo una mano entro il suo raggio (decoyHands grandezze della mano, almeno decoyMin), con la distanza
+  // totale minima (una traccia senza mano conta quanto il suo raggio). Prima le mani non assegnate si ritrovavano da sole,
+  // una per una la più vicina: con le due mani di un giocatore vicine e la mano libera persa per un risultato,
+  // l'etichetta della mano libera passava alla racchetta. → { decoys: Map(indice → { p1, p2: da quando la mano di
+  // sicuro non è del giocatore (istante, o null), vx, vy }), own: { p1, p2: indice della mano della corsia agganciata
+  // ritrovata dove l'aspetta, o null } }
+  _matchDecoys(cands, now, A){
+    const decoys = new Map(), own = { p1: null, p2: null };
+    const prev = (this._decoys || []).filter(q => now > q.t && now - q.t <= DUO.decoyMs);
+    const radius = size => Math.max(DUO.decoyMin, DUO.decoyHands*(finite(size) ? size : 0));
+    const tracks = prev.map((q, j) => { const dt = (now - q.t)/1000; return { j, at: { x: q.x + q.vx*dt, y: q.y + q.vy*dt }, r: radius(q.size) }; });
+    for (const id of DUO_PLAYERS) if (A[id].tier === 3) tracks.push({ id, at: A[id].p, r: radius(this.lanes[id].size) });
+    if (!tracks.length || !cands.length) return { decoys, own };
+    const D = tracks.map(k => cands.map(c => { const d = dist(c.p, k.at); return d <= k.r ? d - k.r : null; }));
+    // ricerca completa (al massimo quattro mani e sei tracce): costo = somma di (distanza − raggio) delle coppie
+    let best = [], bestCost = 0;
+    const pick = [], used = new Array(tracks.length).fill(false);
+    const go = (i, cost) => {
+      if (i === cands.length){ if (cost < bestCost - 1e-12){ bestCost = cost; best = pick.slice(); } return; }
+      pick[i] = -1; go(i + 1, cost);
+      for (let t = 0; t < tracks.length; t++) if (!used[t] && D[t][i] != null){ used[t] = true; pick[i] = t; go(i + 1, cost + D[t][i]); used[t] = false; }
+      pick[i] = -1;
+    };
+    go(0, 0);
+    best.forEach((t, i) => {
+      if (t < 0) return;
+      const k = tracks[t];
+      if (k.id){ own[k.id] = i; return; }
+      const q = prev[k.j], c = cands[i].p, dt = (now - q.t)/1000;
+      decoys.set(i, { ...q.not, vx: (c.x - q.x)/dt, vy: (c.y - q.y)/dt });
     });
-    pairs.sort((a, b) => a.d - b.d);
-    const usedJ = new Set();
-    for (const { i, j } of pairs) if (!out.has(i) && !usedJ.has(j)){
-      usedJ.add(j);
-      const q = prev[j], c = cands[i].p;
-      out.set(i, { ...q.not, vx: (c.x - q.x)/dt, vy: (c.y - q.y)/dt });
-    }
-    return out;
+    return { decoys, own };
+  }
+  // corsia agganciata con la mano vista nell'ultimo risultato (nessun buco)
+  _next(L){ return !!L.hand && finite(this._lastT) && L.hand.t >= this._lastT; }
+  // corsia agganciata, dopo un buco: salto possibile fino alla mano c, al massimo jumpHands grandezze della mano dalla
+  // posizione prevista più lo spostamento nel buco a jumpSpeed (o alla velocità della mano, se più veloce). Prima il
+  // limite valeva anche tra due risultati consecutivi ed era misurato dall'ultima vista: a 10–15 Hz o con la mano
+  // piccola (2–3 m con la camera 16:9) era più severo del limite di velocità e la corsia perdeva la sua mano a metà di un
+  // dritto veloce
+  _reach(L, c, a, now){
+    const size = finite(L.size) ? L.size : finite(c.size) ? c.size : 0, age = (now - L.hand.t)/1000;
+    return dist(c.p, a.p) <= Math.max(DUO.jumpMin, DUO.jumpHands*size) + Math.max(DUO.jumpSpeed*size, Math.hypot(L.vel.x, L.vel.y))*age;
   }
   // il giocatore vuole il flusso ottico: nessuna mano nell'ultimo risultato e non in attesa del buco breve
   wantsFlow(id, now){ const L = this.lanes[id]; return !!L && !L.handNow && !argonBridging(L.hand, now); }

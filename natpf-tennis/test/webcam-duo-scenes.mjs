@@ -9,18 +9,20 @@ export const DT = 1000/30;
 export const handLm = (S, y, size = .045) => { const d = size/.75, a = Array.from({ length: 21 }, () => ({ x: 1 - S, y, z: 0 })); a[0] = { x: 1 - S, y: y - .55*d, z: 0 }; a[9] = { x: 1 - S, y: y + .45*d, z: 0 }; return a; };
 const mj = t => (t <= 0 ? 0 : t >= 1 ? 1 : 10*t**3 - 15*t**4 + 6*t**5);
 
-// motore delle scene: frame(t) → [{ who, S, y, size?, free? }] (who e free solo per sapere di chi è la mano e se è la
-// mano libera, il tracker non lo vede); rumore dei punti, ordine delle mani a caso (come il modello). swaps: fotogrammi
-// in cui una corsia segue una mano dell'altro giocatore; onFree: fotogrammi in cui segue la mano libera del suo
-// giocatore mentre la racchetta è in vista
-export function play(Tracker, { total, frame, seed = 1, jitter = .002 }){
-  const tr = new Tracker(), rng = mulberry32(seed), out = [], owner = [];
+// motore delle scene: frame(t, rng) → [{ who, S, y, size?, free? }] (who e free solo per sapere di chi è la mano e se è
+// la mano libera, il tracker non lo vede); rumore dei punti, ordine delle mani a caso (come il modello). swaps:
+// fotogrammi in cui una corsia segue una mano dell'altro giocatore; onFree: fotogrammi in cui segue la mano libera del
+// suo giocatore mentre la racchetta è in vista. fps: risultati del modello al secondo; aspect: proporzioni della camera
+// (altezza/larghezza, 0,5625 = 16:9); size: grandezza della mano misurata dal tracker (argonHandSize) se la scena non
+// la dà (con aspect 0,75 e size 0,045 come prima)
+export function play(Tracker, { total, frame, seed = 1, jitter = .002, fps = 30, aspect = .75, size = .045 }){
+  const tr = new Tracker(), rng = mulberry32(seed), out = [], owner = [], dt = 1000/fps;
   let t = 1000;
   for (let k = 0; t - 1000 < total*1000; k++){
-    t += DT;
-    const hands = frame((t - 1000)/1000).map(h => ({ ...h, S: h.S + gauss(rng)*jitter, y: h.y + gauss(rng)*jitter }));
+    t += dt;
+    const hands = frame((t - 1000)/1000, rng).map(h => ({ ...h, S: h.S + gauss(rng)*jitter, y: h.y + gauss(rng)*jitter }));
     if (rng() < .5) hands.reverse();
-    for (const e of tr.hands(hands.map(h => handLm(h.S, h.y, h.size)), t)) out.push({ ...e, t: (t - 1000)/1000 });
+    for (const e of tr.hands(hands.map(h => handLm(h.S, h.y, (h.size ?? size)*.75/aspect)), t, aspect)) out.push({ ...e, t: (t - 1000)/1000 });
     // di chi è la mano che ogni corsia segue (la più vicina tra quelle date)
     for (const id of ['p1', 'p2']){
       const L = tr.lanes[id];
@@ -117,6 +119,36 @@ export const SCENES = {
     const x = .40 + .24*mj((t - 2)/.5) - .24*mj((t - 3.6)/.3);
     const out = t < 1 ? [{ who: 'p1', S: .40, y: .55 }] : [{ who: 'p1', S: x, y: .55 }, free('p1', x - .06, .58)];
     if (t < (o.p2Until ?? 0)) out.push({ who: 'p2', S: .75, y: .55 });
+    return out;
+  } }),
+
+  // Revisione indipendente del 31/10 (dopo 5c50891), con mani piccole (2–3 m, camera 16:9: o.size 0,026, o.aspect
+  // 0,5625) e il modello a 10–30 risultati al secondo (o.fps).
+  // Dritto veloce del P2 (da 0,72 verso il centro di o.dS in o.T secondi, poi ritorno lento) con la mano del P1 a 0,30
+  // sempre in vista (o.p1) o solo nel primo secondo. Prima il limite di salto della corsia agganciata, misurato
+  // dall'ultima vista e non dalla posizione prevista, valeva anche tra due risultati consecutivi: a 10–15 Hz la corsia
+  // del P2 perdeva la mano a metà colpo e il P1 la prendeva (colpi del P1 non suoi)
+  dirittoVeloce: (Tracker, o = {}) => play(Tracker, { ...o, total: 4, frame: t => {
+    const out = [{ who: 'p2', S: .72 - (o.dS ?? .25)*mj((t - 2)/(o.T ?? .3)) + (o.dS ?? .25)*mj((t - 2.6)/.6), y: .55 }];
+    if (o.p1 || t < 1) out.push({ who: 'p1', S: .30, y: .55 });
+    return out;
+  } }),
+  // caso B con la mano piccola e il dritto di o.dS (0,15–0,3) da 0,70; buco di 170 ms a metà colpo, mano libera del P1
+  // a 0,40 (più in basso)
+  bucoNelDrittoPiccola: (Tracker, o = {}) => play(Tracker, { ...o, total: 3, frame: t => {
+    const z = o.size ?? .045, out = [{ who: 'p1', S: .30, y: .55 }, { who: 'p1', S: .40, y: .62, size: .93*z, free: true }];
+    if (!(t >= 1.08 && t < 1.25)) out.push({ who: 'p2', S: swingAt(t, 1, .70, -(o.dS ?? .15), .3), y: .55 });
+    return out;
+  } }),
+  // Due mani dello stesso giocatore vicine (posizione di attesa, poi rovescio a due mani e dritto di ritorno): mano
+  // libera a o.gap grandezze della mano (0,6–1,0) dalla racchetta, persa dal modello in una frazione o.drop dei
+  // risultati (0,1–0,4); il P2 a 0,78 in vista (o.p2) o no. Prima l'etichetta «non del P1» della mano libera passava
+  // alla racchetta quando la mano libera mancava per un risultato e ci restava: il P1 non la riprendeva più e seguiva
+  // la mano libera (o la prendeva il P2)
+  dueManiVicine: (Tracker, o = {}) => play(Tracker, { ...o, total: 5, frame: (t, rng) => {
+    const z = o.size ?? .045, x = .35 + .2*mj((t - 2)/.4) - .2*mj((t - 3.5)/.4), out = [{ who: 'p1', S: x, y: .55 }];
+    if (t > 1 && rng() >= (o.drop ?? .2)) out.push({ who: 'p1', S: x - (o.gap ?? .8)*z, y: .57, size: .93*z, free: true });
+    if (o.p2) out.push({ who: 'p2', S: .78, y: .55 });
     return out;
   } }),
 };

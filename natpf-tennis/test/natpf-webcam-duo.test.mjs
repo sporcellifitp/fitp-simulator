@@ -74,7 +74,7 @@ test('caso C: rovescio a due mani del P1 oltre il centro: il P1 resta sulla racc
     assert.deepEqual(whoSide(r), ['p1·backhand', 'p1·forehand'], `P2 fino a ${p2Until} s, seme ${seed}`);
   }
 });
-test('corsia agganciata: dopo un buco non salta oltre quattro mani di distanza né sulla mano vista insieme alla sua', () => {
+test('corsia agganciata: dopo un buco non salta sulla mano vista insieme alla sua e riprende la sua più in là', () => {
   const tr = new DuoTracker(); let t = 1000;
   // P1 a 0,30 con la mano libera a 0,40, P2 a 0,66; il P2 sparisce per 150 ms: la sua corsia resta vuota
   for (let i = 0; i < 15; i++){ t += DT; tr.hands([L(.3, .55, .045), L(.4, .62, .042), L(.66, .55, .045)], t); }
@@ -85,6 +85,70 @@ test('corsia agganciata: dopo un buco non salta oltre quattro mani di distanza n
   assert.ok(Math.abs(tr.lanes.p2.hand.x - .52) < 1e-9);
   // valori non finiti dal modello: ignorati
   t += DT; assert.deepEqual(tr.hands([L(NaN, .5), [{ x: Infinity, y: .5 }], null], t), []);
+});
+
+// Revisione indipendente dopo 5c50891 (31/10): mani piccole (2–3 m con la camera 16:9: grandezza 0,026, proporzioni
+// 0,5625) e il modello a 10–30 risultati al secondo. Il confronto è con la base ada351d (le corsie di prima delle mani
+// libere): stessi colpi, nessuno scambio. Con 5c50891 (10 semi): dritto veloce 30 prove sbagliate su 180, tutte con il
+// P1 assente (colpi del P1 non suoi: il limite di salto valeva tra due risultati consecutivi); caso B con la mano piccola
+// senza il dritto in 109 prove su 120 (la corsia non riprendeva la sua mano dopo il buco; la base ada351d dava il dritto
+// ma in 113 saltava sulla mano libera del P1); due mani vicine con la corsia sulla mano libera in 159 prove su 180 (base
+// 4) e in 8 colpi «p2·forehand» del P2 assente (l'etichetta della mano libera passava alla racchetta e ci restava).
+const small = { size: .026, aspect: .5625 };
+test('limite di salto della corsia agganciata: solo dopo un buco, dalla posizione prevista, con lo spostamento possibile nel buco', () => {
+  // mano piccola (0,026, camera 16:9) del P2 ferma a 0,75, il P1 a 0,10; il P2 manca per cinque risultati (200 ms: oltre
+  // questo buco il limite è più severo di quello di velocità, argonSameHand)
+  const H = (S, y = .55) => L(S, y, .026*.75/.5625);
+  const setup = () => {
+    const tr = new DuoTracker(); let t = 1000;
+    for (let i = 0; i < 10; i++){ t += DT; tr.hands([H(.10), H(.75)], t, .5625); }
+    for (let i = 0; i < 5; i++){ t += DT; tr.hands([H(.10)], t, .5625); }
+    return { tr, t: t + DT };
+  };
+  const reach = Math.max(DUO.jumpMin, DUO.jumpHands*.026) + DUO.jumpSpeed*.026*.2;
+  // oltre il limite (dalla posizione prevista, ferma): non è del P2
+  let { tr, t } = setup(); tr.hands([H(.10), H(.75 - reach - .015)], t, .5625);
+  assert.equal(tr.lanes.p2.handNow, false);
+  // entro il limite: è del P2
+  ({ tr, t } = setup()); tr.hands([H(.10), H(.75 - reach + .015)], t, .5625);
+  assert.equal(tr.lanes.p2.handNow, true); assert.ok(Math.abs(tr.lanes.p2.hand.x - (.75 - reach + .015)) < 1e-9);
+  // senza buco il salto dello stesso tempo è limitato solo dalla velocità (argonSameHand): a 10 Hz, 0,2 in 100 ms è del P2
+  const tr2 = new DuoTracker(); let t2 = 1000;
+  for (let i = 0; i < 10; i++){ t2 += 100; tr2.hands([H(.10), H(.75)], t2, .5625); }
+  t2 += 100; tr2.hands([H(.10), H(.55)], t2, .5625);
+  assert.ok(tr2.lanes.p2.handNow && Math.abs(tr2.lanes.p2.hand.x - .55) < 1e-9, 'dritto veloce tra due risultati consecutivi');
+});
+test('dritto veloce del P2 a 10, 15 e 30 Hz con la mano piccola, la mano del P1 in vista o no: la corsia del P2 non perde la sua mano', () => {
+  for (const fps of [10, 15, 30]) for (const p1 of [true, false]) for (const [dS, T] of [[.17, .25], [.25, .3], [.29, .3]]){
+    for (const { seed, r } of run10('dirittoVeloce', { ...small, fps, p1, dS, T })){
+      const at = `${fps} Hz, P1 ${p1 ? 'in vista' : 'assente'}, dS ${dS}, seme ${seed}`;
+      assert.equal(r.swaps, 0, at);
+      assert.match(whoSide(r).join(','), /^p2·forehand(,p2·backhand)+$/, at);
+    }
+  }
+});
+test('caso B con la mano piccola (dritto di 0,15–0,3) a 10, 15 e 30 Hz: dopo il buco la corsia del P2 riprende la sua mano, non la mano libera del P1', () => {
+  for (const fps of [10, 15, 30]) for (const dS of [.15, .2, .25, .3]){
+    for (const { seed, r } of run10('bucoNelDrittoPiccola', { ...small, fps, dS })){
+      const at = `${fps} Hz, dS ${dS}, seme ${seed}`;
+      assert.equal(r.swaps, 0, at); assert.deepEqual(whoSide(r), ['p2·forehand'], at);
+      assert.ok(Math.abs(r.tr.lanes.p2.hand.x - (.70 - dS)) < .02, `${at}: ${r.tr.lanes.p2.hand.x}`);
+    }
+  }
+});
+test('due mani dello stesso giocatore vicine (0,6–1 grandezze) e la mano libera persa al 10–40%: il P1 resta sulla racchetta, il P2 non la prende', () => {
+  for (const p2 of [true, false]) for (const gap of [.6, .8, 1]) for (const drop of [.1, .25, .4]){
+    let onFree = 0;
+    for (const { seed, r } of run10('dueManiVicine', { p2, gap, drop })){
+      const at = `P2 ${p2 ? 'in vista' : 'assente'}, ${gap} grandezze, ${drop*100}% perse, seme ${seed}`;
+      assert.equal(r.swaps, 0, at); assert.deepEqual(whoSide(r), ['p1·backhand', 'p1·forehand'], at);
+      if (r.onFree) onFree++;
+    }
+    // residuo noto: con le mani a 0,6 grandezze e il 40% di risultati senza la mano libera, se questa manca per tre
+    // risultati di fila alla fine del dritto e ricompare dove la racchetta si ferma, la corsia può finire sulla mano
+    // libera dopo il colpo (3 prove su 540 con 30 semi; la base ada351d 10)
+    assert.ok(onFree <= (gap === .6 && drop === .4 ? 1 : 0), `P2 ${p2}, ${gap} grandezze, ${drop*100}% perse: ${onFree} semi sulla mano libera`);
+  }
 });
 
 test('confine tra le corsie e colonne del flusso: a metà tra le case, nella fascia 0,3–0,7; a metà immagine come prima', () => {
