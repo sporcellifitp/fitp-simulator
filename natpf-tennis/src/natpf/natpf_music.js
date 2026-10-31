@@ -663,7 +663,10 @@ const LAST_KEY = "natpf.music.last";
 const MATCH_TRACKS = new Set(["match_rally", "game_point"]);
 
 const STEPS = 16;
-const LOOKAHEAD_S = 0.14;
+// Margine di programmazione delle note (31/10: prima 0,14 s). Il thread del gioco si ferma fino a ~130 ms con
+// l'inferenza della webcam sui portatili lenti (misure del 30/10, max 128 ms), più i 25 ms del timer: con 0,14 s la
+// musica aveva un buco udibile. Volume, muto e cambi di brano non cambiano (bus e nextTime)
+export const LOOKAHEAD_S = 0.22;
 const LOOKAHEAD_HIDDEN_S = 1.3; // a scheda nascosta i timer rallentano: si programma più avanti
 const FADE_S = 0.45;
 

@@ -2,6 +2,11 @@ import { renderAllHudPlayerAvatars as P, renderPlayerAvatar as L } from "./playe
 // NATPF: testi dell'HUD in italiano (traduzione al momento della visualizzazione)
 import { t as tr, scoreText as sc } from "./natpf/natpf_i18n.js";
 import { viewport } from "./natpf/natpf_screen.js"; // NATPF: finestra intera o area del ledwall
+// NATPF: scritture nel DOM solo se il valore cambia. updateMultiplayerRoomInfo gira a ogni risposta del relay (20 al
+// secondo nella sfida) e updateTimingGauge due volte per fotogramma (passi di fisica a 120 Hz): textContent riscritto
+// uguale sostituisce comunque il nodo di testo e fa ricalcolare lo stile (come natpf_split_ui.js)
+const setText = (el, s) => { el && el.textContent !== s && (el.textContent = s); };
+const setHref = (el, v) => { el && el.getAttribute("href") !== v && el.setAttribute("href", v); };
 export class HudUI {
   constructor(t = {}) {
     (this.callbacks = t),
@@ -504,12 +509,15 @@ export class HudUI {
   }
   setActiveShotChip(t) {}
   updateTimingGauge({ cursorNormalized: t = 0.5, modeTitle: n = "SWING TIMING", speedText: e = "READY" }) {
+    // NATPF: stessi valori dell'ultima chiamata: niente da scrivere (in NATPF la scheda è anche nascosta)
+    const k = `${t}|${n}|${e}`;
+    if (this._timingKey === k) return;
+    this._timingKey = k;
     if (this.elTimingCursor) {
       const i = Math.max(4, Math.min(96, t * 100));
       this.elTimingCursor.style.left = `${i.toFixed(1)}%`;
     }
-    this.elGaugeModeTitle && (this.elGaugeModeTitle.textContent = tr(n)),
-      this.elGaugeSpeedReadout && (this.elGaugeSpeedReadout.textContent = tr(e));
+    setText(this.elGaugeModeTitle, tr(n)), setText(this.elGaugeSpeedReadout, tr(e));
   }
   updateAudioStatus({ playing: t, trackName: n }) {
     this.elAudioDot && this.elAudioDot.classList.toggle("music-on", !!t),
@@ -552,15 +560,15 @@ export class HudUI {
       s && s.classList.toggle("hidden", e),
       a && a.classList.toggle("hidden", e);
     const r = document.getElementById("companion-room-badge");
-    r && (r.textContent = `STANZA #${this.currentRoomId.toUpperCase()} \u2022 ${e ? "PLAYER 2" : "PLAYER 1"}`);
+    setText(r, `STANZA #${this.currentRoomId.toUpperCase()} \u2022 ${e ? "PLAYER 2" : "PLAYER 1"}`);
     const m = encodeURIComponent(this.currentRoomId),
       p = (this.currentTunnelUrl || window.location.origin).replace(/\/+$/, ""),
       g = `${p}/companion.html?room=${m}&role=p1`,
       y = `${p}/companion.html?room=${m}&role=p2`,
       f = document.getElementById("companion-link");
-    f && (f.href = g);
+    setHref(f, g);
     const I = document.getElementById("companion-link-p2");
-    I && (I.href = y);
+    setHref(I, y);
     // NATPF: QR del companion generati sul link vero (window.qrcode), niente immagini esterne. Solo quando il link
     // cambia: questa funzione gira a ogni risposta del relay (ogni 50 ms con il server LAN) e prima rigenerava i due QR
     // ogni volta (~30 ms di lavoro ogni 50 ms: scatti continui nel menu e in partita)
@@ -574,25 +582,25 @@ export class HudUI {
       };
     qrSet(document.getElementById("companion-qr"), g), qrSet(document.getElementById("companion-qr-p2"), y);
     const T = document.getElementById("court-link-p1");
-    T && (T.href = `/?room=${m}&role=p1`);
+    setHref(T, `/?room=${m}&role=p1`);
     const l = document.getElementById("court-link-p2");
-    l && (l.href = `/?room=${m}&role=p2`);
+    setHref(l, `/?room=${m}&role=p2`);
     const c = document.getElementById("mp-p1-status");
     if (c) {
       const d = !!(n.p1Phone || n.p1Online);
-      (c.textContent = n.p1Phone ? "Collegato \u2713" : d ? "In campo" : "Scansiona il QR"),
+      setText(c, n.p1Phone ? "Collegato \u2713" : d ? "In campo" : "Scansiona il QR"),
         c.classList.toggle("online", !!n.p1Phone);
     }
     const u = document.getElementById("mp-p2-status");
     if (u) {
       const d = !!(n.p2Phone || n.p2Online);
-      (u.textContent = n.p2Phone ? "Collegato \u2713" : d ? "In campo" : "Scansiona il QR"),
+      setText(u, n.p2Phone ? "Collegato \u2713" : d ? "In campo" : "Scansiona il QR"),
         u.classList.toggle("online", !!n.p2Phone);
     }
     const h = document.getElementById("mp-active-status");
     if (h) {
       const d = e ? !!n.p2Phone : !!n.p1Phone;
-      (h.textContent = d ? "Collegato \u2713" : "Scansiona il QR"), h.classList.toggle("online", d);
+      setText(h, d ? "Collegato \u2713" : "Scansiona il QR"), h.classList.toggle("online", d);
     }
     this.updateOpponentPresence(n);
   }
@@ -644,12 +652,12 @@ export class HudUI {
           (this._justJoinedTimer = setTimeout(() => {
             this.elOpponentPresencePill && this.elOpponentPresencePill.classList.remove("just-joined");
           }, 950)))),
-      this.elOpponentPresenceText && (this.elOpponentPresenceText.textContent = r),
+      setText(this.elOpponentPresenceText, r),
       e && e.classList.toggle("opponent-ready", a);
     const m = document.getElementById("setup-opponent-label");
     // NATPF 1v1: «pronto» solo con il Player 2 pronto (prima bastava che fosse entrato, mentre la lobby diceva «sta
     // preparando la racchetta» e «Gioca» restava spento)
-    m && this.selectedDifficulty === "1v1" && !s && (m.textContent = a && t.p2Ready ? `\u{1F7E2} ${o} pronto` : a ? `${o} entrato` : o),
+    m && this.selectedDifficulty === "1v1" && !s && setText(m, a && t.p2Ready ? `\u{1F7E2} ${o} pronto` : a ? `${o} entrato` : o),
       (this._lastOtherReady = a);
   }
 }

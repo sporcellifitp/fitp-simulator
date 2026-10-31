@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { LINK_TIMES, netWhy } from '../../site/js/tennis/link.js';
 const source = readFileSync(process.env.NATPF_PHONE_SOURCE || new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
 const section = source.slice(source.indexOf('async function connect(){'), source.indexOf('// messaggi che valgono solo se arrivano subito'));
-function setup(){
+function setup({ lan = true } = {}){
   const timers = new Map(), peers = []; let seq = 0;
   class Emitter { constructor(){ this.handlers = {}; } on(k, f){ (this.handlers[k] ||= []).push(f); } emit(k, v){ for (const f of this.handlers[k] || []) f(v); } }
   class Conn extends Emitter { constructor(){ super(); this.open = true; this.sent = []; } send(d){ this.sent.push(d); } close(){ this.open = false; this.emit('close'); } }
@@ -16,7 +16,7 @@ function setup(){
     reconnect(){ this.emit('open'); }
   }
   const store = new Map([['resume', 'key']]);
-  const sandbox = { LanPeer: Peer, isLanMode: () => true, peerConfig: () => ({}), LINK_TIMES, netWhy, performance: { now: () => 100 },
+  const sandbox = { LanPeer: Peer, isLanMode: () => lan, loadPeer: async () => Peer, iceReady: async () => null, peerConfig: () => ({}), LINK_TIMES, netWhy, performance: { now: () => 100 },
     ss: { get: k => store.get(k), set: (k,v) => store.set(k,v), del: k => store.delete(k) },
     setTimeout: (f, ms) => { timers.set(++seq, { f, ms }); return seq; }, clearTimeout: id => timers.delete(id),
     paint(){}, bar(){}, ui(){}, show(){}, closeFast(){}, openFast(){}, sendState(){}, sendDevice(){} };
@@ -63,8 +63,9 @@ test('«Ricollega»: peer nuovo, hello con la chiave di ripresa e rl, una sola c
 });
 // segnalazione del 29/10 sera (versione Cloudflare, Pixel): il tentativo si buttava a 12 s anche con la strada diretta in
 // via di apertura (server di inoltro, lento); ora, se il computer ha risposto (ICE «checking»), si aspetta fino a 30 s
+// via internet (l'attesa lunga è per il TURN; in LAN restano i 12 s: phone-link-net.test.mjs)
 test('collegamento lento: a 12 s con la strada diretta in corso si aspetta fino a 30 s; senza risposta si riprova a 12 s', async () => {
-  const h = setup();
+  const h = setup({ lan: false });
   await h.api.connect();
   const p = h.peers.at(-1); p.emit('open');
   const c = p.connections.at(-1); c.open = false; c.emit('iceStateChanged', 'checking');
@@ -73,8 +74,44 @@ test('collegamento lento: a 12 s con la strada diretta in corso si aspetta fino 
   await h.run(LINK_TIMES.phoneSlowMs - LINK_TIMES.phoneMs);
   assert.equal(h.api.state, 'lost');
   // senza risposta del computer: dopo 12 s si riprova, come prima
-  const k = setup();
+  const k = setup({ lan: false });
   await k.api.connect(); k.peers.at(-1).emit('open');
   await k.run(LINK_TIMES.phoneMs);
   assert.equal(k.api.state, 'lost');
+});
+
+// LAN (31/10): dopo un'interruzione della Wi-Fi il telefono ricollega la segnalazione mentre il server ha ancora la
+// registrazione vecchia: 'id-unavailable' (nome della LAN, PeerJS dice 'unavailable-id'). Prima chiudeva il canale
+// WebRTC che funzionava (pausa, conto alla rovescia, punto rigiocato)
+test('LAN: «id-unavailable» della segnalazione con il canale aperto non chiude il collegamento', async () => {
+  const h = setup(), { p, c } = await h.connect();
+  p.emit('disconnected'); await h.run(1500);
+  p.emit('error', { type: 'id-unavailable' });
+  assert.equal(h.api.state, 'on'); assert.equal(h.api.conn, c); assert.equal(c.open, true);
+  // senza canale aperto resta un errore vero, come prima
+  const k = setup(); await k.api.connect(); k.peers.at(-1).emit('error', { type: 'id-unavailable' });
+  assert.equal(k.api.state, 'lost');
+});
+
+test('LAN: su «id-unavailable» il Peer chiude il suo socket, così il ritentativo riprova finché l’id non si libera', async () => {
+  const { LanPeer } = await import('../../site/js/tennis/lan-transport.js');
+  const oldSocket = globalThis.WebSocket, oldLocation = globalThis.location;
+  const sockets = [];
+  globalThis.WebSocket = class { constructor(){ this.readyState = 1; this.sent = []; sockets.push(this); } send(m){ this.sent.push(JSON.parse(m)); } close(){ if (this.readyState === 3) return; this.readyState = 3; this.onclose?.(); } };
+  globalThis.location = { href: 'https://192.168.1.20:8443/tennis/?lan=1', protocol: 'https:' };
+  try {
+    const peer = new LanPeer('racchetta-tel-test-session'), events = [];
+    peer.on('error', e => events.push(e.type)); peer.on('disconnected', () => events.push('disconnected')); peer.on('open', () => events.push('open'));
+    sockets[0].onopen();
+    assert.deepEqual(sockets[0].sent, [{ t: 'register', id: 'racchetta-tel-test-session' }]);
+    sockets[0].onmessage({ data: JSON.stringify({ t: 'error', why: 'id-unavailable' }) });
+    assert.deepEqual(events, ['id-unavailable', 'disconnected']); assert.equal(sockets[0].readyState, 3);
+    // ritentativo (link.js / racchetta.js dopo 1,5 s): socket nuovo, stesso id, ora libero
+    peer.reconnect(); sockets[1].onopen(); sockets[1].onmessage({ data: JSON.stringify({ t: 'registered' }) });
+    assert.equal(sockets.length, 2); assert.equal(sockets[1].sent[0].id, 'racchetta-tel-test-session'); assert.equal(events.at(-1), 'open');
+    // altri errori della segnalazione non chiudono il socket
+    sockets[1].onmessage({ data: JSON.stringify({ t: 'error', why: 'peer-unavailable' }) });
+    assert.equal(sockets[1].readyState, 1);
+    peer.destroy();
+  } finally { if (oldSocket === undefined) delete globalThis.WebSocket; else globalThis.WebSocket = oldSocket; if (oldLocation === undefined) delete globalThis.location; else globalThis.location = oldLocation; }
 });

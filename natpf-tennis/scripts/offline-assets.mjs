@@ -124,9 +124,20 @@ export function createAssetMiddleware({ dirs = defaultAssetDirs(), upstream = AS
 function notFound(res){ res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }); res.end('Asset non disponibile offline: esegui npm run assets'); }
 
 // Invio di un file con supporto a Range (gli <audio> lo chiedono per mp3 lunghi).
+// NATPF (31/10): validatore ETag (dimensione e data del file) e 304 senza corpo se il browser ha già quella versione
+// (If-None-Match). Con «no-cache» (pagine e moduli del telefono, index.html) prima il browser non poteva chiedere un 304
+// e riscaricava tutto a ogni apertura in Wi-Fi; lo stesso per MediaPipe dopo l'ora di max-age. ETag e non solo
+// Last-Modified: un pacchetto più vecchio copiato sopra uno più nuovo cambia l'ETag anche se la data va indietro
+export const fileTag = stat => `W/"${stat.size.toString(36)}-${Math.floor(stat.mtimeMs).toString(36)}"`;
 export function sendFile(req, res, file, cacheControl = 'no-cache', extra = {}){
   const stat = fs.statSync(file), type = mimeFor(file), range = /^bytes=(\d*)-(\d*)$/.exec(req.headers?.range || '');
-  const headers = { 'Content-Type': type, 'Cache-Control': cacheControl, 'Accept-Ranges': 'bytes', 'X-Content-Type-Options': 'nosniff', ...extra };
+  const tag = fileTag(stat);
+  const headers = { 'Content-Type': type, 'Cache-Control': cacheControl, 'Accept-Ranges': 'bytes', 'X-Content-Type-Options': 'nosniff', ETag: tag, ...extra };
+  const match = String(req.headers?.['if-none-match'] || '');
+  if (!range && match && match.split(',').some(t => t.trim() === tag || t.trim() === '*')){
+    res.writeHead(304, { 'Cache-Control': cacheControl, ETag: tag, ...extra });
+    return res.end();
+  }
   if (range && (range[1] || range[2])){
     let start = range[1] ? Number(range[1]) : Math.max(0, stat.size - Number(range[2])), end = range[1] && range[2] ? Number(range[2]) : stat.size - 1;
     end = Math.min(end, stat.size - 1);

@@ -11,6 +11,9 @@ export class LanConnection extends Events {
     this.pc=new RTCPeerConnection({iceServers:[],iceTransportPolicy:'all'});
     this.pc.onicecandidate=e=>{if(e.candidate){const candidate=e.candidate.toJSON();if(this.signaled)this.signal({candidate});else this.localCandidates.push(candidate);}};
     this.pc.onconnectionstatechange=()=>{if(['failed','closed'].includes(this.pc.connectionState))this.close();};
+    // stato della strada diretta, come l'evento di PeerJS: il telefono lo usa per dire perché il collegamento non riesce
+    // (netWhy). Prima in LAN restava 'new' e diceva «inquadra di nuovo il QR» anche quando era la rete a bloccare
+    this.pc.oniceconnectionstatechange=()=>this.emit('iceStateChanged',this.pc.iceConnectionState);
     this.pc.ondatachannel=e=>this.attach(e.channel);
     if(offerer){this.attach(this.pc.createDataChannel('control',{ordered:true}));this.attach(this.pc.createDataChannel('motion',{ordered:false,maxRetransmits:0}));}
   }
@@ -52,7 +55,10 @@ export class LanPeer extends Events {
     this.ws.onmessage=event=>{
       let message;try{message=JSON.parse(event.data);}catch{return;}
       if(message.t==='registered'){this.emit('open',this.id);return;}
-      if(message.t==='error'){this.emit('error',{type:message.why});return;}
+      // id ancora registrato dal socket di prima (il server lo libera entro due ping): si chiude questo socket, e il
+      // ritentativo di chi usa il Peer ('disconnected', dopo 1,5 s) riprova finché l'id non torna libero. Prima la
+      // registrazione restava muta per sempre e i segnali verso questo id finivano nel socket morto
+      if(message.t==='error'){this.emit('error',{type:message.why});if(message.why==='id-unavailable')this.ws?.close();return;}
       if(message.t!=='signal'||typeof message.from!=='string')return;
       if(typeof message.payload?.id!=='string'||message.payload.id.length>64)return;
       let c=this.connections.get(message.from);

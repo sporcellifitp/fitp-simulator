@@ -43,6 +43,12 @@ import * as GV from "./natpf/natpf_guest_view.js";
 import { NatpfSplit } from "./natpf/natpf_split.js";
 import { viewport } from "./natpf/natpf_screen.js";
 const VERSUS_ROOM_KEY = "natpf.versus.room";
+// NATPF (31/10): partita in pausa (guida, pausa, telefono o webcam da ricollegare, attesa del 1v1). La scena è ferma
+// (update non gira) sotto i fogli con il blur a tutto schermo, ma prima si ridisegnava a ogni fotogramma, come lo sfondo
+// del menu prima della sua correzione: GPU occupata per niente, sulle grafiche integrate proprio mentre gira il blur.
+// Ora si disegna a ogni fotogramma solo nei primi settleMs (le camere che si stanno ancora assestando), poi una volta
+// ogni everyMs e subito dopo un ridimensionamento; uscendo dalla pausa si torna al disegno di ogni fotogramma
+export const PAUSE_DRAW = Object.freeze({ settleMs: 400, everyMs: 500 });
 const readStoredView = () => {
   try {
     return localStorage.getItem(VIEW_STORAGE_KEY);
@@ -842,11 +848,7 @@ export class NatpfTennisEngine {
       requestAnimationFrame(c);
       const y = Math.min(last != null && ts >= last ? (ts - last) / 1e3 : this.clock.getDelta(), 0.08);
       last = Number.isFinite(ts) ? ts : null;
-      // NATPF: con il menu aperto lo sfondo è un'inquadratura ferma dell'arena (_natpfBackdropTick), non più la partita
-      // dimostrativa disegnata a ogni fotogramma sotto un blur
-      if (this._natpfBackdropFrame(y)) return;
-      // NATPF: partita ferma mentre si leggono le istruzioni o si collega il telefono
-      this.natpfPaused || this.update(y), this.render();
+      this._natpfFrame(y);
     };
     requestAnimationFrame(c);
   }
@@ -3722,6 +3724,28 @@ export class NatpfTennisEngine {
     // gioco (che a fotogrammi lenti avanza meno)
     const tick = Math.floor((performance.now() - (this.natpfBackdropSince || 0)) / 1000);
     (this.natpfBackdropDirty || (tick !== this.natpfBackdropTick && tick <= 8)) && ((this.natpfBackdropDirty = !1), (this.natpfBackdropTick = tick), this.render());
+    return !0;
+  }
+  // NATPF: un fotogramma del ciclo di requestAnimationFrame (dt in s): 'backdrop' | 'paused' | 'play'
+  _natpfFrame(dt, now = performance.now()) {
+    // con il menu aperto lo sfondo è un'inquadratura ferma dell'arena (_natpfBackdropTick), non più la partita
+    // dimostrativa disegnata a ogni fotogramma sotto un blur
+    if (this._natpfBackdropFrame(dt)) return "backdrop";
+    // partita ferma mentre si leggono le istruzioni o si collega il telefono: niente update e disegno solo quando serve
+    if (this.natpfPaused) return this._natpfPauseFrame(now), "paused";
+    (this.natpfPauseSince = this.natpfPauseDrawnAt = null), this.update(dt), this.render();
+    return "play";
+  }
+  // NATPF: un fotogramma con la partita in pausa (PAUSE_DRAW): true se ha disegnato
+  _natpfPauseFrame(now = performance.now()) {
+    this.natpfPauseSince == null && (this.natpfPauseSince = now);
+    const due =
+      this.natpfPauseDrawnAt == null ||
+      this.natpfBackdropDirty ||
+      now - this.natpfPauseSince < PAUSE_DRAW.settleMs ||
+      now - this.natpfPauseDrawnAt >= PAUSE_DRAW.everyMs;
+    if (!due) return !1;
+    (this.natpfBackdropDirty = !1), (this.natpfPauseDrawnAt = now), this.render();
     return !0;
   }
   // inquadratura del menu: i due giocatori fermi sulle righe di fondo, palla nascosta, camera di gioco dietro il P1

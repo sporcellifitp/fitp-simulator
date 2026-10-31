@@ -33,8 +33,19 @@ const serve=(req,res)=>{
   fs.stat(filename,(error,stat)=>{if(error||!stat.isFile()){res.writeHead(404).end();return;}res.writeHead(200,{'Content-Type':mime[path.extname(filename)]||'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});fs.createReadStream(filename).pipe(res);});
 };
 const server=tls?https.createServer({cert:fs.readFileSync(options.cert),key:fs.readFileSync(options.key)},serve):http.createServer(serve);
+// NATPF (31/10): keep-alive HTTP lungo. Con i 5 s di Node, dopo una pausa tra i punti il POST del lancio o del colpo del
+// computer del P2 apriva spesso una connessione TLS nuova (due andate e ritorno in Wi-Fi e una firma TLS sul PC).
+server.keepAliveTimeout=65000;server.headersTimeout=66000;
 const wss=new WebSocketServer({server,path:'/lan-signal',maxPayload:32768});
+// NATPF (31/10): ping della segnalazione. Prima un id restava registrato finché il TCP non si chiudeva: dopo
+// un'interruzione della Wi-Fi il telefono o il computer del P2 che si ricollegava riceveva «id-unavailable» e i segnali
+// verso di lui finivano nel socket morto. Ora chi non risponde al ping precedente viene chiuso (al massimo ~2 giri).
+const pingMs=Number(options.pingMs??10000);
+const heartbeat=pingMs>0?setInterval(()=>{for(const ws of wss.clients){if(ws.isAlive===false){ws.terminate();continue;}ws.isAlive=false;try{ws.ping();}catch{}}},pingMs):null;
+heartbeat?.unref?.();
+wss.on('close',()=>{heartbeat&&clearInterval(heartbeat);});
 wss.on('connection',(ws,request)=>{
+  ws.isAlive=true;ws.on('pong',()=>{ws.isAlive=true;});
   if(options.setupOnly){ws.close(1008,'setup-only');return;}
   // Browser signaling is same-origin; reject cross-site attempts to the local service.
   const origin=request.headers.origin;try{if(origin&&new URL(origin).host!==request.headers.host){ws.close(1008,'origin');return;}}catch{ws.close(1008);return;}

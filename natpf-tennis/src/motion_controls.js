@@ -34,6 +34,14 @@ export function webcamModeFrom(search = ""){
 export const ARGON_HANDS_OPTIONS = Object.freeze({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.4, minTrackingConfidence: 0.4 });
 // NATPF: webcam per due (webcam_duo.js): mani cercate dal modello (la racchetta e la mano libera di ciascuno)
 export const DUO_HANDS = 4;
+// NATPF: letture di /api/match/state (ottimizzazione LAN del 31/10).
+//   • guardMs: una lettura in corso blocca le successive al massimo così a lungo (prima 5 s, più della finestra di
+//     presenza del relay, 4 s: un solo socket bloccato dopo un'interruzione breve della Wi-Fi metteva in pausa la sfida);
+//   • abortMs: la lettura che non risponde si annulla, e la successiva parte su una connessione nuova;
+//   • idleMs: senza stanza 1v1 (roomId «default»: contro la CPU, stesso schermo, allenamento) nessuno legge i colpi
+//     dal relay (il telefono NATPF arriva via WebRTC, non c'è companion): una lettura ogni mezzo secondo invece di 20
+//     al secondo. Nella stanza 1v1 restano phonePollIntervalMs (50 ms), su cui conta natpf_versus (P2_STALE_MS).
+export const PHONE_POLL = Object.freeze({ guardMs: 2500, abortMs: 2000, idleMs: 500 });
 export class MotionController {
   constructor(e = {}) {
     (this.onSwing = typeof e.onSwing == "function" ? e.onSwing : null),
@@ -1331,14 +1339,17 @@ export class MotionController {
     if (this.phonePollTimer) return;
     // NATPF: una lettura alla volta. Prima ne partiva una ogni 50 ms senza aspettare la precedente: con il collegamento
     // tra i due computer lento (sfida senza server, server di inoltro) si accodavano fino a 80 richieste, le risposte
-    // arrivavano sempre più tardi e tutte insieme. Una lettura ferma da più di 5 s non blocca le successive
+    // arrivavano sempre più tardi e tutte insieme. Una lettura ferma da più di PHONE_POLL.guardMs non blocca le
+    // successive (e dopo abortMs viene annullata). Senza stanza 1v1 si legge ogni PHONE_POLL.idleMs
     const e = async () => {
       const now = Date.now();
-      if (this._pollBusyAt && now - this._pollBusyAt < 5e3) return;
-      const tok = (this._pollBusyAt = now);
+      if (this._pollBusyAt && now - this._pollBusyAt < (this.phonePoll || PHONE_POLL).guardMs) return;
+      if ((this.roomId || "default") === "default" && this._pollStartedAt && now - this._pollStartedAt < (this.phonePoll || PHONE_POLL).idleMs) return;
+      const tok = (this._pollBusyAt = this._pollStartedAt = now);
       try { await poll(); } finally { this._pollBusyAt === tok && (this._pollBusyAt = 0); }
     };
     const poll = async () => {
+      let abortTimer = null;
       if (!this._disposed)
         try {
           // NATPF 1v1: touch con il proprio ruolo (prima «touch=1», che il relay ignorava: l'host non vedeva mai il P2
@@ -1346,7 +1357,9 @@ export class MotionController {
           // nascosta…, natpf_versus.p2HoldWhy; vuoto = può giocare)
           const t = `?room=${encodeURIComponent(this.roomId || "default")}&role=${encodeURIComponent(this.role || "p1")}&touch=${this.role === "p2" ? "p2" : "p1"}${this.role === "p2" && this.versusReady != null ? `&ready=${this.versusReady ? 1 : 0}` : ""}${this.role === "p2" && this.versusHold !== undefined ? `&hold=${encodeURIComponent(this.versusHold || "")}` : ""}`,
             t0 = Date.now(),
-            i = await fetch(`/api/match/state${t}`, { cache: "no-store" });
+            ac = typeof AbortController == "function" ? new AbortController() : null;
+          ac && (abortTimer = setTimeout(() => ac.abort(), (this.phonePoll || PHONE_POLL).abortMs));
+          const i = await fetch(`/api/match/state${t}`, ac ? { cache: "no-store", signal: ac.signal } : { cache: "no-store" });
           // NATPF 1v1: stanza che non esiste (link vecchio o sbagliato)
           if (i.status === 404 && this.role === "p2") { typeof this.onRoomState == "function" && this.onRoomState({ invalidRoom: !0 }); return; }
           if (i.ok) {
@@ -1488,7 +1501,7 @@ export class MotionController {
               this.p2PhonePollInitialized ||
                 ((this.p2PhonePollInitialized = !0), (this.lastProcessedP2PhoneSeq = 0));
           }
-        } catch {}
+        } catch {} finally { abortTimer && clearTimeout(abortTimer); }
     };
     e(), (this.phonePollTimer = setInterval(e, this.phonePollIntervalMs));
   }

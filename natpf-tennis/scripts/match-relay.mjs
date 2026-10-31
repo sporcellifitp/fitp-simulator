@@ -35,7 +35,15 @@ function R(t, r = "Player 1", a = "Player 2", c = 2) {
     p2DesktopSeenTs: 0,
   };
 }
-function T(t) {
+// NATPF: colpi tenuti nella risposta di /api/match/state (lo storico di 50 resta nel relay). Prima ogni lettura portava
+// gli ultimi 15 colpi di ciascuno, due volte (p1/p2 e la copia «rackets», che nessuno legge): con i dati del telefono
+// (~1 KB a colpo) erano fino a 22–48 KB a lettura, 20 letture al secondo per computer (in LAN il P2 è spesso in Wi-Fi).
+// Al P2 bastano gli ultimi colpi (come natpf_p2p.COMPACT_SWINGS nella sfida senza server); l'host prende con newSwings
+// i colpi oltre l'ultimo letto, letture ogni 50 ms, e quelli oltre 600 ms non si giocano più (P2_STALE_MS): 5 colpi
+// coprono anche una lettura lenta.
+export const STATE_SWINGS = 3;
+export const HOST_STATE_SWINGS = 5;
+function T(t, keep = 15) {
   const r = Date.now(),
     a = t.lastSeenTs > 0 ? Math.max(0, r - t.lastSeenTs) : -1,
     c = t.connected && a >= 0 && a < 12e3;
@@ -46,7 +54,7 @@ function T(t) {
     orientation: { ...t.orientation, connected: c },
     lastSwing: t.lastSwing ? { ...t.lastSwing } : null,
     lastFeedback: t.lastFeedback ? { ...t.lastFeedback } : null,
-    swingHistory: t.swingHistory.slice(-15),
+    swingHistory: t.swingHistory.slice(-keep),
   };
 }
 function H(t) {
@@ -174,8 +182,9 @@ export function createMatchRelay({ publicUrl = PUBLIC_URL } = {}) {
       // ferma la partita per tutti e due. Prima l'host vedeva solo il computer del P2 e andava avanti
       m === "p2" && w.searchParams.has("hold") && (e.p2Hold = String(w.searchParams.get("hold") || "").slice(0, 40) || null);
       const h = Date.now(),
-        k = T(e.rackets.p1),
-        i = T(e.rackets.p2),
+        keep = f === "p2" ? STATE_SWINGS : HOST_STATE_SWINGS,
+        k = T(e.rackets.p1, keep),
+        i = T(e.rackets.p2, keep),
         // NATPF 1v1: online se ha interrogato negli ultimi 4 s (interroga ogni 50 ms; prima 8 s)
         o = e.p1DesktopSeenTs > 0 && h - e.p1DesktopSeenTs < 4e3,
         s = e.p2DesktopSeenTs > 0 && h - e.p2DesktopSeenTs < 4e3;
@@ -196,7 +205,6 @@ export function createMatchRelay({ publicUrl = PUBLIC_URL } = {}) {
         p2PhoneConnected: i.connected,
         p1: k,
         p2: i,
-        rackets: { p1: k, p2: i },
         snapshotSeq: e.stateSeq,
         snapshot: e.matchSnapshot,
         // NATPF 1v1: età dello snapshot alla lettura (ms, ora del relay): il P2 la misura per la diagnostica (sfida.vista)
@@ -291,7 +299,9 @@ export function createMatchRelay({ publicUrl = PUBLIC_URL } = {}) {
         ((i.stateSeq += 1), (i.p1DesktopSeenTs = Date.now()));
         const s = e.snapshot && typeof e.snapshot == "object" ? e.snapshot : e;
         ((i.matchSnapshot = { ...s, seq: i.stateSeq, serverTimeMs: Date.now() }),
-          d(n, 200, { ok: !0, roomId: i.roomId, seq: i.stateSeq, p2Racket: T(i.rackets.p2) }));
+          // NATPF: solo la conferma. Prima anche p2Racket con lo storico dei colpi (~10 KB ogni 45–50 ms) che nessuno
+          // legge: i colpi del P2 l'host li prende da /api/match/state
+          d(n, 200, { ok: !0, roomId: i.roomId, seq: i.stateSeq }));
         return;
       }
       if (l === "/api/match/create") {

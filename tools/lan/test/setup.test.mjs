@@ -42,6 +42,27 @@ test('LAN diagnostics count signaling registration and remove it on disconnect',
   }finally{ws?.terminate();await app.close();}
 });
 
+// NATPF (31/10): una registrazione che non risponde più al ping (Wi-Fi del telefono interrotta, socket mezzo aperto) si
+// libera da sola e lo stesso id si può registrare di nuovo; chi risponde resta; keep-alive HTTP lungo
+test('signaling ping frees dead registrations so the same id can register again; long HTTP keep-alive',async()=>{
+  const app=createLanServer({port:0,host:'127.0.0.1',pingMs:40});await app.listen();const sockets=[];
+  try{
+    assert.ok(app.server.keepAliveTimeout>=60000&&app.server.headersTimeout>app.server.keepAliveTimeout);
+    const base=`http://127.0.0.1:${app.server.address().port}`,url=base.replace('http:','ws:')+'/lan-signal';
+    const open=async(opts={})=>{const ws=new WebSocket(url,{origin:base,...opts});sockets.push(ws);await new Promise((resolve,reject)=>{ws.once('open',resolve);ws.once('error',reject);});return ws;};
+    const register=(ws,id)=>{const reply=new Promise(resolve=>ws.once('message',m=>resolve(JSON.parse(m))));ws.send(JSON.stringify({t:'register',id}));return reply;};
+    const dead=await open({autoPong:false}),alive=await open();
+    assert.equal((await register(dead,'phone-dead-registration')).t,'registered');
+    assert.equal((await register(alive,'phone-alive-registration')).t,'registered');
+    // subito dopo lo stesso id è ancora occupato (come prima)
+    const other=await open();assert.deepEqual(await register(other,'phone-dead-registration'),{t:'error',why:'id-unavailable'});
+    await new Promise(r=>setTimeout(r,200));
+    assert.ok(!app.clients.has('phone-dead-registration'),'registrazione morta tolta');
+    assert.ok(app.clients.has('phone-alive-registration'),'chi risponde al ping resta');
+    const again=await open();assert.equal((await register(again,'phone-dead-registration')).t,'registered');
+  }finally{for(const ws of sockets)ws.terminate();await app.close();}
+});
+
 test('a custom request handler (natpf-tennis) replaces the site files but keeps /lan/status and signaling',async()=>{
   const app=createLanServer({port:0,host:'127.0.0.1',handler:(req,res)=>res.writeHead(200,{'Content-Type':'text/plain'}).end('game '+req.url)});await app.listen();
   try{
