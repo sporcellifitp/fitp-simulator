@@ -49,6 +49,25 @@ export function shotWhy(L, { now = null, who = 'player' } = {}){
 // vibrazione del telefono: lunga per il perfetto, breve per il buono, doppia corta per l'errore
 export const VIBRATION = Object.freeze({ green: [70], yellow: [25], red: [25, 60, 25] });
 
+// Lampo sulla racchetta: macchia di luce rotonda e sfumata. Diagnostica del 30/10 (C17, «rettangolo chiaro accanto alla
+// racchetta a ogni colpo»): lo sprite del lampo non aveva una texture e three.js lo disegna come un quadrato pieno, che
+// cresceva e svaniva in 0,28 s (con la fusione additiva sul campo blu: un riquadro azzurro). La scia della racchetta
+// (swing_vfx.js) e l'arco del motore base non c'entravano: spenti, il quadrato restava. Texture creata con i dati (niente
+// canvas: vale anche nei test senza DOM), una sola per tutti i lampi.
+export const FLASH_TEX_SIZE = 64;
+let flashTexture = null;
+export function flashGlowTexture(){
+  if (flashTexture) return flashTexture;
+  const N = FLASH_TEX_SIZE, data = new Uint8Array(N*N*4);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++){
+    const r = Math.hypot(x + .5 - N/2, y + .5 - N/2)/(N/2), a = r >= 1 ? 0 : Math.pow(1 - r, 1.6), i = (y*N + x)*4;
+    data[i] = data[i + 1] = data[i + 2] = 255; data[i + 3] = Math.round(255*a);
+  }
+  flashTexture = new THREE.DataTexture(data, N, N, THREE.RGBAFormat);
+  flashTexture.needsUpdate = true;
+  return flashTexture;
+}
+
 export class NatpfShotFeedback {
   constructor(engine){
     this.engine = engine;
@@ -62,7 +81,7 @@ export class NatpfShotFeedback {
       const g = new THREE.Group(); g.add(new THREE.Mesh(ring, mat), new THREE.Mesh(disc, fill)); g.visible = false; g.renderOrder = 4;
       engine.scene.add(g); this.markers.push({ g, mat, fill, age: 0, active: false, bounced: 0, life: 0 });
     }
-    const flashMat = () => new THREE.SpriteMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+    const flashMat = () => new THREE.SpriteMaterial({ map: flashGlowTexture(), color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
     for (let i = 0; i < 3; i++){ const s = new THREE.Sprite(flashMat()); s.visible = false; s.renderOrder = 9; engine.scene.add(s); this.flashes.push({ s, age: 0, active: false }); }
     this.last = null;
     // rimbalzo: l'anello del colpo appena fatto pulsa nel suo colore
