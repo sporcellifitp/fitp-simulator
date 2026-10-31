@@ -68,3 +68,29 @@ test('C4: il servizio più profondo resta dentro il quadrato (riga del servizio 
     assert.ok(-r.bounce.z < 6.4, `${kind}: rimbalzo a ${(-r.bounce.z).toFixed(2)} m`);
   }
 });
+
+// Revisione del 31/10: nel 1v1 anche il servizio del P2 dal gesto deve cadere alla profondità vera (prima la correzione
+// valeva solo per l'host e la sfida diventava asimmetrica)
+test('C4: nel 1v1 il servizio del P2 dal gesto cade alla stessa profondità di quello del P1', () => {
+  const real = Math.random; Math.random = mulberry32(31);
+  try {
+    for (const kind of ['flat', 'slice', 'kick']){
+      const e = createHeadlessEngine({ difficulty: 'pro' });
+      e.startNewMatch({ showStartBanner: false });
+      e.isMultiplayer = true; e.versus = { active: true, closing: false, local: true };
+      e.score.server = 'opponent'; e.score.deuceSide = true;
+      e.phase = 'SERVE_STANCE';
+      e._startServeToss(e.opponent);
+      for (let i = 0; i < 400 && e.ball.vel.y > 0; i++) e.step(DT);
+      e._executeServeHit(e.opponent, { natpf: { intent: { ...INTENT[kind], face: 0, power: .5 } }, natpfServeTau: 0, speed: 1.2 });
+      const want = e.natpfLastServe;
+      assert.equal(want.kind, kind);
+      let bounce = null;
+      for (let i = 0; i < 600 && !bounce; i++){ e.step(DT); if (e.ball.vel.y > 0 && e.ball.pos.y <= .08) bounce = { z: e.ball.pos.z }; }
+      assert.ok(bounce, `${kind}: nessun rimbalzo`);
+      assert.ok(Math.abs(bounce.z - want.depth) <= .3, `${kind}: voluta ${want.depth} m, rimbalzo a ${bounce.z.toFixed(2)} m dalla rete`);
+      const p1 = serveOnce({ kind, power: .5, deuceSide: true });
+      assert.ok(Math.abs(bounce.z - -p1.bounce.z) <= .3, `${kind}: P2 ${bounce.z.toFixed(2)} m, P1 ${(-p1.bounce.z).toFixed(2)} m`);
+    }
+  } finally { Math.random = real; }
+});

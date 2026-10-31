@@ -13,12 +13,12 @@ function serveFrames({ ms = 160, opts = {} } = {}){
   const actor = { role: 'player', sideSign: 1, pos: new THREE.Vector3(1, 0, 11.9), vel: new THREE.Vector3(), userData: {} };
   const ball = { pos: new THREE.Vector3(.7, 1.2, 11.7), vel: new THREE.Vector3(0, 6.3, 0), inPlay: false, lastHitter: 'player' };
   // lancio: la palla sale fino al colmo (≈ 3,3 m), chi serve tiene la posizione trofeo
-  for (let t = 0; t < .7; t += DT){ ball.pos.y = Math.min(3.35, ball.pos.y + 6.3*DT); K.update(actor, DT, { ball, phase: 'SERVE_TOSS', isServer: true }); }
+  for (let t = 0; t < .7; t += DT){ ball.pos.y = Math.min(3.35, ball.pos.y + 6.3*DT); K.update(actor, DT, { ball, phase: 'SERVE_TOSS', server: actor.role }); }
   const trophy = actor.racketKinematics.handGripTargetPos.clone();
   K.triggerSwing(actor, { shotType: 'serve', side: 'overhead', speed: 1.18, timing: 'sweet', isServe: true, ...opts });
   ball.inPlay = true;
   const out = [];
-  for (let t = DT; t <= ms/1000 + 1e-9; t += DT){ K.update(actor, DT, { ball, phase: 'RALLY', isServer: true }); out.push({ ms: Math.round(t*1000), y: actor.racketKinematics.handGripTargetPos.y, z: actor.racketKinematics.handGripTargetPos.z, phase: actor.racketKinematics.swingPhase }); }
+  for (let t = DT; t <= ms/1000 + 1e-9; t += DT){ K.update(actor, DT, { ball, phase: 'RALLY', server: actor.role }); out.push({ ms: Math.round(t*1000), y: actor.racketKinematics.handGripTargetPos.y, z: actor.racketKinematics.handGripTargetPos.z, phase: actor.racketKinematics.swingPhase }); }
   return { trophy, out };
 }
 

@@ -3563,6 +3563,7 @@ export class NatpfTennisEngine {
       this.racketKinematics.update(e, a, {
         phase: this.phase,
         score: this.score,
+        server: this.score.server, // NATPF: chi batte (posa del lancio del servizio, racket_kinematics; prima mai passato)
         ball: this.ball,
         elapsedTime: this.elapsedTime,
         liveInput: i,
