@@ -125,7 +125,7 @@ function bounceToContact(events){
   return out;
 }
 // events: tutti gli eventi, oppure solo quelli di METRIC_KINDS con eventi (quanti erano in tutto) e spanMs (dal primo
-// all'ultimo); raw: campioni del telefono (bastano k e q)
+// all'ultimo); raw: campioni del telefono (bastano k e q), t per i buchi negli arrivi
 // scarto (m) tra la caduta calcolata di un colpo della racchetta e il primo rimbalzo vero della sua palla, prima del colpo
 // dopo (null se la palla non rimbalza: in rete, al volo dell'avversario, fine del punto)
 function landingGap(k, events){
@@ -137,6 +137,34 @@ function landingGap(k, events){
     if (e.k === 'rimbalzo' && e.da === who) return +Math.hypot(e.x - k.x, e.z - k.z).toFixed(2);
   }
   return null;
+}
+// Contatori cumulativi del collegamento (tel.link.copie: link.js li tiene per tutta la vita del collegamento) ridotti alla
+// sessione: somma degli aumenti tra un riassunto e il successivo, quindi senza quanto contato prima che la registrazione
+// partisse (diagnostiche del 30/10, C8: il primo tel.link aveva già {58, 41, 297}). Un valore che scende è un collegamento
+// nuovo, che riparte da zero: vale il valore intero.
+export function sessionCounters(samples){
+  const list = samples.filter(x => x && typeof x === 'object');
+  if (!list.length) return null;
+  const out = {};
+  for (const k of Object.keys(list.at(-1))) out[k] = 0;
+  for (let i = 1; i < list.length; i++) for (const [k, v] of Object.entries(list[i])){
+    if (!Number.isFinite(v)) continue;
+    const p = list[i - 1][k];
+    out[k] = (out[k] || 0) + (Number.isFinite(p) && v >= p ? v - p : v);
+  }
+  return out;
+}
+// Buchi negli arrivi dei campioni del telefono sul computer (raw.t, ms dall'inizio della sessione): solo la sessione,
+// non la finestra del collegamento che comincia prima (C8: un buco di 2941 ms nato prima della registrazione)
+function arrivalGaps(raw){
+  const ts = raw.map(x => x.t).filter(Number.isFinite), d = ts.slice(1).map((t, i) => t - ts[i]).filter(x => x >= 0);
+  return d.length ? { maxMs: r1(maxOf(d)), oltre100ms: count(d, x => x > 100), p99Ms: r1(pct(d, .99)) } : null;
+}
+function phoneTiming(events){
+  const rk = events.filter(e => e.k === 'racchetta' && e.chi === 'player' && Number.isFinite(e.tempoMs));
+  if (rk.length) return { tempoTelefonoMs: dist(rk.map(x => x.tempoMs)), tempoTelefonoFonte: 'racchetta' };
+  const tt = events.filter(e => e.k === 'tentativo' && Number.isFinite(e.tauMs));
+  return { tempoTelefonoMs: dist(tt.map(x => x.tauMs)), ...(tt.length ? { tempoTelefonoFonte: 'tentativo' } : {}) };
 }
 export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spanMs = null } = {}){
   const by = k => events.filter(e => e.k === k);
@@ -161,9 +189,12 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
       if (up && giuDa != null){ giuMs += s.t - giuDa; giuDa = null; }
       prev = up;
     }
-    const percorsi = by('tel.link').at(-1)?.copie || null;
-    // buco più lungo tra due messaggi dei sensori (ms) e arrivi a grappolo, dai riassunti al secondo del collegamento
-    const links = by('tel.link'), gapOf = l => maxOf([l.gap?.rs, l.gap?.fo, l.gap?.bin].filter(Number.isFinite));
+    // percorso della prima copia dei colpi, contato nella sola sessione (sessionCounters)
+    const percorsi = sessionCounters(by('tel.link').map(l => l.copie));
+    // buco più lungo tra due messaggi dei sensori (ms) e arrivi a grappolo, dai riassunti al secondo del collegamento;
+    // senza il primo riassunto (se ce ne sono altri), la cui finestra comincia prima della registrazione (C8)
+    const allLinks = by('tel.link'), links = allLinks.length > 1 ? allLinks.slice(1) : allLinks, gapOf = l => maxOf([l.gap?.rs, l.gap?.fo, l.gap?.bin].filter(Number.isFinite));
+    const arrivi = arrivalGaps(raw);
     const scartatiTel = by('tel.scartato'), disp = by('tel.dispositivo').at(-1) || null;
     out.telefono = {
       sensori: { campioni: raw.length, hzMediana: dts.length ? r1(1000/pct(dts, .5)) : null, intervalloP95Ms: r1(pct(dts, .95)), buchiOltre50ms: gaps.length, buchiTotaleS: r1(gaps.reduce((a, d) => a + d, 0)/1000), persiInRete: lostRaw },
@@ -171,7 +202,8 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
       tempiMs: { rilevamento: dist(ok.map(c => c.rilevamento)), attesaPreparazione: dist(ok.map(c => c.attesa)), consegna: dist(ok.map(c => c.consegna)), totale: dist(ok.map(c => c.totale)) },
       orologio: clockFit(by('tel.orologio')),
       collegamento: { cadute, fuoriLineaS: r1(giuMs/1000), paginaNascosta: count(stati, s => s.visibile === false), bloccoSchermo: tally(stati.filter(s => s.schermo != null), s => s.schermo),
-        ...(links.some(l => l.gap) ? { sensoriBuco: dist(links.map(gapOf)), secondiConBuchiOltre100ms: count(links, l => gapOf(l) > 100), grappoli: links.reduce((a, l) => a + Object.values(l.grappoli || {}).reduce((x, y) => x + y, 0), 0) } : {}) },
+        ...(links.some(l => l.gap) ? { sensoriBuco: dist(links.map(gapOf)), secondiConBuchiOltre100ms: count(links, l => gapOf(l) > 100), grappoli: links.reduce((a, l) => a + Object.values(l.grappoli || {}).reduce((x, y) => x + y, 0), 0) } : {}),
+        ...(arrivi ? { sensoriArrivi: arrivi } : {}) },
       // gesti valutati sul telefono e non mandati come colpo, con il motivo (telefoni aggiornati, solo con la diagnostica)
       ...(scartatiTel.length ? { scartatiSulTelefono: tally(scartatiTel, x => x.perche || '?') } : {}),
       ...(by('tel.prep').length ? { preparazioni: by('tel.prep').length } : {}),
@@ -239,8 +271,11 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
       esiti: tally(esiti, c => c.esito), tempo: tally(esiti.filter(c => c.esito === 'hit'), c => grade(c.tempo || '')),
       direzione: tally(esiti.filter(c => c.esito === 'hit'), c => c.direzione), rimbalzi: by('rimbalzo').length, punti: by('punto').length,
       // tempo dei colpi del telefono rispetto all'impatto ideale (ms; positivo = anticipo, negativo = ritardo): una
-      // mediana lontana da zero dice un ritardo sistematico (per esempio lo schermo)
-      tempoTelefonoMs: dist(by('tentativo').filter(x => Number.isFinite(x.tauMs)).map(x => x.tauMs)),
+      // mediana lontana da zero dice un ritardo sistematico (per esempio lo schermo). Dal tempo con cui il motore ha
+      // giocato il colpo (racchetta.tempoMs di chi gioca qui); tentativo.tauMs è il tempo al primo tentativo, prima della
+      // finestra d'impatto, e non è quello di chi gioca (C8: 43,8 contro 233 ms). Registrazioni vecchie senza «racchetta»:
+      // come prima, con la fonte dichiarata
+      ...phoneTiming(events),
     };
   }
 

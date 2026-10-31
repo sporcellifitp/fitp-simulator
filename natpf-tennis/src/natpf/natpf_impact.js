@@ -122,7 +122,8 @@ export function apexContactOn(engine){
   return !skillLevel(engine?.matchConfig?.difficulty).cpuLegend;
 }
 
-export function planPlayerIntercept(engine, actor){
+// groundOnly: solo i punti dopo il rimbalzo (piano rifatto dopo una schiacciata o una volée mancata, missedPlan)
+export function planPlayerIntercept(engine, actor, { groundOnly = false } = {}){
   const b = engine.ball; if (!b || !actor) return null;
   // velocità di corsa con la stanchezza e la palla super potente in arrivo (natpf_skill.moveFactor), come nel movimento
   const path = predictBall(b), speed = Math.max(4, finite(actor.maxSpeed, 9)*moveFactor(engine, actor)), key = planKey(engine, actor), apexOn = apexContactOn(engine), back = apexOn ? PLAN.apexBack : PLAN.maxBack;
@@ -144,7 +145,7 @@ export function planPlayerIntercept(engine, actor){
   let kind = null, s = null;
   // schiacciata al volo: palla alta che scende nella zona della schiacciata (un pallonetto; a rete ogni palla alta)
   const low = apex >= PLAN.lobApex ? PLAN.smash[0] : Z(actor.pos.z) <= PLAN.netSmashZ ? PLAN.netSmashY : Infinity;
-  if (apex >= low) s = before.find(p => p.vy < 0 && p.y >= low && p.y <= PLAN.smash[1] && Z(p.z) >= PLAN.smashMinZ && reachable(p)), kind = s ? 'smash' : null;
+  if (apex >= low && !groundOnly) s = before.find(p => p.vy < 0 && p.y >= low && p.y <= PLAN.smash[1] && Z(p.z) >= PLAN.smashMinZ && reachable(p)), kind = s ? 'smash' : null;
   if (!s){
     // dopo il rimbalzo: il punto comodo raggiungibile più vicino al colmo (a parità d'altezza quello in discesa), cioè il
     // più alto entro l'altezza comoda e entro maxBack (richiesta del 23/10, C1–C2: più tempo per il colpo e la palla più
@@ -180,7 +181,7 @@ export function planPlayerIntercept(engine, actor){
     // conveniente anche da metà campo
     const volley = before.filter(p => Z(p.z) >= PLAN.volleyMinZ && p.y >= PLAN.volley[0] && p.y <= PLAN.volley[1] && reachable(p)).reduce((b, p) => (!b || need(p) < need(b) ? p : b), null);
     const wait = serve ? ground : early;   // sulla risposta al servizio il confronto è con il punto scelto, da fondo campo
-    if (volley && (!wait || need(wait) - need(volley) >= PLAN.volleySave)) s = volley, kind = 'volley';
+    if (volley && !groundOnly && (!wait || need(wait) - need(volley) >= PLAN.volleySave)) s = volley, kind = 'volley';
     else if (ground) s = ground, kind = 'ground';
   }
   // nessun punto raggiungibile: verso il rimbalzo (o la fine della traiettoria), il più vicino possibile; mai verso un
@@ -193,8 +194,25 @@ export function planPlayerIntercept(engine, actor){
   // in corsa: poco margine tra quando si arriva e quando arriva la palla (o non ci si arriva)
   const run = Math.hypot(p.x - actor.pos.x, p.z - actor.pos.z);
   const stretch = kind === 'stretch' ? 1 : Math.max(clamp(1 - (s.t - need(s))/PLAN.slackFull, 0, 1), PLAN.runWeight*clamp((run - PLAN.runFrom)/PLAN.runSpan, 0, 1));
-  engine[key] = { kind, side: p.side, contact: { x: +s.x.toFixed(3), y: +s.y.toFixed(3), z: +s.z.toFixed(3) }, t: +s.t.toFixed(3), at: finite(engine.elapsedTime), stretch: +stretch.toFixed(3), track: trackOf(path) };
+  engine[key] = { kind, side: p.side, contact: { x: +s.x.toFixed(3), y: +s.y.toFixed(3), z: +s.z.toFixed(3) }, t: +s.t.toFixed(3), at: finite(engine.elapsedTime), stretch: +stretch.toFixed(3), track: trackOf(path), ...(groundOnly ? { replan: true } : {}) };
   return engine[key];
+}
+
+// Schiacciata o volée prevista e non colpita (diagnostiche del 30/10, C7): il piano si faceva solo al colpo
+// dell'avversario e nessuno lo rifaceva quando il punto d'impatto era passato; chi gioca restava sotto il punto della
+// schiacciata mentre la palla rimbalzava alle sue spalle (punto perso). true quando va rifatto il piano con i soli punti
+// dopo il rimbalzo: piano «smash» o «volley» della palla di adesso, finestra in ritardo passata (lateSpanOf × lateExtra
+// del livello), palla non colpita e ancora nella propria metà, non già rimbalzata due volte. Al massimo una volta per
+// colpo: il piano rifatto è dopo il rimbalzo (o «stretch»/«letgo»), mai di nuovo «smash» o «volley».
+export function missedPlan(engine, actor){
+  const P = planOf(engine, actor), b = engine.ball;
+  if (!P || (P.kind !== 'smash' && P.kind !== 'volley') || P.replan || !b?.inPlay || !actor) return false;
+  if (b.lastHitter === (actor === engine.opponent ? 'opponent' : 'player')) return false;
+  const half = Math.sign(actor.pos.z) || 1;
+  if (finite(b.pos.z)*half <= 0 || finite(b.bounceCountOnCurrentSide) >= 2) return false;
+  const now = finite(engine.elapsedTime), diff = engine.matchConfig?.difficulty;
+  const late = lateSpanOf(b.vel.z, skillLevel(diff))*(impactWindow(diff).lateExtra || IMPACT.lateExtra);
+  return now > P.at + P.t + late && planMatches(P, b, now);
 }
 
 // Qualità che resta dopo la corsa sul piano in corso (1 se si è arrivati con calma)

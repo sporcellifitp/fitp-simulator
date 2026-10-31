@@ -309,7 +309,8 @@ export function buildArena(scene, { quality = 1, anisotropy = 8 } = {}){
     for (const xx of [2.4, -2.4]) add(new THREE.BoxGeometry(.06, .5, .06), lam(0x111111), xx, 1.2, s*21.1);
   }
   const setScore = txt => { for (const m of scoreBox.mats){ m.map.dispose(); m.map = seg7(txt, 256, 128); } };
-  const setSpeed = kmh => { for (const m of speedBox.mats){ m.map.dispose(); m.map = seg7(String(Math.round(kmh)).padStart(3, '0'), 256, 100); } };
+  // velocità: «---» senza un servizio (inizio partita; prima restava quella della partita precedente)
+  const setSpeed = kmh => { const t = Number.isFinite(kmh) ? String(Math.round(kmh)).padStart(3, '0') : '---'; for (const m of speedBox.mats){ m.map.dispose(); m.map = seg7(t, 256, 100); } };
 
   // persona in piedi (operatori, raccattapalle) o seduta (arbitro): scarpe, gambe, bacino, busto con le spalle, collo,
   // testa con i capelli, braccia piegate; scale < 1 per i ragazzi. Una mesh sola a persona, colori nei vertici e un

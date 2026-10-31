@@ -11,6 +11,20 @@ export function viewerFilter(){
   return e => (KEEP.has(e.k) ? e : e.k === 'palla' && i++ % 4 === 0 ? { t: e.t, k: e.k, p: e.p } : null);
 }
 export function viewerEvents(events){ const keep = viewerFilter(), out = []; for (const e of events){ const v = keep(e); if (v) out.push(v); } return out; }
+// Istante d'inizio di un video sul registro (ms). Diagnostiche del 30/10 (C8): «inizio» si registrava in onstart del
+// MediaRecorder, che arriva dopo il primo fotogramma registrato (gioco: 176 ms dopo; webcam: 388 ms): i video del rapporto
+// erano fuori tempo. In ordine: fine − durata vera del file (quando il browser la conosce), poi l'istante subito prima di
+// rec.start() («richiesto», registrazioni nuove), poi «inizio» (registrazioni vecchie). durationS: durata del file (s).
+export function videoStart(events, file, durationS = NaN){
+  let start = null, asked = null, end = null;
+  for (const e of events){
+    if (e.k !== 'video' || e.file !== file) continue;
+    if (e.stato === 'inizio'){ start = e.t; if (Number.isFinite(e.richiesto)) asked = e.richiesto; }
+    else if (e.stato === 'fine' && Number.isFinite(e.t)) end = e.t;
+  }
+  if (Number.isFinite(end) && Number.isFinite(durationS) && durationS > 0) return Math.max(0, end - 1000*durationS);
+  return asked ?? start ?? 0;
+}
 // eventsJson: eventi già filtrati e serializzati (dal worker), così il thread del gioco non legge il registro
 export function viewerHtml({ meta = {}, metrics = {}, events = [], eventsJson = null, videos = [] } = {}){
   const data = (JSON.stringify({ meta, metrics, videos }).slice(0, -1) + ',"events":' + (eventsJson ?? JSON.stringify(viewerEvents(events))) + '}').replace(/</g, '\\u003c');
@@ -38,6 +52,7 @@ header,main{max-width:1200px;margin:0 auto;padding:12px 16px}h1{font-size:20px;m
 </main>
 <script type="application/json" id="dati">${data}</script>
 <script>
+const videoStart = ${videoStart.toString()};
 const D = JSON.parse(document.getElementById('dati').textContent), E = D.events, $ = id => document.getElementById(id);
 const fmt = ms => { const s = Math.max(0, ms/1000); return Math.floor(s/60) + ':' + (s%60).toFixed(1).padStart(4, '0'); };
 const m = D.meta || {};
@@ -59,16 +74,18 @@ $('metrics').textContent = JSON.stringify(D.metrics, null, 2);
     const ti = document.createElementNS(NS, 'title'); ti.textContent = fmt(e.t) + ' · x ' + e.x + ' z ' + e.z; dot.appendChild(ti);
   }
 })();
-// video: inizio di ciascuno sul registro (evento «video» inizio). Per i file senza durata nota (registrazione del
-// browser) si forza il calcolo della durata prima di cercare
-const starts = {}; for (const e of E) if (e.k === 'video' && e.stato === 'inizio') starts[e.file] = e.t;
+// video: inizio di ciascuno sul registro (videoStart: fine − durata quando la durata è nota, altrimenti l'istante prima
+// dell'avvio del registratore). Per i file senza durata nota (registrazione del browser) si forza il calcolo della durata
+// prima di cercare, e l'inizio si corregge appena la durata c'è
 const vids = [];
 for (const v of D.videos || []){
   const box = document.createElement('div'), el = document.createElement('video');
   el.src = v.file; el.controls = true; el.preload = 'auto'; el.muted = true;
   box.innerHTML = '<div class="mut">' + (v.file.includes('webcam') ? 'Webcam (chi gioca)' : 'Gioco') + ' · ' + v.file + '</div>'; box.appendChild(el); $('vids').appendChild(box);
+  const vid = { el, file: v.file, start: videoStart(E, v.file), cam: v.file.includes('webcam') };
   el.addEventListener('loadedmetadata', () => { if (!isFinite(el.duration)){ el.currentTime = 1e7; el.addEventListener('timeupdate', function f(){ el.removeEventListener('timeupdate', f); el.currentTime = 0; }); } });
-  vids.push({ el, file: v.file, start: starts[v.file] ?? 0, cam: v.file.includes('webcam') });
+  el.addEventListener('durationchange', () => { if (isFinite(el.duration)) vid.start = videoStart(E, v.file, el.duration); });
+  vids.push(vid);
 }
 if (!vids.length) $('vids').innerHTML = '<div class="mut">Nessun video in questa sessione.</div>';
 let off = 0; $('off').oninput = e => { off = +e.target.value; $('offv').textContent = off + ' ms'; };

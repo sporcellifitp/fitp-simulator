@@ -353,6 +353,10 @@ export function getRacketRimWorldPoints(w) {
     S = { tipWorld: r, throatWorld: o, centerWorld: t, normalWorld: s, whipSpeed: c, shotType: d };
   return n && (n.rimPoints = S), S;
 }
+// NATPF (diagnostica del 30/10, C9): lo swing del servizio parte quando la palla è colpita; nel lancio chi serve tiene già
+// la posizione «trofeo» (windupPos del servizio), quindi lo swing salta la carica e parte da lì (startFrac della durata).
+// Prima ripartiva dal fianco e la racchetta arrivava sopra la testa 100–170 ms dopo il colpo.
+export const SERVE_SWING = Object.freeze({ startFrac: 0.18 });
 export class RacketKinematicsController {
   constructor(n = {}) {
     (this.posSpringStiffness = n.posSpringStiffness ?? 195),
@@ -497,8 +501,10 @@ export class RacketKinematicsController {
       v = ae(s, S),
       z = p(Math.pow(a / 1.15, 0.55), 0.8, 1.32),
       P = p(v.baseDuration / z, 0.22, 0.44);
+    // NATPF: il servizio salta la carica (SERVE_SWING); startFrac esplicito per chi la vuole intera (0)
+    const sf = p(Number(r.startFrac ?? (t ? SERVE_SWING.startFrac : 0)) || 0, 0, 0.3);
     (o.swingActive = !0),
-      (o.swingElapsed = 0),
+      (o.swingElapsed = sf * P),
       (o.swingDuration = P),
       (o.swingProgress = 0),
       (o.swingPhase = "windup"),
@@ -521,8 +527,8 @@ export class RacketKinematicsController {
       o.wristSpringOmega.set(-5.2 * a, -5.8 * b * a, 4.5 * b * a),
       (n.swingType = t ? "serve" : s === "smash" || S === "overhead" ? "smash" : S),
       (n.swingDuration = P),
-      (n.swingTimer = P),
-      (o.lastSyncedSwingTimer = P),
+      (n.swingTimer = P - o.swingElapsed),
+      (o.lastSyncedSwingTimer = n.swingTimer),
       (n.arcVisibleTimer = Math.max(n.arcVisibleTimer || 0, P + 0.06)),
       n.swingArcMesh && (n.swingArcMesh.visible = !0),
       o
