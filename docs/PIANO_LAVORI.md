@@ -17,26 +17,33 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-- Aggiornato: 04/11/2026 · agente: Claude · branch `natpf-simulator`.
+- Aggiornato: 04/11/2026 sera · agente: Claude · branch `natpf-simulator`.
 - **Richiesta del 04/11 completata nei blocchi B0–B6** (versione `2026-11-04.5`): B0 file di ripresa e regole, B1 prove
   nel browser e CI, B2 intro con una pallina e l'arena del gioco, B3 presa nel palmo (rollback `GRIP_STYLE =
   'martello'`), B4 modale del tutorial con «Tutto chiaro, ho capito» sul telefono, B5 tutorial e calibrazione
   indipendenti nelle due metà dello schermo, B6 valutazione Windows (poi A+ di Codex, 2026-11-04.1).
-- Test: gioco 683/683, sito 182/182, LAN 10/10, build ok; e2e training-flow 15/15 (con la modale), blackout 6/6,
-  training-reconnect 6/6, diag-session 24/24, menu 22/22, rally 7/7, phone-keep 13/13.
+- **Richiesta del 04/11 sera** («una versione portatile e una installabile, entrambe tramite eseguibili; vai avanti su
+  Windows, il resto lo provo io, segnati i punti che devo controllare») → **B7 fatto**: `natpf-desktop/` (Electron
+  45.2.2) con `NATPF-Simulator-Setup-2026-11-04.5.exe` (124.880.055 B, sha256 `bdfb46b7a456e55b7d9b5e51906f59971552990fdf744f598041417c4dcd7d62`) e
+  `NATPF-Simulator-Portatile-2026-11-04.5.exe` (124.872.264 B, sha256 `369702017923532838c0b9b437dfb4d2190dedfb3c5090b3640bbd2d2c5ae7cb`), consegnati all'utente.
+  **Punti da controllare per l'utente: `docs/COLLAUDO_WINDOWS.md`**. Dettagli: `docs/DESKTOP_WINDOWS.md` §13,
+  costruzione: `natpf-desktop/LEGGIMI.md`.
+- Test: gioco 683/683, sito 182/182, LAN 10/10, programma Windows 5/5 (`cd natpf-desktop && npm test`); build ok;
+  programma avviato con Electron per Linux in Xvfb (server, certificato, schermo intero, menu del gioco con WebGL).
+  e2e precedenti: training-flow 15/15, blackout 6/6, training-reconnect 6/6, diag-session 24/24, menu 22/22.
 - CI su `natpf-simulator`: workflow del gioco verde; prove nel browser con due rossi intermittenti su runner condivisi
-  (`gesture-calibration` riga 73, `timing-browser` «P2 timing … after shared pause»): punto aperto.
-- Ultimi pacchetti consegnati: **2026-11-04.5** (LAN sha256 `51c173db…e010a5c3f`, Cloudflare `52629c19…7aa1014`), provati
-  estratti (WORK_PROGRESS B5.2).
+  (`gesture-calibration` riga 73, `timing-browser` «P2 timing … after shared pause»): punto aperto. I test di
+  `natpf-desktop` non sono ancora in CI.
+- Ultimi pacchetti ZIP: **2026-11-04.5** (LAN sha256 `51c173db…e010a5c3f`, Cloudflare `52629c19…7aa1014`), riconsegnati
+  invariati dopo B7 (B7 non cambia il loro contenuto).
 - Crediti Higgsfield spesi per la richiesta del 04/11: **41 / 100** (saldo 667,37).
-- Non verificato (serve l'utente): telefoni veri (presa nel palmo, pulsante «ho capito», due persone sullo stesso
-  schermo), video H.264 in un browser vero, Windows 10 con Edge e ledwall (A+ di Codex).
-- **Richiesta nuova (04/11 sera):** «una versione portatile e una versione installabile, entrambe tramite eseguibili;
-  vai avanti su Windows, il resto lo provo io, segnati i punti che devo controllare» → blocco **B7** (§5).
-- **Blocco in corso:** B7 (eseguibili Windows con Electron).
-- **Prossima azione esatta:** B7.1 — creare `natpf-desktop/` (Electron + electron-builder, versioni esatte), con il
-  processo principale che avvia in-process certificati e server LAN di Codex (`tools/lan/certificato.mjs`,
-  `natpf-tennis/lan/server.mjs`) e apre `https://localhost:8443/?lan=1` a schermo intero sul monitor scelto.
+- Non verificato (serve l'utente): **tutto su Windows** (`docs/COLLAUDO_WINDOWS.md`: SmartScreen, installazione,
+  firewall, ledwall, webcam, scheda grafica del PC noleggiato), telefoni veri (presa nel palmo, pulsante «ho capito»,
+  due persone sullo stesso schermo), video H.264 in un browser vero.
+- **Blocco in corso:** nessuno.
+- **Prossima azione esatta:** aspettare l'esito del collaudo Windows dell'utente (`docs/COLLAUDO_WINDOWS.md`) e
+  correggere quello che segnala (registro `%LOCALAPPDATA%\NATPF\log\programma.log`). Per rifare gli eseguibili dopo
+  un cambiamento: versione nuova del gioco, poi `cd natpf-desktop && npm run costruisci` (§6).
 
 ---
 
@@ -109,7 +116,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B4 Modale tutorial | [x] | modale prima della calibrazione, «Tutto chiaro, ho capito» sul telefono | vedi WORK_PROGRESS B4 | 2026-11-04.4 |
 | B5 Stesso schermo | [x] | modale e calibrazione indipendenti nelle due metà di «Collega» | vedi WORK_PROGRESS B5 | 2026-11-04.5 |
 | B6 Windows | [~] | A+ portatile implementato; collaudo Windows reale e F0/F1 da completare | commit di questo checkpoint | 2026-11-04.1 |
-| B7 Eseguibili Windows | [~] | `natpf-desktop/`: Electron, portatile (un .exe) e installabile (setup .exe), firewall e certificati | — | — |
+| B7 Eseguibili Windows | [x] | `natpf-desktop/`: Electron, portatile (un .exe) e installabile (setup .exe), firewall e certificati; collaudo Windows dell'utente in `docs/COLLAUDO_WINDOWS.md` | vedi WORK_PROGRESS B7 | 2026-11-04.5 |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).
@@ -280,19 +287,20 @@ resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mo
   F2 conclusa serve il collaudo Windows. F0 misure e restante F1 ancora aperti; Electron e worker non implementati.
 
 ### B7 · Eseguibili Windows: portatile e installabile (richiesta del 04/11 sera)
-- **Stato**: c'è lo zip A+ di Codex (Node portatile + Edge in modalità app, file `.cmd`), nessun eseguibile.
-- **Cosa**: `NATPF-Simulator-Portatile-<versione>.exe` (un solo file, nessuna installazione) e
-  `NATPF-Simulator-Setup-<versione>.exe` (installazione per il computer, collegamenti, disinstallazione, regole del
-  firewall), con lo stesso gioco della versione browser.
-- **Come**: Electron (deciso in `docs/DESKTOP_WINDOWS.md`, fase F3) in `natpf-desktop/`, costruito da Linux con
-  electron-builder (target `nsis` e `portable`, senza firma: SmartScreen avvisa alla prima apertura). Il processo
-  principale riusa i moduli del server LAN (certificati in `%LOCALAPPDATA%\NATPF`, HTTPS 8443, pagina del certificato
-  8081), si fida del proprio certificato senza toccare l'archivio di Windows, apre il gioco a schermo intero sul monitor
-  scelto (il più grande esterno: il ledwall), schermo sempre acceso, webcam consentita, menu con monitor, schermo intero,
-  rete (firewall), cartella dei dati. Firewall: regole create dall'installazione; nel portatile alla prima apertura (UAC).
+- **Stato**: fatto e consegnato (2026-11-04.5); **collaudo su Windows dell'utente da fare** con
+  `docs/COLLAUDO_WINDOWS.md`.
+- **Cosa**: `NATPF-Simulator-Portatile-<versione>.exe` (un solo file, nessuna installazione, estrae al primo avvio in
+  `%LOCALAPPDATA%\NATPF\portatile\<versione>`) e `NATPF-Simulator-Setup-<versione>.exe` (Programmi, collegamenti,
+  regola del firewall, disinstallazione), con lo stesso gioco della versione browser.
+- **Come**: Electron 45.2.2 in `natpf-desktop/`. Il processo principale avvia nello stesso processo il server LAN di
+  A+ (certificati in `%LOCALAPPDATA%\NATPF`, HTTPS 8443, pagina del certificato 8081), si fida del proprio
+  certificato solo per i propri indirizzi, apre il gioco a schermo intero sul monitor più grande non principale (il
+  ledwall), schermo sempre acceso, webcam consentita, WebGL in software se la scheda è bloccata, menu (Alt) con
+  monitor, rete e scheda grafica. Costruzione da Linux senza wine: electron-builder per `win-unpacked`, script NSIS
+  propri (`build/installatore.nsi`, `build/portatile.nsi`) con il makensis della cache di electron-builder.
 - **Perché**: l'utente vuole eseguibili veri, uno da copiare e uno da installare, sul PC noleggiato con Windows 10.
-- **Fine**: due `.exe` costruiti, contenuto controllato, test delle funzioni del processo principale, documento di
-  collaudo `docs/COLLAUDO_WINDOWS.md` con i punti che l'utente deve controllare. Non verificabile qui: Windows.
+- **Fine**: raggiunta per la parte verificabile qui (costruzione, contenuto, prove del processo principale, avvio con
+  Electron per Linux). Resta il collaudo su Windows; se segnala problemi si correggono qui con un blocco nuovo.
 
 ### Punti aperti precedenti (non della richiesta del 04/11; restano validi)
 - **Prove dal vivo** (non verificabili qui). Cosa: iPhone (calibrazione e lati dei colpi), webcam a 1–4 m e per due
@@ -336,6 +344,12 @@ installato in `/opt/pw-browsers`.
 5. Prova sugli zip estratti (server statico per Cloudflare; `node tools/lan/certificato.mjs` e server LAN per il
    LAN), `unzip -l` per controllare che non ci siano doppioni di Node né certificati, sha256, consegna all'utente,
    annotazione in `docs/WORK_PROGRESS.md` e nel Registro (§4).
+6. Eseguibili Windows (dal 04/11 sera, stessa versione dei pacchetti): `npm ci` in `tools/lan`, poi in
+   `natpf-desktop`: `ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci`, `npm test`, `npm run costruisci` (~15 minuti, compressione
+   lzma). Controllo con il 7zz della cache di electron-builder (`~/.cache/electron-builder/7zip@*/…/bin/7zz l`):
+   ~300 file, nessun `.pem` o chiave, `resources/app` uguale a `dist/win-unpacked`; sha256; consegna insieme agli zip
+   e aggiornamento delle dimensioni e degli sha256 in `docs/COLLAUDO_WINDOWS.md` §0. Procedura completa in
+   `natpf-desktop/LEGGIMI.md`.
 
 **Rollback della presa** (dopo B3): cambiare la costante del profilo di presa da `palmo` a `martello` (modulo
 indicato in `PROJECT_MEMORY.md` §Gesti), `npm test`, pacchetti. In alternativa `git revert` dei commit di B3 elencati

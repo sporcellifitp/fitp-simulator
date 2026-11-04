@@ -347,3 +347,23 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 - Fullscreen usa app + start-fullscreen: il kiosk nativo Edge è InPrivate e non conserva lo stato.
 - Regole firewall solo NATPF, LocalSubnet, senza eliminare blocchi o regole di altri programmi.
 - Le prove Linux non attestano comportamento UAC, PowerShell, DPI, monitor e telefoni su Windows.
+
+### Eseguibili Windows con Electron (B7, 04/11/2026 sera)
+- Richiesta: portatile e installabile, «tramite eseguibili». Codice in `natpf-desktop/` (Electron 45.2.2, versioni
+  esatte), dettagli in `docs/DESKTOP_WINDOWS.md` §13, collaudo per l'utente in `docs/COLLAUDO_WINDOWS.md`.
+- Il programma è solo un guscio: stesso `natpf-tennis/dist`, stesso server LAN di A+ avviato nello stesso processo,
+  stessi dati in `%LOCALAPPDATA%\NATPF` (certificati condivisi con lo zip A+: i telefoni preparati valgono per tutti).
+  Non si apre insieme allo zip A+ (stesse porte). Nessuna API Node nella pagina; fiducia nel certificato solo per i
+  propri indirizzi/porte e solo per il PEM su disco.
+- Versione dell'eseguibile = versione del gioco (`AAAA-MM-GG.n` → `AAAA.MMGG.n`): un cambiamento solo del guscio alza
+  comunque la versione del gioco, come per i pacchetti.
+- Costruzione da Linux senza wine: electron-builder solo per `win-unpacked`; installazione e portatile sono script
+  NSIS propri compilati con il makensis della cache di electron-builder (`WriteUninstaller` a tempo d'installazione).
+  Non tornare ai target `nsis`/`portable` di electron-builder senza wine o Windows.
+- Firewall: una regola per l'eseguibile, solo `localsubnet`. Il portatile la chiede **prima** di avviare il server
+  (così Windows non mostra il suo avviso, dove «Annulla» crea blocchi). Si tolgono le regole legate al **percorso del
+  nostro eseguibile** (blocchi compresi), mai quelle di altri programmi (diverso da A+, dove gli eseguibili sono
+  node.exe e msedge.exe, condivisi).
+- Portatile: estrazione una volta per versione in `%LOCALAPPDATA%\NATPF\portatile\<versione>` (marcatore `.pronto`),
+  non a ogni avvio come il target `portable` di electron-builder; `PORTABLE_EXECUTABLE_DIR` dice al programma che è
+  il portatile (regola «NATPF Simulator portatile»).

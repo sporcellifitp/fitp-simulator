@@ -54,7 +54,8 @@ npm run dev         # server di sviluppo su :3000
 node scripts/ui-shots.mjs   # screenshot del percorso UI con Chromium (vedi docs/PROJECT_MEMORY.md)
 cd ..
 node --test tools/test/*.test.mjs                     # test del sito e della pagina del telefono (182)
-(cd tools/lan && npm ci && node --test test/*.test.mjs) # server LAN (5)
+(cd tools/lan && npm ci && node --test test/*.test.mjs) # server LAN (10)
+(cd natpf-desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci && npm test)   # programma Windows (5); eseguibili: npm run costruisci
 CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/natpf-training-flow.mjs   # prove nel browser natpf-*
 node tools/e2e/run-local.mjs <script>.mjs             # prove nel browser del sito (prima: npm ci --prefix tools/e2e)
 ```

@@ -241,3 +241,49 @@ anche Cloudflare, con recupero tornando in primo piano. Node nello ZIP una sola 
 Prove automatiche: 675 gioco, 182 sito, 10 LAN; menu 22/22; build e pacchetti estratti verificati.
 Restano da verificare su Windows reale: UAC, sintassi/effetto firewall PowerShell, monitor/DPI/Edge e telefoni reali.
 F0 e restante F1 (qualità automatica, taratura latenza, traffico, dipendenze) non completati da questo blocco.
+
+## 13. Eseguibili Windows con Electron (fase F3) · 04/11/2026 sera · B7
+
+Richiesta dell'utente: «una versione portatile e una versione installabile, entrambe tramite eseguibili; vai avanti
+su Windows, il resto lo provo io». Codice in `natpf-desktop/` (procedura in `natpf-desktop/LEGGIMI.md`), punti di
+collaudo per l'utente in `docs/COLLAUDO_WINDOWS.md`.
+
+- **Electron 45.2.2** (electron-builder 26.18.0 per comporre Electron per Windows x64; resedit 3.1.0 per icona e
+  versione). Il gioco non cambia: stessi file del pacchetto LAN (`natpf-tennis/lan/pacchetto.mjs`), senza Node
+  (lo porta Electron) e senza certificati.
+- **Processo principale** (`src/main.mjs`): importa i moduli del server LAN di Codex e li avvia nello stesso processo
+  (`ensureCertificate`, `startNatpfLan` con `open:false`, `serveCa`): stessi certificati in `%LOCALAPPDATA%\NATPF\certs`
+  dello zip A+, stesse porte (8443, 8081, 8080). Apre `https://localhost:8443/?lan=1`; si fida del certificato solo
+  per localhost e gli indirizzi del PC sulle porte 8443/8081 e solo se è il PEM su disco (niente modifiche
+  all'archivio dei certificati di Windows). Una sola istanza. Profilo del gioco in `%LOCALAPPDATA%\NATPF\programma`
+  (uguale per portatile e installato), registro in `%LOCALAPPDATA%\NATPF\log\programma.log`.
+- **Schermo**: monitor salvato, altrimenti il più grande non principale (il ledwall esteso), altrimenti il principale;
+  schermo intero salvo scelta diversa (F11), Ctrl+Maiusc+M monitor successivo, menu nascosto (Alt) con l'elenco dei
+  monitor; monitor tolto → principale. Schermo sempre acceso (`powerSaveBlocker`), autoplay senza tocco, niente
+  rallentamenti in secondo piano, indirizzi LAN veri nel WebRTC (mDNS spento), GPU più potente se ce ne sono due,
+  WebGL in software se Chromium blocca la scheda grafica (`enable-unsafe-swiftshader`), pagina «Scheda grafica in uso».
+- **Firewall**: una regola per l'eseguibile (tutti i protocolli, solo `localsubnet`): copre HTTPS, pagina del
+  certificato e WebRTC perché tutti i processi di Electron sono lo stesso `.exe`. L'installazione crea «NATPF
+  Simulator» e la toglie alla disinstallazione; il portatile chiede alla prima apertura (UAC tramite PowerShell
+  `Start-Process -Verb RunAs`) la regola «NATPF Simulator portatile», **prima** di avviare il server: con la regola
+  presente Windows non mostra il suo avviso, dove «Annulla» creerebbe regole di blocco (che vincono su quelle che
+  consentono). Creando la regola si tolgono anche tutte quelle legate all'eseguibile (`delete rule name=all
+  program=…`), blocchi compresi.
+- **Costruzione da Linux senza wine**: il target `nsis` di electron-builder costruisce la disinstallazione eseguendo
+  l'installazione con wine. Qui electron-builder produce solo `dist/win-unpacked` (target `dir`); installazione e
+  portatile sono script NSIS propri (`build/installatore.nsi`, `build/portatile.nsi`) compilati con il makensis
+  per Linux che electron-builder scarica nella sua cache (NSIS 3.0.4.1). La disinstallazione la scrive
+  l'installazione (`WriteUninstaller`).
+- **Installazione**: per il computer (UAC), `C:\Program Files\NATPF Simulator`, collegamenti nel menu Start e sul
+  desktop, voce in «App installate» (HKLM, vista a 64 bit), chiude il gioco se è aperto, aggiornamento sopra la
+  versione precedente togliendo solo i file del programma (elenco generato), avvio finale senza permessi di
+  amministratore (tramite Esplora risorse), `/S` per l'installazione silenziosa.
+- **Portatile**: un solo `.exe`, senza permessi. Al primo avvio di una versione estrae in
+  `%LOCALAPPDATA%\NATPF\portatile\<versione>` (barra di avanzamento) e scrive `.pronto`; poi si avvia subito.
+  Cancella le versioni precedenti non aperte. Imposta `PORTABLE_EXECUTABLE_DIR` per il programma. Scelta diversa da
+  electron-builder `portable` (che estrae in una cartella temporanea a ogni avvio): avvii successivi in pochi secondi.
+- **Senza firma del codice**: SmartScreen alla prima apertura di ciascun `.exe` scaricato; i file estratti dal
+  portatile e quelli installati non hanno il «Mark of the Web».
+- **Verificato qui**: test delle funzioni pure e della coerenza degli script NSIS (`natpf-desktop/test`), costruzione,
+  contenuto degli eseguibili, programma avviato con Electron per Linux in uno schermo virtuale (server, certificato,
+  schermo intero, schermata iniziale del gioco). **Da verificare su Windows**: tutto `docs/COLLAUDO_WINDOWS.md`.

@@ -172,3 +172,34 @@ Criterio di fine: script `natpf-*` verdi, CI che prova gioco, build e sito sul b
   CA nameConstraints rinviati; F0 e altri interventi F1 restano da fare. Nessun Electron.
 - SHA256 LAN: `60f05f06d48bd85bfc99612fd2e3e1a2e87c3f51769c344413081cdf51245386`.
 - SHA256 Cloudflare: `a25dea7ab18d92ad018a404476031f3b86e25b60b5ffe721a0d5a13916689aff`.
+
+## B7 · Eseguibili Windows: portatile e installabile · [x] · 04/11/2026 sera
+- Richiesta: «una versione portatile e una versione installabile, entrambe tramite eseguibili; vai avanti su Windows,
+  il resto lo provo io, segnati i punti che devo controllare». Codex aveva fatto lo zip A+ (Node portatile + Edge),
+  nessun eseguibile.
+- [x] B7.1 · `natpf-desktop/` (nuovo): `package.json` (electron 45.2.2, electron-builder 26.18.0, resedit 3.1.0,
+  versioni esatte), `src/main.mjs` (processo principale), `src/desktop-core.mjs` (funzioni pure), `test/` (5 prove),
+  `scripts/prepara.mjs` (app/ dal pacchetto LAN, senza Node e senza certificati), `scripts/costruisci.mjs`
+  (electron-builder target `dir` + makensis), `build/installatore.nsi`, `build/portatile.nsi`, icona e grafica
+  dell'installazione, `LEGGIMI.md`. Documenti: `docs/COLLAUDO_WINDOWS.md` (punti per l'utente),
+  `docs/DESKTOP_WINDOWS.md` §13, `docs/PROJECT_MEMORY.md`, `CLAUDE.md` (comando dei test).
+- Problema incontrato: il target `nsis` di electron-builder da Linux chiede wine per la disinstallazione (`spawn wine
+  ENOENT`), wine non c'è. Soluzione: script NSIS propri con `WriteUninstaller` e il makensis per Linux della cache di
+  electron-builder (NSIS 3.0.4.1, con System, nsExec, nsDialogs, MUI2 italiano).
+- Firewall: regola per l'eseguibile, solo `localsubnet`; il portatile la chiede prima di avviare il server; si tolgono
+  anche le regole di blocco legate all'eseguibile (create da Windows se si preme «Annulla» sul suo avviso).
+- Verifiche: `natpf-desktop` 5/5; gioco 683/683, sito 182/182, LAN 10/10; costruzione completa da Linux; 7zz:
+  installazione 302 file e portatile 298 file, `resources` identiche a `dist/win-unpacked`, nessun `.pem` né chiave,
+  plugin NSIS presenti; versione e icona (7 immagini) lette con resedit nei tre `.exe`; programma avviato con Electron
+  45.2.2 per Linux in Xvfb: certificato creato, server pronto, `https://localhost:8443/?lan=1` caricato a schermo
+  intero, WebGL con SwiftShader, menu del gioco raggiunto, menu del programma e finestra «Scheda grafica» aperti.
+  Stessa prova sulla cartella impacchettata `dist/win-unpacked/resources/app` (dove electron-builder toglie
+  `tools/lan/node_modules`: `ws` e `node-forge` sono alla radice dell'app): certificato nuovo, server pronto, gioco
+  caricato, pagina del telefono `/natpf/tennis/racchetta.html` 200, pagina del certificato 8081 e `natpf-ca.crt` 200.
+  `7zz t` dei due `.exe`: «Everything is Ok».
+- Eseguibili consegnati: `NATPF-Simulator-Setup-2026-11-04.5.exe` (124.880.055 B, sha256 `bdfb46b7a456e55b7d9b5e51906f59971552990fdf744f598041417c4dcd7d62`) e
+  `NATPF-Simulator-Portatile-2026-11-04.5.exe` (124.872.264 B, sha256 `369702017923532838c0b9b437dfb4d2190dedfb3c5090b3640bbd2d2c5ae7cb`). ZIP 2026-11-04.5 riconsegnati invariati
+  (B7 non ne cambia il contenuto; sha256 ricontrollati).
+- Non verificato: tutto su Windows (SmartScreen, antivirus, UAC, installazione e disinstallazione, netsh, avvio dalla
+  pagina finale, estrazione del portatile, monitor/ledwall, Alt a schermo intero, webcam, GPU del PC noleggiato,
+  telefoni veri). Electron 45 su Windows 10: supportato secondo Electron, non provato.

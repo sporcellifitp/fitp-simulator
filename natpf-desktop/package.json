@@ -1,0 +1,17 @@
+{
+  "name": "natpf-simulator-desktop",
+  "private": true,
+  "version": "1.0.0",
+  "description": "NATPF Simulator per Windows: eseguibili portatile e installabile (Electron) con il server LAN dei telefoni",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "prepara": "node scripts/prepara.mjs",
+    "costruisci": "node scripts/prepara.mjs && node scripts/costruisci.mjs"
+  },
+  "devDependencies": {
+    "electron": "45.2.2",
+    "electron-builder": "26.18.0",
+    "resedit": "3.1.0"
+  }
+}
