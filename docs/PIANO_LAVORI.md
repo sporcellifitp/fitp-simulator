@@ -1,0 +1,323 @@
+# PIANO_LAVORI · stato, punti aperti e piano condiviso (leggere per primo, a ogni apertura)
+
+Questo è **il** file di ripresa per qualunque agente (Claude, Codex, altri) e per l'utente. Contiene: il checkpoint
+(ultimo stato verificato e prossima azione esatta), le regole di lavoro decise dall'utente, le sue decisioni, e per
+ogni punto aperto **stato, cosa fare, come e perché**. È pensato per riprendere dopo un'interruzione (limite d'uso,
+sessione chiusa) senza ricostruire il contesto.
+
+Come si aggiorna:
+- Il **Checkpoint** si riscrive (non si accoda) a ogni passo finito: commit, test, prossima azione esatta.
+- Lo stato dei blocchi si aggiorna nel **Registro dei blocchi**; il dettaglio dei passi (file, misure, verifiche) va
+  in `docs/WORK_PROGRESS.md`; le decisioni tecniche durature in `docs/PROJECT_MEMORY.md`.
+- Se il repository e questo file divergono, vale il repository: si corregge il file.
+- Storico fino al 04/11/2026: `docs/archivio/SESSION_HANDOFF_fino_al_2026-11-04.md` e
+  `docs/archivio/WORK_PROGRESS_fino_al_2026-11-04.md` (solo consultazione).
+
+---
+
+## 1. Checkpoint (riscritto a ogni passo)
+
+- Aggiornato: 04/11/2026 · agente: Claude · branch `natpf-simulator`.
+- Ultimo commit di codice: `b076a0d` «NATPF 2026-11-03.1: nomi nel 1v1 locale e fullscreen» (Codex). Il commit di
+  questo file aggiunge solo documenti. Alla ripresa: `git fetch origin natpf-simulator`, `git status -sb`,
+  `git log --oneline -5`.
+- Test su `b076a0d` (04/11): gioco 673/673 (`cd natpf-tennis && npm test`), sito 182/182
+  (`node --test tools/test/*.test.mjs`), server LAN 5/5 (`cd tools/lan && node --test test/*.test.mjs`).
+- Prove nel browser (`tools/e2e`), B1 in corso: dopo la correzione degli script `natpf-training-flow` 14/14,
+  `natpf-phone-keep` 13/13, `natpf-rally` 7/7, `natpf-menu` 22/22, `natpf-gameplay-23-10` 11/11, `natpf-latency` 9/9;
+  da riprovare `natpf-phone-blackout` (corretto), `natpf-training-reconnect` e `natpf-diag-session` (stesso problema
+  della lezione), `lan-browser` (7/8).
+- B6: bozza in `docs/DESKTOP_WINDOWS.md`.
+- Versione dell'ultima consegna: `2026-11-03.1` in `site/js/tennis/version.js`; `site/tennis/build.json` è rimasto a
+  `2026-10-28.18` (da allineare al prossimo pacchetto).
+- Crediti Higgsfield spesi per la richiesta del 04/11: **0 / 100**.
+- **Blocco in corso:** B0 (questo file e le istruzioni) → B1 (script e2e) → B6 (documento).
+- **Prossima azione esatta:** B1 — riprovare `natpf-phone-blackout`, `natpf-training-reconnect`, `natpf-diag-session`,
+  `lan-browser` con `CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/<script>.mjs`, committare gli script, poi la
+  CI (§5 B1).
+
+---
+
+## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
+
+1. **Push**: dopo ogni commit verificato, subito, su `origin natpf-simulator`. Verificato = test del gioco e del sito
+   verdi, più `npm run build` se il passo tocca build, asset, vite o `site/`. Solo avanzamento lineare: prima
+   `git fetch origin natpf-simulator`; se il remoto è avanti, si integra (rebase dei soli commit non pubblicati o
+   merge) e si rifanno i test. Mai `--force`, mai altri branch. Niente push con test rossi (eccezione: un WIP
+   dichiarato, solo se l'utente lo autorizza caso per caso).
+2. **Pacchetti ZIP (LAN Windows e Cloudflare)**: l'utente li vuole **sempre dopo ogni commit, senza doverli
+   chiedere**. Se il commit cambia il contenuto dei pacchetti (codice, asset, pagina del telefono, server LAN) si
+   rifanno con una versione nuova, si provano estratti e si consegnano. Se il commit non li cambia (solo documenti o
+   prove), si riconsegnano gli ultimi ZIP (stessa versione e sha256) dicendolo. Ogni pacchetto nuovo alza la
+   versione in `site/js/tennis/version.js` **e** `site/tennis/build.json` (formato `AAAA-MM-GG.n`). Procedura in §6.
+3. **Un agente alla volta** sul branch: Codex lavora ancora al progetto ma non in parallelo. Chi inizia fa fetch e
+   controlla che non ci siano commit nuovi di altri; chi finisce lascia il Checkpoint aggiornato.
+4. **Blocchi autonomi**: ogni blocco ha passi piccoli; ogni passo lascia il repository funzionante (test verdi),
+   committato, pubblicato e scritto qui. Prima di un'operazione ampia, commit di checkpoint.
+5. **Higgsfield**: budget massimo complessivo **100 crediti** per la richiesta del 04/11 (intro e, se serve, la foto
+   della presa). Prima di ogni generazione si controlla il costo; ogni spesa si annota nel Checkpoint.
+6. **Non fingere**: ciò che non si può provare qui (telefoni veri, Windows, ledwall, persone) si scrive come «non
+   verificato».
+
+---
+
+## 3. Richiesta del 04/11/2026 e risposte dell'utente
+
+Richiesta (5 punti): (1) intro Higgsfield: una pallina sola e il campo del gioco; (2) impugnatura del telefono dalla
+foto di riferimento; (3) tutorial come modale prima della calibrazione con «Tutto chiaro, ho capito», anche nel 1v1
+sullo stesso schermo, indipendente per ciascun giocatore; (4) valutazione di una versione Windows installabile e audit
+dell'architettura, **senza implementarla**; (5) continuità del lavoro con commit e push incrementali.
+
+Risposte alle domande del piano (04/11):
+1. Presa: il «martello» da sostituire è la **foto**; l'impugnatura riconosciuta oggi va bene. La presa della foto di
+   riferimento sostituisce il martello (foto, figura, animazione 3D, testi), **con un rollback pronto** se l'utente lo
+   chiede.
+2. Immagine della presa: **la foto allegata dall'utente il 04/11** (telefono nel palmo, schermo verso chi gioca con
+   «Pronto» di NATPF, dita attorno alla parte bassa, pollice sul bordo in alto, cima inclinata in avanti verso lo
+   schermo). Originale: `docs/riferimenti/presa-palmo-utente-2026-11-04.webp` (fuori da `public/`, quindi non finisce
+   nei pacchetti; da ritagliare e pulire: sullo sfondo ci sono un monitor e l'ufficio). La 6.png del 04/11 resta solo
+   come riferimento della geometria: non entra nel repository (cornice di screenshot, app di un altro prodotto,
+   persone sullo sfondo).
+3. Intro: **una sola pallina**.
+4. Se i due tentativi Higgsfield falliscono: **avvisare l'utente** e decidere insieme (nessun ripiego automatico).
+5. «Tutto chiaro, ho capito»: **sul telefono di ciascun giocatore**.
+6. Modale: in tutti i percorsi con il telefono, una volta per sessione e per giocatore, «Rivedi i gesti» sempre
+   disponibile; per la webcam una versione breve senza il 3D del telefono.
+7. Riquadro «Guarda e ripeti» in alto a destra: **tolto in calibrazione**, **resta negli esercizi dell'Allenamento**.
+8. 1v1 sullo stesso schermo: tutorial e calibrazione nelle due metà della pagina «Collega i due telefoni», senza campo.
+9. Regole di lavoro: sì (§2). Codex lavora ancora ma non in parallelo. ZIP sempre dopo ogni commit, senza richiesta.
+   Controlli automatici di GitHub anche su questo branch: sì (in B1, dopo aver sistemato le prove nel browser).
+10. Contesto Windows: telefoni **dello staff**; allo stand **rete dedicata**; ledwall come **monitor esteso**;
+    **Windows 10**; GPU non nota in anticipo (PC noleggiato, probabilmente integrata); **nessun certificato di firma
+    del codice**; **niente 1v1 tra due PC** né multiplayer: un solo PC con stesso schermo, allenamento, minigiochi
+    (engagement), al massimo 1v1 contro la CPU.
+
+---
+
+## 4. Registro dei blocchi
+
+Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
+
+| Blocco | Stato | Contenuto | Commit | Pacchetti |
+|---|---|---|---|---|
+| B0 Continuità | [~] | questo file, istruzioni (CLAUDE.md, AGENTS.md), archivio dei documenti lunghi | — | invariati |
+| B1 Prove nel browser e CI | [ ] | telefono simulato aggiornato, script e2e verdi, CI sul branch | — | — |
+| B2 Intro | [ ] | video con una pallina e il campo del gioco (Higgsfield, ≤100 crediti) | — | — |
+| B3 Presa | [ ] | foto, figura, 3D e testi della presa nuova; piatto tollerante con test; tocchi; rollback | — | — |
+| B4 Modale tutorial | [ ] | modale prima della calibrazione, «Tutto chiaro, ho capito» sul telefono | — | — |
+| B5 Stesso schermo | [ ] | modale e calibrazione indipendenti nelle due metà di «Collega» | — | — |
+| B6 Windows | [~] | `docs/DESKTOP_WINDOWS.md`: confronto, architettura, benefici, piano (niente codice) | — | invariati |
+
+Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
+resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).
+
+---
+
+## 5. Punti aperti: stato, cosa fare, come, perché
+
+### B0 · Continuità del lavoro
+- **Stato**: `docs/SESSION_HANDOFF.md` (343 righe) e `docs/WORK_PROGRESS.md` (1.128 righe) erano diari lunghi con
+  molte «Prossima azione» vecchie; CLAUDE.md vietava ancora il push senza autorizzazione (regola del 28/10); Codex
+  legge `AGENTS.md`, che non esisteva.
+- **Cosa**: questo file come ingresso unico; i due diari in `docs/archivio/`; `docs/SESSION_HANDOFF.md` ridotto a un
+  rimando; `docs/WORK_PROGRESS.md` nuovo, a blocchi; CLAUDE.md con le regole del §2; `AGENTS.md` che rimanda a
+  CLAUDE.md e a questo file.
+- **Perché**: l'utente vuole riprendere da qualunque interruzione senza ricostruire il contesto, con lo stesso punto
+  di partenza per tutti gli agenti.
+- **Fine**: file presenti, test invariati (solo documenti), commit e push fatti.
+
+### B1 · Prove nel browser (e2e) e controlli automatici di GitHub
+- **Stato**: KO già presenti dalla build .17: `natpf-phone-keep`, `natpf-phone-blackout` (4/6), `natpf-training-flow`
+  (6/13), `natpf-rally` (4/7), `natpf-menu` (19/22), `lan-browser` (7/8). Causa comune: il telefono simulato degli
+  script non completa più la calibrazione dopo i cambi di presa e calibrazione del 29/10 (oggi calibrazione rapida:
+  fermo, dritto, rovescio, `racchetta.js:62` `quick:true`); `natpf-menu` controlla un centro della pagina vecchio.
+  Cause trovate il 04/11: (a) gli script che passano da «Allenamento» non chiudevano la **lezione iniziale**, e durante
+  la lezione il computer ignora la calibrazione che il telefono fa comunque da solo (`natpf_training._onCal`); (b) gli
+  script con tempi fissi facevano il primo gesto dopo 0,5 s, ma dal 29/10 il telefono vuole 0,6 s di quiete
+  (`CAL.firstSettle`) e 1,5 s di preparazione (`CAL.lead`); (c) il menu è a due colonne dal 31/10.
+  CI: ci sono **due** workflow e nessuno parte su `natpf-simulator`. `.github/workflows/natpf-simulator-tests.yml`
+  (Node 20) fa solo i test del sito, alcuni e2e del sito (compreso `lan-browser`) e il pacchetto con
+  `tools/package-natpf.py`, che impacchetta solo `site/`; `.github/workflows/natpf-tennis.yml` (Node 22) fa `npm test` e
+  `npm run build` del gioco, ma solo su `feature/natpf-tennis-mvp`. Nessuno script `natpf-*` è nella CI.
+- **Cosa**: script e2e allineati al gioco attuale; poi CI su `natpf-simulator` che provi davvero gioco, build e sito.
+- **Come**: (1) un aiuto comune `quickCalibrate` in `tools/e2e/th.mjs` che fa i gesti quando il telefono è pronto,
+  come una persona, e la lezione scorsa con «Avanti» negli script che passano da «Allenamento»; cambiare solo gli script
+  di prova, non il gioco (un difetto vero del gioco si annota qui e si decide); (2) aggiungere `natpf-simulator` ai push
+  di **entrambi** i workflow, portare `natpf-simulator-tests.yml` a Node 22, aggiungere al matrix almeno
+  `natpf-training-flow`; prima di attivare il trigger, provare in locale gli script già nel matrix e
+  `tools/package-natpf.py`.
+- **Perché**: senza prove nel browser verdi la modale (B4) e lo stesso schermo (B5) non si possono verificare
+  end-to-end, e con i push frequenti serve una seconda rete di sicurezza remota.
+- **Fine**: gli script elencati verdi (o KO residui spiegati, con causa fuori dal gioco), CI verde sul branch.
+
+### B2 · Intro (Higgsfield)
+- **Stato**: `natpf-tennis/public/media/intro.mp4` (1280×720, 8,04 s, 193 fotogrammi; job Higgsfield `32ab262f`) e
+  il fotogramma finale `intro-fine.webp`. Difetti verificati sui fotogrammi: **due palline insieme tra ~4,3 e ~5,1 s**;
+  fuori campo rosa/magenta e **due reti** nella vista aerea finale; nessuna somiglianza con l'arena del gioco (campo
+  blu `0x294a94`, fuori campo azzurro `0x2a80d2`, `site/js/tennis/arena.js`). In più il CSS fa entrare la pallina del
+  titolo a 5,6 s e il titolo a 5,7 s (`natpf-ui.css:395-399`, `INTRO_MS.full` 7800 in `natpf_intro.js:11`): una
+  pallina del video ancora in scena dopo ~5,4 s sembrerebbe una seconda pallina.
+- **Cosa**: un video nuovo con **una sola pallina** (un rimbalzo, fuori scena entro ~5 s) e il campo dell'arena del
+  gioco; stessa durata e stessa sequenza del titolo.
+- **Come**:
+  1. Catturare dal motore del gioco il fotogramma iniziale e quello finale (camera a ≤ 16 m: sopra ~20 m il motore
+     vede nero), senza scritte né marchi (regola di `public/media/LEGGIMI.txt` e `PROJECT_MEMORY.md`).
+  2. Generazione video da immagini con fotogramma iniziale e finale; prima il **controllo del costo** (non spende).
+  3. **Massimo 2 tentativi** (stima ~40 crediti ciascuno, ≤ 100 in tutto). Prompt: una sola pallina, un solo
+     rimbalzo, rete unica, colori del campo come nei fotogrammi.
+  4. Verifica fotogramma per fotogramma con ffmpeg: ≤ 1 pallina in ogni fotogramma (script
+     `conta-palline.py` dell'analisi, da portare in `natpf-tennis/scripts/audit/`), una sola rete, colori vicini a
+     quelli del gioco, niente scritte. Poi `intro-fine.webp` dall'ultimo fotogramma e prova nella pagina.
+  5. Se tutti e due i tentativi falliscono: **fermarsi e avvisare l'utente** (decisione 4), senza altri tentativi.
+- **Perché**: due palline in scena non rispettano la dinamica del tennis; il campo deve essere quello del simulatore.
+- **Fine**: video sostituito, verifiche superate, crediti annotati, pacchetti consegnati.
+
+### B3 · Presa (foto dell'utente al posto del martello), con rollback
+- **Stato**: oggi la presa mostrata è il **martello**: foto `presa-martello.webp` (`natpf_media.js:10`,
+  `index.html:398`), testo `GRIP_TEXT` (`site/js/tennis/grip-art.js:42`), 3D `q0` (`natpf_gesture_demo.js:196`,
+  `GRIP_TILT` 80° in `natpf_gesture_motion.js:16`), testi della calibrazione (`natpf_cal_view.js:45`), guida
+  (`natpf_onboarding.js:20`), `PROJECT_MEMORY.md` §Gesti; altri testi «martello»: `index.html:397` (Collega) e
+  `index.html:439` (`.split-grip`, stesso schermo), `natpf_training.js:46` (passo «presa» della lezione),
+  `natpf_gesture_motion.js:36` e `:38`, `grip-art.js:35` (aria-label). Elenco completo: `git grep -in martello`. La presa della foto dell'utente (uguale alla 6.png di
+  riferimento) è quella che la guida del 28/10 mostrava come «Così no» (`presa-sbagliata.webp`).
+  Simulazione sul riconoscitore vero (analisi del 04/11, `sim-presa.mjs`): presa nuova **516/540**, calibrazione e
+  servizio sempre giusti, **tutti i 24 errori sono piatti letti come top spin** (soglie `flatRise .12`,
+  `flatPower .62` in `natpf_stroke_intent.js:38-39`); martello 60/60. L'utente dice che con la presa reale il
+  riconoscimento va già bene: la simulazione non sostituisce un telefono vero.
+  Rischio tocchi: con lo schermo verso chi gioca le dita sono vicine al display, e ogni tocco può rivotare il segno
+  dei sensori e far ripartire la calibrazione (`racchetta.js:478-484`).
+- **Cosa**: foto, figura SVG, animazione 3D, testi (gioco, telefono, guida, calibrazione) con la presa nuova;
+  piatto riconosciuto anche con la presa nuova; tocchi involontari che non rompono la calibrazione; rollback.
+- **Come**:
+  1. Definire la presa in numeri in un solo modulo (profilo `palmo`: cima ~35–40° verso l'interno e ~40° in avanti,
+     schermo verso chi gioca; destro e mancino) accanto al profilo `martello`, con un'unica costante che sceglie
+     quale mostrare (**rollback = cambiare la costante**; asset del martello conservati).
+  2. Test nel `natpf-gesture-demo`: tutti i gesti mostrati nel tutorial riconosciuti con la presa nuova (destro e
+     mancino, intervallo di angoli) **e** ancora con il martello.
+  3. Piatto più tollerante con la pronazione naturale della presa nuova, con test e senza peggiorare gli altri colpi
+     (banchi esistenti invariati).
+  4. Foto dalla foto dell'utente: ritaglio su mano e telefono, sfondo pulito (in locale; Higgsfield solo se serve,
+     pochi crediti dai 100), webp leggero; niente monitor né ufficio.
+  5. Figura SVG, `GRIP_TEXT`, 3D `q0`, testi di calibrazione e guida coerenti con la foto.
+  6. Tocchi: durante calibrazione e gioco un tocco sullo schermo non riavvia la calibrazione (il voto del segno si fa
+     solo nei momenti e nelle zone previsti), con test del sito.
+  7. `PROJECT_MEMORY.md` §Gesti aggiornato con la presa nuova e la procedura di rollback.
+- **Perché**: la foto del martello è innaturale (richiesta del 04/11); le dimostrazioni del tutorial devono
+  corrispondere agli algoritmi reali (CLAUDE.md).
+- **Fine**: test verdi (gioco, sito, gesture-demo con le due prese), screenshot di guida, calibrazione e «Collega»,
+  pacchetti consegnati. Non verificabile qui: telefono vero con la presa nuova.
+
+### B4 · Modale del tutorial prima della calibrazione (gioco singolo)
+- **Stato**: il riquadro «Guarda e ripeti» in alto a destra (`.coach-demo`, 232 px fissi, `natpf-ui.css:172-180`;
+  `natpf_training.js:581-617`) è l'unica dimostrazione in calibrazione ed è piccolo. La lezione introduttiva esiste
+  solo in «Allenamento» dal menu (`natpf_lobby.js:465-469`, `natpf_training.js:189`): mancano riscaldamento prima
+  della partita, sfide e Player 2 invitato. Il telefono avvia la calibrazione da solo appena si attivano i sensori
+  (`racchetta.js:306`). Testi incoerenti: il telefono dice «Guarda il computer e conferma» (`racchetta.js:120`) ma il
+  computer conferma da solo (`natpf_training.js:273`); la guida dice «Nel riscaldamento il gioco impara il tuo
+  pallonetto e la tua palla corta» (`natpf_onboarding.js:43`), ma lo fanno solo gli esercizi «Pallonetto» e «Palla
+  corta» dell'Allenamento (`learnSpecial`): il riscaldamento prima della partita ha solo dritto, rovescio e servizio
+  (`WARMUP_IDS`). Correzione: «Nell'Allenamento…».
+- **Cosa**: una modale grande, prima della calibrazione, con illustrazioni e animazioni chiare di tutti i gesti
+  (presa, posizione ferma, dritto, rovescio, servizio, colpi con effetto); pulsante **«Tutto chiaro, ho capito» sul
+  telefono** che avvia la calibrazione; durante la calibrazione restano le istruzioni in basso a sinistra e il
+  riquadro in alto a destra **non** c'è; negli esercizi dell'Allenamento il riquadro resta. Modale in tutti i percorsi
+  con il telefono, una volta per sessione e per giocatore, «Rivedi i gesti» sempre disponibile; per la webcam una
+  versione breve senza il 3D del telefono. Testi incoerenti corretti.
+- **Come**:
+  1. Protocollo: il computer manda al telefono «aspetta il tutorial» (campo nella configurazione); il telefono, dopo
+     «Attiva i sensori», **non** avvia `cal.start` ma mostra il pulsante in alto, lontano dalle dita; al tocco manda
+     un messaggio al computer, che chiude la modale e avvia la calibrazione. La calibrazione oggi parte da più punti e
+     tutti devono rispettare l'attesa: `racchetta.js:306` (attivazione dei sensori), `command('cal')` sul telefono
+     (`racchetta.js:374`) mandato da `recalibrate()` del computer (`natpf_phone_racket.js:560`, chiamato da
+     `natpf_training.js:223` in `_begin` e da `natpf_split_ui.js:150` in `_drive`), il cambio di presa
+     (`racchetta.js:369`) e il voto del segno a un tocco (`racchetta.js:480-484`). Compatibilità: un telefono con una
+     pagina vecchia (senza il messaggio) fa partire la calibrazione come oggi e il computer chiude la modale da solo.
+  2. Modale in `cqw/cqh` con `@container natpf` (CLAUDE.md), schede per gesto con l'animazione 3D esistente
+     ingrandita (stesso contesto WebGL di `getGestureDemo`), foto della presa nuova, ripiego statico senza WebGL.
+  3. Test: protocollo (telefono in attesa, messaggio, compatibilità), stato della modale, niente riquadro in
+     calibrazione, riquadro negli esercizi; prova nel browser con `natpf-training-flow` (B1) e screenshot.
+- **Perché**: chi gioca per la prima volta deve capire da solo presa, colpi e calibrazione; il riquadro attuale è
+  troppo piccolo.
+- **Fine**: test e prove nel browser verdi, screenshot a 1920×1080 e in un'area di ledwall, pacchetti consegnati.
+
+### B5 · Stesso schermo (1v1): tutorial e calibrazione indipendenti per giocatore
+- **Stato**: nella pagina «Collega i due telefoni» ogni metà mostra solo titolo e sottotitolo della calibrazione
+  (`natpf_split_ui.js:35-45`); il computer conferma da solo e dopo 3 verifiche fallite fa giocare senza calibrazione
+  (`natpf_split_ui.js:136-152`). Il testo della presa comune alle due metà è ancora sul martello (`index.html:439`,
+  `.split-grip`, da cambiare in B3).
+- **Cosa**: in ciascuna metà la propria modale e poi la propria calibrazione con le istruzioni; l'«ho capito» del P1
+  non tocca il P2 e viceversa; webcam per due con la versione breve.
+- **Come**: due istanze del componente della modale (stato per giocatore, legate al rispettivo telefono), layout per
+  metà in `cqw`; un solo contesto WebGL che disegna l'animazione nelle due metà (o una animazione alla volta con il
+  ripiego statico nell'altra, se le misure lo chiedono); test con due telefoni simulati.
+- **Perché**: due persone alla prima esperienza devono poter impugnare, capire i colpi e calibrare da sole, insieme.
+- **Fine**: test, prova nel browser con due telefoni simulati, screenshot, pacchetti consegnati.
+
+### B6 · Versione Windows e architettura (solo valutazione, nessuna implementazione)
+- **Stato**: nessuna app desktop. Analisi del 04/11: il guscio (Electron, Tauri, browser) usa lo stesso Chromium,
+  quindi non cambia le prestazioni del 3D. Margini veri: livelli di qualità grafica (oggi sempre al massimo: ~1,5
+  milioni di triangoli di pubblico, 417 draw call, MSAA 4×, DPR fino a 2, ombre 2048), riconoscimento della webcam
+  fuori dal thread del disegno, ritardo dello schermo compensato solo con un valore manuale 0–200 ms nella diagnostica
+  (`natpf.displayLagMs`, 0 finché non si misura), robustezza su Windows (firewall, certificati in una cartella stabile,
+  indirizzo fisso, chiosco sul monitor esteso). Comunicazioni: `POST /api/racket/feedback` a ogni colpo, che nessuno
+  legge (eliminabile); lettura dello stato ogni 0,5 s senza stanza 1v1 (`PHONE_POLL.idleMs`, scelta del 31/10 per
+  tenere il P1 online nel relay, test `natpf-lan-letture.test.mjs`): da togliere solo dopo aver verificato che nessuno
+  usa la presenza del P1 o i colpi del relay senza stanza.
+- **Cosa**: `docs/DESKTOP_WINDOWS.md` con confronto (browser/Edge app e chiosco, Electron, Tauri, NW.js,
+  Neutralino, PWA), architettura consigliata, benefici attesi, piano di migrazione a fasi e compatibilità con la
+  versione browser.
+- **Come**: partire dalle risposte del §3 punto 10: Windows 10, GPU ignota (qualità grafica automatica in cima alle
+  priorità), nessuna firma del codice (un installer non firmato mostra SmartScreen: favorisce il pacchetto portatile
+  con `node.exe` ufficiale firmato e Edge in modalità app/chiosco sul monitor esteso; Electron solo come fase
+  facoltativa), telefoni dello staff (certificato installato una volta), nessun 1v1 tra due PC (la fase dei trasporti
+  tra PC esce dal piano).
+- **Perché**: il prodotto gira soprattutto su un PC Windows noleggiato con telefoni in LAN: servono stabilità e
+  avvio semplice più di un nuovo guscio.
+- **Fine**: documento scritto e pubblicato; nessuna modifica al codice. Stato: bozza scritta il 04/11.
+
+### Punti aperti precedenti (non della richiesta del 04/11; restano validi)
+- **Prove dal vivo** (non verificabili qui). Cosa: iPhone (calibrazione e lati dei colpi), webcam a 1–4 m e per due
+  con due persone, ledwall reale e fullscreen, nomi nel 1v1, pacchetto LAN su Windows 10, telefoni dello staff sulla
+  rete dello stand. Come: l'utente prova con la diagnostica accesa e manda lo zip della diagnostica. Perché: i
+  simulatori non sostituiscono telefoni, webcam e schermi veri.
+- **C13 · anticipo sistematico dei colpi** (diagnostiche 20261030-142317 e -142438, archivio WORK_PROGRESS, sezione
+  «Richiesta del 30/10 sera»). Il dettaglio della misura non è nel repository (era in un file temporaneo). Cosa:
+  rimisurare l'anticipo medio su quelle diagnostiche o su una nuova. Come: script di analisi in
+  `natpf-tennis/scripts/diag/`. Perché: decisione rinviata dall'utente il 31/10, va proposta con i numeri.
+- **Sfida tra due computer** (P2 su un altro PC, compensazione della latenza, TURN): **sospesa** — l'utente il 04/11
+  ha detto che agli eventi non serve. Cosa: niente; non si toglie e non si sviluppa oltre.
+- **«Personaggio dell'iPhone che si muoveva sempre»** (29/10): non riprodotto; nel video si vede solo il dondolio
+  d'attesa di P1 e P2. Cosa: prima chiedere all'utente che cosa si muoveva (personaggio, racchetta o schermata del
+  telefono), poi una diagnostica con l'iPhone. Perché: senza sapere cosa guardare non si può riprodurre.
+- **Pacchetto LAN di Codex del 04/11**: conteneva un file duplicato di Node, non identificato (`lan/pacchetto.mjs:34-39`
+  cancella già `.node-tmp`). Cosa: al prossimo pacchetto controllare con `unzip -l` che `node.exe` ci sia una sola
+  volta (in `node/`) e che non ci siano cartelle temporanee.
+
+---
+
+## 6. Procedure
+
+**Ripresa**: `git fetch origin natpf-simulator` · `git status -sb` · `git log --oneline -5` · leggere §1 · eseguire
+la prossima azione esatta.
+
+**Test** (da `natpf-tennis/`): `npm ci` · `npm test` · `npm run build`. Sito (dalla radice):
+`node --test tools/test/*.test.mjs`. LAN: `cd tools/lan && npm ci && node --test test/*.test.mjs`. Prove nel browser:
+`npm ci --prefix tools/e2e`, poi `CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/<script>.mjs` per gli script
+`natpf-*` (avviano da soli vite e la segnalazione) o `node tools/e2e/run-local.mjs <script>.mjs` per quelli del sito.
+In questo ambiente `CHROMIUM_PATH` è obbligatorio: `playwright-core` di `tools/e2e` cerca un Chromium diverso da quello
+installato in `/opt/pw-browsers`.
+
+**Pacchetti** (dopo ogni commit che li cambia):
+1. Versione nuova `AAAA-MM-GG.n` in `site/js/tennis/version.js` e `site/tennis/build.json`, commit.
+2. `cd natpf-tennis && npm run build`.
+3. Cloudflare: `node scripts/pacchetto-cloudflare.mjs --out=<cartella nuova> --turn-url=https://natpf-turn.s-porcelli.workers.dev/`,
+   poi zip del contenuto della cartella → `natpf-simulator-cloudflare-<versione>.zip`.
+4. LAN: `npm ci` in `tools/lan`, poi `node lan/pacchetto.mjs --out=<cartella> --node=<node-v22-win-x64.zip verificato>`,
+   zip → `natpf-simulator-lan-windows-<versione>.zip` (niente certificati o chiavi nello zip).
+5. Prova sugli zip estratti (server statico per Cloudflare; `node tools/lan/certificato.mjs` e server LAN per il
+   LAN), `unzip -l` per controllare che non ci siano doppioni di Node né certificati, sha256, consegna all'utente,
+   annotazione in `docs/WORK_PROGRESS.md` e nel Registro (§4).
+
+**Rollback della presa** (dopo B3): cambiare la costante del profilo di presa da `palmo` a `martello` (modulo
+indicato in `PROJECT_MEMORY.md` §Gesti), `npm test`, pacchetti. In alternativa `git revert` dei commit di B3 elencati
+nel Registro.

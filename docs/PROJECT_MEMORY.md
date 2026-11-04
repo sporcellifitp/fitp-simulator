@@ -1,8 +1,10 @@
 # PROJECT_MEMORY · NATPF Simulator
 
 Memoria tecnica durevole: architettura, decisioni, storico delle modifiche significative. Aggiornare quando si
-prende una decisione che un agente futuro deve conoscere. Stato operativo in `WORK_PROGRESS.md`, ripresa in
-`SESSION_HANDOFF.md`. Storico fino al 28/10/2026: `MEMORY.md`, `WORKLOG.md` (radice) e `docs/NATPF_*.md`.
+prende una decisione che un agente futuro deve conoscere. Stato, ripresa e punti aperti in `docs/PIANO_LAVORI.md`;
+registro dei passi in `docs/WORK_PROGRESS.md`; diari fino al 04/11/2026 in `docs/archivio/` (i rimandi
+«WORK_PROGRESS, «…»» di questo file e del codice scritti prima del 04/11 sono lì). Storico fino al 28/10/2026:
+`MEMORY.md`, `WORKLOG.md` (radice) e `docs/NATPF_*.md`.
 
 ## Architettura in breve
 
@@ -116,6 +118,25 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   --turn-url`). La chiave TURN non va mai nei file del gioco né nel repository. Senza il file o con il Worker giù: le
   strade di sempre. Il canale «fast» del telefono via internet è affidabile ma non ordinato (PeerJS imposta solo
   ordered:false): lasciato così per decisione dell'utente.
+
+## Decisioni del 04/11/2026 (richiesta in 5 punti; stato e piano in `docs/PIANO_LAVORI.md`)
+
+- **Uso agli eventi**: un solo PC Windows 10 noleggiato (GPU ignota, probabilmente integrata), ledwall come monitor
+  esteso, rete dedicata allo stand, telefoni dello staff. Modalità che contano: stesso schermo, allenamento, minigiochi,
+  al massimo 1v1 contro la CPU. **Niente 1v1 tra due PC né multiplayer** agli eventi: la sfida tra due computer resta
+  com'è ma non si sviluppa oltre. Nessun certificato di firma del codice.
+- **Presa**: la foto del «martello» si sostituisce con la presa della foto dell'utente del 04/11
+  (`docs/riferimenti/presa-palmo-utente-2026-11-04.webp`): telefono nel palmo, schermo verso chi gioca, dita attorno alla
+  parte bassa, pollice sul bordo, cima inclinata in avanti verso lo schermo. Il riconoscimento attuale per l'utente va
+  già bene; foto, figura, 3D e testi cambiano, con **rollback** pronto su richiesta (dettagli in §Gesti dopo il blocco B3).
+- **Tutorial**: modale prima della calibrazione con tutti i gesti; «Tutto chiaro, ho capito» **sul telefono** di
+  ciascun giocatore; una volta per sessione e per giocatore, «Rivedi i gesti» sempre disponibile; webcam con una
+  versione breve. Riquadro «Guarda e ripeti» tolto in calibrazione, tenuto negli esercizi dell'Allenamento. Nel 1v1
+  sullo stesso schermo: modale e calibrazione indipendenti nelle due metà della pagina «Collega».
+- **Intro**: una sola pallina e il campo dell'arena del gioco; budget Higgsfield ≤ 100 crediti; se due tentativi
+  falliscono si avvisa l'utente.
+- **Lavoro**: push dopo ogni commit verificato; ZIP LAN e Cloudflare consegnati sempre dopo ogni commit (nuovi se il
+  commit li cambia, altrimenti gli ultimi); un agente alla volta (regole complete in `CLAUDE.md`).
 
 ## Decisioni del 31/10 (diagnostiche 142317/142438 e richiesta in 5 punti)
 
