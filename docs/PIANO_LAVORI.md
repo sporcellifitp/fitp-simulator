@@ -26,7 +26,8 @@ Come si aggiorna:
   rossi a intermittenza su runner condivisi (verdi in locale e in esecuzioni precedenti) `gesture-calibration` (servizio
   del vecchio gioco del sito, attesa del contatto a riga 73) e `timing-browser` («P2 timing still correct after shared
   pause», −0,069 s): da stabilizzare (punto aperto).
-- Ultimi pacchetti consegnati: vedi WORK_PROGRESS (2026-11-04.3; 2026-11-04.4 da consegnare con B4).
+- Ultimi pacchetti consegnati: **2026-11-04.4** (LAN sha256 `de2146c1…c0d02de`, Cloudflare `8886b95b…5f43515`), provati
+  estratti (WORK_PROGRESS B4.3).
 - Crediti Higgsfield spesi per la richiesta del 04/11: **41 / 100** (saldo 667,37).
 - Non verificato: telefono vero (presa nuova, pulsante «ho capito»), video H.264 in un browser vero, Windows e ledwall.
 - **Blocco in corso:** B5 (stesso schermo: modale e calibrazione indipendenti per giocatore).

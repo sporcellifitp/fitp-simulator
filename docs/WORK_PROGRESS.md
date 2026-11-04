@@ -124,6 +124,12 @@ Criterio di fine: script `natpf-*` verdi, CI che prova gioco, build e sito sul b
   Telefono: «Fatto! Guarda il computer: si parte da soli» (prima «…e conferma», ma conferma il computer).
   Test: gioco 683/683 (modale, telefono di prima, scorrimento, webcam, Esc), sito 182/182; e2e `natpf-training-flow`
   15/15 (modale e «ho capito» sul telefono simulato), schermata della modale controllata.
+- [x] B4.3 · pacchetti **2026-11-04.4** consegnati: Cloudflare `natpf-simulator-cloudflare-20261104-4.zip` (26.877.380 B,
+  sha256 `8886b95b9e8222107ee4ee1ba627175dbb79d76b76410f39e484160a45f43515`) e LAN Windows
+  `natpf-simulator-lan-windows-20261104-4.zip` (62.064.855 B, sha256
+  `de2146c15de9d0168e2a8d825c4a458fd3225785741016f58f49dadc4c0d02de`, un solo `node.exe`, nessun certificato o chiave).
+  Provati estratti: versione .4, `turn.json`, pulsante `tutOk` nella pagina del telefono, contenitore della modale nel
+  gioco (LAN su HTTPS 8443 e Cloudflare con server statico).
 
 ## B6 · Valutazione Windows e architettura · [x] · 04/11/2026
 - [x] B6.1 · `docs/DESKTOP_WINDOWS.md`: contesto d'uso (risposte del 04/11), architettura attuale con i riferimenti,
