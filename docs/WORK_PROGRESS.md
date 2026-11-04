@@ -83,6 +83,26 @@ Criterio di fine: script `natpf-*` verdi, CI che prova gioco, build e sito sul b
   `NATPF_DATA_DIR` di prova, certificato creato fuori dal pacchetto, HTTPS 8443 (pagina del telefono, video,
   MediaPipe, versione .2).
 
+## B3 · Presa nel palmo (foto dell'utente) al posto del martello, con rollback · [x] · 04/11/2026
+- [x] B3.1 · foto `public/media/presa-palmo-schermo.webp` (768×768, 24,6 kB): ritaglio della foto dell'utente, sfondo
+  tolto con Higgsfield (1 credito), composta sul blu di `presa-martello.webp`; provenienza in `LEGGIMI.txt`.
+- [x] B3.2 · profilo unico con rollback in `site/js/tennis/grip-art.js`: `GRIP_STYLE` ('palmo' | 'martello'), `GRIPS`
+  con nome, testi (guida, pannelli, telefono, «Collega», stesso schermo, calibrazione, lezione), figura SVG a due viste
+  (palmo: di lato + di fronte), foto; `natpf_gesture_motion.GRIP_POSE` (posa 3D) e indicazioni per stile;
+  `natpf_gesture_demo.js`: mano nel palmo (palmo dietro, dita sul bordo sinistro, pollice sul destro), posa del palmo,
+  primo piano dell'impugnatura senza il braccio che copriva lo schermo; `natpf_media`, `natpf_cal_view`,
+  `natpf_training.LESSON`, `natpf_ui` (testi `data-grip-text` e foto di «Collega» dal profilo), `index.html`.
+- [x] B3.3 · piatto della dimostrazione «il dritto, ma più veloce» (asse e polso del dritto, 1000 °/s): con la presa
+  nel palmo il vecchio piatto orizzontale era top spin; `scripts/audit/sim-piatto-prese.mjs` 64/80 → 80/80 su martello,
+  palmo e presa della foto. Riconoscimento invariato (l'utente: «l'impugnatura mi pare andasse bene»).
+- [x] B3.4 · tocchi: con la presa nel palmo nessun tocco cambia il segno dei sensori (test), quindi nessuna calibrazione
+  rifatta per errore; testo della guida corretto («Negli esercizi dell'Allenamento il gioco impara…»).
+  Test: `natpf-gesture-demo` (presa della foto 20–50° × 25–55°, destro e mancino, tutti i gesti; servizio anche nel
+  palmo), `natpf-presa.test.mjs` nuovo (profili completi, foto, testi statici = profilo attivo, tocchi), test dei media
+  indipendenti dal nome della foto. Gioco 680/680, sito 182/182, LAN 10/10, build ok; screenshot di «Collega», lezione,
+  guida e pannello del telefono con la presa nuova; demo 3D senza errori. Versione 2026-11-04.3.
+  Non verificato: telefono vero con la presa nuova.
+
 ## B6 · Valutazione Windows e architettura · [x] · 04/11/2026
 - [x] B6.1 · `docs/DESKTOP_WINDOWS.md`: contesto d'uso (risposte del 04/11), architettura attuale con i riferimenti,
   audit (rendering, latenza, Windows), cosa richiede la rete, confronto A/A+/PWA/Electron/Tauri/NW.js/Neutralino,

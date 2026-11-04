@@ -8,19 +8,31 @@
 // Prima la preparazione lenta (−metà dell'angolo a 90 °/s), poi il colpo, poi il ritorno lento. `wrist`: rotazione del
 // polso (°/s di picco) attorno a `wristAxis` nella seconda metà del colpo. `preYaw`: gradi di rotazione del piatto
 // attorno alla verticale prima del colpo (mira: positivo = piatto girato a sinistra).
-// Presa di riferimento (29/10, scelta dell'utente): impugnatura a martello. Il pugno stringe la base del telefono come il
-// manico di un martello, il telefono prosegue in avanti dall'avambraccio: cima verso lo schermo (un poco in alto), bordo
-// stretto in alto, display di lato. Il riconoscimento regge anche le prese di prima (in piedi nel pugno; base nel palmo
-// con lo schermo in alto): test/natpf-gesture-demo.test.mjs e test/natpf-presa-palmo-29-10.test.mjs.
+// Presa insegnata: quella scelta in site/js/tennis/grip-art.js (GRIP_STYLE). Dal 04/11/2026 la presa nel palmo della foto
+// dell'utente: schermo verso chi gioca, cima ~35° verso l'interno e ~40° in avanti (rollback: 'martello', il pugno sulla
+// base, cima in avanti, display di lato). Il riconoscimento regge tutte e due e le prese di prima (in piedi nel pugno;
+// base nel palmo con lo schermo in alto): test/natpf-gesture-demo.test.mjs e test/natpf-presa-palmo-29-10.test.mjs.
+import { GRIP_STYLE } from '@natpf/tennis/grip-art.js';
 
-export const GRIP_TILT = 80;     // gradi: cima del telefono in avanti dalla verticale (figura della presa, grip-art.js)
+export const GRIP_TILT = 80;     // gradi: cima del telefono in avanti dalla verticale nell'impugnatura a martello
+// Posa del telefono nella mano per l'animazione 3D, Euler XYZ in gradi a partire dal telefono dritto con lo schermo verso
+// chi gioca (come test/phone-sim.mjs): prima la rotazione attorno a z (cima verso l'interno), poi attorno a x (in avanti)
+export const GRIP_POSE = Object.freeze({
+  palmo: Object.freeze({ lean: 35, tilt: 40, euler: [-40, 0, 35] }),
+  martello: Object.freeze({ tilt: GRIP_TILT, euler: [-GRIP_TILT, 90, 0] }),
+});
+export { GRIP_STYLE };
 const D = Math.PI/180;
 
 // colpi tipici del destro, gli stessi verificati nei test dei gesti (arm-sim.STROKES) o varianti verificate qui
 const S = Object.freeze({
   forehand: { axis: [-.18, 1, .08], peak: 650, ms: 260, rc: [.45, -.5, -.25], wrist: 350, wristAxis: [0, 0, -1] },
   backhand: { axis: [.18, -1, .08], peak: 600, ms: 260, rc: [-.45, -.5, -.25], wrist: -300, wristAxis: [0, 0, -1] },
-  flat:     { axis: [0, 1, 0], peak: 1000, ms: 220, rc: [.45, -.5, -.25], wrist: 0, wristAxis: [0, 0, -1] },
+  // piatto: il dritto stesso (asse e polso in proporzione), più veloce. Il gioco legge il piatto come un colpo forte con la
+  // salita del proprio colpo normale (natpf_stroke_intent: |salita − abituale| ≤ flatRise): con la presa nel palmo il dritto
+  // di chi gioca scende un poco e il vecchio piatto perfettamente orizzontale (asse [0, 1, 0]) diventava top spin (04/11:
+  // 64/80 prese simulate, ora 80/80, scripts/audit/sim-piatto-prese.mjs)
+  flat:     { axis: [-.18, 1, .08], peak: 1000, ms: 220, rc: [.45, -.5, -.25], wrist: 540, wristAxis: [0, 0, -1] },
   volley:   { axis: [-.18, 1, .08], peak: 480, ms: 200, rc: [.45, -.42, -.42], wrist: 150, wristAxis: [0, 0, -1] },
   lob:      { axis: [1, .35, 0], peak: 520, ms: 300, rc: [.3, -.55, -.3] },
   drop:     { axis: [-1, .45, 0], peak: 330, ms: 240, rc: [.3, -.35, -.45], wrist: -250, wristAxis: [0, 0, -1] },
@@ -29,13 +41,19 @@ const S = Object.freeze({
   toss:     { axis: [1, 0, 0], peak: 300, ms: 420, rc: [.25, -.35, -.4] },
 });
 
+// indicazioni della presa (posizione di partenza e impugnatura) per ciascuna presa insegnabile
+const GRIP_CUES = Object.freeze({
+  palmo: { ready: ['Il telefono nel palmo, schermo verso di te', 'Cima in avanti e un poco verso l’interno', 'Braccio rilassato, di fronte allo schermo'],
+    grip: ['Nel palmo, le dita attorno alla parte bassa', 'Pollice sul bordo, lontano dallo schermo', 'Cima in avanti, verso lo schermo'] },
+  martello: { ready: ['Il telefono nel pugno, come un martello', 'Cima in avanti, display di lato', 'Braccio rilassato, di fronte allo schermo'],
+    grip: ['Come il manico di un martello', 'Cima in avanti, verso lo schermo', 'Bordo stretto in alto, display di lato'] },
+});
+
 // Gesti del tutorial. expect: cosa deve riconoscere il gioco (verificato nei test). cues: le tre cose da guardare.
 // ball: come arriva la palla nell'animazione ('ground' dopo il rimbalzo, 'volley' al volo, 'high' alta, 'toss' lancio)
 export const GESTURES = Object.freeze({
-  ready: { id: 'ready', label: 'Posizione di partenza', still: true,
-    cues: ['Il telefono nel pugno, come un martello', 'Cima in avanti, display di lato', 'Braccio rilassato, di fronte allo schermo'] },
-  grip: { id: 'grip', label: 'Impugnatura', still: true, turntable: true,
-    cues: ['Come il manico di un martello', 'Cima in avanti, verso lo schermo', 'Bordo stretto in alto, display di lato'] },
+  ready: { id: 'ready', label: 'Posizione di partenza', still: true, cues: GRIP_CUES[GRIP_STYLE].ready },
+  grip: { id: 'grip', label: 'Impugnatura', still: true, turntable: true, cues: GRIP_CUES[GRIP_STYLE].grip },
   forehand: { id: 'forehand', label: 'Dritto', stroke: S.forehand, ball: 'ground', expect: { shot: ['topspin'], side: 'forehand' },
     cues: ['Rotazione attorno a te, in orizzontale', 'Dall’esterno verso il corpo', 'Un poco dal basso verso l’alto'] },
   backhand: { id: 'backhand', label: 'Rovescio', stroke: S.backhand, ball: 'ground', expect: { shot: ['topspin'], side: 'backhand' },

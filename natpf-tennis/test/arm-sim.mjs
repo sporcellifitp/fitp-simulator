@@ -20,6 +20,14 @@ export function palmGrip(p, { tilt = 65, roll = 0 } = {}){
   if (roll){ const t = tilt*D; p.pose([0, Math.cos(t), -Math.sin(t)], roll); }
   p.rest(500, 4);
 }
+// presa insegnata dal 04/11 (foto dell'utente): telefono nel palmo con lo schermo verso chi gioca (identità di phone-sim),
+// la cima inclinata verso l'interno di lean gradi (nel piano dello schermo: a sinistra per il destro) e poi in avanti di
+// tilt gradi, come GRIP_POSE.palmo di natpf_gesture_motion.js
+export function photoGrip(p, { lean = 35, tilt = 40, hand = 'right' } = {}){
+  p.pose([0, 0, 1], lean*(hand === 'left' ? -1 : 1));
+  p.pose([1, 0, 0], -tilt);
+  p.rest(500, 4);
+}
 // colpo del braccio: rotazione attorno all'asse axis (campo, per la spalla) con picco peak °/s in ms, il braccio (spalla →
 // mano) al momento dell'impatto è rc (m). wrist: rotazione del polso (°/s di picco) attorno a wristAxis (campo, all'impatto),
 // nella seconda metà. back: apertura lenta prima, rientro dopo.

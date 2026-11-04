@@ -40,7 +40,7 @@ export const GUIDE = [
     mouse: '<b>1</b> <kbd>↑</kbd> o <kbd>W</kbd> lancia la palla. <b>2</b> <kbd>Spazio</kbd> quando è in alto.',
   }, game: 'Quando servi tu, in basso compare «Al servizio».' },
   { id: 'shots', title: 'Colpi speciali', clip: 'shots', you: {
-    phone: 'Chiudi il colpo con la racchetta <b>che sale</b>, dal basso verso l’alto: pallonetto. Colpo <b>lento e morbido dall’alto verso il basso</b>: palla corta; deciso dall’alto verso il basso: tagliato (schiacciata se la palla è alta). Gesto veloce e dritto: colpo piatto. Nel riscaldamento il gioco impara il tuo pallonetto e la tua palla corta.',
+    phone: 'Chiudi il colpo con la racchetta <b>che sale</b>, dal basso verso l’alto: pallonetto. Colpo <b>lento e morbido dall’alto verso il basso</b>: palla corta; deciso dall’alto verso il basso: tagliato (schiacciata se la palla è alta). Gesto veloce e dritto: colpo piatto. Negli esercizi dell’Allenamento il gioco impara il tuo pallonetto e la tua palla corta.',
     webcam: 'Swing verso l’alto: lob. Verso il basso: tagliato. Sulle palle alte lo smash parte da solo.',
     mouse: '<kbd>1</kbd> topspin · <kbd>2</kbd> tagliato · <kbd>3</kbd> lob · <kbd>4</kbd> smash.',
   }, game: 'Il lob scavalca chi è a rete, la palla corta sorprende chi sta in fondo.' },

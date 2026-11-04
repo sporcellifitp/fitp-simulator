@@ -21,7 +21,8 @@ import { NatpfEvents } from './natpf_events.js';
 import { NatpfKiosk } from './natpf_kiosk.js';
 import { phoneHealthOf, createPhoneWatch, createResync, holdText } from './natpf_phone_watch.js';
 import { webcamHealth, createWebcamWatch, webcamHoldText, webcamOpenError } from './natpf_webcam_watch.js';
-import { gripSvg, GRIP_TEXT_PLAIN } from '@natpf/tennis/grip-art.js';
+import { gripSvg, GRIP_TEXT_PLAIN, GRIP } from '@natpf/tennis/grip-art.js';
+import { PHOTOS } from './natpf_media.js';
 import { p2pStatusText, P2P_NET_HINT } from './natpf_versus.js';
 import { NatpfSplitUi } from './natpf_split_ui.js';
 import { NatpfScreen } from './natpf_screen.js';
@@ -73,6 +74,9 @@ export class NatpfUi {
     // impugnatura: foto reale nella pagina «Collega» (img.connect-grip, natpf_media.js); la figura disegnata (la stessa della
     // pagina del telefono e della guida) resta dove c'è ancora un <svg>
     for (const el of document.querySelectorAll('svg.connect-grip, svg.natpf-grip')) el.outerHTML = gripSvg({ cls: el.getAttribute('class'), compact: true });
+    // testi e foto della presa insegnata (GRIP_STYLE in grip-art.js: un solo interruttore anche per il rollback)
+    for (const el of document.querySelectorAll('[data-grip-text]')){ const t = GRIP.ui[el.dataset.gripText]; if (t) el.textContent = t; }
+    for (const el of document.querySelectorAll('img.connect-grip-photo')){ el.src = PHOTOS.grip.src; el.alt = PHOTOS.grip.alt; }
     this.modal = $('natpf-phone-modal');
     this.qrToken = null;
     this._buildSetup();

@@ -30,13 +30,23 @@ registro dei passi in `docs/WORK_PROGRESS.md`; diari fino al 04/11/2026 in `docs
 
 ## Gesti reali (fonte per il tutorial — non disegnare gesti diversi da questi)
 
-Presa di riferimento dal 29/10 sera (scelta dell'utente): **impugnatura a martello** (`grip-art.js`, `GRIP_TEXT`,
-`natpf_gesture_motion.GRIP_TILT` 80°, foto `presa-martello.webp`). Il pugno stringe la base del telefono come il manico di
-un martello e il telefono prosegue in avanti dall'avambraccio: **cima verso lo schermo** (un poco in alto), **bordo stretto
-in alto**, **display di lato**. È la posizione neutra della calibrazione e del tutorial. Il riconoscimento è nel
+Presa insegnata dal 04/11/2026 (scelta dell'utente, sua foto `docs/riferimenti/presa-palmo-utente-2026-11-04.webp`):
+**presa nel palmo**: il telefono appoggia nel palmo con lo **schermo verso chi gioca**, le dita avvolgono la parte bassa, il
+pollice resta sul bordo, la **cima inclinata in avanti** (~40°, verso lo schermo) **e un poco verso l'interno** (~35°).
+Foto `presa-palmo-schermo.webp`, figura e testi in `site/js/tennis/grip-art.js` (`GRIPS.palmo`), posa 3D
+`natpf_gesture_motion.GRIP_POSE.palmo`. È la posizione neutra della calibrazione e del tutorial.
+**Rollback** (su richiesta dell'utente): `GRIP_STYLE = 'martello'` in `site/js/tennis/grip-art.js` — cambiano insieme foto,
+figura, testi di «Collega», stesso schermo, guida, lezione e calibrazione, e la posa del telefono nell'animazione 3D;
+`test/natpf-presa.test.mjs` va adattato (verifica la presa attiva). Il riconoscimento non dipende dalla presa insegnata.
+Fino al 04/11 la presa insegnata era l'**impugnatura a martello** (29/10 sera: `GRIPS.martello`, `GRIP_TILT` 80°, foto
+`presa-martello.webp`): il pugno stringe la base del telefono come il manico di un martello e il telefono prosegue in
+avanti dall'avambraccio, cima verso lo schermo, bordo stretto in alto, display di lato.
+Piatto della dimostrazione dal 04/11: «il dritto, ma più veloce» (stesso asse e polso in proporzione): il gioco legge il
+piatto rispetto alla salita del proprio colpo normale, e con la presa nel palmo il vecchio piatto perfettamente
+orizzontale era top spin (`scripts/audit/sim-piatto-prese.mjs`: 64/80 → 80/80 prese simulate). Il riconoscimento è nel
 riferimento della gravità e regge anche le prese di prima (in piedi nel pugno; base nel palmo con lo schermo in alto):
-test `natpf-gesture-demo` (martello con la cima da 20° sopra a 15° sotto l'orizzontale, display dentro o fuori, destro e
-mancino; prese di prima). Con il telefono orizzontale la testa della racchetta virtuale è sempre la cima
+test `natpf-gesture-demo` (presa nel palmo con la cima 20–50° verso l'interno e 25–55° in avanti; martello con la cima da
+20° sopra a 15° sotto l'orizzontale, display dentro o fuori, destro e mancino; prese di prima). Con il telefono orizzontale la testa della racchetta virtuale è sempre la cima
 (`stroke-shape.js`, `STROKE_FLIP`: solo oltre 30° sotto l'orizzontale vale «capovolto»): prima bastava la cima appena
 sotto l'orizzontale per invertire pallonetto e palla corta, tagliato e top spin. La direzione del piatto si legge dalla
 rotazione di tutto il telefono attorno alla verticale (`face-tracker.js`), quindi non dipende da quale faccia guarda

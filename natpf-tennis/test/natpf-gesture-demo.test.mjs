@@ -4,16 +4,17 @@
 // gesto, mano destra e sinistra, varie inclinazioni della presa: il colpo riconosciuto deve essere quello mostrato.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { armSwing, grip, palmGrip, STROKES } from './arm-sim.mjs';
+import { armSwing, grip, palmGrip, photoGrip, STROKES } from './arm-sim.mjs';
 import { simPhone } from './phone-sim.mjs';
-import { GESTURES, strokeFor, strokePose, strokeTimeline, serveTimeline, tossBall, mirrorStroke, GRIP_TILT } from '../src/natpf/natpf_gesture_motion.js';
+import { GESTURES, strokeFor, strokePose, strokeTimeline, serveTimeline, tossBall, mirrorStroke, GRIP_TILT, GRIP_POSE } from '../src/natpf/natpf_gesture_motion.js';
 
 // Presa nel pugno con il display di lato (grip): a 80° dalla verticale è l'impugnatura a martello di riferimento (29/10),
 // a 15–45° quella in piedi di prima; inward: display verso l'interno invece che verso l'esterno. palm: base nel palmo con
 // lo schermo in alto. playTilt: la presa in gioco, se diversa da quella della calibrazione (il telefono scivola)
-function player(hand, { tilt = GRIP_TILT, playTilt = null, seed = 7, palm = false, inward = false } = {}){
+function player(hand, { tilt = GRIP_TILT, playTilt = null, seed = 7, palm = false, inward = false, photo = null } = {}){
   const p = simPhone({ seed, shape: true, hand });
-  if (palm) palmGrip(p, { tilt }); else grip(p, { tilt, side: (hand === 'left' ? -1 : 1)*(inward ? -1 : 1) });
+  if (photo) photoGrip(p, { ...photo, hand });
+  else if (palm) palmGrip(p, { tilt }); else grip(p, { tilt, side: (hand === 'left' ? -1 : 1)*(inward ? -1 : 1) });
   // calibrazione: «L» è il gesto da destra a sinistra (dritto del destro, rovescio del mancino)
   const cal = w => hand === 'left' ? mirrorStroke(w === 'L' ? STROKES.rovescio : STROKES.dritto) : (w === 'L' ? STROKES.dritto : STROKES.rovescio);
   p.calibrate({ armGesture: w => armSwing(p, cal(w)) });
@@ -46,6 +47,24 @@ test('tutorial: ogni gesto animato è riconosciuto dal gioco come il colpo mostr
   }
 });
 
+// Presa insegnata dal 04/11 (foto dell'utente, GRIP_POSE.palmo): nel palmo con lo schermo verso chi gioca, la cima verso
+// l'interno di 20–50° e in avanti di 25–55°. Prima del 04/11 il piatto della dimostrazione (asse perfettamente orizzontale)
+// era letto come top spin con la cima molto verso l'interno: ora è «il dritto, ma più veloce»
+test('presa nel palmo della foto (04/11): ogni gesto animato è riconosciuto come il colpo mostrato (destro e mancino, cima 20–50° verso l\'interno e 25–55° in avanti)', () => {
+  const { lean, tilt } = GRIP_POSE.palmo;
+  assert.deepEqual([lean, tilt], [35, 40]);
+  for (const hand of ['right', 'left']) for (const L of [20, lean, 50]) for (const T of [25, tilt, 55]) for (const id of SHOTS){
+    const g = GESTURES[id], p = player(hand, { photo: { lean: L, tilt: T } });
+    if (g.expect.aim) for (let i = 0; i < 3; i++) play(p, GESTURES.forehand, hand);
+    const out = play(p, g, hand), tag = `${hand}, palmo ${L}°/${T}°, ${g.label}`;
+    assert.equal(out.length, 1, `${tag}: ${out.length} colpi`);
+    const ev = out[0].ev;
+    assert.ok(g.expect.shot.includes(ev.natpf.shot), `${tag}: riconosciuto «${ev.natpf.shot}»`);
+    if (g.expect.side) assert.equal(ev.side ?? ev.natpf.side, g.expect.side, `${tag}: lato`);
+    if (g.expect.aim){ const want = g.expect.aim*(hand === 'left' ? -1 : 1); assert.ok(ev.natpf.wrist*want > .4, `${tag}: mira ${ev.natpf.wrist}`); }
+  }
+});
+
 // Richiesta del 29/10: «il telefono in mano non rimane mai fisso nell'impugnatura verticale, tende a inclinarsi in
 // avanti». Nei registri, prima dei colpi, il telefono era inclinato di 30–90° dalla verticale. Stessi gesti con la cima
 // del telefono molto in avanti, e con la presa che cambia tra la calibrazione e il gioco
@@ -71,13 +90,13 @@ test('prese di prima (in piedi nel pugno fino a 75°, anche diversa da quella de
 });
 
 test('tutorial: il servizio animato sono due gesti (lancio e battuta) e il telefono li manda entrambi', () => {
-  for (const hand of ['right', 'left']){
-    const p = player(hand), g = GESTURES.serve;
+  for (const hand of ['right', 'left']) for (const photo of [null, { lean: GRIP_POSE.palmo.lean, tilt: GRIP_POSE.palmo.tilt }]){
+    const p = player(hand, { photo }), g = GESTURES.serve;
     p.det.setContext('serve');
     const b = p.msgs.length;
     armSwing(p, { ...strokeFor(g.toss, hand), back: false }); p.rest(250, 3);
     armSwing(p, { ...strokeFor(g.stroke, hand), back: false }); p.rest(900, 3);
-    assert.equal(p.msgs.length - b, g.expect.messages, `${hand}: ${p.msgs.length - b} messaggi`);
+    assert.equal(p.msgs.length - b, g.expect.messages, `${hand}${photo ? ' palmo' : ''}: ${p.msgs.length - b} messaggi`);
   }
   const st = serveTimeline();
   assert.ok(st.apex > st.toss.hit && st.apex < st.total, 'la palla è in cima durante la battuta');

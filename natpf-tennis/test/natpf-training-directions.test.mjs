@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DRILLS, trainingDirection, drillAfterShot } from '../src/natpf/natpf_training.js';
 import { gripSvg } from '@natpf/tennis/grip-art.js';
+import { PHOTOS } from '../src/natpf/natpf_media.js';
 import { makeWorld } from './ui-world.mjs';
 
 test('incrociato e lungolinea: geometria del colpo, centro escluso, riferimento corretto da entrambi i lati', () => {
@@ -55,7 +56,7 @@ test('impugnatura nel riscaldamento: foto reale solo da fermo, specchiata per la
   const T = w.ui.training; T.start(); T.paint();
   const art = T.coach.querySelector('#coach-grip');
   assert.equal(art.classList.contains('hidden'), false);
-  assert.match(art.innerHTML, /presa-martello\.webp/);
+  assert.ok(art.innerHTML.includes(PHOTOS.grip.src), art.innerHTML);
   assert.doesNotMatch(art.innerHTML, /mirror/);
   w.ui.hand.set('left'); T.paint();
   assert.match(art.innerHTML, /coach-grip-photo mirror/);

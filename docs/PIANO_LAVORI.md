@@ -17,28 +17,20 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-- Aggiornato: 04/11/2026 · agente: Claude · branch `natpf-simulator`. Integrato `55ea759` di Codex (A+ Windows,
-  versione 2026-11-04.1) prima di B2.
-- Ultimo blocco: **B2 intro fatto** (versione `2026-11-04.2`, commit «B2: intro…»). Test: gioco 675/675, sito 182/182,
-  LAN 10/10, build ok. Prove nel browser: vedi B1 (tutte verdi in locale dopo B1.1–B1.3).
-- Ultimi pacchetti consegnati: **2026-11-04.2** (LAN sha256 `e17ff710…a8b9e57`, Cloudflare `4f907c6d…7fa7f`), provati
-  estratti (dettagli in WORK_PROGRESS B2.2).
-- CI su `natpf-simulator`: B1.3 (`4938134`) e B2 da controllare su GitHub Actions (prima esecuzione rossa per cause
-  degli script, corrette in B1.3).
-- Crediti Higgsfield spesi per la richiesta del 04/11: **40 / 100** (saldo 708,37 → 668,37). Intro riuscita al primo
-  tentativo (job `5b2b8345`), nessun secondo tentativo. In corso per B3: foto della presa caricata come media
-  `4228147a-4350-4bcf-b206-562e9c28d085` (ritaglio di `docs/riferimenti/presa-palmo-utente-2026-11-04.webp`), da
-  scontornare con `remove_background` (costo da annotare).
-- Non verificato: il video nel browser vero (il Chromium di qui non riproduce H.264: verificati i fotogrammi con ffmpeg e
-  la pagina con il fotogramma come poster).
-- **Blocco in corso:** B3 (presa).
-- B3 in corso (non ancora committato): foto pronta in `natpf-tennis/public/media/presa-palmo-schermo.webp` (scontorno
-  Higgsfield, 1 credito: totale **41 / 100**); piatto della dimostrazione da correggere come «il dritto, ma più veloce»
-  (asse e polso del dritto, picco 1000 °/s): `scripts/audit/sim-piatto-prese.mjs` → 80/80 su tutte le prese (oggi
-  64/80); riconoscimento invariato. Profilo della presa: palmo, cima 35° verso l'interno e 40° in avanti.
-- **Prossima azione esatta:** B3.2 — profilo unico in `site/js/tennis/grip-art.js` (`GRIP_STYLE` 'palmo' | 'martello',
-  testi, figura, foto, posa 3D), poi demo 3D, testi (cal_view, training LESSON, index «Collega» e `.split-grip`),
-  test della presa nuova in `natpf-gesture-demo.test.mjs`, test dei media senza nome di file fisso.
+- Aggiornato: 04/11/2026 · agente: Claude · branch `natpf-simulator`.
+- Ultimo blocco: **B3 presa fatto** (versione `2026-11-04.3`): presa nel palmo dalla foto dell'utente al posto del
+  martello, rollback con `GRIP_STYLE = 'martello'` in `site/js/tennis/grip-art.js` (vedi PROJECT_MEMORY §Gesti).
+  Test: gioco 680/680, sito 182/182, LAN 10/10, build ok. Prove nel browser: tutte verdi in locale dopo B1.1–B1.4.
+- CI su `natpf-simulator`: workflow del gioco verde; prove nel browser da ricontrollare dopo B1.4 (permesso dei
+  sensori nel Chromium della CI).
+- Ultimi pacchetti: vedi WORK_PROGRESS (2026-11-04.2 consegnati; 2026-11-04.3 da consegnare con B3).
+- Crediti Higgsfield spesi per la richiesta del 04/11: **41 / 100** (saldo 667,37): intro 40, scontorno della foto 1.
+- Non verificato: telefono vero con la presa nuova; video H.264 in un browser vero.
+- **Blocco in corso:** B4 (modale del tutorial, gioco singolo).
+- **Prossima azione esatta:** B4.1 — protocollo «tutorial»: il computer manda al telefono di aspettare (campo nella
+  configurazione), il telefono dopo «Attiva i sensori» non avvia la calibrazione e mostra «Tutto chiaro, ho capito»;
+  al tocco manda un messaggio e il computer avvia la calibrazione. Tutti i punti di partenza in §5 B4 «Come 1».
+  Test del protocollo in `tools/test` (pagina del telefono) e `natpf-tennis/test` (computer).
 
 ---
 
@@ -107,7 +99,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B0 Continuità | [~] | questo file, istruzioni (CLAUDE.md, AGENTS.md), archivio dei documenti lunghi | — | invariati |
 | B1 Prove nel browser e CI | [~] | telefono simulato aggiornato, script e2e verdi, CI sul branch | — | — |
 | B2 Intro | [x] | video con una pallina e il campo del gioco (Higgsfield, ≤100 crediti) | vedi WORK_PROGRESS B2 | 2026-11-04.2 |
-| B3 Presa | [ ] | foto, figura, 3D e testi della presa nuova; piatto tollerante con test; tocchi; rollback | — | — |
+| B3 Presa | [x] | foto, figura, 3D e testi della presa nuova; piatto tollerante con test; tocchi; rollback | vedi WORK_PROGRESS B3 | 2026-11-04.3 |
 | B4 Modale tutorial | [ ] | modale prima della calibrazione, «Tutto chiaro, ho capito» sul telefono | — | — |
 | B5 Stesso schermo | [ ] | modale e calibrazione indipendenti nelle due metà di «Collega» | — | — |
 | B6 Windows | [~] | A+ portatile implementato; collaudo Windows reale e F0/F1 da completare | commit di questo checkpoint | 2026-11-04.1 |

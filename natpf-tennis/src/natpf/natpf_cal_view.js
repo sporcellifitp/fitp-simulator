@@ -1,3 +1,5 @@
+// percorso relativo (non l'alias @natpf): questo modulo è usato anche dai test del sito (tools/test), senza l'alias
+import { GRIP } from '../../../site/js/tennis/grip-art.js';
 // Calibrazione del telefono vista dal computer: una funzione pura degli eventi del telefono (calibration.js).
 // Il telefono decide i passi (fermo → due gesti → verifica); il computer mostra sempre lo stesso passo, con la
 // stessa freccia, nello stesso momento. Prima il computer aveva un suo percorso (palla lanciata, rallentata, «gesto
@@ -42,7 +44,7 @@ export const calSide = (want, hand = 'right') => ((want === 'L') !== (hand === '
 const ARROW = { L: '←', R: '→' };
 const WHY = { piccolo: 'Gesto troppo piccolo: un colpetto un po’ più deciso', direzione: 'Era nell’altro verso' };
 export function calPrompt(v, hand = 'right'){
-  if (v.stage === 'still') return { title: 'Tieni fermo il telefono', sub: v.note === 'fermo' ? 'Si è mosso: tienilo fermo ancora un attimo, nel pugno come un martello' : 'Nel pugno come il manico di un martello, la cima in avanti, il bordo stretto in alto: misuro i sensori', state: 'wait', arrow: '', dir: null };
+  if (v.stage === 'still') return { title: 'Tieni fermo il telefono', sub: v.note === 'fermo' ? GRIP.ui.stillMoved : GRIP.ui.still, state: 'wait', arrow: '', dir: null };
   if (v.stage === 'gesture'){
     const side = calSide(v.want, hand), title = side === 'forehand' ? 'Dritto' : 'Rovescio', arrow = ARROW[v.want] || '';
     const move = v.want === 'L' ? 'verso sinistra' : 'verso destra';

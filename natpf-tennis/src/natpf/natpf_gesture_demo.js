@@ -11,7 +11,7 @@
 // WebGL (test, browser vecchi) available è false e chi la usa mostra la figura statica della presa.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { GESTURES, GRIP_TILT, strokePose, strokeTimeline, strokeFor, serveTimeline, tossBall } from './natpf_gesture_motion.js';
+import { GESTURES, GRIP_POSE, GRIP_STYLE, strokePose, strokeTimeline, strokeFor, serveTimeline, tossBall } from './natpf_gesture_motion.js';
 
 const D = Math.PI/180;
 // telefono più grande del vero (1,5×) per leggerne l'orientamento anche nel riquadro piccolo: il moto non cambia
@@ -39,10 +39,12 @@ function labelTexture(text){
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: .6, metalness: 0, ...o });
 const capsule = (r, l, m) => new THREE.Mesh(new THREE.CapsuleGeometry(r, l, 4, 10), m);
 
-// Telefono nel pugno, nel riferimento del telefono: asse lungo y, display verso +z, bordo +x verso lo schermo (con la
-// presa del destro). Il pugno stringe il terzo inferiore come il manico di un martello (impugnatura di riferimento del
-// 29/10): con la cima in avanti il bordo +x sta in alto, il display guarda di lato.
-function buildGrip(){
+// Telefono in mano, nel riferimento del telefono: asse lungo y, display verso +z (verso chi gioca, con la posa identità),
+// bordo +x a destra. Presa nel palmo (dal 04/11, GRIP_STYLE 'palmo'): il palmo dietro la parte bassa, le dita attorno al
+// bordo sinistro, il pollice sul bordo destro; la posa (GRIP_POSE) inclina la cima verso l'interno e in avanti.
+// Impugnatura a martello (rollback, 'martello'): il pugno stringe il terzo inferiore, con la cima in avanti il bordo +x
+// sta in alto e il display guarda di lato.
+function buildGrip(style = GRIP_STYLE){
   const g = new THREE.Group();
   const phone = new THREE.Group(); g.add(phone);
   const body = new THREE.Mesh(new RoundedBoxGeometry(PHONE.w, PHONE.h, PHONE.d, 3, .006), std(C.frame, { metalness: .7, roughness: .35 }));
@@ -57,9 +59,22 @@ function buildGrip(){
     const ring = new THREE.Mesh(new THREE.CylinderGeometry(r + .0012, r + .0012, .0016, 16), ringM); ring.rotation.x = Math.PI/2; ring.position.set(-x, y, -PHONE.d/2 - .0008); phone.add(ring);
     const lens = new THREE.Mesh(new THREE.CylinderGeometry(r*.7, r*.7, .0018, 16), lensM); lens.rotation.x = Math.PI/2; lens.position.set(-x, y, -PHONE.d/2 - .0012); phone.add(lens);
   });
+  const skin = std(C.skin, { roughness: .75 });
+  if (style === 'palmo'){
+    phone.position.y = .03;
+    // palmo dietro la parte bassa del telefono, dita che avvolgono il bordo sinistro, pollice lungo il bordo destro
+    const palm = new THREE.Mesh(new RoundedBoxGeometry(.09, .075, .032, 3, .014), skin); palm.position.set(.006, -.028, -PHONE.d/2 - .017); g.add(palm);
+    for (let i = 0; i < 4; i++){
+      const f = capsule(.0105, .03, skin); f.rotation.x = Math.PI/2; f.position.set(-PHONE.w/2 - .004, -.06 + i*.02, -.004); g.add(f);
+    }
+    const thumb = capsule(.0115, .05, skin); thumb.rotation.z = .12; thumb.position.set(PHONE.w/2 + .007, .0, .001); g.add(thumb);
+    const wristM = capsule(.03, .05, skin); wristM.rotation.x = -.6; wristM.position.set(.014, -.088, -.008); g.add(wristM);
+    g.scale.setScalar(PHONE.scale);
+    g.userData = { phone, wrist: new THREE.Vector3(.016, -.115, .012) };
+    return g;
+  }
   phone.position.y = .042;
   // pugno: dita attorno ai lati lunghi, pollice sul bordo
-  const skin = std(C.skin, { roughness: .75 });
   const fist = new THREE.Mesh(new RoundedBoxGeometry(.098, .084, .07, 3, .022), skin); fist.position.set(0, -.012, -.004); g.add(fist);
   for (let i = 0; i < 4; i++){
     const f = capsule(.0125, .07, skin); f.rotation.z = Math.PI/2; f.position.set(.004, -.044 + i*.021, .033); g.add(f);
@@ -193,7 +208,8 @@ export class NatpfGestureDemo {
   // posa al tempo t (s, tempo reale del gesto): giocatore, telefono, palla, scia e camera
   pose(t){
     const g = GESTURES[this.id] || GESTURES.ready, hand = this.hand, P = this.grip;
-    const q0 = new THREE.Quaternion().setFromEuler(new THREE.Euler(-GRIP_TILT*D, 90*D, 0, 'XYZ'));   // martello: display a destra, cima in avanti
+    const E0 = GRIP_POSE[GRIP_STYLE].euler;   // palmo: cima verso l'interno e in avanti, schermo verso chi gioca (martello: display a destra)
+    const q0 = new THREE.Quaternion().setFromEuler(new THREE.Euler(E0[0]*D, E0[1]*D, E0[2]*D, 'XYZ'));
     let handPos, q = q0.clone(), hit = null, ballPos = null, fast = false;
     const wq = (axis, ang) => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(...axis), ang);
     // il mondo è specchiato per il mancino: i moti si scrivono sempre da destro
@@ -227,8 +243,12 @@ export class NatpfGestureDemo {
     this.wristW.copy(P.userData.wrist).applyMatrix4(P.matrix);
     elbowFor(SHOULDER, this.wristW, this.elbow);
     segment(this.player.upper, SHOULDER, this.elbow); segment(this.player.fore, this.elbow, this.wristW);
+    // primo piano della presa nel palmo: si vedono solo la mano e il telefono (il braccio sale verso la spalla e, così
+    // vicino, coprirebbe lo schermo)
+    const close = g.turntable && GRIP_STYLE === 'palmo';
+    this.player.upper.visible = this.player.fore.visible = !close;
     // scia della cima del telefono (solo nella parte veloce del gesto, poi sfuma)
-    this.tip.set(0, PHONE.h/2 + .042, 0).applyMatrix4(P.matrix);
+    this.tip.set(0, PHONE.h/2 + P.userData.phone.position.y, 0).applyMatrix4(P.matrix);
     const pts = this.trailPts;
     if (this.trailReset){ for (const p of pts) p.copy(this.tip); this.trailReset = false; }
     pts.push(pts.shift().copy(fast ? this.tip : pts[pts.length - 1]));
@@ -238,9 +258,11 @@ export class NatpfGestureDemo {
     this.ball.visible = !!ballPos; if (ballPos) this.ball.position.copy(ballPos);
     // camera: da dietro, sopra la spalla del braccio che colpisce (il mondo specchiato porta la spalla a sinistra)
     const m = hand === 'left' ? -1 : 1;
-    // impugnatura a martello: il telefono punta verso lo schermo, quindi di profilo (da destra, dove guarda il display) e
-    // le altre inquadrature più di lato che alle spalle, perché il telefono non sparisca dietro il pugno
-    if (g.turntable){ this.camera.position.set((handW.x + .5)*m, handW.y + .2, handW.z - .12); this.camera.lookAt(handW.x*m, handW.y + .02, handW.z - .16); }
+    // presa nel palmo: lo schermo guarda chi gioca, quindi l'impugnatura si mostra da destra e da dietro, all'altezza della
+    // mano (lontano dall'avambraccio, che sale verso la spalla). Martello: il telefono punta verso lo schermo, di profilo (da destra, dove guarda il display). Le
+    // altre inquadrature più di lato che alle spalle, perché il telefono non sparisca dietro la mano
+    if (g.turntable && GRIP_STYLE === 'palmo'){ this.camera.position.set((handW.x + .45)*m, handW.y + .3, handW.z + .15); this.camera.lookAt(handW.x*m, handW.y + .02, handW.z - .02); }
+    else if (g.turntable){ this.camera.position.set((handW.x + .5)*m, handW.y + .2, handW.z - .12); this.camera.lookAt(handW.x*m, handW.y + .02, handW.z - .16); }
     else if (g.ballHigh){ this.camera.position.set(1.45*m, 2.0, 1.5); this.camera.lookAt(.15*m, 1.55, -.3); }
     // rovescio: la mano passa davanti al corpo, si guarda dall'altra spalla
     else if (g.id === 'backhand'){ this.camera.position.set(-1.25*m, 1.85, 1.0); this.camera.lookAt(-.15*m, 1.12, -.38); }

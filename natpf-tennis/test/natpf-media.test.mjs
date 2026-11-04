@@ -38,7 +38,7 @@ test('lezione con foto reali (specchiate per il mancino), esercizi con l’anima
   const media = $('coach-lesson-media');
   assert.equal(media.classList.contains('hidden'), false);
   assert.equal($('coach-lesson-demo').classList.contains('hidden'), true, 'niente 3D con la foto');
-  assert.match(media.innerHTML, /presa-martello\.webp/); assert.doesNotMatch(media.innerHTML, /Così no|mirror/);
+  assert.ok(media.innerHTML.includes(PHOTOS.grip.src), media.innerHTML); assert.doesNotMatch(media.innerHTML, /Così no|mirror/);
   w.ui.hand.set('left'); T.paint();
   assert.match(media.innerHTML, /lesson-photo mirror/);
   w.ui.hand.set('right');

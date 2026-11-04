@@ -14,7 +14,7 @@
 // tipico e il piatto abituale, che il gioco impara dai colpi). Non conta per il punteggio.
 import * as THREE from 'three';
 import { calSide, calPrompt, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
-import { gripSvg } from '@natpf/tennis/grip-art.js';
+import { gripSvg, GRIP } from '@natpf/tennis/grip-art.js';
 import { getGestureDemo } from './natpf_gesture_demo.js';
 import { GESTURES } from './natpf_gesture_motion.js';
 import { PHOTOS, lessonPhotos } from './natpf_media.js';
@@ -43,8 +43,8 @@ export const WARMUP_IDS = Object.freeze(['forehand', 'backhand', 'serve']);
 export const warmupDrills = controller => drillsFor(controller).filter(d => WARMUP_IDS.includes(d.id));
 // Lezione prima degli esercizi: presa, orientamento e mano, posizione di partenza (con l'animazione 3D)
 export const LESSON = Object.freeze([
-  { id: 'grip', demo: 'grip', title: 'Impugnatura a martello', text: 'Stringi la base del telefono nel pugno, come il manico di un martello. La cima punta in avanti, verso lo schermo e un poco in alto.' },
-  { id: 'hand', demo: 'ready', title: 'Orientamento e mano', text: 'Il bordo stretto del telefono sta in alto, il display guarda di lato. Il polso resta libero: il gioco segue anche le sue rotazioni. Con quale mano giochi?', hand: true },
+  { id: 'grip', demo: 'grip', title: GRIP.name, text: GRIP.ui.lessonGrip },
+  { id: 'hand', demo: 'ready', title: 'Orientamento e mano', text: GRIP.ui.lessonHand, hand: true },
   { id: 'ready', demo: 'ready', title: 'Posizione di partenza', text: 'In piedi a 1,5–2 m dallo schermo, al centro. Braccio rilassato davanti a te. Calibrazione e partita si fanno con questa stessa presa.' },
 ]);
 export const WEBCAM_LESSON = Object.freeze([

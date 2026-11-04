@@ -26,8 +26,12 @@ Ogni clip dei colpi è stata controllata fotogramma per fotogramma contro le reg
 File                      Modello Higgsfield       Job                                    Uso
 ------------------------  -----------------------  -------------------------------------  --------------------------------
 presa-martello.webp       nano_banana_2 (1:1)      d2e23949-0bdf-4206-8443-5ef54569f147   lezione: impugnatura; calibrazione;
-                                                                                          collega (29/10 sera: impugnatura a
-                                                                                          martello, scelta dell'utente)
+                                                                                          collega fino al 04/11 (29/10 sera: impugnatura a
+                                                                                          martello); resta per il rollback
+presa-palmo-schermo.webp  foto dell'utente (04/11/2026) presa insegnata dal 04/11: telefono nel palmo, schermo verso chi
+                          gioca. Ritaglio di docs/riferimenti/presa-palmo-utente-2026-11-04.webp, sfondo tolto con
+                          Higgsfield image_background_remover (job 3a4f0fbd-162a-4dd0-b5ab-49843f590cf6, 1 credito) e
+                          composto sul blu scuro di presa-martello.webp, 768×768. Foto e mano dell'utente, uso autorizzato.
 posizione.webp            gpt_image_2_5 (medium)   58762eab-4f47-4f17-9eb3-1d2e0413c06b   lezione: posizione di partenza;
                                                                                           primo fotogramma delle clip
 colpi/dritto.mp4/.webp    kling3_0_turbo 720p 4 s  e84592af-811b-461c-ab91-e0ce6796270c   esercizio dritto (*)
