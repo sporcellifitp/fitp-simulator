@@ -144,6 +144,11 @@ Criterio di fine: script `natpf-*` verdi, CI che prova gioco, build e sito sul b
   sulle metà dello schermo. Test: `natpf-split` (due modali, «ho capito» del P1 non tocca il P2, calibrazioni separate,
   3D che passa al P2); gioco 683/683, sito 182/182, LAN 10/10, build ok; schermate delle due metà controllate.
   Non verificato: due telefoni veri con due persone; nessuna prova nel browser automatica per lo stesso schermo.
+- [x] B5.2 · pacchetti **2026-11-04.5** consegnati: Cloudflare `natpf-simulator-cloudflare-20261104-5.zip` (26.878.245 B,
+  sha256 `52629c1933dcc8fb74046bd7106b8fc03533946232ba0696c827d3f747aa1014`) e LAN Windows
+  `natpf-simulator-lan-windows-20261104-5.zip` (62.065.720 B, sha256
+  `51c173dbbd68f8beef4ab772f2f8d3ace046c3cd4a4a222b285f6c9e010a5c3f`, un solo `node.exe`, nessun certificato o chiave).
+  Provati estratti: versione .5, contenitori delle due metà nel gioco, `tutOk` nella pagina del telefono, `turn.json`.
 
 ## B6 · Valutazione Windows e architettura · [x] · 04/11/2026
 - [x] B6.1 · `docs/DESKTOP_WINDOWS.md`: contesto d'uso (risposte del 04/11), architettura attuale con i riferimenti,

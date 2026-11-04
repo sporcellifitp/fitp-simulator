@@ -26,7 +26,8 @@ Come si aggiorna:
   training-reconnect 6/6, diag-session 24/24, menu 22/22, rally 7/7, phone-keep 13/13.
 - CI su `natpf-simulator`: workflow del gioco verde; prove nel browser con due rossi intermittenti su runner condivisi
   (`gesture-calibration` riga 73, `timing-browser` «P2 timing … after shared pause»): punto aperto.
-- Ultimi pacchetti consegnati: vedi WORK_PROGRESS (2026-11-04.5 con B5).
+- Ultimi pacchetti consegnati: **2026-11-04.5** (LAN sha256 `51c173db…e010a5c3f`, Cloudflare `52629c19…7aa1014`), provati
+  estratti (WORK_PROGRESS B5.2).
 - Crediti Higgsfield spesi per la richiesta del 04/11: **41 / 100** (saldo 667,37).
 - Non verificato (serve l'utente): telefoni veri (presa nel palmo, pulsante «ho capito», due persone sullo stesso
   schermo), video H.264 in un browser vero, Windows 10 con Edge e ledwall (A+ di Codex).
