@@ -23,6 +23,9 @@ export async function page(browser, url, { w = 1280, h = 760, mobile = false, in
   // la pagina del telefono chiede lo schermo intero a «Attiva i sensori»: il Chromium recente della CI lo concede e poi
   // setViewportSize fallisce («restore it to normal state first»). Nelle prove la richiesta riesce senza cambiare finestra
   await p.addInitScript(() => { try { Element.prototype.requestFullscreen = function(){ return Promise.resolve(); }; } catch {} });
+  // Chromium recente (CI) ha DeviceMotionEvent.requestPermission come iPhone e in headless risponde «denied»: chi gioca
+  // tocca «Consenti». Solo se esiste (resta il percorso Android); gli script che provano il rifiuto lo sovrascrivono dopo
+  await p.addInitScript(() => { try { if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') DeviceMotionEvent.requestPermission = async () => 'granted'; } catch {} });
   if (init) await p.addInitScript(init);
   await p.goto(url.replace('http://127.0.0.1:8765', BASE), { waitUntil: 'domcontentloaded', timeout: 120000 });
   return { ctx, p, errs };

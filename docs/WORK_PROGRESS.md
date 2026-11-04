@@ -57,6 +57,10 @@ Criterio di fine: script `natpf-*` verdi, CI che prova gioco, build e sito sul b
   intero e poi non ridimensiona la finestra (`th.mjs`: `requestFullscreen` che riesce senza schermo intero nelle prove);
   `natpf-tennis.yml` controllava due file del bundle che non esistono più; diagnosi in `natpf-training-flow` se il
   telefono non entra in calibrazione. Verifiche locali: lan-browser 9/9, gesture-calibration 18/18, training-flow 14/14.
+- [x] B1.4 · CI: workflow del gioco verde (test e build su B1.3, A+, B2); nelle prove del browser restava
+  `natpf-training-flow` rosso perché il Chromium della CI (headless shell 156) ha `DeviceMotionEvent.requestPermission`
+  come iPhone e in headless risponde «denied». `th.mjs`: il permesso viene concesso come il tocco su «Consenti», solo
+  se l'API esiste (gli script che provano il rifiuto lo sovrascrivono). Da confermare nella CI.
 
 ## B2 · Intro con una sola pallina e l'arena del gioco · [x] · 04/11/2026
 - [x] B2.1 · fotogrammi chiave dal motore (`natpf-tennis/scripts/audit/intro-fotogrammi.mjs`): arena del gioco senza
