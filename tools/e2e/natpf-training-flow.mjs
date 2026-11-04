@@ -95,7 +95,7 @@ try {
     };
   });
   await phone.click('#enable');
-  await phone.waitForFunction(() => __racchetta.state.sensor === 'cal', null, { timeout: 5000 });
+  await phone.waitForFunction(() => __racchetta.state.sensor === 'cal', null, { timeout: 8000 }).catch(async e => { console.log('telefono dopo «Attiva i sensori»:', JSON.stringify(await phone.evaluate(() => ({ state: __racchetta.state, cal: __racchetta.cal.state.step, big: document.getElementById('big')?.textContent, sub: document.getElementById('sub')?.textContent })))); throw e; });
   // si entra in campo da soli (telefono con i sensori attivi)
   const inField = await game.waitForFunction(() => __natpfTennis.natpfUi.training.active, null, { timeout: 8000 }).then(() => true, () => false);
   check('con i sensori attivi si entra nel campo d’allenamento', inField);

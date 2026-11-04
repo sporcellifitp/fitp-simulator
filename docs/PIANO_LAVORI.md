@@ -29,15 +29,19 @@ Come si aggiorna:
   (B1.2): `phone-only` 10/10, `timing-browser` 8/8, `gesture-calibration` 18/18, `arcade-visuals` 9/9,
   `intuitive-contact` 5/5, `quick-phone-ui` 6/6, `lan-setup-browser` 3/3, `tools/package-natpf.py` ok; `lan-browser`
   7/8 qui (il WebRTC di questo ambiente non genera candidati ICE, noto dal 04/11): da vedere nella CI vera.
-- CI attivata su `natpf-simulator` (B1.2): esito della prima esecuzione da controllare su GitHub Actions.
+- CI su `natpf-simulator`: prima esecuzione (B1.2, `d21a88c`) rossa per cause degli script, corrette in B1.3 (profilo
+  salvato v3 in `lan-browser`, schermo intero vero nel Chromium della CI, file del bundle rinominati); esito di B1.3 da
+  controllare su GitHub Actions.
 - B6 fatto: `docs/DESKTOP_WINDOWS.md` (valutazione, nessun codice). Da decidere dall'utente: avvio di F0/F1.
 - Versione dell'ultima consegna: `2026-11-03.1` in `site/js/tennis/version.js`; `site/tennis/build.json` è rimasto a
   `2026-10-28.18` (da allineare al prossimo pacchetto).
-- Crediti Higgsfield spesi per la richiesta del 04/11: **0 / 100**.
+- Crediti Higgsfield spesi per la richiesta del 04/11: **40 / 100** (saldo iniziale 708,37). Tentativo 1 dell'intro:
+  job `5b2b8345-df35-4538-97b6-f04d14ff23d0` (cinematic_studio_3_0, 8 s, 720p, fotogrammi iniziale/finale caricati come
+  media `012c2147-…` e `ff31adfb-…`). Se la sessione si interrompe: `jobs_wait` su quel job, poi verifica (§5 B2).
 - **Blocco in corso:** B0 (questo file e le istruzioni) → B1 (script e2e) → B6 (documento).
-- **Prossima azione esatta:** controllare la prima esecuzione della CI su `natpf-simulator` (GitHub Actions, workflow
-  «NATPF Simulator tests» e «NATPF motore base MVP»); se `lan-browser` fallisce anche lì, analizzarlo. Poi B2 (intro):
-  fotogrammi chiave dal motore con lo script descritto in §5 B2.
+- **Prossima azione esatta:** B2 — scaricare il video del tentativo 1 quando è pronto, verificarlo con
+  `python3 -I natpf-tennis/scripts/audit/conta-palline.py <video> 640` (≤ 1 pallina per fotogramma), una rete, colori
+  del gioco, niente scritte; controllare anche la CI di B1.3.
 
 ---
 

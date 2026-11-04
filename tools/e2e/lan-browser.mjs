@@ -40,7 +40,7 @@ try{
   await real.addInitScript(readFileSync(new URL('./motion.js',import.meta.url),'utf8')+';DeviceMotionEvent.requestPermission=async()=>"granted";');
   await real.goto(await host.evaluate(()=>hostLink.url()));
   await real.waitForFunction(()=>window.__racchetta?.state.linkState==='on');
-  await real.evaluate(()=>sessionStorage.setItem('natpf-simulator.profile',JSON.stringify({version:3,axis:[0,1,0],bias:[0,0,0],gravity:[0,1,0],ref:120,refs:{L:120,R:120},on:25,minPeak:40,minAngle:2.5,intentGate:false})));
+  await real.evaluate(()=>sessionStorage.setItem('natpf-simulator.profile',JSON.stringify({version:4,grip:'upright',accSign:1,axis:[0,1,0],bias:[0,0,0],gravity:[0,1,0],ref:120,refs:{L:120,R:120},on:25,minPeak:40,minAngle:2.5,intentGate:false})));
   await real.click('#enable');await real.waitForFunction(()=>__racchetta.state.sensor==='ready');
   await host.evaluate(()=>{swings.length=0;hostLink.send({t:'ph',ph:'play'});});
   await real.waitForFunction(()=>__racchetta.state.phase==='play');

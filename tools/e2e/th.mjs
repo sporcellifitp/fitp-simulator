@@ -20,6 +20,9 @@ export async function page(browser, url, { w = 1280, h = 760, mobile = false, in
   p.on('console', m => { if (m.type() === 'error' && !/404|Failed to load resource/.test(m.text())) errs.push('console: ' + m.text()); });
   if (three) await p.route(/cdn\.jsdelivr\.net\/npm\/three/, r => r.fulfill({ body: three, contentType: 'application/javascript' }));
   await p.route(/fonts\.(googleapis|gstatic)\.com/, r => r.fulfill({ body: '', contentType: 'text/css' }));
+  // la pagina del telefono chiede lo schermo intero a «Attiva i sensori»: il Chromium recente della CI lo concede e poi
+  // setViewportSize fallisce («restore it to normal state first»). Nelle prove la richiesta riesce senza cambiare finestra
+  await p.addInitScript(() => { try { Element.prototype.requestFullscreen = function(){ return Promise.resolve(); }; } catch {} });
   if (init) await p.addInitScript(init);
   await p.goto(url.replace('http://127.0.0.1:8765', BASE), { waitUntil: 'domcontentloaded', timeout: 120000 });
   return { ctx, p, errs };
