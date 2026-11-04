@@ -32,8 +32,13 @@ Come si aggiorna:
 - Non verificato: il video nel browser vero (il Chromium di qui non riproduce H.264: verificati i fotogrammi con ffmpeg e
   la pagina con il fotogramma come poster).
 - **Blocco in corso:** B3 (presa).
-- **Prossima azione esatta:** B3.1 — scontornare la foto della presa (media sopra), comporla su sfondo blu scuro come
-  `presa-martello.webp` (768×768 webp), poi profilo della presa in un modulo unico con rollback (§5 B3, Come 1–2).
+- B3 in corso (non ancora committato): foto pronta in `natpf-tennis/public/media/presa-palmo-schermo.webp` (scontorno
+  Higgsfield, 1 credito: totale **41 / 100**); piatto della dimostrazione da correggere come «il dritto, ma più veloce»
+  (asse e polso del dritto, picco 1000 °/s): `scripts/audit/sim-piatto-prese.mjs` → 80/80 su tutte le prese (oggi
+  64/80); riconoscimento invariato. Profilo della presa: palmo, cima 35° verso l'interno e 40° in avanti.
+- **Prossima azione esatta:** B3.2 — profilo unico in `site/js/tennis/grip-art.js` (`GRIP_STYLE` 'palmo' | 'martello',
+  testi, figura, foto, posa 3D), poi demo 3D, testi (cal_view, training LESSON, index «Collega» e `.split-grip`),
+  test della presa nuova in `natpf-gesture-demo.test.mjs`, test dei media senza nome di file fisso.
 
 ---
 
