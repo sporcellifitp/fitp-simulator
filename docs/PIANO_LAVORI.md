@@ -40,10 +40,15 @@ Come si aggiorna:
 - Non verificato (serve l'utente): **tutto su Windows** (`docs/COLLAUDO_WINDOWS.md`: SmartScreen, installazione,
   firewall, ledwall, webcam, scheda grafica del PC noleggiato), telefoni veri (presa nel palmo, pulsante «ho capito»,
   due persone sullo stesso schermo), video H.264 in un browser vero.
-- **Blocco in corso:** nessuno.
-- **Prossima azione esatta:** aspettare l'esito del collaudo Windows dell'utente (`docs/COLLAUDO_WINDOWS.md`) e
-  correggere quello che segnala (registro `%LOCALAPPDATA%\NATPF\log\programma.log`). Per rifare gli eseguibili dopo
-  un cambiamento: versione nuova del gioco, poi `cd natpf-desktop && npm run costruisci` (§6).
+- **Richiesta nuova (04/11 sera, dopo B7):** «Assicurati che ci sia in tutte le versioni modalità full screen senza
+  cornici»; poi «la versione cloudflare deve sempre pesare leggermente meno di 25 MB» e «adatta il fullscreen in base
+  alla finestra/monitor in utilizzo o prevedi la calibrazione a full screen, come avviene per i videogiochi» → **B8** (§5).
+- **Blocco in corso:** B8 (schermo intero senza cornici ovunque, adattamento al monitor e calibrazione, Cloudflare
+  sotto 25 MB). Il collaudo Windows di B7 resta da fare (`docs/COLLAUDO_WINDOWS.md`).
+- **Prossima azione esatta:** B8.1 — analisi (gioco: `natpf_screen.js`, schermata «premi un tasto», Esc, FOV della
+  camera in `game_engine.js` `_updateCameraFov`; Electron `natpf-desktop/src/main.mjs`; Edge `tools/lan/desktop.mjs`;
+  peso Cloudflare: togliere i `.wasm` non SIMD di MediaPipe da `natpf-tennis/scripts/offline-assets.mjs`), poi
+  implementazione, prove, versione `2026-11-04.6`, pacchetti ZIP ed eseguibili.
 
 ---
 
@@ -117,6 +122,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B5 Stesso schermo | [x] | modale e calibrazione indipendenti nelle due metà di «Collega» | vedi WORK_PROGRESS B5 | 2026-11-04.5 |
 | B6 Windows | [~] | A+ portatile implementato; collaudo Windows reale e F0/F1 da completare | commit di questo checkpoint | 2026-11-04.1 |
 | B7 Eseguibili Windows | [x] | `natpf-desktop/`: Electron, portatile (un .exe) e installabile (setup .exe), firewall e certificati; collaudo Windows dell'utente in `docs/COLLAUDO_WINDOWS.md` | vedi WORK_PROGRESS B7 | 2026-11-04.5 |
+| B8 Schermo intero e monitor | [~] | schermo intero senza cornici in tutte le versioni, adattamento al monitor e calibrazione, Cloudflare < 25 MB | — | 2026-11-04.6 |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).
@@ -301,6 +307,23 @@ resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mo
 - **Perché**: l'utente vuole eseguibili veri, uno da copiare e uno da installare, sul PC noleggiato con Windows 10.
 - **Fine**: raggiunta per la parte verificabile qui (costruzione, contenuto, prove del processo principale, avvio con
   Electron per Linux). Resta il collaudo su Windows; se segnala problemi si correggono qui con un blocco nuovo.
+
+### B8 · Schermo intero senza cornici, adattamento al monitor, Cloudflare sotto 25 MB (04/11 sera)
+- **Stato**: in corso.
+- **Cosa**: (1) in ogni versione (programma Windows installato e portatile, zip LAN con Edge, browser/Cloudflare)
+  una modalità a schermo intero senza cornici: niente bordi, barra del titolo, barre del browser o menu; (2) il gioco
+  si adatta alla finestra e al monitor in uso (proporzioni qualsiasi: campo sempre visibile, interfaccia e
+  risoluzione) e ha una **calibrazione dello schermo** come nei videogiochi (bordi/area visibile, formato, prova del
+  cerchio); (3) zip Cloudflare **sempre sotto 25 MB** (oggi 26,9 MB), con un controllo automatico.
+- **Come**: zip LAN con Edge a schermo intero per impostazione (`--start-fullscreen`); Electron con la finestra creata
+  già a schermo intero, senza menu che compare con Alt; nel browser schermo intero al primo tasto o clic della
+  schermata iniziale, pulsante visibile, Esc che resta «indietro» (Keyboard Lock dove c'è); campo visivo orizzontale
+  minimo della camera per monitor non 16:9; pagina «Calibra lo schermo» in Opzioni → Schermo; via i `.wasm` non SIMD
+  di MediaPipe (Edge, Chrome ed Electron usano quelli SIMD) e controllo del peso nello script del pacchetto.
+- **Perché**: agli eventi il gioco va su ledwall e monitor noleggiati con proporzioni e bordi diversi; la versione
+  Cloudflare deve stare sotto il limite di 25 MB indicato dall'utente.
+- **Fine**: prove automatiche (unità, browser a più proporzioni, Electron per Linux), zip Cloudflare < 25.000.000 byte,
+  pacchetti ed eseguibili nuovi consegnati, punti nuovi in `docs/COLLAUDO_WINDOWS.md`.
 
 ### Punti aperti precedenti (non della richiesta del 04/11; restano validi)
 - **Prove dal vivo** (non verificabili qui). Cosa: iPhone (calibrazione e lati dei colpi), webcam a 1–4 m e per due
