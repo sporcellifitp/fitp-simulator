@@ -23,7 +23,8 @@ Come si aggiorna:
   Test: gioco 680/680, sito 182/182, LAN 10/10, build ok. Prove nel browser: tutte verdi in locale dopo B1.1–B1.4.
 - CI su `natpf-simulator`: workflow del gioco verde; prove nel browser da ricontrollare dopo B1.4 (permesso dei
   sensori nel Chromium della CI).
-- Ultimi pacchetti: vedi WORK_PROGRESS (2026-11-04.2 consegnati; 2026-11-04.3 da consegnare con B3).
+- Ultimi pacchetti consegnati: **2026-11-04.3** (LAN sha256 `26ae8b0c…2e86d5f`, Cloudflare `6ecdd71d…436026c`), provati
+  estratti (WORK_PROGRESS B3.5).
 - Crediti Higgsfield spesi per la richiesta del 04/11: **41 / 100** (saldo 667,37): intro 40, scontorno della foto 1.
 - Non verificato: telefono vero con la presa nuova; video H.264 in un browser vero.
 - **Blocco in corso:** B4 (modale del tutorial, gioco singolo).

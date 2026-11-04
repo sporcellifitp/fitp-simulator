@@ -102,6 +102,12 @@ Criterio di fine: script `natpf-*` verdi, CI che prova gioco, build e sito sul b
   indipendenti dal nome della foto. Gioco 680/680, sito 182/182, LAN 10/10, build ok; screenshot di «Collega», lezione,
   guida e pannello del telefono con la presa nuova; demo 3D senza errori. Versione 2026-11-04.3.
   Non verificato: telefono vero con la presa nuova.
+- [x] B3.5 · pacchetti **2026-11-04.3** consegnati: Cloudflare `natpf-simulator-cloudflare-20261104-3.zip` (26.874.194 B,
+  sha256 `6ecdd71d0f9c192d9b84d434b71650c1934fe5c88f1be8309417be3fa436026c`) e LAN Windows
+  `natpf-simulator-lan-windows-20261104-3.zip` (62.061.001 B, sha256
+  `26ae8b0cdeb09fc61810a3d39c8b6712b3c32c8581e2517091f4f80ce2e86d5f`, un solo `node.exe`, nessun certificato o chiave).
+  Provati estratti: Cloudflare (pagine, versione .3, `turn.json`, foto della presa, video); LAN (HTTPS 8443, versione .3,
+  foto, `grip-art.js` con `GRIP_STYLE = 'palmo'`, pagina del telefono).
 
 ## B6 · Valutazione Windows e architettura · [x] · 04/11/2026
 - [x] B6.1 · `docs/DESKTOP_WINDOWS.md`: contesto d'uso (risposte del 04/11), architettura attuale con i riferimenti,
