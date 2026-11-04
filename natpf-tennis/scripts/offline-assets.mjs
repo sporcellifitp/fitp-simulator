@@ -17,26 +17,32 @@ export const MEDIAPIPE_HANDS_VERSION = '0.4.1675469240';
 export const MEDIAPIPE_POSE_VERSION = '0.5.1675469404';
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const MEDIAPIPE_DIR = path.join(ROOT, 'node_modules/@mediapipe/hands');
-// file di MediaPipe Hands che il runtime carica (hands.js li chiede con locateFile)
+// file di MediaPipe Hands che il runtime carica (hands.js li chiede con locateFile).
+// B8 (04/11, «la versione cloudflare deve sempre pesare leggermente meno di 25 MB»): solo la versione SIMD del motore
+// WebAssembly. hands.js e pose.js provano WebAssembly SIMD e caricano o *_solution_simd_wasm_bin.* o
+// *_solution_wasm_bin.*, mai tutti e due: SIMD c'è in Chrome ed Edge dalla 91 (2021) e in Electron 45 (Chromium 156),
+// cioè in tutti i browser in cui gira il gioco. Senza SIMD i due file vengono dal CDN con la stessa versione
+// (src/natpf/mediapipe_locate.js); senza SIMD e senza internet la mano usa l'optical flow e il corpo resta automatico.
+// Fuori anche *_simd_wasm_bin.data: vuoti nei pacchetti npm e mai chiesti. In tutto 3,8 MB in meno nello zip.
 export const MEDIAPIPE_FILES = [
   'hands.js', 'hands_solution_packed_assets_loader.js', 'hands_solution_packed_assets.data',
-  'hands_solution_simd_wasm_bin.js', 'hands_solution_simd_wasm_bin.wasm', 'hands_solution_simd_wasm_bin.data',
-  'hands_solution_wasm_bin.js', 'hands_solution_wasm_bin.wasm', 'hands.binarypb',
+  'hands_solution_simd_wasm_bin.js', 'hands_solution_simd_wasm_bin.wasm', 'hands.binarypb',
   'hand_landmark_full.tflite', 'hand_landmark_lite.tflite',
 ];
-// cartelle sotto /assets/ servite da questo middleware (le altre, es. i bundle di Vite, no)
 // Pose: solo il modello «lite» (modelComplexity 0), non full e heavy (34 MB in meno)
 export const MEDIAPIPE_POSE_FILES = [
   'pose.js', 'pose_solution_packed_assets_loader.js', 'pose_solution_packed_assets.data',
-  'pose_solution_simd_wasm_bin.js', 'pose_solution_simd_wasm_bin.wasm', 'pose_solution_simd_wasm_bin.data',
-  'pose_solution_wasm_bin.js', 'pose_solution_wasm_bin.wasm', 'pose_web.binarypb', 'pose_landmark_lite.tflite',
+  'pose_solution_simd_wasm_bin.js', 'pose_solution_simd_wasm_bin.wasm', 'pose_web.binarypb', 'pose_landmark_lite.tflite',
 ];
+// file MediaPipe che non vanno nel pacchetto offline (motore senza SIMD e .data vuoti): per i controlli
+export const MEDIAPIPE_EXCLUDED = /(_solution_wasm_bin\.(js|wasm)|_simd_wasm_bin\.data)$/;
 export const MEDIAPIPE_PACKAGES = [
   { name: 'hands', version: MEDIAPIPE_HANDS_VERSION, files: MEDIAPIPE_FILES },
   { name: 'pose', version: MEDIAPIPE_POSE_VERSION, files: MEDIAPIPE_POSE_FILES },
 ];
 // tutti i file MediaPipe del pacchetto offline: percorso sotto /assets/ e sorgente in node_modules
 export const mediapipeAssets = (root = ROOT) => MEDIAPIPE_PACKAGES.flatMap(p => p.files.map(f => ({ rel: `mediapipe/${p.name}/${f}`, src: path.join(root, 'node_modules/@mediapipe', p.name, f), pkg: p })));
+// cartelle sotto /assets/ servite da questo middleware (le altre, es. i bundle di Vite, no)
 export const ASSET_PREFIX = /^\/assets\/(models|audio|textures|mediapipe|qr)\//;
 
 export const MIME = {

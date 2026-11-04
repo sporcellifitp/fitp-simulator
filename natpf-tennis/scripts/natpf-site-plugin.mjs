@@ -35,12 +35,42 @@ export function phoneFiles(siteDir){
   for (const entry of ENTRIES) visit(entry);
   return [...files].sort();
 }
-// loghi ufficiali ad alta risoluzione per l'interfaccia (intro, menu): serviti sotto /natpf/assets/brand/
-export const brandFiles = siteDir => fs.readdirSync(path.join(siteDir, 'assets/brand')).filter(f => f.endsWith('.png')).map(f => `assets/brand/${f}`);
+// loghi ufficiali ad alta risoluzione per l'interfaccia (intro, menu): serviti sotto /natpf/assets/brand/.
+// B8 (04/11, zip Cloudflare sotto i 25 MB): nella build solo quelli che il gioco o la pagina del telefono nominano
+// (oggi index.html: esports-fitp-neg e nitto-atp-finals-white), non tutta la cartella (gli altri 7, 0,5 MB, li usa
+// solo il sito). Si cercano i riferimenti «assets/brand/<nome>.png» (brandSources); un logo nominato ma assente ferma
+// la build. Il server LAN serve /natpf/ da site/: lì ci sono tutti.
+const BRAND_REF = /assets\/brand\/([\w.-]+\.png)/g;
+const SOURCE_EXT = /\.(html|css|js|mjs|jsx|ts|tsx)$/;
+// file di testo in cui cercare i loghi: gioco (index.html e css in cima, src/, public/), moduli di site/js/tennis e
+// site/js/match (quelli che il gioco importa con «@natpf» e quelli della pagina del telefono) e pagina del telefono
+function brandSources(siteDir, gameRoot){
+  const out = new Set();
+  const walk = dir => {
+    if (!fs.existsSync(dir)) return;
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })){
+      const file = path.join(dir, e.name);
+      if (e.isDirectory()) walk(file); else if (SOURCE_EXT.test(e.name)) out.add(file);
+    }
+  };
+  for (const e of fs.readdirSync(gameRoot, { withFileTypes: true })) if (e.isFile() && /\.(html|css)$/.test(e.name)) out.add(path.join(gameRoot, e.name));
+  for (const dir of ['src', 'public']) walk(path.join(gameRoot, dir));
+  for (const dir of ['js/tennis', 'js/match']) walk(path.join(siteDir, dir));
+  for (const f of phoneFiles(siteDir)) if (SOURCE_EXT.test(f)) out.add(path.join(siteDir, f));
+  return [...out];
+}
+export function brandFiles(siteDir, gameRoot){
+  const used = new Set();
+  for (const file of brandSources(siteDir, gameRoot)) for (const [, name] of fs.readFileSync(file, 'utf8').matchAll(BRAND_REF)) used.add(name);
+  return [...used].sort().map(name => {
+    if (!fs.statSync(path.join(siteDir, 'assets/brand', name), { throwIfNoEntry: false })?.isFile()) throw new Error(`[natpf] logo mancante: site/assets/brand/${name}`);
+    return `assets/brand/${name}`;
+  });
+}
 export const arenaFiles = siteDir => fs.readdirSync(path.join(siteDir, 'assets/arena')).filter(f => f.endsWith('.png')).map(f => `assets/arena/${f}`);
 
 export function natpfSitePlugin({ siteDir }){
-  let outDir = null;
+  let outDir = null, gameRoot = null;
   return {
     name: 'natpf-site',
     configureServer(server){
@@ -59,13 +89,13 @@ export function natpfSitePlugin({ siteDir }){
         });
       });
     },
-    configResolved(config){ if (config.command === 'build') outDir = path.resolve(config.root, config.build.outDir); },
+    configResolved(config){ if (config.command === 'build'){ outDir = path.resolve(config.root, config.build.outDir); gameRoot = path.resolve(config.root); } },
     closeBundle(){
       if (!outDir || !fs.existsSync(outDir)) return;
       const copy = (rel, dest) => { const target = path.join(outDir, dest); fs.mkdirSync(path.dirname(target), { recursive: true }); fs.copyFileSync(path.join(siteDir, rel), target); };
       for (const rel of phoneFiles(siteDir)) copy(rel, `natpf/${rel}`);
       for (const rel of arenaFiles(siteDir)) copy(rel, rel);
-      for (const rel of brandFiles(siteDir)) copy(rel, `natpf/${rel}`);
+      for (const rel of brandFiles(siteDir, gameRoot)) copy(rel, `natpf/${rel}`);
     },
   };
 }

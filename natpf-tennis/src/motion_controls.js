@@ -15,6 +15,8 @@ import { ROI_FULL, RoiPlanner, roiToFull, roiPixels, singleCameraAttempts } from
 import { ARGON_TRACK, argonPickHand, argonBridging, argonBridgeStart, argonNearEdge, argonHandSize, argonScale, argonSameHand, argonHandPoint, argonTrailEvent, argonFlowBlob } from "./natpf/webcam_argon_track.js";
 // NATPF: colpi della webcam dal movimento dell'immagine (rifacimento del 28–29/10), vedi src/natpf/webcam_motion.js
 import { createMotionStrokes, grayFromRGBA, swingSpeed, MOTION } from "./natpf/webcam_motion.js";
+// NATPF B8: il pacchetto offline ha solo il motore SIMD; senza SIMD i due file del motore vengono dal CDN fissato
+import { mediapipeFileUrl } from "./natpf/mediapipe_locate.js";
 // NATPF: MediaPipe Hands dal pacchetto offline (npm @mediapipe/hands, servito sotto /assets/); CDN fissato solo di riserva
 export const MEDIAPIPE_LOCAL_BASE = "/assets/mediapipe/hands/";
 export const MEDIAPIPE_CDN_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/";
@@ -485,7 +487,7 @@ export class MotionController {
         }
       if (((this.mediapipeBase = base), window.Hands)) {
         const t = new window.Hands({
-          locateFile: (i) => `${base}${i}`,
+          locateFile: (i) => mediapipeFileUrl(i, { base, localBase: MEDIAPIPE_LOCAL_BASE, cdnBase: MEDIAPIPE_CDN_BASE }),
         });
         // NATPF: modello e numero di mani dal livello di carico (webcam_load.js: si alleggerisce se l'inferenza è lenta);
         // con la webcam di argon-tennis le opzioni e i risultati dello zip

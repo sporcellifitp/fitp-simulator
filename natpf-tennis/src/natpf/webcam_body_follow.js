@@ -1,4 +1,6 @@
 import { WorkerVision, workerVisionAvailable } from './webcam_inference.js';
+// B8: il pacchetto offline ha solo il motore SIMD; senza SIMD i due file del motore vengono dal CDN fissato
+import { mediapipeFileUrl } from './mediapipe_locate.js';
 // Webcam → movimento del giocatore in campo («Movimento: segui il corpo»), opzione della racchetta Webcam.
 // motore base muove da solo il giocatore verso la palla (targetPos scelto da _predictBallIntercept, passi in
 // _stepActorFootwork). Con «segui il corpo» MediaPipe Pose (pacchetto offline, modello lite) trova spalle e anche
@@ -196,7 +198,7 @@ export class NatpfBodyFollow {
       }
       if (!pose){
         if (!window.Pose) try { await loadScript(`${base}pose.js`); } catch { base = MEDIAPIPE_POSE_CDN_BASE; await loadScript(`${base}pose.js`); }
-        const p = setup(new window.Pose({ locateFile: f => `${base}${f}` }));
+        const p = setup(new window.Pose({ locateFile: f => mediapipeFileUrl(f, { base, localBase: MEDIAPIPE_POSE_LOCAL_BASE, cdnBase: MEDIAPIPE_POSE_CDN_BASE }) }));
         try { await p.initialize(); } catch (error) { p.close?.(); throw error; }
         pose = p;
       }

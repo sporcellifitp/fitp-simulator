@@ -1,6 +1,7 @@
 // Pacchetto offline del motore base: scarica una volta in public/assets/ modelli 3D, audio, texture e QR che il gioco usa
 // (la lista si legge dai sorgenti, vedi scripts/offline-assets.mjs) e scrive public/assets/manifest.json con
-// dimensioni, sha256 e licenze. MediaPipe Hands e Pose non si scaricano da qui: arrivano dai pacchetti npm.
+// dimensioni, sha256 e licenze. MediaPipe Hands e Pose non si scaricano da qui: arrivano dai pacchetti npm (solo i file
+// della versione SIMD, elencati in scripts/offline-assets.mjs).
 // I file già presenti non si riscaricano. Senza rete avvisa e non blocca la build (--strict per fallire).
 //   node scripts/download-assets.mjs [--strict] [--check]
 import fs from 'node:fs/promises';
@@ -42,7 +43,6 @@ async function main(){
   for (const r of results.filter(r => r.ok)) files.push(await entry(path.join(OUT, r.rel), r.rel, assetCategory(r.rel)));
   const mediapipeMissing = [];
   for (const { rel, src } of mediapipeAssets()){
-    // *_simd_wasm_bin.data è vuoto nei pacchetti npm: basta che esista
     try { await fs.access(src); files.push(await entry(src, rel, 'mediapipe')); } catch { mediapipeMissing.push(rel); }
   }
   const bytes = files.reduce((n, f) => n + f.bytes, 0), byCategory = {};
