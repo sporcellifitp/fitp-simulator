@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DRILLS, LESSON, liveFeedback, VOLLEY_Z } from '../src/natpf/natpf_training.js';
 import { makeWorld } from './ui-world.mjs';
+import { tutorialStep, TUTORIAL, TUTORIAL_CARDS } from '../src/natpf/natpf_tutorial.js';
 
 const D = id => DRILLS.find(d => d.id === id);
 
@@ -24,21 +25,61 @@ test('feedback in tempo reale: riconosce il gesto giusto e spiega quello sbaglia
   assert.equal(liveFeedback(D('forehand'), null), null);
 });
 
-test('lezione iniziale: presa, mano e posizione prima della calibrazione; la calibrazione parte solo dopo', async () => {
+// Richiesta del 04/11: con il telefono, prima della calibrazione, una modale grande con la presa e tutti i gesti; si chiude
+// dal telefono con «Tutto chiaro, ho capito» (natpf_phone_racket.waitTutorial/onTutorial), una volta per sessione
+const tapOk = P => { for (const fn of P.tutListeners) fn({ ok: true }); };
+test('tutorial prima della calibrazione: modale con presa e gesti, il telefono aspetta «Tutto chiaro, ho capito», poi la calibrazione', async () => {
+  const w = await makeWorld({ controller: 'phone' });
+  const T = w.ui.training, P = w.ui.phone;
+  let recal = 0; const orig = P.recalibrate.bind(P); P.recalibrate = () => { recal++; return orig(); };
+  T.start({ intro: true });
+  assert.ok(T.tutorialOpen && T.tutorial.open, 'modale aperta'); assert.equal(T.lesson, null, 'con il telefono la lezione è la modale');
+  assert.equal(P.tutWait, true); assert.ok(P.link.sent.some(m => m.t === 'cfg' && m.tut === 1), 'il telefono aspetta il tutorial');
+  assert.equal(recal, 0, 'nessuna calibrazione con la modale aperta');
+  P.tutSupported = true; T._onCal({ kind: 'step', step: 'still' }); assert.ok(T.tutorialOpen, 'gli eventi del telefono non chiudono la modale');
+  // le schede scorrono da sole (chi gioca ha il telefono in mano)
+  const first = T.tutorial.state.idx; w.advance(7000); T.tutorial.tick(); assert.notEqual(T.tutorial.state.idx, first);
+  tapOk(P);
+  assert.ok(!T.tutorialOpen && !T.tutorial.open, 'chiusa dal telefono'); assert.equal(recal, 1, 'poi parte la calibrazione');
+  assert.equal(P.tutWait, false); assert.equal(P.link.sent.filter(m => m.t === 'cfg').at(-1).tut, undefined, 'il telefono non aspetta più');
+  // in calibrazione niente riquadro «Guarda e ripeti» in alto a destra
+  T.paint(); assert.ok(T.coach.querySelector('#coach-demo').classList.contains('hidden'));
+  // una volta per sessione e per giocatore
+  T.stop({ completed: false, silent: true }); T.start({ intro: true }); assert.ok(!T.tutorialOpen, 'non si ripete nella stessa sessione');
+  // «Rivedi i gesti»: la stessa modale, da chiudere sul computer, senza fermare il telefono
+  T.reviewGestures(); assert.ok(T.tutorial.open && !T.tutorialOpen && !P.tutWait); T.tutorial.close('review'); assert.ok(!T.tutorial.open);
+  T.stop({ completed: false, silent: true });
+});
+
+test('tutorial: telefono con la pagina di prima (non lo conosce) — la modale si chiude quando comincia a calibrare da solo', async () => {
   const w = await makeWorld({ controller: 'phone' });
   const T = w.ui.training;
-  let recal = 0; const orig = w.ui.phone.recalibrate.bind(w.ui.phone); w.ui.phone.recalibrate = () => { recal++; return orig(); };
+  T.start({ calOnly: true });
+  assert.ok(T.tutorialOpen, 'anche prima di una sfida');
+  T._onCal({ kind: 'step', step: 'still' });
+  assert.ok(!T.tutorialOpen && T.tutorialSeen.p1);
+  T.stop({ completed: false, silent: true });
+});
+
+test('tutorial: le schede scorrono da sole, una scelta a mano resta ferma per un po\'', () => {
+  let s = tutorialStep(null, { now: 0 });
+  assert.equal(s.idx, 0);
+  s = tutorialStep(s, { now: TUTORIAL.autoMs - 1 }); assert.equal(s.idx, 0);
+  s = tutorialStep(s, { now: TUTORIAL.autoMs + 1 }); assert.equal(s.idx, 1);
+  s = tutorialStep(s, { now: TUTORIAL.autoMs + 2, pick: 5 }); assert.equal(s.idx, 5);
+  s = tutorialStep(s, { now: TUTORIAL.autoMs*3 }); assert.equal(s.idx, 5, 'scelta a mano: ferma');
+  s = tutorialStep(s, { now: TUTORIAL.autoMs + 2 + TUTORIAL.holdMs + TUTORIAL.autoMs + 1 }); assert.equal(s.idx, 6);
+  s = tutorialStep({ idx: TUTORIAL_CARDS.length - 1, shownAt: 0, holdUntil: 0 }, { now: TUTORIAL.autoMs + 1 }); assert.equal(s.idx, 0, 'ricomincia');
+  // tutti i gesti del tutorial (presa e posizione comprese) hanno titolo e indicazioni
+  for (const c of TUTORIAL_CARDS) assert.ok(c.title && (c.cues.length || c.text), c.id);
+  assert.deepEqual(TUTORIAL_CARDS.slice(0, 2).map(c => c.id), ['grip', 'ready']);
+});
+
+test('webcam: la lezione a passi dell\'Allenamento resta (versione breve, senza il telefono)', async () => {
+  const w = await makeWorld({ controller: 'webcam' });
+  const T = w.ui.training;
   T.start({ intro: true });
-  assert.ok(T.lesson); assert.equal(T.lesson.steps.length, LESSON.length);
-  assert.equal(recal, 0, 'nessuna calibrazione durante la lezione');
-  T.lessonAction('next'); assert.equal(T.lesson.idx, 1);
-  T.lessonAction('left'); assert.equal(w.ui.hand.hand, 'left', 'la mano si sceglie nella lezione');
-  T.lessonAction('right');
-  T.lessonAction('back'); assert.equal(T.lesson.idx, 0);
-  T.lessonAction('next'); T.lessonAction('next'); T.lessonAction('next');
-  assert.equal(T.lesson, null); assert.equal(recal, 1, 'alla fine della lezione parte la calibrazione');
-  // una seconda volta nella stessa sessione la lezione non si ripete (se non dal menu Allenamento)
-  T.stop({ completed: false, silent: true }); T.start({ intro: true }); assert.equal(T.lesson, null);
+  assert.ok(T.lesson && !T.tutorialOpen);
   T.stop({ completed: false, silent: true });
 });
 

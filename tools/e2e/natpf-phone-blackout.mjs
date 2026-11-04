@@ -58,7 +58,7 @@ try {
   await phone.waitForFunction(() => window.__racchetta?.state.linkState === 'on', null, { timeout: 30000 });
   await phone.click('#enable');
   await game.waitForFunction(() => __natpfTennis.natpfUi.training.active, null, { timeout: 8000 });
-  await finishLesson(game);   // prima la lezione dell'Allenamento, fino a «Calibra»
+  await finishLesson(game, 8, phone);   // prima la modale del tutorial: «Tutto chiaro, ho capito» sul telefono
   await phone.waitForFunction(() => __racchetta.state.step === 'swings', null, { timeout: 8000 });
   // gesto quando il computer dice «Ora» (o, a rete ferma, quando il telefono è pronto), poi il rientro lento della mano
   const gesture = async (sign, fromPhone = false) => {

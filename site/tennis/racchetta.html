@@ -39,6 +39,7 @@
   #shotHint,#phaseFeedback{font-size:14px;color:var(--muted);text-align:center;margin:6px 0}
   #manualAim{display:grid;gap:8px} #manualAim label:first-child{display:flex;align-items:center;justify-content:space-between}
   #power{width:100%;min-height:36px} #touchHit{touch-action:none}
+  #tutOk{margin-top:10px;font-size:21px;padding:20px}
   #alert{margin-top:10px;background:#4a1830;border:1px solid var(--bad);border-radius:12px;padding:10px 14px;text-align:center;font-size:15px}
   #alert p{margin:4px 0 0;color:#ffd9d4} #alert .btn{margin-top:8px;padding:12px;font-size:16px}
   #rotate{position:fixed;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));z-index:20;background:#13245a;border:1px solid #405b9b;border-radius:12px;padding:10px 14px;text-align:center;font-size:15px}
@@ -62,6 +63,9 @@
 <body>
 <div id="bar"><i></i><span id="barTxt">Collegamento…</span><small id="lat"></small></div>
 <!-- sensori fermi o schermo che può spegnersi (phone-keep.js): cosa succede e cosa fare -->
+<!-- tutorial sul computer prima della calibrazione (richiesta del 04/11): il pulsante sta in alto, lontano dalle dita che
+     tengono la parte bassa del telefono (presa nel palmo). Toccandolo parte la calibrazione -->
+<button class="btn hidden" id="tutOk">Tutto chiaro, ho capito</button>
 <div id="alert" class="hidden" role="alert"><b id="alertTitle"></b><p id="alertText"></p><button class="btn hidden" id="alertBtn"></button></div>
 <div id="stage">
   <div id="ring"><div id="arrow"></div><div id="big">NATPF</div></div>

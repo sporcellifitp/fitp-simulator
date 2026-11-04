@@ -226,6 +226,8 @@ export function createPhoneLink(){
         case 'toss': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); if (at != null) emit('toss', { at }); break; }
         // mano cambiata sulla pagina del telefono (la decide il gioco: il computer la applica e la rimanda)
         case 'hand': if (d.h === 'left' || d.h === 'right') emit('hand', { hand: d.h }); break;
+        // tutorial prima della calibrazione: w = il telefono aspetta «Tutto chiaro, ho capito», ok = toccato
+        case 'tut': emit('tut', { wait: !!d.w, ok: !!d.ok }); break;
         // diagnostica: gesto scartato sul telefono, con il motivo (solo se la diagnostica lo chiede, al massimo pochi al
         // secondo); segno «qui è successo un problema» toccato sul telefono; telefono e browser (una volta per collegamento)
         case 'gx': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); emit('discard', { why: typeof d.r === 'string' ? d.r.slice(0, 40) : '?', peak: Number.isFinite(d.v) ? d.v : null, angle: Number.isFinite(d.a) ? d.a : null, dir: [-1, 0, 1].includes(d.d) ? d.d : null, at }); break; }

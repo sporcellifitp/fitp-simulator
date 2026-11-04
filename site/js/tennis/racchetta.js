@@ -51,6 +51,7 @@ let sensorSequence = 0, lastSensorSent = -Infinity;
 let streamJson = false, prepWanted = false, diagStream = false, sampleHz = 60, lastSampleT = null, swingSeq = 0;
 let connectEpoch = 0, pendingConn = null;
 let peer = null, conn = null, linkState = 'off', rtt = 80, sensor = 'off', phase = 'menu', retryT = null, tries = 0, motionSeen = false, flashT = null, lastRx = 0;
+let tutWait = false;   // il computer chiede di aspettare il tutorial prima di calibrare (cfg tut, vedi tutDone)
 // schermo acceso e sensori vivi (phone-keep.js): ogni cambio del blocco va al computer e sullo schermo (avvisi più giù)
 const awake = createWakeKeeper({ onChange: () => { sendState(); paintAlert(); } }), sensorWatch = createSensorWatch();
 let revivedAt = null, alertKey = '';
@@ -94,6 +95,7 @@ function paint(){
   paintShots();
   show('#retry', (linkState === 'lost' || linkState === 'denied') && !!pair);
   show('#tools', linkState === 'on' && (sensor === 'ready' || sensor === 'cal'));
+  show('#tutOk', linkState === 'on' && tutWait && (sensor === 'tut' || sensor === 'ready'));
   show('#mark', linkState === 'on' && diagStream);
   const holding = linkState === 'on' && sensor === 'cal' && (cal.state.step === 'grip' || cal.state.step === 'still');
   show('#grip', holding && grip !== 'flat'); show('#gripFlat', holding && grip === 'flat');
@@ -101,6 +103,7 @@ function paint(){
   show('#faceDial', dial); show('#faceTxt', dial);
   if (linkState !== 'on' || flashT) return;
   if (sensor === 'off') ui('Collegato', 'Tocca «Attiva i sensori»: il telefono diventa la tua racchetta.');
+  else if (sensor === 'tut') ui('Guarda lo schermo', 'Sul computer ci sono la presa e i colpi. Quando hai capito tocca «Tutto chiaro, ho capito», qui in alto: poi si calibra.');
   else if (sensor === 'cal') calUi();
   else if (sensor === 'ready') ui(phase === 'serve' ? 'Al servizio' : 'Pronto', phaseText(), 'ready');
 }
@@ -117,7 +120,7 @@ function calUi(){
     else ui(`${stroke} ${ARROW[w]}`, `Ora: gesto naturale ${w === 'L' ? 'verso sinistra' : 'verso destra'}, con la stessa presa che userai in partita, poi fermati. Gesto ${st.idx + 1} di ${plan.length}.`, 'ready', ARROW[w]);
   }
   else if(st.step==='shots'){const g=GESTURE_PLAN[st.idx];ui(SHOT_NAMES[g.shot],`Gesto ${PLAN.length+st.idx+1} di ${PLAN.length+GESTURE_PLAN.length}: ${g.hint}`, '',g.want?ARROW[g.want]:'↑');}
-  else if (st.step === 'review') ui(st.result && st.result.pass ? 'Fatto!' : 'Da rifare', st.result && st.result.pass ? 'Guarda il computer e conferma.' : 'Guarda il computer: ti dice cosa cambiare.', st.result && st.result.pass ? 'ready' : 'miss');
+  else if (st.step === 'review') ui(st.result && st.result.pass ? 'Fatto!' : 'Da rifare', st.result && st.result.pass ? 'Guarda il computer: si parte da soli.' : 'Guarda il computer: ti dice cosa cambiare.', st.result && st.result.pass ? 'ready' : 'miss');
   else if (st.step === 'free') ui('Prova un colpetto', 'Guarda il computer: il personaggio ripete il tuo gesto. Non devi conoscere i colpi del tennis.');
 }
 function phaseText(){
@@ -206,7 +209,13 @@ function onData(c, d){
     case 'dp': send({ t: 'dq', d: d.d, p: performance.now() }); break;
     case 'grip': setGrip(d.g); break;
     // il gioco chiede la modalità preparazione (prep) e il flusso dei sensori in JSON quando non c'è il canale binario (mo)
-    case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); streamJson = !!d.mo; diagStream = !!d.diag; if (d.hand === 'left' || d.hand === 'right') applyHand(d.hand); sendState(); paint(); break;
+    case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); streamJson = !!d.mo; diagStream = !!d.diag; if (d.hand === 'left' || d.hand === 'right') applyHand(d.hand);
+      tutWait = !!d.tut; if (tutWait) send({ t: 'tut', w: 1 });
+      // sensori già attivi e calibrazione già partita (si entra in campo dalla pagina «Collega»): si ferma e si aspetta
+      if (tutWait && sensor === 'cal') sensor = 'tut';
+      // il computer ha chiuso il tutorial da solo (o non lo chiede più): si calibra
+      else if (sensor === 'tut'){ sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); }
+      sendState(); paint(); break;
     // verso del colpo atteso (da che parte arriva la palla): +1 da destra a sinistra, -1 da sinistra a destra, 0 non si sa
     case 'ex': det.setExpect(d.d); break;
     case 'practice': if (inputMode==='touch' && SHOT_NAMES[d.shot]){ selectedShot = d.shot; paintShots(); } break;
@@ -303,6 +312,7 @@ async function enableSensors(){
   const saved = ss.get('profile');
   // (profilo fatto con il segno dei sensori di prima, per esempio su iPhone prima della correzione: si ricalibra)
   if (saved?.version === 4 && saved.input !== 'touch' && (saved.grip || 'upright') === grip && (saved.accSign ?? 1) === accSign.sign){ det.setProfile(saved); det.run(); sensor = 'ready'; face.setRest(saved.gravity, saved.bias); }
+  else if (tutWait) sensor = 'tut';                 // prima il tutorial sul computer, poi la calibrazione
   else { sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); }
   sendState(); paint();
 }
@@ -367,6 +377,16 @@ function setGrip(value){
   grip = next; ss.set('grip', grip); face.reset(); lockOrientation();
   // profilo fatto con l'altra presa: si rifà la calibrazione (breve)
   if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); }
+  sendState(); paint();
+}
+// Tutorial sul computer prima della calibrazione (richiesta del 04/11): il computer lo chiede con cfg { tut: 1 }; il
+// telefono risponde che lo sa fare ({ t: 'tut', w: 1 }), dopo «Attiva i sensori» non calibra subito ma aspetta
+// «Tutto chiaro, ho capito» (o che il computer tolga l'attesa), poi manda { t: 'tut', ok: 1 } e calibra. Un computer di
+// prima non manda tut: tutto come prima
+function tutDone(){
+  if (!tutWait) return;
+  tutWait = false; send({ t: 'tut', ok: 1 });
+  if (sensor === 'tut'){ sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); }
   sendState(); paint();
 }
 function command(c){
@@ -458,6 +478,7 @@ $('#relink').addEventListener('click', e => { e.stopPropagation(); relink(); });
 // «qui è successo un problema»: un segno nel registro della diagnostica, con l'ora del computer
 $('#mark').addEventListener('click', e => { e.stopPropagation(); if (linkState !== 'on') return; send({ t: 'mk', x: 'segno dal telefono' }); buzz([30, 60, 30]); flash('hit', 'Segnato', 'Il momento è nella registrazione del computer.', 900); });
 $('#recal').addEventListener('click', () => command('cal'));
+$('#tutOk').addEventListener('click', tutDone);
 $('#bye').addEventListener('click', () => {
   linkState = 'denied'; ++connectEpoch; clearTimeout(retryT); clearTimeout(connect.t); pendingConn = null;
   ss.del('resume'); ss.del('pair'); ss.del('profile'); pair = null; closeFast();

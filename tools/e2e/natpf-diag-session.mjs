@@ -91,7 +91,7 @@ try {
   await phone.waitForFunction(() => window.__racchetta?.state.linkState === 'on', null, { timeout: 30000 });
   await phone.click('#enable');
   await game.waitForFunction(() => __natpfTennis.natpfUi.training.active, null, { timeout: 15000 });
-  await finishLesson(game);
+  await finishLesson(game, 8, phone);
   await game.evaluate(() => __natpfTennis.natpfUi.training.simpleMode());
   await phone.waitForFunction(() => __racchetta.state.sensor === 'ready', null, { timeout: 15000 });
 

@@ -350,6 +350,9 @@ export class NatpfPhoneRacket {
     // gesto speciale chiesto in questo momento («lob», «drop» o null): lo dice l'allenamento (natpf_training.js)
     this.expectSpecial = null;
     this.calListeners = new Set();
+    // tutorial prima della calibrazione (richiesta del 04/11): tutWait = il computer chiede al telefono di aspettare
+    // «Tutto chiaro, ho capito»; tutSupported = il telefono ha risposto che lo sa fare (pagina aggiornata)
+    this.tutWait = false; this.tutSupported = false; this.tutListeners = new Set();
     this.lastPhase = null;
     this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false };
     // passo della calibrazione come lo vede il computer (natpf_cal_view.js): si aggiorna con ogni evento del telefono,
@@ -393,7 +396,7 @@ export class NatpfPhoneRacket {
       if (!this.state.relinked){ this.aimModel.reset(); this.faceModel.reset(); }
     }
     // diag: se la diagnostica sta registrando, anche dopo una riconnessione il telefono rimanda i campioni grezzi
-    if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.link.send({ t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}) }); this.gripSent = true; this.lastExpect = null; }
+    if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.link.send(this._cfg()); this.gripSent = true; this.lastExpect = null; }
     if (!this.connected) this.gripSent = false;
   }
   get pairingUrl(){ return this.link ? pairingUrl(phonePageUrl(window.location, this.lanOrigin), testSearch(), this.link.session, this.link.token) : null; }
@@ -415,6 +418,11 @@ export class NatpfPhoneRacket {
     const link = this.link = createPhoneLink();
     link.on('change', () => { this._sendGrip(); this._syncPhoneState(); this._changed(); });
     link.on('cal', e => this._onCal(e));
+    link.on('tut', e => {
+      if (e.wait) this.tutSupported = true;
+      if (e.ok){ this.tutWait = false; for (const fn of this.tutListeners) try { fn(e); } catch (err){ console.error(err); } }
+      this._changed();
+    });
     link.on('swing', s => this._onSwing(s));
     link.on('toss', () => this._onToss());
     link.on('prep', p => this._onPrep(p));
@@ -460,6 +468,15 @@ export class NatpfPhoneRacket {
     this._changed();
   }
   onCal(fn){ this.calListeners.add(fn); return () => this.calListeners.delete(fn); }
+  // configurazione mandata al telefono (a ogni collegamento e quando cambia l'attesa del tutorial)
+  _cfg(){ return { t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}), ...(this.tutWait ? { tut: 1 } : {}) }; }
+  // il telefono aspetta il tutorial (on) o calibra subito (off); onTutorial: «Tutto chiaro, ho capito» toccato sul telefono
+  waitTutorial(on){
+    const v = !!on; if (v === this.tutWait) return;
+    this.tutWait = v; if (!v) this.tutSupported = false;
+    if (this.connected) this.link.send(this._cfg());
+  }
+  onTutorial(fn){ this.tutListeners.add(fn); return () => this.tutListeners.delete(fn); }
   // gesto fatto a richiesta (esercizio «Pallonetto» o «Palla corta»): esempio per le soglie personali. Con la forma del
   // colpo (telefoni di oggi) è un esempio della forma del proprio gesto (prima con questi telefoni non si imparava niente,
   // e l'esercizio diceva comunque «Ho imparato il tuo gesto»). Restituisce { learned, distinct }: distinct se il gesto

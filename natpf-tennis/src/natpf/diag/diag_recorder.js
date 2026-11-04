@@ -92,7 +92,7 @@ export class DiagRecorder {
     this.log('sessione', { ...this.meta, gpu: undefined });
     // telefono: campioni grezzi (il telefono li manda solo se la diagnostica li chiede)
     this.phoneSamples = !!phoneSamples;
-    if (ph && phoneSamples){ ph.diagStream = true; ph.link?.send({ t: 'cfg', prep: 1, mo: 1, diag: 1 }); }
+    if (ph && phoneSamples){ ph.diagStream = true; ph.link?.send({ ...(ph._cfg ? ph._cfg() : { t: 'cfg', prep: 1, mo: 1 }), diag: 1 }); }
     this._phoneStato(true);
     if (ph?.profile) this.log('tel.profilo', { profilo: ph.profile, mano: ph.hand || null, liftBaseline: ph.liftBaseline ?? null });
     if (ph?.device) this.log('tel.dispositivo', ph.device);
@@ -127,7 +127,7 @@ export class DiagRecorder {
       clearInterval(this._flushT); clearInterval(this._secT); cancelAnimationFrame(this._raf);
       if (this._ownCamera){ for (const tr of this._ownCamera.getTracks()) tr.stop(); this._ownCamera = null; }
       if (this._ownVideo){ this._ownVideo.remove(); this._ownVideo = null; }
-      if (ph && this.phoneSamples){ ph.diagStream = false; ph.link?.send({ t: 'cfg', prep: 1, mo: 1, diag: 0 }); }
+      if (ph && this.phoneSamples){ ph.diagStream = false; ph.link?.send({ ...(ph._cfg ? ph._cfg() : { t: 'cfg', prep: 1, mo: 1 }), diag: 0 }); }
       await this.flush(true);
       this.active = false;
       const meta = await this.store.close(this.id, { durationS: r((this.now() - this.partT0)/1000, 1), endedAt: this.wallNow(), counts: this._partCounts(), videos: this.videos.map(v => v.info) });
@@ -174,7 +174,7 @@ export class DiagRecorder {
     if (free < FREE_STOP){ this.warn('spazio', `spazio su disco finito (${mb} MB liberi): registrazione chiusa`, { liberoMB: mb }); await (this.autoStop ? this.autoStop() : this.stop()); return; }
     if (free < FREE_RAW && this.phoneSamples){
       const ph = this.engine.natpfPhone;
-      this.phoneSamples = false; if (ph){ ph.diagStream = false; ph.link?.send({ t: 'cfg', prep: 1, mo: 1, diag: 0 }); }
+      this.phoneSamples = false; if (ph){ ph.diagStream = false; ph.link?.send({ ...(ph._cfg ? ph._cfg() : { t: 'cfg', prep: 1, mo: 1 }), diag: 0 }); }
       this.warn('spazio-campioni', `spazio su disco quasi finito (${mb} MB liberi): fermati anche i campioni del telefono`, { liberoMB: mb });
       this.notify?.('Diagnostica: spazio su disco quasi finito, fermati i campioni del telefono');
     }

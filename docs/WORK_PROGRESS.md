@@ -109,6 +109,22 @@ Criterio di fine: script `natpf-*` verdi, CI che prova gioco, build e sito sul b
   Provati estratti: Cloudflare (pagine, versione .3, `turn.json`, foto della presa, video); LAN (HTTPS 8443, versione .3,
   foto, `grip-art.js` con `GRIP_STYLE = 'palmo'`, pagina del telefono).
 
+## B4 · Modale del tutorial prima della calibrazione (gioco singolo) · [x] · 04/11/2026
+- [x] B4.1 · protocollo: il computer manda `cfg` con `tut: 1` (`natpf_phone_racket.waitTutorial`), il telefono risponde
+  `{ t: 'tut', w: 1 }` (lo sa fare), dopo «Attiva i sensori» resta nello stato `tut` (anche se aveva già cominciato a
+  calibrare) e mostra in alto **«Tutto chiaro, ho capito»**; al tocco manda `{ t: 'tut', ok: 1 }` e calibra. Un telefono
+  con la pagina di prima non risponde `w`: il computer chiude la modale appena calibra da solo. `link.js` inoltra `tut`;
+  la diagnostica rimanda la `cfg` completa (`_cfg()`), senza perdere l'attesa.
+- [x] B4.2 · `natpf_tutorial.js` (nuovo): modale grande in `cqw/cqh`, 11 schede (presa con foto e 3D, posizione,
+  dritto, rovescio, servizio, piatto, pallonetto, palla corta, tagliato, schiacciata, volée) dalle definizioni verificate
+  dei gesti, scorrimento automatico (6,5 s, ferma 20 s dopo una scelta), un solo contesto WebGL condiviso, più istanze
+  possibili (per B5). In `natpf_training`: al posto della lezione con il telefono, in tutti i percorsi (Allenamento,
+  riscaldamento, sfide), una volta per sessione; Esc la chiude (chi gestisce la postazione); «Rivedi i gesti» nel pannello;
+  riquadro «Guarda e ripeti» tolto in calibrazione, resta negli esercizi; la lezione a passi resta per la webcam.
+  Telefono: «Fatto! Guarda il computer: si parte da soli» (prima «…e conferma», ma conferma il computer).
+  Test: gioco 683/683 (modale, telefono di prima, scorrimento, webcam, Esc), sito 182/182; e2e `natpf-training-flow`
+  15/15 (modale e «ho capito» sul telefono simulato), schermata della modale controllata.
+
 ## B6 · Valutazione Windows e architettura · [x] · 04/11/2026
 - [x] B6.1 · `docs/DESKTOP_WINDOWS.md`: contesto d'uso (risposte del 04/11), architettura attuale con i riferimenti,
   audit (rendering, latenza, Windows), cosa richiede la rete, confronto A/A+/PWA/Electron/Tauri/NW.js/Neutralino,

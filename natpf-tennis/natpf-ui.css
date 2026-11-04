@@ -1251,3 +1251,44 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
   #connect-certificate-dialog { width: 80cqw; padding: 4cqw; }
   #connect-certificate-dialog .natpf-qr { width: min(45cqw, 35cqh); height: min(45cqw, 35cqh); }
 }
+
+/* ---------- tutorial prima della calibrazione (natpf_tutorial.js, richiesta del 04/11) ----------
+   Misure legate all'area del gioco (cqw/cqh): gira anche in un'area di ledwall. Una modale grande al posto del riquadro
+   piccolo «Guarda e ripeti»; nel 1v1 sullo stesso schermo un'istanza per metà (.natpf-tutorial.half) */
+.natpf-tutorial { position: absolute; inset: 0; z-index: 70; display: grid; place-items: center; padding: 2cqh 2cqw;
+  background: rgba(4, 8, 24, 0.74); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.natpf-tutorial.hidden { display: none; }
+.natpf-tutorial .tut-card { width: min(94cqw, 1240px); max-height: 94cqh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: 1.6cqh; padding: 2.4cqh 2.2cqw; border-radius: var(--r-l); background: var(--panel-solid); border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow); color: var(--text); font-family: var(--font-text); }
+.natpf-tutorial .tut-kicker { display: block; font-size: clamp(11px, 1.2cqw, 17px); font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ball); }
+.natpf-tutorial .tut-title { margin: .1em 0 0; font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: clamp(20px, 2.8cqw, 44px); text-transform: uppercase; }
+.natpf-tutorial .tut-body { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 2.2cqw; align-items: center; min-height: 0; }
+.natpf-tutorial .tut-stage { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 1cqw; height: 54cqh; min-height: 0;
+  border-radius: var(--r-m); overflow: hidden; background: radial-gradient(circle at 50% 40%, var(--ink-700), var(--ink-950)); }
+.natpf-tutorial .tut-media { min-height: 0; }
+.natpf-tutorial .tut-media.hidden { display: none; }
+.natpf-tutorial .tut-photo { width: 100%; height: 100%; object-fit: cover; display: block; }
+.natpf-tutorial .tut-photo.mirror { transform: scaleX(-1); }
+.natpf-tutorial .tut-3d { position: relative; min-height: 0; }
+.natpf-tutorial .tut-3d canvas { width: 100% !important; height: 100% !important; display: block; }
+.natpf-tutorial .tut-count { font-size: clamp(11px, 1.2cqw, 16px); color: var(--text-2); letter-spacing: .08em; text-transform: uppercase; }
+.natpf-tutorial .tut-name { margin: .2em 0 .3em; font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: clamp(24px, 3.6cqw, 56px); text-transform: uppercase; color: var(--ball); }
+.natpf-tutorial .tut-text { margin: 0 0 .6em; font-size: clamp(14px, 1.6cqw, 24px); line-height: 1.35; color: var(--text); }
+.natpf-tutorial .tut-text.hidden { display: none; }
+.natpf-tutorial .tut-cues { margin: 0; padding-left: 1.1em; }
+.natpf-tutorial .tut-cues li { margin: .45em 0; font-size: clamp(15px, 1.8cqw, 26px); line-height: 1.3; }
+.natpf-tutorial .tut-tabs { display: flex; flex-wrap: wrap; gap: .6cqw; }
+.natpf-tutorial .tut-tab { font: 700 clamp(11px, 1.2cqw, 17px)/1 var(--font-text); padding: .55em 1em; border-radius: var(--r-pill);
+  border: 1px solid var(--line-strong); background: transparent; color: var(--text); cursor: pointer; }
+.natpf-tutorial .tut-tab.on { background: var(--ball); color: var(--ball-ink); border-color: var(--ball); }
+.natpf-tutorial .tut-foot { display: flex; align-items: center; gap: 1.4cqw; padding-top: 1.4cqh; border-top: 1px solid var(--line); }
+.natpf-tutorial .tut-phone { flex: none; width: clamp(18px, 2.2cqw, 34px); height: clamp(32px, 3.9cqw, 60px); border: 3px solid var(--ball);
+  border-radius: 7px; animation: tut-pulse 1.4s ease-in-out infinite; }
+.natpf-tutorial .tut-wait { flex: 1; margin: 0; font-size: clamp(15px, 2cqw, 30px); font-weight: 800; }
+.natpf-tutorial .tut-close.hidden { display: none; }
+@keyframes tut-pulse { 50% { transform: scale(1.12); box-shadow: 0 0 0 6px rgba(227, 255, 54, 0.18); } }
+@container natpf (max-aspect-ratio: 5/4) {
+  .natpf-tutorial .tut-body { grid-template-columns: 1fr; }
+  .natpf-tutorial .tut-stage { height: 40cqh; }
+}

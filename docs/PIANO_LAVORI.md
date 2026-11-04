@@ -18,20 +18,22 @@ Come si aggiorna:
 ## 1. Checkpoint (riscritto a ogni passo)
 
 - Aggiornato: 04/11/2026 · agente: Claude · branch `natpf-simulator`.
-- Ultimo blocco: **B3 presa fatto** (versione `2026-11-04.3`): presa nel palmo dalla foto dell'utente al posto del
-  martello, rollback con `GRIP_STYLE = 'martello'` in `site/js/tennis/grip-art.js` (vedi PROJECT_MEMORY §Gesti).
-  Test: gioco 680/680, sito 182/182, LAN 10/10, build ok. Prove nel browser: tutte verdi in locale dopo B1.1–B1.4.
-- CI su `natpf-simulator`: workflow del gioco verde; prove nel browser da ricontrollare dopo B1.4 (permesso dei
-  sensori nel Chromium della CI).
-- Ultimi pacchetti consegnati: **2026-11-04.3** (LAN sha256 `26ae8b0c…2e86d5f`, Cloudflare `6ecdd71d…436026c`), provati
-  estratti (WORK_PROGRESS B3.5).
-- Crediti Higgsfield spesi per la richiesta del 04/11: **41 / 100** (saldo 667,37): intro 40, scontorno della foto 1.
-- Non verificato: telefono vero con la presa nuova; video H.264 in un browser vero.
-- **Blocco in corso:** B4 (modale del tutorial, gioco singolo).
-- **Prossima azione esatta:** B4.1 — protocollo «tutorial»: il computer manda al telefono di aspettare (campo nella
-  configurazione), il telefono dopo «Attiva i sensori» non avvia la calibrazione e mostra «Tutto chiaro, ho capito»;
-  al tocco manda un messaggio e il computer avvia la calibrazione. Tutti i punti di partenza in §5 B4 «Come 1».
-  Test del protocollo in `tools/test` (pagina del telefono) e `natpf-tennis/test` (computer).
+- Ultimo blocco: **B4 modale del tutorial fatto** (versione `2026-11-04.4`): `natpf_tutorial.js`, protocollo
+  `cfg.tut`/`tut` con «Tutto chiaro, ho capito» sul telefono, riquadro «Guarda e ripeti» tolto in calibrazione.
+  Test: gioco 683/683, sito 182/182, LAN 10/10, build ok; e2e training-flow 15/15, blackout 6/6, training-reconnect 6/6,
+  diag-session 24/24. Prima: B3 presa nel palmo (rollback `GRIP_STYLE = 'martello'`), B2 intro, B1 prove e CI, B6.
+- CI su `natpf-simulator`: workflow del gioco verde; prove nel browser: `natpf-training-flow` verde dopo B1.4; restano
+  rossi a intermittenza su runner condivisi (verdi in locale e in esecuzioni precedenti) `gesture-calibration` (servizio
+  del vecchio gioco del sito, attesa del contatto a riga 73) e `timing-browser` («P2 timing still correct after shared
+  pause», −0,069 s): da stabilizzare (punto aperto).
+- Ultimi pacchetti consegnati: vedi WORK_PROGRESS (2026-11-04.3; 2026-11-04.4 da consegnare con B4).
+- Crediti Higgsfield spesi per la richiesta del 04/11: **41 / 100** (saldo 667,37).
+- Non verificato: telefono vero (presa nuova, pulsante «ho capito»), video H.264 in un browser vero, Windows e ledwall.
+- **Blocco in corso:** B5 (stesso schermo: modale e calibrazione indipendenti per giocatore).
+- **Prossima azione esatta:** B5.1 — nella pagina «Collega i due telefoni» (`natpf_split_ui.js`) un'istanza di
+  `NatpfTutorial` per metà (`.natpf-tutorial.half`, contenitore nella metà del giocatore), `waitTutorial` per ciascun
+  telefono (`p1`, `p2`), `_drive` che non chiama `recalibrate()` finché quel telefono non ha toccato «ho capito»;
+  l'animazione 3D a chi l'ha chiesta per ultimo, l'altra metà con foto e indicazioni. Test con due telefoni finti.
 
 ---
 
@@ -101,7 +103,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B1 Prove nel browser e CI | [~] | telefono simulato aggiornato, script e2e verdi, CI sul branch | — | — |
 | B2 Intro | [x] | video con una pallina e il campo del gioco (Higgsfield, ≤100 crediti) | vedi WORK_PROGRESS B2 | 2026-11-04.2 |
 | B3 Presa | [x] | foto, figura, 3D e testi della presa nuova; piatto tollerante con test; tocchi; rollback | vedi WORK_PROGRESS B3 | 2026-11-04.3 |
-| B4 Modale tutorial | [ ] | modale prima della calibrazione, «Tutto chiaro, ho capito» sul telefono | — | — |
+| B4 Modale tutorial | [x] | modale prima della calibrazione, «Tutto chiaro, ho capito» sul telefono | vedi WORK_PROGRESS B4 | 2026-11-04.4 |
 | B5 Stesso schermo | [ ] | modale e calibrazione indipendenti nelle due metà di «Collega» | — | — |
 | B6 Windows | [~] | A+ portatile implementato; collaudo Windows reale e F0/F1 da completare | commit di questo checkpoint | 2026-11-04.1 |
 

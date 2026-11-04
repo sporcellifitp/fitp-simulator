@@ -733,12 +733,15 @@
          in alto la barra delle tappe, in alto a destra l'animazione 3D del gesto in loop (natpf_gesture_demo.js), in basso
          a sinistra la scheda dell'esercizio con lo stato e il feedback del gesto letto dal telefono. Prima degli esercizi
          dell'«Allenamento», la lezione su presa, orientamento, mano e posizione (pannello a sinistra). -->
+    <!-- tutorial prima della calibrazione (natpf_tutorial.js): presa e gesti, si chiude dal telefono -->
+    <div id="natpf-tutorial"></div>
     <div id="natpf-coach" class="natpf-coach hidden" aria-live="polite" data-mode="drill">
       <div class="coach-top">
         <span class="coach-kicker" id="coach-kicker">Riscaldamento</span>
         <ol class="coach-stages" id="coach-stages" aria-label="Tappe"></ol>
         <div class="coach-actions">
-          <button type="button" id="coach-simple" class="btn btn-ghost btn-sm hidden">Modalità semplice</button
+          <button type="button" id="coach-review" class="btn btn-ghost btn-sm hidden">Rivedi i gesti</button
+          ><button type="button" id="coach-simple" class="btn btn-ghost btn-sm hidden">Modalità semplice</button
           ><button type="button" id="coach-exit" class="btn btn-ghost btn-sm">Salta ›</button>
         </div>
       </div>

@@ -34,18 +34,14 @@ test('media del tutorial: ogni foto esiste ed è leggera, con la provenienza doc
 test('lezione con foto reali (specchiate per il mancino), esercizi con l’animazione 3D verificata', async () => {
   const w = await makeWorld({ controller: 'phone' });
   const T = w.ui.training, $ = id => T.coach.querySelector('#' + id);
-  T.start({ intro: true }); T.paint();
-  const media = $('coach-lesson-media');
-  assert.equal(media.classList.contains('hidden'), false);
-  assert.equal($('coach-lesson-demo').classList.contains('hidden'), true, 'niente 3D con la foto');
-  assert.ok(media.innerHTML.includes(PHOTOS.grip.src), media.innerHTML); assert.doesNotMatch(media.innerHTML, /Così no|mirror/);
-  w.ui.hand.set('left'); T.paint();
-  assert.match(media.innerHTML, /lesson-photo mirror/);
-  w.ui.hand.set('right');
-  T.lessonAction('next'); T.paint();
-  assert.equal(media.classList.contains('hidden'), true, 'orientamento e mano: animazione 3D');
-  assert.equal($('coach-lesson-demo').classList.contains('hidden'), false);
-  T.lessonAction('right'); T.stop({ completed: false, silent: true });
+  // con il telefono la presa si mostra nella modale del tutorial (04/11), con la foto reale
+  T.start({ intro: true });
+  const media = T.tutorial.root.querySelector('.tut-media');
+  assert.ok(T.tutorialOpen); assert.ok(media.innerHTML.includes(PHOTOS.grip.src), media.innerHTML); assert.doesNotMatch(media.innerHTML, /mirror/);
+  T.tutorial.close('review'); T.tutorial.openFor({ mode: 'review', hand: 'left' });
+  assert.match(T.tutorial.root.querySelector('.tut-media').innerHTML, /tut-photo mirror/, 'specchiata per il mancino');
+  T.tutorial.close('review'); T._tutorialDone('skip');
+  T.stop({ completed: false, silent: true });
 
   w.E.natpfPhone.link.cmd('skip');
   T.start({ drills: DRILLS.filter(d => ['forehand', 'serve'].includes(d.id)) }); T.cal = null; T.paint();

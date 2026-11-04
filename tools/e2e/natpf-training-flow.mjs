@@ -99,14 +99,15 @@ try {
   // si entra in campo da soli (telefono con i sensori attivi)
   const inField = await game.waitForFunction(() => __natpfTennis.natpfUi.training.active, null, { timeout: 8000 }).then(() => true, () => false);
   check('con i sensori attivi si entra nel campo d’allenamento', inField);
-  // «Allenamento» dal menu apre prima la lezione (presa, mano, posizione): chi gioca la scorre con «Avanti» fino a
-  // «Calibra». Durante la lezione il computer non segue la calibrazione del telefono (natpf_training._onCal)
-  const lesson = [];
-  for (let k = 0; k < 8 && await game.evaluate(() => !!__natpfTennis.natpfUi.training.lesson); k++){
-    lesson.push(await game.evaluate(() => document.getElementById('coach-lesson-next')?.textContent || ''));
-    await game.click('#coach-lesson-next');
-  }
-  check('lezione iniziale scorsa con «Avanti» fino a «Calibra»', lesson.length > 0 && /Calibra/.test(lesson.at(-1)) && await game.evaluate(() => !__natpfTennis.natpfUi.training.lesson), JSON.stringify(lesson));
+  // prima della calibrazione la modale del tutorial (04/11): presa e gesti sul computer, il telefono aspetta e mostra
+  // «Tutto chiaro, ho capito»; toccato quello, parte la calibrazione (prima: lezione a passi con «Avanti»)
+  const tut = await game.evaluate(() => ({ open: __natpfTennis.natpfUi.training.tutorialOpen, cards: document.querySelectorAll('#natpf-tutorial .tut-tab').length, wait: document.querySelector('#natpf-tutorial .tut-wait')?.textContent || '', coachDemo: !document.getElementById('coach-demo')?.classList.contains('hidden') }));
+  const phoneTut = await phone.waitForFunction(() => { const b = document.getElementById('tutOk'); return b && !b.classList.contains('hidden') ? { sensor: __racchetta.state.sensor, big: document.getElementById('big').textContent } : null; }, null, { timeout: 8000 }).then(h => h.jsonValue(), () => null);
+  await shot('0b-tutorial');
+  check('modale del tutorial sul computer (presa e gesti) e il telefono aspetta «Tutto chiaro, ho capito»', tut.open && tut.cards >= 10 && /Tutto chiaro/.test(tut.wait) && !!phoneTut && phoneTut.sensor === 'tut', JSON.stringify({ tut, phoneTut }));
+  await phone.click('#tutOk');
+  const closed = await game.waitForFunction(() => !__natpfTennis.natpfUi.training.tutorialOpen && document.getElementById('natpf-tutorial').classList.contains('hidden'), null, { timeout: 5000 }).then(() => true, () => false);
+  check('«Tutto chiaro, ho capito» sul telefono chiude la modale e avvia la calibrazione', closed && await phone.evaluate(() => __racchetta.state.sensor === 'cal' && document.getElementById('tutOk').classList.contains('hidden')));
   await shot('1-fermo');
   await phone.waitForFunction(() => __racchetta.state.step === 'swings', null, { timeout: 8000 });
 

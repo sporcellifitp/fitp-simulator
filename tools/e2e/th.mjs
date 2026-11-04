@@ -53,6 +53,15 @@ export async function quickCalibrate(phone, plan, { timeout = 12000 } = {}){
 }
 // «Allenamento» dal menu apre prima la lezione (presa, mano, posizione): chi gioca la scorre con «Avanti» fino a
 // «Calibra». Durante la lezione il computer non segue la calibrazione del telefono (natpf_training._onCal).
-export async function finishLesson(game, max = 8){
+// Con il telefono, dal 04/11, al posto della lezione c'è la modale del tutorial: si chiude toccando «Tutto chiaro, ho
+// capito» sul telefono (phone), come chi gioca; senza la pagina del telefono, con Esc come chi gestisce la postazione.
+export async function finishLesson(game, max = 8, phone = null){
   for (let k = 0; k < max && await game.evaluate(() => !!window.__natpfTennis?.natpfUi?.training?.lesson); k++) await game.click('#coach-lesson-next');
+  if (!await game.evaluate(() => !!window.__natpfTennis?.natpfUi?.training?.tutorialOpen)) return null;
+  if (phone){
+    await phone.waitForFunction(() => { const b = document.getElementById('tutOk'); return b && !b.classList.contains('hidden'); }, null, { timeout: 8000 });
+    await phone.click('#tutOk');
+  } else await game.keyboard.press('Escape');
+  await game.waitForFunction(() => !window.__natpfTennis.natpfUi.training.tutorialOpen, null, { timeout: 8000 });
+  return phone ? 'telefono' : 'esc';
 }

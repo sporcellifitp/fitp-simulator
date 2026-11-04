@@ -53,7 +53,7 @@ try {
   await phone.waitForFunction(() => window.__racchetta?.state.linkState === 'on', null, { timeout: 30000 });
   await phone.click('#enable');
   await game.waitForFunction(() => __natpfTennis.natpfUi.training.active && __natpfTennis.natpfUi.training.cal, null, { timeout: 10000 });
-  await finishLesson(game);
+  await finishLesson(game, 8, phone);
   // primo gesto fatto, poi il telefono si scollega
   const coach = () => game.evaluate(() => ({ title: document.getElementById('coach-text').textContent, sub: document.getElementById('coach-sub').textContent, state: document.getElementById('coach-main').dataset.state, idx: __natpfTennis.natpfUi.training.view.idx }));
   await game.waitForFunction(() => document.getElementById('coach-main').dataset.state === 'go', null, { timeout: 10000 });

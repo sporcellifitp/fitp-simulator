@@ -55,6 +55,8 @@ test('«Torna al menu» durante la calibrazione prima di una sfida: si torna al 
   const { E, ui, lobby } = w;
   lobby.menu('challenges'); ui.events.nickname = 'Mario'; lobby.pickChallenge('rush'); lobby.go('connect'); lobby.next();
   assert.ok(ui.training.active && ui.training.calOnly);
+  // prima la modale del tutorial (04/11): Esc la chiude, come ogni finestra in primo piano; il secondo Esc è la pausa
+  assert.ok(ui.training.tutorialOpen); w.key('Escape', 'Escape'); assert.ok(!ui.training.tutorialOpen && !ui.pause.isOpen);
   w.advance(500); w.key('Escape', 'Escape'); assert.ok(ui.pause.isOpen && E.natpfPaused);
   ui.pause.run('menu'); w.advance(3000);
   assert.ok(lobby.visible && lobby.step === 'menu', `${lobby.visible} ${lobby.step}`);
