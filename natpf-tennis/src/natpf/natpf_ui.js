@@ -261,6 +261,19 @@ export class NatpfUi {
   paintConnect(){
     const p = this.phone, L = p.state, err = PHONE_ERR[L.phone];
     this.renderQr($('connect-qr'), $('connect-link'));
+    const certificateButton = $('connect-certificate');
+    const certificateOrigin = p.lanOrigin || (new URLSearchParams(location.search).get('lan') === '1' && !/^(localhost|127\.)/.test(location.hostname) ? location.origin : null);
+    if (certificateButton){
+      certificateButton.hidden = !certificateOrigin || new URLSearchParams(location.search).get('lan') !== '1';
+      certificateButton.onclick = () => {
+        if (!certificateOrigin || !window.qrcode) return;
+        const target = new URL(certificateOrigin); target.protocol = 'http:'; target.port = '8081'; target.pathname = '/'; target.search = ''; target.hash = '';
+        const q = window.qrcode(0, 'M'); q.addData(target.href); q.make();
+        $('connect-certificate-qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+        $('connect-certificate-url').textContent = target.href;
+        $('connect-certificate-dialog').showModal();
+      };
+    }
     const sensors = p.connected && (L.phone === 'cal' || L.phone === 'ready');
     const state = { scan: p.connected ? 'ok' : 'on', sensors: sensors ? 'ok' : err ? 'ko' : p.connected ? 'on' : '', hold: p.ready ? 'ok' : sensors ? 'on' : '' };
     for (const li of document.querySelectorAll('[data-connect]')) li.className = state[li.dataset.connect] || '';

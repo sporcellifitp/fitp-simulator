@@ -1,3 +1,38 @@
+NATPF WINDOWS DESKTOP A+ — 2026-11-04.1
+
+Estrai tutto lo ZIP. Apri AVVIA NATPF DESKTOP.cmd.
+Edge (oppure Chrome) e' necessario; Node e il gioco sono gia' inclusi.
+Windows chiede il permesso per firewall e certificato. Non chiudere la console.
+Per fermare il server: Ctrl+C. Per uscire dalla finestra del gioco: Alt+F4.
+CONFIGURA SCHERMO.cmd elenca i monitor e salva finestra app o schermo intero persistente (kiosk).
+Non blocca Windows: Alt+F4 resta disponibile.
+Chiudi la finestra del gioco e il server prima di cambiare monitor/modalita'.
+Il ledwall deve essere un monitor esteso di Windows. Se Windows o Edge ignorano
+la posizione, sposta la finestra sul ledwall e usa il pulsante Schermo intero.
+
+Dati persistenti: %LOCALAPPDATA%\NATPF (certificati, profilo Edge, monitor).
+Non cancellare questa cartella quando aggiorni lo ZIP. Il gioco sul PC usa sempre
+https://localhost:8443/?lan=1; il QR del telefono usa l'indirizzo LAN.
+Le vecchie impostazioni salvate in un altro browser o sull'IP non vengono copiate.
+Il telefono deve essere sulla stessa rete. In Collega, Prima volta su questo telefono
+mostra il QR per installare il certificato. Poi usa il QR del controller.
+
+AGGIORNAMENTO DA VECCHIO PACCHETTO
+Prima del primo avvio, copia tools\lan\certs dal vecchio pacchetto nello stesso
+percorso del nuovo: la vecchia autorita' verra' migrata senza cambiare il certificato
+installato sui telefoni. Se hai gia' avviato la nuova versione, non sovrascrivere
+le chiavi: usa il nuovo certificato sui telefoni oppure chiedi assistenza.
+
+AVVIA NATPF LAN.cmd conserva l'avvio classico nel browser.
+PREPARA I TELEFONI.cmd serve il certificato per l'avvio classico: non aprirlo mentre
+il desktop e' gia' avviato, perche' il desktop occupa gia' la porta 8081.
+SBLOCCA LA RETE.cmd ripete la configurazione firewall (solo sottorete locale).
+Le regole di blocco aziendali preesistenti non vengono eliminate: contatta il gestore.
+
+Da verificare sul PC Windows reale: posizione/dimensione sul ledwall, permessi,
+telefono Android/iOS e collegamento con rete pubblica e privata.
+Questa versione non promette un aumento degli FPS: usa lo stesso motore web.
+
 NATPF SIMULATOR · VERSIONE LAN (WINDOWS)
 ========================================
 

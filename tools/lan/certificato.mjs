@@ -14,11 +14,12 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { X509Certificate } from 'node:crypto';
 import { lanAddresses } from './server.mjs';
+import { certificateDir, migrateCertificates } from './storage.mjs';
 
 const require = createRequire(import.meta.url);
 const forge = require('node-forge');
 const DIR = path.dirname(fileURLToPath(import.meta.url));
-export const CERTS = path.join(DIR, 'certs');
+export const CERTS = certificateDir;
 const CA_DIR = path.join(CERTS, 'ca');
 const files = { caCert: path.join(CA_DIR, 'rootCA.pem'), caKey: path.join(CA_DIR, 'rootCA-key.pem'), cert: path.join(CERTS, 'cert.pem'), key: path.join(CERTS, 'key.pem'), publicCa: path.join(CERTS, 'natpf-ca.crt') };
 const DAY = 864e5;
@@ -50,6 +51,7 @@ export function coveredAddresses(certPath = files.cert){
   } catch { return []; }
 }
 export function ensureCertificate({ addresses = lanAddresses(), force = false } = {}){
+  migrateCertificates();
   const ca = loadOrCreateCa();
   const ips = [...new Set([...addresses, '127.0.0.1'])];
   const covered = coveredAddresses();

@@ -390,6 +390,14 @@
             <div class="connect-qr">
               <div id="connect-qr" class="natpf-qr"></div>
               <a id="connect-link" class="sheet-link" target="_blank" rel="noopener">Apri il link del controller ↗</a>
+              <button id="connect-certificate" class="sheet-link" type="button" hidden>Prima volta su questo telefono</button>
+              <dialog id="connect-certificate-dialog">
+                <h3>Prepara il telefono</h3>
+                <p>Installa il certificato NATPF una volta, poi torna al QR del controller. Nella versione LAN classica apri anche «PREPARA I TELEFONI» sul PC.</p>
+                <div id="connect-certificate-qr" class="natpf-qr"></div>
+                <p id="connect-certificate-url"></p>
+                <form method="dialog"><button>Chiudi</button></form>
+              </dialog>
             </div>
             <ol class="connect-steps">
               <li data-connect="scan"><i aria-hidden="true"></i><div><b>Inquadra il QR</b><span>Apri la fotocamera del telefono e tocca il link che compare.</span></div></li>

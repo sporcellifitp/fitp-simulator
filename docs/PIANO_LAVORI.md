@@ -17,31 +17,24 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-- Aggiornato: 04/11/2026 · agente: Claude · branch `natpf-simulator`.
-- Ultimo commit di codice: `b076a0d` «NATPF 2026-11-03.1: nomi nel 1v1 locale e fullscreen» (Codex). Il commit di
-  questo file aggiunge solo documenti. Alla ripresa: `git fetch origin natpf-simulator`, `git status -sb`,
-  `git log --oneline -5`.
-- Test su `b076a0d` (04/11): gioco 673/673 (`cd natpf-tennis && npm test`), sito 182/182
-  (`node --test tools/test/*.test.mjs`), server LAN 5/5 (`cd tools/lan && node --test test/*.test.mjs`).
-- Prove nel browser (`tools/e2e`, B1.1 fatto): dopo la correzione degli script `natpf-training-flow` 14/14,
-  `natpf-phone-keep` 13/13, `natpf-phone-blackout` 6/6, `natpf-training-reconnect` 6/6, `natpf-diag-session` 24/24,
-  `natpf-rally` 7/7, `natpf-menu` 22/22, `natpf-gameplay-23-10` 11/11, `natpf-latency` 9/9. Script del sito della CI
-  (B1.2): `phone-only` 10/10, `timing-browser` 8/8, `gesture-calibration` 18/18, `arcade-visuals` 9/9,
-  `intuitive-contact` 5/5, `quick-phone-ui` 6/6, `lan-setup-browser` 3/3, `tools/package-natpf.py` ok; `lan-browser`
-  7/8 qui (il WebRTC di questo ambiente non genera candidati ICE, noto dal 04/11): da vedere nella CI vera.
-- CI su `natpf-simulator`: prima esecuzione (B1.2, `d21a88c`) rossa per cause degli script, corrette in B1.3 (profilo
-  salvato v3 in `lan-browser`, schermo intero vero nel Chromium della CI, file del bundle rinominati); esito di B1.3 da
-  controllare su GitHub Actions.
-- B6 fatto: `docs/DESKTOP_WINDOWS.md` (valutazione, nessun codice). Da decidere dall'utente: avvio di F0/F1.
-- Versione dell'ultima consegna: `2026-11-03.1` in `site/js/tennis/version.js`; `site/tennis/build.json` è rimasto a
-  `2026-10-28.18` (da allineare al prossimo pacchetto).
+- Aggiornato: 04/11/2026 · Codex · `natpf-simulator`. Base integrata `4938134` (B1.3), preservata.
+- Ultimo blocco: B6.A+ autorizzato dall'utente con «Puoi svilupparlo?», implementazione portatile Windows.
+  Il commit che contiene questo checkpoint introduce `2026-11-04.1` (entrambi i file versione allineati).
+- Verifiche: gioco 675/675, sito 182/182, LAN 10/10; build riuscita; menu 22/22 a tre risoluzioni.
+  ZIP estratti: HTTPS localhost, pagina telefono, certificato pubblico senza chiavi accessibili, 21 asset offline
+  con SHA256, avvio del gioco e QR certificato LAN, certificato nascosto su Cloudflare. Test e build ripetuti dopo integrazione B1.3.
+- Non verificati: Windows/Edge reali, PowerShell/UAC/firewall, posizionamento ledwall, telefoni Android/iOS e WebRTC
+  reale (ambiente senza candidati ICE). Nessuna promessa di aumento FPS.
+- Pacchetti di questo commit: `natpf-simulator-lan-windows-20261104-1.zip` e
+  `natpf-simulator-cloudflare-20261104-1.zip`. Avvio desktop: AVVIA NATPF DESKTOP.cmd; monitor: CONFIGURA SCHERMO.cmd.
+- Prossimo passo B6: collaudo Windows pubblico/privato, due avvii, cambio IP, migrazione CA e monitor esteso.
+  Poi F0 misure hardware e F1 qualità grafica/taratura/traffico. Nessun Electron o worker webcam implementato.
+- B1.3 ha corretto i problemi degli script della CI (profilo v4, schermo simulato, nomi bundle); esito GitHub da controllare.
 - Crediti Higgsfield spesi per la richiesta del 04/11: **40 / 100** (saldo iniziale 708,37). Tentativo 1 dell'intro:
   job `5b2b8345-df35-4538-97b6-f04d14ff23d0` (cinematic_studio_3_0, 8 s, 720p, fotogrammi iniziale/finale caricati come
   media `012c2147-…` e `ff31adfb-…`). Se la sessione si interrompe: `jobs_wait` su quel job, poi verifica (§5 B2).
-- **Blocco in corso:** B0 (questo file e le istruzioni) → B1 (script e2e) → B6 (documento).
-- **Prossima azione esatta:** B2 — scaricare il video del tentativo 1 quando è pronto, verificarlo con
-  `python3 -I natpf-tennis/scripts/audit/conta-palline.py <video> 640` (≤ 1 pallina per fotogramma), una rete, colori
-  del gioco, niente scritte; controllare anche la CI di B1.3.
+- Continuità altro lavoro: B2, scaricare e verificare il video del tentativo 1 con il job sopra; B3/B4/B5 restano
+  nel registro. La versione desktop non cambia gesti, tutorial o intro.
 
 ---
 
@@ -113,7 +106,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B3 Presa | [ ] | foto, figura, 3D e testi della presa nuova; piatto tollerante con test; tocchi; rollback | — | — |
 | B4 Modale tutorial | [ ] | modale prima della calibrazione, «Tutto chiaro, ho capito» sul telefono | — | — |
 | B5 Stesso schermo | [ ] | modale e calibrazione indipendenti nelle due metà di «Collega» | — | — |
-| B6 Windows | [x] | `docs/DESKTOP_WINDOWS.md`: confronto, architettura, benefici, piano (niente codice) | vedi git log | invariati |
+| B6 Windows | [~] | A+ portatile implementato; collaudo Windows reale e F0/F1 da completare | commit di questo checkpoint | 2026-11-04.1 |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).
@@ -260,8 +253,8 @@ resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mo
 - **Perché**: due persone alla prima esperienza devono poter impugnare, capire i colpi e calibrare da sole, insieme.
 - **Fine**: test, prova nel browser con due telefoni simulati, screenshot, pacchetti consegnati.
 
-### B6 · Versione Windows e architettura (solo valutazione, nessuna implementazione)
-- **Stato**: nessuna app desktop. Analisi del 04/11: il guscio (Electron, Tauri, browser) usa lo stesso Chromium,
+### B6 · Versione Windows e architettura (sviluppo A+ autorizzato dopo la valutazione)
+- **Stato**: A+ portatile implementato in 2026-11-04.1; collaudo Windows reale da fare. Analisi iniziale del 04/11: il guscio (Electron, Tauri, browser) usa lo stesso Chromium,
   quindi non cambia le prestazioni del 3D. Margini veri: livelli di qualità grafica (oggi sempre al massimo: ~1,5
   milioni di triangoli di pubblico, 417 draw call, MSAA 4×, DPR fino a 2, ombre 2048), riconoscimento della webcam
   fuori dal thread del disegno, ritardo dello schermo compensato solo con un valore manuale 0–200 ms nella diagnostica
@@ -280,8 +273,8 @@ resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mo
   tra PC esce dal piano).
 - **Perché**: il prodotto gira soprattutto su un PC Windows noleggiato con telefoni in LAN: servono stabilità e
   avvio semplice più di un nuovo guscio.
-- **Fine**: documento scritto e pubblicato; nessuna modifica al codice. Stato: fatto il 04/11; le fasi F0–F5 partono
-  solo su decisione dell'utente (consigliato: F0 misure, poi F1 miglioramenti web).
+- **Fine**: valutazione pubblicata e primo blocco A+ sviluppato su autorizzazione successiva. Prima di dichiarare
+  F2 conclusa serve il collaudo Windows. F0 misure e restante F1 ancora aperti; Electron e worker non implementati.
 
 ### Punti aperti precedenti (non della richiesta del 04/11; restano validi)
 - **Prove dal vivo** (non verificabili qui). Cosa: iPhone (calibrazione e lati dei colpi), webcam a 1–4 m e per due

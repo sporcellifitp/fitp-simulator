@@ -6,6 +6,7 @@ import {X509Certificate} from 'node:crypto';
 import {createSecureContext} from 'node:tls';
 import {spawn} from 'node:child_process';
 import {createLanServer,lanAddresses} from './server.mjs';
+import {certificateDir} from './storage.mjs';
 const directory=fileURLToPath(new URL('.',import.meta.url));
 export function inspectCertificate(certPath,keyPath,addresses=lanAddresses()){
   if(!fs.existsSync(certPath)||!fs.existsSync(keyPath))return {valid:false,message:'Manca il certificato HTTPS. Completa la prima configurazione qui sotto.',addresses,matching:[]};
@@ -17,7 +18,7 @@ export function inspectCertificate(certPath,keyPath,addresses=lanAddresses()){
     return {valid:true,addresses,matching,message:matching.length?'Server HTTPS pronto.':'Il certificato non copre gli indirizzi LAN attuali. Rigeneralo con gli indirizzi mostrati sotto.'};
   }catch(error){return {valid:false,addresses,matching:[],message:`Certificato HTTPS non utilizzabile: ${error.message}`};}
 }
-export async function launchLan({port=8443,setupPort=8080,open=true,cert=path.join(directory,'certs/cert.pem'),key=path.join(directory,'certs/key.pem'),handler=null,gamePath='/tennis/?lan=1',title='NATPF Simulator',extraStatus=null}={}){
+export async function launchLan({port=8443,setupPort=8080,open=true,cert=path.join(certificateDir,'cert.pem'),key=path.join(certificateDir,'key.pem'),handler=null,gamePath='/tennis/?lan=1',title='NATPF Simulator',extraStatus=null}={}){
   let game=null,last='',busy=false,problem=null,inspection=inspectCertificate(cert,key);
   const status=()=>({ready:!!game&&inspection.matching.length>0,message:problem||inspection.message,addresses:inspection.addresses,urls:game?inspection.matching.map(ip=>`https://${ip}:${game.server.address().port}${gamePath}`):[],registered:game?.clients.size||0,...(extraStatus?extraStatus():{})});
   const setup=createLanServer({port:setupPort,host:'127.0.0.1',setupOnly:true,status});await setup.listen();

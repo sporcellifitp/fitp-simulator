@@ -8,6 +8,7 @@
 // Tutto il gioco (camera, interfaccia, menu) sta nell'area: il body diventa il riquadro dell'area (con transform, così
 // anche gli elementi «position: fixed» restano dentro) e fuori resta nero. viewport() dà la misura da usare al posto di
 // window.innerWidth/innerHeight (motore, HUD, minigiochi).
+import { keepScreenAwake } from './natpf_wake_lock.js';
 export const SCREEN_KEY = 'natpf-tennis.screen';
 export const SCREENS = Object.freeze({
   full: { label: 'Schermo intero', ratio: null },
@@ -51,6 +52,7 @@ export function viewport(){ const { w, h } = win(); return screenArea(current, w
 export class NatpfScreen {
   constructor(engine){
     this.engine = engine;
+    this.releaseWakeLock = keepScreenAwake();
     let saved = null; try { saved = localStorage.getItem(SCREEN_KEY); } catch {}
     const s = readScreen(globalThis.location?.search || '', saved);
     this.fromUrl = s.fromUrl;

@@ -1237,3 +1237,17 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 @media (prefers-reduced-motion: reduce) {
   .natpf-guide .guide-track, .natpf-guide .guide-card { transition: none; }
 }
+
+/* Certificate setup is optional; keep the controller QR visible in the underlying page. */
+#connect-certificate-dialog {
+  background: var(--ink-900, #101c3e); color: var(--text, white); border: 0;
+  border-radius: 1.3cqw; padding: 2cqw; width: min(28cqw, 90cqw); max-height: 85cqh;
+  font: 500 clamp(12px, 1.2cqw, 20px)/1.4 var(--font-text); overflow: auto;
+}
+#connect-certificate-dialog::backdrop { background: rgba(0, 0, 0, .7); }
+#connect-certificate-dialog .natpf-qr { width: min(18cqw, 30cqh); height: min(18cqw, 30cqh); margin: auto; }
+#connect-certificate-url { overflow-wrap: anywhere; }
+@container natpf (max-width: 700px) {
+  #connect-certificate-dialog { width: 80cqw; padding: 4cqw; }
+  #connect-certificate-dialog .natpf-qr { width: min(45cqw, 35cqh); height: min(45cqw, 35cqh); }
+}

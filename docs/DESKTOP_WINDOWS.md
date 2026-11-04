@@ -5,7 +5,7 @@ Documento vivo (blocco B6 di `docs/PIANO_LAVORI.md`): si aggiorna quando cambian
 Documento richiesto dall'utente il 04/11/2026 (punto 4): valutare una versione installabile su Windows, fare l'audit
 dell'architettura (prestazioni, rendering, comunicazione, latenza, stabilità), capire cosa richiede davvero la rete,
 come migliorare abbinamento e comunicazione telefono↔PC e come restare compatibili con la versione browser.
-**Nessuna implementazione**: qui ci sono il confronto tecnico, l'architettura consigliata, i benefici attesi e il piano.
+**Valutazione iniziale**: confronto tecnico, architettura consigliata, benefici attesi e piano.
 
 Legenda delle affermazioni: **M** = misurato o verificato nel codice, con il riferimento; **S** = stima;
 **D** = dedotto dal codice, non provato su Windows. In questo ambiente (Linux, WebGL software, nessun telefono vero,
@@ -217,3 +217,27 @@ WebView2 rende il firewall più fragile, cioè proprio il punto debole attuale.
 - File scaricati da internet: Windows marca lo zip («Mark of the Web»); `node.exe` è firmato, i `.cmd` possono chiedere
   conferma. Da provare con lo zip scaricato davvero.
 - Stime di sforzo e di guadagno non misurate (±50%).
+
+
+## 12. Primo blocco A+ implementato · 04/11/2026 · 2026-11-04.1
+
+Autorizzazione successiva dell'utente: «Puoi svilupparlo?». Avvio portatile con Edge e ripiego Chrome,
+profilo dedicato, localhost stabile, scelta monitor salvata, app a finestra o schermo intero. Il comando
+`--kiosk` del launcher NATPF seleziona `--app` + `--start-fullscreen`: NON il chiosco InPrivate di Edge, che
+perderebbe i dati alla chiusura (documentazione Microsoft: https://learn.microsoft.com/en-us/deployedge/microsoft-edge-configure-kiosk-mode).
+Non è un blocco del sistema operativo; Alt+F4 rimane disponibile. Chiudere gioco e console prima di cambiare monitor.
+
+Certificati in `%LOCALAPPDATA%/NATPF/certs`; migrazione atomica dalla vecchia `tools/lan/certs` se la destinazione
+non esiste, verifica corrispondenza CA/chiave, nessuna sovrascrittura di autorità già configurate.
+Per aggiornare da un altro ZIP, copiare la vecchia cartella certs nel nuovo pacchetto PRIMA del primo avvio.
+I record del vecchio profilo browser sull'IP non vengono importati. L'autorità resta identica cambiando IP;
+`nameConstraints` rinviati per non invalidare telefoni già preparati prima delle prove iOS/Android.
+
+Firewall: HTTPS Node porte 8443/8081 e UDP del browser, solo LocalSubnet; elevazione UAC esplicita, regole estranee
+preservate, eventuali blocchi preesistenti segnalati. Se il permesso è negato si può riprovare con SBLOCCA LA RETE.
+La pagina certificato parte insieme al desktop. QR nella pagina Collega solo in LAN; wake lock opzionale nel gioco
+anche Cloudflare, con recupero tornando in primo piano. Node nello ZIP una sola volta.
+
+Prove automatiche: 675 gioco, 182 sito, 10 LAN; menu 22/22; build e pacchetti estratti verificati.
+Restano da verificare su Windows reale: UAC, sintassi/effetto firewall PowerShell, monitor/DPI/Edge e telefoni reali.
+F0 e restante F1 (qualità automatica, taratura latenza, traffico, dipendenze) non completati da questo blocco.
