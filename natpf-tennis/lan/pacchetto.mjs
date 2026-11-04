@@ -100,13 +100,16 @@ cd /d "%~dp0"
 ${NODE}
 "%NODE%" tools\\lan\\desktop.mjs --list-monitors
 if errorlevel 1 goto fine
-set /p "MONITOR=Numero del monitor: "
-set /p "MODO=Scrivi kiosk per schermo intero, oppure app per finestra: "
-if /i "%MODO%"=="kiosk" (
-  "%NODE%" tools\\lan\\desktop.mjs "--monitor=%MONITOR%" --kiosk
-) else (
-  "%NODE%" tools\\lan\\desktop.mjs "--monitor=%MONITOR%" --app
-)
+set /p "MONITOR=Numero del monitor dove aprire il gioco (es. il ledwall): "
+echo   1 = schermo intero senza bordi, consigliato
+echo   2 = finestra con bordi, solo per prove
+set "MODO=1"
+set /p "MODO=Scegli 1 o 2 e premi INVIO [1]: "
+if "%MODO%"=="2" goto finestra
+"%NODE%" tools\\lan\\desktop.mjs "--monitor=%MONITOR%" --schermo-intero
+goto fine
+:finestra
+"%NODE%" tools\\lan\\desktop.mjs "--monitor=%MONITOR%" --finestra
 :fine
 pause
 `));

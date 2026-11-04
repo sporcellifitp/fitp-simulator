@@ -11,18 +11,41 @@ export function findBrowser(env = process.env, exists = fs.existsSync) {
   }
   throw Error('Installa Microsoft Edge oppure Google Chrome prima di avviare NATPF.');
 }
-export function browserArguments({ profile, kiosk = false, monitor = null, url = 'https://localhost:8443/?lan=1' }) {
+// Finestra di partenza per lo schermo intero: metà del monitor, al centro. Chromium porta lo schermo intero sul
+// monitor che contiene la maggior parte della finestra: con una finestra tutta dentro il monitor scelto la scelta
+// regge anche se la scala di Windows fa differire di qualche pixel le coordinate di PowerShell da quelle del browser.
+export function fullscreenLaunchRect(monitor) {
+  return { x: monitor.x + Math.floor(monitor.width / 4), y: monitor.y + Math.floor(monitor.height / 4), width: Math.max(1, Math.floor(monitor.width / 2)), height: Math.max(1, Math.floor(monitor.height / 2)) };
+}
+// Schermo intero senza bordi (predefinito): --app (niente barre del browser) + --start-fullscreen (come F11 subito
+// dopo l'avvio) con un profilo dedicato, così restano impostazioni e record. Mai --kiosk/--edge-kiosk-type: in Edge è
+// una sessione InPrivate che perde i dati del sito. Finestra (solo prove): posizione e dimensioni esatte del monitor.
+export function browserArguments({ profile, fullscreen = true, monitor = null, url = 'https://localhost:8443/?lan=1' }) {
   const args = [`--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check'];
   if (monitor) {
     for (const n of ['x', 'y', 'width', 'height']) if (!Number.isInteger(monitor[n])) throw Error('Dimensioni monitor non valide.');
     if (monitor.width <= 0 || monitor.height <= 0) throw Error('Dimensioni monitor non valide.');
-    args.push(`--window-position=${monitor.x},${monitor.y}`, `--window-size=${monitor.width},${monitor.height}`);
+    const r = fullscreen ? fullscreenLaunchRect(monitor) : monitor;
+    args.push(`--window-position=${r.x},${r.y}`, `--window-size=${r.width},${r.height}`);
   }
-  // Edge's --kiosk is InPrivate and discards site settings. Use a persistent app
-  // in fullscreen instead; this is an event display, not an OS access restriction.
   args.push(`--app=${url}`);
-  if (kiosk) args.push('--start-fullscreen');
+  if (fullscreen) args.push('--start-fullscreen');
   return args;
+}
+// Modalità dello schermo: 'intero' (senza bordi, predefinita) o 'finestra' (con bordi, per le prove). Prima le opzioni
+// della riga di comando (--finestra, --schermo-intero; le vecchie --app e --kiosk di CONFIGURA SCHERMO), poi la scelta
+// salvata. Il vecchio «kiosk:false» salvato non è una scelta: lo scriveva ogni avvio, c'è in tutti i desktop.json.
+export function screenMode(args = {}, saved = {}) {
+  if (args.finestra) return 'finestra';
+  if (args['schermo-intero']) return 'intero';
+  if (args.app) return 'finestra';
+  if (args.kiosk) return 'intero';
+  return saved?.schermo === 'finestra' ? 'finestra' : 'intero';
+}
+export function exitHint(mode) {
+  return mode === 'finestra'
+    ? 'Finestra con bordi (prove): F11 per lo schermo intero. Per chiudere la finestra del gioco: Alt+F4.'
+    : 'Schermo intero senza bordi: per uscire tieni premuto Esc oppure premi F11; per chiudere la finestra del gioco: Alt+F4.';
 }
 export function listMonitors(run = execFileSync) {
   const script = 'Add-Type -AssemblyName System.Windows.Forms; @([System.Windows.Forms.Screen]::AllScreens | ForEach-Object { @{name=$_.DeviceName;primary=$_.Primary;x=$_.Bounds.X;y=$_.Bounds.Y;width=$_.Bounds.Width;height=$_.Bounds.Height} }) | ConvertTo-Json -Compress';
@@ -44,7 +67,7 @@ export async function startDesktop(args = {}) {
   try { saved = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch (e) { if (e.code !== 'ENOENT') console.warn('Configurazione desktop non leggibile: uso il monitor principale.'); }
   const monitor = args.monitor ? monitors[Number(args.monitor) - 1] : monitors.find(m => m.name === saved.monitor) || monitors.find(m => m.primary) || monitors[0];
   if (!monitor) throw Error('Monitor non disponibile. Usa --list-monitors.');
-  const kiosk = args.kiosk === true || (!args.app && saved.kiosk === true);
+  const mode = screenMode(args, saved);
   const firewallScript = fileURLToPath(new URL('./firewall.ps1', import.meta.url));
   const networkSignature = JSON.stringify([process.execPath, browser.exe, fs.readFileSync(firewallScript, 'utf8')]);
   const marker = path.join(dataDir, 'firewall.json');
@@ -66,11 +89,12 @@ export async function startDesktop(args = {}) {
   try {
     if (!lan.game) throw Error(lan.status().message);
     ca = await serveCa();
-    const child = spawn(browser.exe, browserArguments({ profile: path.join(dataDir, browser.name.toLowerCase()), kiosk, monitor }), { stdio: 'ignore' });
+    const child = spawn(browser.exe, browserArguments({ profile: path.join(dataDir, browser.name.toLowerCase()), fullscreen: mode === 'intero', monitor }), { stdio: 'ignore' });
     await new Promise((resolve, reject) => { child.once('spawn', resolve); child.once('error', reject); });
     fs.mkdirSync(dataDir, { recursive: true });
-    fs.writeFileSync(configPath, JSON.stringify({ monitor: monitor.name, kiosk }, null, 2));
-    console.log(`NATPF aperto in ${browser.name}. Certificati: ${certificateDir}`);
+    fs.writeFileSync(configPath, JSON.stringify({ monitor: monitor.name, schermo: mode }, null, 2));
+    console.log(`NATPF aperto in ${browser.name} su ${monitor.name}. Certificati: ${certificateDir}`);
+    console.log(exitHint(mode));
     console.log('Tieni aperta questa finestra. Per arrestare il server: Ctrl+C.');
     if (!lan.status().ready) console.warn('Nessun indirizzo LAN disponibile: collega il PC alla rete dei telefoni e riavvia.');
     for (const url of ca.urls) console.log(`Prima volta su questo telefono: ${url}`);

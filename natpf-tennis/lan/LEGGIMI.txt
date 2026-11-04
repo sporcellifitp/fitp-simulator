@@ -3,12 +3,16 @@ NATPF WINDOWS DESKTOP A+ — 2026-11-04.1
 Estrai tutto lo ZIP. Apri AVVIA NATPF DESKTOP.cmd.
 Edge (oppure Chrome) e' necessario; Node e il gioco sono gia' inclusi.
 Windows chiede il permesso per firewall e certificato. Non chiudere la console.
-Per fermare il server: Ctrl+C. Per uscire dalla finestra del gioco: Alt+F4.
-CONFIGURA SCHERMO.cmd elenca i monitor e salva finestra app o schermo intero persistente (kiosk).
+Il gioco si apre a schermo intero senza bordi sul monitor scelto (predefinito).
+Per uscire dallo schermo intero: tieni premuto Esc oppure premi F11 (F11 di nuovo per tornarci).
+Per chiudere la finestra del gioco: Alt+F4. Per fermare il server: Ctrl+C.
+CONFIGURA SCHERMO.cmd elenca i monitor e salva monitor e modalita':
+  1 = schermo intero senza bordi (consigliato, basta INVIO)
+  2 = finestra con bordi (solo per prove)
 Non blocca Windows: Alt+F4 resta disponibile.
 Chiudi la finestra del gioco e il server prima di cambiare monitor/modalita'.
-Il ledwall deve essere un monitor esteso di Windows. Se Windows o Edge ignorano
-la posizione, sposta la finestra sul ledwall e usa il pulsante Schermo intero.
+Il ledwall deve essere un monitor esteso di Windows. Se il gioco si apre sul monitor
+sbagliato: F11, trascina la finestra sul ledwall, poi F11 di nuovo.
 
 Dati persistenti: %LOCALAPPDATA%\NATPF (certificati, profilo Edge, monitor).
 Non cancellare questa cartella quando aggiorni lo ZIP. Il gioco sul PC usa sempre

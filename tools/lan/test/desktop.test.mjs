@@ -6,7 +6,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dataDirectory, migrateCertificates } from '../storage.mjs';
-import { findBrowser, browserArguments, listMonitors } from '../desktop.mjs';
+import { findBrowser, browserArguments, listMonitors, screenMode, exitHint } from '../desktop.mjs';
 
 test('desktop finds Edge first, then Chrome; absence has a useful error', () => {
   const env = { ProgramFiles: '/programs', LOCALAPPDATA: '/local' };
@@ -15,14 +15,56 @@ test('desktop finds Edge first, then Chrome; absence has a useful error', () => 
   assert.throws(() => findBrowser(env, () => false), /Installa/);
 });
 test('app uses stable localhost origin, dedicated profile and negative monitor coordinates', () => {
-  const args = browserArguments({ profile: 'C:\\Users\\Nome Cognome\\NATPF\\edge', monitor: { x: -1920, y: 0, width: 1920, height: 1080 } });
+  const ledwall = { x: -1920, y: 0, width: 1920, height: 1080 };
+  const args = browserArguments({ profile: 'C:\\Users\\Nome Cognome\\NATPF\\edge', monitor: ledwall });
   assert.ok(args.includes('--app=https://localhost:8443/?lan=1'));
-  assert.ok(args.includes('--window-position=-1920,0'));
   assert.ok(args.includes('--user-data-dir=C:\\Users\\Nome Cognome\\NATPF\\edge'));
   assert.ok(!args.some(a => a.includes('ignore-certificate')));
   assert.throws(() => browserArguments({ monitor: { x: 0, y: 0, width: -1, height: 1080 } }), /Dimensioni/);
-  assert.ok(browserArguments({ profile: 'test', kiosk: true }).includes('--start-fullscreen'));
-  assert.ok(!browserArguments({ profile: 'test', kiosk: true }).includes('--kiosk'));
+  // predefinito: schermo intero senza bordi, mai kiosk (in Edge è InPrivate e perde impostazioni e record)
+  assert.ok(args.includes('--start-fullscreen'));
+  for (const a of args) assert.ok(!/kiosk|force-app-mode/.test(a), a);
+  assert.ok(browserArguments({ profile: 'test' }).includes('--start-fullscreen'));
+  // schermo intero: finestra di partenza a metà, centrata dentro il monitor scelto (lo schermo intero va su quel monitor)
+  assert.ok(args.includes('--window-position=-1440,270'));
+  assert.ok(args.includes('--window-size=960,540'));
+  // finestra con bordi (prove): posizione e dimensioni esatte, senza --start-fullscreen
+  const windowed = browserArguments({ profile: 'test', fullscreen: false, monitor: ledwall });
+  assert.ok(windowed.includes('--window-position=-1920,0'));
+  assert.ok(windowed.includes('--window-size=1920,1080'));
+  assert.ok(!windowed.includes('--start-fullscreen'));
+  assert.ok(windowed.includes('--app=https://localhost:8443/?lan=1'));
+});
+test('screen mode: options first (new and legacy), then the saved choice; legacy kiosk:false is not a choice', () => {
+  const table = [
+    [{}, {}, 'intero'],
+    [{}, { monitor: 'x', kiosk: false }, 'intero'],
+    [{}, { schermo: 'finestra' }, 'finestra'],
+    [{}, { schermo: 'intero' }, 'intero'],
+    [{ finestra: true }, {}, 'finestra'],
+    [{ app: true }, {}, 'finestra'],
+    [{ 'schermo-intero': true }, { schermo: 'finestra' }, 'intero'],
+    [{ kiosk: true }, { schermo: 'finestra' }, 'intero'],
+    [{ finestra: true, kiosk: true }, {}, 'finestra'],
+    [{}, null, 'intero'],
+  ];
+  for (const [args, saved, expected] of table) assert.equal(screenMode(args, saved), expected, JSON.stringify([args, saved]));
+  assert.match(exitHint('intero'), /tieni premuto Esc oppure premi F11.*Alt\+F4/);
+  assert.match(exitHint('finestra'), /F11.*Alt\+F4/);
+});
+test('CONFIGURA SCHERMO: Enter keeps borderless fullscreen, 2 opens a framed window, no kiosk', () => {
+  const pkg = fs.readFileSync(fileURLToPath(new URL('../../../natpf-tennis/lan/pacchetto.mjs', import.meta.url)), 'utf8');
+  const cmd = /'CONFIGURA SCHERMO\.cmd'[\s\S]*?`\)\);/.exec(pkg)?.[0];
+  assert.ok(cmd, 'testo di CONFIGURA SCHERMO.cmd');
+  assert.ok(cmd.indexOf('set "MODO=1"') >= 0 && cmd.indexOf('set "MODO=1"') < cmd.indexOf('set /p "MODO='), 'INVIO lascia lo schermo intero');
+  assert.match(cmd, /if "%MODO%"=="2" goto finestra/);
+  assert.match(cmd, /desktop\.mjs "--monitor=%MONITOR%" --schermo-intero/);
+  assert.match(cmd, /:finestra\r?\n"%NODE%" tools\\\\lan\\\\desktop\.mjs "--monitor=%MONITOR%" --finestra/);
+  assert.ok(!/kiosk/i.test(pkg), 'niente kiosk nel pacchetto');
+  const readme = fs.readFileSync(fileURLToPath(new URL('../../../natpf-tennis/lan/LEGGIMI.txt', import.meta.url)), 'utf8');
+  assert.ok(!/kiosk/i.test(readme), 'niente kiosk nel LEGGIMI');
+  assert.match(readme, /schermo intero senza bordi/);
+  assert.match(readme, /tieni premuto Esc oppure premi F11/);
 });
 test('monitor discovery handles one or multiple screens', () => {
   assert.equal(listMonitors(() => '{"name":"screen"}').length, 1);
