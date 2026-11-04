@@ -12,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
-import { launch, page, check, summary, SP } from './th.mjs';
+import { launch, page, check, summary, SP, quickCalibrate } from './th.mjs';
 import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
@@ -54,8 +54,7 @@ try {
   await phone.click('#enable');
   await phone.waitForFunction(() => __racchetta.state.step === 'still', null, { timeout: 5000 });
   await phone.evaluate(() => __up.still(1200));
-  await phone.waitForFunction(() => __racchetta.state.step === 'swings', null, { timeout: 5000 });
-  for (let i = 0; i < QUICK_PLAN.length; i++){ const s = i % 2 ? -1 : 1; await phone.evaluate(s => __up.still(500).then(() => __up.swing(s)).then(() => __up.back(s)).then(() => __up.still(700)), s); }
+  await quickCalibrate(phone, QUICK_PLAN);   // aspetta da sé la fine del «fermo» e il «pronto» di ogni gesto
   await game.waitForFunction(() => __natpfTennis.natpfPhone.cal.review?.pass, null, { timeout: 8000 }).catch(() => {});
   await game.evaluate(() => __natpfTennis.natpfPhone.confirm());
   check('telefono calibrato', await game.waitForFunction(() => __natpfTennis.natpfPhone.ready, null, { timeout: 5000 }).then(() => true, () => false));

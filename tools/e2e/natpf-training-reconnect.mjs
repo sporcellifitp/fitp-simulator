@@ -11,7 +11,7 @@ import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
-import { launch, page, check, summary, SP } from './th.mjs';
+import { launch, page, check, summary, SP, finishLesson } from './th.mjs';
 import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
@@ -53,6 +53,7 @@ try {
   await phone.waitForFunction(() => window.__racchetta?.state.linkState === 'on', null, { timeout: 30000 });
   await phone.click('#enable');
   await game.waitForFunction(() => __natpfTennis.natpfUi.training.active && __natpfTennis.natpfUi.training.cal, null, { timeout: 10000 });
+  await finishLesson(game);
   // primo gesto fatto, poi il telefono si scollega
   const coach = () => game.evaluate(() => ({ title: document.getElementById('coach-text').textContent, sub: document.getElementById('coach-sub').textContent, state: document.getElementById('coach-main').dataset.state, idx: __natpfTennis.natpfUi.training.view.idx }));
   await game.waitForFunction(() => document.getElementById('coach-main').dataset.state === 'go', null, { timeout: 10000 });

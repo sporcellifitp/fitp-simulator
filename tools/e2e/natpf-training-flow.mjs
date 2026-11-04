@@ -99,6 +99,14 @@ try {
   // si entra in campo da soli (telefono con i sensori attivi)
   const inField = await game.waitForFunction(() => __natpfTennis.natpfUi.training.active, null, { timeout: 8000 }).then(() => true, () => false);
   check('con i sensori attivi si entra nel campo d’allenamento', inField);
+  // «Allenamento» dal menu apre prima la lezione (presa, mano, posizione): chi gioca la scorre con «Avanti» fino a
+  // «Calibra». Durante la lezione il computer non segue la calibrazione del telefono (natpf_training._onCal)
+  const lesson = [];
+  for (let k = 0; k < 8 && await game.evaluate(() => !!__natpfTennis.natpfUi.training.lesson); k++){
+    lesson.push(await game.evaluate(() => document.getElementById('coach-lesson-next')?.textContent || ''));
+    await game.click('#coach-lesson-next');
+  }
+  check('lezione iniziale scorsa con «Avanti» fino a «Calibra»', lesson.length > 0 && /Calibra/.test(lesson.at(-1)) && await game.evaluate(() => !__natpfTennis.natpfUi.training.lesson), JSON.stringify(lesson));
   await shot('1-fermo');
   await phone.waitForFunction(() => __racchetta.state.step === 'swings', null, { timeout: 8000 });
 

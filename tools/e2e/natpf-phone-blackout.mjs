@@ -13,7 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
-import { launch, page, check, summary } from './th.mjs';
+import { launch, page, check, summary, finishLesson } from './th.mjs';
 import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
@@ -58,6 +58,7 @@ try {
   await phone.waitForFunction(() => window.__racchetta?.state.linkState === 'on', null, { timeout: 30000 });
   await phone.click('#enable');
   await game.waitForFunction(() => __natpfTennis.natpfUi.training.active, null, { timeout: 8000 });
+  await finishLesson(game);   // prima la lezione dell'Allenamento, fino a «Calibra»
   await phone.waitForFunction(() => __racchetta.state.step === 'swings', null, { timeout: 8000 });
   // gesto quando il computer dice «Ora» (o, a rete ferma, quando il telefono è pronto), poi il rientro lento della mano
   const gesture = async (sign, fromPhone = false) => {

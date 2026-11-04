@@ -23,18 +23,18 @@ Come si aggiorna:
   `git log --oneline -5`.
 - Test su `b076a0d` (04/11): gioco 673/673 (`cd natpf-tennis && npm test`), sito 182/182
   (`node --test tools/test/*.test.mjs`), server LAN 5/5 (`cd tools/lan && node --test test/*.test.mjs`).
-- Prove nel browser (`tools/e2e`), B1 in corso: dopo la correzione degli script `natpf-training-flow` 14/14,
-  `natpf-phone-keep` 13/13, `natpf-rally` 7/7, `natpf-menu` 22/22, `natpf-gameplay-23-10` 11/11, `natpf-latency` 9/9;
-  da riprovare `natpf-phone-blackout` (corretto), `natpf-training-reconnect` e `natpf-diag-session` (stesso problema
-  della lezione), `lan-browser` (7/8).
+- Prove nel browser (`tools/e2e`, B1.1 fatto): dopo la correzione degli script `natpf-training-flow` 14/14,
+  `natpf-phone-keep` 13/13, `natpf-phone-blackout` 6/6, `natpf-training-reconnect` 6/6, `natpf-diag-session` 24/24,
+  `natpf-rally` 7/7, `natpf-menu` 22/22, `natpf-gameplay-23-10` 11/11, `natpf-latency` 9/9. Non ancora riprovati:
+  gli script del sito nella CI (`phone-only`, `timing-browser`, `gesture-calibration`, `arcade-visuals`,
+  `intuitive-contact`, `quick-phone-ui`, `lan-setup-browser`, `lan-browser` 7/8 alla build .18).
 - B6: bozza in `docs/DESKTOP_WINDOWS.md`.
 - Versione dell'ultima consegna: `2026-11-03.1` in `site/js/tennis/version.js`; `site/tennis/build.json` è rimasto a
   `2026-10-28.18` (da allineare al prossimo pacchetto).
 - Crediti Higgsfield spesi per la richiesta del 04/11: **0 / 100**.
 - **Blocco in corso:** B0 (questo file e le istruzioni) → B1 (script e2e) → B6 (documento).
-- **Prossima azione esatta:** B1 — riprovare `natpf-phone-blackout`, `natpf-training-reconnect`, `natpf-diag-session`,
-  `lan-browser` con `CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/e2e/<script>.mjs`, committare gli script, poi la
-  CI (§5 B1).
+- **Prossima azione esatta:** B1.2 — provare in locale gli script del sito della CI (elenco sopra; `run-local.mjs` con
+  `CHROMIUM_PATH=/opt/pw-browsers/chromium`) e `tools/package-natpf.py`, poi CI su `natpf-simulator` (§5 B1, Come 2).
 
 ---
 
@@ -101,7 +101,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | Blocco | Stato | Contenuto | Commit | Pacchetti |
 |---|---|---|---|---|
 | B0 Continuità | [~] | questo file, istruzioni (CLAUDE.md, AGENTS.md), archivio dei documenti lunghi | — | invariati |
-| B1 Prove nel browser e CI | [ ] | telefono simulato aggiornato, script e2e verdi, CI sul branch | — | — |
+| B1 Prove nel browser e CI | [~] | telefono simulato aggiornato, script e2e verdi, CI sul branch | — | — |
 | B2 Intro | [ ] | video con una pallina e il campo del gioco (Higgsfield, ≤100 crediti) | — | — |
 | B3 Presa | [ ] | foto, figura, 3D e testi della presa nuova; piatto tollerante con test; tocchi; rollback | — | — |
 | B4 Modale tutorial | [ ] | modale prima della calibrazione, «Tutto chiaro, ho capito» sul telefono | — | — |

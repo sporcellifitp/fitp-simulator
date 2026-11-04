@@ -27,3 +27,26 @@ export async function page(browser, url, { w = 1280, h = 760, mobile = false, in
 export const results = []; export const check = (n, ok, i = '') => { results.push(ok); console.log((ok ? 'OK  ' : 'KO  ') + n + (i ? ' — ' + i : '')); };
 export const summary = () => { console.log(`\n${results.filter(Boolean).length}/${results.length} verifiche superate`); if (results.some(r => !r)) process.exitCode = 1; };
 
+// Calibrazione rapida del telefono simulato (fermo, poi un gesto per verso, site/js/tennis/calibration.js QUICK_PLAN)
+// fatta come una persona: prima di ogni gesto aspetta che il telefono sia pronto («Ora»), tenendolo fermo. Dal 29/10 il
+// telefono vuole 0,6 s di quiete prima del primo gesto (CAL.firstSettle) e 1,5 s di preparazione dopo l'attivazione
+// (CAL.lead): i tempi fissi di prima (0,5 s) facevano partire il gesto troppo presto. La pagina del telefono deve avere
+// window.__up con still(ms), swing(segno) e back(segno), come negli script natpf-*.
+export async function quickCalibrate(phone, plan, { timeout = 12000 } = {}){
+  for (let i = 0; i < plan.length; i++){
+    await phone.evaluate(async ({ i, timeout }) => {
+      const t0 = performance.now(), R = window.__racchetta;
+      while (!(R.state.step === 'swings' && R.cal.state.ready && R.cal.state.idx === i)){
+        if (performance.now() - t0 > timeout) throw new Error(`telefono non pronto al gesto ${i + 1}: passo ${R.state.step}, pronto ${R.cal.state.ready}, gesto ${R.cal.state.idx}`);
+        await window.__up.still(100);
+      }
+    }, { i, timeout });
+    const s = plan[i] === 'R' ? -1 : 1;
+    await phone.evaluate(s => __up.swing(s).then(() => __up.back(s)).then(() => __up.still(700)), s);
+  }
+}
+// «Allenamento» dal menu apre prima la lezione (presa, mano, posizione): chi gioca la scorre con «Avanti» fino a
+// «Calibra». Durante la lezione il computer non segue la calibrazione del telefono (natpf_training._onCal).
+export async function finishLesson(game, max = 8){
+  for (let k = 0; k < max && await game.evaluate(() => !!window.__natpfTennis?.natpfUi?.training?.lesson); k++) await game.click('#coach-lesson-next');
+}
