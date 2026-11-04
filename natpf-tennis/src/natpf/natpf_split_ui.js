@@ -63,6 +63,12 @@ export class NatpfSplitUi {
     let saved = 'phones'; try { saved = localStorage.getItem(SPLIT_INPUT_KEY) || 'phones'; } catch {}
     this.input = splitInputOf(saved);
     const box = document.querySelector('[data-setup="split"]');
+    engine.natpfSplitNames = { p1: 'Player 1', p2: 'Player 2' };
+    box?.addEventListener('input', e => {
+      const id = e.target.dataset.splitName; if (!['p1', 'p2'].includes(id)) return;
+      engine.natpfSplitNames[id] = e.target.value.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 24) || (id === 'p1' ? 'Player 1' : 'Player 2');
+      for (const el of document.querySelectorAll(`[data-split-tag="${id}"] b`)) el.textContent = engine.natpfSplitNames[id];
+    });
     box?.addEventListener('click', e => {
       const inp = e.target.closest('[data-split-input]'); if (inp){ e.stopPropagation(); this.setInput(inp.dataset.splitInput); return; }
       if (e.target.closest('#split-cam-go')){ e.stopPropagation(); this._camOn(); return; }

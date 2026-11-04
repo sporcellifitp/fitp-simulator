@@ -110,6 +110,7 @@ test('pacchetto Cloudflare: dist + _headers + natpf/turn.json; senza --turn-url 
     assert.deepEqual(r.files, ['_headers', 'index.html', 'natpf/tennis/racchetta.html', TURN_JSON]);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(r.dest, TURN_JSON), 'utf8')), { url: 'https://turn.example.workers.dev/' });
     assert.equal(fs.readFileSync(path.join(r.dest, '_headers'), 'utf8'), fs.readFileSync(headers, 'utf8'));
+    fs.mkdirSync(path.join(tmp, 'b')); // anche una destinazione già esistente ma vuota è supportata
     const plain = makePackage({ out: path.join(tmp, 'b'), dist, headers });
     assert.ok(!plain.files.includes(TURN_JSON));
     assert.throws(() => makePackage({ out: path.join(tmp, 'a'), dist, headers }), /non è vuota/);

@@ -34,7 +34,13 @@ const REASON = {
   Point: (mine, r) => (mine ? `${r.Who} non ci arriva` : 'Palla non presa'),
 };
 
-export function pointCall({ winner = 'player', why = '', viewer = 'player', rival = rivalOf({ viewer }), score = null } = {}){
+export function pointCall({ winner = 'player', why = '', viewer = 'player', rival = rivalOf({ viewer }), score = null, sharedNames = null } = {}){
+  if (sharedNames){
+    const win = sharedNames[winner], lose = sharedNames[winner === 'player' ? 'opponent' : 'player'];
+    const reason = why === 'Out' ? `Errore di ${lose}: palla fuori` : why === 'Net' ? `Errore di ${lose}: palla in rete` : why === 'Point' ? `${lose} non ci arriva` : why === 'Ace!' ? `Ace di ${win}` : why === 'Nice Shot!' ? `Vincente di ${win}` : '';
+    const sc = score ? (score.player === 'Ad' ? `Vantaggio ${sharedNames.player}` : score.opponent === 'Ad' ? `Vantaggio ${sharedNames.opponent}` : `${sharedNames.player} ${score.player} · ${sharedNames.opponent} ${score.opponent}`) : '';
+    return { mine: winner === 'player', text: `Punto ${win}`, subText: [reason, sc].filter(Boolean).join(' · '), style: winner === 'player' ? 'style-won' : 'style-lost' };
+  }
   const mine = winner === viewer;
   const reason = REASON[why]?.(mine, rival) || '';
   const sc = score ? viewScore(score, viewer, rival) : '';
@@ -47,7 +53,8 @@ export function pointCall({ winner = 'player', why = '', viewer = 'player', riva
 }
 
 // game e partita: games: { player, opponent } dopo il game
-export function gameCall({ winner = 'player', viewer = 'player', rival = rivalOf({ viewer }), games = { player: 0, opponent: 0 }, match = false } = {}){
+export function gameCall({ winner = 'player', viewer = 'player', rival = rivalOf({ viewer }), games = { player: 0, opponent: 0 }, match = false, sharedNames = null } = {}){
+  if (sharedNames) return { mine: winner === 'player', text: `${match ? 'Partita' : 'Game'} ${sharedNames[winner]}`, subText: `${sharedNames.player} ${games.player} · ${sharedNames.opponent} ${games.opponent}`, style: winner === 'player' ? 'style-won' : 'style-lost' };
   const mine = winner === viewer, g = viewer === 'opponent' ? `${games.opponent}-${games.player}` : `${games.player}-${games.opponent}`;
   return {
     mine,
@@ -60,7 +67,7 @@ export function gameCall({ winner = 'player', viewer = 'player', rival = rivalOf
 // Dati del motore per chi guarda su questo computer (anche il Player 2 del 1v1)
 export function callContext(engine){
   const viewer = engine?.playerRole === 'p2' ? 'opponent' : 'player', multiplayer = !!engine?.isMultiplayer;
-  return { viewer, rival: rivalOf({ multiplayer, viewer }) };
+  return { viewer, rival: rivalOf({ multiplayer, viewer }), ...(engine?.natpfSplit?.active ? { sharedNames: { player: engine.natpfSplitNames?.p1 || 'Player 1', opponent: engine.natpfSplitNames?.p2 || 'Player 2' } } : {}) };
 }
 
 // Messaggio dell'host ricevuto dal Player 2 del 1v1: ricomposto dal suo lato con chi vince e perché (prima ripeteva il

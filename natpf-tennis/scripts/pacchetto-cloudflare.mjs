@@ -52,7 +52,11 @@ export function headersProblems(text, { turnUrl = null } = {}){
   return out;
 }
 
-const copyDir = (from, to) => fs.cpSync(from, to, { recursive: true, errorOnExist: true, force: false });
+// La destinazione è già stata creata e verificata vuota. Node 24 rifiuta anche una directory vuota
+// con errorOnExist: copiare i figli conserva il controllo contro sovrascritture su tutte le versioni.
+const copyDir = (from, to) => {
+  for (const name of fs.readdirSync(from)) fs.cpSync(path.join(from, name), path.join(to, name), { recursive: true, errorOnExist: true, force: false });
+};
 
 export function makePackage({ out, turnUrl = null, dist = path.join(ROOT, 'dist'), headers = path.resolve(ROOT, '../site/_headers') } = {}){
   if (!out) throw new Error('manca --out=cartella');

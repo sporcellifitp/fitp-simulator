@@ -61,7 +61,12 @@ test('misure al secondo: fotogrammi della camera da quelli presentati, buchi, ri
 
 test('inferenza dai fotogrammi della camera: fuori dal richiamo, una alla volta, solo l\'ultimo fotogramma; misure e livello nel registro', async () => {
   const { MotionController: MC } = await import('../src/motion_controls.js');
-  const wait = () => new Promise(r => setTimeout(r, 15));
+  // Attendere il MessageChannel, non 15 ms di orologio: sotto carico il callback può arrivare dopo.
+  const wait = async () => {
+    const deadline = Date.now() + 1000;
+    while (mc._kickQueued && Date.now() < deadline) await new Promise(r => setTimeout(r, 1));
+    assert.equal(mc._kickQueued, false, 'il compito di inferenza viene eseguito');
+  };
   const mc = Object.create(MC.prototype), sends = [], logs = [], opts = [];
   let cb = null;
   Object.assign(mc, { webcamActive: true, _mpBusy: false, _handOthers: [], handPreference: 'right', onTrack: d => logs.push(d),

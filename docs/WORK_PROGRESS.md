@@ -1114,3 +1114,15 @@ Revisione del codice unito: gli agenti sono stati fermati dal limite d'uso; cont
   vecchio. [ ] Aggiornare questi script di prova.
 - **Non verificato**: telefoni e webcam veri, Windows, due computer su reti diverse, TURN in uso reale, persone a 1–4 m,
   webcam per due con due persone; costanti nuove (rinvio 60–70 ms, margine del P2, telecamera) in partite vere.
+
+
+## 04/11/2026 — versione 2026-11-03.1, nomi 1v1 e fullscreen
+
+Push autorizzato esplicitamente dall'utente il 04/11. Modifiche integrate sopra b7f0d668, preservando i documenti dell'altro agente.
+- 1v1 stesso schermo: nomi nel setup (max 24 caratteri, fallback Player 1/2), etichette e annunci punto/errore/vantaggio/game/partita espliciti.
+- Pulsante fullscreen nelle Opzioni, uscita con Esc e fallback F11. Riutilizzati preset full, 2x2, 3x2 e area personalizzata esistenti.
+- Compatibilità script pacchetto Cloudflare con Node 24; test MessageChannel senza attesa fissa fragile; E2E webcam distanza con PeerJS locale e supporto DIST per archivio estratto.
+- Build riuscita e 673/673 test gioco. Test sito 182/182 e server LAN 5/5 nella ripresa .18. Webcam distanza 7/7 anche sul pacchetto .18 estratto; controlli nomi/split 23 test più 5 verifiche aggiuntive.
+- Consegnati ZIP LAN Windows e Cloudflare 2026-11-03.1, TURN https://natpf-turn.s-porcelli.workers.dev/. Il LAN include Node 22.22.0 ufficiale e un file temporaneo duplicato di Node inutilizzato; nessun certificato o chiave inclusi.
+- Nessuna app desktop implementata: valutata soltanto. Display reali, telefoni e webcam con persone restano da verificare. Nel presente ambiente WebRTC non genera candidati ICE anche in una prova indipendente dal gioco; E2E P2 invitato non dichiarato superato.
+- Prossimo passo: provare i pacchetti su due dispositivi e ledwall reali, verificando nomi, fullscreen e riconnessione. Nessun deploy Cloudflare effettuato da Codex.

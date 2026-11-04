@@ -11,14 +11,30 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
+import express from 'express';
+import { ExpressPeerServer } from 'peer';
 import { check, summary } from './th.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
 const GAME_PORT = +(process.env.GAME_PORT || 3172);
-const vite = spawn(process.execPath, [path.join(GAME, 'node_modules/vite/bin/vite.js'), '--port', String(GAME_PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: GAME, env: { ...process.env, DISABLE_HMR: 'true' }, stdio: 'pipe' });
-process.on('exit', () => { try { vite.kill(); } catch {} });
+// La prova della webcam non dipende dalla disponibilità del server PeerJS pubblico.
+const PEER_PORT = +(process.env.PEER_PORT || 9172);
+const peerApp = express(), peerServer = http.createServer(peerApp);
+peerApp.use('/fiw', ExpressPeerServer(peerServer, { path: '/' }));
+await new Promise(r => peerServer.listen(PEER_PORT, '127.0.0.1', r));
+// DIST=cartella permette di provare anche il pacchetto Cloudflare estratto, senza Vite né sorgenti.
+let vite = null, staticServer = null;
+if (process.env.DIST){
+  const site = express();
+  site.use('/api', (req, res) => res.status(404).send('sito statico'));
+  site.use(express.static(path.resolve(process.env.DIST)));
+  staticServer = await new Promise(r => { const s = site.listen(GAME_PORT, '127.0.0.1', () => r(s)); });
+} else {
+  vite = spawn(process.execPath, [path.join(GAME, 'node_modules/vite/bin/vite.js'), '--port', String(GAME_PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: GAME, env: { ...process.env, DISABLE_HMR: 'true' }, stdio: 'pipe' });
+}
+process.on('exit', () => { try { vite?.kill(); staticServer?.close(); } catch {} });
 const up = async url => { for (let i = 0; i < 120; i++){ const ok = await new Promise(r => http.get(url, res => { res.resume(); r(res.statusCode === 200); }).on('error', () => r(false))); if (ok) return true; await new Promise(r => setTimeout(r, 500)); } return false; };
-check('gioco avviato con vite', await up(`http://127.0.0.1:${GAME_PORT}/`));
+check(process.env.DIST ? 'pacchetto statico avviato' : 'gioco avviato con vite', await up(`http://127.0.0.1:${GAME_PORT}/`));
 
 const B = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--use-fake-device-for-media-stream=fps=30', '--use-fake-ui-for-media-stream'] });
 try {
@@ -26,7 +42,7 @@ try {
   const p = await ctx.newPage(), errs = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message));
   p.on('console', m => { if (m.type() === 'error' && !/404|Failed to load resource/.test(m.text())) errs.push('console: ' + m.text()); });
-  await p.goto(`http://127.0.0.1:${GAME_PORT}/?intro=0`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await p.goto(`http://127.0.0.1:${GAME_PORT}/?intro=0&peer=127.0.0.1:${PEER_PORT}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => window.__natpfTennis?.motionController && window.__natpfTennis.natpfUi, null, { timeout: 120000 });
   await p.evaluate(() => {
     const E = __natpfTennis, mc = E.motionController; E.render = () => {};
@@ -63,6 +79,9 @@ try {
   await ctx.close();
 } finally {
   await B.close();
+  peerServer.close();
+  vite?.kill();
+  staticServer?.close();
 }
 summary();
 setTimeout(() => process.exit(), 300);

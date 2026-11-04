@@ -56,6 +56,21 @@ export class NatpfScreen {
     this.fromUrl = s.fromUrl;
     current = { preset: s.preset, area: s.area };
     globalThis.addEventListener?.('resize', () => this.apply());
+    const button = globalThis.document?.getElementById?.('natpf-fullscreen');
+    const status = globalThis.document?.getElementById?.('natpf-fullscreen-status');
+    button?.addEventListener('click', async () => {
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+        else throw new Error('unsupported');
+        if (status) status.textContent = '';
+      } catch { if (status) status.textContent = 'Usa F11 o il comando Schermo intero del browser.'; }
+    });
+    globalThis.document?.addEventListener?.('fullscreenchange', () => {
+      if (button) button.textContent = document.fullscreenElement ? 'Esci da schermo intero' : 'Apri a schermo intero';
+      this.apply();
+    });
+
     this.apply();
   }
   get preset(){ return current.preset; }

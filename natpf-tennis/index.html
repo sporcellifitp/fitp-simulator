@@ -367,6 +367,7 @@
               ><button type="button" class="seg-btn" data-natpf-screen="3x2">Ledwall 3×2</button>
             </div>
           </div>
+          <button type="button" class="seg-btn" id="natpf-fullscreen">Apri a schermo intero</button><p id="natpf-fullscreen-status" role="status"></p>
           <p class="lobby-note" id="screen-note">Ledwall: il gioco usa un’area con le proporzioni del ledwall al centro dello schermo del PC. Per un’area precisa del processore LED aggiungi all’indirizzo <code>?area=x,y,larghezza,altezza</code> (pixel).</p>
         </section>
 
@@ -400,6 +401,7 @@
           <!-- stesso schermo (split screen, natpf_split_ui.js): un telefono per giocatore, ognuno con il suo QR e la sua
                calibrazione guidata sul telefono; si va alla partita quando sono pronti tutti e due -->
           <div class="setup-panel split-setup" data-setup="split">
+            <div class="split-names" style="display:flex;gap:1cqw;flex-wrap:wrap"><label>Player 1 · sinistra <input data-split-name="p1" maxlength="24" placeholder="Player 1" autocomplete="off" style="max-width:22cqw"></label><label>Player 2 · destra <input data-split-name="p2" maxlength="24" placeholder="Player 2" autocomplete="off" style="max-width:22cqw"></label></div>
             <div class="lobby-row split-input-row">
               <span class="lobby-label">Si gioca con</span>
               <div class="lobby-seg" role="radiogroup" aria-label="Si gioca con">
