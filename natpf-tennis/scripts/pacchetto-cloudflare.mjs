@@ -5,17 +5,28 @@
 // Il Worker delle credenziali è un altro, piccolo: natpf-tennis/cloudflare/turn-worker.js (lì le istruzioni).
 //
 //   cd natpf-tennis && npm run build
-//   node scripts/pacchetto-cloudflare.mjs --out=../pacchetto [--turn-url=https://<nome>.<account>.workers.dev/]
+//   node scripts/pacchetto-cloudflare.mjs --out=../pacchetto [--zip=../pacchetto.zip] [--turn-url=https://<nome>.<account>.workers.dev/]
 //
-// Lo zip lo fa chi chiama (il contenuto della cartella, non la cartella). La cartella di destinazione deve essere
-// nuova o vuota: niente file vecchi mescolati a quelli nuovi.
+// La cartella di destinazione deve essere nuova o vuota: niente file vecchi mescolati a quelli nuovi.
+// B8 (04/11), richiesta dell'utente: «la versione cloudflare deve sempre pesare leggermente meno di 25 MB».
+// Con --zip lo zip lo fa questo script (il contenuto della cartella, non la cartella; deterministico, vedi
+// zip-deterministico.mjs) e controlla il peso: da ZIP_LIMIT in su cancella lo zip, elenca i 10 file più pesanti
+// e termina con errore; sopra ZIP_WARN avvisa che il margine è poco. Con --zip e senza --out la cartella è temporanea.
+// La CI (.github/workflows/natpf-tennis.yml) lo esegue dopo la build: un pacchetto troppo pesante la fa fallire.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeZip } from './zip-deterministico.mjs';
+import { MEDIAPIPE_EXCLUDED } from './offline-assets.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(HERE, '..');
 export const TURN_JSON = 'natpf/turn.json';
+// byte dello zip: deve restare sotto ZIP_LIMIT (25 MB decimali), sopra ZIP_WARN si avvisa
+export const ZIP_LIMIT = 25_000_000;
+export const ZIP_WARN = 24_000_000;
+export const mb = bytes => `${(bytes / 1e6).toFixed(2)} MB`;
 
 // indirizzo del Worker: solo https (o http su localhost, per le prove nel browser), con la «/» finale
 export function checkTurnUrl(raw){
@@ -65,6 +76,9 @@ export function makePackage({ out, turnUrl = null, dist = path.join(ROOT, 'dist'
   const rel = path.relative(dist, dest);
   if (!rel || (!rel.startsWith('..') && !path.isAbsolute(rel))) throw new Error('la cartella di destinazione non può stare dentro dist');
   if (fs.existsSync(dest) && fs.readdirSync(dest).length) throw new Error(`la cartella ${dest} non è vuota`);
+  // MediaPipe senza SIMD o .data vuoti: build fatta prima del B8 (offline-assets.mjs ora non li copia più)
+  const stale = fs.existsSync(path.join(dist, 'assets/mediapipe')) ? listFiles(path.join(dist, 'assets/mediapipe')).filter(f => MEDIAPIPE_EXCLUDED.test(f)) : [];
+  if (stale.length) throw new Error(`build vecchia, con file MediaPipe che il pacchetto non porta più (${stale.join(', ')}): rifare npm run build`);
   const url = turnUrl ? checkTurnUrl(turnUrl) : null;
   const headersText = fs.readFileSync(headers, 'utf8');
   const problems = headersProblems(headersText, { turnUrl: url });
@@ -82,11 +96,55 @@ export function listFiles(dir, base = dir){
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? listFiles(path.join(dir, e.name), base) : [path.relative(base, path.join(dir, e.name)).split(path.sep).join('/')]).sort();
 }
 
+// lo zip deve essere nuovo e fuori dalla cartella del pacchetto (controllato anche prima di fare il pacchetto)
+export function checkZipTarget({ dir, zip }){
+  if (!zip) throw new Error('manca --zip=file');
+  const target = path.resolve(zip);
+  if (dir){
+    const rel = path.relative(path.resolve(dir), target);
+    if (!rel.startsWith('..') && !path.isAbsolute(rel)) throw new Error('lo zip non può stare dentro la cartella del pacchetto');
+  }
+  if (fs.existsSync(target)) throw new Error(`lo zip ${target} esiste già`);
+  return target;
+}
+// Zip della cartella del pacchetto con il controllo del peso. Lo zip si scrive in «<zip>.part» e prende il suo nome
+// solo se sta sotto maxBytes; altrimenti non resta nessun file e l'errore porta i 10 file più pesanti (err.largest).
+export function makeZip({ dir, zip, maxBytes = ZIP_LIMIT, warnBytes = ZIP_WARN } = {}){
+  if (!dir) throw new Error('makeZip: manca la cartella del pacchetto');
+  const src = path.resolve(dir), target = checkZipTarget({ dir: src, zip }), part = `${target}.part`;
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.rmSync(part, { force: true });                      // resto di un tentativo interrotto
+  const r = writeZip(part, src);
+  const largest = [...r.entries].sort((a, b) => b.compressed - a.compressed || (a.name < b.name ? -1 : 1)).slice(0, 10);
+  if (r.bytes >= maxBytes){
+    fs.rmSync(part, { force: true });
+    const err = new Error(`zip di ${r.bytes} byte (${mb(r.bytes)}): deve stare sotto ${maxBytes} byte (${mb(maxBytes)}), zip cancellato`);
+    Object.assign(err, { code: 'ZIP_TROPPO_GRANDE', bytes: r.bytes, largest });
+    throw err;
+  }
+  fs.renameSync(part, target);
+  return { file: target, bytes: r.bytes, files: r.entries.length, largest, warn: r.bytes > warnBytes, margin: maxBytes - r.bytes };
+}
+export const largestTable = largest => largest.map(e => `  ${String(e.compressed).padStart(10)} byte nello zip (${String(e.size).padStart(10)} su disco)  ${e.name}`).join('\n');
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)){
   const arg = k => process.argv.slice(2).find(a => a.startsWith(`--${k}=`))?.slice(k.length + 3) ?? null;
+  const zip = arg('zip');
+  // con --zip e senza --out: cartella temporanea, cancellata alla fine
+  const tmp = zip && !arg('out') ? fs.mkdtempSync(path.join(os.tmpdir(), 'natpf-cloudflare-')) : null;
   try {
-    const r = makePackage({ out: arg('out'), turnUrl: arg('turn-url') });
+    if (zip) checkZipTarget({ dir: arg('out'), zip });   // prima di copiare 36 MB
+    const r = makePackage({ out: arg('out') ?? tmp, turnUrl: arg('turn-url') });
     console.log(`Pacchetto in ${r.dest}: ${r.files.length} file.`);
     console.log(r.turnUrl ? `TURN nostro: /${TURN_JSON} → ${r.turnUrl}` : `Senza --turn-url: nessun /${TURN_JSON}, strade di rete come prima.`);
-  } catch (e){ console.error(`Errore: ${e.message}`); process.exit(1); }
+    if (zip){
+      const z = makeZip({ dir: r.dest, zip });
+      console.log(`Zip ${z.file}: ${z.bytes} byte (${mb(z.bytes)}), ${z.files} file; limite ${ZIP_LIMIT} byte, margine ${z.margin} byte (${mb(z.margin)}).`);
+      if (z.warn) console.warn(`Attenzione: lo zip supera ${ZIP_WARN} byte (${mb(ZIP_WARN)}), poco margine sotto i 25 MB. I file più pesanti:\n${largestTable(z.largest)}`);
+    }
+  } catch (e){
+    console.error(`Errore: ${e.message}`);
+    if (e.largest) console.error(`I 10 file più pesanti nello zip:\n${largestTable(e.largest)}`);
+    process.exitCode = 1;
+  } finally { if (tmp) fs.rmSync(tmp, { recursive: true, force: true }); }
 }

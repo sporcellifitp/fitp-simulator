@@ -12,6 +12,8 @@ on:
       - 'site/js/vendor/**'
       - 'site/tennis/racchetta.html'
       - 'site/assets/arena/**'
+      - 'site/assets/brand/**'
+      - 'site/_headers'
       - '.github/workflows/natpf-tennis.yml'
   pull_request:
     branches:
@@ -22,6 +24,8 @@ on:
       - 'site/js/match/**'
       - 'site/tennis/racchetta.html'
       - 'site/assets/arena/**'
+      - 'site/assets/brand/**'
+      - 'site/_headers'
   workflow_dispatch:
 
 permissions:
@@ -57,3 +61,11 @@ jobs:
           test -f dist/assets/arena/torino.png
           test -s dist/media/intro.mp4
           test -s dist/assets/mediapipe/hands/hands.js
+          test -s dist/assets/mediapipe/hands/hands_solution_simd_wasm_bin.wasm
+          test -s dist/assets/mediapipe/pose/pose_solution_simd_wasm_bin.wasm
+          test -s dist/natpf/assets/brand/esports-fitp-neg.png
+          test -s dist/natpf/assets/brand/nitto-atp-finals-white.png
+      # B8: «la versione cloudflare deve sempre pesare leggermente meno di 25 MB». Lo script fa lo zip come per la
+      # consegna e termina con errore (elencando i 10 file più pesanti) se arriva a 25.000.000 byte.
+      - name: Cloudflare package under 25 MB
+        run: node scripts/pacchetto-cloudflare.mjs --out="$RUNNER_TEMP/natpf-cloudflare" --zip="$RUNNER_TEMP/natpf-cloudflare.zip" --turn-url=https://natpf-turn.s-porcelli.workers.dev/
