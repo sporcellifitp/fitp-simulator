@@ -17,24 +17,21 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-- Aggiornato: 04/11/2026 · Codex · `natpf-simulator`. Base integrata `4938134` (B1.3), preservata.
-- Ultimo blocco: B6.A+ autorizzato dall'utente con «Puoi svilupparlo?», implementazione portatile Windows.
-  Il commit che contiene questo checkpoint introduce `2026-11-04.1` (entrambi i file versione allineati).
-- Verifiche: gioco 675/675, sito 182/182, LAN 10/10; build riuscita; menu 22/22 a tre risoluzioni.
-  ZIP estratti: HTTPS localhost, pagina telefono, certificato pubblico senza chiavi accessibili, 21 asset offline
-  con SHA256, avvio del gioco e QR certificato LAN, certificato nascosto su Cloudflare. Test e build ripetuti dopo integrazione B1.3.
-- Non verificati: Windows/Edge reali, PowerShell/UAC/firewall, posizionamento ledwall, telefoni Android/iOS e WebRTC
-  reale (ambiente senza candidati ICE). Nessuna promessa di aumento FPS.
-- Pacchetti di questo commit: `natpf-simulator-lan-windows-20261104-1.zip` e
-  `natpf-simulator-cloudflare-20261104-1.zip`. Avvio desktop: AVVIA NATPF DESKTOP.cmd; monitor: CONFIGURA SCHERMO.cmd.
-- Prossimo passo B6: collaudo Windows pubblico/privato, due avvii, cambio IP, migrazione CA e monitor esteso.
-  Poi F0 misure hardware e F1 qualità grafica/taratura/traffico. Nessun Electron o worker webcam implementato.
-- B1.3 ha corretto i problemi degli script della CI (profilo v4, schermo simulato, nomi bundle); esito GitHub da controllare.
-- Crediti Higgsfield spesi per la richiesta del 04/11: **40 / 100** (saldo iniziale 708,37). Tentativo 1 dell'intro:
-  job `5b2b8345-df35-4538-97b6-f04d14ff23d0` (cinematic_studio_3_0, 8 s, 720p, fotogrammi iniziale/finale caricati come
-  media `012c2147-…` e `ff31adfb-…`). Se la sessione si interrompe: `jobs_wait` su quel job, poi verifica (§5 B2).
-- Continuità altro lavoro: B2, scaricare e verificare il video del tentativo 1 con il job sopra; B3/B4/B5 restano
-  nel registro. La versione desktop non cambia gesti, tutorial o intro.
+- Aggiornato: 04/11/2026 · agente: Claude · branch `natpf-simulator`. Integrato `55ea759` di Codex (A+ Windows,
+  versione 2026-11-04.1) prima di B2.
+- Ultimo blocco: **B2 intro fatto** (versione `2026-11-04.2`, commit «B2: intro…»). Test: gioco 675/675, sito 182/182,
+  LAN 10/10, build ok. Prove nel browser: vedi B1 (tutte verdi in locale dopo B1.1–B1.3).
+- CI su `natpf-simulator`: B1.3 (`4938134`) e B2 da controllare su GitHub Actions (prima esecuzione rossa per cause
+  degli script, corrette in B1.3).
+- Crediti Higgsfield spesi per la richiesta del 04/11: **40 / 100** (saldo 708,37 → 668,37). Intro riuscita al primo
+  tentativo (job `5b2b8345`), nessun secondo tentativo. In corso per B3: foto della presa caricata come media
+  `4228147a-4350-4bcf-b206-562e9c28d085` (ritaglio di `docs/riferimenti/presa-palmo-utente-2026-11-04.webp`), da
+  scontornare con `remove_background` (costo da annotare).
+- Non verificato: il video nel browser vero (il Chromium di qui non riproduce H.264: verificati i fotogrammi con ffmpeg e
+  la pagina con il fotogramma come poster).
+- **Blocco in corso:** B3 (presa).
+- **Prossima azione esatta:** B3.1 — scontornare la foto della presa (media sopra), comporla su sfondo blu scuro come
+  `presa-martello.webp` (768×768 webp), poi profilo della presa in un modulo unico con rollback (§5 B3, Come 1–2).
 
 ---
 
@@ -102,7 +99,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 |---|---|---|---|---|
 | B0 Continuità | [~] | questo file, istruzioni (CLAUDE.md, AGENTS.md), archivio dei documenti lunghi | — | invariati |
 | B1 Prove nel browser e CI | [~] | telefono simulato aggiornato, script e2e verdi, CI sul branch | — | — |
-| B2 Intro | [ ] | video con una pallina e il campo del gioco (Higgsfield, ≤100 crediti) | — | — |
+| B2 Intro | [x] | video con una pallina e il campo del gioco (Higgsfield, ≤100 crediti) | vedi WORK_PROGRESS B2 | 2026-11-04.2 |
 | B3 Presa | [ ] | foto, figura, 3D e testi della presa nuova; piatto tollerante con test; tocchi; rollback | — | — |
 | B4 Modale tutorial | [ ] | modale prima della calibrazione, «Tutto chiaro, ho capito» sul telefono | — | — |
 | B5 Stesso schermo | [ ] | modale e calibrazione indipendenti nelle due metà di «Collega» | — | — |

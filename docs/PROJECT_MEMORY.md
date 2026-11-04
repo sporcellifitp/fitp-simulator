@@ -172,7 +172,9 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   processore LED). Regola per chi scrive CSS: misure e regole che dipendono dallo schermo con **`cqw/cqh` e
   `@container natpf`**, non `vw/vh` e `@media` (il body è il contenitore «natpf»); nel JS `viewport()` di
   `natpf_screen.js`, non `window.innerWidth/innerHeight`.
-- **Intro**: video `public/media/intro.mp4` (Cinema Studio 3.0, senza scritte né marchi) con titolo in HTML; il solo
+- **Intro**: video `public/media/intro.mp4` (Cinema Studio 3.0, senza scritte né marchi; dal 04/11 generato tra due
+  fotogrammi ripresi dal motore, quindi con la stessa arena del gioco, e **una sola pallina** che esce di scena entro
+  ~1,7 s, prima della pallina del titolo a 5,6 s: verifica con `scripts/audit/conta-palline.py`) con titolo in HTML; il solo
   titolo grande è «NATPF Simulator», i partner (Esports FITP, Nitto ATP Finals) sono sempre una riga piccola in
   secondo piano (intro e menu), mai schermate di loghi a tutto schermo.
 - **Voce solo in inglese, timbro cartoon** (decisione finale del 28/10 sera, su richiesta dell'utente: una sola lingua,

@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-04.1",
+  "version": "2026-11-04.2",
   "branch": "natpf-simulator",
   "validation": "automated-tests-plus-physical-user-validation-pending",
   "cameraModes": [
