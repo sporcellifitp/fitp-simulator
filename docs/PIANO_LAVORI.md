@@ -21,6 +21,8 @@ Come si aggiorna:
   versione 2026-11-04.1) prima di B2.
 - Ultimo blocco: **B2 intro fatto** (versione `2026-11-04.2`, commit «B2: intro…»). Test: gioco 675/675, sito 182/182,
   LAN 10/10, build ok. Prove nel browser: vedi B1 (tutte verdi in locale dopo B1.1–B1.3).
+- Ultimi pacchetti consegnati: **2026-11-04.2** (LAN sha256 `e17ff710…a8b9e57`, Cloudflare `4f907c6d…7fa7f`), provati
+  estratti (dettagli in WORK_PROGRESS B2.2).
 - CI su `natpf-simulator`: B1.3 (`4938134`) e B2 da controllare su GitHub Actions (prima esecuzione rossa per cause
   degli script, corrette in B1.3).
 - Crediti Higgsfield spesi per la richiesta del 04/11: **40 / 100** (saldo 708,37 → 668,37). Intro riuscita al primo

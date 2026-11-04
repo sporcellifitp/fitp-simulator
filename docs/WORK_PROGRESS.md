@@ -71,6 +71,13 @@ Criterio di fine: script `natpf-*` verdi, CI che prova gioco, build e sito sul b
   File: `public/media/intro.mp4`, `intro-fine.webp`, `LEGGIMI.txt`, `scripts/audit/conta-palline.py`,
   `scripts/audit/intro-fotogrammi.mjs`, `PROJECT_MEMORY.md`, versione 2026-11-04.2. Test 675/182/10, build ok.
   Non verificato: riproduzione del video in un browser con H.264 (qui Chromium senza codec proprietari).
+- [x] B2.2 · pacchetti **2026-11-04.2** consegnati: Cloudflare `natpf-simulator-cloudflare-20261104-2.zip` (138 file,
+  26.846.487 B, sha256 `4f907c6dfcfb65d0402fed6b34b49b357c6299116363a2f26af269657a17fa7f`, con `/natpf/turn.json`) e
+  LAN Windows `natpf-simulator-lan-windows-20261104-2.zip` (62.031.879 B, sha256
+  `e17ff710581a52de2f31477301bebbe57a393cd727ce986b4f7c22cb9a8b9e57`, un solo `node.exe`, nessun certificato o
+  chiave). Provati estratti: Cloudflare con server statico (pagine, `version.js` .2, `turn.json`, video); LAN con
+  `NATPF_DATA_DIR` di prova, certificato creato fuori dal pacchetto, HTTPS 8443 (pagina del telefono, video,
+  MediaPipe, versione .2).
 
 ## B6 · Valutazione Windows e architettura · [x] · 04/11/2026
 - [x] B6.1 · `docs/DESKTOP_WINDOWS.md`: contesto d'uso (risposte del 04/11), architettura attuale con i riferimenti,
