@@ -131,6 +131,20 @@ Criterio di fine: script `natpf-*` verdi, CI che prova gioco, build e sito sul b
   Provati estratti: versione .4, `turn.json`, pulsante `tutOk` nella pagina del telefono, contenitore della modale nel
   gioco (LAN su HTTPS 8443 e Cloudflare con server statico).
 
+## B5 · Stesso schermo: tutorial e calibrazione indipendenti per giocatore · [x] · 04/11/2026
+- [x] B5.1 · `natpf_split_ui.js`: un'istanza di `NatpfTutorial` per giocatore, ciascuna sulla **propria metà dello
+  schermo** (P1 a sinistra, P2 a destra, sopra la pagina «Collega i due telefoni»), aperta appena quel telefono si
+  collega; il suo telefono aspetta «Tutto chiaro, ho capito» (`waitTutorial`), e solo dopo `_drive` chiede la sua
+  calibrazione; il tocco di un giocatore chiude solo la sua metà e non tocca l'altro. L'animazione 3D (una sola) va alla
+  prima metà aperta e passa all'altra quando si chiude; senza 3D: foto della presa, testi, indicazioni e schede.
+  «Gioca senza calibrare» chiude anche la modale di quella metà; «Gioca» e l'uscita dallo stesso schermo chiudono le
+  modali; un nuovo collegamento (altro telefono o pagina ricaricata) e il reset del chiosco fanno rivedere il tutorial
+  (anche nel gioco singolo). Webcam per due: niente tutorial del telefono.
+  Prima versione con le modali dentro le schede di «Collega»: troppo piccole (testi e schede sovrapposti), spostate
+  sulle metà dello schermo. Test: `natpf-split` (due modali, «ho capito» del P1 non tocca il P2, calibrazioni separate,
+  3D che passa al P2); gioco 683/683, sito 182/182, LAN 10/10, build ok; schermate delle due metà controllate.
+  Non verificato: due telefoni veri con due persone; nessuna prova nel browser automatica per lo stesso schermo.
+
 ## B6 · Valutazione Windows e architettura · [x] · 04/11/2026
 - [x] B6.1 · `docs/DESKTOP_WINDOWS.md`: contesto d'uso (risposte del 04/11), architettura attuale con i riferimenti,
   audit (rendering, latenza, Windows), cosa richiede la rete, confronto A/A+/PWA/Electron/Tauri/NW.js/Neutralino,

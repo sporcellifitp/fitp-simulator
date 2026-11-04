@@ -145,6 +145,8 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   sullo stesso schermo: modale e calibrazione indipendenti nelle due metà della pagina «Collega».
 - **Tutorial (fatto in B4)**: `natpf_tutorial.js` + protocollo `cfg.tut` / messaggio `tut` (telefono in attesa, pulsante in
   alto); la modale sostituisce la lezione a passi con il telefono; Esc la chiude per chi gestisce la postazione.
+- **Stesso schermo (fatto in B5)**: un tutorial per metà dello schermo (`#split-tut-p1/p2`), ciascuno chiuso dal proprio
+  telefono; calibrazione di ciascuno solo dopo il suo «ho capito»; una sola animazione 3D, alla metà aperta per prima.
 - **Intro**: una sola pallina e il campo dell'arena del gioco; budget Higgsfield ≤ 100 crediti; se due tentativi
   falliscono si avvisa l'utente.
 - **Lavoro**: push dopo ogni commit verificato; ZIP LAN e Cloudflare consegnati sempre dopo ogni commit (nuovi se il

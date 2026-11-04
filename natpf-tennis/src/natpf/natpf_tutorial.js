@@ -31,11 +31,13 @@ const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 
 export class NatpfTutorial {
   // root: elemento che contiene la modale (vuoto); demo: () => getGestureDemo() (iniettato: niente three.js nei test)
-  constructor(root, { demo = null, clock = () => performance.now() } = {}){
-    this.root = root; this.demo = demo; this.clock = clock;
+  // half: istanza in una metà dello schermo (1v1 sullo stesso schermo); canDemo: se questa istanza può usare
+  // l'animazione 3D adesso (una sola per tutte); senza, foto e indicazioni a tutta larghezza
+  constructor(root, { demo = null, clock = () => performance.now(), half = false, canDemo = () => true } = {}){
+    this.root = root; this.demo = demo; this.clock = clock; this.canDemo = canDemo;
     this.open = false; this.state = null; this.timer = null; this.opts = {};
     if (!root) return;
-    root.classList.add('natpf-tutorial', 'hidden');
+    root.classList.add('natpf-tutorial', 'hidden'); if (half) root.classList.add('half');
     root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true');
     root.innerHTML = `<div class="tut-card">
       <header class="tut-head"><span class="tut-kicker"></span><h2 class="tut-title">Come si gioca con il telefono</h2></header>
@@ -82,7 +84,8 @@ export class NatpfTutorial {
     if (!this.open) return;
     this.open = false; clearInterval(this.timer); this.timer = null;
     this.root?.classList.add('hidden');
-    const d = this.demo?.(); if (d && this.demoOn){ d.stop(); this.demoOn = false; }
+    const d = this.demo?.(); if (d && this.demoOn){ d.stop(); }
+    this.demoOn = false;
     const cb = this.opts.onClose; this.opts = {};
     cb?.(reason);
   }
@@ -103,7 +106,9 @@ export class NatpfTutorial {
     } else if (media){ media.dataset.key = ''; media.innerHTML = ''; }
     media?.classList.toggle('hidden', !c.photo);
     // presa: foto e animazione 3D dell'impugnatura insieme; gli altri: animazione 3D grande
-    const d = this.demo?.();
+    const d = this.canDemo() ? this.demo?.() : null;
+    this.root.classList.toggle('no-3d', !d);
+    if (!d) this.demoOn = false;
     if (d && stage){
       d.mount(stage);
       if (d.available) d.setSize(stage.clientWidth || 360, stage.clientHeight || 360);

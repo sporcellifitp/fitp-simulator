@@ -199,6 +199,9 @@ export class NatpfTraining {
     this.calOnly = calOnly; this.guest = guest;
     const ctrl = this.ui.controller, steps = ctrl === 'phone' ? LESSON : ctrl === 'webcam' ? WEBCAM_LESSON : [];
     // con il telefono la lezione (presa, mano, posizione) è la modale del tutorial, in tutti i percorsi; resta per la webcam
+    // nuovo collegamento del telefono (pagina ricaricata, altro telefono): può essere un altro giocatore, si rivede
+    const joins = this.ui.phone?.state?.joins || 0;
+    if (this.tutorialJoins !== joins){ this.tutorialJoins = joins; this.tutorialSeen = {}; }
     const wantTutorial = ctrl === 'phone' && !diag && !guest && !this.tutorialSeen.p1;
     this.lesson = !wantTutorial && ctrl !== 'phone' && intro && !guest && !diag && !calOnly && steps.length && !this.introSeen[ctrl] ? { steps, idx: 0 } : null;
     this.live = null;

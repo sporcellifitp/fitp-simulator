@@ -18,23 +18,21 @@ Come si aggiorna:
 ## 1. Checkpoint (riscritto a ogni passo)
 
 - Aggiornato: 04/11/2026 · agente: Claude · branch `natpf-simulator`.
-- Ultimo blocco: **B4 modale del tutorial fatto** (versione `2026-11-04.4`): `natpf_tutorial.js`, protocollo
-  `cfg.tut`/`tut` con «Tutto chiaro, ho capito» sul telefono, riquadro «Guarda e ripeti» tolto in calibrazione.
-  Test: gioco 683/683, sito 182/182, LAN 10/10, build ok; e2e training-flow 15/15, blackout 6/6, training-reconnect 6/6,
-  diag-session 24/24. Prima: B3 presa nel palmo (rollback `GRIP_STYLE = 'martello'`), B2 intro, B1 prove e CI, B6.
-- CI su `natpf-simulator`: workflow del gioco verde; prove nel browser: `natpf-training-flow` verde dopo B1.4; restano
-  rossi a intermittenza su runner condivisi (verdi in locale e in esecuzioni precedenti) `gesture-calibration` (servizio
-  del vecchio gioco del sito, attesa del contatto a riga 73) e `timing-browser` («P2 timing still correct after shared
-  pause», −0,069 s): da stabilizzare (punto aperto).
-- Ultimi pacchetti consegnati: **2026-11-04.4** (LAN sha256 `de2146c1…c0d02de`, Cloudflare `8886b95b…5f43515`), provati
-  estratti (WORK_PROGRESS B4.3).
+- **Richiesta del 04/11 completata nei blocchi B0–B6** (versione `2026-11-04.5`): B0 file di ripresa e regole, B1 prove
+  nel browser e CI, B2 intro con una pallina e l'arena del gioco, B3 presa nel palmo (rollback `GRIP_STYLE =
+  'martello'`), B4 modale del tutorial con «Tutto chiaro, ho capito» sul telefono, B5 tutorial e calibrazione
+  indipendenti nelle due metà dello schermo, B6 valutazione Windows (poi A+ di Codex, 2026-11-04.1).
+- Test: gioco 683/683, sito 182/182, LAN 10/10, build ok; e2e training-flow 15/15 (con la modale), blackout 6/6,
+  training-reconnect 6/6, diag-session 24/24, menu 22/22, rally 7/7, phone-keep 13/13.
+- CI su `natpf-simulator`: workflow del gioco verde; prove nel browser con due rossi intermittenti su runner condivisi
+  (`gesture-calibration` riga 73, `timing-browser` «P2 timing … after shared pause»): punto aperto.
+- Ultimi pacchetti consegnati: vedi WORK_PROGRESS (2026-11-04.5 con B5).
 - Crediti Higgsfield spesi per la richiesta del 04/11: **41 / 100** (saldo 667,37).
-- Non verificato: telefono vero (presa nuova, pulsante «ho capito»), video H.264 in un browser vero, Windows e ledwall.
-- **Blocco in corso:** B5 (stesso schermo: modale e calibrazione indipendenti per giocatore).
-- **Prossima azione esatta:** B5.1 — nella pagina «Collega i due telefoni» (`natpf_split_ui.js`) un'istanza di
-  `NatpfTutorial` per metà (`.natpf-tutorial.half`, contenitore nella metà del giocatore), `waitTutorial` per ciascun
-  telefono (`p1`, `p2`), `_drive` che non chiama `recalibrate()` finché quel telefono non ha toccato «ho capito»;
-  l'animazione 3D a chi l'ha chiesta per ultimo, l'altra metà con foto e indicazioni. Test con due telefoni finti.
+- Non verificato (serve l'utente): telefoni veri (presa nel palmo, pulsante «ho capito», due persone sullo stesso
+  schermo), video H.264 in un browser vero, Windows 10 con Edge e ledwall (A+ di Codex).
+- **Prossima azione esatta:** aspettare la prova dell'utente con i pacchetti 2026-11-04.5 (diagnostica accesa); nel
+  frattempo, se richiesto, stabilizzare i due rossi intermittenti della CI (§1) o passare a F0/F1 di
+  `docs/DESKTOP_WINDOWS.md` (misure, qualità grafica automatica) su decisione dell'utente.
 
 ---
 
@@ -100,12 +98,12 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 
 | Blocco | Stato | Contenuto | Commit | Pacchetti |
 |---|---|---|---|---|
-| B0 Continuità | [~] | questo file, istruzioni (CLAUDE.md, AGENTS.md), archivio dei documenti lunghi | — | invariati |
-| B1 Prove nel browser e CI | [~] | telefono simulato aggiornato, script e2e verdi, CI sul branch | — | — |
+| B0 Continuità | [x] | questo file, istruzioni (CLAUDE.md, AGENTS.md), archivio dei documenti lunghi | — | invariati |
+| B1 Prove nel browser e CI | [x] | telefono simulato aggiornato, script e2e verdi, CI sul branch | — | — |
 | B2 Intro | [x] | video con una pallina e il campo del gioco (Higgsfield, ≤100 crediti) | vedi WORK_PROGRESS B2 | 2026-11-04.2 |
 | B3 Presa | [x] | foto, figura, 3D e testi della presa nuova; piatto tollerante con test; tocchi; rollback | vedi WORK_PROGRESS B3 | 2026-11-04.3 |
 | B4 Modale tutorial | [x] | modale prima della calibrazione, «Tutto chiaro, ho capito» sul telefono | vedi WORK_PROGRESS B4 | 2026-11-04.4 |
-| B5 Stesso schermo | [ ] | modale e calibrazione indipendenti nelle due metà di «Collega» | — | — |
+| B5 Stesso schermo | [x] | modale e calibrazione indipendenti nelle due metà di «Collega» | vedi WORK_PROGRESS B5 | 2026-11-04.5 |
 | B6 Windows | [~] | A+ portatile implementato; collaudo Windows reale e F0/F1 da completare | commit di questo checkpoint | 2026-11-04.1 |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco

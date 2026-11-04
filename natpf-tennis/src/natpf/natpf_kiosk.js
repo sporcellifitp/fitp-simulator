@@ -57,6 +57,9 @@ export class NatpfKiosk {
     if (ui.onboarding?.isOpen) ui.onboarding.close();
     for (const m of document.querySelectorAll('.natpf-sheet-backdrop:not(#natpf-staff)')) m.classList.add('hidden');
     ui.events.nickname = '';
+    // il visitatore successivo rivede il tutorial prima di calibrare (gioco singolo e stesso schermo)
+    if (ui.training) ui.training.tutorialSeen = {};
+    if (ui.split){ ui.split.closeTutorials?.(); ui.split.tutSeen = { p1: false, p2: false }; }
     if (ui.phone.connected) ui.phone.forget?.();
     ui.lobby.go('menu');
     // pausa ricalcolata a pannelli chiusi: prima restava attiva e il visitatore successivo trovava il gioco fermo

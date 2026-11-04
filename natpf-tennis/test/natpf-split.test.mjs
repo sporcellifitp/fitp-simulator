@@ -156,9 +156,22 @@ test('stesso schermo dal menu alla partita: due telefoni, calibrazione automatic
   lobby.go('mode'); lobby.setMode('split'); lobby.go('connect');
   assert.equal(ui.controller, 'phone');
   assert.equal(lobby.state().splitReady, false);
-  // P1 e P2 con i sensori attivi: la calibrazione parte da sola sui due telefoni
+  // P1 e P2 collegati: prima il tutorial di ciascuno nella sua metà (04/11), i telefoni aspettano «ho capito»
   ui.split.paint();
-  assert.ok(w.link.cmds.includes('cal'), 'calibrazione chiesta al P1'); assert.ok(l2.cmds.includes('cal'), 'calibrazione chiesta al P2');
+  assert.ok(ui.split.tutOpen.p1 && ui.split.tutOpen.p2, 'tutorial aperto nelle due metà');
+  assert.ok(ui.split.tut.p1.open && ui.split.tut.p2.open);
+  assert.ok(E.natpfPhone.tutWait && P2.tutWait, 'i due telefoni aspettano');
+  assert.ok(!w.link.cmds.includes('cal') && !l2.cmds.includes('cal'), 'nessuna calibrazione prima di «ho capito»');
+  assert.equal(ui.split.demoOwner, 'p1', 'animazione 3D a una sola metà');
+  // «Tutto chiaro, ho capito» sul telefono del P1: si chiude solo la sua metà e parte solo la sua calibrazione
+  for (const fn of E.natpfPhone.tutListeners) fn({ ok: true });
+  ui.split.paint();
+  assert.ok(!ui.split.tutOpen.p1 && ui.split.tutOpen.p2, 'il P2 continua il suo tutorial');
+  assert.ok(w.link.cmds.includes('cal'), 'calibrazione chiesta al P1'); assert.ok(!l2.cmds.includes('cal'), 'il P2 non è disturbato');
+  assert.equal(ui.split.demoOwner, 'p2', 'l\'animazione 3D passa al P2');
+  for (const fn of P2.tutListeners) fn({ ok: true });
+  ui.split.paint();
+  assert.ok(!ui.split.tutOpen.p2 && !P2.tutWait); assert.ok(l2.cmds.includes('cal'), 'calibrazione chiesta al P2');
   // verifica riuscita del P1: confermata da sola; quella del P2 non riesce tre volte → profilo semplice
   E.natpfPhone._onCal({ kind: 'review', pass: true });
   assert.ok(w.link.cmds.includes('confirm'));

@@ -13,6 +13,8 @@ import { createPhoneWatch, createResync, phoneHealthOf, holdText } from './natpf
 import { splitVisible } from './natpf_split.js';
 import { webcamOpenError } from './natpf_webcam_watch.js';
 
+import { NatpfTutorial } from './natpf_tutorial.js';
+import { getGestureDemo } from './natpf_gesture_demo.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const SPLIT_PLAYERS = Object.freeze(['p1', 'p2']);
@@ -60,6 +62,11 @@ export class NatpfSplitUi {
     this.calAsked = { p1: false, p2: false }; // calibrazione già chiesta per questo collegamento
     this.labels = { p1: null, p2: null };     // esito dell'ultimo colpo { text, until }
     this.watch = createPhoneWatch(); this.hold = null; this.resync = createResync();
+    // tutorial di ciascun giocatore nella sua metà della pagina «Collega» (richiesta del 04/11): indipendenti, si chiudono
+    // dal proprio telefono; l'animazione 3D (una sola) la ha la prima metà che l'ha chiesta, l'altra foto e indicazioni
+    this.tutOpen = { p1: false, p2: false }; this.tutSeen = { p1: false, p2: false }; this.demoOwner = null;
+    this.tut = {};
+    for (const id of SPLIT_PLAYERS) this.tut[id] = typeof document !== 'undefined' ? new NatpfTutorial($(`split-tut-${id}`), { half: true, demo: () => getGestureDemo(), canDemo: () => this.demoOwner === id }) : null;
     let saved = 'phones'; try { saved = localStorage.getItem(SPLIT_INPUT_KEY) || 'phones'; } catch {}
     this.input = splitInputOf(saved);
     const box = document.querySelector('[data-setup="split"]');
@@ -73,7 +80,7 @@ export class NatpfSplitUi {
       const inp = e.target.closest('[data-split-input]'); if (inp){ e.stopPropagation(); this.setInput(inp.dataset.splitInput); return; }
       if (e.target.closest('#split-cam-go')){ e.stopPropagation(); this._camOn(); return; }
       const h = e.target.closest('[data-split-hand]'); if (h){ e.stopPropagation(); const [id, hand] = h.dataset.splitHand.split(':'); this.setHand(id, hand); return; }
-      const s = e.target.closest('[data-split-skip]'); if (s){ e.stopPropagation(); this.phone(s.dataset.splitSkip)?.skipCalibration(); this.paint(); }
+      const s = e.target.closest('[data-split-skip]'); if (s){ e.stopPropagation(); this._tutDone(s.dataset.splitSkip); this.phone(s.dataset.splitSkip)?.skipCalibration(); this.paint(); }
     });
   }
   get session(){ return !!this.engine.natpfSplit?.active; }
@@ -88,8 +95,9 @@ export class NatpfSplitUi {
       this.bound = p2;
       p2.onChange(() => { this._resetIfNew('p2'); if (this.ui.lobby?.visible && this.ui.lobby.step === 'connect') this.ui.lobby.paint(); });
       p2.onCal(e => this._onCal('p2', e));
+      p2.onTutorial?.(() => this._tutDone('p2'));
     }
-    if (!this.p1Bound){ this.p1Bound = true; this.ui.phone.onCal?.(e => this._onCal('p1', e)); this.ui.phone.onChange(() => this._resetIfNew('p1')); }
+    if (!this.p1Bound){ this.p1Bound = true; this.ui.phone.onCal?.(e => this._onCal('p1', e)); this.ui.phone.onChange(() => this._resetIfNew('p1')); this.ui.phone.onTutorial?.(() => this._tutDone('p1')); }
     for (const id of SPLIT_PLAYERS) this.phone(id).start().catch(err => this.ui.toast(`Collegamento del ${id.toUpperCase()} non disponibile (${err.message})`));
   }
   get webcam(){ return this.input === 'webcam'; }
@@ -128,7 +136,7 @@ export class NatpfSplitUi {
   // nuovo collegamento (pagina del telefono ricaricata o altro telefono): la calibrazione si chiede di nuovo
   _resetIfNew(id){
     const p = this.phone(id), joins = p?.state?.joins || 0, key = `${id}Joins`;
-    if (this[key] !== joins){ this[key] = joins; this.calAsked[id] = false; this.fails[id] = 0; }
+    if (this[key] !== joins){ this[key] = joins; this.calAsked[id] = false; this.fails[id] = 0; this.tutSeen[id] = false; }
   }
   // calibrazione guidata dal telefono: si conferma da sola se riesce, si ripete se no (poi profilo semplice). Anche a
   // partita in corso: sessione del 29/10, schermo del telefono spento, «Ricalibra» sul telefono, calibrazione rifatta e
@@ -136,6 +144,7 @@ export class NatpfSplitUi {
   _onCal(id, e){
     if (!this.session && !(this.ui.lobby?.visible && this.ui.lobby.mode === 'split')) return;
     const p = this.phone(id);
+    if (this.tutOpen[id] && !p.tutSupported && e?.kind === 'step') this._tutDone(id);
     if (e?.kind === 'review'){
       if (e.pass){ this.fails[id] = 0; p.confirm(); }
       else if (++this.fails[id] >= SPLIT_CAL_TRIES){ p.skipCalibration(); this.ui.toast(`${id === 'p1' ? 'Player 1' : 'Player 2'}: si gioca senza calibrazione`); }
@@ -147,8 +156,36 @@ export class NatpfSplitUi {
   _drive(id){
     const p = this.phone(id); if (!p) return;
     const L = p.state;
+    // telefono collegato: prima il tutorial nella sua metà (una volta per giocatore); il telefono aspetta «ho capito»
+    if (p.connected && !this.tutSeen[id] && !this.tutOpen[id] && !this.webcam) this._tutOpen(id);
+    if (!p.connected && this.tutOpen[id]) this._tutClose(id);
+    if (this.tutOpen[id]) return;
     if (p.connected && L.phone === 'cal' && !p.ready && !this.calAsked[id] && p.calView?.stage === 'off'){ this.calAsked[id] = true; p.recalibrate(); }
   }
+  _tutOpen(id){
+    this.tutOpen[id] = true;
+    // collegamento di questo giocatore: solo uno nuovo (altro telefono, pagina ricaricata) fa rivedere il tutorial
+    this[`${id}Joins`] = this.phone(id)?.state?.joins || 0;
+    if (!this.demoOwner) this.demoOwner = id;
+    this.phone(id).waitTutorial?.(true);
+    const name = this.engine.natpfSplitNames?.[id] || (id === 'p1' ? 'Player 1' : 'Player 2');
+    this.tut[id]?.openFor({ mode: 'phone', player: name, hand: this.hand(id), wait: 'Sul tuo telefono tocca «Tutto chiaro, ho capito»: poi si calibra.' });
+  }
+  // chiusa dal telefono di quel giocatore (o dal telefono di prima che calibra da solo): solo la sua metà
+  _tutDone(id){
+    if (!this.tutOpen[id]) return;
+    this.tutSeen[id] = true; this._tutClose(id);
+    this.paint();
+  }
+  _tutClose(id){
+    this.tutOpen[id] = false;
+    this.phone(id)?.waitTutorial?.(false);
+    this.tut[id]?.close('phone');
+    // l'animazione 3D passa all'altra metà, se ha il tutorial aperto
+    if (this.demoOwner === id){ const other = id === 'p1' ? 'p2' : 'p1'; this.demoOwner = this.tutOpen[other] ? other : null; if (this.demoOwner) this.tut[other]?.paint(); }
+  }
+  // si esce dalla pagina «Collega» (partita, menu): le modali delle metà si chiudono, i telefoni non aspettano più
+  closeTutorials(){ for (const id of SPLIT_PLAYERS) if (this.tutOpen[id]) this._tutClose(id); }
   paint(){
     const box = document.querySelector('[data-setup="split"]'), cam = this.webcam, mc = this.engine.motionController, now = performance.now();
     if (box) box.dataset.input = this.input;
@@ -181,12 +218,14 @@ export class NatpfSplitUi {
   }
   // «Gioca»: sessione split nel motore, mano del P2 sul suo personaggio
   start(){
+    this.closeTutorials();
     if (!this.engine.startSplit()) return false;
     this.ui.hand.mirrorRemote?.(this.engine.opponent, this.hand('p2'));
     this.labels = { p1: null, p2: null };
     return true;
   }
   end(){
+    this.closeTutorials();
     if (!this.session && !this.hold) return;
     this.engine.endSplit?.(); if (this.hold){ this.hold = null; this.ui._paintHold?.(null); } show($('natpf-split-hud'), false);
   }
