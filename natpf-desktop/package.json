@@ -7,6 +7,7 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "prepara": "node scripts/prepara.mjs",
+    "prova-linux": "node scripts/prova-linux.mjs",
     "costruisci": "node scripts/prepara.mjs && node scripts/costruisci.mjs"
   },
   "devDependencies": {

@@ -7,7 +7,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { readBuild, windowsVersion } from '../src/desktop-core.mjs';
+import { DESKTOP, readBuild, windowsVersion } from '../src/desktop-core.mjs';
 
 const HERE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = path.resolve(HERE, '..');
@@ -31,8 +31,8 @@ for (const p of ['tools/lan/certs']) fs.rmSync(path.join(APP, p), { recursive: t
 fs.mkdirSync(path.join(APP, 'node_modules'), { recursive: true });
 for (const m of ['ws', 'node-forge']) fs.cpSync(path.join(REPO, 'tools/lan/node_modules', m), path.join(APP, 'node_modules', m), { recursive: true });
 const lanPkg = JSON.parse(fs.readFileSync(path.join(REPO, 'tools/lan/package.json'), 'utf8'));
-// processo principale e icona
-for (const f of ['main.mjs', 'desktop-core.mjs']) fs.copyFileSync(path.join(HERE, 'src', f), path.join(APP, f));
+// processo principale, ponte con la pagina del gioco (preload) e icona
+for (const f of ['main.mjs', 'desktop-core.mjs', DESKTOP.preload]) fs.copyFileSync(path.join(HERE, 'src', f), path.join(APP, f));
 fs.copyFileSync(path.join(HERE, 'build/icon.ico'), path.join(APP, 'icon.ico'));
 fs.writeFileSync(path.join(APP, 'package.json'), JSON.stringify({
   name: 'natpf-simulator', productName: 'NATPF Simulator', version: windowsVersion(build), natpfBuild: build,

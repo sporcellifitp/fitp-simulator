@@ -2,13 +2,19 @@
 // Il processo principale avvia nello stesso processo il server LAN già usato dal pacchetto zip (certificati in
 // %LOCALAPPDATA%\NATPF, HTTPS 8443 per gioco e telefoni, pagina del certificato 8081) e apre il gioco a schermo intero
 // sul monitor scelto. Il gioco è lo stesso della versione browser (natpf-tennis/dist): qui solo il guscio.
-// Funzioni pure in desktop-core.mjs (provate con node:test). Niente API di Node nella pagina del gioco.
-import { app, BrowserWindow, Menu, screen, powerSaveBlocker, session, dialog, shell } from 'electron';
+// Funzioni pure in desktop-core.mjs (provate con node:test). Niente API di Node nella pagina del gioco: solo
+// window.natpfDesktop (preload.cjs) per lo schermo intero della finestra.
+// Schermo intero senza cornici (richiesta del 04/11/2026, blocco B8): la finestra nasce già a schermo intero (nessuna
+// cornice a vista all'avvio), Alt da solo non mostra il menu sopra il gioco, F11 e le altre scorciatoie funzionano
+// anche quando la pagina blocca i tasti, il cambio di monitor avviene a finestra trasparente e lo schermo intero segue
+// i cambi di risoluzione o di scala del monitor e il ledwall che si riaccende.
+import { app, BrowserWindow, Menu, screen, powerSaveBlocker, session, dialog, shell, ipcMain } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { DESKTOP, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings } from './desktop-core.mjs';
+import { DESKTOP, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings,
+  windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget } from './desktop-core.mjs';
 
 const ROOT = app.getAppPath();
 const DATA = path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'NATPF');
@@ -35,6 +41,10 @@ function log(...a){
 const PORTABLE = !!process.env.PORTABLE_EXECUTABLE_DIR;
 const RULE = PORTABLE ? `${DESKTOP.ruleName} portatile` : DESKTOP.ruleName;
 let win = null, lan = null, ca = null, certPath = null, addresses = [], settings = readSettings(DATA), blocker = null;
+// monitor voluto (salvato o scelto all'avvio; cambia solo con una scelta dal menu o Ctrl+Maiusc+M) e monitor su cui il
+// gioco è a schermo intero adesso (diverso dal voluto se quello è stato scollegato)
+let wantedDisplayId = null, placedDisplayId = null;
+let placing = false, pendingPlace = null;
 
 const FIRST = app.requestSingleInstanceLock();
 if (!FIRST) app.quit();
@@ -69,20 +79,86 @@ async function startServers(){
   return s;
 }
 
-function placeOn(display){
-  if (!win || !display) return;
-  const full = win.isFullScreen();
-  if (full) win.setFullScreen(false);
-  win.setBounds(display.bounds);
-  settings.displayId = display.id; writeSettings(DATA, settings);
-  if (full || settings.fullscreen !== false) setTimeout(() => win?.setFullScreen(true), 150);
-  buildMenu();
-}
-function toggleFullscreen(){
+// Barra del menu: a schermo intero mai visibile, nemmeno con Alt da solo (con «nascondi automaticamente» Alt la
+// mostrerebbe sopra il gioco e le prenderebbe Invio e frecce); le scorciatoie restano attive. In finestra Alt la mostra.
+function syncMenuBar(){
   if (!win) return;
-  const on = !win.isFullScreen(); win.setFullScreen(on);
-  settings.fullscreen = on; writeSettings(DATA, settings);
+  if (win.isFullScreen()){ win.setAutoHideMenuBar(false); win.setMenuBarVisibility(false); }
+  else win.setAutoHideMenuBar(true);
 }
+function notifyFullscreen(){
+  if (win && !placing) win.webContents.send(DESKTOP.ipcFullscreenChanged, win.isFullScreen());
+}
+function onFullscreenChanged(){
+  syncMenuBar();
+  if (win?.isFullScreen()) placedDisplayId = screen.getDisplayMatching(win.getBounds()).id;
+  notifyFullscreen();
+}
+// esegue fn dopo l'evento della finestra (su Windows arriva subito, dentro setFullScreen) o dopo ms al più tardi;
+// sempre al giro successivo, mai dentro l'evento stesso (fn controlla da sé che la finestra ci sia ancora)
+function afterWindowEvent(name, ms, fn){
+  let done = false;
+  const go = () => { if (done) return; done = true; clearTimeout(timer); win?.removeListener(name, go); setImmediate(fn); };
+  const timer = setTimeout(go, ms);
+  win.once(name, go);
+}
+
+// Gioco su un monitor. remember: scelta dell'operatore (menu, Ctrl+Maiusc+M), salvata; false per gli spostamenti
+// automatici (monitor scollegato, ricollegato, cambiato), che non cambiano il monitor voluto.
+// A schermo intero: finestra trasparente → esce dallo schermo intero → rettangolo in finestra dentro il monitor nuovo
+// → schermo intero (Windows lo mette sul monitor che contiene la finestra) → di nuovo visibile. Nessuna cornice a vista.
+function placeOn(display, { remember = true } = {}){
+  if (!win || !display) return;
+  if (remember){ settings.displayId = display.id; wantedDisplayId = display.id; writeSettings(DATA, settings); }
+  if (placing){ pendingPlace = display; return; }
+  const rect = windowedBounds(display);
+  if (!rect) return;
+  if (!win.isFullScreen()){ win.setBounds(rect); placedDisplayId = display.id; buildMenu(); return; }
+  placing = true;
+  log('schermo intero sul monitor', { monitor: display.id, bounds: display.bounds, scala: display.scaleFactor, scelto: remember });
+  win.setOpacity(0);
+  afterWindowEvent('leave-full-screen', 400, () => {
+    if (!win){ placing = false; return; }
+    win.setBounds(rect);
+    afterWindowEvent('enter-full-screen', 400, () => setTimeout(finish, 100));
+    win.setFullScreen(true);
+  });
+  win.setFullScreen(false);
+  function finish(){
+    placing = false;
+    if (!win) return;
+    win.setOpacity(1);
+    placedDisplayId = display.id;
+    buildMenu();
+    notifyFullscreen();
+    if (pendingPlace){ const next = pendingPlace; pendingPlace = null; placeOn(next, { remember: false }); }
+  }
+}
+// schermo intero acceso o spento (F11, menu, pagina del gioco): la scelta resta per i prossimi avvii.
+// Risponde con lo stato nuovo, quando la finestra lo ha raggiunto (al più tardi dopo 1 s)
+function setFullscreen(on){
+  if (!win) return Promise.resolve(false);
+  // durante il cambio di monitor (meno di mezzo secondo) la richiesta si ignora: risponde lo stato di prima
+  if (placing) return Promise.resolve(settings.fullscreen !== false);
+  settings.fullscreen = !!on; writeSettings(DATA, settings);
+  if (win.isFullScreen() === !!on) return Promise.resolve(!!on);
+  return new Promise(resolve => {
+    afterWindowEvent(on ? 'enter-full-screen' : 'leave-full-screen', 1000, () => resolve(!!win?.isFullScreen()));
+    win.setFullScreen(!!on);
+  });
+}
+function toggleFullscreen(){ return win ? setFullscreen(!win.isFullScreen()) : Promise.resolve(false); }
+function nextMonitor(){
+  if (win) placeOn(nextDisplay(screen.getAllDisplays(), screen.getDisplayMatching(win.getBounds()).id));
+}
+// azioni delle scorciatoie (shortcutFor in desktop-core.mjs) e delle voci del menu con lo stesso id
+const ACTIONS = {
+  'schermo-intero': () => { toggleFullscreen(); },
+  'monitor-successivo': () => nextMonitor(),
+  ricarica: () => win?.webContents.reload(),
+  esci: () => app.quit(),
+  strumenti: () => win?.webContents.toggleDevTools(),
+};
 
 // firewall: regola per questo eseguibile (l'installazione la crea; il portatile la chiede alla prima apertura)
 function netsh(args){ return new Promise(resolve => execFile('netsh', args, { windowsHide: true, timeout: 10000 }, (err, out) => resolve(err ? '' : String(out)))); }
@@ -123,15 +199,17 @@ function buildMenu(){
   const current = win ? screen.getDisplayMatching(win.getBounds()).id : null;
   const template = [
     { label: 'NATPF', submenu: [
-      { label: 'Schermo intero', accelerator: 'F11', click: toggleFullscreen },
-      { label: 'Ricarica il gioco', accelerator: 'CmdOrCtrl+R', click: () => win?.webContents.reload() },
+      // gli acceleratori qui servono da etichetta e quando la barra del menu ha il fuoco: con il fuoco sul gioco le
+      // scorciatoie le esegue 'before-input-event' (che le toglie alla pagina e al menu: mai due volte)
+      { id: 'schermo-intero', label: 'Schermo intero', accelerator: 'F11', click: ACTIONS['schermo-intero'] },
+      { id: 'ricarica', label: 'Ricarica il gioco', accelerator: 'CmdOrCtrl+R', click: ACTIONS.ricarica },
       { type: 'separator' },
-      { label: 'Esci', accelerator: 'CmdOrCtrl+Q', click: () => app.quit() },
+      { id: 'esci', label: 'Esci', accelerator: 'CmdOrCtrl+Q', click: ACTIONS.esci },
     ] },
     { label: 'Schermo', submenu: [
       ...displays.map((d, i) => ({ label: displayLabel(d, i, primaryId), type: 'radio', checked: d.id === current, click: () => placeOn(d) })),
       { type: 'separator' },
-      { label: 'Monitor successivo', accelerator: 'CmdOrCtrl+Shift+M', click: () => placeOn(nextDisplay(screen.getAllDisplays(), screen.getDisplayMatching(win.getBounds()).id)) },
+      { id: 'monitor-successivo', label: 'Monitor successivo', accelerator: 'CmdOrCtrl+Shift+M', click: ACTIONS['monitor-successivo'] },
     ] },
     { label: 'Rete', submenu: [
       { label: 'Apri la rete ai telefoni (firewall)…', click: () => openFirewall({ ask: false }) },
@@ -140,11 +218,31 @@ function buildMenu(){
     { label: 'Aiuto', submenu: [
       { label: 'Cartella dei dati (certificati, registri)', click: () => shell.openPath(DATA) },
       { label: 'Scheda grafica in uso…', click: showGpu },
-      { label: 'Strumenti per sviluppatori', accelerator: 'CmdOrCtrl+Shift+I', click: () => win?.webContents.toggleDevTools() },
+      { id: 'strumenti', label: 'Strumenti per sviluppatori', accelerator: 'CmdOrCtrl+Shift+I', click: ACTIONS.strumenti },
       { label: `Versione ${app.getVersion()}`, enabled: false },
     ] },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  // il menu nuovo non deve comparire sopra il gioco a schermo intero
+  syncMenuBar();
+}
+
+// Monitor cambiato con il gioco aperto (risoluzione, scala, ledwall riconfigurato): Windows non riadatta da solo lo
+// schermo intero. Dopo 300 ms senza altri cambi, se la finestra non copre più il monitor, si rimette lo schermo intero
+let refitTimer = null, refitChanges = new Set();
+function onDisplayMetricsChanged(_e, display, changed = []){
+  if (!win || !changed.some(c => c === 'bounds' || c === 'scaleFactor')) return;
+  if (String(display.id) !== String(placedDisplayId)) return;
+  for (const c of changed) refitChanges.add(c);
+  clearTimeout(refitTimer);
+  refitTimer = setTimeout(() => {
+    const what = [...refitChanges]; refitChanges = new Set();
+    const d = screen.getAllDisplays().find(x => x.id === display.id);
+    buildMenu();
+    if (!win || !d || placing || !win.isFullScreen() || !needsRefit(win.getBounds(), d.bounds)) return;
+    log('monitor cambiato: riadatto lo schermo intero', { monitor: d.id, finestra: win.getBounds(), monitorOra: d.bounds, scala: d.scaleFactor, cambiato: what });
+    placeOn(d, { remember: false });
+  }, 300);
 }
 
 async function main(){
@@ -154,12 +252,36 @@ async function main(){
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) => cb(allowed.has(permission) && isOwnUrl(details?.requestingUrl || '', addresses)));
   session.defaultSession.setPermissionCheckHandler((_wc, permission, origin) => allowed.has(permission) && isOwnUrl(origin || '', addresses));
   const display = chooseDisplay(screen.getAllDisplays(), { savedId: settings.displayId, primaryId: screen.getPrimaryDisplay().id });
-  win = new BrowserWindow({ ...display.bounds, show: false, backgroundColor: '#050a1c', title: 'NATPF Simulator', autoHideMenuBar: true,
-    icon: path.join(ROOT, 'icon.ico'), webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false } });
-  win.setMenuBarVisibility(false);
-  win.on('closed', () => { win = null; app.quit(); });
-  win.once('ready-to-show', () => { win.show(); if (settings.fullscreen !== false) win.setFullScreen(true); });
+  wantedDisplayId = placedDisplayId = display?.id ?? null;
+  // già a schermo intero dalla creazione (su Windows la finestra nascosta diventa senza bordi e grande quanto il monitor
+  // che contiene il rettangolo di partenza; show() la mostra così): niente finestra con la cornice all'avvio.
+  // Cornice normale (non la finestra senza cornice di Electron, che si limiterebbe a coprire il monitor senza lo schermo
+  // intero di Windows) e niente kiosk: lo schermo intero vero di Windows, sopra la barra delle applicazioni
+  win = new BrowserWindow({ ...(windowedBounds(display) || {}), fullscreen: settings.fullscreen !== false, show: false, backgroundColor: '#050a1c',
+    title: 'NATPF Simulator', autoHideMenuBar: true, icon: path.join(ROOT, 'icon.ico'),
+    webPreferences: { preload: path.join(ROOT, DESKTOP.preload), contextIsolation: true, sandbox: true, backgroundThrottling: false } });
+  // menu e barra del menu subito: l'evento di schermo intero della creazione è già passato (buildMenu → syncMenuBar)
   buildMenu();
+  win.on('enter-full-screen', onFullscreenChanged);
+  win.on('leave-full-screen', onFullscreenChanged);
+  // in finestra l'operatore può trascinarla su un altro monitor: è lì che il gioco sta adesso
+  win.on('moved', () => { if (win && !placing && !win.isFullScreen()) placedDisplayId = screen.getDisplayMatching(win.getBounds()).id; });
+  win.on('closed', () => { win = null; app.quit(); });
+  win.once('ready-to-show', () => win?.show());
+  // scorciatoie prima della pagina: la pagina non le riceve (Esc e le lettere sì)
+  win.webContents.on('before-input-event', (event, input) => {
+    const action = shortcutFor(input);
+    if (!action) return;
+    event.preventDefault();
+    ACTIONS[action]?.();
+  });
+  // window.natpfDesktop (preload.cjs): solo dalla finestra del gioco e dalle pagine del proprio server
+  ipcMain.handle(DESKTOP.ipcFullscreen, (event, action) => {
+    if (!win || event.sender?.id !== win.webContents.id || !isOwnUrl(event.senderFrame?.url || '', addresses)) throw new Error('richiesta non consentita');
+    const on = fullscreenTarget(action, win.isFullScreen());
+    if (on === null) throw new Error('azione non valida');
+    return action === 'get' ? on : setFullscreen(on);
+  });
   await win.loadURL(loading('Avvio del gioco…'));
   blocker = powerSaveBlocker.start('prevent-display-sleep');
   // firewall prima del server: con la regola già presente Windows non mostra il suo avviso (se lì si preme «Annulla»
@@ -174,9 +296,18 @@ async function main(){
       detail: busy ? 'La porta 8443 è già in uso: chiudi l\'altra finestra di NATPF (per esempio «AVVIA NATPF LAN» o un altro NATPF Simulator) e riapri.' : `${e.message}\n\nRegistro: ${LOG}` });
     app.quit(); return;
   }
-  // monitor aggiunti o tolti (ledwall acceso dopo il programma): il menu si aggiorna; se il monitor sparisce, il principale
-  screen.on('display-added', buildMenu);
-  screen.on('display-removed', () => { buildMenu(); if (win && !screen.getAllDisplays().some(d => d.id === settings.displayId)) placeOn(screen.getPrimaryDisplay()); });
+  // monitor aggiunti o tolti (ledwall acceso dopo il programma): il menu si aggiorna; se sparisce il monitor del gioco,
+  // il gioco va sul principale; quando il monitor voluto torna, il gioco ci ritorna
+  screen.on('display-added', (_e, added) => {
+    buildMenu();
+    const back = win && displayToFollow(added, { wantedId: wantedDisplayId, currentId: screen.getDisplayMatching(win.getBounds()).id });
+    if (back){ log('monitor del gioco ricollegato', { monitor: back.id }); placeOn(back, { remember: false }); }
+  });
+  screen.on('display-removed', () => {
+    buildMenu();
+    if (win && !screen.getAllDisplays().some(d => String(d.id) === String(placedDisplayId))) placeOn(screen.getPrimaryDisplay(), { remember: false });
+  });
+  screen.on('display-metrics-changed', onDisplayMetricsChanged);
   win.webContents.on('render-process-gone', (_e, d) => { log('pagina del gioco chiusa', d); if (d.reason !== 'clean-exit') setTimeout(() => win?.webContents.reload(), 1000); });
   await win.loadURL(`https://localhost:${DESKTOP.port}${DESKTOP.gamePath}`);
 }

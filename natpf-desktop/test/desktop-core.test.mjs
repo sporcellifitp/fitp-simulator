@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { DESKTOP, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings, windowsVersion, readBuild } from '../src/desktop-core.mjs';
+import vm from 'node:vm';
+import { DESKTOP, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings, windowsVersion, readBuild,
+  windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget } from '../src/desktop-core.mjs';
 
 const d = (id, w, h, x = 0) => ({ id, bounds: { x, y: 0, width: w, height: h }, scaleFactor: 1 });
 
@@ -76,4 +78,128 @@ test('installazione e portatile coerenti con il programma: nome della regola, po
   assert.match(port, /RequestExecutionLevel user/);
   assert.match(port, /SetEnvironmentVariable\(t "PORTABLE_EXECUTABLE_DIR"/); assert.match(main, /process\.env\.PORTABLE_EXECUTABLE_DIR/);
   for (const nsi of [setup, port]) assert.match(nsi, /!define EXE "NATPF Simulator\.exe"/);
+});
+
+test('finestra di partenza e di ritorno: al centro dell\'area utile, al massimo 1280×720, tutta dentro il monitor', () => {
+  const ledwall = { id: 2, bounds: { x: 1920, y: 0, width: 1920, height: 1080 }, workArea: { x: 1920, y: 0, width: 1920, height: 1040 }, scaleFactor: 1 };
+  assert.deepEqual(windowedBounds(ledwall), { x: 2240, y: 160, width: 1280, height: 720 });
+  // monitor a sinistra del principale (coordinate negative), senza workArea: si usa bounds
+  assert.deepEqual(windowedBounds({ bounds: { x: -1920, y: -200, width: 1920, height: 1080 } }), { x: -1600, y: -20, width: 1280, height: 720 });
+  // monitor piccolo: 90% dell'area utile, sempre dentro
+  const small = windowedBounds({ bounds: { x: 0, y: 0, width: 1024, height: 600 }, workArea: { x: 0, y: 0, width: 1024, height: 560 } });
+  assert.deepEqual(small, { x: 51, y: 28, width: 921, height: 504 });
+  // scala 150%: coordinate in punti (DIP) di Electron, sempre intere
+  const scaled = windowedBounds({ bounds: { x: 1280, y: 0, width: 1707, height: 960 }, workArea: { x: 1280, y: 0, width: 1707, height: 912 }, scaleFactor: 1.5 });
+  for (const v of Object.values(scaled)) assert.ok(Number.isInteger(v), JSON.stringify(scaled));
+  assert.ok(scaled.x >= 1280 && scaled.x + scaled.width <= 1280 + 1707 && scaled.y >= 0 && scaled.y + scaled.height <= 912, JSON.stringify(scaled));
+  // workArea non valida → bounds; niente monitor → null
+  assert.deepEqual(windowedBounds({ bounds: { x: 0, y: 0, width: 3840, height: 2160 }, workArea: { x: 0, y: 0, width: 0, height: 0 } }), { x: 1280, y: 720, width: 1280, height: 720 });
+  assert.equal(windowedBounds(null), null);
+  assert.equal(windowedBounds({}), null);
+});
+
+test('schermo intero da riadattare solo se non copre più il monitor (tolleranza 2 px)', () => {
+  const fhd = { x: 1920, y: 0, width: 1920, height: 1080 };
+  assert.equal(needsRefit({ ...fhd }, fhd), false);
+  assert.equal(needsRefit({ ...fhd, height: 1079 }, fhd), false, 'il pixel che Chromium toglie con un\'altra finestra attiva');
+  assert.equal(needsRefit({ ...fhd, width: 1921 }, fhd), false, 'arrotondamento delle scale non intere');
+  assert.equal(needsRefit(fhd, { x: 1920, y: 0, width: 1280, height: 720 }), true, 'risoluzione cambiata');
+  assert.equal(needsRefit(fhd, { x: 2560, y: 0, width: 1920, height: 1080 }), true, 'monitor spostato nella disposizione');
+  assert.equal(needsRefit(null, fhd), false);
+});
+
+test('monitor ricollegato: si torna solo su quello voluto, se il gioco non c\'è già', () => {
+  const ledwall = { id: 7 }, other = { id: 9 };
+  assert.equal(displayToFollow(ledwall, { wantedId: 7, currentId: 1 }), ledwall);
+  assert.equal(displayToFollow(ledwall, { wantedId: '7', currentId: 1 }), ledwall, 'id salvato come testo');
+  assert.equal(displayToFollow(other, { wantedId: 7, currentId: 1 }), null, 'un altro monitor non sposta il gioco');
+  assert.equal(displayToFollow(ledwall, { wantedId: 7, currentId: 7 }), null, 'già lì');
+  assert.equal(displayToFollow(ledwall, { wantedId: null, currentId: 1 }), null);
+  assert.equal(displayToFollow(null, { wantedId: 7 }), null);
+});
+
+test('scorciatoie del programma: F11, Ctrl+Maiusc+M, Ctrl+R, Ctrl+Q, Ctrl+Maiusc+I; mai Esc, lettere o AltGr', () => {
+  const down = (key, mods = {}) => ({ type: 'keyDown', key, isAutoRepeat: false, control: false, shift: false, alt: false, meta: false, ...mods });
+  const table = [
+    [down('F11'), 'schermo-intero'],
+    [down('F11', { shift: true }), 'schermo-intero'],
+    [down('M', { control: true, shift: true }), 'monitor-successivo'],
+    [down('m', { control: true, shift: true }), 'monitor-successivo'],
+    [down('r', { control: true }), 'ricarica'],
+    [down('q', { control: true }), 'esci'],
+    [down('I', { control: true, shift: true }), 'strumenti'],
+    // la pagina li riceve
+    [down('Escape'), null],
+    [down('f'), null], [down('F'), null], [down('F', { shift: true }), null], [down('m'), null], [down('r'), null], [down('Enter'), null],
+    [down('Alt', { alt: true }), null],
+    [down('F11', { control: true }), null], [down('F11', { alt: true }), null],
+    [down('r', { control: true, shift: true }), null],
+    [down('m', { control: true }), null],
+    [down('r', { control: true, alt: true }), null], // AltGr
+    [down('q', { meta: true }), null],
+    [{ ...down('F11'), type: 'keyUp' }, null],
+    [{ ...down('F11'), isAutoRepeat: true }, null],
+    [null, null], [{}, null],
+  ];
+  for (const [input, expected] of table) assert.equal(shortcutFor(input), expected, JSON.stringify(input));
+  // le azioni sono quelle del menu (id delle voci in main.mjs)
+  const main = fs.readFileSync(new URL('../src/main.mjs', import.meta.url), 'utf8');
+  for (const id of ['schermo-intero', 'monitor-successivo', 'ricarica', 'esci', 'strumenti']) assert.match(main, new RegExp(`id: '${id}'`), id);
+});
+
+test('richieste della pagina sullo schermo intero', () => {
+  assert.equal(fullscreenTarget('get', true), true); assert.equal(fullscreenTarget('get', false), false);
+  assert.equal(fullscreenTarget('on', false), true); assert.equal(fullscreenTarget('off', true), false);
+  assert.equal(fullscreenTarget('toggle', true), false); assert.equal(fullscreenTarget('toggle', false), true);
+  for (const bad of ['', 'chiudi', undefined, null, 1, true]) assert.equal(fullscreenTarget(bad, true), null, String(bad));
+});
+
+test('preload: window.natpfDesktop come da contratto, canali uguali al processo principale', async () => {
+  const code = fs.readFileSync(new URL('../src/preload.cjs', import.meta.url), 'utf8');
+  const exposed = {}, invoked = [], listeners = {};
+  const electron = {
+    contextBridge: { exposeInMainWorld: (name, api) => { exposed[name] = api; } },
+    ipcRenderer: {
+      invoke: (channel, action) => { invoked.push([channel, action]); return Promise.resolve(action === 'off' ? false : true); },
+      on: (channel, fn) => { (listeners[channel] ||= []).push(fn); },
+    },
+  };
+  const require = m => { if (m !== 'electron') throw new Error(`modulo non disponibile nella sandbox: ${m}`); return electron; };
+  vm.runInNewContext(code, { require, console });
+  const api = exposed.natpfDesktop;
+  assert.ok(api, 'natpfDesktop esposto');
+  assert.deepEqual(Object.keys(api).sort(), ['isFullScreen', 'onFullScreenChange', 'setFullScreen', 'shell', 'toggleFullScreen', 'version']);
+  assert.equal(api.shell, 'electron'); assert.equal(api.version, 1);
+  assert.equal(await api.isFullScreen(), true);
+  assert.equal(await api.setFullScreen(false), false);
+  await api.setFullScreen(true); await api.toggleFullScreen();
+  assert.deepEqual(invoked, [[DESKTOP.ipcFullscreen, 'get'], [DESKTOP.ipcFullscreen, 'off'], [DESKTOP.ipcFullscreen, 'on'], [DESKTOP.ipcFullscreen, 'toggle']]);
+  const seen = [];
+  api.onFullScreenChange(on => seen.push(on));
+  api.onFullScreenChange('non una funzione');
+  assert.equal(listeners[DESKTOP.ipcFullscreenChanged].length, 1);
+  listeners[DESKTOP.ipcFullscreenChanged][0]({ sender: 'evento di Electron' }, false);
+  listeners[DESKTOP.ipcFullscreenChanged][0]({}, 1);
+  assert.deepEqual(seen, [false, true], 'alla pagina solo true/false, mai l\'evento');
+  // il programma usa il preload e lo copia in app/; la richiesta passa dal controllo dei propri indirizzi
+  const main = fs.readFileSync(new URL('../src/main.mjs', import.meta.url), 'utf8');
+  const prepara = fs.readFileSync(new URL('../scripts/prepara.mjs', import.meta.url), 'utf8');
+  assert.match(main, /preload: path\.join\(ROOT, DESKTOP\.preload\)/);
+  assert.match(main, /contextIsolation: true, sandbox: true/);
+  assert.match(main, /ipcMain\.handle\(DESKTOP\.ipcFullscreen,[^\n]*\n[^\n]*isOwnUrl\(event\.senderFrame\?\.url/);
+  assert.match(main, /webContents\.send\(DESKTOP\.ipcFullscreenChanged/);
+  assert.match(main, /'fullscreen'/, 'permesso dello schermo intero ancora consentito');
+  assert.match(prepara, /'main\.mjs', 'desktop-core\.mjs', DESKTOP\.preload/);
+  assert.equal(DESKTOP.preload, 'preload.cjs');
+});
+
+test('finestra senza cornici: nasce a schermo intero, cornice normale, niente kiosk, Alt non mostra il menu', () => {
+  const main = fs.readFileSync(new URL('../src/main.mjs', import.meta.url), 'utf8');
+  assert.match(main, /fullscreen: settings\.fullscreen !== false, show: false/);
+  assert.match(main, /\.\.\.\(windowedBounds\(display\) \|\| \{\}\)/);
+  assert.ok(!/frame: *false|kiosk: *true|thickFrame: *false|transparent: *true/.test(main), 'niente frame:false, kiosk, thickFrame:false, transparent');
+  assert.match(main, /ready-to-show', \(\) => win\?\.show\(\)\)/, 'ready-to-show solo mostra la finestra');
+  assert.match(main, /setAutoHideMenuBar\(false\); win\.setMenuBarVisibility\(false\)/);
+  assert.match(main, /'before-input-event'/);
+  assert.match(main, /'display-metrics-changed'/);
 });

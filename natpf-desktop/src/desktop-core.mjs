@@ -8,6 +8,10 @@ export const DESKTOP = Object.freeze({
   gamePath: '/?lan=1',
   ruleName: 'NATPF Simulator',
   settingsFile: 'desktop-app.json',
+  // ponte con la pagina del gioco (src/preload.cjs, copiato in app/ da scripts/prepara.mjs): window.natpfDesktop
+  preload: 'preload.cjs',
+  ipcFullscreen: 'natpf:fullscreen',
+  ipcFullscreenChanged: 'natpf:fullscreen-changed',
 });
 
 // Monitor del gioco: quello scelto l'ultima volta se c'è ancora; altrimenti il più grande non principale (agli eventi il
@@ -28,6 +32,58 @@ export function nextDisplay(displays = [], currentId){
 export function displayLabel(d, i, primaryId){
   const b = d.bounds || {}, sf = d.scaleFactor && d.scaleFactor !== 1 ? ` · scala ${Math.round(d.scaleFactor*100)}%` : '';
   return `Monitor ${i + 1} · ${Math.round(b.width*(d.scaleFactor || 1))}×${Math.round(b.height*(d.scaleFactor || 1))}${d.id === primaryId ? ' (principale)' : ''}${sf}`;
+}
+
+// Finestra con bordi del gioco: rettangolo di partenza (la finestra nasce già a schermo intero e Windows sceglie il
+// monitor che contiene la maggior parte di questo rettangolo) e misura a cui si torna uscendo dallo schermo intero.
+// Al centro dell'area utile del monitor (senza la barra delle applicazioni), al massimo 1280×720 e al massimo il 90%
+// del monitor: tutta dentro il monitor scelto anche con scale diverse tra i monitor. Coordinate intere (Electron).
+export function windowedBounds(display, { width = 1280, height = 720, fill = 0.9 } = {}){
+  const valid = r => r && [r.x, r.y, r.width, r.height].every(Number.isFinite) && r.width > 0 && r.height > 0;
+  const area = valid(display?.workArea) ? display.workArea : valid(display?.bounds) ? display.bounds : null;
+  if (!area) return null;
+  const w = Math.max(1, Math.min(width, Math.floor(area.width*fill))), h = Math.max(1, Math.min(height, Math.floor(area.height*fill)));
+  return { x: Math.round(area.x) + Math.floor((area.width - w)/2), y: Math.round(area.y) + Math.floor((area.height - h)/2), width: w, height: h };
+}
+// Lo schermo intero copre ancora tutto il monitor? (cambio di risoluzione o di scala con il gioco aperto). Tolleranza
+// di 2 px: arrotondamenti delle scale non intere e il pixel che Chromium toglie in basso quando un'altra finestra
+// dello stesso monitor è attiva (non va «corretto»).
+export function needsRefit(bounds, displayBounds, tolerance = 2){
+  if (!bounds || !displayBounds) return false;
+  return ['x', 'y', 'width', 'height'].some(k => Math.abs((bounds[k] ?? 0) - (displayBounds[k] ?? 0)) > tolerance);
+}
+// Monitor ricollegato (ledwall spento e riacceso, cavo staccato): si torna solo sul monitor voluto (quello salvato o
+// scelto all'avvio), e solo se il gioco non c'è già
+export function displayToFollow(added, { wantedId = null, currentId = null } = {}){
+  if (!added || wantedId == null) return null;
+  return String(added.id) === String(wantedId) && String(added.id) !== String(currentId) ? added : null;
+}
+
+// Scorciatoie del programma, lette prima della pagina (webContents 'before-input-event'): funzionano anche quando il
+// gioco blocca i tasti (preventDefault nella schermata iniziale). Solo alla pressione, non alla ripetizione. Mai Esc
+// (indietro nel gioco) né lettere senza Ctrl (F = schermo intero del gioco, gestito dalla pagina con natpfDesktop).
+// Ctrl+Alt (AltGr sulle tastiere italiane) non è mai una scorciatoia. input: { type, key, control, shift, alt, meta }
+export function shortcutFor(input){
+  if (!input || input.type !== 'keyDown' || input.isAutoRepeat) return null;
+  const key = String(input.key || ''), k = key.length === 1 ? key.toLowerCase() : key;
+  const ctrl = !!input.control, shift = !!input.shift, alt = !!input.alt, meta = !!input.meta;
+  if (key === 'F11') return ctrl || alt || meta ? null : 'schermo-intero';
+  if (!ctrl || alt || meta) return null;
+  if (shift && k === 'm') return 'monitor-successivo';
+  if (shift && k === 'i') return 'strumenti';
+  if (!shift && k === 'r') return 'ricarica';
+  if (!shift && k === 'q') return 'esci';
+  return null;
+}
+// Richiesta della pagina (window.natpfDesktop): stato voluto dello schermo intero, null se l'azione non esiste
+export function fullscreenTarget(action, current){
+  switch (action){
+    case 'get': return !!current;
+    case 'on': return true;
+    case 'off': return false;
+    case 'toggle': return !current;
+    default: return null;
+  }
 }
 
 // Indirizzi del gioco di cui il programma si fida (il proprio server): localhost e gli indirizzi del computer, porte del
