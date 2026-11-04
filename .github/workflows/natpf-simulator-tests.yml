@@ -3,8 +3,12 @@ name: NATPF Simulator tests
 on:
   push:
     branches:
+      - natpf-simulator
       - feature/natpf-simulator-gameplay-audit
       - refactor/natpf-audit-20261015
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
   pull_request:
     branches:
       - main
@@ -28,7 +32,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Test rules, physics, AI and phone gesture classification
         run: node --test tools/test/*.test.mjs
       - name: Check rendering and network module syntax
@@ -63,6 +67,9 @@ jobs:
             command: |
               python3 tools/package-natpf.py --out=/tmp/natpf-scope --commit="$GITHUB_SHA"
               NATPF_SITE_ROOT=/tmp/natpf-scope/static node tools/e2e/run-local.mjs intuitive-contact.mjs quick-phone-ui.mjs phone-only.mjs
+          - name: NATPF training flow
+            command: CHROMIUM_PATH= node tools/e2e/natpf-training-flow.mjs
+            game: true
           - name: direct LAN
             command: |
               node --test tools/lan/test/setup.test.mjs
@@ -75,9 +82,12 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Install E2E dependencies
         run: npm ci --prefix tools/e2e --no-audit --no-fund
+      - name: Install game dependencies (vite, for the natpf-* scripts)
+        if: matrix.game
+        run: npm ci --prefix natpf-tennis --no-audit --no-fund
       - name: Install LAN server dependencies
         if: matrix.lan
         run: npm ci --prefix tools/lan --no-audit --no-fund

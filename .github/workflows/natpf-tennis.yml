@@ -3,6 +3,7 @@ name: NATPF motore base MVP
 on:
   push:
     branches:
+      - natpf-simulator
       - feature/natpf-tennis-mvp
     paths:
       - 'natpf-tennis/**'

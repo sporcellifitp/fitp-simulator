@@ -14,11 +14,12 @@ try {
  await p.waitForFunction(()=>__racchetta.state.sensor==='denied');
  check('denied sensor permission leaves the touch alternative available',await p.locator('#enableTouch').isVisible());
  await p.evaluate(()=>{DeviceMotionEvent.requestPermission=async()=> 'granted';});await p.click('#enable');
- await p.evaluate(()=>__motion.still(1600));
+ // telefono fermo finché la calibrazione non chiede i gesti (dal 29/10: 1,5 s di preparazione, poi il fermo)
+ await p.evaluate(async()=>{const t0=performance.now();while(__racchetta.cal.state.step!=='swings'&&performance.now()-t0<12000)await __motion.still(100);});
  try { await p.waitForFunction(()=>__racchetta.cal.state.step==='swings'); }
  catch(e){console.log('Sensor calibration diagnostic',await p.evaluate(()=>({state:__racchetta.state,profile:__racchetta.det.profile,mode:__racchetta.det.mode,last:__racchetta.det.last,cal:__racchetta.cal.state})));throw e;}
  for(const dir of QUICK_PLAN.map(w=>w==='L'?1:-1)){
-  await p.evaluate(async dir=>{await __motion.swing({axis:[0,-dir,0],peak:42,dur:260});await __motion.swing({axis:[0,dir,0],peak:dir===1?120:150,dur:220});await __motion.still(650);},dir);
+  await p.evaluate(async dir=>{const t0=performance.now();while(!__racchetta.cal.state.ready&&performance.now()-t0<12000)await __motion.still(100);await __motion.swing({axis:[0,-dir,0],peak:42,dur:260});await __motion.swing({axis:[0,dir,0],peak:dir===1?120:150,dur:220});await __motion.still(650);},dir);
  }
  check(`${QUICK_PLAN.length} comfortable gestures finish setup without special-shot training`,await p.evaluate(()=>__racchetta.cal.state.profile.version===4&&__racchetta.cal.state.profile.automaticGesture&&__racchetta.cal.state.step!=='shots'));
  const learned=[

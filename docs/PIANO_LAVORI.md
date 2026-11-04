@@ -25,16 +25,19 @@ Come si aggiorna:
   (`node --test tools/test/*.test.mjs`), server LAN 5/5 (`cd tools/lan && node --test test/*.test.mjs`).
 - Prove nel browser (`tools/e2e`, B1.1 fatto): dopo la correzione degli script `natpf-training-flow` 14/14,
   `natpf-phone-keep` 13/13, `natpf-phone-blackout` 6/6, `natpf-training-reconnect` 6/6, `natpf-diag-session` 24/24,
-  `natpf-rally` 7/7, `natpf-menu` 22/22, `natpf-gameplay-23-10` 11/11, `natpf-latency` 9/9. Non ancora riprovati:
-  gli script del sito nella CI (`phone-only`, `timing-browser`, `gesture-calibration`, `arcade-visuals`,
-  `intuitive-contact`, `quick-phone-ui`, `lan-setup-browser`, `lan-browser` 7/8 alla build .18).
+  `natpf-rally` 7/7, `natpf-menu` 22/22, `natpf-gameplay-23-10` 11/11, `natpf-latency` 9/9. Script del sito della CI
+  (B1.2): `phone-only` 10/10, `timing-browser` 8/8, `gesture-calibration` 18/18, `arcade-visuals` 9/9,
+  `intuitive-contact` 5/5, `quick-phone-ui` 6/6, `lan-setup-browser` 3/3, `tools/package-natpf.py` ok; `lan-browser`
+  7/8 qui (il WebRTC di questo ambiente non genera candidati ICE, noto dal 04/11): da vedere nella CI vera.
+- CI attivata su `natpf-simulator` (B1.2): esito della prima esecuzione da controllare su GitHub Actions.
 - B6 fatto: `docs/DESKTOP_WINDOWS.md` (valutazione, nessun codice). Da decidere dall'utente: avvio di F0/F1.
 - Versione dell'ultima consegna: `2026-11-03.1` in `site/js/tennis/version.js`; `site/tennis/build.json` è rimasto a
   `2026-10-28.18` (da allineare al prossimo pacchetto).
 - Crediti Higgsfield spesi per la richiesta del 04/11: **0 / 100**.
 - **Blocco in corso:** B0 (questo file e le istruzioni) → B1 (script e2e) → B6 (documento).
-- **Prossima azione esatta:** B1.2 — provare in locale gli script del sito della CI (elenco sopra; `run-local.mjs` con
-  `CHROMIUM_PATH=/opt/pw-browsers/chromium`) e `tools/package-natpf.py`, poi CI su `natpf-simulator` (§5 B1, Come 2).
+- **Prossima azione esatta:** controllare la prima esecuzione della CI su `natpf-simulator` (GitHub Actions, workflow
+  «NATPF Simulator tests» e «NATPF motore base MVP»); se `lan-browser` fallisce anche lì, analizzarlo. Poi B2 (intro):
+  fotogrammi chiave dal motore con lo script descritto in §5 B2.
 
 ---
 

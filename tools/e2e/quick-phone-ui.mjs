@@ -10,9 +10,12 @@ class SimulatedPhoneLink extends Events{constructor(){super();setTimeout(()=>thi
 window.Peer=SimulatedPhoneLink;DeviceMotionEvent.requestPermission=async()=> 'granted';`;
 const B=await launch();try{
  const {p,errs}=await page(B,'http://127.0.0.1:8765/tennis/racchetta.html#s=racchetta-tel-abcdefghijkmnpqrstuvwxyz&k=abcdefghijkmnpqrstuvwxyz',{w:390,h:844,mobile:true,init:motion+link});
- await p.waitForFunction(()=>__racchetta.state.linkState==='on');await p.click('#enable');await p.evaluate(()=>__motion.still(900));await p.waitForFunction(()=>__racchetta.cal.state.step==='swings');
+ await p.waitForFunction(()=>__racchetta.state.linkState==='on');await p.click('#enable');// telefono fermo finché la calibrazione non chiede i gesti (dal 29/10: 1,5 s di preparazione, poi il fermo)
+ await p.evaluate(async()=>{const t0=performance.now();while(__racchetta.cal.state.step!=='swings'&&performance.now()-t0<12000)await __motion.still(100);});await p.waitForFunction(()=>__racchetta.cal.state.step==='swings');
+ // «Gesto 1 di N» compare quando il telefono è pronto al gesto (prima: «Fermo un attimo al centro…»)
+ await p.evaluate(async()=>{const t0=performance.now();while(!__racchetta.cal.state.ready&&performance.now()-t0<12000)await __motion.still(100);});
  check(`comfortable grip goes directly from stillness to ${QUICK_PLAN.length} simple gestures`,await p.evaluate(n=>__racchetta.cal.state.options.quick&&document.querySelector('#sub').textContent.includes('di '+n),QUICK_PLAN.length));
- for(const dir of QUICK_PLAN.map(w=>w==='L'?1:-1))await p.evaluate(async dir=>{await __motion.swing({axis:[0,dir,0],peak:120});await __motion.still(650);},dir);
+ for(const dir of QUICK_PLAN.map(w=>w==='L'?1:-1))await p.evaluate(async dir=>{const t0=performance.now();while(!__racchetta.cal.state.ready&&performance.now()-t0<12000)await __motion.still(100);await __motion.swing({axis:[0,dir,0],peak:120});await __motion.still(650);},dir);
  await p.waitForFunction(()=>__racchetta.cal.state.step==='review');
  check(`default smartphone calibration ends after ${QUICK_PLAN.length} gestures, no special-shot sequence`,await p.evaluate(n=>__racchetta.cal.state.profile.version===4&&__racchetta.cal.state.attempts.length===n&&__racchetta.cal.state.profile.templates.length===n,QUICK_PLAN.length));
  await p.evaluate(()=>__phoneWire.emit('data',{t:'cmd',c:'free'}));await p.waitForFunction(()=>__racchetta.cal.state.step==='free'&&document.querySelector('#big').textContent==='Prova un colpetto');
