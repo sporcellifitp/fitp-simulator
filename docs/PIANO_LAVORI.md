@@ -31,9 +31,12 @@ Come si aggiorna:
 - Crediti Higgsfield spesi per la richiesta del 04/11: **41 / 100** (saldo 667,37).
 - Non verificato (serve l'utente): telefoni veri (presa nel palmo, pulsante «ho capito», due persone sullo stesso
   schermo), video H.264 in un browser vero, Windows 10 con Edge e ledwall (A+ di Codex).
-- **Prossima azione esatta:** aspettare la prova dell'utente con i pacchetti 2026-11-04.5 (diagnostica accesa); nel
-  frattempo, se richiesto, stabilizzare i due rossi intermittenti della CI (§1) o passare a F0/F1 di
-  `docs/DESKTOP_WINDOWS.md` (misure, qualità grafica automatica) su decisione dell'utente.
+- **Richiesta nuova (04/11 sera):** «una versione portatile e una versione installabile, entrambe tramite eseguibili;
+  vai avanti su Windows, il resto lo provo io, segnati i punti che devo controllare» → blocco **B7** (§5).
+- **Blocco in corso:** B7 (eseguibili Windows con Electron).
+- **Prossima azione esatta:** B7.1 — creare `natpf-desktop/` (Electron + electron-builder, versioni esatte), con il
+  processo principale che avvia in-process certificati e server LAN di Codex (`tools/lan/certificato.mjs`,
+  `natpf-tennis/lan/server.mjs`) e apre `https://localhost:8443/?lan=1` a schermo intero sul monitor scelto.
 
 ---
 
@@ -106,6 +109,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B4 Modale tutorial | [x] | modale prima della calibrazione, «Tutto chiaro, ho capito» sul telefono | vedi WORK_PROGRESS B4 | 2026-11-04.4 |
 | B5 Stesso schermo | [x] | modale e calibrazione indipendenti nelle due metà di «Collega» | vedi WORK_PROGRESS B5 | 2026-11-04.5 |
 | B6 Windows | [~] | A+ portatile implementato; collaudo Windows reale e F0/F1 da completare | commit di questo checkpoint | 2026-11-04.1 |
+| B7 Eseguibili Windows | [~] | `natpf-desktop/`: Electron, portatile (un .exe) e installabile (setup .exe), firewall e certificati | — | — |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).
@@ -274,6 +278,21 @@ resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mo
   avvio semplice più di un nuovo guscio.
 - **Fine**: valutazione pubblicata e primo blocco A+ sviluppato su autorizzazione successiva. Prima di dichiarare
   F2 conclusa serve il collaudo Windows. F0 misure e restante F1 ancora aperti; Electron e worker non implementati.
+
+### B7 · Eseguibili Windows: portatile e installabile (richiesta del 04/11 sera)
+- **Stato**: c'è lo zip A+ di Codex (Node portatile + Edge in modalità app, file `.cmd`), nessun eseguibile.
+- **Cosa**: `NATPF-Simulator-Portatile-<versione>.exe` (un solo file, nessuna installazione) e
+  `NATPF-Simulator-Setup-<versione>.exe` (installazione per il computer, collegamenti, disinstallazione, regole del
+  firewall), con lo stesso gioco della versione browser.
+- **Come**: Electron (deciso in `docs/DESKTOP_WINDOWS.md`, fase F3) in `natpf-desktop/`, costruito da Linux con
+  electron-builder (target `nsis` e `portable`, senza firma: SmartScreen avvisa alla prima apertura). Il processo
+  principale riusa i moduli del server LAN (certificati in `%LOCALAPPDATA%\NATPF`, HTTPS 8443, pagina del certificato
+  8081), si fida del proprio certificato senza toccare l'archivio di Windows, apre il gioco a schermo intero sul monitor
+  scelto (il più grande esterno: il ledwall), schermo sempre acceso, webcam consentita, menu con monitor, schermo intero,
+  rete (firewall), cartella dei dati. Firewall: regole create dall'installazione; nel portatile alla prima apertura (UAC).
+- **Perché**: l'utente vuole eseguibili veri, uno da copiare e uno da installare, sul PC noleggiato con Windows 10.
+- **Fine**: due `.exe` costruiti, contenuto controllato, test delle funzioni del processo principale, documento di
+  collaudo `docs/COLLAUDO_WINDOWS.md` con i punti che l'utente deve controllare. Non verificabile qui: Windows.
 
 ### Punti aperti precedenti (non della richiesta del 04/11; restano validi)
 - **Prove dal vivo** (non verificabili qui). Cosa: iPhone (calibrazione e lati dei colpi), webcam a 1–4 m e per due
