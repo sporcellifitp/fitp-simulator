@@ -28,7 +28,7 @@ Come si aggiorna:
   `natpf-rally` 7/7, `natpf-menu` 22/22, `natpf-gameplay-23-10` 11/11, `natpf-latency` 9/9. Non ancora riprovati:
   gli script del sito nella CI (`phone-only`, `timing-browser`, `gesture-calibration`, `arcade-visuals`,
   `intuitive-contact`, `quick-phone-ui`, `lan-setup-browser`, `lan-browser` 7/8 alla build .18).
-- B6: bozza in `docs/DESKTOP_WINDOWS.md`.
+- B6 fatto: `docs/DESKTOP_WINDOWS.md` (valutazione, nessun codice). Da decidere dall'utente: avvio di F0/F1.
 - Versione dell'ultima consegna: `2026-11-03.1` in `site/js/tennis/version.js`; `site/tennis/build.json` è rimasto a
   `2026-10-28.18` (da allineare al prossimo pacchetto).
 - Crediti Higgsfield spesi per la richiesta del 04/11: **0 / 100**.
@@ -106,7 +106,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B3 Presa | [ ] | foto, figura, 3D e testi della presa nuova; piatto tollerante con test; tocchi; rollback | — | — |
 | B4 Modale tutorial | [ ] | modale prima della calibrazione, «Tutto chiaro, ho capito» sul telefono | — | — |
 | B5 Stesso schermo | [ ] | modale e calibrazione indipendenti nelle due metà di «Collega» | — | — |
-| B6 Windows | [~] | `docs/DESKTOP_WINDOWS.md`: confronto, architettura, benefici, piano (niente codice) | — | invariati |
+| B6 Windows | [x] | `docs/DESKTOP_WINDOWS.md`: confronto, architettura, benefici, piano (niente codice) | vedi git log | invariati |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).
@@ -273,7 +273,8 @@ resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mo
   tra PC esce dal piano).
 - **Perché**: il prodotto gira soprattutto su un PC Windows noleggiato con telefoni in LAN: servono stabilità e
   avvio semplice più di un nuovo guscio.
-- **Fine**: documento scritto e pubblicato; nessuna modifica al codice. Stato: bozza scritta il 04/11.
+- **Fine**: documento scritto e pubblicato; nessuna modifica al codice. Stato: fatto il 04/11; le fasi F0–F5 partono
+  solo su decisione dell'utente (consigliato: F0 misure, poi F1 miglioramenti web).
 
 ### Punti aperti precedenti (non della richiesta del 04/11; restano validi)
 - **Prove dal vivo** (non verificabili qui). Cosa: iPhone (calibrazione e lati dei colpi), webcam a 1–4 m e per due
