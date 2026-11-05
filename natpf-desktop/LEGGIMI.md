@@ -66,6 +66,17 @@ Perché makensis a parte: il target `nsis` di electron-builder da Linux chiede w
 qui la disinstallazione la scrive l'installazione stessa (`WriteUninstaller`), con lo stesso makensis che
 electron-builder scarica nella sua cache. Icona e versione dell'eseguibile con `resedit` (rcedit chiederebbe wine).
 
+## Consegnare gli eseguibili (a pezzi)
+
+Gli `.exe` interi (~125 MB) non si scaricano dai messaggi (05/11/2026); gli zip da ~60 MB sì. Dopo la costruzione:
+
+```sh
+node scripts/dividi.mjs          # dist/consegna/: nome.exe.001, .002, … (45 MB al massimo) + «UNISCI I PEZZI.cmd»
+```
+
+Su Windows: tutti i pezzi e `UNISCI I PEZZI.cmd` nella stessa cartella, doppio clic: rimette insieme gli `.exe`
+(`copy /b`) e controlla lo sha256 (`certutil`), tutto già presente in Windows.
+
 ## Provare il programma su Linux (stesso codice, senza Windows)
 
 ```sh

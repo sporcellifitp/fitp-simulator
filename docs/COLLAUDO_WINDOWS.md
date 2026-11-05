@@ -25,6 +25,12 @@ Codice: `natpf-desktop/` (Electron 45.2.2), procedura di costruzione in `natpf-d
 
 ## 1. Scaricare e aprire (tutti e due)
 
+Gli eseguibili arrivano **a pezzi** (`.001`, `.002`, `.003`, al massimo 45 MB ciascuno) con `UNISCI I PEZZI.cmd`: metti
+tutti i pezzi e quel file nella stessa cartella e fai doppio clic. Deve scrivere «… pronto e verificato» per ciascun
+eseguibile (sha256 controllato); poi i pezzi si possono cancellare.
+- [ ] `UNISCI I PEZZI.cmd` crea i due `.exe` e li dice verificati (se Windows avvisa anche per il `.cmd`: Ulteriori
+      informazioni → Esegui comunque).
+
 Senza firma del codice (decisione del 04/11) Windows avvisa alla prima apertura di ciascun file.
 
 - [ ] SmartScreen «Windows ha protetto il PC»: **Ulteriori informazioni → Esegui comunque** apre il file.

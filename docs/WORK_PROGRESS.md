@@ -260,3 +260,7 @@ Criterio di fine: script `natpf-*` verdi, CI che prova gioco, build e sito sul b
 - Non verificato: tutto su Windows, Edge, ledwall e processori LED (schermo intero senza cornici all'avvio, Alt, F11,
   hold-Esc di Edge, barra delle applicazioni sul ledwall, cambi di risoluzione veri, cerchio e bordi su un LED vero),
   browser senza SIMD reale, telefoni veri.
+- [x] B8.8 (05/11) · «i file exe non riesco a scaricarli dal tuo messaggio»: nuovo `natpf-desktop/scripts/dividi.mjs`
+  (pezzi da 45 MB + `UNISCI I PEZZI.cmd` con `copy /b` e controllo `certutil -hashfile … SHA256`), test in
+  `natpf-desktop/test` (14/14). Pezzi degli eseguibili 2026-11-05.1 riuniti su Linux: sha256 uguali agli originali
+  (`fe3de548…bd18a3e`, `c60008c9…7d90478e`); consegnati 6 pezzi e il `.cmd`. Non verificato: il `.cmd` su Windows.

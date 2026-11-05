@@ -54,6 +54,8 @@ Come si aggiorna:
 - Consegnati: ZIP Cloudflare (sha256 `a3f2e960…cde92f6b7`) e LAN (`f4f6b195…53e81ece`), eseguibili
   Setup (`fe3de548…bd18a3e`) e Portatile (`c60008c9…7d90478e`); dimensioni e sha256 completi in
   `docs/COLLAUDO_WINDOWS.md` §0 e in `docs/WORK_PROGRESS.md` B8.
+- 05/11: gli `.exe` interi non si scaricavano dal messaggio: riconsegnati a pezzi da 45 MB con `UNISCI I PEZZI.cmd`
+  (`natpf-desktop/scripts/dividi.mjs`, pezzi riuniti provati: stesso sha256).
 - **Blocco in corso:** nessuno.
 - **Prossima azione esatta:** aspettare il collaudo dell'utente su Windows, Edge e ledwall (`docs/COLLAUDO_WINDOWS.md`,
   punti B7 e B8: §1–§6, §4b calibrazione, §5b zip LAN e browser) e correggere quello che segnala (registro
@@ -391,7 +393,9 @@ installato in `/opt/pw-browsers`.
    lzma). Controllo con il 7zz della cache di electron-builder (`~/.cache/electron-builder/7zip@*/…/bin/7zz l`):
    ~300 file, nessun `.pem` o chiave, `resources/app` uguale a `dist/win-unpacked`; sha256; consegna insieme agli zip
    e aggiornamento delle dimensioni e degli sha256 in `docs/COLLAUDO_WINDOWS.md` §0. Procedura completa in
-   `natpf-desktop/LEGGIMI.md`.
+   `natpf-desktop/LEGGIMI.md`. **Consegna a pezzi** (dal 05/11: l'utente non riusciva a scaricare gli `.exe` da
+   ~125 MB dal messaggio; gli zip da ~60 MB sì): `node scripts/dividi.mjs` → `dist/consegna/` con pezzi da 45 MB
+   (`.001`, `.002`, …) e `UNISCI I PEZZI.cmd` (copy /b e controllo dello sha256 con certutil); si mandano quelli.
 
 **Rollback della presa** (dopo B3): cambiare la costante del profilo di presa da `palmo` a `martello` (modulo
 indicato in `PROJECT_MEMORY.md` §Gesti), `npm test`, pacchetti. In alternativa `git revert` dei commit di B3 elencati

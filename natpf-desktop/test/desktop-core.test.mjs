@@ -234,3 +234,20 @@ test('finestra senza cornici: nasce a schermo intero, cornice normale, niente ki
   assert.equal((main.match(/setOpacity\(0\)/g) || []).length, 1);
   assert.ok(main.indexOf("mode === 'rettangolo'") < main.indexOf('setOpacity(0)'), 'il giro con la finestra trasparente viene dopo i casi senza');
 });
+
+test('consegna a pezzi: UNISCI I PEZZI.cmd rimette insieme ogni eseguibile e controlla lo sha256', async () => {
+  const { joinScript, splitFile } = await import('../scripts/dividi.mjs');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'natpf-dividi-'));
+  const src = path.join(dir, 'NATPF-Simulator-Setup-prova.exe');
+  fs.writeFileSync(src, Buffer.from(Array.from({ length: 2500 }, (_, i) => i % 251)));
+  const out = path.join(dir, 'out'); fs.mkdirSync(out);
+  const f = splitFile(src, out, 1000);
+  assert.deepEqual(f.parts, ['NATPF-Simulator-Setup-prova.exe.001', 'NATPF-Simulator-Setup-prova.exe.002', 'NATPF-Simulator-Setup-prova.exe.003']);
+  assert.deepEqual(Buffer.concat(f.parts.map(p => fs.readFileSync(path.join(out, p)))), fs.readFileSync(src), 'i pezzi uniti ridanno il file');
+  const cmd = joinScript([f, { name: 'NATPF-Simulator-Portatile-prova.exe', parts: ['NATPF-Simulator-Portatile-prova.exe.001'], sha256: 'ab'.repeat(32) }]);
+  assert.ok(cmd.includes('\r\n') && !/[^\r]\n/.test(cmd), 'righe CRLF');
+  assert.match(cmd, /copy \/b "NATPF-Simulator-Setup-prova\.exe\.001"\+"NATPF-Simulator-Setup-prova\.exe\.002"\+"NATPF-Simulator-Setup-prova\.exe\.003" "NATPF-Simulator-Setup-prova\.exe"/);
+  assert.ok(cmd.includes(`findstr /i /c:"${f.sha256}"`));
+  assert.match(cmd, /goto salta1[\s\S]*:salta1[\s\S]*goto salta2[\s\S]*:salta2/);
+  assert.throws(() => joinScript([{ name: 'a"b.exe', parts: ['x'], sha256: '0' }]));
+});
