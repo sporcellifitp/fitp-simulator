@@ -66,7 +66,11 @@ Come si aggiorna:
   sovrapposto alla schermata «Pronto»; (3) telefono che continua a funzionare se lo schermo si spegne (o la migliore
   alternativa reale, spiegando i limiti dei browser); (4) nel 1v1 «Sono pronto»/«Pronto» con stato chiaro e
   sincronizzato di ciascun giocatore; (5) verifiche reali, commit e push frequenti, documenti → blocco **B9** (§5).
-- **Blocco in corso:** B9.
+- **Blocco in corso:** B9. **05/11, ripresa da un altro agente Claude:** l'analisi B9.1 del primo agente (rapporti e
+  prototipo) era solo in una cartella temporanea e non è stata pubblicata: è stata **rifatta**, con i risultati salvati
+  man mano nel repository in `docs/b9/` (rapporti, immagini in `docs/b9/img/`) e i prototipi di animazione in
+  `natpf-tennis/prototipi/b9-*/` (non entrano nella build). Salvataggi intermedi automatici con commit «B9 analisi:
+  salvataggio intermedio».
 - **Prossima azione esatta:** B9.1 — analisi in parallelo (modale e animazione attuali con le specifiche dei gesti
   riconosciuti; pagina del telefono, flusso del tutorial e schermo spento; «Sono pronto» del 1v1 in
   `natpf_versus_ui.js`; prototipi di animazione da confrontare), poi rami separati per modale, animazione, telefono e
