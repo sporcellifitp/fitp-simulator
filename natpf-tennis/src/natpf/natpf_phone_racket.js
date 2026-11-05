@@ -351,8 +351,14 @@ export class NatpfPhoneRacket {
     this.expectSpecial = null;
     this.calListeners = new Set();
     // tutorial prima della calibrazione (richiesta del 04/11): tutWait = il computer chiede al telefono di aspettare
-    // «Tutto chiaro, ho capito»; tutSupported = il telefono ha risposto che lo sa fare (pagina aggiornata)
-    this.tutWait = false; this.tutSupported = false; this.tutListeners = new Set();
+    // «Tutto chiaro, ho capito»; tutSupported = il telefono ha risposto che lo sa fare (pagina aggiornata); tutV2 = tiene
+    // il pulsante spento fino all'ultima scheda (B9); tutProgress = avanzamento della modale mandato al telefono (tp)
+    this.tutWait = false; this.tutSupported = false; this.tutV2 = false; this.tutProgress = null;
+    this.tutListeners = new Set(); this.tutNavListeners = new Set();
+    // tutorial visto per questo abbinamento del telefono (link.L.pairs): si rivede solo con un abbinamento nuovo (QR), non
+    // a ogni ricollegamento (pagina ricaricata, schermo spento, «Ricollega»); tutSaved = dove era arrivata la modale chiusa
+    // prima della fine (stesso abbinamento: si riprende da lì). Uno per telefono: vale per Allenamento e stesso schermo
+    this.tutSeenPairs = null; this.tutSaved = null;
     this.lastPhase = null;
     this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false };
     // passo della calibrazione come lo vede il computer (natpf_cal_view.js): si aggiorna con ogni evento del telefono,
@@ -396,7 +402,8 @@ export class NatpfPhoneRacket {
       if (!this.state.relinked){ this.aimModel.reset(); this.faceModel.reset(); }
     }
     // diag: se la diagnostica sta registrando, anche dopo una riconnessione il telefono rimanda i campioni grezzi
-    if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.link.send(this._cfg()); this.gripSent = true; this.lastExpect = null; }
+    // (con il tutorial aperto anche l'avanzamento: il telefono riprende dalla scheda raggiunta, B9)
+    if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.link.send(this._cfg()); this._sendTp(); this.gripSent = true; this.lastExpect = null; }
     if (!this.connected) this.gripSent = false;
   }
   get pairingUrl(){ return this.link ? pairingUrl(phonePageUrl(window.location, this.lanOrigin), testSearch(), this.link.session, this.link.token) : null; }
@@ -418,11 +425,7 @@ export class NatpfPhoneRacket {
     const link = this.link = createPhoneLink();
     link.on('change', () => { this._sendGrip(); this._syncPhoneState(); this._changed(); });
     link.on('cal', e => this._onCal(e));
-    link.on('tut', e => {
-      if (e.wait) this.tutSupported = true;
-      if (e.ok){ this.tutWait = false; for (const fn of this.tutListeners) try { fn(e); } catch (err){ console.error(err); } }
-      this._changed();
-    });
+    link.on('tut', e => this._onTut(e));
     link.on('swing', s => this._onSwing(s));
     link.on('toss', () => this._onToss());
     link.on('prep', p => this._onPrep(p));
@@ -468,15 +471,46 @@ export class NatpfPhoneRacket {
     this._changed();
   }
   onCal(fn){ this.calListeners.add(fn); return () => this.calListeners.delete(fn); }
-  // configurazione mandata al telefono (a ogni collegamento e quando cambia l'attesa del tutorial)
-  _cfg(){ return { t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}), ...(this.tutWait ? { tut: 1 } : {}) }; }
+  // configurazione mandata al telefono (a ogni collegamento e quando cambia l'attesa del tutorial). tv 2: il computer manda
+  // l'avanzamento (tp) e il telefono tiene «Tutto chiaro» spento fino all'ultima scheda vista
+  _cfg(){ return { t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}), ...(this.tutWait ? { tut: 1, tv: 2 } : {}) }; }
   // il telefono aspetta il tutorial (on) o calibra subito (off); onTutorial: «Tutto chiaro, ho capito» toccato sul telefono
   waitTutorial(on){
     const v = !!on; if (v === this.tutWait) return;
-    this.tutWait = v; if (!v) this.tutSupported = false;
+    this.tutWait = v; if (!v){ this.tutSupported = false; this.tutV2 = false; this.tutProgress = null; }
     if (this.connected) this.link.send(this._cfg());
   }
   onTutorial(fn){ this.tutListeners.add(fn); return () => this.tutListeners.delete(fn); }
+  // frecce ‹ › toccate sul telefono (-1 indietro, 1 avanti): chi mostra la modale cambia scheda
+  onTutorialNav(fn){ this.tutNavListeners.add(fn); return () => this.tutNavListeners.delete(fn); }
+  // avanzamento della modale { i, n, s, m, all, nm } (NatpfTutorial.progress), mandato al telefono finché aspetta
+  tutorialProgress(p){ this.tutProgress = p ? { ...p } : null; this._sendTp(); }
+  _sendTp(){
+    const p = this.tutProgress;
+    if (!this.tutWait || !p || !this.connected) return;
+    this.link.send({ t: 'tp', i: p.i, n: p.n, s: p.s, m: p.m || 0, all: p.all ? 1 : 0, ...(p.nm ? { nm: String(p.nm).slice(0, 40) } : {}) });
+  }
+  // messaggi del tutorial dal telefono: w (sa aspettare; v 2 tiene il pulsante spento), nav (frecce), ok («ho capito»).
+  // Da un telefono v2 un «ok» prima di aver visto tutte le schede (messaggi incrociati, pagina con lo stato di prima) non
+  // chiude la modale: il telefono riceve di nuovo il cancello e l'avanzamento
+  _onTut(e){
+    if (e.wait){ this.tutSupported = true; this.tutV2 = e.v === 2; }
+    if (e.nav && this.tutWait) for (const fn of this.tutNavListeners) try { fn(e.nav); } catch (err){ console.error(err); }
+    if (e.ok){
+      if (this.tutWait && this.tutV2 && this.tutProgress && !this.tutProgress.all){ if (this.connected){ this.link.send(this._cfg()); this._sendTp(); } }
+      // (chi mostra la modale la chiude e toglie l'attesa con waitTutorial(false), che pulisce anche lo stato qui)
+      else { for (const fn of this.tutListeners) try { fn(e); } catch (err){ console.error(err); } this.tutWait = false; }
+    }
+    this._changed();
+  }
+  // tutorial già visto da chi tiene questo telefono (stesso abbinamento)
+  get tutorialSeen(){ return this.tutSeenPairs != null && this.tutSeenPairs === (this.state.pairs || 0); }
+  markTutorialSeen(){ this.tutSeenPairs = this.state.pairs || 0; this.tutSaved = null; }
+  // visitatore nuovo (chiosco): il tutorial si rivede anche con lo stesso telefono
+  forgetTutorial(){ this.tutSeenPairs = null; this.tutSaved = null; }
+  // modale chiusa prima della fine (si esce, il telefono cade nella pagina «Collega»): si riprende da lì, stesso abbinamento
+  saveTutorial(snap){ this.tutSaved = snap ? { ...snap, pairs: this.state.pairs || 0 } : null; }
+  savedTutorial(){ const t = this.tutSaved; return t && t.pairs === (this.state.pairs || 0) ? t : null; }
   // gesto fatto a richiesta (esercizio «Pallonetto» o «Palla corta»): esempio per le soglie personali. Con la forma del
   // colpo (telefoni di oggi) è un esempio della forma del proprio gesto (prima con questi telefoni non si imparava niente,
   // e l'esercizio diceva comunque «Ho imparato il tuo gesto»). Restituisce { learned, distinct }: distinct se il gesto

@@ -289,3 +289,63 @@ test('stesso schermo con una webcam per due: scelta ricordata, pronti con le due
   assert.equal(ui.split.input, 'webcam');
   ui.split.setInput('phones'); assert.equal(mc.webcamDuo, false); assert.equal(ui.controller, 'phone');
 });
+
+// B9 (05/11): nello stesso schermo ogni metà ha la sua modale con le frecce; l'avanzamento va al telefono di quel
+// giocatore (pulsante acceso dopo l'ultima scheda); le frecce di un telefono sfogliano solo la sua metà; un telefono che
+// cade a tutorial aperto ritrova la scheda raggiunta; un telefono già pronto non viene ricalibrato; il P1 che ha visto il
+// tutorial nell'Allenamento non lo rivede; tastiera A/D (metà sinistra) e ← → (metà destra)
+test('stesso schermo: tutorial indipendenti con le frecce, avanzamento a ciascun telefono, ricollegamento, già visto', async () => {
+  const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
+  const P1 = E.natpfPhone, P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
+  const l2 = P2.link = { ...fakeLink(), ready: true, L: { state: 'connected', phone: 'ready' } };
+  lobby.go('mode'); lobby.setMode('split'); lobby.go('connect');
+  ui.split.paint();
+  assert.ok(ui.split.tutOpen.p1 && ui.split.tutOpen.p2);
+  const tp = link => link.sent.filter(m => m.t === 'tp').at(-1);
+  const nav = (P, d) => P._onTut({ nav: d, v: 2 }), ok = P => P._onTut({ ok: true, v: 2 });
+  P1._onTut({ wait: true, v: 2 }); P2._onTut({ wait: true, v: 2 });
+  assert.equal(tp(w.link).i, 0); assert.equal(tp(l2).i, 0);
+  // il P2 sfoglia dal suo telefono: si muove solo la metà destra
+  w.advance(1200); nav(P2, 1); nav(P2, 1);
+  assert.equal(ui.split.tut.p2.state.idx, 2); assert.equal(ui.split.tut.p1.state.idx, 0, 'la metà del P1 non si muove');
+  assert.equal(tp(l2).i, 2); assert.equal(tp(w.link).i, 0);
+  // tastiera: A/D per la metà sinistra, frecce per la destra
+  w.key('KeyD'); assert.equal(ui.split.tut.p1.state.idx, 1); w.key('ArrowRight'); assert.equal(ui.split.tut.p2.state.idx, 3);
+  w.key('KeyA'); assert.equal(ui.split.tut.p1.state.idx, 0);
+  // un «ok» prima dell'ultima scheda non chiude
+  ok(P2); assert.ok(ui.split.tutOpen.p2, 'prima dell\'ultima scheda non si chiude');
+  // il telefono del P2 cade a tutorial aperto: la metà torna al QR; ricollegato (stesso abbinamento) riparte dalla scheda 4
+  w.advance(1200);
+  l2.connected = false; l2.ready = false; l2.L = { state: 'lost', phone: null }; ui.split.paint();
+  assert.ok(!ui.split.tutOpen.p2 && !ui.split.tut.p2.open, 'telefono caduto: la metà mostra di nuovo il QR');
+  l2.connected = true; l2.ready = true; l2.L = { state: 'connected', phone: 'ready', joins: 2 }; ui.split.paint();
+  assert.ok(ui.split.tutOpen.p2); assert.equal(ui.split.tut.p2.state.idx, 3, 'riparte dalla scheda raggiunta'); assert.ok(ui.split.tut.p2.state.visited.has(3) && !ui.split.tut.p2.state.visited.has(2), 'schede viste ricordate (la 3 sì, la 2 passata di fila no)');
+  for (let i = 3; i < 11; i++){ w.advance(1200); if (i < 10) nav(P2, 1); }
+  assert.equal(tp(l2).all, 0, 'le schede 1 e 2 passate di fila non contano');
+  // indietro fino alla 2 e alla 1, guardate: tutte viste
+  for (let i = 0; i < 8; i++) nav(P2, -1);
+  w.advance(1200); nav(P2, -1); w.advance(1200);
+  assert.equal(ui.split.tut.p2.state.idx, 1); assert.equal(tp(l2).all, 1);
+  // P2 già pronto: «poi sei pronto», e dopo «ho capito» nessuna calibrazione
+  assert.match(ui.split.tut.p2.root.querySelector('.tut-wait').textContent, /tuo telefono.*sei pronto/);
+  const cmdsBefore = l2.cmds.length;
+  ok(P2); ui.split.paint();
+  assert.ok(!ui.split.tutOpen.p2 && P2.tutorialSeen); assert.equal(l2.cmds.length, cmdsBefore, 'telefono già pronto: nessuna calibrazione');
+  assert.ok(ui.split.tutOpen.p1, 'il P1 continua il suo tutorial');
+  // il P2 si ricollega (schermo spento, pagina ricaricata): niente tutorial
+  l2.L = { ...l2.L, joins: 3 }; ui.split.paint(); assert.ok(!ui.split.tutOpen.p2);
+  // abbinamento nuovo del P2 (QR): di nuovo
+  l2.L = { ...l2.L, pairs: 1, joins: 4 }; ui.split.paint(); assert.ok(ui.split.tutOpen.p2);
+  ui.split.closeTutorials();
+  // P1 che ha già visto il tutorial (Allenamento, stesso abbinamento): non lo rivede nello stesso schermo
+  P1.markTutorialSeen(); ui.split.paint(); assert.ok(!ui.split.tutOpen.p1);
+  // chiosco: il visitatore dopo lo rivede
+  ui.kiosk?.reset?.(); assert.ok(!P1.tutorialSeen && !P2.tutorialSeen);
+});
+
+test('stesso schermo: lo stato della metà dice che si sta guardando il tutorial', async () => {
+  const { splitPlayerStatus } = await import('../src/natpf/natpf_split_ui.js');
+  const p = { link: {}, state: { state: 'connected', phone: 'tut' }, connected: true, ready: false, tutWait: true, tutProgress: { i: 3, n: 11, s: 4, all: false } };
+  assert.match(splitPlayerStatus(p).title, /Guarda il tutorial/); assert.match(splitPlayerStatus(p).sub, /4 di 11/);
+  p.tutProgress = { i: 10, n: 11, s: 11, all: true }; assert.match(splitPlayerStatus(p).sub, /Tutto chiaro/);
+});

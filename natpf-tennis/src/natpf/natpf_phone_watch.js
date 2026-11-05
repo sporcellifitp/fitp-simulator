@@ -111,12 +111,21 @@ export function createPhoneWatch({ steadyMs = WATCH.steadyMs, countdownMs = WATC
   };
 }
 
-// testo per chi gioca, dal motivo della pausa
-export function holdText(why){
+// testo per chi gioca, dal motivo della pausa. hiddenMs: da quanto la pagina del telefono è nascosta (B9: lo si dice, e si
+// aggiorna ogni secondo); wasHidden: il telefono si è scollegato con la pagina nascosta (schermo spento): si ricollega
+// da solo quando torna, il QR serve solo se la pagina è stata chiusa
+export function holdText(why, { hiddenMs = null, wasHidden = false } = {}){
+  const since = Number.isFinite(hiddenMs) && hiddenMs >= 1000 ? ` da ${Math.round(hiddenMs/1000)} s` : '';
+  if (why === 'pagina nascosta') return `Schermo del telefono spento o pagina del gioco non in primo piano${since}: riaccendi lo schermo (tasto laterale) e torna alla pagina, si riprende da solo. Sul telefono basta un tocco per riprendere.`;
+  if (why === 'scollegato' && wasHidden) return `Il telefono si è scollegato con lo schermo spento${since}: riaccendilo e torna alla pagina del gioco, si ricollega da solo. Se la pagina è stata chiusa, inquadra di nuovo il QR.`;
   return {
     scollegato: 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo.',
     'non pronto': 'Il telefono non è pronto: guarda il telefono e finisci la calibrazione.',
-    'pagina nascosta': 'La pagina del telefono non è in primo piano (schermo spento o un’altra app): riaccendi lo schermo e torna alla pagina.',
     'sensori fermi': 'Il telefono è collegato ma non manda il movimento: sul telefono tocca «Riattiva i sensori» (o riaccendi lo schermo e torna alla pagina del gioco).',
   }[why] || 'Telefono in pausa.';
+}
+// testo della pausa per questo telefono adesso (da quanto è nascosto, se si è scollegato con lo schermo spento)
+export function phoneHoldText(p, why, now = globalThis.performance?.now?.() ?? 0){
+  const L = p?.state || {}, hidden = L.vis === false;
+  return holdText(why, { hiddenMs: hidden && Number.isFinite(L.hiddenAt) ? now - L.hiddenAt : null, wasHidden: hidden });
 }
