@@ -1,5 +1,6 @@
 // Telecamera di gioco quando chi gioca arretra oltre il fondo campo (diagnostica del 30/10, 20261030-142438, C16).
-// La camera del motore base (dietro il fondo campo, alta 7,8 m, 45°, sguardo a 1,8 m dalla rete) segue solo x: con chi
+// La camera del motore base (dietro il fondo campo, alta 7,8 m, 45° da 16:9 in su: su schermi più stretti la adatta
+// natpf_camera.js, B8; sguardo a 1,8 m dalla rete) segue solo x: con chi
 // gioca oltre z ≈ 14 m i piedi e il punto d'impatto uscivano dal basso dell'immagine (contatti a z ≥ 13,5 m: 8 su 25 e
 // 4 su 12 nelle due sessioni). Decisione dell'utente del 31/10: oltre ~12,5 m la camera arretra un poco e lo sguardo
 // scende verso chi gioca, in modo morbido: lo spostamento cresce da zero con derivata zero (nessuno scatto quando si

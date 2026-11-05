@@ -17,7 +17,7 @@
 //   ELECTRON_SKIP_BINARY_DOWNLOAD= node node_modules/electron/install.js   (se manca Electron per Linux)
 //   npm ci --prefix ../tools/e2e                      (se manca playwright-core)
 //   node scripts/prova-linux.mjs [--display=:91] [--dati=cartella] [--senza-xvfb] [--tieni-dati]
-//                                [--scenari=predefinito,ledwall-spento,finestra]
+//                                [--scenari=predefinito,ledwall-spento,finestra,gioco]
 // Usa le porte del programma (8443, 8081, 8080): devono essere libere. Dati (certificati, impostazioni, registro) in
 // --dati (predefinita: una cartella temporanea nuova), mai in quelli veri.
 import fs from 'node:fs';
@@ -35,7 +35,7 @@ const APP = path.join(HERE, 'app');
 const args = Object.fromEntries(process.argv.slice(2).map(v => { const i = v.indexOf('='); return i < 0 ? [v.replace(/^--/, ''), true] : [v.slice(0, i).replace(/^--/, ''), v.slice(i + 1)]; }));
 const DISPLAY = args['senza-xvfb'] ? process.env.DISPLAY : String(args.display || ':91');
 const GAME = `https://localhost:${DESKTOP.port}${DESKTOP.gamePath}`;
-const SCENARI = ['predefinito', 'ledwall-spento', 'finestra'];
+const SCENARI = ['predefinito', 'ledwall-spento', 'finestra', 'gioco'];
 const chosen = typeof args.scenari === 'string' ? args.scenari.split(',').map(s => s.trim()).filter(Boolean) : SCENARI;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const fail = m => { console.error(m); process.exit(2); };
@@ -304,7 +304,39 @@ async function finestra(){
   check('scelta salvata: schermo intero', readSaved().fullscreen === true, readSaved());
 }
 
-const RUN = { predefinito, 'ledwall-spento': ledwallSpento, finestra };
+// --- gioco: il gioco vero dentro il programma (ponte natpfDesktop, B8) ----------------------------------------------
+// Il gioco non deve mai usare lo schermo intero di HTML nel programma (Electron consumerebbe il primo Esc): il primo tasto
+// non lo apre, il tasto F passa da window.natpfDesktop, «All'avvio» (Opzioni → Schermo) è nascosto.
+async function gioco(){
+  const { state, key, page, gameLoaded } = await launch(null);
+  const loaded = await gameLoaded();
+  check('pagina del gioco caricata', loaded, loaded?.url);
+  if (!loaded) throw new Error('pagina del gioco non caricata');
+  const ready = await until(() => page('!!window.__natpfTennis?.natpfUi?.screen?.fullscreen'), 60000, 250);
+  check('gioco avviato (schermo del gioco pronto)', ready);
+  if (!ready) throw new Error('gioco non avviato');
+  const fsState = () => page(`(() => { const f = window.__natpfTennis.natpfUi.screen.fullscreen; return { desktop: !!f.desktop, desktopOn: f.desktopOn, frameless: f.frameless, html: !!document.fullscreenElement, label: f.label, armed: f.armed, auto: f.autoAllowed }; })()`);
+  let g = await until(async () => { const x = await fsState(); return x.desktopOn && x; }, 5000);
+  check('il gioco vede il ponte e la finestra a schermo intero', g?.desktop && g.frameless && !g.html && !g.armed && !g.auto, g);
+  // primo tasto sulla schermata iniziale: niente schermo intero di HTML
+  await key('Return'); await sleep(1500); await key('Return'); await sleep(1500);
+  g = await fsState(); let s = await state();
+  check('primo tasto: niente requestFullscreen di HTML, finestra sempre a schermo intero', !g.html && s.fullscreen, { gioco: g, finestra: s.fullscreen });
+  // F del gioco: esce e rientra con il ponte
+  await key('F');
+  s = await until(async () => { const x = await state(); return !x.fullscreen && x; }, 4000);
+  g = await fsState();
+  check('F esce dallo schermo intero della finestra (ponte)', s && !s.fullscreen && !g.html && !g.desktopOn && !g.frameless, { finestra: s?.fullscreen, gioco: g });
+  await key('F');
+  s = await until(async () => { const x = await state(); return x.fullscreen && x; }, 4000);
+  g = await until(async () => { const x = await fsState(); return x.desktopOn && x; }, 3000);
+  check('F rientra nello schermo intero della finestra (ponte)', s?.fullscreen && g?.desktopOn && !g.html, { finestra: s?.fullscreen, gioco: g });
+  check('scelta salvata: schermo intero', readSaved().fullscreen === true, readSaved());
+  const startRow = await page(`(() => { const el = document.getElementById('natpf-fs-start'); return el ? el.classList.contains('hidden') : 'manca'; })()`);
+  check("«All'avvio» nascosto nel programma", startRow === true, startRow);
+}
+
+const RUN = { predefinito, 'ledwall-spento': ledwallSpento, finestra, gioco };
 try {
   if (!args['senza-xvfb']) await startXvfb();
   for (const name of chosen){

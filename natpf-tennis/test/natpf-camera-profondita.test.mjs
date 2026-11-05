@@ -51,7 +51,8 @@ test('C16: fino a 12,5 m la camera di gioco è quella di sempre (P1 e P2)', () =
   }
 });
 
-// monitor 16:9, ledwall largo (3×1) e quasi quadrato (2×2): il campo visivo verticale è sempre 45°
+// monitor 16:9, ledwall largo (3×1) e quasi quadrato (2×2) con il campo visivo verticale di 45° (camera del motore base;
+// sotto 16:9 il gioco la allarga e la sposta, natpf_camera.js: provato in natpf-inquadratura.test.mjs)
 for (const [name, aspect] of [['monitor 16:9', 16/9], ['ledwall 3×1', 3], ['ledwall 2×2', 1.1]]){
   test(`C16: piedi e punto d'impatto in vista fino a 16 m dalla rete, campo avversario in vista (${name}, P1 e P2)`, () => {
     for (const role of ['p1', 'p2']) for (let z = 11; z <= 16.001; z += .5){

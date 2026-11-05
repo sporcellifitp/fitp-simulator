@@ -367,3 +367,40 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 - Portatile: estrazione una volta per versione in `%LOCALAPPDATA%\NATPF\portatile\<versione>` (marcatore `.pronto`),
   non a ogni avvio come il target `portable` di electron-builder; `PORTABLE_EXECUTABLE_DIR` dice al programma che è
   il portatile (regola «NATPF Simulator portatile»).
+
+### Schermo intero, monitor e peso Cloudflare (B8, 04–05/11/2026, versione 2026-11-05.1)
+- Richieste: «full screen senza cornici in tutte le versioni», «adatta il fullscreen alla finestra/monitor o prevedi la
+  calibrazione come nei videogiochi», «la versione cloudflare deve sempre pesare leggermente meno di 25 MB».
+  Dettagli e motivi: `docs/DESKTOP_WINDOWS.md` §14; collaudo dell'utente: `docs/COLLAUDO_WINDOWS.md` §4, §4b, §5b.
+- **Schermo intero nel gioco web** (`natpf_screen.js`): «senza cornici» = `window.natpfDesktop` (Electron) oppure
+  `document.fullscreenElement` oppure `display-mode: fullscreen` (F11, Edge `--start-fullscreen`). Entrata automatica
+  al primo evento **vero** (`isTrusted`; keydown non Esc né solo modificatori, pointerdown del mouse, pointerup, click),
+  preferenza `natpf-tennis.fullscreen` = auto (predefinita) | off, `?fs=0` la spegne, con `navigator.webdriver` solo
+  `?fs=1`: le prove automatiche non entrano a schermo intero da sole. `NatpfScreen` si crea per primo in `NatpfUi`
+  (il suo ascolto in cattura deve precedere quello del menu, che ferma la propagazione). Dopo l'ingresso
+  `navigator.keyboard.lock(['Escape'])`: Esc breve resta del gioco. **Esc ripetuto (tasto tenuto) si ignora** in menu,
+  allenamento, guida e calibrazione. F = schermo intero (dopo il controllo della parola «natpf» del menu).
+- **Electron**: mai `requestFullscreen` di HTML nel programma (consumerebbe il primo Esc): il gioco usa
+  `window.natpfDesktop` (preload `natpf-desktop/src/preload.cjs`, contratto `{shell:'electron', version:1,
+  isFullScreen, setFullScreen, toggleFullScreen, onFullScreenChange}`). Finestra creata già a schermo intero; barra del
+  menu non «a scomparsa» a schermo intero (Alt non la mostra); scorciatoie in `before-input-event` (il gioco blocca i
+  tasti sulla schermata iniziale); niente `kiosk`/`frame:false`. `setOpacity` lascia la finestra «a strati» su Windows:
+  usarlo solo per un cambio vero di monitor.
+- **Edge/Chrome (zip LAN)**: `--app` + `--start-fullscreen` predefinito, mai `--kiosk` (Edge: InPrivate). In finestra
+  l'indirizzo porta `?fs=0`.
+- **Area di gioco e calibrazione**: `screenArea({preset, area, margins}, w, h)`: `?area=` vince su tutto; altrimenti
+  finestra meno i bordi per lato (percentuali della finestra, fino al 90%, area minima 480 × 360 px), poi il formato al
+  centro. Precedenza: `?area=` > `?schermo=` (i bordi restano) > calibrazione salvata (`natpf-tennis.screen.cal`
+  {v:1, preset, margins}) > vecchia chiave `natpf-tennis.screen`. Formati: full, 16x9, 16x10, 4x3, 3x2, 2x2.
+  La calibrazione è un overlay figlio di `<body>` (segue l'area), instradato da `lobby._key`; ogni `lobby.go()` (anche il
+  ritorno del chiosco) la annulla. I messaggi (`#natpf-toast`) stanno direttamente in `<body>`, sopra la calibrazione.
+- **Inquadratura** (`natpf_camera.js`): `thirdPersonFrame(aspect)` = esattamente {45°, dolly 1} da 16:9 in su; più
+  stretto tiene la larghezza del 16:9 sulla riga di fondo vicina (58°, poi dolly fino a 1,2; in verticale fino a 70°).
+  `frameMatchCamera`: mai oltre z 25,3 (maxischermo del proprio fondo a 25,6 con la cassa nera dietro: oltre la camera
+  sale alla stessa distanza), C16 e dolly non si sommano, in verticale +8° di elevazione. La forma è quella di
+  `viewport()`, non `camera.aspect` (lo split lo cambia). Prima persona (`viewpoint.js`, condiviso col sito) e split
+  invariati. `_onResize` aggiorna subito l'inquadratura (anche in pausa e con il menu) e il pixel ratio.
+- **Peso Cloudflare**: niente `.wasm`/`.js` non SIMD di MediaPipe nei pacchetti (`offline-assets.mjs`,
+  `MEDIAPIPE_EXCLUDED`); senza SIMD li prende `mediapipe_locate.js` dal CDN fissato. Nel gioco solo i loghi nominati
+  (`natpf-site-plugin.mjs`). Lo zip si fa **solo** con `node scripts/pacchetto-cloudflare.mjs --out=… --zip=…`:
+  deterministico, si ferma a `ZIP_LIMIT` = 25.000.000 byte, avvisa sopra 24.000.000; la CI lo esegue a ogni push.

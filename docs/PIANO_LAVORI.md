@@ -44,12 +44,17 @@ Come si aggiorna:
   cornici»; poi «la versione cloudflare deve sempre pesare leggermente meno di 25 MB» e «adatta il fullscreen in base
   alla finestra/monitor in utilizzo o prevedi la calibrazione a full screen, come avviene per i videogiochi» → **B8** (§5).
 - **Blocco in corso:** B8 (schermo intero senza cornici ovunque, adattamento al monitor e calibrazione, Cloudflare
-  sotto 25 MB). Il collaudo Windows di B7 resta da fare (`docs/COLLAUDO_WINDOWS.md`).
-- **Prossima azione esatta:** B8.1 — analisi (gioco: `natpf_screen.js`, schermata «premi un tasto», Esc, FOV della
-  camera in `game_engine.js` `_updateCameraFov`; Electron `natpf-desktop/src/main.mjs`; Edge `tools/lan/desktop.mjs`;
-  peso Cloudflare: togliere i `.wasm` non SIMD di MediaPipe da `natpf-tennis/scripts/offline-assets.mjs`), poi
-  implementazione, prove, versione `2026-11-04.6`, pacchetti ZIP ed eseguibili.
-
+  sotto 25 MB). **Codice fatto e pubblicato** (quattro rami preparati in parallelo, ciascuno rivisto da un revisore
+  indipendente e corretto: Cloudflare, programma Windows + launcher Edge, inquadratura, schermo intero + calibrazione;
+  dettagli in `docs/WORK_PROGRESS.md` B8 e `docs/DESKTOP_WINDOWS.md` §14). Prove di unità: gioco 760/760, sito 182/182,
+  LAN 12/12, programma Windows 13/13, build ok; nel browser `natpf-schermo` 41/41 (le altre in corso). Il collaudo
+  Windows di B7 resta da fare (`docs/COLLAUDO_WINDOWS.md`, con i punti nuovi di B8 in §4, §4b, §5b).
+- **Prossima azione esatta:** B8.9 — finire le prove nel browser (`natpf-inquadratura`, `natpf-menu`,
+  `natpf-training-flow`, sito, LAN: elenco in `tools/e2e/README.md`) e la prova del programma con Electron per Linux
+  (`cd natpf-desktop && node scripts/prepara.mjs && npm run prova-linux`, quattro scenari compreso `gioco`); poi
+  versione `2026-11-05.1` (`site/js/tennis/version.js`, `site/tennis/build.json`, intestazione di
+  `natpf-tennis/lan/LEGGIMI.txt`), build, pacchetti (Cloudflare con `--zip`, sotto 25.000.000 byte; LAN) ed eseguibili
+  (`npm run costruisci`), dimensioni e sha256 in `docs/COLLAUDO_WINDOWS.md` §0, consegna.
 ---
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
@@ -360,8 +365,11 @@ installato in `/opt/pw-browsers`.
 **Pacchetti** (dopo ogni commit che li cambia):
 1. Versione nuova `AAAA-MM-GG.n` in `site/js/tennis/version.js` e `site/tennis/build.json`, commit.
 2. `cd natpf-tennis && npm run build`.
-3. Cloudflare: `node scripts/pacchetto-cloudflare.mjs --out=<cartella nuova> --turn-url=https://natpf-turn.s-porcelli.workers.dev/`,
-   poi zip del contenuto della cartella → `natpf-simulator-cloudflare-<versione>.zip`.
+3. Cloudflare (dal B8 lo zip si fa **solo** così): `node scripts/pacchetto-cloudflare.mjs --out=<cartella nuova>
+   --zip=<altra cartella>/natpf-simulator-cloudflare-<versione>.zip --turn-url=https://natpf-turn.s-porcelli.workers.dev/`
+   (lo zip fuori dalla cartella del pacchetto e non già esistente: lo script lo rifiuta).
+   Zip deterministico; lo script si ferma se arriva a 25.000.000 byte (richiesta dell'utente: «sempre leggermente meno
+   di 25 MB») e avvisa sopra 24.000.000; la CI lo rifà a ogni push. Se si ferma: vedere i file più grandi che elenca.
 4. LAN: `npm ci` in `tools/lan`, poi `node lan/pacchetto.mjs --out=<cartella> --node=<node-v22-win-x64.zip verificato>`,
    zip → `natpf-simulator-lan-windows-<versione>.zip` (niente certificati o chiavi nello zip).
 5. Prova sugli zip estratti (server statico per Cloudflare; `node tools/lan/certificato.mjs` e server LAN per il

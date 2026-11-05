@@ -287,3 +287,44 @@ collaudo per l'utente in `docs/COLLAUDO_WINDOWS.md`.
 - **Verificato qui**: test delle funzioni pure e della coerenza degli script NSIS (`natpf-desktop/test`), costruzione,
   contenuto degli eseguibili, programma avviato con Electron per Linux in uno schermo virtuale (server, certificato,
   schermo intero, schermata iniziale del gioco). **Da verificare su Windows**: tutto `docs/COLLAUDO_WINDOWS.md`.
+
+## 14. Schermo intero senza cornici in tutte le versioni e adattamento al monitor · 05/11/2026 · B8 · 2026-11-05.1
+
+Richieste dell'utente: «Assicurati che ci sia in tutte le versioni modalità full screen senza cornici», «adatta il
+fullscreen in base alla finestra/monitor in utilizzo o prevedi la calibrazione a full screen, come avviene per i
+videogiochi», «la versione cloudflare deve sempre pesare leggermente meno di 25 MB». Dove questa sezione e le
+precedenti (§6–§9: «Edge in app/chiosco», `--kiosk`) non coincidono, vale questa.
+
+- **Programma Windows (Electron)**: la finestra nasce già a schermo intero (`fullscreen` nel costruttore, cornice
+  normale di Windows, niente `kiosk` né `frame:false`, che su Windows salterebbero la gestione della barra delle
+  applicazioni); a schermo intero la barra del menu non è «a scomparsa», quindi Alt da solo non la mostra sopra il gioco;
+  scorciatoie lette in `before-input-event` (funzionano anche quando la pagina blocca i tasti: la schermata «Premi un
+  tasto» lo fa); cambio di monitor a finestra trasparente solo se il monitor è davvero un altro; il monitor salvato resta
+  quello voluto anche se all'avvio è spento (ledwall acceso dopo); cambi di risoluzione o scala riadattati. Ponte con la
+  pagina `window.natpfDesktop` (preload con isolamento): il gioco usa lo schermo intero della finestra e mai quello di
+  HTML, che in Electron consumerebbe il primo Esc. Dettagli: `natpf-desktop/LEGGIMI.md`.
+- **Zip LAN con Edge/Chrome**: predefinito `--app` + `--start-fullscreen` con profilo dedicato (come F11 subito dopo
+  l'avvio: niente bordi né barre; un Esc breve arriva al gioco, tenuto premuto esce), finestra di partenza a metà e al
+  centro del monitor scelto così lo schermo intero va su quel monitor; **mai `--kiosk`** (in Edge è InPrivate e perde
+  impostazioni e record). «Finestra» solo per prove, con `?fs=0` nell'indirizzo. Scelta salvata `schermo:
+  'intero'|'finestra'` (il vecchio `kiosk:false` non conta: lo scriveva ogni avvio).
+- **Gioco web (browser, Cloudflare, LAN)**: `natpf_screen.js` sa se è già senza cornici (`natpfDesktop`,
+  `document.fullscreenElement`, `display-mode: fullscreen` di F11); schermo intero al primo tasto o clic vero (non Esc,
+  non eventi del codice) se la preferenza «All'avvio» è «Schermo intero» (predefinita), spento con `?fs=0` e nelle
+  prove automatiche (`navigator.webdriver`, salvo `?fs=1`); Keyboard Lock di Esc dopo l'ingresso (Edge e Chrome: Esc
+  breve al gioco, tenuto esce); Esc ripetuto ignorato nei menu, nell'allenamento e nella guida; F entra ed esce;
+  pulsante in alto nel menu, voce nella pausa e in Opzioni → Schermo; in F11 il messaggio «Premi F11 per uscire».
+- **Calibrazione dello schermo** (`natpf_calibra.js`, Opzioni → Schermo → «Calibra lo schermo…»): formato (Intero,
+  16:9, 16:10, 4:3, 3:2, 1:1), bordi visibili per lato fino al 90% con un'area minima di 480 × 360 px, frecce agli
+  angoli, cerchio e griglia, numeri dello schermo; anteprima dal vivo, Invio salva, Esc annulla, R ripristina; salvata
+  in `natpf-tennis.screen.cal` (`?area=` nell'indirizzo vince ancora su tutto).
+- **Inquadratura** (`natpf_camera.js`, `thirdPersonFrame`/`frameMatchCamera`): da 16:9 in su la camera della partita è
+  quella di sempre (45°, z 22,8); più stretto si tiene la larghezza del 16:9 sulla riga di fondo vicina: campo visivo
+  fino a 58°, poi la camera si allontana (fino a 1,2 volte) ma mai oltre z 25,3 (davanti al maxischermo del proprio
+  fondo: oltre sale), in verticale fino a 70° e 8° più in alto. Prima persona e split screen invariati.
+- **Peso Cloudflare**: MediaPipe solo nella versione SIMD (Edge, Chrome ed Electron la usano; senza SIMD i due file
+  non SIMD arrivano dal CDN fissato), solo i loghi usati dal gioco, zip deterministico con `--zip` che si ferma a
+  25.000.000 byte (CI compresa).
+- **Verificato qui**: prove di unità, prove nel browser (schermo, calibrazione, inquadratura, menu, allenamento, LAN),
+  prova del programma con Electron per Linux in Xvfb. **Da verificare su Windows**: `docs/COLLAUDO_WINDOWS.md` §4, §4b,
+  §5b.

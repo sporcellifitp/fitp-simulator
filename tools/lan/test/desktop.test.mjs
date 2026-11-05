@@ -33,7 +33,9 @@ test('app uses stable localhost origin, dedicated profile and negative monitor c
   assert.ok(windowed.includes('--window-position=-1920,0'));
   assert.ok(windowed.includes('--window-size=1920,1080'));
   assert.ok(!windowed.includes('--start-fullscreen'));
-  assert.ok(windowed.includes('--app=https://localhost:8443/?lan=1'));
+  // in finestra il gioco non va a schermo intero da solo al primo tasto: ?fs=0 (natpf_screen.js)
+  assert.ok(windowed.includes('--app=https://localhost:8443/?lan=1&fs=0'), windowed.join(' '));
+  assert.ok(!args.some(a => a.includes('fs=0')), 'a schermo intero niente fs=0');
 });
 test('screen mode: options first (new and legacy), then the saved choice; legacy kiosk:false is not a choice', () => {
   const table = [

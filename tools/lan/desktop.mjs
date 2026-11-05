@@ -28,9 +28,13 @@ export function browserArguments({ profile, fullscreen = true, monitor = null, u
     const r = fullscreen ? fullscreenLaunchRect(monitor) : monitor;
     args.push(`--window-position=${r.x},${r.y}`, `--window-size=${r.width},${r.height}`);
   }
-  args.push(`--app=${url}`);
+  // in finestra il gioco non deve andare a schermo intero da solo al primo tasto (natpf_screen.js legge ?fs=0)
+  args.push(`--app=${fullscreen ? url : withParam(url, 'fs', '0')}`);
   if (fullscreen) args.push('--start-fullscreen');
   return args;
+}
+function withParam(url, key, value) {
+  const u = new URL(url); u.searchParams.set(key, value); return u.href;
 }
 // Modalità dello schermo: 'intero' (senza bordi, predefinita) o 'finestra' (con bordi, per le prove). Prima le opzioni
 // della riga di comando (--finestra, --schermo-intero; le vecchie --app e --kiosk di CONFIGURA SCHERMO), poi la scelta

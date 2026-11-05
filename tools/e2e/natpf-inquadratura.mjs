@@ -7,7 +7,7 @@
 // verticale copriva fino a un terzo dell'immagine): si leggono i pixel delle righe in basso del disegno. Poi il
 // ridimensionamento: menu fermo e partita passano al quadrato e tornano al 16:9, e la densità dei pixel che cambia
 // (finestra spostata su un monitor con un'altra scala).
-//   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome GAME_PORT=3185 node natpf-inquadratura.mjs
+//   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome GAME_PORT=3186 node natpf-inquadratura.mjs
 //   (SIZES=1200x1200,1080x1920 per provare solo alcune misure)
 // Mouse e tastiera in modalità prova (localStorage testInput=1): nessun telefono. Per misurare sempre la stessa posa, in
 // partita il gioco si ferma (update) e gira solo il ciclo della camera del motore. Schermate in $OUT (inquadratura-*.png).
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { launch, page, check, summary, SP } from './th.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
-const GAME_PORT = +(process.env.GAME_PORT || 3185), LIMIT = .97;
+const GAME_PORT = +(process.env.GAME_PORT || 3186), LIMIT = .97;
 const vite = spawn(process.execPath, [path.join(GAME, 'node_modules/vite/bin/vite.js'), '--port', String(GAME_PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: GAME, env: { ...process.env, DISABLE_HMR: 'true' }, stdio: 'pipe' });
 const stop = () => { try { vite.kill(); } catch {} };
 process.on('exit', stop);
