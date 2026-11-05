@@ -2,9 +2,13 @@
 // (natpf_camera.js thirdPersonFrame). Nel gioco vero, a 1920×1080 (16:9), 1600×1200 (4:3), 1200×1200 (1:1, come il
 // ledwall 2×2) e 1080×1920 (in verticale): con la camera viva del motore proietta angoli del campo e pali della rete e
 // controlla che stiano dentro ±0,97 (in verticale almeno singolare e pali; il doppio si riporta), nello sfondo del menu,
-// al servizio e con chi gioca largo nello scambio. Poi il ridimensionamento: menu fermo e partita passano al quadrato e
-// tornano al 16:9, e la densità dei pixel che cambia (finestra spostata su un monitor con un'altra scala).
+// al servizio e con chi gioca largo nello scambio. Con chi gioca in profondità (z 15 e 16,5 m, C16) la camera resta davanti
+// al maxischermo del proprio fondo e la sua cassa nera non copre il fondo dell'immagine (revisione B8: sul quadrato e in
+// verticale copriva fino a un terzo dell'immagine): si leggono i pixel delle righe in basso del disegno. Poi il
+// ridimensionamento: menu fermo e partita passano al quadrato e tornano al 16:9, e la densità dei pixel che cambia
+// (finestra spostata su un monitor con un'altra scala).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome GAME_PORT=3185 node natpf-inquadratura.mjs
+//   (SIZES=1200x1200,1080x1920 per provare solo alcune misure)
 // Mouse e tastiera in modalità prova (localStorage testInput=1): nessun telefono. Per misurare sempre la stessa posa, in
 // partita il gioco si ferma (update) e gira solo il ciclo della camera del motore. Schermate in $OUT (inquadratura-*.png).
 // Grafica software (swiftshader) e Chromium senza cornice della finestra: non sostituisce la prova su un monitor vero.
@@ -36,8 +40,11 @@ const MEASURE = async () => {
   const a = side > 0 ? E.player : E.opponent;
   const look = E.cameraLookSmooth, { targetPos, targetLook } = E._computeTargetCameraPose();
   E._frameThirdPerson(targetPos, targetLook);
+  // tutti i raggi dell'inquadratura vanno verso il campo: quello che sta dietro la camera (maxischermo) non si vede
+  const toCourt = [[-1, -1], [1, -1], [-1, 1], [1, 1]].every(([x, y]) => side*(new V(x, y, .5).unproject(c).z - c.position.z) < 0);
   return {
     vp: [vp.w, vp.h], aspect: +c.aspect.toFixed(4), fov: +c.fov.toFixed(2), wantFov: +want.fov.toFixed(2), dolly: +want.dolly.toFixed(3),
+    maxZ: M.THIRD_PERSON.maxZ, screenZ: M.NEAR_SCREEN_Z, camZ: +(side*c.position.z).toFixed(3), toCourt,
     mode: E.manualCameraOverride || E.cameraMode, phase: E.phase,
     pos: c.position.toArray().map(v => +v.toFixed(2)), dist: +c.position.distanceTo(look).toFixed(3),
     settled: +c.position.distanceTo(targetPos).toFixed(3),
@@ -62,7 +69,16 @@ async function settle(p){
 }
 const fmt = m => `fov ${m.fov}° (atteso ${m.wantFov}°), dolly ${m.dolly}, distanza ${m.dist} m, punto più esterno doppio ${m.doubles.toFixed(3)}, singolare ${m.singles.toFixed(3)}, angoli vicini ${JSON.stringify(m.nearDoubles.map(q => q.slice(0, 2)))}`;
 
-const SIZES = [[1920, 1080], [1600, 1200], [1200, 1200], [1080, 1920]];
+// righe in basso del disegno (WebGL, senza l'interfaccia sopra): quota di pixel quasi neri, il colore della cassa del
+// maxischermo (0x05080f). Si legge subito dopo il disegno, nello stesso compito (il buffer non è conservato)
+const BOTTOM_DARK = (share = .1) => {
+  const E = window.__natpfTennis; E.__render();
+  const gl = E.renderer.getContext(), W = gl.drawingBufferWidth, H = gl.drawingBufferHeight, rows = Math.max(1, Math.round(H*share));
+  const px = new Uint8Array(W*rows*4); gl.readPixels(0, 0, W, rows, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  let dark = 0; for (let i = 0; i < px.length; i += 4) if (px[i] < 24 && px[i + 1] < 24 && px[i + 2] < 32) dark++;
+  return +(dark/(W*rows)).toFixed(4);
+};
+const SIZES = process.env.SIZES ? process.env.SIZES.split(',').map(t => t.split('x').map(Number)) : [[1920, 1080], [1600, 1200], [1200, 1200], [1080, 1920]];
 const B = await launch();
 const report = [];
 try {
@@ -127,6 +143,23 @@ try {
     await shot('3-largo');
     report.push({ tag, step: 'largo', ...rally });
 
+    // 3b) chi gioca in profondità (C16), a 15 e 16,5 m dalla rete: camera davanti al maxischermo del proprio fondo, nessuna
+    // fascia nera in basso (prima: sul quadrato 12% e 28%, in 9:16 22% e 33% dell'immagine), piedi in vista
+    for (const z of [15, 16.5]){
+      await p.evaluate(z => {
+        const E = __natpfTennis, a = E.player;
+        a.pos.set(1, 0, z); a.targetPos?.copy?.(a.pos); a.root?.position.copy(a.pos); E.ball.pos.set(1.5, 1, z - 1);
+        E.phase = 'RALLY'; E.cameraMode = 'RALLY_CAM'; E._snapCameraImmediate();
+      }, z);
+      const m = await p.evaluate(MEASURE), dark = await p.evaluate(BOTTOM_DARK, .1);
+      const feet = m.actor[0], front = m.camZ <= m.maxZ + 1e-6 && m.maxZ < m.screenZ && m.toCourt;
+      check(`${tag} chi gioca a ${z} m: camera davanti al maxischermo (z ${m.camZ} ≤ ${m.maxZ.toFixed(2)}), niente nero in basso, piedi in vista`,
+        front && dark < .05 && feet[2] && Math.abs(feet[0]) <= 1 && feet[1] >= -.97,
+        `pixel quasi neri nel 10% in basso ${(dark*100).toFixed(1)}%, piedi ${feet.slice(0, 2)}, camera ${m.pos}; ${fmt(m)}`);
+      await p.screenshot({ path: `${SP}/inquadratura-${tag}-3b-profondo-${z}.png` });
+      report.push({ tag, step: `profondo ${z}`, dark, ...m });
+    }
+
     // 4) a 16:9, finestra portata al quadrato durante la partita (non in pausa): campo visivo subito, la posa la porta il
     // ciclo della camera (morbido) e arriva all'arretramento del quadrato
     if (w === 1920){
@@ -173,7 +206,7 @@ try {
   stop();
 }
 console.log('\nmisure:');
-for (const r of report) console.log(`${r.tag.padEnd(9)} ${String(r.step).padEnd(12)} ${r.fov != null ? fmt(r) : JSON.stringify(r)}`);
+for (const r of report) console.log(`${r.tag.padEnd(9)} ${String(r.step).padEnd(12)} ${r.fov != null ? `${fmt(r)}, camera ${r.pos}${r.dark != null ? `, nero in basso ${(r.dark*100).toFixed(1)}%` : ''}` : JSON.stringify(r)}`);
 console.log(`schermate in ${SP}`);
 summary();
 setTimeout(() => process.exit(), 300);

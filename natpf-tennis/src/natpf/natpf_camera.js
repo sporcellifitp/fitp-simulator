@@ -6,6 +6,7 @@
 // sempre verso la metà campo avversaria.
 import * as THREE from 'three';
 import { cameraFieldOfView, normalizeCameraMode } from '@natpf/tennis/viewpoint.js';
+import { STAND_FRONT } from '@natpf/tennis/arena.js';
 import { SPLIT_CAM } from './natpf_split.js';
 
 export const VIEW_STORAGE_KEY = 'natpf-tennis.view';
@@ -30,19 +31,29 @@ export const firstPersonFov = aspect => cameraFieldOfView(aspect, 'first');
 // vicini del doppio uscivano dallo schermo (audit B8: ±1,05 sul quadrato, ±1,8 in verticale). Qui, da 16:9 in su tutto
 // come prima; più stretto, si tiene la larghezza che il 16:9 vede sulla riga di fondo vicina (dove gli angoli escono per
 // primi): prima si allarga il campo visivo verticale fino al tetto dello split screen (45° + 13° = 58°, natpf_split.js),
-// poi la camera arretra lungo lo sguardo (dolly: moltiplica la distanza camera → punto guardato) fino a maxDolly, che
-// basta per il quadrato e tiene il bordo basso dell'immagine sul pavimento o sul muretto di fondo (non sulle teste del
-// pubblico); oltre, solo sugli schermi in verticale, il campo visivo si allarga ancora fino a tallFov e da lì in poi il
-// campo di lato si stringe (in 9:16 restano in vista singolare e pali della rete, e anche gli angoli del doppio).
+// poi la camera si allontana dal punto guardato (dolly: moltiplica la distanza camera → punto guardato) fino a maxDolly,
+// che basta per il quadrato; oltre, solo sugli schermi in verticale, il campo visivo si allarga ancora fino a tallFov e da
+// lì in poi il campo di lato si stringe (in 9:16 restano in vista singolare e pali della rete, e anche gli angoli del
+// doppio). La posa vera (frameMatchCamera) tiene la camera davanti al maxischermo del proprio fondo: allontanandosi lungo
+// lo sguardo sul quadrato finiva dietro (z 26,8), e con chi gioca in profondità (C16, fino a z 28,4) la cassa nera del
+// maxischermo copriva fino a un terzo dell'immagine dal basso, con le gambe di chi gioca (revisione B8); oltre maxZ la
+// camera sale invece di arretrare, alla stessa distanza dal punto guardato.
 // Prima persona (firstPersonFov, da viewpoint.js condiviso con il sito) e split screen (natpf_split.js, camera per ogni
 // metà) restano come sono.
 export const MATCH_CAM = Object.freeze({ height: 7.8, z: 22.8, lookY: SPLIT_CAM.lookY, lookZ: SPLIT_CAM.lookZ, baseline: SPLIT_CAM.baseline });
+// maxischermo sopra il passaggio di fondo (site/js/tennis/arena.js: piano a z = ±(STAND_FRONT.hz + 3,2) = ±25,6, largo
+// 5,8 m, con dietro una cassa nera 6 × 4,2 × 0,3 m da z ±25,65 a ±25,95, alta fino a 7,2 m). Prima del B8 la camera
+// della partita arrivava al massimo a z 24,96 (C16)
+export const NEAR_SCREEN_Z = STAND_FRONT.hz + 3.2;
 export const THIRD_PERSON = Object.freeze({
   fov: SPLIT_CAM.fov,                         // 45°: campo visivo verticale del motore base (16:9 e più largo)
   refAspect: 16/9,                            // forma di riferimento: da qui in su nessun cambiamento
   maxFov: SPLIT_CAM.fov + SPLIT_CAM.tallFov,  // 58°: tetto del primo allargamento (4:3 → 57,8° con la camera ferma)
-  maxDolly: 1.2,                              // tetto dell'arretramento (1:1 → 1,19: camera a z 26,8, alta 9,2 m)
+  maxDolly: 1.2,                              // tetto dell'allontanamento (1:1 → 1,19: 26,5 m dal punto guardato)
   tallFov: 70,                                // secondo tetto, solo per gli schermi in verticale
+  maxZ: NEAR_SCREEN_Z - .3,                   // 25,3 m: la camera resta davanti al maxischermo del proprio fondo
+  tallElevation: SPLIT_CAM.tallElevation,     // 8°: in verticale (9:16) la camera sale ancora, come le metà alte dello split
+  tallFrom: 1, tallTo: 9/16,                  // da 1:1 (nulla) a 9:16 (tutto)
 });
 const rad = deg => deg*Math.PI/180, tanHalf = deg => Math.tan(rad(deg)/2), fovOf = t => 2*Math.atan(t)*180/Math.PI;
 // profondità della riga di fondo vicina lungo lo sguardo della camera della partita, in frazione della distanza camera →
@@ -73,6 +84,44 @@ export function thirdPersonCoverage(aspect, C = THIRD_PERSON){
 export function dollyCamera(pos, look, dolly){
   if (dolly !== 1) pos.sub(look).multiplyScalar(dolly).add(look);
   return pos;
+}
+// alza la camera attorno al punto guardato, alla stessa distanza: elevazione dello sguardo + deg (sul posto)
+export function raiseCamera(pos, look, deg){
+  if (!(deg > 0)) return pos;
+  const ox = pos.x - look.x, oy = pos.y - look.y, oz = pos.z - look.z, h = Math.hypot(ox, oz);
+  if (!(h > 0)) return pos;
+  const L = Math.hypot(h, oy), el = Math.min(Math.atan2(oy, h) + rad(deg), rad(85)), k = L*Math.cos(el)/h;
+  return pos.set(look.x + ox*k, look.y + L*Math.sin(el), look.z + oz*k);
+}
+const NO_DEEP = Object.freeze({ back: 0, look: 0 });
+const _base = new THREE.Vector3(), _look = new THREE.Vector3();
+// Posa della camera della partita (servizio e scambio, terza persona) per uno schermo largo/alto = aspect, sul posto.
+// pos e look sono la posa obiettivo del motore (game_engine.js _computeTargetCameraPose) con dentro lo spostamento per chi
+// gioca in profondità (C16: deep = deepCamShift di natpf_camera_depth.js, nullo al servizio; side +1 per il P1, −1 per
+// il P2). Da 4:3 in su (dolly 1) la posa resta quella del motore; più stretto:
+//   1. la posa di base (senza C16) si allontana lungo lo sguardo (dolly);
+//   2. C16 come sempre per lo sguardo, che scende verso chi gioca; la camera arretra ancora solo se C16 da solo la
+//      porterebbe più indietro (i due arretramenti non si sommano: la camera già lontana tiene in vista chi gioca);
+//   3. mai oltre maxZ (davanti al maxischermo del proprio fondo): oltre, la camera sale alla stessa distanza dal punto
+//      guardato (sul quadrato da 19,5° a 27,6° sopra l'orizzonte), così la riga di fondo vicina resta alla stessa
+//      profondità o poco più e il campo visto di lato non cala;
+//   4. in verticale (da 1:1 a 9:16) la camera sale ancora fino a tallElevation, alla stessa distanza: il campo sta al
+//      centro dell'immagine, meno pavimento in basso e segnapunti del fondo vicino fuori dall'immagine.
+// Tutto continuo nella forma e nella profondità di chi gioca (nessuno scatto). Restituisce { fov, dolly } (thirdPersonFrame).
+export function frameMatchCamera(pos, look, { aspect, side = 1, deep = NO_DEEP } = {}, C = THIRD_PERSON){
+  const a = Number(aspect), f = thirdPersonFrame(a, C), s = side < 0 ? -1 : 1, d = deep || NO_DEEP;
+  if (f.dolly !== 1){
+    _base.set(pos.x, pos.y, pos.z - s*(d.back || 0)); _look.set(look.x, look.y, look.z - s*(d.look || 0));
+    dollyCamera(_base, _look, f.dolly);
+    pos.set(_base.x, _base.y, s*Math.max(s*_base.z, s*pos.z));
+  }
+  if (s*pos.z > C.maxZ){
+    const oy = pos.y - look.y, oz = pos.z - look.z, nz = s*C.maxZ - look.z;   // x resta, la distanza anche
+    pos.set(pos.x, look.y + Math.sqrt(Math.max(0, oy*oy + oz*oz - nz*nz)), s*C.maxZ);
+  }
+  const tall = a > 0 ? Math.min(1, Math.max(0, (C.tallFrom - a)/(C.tallFrom - C.tallTo))) : 0;
+  if (tall > 0) raiseCamera(pos, look, C.tallElevation*tall);
+  return f;
 }
 // camere della partita (servizio e scambio, dietro chi gioca: il ramo «else» di _computeTargetCameraPose): le uniche
 // che arretrano. Vista aerea, vetrina e moviola hanno pose loro (in giro per l'arena o vicino al campo) e prendono solo

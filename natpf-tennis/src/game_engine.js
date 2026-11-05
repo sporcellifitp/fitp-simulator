@@ -23,7 +23,7 @@ import {
   setFirstPersonBody,
   FIRST_PERSON,
   thirdPersonFrame,
-  dollyCamera,
+  frameMatchCamera,
   isMatchCamera,
   renderPixelRatio,
   watchPixelRatio,
@@ -3773,11 +3773,18 @@ export class NatpfTennisEngine {
     const vp = viewport();
     return thirdPersonFrame(vp.w / vp.h);
   }
-  // NATPF (B8): sugli schermi più stretti del 4:3 la camera della partita (servizio e scambio) arretra lungo lo sguardo;
-  // si sposta la posa obiettivo, prima dell'inseguimento morbido, così i cambi di camera restano morbidi
+  // NATPF (B8): sugli schermi più stretti del 4:3 la camera della partita (servizio e scambio) si allontana, restando
+  // davanti al maxischermo del proprio fondo (natpf_camera.js frameMatchCamera). Si sposta la posa obiettivo, prima
+  // dell'inseguimento morbido, così i cambi di camera restano morbidi. deep: lo spostamento C16 che
+  // _computeTargetCameraPose ha messo nella posa dello scambio (al servizio nessuno)
   _frameThirdPerson(pos, look) {
-    if (this._isFirstPersonActive() || !isMatchCamera(this.manualCameraOverride || this.cameraMode)) return;
-    dollyCamera(pos, look, this._thirdPersonFrame().dolly);
+    const mode = this.manualCameraOverride || this.cameraMode;
+    if (this._isFirstPersonActive() || !isMatchCamera(mode)) return;
+    const vp = viewport(),
+      p2 = this.playerRole === "p2",
+      side = p2 ? -1 : 1,
+      deep = mode === "SERVE_CAM" ? null : deepCamShift(actorDepth(p2 ? this.opponent : this.player, side));
+    frameMatchCamera(pos, look, { aspect: vp.w / vp.h, side, deep });
   }
   _projectToScreen(e) {
     const t = e.clone().project(this.camera),

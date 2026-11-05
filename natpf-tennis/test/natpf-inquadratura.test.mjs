@@ -2,17 +2,21 @@
 // aveva sempre 45° in verticale e la stessa posa, pensate per il 16:9. Audit B8: sul quadrato (ledwall 2×2) gli angoli
 // vicini del doppio uscivano dallo schermo (±1,05), in verticale anche singolare e pali della rete (±1,4 e ±1,15).
 // Ora (natpf_camera.js thirdPersonFrame): da 16:9 in su tutto come prima; più stretto, campo visivo più ampio fino a 58°,
-// poi la camera arretra lungo lo sguardo, poi (solo in verticale) campo visivo fino a 70°. Qui: la funzione pura, la
+// poi la camera si allontana, poi (solo in verticale) campo visivo fino a 70°. La posa (frameMatchCamera) resta davanti al
+// maxischermo del proprio fondo: revisione B8, sul quadrato e in verticale con chi gioca in profondità (C16) la camera
+// finiva dietro la sua cassa nera, che copriva fino a un terzo dell'immagine dal basso. Qui: le funzioni pure, la
 // geometria con la camera vera del motore (servizio e scambio, P1 e P2) e il ridimensionamento (_onResize).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createHeadlessEngine } from '../scripts/audit/headless-engine.mjs';
 import {
-  thirdPersonFrame, thirdPersonCoverage, THIRD_PERSON, MATCH_CAM, NEAR_BASELINE_DEPTH, dollyCamera, isMatchCamera,
-  renderPixelRatio, watchPixelRatio, firstPersonFov, firstPersonPose,
+  thirdPersonFrame, thirdPersonCoverage, THIRD_PERSON, MATCH_CAM, NEAR_BASELINE_DEPTH, NEAR_SCREEN_Z, dollyCamera, raiseCamera,
+  frameMatchCamera, isMatchCamera, renderPixelRatio, watchPixelRatio, firstPersonFov, firstPersonPose,
 } from '../src/natpf/natpf_camera.js';
+import { deepCamShift, DEEP_CAM } from '../src/natpf/natpf_camera_depth.js';
 import { SPLIT_CAM } from '../src/natpf/natpf_split.js';
+import { STAND_FRONT } from '@natpf/tennis/arena.js';
 
 const BASE = 11.89, DOUBLES = 5.485, SINGLES = 4.115, POST_X = 6.4, POST_H = 1.07;   // game_engine.js, costanti S
 const close = (a, b, eps = 1e-9) => Math.abs(a - b) <= eps;
@@ -72,6 +76,68 @@ test('B8: dolly lungo lo sguardo e camere che arretrano', () => {
   const same = new THREE.Vector3(1, 2, 3); dollyCamera(same, look, 1); assert.deepEqual(same.toArray(), [1, 2, 3]);
   for (const m of ['SERVE_CAM', 'RALLY_CAM']) assert.equal(isMatchCamera(m), true, m);
   for (const m of ['INTRO_PAN', 'SHOWCASE_CAM', 'REPLAY_CAM']) assert.equal(isMatchCamera(m), false, m);
+});
+
+// posa obiettivo del motore per lo scambio (game_engine.js _computeTargetCameraPose, ramo «else»), con C16
+function enginePose({ side = 1, x = 0, z = BASE, ballX = 0 } = {}){
+  const d = deepCamShift(z);
+  return { pos: new THREE.Vector3(x*.16*side, 7.8, side*(22.8 + d.back)), look: new THREE.Vector3(ballX*.12*side, .35, side*(1.8 + d.look)), d };
+}
+const ASPECTS = [16/9, 1.6, 1.5, 4/3, 1.25, 1.1, 1, .9, .8, .75, 9/16, .5];
+
+test('B8: posa della partita — da 4:3 in su quella del motore, più stretto sempre davanti al maxischermo del proprio fondo', () => {
+  // maxischermo di arena.js: piano a ±25,6 (STAND_FRONT.hz + 3,2), cassa nera dietro da ±25,65
+  assert.equal(NEAR_SCREEN_Z, STAND_FRONT.hz + 3.2);
+  assert.ok(THIRD_PERSON.maxZ < NEAR_SCREEN_Z && THIRD_PERSON.maxZ > 22.8 + deepCamShift(99).back, `maxZ ${THIRD_PERSON.maxZ}`);
+  for (const side of [1, -1]) for (const z of [0, BASE, 12.5, 13, 14, 15, 16.5, 18, 25]) for (const x of [-5, 0, 3]){
+    // 16:9, 3:2, 4:3: identica (C16 compreso, come prima del B8)
+    for (const a of [21/9, 16/9, 1.5, 4/3]){
+      const P = enginePose({ side, x, z, ballX: x }), pos = P.pos.clone(), look = P.look.clone();
+      const f = frameMatchCamera(pos, look, { aspect: a, side, deep: P.d });
+      assert.deepEqual(f, thirdPersonFrame(a));
+      assert.ok(pos.equals(P.pos) && look.equals(P.look), `aspetto ${a.toFixed(3)}, lato ${side}, z ${z}: ${pos.toArray()}`);
+    }
+    // più stretto: mai oltre maxZ, sguardo come quello del motore (C16 compreso)
+    for (const a of ASPECTS){
+      const P = enginePose({ side, x, z, ballX: x }), pos = P.pos.clone(), look = P.look.clone();
+      frameMatchCamera(pos, look, { aspect: a, side, deep: P.d });
+      assert.ok(side*pos.z <= THIRD_PERSON.maxZ + 1e-9 && side*pos.z > 20, `aspetto ${a.toFixed(3)}, lato ${side}, z ${z}: camera a z ${pos.z.toFixed(2)}`);
+      assert.ok(look.equals(P.look), 'lo sguardo resta quello del motore');
+      assert.ok(pos.distanceTo(look) >= P.pos.distanceTo(P.look) - 1e-9, 'mai più vicina della camera del motore');
+    }
+  }
+  // quadrato senza C16: la camera sale (non arretra oltre maxZ) alla distanza dell'allontanamento, più alta dello sguardo
+  const P = enginePose(), pos = P.pos.clone(), f = frameMatchCamera(pos, P.look, { aspect: 1 });
+  assert.ok(close(pos.z, THIRD_PERSON.maxZ) && close(pos.distanceTo(P.look), P.pos.distanceTo(P.look)*f.dolly, 1e-9), `${pos.toArray()}`);
+  const el = v => Math.atan2(v.y - P.look.y, Math.hypot(v.x - P.look.x, v.z - P.look.z))*180/Math.PI;
+  assert.ok(close(el(P.pos), 19.53, .01) && el(pos) > 27 && el(pos) < 28.5, `elevazione ${el(P.pos).toFixed(2)}° → ${el(pos).toFixed(2)}°`);
+  // in verticale sale ancora (fino a tallElevation in più a 9:16), sempre alla stessa distanza
+  const v = enginePose(), vp = v.pos.clone(), fv = frameMatchCamera(vp, v.look, { aspect: 9/16 });
+  const sq = enginePose(), sp = sq.pos.clone(); frameMatchCamera(sp, sq.look, { aspect: 1 });
+  assert.ok(close(vp.distanceTo(v.look), v.pos.distanceTo(v.look)*fv.dolly, 1e-9));
+  assert.ok(el(vp) - el(sp) > THIRD_PERSON.tallElevation - .5, `9:16 ${el(vp).toFixed(2)}° contro quadrato ${el(sp).toFixed(2)}°`);
+  // raiseCamera: stessa distanza, elevazione + deg; nulla con deg ≤ 0
+  const r = new THREE.Vector3(1, 7.8, 22.8), L = new THREE.Vector3(0, .35, 1.8), d0 = r.distanceTo(L), e0 = el(r);
+  raiseCamera(r, L, 5);
+  assert.ok(close(r.distanceTo(L), d0, 1e-9) && close(el(r), e0 + 5, 1e-9));
+  const same = new THREE.Vector3(1, 2, 3); raiseCamera(same, L, 0); assert.deepEqual(same.toArray(), [1, 2, 3]);
+});
+
+test('B8: posa della partita senza scatti né quando cambia la forma né quando chi gioca va in profondità', () => {
+  const at = (a, z, side = 1) => { const P = enginePose({ side, x: 1, z, ballX: .5 }); frameMatchCamera(P.pos, P.look, { aspect: a, side, deep: P.d }); return P.pos; };
+  for (const side of [1, -1]){
+    // finestra trascinata per il bordo, chi gioca fermo (sul fondo o in profondità): a passi di 0,0005 nella forma la
+    // camera si sposta al più di 3 cm (contro maxZ sale in fretta, da 1,1 a 1:1 di quasi 4 m, ma senza salti)
+    for (const z of [BASE, 14, 16.5]){
+      let prev = at(16/9, z, side);
+      for (let a = 16/9 - .0005; a >= .45; a -= .0005){ const p = at(a, z, side); assert.ok(p.distanceTo(prev) < .03, `lato ${side}, z ${z}, aspetto ${a.toFixed(4)}: salto di ${p.distanceTo(prev).toFixed(3)} m`); prev = p; }
+    }
+    // chi gioca arretra a passi di 2 cm, a forma ferma
+    for (const a of [4/3, 1.1, 1, .8, 9/16]){
+      let prev = at(a, 10, side);
+      for (let z = 10.02; z <= 20; z += .02){ const p = at(a, z, side); assert.ok(p.distanceTo(prev) < .03, `lato ${side}, aspetto ${a.toFixed(3)}, z ${z.toFixed(2)}: salto di ${p.distanceTo(prev).toFixed(3)} m`); prev = p; }
+    }
+  }
 });
 
 // ── con il motore vero (senza browser): _onResize, _snapCameraImmediate, _computeTargetCameraPose ──
@@ -189,6 +255,34 @@ for (const [name, w, h] of [['4:3', 1600, 1200], ['ledwall 2×2 quasi quadrato',
   });
 }
 
+// Revisione B8: il maxischermo del proprio fondo (arena.js: piano a ±25,6, cassa nera 6 × 4,2 × 0,3 m dietro, da ±25,65
+// a ±25,95, alta da 3 a 7,2 m). Con la camera allontanata lungo lo sguardo più lo spostamento C16, sul quadrato e in
+// verticale la camera finiva dietro (z fino a 28,4) e la cassa copriva il fondo dell'immagine: 28% sul quadrato e 33% in
+// 9:16 con chi gioca a 16,5 m, piedi e gambe nascosti. Ora la camera resta davanti al piano dello schermo e tutti i raggi
+// dell'inquadratura vanno verso il campo: niente di quello che sta dietro di lei (schermo, cassa) entra nell'immagine.
+for (const [name, w, h] of [['16:9', 1920, 1080], ['4:3', 1600, 1200], ['ledwall 2×2 quasi quadrato', 1320, 1200], ['1:1', 1200, 1200], ['4:5', 960, 1200], ['9:16', 1080, 1920]]){
+  test(`B8: la camera resta davanti al maxischermo del proprio fondo anche con chi gioca in profondità (${name}, P1 e P2)`, t => {
+    const e = engineAt(w, h), deepest = DEEP_CAM.from + DEEP_CAM.max + 1;
+    let zmax = 0, feetMin = 1;
+    for (const role of ['p1', 'p2']) for (const mode of ['RALLY_CAM', 'SERVE_CAM']) for (let z = 11; z <= deepest + 1e-9; z += .25){
+      if (mode === 'SERVE_CAM' && z > 12.5) continue;
+      const s = pose(e, { role, mode, x: 1, z, ballX: .5 }), c = e.camera;
+      zmax = Math.max(zmax, s*c.position.z);
+      assert.ok(s*c.position.z <= THIRD_PERSON.maxZ + 1e-9 && THIRD_PERSON.maxZ < NEAR_SCREEN_Z, `${role} ${mode} a ${z} m: camera a z ${c.position.z.toFixed(2)}`);
+      for (const [x, y] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]){
+        const r = new THREE.Vector3(x, y, .5).unproject(c).sub(c.position);
+        assert.ok(s*r.z < 0, `${role} ${mode} a ${z} m: il raggio dell'angolo ${x}, ${y} non va verso il campo`);
+      }
+      if (mode === 'RALLY_CAM' && z <= 16 + 1e-9){                 // fin dove C16 garantisce i piedi in vista
+        const feet = ndc(e, [s, 0, s*(z + .35)]);
+        feetMin = Math.min(feetMin, feet.y);
+        assert.ok(Math.abs(feet.x) <= 1 && feet.y >= -.95, `${role} a ${z} m: piedi a ${feet.x.toFixed(2)}, ${feet.y.toFixed(2)}`);
+      }
+    }
+    t.diagnostic(`${name}: camera al massimo a z ${zmax.toFixed(2)} (schermo a ${NEAR_SCREEN_Z.toFixed(2)}), piedi più in basso a ${feetMin.toFixed(2)}`);
+  });
+}
+
 test('B8: prima persona, moviola, vista aerea e vetrina non arretrano; lo split screen tiene la sua camera', () => {
   const e = engineAt(1200, 1200), f = thirdPersonFrame(1);
   // prima persona: campo visivo e posa di sempre (viewpoint.js, condiviso con il sito)
@@ -251,6 +345,25 @@ test('B8: _onResize cambia subito campo visivo e (con il menu fermo o in pausa) 
   globalThis.window.devicePixelRatio = undefined; e._onResize();
   assert.deepEqual(e.renderer.calls.filter(c => c[0] === 'pr'), [['pr', 1.5], ['pr', 2], ['pr', 1]]);
   assert.deepEqual(e.renderer.calls.at(-1), ['size', 1200, 1200]);
+});
+
+test('B8: _onResize con la partita in pausa: posa e campo visivo nuovi subito (la camera ferma non si muove da sola)', () => {
+  const e = engineAt(1920, 1080);
+  e.natpfBackdrop = false; e.natpfPaused = true;
+  pose(e, { role: 'p1', mode: 'RALLY_CAM', x: .9, z: BASE, ballX: 0 });
+  assert.equal(e.phase, 'RALLY');
+  const far = e.camera.position.distanceTo(e.cameraLookSmooth), z0 = e.camera.position.z, f = thirdPersonFrame(1);
+  assert.ok(close(z0, MATCH_CAM.z) && e.camera.fov === 45);
+  globalThis.innerWidth = 1200; globalThis.innerHeight = 1200;
+  e._onResize();           // senza _updateCameraRig: in pausa il ciclo della camera è fermo
+  assert.ok(close(e.camera.fov, f.fov, .011) && close(e.camera.aspect, 1), `fov ${e.camera.fov}`);
+  assert.ok(close(e.camera.position.distanceTo(e.cameraLookSmooth), far*f.dolly, 1e-9), 'allontanata subito');
+  assert.ok(e.camera.position.equals(e.cameraPosSmooth) && close(e.camera.position.z, THIRD_PERSON.maxZ), `camera a ${e.camera.position.toArray()}`);
+  assert.ok(worst(e, 1, doublesAndPosts(1)) <= .97, 'campo intero nel fotogramma della pausa');
+  // di nuovo 16:9, ancora in pausa: la camera di prima
+  globalThis.innerWidth = 1920; globalThis.innerHeight = 1080;
+  e._onResize();
+  assert.ok(e.camera.fov === 45 && close(e.camera.position.z, z0) && close(e.camera.position.distanceTo(e.cameraLookSmooth), far, 1e-9));
 });
 
 test('B8: densità dei pixel, al massimo 2, e avviso quando cambia (matchMedia sulla risoluzione)', () => {
