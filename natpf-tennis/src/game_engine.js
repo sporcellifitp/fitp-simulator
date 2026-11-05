@@ -22,6 +22,11 @@ import {
   firstPersonFov,
   setFirstPersonBody,
   FIRST_PERSON,
+  thirdPersonFrame,
+  dollyCamera,
+  isMatchCamera,
+  renderPixelRatio,
+  watchPixelRatio,
 } from "./natpf/natpf_camera.js";
 import { resolveMatchFormat, firstServer } from "./natpf/match_format.js";
 import { NatpfUi } from "./natpf/natpf_ui.js";
@@ -282,7 +287,7 @@ export class NatpfTennisEngine {
         antialias: !0,
         powerPreference: "high-performance",
       })),
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)),
+      this.renderer.setPixelRatio(renderPixelRatio(window.devicePixelRatio)),
       this.renderer.setSize(viewport().w, viewport().h), // NATPF: finestra intera o area del ledwall (natpf_screen.js)
       (this.renderer.shadowMap.enabled = !0),
       (this.renderer.shadowMap.type = o.PCFSoftShadowMap),
@@ -356,7 +361,8 @@ export class NatpfTennisEngine {
       (this.clock = new o.Clock()),
       (this.physicsAccumulator = 0),
       (this.elapsedTime = 0),
-      window.addEventListener("resize", () => this._onResize());
+      window.addEventListener("resize", () => this._onResize()),
+      watchPixelRatio(() => this._onResize()); // NATPF (B8): monitor con un'altra scala anche senza «resize»
   }
   _createActorState(e, t, i) {
     const a = { player: 9.8, player_partner: 8.4, opponent: 5.85, opponent_partner: 5.2 };
@@ -3726,7 +3732,7 @@ export class NatpfTennisEngine {
   }
   _snapCameraImmediate() {
     const { targetPos: e, targetLook: t } = this._computeTargetCameraPose();
-    this._updateCameraFov();
+    this._updateCameraFov(), this._frameThirdPerson(e, t);
     this.cameraPosSmooth.copy(e),
       this.cameraLookSmooth.copy(t),
       this.camera.position.copy(e),
@@ -3741,6 +3747,7 @@ export class NatpfTennisEngine {
       a = 1 - Math.exp(-(n ? FIRST_PERSON.follow : 6.5) * e);
     if (
       (this._updateCameraFov(),
+      this._frameThirdPerson(t, i),
       this.cameraPosSmooth.lerp(t, a),
       this.cameraLookSmooth.lerp(i, a),
       this.camera.position.copy(this.cameraPosSmooth),
@@ -3752,10 +3759,25 @@ export class NatpfTennisEngine {
     }
     this.camera.lookAt(this.cameraLookSmooth);
   }
-  // NATPF: campo visivo più ampio in prima persona (come viewpoint.js di NATPF), 45° del motore base in terza
+  // NATPF: campo visivo più ampio in prima persona (come viewpoint.js di NATPF); in terza i 45° del motore base dal 16:9
+  // in su, più ampi sugli schermi più stretti (B8, natpf_camera.js thirdPersonFrame). Con lo split screen ogni metà ha
+  // la sua camera (natpf_split.js, che riscrive campo visivo e forma a ogni disegno): qui non si tocca
   _updateCameraFov() {
-    const e = this._isFirstPersonActive() ? firstPersonFov(this.camera.aspect) : 45;
+    if (this.natpfSplit?.shown) return;
+    const e = this._isFirstPersonActive() ? firstPersonFov(this.camera.aspect) : this._thirdPersonFrame().fov;
     Math.abs(this.camera.fov - e) > 0.01 && ((this.camera.fov = e), this.camera.updateProjectionMatrix());
+  }
+  // NATPF (B8): inquadratura della terza persona per la forma dell'area di gioco (viewport(), non camera.aspect che lo
+  // split screen cambia per ogni metà)
+  _thirdPersonFrame() {
+    const vp = viewport();
+    return thirdPersonFrame(vp.w / vp.h);
+  }
+  // NATPF (B8): sugli schermi più stretti del 4:3 la camera della partita (servizio e scambio) arretra lungo lo sguardo;
+  // si sposta la posa obiettivo, prima dell'inseguimento morbido, così i cambi di camera restano morbidi
+  _frameThirdPerson(pos, look) {
+    if (this._isFirstPersonActive() || !isMatchCamera(this.manualCameraOverride || this.cameraMode)) return;
+    dollyCamera(pos, look, this._thirdPersonFrame().dolly);
   }
   _projectToScreen(e) {
     const t = e.clone().project(this.camera),
@@ -3783,10 +3805,17 @@ export class NatpfTennisEngine {
     // NATPF: finestra intera o area del ledwall (natpf_screen.js)
     const vp = viewport();
     if (!this.camera || !this.renderer) return;
+    // NATPF (B8): densità dei pixel del monitor in uso (spostando la finestra su un monitor con un'altra scala)
+    const pr = renderPixelRatio(window.devicePixelRatio);
+    this.renderer.getPixelRatio() !== pr && this.renderer.setPixelRatio(pr);
     (this.camera.aspect = vp.w / vp.h),
+      this._updateCameraFov(),
       this.camera.updateProjectionMatrix(),
       this.renderer.setSize(vp.w, vp.h),
       (this.natpfBackdropDirty = !0);
+    // NATPF (B8): con il menu (inquadratura ferma) o la partita in pausa la camera non si muove da sola: campo visivo e
+    // arretramento per la forma nuova subito, non alla ripresa
+    (this.natpfBackdrop || this.natpfPaused) && this.player && this.ball && this._snapCameraImmediate();
   }
   // NATPF: sfondo del menu. Prima dietro il menu girava una partita dimostrativa (camera che segue la palla, scie,
   // stelline, pubblico in movimento) disegnata a ogni fotogramma e sfocata con un backdrop-filter sull'intera pagina:
