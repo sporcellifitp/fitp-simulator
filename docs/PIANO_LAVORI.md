@@ -331,6 +331,13 @@ resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mo
   pacchetti ed eseguibili nuovi consegnati, punti nuovi in `docs/COLLAUDO_WINDOWS.md`.
 
 ### Punti aperti precedenti (non della richiesta del 04/11; restano validi)
+- **`natpf-tennis/test/e2e/lan-e2e.mjs` (non in CI) con controlli rossi da prima di B8** (verificato il 05/11 anche su
+  `b74af13`): in partita il computer non riceve campioni continui dal telefono simulato («campioni in 0,7 s: 0»),
+  racchetta che non segue il polso, gesto → colpo assente; con la webcam finta la racchetta non segue la mano (in
+  WebGL software il gioco va a 1 fotogramma al secondo). Cosa: capire se è la prova (flusso dei sensori cambiato dopo
+  la calibrazione rapida) o il gioco; `lan-browser.mjs` in CI dice che il flusso vero del telefono funziona. Come:
+  `NO_PROXY="$NO_PROXY,<IP del PC>"` in questo ambiente, poi confrontare con `tools/e2e/lan-browser.mjs`. Perché: una
+  prova rossa nasconde regressioni vere.
 - **Prove dal vivo** (non verificabili qui). Cosa: iPhone (calibrazione e lati dei colpi), webcam a 1–4 m e per due
   con due persone, ledwall reale e fullscreen, nomi nel 1v1, pacchetto LAN su Windows 10, telefoni dello staff sulla
   rete dello stand. Come: l'utente prova con la diagnostica accesa e manda lo zip della diagnostica. Perché: i

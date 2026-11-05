@@ -203,3 +203,51 @@ Criterio di fine: script `natpf-*` verdi, CI che prova gioco, build e sito sul b
 - Non verificato: tutto su Windows (SmartScreen, antivirus, UAC, installazione e disinstallazione, netsh, avvio dalla
   pagina finale, estrazione del portatile, monitor/ledwall, Alt a schermo intero, webcam, GPU del PC noleggiato,
   telefoni veri). Electron 45 su Windows 10: supportato secondo Electron, non provato.
+
+## B8 · Schermo intero senza cornici, adattamento al monitor, Cloudflare sotto 25 MB · [x] · 04–05/11/2026
+- Richieste: «Assicurati che ci sia in tutte le versioni modalità full screen senza cornici»; «la versione cloudflare
+  deve sempre pesare leggermente meno di 25 MB»; «adatta il fullscreen in base alla finestra/monitor in utilizzo o
+  prevedi la calibrazione a full screen, come avviene per i videogiochi».
+- Metodo: analisi in parallelo (mappa del gioco, Electron e Edge/Chrome dai sorgenti, prova a 9 formati di schermo,
+  peso del pacchetto), poi quattro rami in worktree separati (Cloudflare, programma Windows + launcher Edge,
+  inquadratura, schermo intero + calibrazione), ciascuno implementato, rivisto da un revisore indipendente e corretto;
+  unione lineare su `natpf-simulator` (lavoro interrotto due volte dal limite d'uso e ripreso dalle modifiche lasciate).
+- [x] B8.1 Cloudflare (`3b9b789`, `d365de3`, `b5c7edb`): MediaPipe solo SIMD (`offline-assets.mjs`,
+  `MEDIAPIPE_EXCLUDED`), riserva dal CDN fissato senza SIMD (`mediapipe_locate.js`), solo i 2 loghi usati dal gioco,
+  `pacchetto-cloudflare.mjs --zip` deterministico con `ZIP_LIMIT` 25.000.000 (avviso a 24.000.000) e passo in CI.
+- [x] B8.2 Programma Windows (`99a42d6`, `d3b3b8f`, `e1b458f`): finestra creata già a schermo intero, Alt che non mostra
+  il menu a schermo intero, scorciatoie in `before-input-event`, cambio di monitor senza cornici e solo se serve,
+  ledwall salvato che torna quando compare, cambi di risoluzione riadattati, preload `window.natpfDesktop`,
+  `scripts/prova-linux.mjs` (Electron per Linux in Xvfb).
+- [x] B8.3 Launcher Edge/Chrome (`e48273f`, `49ce6ef`): `--app` + `--start-fullscreen` predefinito (mai `--kiosk`),
+  `screenMode`, CONFIGURA SCHERMO con Invio = schermo intero, finestra solo per prove con `?fs=0`.
+- [x] B8.4 Inquadratura (`767d191`, `13ac0ab`, `b0f9380`): `thirdPersonFrame`/`frameMatchCamera` in `natpf_camera.js`
+  (16:9 e più largo invariati; più stretto 58°, poi la camera si allontana fino a 1,2 volte, mai oltre z 25,3 davanti
+  al maxischermo: oltre sale; in verticale fino a 70° e +8°), `_onResize` con inquadratura e pixel ratio subito;
+  revisione: la camera finiva dietro il maxischermo e la sua cassa nera copriva le gambe di chi gioca in profondità.
+- [x] B8.5 Schermo intero nel gioco (`9553026`, `0ed4d43`, `bf8a08d`): `NatpfFullscreen` in `natpf_screen.js`
+  (senza cornici = ponte del programma, schermo intero della pagina o F11), apertura al primo input vero, Keyboard
+  Lock di Esc, Esc ripetuto ignorato, tasto F, pulsante in alto nel menu, voce nella pausa, riga in Opzioni → Schermo
+  con «All'avvio» (nascosto nel programma), «Premi F11» visibile anche in campo e in pausa.
+- [x] B8.6 Calibrazione dello schermo (`a0f53b6`, `61dedfa`, `01838ef`): `natpf_calibra.js` (formato, bordi per lato
+  fino al 90% con area minima 480 × 360, frecce agli angoli, cerchio, griglia, numeri; Invio/Esc/R), area salvata in
+  `natpf-tennis.screen.cal`, annullata da ogni cambio di pagina del menu (anche il chiosco).
+- [x] B8.7 Integrazione (`49ce6ef`, `2b4eae4`): commenti della camera aggiornati, porte predefinite distinte delle
+  prove nuove, scenario `gioco` in `prova-linux.mjs`, `lan-e2e.mjs` con il tutorial del telefono (B4), versione
+  **2026-11-05.1**, documenti (DESKTOP_WINDOWS §14, PROJECT_MEMORY, COLLAUDO_WINDOWS §4/§4b/§5b, PIANO §6).
+- Verifiche sull'insieme: gioco 760/760, sito 182/182, LAN 12/12, programma Windows 13/13, build ok. Nel browser:
+  `natpf-schermo` 41/41, `natpf-inquadratura` 36/36, `natpf-menu` 22/22, `natpf-training-flow` 15/15,
+  `gesture-calibration` 18/18, `arcade-visuals` 9/9, `lan-setup-browser` 3/3, `lan-browser` 9/9.
+  `timing-browser`: si ferma su «P2 timing still correct after shared pause», il rosso intermittente già noto (B8 non
+  tocca `site/` né quella prova). `natpf-tennis/test/e2e/lan-e2e.mjs` (non in CI): in questo ambiente serve
+  `NO_PROXY` con l'indirizzo del PC (il Chromium delle prove passava dal proxy del contenitore); dopo la correzione
+  del tutorial, gli stessi controlli rossi anche sul codice di prima di B8 (`b74af13`): flusso dei sensori del
+  telefono in partita, racchetta che segue il polso, gesto → colpo, webcam → racchetta a 1 fotogramma al secondo in
+  WebGL software: non sono di B8 (punto aperto). MediaPipe Hands dal pacchetto locale offline: ok.
+- Pacchetti 2026-11-05.1: Cloudflare `natpf-simulator-cloudflare-20261105-1.zip` **22.517.792 B** (prima 26.878.245),
+  126 file, sha256 `a3f2e960b1791a47176b4b5c0d9b6e57fd4f4f92115200efe3758a5cde92f6b7`; LAN Windows
+  `natpf-simulator-lan-windows-20261105-1.zip` 57.548.009 B (prima 62.065.720), 310 file, un solo `node.exe`, nessun
+  certificato o chiave, sha256 `f4f6b19599422f49bbf43ff290e173e0dc9038202e1f513f074b1d0f53e81ece`.
+- Non verificato: tutto su Windows, Edge, ledwall e processori LED (schermo intero senza cornici all'avvio, Alt, F11,
+  hold-Esc di Edge, barra delle applicazioni sul ledwall, cambi di risoluzione veri, cerchio e bordi su un LED vero),
+  browser senza SIMD reale, telefoni veri.
