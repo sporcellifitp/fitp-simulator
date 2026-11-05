@@ -34,9 +34,14 @@ Collaudo su Windows (punti per l'utente): `docs/COLLAUDO_WINDOWS.md`. Decisioni:
   F11 schermo intero, Ctrl+Maiusc+M monitor successivo, Ctrl+R ricarica, Ctrl+Q esci, Ctrl+Maiusc+I strumenti.
   Esc e le lettere arrivano sempre al gioco (F è lo schermo intero del gioco, che usa `window.natpfDesktop`).
 - **Cambio di monitor** a finestra trasparente (esce dallo schermo intero, si sposta, rientra): nessuna cornice a vista.
-  Se il monitor del gioco cambia risoluzione o scala, lo schermo intero si riadatta (dopo 300 ms); se il monitor voluto
-  si scollega il gioco va sul principale e ci ritorna quando si ricollega (gli spostamenti automatici non cambiano il
-  monitor salvato).
+  Solo quando il monitor è davvero un altro (`placeMode`): con un solo monitor Ctrl+Maiusc+M non fa niente, e il menu
+  sul monitor già scelto nemmeno: su Windows `setOpacity` lascia la finestra «a strati» per il resto della sessione
+  (dal codice di Electron 45.2.2, non provato su Windows).
+- **Monitor che cambia**: se il monitor del gioco cambia risoluzione o scala, lo schermo intero si riadatta (dopo
+  300 ms) prima con il rettangolo del monitor restando a schermo intero, e solo se non basta con il giro completo. Se il
+  monitor voluto si scollega il gioco va sul principale e ci ritorna quando si ricollega; il monitor voluto è quello
+  salvato anche quando all'avvio è spento (ledwall acceso dopo il programma: il gioco ci va quando compare). Gli
+  spostamenti automatici non cambiano il monitor salvato.
 - **Ponte con la pagina** (`src/preload.cjs`, contextIsolation e sandbox): `window.natpfDesktop = { shell:'electron',
   version:1, isFullScreen(), setFullScreen(on), toggleFullScreen(), onFullScreenChange(cb) }`. Il processo principale
   risponde solo alla finestra del gioco e alle pagine del proprio server. Con il ponte il gioco non usa
@@ -74,9 +79,12 @@ porte 8443, 8081 e 8080 libere; dati in una cartella temporanea):
 
 ```sh
 node scripts/prepara.mjs
-npm run prova-linux            # = node scripts/prova-linux.mjs [--display=:91] [--dati=cartella] [--senza-xvfb]
+npm run prova-linux            # = node scripts/prova-linux.mjs [--display=:91] [--dati=cartella] [--senza-xvfb] [--scenari=…]
 ```
 
+Tre avvii (`--scenari=predefinito,ledwall-spento,finestra`): senza impostazioni, con un monitor salvato che manca
+all'avvio, con l'avvio in finestra salvato. Gli eventi dei monitor (risoluzione cambiata, ledwall acceso) sono simulati
+con `screen.emit`: provano il collegamento, non il comportamento di Windows.
 Controlla stati, non misure: senza gestore delle finestre Xvfb riporta posizione e dimensioni sbagliate. La comparsa
 senza cornice all'avvio, il cambio di monitor e i cambi di risoluzione si vedono solo su Windows
 (collaudo: `docs/COLLAUDO_WINDOWS.md`).

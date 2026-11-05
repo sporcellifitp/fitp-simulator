@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 import { DESKTOP, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings, windowsVersion, readBuild,
-  windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget } from '../src/desktop-core.mjs';
+  windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode } from '../src/desktop-core.mjs';
 
 const d = (id, w, h, x = 0) => ({ id, bounds: { x, y: 0, width: w, height: h }, scaleFactor: 1 });
 
@@ -18,6 +18,10 @@ test('monitor del gioco: quello salvato, altrimenti il più grande esterno (ledw
   assert.equal(chooseDisplay([laptop], { primaryId: 1 }).id, 1, 'un solo monitor');
   assert.equal(chooseDisplay([], {}), null);
   assert.equal(nextDisplay([laptop, ledwall], 2).id, 1); assert.equal(nextDisplay([laptop, ledwall], 1).id, 2);
+  assert.equal(nextDisplay([laptop, ledwall, small], 3).id, 1);
+  assert.equal(nextDisplay([laptop], 1), null, 'un solo monitor: Ctrl+Maiusc+M non fa niente');
+  assert.equal(nextDisplay([laptop, ledwall], 99).id, 1, 'monitor attuale sconosciuto: il primo');
+  assert.equal(nextDisplay([], 1), null);
   assert.match(displayLabel(laptop, 0, 1), /Monitor 1 · 1920×1080 \(principale\)/);
   assert.match(displayLabel({ ...ledwall, scaleFactor: 1.5, bounds: { ...ledwall.bounds, width: 2560, height: 1440 } }, 1, 1), /3840×2160.*scala 150%/);
 });
@@ -110,12 +114,33 @@ test('schermo intero da riadattare solo se non copre più il monitor (tolleranza
 
 test('monitor ricollegato: si torna solo su quello voluto, se il gioco non c\'è già', () => {
   const ledwall = { id: 7 }, other = { id: 9 };
+  // monitor voluto all'avvio: quello salvato anche se manca (ledwall acceso dopo il programma), poi quello scelto
+  assert.equal(initialWanted({ displayId: 7 }, { id: 1 }), 7, 'ledwall salvato e spento: resta il voluto');
+  assert.equal(initialWanted({ displayId: 1 }, { id: 1 }), 1);
+  assert.equal(initialWanted({ displayId: 0 }, { id: 1 }), 0, 'id 0 è un id');
+  assert.equal(initialWanted({}, { id: 1 }), 1, 'niente di salvato: quello scelto');
+  assert.equal(initialWanted({ fullscreen: false }, null), null);
+  assert.equal(initialWanted(undefined, { id: 3 }), 3);
+  // il ledwall salvato (7) compare dopo l'avvio sul portatile (1): il gioco ci va
+  assert.equal(displayToFollow(ledwall, { wantedId: initialWanted({ displayId: 7 }, { id: 1 }), currentId: 1 }), ledwall);
   assert.equal(displayToFollow(ledwall, { wantedId: 7, currentId: 1 }), ledwall);
   assert.equal(displayToFollow(ledwall, { wantedId: '7', currentId: 1 }), ledwall, 'id salvato come testo');
   assert.equal(displayToFollow(other, { wantedId: 7, currentId: 1 }), null, 'un altro monitor non sposta il gioco');
   assert.equal(displayToFollow(ledwall, { wantedId: 7, currentId: 7 }), null, 'già lì');
   assert.equal(displayToFollow(ledwall, { wantedId: null, currentId: 1 }), null);
   assert.equal(displayToFollow(null, { wantedId: 7 }), null);
+});
+
+test('schermo intero su un monitor: fermo se è già lì e lo copre, rettangolo sullo stesso monitor, giro solo se serve', () => {
+  const fhd = { x: 0, y: 0, width: 1920, height: 1080 };
+  assert.equal(placeMode({ currentId: 1, targetId: 1, bounds: { ...fhd }, displayBounds: fhd }), 'fermo', 'menu sul monitor già scelto');
+  assert.equal(placeMode({ currentId: 1, targetId: '1', bounds: { ...fhd, height: 1079 }, displayBounds: fhd }), 'fermo', 'pixel di Chromium, id come testo');
+  const smaller = { x: 0, y: 0, width: 1280, height: 720 };
+  assert.equal(placeMode({ currentId: 1, targetId: 1, bounds: fhd, displayBounds: smaller }), 'rettangolo', 'risoluzione cambiata: niente finestra trasparente');
+  assert.equal(placeMode({ currentId: 1, targetId: 1, bounds: fhd, displayBounds: smaller, inPlaceTried: true }), 'giro', 'il rettangolo non è bastato');
+  assert.equal(placeMode({ currentId: 1, targetId: 2, bounds: fhd, displayBounds: { ...fhd, x: 1920 } }), 'giro', 'altro monitor');
+  assert.equal(placeMode({ currentId: null, targetId: 2, bounds: fhd, displayBounds: fhd }), 'giro');
+  assert.equal(placeMode(), 'giro');
 });
 
 test('scorciatoie del programma: F11, Ctrl+Maiusc+M, Ctrl+R, Ctrl+Q, Ctrl+Maiusc+I; mai Esc, lettere o AltGr', () => {
@@ -202,4 +227,10 @@ test('finestra senza cornici: nasce a schermo intero, cornice normale, niente ki
   assert.match(main, /setAutoHideMenuBar\(false\); win\.setMenuBarVisibility\(false\)/);
   assert.match(main, /'before-input-event'/);
   assert.match(main, /'display-metrics-changed'/);
+  // monitor voluto all'avvio dalle impostazioni (ledwall acceso dopo), un solo monitor senza giro, opacità solo nel giro
+  assert.match(main, /wantedDisplayId = initialWanted\(settings, display\);/);
+  assert.match(main, /displayToFollow\(added, \{ wantedId: wantedDisplayId/);
+  assert.match(main, /if \(!next\)\{[^}]*return; \}\s*placeOn\(next\);/, 'Ctrl+Maiusc+M con un solo monitor non fa niente');
+  assert.equal((main.match(/setOpacity\(0\)/g) || []).length, 1);
+  assert.ok(main.indexOf("mode === 'rettangolo'") < main.indexOf('setOpacity(0)'), 'il giro con la finestra trasparente viene dopo i casi senza');
 });

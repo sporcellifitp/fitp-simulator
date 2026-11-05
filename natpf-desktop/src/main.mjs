@@ -14,7 +14,7 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { DESKTOP, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings,
-  windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget } from './desktop-core.mjs';
+  windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode } from './desktop-core.mjs';
 
 const ROOT = app.getAppPath();
 const DATA = path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'NATPF');
@@ -41,8 +41,9 @@ function log(...a){
 const PORTABLE = !!process.env.PORTABLE_EXECUTABLE_DIR;
 const RULE = PORTABLE ? `${DESKTOP.ruleName} portatile` : DESKTOP.ruleName;
 let win = null, lan = null, ca = null, certPath = null, addresses = [], settings = readSettings(DATA), blocker = null;
-// monitor voluto (salvato o scelto all'avvio; cambia solo con una scelta dal menu o Ctrl+Maiusc+M) e monitor su cui il
-// gioco è a schermo intero adesso (diverso dal voluto se quello è stato scollegato)
+// monitor voluto (quello salvato anche se adesso manca, altrimenti quello scelto all'avvio; cambia solo con una scelta
+// dal menu o Ctrl+Maiusc+M) e monitor su cui il gioco è a schermo intero adesso (diverso dal voluto se quello è
+// scollegato o non ancora acceso)
 let wantedDisplayId = null, placedDisplayId = null;
 let placing = false, pendingPlace = null;
 
@@ -105,15 +106,34 @@ function afterWindowEvent(name, ms, fn){
 
 // Gioco su un monitor. remember: scelta dell'operatore (menu, Ctrl+Maiusc+M), salvata; false per gli spostamenti
 // automatici (monitor scollegato, ricollegato, cambiato), che non cambiano il monitor voluto.
-// A schermo intero: finestra trasparente → esce dallo schermo intero → rettangolo in finestra dentro il monitor nuovo
-// → schermo intero (Windows lo mette sul monitor che contiene la finestra) → di nuovo visibile. Nessuna cornice a vista.
-function placeOn(display, { remember = true } = {}){
+// A schermo intero (placeMode in desktop-core.mjs): già sul monitor e lo copre → niente; stesso monitor che non copre
+// più → rettangolo del monitor restando a schermo intero, poi si ricontrolla; altro monitor (o il rettangolo non è
+// bastato) → giro completo: finestra trasparente → esce dallo schermo intero → rettangolo in finestra dentro il monitor
+// nuovo → schermo intero (Windows lo mette sul monitor che contiene la finestra) → di nuovo visibile. Nessuna cornice.
+function placeOn(display, { remember = true, inPlaceTried = false } = {}){
   if (!win || !display) return;
   if (remember){ settings.displayId = display.id; wantedDisplayId = display.id; writeSettings(DATA, settings); }
   if (placing){ pendingPlace = display; return; }
   const rect = windowedBounds(display);
   if (!rect) return;
   if (!win.isFullScreen()){ win.setBounds(rect); placedDisplayId = display.id; buildMenu(); return; }
+  const mode = placeMode({ currentId: screen.getDisplayMatching(win.getBounds()).id, targetId: display.id,
+    bounds: win.getBounds(), displayBounds: display.bounds, inPlaceTried });
+  if (mode === 'fermo'){ placedDisplayId = display.id; buildMenu(); return; }
+  if (mode === 'rettangolo'){
+    // niente setOpacity: la finestra non diventa «a strati» su Windows. Dopo 200 ms placeOn ricontrolla: 'fermo' se il
+    // monitor è coperto, altrimenti il giro completo
+    placing = true;
+    log('schermo intero riadattato sul monitor', { monitor: display.id, finestra: win.getBounds(), bounds: display.bounds, scala: display.scaleFactor });
+    win.setBounds(display.bounds);
+    setTimeout(() => {
+      placing = false;
+      if (!win) return;
+      if (pendingPlace){ const next = pendingPlace; pendingPlace = null; placeOn(next, { remember: false }); return; }
+      placeOn(screen.getAllDisplays().find(x => x.id === display.id) || display, { remember: false, inPlaceTried: true });
+    }, 200);
+    return;
+  }
   placing = true;
   log('schermo intero sul monitor', { monitor: display.id, bounds: display.bounds, scala: display.scaleFactor, scelto: remember });
   win.setOpacity(0);
@@ -149,7 +169,11 @@ function setFullscreen(on){
 }
 function toggleFullscreen(){ return win ? setFullscreen(!win.isFullScreen()) : Promise.resolve(false); }
 function nextMonitor(){
-  if (win) placeOn(nextDisplay(screen.getAllDisplays(), screen.getDisplayMatching(win.getBounds()).id));
+  if (!win) return;
+  const next = nextDisplay(screen.getAllDisplays(), screen.getDisplayMatching(win.getBounds()).id);
+  // un solo monitor: niente da spostare (e nessuna finestra trasparente per niente)
+  if (!next){ log('monitor successivo: c\'è un solo monitor'); return; }
+  placeOn(next);
 }
 // azioni delle scorciatoie (shortcutFor in desktop-core.mjs) e delle voci del menu con lo stesso id
 const ACTIONS = {
@@ -252,7 +276,9 @@ async function main(){
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) => cb(allowed.has(permission) && isOwnUrl(details?.requestingUrl || '', addresses)));
   session.defaultSession.setPermissionCheckHandler((_wc, permission, origin) => allowed.has(permission) && isOwnUrl(origin || '', addresses));
   const display = chooseDisplay(screen.getAllDisplays(), { savedId: settings.displayId, primaryId: screen.getPrimaryDisplay().id });
-  wantedDisplayId = placedDisplayId = display?.id ?? null;
+  // ledwall salvato ma ancora spento: il gioco parte su un altro monitor e ci va quando il ledwall compare (display-added)
+  wantedDisplayId = initialWanted(settings, display);
+  placedDisplayId = display?.id ?? null;
   // già a schermo intero dalla creazione (su Windows la finestra nascosta diventa senza bordi e grande quanto il monitor
   // che contiene il rettangolo di partenza; show() la mostra così): niente finestra con la cornice all'avvio.
   // Cornice normale (non la finestra senza cornice di Electron, che si limiterebbe a coprire il monitor senza lo schermo
@@ -297,7 +323,7 @@ async function main(){
     app.quit(); return;
   }
   // monitor aggiunti o tolti (ledwall acceso dopo il programma): il menu si aggiorna; se sparisce il monitor del gioco,
-  // il gioco va sul principale; quando il monitor voluto torna, il gioco ci ritorna
+  // il gioco va sul principale; quando il monitor voluto (anche quello salvato e spento all'avvio) compare, ci va
   screen.on('display-added', (_e, added) => {
     buildMenu();
     const back = win && displayToFollow(added, { wantedId: wantedDisplayId, currentId: screen.getDisplayMatching(win.getBounds()).id });

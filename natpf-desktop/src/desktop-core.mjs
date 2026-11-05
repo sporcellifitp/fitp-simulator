@@ -24,10 +24,17 @@ export function chooseDisplay(displays = [], { savedId = null, primaryId = null 
   const others = displays.filter(d => d.id !== primaryId).sort((a, b) => area(b) - area(a));
   return others[0] || displays.find(d => d.id === primaryId) || displays[0];
 }
+// Monitor successivo (Ctrl+Maiusc+M); null se non ce n'è un altro (un solo monitor: niente da spostare)
 export function nextDisplay(displays = [], currentId){
   if (!displays.length) return null;
   const i = displays.findIndex(d => d.id === currentId);
-  return displays[(i + 1) % displays.length];
+  const next = displays[(i + 1) % displays.length];
+  return next.id === currentId ? null : next;
+}
+// Monitor voluto all'avvio: quello salvato anche se adesso manca (ledwall acceso dopo il programma: quando compare, il
+// gioco ci va), altrimenti quello scelto da chooseDisplay. settings: desktop-app.json; chosen: il monitor di partenza
+export function initialWanted(settings = {}, chosen = null){
+  return settings?.displayId ?? chosen?.id ?? null;
 }
 export function displayLabel(d, i, primaryId){
   const b = d.bounds || {}, sf = d.scaleFactor && d.scaleFactor !== 1 ? ` · scala ${Math.round(d.scaleFactor*100)}%` : '';
@@ -51,6 +58,17 @@ export function windowedBounds(display, { width = 1280, height = 720, fill = 0.9
 export function needsRefit(bounds, displayBounds, tolerance = 2){
   if (!bounds || !displayBounds) return false;
   return ['x', 'y', 'width', 'height'].some(k => Math.abs((bounds[k] ?? 0) - (displayBounds[k] ?? 0)) > tolerance);
+}
+// Come mettere a schermo intero il gioco su un monitor (placeOn in main.mjs, finestra già a schermo intero):
+// 'fermo' è già lì e lo copre: niente da fare; 'rettangolo' stesso monitor che non copre più (risoluzione o scala
+// cambiate): rettangolo del monitor restando a schermo intero (Windows lo riporta al monitor, Chromium
+// OnWindowPosChanging); 'giro' altro monitor, o il rettangolo non è bastato: esce e rientra a finestra trasparente.
+// Il giro usa setOpacity, che su Windows lascia la finestra «a strati» (WS_EX_LAYERED) per il resto della sessione:
+// solo quando serve davvero
+export function placeMode({ currentId = null, targetId = null, bounds = null, displayBounds = null, inPlaceTried = false } = {}){
+  if (currentId == null || String(currentId) !== String(targetId)) return 'giro';
+  if (!needsRefit(bounds, displayBounds)) return 'fermo';
+  return inPlaceTried ? 'giro' : 'rettangolo';
 }
 // Monitor ricollegato (ledwall spento e riacceso, cavo staccato): si torna solo sul monitor voluto (quello salvato o
 // scelto all'avvio), e solo se il gioco non c'è già
