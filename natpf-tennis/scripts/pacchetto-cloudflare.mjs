@@ -7,6 +7,7 @@
 //   cd natpf-tennis && npm run build
 //   node scripts/pacchetto-cloudflare.mjs --out=../pacchetto [--zip=../pacchetto.zip] [--turn-url=https://<nome>.<account>.workers.dev/]
 //
+// Gli argomenti si scrivono solo come --nome=valore (con «=»): ogni altra forma è un errore (parseArgs).
 // La cartella di destinazione deve essere nuova o vuota: niente file vecchi mescolati a quelli nuovi.
 // B8 (04/11), richiesta dell'utente: «la versione cloudflare deve sempre pesare leggermente meno di 25 MB».
 // Con --zip lo zip lo fa questo script (il contenuto della cartella, non la cartella; deterministico, vedi
@@ -127,24 +128,48 @@ export function makeZip({ dir, zip, maxBytes = ZIP_LIMIT, warnBytes = ZIP_WARN }
 }
 export const largestTable = largest => largest.map(e => `  ${String(e.compressed).padStart(10)} byte nello zip (${String(e.size).padStart(10)} su disco)  ${e.name}`).join('\n');
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)){
-  const arg = k => process.argv.slice(2).find(a => a.startsWith(`--${k}=`))?.slice(k.length + 3) ?? null;
-  const zip = arg('zip');
-  // con --zip e senza --out: cartella temporanea, cancellata alla fine
-  const tmp = zip && !arg('out') ? fs.mkdtempSync(path.join(os.tmpdir(), 'natpf-cloudflare-')) : null;
+// Argomenti: solo --out=…, --zip=…, --turn-url=…, ognuno una volta e con un valore. Tutto il resto è un errore:
+// «--zip file» (con lo spazio) o «--zip» da solo non devono saltare lo zip e il controllo dei 25 MB terminando bene.
+export const CLI_OPTIONS = ['out', 'zip', 'turn-url'];
+export function parseArgs(argv){
+  const opts = {};
+  for (const a of argv){
+    const m = /^--([\w-]+)=([\s\S]*)$/.exec(a);
+    if (!m || !CLI_OPTIONS.includes(m[1])) throw new Error(`argomento non valido: «${a}» (si usano solo ${CLI_OPTIONS.map(k => `--${k}=…`).join(', ')})`);
+    if (!m[2]) throw new Error(`--${m[1]}= senza valore`);
+    if (Object.hasOwn(opts, m[1])) throw new Error(`--${m[1]} ripetuto`);
+    opts[m[1]] = m[2];
+  }
+  return opts;
+}
+
+// Il comando, separato dall'avvio per le prove (test/pacchetto-cloudflare-zip.test.mjs): dist, headers e i limiti
+// cambiano solo lì. Restituisce il codice di uscita.
+export function main(argv, { dist, headers, maxBytes = ZIP_LIMIT, warnBytes = ZIP_WARN, log = console.log, warn = console.warn, error = console.error } = {}){
+  let tmp = null;
   try {
-    if (zip) checkZipTarget({ dir: arg('out'), zip });   // prima di copiare 36 MB
-    const r = makePackage({ out: arg('out') ?? tmp, turnUrl: arg('turn-url') });
-    console.log(`Pacchetto in ${r.dest}: ${r.files.length} file.`);
-    console.log(r.turnUrl ? `TURN nostro: /${TURN_JSON} → ${r.turnUrl}` : `Senza --turn-url: nessun /${TURN_JSON}, strade di rete come prima.`);
+    const opts = parseArgs(argv);
+    const zip = opts.zip ?? null;
+    if (!zip && !opts.out) throw new Error('manca --out=cartella (o --zip=file)');
+    if (zip) checkZipTarget({ dir: opts.out, zip });   // prima di copiare 36 MB
+    // con --zip e senza --out: cartella temporanea, cancellata alla fine
+    if (zip && !opts.out) tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'natpf-cloudflare-'));
+    const r = makePackage({ out: opts.out ?? tmp, turnUrl: opts['turn-url'] ?? null, ...(dist ? { dist } : {}), ...(headers ? { headers } : {}) });
+    log(`Pacchetto in ${r.dest}: ${r.files.length} file.`);
+    log(r.turnUrl ? `TURN nostro: /${TURN_JSON} → ${r.turnUrl}` : `Senza --turn-url: nessun /${TURN_JSON}, strade di rete come prima.`);
     if (zip){
-      const z = makeZip({ dir: r.dest, zip });
-      console.log(`Zip ${z.file}: ${z.bytes} byte (${mb(z.bytes)}), ${z.files} file; limite ${ZIP_LIMIT} byte, margine ${z.margin} byte (${mb(z.margin)}).`);
-      if (z.warn) console.warn(`Attenzione: lo zip supera ${ZIP_WARN} byte (${mb(ZIP_WARN)}), poco margine sotto i 25 MB. I file più pesanti:\n${largestTable(z.largest)}`);
+      const z = makeZip({ dir: r.dest, zip, maxBytes, warnBytes });
+      log(`Zip ${z.file}: ${z.bytes} byte (${mb(z.bytes)}), ${z.files} file; limite ${maxBytes} byte, margine ${z.margin} byte (${mb(z.margin)}).`);
+      // i byte (e lo sha256) dipendono anche dallo zlib di Node: da annotare con lo sha256 alla consegna
+      log(`Fatto con Node ${process.versions.node}, zlib ${process.versions.zlib}.`);
+      if (z.warn) warn(`Attenzione: lo zip supera ${warnBytes} byte (${mb(warnBytes)}), poco margine sotto i 25 MB. I file più pesanti:\n${largestTable(z.largest)}`);
     }
+    return 0;
   } catch (e){
-    console.error(`Errore: ${e.message}`);
-    if (e.largest) console.error(`I 10 file più pesanti nello zip:\n${largestTable(e.largest)}`);
-    process.exitCode = 1;
+    error(`Errore: ${e.message}`);
+    if (e.largest) error(`I 10 file più pesanti nello zip:\n${largestTable(e.largest)}`);
+    return 1;
   } finally { if (tmp) fs.rmSync(tmp, { recursive: true, force: true }); }
 }
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = main(process.argv.slice(2));

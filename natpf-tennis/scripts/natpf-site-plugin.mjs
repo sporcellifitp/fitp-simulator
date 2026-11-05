@@ -40,7 +40,11 @@ export function phoneFiles(siteDir){
 // (oggi index.html: esports-fitp-neg e nitto-atp-finals-white), non tutta la cartella (gli altri 7, 0,5 MB, li usa
 // solo il sito). Si cercano i riferimenti «assets/brand/<nome>.png» (brandSources); un logo nominato ma assente ferma
 // la build. Il server LAN serve /natpf/ da site/: lì ci sono tutti.
+// I loghi vanno nominati per intero, con il nome scritto nel codice: un «assets/brand/» seguito da altro (un nome
+// composto come `assets/brand/${logo}.png` o 'assets/brand/' + nome) funzionerebbe in sviluppo e in LAN ma darebbe
+// 404 nella build e nel pacchetto Cloudflare, quindi ferma la build (BRAND_LOOSE).
 const BRAND_REF = /assets\/brand\/([\w.-]+\.png)/g;
+const BRAND_LOOSE = /assets\/brand\/(?![\w.-]+\.png)/g;
 const SOURCE_EXT = /\.(html|css|js|mjs|jsx|ts|tsx)$/;
 // file di testo in cui cercare i loghi: gioco (index.html e css in cima, src/, public/), moduli di site/js/tennis e
 // site/js/match (quelli che il gioco importa con «@natpf» e quelli della pagina del telefono) e pagina del telefono
@@ -61,7 +65,14 @@ function brandSources(siteDir, gameRoot){
 }
 export function brandFiles(siteDir, gameRoot){
   const used = new Set();
-  for (const file of brandSources(siteDir, gameRoot)) for (const [, name] of fs.readFileSync(file, 'utf8').matchAll(BRAND_REF)) used.add(name);
+  for (const file of brandSources(siteDir, gameRoot)){
+    const text = fs.readFileSync(file, 'utf8');
+    for (const m of text.matchAll(BRAND_LOOSE)){
+      const where = `${path.relative(path.dirname(gameRoot), file).split(path.sep).join('/')}:${text.slice(0, m.index).split('\n').length}`;
+      throw new Error(`[natpf] logo senza il nome scritto per intero in ${where} («${text.slice(m.index, m.index + 40).split('\n')[0]}»): scrivere «assets/brand/<nome>.png», altrimenti la build non lo copia`);
+    }
+    for (const [, name] of text.matchAll(BRAND_REF)) used.add(name);
+  }
   return [...used].sort().map(name => {
     if (!fs.statSync(path.join(siteDir, 'assets/brand', name), { throwIfNoEntry: false })?.isFile()) throw new Error(`[natpf] logo mancante: site/assets/brand/${name}`);
     return `assets/brand/${name}`;

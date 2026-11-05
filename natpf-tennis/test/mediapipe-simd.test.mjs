@@ -119,5 +119,13 @@ test('build del gioco: solo i loghi che il gioco nomina, un logo nominato ma man
     assert.deepEqual(brandFiles(SITE, tmp), ['assets/brand/fitp-logo-2023.png', 'assets/brand/nitto-atp-finals-white.png']);
     fs.writeFileSync(path.join(tmp, 'gioco.css'), '.x { background: url(./natpf/assets/brand/non-esiste.png); }');
     assert.throws(() => brandFiles(SITE, tmp), /logo mancante: site\/assets\/brand\/non-esiste\.png/);
+    fs.rmSync(path.join(tmp, 'gioco.css'));
+    // nome composto: in sviluppo funzionerebbe, nella build darebbe 404, quindi ferma la build
+    for (const code of ['const f = `./natpf/assets/brand/${logo}.png`;', "const f = './natpf/assets/brand/' + logo;", 'const f = `assets/brand/fitp-${tipo}.png`;']){
+      fs.writeFileSync(path.join(tmp, 'src/natpf/composto.js'), `// prova\n${code}\n`);
+      assert.throws(() => brandFiles(SITE, tmp), /logo senza il nome scritto per intero in .*src\/natpf\/composto\.js:2/, code);
+    }
+    fs.rmSync(path.join(tmp, 'src/natpf/composto.js'));
+    assert.deepEqual(brandFiles(SITE, tmp), ['assets/brand/fitp-logo-2023.png', 'assets/brand/nitto-atp-finals-white.png']);
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });

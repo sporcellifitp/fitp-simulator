@@ -1,6 +1,9 @@
-// Zip deterministico scritto solo con Node (niente programma zip esterno, niente dipendenze): lo stesso contenuto dà
-// sempre gli stessi byte, quindi lo stesso sha256. B8 (04/11): serve al pacchetto Cloudflare (pacchetto-cloudflare.mjs
-// --zip), che deve restare sotto i 25 MB.
+// Zip deterministico scritto solo con Node (niente programma zip esterno, niente dipendenze): lo stesso contenuto con
+// la stessa versione di Node dà gli stessi byte, quindi lo stesso sha256. Con un'altra versione i byte possono cambiare:
+// i dati compressi vengono dallo zlib dentro Node (process.versions.zlib; Node 22.22 ha «1.3.1-470d3a2», la variante di
+// Chromium, che a livello 9 comprime in modo diverso dallo zlib 1.3 «classico»). Il peso cambia di poco (0,5% su un
+// file js), ma lo sha256 di una consegna va annotato con le versioni di Node e zlib (pacchetto-cloudflare.mjs le
+// stampa). B8 (04/11): serve al pacchetto Cloudflare (pacchetto-cloudflare.mjs --zip), che deve restare sotto i 25 MB.
 // - percorsi in ordine di byte, separati da «/», niente voci per le cartelle;
 // - data fissa: 1/1/1980 00:00, la prima che il formato DOS dello zip conosce (le date dei file su disco non contano);
 // - nomi in UTF-8 (bit 11 dei flag), permessi 0644 (zip «fatto su Unix», 0o100644 negli attributi esterni);

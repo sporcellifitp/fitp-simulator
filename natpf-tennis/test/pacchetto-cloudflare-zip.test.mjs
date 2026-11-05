@@ -8,7 +8,11 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { createHash, randomBytes } from 'node:crypto';
 import { writeZip, zipFileList, tableCrc32, crc32, DOS_DATE, DOS_TIME, FLAG_UTF8 } from '../scripts/zip-deterministico.mjs';
-import { makeZip, makePackage, ZIP_LIMIT, ZIP_WARN } from '../scripts/pacchetto-cloudflare.mjs';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { makeZip, makePackage, parseArgs, main, ZIP_LIMIT, ZIP_WARN } from '../scripts/pacchetto-cloudflare.mjs';
+
+const SCRIPT = fileURLToPath(new URL('../scripts/pacchetto-cloudflare.mjs', import.meta.url));
 
 // lettore minimo: fine della directory centrale, voci centrali, intestazioni locali, dati
 function readZip(buf){
@@ -133,6 +137,76 @@ test('pacchetto Cloudflare: una build vecchia con MediaPipe senza SIMD si ferma'
       fs.writeFileSync(path.join(dist, 'assets/mediapipe/hands', stale), '');
       assert.throws(() => makePackage({ out: path.join(tmp, `b-${stale}`), dist, headers }), new RegExp(`build vecchia.*${stale.replace(/\./g, '\\.')}.*npm run build`));
       fs.rmSync(path.join(dist, 'assets/mediapipe/hands', stale));
+    }
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('pacchetto Cloudflare: solo argomenti --nome=valore, «--zip file» o «--zip» da solo sono errori', () => {
+  assert.deepEqual(parseArgs(['--out=a b', '--zip=c.zip', '--turn-url=https://x.workers.dev/']), { out: 'a b', zip: 'c.zip', 'turn-url': 'https://x.workers.dev/' });
+  assert.deepEqual(parseArgs([]), {});
+  for (const [argv, re] of [
+    [['--out=a', '--zip', 'c.zip'], /argomento non valido: «--zip»/],
+    [['--out=a', '--zip'], /argomento non valido: «--zip»/],
+    [['--zip='], /--zip= senza valore/],
+    [['--out=a', '--out=b'], /--out ripetuto/],
+    [['--uot=a'], /argomento non valido: «--uot=a»/],
+    [['--turn-url', 'https://x.workers.dev/'], /argomento non valido/],
+    [['c.zip'], /argomento non valido: «c\.zip»/],
+    [['-z=c.zip'], /argomento non valido/],
+  ]) assert.throws(() => parseArgs(argv), re, argv.join(' '));
+});
+
+test('pacchetto Cloudflare: il comando fa lo zip, sotto il limite esce con 0, sopra con 1 senza lasciare lo zip', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'natpf-cli-'));
+  try {
+    const dist = path.join(tmp, 'dist'), headers = path.join(tmp, '_headers');
+    sample(dist);
+    for (let i = 0; i < 12; i++) fs.writeFileSync(path.join(dist, `peso-${String(i).padStart(2, '0')}.bin`), randomBytes(2000 + i * 100));
+    fs.writeFileSync(headers, '/*\n  X-Content-Type-Options: nosniff\n');
+    const run = (argv, opts = {}) => {
+      const out = { log: [], warn: [], error: [] };
+      const code = main(argv, { dist, headers, log: m => out.log.push(m), warn: m => out.warn.push(m), error: m => out.error.push(m), ...opts });
+      return { code, ...out };
+    };
+    // valido, con cartella e zip
+    const ok = run([`--out=${path.join(tmp, 'p1')}`, `--zip=${path.join(tmp, 'p1.zip')}`, '--turn-url=https://natpf-turn.example.workers.dev/']);
+    assert.equal(ok.code, 0, ok.error.join('\n'));
+    const size = fs.statSync(path.join(tmp, 'p1.zip')).size;
+    assert.ok(ok.log.some(l => l.includes(`${size} byte`) && l.includes(`limite ${ZIP_LIMIT} byte`)), ok.log.join('\n'));
+    assert.ok(ok.log.some(l => l.includes(`zlib ${process.versions.zlib}`)), 'versioni di Node e zlib accanto al peso');
+    assert.ok(readZip(fs.readFileSync(path.join(tmp, 'p1.zip'))).some(e => e.name === 'natpf/turn.json'));
+    assert.deepEqual(ok.warn, []);
+    // solo --zip: cartella temporanea
+    const only = run([`--zip=${path.join(tmp, 'p2.zip')}`]);
+    assert.equal(only.code, 0, only.error.join('\n'));
+    assert.ok(!readZip(fs.readFileSync(path.join(tmp, 'p2.zip'))).some(e => e.name === 'natpf/turn.json'), 'senza --turn-url niente turn.json');
+    const tmpDir = /^Pacchetto in (.+): \d+ file\.$/.exec(only.log[0])?.[1];
+    assert.ok(tmpDir && !fs.existsSync(tmpDir), 'cartella temporanea cancellata');
+    // poco margine: avviso con i file più pesanti
+    const near = run([`--zip=${path.join(tmp, 'p3.zip')}`], { warnBytes: 100 });
+    assert.equal(near.code, 0); assert.match(near.warn.join('\n'), /Attenzione.*\n[\s\S]*modello\.tflite/);
+    // troppo pesante: 1, niente zip, i 10 file più pesanti
+    const big = run([`--out=${path.join(tmp, 'p4')}`, `--zip=${path.join(tmp, 'p4.zip')}`], { maxBytes: 1000 });
+    assert.equal(big.code, 1);
+    assert.ok(!fs.existsSync(path.join(tmp, 'p4.zip')) && !fs.existsSync(path.join(tmp, 'p4.zip.part')));
+    assert.match(big.error.join('\n'), /deve stare sotto 1000 byte[\s\S]*I 10 file più pesanti[\s\S]*modello\.tflite/);
+    // argomenti sbagliati: 1, niente pacchetto né zip (prima, «--zip file» saltava lo zip e usciva con 0)
+    for (const argv of [[`--out=${path.join(tmp, 'p5')}`, '--zip', path.join(tmp, 'p5.zip')], [`--out=${path.join(tmp, 'p5')}`, '--zip'], []]){
+      const r = run(argv);
+      assert.equal(r.code, 1, argv.join(' ')); assert.match(r.error.join('\n'), /Errore: (argomento non valido|manca --out)/);
+      assert.ok(!fs.existsSync(path.join(tmp, 'p5')) && !fs.existsSync(path.join(tmp, 'p5.zip')));
+    }
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('pacchetto Cloudflare: lo script avviato da riga di comando esce con errore su «--zip file»', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'natpf-cli-'));
+  try {
+    for (const argv of [[`--out=${path.join(tmp, 'p')}`, '--zip', path.join(tmp, 'p.zip')], [`--out=${path.join(tmp, 'p')}`, '--zip']]){
+      const r = spawnSync(process.execPath, [SCRIPT, ...argv], { encoding: 'utf8', timeout: 30000 });
+      assert.equal(r.status, 1, `${argv.join(' ')}\n${r.stdout}\n${r.stderr}`);
+      assert.match(r.stderr, /Errore: argomento non valido: «--zip»/);
+      assert.ok(!fs.existsSync(path.join(tmp, 'p')) && !fs.existsSync(path.join(tmp, 'p.zip')), 'niente pacchetto né zip');
     }
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
