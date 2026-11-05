@@ -4,7 +4,7 @@
 //   • «Ledwall 3×2» → area 3:2 al centro;
 //   • ?area=x,y,larghezza,altezza nell'indirizzo → area esatta in pixel, per il processore LED che prende una zona
 //     precisa dell'uscita del PC (di solito in alto a sinistra): vince sulla scelta del menu;
-//   • ?schermo=intero|2x2|3x2 nell'indirizzo → come la scelta del menu, senza salvarla.
+//   • ?schermo=intero|16:9|16:10|4:3|3:2|1:1 (anche 2x2, 3x2) nell'indirizzo → come la scelta del menu, senza salvarla.
 // Tutto il gioco (camera, interfaccia, menu) sta nell'area: il body diventa il riquadro dell'area (con transform, così
 // anche gli elementi «position: fixed» restano dentro) e fuori resta nero. viewport() dà la misura da usare al posto di
 // window.innerWidth/innerHeight (motore, HUD, minigiochi).
@@ -20,14 +20,46 @@
 //   • al primo input (tasto, clic, tocco) sulla schermata «Premi un tasto per iniziare», o sul menu con ?intro=0, si
 //     entra da soli (preferenza 'natpf-tennis.fullscreen' = auto | off, Opzioni → Schermo; ?fs=0 la spegne; con
 //     navigator.webdriver, cioè nelle prove automatiche, solo con ?fs=1).
+//
+// Calibrazione dello schermo (B8, 05/11: «adatta il fullscreen in base alla finestra/monitor in utilizzo o prevedi la
+// calibrazione a full screen, come avviene per i videogiochi»): natpf_calibra.js. L'area si descrive con
+//   • un formato: Intero (riempie il monitor), 16:9, 16:10, 4:3, 3:2 (Ledwall 3×2), 1:1 (Ledwall 2×2);
+//   • i bordi visibili: quanto togliere da ogni lato {t, r, b, l} in percentuale della finestra (0-45, passo 0,5), per
+//     il monitor o il ledwall che taglia i bordi e per il processore LED che prende un angolo dell'uscita del PC.
+// L'area è la finestra meno i bordi, poi il riquadro del formato al centro di quello che resta. Ordine: ?area= nell'indirizzo
+// (vince su tutto) > ?schermo= nell'indirizzo (i bordi salvati valgono lo stesso) > calibrazione salvata
+// ('natpf-tennis.screen.cal', JSON {v:1, preset, margins}) > scelta salvata del menu ('natpf-tennis.screen', di prima).
 import { keepScreenAwake } from './natpf_wake_lock.js';
 export const SCREEN_KEY = 'natpf-tennis.screen';
+export const CAL_KEY = 'natpf-tennis.screen.cal';
+// formati: id (anche quelli di prima full/2x2/3x2), nome breve (calibrazione) e nome lungo, proporzione (null = intero)
 export const SCREENS = Object.freeze({
-  full: { label: 'Schermo intero', ratio: null },
-  '2x2': { label: 'Ledwall 2×2', ratio: 1 },
-  '3x2': { label: 'Ledwall 3×2', ratio: 3/2 },
+  full: { label: 'Schermo intero', short: 'Intero', ratio: null },
+  '16x9': { label: '16:9', short: '16:9', ratio: 16/9 },
+  '16x10': { label: '16:10', short: '16:10', ratio: 16/10 },
+  '4x3': { label: '4:3', short: '4:3', ratio: 4/3 },
+  '3x2': { label: 'Ledwall 3×2', short: '3:2', ratio: 3/2 },
+  '2x2': { label: 'Ledwall 2×2', short: '1:1', ratio: 1 },
 });
-export const normalizeScreen = id => (Object.hasOwn(SCREENS, id) ? id : 'full');
+// ordine dei formati nella calibrazione (tasti 1-6)
+export const FORMATS = Object.freeze(['full', '16x9', '16x10', '4x3', '3x2', '2x2']);
+const SCREEN_ALIAS = { intero: 'full', '16:9': '16x9', '16:10': '16x10', '4:3': '4x3', '3:2': '3x2', '1:1': '2x2', '1x1': '2x2' };
+export const normalizeScreen = id => {
+  const k = SCREEN_ALIAS[String(id ?? '').trim().toLowerCase()] ?? id;
+  return typeof k === 'string' && Object.hasOwn(SCREENS, k) ? k : 'full';
+};
+// bordi visibili: percentuali della finestra per lato, 0-45 a passi di 0,5 (resta sempre almeno il 10% per lato)
+export const MARGIN_MAX = 45;
+export const NO_MARGINS = Object.freeze({ t: 0, r: 0, b: 0, l: 0 });
+export function normalizeMargins(m){
+  const out = {};
+  for (const k of ['t', 'r', 'b', 'l']){
+    const n = Number(m?.[k]);
+    out[k] = Number.isFinite(n) ? Math.round(Math.min(MARGIN_MAX, Math.max(0, n))*2)/2 : 0;
+  }
+  return out;
+}
+export const hasMargins = m => { const n = normalizeMargins(m); return n.t + n.r + n.b + n.l > 0; };
 
 // «x,y,w,h» in pixel interi (larghezza e altezza almeno 64): null se non è un'area valida
 export function parseArea(text){
@@ -36,27 +68,53 @@ export function parseArea(text){
   const [x, y, w, h] = m.slice(1).map(Number);
   return w >= 64 && h >= 64 ? { x, y, w, h } : null;
 }
-// Area in uso dentro una finestra winW × winH (pixel CSS, interi)
-export function screenArea({ preset = 'full', area = null } = {}, winW = 1280, winH = 720){
+// Area in uso dentro una finestra winW × winH (pixel CSS, interi): ?area= esatta; altrimenti la finestra meno i bordi e
+// dentro il riquadro del formato, al centro. full: l'area è tutta la finestra
+export function screenArea({ preset = 'full', area = null, margins = null } = {}, winW = 1280, winH = 720){
   if (area){
     const x = Math.min(Math.max(0, area.x), winW - 64), y = Math.min(Math.max(0, area.y), winH - 64);
     return { x, y, w: Math.min(area.w, winW - x), h: Math.min(area.h, winH - y), full: false };
   }
+  const m = normalizeMargins(margins);
+  const x0 = Math.round(winW*m.l/100), y0 = Math.round(winH*m.t/100);
+  const iw = Math.max(1, winW - x0 - Math.round(winW*m.r/100)), ih = Math.max(1, winH - y0 - Math.round(winH*m.b/100));
   const ratio = SCREENS[normalizeScreen(preset)].ratio;
-  if (!ratio) return { x: 0, y: 0, w: winW, h: winH, full: true };
-  const w = Math.round(Math.min(winW, winH*ratio)), h = Math.round(w/ratio);
-  return { x: Math.round((winW - w)/2), y: Math.round((winH - h)/2), w, h, full: false };
+  let x = x0, y = y0, w = iw, h = ih;
+  if (ratio){
+    w = Math.round(Math.min(iw, ih*ratio)); h = Math.min(ih, Math.round(w/ratio));
+    x = x0 + Math.round((iw - w)/2); y = y0 + Math.round((ih - h)/2);
+  }
+  return { x, y, w, h, full: x === 0 && y === 0 && w === winW && h === winH };
 }
-// scelta dall'indirizzo e dal browser: l'indirizzo vince (non si salva)
-export function readScreen(search = '', saved = null){
+// riassunto per Opzioni → Schermo: «Calibrato: formato 4:3 · bordi ↑ 0 · → 0 · ↓ 5 · ← 5 %»
+export function screenSummary({ preset = 'full', margins = null } = {}){
+  const f = SCREENS[normalizeScreen(preset)], m = normalizeMargins(margins), n = v => String(v).replace('.', ',');
+  const parts = [`formato ${f.ratio ? f.short : 'intero'}`];
+  if (hasMargins(m)) parts.push(`bordi ↑ ${n(m.t)} · → ${n(m.r)} · ↓ ${n(m.b)} · ← ${n(m.l)} %`);
+  return `Calibrato: ${parts.join(' · ')}`;
+}
+// calibrazione salvata (testo JSON o oggetto): null se manca o non è valida
+export function parseCal(v){
+  let o = v;
+  if (typeof v === 'string'){ try { o = JSON.parse(v); } catch { return null; } }
+  if (!o || typeof o !== 'object' || o.v !== 1) return null;
+  return { v: 1, preset: normalizeScreen(o.preset), margins: normalizeMargins(o.margins) };
+}
+export const calText = ({ preset, margins } = {}) => JSON.stringify({ v: 1, preset: normalizeScreen(preset), margins: normalizeMargins(margins) });
+// scelta dall'indirizzo e dal browser. Ordine: ?area= > ?schermo= (con i bordi salvati) > calibrazione > scelta di prima.
+// L'indirizzo non si salva. source: 'area' | 'url' | 'cal' | 'saved' | 'default'
+export function readScreen(search = '', saved = null, cal = null){
   const q = new URLSearchParams(search);
   const area = parseArea(q.get('area'));
   const fromUrl = q.get('schermo');
-  const preset = fromUrl != null ? normalizeScreen(fromUrl === 'intero' ? 'full' : fromUrl) : normalizeScreen(saved);
-  return { preset, area, fromUrl: fromUrl != null || !!area };
+  const c = parseCal(cal);
+  const margins = c ? c.margins : { ...NO_MARGINS };
+  const preset = fromUrl != null ? normalizeScreen(fromUrl) : c ? c.preset : normalizeScreen(saved);
+  const source = area ? 'area' : fromUrl != null ? 'url' : c ? 'cal' : saved != null ? 'saved' : 'default';
+  return { preset, area, margins, fromUrl: fromUrl != null || !!area, source };
 }
 
-let current = { preset: 'full', area: null };
+let current = { preset: 'full', area: null, margins: { ...NO_MARGINS } };
 const win = () => ({ w: globalThis.innerWidth || 1280, h: globalThis.innerHeight || 720 });
 // misura dell'area in cui si disegna (finestra intera o area del ledwall)
 export function viewport(){ const { w, h } = win(); return screenArea(current, w, h); }
@@ -202,11 +260,14 @@ export class NatpfScreen {
   constructor(engine){
     this.engine = engine;
     this.releaseWakeLock = keepScreenAwake();
-    let saved = null; try { saved = localStorage.getItem(SCREEN_KEY); } catch {}
-    const s = readScreen(globalThis.location?.search || '', saved);
-    this.fromUrl = s.fromUrl;
-    current = { preset: s.preset, area: s.area };
+    let saved = null, cal = null; try { saved = localStorage.getItem(SCREEN_KEY); cal = localStorage.getItem(CAL_KEY); } catch {}
+    const search = globalThis.location?.search || '', s = readScreen(search, saved, cal);
+    // indirizzo: ?area= e ?schermo= valgono a ogni avvio (la calibrazione lo dice)
+    this.fromUrl = s.fromUrl; this.source = s.source;
+    this.urlArea = s.area; this.urlScreen = new URLSearchParams(search).get('schermo') != null ? s.preset : null;
+    current = { preset: s.preset, area: s.area, margins: s.margins };
     this.onHint = null;            // messaggi per chi gioca (natpf_ui: toast)
+    this.listeners = new Set();    // chi ridisegna quando l'area cambia (calibrazione)
     // schermo intero: creato prima del menu (natpf_ui), così l'apertura automatica vede il primo tasto prima che il menu
     // lo fermi
     this.fullscreen = new NatpfFullscreen({ onChange: () => { this.paintFullscreen(); this.apply(); }, onHint: t => this._hint(t) });
@@ -221,12 +282,40 @@ export class NatpfScreen {
   }
   get preset(){ return current.preset; }
   get area(){ return current.area; }
-  // scelta del menu (Opzioni → Schermo): si salva; un'area dall'indirizzo resta finché non si sceglie altro
+  get margins(){ return { ...current.margins }; }
+  // calibrato: bordi tolti o un formato che il menu non ha (16:9, 16:10, 4:3)
+  get calibrated(){ return !current.area && (hasMargins(current.margins) || !['full', '2x2', '3x2'].includes(current.preset)); }
+  // scelta del menu (Opzioni → Schermo): si salva (i bordi calibrati restano); un'area dall'indirizzo resta finché non
+  // si sceglie altro
   set(preset){
-    current = { preset: normalizeScreen(preset), area: null };
-    try { localStorage.setItem(SCREEN_KEY, current.preset); } catch {}
+    current = { preset: normalizeScreen(preset), area: null, margins: { ...current.margins } };
+    this._save();
     this.apply();
   }
+  // calibrazione (natpf_calibra.js): anteprima dal vivo senza salvare, salvataggio, ritorno allo stato di prima
+  snapshot(){ return { preset: current.preset, area: current.area ? { ...current.area } : null, margins: { ...current.margins } }; }
+  preview({ preset = current.preset, margins = current.margins } = {}){
+    current = { preset: normalizeScreen(preset), area: null, margins: normalizeMargins(margins) };
+    this.apply();
+  }
+  save(cal = {}){ this.preview(cal); this._save(); }
+  restore(snap){
+    if (!snap) return;
+    current = { preset: normalizeScreen(snap.preset), area: snap.area ? { ...snap.area } : null, margins: normalizeMargins(snap.margins) };
+    this.apply();
+  }
+  _save(){
+    try {
+      localStorage.setItem(SCREEN_KEY, current.preset);          // per chi legge ancora la scelta di prima
+      localStorage.setItem(CAL_KEY, calText(current));
+    } catch {}
+  }
+  // numeri per la calibrazione: finestra, densità dei pixel, monitor, area (pixel CSS; i pixel veri sono × dpr)
+  info(){
+    const g = globalThis, { w, h } = win(), dpr = Number(g.devicePixelRatio) || 1;
+    return { win: { w, h }, dpr, screen: { w: g.screen?.width || w, h: g.screen?.height || h }, area: viewport(), preset: current.preset, margins: { ...current.margins }, urlArea: !!current.area };
+  }
+  onApply(fn){ this.listeners.add(fn); return () => this.listeners.delete(fn); }
   apply(){
     const doc = globalThis.document?.documentElement, a = viewport();
     if (doc){
@@ -236,6 +325,7 @@ export class NatpfScreen {
       doc.classList.toggle('natpf-frameless', this.fullscreen?.frameless ?? false);
     }
     this.engine?._onResize?.();
+    for (const fn of this.listeners || []){ try { fn(a); } catch (e){ console.error(e); } }
   }
   // stato dello schermo intero su tutti i comandi: testo («Schermo intero» / «Esci da schermo intero»), aria-pressed,
   // preferenza all'avvio

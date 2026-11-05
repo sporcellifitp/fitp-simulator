@@ -26,6 +26,7 @@ import { PHOTOS } from './natpf_media.js';
 import { p2pStatusText, P2P_NET_HINT } from './natpf_versus.js';
 import { NatpfSplitUi } from './natpf_split_ui.js';
 import { NatpfScreen } from './natpf_screen.js';
+import { NatpfCalibra } from './natpf_calibra.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -60,6 +61,11 @@ export class NatpfUi {
     // resto: l'apertura automatica dello schermo intero ascolta il primo tasto in cattura prima del menu, che lo ferma
     this.screen = new NatpfScreen(engine);
     this.screen.onHint = t => this.toast(t);
+    // calibrazione dello schermo (Opzioni → Schermo → «Calibra lo schermo…»): alla chiusura si torna al suo pulsante
+    this.calibra = new NatpfCalibra(this.screen, {
+      toast: t => this.toast(t),
+      onClose: () => { if (this.lobby?.visible){ this.lobby.paint(); document.querySelector?.('[data-option="calibra"]')?.focus?.({ preventScroll: true }); } },
+    });
     this.phone = engine.natpfPhone;
     // mouse e tastiera solo in modalità prova (easter egg «natpf» nel menu)
     this.testInput = store.get('testInput', '') === '1';

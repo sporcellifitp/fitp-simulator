@@ -346,14 +346,20 @@
             </div>
           </div>
           <p class="lobby-note lobby-status" id="natpf-fullscreen-status" role="status"></p>
-          <div class="lobby-row">
+          <div class="lobby-row lobby-row-screen">
             <span class="lobby-label">Area</span>
-            <div class="lobby-seg" role="radiogroup" aria-label="Area di gioco">
-              <button type="button" class="seg-btn" data-natpf-screen="full">Intero</button
-              ><button type="button" class="seg-btn" data-natpf-screen="2x2">Ledwall 2×2</button
-              ><button type="button" class="seg-btn" data-natpf-screen="3x2">Ledwall 3×2</button>
+            <div class="lobby-ctrls">
+              <div class="lobby-seg" role="radiogroup" aria-label="Area di gioco">
+                <button type="button" class="seg-btn" data-natpf-screen="full">Intero</button
+                ><button type="button" class="seg-btn" data-natpf-screen="2x2">Ledwall 2×2</button
+                ><button type="button" class="seg-btn" data-natpf-screen="3x2">Ledwall 3×2</button>
+              </div>
+              <div class="lobby-seg">
+                <button type="button" class="seg-btn seg-fs" data-option="calibra" title="Formato e bordi visibili, come nei videogiochi"><svg class="fs-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5.5"/><path d="M12 2.5v5M12 16.5v5M2.5 12h5M16.5 12h5"/></svg><span>Calibra lo schermo…</span></button>
+              </div>
             </div>
           </div>
+          <p class="lobby-note lobby-status lobby-status-ok" id="screen-cal-sum" role="status"></p>
           <div class="lobby-row">
             <span class="lobby-label">Giochi con la mano</span>
             <div class="lobby-seg" role="radiogroup" aria-label="Mano">
@@ -386,7 +392,7 @@
               ><button type="button" class="seg-btn" data-option="intro">Rivedi l’intro</button>
             </div>
           </div>
-          <p class="lobby-note" id="screen-note">Ledwall: il gioco usa un’area con le proporzioni del ledwall al centro dello schermo del PC. Per un’area precisa del processore LED aggiungi all’indirizzo <code>?area=x,y,larghezza,altezza</code> (pixel).</p>
+          <p class="lobby-note" id="screen-note">Monitor, proiettore o ledwall: «Calibra lo schermo…» sceglie il formato e i bordi visibili, anche quando il processore LED prende solo un angolo dell’uscita del PC. Per un’area in pixel esatti aggiungi all’indirizzo <code>?area=x,y,larghezza,altezza</code>.</p>
         </section>
 
         <section class="lobby-page" data-page="controller" aria-labelledby="lobby-t-controller">
@@ -796,6 +802,72 @@
         <div class="coach-words"><b id="coach-text"></b><small id="coach-sub"></small></div>
         <div class="coach-side"><span class="coach-badge" id="coach-badge"></span><span class="coach-count" id="coach-count"></span><span class="coach-dots" id="coach-dots"></span></div>
         <div class="coach-live hidden" id="coach-live" data-ok="yes"></div>
+      </div>
+    </div>
+    <!-- calibrazione dello schermo (natpf_calibra.js): figlio diretto del body, così segue l'area mentre si regola.
+         Frecce agli angoli e segni a metà dei bordi da far toccare ai bordi visibili, cerchio e griglia per lo stiramento -->
+    <div id="natpf-calibra" class="natpf-calibra hidden" role="dialog" aria-modal="true" aria-labelledby="cal-title" data-edge="all">
+      <div class="cal-grid" aria-hidden="true"></div>
+      <div class="cal-circle" aria-hidden="true"></div>
+      <div class="cal-bar cal-bar-t" aria-hidden="true"></div><div class="cal-bar cal-bar-r" aria-hidden="true"></div
+      ><div class="cal-bar cal-bar-b" aria-hidden="true"></div><div class="cal-bar cal-bar-l" aria-hidden="true"></div>
+      <svg class="cal-corner cal-corner-tl" viewBox="0 0 40 40" aria-hidden="true"><path d="M36 36 1.7 1.7M1.7 18V1.7H18"/></svg>
+      <svg class="cal-corner cal-corner-tr" viewBox="0 0 40 40" aria-hidden="true"><path d="M36 36 1.7 1.7M1.7 18V1.7H18"/></svg>
+      <svg class="cal-corner cal-corner-br" viewBox="0 0 40 40" aria-hidden="true"><path d="M36 36 1.7 1.7M1.7 18V1.7H18"/></svg>
+      <svg class="cal-corner cal-corner-bl" viewBox="0 0 40 40" aria-hidden="true"><path d="M36 36 1.7 1.7M1.7 18V1.7H18"/></svg>
+      <button type="button" class="cal-mark cal-mark-t" data-cal-edge="t" aria-label="Bordo sopra"><i aria-hidden="true"></i><b id="cal-val-t">0 %</b></button>
+      <button type="button" class="cal-mark cal-mark-r" data-cal-edge="r" aria-label="Bordo destro"><i aria-hidden="true"></i><b id="cal-val-r">0 %</b></button>
+      <button type="button" class="cal-mark cal-mark-b" data-cal-edge="b" aria-label="Bordo sotto"><i aria-hidden="true"></i><b id="cal-val-b">0 %</b></button>
+      <button type="button" class="cal-mark cal-mark-l" data-cal-edge="l" aria-label="Bordo sinistro"><i aria-hidden="true"></i><b id="cal-val-l">0 %</b></button>
+      <div class="cal-panel">
+        <p class="cal-kicker">Opzioni · Schermo</p>
+        <h2 class="cal-title" id="cal-title">Calibra lo schermo</h2>
+        <p class="cal-help">Regola finché le frecce toccano i bordi visibili dello schermo. Il cerchio deve essere rotondo: se è ovale, il monitor o il processore LED stirano l’immagine.</p>
+        <div class="cal-row">
+          <span class="cal-label">Formato</span>
+          <div class="cal-seg" role="radiogroup" aria-label="Formato">
+            <button type="button" data-cal-format="full" role="radio" title="Riempie il monitor (tasto 1)">Intero</button
+            ><button type="button" data-cal-format="16x9" role="radio" title="Tasto 2">16:9</button
+            ><button type="button" data-cal-format="16x10" role="radio" title="Tasto 3">16:10</button
+            ><button type="button" data-cal-format="4x3" role="radio" title="Tasto 4">4:3</button
+            ><button type="button" data-cal-format="3x2" role="radio" title="Ledwall 3×2 (tasto 5)">3:2</button
+            ><button type="button" data-cal-format="2x2" role="radio" title="Ledwall 2×2 (tasto 6)">1:1</button>
+          </div>
+        </div>
+        <div class="cal-row">
+          <span class="cal-label">Bordo</span>
+          <div class="cal-seg" role="radiogroup" aria-label="Bordo da spostare (Tab)">
+            <button type="button" data-cal-edge="all" role="radio">Tutti</button
+            ><button type="button" data-cal-edge="t" role="radio">Sopra</button
+            ><button type="button" data-cal-edge="r" role="radio">Destra</button
+            ><button type="button" data-cal-edge="b" role="radio">Sotto</button
+            ><button type="button" data-cal-edge="l" role="radio">Sinistra</button>
+          </div>
+        </div>
+        <div class="cal-row">
+          <span class="cal-label" id="cal-edge-name">Tutti</span>
+          <div class="cal-step">
+            <button type="button" data-cal-step="-1" aria-label="Verso il bordo dello schermo">−</button
+            ><output id="cal-edge-val" aria-live="polite">0 %</output
+            ><button type="button" data-cal-step="1" aria-label="Verso il centro">+</button>
+          </div>
+          <span class="cal-arrows" id="cal-arrows">↑ → area più grande · ↓ ← più piccola</span>
+        </div>
+        <dl class="cal-info">
+          <div><dt>Finestra</dt><dd id="cal-i-win"></dd></div>
+          <div><dt>Densità</dt><dd id="cal-i-dpr"></dd></div>
+          <div><dt>Monitor</dt><dd id="cal-i-screen"></dd></div>
+          <div><dt>Area</dt><dd id="cal-i-area"></dd></div>
+          <div><dt>Formato</dt><dd id="cal-i-format"></dd></div>
+          <div><dt>Bordi</dt><dd id="cal-i-margins"></dd></div>
+        </dl>
+        <p class="cal-note" id="cal-note" role="status"></p>
+        <p class="cal-keys">1–6 formato · Tab bordo · frecce sposta (Maiusc 5 %) · R azzera · F schermo intero · Invio salva · Esc annulla</p>
+        <div class="cal-actions">
+          <button type="button" class="cal-btn" data-cal="reset">Azzera</button
+          ><button type="button" class="cal-btn" data-cal="cancel">Annulla</button
+          ><button type="button" class="cal-btn cal-btn-primary" data-cal="save">Salva</button>
+        </div>
       </div>
     </div>
     <script type="module">

@@ -1105,6 +1105,79 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
   #title-modal .lobby-fs-btn .fs-label { display: none; }
 }
 
+#title-modal .lobby-status-ok { color: var(--text-2); }
+
+/* Calibrazione dello schermo (natpf_calibra.js, B8), come nei videogiochi. Figlio diretto del body: con un'area (bordi,
+   formato) il body è l'area e il riquadro la segue; misure in cqmin/cqw/cqh del contenitore natpf (l'area), così frecce,
+   cerchio e pannello restano proporzionati su monitor, ledwall 1:1 e 3:2. Il cerchio è un cerchio in pixel CSS: se sullo
+   schermo è ovale, il monitor o il processore LED stirano l'immagine. Il bordo scelto (data-edge) è giallo */
+.natpf-calibra { position: fixed; inset: 0; z-index: 300; overflow: hidden; background: #0b1636; color: var(--text); font-family: var(--font-text); --cal-on: var(--ball); --cal-off: rgba(244, 246, 252, 0.88); }
+.natpf-calibra.hidden { display: none; }
+.natpf-calibra .cal-grid { position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(to right, rgba(176, 194, 255, 0.13) 1px, transparent 1px), linear-gradient(to bottom, rgba(176, 194, 255, 0.13) 1px, transparent 1px); background-size: 10cqmin 10cqmin; background-position: 50cqw 50cqh; }
+.natpf-calibra .cal-grid::before, .natpf-calibra .cal-grid::after { content: ""; position: absolute; background: rgba(244, 246, 252, 0.3); }
+.natpf-calibra .cal-grid::before { left: 50%; top: 0; bottom: 0; width: 1px; }
+.natpf-calibra .cal-grid::after { top: 50%; left: 0; right: 0; height: 1px; }
+.natpf-calibra .cal-circle { position: absolute; left: 50%; top: 50%; width: 80cqmin; aspect-ratio: 1; transform: translate(-50%, -50%); border: max(2px, 0.3cqmin) solid rgba(244, 246, 252, 0.8); border-radius: 50%; pointer-events: none; }
+.natpf-calibra .cal-bar { position: absolute; background: var(--cal-off); opacity: 0.45; pointer-events: none; }
+.natpf-calibra .cal-bar-t { left: 0; right: 0; top: 0; height: max(3px, 0.45cqmin); }
+.natpf-calibra .cal-bar-b { left: 0; right: 0; bottom: 0; height: max(3px, 0.45cqmin); }
+.natpf-calibra .cal-bar-l { top: 0; bottom: 0; left: 0; width: max(3px, 0.45cqmin); }
+.natpf-calibra .cal-bar-r { top: 0; bottom: 0; right: 0; width: max(3px, 0.45cqmin); }
+.natpf-calibra .cal-corner { position: absolute; width: 9cqmin; height: 9cqmin; fill: none; stroke: var(--cal-off); stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.natpf-calibra .cal-corner-tl { left: 0; top: 0; }
+.natpf-calibra .cal-corner-tr { right: 0; top: 0; transform: scaleX(-1); }
+.natpf-calibra .cal-corner-br { right: 0; bottom: 0; transform: scale(-1, -1); }
+.natpf-calibra .cal-corner-bl { left: 0; bottom: 0; transform: scaleY(-1); }
+.natpf-calibra .cal-mark { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 0.8cqmin; padding: 0; border: 0; background: none; color: var(--cal-off); font: 700 clamp(12px, 1.9cqmin, 26px)/1 var(--font-display); letter-spacing: 0.04em; cursor: pointer; }
+.natpf-calibra .cal-mark i { width: 0; height: 0; border: 0 solid transparent; }
+.natpf-calibra .cal-mark-t { top: 0; left: 50%; transform: translateX(-50%); }
+.natpf-calibra .cal-mark-t i { border-width: 0 2.2cqmin 2.8cqmin; border-bottom-color: currentColor; }
+.natpf-calibra .cal-mark-b { bottom: 0; left: 50%; transform: translateX(-50%); flex-direction: column-reverse; }
+.natpf-calibra .cal-mark-b i { border-width: 2.8cqmin 2.2cqmin 0; border-top-color: currentColor; }
+.natpf-calibra .cal-mark-l { left: 0; top: 50%; transform: translateY(-50%); align-items: flex-start; }
+.natpf-calibra .cal-mark-l i { border-width: 2.2cqmin 2.8cqmin 2.2cqmin 0; border-right-color: currentColor; }
+.natpf-calibra .cal-mark-r { right: 0; top: 50%; transform: translateY(-50%); align-items: flex-end; }
+.natpf-calibra .cal-mark-r i { border-width: 2.2cqmin 0 2.2cqmin 2.8cqmin; border-left-color: currentColor; }
+.natpf-calibra .cal-mark-l b { margin-left: 0.7cqmin; }
+.natpf-calibra .cal-mark-r b { margin-right: 0.7cqmin; }
+.natpf-calibra .cal-mark:focus-visible { outline: none; }
+.natpf-calibra .cal-mark:focus-visible b { outline: 2px solid var(--ball); outline-offset: 3px; }
+.natpf-calibra[data-edge="all"] .cal-bar, .natpf-calibra[data-edge="t"] .cal-bar-t, .natpf-calibra[data-edge="r"] .cal-bar-r,
+.natpf-calibra[data-edge="b"] .cal-bar-b, .natpf-calibra[data-edge="l"] .cal-bar-l { background: var(--cal-on); opacity: 1; }
+.natpf-calibra[data-edge="all"] .cal-corner { stroke: var(--cal-on); }
+.natpf-calibra[data-edge="all"] .cal-mark, .natpf-calibra[data-edge="t"] .cal-mark-t, .natpf-calibra[data-edge="r"] .cal-mark-r,
+.natpf-calibra[data-edge="b"] .cal-mark-b, .natpf-calibra[data-edge="l"] .cal-mark-l { color: var(--cal-on); }
+.natpf-calibra .cal-panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); box-sizing: border-box; width: min(68cqmin, calc(100% - 22cqmin)); max-height: 74cqmin; overflow: auto; display: grid; gap: 1.2cqmin; padding: 2.4cqmin 2.8cqmin; border-radius: 2cqmin; background: rgba(7, 14, 38, 0.92); border: 1px solid var(--line-strong); box-shadow: var(--shadow); font-size: clamp(12px, 1.75cqmin, 24px); line-height: 1.3; text-align: left; scrollbar-width: thin; }
+.natpf-calibra .cal-kicker { margin: 0; font: 700 0.72em/1 var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--pink); }
+.natpf-calibra .cal-title { margin: 0; font: 800 italic 2.1em/1 var(--font-display); text-transform: uppercase; color: var(--text); }
+.natpf-calibra .cal-help { margin: 0; color: var(--text-2); }
+.natpf-calibra .cal-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8cqmin 1.2cqmin; }
+.natpf-calibra .cal-label { min-width: 6.2em; font: 700 0.8em/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-2); }
+.natpf-calibra .cal-seg, .natpf-calibra .cal-step { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.4cqmin; padding: 0.4cqmin; border-radius: var(--r-pill); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); }
+.natpf-calibra button { font-family: inherit; }
+.natpf-calibra .cal-seg button, .natpf-calibra .cal-step button, .natpf-calibra .cal-btn { height: max(30px, 4.4cqmin); padding: 0 1.4cqmin; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--text-2); font: 600 1em/1 var(--font-text); cursor: pointer; }
+.natpf-calibra .cal-seg button:hover, .natpf-calibra .cal-btn:hover { background: rgba(255, 255, 255, 0.1); color: var(--text); }
+.natpf-calibra .cal-seg button.selected { background: var(--text); color: var(--ink-900); }
+.natpf-calibra .cal-step button { width: max(30px, 4.4cqmin); padding: 0; background: rgba(255, 255, 255, 0.1); color: var(--text); font: 700 1.3em/1 var(--font-text); }
+.natpf-calibra .cal-step output { min-width: 5.2em; text-align: center; font: 700 1.15em/1 var(--font-display); color: var(--ball); }
+.natpf-calibra .cal-arrows { color: var(--text-3); font-size: 0.9em; }
+.natpf-calibra .cal-info { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.8cqmin 1.6cqmin; padding: 1.1cqmin 1.4cqmin; border-radius: 1.2cqmin; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); }
+.natpf-calibra .cal-info div { min-width: 0; }
+.natpf-calibra .cal-info dt { font: 700 0.72em/1.2 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
+.natpf-calibra .cal-info dd { margin: 0.2em 0 0; font: 600 0.9em/1.25 var(--font-text); color: var(--text); overflow-wrap: anywhere; }
+.natpf-calibra .cal-note { margin: 0; color: var(--warn); font-size: 0.9em; }
+.natpf-calibra .cal-note:empty { display: none; }
+.natpf-calibra .cal-keys { margin: 0; font: 600 0.78em/1.4 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+.natpf-calibra .cal-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 1cqmin; }
+.natpf-calibra .cal-btn { padding: 0 2.2cqmin; border: 1px solid var(--line-strong); font: 700 italic 1.05em/1 var(--font-display); letter-spacing: 0.04em; text-transform: uppercase; }
+.natpf-calibra .cal-btn-primary { background: var(--ball); color: var(--ball-ink); border-color: transparent; }
+.natpf-calibra .cal-btn-primary:hover { background: var(--ball); color: var(--ball-ink); filter: brightness(1.06); }
+.natpf-calibra .cal-seg button:focus-visible, .natpf-calibra .cal-step button:focus-visible, .natpf-calibra .cal-btn:focus-visible { outline: max(2px, 0.3cqmin) solid var(--ball); outline-offset: 2px; }
+/* area stretta (verticale): i numeri su due colonne (il pannello resta più stretto del cerchio, che si vede ai lati) */
+@container natpf (max-aspect-ratio: 4/5) {
+  .natpf-calibra .cal-info { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 /* Potenza del colpo, colpo super ed energia (natpf_power_hud.js). In basso a sinistra; sullo stesso schermo un gruppo
    per metà, agli angoli esterni (le etichette dei giocatori stanno al centro di ogni metà) */
 .natpf-meters { position: fixed; inset: auto 0 0 0; z-index: 31; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 clamp(10px, 2cqw, 28px) clamp(10px, 3cqh, 36px); pointer-events: none; }

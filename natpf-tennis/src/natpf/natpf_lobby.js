@@ -29,6 +29,7 @@ const ARCADE_ICONS = {
 import { warmupDrills } from './natpf_training.js';
 import { hostLobbyStatus, roomCode, joinUrl } from './natpf_versus.js';
 import { p2pRequested } from './natpf_p2p.js';
+import { screenSummary } from './natpf_screen.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -305,6 +306,8 @@ export class NatpfLobby {
     if (name === 'voice') click('btn-voice-toggle');
     if (name === 'specials'){ this.ui.phone.resetSpecials?.(); this.ui.toast('Pallonetto e palla corta: si reimparano nel prossimo allenamento'); }
     if (name === 'intro'){ this.ui.intro?.play('full'); return; }
+    // calibrazione dello schermo (natpf_calibra.js): riquadro sopra tutto, i tasti li prende lui
+    if (name === 'calibra'){ this.ui.calibra?.open(); return; }
     this.paint();
   }
   _paintOptions(){
@@ -316,6 +319,9 @@ export class NatpfLobby {
     // schermo: con un'area dall'indirizzo (?area=) nessuna scelta è accesa (vale l'indirizzo)
     const scr = this.ui.screen, cur = scr?.area ? null : scr?.preset;
     for (const b of this.el.querySelectorAll('[data-natpf-screen]')){ const on = b.dataset.natpfScreen === cur; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
+    // calibrazione salvata (bordi tolti o formato 16:9, 16:10, 4:3): riassunto sotto la riga
+    const sum = $('screen-cal-sum'), st = scr?.calibrated ? screenSummary(scr) : '';
+    if (sum && sum.textContent !== st) sum.textContent = st;
     scr?.paintFullscreen?.();
   }
   go(step){
@@ -428,6 +434,8 @@ export class NatpfLobby {
     if (e.ctrlKey || e.metaKey || e.altKey) return;     // scorciatoie (pannello dell'addetto, browser): non sono del menu
     if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
     if (this.onboarding.isOpen){ if (this.onboarding.key(e)) e.preventDefault(); e.stopImmediatePropagation(); return; }
+    // calibrazione dello schermo aperta: frecce, Tab, numeri, Invio ed Esc sono suoi (F11 e gli altri tasti del browser no)
+    if (this.ui.calibra?.isOpen){ if (this.ui.calibra.key(e)) e.preventDefault(); e.stopImmediatePropagation(); return; }
     const sheetOpen = [...document.querySelectorAll('.natpf-sheet-backdrop')].some(m => !m.classList.contains('hidden'));
     // in campo: Esc apre e chiude la pausa (Esc tenuto premuto ripete il tasto: si usa solo il primo, così uscendo dallo
     // schermo intero del browser la pausa non si apre e chiude di continuo); F schermo intero

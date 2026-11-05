@@ -3,7 +3,9 @@
 // e navigator finti (nessun DOM vero, nessun ui-world).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { NatpfFullscreen, fullscreenGesture, autoFullscreen, fsPref, FS_KEY, FS_TEXT, AUTO_EVENTS } from '../src/natpf/natpf_screen.js';
+import { NatpfFullscreen, fullscreenGesture, autoFullscreen, fsPref, FS_KEY, FS_TEXT, AUTO_EVENTS,
+  screenArea, readScreen, normalizeScreen, normalizeMargins, hasMargins, parseCal, calText, screenSummary, SCREENS, FORMATS } from '../src/natpf/natpf_screen.js';
+import { arrowDir, stepMargins, nextEdge, calInfo, EDGES } from '../src/natpf/natpf_calibra.js';
 
 // finestra, documento, navigator e archivio finti; fire() manda un evento ai listener della finestra come il browser
 function env({ desktop = null, webdriver = false, search = '', pref = null, reject = false, displayMode = false, keyboard = true } = {}){
@@ -192,4 +194,96 @@ test('programma Windows: vale lo stato della finestra, non display-mode (che pu�
   assert.equal(fs.frameless, false, 'finestra con le cornici anche se display-mode dice ancora fullscreen');
   assert.equal(fs.label, FS_TEXT.enter);
   assert.equal(await fs.toggle(), true); assert.deepEqual(api.calls, [true]); assert.equal(t.calls.request, 0);
+});
+
+/* ---------- calibrazione dello schermo: area, ordine delle scelte, salvataggio ---------- */
+
+test('area: formati 16:9, 16:10, 4:3, 3:2, 1:1 al centro; Intero riempie il monitor (full solo se è tutta la finestra)', () => {
+  assert.deepEqual([...FORMATS], ['full', '16x9', '16x10', '4x3', '3x2', '2x2']);
+  assert.deepEqual(FORMATS.map(f => SCREENS[f].short), ['Intero', '16:9', '16:10', '4:3', '3:2', '1:1']);
+  assert.deepEqual(screenArea({ preset: 'full' }, 1920, 1080), { x: 0, y: 0, w: 1920, h: 1080, full: true });
+  assert.deepEqual(screenArea({ preset: '16x9' }, 1920, 1080), { x: 0, y: 0, w: 1920, h: 1080, full: true }, '16:9 su un monitor 16:9 è tutto lo schermo');
+  assert.deepEqual(screenArea({ preset: '16x10' }, 1920, 1080), { x: 96, y: 0, w: 1728, h: 1080, full: false });
+  assert.deepEqual(screenArea({ preset: '4x3' }, 1920, 1080), { x: 240, y: 0, w: 1440, h: 1080, full: false });
+  assert.deepEqual(screenArea({ preset: '16x9' }, 1920, 1200), { x: 0, y: 60, w: 1920, h: 1080, full: false }, 'monitor 16:10: bande sopra e sotto');
+  // i formati di prima restano uguali (natpf-split.test.mjs)
+  assert.deepEqual(screenArea({ preset: '2x2' }, 1920, 1080), { x: 420, y: 0, w: 1080, h: 1080, full: false });
+  assert.deepEqual(screenArea({ preset: '3x2' }, 1000, 1000), { x: 0, y: 167, w: 1000, h: 667, full: false });
+});
+
+test('area: bordi visibili in percentuale della finestra, poi il formato al centro di quello che resta', () => {
+  assert.deepEqual(screenArea({ preset: 'full', margins: { l: 5, b: 5 } }, 1920, 1080), { x: 96, y: 0, w: 1824, h: 1026, full: false });
+  assert.deepEqual(screenArea({ preset: '2x2', margins: { l: 5, b: 5 } }, 1920, 1080), { x: 495, y: 0, w: 1026, h: 1026, full: false }, '1:1 dentro i bordi');
+  assert.deepEqual(screenArea({ preset: 'full', margins: { t: 2.5, r: 2.5, b: 2.5, l: 2.5 } }, 1920, 1080), { x: 48, y: 27, w: 1824, h: 1026, full: false }, 'overscan del televisore');
+  // processore LED che prende l'angolo in alto a sinistra dell'uscita del PC (1152 × 648 di 1920 × 1080)
+  assert.deepEqual(screenArea({ preset: 'full', margins: { r: 40, b: 40 } }, 1920, 1080), { x: 0, y: 0, w: 1152, h: 648, full: false });
+  // l'area esatta dall'indirizzo vince anche sui bordi
+  assert.deepEqual(screenArea({ preset: '2x2', margins: { l: 10 }, area: { x: 0, y: 0, w: 768, h: 512 } }, 1920, 1080), { x: 0, y: 0, w: 768, h: 512, full: false });
+  // i bordi seguono la finestra: stesse percentuali su un altro monitor
+  assert.deepEqual(screenArea({ preset: 'full', margins: { l: 5, b: 5 } }, 1280, 720), { x: 64, y: 0, w: 1216, h: 684, full: false });
+});
+
+test('bordi: 0-45% a passi di 0,5; valori sbagliati a 0', () => {
+  assert.deepEqual(normalizeMargins({ t: -3, r: 60, b: '2.26', l: NaN }), { t: 0, r: 45, b: 2.5, l: 0 });
+  assert.deepEqual(normalizeMargins(null), { t: 0, r: 0, b: 0, l: 0 });
+  assert.equal(hasMargins({ l: 0.5 }), true); assert.equal(hasMargins({}), false);
+  // anche con i bordi al massimo resta il 10% della finestra
+  assert.deepEqual(screenArea({ margins: { t: 99, r: 99, b: 99, l: 99 } }, 1000, 1000), { x: 450, y: 450, w: 100, h: 100, full: false });
+});
+
+test('formati: nomi dall’indirizzo (16:9, 1:1, intero) e quelli di prima', () => {
+  assert.equal(normalizeScreen('16:9'), '16x9'); assert.equal(normalizeScreen('16:10'), '16x10'); assert.equal(normalizeScreen('4:3'), '4x3');
+  assert.equal(normalizeScreen('1:1'), '2x2'); assert.equal(normalizeScreen('3:2'), '3x2'); assert.equal(normalizeScreen('intero'), 'full');
+  assert.equal(normalizeScreen('2x2'), '2x2'); assert.equal(normalizeScreen('boh'), 'full'); assert.equal(normalizeScreen(undefined), 'full');
+  assert.equal(normalizeScreen('toString'), 'full', 'niente proprietà ereditate');
+});
+
+test('ordine delle scelte: ?area= > ?schermo= (con i bordi salvati) > calibrazione salvata > scelta di prima', () => {
+  const cal = calText({ preset: '4x3', margins: { l: 5, b: 5 } });
+  const a = readScreen('?area=10,20,800,600&schermo=2x2', '3x2', cal);
+  assert.deepEqual(a.area, { x: 10, y: 20, w: 800, h: 600 }); assert.equal(a.source, 'area'); assert.equal(a.fromUrl, true);
+  const u = readScreen('?schermo=1:1', '3x2', cal);
+  assert.equal(u.preset, '2x2'); assert.deepEqual(u.margins, { t: 0, r: 0, b: 5, l: 5 }, 'i bordi salvati valgono anche con ?schermo='); assert.equal(u.source, 'url');
+  const c = readScreen('', '3x2', cal);
+  assert.equal(c.preset, '4x3'); assert.equal(c.source, 'cal'); assert.equal(c.fromUrl, false);
+  const o = readScreen('', '3x2', null);
+  assert.equal(o.preset, '3x2'); assert.deepEqual(o.margins, { t: 0, r: 0, b: 0, l: 0 }); assert.equal(o.source, 'saved');
+  assert.equal(readScreen('', null, null).source, 'default');
+  assert.equal(readScreen('', '3x2', '{"v":2,"preset":"2x2"}').preset, '3x2', 'calibrazione di un formato sconosciuto: si ignora');
+  assert.equal(readScreen('', '3x2', 'non è json').preset, '3x2');
+});
+
+test('calibrazione salvata: JSON {v:1, preset, margins}, letto e riscritto uguale; riassunto per le Opzioni', () => {
+  const t = calText({ preset: '16:10', margins: { t: 1, r: 2, b: 3.3, l: 50 } });
+  assert.deepEqual(JSON.parse(t), { v: 1, preset: '16x10', margins: { t: 1, r: 2, b: 3.5, l: 45 } });
+  assert.deepEqual(parseCal(t), { v: 1, preset: '16x10', margins: { t: 1, r: 2, b: 3.5, l: 45 } });
+  assert.deepEqual(parseCal({ v: 1, preset: 'x' }), { v: 1, preset: 'full', margins: { t: 0, r: 0, b: 0, l: 0 } });
+  assert.equal(parseCal(null), null); assert.equal(parseCal('{}'), null);
+  assert.equal(screenSummary({ preset: '4x3', margins: { l: 5, b: 2.5 } }), 'Calibrato: formato 4:3 · bordi ↑ 0 · → 0 · ↓ 2,5 · ← 5 %');
+  assert.equal(screenSummary({ preset: 'full', margins: { t: 1 } }), 'Calibrato: formato intero · bordi ↑ 1 · → 0 · ↓ 0 · ← 0 %');
+});
+
+test('calibrazione: frecce, Tab e passi (Maiusc 5%)', () => {
+  // un bordo si sposta nella direzione della freccia; «Tutti»: ↑ → più grande, ↓ ← più piccola
+  assert.equal(arrowDir('l', 'ArrowRight'), 1); assert.equal(arrowDir('l', 'ArrowLeft'), -1); assert.equal(arrowDir('l', 'ArrowUp'), 0);
+  assert.equal(arrowDir('b', 'ArrowUp'), 1); assert.equal(arrowDir('b', 'ArrowDown'), -1);
+  assert.equal(arrowDir('t', 'ArrowDown'), 1); assert.equal(arrowDir('r', 'ArrowLeft'), 1);
+  assert.equal(arrowDir('all', 'ArrowUp'), -1); assert.equal(arrowDir('all', 'ArrowRight'), -1); assert.equal(arrowDir('all', 'ArrowDown'), 1); assert.equal(arrowDir('all', 'ArrowLeft'), 1);
+  assert.deepEqual(stepMargins({}, 'l', 1), { t: 0, r: 0, b: 0, l: 0.5 });
+  assert.deepEqual(stepMargins({}, 'l', 1, true), { t: 0, r: 0, b: 0, l: 5 });
+  assert.deepEqual(stepMargins({ t: 1, r: 1, b: 1, l: 1 }, 'all', -1), { t: 0.5, r: 0.5, b: 0.5, l: 0.5 });
+  assert.deepEqual(stepMargins({ l: 0 }, 'l', -1), { t: 0, r: 0, b: 0, l: 0 }, 'non sotto zero');
+  assert.deepEqual(stepMargins({ l: 44 }, 'l', 1, true), { t: 0, r: 0, b: 0, l: 45 }, 'non oltre il 45%');
+  assert.deepEqual([...EDGES], ['all', 't', 'r', 'b', 'l']);
+  assert.equal(nextEdge('all'), 't'); assert.equal(nextEdge('l'), 'all'); assert.equal(nextEdge('all', true), 'l');
+});
+
+test('calibrazione: i numeri sullo schermo (finestra, densità, monitor, area, formato, bordi)', () => {
+  const i = calInfo({ win: { w: 1536, h: 864 }, dpr: 1.25, screen: { w: 1536, h: 864 }, area: { x: 77, y: 0, w: 1459, h: 821 }, preset: '2x2', margins: { t: 0, r: 0, b: 5, l: 5 } });
+  assert.equal(i.win, '1536 × 864 px'); assert.equal(i.dpr, '× 1,25');
+  assert.equal(i.screen, '1536 × 864 px (1920 × 1080 reali)');
+  assert.equal(i.area, '1459 × 821 px da 77, 0 (1824 × 1026 reali)');
+  assert.equal(i.format, '1:1 · Ledwall 2×2'); assert.equal(i.margins, '↑ 0 · → 0 · ↓ 5 · ← 5 %');
+  assert.equal(calInfo({ win: { w: 1, h: 1 }, dpr: 1, screen: { w: 1, h: 1 }, area: { x: 0, y: 0, w: 1, h: 1 }, preset: 'full', margins: {} }).format, 'Intero (tutto il monitor)');
+  assert.equal(calInfo({ win: { w: 1, h: 1 }, dpr: 1, screen: { w: 1, h: 1 }, area: { x: 0, y: 0, w: 1, h: 1 }, preset: '16x9', margins: {} }).format, '16:9');
 });
