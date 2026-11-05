@@ -24,8 +24,10 @@
 // Calibrazione dello schermo (B8, 05/11: «adatta il fullscreen in base alla finestra/monitor in utilizzo o prevedi la
 // calibrazione a full screen, come avviene per i videogiochi»): natpf_calibra.js. L'area si descrive con
 //   • un formato: Intero (riempie il monitor), 16:9, 16:10, 4:3, 3:2 (Ledwall 3×2), 1:1 (Ledwall 2×2);
-//   • i bordi visibili: quanto togliere da ogni lato {t, r, b, l} in percentuale della finestra (0-45, passo 0,5), per
-//     il monitor o il ledwall che taglia i bordi e per il processore LED che prende un angolo dell'uscita del PC.
+//   • i bordi visibili: quanto togliere da ogni lato {t, r, b, l} in percentuale della finestra (passo 0,5), per il
+//     monitor o il ledwall che taglia i bordi e per il processore LED che prende un angolo dell'uscita del PC (un lato
+//     può superare il 45%: 1000 × 1000 in alto a sinistra di 1920 × 1080 vuole il 48% a destra). Su ogni asse l'area
+//     resta almeno AREA_MIN (480 × 360 px, o la finestra se è più piccola): menu e calibrazione restano usabili.
 // L'area è la finestra meno i bordi, poi il riquadro del formato al centro di quello che resta. Ordine: ?area= nell'indirizzo
 // (vince su tutto) > ?schermo= nell'indirizzo (i bordi salvati valgono lo stesso) > calibrazione salvata
 // ('natpf-tennis.screen.cal', JSON {v:1, preset, margins}) > scelta salvata del menu ('natpf-tennis.screen', di prima).
@@ -48,8 +50,10 @@ export const normalizeScreen = id => {
   const k = SCREEN_ALIAS[String(id ?? '').trim().toLowerCase()] ?? id;
   return typeof k === 'string' && Object.hasOwn(SCREENS, k) ? k : 'full';
 };
-// bordi visibili: percentuali della finestra per lato, 0-45 a passi di 0,5 (resta sempre almeno il 10% per lato)
-export const MARGIN_MAX = 45;
+// bordi visibili: percentuali della finestra per lato, 0-90 a passi di 0,5; quanto vale davvero lo decide fitMargins
+// con la misura della finestra (area minima su ogni asse)
+export const MARGIN_MAX = 90;
+export const AREA_MIN = Object.freeze({ w: 480, h: 360 });
 export const NO_MARGINS = Object.freeze({ t: 0, r: 0, b: 0, l: 0 });
 export function normalizeMargins(m){
   const out = {};
@@ -60,6 +64,23 @@ export function normalizeMargins(m){
   return out;
 }
 export const hasMargins = m => { const n = normalizeMargins(m); return n.t + n.r + n.b + n.l > 0; };
+const half = n => Math.floor(n*2 + 1e-9)/2;      // per difetto al mezzo punto
+// somma massima (in %) dei due bordi di un asse lungo `size` pixel perché ne restino almeno `min` (o tutto, se è meno)
+export const marginRoom = (size, min) => (size > 0 ? Math.max(0, half((1 - Math.min(size, min)/size)*100)) : 0);
+// Bordi che stanno nella finestra winW × winH: su ogni asse la somma dei due bordi non supera marginRoom. Con prev (i
+// bordi prima di un passo della calibrazione) si ferma il bordo che si è spostato; senza (finestra più piccola di quando
+// si è calibrato) o con tutti e due spostati («Tutti») si riducono tutti e due in proporzione
+export function fitMargins(margins, winW, winH, prev = null){
+  const m = normalizeMargins(margins), p = prev ? normalizeMargins(prev) : null;
+  for (const [a, b, room] of [['t', 'b', marginRoom(winH, AREA_MIN.h)], ['l', 'r', marginRoom(winW, AREA_MIN.w)]]){
+    const sum = m[a] + m[b];
+    if (sum <= room) continue;
+    const moved = p ? [a, b].filter(k => m[k] !== p[k]) : [];
+    if (moved.length === 1){ const k = moved[0], o = k === a ? b : a; m[o] = Math.min(m[o], room); m[k] = Math.max(0, room - m[o]); }
+    else { m[a] = half(m[a]*room/sum); m[b] = half(m[b]*room/sum); }
+  }
+  return m;
+}
 
 // «x,y,w,h» in pixel interi (larghezza e altezza almeno 64): null se non è un'area valida
 export function parseArea(text){
@@ -75,7 +96,7 @@ export function screenArea({ preset = 'full', area = null, margins = null } = {}
     const x = Math.min(Math.max(0, area.x), winW - 64), y = Math.min(Math.max(0, area.y), winH - 64);
     return { x, y, w: Math.min(area.w, winW - x), h: Math.min(area.h, winH - y), full: false };
   }
-  const m = normalizeMargins(margins);
+  const m = fitMargins(margins, winW, winH);
   const x0 = Math.round(winW*m.l/100), y0 = Math.round(winH*m.t/100);
   const iw = Math.max(1, winW - x0 - Math.round(winW*m.r/100)), ih = Math.max(1, winH - y0 - Math.round(winH*m.b/100));
   const ratio = SCREENS[normalizeScreen(preset)].ratio;
@@ -282,7 +303,8 @@ export class NatpfScreen {
   }
   get preset(){ return current.preset; }
   get area(){ return current.area; }
-  get margins(){ return { ...current.margins }; }
+  // bordi che valgono nella finestra di adesso (fitMargins: area minima); snapshot() tiene quelli salvati
+  get margins(){ const { w, h } = win(); return fitMargins(current.margins, w, h); }
   // calibrato: bordi tolti o un formato che il menu non ha (16:9, 16:10, 4:3)
   get calibrated(){ return !current.area && (hasMargins(current.margins) || !['full', '2x2', '3x2'].includes(current.preset)); }
   // scelta del menu (Opzioni → Schermo): si salva (i bordi calibrati restano); un'area dall'indirizzo resta finché non
@@ -313,7 +335,7 @@ export class NatpfScreen {
   // numeri per la calibrazione: finestra, densità dei pixel, monitor, area (pixel CSS; i pixel veri sono × dpr)
   info(){
     const g = globalThis, { w, h } = win(), dpr = Number(g.devicePixelRatio) || 1;
-    return { win: { w, h }, dpr, screen: { w: g.screen?.width || w, h: g.screen?.height || h }, area: viewport(), preset: current.preset, margins: { ...current.margins }, urlArea: !!current.area };
+    return { win: { w, h }, dpr, screen: { w: g.screen?.width || w, h: g.screen?.height || h }, area: viewport(), preset: current.preset, margins: this.margins, urlArea: !!current.area };
   }
   onApply(fn){ this.listeners.add(fn); return () => this.listeners.delete(fn); }
   apply(){

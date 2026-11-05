@@ -4,7 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { NatpfFullscreen, fullscreenGesture, autoFullscreen, fsPref, FS_KEY, FS_TEXT, AUTO_EVENTS,
-  screenArea, readScreen, normalizeScreen, normalizeMargins, hasMargins, parseCal, calText, screenSummary, SCREENS, FORMATS } from '../src/natpf/natpf_screen.js';
+  screenArea, readScreen, normalizeScreen, normalizeMargins, hasMargins, parseCal, calText, screenSummary, SCREENS, FORMATS,
+  fitMargins, marginRoom, AREA_MIN } from '../src/natpf/natpf_screen.js';
 import { arrowDir, stepMargins, nextEdge, calInfo, EDGES } from '../src/natpf/natpf_calibra.js';
 
 // finestra, documento, navigator e archivio finti; fire() manda un evento ai listener della finestra come il browser
@@ -223,12 +224,40 @@ test('area: bordi visibili in percentuale della finestra, poi il formato al cent
   assert.deepEqual(screenArea({ preset: 'full', margins: { l: 5, b: 5 } }, 1280, 720), { x: 64, y: 0, w: 1216, h: 684, full: false });
 });
 
-test('bordi: 0-45% a passi di 0,5; valori sbagliati a 0', () => {
-  assert.deepEqual(normalizeMargins({ t: -3, r: 60, b: '2.26', l: NaN }), { t: 0, r: 45, b: 2.5, l: 0 });
+test('bordi: 0-90% per lato a passi di 0,5; valori sbagliati a 0; l’area resta almeno 480 × 360 px', () => {
+  assert.deepEqual(normalizeMargins({ t: -3, r: 95, b: '2.26', l: NaN }), { t: 0, r: 90, b: 2.5, l: 0 });
   assert.deepEqual(normalizeMargins(null), { t: 0, r: 0, b: 0, l: 0 });
   assert.equal(hasMargins({ l: 0.5 }), true); assert.equal(hasMargins({}), false);
-  // anche con i bordi al massimo resta il 10% della finestra
-  assert.deepEqual(screenArea({ margins: { t: 99, r: 99, b: 99, l: 99 } }, 1000, 1000), { x: 450, y: 450, w: 100, h: 100, full: false });
+  assert.deepEqual(AREA_MIN, { w: 480, h: 360 });
+  // spazio per i due bordi di un asse: 1920 → 75%, 1080 → 66,5%, 720 → 50%; finestra più piccola del minimo: niente
+  assert.equal(marginRoom(1920, 480), 75); assert.equal(marginRoom(1080, 360), 66.5); assert.equal(marginRoom(720, 360), 50);
+  assert.equal(marginRoom(400, 480), 0); assert.equal(marginRoom(0, 480), 0);
+  // bordi al massimo: l'area è quella minima, al centro (prima restava il 10%: 100 × 100 px, menu inutilizzabile)
+  assert.deepEqual(screenArea({ margins: { t: 99, r: 99, b: 99, l: 99 } }, 1000, 1000), { x: 260, y: 320, w: 480, h: 360, full: false });
+  assert.deepEqual(screenArea({ margins: { t: 45, r: 45, b: 45, l: 45 } }, 1920, 1080), { x: 720, y: 356, w: 480, h: 368, full: false });
+  // processore LED che prende 1000 × 1000 in alto a sinistra di 1920 × 1080: a destra il 48% (prima al massimo il 45%:
+  // area larga 1056 e il riquadro 1:1 a x = 28 invece che a 0)
+  assert.deepEqual(screenArea({ preset: 'full', margins: { r: 48, b: 7.5 } }, 1920, 1080), { x: 0, y: 0, w: 998, h: 999, full: false });
+  assert.equal(screenArea({ preset: '2x2', margins: { r: 48, b: 7.5 } }, 1920, 1080).x, 0);
+  // un lato solo può arrivare oltre metà finestra (angolo piccolo dell'uscita)
+  assert.deepEqual(screenArea({ margins: { r: 70, b: 60 } }, 1920, 1080), { x: 0, y: 0, w: 576, h: 432, full: false });
+});
+
+test('bordi nella finestra (fitMargins): il bordo che si sposta si ferma all’area minima; gli altri casi in proporzione', () => {
+  // un bordo solo: si ferma (l'altro bordo dell'asse non cambia)
+  assert.deepEqual(fitMargins({ l: 30, r: 50 }, 1920, 1080, { l: 30, r: 45 }), { t: 0, r: 45, b: 0, l: 30 });
+  assert.deepEqual(fitMargins({ t: 70 }, 1920, 1080, { t: 65 }), { t: 66.5, r: 0, b: 0, l: 0 });
+  // «Tutti» (tutti e due gli assi spostati): in proporzione, per difetto al mezzo punto
+  assert.deepEqual(fitMargins({ t: 35, r: 40, b: 35, l: 40 }, 1920, 1080, { t: 30, r: 35, b: 30, l: 35 }), { t: 33, r: 37.5, b: 33, l: 37.5 });
+  // finestra più piccola di quando si è calibrato (senza prev): in proporzione
+  assert.deepEqual(fitMargins({ r: 70, b: 60 }, 1280, 720), { t: 0, r: 62.5, b: 50, l: 0 });
+  // dentro i limiti: invariati
+  assert.deepEqual(fitMargins({ t: 2.5, r: 2.5, b: 2.5, l: 2.5 }, 1280, 720), { t: 2.5, r: 2.5, b: 2.5, l: 2.5 });
+  // l'area che ne viene non scende sotto il minimo (salvo un pixel di arrotondamento)
+  for (const [w, h] of [[1280, 720], [1920, 1080], [1200, 1200], [3840, 2160], [1366, 768]]){
+    const a = screenArea({ margins: fitMargins({ t: 90, r: 90, b: 90, l: 90 }, w, h) }, w, h);
+    assert.ok(a.w >= AREA_MIN.w - 1 && a.h >= AREA_MIN.h - 1, `${w} × ${h}: ${a.w} × ${a.h}`);
+  }
 });
 
 test('formati: nomi dall’indirizzo (16:9, 1:1, intero) e quelli di prima', () => {
@@ -254,9 +283,9 @@ test('ordine delle scelte: ?area= > ?schermo= (con i bordi salvati) > calibrazio
 });
 
 test('calibrazione salvata: JSON {v:1, preset, margins}, letto e riscritto uguale; riassunto per le Opzioni', () => {
-  const t = calText({ preset: '16:10', margins: { t: 1, r: 2, b: 3.3, l: 50 } });
-  assert.deepEqual(JSON.parse(t), { v: 1, preset: '16x10', margins: { t: 1, r: 2, b: 3.5, l: 45 } });
-  assert.deepEqual(parseCal(t), { v: 1, preset: '16x10', margins: { t: 1, r: 2, b: 3.5, l: 45 } });
+  const t = calText({ preset: '16:10', margins: { t: 1, r: 2, b: 3.3, l: 95 } });
+  assert.deepEqual(JSON.parse(t), { v: 1, preset: '16x10', margins: { t: 1, r: 2, b: 3.5, l: 90 } });
+  assert.deepEqual(parseCal(t), { v: 1, preset: '16x10', margins: { t: 1, r: 2, b: 3.5, l: 90 } });
   assert.deepEqual(parseCal({ v: 1, preset: 'x' }), { v: 1, preset: 'full', margins: { t: 0, r: 0, b: 0, l: 0 } });
   assert.equal(parseCal(null), null); assert.equal(parseCal('{}'), null);
   assert.equal(screenSummary({ preset: '4x3', margins: { l: 5, b: 2.5 } }), 'Calibrato: formato 4:3 · bordi ↑ 0 · → 0 · ↓ 2,5 · ← 5 %');
@@ -273,7 +302,7 @@ test('calibrazione: frecce, Tab e passi (Maiusc 5%)', () => {
   assert.deepEqual(stepMargins({}, 'l', 1, true), { t: 0, r: 0, b: 0, l: 5 });
   assert.deepEqual(stepMargins({ t: 1, r: 1, b: 1, l: 1 }, 'all', -1), { t: 0.5, r: 0.5, b: 0.5, l: 0.5 });
   assert.deepEqual(stepMargins({ l: 0 }, 'l', -1), { t: 0, r: 0, b: 0, l: 0 }, 'non sotto zero');
-  assert.deepEqual(stepMargins({ l: 44 }, 'l', 1, true), { t: 0, r: 0, b: 0, l: 45 }, 'non oltre il 45%');
+  assert.deepEqual(stepMargins({ l: 88 }, 'l', 1, true), { t: 0, r: 0, b: 0, l: 90 }, 'non oltre il 90% (poi fitMargins con la finestra)');
   assert.deepEqual([...EDGES], ['all', 't', 'r', 'b', 'l']);
   assert.equal(nextEdge('all'), 't'); assert.equal(nextEdge('l'), 'all'); assert.equal(nextEdge('all', true), 'l');
 });

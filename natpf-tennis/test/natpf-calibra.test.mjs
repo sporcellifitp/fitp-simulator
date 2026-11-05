@@ -118,3 +118,26 @@ test('calibra: il chiosco che torna al menu (o un cambio di pagina) la annulla, 
   ui.onboarding.close(); lobby.go('options'); lobby.option('calibra'); assert.ok(cal.isOpen);
   lobby.go('ranking'); assert.ok(!cal.isOpen);
 });
+
+test('calibra: i bordi si fermano all’area minima (480 × 360 px), anche tenendo premuta la freccia; si salva usabile', async () => {
+  const w = await openCal(), { ui } = w, cal = ui.calibra;
+  // Tutti, area più piccola tenendo premuto (ripetizioni) con Maiusc
+  for (let i = 0; i < 30; i++) w.key('ArrowDown', 'ArrowDown', document.body, { shiftKey: true, repeat: i > 0 });
+  let v = viewport();
+  assert.ok(v.w >= 479 && v.h >= 359 && v.w <= 490 && v.h <= 370, `area minima al centro: ${JSON.stringify(v)}`);
+  assert.deepEqual(ui.screen.margins, { t: 25, r: 31, b: 25, l: 31 });
+  // un bordo solo (sinistra verso il centro): si ferma dove l'area è larga 480, la destra non cambia
+  w.key('KeyR', 'r'); for (let i = 0; i < 4; i++) w.key('Tab', 'Tab'); assert.equal(cal.edge, 'l');
+  for (let i = 0; i < 20; i++) w.key('ArrowRight', 'ArrowRight', document.body, shift);
+  assert.equal(ui.screen.margins.l, 62.5); assert.equal(ui.screen.margins.r, 0);
+  assert.deepEqual(viewport(), { x: 800, y: 0, w: 480, h: 720, full: false });
+  // a destra oltre il 45% (angolo dell'uscita del PC): sinistra a 0, destra fino a 62,5
+  w.key('ArrowLeft', 'ArrowLeft', document.body, shift); w.key('Tab', 'Tab', document.body, shift); w.key('Tab', 'Tab', document.body, shift);
+  assert.equal(cal.edge, 'r');
+  for (let i = 0; i < 20; i++) w.key('ArrowLeft', 'ArrowLeft', document.body, shift);
+  assert.equal(ui.screen.margins.r, 62.5 - ui.screen.margins.l);
+  w.key('Enter', 'Enter');
+  v = viewport(); assert.ok(v.w >= 479, JSON.stringify(v));
+  const saved = JSON.parse(localStorage.getItem(CAL_KEY));
+  assert.ok(saved.margins.l + saved.margins.r <= 62.5, JSON.stringify(saved));
+});

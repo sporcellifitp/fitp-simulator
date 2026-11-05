@@ -6,7 +6,9 @@
 //     a requestFullscreen) e dopo Esc nel menu torna ancora indietro di una pagina; F lo chiude e lo riapre;
 //   • calibrazione: bordo sinistro e bordo sotto del 5%, Invio, ricarica: l'area resta (--area-* e viewport()); Esc
 //     annulla e rimette l'area salvata; il formato 1:1 dà un'area quadrata;
-//   • schermate del riquadro di calibrazione a 1920 × 1080 e 1200 × 1200 in $OUT (da guardare);
+//   • area minima: «Tutti» più piccola con Maiusc+↓ tenuto si ferma a 480 × 360 px circa; il pannello compatto sta
+//     nell'area senza scorrere e senza coprire i segni dei bordi; salvata e ricaricata resta usabile;
+//   • schermate del riquadro di calibrazione a 1920 × 1080, 1200 × 1200 e all'area minima in $OUT (da guardare);
 //   • browser in F11 (display-mode: fullscreen finto, come Edge con --start-fullscreen nella LAN): «Premi F11 per uscire»
 //     si vede davvero in campo (F), dalla voce della pausa e nella calibrazione (toast figlio del body, sopra a tutto).
 //   cd tools/e2e && GAME_PORT=3201 CHROMIUM_PATH=/percorso/chrome node natpf-schermo.mjs
@@ -148,6 +150,34 @@ try {
     check('1200 × 1200: nessun errore JavaScript', !errs.length, errs.join(' | ').slice(0, 300));
     await ctx.close();
   }
+  // 3b. Area minima: «Tutti» più piccola tenendo premuto Maiusc+↓ a 1280 × 720. L'area si ferma a 480 × 360 px circa e il
+  //     pannello (compatto) sta tutto nell'area senza scorrere e senza coprire i segni dei bordi
+  {
+    const { p, errs, ctx } = await page(B, `${URL0}?intro=0`, { w: 1280, h: 720 });
+    await ready(p); await p.waitForTimeout(400);
+    await p.evaluate(() => { __natpfTennis.natpfUi.lobby.go('options'); __natpfTennis.natpfUi.lobby.option('calibra'); });
+    await p.waitForTimeout(300);
+    for (let i = 0; i < 20; i++) await p.keyboard.press('Shift+ArrowDown');
+    await p.waitForTimeout(300);
+    const small = await p.evaluate(() => {
+      const a = __natpfTennis.natpfUi.screen.info().area, pn = document.querySelector('.cal-panel'), r = pn.getBoundingClientRect();
+      const inA = b => b.left >= a.x - 1 && b.top >= a.y - 1 && b.right <= a.x + a.w + 1 && b.bottom <= a.y + a.h + 1;
+      const out = [...document.querySelectorAll('#natpf-calibra .cal-panel *, #natpf-calibra .cal-mark')].filter(e => { const b = e.getBoundingClientRect(); return b.width && !inA(b); }).length;
+      const overlap = ['t', 'r', 'b', 'l'].some(k => { const b = document.querySelector(`.cal-mark-${k}`).getBoundingClientRect(); return !(b.right < r.left || b.left > r.right || b.bottom < r.top || b.top > r.bottom); });
+      const save = document.querySelector('[data-cal="save"]').getBoundingClientRect();
+      return { area: [a.x, a.y, a.w, a.h], scroll: pn.scrollHeight - pn.clientHeight, out, overlap, saveVisible: save.height > 0 && inA(save) };
+    });
+    check('area minima: con Maiusc+↓ tenuto l’area si ferma a 480 × 360 px circa, al centro', small.area[2] >= 479 && small.area[3] >= 359 && small.area[2] <= 490 && small.area[3] <= 370, JSON.stringify(small));
+    check('area minima: pannello compatto senza scorrere, tutto nell’area, «Salva» visibile, segni dei bordi scoperti', small.scroll <= 0 && small.out === 0 && !small.overlap && small.saveVisible, JSON.stringify(small));
+    await p.screenshot({ path: `${SP}/schermo-calibra-minima-1280x720.png` });
+    await p.keyboard.press('Enter'); await p.waitForTimeout(300);
+    await p.reload({ waitUntil: 'domcontentloaded' }); await ready(p); await p.waitForTimeout(400);
+    const after = await areaVars(p);
+    check('area minima salvata: dopo la ricarica il menu si disegna in un’area di almeno 480 × 360', after.cls && Number(after.vp.split(' ')[2]) >= 479 && Number(after.vp.split(' ')[3]) >= 359, JSON.stringify(after));
+    check('area minima: nessun errore JavaScript', !errs.length, errs.join(' | ').slice(0, 300));
+    await ctx.close();
+  }
+
   // 4. Browser in F11 (LAN in Edge con --start-fullscreen): display-mode: fullscreen finto. «Premi F11» si vede davvero
   //    (toast con una misura e sopra a tutto nel suo centro) in campo con F, dalla voce della pausa e nella calibrazione
   {
@@ -160,7 +190,10 @@ try {
       const t = document.getElementById('natpf-toast'); t.classList.add('hidden'); window.__toastSeen = null;
       const mo = new MutationObserver(() => {
         if (t.classList.contains('hidden') || window.__toastSeen) return;
+        // il toast non prende i clic (pointer-events: none): per elementFromPoint lo si rende colpibile un istante
+        t.style.pointerEvents = 'auto';
         const r = t.getBoundingClientRect(), top = r.width ? document.elementFromPoint(r.left + r.width/2, r.top + r.height/2) : null;
+        t.style.pointerEvents = '';
         window.__toastSeen = { text: t.textContent, w: Math.round(r.width), h: Math.round(r.height), onTop: !!top && t.contains(top), parent: t.parentElement === document.body };
         mo.disconnect();
       });
@@ -198,6 +231,6 @@ try {
 } finally {
   await B.close();
 }
-console.log(`schermate: ${SP}/schermo-calibra-1920x1080.png, ${SP}/schermo-calibra-1200x1200.png, ${SP}/schermo-opzioni-1280x720.png, ${SP}/schermo-f11-campo.png, ${SP}/schermo-f11-pausa.png`);
+console.log(`schermate: ${SP}/schermo-calibra-1920x1080.png, ${SP}/schermo-calibra-1200x1200.png, ${SP}/schermo-calibra-minima-1280x720.png, ${SP}/schermo-opzioni-1280x720.png, ${SP}/schermo-f11-campo.png, ${SP}/schermo-f11-pausa.png`);
 summary();
 setTimeout(() => process.exit(), 300);

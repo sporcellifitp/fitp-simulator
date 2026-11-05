@@ -5,11 +5,13 @@
 //   • cerchio e griglia al centro: il cerchio deve essere rotondo (se è ovale il processore LED stira l'immagine);
 //   • i numeri veri: finestra, densità dei pixel, monitor, area, formato, bordi;
 //   • formato (tasti 1-6), bordo da spostare (Tab: Tutti / Sopra / Destra / Sotto / Sinistra), frecce (Maiusc: passi da
-//     5%), − / + per il mouse, R azzera, F schermo intero, Invio salva, Esc annulla e rimette com'era.
+//     5%), − / + per il mouse, R azzera, F schermo intero, Invio salva, Esc annulla e rimette com'era;
+//   • un bordo si ferma quando l'area arriverebbe sotto 480 × 360 px (AREA_MIN di natpf_screen.js): non si può salvare
+//     un'area in cui menu e calibrazione non si usano più.
 // L'anteprima è dal vivo (NatpfScreen.preview): l'area cambia mentre si regola e il riquadro, che è un figlio diretto del
 // body, la segue. Non è una pagina del menu: le frecce cambiano i bordi invece di spostare il fuoco (i tasti arrivano qui
 // dalla lobby, natpf_lobby._key, subito dopo la guida).
-import { FORMATS, SCREENS, normalizeMargins, normalizeScreen, NO_MARGINS } from './natpf_screen.js';
+import { FORMATS, SCREENS, normalizeMargins, normalizeScreen, fitMargins, NO_MARGINS } from './natpf_screen.js';
 const $ = id => document.getElementById(id);
 export const EDGES = Object.freeze(['all', 't', 'r', 'b', 'l']);
 export const EDGE_NAMES = Object.freeze({ all: 'Tutti', t: 'Sopra', r: 'Destra', b: 'Sotto', l: 'Sinistra' });
@@ -74,7 +76,9 @@ export class NatpfCalibra {
   open(){
     if (this.isOpen || !this.el) return;
     this.snap = this.screen.snapshot();
-    this.preset = this.snap.preset; this.margins = normalizeMargins(this.snap.margins); this.edge = 'all';
+    // i bordi che valgono in questa finestra (se è più piccola di quando si è calibrato, ridotti)
+    const { w, h } = this.screen.info().win;
+    this.preset = this.snap.preset; this.margins = fitMargins(this.snap.margins, w, h); this.edge = 'all';
     this.isOpen = true;
     this.el.classList.remove('hidden');
     this._off = this.screen.onApply(() => this.paint());
@@ -107,7 +111,11 @@ export class NatpfCalibra {
   setFormat(id){ this.preset = normalizeScreen(id); this._preview(); }
   selectEdge(edge){ if (EDGES.includes(edge)){ this.edge = edge; this.paint(); } }
   // − / + e frecce: -1 verso il bordo dello schermo, +1 verso il centro
-  step(dir, big = false){ this.margins = stepMargins(this.margins, this.edge, dir, big); this._preview(); }
+  step(dir, big = false){
+    const { w, h } = this.screen.info().win;
+    this.margins = fitMargins(stepMargins(this.margins, this.edge, dir, big), w, h, this.margins);
+    this._preview();
+  }
   _preview(){ this.screen.preview({ preset: this.preset, margins: this.margins }); this.paint(); }
   // tasti (dalla lobby, prima di ogni altro gestore del menu): true se il tasto è della calibrazione
   key(e){
