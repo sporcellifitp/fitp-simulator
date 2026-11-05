@@ -66,6 +66,13 @@ Perché makensis a parte: il target `nsis` di electron-builder da Linux chiede w
 qui la disinstallazione la scrive l'installazione stessa (`WriteUninstaller`), con lo stesso makensis che
 electron-builder scarica nella sua cache. Icona e versione dell'eseguibile con `resedit` (rcedit chiederebbe wine).
 
+## Scaricarli da GitHub (un unico zip)
+
+Il workflow `.github/workflows/natpf-windows.yml` costruisce installabile e portatile su GitHub quando cambia la
+versione del gioco (`site/js/tennis/version.js`), il programma Windows o il workflow (o a mano: «Run workflow»), e li
+pubblica come un unico file: Actions → «NATPF eseguibili Windows» → esecuzione → Artifacts
+(`NATPF-Simulator-Windows-<versione>`, con i due `.exe`, `SHA256SUMS.txt` e `COLLAUDO_WINDOWS.md`; resta 30 giorni).
+
 ## Consegnare gli eseguibili (a pezzi)
 
 Gli `.exe` interi (~125 MB) non si scaricano dai messaggi (05/11/2026); gli zip da ~60 MB sì. Dopo la costruzione:

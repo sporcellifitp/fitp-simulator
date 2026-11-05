@@ -25,7 +25,11 @@ Codice: `natpf-desktop/` (Electron 45.2.2), procedura di costruzione in `natpf-d
 
 ## 1. Scaricare e aprire (tutti e due)
 
-Gli eseguibili arrivano **a pezzi** (`.001`, `.002`, `.003`, al massimo 45 MB ciascuno) con `UNISCI I PEZZI.cmd`: metti
+Da **GitHub** (un unico zip): Actions → «NATPF eseguibili Windows» → ultima esecuzione → Artifacts →
+`NATPF-Simulator-Windows-<versione>`; dentro i due `.exe`, i loro sha256 (`SHA256SUMS.txt`) e questa lista. Sono
+costruiti da GitHub con lo stesso codice: gli sha256 sono quelli di `SHA256SUMS.txt`, non quelli del §0.
+
+Oppure dai messaggi, **a pezzi** (`.001`, `.002`, `.003`, al massimo 45 MB ciascuno) con `UNISCI I PEZZI.cmd`: metti
 tutti i pezzi e quel file nella stessa cartella e fai doppio clic. Deve scrivere «… pronto e verificato» per ciascun
 eseguibile (sha256 controllato); poi i pezzi si possono cancellare.
 - [ ] `UNISCI I PEZZI.cmd` crea i due `.exe` e li dice verificati (se Windows avvisa anche per il `.cmd`: Ulteriori

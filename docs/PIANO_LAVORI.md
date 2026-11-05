@@ -396,6 +396,10 @@ installato in `/opt/pw-browsers`.
    `natpf-desktop/LEGGIMI.md`. **Consegna a pezzi** (dal 05/11: l'utente non riusciva a scaricare gli `.exe` da
    ~125 MB dal messaggio; gli zip da ~60 MB sì): `node scripts/dividi.mjs` → `dist/consegna/` con pezzi da 45 MB
    (`.001`, `.002`, …) e `UNISCI I PEZZI.cmd` (copy /b e controllo dello sha256 con certutil); si mandano quelli.
+   **In più, su GitHub** (richiesta del 05/11: «un unico file che scaricherò da lì»): il workflow
+   `.github/workflows/natpf-windows.yml` costruisce gli stessi eseguibili a ogni cambio di versione (o del programma
+   Windows) e li pubblica come un unico zip in Actions → «NATPF eseguibili Windows» → esecuzione → Artifacts (30
+   giorni): si dà all'utente il link dell'esecuzione. Gli sha256 di quella build sono in `SHA256SUMS.txt` nello zip.
 
 **Rollback della presa** (dopo B3): cambiare la costante del profilo di presa da `palmo` a `martello` (modulo
 indicato in `PROJECT_MEMORY.md` §Gesti), `npm test`, pacchetti. In alternativa `git revert` dei commit di B3 elencati
