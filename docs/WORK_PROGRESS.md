@@ -264,3 +264,11 @@ Criterio di fine: script `natpf-*` verdi, CI che prova gioco, build e sito sul b
   (pezzi da 45 MB + `UNISCI I PEZZI.cmd` con `copy /b` e controllo `certutil -hashfile … SHA256`), test in
   `natpf-desktop/test` (14/14). Pezzi degli eseguibili 2026-11-05.1 riuniti su Linux: sha256 uguali agli originali
   (`fe3de548…bd18a3e`, `c60008c9…7d90478e`); consegnati 6 pezzi e il `.cmd`. Non verificato: il `.cmd` su Windows.
+- [x] B8.9 (05/11) · «non puoi caricarli come zip su github? in un unico file»: le release non si possono caricare da
+  qui e git rifiuta file oltre 100 MB, quindi `.github/workflows/natpf-windows.yml` costruisce gli eseguibili su
+  GitHub (stesso codice: prepara 42,3 MB come in locale, Setup 124.545.926 B, Portatile 124.494.733 B) e li pubblica
+  come artefatto unico `NATPF-Simulator-Windows-2026-11-05.1` (249.056.305 B, con `SHA256SUMS.txt` e
+  `COLLAUDO_WINDOWS.md`; scade il 05/12/2026). Prima esecuzione 42000334461 riuscita in 8 minuti. sha256 della build
+  di GitHub: Setup `0963271dddc3a3033c3648eea19fc1d3a70eae78c13f9aec4e19ff9679610070`, Portatile
+  `69969ea8612405ba6967913a7a3ad303eaeb3d13a4fc6f7199bec77fff9ca263` (diversi da quelli costruiti qui: stesse
+  sorgenti, build non identica byte per byte). Non verificato: download e avvio su Windows.

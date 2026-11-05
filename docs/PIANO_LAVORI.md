@@ -56,6 +56,9 @@ Come si aggiorna:
   `docs/COLLAUDO_WINDOWS.md` §0 e in `docs/WORK_PROGRESS.md` B8.
 - 05/11: gli `.exe` interi non si scaricavano dal messaggio: riconsegnati a pezzi da 45 MB con `UNISCI I PEZZI.cmd`
   (`natpf-desktop/scripts/dividi.mjs`, pezzi riuniti provati: stesso sha256).
+- 05/11: eseguibili anche su **GitHub** in un unico zip (workflow `natpf-windows.yml`, prima esecuzione riuscita):
+  https://github.com/sergio4/foro-italico-world/actions/runs/42000334461/artifacts/13403121459 (fino al 05/12/2026;
+  sha256 della build di GitHub in `SHA256SUMS.txt`: Setup `0963271d…79610070`, Portatile `69969ea8…7fff9ca263`).
 - **Blocco in corso:** nessuno.
 - **Prossima azione esatta:** aspettare il collaudo dell'utente su Windows, Edge e ledwall (`docs/COLLAUDO_WINDOWS.md`,
   punti B7 e B8: §1–§6, §4b calibrazione, §5b zip LAN e browser) e correggere quello che segnala (registro
