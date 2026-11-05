@@ -13,7 +13,7 @@ const conj = q => [-q[0], -q[1], -q[2], q[3]];
 // creava triangoli ripiegati, visibili come graffi scuri nella parte trasparente: provato e tolto.)
 export const FADE = Object.freeze({ from: .060, to: .150 });
 
-export function buildArmMesh(bind, { h = .0019 } = {}){
+export function buildArmMesh(bind, { h = .0026 } = {}){
   const t0 = Date.now(), A = bind.arm, P = bind.pos, Q = bind.q;
   const toWorld = p => add(qrot(Q, p), P), dirToWorld = v => qrot(Q, v);
   const model = armSdf(HD, { toWorld, dirToWorld, S: A.S, E: A.E, W: A.W, upperArm: false });
@@ -37,7 +37,7 @@ export function buildArmMesh(bind, { h = .0019 } = {}){
   const S = A.S, E = A.E, W = A.W, U = A.U, F = A.F, L2 = ARM.L2;
   const toS = mul(U, -1);
   // colori lineari (la pelle si scurisce nelle pieghe con una tinta calda: finto scattering sotto la superficie)
-  const SKIN = [.50, .26, .165], SKIN_PALM = [.60, .33, .23], NAIL = [.72, .50, .44];
+  const SKIN = [.50, .26, .165], SKIN_PALM = [.60, .33, .23], NAIL = [.62, .36, .29];
   for (let i = 0, v = 0; v < n; i += 3, v++){
     const p = [m.pos[i], m.pos[i + 1], m.pos[i + 2]], nv = [nrm[i], nrm[i + 1], nrm[i + 2]];
     const g = field(p[0], p[1], p[2], true).g;

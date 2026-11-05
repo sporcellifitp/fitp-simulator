@@ -111,8 +111,11 @@ fadeMat.onBeforeCompile = sh => {
   sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float fade;\nvarying float vFade;')
     .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFade = fade;');
   sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vFade;')
-    .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vFade*vFade;');
+    .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vFade*vFade;\nif (!gl_FrontFacing) diffuseColor.rgb *= .6;');
 };
+// anche le facce interne: guardando l'avambraccio di punta si vede la parete interna (più scura), non lo sfondo
+// attraverso un «tubo» vuoto
+fadeMat.side = THREE.DoubleSide;
 fadeMat.customProgramCacheKey = () => 'p3d-fade';
 if (qs.has('debugFade')){ fadeMat.onBeforeCompile = withSSS; fadeMat.transparent = false; fadeMat.depthWrite = true; fadeMat.vertexColors = false; fadeMat.color.set(0xff2020); fadeMat.side = THREE.DoubleSide; }
 let skinStats = null;
@@ -133,7 +136,7 @@ function makeSkin(r){
     const m = new THREE.SkinnedMesh(g, mat); m.frustumCulled = false; m.bind(skeleton); rig.add(m); return m;
   };
   const o = mk(opaque, skinMat); o.castShadow = true; o.receiveShadow = true;
-  const f = mk(faded, fadeMat); f.renderOrder = 2; f.receiveShadow = false;
+  const f = mk(faded, fadeMat); f.renderOrder = 2; f.receiveShadow = true;
   skinStats = r.stats;
 }
 
@@ -280,11 +283,12 @@ function placeCamera(t){
     const a = Math.atan2(v.dir[0], v.dir[2]) + drift, hz = Math.hypot(v.dir[0], v.dir[2]);
     dir = [Math.sin(a)*hz, v.dir[1], Math.cos(a)*hz];
     if (v.follow){
-      let m = [0, 0, 0]; const K = 12, Tc = cycleOf(state.id), tt = state.tFixed != null ? state.tFixed : (t*state.slow) % Tc;
-      for (let k = -K; k <= K; k++){ const w = Math.cos(k/K*Math.PI/2)**2; const P = gesturePose(state.id, Math.min(Tc, Math.max(0, tt + k*.045))); m = V(m, V(P.pos, qrot(P.q, TIP), .5), w/K*1.0); }
-      let ws = 0; for (let k = -K; k <= K; k++) ws += Math.cos(k/K*Math.PI/2)**2/K; c = m.map(x => x/ws);
+      // media mobile pesata (finestra ±0,24 s): la camera anticipa e insegue la mano senza scatti
+      let m = [0, 0, 0], ws = 0; const K = 8, Tc = cycleOf(state.id), tt = state.tFixed != null ? state.tFixed : (t*state.slow) % Tc;
+      for (let k = -K; k <= K; k++){ const w = Math.cos(k/(K + 1)*Math.PI/2)**2; const P = gesturePose(state.id, Math.min(Tc, Math.max(0, tt + k*.03))); m = V(m, V(P.pos, qrot(P.q, TIP), .5), w); ws += w; }
+      c = m.map(x => x/ws);
       dist = v.follow/Math.tan(fov*Math.PI/360*.86)/Math.min(1, aspect);
-      c = V(c, [0, -.04, 0]);
+      c = V(c, [0, -.06, 0]);
     } else {
     const key = state.id + '|' + viewName + '|' + aspect.toFixed(3) + '|' + (qs.get('dir') || '');
     if (!fits.has(key)) fits.set(key, fitView(gesturePoints(state.id), [v.dir[0], v.dir[1], v.dir[2]], fov, aspect));
@@ -398,6 +402,7 @@ function resize(){
 }
 window.addEventListener('resize', resize);
 let t0 = performance.now(), ready = false;
+const MEASURE = Number(qs.get('misura')) || 0;
 const phaseEl = document.getElementById('phase');
 const perf = { frames: 0, cpu: 0, gpu: 0 };
 function frame(now){
@@ -408,12 +413,15 @@ function frame(now){
   const P = applyPose(t);
   const b = performance.now();
   renderer.render(scene, camera);
-  if (state.tFixed != null || qs.has('misura')){ renderer.getContext().finish(); }
+  if (state.tFixed != null || MEASURE){ renderer.getContext().finish(); }
   const c = performance.now();
   perf.frames++; perf.cpu += b - a; perf.gpu += c - b;
   const ph = PHASES[P.phase] || '';
   phaseEl.textContent = planFor(state.id).still ? '' : ph; phaseEl.classList.toggle('hit', P.phase === 'impatto');
   drawTimeline(t);
+  if (MEASURE && perf.frames === 6){ perf.frames = 0; perf.cpu = 0; perf.gpu = 0; }        // esclude la compilazione degli shader
+  if (MEASURE && perf.frames >= MEASURE){ window.__p3d = { ready: true, perf: { posaMs: perf.cpu/perf.frames, renderMs: perf.gpu/perf.frames, frames: perf.frames }, skin: skinStats, info: renderer.info.render, size: [canvas.width, canvas.height] }; return; }
+  if (MEASURE){ state.tFixed = ((state.tFixed ?? 0) + 1/60) % T; requestAnimationFrame(frame); return; }
   if (state.tFixed == null || perf.frames < 3) requestAnimationFrame(frame);
   else window.__p3d = { ready: true, perf: { posaMs: perf.cpu/perf.frames, renderMs: perf.gpu/perf.frames, frames: perf.frames }, skin: skinStats, arm: lastPose && { flexion: lastPose.arm.flexion, wristDev: lastPose.arm.wristDev, twist: lastPose.twist, shift: lastPose.arm.shift }, info: renderer.info.render };
 }
@@ -426,4 +434,4 @@ worker.onmessage = e => {
   ready = true; t0 = performance.now(); requestAnimationFrame(frame);
 };
 worker.onerror = e => { document.getElementById('loading').textContent = 'Errore nella costruzione della mano: ' + (e.message || e); };
-worker.postMessage({ h: Number(qs.get('h')) || .0019 });
+worker.postMessage({ h: Number(qs.get('h')) || .0026 });
