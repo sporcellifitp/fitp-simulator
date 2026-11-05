@@ -226,6 +226,9 @@ function onData(c, d){
       if (d.k === 'contact'){ buzz(vib || (d.label === 'perfetto' ? [40] : [20])); flash('hit', ({ drop: 'Palla corta!', lob: 'Lob!', slice: 'Tagliato!', smash: 'Smash!' }[d.shot]) || ({ perfetto: 'Perfetto!', buono: 'Bel colpo', anticipo: 'In anticipo', ritardo: 'In ritardo' }[d.label] || 'Colpo!'), ''); }
       if (d.k === 'miss') { buzz(vib || [90]); flash('miss', { presto: 'Troppo presto', tardi: 'Troppo tardi', nessuno: 'Nessun colpo', portata: 'Troppo lontana' }[d.why] || 'Mancata', d.why === 'nessuno' ? 'Il movimento non è arrivato: riprova con un colpetto comodo.' : ''); }
       if (d.k === 'point') flash(d.mine ? 'hit' : 'miss', d.mine ? 'Punto tuo' : 'Punto avversario', d.txt || '', 1300);
+      // stesso schermo (B9, natpf_split_ui._announce): conto alla rovescia del computer prima della partita (n = 3, 2, 1;
+      // 0 = si gioca) o conto fermato (stop, con il motivo). Solo un avviso sopra la schermata, che poi torna da sola
+      if (d.k === 'count'){ if (d.stop) flash('miss', 'Aspetta', String(d.txt || 'Guarda il computer.').slice(0, 140), 2400); else { buzz([d.n > 0 ? 25 : 70]); flash('ready', d.n > 0 ? 'Si gioca tra' : 'Si gioca!', d.n > 0 ? 'Tieni il telefono come in partita.' : '', d.n > 0 ? 1150 : 1000, d.n > 0 ? String(Math.round(d.n)) : ''); } }
       break;
     }
     case 'bye': ss.del('resume'); ss.del('pair'); pair = null; closeFast(); linkState = 'denied'; paint(); ui('Scollegato', 'Il computer ha scollegato il telefono. Per giocare di nuovo inquadra il nuovo QR.'); try { c.close(); } catch (e){} break;

@@ -30,6 +30,7 @@ import { warmupDrills } from './natpf_training.js';
 import { hostLobbyStatus, roomCode, joinUrl } from './natpf_versus.js';
 import { p2pRequested } from './natpf_p2p.js';
 import { screenSummary } from './natpf_screen.js';
+import { waitingText } from './natpf_ready.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -64,9 +65,12 @@ export function stepReady(step, { controller, phoneLinked, webcamActive, mode = 
   if (step === 'connect') return controller === 'phone' ? !!phoneLinked : controller === 'webcam' ? !!webcamActive : true;
   return true;
 }
-// Si entra in campo da soli quando il controller è pronto (telefono con i sensori attivi, webcam che vede la mano)
+// Si entra in campo da soli quando il controller è pronto (telefono con i sensori attivi, webcam che vede la mano).
+// Stesso schermo: niente salto (B9, 05/11). Prima, con i due telefoni pronti, la lobby passava muta a «Partita» dopo
+// 0,7 s, dove serviva comunque «Gioca»; ora nella pagina «Collega» parte il conto alla rovescia e poi si gioca
+// (natpf_split_ui._tickStart)
 export function autoAdvance(step, { controller, phoneLinked, handSeen, mode = null, splitReady = false }){
-  if (mode === 'split') return step === 'connect' && !!splitReady;
+  if (mode === 'split') return false;
   return step === 'connect' && (controller === 'phone' ? !!phoneLinked : controller === 'webcam' ? !!handSeen : false);
 }
 // Ogni visitatore riparte dal menu principale (dopo l'intro)
@@ -292,8 +296,10 @@ export class NatpfLobby {
     this._paintServe();
   }
   _paintServe(){
-    const names = { player: this.mode === 'split' ? 'Player 1' : this.format === 'doubles' ? 'Voi' : 'Tu',
-      opponent: this.mode === 'split' ? 'Player 2' : this.mode === 'friend' ? 'Amico' : 'CPU', random: 'Sorteggio' };
+    // stesso schermo: i nomi scritti nella pagina «Collega» (prima restavano Player 1 / Player 2)
+    const split = this.engine.natpfSplitNames || {};
+    const names = { player: this.mode === 'split' ? split.p1 || 'Player 1' : this.format === 'doubles' ? 'Voi' : 'Tu',
+      opponent: this.mode === 'split' ? split.p2 || 'Player 2' : this.mode === 'friend' ? 'Amico' : 'CPU', random: 'Sorteggio' };
     for (const b of this.el.querySelectorAll('[data-natpf-serve]')){
       const on = b.dataset.natpfServe === this.serve;
       b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); b.setAttribute('role', 'radio');
@@ -369,7 +375,8 @@ export class NatpfLobby {
     const next = $('lobby-next');
     next.disabled = !stepReady(this.step, st);
     const split = this.mode === 'split';
-    next.textContent = this.step === 'connect' ? (split ? 'Alla partita ›' : this.mode === 'training' ? 'Al campo d’allenamento ›' : 'In campo ›') : 'Avanti ›';
+    // stesso schermo: dalla pagina «Collega» si gioca da soli (conto alla rovescia); il pulsante porta alle impostazioni
+    next.textContent = this.step === 'connect' ? (split ? 'Impostazioni partita ›' : this.mode === 'training' ? 'Al campo d’allenamento ›' : 'In campo ›') : 'Avanti ›';
     // collega: pannello del controller scelto (stesso schermo: i due telefoni)
     for (const p of this.el.querySelectorAll('[data-setup]')) show(p, p.dataset.setup === (split ? 'split' : st.controller));
     const other = $('connect-other');
@@ -381,8 +388,15 @@ export class NatpfLobby {
     if (this.step === 'options') this._paintOptions();
     this.ui.paintWebcamSetup?.();
     this._paintInvite();
+    // stesso schermo, pagina «Partita»: le schede dei due giocatori dal vivo e «Gioca» grigio e spento finché non sono
+    // pronti tutti e due (prima giallo e attivo anche con un telefono caduto: rimandava a «Racchette» solo al clic)
+    const gate = split && match ? this.ui.split?.paintMatch?.() : null;
+    const sb = $('btn-start-match');
+    if (sb && split){ const wait = match && !st.splitReady; if (sb.disabled !== wait) sb.disabled = wait; sb.classList.toggle('is-wait', wait); }
+    else if (sb && this.mode !== 'friend' && sb.classList.contains('is-wait')){ sb.classList.remove('is-wait'); sb.disabled = false; }
     const note = $('lobby-match-note');
-    if (note) note.textContent = split ? (st.splitReady ? 'Player 1 a sinistra, Player 2 a destra. Ognuno guarda la sua metà.' : this.ui.split?.webcam ? 'La webcam non vede ancora tutti e due: torna a «Racchette».' : 'Un telefono non è pronto: torna a «Racchette».') : st.controller === 'phone' && !st.phoneReady ? 'Il telefono va ricollegato: premendo «Gioca» compare il QR.' : '';
+    const names = this.engine.natpfSplitNames || {}, n1 = names.p1 || 'Player 1', n2 = names.p2 || 'Player 2';
+    if (note) note.textContent = split ? (st.splitReady ? `${n1} a sinistra, ${n2} a destra. Ognuno guarda la sua metà.` : `${gate?.waiting?.length ? waitingText(gate.waiting) + ': ' : ''}${this.ui.split?.webcam ? 'la webcam deve vedere tutti e due' : 'servono i due telefoni pronti'}, torna a «Racchette».`) : st.controller === 'phone' && !st.phoneReady ? 'Il telefono va ricollegato: premendo «Gioca» compare il QR.' : '';
     // telefono con i sensori attivi o mano vista dalla webcam: si entra in campo da soli, ma non con la guida aperta (prima
     // il riscaldamento partiva sotto la guida e il suo «Prova» lo faceva ripartire come allenamento)
     if (this.visible && autoAdvance(this.step, st) && this.autoFrom !== this.step && !this.onboarding.isOpen){
@@ -425,9 +439,15 @@ export class NatpfLobby {
     if (this.step === 'mode') return this.go('controller');
     if (this.step === 'controller') return this.go('connect');
     if (this.step === 'connect') return this.go(this.mode === 'split' ? 'match' : 'warmup');
+    // stesso schermo con un giocatore non pronto: «Gioca» è spento; Invio riporta alle schede dei telefoni
+    if (this.step === 'match' && this.mode === 'split' && !this.state().splitReady){ this.ui.toast?.(this.ui.split?.webcam ? 'La webcam deve vedere le mani di tutti e due: torna a «Racchette»' : 'Servono i due telefoni pronti: torna a «Racchette»'); this.go('connect'); return; }
     if (this.step === 'match') $('btn-start-match').click();
   }
-  back(){ const p = previousStep(this.step, this.mode); if (p) this.go(p); }
+  // Esc durante il conto alla rovescia dello stesso schermo: lo ferma («Aspetta»), non cambia pagina
+  back(){
+    if (this.mode === 'split' && this.step === 'connect' && this.ui.split?.countdownRunning){ this.ui.split.holdCountdown(); return; }
+    const p = previousStep(this.step, this.mode); if (p) this.go(p);
+  }
   _tiles(){
     const page = `[data-page="${this.step}"]`;
     return [...this.el.querySelectorAll(`${page} .lobby-tile, ${page} .menu-item, ${page} .seg-btn, ${page} [data-result]`)].filter(t => !t.classList.contains('hidden') && t.offsetParent !== null);

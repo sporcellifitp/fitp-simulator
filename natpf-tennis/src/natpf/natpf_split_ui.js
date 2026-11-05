@@ -6,15 +6,22 @@
 //     → si ripete, alla terza si gioca con il profilo semplice. «Gioca senza calibrare» lo fa subito;
 //   • la mano di ciascuno (P1: quella del gioco, NatpfHand; P2: la sua, salvata a parte);
 //   • in partita: sotto ogni metà nome ed esito dell'ultimo colpo; telefono del P2 che cade → pausa e ripresa con il
-//     conto alla rovescia, come per il P1 (natpf_phone_watch.js).
+//     conto alla rovescia, come per il P1 (natpf_phone_watch.js);
+//   • «pronto» di ciascuno (B9, 05/11; natpf_ready.js): ogni metà è la scheda del giocatore, con il suo nome e uno di
+//     quattro stati (in attesa · si prepara · pronto · problema) con colore, icona e parola; sotto, la barra dell'avvio
+//     dice chi manca. Quando tutti e due sono pronti e hanno chiuso il tutorial parte un conto alla rovescia di 3 s
+//     (grande sul computer e annunciato sui telefoni, messaggio «ev count»), poi si gioca da soli, senza toccare il
+//     computer. Un telefono che cade (o il tutorial riaperto) annulla il conto e la barra dice perché; «Aspetta» o Esc
+//     lo fermano. Prima la lobby saltava muta a «Partita» dopo 0,7 s, dove serviva comunque «Gioca».
 import { NatpfPhoneRacket } from './natpf_phone_racket.js';
 import { calPrompt } from './natpf_cal_view.js';
 import { createPhoneWatch, createResync, phoneHealthOf, holdText } from './natpf_phone_watch.js';
 import { splitVisible } from './natpf_split.js';
 import { webcamOpenError } from './natpf_webcam_watch.js';
 
-import { NatpfTutorial } from './natpf_tutorial.js';
+import { NatpfTutorial, TUTORIAL_CARDS } from './natpf_tutorial.js';
 import { getGestureDemo } from './natpf_gesture_demo.js';
+import { slotView, splitSlot, startGate, waitingText, bothNames, cancelText, createCountdown, paintSlot, paintBoard, defaultName, READY_COUNTDOWN_MS } from './natpf_ready.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const SPLIT_PLAYERS = Object.freeze(['p1', 'p2']);
@@ -23,27 +30,40 @@ export const SPLIT_CAL_TRIES = 3;
 // con che cosa si gioca sullo stesso schermo: due telefoni o una webcam per due (webcam_duo.js; richiesta del 29/10 notte)
 export const SPLIT_INPUT_KEY = 'natpf-tennis.splitInput';
 export const splitInputOf = v => (v === 'webcam' ? 'webcam' : 'phones');
+// conto alla rovescia prima della partita (natpf_ready.READY_COUNTDOWN_MS) e quanto resta in vista il motivo di un conto
+// annullato
+export const SPLIT_COUNTDOWN_MS = READY_COUNTDOWN_MS;
+export const SPLIT_CANCEL_SHOW_MS = 8000;
 
 // Stato di un giocatore con la webcam per due (funzione pura): webcam spenta, mano cercata, mano vista
+// (detail: la parte breve, per il distintivo della scheda, natpf_ready.splitSlot)
 export function splitCamStatus({ active = false, seen = false, error = null } = {}){
-  if (!active) return error ? { state: 'ko', title: error.badge, sub: error.text } : { state: 'wait', title: 'Webcam spenta', sub: 'Accendi la webcam qui sopra' };
-  return seen ? { state: 'ok', title: 'Mano vista ✓', sub: 'Pronto: un colpo veloce e dritto è un colpo' } : { state: 'on', title: 'Alza la mano che colpisce', sub: 'Dalla tua parte dell’inquadratura, con il polso visibile' };
+  if (!active) return error ? { state: 'ko', title: error.badge, sub: error.text, detail: error.badge } : { state: 'wait', title: 'Webcam spenta', sub: 'Accendi la webcam qui sopra', detail: 'Webcam spenta' };
+  return seen ? { state: 'ok', title: 'Mano vista ✓', sub: 'Pronto: un colpo veloce e dritto è un colpo', detail: 'Mano vista' } : { state: 'on', title: 'Alza la mano che colpisce', sub: 'Dalla tua parte dell’inquadratura, con il polso visibile', detail: 'Alza la mano' };
 }
 // posizione della linea del confine nel riquadro della camera (specchiato come lo schermo): CSS left; metà se manca
 export const splitCamLine = split => `${(100*(Number.isFinite(split) ? Math.max(0, Math.min(1, split)) : .5)).toFixed(1)}%`;
 const PHONE_ERR = { denied: 'Sensori negati sul telefono: ricarica la pagina e consenti', nomotion: 'Il browser del telefono non manda i sensori: usa Chrome (Android) o Safari (iPhone)', insecure: 'Pagina senza https: i sensori non funzionano' };
 
-// Stato di un giocatore nella pagina «Collega» (funzione pura): state 'wait' | 'qr' | 'on' | 'go' | 'ok' | 'ko'
-export function splitPlayerStatus(p, hand = 'right'){
+// Stato di un giocatore nella pagina «Collega» (funzione pura): state 'wait' | 'qr' | 'on' | 'go' | 'tut' | 'ok' | 'ko';
+// detail: la parte breve, per il distintivo della scheda (natpf_ready.splitSlot); lost: telefono che c'era e si è perso.
+// tut: tutorial aperto nella metà di questo giocatore ({ i, n }: scheda mostrata e schede). Prima, con il tutorial
+// aperto, la metà diceva «Tocca «Attiva i sensori»» anche con i sensori già attivi (analisi B9 D, §2.2)
+export function splitPlayerStatus(p, hand = 'right', { tut = null } = {}){
   const L = p?.state || { state: 'off' };
-  if (!p?.link || L.state === 'off' || L.state === 'starting') return { state: 'wait', title: 'Preparo il QR…', sub: '' };
-  if (L.state === 'error') return { state: 'ko', title: 'Collegamento non disponibile', sub: `Controlla la rete e riprova (${L.error || 'errore'})` };
-  if (!p.connected) return { state: 'qr', title: 'Inquadra il QR', sub: L.state === 'lost' ? 'Telefono scollegato: riapri la pagina sul telefono' : 'Con la fotocamera del telefono, poi tocca il link' };
-  if (PHONE_ERR[L.phone]) return { state: 'ko', title: 'Sensori non disponibili', sub: PHONE_ERR[L.phone] };
-  if (p.ready) return { state: 'ok', title: 'Pronto ✓', sub: p.simple ? 'Senza calibrazione: si gioca lo stesso' : 'Racchetta calibrata' };
-  if (L.phone !== 'cal') return { state: 'on', title: 'Tocca «Attiva i sensori»', sub: 'Sul telefono; su iPhone poi «Consenti»' };
+  if (!p?.link || L.state === 'off' || L.state === 'starting') return { state: 'wait', title: 'Preparo il QR…', sub: '', detail: 'Preparo il QR' };
+  if (L.state === 'error') return { state: 'ko', title: 'Collegamento non disponibile', sub: `Controlla la rete e riprova (${L.error || 'errore'})`, detail: 'Collegamento non disponibile' };
+  if (!p.connected) return L.state === 'lost' ? { state: 'qr', lost: true, title: 'Inquadra il QR', sub: 'Telefono scollegato: riapri la pagina sul telefono', detail: 'Telefono scollegato' }
+    : { state: 'qr', title: 'Inquadra il QR', sub: 'Con la fotocamera del telefono, poi tocca il link', detail: 'Inquadra il QR' };
+  if (PHONE_ERR[L.phone]) return { state: 'ko', title: 'Sensori non disponibili', sub: PHONE_ERR[L.phone], detail: 'Sensori non disponibili' };
+  if (tut){
+    const n = Math.max(1, tut.n || 1), i = Math.min(n, Math.max(1, tut.i || 1));
+    return { state: 'tut', title: 'Guarda il tutorial', sub: `Scheda ${i} di ${n}. Poi sul telefono «Tutto chiaro, ho capito».`, detail: `Tutorial ${i}/${n}` };
+  }
+  if (p.ready) return { state: 'ok', title: 'Pronto ✓', sub: p.simple ? 'Senza calibrazione: si gioca lo stesso' : 'Racchetta calibrata', detail: p.simple ? 'Senza calibrazione' : 'Calibrato' };
+  if (L.phone !== 'cal') return { state: 'on', title: 'Tocca «Attiva i sensori»', sub: 'Sul telefono; su iPhone poi «Consenti»', detail: 'Attiva i sensori' };
   const c = calPrompt(p.calView, hand);
-  return { state: c.state === 'go' ? 'go' : 'on', title: c.title, sub: c.sub };
+  return { state: c.state === 'go' ? 'go' : 'on', title: c.title, sub: c.sub, detail: 'Calibrazione' };
 }
 
 // Esito di un colpo o di un punto per l'etichetta di una metà (null: niente da dire)
@@ -69,14 +89,27 @@ export class NatpfSplitUi {
     for (const id of SPLIT_PLAYERS) this.tut[id] = typeof document !== 'undefined' ? new NatpfTutorial($(`split-tut-${id}`), { half: true, demo: () => getGestureDemo(), canDemo: () => this.demoOwner === id }) : null;
     let saved = 'phones'; try { saved = localStorage.getItem(SPLIT_INPUT_KEY) || 'phones'; } catch {}
     this.input = splitInputOf(saved);
+    // conto alla rovescia prima della partita: left (secondi), running, held («Aspetta»), why (motivo dell'annullamento)
+    this.countdown = createCountdown({ ms: SPLIT_COUNTDOWN_MS });
+    this.cd = { left: 0, running: false, held: false, why: null, whyUntil: 0 };
     const box = document.querySelector('[data-setup="split"]');
     engine.natpfSplitNames = { p1: 'Player 1', p2: 'Player 2' };
     box?.addEventListener('input', e => {
       const id = e.target.dataset.splitName; if (!['p1', 'p2'].includes(id)) return;
       engine.natpfSplitNames[id] = e.target.value.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 24) || (id === 'p1' ? 'Player 1' : 'Player 2');
       for (const el of document.querySelectorAll(`[data-split-tag="${id}"] b`)) el.textContent = engine.natpfSplitNames[id];
+      this.paint();
     });
+    // conto alla rovescia: «Aspetta» (nella barra e nel riquadro grande) e «Gioca» (dopo «Aspetta»)
+    const startActions = e => {
+      if (e.target.closest('[data-split-hold]')){ e.stopPropagation(); this.holdCountdown(); return true; }
+      if (e.target.closest('[data-split-play]')){ e.stopPropagation(); this.playNow(); return true; }
+      return false;
+    };
+    $('split-countdown')?.addEventListener('click', startActions);
+    $('split-countdown')?.addEventListener('pointerdown', e => e.stopPropagation());
     box?.addEventListener('click', e => {
+      if (startActions(e)) return;
       const inp = e.target.closest('[data-split-input]'); if (inp){ e.stopPropagation(); this.setInput(inp.dataset.splitInput); return; }
       if (e.target.closest('#split-cam-go')){ e.stopPropagation(); this._camOn(); return; }
       const h = e.target.closest('[data-split-hand]'); if (h){ e.stopPropagation(); const [id, hand] = h.dataset.splitHand.split(':'); this.setHand(id, hand); return; }
@@ -93,13 +126,15 @@ export class NatpfSplitUi {
     const p2 = E.natpfPhone2;
     if (this.bound !== p2){
       this.bound = p2;
-      p2.onChange(() => { this._resetIfNew('p2'); if (this.ui.lobby?.visible && this.ui.lobby.step === 'connect') this.ui.lobby.paint(); });
+      p2.onChange(() => { this._resetIfNew('p2'); this._repaint(); });
       p2.onCal(e => this._onCal('p2', e));
       p2.onTutorial?.(() => this._tutDone('p2'));
     }
-    if (!this.p1Bound){ this.p1Bound = true; this.ui.phone.onCal?.(e => this._onCal('p1', e)); this.ui.phone.onChange(() => this._resetIfNew('p1')); this.ui.phone.onTutorial?.(() => this._tutDone('p1')); }
+    if (!this.p1Bound){ this.p1Bound = true; this.ui.phone.onCal?.(e => this._onCal('p1', e)); this.ui.phone.onChange(() => { this._resetIfNew('p1'); this._repaint(); }); this.ui.phone.onTutorial?.(() => this._tutDone('p1')); }
     for (const id of SPLIT_PLAYERS) this.phone(id).start().catch(err => this.ui.toast(`Collegamento del ${id.toUpperCase()} non disponibile (${err.message})`));
   }
+  // un telefono cambia (collegato, pronto, perso): la scheda si aggiorna subito, non al prossimo giro della lobby (300 ms)
+  _repaint(){ const L = this.ui.lobby; if (L?.visible && L.mode === 'split' && (L.step === 'connect' || L.step === 'match')) L.paint(); }
   get webcam(){ return this.input === 'webcam'; }
   // webcam per due: pronti quando la camera è accesa e ha visto le mani di entrambi (anche non in questo momento: tra la
   // pagina «Collega» e «Gioca» si scelgono le impostazioni); altrimenti i due telefoni pronti
@@ -203,7 +238,8 @@ export class NatpfSplitUi {
     }
     for (const id of SPLIT_PLAYERS){
       const p = this.phone(id); if (!p) continue;
-      const st = cam ? splitCamStatus({ active: !!mc?.webcamActive, seen: !!mc?._duo?.seen(id, now), error: mc?.webcamActive ? null : webcamOpenError(mc?.webcamError) }) : (this._drive(id), this.ui.renderQr($(`split-qr-${id}`), $(`split-link-${id}`), null, p), splitPlayerStatus(p, this.hand(id)));
+      if (!cam){ this._drive(id); this.ui.renderQr($(`split-qr-${id}`), $(`split-link-${id}`), null, p); }
+      const st = this.status(id, now);
       const el = $(`split-status-${id}`);
       if (el){
         el.dataset.state = st.state;
@@ -212,9 +248,122 @@ export class NatpfSplitUi {
         if (s.textContent !== st.sub) s.textContent = st.sub;
       }
       for (const btn of document.querySelectorAll(`[data-split-hand^="${id}:"]`)){ const on = btn.dataset.splitHand.endsWith(':' + this.hand(id)); btn.classList.toggle('selected', on); btn.setAttribute('aria-pressed', String(on)); }
-      show(document.querySelector(`[data-split-skip="${id}"]`), !cam && p.connected && !p.ready && p.state.phone === 'cal');
-      document.querySelector(`[data-split-player="${id}"]`)?.classList.toggle('ready', cam ? st.state === 'ok' : !!p.ready);
+      show(document.querySelector(`[data-split-skip="${id}"]`), !cam && p.connected && !p.ready && p.state.phone === 'cal' && !this.tutOpen[id]);
+      // scheda del giocatore: nome, distintivo (in attesa · si prepara · pronto · problema), bordo; .ready per il QR
+      const card = document.querySelector(`[data-split-player="${id}"]`), v = this.slot(id, now, st);
+      card?.classList.toggle('ready', v.state === 'ready');
+      paintSlot(card, v);
     }
+    this._paintStart(now);
+  }
+  /* ---------- stato «pronto» delle schede e conto alla rovescia (B9, natpf_ready.js) ---------- */
+  name(id){ return this.engine.natpfSplitNames?.[id] || defaultName(id); }
+  // scheda mostrata del tutorial di questo giocatore (1…n), per «Tutorial 3/11»
+  tutInfo(id){ const t = this.tut[id]; return { i: (t?.state?.idx ?? 0) + 1, n: TUTORIAL_CARDS.length }; }
+  // stato del telefono (o della webcam per due) di un giocatore, come lo dice la sua metà
+  status(id, now = performance.now()){
+    const mc = this.engine.motionController;
+    if (this.webcam) return splitCamStatus({ active: !!mc?.webcamActive, seen: !!mc?._duo?.seen(id, now), error: mc?.webcamActive ? null : webcamOpenError(mc?.webcamError) });
+    return splitPlayerStatus(this.phone(id), this.hand(id), { tut: this.tutOpen[id] ? this.tutInfo(id) : null });
+  }
+  // scheda: con la webcam per due si è pronti da quando la webcam ha visto la mano (come bothReady), anche se adesso è
+  // fuori dall'inquadratura; con il telefono, pronto e tutorial chiuso
+  slot(id, now = performance.now(), st = this.status(id, now)){
+    const mc = this.engine.motionController;
+    if (this.webcam && mc?.webcamActive && mc._duo?.seen?.(id, now, Infinity)) return slotView({ id, name: this.name(id), state: 'ready', detail: 'Mano vista' });
+    return slotView({ id, name: this.name(id), ...splitSlot(st) });
+  }
+  slots(now = performance.now()){ return SPLIT_PLAYERS.map(id => this.slot(id, now)); }
+  get countdownRunning(){ return this.cd.running; }
+  // ai telefoni (pagina del telefono: racchetta.js, «ev» con k 'count'): n = 3, 2, 1 e 0 (si gioca), stop con il motivo.
+  // Le pagine del telefono di prima ignorano il messaggio (k sconosciuto): nessun problema di versioni
+  _announce(m){
+    if (this.webcam) return;
+    for (const id of SPLIT_PLAYERS){ const p = this.phone(id); if (p?.connected) p.link?.send?.({ t: 'ev', k: 'count', ...m }); }
+  }
+  // Ogni 100 ms (tick): nella pagina «Collega» dello stesso schermo, con tutti e due pronti (e il tutorial chiuso) e
+  // nessun pannello aperto sopra, conto alla rovescia; a zero si gioca. Un giocatore che non è più pronto lo annulla,
+  // con il motivo nella barra dell'avvio e sui telefoni
+  _tickStart(now = performance.now()){
+    const L = this.ui.lobby;
+    const here = !!L?.visible && L.mode === 'split' && L.step === 'connect' && !this.session && !this.ui.intro?.active;
+    if (!here){ if (this.cd.running || this.cd.held || this.cd.why) this._stopCount(this.cd.running ? 'Si scelgono le impostazioni sul computer.' : null); return; }
+    const sheet = [...document.querySelectorAll('.natpf-sheet-backdrop')].some(m => !m.classList.contains('hidden'));
+    const blocked = !!L.onboarding?.isOpen || !!this.ui.calibra?.isOpen || sheet;
+    const slots = this.slots(now), gate = startGate(slots);
+    const r = this.countdown.update(gate.both && !this.cd.held && !blocked, now);
+    const R = this.ui.diag?.recorder;
+    if (r.cancelled){
+      this.cd.why = gate.both ? null : cancelText(slots); this.cd.whyUntil = now + SPLIT_CANCEL_SHOW_MS;
+      this._announce({ stop: 1, txt: this.cd.why || 'Guarda il computer.' });
+      R?.log?.('split.conto', { stato: 'annullato', motivo: this.cd.why || 'pannello aperto' });
+    }
+    if (r.running && r.left !== this.cd.left){
+      if (!this.cd.running){ this.cd.why = null; R?.log?.('split.conto', { stato: 'partito' }); }
+      this._announce({ n: r.left });
+    }
+    this.cd.running = r.running; this.cd.left = r.left;
+    if (r.fire) this._fire();
+    this._paintStart(now, slots);
+  }
+  // si esce dalla pagina (impostazioni, menu, partita): niente conto, niente motivi
+  _stopCount(txt = null){
+    const was = this.cd.running;
+    this.countdown.reset();
+    this.cd = { left: 0, running: false, held: false, why: null, whyUntil: 0 };
+    if (was && txt) this._announce({ stop: 1, txt });
+    this._paintStart();
+  }
+  // «Aspetta» (o Esc): il conto si ferma e non riparte da solo; poi «Gioca» nella barra (this.hold è un'altra cosa: la
+  // pausa del telefono del P2 in partita)
+  holdCountdown(){
+    const was = this.cd.running;
+    this.countdown.reset();
+    Object.assign(this.cd, { running: false, left: 0, held: true, why: null });
+    if (was){ this._announce({ stop: 1, txt: 'Partenza fermata sul computer.' }); this.ui.diag?.recorder?.log?.('split.conto', { stato: 'fermato' }); }
+    this._paintStart();
+  }
+  playNow(){ this.cd.held = false; this._fire(); }
+  // a zero (o «Gioca» dopo «Aspetta»): lo stesso «Gioca» della pagina «Partita» (natpf_ui._bindStart ricontrolla che
+  // tutti e due siano pronti, poi la sessione split e il passaggio al campo)
+  _fire(){
+    Object.assign(this.cd, { running: false, left: 0, held: false, why: null });
+    this._announce({ n: 0 });
+    this.ui.diag?.recorder?.log?.('split.conto', { stato: 'si gioca' });
+    const b = $('btn-start-match'); if (b){ b.disabled = false; b.click(); }
+  }
+  // barra dell'avvio sotto le schede e riquadro grande del conto
+  _paintStart(now = performance.now(), slots = this.slots(now)){
+    const bar = $('split-ready-bar'), ov = $('split-countdown'), cd = this.cd;
+    const gate = startGate(slots), names = bothNames(slots);
+    let mode = 'wait', title = 'Si parte da soli quando tutti e due i giocatori sono pronti', sub = `${waitingText(gate.waiting)}.`;
+    if (cd.running){ mode = 'count'; title = `Tutto pronto: si gioca tra ${cd.left}`; sub = this.webcam ? `${names}, in posizione davanti alla webcam.` : `${names}, tenete il telefono come in partita.`; }
+    else if (gate.both && cd.held){ mode = 'held'; title = 'Tutto pronto'; sub = 'Partenza fermata: premi «Gioca» quando volete.'; }
+    else if (gate.both){ mode = 'ready'; title = 'Tutto pronto'; sub = 'Si parte appena si chiude il pannello aperto.'; }
+    else if (cd.why && now < cd.whyUntil){ mode = 'cancel'; title = cd.why; sub = 'Il conto riparte da solo quando tutto è di nuovo pronto.'; }
+    const set = (el, t) => { if (el && el.textContent !== t) el.textContent = t; };
+    if (bar){
+      if (bar.dataset.readyBar !== mode) bar.dataset.readyBar = mode;
+      set(bar.querySelector('[data-ready-bar-title]'), title);
+      set(bar.querySelector('[data-ready-bar-sub]'), sub);
+      set(bar.querySelector('[data-ready-count]'), cd.running ? String(cd.left) : '');
+      show(bar.querySelector('[data-split-hold]'), mode === 'count');
+      show(bar.querySelector('[data-split-play]'), mode === 'held');
+    }
+    if (ov){
+      show(ov, cd.running);
+      const num = ov.querySelector('[data-split-count]'), n = String(cd.left);
+      // ogni secondo il numero «batte» (classe tick rimessa da capo)
+      if (cd.running && num && num.textContent !== n){ num.textContent = n; num.classList.remove('tick'); void num.offsetWidth; num.classList.add('tick'); }
+      set(ov.querySelector('[data-split-count-names]'), sub);
+    }
+    return mode;
+  }
+  // pagina «Partita» dello stesso schermo: le due schede compatte, dal vivo (prima solo «VS» e una nota sotto il piede)
+  paintMatch(now = performance.now()){
+    const slots = this.slots(now);
+    paintBoard($('split-ready-board'), slots);
+    return { ...startGate(slots), slots };
   }
   // «Gioca»: sessione split nel motore, mano del P2 sul suo personaggio
   start(){
@@ -235,8 +384,9 @@ export class NatpfSplitUi {
     const text = splitShotLabel(e), id = e.role === 'p2' ? 'p2' : 'p1';
     if (text) this.labels[id] = { text, until: performance.now() + 1600 };
   }
-  // ogni 100 ms (natpf_ui): telefono del P2 in campo e etichette delle due metà
+  // ogni 100 ms (natpf_ui): conto alla rovescia nella pagina «Collega», telefono del P2 in campo e etichette delle metà
   tick(){
+    this._tickStart();
     const E = this.engine, on = this.session && splitVisible(E);
     const hud = $('natpf-split-hud'); show(hud, on);
     if (on){

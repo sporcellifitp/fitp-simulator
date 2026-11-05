@@ -130,7 +130,8 @@ test('menu: «Stesso schermo» va da modalità a telefoni a partita, e si proseg
   assert.equal(stepReady('connect', { mode: 'split', controller: 'phone', phoneLinked: true, splitReady: false }), false, 'un solo telefono non basta');
   assert.equal(stepReady('connect', { mode: 'split', splitReady: true }), true);
   assert.equal(autoAdvance('connect', { mode: 'split', controller: 'phone', phoneLinked: true, splitReady: false }), false);
-  assert.equal(autoAdvance('connect', { mode: 'split', splitReady: true }), true);
+  // B9 (05/11): niente salto muto a «Partita» dopo 0,7 s; con i due pronti c'è il conto alla rovescia (natpf_split_ui)
+  assert.equal(autoAdvance('connect', { mode: 'split', splitReady: true }), false, 'niente salto automatico a «Partita»');
 });
 
 test('pannello di un giocatore: QR, sensori, passi della calibrazione, pronto; esiti dei colpi', () => {
@@ -288,4 +289,151 @@ test('stesso schermo con una webcam per due: scelta ricordata, pronti con le due
   ui.backToMenu(); lobby.go('mode'); lobby.setMode('split');
   assert.equal(ui.split.input, 'webcam');
   ui.split.setInput('phones'); assert.equal(mc.webcamDuo, false); assert.equal(ui.controller, 'phone');
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// «Pronto» per giocatore e conto alla rovescia (B9, punto 4; natpf_ready.js, natpf_split_ui._tickStart). Prima: nessuno
+// stato per giocatore e un salto muto a «Partita» dopo 0,7 s, dove «Gioca» restava giallo e attivo anche con un telefono
+// caduto. Ora: schede con nome e stato, conto di 3 s sul computer e sui telefoni, partita senza toccare il computer,
+// conto annullato (con il motivo) se un telefono cade, «Aspetta» / Esc, «Gioca» spento nella pagina «Partita».
+import { $, visible } from './ui-world.mjs';
+import { SPLIT_COUNTDOWN_MS } from '../src/natpf/natpf_split_ui.js';
+
+async function splitLobby({ names = ['Giulia', 'Marco'] } = {}){
+  const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
+  const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
+  const l2 = P2.link = { ...fakeLink(), ready: false, L: { state: 'connected', phone: 'cal' },
+    cmd(c){ this.cmds.push(c); if (c === 'skip' || c === 'confirm'){ this.ready = true; this.L.phone = 'ready'; } if (c === 'cal'){ this.ready = false; this.L.phone = 'cal'; } } };
+  lobby.go('mode'); lobby.setMode('split'); lobby.go('connect');
+  [E.natpfSplitNames.p1, E.natpfSplitNames.p2] = names;
+  ui.split.paint();
+  const okTut = phone => { for (const fn of phone.tutListeners) fn({ ok: true }); ui.split.paint(); };
+  // tutti e due: «Tutto chiaro, ho capito» e calibrazione riuscita
+  const readyBoth = () => { okTut(E.natpfPhone); okTut(P2); E.natpfPhone._onCal({ kind: 'review', pass: true }); P2._onCal({ kind: 'review', pass: true }); };
+  const counts = link => link.sent.filter(m => m.t === 'ev' && m.k === 'count');
+  return { ...w, P2, l2, okTut, readyBoth, counts };
+}
+
+test('stesso schermo: schede con il nome e lo stato (tutorial, calibrazione, pronto); niente salto a «Partita»', async () => {
+  const { E, ui, lobby, P2, okTut, advance } = await splitLobby();
+  // collegati, tutorial aperto: «si prepara · Tutorial 1/n» (prima: «Tocca «Attiva i sensori»» con i sensori attivi)
+  assert.equal(ui.split.status('p1').state, 'tut');
+  let s1 = ui.split.slot('p1');
+  assert.equal(s1.name, 'Giulia'); assert.equal(s1.state, 'prep'); assert.match(s1.detail, /^Tutorial 1\/\d+$/);
+  assert.equal(ui.split.slot('p2').name, 'Marco');
+  assert.equal($('split-status-p1').dataset.state, 'tut');
+  // P1: «ho capito» e calibrazione riuscita → pronto subito; il P2 è ancora nel tutorial: nessun conto
+  okTut(E.natpfPhone); E.natpfPhone._onCal({ kind: 'review', pass: true });
+  s1 = ui.split.slot('p1');
+  assert.equal(s1.state, 'ready'); assert.equal(s1.badge, 'Pronto'); assert.equal(s1.detail, 'Calibrato');
+  advance(1500);
+  assert.equal(ui.split.cd.running, false, 'nessun conto con il P2 nel tutorial');
+  assert.equal($('split-ready-bar').dataset.readyBar, 'wait');
+  assert.match($('split-ready-bar').querySelector('[data-ready-bar-sub]').textContent, /^Aspetto Marco \(tutorial \d+\/\d+\)\.$/);
+  // P2 in calibrazione: «si prepara · Calibrazione»
+  okTut(P2);
+  assert.deepEqual([ui.split.slot('p2').state, ui.split.slot('p2').detail], ['prep', 'Calibrazione']);
+  assert.ok(!visible('split-countdown'));
+  // con il P2 pronto si resta nella pagina «Collega» (prima: «Partita» da soli dopo 0,7 s)
+  P2._onCal({ kind: 'review', pass: true });
+  advance(900);
+  assert.equal(lobby.step, 'connect', 'niente salto a «Partita»');
+  assert.equal(lobby.state().splitReady, true);
+});
+
+test('stesso schermo: tutti e due pronti → conto di 3 s sul computer e sui telefoni, poi si gioca senza toccare il computer', async () => {
+  const { E, ui, lobby, link, l2, readyBoth, counts, advance } = await splitLobby();
+  assert.equal(SPLIT_COUNTDOWN_MS, 3000);
+  readyBoth(); advance(150);
+  assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3);
+  assert.ok(visible('split-countdown'), 'conto grande al centro');
+  assert.equal($('split-countdown').querySelector('[data-split-count]').textContent, '3');
+  assert.equal($('split-countdown').querySelector('[data-split-count-names]').textContent, 'Giulia e Marco, tenete il telefono come in partita.');
+  assert.equal($('split-ready-bar').dataset.readyBar, 'count');
+  assert.equal($('split-ready-bar').querySelector('[data-ready-bar-title]').textContent, 'Tutto pronto: si gioca tra 3');
+  assert.ok(!$('split-ready-bar').querySelector('[data-split-hold]').classList.contains('hidden'), '«Aspetta» in vista');
+  advance(1000); assert.equal(ui.split.cd.left, 2);
+  assert.equal($('split-countdown').querySelector('[data-split-count]').textContent, '2');
+  advance(1000); assert.equal(ui.split.cd.left, 1);
+  assert.ok(!E.natpfSplit?.active, 'non ancora');
+  advance(1000);
+  assert.equal(E.natpfSplit?.active, true, 'si gioca da soli: sessione split avviata dal «Gioca» della lobby');
+  assert.ok(!visible('split-countdown'));
+  // i due telefoni hanno avuto 3, 2, 1 e «si gioca» (0), una volta ciascuno
+  for (const l of [link, l2]) assert.deepEqual(counts(l).map(m => m.n), [3, 2, 1, 0]);
+  advance(4000);
+  assert.deepEqual(counts(link).map(m => m.n), [3, 2, 1, 0], 'una volta sola');
+  assert.equal(lobby.mode, 'split');
+});
+
+test('stesso schermo: un telefono che cade durante il conto lo annulla e la barra dice perché; quando torna si riparte da 3', async () => {
+  const { E, ui, lobby, link, l2, P2, readyBoth, counts, advance } = await splitLobby();
+  readyBoth(); advance(1300);
+  assert.equal(ui.split.cd.left, 2);
+  // il telefono di Marco si scollega
+  Object.assign(l2, { connected: false, ready: false, L: { state: 'lost', phone: null } }); P2._changed();
+  advance(150);
+  assert.equal(ui.split.cd.running, false); assert.ok(!visible('split-countdown'));
+  assert.equal(ui.split.cd.why, 'Conto annullato · Marco: telefono scollegato');
+  const s2 = ui.split.slot('p2');
+  assert.equal(s2.state, 'ko'); assert.equal(s2.badge, 'Scollegato', 'la scheda dice perché');
+  assert.equal($('split-ready-bar').dataset.readyBar, 'cancel');
+  assert.equal($('split-ready-bar').querySelector('[data-ready-bar-title]').textContent, 'Conto annullato · Marco: telefono scollegato');
+  const stop = counts(link).at(-1);
+  assert.equal(stop.stop, 1); assert.match(stop.txt, /Marco: telefono scollegato/, 'il telefono di Giulia lo sa');
+  advance(5000);
+  assert.ok(!E.natpfSplit?.active, 'nessuna partita'); assert.equal(lobby.step, 'connect');
+  // il telefono torna pronto: il conto riparte da capo (3), e poi si gioca
+  Object.assign(l2, { connected: true, ready: true, L: { state: 'connected', phone: 'ready' } }); P2._changed();
+  advance(150);
+  assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3); assert.equal(ui.split.cd.why, null);
+  advance(3000);
+  assert.equal(E.natpfSplit?.active, true);
+});
+
+test('stesso schermo: «Aspetta» (Esc) ferma il conto e non riparte da solo; «Gioca» nella barra fa partire', async () => {
+  const { E, ui, lobby, link, readyBoth, counts, advance, key } = await splitLobby();
+  readyBoth(); advance(600);
+  assert.equal(ui.split.countdownRunning, true);
+  key('Escape', 'Escape');
+  assert.equal(lobby.step, 'connect', 'Esc durante il conto non torna indietro');
+  assert.equal(ui.split.cd.running, false); assert.equal(ui.split.cd.held, true);
+  assert.match(counts(link).at(-1).txt, /fermata/);
+  advance(6000);
+  assert.ok(!E.natpfSplit?.active, 'fermo finché non si preme «Gioca»');
+  assert.equal($('split-ready-bar').dataset.readyBar, 'held');
+  assert.ok(!$('split-ready-bar').querySelector('[data-split-play]').classList.contains('hidden'), '«Gioca» nella barra');
+  ui.split.playNow();
+  assert.equal(E.natpfSplit?.active, true);
+  // Esc senza conto: indietro come sempre
+  const w2 = await splitLobby();
+  w2.key('Escape', 'Escape'); assert.equal(w2.lobby.step, 'mode');
+});
+
+test('stesso schermo, pagina «Partita»: schede dal vivo, «Gioca» grigio e spento con un telefono non pronto; il conto si ferma', async () => {
+  const { E, ui, lobby, link, l2, P2, readyBoth, counts, advance } = await splitLobby();
+  readyBoth(); advance(600);
+  assert.equal(ui.split.countdownRunning, true);
+  // «Impostazioni partita ›»: il conto si ferma, i telefoni lo sanno
+  lobby.next(); assert.equal(lobby.step, 'match');
+  advance(400);
+  assert.equal(ui.split.cd.running, false); assert.match(counts(link).at(-1).txt, /impostazioni/);
+  advance(4000); assert.ok(!E.natpfSplit?.active, 'nella pagina «Partita» si parte con «Gioca»');
+  const board = $('split-ready-board');
+  assert.match(board.innerHTML, /data-ready-slot="p1"/);
+  assert.equal(board.querySelector('[data-ready-slot="p2"]').dataset.ready, 'ready');
+  assert.equal(board.querySelector('[data-ready-slot="p2"]').querySelector('[data-ready-name]').textContent, 'Marco');
+  assert.equal($('btn-start-match').disabled, false); assert.ok(!$('btn-start-match').classList.contains('is-wait'));
+  assert.match($('lobby-match-note').textContent, /^Giulia a sinistra, Marco a destra/);
+  // il telefono di Marco cade: «Gioca» spento e grigio, la scheda e la nota dicono perché
+  Object.assign(l2, { connected: false, ready: false, L: { state: 'lost', phone: null } }); P2._changed();
+  advance(400);
+  assert.equal($('btn-start-match').disabled, true); assert.ok($('btn-start-match').classList.contains('is-wait'));
+  assert.equal(board.querySelector('[data-ready-slot="p2"]').dataset.ready, 'ko');
+  assert.match($('lobby-match-note').textContent, /^Aspetto Marco \(telefono scollegato\): servono i due telefoni pronti/);
+  // Invio: si torna alle schede dei telefoni (prima: «Gioca» giallo e attivo)
+  lobby.next(); assert.equal(lobby.step, 'connect');
+  // altre modalità: «Gioca» di nuovo normale
+  lobby.go('mode'); lobby.setMode('cpu'); lobby.go('match');
+  assert.equal($('btn-start-match').disabled, false); assert.ok(!$('btn-start-match').classList.contains('is-wait'));
 });
