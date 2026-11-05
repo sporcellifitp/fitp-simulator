@@ -14,4 +14,10 @@
 4. Fotogrammi con Chromium, almeno 3 iterazioni di correzione.
 
 ## Avanzamento
-- (in corso) lettura della specifica e struttura del prototipo.
+- Fatto: `prototipi/b9-motion/motion.js` (moto puro, `gesturePose(id, t, { hand })` come proposto in
+  `specifica-gesti.md` §6) e `prototipi/b9-motion/verifica.mjs` (posa disegnata → telefono simulato completo).
+  Esito: dritto, rovescio, pallonetto, palla corta riconosciuti con **un solo messaggio** e il lato giusto, picco
+  8 ms prima del contatto disegnato (mezzo campione); servizio **2 messaggi a 0,690 s**; destro e mancino; calibrazione
+  con il braccio simulato e con il dritto/rovescio dell'animazione; imitazione 0,8× uguale, 1,25× dritto e rovescio →
+  piatto (verso giusto del cambiamento, §6.5). Presa: rotazione 0 °/s.
+- (in corso) disegno vettoriale (`main.js`).
