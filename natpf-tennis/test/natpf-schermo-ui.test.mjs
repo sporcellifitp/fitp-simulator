@@ -155,3 +155,33 @@ test('browser in F11 (LAN in Edge): F in campo, la voce della pausa e F nella ca
     assert.equal(toast(), FS_TEXT.f11, 'F nella calibrazione'); assert.ok(ui.calibra.isOpen);
   } finally { globalThis.matchMedia = mm; }
 });
+
+test('«All’avvio»: nascosto nel programma Windows; con il browser a schermo intero da sé una nota dice che vale in finestra', async () => {
+  // programma Windows (contratto di window.natpfDesktop): la finestra ricorda da sé lo stato all'avvio
+  const api = { on: true, isFullScreen: async () => api.on, setFullScreen: async on => (api.on = !!on), toggleFullScreen: async () => (api.on = !api.on), onFullScreenChange(){}, shell: 'electron', version: 1 };
+  globalThis.natpfDesktop = api;
+  try {
+    const w = await makeWorld({ controller: 'mouse' }); w.advance(300); await w.flush();
+    w.lobby.go('options');
+    assert.ok($('natpf-fs-start').classList.contains('hidden'), 'nel programma Windows «All’avvio» non c’è');
+    assert.equal($('natpf-fullscreen-status').textContent, '');
+  } finally { delete globalThis.natpfDesktop; }
+  // browser normale: c'è, senza note
+  const w2 = await makeWorld({ controller: 'mouse' }); w2.advance(300); w2.lobby.go('options');
+  assert.ok(!$('natpf-fs-start').classList.contains('hidden'));
+  assert.equal($('natpf-fullscreen-status').textContent, '');
+  // F11 / Edge della LAN con --start-fullscreen: la nota (non un avviso); «Esci» → «Premi F11» al suo posto
+  const mm = globalThis.matchMedia;
+  globalThis.matchMedia = q => ({ matches: /display-mode: fullscreen/.test(q), media: q, addEventListener(){}, removeEventListener(){} });
+  try {
+    const w = await makeWorld({ controller: 'mouse' }); w.advance(300); w.lobby.go('options');
+    const st = $('natpf-fullscreen-status');
+    assert.ok(!$('natpf-fs-start').classList.contains('hidden'));
+    assert.equal(st.textContent, FS_TEXT.browser); assert.ok(st.classList.contains('lobby-status-ok'));
+    assert.match(FS_TEXT.browser, /All’avvio» vale quando il gioco si apre in finestra/);
+    $('natpf-fullscreen').click(); await w.flush();
+    assert.equal(st.textContent, FS_TEXT.f11); assert.ok(!st.classList.contains('lobby-status-ok'), '«Premi F11» resta un avviso');
+    w.lobby.paint();
+    assert.equal(st.textContent, FS_TEXT.f11, 'il messaggio resta finché lo stato non cambia');
+  } finally { globalThis.matchMedia = mm; }
+});

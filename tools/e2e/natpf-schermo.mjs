@@ -10,7 +10,10 @@
 //     nell'area senza scorrere e senza coprire i segni dei bordi; salvata e ricaricata resta usabile;
 //   • schermate del riquadro di calibrazione a 1920 × 1080, 1200 × 1200 e all'area minima in $OUT (da guardare);
 //   • browser in F11 (display-mode: fullscreen finto, come Edge con --start-fullscreen nella LAN): «Premi F11 per uscire»
-//     si vede davvero in campo (F), dalla voce della pausa e nella calibrazione (toast figlio del body, sopra a tutto).
+//     si vede davvero in campo (F), dalla voce della pausa e nella calibrazione (toast figlio del body, sopra a tutto);
+//     nelle Opzioni «All'avvio» resta con la nota che vale solo in finestra;
+//   • programma Windows finto (window.natpfDesktop come il preload): niente requestFullscreen, «All'avvio» nascosto, F
+//     passa da setFullScreen.
 //   cd tools/e2e && GAME_PORT=3201 CHROMIUM_PATH=/percorso/chrome node natpf-schermo.mjs
 // Non prova: Edge su Windows, il programma Windows (Electron), un monitor o un ledwall veri, Esc tenuto premuto nel
 // browser vero (Keyboard Lock) e lo stiramento di un processore LED.
@@ -203,6 +206,13 @@ try {
     const shot = async name => { await p.evaluate(() => document.getElementById('natpf-toast').classList.remove('hidden')); await p.screenshot({ path: `${SP}/${name}` }); };
     const ok = s => s.text === 'Premi F11 per uscire dallo schermo intero' && s.w > 100 && s.h > 20 && s.onTop && s.parent;
     check('F11: il pulsante in alto dice «Esci da schermo intero»', await p.evaluate(() => document.querySelector('#lobby-fullscreen .fs-label').textContent) === 'Esci da schermo intero');
+    // Opzioni → Schermo: «All'avvio» resta, con la nota che vale solo in finestra; tutto senza scorrere
+    await p.evaluate(() => __natpfTennis.natpfUi.lobby.go('options')); await p.waitForTimeout(400);
+    const note = await p.evaluate(() => { const st = document.getElementById('natpf-fullscreen-status'); return { text: st.textContent, ok: st.classList.contains('lobby-status-ok'), color: getComputedStyle(st).color }; });
+    const calv = await inView(p, '[data-option="calibra"]'), offv = await inView(p, '[data-natpf-fs="off"]');
+    check('F11, Opzioni: nota «All’avvio vale in finestra» (non un avviso) e «Calibra lo schermo…» visibile senza scorrere', /vale quando il gioco si apre in finestra/.test(note.text) && note.ok && calv.ok && offv.ok, JSON.stringify({ note, calv, offv }));
+    await p.screenshot({ path: `${SP}/schermo-f11-opzioni.png` });
+    await p.evaluate(() => __natpfTennis.natpfUi.lobby.go('menu')); await p.waitForTimeout(300);
     await p.evaluate(() => { const ui = __natpfTennis.natpfUi; if (!ui.testInput) ui.toggleTestInput(); ui.selectController('mouse', { open: false }); ui.lobby.setMode('cpu'); ui.lobby.go('match'); });
     await p.waitForTimeout(300);
     await p.evaluate(() => document.getElementById('btn-start-match').click());
@@ -226,6 +236,30 @@ try {
     check('F11, calibrazione: F mostra «Premi F11 per uscire» sopra il riquadro', ok(cal) && await p.evaluate(() => __natpfTennis.natpfUi.calibra.isOpen), JSON.stringify(cal));
     await p.keyboard.press('Escape');
     check('F11: nessun errore JavaScript', !errs.length, errs.join(' | ').slice(0, 300));
+    await ctx.close();
+  }
+
+  // 5. Programma Windows finto (window.natpfDesktop come il preload di Electron, finestra già a schermo intero): niente
+  //    requestFullscreen al primo tasto, «All'avvio» nascosto, F passa da setFullScreen e il pulsante segue lo stato
+  {
+    const desk = () => {
+      window.__desk = { calls: [], req: 0 }; let on = true; const cbs = [];
+      Element.prototype.requestFullscreen = function(){ window.__desk.req++; return Promise.resolve(); };
+      window.natpfDesktop = { shell: 'electron', version: 1, isFullScreen: async () => on,
+        setFullScreen: async v => { window.__desk.calls.push(v); on = !!v; cbs.forEach(cb => cb(on)); return on; },
+        toggleFullScreen: async () => window.natpfDesktop.setFullScreen(!on), onFullScreenChange: cb => { cbs.push(cb); } };
+    };
+    const { p, errs, ctx } = await page(B, `${URL0}?intro=0&fs=1`, { w: 1280, h: 720, init: desk });
+    await ready(p); await p.waitForTimeout(400);
+    await p.keyboard.press('ArrowDown'); await p.waitForTimeout(200);
+    await p.evaluate(() => __natpfTennis.natpfUi.lobby.go('options')); await p.waitForTimeout(400);
+    const s1 = await p.evaluate(() => ({ req: __desk.req, calls: [...__desk.calls], start: getComputedStyle(document.getElementById('natpf-fs-start')).display, lbl: document.querySelector('#natpf-fullscreen .fs-label').textContent, st: document.getElementById('natpf-fullscreen-status').textContent }));
+    check('programma Windows: niente requestFullscreen al primo tasto, «All’avvio» nascosto, «Esci da schermo intero»', s1.req === 0 && !s1.calls.length && s1.start === 'none' && s1.lbl === 'Esci da schermo intero' && s1.st === '', JSON.stringify(s1));
+    await p.keyboard.press('KeyF'); await p.waitForTimeout(300);
+    const s2 = await p.evaluate(() => ({ req: __desk.req, calls: [...__desk.calls], lbl: document.querySelector('#natpf-fullscreen .fs-label').textContent }));
+    check('programma Windows: F esce con setFullScreen(false) e il pulsante dice «Schermo intero»', s2.req === 0 && JSON.stringify(s2.calls) === '[false]' && s2.lbl === 'Schermo intero', JSON.stringify(s2));
+    await p.screenshot({ path: `${SP}/schermo-programma-opzioni.png` });
+    check('programma Windows: nessun errore JavaScript', !errs.length, errs.join(' | ').slice(0, 300));
     await ctx.close();
   }
 } finally {

@@ -19,7 +19,10 @@
 //   • in F11 la pagina non può uscire da sola: si dice «Premi F11»;
 //   • al primo input (tasto, clic, tocco) sulla schermata «Premi un tasto per iniziare», o sul menu con ?intro=0, si
 //     entra da soli (preferenza 'natpf-tennis.fullscreen' = auto | off, Opzioni → Schermo; ?fs=0 la spegne; con
-//     navigator.webdriver, cioè nelle prove automatiche, solo con ?fs=1).
+//     navigator.webdriver, cioè nelle prove automatiche, solo con ?fs=1). Un lanciatore che apre il gioco in una
+//     finestra per scelta (LAN «in finestra», tools/lan/desktop.mjs) deve passare ?fs=0 nell'indirizzo;
+//   • «All'avvio» non c'è nel programma Windows (lo stato all'avvio lo ricorda il programma) e, con il browser già a
+//     schermo intero da sé (F11, Edge della LAN con --start-fullscreen), una nota dice che vale solo in finestra.
 //
 // Calibrazione dello schermo (B8, 05/11: «adatta il fullscreen in base alla finestra/monitor in utilizzo o prevedi la
 // calibrazione a full screen, come avviene per i videogiochi»): natpf_calibra.js. L'area si descrive con
@@ -147,6 +150,7 @@ export const FS_TEXT = Object.freeze({
   exit: 'Esci da schermo intero',
   f11: 'Premi F11 per uscire dallo schermo intero',
   fail: 'Usa F11 o il comando Schermo intero del browser.',
+  browser: 'Il browser è a schermo intero da sé (F11 o avvio della LAN): «All’avvio» vale quando il gioco si apre in finestra.',
 });
 // preferenza all'avvio: 'auto' (predefinita, schermo intero al primo input) o 'off' (resta in finestra)
 export const fsPref = v => (v === 'off' ? 'off' : 'auto');
@@ -288,6 +292,7 @@ export class NatpfScreen {
     this.urlArea = s.area; this.urlScreen = new URLSearchParams(search).get('schermo') != null ? s.preset : null;
     current = { preset: s.preset, area: s.area, margins: s.margins };
     this.onHint = null;            // messaggi per chi gioca (natpf_ui: toast)
+    this.hintText = '';            // ultimo messaggio nella riga di Opzioni → Schermo (finché lo stato non cambia)
     this.listeners = new Set();    // chi ridisegna quando l'area cambia (calibrazione)
     // schermo intero: creato prima del menu (natpf_ui), così l'apertura automatica vede il primo tasto prima che il menu
     // lo fermi
@@ -365,11 +370,22 @@ export class NatpfScreen {
     if (pb){ const b = pb.querySelector('b'); if (b && b.textContent !== label) b.textContent = label; pb.classList.toggle('on', on); }
     const pref = fs.pref;
     for (const b of d.querySelectorAll?.('[data-natpf-fs]') || []){ const sel = b.dataset.natpfFs === pref; b.classList.toggle('selected', sel); b.setAttribute('aria-checked', String(sel)); }
-    if (on){ const st = d.getElementById?.('natpf-fullscreen-status'); if (st && st.textContent) st.textContent = ''; }
+    // «All'avvio»: nel programma Windows non decide niente (parte a schermo intero e ricorda l'ultimo stato): nascosto
+    d.getElementById?.('natpf-fs-start')?.classList?.toggle('hidden', !!fs.desktop);
+    // riga sotto: il messaggio («Premi F11», richiesta rifiutata) finché lo stato non cambia; se no, con il browser a
+    // schermo intero da sé, la nota che «All'avvio» vale solo in finestra
+    if (this._fsOn !== on){ this._fsOn = on; this.hintText = ''; }
+    const st = d.getElementById?.('natpf-fullscreen-status');
+    if (st){
+      const note = !this.hintText && !fs.desktop && fs.browserMode && !fs.element ? FS_TEXT.browser : '';
+      const t = this.hintText || note;
+      if (st.textContent !== t) st.textContent = t;
+      st.classList?.toggle('lobby-status-ok', !!note);
+    }
   }
   _hint(t){
-    const st = globalThis.document?.getElementById?.('natpf-fullscreen-status');
-    if (st) st.textContent = t;
+    this.hintText = t;
+    this.paintFullscreen();
     try { this.onHint?.(t); } catch {}
   }
 }
