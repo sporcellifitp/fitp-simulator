@@ -237,7 +237,11 @@
           <span class="lobby-mark">NATPF</span><span class="lobby-word">Simulator</span>
         </div>
         <ol class="lobby-progress" id="lobby-progress" aria-label="Avanzamento"></ol>
-        <button type="button" id="lobby-help" class="lobby-ghost lobby-help-btn" title="Come si gioca (H)"><span aria-hidden="true">?</span> Come si gioca</button>
+        <!-- in alto a destra: schermo intero (natpf_screen.js, tasto F) e «Come si gioca» (tasto H) -->
+        <div class="lobby-top-actions">
+          <button type="button" id="lobby-fullscreen" class="lobby-ghost lobby-fs-btn" aria-pressed="false" title="Schermo intero (F)"><svg class="fs-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span class="fs-label">Schermo intero</span></button
+          ><button type="button" id="lobby-help" class="lobby-ghost lobby-help-btn" title="Come si gioca (H)"><span aria-hidden="true">?</span> Come si gioca</button>
+        </div>
       </header>
 
       <main class="lobby-stage">
@@ -326,6 +330,30 @@
 
         <section class="lobby-page" data-page="options" aria-labelledby="lobby-t-options">
           <header class="page-head"><h2 class="lobby-title" id="lobby-t-options">Opzioni</h2></header>
+          <!-- schermo (natpf_screen.js), in cima perché è la prima cosa da sistemare su un monitor o un ledwall: schermo intero
+               senza cornici (pulsante con lo stato, tasto F), che cosa fare all'avvio, area con le proporzioni di un ledwall -->
+          <div class="lobby-row lobby-row-screen">
+            <span class="lobby-label">Schermo</span>
+            <div class="lobby-ctrls">
+              <div class="lobby-seg">
+                <button type="button" class="seg-btn seg-fs" id="natpf-fullscreen" aria-pressed="false" title="Schermo intero (F)"><svg class="fs-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span class="fs-label">Schermo intero</span></button>
+              </div>
+              <div class="lobby-seg" role="radiogroup" aria-label="All’avvio">
+                <span class="seg-cap">All’avvio</span>
+                <button type="button" class="seg-btn" data-natpf-fs="auto" role="radio">Schermo intero</button
+                ><button type="button" class="seg-btn" data-natpf-fs="off" role="radio">Finestra</button>
+              </div>
+            </div>
+          </div>
+          <p class="lobby-note lobby-status" id="natpf-fullscreen-status" role="status"></p>
+          <div class="lobby-row">
+            <span class="lobby-label">Area</span>
+            <div class="lobby-seg" role="radiogroup" aria-label="Area di gioco">
+              <button type="button" class="seg-btn" data-natpf-screen="full">Intero</button
+              ><button type="button" class="seg-btn" data-natpf-screen="2x2">Ledwall 2×2</button
+              ><button type="button" class="seg-btn" data-natpf-screen="3x2">Ledwall 3×2</button>
+            </div>
+          </div>
           <div class="lobby-row">
             <span class="lobby-label">Giochi con la mano</span>
             <div class="lobby-seg" role="radiogroup" aria-label="Mano">
@@ -358,16 +386,6 @@
               ><button type="button" class="seg-btn" data-option="intro">Rivedi l’intro</button>
             </div>
           </div>
-          <!-- schermo: finestra intera o area con le proporzioni di un ledwall (natpf_screen.js) -->
-          <div class="lobby-row">
-            <span class="lobby-label">Schermo</span>
-            <div class="lobby-seg" role="radiogroup" aria-label="Schermo">
-              <button type="button" class="seg-btn" data-natpf-screen="full">Intero</button
-              ><button type="button" class="seg-btn" data-natpf-screen="2x2">Ledwall 2×2</button
-              ><button type="button" class="seg-btn" data-natpf-screen="3x2">Ledwall 3×2</button>
-            </div>
-          </div>
-          <button type="button" class="seg-btn" id="natpf-fullscreen">Apri a schermo intero</button><p id="natpf-fullscreen-status" role="status"></p>
           <p class="lobby-note" id="screen-note">Ledwall: il gioco usa un’area con le proporzioni del ledwall al centro dello schermo del PC. Per un’area precisa del processore LED aggiungi all’indirizzo <code>?area=x,y,larghezza,altezza</code> (pixel).</p>
         </section>
 
@@ -693,6 +711,7 @@
           <button type="button" data-pause="music"><span>Musica</span><b>Sì</b></button
           ><button type="button" data-pause="voice"><span>Voce</span><b>Sì</b></button
           ><button type="button" data-pause="view"><span>Visuale</span><b>3ª persona</b></button
+          ><button type="button" data-pause="fullscreen"><span>Schermo</span><b>Schermo intero</b></button
           ><button type="button" data-pause="move"><span>Movimento</span><b>Automatico</b></button
           ><button type="button" data-pause="replay"><span>Moviola</span><b>Rivedi il punto</b></button
           ><button type="button" data-pause="phone"><span>Telefono</span><b>Ricalibra</b></button

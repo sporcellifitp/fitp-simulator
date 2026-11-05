@@ -21,6 +21,10 @@ const viewport = MOBILE ? { width: 915, height: 412 } : { width: 1280, height: 7
 fs.mkdirSync(OUT, { recursive: true });
 const browser = await playwright.chromium.launch();
 const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
+// schermo intero (natpf_screen.js, B8): il primo tasto sull'intro lo chiede. Con navigator.webdriver il gioco non lo
+// apre da solo, ma la richiesta del Chromium recente riuscirebbe e poi gli screenshot cambierebbero misura: come in
+// tools/e2e/th.mjs la richiesta riesce senza cambiare la finestra
+await page.addInitScript(() => { try { Element.prototype.requestFullscreen = function(){ return Promise.resolve(); }; } catch {} });
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
 page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });

@@ -56,6 +56,10 @@ const REVIEW_FAIL = {
 export class NatpfUi {
   constructor(engine){
     this.engine = engine;
+    // schermo: finestra intera o area di un ledwall, schermo intero senza cornici (natpf_screen.js). Prima di tutto il
+    // resto: l'apertura automatica dello schermo intero ascolta il primo tasto in cattura prima del menu, che lo ferma
+    this.screen = new NatpfScreen(engine);
+    this.screen.onHint = t => this.toast(t);
     this.phone = engine.natpfPhone;
     // mouse e tastiera solo in modalità prova (easter egg «natpf» nel menu)
     this.testInput = store.get('testInput', '') === '1';
@@ -90,8 +94,6 @@ export class NatpfUi {
     this.versus = new NatpfVersusUi(engine, this);
     // stesso schermo (split screen): due telefoni, pannelli della pagina «Collega» ed etichette in partita
     this.split = new NatpfSplitUi(engine, this);
-    // schermo: finestra intera o area di un ledwall 2×2 / 3×2 (natpf_screen.js)
-    this.screen = new NatpfScreen(engine);
     this.kiosk = new NatpfKiosk(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
     this.intro = new NatpfIntro({ onDone: () => { if (this.lobby.visible) this.lobby.go('menu'); } });

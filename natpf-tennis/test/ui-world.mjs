@@ -53,9 +53,9 @@ const LOCATION = { search: '?intro=0', hostname: 'stand.local', protocol: 'https
 globalThis.location = { ...LOCATION };
 globalThis.innerWidth = 1280; globalThis.innerHeight = 720;
 try { Object.defineProperty(globalThis, 'navigator', { value: { clipboard: null, mediaDevices: null, userAgent: 'node' }, configurable: true }); } catch {}
-// tasto premuto (keydown sulla finestra, prima i listener in cattura), come nel browser
-export function key(code, k = '', target = document.body){
-  const ev = mkEvent('keydown', target, { code, key: k });
+// tasto premuto (keydown sulla finestra, prima i listener in cattura), come nel browser; extra: { repeat, shiftKey, … }
+export function key(code, k = '', target = document.body, extra = {}){
+  const ev = mkEvent('keydown', target, { code, key: k, ...extra });
   for (const l of [...(winLs.keydown || [])].sort((a, b) => b.cap - a.cap)){ l.fn(ev); if (ev._stopImm) break; }
   return ev;
 }

@@ -166,6 +166,8 @@ export class NatpfTraining {
     if (typeof window !== 'undefined') window.addEventListener('keydown', e => {
       if (!this.tutorial?.open || e.code !== 'Escape') return;
       e.preventDefault(); e.stopImmediatePropagation();
+      // Esc tenuto premuto (uscita dallo schermo intero del browser) ripete il tasto: conta solo il primo
+      if (e.repeat) return;
       if (this.tutorialOpen) this._tutorialDone('skip'); else this.tutorial.close('review');
     }, true);
     // durante il riscaldamento i punti non contano: il motore chiede un punto, qui si passa alla palla successiva

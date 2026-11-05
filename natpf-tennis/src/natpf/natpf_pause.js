@@ -1,5 +1,6 @@
 // Menu di pausa: in partita l'HUD mostra solo tabellone, game ed esito del colpo. Musica, voce, visuale, movimento
-// della webcam, moviola, ricalibrazione del telefono, aiuto e ritorno al menu stanno qui (pulsante tondo ⏸ o Esc).
+// della webcam, moviola, ricalibrazione del telefono, schermo intero, aiuto e ritorno al menu stanno qui (pulsante
+// tondo ⏸ o Esc).
 // I comandi riusano i pulsanti dell'HUD del motore base, che restano nel DOM ma non si vedono.
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
@@ -31,6 +32,8 @@ export class NatpfPause {
       case 'voice': click('btn-voice-toggle'); break;
       case 'view': this.engine.setViewMode(this.engine.viewMode === 'first' ? 'third' : 'first'); break;
       case 'move': this.engine.natpfBody?.toggle(); break;
+      // schermo intero sì/no (natpf_screen.js): la pausa resta aperta e si aggiorna quando il browser ha cambiato
+      case 'fullscreen': this.ui.screen?.fullscreen?.toggle()?.then?.(() => this.paint()); break;
       case 'replay': this.close(); click('btn-replay-trigger'); return;
       case 'phone': this.close(); this.ui.openPhone(); return;
       case 'help': this.close(); this.ui.onboarding.open(); return;
@@ -48,6 +51,9 @@ export class NatpfPause {
     const voice = audio?.voice ? !!audio.voice.enabled : !/no/i.test(text('[data-voice-label]'));
     set('voice', voice ? 'Sì' : 'No', voice);
     set('view', this.engine.viewMode === 'first' ? '1ª persona' : '3ª persona', true);
+    const fs = this.ui.screen?.fullscreen;
+    show(this.el.querySelector('[data-pause="fullscreen"]'), !!fs);
+    if (fs) set('fullscreen', fs.label, fs.frameless);
     const webcam = this.ui.controller === 'webcam';
     show(this.el.querySelector('[data-pause="move"]'), webcam && !!this.engine.natpfBody);
     if (webcam && this.engine.natpfBody) set('move', this.engine.natpfBody.enabled ? 'Segue il corpo' : 'Automatico', this.engine.natpfBody.enabled);

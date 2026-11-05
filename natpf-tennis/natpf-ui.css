@@ -1081,6 +1081,30 @@ html.natpf-area { background: #000; }
 html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y); width: var(--area-w); height: var(--area-h); margin: 0; overflow: hidden; transform: translateZ(0); }
 #title-modal #screen-note code { font: 600 0.92em/1 ui-monospace, monospace; color: var(--text); }
 
+/* Schermo intero senza cornici (natpf_screen.js, B8): pulsante in alto accanto a «Come si gioca» e riga «Schermo» in
+   cima alle Opzioni. Il testo dice lo stato («Schermo intero» / «Esci da schermo intero»); su schermi stretti resta
+   l'icona (il nome è in aria-label) */
+#title-modal .lobby-top-actions { justify-self: end; display: flex; align-items: center; gap: 10px; }
+#title-modal .lobby-top-actions .lobby-help-btn { justify-self: auto; }
+#title-modal .fs-ico { flex: none; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+#title-modal .lobby-fs-btn .fs-ico { color: var(--ball); }
+#title-modal .lobby-fs-btn.on { border-color: rgba(227, 255, 54, 0.5); }
+.ranking-full #title-modal .lobby-fs-btn { visibility: hidden; }
+#title-modal .lobby-ctrls { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; min-width: 0; }
+#title-modal .lobby-seg .seg-cap { align-self: center; padding: 0 4px 0 12px; font: 600 12px/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
+#title-modal .lobby-seg .seg-btn.seg-fs { display: inline-flex; align-items: center; gap: 8px; padding: 0 18px 0 14px; background: rgba(227, 255, 54, 0.16); color: var(--text); font-weight: 700; }
+#title-modal .lobby-seg .seg-btn.seg-fs .fs-ico { color: var(--ball); }
+#title-modal .lobby-seg .seg-btn.seg-fs:hover { background: rgba(227, 255, 54, 0.26); }
+#title-modal .lobby-seg .seg-btn.seg-fs.on { background: var(--text); color: var(--ink-900); }
+#title-modal .lobby-seg .seg-btn.seg-fs.on .fs-ico { color: var(--ink-900); }
+#title-modal .lobby-status { margin-top: -8px; color: var(--warn); }
+#title-modal .lobby-status:empty { display: none; }
+#title-modal .lobby-row + .lobby-status:empty + .lobby-row { margin-top: -12px; }
+@container natpf (max-width: 860px) {
+  #title-modal .lobby-fs-btn { padding: 0 14px; }
+  #title-modal .lobby-fs-btn .fs-label { display: none; }
+}
+
 /* Potenza del colpo, colpo super ed energia (natpf_power_hud.js). In basso a sinistra; sullo stesso schermo un gruppo
    per metà, agli angoli esterni (le etichette dei giocatori stanno al centro di ogni metà) */
 .natpf-meters { position: fixed; inset: auto 0 0 0; z-index: 31; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 clamp(10px, 2cqw, 28px) clamp(10px, 3cqh, 36px); pointer-events: none; }

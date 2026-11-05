@@ -133,7 +133,8 @@ export class NatpfOnboarding {
   // tasti mentre la guida è aperta (dalla lobby, prima di ogni altro gestore): true se il tasto è della guida
   key(e){
     const code = e.code, active = document.activeElement;
-    if (code === 'Escape'){ this.close(); return true; }
+    // Esc tenuto premuto (uscita dallo schermo intero del browser) ripete il tasto: chiude una volta sola
+    if (code === 'Escape'){ if (!e.repeat) this.close(); return true; }
     if (code === 'ArrowRight' || code === 'PageDown'){ this.go(this.index + 1); return true; }
     if (code === 'ArrowLeft' || code === 'PageUp'){ this.go(this.index - 1); return true; }
     if (code === 'Home'){ this.go(0); return true; }

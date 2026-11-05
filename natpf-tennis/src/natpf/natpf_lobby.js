@@ -102,6 +102,8 @@ export class NatpfLobby {
       const t = e.target.closest('[data-mode]'); if (t){ e.stopPropagation(); this.setMode(t.dataset.mode); setTimeout(() => this.go(this.mode === 'split' ? 'connect' : 'controller'), 160); return; }
       const o = e.target.closest('[data-option]'); if (o){ e.stopPropagation(); this.option(o.dataset.option); return; }
       const sc = e.target.closest('[data-natpf-screen]'); if (sc){ e.stopPropagation(); this.ui.screen?.set(sc.dataset.natpfScreen); this.paint(); return; }
+      // schermo intero all'avvio (Opzioni → Schermo): «Schermo intero» (al primo tasto) o «Finestra»
+      const fp = e.target.closest('[data-natpf-fs]'); if (fp){ e.stopPropagation(); if (this.ui.screen?.fullscreen) this.ui.screen.fullscreen.pref = fp.dataset.natpfFs; this.paint(); return; }
       const f = e.target.closest('[data-natpf-format]'); if (f){ e.stopPropagation(); this.setFormat(f.dataset.natpfFormat); return; }
       const sv = e.target.closest('[data-natpf-serve]'); if (sv){ e.stopPropagation(); this.setServe(sv.dataset.natpfServe); return; }
       const ch = e.target.closest('[data-challenge]'); if (ch){ e.stopPropagation(); this.pickChallenge(ch.dataset.challenge); return; }
@@ -114,6 +116,7 @@ export class NatpfLobby {
     $('lobby-back').addEventListener('click', e => { e.stopPropagation(); this.back(); });
     $('lobby-warmup').addEventListener('click', e => { e.stopPropagation(); this.go('warmup'); });
     $('lobby-help').addEventListener('click', e => { e.stopPropagation(); this.onboarding.open(); });
+    // il pulsante dello schermo intero in alto (#lobby-fullscreen) lo collega natpf_screen.js
     $('setup-cam-go').addEventListener('click', async e => { e.stopPropagation(); await this.ui.startWebcam(); this.paint(); });
     $('connect-other')?.addEventListener('click', e => { e.stopPropagation(); this.ui.selectController(this.ui.controller === 'phone' ? 'webcam' : 'phone', { open: false }); this.go('connect'); });
     // «Ti hanno invitato?»: il codice della stanza scritto a mano porta alla pagina del Player 2 (senza aspettare il link)
@@ -313,12 +316,15 @@ export class NatpfLobby {
     // schermo: con un'area dall'indirizzo (?area=) nessuna scelta è accesa (vale l'indirizzo)
     const scr = this.ui.screen, cur = scr?.area ? null : scr?.preset;
     for (const b of this.el.querySelectorAll('[data-natpf-screen]')){ const on = b.dataset.natpfScreen === cur; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
+    scr?.paintFullscreen?.();
   }
   go(step){
     if (!LOBBY_STEPS.includes(step)) return;
     if (step === 'warmup'){ if (this.mode === 'split') step = 'match'; else { this.startWarmup(); return; } }
     if (step !== 'ranking') document.documentElement.classList.remove('ranking-full');
     if (step === 'menu' && this.step !== 'menu' && (this.mode === 'training' || this.mode === 'challenge')) this.mode = 'cpu';
+    // pagina nuova dall'inizio (prima restava lo scorrimento della pagina di prima)
+    if (this.step !== step){ const st = this.el.querySelector?.('.lobby-stage'); if (st) st.scrollTop = 0; }
     this.step = step; this.el.dataset.step = step; this.el.dataset.flow = this.mode;
     for (const p of this.el.querySelectorAll('[data-page]')) p.classList.toggle('on', p.dataset.page === step);
     if (step !== 'menu') show($('lobby-menu-result'), false);
@@ -349,7 +355,7 @@ export class NatpfLobby {
     show($('btn-start-match'), match);
     show($('lobby-warmup'), match && this.mode !== 'split');
     // tasti come su una console: nel menu le frecce scelgono, nelle altre pagine Invio va avanti
-    const keys = this.el.querySelector('.lobby-keys'), kt = menu ? '↑ ↓ ← → scegli · Invio conferma · H come si gioca' : 'Invio avanti · Esc indietro';
+    const keys = this.el.querySelector('.lobby-keys'), kt = menu ? '↑ ↓ ← → scegli · Invio conferma · H come si gioca · F schermo intero' : 'Invio avanti · Esc indietro · F schermo intero';
     if (keys && keys.textContent !== kt) keys.textContent = kt;
     const next = $('lobby-next');
     next.disabled = !stepReady(this.step, st);
@@ -423,15 +429,19 @@ export class NatpfLobby {
     if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
     if (this.onboarding.isOpen){ if (this.onboarding.key(e)) e.preventDefault(); e.stopImmediatePropagation(); return; }
     const sheetOpen = [...document.querySelectorAll('.natpf-sheet-backdrop')].some(m => !m.classList.contains('hidden'));
-    // in campo: Esc apre e chiude la pausa
+    // in campo: Esc apre e chiude la pausa (Esc tenuto premuto ripete il tasto: si usa solo il primo, così uscendo dallo
+    // schermo intero del browser la pausa non si apre e chiude di continuo); F schermo intero
     if (!this.visible){
-      if (e.code === 'Escape' && this.ui.pause){ e.preventDefault(); e.stopImmediatePropagation(); this.ui.pause.toggle(); }
+      if (e.code === 'Escape' && this.ui.pause){ e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) this.ui.pause.toggle(); }
+      else if (e.code === 'KeyF' && !e.repeat && !e.shiftKey && this.ui.screen?.fullscreen){ e.preventDefault(); e.stopImmediatePropagation(); this.ui.screen.fullscreen.toggle(); }
       return;
     }
     if (sheetOpen) return;
     if (e.code === 'Tab') return;
     e.stopImmediatePropagation();
     if (e.key && e.key.length === 1){ const r = eggTyped(this.eggBuffer, e.key); this.eggBuffer = r.buffer; if (r.hit){ this.ui.toggleTestInput(); this.eggBuffer = ''; return; } }
+    // F: schermo intero sì/no (dopo l'easter egg, che finisce con la «f»)
+    if (e.code === 'KeyF' && !e.shiftKey){ e.preventDefault(); if (!e.repeat) this.ui.screen?.fullscreen?.toggle(); return; }
     const tiles = this._tiles(), i = tiles.indexOf(document.activeElement);
     // frecce: si sposta il fuoco (come un joypad) verso la voce più vicina in quella direzione (nel menu principale le
     // tre voci di servizio stanno in fila), altrimenti alla successiva/precedente; nella pagina «Partita» le tessere
@@ -447,7 +457,8 @@ export class NatpfLobby {
       e.preventDefault();
       if (i >= 0 && ['menu', 'mode', 'controller', 'options', 'challenges', 'ranking', 'result'].includes(this.step)) tiles[i].click(); else this.next();
     }
-    else if (e.code === 'Escape' || e.code === 'Backspace'){ e.preventDefault(); this.back(); }
+    // Esc tenuto premuto (per uscire dallo schermo intero del browser) ripete il tasto: indietro di una pagina sola
+    else if (e.code === 'Escape' || e.code === 'Backspace'){ e.preventDefault(); if (!(e.repeat && e.code === 'Escape')) this.back(); }
     else if (e.code === 'KeyH'){ this.onboarding.open(); }
   }
   /* ---------- riscaldamento e allenamento in campo ---------- */
