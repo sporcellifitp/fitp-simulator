@@ -200,17 +200,21 @@ export function armSdf(H, bind){
   prims.arm.push(roundCone(M1, add(E, mul(F, .010)), .0310, .0365, [thinOf(wideM), 1.18]));
   const radialSide = norm(sub(wideM, mul(F, dot(wideM, F))));
   prims.arm.push(ellipsoid(add(add(lerp3(W, E, .72), mul(radialSide, .010)), mul(thinOf(wideM), -.006)), F, radialSide, thinOf(wideM), [Lf*.30, .030, .028]));
-  // --- gomito: epicondili, olecrano
+  // --- gomito: epicondili, olecrano; braccio solo se richiesto (nel prototipo il braccio non si vede: senza omero non
+  // c'è la piega del gomito, dove le surface nets creavano triangoli invertiti nella parte che sfuma)
   const inner = norm(sub(lerp3(S, W, .5), E));
-  prims.arm.push(sphere(E, .0330));
-  prims.arm.push(sphere(add(add(E, mul(inner, -.016)), mul(elbowAx, 0)), .0215));       // olecrano
-  prims.arm.push(sphere(add(E, mul(elbowAx, .024)), .0170));
-  prims.arm.push(sphere(add(E, mul(elbowAx, -.022)), .0165));
-  // --- braccio (fino a metà: poi sfuma)
   const U = norm(sub(S, E)), Lu = len(sub(S, E));
-  prims.arm.push(roundCone(E, add(E, mul(U, Lu*.80)), .0350, .0440));
-  prims.arm.push(ellipsoid(add(add(E, mul(U, Lu*.38)), mul(inner, .012)), U, inner, elbowAx, [Lu*.27, .030, .031]));    // bicipite
-  prims.arm.push(ellipsoid(add(add(E, mul(U, Lu*.45)), mul(inner, -.010)), U, inner, elbowAx, [Lu*.32, .031, .032]));   // tricipite
+  if (bind.upperArm === false){
+    prims.arm.push(sphere(add(E, mul(F, .012)), .0335));
+  } else {
+    prims.arm.push(sphere(E, .0330));
+    prims.arm.push(sphere(add(add(E, mul(inner, -.016)), mul(elbowAx, 0)), .0215));       // olecrano
+    prims.arm.push(sphere(add(E, mul(elbowAx, .024)), .0170));
+    prims.arm.push(sphere(add(E, mul(elbowAx, -.022)), .0165));
+    prims.arm.push(roundCone(E, add(E, mul(U, Lu*.80)), .0350, .0440));
+    prims.arm.push(ellipsoid(add(add(E, mul(U, Lu*.38)), mul(inner, .012)), U, inner, elbowAx, [Lu*.27, .030, .031]));    // bicipite
+    prims.arm.push(ellipsoid(add(add(E, mul(U, Lu*.45)), mul(inner, -.010)), U, inner, elbowAx, [Lu*.32, .031, .032]));   // tricipite
+  }
   return { prims, F, U, elbowAx, inner };
 }
 
@@ -326,7 +330,9 @@ export function polygonize(field, lo, hi, h){
 }
 
 // proiezione sulla superficie (Newton) e normali dal gradiente
-export function refine(field, pos, iters = 2){
+// Il passo di Newton è limitato (maxStep, ~mezza cella): dove il gradiente è debole (raccordi morbidi, asse mediale)
+// un passo libero proietta il vertice sulla superficie sbagliata e crea triangoli lunghi e ripiegati («graffi»).
+export function refine(field, pos, iters = 2, maxStep = .001){
   const e = .00025, nrm = new Float32Array(pos.length);
   for (let i = 0; i < pos.length; i += 3){
     let x = pos[i], y = pos[i + 1], z = pos[i + 2], gx = 0, gy = 0, gz = 0;
@@ -335,7 +341,9 @@ export function refine(field, pos, iters = 2){
       gx = field(x + e, y, z) - field(x - e, y, z); gy = field(x, y + e, z) - field(x, y - e, z); gz = field(x, y, z + e) - field(x, y, z - e);
       const g2 = gx*gx + gy*gy + gz*gz;
       if (it === iters || g2 < 1e-14) break;
-      const s = d*(2*e)/g2*(2*e);
+      let s = d*(2*e)/g2*(2*e);
+      const step = Math.abs(s)*Math.sqrt(g2)/(2*e);
+      if (step > maxStep) s *= maxStep/step;
       x -= gx*s/(2*e); y -= gy*s/(2*e); z -= gz*s/(2*e);
     }
     const gl = Math.hypot(gx, gy, gz) || 1;

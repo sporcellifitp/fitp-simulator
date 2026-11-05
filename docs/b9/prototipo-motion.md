@@ -27,4 +27,10 @@
   specifica §1.5 e §2.3 dice «polso fermo: il telefono gira con il braccio»), angolo polso–avambraccio fisso e naturale,
   braccio superiore solo accennato e sfumato fuori quadro (manica). Portata ridotta a 0,8× (`REACH`): il telefono a
   0,40–0,47 m dalla spalla (gomito ~110–125° invece che quasi teso); la verifica di fedeltà resta tutta verde.
-- (in corso) disegno vettoriale (`main.js`, `index.html`).
+- Fatto (bozza funzionante): `index.html` (modale più piccola e centrata con frecce in basso a sinistra e a destra) e
+  `main.js` (Canvas 2D). Iterazioni guardate con Chromium: (1) avambraccio verso la camera, dita staccate dal bordo,
+  soggetto piccolo; (2) avambraccio rivolto al corpo, viste perpendicolari all'avambraccio, nocche spostate (le dita
+  avvolgono il bordo), manica lunga; (3) dritto ripreso da dietro a sinistra (l'arco si legge «da destra a sinistra»),
+  fantasmi solo mano e telefono, etichette fuori dall'arco; (4) prospettiva più piatta (2,2 m), servizio con camera che
+  segue la mano; ritorno con superamento e assestamento (verifica sempre verde, ritorno 240 °/s ≤ 250).
+- (in corso) fotogrammi finali, mancino, costo per fotogramma, rapporto.

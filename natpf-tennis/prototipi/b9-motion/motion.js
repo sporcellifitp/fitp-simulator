@@ -71,6 +71,8 @@ export const Q0 = qmul(qmul(qaxis([1, 0, 0], E0[0]*D), qaxis([0, 1, 0], E0[1]*D)
 const clamp01 = u => u < 0 ? 0 : u > 1 ? 1 : u;
 export const mj = u => { u = clamp01(u); return u*u*u*(10 - 15*u + 6*u*u); };          // minimo jerk (5,77 D/T² di picco)
 export const prepEase = u => { u = clamp01(u); return u*u*u*(4 - 3*u); };               // 12u²(1−u): parte da fermo, arriva decelerando
+// ritorno con un piccolo superamento e assestamento (~4% dell'ampiezza, ~2°, lento): f(0)=0, f(1)=1, f'(0)=f'(1)=0
+export const settle = u => { u = clamp01(u); return mj(u) + .45*Math.sin(Math.PI*u)**2*u*u; };
 const bell = (u) => { u = clamp01(u); return u - Math.sin(2*Math.PI*u)/(2*Math.PI); };  // ∫ 2 sin²(πu) du: 0 → 1
 // polso come natpf_gesture_motion.wristAngle: wrist·sin²(π(1,4u − 0,2)) nella seconda metà del colpo
 const wristAt = (s, u) => { const a = clamp01(u*1.4 - .2); return s.wrist*(s.ms/1000)/1.4*(a/2 - Math.sin(2*Math.PI*a)/(4*Math.PI)); };
@@ -105,7 +107,7 @@ function strokePlan(id){
     if (t <= T.load){ const u = (t - T.hold)/e.prep; return { phi: -H*prepEase(u), psi: 0, on: mj(u), phase: 'prep', u }; }
     if (t <= T.end){ const u = (t - T.load)/ms; return { phi: -H + travel*bell(u), psi: s.wrist ? wristAt(s, u) : 0, on: 1, phase: 'swing', u }; }
     if (t <= T.back) return { phi: H, psi: wFull, on: 1, phase: 'follow', u: (t - T.end)/e.follow };
-    if (t <= T.home){ const u = (t - T.back)/e.back, k = 1 - mj(u); return { phi: H*k, psi: wFull*k, on: k, phase: 'back', u }; }
+    if (t <= T.home){ const u = (t - T.back)/e.back, k = 1 - settle(u); return { phi: H*k, psi: wFull*k, on: k, phase: 'back', u }; }
     return { phi: 0, psi: 0, on: 0, phase: 'rest', u: (t - T.home)/e.rest };
   };
   const rc = mul(s.rc, K), P0 = readyPos();
@@ -157,7 +159,7 @@ function servePlan(){
     else if (t <= T.hitStart){ s = B; phase = 'link'; }
     else if (t <= T.end){ u = (t - T.hitStart)/hMs; s = hitPose(-hH + hTravel*bell(u)); phase = 'swing'; }
     else if (t <= T.back){ s = E; phase = 'follow'; u = (t - T.end)/(T.back - T.end); }
-    else if (t <= T.home){ u = (t - T.back)/(T.home - T.back); const k = mj(u); s = { pos: lerp(E.pos, P0, k), q: qslerp(E.q, Q0, k) }; phase = 'back'; }
+    else if (t <= T.home){ u = (t - T.back)/(T.home - T.back); const k = settle(u); s = { pos: lerp(E.pos, P0, k), q: qslerp(E.q, Q0, k) }; phase = 'back'; }
     else { s = { pos: P0, q: Q0 }; phase = 'rest'; u = (t - T.home)/(T.total - T.home); }
     const breath = (phase === 'ready' || phase === 'rest') ? Math.sin(Math.PI*u)**2*.004 : 0;
     return { pos: [s.pos[0], s.pos[1] + breath, s.pos[2]], q: s.q, phase, u, trunk: 0 };

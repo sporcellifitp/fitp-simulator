@@ -14,6 +14,9 @@ import { handDesign, V3 } from './hand.js';
 const { add, sub, mul, dot, cross, len, norm } = V3;
 export const ARM = Object.freeze({ L1: .295, L2: .252 });
 export const TWIST_F = Object.freeze([0, 1/3, 2/3, 1]);
+// quota della prono-supinazione portata da ciascun osso dell'avambraccio: la parte visibile (metà distale) segue quasi
+// tutta la mano, come il radio; il resto si scarica verso il gomito, che non si vede
+export const TWIST_AMT = Object.freeze([.45, .65, .84, 1]);
 export const HD = handDesign();
 
 export const qconj = q => [-q[0], -q[1], -q[2], q[3]];
@@ -86,7 +89,7 @@ export function boneState(bind, phonePos, phoneQ){
   const qF = qmul(frameQ(A.F, A.h), qconj(bind.fF));
   const dt = wrap(A.tau - B.tau);
   const bones = [{ p: A.S, q: qU }];
-  for (const f of TWIST_F) bones.push({ p: add(A.E, mul(A.F, f*ARM.L2)), q: qmul(qAxis(A.F, f*dt), qF) });
+  TWIST_F.forEach((f, i) => bones.push({ p: add(A.E, mul(A.F, f*ARM.L2)), q: qmul(qAxis(A.F, TWIST_AMT[i]*dt), qF) }));
   bones.push({ p: A.W, q: qmul(phoneQ, qconj(bind.q)) });
   return { bones, arm: A, twist: dt*180/Math.PI };
 }

@@ -16,8 +16,20 @@
   «posa → sensori» della specifica §6, script `scratchpad/b9/p3d/verifica*.mjs`): dritto, rovescio, pallonetto, palla
   corta, piatto, tagliato, schiacciata → un colpo giusto ciascuno, destro e mancino, calibrazione con il braccio simulato
   e con i gesti dell'animazione; servizio → 2 messaggi, battuta 0,690 s dopo il lancio; picco letto = contatto disegnato
-  (±3 ms). L'animazione di oggi sbaglia pallonetto, schiacciata e servizio (specifica §5).
-- Mano procedurale (`hand.js`, SDF → surface nets) e telefono (`phone.js`): scritti e provati in node (prima prova:
-  braccio troppo lungo, 145k vertici, 5,4 s di generazione: da ridurre).
-- (in corso, ripresa dopo l'interruzione del limite d'uso) `rig.js` (IK a due ossa con il gomito scelto per tenere il
-  polso neutro, torsione distribuita sull'avambraccio), `mesh.js` (pelle con pesi, AO), `main.js` + `index.html`.
+  (±3 ms). Rifatta dopo la traslazione costante `STAGE.offset` (−0,30; +0,08; +0,10 m): **tutto riconosciuto**, come
+  atteso (una traslazione non cambia né rotazioni né accelerazioni).
+- Ripresa dopo l'interruzione (05/11 sera): `rig.js` (avambraccio che prolunga la mano, polso quasi neutro, torsione
+  distribuita), `mesh.js` + `worker.js` (pelle con pesi, costruita in un worker), `main.js` + `index.html` (scena).
+- Iterazioni sui fotogrammi (Chromium + SwiftShader, `scratchpad/b9/p3d/shots.mjs`):
+  1. braccio intero sfumato alla spalla → l'omero vicino alla camera è una «macchia»; pelle pallida e plastica; floor
+     troppo presente; fantasmi del telefono come lastre bianche.
+  2. solo mano + avambraccio (sfuma verso il gomito), pelle più calda con diffusione avvolgente nel rosso, nebbia e
+     vignetta, ottica più lunga (22°) → molto meglio; restano «graffi» scuri nella parte che sfuma.
+  3. fantasmi solo come contorno (fresnel), inquadratura stretta calcolata proiettando la traiettoria; taglio della SDF
+     al gomito provato e tolto (creava triangoli ripiegati).
+  4. passo di Newton limitato (mezza cella), riflesso del vetro ridotto (lo schermo «Pronto» restava bianco).
+  5. causa vera dei graffi trovata contando i triangoli invertiti (523, di cui 504 nella parte che sfuma): superfici
+     dell'omero piegate nella piega del gomito. Tolto l'omero dalla SDF → 19 invertiti (tutti nelle pieghe delle dita,
+     ora girati); 39,8k vertici, 62k triangoli, 2,1 s di costruzione in node.
+- (in corso) pavimento infinito (orizzonte senza spigolo), camera che segue la mano in servizio e schiacciata, viste a
+  tre quarti per pallonetto e palla corta; poi fotogrammi finali, misure, rapporto.

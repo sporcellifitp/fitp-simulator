@@ -23,10 +23,10 @@ export const HAND = {
   // nocche sotto il telefono, falange prossimale fino al bordo (l'interfalangea prossimale appena fuori dal bordo), falange
   // media che sale lungo lo spessore, distale appoggiata sul bordo dello schermo: le dita avvolgono il bordo da vicino
   fingers: [
-    { name: 'index',  mcp: [-9, -8, -18], dir: [-1, .30, 0], L: [40, 23, 18], flex: [10, 82, 84], r: [9.6, 8.6, 7.8, 7.0] },
-    { name: 'middle', mcp: [-4, -27, -19], dir: [-1, .10, 0], L: [44, 25, 19], flex: [10, 84, 84], r: [10, 9.0, 8.1, 7.2] },
-    { name: 'ring',   mcp: [-6, -46, -18], dir: [-1, -.08, 0], L: [41, 24, 18], flex: [10, 84, 82], r: [9.4, 8.4, 7.6, 6.9] },
-    { name: 'pinky',  mcp: [-13, -63, -16], dir: [-1, -.26, 0], L: [33, 19, 16], flex: [10, 84, 78], r: [8.4, 7.4, 6.8, 6.2] },
+    { name: 'index',  mcp: [-13, -8, -18], dir: [-1, .30, 0], L: [40, 23, 18], flex: [10, 84, 96], r: [9.6, 8.6, 7.8, 7.0] },
+    { name: 'middle', mcp: [-8, -27, -19], dir: [-1, .10, 0], L: [44, 25, 19], flex: [10, 86, 96], r: [10, 9.0, 8.1, 7.2] },
+    { name: 'ring',   mcp: [-10, -46, -18], dir: [-1, -.08, 0], L: [41, 24, 18], flex: [10, 86, 94], r: [9.4, 8.4, 7.6, 6.9] },
+    { name: 'pinky',  mcp: [-16, -63, -16], dir: [-1, -.26, 0], L: [33, 19, 16], flex: [10, 86, 90], r: [8.4, 7.4, 6.8, 6.2] },
   ],
   palmN: [0, 0, 1],                  // il palmo guarda il telefono (+z)
   // pollice: base (trapezio-metacarpo), MCP, IP, punta; disteso lungo il bordo destro, a metà altezza, senza toccare lo schermo
@@ -39,7 +39,7 @@ export const HAND = {
 };
 // avambraccio: profilo (frazione della lunghezza dal polso, raggio mm): polso stretto, ventre muscolare, gomito
 export const FOREARM_PROFILE = Object.freeze([[0, 25], [.18, 28], [.45, 36], [.75, 38], [1, 34]]);
-export const BAND = Object.freeze({ from: .03, to: .17 });    // polsino di spugna (frazione dell'avambraccio)
+export const BAND = Object.freeze({ from: .045, to: .13 });    // polsino di spugna (frazione dell'avambraccio)
 export const CUFF = .56;                                      // dove comincia la manica lunga (frazione dell'avambraccio)
 
 // forward kinematics di un dito: catena piana (flessione verso il palmo)

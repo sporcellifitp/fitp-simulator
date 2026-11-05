@@ -50,12 +50,12 @@ const scene = new THREE.Scene();
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
 const HORIZON = new THREE.Color(0x2b2026), ZENITH = new THREE.Color(0x070a12);
-scene.fog = new THREE.Fog(HORIZON, 1.6, 6.5);
+scene.fog = new THREE.Fog(HORIZON, 1.8, 7.5);
 const dome = new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, fog: false,
   uniforms: { top: { value: ZENITH }, hor: { value: HORIZON } },
   vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position, 1.); }',
-  fragmentShader: 'uniform vec3 top, hor; varying vec3 vP; void main(){ float h = clamp(vP.y*1.8 + .02, 0., 1.); gl_FragColor = vec4(mix(hor, top, pow(h, .55)), 1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}',
+  fragmentShader: 'uniform vec3 top, hor; varying vec3 vP; void main(){ float h = clamp(vP.y*1.15, 0., 1.); gl_FragColor = vec4(mix(hor, top, smoothstep(0., 1., pow(h, .8))), 1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}',
 }));
 scene.add(dome);
 
@@ -77,10 +77,10 @@ function clayTexture(){
   let seed = 7; const rnd = () => (seed = (seed*16807) % 2147483647)/2147483647;
   for (let i = 0; i < 9000; i++){ const v = rnd(); g.fillStyle = v < .5 ? `rgba(120,45,22,${.10 + rnd()*.18})` : `rgba(220,120,80,${.06 + rnd()*.14})`; g.fillRect(rnd()*512, rnd()*512, 1 + rnd()*2.5, 1 + rnd()*2.5); }
   for (let i = 0; i < 40; i++){ g.strokeStyle = `rgba(150,60,30,${.05 + rnd()*.06})`; g.lineWidth = 6 + rnd()*14; g.beginPath(); const y = rnd()*512; g.moveTo(0, y); g.bezierCurveTo(170, y + rnd()*30 - 15, 340, y + rnd()*30 - 15, 512, y); g.stroke(); }
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(9, 9); t.anisotropy = 8;
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(52, 52); t.anisotropy = 8;
   return t;
 }
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), new THREE.MeshStandardMaterial({ map: clayTexture(), roughness: .96, metalness: 0, envMapIntensity: .35 }));
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(140, 140), new THREE.MeshStandardMaterial({ map: clayTexture(), roughness: .96, metalness: 0, envMapIntensity: .35 }));
 floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; scene.add(floor);
 const lineM = new THREE.MeshStandardMaterial({ color: 0xe9e2d6, roughness: .9, envMapIntensity: .3 });
 const baseline = new THREE.Mesh(new THREE.PlaneGeometry(10.97, .05), lineM); baseline.rotation.x = -Math.PI/2; baseline.position.set(0, .002, -.75); baseline.receiveShadow = true;
@@ -133,7 +133,7 @@ function makeSkin(r){
     const m = new THREE.SkinnedMesh(g, mat); m.frustumCulled = false; m.bind(skeleton); rig.add(m); return m;
   };
   const o = mk(opaque, skinMat); o.castShadow = true; o.receiveShadow = true;
-  const f = mk(faded, fadeMat); f.renderOrder = 2; f.receiveShadow = true;
+  const f = mk(faded, fadeMat); f.renderOrder = 2; f.receiveShadow = false;
   skinStats = r.stats;
 }
 
@@ -143,7 +143,7 @@ rig.add(phone.group);
 phone.group.traverse(o => { if (o.isMesh) o.receiveShadow = true; });
 const ghostGeo = phone.group.children[0].geometry;
 // pose chiave (caricamento, impatto, fine) come «ologrammi»: solo il contorno (fresnel), nessuna superficie piena
-const ghostMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { col: { value: new THREE.Color(0xcfe2ff) }, op: { value: .55 } },
+const ghostMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { col: { value: new THREE.Color(0xcfe2ff) }, op: { value: .38 } },
   vertexShader: 'varying vec3 vN, vV; void main(){ vec4 mv = modelViewMatrix*vec4(position, 1.); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }',
   fragmentShader: 'uniform vec3 col; uniform float op; varying vec3 vN, vV; void main(){ float f = pow(1. - abs(dot(normalize(vN), normalize(vV))), 2.2); gl_FragColor = vec4(col, op*(.06 + .94*f)); }' });
 const ghosts = [0, 1, 2].map(() => { const m = new THREE.Mesh(ghostGeo, ghostMat); m.renderOrder = 3; rig.add(m); return m; });
@@ -221,9 +221,15 @@ const VIEWS = {
   treQuarti: { dir: [1.0, .42, .62], fov: 22 },
   lato: { dir: [1.0, .14, -.10], fov: 22 },
   alto: { dir: [.80, .34, .95], fov: 24 },
+  // servizio e schiacciata: la mano fa ~1 m in verticale; la camera la segue (media mobile della posizione: nessuno
+  // scatto) a distanza fissa, come un operatore
+  segui: { dir: [.85, .30, .90], fov: 24, follow: .25 },
+  // dagli occhi di chi gioca (come la foto della presa): l'avambraccio si vede di lato e sfuma fuori quadro
+  occhi: { dir: [.10, .95, .62], fov: 22 },
+  dietroBasso: { dir: [.40, .28, 1.0], fov: 22 },
   fronte: { dir: [.35, .25, -1.0], fov: 22 },
 };
-const DEFAULT_VIEW = { grip: 'presa', ready: 'treQuarti', forehand: 'dietro', backhand: 'dietro', flat: 'dietro', slice: 'treQuarti', lob: 'lato', drop: 'lato', serve: 'alto', smash: 'alto' };
+const DEFAULT_VIEW = { grip: 'presa', ready: 'occhi', forehand: 'dietro', backhand: 'dietro', flat: 'dietro', slice: 'dietroBasso', lob: 'dietroBasso', drop: 'dietroBasso', serve: 'segui', smash: 'segui' };
 // punti del gesto (cima e base del telefono, polso, avambraccio visibile) campionati su tutto il ciclo
 const samples = new Map();
 function gesturePoints(id){
@@ -273,9 +279,17 @@ function placeCamera(t){
     const drift = state.tFixed != null ? 0 : .05*Math.sin(2*Math.PI*t/11);
     const a = Math.atan2(v.dir[0], v.dir[2]) + drift, hz = Math.hypot(v.dir[0], v.dir[2]);
     dir = [Math.sin(a)*hz, v.dir[1], Math.cos(a)*hz];
+    if (v.follow){
+      let m = [0, 0, 0]; const K = 12, Tc = cycleOf(state.id), tt = state.tFixed != null ? state.tFixed : (t*state.slow) % Tc;
+      for (let k = -K; k <= K; k++){ const w = Math.cos(k/K*Math.PI/2)**2; const P = gesturePose(state.id, Math.min(Tc, Math.max(0, tt + k*.045))); m = V(m, V(P.pos, qrot(P.q, TIP), .5), w/K*1.0); }
+      let ws = 0; for (let k = -K; k <= K; k++) ws += Math.cos(k/K*Math.PI/2)**2/K; c = m.map(x => x/ws);
+      dist = v.follow/Math.tan(fov*Math.PI/360*.86)/Math.min(1, aspect);
+      c = V(c, [0, -.04, 0]);
+    } else {
     const key = state.id + '|' + viewName + '|' + aspect.toFixed(3) + '|' + (qs.get('dir') || '');
     if (!fits.has(key)) fits.set(key, fitView(gesturePoints(state.id), [v.dir[0], v.dir[1], v.dir[2]], fov, aspect));
-    const fit = fits.get(key); c = fit.c; dist = fit.D;
+    const fit = fits.get(key); c = fit.c; dist = Math.max(fit.D, planFor(state.id).still ? .95 : 0);
+    }
   }
   const d = Math.hypot(...dir), pos = V(c, dir, dist/d);
   camera.fov = fov; camera.updateProjectionMatrix();

@@ -23,15 +23,18 @@ const CARDS = [
 // Le viste sono quasi perpendicolari all'avambraccio (che con q0 va indietro e a destra, verso il corpo): il braccio esce
 // di lato dal quadro invece di puntare verso chi guarda. Colpi orizzontali: dall'alto e da dietro (l'arco si vede intero);
 // colpi nel piano verticale: di lato, un poco da davanti (si vede il palmo sotto il telefono).
-const VIEWS = {
+let VIEWS = {
   grip: [[-.36, .78, .5], [.7, .3, -.65]],
-  forehand: [[.2, 1, .45]],
-  backhand: [[-.1, 1, .45]],
-  serve: [[1, .15, -.5]],
+  forehand: [[-.35, .62, 1]],
+  backhand: [[.35, .62, 1]],
+  serve: [[1, .14, -.3]],
   lob: [[1, .2, -.6]],
   drop: [[1, .25, -.6]],
 };
-const DIST = { grip: 1.0, serve: 2.1 };            // distanza della camera (m): prospettiva moderata
+let DIST = { grip: 1.0 };                          // distanza della camera (m): prospettiva moderata (2,2 m per i colpi)
+// servizio: il moto copre ~1 m in verticale; la camera segue la mano (media mobile di 0,9 s, ingrandimento fisso su
+// 0,5 m): carrellata morbida come in una guida animata, la mano resta grande
+const FOLLOW = { serve: .5 };
 const HUD_H = .2;                                   // parte bassa dello stadio riservata alla curva della velocità
 
 /* ---------- colori e luce dipinta ---------- */
@@ -42,8 +45,8 @@ const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a)/(b - a)))
 const LINE = hex('#1d0f1f');
 const MAT = {
   skin: { shadow: hex('#a8604f'), base: hex('#e2a081'), light: hex('#f3c2a3'), high: hex('#ffe2cf'), rim: hex('#a9c6ff') },
-  band: { shadow: hex('#7f9612'), base: hex('#cfe82a'), light: hex('#e6ff5c'), high: hex('#f7ffc2'), rim: hex('#a9c6ff') },
-  sleeve: { shadow: hex('#1a3596'), base: hex('#2c62ef'), light: hex('#4f84ff'), high: hex('#8fb0ff'), rim: hex('#a9c6ff') },
+  band: { shadow: hex('#9aa3bf'), base: hex('#e4e8f2'), light: hex('#f7f9ff'), high: hex('#ffffff'), rim: hex('#a9c6ff') },
+  sleeve: { shadow: hex('#172656'), base: hex('#26408e'), light: hex('#3557b4'), high: hex('#5d7fd6'), rim: hex('#7fa2ff') },
   nail: { shadow: hex('#d7a092'), base: hex('#f2c7b9'), light: hex('#ffe3da'), high: hex('#fff4ef'), rim: hex('#ffffff') },
 };
 const BALL = hex('#e3ff36'), WHITE = [255, 255, 255];
@@ -200,7 +203,7 @@ function drawScreen(c, cam, T){
 
 /* ---------- la figura: braccio, mano e telefono ---------- */
 // costruisce le parti (forme proiettate) e le divide tra «dietro il telefono» e «davanti», in ordine di profondità
-function figure(cam, pose){
+function figure(cam, pose, short = false){
   const rig = rigPose(pose, SHOULDER), P = cam.p;
   const qi = qconj(pose.q), toLocal = X => qrot(qi, sub(X, pose.pos));
   const clampBox = l => [Math.max(-HW, Math.min(HW, l[0])), Math.max(-HH, Math.min(HH, l[1])), Math.max(-HD, Math.min(HD, l[2]))];
@@ -215,11 +218,11 @@ function figure(cam, pose){
   const prof = FOREARM_PROFILE, along = u => add(rig.W, mul(sub(rig.E, rig.W), u));
   const rAt = u => { for (let i = 1; i < prof.length; i++) if (u <= prof[i][0]){ const k = (u - prof[i - 1][0])/(prof[i][0] - prof[i - 1][0]); return (prof[i - 1][1] + (prof[i][1] - prof[i - 1][1])*k)/1000; } return prof[prof.length - 1][1]/1000; };
   // pelle dal polso alla manica, poi manica lunga (più larga) fino al gomito e braccio superiore accennato
-  const NS = 4; for (let i = 0; i < NS; i++){ const u0 = CUFF*i/NS, u1 = CUFF*(i + 1)/NS; arm.push(cap(along(u0), along(u1), rAt(u0), rAt(u1), MAT.skin, { kind: 'fore' })); }
+  const fe = short ? .3 : CUFF, NS = short ? 2 : 4;
+  for (let i = 0; i < NS; i++){ const u0 = fe*i/NS, u1 = fe*(i + 1)/NS; arm.push(cap(along(u0), along(u1), rAt(u0), rAt(u1), MAT.skin, { kind: 'fore' })); }
   const sl = u => rAt(u) + .0065;
-  for (let i = 0; i < 3; i++){ const u0 = CUFF + (1 - CUFF)*i/3, u1 = CUFF + (1 - CUFF)*(i + 1)/3; arm.push(cap(along(u0), along(u1), sl(u0), sl(u1), MAT.sleeve, { kind: 'sleeve' })); }
-  const S2 = add(rig.E, mul(rig.U, .17));
-  arm.unshift(cap(rig.E, S2, .046, .05, MAT.sleeve, { kind: 'upper' }));
+  for (let i = 0; i < (short ? 0 : 3); i++){ const u0 = CUFF + (1 - CUFF)*i/3, u1 = CUFF + (1 - CUFF)*(i + 1)/3; arm.push(cap(along(u0), along(u1), sl(u0), sl(u1), MAT.sleeve, { kind: 'sleeve' })); }
+  const S2 = rig.E;
   const palmPts = [];
   palmPts.push(...circlePts(P(rig.W), R(rig.W, .024)));
   for (const h of rig.heel) palmPts.push(...circlePts(P(h.p), R(h.p, h.r)));
@@ -260,8 +263,17 @@ function figure(cam, pose){
   const band = { a: P(along(BAND.from)), b: P(along(BAND.to)), Ra: R(along(BAND.from), rAt(BAND.from) + .003), Rb: R(along(BAND.to), rAt(BAND.to) + .003) };
   const cuff = { c: P(along(CUFF)), r: R(along(CUFF), sl(CUFF)), d: P(along(CUFF + .05)) };
   // la manica sfuma verso la spalla (fuori quadro); mai sopra la mano, anche con l'avambraccio di scorcio
-  const fc = P(add(rig.E, mul(rig.U, .2))), w = P(rig.W), fr = Math.min(R(S2, .13), .8*Math.hypot(fc.x - w.x, fc.y - w.y));
-  return { rig, arm, armSide, parts, band, cuff, upperFade: { c: fc, r: fr }, elbow: P(rig.E) };
+  const fc = P(rig.E), w = P(rig.W), fr = Math.min(R(rig.E, .11), .62*Math.hypot(fc.x - w.x, fc.y - w.y));
+  // rettangolo occupato dalla figura (px del dispositivo): gli strati si puliscono e si compongono solo lì
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const grow = (x, y, r) => { x0 = Math.min(x0, x - r); y0 = Math.min(y0, y - r); x1 = Math.max(x1, x + r); y1 = Math.max(y1, y + r); };
+  for (const q of arm.concat(parts)) if (q.a){ grow(q.a.x, q.a.y, q.Ra); grow(q.b.x, q.b.y, q.Rb); }
+  for (const q of palmHull) grow(q.x, q.y, 0);
+  for (const v of [[-HW, HH], [HW, HH], [-HW, -HH], [HW, -HH]]){ const q = P(add(pose.pos, qrot(pose.q, [v[0], v[1], 0]))); grow(q.x, q.y, 0); }
+  const m = 14, d = st.dpr, Wd = st.layer.width, Hd = st.layer.height;
+  const rx = Math.max(0, Math.floor((x0 - m)*d)), ry = Math.max(0, Math.floor((y0 - m)*d));
+  const rect = { x: rx, y: ry, w: Math.max(1, Math.min(Wd, Math.ceil((x1 + m)*d)) - rx), h: Math.max(1, Math.min(Hd, Math.ceil((y1 + m)*d)) - ry) };
+  return { rig, arm, armSide, parts, band, cuff, upperFade: { c: fc, r: fr }, elbow: P(rig.E), rect };
 }
 const rotLocal = (v, k, ang) => { const c = Math.cos(ang), s = Math.sin(ang), d = dot(k, v), x = cross(k, v); return [v[0]*c + x[0]*s + k[0]*d*(1 - c), v[1]*c + x[1]*s + k[1]*d*(1 - c), v[2]*c + x[2]*s + k[2]*d*(1 - c)]; };
 
@@ -282,77 +294,79 @@ function drawPart(c, p, st, flat){
   }
 }
 // disegna la figura intera. flat = { fill, line } per i fantasmi (sagoma piatta)
-function drawFigure(c, cam, pose, st, flat = null){
-  const F = figure(cam, pose), L1 = st.layer, l = L1.getContext('2d');
-  // 1) braccio e palmo in uno strato: un solo contorno, polsino, sfumatura della manica verso la spalla
-  l.setTransform(1, 0, 0, 1, 0, 0); l.clearRect(0, 0, L1.width, L1.height); l.setTransform(st.dpr, 0, 0, st.dpr, 0, 0);
+function drawArmInto(l, F, st, flat){
   drawShapes(l, F.arm, st, flat);
   if (!flat){
     const b = F.band; l.save();
     l.beginPath(); capsulePath(l, b.a, b.b, b.Ra + st.ow*.2, b.Rb + st.ow*.2); l.fillStyle = css(LINE); l.fill();
     l.beginPath(); capsulePath(l, b.a, b.b, b.Ra - st.ow*.6, b.Rb - st.ow*.6); l.fillStyle = tubeGrad(l, b.a, b.b, (b.Ra + b.Rb)/2, MAT.band); l.fill();
-    // riga rosa del polsino
+    // riga del polsino
     const m = { x: (b.a.x + b.b.x)/2, y: (b.a.y + b.b.y)/2 }, mr = (b.Ra + b.Rb)/2, dx = b.b.x - b.a.x, dy = b.b.y - b.a.y, dl = Math.hypot(dx, dy) || 1;
-    l.lineWidth = Math.max(1, mr*.22); l.strokeStyle = 'rgba(255,61,139,.9)'; l.beginPath();
+    l.lineWidth = Math.max(1, mr*.18); l.strokeStyle = 'rgba(47,107,255,.95)'; l.beginPath();
     l.moveTo(m.x - dy/dl*mr*.92, m.y + dx/dl*mr*.92); l.lineTo(m.x + dy/dl*mr*.92, m.y - dx/dl*mr*.92); l.stroke();
     // orlo della manica: un arco di sezione (ellisse vista di scorcio)
-    const cf = F.cuff, ex = cf.d.x - cf.c.x, ey = cf.d.y - cf.c.y, el = Math.hypot(ex, ey) || 1;
+    const cf = F.cuff, ex = cf.d.x - cf.c.x, ey = cf.d.y - cf.c.y;
     l.translate(cf.c.x, cf.c.y); l.rotate(Math.atan2(ey, ex));
     l.beginPath(); l.ellipse(0, 0, Math.max(1.5, cf.r*.28), cf.r*.98, 0, -Math.PI/2, Math.PI/2); l.lineWidth = st.ow*1.1; l.strokeStyle = css(LINE); l.stroke();
     l.restore();
+    // la manica si perde verso la spalla (fuori quadro)
+    l.save(); l.globalCompositeOperation = 'destination-out';
+    const fu = F.upperFade, g = l.createRadialGradient(fu.c.x, fu.c.y, 0, fu.c.x, fu.c.y, fu.r);
+    g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(.35, 'rgba(0,0,0,.9)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    l.fillStyle = g; l.fillRect(fu.c.x - fu.r, fu.c.y - fu.r, fu.r*2, fu.r*2); l.restore();
   }
-  // manica che si perde verso la spalla
-  l.save(); l.globalCompositeOperation = 'destination-out';
-  const fu = F.upperFade, g = l.createRadialGradient(fu.c.x, fu.c.y, 0, fu.c.x, fu.c.y, fu.r);
-  g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(.55, 'rgba(0,0,0,.85)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-  l.fillStyle = g; l.fillRect(fu.c.x - fu.r, fu.c.y - fu.r, fu.r*2, fu.r*2); l.restore();
+}
+// disegna la figura intera. flat = { fill, line } per i fantasmi (sagoma piatta). Un solo strato fuori schermo, pulito e
+// composto solo nel rettangolo della figura: dietro il telefono (braccio, dita, ombra del telefono sulla pelle), il
+// telefono, poi davanti (ombra delle dita sul vetro, dita; braccio se è lui davanti)
+function drawFigure(c, cam, pose, st, flat = null){
+  const F = figure(cam, pose, !!flat), L = st.layer, l = L.getContext('2d'), R = F.rect;
+  const clearL = () => { l.setTransform(1, 0, 0, 1, 0, 0); l.clearRect(R.x, R.y, R.w, R.h); l.setTransform(st.dpr, 0, 0, st.dpr, 0, 0); };
+  const blit = () => { c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(L, R.x, R.y, R.w, R.h, R.x, R.y, R.w, R.h); c.restore(); };
   const back = F.parts.filter(p => p.side === 'back').sort((a, b) => b.depth - a.depth);
   const front = F.parts.filter(p => p.side === 'front').sort((a, b) => b.depth - a.depth);
-  const drawArm = () => { c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(L1, 0, 0); c.restore(); };
-  // 2) dietro il telefono
-  if (F.armSide === 'back') drawArm();
-  for (const p of back) drawPart(c, p, st, flat);
-  // ombra del telefono sulla mano che sta dietro (solo dove c'è la mano)
-  const H = drawPhoneShadowAndPhone(c, cam, pose, st, flat, F, back);
-  // 3) davanti: prima l'ombra portata delle dita sul vetro, poi le dita
+  if (F.armSide === 'back' || back.length){
+    clearL();
+    if (F.armSide === 'back') drawArmInto(l, F, st, flat);
+    for (const p of back) drawPart(l, p, st, flat);
+    if (!flat){
+      // ombra morbida del telefono solo sulla pelle già disegnata (source-atop), senza filtri: due passate sfalsate
+      const T = v => add(pose.pos, qrot(pose.q, v)), ph = hull(RR.map(p => cam.p(T([p[0], p[1], 0]))));
+      l.globalCompositeOperation = 'source-atop';
+      for (const [k, a] of [[1.1, .26], [1.9, .2]]){
+        l.save(); l.translate(-LIGHT[0]*st.shadow*k, -LIGHT[1]*st.shadow*k);
+        l.beginPath(); polyPath(l, ph); l.fillStyle = `rgba(40,6,30,${a})`; l.fill(); l.restore();
+      }
+      l.globalCompositeOperation = 'source-over';
+    }
+    blit();
+  }
+  const H = drawPhone(c, cam, pose, st, flat);
   if (!flat && front.length){
     c.save(); c.beginPath(); polyPath(c, H); c.clip(); c.fillStyle = 'rgba(2,4,16,.42)';
-    const ox = -LIGHT[0]*st.shadow, oy = -LIGHT[1]*st.shadow; c.translate(ox, oy);
+    c.translate(-LIGHT[0]*st.shadow, -LIGHT[1]*st.shadow);
     for (const p of front){ c.beginPath(); p.path(c, st.ow*.6); c.fill(); }
     c.restore();
   }
-  if (F.armSide === 'front') drawArm();
+  if (F.armSide === 'front'){ clearL(); drawArmInto(l, F, st, flat); blit(); }
   for (const p of front) drawPart(c, p, st, flat);
   return F;
-}
-function drawPhoneShadowAndPhone(c, cam, pose, st, flat, F, back){
-  if (!flat && (F.armSide === 'back' || back.length)){
-    // ombra morbida del telefono sul palmo: disegnata solo sopra la pelle già presente (source-atop su uno strato)
-    const L2 = st.layer2, l = L2.getContext('2d');
-    l.setTransform(1, 0, 0, 1, 0, 0); l.clearRect(0, 0, L2.width, L2.height); l.setTransform(st.dpr, 0, 0, st.dpr, 0, 0);
-    if (F.armSide === 'back'){ l.save(); l.setTransform(1, 0, 0, 1, 0, 0); l.drawImage(st.layer, 0, 0); l.restore(); }
-    for (const p of back) drawPart(l, p, st, null);
-    l.globalCompositeOperation = 'source-atop';
-    const T = v => add(pose.pos, qrot(pose.q, v)), ph = hull(RR.map(p => cam.p(T([p[0], p[1], 0]))));
-    l.save(); l.translate(-LIGHT[0]*st.shadow*1.6, -LIGHT[1]*st.shadow*1.6); l.filter = `blur(${Math.max(1, st.shadow*.6)}px)`;
-    l.beginPath(); polyPath(l, ph); l.fillStyle = 'rgba(40,6,30,.45)'; l.fill(); l.restore();
-    l.globalCompositeOperation = 'source-over';
-    c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(L2, 0, 0); c.restore();
-  }
-  return drawPhone(c, cam, pose, st, flat);
 }
 
 /* ---------- stato e scena ---------- */
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const state = { card: 0, hand: 'right', rateMode: 'alt', t: 0, cycle: 0, frozen: null, seen: new Set([0]) };
-const st = { dpr: 1, W: 0, H: 0, ow: 2, shadow: 4, layer: document.createElement('canvas'), layer2: document.createElement('canvas'), ghost: document.createElement('canvas'), frames: new Map() };
+const st = { dpr: 1, W: 0, H: 0, ow: 2, shadow: 4, layer: document.createElement('canvas'), ghost: document.createElement('canvas'), frames: new Map() };
 const card = () => CARDS[state.card];
 
+// risoluzione adattiva: densità del canvas = quella dello schermo (max 2), ridotta a passi di 0,25 (fino a 1) se il
+// disegno supera 12 ms per 40 fotogrammi di fila: su schermi lenti resta fluido, su ledwall (densità 1) resta nativo
+const perf = { cap: 2, slow: 0 };
 function resize(){
-  const r = cv.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1);
+  const r = cv.getBoundingClientRect(), dpr = Math.max(1, Math.min(perf.cap, window.devicePixelRatio || 1));
   st.dpr = dpr; st.W = r.width; st.H = r.height;
-  for (const k of [cv, st.layer, st.layer2, st.ghost]){ k.width = Math.round(r.width*dpr); k.height = Math.round(r.height*dpr); }
-  st.frames.clear();
+  for (const k of [cv, st.layer, st.ghost]){ k.width = Math.round(r.width*dpr); k.height = Math.round(r.height*dpr); }
+  st.frames.clear(); ghostCache.clear(); st.ghostRect = null;
 }
 // punti del moto per l'inquadratura (cima, base e angoli del telefono, polso, metà avambraccio, punte delle dita)
 function motionPoints(id){
@@ -369,10 +383,18 @@ function camFor(id, view, mirror){
   const key = `${id}|${view}|${st.W}x${st.H}`;
   if (!st.frames.has(key)){
     const W = st.W, H = st.H, box = id === 'grip' ? { x: W*.25, y: H*.12, w: W*.5, h: H*.72 } : { x: W*.14, y: H*.1, w: W*.72, h: H*(1 - HUD_H - .14) };
-    st.frames.set(key, frame(motionPoints(id), VIEWS[id][view], DIST[id] || 1.6, box));
+    st.frames.set(key, { ...frame(motionPoints(id), VIEWS[id][view], DIST[id] || 2.2, box), box });
   }
   const fr = st.frames.get(key);
   return makeCam(fr.eye, fr.target, fr.f, fr.cx, fr.cy, mirror, st.W);
+}
+function followCam(id, t, mirror){
+  const base = camFor(id, 0, mirror), P = plan(id), D0 = len(sub(base.eye, base.target)), dir = norm(sub(base.eye, base.target));
+  let m = [0, 0, 0]; const n = 24;
+  for (let i = 0; i <= n; i++){ const tt = t + (i/n - .5)*.9, w = Math.sin(Math.PI*(i + .5)/(n + 1)); m = add(m, mul(gesturePose(id, ((tt % P.total) + P.total) % P.total).pos, w)); }
+  let ws = 0; for (let i = 0; i <= n; i++) ws += Math.sin(Math.PI*(i + .5)/(n + 1));
+  const target = mul(m, 1/ws), b = st.frames.get(`${id}|0|${st.W}x${st.H}`).box;
+  return makeCam(add(target, mul(dir, D0)), target, b.h*D0/FOLLOW[id], b.x + b.w/2, b.y + b.h*.52, mirror, st.W);
 }
 // camera della presa: due viste ferme e un giro morbido tra le due (gira la camera, non la mano)
 function gripCam(t, mirror){
@@ -436,34 +458,43 @@ function render(t){
   c.setTransform(st.dpr, 0, 0, st.dpr, 0, 0); c.clearRect(0, 0, W, H);
   const k = W/760;                                   // scala dei testi: proporzionale allo stadio
   st.ow = Math.max(1.2, 2.1*Math.sqrt(W/900)); st.shadow = 5*W/1100;
-  // fondo: luce di scena dietro la figura e vignettatura
-  const sp = c.createRadialGradient(W*.5, H*.4, 0, W*.5, H*.42, W*.55);
-  sp.addColorStop(0, 'rgba(70,110,230,.22)'); sp.addColorStop(1, 'rgba(70,110,230,0)'); c.fillStyle = sp; c.fillRect(0, 0, W, H);
+  // il fondo (luce di scena e vignettatura) è il CSS dello stadio: il canvas disegna solo ciò che si muove
   if (id === 'grip') return renderGrip(c, t, mirror, k);
-  const P = plan(id), cam = camFor(id, 0, mirror), pose = gesturePose(id, t);
+  const P = plan(id), cam = FOLLOW[id] ? followCam(id, t, mirror) : camFor(id, 0, mirror), pose = gesturePose(id, t);
   // fantasmi delle pose chiave: compaiono quando la mano ci passa, restano fino al ritorno, poi sfumano
   const ghosts = P.keys.map((key, i) => {
     const a = t < key.t ? 0 : Math.min(1, (t - key.t)/.12)*(1 - sstep(P.T.home - .25, P.T.home + .1, t));
     return { key, i, a };
   });
-  for (const g of ghosts){ if (g.a <= .01) continue; drawGhost(c, cam, gesturePose(id, g.key.t), g.a); }
-  drawArrows(c, cam, id, P, t);
-  drawTrail(c, cam, id, t);
+  const SK = window.__skip || {};
+  for (const g of ghosts){ if (SK.ghost || g.a <= .01) continue; drawGhost(c, cam, gesturePose(id, g.key.t), g.a, FOLLOW[id] ? null : `${id}|${state.hand}|${g.i}|${st.W}x${st.H}@${st.dpr}`); }
+  if (!SK.arrow) drawArrows(c, cam, id, P, t);
+  if (!SK.trail) drawTrail(c, cam, id, t);
   // palla: dietro o davanti alla figura secondo la profondità
   const ballX = ballAt(id, t), spin = t*14;
   const ballFirst = ballX && cam.depth(ballX) > cam.depth(pose.pos);
   if (ballX && ballFirst) drawBall(c, cam, ballX, spin, st);
-  drawFigure(c, cam, pose, st);
+  if (!SK.figure) drawFigure(c, cam, pose, st);
   if (ballX && !ballFirst) drawBall(c, cam, ballX, spin, st);
   drawImpact(c, cam, id, P, t);
   // etichette dei fantasmi: oltre la cima, verso l'esterno dell'arco (lontano dalla spalla)
-  const sh = cam.p(SHOULDER);
+  // etichette dei fantasmi fuori dall'arco: dal centro del percorso della cima verso la cima del fantasma
+  // l'etichetta si spegne mentre il telefono vivo passa sopra il suo fantasma (non copre mai il gesto)
+  const ctr = pathCentre(cam, id, P), lc = cam.p(pose.pos), plen = Math.hypot(...['x', 'y'].map(a => cam.p(tipOf(pose))[a] - cam.p(tipOf(pose, -1))[a]));
   for (const g of ghosts){
     if (g.a <= .01) continue;
-    const tp = cam.p(tipOf(gesturePose(id, g.key.t), 1.3)), dx = tp.x - sh.x, dy = tp.y - sh.y, dl = Math.hypot(dx, dy) || 1;
-    c.globalAlpha = g.a; pill(c, tp.x + dx/dl*30*k, tp.y + dy/dl*22*k, g.key.label, { num: String(g.i + 1), size: Math.round(11*k) }); c.globalAlpha = 1;
+    const gp = gesturePose(id, g.key.t), gc = cam.p(gp.pos), near = sstep(.55, 1.1, Math.hypot(gc.x - lc.x, gc.y - lc.y)/Math.max(1, plen));
+    const tp = cam.p(tipOf(gp, 1.1)), dx = tp.x - ctr.x, dy = tp.y - ctr.y, dl = Math.hypot(dx, dy) || 1;
+    if (g.a*near <= .01) continue;
+    c.globalAlpha = g.a*near; pill(c, tp.x + dx/dl*40*k, tp.y + dy/dl*30*k, g.key.label, { num: String(g.i + 1), size: Math.round(11*k) }); c.globalAlpha = 1;
   }
-  drawHud(c, id, P, t, pose, k);
+  if (!SK.hud) drawHud(c, id, P, t, pose, k);
+}
+function pathCentre(cam, id, P){
+  let x = 0, y = 0, n = 0;
+  for (let i = 0; i <= 24; i++){ const p = cam.p(tipOf(gesturePose(id, P.T.load + (P.T.end - P.T.load)*i/24), 1)); x += p.x; y += p.y; n++; }
+  for (const key of P.keys){ const p = cam.p(tipOf(gesturePose(id, key.t), 1)); x += p.x*4; y += p.y*4; n += 4; }
+  return { x: x/n, y: y/n };
 }
 function ballAt(id, t){
   const P = plan(id);
@@ -481,11 +512,25 @@ function drawFloorRing(c, cam, id, P){
   c.save(); c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y));
   c.strokeStyle = 'rgba(160,185,255,.10)'; c.lineWidth = 1.5; c.setLineDash([6, 6]); c.stroke(); c.restore();
 }
-function drawGhost(c, cam, pose, a){
-  const G = st.ghost, g = G.getContext('2d');
-  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, G.width, G.height); g.setTransform(st.dpr, 0, 0, st.dpr, 0, 0);
-  drawFigure(g, cam, pose, st, { fill: 'rgba(120,150,235,1)', line: 'rgba(205,220,255,1)' });
-  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = .26*a; c.drawImage(G, 0, 0); c.restore();
+// fantasma: sagoma piatta resa una volta in un ritaglio e poi riusata (camera ferma); con la camera che segue si ridisegna
+const ghostCache = new Map();
+function drawGhost(c, cam, pose, a, key){
+  let g = key && ghostCache.get(key);
+  if (!g){
+    const G = st.ghost, x = G.getContext('2d');
+    x.setTransform(1, 0, 0, 1, 0, 0); if (st.ghostRect) x.clearRect(st.ghostRect.x, st.ghostRect.y, st.ghostRect.w, st.ghostRect.h);
+    x.setTransform(st.dpr, 0, 0, st.dpr, 0, 0);
+    const R = drawFigure(x, cam, pose, st, { fill: 'rgba(120,150,235,1)', line: 'rgba(205,220,255,1)' }).rect;
+    st.ghostRect = R;
+    if (key){
+      const cv2 = document.createElement('canvas'); cv2.width = R.w; cv2.height = R.h;
+      cv2.getContext('2d').drawImage(G, R.x, R.y, R.w, R.h, 0, 0, R.w, R.h);
+      g = { cv: cv2, x: R.x, y: R.y }; ghostCache.set(key, g);
+    } else g = { cv: G, R };
+  }
+  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = .26*a;
+  if (g.R) c.drawImage(g.cv, g.R.x, g.R.y, g.R.w, g.R.h, g.R.x, g.R.y, g.R.w, g.R.h); else c.drawImage(g.cv, g.x, g.y);
+  c.restore();
 }
 // freccia del verso lungo il percorso della cima nella parte veloce (per il servizio: lancio e battuta)
 function drawArrows(c, cam, id, P, t){
@@ -510,17 +555,17 @@ function drawArrows(c, cam, id, P, t){
 // scia della cima: nastro tra la cima e un punto più in basso sul telefono, negli ultimi 0,24 s del gesto, che si
 // dissolve con l'età e con la velocità (compare solo nella parte veloce)
 function drawTrail(c, cam, id, t){
-  const N = 26, dt = .24/N, A = [], B = [], w = [];
+  const N = 30, dt = .3/N, A = [], B = [], w = [];
   for (let i = 0; i <= N; i++){
     const tt = t - i*dt, pose = gesturePose(id, tt);
-    A.push(cam.p(tipOf(pose, 1))); B.push(cam.p(tipOf(pose, .35))); w.push(sstep(140, 520, rotSpeed(id, tt)));
+    A.push(cam.p(tipOf(pose, 1))); B.push(cam.p(tipOf(pose, .35))); w.push(sstep(110, 420, rotSpeed(id, tt)));
   }
   c.save(); c.globalCompositeOperation = 'lighter';
   for (let i = 0; i < N; i++){
     const age = i/N, a = (1 - age)**1.6*Math.min(w[i], w[i + 1]);
     if (a < .01) continue;
     c.beginPath(); c.moveTo(A[i].x, A[i].y); c.lineTo(A[i + 1].x, A[i + 1].y); c.lineTo(B[i + 1].x, B[i + 1].y); c.lineTo(B[i].x, B[i].y); c.closePath();
-    c.fillStyle = css(mix(WHITE, BALL, Math.min(1, age*2)), .34*a); c.fill();
+    c.fillStyle = css(mix(WHITE, BALL, Math.min(1, age*2)), .5*a); c.fill();
   }
   // filo luminoso della cima
   c.lineCap = 'round';
@@ -532,12 +577,12 @@ function drawTrail(c, cam, id, t){
 }
 // lampo nell'istante del picco (= contatto): anello che si allarga e raggi corti
 function drawImpact(c, cam, id, P, t){
-  const dt = t - P.contact; if (dt < 0 || dt > .2) return;
-  const u = dt/.2, X = contactPoint(id), p = cam.p(X), r0 = cam.rad(X, BALL_R);
+  const dt = t - P.contact; if (dt < 0 || dt > .16) return;
+  const u = dt/.16, X = contactPoint(id), p = cam.p(X), r0 = cam.rad(X, BALL_R);
   c.save(); c.globalCompositeOperation = 'lighter';
-  c.beginPath(); c.arc(p.x, p.y, r0*(1.3 + 3.2*u), 0, 2*Math.PI); c.lineWidth = st.ow*2.2*(1 - u); c.strokeStyle = css(BALL, 1 - u); c.stroke();
+  c.beginPath(); c.arc(p.x, p.y, r0*(1.2 + 1.9*u), 0, 2*Math.PI); c.lineWidth = st.ow*2.4*(1 - u); c.strokeStyle = css(BALL, 1 - u); c.stroke();
   for (let i = 0; i < 8; i++){
-    const a = i/8*2*Math.PI + .3, r1 = r0*(1.8 + 2.2*u), r2 = r0*(2.4 + 3.4*u);
+    const a = i/8*2*Math.PI + .3, r1 = r0*(1.6 + 1.4*u), r2 = r0*(2.2 + 2*u);
     c.beginPath(); c.moveTo(p.x + Math.cos(a)*r1, p.y + Math.sin(a)*r1); c.lineTo(p.x + Math.cos(a)*r2, p.y + Math.sin(a)*r2);
     c.lineWidth = st.ow*1.4*(1 - u); c.strokeStyle = css(WHITE, .9*(1 - u)); c.stroke();
   }
@@ -633,7 +678,11 @@ function loop(now){
     const P = plan(card().id); state.rate = rateOf(); state.t += dt*state.rate;
     if (state.t >= P.total){ state.t -= P.total; state.cycle++; }
   }
-  render(state.frozen ? state.frozen.t : state.t);
+  const t0 = performance.now(); render(state.frozen ? state.frozen.t : state.t);
+  if (!state.frozen){
+    perf.slow = performance.now() - t0 > 12 ? perf.slow + 1 : 0;
+    if (perf.slow > 40 && st.dpr > 1){ perf.cap = Math.max(1, st.dpr - .25); perf.slow = 0; resize(); }
+  }
   requestAnimationFrame(loop);
 }
 new ResizeObserver(resize).observe(cv); resize();
@@ -642,6 +691,13 @@ setCard(0); state.rate = .5;
 window.__show = ({ card: id, t, hand = 'right', rate = 1 }) => {
   state.hand = hand; $('hand').textContent = hand === 'right' ? 'Destro' : 'Mancino';
   setCard(CARDS.findIndex(x => x.id === id)); state.rate = rate; state.frozen = { t }; render(t); return true;
+};
+window.__view = (id, dir, dist) => { VIEWS[id] = [dir]; if (dist) DIST[id] = dist; st.frames.clear(); return true; };
+// costo di un fotogramma (ms) sullo stadio attuale: n fotogrammi in un ciclo intero
+window.__bench = (id, n = 240) => {
+  setCard(CARDS.findIndex(x => x.id === id)); state.frozen = { t: 0 }; const P = plan(id), t0 = performance.now();
+  for (let i = 0; i < n; i++) render(i/n*P.total);
+  return { ms: (performance.now() - t0)/n, W: st.W, H: st.H, dpr: st.dpr };
 };
 window.__plan = id => { const P = plan(id); return { total: P.total, contact: P.contact, T: P.T, keys: P.keys }; };
 requestAnimationFrame(loop);

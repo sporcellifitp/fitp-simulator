@@ -16,7 +16,7 @@ export const FADE = Object.freeze({ from: .060, to: .150 });
 export function buildArmMesh(bind, { h = .0019 } = {}){
   const t0 = Date.now(), A = bind.arm, P = bind.pos, Q = bind.q;
   const toWorld = p => add(qrot(Q, p), P), dirToWorld = v => qrot(Q, v);
-  const model = armSdf(HD, { toWorld, dirToWorld, S: A.S, E: A.E, W: A.W });
+  const model = armSdf(HD, { toWorld, dirToWorld, S: A.S, E: A.E, W: A.W, upperArm: false });
   const field = makeField(model);
   let lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
   const all = Object.values(model.prims).filter(Array.isArray).flat().flatMap(x => x.parts ? x.parts : [x]);
@@ -24,7 +24,7 @@ export function buildArmMesh(bind, { h = .0019 } = {}){
   lo = lo.map(x => x - 2*h); hi = hi.map(x => x + 2*h);
   const m = polygonize(field, lo, hi, h);
   const t1 = Date.now();
-  const nrm = refine(field, m.pos, 2);
+  const nrm = refine(field, m.pos, 2, h*.55);
   const t2 = Date.now();
   const qi = conj(Q);
   const phoneW = (x, y, z) => { const p = qrot(qi, [x - P[0], y - P[1], z - P[2]]); return phoneSdf(p[0], p[1], p[2]); };
@@ -32,7 +32,8 @@ export function buildArmMesh(bind, { h = .0019 } = {}){
   const t3 = Date.now();
   const n = m.pos.length/3;
   const color = new Float32Array(n*3), skinIndex = new Uint16Array(n*4), skinWeight = new Float32Array(n*4), fade = new Float32Array(n);
-  const palmN = dirToWorld(HD.n);                      // normale del palmo (verso il telefono)
+  const palmN = dirToWorld(HD.n);
+  const joints = [...HD.fingers.flatMap(f => f.pts.slice(1)), ...HD.thumb.pts.slice(1)].map(toWorld);                      // normale del palmo (verso il telefono)
   const S = A.S, E = A.E, W = A.W, U = A.U, F = A.F, L2 = ARM.L2;
   const toS = mul(U, -1);
   // colori lineari (la pelle si scurisce nelle pieghe con una tinta calda: finto scattering sotto la superficie)
@@ -46,8 +47,10 @@ export function buildArmMesh(bind, { h = .0019 } = {}){
     else {
       const palmSide = smoothstep(-.2, .7, dot(nv, palmN));
       base = SKIN.map((c, j) => c + (SKIN_PALM[j] - c)*palmSide*(g === 6 ? .35 : .8));
-      if (g >= 1 && g <= 5){   // dita un po' più rosate verso la punta
-        base = base.map((c, j) => c*[1.04, .97, .96][j]);
+      if (g >= 1 && g <= 5){   // dita più rosate su nocche e polpastrelli (circolazione vicino alla superficie)
+        let red = 0;
+        for (const q of joints){ const dd = (p[0] - q[0])**2 + (p[1] - q[1])**2 + (p[2] - q[2])**2; red = Math.max(red, Math.exp(-dd/(.0085*.0085))); }
+        base = base.map((c, j) => c*[1.03 + .10*red, .97 - .08*red, .96 - .08*red][j]);
       }
     }
     const a = ao[v];
@@ -71,9 +74,17 @@ export function buildArmMesh(bind, { h = .0019 } = {}){
     // --- sfumatura verso il gomito
     fade[v] = smoothstep(FADE.from, FADE.to, dot(sub(p, E), F));
   }
-  // via i triangoli del tutto trasparenti (oltre la sfumatura)
-  const keep = [];
-  for (let i = 0; i < m.idx.length; i += 3){ const a = m.idx[i], b = m.idx[i + 1], c = m.idx[i + 2]; if (Math.max(fade[a], fade[b], fade[c]) > .003) keep.push(a, b, c); }
+  // via i triangoli del tutto trasparenti (oltre la sfumatura); i pochi triangoli invertiti nelle pieghe strette delle
+  // dita (normale geometrica opposta a quella della SDF) si girano
+  const keep = [], P3 = m.pos;
+  for (let i = 0; i < m.idx.length; i += 3){
+    const a = m.idx[i], b = m.idx[i + 1], c = m.idx[i + 2];
+    if (Math.max(fade[a], fade[b], fade[c]) <= .003) continue;
+    const e1 = [P3[b*3] - P3[a*3], P3[b*3 + 1] - P3[a*3 + 1], P3[b*3 + 2] - P3[a*3 + 2]], e2 = [P3[c*3] - P3[a*3], P3[c*3 + 1] - P3[a*3 + 1], P3[c*3 + 2] - P3[a*3 + 2]];
+    const gn = [e1[1]*e2[2] - e1[2]*e2[1], e1[2]*e2[0] - e1[0]*e2[2], e1[0]*e2[1] - e1[1]*e2[0]];
+    const vn = [0, 1, 2].map(j => nrm[a*3 + j] + nrm[b*3 + j] + nrm[c*3 + j]);
+    if (gn[0]*vn[0] + gn[1]*vn[1] + gn[2]*vn[2] < 0) keep.push(a, c, b); else keep.push(a, b, c);
+  }
   const idx = n > 65535 ? new Uint32Array(keep) : new Uint16Array(keep);
   return { pos: m.pos, nrm, idx, color, skinIndex, skinWeight, fade,
     stats: { vertici: n, triangoli: idx.length/3, blocchi: m.blocks, ms: { superficie: t1 - t0, normali: t2 - t1, ao: t3 - t2, totale: Date.now() - t0 } } };
