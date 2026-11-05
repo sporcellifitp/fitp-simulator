@@ -6,7 +6,9 @@
 //     a requestFullscreen) e dopo Esc nel menu torna ancora indietro di una pagina; F lo chiude e lo riapre;
 //   • calibrazione: bordo sinistro e bordo sotto del 5%, Invio, ricarica: l'area resta (--area-* e viewport()); Esc
 //     annulla e rimette l'area salvata; il formato 1:1 dà un'area quadrata;
-//   • schermate del riquadro di calibrazione a 1920 × 1080 e 1200 × 1200 in $OUT (da guardare).
+//   • schermate del riquadro di calibrazione a 1920 × 1080 e 1200 × 1200 in $OUT (da guardare);
+//   • browser in F11 (display-mode: fullscreen finto, come Edge con --start-fullscreen nella LAN): «Premi F11 per uscire»
+//     si vede davvero in campo (F), dalla voce della pausa e nella calibrazione (toast figlio del body, sopra a tutto).
 //   cd tools/e2e && GAME_PORT=3201 CHROMIUM_PATH=/percorso/chrome node natpf-schermo.mjs
 // Non prova: Edge su Windows, il programma Windows (Electron), un monitor o un ledwall veri, Esc tenuto premuto nel
 // browser vero (Keyboard Lock) e lo stiramento di un processore LED.
@@ -146,9 +148,56 @@ try {
     check('1200 × 1200: nessun errore JavaScript', !errs.length, errs.join(' | ').slice(0, 300));
     await ctx.close();
   }
+  // 4. Browser in F11 (LAN in Edge con --start-fullscreen): display-mode: fullscreen finto. «Premi F11» si vede davvero
+  //    (toast con una misura e sopra a tutto nel suo centro) in campo con F, dalla voce della pausa e nella calibrazione
+  {
+    const f11 = () => { const mm = window.matchMedia.bind(window); window.matchMedia = q => (/display-mode:\s*fullscreen/.test(q) ? { matches: true, media: q, addEventListener(){}, removeEventListener(){} } : mm(q)); };
+    const { p, errs, ctx } = await page(B, `${URL0}?intro=0`, { w: 1280, h: 720, init: f11 });
+    await ready(p); await p.waitForTimeout(400);
+    // il toast si misura nel momento in cui compare (il campo 3D in software rende lente le chiamate dalla prova: dopo
+    // i suoi 2,6 s il toast si è già chiuso); per la schermata lo si rimette visibile a mano
+    const arm = () => p.evaluate(() => {
+      const t = document.getElementById('natpf-toast'); t.classList.add('hidden'); window.__toastSeen = null;
+      const mo = new MutationObserver(() => {
+        if (t.classList.contains('hidden') || window.__toastSeen) return;
+        const r = t.getBoundingClientRect(), top = r.width ? document.elementFromPoint(r.left + r.width/2, r.top + r.height/2) : null;
+        window.__toastSeen = { text: t.textContent, w: Math.round(r.width), h: Math.round(r.height), onTop: !!top && t.contains(top), parent: t.parentElement === document.body };
+        mo.disconnect();
+      });
+      mo.observe(t, { attributes: true, attributeFilter: ['class'] });
+    });
+    const seen = async () => { await p.waitForFunction(() => window.__toastSeen, null, { timeout: 10000 }).catch(() => {}); return p.evaluate(() => window.__toastSeen || { text: '', w: 0, h: 0 }); };
+    const shot = async name => { await p.evaluate(() => document.getElementById('natpf-toast').classList.remove('hidden')); await p.screenshot({ path: `${SP}/${name}` }); };
+    const ok = s => s.text === 'Premi F11 per uscire dallo schermo intero' && s.w > 100 && s.h > 20 && s.onTop && s.parent;
+    check('F11: il pulsante in alto dice «Esci da schermo intero»', await p.evaluate(() => document.querySelector('#lobby-fullscreen .fs-label').textContent) === 'Esci da schermo intero');
+    await p.evaluate(() => { const ui = __natpfTennis.natpfUi; if (!ui.testInput) ui.toggleTestInput(); ui.selectController('mouse', { open: false }); ui.lobby.setMode('cpu'); ui.lobby.go('match'); });
+    await p.waitForTimeout(300);
+    await p.evaluate(() => document.getElementById('btn-start-match').click());
+    await p.waitForFunction(() => document.documentElement.classList.contains('autoplay-mode') && !__natpfTennis.autoPlayMode, null, { timeout: 20000 });
+    await p.waitForTimeout(800);
+    await arm(); await p.keyboard.press('KeyF');
+    const field = await seen();
+    check('F11, in campo: F mostra «Premi F11 per uscire» (toast visibile sopra il campo)', ok(field), JSON.stringify(field));
+    await shot('schermo-f11-campo.png');
+    await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+    await arm(); await p.click('[data-pause="fullscreen"]', { noWaitAfter: true });
+    const pause = await seen();
+    check('F11, pausa: «Schermo» mostra «Premi F11 per uscire» sopra il foglio della pausa', ok(pause) && await p.evaluate(() => __natpfTennis.natpfUi.pause.isOpen), JSON.stringify(pause));
+    await shot('schermo-f11-pausa.png');
+    await p.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.pause.close(); ui.backToMenu(); });
+    await p.waitForTimeout(600);
+    await p.evaluate(() => { __natpfTennis.natpfUi.lobby.go('options'); __natpfTennis.natpfUi.lobby.option('calibra'); });
+    await p.waitForTimeout(300);
+    await arm(); await p.keyboard.press('KeyF');
+    const cal = await seen();
+    check('F11, calibrazione: F mostra «Premi F11 per uscire» sopra il riquadro', ok(cal) && await p.evaluate(() => __natpfTennis.natpfUi.calibra.isOpen), JSON.stringify(cal));
+    await p.keyboard.press('Escape');
+    check('F11: nessun errore JavaScript', !errs.length, errs.join(' | ').slice(0, 300));
+    await ctx.close();
+  }
 } finally {
   await B.close();
 }
-console.log(`schermate: ${SP}/schermo-calibra-1920x1080.png, ${SP}/schermo-calibra-1200x1200.png, ${SP}/schermo-opzioni-1280x720.png`);
+console.log(`schermate: ${SP}/schermo-calibra-1920x1080.png, ${SP}/schermo-calibra-1200x1200.png, ${SP}/schermo-opzioni-1280x720.png, ${SP}/schermo-f11-campo.png, ${SP}/schermo-f11-pausa.png`);
 summary();
 setTimeout(() => process.exit(), 300);

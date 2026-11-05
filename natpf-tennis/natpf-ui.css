@@ -745,9 +745,13 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
 .natpf-phone-hold button { margin-top: 12px; padding: 0.55em 1.2em; border: 0; border-radius: var(--r-pill); background: var(--ball); color: var(--ball-ink); font: 700 1em/1.2 system-ui, sans-serif; cursor: pointer; }
 .natpf-phone-hold button.hidden { display: none; }
 
-/* ---------- toast ---------- */
-.natpf-toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 260; padding: 12px 20px; border-radius: var(--r-pill); background: var(--panel-solid); border: 1px solid var(--line-strong); box-shadow: var(--shadow); color: var(--text); font: 600 15px/1.3 var(--font-text); animation: coach-in var(--t-med) var(--ease); }
+/* ---------- toast ----------
+   Figlio diretto del body (segue l'area): si vede nel menu, in campo, in pausa e sopra la calibrazione (z 300), sotto la
+   tendina tra le schermate (natpf-wipe). Non prende i clic: nella pausa sta sopra i pulsanti in fondo */
+.natpf-toast { position: fixed; pointer-events: none; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 320; box-sizing: border-box; width: max-content; max-width: calc(100cqw - 32px); text-align: center; padding: 12px 20px; border-radius: var(--r-pill); background: var(--panel-solid); border: 1px solid var(--line-strong); box-shadow: var(--shadow); color: var(--text); font: 600 15px/1.3 var(--font-text); animation: toast-in var(--t-med) var(--ease); }
 .natpf-toast.hidden { display: none; }
+/* entrata con la sua traslazione: con coach-in (transform: none) durante l'animazione il toast saltava a destra */
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 /* ---------- passaggio dal menu al campo ---------- */
 .natpf-wipe .wipe-band { background: linear-gradient(90deg, var(--ink-900), var(--blue)); }

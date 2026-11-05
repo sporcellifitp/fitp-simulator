@@ -558,7 +558,6 @@
         ><button type="button" id="lobby-next" class="lobby-primary">Avanti ›</button
         ><button id="btn-start-match" type="button" class="lobby-primary"><span>Gioca</span> ›</button>
       </footer>
-      <div id="natpf-toast" class="natpf-toast hidden" role="status"></div>
     </div>
     <div id="companion-modal" class="nt-modal-backdrop hidden">
       <div class="nt-dialog-box nt-companion-clean-dialog">
@@ -870,6 +869,9 @@
         </div>
       </div>
     </div>
+    <!-- messaggi brevi (toast, natpf_ui.toast): figlio diretto del body, sopra a tutto (anche alla calibrazione), così si
+         vede nel menu, in campo, in pausa e nella calibrazione (dentro #title-modal in campo era nascosto con il menu) -->
+    <div id="natpf-toast" class="natpf-toast hidden" role="status"></div>
     <script type="module">
       import { renderAllHudPlayerAvatars } from "./src/player_avatars.js";
       renderAllHudPlayerAvatars();

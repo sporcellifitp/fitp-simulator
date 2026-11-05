@@ -132,3 +132,26 @@ test('pulsanti «Schermo intero» in alto e in Opzioni → Schermo: cambiano lo 
   assert.equal(attrs['aria-pressed'], 'false');
   assert.equal(document.documentElement.classList.contains('natpf-frameless'), false);
 });
+
+test('browser in F11 (LAN in Edge): F in campo, la voce della pausa e F nella calibrazione dicono «Premi F11» nel toast', async () => {
+  const mm = globalThis.matchMedia;
+  globalThis.matchMedia = q => ({ matches: /display-mode: fullscreen/.test(q), media: q, addEventListener(){}, removeEventListener(){} });
+  try {
+    const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
+    const { ui, lobby } = w, calls = stubFullscreen(), toast = () => (!$('natpf-toast').classList.contains('hidden') ? $('natpf-toast').textContent : '');
+    assert.equal(ui.screen.fullscreen.frameless, true); assert.equal(ui.screen.fullscreen.armed, false, 'già senza cornici: niente apertura automatica');
+    lobby.menu('play'); lobby.setMode('cpu'); lobby.go('controller'); lobby.go('connect'); lobby.next(); w.advance(500);
+    assert.ok(!lobby.visible);
+    w.key('KeyF', 'f'); await w.flush();
+    assert.equal(toast(), FS_TEXT.f11, 'F in campo: il messaggio va nel toast (figlio del body, si vede anche in campo)');
+    assert.equal(calls.exit + calls.request, 0);
+    w.advance(3000); assert.equal(toast(), '', 'il toast si chiude da solo');
+    esc(w); assert.ok(ui.pause.isOpen);
+    ui.pause.run('fullscreen'); await w.flush();
+    assert.equal(toast(), FS_TEXT.f11, 'voce «Schermo» della pausa'); assert.ok(ui.pause.isOpen);
+    esc(w); ui.backToMenu(); w.advance(500);
+    lobby.go('options'); lobby.option('calibra'); w.advance(3000);
+    w.key('KeyF', 'f'); await w.flush();
+    assert.equal(toast(), FS_TEXT.f11, 'F nella calibrazione'); assert.ok(ui.calibra.isOpen);
+  } finally { globalThis.matchMedia = mm; }
+});

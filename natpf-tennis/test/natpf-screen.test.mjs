@@ -287,3 +287,32 @@ test('calibrazione: i numeri sullo schermo (finestra, densità, monitor, area, f
   assert.equal(calInfo({ win: { w: 1, h: 1 }, dpr: 1, screen: { w: 1, h: 1 }, area: { x: 0, y: 0, w: 1, h: 1 }, preset: 'full', margins: {} }).format, 'Intero (tutto il monitor)');
   assert.equal(calInfo({ win: { w: 1, h: 1 }, dpr: 1, screen: { w: 1, h: 1 }, area: { x: 0, y: 0, w: 1, h: 1 }, preset: '16x9', margins: {} }).format, '16:9');
 });
+
+/* ---------- posto nella pagina: messaggi e calibrazione fuori dal menu ---------- */
+
+// antenati (tag#id) di un elemento di index.html: lettore di tag minimo (commenti, script e style tolti; elementi vuoti e
+// «/>» senza chiusura)
+function ancestors(html, id){
+  const src = html.replace(/<!--[\s\S]*?-->/g, '').replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, '');
+  const VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr']);
+  const stack = [];
+  for (const m of src.matchAll(/<(\/?)([a-zA-Z][\w-]*)([^>]*?)(\/?)>/g)){
+    const [, close, tag, attrs, self] = m, name = tag.toLowerCase();
+    if (close){ const i = stack.map(s => s.tag).lastIndexOf(name); if (i >= 0) stack.length = i; continue; }
+    const el = { tag: name, id: /\bid="([^"]+)"/.exec(attrs)?.[1] || '' };
+    if (el.id === id) return stack.map(s => s.tag + (s.id ? '#' + s.id : ''));
+    if (!self && !VOID.has(name)) stack.push(el);
+  }
+  return null;
+}
+test('pagina: toast e calibrazione figli diretti del body (il toast dentro il menu in campo era nascosto con il menu)', async () => {
+  const fs = await import('node:fs');
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.deepEqual(ancestors(html, 'natpf-toast'), ['html', 'body']);
+  assert.deepEqual(ancestors(html, 'natpf-calibra'), ['html', 'body']);
+  assert.deepEqual(ancestors(html, 'lobby-back').slice(0, 3), ['html', 'body', 'div#title-modal'], 'il lettore trova davvero gli antenati');
+  // sopra la calibrazione (z 300), sotto la tendina tra le schermate
+  const css = fs.readFileSync(new URL('../natpf-ui.css', import.meta.url), 'utf8');
+  const z = sel => Number(new RegExp(`(?:^|\\n)${sel.replace('.', '\\.')} \\{[^}]*?z-index: (\\d+)`).exec(css)?.[1]);
+  assert.ok(z('.natpf-toast') > z('.natpf-calibra') && z('.natpf-toast') < z('.natpf-wipe'), JSON.stringify([z('.natpf-toast'), z('.natpf-calibra'), z('.natpf-wipe')]));
+});
