@@ -43,18 +43,22 @@ Come si aggiorna:
 - **Richiesta nuova (04/11 sera, dopo B7):** «Assicurati che ci sia in tutte le versioni modalità full screen senza
   cornici»; poi «la versione cloudflare deve sempre pesare leggermente meno di 25 MB» e «adatta il fullscreen in base
   alla finestra/monitor in utilizzo o prevedi la calibrazione a full screen, come avviene per i videogiochi» → **B8** (§5).
-- **Blocco in corso:** B8 (schermo intero senza cornici ovunque, adattamento al monitor e calibrazione, Cloudflare
-  sotto 25 MB). **Codice fatto e pubblicato** (quattro rami preparati in parallelo, ciascuno rivisto da un revisore
-  indipendente e corretto: Cloudflare, programma Windows + launcher Edge, inquadratura, schermo intero + calibrazione;
-  dettagli in `docs/WORK_PROGRESS.md` B8 e `docs/DESKTOP_WINDOWS.md` §14). Prove di unità: gioco 760/760, sito 182/182,
-  LAN 12/12, programma Windows 13/13, build ok; nel browser `natpf-schermo` 41/41 (le altre in corso). Il collaudo
-  Windows di B7 resta da fare (`docs/COLLAUDO_WINDOWS.md`, con i punti nuovi di B8 in §4, §4b, §5b).
-- **Prossima azione esatta:** B8.9 — finire le prove nel browser (`natpf-inquadratura`, `natpf-menu`,
-  `natpf-training-flow`, sito, LAN: elenco in `tools/e2e/README.md`) e la prova del programma con Electron per Linux
-  (`cd natpf-desktop && node scripts/prepara.mjs && npm run prova-linux`, quattro scenari compreso `gioco`); poi
-  versione `2026-11-05.1` (`site/js/tennis/version.js`, `site/tennis/build.json`, intestazione di
-  `natpf-tennis/lan/LEGGIMI.txt`), build, pacchetti (Cloudflare con `--zip`, sotto 25.000.000 byte; LAN) ed eseguibili
-  (`npm run costruisci`), dimensioni e sha256 in `docs/COLLAUDO_WINDOWS.md` §0, consegna.
+- **B8 fatto** (versione **2026-11-05.1**): schermo intero senza cornici in tutte le versioni (programma Windows,
+  zip LAN con Edge, browser/Cloudflare), inquadratura adattata alla forma del monitor, calibrazione dello schermo come
+  nei videogiochi (Opzioni → Schermo → «Calibra lo schermo…»), zip Cloudflare **22.517.792 B** con il limite di
+  25.000.000 controllato dallo script e dalla CI. Dettagli: `docs/WORK_PROGRESS.md` B8, `docs/DESKTOP_WINDOWS.md` §14.
+- Test: gioco 760/760, sito 182/182, LAN 12/12, programma Windows 13/13, build ok; nel browser natpf-schermo 41/41,
+  natpf-inquadratura 36/36, natpf-menu 22/22, natpf-training-flow 15/15, gesture-calibration 18/18, arcade 9/9,
+  lan-setup 3/3, lan-browser 9/9; programma con Electron per Linux 46/46. `timing-browser` intermittente come prima
+  (rosso anche su `b74af13`); `lan-e2e.mjs` (fuori CI) rosso negli stessi controlli di prima di B8 (punto aperto §5).
+- Consegnati: ZIP Cloudflare (sha256 `a3f2e960…cde92f6b7`) e LAN (`f4f6b195…53e81ece`), eseguibili
+  Setup (`fe3de548…bd18a3e`) e Portatile (`c60008c9…7d90478e`); dimensioni e sha256 completi in
+  `docs/COLLAUDO_WINDOWS.md` §0 e in `docs/WORK_PROGRESS.md` B8.
+- **Blocco in corso:** nessuno.
+- **Prossima azione esatta:** aspettare il collaudo dell'utente su Windows, Edge e ledwall (`docs/COLLAUDO_WINDOWS.md`,
+  punti B7 e B8: §1–§6, §4b calibrazione, §5b zip LAN e browser) e correggere quello che segnala (registro
+  `%LOCALAPPDATA%\NATPF\log\programma.log`). Per rifare i pacchetti dopo un cambiamento: §6 (Cloudflare con `--zip`,
+  eseguibili con `npm run costruisci`).
 ---
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
@@ -127,7 +131,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B5 Stesso schermo | [x] | modale e calibrazione indipendenti nelle due metà di «Collega» | vedi WORK_PROGRESS B5 | 2026-11-04.5 |
 | B6 Windows | [~] | A+ portatile implementato; collaudo Windows reale e F0/F1 da completare | commit di questo checkpoint | 2026-11-04.1 |
 | B7 Eseguibili Windows | [x] | `natpf-desktop/`: Electron, portatile (un .exe) e installabile (setup .exe), firewall e certificati; collaudo Windows dell'utente in `docs/COLLAUDO_WINDOWS.md` | vedi WORK_PROGRESS B7 | 2026-11-04.5 |
-| B8 Schermo intero e monitor | [~] | schermo intero senza cornici in tutte le versioni, adattamento al monitor e calibrazione, Cloudflare < 25 MB | — | 2026-11-04.6 |
+| B8 Schermo intero e monitor | [x] | schermo intero senza cornici in tutte le versioni, adattamento al monitor e calibrazione, Cloudflare < 25 MB; collaudo Windows dell'utente in `docs/COLLAUDO_WINDOWS.md` | vedi WORK_PROGRESS B8 | 2026-11-05.1 |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).
@@ -314,7 +318,7 @@ resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mo
   Electron per Linux). Resta il collaudo su Windows; se segnala problemi si correggono qui con un blocco nuovo.
 
 ### B8 · Schermo intero senza cornici, adattamento al monitor, Cloudflare sotto 25 MB (04/11 sera)
-- **Stato**: in corso.
+- **Stato**: fatto (2026-11-05.1); collaudo su Windows, Edge e ledwall dell'utente da fare.
 - **Cosa**: (1) in ogni versione (programma Windows installato e portatile, zip LAN con Edge, browser/Cloudflare)
   una modalità a schermo intero senza cornici: niente bordi, barra del titolo, barre del browser o menu; (2) il gioco
   si adatta alla finestra e al monitor in uso (proporzioni qualsiasi: campo sempre visibile, interfaccia e

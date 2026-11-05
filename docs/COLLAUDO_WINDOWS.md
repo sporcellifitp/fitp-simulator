@@ -11,8 +11,8 @@ Codice: `natpf-desktop/` (Electron 45.2.2), procedura di costruzione in `natpf-d
 
 | File | Cosa fa | Dimensione | sha256 |
 |---|---|---|---|
-| `NATPF-Simulator-Setup-2026-11-05.1.exe` | installazione in Programmi, collegamenti, firewall, disinstallazione | (alla consegna) | (alla consegna) |
-| `NATPF-Simulator-Portatile-2026-11-05.1.exe` | un solo file, nessuna installazione, nessun permesso per avviarlo | (alla consegna) | (alla consegna) |
+| `NATPF-Simulator-Setup-2026-11-05.1.exe` | installazione in Programmi, collegamenti, firewall, disinstallazione | 124.510.981 B | fe3de548601edd6587cf4a81542ec64426719d47fab9ef83bdeaf56d3bd18a3e |
+| `NATPF-Simulator-Portatile-2026-11-05.1.exe` | un solo file, nessuna installazione, nessun permesso per avviarlo | 124.518.594 B | c60008c945736725ab7f8a7d5697a1cce5997818864aacacea4fa37d7c90478e |
 
 - Stesso gioco della versione browser e dello zip LAN `2026-11-05.1` (B8: schermo intero senza cornici, calibrazione
   dello schermo, inquadratura adattata al monitor; prima consegna degli eseguibili: `2026-11-04.5`, B7).
@@ -140,7 +140,8 @@ Non sono eseguibili, ma la richiesta del 04/11 sera («full screen senza cornici
 - [ ] Versione browser (Cloudflare o LAN da un browser qualsiasi): il **primo tasto o clic** sulla schermata
       «Premi un tasto per iniziare» porta il gioco a schermo intero; un **Esc breve** resta «indietro», tenuto
       premuto esce (Edge e Chrome). F entra ed esce. «Opzioni → Schermo → All'avvio: Finestra» lo spegne.
-- [ ] Versione Cloudflare: lo zip pesa meno di 25 MB e la webcam si carica come prima (Edge, Chrome).
+- [ ] Versione Cloudflare: lo zip pesa meno di 25 MB (`natpf-simulator-cloudflare-20261105-1.zip`, 22.517.792 B) e la
+      webcam si carica come prima (Edge, Chrome).
 
 ## 6. Se qualcosa non va
 

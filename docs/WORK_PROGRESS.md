@@ -248,6 +248,15 @@ Criterio di fine: script `natpf-*` verdi, CI che prova gioco, build e sito sul b
   126 file, sha256 `a3f2e960b1791a47176b4b5c0d9b6e57fd4f4f92115200efe3758a5cde92f6b7`; LAN Windows
   `natpf-simulator-lan-windows-20261105-1.zip` 57.548.009 B (prima 62.065.720), 310 file, un solo `node.exe`, nessun
   certificato o chiave, sha256 `f4f6b19599422f49bbf43ff290e173e0dc9038202e1f513f074b1d0f53e81ece`.
+- Programma Windows provato con Electron per Linux (`prova-linux.mjs`, app/ della 2026-11-05.1): **46/46** in quattro
+  scenari (predefinito, ledwall spento all'avvio, avvio in finestra, gioco vero con il ponte natpfDesktop).
+- Eseguibili 2026-11-05.1: `NATPF-Simulator-Setup-2026-11-05.1.exe` 124.510.981 B, sha256
+  `fe3de548601edd6587cf4a81542ec64426719d47fab9ef83bdeaf56d3bd18a3e`; `NATPF-Simulator-Portatile-2026-11-05.1.exe`
+  124.518.594 B, sha256 `c60008c945736725ab7f8a7d5697a1cce5997818864aacacea4fa37d7c90478e`. `7zz t` ok (290 e 286
+  file), `resources` identiche a `dist/win-unpacked` (con `preload.cjs`, senza MediaPipe non SIMD), nessun certificato,
+  versione 2026-11-05.1 / 2026.1105.1 e icona nei tre `.exe`. ZIP provati estratti: Cloudflare servito in locale
+  (versione, SIMD 200, non SIMD 404, pulsante e calibrazione, nessun errore), LAN (certificato, server, pacchetto
+  offline 15/15, gioco e telefono 200, `?fs=0` nel launcher).
 - Non verificato: tutto su Windows, Edge, ledwall e processori LED (schermo intero senza cornici all'avvio, Alt, F11,
   hold-Esc di Edge, barra delle applicazioni sul ledwall, cambi di risoluzione veri, cerchio e bordi su un LED vero),
   browser senza SIMD reale, telefoni veri.
