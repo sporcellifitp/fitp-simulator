@@ -17,4 +17,7 @@
   corta, piatto, tagliato, schiacciata → un colpo giusto ciascuno, destro e mancino, calibrazione con il braccio simulato
   e con i gesti dell'animazione; servizio → 2 messaggi, battuta 0,690 s dopo il lancio; picco letto = contatto disegnato
   (±3 ms). L'animazione di oggi sbaglia pallonetto, schiacciata e servizio (specifica §5).
-- (in corso) scena three.js: mano procedurale, telefono, luci.
+- Mano procedurale (`hand.js`, SDF → surface nets) e telefono (`phone.js`): scritti e provati in node (prima prova:
+  braccio troppo lungo, 145k vertici, 5,4 s di generazione: da ridurre).
+- (in corso, ripresa dopo l'interruzione del limite d'uso) `rig.js` (IK a due ossa con il gomito scelto per tenere il
+  polso neutro, torsione distribuita sull'avambraccio), `mesh.js` (pelle con pesi, AO), `main.js` + `index.html`.

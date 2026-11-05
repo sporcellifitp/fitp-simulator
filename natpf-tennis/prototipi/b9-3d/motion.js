@@ -17,6 +17,10 @@ import { GESTURES, GRIP_POSE } from '../../src/natpf/natpf_gesture_motion.js';
 
 const D = Math.PI/180;
 export const SHOULDER = Object.freeze([.19, 1.42, 0]);
+// Traslazione costante di tutti i gesti (stessa per ogni scheda): non cambia né le rotazioni né le accelerazioni del
+// telefono (il giroscopio e l'accelerometro non la vedono), ma porta la mano davanti al corpo come nella foto della presa
+// (avambraccio di traverso, gomito accanto al fianco). Il perno delle rotazioni diventa l'asse del tronco.
+export const STAGE = { offset: [-.30, .08, .10] };
 // posa di partenza (scheda «posizione di partenza»), rispetto alla spalla
 const READY_RC = [.16, -.42, -.32];
 
@@ -174,7 +178,7 @@ export function gesturePose(id, t, { hand = 'right' } = {}){
     if (psi && s.wristAxis) q = qmul(qAxis(qrot(qAxis(A, f), s.wristAxis), psi*D), q);
     speed = p.speed(t); phase = p.phase(t);
   }
-  let pos = rel.map((x, i) => x + SHOULDER[i]);
+  let pos = rel.map((x, i) => x + SHOULDER[i] + STAGE.offset[i]);
   if (hand === 'left'){ pos = [-pos[0], pos[1], pos[2]]; q = [q[0], -q[1], -q[2], q[3]]; }
   return { pos, q, speed, phase, contact: p.contact, cycle: p.T.total };
 }

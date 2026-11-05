@@ -18,8 +18,12 @@ import { GESTURES, GRIP_POSE } from '../../src/natpf/natpf_gesture_motion.js';
 
 export const D = Math.PI/180;
 export const SHOULDER = Object.freeze([.19, 1.42, 0]);       // spalla destra (m, dal centro dei piedi), come il modello attuale
-export const K = .8;                                          // raggio spalla → telefono = 0,8 × rc: gomito piegato ~120–135°
-export const READY = Object.freeze([.05, -.42, -.30]);       // telefono rispetto alla spalla nella posizione di partenza (§2.2)
+// Portata: il telefono sta a 0,40–0,47 m dalla spalla (il polso a ~0,42–0,50): gomito a ~100–125°, come nella posa
+// anatomica di specifica-gesti.md §2.2–§2.3 (con 0,52–0,57 m del moto «racchetta» il braccio disegnato era quasi teso).
+// La distanza non conta per il riconoscimento (0,29–0,90 m tutte riconosciute, raggio.mjs): lo verifica verifica.mjs.
+export const REACH = .8;
+export const K = .8*REACH;                                    // raggio spalla → telefono = K × rc
+export const READY = Object.freeze([.05*REACH, -.42*REACH, -.30*REACH]);   // posizione di partenza (§2.2), scalata
 export const PHONE = Object.freeze({ w: .079, h: .162, d: .0086, r: .0105 });   // 162 × 79 × 8,6 mm
 
 /* ---------- vettori e quaternioni [x, y, z, w] ---------- */
@@ -110,7 +114,8 @@ function strokePlan(id){
     let q = qmul(qaxis(A, f), Q0);
     if (WA0 && a.psi) q = qmul(qaxis(rotateAbout(WA0, A, f), a.psi*D), q);
     const onPath = add(SH, rotateAbout(rc, A, f));
-    const breath = (a.phase === 'ready' || a.phase === 'rest') ? Math.sin(t*2*Math.PI/1.6)*.004 : 0;
+    // respiro: una piccola salita e discesa (4 mm) dentro i fermi, nulla ai bordi: il ciclo si chiude senza scatti
+    const breath = (a.phase === 'ready' || a.phase === 'rest') ? Math.sin(Math.PI*a.u)**2*.004 : 0;
     const pos = lerp(P0, onPath, a.on); pos[1] += breath;
     // busto: ruota con la componente verticale del braccio (solo la spalla disegnata)
     const yaw = (e.trunk || 0)*a.phi*Math.sign(A[1] || 1)*D;
@@ -154,7 +159,7 @@ function servePlan(){
     else if (t <= T.back){ s = E; phase = 'follow'; u = (t - T.end)/(T.back - T.end); }
     else if (t <= T.home){ u = (t - T.back)/(T.home - T.back); const k = mj(u); s = { pos: lerp(E.pos, P0, k), q: qslerp(E.q, Q0, k) }; phase = 'back'; }
     else { s = { pos: P0, q: Q0 }; phase = 'rest'; u = (t - T.home)/(T.total - T.home); }
-    const breath = (phase === 'ready' || phase === 'rest') ? Math.sin(t*2*Math.PI/1.6)*.004 : 0;
+    const breath = (phase === 'ready' || phase === 'rest') ? Math.sin(Math.PI*u)**2*.004 : 0;
     return { pos: [s.pos[0], s.pos[1] + breath, s.pos[2]], q: s.q, phase, u, trunk: 0 };
   };
   void L0;
@@ -169,7 +174,7 @@ function servePlan(){
 // presa: ferma (la camera gira, non la mano)
 function gripPlan(){
   const P0 = readyPos();
-  const pose = t => ({ pos: [P0[0], P0[1] + Math.sin(t*2*Math.PI/2.4)*.003, P0[2]], q: Q0, phase: 'still', u: 0, trunk: 0 });
+  const pose = t => ({ pos: [P0[0], P0[1] + Math.sin(t*2*Math.PI/2)*.003, P0[2]], q: Q0, phase: 'still', u: 0, trunk: 0 });
   return { id: 'grip', T: { total: 8 }, pose, keys: [], contact: null, total: 8, still: true };
 }
 
