@@ -20,22 +20,27 @@ export const HAND = {
   wristR: [27, 19],                  // semiassi del polso (mm): largo e piatto
   heel: [[30, -84, -21, 20], [2, -88, -22, 18], [14, -60, -24, 22]],   // eminenza tenar, ipotenar, centro del palmo
   // dita: nocca (MCP), direzione di base nel piano del palmo, lunghezze delle falangi, flessioni (gradi) e raggi
+  // nocche sotto il telefono, falange prossimale fino al bordo (l'interfalangea prossimale appena fuori dal bordo), falange
+  // media che sale lungo lo spessore, distale appoggiata sul bordo dello schermo: le dita avvolgono il bordo da vicino
   fingers: [
-    { name: 'index',  mcp: [-16, -10, -18], dir: [-1, .30, 0], L: [40, 24, 19], flex: [10, 82, 52], r: [9.6, 8.6, 7.8, 7.0] },
-    { name: 'middle', mcp: [-23, -28, -18], dir: [-1, .10, 0], L: [44, 27, 19], flex: [16, 82, 56], r: [10, 9.0, 8.1, 7.2] },
-    { name: 'ring',   mcp: [-24, -46, -17], dir: [-1, -.08, 0], L: [41, 25, 18], flex: [14, 84, 54], r: [9.4, 8.4, 7.6, 6.9] },
-    { name: 'pinky',  mcp: [-21, -62, -15], dir: [-1, -.26, 0], L: [33, 19, 16], flex: [12, 84, 52], r: [8.4, 7.4, 6.8, 6.2] },
+    { name: 'index',  mcp: [-9, -8, -18], dir: [-1, .30, 0], L: [40, 23, 18], flex: [10, 82, 84], r: [9.6, 8.6, 7.8, 7.0] },
+    { name: 'middle', mcp: [-4, -27, -19], dir: [-1, .10, 0], L: [44, 25, 19], flex: [10, 84, 84], r: [10, 9.0, 8.1, 7.2] },
+    { name: 'ring',   mcp: [-6, -46, -18], dir: [-1, -.08, 0], L: [41, 24, 18], flex: [10, 84, 82], r: [9.4, 8.4, 7.6, 6.9] },
+    { name: 'pinky',  mcp: [-13, -63, -16], dir: [-1, -.26, 0], L: [33, 19, 16], flex: [10, 84, 78], r: [8.4, 7.4, 6.8, 6.2] },
   ],
   palmN: [0, 0, 1],                  // il palmo guarda il telefono (+z)
   // pollice: base (trapezio-metacarpo), MCP, IP, punta; disteso lungo il bordo destro, a metà altezza, senza toccare lo schermo
   thumb: { pts: [[30, -84, -18], [46, -52, -8], [49, -22, -1], [47, 4, 3]], r: [15, 11.4, 10.2, 9.0] },
-  // direzione polso → gomito nel riferimento del telefono: dal polso verso destra (lato del pollice), un poco verso il
-  // basso e verso il lato dello schermo (polso flesso ~25°, deviato verso il mignolo ~15°, come nella foto)
-  forearmDir: [.62, -.70, .36],
+  // direzione polso → gomito nel riferimento del telefono. Con q0 nel campo è (0,70; −0,12; 0,70): l'avambraccio torna
+  // verso il corpo in diagonale, quasi orizzontale; polso piegato di ~32° rispetto all'asse della mano (flesso e deviato
+  // verso il mignolo, come nella foto). Più «verso destra» sarebbe il braccio «a cameriere», più «verso il corpo» un
+  // polso spezzato.
+  forearmDir: [.27, -.85, .46],
 };
 // avambraccio: profilo (frazione della lunghezza dal polso, raggio mm): polso stretto, ventre muscolare, gomito
 export const FOREARM_PROFILE = Object.freeze([[0, 25], [.18, 28], [.45, 36], [.75, 38], [1, 34]]);
-export const BAND = Object.freeze({ from: .03, to: .2 });     // polsino di spugna (frazione dell'avambraccio)
+export const BAND = Object.freeze({ from: .03, to: .17 });    // polsino di spugna (frazione dell'avambraccio)
+export const CUFF = .56;                                      // dove comincia la manica lunga (frazione dell'avambraccio)
 
 // forward kinematics di un dito: catena piana (flessione verso il palmo)
 function fingerChain(f){

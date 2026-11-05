@@ -208,7 +208,7 @@ export function armSdf(H, bind){
   prims.arm.push(sphere(add(E, mul(elbowAx, -.022)), .0165));
   // --- braccio (fino a metà: poi sfuma)
   const U = norm(sub(S, E)), Lu = len(sub(S, E));
-  prims.arm.push(roundCone(E, add(E, mul(U, Lu*.72)), .0350, .0440));
+  prims.arm.push(roundCone(E, add(E, mul(U, Lu*.80)), .0350, .0440));
   prims.arm.push(ellipsoid(add(add(E, mul(U, Lu*.38)), mul(inner, .012)), U, inner, elbowAx, [Lu*.27, .030, .031]));    // bicipite
   prims.arm.push(ellipsoid(add(add(E, mul(U, Lu*.45)), mul(inner, -.010)), U, inner, elbowAx, [Lu*.32, .031, .032]));   // tricipite
   return { prims, F, U, elbowAx, inner };

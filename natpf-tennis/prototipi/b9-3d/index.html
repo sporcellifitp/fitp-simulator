@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gesti 3D realistici</title>
+<style>
+  :root { --bg: #0b0f18; --ink: #f2f4f8; --ink2: #aab3c5; --accent: #ffcf5a; --clay: #c8653d; --panel: rgba(12,16,26,.72); --line: rgba(255,255,255,.12); }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+  .stage { position: fixed; inset: 0; container: natpf / size; }
+  canvas#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 75% 70% at 50% 48%, rgba(0,0,0,0) 55%, rgba(4,6,12,.55) 100%); }
+  .bar { position: absolute; left: 2cqw; right: 2cqw; top: 1.6cqh; display: flex; flex-wrap: wrap; gap: .8cqh; align-items: center; z-index: 2; }
+  .bar button { font: 600 1.7cqh/1 system-ui, sans-serif; color: var(--ink2); background: var(--panel); border: 1px solid var(--line); border-radius: 99px; padding: 1cqh 1.6cqh; cursor: pointer; }
+  .bar button[aria-pressed="true"] { color: #10131c; background: var(--accent); border-color: var(--accent); }
+  .bar .sep { width: 1.6cqh; }
+  .title { position: absolute; left: 3cqw; top: 9cqh; z-index: 2; max-width: 40cqw; }
+  .title h1 { font: 800 4.6cqh/1.05 system-ui, sans-serif; margin: 0 0 .8cqh; letter-spacing: -.02em; }
+  .title p { font: 500 2cqh/1.35 system-ui, sans-serif; margin: 0; color: var(--ink2); }
+  .phase { position: absolute; left: 50%; bottom: 13cqh; transform: translateX(-50%); z-index: 2; font: 800 3.2cqh/1 system-ui, sans-serif;
+    letter-spacing: .04em; text-transform: uppercase; color: var(--ink); text-shadow: 0 .3cqh 1.4cqh rgba(0,0,0,.6); transition: color .12s; }
+  .phase.hit { color: var(--accent); }
+  .timeline { position: absolute; left: 50%; bottom: 4cqh; transform: translateX(-50%); width: min(64cqw, 110cqh); height: 7cqh; z-index: 2; }
+  .timeline canvas { width: 100%; height: 100%; display: block; }
+  .loading { position: absolute; inset: 0; display: grid; place-items: center; z-index: 3; font: 600 2.2cqh system-ui, sans-serif; color: var(--ink2); background: var(--bg); transition: opacity .4s; }
+  .loading.off { opacity: 0; pointer-events: none; }
+  body.shot .bar, body.shot .loading { display: none; }
+  body.clean .bar, body.clean .title, body.clean .phase, body.clean .timeline { display: none; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <canvas id="view"></canvas>
+  <div class="vignette"></div>
+  <div class="bar" id="bar"></div>
+  <div class="title"><h1 id="name">Dritto</h1><p id="hint"></p></div>
+  <div class="phase" id="phase"></div>
+  <div class="timeline"><canvas id="tl" width="1100" height="120"></canvas></div>
+  <div class="loading" id="loading">Costruzione della mano…</div>
+</div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
