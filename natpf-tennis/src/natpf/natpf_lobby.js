@@ -326,6 +326,9 @@ export class NatpfLobby {
   }
   go(step){
     if (!LOBBY_STEPS.includes(step)) return;
+    // calibrazione dello schermo aperta e il menu cambia pagina (chiosco che torna al menu, classifica dal pannello
+    // dell'addetto): si annulla come con Esc. Prima restava aperta sopra il menu, con l'area non salvata, e prendeva i tasti
+    if (this.ui.calibra?.isOpen) this.ui.calibra.cancel();
     if (step === 'warmup'){ if (this.mode === 'split') step = 'match'; else { this.startWarmup(); return; } }
     if (step !== 'ranking') document.documentElement.classList.remove('ranking-full');
     if (step === 'menu' && this.step !== 'menu' && (this.mode === 'training' || this.mode === 'challenge')) this.mode = 'cpu';

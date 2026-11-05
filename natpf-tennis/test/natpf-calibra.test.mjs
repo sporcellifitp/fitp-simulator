@@ -100,3 +100,21 @@ test('calibra: con ?area= nell’indirizzo l’anteprima mostra la calibrazione 
   w.ui.calibra.cancel();
   assert.deepEqual(viewport(), { x: 0, y: 0, w: 768, h: 512, full: false });
 });
+
+test('calibra: il chiosco che torna al menu (o un cambio di pagina) la annulla, con l’area di prima e i tasti al menu', async () => {
+  const w = await openCal(), { ui, lobby } = w, cal = ui.calibra;
+  // chiosco acceso e addetto lontano: dopo il tempo senza nessuno lo stand torna libero
+  ui.kiosk.enabled = true; ui.kiosk.limit = 30;
+  w.key('ArrowDown', 'ArrowDown', document.body, shift);
+  assert.deepEqual(viewport(), { x: 64, y: 36, w: 1152, h: 648, full: false }, 'anteprima non salvata');
+  w.advance(31000);
+  assert.ok(!cal.isOpen, 'calibrazione chiusa'); assert.ok($('natpf-calibra').classList.contains('hidden'));
+  assert.equal(lobby.step, 'menu');
+  assert.deepEqual(viewport(), { x: 0, y: 0, w: 1280, h: 720, full: true }, 'area di prima, l’anteprima non resta');
+  assert.equal(localStorage.getItem(CAL_KEY), null, 'niente salvato');
+  w.key('KeyH', 'h');
+  assert.ok(ui.onboarding.isOpen, 'i tasti tornano al menu (H apre la guida)');
+  // anche la classifica dal pannello dell'addetto (lobby.go) la chiude
+  ui.onboarding.close(); lobby.go('options'); lobby.option('calibra'); assert.ok(cal.isOpen);
+  lobby.go('ranking'); assert.ok(!cal.isOpen);
+});
