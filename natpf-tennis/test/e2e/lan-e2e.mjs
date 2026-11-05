@@ -95,8 +95,16 @@ try {
     // calibrazione rapida NATPF vera, guidata dal computer (natpf_phone_racket.js): fermo, i gesti del percorso rapido,
     // prova libera, conferma
     await phone.click('#enable');
+    // il telefono vuole dati di movimento entro 1,5 s dall'attivazione: telefono fermo che manda campioni, e intanto
+    // l'eventuale tutorial (dal 04/11, B4) che si chiude con «Tutto chiaro, ho capito» sul telefono
+    const quiet = phone.evaluate(() => __motion.still(9000));
+    const tut = await phone.waitForFunction(() => { const b = document.getElementById('tutOk'); return b && !b.classList.contains('hidden'); }, null, { timeout: 8000 }).then(() => true, () => false);
+    if (tut) await phone.click('#tutOk');
+    await quiet;
     await phone.evaluate(() => __motion.still(1600));
-    await phone.waitForFunction(() => __racchetta.cal.state.step === 'swings', null, { timeout: 15000 });
+    await phone.waitForFunction(() => __racchetta.cal.state.step === 'swings', null, { timeout: 15000 }).catch(async e => {
+      const st = await phone.evaluate(() => ({ sensor: __racchetta.state.sensor, step: __racchetta.cal?.state?.step, big: document.getElementById('big')?.textContent })).catch(x => x.message);
+      console.log('telefono dopo «Attiva i sensori»:', JSON.stringify({ tutorial: tut, ...st })); throw e; });
     for (const dir of QUICK_PLAN.map(w => w === 'L' ? 1 : -1)) await phone.evaluate(async dir => { await __motion.swing({ axis: [0, -dir, 0], peak: 42, dur: 260 }); await __motion.swing({ axis: [0, dir, 0], peak: dir === 1 ? 120 : 150, dur: 220 }); await __motion.still(650); }, dir);
     await host.waitForFunction(() => __natpfTennis.natpfPhone.cal.review?.pass, null, { timeout: 15000 });
     await phone.waitForFunction(() => __racchetta.cal.state.step === 'free', null, { timeout: 10000 });
