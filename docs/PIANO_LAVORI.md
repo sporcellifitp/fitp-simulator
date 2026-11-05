@@ -59,7 +59,18 @@ Come si aggiorna:
 - 05/11: eseguibili anche su **GitHub** in un unico zip (workflow `natpf-windows.yml`, prima esecuzione riuscita):
   https://github.com/sergio4/foro-italico-world/actions/runs/42000334461/artifacts/13403121459 (fino al 05/12/2026;
   sha256 della build di GitHub in `SHA256SUMS.txt`: Setup `0963271d…79610070`, Portatile `69969ea8…7fff9ca263`).
-- **Blocco in corso:** nessuno.
+- **Richiesta nuova (05/11, con schermata dello stesso schermo):** (1) modale del tutorial più piccola, centrale e
+  proporzionata, frecce avanti/indietro in basso al posto delle etichette dei colpi; animazioni dei gesti rifatte da
+  zero con qualità da motion designer (realismo di mano, polso e braccio, eventualmente senza il corpo), fedeli al
+  riconoscimento; (2) sul telefono «Tutto chiaro, ho capito» spento finché non si sono viste tutte le finestre, mai
+  sovrapposto alla schermata «Pronto»; (3) telefono che continua a funzionare se lo schermo si spegne (o la migliore
+  alternativa reale, spiegando i limiti dei browser); (4) nel 1v1 «Sono pronto»/«Pronto» con stato chiaro e
+  sincronizzato di ciascun giocatore; (5) verifiche reali, commit e push frequenti, documenti → blocco **B9** (§5).
+- **Blocco in corso:** B9.
+- **Prossima azione esatta:** B9.1 — analisi in parallelo (modale e animazione attuali con le specifiche dei gesti
+  riconosciuti; pagina del telefono, flusso del tutorial e schermo spento; «Sono pronto» del 1v1 in
+  `natpf_versus_ui.js`; prototipi di animazione da confrontare), poi rami separati per modale, animazione, telefono e
+  1v1, ciascuno rivisto e corretto, poi unione, prove, versione nuova, pacchetti ed eseguibili.
 - **Prossima azione esatta:** aspettare il collaudo dell'utente su Windows, Edge e ledwall (`docs/COLLAUDO_WINDOWS.md`,
   punti B7 e B8: §1–§6, §4b calibrazione, §5b zip LAN e browser) e correggere quello che segnala (registro
   `%LOCALAPPDATA%\NATPF\log\programma.log`). Per rifare i pacchetti dopo un cambiamento: §6 (Cloudflare con `--zip`,
@@ -137,6 +148,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B6 Windows | [~] | A+ portatile implementato; collaudo Windows reale e F0/F1 da completare | commit di questo checkpoint | 2026-11-04.1 |
 | B7 Eseguibili Windows | [x] | `natpf-desktop/`: Electron, portatile (un .exe) e installabile (setup .exe), firewall e certificati; collaudo Windows dell'utente in `docs/COLLAUDO_WINDOWS.md` | vedi WORK_PROGRESS B7 | 2026-11-04.5 |
 | B8 Schermo intero e monitor | [x] | schermo intero senza cornici in tutte le versioni, adattamento al monitor e calibrazione, Cloudflare < 25 MB; collaudo Windows dell'utente in `docs/COLLAUDO_WINDOWS.md` | vedi WORK_PROGRESS B8 | 2026-11-05.1 |
+| B9 Tutorial, telefono, 1v1 | [~] | modale compatta con frecce, animazioni nuove dei gesti, «Tutto chiaro» dopo l'ultima finestra, schermo del telefono spento, «Pronto» nel 1v1 | — | — |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).
@@ -338,6 +350,18 @@ resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mo
   Cloudflare deve stare sotto il limite di 25 MB indicato dall'utente.
 - **Fine**: prove automatiche (unità, browser a più proporzioni, Electron per Linux), zip Cloudflare < 25.000.000 byte,
   pacchetti ed eseguibili nuovi consegnati, punti nuovi in `docs/COLLAUDO_WINDOWS.md`.
+
+### B9 · Modale e animazioni del tutorial, telefono, schermo spento, «Pronto» nel 1v1 (richiesta del 05/11)
+- **Stato**: in corso.
+- **Cosa**: vedi Checkpoint (5 punti dell'utente).
+- **Come**: analisi delle cause prima di cambiare; modale compatta al centro (nello stesso schermo al centro della
+  propria metà) con frecce ‹ › e avanzamento anche dal telefono; animazione nuova (direzione artistica scelta
+  confrontando prototipi) costruita sui gesti realmente riconosciuti (`docs/PROJECT_MEMORY.md` §Gesti); stato del
+  tutorial sincronizzato con il telefono (pulsante acceso solo dopo l'ultima finestra); telefono con Wake Lock,
+  ripresa automatica e avviso sul PC quando lo schermo del telefono si spegne; stato «pronto» per giocatore nel 1v1.
+- **Perché**: richiesta dell'utente con priorità alla qualità visiva e all'affidabilità.
+- **Fine**: prove automatiche e nel browser (PC, telefono simulato, schermi grandi), schermate controllate, documenti,
+  pacchetti ed eseguibili nuovi.
 
 ### Punti aperti precedenti (non della richiesta del 04/11; restano validi)
 - **`natpf-tennis/test/e2e/lan-e2e.mjs` (non in CI) con controlli rossi da prima di B8** (verificato il 05/11 anche su
