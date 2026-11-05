@@ -71,7 +71,16 @@ Come si aggiorna:
   man mano nel repository in `docs/b9/` (rapporti, immagini in `docs/b9/img/`) e i prototipi di animazione in
   `natpf-tennis/prototipi/b9-*/` (non entrano nella build). Salvataggi intermedi automatici con commit «B9 analisi:
   salvataggio intermedio».
-- **Prossima azione esatta:** B9.1 — analisi in parallelo (modale e animazione attuali con le specifiche dei gesti
+- **B9, stato al 05/11 sera:** analisi fatte e pubblicate in `docs/b9/` (modale e animazione, specifica dei gesti,
+  telefono e schermo spento, «pronto» nel 1v1); prototipi di animazione `natpf-tennis/prototipi/b9-3d` (3D realistico) e
+  `b9-motion` (illustrato) in completamento, poi giudizio in `docs/b9/giudizio-animazione.md`. In realizzazione (rami
+  in worktree, revisione a seguire): (A) modale compatta e flusso del telefono con schermo spento, (B) «pronto» per
+  giocatore. Scelte di chi coordina (dalle analisi, l'utente può cambiarle): frecce su PC e telefono, niente
+  scorrimento automatico, scheda vista dopo ~1 s; Ricalibra/Ricollega/Scollega solo sotto «Pronto»; stesso schermo:
+  conto alla rovescia di 3 s quando tutti e due sono pronti, poi si gioca; sfida tra due computer (sospesa): solo
+  correzione minima (verde «Pronto ✓», «Annulla», conferma dall'host); schermo spento: Wake Lock affidabile, pausa e
+  ripresa rapida, limiti spiegati (nessun browser dà i sensori a pagina nascosta; alternativa: app Android nativa).
+- **Prossima azione esatta (precedente, B9.1 fatto):** B9.1 — analisi in parallelo (modale e animazione attuali con le specifiche dei gesti
   riconosciuti; pagina del telefono, flusso del tutorial e schermo spento; «Sono pronto» del 1v1 in
   `natpf_versus_ui.js`; prototipi di animazione da confrontare), poi rami separati per modale, animazione, telefono e
   1v1, ciascuno rivisto e corretto, poi unione, prove, versione nuova, pacchetti ed eseguibili.
