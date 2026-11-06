@@ -80,6 +80,13 @@ Come si aggiorna:
   conto alla rovescia di 3 s quando tutti e due sono pronti, poi si gioca; sfida tra due computer (sospesa): solo
   correzione minima (verde «Pronto ✓», «Annulla», conferma dall'host); schermo spento: Wake Lock affidabile, pausa e
   ripresa rapida, limiti spiegati (nessun browser dà i sensori a pagina nascosta; alternativa: app Android nativa).
+- **06/11 notte, ripresa dopo il limite d'uso:** consegne complete in `docs/b9/compiti.md`. Rami in corso nei worktree
+  locali `.claude/worktrees/wf_e8b0b59b-1e4-1` (A: modale e telefono, base `5461600`) e `…-1e4-2` (B: pronto, base
+  `4d242f6`); copia del loro lavoro come patch in `docs/b9/wip/` (se i worktree non ci sono più: `git am` della patch
+  su un ramo locale dalla sua base, poi unione). Prototipi in completamento, poi `docs/b9/giudizio-animazione.md`.
+- **Prossima azione esatta:** finiti rami e giudizio → correggere i bloccanti delle revisioni, unire A e B su
+  `natpf-simulator`, test e prove nel browser, push; poi ramo C (animazione nuova secondo il giudizio), versione nuova,
+  pacchetti ed eseguibili.
 - **Prossima azione esatta (precedente, B9.1 fatto):** B9.1 — analisi in parallelo (modale e animazione attuali con le specifiche dei gesti
   riconosciuti; pagina del telefono, flusso del tutorial e schermo spento; «Sono pronto» del 1v1 in
   `natpf_versus_ui.js`; prototipi di animazione da confrontare), poi rami separati per modale, animazione, telefono e

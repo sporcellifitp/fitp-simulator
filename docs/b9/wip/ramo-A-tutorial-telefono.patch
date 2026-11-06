@@ -1,0 +1,2068 @@
+From cb32d43a869ab6a72b14e12f2151b1d041b1279e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 5 Nov 2026 22:26:31 +0000
+Subject: [PATCH 1/2] B9 A: modale del tutorial compatta con le frecce e
+ schermate esclusive del telefono
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Modale (natpf_tutorial.js, natpf-ui.css): al centro, al massimo ~70% della larghezza e ~78%
+dell'altezza con un tetto in px; nello stesso schermo centrata nella propria metà. Frecce ‹ ›
+in basso al posto delle 11 etichette, puntini e «n / 11», niente scorrimento automatico;
+scheda vista dopo 1 s; riquadro dell'animazione 16:10 con setSize quando cambia misura.
+
+Telefono (phone-screen.js, racchetta.js/html): una sola schermata alla volta; «Tutto chiaro,
+ho capito» spento finché il computer (messaggio tp, cfg tv 2) non dice che tutte le schede
+sono state viste; frecce anche sul telefono; Ricalibra/Ricollega/Scollega solo sotto «Pronto»;
+[hidden] che vince sulla regola dei label (riga «Presa»). Velo «Tocca lo schermo per
+riprendere» al ritorno se mancano blocco dello schermo o sensori.
+
+Computer: tutorial una volta per abbinamento del telefono (link.js pairs), non a ogni
+ricollegamento; ripresa dalla scheda raggiunta; «ok» di un telefono v2 accettato solo con
+tutte le schede viste; calibrazione dopo il tutorial avviata solo dal telefono; tastiera
+←/→ (A/D per la metà sinistra nello stesso schermo); pausa con da quanto lo schermo è spento.
+
+Test: gioco 767/767, sito 192/192.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ natpf-tennis/natpf-ui.css                    | 109 ++++++-----
+ natpf-tennis/src/natpf/natpf_kiosk.js        |   5 +-
+ natpf-tennis/src/natpf/natpf_lobby.js        |   2 +
+ natpf-tennis/src/natpf/natpf_phone_racket.js |  56 ++++--
+ natpf-tennis/src/natpf/natpf_phone_watch.js  |  15 +-
+ natpf-tennis/src/natpf/natpf_split_ui.js     |  58 ++++--
+ natpf-tennis/src/natpf/natpf_training.js     |  46 +++--
+ natpf-tennis/src/natpf/natpf_tutorial.js     | 180 +++++++++++++------
+ natpf-tennis/src/natpf/natpf_ui.js           |  20 ++-
+ natpf-tennis/test/natpf-split.test.mjs       |  60 +++++++
+ natpf-tennis/test/natpf-tutorial.test.mjs    | 158 +++++++++++++---
+ site/js/tennis/link.js                       |  18 +-
+ site/js/tennis/phone-keep.js                 |  30 ++++
+ site/js/tennis/phone-screen.js               | 103 +++++++++++
+ site/js/tennis/racchetta.js                  | 162 +++++++++++------
+ site/tennis/racchetta.html                   |  37 +++-
+ tools/test/phone-keep.test.mjs               |  25 +++
+ tools/test/phone-screen.test.mjs             | 163 +++++++++++++++++
+ 18 files changed, 1012 insertions(+), 235 deletions(-)
+ create mode 100644 site/js/tennis/phone-screen.js
+ create mode 100644 tools/test/phone-screen.test.mjs
+
+diff --git a/natpf-tennis/natpf-ui.css b/natpf-tennis/natpf-ui.css
+index 2340aff..4b9c00a 100644
+--- a/natpf-tennis/natpf-ui.css
++++ b/natpf-tennis/natpf-ui.css
+@@ -1366,63 +1366,82 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
+   #connect-certificate-dialog .natpf-qr { width: min(45cqw, 35cqh); height: min(45cqw, 35cqh); }
+ }
+ 
+-/* ---------- tutorial prima della calibrazione (natpf_tutorial.js, richiesta del 04/11) ----------
+-   Misure legate all'area del gioco (cqw/cqh): gira anche in un'area di ledwall. Una modale grande al posto del riquadro
+-   piccolo «Guarda e ripeti»; nel 1v1 sullo stesso schermo un'istanza per metà (.natpf-tutorial.half) */
++/* ---------- tutorial prima della calibrazione (natpf_tutorial.js; B9, richiesta del 05/11) ----------
++   Modale compatta al centro dell'area del gioco: al massimo ~70% della larghezza e ~78% dell'altezza, con un tetto in px
++   per gli schermi grandi; frecce ‹ › grandi in basso, puntini e «n / 11». Misure legate all'area del gioco (cqw/cqh,
++   @container natpf): gira anche in un'area di ledwall. Nel 1v1 sullo stesso schermo un'istanza per metà
++   (.natpf-tutorial.half), centrata nella sua metà e proporzionata a quella. L'animazione sta in un riquadro 16:10
++   (.tut-stage) che si adatta allo spazio del suo contenitore (.tut-frame, contenitore di misura «tutframe») */
+ .natpf-tutorial { position: absolute; inset: 0; z-index: 70; display: grid; place-items: center; padding: 2cqh 2cqw;
+-  background: rgba(4, 8, 24, 0.74); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
++  background: rgba(4, 8, 24, 0.62); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+ .natpf-tutorial.hidden { display: none; }
+-.natpf-tutorial .tut-card { width: min(94cqw, 1240px); max-height: 94cqh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto;
+-  gap: 1.6cqh; padding: 2.4cqh 2.2cqw; border-radius: var(--r-l); background: var(--panel-solid); border: 1px solid var(--line-strong);
+-  box-shadow: var(--shadow); color: var(--text); font-family: var(--font-text); }
+-.natpf-tutorial .tut-kicker { display: block; font-size: clamp(11px, 1.2cqw, 17px); font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ball); }
+-.natpf-tutorial .tut-title { margin: .1em 0 0; font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: clamp(20px, 2.8cqw, 44px); text-transform: uppercase; }
+-.natpf-tutorial .tut-body { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 2.2cqw; align-items: center; min-height: 0; }
+-.natpf-tutorial .tut-stage { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 1cqw; height: 54cqh; min-height: 0;
++.natpf-tutorial .tut-card { --tw: min(70cqw, 124cqh, 1280px); box-sizing: border-box; width: var(--tw); height: min(calc(var(--tw) * 0.62), 78cqh);
++  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 1.4cqh; padding: 2cqh 1.8cqw;
++  border-radius: var(--r-l); background: var(--panel-solid); border: 1px solid var(--line-strong);
++  box-shadow: var(--shadow); color: var(--text); font-family: var(--font-text); overflow: hidden; }
++.natpf-tutorial .tut-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; column-gap: 1cqw; }
++.natpf-tutorial .tut-kicker { font-size: clamp(11px, 1.05cqw, 17px); font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--text-2); }
++.natpf-tutorial .tut-count { font: 700 clamp(12px, 1.15cqw, 19px)/1 var(--font-display); letter-spacing: .08em; color: var(--text-2); font-variant-numeric: tabular-nums; }
++.natpf-tutorial .tut-name { grid-column: 1 / -1; margin: .08em 0 0; font-family: var(--font-display); font-style: italic; font-weight: 800;
++  font-size: clamp(22px, 3cqw, 52px); line-height: 1; text-transform: uppercase; color: var(--ball); }
++.natpf-tutorial .tut-body { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 1.8cqw; align-items: center; min-height: 0; }
++.natpf-tutorial .tut-frame { container: tutframe / size; align-self: stretch; min-width: 0; min-height: 0; display: grid; place-items: center; }
++.natpf-tutorial .tut-stage { width: min(100cqw, 160cqh); height: min(62.5cqw, 100cqh); display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+   border-radius: var(--r-m); overflow: hidden; background: radial-gradient(circle at 50% 40%, var(--ink-700), var(--ink-950)); }
+ .natpf-tutorial .tut-media { min-height: 0; }
+ .natpf-tutorial .tut-media.hidden { display: none; }
+ .natpf-tutorial .tut-photo { width: 100%; height: 100%; object-fit: cover; display: block; }
+ .natpf-tutorial .tut-photo.mirror { transform: scaleX(-1); }
+-.natpf-tutorial .tut-3d { position: relative; min-height: 0; }
++.natpf-tutorial .tut-3d { position: relative; min-width: 0; min-height: 0; }
+ .natpf-tutorial .tut-3d canvas { width: 100% !important; height: 100% !important; display: block; }
+-.natpf-tutorial .tut-count { font-size: clamp(11px, 1.2cqw, 16px); color: var(--text-2); letter-spacing: .08em; text-transform: uppercase; }
+-.natpf-tutorial .tut-name { margin: .2em 0 .3em; font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: clamp(24px, 3.6cqw, 56px); text-transform: uppercase; color: var(--ball); }
+-.natpf-tutorial .tut-text { margin: 0 0 .6em; font-size: clamp(14px, 1.6cqw, 24px); line-height: 1.35; color: var(--text); }
++.natpf-tutorial .tut-info { min-height: 0; overflow: hidden; }
++.natpf-tutorial .tut-text { margin: 0 0 .7em; font-size: clamp(13px, 1.3cqw, 22px); line-height: 1.35; color: var(--text-2); }
+ .natpf-tutorial .tut-text.hidden { display: none; }
+ .natpf-tutorial .tut-cues { margin: 0; padding-left: 1.1em; }
+-.natpf-tutorial .tut-cues li { margin: .45em 0; font-size: clamp(15px, 1.8cqw, 26px); line-height: 1.3; }
+-.natpf-tutorial .tut-tabs { display: flex; flex-wrap: wrap; gap: .6cqw; }
+-.natpf-tutorial .tut-tab { font: 700 clamp(11px, 1.2cqw, 17px)/1 var(--font-text); padding: .55em 1em; border-radius: var(--r-pill);
+-  border: 1px solid var(--line-strong); background: transparent; color: var(--text); cursor: pointer; }
+-.natpf-tutorial .tut-tab.on { background: var(--ball); color: var(--ball-ink); border-color: var(--ball); }
+-.natpf-tutorial .tut-foot { display: flex; align-items: center; gap: 1.4cqw; padding-top: 1.4cqh; border-top: 1px solid var(--line); }
+-.natpf-tutorial .tut-phone { flex: none; width: clamp(18px, 2.2cqw, 34px); height: clamp(32px, 3.9cqw, 60px); border: 3px solid var(--ball);
+-  border-radius: 7px; animation: tut-pulse 1.4s ease-in-out infinite; }
+-.natpf-tutorial .tut-wait { flex: 1; margin: 0; font-size: clamp(15px, 2cqw, 30px); font-weight: 800; }
++.natpf-tutorial .tut-cues li { margin: .5em 0; font-size: clamp(14px, 1.55cqw, 26px); line-height: 1.28; }
++.natpf-tutorial .tut-cues li::marker { color: var(--ball); }
++.natpf-tutorial .tut-foot { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 1.4cqw; }
++.natpf-tutorial .tut-arrow { box-sizing: border-box; width: clamp(48px, 5cqw, 92px); height: clamp(48px, 5cqw, 92px); border-radius: 50%;
++  border: 0; background: var(--ball); color: var(--ball-ink); cursor: pointer; display: grid; place-items: center; padding: 0 0 .12em;
++  font: 800 clamp(30px, 3.4cqw, 62px)/1 var(--font-text); box-shadow: 0 4px 0 rgba(0, 0, 0, .28); transition: opacity .2s, transform .12s; }
++.natpf-tutorial .tut-arrow:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0, 0, 0, .28); }
++.natpf-tutorial .tut-arrow:disabled, .natpf-tutorial .tut-arrow.off { opacity: .22; cursor: default; box-shadow: none; }
++.natpf-tutorial .tut-mid { display: grid; justify-items: center; gap: .9cqh; min-width: 0; text-align: center; }
++.natpf-tutorial .tut-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(6px, .6cqw, 12px); }
++.natpf-tutorial .tut-dot { width: clamp(8px, .75cqw, 14px); height: clamp(8px, .75cqw, 14px); border-radius: 50%; background: var(--line-strong); transition: background .2s, transform .2s; }
++.natpf-tutorial .tut-dot.seen { background: var(--text-2); }
++.natpf-tutorial .tut-dot.on { background: var(--ball); transform: scale(1.4); }
++.natpf-tutorial .tut-wait { margin: 0; font-size: clamp(12px, 1.2cqw, 20px); font-weight: 700; line-height: 1.3; color: var(--text-2); }
++.natpf-tutorial.all-seen .tut-wait { color: var(--ball); }
++.natpf-tutorial[data-mode="review"] .tut-wait { display: none; }
+ .natpf-tutorial .tut-close.hidden { display: none; }
+-@keyframes tut-pulse { 50% { transform: scale(1.12); box-shadow: 0 0 0 6px rgba(227, 255, 54, 0.18); } }
++/* area alta e stretta (ledwall quadrato, monitor in verticale): una colonna, animazione sopra e indicazioni sotto */
+ @container natpf (max-aspect-ratio: 5/4) {
+-  .natpf-tutorial .tut-body { grid-template-columns: 1fr; }
+-  .natpf-tutorial .tut-stage { height: 40cqh; }
++  .natpf-tutorial .tut-card { --tw: min(74cqw, 1100px); height: min(calc(var(--tw) * 1.08), 80cqh); }
++  .natpf-tutorial .tut-body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; gap: 1.2cqh; }
++  .natpf-tutorial .tut-name { font-size: clamp(20px, 4.2cqw, 48px); }
++  .natpf-tutorial .tut-cues li { font-size: clamp(13px, 2.1cqw, 24px); margin: .3em 0; }
++  .natpf-tutorial .tut-text { font-size: clamp(12px, 1.8cqw, 20px); }
+ }
+-/* stesso schermo (B5): il tutorial di ciascun giocatore copre la sua metà dello schermo (P1 a sinistra, P2 a destra),
+-   sopra la pagina «Collega»; le due metà sono indipendenti */
+-.natpf-tutorial.half { inset: 0 auto 0 0; width: 50cqw; padding: 2cqh 1.2cqw; place-items: center; }
++/* stesso schermo (B5, rifatto in B9): il tutorial di ciascun giocatore sta al centro della sua metà (P1 a sinistra, P2 a
++   destra), sopra la pagina «Collega», proporzionato alla metà; le due metà sono indipendenti */
++.natpf-tutorial.half { inset: 0 auto 0 0; width: 50cqw; padding: 2cqh 1cqw; }
+ .natpf-tutorial.half[data-side="right"] { inset: 0 0 0 auto; }
+-.natpf-tutorial.half .tut-card { width: 100%; max-height: 96cqh; padding: 2cqh 1.4cqw; gap: 1.2cqh; }
+-.natpf-tutorial.half .tut-title { font-size: clamp(16px, 1.9cqw, 30px); }
+-.natpf-tutorial.half .tut-kicker { font-size: clamp(10px, 1cqw, 15px); }
+-.natpf-tutorial.half .tut-body { grid-template-columns: 1fr; gap: 1.2cqh; }
+-.natpf-tutorial.half .tut-stage { height: 34cqh; }
+-.natpf-tutorial.half .tut-name { font-size: clamp(18px, 2.2cqw, 36px); margin: .1em 0 .2em; }
+-.natpf-tutorial.half .tut-text { font-size: clamp(12px, 1.15cqw, 18px); }
+-.natpf-tutorial.half .tut-cues li { font-size: clamp(12px, 1.2cqw, 19px); margin: .25em 0; }
+-.natpf-tutorial.half .tut-tabs { gap: .4cqw; }
+-.natpf-tutorial.half .tut-tab { font-size: clamp(9px, .85cqw, 13px); padding: .45em .7em; }
+-.natpf-tutorial.half .tut-wait { font-size: clamp(12px, 1.3cqw, 20px); }
+-.natpf-tutorial.half .tut-phone { width: clamp(14px, 1.5cqw, 24px); height: clamp(24px, 2.6cqw, 40px); }
+-/* senza l'animazione 3D (ce l'ha l'altra metà): la foto della presa resta, per gli altri gesti le indicazioni a tutta larghezza */
++.natpf-tutorial.half .tut-card { --tw: min(42cqw, 96cqh, 900px); height: min(calc(var(--tw) * 1.02), 80cqh); padding: 1.8cqh 1.4cqw; gap: 1.1cqh; }
++.natpf-tutorial.half .tut-body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; gap: 1.1cqh; }
++.natpf-tutorial.half .tut-kicker { font-size: clamp(10px, .9cqw, 15px); }
++.natpf-tutorial.half .tut-count { font-size: clamp(11px, 1cqw, 16px); }
++.natpf-tutorial.half .tut-name { font-size: clamp(18px, 2.2cqw, 38px); }
++.natpf-tutorial.half .tut-text { font-size: clamp(11px, 1cqw, 17px); margin-bottom: .4em; }
++.natpf-tutorial.half .tut-cues li { font-size: clamp(12px, 1.15cqw, 20px); margin: .25em 0; }
++.natpf-tutorial.half .tut-arrow { width: clamp(40px, 3.8cqw, 72px); height: clamp(40px, 3.8cqw, 72px); font-size: clamp(26px, 2.6cqw, 48px); }
++.natpf-tutorial.half .tut-wait { font-size: clamp(11px, 1cqw, 17px); }
++@container natpf (max-aspect-ratio: 5/4) {
++  .natpf-tutorial.half .tut-card { height: min(calc(var(--tw) * 1.6), 82cqh); }
++}
++/* senza l'animazione 3D (ce l'ha l'altra metà): la foto della presa resta; per gli altri gesti le indicazioni a tutta
++   larghezza, più grandi (la scheda ha la stessa misura nelle due metà) */
+ .natpf-tutorial.no-3d .tut-3d { display: none; }
+-.natpf-tutorial.no-3d .tut-body:not(:has(.tut-media:not(.hidden))) { grid-template-columns: 1fr; }
+-.natpf-tutorial.no-3d .tut-stage:not(:has(.tut-media:not(.hidden))) { display: none; }
++.natpf-tutorial.no-media .tut-frame { display: none; }
++.natpf-tutorial.no-media .tut-body { grid-template-columns: 1fr; grid-template-rows: auto; align-content: center; }
++.natpf-tutorial.no-media .tut-cues li { font-size: clamp(14px, 1.6cqw, 28px); }
+diff --git a/natpf-tennis/src/natpf/natpf_kiosk.js b/natpf-tennis/src/natpf/natpf_kiosk.js
+index 5587c42..75f6689 100644
+--- a/natpf-tennis/src/natpf/natpf_kiosk.js
++++ b/natpf-tennis/src/natpf/natpf_kiosk.js
+@@ -58,8 +58,9 @@ export class NatpfKiosk {
+     for (const m of document.querySelectorAll('.natpf-sheet-backdrop:not(#natpf-staff)')) m.classList.add('hidden');
+     ui.events.nickname = '';
+     // il visitatore successivo rivede il tutorial prima di calibrare (gioco singolo e stesso schermo)
+-    if (ui.training) ui.training.tutorialSeen = {};
+-    if (ui.split){ ui.split.closeTutorials?.(); ui.split.tutSeen = { p1: false, p2: false }; }
++    // (il tutorial visto è segnato sul telefono, per abbinamento: si dimentica anche con lo stesso telefono)
++    if (ui.split) ui.split.closeTutorials?.();
++    ui.phone?.forgetTutorial?.(); ui.engine?.natpfPhone2?.forgetTutorial?.();
+     if (ui.phone.connected) ui.phone.forget?.();
+     ui.lobby.go('menu');
+     // pausa ricalcolata a pannelli chiusi: prima restava attiva e il visitatore successivo trovava il gioco fermo
+diff --git a/natpf-tennis/src/natpf/natpf_lobby.js b/natpf-tennis/src/natpf/natpf_lobby.js
+index 96e51e6..2a26b2e 100644
+--- a/natpf-tennis/src/natpf/natpf_lobby.js
++++ b/natpf-tennis/src/natpf/natpf_lobby.js
+@@ -439,6 +439,8 @@ export class NatpfLobby {
+     if (this.onboarding.isOpen){ if (this.onboarding.key(e)) e.preventDefault(); e.stopImmediatePropagation(); return; }
+     // calibrazione dello schermo aperta: frecce, Tab, numeri, Invio ed Esc sono suoi (F11 e gli altri tasti del browser no)
+     if (this.ui.calibra?.isOpen){ if (this.ui.calibra.key(e)) e.preventDefault(); e.stopImmediatePropagation(); return; }
++    // stesso schermo, tutorial aperto in una metà della pagina «Collega»: A/D e ← → sfogliano le schede (natpf_split_ui)
++    if (this.visible && this.step === 'connect' && this.ui.split?.key?.(e)){ e.preventDefault(); e.stopImmediatePropagation(); return; }
+     const sheetOpen = [...document.querySelectorAll('.natpf-sheet-backdrop')].some(m => !m.classList.contains('hidden'));
+     // in campo: Esc apre e chiude la pausa (Esc tenuto premuto ripete il tasto: si usa solo il primo, così uscendo dallo
+     // schermo intero del browser la pausa non si apre e chiude di continuo); F schermo intero
+diff --git a/natpf-tennis/src/natpf/natpf_phone_racket.js b/natpf-tennis/src/natpf/natpf_phone_racket.js
+index 60f06e6..f957218 100644
+--- a/natpf-tennis/src/natpf/natpf_phone_racket.js
++++ b/natpf-tennis/src/natpf/natpf_phone_racket.js
+@@ -351,8 +351,14 @@ export class NatpfPhoneRacket {
+     this.expectSpecial = null;
+     this.calListeners = new Set();
+     // tutorial prima della calibrazione (richiesta del 04/11): tutWait = il computer chiede al telefono di aspettare
+-    // «Tutto chiaro, ho capito»; tutSupported = il telefono ha risposto che lo sa fare (pagina aggiornata)
+-    this.tutWait = false; this.tutSupported = false; this.tutListeners = new Set();
++    // «Tutto chiaro, ho capito»; tutSupported = il telefono ha risposto che lo sa fare (pagina aggiornata); tutV2 = tiene
++    // il pulsante spento fino all'ultima scheda (B9); tutProgress = avanzamento della modale mandato al telefono (tp)
++    this.tutWait = false; this.tutSupported = false; this.tutV2 = false; this.tutProgress = null;
++    this.tutListeners = new Set(); this.tutNavListeners = new Set();
++    // tutorial visto per questo abbinamento del telefono (link.L.pairs): si rivede solo con un abbinamento nuovo (QR), non
++    // a ogni ricollegamento (pagina ricaricata, schermo spento, «Ricollega»); tutSaved = dove era arrivata la modale chiusa
++    // prima della fine (stesso abbinamento: si riprende da lì). Uno per telefono: vale per Allenamento e stesso schermo
++    this.tutSeenPairs = null; this.tutSaved = null;
+     this.lastPhase = null;
+     this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false };
+     // passo della calibrazione come lo vede il computer (natpf_cal_view.js): si aggiorna con ogni evento del telefono,
+@@ -396,7 +402,8 @@ export class NatpfPhoneRacket {
+       if (!this.state.relinked){ this.aimModel.reset(); this.faceModel.reset(); }
+     }
+     // diag: se la diagnostica sta registrando, anche dopo una riconnessione il telefono rimanda i campioni grezzi
+-    if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.link.send(this._cfg()); this.gripSent = true; this.lastExpect = null; }
++    // (con il tutorial aperto anche l'avanzamento: il telefono riprende dalla scheda raggiunta, B9)
++    if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.link.send(this._cfg()); this._sendTp(); this.gripSent = true; this.lastExpect = null; }
+     if (!this.connected) this.gripSent = false;
+   }
+   get pairingUrl(){ return this.link ? pairingUrl(phonePageUrl(window.location, this.lanOrigin), testSearch(), this.link.session, this.link.token) : null; }
+@@ -418,11 +425,7 @@ export class NatpfPhoneRacket {
+     const link = this.link = createPhoneLink();
+     link.on('change', () => { this._sendGrip(); this._syncPhoneState(); this._changed(); });
+     link.on('cal', e => this._onCal(e));
+-    link.on('tut', e => {
+-      if (e.wait) this.tutSupported = true;
+-      if (e.ok){ this.tutWait = false; for (const fn of this.tutListeners) try { fn(e); } catch (err){ console.error(err); } }
+-      this._changed();
+-    });
++    link.on('tut', e => this._onTut(e));
+     link.on('swing', s => this._onSwing(s));
+     link.on('toss', () => this._onToss());
+     link.on('prep', p => this._onPrep(p));
+@@ -468,15 +471,46 @@ export class NatpfPhoneRacket {
+     this._changed();
+   }
+   onCal(fn){ this.calListeners.add(fn); return () => this.calListeners.delete(fn); }
+-  // configurazione mandata al telefono (a ogni collegamento e quando cambia l'attesa del tutorial)
+-  _cfg(){ return { t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}), ...(this.tutWait ? { tut: 1 } : {}) }; }
++  // configurazione mandata al telefono (a ogni collegamento e quando cambia l'attesa del tutorial). tv 2: il computer manda
++  // l'avanzamento (tp) e il telefono tiene «Tutto chiaro» spento fino all'ultima scheda vista
++  _cfg(){ return { t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}), ...(this.tutWait ? { tut: 1, tv: 2 } : {}) }; }
+   // il telefono aspetta il tutorial (on) o calibra subito (off); onTutorial: «Tutto chiaro, ho capito» toccato sul telefono
+   waitTutorial(on){
+     const v = !!on; if (v === this.tutWait) return;
+-    this.tutWait = v; if (!v) this.tutSupported = false;
++    this.tutWait = v; if (!v){ this.tutSupported = false; this.tutV2 = false; this.tutProgress = null; }
+     if (this.connected) this.link.send(this._cfg());
+   }
+   onTutorial(fn){ this.tutListeners.add(fn); return () => this.tutListeners.delete(fn); }
++  // frecce ‹ › toccate sul telefono (-1 indietro, 1 avanti): chi mostra la modale cambia scheda
++  onTutorialNav(fn){ this.tutNavListeners.add(fn); return () => this.tutNavListeners.delete(fn); }
++  // avanzamento della modale { i, n, s, m, all, nm } (NatpfTutorial.progress), mandato al telefono finché aspetta
++  tutorialProgress(p){ this.tutProgress = p ? { ...p } : null; this._sendTp(); }
++  _sendTp(){
++    const p = this.tutProgress;
++    if (!this.tutWait || !p || !this.connected) return;
++    this.link.send({ t: 'tp', i: p.i, n: p.n, s: p.s, m: p.m || 0, all: p.all ? 1 : 0, ...(p.nm ? { nm: String(p.nm).slice(0, 40) } : {}) });
++  }
++  // messaggi del tutorial dal telefono: w (sa aspettare; v 2 tiene il pulsante spento), nav (frecce), ok («ho capito»).
++  // Da un telefono v2 un «ok» prima di aver visto tutte le schede (messaggi incrociati, pagina con lo stato di prima) non
++  // chiude la modale: il telefono riceve di nuovo il cancello e l'avanzamento
++  _onTut(e){
++    if (e.wait){ this.tutSupported = true; this.tutV2 = e.v === 2; }
++    if (e.nav && this.tutWait) for (const fn of this.tutNavListeners) try { fn(e.nav); } catch (err){ console.error(err); }
++    if (e.ok){
++      if (this.tutWait && this.tutV2 && this.tutProgress && !this.tutProgress.all){ if (this.connected){ this.link.send(this._cfg()); this._sendTp(); } }
++      // (chi mostra la modale la chiude e toglie l'attesa con waitTutorial(false), che pulisce anche lo stato qui)
++      else { for (const fn of this.tutListeners) try { fn(e); } catch (err){ console.error(err); } this.tutWait = false; }
++    }
++    this._changed();
++  }
++  // tutorial già visto da chi tiene questo telefono (stesso abbinamento)
++  get tutorialSeen(){ return this.tutSeenPairs != null && this.tutSeenPairs === (this.state.pairs || 0); }
++  markTutorialSeen(){ this.tutSeenPairs = this.state.pairs || 0; this.tutSaved = null; }
++  // visitatore nuovo (chiosco): il tutorial si rivede anche con lo stesso telefono
++  forgetTutorial(){ this.tutSeenPairs = null; this.tutSaved = null; }
++  // modale chiusa prima della fine (si esce, il telefono cade nella pagina «Collega»): si riprende da lì, stesso abbinamento
++  saveTutorial(snap){ this.tutSaved = snap ? { ...snap, pairs: this.state.pairs || 0 } : null; }
++  savedTutorial(){ const t = this.tutSaved; return t && t.pairs === (this.state.pairs || 0) ? t : null; }
+   // gesto fatto a richiesta (esercizio «Pallonetto» o «Palla corta»): esempio per le soglie personali. Con la forma del
+   // colpo (telefoni di oggi) è un esempio della forma del proprio gesto (prima con questi telefoni non si imparava niente,
+   // e l'esercizio diceva comunque «Ho imparato il tuo gesto»). Restituisce { learned, distinct }: distinct se il gesto
+diff --git a/natpf-tennis/src/natpf/natpf_phone_watch.js b/natpf-tennis/src/natpf/natpf_phone_watch.js
+index eca1123..4ae0a97 100644
+--- a/natpf-tennis/src/natpf/natpf_phone_watch.js
++++ b/natpf-tennis/src/natpf/natpf_phone_watch.js
+@@ -111,12 +111,21 @@ export function createPhoneWatch({ steadyMs = WATCH.steadyMs, countdownMs = WATC
+   };
+ }
+ 
+-// testo per chi gioca, dal motivo della pausa
+-export function holdText(why){
++// testo per chi gioca, dal motivo della pausa. hiddenMs: da quanto la pagina del telefono è nascosta (B9: lo si dice, e si
++// aggiorna ogni secondo); wasHidden: il telefono si è scollegato con la pagina nascosta (schermo spento): si ricollega
++// da solo quando torna, il QR serve solo se la pagina è stata chiusa
++export function holdText(why, { hiddenMs = null, wasHidden = false } = {}){
++  const since = Number.isFinite(hiddenMs) && hiddenMs >= 1000 ? ` da ${Math.round(hiddenMs/1000)} s` : '';
++  if (why === 'pagina nascosta') return `Schermo del telefono spento o pagina del gioco non in primo piano${since}: riaccendi lo schermo (tasto laterale) e torna alla pagina, si riprende da solo. Sul telefono basta un tocco per riprendere.`;
++  if (why === 'scollegato' && wasHidden) return `Il telefono si è scollegato con lo schermo spento${since}: riaccendilo e torna alla pagina del gioco, si ricollega da solo. Se la pagina è stata chiusa, inquadra di nuovo il QR.`;
+   return {
+     scollegato: 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo.',
+     'non pronto': 'Il telefono non è pronto: guarda il telefono e finisci la calibrazione.',
+-    'pagina nascosta': 'La pagina del telefono non è in primo piano (schermo spento o un’altra app): riaccendi lo schermo e torna alla pagina.',
+     'sensori fermi': 'Il telefono è collegato ma non manda il movimento: sul telefono tocca «Riattiva i sensori» (o riaccendi lo schermo e torna alla pagina del gioco).',
+   }[why] || 'Telefono in pausa.';
+ }
++// testo della pausa per questo telefono adesso (da quanto è nascosto, se si è scollegato con lo schermo spento)
++export function phoneHoldText(p, why, now = globalThis.performance?.now?.() ?? 0){
++  const L = p?.state || {}, hidden = L.vis === false;
++  return holdText(why, { hiddenMs: hidden && Number.isFinite(L.hiddenAt) ? now - L.hiddenAt : null, wasHidden: hidden });
++}
+diff --git a/natpf-tennis/src/natpf/natpf_split_ui.js b/natpf-tennis/src/natpf/natpf_split_ui.js
+index b585b28..75b7381 100644
+--- a/natpf-tennis/src/natpf/natpf_split_ui.js
++++ b/natpf-tennis/src/natpf/natpf_split_ui.js
+@@ -9,7 +9,7 @@
+ //     conto alla rovescia, come per il P1 (natpf_phone_watch.js).
+ import { NatpfPhoneRacket } from './natpf_phone_racket.js';
+ import { calPrompt } from './natpf_cal_view.js';
+-import { createPhoneWatch, createResync, phoneHealthOf, holdText } from './natpf_phone_watch.js';
++import { createPhoneWatch, createResync, phoneHealthOf, phoneHoldText } from './natpf_phone_watch.js';
+ import { splitVisible } from './natpf_split.js';
+ import { webcamOpenError } from './natpf_webcam_watch.js';
+ 
+@@ -40,6 +40,8 @@ export function splitPlayerStatus(p, hand = 'right'){
+   if (L.state === 'error') return { state: 'ko', title: 'Collegamento non disponibile', sub: `Controlla la rete e riprova (${L.error || 'errore'})` };
+   if (!p.connected) return { state: 'qr', title: 'Inquadra il QR', sub: L.state === 'lost' ? 'Telefono scollegato: riapri la pagina sul telefono' : 'Con la fotocamera del telefono, poi tocca il link' };
+   if (PHONE_ERR[L.phone]) return { state: 'ko', title: 'Sensori non disponibili', sub: PHONE_ERR[L.phone] };
++  // tutorial aperto nella sua metà (B9): a che scheda è
++  if (p.tutWait){ const t = p.tutProgress; return { state: 'on', title: 'Guarda il tutorial', sub: t?.n ? `Schede viste ${t.s} di ${t.n}${t.all ? ' · sul telefono «Tutto chiaro, ho capito»' : ''}` : 'Sul telefono, poi «Tutto chiaro, ho capito»' }; }
+   if (p.ready) return { state: 'ok', title: 'Pronto ✓', sub: p.simple ? 'Senza calibrazione: si gioca lo stesso' : 'Racchetta calibrata' };
+   if (L.phone !== 'cal') return { state: 'on', title: 'Tocca «Attiva i sensori»', sub: 'Sul telefono; su iPhone poi «Consenti»' };
+   const c = calPrompt(p.calView, hand);
+@@ -63,8 +65,10 @@ export class NatpfSplitUi {
+     this.labels = { p1: null, p2: null };     // esito dell'ultimo colpo { text, until }
+     this.watch = createPhoneWatch(); this.hold = null; this.resync = createResync();
+     // tutorial di ciascun giocatore nella sua metà della pagina «Collega» (richiesta del 04/11): indipendenti, si chiudono
+-    // dal proprio telefono; l'animazione 3D (una sola) la ha la prima metà che l'ha chiesta, l'altra foto e indicazioni
+-    this.tutOpen = { p1: false, p2: false }; this.tutSeen = { p1: false, p2: false }; this.demoOwner = null;
++    // dal proprio telefono; l'animazione 3D (una sola) la ha la prima metà che l'ha chiesta, l'altra foto e indicazioni.
++    // Visto una volta per abbinamento del telefono (NatpfPhoneRacket.tutorialSeen, B9): non a ogni ricollegamento, e il P1
++    // che l'ha già visto nell'Allenamento non lo rivede qui
++    this.tutOpen = { p1: false, p2: false }; this.demoOwner = null;
+     this.tut = {};
+     for (const id of SPLIT_PLAYERS) this.tut[id] = typeof document !== 'undefined' ? new NatpfTutorial($(`split-tut-${id}`), { half: true, demo: () => getGestureDemo(), canDemo: () => this.demoOwner === id }) : null;
+     let saved = 'phones'; try { saved = localStorage.getItem(SPLIT_INPUT_KEY) || 'phones'; } catch {}
+@@ -96,11 +100,26 @@ export class NatpfSplitUi {
+       p2.onChange(() => { this._resetIfNew('p2'); if (this.ui.lobby?.visible && this.ui.lobby.step === 'connect') this.ui.lobby.paint(); });
+       p2.onCal(e => this._onCal('p2', e));
+       p2.onTutorial?.(() => this._tutDone('p2'));
++      p2.onTutorialNav?.(d => { if (this.tutOpen.p2) this.tut.p2?.step(d); });
++    }
++    if (!this.p1Bound){
++      this.p1Bound = true; this.ui.phone.onCal?.(e => this._onCal('p1', e)); this.ui.phone.onChange(() => this._resetIfNew('p1')); this.ui.phone.onTutorial?.(() => this._tutDone('p1'));
++      this.ui.phone.onTutorialNav?.(d => { if (this.tutOpen.p1) this.tut.p1?.step(d); });
+     }
+-    if (!this.p1Bound){ this.p1Bound = true; this.ui.phone.onCal?.(e => this._onCal('p1', e)); this.ui.phone.onChange(() => this._resetIfNew('p1')); this.ui.phone.onTutorial?.(() => this._tutDone('p1')); }
+     for (const id of SPLIT_PLAYERS) this.phone(id).start().catch(err => this.ui.toast(`Collegamento del ${id.toUpperCase()} non disponibile (${err.message})`));
+   }
+   get webcam(){ return this.input === 'webcam'; }
++  // tutorial visto da ciascuno (stesso abbinamento del telefono)
++  get tutSeen(){ return { p1: !!this.phone('p1')?.tutorialSeen, p2: !!this.phone('p2')?.tutorialSeen }; }
++  // tastiera di chi gestisce la postazione nella pagina «Collega» (natpf_lobby): A/D sfogliano il tutorial del P1 (metà
++  // sinistra), ← → quello del P2 (metà destra); con una sola metà aperta tutti e due i tasti vanno a quella
++  key(e){
++    if (!this.tutOpen.p1 && !this.tutOpen.p2) return false;
++    const left = e.code === 'KeyA' || e.code === 'KeyD';
++    const id = left ? (this.tutOpen.p1 ? 'p1' : 'p2') : (this.tutOpen.p2 ? 'p2' : 'p1');
++    const code = e.code === 'KeyA' ? 'ArrowLeft' : e.code === 'KeyD' ? 'ArrowRight' : e.code;
++    return !!this.tut[id]?.key({ code });
++  }
+   // webcam per due: pronti quando la camera è accesa e ha visto le mani di entrambi (anche non in questo momento: tra la
+   // pagina «Collega» e «Gioca» si scelgono le impostazioni); altrimenti i due telefoni pronti
+   bothReady(){
+@@ -136,7 +155,7 @@ export class NatpfSplitUi {
+   // nuovo collegamento (pagina del telefono ricaricata o altro telefono): la calibrazione si chiede di nuovo
+   _resetIfNew(id){
+     const p = this.phone(id), joins = p?.state?.joins || 0, key = `${id}Joins`;
+-    if (this[key] !== joins){ this[key] = joins; this.calAsked[id] = false; this.fails[id] = 0; this.tutSeen[id] = false; }
++    if (this[key] !== joins){ this[key] = joins; this.calAsked[id] = false; this.fails[id] = 0; }
+   }
+   // calibrazione guidata dal telefono: si conferma da sola se riesce, si ripete se no (poi profilo semplice). Anche a
+   // partita in corso: sessione del 29/10, schermo del telefono spento, «Ricalibra» sul telefono, calibrazione rifatta e
+@@ -156,36 +175,41 @@ export class NatpfSplitUi {
+   _drive(id){
+     const p = this.phone(id); if (!p) return;
+     const L = p.state;
+-    // telefono collegato: prima il tutorial nella sua metà (una volta per giocatore); il telefono aspetta «ho capito»
+-    if (p.connected && !this.tutSeen[id] && !this.tutOpen[id] && !this.webcam) this._tutOpen(id);
+-    if (!p.connected && this.tutOpen[id]) this._tutClose(id);
+-    if (this.tutOpen[id]) return;
++    // telefono collegato: prima il tutorial nella sua metà (una volta per abbinamento); il telefono aspetta «ho capito».
++    // Telefono che cade a tutorial aperto: la metà torna al QR e la modale ricorda la scheda raggiunta (stesso telefono
++    // che si ricollega: riparte da lì)
++    if (p.connected && !p.tutorialSeen && !this.tutOpen[id] && !this.webcam) this._tutOpen(id);
++    if (!p.connected && this.tutOpen[id]) this._tutClose(id, { keep: true });
++    if (this.tutOpen[id]){ this.tut[id]?.setAfter(p.ready ? 'ready' : 'cal'); return; }
+     if (p.connected && L.phone === 'cal' && !p.ready && !this.calAsked[id] && p.calView?.stage === 'off'){ this.calAsked[id] = true; p.recalibrate(); }
+   }
+   _tutOpen(id){
+     this.tutOpen[id] = true;
+-    // collegamento di questo giocatore: solo uno nuovo (altro telefono, pagina ricaricata) fa rivedere il tutorial
+     this[`${id}Joins`] = this.phone(id)?.state?.joins || 0;
+     if (!this.demoOwner) this.demoOwner = id;
+-    this.phone(id).waitTutorial?.(true);
++    const p = this.phone(id);
++    p.waitTutorial?.(true);
+     const name = this.engine.natpfSplitNames?.[id] || (id === 'p1' ? 'Player 1' : 'Player 2');
+-    this.tut[id]?.openFor({ mode: 'phone', player: name, hand: this.hand(id), wait: 'Sul tuo telefono tocca «Tutto chiaro, ho capito»: poi si calibra.' });
++    // avanzamento al telefono di questo giocatore (pulsante acceso dopo l'ultima scheda); «poi sei pronto» se è già calibrato
++    this.tut[id]?.openFor({ mode: 'phone', player: name, hand: this.hand(id), after: p.ready ? 'ready' : 'cal', from: p.savedTutorial?.() || null, onProgress: pr => p.tutorialProgress?.(pr) });
+   }
+   // chiusa dal telefono di quel giocatore (o dal telefono di prima che calibra da solo): solo la sua metà
+   _tutDone(id){
+     if (!this.tutOpen[id]) return;
+-    this.tutSeen[id] = true; this._tutClose(id);
++    this.phone(id)?.markTutorialSeen?.(); this._tutClose(id);
+     this.paint();
+   }
+-  _tutClose(id){
++  // keep: chiusa prima della fine (telefono caduto): si ricorda dove era arrivata
++  _tutClose(id, { keep = false } = {}){
+     this.tutOpen[id] = false;
++    if (keep) this.phone(id)?.saveTutorial?.(this.tut[id]?.snapshot);
+     this.phone(id)?.waitTutorial?.(false);
+     this.tut[id]?.close('phone');
+     // l'animazione 3D passa all'altra metà, se ha il tutorial aperto
+     if (this.demoOwner === id){ const other = id === 'p1' ? 'p2' : 'p1'; this.demoOwner = this.tutOpen[other] ? other : null; if (this.demoOwner) this.tut[other]?.paint(); }
+   }
+   // si esce dalla pagina «Collega» (partita, menu): le modali delle metà si chiudono, i telefoni non aspettano più
+-  closeTutorials(){ for (const id of SPLIT_PLAYERS) if (this.tutOpen[id]) this._tutClose(id); }
++  closeTutorials(){ for (const id of SPLIT_PLAYERS) if (this.tutOpen[id]) this._tutClose(id, { keep: true }); }
+   paint(){
+     const box = document.querySelector('[data-setup="split"]'), cam = this.webcam, mc = this.engine.motionController, now = performance.now();
+     if (box) box.dataset.input = this.input;
+@@ -263,10 +287,12 @@ export class NatpfSplitUi {
+     const a = this.watch.update(h, { inField, rally, now });
+     const R = this.ui.diag?.recorder;
+     if (inField && this.resync.update(h, { paused: this.watch.state !== 'ok', busy: rally, now }) && p.relink()) R?.log?.('tel.ricollega', { chi: 'p2', motivo: h.why || h.degraded, auto: true });
++    // schermo del telefono del P2 spento: il riquadro dice da quanto (ogni secondo)
++    if (!a && this.hold && this.watch.state === 'paused' && p.state.vis === false){ const text = phoneHoldText(p, this.hold.why); if (text !== this.holdShown){ this.holdShown = text; this.ui._paintHold('Telefono del Player 2 in pausa', text, this.ui.relinkAction?.(p, 'Player 2')); } }
+     if (!a) return;
+     if (a.kind === 'pause' || a.kind === 'wait'){
+       this.hold = { why: a.why };
+-      this.ui._paintHold('Telefono del Player 2 in pausa', holdText(a.why), this.ui.relinkAction?.(p, 'Player 2'));
++      this.ui._paintHold('Telefono del Player 2 in pausa', phoneHoldText(p, a.why), this.ui.relinkAction?.(p, 'Player 2'));
+       R?.log?.('tel.pausa', { chi: 'p2', motivo: a.why, fase: E.phase, ...(h.gapMs ? { gapMs: h.gapMs } : {}), ...(Number.isFinite(p.state.sensorAge) ? { sensoriTelefonoMs: p.state.sensorAge } : {}) });
+       if (p.connected){ p.link.send({ t: 'ph', ph: 'pause' }); p.lastPhase = 'pause'; }
+     }
+diff --git a/natpf-tennis/src/natpf/natpf_training.js b/natpf-tennis/src/natpf/natpf_training.js
+index d000173..1522e72 100644
+--- a/natpf-tennis/src/natpf/natpf_training.js
++++ b/natpf-tennis/src/natpf/natpf_training.js
+@@ -157,14 +157,20 @@ export class NatpfTraining {
+       e.preventDefault(); e.stopImmediatePropagation(); this.lessonAction(a);
+     }, true);
+     this.introSeen = {};
+-    // tutorial prima della calibrazione (richiesta del 04/11): modale grande, si chiude dal telefono («Tutto chiaro, ho
+-    // capito»); una volta per sessione e per giocatore (tutorialSeen), «Rivedi i gesti» sempre disponibile
+-    this.tutorialSeen = {}; this.tutorialOpen = false;
++    // tutorial prima della calibrazione (richiesta del 04/11, modale compatta con le frecce in B9): si chiude dal telefono
++    // («Tutto chiaro, ho capito», acceso sul telefono dopo l'ultima scheda vista); una volta per abbinamento del telefono
++    // (NatpfPhoneRacket.tutorialSeen: non a ogni ricollegamento), «Rivedi i gesti» sempre disponibile
++    this.tutorialOpen = false;
+     this.tutorial = typeof document !== 'undefined' ? new NatpfTutorial(document.getElementById('natpf-tutorial'), { demo: () => getGestureDemo() }) : null;
+     ui.phone?.onTutorial?.(() => this._tutorialDone('phone'));
++    // frecce ‹ › toccate sul telefono
++    ui.phone?.onTutorialNav?.(d => { if (this.tutorialOpen) this.tutorial?.step(d); });
+     document.getElementById('coach-review')?.addEventListener('click', e => { e.stopPropagation(); this.reviewGestures(); });
+     if (typeof window !== 'undefined') window.addEventListener('keydown', e => {
+-      if (!this.tutorial?.open || e.code !== 'Escape') return;
++      if (!this.tutorial?.open) return;
++      // ← → sfogliano le schede (prima del motore, che con le frecce muoverebbe il giocatore)
++      if (this.tutorial.key(e)){ e.preventDefault(); e.stopImmediatePropagation(); return; }
++      if (e.code !== 'Escape') return;
+       e.preventDefault(); e.stopImmediatePropagation();
+       // Esc tenuto premuto (uscita dallo schermo intero del browser) ripete il tasto: conta solo il primo
+       if (e.repeat) return;
+@@ -201,10 +207,9 @@ export class NatpfTraining {
+     this.calOnly = calOnly; this.guest = guest;
+     const ctrl = this.ui.controller, steps = ctrl === 'phone' ? LESSON : ctrl === 'webcam' ? WEBCAM_LESSON : [];
+     // con il telefono la lezione (presa, mano, posizione) è la modale del tutorial, in tutti i percorsi; resta per la webcam
+-    // nuovo collegamento del telefono (pagina ricaricata, altro telefono): può essere un altro giocatore, si rivede
+-    const joins = this.ui.phone?.state?.joins || 0;
+-    if (this.tutorialJoins !== joins){ this.tutorialJoins = joins; this.tutorialSeen = {}; }
+-    const wantTutorial = ctrl === 'phone' && !diag && !guest && !this.tutorialSeen.p1;
++    // si rivede solo con un abbinamento nuovo del telefono (QR: può essere un altro giocatore), non quando lo stesso telefono
++    // si ricollega (pagina ricaricata, schermo spento, «Ricollega»: B9, prima ricompariva sopra «Pronto»)
++    const wantTutorial = ctrl === 'phone' && !diag && !guest && !this.ui.phone?.tutorialSeen;
+     this.lesson = !wantTutorial && ctrl !== 'phone' && intro && !guest && !diag && !calOnly && steps.length && !this.introSeen[ctrl] ? { steps, idx: 0 } : null;
+     this.live = null;
+     const E = this.engine;
+@@ -233,20 +238,27 @@ export class NatpfTraining {
+     this.paint();
+   }
+   // modale del tutorial: il telefono aspetta «Tutto chiaro, ho capito» prima di calibrare (natpf_phone_racket.waitTutorial)
++  // L'avanzamento (scheda, schede viste) va al telefono, che accende «ho capito» dopo l'ultima; una modale chiusa prima
++  // della fine (uscita) riparte da dove era arrivata
+   _openTutorial(){
+     this.tutorialOpen = true; this._idle(); this._centerPlayer();
+-    this.ui.phone.waitTutorial?.(true);
+-    this.tutorial?.openFor({ mode: 'phone', player: '', hand: this.ui.hand?.hand || 'right' });
++    const P = this.ui.phone;
++    P.waitTutorial?.(true);
++    this.tutorial?.openFor({ mode: 'phone', player: '', hand: this.ui.hand?.hand || 'right', after: this.cal ? 'cal' : 'play',
++      from: P.savedTutorial?.() || null, onProgress: p => P.tutorialProgress?.(p) });
+   }
+   // chiusa dal telefono (o con Esc da chi gestisce la postazione, o da un telefono con la pagina di prima che ha già
+   // cominciato a calibrare): si segna vista per questa sessione e si va alla calibrazione o agli esercizi
++  // Il telefono che sa del tutorial calibra da solo appena si chiude (dopo «ho capito», o quando il computer chiude con
++  // Esc): il computer non lo chiede di nuovo, prima a volte la calibrazione partiva due volte
+   _tutorialDone(reason = 'phone'){
+     if (!this.tutorialOpen) return;
+-    this.tutorialOpen = false; this.tutorialSeen.p1 = true;
++    const aware = !!this.ui.phone.tutSupported;
++    this.tutorialOpen = false; this.ui.phone.markTutorialSeen?.();
+     this.ui.phone.waitTutorial?.(false);
+     this.tutorial?.close(reason);
+     if (!this.active) return;
+-    this._begin();
++    this._begin({ phoneCalibrates: aware });
+     this.engine.hud.showCenterBanner(this.cal ? 'Calibrazione' : 'Si comincia', { style: 'style-start', subText: this.cal ? 'Tieni fermo il telefono, poi i due gesti' : 'Solo tu e il lanciapalle', durationMs: 1300 });
+     this.paint();
+   }
+@@ -256,15 +268,16 @@ export class NatpfTraining {
+     this.tutorial.openFor({ mode: 'review', hand: this.ui.hand?.hand || 'right' });
+   }
+   // dopo la lezione (o subito): calibrazione del telefono o primo esercizio
+-  _begin(){
++  _begin({ phoneCalibrates = false } = {}){
+     const E = this.engine;
+     if (this.cal){
+       // calibrazione: niente servizio e niente corse, il giocatore aspetta fermo al centro
+       this._idle(); this._centerPlayer();
+       // telefono senza una calibrazione in corso (mai partita, finita o già alla verifica): si ricomincia. Se è già ai
+-      // gesti (succede: il telefono parte appena si attivano i sensori, prima di entrare in campo) si continua da lì
++      // gesti (succede: il telefono parte appena si attivano i sensori, prima di entrare in campo) si continua da lì.
++      // Dopo il tutorial la calibrazione la fa partire il telefono (phoneCalibrates)
+       const step = this.ui.phone.cal?.step;
+-      if (!step || ['done', 'review', 'free'].includes(step) || this.view.stage === 'off') this.ui.phone.recalibrate();
++      if (!phoneCalibrates && (!step || ['done', 'review', 'free'].includes(step) || this.view.stage === 'off')) this.ui.phone.recalibrate();
+     } else E._setupPointServe({ showBanner: false });
+   }
+   lessonAction(a){
+@@ -514,7 +527,8 @@ export class NatpfTraining {
+   stop({ completed, skipped = false, calibrated = false, silent = false }){
+     if (!this.active) return;
+     const E = this.engine;
+-    if (this.tutorialOpen){ this.tutorialOpen = false; this.ui.phone.waitTutorial?.(false); this.tutorial?.close('skip'); }
++    // modale chiusa prima della fine: con lo stesso telefono si riprende dalla scheda raggiunta
++    if (this.tutorialOpen){ this.tutorialOpen = false; this.ui.phone.saveTutorial?.(this.tutorial?.snapshot); this.ui.phone.waitTutorial?.(false); this.tutorial?.close('skip'); }
+     this.active = false; this.cal = null; this.lesson = null; this.live = null; E.natpfTimeScale = 1; clearTimeout(this.retryT);
+     if (this.demoOn){ getGestureDemo().stop(); this.demoOn = false; }
+     if (E.audioEngine?.musicContext === 'training') E.audioEngine.musicContext = null;
+diff --git a/natpf-tennis/src/natpf/natpf_tutorial.js b/natpf-tennis/src/natpf/natpf_tutorial.js
+index c3859a0..126b8ed 100644
+--- a/natpf-tennis/src/natpf/natpf_tutorial.js
++++ b/natpf-tennis/src/natpf/natpf_tutorial.js
+@@ -1,15 +1,20 @@
+-// Tutorial prima della calibrazione (richiesta del 04/11/2026): una modale grande con la presa e tutti i gesti, che sostituisce
+-// il riquadro piccolo «Guarda e ripeti» in calibrazione. Si chiude dal telefono di chi gioca con «Tutto chiaro, ho capito»
+-// (natpf_phone_racket.waitTutorial / onTutorial); sul computer solo Esc per chi gestisce la postazione. Le schede scorrono
+-// da sole (chi gioca ha il telefono in mano, non il mouse); un clic su una scheda la ferma lì per un po'.
++// Tutorial prima della calibrazione (richiesta del 04/11/2026, rifatto in B9 il 05/11): una modale compatta al centro dello
++// schermo (nello stesso schermo al centro della propria metà) con la presa e tutti i gesti. Si sfoglia con le frecce ‹ ›
++// in basso (mouse, tastiera ←/→, o dal telefono di chi gioca), niente scorrimento automatico; una scheda conta come
++// vista dopo TUTORIAL.seenMs che è a schermo. Si chiude dal telefono con «Tutto chiaro, ho capito», che sul telefono si
++// accende solo quando tutte le schede sono state viste (l'avanzamento va al telefono con onProgress →
++// natpf_phone_racket.tutorialProgress, messaggio «tp»); sul computer solo Esc per chi gestisce la postazione.
+ // Più istanze possibili (una per metà dello schermo nel 1v1 sullo stesso schermo): l'animazione 3D è una sola
+-// (getGestureDemo, un contesto WebGL) e la usa l'istanza che la chiede per ultima; le altre mostrano foto e indicazioni.
++// (getGestureDemo, un contesto WebGL) e la usa l'istanza che può (canDemo); le altre mostrano foto e indicazioni.
++// L'animazione sta in un riquadro 16:10 (.tut-stage dentro .tut-frame): mount/setSize/play come prima, setSize di nuovo
++// quando il riquadro cambia misura (ResizeObserver dove c'è).
+ // Gesti e indicazioni da natpf_gesture_motion.js, gli stessi verificati con il rilevatore vero (test natpf-gesture-demo).
+ import { GESTURES } from './natpf_gesture_motion.js';
+ import { PHOTOS } from './natpf_media.js';
+ import { GRIP } from '@natpf/tennis/grip-art.js';
+ 
+-export const TUTORIAL = Object.freeze({ autoMs: 6500, holdMs: 20000 });
++// seenMs: tempo a schermo perché una scheda conti come vista (chi tocca ‹ › di fila non le «vede» tutte); tickMs: controllo
++export const TUTORIAL = Object.freeze({ seenMs: 1000, tickMs: 250 });
+ 
+ // schede: presa (foto), posizione di partenza, colpi di base, servizio, colpi con effetto e speciali
+ export const TUTORIAL_CARDS = Object.freeze([
+@@ -19,12 +24,37 @@ export const TUTORIAL_CARDS = Object.freeze([
+   { id: 'lob' }, { id: 'drop' }, { id: 'slice' }, { id: 'smash' }, { id: 'volley' },
+ ].map(c => Object.freeze({ ...c, title: c.title || GESTURES[c.id]?.label || c.id, cues: GESTURES[c.id]?.cues || [] })));
+ 
+-// stato puro: scheda mostrata, scorrimento automatico, pausa dopo una scelta a mano
+-export function tutorialStep(st, { now, pick = null, cards = TUTORIAL_CARDS.length } = {}){
+-  const s = { idx: 0, shownAt: now, holdUntil: 0, ...st };
+-  if (pick != null) return { ...s, idx: ((pick % cards) + cards) % cards, shownAt: now, holdUntil: now + TUTORIAL.holdMs };
+-  if (now < s.holdUntil || now - s.shownAt < TUTORIAL.autoMs) return s;
+-  return { ...s, idx: (s.idx + 1) % cards, shownAt: now };
++/* ---------- stato puro: scheda mostrata, schede viste ---------- */
++// from: avanzamento di prima (stesso abbinamento del telefono, modale riaperta): { idx, visited: [indici], all }
++export function tutorialStart({ now = 0, cards = TUTORIAL_CARDS.length, from = null } = {}){
++  const visited = new Set((from?.visited || []).filter(i => Number.isInteger(i) && i >= 0 && i < cards));
++  const idx = Number.isInteger(from?.idx) ? Math.max(0, Math.min(cards - 1, from.idx)) : 0;
++  return { idx, shownAt: now, visited, all: !!from?.all || visited.size >= cards, cards };
++}
++// scheda i (fuori dai limiti: la prima o l'ultima, niente giro); stessa scheda: niente di nuovo
++export function tutorialGo(st, i, { now = 0 } = {}){
++  const idx = Math.max(0, Math.min(st.cards - 1, Math.trunc(+i || 0)));
++  return idx === st.idx ? st : { ...st, idx, shownAt: now };
++}
++// la scheda a schermo da almeno seenMs conta come vista; «all» non torna mai falso nella stessa apertura
++export function tutorialSeen(st, { now = 0, seenMs = TUTORIAL.seenMs } = {}){
++  if (st.visited.has(st.idx) || now - st.shownAt < seenMs) return st;
++  const visited = new Set(st.visited); visited.add(st.idx);
++  return { ...st, visited, all: st.all || visited.size >= st.cards };
++}
++// avanzamento per il telefono: scheda i di n, s viste, m maschera delle viste, all tutte viste
++export function tutorialProgress(st){
++  let m = 0; for (const i of st.visited) m |= 1 << i;
++  return { i: st.idx, n: st.cards, s: st.visited.size, m, all: !!st.all };
++}
++// riga in fondo alla modale: cosa fare adesso. after: cosa succede dopo «ho capito» ('cal' calibrazione, 'play' esercizi o
++// partita, 'ready' pronto nello stesso schermo); half: stesso schermo («il tuo telefono»)
++export function tutorialWait({ mode = 'phone', all = false, after = 'cal', half = false } = {}){
++  if (mode !== 'phone') return '';
++  const tel = half ? 'tuo telefono' : 'telefono';
++  if (!all) return `Sfoglia le schede con ‹ ›, anche dal ${tel}. Viste tutte, sul ${tel} si accende «Tutto chiaro, ho capito».`;
++  const then = after === 'ready' ? 'sei pronto' : after === 'play' ? 'si comincia' : 'si calibra';
++  return `Sul ${tel} tocca «Tutto chiaro, ho capito»: poi ${then}.`;
+ }
+ 
+ const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+@@ -32,89 +62,135 @@ const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
+ export class NatpfTutorial {
+   // root: elemento che contiene la modale (vuoto); demo: () => getGestureDemo() (iniettato: niente three.js nei test)
+   // half: istanza in una metà dello schermo (1v1 sullo stesso schermo); canDemo: se questa istanza può usare
+-  // l'animazione 3D adesso (una sola per tutte); senza, foto e indicazioni a tutta larghezza
++  // l'animazione 3D adesso (una sola per tutte); senza, foto e indicazioni
+   constructor(root, { demo = null, clock = () => performance.now(), half = false, canDemo = () => true } = {}){
+-    this.root = root; this.demo = demo; this.clock = clock; this.canDemo = canDemo;
+-    this.open = false; this.state = null; this.timer = null; this.opts = {};
++    this.root = root; this.demo = demo; this.clock = clock; this.canDemo = canDemo; this.half = half;
++    this.open = false; this.state = null; this.timer = null; this.opts = {}; this.demoOn = false; this.paintKey = '';
+     if (!root) return;
+     root.classList.add('natpf-tutorial', 'hidden'); if (half) root.classList.add('half');
+     root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true');
+     root.innerHTML = `<div class="tut-card">
+-      <header class="tut-head"><span class="tut-kicker"></span><h2 class="tut-title">Come si gioca con il telefono</h2></header>
++      <header class="tut-head"><span class="tut-kicker"></span><span class="tut-count" aria-live="polite"></span><h2 class="tut-name"></h2></header>
+       <div class="tut-body">
+-        <div class="tut-stage"><div class="tut-media"></div><div class="tut-3d"></div></div>
+-        <div class="tut-info"><span class="tut-count"></span><h3 class="tut-name"></h3><p class="tut-text"></p><ul class="tut-cues"></ul></div>
++        <div class="tut-frame"><div class="tut-stage"><div class="tut-media"></div><div class="tut-3d"></div></div></div>
++        <div class="tut-info"><p class="tut-text"></p><ul class="tut-cues"></ul></div>
+       </div>
+-      <nav class="tut-tabs" aria-label="Gesti">${TUTORIAL_CARDS.map((c, i) => `<button type="button" class="tut-tab" data-tut="${i}">${esc(c.title)}</button>`).join('')}</nav>
+-      <footer class="tut-foot"><span class="tut-phone" aria-hidden="true"></span><p class="tut-wait"></p><button type="button" class="btn btn-primary tut-close hidden">Chiudi</button></footer>
++      <footer class="tut-foot">
++        <button type="button" class="tut-arrow tut-prev" data-tut-go="-1" aria-label="Scheda precedente">‹</button>
++        <div class="tut-mid"><div class="tut-dots" aria-hidden="true">${TUTORIAL_CARDS.map((c, i) => `<i class="tut-dot" data-dot="${i}"></i>`).join('')}</div>
++          <p class="tut-wait"></p><button type="button" class="btn btn-primary tut-close hidden">Chiudi</button></div>
++        <button type="button" class="tut-arrow tut-next" data-tut-go="1" aria-label="Scheda successiva">›</button>
++      </footer>
+     </div>`;
+     root.addEventListener('click', e => {
+-      const b = e.target?.closest?.('[data-tut]'); if (b){ e.stopPropagation(); this.show(+b.dataset.tut, true); return; }
++      const b = e.target?.closest?.('[data-tut-go]'); if (b){ e.stopPropagation(); this.step(+b.dataset.tutGo); return; }
+       if (e.target?.closest?.('.tut-close')){ e.stopPropagation(); this.close('review'); }
+     });
+     root.addEventListener('pointerdown', e => e.stopPropagation());
++    // il riquadro dell'animazione cambia misura (finestra, schermo intero, ledwall): l'animazione si ridimensiona
++    const stage = root.querySelector?.('.tut-stage');
++    if (stage && typeof ResizeObserver === 'function'){ this.ro = new ResizeObserver(() => this._fit()); this.ro.observe(stage); }
+   }
++  get card(){ return TUTORIAL_CARDS[this.state?.idx ?? 0]; }
++  get progress(){ return this.state ? { ...tutorialProgress(this.state), nm: TUTORIAL_CARDS[this.state.idx]?.title || '' } : null; }
++  // per riaprire più tardi dallo stesso punto (stesso abbinamento del telefono)
++  get snapshot(){ return this.state ? { idx: this.state.idx, visited: [...this.state.visited], all: this.state.all } : null; }
+   // mode: 'phone' (si chiude con il telefono), 'review' («Rivedi i gesti», si chiude con «Chiudi»)
+-  // player: 'Player 1'…, hand: 'right' | 'left', onClose(reason): 'phone' | 'skip' | 'review'
+-  show(i, manual = false){
+-    if (!this.open) return;
+-    this.state = tutorialStep(this.state, { now: this.clock(), pick: i, cards: TUTORIAL_CARDS.length });
+-    if (!manual) this.state.holdUntil = 0;
+-    this.paint();
+-  }
+-  openFor({ mode = 'phone', player = '', hand = 'right', onClose = null, wait = '' } = {}){
++  // player: 'Player 1'…, hand: 'right' | 'left', onClose(reason): 'phone' | 'skip' | 'review'; onProgress(progress) a ogni
++  // cambio di scheda o di schede viste (solo 'phone'); after: vedi tutorialWait; from: snapshot di prima
++  openFor({ mode = 'phone', player = '', hand = 'right', onClose = null, onProgress = null, after = 'cal', from = null } = {}){
+     if (!this.root) return;
+-    this.opts = { mode, player, hand, onClose };
+-    this.open = true; this.state = tutorialStep(null, { now: this.clock() });
++    this.opts = { mode, player, hand, onClose, onProgress: mode === 'phone' ? onProgress : null, after };
++    this.open = true; this.paintKey = '';
++    this.state = tutorialStart({ now: this.clock(), from });
+     this.root.classList.remove('hidden'); this.root.dataset.mode = mode;
+-    this.setWait(wait || (mode === 'phone' ? 'Sul telefono tocca «Tutto chiaro, ho capito»: poi si calibra.' : ''));
+     this.root.querySelector('.tut-close')?.classList.toggle('hidden', mode !== 'review');
+-    const k = this.root.querySelector('.tut-kicker'); if (k) k.textContent = [player, mode === 'phone' ? 'Prima di calibrare' : 'Rivedi i gesti'].filter(Boolean).join(' · ');
+-    clearInterval(this.timer); this.timer = setInterval(() => this.tick(), 500);
+-    this.paint();
++    const k = this.root.querySelector('.tut-kicker'); if (k) k.textContent = [player, mode === 'phone' ? 'Come si gioca' : 'Rivedi i gesti'].filter(Boolean).join(' · ');
++    clearInterval(this.timer); this.timer = setInterval(() => this.tick(), TUTORIAL.tickMs);
++    this.paint(); this._progress();
++  }
++  // cosa succede dopo «ho capito» (lo stato del telefono può cambiare mentre la modale è aperta)
++  setAfter(after){ if (!this.open || after === this.opts.after) return; this.opts.after = after; this.paintNav(); }
++  go(i){
++    if (!this.open) return;
++    const next = tutorialGo(this.state, i, { now: this.clock() });
++    if (next === this.state) return;
++    this.state = next; this.paint(); this._progress();
++  }
++  step(d){ if (this.open) this.go(this.state.idx + (d < 0 ? -1 : 1)); }
++  // tastiera di chi gestisce la postazione: ← → (true se il tasto è della modale)
++  key(e){
++    if (!this.open) return false;
++    if (e.code === 'ArrowLeft' || e.code === 'PageUp'){ this.step(-1); return true; }
++    if (e.code === 'ArrowRight' || e.code === 'PageDown'){ this.step(1); return true; }
++    return false;
+   }
+-  setWait(text){ const w = this.root?.querySelector('.tut-wait'); if (w) w.textContent = text; }
+   tick(){
+     if (!this.open) return;
+-    const before = this.state.idx;
+-    this.state = tutorialStep(this.state, { now: this.clock(), cards: TUTORIAL_CARDS.length });
+-    if (this.state.idx !== before) this.paint();
++    const next = tutorialSeen(this.state, { now: this.clock() });
++    if (next === this.state) return;
++    this.state = next; this.paintNav(); this._progress();
+   }
++  _progress(){ const p = this.progress; if (p) try { this.opts.onProgress?.(p); } catch (e){ console.error(e); } }
+   close(reason = 'phone'){
+     if (!this.open) return;
+     this.open = false; clearInterval(this.timer); this.timer = null;
+     this.root?.classList.add('hidden');
+     const d = this.demo?.(); if (d && this.demoOn){ d.stop(); }
+-    this.demoOn = false;
++    this.demoOn = false; this.paintKey = '';
+     const cb = this.opts.onClose; this.opts = {};
+     cb?.(reason);
+   }
+-  get card(){ return TUTORIAL_CARDS[this.state?.idx ?? 0]; }
++  // frecce, puntini, «3 / 11» e riga in fondo (senza toccare l'animazione: cambia solo con la scheda)
++  paintNav(){
++    if (!this.open || !this.root) return;
++    const st = this.state, n = st.cards, $ = s => this.root.querySelector(s);
++    const count = $('.tut-count'); if (count) count.textContent = `${st.idx + 1} / ${n}`;
++    const prev = $('.tut-prev'), next = $('.tut-next');
++    if (prev){ prev.disabled = st.idx <= 0; prev.classList.toggle('off', st.idx <= 0); }
++    if (next){ next.disabled = st.idx >= n - 1; next.classList.toggle('off', st.idx >= n - 1); }
++    for (const dot of this.root.querySelectorAll('.tut-dot')){ const i = +dot.dataset.dot; dot.classList.toggle('on', i === st.idx); dot.classList.toggle('seen', st.visited.has(i)); }
++    this.root.classList.toggle('all-seen', !!st.all);
++    const w = $('.tut-wait'); if (w) w.textContent = tutorialWait({ mode: this.opts.mode, all: st.all, after: this.opts.after, half: this.half });
++  }
+   paint(){
+     if (!this.open || !this.root) return;
++    this.paintNav();
+     const c = this.card, $ = s => this.root.querySelector(s), hand = this.opts.hand || 'right';
+-    const count = $('.tut-count'), name = $('.tut-name'), text = $('.tut-text'), cues = $('.tut-cues');
+-    if (count) count.textContent = `${this.state.idx + 1} di ${TUTORIAL_CARDS.length}`;
++    const d = this.canDemo() ? this.demo?.() : null;
++    // scheda già disegnata con la stessa animazione: niente da rifare (il gesto non riparte da capo)
++    const key = `${this.state.idx}|${hand}|${d ? 1 : 0}`;
++    if (key === this.paintKey) return;
++    this.paintKey = key;
++    const name = $('.tut-name'), text = $('.tut-text'), cues = $('.tut-cues');
+     if (name) name.textContent = c.title;
+     if (text){ text.textContent = c.text || ''; text.classList.toggle('hidden', !c.text); }
+     if (cues) cues.innerHTML = c.cues.map(x => `<li>${esc(x)}</li>`).join('');
+-    for (const b of this.root.querySelectorAll('.tut-tab')) b.classList.toggle('on', +b.dataset.tut === this.state.idx);
+     const media = $('.tut-media'), stage = $('.tut-3d');
+-    const key = `${c.id}|${hand}`;
++    const mkey = `${c.id}|${hand}`;
+     if (c.photo){
+-      if (media && media.dataset.key !== key){ media.dataset.key = key; media.innerHTML = `<img class="tut-photo${hand === 'left' ? ' mirror' : ''}" src="${PHOTOS.grip.src}" alt="${esc(PHOTOS.grip.alt)}" />`; }
++      if (media && media.dataset.key !== mkey){ media.dataset.key = mkey; media.innerHTML = `<img class="tut-photo${hand === 'left' ? ' mirror' : ''}" src="${PHOTOS.grip.src}" alt="${esc(PHOTOS.grip.alt)}" />`; }
+     } else if (media){ media.dataset.key = ''; media.innerHTML = ''; }
+     media?.classList.toggle('hidden', !c.photo);
+-    // presa: foto e animazione 3D dell'impugnatura insieme; gli altri: animazione 3D grande
+-    const d = this.canDemo() ? this.demo?.() : null;
++    // presa: foto e animazione 3D dell'impugnatura insieme; gli altri: animazione 3D nel riquadro 16:10
+     this.root.classList.toggle('no-3d', !d);
+-    if (!d) this.demoOn = false;
+-    if (d && stage){
++    this.root.classList.toggle('no-media', !d && !c.photo);
++    if (!d){ this.demoOn = false; return; }
++    if (stage){
+       d.mount(stage);
+-      if (d.available) d.setSize(stage.clientWidth || 360, stage.clientHeight || 360);
++      // (l'animazione è una sola: un'altra istanza o il riquadro degli esercizi può averle dato un'altra misura)
++      this.demoOn = true; this.fitW = this.fitH = null; this._fit();
+       d.play(c.photo ? 'grip' : c.id, { hand, speed: GESTURES[c.photo ? 'grip' : c.id]?.still ? 1 : .6 });
+-      this.demoOn = true;
+       stage.classList.toggle('no-webgl', !d.available);
+     }
+   }
++  // misure CSS del riquadro dell'animazione → setSize (alla scheda nuova e quando il riquadro cambia misura)
++  _fit(){
++    if (!this.open || !this.demoOn) return;
++    const d = this.demo?.(), stage = this.root?.querySelector('.tut-3d');
++    if (!d?.available || !stage) return;
++    const w = Math.round(stage.clientWidth || 0), h = Math.round(stage.clientHeight || 0);
++    if (w > 0 && h > 0 && (w !== this.fitW || h !== this.fitH)){ this.fitW = w; this.fitH = h; d.setSize(w, h); }
++    else if (!(w > 0 && h > 0) && this.fitW == null){ d.setSize(360, 225); }
++  }
+ }
+diff --git a/natpf-tennis/src/natpf/natpf_ui.js b/natpf-tennis/src/natpf/natpf_ui.js
+index 3e2f879..9eebff7 100644
+--- a/natpf-tennis/src/natpf/natpf_ui.js
++++ b/natpf-tennis/src/natpf/natpf_ui.js
+@@ -19,7 +19,7 @@ import { NatpfDiag } from './natpf_diag.js';
+ import { NatpfIntro } from './natpf_intro.js';
+ import { NatpfEvents } from './natpf_events.js';
+ import { NatpfKiosk } from './natpf_kiosk.js';
+-import { phoneHealthOf, createPhoneWatch, createResync, holdText } from './natpf_phone_watch.js';
++import { phoneHealthOf, createPhoneWatch, createResync, phoneHoldText } from './natpf_phone_watch.js';
+ import { webcamHealth, createWebcamWatch, webcamHoldText, webcamOpenError } from './natpf_webcam_watch.js';
+ import { gripSvg, GRIP_TEXT_PLAIN, GRIP } from '@natpf/tennis/grip-art.js';
+ import { PHOTOS } from './natpf_media.js';
+@@ -446,6 +446,7 @@ export class NatpfUi {
+     const now = performance.now(), h = phoneHealthOf(p, now), rally = E.phase === 'RALLY' || E.phase === 'SERVE_TOSS';
+     const a = this.phoneWatch.update(h, { inField, rally, now });
+     if (a) this._phoneHoldAction(a);
++    else this._refreshPhoneHold();
+     // il movimento non arriva da un po' (collegato, telefono pronto): il telefono rifà il collegamento da solo
+     if (inField && this.phoneResync.update(h, { paused: this.phoneWatch.state !== 'ok', busy: rally, now }) && p.relink()){
+       this.diag?.recorder?.log?.('tel.ricollega', { chi: 'p1', motivo: h.why || h.degraded, auto: true });
+@@ -465,18 +466,27 @@ export class NatpfUi {
+     if (a) this._holdAction(a, 'webcam');
+   }
+   _phoneHoldAction(a){ return this._holdAction(a, 'telefono'); }
++  _phoneHoldTitle(phone = true){ return phone ? (this.engine.natpfSplit?.active ? 'Telefono del Player 1 in pausa' : 'Telefono in pausa') : 'Webcam in pausa'; }
++  // pausa per lo schermo del telefono spento: il riquadro dice da quanto (ogni secondo)
++  _refreshPhoneHold(){
++    const why = this.phoneHold?.why;
++    if (this.phoneWatch.state !== 'paused' || !(why === 'pagina nascosta' || why === 'scollegato') || this.phone.state.vis !== false) return;
++    const text = phoneHoldText(this.phone, why);
++    if (text !== this.phoneHoldShown){ this.phoneHoldShown = text; this._paintHold(this._phoneHoldTitle(), text, this.relinkAction(this.phone, this.engine.natpfSplit?.active ? 'Player 1' : '')); }
++  }
+   // pausa e ripresa per il telefono o la webcam: riquadro sopra il campo, registro, colpi in sospeso cancellati, punto
+   // rigiocato se la pausa è arrivata nello scambio o nel lancio
+   _holdAction(a, src = 'telefono'){
+     const E = this.engine, R = this.diag?.recorder, phone = src === 'telefono';
+     if (a.kind === 'pause' || a.kind === 'wait'){
+       if (phone) this.phoneHold = { why: a.why }; else this.webcamHold = { why: a.why };
+-      this._paintHold(phone ? (this.engine.natpfSplit?.active ? 'Telefono del Player 1 in pausa' : 'Telefono in pausa') : 'Webcam in pausa', phone ? holdText(a.why) : webcamHoldText(a.why), phone ? this.relinkAction(this.phone, this.engine.natpfSplit?.active ? 'Player 1' : '') : null);
++      this._paintHold(this._phoneHoldTitle(phone), phone ? phoneHoldText(this.phone, a.why) : webcamHoldText(a.why), phone ? this.relinkAction(this.phone, this.engine.natpfSplit?.active ? 'Player 1' : '') : null);
+       R?.log?.(phone ? 'tel.pausa' : 'webcam.pausa', { ...(phone ? { chi: 'p1' } : {}), motivo: a.why, fase: E.phase });
+       // il telefono lo sa (se è collegato): niente colpi durante la pausa, e lo dice sullo schermo
+       if (phone && this.phone.connected){ this.phone.link.send({ t: 'ph', ph: 'pause' }); this.phone.lastPhase = 'pause'; }
+-      // collegamento perso: il pannello del telefono dice come ricollegarlo (QR)
+-      if (phone && a.why === 'scollegato' && this.modal?.classList.contains('hidden')){ this.phoneDropOpened = true; this.openPhone(); }
++      // collegamento perso: il pannello del telefono dice come ricollegarlo (QR). Non se è caduto con lo schermo spento: il
++      // telefono si ricollega da solo appena torna (B9), lo dice il riquadro della pausa, e il suo pulsante apre il QR
++      if (phone && a.why === 'scollegato' && this.phone.state.vis !== false && this.modal?.classList.contains('hidden')){ this.phoneDropOpened = true; this.openPhone(); }
+     }
+     if (a.kind === 'countdown') this._paintHold(phone ? 'Telefono di nuovo pronto' : 'Webcam di nuovo pronta', `Si riprende tra ${a.left}…`);
+     if (a.kind === 'resume'){
+@@ -554,7 +564,7 @@ export class NatpfUi {
+ 
+     let status = 'Preparo la connessione…', hint = '', tag = 'Scansiona il QR';
+     if (L.state === 'waiting') status = 'Inquadra il codice con la fotocamera del telefono';
+-    if (L.state === 'lost'){ status = 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo'; tag = 'Scollegato'; }
++    if (L.state === 'lost'){ status = L.vis === false ? 'Telefono scollegato con lo schermo spento: riaccendilo e torna alla pagina del gioco, si ricollega da solo' : 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo'; tag = 'Scollegato'; }
+     if (L.state === 'error'){ status = `Connessione non disponibile (${L.error}). Riprova o verifica la connessione a internet.`; tag = 'Errore'; }
+     if (step === 'collega' && p.connected){ status = 'Telefono collegato: sul telefono tocca «Attiva i sensori»'; tag = 'Collegato'; }
+     if (step === 'impugna'){ status = cal.grip ? 'Presa letta ✓ resta così un attimo…' : GRIP_TEXT_PLAIN; hint = 'Presa comoda, senza stringere: va bene anche da seduti.'; tag = 'Impugnatura'; }
+diff --git a/natpf-tennis/test/natpf-split.test.mjs b/natpf-tennis/test/natpf-split.test.mjs
+index a81b13c..ab52177 100644
+--- a/natpf-tennis/test/natpf-split.test.mjs
++++ b/natpf-tennis/test/natpf-split.test.mjs
+@@ -289,3 +289,63 @@ test('stesso schermo con una webcam per due: scelta ricordata, pronti con le due
+   assert.equal(ui.split.input, 'webcam');
+   ui.split.setInput('phones'); assert.equal(mc.webcamDuo, false); assert.equal(ui.controller, 'phone');
+ });
++
++// B9 (05/11): nello stesso schermo ogni metà ha la sua modale con le frecce; l'avanzamento va al telefono di quel
++// giocatore (pulsante acceso dopo l'ultima scheda); le frecce di un telefono sfogliano solo la sua metà; un telefono che
++// cade a tutorial aperto ritrova la scheda raggiunta; un telefono già pronto non viene ricalibrato; il P1 che ha visto il
++// tutorial nell'Allenamento non lo rivede; tastiera A/D (metà sinistra) e ← → (metà destra)
++test('stesso schermo: tutorial indipendenti con le frecce, avanzamento a ciascun telefono, ricollegamento, già visto', async () => {
++  const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
++  const P1 = E.natpfPhone, P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
++  const l2 = P2.link = { ...fakeLink(), ready: true, L: { state: 'connected', phone: 'ready' } };
++  lobby.go('mode'); lobby.setMode('split'); lobby.go('connect');
++  ui.split.paint();
++  assert.ok(ui.split.tutOpen.p1 && ui.split.tutOpen.p2);
++  const tp = link => link.sent.filter(m => m.t === 'tp').at(-1);
++  const nav = (P, d) => P._onTut({ nav: d, v: 2 }), ok = P => P._onTut({ ok: true, v: 2 });
++  P1._onTut({ wait: true, v: 2 }); P2._onTut({ wait: true, v: 2 });
++  assert.equal(tp(w.link).i, 0); assert.equal(tp(l2).i, 0);
++  // il P2 sfoglia dal suo telefono: si muove solo la metà destra
++  w.advance(1200); nav(P2, 1); nav(P2, 1);
++  assert.equal(ui.split.tut.p2.state.idx, 2); assert.equal(ui.split.tut.p1.state.idx, 0, 'la metà del P1 non si muove');
++  assert.equal(tp(l2).i, 2); assert.equal(tp(w.link).i, 0);
++  // tastiera: A/D per la metà sinistra, frecce per la destra
++  w.key('KeyD'); assert.equal(ui.split.tut.p1.state.idx, 1); w.key('ArrowRight'); assert.equal(ui.split.tut.p2.state.idx, 3);
++  w.key('KeyA'); assert.equal(ui.split.tut.p1.state.idx, 0);
++  // un «ok» prima dell'ultima scheda non chiude
++  ok(P2); assert.ok(ui.split.tutOpen.p2, 'prima dell\'ultima scheda non si chiude');
++  // il telefono del P2 cade a tutorial aperto: la metà torna al QR; ricollegato (stesso abbinamento) riparte dalla scheda 4
++  w.advance(1200);
++  l2.connected = false; l2.ready = false; l2.L = { state: 'lost', phone: null }; ui.split.paint();
++  assert.ok(!ui.split.tutOpen.p2 && !ui.split.tut.p2.open, 'telefono caduto: la metà mostra di nuovo il QR');
++  l2.connected = true; l2.ready = true; l2.L = { state: 'connected', phone: 'ready', joins: 2 }; ui.split.paint();
++  assert.ok(ui.split.tutOpen.p2); assert.equal(ui.split.tut.p2.state.idx, 3, 'riparte dalla scheda raggiunta'); assert.ok(ui.split.tut.p2.state.visited.has(3) && !ui.split.tut.p2.state.visited.has(2), 'schede viste ricordate (la 3 sì, la 2 passata di fila no)');
++  for (let i = 3; i < 11; i++){ w.advance(1200); if (i < 10) nav(P2, 1); }
++  assert.equal(tp(l2).all, 0, 'le schede 1 e 2 passate di fila non contano');
++  // indietro fino alla 2 e alla 1, guardate: tutte viste
++  for (let i = 0; i < 8; i++) nav(P2, -1);
++  w.advance(1200); nav(P2, -1); w.advance(1200);
++  assert.equal(ui.split.tut.p2.state.idx, 1); assert.equal(tp(l2).all, 1);
++  // P2 già pronto: «poi sei pronto», e dopo «ho capito» nessuna calibrazione
++  assert.match(ui.split.tut.p2.root.querySelector('.tut-wait').textContent, /tuo telefono.*sei pronto/);
++  const cmdsBefore = l2.cmds.length;
++  ok(P2); ui.split.paint();
++  assert.ok(!ui.split.tutOpen.p2 && P2.tutorialSeen); assert.equal(l2.cmds.length, cmdsBefore, 'telefono già pronto: nessuna calibrazione');
++  assert.ok(ui.split.tutOpen.p1, 'il P1 continua il suo tutorial');
++  // il P2 si ricollega (schermo spento, pagina ricaricata): niente tutorial
++  l2.L = { ...l2.L, joins: 3 }; ui.split.paint(); assert.ok(!ui.split.tutOpen.p2);
++  // abbinamento nuovo del P2 (QR): di nuovo
++  l2.L = { ...l2.L, pairs: 1, joins: 4 }; ui.split.paint(); assert.ok(ui.split.tutOpen.p2);
++  ui.split.closeTutorials();
++  // P1 che ha già visto il tutorial (Allenamento, stesso abbinamento): non lo rivede nello stesso schermo
++  P1.markTutorialSeen(); ui.split.paint(); assert.ok(!ui.split.tutOpen.p1);
++  // chiosco: il visitatore dopo lo rivede
++  ui.kiosk?.reset?.(); assert.ok(!P1.tutorialSeen && !P2.tutorialSeen);
++});
++
++test('stesso schermo: lo stato della metà dice che si sta guardando il tutorial', async () => {
++  const { splitPlayerStatus } = await import('../src/natpf/natpf_split_ui.js');
++  const p = { link: {}, state: { state: 'connected', phone: 'tut' }, connected: true, ready: false, tutWait: true, tutProgress: { i: 3, n: 11, s: 4, all: false } };
++  assert.match(splitPlayerStatus(p).title, /Guarda il tutorial/); assert.match(splitPlayerStatus(p).sub, /4 di 11/);
++  p.tutProgress = { i: 10, n: 11, s: 11, all: true }; assert.match(splitPlayerStatus(p).sub, /Tutto chiaro/);
++});
+diff --git a/natpf-tennis/test/natpf-tutorial.test.mjs b/natpf-tennis/test/natpf-tutorial.test.mjs
+index 7ed4210..246d5b7 100644
+--- a/natpf-tennis/test/natpf-tutorial.test.mjs
++++ b/natpf-tennis/test/natpf-tutorial.test.mjs
+@@ -1,9 +1,10 @@
+-// Tutorial in campo (28/10): lezione iniziale, feedback in tempo reale dal gesto letto dal telefono, volée a rete.
++// Tutorial in campo (28/10): lezione iniziale, feedback in tempo reale dal gesto letto dal telefono, volée a rete; modale
++// del tutorial con le frecce e il telefono che conferma dopo l'ultima scheda (B9, 05/11).
+ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import { DRILLS, LESSON, liveFeedback, VOLLEY_Z } from '../src/natpf/natpf_training.js';
+ import { makeWorld } from './ui-world.mjs';
+-import { tutorialStep, TUTORIAL, TUTORIAL_CARDS } from '../src/natpf/natpf_tutorial.js';
++import { TUTORIAL, TUTORIAL_CARDS, tutorialStart, tutorialGo, tutorialSeen, tutorialProgress, tutorialWait } from '../src/natpf/natpf_tutorial.js';
+ 
+ const D = id => DRILLS.find(d => d.id === id);
+ 
+@@ -25,29 +26,104 @@ test('feedback in tempo reale: riconosce il gesto giusto e spiega quello sbaglia
+   assert.equal(liveFeedback(D('forehand'), null), null);
+ });
+ 
+-// Richiesta del 04/11: con il telefono, prima della calibrazione, una modale grande con la presa e tutti i gesti; si chiude
+-// dal telefono con «Tutto chiaro, ho capito» (natpf_phone_racket.waitTutorial/onTutorial), una volta per sessione
+-const tapOk = P => { for (const fn of P.tutListeners) fn({ ok: true }); };
+-test('tutorial prima della calibrazione: modale con presa e gesti, il telefono aspetta «Tutto chiaro, ho capito», poi la calibrazione', async () => {
++// Richiesta del 04/11, rifatta in B9 (05/11): con il telefono, prima della calibrazione, una modale compatta con la presa e
++// tutti i gesti, sfogliata con le frecce ‹ › (anche dal telefono), niente scorrimento automatico; si chiude dal telefono
++// con «Tutto chiaro, ho capito», che il telefono accende solo dopo aver visto tutte le schede (avanzamento «tp»). Una volta
++// per abbinamento del telefono: non a ogni ricollegamento
++// messaggi del telefono come li consegna il collegamento (link.js → NatpfPhoneRacket._onTut)
++const fromPhone = (P, d) => P._onTut({ wait: !!d.w, ok: !!d.ok, v: d.v === 2 ? 2 : 1, nav: d.nav === 1 || d.nav === -1 ? d.nav : 0 });
++const lastTp = link => link.sent.filter(m => m.t === 'tp').at(-1);
++// tutte le schede, una dopo l'altra, ciascuna a schermo più di TUTORIAL.seenMs (frecce del telefono)
++const seeAll = (w, P, T) => { for (let i = 0; i < TUTORIAL_CARDS.length; i++){ w.advance(TUTORIAL.seenMs + 300); if (i < TUTORIAL_CARDS.length - 1) fromPhone(P, { nav: 1 }); } };
++
++test('tutorial prima della calibrazione: modale con presa e gesti, il telefono aspetta «Tutto chiaro, ho capito», poi calibra da solo', async () => {
+   const w = await makeWorld({ controller: 'phone' });
+   const T = w.ui.training, P = w.ui.phone;
+   let recal = 0; const orig = P.recalibrate.bind(P); P.recalibrate = () => { recal++; return orig(); };
+   T.start({ intro: true });
+   assert.ok(T.tutorialOpen && T.tutorial.open, 'modale aperta'); assert.equal(T.lesson, null, 'con il telefono la lezione è la modale');
+-  assert.equal(P.tutWait, true); assert.ok(P.link.sent.some(m => m.t === 'cfg' && m.tut === 1), 'il telefono aspetta il tutorial');
++  assert.equal(P.tutWait, true); assert.ok(P.link.sent.some(m => m.t === 'cfg' && m.tut === 1 && m.tv === 2), 'il telefono aspetta il tutorial (versione 2)');
+   assert.equal(recal, 0, 'nessuna calibrazione con la modale aperta');
+-  P.tutSupported = true; T._onCal({ kind: 'step', step: 'still' }); assert.ok(T.tutorialOpen, 'gli eventi del telefono non chiudono la modale');
+-  // le schede scorrono da sole (chi gioca ha il telefono in mano)
+-  const first = T.tutorial.state.idx; w.advance(7000); T.tutorial.tick(); assert.notEqual(T.tutorial.state.idx, first);
+-  tapOk(P);
+-  assert.ok(!T.tutorialOpen && !T.tutorial.open, 'chiusa dal telefono'); assert.equal(recal, 1, 'poi parte la calibrazione');
++  fromPhone(P, { w: 1, v: 2 }); assert.ok(P.tutSupported && P.tutV2);
++  T._onCal({ kind: 'step', step: 'still' }); assert.ok(T.tutorialOpen, 'gli eventi del telefono non chiudono la modale');
++  // l'avanzamento va al telefono: scheda 1 di 11, nessuna vista
++  assert.deepEqual({ ...lastTp(w.link), nm: undefined }, { t: 'tp', i: 0, n: TUTORIAL_CARDS.length, s: 0, m: 0, all: 0, nm: undefined });
++  // niente scorrimento automatico: dopo 20 s la scheda è la stessa (e conta come vista)
++  w.advance(20000); assert.equal(T.tutorial.state.idx, 0); assert.equal(lastTp(w.link).s, 1, 'la prima scheda è vista dopo ~1 s');
++  // «ho capito» toccato prima di aver visto tutto (messaggi incrociati): non chiude, il telefono riceve di nuovo il cancello
++  const sentBefore = w.link.sent.length;
++  fromPhone(P, { ok: 1 });
++  assert.ok(T.tutorialOpen, 'non si chiude prima dell\'ultima scheda');
++  assert.ok(w.link.sent.slice(sentBefore).some(m => m.t === 'cfg' && m.tut === 1), 'cancello rimandato'); assert.ok(w.link.sent.slice(sentBefore).some(m => m.t === 'tp'));
++  // frecce del telefono: avanti fino all'ultima scheda, ognuna vista
++  seeAll(w, P, T);
++  assert.equal(T.tutorial.state.idx, TUTORIAL_CARDS.length - 1); assert.equal(lastTp(w.link).all, 1, 'tutte viste'); assert.equal(lastTp(w.link).s, TUTORIAL_CARDS.length);
++  fromPhone(P, { nav: 1 }); assert.equal(T.tutorial.state.idx, TUTORIAL_CARDS.length - 1, 'dopo l\'ultima non si torna alla prima');
++  fromPhone(P, { ok: 1 });
++  assert.ok(!T.tutorialOpen && !T.tutorial.open, 'chiusa dal telefono'); assert.equal(recal, 0, 'la calibrazione la fa partire il telefono (una volta sola)');
+   assert.equal(P.tutWait, false); assert.equal(P.link.sent.filter(m => m.t === 'cfg').at(-1).tut, undefined, 'il telefono non aspetta più');
+   // in calibrazione niente riquadro «Guarda e ripeti» in alto a destra
+   T.paint(); assert.ok(T.coach.querySelector('#coach-demo').classList.contains('hidden'));
+-  // una volta per sessione e per giocatore
+-  T.stop({ completed: false, silent: true }); T.start({ intro: true }); assert.ok(!T.tutorialOpen, 'non si ripete nella stessa sessione');
++  // una volta per abbinamento del telefono
++  T.stop({ completed: false, silent: true }); T.start({ intro: true }); assert.ok(!T.tutorialOpen, 'non si ripete con lo stesso telefono');
++  T.stop({ completed: false, silent: true });
++  // ricollegamento dello stesso telefono (pagina ricaricata, schermo spento, «Ricollega»: chiave di ripresa): niente tutorial
++  w.link.L.joins = 5; w.link.L.resumed = true; T.start({ intro: true }); assert.ok(!T.tutorialOpen, 'ricollegamento: niente tutorial');
++  T.stop({ completed: false, silent: true });
++  // abbinamento nuovo (QR, forse un'altra persona): di nuovo
++  w.link.L.pairs = 2; T.start({ intro: true }); assert.ok(T.tutorialOpen, 'abbinamento nuovo: si rivede');
+   // «Rivedi i gesti»: la stessa modale, da chiudere sul computer, senza fermare il telefono
+-  T.reviewGestures(); assert.ok(T.tutorial.open && !T.tutorialOpen && !P.tutWait); T.tutorial.close('review'); assert.ok(!T.tutorial.open);
++  T._tutorialDone('skip'); T.reviewGestures(); assert.ok(T.tutorial.open && !T.tutorialOpen && !P.tutWait); T.tutorial.close('review'); assert.ok(!T.tutorial.open);
++  T.stop({ completed: false, silent: true });
++});
++
++test('tutorial: indietro dopo aver visto tutto non spegne «ho capito»; uscita a metà e ripresa dalla scheda raggiunta', async () => {
++  const w = await makeWorld({ controller: 'phone' });
++  const T = w.ui.training, P = w.ui.phone;
++  T.start({ intro: true }); fromPhone(P, { w: 1, v: 2 });
++  for (let i = 0; i < 4; i++){ w.advance(1300); fromPhone(P, { nav: 1 }); }
++  assert.equal(T.tutorial.state.idx, 4); assert.equal(lastTp(w.link).s, 4);
++  // si esce prima della fine (menu): stesso telefono, la modale riparte dalla scheda raggiunta con le schede già viste
++  T.stop({ completed: false, silent: true });
++  assert.ok(!P.tutWait && !P.tutorialSeen);
++  T.start({ intro: true });
++  assert.ok(T.tutorialOpen); assert.equal(T.tutorial.state.idx, 4); assert.equal(T.tutorial.state.visited.size, 4);
++  for (let i = 4; i < TUTORIAL_CARDS.length; i++){ w.advance(1300); if (i < TUTORIAL_CARDS.length - 1) fromPhone(P, { nav: 1 }); }
++  assert.equal(lastTp(w.link).all, 1);
++  // indietro: «tutte viste» resta, il telefono può confermare da qualunque scheda
++  for (let i = 0; i < 3; i++) fromPhone(P, { nav: -1 });
++  w.advance(300);
++  assert.equal(T.tutorial.state.idx, TUTORIAL_CARDS.length - 4); assert.equal(lastTp(w.link).all, 1); assert.equal(lastTp(w.link).i, TUTORIAL_CARDS.length - 4);
++  fromPhone(P, { ok: 1 }); assert.ok(!T.tutorialOpen && P.tutorialSeen);
++  T.stop({ completed: false, silent: true });
++});
++
++test('tutorial: telefono già pronto → dopo «ho capito» si va agli esercizi; ricalibrare non lo riapre', async () => {
++  const w = await makeWorld({ controller: 'phone' });
++  const T = w.ui.training, P = w.ui.phone;
++  w.link.ready = true; w.link.L.phone = 'ready';
++  T.start({ intro: true });
++  assert.ok(T.tutorialOpen && !T.cal, 'pronto: niente calibrazione dopo');
++  assert.match(T.tutorial.root.querySelector('.tut-wait').textContent, /Sfoglia le schede/);
++  fromPhone(P, { w: 1, v: 2 }); seeAll(w, P, T);
++  assert.match(T.tutorial.root.querySelector('.tut-wait').textContent, /poi si comincia/, 'il testo dice cosa succede dopo (prima «poi si calibra» anche da pronto)');
++  fromPhone(P, { ok: 1 });
++  assert.ok(!T.tutorialOpen && T.active && !T.cal);
++  // «Ricalibra» (dal computer o dal telefono): la calibrazione, non il tutorial
++  P.recalibrate(); w.link.ready = false; w.link.L.phone = 'cal'; w.advance(200);
++  assert.ok(!T.tutorialOpen && !P.tutWait);
++  T.stop({ completed: false, silent: true });
++});
++
++test('tutorial: Esc di chi gestisce la postazione, frecce della tastiera e del computer', async () => {
++  const w = await makeWorld({ controller: 'phone' });
++  const T = w.ui.training, P = w.ui.phone;
++  T.start({ intro: true });
++  w.key('ArrowRight'); w.key('ArrowRight'); assert.equal(T.tutorial.state.idx, 2);
++  w.key('ArrowLeft'); assert.equal(T.tutorial.state.idx, 1);
++  T.tutorial.step(-1); T.tutorial.step(-1); assert.equal(T.tutorial.state.idx, 0, 'prima della prima non si va');
++  T.tutorial.go(99); assert.equal(T.tutorial.state.idx, TUTORIAL_CARDS.length - 1);
++  w.key('Escape'); assert.ok(!T.tutorialOpen && P.tutorialSeen, 'Esc chiude e conta come visto');
+   T.stop({ completed: false, silent: true });
+ });
+ 
+@@ -57,24 +133,56 @@ test('tutorial: telefono con la pagina di prima (non lo conosce) — la modale s
+   T.start({ calOnly: true });
+   assert.ok(T.tutorialOpen, 'anche prima di una sfida');
+   T._onCal({ kind: 'step', step: 'still' });
+-  assert.ok(!T.tutorialOpen && T.tutorialSeen.p1);
++  assert.ok(!T.tutorialOpen && w.ui.phone.tutorialSeen);
+   T.stop({ completed: false, silent: true });
+ });
+ 
+-test('tutorial: le schede scorrono da sole, una scelta a mano resta ferma per un po\'', () => {
+-  let s = tutorialStep(null, { now: 0 });
+-  assert.equal(s.idx, 0);
+-  s = tutorialStep(s, { now: TUTORIAL.autoMs - 1 }); assert.equal(s.idx, 0);
+-  s = tutorialStep(s, { now: TUTORIAL.autoMs + 1 }); assert.equal(s.idx, 1);
+-  s = tutorialStep(s, { now: TUTORIAL.autoMs + 2, pick: 5 }); assert.equal(s.idx, 5);
+-  s = tutorialStep(s, { now: TUTORIAL.autoMs*3 }); assert.equal(s.idx, 5, 'scelta a mano: ferma');
+-  s = tutorialStep(s, { now: TUTORIAL.autoMs + 2 + TUTORIAL.holdMs + TUTORIAL.autoMs + 1 }); assert.equal(s.idx, 6);
+-  s = tutorialStep({ idx: TUTORIAL_CARDS.length - 1, shownAt: 0, holdUntil: 0 }, { now: TUTORIAL.autoMs + 1 }); assert.equal(s.idx, 0, 'ricomincia');
++test('tutorial: telefono che risponde senza versione 2 (pagina di prima, pulsante subito acceso) — «ho capito» vale subito', async () => {
++  const w = await makeWorld({ controller: 'phone' });
++  const T = w.ui.training, P = w.ui.phone;
++  T.start({ intro: true }); fromPhone(P, { w: 1 });
++  assert.ok(P.tutSupported && !P.tutV2);
++  fromPhone(P, { ok: 1 }); assert.ok(!T.tutorialOpen);
++  T.stop({ completed: false, silent: true });
++});
++
++test('tutorial, stato puro: frecce senza giro, scheda vista dopo seenMs, «tutte viste» che non torna indietro, ripresa', () => {
++  let s = tutorialStart({ now: 0 });
++  assert.equal(s.idx, 0); assert.equal(s.visited.size, 0);
++  s = tutorialSeen(s, { now: TUTORIAL.seenMs - 1 }); assert.equal(s.visited.size, 0, 'non ancora');
++  s = tutorialSeen(s, { now: TUTORIAL.seenMs }); assert.ok(s.visited.has(0));
++  s = tutorialGo(s, 1, { now: 2000 }); s = tutorialGo(s, 2, { now: 2100 }); s = tutorialSeen(s, { now: 2200 });
++  assert.ok(!s.visited.has(1), 'scheda passata di fila: non vista'); assert.ok(!s.visited.has(2));
++  s = tutorialGo(s, -5, { now: 3000 }); assert.equal(s.idx, 0); s = tutorialGo(s, 50, { now: 3100 }); assert.equal(s.idx, TUTORIAL_CARDS.length - 1);
++  for (let i = 0; i < TUTORIAL_CARDS.length; i++){ s = tutorialGo(s, i, { now: 10000 + i*2000 }); s = tutorialSeen(s, { now: 10000 + i*2000 + TUTORIAL.seenMs }); }
++  assert.ok(s.all); assert.deepEqual(tutorialProgress(s), { i: TUTORIAL_CARDS.length - 1, n: TUTORIAL_CARDS.length, s: TUTORIAL_CARDS.length, m: (1 << TUTORIAL_CARDS.length) - 1, all: true });
++  s = tutorialGo(s, 0, { now: 50000 }); assert.ok(s.all, 'indietro dopo aver visto tutto: resta tutto visto');
++  const r = tutorialStart({ now: 0, from: { idx: 3, visited: [0, 1, 2, 99], all: false } });
++  assert.equal(r.idx, 3); assert.deepEqual([...r.visited], [0, 1, 2]);
++  // testi in fondo: prima «sfoglia», poi cosa succede dopo
++  assert.match(tutorialWait({ all: false }), /Sfoglia le schede con ‹ ›/); assert.match(tutorialWait({ all: true }), /Tutto chiaro, ho capito.*si calibra/);
++  assert.match(tutorialWait({ all: true, after: 'ready', half: true }), /tuo telefono.*sei pronto/); assert.equal(tutorialWait({ mode: 'review' }), '');
+   // tutti i gesti del tutorial (presa e posizione comprese) hanno titolo e indicazioni
+   for (const c of TUTORIAL_CARDS) assert.ok(c.title && (c.cues.length || c.text), c.id);
+   assert.deepEqual(TUTORIAL_CARDS.slice(0, 2).map(c => c.id), ['grip', 'ready']);
+ });
+ 
++test('tutorial: l\'animazione riceve mount/setSize/play una volta per scheda (non a ogni scheda vista), stop alla chiusura', async () => {
++  const calls = [];
++  const demo = { available: true, mount: el => calls.push(['mount']), setSize: (w, h) => calls.push(['size', w, h]), play: (id, o) => calls.push(['play', id, o.hand]), stop: () => calls.push(['stop']) };
++  const { NatpfTutorial } = await import('../src/natpf/natpf_tutorial.js');
++  const { El } = await import('./ui-world.mjs');
++  let now = 0;
++  const t = new NatpfTutorial(new El('tut'), { demo: () => demo, clock: () => now });
++  t.openFor({ mode: 'review', hand: 'left' });
++  assert.deepEqual(calls.filter(c => c[0] === 'play').map(c => c[1]), ['grip']);
++  assert.ok(calls.some(c => c[0] === 'size' && c[1] > 0 && c[2] > 0));
++  now = 5000; t.tick(); t.tick();
++  assert.equal(calls.filter(c => c[0] === 'play').length, 1, 'scheda vista: l\'animazione non riparte');
++  t.step(1); assert.deepEqual(calls.filter(c => c[0] === 'play').map(c => [c[1], c[2]]), [['grip', 'left'], ['ready', 'left']]);
++  t.close('review'); assert.deepEqual(calls.at(-1), ['stop']);
++});
++
+ test('webcam: la lezione a passi dell\'Allenamento resta (versione breve, senza il telefono)', async () => {
+   const w = await makeWorld({ controller: 'webcam' });
+   const T = w.ui.training;
+diff --git a/site/js/tennis/link.js b/site/js/tennis/link.js
+index e1e908c..6c39d44 100644
+--- a/site/js/tennis/link.js
++++ b/site/js/tennis/link.js
+@@ -5,7 +5,8 @@
+ // del colpo) e sm (giroscopio in JSON), facoltativi e solo se il gioco li chiede con cfg; per la diagnostica gx (gesto
+ // scartato sul telefono, con il motivo), mk (segno «qui è successo un problema») e dev (telefono e browser).
+ // Al telefono: welcome {r}, deny, pong, dp (orologio), cmd (comandi della calibrazione), ev (esito del colpo, punto), ph (fase),
+-// e facoltativi cfg (preparazione, flusso dei sensori) ed ex (verso del colpo atteso).
++// e facoltativi cfg (preparazione, flusso dei sensori, tutorial: tut/tv), tp (avanzamento del tutorial: scheda, schede
++// viste; B9) ed ex (verso del colpo atteso).
+ // Percorso veloce: i messaggi che valgono solo se arrivano subito (copie del colpo, piatto, campioni della diagnostica)
+ // viaggiano anche su una seconda strada senza ordine. In LAN è il canale dei sensori, davvero senza ritrasmissioni
+ // (lan-transport.js: maxRetransmits 0): un pacchetto perso non ferma quelli dopo. Via internet è una seconda connessione
+@@ -207,7 +208,10 @@ export function createPhoneLink(){
+         // cadere): chi usa il collegamento rimanda al telefono quello che la pagina ricaricata ha perso
+         // relinked: lo stesso telefono, senza ricaricare la pagina, ha rifatto il collegamento («Ricollega»): calibrazione e
+         // riferimenti della pagina restano validi
+-        set({ state: 'connected', phone: 'sensors', error: null, joins: (L.joins || 0) + 1, relinked: d.rl === 1, sensorAge: null, beatAt: null });
++        // pairs: abbinamenti nuovi (hello con il codice del QR, k), non le riprese con la chiave (r: pagina ricaricata,
++        // ricollegamento automatico dopo lo schermo spento, «Ricollega»). Il tutorial si rivede solo con un abbinamento
++        // nuovo (B9, docs/b9/analisi-telefono.md C4): prima ripartiva a ogni collegamento (joins)
++        set({ state: 'connected', phone: 'sensors', error: null, joins: (L.joins || 0) + 1, pairs: (L.pairs || 0) + (d.r ? 0 : 1), resumed: !!d.r, relinked: d.rl === 1, sensorAge: null, beatAt: null, ...(d.r ? {} : { vis: true, hiddenAt: null }) });
+         return;
+       }
+       if (c !== conn) return;
+@@ -218,7 +222,9 @@ export function createPhoneLink(){
+         case 'dq': if (typeof d.p === 'number'){ const now = performance.now(); clock.add(d.d, d.p, now); emit('clock', { d: d.d, p: d.p, r: now }); } break;
+         // sa: ms dall'ultimo campione dei sensori sul telefono (telefoni dal 29/10), con l'istante di arrivo (beatAt): il
+         // computer distingue i sensori fermi sul telefono dal flusso dei sensori che non arriva (canale veloce bloccato)
+-        case 'st': emit('state', d); if (d.s === 'ready' && d.b) racketMotion.setBias(d.b); if (d.s === 'ready' && L.phone !== 'ready') racketMotion.reset(); set({ phone: String(d.s || ''), rtt: clock.rtt != null ? Math.round(clock.rtt) : L.rtt, grip: d.gp === 'flat' || d.gp === 'upright' ? d.gp : L.grip, prep: d.pm === 1, hz: typeof d.hz === 'number' && isFinite(d.hz) ? Math.round(d.hz) : L.hz, ...(d.vis === 0 || d.vis === 1 ? { vis: d.vis === 1 } : {}), ...([-1, 0, 1].includes(d.wk) ? { wake: d.wk } : {}), touch: d.in === 't', sensorAge: typeof d.sa === 'number' && isFinite(d.sa) ? Math.max(0, Math.round(d.sa)) : null, beatAt: performance.now() }); break;
++        // vis: pagina del telefono in primo piano; hiddenAt: da quando è nascosta (schermo spento, altra app), per dire da
++        // quanto sul computer. tu: il telefono mostra il tutorial (B9; s resta quello dei sensori)
++        case 'st': emit('state', d); if (d.s === 'ready' && d.b) racketMotion.setBias(d.b); if (d.s === 'ready' && L.phone !== 'ready') racketMotion.reset(); set({ phone: String(d.s || ''), rtt: clock.rtt != null ? Math.round(clock.rtt) : L.rtt, grip: d.gp === 'flat' || d.gp === 'upright' ? d.gp : L.grip, prep: d.pm === 1, hz: typeof d.hz === 'number' && isFinite(d.hz) ? Math.round(d.hz) : L.hz, ...(d.vis === 0 || d.vis === 1 ? { vis: d.vis === 1, hiddenAt: d.vis === 1 ? null : L.vis === false && L.hiddenAt != null ? L.hiddenAt : performance.now() } : {}), ...([-1, 0, 1].includes(d.wk) ? { wake: d.wk } : {}), touch: d.in === 't', tut: d.tu === 1, sensorAge: typeof d.sa === 'number' && isFinite(d.sa) ? Math.max(0, Math.round(d.sa)) : null, beatAt: performance.now() }); break;
+         case 'cal': if (d.e?.kind === 'done') racketMotion.setBias(d.e.profile?.bias || [0,0,0]); emit('cal', d.e || {}); break;
+         // facoltativi: preparazione del colpo (pr) e giroscopio in JSON quando non c'è il canale binario (sm)
+         case 'pr': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: d.lat }); if (at != null && (d.dir === 1 || d.dir === -1)) emit('prep', { dir: d.dir, peak: typeof d.v === 'number' ? d.v : null, angle: typeof d.a === 'number' ? d.a : null, at }); break; }
+@@ -226,8 +232,10 @@ export function createPhoneLink(){
+         case 'toss': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); if (at != null) emit('toss', { at }); break; }
+         // mano cambiata sulla pagina del telefono (la decide il gioco: il computer la applica e la rimanda)
+         case 'hand': if (d.h === 'left' || d.h === 'right') emit('hand', { hand: d.h }); break;
+-        // tutorial prima della calibrazione: w = il telefono aspetta «Tutto chiaro, ho capito», ok = toccato
+-        case 'tut': emit('tut', { wait: !!d.w, ok: !!d.ok }); break;
++        // tutorial prima della calibrazione: w = il telefono aspetta «Tutto chiaro, ho capito» (v 2: lo tiene spento finché
++        // non si sono viste tutte le schede, con l'avanzamento «tp» del computer), ok = toccato, nav = frecce ‹ › del
++        // telefono (-1 indietro, 1 avanti)
++        case 'tut': emit('tut', { wait: !!d.w, ok: !!d.ok, v: d.v === 2 ? 2 : 1, nav: d.nav === 1 || d.nav === -1 ? d.nav : 0 }); break;
+         // diagnostica: gesto scartato sul telefono, con il motivo (solo se la diagnostica lo chiede, al massimo pochi al
+         // secondo); segno «qui è successo un problema» toccato sul telefono; telefono e browser (una volta per collegamento)
+         case 'gx': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); emit('discard', { why: typeof d.r === 'string' ? d.r.slice(0, 40) : '?', peak: Number.isFinite(d.v) ? d.v : null, angle: Number.isFinite(d.a) ? d.a : null, dir: [-1, 0, 1].includes(d.d) ? d.d : null, at }); break; }
+diff --git a/site/js/tennis/phone-keep.js b/site/js/tennis/phone-keep.js
+index 15af0d5..201c0c2 100644
+--- a/site/js/tennis/phone-keep.js
++++ b/site/js/tennis/phone-keep.js
+@@ -64,3 +64,33 @@ export function createSensorWatch({ gapMs = KEEP.sensorGapMs, backMs = KEEP.sens
+     },
+   };
+ }
++
++// Ritorno in primo piano (schermo riacceso, B9): se dopo delayMs il blocco dello schermo non è tenuto (iPhone vuole un
++// tocco per riprenderlo dopo lo schermo spento) o i sensori non sono ripartiti, la pagina mostra un velo «Tocca lo schermo
++// per riprendere»: un solo tocco riprende il blocco, il permesso dei sensori (iPhone, dentro il tocco), i sensori e lo
++// schermo intero. Una volta per ritorno, entro windowMs (poi restano gli avvisi piccoli della pagina). Niente trucchi
++// (audio o video muti): nessun browser dà i sensori a pagina nascosta, il velo serve a ripartire in fretta.
++export const VEIL = Object.freeze({ delayMs: 1500, windowMs: 20000 });
++export function createResumeVeil({ delayMs = VEIL.delayMs, windowMs = VEIL.windowMs } = {}){
++  let since = null, shown = false;
++  return {
++    get shown(){ return shown; },
++    // la pagina è di nuovo visibile
++    back(now){ since = now; shown = false; },
++    // a ogni controllo: true = mostrare il velo. active: sensori in uso (movimento, sensori attivi, pagina visibile);
++    // wake: stato del blocco (1 tenuto, 0 no, -1 il browser non lo offre); lastSample: istante dell'ultimo campione
++    update(now, { active = true, wake = 1, wakeBusy = false, lastSample = null } = {}){
++      if (shown) return true;
++      if (since == null || !active) return false;
++      const dt = now - since;
++      if (dt < delayMs) return false;
++      if (dt > windowMs){ since = null; return false; }
++      const noWake = wake === 0 && !wakeBusy, noSensors = !(lastSample != null && lastSample >= since);
++      if (noWake || noSensors){ shown = true; return true; }
++      since = null;                    // blocco tenuto e sensori ripartiti: per questo ritorno non serve altro
++      return false;
++    },
++    // tocco sul velo (che ha già ripreso blocco, sensori e schermo intero)
++    dismiss(){ shown = false; since = null; },
++  };
++}
+diff --git a/site/js/tennis/phone-screen.js b/site/js/tennis/phone-screen.js
+new file mode 100644
+index 0000000..4e4c43c
+--- /dev/null
++++ b/site/js/tennis/phone-screen.js
+@@ -0,0 +1,103 @@
++// Pagina del telefono (racchetta.js): UNA schermata alla volta, ricavata da poche variabili con funzioni pure (B9, richiesta
++// del 05/11; docs/b9/analisi-telefono.md §a.4). Prima ogni elemento della pagina aveva la sua condizione e le condizioni si
++// sovrapponevano: con il telefono già calibrato «Tutto chiaro, ho capito» compariva sopra «Pronto» con Ricalibra,
++// Ricollega e Scollega (difetto riprodotto in Allenamento e nello stesso schermo, a ogni ricollegamento).
++//
++// Variabili:
++//   linkState  off | connecting | on | lost | denied
++//   sensor     off | denied | nomotion | insecure | idle | cal | ready
++//              (idle: sensori attivi, calibrazione non ancora partita perché il computer mostra il tutorial)
++//   gate       null (nessun tutorial) | { v, i, n, s, m, all, name }: il computer mostra il tutorial e aspetta «Tutto
++//              chiaro, ho capito». v 2: il computer manda l'avanzamento («tp»: scheda i di n, s viste, m maschera delle
++//              viste, all tutte viste) e il pulsante resta spento finché all è falso; v 1 (computer di prima): pulsante
++//              acceso subito
++//   inputMode  motion | touch
++//
++// Schermate (la prima condizione vera vince):
++//   link      collegamento non attivo        enable    «Attiva i sensori»        error     sensori non disponibili
++//   tutorial  il computer mostra il tutorial cal       calibrazione              ready     «Pronto» con Ricalibra,
++//                                                                                          Ricollega, Scollega
++export const PHONE_SCREENS = Object.freeze(['link', 'error', 'enable', 'tutorial', 'cal', 'ready']);
++const ERRORS = new Set(['denied', 'nomotion', 'insecure']);
++const int = (v, d = 0) => (Number.isFinite(+v) ? Math.trunc(+v) : d);
++
++export function screenOf({ linkState = 'off', sensor = 'off', gate = null } = {}){
++  if (linkState !== 'on') return 'link';
++  if (ERRORS.has(sensor)) return 'error';
++  if (sensor === 'off') return 'enable';
++  if (gate) return 'tutorial';
++  if (sensor === 'ready') return 'ready';
++  return 'cal';
++}
++// «Tutto chiaro, ho capito» toccabile: con un computer che manda l'avanzamento solo dopo tutte le schede viste
++export const tutConfirmable = gate => !!gate && (gate.v < 2 || !!gate.all);
++
++// cosa mostra la pagina: { screen, show: { selettore: visibile }, tutOk: { on, lit } } (lit: appena acceso)
++export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inputMode = 'motion', calStep = null, hasPair = false, diag = false, intentGate = false } = {}){
++  const screen = screenOf({ linkState, sensor, gate });
++  const S = s => screen === s, touch = inputMode === 'touch';
++  const show = {
++    '#retry': S('link') && (linkState === 'lost' || linkState === 'denied') && hasPair,
++    '#enable': S('enable') || (S('error') && sensor !== 'insecure'),
++    '#enableTouch': (S('enable') || S('error')) && !touch,
++    // mano e movimento: prima di attivare i sensori e alla verifica della calibrazione (non nel tutorial né in «Pronto»)
++    '#profileOptions': S('enable') || S('error') || (S('cal') && calStep === 'review'),
++    '#shotPanel': S('ready') || (S('cal') && calStep === 'free'),
++    '#manualAim': touch,
++    '#touchHit': touch || !!intentGate,
++    '#shotChoices': touch,
++    // Ricalibra, Ricollega, Scollega: solo sotto «Pronto» (scelta del 05/11: nella calibrazione bloccata decide il computer)
++    '#tools': S('ready'),
++    '#tutOk': S('tutorial'),
++    '#tutBox': S('tutorial'),
++    '#mark': linkState === 'on' && !!diag,
++  };
++  return { screen, show, tutOk: { on: S('tutorial') && tutConfirmable(gate) } };
++}
++
++/* ---------- tutorial: il cancello del computer ---------- */
++// cfg dal computer: tut 1 apre (tv 2: manderà l'avanzamento), senza tut chiude. Un cfg ripetuto (ricollegamento, cambio
++// di mano) non azzera l'avanzamento
++export function gateOnCfg(gate, cfg = {}){
++  if (!cfg.tut) return null;
++  const v = cfg.tv >= 2 ? 2 : 1;
++  return gate ? { ...gate, v } : { v, i: 0, n: 0, s: 0, m: 0, all: false, name: '' };
++}
++// avanzamento dal computer (tp): il computer è la fonte di verità; «all» non torna falso nella stessa apertura
++export function gateOnProgress(gate, tp = {}){
++  if (!gate) return gate;
++  const n = Math.max(0, Math.min(32, int(tp.n))), i = n ? Math.max(0, Math.min(n - 1, int(tp.i))) : 0, s = Math.max(0, Math.min(n, int(tp.s)));
++  return { ...gate, v: 2, i, n, s, m: int(tp.m) >>> 0, all: !!gate.all || tp.all === 1 || tp.all === true || (n > 0 && s >= n), name: typeof tp.nm === 'string' ? tp.nm.slice(0, 40) : gate.name || '' };
++}
++// gate salvato nella scheda (pagina ricaricata): solo se ha la forma giusta
++export function gateRestore(saved){
++  if (!saved || typeof saved !== 'object' || !(saved.v === 1 || saved.v === 2)) return null;
++  const base = { v: saved.v, i: 0, n: 0, s: 0, m: 0, all: !!saved.all, name: '' };
++  return saved.n ? { ...gateOnProgress(base, { i: saved.i, n: saved.n, s: saved.s, m: saved.m, nm: saved.name }), v: saved.v } : base;
++}
++// frecce ‹ › del telefono: si possono usare (computer v2), e quali sono spente agli estremi
++export function gateNav(gate){
++  if (!gate || gate.v < 2) return { show: false, prev: false, next: false };
++  return { show: true, prev: gate.i > 0, next: gate.n > 0 && gate.i < gate.n - 1 };
++}
++
++/* ---------- sensori e tutorial ---------- */
++// il tutorial si apre: una calibrazione in corso si ferma (ripartirà da capo dopo), un telefono pronto resta pronto
++export const sensorOnGateOpen = sensor => (sensor === 'cal' ? 'idle' : sensor);
++// il tutorial si chiude («ho capito» o il computer che lo chiude): chi aspettava calibra, gli altri restano dove sono
++export const sensorOnGateClose = sensor => (sensor === 'idle' ? 'cal' : sensor);
++// il telefono chiede (o deve rifare) la calibrazione: con il tutorial aperto aspetta la sua fine
++export const sensorForCal = gate => (gate ? 'idle' : 'cal');
++// stato dei sensori per il computer (st.s): «sensors» spenti, «tut» in attesa del tutorial senza calibrazione, gli altri
++// come sono (un telefono pronto resta «ready» anche durante il tutorial: niente pausa del computer sopra la modale)
++export const reportedSensor = sensor => (sensor === 'off' ? 'sensors' : sensor === 'idle' ? 'tut' : sensor);
++
++// testi della schermata del tutorial sul telefono
++export function tutorialTexts(gate, { sensor = 'idle' } = {}){
++  const then = sensor === 'ready' ? 'poi si gioca' : 'poi si calibra';
++  if (!gate) return null;
++  const where = gate.n ? `Scheda ${gate.i + 1} di ${gate.n}${gate.name ? ` · ${gate.name}` : ''}` : '';
++  if (gate.v < 2) return { big: 'Guarda lo schermo', sub: `Sul computer ci sono la presa e i colpi. Quando hai capito tocca «Tutto chiaro, ho capito», qui in alto: ${then}.`, where, hint: '' };
++  if (!gate.all) return { big: 'Guarda lo schermo', sub: 'Sul computer ci sono la presa e i colpi: sfoglia le schede con ‹ ›, qui o sul computer.', where, hint: gate.n ? `Viste ${gate.s} di ${gate.n}: «Tutto chiaro» si accende dopo l’ultima.` : '' };
++  return { big: 'Hai visto tutto', sub: `Tocca «Tutto chiaro, ho capito», qui in alto: ${then}. Puoi ancora rivedere le schede con ‹ ›.`, where, hint: '' };
++}
+diff --git a/site/js/tennis/racchetta.js b/site/js/tennis/racchetta.js
+index ff1bc91..a8fa55e 100644
+--- a/site/js/tennis/racchetta.js
++++ b/site/js/tennis/racchetta.js
+@@ -12,9 +12,10 @@ import { createFaceTracker } from './face-tracker.js';
+ import { strokeShape } from './stroke-shape.js';
+ import { swingMessage } from './swing-message.js';
+ import { NATPF_BUILD } from './version.js';
+-import { createWakeKeeper, createSensorWatch } from './phone-keep.js';
++import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
+ import { gripSvg, GRIP_TEXT_PLAIN } from './grip-art.js';
+ import { platformAccSign, createAccSign, normalizeSample } from './motion-sign.js';
++import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable } from './phone-screen.js';
+ 
+ const $ = s => document.querySelector(s);
+ const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
+@@ -24,7 +25,7 @@ const ss = { get(k){ try { return JSON.parse(sessionStorage.getItem('natpf-simul
+ 
+ // i dati del QR: si leggono e si tolgono subito dalla barra degli indirizzi (restano solo in questa scheda)
+ let pair = parsePairing(location.hash);
+-if (pair){ ss.set('pair', pair); ss.del('resume'); ss.del('profile'); history.replaceState(null, '', location.pathname + location.search); }
++if (pair){ ss.set('pair', pair); ss.del('resume'); ss.del('profile'); ss.del('gate'); history.replaceState(null, '', location.pathname + location.search); }
+ else pair = ss.get('pair');
+ 
+ // Presa: «upright» (predefinita, telefono in verticale come il manico) o «flat» (telefono in orizzontale nel palmo,
+@@ -51,10 +52,17 @@ let sensorSequence = 0, lastSensorSent = -Infinity;
+ let streamJson = false, prepWanted = false, diagStream = false, sampleHz = 60, lastSampleT = null, swingSeq = 0;
+ let connectEpoch = 0, pendingConn = null;
+ let peer = null, conn = null, linkState = 'off', rtt = 80, sensor = 'off', phase = 'menu', retryT = null, tries = 0, motionSeen = false, flashT = null, lastRx = 0;
+-let tutWait = false;   // il computer chiede di aspettare il tutorial prima di calibrare (cfg tut, vedi tutDone)
++// Tutorial sul computer (cfg tut, phone-screen.js): il «cancello» { v, i, n, s, m, all } che il computer apre e chiude e di
++// cui manda l'avanzamento (tp). Resta nella scheda (pagina ricaricata, ricollegamento): niente lampo di «Pronto» e niente
++// ritorno alla prima scheda. screen: la schermata mostrata (una sola alla volta, phoneView)
++let gate = pair ? gateRestore(ss.get('gate')) : null, screen = 'link', tutLitT = null, wantFs = false;
+ // schermo acceso e sensori vivi (phone-keep.js): ogni cambio del blocco va al computer e sullo schermo (avvisi più giù)
+ const awake = createWakeKeeper({ onChange: () => { sendState(); paintAlert(); } }), sensorWatch = createSensorWatch();
+ let revivedAt = null, alertKey = '';
++// velo «Tocca lo schermo per riprendere» dopo lo schermo spento (phone-keep.js) e schermo intero da riprendere al primo
++// tocco dopo il ritorno (Android può uscirne con lo schermo spento: non verificato su telefoni veri)
++const veil = createResumeVeil();
++let fsAfterVisible = false;
+ // percorso veloce (link.js): via internet una seconda connessione non ordinata; in LAN il canale dei sensori
+ let fast = null, fastOk = false, rawSeq = 0;
+ 
+@@ -81,31 +89,42 @@ function bar(){
+   b.className = linkState === 'on' ? 'ok' : linkState === 'lost' || linkState === 'denied' ? 'bad' : '';
+   $('#barTxt').textContent = txt; $('#lat').textContent = linkState === 'on' ? Math.round(rtt) + ' ms' : '';
+ }
++function setGate(g){ gate = g; if (g) ss.set('gate', g); else ss.del('gate'); }
++// UNA schermata alla volta (phone-screen.js): collegamento, errore dei sensori, «Attiva i sensori», tutorial, calibrazione,
++// «Pronto». Prima ogni elemento aveva la sua condizione e «Tutto chiaro» compariva sopra «Pronto»
+ function paint(){
+   bar();
+-  show('#enable', linkState === 'on' && (sensor === 'off' || sensor === 'denied' || sensor === 'nomotion'));
+-  show('#enableTouch', linkState === 'on' && sensor !== 'ready' && inputMode !== 'touch');
+-  show('#profileOptions', linkState === 'on' && (sensor !== 'ready' && (sensor !== 'cal' || cal.state.step === 'review')));
+-  show('#shotPanel', linkState === 'on' && (sensor === 'ready' || cal.state.step === 'free'));
+-  show('#manualAim', inputMode === 'touch');
+-  show('#touchHit', inputMode === 'touch' || det.profile.intentGate);
++  const v = phoneView({ linkState, sensor, gate, inputMode, calStep: cal.state.step, hasPair: !!pair, diag: diagStream, intentGate: det.profile.intentGate });
++  if (v.screen !== screen){ screen = v.screen; document.body.dataset.screen = screen; }
++  for (const [sel, on] of Object.entries(v.show)) show(sel, on);
+   $('#touchHit').textContent = inputMode === 'touch' ? 'Colpisci' : 'Arma dopo l’apertura';
+-  show('#shotChoices',inputMode==='touch');
+   $('#shotHint').textContent=inputMode==='touch'?'Scegli il colpo; smash e servizio seguono la palla.':'Dai un colpetto quando la palla arriva alla racchetta sul computer.';
+   paintShots();
+-  show('#retry', (linkState === 'lost' || linkState === 'denied') && !!pair);
+-  show('#tools', linkState === 'on' && (sensor === 'ready' || sensor === 'cal'));
+-  show('#tutOk', linkState === 'on' && tutWait && (sensor === 'tut' || sensor === 'ready'));
+-  show('#mark', linkState === 'on' && diagStream);
+-  const holding = linkState === 'on' && sensor === 'cal' && (cal.state.step === 'grip' || cal.state.step === 'still');
++  paintTut(v);
++  const holding = screen === 'cal' && sensor === 'cal' && (cal.state.step === 'grip' || cal.state.step === 'still');
+   show('#grip', holding && grip !== 'flat'); show('#gripFlat', holding && grip === 'flat');
+-  const dial = grip === 'flat' && linkState === 'on' && face.ready && (sensor === 'ready' || ['free', 'swings'].includes(cal.state.step));
++  const dial = grip === 'flat' && face.ready && (screen === 'ready' || (screen === 'cal' && ['free', 'swings'].includes(cal.state.step)));
+   show('#faceDial', dial); show('#faceTxt', dial);
+   if (linkState !== 'on' || flashT) return;
+-  if (sensor === 'off') ui('Collegato', 'Tocca «Attiva i sensori»: il telefono diventa la tua racchetta.');
+-  else if (sensor === 'tut') ui('Guarda lo schermo', 'Sul computer ci sono la presa e i colpi. Quando hai capito tocca «Tutto chiaro, ho capito», qui in alto: poi si calibra.');
+-  else if (sensor === 'cal') calUi();
+-  else if (sensor === 'ready') ui(phase === 'serve' ? 'Al servizio' : 'Pronto', phaseText(), 'ready');
++  if (screen === 'enable') ui('Collegato', 'Tocca «Attiva i sensori»: il telefono diventa la tua racchetta.');
++  else if (screen === 'tutorial'){ const t = tutorialTexts(gate, { sensor }); ui(t.big, t.sub); }
++  else if (screen === 'cal'){ if (sensor === 'cal') calUi(); else ui('Preparati', 'Tra un attimo si calibra.'); }
++  else if (screen === 'ready') ui(phase === 'serve' ? 'Al servizio' : 'Pronto', phaseText(), 'ready');
++}
++// schermata del tutorial: pulsante spento finché il computer non dice che sono state viste tutte le schede, scheda
++// attuale, puntini delle schede viste, frecce per sfogliarle anche da qui (solo con un computer che le capisce)
++function paintTut(v){
++  const b = $('#tutOk');
++  if (v.screen !== 'tutorial'){ b.classList.remove('lit'); return; }
++  const on = v.tutOk.on;
++  b.disabled = !on; b.classList.toggle('off', !on); b.setAttribute('aria-disabled', String(!on));
++  const t = tutorialTexts(gate, { sensor }) || { where: '', hint: '' };
++  $('#tutWhere').textContent = t.where; $('#tutHint').textContent = t.hint;
++  const nav = gateNav(gate);
++  show('#tutNav', nav.show); $('#tutPrev').disabled = !nav.prev; $('#tutNext').disabled = !nav.next;
++  const dots = $('#tutDots'), key = gate.n ? `${gate.n}:${gate.i}:${gate.m}` : '';
++  if (dots.dataset.k !== key){ dots.dataset.k = key; dots.innerHTML = Array.from({ length: gate.n || 0 }, (_, i) => `<i class="${i === gate.i ? 'on' : ''}${(gate.m >>> i) & 1 ? ' seen' : ''}"></i>`).join(''); }
++  show('#tutDots', !!gate.n);
+ }
+ function calUi(){
+   const st = cal.state;
+@@ -210,12 +229,17 @@ function onData(c, d){
+     case 'grip': setGrip(d.g); break;
+     // il gioco chiede la modalità preparazione (prep) e il flusso dei sensori in JSON quando non c'è il canale binario (mo)
+     case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); streamJson = !!d.mo; diagStream = !!d.diag; if (d.hand === 'left' || d.hand === 'right') applyHand(d.hand);
+-      tutWait = !!d.tut; if (tutWait) send({ t: 'tut', w: 1 });
+-      // sensori già attivi e calibrazione già partita (si entra in campo dalla pagina «Collega»): si ferma e si aspetta
+-      if (tutWait && sensor === 'cal') sensor = 'tut';
+-      // il computer ha chiuso il tutorial da solo (o non lo chiede più): si calibra
+-      else if (sensor === 'tut'){ sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); }
++      { // tutorial: il computer lo apre (tut, con tv 2 manda l'avanzamento) o lo chiude. Si risponde che si sa aspettare
++        // (w) con il pulsante spento fino all'ultima scheda (v 2). Calibrazione già partita (si entra in campo dalla pagina
++        // «Collega»): si ferma e ripartirà dopo; un telefono già calibrato resta calibrato (dopo «ho capito» torna a «Pronto»)
++        const was = gate; setGate(gateOnCfg(gate, d));
++        if (gate){ send({ t: 'tut', w: 1, v: 2 }); if (!was) sensor = sensorOnGateOpen(sensor); }
++        // il computer ha chiuso il tutorial da solo (o non lo chiede più): chi aspettava calibra
++        else if (was && sensor === 'idle') startCal();
++      }
+       sendState(); paint(); break;
++    // avanzamento del tutorial dal computer: scheda mostrata, schede viste; con l'ultima vista si accende «ho capito»
++    case 'tp': if (gate){ const was = tutConfirmable(gate); setGate(gateOnProgress(gate, d)); if (!was && tutConfirmable(gate)) lightTut(); paint(); } break;
+     // verso del colpo atteso (da che parte arriva la palla): +1 da destra a sinistra, -1 da sinistra a destra, 0 non si sa
+     case 'ex': det.setExpect(d.d); break;
+     case 'practice': if (inputMode==='touch' && SHOT_NAMES[d.shot]){ selectedShot = d.shot; paintShots(); } break;
+@@ -272,7 +296,9 @@ function closeFast(){ const f = fast; fast = null; if (f) try { f.close(); } cat
+ const wakeState = () => awake.state;
+ // sa: ms dall'ultimo campione dei sensori (con i sensori attivi): il computer sa che il telefono il movimento lo ha, anche
+ // quando il canale veloce non glielo porta
+-const sendState = () => send({ t: 'st', s: sensor === 'off' ? 'sensors' : sensor, b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}) });
++// s: sensori come li deve leggere il computer (phone-screen.reportedSensor: «tut» in attesa del tutorial senza calibrazione,
++// «ready» resta «ready» anche durante il tutorial); tu: la schermata è quella del tutorial
++const sendState = () => send({ t: 'st', s: reportedSensor(sensor), ...(gate ? { tu: 1 } : {}), b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}) });
+ // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
+ const sendDevice = () => send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: screen.orientation?.type || null, sc: [screen.width, screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign });
+ // gesti che il telefono non manda come colpo, con il motivo: al computer solo se la diagnostica registra, al massimo 8 al
+@@ -298,7 +324,7 @@ const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e)
+ 
+ /* ---------- sensori ---------- */
+ async function enableSensors(){
+-  inputMode = 'motion'; selectedShot='auto'; fullScreen(); lockOrientation();
++  inputMode = 'motion'; selectedShot='auto'; wantFs = true; fullScreen(); lockOrientation();
+   // iPhone: il permesso va chiesto subito, dentro il tocco
+   const ask = typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function' && window.isSecureContext
+     ? DeviceMotionEvent.requestPermission().catch(() => 'denied') : null;
+@@ -312,8 +338,7 @@ async function enableSensors(){
+   const saved = ss.get('profile');
+   // (profilo fatto con il segno dei sensori di prima, per esempio su iPhone prima della correzione: si ricalibra)
+   if (saved?.version === 4 && saved.input !== 'touch' && (saved.grip || 'upright') === grip && (saved.accSign ?? 1) === accSign.sign){ det.setProfile(saved); det.run(); sensor = 'ready'; face.setRest(saved.gravity, saved.bias); }
+-  else if (tutWait) sensor = 'tut';                 // prima il tutorial sul computer, poi la calibrazione
+-  else { sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); }
++  else needCal();                                   // con il tutorial aperto: prima il tutorial, poi la calibrazione
+   sendState(); paint();
+ }
+ function noMotion(why){
+@@ -376,22 +401,30 @@ function setGrip(value){
+   if (next === grip) return;
+   grip = next; ss.set('grip', grip); face.reset(); lockOrientation();
+   // profilo fatto con l'altra presa: si rifà la calibrazione (breve)
+-  if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); }
++  if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); needCal(); }
+   sendState(); paint();
+ }
+-// Tutorial sul computer prima della calibrazione (richiesta del 04/11): il computer lo chiede con cfg { tut: 1 }; il
+-// telefono risponde che lo sa fare ({ t: 'tut', w: 1 }), dopo «Attiva i sensori» non calibra subito ma aspetta
+-// «Tutto chiaro, ho capito» (o che il computer tolga l'attesa), poi manda { t: 'tut', ok: 1 } e calibra. Un computer di
+-// prima non manda tut: tutto come prima
++// Tutorial sul computer prima della calibrazione (richiesta del 04/11, B9 il 05/11): il computer lo chiede con cfg
++// { tut: 1, tv: 2 }; il telefono risponde che lo sa fare ({ t: 'tut', w: 1, v: 2 }), dopo «Attiva i sensori» non calibra
++// subito ma mostra la schermata del tutorial con «Tutto chiaro, ho capito» SPENTO finché il computer non dice (tp) che
++// tutte le schede sono state viste; le frecce ‹ › mandano { t: 'tut', nav: ±1 }. Al tocco manda { t: 'tut', ok: 1 } e
++// calibra (o torna a «Pronto» se era già calibrato). Un computer di prima (cfg senza tv) non manda l'avanzamento: il
++// pulsante è acceso subito, come prima; uno ancora più vecchio non manda tut: tutto come prima
+ function tutDone(){
+-  if (!tutWait) return;
+-  tutWait = false; send({ t: 'tut', ok: 1 });
+-  if (sensor === 'tut'){ sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); }
++  if (!tutConfirmable(gate)) return;
++  setGate(null); send({ t: 'tut', ok: 1 });
++  sensor = sensorOnGateClose(sensor); if (sensor === 'cal') startCal();
++  clearTimeout(tutLitT); $('#tutOk').classList.remove('lit');
+   sendState(); paint();
+ }
++// «Tutto chiaro» appena acceso: un lampo breve e una vibrazione (chi guarda il computer lo sente nella mano)
++function lightTut(){ const b = $('#tutOk'); b.classList.remove('lit'); void b.offsetWidth; b.classList.add('lit'); clearTimeout(tutLitT); tutLitT = setTimeout(() => b.classList.remove('lit'), 1400); buzz([25, 40, 25]); }
++// calibrazione da capo (con i tocchi: il profilo dei tocchi); chiesta con il tutorial aperto, aspetta la sua fine
++function startCal(){ sensor = 'cal'; if (inputMode === 'touch') cal.useTouch(); else cal.start(preferences(), { lead: CAL.lead }); }
++function needCal(){ if (sensorForCal(gate) === 'idle') sensor = 'idle'; else startCal(); }
+ function command(c){
+   // avvio con un attimo di attesa (CAL.lead): chi ha appena toccato «Ricalibra» sta ancora prendendo il telefono
+-  if (c === 'cal'){ if (sensor === 'off') return; ss.del('profile'); sensor = 'cal'; if (inputMode === 'touch') cal.useTouch(); else cal.start(preferences(), { lead: CAL.lead }); sendState(); paint(); }
++  if (c === 'cal'){ if (sensor === 'off') return; ss.del('profile'); needCal(); sendState(); paint(); }
+   if (c === 'retry' && sensor === 'cal') cal.retry();
+   if (c === 'relink') relink();
+   if (c === 'invert') cal.invert();
+@@ -413,8 +446,9 @@ cal.on(e => { sendCal(e);
+   if (e.kind === 'free') flash(e.ok ? 'hit' : 'miss', e.ok && e.dirValue === 0 ? 'Centro' : ARROW[e.dir], `Forza ${Math.round(Math.min(1.5, e.strength)*100)}%`, 500);
+ });
+ det.on('swing', s => {
+-  if (sensor !== 'ready' || linkState !== 'on' || inputMode !== 'motion' || !['play','serve','toss'].includes(phase)){
+-    if (sensor === 'ready' && inputMode === 'motion') sendDiscard('fase ' + phase, s);
++  // durante il tutorial nessun colpo (il telefono può essere già calibrato e il computer in campo)
++  if (sensor !== 'ready' || gate || linkState !== 'on' || inputMode !== 'motion' || !['play','serve','toss'].includes(phase)){
++    if (sensor === 'ready' && inputMode === 'motion') sendDiscard(gate ? 'tutorial' : 'fase ' + phase, s);
+     return;
+   }
+   const flags = shotFlags(selectedShot, s);
+@@ -430,7 +464,7 @@ det.on('swing', s => {
+ 
+ // preparazione del colpo (racchetta portata indietro): al gioco per animarla e per premiare chi si prepara
+ det.on('prep', p => {
+-  if (sensor !== 'ready' || linkState !== 'on' || inputMode !== 'motion' || phase !== 'play') return;
++  if (sensor !== 'ready' || gate || linkState !== 'on' || inputMode !== 'motion' || phase !== 'play') return;
+   send({ t: 'pr', dir: p.dir, pk: p.peakT, v: p.peak, a: p.angle, lat: rtt/2 + (performance.now() - p.peakT) });
+ });
+ 
+@@ -461,15 +495,16 @@ $('#touchHit').addEventListener('click', () => {
+   if (inputMode !== 'touch' || linkState !== 'on') return;
+   const power=+$('#power').value/100, dir=+$('#aimDir').value;
+   if (sensor === 'cal'){ cal.touch(dir,power,selectedShot); return; }
+-  if (sensor !== 'ready' || !['play','serve','toss'].includes(phase)) return;
++  if (sensor !== 'ready' || gate || !['play','serve','toss'].includes(phase)) return;
+   send({ t:'sw',pk:performance.now(),p:power,dir,l:0,...shotFlags(selectedShot) });
+ });
+ $('#gripMode').addEventListener('change', e => setGrip(e.target.value));
+ // mano: una sola per tutto il gioco. Cambiata qui va al computer, che la applica e la rimanda (cfg)
+ $('#hand').addEventListener('change', e => { applyHand(e.target.value); send({ t: 'hand', h: $('#hand').value }); });
+-$('#enableTouch').addEventListener('click', () => { lockOrientation(); inputMode='touch'; selectedShot='drive'; det.stop(); sensor='cal'; cal.useTouch(); sendState(); paint(); });
++$('#enableTouch').addEventListener('click', () => { lockOrientation(); inputMode='touch'; selectedShot='drive'; det.stop(); needCal(); sendState(); paint(); });
+ det.on('phase', value => {
+-  $('#phaseFeedback').textContent = ({ ready:'Pronto',preparation:'Preparazione',contact:'Colpo riconosciuto',follow:'Accompagnamento' })[value] || '';
++  // (niente «Pronto» qui: lo dice già la schermata, prima compariva due volte)
++  $('#phaseFeedback').textContent = ({ preparation:'Preparazione',contact:'Colpo riconosciuto',follow:'Accompagnamento' })[value] || '';
+ });
+ /* ---------- pulsanti ---------- */
+ $('#enable').addEventListener('click', enableSensors);
+@@ -479,6 +514,9 @@ $('#relink').addEventListener('click', e => { e.stopPropagation(); relink(); });
+ $('#mark').addEventListener('click', e => { e.stopPropagation(); if (linkState !== 'on') return; send({ t: 'mk', x: 'segno dal telefono' }); buzz([30, 60, 30]); flash('hit', 'Segnato', 'Il momento è nella registrazione del computer.', 900); });
+ $('#recal').addEventListener('click', () => command('cal'));
+ $('#tutOk').addEventListener('click', tutDone);
++// frecce del tutorial: il computer cambia scheda e rimanda l'avanzamento (tp)
++$('#tutPrev').addEventListener('click', e => { e.stopPropagation(); if (gateNav(gate).prev) send({ t: 'tut', nav: -1 }); });
++$('#tutNext').addEventListener('click', e => { e.stopPropagation(); if (gateNav(gate).next) send({ t: 'tut', nav: 1 }); });
+ $('#bye').addEventListener('click', () => {
+   linkState = 'denied'; ++connectEpoch; clearTimeout(retryT); clearTimeout(connect.t); pendingConn = null;
+   ss.del('resume'); ss.del('pair'); ss.del('profile'); pair = null; closeFast();
+@@ -488,20 +526,23 @@ $('#bye').addEventListener('click', () => {
+   ui('Scollegato', 'Per giocare di nuovo inquadra il codice QR sul computer.');
+ });
+ // tocco sullo schermo al servizio: lancia la palla
+-$('#stage').addEventListener('pointerdown', () => { if (phase === 'serve' && sensor === 'ready') send({ t: 'toss', pk: performance.now() }); });
++$('#stage').addEventListener('pointerdown', () => { if (phase === 'serve' && sensor === 'ready' && !gate) send({ t: 'toss', pk: performance.now() }); });
+ // schermo sempre acceso durante il gioco (il telefono non si tocca): phone-keep.js riprende il blocco al ritorno in primo
+ // piano, dopo un rilascio o un rifiuto a pagina visibile e a ogni tocco. Pagina nascosta: il computer lo sa subito
+ // (prima che il telefono si sospenda) e mette in pausa
+ document.addEventListener('visibilitychange', () => { if (document.hidden || sensor === 'off') sendState(); else onVisible(); });
+ // pagina sospesa dal browser e ripresa (Android): come il ritorno in primo piano
+ document.addEventListener('resume', () => { if (!document.hidden && sensor !== 'off') onVisible(); });
+-document.addEventListener('pointerdown', () => { if (sensor !== 'off') awake.tap(); }, { passive: true });
++document.addEventListener('pointerdown', () => {
++  if (sensor !== 'off') awake.tap();
++  if (fsAfterVisible){ fsAfterVisible = false; if (wantFs) fullScreen(); }
++}, { passive: true });
+ // tocco con il telefono in mano: conferma del segno dei sensori (motion-sign.js). Se cambia, la calibrazione fatta con
+ // il segno di prima non vale: si rifà
+ document.addEventListener('pointerdown', () => {
+   if (!lastRawG || !accSign.vote(lastRawG)) return;
+   sendDevice();
+-  if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); face.reset(); sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); sendState(); paint(); }
++  if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); face.reset(); needCal(); sendState(); paint(); }
+ }, { passive: true });
+ addEventListener('pagehide', () => { try { conn && conn.close(); } catch (e){} });
+ // di nuovo in primo piano: prima si riprende il blocco, poi si manda lo stato (il computer non deve vedere per un attimo
+@@ -514,6 +555,7 @@ function onVisible(){
+   if (conn?.open){ lastRx = Math.max(lastRx, now - 3000); send({ t: 'ping', c: now }); }
+   else if (linkState === 'lost' && pair){ tries = 0; connect(); }
+   awake.visible().then(sendState);
++  veil.back(now); fsAfterVisible = true;
+   paintAlert();
+ }
+ 
+@@ -523,15 +565,18 @@ function onVisible(){
+ // scheda). Schermo che può spegnersi mentre si gioca (blocco negato, perso o non offerto dal browser): lo si dice qui,
+ // con il pulsante per riprovare o con cosa cambiare nelle impostazioni del telefono
+ function paintAlert(){
+-  const now = performance.now(), motion = inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal');
++  const now = performance.now(), motion = inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal' || sensor === 'idle');
+   let a = null;
+-  if (linkState === 'on' && motion && sensorWatch.stalled(now, { visible: !document.hidden })){
++  // il velo dice già tutto (un tocco riprende blocco e sensori)
++  if (veil.shown){}
++  else if (linkState === 'on' && motion && sensorWatch.stalled(now, { visible: !document.hidden })){
+     a = revivedAt != null
+       ? { t: 'I sensori non sono ripartiti', p: 'Ricarica la pagina: il collegamento e la calibrazione restano.', b: 'Ricarica la pagina', act: 'reload' }
+       : { t: 'Sensori fermi', p: 'Il telefono non manda più il movimento al gioco.', b: 'Riattiva i sensori', act: 'revive' };
+   } else {
+     if (revivedAt != null && sensorWatch.last > revivedAt) revivedAt = null;
+-    if (linkState === 'on' && sensor === 'ready' && inputMode === 'motion' && !document.hidden && awake.state !== 1 && !awake.busy)
++    // anche durante il tutorial e la calibrazione (chi guarda il computer non tocca il telefono per un minuto)
++    if (linkState === 'on' && motion && !document.hidden && awake.state !== 1 && !awake.busy)
+       a = awake.state === -1
+         ? { t: 'Lo schermo può spegnersi', p: 'Questo browser non tiene acceso lo schermo: nelle impostazioni del telefono allunga lo spegnimento automatico dello schermo.' }
+         : { t: 'Lo schermo può spegnersi', p: 'Il telefono non lascia tenere acceso lo schermo (spesso per il risparmio energetico). Tocca il pulsante; se ricapita, disattiva il risparmio energetico.', b: 'Tieni acceso lo schermo', act: 'wake' };
+@@ -543,7 +588,20 @@ function paintAlert(){
+   $('#alertTitle').textContent = a.t; $('#alertText').textContent = a.p;
+   const b = $('#alertBtn'); b.textContent = a.b || ''; b.dataset.act = a.act || ''; show('#alertBtn', !!a.b);
+ }
+-setInterval(paintAlert, 500);
++function paintVeil(){
++  const active = inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal' || sensor === 'idle') && !document.hidden;
++  const on = veil.update(performance.now(), { active, wake: awake.state, wakeBusy: awake.busy, lastSample: sensorWatch.last });
++  if ($('#wakeVeil').classList.contains('hidden') === on){ show('#wakeVeil', on); if (on) alertKey = null; }
++}
++setInterval(() => { paintVeil(); paintAlert(); }, 500);
++// un tocco sul velo: blocco dello schermo, sensori (permesso su iPhone dentro il tocco) e schermo intero
++function resumeTap(){
++  veil.dismiss(); show('#wakeVeil', false); fsAfterVisible = false;
++  awake.tap().then(() => { sendState(); paintAlert(); });
++  reviveSensors();
++  if (wantFs) fullScreen();
++}
++$('#wakeVeil').addEventListener('click', e => { e.stopPropagation(); resumeTap(); });
+ $('#alertBtn').addEventListener('click', e => {
+   e.stopPropagation();
+   const act = e.currentTarget.dataset.act;
+@@ -563,4 +621,4 @@ function reviveSensors(){
+ checkOrientation();
+ connect();
+ $('#gripMode').value = grip;
+-window.__racchetta = { det, cal, face, setGrip, get state(){ return { linkState, sensor, phase, rtt, step: cal.state.step, grip, wake: awake.state }; } };
++window.__racchetta = { det, cal, face, setGrip, get state(){ return { linkState, sensor, phase, rtt, step: cal.state.step, grip, wake: awake.state, screen, gate: gate ? { ...gate } : null, veil: !$('#wakeVeil').classList.contains('hidden') }; } };
+diff --git a/site/tennis/racchetta.html b/site/tennis/racchetta.html
+index ff89fd1..e99728f 100644
+--- a/site/tennis/racchetta.html
++++ b/site/tennis/racchetta.html
+@@ -14,6 +14,8 @@
+     -webkit-user-select:none;user-select:none;touch-action:manipulation;overscroll-behavior:none}
+   body{display:flex;flex-direction:column;padding:max(14px,env(safe-area-inset-top)) 16px max(14px,env(safe-area-inset-bottom))}
+   .hidden{display:none!important}
++  /* l'attributo hidden vince sempre (prima «#profileOptions label{display:flex}» mostrava la riga «Presa» nascosta) */
++  [hidden]{display:none!important}
+   #bar{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;min-height:28px}
+   #bar i{width:10px;height:10px;border-radius:50%;background:var(--warn);flex:none}
+   #bar.ok i{background:var(--ok)} #bar.bad i{background:var(--bad)}
+@@ -39,7 +41,27 @@
+   #shotHint,#phaseFeedback{font-size:14px;color:var(--muted);text-align:center;margin:6px 0}
+   #manualAim{display:grid;gap:8px} #manualAim label:first-child{display:flex;align-items:center;justify-content:space-between}
+   #power{width:100%;min-height:36px} #touchHit{touch-action:none}
+-  #tutOk{margin-top:10px;font-size:21px;padding:20px}
++  /* tutorial sul computer (B9): «Tutto chiaro, ho capito» spento e grigio finché non si sono viste tutte le schede, poi
++     si accende con un lampo breve; frecce ‹ › per sfogliare le schede anche da qui */
++  #tutOk{margin-top:10px;font-size:21px;padding:20px;transition:background .25s,color .25s,box-shadow .25s}
++  #tutOk:disabled,#tutOk.off{background:#2f3a5c;color:#8d9ac0;box-shadow:none;cursor:default}
++  #tutOk.lit{animation:tut-lit 1.3s ease-out}
++  @keyframes tut-lit{0%{transform:scale(.96);box-shadow:0 0 0 0 rgba(232,255,58,.75)}35%{transform:scale(1.04);box-shadow:0 0 0 14px rgba(232,255,58,.25)}100%{transform:none;box-shadow:0 0 0 22px rgba(232,255,58,0)}}
++  #tutBox{display:grid;gap:10px;justify-items:center;text-align:center;margin-top:4px}
++  #tutWhere{font-size:17px;font-weight:700;color:var(--ink)}
++  #tutHint{font-size:15px;color:var(--muted);min-height:20px}
++  #tutDots{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
++  #tutDots i{width:10px;height:10px;border-radius:50%;background:#2a4590}
++  #tutDots i.seen{background:#a6b6dc} #tutDots i.on{background:var(--ball);transform:scale(1.35)}
++  #tutNav{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
++  #tutNav .btn{margin:0;font-size:20px;padding:16px 10px}
++  #tutNav .btn:disabled{opacity:.35}
++  /* di nuovo in primo piano (schermo riacceso): un tocco riprende schermo acceso, sensori e schermo intero */
++  #wakeVeil{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;
++    background:rgba(7,18,51,.94);color:var(--ink)}
++  #wakeVeil b{font-size:28px;line-height:1.15} #wakeVeil p{margin:0;font-size:17px;color:var(--muted);max-width:340px;line-height:1.4}
++  #wakeVeil .tap{width:84px;height:84px;border-radius:50%;border:4px solid var(--ball);animation:veil-pulse 1.4s ease-in-out infinite}
++  @keyframes veil-pulse{50%{transform:scale(1.12);box-shadow:0 0 0 10px rgba(232,255,58,.18)}}
+   #alert{margin-top:10px;background:#4a1830;border:1px solid var(--bad);border-radius:12px;padding:10px 14px;text-align:center;font-size:15px}
+   #alert p{margin:4px 0 0;color:#ffd9d4} #alert .btn{margin-top:8px;padding:12px;font-size:16px}
+   #rotate{position:fixed;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));z-index:20;background:#13245a;border:1px solid #405b9b;border-radius:12px;padding:10px 14px;text-align:center;font-size:15px}
+@@ -64,8 +86,9 @@
+ <div id="bar"><i></i><span id="barTxt">Collegamento…</span><small id="lat"></small></div>
+ <!-- sensori fermi o schermo che può spegnersi (phone-keep.js): cosa succede e cosa fare -->
+ <!-- tutorial sul computer prima della calibrazione (richiesta del 04/11): il pulsante sta in alto, lontano dalle dita che
+-     tengono la parte bassa del telefono (presa nel palmo). Toccandolo parte la calibrazione -->
+-<button class="btn hidden" id="tutOk">Tutto chiaro, ho capito</button>
++     tengono la parte bassa del telefono (presa nel palmo). Spento finché il computer non dice che sono state viste tutte
++     le schede (B9); toccandolo parte la calibrazione, o si torna a «Pronto» se il telefono è già calibrato -->
++<button class="btn hidden off" id="tutOk" disabled aria-disabled="true">Tutto chiaro, ho capito</button>
+ <div id="alert" class="hidden" role="alert"><b id="alertTitle"></b><p id="alertText"></p><button class="btn hidden" id="alertBtn"></button></div>
+ <div id="stage">
+   <div id="ring"><div id="arrow"></div><div id="big">NATPF</div></div>
+@@ -86,6 +109,13 @@
+   <div id="faceTxt" class="hidden" aria-live="off"></div>
+   <div id="sub">Mi collego al gioco sul computer…</div>
+ </div>
++<!-- tutorial: a che scheda è il computer, schede viste, frecce per sfogliarle da qui -->
++<div id="tutBox" class="hidden">
++  <div id="tutWhere" aria-live="polite"></div>
++  <div id="tutDots" aria-hidden="true"></div>
++  <div id="tutHint"></div>
++  <div id="tutNav"><button class="btn alt" id="tutPrev" aria-label="Scheda precedente">‹ Indietro</button><button class="btn alt" id="tutNext" aria-label="Scheda successiva">Avanti ›</button></div>
++</div>
+ <div id="phaseFeedback" aria-live="polite"></div>
+ <div id="profileOptions" class="hidden">
+   <label hidden>Presa <select id="gripMode"><option value="upright">Verticale · manico</option><option value="flat">Orizzontale · piatto</option></select></label>
+@@ -112,6 +142,7 @@
+ </div>
+ <!-- solo mentre il computer registra la diagnostica: segna nel registro l'istante di un problema -->
+ <button class="btn alt hidden" id="mark">⚑ Segna un problema</button>
++<div id="wakeVeil" class="hidden" role="button" tabindex="0" aria-label="Tocca lo schermo per riprendere"><i class="tap" aria-hidden="true"></i><b>Tocca lo schermo per riprendere</b><p id="wakeVeilText">Lo schermo si era spento: un tocco tiene acceso lo schermo e riattiva i sensori. Il collegamento e la calibrazione sono rimasti.</p></div>
+ <div id="rotate" class="hidden" role="status"><b>Il telefono si è girato</b><p>Il gioco continua: tieni il telefono come preferisci. Per leggere meglio questa pagina, raddrizzalo.</p></div>
+ <script type="module" src="../js/tennis/racchetta.js"></script>
+ </body>
+diff --git a/tools/test/phone-keep.test.mjs b/tools/test/phone-keep.test.mjs
+index 055b66b..3d52b9d 100644
+--- a/tools/test/phone-keep.test.mjs
++++ b/tools/test/phone-keep.test.mjs
+@@ -92,3 +92,28 @@ test('il rilascio di un blocco vecchio non tocca quello nuovo', async () => {
+   assert.equal(w.state, 1); assert.equal(w.lost, 1);
+   await tick();
+ });
++
++// B9 (05/11): schermo riacceso. Dopo VEIL.delayMs, se il blocco dello schermo non è tenuto (iPhone vuole un tocco) o i
++// sensori non sono ripartiti, il velo «Tocca lo schermo per riprendere»; una volta per ritorno, entro windowMs
++test('velo «Tocca per riprendere»: solo dopo il ritorno, se mancano blocco o sensori, una volta, poi via con il tocco', async () => {
++  const { createResumeVeil, VEIL } = await import('../../site/js/tennis/phone-keep.js');
++  const v = createResumeVeil();
++  assert.equal(v.update(5000, { wake: 0, lastSample: null }), false, 'senza un ritorno in primo piano: niente');
++  v.back(10000);
++  assert.equal(v.update(10000 + VEIL.delayMs - 1, { wake: 0, lastSample: null }), false, 'prima dell\'attesa: niente');
++  assert.equal(v.update(10000 + VEIL.delayMs, { wake: 0, lastSample: 10100 }), true, 'blocco non tenuto: velo');
++  assert.equal(v.update(10000 + VEIL.delayMs + 500, { wake: 1, lastSample: 10100 }), true, 'resta finché non si tocca');
++  v.dismiss(); assert.equal(v.update(13000, { wake: 0, lastSample: null }), false, 'dopo il tocco non ricompare');
++  // sensori non ripartiti (nessun campione dopo il ritorno), blocco tenuto
++  v.back(20000); assert.equal(v.update(20000 + VEIL.delayMs, { wake: 1, lastSample: 19000 }), true);
++  v.dismiss();
++  // tutto a posto: niente velo, e per questo ritorno non si guarda più
++  v.back(30000); assert.equal(v.update(30000 + VEIL.delayMs, { wake: 1, lastSample: 30500 }), false);
++  assert.equal(v.update(30000 + VEIL.delayMs + 500, { wake: 0, lastSample: 30500 }), false, 'un rilascio dopo lo gestiscono gli avvisi piccoli');
++  // il browser non offre il blocco (-1) o lo sta chiedendo: conta solo che i sensori siano ripartiti
++  v.back(40000); assert.equal(v.update(40000 + VEIL.delayMs, { wake: -1, lastSample: 40200 }), false);
++  v.back(50000); assert.equal(v.update(50000 + VEIL.delayMs, { wake: 0, wakeBusy: true, lastSample: 50200 }), false);
++  // sensori non in uso (pagina «Attiva i sensori», tocchi): niente; oltre windowMs: niente
++  v.back(60000); assert.equal(v.update(60000 + VEIL.delayMs, { active: false, wake: 0 }), false);
++  assert.equal(v.update(60000 + VEIL.windowMs + 1, { wake: 0, lastSample: null }), false);
++});
+diff --git a/tools/test/phone-screen.test.mjs b/tools/test/phone-screen.test.mjs
+new file mode 100644
+index 0000000..a05be11
+--- /dev/null
++++ b/tools/test/phone-screen.test.mjs
+@@ -0,0 +1,163 @@
++// Pagina del telefono (B9, 05/11): una sola schermata alla volta (phone-screen.js), «Tutto chiaro, ho capito» spento finché
++// il computer non dice che si sono viste tutte le schede, mai sopra «Pronto»; Ricalibra/Ricollega/Scollega solo sotto
++// «Pronto». Più la correzione del CSS che mostrava la riga «Presa» nascosta.
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++import { phoneView, screenOf, PHONE_SCREENS, gateOnCfg, gateOnProgress, gateRestore, gateNav, tutConfirmable, sensorOnGateOpen,
++  sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts } from '../../site/js/tennis/phone-screen.js';
++
++const LINKS = ['off', 'connecting', 'on', 'lost', 'denied'];
++const SENSORS = ['off', 'denied', 'nomotion', 'insecure', 'idle', 'cal', 'ready'];
++const STEPS = [null, 'still', 'grip', 'swings', 'review', 'free', 'done'];
++const G2 = { v: 2, i: 3, n: 11, s: 4, m: 0b1111, all: false, name: 'Rovescio' };
++const GATES = [null, { ...G2 }, { ...G2, all: true, s: 11 }, { v: 1, i: 0, n: 0, s: 0, m: 0, all: false, name: '' }];
++
++test('schermate esclusive: in ogni combinazione una sola, «ho capito» solo nel tutorial, strumenti solo in «Pronto»', () => {
++  let n = 0;
++  for (const linkState of LINKS) for (const sensor of SENSORS) for (const gate of GATES) for (const inputMode of ['motion', 'touch']) for (const calStep of STEPS){
++    const v = phoneView({ linkState, sensor, gate, inputMode, calStep, hasPair: true });
++    n++;
++    assert.ok(PHONE_SCREENS.includes(v.screen));
++    assert.equal(v.screen, screenOf({ linkState, sensor, gate }));
++    const ctx = JSON.stringify({ linkState, sensor, gate: !!gate, inputMode, calStep, screen: v.screen });
++    // il difetto del 05/11: «Tutto chiaro» e «Pronto» (con Ricalibra, Ricollega, Scollega) insieme
++    assert.ok(!(v.show['#tutOk'] && v.show['#tools']), ctx);
++    assert.equal(v.show['#tutOk'], v.screen === 'tutorial', ctx);
++    assert.equal(v.show['#tutBox'], v.screen === 'tutorial', ctx);
++    assert.equal(v.show['#tools'], v.screen === 'ready', ctx);
++    // nel tutorial: niente opzioni, «Gioca con i tocchi», pannello dei colpi
++    if (v.screen === 'tutorial') for (const k of ['#profileOptions', '#enableTouch', '#shotPanel', '#enable', '#retry']) assert.equal(v.show[k], false, `${k} ${ctx}`);
++    // in calibrazione niente Ricalibra/Ricollega/Scollega (scelta del 05/11)
++    if (v.screen === 'cal') assert.equal(v.show['#tools'], false, ctx);
++    if (linkState !== 'on') assert.equal(v.screen, 'link', ctx);
++    // telefono pronto con il tutorial aperto dal computer: schermata del tutorial, non «Pronto»
++    if (linkState === 'on' && sensor === 'ready' && gate) assert.equal(v.screen, 'tutorial', ctx);
++  }
++  assert.ok(n > 1000);
++});
++
++test('«Tutto chiaro, ho capito»: spento fino all\'ultima scheda vista (computer v2), acceso subito con un computer di prima', () => {
++  const on = gate => phoneView({ linkState: 'on', sensor: 'idle', gate }).tutOk.on;
++  let g = gateOnCfg(null, { tut: 1, tv: 2 });
++  assert.deepEqual(g, { v: 2, i: 0, n: 0, s: 0, m: 0, all: false, name: '' });
++  assert.equal(on(g), false, 'appena aperto: spento');
++  for (let s = 1; s < 11; s++){ g = gateOnProgress(g, { i: s - 1, n: 11, s, m: (1 << s) - 1, all: 0, nm: 'X' }); assert.equal(on(g), false, `viste ${s}`); }
++  g = gateOnProgress(g, { i: 10, n: 11, s: 11, m: 2047, all: 1, nm: 'Volée' });
++  assert.equal(on(g), true, 'tutte viste: acceso'); assert.equal(g.name, 'Volée');
++  // indietro: resta acceso (il computer è la fonte di verità, «all» non torna falso nella stessa apertura)
++  g = gateOnProgress(g, { i: 2, n: 11, s: 11, m: 2047, all: 0 });
++  assert.equal(on(g), true); assert.equal(g.i, 2);
++  // cfg ripetuto (ricollegamento, cambio di mano) con il tutorial aperto: l'avanzamento resta
++  assert.equal(gateOnCfg(g, { tut: 1, tv: 2 }).all, true); assert.equal(gateOnCfg(g, { tut: 1, tv: 2 }).i, 2);
++  // il computer chiude il tutorial: niente cancello
++  assert.equal(gateOnCfg(g, {}), null);
++  // computer di prima (cfg tut senza tv): pulsante acceso subito, niente frecce (non le capirebbe)
++  const old = gateOnCfg(null, { tut: 1 });
++  assert.equal(on(old), true); assert.deepEqual(gateNav(old), { show: false, prev: false, next: false });
++  assert.equal(tutConfirmable(null), false);
++  // valori strani dal computer: limitati
++  const odd = gateOnProgress(gateOnCfg(null, { tut: 1, tv: 2 }), { i: 99, n: 5, s: -3 });
++  assert.equal(odd.i, 4); assert.equal(odd.s, 0);
++});
++
++test('frecce del telefono: spente agli estremi', () => {
++  assert.deepEqual(gateNav({ ...G2, i: 0 }), { show: true, prev: false, next: true });
++  assert.deepEqual(gateNav({ ...G2, i: 5 }), { show: true, prev: true, next: true });
++  assert.deepEqual(gateNav({ ...G2, i: 10 }), { show: true, prev: true, next: false });
++  assert.deepEqual(gateNav(null), { show: false, prev: false, next: false });
++});
++
++// Simulazione della pagina con le funzioni pure, nell'ordine in cui le usa racchetta.js
++function phone(){
++  const setGate = g => { P.gate = g; P.store = g ? JSON.parse(JSON.stringify(g)) : null; };
++  const P = {
++    linkState: 'on', sensor: 'off', gate: null, store: null, sent: [],
++    get screen(){ return phoneView(P).screen; },
++    get okOn(){ return phoneView(P).tutOk.on; },
++    enable(profile = false){ P.sensor = profile ? 'ready' : sensorForCal(P.gate); },
++    cfg(d){ const was = P.gate; setGate(gateOnCfg(P.gate, d)); if (P.gate){ P.sent.push({ t: 'tut', w: 1, v: 2 }); if (!was) P.sensor = sensorOnGateOpen(P.sensor); } else if (was && P.sensor === 'idle') P.sensor = 'cal'; },
++    tp(d){ if (P.gate) setGate(gateOnProgress(P.gate, d)); },
++    ok(){ if (!tutConfirmable(P.gate)) return false; setGate(null); P.sent.push({ t: 'tut', ok: 1 }); P.sensor = sensorOnGateClose(P.sensor); return true; },
++    recal(){ P.sensor = sensorForCal(P.gate); },
++    confirm(){ P.sensor = 'ready'; },
++    reload(){ P.gate = gateRestore(P.store); P.sensor = 'off'; P.linkState = 'connecting'; },
++    welcome(){ P.linkState = 'on'; },
++  };
++  return P;
++}
++const ALL = { i: 10, n: 11, s: 11, m: 2047, all: 1 };
++
++test('macchina del telefono: tutorial → calibrazione → «Pronto»; mai «ho capito» sopra «Pronto»', () => {
++  const p = phone();
++  assert.equal(p.screen, 'enable');
++  p.cfg({ tut: 1, tv: 2 });                  // il computer apre il tutorial prima che si attivino i sensori
++  assert.equal(p.screen, 'enable', 'prima «Attiva i sensori»');
++  p.enable();
++  assert.equal(p.sensor, 'idle'); assert.equal(p.screen, 'tutorial'); assert.equal(p.okOn, false);
++  assert.equal(reportedSensor(p.sensor), 'tut', 'il computer legge «tut» (non pronto)');
++  assert.equal(p.ok(), false, 'spento: il tocco non fa niente');
++  p.tp({ i: 0, n: 11, s: 1, m: 1, all: 0 }); assert.equal(p.okOn, false);
++  p.tp(ALL); assert.equal(p.okOn, true);
++  assert.equal(p.ok(), true); assert.equal(p.sensor, 'cal'); assert.equal(p.screen, 'cal');
++  p.confirm(); assert.equal(p.screen, 'ready');
++  // «Ricalibra» da «Pronto»: calibrazione, il tutorial non torna
++  p.recal(); assert.equal(p.screen, 'cal'); p.confirm(); assert.equal(p.screen, 'ready');
++});
++
++test('macchina del telefono: già calibrato quando il computer apre il tutorial → tutorial, poi direttamente «Pronto»', () => {
++  const p = phone();
++  p.enable(true); assert.equal(p.screen, 'ready');
++  p.cfg({ tut: 1, tv: 2 });
++  assert.equal(p.sensor, 'ready', 'il profilo resta'); assert.equal(p.screen, 'tutorial', 'non «Pronto»');
++  assert.equal(reportedSensor(p.sensor), 'ready', 'per il computer resta pronto (niente pausa sopra la modale)');
++  p.tp(ALL); p.ok();
++  assert.equal(p.screen, 'ready', 'dopo «ho capito» niente calibrazione');
++  assert.match(tutorialTexts({ ...G2, all: true }, { sensor: 'ready' }).sub, /poi si gioca/);
++  assert.match(tutorialTexts({ ...G2, all: true }, { sensor: 'idle' }).sub, /poi si calibra/);
++});
++
++test('macchina del telefono: calibrazione in corso interrotta dal tutorial riparte dopo; il computer che chiude il tutorial fa calibrare', () => {
++  const p = phone();
++  p.enable(); assert.equal(p.sensor, 'cal');
++  p.cfg({ tut: 1, tv: 2 }); assert.equal(p.sensor, 'idle'); assert.equal(p.screen, 'tutorial');
++  // «Ricalibra» (comando del computer) o segno dei sensori cambiato con il tutorial aperto: si aspetta la fine
++  p.recal(); assert.equal(p.sensor, 'idle'); assert.equal(p.screen, 'tutorial');
++  // Esc sul computer: cfg senza tut → si calibra
++  p.cfg({}); assert.equal(p.gate, null); assert.equal(p.sensor, 'cal'); assert.equal(p.screen, 'cal');
++});
++
++test('macchina del telefono: ricollegamento e pagina ricaricata riprendono dalla scheda raggiunta, mai un lampo di «Pronto»', () => {
++  const p = phone();
++  p.enable(true); p.cfg({ tut: 1, tv: 2 }); p.tp({ i: 6, n: 11, s: 7, m: 127, all: 0 });
++  // ricollegamento (schermo spento, «Ricollega»): il cancello resta, il computer rimanda cfg e tp
++  p.linkState = 'lost'; assert.equal(p.screen, 'link'); p.welcome();
++  assert.equal(p.screen, 'tutorial'); assert.equal(p.gate.i, 6);
++  p.cfg({ tut: 1, tv: 2 }); p.tp({ i: 6, n: 11, s: 7, m: 127, all: 0 }); assert.equal(p.gate.s, 7);
++  // pagina ricaricata: il cancello torna dalla scheda (sessionStorage); dopo «Attiva i sensori» il tutorial, non «Pronto»
++  p.reload(); assert.equal(p.gate.i, 6); assert.equal(p.gate.all, false); p.welcome();
++  assert.equal(p.screen, 'enable'); p.enable(true); assert.equal(p.screen, 'tutorial'); assert.equal(p.okOn, false);
++  // il computer nel frattempo ha chiuso il tutorial (Esc): al primo cfg il cancello sparisce
++  p.cfg({}); assert.equal(p.screen, 'ready');
++  assert.equal(gateRestore(null), null); assert.equal(gateRestore({ v: 3 }), null); assert.equal(gateRestore('x'), null);
++});
++
++test('stato per il computer e tocco del telefono: «sensors», «tut», poi gli altri come sono', () => {
++  assert.equal(reportedSensor('off'), 'sensors'); assert.equal(reportedSensor('idle'), 'tut');
++  for (const s of ['cal', 'ready', 'denied']) assert.equal(reportedSensor(s), s);
++  assert.equal(sensorOnGateOpen('cal'), 'idle'); assert.equal(sensorOnGateOpen('ready'), 'ready'); assert.equal(sensorOnGateOpen('off'), 'off');
++  assert.equal(sensorOnGateClose('idle'), 'cal'); assert.equal(sensorOnGateClose('ready'), 'ready');
++  assert.equal(sensorForCal(null), 'cal'); assert.equal(sensorForCal(G2), 'idle');
++});
++
++const HTML = readFileSync(new URL('../../site/tennis/racchetta.html', import.meta.url), 'utf8');
++const JS = readFileSync(new URL('../../site/js/tennis/racchetta.js', import.meta.url), 'utf8');
++test('pagina del telefono: [hidden] vince sulle regole dei label (riga «Presa» nascosta), elementi del tutorial e del velo', () => {
++  assert.match(HTML, /\[hidden\]\{display:none!important\}/);
++  assert.match(HTML, /<label hidden>Presa/);
++  for (const id of ['tutOk', 'tutBox', 'tutWhere', 'tutDots', 'tutHint', 'tutPrev', 'tutNext', 'wakeVeil']) assert.match(HTML, new RegExp(`id="${id}"`), id);
++  assert.match(HTML, /id="tutOk"[^>]*disabled/, '«ho capito» parte spento');
++  // nessuna condizione propria per «ho capito» e per gli strumenti: solo phoneView
++  assert.doesNotMatch(JS, /show\('#tutOk'/); assert.doesNotMatch(JS, /show\('#tools'/);
++  assert.doesNotMatch(JS, /tutWait/);
++});
+-- 
+2.43.0
+
+
+From 75d819d41edf81d5b79962c366d7647e3550a507 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 03:02:20 +0000
+Subject: [PATCH 2/2] WIP B9: modifiche in corso salvate prima della ripresa
+ (limite d'uso)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ tools/e2e/natpf-training-flow.mjs | 21 +++++++++++++++------
+ tools/e2e/th.mjs                  | 23 +++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 6 deletions(-)
+
+diff --git a/tools/e2e/natpf-training-flow.mjs b/tools/e2e/natpf-training-flow.mjs
+index 69e184a..871d280 100644
+--- a/tools/e2e/natpf-training-flow.mjs
++++ b/tools/e2e/natpf-training-flow.mjs
+@@ -11,7 +11,7 @@ import { writeFileSync } from 'node:fs';
+ import { fileURLToPath } from 'node:url';
+ import express from 'express';
+ import { ExpressPeerServer } from 'peer';
+-import { launch, page, check, summary, SP } from './th.mjs';
++import { launch, page, check, summary, SP, seeAllCards } from './th.mjs';
+ import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
+ 
+ const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
+@@ -99,12 +99,21 @@ try {
+   // si entra in campo da soli (telefono con i sensori attivi)
+   const inField = await game.waitForFunction(() => __natpfTennis.natpfUi.training.active, null, { timeout: 8000 }).then(() => true, () => false);
+   check('con i sensori attivi si entra nel campo d’allenamento', inField);
+-  // prima della calibrazione la modale del tutorial (04/11): presa e gesti sul computer, il telefono aspetta e mostra
+-  // «Tutto chiaro, ho capito»; toccato quello, parte la calibrazione (prima: lezione a passi con «Avanti»)
+-  const tut = await game.evaluate(() => ({ open: __natpfTennis.natpfUi.training.tutorialOpen, cards: document.querySelectorAll('#natpf-tutorial .tut-tab').length, wait: document.querySelector('#natpf-tutorial .tut-wait')?.textContent || '', coachDemo: !document.getElementById('coach-demo')?.classList.contains('hidden') }));
+-  const phoneTut = await phone.waitForFunction(() => { const b = document.getElementById('tutOk'); return b && !b.classList.contains('hidden') ? { sensor: __racchetta.state.sensor, big: document.getElementById('big').textContent } : null; }, null, { timeout: 8000 }).then(h => h.jsonValue(), () => null);
++  // prima della calibrazione la modale del tutorial (04/11, compatta con le frecce dal 05/11): presa e gesti sul
++  // computer, il telefono mostra «Tutto chiaro, ho capito» SPENTO finché non si sono viste tutte le schede (B9); toccato
++  // quello, parte la calibrazione (prima: lezione a passi con «Avanti»)
++  const tut = await game.evaluate(() => ({ open: __natpfTennis.natpfUi.training.tutorialOpen, cards: document.querySelectorAll('#natpf-tutorial .tut-dot').length, arrows: document.querySelectorAll('#natpf-tutorial .tut-arrow').length, tabs: document.querySelectorAll('#natpf-tutorial .tut-tab').length, wait: document.querySelector('#natpf-tutorial .tut-wait')?.textContent || '', coachDemo: !document.getElementById('coach-demo')?.classList.contains('hidden') }));
++  const phoneTut = await phone.waitForFunction(() => { const b = document.getElementById('tutOk'); return b && !b.classList.contains('hidden') ? { screen: __racchetta.state.screen, sensor: __racchetta.state.sensor, off: b.disabled, tools: !document.getElementById('tools').classList.contains('hidden'), big: document.getElementById('big').textContent } : null; }, null, { timeout: 8000 }).then(h => h.jsonValue(), () => null);
+   await shot('0b-tutorial');
+-  check('modale del tutorial sul computer (presa e gesti) e il telefono aspetta «Tutto chiaro, ho capito»', tut.open && tut.cards >= 10 && /Tutto chiaro/.test(tut.wait) && !!phoneTut && phoneTut.sensor === 'tut', JSON.stringify({ tut, phoneTut }));
++  check('modale del tutorial sul computer (11 schede, frecce ‹ ›, niente etichette) e il telefono aspetta con «Tutto chiaro» spento', tut.open && tut.cards === 11 && tut.arrows === 2 && tut.tabs === 0 && /Tutto chiaro/.test(tut.wait) && !!phoneTut && phoneTut.screen === 'tutorial' && phoneTut.sensor === 'idle' && phoneTut.off && !phoneTut.tools, JSON.stringify({ tut, phoneTut }));
++  // spento davvero: il tocco non fa niente
++  await phone.evaluate(() => document.getElementById('tutOk').click());
++  await phone.waitForTimeout(400);
++  check('«Tutto chiaro» spento: toccarlo non chiude la modale', await game.evaluate(() => __natpfTennis.natpfUi.training.tutorialOpen));
++  // le schede si sfogliano dal telefono («Avanti ›»), una alla volta: dopo l'ultima il pulsante si accende
++  const allSeen = await seeAllCards(phone);
++  const lit = await game.evaluate(() => { const T = __natpfTennis.natpfUi.training.tutorial; return { idx: T.state.idx, all: T.state.all, seen: [...T.state.visited].sort((a, b) => a - b).join(','), timer: !!T.timer }; });
++  check('schede sfogliate dal telefono: dopo l’ultima «Tutto chiaro» si accende', allSeen && lit.all && lit.idx === 10, JSON.stringify(lit));
+   await phone.click('#tutOk');
+   const closed = await game.waitForFunction(() => !__natpfTennis.natpfUi.training.tutorialOpen && document.getElementById('natpf-tutorial').classList.contains('hidden'), null, { timeout: 5000 }).then(() => true, () => false);
+   check('«Tutto chiaro, ho capito» sul telefono chiude la modale e avvia la calibrazione', closed && await phone.evaluate(() => __racchetta.state.sensor === 'cal' && document.getElementById('tutOk').classList.contains('hidden')));
+diff --git a/tools/e2e/th.mjs b/tools/e2e/th.mjs
+index 8e3975b..a367cea 100644
+--- a/tools/e2e/th.mjs
++++ b/tools/e2e/th.mjs
+@@ -55,11 +55,34 @@ export async function quickCalibrate(phone, plan, { timeout = 12000 } = {}){
+ // «Calibra». Durante la lezione il computer non segue la calibrazione del telefono (natpf_training._onCal).
+ // Con il telefono, dal 04/11, al posto della lezione c'è la modale del tutorial: si chiude toccando «Tutto chiaro, ho
+ // capito» sul telefono (phone), come chi gioca; senza la pagina del telefono, con Esc come chi gestisce la postazione.
++// Dal 05/11 (B9) «Tutto chiaro» resta spento finché non si sono viste tutte le schede (ognuna almeno 1 s): seeAllCards le
++// sfoglia con «Avanti ›» sul telefono, come chi gioca.
++export async function seeAllCards(phone, { timeout = 60000, stepMs = 1150 } = {}){
++  const t0 = Date.now();
++  // stato dal telefono: pulsante acceso, scheda mostrata (i di n) e schede viste (maschera m), come l'ha mandato il computer
++  const read = () => phone.evaluate(() => { const b = document.getElementById('tutOk'), g = window.__racchetta?.state?.gate; return { on: !!b && !b.disabled && !b.classList.contains('hidden'), g }; });
++  // (tocco senza aspettare: lo stato delle frecce arriva dal computer e può essere cambiato nel frattempo)
++  const tap = id => phone.evaluate(id => { const b = document.getElementById(id); if (b && !b.disabled) b.click(); }, id);
++  while (Date.now() - t0 < timeout){
++    const st = await read();
++    if (st.on) return true;
++    await phone.waitForTimeout(stepMs);
++    const g = st.g;
++    if (!g || !g.n){ await tap('tutNext'); continue; }
++    // verso la prima scheda non ancora vista (una passata troppo in fretta si rivede); su quella si aspetta
++    let u = 0; while (u < g.n && (g.m >>> u) & 1) u++;
++    const now = (await read()).g || g;
++    if (u >= g.n || u === now.i) continue;
++    await tap(u > now.i ? 'tutNext' : 'tutPrev');
++  }
++  return false;
++}
+ export async function finishLesson(game, max = 8, phone = null){
+   for (let k = 0; k < max && await game.evaluate(() => !!window.__natpfTennis?.natpfUi?.training?.lesson); k++) await game.click('#coach-lesson-next');
+   if (!await game.evaluate(() => !!window.__natpfTennis?.natpfUi?.training?.tutorialOpen)) return null;
+   if (phone){
+     await phone.waitForFunction(() => { const b = document.getElementById('tutOk'); return b && !b.classList.contains('hidden'); }, null, { timeout: 8000 });
++    await seeAllCards(phone);
+     await phone.click('#tutOk');
+   } else await game.keyboard.press('Escape');
+   await game.waitForFunction(() => !window.__natpfTennis.natpfUi.training.tutorialOpen, null, { timeout: 8000 });
+-- 
+2.43.0
+

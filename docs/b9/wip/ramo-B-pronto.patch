@@ -1,0 +1,1334 @@
+From 8698c4bd4780e8f2bc9427904b625224a72b4529 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 5 Nov 2026 22:21:41 +0000
+Subject: [PATCH 1/2] B9 pronto 1v1: stesso schermo con schede per giocatore e
+ conto alla rovescia
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- natpf_ready.js (nuovo): quattro stati (in attesa, si prepara, pronto, problema) con
+  colore, icona e parola; schede dallo stato del telefono o della webcam; chi manca;
+  conto alla rovescia che scatta una volta, si annulla e riparte da capo
+- stesso schermo: ogni metà è la scheda del giocatore con il nome; stato del tutorial
+  nella metà (prima «Attiva i sensori» con i sensori attivi); barra dell'avvio;
+  con tutti e due pronti e il tutorial chiuso conto di 3 s grande sul computer e
+  annunciato sui telefoni, poi si gioca da soli; telefono che cade: conto annullato
+  con il motivo; «Aspetta» o Esc lo fermano; niente salto muto a «Partita»
+- pagina «Partita»: schede dal vivo, «Gioca» grigio e spento con un telefono non pronto
+- telefono: una riga nel messaggio «ev» (k count) per il conto e l'annullamento
+- test: natpf-ready (6) e 5 nuovi in natpf-split; autoAdvance dello split aggiornato
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ natpf-tennis/index.html                  |  30 +++-
+ natpf-tennis/natpf-ui.css                |  93 ++++++++++-
+ natpf-tennis/src/natpf/natpf_lobby.js    |  34 +++-
+ natpf-tennis/src/natpf/natpf_ready.js    | 118 ++++++++++++++
+ natpf-tennis/src/natpf/natpf_split_ui.js | 188 ++++++++++++++++++++---
+ natpf-tennis/test/natpf-ready.test.mjs   | 122 +++++++++++++++
+ natpf-tennis/test/natpf-split.test.mjs   | 150 +++++++++++++++++-
+ site/js/tennis/racchetta.js              |   3 +
+ 8 files changed, 699 insertions(+), 39 deletions(-)
+ create mode 100644 natpf-tennis/src/natpf/natpf_ready.js
+ create mode 100644 natpf-tennis/test/natpf-ready.test.mjs
+
+diff --git a/natpf-tennis/index.html b/natpf-tennis/index.html
+index 05c9d66..f25b8fa 100644
+--- a/natpf-tennis/index.html
++++ b/natpf-tennis/index.html
+@@ -433,7 +433,7 @@
+           <!-- stesso schermo (split screen, natpf_split_ui.js): un telefono per giocatore, ognuno con il suo QR e la sua
+                calibrazione guidata sul telefono; si va alla partita quando sono pronti tutti e due -->
+           <div class="setup-panel split-setup" data-setup="split">
+-            <div class="split-names" style="display:flex;gap:1cqw;flex-wrap:wrap"><label>Player 1 · sinistra <input data-split-name="p1" maxlength="24" placeholder="Player 1" autocomplete="off" style="max-width:22cqw"></label><label>Player 2 · destra <input data-split-name="p2" maxlength="24" placeholder="Player 2" autocomplete="off" style="max-width:22cqw"></label></div>
++            <div class="split-names"><label>Player 1 · sinistra <input class="split-name-input" data-split-name="p1" maxlength="24" placeholder="Player 1" autocomplete="off" spellcheck="false"></label><label>Player 2 · destra <input class="split-name-input" data-split-name="p2" maxlength="24" placeholder="Player 2" autocomplete="off" spellcheck="false"></label></div>
+             <div class="lobby-row split-input-row">
+               <span class="lobby-label">Si gioca con</span>
+               <div class="lobby-seg" role="radiogroup" aria-label="Si gioca con">
+@@ -448,8 +448,10 @@
+                 <button type="button" class="lobby-primary" id="split-cam-go">Accendi la webcam</button>
+               </div>
+             </div>
+-            <div class="split-player" data-split-player="p1">
+-              <header class="split-head"><b>Player 1</b><span>gioca a sinistra</span></header>
++            <!-- scheda del giocatore (natpf_ready.js): nome, distintivo con icona e parola (in attesa · si prepara · pronto ·
++                 problema), bordo del colore dello stato; la striscia a sinistra è il colore del giocatore -->
++            <div class="split-player is-off" data-split-player="p1" data-ready="off">
++              <header class="split-head"><span class="split-who"><b data-ready-name>Player 1</b><span>gioca a sinistra</span></span><span class="ready-badge"><i class="ready-ico" aria-hidden="true"></i><b data-ready-word>In attesa</b></span></header>
+               <div class="split-qr"><div id="split-qr-p1" class="natpf-qr"></div><a id="split-link-p1" class="sheet-link" target="_blank" rel="noopener">Apri il link ↗</a></div>
+               <p class="split-status" id="split-status-p1" data-state="wait"><b>Preparo il QR…</b><span></span></p>
+               <div class="split-actions">
+@@ -458,8 +460,8 @@
+                 <button type="button" class="lobby-link" data-split-skip="p1">Gioca senza calibrare</button>
+               </div>
+             </div>
+-            <div class="split-player" data-split-player="p2">
+-              <header class="split-head"><b>Player 2</b><span>gioca a destra</span></header>
++            <div class="split-player is-off" data-split-player="p2" data-ready="off">
++              <header class="split-head"><span class="split-who"><b data-ready-name>Player 2</b><span>gioca a destra</span></span><span class="ready-badge"><i class="ready-ico" aria-hidden="true"></i><b data-ready-word>In attesa</b></span></header>
+               <div class="split-qr"><div id="split-qr-p2" class="natpf-qr"></div><a id="split-link-p2" class="sheet-link" target="_blank" rel="noopener">Apri il link ↗</a></div>
+               <p class="split-status" id="split-status-p2" data-state="wait"><b>Preparo il QR…</b><span></span></p>
+               <div class="split-actions">
+@@ -468,6 +470,13 @@
+                 <button type="button" class="lobby-link" data-split-skip="p2">Gioca senza calibrare</button>
+               </div>
+             </div>
++            <!-- barra dell'avvio: chi manca; con tutti e due pronti il conto alla rovescia (poi si gioca da soli), «Aspetta» -->
++            <div id="split-ready-bar" class="ready-bar" data-ready-bar="wait" aria-live="polite">
++              <span class="ready-bar-count" data-ready-count aria-hidden="true"></span>
++              <p class="ready-bar-text"><b data-ready-bar-title>Si parte da soli quando tutti e due i giocatori sono pronti</b><span data-ready-bar-sub></span></p>
++              <button type="button" class="lobby-ghost hidden" data-split-hold>Aspetta</button
++              ><button type="button" class="lobby-primary hidden" data-split-play>Gioca ›</button>
++            </div>
+             <p class="split-grip"><span data-grip-text="split">Presa nel palmo: lo schermo verso di te, le dita attorno alla parte bassa, il pollice sul bordo, la cima inclinata in avanti verso lo schermo.</span> Ognuno segue i passi sul suo telefono.</p>
+           </div>
+           <p id="connect-warn" class="natpf-warn hidden"></p>
+@@ -493,6 +502,8 @@
+ 
+         <section class="lobby-page" data-page="match" aria-labelledby="lobby-t-match">
+           <header class="page-head"><h2 class="lobby-title" id="lobby-t-match">Pronto per la partita</h2></header>
++          <!-- stesso schermo: le schede dei due giocatori, dal vivo (natpf_split_ui.paintMatch) -->
++          <div id="split-ready-board" class="ready-board" aria-live="polite"></div>
+           <div id="lobby-practice-result" class="lobby-result hidden" aria-live="polite"></div>
+           <div class="lobby-tiles" id="difficulty-mode-group" role="radiogroup">
+             <button type="button" class="nt-green-choice lobby-tile selected" data-difficulty="casual" role="radio">
+@@ -558,6 +569,15 @@
+         ><button type="button" id="lobby-next" class="lobby-primary">Avanti ›</button
+         ><button id="btn-start-match" type="button" class="lobby-primary"><span>Gioca</span> ›</button>
+       </footer>
++      <!-- stesso schermo: conto alla rovescia prima della partita, grande al centro (natpf_split_ui._paintStart) -->
++      <div id="split-countdown" class="split-countdown hidden" role="status" aria-live="assertive">
++        <div class="split-countdown-box">
++          <p class="split-countdown-kicker">Tutto pronto · si gioca tra</p>
++          <b class="split-countdown-num" data-split-count>3</b>
++          <p class="split-countdown-sub" data-split-count-names></p>
++          <button type="button" class="lobby-ghost" data-split-hold>Aspetta <kbd>Esc</kbd></button>
++        </div>
++      </div>
+     </div>
+     <div id="companion-modal" class="nt-modal-backdrop hidden">
+       <div class="nt-dialog-box nt-companion-clean-dialog">
+diff --git a/natpf-tennis/natpf-ui.css b/natpf-tennis/natpf-ui.css
+index 2340aff..4c26dbe 100644
+--- a/natpf-tennis/natpf-ui.css
++++ b/natpf-tennis/natpf-ui.css
+@@ -1039,13 +1039,53 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
+ /* pagina «Collega» con lo stesso schermo: un pannello per giocatore (QR, stato del telefono, mano) */
+ #title-modal .split-setup { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+ #title-modal .split-setup.hidden { display: none; }
+-#title-modal .split-player { display: grid; grid-template-columns: 150px 1fr; grid-template-areas: "head head" "qr status" "qr actions"; gap: 10px 16px; align-items: start; padding: 16px; border-radius: var(--r-l); background: var(--panel); border: 1px solid var(--line); }
+-#title-modal .split-player.ready { border-color: var(--ok); box-shadow: 0 0 0 2px rgba(64, 214, 128, 0.25); }
+-#title-modal .split-player[data-split-player="p2"] { border-top: 4px solid var(--pink); }
+-#title-modal .split-player[data-split-player="p1"] { border-top: 4px solid var(--ball); }
+-#title-modal .split-head { grid-area: head; display: flex; align-items: baseline; gap: 10px; }
+-#title-modal .split-head b { font: 800 italic 26px/1 var(--font-display); text-transform: uppercase; }
+-#title-modal .split-head span { font: 600 13px/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
++/* scheda del giocatore (natpf_ready.js, B9): la striscia a sinistra è il colore del giocatore (chi è), il bordo e il
++   distintivo sono lo stato (in attesa tratteggiato grigio · si prepara ambra · pronto verde su tutti i lati · problema
++   rosso). Prima il bordo superiore restava giallo o rosa anche da pronti */
++#title-modal .split-player { --who: var(--ball); display: grid; grid-template-columns: 150px 1fr; grid-template-areas: "head head" "qr status" "qr actions"; gap: 10px 16px; align-items: start; padding: 16px 16px 16px 24px; border-radius: var(--r-l); background: var(--panel); border: 2px solid var(--line-strong); box-shadow: inset 6px 0 0 var(--who); transition: border-color var(--t-med), background var(--t-med), box-shadow var(--t-med); }
++#title-modal .split-player[data-split-player="p2"] { --who: var(--pink); }
++#title-modal .split-player.is-off { border-style: dashed; }
++#title-modal .split-player.is-prep { border-color: rgba(255, 198, 64, 0.72); }
++#title-modal .split-player.is-ready { border-color: var(--ok); background: linear-gradient(rgba(54, 224, 122, 0.14), rgba(54, 224, 122, 0.14)), var(--panel); box-shadow: inset 6px 0 0 var(--who), 0 0 0 3px rgba(54, 224, 122, 0.28); }
++#title-modal .split-player.is-ko { border-color: var(--bad); box-shadow: inset 6px 0 0 var(--who), 0 0 0 3px rgba(255, 79, 97, 0.22); }
++#title-modal .split-head { grid-area: head; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
++#title-modal .split-who { display: flex; align-items: baseline; gap: 10px; min-width: 0; margin-right: auto; }
++#title-modal .split-who b { font: 800 italic 26px/1 var(--font-display); text-transform: uppercase; color: var(--who); overflow-wrap: anywhere; }
++#title-modal .split-who span { font: 600 13px/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); white-space: nowrap; }
++/* nomi dei due giocatori: campi con lo stile del gioco (prima i campi bianchi del browser) */
++#title-modal .split-names { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px 24px; }
++#title-modal .split-names label { display: flex; align-items: center; gap: 10px; font: 600 13px/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
++#title-modal .split-name-input { width: min(24cqw, 260px); height: 40px; padding: 0 14px; border-radius: var(--r-s); border: 1px solid var(--line-strong); background: rgba(5, 10, 28, 0.6); color: var(--text); font: 700 italic 19px/1 var(--font-display); letter-spacing: 0.02em; }
++#title-modal .split-name-input::placeholder { color: var(--text-3); }
++#title-modal .split-name-input:focus-visible { outline: 3px solid var(--ball); outline-offset: 2px; }
++/* barra dell'avvio sotto le schede: chi manca, conto alla rovescia, conto annullato con il motivo */
++#title-modal .ready-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 12px 18px; border-radius: var(--r-m); border: 2px solid var(--line); background: var(--panel); transition: border-color var(--t-med), background var(--t-med); }
++#title-modal .ready-bar-text { flex: 1 1 280px; min-width: 0; margin: 0; display: grid; gap: 4px; }
++#title-modal .ready-bar-text b { font: 800 italic clamp(18px, 2.8cqh, 32px)/1.05 var(--font-display); text-transform: uppercase; letter-spacing: 0.01em; }
++#title-modal .ready-bar-text span { font: 500 clamp(14px, 2cqh, 22px)/1.35 var(--font-text); color: var(--text-2); }
++#title-modal .ready-bar-text span:empty { display: none; }
++#title-modal .ready-bar-count { display: none; flex: none; width: 1.7em; height: 1.7em; border-radius: 50%; place-items: center; background: var(--ok); color: var(--ink-900); font: 800 italic clamp(24px, 4.4cqh, 52px)/1 var(--font-display); }
++#title-modal .ready-bar[data-ready-bar="count"] .ready-bar-count { display: grid; }
++#title-modal .ready-bar[data-ready-bar="count"], #title-modal .ready-bar[data-ready-bar="held"], #title-modal .ready-bar[data-ready-bar="ready"] { border-color: var(--ok); background: linear-gradient(rgba(54, 224, 122, 0.12), rgba(54, 224, 122, 0.12)), var(--panel); }
++#title-modal .ready-bar[data-ready-bar="count"] .ready-bar-text b, #title-modal .ready-bar[data-ready-bar="held"] .ready-bar-text b, #title-modal .ready-bar[data-ready-bar="ready"] .ready-bar-text b { color: var(--ok); }
++#title-modal .ready-bar[data-ready-bar="cancel"] { border-color: var(--bad); background: linear-gradient(rgba(255, 79, 97, 0.12), rgba(255, 79, 97, 0.12)), var(--panel); }
++#title-modal .ready-bar[data-ready-bar="cancel"] .ready-bar-text b { color: #ffb3bc; }
++#title-modal .ready-bar .lobby-primary { min-width: 0; }
++/* conto alla rovescia grande al centro, sopra la lobby (non sopra il toast); «Aspetta» o Esc lo fermano */
++#title-modal .split-countdown { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: var(--gutter); background: rgba(4, 8, 24, 0.6); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
++#title-modal .split-countdown.hidden { display: none; }
++#title-modal .split-countdown-box { display: grid; justify-items: center; gap: clamp(6px, 1.6cqh, 18px); max-width: 100%; padding: clamp(16px, 4cqh, 48px) clamp(22px, 5cqw, 72px); border-radius: var(--r-l); border: 3px solid var(--ok); background: linear-gradient(180deg, #13214f 0%, var(--panel-solid) 100%); box-shadow: var(--shadow), 0 0 0 8px rgba(54, 224, 122, 0.16); text-align: center; animation: page-in 0.2s var(--ease) both; }
++#title-modal .split-countdown-kicker { margin: 0; font: 700 italic clamp(18px, 3.6cqh, 44px)/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ok); }
++#title-modal .split-countdown-num { display: block; font: 800 italic clamp(90px, 30cqh, 360px)/0.9 var(--font-display); color: var(--text); text-shadow: 0 0 0.25em rgba(54, 224, 122, 0.45); }
++#title-modal .split-countdown-num.tick { animation: count-beat 0.9s var(--ease) both; }
++@keyframes count-beat { 0% { transform: scale(1.35); opacity: 0; } 25% { opacity: 1; } 100% { transform: none; opacity: 1; } }
++#title-modal .split-countdown-sub { margin: 0; max-width: 40ch; font: 600 clamp(15px, 2.6cqh, 30px)/1.3 var(--font-text); color: var(--text-2); }
++#title-modal .split-countdown kbd { margin-left: 0.4em; padding: 0.1em 0.4em; border-radius: 6px; border: 1px solid var(--line-strong); font: 600 0.75em/1 var(--font-display); font-style: normal; color: var(--text-3); }
++/* pagina «Partita» dello stesso schermo: le due schede al posto del «VS» */
++#title-modal .ready-board { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
++#title-modal .ready-board:empty, #title-modal:not([data-flow="split"]) #split-ready-board { display: none; }
++#title-modal[data-flow="split"] [data-page="match"] .lobby-versus { display: none; }
++@container natpf (max-width: 640px) { #title-modal .ready-board { grid-template-columns: 1fr; } }
+ #title-modal .split-qr { grid-area: qr; display: grid; gap: 6px; justify-items: center; }
+ #title-modal .split-qr .natpf-qr { width: 150px; height: 150px; }
+ #title-modal .split-status { grid-area: status; display: grid; gap: 4px; margin: 0; }
+@@ -1061,6 +1101,45 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
+   #title-modal .split-player { grid-template-columns: 110px 1fr; }
+   #title-modal .split-qr .natpf-qr { width: 110px; height: 110px; }
+ }
++/* ---------- stato «pronto» dei giocatori nel 1v1 (natpf_ready.js, B9): stesso schermo e sfida un amico ----------
++   Distintivo con icona e parola, mai solo il colore: in attesa (cerchio vuoto, grigio) · si prepara (anello che gira,
++   ambra) · pronto (✓, verde pieno con testo scuro) · problema (!, rosso). Misure con cqh/cqw: su un ledwall restano
++   leggibili */
++.ready-badge { display: inline-flex; align-items: center; gap: 0.45em; padding: 0.3em 0.85em 0.3em 0.4em; border-radius: var(--r-pill); border: 2px solid var(--line-strong); background: rgba(255, 255, 255, 0.04); color: var(--text-2); font: 800 italic clamp(14px, min(2.2cqh, 1.3cqw), 28px)/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
++.ready-badge b { font: inherit; }
++.ready-ico { flex: none; display: grid; place-items: center; box-sizing: border-box; width: 1.3em; height: 1.3em; border-radius: 50%; border: 2px solid currentColor; font-style: normal; }
++.is-off .ready-ico { border-style: dashed; opacity: 0.8; }
++.is-prep .ready-badge { color: var(--warn); border-color: rgba(255, 198, 64, 0.6); background: rgba(255, 198, 64, 0.12); }
++.is-prep .ready-ico { border-color: rgba(255, 198, 64, 0.28); border-top-color: var(--warn); border-width: 3px; animation: ready-spin 0.9s linear infinite; }
++.is-ready .ready-badge { color: var(--ink-900); border-color: var(--ok); background: var(--ok); animation: ready-pop 0.28s var(--ease) both; }
++.is-ready .ready-ico { border-color: var(--ink-900); background: var(--ink-900); color: var(--ok); }
++.is-ready .ready-ico::after { content: "✓"; font: 900 0.8em/1 var(--font-text); }
++.is-ko .ready-badge { color: #fff; border-color: var(--bad); background: var(--bad); }
++.is-ko .ready-ico { border-color: #fff; background: #fff; color: var(--bad); }
++.is-ko .ready-ico::after { content: "!"; font: 900 0.8em/1 var(--font-text); }
++@keyframes ready-spin { to { transform: rotate(360deg); } }
++@keyframes ready-pop { 0% { transform: scale(0.8); } 60% { transform: scale(1.12); } 100% { transform: none; } }
++/* scheda compatta (pagina «Partita» dello stesso schermo, pannello del Player 2 e barra dell'invito della sfida) */
++.ready-slot { --who: var(--ball); display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "who badge" "detail badge"; align-items: center; gap: 4px 12px; padding: 10px 14px 10px 20px; border-radius: var(--r-m); border: 2px solid var(--line-strong); background: var(--panel); box-shadow: inset 6px 0 0 var(--who); color: var(--text); text-align: left; transition: border-color var(--t-med), background var(--t-med); }
++.ready-slot[data-p="p2"] { --who: var(--pink); }
++.ready-slot .ready-who { grid-area: who; display: flex; align-items: baseline; gap: 8px; min-width: 0; }
++.ready-slot .ready-who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 800 italic clamp(18px, 2.8cqh, 32px)/1 var(--font-display); text-transform: uppercase; color: var(--who); }
++.ready-slot .ready-you { font: 600 12px/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
++.ready-slot .ready-you.hidden { display: none; }
++.ready-slot .ready-badge { grid-area: badge; }
++.ready-slot .ready-detail { grid-area: detail; min-width: 0; font: 500 clamp(13px, 1.9cqh, 20px)/1.3 var(--font-text); color: var(--text-2); }
++.ready-slot .ready-detail:empty { display: none; }
++.ready-slot.is-off { border-style: dashed; }
++.ready-slot.is-prep { border-color: rgba(255, 198, 64, 0.6); }
++.ready-slot.is-ready { border-color: var(--ok); background: linear-gradient(rgba(54, 224, 122, 0.14), rgba(54, 224, 122, 0.14)), var(--panel); }
++.ready-slot.is-ko { border-color: var(--bad); }
++.ready-slot.compact .ready-badge { font-size: clamp(12px, min(1.9cqh, 1.15cqw), 22px); }
++/* pulsante «pronto» premuto (sfida un amico, Player 2): verde pieno, non è più un interruttore (si annulla con «Annulla»);
++   «Gioca» che non si può ancora premere: grigio neutro, non giallo spento */
++.natpf-sheet .lobby-primary.is-ready, .natpf-lobby .lobby-primary.is-ready { background: var(--ok); color: var(--ink-900); box-shadow: 0 8px 22px rgba(54, 224, 122, 0.3); cursor: default; }
++.natpf-sheet .lobby-primary.is-ready:hover, .natpf-lobby .lobby-primary.is-ready:hover { background: var(--ok); transform: none; }
++#btn-start-match.is-wait { background: rgba(255, 255, 255, 0.1); color: var(--text-3); border-color: var(--line-strong); box-shadow: none; opacity: 1; cursor: not-allowed; }
++@media (prefers-reduced-motion: reduce) { .is-prep .ready-ico, .is-ready .ready-badge, #title-modal .split-countdown-num.tick { animation: none; } }
+ /* in partita: sotto ogni metà chi gioca e l'esito dell'ultimo colpo. Misure in vh/vw: su un ledwall (pochi pixel, visto
+    da lontano) restano grandi quanto la vista */
+ .natpf-split-hud { position: fixed; inset: auto 0 0 0; z-index: 30; display: grid; grid-template-columns: 1fr 1fr; pointer-events: none; padding: 0 0 clamp(10px, 3cqh, 36px); }
+diff --git a/natpf-tennis/src/natpf/natpf_lobby.js b/natpf-tennis/src/natpf/natpf_lobby.js
+index 96e51e6..9da5b2f 100644
+--- a/natpf-tennis/src/natpf/natpf_lobby.js
++++ b/natpf-tennis/src/natpf/natpf_lobby.js
+@@ -30,6 +30,7 @@ import { warmupDrills } from './natpf_training.js';
+ import { hostLobbyStatus, roomCode, joinUrl } from './natpf_versus.js';
+ import { p2pRequested } from './natpf_p2p.js';
+ import { screenSummary } from './natpf_screen.js';
++import { waitingText } from './natpf_ready.js';
+ const $ = id => document.getElementById(id);
+ const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
+ const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+@@ -64,9 +65,12 @@ export function stepReady(step, { controller, phoneLinked, webcamActive, mode =
+   if (step === 'connect') return controller === 'phone' ? !!phoneLinked : controller === 'webcam' ? !!webcamActive : true;
+   return true;
+ }
+-// Si entra in campo da soli quando il controller è pronto (telefono con i sensori attivi, webcam che vede la mano)
++// Si entra in campo da soli quando il controller è pronto (telefono con i sensori attivi, webcam che vede la mano).
++// Stesso schermo: niente salto (B9, 05/11). Prima, con i due telefoni pronti, la lobby passava muta a «Partita» dopo
++// 0,7 s, dove serviva comunque «Gioca»; ora nella pagina «Collega» parte il conto alla rovescia e poi si gioca
++// (natpf_split_ui._tickStart)
+ export function autoAdvance(step, { controller, phoneLinked, handSeen, mode = null, splitReady = false }){
+-  if (mode === 'split') return step === 'connect' && !!splitReady;
++  if (mode === 'split') return false;
+   return step === 'connect' && (controller === 'phone' ? !!phoneLinked : controller === 'webcam' ? !!handSeen : false);
+ }
+ // Ogni visitatore riparte dal menu principale (dopo l'intro)
+@@ -292,8 +296,10 @@ export class NatpfLobby {
+     this._paintServe();
+   }
+   _paintServe(){
+-    const names = { player: this.mode === 'split' ? 'Player 1' : this.format === 'doubles' ? 'Voi' : 'Tu',
+-      opponent: this.mode === 'split' ? 'Player 2' : this.mode === 'friend' ? 'Amico' : 'CPU', random: 'Sorteggio' };
++    // stesso schermo: i nomi scritti nella pagina «Collega» (prima restavano Player 1 / Player 2)
++    const split = this.engine.natpfSplitNames || {};
++    const names = { player: this.mode === 'split' ? split.p1 || 'Player 1' : this.format === 'doubles' ? 'Voi' : 'Tu',
++      opponent: this.mode === 'split' ? split.p2 || 'Player 2' : this.mode === 'friend' ? 'Amico' : 'CPU', random: 'Sorteggio' };
+     for (const b of this.el.querySelectorAll('[data-natpf-serve]')){
+       const on = b.dataset.natpfServe === this.serve;
+       b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); b.setAttribute('role', 'radio');
+@@ -369,7 +375,8 @@ export class NatpfLobby {
+     const next = $('lobby-next');
+     next.disabled = !stepReady(this.step, st);
+     const split = this.mode === 'split';
+-    next.textContent = this.step === 'connect' ? (split ? 'Alla partita ›' : this.mode === 'training' ? 'Al campo d’allenamento ›' : 'In campo ›') : 'Avanti ›';
++    // stesso schermo: dalla pagina «Collega» si gioca da soli (conto alla rovescia); il pulsante porta alle impostazioni
++    next.textContent = this.step === 'connect' ? (split ? 'Impostazioni partita ›' : this.mode === 'training' ? 'Al campo d’allenamento ›' : 'In campo ›') : 'Avanti ›';
+     // collega: pannello del controller scelto (stesso schermo: i due telefoni)
+     for (const p of this.el.querySelectorAll('[data-setup]')) show(p, p.dataset.setup === (split ? 'split' : st.controller));
+     const other = $('connect-other');
+@@ -381,8 +388,15 @@ export class NatpfLobby {
+     if (this.step === 'options') this._paintOptions();
+     this.ui.paintWebcamSetup?.();
+     this._paintInvite();
++    // stesso schermo, pagina «Partita»: le schede dei due giocatori dal vivo e «Gioca» grigio e spento finché non sono
++    // pronti tutti e due (prima giallo e attivo anche con un telefono caduto: rimandava a «Racchette» solo al clic)
++    const gate = split && match ? this.ui.split?.paintMatch?.() : null;
++    const sb = $('btn-start-match');
++    if (sb && split){ const wait = match && !st.splitReady; if (sb.disabled !== wait) sb.disabled = wait; sb.classList.toggle('is-wait', wait); }
++    else if (sb && this.mode !== 'friend' && sb.classList.contains('is-wait')){ sb.classList.remove('is-wait'); sb.disabled = false; }
+     const note = $('lobby-match-note');
+-    if (note) note.textContent = split ? (st.splitReady ? 'Player 1 a sinistra, Player 2 a destra. Ognuno guarda la sua metà.' : this.ui.split?.webcam ? 'La webcam non vede ancora tutti e due: torna a «Racchette».' : 'Un telefono non è pronto: torna a «Racchette».') : st.controller === 'phone' && !st.phoneReady ? 'Il telefono va ricollegato: premendo «Gioca» compare il QR.' : '';
++    const names = this.engine.natpfSplitNames || {}, n1 = names.p1 || 'Player 1', n2 = names.p2 || 'Player 2';
++    if (note) note.textContent = split ? (st.splitReady ? `${n1} a sinistra, ${n2} a destra. Ognuno guarda la sua metà.` : `${gate?.waiting?.length ? waitingText(gate.waiting) + ': ' : ''}${this.ui.split?.webcam ? 'la webcam deve vedere tutti e due' : 'servono i due telefoni pronti'}, torna a «Racchette».`) : st.controller === 'phone' && !st.phoneReady ? 'Il telefono va ricollegato: premendo «Gioca» compare il QR.' : '';
+     // telefono con i sensori attivi o mano vista dalla webcam: si entra in campo da soli, ma non con la guida aperta (prima
+     // il riscaldamento partiva sotto la guida e il suo «Prova» lo faceva ripartire come allenamento)
+     if (this.visible && autoAdvance(this.step, st) && this.autoFrom !== this.step && !this.onboarding.isOpen){
+@@ -425,9 +439,15 @@ export class NatpfLobby {
+     if (this.step === 'mode') return this.go('controller');
+     if (this.step === 'controller') return this.go('connect');
+     if (this.step === 'connect') return this.go(this.mode === 'split' ? 'match' : 'warmup');
++    // stesso schermo con un giocatore non pronto: «Gioca» è spento; Invio riporta alle schede dei telefoni
++    if (this.step === 'match' && this.mode === 'split' && !this.state().splitReady){ this.ui.toast?.(this.ui.split?.webcam ? 'La webcam deve vedere le mani di tutti e due: torna a «Racchette»' : 'Servono i due telefoni pronti: torna a «Racchette»'); this.go('connect'); return; }
+     if (this.step === 'match') $('btn-start-match').click();
+   }
+-  back(){ const p = previousStep(this.step, this.mode); if (p) this.go(p); }
++  // Esc durante il conto alla rovescia dello stesso schermo: lo ferma («Aspetta»), non cambia pagina
++  back(){
++    if (this.mode === 'split' && this.step === 'connect' && this.ui.split?.countdownRunning){ this.ui.split.holdCountdown(); return; }
++    const p = previousStep(this.step, this.mode); if (p) this.go(p);
++  }
+   _tiles(){
+     const page = `[data-page="${this.step}"]`;
+     return [...this.el.querySelectorAll(`${page} .lobby-tile, ${page} .menu-item, ${page} .seg-btn, ${page} [data-result]`)].filter(t => !t.classList.contains('hidden') && t.offsetParent !== null);
+diff --git a/natpf-tennis/src/natpf/natpf_ready.js b/natpf-tennis/src/natpf/natpf_ready.js
+new file mode 100644
+index 0000000..8e5298f
+--- /dev/null
++++ b/natpf-tennis/src/natpf/natpf_ready.js
+@@ -0,0 +1,118 @@
++// Stato «pronto» dei giocatori nel 1v1 (B9, punto 4 della richiesta del 05/11; analisi in docs/b9/analisi-pronto-1v1.md).
++// Prima lo stato stava dentro un pulsante giallo (giallo prima e dopo il clic, «Sono pronto ✓» e «Pronto ✓» con lo
++// stesso segno) e nello stesso schermo la lobby saltava da sola a «Partita» dopo 0,7 s senza dire chi era pronto.
++// Ora lo stato di ciascun giocatore sta in una SCHEDA (nome, distintivo con colore, icona e parola), uguale nei due
++// percorsi:
++//   • stesso schermo («Collega i due telefoni», natpf_split_ui.js): le due metà della pagina sono le schede; quando
++//     tutti e due sono pronti (e hanno chiuso il tutorial) parte un conto alla rovescia di 3 s, poi si gioca da soli;
++//   • sfida un amico tra due computer (natpf_versus_ui.js, percorso sospeso: correzione minima): schede compatte del
++//     Player 1 e del Player 2 nel pannello del P2 e nella barra dell'invito dell'host.
++// Quattro stati, mai solo il colore (si leggono anche da lontano su un ledwall e da chi non distingue i colori):
++//   off   «In attesa»  grigio, bordo tratteggiato, cerchio vuoto      (telefono non collegato, nessuno nella stanza)
++//   prep  «Si prepara» ambra, anello che gira                         (tutorial, sensori, calibrazione, racchetta)
++//   ready «Pronto»     verde pieno, ✓                                 (si può giocare)
++//   ko    «Problema»   rosso, !                                       (telefono scollegato, sensori negati, rete)
++// Il colore del giocatore (P1 giallo, P2 rosa) dice solo CHI è (striscia laterale), mai lo stato.
++// Funzioni pure (test in test/natpf-ready.test.mjs) più due disegni idempotenti per il DOM.
++
++export const READY_STATES = Object.freeze(['off', 'prep', 'ready', 'ko']);
++export const READY_BADGE = Object.freeze({ off: 'In attesa', prep: 'Si prepara', ready: 'Pronto', ko: 'Problema' });
++// conto alla rovescia prima della partita (stesso schermo): 3 s, deciso il 05/11 (5 s erano l'alternativa per il ledwall)
++export const READY_COUNTDOWN_MS = 3000;
++export const defaultName = id => (id === 'p2' ? 'Player 2' : 'Player 1');
++
++// Vista di una scheda: nome (o Player 1/2), «tu» sul proprio computer, stato, parola del distintivo, dettaglio breve
++export function slotView({ id = 'p1', name = '', you = false, state = 'off', detail = '', badge = '' } = {}){
++  const st = READY_STATES.includes(state) ? state : 'off';
++  const who = String(name || '').trim() || defaultName(id);
++  const word = badge || READY_BADGE[st];
++  const more = String(detail || '');
++  return { id, name: who, you: !!you, state: st, cls: `is-${st}`, badge: word, detail: more, aria: `${who}${you ? ' (tu)' : ''}: ${word}${more ? `, ${more}` : ''}` };
++}
++
++// Stesso schermo: dallo stato del telefono (natpf_split_ui.splitPlayerStatus: wait · qr · on · go · tut · ok · ko) o
++// della webcam per due (splitCamStatus: wait · on · ok · ko) allo stato della scheda. Il dettaglio è la parte breve
++// (detail) dello stato; un telefono che era collegato e si è perso (lost) è un problema, non un'attesa
++export function splitSlot(st = {}){
++  const detail = st.detail || st.title || '';
++  switch (st.state){
++    case 'ok': return { state: 'ready', detail };
++    case 'ko': return { state: 'ko', detail };
++    case 'on': case 'go': case 'tut': return { state: 'prep', detail };
++    case 'qr': return st.lost ? { state: 'ko', detail, badge: 'Scollegato' } : { state: 'off', detail };
++    default: return { state: 'off', detail };
++  }
++}
++
++// Si parte? Tutti pronti; chi manca, con il suo dettaglio (per la barra dell'avvio)
++export function startGate(slots = []){
++  const waiting = slots.filter(s => s?.state !== 'ready');
++  return { both: slots.length > 0 && !waiting.length, waiting: waiting.map(s => ({ id: s.id, name: s.name, state: s.state, detail: s.detail, badge: s.badge })) };
++}
++
++// iniziale minuscola dentro una frase («Inquadra il QR» → «inquadra il QR»; le sigle restano: «QR», «LAN»)
++const lc = t => { t = String(t || ''); return /^[A-ZÀ-Þ][a-zà-ÿ]/.test(t) ? t[0].toLowerCase() + t.slice(1) : t; };
++// Testo di chi manca: «Aspetto Marco (calibrazione)» / «Aspetto Giulia (tutorial 3/11) e Marco (inquadra il QR)»
++export function waitingText(waiting = []){
++  if (!waiting.length) return '';
++  const one = w => `${w.name}${w.detail ? ` (${lc(w.detail)})` : ''}`;
++  return `Aspetto ${waiting.map(one).join(' e ')}`;
++}
++// «Giulia e Marco»
++export const bothNames = slots => slots.map(s => s.name).join(' e ');
++
++// Perché il conto alla rovescia si è fermato: il primo giocatore non più pronto, con il suo stato («Conto annullato ·
++// Marco: telefono scollegato»; senza aggettivi da accordare con il nome)
++export function cancelText(slots = []){
++  const w = slots.find(s => s?.state !== 'ready');
++  if (!w) return 'Conto fermato';
++  const what = w.detail || (w.badge && w.badge !== READY_BADGE[w.state] ? w.badge : READY_BADGE[w.state]);
++  return `Conto annullato · ${w.name}: ${lc(what)}`;
++}
++
++// Conto alla rovescia: update(go, now) a ogni giro (natpf_split_ui.tick, ogni 100 ms).
++//   • parte quando go diventa vero, con left = secondi che mancano (3, 2, 1);
++//   • fire vero una volta sola, quando arriva a zero (poi non riparte finché go non torna falso);
++//   • go falso a conto in corso: si annulla (cancelled vero una volta) e riparte da capo la prossima volta.
++export function createCountdown({ ms = READY_COUNTDOWN_MS } = {}){
++  let start = null, fired = false;
++  const idle = (cancelled = false) => ({ left: 0, fire: false, running: false, cancelled });
++  return {
++    get running(){ return start != null && !fired; },
++    update(go, now){
++      if (!go){ const was = start != null && !fired; start = null; fired = false; return idle(was); }
++      if (fired) return idle();
++      if (start == null) start = now;
++      const rem = ms - (now - start);
++      if (rem <= 0){ fired = true; return { left: 0, fire: true, running: false, cancelled: false }; }
++      return { left: Math.ceil(rem/1000), fire: false, running: true, cancelled: false };
++    },
++    reset(){ start = null; fired = false; },
++  };
++}
++
++/* ---------- disegno (DOM) ---------- */
++const setText = (el, t) => { if (el && el.textContent !== t) el.textContent = t; };
++// Una scheda: classi is-*, data-ready, nome, «tu», parola del distintivo e dettaglio. Cambia solo quello che è diverso,
++// così l'animazione dell'arrivo a «Pronto» (ready-pop, CSS) parte una volta sola e non a ogni giro
++export function paintSlot(el, v){
++  if (!el || !v) return;
++  if (el.dataset && el.dataset.ready !== v.state){
++    for (const s of READY_STATES) el.classList.toggle(`is-${s}`, s === v.state);
++    el.dataset.ready = v.state;
++  }
++  setText(el.querySelector('[data-ready-name]'), v.name);
++  setText(el.querySelector('[data-ready-word]'), v.badge);
++  setText(el.querySelector('[data-ready-detail]'), v.detail);
++  const you = el.querySelector('[data-ready-you]'); if (you) you.classList.toggle('hidden', !v.you);
++  if (el.title !== v.aria) el.title = v.aria;
++}
++// Schede compatte (pagina «Partita» dello stesso schermo, pannello del P2 e barra dell'invito della sfida)
++export const slotHtml = (id, { compact = true } = {}) => `<div class="ready-slot${compact ? ' compact' : ''} is-off" data-ready="off" data-p="${id === 'p2' ? 'p2' : 'p1'}" data-ready-slot="${id}"><i class="ready-ico" aria-hidden="true"></i><span class="ready-who"><b data-ready-name>${defaultName(id)}</b><small class="ready-you hidden" data-ready-you>tu</small></span><span class="ready-badge"><b data-ready-word>${READY_BADGE.off}</b></span><span class="ready-detail" data-ready-detail></span></div>`;
++// Tabellone con una scheda per giocatore: la struttura si scrive una volta, poi solo paintSlot
++export function paintBoard(el, views = []){
++  if (!el) return;
++  const key = views.map(v => v.id).join(',');
++  if (el.dataset && el.dataset.board !== key){ el.innerHTML = views.map(v => slotHtml(v.id)).join(''); el.dataset.board = key; }
++  for (const v of views) paintSlot(el.querySelector(`[data-ready-slot="${v.id}"]`), v);
++}
+diff --git a/natpf-tennis/src/natpf/natpf_split_ui.js b/natpf-tennis/src/natpf/natpf_split_ui.js
+index b585b28..1a80d99 100644
+--- a/natpf-tennis/src/natpf/natpf_split_ui.js
++++ b/natpf-tennis/src/natpf/natpf_split_ui.js
+@@ -6,15 +6,22 @@
+ //     → si ripete, alla terza si gioca con il profilo semplice. «Gioca senza calibrare» lo fa subito;
+ //   • la mano di ciascuno (P1: quella del gioco, NatpfHand; P2: la sua, salvata a parte);
+ //   • in partita: sotto ogni metà nome ed esito dell'ultimo colpo; telefono del P2 che cade → pausa e ripresa con il
+-//     conto alla rovescia, come per il P1 (natpf_phone_watch.js).
++//     conto alla rovescia, come per il P1 (natpf_phone_watch.js);
++//   • «pronto» di ciascuno (B9, 05/11; natpf_ready.js): ogni metà è la scheda del giocatore, con il suo nome e uno di
++//     quattro stati (in attesa · si prepara · pronto · problema) con colore, icona e parola; sotto, la barra dell'avvio
++//     dice chi manca. Quando tutti e due sono pronti e hanno chiuso il tutorial parte un conto alla rovescia di 3 s
++//     (grande sul computer e annunciato sui telefoni, messaggio «ev count»), poi si gioca da soli, senza toccare il
++//     computer. Un telefono che cade (o il tutorial riaperto) annulla il conto e la barra dice perché; «Aspetta» o Esc
++//     lo fermano. Prima la lobby saltava muta a «Partita» dopo 0,7 s, dove serviva comunque «Gioca».
+ import { NatpfPhoneRacket } from './natpf_phone_racket.js';
+ import { calPrompt } from './natpf_cal_view.js';
+ import { createPhoneWatch, createResync, phoneHealthOf, holdText } from './natpf_phone_watch.js';
+ import { splitVisible } from './natpf_split.js';
+ import { webcamOpenError } from './natpf_webcam_watch.js';
+ 
+-import { NatpfTutorial } from './natpf_tutorial.js';
++import { NatpfTutorial, TUTORIAL_CARDS } from './natpf_tutorial.js';
+ import { getGestureDemo } from './natpf_gesture_demo.js';
++import { slotView, splitSlot, startGate, waitingText, bothNames, cancelText, createCountdown, paintSlot, paintBoard, defaultName, READY_COUNTDOWN_MS } from './natpf_ready.js';
+ const $ = id => document.getElementById(id);
+ const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
+ export const SPLIT_PLAYERS = Object.freeze(['p1', 'p2']);
+@@ -23,27 +30,40 @@ export const SPLIT_CAL_TRIES = 3;
+ // con che cosa si gioca sullo stesso schermo: due telefoni o una webcam per due (webcam_duo.js; richiesta del 29/10 notte)
+ export const SPLIT_INPUT_KEY = 'natpf-tennis.splitInput';
+ export const splitInputOf = v => (v === 'webcam' ? 'webcam' : 'phones');
++// conto alla rovescia prima della partita (natpf_ready.READY_COUNTDOWN_MS) e quanto resta in vista il motivo di un conto
++// annullato
++export const SPLIT_COUNTDOWN_MS = READY_COUNTDOWN_MS;
++export const SPLIT_CANCEL_SHOW_MS = 8000;
+ 
+ // Stato di un giocatore con la webcam per due (funzione pura): webcam spenta, mano cercata, mano vista
++// (detail: la parte breve, per il distintivo della scheda, natpf_ready.splitSlot)
+ export function splitCamStatus({ active = false, seen = false, error = null } = {}){
+-  if (!active) return error ? { state: 'ko', title: error.badge, sub: error.text } : { state: 'wait', title: 'Webcam spenta', sub: 'Accendi la webcam qui sopra' };
+-  return seen ? { state: 'ok', title: 'Mano vista ✓', sub: 'Pronto: un colpo veloce e dritto è un colpo' } : { state: 'on', title: 'Alza la mano che colpisce', sub: 'Dalla tua parte dell’inquadratura, con il polso visibile' };
++  if (!active) return error ? { state: 'ko', title: error.badge, sub: error.text, detail: error.badge } : { state: 'wait', title: 'Webcam spenta', sub: 'Accendi la webcam qui sopra', detail: 'Webcam spenta' };
++  return seen ? { state: 'ok', title: 'Mano vista ✓', sub: 'Pronto: un colpo veloce e dritto è un colpo', detail: 'Mano vista' } : { state: 'on', title: 'Alza la mano che colpisce', sub: 'Dalla tua parte dell’inquadratura, con il polso visibile', detail: 'Alza la mano' };
+ }
+ // posizione della linea del confine nel riquadro della camera (specchiato come lo schermo): CSS left; metà se manca
+ export const splitCamLine = split => `${(100*(Number.isFinite(split) ? Math.max(0, Math.min(1, split)) : .5)).toFixed(1)}%`;
+ const PHONE_ERR = { denied: 'Sensori negati sul telefono: ricarica la pagina e consenti', nomotion: 'Il browser del telefono non manda i sensori: usa Chrome (Android) o Safari (iPhone)', insecure: 'Pagina senza https: i sensori non funzionano' };
+ 
+-// Stato di un giocatore nella pagina «Collega» (funzione pura): state 'wait' | 'qr' | 'on' | 'go' | 'ok' | 'ko'
+-export function splitPlayerStatus(p, hand = 'right'){
++// Stato di un giocatore nella pagina «Collega» (funzione pura): state 'wait' | 'qr' | 'on' | 'go' | 'tut' | 'ok' | 'ko';
++// detail: la parte breve, per il distintivo della scheda (natpf_ready.splitSlot); lost: telefono che c'era e si è perso.
++// tut: tutorial aperto nella metà di questo giocatore ({ i, n }: scheda mostrata e schede). Prima, con il tutorial
++// aperto, la metà diceva «Tocca «Attiva i sensori»» anche con i sensori già attivi (analisi B9 D, §2.2)
++export function splitPlayerStatus(p, hand = 'right', { tut = null } = {}){
+   const L = p?.state || { state: 'off' };
+-  if (!p?.link || L.state === 'off' || L.state === 'starting') return { state: 'wait', title: 'Preparo il QR…', sub: '' };
+-  if (L.state === 'error') return { state: 'ko', title: 'Collegamento non disponibile', sub: `Controlla la rete e riprova (${L.error || 'errore'})` };
+-  if (!p.connected) return { state: 'qr', title: 'Inquadra il QR', sub: L.state === 'lost' ? 'Telefono scollegato: riapri la pagina sul telefono' : 'Con la fotocamera del telefono, poi tocca il link' };
+-  if (PHONE_ERR[L.phone]) return { state: 'ko', title: 'Sensori non disponibili', sub: PHONE_ERR[L.phone] };
+-  if (p.ready) return { state: 'ok', title: 'Pronto ✓', sub: p.simple ? 'Senza calibrazione: si gioca lo stesso' : 'Racchetta calibrata' };
+-  if (L.phone !== 'cal') return { state: 'on', title: 'Tocca «Attiva i sensori»', sub: 'Sul telefono; su iPhone poi «Consenti»' };
++  if (!p?.link || L.state === 'off' || L.state === 'starting') return { state: 'wait', title: 'Preparo il QR…', sub: '', detail: 'Preparo il QR' };
++  if (L.state === 'error') return { state: 'ko', title: 'Collegamento non disponibile', sub: `Controlla la rete e riprova (${L.error || 'errore'})`, detail: 'Collegamento non disponibile' };
++  if (!p.connected) return L.state === 'lost' ? { state: 'qr', lost: true, title: 'Inquadra il QR', sub: 'Telefono scollegato: riapri la pagina sul telefono', detail: 'Telefono scollegato' }
++    : { state: 'qr', title: 'Inquadra il QR', sub: 'Con la fotocamera del telefono, poi tocca il link', detail: 'Inquadra il QR' };
++  if (PHONE_ERR[L.phone]) return { state: 'ko', title: 'Sensori non disponibili', sub: PHONE_ERR[L.phone], detail: 'Sensori non disponibili' };
++  if (tut){
++    const n = Math.max(1, tut.n || 1), i = Math.min(n, Math.max(1, tut.i || 1));
++    return { state: 'tut', title: 'Guarda il tutorial', sub: `Scheda ${i} di ${n}. Poi sul telefono «Tutto chiaro, ho capito».`, detail: `Tutorial ${i}/${n}` };
++  }
++  if (p.ready) return { state: 'ok', title: 'Pronto ✓', sub: p.simple ? 'Senza calibrazione: si gioca lo stesso' : 'Racchetta calibrata', detail: p.simple ? 'Senza calibrazione' : 'Calibrato' };
++  if (L.phone !== 'cal') return { state: 'on', title: 'Tocca «Attiva i sensori»', sub: 'Sul telefono; su iPhone poi «Consenti»', detail: 'Attiva i sensori' };
+   const c = calPrompt(p.calView, hand);
+-  return { state: c.state === 'go' ? 'go' : 'on', title: c.title, sub: c.sub };
++  return { state: c.state === 'go' ? 'go' : 'on', title: c.title, sub: c.sub, detail: 'Calibrazione' };
+ }
+ 
+ // Esito di un colpo o di un punto per l'etichetta di una metà (null: niente da dire)
+@@ -69,14 +89,27 @@ export class NatpfSplitUi {
+     for (const id of SPLIT_PLAYERS) this.tut[id] = typeof document !== 'undefined' ? new NatpfTutorial($(`split-tut-${id}`), { half: true, demo: () => getGestureDemo(), canDemo: () => this.demoOwner === id }) : null;
+     let saved = 'phones'; try { saved = localStorage.getItem(SPLIT_INPUT_KEY) || 'phones'; } catch {}
+     this.input = splitInputOf(saved);
++    // conto alla rovescia prima della partita: left (secondi), running, held («Aspetta»), why (motivo dell'annullamento)
++    this.countdown = createCountdown({ ms: SPLIT_COUNTDOWN_MS });
++    this.cd = { left: 0, running: false, held: false, why: null, whyUntil: 0 };
+     const box = document.querySelector('[data-setup="split"]');
+     engine.natpfSplitNames = { p1: 'Player 1', p2: 'Player 2' };
+     box?.addEventListener('input', e => {
+       const id = e.target.dataset.splitName; if (!['p1', 'p2'].includes(id)) return;
+       engine.natpfSplitNames[id] = e.target.value.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 24) || (id === 'p1' ? 'Player 1' : 'Player 2');
+       for (const el of document.querySelectorAll(`[data-split-tag="${id}"] b`)) el.textContent = engine.natpfSplitNames[id];
++      this.paint();
+     });
++    // conto alla rovescia: «Aspetta» (nella barra e nel riquadro grande) e «Gioca» (dopo «Aspetta»)
++    const startActions = e => {
++      if (e.target.closest('[data-split-hold]')){ e.stopPropagation(); this.holdCountdown(); return true; }
++      if (e.target.closest('[data-split-play]')){ e.stopPropagation(); this.playNow(); return true; }
++      return false;
++    };
++    $('split-countdown')?.addEventListener('click', startActions);
++    $('split-countdown')?.addEventListener('pointerdown', e => e.stopPropagation());
+     box?.addEventListener('click', e => {
++      if (startActions(e)) return;
+       const inp = e.target.closest('[data-split-input]'); if (inp){ e.stopPropagation(); this.setInput(inp.dataset.splitInput); return; }
+       if (e.target.closest('#split-cam-go')){ e.stopPropagation(); this._camOn(); return; }
+       const h = e.target.closest('[data-split-hand]'); if (h){ e.stopPropagation(); const [id, hand] = h.dataset.splitHand.split(':'); this.setHand(id, hand); return; }
+@@ -93,13 +126,15 @@ export class NatpfSplitUi {
+     const p2 = E.natpfPhone2;
+     if (this.bound !== p2){
+       this.bound = p2;
+-      p2.onChange(() => { this._resetIfNew('p2'); if (this.ui.lobby?.visible && this.ui.lobby.step === 'connect') this.ui.lobby.paint(); });
++      p2.onChange(() => { this._resetIfNew('p2'); this._repaint(); });
+       p2.onCal(e => this._onCal('p2', e));
+       p2.onTutorial?.(() => this._tutDone('p2'));
+     }
+-    if (!this.p1Bound){ this.p1Bound = true; this.ui.phone.onCal?.(e => this._onCal('p1', e)); this.ui.phone.onChange(() => this._resetIfNew('p1')); this.ui.phone.onTutorial?.(() => this._tutDone('p1')); }
++    if (!this.p1Bound){ this.p1Bound = true; this.ui.phone.onCal?.(e => this._onCal('p1', e)); this.ui.phone.onChange(() => { this._resetIfNew('p1'); this._repaint(); }); this.ui.phone.onTutorial?.(() => this._tutDone('p1')); }
+     for (const id of SPLIT_PLAYERS) this.phone(id).start().catch(err => this.ui.toast(`Collegamento del ${id.toUpperCase()} non disponibile (${err.message})`));
+   }
++  // un telefono cambia (collegato, pronto, perso): la scheda si aggiorna subito, non al prossimo giro della lobby (300 ms)
++  _repaint(){ const L = this.ui.lobby; if (L?.visible && L.mode === 'split' && (L.step === 'connect' || L.step === 'match')) L.paint(); }
+   get webcam(){ return this.input === 'webcam'; }
+   // webcam per due: pronti quando la camera è accesa e ha visto le mani di entrambi (anche non in questo momento: tra la
+   // pagina «Collega» e «Gioca» si scelgono le impostazioni); altrimenti i due telefoni pronti
+@@ -203,7 +238,8 @@ export class NatpfSplitUi {
+     }
+     for (const id of SPLIT_PLAYERS){
+       const p = this.phone(id); if (!p) continue;
+-      const st = cam ? splitCamStatus({ active: !!mc?.webcamActive, seen: !!mc?._duo?.seen(id, now), error: mc?.webcamActive ? null : webcamOpenError(mc?.webcamError) }) : (this._drive(id), this.ui.renderQr($(`split-qr-${id}`), $(`split-link-${id}`), null, p), splitPlayerStatus(p, this.hand(id)));
++      if (!cam){ this._drive(id); this.ui.renderQr($(`split-qr-${id}`), $(`split-link-${id}`), null, p); }
++      const st = this.status(id, now);
+       const el = $(`split-status-${id}`);
+       if (el){
+         el.dataset.state = st.state;
+@@ -212,9 +248,122 @@ export class NatpfSplitUi {
+         if (s.textContent !== st.sub) s.textContent = st.sub;
+       }
+       for (const btn of document.querySelectorAll(`[data-split-hand^="${id}:"]`)){ const on = btn.dataset.splitHand.endsWith(':' + this.hand(id)); btn.classList.toggle('selected', on); btn.setAttribute('aria-pressed', String(on)); }
+-      show(document.querySelector(`[data-split-skip="${id}"]`), !cam && p.connected && !p.ready && p.state.phone === 'cal');
+-      document.querySelector(`[data-split-player="${id}"]`)?.classList.toggle('ready', cam ? st.state === 'ok' : !!p.ready);
++      show(document.querySelector(`[data-split-skip="${id}"]`), !cam && p.connected && !p.ready && p.state.phone === 'cal' && !this.tutOpen[id]);
++      // scheda del giocatore: nome, distintivo (in attesa · si prepara · pronto · problema), bordo; .ready per il QR
++      const card = document.querySelector(`[data-split-player="${id}"]`), v = this.slot(id, now, st);
++      card?.classList.toggle('ready', v.state === 'ready');
++      paintSlot(card, v);
++    }
++    this._paintStart(now);
++  }
++  /* ---------- stato «pronto» delle schede e conto alla rovescia (B9, natpf_ready.js) ---------- */
++  name(id){ return this.engine.natpfSplitNames?.[id] || defaultName(id); }
++  // scheda mostrata del tutorial di questo giocatore (1…n), per «Tutorial 3/11»
++  tutInfo(id){ const t = this.tut[id]; return { i: (t?.state?.idx ?? 0) + 1, n: TUTORIAL_CARDS.length }; }
++  // stato del telefono (o della webcam per due) di un giocatore, come lo dice la sua metà
++  status(id, now = performance.now()){
++    const mc = this.engine.motionController;
++    if (this.webcam) return splitCamStatus({ active: !!mc?.webcamActive, seen: !!mc?._duo?.seen(id, now), error: mc?.webcamActive ? null : webcamOpenError(mc?.webcamError) });
++    return splitPlayerStatus(this.phone(id), this.hand(id), { tut: this.tutOpen[id] ? this.tutInfo(id) : null });
++  }
++  // scheda: con la webcam per due si è pronti da quando la webcam ha visto la mano (come bothReady), anche se adesso è
++  // fuori dall'inquadratura; con il telefono, pronto e tutorial chiuso
++  slot(id, now = performance.now(), st = this.status(id, now)){
++    const mc = this.engine.motionController;
++    if (this.webcam && mc?.webcamActive && mc._duo?.seen?.(id, now, Infinity)) return slotView({ id, name: this.name(id), state: 'ready', detail: 'Mano vista' });
++    return slotView({ id, name: this.name(id), ...splitSlot(st) });
++  }
++  slots(now = performance.now()){ return SPLIT_PLAYERS.map(id => this.slot(id, now)); }
++  get countdownRunning(){ return this.cd.running; }
++  // ai telefoni (pagina del telefono: racchetta.js, «ev» con k 'count'): n = 3, 2, 1 e 0 (si gioca), stop con il motivo.
++  // Le pagine del telefono di prima ignorano il messaggio (k sconosciuto): nessun problema di versioni
++  _announce(m){
++    if (this.webcam) return;
++    for (const id of SPLIT_PLAYERS){ const p = this.phone(id); if (p?.connected) p.link?.send?.({ t: 'ev', k: 'count', ...m }); }
++  }
++  // Ogni 100 ms (tick): nella pagina «Collega» dello stesso schermo, con tutti e due pronti (e il tutorial chiuso) e
++  // nessun pannello aperto sopra, conto alla rovescia; a zero si gioca. Un giocatore che non è più pronto lo annulla,
++  // con il motivo nella barra dell'avvio e sui telefoni
++  _tickStart(now = performance.now()){
++    const L = this.ui.lobby;
++    const here = !!L?.visible && L.mode === 'split' && L.step === 'connect' && !this.session && !this.ui.intro?.active;
++    if (!here){ if (this.cd.running || this.cd.held || this.cd.why) this._stopCount(this.cd.running ? 'Si scelgono le impostazioni sul computer.' : null); return; }
++    const sheet = [...document.querySelectorAll('.natpf-sheet-backdrop')].some(m => !m.classList.contains('hidden'));
++    const blocked = !!L.onboarding?.isOpen || !!this.ui.calibra?.isOpen || sheet;
++    const slots = this.slots(now), gate = startGate(slots);
++    const r = this.countdown.update(gate.both && !this.cd.held && !blocked, now);
++    const R = this.ui.diag?.recorder;
++    if (r.cancelled){
++      this.cd.why = gate.both ? null : cancelText(slots); this.cd.whyUntil = now + SPLIT_CANCEL_SHOW_MS;
++      this._announce({ stop: 1, txt: this.cd.why || 'Guarda il computer.' });
++      R?.log?.('split.conto', { stato: 'annullato', motivo: this.cd.why || 'pannello aperto' });
+     }
++    if (r.running && r.left !== this.cd.left){
++      if (!this.cd.running){ this.cd.why = null; R?.log?.('split.conto', { stato: 'partito' }); }
++      this._announce({ n: r.left });
++    }
++    this.cd.running = r.running; this.cd.left = r.left;
++    if (r.fire) this._fire();
++    this._paintStart(now, slots);
++  }
++  // si esce dalla pagina (impostazioni, menu, partita): niente conto, niente motivi
++  _stopCount(txt = null){
++    const was = this.cd.running;
++    this.countdown.reset();
++    this.cd = { left: 0, running: false, held: false, why: null, whyUntil: 0 };
++    if (was && txt) this._announce({ stop: 1, txt });
++    this._paintStart();
++  }
++  // «Aspetta» (o Esc): il conto si ferma e non riparte da solo; poi «Gioca» nella barra (this.hold è un'altra cosa: la
++  // pausa del telefono del P2 in partita)
++  holdCountdown(){
++    const was = this.cd.running;
++    this.countdown.reset();
++    Object.assign(this.cd, { running: false, left: 0, held: true, why: null });
++    if (was){ this._announce({ stop: 1, txt: 'Partenza fermata sul computer.' }); this.ui.diag?.recorder?.log?.('split.conto', { stato: 'fermato' }); }
++    this._paintStart();
++  }
++  playNow(){ this.cd.held = false; this._fire(); }
++  // a zero (o «Gioca» dopo «Aspetta»): lo stesso «Gioca» della pagina «Partita» (natpf_ui._bindStart ricontrolla che
++  // tutti e due siano pronti, poi la sessione split e il passaggio al campo)
++  _fire(){
++    Object.assign(this.cd, { running: false, left: 0, held: false, why: null });
++    this._announce({ n: 0 });
++    this.ui.diag?.recorder?.log?.('split.conto', { stato: 'si gioca' });
++    const b = $('btn-start-match'); if (b){ b.disabled = false; b.click(); }
++  }
++  // barra dell'avvio sotto le schede e riquadro grande del conto
++  _paintStart(now = performance.now(), slots = this.slots(now)){
++    const bar = $('split-ready-bar'), ov = $('split-countdown'), cd = this.cd;
++    const gate = startGate(slots), names = bothNames(slots);
++    let mode = 'wait', title = 'Si parte da soli quando tutti e due i giocatori sono pronti', sub = `${waitingText(gate.waiting)}.`;
++    if (cd.running){ mode = 'count'; title = `Tutto pronto: si gioca tra ${cd.left}`; sub = this.webcam ? `${names}, in posizione davanti alla webcam.` : `${names}, tenete il telefono come in partita.`; }
++    else if (gate.both && cd.held){ mode = 'held'; title = 'Tutto pronto'; sub = 'Partenza fermata: premi «Gioca» quando volete.'; }
++    else if (gate.both){ mode = 'ready'; title = 'Tutto pronto'; sub = 'Si parte appena si chiude il pannello aperto.'; }
++    else if (cd.why && now < cd.whyUntil){ mode = 'cancel'; title = cd.why; sub = 'Il conto riparte da solo quando tutto è di nuovo pronto.'; }
++    const set = (el, t) => { if (el && el.textContent !== t) el.textContent = t; };
++    if (bar){
++      if (bar.dataset.readyBar !== mode) bar.dataset.readyBar = mode;
++      set(bar.querySelector('[data-ready-bar-title]'), title);
++      set(bar.querySelector('[data-ready-bar-sub]'), sub);
++      set(bar.querySelector('[data-ready-count]'), cd.running ? String(cd.left) : '');
++      show(bar.querySelector('[data-split-hold]'), mode === 'count');
++      show(bar.querySelector('[data-split-play]'), mode === 'held');
++    }
++    if (ov){
++      show(ov, cd.running);
++      const num = ov.querySelector('[data-split-count]'), n = String(cd.left);
++      // ogni secondo il numero «batte» (classe tick rimessa da capo)
++      if (cd.running && num && num.textContent !== n){ num.textContent = n; num.classList.remove('tick'); void num.offsetWidth; num.classList.add('tick'); }
++      set(ov.querySelector('[data-split-count-names]'), sub);
++    }
++    return mode;
++  }
++  // pagina «Partita» dello stesso schermo: le due schede compatte, dal vivo (prima solo «VS» e una nota sotto il piede)
++  paintMatch(now = performance.now()){
++    const slots = this.slots(now);
++    paintBoard($('split-ready-board'), slots);
++    return { ...startGate(slots), slots };
+   }
+   // «Gioca»: sessione split nel motore, mano del P2 sul suo personaggio
+   start(){
+@@ -235,8 +384,9 @@ export class NatpfSplitUi {
+     const text = splitShotLabel(e), id = e.role === 'p2' ? 'p2' : 'p1';
+     if (text) this.labels[id] = { text, until: performance.now() + 1600 };
+   }
+-  // ogni 100 ms (natpf_ui): telefono del P2 in campo e etichette delle due metà
++  // ogni 100 ms (natpf_ui): conto alla rovescia nella pagina «Collega», telefono del P2 in campo e etichette delle metà
+   tick(){
++    this._tickStart();
+     const E = this.engine, on = this.session && splitVisible(E);
+     const hud = $('natpf-split-hud'); show(hud, on);
+     if (on){
+diff --git a/natpf-tennis/test/natpf-ready.test.mjs b/natpf-tennis/test/natpf-ready.test.mjs
+new file mode 100644
+index 0000000..ae1dbbd
+--- /dev/null
++++ b/natpf-tennis/test/natpf-ready.test.mjs
+@@ -0,0 +1,122 @@
++// Stato «pronto» dei giocatori nel 1v1 (B9, punto 4; natpf_ready.js): quattro stati con parola e dettaglio, schede dello
++// stesso schermo dallo stato del telefono (compreso il tutorial aperto), chi manca, conto alla rovescia che parte, scatta
++// una volta sola, si annulla e riparte da capo.
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { READY_STATES, READY_BADGE, READY_COUNTDOWN_MS, slotView, splitSlot, startGate, waitingText, bothNames, cancelText, createCountdown, paintSlot, paintBoard } from '../src/natpf/natpf_ready.js';
++import { splitPlayerStatus, splitCamStatus } from '../src/natpf/natpf_split_ui.js';
++
++test('scheda: quattro stati con parola, nome o Player 1/2, «tu», stato sconosciuto = in attesa', () => {
++  assert.deepEqual(READY_STATES, ['off', 'prep', 'ready', 'ko']);
++  assert.deepEqual(Object.values(READY_BADGE), ['In attesa', 'Si prepara', 'Pronto', 'Problema']);
++  assert.equal(READY_COUNTDOWN_MS, 3000);
++  const v = slotView({ id: 'p2', name: '  ', state: 'ready', detail: 'Calibrato' });
++  assert.equal(v.name, 'Player 2'); assert.equal(v.badge, 'Pronto'); assert.equal(v.cls, 'is-ready'); assert.equal(v.detail, 'Calibrato');
++  assert.equal(v.aria, 'Player 2: Pronto, Calibrato');
++  const me = slotView({ id: 'p2', name: 'Bea', you: true, state: 'prep', detail: 'Calibrazione' });
++  assert.equal(me.aria, 'Bea (tu): Si prepara, Calibrazione');
++  assert.equal(slotView({ state: 'boh' }).state, 'off'); assert.equal(slotView({}).name, 'Player 1');
++  assert.equal(slotView({ state: 'ko', badge: 'Scollegato' }).badge, 'Scollegato', 'parola del problema');
++});
++
++test('stesso schermo: dallo stato del telefono alla scheda (QR, tutorial, sensori, calibrazione, pronto, perso, errori)', () => {
++  const p = { link: {}, state: { state: 'waiting' }, connected: false, ready: false, calView: { stage: 'off' } };
++  assert.deepEqual(splitSlot(splitPlayerStatus(p)), { state: 'off', detail: 'Inquadra il QR' });
++  assert.deepEqual(splitSlot(splitPlayerStatus({ link: null })), { state: 'off', detail: 'Preparo il QR' });
++  // collegato, tutorial aperto nella sua metà: «si prepara · Tutorial 4/11» (prima: «Tocca «Attiva i sensori»» con i
++  // sensori già attivi)
++  Object.assign(p, { connected: true, state: { state: 'connected', phone: 'cal' } });
++  const tut = splitPlayerStatus(p, 'right', { tut: { i: 4, n: 11 } });
++  assert.equal(tut.state, 'tut'); assert.match(tut.title, /tutorial/i); assert.match(tut.sub, /Scheda 4 di 11.*ho capito/);
++  assert.deepEqual(splitSlot(tut), { state: 'prep', detail: 'Tutorial 4/11' });
++  assert.equal(splitPlayerStatus(p, 'right', { tut: { i: 40, n: 11 } }).detail, 'Tutorial 11/11', 'scheda entro il numero di schede');
++  // telefono pronto ma con il tutorial aperto (abbinamento nuovo di un telefono già calibrato): non ancora pronto
++  assert.equal(splitSlot(splitPlayerStatus({ ...p, ready: true, state: { state: 'connected', phone: 'ready' } }, 'right', { tut: { i: 1, n: 11 } })).state, 'prep');
++  // calibrazione
++  p.calView = { stage: 'gesture', want: 'L', ready: true, idx: 0, total: 2 };
++  assert.deepEqual(splitSlot(splitPlayerStatus(p)), { state: 'prep', detail: 'Calibrazione' });
++  p.state = { state: 'connected', phone: 'sensors' };
++  assert.deepEqual(splitSlot(splitPlayerStatus(p)), { state: 'prep', detail: 'Attiva i sensori' });
++  // pronto: calibrato o senza calibrazione
++  Object.assign(p, { ready: true, state: { state: 'connected', phone: 'ready' } });
++  assert.deepEqual(splitSlot(splitPlayerStatus(p)), { state: 'ready', detail: 'Calibrato' });
++  p.simple = true; assert.equal(splitSlot(splitPlayerStatus(p)).detail, 'Senza calibrazione');
++  // sensori negati, collegamento non disponibile, telefono perso: problema
++  assert.deepEqual(splitSlot(splitPlayerStatus({ ...p, ready: false, state: { state: 'connected', phone: 'denied' } })), { state: 'ko', detail: 'Sensori non disponibili' });
++  assert.equal(splitSlot(splitPlayerStatus({ link: {}, state: { state: 'error', error: 'rete' } })).state, 'ko');
++  const lost = splitPlayerStatus({ link: {}, connected: false, state: { state: 'lost', phone: null } });
++  assert.equal(lost.state, 'qr', 'la metà mostra di nuovo il QR'); assert.equal(lost.lost, true);
++  assert.deepEqual(splitSlot(lost), { state: 'ko', detail: 'Telefono scollegato', badge: 'Scollegato' });
++});
++
++test('stesso schermo con una webcam per due: webcam spenta, mano cercata, mano vista, errore', () => {
++  assert.deepEqual(splitSlot(splitCamStatus({})), { state: 'off', detail: 'Webcam spenta' });
++  assert.deepEqual(splitSlot(splitCamStatus({ active: true })), { state: 'prep', detail: 'Alza la mano' });
++  assert.deepEqual(splitSlot(splitCamStatus({ active: true, seen: true })), { state: 'ready', detail: 'Mano vista' });
++  assert.deepEqual(splitSlot(splitCamStatus({ error: { badge: 'Webcam negata', text: '…' } })), { state: 'ko', detail: 'Webcam negata' });
++});
++
++test('si parte? tutti pronti; chi manca e perché il conto si è fermato, senza aggettivi da accordare con il nome', () => {
++  const g = slotView({ id: 'p1', name: 'Giulia', state: 'prep', detail: 'Tutorial 3/11' });
++  const m = slotView({ id: 'p2', name: 'Marco', state: 'off', detail: 'Inquadra il QR' });
++  const ok = id => slotView({ id, name: id === 'p1' ? 'Giulia' : 'Marco', state: 'ready', detail: 'Calibrato' });
++  assert.equal(startGate([ok('p1'), ok('p2')]).both, true);
++  assert.equal(startGate([]).both, false, 'nessuno non è «tutti pronti»');
++  const gate = startGate([g, m]);
++  assert.equal(gate.both, false); assert.deepEqual(gate.waiting.map(w => w.name), ['Giulia', 'Marco']);
++  assert.equal(waitingText(gate.waiting), 'Aspetto Giulia (tutorial 3/11) e Marco (inquadra il QR)', 'QR resta maiuscolo');
++  assert.equal(waitingText(startGate([ok('p1'), m]).waiting), 'Aspetto Marco (inquadra il QR)');
++  assert.equal(waitingText([]), '');
++  assert.equal(bothNames([g, m]), 'Giulia e Marco');
++  const lost = slotView({ id: 'p2', name: 'Marco', state: 'ko', badge: 'Scollegato', detail: 'Telefono scollegato' });
++  assert.equal(cancelText([ok('p1'), lost]), 'Conto annullato · Marco: telefono scollegato');
++  assert.equal(cancelText([ok('p1'), slotView({ id: 'p2', name: 'Marco', state: 'prep', detail: 'Tutorial 1/11' })]), 'Conto annullato · Marco: tutorial 1/11');
++  assert.equal(cancelText([ok('p1'), ok('p2')]), 'Conto fermato');
++});
++
++test('conto alla rovescia: 3, 2, 1, scatta una volta sola; annullato se uno non è più pronto, poi riparte da capo', () => {
++  const c = createCountdown();
++  assert.deepEqual(c.update(false, 0), { left: 0, fire: false, running: false, cancelled: false }, 'fermo: niente da annullare');
++  assert.deepEqual(c.update(true, 1000), { left: 3, fire: false, running: true, cancelled: false });
++  assert.equal(c.running, true);
++  assert.equal(c.update(true, 2100).left, 2); assert.equal(c.update(true, 3050).left, 1);
++  assert.equal(c.update(true, 3999).left, 1);
++  const r = c.update(true, 4000);
++  assert.equal(r.fire, true); assert.equal(c.running, false);
++  for (const t of [4100, 6000, 9000]) assert.equal(c.update(true, t).fire, false, 'una volta sola');
++  // uno non è più pronto a conto in corso: annullato (una volta), poi riparte da 3
++  c.update(false, 9100);
++  assert.equal(c.update(true, 10000).left, 3);
++  c.update(true, 11500);
++  const x = c.update(false, 11600);
++  assert.equal(x.cancelled, true); assert.equal(x.running, false);
++  assert.equal(c.update(false, 11700).cancelled, false, 'annullato una volta sola');
++  assert.equal(c.update(true, 20000).left, 3, 'da capo, non da dove era');
++  assert.equal(c.update(true, 22999).fire, false); assert.equal(c.update(true, 23000).fire, true);
++  // reset («Aspetta»): niente annullamento, si riparte da capo
++  c.update(true, 30000); c.update(true, 30500); c.reset();
++  assert.equal(c.update(true, 31000).left, 3);
++  assert.equal(createCountdown({ ms: 5000 }).update(true, 0).left, 5, 'durata a scelta');
++});
++
++test('disegno della scheda: classi e testi cambiano solo quando lo stato cambia (l\'animazione di «Pronto» parte una volta)', () => {
++  const kids = {};
++  const cls = new Set(), toggles = [];
++  const el = { dataset: {}, title: '', classList: { toggle(c, on){ toggles.push(c); on ? cls.add(c) : cls.delete(c); } }, querySelector: s => (kids[s] ||= { textContent: '', classList: { toggle(){}, } }) };
++  paintSlot(el, slotView({ id: 'p1', name: 'Giulia', state: 'ready', detail: 'Calibrato' }));
++  assert.deepEqual([...cls], ['is-ready']); assert.equal(el.dataset.ready, 'ready');
++  assert.equal(kids['[data-ready-name]'].textContent, 'Giulia'); assert.equal(kids['[data-ready-word]'].textContent, 'Pronto');
++  assert.equal(kids['[data-ready-detail]'].textContent, 'Calibrato'); assert.equal(el.title, 'Giulia: Pronto, Calibrato');
++  const n = toggles.length;
++  paintSlot(el, slotView({ id: 'p1', name: 'Giulia', state: 'ready', detail: 'Calibrato' }));
++  assert.equal(toggles.length, n, 'stesso stato: classi non toccate');
++  paintSlot(el, slotView({ id: 'p1', name: 'Giulia', state: 'ko', detail: 'Telefono scollegato' }));
++  assert.deepEqual([...cls], ['is-ko']);
++  paintSlot(null, null); // niente elemento: niente errori
++  // tabellone: struttura scritta una volta, poi solo le schede
++  const board = { dataset: {}, innerHTML: '', querySelector: () => null };
++  paintBoard(board, [slotView({ id: 'p1' }), slotView({ id: 'p2' })]);
++  assert.match(board.innerHTML, /data-ready-slot="p1"[\s\S]*data-ready-slot="p2"/); assert.match(board.innerHTML, /data-p="p2"/);
++  board.innerHTML = 'segno'; paintBoard(board, [slotView({ id: 'p1' }), slotView({ id: 'p2' })]);
++  assert.equal(board.innerHTML, 'segno', 'stesse schede: niente da riscrivere');
++});
+diff --git a/natpf-tennis/test/natpf-split.test.mjs b/natpf-tennis/test/natpf-split.test.mjs
+index a81b13c..6be4e85 100644
+--- a/natpf-tennis/test/natpf-split.test.mjs
++++ b/natpf-tennis/test/natpf-split.test.mjs
+@@ -130,7 +130,8 @@ test('menu: «Stesso schermo» va da modalità a telefoni a partita, e si proseg
+   assert.equal(stepReady('connect', { mode: 'split', controller: 'phone', phoneLinked: true, splitReady: false }), false, 'un solo telefono non basta');
+   assert.equal(stepReady('connect', { mode: 'split', splitReady: true }), true);
+   assert.equal(autoAdvance('connect', { mode: 'split', controller: 'phone', phoneLinked: true, splitReady: false }), false);
+-  assert.equal(autoAdvance('connect', { mode: 'split', splitReady: true }), true);
++  // B9 (05/11): niente salto muto a «Partita» dopo 0,7 s; con i due pronti c'è il conto alla rovescia (natpf_split_ui)
++  assert.equal(autoAdvance('connect', { mode: 'split', splitReady: true }), false, 'niente salto automatico a «Partita»');
+ });
+ 
+ test('pannello di un giocatore: QR, sensori, passi della calibrazione, pronto; esiti dei colpi', () => {
+@@ -289,3 +290,150 @@ test('stesso schermo con una webcam per due: scelta ricordata, pronti con le due
+   assert.equal(ui.split.input, 'webcam');
+   ui.split.setInput('phones'); assert.equal(mc.webcamDuo, false); assert.equal(ui.controller, 'phone');
+ });
++
++// ---------------------------------------------------------------------------------------------------------------------
++// «Pronto» per giocatore e conto alla rovescia (B9, punto 4; natpf_ready.js, natpf_split_ui._tickStart). Prima: nessuno
++// stato per giocatore e un salto muto a «Partita» dopo 0,7 s, dove «Gioca» restava giallo e attivo anche con un telefono
++// caduto. Ora: schede con nome e stato, conto di 3 s sul computer e sui telefoni, partita senza toccare il computer,
++// conto annullato (con il motivo) se un telefono cade, «Aspetta» / Esc, «Gioca» spento nella pagina «Partita».
++import { $, visible } from './ui-world.mjs';
++import { SPLIT_COUNTDOWN_MS } from '../src/natpf/natpf_split_ui.js';
++
++async function splitLobby({ names = ['Giulia', 'Marco'] } = {}){
++  const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
++  const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
++  const l2 = P2.link = { ...fakeLink(), ready: false, L: { state: 'connected', phone: 'cal' },
++    cmd(c){ this.cmds.push(c); if (c === 'skip' || c === 'confirm'){ this.ready = true; this.L.phone = 'ready'; } if (c === 'cal'){ this.ready = false; this.L.phone = 'cal'; } } };
++  lobby.go('mode'); lobby.setMode('split'); lobby.go('connect');
++  [E.natpfSplitNames.p1, E.natpfSplitNames.p2] = names;
++  ui.split.paint();
++  const okTut = phone => { for (const fn of phone.tutListeners) fn({ ok: true }); ui.split.paint(); };
++  // tutti e due: «Tutto chiaro, ho capito» e calibrazione riuscita
++  const readyBoth = () => { okTut(E.natpfPhone); okTut(P2); E.natpfPhone._onCal({ kind: 'review', pass: true }); P2._onCal({ kind: 'review', pass: true }); };
++  const counts = link => link.sent.filter(m => m.t === 'ev' && m.k === 'count');
++  return { ...w, P2, l2, okTut, readyBoth, counts };
++}
++
++test('stesso schermo: schede con il nome e lo stato (tutorial, calibrazione, pronto); niente salto a «Partita»', async () => {
++  const { E, ui, lobby, P2, okTut, advance } = await splitLobby();
++  // collegati, tutorial aperto: «si prepara · Tutorial 1/n» (prima: «Tocca «Attiva i sensori»» con i sensori attivi)
++  assert.equal(ui.split.status('p1').state, 'tut');
++  let s1 = ui.split.slot('p1');
++  assert.equal(s1.name, 'Giulia'); assert.equal(s1.state, 'prep'); assert.match(s1.detail, /^Tutorial 1\/\d+$/);
++  assert.equal(ui.split.slot('p2').name, 'Marco');
++  assert.equal($('split-status-p1').dataset.state, 'tut');
++  // P1: «ho capito» e calibrazione riuscita → pronto subito; il P2 è ancora nel tutorial: nessun conto
++  okTut(E.natpfPhone); E.natpfPhone._onCal({ kind: 'review', pass: true });
++  s1 = ui.split.slot('p1');
++  assert.equal(s1.state, 'ready'); assert.equal(s1.badge, 'Pronto'); assert.equal(s1.detail, 'Calibrato');
++  advance(1500);
++  assert.equal(ui.split.cd.running, false, 'nessun conto con il P2 nel tutorial');
++  assert.equal($('split-ready-bar').dataset.readyBar, 'wait');
++  assert.match($('split-ready-bar').querySelector('[data-ready-bar-sub]').textContent, /^Aspetto Marco \(tutorial \d+\/\d+\)\.$/);
++  // P2 in calibrazione: «si prepara · Calibrazione»
++  okTut(P2);
++  assert.deepEqual([ui.split.slot('p2').state, ui.split.slot('p2').detail], ['prep', 'Calibrazione']);
++  assert.ok(!visible('split-countdown'));
++  // con il P2 pronto si resta nella pagina «Collega» (prima: «Partita» da soli dopo 0,7 s)
++  P2._onCal({ kind: 'review', pass: true });
++  advance(900);
++  assert.equal(lobby.step, 'connect', 'niente salto a «Partita»');
++  assert.equal(lobby.state().splitReady, true);
++});
++
++test('stesso schermo: tutti e due pronti → conto di 3 s sul computer e sui telefoni, poi si gioca senza toccare il computer', async () => {
++  const { E, ui, lobby, link, l2, readyBoth, counts, advance } = await splitLobby();
++  assert.equal(SPLIT_COUNTDOWN_MS, 3000);
++  readyBoth(); advance(150);
++  assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3);
++  assert.ok(visible('split-countdown'), 'conto grande al centro');
++  assert.equal($('split-countdown').querySelector('[data-split-count]').textContent, '3');
++  assert.equal($('split-countdown').querySelector('[data-split-count-names]').textContent, 'Giulia e Marco, tenete il telefono come in partita.');
++  assert.equal($('split-ready-bar').dataset.readyBar, 'count');
++  assert.equal($('split-ready-bar').querySelector('[data-ready-bar-title]').textContent, 'Tutto pronto: si gioca tra 3');
++  assert.ok(!$('split-ready-bar').querySelector('[data-split-hold]').classList.contains('hidden'), '«Aspetta» in vista');
++  advance(1000); assert.equal(ui.split.cd.left, 2);
++  assert.equal($('split-countdown').querySelector('[data-split-count]').textContent, '2');
++  advance(1000); assert.equal(ui.split.cd.left, 1);
++  assert.ok(!E.natpfSplit?.active, 'non ancora');
++  advance(1000);
++  assert.equal(E.natpfSplit?.active, true, 'si gioca da soli: sessione split avviata dal «Gioca» della lobby');
++  assert.ok(!visible('split-countdown'));
++  // i due telefoni hanno avuto 3, 2, 1 e «si gioca» (0), una volta ciascuno
++  for (const l of [link, l2]) assert.deepEqual(counts(l).map(m => m.n), [3, 2, 1, 0]);
++  advance(4000);
++  assert.deepEqual(counts(link).map(m => m.n), [3, 2, 1, 0], 'una volta sola');
++  assert.equal(lobby.mode, 'split');
++});
++
++test('stesso schermo: un telefono che cade durante il conto lo annulla e la barra dice perché; quando torna si riparte da 3', async () => {
++  const { E, ui, lobby, link, l2, P2, readyBoth, counts, advance } = await splitLobby();
++  readyBoth(); advance(1300);
++  assert.equal(ui.split.cd.left, 2);
++  // il telefono di Marco si scollega
++  Object.assign(l2, { connected: false, ready: false, L: { state: 'lost', phone: null } }); P2._changed();
++  advance(150);
++  assert.equal(ui.split.cd.running, false); assert.ok(!visible('split-countdown'));
++  assert.equal(ui.split.cd.why, 'Conto annullato · Marco: telefono scollegato');
++  const s2 = ui.split.slot('p2');
++  assert.equal(s2.state, 'ko'); assert.equal(s2.badge, 'Scollegato', 'la scheda dice perché');
++  assert.equal($('split-ready-bar').dataset.readyBar, 'cancel');
++  assert.equal($('split-ready-bar').querySelector('[data-ready-bar-title]').textContent, 'Conto annullato · Marco: telefono scollegato');
++  const stop = counts(link).at(-1);
++  assert.equal(stop.stop, 1); assert.match(stop.txt, /Marco: telefono scollegato/, 'il telefono di Giulia lo sa');
++  advance(5000);
++  assert.ok(!E.natpfSplit?.active, 'nessuna partita'); assert.equal(lobby.step, 'connect');
++  // il telefono torna pronto: il conto riparte da capo (3), e poi si gioca
++  Object.assign(l2, { connected: true, ready: true, L: { state: 'connected', phone: 'ready' } }); P2._changed();
++  advance(150);
++  assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3); assert.equal(ui.split.cd.why, null);
++  advance(3000);
++  assert.equal(E.natpfSplit?.active, true);
++});
++
++test('stesso schermo: «Aspetta» (Esc) ferma il conto e non riparte da solo; «Gioca» nella barra fa partire', async () => {
++  const { E, ui, lobby, link, readyBoth, counts, advance, key } = await splitLobby();
++  readyBoth(); advance(600);
++  assert.equal(ui.split.countdownRunning, true);
++  key('Escape', 'Escape');
++  assert.equal(lobby.step, 'connect', 'Esc durante il conto non torna indietro');
++  assert.equal(ui.split.cd.running, false); assert.equal(ui.split.cd.held, true);
++  assert.match(counts(link).at(-1).txt, /fermata/);
++  advance(6000);
++  assert.ok(!E.natpfSplit?.active, 'fermo finché non si preme «Gioca»');
++  assert.equal($('split-ready-bar').dataset.readyBar, 'held');
++  assert.ok(!$('split-ready-bar').querySelector('[data-split-play]').classList.contains('hidden'), '«Gioca» nella barra');
++  ui.split.playNow();
++  assert.equal(E.natpfSplit?.active, true);
++  // Esc senza conto: indietro come sempre
++  const w2 = await splitLobby();
++  w2.key('Escape', 'Escape'); assert.equal(w2.lobby.step, 'mode');
++});
++
++test('stesso schermo, pagina «Partita»: schede dal vivo, «Gioca» grigio e spento con un telefono non pronto; il conto si ferma', async () => {
++  const { E, ui, lobby, link, l2, P2, readyBoth, counts, advance } = await splitLobby();
++  readyBoth(); advance(600);
++  assert.equal(ui.split.countdownRunning, true);
++  // «Impostazioni partita ›»: il conto si ferma, i telefoni lo sanno
++  lobby.next(); assert.equal(lobby.step, 'match');
++  advance(400);
++  assert.equal(ui.split.cd.running, false); assert.match(counts(link).at(-1).txt, /impostazioni/);
++  advance(4000); assert.ok(!E.natpfSplit?.active, 'nella pagina «Partita» si parte con «Gioca»');
++  const board = $('split-ready-board');
++  assert.match(board.innerHTML, /data-ready-slot="p1"/);
++  assert.equal(board.querySelector('[data-ready-slot="p2"]').dataset.ready, 'ready');
++  assert.equal(board.querySelector('[data-ready-slot="p2"]').querySelector('[data-ready-name]').textContent, 'Marco');
++  assert.equal($('btn-start-match').disabled, false); assert.ok(!$('btn-start-match').classList.contains('is-wait'));
++  assert.match($('lobby-match-note').textContent, /^Giulia a sinistra, Marco a destra/);
++  // il telefono di Marco cade: «Gioca» spento e grigio, la scheda e la nota dicono perché
++  Object.assign(l2, { connected: false, ready: false, L: { state: 'lost', phone: null } }); P2._changed();
++  advance(400);
++  assert.equal($('btn-start-match').disabled, true); assert.ok($('btn-start-match').classList.contains('is-wait'));
++  assert.equal(board.querySelector('[data-ready-slot="p2"]').dataset.ready, 'ko');
++  assert.match($('lobby-match-note').textContent, /^Aspetto Marco \(telefono scollegato\): servono i due telefoni pronti/);
++  // Invio: si torna alle schede dei telefoni (prima: «Gioca» giallo e attivo)
++  lobby.next(); assert.equal(lobby.step, 'connect');
++  // altre modalità: «Gioca» di nuovo normale
++  lobby.go('mode'); lobby.setMode('cpu'); lobby.go('match');
++  assert.equal($('btn-start-match').disabled, false); assert.ok(!$('btn-start-match').classList.contains('is-wait'));
++});
+diff --git a/site/js/tennis/racchetta.js b/site/js/tennis/racchetta.js
+index ff1bc91..2e2482a 100644
+--- a/site/js/tennis/racchetta.js
++++ b/site/js/tennis/racchetta.js
+@@ -226,6 +226,9 @@ function onData(c, d){
+       if (d.k === 'contact'){ buzz(vib || (d.label === 'perfetto' ? [40] : [20])); flash('hit', ({ drop: 'Palla corta!', lob: 'Lob!', slice: 'Tagliato!', smash: 'Smash!' }[d.shot]) || ({ perfetto: 'Perfetto!', buono: 'Bel colpo', anticipo: 'In anticipo', ritardo: 'In ritardo' }[d.label] || 'Colpo!'), ''); }
+       if (d.k === 'miss') { buzz(vib || [90]); flash('miss', { presto: 'Troppo presto', tardi: 'Troppo tardi', nessuno: 'Nessun colpo', portata: 'Troppo lontana' }[d.why] || 'Mancata', d.why === 'nessuno' ? 'Il movimento non è arrivato: riprova con un colpetto comodo.' : ''); }
+       if (d.k === 'point') flash(d.mine ? 'hit' : 'miss', d.mine ? 'Punto tuo' : 'Punto avversario', d.txt || '', 1300);
++      // stesso schermo (B9, natpf_split_ui._announce): conto alla rovescia del computer prima della partita (n = 3, 2, 1;
++      // 0 = si gioca) o conto fermato (stop, con il motivo). Solo un avviso sopra la schermata, che poi torna da sola
++      if (d.k === 'count'){ if (d.stop) flash('miss', 'Aspetta', String(d.txt || 'Guarda il computer.').slice(0, 140), 2400); else { buzz([d.n > 0 ? 25 : 70]); flash('ready', d.n > 0 ? 'Si gioca tra' : 'Si gioca!', d.n > 0 ? 'Tieni il telefono come in partita.' : '', d.n > 0 ? 1150 : 1000, d.n > 0 ? String(Math.round(d.n)) : ''); } }
+       break;
+     }
+     case 'bye': ss.del('resume'); ss.del('pair'); pair = null; closeFast(); linkState = 'denied'; paint(); ui('Scollegato', 'Il computer ha scollegato il telefono. Per giocare di nuovo inquadra il nuovo QR.'); try { c.close(); } catch (e){} break;
+-- 
+2.43.0
+
+
+From 4d4451066f29a0f47aae4eb51ace6ee4d234254a Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 03:02:21 +0000
+Subject: [PATCH 2/2] WIP B9: modifiche in corso salvate prima della ripresa
+ (limite d'uso)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ natpf-tennis/natpf-ui.css                |  12 +-
+ natpf-tennis/src/natpf/natpf_ready.js    |   2 +-
+ natpf-tennis/src/natpf/natpf_split_ui.js |   4 +-
+ natpf-tennis/test/natpf-split.test.mjs   |   6 +
+ tools/e2e/natpf-split-ready.mjs          | 218 +++++++++++++++++++++++
+ 5 files changed, 236 insertions(+), 6 deletions(-)
+ create mode 100644 tools/e2e/natpf-split-ready.mjs
+
+diff --git a/natpf-tennis/natpf-ui.css b/natpf-tennis/natpf-ui.css
+index 4c26dbe..f68404c 100644
+--- a/natpf-tennis/natpf-ui.css
++++ b/natpf-tennis/natpf-ui.css
+@@ -1058,17 +1058,21 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
+ #title-modal .split-name-input { width: min(24cqw, 260px); height: 40px; padding: 0 14px; border-radius: var(--r-s); border: 1px solid var(--line-strong); background: rgba(5, 10, 28, 0.6); color: var(--text); font: 700 italic 19px/1 var(--font-display); letter-spacing: 0.02em; }
+ #title-modal .split-name-input::placeholder { color: var(--text-3); }
+ #title-modal .split-name-input:focus-visible { outline: 3px solid var(--ball); outline-offset: 2px; }
+-/* barra dell'avvio sotto le schede: chi manca, conto alla rovescia, conto annullato con il motivo */
+-#title-modal .ready-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 12px 18px; border-radius: var(--r-m); border: 2px solid var(--line); background: var(--panel); transition: border-color var(--t-med), background var(--t-med); }
++/* barra dell'avvio sotto le schede: chi manca, conto alla rovescia, conto annullato con il motivo. Sempre in vista:
++   attaccata in fondo alla pagina che scorre (a 1280×720 e in un'area di ledwall le schede sono più alte dello schermo) */
++#title-modal .ready-bar { grid-column: 1 / -1; position: sticky; bottom: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 12px 18px; border-radius: var(--r-m); border: 2px solid var(--line-strong); background: var(--panel-solid); box-shadow: 0 -10px 24px rgba(4, 8, 24, 0.55); transition: border-color var(--t-med), background var(--t-med); }
+ #title-modal .ready-bar-text { flex: 1 1 280px; min-width: 0; margin: 0; display: grid; gap: 4px; }
+ #title-modal .ready-bar-text b { font: 800 italic clamp(18px, 2.8cqh, 32px)/1.05 var(--font-display); text-transform: uppercase; letter-spacing: 0.01em; }
+ #title-modal .ready-bar-text span { font: 500 clamp(14px, 2cqh, 22px)/1.35 var(--font-text); color: var(--text-2); }
+ #title-modal .ready-bar-text span:empty { display: none; }
+ #title-modal .ready-bar-count { display: none; flex: none; width: 1.7em; height: 1.7em; border-radius: 50%; place-items: center; background: var(--ok); color: var(--ink-900); font: 800 italic clamp(24px, 4.4cqh, 52px)/1 var(--font-display); }
+ #title-modal .ready-bar[data-ready-bar="count"] .ready-bar-count { display: grid; }
+-#title-modal .ready-bar[data-ready-bar="count"], #title-modal .ready-bar[data-ready-bar="held"], #title-modal .ready-bar[data-ready-bar="ready"] { border-color: var(--ok); background: linear-gradient(rgba(54, 224, 122, 0.12), rgba(54, 224, 122, 0.12)), var(--panel); }
++#title-modal .ready-bar[data-ready-bar="count"], #title-modal .ready-bar[data-ready-bar="held"], #title-modal .ready-bar[data-ready-bar="ready"] { border-color: var(--ok); background: linear-gradient(rgba(54, 224, 122, 0.12), rgba(54, 224, 122, 0.12)), var(--panel-solid); }
+ #title-modal .ready-bar[data-ready-bar="count"] .ready-bar-text b, #title-modal .ready-bar[data-ready-bar="held"] .ready-bar-text b, #title-modal .ready-bar[data-ready-bar="ready"] .ready-bar-text b { color: var(--ok); }
+-#title-modal .ready-bar[data-ready-bar="cancel"] { border-color: var(--bad); background: linear-gradient(rgba(255, 79, 97, 0.12), rgba(255, 79, 97, 0.12)), var(--panel); }
++#title-modal .ready-bar[data-ready-bar="cancel"] { border-color: var(--bad); background: linear-gradient(rgba(255, 79, 97, 0.12), rgba(255, 79, 97, 0.12)), var(--panel-solid); }
++/* stesso schermo, pagina dei telefoni: si gioca da soli, quindi «Impostazioni partita ›» è un'azione secondaria (non gialla) */
++#title-modal[data-flow="split"][data-step="connect"] #lobby-next:not(:disabled) { background: transparent; border-color: var(--line-strong); color: var(--text); box-shadow: none; }
++#title-modal[data-flow="split"][data-step="connect"] #lobby-next:not(:disabled):hover { background: rgba(255, 255, 255, 0.12); }
+ #title-modal .ready-bar[data-ready-bar="cancel"] .ready-bar-text b { color: #ffb3bc; }
+ #title-modal .ready-bar .lobby-primary { min-width: 0; }
+ /* conto alla rovescia grande al centro, sopra la lobby (non sopra il toast); «Aspetta» o Esc lo fermano */
+diff --git a/natpf-tennis/src/natpf/natpf_ready.js b/natpf-tennis/src/natpf/natpf_ready.js
+index 8e5298f..ab7f63b 100644
+--- a/natpf-tennis/src/natpf/natpf_ready.js
++++ b/natpf-tennis/src/natpf/natpf_ready.js
+@@ -108,7 +108,7 @@ export function paintSlot(el, v){
+   if (el.title !== v.aria) el.title = v.aria;
+ }
+ // Schede compatte (pagina «Partita» dello stesso schermo, pannello del P2 e barra dell'invito della sfida)
+-export const slotHtml = (id, { compact = true } = {}) => `<div class="ready-slot${compact ? ' compact' : ''} is-off" data-ready="off" data-p="${id === 'p2' ? 'p2' : 'p1'}" data-ready-slot="${id}"><i class="ready-ico" aria-hidden="true"></i><span class="ready-who"><b data-ready-name>${defaultName(id)}</b><small class="ready-you hidden" data-ready-you>tu</small></span><span class="ready-badge"><b data-ready-word>${READY_BADGE.off}</b></span><span class="ready-detail" data-ready-detail></span></div>`;
++export const slotHtml = (id, { compact = true } = {}) => `<div class="ready-slot${compact ? ' compact' : ''} is-off" data-ready="off" data-p="${id === 'p2' ? 'p2' : 'p1'}" data-ready-slot="${id}"><span class="ready-who"><b data-ready-name>${defaultName(id)}</b><small class="ready-you hidden" data-ready-you>tu</small></span><span class="ready-badge"><i class="ready-ico" aria-hidden="true"></i><b data-ready-word>${READY_BADGE.off}</b></span><span class="ready-detail" data-ready-detail></span></div>`;
+ // Tabellone con una scheda per giocatore: la struttura si scrive una volta, poi solo paintSlot
+ export function paintBoard(el, views = []){
+   if (!el) return;
+diff --git a/natpf-tennis/src/natpf/natpf_split_ui.js b/natpf-tennis/src/natpf/natpf_split_ui.js
+index 1a80d99..f532259 100644
+--- a/natpf-tennis/src/natpf/natpf_split_ui.js
++++ b/natpf-tennis/src/natpf/natpf_split_ui.js
+@@ -287,7 +287,9 @@ export class NatpfSplitUi {
+   _tickStart(now = performance.now()){
+     const L = this.ui.lobby;
+     const here = !!L?.visible && L.mode === 'split' && L.step === 'connect' && !this.session && !this.ui.intro?.active;
+-    if (!here){ if (this.cd.running || this.cd.held || this.cd.why) this._stopCount(this.cd.running ? 'Si scelgono le impostazioni sul computer.' : null); return; }
++    // fuori dalla pagina (anche in partita, dopo che il conto è scattato) il conto torna da capo: tornando qui con tutti
++    // e due pronti riparte (prima di questa riga restava «già scattato» e non ripartiva più)
++    if (!here){ if (this.cd.running || this.cd.held || this.cd.why) this._stopCount(this.cd.running ? 'Si scelgono le impostazioni sul computer.' : null); else this.countdown.reset(); return; }
+     const sheet = [...document.querySelectorAll('.natpf-sheet-backdrop')].some(m => !m.classList.contains('hidden'));
+     const blocked = !!L.onboarding?.isOpen || !!this.ui.calibra?.isOpen || sheet;
+     const slots = this.slots(now), gate = startGate(slots);
+diff --git a/natpf-tennis/test/natpf-split.test.mjs b/natpf-tennis/test/natpf-split.test.mjs
+index 6be4e85..2bbfb29 100644
+--- a/natpf-tennis/test/natpf-split.test.mjs
++++ b/natpf-tennis/test/natpf-split.test.mjs
+@@ -364,6 +364,12 @@ test('stesso schermo: tutti e due pronti → conto di 3 s sul computer e sui tel
+   advance(4000);
+   assert.deepEqual(counts(link).map(m => m.n), [3, 2, 1, 0], 'una volta sola');
+   assert.equal(lobby.mode, 'split');
++  // dopo la partita, di nuovo nella pagina dei telefoni con tutti e due pronti: il conto riparte da 3 (prova nel browser:
++  // restava «già scattato» e non ripartiva)
++  ui.backToMenu(); lobby.go('mode'); lobby.setMode('split'); lobby.go('connect');
++  assert.ok(!E.natpfSplit?.active);
++  advance(150);
++  assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3);
+ });
+ 
+ test('stesso schermo: un telefono che cade durante il conto lo annulla e la barra dice perché; quando torna si riparte da 3', async () => {
+diff --git a/tools/e2e/natpf-split-ready.mjs b/tools/e2e/natpf-split-ready.mjs
+new file mode 100644
+index 0000000..0cb574a
+--- /dev/null
++++ b/tools/e2e/natpf-split-ready.mjs
+@@ -0,0 +1,218 @@
++// NATPF motore base (natpf-tennis/): «Stesso schermo» con due telefoni simulati, stato «pronto» di ciascun giocatore e
++// conto alla rovescia (B9, punto 4; natpf_ready.js, natpf_split_ui.js). Percorso di chi gioca, con i comandi veri:
++//   1. menu → Gioca → Stesso schermo, nomi «Giulia» e «Marco»: due schede «In attesa» con il QR;
++//   2. i due telefoni si collegano e attivano i sensori: tutorial nelle due metà, schede «Si prepara · Tutorial»;
++//   3. Giulia «ho capito» e calibra: la sua scheda diventa «Pronto» (verde su tutti i lati), Marco ancora nel tutorial;
++//      la barra dice chi manca, nessun conto;
++//   4. Marco «ho capito» e calibra: conto alla rovescia di 3 s grande sul computer e sui telefoni, poi si gioca senza
++//      toccare il computer (niente salto a «Partita»);
++//   5. di nuovo nella pagina dei telefoni (tutti e due pronti): il conto riparte; Esc lo ferma («Aspetta»), «Gioca»
++//      nella barra fa partire;
++//   6. di nuovo, e durante il conto il telefono di Marco si chiude: conto annullato con il motivo, scheda «Scollegato»,
++//      nessuna partita; pagina «Partita»: schede dal vivo e «Gioca» grigio e spento.
++// Schermate a 1280×720, 1920×1080 e in un'area di ledwall 720×720 (come ?area=0,0,720,720), e dei telefoni (390×844).
++//   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-split-ready.mjs     (OUT=cartella delle schermate)
++// Eventi devicemotion sintetici e due pagine del telefono sulla stessa macchina: non sostituiscono due telefoni veri.
++import { spawn } from 'node:child_process';
++import http from 'node:http';
++import path from 'node:path';
++import { mkdirSync } from 'node:fs';
++import { fileURLToPath } from 'node:url';
++import express from 'express';
++import { ExpressPeerServer } from 'peer';
++import { launch, page, check, summary, SP, quickCalibrate } from './th.mjs';
++import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
++
++const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
++const PEER_PORT = +(process.env.PEER_PORT || 9131), GAME_PORT = +(process.env.GAME_PORT || 3131);
++const OUT = path.join(SP, 'split-ready'); mkdirSync(OUT, { recursive: true });
++const sleep = ms => new Promise(r => setTimeout(r, ms));
++const T0 = Date.now(), log = m => console.log(`[${((Date.now() - T0)/1000).toFixed(1).padStart(5)} s] ${m}`);
++const app = express(), peerServer = http.createServer(app);
++app.use('/fiw', ExpressPeerServer(peerServer, { path: '/' }));
++await new Promise(r => peerServer.listen(PEER_PORT, '127.0.0.1', r));
++const vite = spawn(process.execPath, [path.join(GAME, 'node_modules/vite/bin/vite.js'), '--port', String(GAME_PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: GAME, env: { ...process.env, DISABLE_HMR: 'true' }, stdio: 'pipe' });
++const stop = () => { try { vite.kill(); } catch {} peerServer.close(); };
++process.on('exit', stop);
++const up = async url => { for (let i = 0; i < 120; i++){ const ok = await new Promise(r => http.get(url, res => { res.resume(); r(res.statusCode === 200); }).on('error', () => r(false))); if (ok) return true; await sleep(500); } return false; };
++check('gioco avviato con vite', await up(`http://127.0.0.1:${GAME_PORT}/`));
++
++// telefono in verticale (come natpf-training-flow.mjs): gamma = rotazione attorno alla verticale
++const PHONE_INIT = () => {
++  const G = 9.81;
++  window.__up = {
++    emit(rot, acc = [0, 0, 0]){ window.dispatchEvent(new DeviceMotionEvent('devicemotion', { rotationRate: { alpha: rot[0], beta: rot[1], gamma: rot[2] }, acceleration: { x: acc[0], y: acc[1], z: acc[2] }, accelerationIncludingGravity: { x: acc[0], y: G + acc[1], z: acc[2] }, interval: 10 })); },
++    run(fn, ms){ return new Promise(r => { const t0 = performance.now(); const id = setInterval(() => { const u = (performance.now() - t0)/ms; const v = fn(Math.min(1, u)); this.emit(v.rot || v, v.acc); if (u >= 1){ clearInterval(id); r(); } }, 10); }); },
++    still(ms){ return this.run(() => [0.4*Math.sin(performance.now()), -0.4, 0.3], ms); },
++    swing(sign, { peak = 750, dur = 240 } = {}){ return this.run(u => ({ rot: [0, 0, sign*peak*Math.sin(Math.PI*u)**2], acc: [0, 0, -4*Math.sin(Math.PI*u)] }), dur); },
++    back(sign, peak = 750, dur = 240){ const deg = peak*dur/2000, rate = 20; return this.run(() => [0, 0, -sign*rate], deg/rate*1000); },
++  };
++  window.__hold = setInterval(() => { if (!window.__busy) window.__up.emit([0.4*Math.sin(performance.now()), -0.4, 0.3]); }, 16);
++};
++
++// stato delle schede, della barra, del riquadro del conto e di «Gioca» come li vede chi guarda il computer
++const view = g => g.evaluate(() => {
++  const vis = el => !!el && !el.classList.contains('hidden') && el.offsetParent !== null && el.getBoundingClientRect().height > 0;
++  const card = id => {
++    const el = document.querySelector(`[data-split-player="${id}"]`); if (!el) return null;
++    const cs = getComputedStyle(el), badge = el.querySelector('.ready-badge'), bs = badge && getComputedStyle(badge);
++    return { ready: el.dataset.ready, name: el.querySelector('[data-ready-name]')?.textContent, word: el.querySelector('[data-ready-word]')?.textContent, status: el.querySelector('.split-status b')?.textContent,
++      borders: [cs.borderTopColor, cs.borderRightColor, cs.borderBottomColor, cs.borderLeftColor], badgeBg: bs?.backgroundColor, badgeColor: bs?.color };
++  };
++  const bar = document.getElementById('split-ready-bar'), ov = document.getElementById('split-countdown'), sb = document.getElementById('btn-start-match');
++  const L = __natpfTennis.natpfUi.lobby, S = __natpfTennis.natpfUi.split;
++  return { step: L.step, visible: L.visible, p1: card('p1'), p2: card('p2'),
++    bar: bar && { mode: bar.dataset.readyBar, title: bar.querySelector('[data-ready-bar-title]')?.textContent, sub: bar.querySelector('[data-ready-bar-sub]')?.textContent, hold: vis(bar.querySelector('[data-split-hold]')), play: vis(bar.querySelector('[data-split-play]')), inView: (() => { const r = bar.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })() },
++    overlay: vis(ov) ? { num: ov.querySelector('[data-split-count]')?.textContent, sub: ov.querySelector('[data-split-count-names]')?.textContent } : null,
++    cd: { ...S.cd }, session: !!__natpfTennis.natpfSplit?.active, phase: __natpfTennis.phase,
++    // cosa può fermare il conto: pannelli aperti, guida, calibrazione dello schermo
++    blockers: [...document.querySelectorAll('.natpf-sheet-backdrop')].filter(m => !m.classList.contains('hidden')).map(m => m.id || m.className).concat(L.onboarding?.isOpen ? ['guida'] : [], __natpfTennis.natpfUi.calibra?.isOpen ? ['calibra'] : []),
++    start: sb && { disabled: sb.disabled, cls: sb.className, bg: getComputedStyle(sb).backgroundColor } };
++});
++const phoneView = p => p.evaluate(() => ({ big: document.getElementById('big')?.textContent, arrow: document.getElementById('arrow')?.textContent, sub: document.getElementById('sub')?.textContent, ring: document.getElementById('ring')?.className }));
++const GREEN = 'rgb(54, 224, 122)';
++const until = async (p, fn, arg, ms = 20000) => p.waitForFunction(fn, arg, { timeout: ms, polling: 50 }).then(() => true, () => false);
++
++const B = await launch();
++try {
++  const { p: g, errs } = await page(B, `http://127.0.0.1:${GAME_PORT}/?intro=0&peer=127.0.0.1:${PEER_PORT}`, { w: 1280, h: 720 });
++  await g.waitForFunction(() => window.__natpfTennis?.natpfPhone && window.__natpfTennis.natpfUi?.lobby && window.__natpfTennis.player?.model, null, { timeout: 120000 });
++  // il disegno con la grafica software rallenta i fotogrammi: si disegna solo per le schermate
++  await g.evaluate(() => { const E = __natpfTennis; E.__render = E.render.bind(E); E.render = () => {}; });
++  const shot = async (name, el = g) => { if (el === g) await g.evaluate(() => { try { __natpfTennis.__render(); } catch {} }); await el.screenshot({ path: `${OUT}/${name}.png` }); log('schermata ' + name); };
++  await g.evaluate(() => __natpfTennis.natpfUi.intro?.skip?.());
++  await g.waitForFunction(() => __natpfTennis.natpfUi.lobby.visible && __natpfTennis.natpfUi.lobby.step === 'menu', null, { timeout: 20000 });
++  await g.evaluate(() => __natpfTennis.natpfUi.lobby.menu('play'));
++  await sleep(300);
++  await g.click('[data-mode="split"]');
++  await g.waitForFunction(() => __natpfTennis.natpfUi.lobby.step === 'connect', null, { timeout: 8000 });
++  await g.fill('[data-split-name="p1"]', 'Giulia'); await g.fill('[data-split-name="p2"]', 'Marco');
++  await g.waitForFunction(() => __natpfTennis.natpfPhone.pairingUrl && __natpfTennis.natpfPhone2?.pairingUrl, null, { timeout: 30000 });
++  await sleep(800);
++  let v = await view(g);
++  check('1. due schede con il nome scritto, «In attesa», barra «si parte da soli»', v.p1.name === 'Giulia' && v.p2.name === 'Marco' && v.p1.word === 'In attesa' && v.p2.ready === 'off' && v.bar.mode === 'wait' && /Aspetto Giulia \(inquadra il QR\) e Marco/.test(v.bar.sub), JSON.stringify({ p1: v.p1.word, p2: v.p2.word, bar: v.bar.sub }));
++  await shot('1-qr-1280');
++
++  /* 2: telefoni collegati, sensori attivi, tutorial nelle due metà */
++  const [u1, u2] = await g.evaluate(() => [__natpfTennis.natpfPhone.pairingUrl, __natpfTennis.natpfPhone2.pairingUrl]);
++  const { p: ph1 } = await page(B, u1, { w: 390, h: 844, mobile: true, init: PHONE_INIT });
++  const { ctx: c2, p: ph2 } = await page(B, u2, { w: 390, h: 844, mobile: true, init: PHONE_INIT });
++  for (const ph of [ph1, ph2]) await ph.waitForFunction(() => window.__racchetta?.state.linkState === 'on', null, { timeout: 30000 });
++  for (const ph of [ph1, ph2]){ await ph.waitForSelector('#enable:not(.hidden)', { timeout: 15000 }).catch(() => {}); await ph.click('#enable'); }
++  const tutBoth = await until(g, () => { const S = __natpfTennis.natpfUi.split; return S.tutOpen.p1 && S.tutOpen.p2; });
++  await sleep(600);
++  v = await view(g);
++  check('2. tutorial aperto nelle due metà: schede «Si prepara», stato «Guarda il tutorial» (prima «Attiva i sensori»)', tutBoth && v.p1.ready === 'prep' && v.p2.ready === 'prep' && /tutorial/i.test(v.p1.status) && /Giulia \(tutorial \d+\/\d+\) e Marco \(tutorial \d+\/\d+\)/.test(v.bar.sub), JSON.stringify({ p1: v.p1.status, bar: v.bar.sub }));
++  await shot('2-tutorial-1280');
++
++  /* 3: Giulia pronta, Marco ancora nel tutorial */
++  await ph1.waitForSelector('#tutOk:not(.hidden)', { timeout: 15000 }); await ph1.click('#tutOk');
++  try { await quickCalibrate(ph1, QUICK_PLAN, { timeout: 20000 }); } catch (e){ log('calibrazione P1: ' + e.message); }
++  const tCal1 = Date.now();
++  const p1Ready = await until(g, () => document.querySelector('[data-split-player="p1"]')?.dataset.ready === 'ready');
++  log(`P1 pronto sul computer ${Date.now() - tCal1} ms dopo la fine della calibrazione simulata`);
++  await sleep(500);
++  v = await view(g);
++  check('3. Giulia «Pronto»: distintivo verde pieno con testo scuro, bordo verde su tutti i lati', p1Ready && v.p1.word === 'Pronto' && v.p1.badgeBg === GREEN && v.p1.borders.every(c => c === GREEN), JSON.stringify({ word: v.p1.word, bg: v.p1.badgeBg, borders: v.p1.borders }));
++  check('   Marco ancora nel tutorial: nessun conto, la barra dice chi manca', v.p2.ready === 'prep' && !v.cd.running && !v.overlay && v.bar.mode === 'wait' && /^Aspetto Marco \(tutorial/.test(v.bar.sub), v.bar.sub);
++  await shot('3-p1-pronto-1280');
++  await shot('3-telefono-giulia-pronto', ph1);
++
++  /* 4: Marco pronto → conto alla rovescia → si gioca senza toccare il computer. La calibrazione simulata finisce con
++     qualche istante di telefono fermo: il conto può partire (e finire) prima che lo script torni, quindi si registra
++     tutto nella pagina, ogni 20 ms (computer) e a ogni cambio (telefono) */
++  await g.evaluate(() => {
++    window.__cdLog = []; let last = '';
++    window.__cdRec = setInterval(() => {
++      const ov = document.getElementById('split-countdown'), L = __natpfTennis.natpfUi.lobby;
++      const k = [__natpfTennis.natpfPhone2.ready ? 'p2' : '-', ov.classList.contains('hidden') ? '-' : ov.querySelector('[data-split-count]').textContent, L.visible ? L.step : 'campo', __natpfTennis.natpfSplit?.active ? 'split' : '-'].join(' ');
++      if (k !== last){ last = k; window.__cdLog.push({ t: Math.round(performance.now()), k }); }
++    }, 20);
++  });
++  const phoneRec = ph => ph.evaluate(() => { window.__phLog = []; let last = ''; setInterval(() => { const k = `${document.getElementById('big').textContent}|${document.getElementById('arrow').textContent}`; if (k !== last){ last = k; window.__phLog.push(k); } }, 20); });
++  await phoneRec(ph1); await phoneRec(ph2);
++  await ph2.waitForSelector('#tutOk:not(.hidden)', { timeout: 15000 }); await ph2.click('#tutOk');
++  try { await quickCalibrate(ph2, QUICK_PLAN, { timeout: 20000 }); } catch (e){ log('calibrazione P2: ' + e.message); }
++  const started = await until(g, () => !!__natpfTennis.natpfSplit?.active && !__natpfTennis.natpfUi.lobby.visible && ['SERVE_STANCE', 'SERVE_TOSS'].includes(__natpfTennis.phase), null, 15000);
++  const cdLog = await g.evaluate(() => { clearInterval(window.__cdRec); return window.__cdLog; });
++  log('conto: ' + cdLog.map(e => `${e.t}:${e.k}`).join(' · '));
++  const at = re => cdLog.find(e => re.test(e.k))?.t;
++  const tReady = at(/^p2 /), t3 = at(/^p2 3 /), t2 = at(/^p2 2 /), t1 = at(/^p2 1 /), tGo = at(/ split$/);
++  check('4. Marco pronto: subito il conto grande 3, 2, 1 sul computer, restando nella pagina dei telefoni', tReady != null && t3 - tReady < 400 && t2 > t3 && t1 > t2 && !cdLog.some(e => / match /.test(e.k)), `pronto→3 ${t3 - tReady} ms, 3→2 ${t2 - t3} ms, 2→1 ${t1 - t2} ms`);
++  check('   a zero si gioca da soli (sessione divisa, servizio), 3 s dopo il «3», senza toccare il computer', started && tGo - t3 > 2700 && tGo - t3 < 3600, `${tGo - t3} ms`);
++  const phLog = await ph2.evaluate(() => window.__phLog), ph1Log = await ph1.evaluate(() => window.__phLog);
++  log('telefono di Marco: ' + phLog.join(' · '));
++  for (const [who, l] of [['Marco', phLog], ['Giulia', ph1Log]])
++    check(`   telefono di ${who}: «Si gioca tra 3, 2, 1», poi «Si gioca!»`, ['Si gioca tra|3', 'Si gioca tra|2', 'Si gioca tra|1', 'Si gioca!|'].every(k => l.includes(k)), l.filter(k => /gioca/.test(k)).join(' · '));
++  await sleep(400);
++  await shot('4b-partita-1280');
++
++  // di nuovo nella pagina dei telefoni, con tutti e due pronti (il tutorial non torna: già visto in questa sessione)
++  const backToPhones = () => g.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.backToMenu(); ui.lobby.menu('play'); ui.lobby.setMode('split'); ui.lobby.go('connect'); });
++  await backToPhones();
++  const again = await until(g, () => !document.getElementById('split-countdown').classList.contains('hidden'), null, 8000);
++  v = await view(g);
++  check('5. di nuovo nella pagina dei telefoni, tutti e due pronti: il conto riparte', again && v.overlay && /Giulia e Marco, tenete il telefono/.test(v.overlay.sub) && v.bar.mode === 'count', JSON.stringify({ overlay: v.overlay, bar: v.bar.mode, blockers: v.blockers }));
++  await g.screenshot({ path: `${OUT}/5-conto-1280.png` });
++  const pv = await phoneView(ph2);
++  await shot('5-telefono-marco-conto', ph2);
++  check('   sul telefono: «Si gioca tra» con il numero, anello verde', pv.big === 'Si gioca tra' && /^[123]$/.test(pv.arrow) && /ready/.test(pv.ring), JSON.stringify(pv));
++  /* 5: Esc ferma il conto; schermate a 1920×1080 e nell'area del ledwall */
++  await g.keyboard.press('Escape');
++  await sleep(300);
++  v = await view(g);
++  check('   Esc: conto fermato («Aspetta»), si resta nella pagina, «Gioca» nella barra', !v.overlay && v.step === 'connect' && v.cd.held && v.bar.mode === 'held' && v.bar.play && !v.bar.hold, JSON.stringify(v.bar));
++  const phHeld = await phoneView(ph1);
++  check('   i telefoni lo sanno («Aspetta»)', phHeld.big === 'Aspetta' && /fermata/.test(phHeld.sub), JSON.stringify(phHeld));
++  await sleep(3500);
++  check('   fermo: nessuna partita dopo 3,5 s', !(await view(g)).session);
++  await shot('5-aspetta-1280');
++  // conto congelato a 3 per le schermate (il vero dura 3 s e la grafica software è lenta)
++  const freeze = on => g.evaluate(on => { const S = __natpfTennis.natpfUi.split; if (on){ S.__cd = S.countdown; S.countdown = { running: true, update: go => ({ left: 3, fire: false, running: !!go, cancelled: false }), reset(){} }; S.cd.held = false; } else { S.countdown = S.__cd; S.countdown.reset(); S.cd.held = true; } }, on);
++  await freeze(true); await sleep(300);
++  await g.setViewportSize({ width: 1920, height: 1080 }); await sleep(500);
++  v = await view(g);
++  check('   1920×1080: conto e barra in vista', !!v.overlay && v.bar.inView, JSON.stringify({ overlay: v.overlay, bar: v.bar.inView }));
++  await shot('5b-conto-1920');
++  await freeze(false); await sleep(300);
++  await shot('5c-schede-1920');
++  await g.setViewportSize({ width: 1280, height: 720 });
++  await g.evaluate(() => __natpfTennis.natpfUi.screen.restore({ preset: 'full', area: { x: 0, y: 0, w: 720, h: 720 }, margins: {} }));
++  await sleep(500);
++  await freeze(true); await sleep(300);
++  await shot('5d-conto-ledwall-720');
++  await freeze(false); await sleep(300);
++  await shot('5e-schede-ledwall-720');
++  await g.evaluate(() => __natpfTennis.natpfUi.screen.restore({ preset: 'full', area: null, margins: {} }));
++  await sleep(300);
++  // «Gioca» nella barra: si parte
++  await g.click('#split-ready-bar [data-split-play]');
++  check('   «Gioca» nella barra: si gioca', await until(g, () => !!__natpfTennis.natpfSplit?.active, null, 8000));
++
++  /* 6: telefono che cade durante il conto */
++  await backToPhones();
++  await until(g, () => !document.getElementById('split-countdown').classList.contains('hidden'), null, 8000);
++  await ph2.close();
++  const cancelled = await until(g, () => document.getElementById('split-ready-bar').dataset.readyBar === 'cancel', null, 12000);
++  v = await view(g);
++  check('6. il telefono di Marco si chiude durante il conto: conto annullato con il motivo, scheda «Scollegato»', cancelled && !v.overlay && /^Conto annullato · Marco: telefono scollegato/.test(v.bar.title) && v.p2.ready === 'ko' && v.p2.word === 'Scollegato', JSON.stringify({ bar: v.bar.title, p2: v.p2.word }));
++  const ph1v = await phoneView(ph1);
++  check('   il telefono di Giulia dice perché («Aspetta»)', ph1v.big === 'Aspetta' && /Marco/.test(ph1v.sub), JSON.stringify(ph1v));
++  await shot('6-annullato-1280');
++  await shot('6-telefono-giulia-annullato', ph1);
++  await sleep(4000);
++  v = await view(g);
++  check('   nessuna partita, si resta nella pagina dei telefoni', !v.session && v.step === 'connect' && v.visible);
++  // pagina «Partita»: schede dal vivo, «Gioca» grigio e spento
++  await g.evaluate(() => __natpfTennis.natpfUi.lobby.go('match'));
++  await sleep(600);
++  const m = await g.evaluate(() => { const b = document.getElementById('split-ready-board'), sb = document.getElementById('btn-start-match'); return { slots: [...b.querySelectorAll('[data-ready-slot]')].map(s => `${s.querySelector('[data-ready-name]').textContent}:${s.dataset.ready}`), boardVisible: b.getBoundingClientRect().height > 0, disabled: sb.disabled, bg: getComputedStyle(sb).backgroundColor, note: document.getElementById('lobby-match-note').textContent }; });
++  check('   pagina «Partita»: schede dal vivo (Giulia pronta, Marco scollegato), «Gioca» grigio e spento', m.boardVisible && m.slots.join() === 'Giulia:ready,Marco:ko' && m.disabled && m.bg !== 'rgb(227, 255, 54)', JSON.stringify(m));
++  await shot('7-partita-gioca-spento-1280');
++  check('nessun errore nella pagina del gioco', !errs.length, errs.slice(0, 3).join(' | '));
++} catch (e){ check('prova completata senza eccezioni', false, e.stack || String(e)); }
++finally {
++  await B.close(); stop();
++  summary();
++  setTimeout(() => process.exit(), 300);
++}
+-- 
+2.43.0
+
