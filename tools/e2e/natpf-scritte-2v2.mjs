@@ -81,18 +81,21 @@ try {
       await p.waitForFunction(() => __natpfTennis.phase === 'SERVE_STANCE' && !__natpfTennis.natpfBackdrop, null, { timeout: 30000 });
       check(`${tag} ${format}: partita contro la CPU avviata (${format === 'doubles' ? 'quattro' : 'due'} giocatori)`, await p.evaluate(f => __natpfTennis.isDoubles === (f === 'doubles'), format));
       // colpi: verso il compagno a rete (solo doppio) e verso chi gioca in fondo
-      const cases = format === 'doubles' ? [['compagno', [-1.6, 0, 6.2]], ['fondo', [1.2, 0, 9.4]]] : [['fondo', [1.2, 0, 9.4]]];
-      for (const [who, target] of cases){
-        await p.evaluate(target => {
+      // («largo»: chi gioca in fondo e largo a sinistra, nell'angolo della scritta: la scritta passa all'altro angolo)
+      const cases = format === 'doubles' ? [['compagno', [-1.6, 0, 6.2]], ['fondo', [3.6, 0, 10.6]]] : [['fondo', [1.2, 0, 9.4]], ];
+      for (const [who, target, at = [.6, 11.4]] of cases){
+        await p.evaluate(([target, at]) => {
           const E = __natpfTennis; E.hud.hideCenterBanner(); E.natpfUi.onboarding?.close?.(); E.autoPlayMode = false; E.userHasInteracted = true;
           document.getElementById('timing-popup')?.classList.add('hidden');
           E.phase = 'RALLY'; E.phaseTimer = 0; E.natpfPaused = false;
-          E.player.pos.set(.6, 0, 11.4); E.player.targetPos.copy(E.player.pos);
-          if (E.isDoubles){ E.playerPartner.pos.set(-2.1, 0, 5.4); E.playerPartner.targetPos.copy(E.playerPartner.pos); }
+          E.player.pos.set(at[0], 0, at[1]); E.player.targetPos.copy(E.player.pos);
+          // compagno a rete; per il colpo da fondo nel doppio, lontano dalla palla (altrimenti la prende lui)
+          if (E.isDoubles){ const away = target[0] > 0; E.__pms ??= E.playerPartner.maxSpeed; E.playerPartner.maxSpeed = away ? 0 : E.__pms; E.playerPartner.pos.set(away ? -4.4 : -2.1, 0, 5.4); E.playerPartner.targetPos.copy(E.playerPartner.pos); }
           Object.assign(E.ball, { inPlay: true, lastHitter: 'opponent', bounceCountOnCurrentSide: 0, rallyStrokeCount: 2 });
           E.ball.pos.set(.5, 1.1, -10.5); E._launchBallToTarget(E.ball.pos, new E.ball.pos.constructor(...target), 1.15, { topspin: 10 });
           E._natpfPlanPlayer?.();
-        }, target);
+          if (at[0] !== .6){ E.player.targetPos.copy(E.player.pos); E._natpfPlanPlayer = () => {}; }   // resta largo e in fondo
+        }, [target, at]);
         // swing presto: il motore lo tiene finché la palla arriva (colpo assistito); si ripete finché la palla parte
         const hit = await p.evaluate(() => new Promise(done => {
           const E = __natpfTennis, t0 = performance.now();
@@ -109,9 +112,60 @@ try {
         await p.evaluate(() => __natpfTennis.__render());
         await p.screenshot({ path: `${SP}/scritte-${tag}-${format}-${who}.png` });
         await p.evaluate(() => { const E = __natpfTennis; E.update = E.__update; });
-        check(`${tag} ${format}, colpo ${who === 'compagno' ? 'del compagno a rete' : 'da fondo campo'}: la palla parte`, hit, `fase ${m.phase}, ultimo ${m.last}`);
+        check(`${tag} ${format}, colpo ${who === 'compagno' ? 'del compagno a rete' : who === 'largo' ? 'largo in fondo' : 'da fondo campo'}: la palla parte`, hit, `fase ${m.phase}, ultimo ${m.last}`);
+        if (who === 'compagno') check(`${tag} ${format}: il colpo del compagno dice «compagno» (è il tuo gesto), nel tuo angolo a sinistra`, /compagno/i.test(m.text) && !/side-right/.test(m.cls), m.text);
+        if (who === 'fondo' && format === 'doubles') check(`${tag} ${format}: colpo da fondo tuo, senza «compagno»`, !/compagno/i.test(m.text), m.text);
         check(`${tag} ${format}, colpo ${who}: scritta «${m.text}» in vista, fuori da campo, rete, palla e giocatori`, !bad.length, `sovrapposta a: ${bad.join(', ') || 'niente'}; riquadro ${JSON.stringify(m.popup && [m.popup.l, m.popup.t, m.popup.w, m.popup.h].map(v => Math.round(v)))}, carattere ${m.grade}`);
         report.push({ tag, format, who, popup: m.popup, text: m.text, bad, court: m.court });
+      }
+      // colpo dell'altro giocatore (sfida un amico: «P2 …» sul computer del P1) e stesso schermo (sessione segnata come
+      // attiva solo per la scritta e le barre, gioco fermo): angolo, forma e sovrapposizioni con la stessa misura
+      if (format === 'singles'){
+        // chi gioca fuori dal campo, in fondo a sinistra, proprio dove andrebbe la scritta (punto del suolo sotto l'angolo):
+        // la scritta passa all'altro angolo
+        const r = await p.evaluate(() => {
+          const E = __natpfTennis, c = E.camera, V = c.position.constructor, el = document.getElementById('timing-popup');
+          E.__update ||= E.update; E.update = () => {};
+          E.hud.showTimingPopup({ grade: 'PERFECT \u2022 FOREHAND TOPSPIN!', detail: '120 KM/H' }); clearTimeout(E.hud.timingPopupTimer);
+          const b = el.getBoundingClientRect(), cv = E.renderer.domElement.getBoundingClientRect();
+          const nx = ((b.left + b.right)/2 - cv.left)/cv.width*2 - 1, ny = -(((b.top + b.bottom)/2 - cv.top)/cv.height*2 - 1);
+          const o = c.position.clone(), d = new V(nx, ny, .5).unproject(c).sub(o).normalize(), t = -o.y/d.y, g = o.add(d.multiplyScalar(t));
+          E.player.pos.set(g.x, 0, g.z); E.player.root?.position.copy(E.player.pos);
+          E.hud.showTimingPopup({ grade: 'PERFECT \u2022 FOREHAND TOPSPIN!', detail: '120 KM/H' }); clearTimeout(E.hud.timingPopupTimer);
+          return [+g.x.toFixed(2), +g.z.toFixed(2)];
+        });
+        const m = await p.evaluate(MEASURE), bad = overlaps(m);
+        check(`${tag} chi gioca fuori dal campo nell'angolo della scritta (x ${r[0]} m, z ${r[1]} m): la scritta passa a destra e non lo copre`, /side-right/.test(m.cls) && !bad.includes('player'), `classi ${m.cls}; sovrapposta a: ${bad.join(', ') || 'niente'}`);
+        await p.evaluate(() => __natpfTennis.__render());
+        await p.screenshot({ path: `${SP}/scritte-${tag}-angolo-occupato.png` });
+        report.push({ tag, format: 'angolo', who: 'occupato', popup: m.popup, text: m.text, bad: bad.filter(k => k !== 'campo'), court: m.court });
+        await p.evaluate(() => { const E = __natpfTennis; E.update = E.__update; });
+      }
+      if (format === 'doubles'){
+        const extra = [
+          ['amico', false, 'P2 PERFECT \u2022 FOREHAND TOPSPIN!'],
+          ['split-p1', true, 'PERFECT \u2022 FOREHAND TOPSPIN!'],
+          ['split-p2', true, 'P2 EARLY \u2022 BACKHAND CROSS!'],
+        ];
+        for (const [name, split, grade] of extra){
+          await p.evaluate(([split, grade]) => {
+            const E = __natpfTennis; E.__update ||= E.update; E.update = () => {};
+            if (E.natpfSplit) E.natpfSplit.active = split;
+            E.natpfUi.power.update(0);
+            E.hud.showTimingPopup({ grade, detail: '121 KM/H', screenPos: E._projectToScreen(E.opponent.pos.clone().setY(2.35)) });
+            clearTimeout(E.hud.timingPopupTimer);
+          }, [split, grade]);
+          const m = await p.evaluate(MEASURE), bad = overlaps(m);
+          // schermata con la vista intera (il disegno diviso dello stesso schermo vuole la sessione vera)
+          await p.evaluate(() => { const S = __natpfTennis.natpfSplit; if (S) S.active = false; });
+          const right = /side-right/.test(m.cls), small = /\bother\b/.test(m.cls);
+          const want = name === 'amico' ? right && small && /avversario/i.test(m.text) : name === 'split-p2' ? right && !small : !right && !small;
+          check(`${tag} ${name === 'amico' ? 'colpo dell’amico (sfida un amico)' : name === 'split-p1' ? 'stesso schermo, colpo del P1' : 'stesso schermo, colpo del P2'}: «${m.text}» ${name === 'split-p1' ? 'a sinistra' : 'a destra'}${name === 'amico' ? ', piccolo' : ''}, fuori dal campo`, want && !bad.length, `classi ${m.cls}; sovrapposta a: ${bad.join(', ') || 'niente'}; riquadro ${JSON.stringify(m.popup && [m.popup.l, m.popup.t, m.popup.w, m.popup.h].map(v => Math.round(v)))}`);
+          await p.evaluate(() => __natpfTennis.__render());
+          await p.screenshot({ path: `${SP}/scritte-${tag}-${name}.png` });
+          report.push({ tag, format: name, who: '-', popup: m.popup, text: m.text, bad, court: m.court });
+        }
+        await p.evaluate(() => { const E = __natpfTennis; E.update = E.__update; E.natpfUi.power.update(0); });
       }
       check(`${tag} ${format}: nessun errore nella pagina`, errs.length === 0, errs.slice(0, 3).join(' | '));
       await ctx.close();
