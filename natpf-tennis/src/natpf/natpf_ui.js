@@ -488,7 +488,7 @@ export class NatpfUi {
       // telefono si ricollega da solo appena torna (B9), lo dice il riquadro della pausa, e il suo pulsante apre il QR
       if (phone && a.why === 'scollegato' && this.phone.state.vis !== false && this.modal?.classList.contains('hidden')){ this.phoneDropOpened = true; this.openPhone(); }
     }
-    if (a.kind === 'countdown') this._paintHold(phone ? 'Telefono di nuovo pronto' : 'Webcam di nuovo pronta', `Si riprende tra ${a.left}…`);
+    if (a.kind === 'countdown') this._paintHold(phone ? (this.engine.natpfSplit?.active ? 'Telefono del Player 1 di nuovo pronto' : 'Telefono di nuovo pronto') : 'Webcam di nuovo pronta', `Si riprende tra ${a.left}…`, null, 'p1', { count: a.left });
     if (a.kind === 'resume'){
       if (phone) this.phoneHold = null; else this.webcamHold = null;
       this._paintHold(null);
@@ -508,10 +508,14 @@ export class NatpfUi {
   // ('p1' questo computer, 'p2' il telefono del Player 2 nello stesso schermo, natpf_split_ui._watchP2). Con due pause
   // insieme (stesso schermo, due telefoni con lo schermo spento) il riquadro le dice tutte e due, ognuna con il suo
   // pulsante; prima ognuno ridisegnava il riquadro unico con il suo testo e i testi si alternavano ogni secondo, e la
-  // ripresa di uno toglieva il riquadro anche se l'altro era ancora in pausa (revisione B9 del 06/11)
-  _paintHold(title, text = '', action = null, owner = 'p1'){
+  // ripresa di uno toglieva il riquadro anche se l'altro era ancora in pausa (revisione B9 del 06/11).
+  // count: il conto della ripresa di questo telefono (3, 2, 1). Con due pause, chi è di nuovo pronto mentre l'altro è
+  // ancora in pausa non dice «Si riprende tra…» (la partita resta ferma finché non è pronto anche l'altro): la sua riga
+  // dice di chi è e chi si aspetta (prima «Telefono di nuovo pronto: Si riprende tra 3…» con il P2 ancora spento)
+  _paintHold(title, text = '', action = null, owner = 'p1', { count = 0 } = {}){
     this._holds ||= { p1: null, p2: null };
-    this._holds[owner === 'p2' ? 'p2' : 'p1'] = title ? { title, text, action } : null;
+    const key = owner === 'p2' ? 'p2' : 'p1';
+    this._holds[key] = title ? { key, title, text, action, count } : null;
     const list = ['p1', 'p2'].map(k => this._holds[k]).filter(Boolean);
     let el = $('natpf-phone-hold');
     if (!list.length){ show(el, false); return; }
@@ -530,7 +534,12 @@ export class NatpfUi {
     }
     const two = list.length > 1, acts = list.map(h => h.action).filter(Boolean);
     el.querySelector('b').textContent = two ? 'Partita in pausa' : list[0].title;
-    el.querySelector('p').textContent = two ? list.map(h => `${h.title}: ${h.text}`).join('\n') : list[0].text;
+    const line = h => {
+      const other = list.find(o => o !== h);
+      if (h.count && other && !other.count) return `${h.title}: aspetto il telefono del ${other.key === 'p2' ? 'Player 2' : 'Player 1'}`;
+      return `${h.title}: ${h.text}`;
+    };
+    el.querySelector('p').textContent = two ? list.map(line).join('\n') : list[0].text;
     el.classList.toggle('two', two);
     // con due pause i pulsanti dicono di chi sono (Player 1, Player 2)
     const label = a => two && a.who ? `${a.label} del ${a.who}` : a.label;
