@@ -57,7 +57,7 @@ const dome = new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), new THREE.Shad
   vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position, 1.); }',
   fragmentShader: 'uniform vec3 top, hor; varying vec3 vP; void main(){ float h = clamp(vP.y*1.15, 0., 1.); gl_FragColor = vec4(mix(hor, top, smoothstep(0., 1., pow(h, .8))), 1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}',
 }));
-scene.add(dome);
+dome.renderOrder = -10; scene.add(dome);
 
 const key = new THREE.DirectionalLight(0xffeedd, 2.6);
 key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
@@ -81,11 +81,13 @@ function clayTexture(){
   return t;
 }
 const floor = new THREE.Mesh(new THREE.PlaneGeometry(140, 140), new THREE.MeshStandardMaterial({ map: clayTexture(), roughness: .96, metalness: 0, envMapIntensity: .35 }));
-floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; scene.add(floor);
+floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; floor.renderOrder = -10; scene.add(floor);
+if (qs.has('nofloor')) floor.visible = false;
 const lineM = new THREE.MeshStandardMaterial({ color: 0xe9e2d6, roughness: .9, envMapIntensity: .3 });
 const baseline = new THREE.Mesh(new THREE.PlaneGeometry(10.97, .05), lineM); baseline.rotation.x = -Math.PI/2; baseline.position.set(0, .002, -.75); baseline.receiveShadow = true;
 const centre = new THREE.Mesh(new THREE.PlaneGeometry(.05, .12), lineM); centre.rotation.x = -Math.PI/2; centre.position.set(0, .002, -.84); centre.receiveShadow = true;
 const side = new THREE.Mesh(new THREE.PlaneGeometry(.05, 12), lineM); side.rotation.x = -Math.PI/2; side.position.set(4.115, .002, -6.75); side.receiveShadow = true;
+for (const l of [baseline, centre, side]) l.renderOrder = -10;
 scene.add(baseline, centre, side);
 
 /* ---------- braccio: ossa e pelle ---------- */
@@ -111,12 +113,15 @@ fadeMat.onBeforeCompile = sh => {
   sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float fade;\nvarying float vFade;')
     .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFade = fade;');
   sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vFade;')
-    .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vFade*vFade;\nif (!gl_FrontFacing) diffuseColor.rgb *= .6;');
+    .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vFade*vFade;');
 };
-// anche le facce interne: guardando l'avambraccio di punta si vede la parete interna (più scura), non lo sfondo
-// attraverso un «tubo» vuoto
-fadeMat.side = THREE.DoubleSide;
 fadeMat.customProgramCacheKey = () => 'p3d-fade';
+// Avambraccio che sfuma verso il gomito senza mostrare l'interno: una passata di sola profondità della parte che sfuma
+// PRIMA della parte opaca (che dietro una parete sfumata non si disegna), poi la parte sfumata a colori, solo la
+// superficie più vicina. Guardando l'avambraccio di punta si vede lo sfondo attraverso l'estremità trasparente, non un
+// tubo vuoto (prima: anello scuro con il buco) né le pareti interne (provato: «tappo» con facce interne disegnate
+// convesse, restavano anelli). Ordine: campo e palla, profondità della sfumatura, pelle opaca, telefono, sfumatura.
+const depthMat = new THREE.MeshBasicMaterial({ colorWrite: false });
 if (qs.has('debugFade')){ fadeMat.onBeforeCompile = withSSS; fadeMat.transparent = false; fadeMat.depthWrite = true; fadeMat.vertexColors = false; fadeMat.color.set(0xff2020); fadeMat.side = THREE.DoubleSide; }
 let skinStats = null;
 function makeSkin(r){
@@ -135,7 +140,8 @@ function makeSkin(r){
     g.setIndex(r.pos.length/3 > 65535 ? new THREE.Uint32BufferAttribute(list, 1) : new THREE.Uint16BufferAttribute(list, 1));
     const m = new THREE.SkinnedMesh(g, mat); m.frustumCulled = false; m.bind(skeleton); rig.add(m); return m;
   };
-  const o = mk(opaque, skinMat); o.castShadow = true; o.receiveShadow = true;
+  const d = mk(faded, depthMat); d.renderOrder = -5;
+  const o = mk(opaque, skinMat); o.castShadow = true; o.receiveShadow = true; o.renderOrder = -4;
   const f = mk(faded, fadeMat); f.renderOrder = 2; f.receiveShadow = true;
   skinStats = r.stats;
 }
@@ -146,9 +152,9 @@ rig.add(phone.group);
 phone.group.traverse(o => { if (o.isMesh) o.receiveShadow = true; });
 const ghostGeo = phone.group.children[0].geometry;
 // pose chiave (caricamento, impatto, fine) come «ologrammi»: solo il contorno (fresnel), nessuna superficie piena
-const ghostMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { col: { value: new THREE.Color(0xcfe2ff) }, op: { value: .38 } },
+const ghostMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { col: { value: new THREE.Color(0xcfe2ff) }, op: { value: .26 } },
   vertexShader: 'varying vec3 vN, vV; void main(){ vec4 mv = modelViewMatrix*vec4(position, 1.); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }',
-  fragmentShader: 'uniform vec3 col; uniform float op; varying vec3 vN, vV; void main(){ float f = pow(1. - abs(dot(normalize(vN), normalize(vV))), 2.2); gl_FragColor = vec4(col, op*(.06 + .94*f)); }' });
+  fragmentShader: 'uniform vec3 col; uniform float op; varying vec3 vN, vV; void main(){ float f = pow(1. - abs(dot(normalize(vN), normalize(vV))), 2.2); gl_FragColor = vec4(col, op*(.03 + .97*f)); }' });
 const ghosts = [0, 1, 2].map(() => { const m = new THREE.Mesh(ghostGeo, ghostMat); m.renderOrder = 3; rig.add(m); return m; });
 
 const TRAIL_N = 96, TRAIL_WIN = .55, TIP = [0, PHONE.h/2 - .006, 0];
@@ -157,7 +163,16 @@ const trailGeo = new THREE.BufferGeometry();
 trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
 trailGeo.setAttribute('color', new THREE.BufferAttribute(trailCol, 4));
 { const ix = []; for (let i = 0; i < TRAIL_N - 1; i++){ const a = 2*i; ix.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } trailGeo.setIndex(ix); }
-const trail = new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+// La scia sta dove è passata la cima, quindi spesso DAVANTI al telefono (che si allontana dalla camera): sullo schermo
+// coprirebbe il telefono all'impatto. La sua profondità si sposta indietro di TRAIL_BIAS lungo il raggio della camera
+// (stessa posizione sullo schermo): il telefono e la mano la coprono, come una scia di movimento dietro l'oggetto.
+const TRAIL_BIAS = .12;
+const trailMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+trailMat.onBeforeCompile = sh => {
+  sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' +
+    '{ vec3 pb = mvPosition.xyz*( 1.0 + ' + TRAIL_BIAS.toFixed(3) + '/max( .05, - mvPosition.z ) ); vec4 cb = projectionMatrix*vec4( pb, 1.0 ); gl_Position.z = cb.z/cb.w*gl_Position.w; }');
+};
+const trail = new THREE.Mesh(trailGeo, trailMat);
 trail.frustumCulled = false; trail.renderOrder = 4; rig.add(trail);
 
 function ballTexture(){
@@ -171,7 +186,7 @@ function ballTexture(){
 }
 const BALL_R = .0335;
 const ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 40, 24), new THREE.MeshPhysicalMaterial({ map: ballTexture(), roughness: .85, sheen: 1, sheenRoughness: .55, sheenColor: new THREE.Color(0xf6ffb0), envMapIntensity: .6 }));
-ball.castShadow = true; rig.add(ball);
+ball.castShadow = true; ball.renderOrder = -6; rig.add(ball);
 
 const V = (a, b, s = 1) => [a[0] + b[0]*s, a[1] + b[1]*s, a[2] + b[2]*s];
 const G = -9.81;
@@ -338,8 +353,10 @@ function applyPose(t){
   trailGeo.attributes.position.needsUpdate = true; trailGeo.attributes.color.needsUpdate = true;
   // fantasmi: caricamento, impatto, fine dell'accompagnamento
   const keys = p.still ? [] : p.serve ? [p.T.tEnd, p.T.hStart + .02, p.T.hit] : [p.T.prep, p.T.hit, p.T.swing + .06];
+  // con la camera che segue la mano (servizio, schiacciata) i fantasmi si spostano nel quadro e confondono: niente
+  const follow = !!(VIEWS[state.view || DEFAULT_VIEW[id]] || {}).follow;
   ghosts.forEach((g, i) => {
-    g.visible = i < keys.length && !p.still;
+    g.visible = i < keys.length && !p.still && !follow;
     if (!g.visible) return;
     const Q = gesturePose(id, keys[i]); g.position.set(Q.pos[0], Q.pos[1], Q.pos[2]); g.quaternion.set(Q.q[0], Q.q[1], Q.q[2], Q.q[3]);
   });

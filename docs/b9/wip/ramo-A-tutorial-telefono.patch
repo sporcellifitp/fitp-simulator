@@ -1,7 +1,7 @@
 From cb32d43a869ab6a72b14e12f2151b1d041b1279e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 5 Nov 2026 22:26:31 +0000
-Subject: [PATCH 1/7] B9 A: modale del tutorial compatta con le frecce e
+Subject: [PATCH 1/8] B9 A: modale del tutorial compatta con le frecce e
  schermate esclusive del telefono
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -1974,7 +1974,7 @@ index 0000000..a05be11
 From 75d819d41edf81d5b79962c366d7647e3550a507 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 03:02:20 +0000
-Subject: [PATCH 2/7] WIP B9: modifiche in corso salvate prima della ripresa
+Subject: [PATCH 2/8] WIP B9: modifiche in corso salvate prima della ripresa
  (limite d'uso)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -2070,7 +2070,7 @@ index 8e3975b..a367cea 100644
 From 8c095a35b4bdd03060ee70fa7312b79ecefa6639 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 03:09:39 +0000
-Subject: [PATCH 3/7] B9 A: giocatore fermo dietro la modale del tutorial,
+Subject: [PATCH 3/8] B9 A: giocatore fermo dietro la modale del tutorial,
  prova nel browser con le schede sfogliate dal telefono
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2148,7 +2148,7 @@ index 246d5b7..0863a29 100644
 From 6b2af15c6cd8667643424312bd2affeb1ddf2451 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 03:12:03 +0000
-Subject: [PATCH 4/7] B9 A: schermo del telefono spento, cosa si garantisce via
+Subject: [PATCH 4/8] B9 A: schermo del telefono spento, cosa si garantisce via
  browser e protocollo di prova (docs/b9/schermo-spento.md)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2373,7 +2373,7 @@ index 38e163c..2a9ec92 100644
 From 43dea4e76ca8e5c49d5f5f83bdfbf54eb832d172 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 03:21:46 +0000
-Subject: [PATCH 5/7] B9 A: prova nel browser della modale e del telefono
+Subject: [PATCH 5/8] B9 A: prova nel browser della modale e del telefono
  (natpf-tutorial-phone.mjs), 36/36
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2721,7 +2721,7 @@ index 0000000..bec0763
 From d9b1b558975804b48a046a92e7aa3addb8f1dabf Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 03:26:59 +0000
-Subject: [PATCH 6/7] =?UTF-8?q?B9=20A:=20stesso=20schermo=20con=20la=20mod?=
+Subject: [PATCH 6/8] =?UTF-8?q?B9=20A:=20stesso=20schermo=20con=20la=20mod?=
  =?UTF-8?q?ale=20non=20a=20tutta=20met=C3=A0,=20velo=20del=20telefono=20op?=
  =?UTF-8?q?aco?=
 MIME-Version: 1.0
@@ -2791,7 +2791,7 @@ index bec0763..6f4853b 100644
 From 7b4a766487953a0a6f3b05b285cc8a632d72858e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 03:33:33 +0000
-Subject: [PATCH 7/7] B9 A: schermo-spento.md con gli esiti delle prove nel
+Subject: [PATCH 7/8] B9 A: schermo-spento.md con gli esiti delle prove nel
  browser
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -2815,6 +2815,62 @@ index db7d4e6..9395b91 100644
 +  con «da 3 s», velo «Tocca lo schermo per riprendere» quando il blocco vuole un tocco, ripresa del computer senza
 +  tutorial né QR, un tocco sul velo riprende il blocco).
  - **Non verificato**: tutto quello che riguarda telefoni veri (tabella sopra), Safari su iPhone in particolare.
+-- 
+2.43.0
+
+
+From 5136d0cfd7266cc96ada09e8fabfd76d64777c7b Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 03:38:44 +0000
+Subject: [PATCH 8/8] =?UTF-8?q?B9=20A:=20=C2=ABGioca=20con=20i=20tocchi?=
+ =?UTF-8?q?=C2=BB=20resta=20nella=20calibrazione=20del=20telefono?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+La macchina a schermate del telefono mostrava «Gioca con i tocchi» solo prima di attivare i sensori: la
+prova del sito gesture-calibration (in CI) lo usa dopo «Ricalibra», come via d'uscita quando i sensori non
+vanno durante la calibrazione (prima di B9 c'era). Torna nella schermata della calibrazione; resta fuori
+dal tutorial e da «Pronto». Test della schermata aggiornato.
+
+Test: gioco 768/768, sito 193/193; gesture-calibration 18/18 (prima: si fermava alla riga 86).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ site/js/tennis/phone-screen.js   | 4 +++-
+ tools/test/phone-screen.test.mjs | 3 +++
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/site/js/tennis/phone-screen.js b/site/js/tennis/phone-screen.js
+index 4e4c43c..dbe95ae 100644
+--- a/site/js/tennis/phone-screen.js
++++ b/site/js/tennis/phone-screen.js
+@@ -39,7 +39,9 @@ export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inpu
+   const show = {
+     '#retry': S('link') && (linkState === 'lost' || linkState === 'denied') && hasPair,
+     '#enable': S('enable') || (S('error') && sensor !== 'insecure'),
+-    '#enableTouch': (S('enable') || S('error')) && !touch,
++    // «Gioca con i tocchi»: prima di attivare i sensori e durante la calibrazione (via d'uscita se i sensori non vanno,
++    // come prima di B9); non nel tutorial né in «Pronto»
++    '#enableTouch': (S('enable') || S('error') || S('cal')) && !touch,
+     // mano e movimento: prima di attivare i sensori e alla verifica della calibrazione (non nel tutorial né in «Pronto»)
+     '#profileOptions': S('enable') || S('error') || (S('cal') && calStep === 'review'),
+     '#shotPanel': S('ready') || (S('cal') && calStep === 'free'),
+diff --git a/tools/test/phone-screen.test.mjs b/tools/test/phone-screen.test.mjs
+index a05be11..7f686c2 100644
+--- a/tools/test/phone-screen.test.mjs
++++ b/tools/test/phone-screen.test.mjs
+@@ -28,6 +28,9 @@ test('schermate esclusive: in ogni combinazione una sola, «ho capito» solo nel
+     assert.equal(v.show['#tools'], v.screen === 'ready', ctx);
+     // nel tutorial: niente opzioni, «Gioca con i tocchi», pannello dei colpi
+     if (v.screen === 'tutorial') for (const k of ['#profileOptions', '#enableTouch', '#shotPanel', '#enable', '#retry']) assert.equal(v.show[k], false, `${k} ${ctx}`);
++    // «Gioca con i tocchi» resta come via d'uscita nella calibrazione (prova del sito gesture-calibration), mai in «Pronto»
++    if (v.screen === 'cal' || v.screen === 'enable') assert.equal(v.show['#enableTouch'], inputMode !== 'touch', `#enableTouch ${ctx}`);
++    if (v.screen === 'ready') assert.equal(v.show['#enableTouch'], false, `#enableTouch ${ctx}`);
+     // in calibrazione niente Ricalibra/Ricollega/Scollega (scelta del 05/11)
+     if (v.screen === 'cal') assert.equal(v.show['#tools'], false, ctx);
+     if (linkState !== 'on') assert.equal(v.screen, 'link', ctx);
 -- 
 2.43.0
 

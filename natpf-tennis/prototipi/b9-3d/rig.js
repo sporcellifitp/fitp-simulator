@@ -45,7 +45,7 @@ const TAU_REST = -31*Math.PI/180;
 // di BETA_MAX verso la spalla; il resto lo assorbe la spalla (protrazione e rotazione del tronco), che non si vede:
 // l'omero va dal gomito verso la spalla nominale e sfuma prima di arrivarci.
 const BETA_MAX = 24*Math.PI/180, GAIN = 1.4;
-export function solveArm(phonePos, phoneQ){
+export function solveArm(phonePos, phoneQ, betaDeg = null){
   const { L1, L2 } = ARM;
   const S0 = SHOULDER;
   const W = add(qrot(phoneQ, HD.W), phonePos);
@@ -59,6 +59,7 @@ export function solveArm(phonePos, phoneQ){
     const maxToward = Math.atan2(mtl, Math.max(1e-6, -dot(sub(W, S0), r)) );   // non oltre l'allineamento con la spalla
     beta = Math.max(-BETA_MAX, Math.min(BETA_MAX, Math.min(maxToward, GAIN*err/L2)));
   }
+  if (betaDeg != null) beta = betaDeg*Math.PI/180;
   const mt = mtl > 1e-6 ? mul(mt0, 1/mtl) : [0, -1, 0];
   const re = add(mul(r, Math.cos(beta)), mul(mt, Math.sin(beta)));
   const E = add(W, mul(re, L2)), F = mul(re, -1);
@@ -77,8 +78,12 @@ export function solveArm(phonePos, phoneQ){
   return { S, E, W, U, F, h, tau, shift: len(sub(S, S0)), flexion, wristDev };
 }
 
+// La pelle si costruisce nella posa di partenza ma con il polso deviato di BIND_BETA: nei colpi la deviazione è quasi
+// sempre al massimo (24°), nella posa di partenza 6°; legando a metà strada la pelle si piega al massimo di ±12° invece
+// di 18° in un verso solo (prima: una cresta sul dorso del polso in tutti i colpi).
+export const BIND_BETA = 15;
 export function makeBind(phonePos, phoneQ){
-  const arm = solveArm(phonePos, phoneQ);
+  const arm = solveArm(phonePos, phoneQ, BIND_BETA);
   return { pos: phonePos.slice(), q: phoneQ.slice(), arm, fU: frameQ(arm.U, arm.h), fF: frameQ(arm.F, arm.h) };
 }
 

@@ -59,7 +59,7 @@ export function buildArmMesh(bind, { h = .0026 } = {}){
     // --- pesi: 0 omero, 1..4 avambraccio (0, 1/3, 2/3, 1 dal gomito), 5 mano
     let wHand = 1, wUp = 0, fr = 1;
     if (g === 0 || g === 6){
-      wHand = smoothstep(-.026, .010, dot(sub(p, W), F));
+      wHand = smoothstep(-.040, .012, dot(sub(p, W), F));   // piega del polso distribuita su 5 cm
       const sU = dot(sub(p, E), toS), sF = dot(sub(p, E), F);
       wUp = smoothstep(-.028, .028, sU - sF);
       fr = Math.max(0, Math.min(1, sF/L2));
