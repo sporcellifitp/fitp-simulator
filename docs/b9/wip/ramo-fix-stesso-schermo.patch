@@ -1,9 +1,9 @@
 From 531d4a176c0ce1b4421fd6524ebab12ee76a8500 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 08:49:58 +0000
-Subject: [PATCH] =?UTF-8?q?B9=20revisione=20A:=20stesso=20schermo,=20telef?=
- =?UTF-8?q?ono=20che=20cade=20a=20tutorial=20aperto=20non=20lo=20perde=20p?=
- =?UTF-8?q?i=C3=B9?=
+Subject: [PATCH 1/2] =?UTF-8?q?B9=20revisione=20A:=20stesso=20schermo,=20t?=
+ =?UTF-8?q?elefono=20che=20cade=20a=20tutorial=20aperto=20non=20lo=20perde?=
+ =?UTF-8?q?=20pi=C3=B9?=
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -432,6 +432,255 @@ index 0000000..d659d50
 +finally { await B.close(); stop(); }
 +summary();
 +setTimeout(() => process.exit(), 300);
+-- 
+2.43.0
+
+
+From 3ef25ed030084ec64ddd9ea9edfc0d9940bce548 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 08:54:07 +0000
+Subject: [PATCH 2/2] =?UTF-8?q?B9=20revisione=20B:=20stesso=20schermo,=20t?=
+ =?UTF-8?q?elefono=20con=20lo=20schermo=20spento=20non=20=C3=A8=20pi=C3=B9?=
+ =?UTF-8?q?=20=C2=ABPronto=C2=BB?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Un telefono con la pagina nascosta (schermo spento, altra app: vis 0) restava «Pronto», il conto di 3 s
+partiva e la partita cominciava con un telefono che non poteva giocare.
+
+- splitPlayerStatus usa la salute del telefono (natpf_phone_watch.phoneHealthOf, lo stesso criterio della
+  pausa in partita): pagina nascosta → «Problema · Schermo spento» subito; sensori fermi oltre
+  SPLIT_STALL_MS (400 + 300 ms, come la pausa) → «Sensori fermi». startGate non passa, il conto si annulla
+  con il motivo («Conto annullato · Marco: schermo spento») anche sui telefoni.
+- bothReady() deriva dalle stesse schede (startGate(slots)): «Gioca» della pagina «Partita», splitReady e
+  _bindStart coincidono con le schede, compreso il tutorial aperto o ancora da vedere (chiosco) e la webcam
+  per due (mani viste solo con mc.webcamDuo, anche nello stato della scheda).
+- ridisegno immediato quando cambia vis.
+- test: schermo spento in attesa e durante il conto, sensori fermi sotto e oltre la tolleranza, bothReady
+  come le schede; i test della partita divisa ora chiudono il tutorial prima di «Gioca».
+
+Test: gioco 792/792.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ natpf-tennis/src/natpf/natpf_split_ui.js      | 42 ++++++---
+ .../test/natpf-split-ricollega.test.mjs       |  2 +
+ natpf-tennis/test/natpf-split.test.mjs        | 85 +++++++++++++++++++
+ 3 files changed, 115 insertions(+), 14 deletions(-)
+
+diff --git a/natpf-tennis/src/natpf/natpf_split_ui.js b/natpf-tennis/src/natpf/natpf_split_ui.js
+index dbbbf4c..3597ec3 100644
+--- a/natpf-tennis/src/natpf/natpf_split_ui.js
++++ b/natpf-tennis/src/natpf/natpf_split_ui.js
+@@ -15,7 +15,7 @@
+ //     lo fermano. Prima la lobby saltava muta a «Partita» dopo 0,7 s, dove serviva comunque «Gioca».
+ import { NatpfPhoneRacket } from './natpf_phone_racket.js';
+ import { calPrompt } from './natpf_cal_view.js';
+-import { createPhoneWatch, createResync, phoneHealthOf, phoneHoldText } from './natpf_phone_watch.js';
++import { createPhoneWatch, createResync, phoneHealthOf, phoneHoldText, WATCH } from './natpf_phone_watch.js';
+ import { splitVisible } from './natpf_split.js';
+ import { webcamOpenError } from './natpf_webcam_watch.js';
+ 
+@@ -34,6 +34,9 @@ export const splitInputOf = v => (v === 'webcam' ? 'webcam' : 'phones');
+ // annullato
+ export const SPLIT_COUNTDOWN_MS = READY_COUNTDOWN_MS;
+ export const SPLIT_CANCEL_SHOW_MS = 8000;
++// sensori fermi da così (ms senza dati dal telefono pronto) → la scheda dice «Sensori fermi»: lo stesso tempo della pausa
++// in partita (natpf_phone_watch: sensorGapMs più la tolleranza graceMs), così un pacchetto in ritardo non annulla il conto
++export const SPLIT_STALL_MS = WATCH.sensorGapMs + WATCH.graceMs;
+ 
+ // Stato di un giocatore con la webcam per due (funzione pura): webcam spenta, mano cercata, mano vista
+ // (detail: la parte breve, per il distintivo della scheda, natpf_ready.splitSlot)
+@@ -49,7 +52,13 @@ const PHONE_ERR = { denied: 'Sensori negati sul telefono: ricarica la pagina e c
+ // detail: la parte breve, per il distintivo della scheda (natpf_ready.splitSlot); lost: telefono che c'era e si è perso.
+ // tut: tutorial aperto nella metà di questo giocatore ({ i, n }: scheda mostrata e schede). Prima, con il tutorial
+ // aperto, la metà diceva «Tocca «Attiva i sensori»» anche con i sensori già attivi (analisi B9 D, §2.2)
+-export function splitPlayerStatus(p, hand = 'right', { tut = null } = {}){
++// unseen: telefono collegato che non ha ancora visto il tutorial, con la modale non aperta (si apre nella pagina «Collega»:
++// per esempio dopo il reset del chiosco con il telefono rimasto collegato e la pagina «Partita» aperta). health: salute
++// del telefono (natpf_phone_watch.phoneHealthOf), lo stesso criterio della pausa in partita: un telefono con la pagina
++// nascosta (schermo spento, altra app) o con i sensori fermi non è pronto, anche se il telefono dice «Pronto». Prima la
++// scheda restava «Pronto», il conto partiva e la partita cominciava con un telefono che non poteva giocare (revisione B9
++// del 06/11)
++export function splitPlayerStatus(p, hand = 'right', { tut = null, unseen = false, health = null } = {}){
+   const L = p?.state || { state: 'off' };
+   if (!p?.link || L.state === 'off' || L.state === 'starting') return { state: 'wait', title: 'Preparo il QR…', sub: '', detail: 'Preparo il QR' };
+   if (L.state === 'error') return { state: 'ko', title: 'Collegamento non disponibile', sub: `Controlla la rete e riprova (${L.error || 'errore'})`, detail: 'Collegamento non disponibile' };
+@@ -64,6 +73,9 @@ export function splitPlayerStatus(p, hand = 'right', { tut = null } = {}){
+     const seen = tp?.n ? `Schede viste ${tp.s} di ${tp.n}` : `Scheda ${i} di ${n}`;
+     return { state: 'tut', title: 'Guarda il tutorial', sub: tp?.all ? `${seen} · sul telefono «Tutto chiaro, ho capito»` : `${seen}. Poi sul telefono «Tutto chiaro, ho capito».`, detail: `Tutorial ${i}/${n}` };
+   }
++  if (unseen) return { state: 'tut', title: 'Tutorial da vedere', sub: 'Si apre nella pagina dei telefoni («Racchette»)', detail: 'Tutorial da vedere' };
++  if (L.vis === false || health?.why === 'pagina nascosta') return { state: 'ko', title: 'Schermo del telefono spento', sub: 'O la pagina del gioco non è in primo piano: riaccendi lo schermo, torna alla pagina e tocca il telefono', detail: 'Schermo spento' };
++  if (p.ready && health?.why === 'sensori fermi' && !(health.gapMs < SPLIT_STALL_MS)) return { state: 'ko', title: 'Sensori del telefono fermi', sub: 'Sul telefono tocca «Riattiva i sensori» (o riaccendi lo schermo e torna alla pagina)', detail: 'Sensori fermi' };
+   if (p.ready) return { state: 'ok', title: 'Pronto ✓', sub: p.simple ? 'Senza calibrazione: si gioca lo stesso' : 'Racchetta calibrata', detail: p.simple ? 'Senza calibrazione' : 'Calibrato' };
+   if (L.phone !== 'cal') return { state: 'on', title: 'Tocca «Attiva i sensori»', sub: 'Sul telefono; su iPhone poi «Consenti»', detail: 'Attiva i sensori' };
+   const c = calPrompt(p.calView, hand);
+@@ -148,7 +160,7 @@ export class NatpfSplitUi {
+   // ognuno intasava il computer (prova del 06/11: il controllo delle schede viste del tutorial arrivava in ritardo)
+   // Un cambio vero (collegato, pronto, stato del telefono, tutorial) si ridisegna subito; gli altri messaggi si raggruppano
+   _repaint(){
+-    const key = SPLIT_PLAYERS.map(id => { const p = this.phone(id); return [!!p?.connected, !!p?.ready, p?.state?.phone, p?.state?.state, this.tutOpen[id]].join(':'); }).join('|');
++    const key = SPLIT_PLAYERS.map(id => { const p = this.phone(id); return [!!p?.connected, !!p?.ready, p?.state?.phone, p?.state?.state, p?.state?.vis, this.tutOpen[id]].join(':'); }).join('|');
+     const now = key !== this._repaintKey;
+     this._repaintKey = key;
+     if (now){ clearTimeout(this._repaintT); this._repaintT = null; this._paintLobby(); return; }
+@@ -168,12 +180,12 @@ export class NatpfSplitUi {
+     const code = e.code === 'KeyA' ? 'ArrowLeft' : e.code === 'KeyD' ? 'ArrowRight' : e.code;
+     return !!this.tut[id]?.key({ code });
+   }
+-  // webcam per due: pronti quando la camera è accesa e ha visto le mani di entrambi (anche non in questo momento: tra la
+-  // pagina «Collega» e «Gioca» si scelgono le impostazioni); altrimenti i due telefoni pronti
+-  bothReady(){
+-    if (this.webcam){ const mc = this.engine.motionController, d = mc?._duo, now = performance.now(); return !!mc?.webcamActive && !!mc.webcamDuo && !!d && SPLIT_PLAYERS.every(id => d.seen(id, now, Infinity)); }
+-    return SPLIT_PLAYERS.every(id => !!this.phone(id)?.ready);
+-  }
++  // Si può giocare? Le stesse schede della pagina «Collega» (slot, startGate): decide splitReady della lobby, l'aspetto di
++  // «Gioca» nella pagina «Partita» e natpf_ui._bindStart. Webcam per due: camera accesa in modalità per due che ha visto
++  // le mani di entrambi (anche non in questo momento: tra la pagina «Collega» e «Gioca» si scelgono le impostazioni);
++  // telefoni: pronti, tutorial chiuso, pagina del telefono in primo piano e sensori che arrivano. Prima guardava solo
++  // p.ready: schede «Si prepara» (tutorial aperto) o «Schermo spento» con «Gioca» giallo (revisione B9 del 06/11)
++  bothReady(now = performance.now()){ return startGate(this.slots(now)).both; }
+   // due telefoni o una webcam per due: la scelta si ricorda; con la webcam il P1 gioca con la webcam (controller del
+   // gioco) in modalità per due, con i telefoni la webcam per due si spegne
+   setInput(v){
+@@ -311,14 +323,16 @@ export class NatpfSplitUi {
+   // stato del telefono (o della webcam per due) di un giocatore, come lo dice la sua metà
+   status(id, now = performance.now()){
+     const mc = this.engine.motionController;
+-    if (this.webcam) return splitCamStatus({ active: !!mc?.webcamActive, seen: !!mc?._duo?.seen(id, now), error: mc?.webcamActive ? null : webcamOpenError(mc?.webcamError) });
+-    return splitPlayerStatus(this.phone(id), this.hand(id), { tut: this.tutOpen[id] ? this.tutInfo(id) : null });
++    // (mano vista solo dalla webcam in modalità per due, come slot e bothReady)
++    if (this.webcam) return splitCamStatus({ active: !!mc?.webcamActive, seen: !!mc?.webcamDuo && !!mc?._duo?.seen(id, now), error: mc?.webcamActive ? null : webcamOpenError(mc?.webcamError) });
++    const p = this.phone(id);
++    return splitPlayerStatus(p, this.hand(id), { tut: this.tutOpen[id] ? this.tutInfo(id) : null, unseen: !!p?.connected && !p.tutorialSeen, health: p?.connected ? phoneHealthOf(p, now) : null });
+   }
+-  // scheda: con la webcam per due si è pronti da quando la webcam ha visto la mano (come bothReady), anche se adesso è
+-  // fuori dall'inquadratura; con il telefono, pronto e tutorial chiuso
++  // scheda: con la webcam per due si è pronti da quando la webcam (accesa in modalità per due) ha visto la mano, anche se
++  // adesso è fuori dall'inquadratura; con il telefono, pronto, tutorial chiuso, pagina in primo piano e sensori vivi
+   slot(id, now = performance.now(), st = this.status(id, now)){
+     const mc = this.engine.motionController;
+-    if (this.webcam && mc?.webcamActive && mc._duo?.seen?.(id, now, Infinity)) return slotView({ id, name: this.name(id), state: 'ready', detail: 'Mano vista' });
++    if (this.webcam && mc?.webcamActive && mc.webcamDuo && mc._duo?.seen?.(id, now, Infinity)) return slotView({ id, name: this.name(id), state: 'ready', detail: 'Mano vista' });
+     return slotView({ id, name: this.name(id), ...splitSlot(st) });
+   }
+   slots(now = performance.now()){ return SPLIT_PLAYERS.map(id => this.slot(id, now)); }
+diff --git a/natpf-tennis/test/natpf-split-ricollega.test.mjs b/natpf-tennis/test/natpf-split-ricollega.test.mjs
+index fe667b8..060aaaa 100644
+--- a/natpf-tennis/test/natpf-split-ricollega.test.mjs
++++ b/natpf-tennis/test/natpf-split-ricollega.test.mjs
+@@ -57,6 +57,8 @@ async function splitMatch(){
+   const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
+   const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
+   const l2 = P2.link = fakeLink2();
++  // tutorial già visto dai due (qui conta la partita): con il tutorial aperto «Gioca» non parte (bothReady come le schede)
++  E.natpfPhone.markTutorialSeen(); P2.markTutorialSeen();
+   lobby.go('mode'); lobby.setMode('split'); lobby.go('connect'); ui.split.paint();
+   E.natpfPhone._onCal({ kind: 'review', pass: true });
+   lobby.next(); assert.equal(w.pressStart(), true); assert.equal(E.natpfSplit.active, true);
+diff --git a/natpf-tennis/test/natpf-split.test.mjs b/natpf-tennis/test/natpf-split.test.mjs
+index 26be6e6..e25e13e 100644
+--- a/natpf-tennis/test/natpf-split.test.mjs
++++ b/natpf-tennis/test/natpf-split.test.mjs
+@@ -207,6 +207,8 @@ test('stesso schermo: calibrazione rifatta a partita in corso (Ricalibra sul tel
+   const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
+   const l2 = P2.link = { ...fakeLink(), ready: false, L: { state: 'connected', phone: 'cal' },
+     cmd(c){ this.cmds.push(c); if (c === 'skip' || c === 'confirm'){ this.ready = true; this.L.phone = 'ready'; } if (c === 'cal'){ this.ready = false; this.L.phone = 'cal'; } } };
++  // tutorial già visto dai due (qui conta la partita): con il tutorial aperto «Gioca» non parte (bothReady come le schede)
++  E.natpfPhone.markTutorialSeen(); P2.markTutorialSeen();
+   lobby.go('mode'); lobby.setMode('split'); lobby.go('connect'); ui.split.paint();
+   E.natpfPhone._onCal({ kind: 'review', pass: true }); P2._onCal({ kind: 'review', pass: true });
+   lobby.next(); assert.equal(w.pressStart(), true); assert.equal(E.natpfSplit.active, true);
+@@ -599,3 +601,86 @@ test('stesso schermo: la pagina di prima (mai risposto tut) chiude la modale qua
+   P1._onCal({ kind: 'step', step: 'still' });
+   assert.ok(ui.split.tutOpen.p1 && !P1.tutorialSeen, 'pagina B9: un passo della calibrazione non chiude il tutorial');
+ });
++
++// Revisione B9 (06/11), bloccante del ramo B: un telefono con la pagina nascosta (schermo spento, altra app: il telefono
++// manda vis 0) restava «Pronto», il conto partiva e la partita cominciava. Ora la scheda usa la salute del telefono (lo
++// stesso criterio della pausa in partita, natpf_phone_watch): «Schermo spento» o «Sensori fermi» sono un problema, il
++// conto non parte (o si annulla con il motivo) e bothReady (pagina «Partita», «Gioca») dice lo stesso delle schede
++test('stesso schermo: telefono con lo schermo spento → scheda «Problema · Schermo spento», niente conto, niente partita', async () => {
++  const { E, ui, lobby, link, l2, P2, counts, advance } = await splitLobby();
++  // Giulia pronta, poi il suo schermo si spegne mentre Marco finisce
++  for (const fn of E.natpfPhone.tutListeners) fn({ ok: true }); E.natpfPhone._onCal({ kind: 'review', pass: true });
++  link.L.vis = false; E.natpfPhone._changed();
++  for (const fn of P2.tutListeners) fn({ ok: true }); P2._onCal({ kind: 'review', pass: true });
++  advance(1500);
++  const s1 = ui.split.slot('p1');
++  assert.equal(s1.state, 'ko'); assert.equal(s1.detail, 'Schermo spento');
++  assert.equal(ui.split.status('p1').title, 'Schermo del telefono spento');
++  assert.equal(ui.split.cd.running, false, 'nessun conto'); assert.equal(counts(l2).length, 0, 'nessun annuncio ai telefoni');
++  assert.equal(ui.split.bothReady(), false); assert.equal(lobby.state().splitReady, false);
++  assert.match($('split-ready-bar').querySelector('[data-ready-bar-sub]').textContent, /^Aspetto Giulia \(schermo spento\)\.$/);
++  advance(4000); assert.ok(!E.natpfSplit?.active, 'nessuna partita');
++  // «Impostazioni partita ›» non porta avanti (come con un telefono non pronto); la pagina «Partita» (dal percorso in
++  // alto) ha «Gioca» grigio come le schede
++  lobby.next(); assert.equal(lobby.step, 'connect');
++  lobby.go('match');
++  advance(400);
++  assert.equal($('btn-start-match').disabled, true);
++  assert.match($('lobby-match-note').textContent, /^Aspetto Giulia \(schermo spento\)/);
++  lobby.go('connect');
++  // lo schermo si riaccende: pronta, il conto parte da 3 e si gioca
++  link.L.vis = true; E.natpfPhone._changed();
++  advance(150);
++  assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3);
++  advance(3100);
++  assert.equal(E.natpfSplit?.active, true);
++});
++
++test('stesso schermo: schermo spento durante il conto → conto annullato con il motivo; sensori fermi oltre la tolleranza → problema', async () => {
++  const { E, ui, link, l2, P2, readyBoth, counts, advance } = await splitLobby();
++  readyBoth(); advance(1300);
++  assert.equal(ui.split.cd.running, true);
++  l2.L.vis = false; P2._changed();
++  advance(150);
++  assert.equal(ui.split.cd.running, false);
++  assert.equal(ui.split.cd.why, 'Conto annullato · Marco: schermo spento');
++  assert.equal($('split-ready-bar').dataset.readyBar, 'cancel');
++  assert.match(counts(link).at(-1).txt, /Marco: schermo spento/, 'il telefono di Giulia lo sa');
++  l2.L.vis = true; P2._changed(); advance(150);
++  assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3, 'di nuovo da capo');
++  // sensori del P2: flusso fermo da poco (sotto la tolleranza della pausa in partita) → ancora pronto; oltre → problema
++  const { SPLIT_STALL_MS } = await import('../src/natpf/natpf_split_ui.js');
++  let age = 12; l2.stats = () => ({ rates: { fo: { ageMs: age } }, rtt: 8 });
++  age = SPLIT_STALL_MS - 100; advance(100);
++  assert.equal(ui.split.slot('p2').state, 'ready', 'un pacchetto in ritardo non annulla');
++  age = SPLIT_STALL_MS + 100; advance(150);
++  assert.deepEqual([ui.split.slot('p2').state, ui.split.slot('p2').detail], ['ko', 'Sensori fermi']);
++  assert.equal(ui.split.cd.running, false); assert.equal(ui.split.cd.why, 'Conto annullato · Marco: sensori fermi');
++  assert.ok(!E.natpfSplit?.active);
++});
++
++test('stesso schermo: bothReady come le schede — tutorial aperto o da vedere, webcam per due non in modalità per due', async () => {
++  const { E, ui, lobby, P2, advance } = await splitLobby();
++  // tutti e due calibrati, ma il P2 ha ancora il tutorial aperto
++  for (const fn of E.natpfPhone.tutListeners) fn({ ok: true }); E.natpfPhone._onCal({ kind: 'review', pass: true });
++  P2.link.ready = true; P2.link.L.phone = 'ready';
++  assert.ok(ui.split.tutOpen.p2 && P2.ready);
++  assert.equal(ui.split.slot('p2').state, 'prep'); assert.equal(ui.split.bothReady(), false, 'tutorial aperto: non si gioca');
++  for (const fn of P2.tutListeners) fn({ ok: true }); ui.split.paint();
++  assert.equal(ui.split.bothReady(), true);
++  // chiosco: visitatore nuovo con il P2 rimasto collegato, pagina «Partita» aperta (la modale si apre solo in «Collega»)
++  ui.split.holdCountdown(); lobby.next(); assert.equal(lobby.step, 'match');
++  P2.forgetTutorial();
++  assert.deepEqual([ui.split.slot('p2').state, ui.split.slot('p2').detail], ['prep', 'Tutorial da vedere']);
++  assert.equal(ui.split.bothReady(), false);
++  advance(400); assert.equal($('btn-start-match').disabled, true, '«Gioca» spento');
++  // webcam per due: le mani viste valgono solo con la webcam in modalità per due (prima la scheda diceva «Pronto» e
++  // bothReady no: il conto arrivava a zero e la partita non partiva)
++  const mc = E.motionController;
++  ui.split.input = 'webcam'; mc.webcamActive = true; mc._duo = { seen: () => true, split: () => .5 };
++  mc.webcamDuo = true;
++  assert.equal(ui.split.slot('p1').state, 'ready'); assert.equal(ui.split.bothReady(), true);
++  mc.webcamDuo = false;
++  assert.notEqual(ui.split.slot('p1').state, 'ready', 'scheda e bothReady insieme');
++  assert.equal(ui.split.bothReady(), false, 'webcam non in modalità per due: non si gioca');
++});
 -- 
 2.43.0
 
