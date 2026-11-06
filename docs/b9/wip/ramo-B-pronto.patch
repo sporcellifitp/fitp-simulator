@@ -1,7 +1,7 @@
 From 8698c4bd4780e8f2bc9427904b625224a72b4529 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 5 Nov 2026 22:21:41 +0000
-Subject: [PATCH 1/2] B9 pronto 1v1: stesso schermo con schede per giocatore e
+Subject: [PATCH 1/3] B9 pronto 1v1: stesso schermo con schede per giocatore e
  conto alla rovescia
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -1016,7 +1016,7 @@ index ff1bc91..2e2482a 100644
 From 4d4451066f29a0f47aae4eb51ace6ee4d234254a Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 03:02:21 +0000
-Subject: [PATCH 2/2] WIP B9: modifiche in corso salvate prima della ripresa
+Subject: [PATCH 2/3] WIP B9: modifiche in corso salvate prima della ripresa
  (limite d'uso)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -1329,6 +1329,628 @@ index 0000000..0cb574a
 +  summary();
 +  setTimeout(() => process.exit(), 300);
 +}
+-- 
+2.43.0
+
+
+From f65efb93ca5529e32aeacc163f297d144f8ffbb8 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 03:12:29 +0000
+Subject: [PATCH 3/3] =?UTF-8?q?B9=20pronto=201v1:=20sfida=20un=20amico=20c?=
+ =?UTF-8?q?on=20schede,=20=C2=ABPronto=20=E2=9C=93=C2=BB=20verde=20e=20?=
+ =?UTF-8?q?=C2=ABAnnulla=C2=BB;=20prova=20stesso=20schermo=20verde?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- natpf_versus.js: hostInfo (racchetta dell'host), readyEcho (conferma del relay: invio,
+  visto, non arriva dopo 3 s), guestBoard e hostBoard (schede con natpf_ready.slotView);
+  guestLine con stato 'ready' (fondo verde, diverso da «collegato»)
+- natpf_versus_ui.js: «Sono pronto» senza ✓ (giallo) → «Pronto ✓» verde pieno con
+  aria-pressed; un secondo clic non toglie più il pronto, c'è «Annulla» a parte (con
+  avviso); schede Player 1 / «tu» nel pannello del P2 con «Ada lo vede ✓»; sull'host
+  schede nella barra dell'invito e «Gioca» grigio neutro (is-wait) finché non si può
+- game_engine.js: la racchetta dell'host nello snapshot della lobby (G.host sul P2)
+- CSS: versus-board, piede del pannello del P2 sempre in vista, riga «ready» verde;
+  via #btn-start-match.waiting; «Impostazioni partita» dello stesso schermo neutro anche spento
+- hud_ui.js: «Bea pronto ✓» al posto dell'emoji sotto il «VS»
+- tools/e2e/natpf-split-ready.mjs: calibrazione che ripete il gesto perso (con la grafica
+  software un gesto sintetico andava perso), bordi rossi controllati a transizione finita
+- test: natpf-versus-ready (6 nuovi), aggiornati versus, versus-webcam (secondo clic), flows
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ natpf-tennis/natpf-ui.css                     |  17 ++-
+ natpf-tennis/natpf.css                        |   4 -
+ natpf-tennis/src/game_engine.js               |   4 +-
+ natpf-tennis/src/hud_ui.js                    |   4 +-
+ natpf-tennis/src/natpf/natpf_versus.js        |  47 +++++-
+ natpf-tennis/src/natpf/natpf_versus_ui.js     |  50 ++++++-
+ natpf-tennis/test/natpf-flows.test.mjs        |   2 +-
+ natpf-tennis/test/natpf-versus-ready.test.mjs | 140 ++++++++++++++++++
+ .../test/natpf-versus-webcam.test.mjs         |  11 +-
+ natpf-tennis/test/natpf-versus.test.mjs       |   4 +-
+ tools/e2e/natpf-split-ready.mjs               |  29 +++-
+ 11 files changed, 282 insertions(+), 30 deletions(-)
+ create mode 100644 natpf-tennis/test/natpf-versus-ready.test.mjs
+
+diff --git a/natpf-tennis/natpf-ui.css b/natpf-tennis/natpf-ui.css
+index f68404c..dec0611 100644
+--- a/natpf-tennis/natpf-ui.css
++++ b/natpf-tennis/natpf-ui.css
+@@ -1070,8 +1070,9 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
+ #title-modal .ready-bar[data-ready-bar="count"], #title-modal .ready-bar[data-ready-bar="held"], #title-modal .ready-bar[data-ready-bar="ready"] { border-color: var(--ok); background: linear-gradient(rgba(54, 224, 122, 0.12), rgba(54, 224, 122, 0.12)), var(--panel-solid); }
+ #title-modal .ready-bar[data-ready-bar="count"] .ready-bar-text b, #title-modal .ready-bar[data-ready-bar="held"] .ready-bar-text b, #title-modal .ready-bar[data-ready-bar="ready"] .ready-bar-text b { color: var(--ok); }
+ #title-modal .ready-bar[data-ready-bar="cancel"] { border-color: var(--bad); background: linear-gradient(rgba(255, 79, 97, 0.12), rgba(255, 79, 97, 0.12)), var(--panel-solid); }
+-/* stesso schermo, pagina dei telefoni: si gioca da soli, quindi «Impostazioni partita ›» è un'azione secondaria (non gialla) */
+-#title-modal[data-flow="split"][data-step="connect"] #lobby-next:not(:disabled) { background: transparent; border-color: var(--line-strong); color: var(--text); box-shadow: none; }
++/* stesso schermo, pagina dei telefoni: si gioca da soli, quindi «Impostazioni partita ›» è un'azione secondaria (non
++   gialla, nemmeno spenta: un giallo spento sembrava il pulsante da premere) */
++#title-modal[data-flow="split"][data-step="connect"] #lobby-next { background: transparent; border-color: var(--line-strong); color: var(--text); box-shadow: none; }
+ #title-modal[data-flow="split"][data-step="connect"] #lobby-next:not(:disabled):hover { background: rgba(255, 255, 255, 0.12); }
+ #title-modal .ready-bar[data-ready-bar="cancel"] .ready-bar-text b { color: #ffb3bc; }
+ #title-modal .ready-bar .lobby-primary { min-width: 0; }
+@@ -1143,6 +1144,18 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
+ .natpf-sheet .lobby-primary.is-ready, .natpf-lobby .lobby-primary.is-ready { background: var(--ok); color: var(--ink-900); box-shadow: 0 8px 22px rgba(54, 224, 122, 0.3); cursor: default; }
+ .natpf-sheet .lobby-primary.is-ready:hover, .natpf-lobby .lobby-primary.is-ready:hover { background: var(--ok); transform: none; }
+ #btn-start-match.is-wait { background: rgba(255, 255, 255, 0.1); color: var(--text-3); border-color: var(--line-strong); box-shadow: none; opacity: 1; cursor: not-allowed; }
++/* sfida un amico: le due schede nel pannello del Player 2 e nella barra dell'invito dell'host */
++.versus-board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 12px; }
++.versus-board:empty { display: none; }
++.natpf-invite .versus-board { grid-column: 1 / -1; margin: 6px 0 2px; }
++.versus-board .ready-slot { padding: 8px 12px 8px 18px; }
++.versus-board .ready-slot .ready-who b { font-size: clamp(16px, 2.4cqh, 26px); }
++.versus-board .ready-slot .ready-detail { font-size: clamp(13px, 1.8cqh, 18px); }
++@container natpf (max-width: 520px) { .versus-board { grid-template-columns: 1fr; } }
++/* pannello del Player 2: pulsanti sempre in vista anche quando il pannello scorre (a 1280×720 si vedevano a metà) */
++.natpf-guest-dialog .sheet-actions { position: sticky; bottom: -22px; z-index: 1; margin: 16px -28px -22px; padding: 12px 28px 22px; background: var(--panel-solid); box-shadow: 0 -10px 18px rgba(4, 8, 24, 0.5); }
++/* riga di stato del Player 2 pronto: verde, diversa da «collegato» */
++.natpf-versus-status[data-state="ready"] { border-color: var(--ok); background: rgba(54, 224, 122, 0.14); color: var(--text); }
+ @media (prefers-reduced-motion: reduce) { .is-prep .ready-ico, .is-ready .ready-badge, #title-modal .split-countdown-num.tick { animation: none; } }
+ /* in partita: sotto ogni metà chi gioca e l'esito dell'ultimo colpo. Misure in vh/vw: su un ledwall (pochi pixel, visto
+    da lontano) restano grandi quanto la vista */
+diff --git a/natpf-tennis/natpf.css b/natpf-tennis/natpf.css
+index f22998a..14540d6 100644
+--- a/natpf-tennis/natpf.css
++++ b/natpf-tennis/natpf.css
+@@ -1015,10 +1015,6 @@ html:not(.autoplay-mode) #hud-root {
+ @keyframes versus-pulse {
+   50% { opacity: 0.35; }
+ }
+-#btn-start-match.waiting {
+-  opacity: 0.6;
+-  cursor: not-allowed;
+-}
+ .natpf-versus-status {
+   margin: 0 0 10px;
+   padding: 10px 14px;
+diff --git a/natpf-tennis/src/game_engine.js b/natpf-tennis/src/game_engine.js
+index 5c5e5a2..90abdac 100644
+--- a/natpf-tennis/src/game_engine.js
++++ b/natpf-tennis/src/game_engine.js
+@@ -3259,7 +3259,8 @@ export class NatpfTennisEngine {
+   }
+   _broadcastMultiplayerSnapshot() {
+     if (!this._versusInMatch()) {
+-      fetch("/api/match/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room: this.roomId, snapshot: { lobby: !0, fmt: this.matchFormat.id, gamesToWin: this.matchConfig.gamesToWin } }) }).catch(() => {});
++      // NATPF 1v1 (B9): con la racchetta dell'host (pronta o no), per la scheda del Player 1 sul computer del P2
++      fetch("/api/match/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room: this.roomId, snapshot: { lobby: !0, fmt: this.matchFormat.id, gamesToWin: this.matchConfig.gamesToWin, host: this.natpfUi?.versus?.hostInfo?.() || null } }) }).catch(() => {});
+       return;
+     }
+     const e = (i) => ({
+@@ -3366,6 +3367,7 @@ export class NatpfTennisEngine {
+       G.lastSnapshotAt = performance.now();
+       if (n.lobby) {
+         G.lobby = !0;
++        G.host = n.host || null; // NATPF 1v1 (B9): racchetta dell'host (natpf_versus.hostInfo); null con un host di prima
+         return;
+       }
+       // host in pausa (o in attesa del P2): la partita resta com'è, il collegamento è vivo; hold: perché è ferma
+diff --git a/natpf-tennis/src/hud_ui.js b/natpf-tennis/src/hud_ui.js
+index 711de4a..12ad1f5 100644
+--- a/natpf-tennis/src/hud_ui.js
++++ b/natpf-tennis/src/hud_ui.js
+@@ -656,8 +656,8 @@ export class HudUI {
+       e && e.classList.toggle("opponent-ready", a);
+     const m = document.getElementById("setup-opponent-label");
+     // NATPF 1v1: «pronto» solo con il Player 2 pronto (prima bastava che fosse entrato, mentre la lobby diceva «sta
+-    // preparando la racchetta» e «Gioca» restava spento)
+-    m && this.selectedDifficulty === "1v1" && !s && setText(m, a && t.p2Ready ? `\u{1F7E2} ${o} pronto` : a ? `${o} entrato` : o),
++    // preparando la racchetta» e «Gioca» restava spento). B9: «pronto ✓» al posto dell'emoji nell'etichetta maiuscola
++    m && this.selectedDifficulty === "1v1" && !s && setText(m, a && t.p2Ready ? `${o} pronto \u2713` : a ? `${o} entrato` : o),
+       (this._lastOtherReady = a);
+   }
+ }
+diff --git a/natpf-tennis/src/natpf/natpf_versus.js b/natpf-tennis/src/natpf/natpf_versus.js
+index 78455f1..737739b 100644
+--- a/natpf-tennis/src/natpf/natpf_versus.js
++++ b/natpf-tennis/src/natpf/natpf_versus.js
+@@ -9,6 +9,7 @@
+ //   • partita: P2 assente per più di VERSUS.lostMs → pausa con la spiegazione, riprende da sola quando torna;
+ //   • P2: l'host è l'unico arbitro (punti, game, fine partita arrivano dagli snapshot); stato chiaro in ogni fase.
+ // Funzioni pure qui; il collegamento a motore e interfaccia sta in game_engine.js (blocchi «NATPF 1v1») e natpf_ui.js.
++import { slotView } from './natpf_ready.js';
+ 
+ export const VERSUS = Object.freeze({
+   lostMs: 5000,        // senza notizie dall'altro computer per 5 s: scollegato (come il telefono e il WebRTC)
+@@ -87,6 +88,49 @@ export function startLabel(state){
+   return state === 'ready' ? 'Gioca ›' : state === 'joined' ? 'Aspetto che il Player 2 sia pronto…' : 'In attesa del Player 2…';
+ }
+ 
++/* ---------- stato «pronto» dei due giocatori (B9, punto 4: docs/b9/analisi-pronto-1v1.md §4.2) ----------
++   Prima il «pronto» stava solo nel pulsante giallo del P2 («Sono pronto ✓» → «Pronto ✓», stesso giallo, un secondo clic
++   lo toglieva senza dirlo) e in un pallino di 10 px sull'host. Ora una scheda per giocatore (natpf_ready.js) sui due
++   computer, il pulsante del P2 verde pieno da pronto con «Annulla» a parte, e la conferma che l'host l'ha ricevuto. */
++// Racchetta dell'host, per le schede (sua e del P2, che la riceve nello snapshot della lobby): pronta con il telefono
++// calibrato, la webcam accesa, o subito con mouse e tastiera
++export function hostInfo({ controller = 'mouse', phoneReady = false, webcamActive = false } = {}){
++  const ready = controller === 'phone' ? !!phoneReady : controller === 'webcam' ? !!webcamActive : true;
++  return { ready, detail: ready ? 'racchetta pronta' : controller === 'phone' ? 'collega il telefono' : 'prepara la webcam' };
++}
++// «Pronto» del P2 arrivato? Il relay rimanda p2Ready (vero solo con il P2 online; senza server il relay è nel browser
++// dell'host): 'none' (non pronto) · 'sending' (inviato, non ancora tornato) · 'ok' · 'late' (dopo READY_ECHO_MS senza
++// conferma: il collegamento non lo porta all'host)
++export const READY_ECHO_MS = 3000;
++export function readyEcho({ ready = false, echoed = false, sinceMs = 0 } = {}){
++  if (!ready) return 'none';
++  if (echoed) return 'ok';
++  return sinceMs >= READY_ECHO_MS ? 'late' : 'sending';
++}
++// Schede viste dal Player 2: l'host (dallo stato della sfida e dalla sua racchetta, se l'host la manda) e «tu»
++export function guestBoard({ guest = 'connecting', ready = false, echo = 'none', phone = false, webcam = false, host = null, hostName = 'Player 1', guestName = 'Player 2' } = {}){
++  let p1;
++  switch (guest){
++    case 'lobby': p1 = host ? { state: host.ready ? 'ready' : 'prep', detail: host.detail || '' } : { state: 'prep', detail: 'prepara la partita' }; break;
++    case 'playing': p1 = { state: 'ready', detail: 'in partita' }; break;
++    case 'lost': p1 = { state: 'ko', badge: 'Scollegato', detail: 'mi ricollego…' }; break;
++    case 'closed': p1 = { state: 'ko', badge: 'Uscito', detail: 'ha chiuso la stanza' }; break;
++    case 'invalid': p1 = { state: 'ko', badge: 'Non trovato', detail: 'nessuna stanza con questo link' }; break;
++    default: p1 = { state: 'off', detail: 'mi collego…' };
++  }
++  const p2 = ready
++    ? echo === 'late' ? { state: 'prep', badge: 'Non arriva', detail: `${hostName} non lo vede: controlla il collegamento` }
++      : { state: 'ready', detail: echo === 'ok' ? `${hostName} lo vede ✓` : `invio a ${hostName}…` }
++    : phone ? { state: 'prep', detail: 'collega il telefono' } : webcam ? { state: 'prep', detail: 'accendi la webcam' } : { state: 'prep', detail: 'premi «Sono pronto»' };
++  return [slotView({ id: 'p1', name: hostName, ...p1 }), slotView({ id: 'p2', name: guestName, you: true, ...p2 })];
++}
++// Schede viste dall'host, nella barra dell'invito: «tu» (la tua racchetta) e il Player 2 (in attesa · si prepara · pronto)
++export function hostBoard(state, { host = null, hostName = 'Player 1', p2Name = 'Player 2' } = {}){
++  const p1 = host ? { state: host.ready ? 'ready' : 'prep', detail: host.detail || '' } : { state: 'ready', detail: '' };
++  const p2 = state === 'ready' ? { state: 'ready', detail: 'premi «Gioca»' } : state === 'joined' ? { state: 'prep', detail: 'prepara la racchetta' } : { state: 'off', detail: 'mandagli il link' };
++  return [slotView({ id: 'p1', name: hostName, you: true, ...p1 }), slotView({ id: 'p2', name: p2Name, ...p2 })];
++}
++
+ // Stato visto dal Player 2:
+ //   'connecting' · 'lobby' (collegato, l'host prepara) · 'playing' · 'lost' (host senza notizie) · 'closed' (l'host ha
+ //   chiuso la stanza) · 'invalid' (codice inesistente)
+@@ -114,9 +158,10 @@ export function guestText(state, { ready = false, phone = false, webcam = false,
+ // Riga di stato del pannello del Player 2: lo stato della sfida o, nella sfida senza server non ancora collegata,
+ // perché (rete che blocca il collegamento diretto, host muto, stanza occupata, server della segnalazione). Prima una
+ // seconda riga «Mi collego all’host…» sotto la prima, e nessuna spiegazione. net: { mode, status, error }
++// Pronto in lobby: stato 'ready' (fondo verde), diverso da «collegato» (prima tutti e due 'lobby', stesso bordo verde)
+ export function guestLine(state, { ready = false, phone = false, webcam = false, hostName = 'Player 1', net = null } = {}){
+   if (net?.mode === 'guest' && (state === 'connecting' || state === 'lost') && net.error) return { state: 'error', text: p2pStatusText('guest', net.status, net.error) };
+-  return { state, text: guestText(state, { ready, phone, webcam, hostName }) };
++  return { state: state === 'lobby' && ready ? 'ready' : state, text: guestText(state, { ready, phone, webcam, hostName }) };
+ }
+ 
+ // Presenza dell'avversario durante la partita (host): quanto manca all'avviso di uscita
+diff --git a/natpf-tennis/src/natpf/natpf_versus_ui.js b/natpf-tennis/src/natpf/natpf_versus_ui.js
+index 5c005d5..ce893ad 100644
+--- a/natpf-tennis/src/natpf/natpf_versus_ui.js
++++ b/natpf-tennis/src/natpf/natpf_versus_ui.js
+@@ -5,14 +5,17 @@
+ //     «Torna al menu» per chiudere;
+ //   • Player 2: un pannello unico con lo stato (mi collego · collegato · pronto · partita · collegamento perso · stanza
+ //     chiusa o inesistente · rete che blocca il collegamento diretto), racchetta e visuale, «Sono pronto» ed «Esci»;
++//     una scheda per giocatore (Player 1 e «tu», natpf_ready.js): dopo «Sono pronto» il pulsante diventa verde pieno
++//     «Pronto ✓» (non si toglie più ricliccando: c'è «Annulla») e la scheda dice se l'host l'ha ricevuto (B9, punto 4);
+ //     sul telefono un avviso: l'invito si apre sul computer. Racchetta da preparare come il Player 1 nel menu: telefono
+ //     (QR → calibrazione in campo) o webcam (pannello della webcam → prova in campo), poi pronto da solo.
+ // Lo stato arriva ogni 50 ms dal relay (/api/match/state) attraverso il motore (roomStatus, versusGuest).
+-import { VERSUS, lobbyState, canStart, hostLobbyStatus, startLabel, guestState, guestLine, p2HoldWhy, createHoldReporter, opponentHealth, hostHoldText, guestHoldNotice, CHECKPOINT_KEY, makeCheckpoint, checkpointFor } from './natpf_versus.js';
++import { VERSUS, lobbyState, canStart, hostLobbyStatus, startLabel, guestState, guestLine, hostInfo, readyEcho, guestBoard, hostBoard, p2HoldWhy, createHoldReporter, opponentHealth, hostHoldText, guestHoldNotice, CHECKPOINT_KEY, makeCheckpoint, checkpointFor } from './natpf_versus.js';
+ import { createPhoneWatch, phoneHealthOf, holdText } from './natpf_phone_watch.js';
+ import { webcamHealth, webcamHoldText } from './natpf_webcam_watch.js';
+ import { warmupDrills } from './natpf_training.js';
+ import { autoAdvance } from './natpf_lobby.js';
++import { paintBoard } from './natpf_ready.js';
+ const $ = id => document.getElementById(id);
+ const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
+ // browser di un telefono (sistema mobile e tocco): l'invito va aperto sul computer
+@@ -46,10 +49,12 @@ export class NatpfVersusUi {
+   get hostActive(){ return !this.p2 && !!this.engine.versus?.active && !this.engine.versus.local; }
+   get state(){ const r = this.engine.roomStatus || {}; return lobbyState({ p2Online: r.p2Online, p2Ready: r.p2Ready }); }
+   canStart(){ return canStart(this.state); }
++  // racchetta dell'host per le schede (sua e del P2: va nello snapshot della lobby, game_engine._broadcastMultiplayerSnapshot)
++  hostInfo(){ return hostInfo({ controller: this.ui.controller, phoneReady: !!this.ui.phone?.ready, webcamActive: !!this.engine.motionController?.webcamActive }); }
+   // modalità amico: riga di stato della barra dell'invito e pulsante «Gioca»
+   paintLobby(){
+     const box = $('natpf-invite'), btn = $('btn-start-match');
+-    if (!this.hostActive || this.ui.lobby?.mode !== 'friend'){ if (btn){ btn.disabled = false; btn.classList.remove('waiting'); } return; }
++    if (!this.hostActive || this.ui.lobby?.mode !== 'friend'){ if (btn){ btn.disabled = false; btn.classList.remove('is-wait'); } return; }
+     const st = this.state, r = this.engine.roomStatus || {}, p2p = this.engine.natpfP2p;
+     const line = hostLobbyStatus(st, { roomId: this.engine.roomId, p2Name: r.guestName || 'Player 2', net: p2p?.mode === 'host' ? { mode: 'host', status: p2p.status, error: p2p.error } : null });
+     // solo se cambia: prima le righe si riscrivevano ogni 250 ms e l'animazione del pallino in attesa ripartiva da capo
+@@ -57,9 +62,16 @@ export class NatpfVersusUi {
+     const el = box?.querySelector('[data-versus-state]');
+     if (el && (el.textContent !== line.text || el.dataset.state !== line.state)){ el.textContent = line.text; el.dataset.state = line.state; }
+     if (el) el.title = p2p?.mode === 'host' && p2p.detail ? `collegamento diretto: ${p2p.detail}` : '';
++    // due schede sotto la riga: «tu» e il Player 2 (in attesa · si prepara · pronto), aggiornate solo se cambiano
++    if (el){
++      let board = box.querySelector('[data-versus-board]');
++      if (!board){ el.insertAdjacentHTML('afterend', '<div class="ready-board versus-board" data-versus-board></div>'); board = box.querySelector('[data-versus-board]'); }
++      paintBoard(board, hostBoard(st, { host: this.hostInfo(), hostName: r.hostName || 'Player 1', p2Name: r.guestName || 'Player 2' }));
++    }
+     if (btn){
+       const ok = canStart(st);
+-      btn.disabled = !ok; btn.classList.toggle('waiting', !ok);
++      // non ancora: grigio neutro con il motivo (prima giallo spento, uguale a quello attivo); si può: giallo «Gioca ›»
++      btn.disabled = !ok; btn.classList.toggle('is-wait', !ok);
+       const label = btn.querySelector('.choice-main') || btn;
+       if (!btn.dataset.label) btn.dataset.label = label.textContent;
+       label.textContent = ok ? btn.dataset.label : startLabel(st);
+@@ -198,16 +210,21 @@ export class NatpfVersusUi {
+   _bindGuest(){
+     const modal = $('natpf-guest-modal'); if (!modal) return;
+     const desc = modal.querySelector('.sheet-desc');
+-    desc?.insertAdjacentHTML('beforebegin', '<p class="natpf-versus-status" data-versus-guest aria-live="polite"></p>');
++    desc?.insertAdjacentHTML('beforebegin', '<p class="natpf-versus-status" data-versus-guest aria-live="polite"></p><div class="ready-board versus-board" data-versus-board></div>');
+     // invito aperto sul telefono (arriva in una chat): la partita si gioca dal computer, il telefono è la racchetta
+     if (onPhone()){
+       desc?.insertAdjacentHTML('beforebegin', '<p class="natpf-versus-phone" data-versus-phone>Stai aprendo l’invito sul telefono: la partita si gioca dal computer. Apri questo link sul computer; il telefono ti servirà dopo, come racchetta. <button type="button" class="nt-pill-btn" data-versus-copy>Copia link</button></p>');
+       modal.querySelector('[data-versus-copy]')?.addEventListener('click', ev => { ev.stopPropagation(); navigator.clipboard?.writeText(location.href).then(() => { ev.target.textContent = 'Copiato ✓'; }).catch(() => {}); });
+     }
+     const go = $('natpf-guest-go');
+-    if (go){ go.textContent = 'Sono pronto ✓'; }
++    // «Sono pronto» senza il segno ✓ (prima l'avevano tutte e due le scritte: «azione da fare» e «fatto» uguali)
++    if (go){ go.textContent = 'Sono pronto'; go.setAttribute('aria-pressed', 'false'); }
+     modal.querySelector('.sheet-actions')?.insertAdjacentHTML('afterbegin', '<button type="button" class="lobby-ghost" data-versus-leave>Esci</button><button type="button" class="lobby-ghost hidden" data-versus-reconnect>Riconnetti</button>');
++    // «Annulla» accanto a «Pronto ✓»: l'unico modo di tornare non pronti (prima un secondo clic sul pulsante lo toglieva
++    // senza dirlo, e l'host vedeva «Gioca» spegnersi)
++    go?.insertAdjacentHTML('beforebegin', '<button type="button" class="lobby-ghost hidden" data-versus-unready>Annulla</button>');
+     modal.querySelector('[data-versus-leave]')?.addEventListener('click', e => { e.stopPropagation(); this.leave(); });
++    modal.querySelector('[data-versus-unready]')?.addEventListener('click', e => { e.stopPropagation(); this.unready(); });
+     // sfida senza server: «Riconnetti» rifà subito il collegamento con l'host (stessa partita)
+     modal.querySelector('[data-versus-reconnect]')?.addEventListener('click', e => { e.stopPropagation(); this.reconnectAction().run(); });
+     // pannello della webcam del P2: accendi (o riprova dopo un errore), indietro, in campo
+@@ -219,10 +236,17 @@ export class NatpfVersusUi {
+   }
+   // «Sono pronto»: l'host lo vede nella lobby
+   setReady(on = true){
++    if (on && !this.ready) this.readyAt = performance.now();   // da qui si aspetta la conferma del relay (readyEcho)
+     this.ready = !!on;
+     const mc = this.engine.motionController; if (mc) mc.versusReady = this.ready;
+     this._paintGuest();
+   }
++  // «Annulla»: di nuovo non pronti, detto (l'host lo vede: «Gioca» torna grigio)
++  unready(){
++    if (!this.ready) return;
++    this.setReady(false);
++    this.ui.toast('Non sei più pronto: premi «Sono pronto» quando vuoi giocare');
++  }
+   // Pulsante principale del pannello. Con il telefono: QR, e appena il telefono ha i sensori attivi la calibrazione nel
+   // campo d'allenamento, come il Player 1 nel riscaldamento; finita, si è pronti da soli. Prima il P2 calibrava nel
+   // pannello del telefono, senza campo e senza palle: dopo i due gesti chiedeva un «colpetto libero» e due pulsanti
+@@ -232,7 +256,8 @@ export class NatpfVersusUi {
+   // prova in campo con il lanciapalle, poi pronto da solo
+   primary(){
+     const ui = this.ui, phone = ui.phone;
+-    if (this.ready){ this.setReady(false); return; }
++    // già pronti: il pulsante non è un interruttore (per tornare indietro c'è «Annulla»)
++    if (this.ready){ ui.toast('Sei pronto ✓ Per tornare indietro premi «Annulla»'); return; }
+     if (ui.controller === 'webcam' && this._webcamSetup()){ this.openCam(); return; }
+     if (ui.controller !== 'phone' || phone.ready){ this.setReady(true); return; }
+     this.awaitPhone = true;
+@@ -338,10 +363,19 @@ export class NatpfVersusUi {
+     const go = $('natpf-guest-go');
+     if (go){
+       go.disabled = st !== 'lobby' && st !== 'connecting';
+-      const label = this.ready ? 'Pronto ✓' : phone ? 'Collega il telefono ›' : webcam ? 'Accendi la webcam ›' : 'Sono pronto ✓';
++      const label = this.ready ? 'Pronto ✓' : phone ? 'Collega il telefono ›' : webcam ? 'Accendi la webcam ›' : 'Sono pronto';
+       if (go.textContent !== label) go.textContent = label;
+-      go.classList.toggle('selected', this.ready);
++      // pronto: verde pieno (prima la classe «selected», senza stile: giallo prima e dopo il clic)
++      go.classList.toggle('is-ready', this.ready);
++      const pressed = String(this.ready); if (go.getAttribute('aria-pressed') !== pressed) go.setAttribute('aria-pressed', pressed);
+     }
++    const modal = $('natpf-guest-modal');
++    show(modal?.querySelector('[data-versus-unready]'), this.ready && st === 'lobby');
++    // schede: Player 1 (l'host, con la sua racchetta se la manda) e «tu», con la conferma che l'host ti vede pronto
++    const echo = readyEcho({ ready: this.ready, echoed: !!this.engine.roomStatus?.p2Ready, sinceMs: performance.now() - (this.readyAt || 0) });
++    if (echo !== this._echo){ if (this._echo === 'sending' && echo === 'late') this.ui.diag?.recorder?.log?.('sfida.pronto', { conferma: 'non arriva' }); this._echo = echo; }
++    paintBoard(modal?.querySelector('[data-versus-board]'), guestBoard({ guest: st, ready: this.ready, echo, phone, webcam, host: this.engine.versusGuest?.host || null,
++      hostName: this.engine.roomStatus?.hostName || 'Player 1', guestName: this.engine.roomStatus?.guestName || 'Player 2' }));
+     return st;
+   }
+   // P2 in partita: perché non può giocare (detto all'host con la lettura dello stato, motion_controls «hold») e cosa
+diff --git a/natpf-tennis/test/natpf-flows.test.mjs b/natpf-tennis/test/natpf-flows.test.mjs
+index d9b16dd..91584bf 100644
+--- a/natpf-tennis/test/natpf-flows.test.mjs
++++ b/natpf-tennis/test/natpf-flows.test.mjs
+@@ -297,7 +297,7 @@ test('Player 2: l’HUD non chiede più di inquadrare il QR del vecchio telefono
+   HudUI.prototype.updateOpponentPresence.call(host, { isMultiplayer: true, p2Online: true, guestName: 'Bea' });
+   assert.equal(label.textContent, 'Bea entrato');
+   HudUI.prototype.updateOpponentPresence.call(host, { isMultiplayer: true, p2Online: true, p2Ready: true, guestName: 'Bea' });
+-  assert.equal(label.textContent, '🟢 Bea pronto');
++  assert.equal(label.textContent, 'Bea pronto ✓', 'senza emoji (B9)');
+ });
+ 
+ test('Player 2: «Collega il telefono» apre il QR e il pannello d’attesa non lo copre', async () => {
+diff --git a/natpf-tennis/test/natpf-versus-ready.test.mjs b/natpf-tennis/test/natpf-versus-ready.test.mjs
+new file mode 100644
+index 0000000..04408ed
+--- /dev/null
++++ b/natpf-tennis/test/natpf-versus-ready.test.mjs
+@@ -0,0 +1,140 @@
++// Sfida un amico (due computer): stato «pronto» dei due giocatori (B9, punto 4 della richiesta del 05/11; analisi in
++// docs/b9/analisi-pronto-1v1.md §4.2). Prima «Sono pronto ✓» e «Pronto ✓» erano lo stesso pulsante giallo (la classe
++// «selected» non aveva stile), un secondo clic toglieva il pronto senza dirlo, il P2 non sapeva se l'host l'aveva
++// ricevuto e sull'host «Gioca» era giallo anche spento. Ora: schede per giocatore, pulsante verde pieno con «Annulla» a
++// parte, conferma del relay, «Gioca» grigio finché non si può.
++// node --import ./test/register.mjs --test test/natpf-versus-ready.test.mjs
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { makeWorld, $, visible } from './ui-world.mjs';
++import { hostInfo, readyEcho, guestBoard, hostBoard, READY_ECHO_MS, guestLine } from '../src/natpf/natpf_versus.js';
++
++const pick = views => views.map(v => `${v.name}${v.you ? '(tu)' : ''}:${v.state}:${v.badge}:${v.detail}`);
++
++test('racchetta dell’host e conferma del «pronto» (funzioni pure)', () => {
++  assert.deepEqual(hostInfo({ controller: 'mouse' }), { ready: true, detail: 'racchetta pronta' });
++  assert.deepEqual(hostInfo({ controller: 'phone' }), { ready: false, detail: 'collega il telefono' });
++  assert.equal(hostInfo({ controller: 'phone', phoneReady: true }).ready, true);
++  assert.deepEqual(hostInfo({ controller: 'webcam' }), { ready: false, detail: 'prepara la webcam' });
++  assert.equal(hostInfo({ controller: 'webcam', webcamActive: true }).ready, true);
++  assert.equal(readyEcho({}), 'none');
++  assert.equal(readyEcho({ ready: true, sinceMs: 100 }), 'sending');
++  assert.equal(readyEcho({ ready: true, echoed: true, sinceMs: 9000 }), 'ok');
++  assert.equal(readyEcho({ ready: true, sinceMs: READY_ECHO_MS }), 'late');
++  assert.equal(readyEcho({ ready: false, echoed: true }), 'none', 'non pronto: la conferma vecchia non conta');
++});
++
++test('schede del Player 2: Player 1 dallo stato della sfida e dalla sua racchetta, «tu» con la conferma', () => {
++  // prima di collegarsi
++  assert.deepEqual(pick(guestBoard({})), ['Player 1:off:In attesa:mi collego…', 'Player 2(tu):prep:Si prepara:premi «Sono pronto»']);
++  // in lobby: host senza informazioni (versione di prima) e con la racchetta pronta o no
++  assert.equal(guestBoard({ guest: 'lobby' })[0].detail, 'prepara la partita');
++  assert.deepEqual(pick(guestBoard({ guest: 'lobby', host: { ready: true, detail: 'racchetta pronta' }, hostName: 'Ada', guestName: 'Bea' })).slice(0, 1), ['Ada:ready:Pronto:racchetta pronta']);
++  assert.equal(guestBoard({ guest: 'lobby', host: { ready: false, detail: 'collega il telefono' } })[0].state, 'prep');
++  // «tu»: da preparare, pronto in invio, visto dall'host, non arriva
++  assert.equal(guestBoard({ guest: 'lobby', phone: true })[1].detail, 'collega il telefono');
++  assert.equal(guestBoard({ guest: 'lobby', webcam: true })[1].detail, 'accendi la webcam');
++  assert.deepEqual(pick(guestBoard({ guest: 'lobby', ready: true, echo: 'sending', hostName: 'Ada' })).slice(1), ['Player 2(tu):ready:Pronto:invio a Ada…']);
++  assert.deepEqual(pick(guestBoard({ guest: 'lobby', ready: true, echo: 'ok', hostName: 'Ada' })).slice(1), ['Player 2(tu):ready:Pronto:Ada lo vede ✓']);
++  const late = guestBoard({ guest: 'lobby', ready: true, echo: 'late', hostName: 'Ada' })[1];
++  assert.equal(late.state, 'prep'); assert.equal(late.badge, 'Non arriva'); assert.match(late.detail, /Ada non lo vede: controlla il collegamento/);
++  // host perso, stanza chiusa o inesistente: la scheda del Player 1 è un problema, con la parola giusta
++  assert.deepEqual(['lost', 'closed', 'invalid'].map(g => { const v = guestBoard({ guest: g })[0]; return `${v.state}:${v.badge}`; }), ['ko:Scollegato', 'ko:Uscito', 'ko:Non trovato']);
++  // mai solo il colore: ogni scheda ha la parola e il nome nel testo per chi non vede (title/aria)
++  for (const v of guestBoard({ guest: 'lobby', ready: true, echo: 'ok' })) assert.match(v.aria, new RegExp(`${v.name}.*${v.badge}`));
++});
++
++test('schede dell’host: «tu» con la racchetta, Player 2 in attesa · si prepara · pronto', () => {
++  assert.deepEqual(pick(hostBoard('waiting', { host: { ready: true, detail: 'racchetta pronta' } })), ['Player 1(tu):ready:Pronto:racchetta pronta', 'Player 2:off:In attesa:mandagli il link']);
++  assert.deepEqual(pick(hostBoard('joined', { p2Name: 'Bea' })).slice(1), ['Bea:prep:Si prepara:prepara la racchetta']);
++  assert.deepEqual(pick(hostBoard('ready', { p2Name: 'Bea' })).slice(1), ['Bea:ready:Pronto:premi «Gioca»']);
++  assert.equal(hostBoard('ready', { host: { ready: false, detail: 'collega il telefono' } })[0].state, 'prep');
++  assert.equal(guestLine('lobby', { ready: true }).state, 'ready');
++});
++
++test('Player 2: «Sono pronto» → verde pieno «Pronto ✓», un secondo clic non lo toglie, «Annulla» sì; scheda con la conferma dell’host', async () => {
++  const w = await makeWorld({ controller: 'mouse', role: 'p2' }); w.advance(300);
++  const { E, ui, mc } = w;
++  E.roomStatus = { ...E.roomStatus, p1Online: true, hostName: 'Ada' }; w.advance(300);
++  const go = $('natpf-guest-go'), modal = $('natpf-guest-modal'), cancel = modal.querySelector('[data-versus-unready]');
++  const slot = id => modal.querySelector('[data-versus-board]').querySelector(`[data-ready-slot="${id}"]`);
++  const detail = id => slot(id).querySelector('[data-ready-detail]').textContent;
++  assert.equal(go.textContent, 'Sono pronto', 'senza ✓: è un’azione da fare');
++  assert.ok(!go.classList.contains('is-ready') && visible('natpf-guest-modal'));
++  assert.ok(cancel.classList.contains('hidden'), '«Annulla» solo da pronti');
++  assert.equal(slot('p2').dataset.ready, 'prep'); assert.equal(detail('p2'), 'premi «Sono pronto»');
++  assert.equal(slot('p1').dataset.ready, 'prep', 'host di prima, senza la racchetta nello snapshot: si prepara');
++  // clic: verde pieno subito, «Annulla» accanto, l'host lo riceve con la prossima lettura dello stato
++  go.click(); w.advance(100);
++  assert.ok(ui.versus.ready && mc.versusReady);
++  assert.equal(go.textContent, 'Pronto ✓'); assert.ok(go.classList.contains('is-ready'));
++  assert.ok(!go.classList.contains('selected'), 'non più la classe senza stile');
++  assert.ok(!cancel.classList.contains('hidden'));
++  assert.equal(slot('p2').dataset.ready, 'ready'); assert.equal(detail('p2'), 'invio a Ada…');
++  // il relay rimanda p2Ready: «Ada lo vede ✓»
++  E.roomStatus = { ...E.roomStatus, p2Ready: true }; w.advance(300);
++  assert.equal(detail('p2'), 'Ada lo vede ✓');
++  // un secondo clic sul pulsante verde: resta pronto (prima lo toglieva senza avviso)
++  go.click(); w.advance(300);
++  assert.ok(ui.versus.ready && mc.versusReady && go.classList.contains('is-ready'));
++  // «Annulla»: non pronto, detto; il pulsante torna giallo «Sono pronto»
++  cancel.click(); w.advance(300);
++  assert.ok(!ui.versus.ready && !mc.versusReady);
++  assert.equal(go.textContent, 'Sono pronto'); assert.ok(!go.classList.contains('is-ready'));
++  assert.ok(cancel.classList.contains('hidden'));
++  assert.match($('natpf-toast').textContent, /Non sei più pronto/);
++  E.roomStatus = { ...E.roomStatus, p2Ready: false };
++  // di nuovo pronto, ma la conferma non torna (collegamento che non porta): dopo 3 s la scheda lo dice
++  go.click(); w.advance(READY_ECHO_MS - 500);
++  assert.equal(slot('p2').dataset.ready, 'ready');
++  w.advance(800);
++  assert.equal(slot('p2').dataset.ready, 'prep'); assert.equal(slot('p2').querySelector('[data-ready-word]').textContent, 'Non arriva');
++  E.roomStatus = { ...E.roomStatus, p2Ready: true }; w.advance(300);
++  assert.equal(slot('p2').dataset.ready, 'ready'); assert.equal(detail('p2'), 'Ada lo vede ✓');
++  // la riga di stato del P2 pronto è «ready» (fondo verde), non più uguale a «collegato»
++  assert.equal(guestLine(ui.versus.guest, { ready: ui.versus.ready }).state, 'ready');
++});
++
++test('Player 2: la scheda del Player 1 dice la racchetta dell’host (snapshot della lobby) e il collegamento perso', async () => {
++  const w = await makeWorld({ controller: 'mouse', role: 'p2' }); w.advance(300);
++  const { E } = w;
++  const slot = id => $('natpf-guest-modal').querySelector('[data-versus-board]').querySelector(`[data-ready-slot="${id}"]`);
++  let seq = 0;
++  const snap = snapshot => E._handleRoomStateUpdate({ p1Online: true, hostName: 'Ada', epoch: 'x', snapshotSeq: ++seq, snapshot });
++  snap({ lobby: true, host: { ready: false, detail: 'collega il telefono' } }); w.advance(300);
++  assert.equal(slot('p1').dataset.ready, 'prep'); assert.equal(slot('p1').querySelector('[data-ready-detail]').textContent, 'collega il telefono');
++  assert.equal(slot('p1').querySelector('[data-ready-name]').textContent, 'Ada');
++  snap({ lobby: true, host: { ready: true, detail: 'racchetta pronta' } }); w.advance(300);
++  assert.equal(slot('p1').dataset.ready, 'ready');
++  // host che non si sente più
++  E._handleRoomStateUpdate({ p1Online: false, epoch: 'x', snapshotSeq: seq }); w.advance(300);
++  assert.equal(slot('p1').dataset.ready, 'ko'); assert.equal(slot('p1').querySelector('[data-ready-word]').textContent, 'Scollegato');
++});
++
++test('host: schede nella barra dell’invito, «Gioca» grigio finché il Player 2 non è pronto; la racchetta va nello snapshot della lobby', async () => {
++  const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
++  const { E, lobby, hud, ui } = w;
++  lobby.menu('play'); hud.selectedDifficulty = '1v1'; E._applyDifficultyTuning('1v1'); await E.createMultiplayerRoom(); await w.flush();
++  lobby.setMode('friend'); lobby.go('match'); w.advance(300);
++  const btn = $('btn-start-match'), board = $('natpf-invite').querySelector('[data-versus-board]');
++  const slot = id => board.querySelector(`[data-ready-slot="${id}"]`);
++  assert.ok(btn.disabled && btn.classList.contains('is-wait'), 'grigio neutro, non giallo spento');
++  assert.ok(!btn.classList.contains('waiting'));
++  assert.equal(slot('p1').dataset.ready, 'ready', 'mouse e tastiera: racchetta pronta');
++  assert.equal(slot('p2').dataset.ready, 'off');
++  E.roomStatus = { ...E.roomStatus, p2Online: true, guestName: 'Bea' }; w.advance(400);
++  assert.equal(slot('p2').dataset.ready, 'prep'); assert.equal(slot('p2').querySelector('[data-ready-name]').textContent, 'Bea');
++  assert.ok(btn.disabled && btn.classList.contains('is-wait'));
++  E.roomStatus = { ...E.roomStatus, p2Ready: true }; w.advance(400);
++  assert.equal(slot('p2').dataset.ready, 'ready');
++  assert.ok(!btn.disabled && !btn.classList.contains('is-wait'), '«Gioca» cambia aspetto quando si può avviare');
++  // il P2 annulla: «Gioca» di nuovo grigio
++  E.roomStatus = { ...E.roomStatus, p2Ready: false }; w.advance(400);
++  assert.ok(btn.disabled && btn.classList.contains('is-wait'));
++  // snapshot della lobby per il P2: con la racchetta dell'host
++  const real = globalThis.fetch, sent = [];
++  globalThis.fetch = async (u, init) => { sent.push(JSON.parse(init.body)); return { ok: true, json: async () => ({}) }; };
++  try { E._broadcastMultiplayerSnapshot(); } finally { globalThis.fetch = real; }
++  assert.deepEqual(sent[0].snapshot.host, ui.versus.hostInfo());
++  assert.deepEqual(sent[0].snapshot.host, { ready: true, detail: 'racchetta pronta' });
++});
+diff --git a/natpf-tennis/test/natpf-versus-webcam.test.mjs b/natpf-tennis/test/natpf-versus-webcam.test.mjs
+index f9983b3..05e0077 100644
+--- a/natpf-tennis/test/natpf-versus-webcam.test.mjs
++++ b/natpf-tennis/test/natpf-versus-webcam.test.mjs
+@@ -49,9 +49,12 @@ test('Player 2 con la webcam: pannello della webcam (non coperto dal pannello de
+   assert.ok(ui.versus.ready && mc.versusReady, 'pronto da solo: l’host lo vede nella lobby');
+   assert.ok(visible('natpf-guest-modal') && $('natpf-guest-go').textContent === 'Pronto ✓');
+   assert.ok(mc.webcamActive, 'la webcam resta accesa per la partita');
+-  // «Pronto ✓» di nuovo: non più pronto; poi «Sono pronto» senza rifare la prova (webcam accesa e già provata)
++  // «Pronto ✓» di nuovo: resta pronto (B9: prima un secondo clic lo toglieva senza dirlo); «Annulla» lo toglie, poi
++  // «Sono pronto» senza rifare la prova (webcam accesa e già provata)
+   $('natpf-guest-go').click(); w.advance(300);
+-  assert.ok(!ui.versus.ready); assert.equal($('natpf-guest-go').textContent, 'Sono pronto ✓');
++  assert.ok(ui.versus.ready, 'il pulsante non è un interruttore');
++  $('natpf-guest-modal').querySelector('[data-versus-unready]').click(); w.advance(300);
++  assert.ok(!ui.versus.ready); assert.equal($('natpf-guest-go').textContent, 'Sono pronto');
+   $('natpf-guest-go').click(); w.advance(300);
+   assert.ok(ui.versus.ready && !camOpen() && !ui.training.active);
+ });
+@@ -121,14 +124,14 @@ test('Player 2: cambiare racchetta da pronto con una che va preparata toglie «p
+   const w = await makeWorld({ controller: 'mouse', role: 'p2' }); w.advance(300);
+   const { E, ui } = w;
+   E.roomStatus = { ...E.roomStatus, p1Online: true }; w.advance(300);
+-  assert.equal($('natpf-guest-go').textContent, 'Sono pronto ✓');
++  assert.equal($('natpf-guest-go').textContent, 'Sono pronto');
+   $('natpf-guest-go').click(); w.advance(300);
+   assert.ok(ui.versus.ready, 'mouse e tastiera (modalità prova): pronto subito, come prima');
+   ui.selectController('webcam', { open: false }); w.advance(300);
+   assert.ok(!ui.versus.ready, 'con la webcam ancora spenta non si è pronti');
+   assert.equal($('natpf-guest-go').textContent, 'Accendi la webcam ›');
+   ui.selectController('mouse', { open: false }); w.advance(300);
+-  assert.equal($('natpf-guest-go').textContent, 'Sono pronto ✓');
++  assert.equal($('natpf-guest-go').textContent, 'Sono pronto');
+ });
+ 
+ test('P2 e host: motivi della webcam detti subito (la soglia comprende già la tolleranza), testi per host e P2', () => {
+diff --git a/natpf-tennis/test/natpf-versus.test.mjs b/natpf-tennis/test/natpf-versus.test.mjs
+index 9dddcbd..e9067fc 100644
+--- a/natpf-tennis/test/natpf-versus.test.mjs
++++ b/natpf-tennis/test/natpf-versus.test.mjs
+@@ -38,7 +38,9 @@ test('lobby dell’host: stanza in preparazione o non creata, problemi del colle
+ 
+ test('Player 2: una riga sola, e senza server il perché quando non si collega', () => {
+   const net = (status, error) => ({ mode: 'guest', status, error });
+-  assert.deepEqual(guestLine('lobby', { ready: true }), { state: 'lobby', text: guestText('lobby', { ready: true }) });
++  // pronto: stato 'ready' (fondo verde), diverso da «collegato» (B9: prima tutti e due 'lobby', stesso bordo)
++  assert.deepEqual(guestLine('lobby', { ready: true }), { state: 'ready', text: guestText('lobby', { ready: true }) });
++  assert.equal(guestLine('lobby').state, 'lobby');
+   const r = guestLine('connecting', { net: net('connecting', 'rete') });
+   assert.equal(r.state, 'error'); assert.match(r.text, /L’host c’è, ma la rete blocca il collegamento diretto/);
+   assert.match(guestLine('lost', { net: net('lost', 'chiusa') }).text, /forse ha chiuso la partita/);
+diff --git a/tools/e2e/natpf-split-ready.mjs b/tools/e2e/natpf-split-ready.mjs
+index 0cb574a..fd965ce 100644
+--- a/tools/e2e/natpf-split-ready.mjs
++++ b/tools/e2e/natpf-split-ready.mjs
+@@ -20,7 +20,7 @@ import { mkdirSync } from 'node:fs';
+ import { fileURLToPath } from 'node:url';
+ import express from 'express';
+ import { ExpressPeerServer } from 'peer';
+-import { launch, page, check, summary, SP, quickCalibrate } from './th.mjs';
++import { launch, page, check, summary, SP } from './th.mjs';
+ import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
+ 
+ const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
+@@ -62,7 +62,7 @@ const view = g => g.evaluate(() => {
+   const bar = document.getElementById('split-ready-bar'), ov = document.getElementById('split-countdown'), sb = document.getElementById('btn-start-match');
+   const L = __natpfTennis.natpfUi.lobby, S = __natpfTennis.natpfUi.split;
+   return { step: L.step, visible: L.visible, p1: card('p1'), p2: card('p2'),
+-    bar: bar && { mode: bar.dataset.readyBar, title: bar.querySelector('[data-ready-bar-title]')?.textContent, sub: bar.querySelector('[data-ready-bar-sub]')?.textContent, hold: vis(bar.querySelector('[data-split-hold]')), play: vis(bar.querySelector('[data-split-play]')), inView: (() => { const r = bar.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })() },
++    bar: bar && { mode: bar.dataset.readyBar, border: getComputedStyle(bar).borderTopColor, title: bar.querySelector('[data-ready-bar-title]')?.textContent, sub: bar.querySelector('[data-ready-bar-sub]')?.textContent, hold: vis(bar.querySelector('[data-split-hold]')), play: vis(bar.querySelector('[data-split-play]')), inView: (() => { const r = bar.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })() },
+     overlay: vis(ov) ? { num: ov.querySelector('[data-split-count]')?.textContent, sub: ov.querySelector('[data-split-count-names]')?.textContent } : null,
+     cd: { ...S.cd }, session: !!__natpfTennis.natpfSplit?.active, phase: __natpfTennis.phase,
+     // cosa può fermare il conto: pannelli aperti, guida, calibrazione dello schermo
+@@ -70,7 +70,20 @@ const view = g => g.evaluate(() => {
+     start: sb && { disabled: sb.disabled, cls: sb.className, bg: getComputedStyle(sb).backgroundColor } };
+ });
+ const phoneView = p => p.evaluate(() => ({ big: document.getElementById('big')?.textContent, arrow: document.getElementById('arrow')?.textContent, sub: document.getElementById('sub')?.textContent, ring: document.getElementById('ring')?.className }));
+-const GREEN = 'rgb(54, 224, 122)';
++const GREEN = 'rgb(54, 224, 122)', RED = 'rgb(255, 79, 97)';
++// Calibrazione rapida che ripete il gesto non riconosciuto: con la grafica software e tre pagine aperte (computer con il
++// tutorial animato, due telefoni) un gesto sintetico può andare perso, e quickCalibrate passa oltre lasciando la
++// calibrazione ferma all'ultimo gesto. Qui si guarda il gesto che il telefono aspetta e lo si rifà finché è pronto
++const calibrate = async (ph, ms = 60000) => {
++  const t0 = Date.now();
++  while (Date.now() - t0 < ms){
++    const s = await ph.evaluate(() => { const R = window.__racchetta, st = R.state; return { sensor: st.sensor, step: st.step, ready: !!R.cal.state.ready, idx: R.cal.state.idx }; });
++    if (s.sensor === 'ready') return true;
++    if (s.step === 'swings' && s.ready){ const sign = QUICK_PLAN[s.idx] === 'R' ? -1 : 1; await ph.evaluate(sg => __up.swing(sg).then(() => __up.back(sg)).then(() => __up.still(700)), sign); }
++    else await ph.evaluate(() => __up.still(150));
++  }
++  return false;
++};
+ const until = async (p, fn, arg, ms = 20000) => p.waitForFunction(fn, arg, { timeout: ms, polling: 50 }).then(() => true, () => false);
+ 
+ const B = await launch();
+@@ -107,7 +120,7 @@ try {
+ 
+   /* 3: Giulia pronta, Marco ancora nel tutorial */
+   await ph1.waitForSelector('#tutOk:not(.hidden)', { timeout: 15000 }); await ph1.click('#tutOk');
+-  try { await quickCalibrate(ph1, QUICK_PLAN, { timeout: 20000 }); } catch (e){ log('calibrazione P1: ' + e.message); }
++  check('   telefono di Giulia calibrato', await calibrate(ph1));
+   const tCal1 = Date.now();
+   const p1Ready = await until(g, () => document.querySelector('[data-split-player="p1"]')?.dataset.ready === 'ready');
+   log(`P1 pronto sul computer ${Date.now() - tCal1} ms dopo la fine della calibrazione simulata`);
+@@ -132,7 +145,7 @@ try {
+   const phoneRec = ph => ph.evaluate(() => { window.__phLog = []; let last = ''; setInterval(() => { const k = `${document.getElementById('big').textContent}|${document.getElementById('arrow').textContent}`; if (k !== last){ last = k; window.__phLog.push(k); } }, 20); });
+   await phoneRec(ph1); await phoneRec(ph2);
+   await ph2.waitForSelector('#tutOk:not(.hidden)', { timeout: 15000 }); await ph2.click('#tutOk');
+-  try { await quickCalibrate(ph2, QUICK_PLAN, { timeout: 20000 }); } catch (e){ log('calibrazione P2: ' + e.message); }
++  check('   telefono di Marco calibrato', await calibrate(ph2));
+   const started = await until(g, () => !!__natpfTennis.natpfSplit?.active && !__natpfTennis.natpfUi.lobby.visible && ['SERVE_STANCE', 'SERVE_TOSS'].includes(__natpfTennis.phase), null, 15000);
+   const cdLog = await g.evaluate(() => { clearInterval(window.__cdRec); return window.__cdLog; });
+   log('conto: ' + cdLog.map(e => `${e.t}:${e.k}`).join(' · '));
+@@ -198,8 +211,12 @@ try {
+   check('6. il telefono di Marco si chiude durante il conto: conto annullato con il motivo, scheda «Scollegato»', cancelled && !v.overlay && /^Conto annullato · Marco: telefono scollegato/.test(v.bar.title) && v.p2.ready === 'ko' && v.p2.word === 'Scollegato', JSON.stringify({ bar: v.bar.title, p2: v.p2.word }));
+   const ph1v = await phoneView(ph1);
+   check('   il telefono di Giulia dice perché («Aspetta»)', ph1v.big === 'Aspetta' && /Marco/.test(ph1v.sub), JSON.stringify(ph1v));
+-  await shot('6-annullato-1280');
++  // prima il telefono (l'avviso dura 2,4 s), poi il computer a transizioni finite (bordi rossi, non a metà dal verde)
+   await shot('6-telefono-giulia-annullato', ph1);
++  await sleep(500);
++  v = await view(g);
++  check('   scheda di Marco e barra con il bordo rosso (problema)', v.p2.borders.every(c => c === RED) && v.bar.border === RED, JSON.stringify({ card: v.p2.borders, bar: v.bar.border }));
++  await shot('6-annullato-1280');
+   await sleep(4000);
+   v = await view(g);
+   check('   nessuna partita, si resta nella pagina dei telefoni', !v.session && v.step === 'connect' && v.visible);
 -- 
 2.43.0
 
