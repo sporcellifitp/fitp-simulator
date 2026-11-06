@@ -226,6 +226,9 @@ try {
   s = await snap(phone);
   await pshot(phone, '10-velo-tocca');
   check('riacceso senza blocco dello schermo (serve un tocco): velo «Tocca lo schermo per riprendere»', veil && s.wake === 0, JSON.stringify(s));
+  // telefono calibrato: il velo dice che collegamento e calibrazione sono rimasti (phone-screen.veilText)
+  const veilTxt = await phone.evaluate(() => document.getElementById('wakeVeilText').textContent);
+  check('   velo di un telefono calibrato: «Il collegamento e la calibrazione sono rimasti.»', /Il collegamento e la calibrazione sono rimasti\.$/.test(veilTxt), veilTxt);
   const resumed = await game.waitForFunction(() => __natpfTennis.natpfUi.phoneWatch.state === 'ok', null, { timeout: 8000, polling: 100 }).then(() => true, () => false);
   check('il computer riprende da solo (sensori di nuovo attivi), senza tutorial né QR', resumed && !(await game.evaluate(() => __natpfTennis.natpfUi.training.tutorialOpen || !__natpfTennis.natpfUi.modal?.classList.contains('hidden'))));
   await phone.click('#wakeVeil');

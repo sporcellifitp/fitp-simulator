@@ -107,10 +107,23 @@ Come si aggiorna:
   «Pronto»); nel worktree `…-df5-2` un WIP non verificato del modulo della posa (`natpf_gesture_pose.js`,
   `test/pose-sensors.mjs`). Patch aggiornate in `docs/b9/wip/` (`b8365d7`). Workflow di ripresa avviato negli stessi
   worktree (minori dello stesso schermo; posa completa con test di fedeltà), con revisione.
-- **Prossima azione esatta:** a workflow finito unire i due rami su `natpf-simulator`, test e prove nel browser
-  (natpf-tutorial-phone, natpf-split-ready, training-flow, 1v1-p2p, menu, phone-keep), push, pacchetti ZIP con versione
-  nuova; poi ramo C (disegno illustrato delle 11 schede sopra `natpf_gesture_pose.js`, stessa API di
-  `getGestureDemo`, un'istanza per metà schermo), poi versione, pacchetti ed eseguibili.
+- **06/11 pomeriggio: rami uniti** (`fed770b` correzioni dello stesso schermo, `b86baac` posa dei gesti), revisioni
+  senza bloccanti; gioco 810/810, sito 194/194, LAN 12/12, build ok, 9 prove nel browser verdi (dettaglio in
+  `docs/WORK_PROGRESS.md` B9). **Versione 2026-11-06.1** (`3b59c51`): ZIP Cloudflare (sha256 `9de1f4d4…be256ee`) e LAN
+  (`2a4c3218…14dd6ece`) provati estratti e consegnati; animazione dei gesti ancora la vecchia.
+- **In corso:** workflow del ramo C (script `scratchpad/wf-ramo-c.js`, base `b86baac`): disegno Canvas 2D illustrato
+  delle 11 schede sopra `natpf_gesture_pose.js` (stessa API di `getGestureDemo`, un'istanza per metà, compatta per gli
+  esercizi, velo senza sfocatura, test `natpf-gesture-anim`, fogli dei fotogrammi guardati), in parallelo i minori dello
+  stesso schermo (conto «‹ Indietro» stabile, schede allineate sul ledwall, pausa con due pause, velo del telefono); poi
+  revisione tecnica e artistica e correzioni.
+- **06/11 sera, ripresa dopo il limite d'uso:** minori dello stesso schermo uniti (`6920b36`: gioco 813/813, sito
+  195/195, build ok). Ramo C fermato a metà nel worktree `.claude/worktrees/wf_b232ca46-ca8-1` (commit `631bd34`,
+  `d8ed8cb`, `bf63224` + WIP; patch `docs/b9/wip/ramo-C-animazione.patch` da `b86baac`): workflow di ripresa avviato
+  nello stesso worktree (unione di `natpf-simulator`, controlli visivi, prestazioni, nota), poi revisione tecnica e
+  artistica e correzioni.
+- **Prossima azione esatta:** a workflow finito unire i rami (worktree in `.claude/worktrees/`), test, prove nel
+  browser, push; versione 2026-11-06.2, pacchetti, eseguibili (workflow GitHub `natpf-windows.yml` a ogni cambio di
+  versione), riepilogo finale all'utente.
 - **Prossima azione esatta (precedente):** finiti rami e giudizio → correggere i bloccanti delle revisioni, unire A e B su
   `natpf-simulator`, test e prove nel browser, push; poi ramo C (animazione nuova secondo il giudizio), versione nuova,
   pacchetti ed eseguibili.

@@ -37,6 +37,11 @@ export const SPLIT_CANCEL_SHOW_MS = 8000;
 // si sta scrivendo un nome: campo del nome attivo e un tasto da meno di così (ms). Solo il campo attivo non basta: dopo
 // aver scritto il nome il cursore resta lì e il conto non partirebbe mai
 export const SPLIT_TYPING_MS = 2500;
+// «‹ Indietro» da «Partita» con i due pronti (cd.back: niente conto da solo): un telefono «non pronto» per meno di così
+// (ms) è una transizione momentanea (un pacchetto in ritardo, un ridisegno sotto carico) e non cambia lo stato; solo un
+// «non pronto» che dura almeno tanto azzera cd.back e fa ripartire il conto quando torna pronto (prova nel browser
+// natpf-split-ready instabile sotto carico, 06/11: il conto ripartiva da solo dopo «‹ Indietro»)
+export const SPLIT_BACK_DROP_MS = 1000;
 // sensori fermi da così (ms senza dati dal telefono pronto) → la scheda dice «Sensori fermi»: lo stesso tempo della pausa
 // in partita (natpf_phone_watch: sensorGapMs più la tolleranza graceMs), così un pacchetto in ritardo non annulla il conto
 export const SPLIT_STALL_MS = WATCH.sensorGapMs + WATCH.graceMs;
@@ -113,7 +118,7 @@ export class NatpfSplitUi {
     // conto alla rovescia prima della partita: left (secondi), running, held («Aspetta»), why (motivo dell'annullamento),
     // back (tornati con «‹ Indietro» da «Partita» con tutti e due già pronti: si aspetta un cambio o «Gioca», vedi _tickStart)
     this.countdown = createCountdown({ ms: SPLIT_COUNTDOWN_MS });
-    this.cd = { left: 0, running: false, held: false, back: false, why: null, whyUntil: 0 }; this._here = null; this._leftBoth = false;
+    this.cd = { left: 0, running: false, held: false, back: false, why: null, whyUntil: 0 }; this._here = null; this._leftBoth = false; this._dropAt = null;
     const box = document.querySelector('[data-setup="split"]');
     engine.natpfSplitNames = { p1: 'Player 1', p2: 'Player 2' };
     box?.addEventListener('input', e => {
@@ -365,9 +370,12 @@ export class NatpfSplitUi {
     const sheet = [...document.querySelectorAll('.natpf-sheet-backdrop')].some(m => !m.classList.contains('hidden'));
     const blocked = !!L.onboarding?.isOpen || !!this.ui.calibra?.isOpen || sheet || this.typing;
     const slots = this.slots(now), gate = startGate(slots);
-    if (this._here !== L.pageN){ this._here = L.pageN; this.countdown.reset(); this.cd.back = gate.both && L.from === 'match' && this._leftBoth; }
-    else if (!gate.both) this.cd.back = false;
-    this._leftBoth = gate.both;
+    // (steady: «tutti e due pronti» senza le transizioni momentanee, vedi SPLIT_BACK_DROP_MS; anche all'arrivo: un telefono
+    // che proprio in quel momento passa per «non pronto» non fa perdere «‹ Indietro»)
+    const steady = this._steadyBoth(gate.both, now);
+    if (this._here !== L.pageN){ this._here = L.pageN; this.countdown.reset(); this.cd.back = steady && L.from === 'match' && this._leftBoth; }
+    else if (!steady) this.cd.back = false;
+    this._leftBoth = steady;
     const r = this.countdown.update(gate.both && !this.cd.held && !this.cd.back && !blocked, now);
     const R = this.ui.diag?.recorder;
     if (r.cancelled){
@@ -445,8 +453,15 @@ export class NatpfSplitUi {
     const slots = this.slots(now), gate = startGate(slots);
     paintBoard($('split-ready-board'), slots);
     // (uno che non è più pronto mentre si è qui: tornando nella pagina «Collega» lo stato è cambiato, il conto può partire)
-    if (!gate.both) this._leftBoth = false;
+    if (!this._steadyBoth(gate.both, now)) this._leftBoth = false;
     return { ...gate, slots };
+  }
+  // tutti e due pronti, oppure non più pronti da meno di SPLIT_BACK_DROP_MS (solo per cd.back e _leftBoth: il conto vero
+  // si ferma subito con un telefono non pronto)
+  _steadyBoth(both, now = performance.now()){
+    if (both){ this._dropAt = null; return true; }
+    if (this._dropAt == null) this._dropAt = now;
+    return now - this._dropAt < SPLIT_BACK_DROP_MS;
   }
   // «Gioca»: sessione split nel motore, mano del P2 sul suo personaggio
   start(){
@@ -505,7 +520,7 @@ export class NatpfSplitUi {
       R?.log?.('tel.pausa', { chi: 'p2', motivo: a.why, fase: E.phase, ...(h.gapMs ? { gapMs: h.gapMs } : {}), ...(Number.isFinite(p.state.sensorAge) ? { sensoriTelefonoMs: p.state.sensorAge } : {}) });
       if (p.connected){ p.link.send({ t: 'ph', ph: 'pause' }); p.lastPhase = 'pause'; }
     }
-    if (a.kind === 'countdown') this.ui._paintHold('Telefono del Player 2 di nuovo pronto', `Si riprende tra ${a.left}…`, null, 'p2');
+    if (a.kind === 'countdown') this.ui._paintHold('Telefono del Player 2 di nuovo pronto', `Si riprende tra ${a.left}…`, null, 'p2', { count: a.left });
     if (a.kind === 'resume'){
       this.hold = null; this.ui._paintHold(null, '', null, 'p2'); E.pendingP2Swing = null; E.pendingUserSwing = null; p.lastPhase = null;
       const replay = a.replay && ['RALLY', 'SERVE_TOSS'].includes(E.phase);

@@ -361,7 +361,7 @@ test('stesso schermo: lo stato della metà dice che si sta guardando il tutorial
 // caduto. Ora: schede con nome e stato, conto di 3 s sul computer e sui telefoni, partita senza toccare il computer,
 // conto annullato (con il motivo) se un telefono cade, «Aspetta» / Esc, «Gioca» spento nella pagina «Partita».
 import { $, visible } from './ui-world.mjs';
-import { SPLIT_COUNTDOWN_MS, SPLIT_TYPING_MS } from '../src/natpf/natpf_split_ui.js';
+import { SPLIT_COUNTDOWN_MS, SPLIT_TYPING_MS, SPLIT_BACK_DROP_MS } from '../src/natpf/natpf_split_ui.js';
 
 async function splitLobby({ names = ['Giulia', 'Marco'] } = {}){
   const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
@@ -526,8 +526,15 @@ test('stesso schermo: «‹ Indietro» da «Partita» con i due pronti → nessu
   assert.ok(!$('split-ready-bar').querySelector('[data-split-play]').classList.contains('hidden'), '«Gioca» nella barra');
   // anche subito, senza un controllo in mezzo (Invio e Esc di fila)
   lobby.next(); lobby.back(); advance(1500); assert.equal(ui.split.cd.running, false);
-  // il telefono di Marco cade e torna pronto: lo stato è cambiato, il conto riparte da solo
-  Object.assign(l2, { connected: false, ready: false, L: { state: 'lost', phone: null } }); P2._changed(); advance(300);
+  // una transizione momentanea di un telefono (meno di SPLIT_BACK_DROP_MS) non cambia lo stato: niente conto da solo
+  // (prova nel browser instabile sotto carico, 06/11)
+  Object.assign(l2, { ready: false, L: { state: 'connected', phone: 'cal' } }); P2._changed(); advance(300);
+  Object.assign(l2, { ready: true, L: { state: 'connected', phone: 'ready' } }); P2._changed(); advance(1500);
+  assert.equal(ui.split.cd.running, false, 'transizione momentanea: nessun conto'); assert.equal(ui.split.cd.back, true);
+  assert.equal($('split-ready-bar').dataset.readyBar, 'held');
+  // il telefono di Marco cade (per più di SPLIT_BACK_DROP_MS) e torna pronto: lo stato è cambiato, il conto riparte da solo
+  Object.assign(l2, { connected: false, ready: false, L: { state: 'lost', phone: null } }); P2._changed(); advance(SPLIT_BACK_DROP_MS + 200);
+  assert.equal(ui.split.cd.back, false);
   Object.assign(l2, { connected: true, ready: true, L: { state: 'connected', phone: 'ready' } }); P2._changed(); advance(150);
   assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3);
   advance(3000); assert.equal(E.natpfSplit?.active, true);
@@ -537,6 +544,32 @@ test('stesso schermo: «‹ Indietro» da «Partita» con i due pronti → nessu
   lobby.next(); advance(200); lobby.back(); advance(1000);
   assert.equal(ui.split.cd.running, false);
   ui.split.playNow(); assert.equal(E.natpfSplit?.active, true);
+});
+
+// Sotto carico (prova nel browser natpf-split-ready, 06/11) un telefono può passare per «non pronto» per un attimo proprio
+// mentre si è nella pagina «Partita» o al momento di tornare: «‹ Indietro» resta (nessun conto da solo)
+test('stesso schermo: «‹ Indietro» resta con un telefono «non pronto» per un attimo nella pagina «Partita» o all\'arrivo', async () => {
+  const { E, ui, lobby, l2, P2, readyBoth, advance } = await splitLobby();
+  const blip = (ms) => { Object.assign(l2, { ready: false, L: { state: 'connected', phone: 'cal' } }); P2._changed(); lobby.paint?.(); advance(ms); Object.assign(l2, { ready: true, L: { state: 'connected', phone: 'ready' } }); P2._changed(); };
+  readyBoth(); advance(600);
+  lobby.next(); assert.equal(lobby.step, 'match'); advance(300);
+  blip(200); lobby.paint?.(); advance(200);
+  lobby.back(); advance(3500);
+  assert.equal(ui.split.cd.running, false, 'transizione nella pagina «Partita»: nessun conto'); assert.ok(!E.natpfSplit?.active);
+  assert.equal($('split-ready-bar').dataset.readyBar, 'held');
+  // transizione proprio al momento di tornare
+  lobby.next(); advance(300);
+  Object.assign(l2, { ready: false, L: { state: 'connected', phone: 'cal' } }); P2._changed();
+  lobby.back(); advance(250);
+  Object.assign(l2, { ready: true, L: { state: 'connected', phone: 'ready' } }); P2._changed(); advance(3500);
+  assert.equal(ui.split.cd.running, false, 'transizione all\'arrivo: nessun conto'); assert.ok(!E.natpfSplit?.active);
+  assert.equal($('split-ready-bar').dataset.readyBar, 'held');
+  // un «non pronto» lungo nella pagina «Partita»: tornando, il conto parte da solo
+  lobby.next(); advance(300);
+  Object.assign(l2, { ready: false, L: { state: 'connected', phone: 'cal' } }); P2._changed(); lobby.paint?.(); advance(SPLIT_BACK_DROP_MS + 300); lobby.paint?.();
+  Object.assign(l2, { ready: true, L: { state: 'connected', phone: 'ready' } }); P2._changed();
+  lobby.back(); advance(150);
+  assert.equal(ui.split.cd.running, true, 'stato cambiato davvero: il conto riparte');
 });
 
 test('stesso schermo: mentre si scrive un nome il conto non corre; finito il nome parte (anche con il cursore ancora lì)', async () => {

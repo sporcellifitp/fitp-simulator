@@ -293,3 +293,36 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
   `docs/b9/pronto-1v1.md`. Prove nel ramo: gioco 777, sito 182, browser natpf-split-ready 24/24, 1v1-p2p 37/37.
 - Dopo l'unione: gioco 785/785, sito 193/193, LAN 12/12, build ok.
 - **Non verificato**: telefoni veri (Wake Lock, schermo spento 3 s / 30 s / 6 min, iPhone), Windows, ledwall vero.
+- **Dopo l'unione, correzioni** (`6c3a98b`): schede del tutorial contate anche lasciandole prima del controllo ogni 250 ms
+  (`tutorialGo`), ridisegni dello stesso schermo raggruppati (subito solo a cambio di stato vero). Browser sul codice
+  unito: natpf-tutorial-phone 36/36, split-ready 24/24, training-flow 17/17, 1v1-p2p 37/37, menu 22/22, phone-keep 13/13.
+- **Giudizio dell'animazione** (`6e8d39f`, `docs/b9/giudizio-animazione.md`): attuale 3,7 · 3D realistico 6,6 ·
+  illustrato 7,7 su 10 → ibrido con base illustrata 2,5D (Canvas 2D, solo avambraccio, mano e telefono). Immagini G-1…G-4
+  mandate all'utente con la scelta.
+- **Correzioni dalle revisioni dello stesso schermo** (worktree `wf_e4f0c384-df5-1`, unione `fed770b`): `531d4a1`
+  telefono che cade o «Ricollega» a tutorial aperto: il tutorial riprende dalla scheda, nessuna calibrazione partita da
+  sola (`hold` senza `waitTutorial(false)`, ramo per le pagine vecchie solo se il telefono non ha mai risposto);
+  `3ef25ed` telefono con la pagina nascosta o i sensori fermi: scheda «Schermo del telefono spento», niente conto, conto
+  annullato con il motivo, `bothReady()` con lo stesso criterio delle schede (tutorial, salute, webcam per due); minori:
+  `ac7a0c9`/`c2bf661` conto che non riparte da solo tornando con «‹ Indietro» (riparte a cambio di stato di un telefono;
+  fermo mentre si scrive un nome), `f7a1622` ledwall 720×720 con le schede affiancate e la barra non fissa durante
+  l'attesa (QR liberi), `e0d8c3f` «Aspetta» con anello neutro sul telefono (`soft:1`, `countFlash`) e velo «Bentornato»,
+  `5d757a0` riquadro della pausa per giocatore con due pause, `ccd51d7` Allenamento: il telefono aspetta il tutorial già
+  nella pagina «Collega» (niente «Preparati» di 0,76 s). Revisione: nessun bloccante, prove di mutazione fatte (ogni
+  correzione tolta fa fallire i suoi test).
+- **Posa dei gesti** (worktree `wf_e4f0c384-df5-2`, unione `b86baac`): `natpf-tennis/src/natpf/natpf_gesture_pose.js`
+  (modulo puro: 11 schede + incrociato/lungolinea, destro e mancino, presa palmo/martello; posa del telefono, fasi,
+  contatto, palla, scheletro, camere), adattatore `test/pose-sensors.mjs`, test `natpf-gesture-pose.test.mjs` (14): ogni
+  scheda dà il colpo mostrato con il telefono simulato e il rilevatore vero, picco letto = contatto, e la stessa verifica
+  fallisce sull'animazione di prima dove la specifica lo prevede. Nota `docs/b9/posa-gesti.md`. Limite: piatto imitato
+  con la cima a 50° verso l'interno letto come top spin in parte dei casi (causa nel riconoscimento, documentata).
+- Codice unito (`b86baac`): gioco 810/810, sito 194/194, LAN 12/12, build ok; browser natpf-tutorial-phone 36/36,
+  split-ready 31/31, tutorial-relink 8/8, training-flow 17/17, 1v1-p2p 37/37, menu 22/22, phone-keep 13/13,
+  phone-blackout 6/6, training-reconnect 6/6.
+- **Versione 2026-11-06.1** (`3b59c51`) e pacchetti: Cloudflare `natpf-simulator-cloudflare-2026-11-06.1.zip` 22.534.728 B,
+  127 file, sha256 `9de1f4d4a0217ca12f894082a76e9d26420f70d06ea7fcd83b3b963c7be256ee` (con `/natpf/turn.json`); LAN
+  `natpf-simulator-lan-windows-2026-11-06.1.zip` 57.788.782 B, 312 file, un solo `node.exe`, nessun certificato né
+  chiave, sha256 `2a4c32183da4653b004260c64eb8f85ad86d4890fe44efb383021aa114dd6ece`. Provati estratti: Cloudflare servito
+  in locale (menu, pagina del telefono, versione; unico errore il Worker TURN vero che rifiuta l'origine locale, come
+  previsto da `ALLOWED_ORIGINS`), LAN con certificato nuovo e server HTTPS (4/4, nessun errore). Consegnati all'utente.
+  Animazione dei gesti ancora quella vecchia in questa versione (ramo C in corso).

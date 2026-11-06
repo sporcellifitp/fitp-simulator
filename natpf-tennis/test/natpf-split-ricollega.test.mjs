@@ -150,3 +150,53 @@ test('stesso schermo: due telefoni con lo schermo spento → un riquadro con tut
   w.advance(4000);
   assert.ok(el.classList.contains('hidden')); assert.equal(E.natpfPaused, false);
 });
+
+// Revisione B9 (06/11), minore: con due pause, il P1 riaccende mentre il P2 è ancora spento. Prima la sua riga diceva
+// «Telefono di nuovo pronto: Si riprende tra 3…» (di chi? e la partita non riprendeva: il P2 era ancora in pausa)
+test('stesso schermo, due pause: chi è di nuovo pronto mentre l\'altro è in pausa dice di chi è e non «Si riprende tra…»', async () => {
+  const w = await splitMatch(), { E, ui, link, l2 } = w;
+  w.advance(500);
+  link.L.vis = false; link.L.hiddenAt = performance.now(); E.natpfPhone._changed();
+  l2.L.vis = false; l2.L.hiddenAt = performance.now(); w.P2._changed();
+  w.advance(2000);
+  assert.ok(ui.phoneHold && ui.split.hold, 'tutti e due in pausa');
+  const el = holdEl();
+  // il P1 riaccende: durante il suo conto la riga dice di chi è e che si aspetta il P2, mai «Si riprende tra»
+  link.L.vis = true; E.natpfPhone._changed();
+  let seenWait = false;
+  for (let i = 0; i < 50; i++){
+    w.advance(100);
+    const t = el.querySelector('p').textContent;
+    assert.doesNotMatch(t, /Si riprende tra/, t);
+    if (/^Telefono del Player 1 di nuovo pronto: aspetto il telefono del Player 2\nTelefono del Player 2 in pausa: .+$/.test(t)) seenWait = true;
+    assert.equal(E.natpfPaused, true, 'la partita resta ferma: il P2 è ancora in pausa');
+  }
+  assert.ok(seenWait, 'riga del P1 «di nuovo pronto», con chi si aspetta');
+  // conto del P1 finito: resta solo la pausa del P2
+  assert.equal(ui.phoneHold, null);
+  assert.equal(el.querySelector('b').textContent, 'Telefono del Player 2 in pausa');
+  assert.doesNotMatch(el.querySelector('p').textContent, /Si riprende tra/);
+  // il P2 riaccende: ora sì, «Si riprende tra…» (è l'ultima pausa), poi si gioca
+  l2.L.vis = true; w.P2._changed();
+  let seenCount = false;
+  for (let i = 0; i < 40 && !el.classList.contains('hidden'); i++){
+    w.advance(100);
+    if (!el.classList.contains('hidden') && /^Si riprende tra \d…$/.test(el.querySelector('p').textContent)){ seenCount = true; assert.equal(el.querySelector('b').textContent, 'Telefono del Player 2 di nuovo pronto'); }
+  }
+  assert.ok(seenCount, 'conto della ripresa del P2');
+  w.advance(1000);
+  assert.ok(el.classList.contains('hidden')); assert.equal(E.natpfPaused, false);
+});
+
+test('stesso schermo, due pause: conto del P2 con il P1 ancora in pausa → riga del P2 senza «Si riprende tra…»; tutti e due nel conto: ognuno il suo', async () => {
+  const { ui } = await makeWorld({ controller: 'phone' });
+  ui._paintHold('Telefono del Player 1 in pausa', 'Schermo spento da 3 s', null, 'p1');
+  ui._paintHold('Telefono del Player 2 di nuovo pronto', 'Si riprende tra 2…', null, 'p2', { count: 2 });
+  const el = holdEl();
+  assert.equal(el.querySelector('b').textContent, 'Partita in pausa');
+  assert.equal(el.querySelector('p').textContent, 'Telefono del Player 1 in pausa: Schermo spento da 3 s\nTelefono del Player 2 di nuovo pronto: aspetto il telefono del Player 1');
+  ui._paintHold('Telefono del Player 1 di nuovo pronto', 'Si riprende tra 3…', null, 'p1', { count: 3 });
+  assert.equal(el.querySelector('p').textContent, 'Telefono del Player 1 di nuovo pronto: Si riprende tra 3…\nTelefono del Player 2 di nuovo pronto: Si riprende tra 2…');
+  ui._paintHold(null, '', null, 'p1'); ui._paintHold(null, '', null, 'p2');
+  assert.ok(el.classList.contains('hidden'));
+});

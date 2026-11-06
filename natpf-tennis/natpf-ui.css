@@ -1051,9 +1051,15 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
 #title-modal .split-player.is-prep { border-color: rgba(255, 198, 64, 0.72); }
 #title-modal .split-player.is-ready { border-color: var(--ok); background: linear-gradient(rgba(54, 224, 122, 0.14), rgba(54, 224, 122, 0.14)), var(--panel); box-shadow: inset 6px 0 0 var(--who), 0 0 0 3px rgba(54, 224, 122, 0.28); }
 #title-modal .split-player.is-ko { border-color: var(--bad); box-shadow: inset 6px 0 0 var(--who), 0 0 0 3px rgba(255, 79, 97, 0.22); }
-#title-modal .split-head { grid-area: head; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+/* le due schede affiancate restano allineate qualunque sia lo stato (revisione B9 del 06/11: a 720×720 il distintivo
+   «In attesa» o «Scollegato» del P1 andava a capo e non quello del P2, e le schede erano sfalsate di 15 px con i QR a
+   due altezze diverse): schede alte uguali con il contenuto in alto, intestazione sempre su una riga (nome lungo con
+   i puntini, il nome intero è nel title della scheda) e, nelle aree strette, sempre su due righe per tutte e due */
+#title-modal .split-player { align-self: stretch; align-content: start; }
+#title-modal .split-head { grid-area: head; display: flex; flex-wrap: nowrap; align-items: center; gap: 8px 12px; min-width: 0; }
+#title-modal .split-head .ready-badge { flex: none; }
 #title-modal .split-who { display: flex; align-items: baseline; gap: 10px; min-width: 0; margin-right: auto; }
-#title-modal .split-who b { font: 800 italic 26px/1 var(--font-display); text-transform: uppercase; color: var(--who); overflow-wrap: anywhere; }
+#title-modal .split-who b { min-width: 0; padding-right: 0.12em; font: 800 italic 26px/1.1 var(--font-display); text-transform: uppercase; color: var(--who); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #title-modal .split-who span { font: 600 13px/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); white-space: nowrap; }
 /* nomi dei due giocatori: campi con lo stile del gioco (prima i campi bianchi del browser) */
 #title-modal .split-names { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px 24px; }
@@ -1108,6 +1114,9 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
   #title-modal .split-setup { grid-template-columns: 1fr; }
   #title-modal .split-player { grid-template-columns: 110px 1fr; }
   #title-modal .split-qr .natpf-qr { width: 110px; height: 110px; }
+  /* schede strette (affiancate in un'area da ledwall o una sotto l'altra): distintivo sempre sotto il nome */
+  #title-modal .split-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+  #title-modal .split-who { max-width: 100%; margin-right: 0; }
 }
 /* area stretta ma non da telefono (per esempio un ledwall 720×720): le due schede affiancate e compatte, il QR sopra lo
    stato, così i due QR stanno nell'area senza scorrere e la barra dell'avvio non ne copre nessuno. Prima le schede una

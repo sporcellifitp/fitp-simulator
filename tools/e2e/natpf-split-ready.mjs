@@ -111,6 +111,10 @@ try {
   await sleep(700);
   const qrLed = await g.evaluate(() => ['p1', 'p2'].map(id => { const el = document.getElementById(`split-qr-${id}`), b = el.getBoundingClientRect(), t = document.elementFromPoint(b.left + b.width/2, b.top + b.height/2); return { id, top: Math.round(b.top), bottom: Math.round(b.bottom), center: !!t && el.contains(t), inArea: b.bottom <= 720 && b.top >= 0 }; }));
   check('   ledwall 720×720: i due QR interi nell\'area e liberi al centro (la barra non copre il QR del Player 2)', qrLed.every(q => q.center && q.inArea), JSON.stringify(qrLed));
+  // schede affiancate allineate: stessa altezza, distintivo alla stessa altezza, QR alla stessa altezza (revisione B9 del
+  // 06/11: il distintivo del P1 andava a capo e i QR erano sfalsati di 15 px)
+  const cardsLed = await g.evaluate(() => ['p1', 'p2'].map(id => { const c = document.querySelector(`[data-split-player="${id}"]`), t = el => Math.round(el.getBoundingClientRect().top); const b = c.getBoundingClientRect(); return { top: Math.round(b.top), bottom: Math.round(b.bottom), badge: t(c.querySelector('.ready-badge')), qr: t(c.querySelector('.natpf-qr')) }; }));
+  check('   ledwall 720×720: le due schede allineate (bordo, distintivo, QR)', ['top', 'bottom', 'badge', 'qr'].every(k => Math.abs(cardsLed[0][k] - cardsLed[1][k]) <= 1), JSON.stringify(cardsLed));
   await shot('1b-qr-ledwall-720');
   await g.evaluate(() => __natpfTennis.natpfUi.screen.restore({ preset: 'full', area: null, margins: {} }));
   await sleep(400);
@@ -217,11 +221,20 @@ try {
   await g.evaluate(() => __natpfTennis.natpfUi.lobby.next());
   await until(g, () => __natpfTennis.natpfUi.lobby.step === 'match', null, 3000);
   await sleep(400);
+  // per tutta l'attesa: il riquadro del conto non deve mai comparire (e nessuna partita); stati dei telefoni registrati
+  // per capire un'eventuale ripartenza (sotto carico un telefono può passare per «non pronto» per un attimo)
+  await g.evaluate(() => { window.__backLog = []; let last = ''; window.__backRec = setInterval(() => { const ov = document.getElementById('split-countdown'), S = __natpfTennis.natpfUi.split; const k = [ov.classList.contains('hidden') ? '-' : 'conto', S.cd.back ? 'back' : '-', __natpfTennis.natpfPhone?.ready ? 'p1' : '-', __natpfTennis.natpfPhone2?.ready ? 'p2' : '-', __natpfTennis.natpfSplit?.active ? 'split' : '-'].join(' '); if (k !== last){ last = k; window.__backLog.push(`${Math.round(performance.now())}:${k}`); } }, 20); });
   await g.click('#lobby-back');
   await sleep(3800);
   v = await view(g);
+  const backLog = await g.evaluate(() => { clearInterval(window.__backRec); return window.__backLog; });
+  log('«‹ Indietro»: ' + backLog.join(' · '));
   check('5f. «‹ Indietro» da «Partita» con i due pronti: nessun conto da solo, «Tutto pronto · Premi «Gioca»»', v.step === 'connect' && !v.overlay && !v.session && v.bar.mode === 'held' && v.bar.play && v.bar.sub === 'Premi «Gioca» quando volete.', JSON.stringify({ step: v.step, bar: v.bar, session: v.session }));
+  check('   in tutti i 3,8 s il conto non è mai comparso (e nessuna partita)', backLog.length && !backLog.some(k => /:conto /.test(k) || / split$/.test(k)), backLog.join(' · '));
   await shot('5f-indietro-1280');
+  // anche al momento della schermata (il riquadro coprirebbe nomi e mano)
+  const atShot = await g.evaluate(() => ({ overlay: !document.getElementById('split-countdown').classList.contains('hidden'), bar: document.getElementById('split-ready-bar').dataset.readyBar, session: !!__natpfTennis.natpfSplit?.active }));
+  check('   alla schermata: nessun conto in vista, barra «held»', !atShot.overlay && atShot.bar === 'held' && !atShot.session, JSON.stringify(atShot));
 
   /* 5g: schermo del telefono spento (pagina nascosta) in attesa e durante il conto (bloccante B della revisione) */
   const hide = (ph, on) => ph.evaluate(on => { Object.defineProperty(document, 'hidden', { get: () => on, configurable: true }); Object.defineProperty(document, 'visibilityState', { get: () => on ? 'hidden' : 'visible', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); }, on);
