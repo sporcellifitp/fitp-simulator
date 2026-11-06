@@ -108,9 +108,9 @@
    basso a sinistra, lezione iniziale in un pannello a sinistra. Il punteggio (0-0) durante l'allenamento non si mostra.
    ===================================================================================================================== */
 body.natpf-training #top-hud-bar,
-body.natpf-training #natpf-games-line,
+body.natpf-training #natpf-scoreboard,
 body.natpf-arcade #top-hud-bar,
-body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
+body.natpf-arcade #natpf-scoreboard { opacity: 0; pointer-events: none; }
 
 .natpf-coach { position: fixed; inset: 0; z-index: 40; pointer-events: none; font-family: var(--font-text); color: var(--text); }
 .natpf-coach.hidden { display: none; }
