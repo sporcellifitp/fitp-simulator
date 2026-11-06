@@ -1,19 +1,21 @@
 // NATPF motore base (natpf-tennis/): la modale del tutorial vera con l'animazione dei gesti nuova (B9 ramo C, nota
 // docs/b9/animazione-c.md): schermate (gioco singolo 1280×720 e 1920×1080, stesso schermo 1280×720 con le due metà
 // animate, pagina del telefono 390×844 non toccata) e fotogrammi al secondo dal vivo con la modale sopra il gioco.
-//   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-modale-gesti.mjs     (GAME_PORT; SHOTS=cartella delle schermate)
+//   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-modale-gesti.mjs     (GAME_PORT; SHOTS=cartella delle schermate,
+//   predefinita nella cartella temporanea: quelle di docs/b9/img/C-modale-*.webp sono queste in WebP)
 // Chromium con le opzioni predefinite: nel contenitore non c'è GPU, il Canvas 2D va su CPU (WebGL del gioco in software,
 // se il browser lo concede). GL=swiftshader usa le opzioni delle altre prove (WebGL software anche per il canvas).
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
+import { tmpdir } from 'node:os';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
 const GAME_PORT = +(process.env.GAME_PORT || 3142);
-const SHOTS = process.env.SHOTS || path.resolve(here, '../../docs/b9/img'); mkdirSync(SHOTS, { recursive: true });
+const SHOTS = process.env.SHOTS || path.join(tmpdir(), 'natpf-modale-gesti'); mkdirSync(SHOTS, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const results = []; const check = (n, ok, i = '') => { results.push(ok); console.log((ok ? 'OK  ' : 'KO  ') + n + (i ? ' — ' + i : '')); };
 const vite = spawn(process.execPath, [path.join(GAME, 'node_modules/vite/bin/vite.js'), '--port', String(GAME_PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: GAME, env: { ...process.env, DISABLE_HMR: 'true' }, stdio: 'pipe' });
