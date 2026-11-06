@@ -588,16 +588,20 @@ function drawTrail(c, cam, M, t, st){
 }
 // freccia tratteggiata del verso lungo il percorso della cima nella parte veloce: cresce durante la carica, poi resta
 function drawArrows(c, cam, M, t, st){
-  const P = M.P, vis = 1 - sstep(P.T.back, P.T.home, t) + sstep(P.T.home + .15, P.total, t);
-  for (const seg of M.arrows){
-    const grow = t < P.T.hold ? 0 : t < seg.t0 ? sstep(P.T.hold, seg.t0, t) : 1, n = Math.max(2, Math.round(32*Math.max(.03, grow)) + 1);
+  // visibile dalla carica al ritorno, spenta fino alla carica dopo (prima si riaccendeva alla fine del ciclo e spariva di
+  // colpo al giro: uno scatto a ogni ciclo). Servizio: la freccia della battuta cresce dopo il lancio, non insieme
+  // (revisione artistica)
+  const P = M.P, vis = 1 - sstep(P.T.back, P.T.home, t);
+  for (const [j, seg] of M.arrows.entries()){
+    const from = j ? Math.min(M.arrows[j - 1].t1, seg.t0 - .05) : P.T.hold;
+    const grow = t < from ? 0 : t < seg.t0 ? sstep(from, seg.t0, t) : 1, n = Math.max(2, Math.round(32*Math.max(.03, grow)) + 1);
     if (vis*grow <= .02) continue;
     const pts = seg.pts.slice(0, n).map(cam.p);
     c.save(); c.globalAlpha = .8*Math.min(1, vis); c.lineCap = 'round'; c.lineJoin = 'round';
     c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y));
     c.lineWidth = st.ow*2.6; c.strokeStyle = 'rgba(5,10,28,.55)'; c.stroke();
     c.lineWidth = st.ow*1.2; c.setLineDash([st.ow*4, st.ow*3]); c.strokeStyle = 'rgba(240,245,255,.92)'; c.stroke(); c.setLineDash([]);
-    const e = pts[pts.length - 1], d = pts[pts.length - 2], ang = Math.atan2(e.y - d.y, e.x - d.x), s = Math.max(7, st.ow*6);
+    const e = pts[pts.length - 1], d = pts[pts.length - 2], ang = Math.atan2(e.y - d.y, e.x - d.x), s = Math.max(7, st.ow*6)*sstep(0, .3, grow);   // la punta cresce con la freccia
     c.translate(e.x, e.y); c.rotate(ang); c.beginPath(); c.moveTo(s*.9, 0); c.lineTo(-s*.6, s*.62); c.lineTo(-s*.3, 0); c.lineTo(-s*.6, -s*.62); c.closePath();
     c.fillStyle = css(BALL); c.fill(); c.lineWidth = Math.max(1, st.ow*.7); c.strokeStyle = 'rgba(5,10,28,.85)'; c.stroke();
     c.restore();
@@ -736,10 +740,10 @@ export class NatpfGestureDemo {
     st.ow = Math.max(1, .003*W); st.shadow = Math.max(1.5, .0045*W);
     const M = motion(id, this.grip), P = M.P, tt = wrapT(P, t);
     const live = this.pose(tt), R = this.hand === 'left' ? { ...live, pos: mirrorPos(live.pos), q: mirrorQ(live.q) } : live;
-    const cam = this._cam(tt), K = this.skip || {};            // skip: parti da saltare (solo misure del costo)
+    const cam = this._cam(tt), K = this.skip || {}; this._tNow = tt;   // skip: parti da saltare (solo misure del costo)
     if (!K.bg) this._background(c, cam, R);
     const u = Math.max(12, .026*H);               // testo base (px CSS): mai sotto i 12 px
-    if (id === 'grip'){ this._grip(c, cam, R, tt, u); this.info = { t: tt, cam, pose: live }; return; }
+    if (id === 'grip'){ this._grip(c, cam, R, tt, u); return; }   // info (con la figura disegnata) la scrive _grip
     // fantasmi a contorno delle pose chiave (non nella modalità compatta)
     const ghosts = compact || P.still ? [] : M.keys.map((k, i) => {
       let a = tt < k.t ? 0 : Math.min(1, (tt - k.t)/.12)*(1 - sstep(P.T.home - .25, P.T.home + .1, tt));
@@ -840,33 +844,48 @@ export class NatpfGestureDemo {
   }
   _keyPose(k){ return gesturePose(this.id, k.t, { hand: this.hand, grip: this.grip }); }
   // etichetta numerata del fantasma: vicino al suo fantasma (cima o centro del telefono) e mai sopra il soggetto vivo
-  // (sagoma vera: telefono, palmo, dita, avambraccio, non il suo rettangolo) né sopra le altre etichette
+  // (sagoma vera: telefono, palmo, dita, avambraccio, non il suo rettangolo) né sopra le altre etichette. Il posto si
+  // sceglie UNA volta, quando il fantasma compare, guardando il soggetto vivo per tutto il tempo in cui il fantasma resta
+  // (12 istanti fino al ritorno e il contatto): poi l'etichetta resta attaccata al suo fantasma (con la camera che segue si sposta con
+  // lui) invece di saltare da un lato all'altro a ogni fotogramma (revisione artistica: salti fino a 200 px). Se il
+  // fantasma esce dallo stadio (camera che segue) l'etichetta si spegne con lui.
   _ghostLabel(c, cam, g, F, u, taken){
     const st = this.st, kp = this._keyPose(g.k), pose = this.hand === 'left' ? { pos: mirrorPos(kp.pos), q: mirrorQ(kp.q) } : kp;
-    const tip = cam.p(tipOf(pose, 1.1)), mid = cam.p(pose.pos);
+    const anchors = K => [K.p(tipOf(pose, 1.1)), K.p(pose.pos)];
     const box = { x0: 6, x1: st.W - 6, y0: 6, y1: st.H*(1 - HUD_H) - 6 };
     c.save(); c.font = `700 ${u}px Barlow, sans-serif`;
     const h = Math.round(u*1.75), w = c.measureText(g.k.label).width + u*1.2 + h;
     c.restore();
-    const occ = liveTest(F);
-    const rectAt = (x, y, align) => { const x0 = Math.max(box.x0, Math.min(box.x1 - w, align === 'center' ? x - w/2 : align === 'right' ? x - w : x)), y0 = Math.max(box.y0, Math.min(box.y1 - h, y - h/2)); return { x0, y0, x1: x0 + w, y1: y0 + h }; };
-    const over = (a, b) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0))*Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
-    const cost = (r, ax, ay) => {
-      const inside = occ(r);
-      const cx = Math.max(r.x0, Math.min(r.x1, ax)), cy = Math.max(r.y0, Math.min(r.y1, ay));
-      return inside/21*4 + taken.reduce((m, b) => m + over(r, b)/(w*h)*3, 0) + Math.hypot(cx - ax, cy - ay)/Math.max(st.W, st.H)*2.5;
-    };
-    let best = null;
-    for (const A of [tip, mid]) for (let k = 0; k < 8; k++){
-      const ang = k/8*2*Math.PI, ex = Math.cos(ang), ey = Math.sin(ang);
-      for (const dist of [1, 2.2, 3.6]){
-        const x = A.x + ex*u*dist, y = A.y + ey*u*dist*.9, align = ex > .3 ? 'left' : ex < -.3 ? 'right' : 'center';
-        const r = rectAt(x, y + (align === 'center' ? ey*h*.6 : 0), align), cc = cost(r, A.x, A.y) + (A === mid ? .04 : 0);
-        if (!best || cc < best.cc) best = { r, cc };
+    const place = (A, ox, oy) => { const x0 = Math.max(box.x0, Math.min(box.x1 - w, A.x + ox)), y0 = Math.max(box.y0, Math.min(box.y1 - h, A.y + oy)); return { x0, y0, x1: x0 + w, y1: y0 + h }; };
+    const cached = this._ghosts.get(`${this.grip}|${g.i}`);
+    let L = cached?.label;
+    if (!L){
+      const P = motion(this.id, this.grip).P, tn = this._tNow ?? 0, t0 = Math.max(tn, g.k.t + .05), t1 = Math.max(t0, P.T.home);
+      const samples = [...Array.from({ length: 12 }, (_, j) => t0 + (t1 - t0)*j/11), ...(P.contact > t0 && P.contact < t1 ? [P.contact] : [])].map(ts => {
+        const K = this._cam(ts), lp = this.pose(ts), R = this.hand === 'left' ? { ...lp, pos: mirrorPos(lp.pos), q: mirrorQ(lp.q) } : lp;
+        return { A: anchors(K), occ: liveTest(figure(K, R, st, handFor(this.grip))) };
+      });
+      samples.push({ A: anchors(cam), occ: liveTest(F) });
+      const over = (a, b) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0))*Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
+      const now = anchors(cam);
+      for (let ai = 0; ai < 2; ai++) for (let k = 0; k < 8; k++){
+        const ang = k/8*2*Math.PI, ex = Math.cos(ang), ey = Math.sin(ang);
+        for (const dist of [1, 2.2, 3.6, 5]){
+          const align = ex > .3 ? 'left' : ex < -.3 ? 'right' : 'center', x = ex*u*dist, y = ey*u*dist*.9 + (align === 'center' ? ey*h*.6 : 0);
+          const ox = align === 'center' ? x - w/2 : align === 'right' ? x - w : x, oy = y - h/2;
+          let sum = 0, worst = 0;
+          for (const S of samples){ const v = S.occ(place(S.A[ai], ox, oy))/21; sum += v; worst = Math.max(worst, v); }
+          const r = place(now[ai], ox, oy), A = now[ai], cx = Math.max(r.x0, Math.min(r.x1, A.x)), cy = Math.max(r.y0, Math.min(r.y1, A.y));
+          const cc = sum/samples.length*2 + worst*8 + taken.reduce((m, b) => m + over(r, b)/(w*h)*3, 0) + Math.hypot(cx - A.x, cy - A.y)/Math.max(st.W, st.H)*2.5 + (ai ? .04 : 0);
+          if (!L || cc < L.cc) L = { ai, ox, oy, cc };
+        }
       }
+      if (cached) cached.label = L;
     }
-    const r0 = best.r;
-    c.save(); c.globalAlpha = Math.min(1, g.a*1.4);
+    const A = anchors(cam)[L.ai], r0 = place(A, L.ox, L.oy);
+    const edge = Math.min(A.x, st.W - A.x, A.y, st.H*(1 - HUD_H) - A.y), vis = sstep(-2*u, u, edge);
+    if (vis <= .01) return;
+    c.save(); c.globalAlpha = Math.min(1, g.a*1.4)*vis;
     const r = pill(c, st, r0.x0, (r0.y0 + r0.y1)/2, g.k.label, { num: String(g.i + 1), size: u, box, align: 'left' });
     c.restore();
     g.labelBox = r; taken.push({ x0: r.x0, y0: r.y0, x1: r.x0 + r.w, y1: r.y0 + r.h });
