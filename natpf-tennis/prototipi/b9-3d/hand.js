@@ -85,11 +85,12 @@ export const HAND = {
   dev: -6,               // deviazione (gradi, + verso il pollice)
 };
 // dita: offset della nocca lungo v (radiale) e u (asse), lunghezze delle falangi, raggi (base, PIP, DIP, punta), ventaglio
+// (ventaglio dimezzato il 06/11: nella foto della presa le dita stanno unite attorno al bordo, non aperte)
 const FINGERS = [
-  { name: 'indice', v: .0205, u: -.002, L: [.041, .024, .0195], r: [.0097, .0087, .0077, .0066], spread: 7 },
-  { name: 'medio', v: 0, u: 0, L: [.045, .0275, .0205], r: [.0099, .0090, .0080, .0068], spread: 1 },
-  { name: 'anulare', v: -.0188, u: -.0045, L: [.042, .026, .0200], r: [.0093, .0085, .0076, .0065], spread: -5 },
-  { name: 'mignolo', v: -.0355, u: -.0135, L: [.0335, .0195, .0180], r: [.0083, .0075, .0068, .0058], spread: -12 },
+  { name: 'indice', v: .0205, u: -.002, L: [.041, .024, .0195], r: [.0097, .0087, .0077, .0066], spread: 3.5 },
+  { name: 'medio', v: 0, u: 0, L: [.045, .0275, .0205], r: [.0099, .0090, .0080, .0068], spread: .5 },
+  { name: 'anulare', v: -.0188, u: -.0045, L: [.042, .026, .0200], r: [.0093, .0085, .0076, .0065], spread: -2.5 },
+  { name: 'mignolo', v: -.0355, u: -.0135, L: [.0335, .0195, .0180], r: [.0083, .0075, .0068, .0058], spread: -7 },
 ];
 const LIMITS = [[-25, 85], [0, 105], [0, 78]];
 

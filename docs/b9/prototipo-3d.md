@@ -62,4 +62,34 @@
       fantasmi con opacità propria che si spengono quando il telefono passa per quella posa (±0,16 s).
   18. un riquadro chiaro sulle dita all'impatto del dritto e del piatto: la testa della scia vista quasi di punta.
       Testa della scia sfumata negli ultimi 20 ms e spostamento in profondità portato a 20 cm → pulito.
-  In corso: fotogrammi finali (1280×720 e misura della modale 640×400), misure di costo, verifica dei gesti.
+  19. misure (sotto, «Costo»): la modalità `misura=N` non finiva mai (l'azzeramento dopo il riscaldamento si ripeteva
+      ogni 6 fotogrammi) e `gl.finish()` in Chromium non aspetta la GPU (1,6 ms a ogni risoluzione): corretti
+      (riscaldamento una volta, sincronizzazione con la lettura di un pixel). Verifica dei gesti rifatta dopo le
+      modifiche: «tutto riconosciuto» (moto invariato).
+  20. modalità `qualita=bassa` (misure sotto). Dettaglio a 1920×1080 della presa: dita aperte a ventaglio (nella foto
+      della presa stanno unite) e macchie scure sui polpastrelli (ombra di contatto del telefono a piena forza).
+  21. ventaglio delle dita dimezzato (3,5°; 0,5°; −2,5°; −7°) e ombra di contatto del telefono «assottigliata» di 1,5 mm;
+      riflesso del vetro ridotto (dagli occhi di chi gioca lo schermo diventava lilla).
+  22. tagliato: la palla in arrivo usciva dal bordo alto → tra i punti dell'inquadratura anche la palla 50 ms prima e
+      40 ms dopo il contatto (con 120 ms prima il quadro si allargava troppo); pallonetto con la camera che segue da
+      dietro e in basso (`seguiBasso`): la mano non è più piccola in fondo al quadro e la salita si legge dalla scia.
+  In corso: composizione dei fotogrammi finali in `docs/b9/img/p3d-*.png`, rapporto finale.
+
+## Costo misurato (06/11, Chromium headless, WebGL software SwiftShader, questo contenitore)
+40 fotogrammi consecutivi dopo 6 di riscaldamento, sincronizzati con la lettura di un pixel; «posa» = calcolo di ossa,
+scia (96 pose), fantasmi e camera in JS; «disegno» = render three.js fino al pixel letto.
+
+| Risoluzione | Dritto | Servizio | Presa | Posa (JS) |
+|---|---|---|---|---|
+| 640×400 (modale a 1920×1080) | 200 ms (5,0 fps) | 220 ms (4,5 fps) | 234 ms (4,3 fps) | 0,4–0,5 ms |
+| 1280×720 | 449 ms (2,2 fps) | 490 ms (2,0 fps) | 576 ms (1,7 fps) | 0,5–0,8 ms |
+| 1920×1080 | 824 ms (1,2 fps) | 761 ms (1,3 fps) | 858 ms (1,2 fps) | 0,5–0,7 ms |
+
+Scena: 20–25 chiamate di disegno, ~48k triangoli (pelle 21,4k vertici / 33,5k triangoli, disegnata in 4 passate:
+ombra, profondità della sfumatura, opaca, sfumata). In software il costo è ~100 ms fissi (ombra 2048², pelle con le
+ossa) + ~375 ms per megapixel (materiale fisico della pelle con sheen e clearcoat, ombre PCF morbide, MSAA).
+Costruzione della pelle (una volta, nel worker): ~1,0 s (superficie 0,45 s, normali 0,35 s, occlusione 0,1 s).
+
+Con `qualita=bassa` (niente MSAA, ombra 1024² non morbida, niente sheen/clearcoat, densità di pixel 1): 640×400
+100–107 ms (9,3–9,9 fps), 1280×720 276–297 ms (3,4–3,6 fps), 1920×1080 519–631 ms (1,6–1,9 fps). Anche così il disegno
+software non regge un'animazione fluida: su un PC senza accelerazione grafica serve un ripiego (vedi «Limiti»).

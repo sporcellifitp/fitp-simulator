@@ -28,7 +28,8 @@ export function buildArmMesh(bind, { h = .0026 } = {}){
   const t2 = Date.now();
   const qi = conj(Q);
   const phoneW = (x, y, z) => { const p = qrot(qi, [x - P[0], y - P[1], z - P[2]]); return phoneSdf(p[0], p[1], p[2]); };
-  const ao = bakeAO((x, y, z) => Math.min(field(x, y, z), phoneW(x, y, z)), m.pos, nrm);
+  // il telefono fa ombra di contatto, ma «assottigliato» di 1,5 mm: a piena forza i polpastrelli sul vetro sembravano sporchi
+  const ao = bakeAO((x, y, z) => Math.min(field(x, y, z), phoneW(x, y, z) + .0015), m.pos, nrm);
   const t3 = Date.now();
   const n = m.pos.length/3;
   const color = new Float32Array(n*3), skinIndex = new Uint16Array(n*4), skinWeight = new Float32Array(n*4), fade = new Float32Array(n);

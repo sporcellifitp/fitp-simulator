@@ -64,7 +64,7 @@ export function buildPhone(renderer){
   // vetro anteriore con lo schermo acceso
   const tex = new THREE.CanvasTexture(screenCanvas());
   tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = renderer?.capabilities.getMaxAnisotropy?.() || 4;
-  const glassM = new THREE.MeshPhysicalMaterial({ color: 0x000000, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 1.25, roughness: .08, metalness: 0, clearcoat: .35, clearcoatRoughness: .06, reflectivity: .22, envMapIntensity: .22 });
+  const glassM = new THREE.MeshPhysicalMaterial({ color: 0x000000, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 1.25, roughness: .08, metalness: 0, clearcoat: .18, clearcoatRoughness: .06, reflectivity: .18, envMapIntensity: .16 });   // riflesso ridotto (06/11): dagli occhi di chi gioca lo schermo diventava lilla
   const gw = w - .0012, gh = h - .0012;
   const front = new THREE.Mesh(normalizeUV(new THREE.ShapeGeometry(roundRectShape(gw, gh, corner - .0006), 12), gw, gh), glassM);
   front.position.z = d/2 + .00005; group.add(front);

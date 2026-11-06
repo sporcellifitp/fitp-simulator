@@ -16,7 +16,9 @@
   /* come il gioco: misure legate all'area del gioco (container natpf), non alla finestra */
   .screen { position: fixed; inset: 0; container-type: size; container-name: natpf; overflow: hidden;
     background: radial-gradient(120% 90% at 30% 20%, #16306e 0%, #0a1330 45%, #050a1c 100%); }
-  .screen::before { content: ""; position: absolute; inset: 0; background: rgba(4, 8, 24, .62); backdrop-filter: blur(4px); }
+  /* velo semplice, senza backdrop-filter: una sfocatura dietro un canvas ridisegnato a ogni fotogramma costa un terzo del
+     fotogramma senza GPU (39 → 60 fotogrammi/s misurati nel prototipo) */
+  .screen::before { content: ""; position: absolute; inset: 0; background: rgba(4, 8, 24, .62); }
   /* modale più piccola e centrata, proporzionata allo schermo */
   .card { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
     width: min(64cqw, 104cqh); display: grid; gap: 1.2cqh; padding: 2cqh 1.8cqw 1.6cqh; box-sizing: border-box;

@@ -39,13 +39,16 @@ const swapLR = s => s.replace(/destr|sinistr/g, m => m === 'destr' ? 'sinistr' :
 
 /* ---------- renderer, ambiente, luci ---------- */
 const canvas = document.getElementById('view');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: state.tFixed != null });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+// qualità=bassa (per il disegno software, per esempio un PC senza accelerazione): niente MSAA, ombra 1024² non morbida,
+// niente sheen e clearcoat sui materiali fisici, densità di pixel 1. La forma e il moto non cambiano.
+const LOW = qs.get('qualita') === 'bassa';
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !LOW, powerPreference: 'high-performance', preserveDrawingBuffer: state.tFixed != null });
+renderer.setPixelRatio(LOW ? 1 : Math.min(window.devicePixelRatio || 1, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = LOW ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
@@ -62,7 +65,7 @@ const dome = new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), new THREE.Shad
 dome.renderOrder = -10; scene.add(dome);
 
 const key = new THREE.DirectionalLight(0xffeedd, 2.6);
-key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+key.castShadow = true; key.shadow.mapSize.set(LOW ? 1024 : 2048, LOW ? 1024 : 2048);
 Object.assign(key.shadow.camera, { left: -1.1, right: 1.1, top: 1.1, bottom: -1.1, near: .3, far: 8 });
 key.shadow.bias = -.0002; key.shadow.normalBias = .012; key.shadow.radius = 3;
 const rim = new THREE.DirectionalLight(0x9ec3ff, 2.8);
@@ -108,6 +111,7 @@ const SSS = THREE.ShaderChunk.lights_physical_pars_fragment.replace('reflectedLi
   'reflectedLight.directDiffuse += wrapD * directLight.color * BRDF_Lambert( material.diffuseColor );');
 const withSSS = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <lights_physical_pars_fragment>', SSS); };
 skinMat.onBeforeCompile = withSSS; skinMat.customProgramCacheKey = () => 'p3d-skin';
+if (LOW){ skinMat.sheen = 0; skinMat.clearcoat = 0; }
 const fadeMat = skinMat.clone();
 fadeMat.transparent = true; fadeMat.depthWrite = false;
 fadeMat.onBeforeCompile = sh => {
@@ -248,10 +252,13 @@ const VIEWS = {
   segui: { dir: [.95, .30, .55], fov: 24, follow: .25 },
   // dagli occhi di chi gioca (come la foto della presa): l'avambraccio si vede di lato e sfuma fuori quadro
   occhi: { dir: [.10, .95, .62], fov: 22 },
+  // pallonetto: la mano sale di quasi un metro; con la camera fissa restava piccola in basso, qui la camera la segue
+  // da dietro e in basso e la salita si legge dalla scia
+  seguiBasso: { dir: [.55, .30, 1.0], fov: 24, follow: .28 },
   dietroBasso: { dir: [.40, .28, 1.0], fov: 22 },
   fronte: { dir: [.35, .25, -1.0], fov: 22 },
 };
-const DEFAULT_VIEW = { grip: 'presa', ready: 'occhi', forehand: 'dietro', backhand: 'dietro', flat: 'dietro', slice: 'dietroBasso', lob: 'dietroBasso', drop: 'dietroBasso', serve: 'segui', smash: 'segui' };
+const DEFAULT_VIEW = { grip: 'presa', ready: 'occhi', forehand: 'dietro', backhand: 'dietro', flat: 'dietro', slice: 'dietroBasso', lob: 'seguiBasso', drop: 'dietroBasso', serve: 'segui', smash: 'segui' };
 // punti del gesto (cima e base del telefono, polso, avambraccio visibile) campionati su tutto il ciclo
 const samples = new Map();
 function gesturePoints(id){
@@ -262,7 +269,9 @@ function gesturePoints(id){
     pts.push(V(P.pos, qrot(P.q, TIP)), V(P.pos, qrot(P.q, TIP), -1), st.arm.W, V(st.arm.W, st.arm.F, -.08));
     for (const sx of [-1, 1]) for (const sy of [-1, 1]) pts.push(V(P.pos, qrot(P.q, [sx*PHONE.w/2, sy*PHONE.h/2, 0])));   // angoli del telefono
   }
-  const b = ballPlan(id); if (b) pts.push(b.contact);
+  // la palla nell'ultimo tratto prima del contatto e appena dopo (prima solo il contatto: nel tagliato la palla in arrivo
+  // usciva dal bordo alto)
+  const b = ballPlan(id); if (b){ pts.push(b.contact); for (const dt of [-.05, .04]){ const q = ballAt(id, b.tc + dt); if (q) pts.push(q.p); } }
   samples.set(id, pts); return pts;
 }
 // inquadratura stretta: distanza minima perché tutti i punti stiano nella finestra utile dello schermo, centro
@@ -465,6 +474,7 @@ function frame(now){
   else window.__p3d = { ready: true, perf: { posaMs: perf.cpu/perf.frames, renderMs: perf.gpu/perf.frames, frames: perf.frames }, skin: skinStats, arm: lastPose && { flexion: lastPose.arm.flexion, wristDev: lastPose.arm.wristDev, twist: lastPose.twist, shift: lastPose.arm.shift }, info: renderer.info.render };
 }
 
+if (LOW) scene.traverse(o => { if (o.material?.isMeshPhysicalMaterial){ o.material.sheen = 0; o.material.clearcoat = 0; } });
 resize(); refresh();
 const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
 worker.onmessage = e => {

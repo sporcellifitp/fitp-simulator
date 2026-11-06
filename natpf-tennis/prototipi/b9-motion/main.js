@@ -267,10 +267,14 @@ function figure(cam, pose, short = false){
   const ax = norm(sub(rig.E, rig.W)), e1 = norm(cross(ax, Math.abs(ax[1]) < .9 ? [0, 1, 0] : [1, 0, 0])), e2 = cross(ax, e1);
   const ring = (u, rr, n = 24) => { const C = along(u); return Array.from({ length: n }, (_, j) => { const a = j/n*2*Math.PI, nn = add(mul(e1, Math.cos(a)), mul(e2, Math.sin(a))), X = add(C, mul(nn, rr)); return { ...P(X), vis: dot(nn, sub(cam.eye, X)) > 0 }; }); };
   const bA = ring(BAND.from, rAt(BAND.from) + .0022), bB = ring(BAND.to, rAt(BAND.to) + .0022), bM = ring((BAND.from + BAND.to)/2, rAt((BAND.from + BAND.to)/2) + .0022);
-  const endVis = dot(ax, sub(cam.eye, along(BAND.to))) > 0 ? bB : dot(mul(ax, -1), sub(cam.eye, along(BAND.from))) > 0 ? bA : null;
-  const band = { a: P(along(BAND.from)), b: P(along(BAND.to)), Ra: R(along(BAND.from), rAt(BAND.from) + .0022), Rb: R(along(BAND.to), rAt(BAND.to) + .0022), hull: hull(bA.concat(bB)), mid: bM, end: endVis,
-    // avambraccio verso la camera (gomito più vicino del polso): il polsino sta dietro la parte vicina dell'avambraccio
-    under: cam.depth(rig.E) < cam.depth(rig.W) - .06 };
+  const endU = dot(ax, sub(cam.eye, along(BAND.to))) > 0 ? BAND.to : dot(mul(ax, -1), sub(cam.eye, along(BAND.from))) > 0 ? BAND.from : null;
+  const endVis = endU === BAND.to ? bB : endU === BAND.from ? bA : null;
+  // dentro l'orlo visibile esce la pelle (polso o avambraccio): un foro con il raggio dell'avambraccio, non un disco bianco
+  const hole = endU === null ? null : ring(endU, rAt(endU));
+  const band = { a: P(along(BAND.from)), b: P(along(BAND.to)), Ra: R(along(BAND.from), rAt(BAND.from) + .0022), Rb: R(along(BAND.to), rAt(BAND.to) + .0022), hull: hull(bA.concat(bB)), mid: bM, end: endVis, hole,
+    // avambraccio quasi di punta (entro ~28° dalla direzione di vista): con il gomito davanti il polsino sta dietro la
+    // parte vicina dell'avambraccio, con la mano davanti dietro il palmo; di lato o di scorcio normale resta sopra
+    under: Math.abs(dot(ax, norm(sub(cam.eye, along(BAND.to))))) > .88 };
   const cuff = { c: P(along(CUFF)), r: R(along(CUFF), sl(CUFF)), d: P(along(CUFF + .05)) };
   // la manica sfuma verso la spalla (fuori quadro); mai sopra la mano, anche con l'avambraccio di scorcio
   const fc = P(rig.E), w = P(rig.W), fr = Math.min(R(rig.E, .11), .62*Math.hypot(fc.x - w.x, fc.y - w.y));
@@ -320,11 +324,12 @@ function drawNail(c, n, st){
 // polsino: cilindro corto con l'orlo e la riga colorata
 function drawBand(l, F, st){
   const b = F.band; l.save();
-  l.beginPath(); polyPath(l, b.hull); l.lineJoin = 'round'; l.lineWidth = st.ow*2; l.strokeStyle = css(LINE); l.stroke();
-  l.fillStyle = tubeGrad(l, b.a, b.b, (b.Ra + b.Rb)/2, MAT.band); l.fill();
+  const shape = () => { l.beginPath(); polyPath(l, b.hull); if (b.hole) polyPath(l, b.hole); };
+  shape(); l.lineJoin = 'round'; l.lineWidth = st.ow*2; l.strokeStyle = css(LINE); l.stroke();
+  l.fillStyle = tubeGrad(l, b.a, b.b, (b.Ra + b.Rb)/2, MAT.band); l.fill('evenodd');
   // orlo visibile (l'estremità rivolta alla camera) e riga colorata a metà, solo sul lato visibile
   if (b.end){ l.beginPath(); polyPath(l, b.end); l.lineWidth = Math.max(1, st.ow*.6); l.strokeStyle = css(MAT.band.shadow, .55); l.stroke(); }
-  l.beginPath(); polyPath(l, b.hull); l.clip();
+  shape(); l.clip('evenodd');
   const vis = b.mid.filter(q => q.vis);
   if (vis.length > 2){
     // la metà visibile dell'anello è contigua: si riparte dal primo punto dopo uno non visibile
@@ -482,7 +487,8 @@ function curveOf(id){
 function roundRect(c, x, y, w, h, r){ c.beginPath(); c.roundRect(x, y, w, h, r); }
 function pill(c, x, y, text, { bg = 'rgba(8,14,40,.82)', fg = '#f4f6fc', border = 'rgba(176,194,255,.4)', size = 12, align = 'center', num = null, numBg = BALL } = {}){
   c.save(); c.font = `700 ${size}px Barlow, sans-serif`; const tw = c.measureText(text).width, h = size*1.9, nw = num ? h : 0, w = tw + size*1.3 + nw;
-  const x0 = align === 'center' ? x - w/2 : align === 'right' ? x - w : x;
+  // sempre dentro lo stadio (margine 6 px), qualunque sia l'allineamento chiesto
+  const x0 = Math.max(6, Math.min(st.W - w - 6, align === 'center' ? x - w/2 : align === 'right' ? x - w : x));
   roundRect(c, x0, y - h/2, w, h, h/2); c.fillStyle = bg; c.fill(); c.lineWidth = 1; c.strokeStyle = border; c.stroke();
   if (num){ c.beginPath(); c.arc(x0 + h/2, y, h/2 - 2, 0, 2*Math.PI); c.fillStyle = css(numBg); c.fill(); c.fillStyle = '#0a1330'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(num, x0 + h/2, y + .5); }
   c.fillStyle = fg; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(text, x0 + nw + size*.65, y + .5);
@@ -695,12 +701,13 @@ function renderGrip(c, t, mirror, k){
 /* ---------- interfaccia della modale ---------- */
 const $ = id => document.getElementById(id);
 function setCard(i){
-  state.card = (i + CARDS.length) % CARDS.length; state.t = 0; state.cycle = 0; state.seen.add(state.card);
+  // niente giro: le frecce si spengono agli estremi (come la modale del gioco)
+  state.card = Math.max(0, Math.min(CARDS.length - 1, i)); state.t = 0; state.cycle = 0; state.seen.add(state.card);
   const C = card();
   $('kicker').textContent = `Tutorial · ${state.card + 1} di ${CARDS.length}`;
   $('name').textContent = C.name;
   $('cue').textContent = C.cue[state.hand] || C.cue.right;
-  $('prev').disabled = state.card === 0;
+  $('prev').disabled = state.card === 0; $('next').disabled = state.card === CARDS.length - 1;
   $('dots').innerHTML = CARDS.map((_, j) => `<i class="${j === state.card ? 'on' : state.seen.has(j) ? 'seen' : ''}"></i>`).join('');
 }
 $('prev').onclick = () => setCard(state.card - 1);
