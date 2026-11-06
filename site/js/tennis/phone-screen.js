@@ -105,6 +105,20 @@ export function countFlash(d = {}){
     : { ring: 'ready', big: 'Si gioca!', sub: '', ms: 1000, arrow: '', buzz: [70] };
 }
 
+// velo «Tocca lo schermo per riprendere» (schermo riacceso): cosa è rimasto, secondo dov'era il telefono. Prima diceva
+// sempre «Il collegamento e la calibrazione sono rimasti», anche durante il tutorial o a calibrazione non finita
+// (revisione B9 del 06/11)
+export const VEIL_LEAD = 'Bentornato: un tocco tiene acceso lo schermo e riattiva i sensori.';
+export function veilText({ linkState = 'on', sensor = 'off', gate = null } = {}){
+  let kept;
+  if (linkState !== 'on') kept = sensor === 'ready' ? 'La calibrazione è rimasta; il collegamento riparte da solo.' : 'Il collegamento riparte da solo.';
+  else if (sensor === 'ready') kept = gate ? 'Il collegamento e la calibrazione sono rimasti; il tutorial è ancora sul computer.' : 'Il collegamento e la calibrazione sono rimasti.';
+  else if (gate) kept = 'Il collegamento è rimasto e il tutorial è ancora sul computer: riprendi da dove eri, poi si calibra.';
+  else if (sensor === 'cal') kept = 'Il collegamento è rimasto: la calibrazione continua dal passo in cui eri.';
+  else kept = 'Il collegamento è rimasto.';
+  return `${VEIL_LEAD} ${kept}`;
+}
+
 // testi della schermata del tutorial sul telefono
 export function tutorialTexts(gate, { sensor = 'idle' } = {}){
   const then = sensor === 'ready' ? 'poi si gioca' : 'poi si calibra';

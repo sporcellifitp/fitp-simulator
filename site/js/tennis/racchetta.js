@@ -15,7 +15,7 @@ import { NATPF_BUILD } from './version.js';
 import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
 import { gripSvg, GRIP_TEXT_PLAIN } from './grip-art.js';
 import { platformAccSign, createAccSign, normalizeSample } from './motion-sign.js';
-import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash } from './phone-screen.js';
+import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, veilText } from './phone-screen.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
@@ -595,6 +595,8 @@ function paintVeil(){
   const active = inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal' || sensor === 'idle') && !document.hidden;
   const on = veil.update(performance.now(), { active, wake: awake.state, wakeBusy: awake.busy, lastSample: sensorWatch.last });
   if ($('#wakeVeil').classList.contains('hidden') === on){ show('#wakeVeil', on); if (on) alertKey = null; }
+  // cosa è rimasto: la calibrazione solo se il telefono era calibrato (phone-screen.veilText)
+  if (on){ const t = veilText({ linkState, sensor, gate }), el = $('#wakeVeilText'); if (el.textContent !== t) el.textContent = t; }
 }
 setInterval(() => { paintVeil(); paintAlert(); }, 500);
 // un tocco sul velo: blocco dello schermo, sensori (permesso su iPhone dentro il tocco) e schermo intero

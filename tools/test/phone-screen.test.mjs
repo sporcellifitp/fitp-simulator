@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { countFlash, phoneView, screenOf, PHONE_SCREENS, gateOnCfg, gateOnProgress, gateRestore, gateNav, tutConfirmable, sensorOnGateOpen,
-  sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts } from '../../site/js/tennis/phone-screen.js';
+  sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, veilText, VEIL_LEAD } from '../../site/js/tennis/phone-screen.js';
 
 const LINKS = ['off', 'connecting', 'on', 'lost', 'denied'];
 const SENSORS = ['off', 'denied', 'nomotion', 'insecure', 'idle', 'cal', 'ready'];
@@ -179,4 +179,23 @@ test('telefono: conto 3, 2, 1, «Si gioca!»; «Aspetta» dal computer neutro, a
   assert.equal(countFlash({ stop: 1, txt: 'x'.repeat(300) }).sub.length, 140);
   assert.match(JS, /countFlash\(d\)/, 'la pagina usa countFlash');
   assert.doesNotMatch(HTML, /si era spento/); assert.match(HTML, /id="wakeVeilText">Bentornato:/);
+});
+
+// Revisione B9 (06/11), minore: il velo dello schermo riacceso diceva sempre «Il collegamento e la calibrazione sono
+// rimasti», anche nel tutorial o a calibrazione non finita. Ora la calibrazione solo se il telefono era calibrato
+test('telefono: velo dello schermo riacceso con il testo giusto (calibrato, tutorial, calibrazione in corso, collegamento perso)', () => {
+  const kept = o => veilText(o).slice(VEIL_LEAD.length + 1);
+  for (const o of [{ sensor: 'ready' }, { sensor: 'ready', gate: { v: 2 } }, { sensor: 'idle', gate: { v: 2 } }, { sensor: 'cal' }, { sensor: 'idle' }, { linkState: 'lost', sensor: 'cal' }, { linkState: 'lost', sensor: 'ready' }])
+    assert.ok(veilText(o).startsWith(VEIL_LEAD + ' '), JSON.stringify(o));
+  assert.equal(kept({ sensor: 'ready' }), 'Il collegamento e la calibrazione sono rimasti.');
+  assert.equal(kept({ sensor: 'ready', gate: { v: 2 } }), 'Il collegamento e la calibrazione sono rimasti; il tutorial è ancora sul computer.');
+  assert.equal(kept({ sensor: 'idle', gate: { v: 2, i: 3, n: 11 } }), 'Il collegamento è rimasto e il tutorial è ancora sul computer: riprendi da dove eri, poi si calibra.');
+  assert.equal(kept({ sensor: 'cal' }), 'Il collegamento è rimasto: la calibrazione continua dal passo in cui eri.');
+  assert.equal(kept({ linkState: 'lost', sensor: 'ready' }), 'La calibrazione è rimasta; il collegamento riparte da solo.');
+  // «calibrazione» rimasta solo con il telefono calibrato
+  for (const linkState of LINKS) for (const sensor of SENSORS) for (const gate of [null, { v: 2 }])
+    assert.equal(/calibrazione (sono|è) rimast/.test(veilText({ linkState, sensor, gate })), sensor === 'ready', JSON.stringify({ linkState, sensor, gate }));
+  // la pagina lo usa quando mostra il velo; il testo fisso dell'HTML non promette la calibrazione
+  assert.match(JS, /veilText\(\{ linkState, sensor, gate \}\)/);
+  assert.match(HTML, /id="wakeVeilText">Bentornato: un tocco tiene acceso lo schermo e riattiva i sensori\.<\/p>/);
 });
