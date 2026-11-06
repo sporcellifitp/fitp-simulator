@@ -458,7 +458,7 @@ export class NatpfSplitUi {
   end(){
     this.closeTutorials();
     if (!this.session && !this.hold) return;
-    this.engine.endSplit?.(); if (this.hold){ this.hold = null; this.ui._paintHold?.(null); } show($('natpf-split-hud'), false);
+    this.engine.endSplit?.(); if (this.hold){ this.hold = null; this.ui._paintHold?.(null, '', null, 'p2'); } show($('natpf-split-hud'), false);
   }
   // esiti dei colpi (motore → aptica): etichetta della metà di chi ha colpito
   onFeedback(e = {}){
@@ -496,17 +496,17 @@ export class NatpfSplitUi {
     const R = this.ui.diag?.recorder;
     if (inField && this.resync.update(h, { paused: this.watch.state !== 'ok', busy: rally, now }) && p.relink()) R?.log?.('tel.ricollega', { chi: 'p2', motivo: h.why || h.degraded, auto: true });
     // schermo del telefono del P2 spento: il riquadro dice da quanto (ogni secondo)
-    if (!a && this.hold && this.watch.state === 'paused' && p.state.vis === false){ const text = phoneHoldText(p, this.hold.why); if (text !== this.holdShown){ this.holdShown = text; this.ui._paintHold('Telefono del Player 2 in pausa', text, this.ui.relinkAction?.(p, 'Player 2')); } }
+    if (!a && this.hold && this.watch.state === 'paused' && p.state.vis === false){ const text = phoneHoldText(p, this.hold.why); if (text !== this.holdShown){ this.holdShown = text; this.ui._paintHold('Telefono del Player 2 in pausa', text, this.ui.relinkAction?.(p, 'Player 2'), 'p2'); } }
     if (!a) return;
     if (a.kind === 'pause' || a.kind === 'wait'){
       this.hold = { why: a.why };
-      this.ui._paintHold('Telefono del Player 2 in pausa', phoneHoldText(p, a.why), this.ui.relinkAction?.(p, 'Player 2'));
+      this.ui._paintHold('Telefono del Player 2 in pausa', phoneHoldText(p, a.why), this.ui.relinkAction?.(p, 'Player 2'), 'p2');
       R?.log?.('tel.pausa', { chi: 'p2', motivo: a.why, fase: E.phase, ...(h.gapMs ? { gapMs: h.gapMs } : {}), ...(Number.isFinite(p.state.sensorAge) ? { sensoriTelefonoMs: p.state.sensorAge } : {}) });
       if (p.connected){ p.link.send({ t: 'ph', ph: 'pause' }); p.lastPhase = 'pause'; }
     }
-    if (a.kind === 'countdown') this.ui._paintHold('Telefono del Player 2 di nuovo pronto', `Si riprende tra ${a.left}…`);
+    if (a.kind === 'countdown') this.ui._paintHold('Telefono del Player 2 di nuovo pronto', `Si riprende tra ${a.left}…`, null, 'p2');
     if (a.kind === 'resume'){
-      this.hold = null; this.ui._paintHold(null); E.pendingP2Swing = null; E.pendingUserSwing = null; p.lastPhase = null;
+      this.hold = null; this.ui._paintHold(null, '', null, 'p2'); E.pendingP2Swing = null; E.pendingUserSwing = null; p.lastPhase = null;
       const replay = a.replay && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
       if (replay){ E._setupPointServe({ showBanner: false }); this.ui.toast?.('Il telefono del Player 2 si era fermato: il punto si rigioca'); }
       R?.log?.('tel.ripresa', { chi: 'p2', rigiocato: replay });

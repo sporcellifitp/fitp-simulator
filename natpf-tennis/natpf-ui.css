@@ -744,6 +744,9 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
 .natpf-phone-hold p { margin: 6px 0 0; font-weight: 500; }
 .natpf-phone-hold button { margin-top: 12px; padding: 0.55em 1.2em; border: 0; border-radius: var(--r-pill); background: var(--ball); color: var(--ball-ink); font: 700 1em/1.2 system-ui, sans-serif; cursor: pointer; }
 .natpf-phone-hold button.hidden { display: none; }
+/* due pause insieme (stesso schermo): una riga per telefono, due pulsanti affiancati */
+.natpf-phone-hold.two p { white-space: pre-line; }
+.natpf-phone-hold button + button { margin-left: 8px; }
 
 /* ---------- toast ----------
    Figlio diretto del body (segue l'area): si vede nel menu, in campo, in pausa e sopra la calibrazione (z 300), sotto la

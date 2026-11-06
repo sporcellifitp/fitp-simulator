@@ -504,30 +504,45 @@ export class NatpfUi {
     this._syncPause();
   }
   // riquadro della pausa del telefono sopra il campo (titolo, testo e un pulsante facoltativo { label, run }), null per
-  // toglierlo. Il pulsante: «Ricollega il telefono» nei casi estremi (richiesta del 29/10)
-  _paintHold(title, text = '', action = null){
+  // toglierlo. Il pulsante: «Ricollega il telefono» nei casi estremi (richiesta del 29/10). owner: di chi è la pausa
+  // ('p1' questo computer, 'p2' il telefono del Player 2 nello stesso schermo, natpf_split_ui._watchP2). Con due pause
+  // insieme (stesso schermo, due telefoni con lo schermo spento) il riquadro le dice tutte e due, ognuna con il suo
+  // pulsante; prima ognuno ridisegnava il riquadro unico con il suo testo e i testi si alternavano ogni secondo, e la
+  // ripresa di uno toglieva il riquadro anche se l'altro era ancora in pausa (revisione B9 del 06/11)
+  _paintHold(title, text = '', action = null, owner = 'p1'){
+    this._holds ||= { p1: null, p2: null };
+    this._holds[owner === 'p2' ? 'p2' : 'p1'] = title ? { title, text, action } : null;
+    const list = ['p1', 'p2'].map(k => this._holds[k]).filter(Boolean);
     let el = $('natpf-phone-hold');
-    if (!title){ show(el, false); return; }
+    if (!list.length){ show(el, false); return; }
     if (!el){
       el = document.createElement('div'); el.id = 'natpf-phone-hold'; el.className = 'natpf-phone-hold hidden'; el.setAttribute('role', 'status');
-      el.innerHTML = '<b></b><p></p><button type="button" class="hidden"></button>';
+      el.innerHTML = '<b></b><p></p><button type="button" class="hidden"></button><button type="button" class="hidden" data-hold-second></button>';
       document.body.appendChild(el);
     }
+    const b1 = el.querySelector('button'), b2 = el.querySelector('[data-hold-second]');
     if (!el._bound){
       el._bound = true;
-      const b = el.querySelector('button');
-      b?.addEventListener('pointerdown', e => e.stopPropagation());
-      b?.addEventListener('click', e => { e.stopPropagation(); try { el._run?.(); } catch (err){ console.error(err); } });
+      for (const [b, k] of [[b1, '_run'], [b2, '_run2']]){
+        b?.addEventListener('pointerdown', e => e.stopPropagation());
+        b?.addEventListener('click', e => { e.stopPropagation(); try { el[k]?.(); } catch (err){ console.error(err); } });
+      }
     }
-    el.querySelector('b').textContent = title; el.querySelector('p').textContent = text;
-    const b = el.querySelector('button'); el._run = action?.run || null;
-    if (action){ b.textContent = action.label; } show(b, !!action);
+    const two = list.length > 1, acts = list.map(h => h.action).filter(Boolean);
+    el.querySelector('b').textContent = two ? 'Partita in pausa' : list[0].title;
+    el.querySelector('p').textContent = two ? list.map(h => `${h.title}: ${h.text}`).join('\n') : list[0].text;
+    el.classList.toggle('two', two);
+    // con due pause i pulsanti dicono di chi sono (Player 1, Player 2)
+    const label = a => two && a.who ? `${a.label} del ${a.who}` : a.label;
+    el._run = acts[0]?.run || null; el._run2 = acts[1]?.run || null;
+    if (acts[0] && b1) b1.textContent = label(acts[0]); show(b1, !!acts[0]);
+    if (acts[1] && b2) b2.textContent = label(acts[1]); show(b2, !!acts[1]);
     show(el);
   }
   // pulsante «Ricollega il telefono» del riquadro della pausa: il telefono rifà il collegamento (canali nuovi); se non è
   // collegato si ricollega da solo con la sua chiave, oppure con il QR
   relinkAction(phone, who = ''){
-    return { label: 'Ricollega il telefono', run: () => {
+    return { label: 'Ricollega il telefono', who, run: () => {
       if (phone?.relink?.()) this.toast(`${who ? who + ': ' : ''}ricollego il telefono…`);
       else if (phone === this.phone && !this.engine.natpfSplit?.active) this.openPhone();
       else this.toast(`${who ? who + ': ' : ''}telefono scollegato, riapri la pagina del gioco sul telefono (si ricollega da solo)`);
