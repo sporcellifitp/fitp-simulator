@@ -1,14 +1,15 @@
 // Prototipo B9 «3D realistico»: avambraccio, mano e telefono procedurali (three.js 0.160, nessun asset scaricato).
 // Moto del telefono: motion.js (verificato con il telefono simulato). Braccio: rig.js (IK e torsione). Pelle: mesh.js
 // (in un worker). Parametri dell'indirizzo: g=<gesto> mano=sinistra lento=0.5 vista=<dietro|treQuarti|lato|alto|presa>
-// t=<secondi> (fotogramma fisso, per le prove) pulito (senza interfaccia) h=<passo della griglia in m>.
+// t=<secondi> (fotogramma fisso, per le prove) pulito (senza interfaccia) h=<passo della griglia in m>
+// qualita=bassa (disegno software) misura=<n> (costo medio di n fotogrammi in window.__p3d) dir=x,y,z fov follow (prove
+// di camera) nofloor debugFade. Fotogrammi e misure: fotogrammi.mjs; rapporto: docs/b9/prototipo-3d.md.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { gesturePose, planFor, cycleOf, contactOf, PROTO_IDS, qrot } from './motion.js';
 import { makeBind, boneState, bindBones } from './rig.js';
 import { buildPhone } from './phone.js';
 import { PHONE } from './hand.js';
-import { FADE } from './mesh.js';
 
 const qs = new URLSearchParams(location.search);
 const state = {
@@ -312,7 +313,7 @@ function placeCamera(t){
     dir = [Math.sin(a), .95 - .45*e, Math.cos(a)]; fov = 22; dist = .80;
     // soggetto un po' a destra e in basso: in alto a sinistra c'è il titolo
     const fw = norm3(dir.map(x => -x)), rw = norm3(cross3(fw, [0, 1, 0])), uw = cross3(rw, fw);
-    c = V(V(c, rw, -.045), uw, .012);
+    c = V(V(c, rw, -.045*(state.hand === 'left' ? -1 : 1)), uw, .012);   // anche per il mancino (l'immagine è specchiata)
   } else {
     const v0 = VIEWS[viewName] || VIEWS.dietro;
     const v = qs.has('dir') ? { ...v0, dir: qs.get('dir').split(',').map(Number), fov: Number(qs.get('fov')) || v0.fov, follow: qs.has('follow') ? Number(qs.get('follow')) : v0.follow } : v0;

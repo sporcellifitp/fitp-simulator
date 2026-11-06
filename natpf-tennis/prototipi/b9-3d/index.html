@@ -10,7 +10,8 @@
   .stage { position: fixed; inset: 0; container: natpf / size; }
   canvas#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   .vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 75% 70% at 50% 48%, rgba(0,0,0,0) 55%, rgba(4,6,12,.55) 100%); }
-  .bar { position: absolute; left: 2cqw; right: 2cqw; top: 1.6cqh; display: flex; flex-wrap: wrap; gap: .8cqh; align-items: center; z-index: 2; }
+  .bar { position: absolute; left: 2cqw; right: 2cqw; top: 1.6cqh; display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: .8cqh; align-items: center; z-index: 2; }
+  .bar button { flex: none; }
   .bar button { font: 600 1.7cqh/1 system-ui, sans-serif; color: var(--ink2); background: var(--panel); border: 1px solid var(--line); border-radius: 99px; padding: 1cqh 1.6cqh; cursor: pointer; }
   .bar button[aria-pressed="true"] { color: #10131c; background: var(--accent); border-color: var(--accent); }
   .bar .sep { width: 1.6cqh; }
