@@ -92,8 +92,20 @@ Come si aggiorna:
   24/24, natpf-training-flow 17/17, natpf-1v1-p2p 37/37, natpf-menu 22/22, natpf-phone-keep 13/13; gioco 785/785, sito
   193/193, build ok. Corretto un difetto nato dall'unione (ridisegni a ogni messaggio dei telefoni nello stesso schermo
   che ritardavano il conteggio delle schede viste).
-- **Prossima azione esatta:** revisioni di A e B (workflow in corso) → correggere i bloccanti su `natpf-simulator`;
-  giudizio dell'animazione → ramo C (animazione nuova); poi versione nuova, pacchetti ZIP ed eseguibili.
+- **06/11, giudizio dell'animazione fatto** (`6e8d39f`, `docs/b9/giudizio-animazione.md`): direzione **ibrido con base
+  illustrata 2,5D** (Canvas 2D, solo avambraccio, mano e telefono; regia del servizio, fantasmi a contorno e scia presi
+  dal 3D; foto vera della presa accanto). Immagini G-1…G-4 mandate all'utente con la scelta: può chiedere il 3D
+  realistico, la base delle pose vale per entrambi.
+- **In corso (06/11 mattina), workflow con due rami in worktree, base `6e8d39f`:** `.claude/worktrees/wf_e4f0c384-df5-1`
+  (correzioni dello stesso schermo dalle revisioni: telefono che cade a tutorial aperto, telefono a pagina nascosta che
+  resta «Pronto» e fa partire il conto alla rovescia, più i minori) e `…-df5-2` (base del ramo C:
+  `natpf-tennis/src/natpf/natpf_gesture_pose.js`, posa pura dei 11 gesti verificata con i sensori simulati,
+  `docs/b9/posa-gesti.md`). Copia come patch in `docs/b9/wip/ramo-fix-stesso-schermo.patch` e `ramo-C-posa-gesti.patch`
+  (salvataggio automatico ogni 10 min; se i worktree non ci sono più: `git am` della patch su un ramo da `6e8d39f`).
+- **Prossima azione esatta:** a workflow finito unire i due rami su `natpf-simulator`, test e prove nel browser
+  (natpf-tutorial-phone, natpf-split-ready, training-flow, 1v1-p2p, menu, phone-keep), push, pacchetti ZIP con versione
+  nuova; poi ramo C (disegno illustrato delle 11 schede sopra `natpf_gesture_pose.js`, stessa API di
+  `getGestureDemo`, un'istanza per metà schermo), poi versione, pacchetti ed eseguibili.
 - **Prossima azione esatta (precedente):** finiti rami e giudizio → correggere i bloccanti delle revisioni, unire A e B su
   `natpf-simulator`, test e prove nel browser, push; poi ramo C (animazione nuova secondo il giudizio), versione nuova,
   pacchetti ed eseguibili.
