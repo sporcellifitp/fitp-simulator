@@ -57,17 +57,19 @@ test('fedeltà: ogni scheda (11) e ogni esercizio della mira dà esattamente il 
   }
 });
 
-test('fedeltà: picco letto e contatto disegnato coincidono (Δ ≤ 1 campione a 60 Hz) anche nel lancio del servizio, e la battuta arriva 0,69 s dopo il lancio', () => {
+// Δ ≤ DT/4 (4,2 ms; misurato 0–0,1 ms): protegge la correzione del mezzo campione dell'adattatore (pose-sensors.playPose):
+// senza, ogni picco letto sarebbe 8,3 ms prima del contatto disegnato e passerebbe una tolleranza di un campione intero
+test('fedeltà: picco letto e contatto disegnato coincidono (Δ ≤ ¼ di campione a 60 Hz) anche nel lancio del servizio, e la battuta arriva 0,69 s dopo il lancio', () => {
   const src = source();
   for (const hand of HANDS){
     for (const id of STROKE_CARDS.filter(id => id !== 'serve')){
       const r = readCard(src, id, { hand });
-      assert.ok(Math.abs(r.dPeak) <= DT, `${id} ${hand}: Δ ${r.dPeak} ms`);
+      assert.ok(Math.abs(r.dPeak) <= DT/4, `${id} ${hand}: Δ ${r.dPeak} ms`);
     }
     const s = readCard(src, 'serve', { hand });
     assert.equal(s.events.length, 2, `servizio ${hand}: ${s.events.length} gesti`);
-    assert.ok(Math.abs(s.dToss) <= DT, `lancio ${hand}: Δ ${s.dToss} ms`);
-    assert.ok(Math.abs(s.dPeak) <= DT, `battuta ${hand}: Δ ${s.dPeak} ms`);
+    assert.ok(Math.abs(s.dToss) <= DT/4, `lancio ${hand}: Δ ${s.dToss} ms`);
+    assert.ok(Math.abs(s.dPeak) <= DT/4, `battuta ${hand}: Δ ${s.dPeak} ms`);
     assert.ok(Math.abs(s.gap - .69) <= 1.5*DT/1000, `servizio ${hand}: battuta ${s.gap} s dopo il lancio`);
   }
 });
@@ -103,7 +105,10 @@ test('fedeltà: prese nel palmo di chi imita da 20° a 50° verso l\'interno e d
     }
   }
   assert.deepEqual(bad, [], bad.join('\n'));
-  assert.ok(limited < flat, `piatto a 50°: ${limited}/${flat} letti come top spin`);
+  // conteggio fissato (06/11: 10 su 12, tutti tranne 55° in avanti con la calibrazione dell'animazione): un cambiamento
+  // della posa o del riconoscimento che peggiora il piatto a 50° si vede qui
+  assert.equal(flat, 12);
+  assert.ok(limited <= 10, `piatto a 50°: ${limited}/${flat} letti come top spin (erano 10)`);
 });
 
 test('presa e posizione di partenza: ferme (nessuna rotazione, respiro di 3 mm), nessun messaggio dal telefono', () => {
@@ -179,9 +184,17 @@ test('servizio continuo (difetto (a) della specifica §5): lancio 300 °/s, racc
   assert.ok(P.total >= 3.4 && P.total <= 3.8, `ciclo ${P.total}`);
   // la mano sale sopra la testa nel raccordo
   assert.ok(gesturePose('serve', T.hitStart).pos[1] > GP.SHOULDER[1] + .25);
-  // palla: lasciata alla fine del lancio, colmo nell'istante della battuta, sul punto di contatto
+  // palla: appoggiata sul vetro fino al picco del lancio, poi staccata con la velocità del punto d'appoggio, colmo
+  // nell'istante della battuta, sul punto di contatto; mai dentro il telefono (revisione B9 del 06/11: prima era lasciata
+  // alla fine del lancio 9,5 mm dentro il telefono e saliva di soli 0,30 m)
   const b = t => gestureBall('serve', t);
-  assert.equal(b(T.tossEnd - .05), null);
+  const gap = t => { const p = gesturePose('serve', t), l = GP.qrot(GP.qconj(p.q), sub(b(t), p.pos)), hw = [GP.PHONE.w/2, GP.PHONE.h/2, GP.PHONE.d/2]; return Math.hypot(...l.map((v, i) => Math.max(0, Math.abs(v) - hw[i]))); };
+  for (let t = 0; t <= T.tossPeak; t += .01) assert.ok(Math.abs(gap(t) - GP.BALL_R) < 1e-9, `palla appoggiata a ${t}: ${gap(t)}`);
+  for (let t = T.tossPeak; t <= P.contact; t += .002) assert.ok(gap(t) >= GP.BALL_R - 1e-6, `palla dentro il telefono a ${t}: ${gap(t)}`);
+  const rel = b(T.tossPeak), lift = b(P.contact)[1] - rel[1], vy0 = 2*lift/(P.contact - T.tossPeak);
+  const vRest = (b(T.tossPeak) [1] - b(T.tossPeak - .002)[1])/.002;
+  assert.ok(lift >= .4 && lift <= .7, `lancio di ${lift} m`);
+  assert.ok(Math.abs(vy0 - vRest) <= .35*vRest, `velocità di stacco ${vy0} m/s, del telefono ${vRest}`);
   assert.ok(len(sub(b(P.contact), gestureContactPoint('serve'))) < 1e-9);
   assert.ok(b(P.contact - .04)[1] < b(P.contact)[1] && b(P.contact + .04)[1] < b(P.contact)[1], 'colmo al contatto');
   for (const hand of HANDS) assert.ok(len(sub(gestureBall('serve', P.contact, { hand }), gestureContactPoint('serve', { hand }))) < 1e-9);

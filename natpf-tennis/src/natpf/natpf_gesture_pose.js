@@ -464,14 +464,21 @@ function strokeBall(P, t){
   const v = V[P.id] || [-1.2, 2.4, -14];
   return [C[0] + v[0]*dt, C[1] + v[1]*dt - .5*G*dt*dt, C[2] + v[2]*dt];
 }
-// palla del servizio (destro): lasciata dalla cima del telefono alla fine del lancio, colmo nell'istante della battuta
-// dove la incontra la cima del telefono. La modale scala l'altezza (gravità ridotta), mai il tempo (specifica §2.5).
+// palla del servizio (destro): appoggiata sul vetro del telefono (verso la cima, a un raggio dal vetro lungo la normale
+// dello schermo: tocca il telefono senza entrarci) dall'inizio del ciclo fino al picco del lancio, quando il telefono è
+// più veloce e comincia a frenare: lì la palla si stacca con la velocità che ha (≈ quella del punto d'appoggio) e sale
+// fino al colmo nell'istante della battuta, dove la incontra la cima del telefono. Revisione B9 del 06/11: prima era
+// lasciata alla fine del lancio 9,5 mm dentro il telefono e saliva di soli 0,30 m (gravità 2,6 m/s², «galleggiava»); ora
+// sale di ~0,45 m in 0,69 s con la velocità di stacco del telefono. La modale scala l'altezza (gravità ridotta), mai il
+// tempo (specifica §2.5).
+export const SERVE_BALL_REST = Object.freeze([0, PHONE.h*.22, PHONE.d/2 + BALL_R]);   // punto d'appoggio (riferimento del telefono)
+const restOn = p => add(p.pos, qrot(p.q, SERVE_BALL_REST));
 function serveBall(P, t){
-  const T = P.T, apex = contactPoint(P), r = P.raw(T.tossEnd);
-  const release = add(add(r.pos, qrot(r.q, [0, PHONE.h/2*.6, 0])), [0, BALL_R*1.5, 0]);
-  if (t < T.tossEnd - .001) return null;
+  const T = P.T, apex = contactPoint(P);
+  if (t <= T.tossPeak) return restOn(P.raw(t));
+  const release = restOn(P.raw(T.tossPeak));
   if (t <= T.contact){
-    const span = T.contact - T.tossEnd, g = 2*Math.max(.2, apex[1] - release[1])/(span*span), s = T.contact - t, u = (t - T.tossEnd)/span;
+    const span = T.contact - T.tossPeak, g = 2*Math.max(.2, apex[1] - release[1])/(span*span), s = T.contact - t, u = (t - T.tossPeak)/span;
     return [release[0] + (apex[0] - release[0])*u, apex[1] - .5*g*s*s, release[2] + (apex[2] - release[2])*u];
   }
   const dt = t - T.contact; if (dt > .6) return null;
