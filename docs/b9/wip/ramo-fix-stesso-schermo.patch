@@ -1,7 +1,7 @@
 From 531d4a176c0ce1b4421fd6524ebab12ee76a8500 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 08:49:58 +0000
-Subject: [PATCH 1/7] =?UTF-8?q?B9=20revisione=20A:=20stesso=20schermo,=20t?=
+Subject: [PATCH 1/8] =?UTF-8?q?B9=20revisione=20A:=20stesso=20schermo,=20t?=
  =?UTF-8?q?elefono=20che=20cade=20a=20tutorial=20aperto=20non=20lo=20perde?=
  =?UTF-8?q?=20pi=C3=B9?=
 MIME-Version: 1.0
@@ -439,7 +439,7 @@ index 0000000..d659d50
 From 3ef25ed030084ec64ddd9ea9edfc0d9940bce548 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 08:54:07 +0000
-Subject: [PATCH 2/7] =?UTF-8?q?B9=20revisione=20B:=20stesso=20schermo,=20t?=
+Subject: [PATCH 2/8] =?UTF-8?q?B9=20revisione=20B:=20stesso=20schermo,=20t?=
  =?UTF-8?q?elefono=20con=20lo=20schermo=20spento=20non=20=C3=A8=20pi=C3=B9?=
  =?UTF-8?q?=20=C2=ABPronto=C2=BB?=
 MIME-Version: 1.0
@@ -688,7 +688,7 @@ index 26be6e6..e25e13e 100644
 From ac7a0c98c9c995b045c7fbdff4c32b37cd0dd294 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 13:08:34 +0000
-Subject: [PATCH 3/7] =?UTF-8?q?B9=20revisione,=20minore=20a:=20stesso=20sc?=
+Subject: [PATCH 3/8] =?UTF-8?q?B9=20revisione,=20minore=20a:=20stesso=20sc?=
  =?UTF-8?q?hermo,=20il=20conto=20non=20riparte=20da=20solo=20tornando=20co?=
  =?UTF-8?q?n=20=C2=AB=E2=80=B9=20Indietro=C2=BB?=
 MIME-Version: 1.0
@@ -892,7 +892,7 @@ index e25e13e..8efc238 100644
 From e0d8c3fe644514c7d17322999c336ab2b6e6476d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 13:09:54 +0000
-Subject: [PATCH 4/7] =?UTF-8?q?B9=20revisione,=20minori=20c=20ed=20e:=20?=
+Subject: [PATCH 4/8] =?UTF-8?q?B9=20revisione,=20minori=20c=20ed=20e:=20?=
  =?UTF-8?q?=C2=ABAspetta=C2=BB=20senza=20anello=20rosso=20sul=20telefono,?=
  =?UTF-8?q?=20velo=20con=20testo=20neutro?=
 MIME-Version: 1.0
@@ -1087,7 +1087,7 @@ index 7f686c2..9646503 100644
 From 5d757a0ff2a3b1e5139ed81f2f8a9575d4f9e805 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 13:12:04 +0000
-Subject: [PATCH 5/7] B9 revisione, minore d: stesso schermo, riquadro della
+Subject: [PATCH 5/8] B9 revisione, minore d: stesso schermo, riquadro della
  pausa con due telefoni spenti stabile
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -1278,7 +1278,7 @@ index 060aaaa..47edcff 100644
 From ccd51d7fb37cb9e183419a0e1694a77710b86455 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 13:17:19 +0000
-Subject: [PATCH 6/7] =?UTF-8?q?B9=20revisione,=20minore=20f:=20Allenamento?=
+Subject: [PATCH 6/8] =?UTF-8?q?B9=20revisione,=20minore=20f:=20Allenamento?=
  =?UTF-8?q?,=20niente=20calibrazione=20tra=20=C2=ABAttiva=20i=20sensori?=
  =?UTF-8?q?=C2=BB=20e=20il=20tutorial?=
 MIME-Version: 1.0
@@ -1475,7 +1475,7 @@ index 871d280..24f9260 100644
 From f7a16228df591672f0cb44018f5ee41b9acb4e33 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 13:19:30 +0000
-Subject: [PATCH 7/7] =?UTF-8?q?B9=20revisione,=20minore=20b:=20ledwall=207?=
+Subject: [PATCH 7/8] =?UTF-8?q?B9=20revisione,=20minore=20b:=20ledwall=207?=
  =?UTF-8?q?20=C3=97720,=20la=20barra=20dell'avvio=20non=20copre=20pi=C3=B9?=
  =?UTF-8?q?=20il=20QR=20del=20Player=202?=
 MIME-Version: 1.0
@@ -1522,6 +1522,185 @@ index ea6292e..2445569 100644
  /* ---------- stato «pronto» dei giocatori nel 1v1 (natpf_ready.js, B9): stesso schermo e sfida un amico ----------
     Distintivo con icona e parola, mai solo il colore: in attesa (cerchio vuoto, grigio) · si prepara (anello che gira,
     ambra) · pronto (✓, verde pieno con testo scuro) · problema (!, rosso). Misure con cqh/cqw: su un ledwall restano
+-- 
+2.43.0
+
+
+From c2bf661a360faa897bde05f1915af45e8a78cec5 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 13:26:51 +0000
+Subject: [PATCH 8/8] =?UTF-8?q?B9=20revisione:=20prova=20nel=20browser=20d?=
+ =?UTF-8?q?ello=20stesso=20schermo=20con=20schermo=20spento,=20=C2=AB?=
+ =?UTF-8?q?=E2=80=B9=20Indietro=C2=BB,=20ledwall=20e=20=C2=ABAspetta=C2=BB?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- natpf-split-ready.mjs (31/31): passi nuovi 1b (ledwall 720×720: i due QR interi e liberi al centro), «Aspetta» con
+  l'anello neutro sul telefono, 5f («‹ Indietro» da «Partita» con i due pronti: nessun conto, «Premi «Gioca»»), 5g
+  (pagina del telefono di Giulia nascosta in attesa: scheda «Problema · Schermo del telefono spento», nessun conto;
+  riaccesa: il conto riparte; Marco spento durante il conto: «Conto annullato · Marco: schermo spento», anello rosso sul
+  telefono di Giulia; riacceso: si gioca).
+- natpf_split_ui: il conto si ferma per un nome solo con il campo attivo E un tasto da meno di 2,5 s
+  (SPLIT_TYPING_MS). La prova nel browser l'ha mostrato: dopo aver scritto il nome il cursore resta nel campo e con il
+  solo campo attivo il conto non partiva mai.
+
+Test: gioco 796/796.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ natpf-tennis/src/natpf/natpf_split_ui.js |  8 +++--
+ natpf-tennis/test/natpf-split.test.mjs   | 18 ++++++----
+ tools/e2e/natpf-split-ready.mjs          | 45 +++++++++++++++++++++++-
+ 3 files changed, 62 insertions(+), 9 deletions(-)
+
+diff --git a/natpf-tennis/src/natpf/natpf_split_ui.js b/natpf-tennis/src/natpf/natpf_split_ui.js
+index 06b2f8b..05d68ba 100644
+--- a/natpf-tennis/src/natpf/natpf_split_ui.js
++++ b/natpf-tennis/src/natpf/natpf_split_ui.js
+@@ -34,6 +34,9 @@ export const splitInputOf = v => (v === 'webcam' ? 'webcam' : 'phones');
+ // annullato
+ export const SPLIT_COUNTDOWN_MS = READY_COUNTDOWN_MS;
+ export const SPLIT_CANCEL_SHOW_MS = 8000;
++// si sta scrivendo un nome: campo del nome attivo e un tasto da meno di così (ms). Solo il campo attivo non basta: dopo
++// aver scritto il nome il cursore resta lì e il conto non partirebbe mai
++export const SPLIT_TYPING_MS = 2500;
+ // sensori fermi da così (ms senza dati dal telefono pronto) → la scheda dice «Sensori fermi»: lo stesso tempo della pausa
+ // in partita (natpf_phone_watch: sensorGapMs più la tolleranza graceMs), così un pacchetto in ritardo non annulla il conto
+ export const SPLIT_STALL_MS = WATCH.sensorGapMs + WATCH.graceMs;
+@@ -115,6 +118,7 @@ export class NatpfSplitUi {
+     engine.natpfSplitNames = { p1: 'Player 1', p2: 'Player 2' };
+     box?.addEventListener('input', e => {
+       const id = e.target.dataset.splitName; if (!['p1', 'p2'].includes(id)) return;
++      this._typedAt = performance.now();
+       engine.natpfSplitNames[id] = e.target.value.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 24) || (id === 'p1' ? 'Player 1' : 'Player 2');
+       for (const el of document.querySelectorAll(`[data-split-tag="${id}"] b`)) el.textContent = engine.natpfSplitNames[id];
+       this.paint();
+@@ -400,8 +404,8 @@ export class NatpfSplitUi {
+     this._paintStart();
+   }
+   playNow(){ this.cd.held = false; this.cd.back = false; this._fire(); }
+-  // si sta scrivendo un nome (campo attivo nella pagina «Collega»)
+-  get typing(){ return typeof document !== 'undefined' && !!document.activeElement?.matches?.('.split-name-input'); }
++  // si sta scrivendo un nome (campo attivo nella pagina «Collega» e un tasto da poco)
++  get typing(){ return typeof document !== 'undefined' && !!document.activeElement?.matches?.('.split-name-input') && performance.now() - (this._typedAt ?? -1e9) < SPLIT_TYPING_MS; }
+   // a zero (o «Gioca» dopo «Aspetta»): lo stesso «Gioca» della pagina «Partita» (natpf_ui._bindStart ricontrolla che
+   // tutti e due siano pronti, poi la sessione split e il passaggio al campo)
+   _fire(){
+diff --git a/natpf-tennis/test/natpf-split.test.mjs b/natpf-tennis/test/natpf-split.test.mjs
+index 3348666..8609fa8 100644
+--- a/natpf-tennis/test/natpf-split.test.mjs
++++ b/natpf-tennis/test/natpf-split.test.mjs
+@@ -359,7 +359,7 @@ test('stesso schermo: lo stato della metà dice che si sta guardando il tutorial
+ // caduto. Ora: schede con nome e stato, conto di 3 s sul computer e sui telefoni, partita senza toccare il computer,
+ // conto annullato (con il motivo) se un telefono cade, «Aspetta» / Esc, «Gioca» spento nella pagina «Partita».
+ import { $, visible } from './ui-world.mjs';
+-import { SPLIT_COUNTDOWN_MS } from '../src/natpf/natpf_split_ui.js';
++import { SPLIT_COUNTDOWN_MS, SPLIT_TYPING_MS } from '../src/natpf/natpf_split_ui.js';
+ 
+ async function splitLobby({ names = ['Giulia', 'Marco'] } = {}){
+   const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
+@@ -537,18 +537,24 @@ test('stesso schermo: «‹ Indietro» da «Partita» con i due pronti → nessu
+   ui.split.playNow(); assert.equal(E.natpfSplit?.active, true);
+ });
+ 
+-test('stesso schermo: mentre si scrive un nome il conto non corre; finito il nome parte', async () => {
++test('stesso schermo: mentre si scrive un nome il conto non corre; finito il nome parte (anche con il cursore ancora lì)', async () => {
+   const { ui, readyBoth, advance } = await splitLobby();
+-  let typing = true;
++  let focus = true;
+   const had = Object.getOwnPropertyDescriptor(document, 'activeElement');
+-  Object.defineProperty(document, 'activeElement', { configurable: true, get: () => typing ? { matches: q => q === '.split-name-input' } : null });
++  Object.defineProperty(document, 'activeElement', { configurable: true, get: () => focus ? { matches: q => q === '.split-name-input' } : null });
+   try {
+-    readyBoth(); advance(4000);
++    readyBoth();
++    // un tasto ogni 400 ms per 4 s: il conto non corre
++    for (let i = 0; i < 10; i++){ ui.split._typedAt = performance.now(); advance(400); }
+     assert.equal(ui.split.cd.running, false, 'nessun conto mentre si scrive');
+     assert.equal($('split-ready-bar').dataset.readyBar, 'ready');
+     assert.equal($('split-ready-bar').querySelector('[data-ready-bar-sub]').textContent, 'Si parte quando finisci di scrivere il nome.');
+-    typing = false; advance(150);
++    // smesso di scrivere, il cursore resta nel campo: dopo SPLIT_TYPING_MS il conto parte
++    advance(SPLIT_TYPING_MS + 200);
+     assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3);
++    // campo lasciato: come sempre
++    focus = false; ui.split.holdCountdown(); ui.split.cd.held = false; advance(150);
++    assert.equal(ui.split.cd.running, true);
+   } finally { if (had) Object.defineProperty(document, 'activeElement', had); else delete document.activeElement; }
+ });
+ 
+diff --git a/tools/e2e/natpf-split-ready.mjs b/tools/e2e/natpf-split-ready.mjs
+index 38968fb..b1dddd0 100644
+--- a/tools/e2e/natpf-split-ready.mjs
++++ b/tools/e2e/natpf-split-ready.mjs
+@@ -105,6 +105,15 @@ try {
+   let v = await view(g);
+   check('1. due schede con il nome scritto, «In attesa», barra «si parte da soli»', v.p1.name === 'Giulia' && v.p2.name === 'Marco' && v.p1.word === 'In attesa' && v.p2.ready === 'off' && v.bar.mode === 'wait' && /Aspetto Giulia \(inquadra il QR\) e Marco/.test(v.bar.sub), JSON.stringify({ p1: v.p1.word, p2: v.p2.word, bar: v.bar.sub }));
+   await shot('1-qr-1280');
++  // ledwall 720×720: i due QR visibili e cliccabili al centro, la barra non li copre (revisione B9 del 06/11: le schede
++  // una sotto l'altra mettevano il QR del Player 2 sotto la barra fissa)
++  await g.evaluate(() => __natpfTennis.natpfUi.screen.restore({ preset: 'full', area: { x: 0, y: 0, w: 720, h: 720 }, margins: {} }));
++  await sleep(700);
++  const qrLed = await g.evaluate(() => ['p1', 'p2'].map(id => { const el = document.getElementById(`split-qr-${id}`), b = el.getBoundingClientRect(), t = document.elementFromPoint(b.left + b.width/2, b.top + b.height/2); return { id, top: Math.round(b.top), bottom: Math.round(b.bottom), center: !!t && el.contains(t), inArea: b.bottom <= 720 && b.top >= 0 }; }));
++  check('   ledwall 720×720: i due QR interi nell\'area e liberi al centro (la barra non copre il QR del Player 2)', qrLed.every(q => q.center && q.inArea), JSON.stringify(qrLed));
++  await shot('1b-qr-ledwall-720');
++  await g.evaluate(() => __natpfTennis.natpfUi.screen.restore({ preset: 'full', area: null, margins: {} }));
++  await sleep(400);
+ 
+   /* 2: telefoni collegati, sensori attivi, tutorial nelle due metà */
+   const [u1, u2] = await g.evaluate(() => [__natpfTennis.natpfPhone.pairingUrl, __natpfTennis.natpfPhone2.pairingUrl]);
+@@ -176,7 +185,7 @@ try {
+   v = await view(g);
+   check('   Esc: conto fermato («Aspetta»), si resta nella pagina, «Gioca» nella barra', !v.overlay && v.step === 'connect' && v.cd.held && v.bar.mode === 'held' && v.bar.play && !v.bar.hold, JSON.stringify(v.bar));
+   const phHeld = await phoneView(ph1);
+-  check('   i telefoni lo sanno («Aspetta»)', phHeld.big === 'Aspetta' && /fermata/.test(phHeld.sub), JSON.stringify(phHeld));
++  check('   i telefoni lo sanno («Aspetta»), con l\'anello neutro (non è un errore)', phHeld.big === 'Aspetta' && /fermata/.test(phHeld.sub) && !/miss/.test(phHeld.ring), JSON.stringify(phHeld));
+   await sleep(3500);
+   check('   fermo: nessuna partita dopo 3,5 s', !(await view(g)).session);
+   await shot('5-aspetta-1280');
+@@ -202,6 +211,40 @@ try {
+   await g.click('#split-ready-bar [data-split-play]');
+   check('   «Gioca» nella barra: si gioca', await until(g, () => !!__natpfTennis.natpfSplit?.active, null, 8000));
+ 
++  /* 5f: «‹ Indietro» dalla pagina «Partita» con tutti e due pronti: il conto non riparte da solo (minore a) */
++  await backToPhones();
++  await until(g, () => !document.getElementById('split-countdown').classList.contains('hidden'), null, 8000);
++  await g.evaluate(() => __natpfTennis.natpfUi.lobby.next());
++  await until(g, () => __natpfTennis.natpfUi.lobby.step === 'match', null, 3000);
++  await sleep(400);
++  await g.click('#lobby-back');
++  await sleep(3800);
++  v = await view(g);
++  check('5f. «‹ Indietro» da «Partita» con i due pronti: nessun conto da solo, «Tutto pronto · Premi «Gioca»»', v.step === 'connect' && !v.overlay && !v.session && v.bar.mode === 'held' && v.bar.play && v.bar.sub === 'Premi «Gioca» quando volete.', JSON.stringify({ step: v.step, bar: v.bar, session: v.session }));
++  await shot('5f-indietro-1280');
++
++  /* 5g: schermo del telefono spento (pagina nascosta) in attesa e durante il conto (bloccante B della revisione) */
++  const hide = (ph, on) => ph.evaluate(on => { Object.defineProperty(document, 'hidden', { get: () => on, configurable: true }); Object.defineProperty(document, 'visibilityState', { get: () => on ? 'hidden' : 'visible', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); }, on);
++  await hide(ph1, true);
++  const koWait = await until(g, () => document.querySelector('[data-split-player="p1"]')?.dataset.ready === 'ko', null, 5000);
++  await sleep(2500);
++  v = await view(g);
++  check('5g. schermo di Giulia spento: scheda «Problema · Schermo spento», nessun conto, nessuna partita', koWait && v.p1.word === 'Problema' && /Schermo del telefono spento/.test(v.p1.status) && !v.overlay && !v.session && /Giulia \(schermo spento\)/.test(v.bar.sub), JSON.stringify({ p1: [v.p1.word, v.p1.status], bar: v.bar.sub, session: v.session }));
++  await shot('5g-schermo-spento-1280');
++  // riacceso: lo stato è cambiato, il conto riparte da solo; durante il conto si spegne quello di Marco
++  await hide(ph1, false);
++  const again2 = await until(g, () => !document.getElementById('split-countdown').classList.contains('hidden'), null, 8000);
++  check('   schermo di Giulia riacceso: «Pronto» e il conto riparte da solo', again2);
++  await hide(ph2, true);
++  const cancelled2 = await until(g, () => document.getElementById('split-ready-bar').dataset.readyBar === 'cancel', null, 5000);
++  v = await view(g);
++  const ph1c = await phoneView(ph1);
++  check('   schermo di Marco spento durante il conto: conto annullato con il motivo, nessuna partita', cancelled2 && !v.overlay && !v.session && /^Conto annullato · Marco: schermo spento/.test(v.bar.title) && v.p2.word === 'Problema' && /Schermo del telefono spento/.test(v.p2.status), JSON.stringify({ bar: v.bar.title, p2: [v.p2.word, v.p2.status], session: v.session }));
++  check('   il telefono di Giulia lo sa, con l\'anello rosso (un problema)', ph1c.big === 'Aspetta' && /Marco: schermo spento/.test(ph1c.sub) && /miss/.test(ph1c.ring), JSON.stringify(ph1c));
++  await shot('5g-annullato-schermo-spento-1280');
++  await hide(ph2, false);
++  check('   schermo di Marco riacceso: il conto riparte e si gioca', await until(g, () => !!__natpfTennis.natpfSplit?.active, null, 12000));
++
+   /* 6: telefono che cade durante il conto */
+   await backToPhones();
+   await until(g, () => !document.getElementById('split-countdown').classList.contains('hidden'), null, 8000);
 -- 
 2.43.0
 
