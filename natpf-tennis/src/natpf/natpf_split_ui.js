@@ -90,21 +90,11 @@ export function splitPlayerStatus(p, hand = 'right', { tut = null, unseen = fals
   return { state: c.state === 'go' ? 'go' : 'on', title: c.title, sub: c.sub, detail: 'Calibrazione' };
 }
 
-// Esito di un colpo o di un punto per l'etichetta di una metà (null: niente da dire)
-export function splitShotLabel(e = {}){
-  const g = String(e.grade || '');
-  if (e.kind === 'hit') return /PERFECT|POWER/i.test(g) ? 'Perfetto!' : /EARLY/i.test(g) ? 'In anticipo' : /LATE/i.test(g) ? 'In ritardo' : 'Buono';
-  if (e.kind === 'whiff') return /REACH/i.test(g) ? 'Troppo lontana' : 'A vuoto';
-  if (e.kind === 'point_won') return 'Punto!';
-  return null;
-}
-
 export class NatpfSplitUi {
   constructor(engine, ui){
     this.engine = engine; this.ui = ui;
     this.fails = { p1: 0, p2: 0 };          // verifiche non riuscite di fila
     this.calAsked = { p1: false, p2: false }; // calibrazione già chiesta per questo collegamento
-    this.labels = { p1: null, p2: null };     // esito dell'ultimo colpo { text, until }
     this.watch = createPhoneWatch(); this.hold = null; this.resync = createResync();
     // tutorial di ciascun giocatore nella sua metà della pagina «Collega» (richiesta del 04/11): indipendenti, si chiudono
     // dal proprio telefono; ciascuna con la sua animazione dei gesti (Canvas 2D, niente WebGL: getGestureDemo(p1/p2), B9).
@@ -468,7 +458,6 @@ export class NatpfSplitUi {
     this.closeTutorials();
     if (!this.engine.startSplit()) return false;
     this.ui.hand.mirrorRemote?.(this.engine.opponent, this.hand('p2'));
-    this.labels = { p1: null, p2: null };
     return true;
   }
   end(){
@@ -476,23 +465,17 @@ export class NatpfSplitUi {
     if (!this.session && !this.hold) return;
     this.engine.endSplit?.(); if (this.hold){ this.hold = null; this.ui._paintHold?.(null, '', null, 'p2'); } show($('natpf-split-hud'), false);
   }
-  // esiti dei colpi (motore → aptica): etichetta della metà di chi ha colpito
-  onFeedback(e = {}){
-    if (!this.session) return;
-    const text = splitShotLabel(e), id = e.role === 'p2' ? 'p2' : 'p1';
-    if (text) this.labels[id] = { text, until: performance.now() + 1600 };
-  }
-  // ogni 100 ms (natpf_ui): conto alla rovescia nella pagina «Collega», telefono del P2 in campo e etichette delle metà
+  // ogni 100 ms (natpf_ui): conto alla rovescia nella pagina «Collega», telefono del P2 in campo e etichette delle metà.
+  // L'etichetta dice chi gioca e il telefono in pausa; l'esito del colpo non più (B10): sta nella scritta dell'esito
+  // nell'angolo della metà di chi ha colpito (natpf_shot_feedback.popupPlace), prima c'erano due scritte per colpo
   tick(){
     this._tickStart();
     const E = this.engine, on = this.session && splitVisible(E);
     const hud = $('natpf-split-hud'); show(hud, on);
     if (on){
-      const now = performance.now();
       for (const id of SPLIT_PLAYERS){
         const tag = hud.querySelector(`[data-split-tag="${id}"] span`), p = this.webcam ? null : this.phone(id);
-        const lbl = this.labels[id] && now < this.labels[id].until ? this.labels[id].text : '';
-        const text = p && !p.ready ? 'Telefono in pausa' : lbl;
+        const text = p && !p.ready ? 'Telefono in pausa' : '';
         if (tag && tag.textContent !== text) tag.textContent = text;
         tag?.parentElement?.classList.toggle('warn', !!p && !p.ready);
       }

@@ -6,7 +6,6 @@
 //   situazione rende il colpo debole o lo fa fallire («palla debole: in corsa», «scambio lungo»).
 // I colpi dell'avversario restano con l'anello bianco di rimbalzo del motore base.
 import * as THREE from 'three';
-import { viewport } from './natpf_screen.js';
 
 export const QUALITY_COLORS = Object.freeze({ green: 0x3be37f, yellow: 0xffd23f, red: 0xff4d5e });
 const COURT = { halfW: 4.115, halfL: 11.885, service: 6.4 };
@@ -46,6 +45,23 @@ export function shotWhy(L, { now = null, who = 'player' } = {}){
   if (!L?.out?.failed || !L.cause || L.who !== who || (now != null && L.at !== now)) return null;
   return L.out.weak ? `palla debole: ${L.cause}` : L.cause;
 }
+// Posto della scritta dell'esito (B10, segnalazione del 06/11: «se gioco 2v2, i nomi dei colpi (es. "Perfetto!")
+// ostruiscono la visuale del campo»). Prima la scritta si apriva sopra la testa di chi colpiva (+2,35 m): nel doppio il
+// colpo del compagno a rete la metteva in mezzo al campo, sopra la rete e gli avversari, e nel singolo copriva chi
+// gioca e la palla. Ora sta nell'angolo in basso del proprio lato, sopra Potenza ed Energia (fuori dal campo):
+// - chi gioca qui (P1, o il P2 dall'altro computer): angolo sinistro, dove ha le sue barre;
+// - stesso schermo: P1 a sinistra, P2 a destra, ciascuno sopra le sue barre;
+// - il colpo dell'altro giocatore che si vede qui (sfida un amico): angolo destro, più piccolo («avversario»);
+// - il colpo del compagno CPU nel doppio è il tuo (lo fa il tuo gesto quando la palla è sua): nel tuo angolo, con
+//   «compagno» nella riga piccola, non come un colpo diverso.
+// p2: il colpo è del lato del P2 (grade «P2 …»); role: chi gioca qui; split: stesso schermo; partner: l'ha fatto il compagno
+export function popupPlace({ p2 = false, role = 'p1', split = false, partner = false } = {}){
+  const mine = split || p2 === (role === 'p2');
+  return { side: split ? (p2 ? 'right' : 'left') : mine ? 'left' : 'right', kind: !mine ? 'other' : partner ? 'partner' : 'mine' };
+}
+// durata della scritta (ms): più breve di prima (1,1 s il colpo, 0,75 s l'errore)
+export const POPUP_MS = Object.freeze({ hit: 900, miss: 700 });
+
 // vibrazione del telefono: lunga per il perfetto, breve per il buono, doppia corta per l'errore
 export const VIBRATION = Object.freeze({ green: [70], yellow: [25], red: [25, 60, 25] });
 
@@ -96,14 +112,51 @@ export class NatpfShotFeedback {
       const sup = /SUPER SHOT/i.test(g);
       const q = sup ? { color: 'super', label: 'Super!' } : shotQuality(g, { inCourt: landsIn(engine.ball?.targetLanding, { towardNegativeZ: !p2, serve: /SERVE/i.test(g) }), net: !!engine.ball?.natpfNetFault });
       const kmh = String(o.detail || '').match(/\d+\s*KM\/H/i)?.[0] || '';
-      // in prima persona il proprio messaggio va al centro, sotto la linea dello sguardo (non sopra il tabellone)
-      const mine = p2 === (engine.playerRole === 'p2');
-      const screenPos = mine && engine._isFirstPersonActive?.() ? { x: viewport().w/2, y: viewport().h*.64, visible: true } : o.screenPos;
+      // nell'angolo del proprio lato, mai sul campo (popupPlace); anche in prima persona (prima al centro dello sguardo)
+      const place = popupPlace({ p2, role: engine.playerRole, split: !!engine.natpfSplit?.active, partner: !!o.partner });
+      const who = place.kind === 'partner' ? 'compagno' : place.kind === 'other' ? 'avversario' : null;
       const name = shotName(g), why = shotWhy(engine.natpfLastRacket, { now: engine.elapsedTime, who: p2 ? 'p2' : 'player' });
-      popup({ ...o, screenPos, grade: q.label, detail: [name, why, kmh.toLowerCase()].filter(Boolean).join(' · ') });
+      const miss = q.color === 'red' && /WHIFF/.test(g.toUpperCase());
+      popup({ ...o, screenPos: null, durationMs: Math.min(o.durationMs ?? POPUP_MS.hit, miss ? POPUP_MS.miss : POPUP_MS.hit), grade: q.label, detail: [who, name, why, kmh.toLowerCase()].filter(Boolean).join(' · ') });
       const el = document.getElementById('timing-popup-grade');
       if (el){ el.classList.remove('grade-early', 'grade-late', 'grade-perfect', 'q-green', 'q-yellow', 'q-red', 'q-super'); el.classList.add('q-' + q.color); }
+      this._place(document.getElementById('timing-popup'), place);
     };
+  }
+  // scritta nell'angolo: sopra le barre di Potenza ed Energia (se in vista), altrimenti appena sopra il bordo in basso.
+  // Fuori dallo stesso schermo, se l'angolo coprirebbe un giocatore o la palla (chi gioca molto largo e in fondo) passa
+  // all'altro angolo
+  _place(el, place){
+    if (!el?.classList) return;
+    el.classList.add('anchored'); el.classList.toggle('other', place.kind === 'other');
+    el.style.left = el.style.top = '';
+    const set = side => {
+      el.classList.toggle('side-right', side === 'right');
+      const layer = el.parentElement?.getBoundingClientRect?.(), tops = [];
+      for (const g of document.querySelectorAll?.('.natpf-meters:not(.hidden) .meter-group:not(.hidden)') || []){ const r = g.getBoundingClientRect(); if (r.height) tops.push(r.top); }
+      el.style.bottom = layer && tops.length ? `${Math.max(0, layer.bottom - Math.min(...tops) + 6).toFixed(1)}px` : '';
+    };
+    set(place.side);
+    if (this.engine.natpfSplit?.active || !this._covers(el)) return;
+    const other = place.side === 'left' ? 'right' : 'left';
+    set(other);
+    if (this._covers(el)) set(place.side);
+  }
+  // il riquadro della scritta copre un giocatore o la palla? (proiezione con la camera del motore, pixel dell'area)
+  _covers(el){
+    const E = this.engine, r = el.getBoundingClientRect?.(), layer = el.parentElement?.getBoundingClientRect?.();
+    if (!r || !layer || !E._projectToScreen || !E.camera) return false;
+    const R = { l: r.left - layer.left - 6, r: r.right - layer.left + 6, t: r.top - layer.top - 6, b: r.bottom - layer.top + 6 };
+    const hits = pts => { const q = pts.map(p => E._projectToScreen(p)).filter(p => p.visible); if (!q.length) return false; const xs = q.map(p => p.x), ys = q.map(p => p.y); return Math.min(...xs) < R.r && Math.max(...xs) > R.l && Math.min(...ys) < R.b && Math.max(...ys) > R.t; };
+    const V = E.ball?.pos?.constructor;
+    if (!V) return false;
+    for (const a of [E.player, E.opponent, ...(E.isDoubles ? [E.playerPartner, E.opponentPartner] : [])]){
+      if (!a?.pos) continue;
+      const { x, z } = a.pos;
+      if (hits([new V(x - .55, 0, z), new V(x + .55, 0, z), new V(x - .55, 2.1, z), new V(x + .55, 2.1, z)])) return true;
+    }
+    const b = E.ball.pos;
+    return hits([new V(b.x - .3, b.y - .3, b.z), new V(b.x + .3, b.y + .3, b.z)]);
   }
   get localActor(){ return this.engine.playerRole === 'p2' ? this.engine.opponent : this.engine.player; }
   // dal giro dell'aptica: kind «hit»/«whiff» del giocatore locale; restituisce l'esito (anche per il telefono)

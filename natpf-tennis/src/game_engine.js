@@ -2139,7 +2139,7 @@ export class NatpfTennisEngine {
               : `${H} ${T}`;
     if (!this.autoPlayMode) {
       const A = this._projectToScreen(p.pos.clone().add(new o.Vector3(0, 2.35, 0)));
-      this.hud.showTimingPopup({ grade: `${u} \u2022 ${X}!`, detail: `${F} KM/H`, screenPos: A }),
+      this.hud.showTimingPopup({ grade: `${u} \u2022 ${X}!`, detail: `${F} KM/H`, screenPos: A, partner: p === this.playerPartner }), // NATPF B10: colpo del compagno (il tuo gesto)
         this.motionController &&
           this.motionController.triggerHapticFeedback &&
           this.motionController.triggerHapticFeedback({
@@ -2451,7 +2451,7 @@ export class NatpfTennisEngine {
             : `SWEET SPOT ${m}`,
       I = this._projectToScreen(l.pos.clone().add(new o.Vector3(0, 2.35, 0)));
     return (
-      this.hud.showTimingPopup({ grade: `P2 ${u} \u2022 ${N}!`, detail: `${O} KM/H`, screenPos: I }),
+      this.hud.showTimingPopup({ grade: `P2 ${u} \u2022 ${N}!`, detail: `${O} KM/H`, screenPos: I, partner: l === this.opponentPartner }),
       this.motionController &&
         this.motionController.triggerHapticFeedback &&
         this.motionController.triggerHapticFeedback({

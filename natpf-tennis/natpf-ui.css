@@ -1352,6 +1352,17 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 .nt-timing-popup:has(.q-super) { box-shadow: inset 0 0 0 2px #ffb020, 0 0 1.2em rgba(255, 150, 20, 0.7) !important; }
 /* stesso schermo: sopra le etichette dei giocatori (.natpf-split-hud), che occupano il fondo di ogni metà */
 .natpf-meters.split { padding-bottom: clamp(56px, 10cqh, 120px); }
+/* B10, esito del colpo (natpf_shot_feedback.js popupPlace): nell'angolo in basso del proprio lato, sopra Potenza ed
+   Energia (bottom dal JS), fuori dal campo. Prima si apriva sopra la testa di chi colpiva: nel doppio, con il compagno a
+   rete, in mezzo al campo. Più piccolo e stretto: cresce verso l'alto, dove lo spazio accanto al campo si allarga */
+#timing-popup.anchored { top: auto !important; bottom: clamp(10px, 3cqh, 36px); left: clamp(10px, 2cqw, 28px); right: auto; transform: none; align-items: flex-start; max-width: clamp(140px, 18cqw, 340px); padding: 0.3em 0.75em 0.35em; font-size: clamp(11px, min(1.8cqh, 1.1cqw), 22px); text-align: left; animation: natpf-esito-in 0.16s ease-out; }
+#timing-popup.anchored.side-right { left: auto; right: clamp(10px, 2cqw, 28px); align-items: flex-end; text-align: right; }
+#timing-popup.anchored .timing-grade { font-size: 1.3em; line-height: 1.1; }
+#timing-popup.anchored .timing-detail { font-size: 0.78em; line-height: 1.2; letter-spacing: 0.05em; }
+#timing-popup.anchored .timing-detail:empty { display: none; }
+/* colpo dell'altro giocatore (sfida un amico): più piccolo e meno acceso, non come un colpo tuo */
+#timing-popup.anchored.other { font-size: clamp(10px, min(1.4cqh, 0.9cqw), 17px); opacity: 0.85; }
+@keyframes natpf-esito-in { from { opacity: 0; transform: translateY(0.4em); } to { opacity: 1; transform: none; } }
 /* stesso schermo con una webcam per due (natpf_split_ui.js, webcam_duo.js): anteprima specchiata con la metà di ciascuno;
    i pannelli dei giocatori restano per la mano e lo stato, senza QR */
 #title-modal .split-input-row { grid-column: 1 / -1; }
