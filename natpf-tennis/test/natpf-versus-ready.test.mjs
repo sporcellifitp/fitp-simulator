@@ -93,6 +93,11 @@ test('Player 2: «Sono pronto» → verde pieno «Pronto ✓», un secondo clic 
   assert.equal(slot('p2').dataset.ready, 'ready'); assert.equal(detail('p2'), 'Ada lo vede ✓');
   // la riga di stato del P2 pronto è «ready» (fondo verde), non più uguale a «collegato»
   assert.equal(guestLine(ui.versus.guest, { ready: ui.versus.ready }).state, 'ready');
+  // collegamento con l'host perso: l'ultimo p2Ready ricevuto resta vero, ma «lo vede» non vale più (prova nel browser)
+  E.roomStatus = { ...E.roomStatus, p1Online: false }; E.versusGuest = { ...(E.versusGuest || {}), everLinked: true }; w.advance(300);
+  assert.equal(ui.versus.guest, 'lost');
+  assert.equal(slot('p1').dataset.ready, 'ko');
+  assert.equal(detail('p2'), 'Ada non lo vede: controlla il collegamento', 'non più «Ada lo vede ✓»');
 });
 
 test('Player 2: la scheda del Player 1 dice la racchetta dell’host (snapshot della lobby) e il collegamento perso', async () => {

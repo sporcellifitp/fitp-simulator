@@ -1152,6 +1152,14 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
 .versus-board .ready-slot .ready-who b { font-size: clamp(16px, 2.4cqh, 26px); }
 .versus-board .ready-slot .ready-detail { font-size: clamp(13px, 1.8cqh, 18px); }
 @container natpf (max-width: 520px) { .versus-board { grid-template-columns: 1fr; } }
+/* «tu» accanto al nome: non il <small> a tutta riga della barra dell'invito (natpf.css), che schiacciava il nome in «PLA…» */
+.natpf-invite .versus-board .ready-you { width: auto; grid-column: auto; color: var(--text-3); }
+/* nel pannello del Player 2 (largo al massimo 560 px) misure fisse: con cqh a 1920×1080 il distintivo cresceva e
+   schiacciava i nomi */
+.natpf-sheet .versus-board .ready-slot { gap: 2px 8px; padding: 8px 10px 8px 16px; }
+.natpf-sheet .versus-board .ready-slot .ready-who b { font-size: 19px; }
+.natpf-sheet .versus-board .ready-slot .ready-detail { font-size: 14px; }
+.natpf-sheet .versus-board .ready-slot .ready-badge { font-size: 13px; }
 /* pannello del Player 2: pulsanti sempre in vista anche quando il pannello scorre (a 1280×720 si vedevano a metà) */
 .natpf-guest-dialog .sheet-actions { position: sticky; bottom: -22px; z-index: 1; margin: 16px -28px -22px; padding: 12px 28px 22px; background: var(--panel-solid); box-shadow: 0 -10px 18px rgba(4, 8, 24, 0.5); }
 /* riga di stato del Player 2 pronto: verde, diversa da «collegato» */

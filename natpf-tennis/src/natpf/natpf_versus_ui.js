@@ -372,7 +372,9 @@ export class NatpfVersusUi {
     const modal = $('natpf-guest-modal');
     show(modal?.querySelector('[data-versus-unready]'), this.ready && st === 'lobby');
     // schede: Player 1 (l'host, con la sua racchetta se la manda) e «tu», con la conferma che l'host ti vede pronto
-    const echo = readyEcho({ ready: this.ready, echoed: !!this.engine.roomStatus?.p2Ready, sinceMs: performance.now() - (this.readyAt || 0) });
+    // la conferma vale solo collegati in lobby (con il collegamento perso l'ultimo p2Ready ricevuto resta vero, ma l'host
+    // non lo sta vedendo)
+    const echo = readyEcho({ ready: this.ready, echoed: st === 'lobby' && !!this.engine.roomStatus?.p2Ready, sinceMs: performance.now() - (this.readyAt || 0) });
     if (echo !== this._echo){ if (this._echo === 'sending' && echo === 'late') this.ui.diag?.recorder?.log?.('sfida.pronto', { conferma: 'non arriva' }); this._echo = echo; }
     paintBoard(modal?.querySelector('[data-versus-board]'), guestBoard({ guest: st, ready: this.ready, echo, phone, webcam, host: this.engine.versusGuest?.host || null,
       hostName: this.engine.roomStatus?.hostName || 'Player 1', guestName: this.engine.roomStatus?.guestName || 'Player 2' }));
