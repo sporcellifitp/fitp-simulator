@@ -27,7 +27,7 @@
 //    specifica §5); la parte veloce comincia un poco PRIMA che la preparazione sia finita (sovrapposizione `overlap`):
 //    la velocità attraversa lo zero con decisione, senza il «fermo» tra carica e colpo;
 //  - volée con una preparazione di 12° soltanto (difetto (c): 24° in 0,08 s erano letti come un rovescio);
-//  - fermo in fine colpo 0,10–0,20 s, ritorno a minimo jerk che parte entro 0,3 s dall'impatto con un piccolo superamento
+//  - fermo in fine colpo 0,10–0,20 s, ritorno a minimo jerk che parte entro 0,35 s dall'impatto con un piccolo superamento
 //    e assestamento (≤ 3°), ciclo chiuso (posa a 0 e a `total` uguali);
 //  - servizio CONTINUO: preparazione, lancio, raccordo in cui la mano sale sopra la testa con il telefono che ruota
 //    appena (≤ 90 °/s), battuta con il picco 0,69 s dopo il picco del lancio, nel colmo della palla (difetto (a): niente
