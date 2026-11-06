@@ -102,6 +102,11 @@ Come si aggiorna:
   `natpf-tennis/src/natpf/natpf_gesture_pose.js`, posa pura dei 11 gesti verificata con i sensori simulati,
   `docs/b9/posa-gesti.md`). Copia come patch in `docs/b9/wip/ramo-fix-stesso-schermo.patch` e `ramo-C-posa-gesti.patch`
   (salvataggio automatico ogni 10 min; se i worktree non ci sono più: `git am` della patch su un ramo da `6e8d39f`).
+- **06/11 13:00, ripresa dopo il limite d'uso:** il primo workflow si è fermato a metà. Fatto nel worktree `…-df5-1`:
+  `531d4a1` (telefono che cade a tutorial aperto non lo perde più) e `3ef25ed` (telefono a schermo spento non più
+  «Pronto»); nel worktree `…-df5-2` un WIP non verificato del modulo della posa (`natpf_gesture_pose.js`,
+  `test/pose-sensors.mjs`). Patch aggiornate in `docs/b9/wip/` (`b8365d7`). Workflow di ripresa avviato negli stessi
+  worktree (minori dello stesso schermo; posa completa con test di fedeltà), con revisione.
 - **Prossima azione esatta:** a workflow finito unire i due rami su `natpf-simulator`, test e prove nel browser
   (natpf-tutorial-phone, natpf-split-ready, training-flow, 1v1-p2p, menu, phone-keep), push, pacchetti ZIP con versione
   nuova; poi ramo C (disegno illustrato delle 11 schede sopra `natpf_gesture_pose.js`, stessa API di
