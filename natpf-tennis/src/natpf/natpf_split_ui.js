@@ -287,7 +287,9 @@ export class NatpfSplitUi {
   _tickStart(now = performance.now()){
     const L = this.ui.lobby;
     const here = !!L?.visible && L.mode === 'split' && L.step === 'connect' && !this.session && !this.ui.intro?.active;
-    if (!here){ if (this.cd.running || this.cd.held || this.cd.why) this._stopCount(this.cd.running ? 'Si scelgono le impostazioni sul computer.' : null); return; }
+    // fuori dalla pagina (anche in partita, dopo che il conto è scattato) il conto torna da capo: tornando qui con tutti
+    // e due pronti riparte (prima di questa riga restava «già scattato» e non ripartiva più)
+    if (!here){ if (this.cd.running || this.cd.held || this.cd.why) this._stopCount(this.cd.running ? 'Si scelgono le impostazioni sul computer.' : null); else this.countdown.reset(); return; }
     const sheet = [...document.querySelectorAll('.natpf-sheet-backdrop')].some(m => !m.classList.contains('hidden'));
     const blocked = !!L.onboarding?.isOpen || !!this.ui.calibra?.isOpen || sheet;
     const slots = this.slots(now), gate = startGate(slots);

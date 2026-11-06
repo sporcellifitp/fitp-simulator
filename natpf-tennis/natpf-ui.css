@@ -1058,17 +1058,21 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
 #title-modal .split-name-input { width: min(24cqw, 260px); height: 40px; padding: 0 14px; border-radius: var(--r-s); border: 1px solid var(--line-strong); background: rgba(5, 10, 28, 0.6); color: var(--text); font: 700 italic 19px/1 var(--font-display); letter-spacing: 0.02em; }
 #title-modal .split-name-input::placeholder { color: var(--text-3); }
 #title-modal .split-name-input:focus-visible { outline: 3px solid var(--ball); outline-offset: 2px; }
-/* barra dell'avvio sotto le schede: chi manca, conto alla rovescia, conto annullato con il motivo */
-#title-modal .ready-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 12px 18px; border-radius: var(--r-m); border: 2px solid var(--line); background: var(--panel); transition: border-color var(--t-med), background var(--t-med); }
+/* barra dell'avvio sotto le schede: chi manca, conto alla rovescia, conto annullato con il motivo. Sempre in vista:
+   attaccata in fondo alla pagina che scorre (a 1280×720 e in un'area di ledwall le schede sono più alte dello schermo) */
+#title-modal .ready-bar { grid-column: 1 / -1; position: sticky; bottom: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 12px 18px; border-radius: var(--r-m); border: 2px solid var(--line-strong); background: var(--panel-solid); box-shadow: 0 -10px 24px rgba(4, 8, 24, 0.55); transition: border-color var(--t-med), background var(--t-med); }
 #title-modal .ready-bar-text { flex: 1 1 280px; min-width: 0; margin: 0; display: grid; gap: 4px; }
 #title-modal .ready-bar-text b { font: 800 italic clamp(18px, 2.8cqh, 32px)/1.05 var(--font-display); text-transform: uppercase; letter-spacing: 0.01em; }
 #title-modal .ready-bar-text span { font: 500 clamp(14px, 2cqh, 22px)/1.35 var(--font-text); color: var(--text-2); }
 #title-modal .ready-bar-text span:empty { display: none; }
 #title-modal .ready-bar-count { display: none; flex: none; width: 1.7em; height: 1.7em; border-radius: 50%; place-items: center; background: var(--ok); color: var(--ink-900); font: 800 italic clamp(24px, 4.4cqh, 52px)/1 var(--font-display); }
 #title-modal .ready-bar[data-ready-bar="count"] .ready-bar-count { display: grid; }
-#title-modal .ready-bar[data-ready-bar="count"], #title-modal .ready-bar[data-ready-bar="held"], #title-modal .ready-bar[data-ready-bar="ready"] { border-color: var(--ok); background: linear-gradient(rgba(54, 224, 122, 0.12), rgba(54, 224, 122, 0.12)), var(--panel); }
+#title-modal .ready-bar[data-ready-bar="count"], #title-modal .ready-bar[data-ready-bar="held"], #title-modal .ready-bar[data-ready-bar="ready"] { border-color: var(--ok); background: linear-gradient(rgba(54, 224, 122, 0.12), rgba(54, 224, 122, 0.12)), var(--panel-solid); }
 #title-modal .ready-bar[data-ready-bar="count"] .ready-bar-text b, #title-modal .ready-bar[data-ready-bar="held"] .ready-bar-text b, #title-modal .ready-bar[data-ready-bar="ready"] .ready-bar-text b { color: var(--ok); }
-#title-modal .ready-bar[data-ready-bar="cancel"] { border-color: var(--bad); background: linear-gradient(rgba(255, 79, 97, 0.12), rgba(255, 79, 97, 0.12)), var(--panel); }
+#title-modal .ready-bar[data-ready-bar="cancel"] { border-color: var(--bad); background: linear-gradient(rgba(255, 79, 97, 0.12), rgba(255, 79, 97, 0.12)), var(--panel-solid); }
+/* stesso schermo, pagina dei telefoni: si gioca da soli, quindi «Impostazioni partita ›» è un'azione secondaria (non gialla) */
+#title-modal[data-flow="split"][data-step="connect"] #lobby-next:not(:disabled) { background: transparent; border-color: var(--line-strong); color: var(--text); box-shadow: none; }
+#title-modal[data-flow="split"][data-step="connect"] #lobby-next:not(:disabled):hover { background: rgba(255, 255, 255, 0.12); }
 #title-modal .ready-bar[data-ready-bar="cancel"] .ready-bar-text b { color: #ffb3bc; }
 #title-modal .ready-bar .lobby-primary { min-width: 0; }
 /* conto alla rovescia grande al centro, sopra la lobby (non sopra il toast); «Aspetta» o Esc lo fermano */

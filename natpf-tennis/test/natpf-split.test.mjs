@@ -364,6 +364,12 @@ test('stesso schermo: tutti e due pronti → conto di 3 s sul computer e sui tel
   advance(4000);
   assert.deepEqual(counts(link).map(m => m.n), [3, 2, 1, 0], 'una volta sola');
   assert.equal(lobby.mode, 'split');
+  // dopo la partita, di nuovo nella pagina dei telefoni con tutti e due pronti: il conto riparte da 3 (prova nel browser:
+  // restava «già scattato» e non ripartiva)
+  ui.backToMenu(); lobby.go('mode'); lobby.setMode('split'); lobby.go('connect');
+  assert.ok(!E.natpfSplit?.active);
+  advance(150);
+  assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3);
 });
 
 test('stesso schermo: un telefono che cade durante il conto lo annulla e la barra dice perché; quando torna si riparte da 3', async () => {

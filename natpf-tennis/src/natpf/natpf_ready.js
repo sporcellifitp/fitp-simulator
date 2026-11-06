@@ -108,7 +108,7 @@ export function paintSlot(el, v){
   if (el.title !== v.aria) el.title = v.aria;
 }
 // Schede compatte (pagina «Partita» dello stesso schermo, pannello del P2 e barra dell'invito della sfida)
-export const slotHtml = (id, { compact = true } = {}) => `<div class="ready-slot${compact ? ' compact' : ''} is-off" data-ready="off" data-p="${id === 'p2' ? 'p2' : 'p1'}" data-ready-slot="${id}"><i class="ready-ico" aria-hidden="true"></i><span class="ready-who"><b data-ready-name>${defaultName(id)}</b><small class="ready-you hidden" data-ready-you>tu</small></span><span class="ready-badge"><b data-ready-word>${READY_BADGE.off}</b></span><span class="ready-detail" data-ready-detail></span></div>`;
+export const slotHtml = (id, { compact = true } = {}) => `<div class="ready-slot${compact ? ' compact' : ''} is-off" data-ready="off" data-p="${id === 'p2' ? 'p2' : 'p1'}" data-ready-slot="${id}"><span class="ready-who"><b data-ready-name>${defaultName(id)}</b><small class="ready-you hidden" data-ready-you>tu</small></span><span class="ready-badge"><i class="ready-ico" aria-hidden="true"></i><b data-ready-word>${READY_BADGE.off}</b></span><span class="ready-detail" data-ready-detail></span></div>`;
 // Tabellone con una scheda per giocatore: la struttura si scrive una volta, poi solo paintSlot
 export function paintBoard(el, views = []){
   if (!el) return;
