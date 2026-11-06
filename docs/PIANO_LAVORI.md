@@ -88,6 +88,12 @@ Come si aggiorna:
   build ok. Conflitto in `natpf_split_ui.js` (stato della metà) risolto unendo avanzamento del tutorial e schede del
   pronto; test del conto alla rovescia reso indipendente dalla fase del controllo ogni 100 ms. Revisioni dei due rami
   e giudizio dell'animazione in corso; i bloccanti che emergono si correggono direttamente su `natpf-simulator`.
+- **06/11, dopo l'unione** (`6c3a98b`): prove nel browser sul codice unito: natpf-tutorial-phone 36/36, natpf-split-ready
+  24/24, natpf-training-flow 17/17, natpf-1v1-p2p 37/37, natpf-menu 22/22, natpf-phone-keep 13/13; gioco 785/785, sito
+  193/193, build ok. Corretto un difetto nato dall'unione (ridisegni a ogni messaggio dei telefoni nello stesso schermo
+  che ritardavano il conteggio delle schede viste).
+- **Prossima azione esatta:** revisioni di A e B (workflow in corso) → correggere i bloccanti su `natpf-simulator`;
+  giudizio dell'animazione → ramo C (animazione nuova); poi versione nuova, pacchetti ZIP ed eseguibili.
 - **Prossima azione esatta (precedente):** finiti rami e giudizio → correggere i bloccanti delle revisioni, unire A e B su
   `natpf-simulator`, test e prove nel browser, push; poi ramo C (animazione nuova secondo il giudizio), versione nuova,
   pacchetti ed eseguibili.
