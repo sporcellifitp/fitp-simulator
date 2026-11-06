@@ -507,6 +507,50 @@ test('stesso schermo, pagina «Partita»: schede dal vivo, «Gioca» grigio e sp
   assert.equal($('btn-start-match').disabled, false); assert.ok(!$('btn-start-match').classList.contains('is-wait'));
 });
 
+// Revisione B9 (06/11), minore a: tornando con «‹ Indietro» dalla pagina «Partita» con tutti e due già pronti il conto non
+// riparte da solo (prima ripartiva subito e il riquadro copriva nomi e mano): «Tutto pronto · premi «Gioca»»; riparte da
+// solo se lo stato dei telefoni cambia; entrando in avanti (dopo una partita) sì. Mentre si scrive un nome non corre
+test('stesso schermo: «‹ Indietro» da «Partita» con i due pronti → nessun conto da solo; riparte se un telefono cambia o con «Gioca»', async () => {
+  const { E, ui, lobby, l2, P2, readyBoth, advance } = await splitLobby();
+  readyBoth(); advance(600);
+  assert.equal(ui.split.countdownRunning, true);
+  lobby.next(); assert.equal(lobby.step, 'match'); advance(300);
+  lobby.back(); assert.equal(lobby.step, 'connect');
+  advance(4000);
+  assert.equal(ui.split.cd.running, false, 'nessun conto tornando indietro'); assert.ok(!E.natpfSplit?.active);
+  assert.equal($('split-ready-bar').dataset.readyBar, 'held');
+  assert.equal($('split-ready-bar').querySelector('[data-ready-bar-sub]').textContent, 'Premi «Gioca» quando volete.');
+  assert.ok(!$('split-ready-bar').querySelector('[data-split-play]').classList.contains('hidden'), '«Gioca» nella barra');
+  // anche subito, senza un controllo in mezzo (Invio e Esc di fila)
+  lobby.next(); lobby.back(); advance(1500); assert.equal(ui.split.cd.running, false);
+  // il telefono di Marco cade e torna pronto: lo stato è cambiato, il conto riparte da solo
+  Object.assign(l2, { connected: false, ready: false, L: { state: 'lost', phone: null } }); P2._changed(); advance(300);
+  Object.assign(l2, { connected: true, ready: true, L: { state: 'connected', phone: 'ready' } }); P2._changed(); advance(150);
+  assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3);
+  advance(3000); assert.equal(E.natpfSplit?.active, true);
+  // di nuovo indietro: «Gioca» nella barra fa partire
+  ui.backToMenu(); lobby.go('mode'); lobby.setMode('split'); lobby.go('connect'); advance(150);
+  assert.equal(ui.split.cd.running, true, 'in avanti (dopo una partita) il conto riparte');
+  lobby.next(); advance(200); lobby.back(); advance(1000);
+  assert.equal(ui.split.cd.running, false);
+  ui.split.playNow(); assert.equal(E.natpfSplit?.active, true);
+});
+
+test('stesso schermo: mentre si scrive un nome il conto non corre; finito il nome parte', async () => {
+  const { ui, readyBoth, advance } = await splitLobby();
+  let typing = true;
+  const had = Object.getOwnPropertyDescriptor(document, 'activeElement');
+  Object.defineProperty(document, 'activeElement', { configurable: true, get: () => typing ? { matches: q => q === '.split-name-input' } : null });
+  try {
+    readyBoth(); advance(4000);
+    assert.equal(ui.split.cd.running, false, 'nessun conto mentre si scrive');
+    assert.equal($('split-ready-bar').dataset.readyBar, 'ready');
+    assert.equal($('split-ready-bar').querySelector('[data-ready-bar-sub]').textContent, 'Si parte quando finisci di scrivere il nome.');
+    typing = false; advance(150);
+    assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3);
+  } finally { if (had) Object.defineProperty(document, 'activeElement', had); else delete document.activeElement; }
+});
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Revisione B9 (06/11), bloccante del ramo A: nello stesso schermo un telefono che cade e si ricollega con il suo
 // tutorial aperto lo perdeva (segnato come visto senza «Tutto chiaro» e calibrazione partita da sola). Il telefono finto

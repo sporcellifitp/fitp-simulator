@@ -107,9 +107,10 @@ export class NatpfSplitUi {
     for (const id of SPLIT_PLAYERS) this.tut[id] = typeof document !== 'undefined' ? new NatpfTutorial($(`split-tut-${id}`), { half: true, demo: () => getGestureDemo(), canDemo: () => this.demoOwner === id }) : null;
     let saved = 'phones'; try { saved = localStorage.getItem(SPLIT_INPUT_KEY) || 'phones'; } catch {}
     this.input = splitInputOf(saved);
-    // conto alla rovescia prima della partita: left (secondi), running, held («Aspetta»), why (motivo dell'annullamento)
+    // conto alla rovescia prima della partita: left (secondi), running, held («Aspetta»), why (motivo dell'annullamento),
+    // back (tornati con «‹ Indietro» da «Partita» con tutti e due già pronti: si aspetta un cambio o «Gioca», vedi _tickStart)
     this.countdown = createCountdown({ ms: SPLIT_COUNTDOWN_MS });
-    this.cd = { left: 0, running: false, held: false, why: null, whyUntil: 0 };
+    this.cd = { left: 0, running: false, held: false, back: false, why: null, whyUntil: 0 }; this._here = null; this._leftBoth = false;
     const box = document.querySelector('[data-setup="split"]');
     engine.natpfSplitNames = { p1: 'Player 1', p2: 'Player 2' };
     box?.addEventListener('input', e => {
@@ -345,17 +346,27 @@ export class NatpfSplitUi {
   }
   // Ogni 100 ms (tick): nella pagina «Collega» dello stesso schermo, con tutti e due pronti (e il tutorial chiuso) e
   // nessun pannello aperto sopra, conto alla rovescia; a zero si gioca. Un giocatore che non è più pronto lo annulla,
-  // con il motivo nella barra dell'avvio e sui telefoni
+  // con il motivo nella barra dell'avvio e sui telefoni.
+  // Quando parte da solo (revisione B9 del 06/11, minore a): quando i due diventano pronti mentre si è qui, ed entrando
+  // in avanti (menu → «Stesso schermo», dopo una partita) con tutti e due già pronti: scegliere la pagina è l'azione.
+  // Tornando con «‹ Indietro» dalla pagina «Partita» (per cambiare nomi o mano) con tutti e due già pronti NO: «Tutto
+  // pronto · premi «Gioca»» (come «Aspetta»), e riparte da solo solo se lo stato dei telefoni cambia (uno non è più
+  // pronto e poi torna). È la regola della lobby per gli altri modi (natpf_lobby.go, autoFrom: in campo da soli solo se
+  // il controller diventa pronto mentre si è lì). Prima ripartiva subito e il riquadro del conto copriva nomi e mano.
+  // Mentre si scrive un nome il conto non corre: prima la partita poteva partire con il nome a metà
   _tickStart(now = performance.now()){
     const L = this.ui.lobby;
     const here = !!L?.visible && L.mode === 'split' && L.step === 'connect' && !this.session && !this.ui.intro?.active;
     // fuori dalla pagina (anche in partita, dopo che il conto è scattato) il conto torna da capo: tornando qui con tutti
     // e due pronti riparte (prima di questa riga restava «già scattato» e non ripartiva più)
-    if (!here){ if (this.cd.running || this.cd.held || this.cd.why) this._stopCount(this.cd.running ? 'Si scelgono le impostazioni sul computer.' : null); else this.countdown.reset(); return; }
+    if (!here){ this._here = null; if (this.cd.running || this.cd.held || this.cd.back || this.cd.why) this._stopCount(this.cd.running ? 'Si scelgono le impostazioni sul computer.' : null); else this.countdown.reset(); return; }
     const sheet = [...document.querySelectorAll('.natpf-sheet-backdrop')].some(m => !m.classList.contains('hidden'));
-    const blocked = !!L.onboarding?.isOpen || !!this.ui.calibra?.isOpen || sheet;
+    const blocked = !!L.onboarding?.isOpen || !!this.ui.calibra?.isOpen || sheet || this.typing;
     const slots = this.slots(now), gate = startGate(slots);
-    const r = this.countdown.update(gate.both && !this.cd.held && !blocked, now);
+    if (this._here !== L.pageN){ this._here = L.pageN; this.countdown.reset(); this.cd.back = gate.both && L.from === 'match' && this._leftBoth; }
+    else if (!gate.both) this.cd.back = false;
+    this._leftBoth = gate.both;
+    const r = this.countdown.update(gate.both && !this.cd.held && !this.cd.back && !blocked, now);
     const R = this.ui.diag?.recorder;
     if (r.cancelled){
       this.cd.why = gate.both ? null : cancelText(slots); this.cd.whyUntil = now + SPLIT_CANCEL_SHOW_MS;
@@ -374,7 +385,7 @@ export class NatpfSplitUi {
   _stopCount(txt = null){
     const was = this.cd.running;
     this.countdown.reset();
-    this.cd = { left: 0, running: false, held: false, why: null, whyUntil: 0 };
+    this.cd = { left: 0, running: false, held: false, back: false, why: null, whyUntil: 0 };
     if (was && txt) this._announce({ stop: 1, txt });
     this._paintStart();
   }
@@ -387,11 +398,13 @@ export class NatpfSplitUi {
     if (was){ this._announce({ stop: 1, txt: 'Partenza fermata sul computer.' }); this.ui.diag?.recorder?.log?.('split.conto', { stato: 'fermato' }); }
     this._paintStart();
   }
-  playNow(){ this.cd.held = false; this._fire(); }
+  playNow(){ this.cd.held = false; this.cd.back = false; this._fire(); }
+  // si sta scrivendo un nome (campo attivo nella pagina «Collega»)
+  get typing(){ return typeof document !== 'undefined' && !!document.activeElement?.matches?.('.split-name-input'); }
   // a zero (o «Gioca» dopo «Aspetta»): lo stesso «Gioca» della pagina «Partita» (natpf_ui._bindStart ricontrolla che
   // tutti e due siano pronti, poi la sessione split e il passaggio al campo)
   _fire(){
-    Object.assign(this.cd, { running: false, left: 0, held: false, why: null });
+    Object.assign(this.cd, { running: false, left: 0, held: false, back: false, why: null });
     this._announce({ n: 0 });
     this.ui.diag?.recorder?.log?.('split.conto', { stato: 'si gioca' });
     const b = $('btn-start-match'); if (b){ b.disabled = false; b.click(); }
@@ -403,6 +416,8 @@ export class NatpfSplitUi {
     let mode = 'wait', title = 'Si parte da soli quando tutti e due i giocatori sono pronti', sub = `${waitingText(gate.waiting)}.`;
     if (cd.running){ mode = 'count'; title = `Tutto pronto: si gioca tra ${cd.left}`; sub = this.webcam ? `${names}, in posizione davanti alla webcam.` : `${names}, tenete il telefono come in partita.`; }
     else if (gate.both && cd.held){ mode = 'held'; title = 'Tutto pronto'; sub = 'Partenza fermata: premi «Gioca» quando volete.'; }
+    else if (gate.both && cd.back){ mode = 'held'; title = 'Tutto pronto'; sub = 'Premi «Gioca» quando volete.'; }
+    else if (gate.both && this.typing){ mode = 'ready'; title = 'Tutto pronto'; sub = 'Si parte quando finisci di scrivere il nome.'; }
     else if (gate.both){ mode = 'ready'; title = 'Tutto pronto'; sub = 'Si parte appena si chiude il pannello aperto.'; }
     else if (cd.why && now < cd.whyUntil){ mode = 'cancel'; title = cd.why; sub = 'Il conto riparte da solo quando tutto è di nuovo pronto.'; }
     const set = (el, t) => { if (el && el.textContent !== t) el.textContent = t; };
@@ -425,9 +440,11 @@ export class NatpfSplitUi {
   }
   // pagina «Partita» dello stesso schermo: le due schede compatte, dal vivo (prima solo «VS» e una nota sotto il piede)
   paintMatch(now = performance.now()){
-    const slots = this.slots(now);
+    const slots = this.slots(now), gate = startGate(slots);
     paintBoard($('split-ready-board'), slots);
-    return { ...startGate(slots), slots };
+    // (uno che non è più pronto mentre si è qui: tornando nella pagina «Collega» lo stato è cambiato, il conto può partire)
+    if (!gate.both) this._leftBoth = false;
+    return { ...gate, slots };
   }
   // «Gioca»: sessione split nel motore, mano del P2 sul suo personaggio
   start(){

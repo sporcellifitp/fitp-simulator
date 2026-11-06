@@ -340,6 +340,9 @@ export class NatpfLobby {
     if (step === 'menu' && this.step !== 'menu' && (this.mode === 'training' || this.mode === 'challenge')) this.mode = 'cpu';
     // pagina nuova dall'inizio (prima restava lo scorrimento della pagina di prima)
     if (this.step !== step){ const st = this.el.querySelector?.('.lobby-stage'); if (st) st.scrollTop = 0; }
+    // from: la pagina da cui si arriva, pageN: numero della visita (natpf_split_ui: tornando con «‹ Indietro» da «Partita»
+    // il conto non riparte da solo)
+    if (this.step !== step){ this.from = this.step; this.pageN = (this.pageN || 0) + 1; }
     this.step = step; this.el.dataset.step = step; this.el.dataset.flow = this.mode;
     for (const p of this.el.querySelectorAll('[data-page]')) p.classList.toggle('on', p.dataset.page === step);
     if (step !== 'menu') show($('lobby-menu-result'), false);
