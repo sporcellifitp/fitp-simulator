@@ -338,7 +338,8 @@ export class NatpfSplitUi {
   }
   slots(now = performance.now()){ return SPLIT_PLAYERS.map(id => this.slot(id, now)); }
   get countdownRunning(){ return this.cd.running; }
-  // ai telefoni (pagina del telefono: racchetta.js, «ev» con k 'count'): n = 3, 2, 1 e 0 (si gioca), stop con il motivo.
+  // ai telefoni (pagina del telefono: racchetta.js, «ev» con k 'count'): n = 3, 2, 1 e 0 (si gioca), stop con il motivo
+  // (soft: fermato sul computer, anello neutro sul telefono; senza soft un telefono non più pronto, anello rosso).
   // Le pagine del telefono di prima ignorano il messaggio (k sconosciuto): nessun problema di versioni
   _announce(m){
     if (this.webcam) return;
@@ -370,7 +371,7 @@ export class NatpfSplitUi {
     const R = this.ui.diag?.recorder;
     if (r.cancelled){
       this.cd.why = gate.both ? null : cancelText(slots); this.cd.whyUntil = now + SPLIT_CANCEL_SHOW_MS;
-      this._announce({ stop: 1, txt: this.cd.why || 'Guarda il computer.' });
+      this._announce({ stop: 1, txt: this.cd.why || 'Guarda il computer.', ...(this.cd.why ? {} : { soft: 1 }) });
       R?.log?.('split.conto', { stato: 'annullato', motivo: this.cd.why || 'pannello aperto' });
     }
     if (r.running && r.left !== this.cd.left){
@@ -386,7 +387,7 @@ export class NatpfSplitUi {
     const was = this.cd.running;
     this.countdown.reset();
     this.cd = { left: 0, running: false, held: false, back: false, why: null, whyUntil: 0 };
-    if (was && txt) this._announce({ stop: 1, txt });
+    if (was && txt) this._announce({ stop: 1, soft: 1, txt });
     this._paintStart();
   }
   // «Aspetta» (o Esc): il conto si ferma e non riparte da solo; poi «Gioca» nella barra (this.hold è un'altra cosa: la
@@ -395,7 +396,7 @@ export class NatpfSplitUi {
     const was = this.cd.running;
     this.countdown.reset();
     Object.assign(this.cd, { running: false, left: 0, held: true, why: null });
-    if (was){ this._announce({ stop: 1, txt: 'Partenza fermata sul computer.' }); this.ui.diag?.recorder?.log?.('split.conto', { stato: 'fermato' }); }
+    if (was){ this._announce({ stop: 1, soft: 1, txt: 'Partenza fermata sul computer.' }); this.ui.diag?.recorder?.log?.('split.conto', { stato: 'fermato' }); }
     this._paintStart();
   }
   playNow(){ this.cd.held = false; this.cd.back = false; this._fire(); }

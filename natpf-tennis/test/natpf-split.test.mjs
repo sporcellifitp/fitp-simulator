@@ -450,6 +450,7 @@ test('stesso schermo: un telefono che cade durante il conto lo annulla e la barr
   assert.equal($('split-ready-bar').querySelector('[data-ready-bar-title]').textContent, 'Conto annullato · Marco: telefono scollegato');
   const stop = counts(link).at(-1);
   assert.equal(stop.stop, 1); assert.match(stop.txt, /Marco: telefono scollegato/, 'il telefono di Giulia lo sa');
+  assert.equal(stop.soft, undefined, 'un problema: anello rosso sul telefono');
   advance(5000);
   assert.ok(!E.natpfSplit?.active, 'nessuna partita'); assert.equal(lobby.step, 'connect');
   // il telefono torna pronto: il conto riparte da capo (3), e poi si gioca
@@ -467,7 +468,7 @@ test('stesso schermo: «Aspetta» (Esc) ferma il conto e non riparte da solo; «
   key('Escape', 'Escape');
   assert.equal(lobby.step, 'connect', 'Esc durante il conto non torna indietro');
   assert.equal(ui.split.cd.running, false); assert.equal(ui.split.cd.held, true);
-  assert.match(counts(link).at(-1).txt, /fermata/);
+  assert.match(counts(link).at(-1).txt, /fermata/); assert.equal(counts(link).at(-1).soft, 1, 'fermato sul computer: anello neutro sul telefono');
   advance(6000);
   assert.ok(!E.natpfSplit?.active, 'fermo finché non si preme «Gioca»');
   assert.equal($('split-ready-bar').dataset.readyBar, 'held');
@@ -486,7 +487,7 @@ test('stesso schermo, pagina «Partita»: schede dal vivo, «Gioca» grigio e sp
   // «Impostazioni partita ›»: il conto si ferma, i telefoni lo sanno
   lobby.next(); assert.equal(lobby.step, 'match');
   advance(400);
-  assert.equal(ui.split.cd.running, false); assert.match(counts(link).at(-1).txt, /impostazioni/);
+  assert.equal(ui.split.cd.running, false); assert.match(counts(link).at(-1).txt, /impostazioni/); assert.equal(counts(link).at(-1).soft, 1);
   advance(4000); assert.ok(!E.natpfSplit?.active, 'nella pagina «Partita» si parte con «Gioca»');
   const board = $('split-ready-board');
   assert.match(board.innerHTML, /data-ready-slot="p1"/);
