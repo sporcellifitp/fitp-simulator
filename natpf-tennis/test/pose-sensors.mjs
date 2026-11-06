@@ -32,10 +32,14 @@ export const mirrorPose = p => ({ ...p, pos: [-p.pos[0], p.pos[1], p.pos[2]], q:
 // imita (1 = tempo reale, 1,25 = più veloce). Prima il telefono si porta lentamente nella posa iniziale e resta fermo
 // 0,4 s. after(k): dopo ogni campione (per cambiare il contesto del rilevatore fuori dagli ascoltatori). Restituisce
 // l'istante (ms del telefono) che corrisponde a t = 0 del gesto.
+// Il campione k (istante p.t del telefono) porta la rotazione dell'intervallo [k, k+1] della posa (differenza in avanti:
+// così l'orientamento integrato da sampleWorld coincide con quello disegnato); il suo istante nel gesto è quindi il
+// centro dell'intervallo, (k + ½)·passo: la corrispondenza tiene conto di questo mezzo campione (senza, ogni picco
+// letto risulterebbe 8,3 ms prima del contatto disegnato).
 export function playPose(p, poseAt, { t0 = 0, t1, rate = 1, after = null } = {}){
   returnTo(p, poseAt(t0).q, 60); p.rest(400, 2);
   const dt = DT/1000, dtg = dt*rate, N = Math.round((t1 - t0)/dtg), at = k => poseAt(t0 + k*dtg);
-  const start = p.t - t0/rate*1000;
+  const start = p.t - t0/rate*1000 - DT/2;
   let prev = at(-1), cur = at(0);
   for (let k = 0; k < N; k++){
     const next = at(k + 1);

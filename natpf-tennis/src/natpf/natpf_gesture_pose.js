@@ -132,9 +132,9 @@ export const TIMING = Object.freeze({
   smash:    Object.freeze({ hold: .3, prep: 1.0, overlap: .05, follow: .16, back: .6, rest: .4, trunk: 0 }),
   volley:   Object.freeze({ hold: .35, prep: .24, prepAmp: 12, overlap: 0, follow: .1, back: .45, rest: .56, trunk: .15 }),
   // mira degli esercizi (incrociato, lungolinea): il piatto gira attorno alla verticale durante la carica e torna più
-  // piano del braccio (aimBack), così il ritorno resta sotto i 250 °/s
-  cross:    Object.freeze({ hold: .35, prep: .55, overlap: 0, follow: .14, back: .52, aimBack: .8, rest: .45, trunk: .32 }),
-  line:     Object.freeze({ hold: .35, prep: .55, overlap: 0, follow: .14, back: .52, aimBack: .8, rest: .45, trunk: .32 }),
+  // piano del braccio (back) e tornano più piano del dritto: il piatto e il braccio rientrano insieme, sotto i 250 °/s
+  cross:    Object.freeze({ hold: .35, prep: .55, overlap: 0, follow: .14, back: .62, aimBack: .8, rest: .4, trunk: .32 }),
+  line:     Object.freeze({ hold: .35, prep: .55, overlap: 0, follow: .14, back: .62, aimBack: .8, rest: .4, trunk: .32 }),
 });
 // servizio: fermo, preparazione (la mano scende un poco e il telefono si inclina indietro, ≤ 60 °/s), lancio, raccordo
 // (minimo jerk, la mano va sopra la testa, il telefono ruota appena), battuta che comincia `overlap` prima della fine del
@@ -148,6 +148,34 @@ export const PHASES = Object.freeze({
   fermo: '', pronto: 'Pronto', preparazione: 'Carica', accelerazione: 'Colpo', impatto: 'Impatto',
   accompagnamento: 'Accompagna', ritorno: 'Ritorno', lancio: 'Lancio', caricamento: 'Braccio in alto', battuta: 'Battuta',
 });
+
+// Camere per scheda (brief §5.3; per dritto, rovescio, servizio, pallonetto, palla corta e presa quelle del prototipo
+// illustrato già giudicato, prototipi/b9-motion/main.js VIEWS). Solo dati per il disegno: dir = direzione soggetto →
+// camera nel campo (x a destra, y in alto, +z dietro chi gioca; il mancino la specchia, cameraFor), dist = distanza (m,
+// prospettiva moderata), follow = la camera segue la mano (media pesata su ±window s, mix tra il centro dell'arco e la
+// mano, size = altezza inquadrata in m), views/seq = presa: due viste ferme e il giro della camera tra le due (s).
+export const CAMERAS = Object.freeze({
+  grip: Object.freeze({ views: Object.freeze([[-.36, .78, .5], [.95, .3, -.12]]), dist: 1.0, seq: Object.freeze([3, 1.5, 3, 1.5]), read: 'pollice sul bordo destro, dita attorno al sinistro, cima in avanti e verso l\u2019interno' }),
+  ready: Object.freeze({ dir: [.6, .45, .8], dist: 2.2, read: 'telefono fermo nella posa di partenza' }),
+  forehand: Object.freeze({ dir: [-.35, .62, 1], dist: 2.2, read: 'arco orizzontale da destra a sinistra, mano alla stessa altezza' }),
+  flat: Object.freeze({ dir: [-.35, .62, 1], dist: 2.2, read: 'come il dritto, più veloce' }),
+  backhand: Object.freeze({ dir: [.35, .62, 1], dist: 2.2, read: 'arco da sinistra a destra, partenza dall\u2019anca sinistra' }),
+  slice: Object.freeze({ dir: [-.2, .22, 1], dist: 2.2, read: 'la mano scende durante il colpo' }),
+  lob: Object.freeze({ dir: [1, .5, -.35], dist: 2.2, read: 'la mano sale, schermo verso il cielo alla fine' }),
+  drop: Object.freeze({ dir: [.75, .55, .6], dist: 2.2, read: 'gesto corto e lento, mano che scende un poco' }),
+  serve: Object.freeze({ dir: [1, .2, .25], dist: 2.2, follow: Object.freeze({ window: .24, mix: .5, size: .45 }), read: 'lancio, braccio in alto con il telefono di faccia, battuta al colmo della palla' }),
+  smash: Object.freeze({ dir: [1, .2, .25], dist: 2.2, follow: Object.freeze({ window: .24, mix: .5, size: .45 }), read: 'braccio in alto, poi giù deciso' }),
+  volley: Object.freeze({ dir: [.55, .45, -.7], dist: 2.2, read: 'preparazione quasi nulla, gesto corto e deciso' }),
+  cross: Object.freeze({ dir: [-.35, .62, 1], dist: 2.2, read: 'piatto girato verso il centro' }),
+  line: Object.freeze({ dir: [-.35, .62, 1], dist: 2.2, read: 'piatto girato verso l\u2019esterno' }),
+});
+// camera della scheda per la mano: il mancino vede lo specchio (x → −x della direzione)
+export function cameraFor(id, { hand = 'right' } = {}){
+  const c = CAMERAS[id]; if (!c) return null;
+  if (hand !== 'left') return c;
+  const m = v => [-v[0], v[1], v[2]];
+  return { ...c, ...(c.dir ? { dir: m(c.dir) } : {}), ...(c.views ? { views: c.views.map(m) } : {}) };
+}
 
 const SH = SHOULDER;
 const readyPos = () => add(SH, READY);
@@ -362,6 +390,12 @@ export const HAND_LOCAL = Object.freeze({
 // Scheletro nel campo per una posa del telefono { pos, q } (della mano `hand`): spalla S, gomito E, polso W (m), versori
 // dell'avambraccio F (polso → gomito) e del braccio U (gomito → spalla), flessione del gomito (gradi), dita e pollice,
 // punti del telefono. Il mancino è lo specchio esatto dello scheletro del destro.
+// Affidabili per il disegno: telefono, mano, dita, polso e avambraccio (rigidi con il telefono: «polso fermo», la
+// direzione dell'avambraccio è quella del prototipo illustrato giudicato, brief §5.2: si disegna fino al gomito, che
+// sfuma fuori quadro). Indicativi: spalla, braccio ed elbowDeg. Il braccio superiore non è risolto con la cinematica
+// inversa: S è a ARM.upper dal gomito verso la spalla del modello e shoulderShift dice quanto se ne scosta (fino a
+// ~0,43 m nel dritto all'impatto: con il telefono a 0,46 m dalla spalla e l'avambraccio rigido il gomito non sta a
+// distanza di braccio dalla spalla fissa). Chi vuole disegnare anche il braccio deve risolverlo (docs/b9/posa-gesti.md).
 export function gestureRig(pose, { hand = pose.hand || 'right' } = {}){
   const left = hand === 'left', pr = left ? { pos: mirrorPos(pose.pos), q: mirrorQ(pose.q) } : pose;
   const T = v => add(pr.pos, qrot(pr.q, v));
