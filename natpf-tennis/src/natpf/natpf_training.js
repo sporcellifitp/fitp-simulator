@@ -650,7 +650,9 @@ export class NatpfTraining {
   // canvas WebGL che si sposta tra i due riquadri; per i mancini le foto sono specchiate. Le clip video generate dei
   // colpi sono state tolte il 28/10 su richiesta dell'utente (pose e oggetto in mano non credibili).
   _paintDemo($, lost, hand){
-    if (this.tutorial?.open) return;           // la modale del tutorial copre il gioco: il riquadro aspetta che si chiuda
+    // la modale del tutorial copre il gioco: il riquadro aspetta che si chiuda, con la sua animazione ferma (prima
+    // continuava a disegnare sotto la modale «Rivedi i gesti»: due animazioni insieme, revisione tecnica B9)
+    if (this.tutorial?.open){ if (this.demoOn){ getGestureDemo('coach').stop(); this.demoOn = false; } return; }
     const phone = this.ui.controller === 'phone';
     const step = this.lesson?.steps[this.lesson.idx];
     let id = null;

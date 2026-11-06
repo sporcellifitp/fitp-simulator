@@ -495,7 +495,7 @@ function drawFigure(c, cam, pose, st, H){
   for (const U of unitsOf(front)) drawUnit(c, U, st);
   // avambraccio davanti alla mano (presa vista di lato): il polsino gli si ridisegna sopra, perché lo avvolge; prima
   // l'avambraccio lo copriva e il suo bordo tondo restava come una cucitura sul palmo (revisione artistica)
-  if (F.foreFront){ drawForearm(c, F, st); clearL(); drawBand(l, F, st); blit(); }
+  if (F.foreFront){ drawForearm(c, F, st); drawBand(c, F, st); }
   return F;
 }
 // sagoma della figura (contorno esterno, niente riempimento) per i fantasmi: unione allargata meno unione delle forme
