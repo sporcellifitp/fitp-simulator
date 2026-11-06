@@ -57,6 +57,8 @@ async function splitMatch(){
   const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
   const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
   const l2 = P2.link = fakeLink2();
+  // tutorial già visto dai due (qui conta la partita): con il tutorial aperto «Gioca» non parte (bothReady come le schede)
+  E.natpfPhone.markTutorialSeen(); P2.markTutorialSeen();
   lobby.go('mode'); lobby.setMode('split'); lobby.go('connect'); ui.split.paint();
   E.natpfPhone._onCal({ kind: 'review', pass: true });
   lobby.next(); assert.equal(w.pressStart(), true); assert.equal(E.natpfSplit.active, true);
@@ -109,4 +111,42 @@ test('«Ricollega» tiene i riferimenti della mira (stessa pagina); un collegame
   assert.ok(P.aimModel.center(1) != null, 'ricollegato: il centro resta');
   Object.assign(L, { joins: 3, relinked: false }); P._sendGrip();
   assert.equal(P.aimModel.center(1), null, 'pagina ricaricata: si reimpara');
+});
+
+// Revisione B9 (06/11), minore d: stesso schermo con gli schermi spenti su tutti e due i telefoni. Il riquadro della
+// pausa è uno: prima il P1 (natpf_ui._refreshPhoneHold) e il P2 (_watchP2) lo ridisegnavano ognuno con il suo testo e i
+// testi si alternavano ogni secondo; la ripresa di uno lo toglieva anche con l'altro ancora in pausa
+test('stesso schermo: due telefoni con lo schermo spento → un riquadro con tutti e due, stabile; la ripresa di uno lascia l\'altro', async () => {
+  const w = await splitMatch(), { E, ui, link, l2 } = w;
+  w.advance(500);
+  link.L.vis = false; link.L.hiddenAt = performance.now(); E.natpfPhone._changed();
+  w.advance(700);
+  l2.L.vis = false; l2.L.hiddenAt = performance.now(); w.P2._changed();
+  w.advance(1500);
+  assert.ok(ui.phoneHold && ui.split.hold, 'tutti e due in pausa');
+  const el = holdEl(), seen = new Set();
+  for (let i = 0; i < 40; i++){
+    w.advance(100);
+    const t = el.querySelector('p').textContent;
+    assert.equal(el.querySelector('b').textContent, 'Partita in pausa');
+    assert.match(t, /^Telefono del Player 1 in pausa: .+\nTelefono del Player 2 in pausa: .+$/, t);
+    seen.add(t);
+  }
+  assert.ok(seen.size >= 3, 'il «da quanto» va avanti (ogni secondo)');
+  assert.equal(el.querySelector('button').textContent, 'Ricollega il telefono del Player 1');
+  assert.equal(el.querySelector('[data-hold-second]').textContent, 'Ricollega il telefono del Player 2');
+  assert.equal(el.querySelector('[data-hold-second]').classList.contains('hidden'), false);
+  // il P2 riaccende: conto e ripresa del P2, il riquadro resta per il P1 (e la partita resta in pausa)
+  l2.L.vis = true; w.P2._changed();
+  w.advance(4000);
+  assert.equal(ui.split.hold, null);
+  assert.ok(!el.classList.contains('hidden'), 'il P1 è ancora in pausa: il riquadro resta');
+  assert.equal(el.querySelector('b').textContent, 'Telefono del Player 1 in pausa');
+  assert.equal(el.querySelector('button').textContent, 'Ricollega il telefono');
+  assert.equal(el.querySelector('[data-hold-second]').classList.contains('hidden'), true);
+  assert.equal(E.natpfPaused, true);
+  // il P1 riaccende: niente più riquadro
+  link.L.vis = true; E.natpfPhone._changed();
+  w.advance(4000);
+  assert.ok(el.classList.contains('hidden')); assert.equal(E.natpfPaused, false);
 });

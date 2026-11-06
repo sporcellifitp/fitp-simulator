@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { phoneView, screenOf, PHONE_SCREENS, gateOnCfg, gateOnProgress, gateRestore, gateNav, tutConfirmable, sensorOnGateOpen,
+import { countFlash, phoneView, screenOf, PHONE_SCREENS, gateOnCfg, gateOnProgress, gateRestore, gateNav, tutConfirmable, sensorOnGateOpen,
   sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts } from '../../site/js/tennis/phone-screen.js';
 
 const LINKS = ['off', 'connecting', 'on', 'lost', 'denied'];
@@ -163,4 +163,20 @@ test('pagina del telefono: [hidden] vince sulle regole dei label (riga «Presa»
   // nessuna condizione propria per «ho capito» e per gli strumenti: solo phoneView
   assert.doesNotMatch(JS, /show\('#tutOk'/); assert.doesNotMatch(JS, /show\('#tools'/);
   assert.doesNotMatch(JS, /tutWait/);
+});
+
+// conto alla rovescia dello stesso schermo sul telefono (revisione B9 del 06/11): anello rosso solo per un problema,
+// «Aspetta» premuto sul computer (soft) con l'anello neutro; il velo dopo il ritorno non dice «lo schermo si era spento»
+// (si torna anche da un'altra app)
+test('telefono: conto 3, 2, 1, «Si gioca!»; «Aspetta» dal computer neutro, annullato per un telefono in rosso; velo neutro', () => {
+  assert.deepEqual(countFlash({ n: 3 }), { ring: 'ready', big: 'Si gioca tra', sub: 'Tieni il telefono come in partita.', ms: 1150, arrow: '3', buzz: [25] });
+  assert.deepEqual(countFlash({ n: 0 }), { ring: 'ready', big: 'Si gioca!', sub: '', ms: 1000, arrow: '', buzz: [70] });
+  const held = countFlash({ stop: 1, soft: 1, txt: 'Partenza fermata sul computer.' });
+  assert.equal(held.ring, '', '«Aspetta» sul computer: niente anello rosso'); assert.equal(held.big, 'Aspetta'); assert.equal(held.sub, 'Partenza fermata sul computer.');
+  const ko = countFlash({ stop: 1, txt: 'Conto annullato · Marco: schermo spento' });
+  assert.equal(ko.ring, 'miss', 'un telefono non più pronto: rosso'); assert.match(ko.sub, /Marco: schermo spento/);
+  assert.equal(countFlash({ stop: 1 }).sub, 'Guarda il computer.');
+  assert.equal(countFlash({ stop: 1, txt: 'x'.repeat(300) }).sub.length, 140);
+  assert.match(JS, /countFlash\(d\)/, 'la pagina usa countFlash');
+  assert.doesNotMatch(HTML, /si era spento/); assert.match(HTML, /id="wakeVeilText">Bentornato:/);
 });

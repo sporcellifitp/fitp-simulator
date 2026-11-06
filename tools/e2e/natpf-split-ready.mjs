@@ -105,6 +105,15 @@ try {
   let v = await view(g);
   check('1. due schede con il nome scritto, «In attesa», barra «si parte da soli»', v.p1.name === 'Giulia' && v.p2.name === 'Marco' && v.p1.word === 'In attesa' && v.p2.ready === 'off' && v.bar.mode === 'wait' && /Aspetto Giulia \(inquadra il QR\) e Marco/.test(v.bar.sub), JSON.stringify({ p1: v.p1.word, p2: v.p2.word, bar: v.bar.sub }));
   await shot('1-qr-1280');
+  // ledwall 720×720: i due QR visibili e cliccabili al centro, la barra non li copre (revisione B9 del 06/11: le schede
+  // una sotto l'altra mettevano il QR del Player 2 sotto la barra fissa)
+  await g.evaluate(() => __natpfTennis.natpfUi.screen.restore({ preset: 'full', area: { x: 0, y: 0, w: 720, h: 720 }, margins: {} }));
+  await sleep(700);
+  const qrLed = await g.evaluate(() => ['p1', 'p2'].map(id => { const el = document.getElementById(`split-qr-${id}`), b = el.getBoundingClientRect(), t = document.elementFromPoint(b.left + b.width/2, b.top + b.height/2); return { id, top: Math.round(b.top), bottom: Math.round(b.bottom), center: !!t && el.contains(t), inArea: b.bottom <= 720 && b.top >= 0 }; }));
+  check('   ledwall 720×720: i due QR interi nell\'area e liberi al centro (la barra non copre il QR del Player 2)', qrLed.every(q => q.center && q.inArea), JSON.stringify(qrLed));
+  await shot('1b-qr-ledwall-720');
+  await g.evaluate(() => __natpfTennis.natpfUi.screen.restore({ preset: 'full', area: null, margins: {} }));
+  await sleep(400);
 
   /* 2: telefoni collegati, sensori attivi, tutorial nelle due metà */
   const [u1, u2] = await g.evaluate(() => [__natpfTennis.natpfPhone.pairingUrl, __natpfTennis.natpfPhone2.pairingUrl]);
@@ -176,7 +185,7 @@ try {
   v = await view(g);
   check('   Esc: conto fermato («Aspetta»), si resta nella pagina, «Gioca» nella barra', !v.overlay && v.step === 'connect' && v.cd.held && v.bar.mode === 'held' && v.bar.play && !v.bar.hold, JSON.stringify(v.bar));
   const phHeld = await phoneView(ph1);
-  check('   i telefoni lo sanno («Aspetta»)', phHeld.big === 'Aspetta' && /fermata/.test(phHeld.sub), JSON.stringify(phHeld));
+  check('   i telefoni lo sanno («Aspetta»), con l\'anello neutro (non è un errore)', phHeld.big === 'Aspetta' && /fermata/.test(phHeld.sub) && !/miss/.test(phHeld.ring), JSON.stringify(phHeld));
   await sleep(3500);
   check('   fermo: nessuna partita dopo 3,5 s', !(await view(g)).session);
   await shot('5-aspetta-1280');
@@ -201,6 +210,40 @@ try {
   // «Gioca» nella barra: si parte
   await g.click('#split-ready-bar [data-split-play]');
   check('   «Gioca» nella barra: si gioca', await until(g, () => !!__natpfTennis.natpfSplit?.active, null, 8000));
+
+  /* 5f: «‹ Indietro» dalla pagina «Partita» con tutti e due pronti: il conto non riparte da solo (minore a) */
+  await backToPhones();
+  await until(g, () => !document.getElementById('split-countdown').classList.contains('hidden'), null, 8000);
+  await g.evaluate(() => __natpfTennis.natpfUi.lobby.next());
+  await until(g, () => __natpfTennis.natpfUi.lobby.step === 'match', null, 3000);
+  await sleep(400);
+  await g.click('#lobby-back');
+  await sleep(3800);
+  v = await view(g);
+  check('5f. «‹ Indietro» da «Partita» con i due pronti: nessun conto da solo, «Tutto pronto · Premi «Gioca»»', v.step === 'connect' && !v.overlay && !v.session && v.bar.mode === 'held' && v.bar.play && v.bar.sub === 'Premi «Gioca» quando volete.', JSON.stringify({ step: v.step, bar: v.bar, session: v.session }));
+  await shot('5f-indietro-1280');
+
+  /* 5g: schermo del telefono spento (pagina nascosta) in attesa e durante il conto (bloccante B della revisione) */
+  const hide = (ph, on) => ph.evaluate(on => { Object.defineProperty(document, 'hidden', { get: () => on, configurable: true }); Object.defineProperty(document, 'visibilityState', { get: () => on ? 'hidden' : 'visible', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); }, on);
+  await hide(ph1, true);
+  const koWait = await until(g, () => document.querySelector('[data-split-player="p1"]')?.dataset.ready === 'ko', null, 5000);
+  await sleep(2500);
+  v = await view(g);
+  check('5g. schermo di Giulia spento: scheda «Problema · Schermo spento», nessun conto, nessuna partita', koWait && v.p1.word === 'Problema' && /Schermo del telefono spento/.test(v.p1.status) && !v.overlay && !v.session && /Giulia \(schermo spento\)/.test(v.bar.sub), JSON.stringify({ p1: [v.p1.word, v.p1.status], bar: v.bar.sub, session: v.session }));
+  await shot('5g-schermo-spento-1280');
+  // riacceso: lo stato è cambiato, il conto riparte da solo; durante il conto si spegne quello di Marco
+  await hide(ph1, false);
+  const again2 = await until(g, () => !document.getElementById('split-countdown').classList.contains('hidden'), null, 8000);
+  check('   schermo di Giulia riacceso: «Pronto» e il conto riparte da solo', again2);
+  await hide(ph2, true);
+  const cancelled2 = await until(g, () => document.getElementById('split-ready-bar').dataset.readyBar === 'cancel', null, 5000);
+  v = await view(g);
+  const ph1c = await phoneView(ph1);
+  check('   schermo di Marco spento durante il conto: conto annullato con il motivo, nessuna partita', cancelled2 && !v.overlay && !v.session && /^Conto annullato · Marco: schermo spento/.test(v.bar.title) && v.p2.word === 'Problema' && /Schermo del telefono spento/.test(v.p2.status), JSON.stringify({ bar: v.bar.title, p2: [v.p2.word, v.p2.status], session: v.session }));
+  check('   il telefono di Giulia lo sa, con l\'anello rosso (un problema)', ph1c.big === 'Aspetta' && /Marco: schermo spento/.test(ph1c.sub) && /miss/.test(ph1c.ring), JSON.stringify(ph1c));
+  await shot('5g-annullato-schermo-spento-1280');
+  await hide(ph2, false);
+  check('   schermo di Marco riacceso: il conto riparte e si gioca', await until(g, () => !!__natpfTennis.natpfSplit?.active, null, 12000));
 
   /* 6: telefono che cade durante il conto */
   await backToPhones();

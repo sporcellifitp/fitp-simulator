@@ -744,6 +744,9 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
 .natpf-phone-hold p { margin: 6px 0 0; font-weight: 500; }
 .natpf-phone-hold button { margin-top: 12px; padding: 0.55em 1.2em; border: 0; border-radius: var(--r-pill); background: var(--ball); color: var(--ball-ink); font: 700 1em/1.2 system-ui, sans-serif; cursor: pointer; }
 .natpf-phone-hold button.hidden { display: none; }
+/* due pause insieme (stesso schermo): una riga per telefono, due pulsanti affiancati */
+.natpf-phone-hold.two p { white-space: pre-line; }
+.natpf-phone-hold button + button { margin-left: 8px; }
 
 /* ---------- toast ----------
    Figlio diretto del body (segue l'area): si vede nel menu, in campo, in pausa e sopra la calibrazione (z 300), sotto la
@@ -1106,6 +1109,19 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
   #title-modal .split-player { grid-template-columns: 110px 1fr; }
   #title-modal .split-qr .natpf-qr { width: 110px; height: 110px; }
 }
+/* area stretta ma non da telefono (per esempio un ledwall 720×720): le due schede affiancate e compatte, il QR sopra lo
+   stato, così i due QR stanno nell'area senza scorrere e la barra dell'avvio non ne copre nessuno. Prima le schede una
+   sotto l'altra mettevano il QR del Player 2 sotto la barra fissa (revisione B9 del 06/11) */
+@container natpf (min-width: 600px) and (max-width: 860px) {
+  #title-modal .split-setup { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+  #title-modal .split-player { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "qr" "status" "actions"; gap: 8px; padding: 12px 12px 12px 20px; }
+  #title-modal .split-qr { justify-items: start; }
+  #title-modal .split-qr .natpf-qr { width: clamp(96px, 17cqh, 140px); height: clamp(96px, 17cqh, 140px); }
+  #title-modal .split-who b { font-size: 22px; }
+}
+/* barra dell'avvio fissa in fondo solo quando c'è qualcosa da fare (conto, «Gioca», pannello aperto, conto annullato);
+   mentre si aspettano i telefoni scorre con la pagina e non copre i QR (lo stato è nelle schede) */
+#title-modal .ready-bar[data-ready-bar="wait"] { position: static; }
 /* ---------- stato «pronto» dei giocatori nel 1v1 (natpf_ready.js, B9): stesso schermo e sfida un amico ----------
    Distintivo con icona e parola, mai solo il colore: in attesa (cerchio vuoto, grigio) · si prepara (anello che gira,
    ambra) · pronto (✓, verde pieno con testo scuro) · problema (!, rosso). Misure con cqh/cqw: su un ledwall restano

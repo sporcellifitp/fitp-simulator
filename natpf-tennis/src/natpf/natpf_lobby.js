@@ -158,7 +158,8 @@ export class NatpfLobby {
       mode: this.mode, splitReady: this.mode === 'split' && !!this.ui.split?.bothReady(),
       controller: this.ui.controller,
       phoneConnected: p.connected, phoneReady: p.ready,
-      phoneLinked: p.connected && (L.phone === 'cal' || L.phone === 'ready'),
+      // sensori attivi: calibrazione, pronto, o tutorial sul telefono ('tut': sensori attivi in attesa di «ho capito»)
+      phoneLinked: p.connected && (L.phone === 'cal' || L.phone === 'ready' || L.phone === 'tut'),
       webcamActive: !!mc?.webcamActive,
       // mano vista dal modello o un colpo visto dal movimento (webcam_motion.js)
       handSeen: !!mc?.webcamActive && (performance.now() - (mc.latestHandSeenAt || -1e9) < 600 || performance.now() - (mc.webcamMotionAt ?? -1e9) < 1500),
@@ -340,6 +341,10 @@ export class NatpfLobby {
     if (step === 'menu' && this.step !== 'menu' && (this.mode === 'training' || this.mode === 'challenge')) this.mode = 'cpu';
     // pagina nuova dall'inizio (prima restava lo scorrimento della pagina di prima)
     if (this.step !== step){ const st = this.el.querySelector?.('.lobby-stage'); if (st) st.scrollTop = 0; }
+    // from: la pagina da cui si arriva, pageN: numero della visita (natpf_split_ui: tornando con «‹ Indietro» da «Partita»
+    // il conto non riparte da solo)
+    if (this.step !== step){ this.from = this.step; this.pageN = (this.pageN || 0) + 1; }
+    if (this.step === 'connect' && step !== 'connect') this.releaseTutorial();
     this.step = step; this.el.dataset.step = step; this.el.dataset.flow = this.mode;
     for (const p of this.el.querySelectorAll('[data-page]')) p.classList.toggle('on', p.dataset.page === step);
     if (step !== 'menu') show($('lobby-menu-result'), false);
@@ -350,13 +355,28 @@ export class NatpfLobby {
       // si entra in campo da soli solo quando il controller diventa pronto mentre si è qui (non tornando indietro)
       this.autoFrom = autoAdvance('connect', this.state()) ? 'connect' : null;
       if (this.mode === 'split') this.ui.split?.prepare();
-      else if (this.ui.controller === 'phone') this.ui.phone.start().catch(err => this.ui._warn(`Collegamento non disponibile (${err.message}).`));
+      else if (this.ui.controller === 'phone'){ this.ui.phone.start().catch(err => this.ui._warn(`Collegamento non disponibile (${err.message}).`)); this._prearmTutorial(); }
       if (this.ui.controller === 'webcam' && !this.engine.motionController?.webcamActive) this.ui.startWebcam().then(() => this.paint());
     }
     this.paint();
     requestAnimationFrame(() => (this._tiles().find(t => t.classList.contains('selected')) || this._tiles()[0] || this._primary())?.focus({ preventScroll: true }));
   }
   _primary(){ return this.step === 'match' ? $('btn-start-match') : $('lobby-next'); }
+  // Tutorial da vedere (Allenamento, partita contro la CPU, sfida: dopo «Collega» si entra in campo e la modale del tutorial
+  // si apre, natpf_training.start): il telefono aspetta il tutorial già nella pagina «Collega», così dopo «Attiva i
+  // sensori» passa subito al tutorial. Prima calibrava per ~0,76 s («Preparati») finché la lobby non entrava in campo e il
+  // tutorial non lo fermava (revisione B9 del 06/11, minore f). Si toglie lasciando la pagina senza entrare in campo
+  // (releaseTutorial) o se in campo il tutorial non si apre (natpf_training.start: diagnostica)
+  _prearmTutorial(){
+    const P = this.ui.phone;
+    if (!['training', 'cpu', 'challenge'].includes(this.mode) || !P || P.tutorialSeen || P.tutWait) return;
+    this.tutPrearm = true; P.waitTutorial?.(true);
+  }
+  releaseTutorial(){
+    if (!this.tutPrearm) return;
+    this.tutPrearm = false;
+    if (!this.ui.training?.tutorialOpen) this.ui.phone?.waitTutorial?.(false);
+  }
   paint(){
     const st = this.state(), steps = progressSteps(this.mode), k = steps.findIndex(([id]) => id === this.step);
     const bar = $('lobby-progress');
@@ -503,7 +523,7 @@ export class NatpfLobby {
     // sfida: con il telefono non ancora calibrato prima solo la calibrazione in campo, poi la sfida
     if (this.mode === 'challenge'){
       if (ui.controller === 'phone' && !ui.phone.ready) ui.training.start({ calOnly: true });
-      else ui.events.start(this.challenge);
+      else { this.releaseTutorial(); ui.events.start(this.challenge); }
       return;
     }
     // Allenamento dal menu: tutorial completo, sempre con la lezione su presa e posizione. Riscaldamento prima della

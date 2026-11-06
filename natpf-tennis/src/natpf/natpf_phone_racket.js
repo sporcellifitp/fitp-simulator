@@ -351,9 +351,9 @@ export class NatpfPhoneRacket {
     this.expectSpecial = null;
     this.calListeners = new Set();
     // tutorial prima della calibrazione (richiesta del 04/11): tutWait = il computer chiede al telefono di aspettare
-    // «Tutto chiaro, ho capito»; tutSupported = il telefono ha risposto che lo sa fare (pagina aggiornata); tutV2 = tiene
-    // il pulsante spento fino all'ultima scheda (B9); tutProgress = avanzamento della modale mandato al telefono (tp)
-    this.tutWait = false; this.tutSupported = false; this.tutV2 = false; this.tutProgress = null;
+    // «Tutto chiaro, ho capito»; tutProgress = avanzamento della modale mandato al telefono (tp); tutAnswer = risposta
+    // del telefono «so aspettare» (tut w) in questo abbinamento, da cui tutSupported e tutV2 (getter qui sotto)
+    this.tutWait = false; this.tutAnswer = null; this.tutProgress = null;
     this.tutListeners = new Set(); this.tutNavListeners = new Set();
     // tutorial visto per questo abbinamento del telefono (link.L.pairs): si rivede solo con un abbinamento nuovo (QR), non
     // a ogni ricollegamento (pagina ricaricata, schermo spento, «Ricollega»); tutSaved = dove era arrivata la modale chiusa
@@ -474,12 +474,22 @@ export class NatpfPhoneRacket {
   // configurazione mandata al telefono (a ogni collegamento e quando cambia l'attesa del tutorial). tv 2: il computer manda
   // l'avanzamento (tp) e il telefono tiene «Tutto chiaro» spento fino all'ultima scheda vista
   _cfg(){ return { t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}), ...(this.tutWait ? { tut: 1, tv: 2 } : {}) }; }
-  // il telefono aspetta il tutorial (on) o calibra subito (off); onTutorial: «Tutto chiaro, ho capito» toccato sul telefono
+  // il telefono aspetta il tutorial (on) o calibra subito (off); onTutorial: «Tutto chiaro, ho capito» toccato sul telefono.
+  // Si chiama con false solo quando il tutorial si chiude davvero (visto, saltato, si lascia la pagina): un telefono che
+  // cade a tutorial aperto continua ad aspettare, e al ricollegamento riceve di nuovo cfg con tut e l'avanzamento
+  // (_sendGrip). Prima la pagina «Collega» dello stesso schermo lo chiamava anche alla caduta: il telefono ricollegato
+  // riceveva un cfg senza tut, calibrava da solo e il tutorial si chiudeva come visto (revisione B9 del 06/11)
   waitTutorial(on){
     const v = !!on; if (v === this.tutWait) return;
-    this.tutWait = v; if (!v){ this.tutSupported = false; this.tutV2 = false; this.tutProgress = null; }
+    this.tutWait = v; if (!v) this.tutProgress = null;
     if (this.connected) this.link.send(this._cfg());
   }
+  // la pagina del telefono sa aspettare il tutorial (ha risposto tut w in questo abbinamento) e tiene il pulsante spento
+  // fino all'ultima scheda (v 2). Descrivono la pagina, non l'attesa: valgono finché non cambia l'abbinamento (QR nuovo,
+  // link.L.pairs), anche dopo una chiusura del tutorial o un ricollegamento. Senza risposta (pagina di prima) un passo
+  // della calibrazione chiude la modale (natpf_split_ui._onCal, natpf_training._onCal)
+  get tutSupported(){ return !!this.tutAnswer && this.tutAnswer.pairs === (this.state.pairs || 0); }
+  get tutV2(){ return this.tutSupported && this.tutAnswer.v === 2; }
   onTutorial(fn){ this.tutListeners.add(fn); return () => this.tutListeners.delete(fn); }
   // frecce ‹ › toccate sul telefono (-1 indietro, 1 avanti): chi mostra la modale cambia scheda
   onTutorialNav(fn){ this.tutNavListeners.add(fn); return () => this.tutNavListeners.delete(fn); }
@@ -494,11 +504,11 @@ export class NatpfPhoneRacket {
   // Da un telefono v2 un «ok» prima di aver visto tutte le schede (messaggi incrociati, pagina con lo stato di prima) non
   // chiude la modale: il telefono riceve di nuovo il cancello e l'avanzamento
   _onTut(e){
-    if (e.wait){ this.tutSupported = true; this.tutV2 = e.v === 2; }
+    if (e.wait) this.tutAnswer = { pairs: this.state.pairs || 0, v: e.v === 2 ? 2 : 1 };
     if (e.nav && this.tutWait) for (const fn of this.tutNavListeners) try { fn(e.nav); } catch (err){ console.error(err); }
     if (e.ok){
       if (this.tutWait && this.tutV2 && this.tutProgress && !this.tutProgress.all){ if (this.connected){ this.link.send(this._cfg()); this._sendTp(); } }
-      // (chi mostra la modale la chiude e toglie l'attesa con waitTutorial(false), che pulisce anche lo stato qui)
+      // (chi mostra la modale la chiude e toglie l'attesa con waitTutorial(false), che pulisce anche l'avanzamento)
       else { for (const fn of this.tutListeners) try { fn(e); } catch (err){ console.error(err); } this.tutWait = false; }
     }
     this._changed();

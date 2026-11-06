@@ -15,7 +15,7 @@
 //     lo fermano. Prima la lobby saltava muta a «Partita» dopo 0,7 s, dove serviva comunque «Gioca».
 import { NatpfPhoneRacket } from './natpf_phone_racket.js';
 import { calPrompt } from './natpf_cal_view.js';
-import { createPhoneWatch, createResync, phoneHealthOf, phoneHoldText } from './natpf_phone_watch.js';
+import { createPhoneWatch, createResync, phoneHealthOf, phoneHoldText, WATCH } from './natpf_phone_watch.js';
 import { splitVisible } from './natpf_split.js';
 import { webcamOpenError } from './natpf_webcam_watch.js';
 
@@ -34,6 +34,12 @@ export const splitInputOf = v => (v === 'webcam' ? 'webcam' : 'phones');
 // annullato
 export const SPLIT_COUNTDOWN_MS = READY_COUNTDOWN_MS;
 export const SPLIT_CANCEL_SHOW_MS = 8000;
+// si sta scrivendo un nome: campo del nome attivo e un tasto da meno di così (ms). Solo il campo attivo non basta: dopo
+// aver scritto il nome il cursore resta lì e il conto non partirebbe mai
+export const SPLIT_TYPING_MS = 2500;
+// sensori fermi da così (ms senza dati dal telefono pronto) → la scheda dice «Sensori fermi»: lo stesso tempo della pausa
+// in partita (natpf_phone_watch: sensorGapMs più la tolleranza graceMs), così un pacchetto in ritardo non annulla il conto
+export const SPLIT_STALL_MS = WATCH.sensorGapMs + WATCH.graceMs;
 
 // Stato di un giocatore con la webcam per due (funzione pura): webcam spenta, mano cercata, mano vista
 // (detail: la parte breve, per il distintivo della scheda, natpf_ready.splitSlot)
@@ -49,7 +55,13 @@ const PHONE_ERR = { denied: 'Sensori negati sul telefono: ricarica la pagina e c
 // detail: la parte breve, per il distintivo della scheda (natpf_ready.splitSlot); lost: telefono che c'era e si è perso.
 // tut: tutorial aperto nella metà di questo giocatore ({ i, n }: scheda mostrata e schede). Prima, con il tutorial
 // aperto, la metà diceva «Tocca «Attiva i sensori»» anche con i sensori già attivi (analisi B9 D, §2.2)
-export function splitPlayerStatus(p, hand = 'right', { tut = null } = {}){
+// unseen: telefono collegato che non ha ancora visto il tutorial, con la modale non aperta (si apre nella pagina «Collega»:
+// per esempio dopo il reset del chiosco con il telefono rimasto collegato e la pagina «Partita» aperta). health: salute
+// del telefono (natpf_phone_watch.phoneHealthOf), lo stesso criterio della pausa in partita: un telefono con la pagina
+// nascosta (schermo spento, altra app) o con i sensori fermi non è pronto, anche se il telefono dice «Pronto». Prima la
+// scheda restava «Pronto», il conto partiva e la partita cominciava con un telefono che non poteva giocare (revisione B9
+// del 06/11)
+export function splitPlayerStatus(p, hand = 'right', { tut = null, unseen = false, health = null } = {}){
   const L = p?.state || { state: 'off' };
   if (!p?.link || L.state === 'off' || L.state === 'starting') return { state: 'wait', title: 'Preparo il QR…', sub: '', detail: 'Preparo il QR' };
   if (L.state === 'error') return { state: 'ko', title: 'Collegamento non disponibile', sub: `Controlla la rete e riprova (${L.error || 'errore'})`, detail: 'Collegamento non disponibile' };
@@ -64,6 +76,9 @@ export function splitPlayerStatus(p, hand = 'right', { tut = null } = {}){
     const seen = tp?.n ? `Schede viste ${tp.s} di ${tp.n}` : `Scheda ${i} di ${n}`;
     return { state: 'tut', title: 'Guarda il tutorial', sub: tp?.all ? `${seen} · sul telefono «Tutto chiaro, ho capito»` : `${seen}. Poi sul telefono «Tutto chiaro, ho capito».`, detail: `Tutorial ${i}/${n}` };
   }
+  if (unseen) return { state: 'tut', title: 'Tutorial da vedere', sub: 'Si apre nella pagina dei telefoni («Racchette»)', detail: 'Tutorial da vedere' };
+  if (L.vis === false || health?.why === 'pagina nascosta') return { state: 'ko', title: 'Schermo del telefono spento', sub: 'O la pagina del gioco non è in primo piano: riaccendi lo schermo, torna alla pagina e tocca il telefono', detail: 'Schermo spento' };
+  if (p.ready && health?.why === 'sensori fermi' && !(health.gapMs < SPLIT_STALL_MS)) return { state: 'ko', title: 'Sensori del telefono fermi', sub: 'Sul telefono tocca «Riattiva i sensori» (o riaccendi lo schermo e torna alla pagina)', detail: 'Sensori fermi' };
   if (p.ready) return { state: 'ok', title: 'Pronto ✓', sub: p.simple ? 'Senza calibrazione: si gioca lo stesso' : 'Racchetta calibrata', detail: p.simple ? 'Senza calibrazione' : 'Calibrato' };
   if (L.phone !== 'cal') return { state: 'on', title: 'Tocca «Attiva i sensori»', sub: 'Sul telefono; su iPhone poi «Consenti»', detail: 'Attiva i sensori' };
   const c = calPrompt(p.calView, hand);
@@ -90,18 +105,20 @@ export class NatpfSplitUi {
     // dal proprio telefono; l'animazione 3D (una sola) la ha la prima metà che l'ha chiesta, l'altra foto e indicazioni.
     // Visto una volta per abbinamento del telefono (NatpfPhoneRacket.tutorialSeen, B9): non a ogni ricollegamento, e il P1
     // che l'ha già visto nell'Allenamento non lo rivede qui
-    this.tutOpen = { p1: false, p2: false }; this.demoOwner = null;
+    this.tutOpen = { p1: false, p2: false }; this.tutHeld = { p1: false, p2: false }; this.demoOwner = null;
     this.tut = {};
     for (const id of SPLIT_PLAYERS) this.tut[id] = typeof document !== 'undefined' ? new NatpfTutorial($(`split-tut-${id}`), { half: true, demo: () => getGestureDemo(), canDemo: () => this.demoOwner === id }) : null;
     let saved = 'phones'; try { saved = localStorage.getItem(SPLIT_INPUT_KEY) || 'phones'; } catch {}
     this.input = splitInputOf(saved);
-    // conto alla rovescia prima della partita: left (secondi), running, held («Aspetta»), why (motivo dell'annullamento)
+    // conto alla rovescia prima della partita: left (secondi), running, held («Aspetta»), why (motivo dell'annullamento),
+    // back (tornati con «‹ Indietro» da «Partita» con tutti e due già pronti: si aspetta un cambio o «Gioca», vedi _tickStart)
     this.countdown = createCountdown({ ms: SPLIT_COUNTDOWN_MS });
-    this.cd = { left: 0, running: false, held: false, why: null, whyUntil: 0 };
+    this.cd = { left: 0, running: false, held: false, back: false, why: null, whyUntil: 0 }; this._here = null; this._leftBoth = false;
     const box = document.querySelector('[data-setup="split"]');
     engine.natpfSplitNames = { p1: 'Player 1', p2: 'Player 2' };
     box?.addEventListener('input', e => {
       const id = e.target.dataset.splitName; if (!['p1', 'p2'].includes(id)) return;
+      this._typedAt = performance.now();
       engine.natpfSplitNames[id] = e.target.value.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 24) || (id === 'p1' ? 'Player 1' : 'Player 2');
       for (const el of document.querySelectorAll(`[data-split-tag="${id}"] b`)) el.textContent = engine.natpfSplitNames[id];
       this.paint();
@@ -148,7 +165,7 @@ export class NatpfSplitUi {
   // ognuno intasava il computer (prova del 06/11: il controllo delle schede viste del tutorial arrivava in ritardo)
   // Un cambio vero (collegato, pronto, stato del telefono, tutorial) si ridisegna subito; gli altri messaggi si raggruppano
   _repaint(){
-    const key = SPLIT_PLAYERS.map(id => { const p = this.phone(id); return [!!p?.connected, !!p?.ready, p?.state?.phone, p?.state?.state, this.tutOpen[id]].join(':'); }).join('|');
+    const key = SPLIT_PLAYERS.map(id => { const p = this.phone(id); return [!!p?.connected, !!p?.ready, p?.state?.phone, p?.state?.state, p?.state?.vis, this.tutOpen[id]].join(':'); }).join('|');
     const now = key !== this._repaintKey;
     this._repaintKey = key;
     if (now){ clearTimeout(this._repaintT); this._repaintT = null; this._paintLobby(); return; }
@@ -168,12 +185,12 @@ export class NatpfSplitUi {
     const code = e.code === 'KeyA' ? 'ArrowLeft' : e.code === 'KeyD' ? 'ArrowRight' : e.code;
     return !!this.tut[id]?.key({ code });
   }
-  // webcam per due: pronti quando la camera è accesa e ha visto le mani di entrambi (anche non in questo momento: tra la
-  // pagina «Collega» e «Gioca» si scelgono le impostazioni); altrimenti i due telefoni pronti
-  bothReady(){
-    if (this.webcam){ const mc = this.engine.motionController, d = mc?._duo, now = performance.now(); return !!mc?.webcamActive && !!mc.webcamDuo && !!d && SPLIT_PLAYERS.every(id => d.seen(id, now, Infinity)); }
-    return SPLIT_PLAYERS.every(id => !!this.phone(id)?.ready);
-  }
+  // Si può giocare? Le stesse schede della pagina «Collega» (slot, startGate): decide splitReady della lobby, l'aspetto di
+  // «Gioca» nella pagina «Partita» e natpf_ui._bindStart. Webcam per due: camera accesa in modalità per due che ha visto
+  // le mani di entrambi (anche non in questo momento: tra la pagina «Collega» e «Gioca» si scelgono le impostazioni);
+  // telefoni: pronti, tutorial chiuso, pagina del telefono in primo piano e sensori che arrivano. Prima guardava solo
+  // p.ready: schede «Si prepara» (tutorial aperto) o «Schermo spento» con «Gioca» giallo (revisione B9 del 06/11)
+  bothReady(now = performance.now()){ return startGate(this.slots(now)).both; }
   // due telefoni o una webcam per due: la scelta si ricorda; con la webcam il P1 gioca con la webcam (controller del
   // gioco) in modalità per due, con i telefoni la webcam per due si spegne
   setInput(v){
@@ -211,6 +228,8 @@ export class NatpfSplitUi {
   _onCal(id, e){
     if (!this.session && !(this.ui.lobby?.visible && this.ui.lobby.mode === 'split')) return;
     const p = this.phone(id);
+    // telefono con la pagina di prima (non ha mai risposto tut in questo abbinamento: NatpfPhoneRacket.tutSupported) che
+    // ha cominciato a calibrare da solo: la sua metà si chiude
     if (this.tutOpen[id] && !p.tutSupported && e?.kind === 'step') this._tutDone(id);
     if (e?.kind === 'review'){
       if (e.pass){ this.fails[id] = 0; p.confirm(); }
@@ -225,14 +244,16 @@ export class NatpfSplitUi {
     const L = p.state;
     // telefono collegato: prima il tutorial nella sua metà (una volta per abbinamento); il telefono aspetta «ho capito».
     // Telefono che cade a tutorial aperto: la metà torna al QR e la modale ricorda la scheda raggiunta (stesso telefono
-    // che si ricollega: riparte da lì)
+    // che si ricollega: riparte da lì). Il telefono continua ad aspettare il tutorial (hold: niente waitTutorial(false)),
+    // così al ricollegamento riceve cfg con tut e l'avanzamento, come nell'Allenamento (revisione B9 del 06/11: prima
+    // riceveva un cfg senza tut, calibrava da solo e il tutorial si chiudeva come visto)
     if (p.connected && !p.tutorialSeen && !this.tutOpen[id] && !this.webcam) this._tutOpen(id);
-    if (!p.connected && this.tutOpen[id]) this._tutClose(id, { keep: true });
+    if (!p.connected && this.tutOpen[id]) this._tutClose(id, { keep: true, hold: true });
     if (this.tutOpen[id]){ this.tut[id]?.setAfter(p.ready ? 'ready' : 'cal'); return; }
     if (p.connected && L.phone === 'cal' && !p.ready && !this.calAsked[id] && p.calView?.stage === 'off'){ this.calAsked[id] = true; p.recalibrate(); }
   }
   _tutOpen(id){
-    this.tutOpen[id] = true;
+    this.tutOpen[id] = true; this.tutHeld[id] = false;
     this[`${id}Joins`] = this.phone(id)?.state?.joins || 0;
     if (!this.demoOwner) this.demoOwner = id;
     const p = this.phone(id);
@@ -247,17 +268,24 @@ export class NatpfSplitUi {
     this.phone(id)?.markTutorialSeen?.(); this._tutClose(id);
     this.paint();
   }
-  // keep: chiusa prima della fine (telefono caduto): si ricorda dove era arrivata
-  _tutClose(id, { keep = false } = {}){
-    this.tutOpen[id] = false;
+  // keep: chiusa prima della fine (telefono caduto, si lascia la pagina): si ricorda dove era arrivata. hold: telefono
+  // caduto, la modale si chiude ma il tutorial non è finito: il telefono continua ad aspettarlo (tutHeld; lo libera
+  // closeTutorials se si lascia la pagina prima che torni)
+  _tutClose(id, { keep = false, hold = false } = {}){
+    this.tutOpen[id] = false; this.tutHeld[id] = hold;
     if (keep) this.phone(id)?.saveTutorial?.(this.tut[id]?.snapshot);
-    this.phone(id)?.waitTutorial?.(false);
+    if (!hold) this.phone(id)?.waitTutorial?.(false);
     this.tut[id]?.close('phone');
     // l'animazione 3D passa all'altra metà, se ha il tutorial aperto
     if (this.demoOwner === id){ const other = id === 'p1' ? 'p2' : 'p1'; this.demoOwner = this.tutOpen[other] ? other : null; if (this.demoOwner) this.tut[other]?.paint(); }
   }
   // si esce dalla pagina «Collega» (partita, menu): le modali delle metà si chiudono, i telefoni non aspettano più
-  closeTutorials(){ for (const id of SPLIT_PLAYERS) if (this.tutOpen[id]) this._tutClose(id, { keep: true }); }
+  closeTutorials(){
+    for (const id of SPLIT_PLAYERS){
+      if (this.tutOpen[id]) this._tutClose(id, { keep: true });
+      else if (this.tutHeld[id]){ this.tutHeld[id] = false; this.phone(id)?.waitTutorial?.(false); }
+    }
+  }
   paint(){
     const box = document.querySelector('[data-setup="split"]'), cam = this.webcam, mc = this.engine.motionController, now = performance.now();
     if (box) box.dataset.input = this.input;
@@ -300,19 +328,22 @@ export class NatpfSplitUi {
   // stato del telefono (o della webcam per due) di un giocatore, come lo dice la sua metà
   status(id, now = performance.now()){
     const mc = this.engine.motionController;
-    if (this.webcam) return splitCamStatus({ active: !!mc?.webcamActive, seen: !!mc?._duo?.seen(id, now), error: mc?.webcamActive ? null : webcamOpenError(mc?.webcamError) });
-    return splitPlayerStatus(this.phone(id), this.hand(id), { tut: this.tutOpen[id] ? this.tutInfo(id) : null });
+    // (mano vista solo dalla webcam in modalità per due, come slot e bothReady)
+    if (this.webcam) return splitCamStatus({ active: !!mc?.webcamActive, seen: !!mc?.webcamDuo && !!mc?._duo?.seen(id, now), error: mc?.webcamActive ? null : webcamOpenError(mc?.webcamError) });
+    const p = this.phone(id);
+    return splitPlayerStatus(p, this.hand(id), { tut: this.tutOpen[id] ? this.tutInfo(id) : null, unseen: !!p?.connected && !p.tutorialSeen, health: p?.connected ? phoneHealthOf(p, now) : null });
   }
-  // scheda: con la webcam per due si è pronti da quando la webcam ha visto la mano (come bothReady), anche se adesso è
-  // fuori dall'inquadratura; con il telefono, pronto e tutorial chiuso
+  // scheda: con la webcam per due si è pronti da quando la webcam (accesa in modalità per due) ha visto la mano, anche se
+  // adesso è fuori dall'inquadratura; con il telefono, pronto, tutorial chiuso, pagina in primo piano e sensori vivi
   slot(id, now = performance.now(), st = this.status(id, now)){
     const mc = this.engine.motionController;
-    if (this.webcam && mc?.webcamActive && mc._duo?.seen?.(id, now, Infinity)) return slotView({ id, name: this.name(id), state: 'ready', detail: 'Mano vista' });
+    if (this.webcam && mc?.webcamActive && mc.webcamDuo && mc._duo?.seen?.(id, now, Infinity)) return slotView({ id, name: this.name(id), state: 'ready', detail: 'Mano vista' });
     return slotView({ id, name: this.name(id), ...splitSlot(st) });
   }
   slots(now = performance.now()){ return SPLIT_PLAYERS.map(id => this.slot(id, now)); }
   get countdownRunning(){ return this.cd.running; }
-  // ai telefoni (pagina del telefono: racchetta.js, «ev» con k 'count'): n = 3, 2, 1 e 0 (si gioca), stop con il motivo.
+  // ai telefoni (pagina del telefono: racchetta.js, «ev» con k 'count'): n = 3, 2, 1 e 0 (si gioca), stop con il motivo
+  // (soft: fermato sul computer, anello neutro sul telefono; senza soft un telefono non più pronto, anello rosso).
   // Le pagine del telefono di prima ignorano il messaggio (k sconosciuto): nessun problema di versioni
   _announce(m){
     if (this.webcam) return;
@@ -320,21 +351,31 @@ export class NatpfSplitUi {
   }
   // Ogni 100 ms (tick): nella pagina «Collega» dello stesso schermo, con tutti e due pronti (e il tutorial chiuso) e
   // nessun pannello aperto sopra, conto alla rovescia; a zero si gioca. Un giocatore che non è più pronto lo annulla,
-  // con il motivo nella barra dell'avvio e sui telefoni
+  // con il motivo nella barra dell'avvio e sui telefoni.
+  // Quando parte da solo (revisione B9 del 06/11, minore a): quando i due diventano pronti mentre si è qui, ed entrando
+  // in avanti (menu → «Stesso schermo», dopo una partita) con tutti e due già pronti: scegliere la pagina è l'azione.
+  // Tornando con «‹ Indietro» dalla pagina «Partita» (per cambiare nomi o mano) con tutti e due già pronti NO: «Tutto
+  // pronto · premi «Gioca»» (come «Aspetta»), e riparte da solo solo se lo stato dei telefoni cambia (uno non è più
+  // pronto e poi torna). È la regola della lobby per gli altri modi (natpf_lobby.go, autoFrom: in campo da soli solo se
+  // il controller diventa pronto mentre si è lì). Prima ripartiva subito e il riquadro del conto copriva nomi e mano.
+  // Mentre si scrive un nome il conto non corre: prima la partita poteva partire con il nome a metà
   _tickStart(now = performance.now()){
     const L = this.ui.lobby;
     const here = !!L?.visible && L.mode === 'split' && L.step === 'connect' && !this.session && !this.ui.intro?.active;
     // fuori dalla pagina (anche in partita, dopo che il conto è scattato) il conto torna da capo: tornando qui con tutti
     // e due pronti riparte (prima di questa riga restava «già scattato» e non ripartiva più)
-    if (!here){ if (this.cd.running || this.cd.held || this.cd.why) this._stopCount(this.cd.running ? 'Si scelgono le impostazioni sul computer.' : null); else this.countdown.reset(); return; }
+    if (!here){ this._here = null; if (this.cd.running || this.cd.held || this.cd.back || this.cd.why) this._stopCount(this.cd.running ? 'Si scelgono le impostazioni sul computer.' : null); else this.countdown.reset(); return; }
     const sheet = [...document.querySelectorAll('.natpf-sheet-backdrop')].some(m => !m.classList.contains('hidden'));
-    const blocked = !!L.onboarding?.isOpen || !!this.ui.calibra?.isOpen || sheet;
+    const blocked = !!L.onboarding?.isOpen || !!this.ui.calibra?.isOpen || sheet || this.typing;
     const slots = this.slots(now), gate = startGate(slots);
-    const r = this.countdown.update(gate.both && !this.cd.held && !blocked, now);
+    if (this._here !== L.pageN){ this._here = L.pageN; this.countdown.reset(); this.cd.back = gate.both && L.from === 'match' && this._leftBoth; }
+    else if (!gate.both) this.cd.back = false;
+    this._leftBoth = gate.both;
+    const r = this.countdown.update(gate.both && !this.cd.held && !this.cd.back && !blocked, now);
     const R = this.ui.diag?.recorder;
     if (r.cancelled){
       this.cd.why = gate.both ? null : cancelText(slots); this.cd.whyUntil = now + SPLIT_CANCEL_SHOW_MS;
-      this._announce({ stop: 1, txt: this.cd.why || 'Guarda il computer.' });
+      this._announce({ stop: 1, txt: this.cd.why || 'Guarda il computer.', ...(this.cd.why ? {} : { soft: 1 }) });
       R?.log?.('split.conto', { stato: 'annullato', motivo: this.cd.why || 'pannello aperto' });
     }
     if (r.running && r.left !== this.cd.left){
@@ -349,8 +390,8 @@ export class NatpfSplitUi {
   _stopCount(txt = null){
     const was = this.cd.running;
     this.countdown.reset();
-    this.cd = { left: 0, running: false, held: false, why: null, whyUntil: 0 };
-    if (was && txt) this._announce({ stop: 1, txt });
+    this.cd = { left: 0, running: false, held: false, back: false, why: null, whyUntil: 0 };
+    if (was && txt) this._announce({ stop: 1, soft: 1, txt });
     this._paintStart();
   }
   // «Aspetta» (o Esc): il conto si ferma e non riparte da solo; poi «Gioca» nella barra (this.hold è un'altra cosa: la
@@ -359,14 +400,16 @@ export class NatpfSplitUi {
     const was = this.cd.running;
     this.countdown.reset();
     Object.assign(this.cd, { running: false, left: 0, held: true, why: null });
-    if (was){ this._announce({ stop: 1, txt: 'Partenza fermata sul computer.' }); this.ui.diag?.recorder?.log?.('split.conto', { stato: 'fermato' }); }
+    if (was){ this._announce({ stop: 1, soft: 1, txt: 'Partenza fermata sul computer.' }); this.ui.diag?.recorder?.log?.('split.conto', { stato: 'fermato' }); }
     this._paintStart();
   }
-  playNow(){ this.cd.held = false; this._fire(); }
+  playNow(){ this.cd.held = false; this.cd.back = false; this._fire(); }
+  // si sta scrivendo un nome (campo attivo nella pagina «Collega» e un tasto da poco)
+  get typing(){ return typeof document !== 'undefined' && !!document.activeElement?.matches?.('.split-name-input') && performance.now() - (this._typedAt ?? -1e9) < SPLIT_TYPING_MS; }
   // a zero (o «Gioca» dopo «Aspetta»): lo stesso «Gioca» della pagina «Partita» (natpf_ui._bindStart ricontrolla che
   // tutti e due siano pronti, poi la sessione split e il passaggio al campo)
   _fire(){
-    Object.assign(this.cd, { running: false, left: 0, held: false, why: null });
+    Object.assign(this.cd, { running: false, left: 0, held: false, back: false, why: null });
     this._announce({ n: 0 });
     this.ui.diag?.recorder?.log?.('split.conto', { stato: 'si gioca' });
     const b = $('btn-start-match'); if (b){ b.disabled = false; b.click(); }
@@ -378,6 +421,8 @@ export class NatpfSplitUi {
     let mode = 'wait', title = 'Si parte da soli quando tutti e due i giocatori sono pronti', sub = `${waitingText(gate.waiting)}.`;
     if (cd.running){ mode = 'count'; title = `Tutto pronto: si gioca tra ${cd.left}`; sub = this.webcam ? `${names}, in posizione davanti alla webcam.` : `${names}, tenete il telefono come in partita.`; }
     else if (gate.both && cd.held){ mode = 'held'; title = 'Tutto pronto'; sub = 'Partenza fermata: premi «Gioca» quando volete.'; }
+    else if (gate.both && cd.back){ mode = 'held'; title = 'Tutto pronto'; sub = 'Premi «Gioca» quando volete.'; }
+    else if (gate.both && this.typing){ mode = 'ready'; title = 'Tutto pronto'; sub = 'Si parte quando finisci di scrivere il nome.'; }
     else if (gate.both){ mode = 'ready'; title = 'Tutto pronto'; sub = 'Si parte appena si chiude il pannello aperto.'; }
     else if (cd.why && now < cd.whyUntil){ mode = 'cancel'; title = cd.why; sub = 'Il conto riparte da solo quando tutto è di nuovo pronto.'; }
     const set = (el, t) => { if (el && el.textContent !== t) el.textContent = t; };
@@ -400,9 +445,11 @@ export class NatpfSplitUi {
   }
   // pagina «Partita» dello stesso schermo: le due schede compatte, dal vivo (prima solo «VS» e una nota sotto il piede)
   paintMatch(now = performance.now()){
-    const slots = this.slots(now);
+    const slots = this.slots(now), gate = startGate(slots);
     paintBoard($('split-ready-board'), slots);
-    return { ...startGate(slots), slots };
+    // (uno che non è più pronto mentre si è qui: tornando nella pagina «Collega» lo stato è cambiato, il conto può partire)
+    if (!gate.both) this._leftBoth = false;
+    return { ...gate, slots };
   }
   // «Gioca»: sessione split nel motore, mano del P2 sul suo personaggio
   start(){
@@ -415,7 +462,7 @@ export class NatpfSplitUi {
   end(){
     this.closeTutorials();
     if (!this.session && !this.hold) return;
-    this.engine.endSplit?.(); if (this.hold){ this.hold = null; this.ui._paintHold?.(null); } show($('natpf-split-hud'), false);
+    this.engine.endSplit?.(); if (this.hold){ this.hold = null; this.ui._paintHold?.(null, '', null, 'p2'); } show($('natpf-split-hud'), false);
   }
   // esiti dei colpi (motore → aptica): etichetta della metà di chi ha colpito
   onFeedback(e = {}){
@@ -453,17 +500,17 @@ export class NatpfSplitUi {
     const R = this.ui.diag?.recorder;
     if (inField && this.resync.update(h, { paused: this.watch.state !== 'ok', busy: rally, now }) && p.relink()) R?.log?.('tel.ricollega', { chi: 'p2', motivo: h.why || h.degraded, auto: true });
     // schermo del telefono del P2 spento: il riquadro dice da quanto (ogni secondo)
-    if (!a && this.hold && this.watch.state === 'paused' && p.state.vis === false){ const text = phoneHoldText(p, this.hold.why); if (text !== this.holdShown){ this.holdShown = text; this.ui._paintHold('Telefono del Player 2 in pausa', text, this.ui.relinkAction?.(p, 'Player 2')); } }
+    if (!a && this.hold && this.watch.state === 'paused' && p.state.vis === false){ const text = phoneHoldText(p, this.hold.why); if (text !== this.holdShown){ this.holdShown = text; this.ui._paintHold('Telefono del Player 2 in pausa', text, this.ui.relinkAction?.(p, 'Player 2'), 'p2'); } }
     if (!a) return;
     if (a.kind === 'pause' || a.kind === 'wait'){
       this.hold = { why: a.why };
-      this.ui._paintHold('Telefono del Player 2 in pausa', phoneHoldText(p, a.why), this.ui.relinkAction?.(p, 'Player 2'));
+      this.ui._paintHold('Telefono del Player 2 in pausa', phoneHoldText(p, a.why), this.ui.relinkAction?.(p, 'Player 2'), 'p2');
       R?.log?.('tel.pausa', { chi: 'p2', motivo: a.why, fase: E.phase, ...(h.gapMs ? { gapMs: h.gapMs } : {}), ...(Number.isFinite(p.state.sensorAge) ? { sensoriTelefonoMs: p.state.sensorAge } : {}) });
       if (p.connected){ p.link.send({ t: 'ph', ph: 'pause' }); p.lastPhase = 'pause'; }
     }
-    if (a.kind === 'countdown') this.ui._paintHold('Telefono del Player 2 di nuovo pronto', `Si riprende tra ${a.left}…`);
+    if (a.kind === 'countdown') this.ui._paintHold('Telefono del Player 2 di nuovo pronto', `Si riprende tra ${a.left}…`, null, 'p2');
     if (a.kind === 'resume'){
-      this.hold = null; this.ui._paintHold(null); E.pendingP2Swing = null; E.pendingUserSwing = null; p.lastPhase = null;
+      this.hold = null; this.ui._paintHold(null, '', null, 'p2'); E.pendingP2Swing = null; E.pendingUserSwing = null; p.lastPhase = null;
       const replay = a.replay && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
       if (replay){ E._setupPointServe({ showBanner: false }); this.ui.toast?.('Il telefono del Player 2 si era fermato: il punto si rigioca'); }
       R?.log?.('tel.ripresa', { chi: 'p2', rigiocato: replay });

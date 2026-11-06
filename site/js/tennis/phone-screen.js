@@ -94,6 +94,17 @@ export const sensorForCal = gate => (gate ? 'idle' : 'cal');
 // come sono (un telefono pronto resta «ready» anche durante il tutorial: niente pausa del computer sopra la modale)
 export const reportedSensor = sensor => (sensor === 'off' ? 'sensors' : sensor === 'idle' ? 'tut' : sensor);
 
+// conto alla rovescia dello stesso schermo (messaggio del computer { t:'ev', k:'count' }, natpf_split_ui._announce):
+// n = 3, 2, 1 («Si gioca tra» con il numero, anello verde) e 0 («Si gioca!»); stop = conto fermato o annullato, con il
+// motivo. Anello rosso solo per un problema (un telefono non più pronto); soft = fermato sul computer («Aspetta», si
+// scelgono le impostazioni, pannello aperto): anello neutro, non è un errore (revisione B9 del 06/11, prima sempre rosso)
+export function countFlash(d = {}){
+  if (d.stop) return { ring: d.soft ? '' : 'miss', big: 'Aspetta', sub: String(d.txt || 'Guarda il computer.').slice(0, 140), ms: 2400, arrow: '', buzz: null };
+  const n = Math.round(+d.n || 0);
+  return n > 0 ? { ring: 'ready', big: 'Si gioca tra', sub: 'Tieni il telefono come in partita.', ms: 1150, arrow: String(n), buzz: [25] }
+    : { ring: 'ready', big: 'Si gioca!', sub: '', ms: 1000, arrow: '', buzz: [70] };
+}
+
 // testi della schermata del tutorial sul telefono
 export function tutorialTexts(gate, { sensor = 'idle' } = {}){
   const then = sensor === 'ready' ? 'poi si gioca' : 'poi si calibra';

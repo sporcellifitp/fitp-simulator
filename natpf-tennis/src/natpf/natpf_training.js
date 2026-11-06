@@ -210,6 +210,9 @@ export class NatpfTraining {
     // si rivede solo con un abbinamento nuovo del telefono (QR: può essere un altro giocatore), non quando lo stesso telefono
     // si ricollega (pagina ricaricata, schermo spento, «Ricollega»: B9, prima ricompariva sopra «Pronto»)
     const wantTutorial = ctrl === 'phone' && !diag && !guest && !this.ui.phone?.tutorialSeen;
+    // il telefono aspettava già il tutorial dalla pagina «Collega» (natpf_lobby._prearmTutorial): da qui lo gestisce
+    // l'allenamento; se il tutorial non si apre il telefono smette di aspettarlo e calibra
+    if (this.ui.lobby?.tutPrearm){ this.ui.lobby.tutPrearm = false; if (!wantTutorial) this.ui.phone?.waitTutorial?.(false); }
     this.lesson = !wantTutorial && ctrl !== 'phone' && intro && !guest && !diag && !calOnly && steps.length && !this.introSeen[ctrl] ? { steps, idx: 0 } : null;
     this.live = null;
     const E = this.engine;
@@ -314,7 +317,8 @@ export class NatpfTraining {
   }
   /* ---------- calibrazione in campo ---------- */
   _onCal(e){
-    // telefono con la pagina di prima (non conosce il tutorial): ha cominciato a calibrare da solo, si chiude la modale
+    // telefono con la pagina di prima (non ha mai risposto tut in questo abbinamento: NatpfPhoneRacket.tutSupported): ha
+    // cominciato a calibrare da solo, si chiude la modale
     if (this.active && this.tutorialOpen && !this.ui.phone.tutSupported && e.kind === 'step') this._tutorialDone('phone');
     if (!this.active || this.lesson || this.tutorialOpen) return;       // durante lezione e tutorial la calibrazione non è ancora partita
     if (!this.cal){ if (e.kind !== 'done' && this._phoneRecalibrating()) this._recal(); else return; }
