@@ -376,6 +376,9 @@ function figure(cam, pose, st, H){
   const foreFront = cam.depth(along(.35)) < cam.depth(rig.heel[2].p) - .03;
   // sfumatura dell'avambraccio lungo il suo asse proiettato
   const fadeA = P(along(FOREARM_SHOWN.from)), fadeB = P(along(FOREARM_SHOWN.to));
+  // quanto l'avambraccio si vede di lato (1) o di punta, verso la camera (0): lunghezza proiettata del tratto che sfuma
+  // rispetto a quella che avrebbe di lato alla stessa distanza
+  const sideOn = Math.min(1, Math.hypot(fadeB.x - fadeA.x, fadeB.y - fadeA.y)/Math.max(1, R(along((FOREARM_SHOWN.from + FOREARM_SHOWN.to)/2), ARM.fore*(FOREARM_SHOWN.to - FOREARM_SHOWN.from))));
   // rettangolo occupato (px del dispositivo): gli strati si puliscono e si compongono solo lì
   const m = 4 + st.ow*3, d = st.dpr, Wd = st.layer.width, Hd = st.layer.height;
   const rectOf = (shapes, pts) => {
@@ -391,7 +394,7 @@ function figure(cam, pose, st, H){
   const handRect = rectOf(hand.concat(parts), palmHull.concat(band.hull, corners)), foreRect = rectOf(fore, []);
   const rect = { x: Math.min(handRect.x, foreRect.x), y: Math.min(handRect.y, foreRect.y) };
   rect.w = Math.max(handRect.x + handRect.w, foreRect.x + foreRect.w) - rect.x; rect.h = Math.max(handRect.y + handRect.h, foreRect.y + foreRect.h) - rect.y;
-  return { rig, fore, hand, armSide, parts, band, foreFront, fadeA, fadeB, rect, handRect, foreRect, palmHull };
+  return { rig, fore, hand, armSide, parts, band, foreFront, fadeA, fadeB, sideOn, rect, handRect, foreRect, palmHull };
 }
 function drawShapes(c, shapes, st){
   c.fillStyle = css(LINE, 1);
@@ -431,17 +434,31 @@ function drawBand(l, F, st){
   }
   l.restore();
 }
+// sfumatura dell'avambraccio (destination-out sullo strato): lungo l'asse quando si vede di lato; quando punta verso la
+// camera (fine del servizio e della schiacciata) l'asse proiettato è corto e la sfumatura lineare lascerebbe il fondo
+// dell'avambraccio come un disco: lì si sfuma in tondo attorno al polsino, e il braccio si dissolve verso chi guarda
+function fadeForearm(l, F, st, R){
+  const a = F.fadeA, b = F.fadeB, w = sstep(.3, .6, F.sideOn);
+  l.save(); l.globalCompositeOperation = 'destination-out'; l.setTransform(1, 0, 0, 1, 0, 0);
+  if (w > .01 && Math.hypot(b.x - a.x, b.y - a.y) > .5){
+    const d = st.dpr, g = l.createLinearGradient(a.x*d, a.y*d, b.x*d, b.y*d);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(.55, `rgba(0,0,0,${.7*w})`); g.addColorStop(1, `rgba(0,0,0,${w})`);
+    l.fillStyle = g; l.fillRect(R.x, R.y, R.w, R.h);
+  }
+  if (w < .99){
+    const B = F.band, d = st.dpr, cx = (B.a.x + B.b.x)/2*d, cy = (B.a.y + B.b.y)/2*d, rb = Math.max(B.Ra, B.Rb)*d;
+    const g = l.createRadialGradient(cx, cy, rb*.95, cx, cy, rb*1.8);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${1 - w})`);
+    l.fillStyle = g; l.fillRect(R.x, R.y, R.w, R.h);
+  }
+  l.restore();
+}
 // avambraccio in uno strato proprio, sfumato lungo l'asse (destination-out solo dentro la sua sagoma)
 function drawForearm(c, F, st){
   const L = st.layer, l = L.getContext('2d'), R = F.foreRect;
   l.setTransform(1, 0, 0, 1, 0, 0); l.clearRect(R.x, R.y, R.w, R.h); l.setTransform(st.dpr, 0, 0, st.dpr, 0, 0);
   drawShapes(l, F.fore, st);
-  const a = F.fadeA, b = F.fadeB;
-  if (Math.hypot(b.x - a.x, b.y - a.y) > .5){
-    l.save(); l.globalCompositeOperation = 'destination-out';
-    const g = l.createLinearGradient(a.x, a.y, b.x, b.y); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(.55, 'rgba(0,0,0,.7)'); g.addColorStop(1, 'rgba(0,0,0,1)');
-    l.fillStyle = g; l.setTransform(1, 0, 0, 1, 0, 0); l.fillRect(R.x, R.y, R.w, R.h); l.restore();
-  }
+  fadeForearm(l, F, st, R);
   c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(L, R.x, R.y, R.w, R.h, R.x, R.y, R.w, R.h); c.restore();
 }
 // la figura intera: avambraccio sfumato, mano dietro il telefono (con l'ombra morbida del telefono sulla pelle), polsino,
