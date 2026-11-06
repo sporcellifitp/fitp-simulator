@@ -126,7 +126,16 @@ Come si aggiorna:
   nuova; test gioco 820/820, sito 195/195, build ok, 6 prove nel browser verdi; ZIP provati estratti e consegnati;
   eseguibili dal workflow GitHub `natpf-windows.yml`. Le revisioni tecnica e artistica dell'animazione sono state
   fermate su richiesta dell'utente (consegna urgente).
-- **Prossima azione esatta:** collaudo dell'utente con telefoni veri (tutorial con le frecce, «Tutto chiaro» acceso solo
+- **Richiesta nuova (06/11 sera, dopo la 2026-11-06.3) → blocco B10:** «1. finisci i test che dovevi fare; 2. la voce
+  dice "smash" ma non è realmente quel colpo; 3. la UI sotto per il punteggio dice "game" o "game secco", non si capisce
+  lo score; 4. se gioco 2v2, i nomi dei colpi (es. perfetto!) ostruiscono la visuale del campo». In corso: workflow
+  `natpf-b10-correzioni` (quattro rami in worktree da `3685b0f`: revisioni tecnica e artistica dell'animazione con
+  correzioni, voce «smash», tabellone del punteggio, scritte dei colpi nel 2v2; un revisore per ramo, poi correzioni) e,
+  sulla 2026-11-06.3, le prove nel browser non ancora rifatte (relink, phone-keep, blackout, reconnect, rally, schermo,
+  inquadratura, gesti speciali, diagnostica, webcam, swing-loss, gesture-calibration, arcade, timing).
+- **Prossima azione esatta (B10):** a workflow finito unire i quattro rami, test, prove nel browser, push, versione
+  2026-11-06.4, pacchetti ed eseguibili, riepilogo all'utente.
+- **Prossima azione esatta (prima di B10):** collaudo dell'utente con telefoni veri (tutorial con le frecce, «Tutto chiaro» acceso solo
   alla fine, schermo spento e ripresa, stesso schermo con il conto, animazione nuova); se c'è tempo, rifare la revisione
   tecnica e artistica dell'animazione (script `scratchpad/wf-ramo-c-ripresa.js`, parte «Revisione»: brief in
   `docs/b9/giudizio-animazione.md` §5.6) e le persone vere del §5.6.6.
