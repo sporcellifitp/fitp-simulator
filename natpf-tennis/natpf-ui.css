@@ -1427,7 +1427,7 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
    destra), sopra la pagina «Collega», proporzionato alla metà; le due metà sono indipendenti */
 .natpf-tutorial.half { inset: 0 auto 0 0; width: 50cqw; padding: 2cqh 1cqw; }
 .natpf-tutorial.half[data-side="right"] { inset: 0 0 0 auto; }
-.natpf-tutorial.half .tut-card { --tw: min(42cqw, 96cqh, 900px); height: min(calc(var(--tw) * 1.02), 80cqh); padding: 1.8cqh 1.4cqw; gap: 1.1cqh; }
+.natpf-tutorial.half .tut-card { --tw: min(38cqw, 92cqh, 860px); height: min(calc(var(--tw) * 1.02), 80cqh); padding: 1.8cqh 1.4cqw; gap: 1.1cqh; }
 .natpf-tutorial.half .tut-body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; gap: 1.1cqh; }
 .natpf-tutorial.half .tut-kicker { font-size: clamp(10px, .9cqw, 15px); }
 .natpf-tutorial.half .tut-count { font-size: clamp(11px, 1cqw, 16px); }

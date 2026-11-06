@@ -274,8 +274,8 @@ try {
     const sg = await pc.evaluate(() => { const r = el => { const b = el.getBoundingClientRect(); return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) }; }; return ['p1', 'p2'].map(id => r(document.querySelector(`#split-tut-${id} .tut-card`))); });
     await gshot('stesso-schermo-1280x720', pc);
     await pshot(ph1, '12-stesso-schermo-p1');
-    check('stesso schermo: due modali, ciascuna al centro della sua metà, frecce del P1 muovono solo la sua', h.open.p1 && h.open.p2 && h.idx.p1 === 2 && h.idx.p2 === 0 && s1.gate.i === 2 && s2.gate.i === 0
-      && Math.abs(sg[0].x + sg[0].w/2 - 320) <= 4 && Math.abs(sg[1].x + sg[1].w/2 - 960) <= 4 && sg[0].w <= 640*.9, JSON.stringify({ h, sg }));
+    check('stesso schermo: due modali, ciascuna al centro della sua metà (non a tutta metà), frecce del P1 muovono solo la sua', h.open.p1 && h.open.p2 && h.idx.p1 === 2 && h.idx.p2 === 0 && s1.gate.i === 2 && s2.gate.i === 0
+      && Math.abs(sg[0].x + sg[0].w/2 - 320) <= 4 && Math.abs(sg[1].x + sg[1].w/2 - 960) <= 4 && sg[0].w <= 640*.8 && sg[0].h <= 720*.8, JSON.stringify({ h, sg }));
     await pc.setViewportSize({ width: 1920, height: 1080 }); await pc.waitForTimeout(600);
     await gshot('stesso-schermo-1920x1080', pc);
     await pc.setViewportSize({ width: 1280, height: 720 }); await pc.waitForTimeout(400);

@@ -58,7 +58,7 @@
   #tutNav .btn:disabled{opacity:.35}
   /* di nuovo in primo piano (schermo riacceso): un tocco riprende schermo acceso, sensori e schermo intero */
   #wakeVeil{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;
-    background:rgba(7,18,51,.94);color:var(--ink)}
+    background:radial-gradient(circle at 50% 40%,#12286e,var(--bg) 70%);color:var(--ink)}
   #wakeVeil b{font-size:28px;line-height:1.15} #wakeVeil p{margin:0;font-size:17px;color:var(--muted);max-width:340px;line-height:1.4}
   #wakeVeil .tap{width:84px;height:84px;border-radius:50%;border:4px solid var(--ball);animation:veil-pulse 1.4s ease-in-out infinite}
   @keyframes veil-pulse{50%{transform:scale(1.12);box-shadow:0 0 0 10px rgba(232,255,58,.18)}}
