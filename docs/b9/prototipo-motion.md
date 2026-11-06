@@ -33,4 +33,8 @@
   avvolgono il bordo), manica lunga; (3) dritto ripreso da dietro a sinistra (l'arco si legge «da destra a sinistra»),
   fantasmi solo mano e telefono, etichette fuori dall'arco; (4) prospettiva più piatta (2,2 m), servizio con camera che
   segue la mano; ritorno con superamento e assestamento (verifica sempre verde, ritorno 240 °/s ≤ 250).
-- (in corso) fotogrammi finali, mancino, costo per fotogramma, rapporto.
+- Fotogrammi `pmo-1…6` salvati il 05/11 alle 22:34 (prima versione), poi interruzione.
+- **Ripresa 06/11 (secondo limite d'uso):** verifica rifatta, tutta verde. Difetti visti sui `pmo-*` del 05/11 e da
+  correggere: dita come quattro «salsicciotti» staccati che coprono lo schermo (contraddice «dita sul bordo»), palmo
+  invisibile nella vista «come la vedi tu», servizio con braccio piccolo e telefono di taglio, pallonetto in carica con
+  il telefono ridotto a una linea. (in corso) iterazioni 5–7, costo, rapporto finale.

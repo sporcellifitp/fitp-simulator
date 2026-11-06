@@ -37,4 +37,29 @@
   visti nei fotogrammi del 05/11 sera da correggere: (a) la scia passa davanti allo schermo del telefono all'impatto;
   (b) i fantasmi delle pose sembrano lastre di vetro grandi (soprattutto vicino alla camera nel servizio); (c) banda
   scura in alto nella vista del servizio; (d) pallonetto: mano piccola nel quadro; (e) avambraccio corto che sembra un
-  moncherino nella palla corta. In corso: iterazioni 10+ su questi punti, poi misure e fotogrammi finali.
+  moncherino nella palla corta. Iterazioni della ripresa (fotogrammi in `scratchpad/b9/b9-3d/it10…`):
+  10. riferimento: in più, guardando l'avambraccio di punta (servizio, lancio) si vede un **tubo vuoto** con il buco
+      (l'avambraccio è tagliato dove sfuma e le facce interne non si disegnano).
+  11. scia spostata indietro in profondità di 12 cm lungo il raggio della camera (stessa posizione sullo schermo): il
+      telefono e la mano la coprono, non passa più davanti allo schermo; fantasmi più tenui (0,26) e nascosti con la
+      camera che segue; «tappo» con le facce interne disegnate come superficie convessa → il buco resta (il raggio
+      attraversa tutto il braccio).
+  12. tappo esteso a tutta la parte opaca → niente buco, ma l'estremità sembra un bulbo di vetro con anelli.
+  13. **soluzione adottata**: passata di sola profondità della parte che sfuma *prima* della parte opaca, poi la parte
+      sfumata a colori (solo la superficie più vicina). Di lato: sfumatura pulita; di punta: l'avambraccio si dissolve
+      verso la camera (si vede lo sfondo, niente interno). Restava una cresta sul dorso del polso.
+  14. cresta del polso: nei colpi la deviazione del polso è quasi sempre 24° (massimo), nella posa di legame 6°. Pelle
+      legata con il polso a 15° (piega massima ±12° invece di 18°) e fusione mano/avambraccio su 5 cm invece di 3,6 →
+      polso liscio.
+  15. riga netta tra campo e cielo nel servizio: la nebbia del campo esce già nello spazio d'uscita, il cielo passava
+      dal tone mapping (più scuro). Cielo senza tone mapping → orizzonte continuo. Camera del servizio più laterale
+      (0,95; 0,30; 0,55) perché l'avambraccio sia meno di punta durante il lancio.
+  16. tutti i gesti a 960×540: presa con il titolo sopra il telefono e rotazione che arriva di taglio (il telefono
+      diventa un bastoncino); rovescio in preparazione tagliato dal bordo; pallonetto piccolo e sotto la curva della
+      velocità; all'impatto il fantasma della posa d'impatto coincide con il telefono e lo sbianca.
+  17. inquadratura nella finestra utile (orizzontale ±0,86; verticale da −0,62 a +0,90, sopra la curva della velocità)
+      con gli angoli del telefono tra i punti; presa: rotazione fino a tre quarti e soggetto spostato a destra;
+      fantasmi con opacità propria che si spengono quando il telefono passa per quella posa (±0,16 s).
+  18. un riquadro chiaro sulle dita all'impatto del dritto e del piatto: la testa della scia vista quasi di punta.
+      Testa della scia sfumata negli ultimi 20 ms e spostamento in profondità portato a 20 cm → pulito.
+  In corso: fotogrammi finali (1280×720 e misura della modale 640×400), misure di costo, verifica dei gesti.

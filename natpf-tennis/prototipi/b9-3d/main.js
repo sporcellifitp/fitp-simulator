@@ -52,7 +52,9 @@ scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
 const HORIZON = new THREE.Color(0x2b2026), ZENITH = new THREE.Color(0x070a12);
 scene.fog = new THREE.Fog(HORIZON, 1.8, 7.5);
 const dome = new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), new THREE.ShaderMaterial({
-  side: THREE.BackSide, depthWrite: false, fog: false,
+  // niente tone mapping: la nebbia del campo arriva già nello spazio d'uscita (HORIZON esatto), il cielo deve combaciare
+  // (prima: una riga netta tra campo e cielo, il cielo più scuro)
+  side: THREE.BackSide, depthWrite: false, fog: false, toneMapped: false,
   uniforms: { top: { value: ZENITH }, hor: { value: HORIZON } },
   vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position, 1.); }',
   fragmentShader: 'uniform vec3 top, hor; varying vec3 vP; void main(){ float h = clamp(vP.y*1.15, 0., 1.); gl_FragColor = vec4(mix(hor, top, smoothstep(0., 1., pow(h, .8))), 1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}',
@@ -155,7 +157,9 @@ const ghostGeo = phone.group.children[0].geometry;
 const ghostMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { col: { value: new THREE.Color(0xcfe2ff) }, op: { value: .26 } },
   vertexShader: 'varying vec3 vN, vV; void main(){ vec4 mv = modelViewMatrix*vec4(position, 1.); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }',
   fragmentShader: 'uniform vec3 col; uniform float op; varying vec3 vN, vV; void main(){ float f = pow(1. - abs(dot(normalize(vN), normalize(vV))), 2.2); gl_FragColor = vec4(col, op*(.03 + .97*f)); }' });
-const ghosts = [0, 1, 2].map(() => { const m = new THREE.Mesh(ghostGeo, ghostMat); m.renderOrder = 3; rig.add(m); return m; });
+// un materiale per fantasma: quando il telefono passa per quella posa il suo fantasma si spegne (prima, all'impatto, il
+// fantasma coincideva con il telefono e lo «sbiancava»)
+const ghosts = [0, 1, 2].map(() => { const m = new THREE.Mesh(ghostGeo, ghostMat.clone()); m.renderOrder = 3; rig.add(m); return m; });
 
 const TRAIL_N = 96, TRAIL_WIN = .55, TIP = [0, PHONE.h/2 - .006, 0];
 const trailPos = new Float32Array(TRAIL_N*2*3), trailCol = new Float32Array(TRAIL_N*2*4);
@@ -166,7 +170,7 @@ trailGeo.setAttribute('color', new THREE.BufferAttribute(trailCol, 4));
 // La scia sta dove è passata la cima, quindi spesso DAVANTI al telefono (che si allontana dalla camera): sullo schermo
 // coprirebbe il telefono all'impatto. La sua profondità si sposta indietro di TRAIL_BIAS lungo il raggio della camera
 // (stessa posizione sullo schermo): il telefono e la mano la coprono, come una scia di movimento dietro l'oggetto.
-const TRAIL_BIAS = .12;
+const TRAIL_BIAS = .20;   // 12 cm non bastavano all'impatto del dritto (la cima fa ~16 cm in 20 ms verso la rete)
 const trailMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
 trailMat.onBeforeCompile = sh => {
   sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' +
@@ -241,7 +245,7 @@ const VIEWS = {
   alto: { dir: [.80, .34, .95], fov: 24 },
   // servizio e schiacciata: la mano fa ~1 m in verticale; la camera la segue (media mobile della posizione: nessuno
   // scatto) a distanza fissa, come un operatore
-  segui: { dir: [.85, .30, .90], fov: 24, follow: .25 },
+  segui: { dir: [.95, .30, .55], fov: 24, follow: .25 },
   // dagli occhi di chi gioca (come la foto della presa): l'avambraccio si vede di lato e sfuma fuori quadro
   occhi: { dir: [.10, .95, .62], fov: 22 },
   dietroBasso: { dir: [.40, .28, 1.0], fov: 22 },
@@ -256,24 +260,29 @@ function gesturePoints(id){
   for (let t = 0; t <= T; t += 1/30){
     const P = gesturePose(id, t), st = boneState(bind, P.pos, P.q);
     pts.push(V(P.pos, qrot(P.q, TIP)), V(P.pos, qrot(P.q, TIP), -1), st.arm.W, V(st.arm.W, st.arm.F, -.08));
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) pts.push(V(P.pos, qrot(P.q, [sx*PHONE.w/2, sy*PHONE.h/2, 0])));   // angoli del telefono
   }
   const b = ballPlan(id); if (b) pts.push(b.contact);
   samples.set(id, pts); return pts;
 }
-// inquadratura stretta: distanza minima perché tutti i punti stiano nel campo visivo (margine m), centro ricalcolato
-// sulla proiezione; `lift` sposta il soggetto in alto (spazio per la linea del tempo)
-function fitView(pts, dir, fov, aspect, m = .86, lift = .06){
+// inquadratura stretta: distanza minima perché tutti i punti stiano nella finestra utile dello schermo, centro
+// ricalcolato sulla proiezione. Finestra (coordinate normalizzate −1…1): in orizzontale ±0,86, in verticale da −0,62
+// (sopra la curva della velocità, che occupa il 18% in basso) a +0,90.
+const WIN = { x: .86, yb: -.62, yt: .90 };
+function fitView(pts, dir, fov, aspect){
   const f = norm3(dir.map(x => -x)), r = norm3(cross3(f, [0, 1, 0])), u = cross3(r, f);
   let c = [0, 0, 0]; pts.forEach(p => { c = V(c, p, 1/pts.length); });
-  const tv = Math.tan(fov*Math.PI/360)*m, th = tv*aspect;
+  const t1 = Math.tan(fov*Math.PI/360), my = (WIN.yt - WIN.yb)/2, oy = (WIN.yt + WIN.yb)/2;
+  const tv = t1*my, th = t1*aspect*WIN.x;
   let D = 0;
-  for (let it = 0; it < 3; it++){
+  for (let it = 0; it < 4; it++){
     let xmin = 1e9, xmax = -1e9, ymin = 1e9, ymax = -1e9; D = 0;
     for (const p of pts){ const d = [p[0] - c[0], p[1] - c[1], p[2] - c[2]], x = dot3(d, r), y = dot3(d, u), z = dot3(d, f);
       D = Math.max(D, -z + Math.abs(x)/th, -z + Math.abs(y)/tv); xmin = Math.min(xmin, x); xmax = Math.max(xmax, x); ymin = Math.min(ymin, y); ymax = Math.max(ymax, y); }
     c = V(V(c, r, (xmin + xmax)/2), u, (ymin + ymax)/2);
   }
-  return { c: V(c, u, -lift*D*tv), D };
+  // il centro del soggetto va a oy (sopra il centro dello schermo): la camera guarda un po' più in basso
+  return { c: V(c, u, -oy*D*t1), D };
 }
 const dot3 = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
 const cross3 = (a, b) => [a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0]];
@@ -289,10 +298,15 @@ function placeCamera(t){
     // la camera gira attorno alla mano ferma: dagli occhi di chi gioca (come la foto della presa) a di lato, e ritorno
     const P = gesturePose('ready', 0); c = V(P.pos, [.01, -.02, .03]);
     const u = (Math.sin(2*Math.PI*t/9 - Math.PI/2) + 1)/2, e = u*u*(3 - 2*u);
-    const a0 = Math.atan2(.10, .62), a1 = Math.atan2(1, -.25), a = a0 + (a1 - a0)*e;
-    dir = [Math.sin(a), .95 - .6*e, Math.cos(a)]; fov = 22; dist = .80;
+    // fino a tre quarti (prima arrivava di lato, con il telefono di taglio: la presa non si leggeva più)
+    const a0 = Math.atan2(.10, .62), a1 = Math.atan2(1, .55), a = a0 + (a1 - a0)*e;
+    dir = [Math.sin(a), .95 - .45*e, Math.cos(a)]; fov = 22; dist = .80;
+    // soggetto un po' a destra e in basso: in alto a sinistra c'è il titolo
+    const fw = norm3(dir.map(x => -x)), rw = norm3(cross3(fw, [0, 1, 0])), uw = cross3(rw, fw);
+    c = V(V(c, rw, -.045), uw, .012);
   } else {
-    const v = qs.has('dir') ? { dir: qs.get('dir').split(',').map(Number), fov: Number(qs.get('fov')) || 22 } : (VIEWS[viewName] || VIEWS.dietro);
+    const v0 = VIEWS[viewName] || VIEWS.dietro;
+    const v = qs.has('dir') ? { ...v0, dir: qs.get('dir').split(',').map(Number), fov: Number(qs.get('fov')) || v0.fov, follow: qs.has('follow') ? Number(qs.get('follow')) : v0.follow } : v0;
     fov = v.fov;
     const drift = state.tFixed != null ? 0 : .05*Math.sin(2*Math.PI*t/11);
     const a = Math.atan2(v.dir[0], v.dir[2]) + drift, hz = Math.hypot(v.dir[0], v.dir[2]);
@@ -347,7 +361,9 @@ function applyPose(t){
     const w = .016*(.15 + .85*k)*(.35 + .65*sp);
     const A = V(pts[j], s, w), B = V(pts[j], s, -w);
     trailPos.set(A, j*6); trailPos.set(B, j*6 + 3);
-    const al = Math.pow(k, 1.3)*sp, col = [1, .66 + .26*k*k, .18 + .45*k*k];
+    // la testa della scia (ultimi 20 ms) sfuma: vicino al telefono il nastro si vede quasi di punta (moto verso la
+    // camera o via da essa) e diventava un riquadro chiaro sopra le dita
+    const head = Math.min(1, (1 - k)*TRAIL_WIN/.02), al = Math.pow(k, 1.3)*sp*head*head*(3 - 2*head), col = [1, .66 + .26*k*k, .18 + .45*k*k];
     trailCol.set([...col, al], j*8); trailCol.set([...col, al], j*8 + 4);
   }
   trailGeo.attributes.position.needsUpdate = true; trailGeo.attributes.color.needsUpdate = true;
@@ -359,6 +375,9 @@ function applyPose(t){
     g.visible = i < keys.length && !p.still && !follow;
     if (!g.visible) return;
     const Q = gesturePose(id, keys[i]); g.position.set(Q.pos[0], Q.pos[1], Q.pos[2]); g.quaternion.set(Q.q[0], Q.q[1], Q.q[2], Q.q[3]);
+    const near = Math.min(1, Math.abs(t - keys[i])/.16);
+    g.material.uniforms.op.value = .26*near*near*(3 - 2*near);
+    g.visible = near > .02;
   });
   // palla
   const b = ballAt(id, t);
