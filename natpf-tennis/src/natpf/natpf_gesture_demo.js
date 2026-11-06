@@ -739,7 +739,7 @@ export class NatpfGestureDemo {
   // fantasma: sagoma a contorno disegnata una volta per scheda e misura e poi copiata; con la camera che segue (che si
   // sposta senza girare né cambiare focale) la copia si sposta di quanto si sposta la proiezione del telefono
   _ghost(c, cam, g, H_){
-    const st = this.st, key = `${g.i}`;
+    const st = this.st, key = `${this.grip}|${g.i}`;
     const kp = this._keyPose(g.k), pose = this.hand === 'left' ? { pos: mirrorPos(kp.pos), q: mirrorQ(kp.q) } : kp;
     let cached = this._ghosts.get(key);
     if (!cached){

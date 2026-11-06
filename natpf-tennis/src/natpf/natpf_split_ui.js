@@ -102,12 +102,12 @@ export class NatpfSplitUi {
     this.labels = { p1: null, p2: null };     // esito dell'ultimo colpo { text, until }
     this.watch = createPhoneWatch(); this.hold = null; this.resync = createResync();
     // tutorial di ciascun giocatore nella sua metà della pagina «Collega» (richiesta del 04/11): indipendenti, si chiudono
-    // dal proprio telefono; l'animazione 3D (una sola) la ha la prima metà che l'ha chiesta, l'altra foto e indicazioni.
+    // dal proprio telefono; ciascuna con la sua animazione dei gesti (Canvas 2D, niente WebGL: getGestureDemo(p1/p2), B9).
     // Visto una volta per abbinamento del telefono (NatpfPhoneRacket.tutorialSeen, B9): non a ogni ricollegamento, e il P1
     // che l'ha già visto nell'Allenamento non lo rivede qui
-    this.tutOpen = { p1: false, p2: false }; this.tutHeld = { p1: false, p2: false }; this.demoOwner = null;
+    this.tutOpen = { p1: false, p2: false }; this.tutHeld = { p1: false, p2: false };
     this.tut = {};
-    for (const id of SPLIT_PLAYERS) this.tut[id] = typeof document !== 'undefined' ? new NatpfTutorial($(`split-tut-${id}`), { half: true, demo: () => getGestureDemo(), canDemo: () => this.demoOwner === id }) : null;
+    for (const id of SPLIT_PLAYERS) this.tut[id] = typeof document !== 'undefined' ? new NatpfTutorial($(`split-tut-${id}`), { half: true, demo: () => getGestureDemo(id) }) : null;
     let saved = 'phones'; try { saved = localStorage.getItem(SPLIT_INPUT_KEY) || 'phones'; } catch {}
     this.input = splitInputOf(saved);
     // conto alla rovescia prima della partita: left (secondi), running, held («Aspetta»), why (motivo dell'annullamento),
@@ -255,7 +255,6 @@ export class NatpfSplitUi {
   _tutOpen(id){
     this.tutOpen[id] = true; this.tutHeld[id] = false;
     this[`${id}Joins`] = this.phone(id)?.state?.joins || 0;
-    if (!this.demoOwner) this.demoOwner = id;
     const p = this.phone(id);
     p.waitTutorial?.(true);
     const name = this.engine.natpfSplitNames?.[id] || (id === 'p1' ? 'Player 1' : 'Player 2');
@@ -276,8 +275,6 @@ export class NatpfSplitUi {
     if (keep) this.phone(id)?.saveTutorial?.(this.tut[id]?.snapshot);
     if (!hold) this.phone(id)?.waitTutorial?.(false);
     this.tut[id]?.close('phone');
-    // l'animazione 3D passa all'altra metà, se ha il tutorial aperto
-    if (this.demoOwner === id){ const other = id === 'p1' ? 'p2' : 'p1'; this.demoOwner = this.tutOpen[other] ? other : null; if (this.demoOwner) this.tut[other]?.paint(); }
   }
   // si esce dalla pagina «Collega» (partita, menu): le modali delle metà si chiudono, i telefoni non aspettano più
   closeTutorials(){

@@ -40,7 +40,7 @@ await p.evaluate(async () => {
     .gesture-demo-canvas { display: block; width: 100%; height: 100%; }</style></head><body><div id="st"></div></body>`;
   await Promise.all(['800 italic 20px "Barlow Condensed"', '500 12px Barlow', '600 12px Barlow', '700 12px Barlow'].map(f => document.fonts.load(f)));
   const D = await import('/src/natpf/natpf_gesture_demo.js'), GP = await import('/src/natpf/natpf_gesture_pose.js');
-  window.__D = D; window.__GP = GP;
+  window.__D = D; window.__GP = GP; window.__GRIP = new D.NatpfGestureDemo().grip;
 });
 check('modulo dell\'animazione caricato senza errori', errs.length === 0, errs.join(' | '));
 
@@ -89,7 +89,7 @@ async function sheet(name, rows, W, H, scale = 1){
     const o = out.getContext('2d'); o.fillStyle = '#0b0f1a'; o.fillRect(0, 0, out.width, out.height);
     st.style.width = W + 'px'; st.style.height = H + 'px'; d.mount(st); d.setSize(W, H);
     rows.forEach((r, i) => {
-      d.play(r.id, { hand: r.hand || 'right' });
+      d.grip = r.grip || window.__GRIP; d.play(r.id, { hand: r.hand || 'right' });
       r.moments.forEach(([t, txt], j) => {
         d.show(t, { rate: 1 });
         const x = 6 + j*(cellW + 6), y = 6 + i*(cellH + cap + 6);
@@ -167,7 +167,7 @@ if (!process.env.NOFOGLI){
     await sheet(`${nm}-1-colpi`, ['forehand', 'backhand', 'flat', 'slice'].map(id => row(id, 'right', pickS)), W, H, sc);
     await sheet(`${nm}-2-colpi`, ['lob', 'drop', 'smash', 'volley'].map(id => row(id, 'right', pickS)), W, H, sc);
     await sheet(`${nm}-3-servizio-presa`, [row('serve', 'right', pickV ? [1, 3, 4] : null), row('grip'), row('ready'), row('cross', 'right', [0, 2, 3]), row('line', 'right', [0, 2, 3])], W, H, sc);
-    await sheet(`${nm}-4-mancino`, [row('forehand', 'left', [0, 2, 3]), row('serve', 'left', [1, 3, 4]), row('grip', 'left', [0, 1])], W, H, sc);
+    await sheet(`${nm}-4-mancino-martello`, [row('forehand', 'left', [0, 2, 3]), row('serve', 'left', [1, 3, 4]), row('grip', 'left', [0, 1]), { ...row('grip', 'right', [0, 1]), grip: 'martello', title: 'Presa a martello (rollback)' }, { ...row('forehand', 'right', [0, 2, 3]), grip: 'martello', title: 'Dritto a martello (rollback)' }], W, H, sc);
   }
 }
 

@@ -163,13 +163,15 @@ test('stesso schermo dal menu alla partita: due telefoni, calibrazione automatic
   assert.ok(ui.split.tut.p1.open && ui.split.tut.p2.open);
   assert.ok(E.natpfPhone.tutWait && P2.tutWait, 'i due telefoni aspettano');
   assert.ok(!w.link.cmds.includes('cal') && !l2.cmds.includes('cal'), 'nessuna calibrazione prima di «ho capito»');
-  assert.equal(ui.split.demoOwner, 'p1', 'animazione 3D a una sola metà');
+  // ciascuna metà ha la sua animazione (Canvas 2D, B9 ramo C): niente più «animazione a una sola metà»
+  assert.notEqual(ui.split.tut.p1.demo(), ui.split.tut.p2.demo(), 'un\'animazione per metà');
+  assert.equal(ui.split.demoOwner, undefined);
   // «Tutto chiaro, ho capito» sul telefono del P1: si chiude solo la sua metà e parte solo la sua calibrazione
   for (const fn of E.natpfPhone.tutListeners) fn({ ok: true });
   ui.split.paint();
   assert.ok(!ui.split.tutOpen.p1 && ui.split.tutOpen.p2, 'il P2 continua il suo tutorial');
   assert.ok(w.link.cmds.includes('cal'), 'calibrazione chiesta al P1'); assert.ok(!l2.cmds.includes('cal'), 'il P2 non è disturbato');
-  assert.equal(ui.split.demoOwner, 'p2', 'l\'animazione 3D passa al P2');
+  assert.ok(ui.split.tut.p2.open && ui.split.tut.p2.demo() === ui.split.tut.p2.demo(), 'il P2 tiene la sua animazione');
   for (const fn of P2.tutListeners) fn({ ok: true });
   ui.split.paint();
   assert.ok(!ui.split.tutOpen.p2 && !P2.tutWait); assert.ok(l2.cmds.includes('cal'), 'calibrazione chiesta al P2');

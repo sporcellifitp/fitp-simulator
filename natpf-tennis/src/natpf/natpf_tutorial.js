@@ -4,11 +4,13 @@
 // vista dopo TUTORIAL.seenMs che è a schermo. Si chiude dal telefono con «Tutto chiaro, ho capito», che sul telefono si
 // accende solo quando tutte le schede sono state viste (l'avanzamento va al telefono con onProgress →
 // natpf_phone_racket.tutorialProgress, messaggio «tp»); sul computer solo Esc per chi gestisce la postazione.
-// Più istanze possibili (una per metà dello schermo nel 1v1 sullo stesso schermo): l'animazione 3D è una sola
-// (getGestureDemo, un contesto WebGL) e la usa l'istanza che può (canDemo); le altre mostrano foto e indicazioni.
+// Più istanze possibili (una per metà dello schermo nel 1v1 sullo stesso schermo), ciascuna con la sua animazione dei
+// gesti (natpf_gesture_demo.js, Canvas 2D: niente WebGL, B9 ramo C). Senza canvas (test) foto e indicazioni.
 // L'animazione sta in un riquadro 16:10 (.tut-stage dentro .tut-frame): mount/setSize/play come prima, setSize di nuovo
 // quando il riquadro cambia misura (ResizeObserver dove c'è).
-// Gesti e indicazioni da natpf_gesture_motion.js, gli stessi verificati con il rilevatore vero (test natpf-gesture-demo).
+// Gesti e indicazioni da natpf_gesture_motion.js; la posa disegnata è natpf_gesture_pose.gesturePose, la stessa che il
+// telefono simulato riconosce (test natpf-gesture-pose e natpf-gesture-anim). Velocità 'auto': primo ciclo a tempo reale,
+// poi ×0,5 «Rallentato» e tempo reale alternati (brief §5.4).
 import { GESTURES } from './natpf_gesture_motion.js';
 import { PHOTOS } from './natpf_media.js';
 import { GRIP } from '@natpf/tennis/grip-art.js';
@@ -64,10 +66,9 @@ const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 
 export class NatpfTutorial {
   // root: elemento che contiene la modale (vuoto); demo: () => getGestureDemo() (iniettato: niente three.js nei test)
-  // half: istanza in una metà dello schermo (1v1 sullo stesso schermo); canDemo: se questa istanza può usare
-  // l'animazione 3D adesso (una sola per tutte); senza, foto e indicazioni
-  constructor(root, { demo = null, clock = () => performance.now(), half = false, canDemo = () => true } = {}){
-    this.root = root; this.demo = demo; this.clock = clock; this.canDemo = canDemo; this.half = half;
+  // half: istanza in una metà dello schermo (1v1 sullo stesso schermo)
+  constructor(root, { demo = null, clock = () => performance.now(), half = false } = {}){
+    this.root = root; this.demo = demo; this.clock = clock; this.half = half;
     this.open = false; this.state = null; this.timer = null; this.opts = {}; this.demoOn = false; this.paintKey = '';
     if (!root) return;
     root.classList.add('natpf-tutorial', 'hidden'); if (half) root.classList.add('half');
@@ -160,7 +161,7 @@ export class NatpfTutorial {
     if (!this.open || !this.root) return;
     this.paintNav();
     const c = this.card, $ = s => this.root.querySelector(s), hand = this.opts.hand || 'right';
-    const d = this.canDemo() ? this.demo?.() : null;
+    const d = this.demo?.() || null;
     // scheda già disegnata con la stessa animazione: niente da rifare (il gesto non riparte da capo)
     const key = `${this.state.idx}|${hand}|${d ? 1 : 0}`;
     if (key === this.paintKey) return;
@@ -181,9 +182,9 @@ export class NatpfTutorial {
     if (!d){ this.demoOn = false; return; }
     if (stage){
       d.mount(stage);
-      // (l'animazione è una sola: un'altra istanza o il riquadro degli esercizi può averle dato un'altra misura)
+      // (misura del riquadro di questa modale: la scheda nuova riparte da capo)
       this.demoOn = true; this.fitW = this.fitH = null; this._fit();
-      d.play(c.photo ? 'grip' : c.id, { hand, speed: GESTURES[c.photo ? 'grip' : c.id]?.still ? 1 : .6 });
+      d.play(c.photo ? 'grip' : c.id, { hand, speed: GESTURES[c.photo ? 'grip' : c.id]?.still ? 1 : 'auto' });
       stage.classList.toggle('no-webgl', !d.available);
     }
   }

@@ -161,7 +161,7 @@ export class NatpfTraining {
     // («Tutto chiaro, ho capito», acceso sul telefono dopo l'ultima scheda vista); una volta per abbinamento del telefono
     // (NatpfPhoneRacket.tutorialSeen: non a ogni ricollegamento), «Rivedi i gesti» sempre disponibile
     this.tutorialOpen = false;
-    this.tutorial = typeof document !== 'undefined' ? new NatpfTutorial(document.getElementById('natpf-tutorial'), { demo: () => getGestureDemo() }) : null;
+    this.tutorial = typeof document !== 'undefined' ? new NatpfTutorial(document.getElementById('natpf-tutorial'), { demo: () => getGestureDemo('main') }) : null;
     ui.phone?.onTutorial?.(() => this._tutorialDone('phone'));
     // frecce ‹ › toccate sul telefono
     ui.phone?.onTutorialNav?.(d => { if (this.tutorialOpen) this.tutorial?.step(d); });
@@ -537,7 +537,7 @@ export class NatpfTraining {
     // modale chiusa prima della fine: con lo stesso telefono si riprende dalla scheda raggiunta
     if (this.tutorialOpen){ this.tutorialOpen = false; this.ui.phone.saveTutorial?.(this.tutorial?.snapshot); this.ui.phone.waitTutorial?.(false); this.tutorial?.close('skip'); }
     this.active = false; this.cal = null; this.lesson = null; this.live = null; E.natpfTimeScale = 1; clearTimeout(this.retryT);
-    if (this.demoOn){ getGestureDemo().stop(); this.demoOn = false; }
+    if (this.demoOn){ getGestureDemo('coach').stop(); this.demoOn = false; }
     if (E.audioEngine?.musicContext === 'training') E.audioEngine.musicContext = null;
     this.coach?.classList.add('hidden'); this._hideOpponent(false);
     E.opponent.pos.set(-1.35, 0, -11.89); E.opponent.targetPos.copy(E.opponent.pos);
@@ -650,7 +650,7 @@ export class NatpfTraining {
   // canvas WebGL che si sposta tra i due riquadri; per i mancini le foto sono specchiate. Le clip video generate dei
   // colpi sono state tolte il 28/10 su richiesta dell'utente (pose e oggetto in mano non credibili).
   _paintDemo($, lost, hand){
-    if (this.tutorial?.open) return;           // l'animazione 3D (una sola) ce l'ha la modale del tutorial
+    if (this.tutorial?.open) return;           // la modale del tutorial copre il gioco: il riquadro aspetta che si chiuda
     const phone = this.ui.controller === 'phone';
     const step = this.lesson?.steps[this.lesson.idx];
     let id = null;
@@ -673,8 +673,8 @@ export class NatpfTraining {
           + (photos.no ? `<figcaption class="lesson-no"><img src="${photos.no.src}" alt="${photos.no.alt}" /><b>Così no</b></figcaption>` : '');
       }
     }
-    const demo = id && !photos ? getGestureDemo() : null;
-    if (!demo){ this.demoOn && getGestureDemo().stop(); this.demoOn = false; return; }
+    const demo = id && !photos ? getGestureDemo('coach') : null;
+    if (!demo){ this.demoOn && getGestureDemo('coach').stop(); this.demoOn = false; return; }
     const g = GESTURES[id];
     demo.mount(step ? big : $('#coach-demo-stage'));
     if (demo.available) demo.setSize(step ? 300 : 200, step ? 300 : 200);
