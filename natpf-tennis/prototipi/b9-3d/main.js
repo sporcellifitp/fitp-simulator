@@ -441,6 +441,7 @@ let t0 = performance.now(), ready = false;
 const MEASURE = Number(qs.get('misura')) || 0;
 const phaseEl = document.getElementById('phase');
 const perf = { frames: 0, cpu: 0, gpu: 0 };
+const PX = new Uint8Array(4);
 function frame(now){
   const T = cycleOf(state.id);
   const t = state.tFixed != null ? state.tFixed : ((now - t0)/1000*state.slow) % T;
@@ -449,13 +450,15 @@ function frame(now){
   const P = applyPose(t);
   const b = performance.now();
   renderer.render(scene, camera);
-  if (state.tFixed != null || MEASURE){ renderer.getContext().finish(); }
+  // misura: gl.finish() in Chromium non aspetta il processo della GPU (1,6 ms a qualunque risoluzione, non credibile);
+  // la lettura di un pixel sì (aspetta che il fotogramma sia davvero disegnato)
+  if (state.tFixed != null || MEASURE){ const gl = renderer.getContext(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, PX); }
   const c = performance.now();
   perf.frames++; perf.cpu += b - a; perf.gpu += c - b;
   const ph = PHASES[P.phase] || '';
   phaseEl.textContent = planFor(state.id).still ? '' : ph; phaseEl.classList.toggle('hit', P.phase === 'impatto');
   drawTimeline(t);
-  if (MEASURE && perf.frames === 6){ perf.frames = 0; perf.cpu = 0; perf.gpu = 0; }        // esclude la compilazione degli shader
+  if (MEASURE && !perf.warm && perf.frames === 6){ perf.warm = true; perf.frames = 0; perf.cpu = 0; perf.gpu = 0; }   // esclude la compilazione degli shader
   if (MEASURE && perf.frames >= MEASURE){ window.__p3d = { ready: true, perf: { posaMs: perf.cpu/perf.frames, renderMs: perf.gpu/perf.frames, frames: perf.frames }, skin: skinStats, info: renderer.info.render, size: [canvas.width, canvas.height] }; return; }
   if (MEASURE){ state.tFixed = ((state.tFixed ?? 0) + 1/60) % T; requestAnimationFrame(frame); return; }
   if (state.tFixed == null || perf.frames < 3) requestAnimationFrame(frame);

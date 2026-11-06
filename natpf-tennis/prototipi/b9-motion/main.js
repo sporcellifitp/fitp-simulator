@@ -22,19 +22,21 @@ const CARDS = [
 // direzione camera ← soggetto (campo: x a destra, y in alto, +z dietro chi gioca); la presa alterna due viste
 // Le viste sono quasi perpendicolari all'avambraccio (che con q0 va indietro e a destra, verso il corpo): il braccio esce
 // di lato dal quadro invece di puntare verso chi guarda. Colpi orizzontali: dall'alto e da dietro (l'arco si vede intero);
-// colpi nel piano verticale: di lato, un poco da davanti (si vede il palmo sotto il telefono).
+// colpi nel piano verticale: servizio di profilo (archi del lancio e della battuta interi), pallonetto di lato e dall'alto
+// (lo schermo che guarda il cielo si vede anche in carica), palla corta da dietro a destra (lo schermo e la mano che
+// scende; la palla resta oltre il telefono e non copre la mano).
 let VIEWS = {
-  grip: [[-.36, .78, .5], [.7, .3, -.65]],
+  grip: [[-.36, .78, .5], [.95, .3, -.12]],
   forehand: [[-.35, .62, 1]],
   backhand: [[.35, .62, 1]],
-  serve: [[1, .14, -.3]],
-  lob: [[1, .2, -.6]],
-  drop: [[1, .25, -.6]],
+  serve: [[1, .2, .25]],
+  lob: [[1, .5, -.35]],
+  drop: [[.75, .55, .6]],
 };
 let DIST = { grip: 1.0 };                          // distanza della camera (m): prospettiva moderata (2,2 m per i colpi)
 // servizio: il moto copre ~1 m in verticale; la camera segue la mano (media mobile di 0,9 s, ingrandimento fisso su
 // 0,5 m): carrellata morbida come in una guida animata, la mano resta grande
-const FOLLOW = { serve: .5 };
+let FOLLOW = { serve: .45 };
 const HUD_H = .2;                                   // parte bassa dello stadio riservata alla curva della velocità
 
 /* ---------- colori e luce dipinta ---------- */
@@ -250,17 +252,25 @@ function figure(cam, pose, short = false){
     const f = rig.fingers[i], k = norm(cross(norm(fd.dir), HAND.palmN));
     let ang = (fd.flex[0] + fd.flex[1])*Math.PI/180;
     for (let s = 1; s < 3; s++){
-      const A = f.pts[s], B = f.pts[s + 1], part = cap(A, B, f.r[s], f.r[s + 1], MAT.skin, { kind: 'finger' });
+      const A = f.pts[s], B = f.pts[s + 1], part = cap(A, B, f.r[s], f.r[s + 1], MAT.skin, { kind: 'finger', group: 'f' + i });
       if (s === 2){ ang += fd.flex[2]*Math.PI/180; const dl = qrot(pose.q, rotLocal([0, 0, -1], k, ang)); part.nail = nailOf(A, B, f.r[3], dl); }
       part.side = sideOf(mul(add(A, B), .5)); parts.push(part);
     }
   });
   for (let s = 1; s < 3; s++){
-    const t = rig.thumb, A = t.pts[s], B = t.pts[s + 1], part = cap(A, B, t.r[s], t.r[s + 1], MAT.skin, { kind: 'thumb' });
+    const t = rig.thumb, A = t.pts[s], B = t.pts[s + 1], part = cap(A, B, t.r[s], t.r[s + 1], MAT.skin, { kind: 'thumb', group: 'thumb' });
     if (s === 2) part.nail = nailOf(A, B, t.r[3], qrot(pose.q, [.25, 0, 1]));   // il dorso del pollice guarda il lato dello schermo
     part.side = sideOf(mul(add(A, B), .5)); parts.push(part);
   }
-  const band = { a: P(along(BAND.from)), b: P(along(BAND.to)), Ra: R(along(BAND.from), rAt(BAND.from) + .003), Rb: R(along(BAND.to), rAt(BAND.to) + .003) };
+  // polsino: un cilindro corto (inviluppo dei due anelli di sezione proiettati), non una capsula: bordi diritti, l'orlo
+  // visibile come ellisse, la riga colorata lungo la sezione di mezzo (solo la metà rivolta alla camera)
+  const ax = norm(sub(rig.E, rig.W)), e1 = norm(cross(ax, Math.abs(ax[1]) < .9 ? [0, 1, 0] : [1, 0, 0])), e2 = cross(ax, e1);
+  const ring = (u, rr, n = 24) => { const C = along(u); return Array.from({ length: n }, (_, j) => { const a = j/n*2*Math.PI, nn = add(mul(e1, Math.cos(a)), mul(e2, Math.sin(a))), X = add(C, mul(nn, rr)); return { ...P(X), vis: dot(nn, sub(cam.eye, X)) > 0 }; }); };
+  const bA = ring(BAND.from, rAt(BAND.from) + .0022), bB = ring(BAND.to, rAt(BAND.to) + .0022), bM = ring((BAND.from + BAND.to)/2, rAt((BAND.from + BAND.to)/2) + .0022);
+  const endVis = dot(ax, sub(cam.eye, along(BAND.to))) > 0 ? bB : dot(mul(ax, -1), sub(cam.eye, along(BAND.from))) > 0 ? bA : null;
+  const band = { a: P(along(BAND.from)), b: P(along(BAND.to)), Ra: R(along(BAND.from), rAt(BAND.from) + .0022), Rb: R(along(BAND.to), rAt(BAND.to) + .0022), hull: hull(bA.concat(bB)), mid: bM, end: endVis,
+    // avambraccio verso la camera (gomito più vicino del polso): il polsino sta dietro la parte vicina dell'avambraccio
+    under: cam.depth(rig.E) < cam.depth(rig.W) - .06 };
   const cuff = { c: P(along(CUFF)), r: R(along(CUFF), sl(CUFF)), d: P(along(CUFF + .05)) };
   // la manica sfuma verso la spalla (fuori quadro); mai sopra la mano, anche con l'avambraccio di scorcio
   const fc = P(rig.E), w = P(rig.W), fr = Math.min(R(rig.E, .11), .62*Math.hypot(fc.x - w.x, fc.y - w.y));
@@ -283,27 +293,55 @@ function drawShapes(c, shapes, st, flat){
   for (const s of shapes){ c.beginPath(); s.path(c, st.ow); c.fill(); }
   for (const s of shapes){ c.beginPath(); s.path(c, 0); c.fillStyle = flat ? flat.fill : s.fill(c); c.fill(); }
 }
+// le falangi dello stesso dito dalla stessa parte del telefono formano un'unità: prima tutti i contorni, poi tutti i
+// riempimenti (un solo contorno: il dito si legge intero, non come una fila di capsule)
+function unitsOf(parts){
+  const m = new Map();
+  for (const p of parts){ const k = p.group || p; if (!m.has(k)) m.set(k, []); m.get(k).push(p); }
+  return [...m.values()].map(ps => ({ ps: ps.sort((a, b) => b.depth - a.depth), depth: Math.min(...ps.map(p => p.depth)) })).sort((a, b) => b.depth - a.depth);
+}
+function drawUnit(c, U, st, flat){
+  c.fillStyle = flat ? flat.line : css(LINE);
+  for (const p of U.ps){ c.beginPath(); p.path(c, st.ow); c.fill(); }
+  for (const p of U.ps){ c.beginPath(); p.path(c, 0); c.fillStyle = flat ? flat.fill : p.fill(c); c.fill(); }
+  if (!flat) for (const p of U.ps) if (p.nail) drawNail(c, p.nail, st);
+}
 function drawPart(c, p, st, flat){
   c.beginPath(); p.path(c, st.ow); c.fillStyle = flat ? flat.line : css(LINE); c.fill();
   c.beginPath(); p.path(c, 0); c.fillStyle = flat ? flat.fill : p.fill(c); c.fill();
-  if (!flat && p.nail){
-    const n = p.nail; c.save(); c.translate(n.c.x, n.c.y); c.rotate(n.ang);
-    c.beginPath(); c.ellipse(0, 0, n.rx, n.ry, 0, 0, 2*Math.PI);
-    const g = c.createLinearGradient(-n.rx, -n.ry, n.rx, n.ry); g.addColorStop(0, css(MAT.nail.high)); g.addColorStop(.6, css(MAT.nail.base)); g.addColorStop(1, css(MAT.nail.shadow));
-    c.fillStyle = g; c.fill(); c.lineWidth = Math.max(.6, st.ow*.45); c.strokeStyle = css(MAT.skin.shadow, .9); c.stroke(); c.restore();
+  if (!flat && p.nail) drawNail(c, p.nail, st);
+}
+function drawNail(c, n, st){
+  c.save(); c.translate(n.c.x, n.c.y); c.rotate(n.ang);
+  c.beginPath(); c.ellipse(0, 0, n.rx, n.ry, 0, 0, 2*Math.PI);
+  const g = c.createLinearGradient(-n.rx, -n.ry, n.rx, n.ry); g.addColorStop(0, css(MAT.nail.high)); g.addColorStop(.6, css(MAT.nail.base)); g.addColorStop(1, css(MAT.nail.shadow));
+  c.fillStyle = g; c.fill(); c.lineWidth = Math.max(.6, st.ow*.45); c.strokeStyle = css(MAT.skin.shadow, .9); c.stroke(); c.restore();
+}
+// polsino: cilindro corto con l'orlo e la riga colorata
+function drawBand(l, F, st){
+  const b = F.band; l.save();
+  l.beginPath(); polyPath(l, b.hull); l.lineJoin = 'round'; l.lineWidth = st.ow*2; l.strokeStyle = css(LINE); l.stroke();
+  l.fillStyle = tubeGrad(l, b.a, b.b, (b.Ra + b.Rb)/2, MAT.band); l.fill();
+  // orlo visibile (l'estremità rivolta alla camera) e riga colorata a metà, solo sul lato visibile
+  if (b.end){ l.beginPath(); polyPath(l, b.end); l.lineWidth = Math.max(1, st.ow*.6); l.strokeStyle = css(MAT.band.shadow, .55); l.stroke(); }
+  l.beginPath(); polyPath(l, b.hull); l.clip();
+  const vis = b.mid.filter(q => q.vis);
+  if (vis.length > 2){
+    // la metà visibile dell'anello è contigua: si riparte dal primo punto dopo uno non visibile
+    const n = b.mid.length, k0 = b.mid.findIndex((q, j) => q.vis && !b.mid[(j + n - 1)%n].vis), seq = [];
+    for (let j = 0; j < n; j++){ const q = b.mid[(Math.max(0, k0) + j)%n]; if (!q.vis) break; seq.push(q); }
+    l.beginPath(); seq.forEach((q, j) => j ? l.lineTo(q.x, q.y) : l.moveTo(q.x, q.y));
+    l.lineCap = 'butt'; l.lineWidth = Math.max(1.2, (b.Ra + b.Rb)*.14); l.strokeStyle = 'rgba(47,107,255,.95)'; l.stroke();
   }
+  l.restore();
 }
 // disegna la figura intera. flat = { fill, line } per i fantasmi (sagoma piatta)
 function drawArmInto(l, F, st, flat){
+  if (!flat && F.band.under) drawBand(l, F, st);
   drawShapes(l, F.arm, st, flat);
   if (!flat){
-    const b = F.band; l.save();
-    l.beginPath(); capsulePath(l, b.a, b.b, b.Ra + st.ow*.2, b.Rb + st.ow*.2); l.fillStyle = css(LINE); l.fill();
-    l.beginPath(); capsulePath(l, b.a, b.b, b.Ra - st.ow*.6, b.Rb - st.ow*.6); l.fillStyle = tubeGrad(l, b.a, b.b, (b.Ra + b.Rb)/2, MAT.band); l.fill();
-    // riga del polsino
-    const m = { x: (b.a.x + b.b.x)/2, y: (b.a.y + b.b.y)/2 }, mr = (b.Ra + b.Rb)/2, dx = b.b.x - b.a.x, dy = b.b.y - b.a.y, dl = Math.hypot(dx, dy) || 1;
-    l.lineWidth = Math.max(1, mr*.18); l.strokeStyle = 'rgba(47,107,255,.95)'; l.beginPath();
-    l.moveTo(m.x - dy/dl*mr*.92, m.y + dx/dl*mr*.92); l.lineTo(m.x + dy/dl*mr*.92, m.y - dx/dl*mr*.92); l.stroke();
+    if (!F.band.under) drawBand(l, F, st);
+    l.save();
     // orlo della manica: un arco di sezione (ellisse vista di scorcio)
     const cf = F.cuff, ex = cf.d.x - cf.c.x, ey = cf.d.y - cf.c.y;
     l.translate(cf.c.x, cf.c.y); l.rotate(Math.atan2(ey, ex));
@@ -323,12 +361,11 @@ function drawFigure(c, cam, pose, st, flat = null){
   const F = figure(cam, pose, !!flat), L = st.layer, l = L.getContext('2d'), R = F.rect;
   const clearL = () => { l.setTransform(1, 0, 0, 1, 0, 0); l.clearRect(R.x, R.y, R.w, R.h); l.setTransform(st.dpr, 0, 0, st.dpr, 0, 0); };
   const blit = () => { c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(L, R.x, R.y, R.w, R.h, R.x, R.y, R.w, R.h); c.restore(); };
-  const back = F.parts.filter(p => p.side === 'back').sort((a, b) => b.depth - a.depth);
-  const front = F.parts.filter(p => p.side === 'front').sort((a, b) => b.depth - a.depth);
+  const back = F.parts.filter(p => p.side === 'back'), front = F.parts.filter(p => p.side === 'front');
   if (F.armSide === 'back' || back.length){
     clearL();
     if (F.armSide === 'back') drawArmInto(l, F, st, flat);
-    for (const p of back) drawPart(l, p, st, flat);
+    for (const U of unitsOf(back)) drawUnit(l, U, st, flat);
     if (!flat){
       // ombra morbida del telefono solo sulla pelle già disegnata (source-atop), senza filtri: due passate sfalsate
       const T = v => add(pose.pos, qrot(pose.q, v)), ph = hull(RR.map(p => cam.p(T([p[0], p[1], 0]))));
@@ -349,7 +386,7 @@ function drawFigure(c, cam, pose, st, flat = null){
     c.restore();
   }
   if (F.armSide === 'front'){ clearL(); drawArmInto(l, F, st, flat); blit(); }
-  for (const p of front) drawPart(c, p, st, flat);
+  for (const U of unitsOf(front)) drawUnit(c, U, st, flat);
   return F;
 }
 
@@ -413,7 +450,7 @@ const tipOf = (pose, k = 1) => add(pose.pos, qrot(pose.q, [0, HH*k, 0]));
 // punto di contatto con la palla: davanti alla faccia del telefono che guarda la palla in arrivo (−z), verso la cima
 function contactPoint(id){
   const P = plan(id), pose = gesturePose(id, P.contact), n = qrot(pose.q, [0, 0, 1]), s = dot(n, [0, 0, -1]) >= 0 ? 1 : -1;
-  return add(add(pose.pos, qrot(pose.q, [0, HH*.42, 0])), mul(n, s*(HD + BALL_R)));
+  return add(add(pose.pos, qrot(pose.q, [0, HH*.72, 0])), mul(n, s*(HD + BALL_R)));
 }
 function drawBall(c, cam, X, spin, st){
   const p = cam.p(X), r = cam.rad(X, BALL_R);
@@ -463,7 +500,9 @@ function render(t){
   const P = plan(id), cam = FOLLOW[id] ? followCam(id, t, mirror) : camFor(id, 0, mirror), pose = gesturePose(id, t);
   // fantasmi delle pose chiave: compaiono quando la mano ci passa, restano fino al ritorno, poi sfumano
   const ghosts = P.keys.map((key, i) => {
-    const a = t < key.t ? 0 : Math.min(1, (t - key.t)/.12)*(1 - sstep(P.T.home - .25, P.T.home + .1, t));
+    // con la camera che segue (servizio) un fantasma rimasto sotto, nella banda della curva, si spegne
+    const gy = cam.p(gesturePose(id, key.t).pos).y, low = 1 - sstep(st.H*(1 - HUD_H) - 40, st.H*(1 - HUD_H) + 10, gy);
+    const a = t < key.t ? 0 : Math.min(1, (t - key.t)/.12)*(1 - sstep(P.T.home - .25, P.T.home + .1, t))*low;
     return { key, i, a };
   });
   const SK = window.__skip || {};
@@ -486,7 +525,9 @@ function render(t){
     const gp = gesturePose(id, g.key.t), gc = cam.p(gp.pos), near = sstep(.55, 1.1, Math.hypot(gc.x - lc.x, gc.y - lc.y)/Math.max(1, plen));
     const tp = cam.p(tipOf(gp, 1.1)), dx = tp.x - ctr.x, dy = tp.y - ctr.y, dl = Math.hypot(dx, dy) || 1;
     if (g.a*near <= .01) continue;
-    c.globalAlpha = g.a*near; pill(c, tp.x + dx/dl*40*k, tp.y + dy/dl*30*k, g.key.label, { num: String(g.i + 1), size: Math.round(11*k) }); c.globalAlpha = 1;
+    // mai sopra la banda della curva né fuori dallo stadio
+    const lx = Math.max(60*k, Math.min(st.W - 60*k, tp.x + dx/dl*40*k)), ly = Math.max(16*k, Math.min(st.H*(1 - HUD_H) - 22*k, tp.y + dy/dl*30*k));
+    c.globalAlpha = g.a*near; pill(c, lx, ly, g.key.label, { num: String(g.i + 1), size: Math.round(11*k) }); c.globalAlpha = 1;
   }
   if (!SK.hud) drawHud(c, id, P, t, pose, k);
 }
@@ -648,7 +689,7 @@ function renderGrip(c, t, mirror, k){
     });
     c.restore();
   }
-  pill(c, st.W/2, st.H*.93, a < .5 ? 'Come la vedi tu' : 'Da davanti, di lato', { size: Math.round(11*k), bg: 'rgba(8,14,40,.6)' });
+  pill(c, st.W/2, st.H*.93, a < .5 ? 'Come la vedi tu' : 'Di lato: la cima in avanti', { size: Math.round(11*k), bg: 'rgba(8,14,40,.6)' });
 }
 
 /* ---------- interfaccia della modale ---------- */
@@ -692,7 +733,7 @@ window.__show = ({ card: id, t, hand = 'right', rate = 1 }) => {
   state.hand = hand; $('hand').textContent = hand === 'right' ? 'Destro' : 'Mancino';
   setCard(CARDS.findIndex(x => x.id === id)); state.rate = rate; state.frozen = { t }; render(t); return true;
 };
-window.__view = (id, dir, dist) => { VIEWS[id] = [dir]; if (dist) DIST[id] = dist; st.frames.clear(); return true; };
+window.__view = (id, dir, dist, i = 0) => { VIEWS[id] = VIEWS[id].slice(); VIEWS[id][i] = dir; if (dist) DIST[id] = dist; st.frames.clear(); return true; };
 // costo di un fotogramma (ms) sullo stadio attuale: n fotogrammi in un ciclo intero
 window.__bench = (id, n = 240) => {
   setCard(CARDS.findIndex(x => x.id === id)); state.frozen = { t: 0 }; const P = plan(id), t0 = performance.now();

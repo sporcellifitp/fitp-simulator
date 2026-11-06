@@ -21,12 +21,13 @@ export const HAND = {
   heel: [[30, -84, -21, 20], [2, -88, -22, 18], [14, -60, -24, 22]],   // eminenza tenar, ipotenar, centro del palmo
   // dita: nocca (MCP), direzione di base nel piano del palmo, lunghezze delle falangi, flessioni (gradi) e raggi
   // nocche sotto il telefono, falange prossimale fino al bordo (l'interfalangea prossimale appena fuori dal bordo), falange
-  // media che sale lungo lo spessore, distale appoggiata sul bordo dello schermo: le dita avvolgono il bordo da vicino
+  // media che sale lungo lo spessore un poco staccata, distale che torna sul bordo: i polpastrelli sporgono sul vetro solo
+  // 6–8 mm (come nella foto; con la flessione 84/96 di prima erano 12–15 mm, «dita sdraiate sullo schermo»)
   fingers: [
-    { name: 'index',  mcp: [-13, -8, -18], dir: [-1, .30, 0], L: [40, 23, 18], flex: [10, 84, 96], r: [9.6, 8.6, 7.8, 7.0] },
-    { name: 'middle', mcp: [-8, -27, -19], dir: [-1, .10, 0], L: [44, 25, 19], flex: [10, 86, 96], r: [10, 9.0, 8.1, 7.2] },
-    { name: 'ring',   mcp: [-10, -46, -18], dir: [-1, -.08, 0], L: [41, 24, 18], flex: [10, 86, 94], r: [9.4, 8.4, 7.6, 6.9] },
-    { name: 'pinky',  mcp: [-16, -63, -16], dir: [-1, -.26, 0], L: [33, 19, 16], flex: [10, 86, 90], r: [8.4, 7.4, 6.8, 6.2] },
+    { name: 'index',  mcp: [-13, -8, -18], dir: [-1, .30, 0], L: [40, 23, 18], flex: [12, 68, 116], r: [9.0, 8.0, 7.2, 6.5] },
+    { name: 'middle', mcp: [-8, -27, -19], dir: [-1, .10, 0], L: [44, 25, 19], flex: [12, 68, 116], r: [9.4, 8.4, 7.5, 6.7] },
+    { name: 'ring',   mcp: [-10, -46, -18], dir: [-1, -.08, 0], L: [41, 24, 18], flex: [12, 68, 116], r: [8.8, 7.8, 7.1, 6.4] },
+    { name: 'pinky',  mcp: [-16, -63, -16], dir: [-1, -.26, 0], L: [33, 19, 16], flex: [12, 70, 110], r: [7.9, 7.0, 6.4, 5.8] },
   ],
   palmN: [0, 0, 1],                  // il palmo guarda il telefono (+z)
   // pollice: base (trapezio-metacarpo), MCP, IP, punta; disteso lungo il bordo destro, a metà altezza, senza toccare lo schermo

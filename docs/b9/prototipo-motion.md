@@ -38,3 +38,17 @@
   correggere: dita come quattro «salsicciotti» staccati che coprono lo schermo (contraddice «dita sul bordo»), palmo
   invisibile nella vista «come la vedi tu», servizio con braccio piccolo e telefono di taglio, pallonetto in carica con
   il telefono ridotto a una linea. (in corso) iterazioni 5–7, costo, rapporto finale.
+- Iterazione 5 (06/11): dita con flessione 12/68/116 (polpastrelli sul bordo, sporgenza sul vetro 6–8 mm invece di
+  12–15) e raggi −7%; falangi dello stesso dito con un solo contorno; polsino come cilindro (inviluppo di due anelli
+  proiettati, orlo ellittico, riga solo sul lato visibile) invece della capsula «marshmallow»; palla che incontra il
+  telefono verso la cima (0,72 della metà) e non copre più la mano; presa di lato da destra (`[.95, .3, −.12]`: si
+  vede l'inclinazione «cima in avanti»). Verifica di fedeltà verde (il moto non cambia).
+- Iterazione 6: viste nuove — servizio di profilo `[1, .2, .25]`, pallonetto più dall'alto `[1, .5, −.35]` (lo schermo
+  al cielo si vede in carica), palla corta da dietro a destra `[.75, .55, .6]`; fantasmi che finiscono nella banda della
+  curva si spengono, etichette sempre sopra la banda; polsino sotto l'avambraccio quando l'avambraccio punta alla camera
+  (prima un disco bianco «a palla»).
+- Iterazione 7: sequenze a 30 fotogrammi/s (dritto, palla corta, servizio) senza salti di ordine tra le parti; servizio
+  inquadrato più stretto (`FOLLOW` 0,45 m: la mano più grande, gli archi possono uscire dal quadro per pochi istanti).
+- Costo misurato (06/11, `__bench`, 180 fotogrammi su un ciclo, Chromium senza GPU, ms per fotogramma): 1280×720
+  (stadio 701×394) 3,6–5,1; 1920×1080 (1052×592) 5,7–7,3; metà schermo 960×1080 (847×476) 4,5–5,4; 1920×1080 a densità 2
+  14,7–17,3. Peso: `main.js` 52,0 kB (17,7 kB gzip), `motion.js` 16,1 kB (6,2), `rig.js` 5,7 kB (2,6).
