@@ -1,7 +1,7 @@
 From 3627e579aef2d835e8f60e2527aaa50c00870a0d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 13:02:06 +0000
-Subject: [PATCH 1/2] =?UTF-8?q?B9=20C=20(WIP):=20modulo=20della=20posa=20d?=
+Subject: [PATCH 1/4] =?UTF-8?q?B9=20C=20(WIP):=20modulo=20della=20posa=20d?=
  =?UTF-8?q?ei=20gesti=20e=20adattatore=20posa=E2=86=92sensori,=20non=20anc?=
  =?UTF-8?q?ora=20verificati?=
 MIME-Version: 1.0
@@ -638,7 +638,7 @@ index 0000000..72e0de1
 From b88735ca7e08a1159b70036bc2cd88b0ab183e52 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 13:11:37 +0000
-Subject: [PATCH 2/2] =?UTF-8?q?B9=20C=20(WIP):=20camere=20per=20scheda,=20?=
+Subject: [PATCH 2/4] =?UTF-8?q?B9=20C=20(WIP):=20camere=20per=20scheda,=20?=
  =?UTF-8?q?ritorno=20di=20incrociato=20e=20lungolinea=20sotto=20250=20?=
  =?UTF-8?q?=C2=B0/s,=20mezzo=20campione=20nell'adattatore=20posa=E2=86=92s?=
  =?UTF-8?q?ensori?=
@@ -741,6 +741,514 @@ index 72e0de1..67a9a67 100644
    let prev = at(-1), cur = at(0);
    for (let k = 0; k < N; k++){
      const next = at(k + 1);
+-- 
+2.43.0
+
+
+From f9d08df595b670a175a9cd43ff5afbb95f5729c1 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 13:15:29 +0000
+Subject: [PATCH 3/4] =?UTF-8?q?B9=20C:=20test=20di=20fedelt=C3=A0=20della?=
+ =?UTF-8?q?=20posa=20dei=20gesti=20(telefono=20simulato=20e=20rilevatore?=
+ =?UTF-8?q?=20vero),=20servizio=20senza=20fermo=20prima=20della=20battuta?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+natpf-gesture-pose.test.mjs (14 test): le 11 schede e i 2 esercizi della mira, destro e mancino, calibrazione con
+l'animazione e con il braccio simulato, presa palmo e martello: esattamente il colpo mostrato (servizio = lancio +
+battuta 0,69 s dopo), picco letto = contatto disegnato (Δ 0 ms); imitazione 0,8× e 1,25× (cambia solo nel verso della
+velocità); prese di chi imita 20–50°/25–55° (limite documentato: piatto a 50°, salita abituale massima del gioco);
+tempi del brief §5.4, continuità, ciclo chiuso, mancino specchio esatto, fasi, palla, scheletro. La stessa verifica
+sulla posa dell'animazione di prima fallisce dove dice la specifica §5 (servizio 3 gesti, pallonetto, schiacciata e
+volée con un colpo in più).
+Raccordo del servizio sovrapposto di 0,08 s alla battuta (tratto sotto 20 °/s da 47 a 23 ms); palla del servizio che
+riparte verso il basso. npm test 799/799, sito 193/193.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ natpf-tennis/src/natpf/natpf_gesture_pose.js  |   5 +-
+ natpf-tennis/test/natpf-gesture-pose.test.mjs | 275 ++++++++++++++++++
+ natpf-tennis/test/pose-sensors.mjs            |   1 +
+ 3 files changed, 279 insertions(+), 2 deletions(-)
+ create mode 100644 natpf-tennis/test/natpf-gesture-pose.test.mjs
+
+diff --git a/natpf-tennis/src/natpf/natpf_gesture_pose.js b/natpf-tennis/src/natpf/natpf_gesture_pose.js
+index c87acb5..c1441bc 100644
+--- a/natpf-tennis/src/natpf/natpf_gesture_pose.js
++++ b/natpf-tennis/src/natpf/natpf_gesture_pose.js
+@@ -140,7 +140,7 @@ export const TIMING = Object.freeze({
+ // (minimo jerk, la mano va sopra la testa, il telefono ruota appena), battuta che comincia `overlap` prima della fine del
+ // raccordo (nessun fermo «a trofeo»); GAP = picco del lancio → picco della battuta = colmo della palla del gioco
+ // (vy 6,32 m/s, g 9,15: 0,69 s, specifica §1.4)
+-export const SERVE_TIMING = Object.freeze({ hold: .3, prep: 1.0, gap: .69, tossHold: .02, overlap: .04, follow: .16, back: .9, rest: .4 });
++export const SERVE_TIMING = Object.freeze({ hold: .3, prep: 1.0, gap: .69, tossHold: .02, overlap: .08, follow: .16, back: .9, rest: .4 });
+ export const STILL_TIMING = Object.freeze({ grip: 9, ready: 4 });
+ 
+ // fasi: id → testo breve da scrivere (brief §5.5)
+@@ -475,7 +475,8 @@ function serveBall(P, t){
+     return [release[0] + (apex[0] - release[0])*u, apex[1] - .5*g*s*s, release[2] + (apex[2] - release[2])*u];
+   }
+   const dt = t - T.contact; if (dt > .6) return null;
+-  return [apex[0] - .3*dt, apex[1] + 1.2*dt - .5*G*dt*dt, apex[2] - 16*dt];
++  // battuta dall'alto: la palla parte in avanti e un poco verso il basso (il colmo resta l'istante del contatto)
++  return [apex[0] - .3*dt, apex[1] - 1.0*dt - .5*G*dt*dt, apex[2] - 16*dt];
+ }
+ // posizione della palla (m, campo) al tempo t, o null quando non è in scena (presa e posizione: mai)
+ export function gestureBall(id, t, { hand = 'right', grip = GRIP_STYLE } = {}){
+diff --git a/natpf-tennis/test/natpf-gesture-pose.test.mjs b/natpf-tennis/test/natpf-gesture-pose.test.mjs
+new file mode 100644
+index 0000000..27055c0
+--- /dev/null
++++ b/natpf-tennis/test/natpf-gesture-pose.test.mjs
+@@ -0,0 +1,275 @@
++// Fedeltà della posa dei gesti del tutorial (B9, ramo C; docs/b9/posa-gesti.md, specifica-gesti.md §6, brief
++// giudizio-animazione.md §5.4 e §5.6): la posa che l'animazione nuova DISEGNA (natpf_gesture_pose.gesturePose) diventa
++// campioni dei sensori del telefono simulato completo (test/pose-sensors.mjs → test/phone-sim.mjs: rilevatore vero
++// site/js/tennis/swing-detect.js, forma del colpo, calibrazione rapida vera fatta con i gesti dell'animazione o del
++// braccio simulato, mappatura del gioco natpf_phone_racket/natpf_stroke_intent/natpf_gestures). Ogni scheda deve dare
++// esattamente il colpo mostrato, con il picco letto nell'istante del contatto disegnato. La stessa verifica sulla posa
++// dell'animazione di prima (legacyPoseSource) deve FALLIRE dove la specifica §5 dice che sbaglia: servizio, pallonetto,
++// schiacciata e volée.
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++import { readCard, judgeCard, legacyPoseSource, calibratedPhone, DT } from './pose-sensors.mjs';
++import * as GP from '../src/natpf/natpf_gesture_pose.js';
++import { GESTURES } from '../src/natpf/natpf_gesture_motion.js';
++import { TUTORIAL_CARDS } from '../src/natpf/natpf_tutorial.js';
++
++const { gesturePose, gesturePlan, gestureBall, gestureContactPoint, gestureRig, omega, len, sub, qangle } = GP;
++const source = (grip = undefined) => ({ name: 'posa nuova', pose: (id, t, hand) => gesturePose(id, t, { hand, grip }), plan: id => gesturePlan(id, { grip }) });
++const STROKE_CARDS = GP.CARD_IDS.filter(id => !GESTURES[id].still);
++const HANDS = ['right', 'left'], CALS = ['pose', 'arm'];
++// imitazione più lenta o più veloce: dove la velocità è il discriminante si ammette solo il cambiamento nel verso giusto
++// (specifica §6.5, brief §5.6): il proprio dritto/rovescio più veloce diventa piatto, il tagliato più lento palla corta,
++// il piatto più lento torna top spin
++const allowFor = (id, rate) => rate > 1 ? (['forehand', 'backhand', 'volley', 'cross', 'line'].includes(id) ? ['flat'] : null)
++  : rate < 1 ? ({ slice: ['drop'], flat: ['topspin'] })[id] || null : null;
++
++function check(src, ids, { hands = HANDS, cals = CALS, rates = [1] } = {}){
++  const bad = [];
++  let n = 0;
++  for (const cal of cals) for (const hand of hands) for (const rate of rates) for (const id of ids){
++    n++;
++    const r = readCard(src, id, { hand, cal, rate });
++    const why = judgeCard(src, id, r, { hand, rate, allow: allowFor(id, rate) });
++    if (why.length) bad.push(`${id} ${hand} cal=${cal} ×${rate}: ${why.join('; ')}`);
++  }
++  return { bad, n };
++}
++
++test('posa: le schede sono quelle del tutorial, nello stesso ordine, più i due esercizi della mira', () => {
++  assert.deepEqual([...GP.CARD_IDS], TUTORIAL_CARDS.map(c => c.id));
++  assert.deepEqual([...GP.EXERCISE_IDS], ['cross', 'line']);
++  for (const id of GP.POSE_IDS) assert.ok(GESTURES[id], id);
++});
++
++test('posa: modulo puro (niente DOM, three.js o canvas), importabile in Node', () => {
++  const src = readFileSync(new URL('../src/natpf/natpf_gesture_pose.js', import.meta.url), 'utf8');
++  const imports = [...src.matchAll(/^import .* from '([^']+)'/gm)].map(m => m[1]);
++  assert.deepEqual(imports, ['./natpf_gesture_motion.js']);
++  for (const w of ['document.', 'window.', 'getContext', 'THREE', 'requestAnimationFrame']) assert.ok(!src.includes(w), w);
++});
++
++test('fedeltà: ogni scheda (11) e ogni esercizio della mira dà esattamente il colpo mostrato, picco letto = contatto disegnato ± 1 campione (destro e mancino, calibrazione con l\'animazione e con il braccio simulato, presa nel palmo e a martello)', () => {
++  for (const grip of ['palmo', 'martello']){
++    const { bad, n } = check(source(grip), GP.POSE_IDS);
++    assert.equal(n, GP.POSE_IDS.length*4);
++    assert.deepEqual(bad, [], `presa ${grip}:\n${bad.join('\n')}`);
++  }
++});
++
++test('fedeltà: picco letto e contatto disegnato coincidono (Δ ≤ 1 campione a 60 Hz) anche nel lancio del servizio, e la battuta arriva 0,69 s dopo il lancio', () => {
++  const src = source();
++  for (const hand of HANDS){
++    for (const id of STROKE_CARDS.filter(id => id !== 'serve')){
++      const r = readCard(src, id, { hand });
++      assert.ok(Math.abs(r.dPeak) <= DT, `${id} ${hand}: Δ ${r.dPeak} ms`);
++    }
++    const s = readCard(src, 'serve', { hand });
++    assert.equal(s.events.length, 2, `servizio ${hand}: ${s.events.length} gesti`);
++    assert.ok(Math.abs(s.dToss) <= DT, `lancio ${hand}: Δ ${s.dToss} ms`);
++    assert.ok(Math.abs(s.dPeak) <= DT, `battuta ${hand}: Δ ${s.dPeak} ms`);
++    assert.ok(Math.abs(s.gap - .69) <= 1.5*DT/1000, `servizio ${hand}: battuta ${s.gap} s dopo il lancio`);
++  }
++});
++
++test('fedeltà: imitazione più lenta (0,8×) e più veloce (1,25×): resta il colpo mostrato, o cambia solo nel verso della velocità (dritto/rovescio più veloce → piatto, tagliato più lento → palla corta)', () => {
++  const { bad } = check(source(), GP.POSE_IDS.filter(id => !GESTURES[id].still), { rates: [.8, 1.25] });
++  assert.deepEqual(bad, [], bad.join('\n'));
++});
++
++// Prese di chi imita diverse da quella mostrata (specifica §6.1, brief §5.6): nel palmo con la cima 20–50° verso
++// l'interno e 25–55° in avanti. Unico limite: il PIATTO con la cima a 50° verso l'interno. Il piatto è «il proprio dritto
++// più veloce»: forza ≥ 0,62 e salita della testa entro ±0,12 da quella abituale (natpf_stroke_intent flatRise), che il
++// gioco tiene in conto al massimo fino a 0,30 (riseRefMax). Con la cima a 50° verso l'interno e il raggio del braccio
++// disegnato (0,46 m) il dritto sale di 0,36–0,75: oltre 0,42 il piatto non si distingue dal top spin (limite del
++// riconoscimento, docs/b9/posa-gesti.md §Limiti). Il test verifica che, dove succede, la causa sia proprio questa.
++test('fedeltà: prese nel palmo di chi imita da 20° a 50° verso l\'interno e da 25° a 55° in avanti (unico limite documentato: il piatto a 50°, per la salita abituale)', () => {
++  const bad = [];
++  let flat = 0, limited = 0;
++  for (const lean of [20, 35, 50]) for (const tilt of [25, 40, 55]){
++    const src = source({ lean, tilt });
++    const ids = lean === 50 ? GP.POSE_IDS.filter(id => id !== 'flat') : GP.POSE_IDS;
++    bad.push(...check(src, ids).bad.map(b => `${lean}/${tilt} ${b}`));
++    if (lean === 50) for (const hand of HANDS) for (const cal of CALS){
++      const phone = calibratedPhone(src, { hand, cal }), r = readCard(src, 'flat', { hand, cal, phone }), x = r.read[0];
++      assert.equal(r.read.length, 1, `${lean}/${tilt} ${hand} ${cal}: piatto, ${r.read.length} colpi`);
++      flat++;
++      if (x.ev.natpf.shot === 'flat') continue;
++      limited++;
++      const ref = Math.min(.3, phone.det.profile.rises[x.s.dir]), rise = x.s.shape.rise;
++      assert.equal(x.ev.natpf.shot, 'topspin');
++      assert.ok(x.ev.natpf.power >= .62, `${lean}/${tilt} ${hand} ${cal}: forza ${x.ev.natpf.power}`);
++      assert.ok(Math.abs(rise - ref) > .12, `${lean}/${tilt} ${hand} ${cal}: salita ${rise}, abituale ${ref}`);
++    }
++  }
++  assert.deepEqual(bad, [], bad.join('\n'));
++  assert.ok(limited < flat, `piatto a 50°: ${limited}/${flat} letti come top spin`);
++});
++
++test('presa e posizione di partenza: ferme (nessuna rotazione, respiro di 3 mm), nessun messaggio dal telefono', () => {
++  for (const id of ['grip', 'ready']){
++    const P = gesturePlan(id);
++    assert.equal(P.kind, 'still');
++    let w = 0, dy = 0;
++    const p0 = gesturePose(id, 0);
++    for (let t = 0; t < P.total; t += 1/120){ const p = gesturePose(id, t); w = Math.max(w, len(omega(p.q, gesturePose(id, t + 1/120).q, 1/120))); dy = Math.max(dy, Math.abs(p.pos[1] - p0.pos[1])); }
++    assert.ok(w <= 1e-6, `${id}: ${w} °/s`);
++    assert.ok(dy <= .0031, `${id}: respiro ${dy} m`);
++    for (const hand of HANDS) assert.equal(readCard(source(), id, { hand }).msgs.length, 0);
++  }
++  // presa: due fermi immagine e il giro della camera (la mano non gira: la si imiterebbe)
++  assert.equal(GP.CAMERAS.grip.seq.reduce((a, b) => a + b, 0), GP.STILL_TIMING.grip);
++});
++
++// Brief §5.4 (tempo reale): parte veloce, picco = contatto, preparazione e ritorno sotto i limiti misurati con il
++// telefono simulato (specifica §3), fermo in fine colpo, ritorno entro 0,6 s dall'impatto, cicli indicativi.
++// Picchi: la velocità vera include il polso (dritto 714 °/s come la specifica §2.3, rovescio 691, palla corta 414).
++const LIMITS = {
++  forehand: { ms: 260, peak: [650, 720], amp: 85, prep: 180, ret: 240, cycle: 2.25, contact: 1.03 },
++  backhand: { ms: 260, peak: [600, 700], amp: 78, prep: 180, ret: 240, cycle: 2.25 },
++  flat: { ms: 220, peak: [950, 1150], amp: 110, prep: 200, ret: 250, cycle: 2.4 },
++  slice: { ms: 260, peak: [550, 650], amp: 78, prep: 180, ret: 240, cycle: 2.2 },
++  lob: { ms: 300, peak: [480, 560], amp: 78, prep: 95, prepMin: .6, ret: 170, cycle: 2.56 },
++  drop: { ms: 240, peak: [330, 420], amp: 40, prep: 140, ret: 150, cycle: 2.2 },
++  smash: { ms: 240, peak: [650, 750], amp: 84, prep: 80, prepMin: .7, ret: 240, cycle: 2.7 },
++  volley: { ms: 200, peak: [440, 520], amp: 48, prep: 120, prepAmp: 15, ret: 240, cycle: 1.9 },
++  cross: { ms: 260, peak: [650, 720], amp: 85, prep: 250, ret: 250 },
++  line: { ms: 260, peak: [650, 720], amp: 85, prep: 250, ret: 250 },
++};
++const H = 1/600;
++function speedRows(id, o = {}){
++  const P = gesturePlan(id, o), n = Math.round(P.total/H), rows = [];
++  for (let i = 0; i < n; i++){ const t = i*H; rows.push({ t: t + H/2, w: len(omega(gesturePose(id, t, o).q, gesturePose(id, t + H, o).q, H)) }); }
++  return { P, rows, max: (a, b) => rows.filter(r => r.t >= a && r.t < b).reduce((m, r) => r.w > m.w ? r : m, { w: 0, t: null }) };
++}
++// tratto più lungo sotto 20 °/s tra a e b (s)
++const stall = (rows, a, b) => { let run = 0, worst = 0; for (const r of rows) if (r.t >= a && r.t < b){ if (r.w < 20){ run += H; worst = Math.max(worst, run); } else run = 0; } return worst; };
++
++test('tempi dei colpi (brief §5.4): picco = contatto, picco e ampiezza, preparazione e ritorno sotto i limiti, nessun fermo tra carica e colpo, fermo finale 0,10–0,20 s, ritorno entro 0,6 s, ciclo', () => {
++  for (const [id, L] of Object.entries(LIMITS)){
++    const { P, rows, max } = speedRows(id), T = P.T, tag = id;
++    const pk = max(0, P.total);
++    assert.ok(Math.abs(pk.t - P.contact) <= H, `${tag}: picco a ${pk.t}, contatto ${P.contact}`);
++    assert.ok(pk.w >= L.peak[0] && pk.w <= L.peak[1], `${tag}: picco ${pk.w.toFixed(0)} °/s`);
++    assert.equal(GESTURES[id].stroke.ms, L.ms, `${tag}: parte veloce`);
++    assert.ok(Math.abs(P.travel - L.amp) <= 3, `${tag}: ampiezza ${P.travel}°`);
++    assert.ok(max(T.hold, T.inv - .005).w <= L.prep, `${tag}: preparazione ${max(T.hold, T.inv - .005).w.toFixed(0)} °/s`);
++    if (L.prepMin) assert.ok(T.load - T.hold >= L.prepMin, `${tag}: preparazione ${T.load - T.hold} s`);
++    if (L.prepAmp) assert.ok(P.prepAmp <= L.prepAmp, `${tag}: preparazione di ${P.prepAmp}°`);
++    assert.ok(max(T.back, P.total).w <= L.ret, `${tag}: ritorno ${max(T.back, P.total).w.toFixed(0)} °/s`);
++    assert.ok(stall(rows, T.inv - .12, P.contact) <= .04, `${tag}: fermo di ${stall(rows, T.inv - .12, P.contact)} s tra carica e colpo`);
++    const follow = T.back - T.end;
++    assert.ok(follow >= .1 - 1e-9 && follow <= .2 + 1e-9, `${tag}: fermo in fine colpo ${follow} s`);
++    assert.ok(T.back - P.contact <= .6, `${tag}: ritorno ${T.back - P.contact} s dopo l'impatto`);
++    if (L.cycle) assert.ok(Math.abs(P.total - L.cycle) <= .1, `${tag}: ciclo ${P.total} s`);
++    if (L.contact) assert.ok(Math.abs(P.contact - L.contact) <= .01, `${tag}: contatto a ${P.contact} s`);
++  }
++});
++
++test('servizio continuo (difetto (a) della specifica §5): lancio 300 °/s, raccordo ≤ 90 °/s senza salti, battuta 700 °/s 0,69 s dopo il picco del lancio, nel colmo della palla, sulla cima del telefono', () => {
++  const { P, rows, max } = speedRows('serve'), T = P.T;
++  const toss = max(T.load, T.tossEnd), hit = max(T.hitStart, T.end), link = max(T.tossEnd, T.hitStart);
++  assert.ok(Math.abs(toss.t - T.tossPeak) <= H && Math.abs(toss.w - 300) <= 10, `lancio ${toss.w} a ${toss.t}`);
++  assert.ok(Math.abs(hit.t - P.contact) <= H && Math.abs(hit.w - 700) <= 15, `battuta ${hit.w} a ${hit.t}`);
++  assert.ok(Math.abs(P.contact - P.tossPeak - .69) < 1e-9);
++  assert.ok(link.w <= 90, `raccordo ${link.w} °/s`);
++  assert.ok(max(T.hold, T.load).w <= 60, `preparazione ${max(T.hold, T.load).w} °/s`);
++  assert.ok(max(T.back, P.total).w <= 240);
++  assert.ok(stall(rows, T.hitStart - .12, P.contact) <= .04, 'fermo «a trofeo» prima della battuta');
++  assert.ok(P.total >= 3.4 && P.total <= 3.8, `ciclo ${P.total}`);
++  // la mano sale sopra la testa nel raccordo
++  assert.ok(gesturePose('serve', T.hitStart).pos[1] > GP.SHOULDER[1] + .25);
++  // palla: lasciata alla fine del lancio, colmo nell'istante della battuta, sul punto di contatto
++  const b = t => gestureBall('serve', t);
++  assert.equal(b(T.tossEnd - .05), null);
++  assert.ok(len(sub(b(P.contact), gestureContactPoint('serve'))) < 1e-9);
++  assert.ok(b(P.contact - .04)[1] < b(P.contact)[1] && b(P.contact + .04)[1] < b(P.contact)[1], 'colmo al contatto');
++  for (const hand of HANDS) assert.ok(len(sub(gestureBall('serve', P.contact, { hand }), gestureContactPoint('serve', { hand }))) < 1e-9);
++});
++
++test('continuità e ciclo chiuso: nessun salto (|ω| ≤ 2000 °/s, |Δpos| ≤ 0,15 m a 60 Hz), posa a 0 e alla fine del ciclo uguali', () => {
++  for (const id of GP.POSE_IDS) for (const hand of HANDS){
++    const P = gesturePlan(id), step = 1/60;
++    let dw = 0, dp = 0;
++    for (let t = 0; t < P.total; t += step){ const a = gesturePose(id, t, { hand }), b = gesturePose(id, t + step, { hand }); dw = Math.max(dw, len(omega(a.q, b.q, step))); dp = Math.max(dp, len(sub(a.pos, b.pos))); }
++    assert.ok(dw <= 2000 && dp <= .15, `${id} ${hand}: ${dw} °/s, ${dp} m`);
++    const a = gesturePose(id, 0, { hand }), z = gesturePose(id, P.total - 1e-9, { hand });
++    assert.ok(len(sub(a.pos, z.pos)) <= .0005 && qangle(a.q, z.q) <= .2, `${id} ${hand}: ciclo aperto`);
++    // il tempo si ripete
++    assert.deepEqual(gesturePose(id, .3 + P.total, { hand }).pos.map(v => +v.toFixed(9)), gesturePose(id, .3, { hand }).pos.map(v => +v.toFixed(9)));
++  }
++});
++
++test('mancino: specchio esatto del destro (posizione, orientamento, palla, scheletro, camera)', () => {
++  const M = v => [-v[0], v[1], v[2]], MQ = q => [q[0], -q[1], -q[2], q[3]];
++  const close = (a, b, tag) => a.forEach((v, i) => assert.ok(Math.abs(v - b[i]) < 1e-9, tag));
++  for (const id of GP.POSE_IDS){
++    const P = gesturePlan(id);
++    for (let k = 0; k <= 20; k++){
++      const t = P.total*k/20, r = gesturePose(id, t, { rig: true }), l = gesturePose(id, t, { hand: 'left', rig: true }), tag = `${id} ${t}`;
++      close(l.pos, M(r.pos), tag); close(l.q, MQ(r.q), tag);
++      assert.equal(l.speed.toFixed(6), r.speed.toFixed(6)); assert.equal(l.phase, r.phase);
++      close(l.rig.wrist, M(r.rig.wrist), tag); close(l.rig.elbow, M(r.rig.elbow), tag);
++      r.rig.fingers.forEach((f, i) => f.pts.forEach((p, j) => close(l.rig.fingers[i].pts[j], M(p), tag)));
++      const br = gestureBall(id, t), bl = gestureBall(id, t, { hand: 'left' });
++      if (br) close(bl, M(br), tag); else assert.equal(bl, null);
++    }
++    const c = GP.cameraFor(id), cl = GP.cameraFor(id, { hand: 'left' });
++    if (c.dir) close(cl.dir, M(c.dir), id);
++  }
++});
++
++test('fasi e momenti chiave per il disegno: in ordine, coprono il ciclo, «Impatto» per ±30 ms attorno al contatto; palla sulla cima del telefono nell\'istante del contatto', () => {
++  for (const id of GP.POSE_IDS){
++    const P = gesturePlan(id);
++    assert.equal(P.phases[0].from, 0); assert.ok(Math.abs(P.phases.at(-1).to - P.total) < 1e-9);
++    P.phases.forEach((ph, i) => { assert.ok(ph.to >= ph.from, `${id} ${ph.id}`); if (i) assert.ok(Math.abs(ph.from - P.phases[i - 1].to) < 1e-9, `${id}: buco tra le fasi`); });
++    if (P.still){ assert.equal(gesturePose(id, 1).label, ''); continue; }
++    assert.equal(gesturePose(id, P.contact).phase, 'impatto');
++    assert.equal(gesturePose(id, P.contact).label, 'Impatto');
++    assert.notEqual(gesturePose(id, P.contact - .04).phase, 'impatto');
++    assert.notEqual(gesturePose(id, P.contact + .04).phase, 'impatto');
++    assert.ok(P.keys.some(k => Math.abs(k.t - P.contact) < 1e-9 && k.label === 'Impatto'));
++    // la palla incontra la faccia del telefono vicino alla cima (centro della palla a un raggio dal vetro)
++    const pose = gesturePose(id, P.contact), C = gestureContactPoint(id), loc = GP.qrot(GP.qconj(pose.q), sub(C, pose.pos));
++    assert.ok(len(sub(gestureBall(id, P.contact), C)) < 1e-9, `${id}: palla al contatto`);
++    assert.ok(Math.abs(Math.abs(loc[2]) - (GP.PHONE.d/2 + GP.BALL_R)) < 1e-9 && loc[1] > GP.PHONE.h*.3 && loc[1] < GP.PHONE.h/2, `${id}: punto di contatto ${loc}`);
++    // velocità esposta per la banda «Picco = impatto»
++    const sc = GP.speedCurve(id);
++    assert.ok(Math.abs(sc.at - P.contact) <= 1/120 + 1e-9, `${id}: curva della velocità ${sc.at}`);
++  }
++  const s = gesturePlan('serve');
++  assert.deepEqual(s.phases.map(p => p.label), ['Pronto', 'Carica', 'Lancio', 'Braccio in alto', 'Battuta', 'Impatto', 'Accompagna', 'Ritorno', 'Pronto']);
++  assert.deepEqual(gesturePlan('forehand').phases.map(p => p.label), ['Pronto', 'Carica', 'Colpo', 'Impatto', 'Accompagna', 'Ritorno', 'Pronto']);
++});
++
++test('scheletro per il disegno: mano e avambraccio rigidi con il telefono (polso fermo), dita sul vetro ≤ 8 mm', () => {
++  assert.ok(GP.fingersOverGlass() <= .008, `dita sul vetro ${GP.fingersOverGlass()} m`);
++  for (const id of GP.POSE_IDS){
++    const P = gesturePlan(id);
++    for (let k = 0; k <= 12; k++){
++      const p = gesturePose(id, P.total*k/12, { rig: true }), r = p.rig;
++      assert.ok(Math.abs(len(sub(r.elbow, r.wrist)) - GP.ARM.fore) < 1e-9);
++      assert.ok(Math.abs(len(sub(r.shoulder, r.elbow)) - GP.ARM.upper) < 1e-9);
++      // il polso resta alla stessa distanza dal centro del telefono (mano rigida)
++      assert.ok(Math.abs(len(sub(r.wrist, p.pos)) - len(GP.HAND_LOCAL.wrist)) < 1e-9);
++      assert.equal(r.fingers.length, 4); assert.equal(r.thumb.pts.length, 4);
++    }
++  }
++});
++
++test('la verifica trova i difetti dell\'animazione di prima (specifica §5): servizio, pallonetto, schiacciata e volée sbagliano; dritto, rovescio, piatto, palla corta, tagliato e mira no', () => {
++  const src = legacyPoseSource();
++  for (const cal of CALS) for (const hand of HANDS){
++    const why = id => judgeCard(src, id, readCard(src, id, { hand, cal }), { hand }), tag = `${hand} cal=${cal}`;
++    const serve = readCard(src, 'serve', { hand, cal });
++    assert.equal(serve.events.length, 3, `${tag}: servizio di prima, ${serve.events.length} gesti (attesi 3: il salto della mano tra lancio e battuta)`);
++    assert.ok(why('serve').length > 0);
++    for (const id of ['lob', 'smash', 'volley']){
++      const r = readCard(src, id, { hand, cal });
++      assert.equal(r.read.length, 2, `${tag}: ${id} di prima, ${r.read.length} colpi (attesi 2: la preparazione letta come colpo)`);
++      assert.ok(why(id).length > 0, `${tag}: ${id}`);
++    }
++    for (const id of ['forehand', 'backhand', 'flat', 'drop', 'slice', 'cross', 'line', 'grip', 'ready']) assert.deepEqual(why(id), [], `${tag}: ${id}`);
++  }
++});
+diff --git a/natpf-tennis/test/pose-sensors.mjs b/natpf-tennis/test/pose-sensors.mjs
+index 67a9a67..f7b700b 100644
+--- a/natpf-tennis/test/pose-sensors.mjs
++++ b/natpf-tennis/test/pose-sensors.mjs
+@@ -97,6 +97,7 @@ export function judgeCard(src, id, r, { hand = 'right', allow = null, peakTol =
+     else {
+       if (Math.abs(r.gap - .69/rate) > .1) why.push(`battuta ${r.gap.toFixed(3)} s dopo il lancio (atteso ${(.69/rate).toFixed(2)} ± 0,10)`);
+       if (Math.abs(r.dPeak) > peakTol) why.push(`picco della battuta a ${Math.round(r.dPeak)} ms dal contatto disegnato`);
++      if (r.dToss != null && Math.abs(r.dToss) > peakTol) why.push(`picco del lancio a ${Math.round(r.dToss)} ms dal picco disegnato`);
+     }
+     return why;
+   }
+-- 
+2.43.0
+
+
+From 2d758943e5bc082c66f998def656d7df54323c6a Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 13:16:51 +0000
+Subject: [PATCH 4/4] B9 C: nota docs/b9/posa-gesti.md (API della posa,
+ verifiche, misure, limiti)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ docs/b9/posa-gesti.md                        | 122 +++++++++++++++++++
+ natpf-tennis/src/natpf/natpf_gesture_pose.js |   2 +-
+ 2 files changed, 123 insertions(+), 1 deletion(-)
+ create mode 100644 docs/b9/posa-gesti.md
+
+diff --git a/docs/b9/posa-gesti.md b/docs/b9/posa-gesti.md
+new file mode 100644
+index 0000000..f38b223
+--- /dev/null
++++ b/docs/b9/posa-gesti.md
+@@ -0,0 +1,122 @@
++# B9 · Ramo C, base — posa dei gesti del tutorial e verifica di fedeltà
++
++> Stato: **fatto** (06/11/2026) nel worktree del ramo C, base `6e8d39f`. Primo passo del brief di produzione
++> (`docs/b9/giudizio-animazione.md` §5.7, passo 1). Il disegno (`natpf_gesture_demo.js`) e il riconoscimento **non** sono
++> cambiati: il modulo nuovo non è ancora usato dal gioco (la build non cambia).
++
++File:
++
++- `natpf-tennis/src/natpf/natpf_gesture_pose.js` — posa dei gesti, **modulo puro** (niente DOM, three.js o canvas;
++  importa solo `natpf_gesture_motion.js`), la stessa funzione per il disegno e per la verifica.
++- `natpf-tennis/test/pose-sensors.mjs` — adattatore «posa → sensori» (specifica §6, Appendice B) e la posa
++  dell'animazione di prima (`legacyPoseSource`, la composizione di `natpf_gesture_demo.pose()` senza three.js).
++- `natpf-tennis/test/natpf-gesture-pose.test.mjs` — 14 test di fedeltà e di tempi.
++
++## API (riferimenti come `natpf_gesture_motion.js`)
++
++Campo: x a destra, y in alto, −z verso lo schermo del computer; posizioni in metri dal centro dei piedi; giocatore
++destro, il mancino è lo **specchio esatto** (posizioni x → −x, quaternioni (x, −y, −z, w)). Telefono: y = cima,
+++z = normale dello schermo, +x = bordo destro. Quaternioni `[x, y, z, w]` dal telefono al campo. Tempi in secondi a
++**tempo reale** (la modale può rallentare la riproduzione, i dati no); il ciclo si ripete (`t` qualsiasi).
++
++| Funzione / dato | Cosa dà |
++|---|---|
++| `gesturePose(id, t, { hand, grip, rig })` | `{ pos, q, phase, label, u, speed, contact, cycle, trunk, t, hand }`: centro del telefono, orientamento, fase e testo da scrivere («Pronto», «Carica», «Colpo», «Impatto» ±30 ms, «Accompagna», «Ritorno»; servizio «Lancio», «Braccio in alto», «Battuta»), avanzamento nella fase, velocità di rotazione del telefono (°/s), istante del contatto e durata del ciclo, rotazione del busto (rad, solo disegno); `rig: true` aggiunge lo scheletro |
++| `gesturePlan(id, { grip })` | piano del gesto: `T` (tappe: `hold`, `load`, `swing`, `inv`, `contact`, `end`, `back`, `home`, `total`; servizio anche `tossPeak`, `tossEnd`, `linkStart`, `linkEnd`, `hitStart`), `phases`, `keys` (momenti chiave per i fantasmi: Carica/Impatto/Fine; Lancio/Braccio in alto/Impatto), `contact`, `total`, `peak`, `travel` (ampiezza), `prepAmp`, `ball`, `ballHigh`, `expect`, `kind` (`stroke`, `serve`, `still`) |
++| `gestureRig(pose, { hand })` | spalla, gomito, polso, versori di avambraccio e braccio, `elbowDeg`, eminenze del palmo, 4 dita (nocca, interfalangee, polpastrello, con i raggi), pollice, punti del telefono (cima, base, normale dello schermo, bordo destro) |
++| `gestureBall(id, t, { hand })` / `gestureContactPoint(id)` | palla nel campo (o `null` fuori scena): incontra la faccia del telefono vicino alla cima **nell'istante del contatto**; servizio: lasciata alla fine del lancio, colmo all'istante della battuta |
++| `speedCurve(id)` / `gestureSpeed(id, t)` | curva della velocità per la banda «Picco = impatto» |
++| `CAMERAS`, `cameraFor(id, { hand })` | camera per scheda del brief §5.3 (direzione soggetto → camera, distanza, camera che segue nel servizio e nella schiacciata, due viste e giro di camera nella presa) |
++| `TIMING`, `SERVE_TIMING`, `STILL_TIMING`, `PHASES`, `PHONE`, `BALL_R`, `HAND`, `HAND_LOCAL`, `ARM`, `FOREARM_PROFILE`, `BAND`, `CUFF` | tempi per colpo, misure del telefono (162 × 79 × 8,6 mm), della palla e della mano (dal prototipo illustrato) |
++| `CARD_IDS`, `EXERCISE_IDS`, `POSE_IDS` | le 11 schede nell'ordine di `TUTORIAL_CARDS` e gli esercizi della mira (`cross`, `line`) |
++
++`grip`: `'palmo'` (predefinita, `GRIP_STYLE`), `'martello'` (rollback), `{ lean, tilt }` (presa nel palmo con la cima
++`lean`° verso l'interno e `tilt`° in avanti, come `arm-sim.photoGrip`) o `{ euler }`. Serve a verificare chi imita con una
++presa diversa; il disegno usa la predefinita.
++
++## Come è costruita (dai prototipi verificati)
++
++- Da `natpf_gesture_motion.js` si prendono **solo** i parametri verificati di ogni colpo (`GESTURES`: asse, verso, picco,
++  durata della parte veloce, vettore spalla → mano all'impatto, polso, mira; `GRIP_POSE`): i moti di prima restano lì e
++  li usano ancora `natpf_gesture_demo.js` e il test `natpf-gesture-demo` (nessuna modifica: il file è coerente così).
++- Parte veloce con la legge cicloidale `picco·sin²(πu)`: accelerazione nel 50% della durata, **picco = contatto**.
++- Preparazione con il profilo `12u²(1−u)` (parte da ferma, arriva decelerando) e picco limitato per colpo; la parte
++  veloce comincia un poco prima della fine della carica nei colpi verticali (nessun fermo tra carica e colpo).
++- **Difetti corretti** (specifica §5): (a) **servizio continuo**: preparazione, lancio, raccordo in cui la mano sale sopra
++  la testa con il telefono che ruota appena (≤ 47 °/s), battuta sovrapposta di 0,08 s al raccordo, con il picco **0,69 s
++  dopo il picco del lancio, nel colmo della palla**; niente salto della mano; (b) preparazione di **pallonetto** (82 °/s)
++  e **schiacciata** (75 °/s) sotto la soglia del gesto verticale lento (101 °/s); (c) **volée** con 12° di preparazione.
++- Fermo in fine colpo 0,10–0,20 s, ritorno a minimo jerk con un piccolo superamento e assestamento che parte 0,20–0,32 s
++  dopo l'impatto; ciclo chiuso; presa e posizione di partenza **ferme** (nella presa gira la camera, non la mano), respiro
++  di 3 mm.
++- Raggio spalla → telefono 0,64 × quello dei moti del gioco (gomito piegato, telefono a ~0,46 m dalla spalla), come il
++  prototipo illustrato giudicato.
++
++## Verifiche (`natpf-gesture-pose.test.mjs`, 14 test, ~4,5 s)
++
++Adattatore: a 60 Hz la posa disegnata diventa velocità di rotazione (da `q(k+1)·q(k)⁻¹`) e accelerazione della mano
++(differenza seconda delle posizioni) per il telefono simulato completo (`test/phone-sim.mjs`: rilevatore vero
++`site/js/tennis/swing-detect.js`, filtro d'orientamento, forma del colpo, calibrazione rapida vera, poi
++`natpf_phone_racket`/`natpf_stroke_intent`/`natpf_gestures`). Il campione `k` porta la rotazione dell'intervallo
++`[k, k+1]`: il suo istante nel gesto è il centro dell'intervallo (corretto il mezzo campione, prima −8,3 ms).
++
++| Verifica | Esito |
++|---|---|
++| Le 11 schede e i 2 esercizi, destro e mancino, calibrazione con il dritto e il rovescio **dell'animazione** e con il braccio simulato, presa **palmo** e **martello** (104 letture) | esattamente il colpo mostrato e il lato giusto; servizio = lancio + battuta; mira giusta; presa e posizione nessun messaggio |
++| Picco letto − contatto disegnato | **0 ms** (tolleranza 1 campione, 16,7 ms) in tutti i colpi, nel lancio e nella battuta; battuta 0,690 s dopo il lancio |
++| Imitazione 0,8× e 1,25× (44 letture per velocità) | colpo mostrato, o cambio solo nel verso della velocità: dritto, rovescio, volée e mira a 1,25× → piatto (ammesso), tagliato a 0,8× → palla corta (ammesso); servizio 0,863 s e 0,552 s (= 0,69/velocità) |
++| Prese di chi imita 20/35/50° verso l'interno × 25/40/55° in avanti (≈ 470 letture) | tutto giusto tranne il piatto a 50° (vedi Limiti; il test verifica che la causa sia quella) |
++| Tempi del brief §5.4 | vedi tabella sotto |
++| Continuità | \|ω\| ≤ 1100 °/s e \|Δpos\| ≤ 0,075 m per passo di 1/60 s (limiti 2000 e 0,15); ciclo chiuso a 0 mm / 0° |
++| Mancino | specchio esatto di posa, velocità, fasi, palla, scheletro e camera |
++| Fasi, momenti chiave, palla | fasi contigue da 0 al ciclo; «Impatto» nell'istante del contatto e non a ±40 ms; palla sul punto di contatto (faccia del telefono, a 0,72 della metà verso la cima, centro della palla a un raggio dal vetro) |
++| Scheletro | avambraccio e mano rigidi con il telefono; dita sul vetro ≤ 8 mm |
++| **Animazione di prima** (`legacyPoseSource`) | la stessa verifica **fallisce** dove dice la specifica §5, per destro e mancino e le due calibrazioni: servizio 3 gesti (un falso colpo al cambio di posa, 582 ms prima del colmo disegnato, poi la battuta dopo il colmo), pallonetto = palla corta di rovescio + pallonetto, schiacciata = top spin + schiacciata, volée = rovescio + dritto; dritto, rovescio, piatto, palla corta, tagliato e mira giusti. Con la posa di prima al posto della nuova il test principale dà 16 errori con la presa nel palmo (4 schede × 2 mani × 2 calibrazioni) |
++
++Misure (destro, presa nel palmo; velocità di rotazione del telefono campionata a 600 Hz):
++
++| Scheda | Ciclo (s) | Contatto (s) | Picco (°/s) | Ampiezza | Preparazione max (°/s) | Ritorno max (°/s) | Ritorno dopo l'impatto (s) | Fermo finale (s) |
++|---|---|---|---|---|---|---|---|---|
++| Dritto | 2,27 | 1,03 | 714 | 85° | 137 | 231 | 0,27 | 0,14 |
++| Rovescio | 2,27 | 1,03 | 691 | 78° | 126 | 224 | 0,27 | 0,14 |
++| Piatto | 2,41 | 1,01 | 1098 | 110° | 178 | 240 | 0,25 | 0,14 |
++| Tagliato | 2,22 | 0,98 | 600 | 78° | 139 | 176 | 0,29 | 0,16 |
++| Pallonetto | 2,52 | 1,255 | 520 | 78° | 82 (0,85 s) | 166 | 0,31 | 0,16 |
++| Palla corta | 2,16 | 0,91 | 414 | 40° | 84 | 142 | 0,32 | 0,20 |
++| Schiacciata | 2,65 | 1,37 | 700 | 84° | 75 (1,0 s) | 164 | 0,28 | 0,16 |
++| Volée | 1,90 | 0,69 | 491 | 48° (prep. 12°) | 89 | 191 | 0,20 | 0,10 |
++| Servizio | 3,78 | 2,20 | lancio 300, battuta 700 | 63° + 84° | 56, raccordo 47 | 109 | 0,28 | 0,16 |
++| Incrociato / lungolinea | 2,32 | 1,03 | 714 | 85° | 89 / 201 | 240 / 157 | 0,27 | 0,14 |
++
++I picchi sono quelli veri del telefono (braccio + polso): dritto 714 come la specifica §2.3, rovescio 691 e palla corta
++414 sono appena sopra gli intervalli scritti nel brief (690 e 410): il test usa 700 e 420.
++
++## Limiti e non verificato
++
++- **Piatto con la cima a 50° verso l'interno** (presa di chi imita, non quella mostrata): il gioco legge il piatto come
++  «il proprio dritto più veloce» (salita della testa entro ±0,12 da quella abituale, che conta al massimo fino a 0,30,
++  `natpf_stroke_intent` `riseRefMax`). Con quella presa e il raggio del braccio disegnato il dritto sale di 0,36–0,75:
++  oltre 0,42 il piatto resta top spin (con la calibrazione dell'animazione a 25° e 40° in avanti, con quella del braccio
++  simulato anche a 55°). Il braccio simulato del test `natpf-gesture-demo` (raggio 0,72 m) non lo vede perché a raggio
++  più lungo la salita è più bassa. È un limite del riconoscimento, non del disegno: da valutare con chi cura il
++  riconoscimento (per esempio `riseRefMax` più alto solo per il piatto); qui è documentato e verificato nella causa.
++- **Scheletro**: telefono, mano, dita, polso e avambraccio sono affidabili per il disegno (rigidi con il telefono:
++  «polso fermo»; direzione dell'avambraccio del prototipo illustrato giudicato, che si disegna fino al gomito che sfuma
++  fuori quadro, brief §5.2). Spalla, braccio superiore ed `elbowDeg` sono **indicativi**: il braccio superiore non è
++  risolto con la cinematica inversa e la spalla disegnata si scosta da quella del modello fino a 0,43 m (dritto
++  all'impatto; `shoulderShift`). Una prova di cinematica inversa con la spalla fissa (non adottata) chiedeva pieghe del
++  polso di 80–150°: le posizioni della mano del moto e la presa nel palmo non sono compatibili con un braccio intero a
++  spalla ferma. Se il disegno vorrà il braccio intero bisognerà rivedere insieme posizioni della mano, spalla e busto.
++- Nessuna prova con un telefono vero né con persone: tutto con il telefono simulato (sensori ideali a 60 Hz).
++- Non ancora fatto (passi successivi del brief §5.7): disegno Canvas 2D che usi `gesturePose` (e il test «la posa
++  disegnata è la stessa del test»: `demo.pose(t)` = `gesturePose` su 50 istanti per scheda), modalità compatta, due
++  istanze nello stesso schermo, fogli di controllo visivo, prestazioni. Quando il disegno nuovo sostituirà
++  `natpf_gesture_demo.js`, `strokeTimeline`/`serveTimeline`/`tossBall` di `natpf_gesture_motion.js` resteranno solo per il
++  test `natpf-gesture-demo` (moti di riferimento del braccio simulato) e si potranno togliere.
++
++## Come rifare le misure
++
++```sh
++cd natpf-tennis
++node --import ./test/register.mjs --test test/natpf-gesture-pose.test.mjs
++```
+diff --git a/natpf-tennis/src/natpf/natpf_gesture_pose.js b/natpf-tennis/src/natpf/natpf_gesture_pose.js
+index c1441bc..fc0acae 100644
+--- a/natpf-tennis/src/natpf/natpf_gesture_pose.js
++++ b/natpf-tennis/src/natpf/natpf_gesture_pose.js
+@@ -27,7 +27,7 @@
+ //    specifica §5); la parte veloce comincia un poco PRIMA che la preparazione sia finita (sovrapposizione `overlap`):
+ //    la velocità attraversa lo zero con decisione, senza il «fermo» tra carica e colpo;
+ //  - volée con una preparazione di 12° soltanto (difetto (c): 24° in 0,08 s erano letti come un rovescio);
+-//  - fermo in fine colpo 0,10–0,20 s, ritorno a minimo jerk che parte entro 0,3 s dall'impatto con un piccolo superamento
++//  - fermo in fine colpo 0,10–0,20 s, ritorno a minimo jerk che parte entro 0,35 s dall'impatto con un piccolo superamento
+ //    e assestamento (≤ 3°), ciclo chiuso (posa a 0 e a `total` uguali);
+ //  - servizio CONTINUO: preparazione, lancio, raccordo in cui la mano sale sopra la testa con il telefono che ruota
+ //    appena (≤ 90 °/s), battuta con il picco 0,69 s dopo il picco del lancio, nel colmo della palla (difetto (a): niente
 -- 
 2.43.0
 
