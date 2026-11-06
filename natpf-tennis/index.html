@@ -433,7 +433,7 @@
           <!-- stesso schermo (split screen, natpf_split_ui.js): un telefono per giocatore, ognuno con il suo QR e la sua
                calibrazione guidata sul telefono; si va alla partita quando sono pronti tutti e due -->
           <div class="setup-panel split-setup" data-setup="split">
-            <div class="split-names" style="display:flex;gap:1cqw;flex-wrap:wrap"><label>Player 1 · sinistra <input data-split-name="p1" maxlength="24" placeholder="Player 1" autocomplete="off" style="max-width:22cqw"></label><label>Player 2 · destra <input data-split-name="p2" maxlength="24" placeholder="Player 2" autocomplete="off" style="max-width:22cqw"></label></div>
+            <div class="split-names"><label>Player 1 · sinistra <input class="split-name-input" data-split-name="p1" maxlength="24" placeholder="Player 1" autocomplete="off" spellcheck="false"></label><label>Player 2 · destra <input class="split-name-input" data-split-name="p2" maxlength="24" placeholder="Player 2" autocomplete="off" spellcheck="false"></label></div>
             <div class="lobby-row split-input-row">
               <span class="lobby-label">Si gioca con</span>
               <div class="lobby-seg" role="radiogroup" aria-label="Si gioca con">
@@ -448,8 +448,10 @@
                 <button type="button" class="lobby-primary" id="split-cam-go">Accendi la webcam</button>
               </div>
             </div>
-            <div class="split-player" data-split-player="p1">
-              <header class="split-head"><b>Player 1</b><span>gioca a sinistra</span></header>
+            <!-- scheda del giocatore (natpf_ready.js): nome, distintivo con icona e parola (in attesa · si prepara · pronto ·
+                 problema), bordo del colore dello stato; la striscia a sinistra è il colore del giocatore -->
+            <div class="split-player is-off" data-split-player="p1" data-ready="off">
+              <header class="split-head"><span class="split-who"><b data-ready-name>Player 1</b><span>gioca a sinistra</span></span><span class="ready-badge"><i class="ready-ico" aria-hidden="true"></i><b data-ready-word>In attesa</b></span></header>
               <div class="split-qr"><div id="split-qr-p1" class="natpf-qr"></div><a id="split-link-p1" class="sheet-link" target="_blank" rel="noopener">Apri il link ↗</a></div>
               <p class="split-status" id="split-status-p1" data-state="wait"><b>Preparo il QR…</b><span></span></p>
               <div class="split-actions">
@@ -458,8 +460,8 @@
                 <button type="button" class="lobby-link" data-split-skip="p1">Gioca senza calibrare</button>
               </div>
             </div>
-            <div class="split-player" data-split-player="p2">
-              <header class="split-head"><b>Player 2</b><span>gioca a destra</span></header>
+            <div class="split-player is-off" data-split-player="p2" data-ready="off">
+              <header class="split-head"><span class="split-who"><b data-ready-name>Player 2</b><span>gioca a destra</span></span><span class="ready-badge"><i class="ready-ico" aria-hidden="true"></i><b data-ready-word>In attesa</b></span></header>
               <div class="split-qr"><div id="split-qr-p2" class="natpf-qr"></div><a id="split-link-p2" class="sheet-link" target="_blank" rel="noopener">Apri il link ↗</a></div>
               <p class="split-status" id="split-status-p2" data-state="wait"><b>Preparo il QR…</b><span></span></p>
               <div class="split-actions">
@@ -467,6 +469,13 @@
                   ><button type="button" class="seg-btn" data-split-hand="p2:left">Sinistra</button></div>
                 <button type="button" class="lobby-link" data-split-skip="p2">Gioca senza calibrare</button>
               </div>
+            </div>
+            <!-- barra dell'avvio: chi manca; con tutti e due pronti il conto alla rovescia (poi si gioca da soli), «Aspetta» -->
+            <div id="split-ready-bar" class="ready-bar" data-ready-bar="wait" aria-live="polite">
+              <span class="ready-bar-count" data-ready-count aria-hidden="true"></span>
+              <p class="ready-bar-text"><b data-ready-bar-title>Si parte da soli quando tutti e due i giocatori sono pronti</b><span data-ready-bar-sub></span></p>
+              <button type="button" class="lobby-ghost hidden" data-split-hold>Aspetta</button
+              ><button type="button" class="lobby-primary hidden" data-split-play>Gioca ›</button>
             </div>
             <p class="split-grip"><span data-grip-text="split">Presa nel palmo: lo schermo verso di te, le dita attorno alla parte bassa, il pollice sul bordo, la cima inclinata in avanti verso lo schermo.</span> Ognuno segue i passi sul suo telefono.</p>
           </div>
@@ -493,6 +502,8 @@
 
         <section class="lobby-page" data-page="match" aria-labelledby="lobby-t-match">
           <header class="page-head"><h2 class="lobby-title" id="lobby-t-match">Pronto per la partita</h2></header>
+          <!-- stesso schermo: le schede dei due giocatori, dal vivo (natpf_split_ui.paintMatch) -->
+          <div id="split-ready-board" class="ready-board" aria-live="polite"></div>
           <div id="lobby-practice-result" class="lobby-result hidden" aria-live="polite"></div>
           <div class="lobby-tiles" id="difficulty-mode-group" role="radiogroup">
             <button type="button" class="nt-green-choice lobby-tile selected" data-difficulty="casual" role="radio">
@@ -558,6 +569,15 @@
         ><button type="button" id="lobby-next" class="lobby-primary">Avanti ›</button
         ><button id="btn-start-match" type="button" class="lobby-primary"><span>Gioca</span> ›</button>
       </footer>
+      <!-- stesso schermo: conto alla rovescia prima della partita, grande al centro (natpf_split_ui._paintStart) -->
+      <div id="split-countdown" class="split-countdown hidden" role="status" aria-live="assertive">
+        <div class="split-countdown-box">
+          <p class="split-countdown-kicker">Tutto pronto · si gioca tra</p>
+          <b class="split-countdown-num" data-split-count>3</b>
+          <p class="split-countdown-sub" data-split-count-names></p>
+          <button type="button" class="lobby-ghost" data-split-hold>Aspetta <kbd>Esc</kbd></button>
+        </div>
+      </div>
     </div>
     <div id="companion-modal" class="nt-modal-backdrop hidden">
       <div class="nt-dialog-box nt-companion-clean-dialog">

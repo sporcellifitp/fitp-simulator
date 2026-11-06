@@ -7,7 +7,9 @@
 //   2. il link porta stanza, ruolo, rete p2p e server di segnalazione;
 //   3. P2 apre il gioco e scrive il codice («Ti hanno invitato?»): entra nella stanza, l'host lo vede entrato, «Gioca»
 //      resta bloccato;
-//   4. P2 «Sono pronto»: l'host lo vede pronto, «Gioca» si sblocca;
+//   4. P2 «Sono pronto»: l'host lo vede pronto, «Gioca» si sblocca; (B9) il pulsante del P2 diventa verde pieno
+//      «Pronto ✓» con «Annulla» accanto e la sua scheda dice che l'host lo vede; un secondo clic non lo toglie,
+//      «Annulla» sì («Gioca» dell'host torna grigio); schede e pulsanti fotografati a 1280×720, 1920×1080 e ledwall;
 //   5. «Gioca»: si gioca al meglio di 3, servono tutti e due, punteggio uguale sulle due sessioni;
 //      Il P2 colpisce con i dati del telefono (~1,4 KB a colpo, come natpf_phone_racket.js): fino al 30/10 dopo una decina
 //      di suoi colpi lo stato della partita superava i 16300 byte, PeerJS lo scartava e il P2 restava su «collegamento
@@ -68,6 +70,23 @@ const BOT = () => {
 };
 // il disegno con WebGL software rallenta i fotogrammi a 1–2 s: si toglie solo il render, la partita resta
 const NO_RENDER = () => { const e = window.__natpfTennis; e.render = () => {}; };
+// schermata dell'interfaccia sopra l'ultimo fotogramma disegnato: niente fotogramma nuovo, che con WebGL software ferma
+// la pagina per secondi (l'host tiene il relay: il P2 risultava «collegamento perso» nelle schermate)
+const OUT = path.join(SP, 'versus-ready'); fs.mkdirSync(OUT, { recursive: true });
+const shot = async (p, name) => { await sleep(300); await p.screenshot({ path: `${OUT}/${name}.png` }); log('schermata ' + name); };
+const GREEN = 'rgb(54, 224, 122)';
+// pannello del Player 2: pulsante (scritta, colore calcolato, aria-pressed), «Annulla», schede, riga di stato
+const p2View = p => p.evaluate(() => {
+  const m = document.getElementById('natpf-guest-modal'), go = document.getElementById('natpf-guest-go'), un = m.querySelector('[data-versus-unready]');
+  const slot = id => { const el = m.querySelector(`[data-versus-board] [data-ready-slot="${id}"]`); return el ? `${el.dataset.ready}:${el.querySelector('[data-ready-word]').textContent}:${el.querySelector('[data-ready-detail]').textContent}` : null; };
+  const r = go.getBoundingClientRect();
+  return { label: go.textContent, bg: getComputedStyle(go).backgroundColor, pressed: go.getAttribute('aria-pressed'), cancel: !!un && !un.classList.contains('hidden'), me: slot('p2'), host: slot('p1'), line: document.querySelector('[data-versus-guest]')?.dataset.state, goInView: r.top >= 0 && r.bottom <= innerHeight };
+});
+// barra dell'invito dell'host: schede e «Gioca» (spento, classe, colore calcolato)
+const hostView = p => p.evaluate(() => {
+  const b = document.getElementById('btn-start-match');
+  return { slots: [...document.querySelectorAll('#natpf-invite [data-versus-board] [data-ready-slot]')].map(s => `${s.dataset.readySlot}:${s.dataset.ready}`).join(), disabled: b.disabled, wait: b.classList.contains('is-wait'), bg: getComputedStyle(b).backgroundColor, label: b.textContent.trim() };
+});
 const ready = p => p.waitForFunction(() => window.__natpfTennis?.player?.model && window.__natpfTennis.racketKinematics && window.__natpfTennis.natpfUi?.versus, null, { timeout: 120000 });
 // riga di stato della barra dell'invito dell'host: stato (on · ok · error) e testo
 const line = p => p.evaluate(() => { const el = document.querySelector('#natpf-invite [data-versus-state]'); return el ? `${el.dataset.state}: ${el.textContent}` : ''; });
@@ -125,9 +144,50 @@ try {
   check('   P2 collegato all’host con WebRTC, pannello «Sono pronto»', p2linked && await p2.evaluate(() => __natpfTennis.playerRole === 'p2' && __natpfTennis.natpfP2p.status === 'connected'), await guestStatus(p2));
   const joined = await until(p1, () => /è entrato/.test(document.querySelector('#natpf-invite [data-versus-state]')?.textContent || ''));
   check('   l’host vede il P2 entrato, «Gioca» ancora bloccato', joined && await p1.evaluate(() => document.getElementById('btn-start-match').disabled), await line(p1));
-  await p2.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.testInput = true; ui.selectController('mouse', { open: false }); document.getElementById('natpf-guest-go').click(); });
+  await p2.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.testInput = true; ui.selectController('mouse', { open: false }); });
+  await sleep(400);
+  let g2 = await p2View(p2), h1 = await hostView(p1);
+  check('   P2 prima del clic: «Sono pronto» giallo senza ✓, niente «Annulla», scheda «si prepara»', g2.label === 'Sono pronto' && g2.bg !== GREEN && !g2.cancel && /^prep:/.test(g2.me) && g2.line === 'lobby', JSON.stringify(g2));
+  check('   host: schede «tu» pronto e Player 2 «si prepara», «Gioca» grigio (non giallo spento)', h1.slots === 'p1:ready,p2:prep' && h1.disabled && h1.wait && h1.bg !== 'rgb(227, 255, 54)', JSON.stringify(h1));
+  for (const [p, w, h] of [[p2, 1280, 720], [p1, 1280, 720]]) await p.setViewportSize({ width: w, height: h });
+  await sleep(300);
+  check('   P2 a 1280×720: il pulsante si vede senza scorrere (piede del pannello fisso)', (await p2View(p2)).goInView);
+  await shot(p2, 'p2-1-prima-1280'); await shot(p1, 'host-1-p2-si-prepara-1280');
+  const tClick = Date.now();
+  await p2.evaluate(() => document.getElementById('natpf-guest-go').click());
   const ready2 = await until(p1, () => document.querySelector('#natpf-invite [data-versus-state]')?.dataset.state === 'ok' && !document.getElementById('btn-start-match').disabled);
+  log(`dal clic del P2 a «Gioca» acceso sull'host: ${Date.now() - tClick} ms (con il passaggio dallo script)`);
   check('4. P2 «Sono pronto»: l’host lo vede pronto e «Gioca» si sblocca', ready2, await line(p1));
+  const seen = await until(p2, () => /lo vede ✓/.test(document.querySelector('#natpf-guest-modal [data-ready-slot="p2"] [data-ready-detail]')?.textContent || ''), null, 8000);
+  await sleep(500);   // colori a transizione finita (il fondo di «Gioca» passa dal grigio al giallo in ~0,2 s)
+  g2 = await p2View(p2); h1 = await hostView(p1);
+  check('   P2: «Pronto ✓» verde pieno, «Annulla» accanto, riga verde, la sua scheda dice che l’host lo vede', seen && g2.label === 'Pronto ✓' && g2.bg === GREEN && g2.pressed === 'true' && g2.cancel && /^ready:Pronto:.* lo vede ✓$/.test(g2.me) && g2.line === 'ready', JSON.stringify(g2));
+  check('   P2: la scheda dell’host dice la sua racchetta (snapshot della lobby)', /^ready:Pronto:racchetta pronta$/.test(g2.host || ''), g2.host);
+  check('   host: Player 2 «pronto», «Gioca ›» giallo e attivo', h1.slots === 'p1:ready,p2:ready' && !h1.disabled && !h1.wait && h1.bg === 'rgb(227, 255, 54)' && /Gioca/.test(h1.label), JSON.stringify(h1));
+  await shot(p2, 'p2-2-pronto-1280'); await shot(p1, 'host-2-p2-pronto-1280');
+  // un secondo clic sul pulsante verde non toglie il pronto (prima sì, senza avviso)
+  await p2.evaluate(() => document.getElementById('natpf-guest-go').click());
+  await sleep(1200);
+  check('   P2: un secondo clic su «Pronto ✓» non lo toglie, l’host resta con «Gioca» attivo', (await p2.evaluate(() => __natpfTennis.natpfUi.versus.ready)) && !(await hostView(p1)).disabled);
+  // «Annulla»: non pronto, l'host lo vede («Gioca» grigio di nuovo); poi di nuovo pronto
+  await p2.evaluate(() => document.querySelector('#natpf-guest-modal [data-versus-unready]').click());
+  const unready = await until(p1, () => document.getElementById('btn-start-match').disabled, null, 8000);
+  await sleep(500);
+  g2 = await p2View(p2); h1 = await hostView(p1);
+  check('   «Annulla»: il P2 torna «Sono pronto» giallo, l’host «Gioca» grigio e spento', unready && g2.label === 'Sono pronto' && g2.bg !== GREEN && !g2.cancel && h1.wait && h1.slots === 'p1:ready,p2:prep', JSON.stringify({ g2, h1 }));
+  await p2.evaluate(() => document.getElementById('natpf-guest-go').click());
+  check('   di nuovo «Sono pronto»: l’host lo rivede pronto', await until(p1, () => !document.getElementById('btn-start-match').disabled, null, 8000));
+  // le stesse schede a 1920×1080 e, sull'host, in un'area di ledwall 720×720 (come ?area=0,0,720,720)
+  for (const p of [p1, p2]) await p.setViewportSize({ width: 1920, height: 1080 });
+  await sleep(500);
+  await shot(p2, 'p2-3-pronto-1920'); await shot(p1, 'host-3-pronto-1920');
+  for (const p of [p1, p2]){ await p.setViewportSize({ width: 1280, height: 720 }); await p.evaluate(() => __natpfTennis.natpfUi.screen.restore({ preset: 'full', area: { x: 0, y: 0, w: 720, h: 720 }, margins: {} })); }
+  await sleep(500);
+  check('   P2 nell’area del ledwall: il pulsante si vede', (await p2View(p2)).goInView);
+  await shot(p1, 'host-4-pronto-ledwall-720'); await shot(p2, 'p2-4-pronto-ledwall-720');
+  for (const p of [p1, p2]) await p.evaluate(() => __natpfTennis.natpfUi.screen.restore({ preset: 'full', area: null, margins: {} }));
+  for (const p of [p1, p2]) await p.setViewportSize({ width: 1100, height: 680 });
+  await sleep(300);
 
   /* 5: partita */
   await p1.evaluate(() => document.getElementById('btn-start-match').click());

@@ -1015,10 +1015,6 @@ html:not(.autoplay-mode) #hud-root {
 @keyframes versus-pulse {
   50% { opacity: 0.35; }
 }
-#btn-start-match.waiting {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
 .natpf-versus-status {
   margin: 0 0 10px;
   padding: 10px 14px;

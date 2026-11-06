@@ -1039,13 +1039,58 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
 /* pagina «Collega» con lo stesso schermo: un pannello per giocatore (QR, stato del telefono, mano) */
 #title-modal .split-setup { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 #title-modal .split-setup.hidden { display: none; }
-#title-modal .split-player { display: grid; grid-template-columns: 150px 1fr; grid-template-areas: "head head" "qr status" "qr actions"; gap: 10px 16px; align-items: start; padding: 16px; border-radius: var(--r-l); background: var(--panel); border: 1px solid var(--line); }
-#title-modal .split-player.ready { border-color: var(--ok); box-shadow: 0 0 0 2px rgba(64, 214, 128, 0.25); }
-#title-modal .split-player[data-split-player="p2"] { border-top: 4px solid var(--pink); }
-#title-modal .split-player[data-split-player="p1"] { border-top: 4px solid var(--ball); }
-#title-modal .split-head { grid-area: head; display: flex; align-items: baseline; gap: 10px; }
-#title-modal .split-head b { font: 800 italic 26px/1 var(--font-display); text-transform: uppercase; }
-#title-modal .split-head span { font: 600 13px/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
+/* scheda del giocatore (natpf_ready.js, B9): la striscia a sinistra è il colore del giocatore (chi è), il bordo e il
+   distintivo sono lo stato (in attesa tratteggiato grigio · si prepara ambra · pronto verde su tutti i lati · problema
+   rosso). Prima il bordo superiore restava giallo o rosa anche da pronti */
+#title-modal .split-player { --who: var(--ball); display: grid; grid-template-columns: 150px 1fr; grid-template-areas: "head head" "qr status" "qr actions"; gap: 10px 16px; align-items: start; padding: 16px 16px 16px 24px; border-radius: var(--r-l); background: var(--panel); border: 2px solid var(--line-strong); box-shadow: inset 6px 0 0 var(--who); transition: border-color var(--t-med), background var(--t-med), box-shadow var(--t-med); }
+#title-modal .split-player[data-split-player="p2"] { --who: var(--pink); }
+#title-modal .split-player.is-off { border-style: dashed; }
+#title-modal .split-player.is-prep { border-color: rgba(255, 198, 64, 0.72); }
+#title-modal .split-player.is-ready { border-color: var(--ok); background: linear-gradient(rgba(54, 224, 122, 0.14), rgba(54, 224, 122, 0.14)), var(--panel); box-shadow: inset 6px 0 0 var(--who), 0 0 0 3px rgba(54, 224, 122, 0.28); }
+#title-modal .split-player.is-ko { border-color: var(--bad); box-shadow: inset 6px 0 0 var(--who), 0 0 0 3px rgba(255, 79, 97, 0.22); }
+#title-modal .split-head { grid-area: head; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+#title-modal .split-who { display: flex; align-items: baseline; gap: 10px; min-width: 0; margin-right: auto; }
+#title-modal .split-who b { font: 800 italic 26px/1 var(--font-display); text-transform: uppercase; color: var(--who); overflow-wrap: anywhere; }
+#title-modal .split-who span { font: 600 13px/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); white-space: nowrap; }
+/* nomi dei due giocatori: campi con lo stile del gioco (prima i campi bianchi del browser) */
+#title-modal .split-names { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px 24px; }
+#title-modal .split-names label { display: flex; align-items: center; gap: 10px; font: 600 13px/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
+#title-modal .split-name-input { width: min(24cqw, 260px); height: 40px; padding: 0 14px; border-radius: var(--r-s); border: 1px solid var(--line-strong); background: rgba(5, 10, 28, 0.6); color: var(--text); font: 700 italic 19px/1 var(--font-display); letter-spacing: 0.02em; }
+#title-modal .split-name-input::placeholder { color: var(--text-3); }
+#title-modal .split-name-input:focus-visible { outline: 3px solid var(--ball); outline-offset: 2px; }
+/* barra dell'avvio sotto le schede: chi manca, conto alla rovescia, conto annullato con il motivo. Sempre in vista:
+   attaccata in fondo alla pagina che scorre (a 1280×720 e in un'area di ledwall le schede sono più alte dello schermo) */
+#title-modal .ready-bar { grid-column: 1 / -1; position: sticky; bottom: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 12px 18px; border-radius: var(--r-m); border: 2px solid var(--line-strong); background: var(--panel-solid); box-shadow: 0 -10px 24px rgba(4, 8, 24, 0.55); transition: border-color var(--t-med), background var(--t-med); }
+#title-modal .ready-bar-text { flex: 1 1 280px; min-width: 0; margin: 0; display: grid; gap: 4px; }
+#title-modal .ready-bar-text b { font: 800 italic clamp(18px, 2.8cqh, 32px)/1.05 var(--font-display); text-transform: uppercase; letter-spacing: 0.01em; }
+#title-modal .ready-bar-text span { font: 500 clamp(14px, 2cqh, 22px)/1.35 var(--font-text); color: var(--text-2); }
+#title-modal .ready-bar-text span:empty { display: none; }
+#title-modal .ready-bar-count { display: none; flex: none; width: 1.7em; height: 1.7em; border-radius: 50%; place-items: center; background: var(--ok); color: var(--ink-900); font: 800 italic clamp(24px, 4.4cqh, 52px)/1 var(--font-display); }
+#title-modal .ready-bar[data-ready-bar="count"] .ready-bar-count { display: grid; }
+#title-modal .ready-bar[data-ready-bar="count"], #title-modal .ready-bar[data-ready-bar="held"], #title-modal .ready-bar[data-ready-bar="ready"] { border-color: var(--ok); background: linear-gradient(rgba(54, 224, 122, 0.12), rgba(54, 224, 122, 0.12)), var(--panel-solid); }
+#title-modal .ready-bar[data-ready-bar="count"] .ready-bar-text b, #title-modal .ready-bar[data-ready-bar="held"] .ready-bar-text b, #title-modal .ready-bar[data-ready-bar="ready"] .ready-bar-text b { color: var(--ok); }
+#title-modal .ready-bar[data-ready-bar="cancel"] { border-color: var(--bad); background: linear-gradient(rgba(255, 79, 97, 0.12), rgba(255, 79, 97, 0.12)), var(--panel-solid); }
+/* stesso schermo, pagina dei telefoni: si gioca da soli, quindi «Impostazioni partita ›» è un'azione secondaria (non
+   gialla, nemmeno spenta: un giallo spento sembrava il pulsante da premere) */
+#title-modal[data-flow="split"][data-step="connect"] #lobby-next { background: transparent; border-color: var(--line-strong); color: var(--text); box-shadow: none; }
+#title-modal[data-flow="split"][data-step="connect"] #lobby-next:not(:disabled):hover { background: rgba(255, 255, 255, 0.12); }
+#title-modal .ready-bar[data-ready-bar="cancel"] .ready-bar-text b { color: #ffb3bc; }
+#title-modal .ready-bar .lobby-primary { min-width: 0; }
+/* conto alla rovescia grande al centro, sopra la lobby (non sopra il toast); «Aspetta» o Esc lo fermano */
+#title-modal .split-countdown { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: var(--gutter); background: rgba(4, 8, 24, 0.6); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+#title-modal .split-countdown.hidden { display: none; }
+#title-modal .split-countdown-box { display: grid; justify-items: center; gap: clamp(6px, 1.6cqh, 18px); max-width: 100%; padding: clamp(16px, 4cqh, 48px) clamp(22px, 5cqw, 72px); border-radius: var(--r-l); border: 3px solid var(--ok); background: linear-gradient(180deg, #13214f 0%, var(--panel-solid) 100%); box-shadow: var(--shadow), 0 0 0 8px rgba(54, 224, 122, 0.16); text-align: center; animation: page-in 0.2s var(--ease) both; }
+#title-modal .split-countdown-kicker { margin: 0; font: 700 italic clamp(18px, 3.6cqh, 44px)/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ok); }
+#title-modal .split-countdown-num { display: block; font: 800 italic clamp(90px, 30cqh, 360px)/0.9 var(--font-display); color: var(--text); text-shadow: 0 0 0.25em rgba(54, 224, 122, 0.45); }
+#title-modal .split-countdown-num.tick { animation: count-beat 0.9s var(--ease) both; }
+@keyframes count-beat { 0% { transform: scale(1.35); opacity: 0; } 25% { opacity: 1; } 100% { transform: none; opacity: 1; } }
+#title-modal .split-countdown-sub { margin: 0; max-width: 40ch; font: 600 clamp(15px, 2.6cqh, 30px)/1.3 var(--font-text); color: var(--text-2); }
+#title-modal .split-countdown kbd { margin-left: 0.4em; padding: 0.1em 0.4em; border-radius: 6px; border: 1px solid var(--line-strong); font: 600 0.75em/1 var(--font-display); font-style: normal; color: var(--text-3); }
+/* pagina «Partita» dello stesso schermo: le due schede al posto del «VS» */
+#title-modal .ready-board { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+#title-modal .ready-board:empty, #title-modal:not([data-flow="split"]) #split-ready-board { display: none; }
+#title-modal[data-flow="split"] [data-page="match"] .lobby-versus { display: none; }
+@container natpf (max-width: 640px) { #title-modal .ready-board { grid-template-columns: 1fr; } }
 #title-modal .split-qr { grid-area: qr; display: grid; gap: 6px; justify-items: center; }
 #title-modal .split-qr .natpf-qr { width: 150px; height: 150px; }
 #title-modal .split-status { grid-area: status; display: grid; gap: 4px; margin: 0; }
@@ -1061,6 +1106,65 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
   #title-modal .split-player { grid-template-columns: 110px 1fr; }
   #title-modal .split-qr .natpf-qr { width: 110px; height: 110px; }
 }
+/* ---------- stato «pronto» dei giocatori nel 1v1 (natpf_ready.js, B9): stesso schermo e sfida un amico ----------
+   Distintivo con icona e parola, mai solo il colore: in attesa (cerchio vuoto, grigio) · si prepara (anello che gira,
+   ambra) · pronto (✓, verde pieno con testo scuro) · problema (!, rosso). Misure con cqh/cqw: su un ledwall restano
+   leggibili */
+.ready-badge { display: inline-flex; align-items: center; gap: 0.45em; padding: 0.3em 0.85em 0.3em 0.4em; border-radius: var(--r-pill); border: 2px solid var(--line-strong); background: rgba(255, 255, 255, 0.04); color: var(--text-2); font: 800 italic clamp(14px, min(2.2cqh, 1.3cqw), 28px)/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.ready-badge b { font: inherit; }
+.ready-ico { flex: none; display: grid; place-items: center; box-sizing: border-box; width: 1.3em; height: 1.3em; border-radius: 50%; border: 2px solid currentColor; font-style: normal; }
+.is-off .ready-ico { border-style: dashed; opacity: 0.8; }
+.is-prep .ready-badge { color: var(--warn); border-color: rgba(255, 198, 64, 0.6); background: rgba(255, 198, 64, 0.12); }
+.is-prep .ready-ico { border-color: rgba(255, 198, 64, 0.28); border-top-color: var(--warn); border-width: 3px; animation: ready-spin 0.9s linear infinite; }
+.is-ready .ready-badge { color: var(--ink-900); border-color: var(--ok); background: var(--ok); animation: ready-pop 0.28s var(--ease) both; }
+.is-ready .ready-ico { border-color: var(--ink-900); background: var(--ink-900); color: var(--ok); }
+.is-ready .ready-ico::after { content: "✓"; font: 900 0.8em/1 var(--font-text); }
+.is-ko .ready-badge { color: #fff; border-color: var(--bad); background: var(--bad); }
+.is-ko .ready-ico { border-color: #fff; background: #fff; color: var(--bad); }
+.is-ko .ready-ico::after { content: "!"; font: 900 0.8em/1 var(--font-text); }
+@keyframes ready-spin { to { transform: rotate(360deg); } }
+@keyframes ready-pop { 0% { transform: scale(0.8); } 60% { transform: scale(1.12); } 100% { transform: none; } }
+/* scheda compatta (pagina «Partita» dello stesso schermo, pannello del Player 2 e barra dell'invito della sfida) */
+.ready-slot { --who: var(--ball); display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "who badge" "detail badge"; align-items: center; gap: 4px 12px; padding: 10px 14px 10px 20px; border-radius: var(--r-m); border: 2px solid var(--line-strong); background: var(--panel); box-shadow: inset 6px 0 0 var(--who); color: var(--text); text-align: left; transition: border-color var(--t-med), background var(--t-med); }
+.ready-slot[data-p="p2"] { --who: var(--pink); }
+.ready-slot .ready-who { grid-area: who; display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.ready-slot .ready-who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 800 italic clamp(18px, 2.8cqh, 32px)/1 var(--font-display); text-transform: uppercase; color: var(--who); }
+.ready-slot .ready-you { font: 600 12px/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
+.ready-slot .ready-you.hidden { display: none; }
+.ready-slot .ready-badge { grid-area: badge; }
+.ready-slot .ready-detail { grid-area: detail; min-width: 0; font: 500 clamp(13px, 1.9cqh, 20px)/1.3 var(--font-text); color: var(--text-2); }
+.ready-slot .ready-detail:empty { display: none; }
+.ready-slot.is-off { border-style: dashed; }
+.ready-slot.is-prep { border-color: rgba(255, 198, 64, 0.6); }
+.ready-slot.is-ready { border-color: var(--ok); background: linear-gradient(rgba(54, 224, 122, 0.14), rgba(54, 224, 122, 0.14)), var(--panel); }
+.ready-slot.is-ko { border-color: var(--bad); }
+.ready-slot.compact .ready-badge { font-size: clamp(12px, min(1.9cqh, 1.15cqw), 22px); }
+/* pulsante «pronto» premuto (sfida un amico, Player 2): verde pieno, non è più un interruttore (si annulla con «Annulla»);
+   «Gioca» che non si può ancora premere: grigio neutro, non giallo spento */
+.natpf-sheet .lobby-primary.is-ready, .natpf-lobby .lobby-primary.is-ready { background: var(--ok); color: var(--ink-900); box-shadow: 0 8px 22px rgba(54, 224, 122, 0.3); cursor: default; }
+.natpf-sheet .lobby-primary.is-ready:hover, .natpf-lobby .lobby-primary.is-ready:hover { background: var(--ok); transform: none; }
+#btn-start-match.is-wait { background: rgba(255, 255, 255, 0.1); color: var(--text-3); border-color: var(--line-strong); box-shadow: none; opacity: 1; cursor: not-allowed; }
+/* sfida un amico: le due schede nel pannello del Player 2 e nella barra dell'invito dell'host */
+.versus-board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 12px; }
+.versus-board:empty { display: none; }
+.natpf-invite .versus-board { grid-column: 1 / -1; margin: 6px 0 2px; }
+.versus-board .ready-slot { padding: 8px 12px 8px 18px; }
+.versus-board .ready-slot .ready-who b { font-size: clamp(16px, 2.4cqh, 26px); }
+.versus-board .ready-slot .ready-detail { font-size: clamp(13px, 1.8cqh, 18px); }
+@container natpf (max-width: 520px) { .versus-board { grid-template-columns: 1fr; } }
+/* «tu» accanto al nome: non il <small> a tutta riga della barra dell'invito (natpf.css), che schiacciava il nome in «PLA…» */
+.natpf-invite .versus-board .ready-you { width: auto; grid-column: auto; color: var(--text-3); }
+/* nel pannello del Player 2 (largo al massimo 560 px) misure fisse: con cqh a 1920×1080 il distintivo cresceva e
+   schiacciava i nomi */
+.natpf-sheet .versus-board .ready-slot { gap: 2px 8px; padding: 8px 10px 8px 16px; }
+.natpf-sheet .versus-board .ready-slot .ready-who b { font-size: 19px; }
+.natpf-sheet .versus-board .ready-slot .ready-detail { font-size: 14px; }
+.natpf-sheet .versus-board .ready-slot .ready-badge { font-size: 13px; }
+/* pannello del Player 2: pulsanti sempre in vista anche quando il pannello scorre (a 1280×720 si vedevano a metà) */
+.natpf-guest-dialog .sheet-actions { position: sticky; bottom: -22px; z-index: 1; margin: 16px -28px -22px; padding: 12px 28px 22px; background: var(--panel-solid); box-shadow: 0 -10px 18px rgba(4, 8, 24, 0.5); }
+/* riga di stato del Player 2 pronto: verde, diversa da «collegato» */
+.natpf-versus-status[data-state="ready"] { border-color: var(--ok); background: rgba(54, 224, 122, 0.14); color: var(--text); }
+@media (prefers-reduced-motion: reduce) { .is-prep .ready-ico, .is-ready .ready-badge, #title-modal .split-countdown-num.tick { animation: none; } }
 /* in partita: sotto ogni metà chi gioca e l'esito dell'ultimo colpo. Misure in vh/vw: su un ledwall (pochi pixel, visto
    da lontano) restano grandi quanto la vista */
 .natpf-split-hud { position: fixed; inset: auto 0 0 0; z-index: 30; display: grid; grid-template-columns: 1fr 1fr; pointer-events: none; padding: 0 0 clamp(10px, 3cqh, 36px); }

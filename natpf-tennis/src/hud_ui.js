@@ -656,8 +656,8 @@ export class HudUI {
       e && e.classList.toggle("opponent-ready", a);
     const m = document.getElementById("setup-opponent-label");
     // NATPF 1v1: «pronto» solo con il Player 2 pronto (prima bastava che fosse entrato, mentre la lobby diceva «sta
-    // preparando la racchetta» e «Gioca» restava spento)
-    m && this.selectedDifficulty === "1v1" && !s && setText(m, a && t.p2Ready ? `\u{1F7E2} ${o} pronto` : a ? `${o} entrato` : o),
+    // preparando la racchetta» e «Gioca» restava spento). B9: «pronto ✓» al posto dell'emoji nell'etichetta maiuscola
+    m && this.selectedDifficulty === "1v1" && !s && setText(m, a && t.p2Ready ? `${o} pronto \u2713` : a ? `${o} entrato` : o),
       (this._lastOtherReady = a);
   }
 }
