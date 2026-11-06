@@ -97,6 +97,7 @@ export function judgeCard(src, id, r, { hand = 'right', allow = null, peakTol = 
     else {
       if (Math.abs(r.gap - .69/rate) > .1) why.push(`battuta ${r.gap.toFixed(3)} s dopo il lancio (atteso ${(.69/rate).toFixed(2)} ± 0,10)`);
       if (Math.abs(r.dPeak) > peakTol) why.push(`picco della battuta a ${Math.round(r.dPeak)} ms dal contatto disegnato`);
+      if (r.dToss != null && Math.abs(r.dToss) > peakTol) why.push(`picco del lancio a ${Math.round(r.dToss)} ms dal picco disegnato`);
     }
     return why;
   }

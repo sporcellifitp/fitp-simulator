@@ -140,7 +140,7 @@ export const TIMING = Object.freeze({
 // (minimo jerk, la mano va sopra la testa, il telefono ruota appena), battuta che comincia `overlap` prima della fine del
 // raccordo (nessun fermo «a trofeo»); GAP = picco del lancio → picco della battuta = colmo della palla del gioco
 // (vy 6,32 m/s, g 9,15: 0,69 s, specifica §1.4)
-export const SERVE_TIMING = Object.freeze({ hold: .3, prep: 1.0, gap: .69, tossHold: .02, overlap: .04, follow: .16, back: .9, rest: .4 });
+export const SERVE_TIMING = Object.freeze({ hold: .3, prep: 1.0, gap: .69, tossHold: .02, overlap: .08, follow: .16, back: .9, rest: .4 });
 export const STILL_TIMING = Object.freeze({ grip: 9, ready: 4 });
 
 // fasi: id → testo breve da scrivere (brief §5.5)
@@ -475,7 +475,8 @@ function serveBall(P, t){
     return [release[0] + (apex[0] - release[0])*u, apex[1] - .5*g*s*s, release[2] + (apex[2] - release[2])*u];
   }
   const dt = t - T.contact; if (dt > .6) return null;
-  return [apex[0] - .3*dt, apex[1] + 1.2*dt - .5*G*dt*dt, apex[2] - 16*dt];
+  // battuta dall'alto: la palla parte in avanti e un poco verso il basso (il colmo resta l'istante del contatto)
+  return [apex[0] - .3*dt, apex[1] - 1.0*dt - .5*G*dt*dt, apex[2] - 16*dt];
 }
 // posizione della palla (m, campo) al tempo t, o null quando non è in scena (presa e posizione: mai)
 export function gestureBall(id, t, { hand = 'right', grip = GRIP_STYLE } = {}){
