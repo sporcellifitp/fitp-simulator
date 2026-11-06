@@ -207,6 +207,8 @@ test('stesso schermo: calibrazione rifatta a partita in corso (Ricalibra sul tel
   const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
   const l2 = P2.link = { ...fakeLink(), ready: false, L: { state: 'connected', phone: 'cal' },
     cmd(c){ this.cmds.push(c); if (c === 'skip' || c === 'confirm'){ this.ready = true; this.L.phone = 'ready'; } if (c === 'cal'){ this.ready = false; this.L.phone = 'cal'; } } };
+  // tutorial già visto dai due (qui conta la partita): con il tutorial aperto «Gioca» non parte (bothReady come le schede)
+  E.natpfPhone.markTutorialSeen(); P2.markTutorialSeen();
   lobby.go('mode'); lobby.setMode('split'); lobby.go('connect'); ui.split.paint();
   E.natpfPhone._onCal({ kind: 'review', pass: true }); P2._onCal({ kind: 'review', pass: true });
   lobby.next(); assert.equal(w.pressStart(), true); assert.equal(E.natpfSplit.active, true);
@@ -598,4 +600,87 @@ test('stesso schermo: la pagina di prima (mai risposto tut) chiude la modale qua
   assert.ok(P1.tutSupported, 'risposta tut ricordata per questo abbinamento');
   P1._onCal({ kind: 'step', step: 'still' });
   assert.ok(ui.split.tutOpen.p1 && !P1.tutorialSeen, 'pagina B9: un passo della calibrazione non chiude il tutorial');
+});
+
+// Revisione B9 (06/11), bloccante del ramo B: un telefono con la pagina nascosta (schermo spento, altra app: il telefono
+// manda vis 0) restava «Pronto», il conto partiva e la partita cominciava. Ora la scheda usa la salute del telefono (lo
+// stesso criterio della pausa in partita, natpf_phone_watch): «Schermo spento» o «Sensori fermi» sono un problema, il
+// conto non parte (o si annulla con il motivo) e bothReady (pagina «Partita», «Gioca») dice lo stesso delle schede
+test('stesso schermo: telefono con lo schermo spento → scheda «Problema · Schermo spento», niente conto, niente partita', async () => {
+  const { E, ui, lobby, link, l2, P2, counts, advance } = await splitLobby();
+  // Giulia pronta, poi il suo schermo si spegne mentre Marco finisce
+  for (const fn of E.natpfPhone.tutListeners) fn({ ok: true }); E.natpfPhone._onCal({ kind: 'review', pass: true });
+  link.L.vis = false; E.natpfPhone._changed();
+  for (const fn of P2.tutListeners) fn({ ok: true }); P2._onCal({ kind: 'review', pass: true });
+  advance(1500);
+  const s1 = ui.split.slot('p1');
+  assert.equal(s1.state, 'ko'); assert.equal(s1.detail, 'Schermo spento');
+  assert.equal(ui.split.status('p1').title, 'Schermo del telefono spento');
+  assert.equal(ui.split.cd.running, false, 'nessun conto'); assert.equal(counts(l2).length, 0, 'nessun annuncio ai telefoni');
+  assert.equal(ui.split.bothReady(), false); assert.equal(lobby.state().splitReady, false);
+  assert.match($('split-ready-bar').querySelector('[data-ready-bar-sub]').textContent, /^Aspetto Giulia \(schermo spento\)\.$/);
+  advance(4000); assert.ok(!E.natpfSplit?.active, 'nessuna partita');
+  // «Impostazioni partita ›» non porta avanti (come con un telefono non pronto); la pagina «Partita» (dal percorso in
+  // alto) ha «Gioca» grigio come le schede
+  lobby.next(); assert.equal(lobby.step, 'connect');
+  lobby.go('match');
+  advance(400);
+  assert.equal($('btn-start-match').disabled, true);
+  assert.match($('lobby-match-note').textContent, /^Aspetto Giulia \(schermo spento\)/);
+  lobby.go('connect');
+  // lo schermo si riaccende: pronta, il conto parte da 3 e si gioca
+  link.L.vis = true; E.natpfPhone._changed();
+  advance(150);
+  assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3);
+  advance(3100);
+  assert.equal(E.natpfSplit?.active, true);
+});
+
+test('stesso schermo: schermo spento durante il conto → conto annullato con il motivo; sensori fermi oltre la tolleranza → problema', async () => {
+  const { E, ui, link, l2, P2, readyBoth, counts, advance } = await splitLobby();
+  readyBoth(); advance(1300);
+  assert.equal(ui.split.cd.running, true);
+  l2.L.vis = false; P2._changed();
+  advance(150);
+  assert.equal(ui.split.cd.running, false);
+  assert.equal(ui.split.cd.why, 'Conto annullato · Marco: schermo spento');
+  assert.equal($('split-ready-bar').dataset.readyBar, 'cancel');
+  assert.match(counts(link).at(-1).txt, /Marco: schermo spento/, 'il telefono di Giulia lo sa');
+  l2.L.vis = true; P2._changed(); advance(150);
+  assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3, 'di nuovo da capo');
+  // sensori del P2: flusso fermo da poco (sotto la tolleranza della pausa in partita) → ancora pronto; oltre → problema
+  const { SPLIT_STALL_MS } = await import('../src/natpf/natpf_split_ui.js');
+  let age = 12; l2.stats = () => ({ rates: { fo: { ageMs: age } }, rtt: 8 });
+  age = SPLIT_STALL_MS - 100; advance(100);
+  assert.equal(ui.split.slot('p2').state, 'ready', 'un pacchetto in ritardo non annulla');
+  age = SPLIT_STALL_MS + 100; advance(150);
+  assert.deepEqual([ui.split.slot('p2').state, ui.split.slot('p2').detail], ['ko', 'Sensori fermi']);
+  assert.equal(ui.split.cd.running, false); assert.equal(ui.split.cd.why, 'Conto annullato · Marco: sensori fermi');
+  assert.ok(!E.natpfSplit?.active);
+});
+
+test('stesso schermo: bothReady come le schede — tutorial aperto o da vedere, webcam per due non in modalità per due', async () => {
+  const { E, ui, lobby, P2, advance } = await splitLobby();
+  // tutti e due calibrati, ma il P2 ha ancora il tutorial aperto
+  for (const fn of E.natpfPhone.tutListeners) fn({ ok: true }); E.natpfPhone._onCal({ kind: 'review', pass: true });
+  P2.link.ready = true; P2.link.L.phone = 'ready';
+  assert.ok(ui.split.tutOpen.p2 && P2.ready);
+  assert.equal(ui.split.slot('p2').state, 'prep'); assert.equal(ui.split.bothReady(), false, 'tutorial aperto: non si gioca');
+  for (const fn of P2.tutListeners) fn({ ok: true }); ui.split.paint();
+  assert.equal(ui.split.bothReady(), true);
+  // chiosco: visitatore nuovo con il P2 rimasto collegato, pagina «Partita» aperta (la modale si apre solo in «Collega»)
+  ui.split.holdCountdown(); lobby.next(); assert.equal(lobby.step, 'match');
+  P2.forgetTutorial();
+  assert.deepEqual([ui.split.slot('p2').state, ui.split.slot('p2').detail], ['prep', 'Tutorial da vedere']);
+  assert.equal(ui.split.bothReady(), false);
+  advance(400); assert.equal($('btn-start-match').disabled, true, '«Gioca» spento');
+  // webcam per due: le mani viste valgono solo con la webcam in modalità per due (prima la scheda diceva «Pronto» e
+  // bothReady no: il conto arrivava a zero e la partita non partiva)
+  const mc = E.motionController;
+  ui.split.input = 'webcam'; mc.webcamActive = true; mc._duo = { seen: () => true, split: () => .5 };
+  mc.webcamDuo = true;
+  assert.equal(ui.split.slot('p1').state, 'ready'); assert.equal(ui.split.bothReady(), true);
+  mc.webcamDuo = false;
+  assert.notEqual(ui.split.slot('p1').state, 'ready', 'scheda e bothReady insieme');
+  assert.equal(ui.split.bothReady(), false, 'webcam non in modalità per due: non si gioca');
 });

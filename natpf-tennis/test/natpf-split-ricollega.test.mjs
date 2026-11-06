@@ -57,6 +57,8 @@ async function splitMatch(){
   const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
   const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
   const l2 = P2.link = fakeLink2();
+  // tutorial già visto dai due (qui conta la partita): con il tutorial aperto «Gioca» non parte (bothReady come le schede)
+  E.natpfPhone.markTutorialSeen(); P2.markTutorialSeen();
   lobby.go('mode'); lobby.setMode('split'); lobby.go('connect'); ui.split.paint();
   E.natpfPhone._onCal({ kind: 'review', pass: true });
   lobby.next(); assert.equal(w.pressStart(), true); assert.equal(E.natpfSplit.active, true);
