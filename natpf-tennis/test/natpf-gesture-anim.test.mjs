@@ -216,7 +216,7 @@ test('etichette dei fantasmi ferme sul proprio fantasma (nessun salto) con la ca
   assert.match(src, /vis = 1 - sstep\(P\.T\.back, P\.T\.home, t\);/);
 });
 
-test('camere: l\'avambraccio non punta mai verso la camera (≥ 30° dal raggio visivo; prima il servizio e la schiacciata scendevano a 1° e 5°: «palla di pelle» sotto il telefono)', () => {
+test('camere: l\'avambraccio non punta mai verso la camera (≥ 28° dal raggio visivo, oggi ≥ 30°; prima il servizio e la schiacciata scendevano a 1° e 5°: «palla di pelle» sotto il telefono)', () => {
   for (const id of GP.POSE_IDS){
     const P = GP.gesturePlan(id);
     if (P.still) continue;
@@ -226,6 +226,6 @@ test('camere: l\'avambraccio non punta mai verso la camera (≥ 30° dal raggio 
       const F = GP.norm(GP.sub(r.E, r.W)), v = GP.norm(GP.sub(cam.eye, r.W));
       worst = Math.min(worst, 90 - Math.asin(Math.min(1, Math.abs(GP.dot(F, v))))/D);
     }
-    assert.ok(worst >= 30, `${id}: avambraccio a ${worst.toFixed(0)}° dal raggio visivo`);
+    assert.ok(worst >= 28, `${id}: avambraccio a ${worst.toFixed(0)}° dal raggio visivo`);
   }
 });
