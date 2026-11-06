@@ -100,6 +100,14 @@ I picchi sono quelli veri del telefono (braccio + polso): dritto 714 come la spe
   simulato anche a 55°). Il braccio simulato del test `natpf-gesture-demo` (raggio 0,72 m) non lo vede perché a raggio
   più lungo la salita è più bassa. È un limite del riconoscimento, non del disegno: da valutare con chi cura il
   riconoscimento (per esempio `riseRefMax` più alto solo per il piatto); qui è documentato e verificato nella causa.
+  Il test lo fissa: 12 piatti a 50°, al massimo 10 letti come top spin (erano 10 il 06/11).
+- **Il raggio disegnato sposta il limite dal piatto al pallonetto** (misurato il 06/11 nel ramo C cambiando solo `K`,
+  il raggio spalla → telefono, e rifacendo il test delle prese di chi imita): con il raggio di oggi (0,46 m) il test
+  passa e il limite è il piatto a 50°; ×1,25 (0,58 m) passa ancora; ×1,5 (0,69 m, quasi il braccio simulato di
+  `natpf-gesture-demo`) il **pallonetto** con la cima a 50° verso l'interno diventa top spin (destro e mancino, le due
+  calibrazioni, 25°/40°/55° in avanti): a raggio più lungo la testa sale meno e il pallonetto (salita ≥ max(0,5;
+  abituale + 0,45)) è il primo a cadere. Chi cambia il raggio o la distanza della mano dalla spalla deve rifare questo
+  test: il limite non sparisce, cambia colpo.
 - **Scheletro**: telefono, mano, dita, polso e avambraccio sono affidabili per il disegno (rigidi con il telefono:
   «polso fermo»; direzione dell'avambraccio del prototipo illustrato giudicato, che si disegna fino al gomito che sfuma
   fuori quadro, brief §5.2). Spalla, braccio superiore ed `elbowDeg` sono **indicativi**: il braccio superiore non è
@@ -107,12 +115,16 @@ I picchi sono quelli veri del telefono (braccio + polso): dritto 714 come la spe
   all'impatto; `shoulderShift`). Una prova di cinematica inversa con la spalla fissa (non adottata) chiedeva pieghe del
   polso di 80–150°: le posizioni della mano del moto e la presa nel palmo non sono compatibili con un braccio intero a
   spalla ferma. Se il disegno vorrà il braccio intero bisognerà rivedere insieme posizioni della mano, spalla e busto.
+  Nella posizione di partenza (misurato il 06/11) l'avambraccio va dal gomito al polso in avanti e verso l'interno
+  (−0,71; 0,12; −0,70: 45° verso l'interno, 7° sopra l'orizzontale, come chiede la specifica §2.2 salvo «un poco»),
+  ma il gomito risolto sta 31 cm fuori dalla spalla (omero a 36° dal fianco invece di ~10°) e piega a 118° invece di
+  90–100°: per questo il disegno (`natpf_gesture_demo.js`, ramo C) mostra solo l'avambraccio fino all'80% della sua
+  lunghezza, sfumato dal 42% (`FOREARM_SHOWN`), e mai gomito, omero o spalla.
 - Nessuna prova con un telefono vero né con persone: tutto con il telefono simulato (sensori ideali a 60 Hz).
-- Non ancora fatto (passi successivi del brief §5.7): disegno Canvas 2D che usi `gesturePose` (e il test «la posa
-  disegnata è la stessa del test»: `demo.pose(t)` = `gesturePose` su 50 istanti per scheda), modalità compatta, due
-  istanze nello stesso schermo, fogli di controllo visivo, prestazioni. Quando il disegno nuovo sostituirà
-  `natpf_gesture_demo.js`, `strokeTimeline`/`serveTimeline`/`tossBall` di `natpf_gesture_motion.js` resteranno solo per il
-  test `natpf-gesture-demo` (moti di riferimento del braccio simulato) e si potranno togliere.
+- Il disegno Canvas 2D che usa `gesturePose` (con il test «la posa disegnata è la stessa del test»), la modalità
+  compatta, le due istanze dello stesso schermo, i fogli di controllo visivo e le prestazioni sono nel ramo C:
+  `docs/b9/animazione-c.md`. `strokeTimeline`/`serveTimeline`/`tossBall` di `natpf_gesture_motion.js` restano solo per
+  il test `natpf-gesture-demo` (moti di riferimento del braccio simulato).
 
 ## Come rifare le misure
 
