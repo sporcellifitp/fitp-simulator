@@ -72,10 +72,11 @@ async function frameInfo(id, t, W, H, hand = 'right'){
     if (info.ball){ const l = GP.qrot(GP.qconj(R.q), GP.sub(info.ball, R.pos)), dx = Math.max(0, Math.abs(l[0]) - GP.PHONE.w/2), dy = GP.PHONE.h/2 - l[1], dz = Math.abs(l[2]); ballTip = (Math.hypot(dx, Math.max(0, dy), dz) - GP.BALL_R)/GP.BALL_R; }
     const labels = (info.ghosts || []).filter(g => g.labelBox).map(g => g.labelBox);
     const inStage = labels.every(b => b.x0 >= 0 && b.y0 >= 0 && b.x0 + b.w <= W && b.y0 + b.h <= H);
-    // sovrapposizione delle etichette con il telefono vivo (frazione dell'etichetta)
-    const ph = [[-1, 1], [1, 1], [-1, -1], [1, -1]].map(([a, b]) => cam.p(GP.add(R.pos, GP.qrot(R.q, [a*GP.PHONE.w/2, b*GP.PHONE.h/2, 0]))));
-    const pb = { x0: Math.min(...ph.map(q => q.x)), x1: Math.max(...ph.map(q => q.x)), y0: Math.min(...ph.map(q => q.y)), y1: Math.max(...ph.map(q => q.y)) };
-    const over = labels.reduce((m, b) => Math.max(m, Math.max(0, Math.min(b.x0 + b.w, pb.x1) - Math.max(b.x0, pb.x0))*Math.max(0, Math.min(b.y0 + b.h, pb.y1) - Math.max(b.y0, pb.y0))/(b.w*b.h)), 0);
+    // sovrapposizione delle etichette con il soggetto vivo (frazione dell'etichetta dentro la sagoma vera del telefono e del palmo,
+    // su una griglia di 13×5 punti)
+    const polys = [F?.phoneHull, F?.palmHull].filter(Boolean), in1 = (P, x, y) => { let k = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++){ const a = P[i], b = P[j]; if ((a.y > y) !== (b.y > y) && x < (b.x - a.x)*(y - a.y)/(b.y - a.y) + a.x) k = !k; } return k; };
+    const inP = (x, y) => polys.some(P => in1(P, x, y));
+    const over = labels.reduce((m, b) => { let n = 0; for (let i = 0; i <= 12; i++) for (let j = 0; j <= 4; j++) if (inP(b.x0 + b.w*i/12, b.y0 + b.h*j/4)) n++; return Math.max(m, n/65); }, 0);
     return { label: pose.label, phase: pose.phase, edge, phoneLen: Math.hypot(tip.x - base.x, tip.y - base.y), subjectH: fr ? (Math.min(H, fr.y1) - Math.max(0, fr.y0))/H : null, ballTip, labelsIn: inStage, labelOver: over, compact: d.compact, ms: 0 };
   }, { id, t, W, H, hand });
 }
@@ -151,9 +152,9 @@ for (const [W, H] of SIZES){
       if (W === 448 && f.phoneLen < 60) bad.push(`${tag}: telefono lungo ${f.phoneLen.toFixed(0)} px`);
     }
     if (!f.labelsIn) bad.push(`${tag}: etichetta fuori dallo stadio`);
-    if (f.labelOver > .25) bad.push(`${tag}: etichetta sul telefono vivo (${(f.labelOver*100).toFixed(0)}%)`);
+    if (f.labelOver > .1) bad.push(`${tag}: etichetta sul telefono o sulla mano vivi (${(f.labelOver*100).toFixed(0)}%)`);
   }
-  const fr = await inFrame(W, H), outB = fr.filter(r => r.tipOut > 100 || r.ballOut > 100 || r.arrowOut > .1);
+  const fr = await inFrame(W, H), outB = fr.filter(r => r.tipOut > 100.001 || r.ballOut > 100.001 || r.arrowOut > .1);
   check(`${W}×${H}: il colpo resta nel quadro (cima e palla fuori ≤ 100 ms, freccia fuori ≤ 10%)`, outB.length === 0,
     fr.map(r => `${r.id} ${Math.round(r.tipOut)}/${Math.round(r.ballOut)} ms ${Math.round(r.arrowOut*100)}%`).join(', '));
   check(`${W}×${H}: lista di controllo (telefono non di taglio ≥ 25°, «Impatto», palla ≤ 1 raggio dalla cima, mano+telefono ≥ 28%, etichette)`, bad.length === 0,

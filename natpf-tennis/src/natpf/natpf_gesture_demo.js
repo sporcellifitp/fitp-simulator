@@ -25,8 +25,9 @@ export const MAX_PIXELS = 2.4e6;              // pixel del canvas al massimo (4K
 export const SLOW = .5;                       // rallentato della modalità 'auto'
 export const FOREARM_SHOWN = Object.freeze({ from: .42, to: .8 });   // l'avambraccio sfuma tra queste frazioni (mai il gomito)
 const HUD_H = .2;                             // banda bassa della curva (frazione dell'altezza dello stadio)
-// palla anche 35 ms prima del contatto nell'inquadratura (dove il telefono resta ≥ 60 px a 448×280)
-const BALL_EARLY = new Set(['forehand', 'backhand', 'line', 'drop', 'slice', 'lob']);
+// palla anche qualche ms prima del contatto nell'inquadratura (s; quanto basta perché resti fuori ≤ 100 ms e il telefono
+// resti ≥ 60 px a 448×280)
+const BALL_EARLY = Object.freeze({ forehand: .035, backhand: .035, line: .035, drop: .035, slice: .035, lob: .035, volley: .02 });
 const STEP = 1/120;                           // passo delle tabelle del moto (s)
 const HW = PHONE.w/2, HH = PHONE.h/2, HD = PHONE.d/2, SHOULDER_X = .19;
 
@@ -139,7 +140,7 @@ export function motion(id, grip = GRIP_STYLE){
     }
   }
   // la palla vicino al contatto (−25…+20 ms) resta nel riquadro utile: entro ±50 ms resta nello stadio (brief §4)
-  if (!P.still) for (const dt of (BALL_EARLY.has(id) ? [-.035, 0] : [0])){ const b = gestureBall(id, P.contact + dt, { grip }); if (b) pts.push(b); }
+  if (!P.still) for (const dt of (BALL_EARLY[id] ? [-BALL_EARLY[id], 0] : [0])){ const b = gestureBall(id, P.contact + dt, { grip }); if (b) pts.push(b); }
   let max = 0, at = 0; for (let i = 0; i <= n; i++) if (speed[i] > max){ max = speed[i]; at = i; }
   const T = { P, n, tip, mid, speed, pts, peak: max, peakI: at };
   // arco della freccia del verso: cima un poco oltre il telefono nella parte veloce (servizio: lancio e battuta)
@@ -466,7 +467,7 @@ function drawFigure(c, cam, pose, st, H){
     l.globalCompositeOperation = 'source-over';
     blit();
   }
-  const Hh = drawPhone(c, cam, pose, st);
+  const Hh = F.phoneHull = drawPhone(c, cam, pose, st);
   if (front.length){
     c.save(); c.beginPath(); polyPath(c, Hh); c.clip(); c.fillStyle = 'rgba(2,4,16,.4)';
     c.translate(-LIGHT[0]*st.shadow, -LIGHT[1]*st.shadow);
@@ -501,6 +502,24 @@ function drawGhostInto(x, cam, pose, st, H, color){
 }
 
 /* ---------- palla, lampo, scia, freccia ---------- */
+// la palla è dietro il telefono? Vicino al telefono decide il lato del piano del telefono rispetto alla camera (la palla
+// appoggiata o al contatto sta a un raggio dalla faccia: la sola profondità sbaglia quando la faccia è obliqua); lontano
+// decide la profondità
+function ballBehind(cam, pose, ball){
+  const d = sub(ball, pose.pos);
+  if (len(d) > .15) return cam.depth(ball) > cam.depth(pose.pos) + .01;
+  const n = qrot(pose.q, [0, 0, 1]);
+  return dot(n, d)*dot(n, sub(cam.eye, pose.pos)) < 0;
+}
+function drawBallThrough(c, cam, X, spin, st, hullPts, alpha){
+  const p = cam.p(X), r = cam.rad(X, BALL_R), b = bbox(hullPts);
+  if (p.x + r < b.x0 || p.x - r > b.x1 || p.y + r < b.y0 || p.y - r > b.y1) return;
+  c.save(); c.beginPath(); polyPath(c, hullPts); c.clip();
+  drawBall(c, cam, X, spin, st, .5*alpha);
+  c.beginPath(); c.arc(p.x, p.y, r, 0, 2*Math.PI); c.setLineDash([Math.max(2, st.ow*2.2), Math.max(2, st.ow*1.8)]);
+  c.lineWidth = Math.max(1.2, st.ow*.9); c.strokeStyle = `rgba(227,255,54,${.95*alpha})`; c.stroke();
+  c.restore();
+}
 function drawBall(c, cam, X, spin, st, alpha = 1){
   const p = cam.p(X), r = cam.rad(X, BALL_R);
   c.save(); c.globalAlpha = alpha;
@@ -566,6 +585,37 @@ function drawArrows(c, cam, M, t, st){
     c.fillStyle = css(BALL); c.fill(); c.lineWidth = Math.max(1, st.ow*.7); c.strokeStyle = 'rgba(5,10,28,.85)'; c.stroke();
     c.restore();
   }
+}
+
+/* ---------- sagoma del soggetto vivo (per tenere le etichette fuori) ---------- */
+function inPoly(P, x, y){
+  let inside = false;
+  for (let i = 0, j = P.length - 1; i < P.length; j = i++){
+    const a = P[i], b = P[j];
+    if ((a.y > y) !== (b.y > y) && x < (b.x - a.x)*(y - a.y)/(b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+function inCap(q, x, y, pad){
+  const dx = q.b.x - q.a.x, dy = q.b.y - q.a.y, l2 = dx*dx + dy*dy, k = l2 ? Math.max(0, Math.min(1, ((x - q.a.x)*dx + (y - q.a.y)*dy)/l2)) : 0;
+  const r = q.Ra + (q.Rb - q.Ra)*k + pad;
+  return Math.hypot(x - q.a.x - dx*k, y - q.a.y - dy*k) <= r;
+}
+// quanti dei 7×3 punti di un rettangolo cadono sul soggetto vivo (solo le forme il cui rettangolo tocca quello dato)
+function liveTest(F){
+  const pad = 4, polys = [F.phoneHull, F.palmHull, F.band?.hull].filter(Boolean).map(P => ({ P, b: bbox(P) }));
+  const caps = [...F.fore, ...F.parts, ...F.hand.filter(q => q.a)].map(q => ({ q, b: { x0: Math.min(q.a.x - q.Ra, q.b.x - q.Rb), x1: Math.max(q.a.x + q.Ra, q.b.x + q.Rb), y0: Math.min(q.a.y - q.Ra, q.b.y - q.Rb), y1: Math.max(q.a.y + q.Ra, q.b.y + q.Rb) } }));
+  const hit = (b, r) => b.x0 - pad <= r.x1 && b.x1 + pad >= r.x0 && b.y0 - pad <= r.y1 && b.y1 + pad >= r.y0;
+  return r => {
+    const C = caps.filter(k => hit(k.b, r)), Pp = polys.filter(k => hit(k.b, r));
+    if (!C.length && !Pp.length) return 0;
+    let n = 0;
+    for (let i = 0; i <= 6; i++) for (let j = 0; j <= 2; j++){
+      const x = r.x0 + (r.x1 - r.x0)*i/6, y = r.y0 + (r.y1 - r.y0)*j/2;
+      if (C.some(k => inCap(k.q, x, y, pad)) || Pp.some(k => inPoly(k.P, x, y))) n++;
+    }
+    return n;
+  };
 }
 
 /* ---------- testi ---------- */
@@ -684,10 +734,13 @@ export class NatpfGestureDemo {
     const ballR = gestureBall(id, tt, { hand: this.hand, grip: this.grip }), ball = ballR && this.hand === 'left' ? mirrorPos(ballR) : ballR;
     let ballAlpha = 1;
     if (P.kind === 'serve' && tt < P.T.hold) ballAlpha = sstep(0, P.T.hold, tt);
-    const spin = tt*12, ballFirst = ball && cam.depth(ball) > cam.depth(R.pos) + .01;
+    const spin = tt*12, ballFirst = ball && ballBehind(cam, R, ball);
     if (ball && ballFirst) drawBall(c, cam, ball, spin, st, ballAlpha);
     const F = K.figure ? figure(cam, R, st, H_) : drawFigure(c, cam, R, st, H_);
     if (ball && !ballFirst) drawBall(c, cam, ball, spin, st, ballAlpha);
+    // palla dietro il telefono (contatto sulla faccia lontana dalla camera): si vede «in trasparenza» dentro la sagoma del
+    // telefono, a metà opacità e con il contorno tratteggiato, così all'impatto non sparisce mai (brief §5.6.2)
+    else if (ball && !K.figure && F.phoneHull) drawBallThrough(c, cam, ball, spin, st, F.phoneHull, ballAlpha);
     if (!compact && P.contact != null){ const X = gestureContactPoint(id, { grip: this.grip }); drawImpact(c, cam, X, tt - P.contact, st); }
     if (!compact && !K.hud){
       const taken = [];
@@ -758,31 +811,35 @@ export class NatpfGestureDemo {
     c.restore();
   }
   _keyPose(k){ return gesturePose(this.id, k.t, { hand: this.hand, grip: this.grip }); }
-  // etichetta numerata del fantasma: oltre la cima, fuori dall'arco, mai sopra il telefono e la mano vivi (prova più
-  // posti attorno alla cima del fantasma e tiene il primo libero)
+  // etichetta numerata del fantasma: vicino al suo fantasma (cima o centro del telefono) e mai sopra il soggetto vivo
+  // (sagoma vera: telefono, palmo, dita, avambraccio, non il suo rettangolo) né sopra le altre etichette
   _ghostLabel(c, cam, g, F, u, taken){
     const st = this.st, kp = this._keyPose(g.k), pose = this.hand === 'left' ? { pos: mirrorPos(kp.pos), q: mirrorQ(kp.q) } : kp;
-    const tip = cam.p(tipOf(pose, 1.15)), base = cam.p(tipOf(pose, -.6)), dx = tip.x - base.x, dy = tip.y - base.y, dl = Math.hypot(dx, dy) || 1, ex = dx/dl, ey = dy/dl;
+    const tip = cam.p(tipOf(pose, 1.1)), mid = cam.p(pose.pos);
     const box = { x0: 6, x1: st.W - 6, y0: 6, y1: st.H*(1 - HUD_H) - 6 };
     c.save(); c.font = `700 ${u}px Barlow, sans-serif`;
     const h = Math.round(u*1.75), w = c.measureText(g.k.label).width + u*1.2 + h;
     c.restore();
-    const d = st.dpr, live = { x0: F.rect.x/d, y0: F.rect.y/d, x1: (F.rect.x + F.rect.w)/d, y1: (F.rect.y + F.rect.h)/d };
+    const occ = liveTest(F);
     const rectAt = (x, y, align) => { const x0 = Math.max(box.x0, Math.min(box.x1 - w, align === 'center' ? x - w/2 : align === 'right' ? x - w : x)), y0 = Math.max(box.y0, Math.min(box.y1 - h, y - h/2)); return { x0, y0, x1: x0 + w, y1: y0 + h }; };
     const over = (a, b) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0))*Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
-    const cost = r => over(r, live)/(w*h)*3 + taken.reduce((m, b) => m + over(r, b)/(w*h), 0);
+    const cost = (r, ax, ay) => {
+      const inside = occ(r);
+      const cx = Math.max(r.x0, Math.min(r.x1, ax)), cy = Math.max(r.y0, Math.min(r.y1, ay));
+      return inside/21*4 + taken.reduce((m, b) => m + over(r, b)/(w*h)*3, 0) + Math.hypot(cx - ax, cy - ay)/Math.max(st.W, st.H)*2.5;
+    };
     let best = null;
-    const cands = [];
-    for (const k of [1.6, 3.2, 5]) for (const [sx, sy] of [[ex, ey], [-ey, ex], [ey, -ex], [-ex, -ey]]) cands.push([tip.x + sx*u*k, tip.y + sy*u*k*.8, sx >= 0 ? 'left' : 'right', k*.02]);
-    // poi appena fuori dal soggetto vivo, all'altezza (o in verticale) della cima del fantasma
-    const gap = u*.6;
-    cands.push([live.x1 + gap, tip.y, 'left', .2], [live.x0 - gap, tip.y, 'right', .2], [tip.x, live.y0 - gap - h/2, 'center', .25], [tip.x, live.y1 + gap + h/2, 'center', .25]);
-    for (const [x, y, align, pen] of cands){
-      const r = rectAt(x, y, align), cc = cost(r) + pen;
-      if (!best || cc < best.cc) best = { r, cc, x, y, align };
+    for (const A of [tip, mid]) for (let k = 0; k < 8; k++){
+      const ang = k/8*2*Math.PI, ex = Math.cos(ang), ey = Math.sin(ang);
+      for (const dist of [1, 2.2, 3.6]){
+        const x = A.x + ex*u*dist, y = A.y + ey*u*dist*.9, align = ex > .3 ? 'left' : ex < -.3 ? 'right' : 'center';
+        const r = rectAt(x, y + (align === 'center' ? ey*h*.6 : 0), align), cc = cost(r, A.x, A.y) + (A === mid ? .04 : 0);
+        if (!best || cc < best.cc) best = { r, cc };
+      }
     }
+    const r0 = best.r;
     c.save(); c.globalAlpha = Math.min(1, g.a*1.4);
-    const r = pill(c, st, best.x, best.y, g.k.label, { num: String(g.i + 1), size: u, box, align: best.align });
+    const r = pill(c, st, r0.x0, (r0.y0 + r0.y1)/2, g.k.label, { num: String(g.i + 1), size: u, box, align: 'left' });
     c.restore();
     g.labelBox = r; taken.push({ x0: r.x0, y0: r.y0, x1: r.x0 + r.w, y1: r.y0 + r.h });
   }
@@ -816,9 +873,15 @@ export class NatpfGestureDemo {
       const px = X(M.peakI), py = Y(M.peak);
       c.beginPath(); c.moveTo(px, cy1); c.lineTo(px, py); c.setLineDash([3, 3]); c.strokeStyle = 'rgba(227,255,54,.65)'; c.stroke(); c.setLineDash([]);
       c.font = `700 ${Math.round(u)}px Barlow, sans-serif`; c.textBaseline = 'middle'; c.fillStyle = '#e3ff36';
-      const txt = `Picco = impatto · ${Math.round(M.peak/10)*10} °/s${versusForehand(this.id)}`, tw = c.measureText(txt).width;
-      const right = px + 8 + tw > cx1; c.textAlign = right ? 'right' : 'left';
-      c.fillText(txt, Math.max(cx0 + tw*(right ? 1 : 0), Math.min(cx1 - (right ? 0 : tw), px + (right ? -8 : 8))), Math.max(L.y0 + u*.7, py - u*.1));
+      // la scritta del picco sta tutta a destra o tutta a sinistra del picco (mai sopra la testina): se non entra si accorcia
+      const gap = u*.75, full = `Picco = impatto · ${Math.round(M.peak/10)*10} °/s`;
+      for (const txt of [full + versusForehand(this.id), full, 'Picco = impatto']){
+        const tw = c.measureText(txt).width, rightOk = px + gap + tw <= cx1, leftOk = px - gap - tw >= cx0;
+        if (!rightOk && !leftOk && txt !== 'Picco = impatto') continue;
+        const right = !rightOk && leftOk; c.textAlign = right ? 'right' : 'left';
+        c.fillText(txt, right ? px - gap : Math.min(px + gap, cx1 - tw), Math.max(L.y0 + u*.7, py - u*.1));
+        break;
+      }
       // nome dell'asse, solo se c'è posto
       c.font = `600 ${Math.round(u)}px Barlow, sans-serif`; c.textAlign = 'left'; c.textBaseline = 'top'; c.fillStyle = '#9aa7cf';
       const axis = 'Velocità di rotazione del telefono';
