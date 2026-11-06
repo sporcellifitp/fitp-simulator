@@ -144,7 +144,18 @@ export class NatpfSplitUi {
     for (const id of SPLIT_PLAYERS) this.phone(id).start().catch(err => this.ui.toast(`Collegamento del ${id.toUpperCase()} non disponibile (${err.message})`));
   }
   // un telefono cambia (collegato, pronto, perso): la scheda si aggiorna subito, non al prossimo giro della lobby (300 ms)
-  _repaint(){ const L = this.ui.lobby; if (L?.visible && L.mode === 'split' && (L.step === 'connect' || L.step === 'match')) L.paint(); }
+  // Ridisegni raggruppati: il telefono cambia stato molte volte al secondo (ogni messaggio), e una pagina ridisegnata a
+  // ognuno intasava il computer (prova del 06/11: il controllo delle schede viste del tutorial arrivava in ritardo)
+  // Un cambio vero (collegato, pronto, stato del telefono, tutorial) si ridisegna subito; gli altri messaggi si raggruppano
+  _repaint(){
+    const key = SPLIT_PLAYERS.map(id => { const p = this.phone(id); return [!!p?.connected, !!p?.ready, p?.state?.phone, p?.state?.state, this.tutOpen[id]].join(':'); }).join('|');
+    const now = key !== this._repaintKey;
+    this._repaintKey = key;
+    if (now){ clearTimeout(this._repaintT); this._repaintT = null; this._paintLobby(); return; }
+    if (this._repaintT) return;
+    this._repaintT = setTimeout(() => { this._repaintT = null; this._paintLobby(); }, 120);
+  }
+  _paintLobby(){ const L = this.ui.lobby; if (L?.visible && L.mode === 'split' && (L.step === 'connect' || L.step === 'match')) L.paint(); }
   get webcam(){ return this.input === 'webcam'; }
   // tutorial visto da ciascuno (stesso abbinamento del telefono)
   get tutSeen(){ return { p1: !!this.phone('p1')?.tutorialSeen, p2: !!this.phone('p2')?.tutorialSeen }; }

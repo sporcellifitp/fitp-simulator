@@ -31,10 +31,13 @@ export function tutorialStart({ now = 0, cards = TUTORIAL_CARDS.length, from = n
   const idx = Number.isInteger(from?.idx) ? Math.max(0, Math.min(cards - 1, from.idx)) : 0;
   return { idx, shownAt: now, visited, all: !!from?.all || visited.size >= cards, cards };
 }
-// scheda i (fuori dai limiti: la prima o l'ultima, niente giro); stessa scheda: niente di nuovo
-export function tutorialGo(st, i, { now = 0 } = {}){
+// scheda i (fuori dai limiti: la prima o l'ultima, niente giro); stessa scheda: niente di nuovo. La scheda che si lascia
+// conta come vista se è rimasta a schermo almeno seenMs, anche se il controllo periodico (tick) non è ancora passato:
+// prova nel browser del 06/11, stesso schermo con due telefoni, controllo in ritardo sotto carico e schede «saltate»
+export function tutorialGo(st, i, { now = 0, seenMs = TUTORIAL.seenMs } = {}){
   const idx = Math.max(0, Math.min(st.cards - 1, Math.trunc(+i || 0)));
-  return idx === st.idx ? st : { ...st, idx, shownAt: now };
+  if (idx === st.idx) return st;
+  return { ...tutorialSeen(st, { now, seenMs }), idx, shownAt: now };
 }
 // la scheda a schermo da almeno seenMs conta come vista; «all» non torna mai falso nella stessa apertura
 export function tutorialSeen(st, { now = 0, seenMs = TUTORIAL.seenMs } = {}){

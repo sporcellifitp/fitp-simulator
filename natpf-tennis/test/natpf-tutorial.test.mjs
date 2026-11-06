@@ -157,6 +157,10 @@ test('tutorial, stato puro: frecce senza giro, scheda vista dopo seenMs, «tutte
   s = tutorialSeen(s, { now: TUTORIAL.seenMs }); assert.ok(s.visited.has(0));
   s = tutorialGo(s, 1, { now: 2000 }); s = tutorialGo(s, 2, { now: 2100 }); s = tutorialSeen(s, { now: 2200 });
   assert.ok(!s.visited.has(1), 'scheda passata di fila: non vista'); assert.ok(!s.visited.has(2));
+  // lasciata dopo seenMs senza che il controllo periodico sia passato (computer sotto carico): conta lo stesso (06/11)
+  let q = tutorialStart({ now: 0 }); q = tutorialGo(q, 1, { now: TUTORIAL.seenMs + 50 });
+  assert.ok(q.visited.has(0), 'la prima scheda guardata 1 s conta anche senza il controllo periodico'); assert.ok(!q.visited.has(1));
+  q = tutorialGo(q, 2, { now: TUTORIAL.seenMs + 400 }); assert.ok(!q.visited.has(1), 'lasciata prima di seenMs: non conta');
   s = tutorialGo(s, -5, { now: 3000 }); assert.equal(s.idx, 0); s = tutorialGo(s, 50, { now: 3100 }); assert.equal(s.idx, TUTORIAL_CARDS.length - 1);
   for (let i = 0; i < TUTORIAL_CARDS.length; i++){ s = tutorialGo(s, i, { now: 10000 + i*2000 }); s = tutorialSeen(s, { now: 10000 + i*2000 + TUTORIAL.seenMs }); }
   assert.ok(s.all); assert.deepEqual(tutorialProgress(s), { i: TUTORIAL_CARDS.length - 1, n: TUTORIAL_CARDS.length, s: TUTORIAL_CARDS.length, m: (1 << TUTORIAL_CARDS.length) - 1, all: true });

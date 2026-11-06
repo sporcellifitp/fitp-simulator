@@ -20,7 +20,7 @@ import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
-import { launch, page, check, summary, SP } from './th.mjs';
+import { launch, page, check, summary, SP, seeAllCards } from './th.mjs';
 import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
@@ -119,7 +119,7 @@ try {
   await shot('2-tutorial-1280');
 
   /* 3: Giulia pronta, Marco ancora nel tutorial */
-  await ph1.waitForSelector('#tutOk:not(.hidden)', { timeout: 15000 }); await ph1.click('#tutOk');
+  await ph1.waitForSelector('#tutOk:not(.hidden)', { timeout: 15000 }); await seeAllCards(ph1); await ph1.click('#tutOk');
   check('   telefono di Giulia calibrato', await calibrate(ph1));
   const tCal1 = Date.now();
   const p1Ready = await until(g, () => document.querySelector('[data-split-player="p1"]')?.dataset.ready === 'ready');
@@ -144,7 +144,7 @@ try {
   });
   const phoneRec = ph => ph.evaluate(() => { window.__phLog = []; let last = ''; setInterval(() => { const k = `${document.getElementById('big').textContent}|${document.getElementById('arrow').textContent}`; if (k !== last){ last = k; window.__phLog.push(k); } }, 20); });
   await phoneRec(ph1); await phoneRec(ph2);
-  await ph2.waitForSelector('#tutOk:not(.hidden)', { timeout: 15000 }); await ph2.click('#tutOk');
+  await ph2.waitForSelector('#tutOk:not(.hidden)', { timeout: 15000 }); await seeAllCards(ph2); await ph2.click('#tutOk');
   check('   telefono di Marco calibrato', await calibrate(ph2));
   const started = await until(g, () => !!__natpfTennis.natpfSplit?.active && !__natpfTennis.natpfUi.lobby.visible && ['SERVE_STANCE', 'SERVE_TOSS'].includes(__natpfTennis.phase), null, 15000);
   const cdLog = await g.evaluate(() => { clearInterval(window.__cdRec); return window.__cdLog; });
