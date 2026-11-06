@@ -50,6 +50,7 @@ export const K = .8*REACH;                                    // raggio spalla �
 export const READY = Object.freeze([.05*REACH, -.42*REACH, -.30*REACH]);   // posizione di partenza (specifica §2.2), dalla spalla
 export const PHONE = Object.freeze({ w: .079, h: .162, d: .0086, r: .0105 });   // 162 × 79 × 8,6 mm (Android grande)
 export const BALL_R = .034;
+export const BALL_OUT = .5;                                   // velocità della palla in uscita (frazione: solo disegno)
 export const IMPACT_WINDOW = .03;                             // s: «Impatto» scritto per ±30 ms attorno al contatto
 
 /* ---------- vettori e quaternioni [x, y, z, w] ---------- */
@@ -149,25 +150,28 @@ export const PHASES = Object.freeze({
   accompagnamento: 'Accompagna', ritorno: 'Ritorno', lancio: 'Lancio', caricamento: 'Braccio in alto', battuta: 'Battuta',
 });
 
-// Camere per scheda (brief §5.3; per dritto, rovescio, servizio, pallonetto, palla corta e presa quelle del prototipo
-// illustrato già giudicato, prototipi/b9-motion/main.js VIEWS). Solo dati per il disegno: dir = direzione soggetto →
+// Camere per scheda (brief §5.3). Direzioni riviste nel ramo C (06/11) con la lista del §5.6.2: nelle pose chiave
+// (Carica, Impatto, Fine; servizio Lancio, Braccio in alto, Impatto) lo schermo o il dorso del telefono deve stare a
+// ≥ 25° dalla linea di vista (prima: pallonetto 3°, volée 5°, piatto 6°, servizio e schiacciata 13°: telefono di taglio)
+// e la parte veloce si deve vedere di fianco (non in profondità); misure in docs/b9/animazione-c.md. La volée si guarda
+// da dietro e dall'alto: da davanti (brief «tre quarti davanti») il telefono è di taglio alla fine del colpo. Solo dati per il disegno: dir = direzione soggetto →
 // camera nel campo (x a destra, y in alto, +z dietro chi gioca; il mancino la specchia, cameraFor), dist = distanza (m,
 // prospettiva moderata), follow = la camera segue la mano (media pesata su ±window s, mix tra il centro dell'arco e la
 // mano, size = altezza inquadrata in m), views/seq = presa: due viste ferme e il giro della camera tra le due (s).
 export const CAMERAS = Object.freeze({
-  grip: Object.freeze({ views: Object.freeze([[-.36, .78, .5], [.95, .3, -.12]]), dist: 1.0, seq: Object.freeze([3, 1.5, 3, 1.5]), read: 'pollice sul bordo destro, dita attorno al sinistro, cima in avanti e verso l\u2019interno' }),
+  grip: Object.freeze({ views: Object.freeze([[-.36, .78, .5], [.85, .4, .35]]), dist: 1.0, seq: Object.freeze([3, 1.5, 3, 1.5]), read: 'pollice sul bordo destro, dita attorno al sinistro, cima in avanti e verso l\u2019interno' }),
   ready: Object.freeze({ dir: [.6, .45, .8], dist: 2.2, read: 'telefono fermo nella posa di partenza' }),
-  forehand: Object.freeze({ dir: [-.35, .62, 1], dist: 2.2, read: 'arco orizzontale da destra a sinistra, mano alla stessa altezza' }),
-  flat: Object.freeze({ dir: [-.35, .62, 1], dist: 2.2, read: 'come il dritto, più veloce' }),
-  backhand: Object.freeze({ dir: [.35, .62, 1], dist: 2.2, read: 'arco da sinistra a destra, partenza dall\u2019anca sinistra' }),
-  slice: Object.freeze({ dir: [-.2, .22, 1], dist: 2.2, read: 'la mano scende durante il colpo' }),
-  lob: Object.freeze({ dir: [1, .5, -.35], dist: 2.2, read: 'la mano sale, schermo verso il cielo alla fine' }),
-  drop: Object.freeze({ dir: [.75, .55, .6], dist: 2.2, read: 'gesto corto e lento, mano che scende un poco' }),
-  serve: Object.freeze({ dir: [1, .2, .25], dist: 2.2, follow: Object.freeze({ window: .24, mix: .5, size: .45 }), read: 'lancio, braccio in alto con il telefono di faccia, battuta al colmo della palla' }),
-  smash: Object.freeze({ dir: [1, .2, .25], dist: 2.2, follow: Object.freeze({ window: .24, mix: .5, size: .45 }), read: 'braccio in alto, poi giù deciso' }),
-  volley: Object.freeze({ dir: [.55, .45, -.7], dist: 2.2, read: 'preparazione quasi nulla, gesto corto e deciso' }),
-  cross: Object.freeze({ dir: [-.35, .62, 1], dist: 2.2, read: 'piatto girato verso il centro' }),
-  line: Object.freeze({ dir: [-.35, .62, 1], dist: 2.2, read: 'piatto girato verso l\u2019esterno' }),
+  forehand: Object.freeze({ dir: [-.2, .75, .7], dist: 2.2, read: 'arco orizzontale da destra a sinistra, mano alla stessa altezza' }),
+  flat: Object.freeze({ dir: [0, .8, .6], dist: 2.2, read: 'come il dritto, più veloce' }),
+  backhand: Object.freeze({ dir: [.2, .75, .7], dist: 2.2, read: 'arco da sinistra a destra, partenza dall\u2019anca sinistra' }),
+  slice: Object.freeze({ dir: [-.16, .42, .89], dist: 2.2, read: 'la mano scende durante il colpo' }),
+  lob: Object.freeze({ dir: [.59, .64, .49], dist: 2.2, follow: Object.freeze({ window: .3, mix: .55, size: .52 }), read: 'la mano sale, schermo verso il cielo alla fine' }),
+  drop: Object.freeze({ dir: [.5, .3, .8], dist: 2.2, read: 'gesto corto e lento, mano che scende un poco' }),
+  serve: Object.freeze({ dir: [.74, .3, .62], dist: 2.2, follow: Object.freeze({ window: .24, mix: .85, size: .42 }), read: 'lancio, braccio in alto con il telefono di faccia, battuta al colmo della palla' }),
+  smash: Object.freeze({ dir: [.69, .42, .58], dist: 2.2, follow: Object.freeze({ window: .24, mix: .8, size: .45 }), read: 'braccio in alto, poi giù deciso' }),
+  volley: Object.freeze({ dir: [0, .75, .65], dist: 2.2, read: 'preparazione quasi nulla, gesto corto e deciso' }),
+  cross: Object.freeze({ dir: [0, .8, .6], dist: 2.2, read: 'piatto girato verso il centro' }),
+  line: Object.freeze({ dir: [-.2, .75, .7], dist: 2.2, read: 'piatto girato verso l\u2019esterno' }),
 });
 // camera della scheda per la mano: il mancino vede lo specchio (x → −x della direzione)
 export function cameraFor(id, { hand = 'right' } = {}){
@@ -461,7 +465,8 @@ function strokeBall(P, t){
   if (dt > .75) return null;
   const V = { lob: [.4, 7.2, -6.5], drop: [.2, 2.6, -3.2], backhand: [.9, 2.2, -13], slice: [-.6, 1.4, -11], smash: [-.3, -3.5, -15],
     flat: [-.8, 1.6, -18], volley: [-.6, 1.2, -10], cross: [-3.2, 2.4, -13], line: [.6, 2.4, -14] };
-  const v = V[P.id] || [-1.2, 2.4, -14];
+  // dopo il contatto la palla riparte a metà della velocità vera: resta nel quadro per qualche fotogramma (solo disegno)
+  const v = (V[P.id] || [-1.2, 2.4, -14]).map(x => x*BALL_OUT);
   return [C[0] + v[0]*dt, C[1] + v[1]*dt - .5*G*dt*dt, C[2] + v[2]*dt];
 }
 // palla del servizio (destro): appoggiata sul vetro del telefono (verso la cima, a un raggio dal vetro lungo la normale
@@ -483,7 +488,7 @@ function serveBall(P, t){
   }
   const dt = t - T.contact; if (dt > .6) return null;
   // battuta dall'alto: la palla parte in avanti e un poco verso il basso (il colmo resta l'istante del contatto)
-  return [apex[0] - .3*dt, apex[1] - 1.0*dt - .5*G*dt*dt, apex[2] - 16*dt];
+  return [apex[0] - .3*BALL_OUT*dt, apex[1] - 1.0*BALL_OUT*dt - .5*G*dt*dt, apex[2] - 16*BALL_OUT*dt];
 }
 // posizione della palla (m, campo) al tempo t, o null quando non è in scena (presa e posizione: mai)
 export function gestureBall(id, t, { hand = 'right', grip = GRIP_STYLE } = {}){
