@@ -326,3 +326,13 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
   in locale (menu, pagina del telefono, versione; unico errore il Worker TURN vero che rifiuta l'origine locale, come
   previsto da `ALLOWED_ORIGINS`), LAN con certificato nuovo e server HTTPS (4/4, nessun errore). Consegnati all'utente.
   Animazione dei gesti ancora quella vecchia in questa versione (ramo C in corso).
+- **Minori dello stesso schermo** (worktree `wf_b232ca46-ca8-2`, unione `6920b36`): `c7086ef` «‹ Indietro» stabile
+  (`cd.back` azzerato solo dopo 1 s di «non pronto», `SPLIT_BACK_DROP_MS`), `e08ed61` schede allineate a 720×720 e nelle
+  aree strette (30/30 misure), `aeea1db` due pause con il giocatore nel testo e senza «Si riprende» finché l'altra è
+  aperta, `d11940c`/`92f0631` velo del telefono con `veilText` (calibrazione «rimasta» solo se calibrato). Codice unito:
+  gioco 813/813, sito 195/195, build ok; browser split-ready 34/34, tutorial-phone 37/37, tutorial-relink 8/8,
+  training-flow 17/17, menu 22/22, 1v1-p2p 37/37.
+- **Versione 2026-11-06.2** (`10ed703`): Cloudflare 22.535.302 B, 127 file, sha256
+  `265237ca750a15314976ff9338405de3f5d6b1d21cfdd6f1e5233acefc56cfd7`; LAN 57.789.722 B, un `node.exe`, nessun
+  certificato, sha256 `8cf9731ca2ed86c1746610ecb17441d359aebc6d01924c2065d78b89a67f1c1f`. Provati estratti come la .1
+  (Cloudflare 3/4 con il solo errore atteso del Worker TURN vero sull'origine locale, LAN 4/4). Consegnati.

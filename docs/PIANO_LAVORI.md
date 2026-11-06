@@ -121,8 +121,9 @@ Come si aggiorna:
   `d8ed8cb`, `bf63224` + WIP; patch `docs/b9/wip/ramo-C-animazione.patch` da `b86baac`): workflow di ripresa avviato
   nello stesso worktree (unione di `natpf-simulator`, controlli visivi, prestazioni, nota), poi revisione tecnica e
   artistica e correzioni.
+- Versione **2026-11-06.2** (`10ed703`) con i minori, pacchetti provati estratti e consegnati.
 - **Prossima azione esatta:** a workflow finito unire i rami (worktree in `.claude/worktrees/`), test, prove nel
-  browser, push; versione 2026-11-06.2, pacchetti, eseguibili (workflow GitHub `natpf-windows.yml` a ogni cambio di
+  browser, push; versione 2026-11-06.3, pacchetti, eseguibili (workflow GitHub `natpf-windows.yml` a ogni cambio di
   versione), riepilogo finale all'utente.
 - **Prossima azione esatta (precedente):** finiti rami e giudizio → correggere i bloccanti delle revisioni, unire A e B su
   `natpf-simulator`, test e prove nel browser, push; poi ramo C (animazione nuova secondo il giudizio), versione nuova,
