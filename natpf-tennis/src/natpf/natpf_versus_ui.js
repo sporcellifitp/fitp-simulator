@@ -5,14 +5,17 @@
 //     «Torna al menu» per chiudere;
 //   • Player 2: un pannello unico con lo stato (mi collego · collegato · pronto · partita · collegamento perso · stanza
 //     chiusa o inesistente · rete che blocca il collegamento diretto), racchetta e visuale, «Sono pronto» ed «Esci»;
+//     una scheda per giocatore (Player 1 e «tu», natpf_ready.js): dopo «Sono pronto» il pulsante diventa verde pieno
+//     «Pronto ✓» (non si toglie più ricliccando: c'è «Annulla») e la scheda dice se l'host l'ha ricevuto (B9, punto 4);
 //     sul telefono un avviso: l'invito si apre sul computer. Racchetta da preparare come il Player 1 nel menu: telefono
 //     (QR → calibrazione in campo) o webcam (pannello della webcam → prova in campo), poi pronto da solo.
 // Lo stato arriva ogni 50 ms dal relay (/api/match/state) attraverso il motore (roomStatus, versusGuest).
-import { VERSUS, lobbyState, canStart, hostLobbyStatus, startLabel, guestState, guestLine, p2HoldWhy, createHoldReporter, opponentHealth, hostHoldText, guestHoldNotice, CHECKPOINT_KEY, makeCheckpoint, checkpointFor } from './natpf_versus.js';
+import { VERSUS, lobbyState, canStart, hostLobbyStatus, startLabel, guestState, guestLine, hostInfo, readyEcho, guestBoard, hostBoard, p2HoldWhy, createHoldReporter, opponentHealth, hostHoldText, guestHoldNotice, CHECKPOINT_KEY, makeCheckpoint, checkpointFor } from './natpf_versus.js';
 import { createPhoneWatch, phoneHealthOf, holdText } from './natpf_phone_watch.js';
 import { webcamHealth, webcamHoldText } from './natpf_webcam_watch.js';
 import { warmupDrills } from './natpf_training.js';
 import { autoAdvance } from './natpf_lobby.js';
+import { paintBoard } from './natpf_ready.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 // browser di un telefono (sistema mobile e tocco): l'invito va aperto sul computer
@@ -46,10 +49,12 @@ export class NatpfVersusUi {
   get hostActive(){ return !this.p2 && !!this.engine.versus?.active && !this.engine.versus.local; }
   get state(){ const r = this.engine.roomStatus || {}; return lobbyState({ p2Online: r.p2Online, p2Ready: r.p2Ready }); }
   canStart(){ return canStart(this.state); }
+  // racchetta dell'host per le schede (sua e del P2: va nello snapshot della lobby, game_engine._broadcastMultiplayerSnapshot)
+  hostInfo(){ return hostInfo({ controller: this.ui.controller, phoneReady: !!this.ui.phone?.ready, webcamActive: !!this.engine.motionController?.webcamActive }); }
   // modalità amico: riga di stato della barra dell'invito e pulsante «Gioca»
   paintLobby(){
     const box = $('natpf-invite'), btn = $('btn-start-match');
-    if (!this.hostActive || this.ui.lobby?.mode !== 'friend'){ if (btn){ btn.disabled = false; btn.classList.remove('waiting'); } return; }
+    if (!this.hostActive || this.ui.lobby?.mode !== 'friend'){ if (btn){ btn.disabled = false; btn.classList.remove('is-wait'); } return; }
     const st = this.state, r = this.engine.roomStatus || {}, p2p = this.engine.natpfP2p;
     const line = hostLobbyStatus(st, { roomId: this.engine.roomId, p2Name: r.guestName || 'Player 2', net: p2p?.mode === 'host' ? { mode: 'host', status: p2p.status, error: p2p.error } : null });
     // solo se cambia: prima le righe si riscrivevano ogni 250 ms e l'animazione del pallino in attesa ripartiva da capo
@@ -57,9 +62,16 @@ export class NatpfVersusUi {
     const el = box?.querySelector('[data-versus-state]');
     if (el && (el.textContent !== line.text || el.dataset.state !== line.state)){ el.textContent = line.text; el.dataset.state = line.state; }
     if (el) el.title = p2p?.mode === 'host' && p2p.detail ? `collegamento diretto: ${p2p.detail}` : '';
+    // due schede sotto la riga: «tu» e il Player 2 (in attesa · si prepara · pronto), aggiornate solo se cambiano
+    if (el){
+      let board = box.querySelector('[data-versus-board]');
+      if (!board){ el.insertAdjacentHTML('afterend', '<div class="ready-board versus-board" data-versus-board></div>'); board = box.querySelector('[data-versus-board]'); }
+      paintBoard(board, hostBoard(st, { host: this.hostInfo(), hostName: r.hostName || 'Player 1', p2Name: r.guestName || 'Player 2' }));
+    }
     if (btn){
       const ok = canStart(st);
-      btn.disabled = !ok; btn.classList.toggle('waiting', !ok);
+      // non ancora: grigio neutro con il motivo (prima giallo spento, uguale a quello attivo); si può: giallo «Gioca ›»
+      btn.disabled = !ok; btn.classList.toggle('is-wait', !ok);
       const label = btn.querySelector('.choice-main') || btn;
       if (!btn.dataset.label) btn.dataset.label = label.textContent;
       label.textContent = ok ? btn.dataset.label : startLabel(st);
@@ -198,16 +210,21 @@ export class NatpfVersusUi {
   _bindGuest(){
     const modal = $('natpf-guest-modal'); if (!modal) return;
     const desc = modal.querySelector('.sheet-desc');
-    desc?.insertAdjacentHTML('beforebegin', '<p class="natpf-versus-status" data-versus-guest aria-live="polite"></p>');
+    desc?.insertAdjacentHTML('beforebegin', '<p class="natpf-versus-status" data-versus-guest aria-live="polite"></p><div class="ready-board versus-board" data-versus-board></div>');
     // invito aperto sul telefono (arriva in una chat): la partita si gioca dal computer, il telefono è la racchetta
     if (onPhone()){
       desc?.insertAdjacentHTML('beforebegin', '<p class="natpf-versus-phone" data-versus-phone>Stai aprendo l’invito sul telefono: la partita si gioca dal computer. Apri questo link sul computer; il telefono ti servirà dopo, come racchetta. <button type="button" class="nt-pill-btn" data-versus-copy>Copia link</button></p>');
       modal.querySelector('[data-versus-copy]')?.addEventListener('click', ev => { ev.stopPropagation(); navigator.clipboard?.writeText(location.href).then(() => { ev.target.textContent = 'Copiato ✓'; }).catch(() => {}); });
     }
     const go = $('natpf-guest-go');
-    if (go){ go.textContent = 'Sono pronto ✓'; }
+    // «Sono pronto» senza il segno ✓ (prima l'avevano tutte e due le scritte: «azione da fare» e «fatto» uguali)
+    if (go){ go.textContent = 'Sono pronto'; go.setAttribute('aria-pressed', 'false'); }
     modal.querySelector('.sheet-actions')?.insertAdjacentHTML('afterbegin', '<button type="button" class="lobby-ghost" data-versus-leave>Esci</button><button type="button" class="lobby-ghost hidden" data-versus-reconnect>Riconnetti</button>');
+    // «Annulla» accanto a «Pronto ✓»: l'unico modo di tornare non pronti (prima un secondo clic sul pulsante lo toglieva
+    // senza dirlo, e l'host vedeva «Gioca» spegnersi)
+    go?.insertAdjacentHTML('beforebegin', '<button type="button" class="lobby-ghost hidden" data-versus-unready>Annulla</button>');
     modal.querySelector('[data-versus-leave]')?.addEventListener('click', e => { e.stopPropagation(); this.leave(); });
+    modal.querySelector('[data-versus-unready]')?.addEventListener('click', e => { e.stopPropagation(); this.unready(); });
     // sfida senza server: «Riconnetti» rifà subito il collegamento con l'host (stessa partita)
     modal.querySelector('[data-versus-reconnect]')?.addEventListener('click', e => { e.stopPropagation(); this.reconnectAction().run(); });
     // pannello della webcam del P2: accendi (o riprova dopo un errore), indietro, in campo
@@ -219,9 +236,16 @@ export class NatpfVersusUi {
   }
   // «Sono pronto»: l'host lo vede nella lobby
   setReady(on = true){
+    if (on && !this.ready) this.readyAt = performance.now();   // da qui si aspetta la conferma del relay (readyEcho)
     this.ready = !!on;
     const mc = this.engine.motionController; if (mc) mc.versusReady = this.ready;
     this._paintGuest();
+  }
+  // «Annulla»: di nuovo non pronti, detto (l'host lo vede: «Gioca» torna grigio)
+  unready(){
+    if (!this.ready) return;
+    this.setReady(false);
+    this.ui.toast('Non sei più pronto: premi «Sono pronto» quando vuoi giocare');
   }
   // Pulsante principale del pannello. Con il telefono: QR, e appena il telefono ha i sensori attivi la calibrazione nel
   // campo d'allenamento, come il Player 1 nel riscaldamento; finita, si è pronti da soli. Prima il P2 calibrava nel
@@ -232,7 +256,8 @@ export class NatpfVersusUi {
   // prova in campo con il lanciapalle, poi pronto da solo
   primary(){
     const ui = this.ui, phone = ui.phone;
-    if (this.ready){ this.setReady(false); return; }
+    // già pronti: il pulsante non è un interruttore (per tornare indietro c'è «Annulla»)
+    if (this.ready){ ui.toast('Sei pronto ✓ Per tornare indietro premi «Annulla»'); return; }
     if (ui.controller === 'webcam' && this._webcamSetup()){ this.openCam(); return; }
     if (ui.controller !== 'phone' || phone.ready){ this.setReady(true); return; }
     this.awaitPhone = true;
@@ -338,10 +363,19 @@ export class NatpfVersusUi {
     const go = $('natpf-guest-go');
     if (go){
       go.disabled = st !== 'lobby' && st !== 'connecting';
-      const label = this.ready ? 'Pronto ✓' : phone ? 'Collega il telefono ›' : webcam ? 'Accendi la webcam ›' : 'Sono pronto ✓';
+      const label = this.ready ? 'Pronto ✓' : phone ? 'Collega il telefono ›' : webcam ? 'Accendi la webcam ›' : 'Sono pronto';
       if (go.textContent !== label) go.textContent = label;
-      go.classList.toggle('selected', this.ready);
+      // pronto: verde pieno (prima la classe «selected», senza stile: giallo prima e dopo il clic)
+      go.classList.toggle('is-ready', this.ready);
+      const pressed = String(this.ready); if (go.getAttribute('aria-pressed') !== pressed) go.setAttribute('aria-pressed', pressed);
     }
+    const modal = $('natpf-guest-modal');
+    show(modal?.querySelector('[data-versus-unready]'), this.ready && st === 'lobby');
+    // schede: Player 1 (l'host, con la sua racchetta se la manda) e «tu», con la conferma che l'host ti vede pronto
+    const echo = readyEcho({ ready: this.ready, echoed: !!this.engine.roomStatus?.p2Ready, sinceMs: performance.now() - (this.readyAt || 0) });
+    if (echo !== this._echo){ if (this._echo === 'sending' && echo === 'late') this.ui.diag?.recorder?.log?.('sfida.pronto', { conferma: 'non arriva' }); this._echo = echo; }
+    paintBoard(modal?.querySelector('[data-versus-board]'), guestBoard({ guest: st, ready: this.ready, echo, phone, webcam, host: this.engine.versusGuest?.host || null,
+      hostName: this.engine.roomStatus?.hostName || 'Player 1', guestName: this.engine.roomStatus?.guestName || 'Player 2' }));
     return st;
   }
   // P2 in partita: perché non può giocare (detto all'host con la lettura dello stato, motion_controls «hold») e cosa

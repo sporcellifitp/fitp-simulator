@@ -49,9 +49,12 @@ test('Player 2 con la webcam: pannello della webcam (non coperto dal pannello de
   assert.ok(ui.versus.ready && mc.versusReady, 'pronto da solo: l’host lo vede nella lobby');
   assert.ok(visible('natpf-guest-modal') && $('natpf-guest-go').textContent === 'Pronto ✓');
   assert.ok(mc.webcamActive, 'la webcam resta accesa per la partita');
-  // «Pronto ✓» di nuovo: non più pronto; poi «Sono pronto» senza rifare la prova (webcam accesa e già provata)
+  // «Pronto ✓» di nuovo: resta pronto (B9: prima un secondo clic lo toglieva senza dirlo); «Annulla» lo toglie, poi
+  // «Sono pronto» senza rifare la prova (webcam accesa e già provata)
   $('natpf-guest-go').click(); w.advance(300);
-  assert.ok(!ui.versus.ready); assert.equal($('natpf-guest-go').textContent, 'Sono pronto ✓');
+  assert.ok(ui.versus.ready, 'il pulsante non è un interruttore');
+  $('natpf-guest-modal').querySelector('[data-versus-unready]').click(); w.advance(300);
+  assert.ok(!ui.versus.ready); assert.equal($('natpf-guest-go').textContent, 'Sono pronto');
   $('natpf-guest-go').click(); w.advance(300);
   assert.ok(ui.versus.ready && !camOpen() && !ui.training.active);
 });
@@ -121,14 +124,14 @@ test('Player 2: cambiare racchetta da pronto con una che va preparata toglie «p
   const w = await makeWorld({ controller: 'mouse', role: 'p2' }); w.advance(300);
   const { E, ui } = w;
   E.roomStatus = { ...E.roomStatus, p1Online: true }; w.advance(300);
-  assert.equal($('natpf-guest-go').textContent, 'Sono pronto ✓');
+  assert.equal($('natpf-guest-go').textContent, 'Sono pronto');
   $('natpf-guest-go').click(); w.advance(300);
   assert.ok(ui.versus.ready, 'mouse e tastiera (modalità prova): pronto subito, come prima');
   ui.selectController('webcam', { open: false }); w.advance(300);
   assert.ok(!ui.versus.ready, 'con la webcam ancora spenta non si è pronti');
   assert.equal($('natpf-guest-go').textContent, 'Accendi la webcam ›');
   ui.selectController('mouse', { open: false }); w.advance(300);
-  assert.equal($('natpf-guest-go').textContent, 'Sono pronto ✓');
+  assert.equal($('natpf-guest-go').textContent, 'Sono pronto');
 });
 
 test('P2 e host: motivi della webcam detti subito (la soglia comprende già la tolleranza), testi per host e P2', () => {

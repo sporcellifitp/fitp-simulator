@@ -3259,7 +3259,8 @@ export class NatpfTennisEngine {
   }
   _broadcastMultiplayerSnapshot() {
     if (!this._versusInMatch()) {
-      fetch("/api/match/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room: this.roomId, snapshot: { lobby: !0, fmt: this.matchFormat.id, gamesToWin: this.matchConfig.gamesToWin } }) }).catch(() => {});
+      // NATPF 1v1 (B9): con la racchetta dell'host (pronta o no), per la scheda del Player 1 sul computer del P2
+      fetch("/api/match/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room: this.roomId, snapshot: { lobby: !0, fmt: this.matchFormat.id, gamesToWin: this.matchConfig.gamesToWin, host: this.natpfUi?.versus?.hostInfo?.() || null } }) }).catch(() => {});
       return;
     }
     const e = (i) => ({
@@ -3366,6 +3367,7 @@ export class NatpfTennisEngine {
       G.lastSnapshotAt = performance.now();
       if (n.lobby) {
         G.lobby = !0;
+        G.host = n.host || null; // NATPF 1v1 (B9): racchetta dell'host (natpf_versus.hostInfo); null con un host di prima
         return;
       }
       // host in pausa (o in attesa del P2): la partita resta com'è, il collegamento è vivo; hold: perché è ferma

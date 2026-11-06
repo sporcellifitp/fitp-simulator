@@ -38,7 +38,9 @@ test('lobby dell’host: stanza in preparazione o non creata, problemi del colle
 
 test('Player 2: una riga sola, e senza server il perché quando non si collega', () => {
   const net = (status, error) => ({ mode: 'guest', status, error });
-  assert.deepEqual(guestLine('lobby', { ready: true }), { state: 'lobby', text: guestText('lobby', { ready: true }) });
+  // pronto: stato 'ready' (fondo verde), diverso da «collegato» (B9: prima tutti e due 'lobby', stesso bordo)
+  assert.deepEqual(guestLine('lobby', { ready: true }), { state: 'ready', text: guestText('lobby', { ready: true }) });
+  assert.equal(guestLine('lobby').state, 'lobby');
   const r = guestLine('connecting', { net: net('connecting', 'rete') });
   assert.equal(r.state, 'error'); assert.match(r.text, /L’host c’è, ma la rete blocca il collegamento diretto/);
   assert.match(guestLine('lost', { net: net('lost', 'chiusa') }).text, /forse ha chiuso la partita/);

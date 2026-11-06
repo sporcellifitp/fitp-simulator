@@ -1070,8 +1070,9 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
 #title-modal .ready-bar[data-ready-bar="count"], #title-modal .ready-bar[data-ready-bar="held"], #title-modal .ready-bar[data-ready-bar="ready"] { border-color: var(--ok); background: linear-gradient(rgba(54, 224, 122, 0.12), rgba(54, 224, 122, 0.12)), var(--panel-solid); }
 #title-modal .ready-bar[data-ready-bar="count"] .ready-bar-text b, #title-modal .ready-bar[data-ready-bar="held"] .ready-bar-text b, #title-modal .ready-bar[data-ready-bar="ready"] .ready-bar-text b { color: var(--ok); }
 #title-modal .ready-bar[data-ready-bar="cancel"] { border-color: var(--bad); background: linear-gradient(rgba(255, 79, 97, 0.12), rgba(255, 79, 97, 0.12)), var(--panel-solid); }
-/* stesso schermo, pagina dei telefoni: si gioca da soli, quindi «Impostazioni partita ›» è un'azione secondaria (non gialla) */
-#title-modal[data-flow="split"][data-step="connect"] #lobby-next:not(:disabled) { background: transparent; border-color: var(--line-strong); color: var(--text); box-shadow: none; }
+/* stesso schermo, pagina dei telefoni: si gioca da soli, quindi «Impostazioni partita ›» è un'azione secondaria (non
+   gialla, nemmeno spenta: un giallo spento sembrava il pulsante da premere) */
+#title-modal[data-flow="split"][data-step="connect"] #lobby-next { background: transparent; border-color: var(--line-strong); color: var(--text); box-shadow: none; }
 #title-modal[data-flow="split"][data-step="connect"] #lobby-next:not(:disabled):hover { background: rgba(255, 255, 255, 0.12); }
 #title-modal .ready-bar[data-ready-bar="cancel"] .ready-bar-text b { color: #ffb3bc; }
 #title-modal .ready-bar .lobby-primary { min-width: 0; }
@@ -1143,6 +1144,18 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
 .natpf-sheet .lobby-primary.is-ready, .natpf-lobby .lobby-primary.is-ready { background: var(--ok); color: var(--ink-900); box-shadow: 0 8px 22px rgba(54, 224, 122, 0.3); cursor: default; }
 .natpf-sheet .lobby-primary.is-ready:hover, .natpf-lobby .lobby-primary.is-ready:hover { background: var(--ok); transform: none; }
 #btn-start-match.is-wait { background: rgba(255, 255, 255, 0.1); color: var(--text-3); border-color: var(--line-strong); box-shadow: none; opacity: 1; cursor: not-allowed; }
+/* sfida un amico: le due schede nel pannello del Player 2 e nella barra dell'invito dell'host */
+.versus-board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 12px; }
+.versus-board:empty { display: none; }
+.natpf-invite .versus-board { grid-column: 1 / -1; margin: 6px 0 2px; }
+.versus-board .ready-slot { padding: 8px 12px 8px 18px; }
+.versus-board .ready-slot .ready-who b { font-size: clamp(16px, 2.4cqh, 26px); }
+.versus-board .ready-slot .ready-detail { font-size: clamp(13px, 1.8cqh, 18px); }
+@container natpf (max-width: 520px) { .versus-board { grid-template-columns: 1fr; } }
+/* pannello del Player 2: pulsanti sempre in vista anche quando il pannello scorre (a 1280×720 si vedevano a metà) */
+.natpf-guest-dialog .sheet-actions { position: sticky; bottom: -22px; z-index: 1; margin: 16px -28px -22px; padding: 12px 28px 22px; background: var(--panel-solid); box-shadow: 0 -10px 18px rgba(4, 8, 24, 0.5); }
+/* riga di stato del Player 2 pronto: verde, diversa da «collegato» */
+.natpf-versus-status[data-state="ready"] { border-color: var(--ok); background: rgba(54, 224, 122, 0.14); color: var(--text); }
 @media (prefers-reduced-motion: reduce) { .is-prep .ready-ico, .is-ready .ready-badge, #title-modal .split-countdown-num.tick { animation: none; } }
 /* in partita: sotto ogni metà chi gioca e l'esito dell'ultimo colpo. Misure in vh/vw: su un ledwall (pochi pixel, visto
    da lontano) restano grandi quanto la vista */

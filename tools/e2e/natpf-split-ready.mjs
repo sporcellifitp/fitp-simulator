@@ -20,7 +20,7 @@ import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
-import { launch, page, check, summary, SP, quickCalibrate } from './th.mjs';
+import { launch, page, check, summary, SP } from './th.mjs';
 import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
@@ -62,7 +62,7 @@ const view = g => g.evaluate(() => {
   const bar = document.getElementById('split-ready-bar'), ov = document.getElementById('split-countdown'), sb = document.getElementById('btn-start-match');
   const L = __natpfTennis.natpfUi.lobby, S = __natpfTennis.natpfUi.split;
   return { step: L.step, visible: L.visible, p1: card('p1'), p2: card('p2'),
-    bar: bar && { mode: bar.dataset.readyBar, title: bar.querySelector('[data-ready-bar-title]')?.textContent, sub: bar.querySelector('[data-ready-bar-sub]')?.textContent, hold: vis(bar.querySelector('[data-split-hold]')), play: vis(bar.querySelector('[data-split-play]')), inView: (() => { const r = bar.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })() },
+    bar: bar && { mode: bar.dataset.readyBar, border: getComputedStyle(bar).borderTopColor, title: bar.querySelector('[data-ready-bar-title]')?.textContent, sub: bar.querySelector('[data-ready-bar-sub]')?.textContent, hold: vis(bar.querySelector('[data-split-hold]')), play: vis(bar.querySelector('[data-split-play]')), inView: (() => { const r = bar.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })() },
     overlay: vis(ov) ? { num: ov.querySelector('[data-split-count]')?.textContent, sub: ov.querySelector('[data-split-count-names]')?.textContent } : null,
     cd: { ...S.cd }, session: !!__natpfTennis.natpfSplit?.active, phase: __natpfTennis.phase,
     // cosa può fermare il conto: pannelli aperti, guida, calibrazione dello schermo
@@ -70,7 +70,20 @@ const view = g => g.evaluate(() => {
     start: sb && { disabled: sb.disabled, cls: sb.className, bg: getComputedStyle(sb).backgroundColor } };
 });
 const phoneView = p => p.evaluate(() => ({ big: document.getElementById('big')?.textContent, arrow: document.getElementById('arrow')?.textContent, sub: document.getElementById('sub')?.textContent, ring: document.getElementById('ring')?.className }));
-const GREEN = 'rgb(54, 224, 122)';
+const GREEN = 'rgb(54, 224, 122)', RED = 'rgb(255, 79, 97)';
+// Calibrazione rapida che ripete il gesto non riconosciuto: con la grafica software e tre pagine aperte (computer con il
+// tutorial animato, due telefoni) un gesto sintetico può andare perso, e quickCalibrate passa oltre lasciando la
+// calibrazione ferma all'ultimo gesto. Qui si guarda il gesto che il telefono aspetta e lo si rifà finché è pronto
+const calibrate = async (ph, ms = 60000) => {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms){
+    const s = await ph.evaluate(() => { const R = window.__racchetta, st = R.state; return { sensor: st.sensor, step: st.step, ready: !!R.cal.state.ready, idx: R.cal.state.idx }; });
+    if (s.sensor === 'ready') return true;
+    if (s.step === 'swings' && s.ready){ const sign = QUICK_PLAN[s.idx] === 'R' ? -1 : 1; await ph.evaluate(sg => __up.swing(sg).then(() => __up.back(sg)).then(() => __up.still(700)), sign); }
+    else await ph.evaluate(() => __up.still(150));
+  }
+  return false;
+};
 const until = async (p, fn, arg, ms = 20000) => p.waitForFunction(fn, arg, { timeout: ms, polling: 50 }).then(() => true, () => false);
 
 const B = await launch();
@@ -107,7 +120,7 @@ try {
 
   /* 3: Giulia pronta, Marco ancora nel tutorial */
   await ph1.waitForSelector('#tutOk:not(.hidden)', { timeout: 15000 }); await ph1.click('#tutOk');
-  try { await quickCalibrate(ph1, QUICK_PLAN, { timeout: 20000 }); } catch (e){ log('calibrazione P1: ' + e.message); }
+  check('   telefono di Giulia calibrato', await calibrate(ph1));
   const tCal1 = Date.now();
   const p1Ready = await until(g, () => document.querySelector('[data-split-player="p1"]')?.dataset.ready === 'ready');
   log(`P1 pronto sul computer ${Date.now() - tCal1} ms dopo la fine della calibrazione simulata`);
@@ -132,7 +145,7 @@ try {
   const phoneRec = ph => ph.evaluate(() => { window.__phLog = []; let last = ''; setInterval(() => { const k = `${document.getElementById('big').textContent}|${document.getElementById('arrow').textContent}`; if (k !== last){ last = k; window.__phLog.push(k); } }, 20); });
   await phoneRec(ph1); await phoneRec(ph2);
   await ph2.waitForSelector('#tutOk:not(.hidden)', { timeout: 15000 }); await ph2.click('#tutOk');
-  try { await quickCalibrate(ph2, QUICK_PLAN, { timeout: 20000 }); } catch (e){ log('calibrazione P2: ' + e.message); }
+  check('   telefono di Marco calibrato', await calibrate(ph2));
   const started = await until(g, () => !!__natpfTennis.natpfSplit?.active && !__natpfTennis.natpfUi.lobby.visible && ['SERVE_STANCE', 'SERVE_TOSS'].includes(__natpfTennis.phase), null, 15000);
   const cdLog = await g.evaluate(() => { clearInterval(window.__cdRec); return window.__cdLog; });
   log('conto: ' + cdLog.map(e => `${e.t}:${e.k}`).join(' · '));
@@ -198,8 +211,12 @@ try {
   check('6. il telefono di Marco si chiude durante il conto: conto annullato con il motivo, scheda «Scollegato»', cancelled && !v.overlay && /^Conto annullato · Marco: telefono scollegato/.test(v.bar.title) && v.p2.ready === 'ko' && v.p2.word === 'Scollegato', JSON.stringify({ bar: v.bar.title, p2: v.p2.word }));
   const ph1v = await phoneView(ph1);
   check('   il telefono di Giulia dice perché («Aspetta»)', ph1v.big === 'Aspetta' && /Marco/.test(ph1v.sub), JSON.stringify(ph1v));
-  await shot('6-annullato-1280');
+  // prima il telefono (l'avviso dura 2,4 s), poi il computer a transizioni finite (bordi rossi, non a metà dal verde)
   await shot('6-telefono-giulia-annullato', ph1);
+  await sleep(500);
+  v = await view(g);
+  check('   scheda di Marco e barra con il bordo rosso (problema)', v.p2.borders.every(c => c === RED) && v.bar.border === RED, JSON.stringify({ card: v.p2.borders, bar: v.bar.border }));
+  await shot('6-annullato-1280');
   await sleep(4000);
   v = await view(g);
   check('   nessuna partita, si resta nella pagina dei telefoni', !v.session && v.step === 'connect' && v.visible);

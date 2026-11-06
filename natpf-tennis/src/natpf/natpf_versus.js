@@ -9,6 +9,7 @@
 //   • partita: P2 assente per più di VERSUS.lostMs → pausa con la spiegazione, riprende da sola quando torna;
 //   • P2: l'host è l'unico arbitro (punti, game, fine partita arrivano dagli snapshot); stato chiaro in ogni fase.
 // Funzioni pure qui; il collegamento a motore e interfaccia sta in game_engine.js (blocchi «NATPF 1v1») e natpf_ui.js.
+import { slotView } from './natpf_ready.js';
 
 export const VERSUS = Object.freeze({
   lostMs: 5000,        // senza notizie dall'altro computer per 5 s: scollegato (come il telefono e il WebRTC)
@@ -87,6 +88,49 @@ export function startLabel(state){
   return state === 'ready' ? 'Gioca ›' : state === 'joined' ? 'Aspetto che il Player 2 sia pronto…' : 'In attesa del Player 2…';
 }
 
+/* ---------- stato «pronto» dei due giocatori (B9, punto 4: docs/b9/analisi-pronto-1v1.md §4.2) ----------
+   Prima il «pronto» stava solo nel pulsante giallo del P2 («Sono pronto ✓» → «Pronto ✓», stesso giallo, un secondo clic
+   lo toglieva senza dirlo) e in un pallino di 10 px sull'host. Ora una scheda per giocatore (natpf_ready.js) sui due
+   computer, il pulsante del P2 verde pieno da pronto con «Annulla» a parte, e la conferma che l'host l'ha ricevuto. */
+// Racchetta dell'host, per le schede (sua e del P2, che la riceve nello snapshot della lobby): pronta con il telefono
+// calibrato, la webcam accesa, o subito con mouse e tastiera
+export function hostInfo({ controller = 'mouse', phoneReady = false, webcamActive = false } = {}){
+  const ready = controller === 'phone' ? !!phoneReady : controller === 'webcam' ? !!webcamActive : true;
+  return { ready, detail: ready ? 'racchetta pronta' : controller === 'phone' ? 'collega il telefono' : 'prepara la webcam' };
+}
+// «Pronto» del P2 arrivato? Il relay rimanda p2Ready (vero solo con il P2 online; senza server il relay è nel browser
+// dell'host): 'none' (non pronto) · 'sending' (inviato, non ancora tornato) · 'ok' · 'late' (dopo READY_ECHO_MS senza
+// conferma: il collegamento non lo porta all'host)
+export const READY_ECHO_MS = 3000;
+export function readyEcho({ ready = false, echoed = false, sinceMs = 0 } = {}){
+  if (!ready) return 'none';
+  if (echoed) return 'ok';
+  return sinceMs >= READY_ECHO_MS ? 'late' : 'sending';
+}
+// Schede viste dal Player 2: l'host (dallo stato della sfida e dalla sua racchetta, se l'host la manda) e «tu»
+export function guestBoard({ guest = 'connecting', ready = false, echo = 'none', phone = false, webcam = false, host = null, hostName = 'Player 1', guestName = 'Player 2' } = {}){
+  let p1;
+  switch (guest){
+    case 'lobby': p1 = host ? { state: host.ready ? 'ready' : 'prep', detail: host.detail || '' } : { state: 'prep', detail: 'prepara la partita' }; break;
+    case 'playing': p1 = { state: 'ready', detail: 'in partita' }; break;
+    case 'lost': p1 = { state: 'ko', badge: 'Scollegato', detail: 'mi ricollego…' }; break;
+    case 'closed': p1 = { state: 'ko', badge: 'Uscito', detail: 'ha chiuso la stanza' }; break;
+    case 'invalid': p1 = { state: 'ko', badge: 'Non trovato', detail: 'nessuna stanza con questo link' }; break;
+    default: p1 = { state: 'off', detail: 'mi collego…' };
+  }
+  const p2 = ready
+    ? echo === 'late' ? { state: 'prep', badge: 'Non arriva', detail: `${hostName} non lo vede: controlla il collegamento` }
+      : { state: 'ready', detail: echo === 'ok' ? `${hostName} lo vede ✓` : `invio a ${hostName}…` }
+    : phone ? { state: 'prep', detail: 'collega il telefono' } : webcam ? { state: 'prep', detail: 'accendi la webcam' } : { state: 'prep', detail: 'premi «Sono pronto»' };
+  return [slotView({ id: 'p1', name: hostName, ...p1 }), slotView({ id: 'p2', name: guestName, you: true, ...p2 })];
+}
+// Schede viste dall'host, nella barra dell'invito: «tu» (la tua racchetta) e il Player 2 (in attesa · si prepara · pronto)
+export function hostBoard(state, { host = null, hostName = 'Player 1', p2Name = 'Player 2' } = {}){
+  const p1 = host ? { state: host.ready ? 'ready' : 'prep', detail: host.detail || '' } : { state: 'ready', detail: '' };
+  const p2 = state === 'ready' ? { state: 'ready', detail: 'premi «Gioca»' } : state === 'joined' ? { state: 'prep', detail: 'prepara la racchetta' } : { state: 'off', detail: 'mandagli il link' };
+  return [slotView({ id: 'p1', name: hostName, you: true, ...p1 }), slotView({ id: 'p2', name: p2Name, ...p2 })];
+}
+
 // Stato visto dal Player 2:
 //   'connecting' · 'lobby' (collegato, l'host prepara) · 'playing' · 'lost' (host senza notizie) · 'closed' (l'host ha
 //   chiuso la stanza) · 'invalid' (codice inesistente)
@@ -114,9 +158,10 @@ export function guestText(state, { ready = false, phone = false, webcam = false,
 // Riga di stato del pannello del Player 2: lo stato della sfida o, nella sfida senza server non ancora collegata,
 // perché (rete che blocca il collegamento diretto, host muto, stanza occupata, server della segnalazione). Prima una
 // seconda riga «Mi collego all’host…» sotto la prima, e nessuna spiegazione. net: { mode, status, error }
+// Pronto in lobby: stato 'ready' (fondo verde), diverso da «collegato» (prima tutti e due 'lobby', stesso bordo verde)
 export function guestLine(state, { ready = false, phone = false, webcam = false, hostName = 'Player 1', net = null } = {}){
   if (net?.mode === 'guest' && (state === 'connecting' || state === 'lost') && net.error) return { state: 'error', text: p2pStatusText('guest', net.status, net.error) };
-  return { state, text: guestText(state, { ready, phone, webcam, hostName }) };
+  return { state: state === 'lobby' && ready ? 'ready' : state, text: guestText(state, { ready, phone, webcam, hostName }) };
 }
 
 // Presenza dell'avversario durante la partita (host): quanto manca all'avviso di uscita

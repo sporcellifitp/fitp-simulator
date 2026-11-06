@@ -297,7 +297,7 @@ test('Player 2: l’HUD non chiede più di inquadrare il QR del vecchio telefono
   HudUI.prototype.updateOpponentPresence.call(host, { isMultiplayer: true, p2Online: true, guestName: 'Bea' });
   assert.equal(label.textContent, 'Bea entrato');
   HudUI.prototype.updateOpponentPresence.call(host, { isMultiplayer: true, p2Online: true, p2Ready: true, guestName: 'Bea' });
-  assert.equal(label.textContent, '🟢 Bea pronto');
+  assert.equal(label.textContent, 'Bea pronto ✓', 'senza emoji (B9)');
 });
 
 test('Player 2: «Collega il telefono» apre il QR e il pannello d’attesa non lo copre', async () => {
