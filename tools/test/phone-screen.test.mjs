@@ -28,6 +28,9 @@ test('schermate esclusive: in ogni combinazione una sola, «ho capito» solo nel
     assert.equal(v.show['#tools'], v.screen === 'ready', ctx);
     // nel tutorial: niente opzioni, «Gioca con i tocchi», pannello dei colpi
     if (v.screen === 'tutorial') for (const k of ['#profileOptions', '#enableTouch', '#shotPanel', '#enable', '#retry']) assert.equal(v.show[k], false, `${k} ${ctx}`);
+    // «Gioca con i tocchi» resta come via d'uscita nella calibrazione (prova del sito gesture-calibration), mai in «Pronto»
+    if (v.screen === 'cal' || v.screen === 'enable') assert.equal(v.show['#enableTouch'], inputMode !== 'touch', `#enableTouch ${ctx}`);
+    if (v.screen === 'ready') assert.equal(v.show['#enableTouch'], false, `#enableTouch ${ctx}`);
     // in calibrazione niente Ricalibra/Ricollega/Scollega (scelta del 05/11)
     if (v.screen === 'cal') assert.equal(v.show['#tools'], false, ctx);
     if (linkState !== 'on') assert.equal(v.screen, 'link', ctx);

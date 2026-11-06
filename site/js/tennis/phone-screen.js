@@ -39,7 +39,9 @@ export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inpu
   const show = {
     '#retry': S('link') && (linkState === 'lost' || linkState === 'denied') && hasPair,
     '#enable': S('enable') || (S('error') && sensor !== 'insecure'),
-    '#enableTouch': (S('enable') || S('error')) && !touch,
+    // «Gioca con i tocchi»: prima di attivare i sensori e durante la calibrazione (via d'uscita se i sensori non vanno,
+    // come prima di B9); non nel tutorial né in «Pronto»
+    '#enableTouch': (S('enable') || S('error') || S('cal')) && !touch,
     // mano e movimento: prima di attivare i sensori e alla verifica della calibrazione (non nel tutorial né in «Pronto»)
     '#profileOptions': S('enable') || S('error') || (S('cal') && calStep === 'review'),
     '#shotPanel': S('ready') || (S('cal') && calStep === 'free'),
