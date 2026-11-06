@@ -121,6 +121,8 @@ diagnostiche degli eventi mostrano spegnimenti nonostante le misure sopra.
 - Test unitari: `tools/test/phone-keep.test.mjs` (blocco dello schermo, velo), `tools/test/phone-screen.test.mjs`
   (schermate esclusive e ripresa), `tools/test/phone-link-fast.test.mjs` (abbinamento nuovo contro ripresa, pagina
   nascosta da quando), `natpf-tennis/test/natpf-phone-watch.test.mjs` (testo della pausa con la durata).
-- Prove nel browser con visibilità e blocco simulati nella pagina: `tools/e2e/natpf-phone-keep.mjs`,
-  `natpf-phone-blackout.mjs`, `natpf-training-reconnect.mjs` (esiti nel registro del compito A).
+- Prove nel browser con visibilità e blocco simulati nella pagina (06/11, Chromium headless): `natpf-phone-keep.mjs`
+  13/13, `natpf-phone-blackout.mjs` 6/6, `natpf-training-reconnect.mjs` 6/6 e `natpf-tutorial-phone.mjs` 36/36 (pausa
+  con «da 3 s», velo «Tocca lo schermo per riprendere» quando il blocco vuole un tocco, ripresa del computer senza
+  tutorial né QR, un tocco sul velo riprende il blocco).
 - **Non verificato**: tutto quello che riguarda telefoni veri (tabella sopra), Safari su iPhone in particolare.
