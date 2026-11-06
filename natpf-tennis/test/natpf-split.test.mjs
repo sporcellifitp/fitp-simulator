@@ -504,3 +504,98 @@ test('stesso schermo, pagina «Partita»: schede dal vivo, «Gioca» grigio e sp
   lobby.go('mode'); lobby.setMode('cpu'); lobby.go('match');
   assert.equal($('btn-start-match').disabled, false); assert.ok(!$('btn-start-match').classList.contains('is-wait'));
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Revisione B9 (06/11), bloccante del ramo A: nello stesso schermo un telefono che cade e si ricollega con il suo
+// tutorial aperto lo perdeva (segnato come visto senza «Tutto chiaro» e calibrazione partita da sola). Il telefono finto
+// qui sotto risponde come la pagina vera (racchetta.js, phone-screen.js), con i messaggi consegnati dopo (rete): un cfg
+// senza tut a tutorial aperto chiude il cancello e, con i sensori in attesa, fa partire la calibrazione (cal step); un
+// cfg con tut riapre il cancello e risponde «so aspettare» (tut w, v 2). Prima il telefono finto si ricollegava «ready»
+// e non rispondeva: il test passava per il motivo sbagliato
+function phonePage(P, link){
+  const ph = { gate: null, sensor: 'idle', q: [], steps: 0 };
+  const send0 = link.send.bind(link);
+  link.send = m => {
+    send0(m);
+    if (m.t !== 'cfg') return;
+    ph.q.push(() => {
+      const was = ph.gate; ph.gate = m.tut ? (was || { v: m.tv >= 2 ? 2 : 1 }) : null;
+      if (ph.gate){ if (!was && ph.sensor === 'cal') ph.sensor = 'idle'; ph.q.push(() => P._onTut({ wait: 1, v: 2 })); }
+      else if (was && ph.sensor === 'idle'){ ph.sensor = 'cal'; link.L = { ...link.L, phone: 'cal' }; ph.steps++; ph.q.push(() => P._onCal({ kind: 'step', step: 'still' })); }
+    });
+  };
+  // consegna dei messaggi in coda (anche quelli nati dalle risposte), nell'ordine
+  ph.flush = () => { for (let k = 0; k < 20 && ph.q.length; k++) for (const f of ph.q.splice(0)) f(); };
+  return ph;
+}
+// collegamento del telefono che cambia (link.js 'change'): come natpf_phone_racket._start
+const linkChange = P => { P._sendGrip(); P._changed(); };
+
+for (const how of ['ricollegamento («Ricollega», stessa pagina)', 'collegamento perso davvero (ripresa con la chiave)']){
+  test(`stesso schermo: telefono che cade a tutorial aperto (${how}) → la metà riprende dalla scheda, niente calibrazione da sola`, async () => {
+    const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
+    const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
+    const l2 = P2.link = { ...fakeLink(), ready: false, L: { state: 'connected', phone: 'tut', joins: 1, pairs: 1 } };
+    const ph = phonePage(P2, l2);
+    lobby.go('mode'); lobby.setMode('split'); lobby.go('connect');
+    linkChange(P2); ph.flush(); ui.split.paint(); ph.flush();
+    assert.ok(ui.split.tutOpen.p2 && P2.tutWait && P2.tutSupported && P2.tutV2, 'tutorial aperto, telefono che sa aspettare');
+    // il P2 arriva alla scheda 4 dal suo telefono
+    for (let k = 0; k < 3; k++){ w.advance(1200); P2._onTut({ nav: 1, v: 2 }); }
+    assert.equal(ui.split.tut.p2.state.idx, 3);
+    // il telefono cade
+    Object.assign(l2, { connected: false, ready: false, L: { ...l2.L, state: 'lost', phone: null } }); linkChange(P2); ph.flush();
+    assert.ok(!ui.split.tutOpen.p2, 'la metà torna al QR');
+    assert.ok(P2.tutWait, 'il telefono caduto aspetta ancora il tutorial (come nell’Allenamento)');
+    w.advance(2000);
+    // si ricollega (stesso abbinamento): sensori in attesa del tutorial
+    const relink = how.startsWith('ricollegamento');
+    Object.assign(l2, { connected: true, L: { ...l2.L, state: 'connected', phone: 'tut', joins: 2, relinked: relink, resumed: !relink } });
+    linkChange(P2); ph.flush(); ui.split.paint(); ph.flush(); w.advance(300); ph.flush();
+    assert.equal(ph.steps, 0, 'il telefono non è passato alla calibrazione');
+    assert.ok(ui.split.tutOpen.p2, 'tutorial di nuovo aperto nella metà');
+    assert.ok(!P2.tutorialSeen, 'non segnato come visto');
+    assert.equal(ui.split.tut.p2.state.idx, 3, 'riprende dalla scheda 4');
+    assert.ok(!l2.cmds.includes('cal'), 'nessuna calibrazione chiesta');
+    const cfg = l2.sent.filter(m => m.t === 'cfg').at(-1), tp = l2.sent.filter(m => m.t === 'tp').at(-1);
+    assert.equal(cfg.tut, 1, 'al telefono ricollegato il cfg con il tutorial'); assert.equal(tp.i, 3);
+    assert.equal(tp.all, 0, '«Tutto chiaro» ancora spento');
+    ui.split.closeTutorials();
+    assert.ok(!P2.tutWait, 'uscendo dalla pagina il telefono non aspetta più');
+  });
+}
+
+test('stesso schermo: telefono caduto a tutorial aperto e pagina «Collega» lasciata → il telefono non resta ad aspettare', async () => {
+  const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
+  const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
+  const l2 = P2.link = { ...fakeLink(), ready: false, L: { state: 'connected', phone: 'tut', joins: 1, pairs: 1 } };
+  const ph = phonePage(P2, l2);
+  lobby.go('mode'); lobby.setMode('split'); lobby.go('connect');
+  linkChange(P2); ph.flush(); ui.split.paint(); ph.flush();
+  Object.assign(l2, { connected: false, ready: false, L: { ...l2.L, state: 'lost', phone: null } }); linkChange(P2);
+  assert.ok(P2.tutWait);
+  lobby.setMode('cpu');
+  assert.ok(!P2.tutWait, 'si lascia lo stesso schermo: niente attesa del tutorial');
+  // tutSupported descrive la pagina del telefono: resta fino a un abbinamento nuovo
+  assert.ok(P2.tutSupported);
+  Object.assign(l2, { connected: true, L: { ...l2.L, state: 'connected', phone: 'sensors', joins: 2, pairs: 2 } }); linkChange(P2);
+  assert.ok(!P2.tutSupported && !P2.tutV2, 'abbinamento nuovo: si riparte da capo');
+});
+
+test('stesso schermo: la pagina di prima (mai risposto tut) chiude la modale quando calibra da sola; una pagina B9 no', async () => {
+  const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
+  const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
+  P2.link = { ...fakeLink(), ready: false, L: { state: 'connected', phone: 'cal', joins: 1, pairs: 1 } };
+  lobby.go('mode'); lobby.setMode('split'); lobby.go('connect'); ui.split.paint();
+  assert.ok(ui.split.tutOpen.p2);
+  P2._onCal({ kind: 'step', step: 'still' });
+  assert.ok(!ui.split.tutOpen.p2 && P2.tutorialSeen, 'pagina di prima: chiusa e vista');
+  // P1 con una pagina B9: ha risposto tut in questo abbinamento, poi waitTutorial(false) e di nuovo aperto
+  const P1 = E.natpfPhone;
+  assert.ok(ui.split.tutOpen.p1);
+  P1._onTut({ wait: 1, v: 2 });
+  P1.waitTutorial(false); P1.waitTutorial(true);
+  assert.ok(P1.tutSupported, 'risposta tut ricordata per questo abbinamento');
+  P1._onCal({ kind: 'step', step: 'still' });
+  assert.ok(ui.split.tutOpen.p1 && !P1.tutorialSeen, 'pagina B9: un passo della calibrazione non chiude il tutorial');
+});

@@ -314,7 +314,8 @@ export class NatpfTraining {
   }
   /* ---------- calibrazione in campo ---------- */
   _onCal(e){
-    // telefono con la pagina di prima (non conosce il tutorial): ha cominciato a calibrare da solo, si chiude la modale
+    // telefono con la pagina di prima (non ha mai risposto tut in questo abbinamento: NatpfPhoneRacket.tutSupported): ha
+    // cominciato a calibrare da solo, si chiude la modale
     if (this.active && this.tutorialOpen && !this.ui.phone.tutSupported && e.kind === 'step') this._tutorialDone('phone');
     if (!this.active || this.lesson || this.tutorialOpen) return;       // durante lezione e tutorial la calibrazione non è ancora partita
     if (!this.cal){ if (e.kind !== 'done' && this._phoneRecalibrating()) this._recal(); else return; }

@@ -90,7 +90,7 @@ export class NatpfSplitUi {
     // dal proprio telefono; l'animazione 3D (una sola) la ha la prima metà che l'ha chiesta, l'altra foto e indicazioni.
     // Visto una volta per abbinamento del telefono (NatpfPhoneRacket.tutorialSeen, B9): non a ogni ricollegamento, e il P1
     // che l'ha già visto nell'Allenamento non lo rivede qui
-    this.tutOpen = { p1: false, p2: false }; this.demoOwner = null;
+    this.tutOpen = { p1: false, p2: false }; this.tutHeld = { p1: false, p2: false }; this.demoOwner = null;
     this.tut = {};
     for (const id of SPLIT_PLAYERS) this.tut[id] = typeof document !== 'undefined' ? new NatpfTutorial($(`split-tut-${id}`), { half: true, demo: () => getGestureDemo(), canDemo: () => this.demoOwner === id }) : null;
     let saved = 'phones'; try { saved = localStorage.getItem(SPLIT_INPUT_KEY) || 'phones'; } catch {}
@@ -211,6 +211,8 @@ export class NatpfSplitUi {
   _onCal(id, e){
     if (!this.session && !(this.ui.lobby?.visible && this.ui.lobby.mode === 'split')) return;
     const p = this.phone(id);
+    // telefono con la pagina di prima (non ha mai risposto tut in questo abbinamento: NatpfPhoneRacket.tutSupported) che
+    // ha cominciato a calibrare da solo: la sua metà si chiude
     if (this.tutOpen[id] && !p.tutSupported && e?.kind === 'step') this._tutDone(id);
     if (e?.kind === 'review'){
       if (e.pass){ this.fails[id] = 0; p.confirm(); }
@@ -225,14 +227,16 @@ export class NatpfSplitUi {
     const L = p.state;
     // telefono collegato: prima il tutorial nella sua metà (una volta per abbinamento); il telefono aspetta «ho capito».
     // Telefono che cade a tutorial aperto: la metà torna al QR e la modale ricorda la scheda raggiunta (stesso telefono
-    // che si ricollega: riparte da lì)
+    // che si ricollega: riparte da lì). Il telefono continua ad aspettare il tutorial (hold: niente waitTutorial(false)),
+    // così al ricollegamento riceve cfg con tut e l'avanzamento, come nell'Allenamento (revisione B9 del 06/11: prima
+    // riceveva un cfg senza tut, calibrava da solo e il tutorial si chiudeva come visto)
     if (p.connected && !p.tutorialSeen && !this.tutOpen[id] && !this.webcam) this._tutOpen(id);
-    if (!p.connected && this.tutOpen[id]) this._tutClose(id, { keep: true });
+    if (!p.connected && this.tutOpen[id]) this._tutClose(id, { keep: true, hold: true });
     if (this.tutOpen[id]){ this.tut[id]?.setAfter(p.ready ? 'ready' : 'cal'); return; }
     if (p.connected && L.phone === 'cal' && !p.ready && !this.calAsked[id] && p.calView?.stage === 'off'){ this.calAsked[id] = true; p.recalibrate(); }
   }
   _tutOpen(id){
-    this.tutOpen[id] = true;
+    this.tutOpen[id] = true; this.tutHeld[id] = false;
     this[`${id}Joins`] = this.phone(id)?.state?.joins || 0;
     if (!this.demoOwner) this.demoOwner = id;
     const p = this.phone(id);
@@ -247,17 +251,24 @@ export class NatpfSplitUi {
     this.phone(id)?.markTutorialSeen?.(); this._tutClose(id);
     this.paint();
   }
-  // keep: chiusa prima della fine (telefono caduto): si ricorda dove era arrivata
-  _tutClose(id, { keep = false } = {}){
-    this.tutOpen[id] = false;
+  // keep: chiusa prima della fine (telefono caduto, si lascia la pagina): si ricorda dove era arrivata. hold: telefono
+  // caduto, la modale si chiude ma il tutorial non è finito: il telefono continua ad aspettarlo (tutHeld; lo libera
+  // closeTutorials se si lascia la pagina prima che torni)
+  _tutClose(id, { keep = false, hold = false } = {}){
+    this.tutOpen[id] = false; this.tutHeld[id] = hold;
     if (keep) this.phone(id)?.saveTutorial?.(this.tut[id]?.snapshot);
-    this.phone(id)?.waitTutorial?.(false);
+    if (!hold) this.phone(id)?.waitTutorial?.(false);
     this.tut[id]?.close('phone');
     // l'animazione 3D passa all'altra metà, se ha il tutorial aperto
     if (this.demoOwner === id){ const other = id === 'p1' ? 'p2' : 'p1'; this.demoOwner = this.tutOpen[other] ? other : null; if (this.demoOwner) this.tut[other]?.paint(); }
   }
   // si esce dalla pagina «Collega» (partita, menu): le modali delle metà si chiudono, i telefoni non aspettano più
-  closeTutorials(){ for (const id of SPLIT_PLAYERS) if (this.tutOpen[id]) this._tutClose(id, { keep: true }); }
+  closeTutorials(){
+    for (const id of SPLIT_PLAYERS){
+      if (this.tutOpen[id]) this._tutClose(id, { keep: true });
+      else if (this.tutHeld[id]){ this.tutHeld[id] = false; this.phone(id)?.waitTutorial?.(false); }
+    }
+  }
   paint(){
     const box = document.querySelector('[data-setup="split"]'), cam = this.webcam, mc = this.engine.motionController, now = performance.now();
     if (box) box.dataset.input = this.input;
