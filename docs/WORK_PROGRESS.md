@@ -351,3 +351,12 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
   Eseguibili: workflow GitHub «NATPF eseguibili Windows» esecuzione 42274534538.
 - **Non verificato**: telefoni veri, Windows, ledwall vero, GPU vera; persone che guardano l'animazione e ripetono il
   gesto (brief §5.6.6).
+
+## B10 · Test rimasti, voce «smash», punteggio, scritte nel 2v2 (richiesta del 06/11 sera) · [~]
+- Prove nel browser sulla 2026-11-06.3 non rifatte prima: verdi tutorial-relink 8/8, phone-keep 13/13, phone-blackout
+  6/6, training-reconnect 6/6, rally 7/7, schermo 41/41, inquadratura 36/36, diag-session 24/24, webcam-distanza 7/7,
+  timing-browser 8/8, gesture-calibration 18/18 (tre volte; una volta in tempo scaduto alla riga 73: l'intermittenza già
+  nota della CI). Rosse **anche sulla 2026-11-05.1** (quindi non nate da B9): natpf-gesti-speciali 6/9 (pallonetto e
+  palla corta del telefono simulato letti come top spin), natpf-1v1-webcam-p2 8/12 (P2 nella lobby mentre l'host gioca,
+  webcam del P2 spenta letta come scollegamento): workflow `natpf-b10-prove-rosse` in corso (gioco o prova sbagliati,
+  correzione, revisione).
