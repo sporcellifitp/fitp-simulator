@@ -116,6 +116,11 @@ Come si aggiorna:
   esercizi, velo senza sfocatura, test `natpf-gesture-anim`, fogli dei fotogrammi guardati), in parallelo i minori dello
   stesso schermo (conto «‹ Indietro» stabile, schede allineate sul ledwall, pausa con due pause, velo del telefono); poi
   revisione tecnica e artistica e correzioni.
+- **06/11 sera, ripresa dopo il limite d'uso:** minori dello stesso schermo uniti (`6920b36`: gioco 813/813, sito
+  195/195, build ok). Ramo C fermato a metà nel worktree `.claude/worktrees/wf_b232ca46-ca8-1` (commit `631bd34`,
+  `d8ed8cb`, `bf63224` + WIP; patch `docs/b9/wip/ramo-C-animazione.patch` da `b86baac`): workflow di ripresa avviato
+  nello stesso worktree (unione di `natpf-simulator`, controlli visivi, prestazioni, nota), poi revisione tecnica e
+  artistica e correzioni.
 - **Prossima azione esatta:** a workflow finito unire i rami (worktree in `.claude/worktrees/`), test, prove nel
   browser, push; versione 2026-11-06.2, pacchetti, eseguibili (workflow GitHub `natpf-windows.yml` a ogni cambio di
   versione), riepilogo finale all'utente.
