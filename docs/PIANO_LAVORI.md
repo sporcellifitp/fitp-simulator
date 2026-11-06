@@ -84,7 +84,11 @@ Come si aggiorna:
   locali `.claude/worktrees/wf_e8b0b59b-1e4-1` (A: modale e telefono, base `5461600`) e `…-1e4-2` (B: pronto, base
   `4d242f6`); copia del loro lavoro come patch in `docs/b9/wip/` (se i worktree non ci sono più: `git am` della patch
   su un ramo locale dalla sua base, poi unione). Prototipi in completamento, poi `docs/b9/giudizio-animazione.md`.
-- **Prossima azione esatta:** finiti rami e giudizio → correggere i bloccanti delle revisioni, unire A e B su
+- **06/11 mattina: A e B uniti su `natpf-simulator`** (`4ed5eab`, `29c2e74`): gioco 785/785, sito 193/193, LAN 12/12,
+  build ok. Conflitto in `natpf_split_ui.js` (stato della metà) risolto unendo avanzamento del tutorial e schede del
+  pronto; test del conto alla rovescia reso indipendente dalla fase del controllo ogni 100 ms. Revisioni dei due rami
+  e giudizio dell'animazione in corso; i bloccanti che emergono si correggono direttamente su `natpf-simulator`.
+- **Prossima azione esatta (precedente):** finiti rami e giudizio → correggere i bloccanti delle revisioni, unire A e B su
   `natpf-simulator`, test e prove nel browser, push; poi ramo C (animazione nuova secondo il giudizio), versione nuova,
   pacchetti ed eseguibili.
 - **Prossima azione esatta (precedente, B9.1 fatto):** B9.1 — analisi in parallelo (modale e animazione attuali con le specifiche dei gesti

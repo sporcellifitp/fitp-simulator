@@ -272,3 +272,24 @@ Criterio di fine: script `natpf-*` verdi, CI che prova gioco, build e sito sul b
   di GitHub: Setup `0963271dddc3a3033c3648eea19fc1d3a70eae78c13f9aec4e19ff9679610070`, Portatile
   `69969ea8612405ba6967913a7a3ad303eaeb3d13a4fc6f7199bec77fff9ca263` (diversi da quelli costruiti qui: stesse
   sorgenti, build non identica byte per byte). Non verificato: download e avvio su Windows.
+
+## B9 · modale, telefono, schermo spento, «pronto» nel 1v1 (05–06/11) — rami A e B uniti
+Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e schermo spento, «pronto»), consegne in
+`docs/b9/compiti.md`. Rami fatti in worktree e uniti il 06/11:
+- **A** (`5136d0c`, unione `4ed5eab`): modale del tutorial compatta e centrata (anche nella propria metà dello stesso
+  schermo), frecce ‹ › in basso al posto delle 11 etichette, niente scorrimento automatico, scheda vista dopo ~1 s;
+  avanzamento mandato al telefono (`tp`, protocollo v2 compatibile), «Tutto chiaro, ho capito» spento finché non si
+  sono viste tutte le schede, frecce anche sul telefono; schermate del telefono esclusive (`site/js/tennis/phone-screen.js`):
+  «Pronto» con Ricalibra/Ricollega/Scollega solo dopo; tutorial non riproposto ai ricollegamenti della stessa sessione;
+  schermo spento: Wake Lock ripreso, pausa immediata sul computer con la durata, ripresa automatica, velo «Tocca lo
+  schermo per riprendere» opaco; limiti e protocollo di prova in `docs/b9/schermo-spento.md`; riga «Presa» nascosta
+  corretta. Prove nel ramo: gioco 768, sito 193, LAN 12; browser natpf-tutorial-phone 36/36 (nuovo), training-flow
+  17/17, phone-keep 13/13, blackout 6/6, training-reconnect 6/6, menu 22/22, rally 7/7, gesture-calibration 18/18.
+- **B** (`061a729`, unione `29c2e74`): stesso schermo con una scheda per giocatore (nome, stati in attesa / si prepara /
+  pronto / problema con colore, icona e parola), conto alla rovescia di 3 s sul computer e sui telefoni quando tutti e due
+  sono pronti e il tutorial è chiuso, poi si gioca senza toccare il PC; conto annullato con il motivo se un telefono cade;
+  «Aspetta»/Esc; «Gioca» spento nella pagina «Partita» con un telefono non pronto; niente salto automatico a «Partita».
+  Sfida un amico (sospesa): «Sono pronto» giallo → «Pronto ✓» verde, «Annulla» separato, «Player 1 lo vede ✓». Dettagli in
+  `docs/b9/pronto-1v1.md`. Prove nel ramo: gioco 777, sito 182, browser natpf-split-ready 24/24, 1v1-p2p 37/37.
+- Dopo l'unione: gioco 785/785, sito 193/193, LAN 12/12, build ok.
+- **Non verificato**: telefoni veri (Wake Lock, schermo spento 3 s / 30 s / 6 min, iPhone), Windows, ledwall vero.
