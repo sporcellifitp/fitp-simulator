@@ -12,9 +12,10 @@ import { createFaceTracker } from './face-tracker.js';
 import { strokeShape } from './stroke-shape.js';
 import { swingMessage } from './swing-message.js';
 import { NATPF_BUILD } from './version.js';
-import { createWakeKeeper, createSensorWatch } from './phone-keep.js';
+import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
 import { gripSvg, GRIP_TEXT_PLAIN } from './grip-art.js';
 import { platformAccSign, createAccSign, normalizeSample } from './motion-sign.js';
+import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable } from './phone-screen.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
@@ -24,7 +25,7 @@ const ss = { get(k){ try { return JSON.parse(sessionStorage.getItem('natpf-simul
 
 // i dati del QR: si leggono e si tolgono subito dalla barra degli indirizzi (restano solo in questa scheda)
 let pair = parsePairing(location.hash);
-if (pair){ ss.set('pair', pair); ss.del('resume'); ss.del('profile'); history.replaceState(null, '', location.pathname + location.search); }
+if (pair){ ss.set('pair', pair); ss.del('resume'); ss.del('profile'); ss.del('gate'); history.replaceState(null, '', location.pathname + location.search); }
 else pair = ss.get('pair');
 
 // Presa: «upright» (predefinita, telefono in verticale come il manico) o «flat» (telefono in orizzontale nel palmo,
@@ -51,10 +52,17 @@ let sensorSequence = 0, lastSensorSent = -Infinity;
 let streamJson = false, prepWanted = false, diagStream = false, sampleHz = 60, lastSampleT = null, swingSeq = 0;
 let connectEpoch = 0, pendingConn = null;
 let peer = null, conn = null, linkState = 'off', rtt = 80, sensor = 'off', phase = 'menu', retryT = null, tries = 0, motionSeen = false, flashT = null, lastRx = 0;
-let tutWait = false;   // il computer chiede di aspettare il tutorial prima di calibrare (cfg tut, vedi tutDone)
+// Tutorial sul computer (cfg tut, phone-screen.js): il «cancello» { v, i, n, s, m, all } che il computer apre e chiude e di
+// cui manda l'avanzamento (tp). Resta nella scheda (pagina ricaricata, ricollegamento): niente lampo di «Pronto» e niente
+// ritorno alla prima scheda. screen: la schermata mostrata (una sola alla volta, phoneView)
+let gate = pair ? gateRestore(ss.get('gate')) : null, screen = 'link', tutLitT = null, wantFs = false;
 // schermo acceso e sensori vivi (phone-keep.js): ogni cambio del blocco va al computer e sullo schermo (avvisi più giù)
 const awake = createWakeKeeper({ onChange: () => { sendState(); paintAlert(); } }), sensorWatch = createSensorWatch();
 let revivedAt = null, alertKey = '';
+// velo «Tocca lo schermo per riprendere» dopo lo schermo spento (phone-keep.js) e schermo intero da riprendere al primo
+// tocco dopo il ritorno (Android può uscirne con lo schermo spento: non verificato su telefoni veri)
+const veil = createResumeVeil();
+let fsAfterVisible = false;
 // percorso veloce (link.js): via internet una seconda connessione non ordinata; in LAN il canale dei sensori
 let fast = null, fastOk = false, rawSeq = 0;
 
@@ -81,31 +89,42 @@ function bar(){
   b.className = linkState === 'on' ? 'ok' : linkState === 'lost' || linkState === 'denied' ? 'bad' : '';
   $('#barTxt').textContent = txt; $('#lat').textContent = linkState === 'on' ? Math.round(rtt) + ' ms' : '';
 }
+function setGate(g){ gate = g; if (g) ss.set('gate', g); else ss.del('gate'); }
+// UNA schermata alla volta (phone-screen.js): collegamento, errore dei sensori, «Attiva i sensori», tutorial, calibrazione,
+// «Pronto». Prima ogni elemento aveva la sua condizione e «Tutto chiaro» compariva sopra «Pronto»
 function paint(){
   bar();
-  show('#enable', linkState === 'on' && (sensor === 'off' || sensor === 'denied' || sensor === 'nomotion'));
-  show('#enableTouch', linkState === 'on' && sensor !== 'ready' && inputMode !== 'touch');
-  show('#profileOptions', linkState === 'on' && (sensor !== 'ready' && (sensor !== 'cal' || cal.state.step === 'review')));
-  show('#shotPanel', linkState === 'on' && (sensor === 'ready' || cal.state.step === 'free'));
-  show('#manualAim', inputMode === 'touch');
-  show('#touchHit', inputMode === 'touch' || det.profile.intentGate);
+  const v = phoneView({ linkState, sensor, gate, inputMode, calStep: cal.state.step, hasPair: !!pair, diag: diagStream, intentGate: det.profile.intentGate });
+  if (v.screen !== screen){ screen = v.screen; document.body.dataset.screen = screen; }
+  for (const [sel, on] of Object.entries(v.show)) show(sel, on);
   $('#touchHit').textContent = inputMode === 'touch' ? 'Colpisci' : 'Arma dopo l’apertura';
-  show('#shotChoices',inputMode==='touch');
   $('#shotHint').textContent=inputMode==='touch'?'Scegli il colpo; smash e servizio seguono la palla.':'Dai un colpetto quando la palla arriva alla racchetta sul computer.';
   paintShots();
-  show('#retry', (linkState === 'lost' || linkState === 'denied') && !!pair);
-  show('#tools', linkState === 'on' && (sensor === 'ready' || sensor === 'cal'));
-  show('#tutOk', linkState === 'on' && tutWait && (sensor === 'tut' || sensor === 'ready'));
-  show('#mark', linkState === 'on' && diagStream);
-  const holding = linkState === 'on' && sensor === 'cal' && (cal.state.step === 'grip' || cal.state.step === 'still');
+  paintTut(v);
+  const holding = screen === 'cal' && sensor === 'cal' && (cal.state.step === 'grip' || cal.state.step === 'still');
   show('#grip', holding && grip !== 'flat'); show('#gripFlat', holding && grip === 'flat');
-  const dial = grip === 'flat' && linkState === 'on' && face.ready && (sensor === 'ready' || ['free', 'swings'].includes(cal.state.step));
+  const dial = grip === 'flat' && face.ready && (screen === 'ready' || (screen === 'cal' && ['free', 'swings'].includes(cal.state.step)));
   show('#faceDial', dial); show('#faceTxt', dial);
   if (linkState !== 'on' || flashT) return;
-  if (sensor === 'off') ui('Collegato', 'Tocca «Attiva i sensori»: il telefono diventa la tua racchetta.');
-  else if (sensor === 'tut') ui('Guarda lo schermo', 'Sul computer ci sono la presa e i colpi. Quando hai capito tocca «Tutto chiaro, ho capito», qui in alto: poi si calibra.');
-  else if (sensor === 'cal') calUi();
-  else if (sensor === 'ready') ui(phase === 'serve' ? 'Al servizio' : 'Pronto', phaseText(), 'ready');
+  if (screen === 'enable') ui('Collegato', 'Tocca «Attiva i sensori»: il telefono diventa la tua racchetta.');
+  else if (screen === 'tutorial'){ const t = tutorialTexts(gate, { sensor }); ui(t.big, t.sub); }
+  else if (screen === 'cal'){ if (sensor === 'cal') calUi(); else ui('Preparati', 'Tra un attimo si calibra.'); }
+  else if (screen === 'ready') ui(phase === 'serve' ? 'Al servizio' : 'Pronto', phaseText(), 'ready');
+}
+// schermata del tutorial: pulsante spento finché il computer non dice che sono state viste tutte le schede, scheda
+// attuale, puntini delle schede viste, frecce per sfogliarle anche da qui (solo con un computer che le capisce)
+function paintTut(v){
+  const b = $('#tutOk');
+  if (v.screen !== 'tutorial'){ b.classList.remove('lit'); return; }
+  const on = v.tutOk.on;
+  b.disabled = !on; b.classList.toggle('off', !on); b.setAttribute('aria-disabled', String(!on));
+  const t = tutorialTexts(gate, { sensor }) || { where: '', hint: '' };
+  $('#tutWhere').textContent = t.where; $('#tutHint').textContent = t.hint;
+  const nav = gateNav(gate);
+  show('#tutNav', nav.show); $('#tutPrev').disabled = !nav.prev; $('#tutNext').disabled = !nav.next;
+  const dots = $('#tutDots'), key = gate.n ? `${gate.n}:${gate.i}:${gate.m}` : '';
+  if (dots.dataset.k !== key){ dots.dataset.k = key; dots.innerHTML = Array.from({ length: gate.n || 0 }, (_, i) => `<i class="${i === gate.i ? 'on' : ''}${(gate.m >>> i) & 1 ? ' seen' : ''}"></i>`).join(''); }
+  show('#tutDots', !!gate.n);
 }
 function calUi(){
   const st = cal.state;
@@ -210,12 +229,17 @@ function onData(c, d){
     case 'grip': setGrip(d.g); break;
     // il gioco chiede la modalità preparazione (prep) e il flusso dei sensori in JSON quando non c'è il canale binario (mo)
     case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); streamJson = !!d.mo; diagStream = !!d.diag; if (d.hand === 'left' || d.hand === 'right') applyHand(d.hand);
-      tutWait = !!d.tut; if (tutWait) send({ t: 'tut', w: 1 });
-      // sensori già attivi e calibrazione già partita (si entra in campo dalla pagina «Collega»): si ferma e si aspetta
-      if (tutWait && sensor === 'cal') sensor = 'tut';
-      // il computer ha chiuso il tutorial da solo (o non lo chiede più): si calibra
-      else if (sensor === 'tut'){ sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); }
+      { // tutorial: il computer lo apre (tut, con tv 2 manda l'avanzamento) o lo chiude. Si risponde che si sa aspettare
+        // (w) con il pulsante spento fino all'ultima scheda (v 2). Calibrazione già partita (si entra in campo dalla pagina
+        // «Collega»): si ferma e ripartirà dopo; un telefono già calibrato resta calibrato (dopo «ho capito» torna a «Pronto»)
+        const was = gate; setGate(gateOnCfg(gate, d));
+        if (gate){ send({ t: 'tut', w: 1, v: 2 }); if (!was) sensor = sensorOnGateOpen(sensor); }
+        // il computer ha chiuso il tutorial da solo (o non lo chiede più): chi aspettava calibra
+        else if (was && sensor === 'idle') startCal();
+      }
       sendState(); paint(); break;
+    // avanzamento del tutorial dal computer: scheda mostrata, schede viste; con l'ultima vista si accende «ho capito»
+    case 'tp': if (gate){ const was = tutConfirmable(gate); setGate(gateOnProgress(gate, d)); if (!was && tutConfirmable(gate)) lightTut(); paint(); } break;
     // verso del colpo atteso (da che parte arriva la palla): +1 da destra a sinistra, -1 da sinistra a destra, 0 non si sa
     case 'ex': det.setExpect(d.d); break;
     case 'practice': if (inputMode==='touch' && SHOT_NAMES[d.shot]){ selectedShot = d.shot; paintShots(); } break;
@@ -272,7 +296,9 @@ function closeFast(){ const f = fast; fast = null; if (f) try { f.close(); } cat
 const wakeState = () => awake.state;
 // sa: ms dall'ultimo campione dei sensori (con i sensori attivi): il computer sa che il telefono il movimento lo ha, anche
 // quando il canale veloce non glielo porta
-const sendState = () => send({ t: 'st', s: sensor === 'off' ? 'sensors' : sensor, b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}) });
+// s: sensori come li deve leggere il computer (phone-screen.reportedSensor: «tut» in attesa del tutorial senza calibrazione,
+// «ready» resta «ready» anche durante il tutorial); tu: la schermata è quella del tutorial
+const sendState = () => send({ t: 'st', s: reportedSensor(sensor), ...(gate ? { tu: 1 } : {}), b: sensor === 'ready' ? det.profile.bias : undefined, rtt, gp: grip, hz: Math.round(sampleHz), vis: document.hidden ? 0 : 1, wk: wakeState(), ...(det.prepMode ? { pm: 1 } : {}), ...(inputMode === 'touch' ? { in: 't' } : {}), ...(inputMode === 'motion' && sensorWatch.last != null ? { sa: Math.round(performance.now() - sensorWatch.last) } : {}) });
 // telefono e browser, una volta per collegamento (diagnostica): versione, blocco dello schermo e sensori disponibili
 const sendDevice = () => send({ t: 'dev', ua: navigator.userAgent, wl: 'wakeLock' in navigator, dm: typeof DeviceMotionEvent !== 'undefined', or: screen.orientation?.type || null, sc: [screen.width, screen.height, +(devicePixelRatio || 1).toFixed(2)], vr: NATPF_BUILD, as: accSign.sign });
 // gesti che il telefono non manda come colpo, con il motivo: al computer solo se la diagnostica registra, al massimo 8 al
@@ -298,7 +324,7 @@ const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e)
 
 /* ---------- sensori ---------- */
 async function enableSensors(){
-  inputMode = 'motion'; selectedShot='auto'; fullScreen(); lockOrientation();
+  inputMode = 'motion'; selectedShot='auto'; wantFs = true; fullScreen(); lockOrientation();
   // iPhone: il permesso va chiesto subito, dentro il tocco
   const ask = typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function' && window.isSecureContext
     ? DeviceMotionEvent.requestPermission().catch(() => 'denied') : null;
@@ -312,8 +338,7 @@ async function enableSensors(){
   const saved = ss.get('profile');
   // (profilo fatto con il segno dei sensori di prima, per esempio su iPhone prima della correzione: si ricalibra)
   if (saved?.version === 4 && saved.input !== 'touch' && (saved.grip || 'upright') === grip && (saved.accSign ?? 1) === accSign.sign){ det.setProfile(saved); det.run(); sensor = 'ready'; face.setRest(saved.gravity, saved.bias); }
-  else if (tutWait) sensor = 'tut';                 // prima il tutorial sul computer, poi la calibrazione
-  else { sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); }
+  else needCal();                                   // con il tutorial aperto: prima il tutorial, poi la calibrazione
   sendState(); paint();
 }
 function noMotion(why){
@@ -376,22 +401,30 @@ function setGrip(value){
   if (next === grip) return;
   grip = next; ss.set('grip', grip); face.reset(); lockOrientation();
   // profilo fatto con l'altra presa: si rifà la calibrazione (breve)
-  if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); }
+  if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); needCal(); }
   sendState(); paint();
 }
-// Tutorial sul computer prima della calibrazione (richiesta del 04/11): il computer lo chiede con cfg { tut: 1 }; il
-// telefono risponde che lo sa fare ({ t: 'tut', w: 1 }), dopo «Attiva i sensori» non calibra subito ma aspetta
-// «Tutto chiaro, ho capito» (o che il computer tolga l'attesa), poi manda { t: 'tut', ok: 1 } e calibra. Un computer di
-// prima non manda tut: tutto come prima
+// Tutorial sul computer prima della calibrazione (richiesta del 04/11, B9 il 05/11): il computer lo chiede con cfg
+// { tut: 1, tv: 2 }; il telefono risponde che lo sa fare ({ t: 'tut', w: 1, v: 2 }), dopo «Attiva i sensori» non calibra
+// subito ma mostra la schermata del tutorial con «Tutto chiaro, ho capito» SPENTO finché il computer non dice (tp) che
+// tutte le schede sono state viste; le frecce ‹ › mandano { t: 'tut', nav: ±1 }. Al tocco manda { t: 'tut', ok: 1 } e
+// calibra (o torna a «Pronto» se era già calibrato). Un computer di prima (cfg senza tv) non manda l'avanzamento: il
+// pulsante è acceso subito, come prima; uno ancora più vecchio non manda tut: tutto come prima
 function tutDone(){
-  if (!tutWait) return;
-  tutWait = false; send({ t: 'tut', ok: 1 });
-  if (sensor === 'tut'){ sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); }
+  if (!tutConfirmable(gate)) return;
+  setGate(null); send({ t: 'tut', ok: 1 });
+  sensor = sensorOnGateClose(sensor); if (sensor === 'cal') startCal();
+  clearTimeout(tutLitT); $('#tutOk').classList.remove('lit');
   sendState(); paint();
 }
+// «Tutto chiaro» appena acceso: un lampo breve e una vibrazione (chi guarda il computer lo sente nella mano)
+function lightTut(){ const b = $('#tutOk'); b.classList.remove('lit'); void b.offsetWidth; b.classList.add('lit'); clearTimeout(tutLitT); tutLitT = setTimeout(() => b.classList.remove('lit'), 1400); buzz([25, 40, 25]); }
+// calibrazione da capo (con i tocchi: il profilo dei tocchi); chiesta con il tutorial aperto, aspetta la sua fine
+function startCal(){ sensor = 'cal'; if (inputMode === 'touch') cal.useTouch(); else cal.start(preferences(), { lead: CAL.lead }); }
+function needCal(){ if (sensorForCal(gate) === 'idle') sensor = 'idle'; else startCal(); }
 function command(c){
   // avvio con un attimo di attesa (CAL.lead): chi ha appena toccato «Ricalibra» sta ancora prendendo il telefono
-  if (c === 'cal'){ if (sensor === 'off') return; ss.del('profile'); sensor = 'cal'; if (inputMode === 'touch') cal.useTouch(); else cal.start(preferences(), { lead: CAL.lead }); sendState(); paint(); }
+  if (c === 'cal'){ if (sensor === 'off') return; ss.del('profile'); needCal(); sendState(); paint(); }
   if (c === 'retry' && sensor === 'cal') cal.retry();
   if (c === 'relink') relink();
   if (c === 'invert') cal.invert();
@@ -413,8 +446,9 @@ cal.on(e => { sendCal(e);
   if (e.kind === 'free') flash(e.ok ? 'hit' : 'miss', e.ok && e.dirValue === 0 ? 'Centro' : ARROW[e.dir], `Forza ${Math.round(Math.min(1.5, e.strength)*100)}%`, 500);
 });
 det.on('swing', s => {
-  if (sensor !== 'ready' || linkState !== 'on' || inputMode !== 'motion' || !['play','serve','toss'].includes(phase)){
-    if (sensor === 'ready' && inputMode === 'motion') sendDiscard('fase ' + phase, s);
+  // durante il tutorial nessun colpo (il telefono può essere già calibrato e il computer in campo)
+  if (sensor !== 'ready' || gate || linkState !== 'on' || inputMode !== 'motion' || !['play','serve','toss'].includes(phase)){
+    if (sensor === 'ready' && inputMode === 'motion') sendDiscard(gate ? 'tutorial' : 'fase ' + phase, s);
     return;
   }
   const flags = shotFlags(selectedShot, s);
@@ -430,7 +464,7 @@ det.on('swing', s => {
 
 // preparazione del colpo (racchetta portata indietro): al gioco per animarla e per premiare chi si prepara
 det.on('prep', p => {
-  if (sensor !== 'ready' || linkState !== 'on' || inputMode !== 'motion' || phase !== 'play') return;
+  if (sensor !== 'ready' || gate || linkState !== 'on' || inputMode !== 'motion' || phase !== 'play') return;
   send({ t: 'pr', dir: p.dir, pk: p.peakT, v: p.peak, a: p.angle, lat: rtt/2 + (performance.now() - p.peakT) });
 });
 
@@ -461,15 +495,16 @@ $('#touchHit').addEventListener('click', () => {
   if (inputMode !== 'touch' || linkState !== 'on') return;
   const power=+$('#power').value/100, dir=+$('#aimDir').value;
   if (sensor === 'cal'){ cal.touch(dir,power,selectedShot); return; }
-  if (sensor !== 'ready' || !['play','serve','toss'].includes(phase)) return;
+  if (sensor !== 'ready' || gate || !['play','serve','toss'].includes(phase)) return;
   send({ t:'sw',pk:performance.now(),p:power,dir,l:0,...shotFlags(selectedShot) });
 });
 $('#gripMode').addEventListener('change', e => setGrip(e.target.value));
 // mano: una sola per tutto il gioco. Cambiata qui va al computer, che la applica e la rimanda (cfg)
 $('#hand').addEventListener('change', e => { applyHand(e.target.value); send({ t: 'hand', h: $('#hand').value }); });
-$('#enableTouch').addEventListener('click', () => { lockOrientation(); inputMode='touch'; selectedShot='drive'; det.stop(); sensor='cal'; cal.useTouch(); sendState(); paint(); });
+$('#enableTouch').addEventListener('click', () => { lockOrientation(); inputMode='touch'; selectedShot='drive'; det.stop(); needCal(); sendState(); paint(); });
 det.on('phase', value => {
-  $('#phaseFeedback').textContent = ({ ready:'Pronto',preparation:'Preparazione',contact:'Colpo riconosciuto',follow:'Accompagnamento' })[value] || '';
+  // (niente «Pronto» qui: lo dice già la schermata, prima compariva due volte)
+  $('#phaseFeedback').textContent = ({ preparation:'Preparazione',contact:'Colpo riconosciuto',follow:'Accompagnamento' })[value] || '';
 });
 /* ---------- pulsanti ---------- */
 $('#enable').addEventListener('click', enableSensors);
@@ -479,6 +514,9 @@ $('#relink').addEventListener('click', e => { e.stopPropagation(); relink(); });
 $('#mark').addEventListener('click', e => { e.stopPropagation(); if (linkState !== 'on') return; send({ t: 'mk', x: 'segno dal telefono' }); buzz([30, 60, 30]); flash('hit', 'Segnato', 'Il momento è nella registrazione del computer.', 900); });
 $('#recal').addEventListener('click', () => command('cal'));
 $('#tutOk').addEventListener('click', tutDone);
+// frecce del tutorial: il computer cambia scheda e rimanda l'avanzamento (tp)
+$('#tutPrev').addEventListener('click', e => { e.stopPropagation(); if (gateNav(gate).prev) send({ t: 'tut', nav: -1 }); });
+$('#tutNext').addEventListener('click', e => { e.stopPropagation(); if (gateNav(gate).next) send({ t: 'tut', nav: 1 }); });
 $('#bye').addEventListener('click', () => {
   linkState = 'denied'; ++connectEpoch; clearTimeout(retryT); clearTimeout(connect.t); pendingConn = null;
   ss.del('resume'); ss.del('pair'); ss.del('profile'); pair = null; closeFast();
@@ -488,20 +526,23 @@ $('#bye').addEventListener('click', () => {
   ui('Scollegato', 'Per giocare di nuovo inquadra il codice QR sul computer.');
 });
 // tocco sullo schermo al servizio: lancia la palla
-$('#stage').addEventListener('pointerdown', () => { if (phase === 'serve' && sensor === 'ready') send({ t: 'toss', pk: performance.now() }); });
+$('#stage').addEventListener('pointerdown', () => { if (phase === 'serve' && sensor === 'ready' && !gate) send({ t: 'toss', pk: performance.now() }); });
 // schermo sempre acceso durante il gioco (il telefono non si tocca): phone-keep.js riprende il blocco al ritorno in primo
 // piano, dopo un rilascio o un rifiuto a pagina visibile e a ogni tocco. Pagina nascosta: il computer lo sa subito
 // (prima che il telefono si sospenda) e mette in pausa
 document.addEventListener('visibilitychange', () => { if (document.hidden || sensor === 'off') sendState(); else onVisible(); });
 // pagina sospesa dal browser e ripresa (Android): come il ritorno in primo piano
 document.addEventListener('resume', () => { if (!document.hidden && sensor !== 'off') onVisible(); });
-document.addEventListener('pointerdown', () => { if (sensor !== 'off') awake.tap(); }, { passive: true });
+document.addEventListener('pointerdown', () => {
+  if (sensor !== 'off') awake.tap();
+  if (fsAfterVisible){ fsAfterVisible = false; if (wantFs) fullScreen(); }
+}, { passive: true });
 // tocco con il telefono in mano: conferma del segno dei sensori (motion-sign.js). Se cambia, la calibrazione fatta con
 // il segno di prima non vale: si rifà
 document.addEventListener('pointerdown', () => {
   if (!lastRawG || !accSign.vote(lastRawG)) return;
   sendDevice();
-  if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); face.reset(); sensor = 'cal'; cal.start(preferences(), { lead: CAL.lead }); sendState(); paint(); }
+  if (inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal')){ ss.del('profile'); face.reset(); needCal(); sendState(); paint(); }
 }, { passive: true });
 addEventListener('pagehide', () => { try { conn && conn.close(); } catch (e){} });
 // di nuovo in primo piano: prima si riprende il blocco, poi si manda lo stato (il computer non deve vedere per un attimo
@@ -514,6 +555,7 @@ function onVisible(){
   if (conn?.open){ lastRx = Math.max(lastRx, now - 3000); send({ t: 'ping', c: now }); }
   else if (linkState === 'lost' && pair){ tries = 0; connect(); }
   awake.visible().then(sendState);
+  veil.back(now); fsAfterVisible = true;
   paintAlert();
 }
 
@@ -523,15 +565,18 @@ function onVisible(){
 // scheda). Schermo che può spegnersi mentre si gioca (blocco negato, perso o non offerto dal browser): lo si dice qui,
 // con il pulsante per riprovare o con cosa cambiare nelle impostazioni del telefono
 function paintAlert(){
-  const now = performance.now(), motion = inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal');
+  const now = performance.now(), motion = inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal' || sensor === 'idle');
   let a = null;
-  if (linkState === 'on' && motion && sensorWatch.stalled(now, { visible: !document.hidden })){
+  // il velo dice già tutto (un tocco riprende blocco e sensori)
+  if (veil.shown){}
+  else if (linkState === 'on' && motion && sensorWatch.stalled(now, { visible: !document.hidden })){
     a = revivedAt != null
       ? { t: 'I sensori non sono ripartiti', p: 'Ricarica la pagina: il collegamento e la calibrazione restano.', b: 'Ricarica la pagina', act: 'reload' }
       : { t: 'Sensori fermi', p: 'Il telefono non manda più il movimento al gioco.', b: 'Riattiva i sensori', act: 'revive' };
   } else {
     if (revivedAt != null && sensorWatch.last > revivedAt) revivedAt = null;
-    if (linkState === 'on' && sensor === 'ready' && inputMode === 'motion' && !document.hidden && awake.state !== 1 && !awake.busy)
+    // anche durante il tutorial e la calibrazione (chi guarda il computer non tocca il telefono per un minuto)
+    if (linkState === 'on' && motion && !document.hidden && awake.state !== 1 && !awake.busy)
       a = awake.state === -1
         ? { t: 'Lo schermo può spegnersi', p: 'Questo browser non tiene acceso lo schermo: nelle impostazioni del telefono allunga lo spegnimento automatico dello schermo.' }
         : { t: 'Lo schermo può spegnersi', p: 'Il telefono non lascia tenere acceso lo schermo (spesso per il risparmio energetico). Tocca il pulsante; se ricapita, disattiva il risparmio energetico.', b: 'Tieni acceso lo schermo', act: 'wake' };
@@ -543,7 +588,20 @@ function paintAlert(){
   $('#alertTitle').textContent = a.t; $('#alertText').textContent = a.p;
   const b = $('#alertBtn'); b.textContent = a.b || ''; b.dataset.act = a.act || ''; show('#alertBtn', !!a.b);
 }
-setInterval(paintAlert, 500);
+function paintVeil(){
+  const active = inputMode === 'motion' && (sensor === 'ready' || sensor === 'cal' || sensor === 'idle') && !document.hidden;
+  const on = veil.update(performance.now(), { active, wake: awake.state, wakeBusy: awake.busy, lastSample: sensorWatch.last });
+  if ($('#wakeVeil').classList.contains('hidden') === on){ show('#wakeVeil', on); if (on) alertKey = null; }
+}
+setInterval(() => { paintVeil(); paintAlert(); }, 500);
+// un tocco sul velo: blocco dello schermo, sensori (permesso su iPhone dentro il tocco) e schermo intero
+function resumeTap(){
+  veil.dismiss(); show('#wakeVeil', false); fsAfterVisible = false;
+  awake.tap().then(() => { sendState(); paintAlert(); });
+  reviveSensors();
+  if (wantFs) fullScreen();
+}
+$('#wakeVeil').addEventListener('click', e => { e.stopPropagation(); resumeTap(); });
 $('#alertBtn').addEventListener('click', e => {
   e.stopPropagation();
   const act = e.currentTarget.dataset.act;
@@ -563,4 +621,4 @@ function reviveSensors(){
 checkOrientation();
 connect();
 $('#gripMode').value = grip;
-window.__racchetta = { det, cal, face, setGrip, get state(){ return { linkState, sensor, phase, rtt, step: cal.state.step, grip, wake: awake.state }; } };
+window.__racchetta = { det, cal, face, setGrip, get state(){ return { linkState, sensor, phase, rtt, step: cal.state.step, grip, wake: awake.state, screen, gate: gate ? { ...gate } : null, veil: !$('#wakeVeil').classList.contains('hidden') }; } };

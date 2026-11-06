@@ -157,14 +157,20 @@ export class NatpfTraining {
       e.preventDefault(); e.stopImmediatePropagation(); this.lessonAction(a);
     }, true);
     this.introSeen = {};
-    // tutorial prima della calibrazione (richiesta del 04/11): modale grande, si chiude dal telefono («Tutto chiaro, ho
-    // capito»); una volta per sessione e per giocatore (tutorialSeen), «Rivedi i gesti» sempre disponibile
-    this.tutorialSeen = {}; this.tutorialOpen = false;
+    // tutorial prima della calibrazione (richiesta del 04/11, modale compatta con le frecce in B9): si chiude dal telefono
+    // («Tutto chiaro, ho capito», acceso sul telefono dopo l'ultima scheda vista); una volta per abbinamento del telefono
+    // (NatpfPhoneRacket.tutorialSeen: non a ogni ricollegamento), «Rivedi i gesti» sempre disponibile
+    this.tutorialOpen = false;
     this.tutorial = typeof document !== 'undefined' ? new NatpfTutorial(document.getElementById('natpf-tutorial'), { demo: () => getGestureDemo() }) : null;
     ui.phone?.onTutorial?.(() => this._tutorialDone('phone'));
+    // frecce ‹ › toccate sul telefono
+    ui.phone?.onTutorialNav?.(d => { if (this.tutorialOpen) this.tutorial?.step(d); });
     document.getElementById('coach-review')?.addEventListener('click', e => { e.stopPropagation(); this.reviewGestures(); });
     if (typeof window !== 'undefined') window.addEventListener('keydown', e => {
-      if (!this.tutorial?.open || e.code !== 'Escape') return;
+      if (!this.tutorial?.open) return;
+      // ← → sfogliano le schede (prima del motore, che con le frecce muoverebbe il giocatore)
+      if (this.tutorial.key(e)){ e.preventDefault(); e.stopImmediatePropagation(); return; }
+      if (e.code !== 'Escape') return;
       e.preventDefault(); e.stopImmediatePropagation();
       // Esc tenuto premuto (uscita dallo schermo intero del browser) ripete il tasto: conta solo il primo
       if (e.repeat) return;
@@ -201,10 +207,9 @@ export class NatpfTraining {
     this.calOnly = calOnly; this.guest = guest;
     const ctrl = this.ui.controller, steps = ctrl === 'phone' ? LESSON : ctrl === 'webcam' ? WEBCAM_LESSON : [];
     // con il telefono la lezione (presa, mano, posizione) è la modale del tutorial, in tutti i percorsi; resta per la webcam
-    // nuovo collegamento del telefono (pagina ricaricata, altro telefono): può essere un altro giocatore, si rivede
-    const joins = this.ui.phone?.state?.joins || 0;
-    if (this.tutorialJoins !== joins){ this.tutorialJoins = joins; this.tutorialSeen = {}; }
-    const wantTutorial = ctrl === 'phone' && !diag && !guest && !this.tutorialSeen.p1;
+    // si rivede solo con un abbinamento nuovo del telefono (QR: può essere un altro giocatore), non quando lo stesso telefono
+    // si ricollega (pagina ricaricata, schermo spento, «Ricollega»: B9, prima ricompariva sopra «Pronto»)
+    const wantTutorial = ctrl === 'phone' && !diag && !guest && !this.ui.phone?.tutorialSeen;
     this.lesson = !wantTutorial && ctrl !== 'phone' && intro && !guest && !diag && !calOnly && steps.length && !this.introSeen[ctrl] ? { steps, idx: 0 } : null;
     this.live = null;
     const E = this.engine;
@@ -233,20 +238,27 @@ export class NatpfTraining {
     this.paint();
   }
   // modale del tutorial: il telefono aspetta «Tutto chiaro, ho capito» prima di calibrare (natpf_phone_racket.waitTutorial)
+  // L'avanzamento (scheda, schede viste) va al telefono, che accende «ho capito» dopo l'ultima; una modale chiusa prima
+  // della fine (uscita) riparte da dove era arrivata
   _openTutorial(){
     this.tutorialOpen = true; this._idle(); this._centerPlayer();
-    this.ui.phone.waitTutorial?.(true);
-    this.tutorial?.openFor({ mode: 'phone', player: '', hand: this.ui.hand?.hand || 'right' });
+    const P = this.ui.phone;
+    P.waitTutorial?.(true);
+    this.tutorial?.openFor({ mode: 'phone', player: '', hand: this.ui.hand?.hand || 'right', after: this.cal ? 'cal' : 'play',
+      from: P.savedTutorial?.() || null, onProgress: p => P.tutorialProgress?.(p) });
   }
   // chiusa dal telefono (o con Esc da chi gestisce la postazione, o da un telefono con la pagina di prima che ha già
   // cominciato a calibrare): si segna vista per questa sessione e si va alla calibrazione o agli esercizi
+  // Il telefono che sa del tutorial calibra da solo appena si chiude (dopo «ho capito», o quando il computer chiude con
+  // Esc): il computer non lo chiede di nuovo, prima a volte la calibrazione partiva due volte
   _tutorialDone(reason = 'phone'){
     if (!this.tutorialOpen) return;
-    this.tutorialOpen = false; this.tutorialSeen.p1 = true;
+    const aware = !!this.ui.phone.tutSupported;
+    this.tutorialOpen = false; this.ui.phone.markTutorialSeen?.();
     this.ui.phone.waitTutorial?.(false);
     this.tutorial?.close(reason);
     if (!this.active) return;
-    this._begin();
+    this._begin({ phoneCalibrates: aware });
     this.engine.hud.showCenterBanner(this.cal ? 'Calibrazione' : 'Si comincia', { style: 'style-start', subText: this.cal ? 'Tieni fermo il telefono, poi i due gesti' : 'Solo tu e il lanciapalle', durationMs: 1300 });
     this.paint();
   }
@@ -256,15 +268,16 @@ export class NatpfTraining {
     this.tutorial.openFor({ mode: 'review', hand: this.ui.hand?.hand || 'right' });
   }
   // dopo la lezione (o subito): calibrazione del telefono o primo esercizio
-  _begin(){
+  _begin({ phoneCalibrates = false } = {}){
     const E = this.engine;
     if (this.cal){
       // calibrazione: niente servizio e niente corse, il giocatore aspetta fermo al centro
       this._idle(); this._centerPlayer();
       // telefono senza una calibrazione in corso (mai partita, finita o già alla verifica): si ricomincia. Se è già ai
-      // gesti (succede: il telefono parte appena si attivano i sensori, prima di entrare in campo) si continua da lì
+      // gesti (succede: il telefono parte appena si attivano i sensori, prima di entrare in campo) si continua da lì.
+      // Dopo il tutorial la calibrazione la fa partire il telefono (phoneCalibrates)
       const step = this.ui.phone.cal?.step;
-      if (!step || ['done', 'review', 'free'].includes(step) || this.view.stage === 'off') this.ui.phone.recalibrate();
+      if (!phoneCalibrates && (!step || ['done', 'review', 'free'].includes(step) || this.view.stage === 'off')) this.ui.phone.recalibrate();
     } else E._setupPointServe({ showBanner: false });
   }
   lessonAction(a){
@@ -496,7 +509,10 @@ export class NatpfTraining {
     // il lanciapalle non corre e non risponde: l'avversario resta fuori dal campo
     if (o){ o.pos.set(0, 0, -40); o.targetPos.copy(o.pos); }
     this.ui.machine?.tick(dt);
-    if (this.lesson || this.tutorialOpen){ this.paint(); return; }
+    // lezione o modale del tutorial aperte: il giocatore aspetta fermo al centro. Il motore in POINT_OVER preparerebbe da
+    // solo il servizio dopo qualche secondo, e dal 05/11 (B9) la modale resta aperta finché non si sono viste tutte le
+    // schede: prima, dietro la modale, il giocatore andava alla posizione di servizio
+    if (this.lesson || this.tutorialOpen){ if (E.phase === 'POINT_OVER') E.phaseTimer = 0; this.paint(); return; }
     // volée: il giocatore aspetta a rete tra una palla e l'altra
     if (!this.cal && this.drill?.volley && !this.ballLive()) this.engine.player.targetPos.set(0, 0, VOLLEY_Z);
     if (!this.cal && this._phoneRecalibrating()) this._recal();
@@ -514,7 +530,8 @@ export class NatpfTraining {
   stop({ completed, skipped = false, calibrated = false, silent = false }){
     if (!this.active) return;
     const E = this.engine;
-    if (this.tutorialOpen){ this.tutorialOpen = false; this.ui.phone.waitTutorial?.(false); this.tutorial?.close('skip'); }
+    // modale chiusa prima della fine: con lo stesso telefono si riprende dalla scheda raggiunta
+    if (this.tutorialOpen){ this.tutorialOpen = false; this.ui.phone.saveTutorial?.(this.tutorial?.snapshot); this.ui.phone.waitTutorial?.(false); this.tutorial?.close('skip'); }
     this.active = false; this.cal = null; this.lesson = null; this.live = null; E.natpfTimeScale = 1; clearTimeout(this.retryT);
     if (this.demoOn){ getGestureDemo().stop(); this.demoOn = false; }
     if (E.audioEngine?.musicContext === 'training') E.audioEngine.musicContext = null;
@@ -559,7 +576,8 @@ export class NatpfTraining {
     if (L) this._paintLesson($, hand);
     const flash = this.flash && now < this.flash.until ? this.flash : null;
     const mode = this.ui.flow?.mode === 'training' ? 'Allenamento' : 'Riscaldamento';
-    const P = this.ui.phone, lost = c === 'phone' && P && (!P.connected || (P.state?.phone && !['cal', 'ready'].includes(P.state.phone)));
+    // (con la modale del tutorial aperta il telefono aspetta il tutorial, «tut»: non è scollegato)
+    const P = this.ui.phone, lost = c === 'phone' && P && (!P.connected || (!this.tutorialOpen && P.state?.phone && !['cal', 'ready'].includes(P.state.phone)));
     const grip = $('#coach-grip'), showGrip = c === 'phone' && !!this.cal && this.view.stage === 'still' && !lost;
     // foto reale della presa (base nel palmo, cima in avanti); la figura disegnata resta se la foto non si carica
     if (grip && showGrip && grip.dataset.hand !== hand){
@@ -571,6 +589,7 @@ export class NatpfTraining {
     let view;
     // telefono scollegato o senza sensori (pagina ricaricata, schermo spento): prima il pannello restava su «Ora»
     if (lost) view = { kicker: mode, title: 'Telefono scollegato', sub: !P.connected ? 'Riapri la pagina sul telefono: si ricollega da solo e si riparte da qui' : 'Sul telefono tocca «Attiva i sensori»', state: 'retry', dir: null, count: '' };
+    else if (this.tutorialOpen) view = { kicker: mode, title: 'Come si gioca', sub: 'Sfoglia le schede, poi sul telefono «Tutto chiaro, ho capito»', state: 'wait', dir: null, count: '' };
     else if (this.cal){
       const v = this.view, pr = calPrompt(v, hand);
       const count = v.stage === 'gesture' ? `Gesto ${Math.min(v.idx + 1, v.total)} di ${v.total}` : v.stage === 'still' ? 'Prima di iniziare' : '';

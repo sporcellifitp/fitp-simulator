@@ -5,7 +5,8 @@
 // del colpo) e sm (giroscopio in JSON), facoltativi e solo se il gioco li chiede con cfg; per la diagnostica gx (gesto
 // scartato sul telefono, con il motivo), mk (segno «qui è successo un problema») e dev (telefono e browser).
 // Al telefono: welcome {r}, deny, pong, dp (orologio), cmd (comandi della calibrazione), ev (esito del colpo, punto), ph (fase),
-// e facoltativi cfg (preparazione, flusso dei sensori) ed ex (verso del colpo atteso).
+// e facoltativi cfg (preparazione, flusso dei sensori, tutorial: tut/tv), tp (avanzamento del tutorial: scheda, schede
+// viste; B9) ed ex (verso del colpo atteso).
 // Percorso veloce: i messaggi che valgono solo se arrivano subito (copie del colpo, piatto, campioni della diagnostica)
 // viaggiano anche su una seconda strada senza ordine. In LAN è il canale dei sensori, davvero senza ritrasmissioni
 // (lan-transport.js: maxRetransmits 0): un pacchetto perso non ferma quelli dopo. Via internet è una seconda connessione
@@ -207,7 +208,10 @@ export function createPhoneLink(){
         // cadere): chi usa il collegamento rimanda al telefono quello che la pagina ricaricata ha perso
         // relinked: lo stesso telefono, senza ricaricare la pagina, ha rifatto il collegamento («Ricollega»): calibrazione e
         // riferimenti della pagina restano validi
-        set({ state: 'connected', phone: 'sensors', error: null, joins: (L.joins || 0) + 1, relinked: d.rl === 1, sensorAge: null, beatAt: null });
+        // pairs: abbinamenti nuovi (hello con il codice del QR, k), non le riprese con la chiave (r: pagina ricaricata,
+        // ricollegamento automatico dopo lo schermo spento, «Ricollega»). Il tutorial si rivede solo con un abbinamento
+        // nuovo (B9, docs/b9/analisi-telefono.md C4): prima ripartiva a ogni collegamento (joins)
+        set({ state: 'connected', phone: 'sensors', error: null, joins: (L.joins || 0) + 1, pairs: (L.pairs || 0) + (d.r ? 0 : 1), resumed: !!d.r, relinked: d.rl === 1, sensorAge: null, beatAt: null, ...(d.r ? {} : { vis: true, hiddenAt: null }) });
         return;
       }
       if (c !== conn) return;
@@ -218,7 +222,9 @@ export function createPhoneLink(){
         case 'dq': if (typeof d.p === 'number'){ const now = performance.now(); clock.add(d.d, d.p, now); emit('clock', { d: d.d, p: d.p, r: now }); } break;
         // sa: ms dall'ultimo campione dei sensori sul telefono (telefoni dal 29/10), con l'istante di arrivo (beatAt): il
         // computer distingue i sensori fermi sul telefono dal flusso dei sensori che non arriva (canale veloce bloccato)
-        case 'st': emit('state', d); if (d.s === 'ready' && d.b) racketMotion.setBias(d.b); if (d.s === 'ready' && L.phone !== 'ready') racketMotion.reset(); set({ phone: String(d.s || ''), rtt: clock.rtt != null ? Math.round(clock.rtt) : L.rtt, grip: d.gp === 'flat' || d.gp === 'upright' ? d.gp : L.grip, prep: d.pm === 1, hz: typeof d.hz === 'number' && isFinite(d.hz) ? Math.round(d.hz) : L.hz, ...(d.vis === 0 || d.vis === 1 ? { vis: d.vis === 1 } : {}), ...([-1, 0, 1].includes(d.wk) ? { wake: d.wk } : {}), touch: d.in === 't', sensorAge: typeof d.sa === 'number' && isFinite(d.sa) ? Math.max(0, Math.round(d.sa)) : null, beatAt: performance.now() }); break;
+        // vis: pagina del telefono in primo piano; hiddenAt: da quando è nascosta (schermo spento, altra app), per dire da
+        // quanto sul computer. tu: il telefono mostra il tutorial (B9; s resta quello dei sensori)
+        case 'st': emit('state', d); if (d.s === 'ready' && d.b) racketMotion.setBias(d.b); if (d.s === 'ready' && L.phone !== 'ready') racketMotion.reset(); set({ phone: String(d.s || ''), rtt: clock.rtt != null ? Math.round(clock.rtt) : L.rtt, grip: d.gp === 'flat' || d.gp === 'upright' ? d.gp : L.grip, prep: d.pm === 1, hz: typeof d.hz === 'number' && isFinite(d.hz) ? Math.round(d.hz) : L.hz, ...(d.vis === 0 || d.vis === 1 ? { vis: d.vis === 1, hiddenAt: d.vis === 1 ? null : L.vis === false && L.hiddenAt != null ? L.hiddenAt : performance.now() } : {}), ...([-1, 0, 1].includes(d.wk) ? { wake: d.wk } : {}), touch: d.in === 't', tut: d.tu === 1, sensorAge: typeof d.sa === 'number' && isFinite(d.sa) ? Math.max(0, Math.round(d.sa)) : null, beatAt: performance.now() }); break;
         case 'cal': if (d.e?.kind === 'done') racketMotion.setBias(d.e.profile?.bias || [0,0,0]); emit('cal', d.e || {}); break;
         // facoltativi: preparazione del colpo (pr) e giroscopio in JSON quando non c'è il canale binario (sm)
         case 'pr': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: d.lat }); if (at != null && (d.dir === 1 || d.dir === -1)) emit('prep', { dir: d.dir, peak: typeof d.v === 'number' ? d.v : null, angle: typeof d.a === 'number' ? d.a : null, at }); break; }
@@ -226,8 +232,10 @@ export function createPhoneLink(){
         case 'toss': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); if (at != null) emit('toss', { at }); break; }
         // mano cambiata sulla pagina del telefono (la decide il gioco: il computer la applica e la rimanda)
         case 'hand': if (d.h === 'left' || d.h === 'right') emit('hand', { hand: d.h }); break;
-        // tutorial prima della calibrazione: w = il telefono aspetta «Tutto chiaro, ho capito», ok = toccato
-        case 'tut': emit('tut', { wait: !!d.w, ok: !!d.ok }); break;
+        // tutorial prima della calibrazione: w = il telefono aspetta «Tutto chiaro, ho capito» (v 2: lo tiene spento finché
+        // non si sono viste tutte le schede, con l'avanzamento «tp» del computer), ok = toccato, nav = frecce ‹ › del
+        // telefono (-1 indietro, 1 avanti)
+        case 'tut': emit('tut', { wait: !!d.w, ok: !!d.ok, v: d.v === 2 ? 2 : 1, nav: d.nav === 1 || d.nav === -1 ? d.nav : 0 }); break;
         // diagnostica: gesto scartato sul telefono, con il motivo (solo se la diagnostica lo chiede, al massimo pochi al
         // secondo); segno «qui è successo un problema» toccato sul telefono; telefono e browser (una volta per collegamento)
         case 'gx': { const at = phoneInputTime({ peakMs: d.pk, nowMs: performance.now(), clock, latencyMs: 0 }); emit('discard', { why: typeof d.r === 'string' ? d.r.slice(0, 40) : '?', peak: Number.isFinite(d.v) ? d.v : null, angle: Number.isFinite(d.a) ? d.a : null, dir: [-1, 0, 1].includes(d.d) ? d.d : null, at }); break; }

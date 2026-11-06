@@ -92,3 +92,28 @@ test('il rilascio di un blocco vecchio non tocca quello nuovo', async () => {
   assert.equal(w.state, 1); assert.equal(w.lost, 1);
   await tick();
 });
+
+// B9 (05/11): schermo riacceso. Dopo VEIL.delayMs, se il blocco dello schermo non è tenuto (iPhone vuole un tocco) o i
+// sensori non sono ripartiti, il velo «Tocca lo schermo per riprendere»; una volta per ritorno, entro windowMs
+test('velo «Tocca per riprendere»: solo dopo il ritorno, se mancano blocco o sensori, una volta, poi via con il tocco', async () => {
+  const { createResumeVeil, VEIL } = await import('../../site/js/tennis/phone-keep.js');
+  const v = createResumeVeil();
+  assert.equal(v.update(5000, { wake: 0, lastSample: null }), false, 'senza un ritorno in primo piano: niente');
+  v.back(10000);
+  assert.equal(v.update(10000 + VEIL.delayMs - 1, { wake: 0, lastSample: null }), false, 'prima dell\'attesa: niente');
+  assert.equal(v.update(10000 + VEIL.delayMs, { wake: 0, lastSample: 10100 }), true, 'blocco non tenuto: velo');
+  assert.equal(v.update(10000 + VEIL.delayMs + 500, { wake: 1, lastSample: 10100 }), true, 'resta finché non si tocca');
+  v.dismiss(); assert.equal(v.update(13000, { wake: 0, lastSample: null }), false, 'dopo il tocco non ricompare');
+  // sensori non ripartiti (nessun campione dopo il ritorno), blocco tenuto
+  v.back(20000); assert.equal(v.update(20000 + VEIL.delayMs, { wake: 1, lastSample: 19000 }), true);
+  v.dismiss();
+  // tutto a posto: niente velo, e per questo ritorno non si guarda più
+  v.back(30000); assert.equal(v.update(30000 + VEIL.delayMs, { wake: 1, lastSample: 30500 }), false);
+  assert.equal(v.update(30000 + VEIL.delayMs + 500, { wake: 0, lastSample: 30500 }), false, 'un rilascio dopo lo gestiscono gli avvisi piccoli');
+  // il browser non offre il blocco (-1) o lo sta chiedendo: conta solo che i sensori siano ripartiti
+  v.back(40000); assert.equal(v.update(40000 + VEIL.delayMs, { wake: -1, lastSample: 40200 }), false);
+  v.back(50000); assert.equal(v.update(50000 + VEIL.delayMs, { wake: 0, wakeBusy: true, lastSample: 50200 }), false);
+  // sensori non in uso (pagina «Attiva i sensori», tocchi): niente; oltre windowMs: niente
+  v.back(60000); assert.equal(v.update(60000 + VEIL.delayMs, { active: false, wake: 0 }), false);
+  assert.equal(v.update(60000 + VEIL.windowMs + 1, { wake: 0, lastSample: null }), false);
+});

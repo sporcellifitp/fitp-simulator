@@ -177,3 +177,27 @@ test('segnale del telefono con l\'età dei sensori; «Ricollega» chiesto al tel
     fresh.close(); assert.equal(link.relink(), false, 'scollegato: niente da chiedere');
   } finally { link.stop(); }
 });
+
+// B9 (05/11): il tutorial si rivede solo con un abbinamento nuovo (hello con il codice del QR), non con le riprese con la
+// chiave (pagina ricaricata, ricollegamento dopo lo schermo spento, «Ricollega»); il computer sa da quando la pagina del
+// telefono è nascosta (per dirlo nella pausa) e che il telefono mostra il tutorial (tu)
+test('abbinamenti nuovi contati a parte dalle riprese; pagina nascosta da quando; tutorial sul telefono', async () => {
+  const { link, main } = await linkWithPhone();
+  const realNow = performance.now;
+  try {
+    assert.equal(link.L.pairs, 1); assert.equal(link.L.resumed, false);
+    let now = 1000; performance.now = () => now;
+    main.emit('data', { t: 'st', s: 'ready', vis: 0, tu: 1 });
+    assert.equal(link.L.vis, false); assert.equal(link.L.hiddenAt, 1000); assert.equal(link.L.tut, true);
+    now = 4000; main.emit('data', { t: 'st', s: 'ready', vis: 0 });
+    assert.equal(link.L.hiddenAt, 1000, 'resta l\'istante in cui si è nascosta'); assert.equal(link.L.tut, false);
+    // ripresa con la chiave (schermo riacceso, pagina ricaricata): stesso abbinamento, pagina ancora nascosta per il computer
+    const again = new FakeConn('phone-1d');
+    FakePeer.last.emit('connection', again);
+    again.emit('data', { t: 'hello', v: 2, r: main.sent[0].r });
+    assert.equal(link.L.pairs, 1, 'ripresa: non è un abbinamento nuovo'); assert.equal(link.L.resumed, true); assert.equal(link.L.joins, 2);
+    assert.equal(link.L.hiddenAt, 1000);
+    now = 5000; again.emit('data', { t: 'st', s: 'ready', vis: 1 });
+    assert.equal(link.L.vis, true); assert.equal(link.L.hiddenAt, null);
+  } finally { performance.now = realNow; link.stop(); }
+});

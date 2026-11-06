@@ -19,7 +19,7 @@ import { NatpfDiag } from './natpf_diag.js';
 import { NatpfIntro } from './natpf_intro.js';
 import { NatpfEvents } from './natpf_events.js';
 import { NatpfKiosk } from './natpf_kiosk.js';
-import { phoneHealthOf, createPhoneWatch, createResync, holdText } from './natpf_phone_watch.js';
+import { phoneHealthOf, createPhoneWatch, createResync, phoneHoldText } from './natpf_phone_watch.js';
 import { webcamHealth, createWebcamWatch, webcamHoldText, webcamOpenError } from './natpf_webcam_watch.js';
 import { gripSvg, GRIP_TEXT_PLAIN, GRIP } from '@natpf/tennis/grip-art.js';
 import { PHOTOS } from './natpf_media.js';
@@ -446,6 +446,7 @@ export class NatpfUi {
     const now = performance.now(), h = phoneHealthOf(p, now), rally = E.phase === 'RALLY' || E.phase === 'SERVE_TOSS';
     const a = this.phoneWatch.update(h, { inField, rally, now });
     if (a) this._phoneHoldAction(a);
+    else this._refreshPhoneHold();
     // il movimento non arriva da un po' (collegato, telefono pronto): il telefono rifà il collegamento da solo
     if (inField && this.phoneResync.update(h, { paused: this.phoneWatch.state !== 'ok', busy: rally, now }) && p.relink()){
       this.diag?.recorder?.log?.('tel.ricollega', { chi: 'p1', motivo: h.why || h.degraded, auto: true });
@@ -465,18 +466,27 @@ export class NatpfUi {
     if (a) this._holdAction(a, 'webcam');
   }
   _phoneHoldAction(a){ return this._holdAction(a, 'telefono'); }
+  _phoneHoldTitle(phone = true){ return phone ? (this.engine.natpfSplit?.active ? 'Telefono del Player 1 in pausa' : 'Telefono in pausa') : 'Webcam in pausa'; }
+  // pausa per lo schermo del telefono spento: il riquadro dice da quanto (ogni secondo)
+  _refreshPhoneHold(){
+    const why = this.phoneHold?.why;
+    if (this.phoneWatch.state !== 'paused' || !(why === 'pagina nascosta' || why === 'scollegato') || this.phone.state.vis !== false) return;
+    const text = phoneHoldText(this.phone, why);
+    if (text !== this.phoneHoldShown){ this.phoneHoldShown = text; this._paintHold(this._phoneHoldTitle(), text, this.relinkAction(this.phone, this.engine.natpfSplit?.active ? 'Player 1' : '')); }
+  }
   // pausa e ripresa per il telefono o la webcam: riquadro sopra il campo, registro, colpi in sospeso cancellati, punto
   // rigiocato se la pausa è arrivata nello scambio o nel lancio
   _holdAction(a, src = 'telefono'){
     const E = this.engine, R = this.diag?.recorder, phone = src === 'telefono';
     if (a.kind === 'pause' || a.kind === 'wait'){
       if (phone) this.phoneHold = { why: a.why }; else this.webcamHold = { why: a.why };
-      this._paintHold(phone ? (this.engine.natpfSplit?.active ? 'Telefono del Player 1 in pausa' : 'Telefono in pausa') : 'Webcam in pausa', phone ? holdText(a.why) : webcamHoldText(a.why), phone ? this.relinkAction(this.phone, this.engine.natpfSplit?.active ? 'Player 1' : '') : null);
+      this._paintHold(this._phoneHoldTitle(phone), phone ? phoneHoldText(this.phone, a.why) : webcamHoldText(a.why), phone ? this.relinkAction(this.phone, this.engine.natpfSplit?.active ? 'Player 1' : '') : null);
       R?.log?.(phone ? 'tel.pausa' : 'webcam.pausa', { ...(phone ? { chi: 'p1' } : {}), motivo: a.why, fase: E.phase });
       // il telefono lo sa (se è collegato): niente colpi durante la pausa, e lo dice sullo schermo
       if (phone && this.phone.connected){ this.phone.link.send({ t: 'ph', ph: 'pause' }); this.phone.lastPhase = 'pause'; }
-      // collegamento perso: il pannello del telefono dice come ricollegarlo (QR)
-      if (phone && a.why === 'scollegato' && this.modal?.classList.contains('hidden')){ this.phoneDropOpened = true; this.openPhone(); }
+      // collegamento perso: il pannello del telefono dice come ricollegarlo (QR). Non se è caduto con lo schermo spento: il
+      // telefono si ricollega da solo appena torna (B9), lo dice il riquadro della pausa, e il suo pulsante apre il QR
+      if (phone && a.why === 'scollegato' && this.phone.state.vis !== false && this.modal?.classList.contains('hidden')){ this.phoneDropOpened = true; this.openPhone(); }
     }
     if (a.kind === 'countdown') this._paintHold(phone ? 'Telefono di nuovo pronto' : 'Webcam di nuovo pronta', `Si riprende tra ${a.left}…`);
     if (a.kind === 'resume'){
@@ -554,7 +564,7 @@ export class NatpfUi {
 
     let status = 'Preparo la connessione…', hint = '', tag = 'Scansiona il QR';
     if (L.state === 'waiting') status = 'Inquadra il codice con la fotocamera del telefono';
-    if (L.state === 'lost'){ status = 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo'; tag = 'Scollegato'; }
+    if (L.state === 'lost'){ status = L.vis === false ? 'Telefono scollegato con lo schermo spento: riaccendilo e torna alla pagina del gioco, si ricollega da solo' : 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo'; tag = 'Scollegato'; }
     if (L.state === 'error'){ status = `Connessione non disponibile (${L.error}). Riprova o verifica la connessione a internet.`; tag = 'Errore'; }
     if (step === 'collega' && p.connected){ status = 'Telefono collegato: sul telefono tocca «Attiva i sensori»'; tag = 'Collegato'; }
     if (step === 'impugna'){ status = cal.grip ? 'Presa letta ✓ resta così un attimo…' : GRIP_TEXT_PLAIN; hint = 'Presa comoda, senza stringere: va bene anche da seduti.'; tag = 'Impugnatura'; }

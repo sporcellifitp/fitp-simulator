@@ -9,7 +9,7 @@
 //     conto alla rovescia, come per il P1 (natpf_phone_watch.js).
 import { NatpfPhoneRacket } from './natpf_phone_racket.js';
 import { calPrompt } from './natpf_cal_view.js';
-import { createPhoneWatch, createResync, phoneHealthOf, holdText } from './natpf_phone_watch.js';
+import { createPhoneWatch, createResync, phoneHealthOf, phoneHoldText } from './natpf_phone_watch.js';
 import { splitVisible } from './natpf_split.js';
 import { webcamOpenError } from './natpf_webcam_watch.js';
 
@@ -40,6 +40,8 @@ export function splitPlayerStatus(p, hand = 'right'){
   if (L.state === 'error') return { state: 'ko', title: 'Collegamento non disponibile', sub: `Controlla la rete e riprova (${L.error || 'errore'})` };
   if (!p.connected) return { state: 'qr', title: 'Inquadra il QR', sub: L.state === 'lost' ? 'Telefono scollegato: riapri la pagina sul telefono' : 'Con la fotocamera del telefono, poi tocca il link' };
   if (PHONE_ERR[L.phone]) return { state: 'ko', title: 'Sensori non disponibili', sub: PHONE_ERR[L.phone] };
+  // tutorial aperto nella sua metà (B9): a che scheda è
+  if (p.tutWait){ const t = p.tutProgress; return { state: 'on', title: 'Guarda il tutorial', sub: t?.n ? `Schede viste ${t.s} di ${t.n}${t.all ? ' · sul telefono «Tutto chiaro, ho capito»' : ''}` : 'Sul telefono, poi «Tutto chiaro, ho capito»' }; }
   if (p.ready) return { state: 'ok', title: 'Pronto ✓', sub: p.simple ? 'Senza calibrazione: si gioca lo stesso' : 'Racchetta calibrata' };
   if (L.phone !== 'cal') return { state: 'on', title: 'Tocca «Attiva i sensori»', sub: 'Sul telefono; su iPhone poi «Consenti»' };
   const c = calPrompt(p.calView, hand);
@@ -63,8 +65,10 @@ export class NatpfSplitUi {
     this.labels = { p1: null, p2: null };     // esito dell'ultimo colpo { text, until }
     this.watch = createPhoneWatch(); this.hold = null; this.resync = createResync();
     // tutorial di ciascun giocatore nella sua metà della pagina «Collega» (richiesta del 04/11): indipendenti, si chiudono
-    // dal proprio telefono; l'animazione 3D (una sola) la ha la prima metà che l'ha chiesta, l'altra foto e indicazioni
-    this.tutOpen = { p1: false, p2: false }; this.tutSeen = { p1: false, p2: false }; this.demoOwner = null;
+    // dal proprio telefono; l'animazione 3D (una sola) la ha la prima metà che l'ha chiesta, l'altra foto e indicazioni.
+    // Visto una volta per abbinamento del telefono (NatpfPhoneRacket.tutorialSeen, B9): non a ogni ricollegamento, e il P1
+    // che l'ha già visto nell'Allenamento non lo rivede qui
+    this.tutOpen = { p1: false, p2: false }; this.demoOwner = null;
     this.tut = {};
     for (const id of SPLIT_PLAYERS) this.tut[id] = typeof document !== 'undefined' ? new NatpfTutorial($(`split-tut-${id}`), { half: true, demo: () => getGestureDemo(), canDemo: () => this.demoOwner === id }) : null;
     let saved = 'phones'; try { saved = localStorage.getItem(SPLIT_INPUT_KEY) || 'phones'; } catch {}
@@ -96,11 +100,26 @@ export class NatpfSplitUi {
       p2.onChange(() => { this._resetIfNew('p2'); if (this.ui.lobby?.visible && this.ui.lobby.step === 'connect') this.ui.lobby.paint(); });
       p2.onCal(e => this._onCal('p2', e));
       p2.onTutorial?.(() => this._tutDone('p2'));
+      p2.onTutorialNav?.(d => { if (this.tutOpen.p2) this.tut.p2?.step(d); });
     }
-    if (!this.p1Bound){ this.p1Bound = true; this.ui.phone.onCal?.(e => this._onCal('p1', e)); this.ui.phone.onChange(() => this._resetIfNew('p1')); this.ui.phone.onTutorial?.(() => this._tutDone('p1')); }
+    if (!this.p1Bound){
+      this.p1Bound = true; this.ui.phone.onCal?.(e => this._onCal('p1', e)); this.ui.phone.onChange(() => this._resetIfNew('p1')); this.ui.phone.onTutorial?.(() => this._tutDone('p1'));
+      this.ui.phone.onTutorialNav?.(d => { if (this.tutOpen.p1) this.tut.p1?.step(d); });
+    }
     for (const id of SPLIT_PLAYERS) this.phone(id).start().catch(err => this.ui.toast(`Collegamento del ${id.toUpperCase()} non disponibile (${err.message})`));
   }
   get webcam(){ return this.input === 'webcam'; }
+  // tutorial visto da ciascuno (stesso abbinamento del telefono)
+  get tutSeen(){ return { p1: !!this.phone('p1')?.tutorialSeen, p2: !!this.phone('p2')?.tutorialSeen }; }
+  // tastiera di chi gestisce la postazione nella pagina «Collega» (natpf_lobby): A/D sfogliano il tutorial del P1 (metà
+  // sinistra), ← → quello del P2 (metà destra); con una sola metà aperta tutti e due i tasti vanno a quella
+  key(e){
+    if (!this.tutOpen.p1 && !this.tutOpen.p2) return false;
+    const left = e.code === 'KeyA' || e.code === 'KeyD';
+    const id = left ? (this.tutOpen.p1 ? 'p1' : 'p2') : (this.tutOpen.p2 ? 'p2' : 'p1');
+    const code = e.code === 'KeyA' ? 'ArrowLeft' : e.code === 'KeyD' ? 'ArrowRight' : e.code;
+    return !!this.tut[id]?.key({ code });
+  }
   // webcam per due: pronti quando la camera è accesa e ha visto le mani di entrambi (anche non in questo momento: tra la
   // pagina «Collega» e «Gioca» si scelgono le impostazioni); altrimenti i due telefoni pronti
   bothReady(){
@@ -136,7 +155,7 @@ export class NatpfSplitUi {
   // nuovo collegamento (pagina del telefono ricaricata o altro telefono): la calibrazione si chiede di nuovo
   _resetIfNew(id){
     const p = this.phone(id), joins = p?.state?.joins || 0, key = `${id}Joins`;
-    if (this[key] !== joins){ this[key] = joins; this.calAsked[id] = false; this.fails[id] = 0; this.tutSeen[id] = false; }
+    if (this[key] !== joins){ this[key] = joins; this.calAsked[id] = false; this.fails[id] = 0; }
   }
   // calibrazione guidata dal telefono: si conferma da sola se riesce, si ripete se no (poi profilo semplice). Anche a
   // partita in corso: sessione del 29/10, schermo del telefono spento, «Ricalibra» sul telefono, calibrazione rifatta e
@@ -156,36 +175,41 @@ export class NatpfSplitUi {
   _drive(id){
     const p = this.phone(id); if (!p) return;
     const L = p.state;
-    // telefono collegato: prima il tutorial nella sua metà (una volta per giocatore); il telefono aspetta «ho capito»
-    if (p.connected && !this.tutSeen[id] && !this.tutOpen[id] && !this.webcam) this._tutOpen(id);
-    if (!p.connected && this.tutOpen[id]) this._tutClose(id);
-    if (this.tutOpen[id]) return;
+    // telefono collegato: prima il tutorial nella sua metà (una volta per abbinamento); il telefono aspetta «ho capito».
+    // Telefono che cade a tutorial aperto: la metà torna al QR e la modale ricorda la scheda raggiunta (stesso telefono
+    // che si ricollega: riparte da lì)
+    if (p.connected && !p.tutorialSeen && !this.tutOpen[id] && !this.webcam) this._tutOpen(id);
+    if (!p.connected && this.tutOpen[id]) this._tutClose(id, { keep: true });
+    if (this.tutOpen[id]){ this.tut[id]?.setAfter(p.ready ? 'ready' : 'cal'); return; }
     if (p.connected && L.phone === 'cal' && !p.ready && !this.calAsked[id] && p.calView?.stage === 'off'){ this.calAsked[id] = true; p.recalibrate(); }
   }
   _tutOpen(id){
     this.tutOpen[id] = true;
-    // collegamento di questo giocatore: solo uno nuovo (altro telefono, pagina ricaricata) fa rivedere il tutorial
     this[`${id}Joins`] = this.phone(id)?.state?.joins || 0;
     if (!this.demoOwner) this.demoOwner = id;
-    this.phone(id).waitTutorial?.(true);
+    const p = this.phone(id);
+    p.waitTutorial?.(true);
     const name = this.engine.natpfSplitNames?.[id] || (id === 'p1' ? 'Player 1' : 'Player 2');
-    this.tut[id]?.openFor({ mode: 'phone', player: name, hand: this.hand(id), wait: 'Sul tuo telefono tocca «Tutto chiaro, ho capito»: poi si calibra.' });
+    // avanzamento al telefono di questo giocatore (pulsante acceso dopo l'ultima scheda); «poi sei pronto» se è già calibrato
+    this.tut[id]?.openFor({ mode: 'phone', player: name, hand: this.hand(id), after: p.ready ? 'ready' : 'cal', from: p.savedTutorial?.() || null, onProgress: pr => p.tutorialProgress?.(pr) });
   }
   // chiusa dal telefono di quel giocatore (o dal telefono di prima che calibra da solo): solo la sua metà
   _tutDone(id){
     if (!this.tutOpen[id]) return;
-    this.tutSeen[id] = true; this._tutClose(id);
+    this.phone(id)?.markTutorialSeen?.(); this._tutClose(id);
     this.paint();
   }
-  _tutClose(id){
+  // keep: chiusa prima della fine (telefono caduto): si ricorda dove era arrivata
+  _tutClose(id, { keep = false } = {}){
     this.tutOpen[id] = false;
+    if (keep) this.phone(id)?.saveTutorial?.(this.tut[id]?.snapshot);
     this.phone(id)?.waitTutorial?.(false);
     this.tut[id]?.close('phone');
     // l'animazione 3D passa all'altra metà, se ha il tutorial aperto
     if (this.demoOwner === id){ const other = id === 'p1' ? 'p2' : 'p1'; this.demoOwner = this.tutOpen[other] ? other : null; if (this.demoOwner) this.tut[other]?.paint(); }
   }
   // si esce dalla pagina «Collega» (partita, menu): le modali delle metà si chiudono, i telefoni non aspettano più
-  closeTutorials(){ for (const id of SPLIT_PLAYERS) if (this.tutOpen[id]) this._tutClose(id); }
+  closeTutorials(){ for (const id of SPLIT_PLAYERS) if (this.tutOpen[id]) this._tutClose(id, { keep: true }); }
   paint(){
     const box = document.querySelector('[data-setup="split"]'), cam = this.webcam, mc = this.engine.motionController, now = performance.now();
     if (box) box.dataset.input = this.input;
@@ -263,10 +287,12 @@ export class NatpfSplitUi {
     const a = this.watch.update(h, { inField, rally, now });
     const R = this.ui.diag?.recorder;
     if (inField && this.resync.update(h, { paused: this.watch.state !== 'ok', busy: rally, now }) && p.relink()) R?.log?.('tel.ricollega', { chi: 'p2', motivo: h.why || h.degraded, auto: true });
+    // schermo del telefono del P2 spento: il riquadro dice da quanto (ogni secondo)
+    if (!a && this.hold && this.watch.state === 'paused' && p.state.vis === false){ const text = phoneHoldText(p, this.hold.why); if (text !== this.holdShown){ this.holdShown = text; this.ui._paintHold('Telefono del Player 2 in pausa', text, this.ui.relinkAction?.(p, 'Player 2')); } }
     if (!a) return;
     if (a.kind === 'pause' || a.kind === 'wait'){
       this.hold = { why: a.why };
-      this.ui._paintHold('Telefono del Player 2 in pausa', holdText(a.why), this.ui.relinkAction?.(p, 'Player 2'));
+      this.ui._paintHold('Telefono del Player 2 in pausa', phoneHoldText(p, a.why), this.ui.relinkAction?.(p, 'Player 2'));
       R?.log?.('tel.pausa', { chi: 'p2', motivo: a.why, fase: E.phase, ...(h.gapMs ? { gapMs: h.gapMs } : {}), ...(Number.isFinite(p.state.sensorAge) ? { sensoriTelefonoMs: p.state.sensorAge } : {}) });
       if (p.connected){ p.link.send({ t: 'ph', ph: 'pause' }); p.lastPhase = 'pause'; }
     }

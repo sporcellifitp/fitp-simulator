@@ -439,6 +439,8 @@ export class NatpfLobby {
     if (this.onboarding.isOpen){ if (this.onboarding.key(e)) e.preventDefault(); e.stopImmediatePropagation(); return; }
     // calibrazione dello schermo aperta: frecce, Tab, numeri, Invio ed Esc sono suoi (F11 e gli altri tasti del browser no)
     if (this.ui.calibra?.isOpen){ if (this.ui.calibra.key(e)) e.preventDefault(); e.stopImmediatePropagation(); return; }
+    // stesso schermo, tutorial aperto in una metà della pagina «Collega»: A/D e ← → sfogliano le schede (natpf_split_ui)
+    if (this.visible && this.step === 'connect' && this.ui.split?.key?.(e)){ e.preventDefault(); e.stopImmediatePropagation(); return; }
     const sheetOpen = [...document.querySelectorAll('.natpf-sheet-backdrop')].some(m => !m.classList.contains('hidden'));
     // in campo: Esc apre e chiude la pausa (Esc tenuto premuto ripete il tasto: si usa solo il primo, così uscendo dallo
     // schermo intero del browser la pausa non si apre e chiude di continuo); F schermo intero

@@ -64,3 +64,33 @@ export function createSensorWatch({ gapMs = KEEP.sensorGapMs, backMs = KEEP.sens
     },
   };
 }
+
+// Ritorno in primo piano (schermo riacceso, B9): se dopo delayMs il blocco dello schermo non è tenuto (iPhone vuole un
+// tocco per riprenderlo dopo lo schermo spento) o i sensori non sono ripartiti, la pagina mostra un velo «Tocca lo schermo
+// per riprendere»: un solo tocco riprende il blocco, il permesso dei sensori (iPhone, dentro il tocco), i sensori e lo
+// schermo intero. Una volta per ritorno, entro windowMs (poi restano gli avvisi piccoli della pagina). Niente trucchi
+// (audio o video muti): nessun browser dà i sensori a pagina nascosta, il velo serve a ripartire in fretta.
+export const VEIL = Object.freeze({ delayMs: 1500, windowMs: 20000 });
+export function createResumeVeil({ delayMs = VEIL.delayMs, windowMs = VEIL.windowMs } = {}){
+  let since = null, shown = false;
+  return {
+    get shown(){ return shown; },
+    // la pagina è di nuovo visibile
+    back(now){ since = now; shown = false; },
+    // a ogni controllo: true = mostrare il velo. active: sensori in uso (movimento, sensori attivi, pagina visibile);
+    // wake: stato del blocco (1 tenuto, 0 no, -1 il browser non lo offre); lastSample: istante dell'ultimo campione
+    update(now, { active = true, wake = 1, wakeBusy = false, lastSample = null } = {}){
+      if (shown) return true;
+      if (since == null || !active) return false;
+      const dt = now - since;
+      if (dt < delayMs) return false;
+      if (dt > windowMs){ since = null; return false; }
+      const noWake = wake === 0 && !wakeBusy, noSensors = !(lastSample != null && lastSample >= since);
+      if (noWake || noSensors){ shown = true; return true; }
+      since = null;                    // blocco tenuto e sensori ripartiti: per questo ritorno non serve altro
+      return false;
+    },
+    // tocco sul velo (che ha già ripreso blocco, sensori e schermo intero)
+    dismiss(){ shown = false; since = null; },
+  };
+}

@@ -14,6 +14,8 @@
     -webkit-user-select:none;user-select:none;touch-action:manipulation;overscroll-behavior:none}
   body{display:flex;flex-direction:column;padding:max(14px,env(safe-area-inset-top)) 16px max(14px,env(safe-area-inset-bottom))}
   .hidden{display:none!important}
+  /* l'attributo hidden vince sempre (prima «#profileOptions label{display:flex}» mostrava la riga «Presa» nascosta) */
+  [hidden]{display:none!important}
   #bar{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;min-height:28px}
   #bar i{width:10px;height:10px;border-radius:50%;background:var(--warn);flex:none}
   #bar.ok i{background:var(--ok)} #bar.bad i{background:var(--bad)}
@@ -39,7 +41,27 @@
   #shotHint,#phaseFeedback{font-size:14px;color:var(--muted);text-align:center;margin:6px 0}
   #manualAim{display:grid;gap:8px} #manualAim label:first-child{display:flex;align-items:center;justify-content:space-between}
   #power{width:100%;min-height:36px} #touchHit{touch-action:none}
-  #tutOk{margin-top:10px;font-size:21px;padding:20px}
+  /* tutorial sul computer (B9): «Tutto chiaro, ho capito» spento e grigio finché non si sono viste tutte le schede, poi
+     si accende con un lampo breve; frecce ‹ › per sfogliare le schede anche da qui */
+  #tutOk{margin-top:10px;font-size:21px;padding:20px;transition:background .25s,color .25s,box-shadow .25s}
+  #tutOk:disabled,#tutOk.off{background:#2f3a5c;color:#8d9ac0;box-shadow:none;cursor:default}
+  #tutOk.lit{animation:tut-lit 1.3s ease-out}
+  @keyframes tut-lit{0%{transform:scale(.96);box-shadow:0 0 0 0 rgba(232,255,58,.75)}35%{transform:scale(1.04);box-shadow:0 0 0 14px rgba(232,255,58,.25)}100%{transform:none;box-shadow:0 0 0 22px rgba(232,255,58,0)}}
+  #tutBox{display:grid;gap:10px;justify-items:center;text-align:center;margin-top:4px}
+  #tutWhere{font-size:17px;font-weight:700;color:var(--ink)}
+  #tutHint{font-size:15px;color:var(--muted);min-height:20px}
+  #tutDots{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+  #tutDots i{width:10px;height:10px;border-radius:50%;background:#2a4590}
+  #tutDots i.seen{background:#a6b6dc} #tutDots i.on{background:var(--ball);transform:scale(1.35)}
+  #tutNav{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
+  #tutNav .btn{margin:0;font-size:20px;padding:16px 10px}
+  #tutNav .btn:disabled{opacity:.35}
+  /* di nuovo in primo piano (schermo riacceso): un tocco riprende schermo acceso, sensori e schermo intero */
+  #wakeVeil{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;
+    background:radial-gradient(circle at 50% 40%,#12286e,var(--bg) 70%);color:var(--ink)}
+  #wakeVeil b{font-size:28px;line-height:1.15} #wakeVeil p{margin:0;font-size:17px;color:var(--muted);max-width:340px;line-height:1.4}
+  #wakeVeil .tap{width:84px;height:84px;border-radius:50%;border:4px solid var(--ball);animation:veil-pulse 1.4s ease-in-out infinite}
+  @keyframes veil-pulse{50%{transform:scale(1.12);box-shadow:0 0 0 10px rgba(232,255,58,.18)}}
   #alert{margin-top:10px;background:#4a1830;border:1px solid var(--bad);border-radius:12px;padding:10px 14px;text-align:center;font-size:15px}
   #alert p{margin:4px 0 0;color:#ffd9d4} #alert .btn{margin-top:8px;padding:12px;font-size:16px}
   #rotate{position:fixed;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));z-index:20;background:#13245a;border:1px solid #405b9b;border-radius:12px;padding:10px 14px;text-align:center;font-size:15px}
@@ -64,8 +86,9 @@
 <div id="bar"><i></i><span id="barTxt">Collegamento…</span><small id="lat"></small></div>
 <!-- sensori fermi o schermo che può spegnersi (phone-keep.js): cosa succede e cosa fare -->
 <!-- tutorial sul computer prima della calibrazione (richiesta del 04/11): il pulsante sta in alto, lontano dalle dita che
-     tengono la parte bassa del telefono (presa nel palmo). Toccandolo parte la calibrazione -->
-<button class="btn hidden" id="tutOk">Tutto chiaro, ho capito</button>
+     tengono la parte bassa del telefono (presa nel palmo). Spento finché il computer non dice che sono state viste tutte
+     le schede (B9); toccandolo parte la calibrazione, o si torna a «Pronto» se il telefono è già calibrato -->
+<button class="btn hidden off" id="tutOk" disabled aria-disabled="true">Tutto chiaro, ho capito</button>
 <div id="alert" class="hidden" role="alert"><b id="alertTitle"></b><p id="alertText"></p><button class="btn hidden" id="alertBtn"></button></div>
 <div id="stage">
   <div id="ring"><div id="arrow"></div><div id="big">NATPF</div></div>
@@ -85,6 +108,13 @@
   </svg>
   <div id="faceTxt" class="hidden" aria-live="off"></div>
   <div id="sub">Mi collego al gioco sul computer…</div>
+</div>
+<!-- tutorial: a che scheda è il computer, schede viste, frecce per sfogliarle da qui -->
+<div id="tutBox" class="hidden">
+  <div id="tutWhere" aria-live="polite"></div>
+  <div id="tutDots" aria-hidden="true"></div>
+  <div id="tutHint"></div>
+  <div id="tutNav"><button class="btn alt" id="tutPrev" aria-label="Scheda precedente">‹ Indietro</button><button class="btn alt" id="tutNext" aria-label="Scheda successiva">Avanti ›</button></div>
 </div>
 <div id="phaseFeedback" aria-live="polite"></div>
 <div id="profileOptions" class="hidden">
@@ -112,6 +142,7 @@
 </div>
 <!-- solo mentre il computer registra la diagnostica: segna nel registro l'istante di un problema -->
 <button class="btn alt hidden" id="mark">⚑ Segna un problema</button>
+<div id="wakeVeil" class="hidden" role="button" tabindex="0" aria-label="Tocca lo schermo per riprendere"><i class="tap" aria-hidden="true"></i><b>Tocca lo schermo per riprendere</b><p id="wakeVeilText">Lo schermo si era spento: un tocco tiene acceso lo schermo e riattiva i sensori. Il collegamento e la calibrazione sono rimasti.</p></div>
 <div id="rotate" class="hidden" role="status"><b>Il telefono si è girato</b><p>Il gioco continua: tieni il telefono come preferisci. Per leggere meglio questa pagina, raddrizzalo.</p></div>
 <script type="module" src="../js/tennis/racchetta.js"></script>
 </body>
