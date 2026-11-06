@@ -1,7 +1,7 @@
 From 531d4a176c0ce1b4421fd6524ebab12ee76a8500 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 08:49:58 +0000
-Subject: [PATCH 1/2] =?UTF-8?q?B9=20revisione=20A:=20stesso=20schermo,=20t?=
+Subject: [PATCH 1/5] =?UTF-8?q?B9=20revisione=20A:=20stesso=20schermo,=20t?=
  =?UTF-8?q?elefono=20che=20cade=20a=20tutorial=20aperto=20non=20lo=20perde?=
  =?UTF-8?q?=20pi=C3=B9?=
 MIME-Version: 1.0
@@ -439,7 +439,7 @@ index 0000000..d659d50
 From 3ef25ed030084ec64ddd9ea9edfc0d9940bce548 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 08:54:07 +0000
-Subject: [PATCH 2/2] =?UTF-8?q?B9=20revisione=20B:=20stesso=20schermo,=20t?=
+Subject: [PATCH 2/5] =?UTF-8?q?B9=20revisione=20B:=20stesso=20schermo,=20t?=
  =?UTF-8?q?elefono=20con=20lo=20schermo=20spento=20non=20=C3=A8=20pi=C3=B9?=
  =?UTF-8?q?=20=C2=ABPronto=C2=BB?=
 MIME-Version: 1.0
@@ -680,6 +680,596 @@ index 26be6e6..e25e13e 100644
 +  mc.webcamDuo = false;
 +  assert.notEqual(ui.split.slot('p1').state, 'ready', 'scheda e bothReady insieme');
 +  assert.equal(ui.split.bothReady(), false, 'webcam non in modalità per due: non si gioca');
++});
+-- 
+2.43.0
+
+
+From ac7a0c98c9c995b045c7fbdff4c32b37cd0dd294 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 13:08:34 +0000
+Subject: [PATCH 3/5] =?UTF-8?q?B9=20revisione,=20minore=20a:=20stesso=20sc?=
+ =?UTF-8?q?hermo,=20il=20conto=20non=20riparte=20da=20solo=20tornando=20co?=
+ =?UTF-8?q?n=20=C2=AB=E2=80=B9=20Indietro=C2=BB?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Tornando dalla pagina «Partita» alla pagina dei telefoni con «‹ Indietro» (per esempio dopo «Gioca ancora», per
+cambiare nomi o mano) con tutti e due già pronti, il conto di 3 s ripartiva subito e il suo riquadro copriva nomi e mano.
+
+Scelta (come la regola della lobby per gli altri modi, natpf_lobby.go autoFrom): il conto parte da solo quando i due
+diventano pronti mentre si è nella pagina, o entrando in avanti (menu → «Stesso schermo», dopo una partita: scegliere la
+pagina è l'azione). Tornando indietro da «Partita» con i due già pronti: «Tutto pronto · Premi «Gioca» quando volete»,
+e riparte da solo solo se lo stato dei telefoni cambia (uno non è più pronto e poi torna, anche mentre si era in
+«Partita»). Mentre si scrive un nome il conto non corre («Si parte quando finisci di scrivere il nome»).
+
+- natpf_lobby: from (pagina di provenienza) e pageN (numero della visita).
+- natpf_split_ui._tickStart: cd.back all'ingresso da «Partita» con i due pronti; il conto si azzera a ogni ingresso
+  (prima, rientrando prima di un controllo, restava «già scattato»); campo del nome attivo = conto fermo.
+- test: indietro da «Partita» (anche senza controllo in mezzo), telefono che cambia, «Gioca», ingresso in avanti; nome.
+
+Test: gioco 794/794.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ natpf-tennis/src/natpf/natpf_lobby.js    |  3 ++
+ natpf-tennis/src/natpf/natpf_split_ui.js | 39 +++++++++++++++------
+ natpf-tennis/test/natpf-split.test.mjs   | 44 ++++++++++++++++++++++++
+ 3 files changed, 75 insertions(+), 11 deletions(-)
+
+diff --git a/natpf-tennis/src/natpf/natpf_lobby.js b/natpf-tennis/src/natpf/natpf_lobby.js
+index 9293f28..b6f6c9d 100644
+--- a/natpf-tennis/src/natpf/natpf_lobby.js
++++ b/natpf-tennis/src/natpf/natpf_lobby.js
+@@ -340,6 +340,9 @@ export class NatpfLobby {
+     if (step === 'menu' && this.step !== 'menu' && (this.mode === 'training' || this.mode === 'challenge')) this.mode = 'cpu';
+     // pagina nuova dall'inizio (prima restava lo scorrimento della pagina di prima)
+     if (this.step !== step){ const st = this.el.querySelector?.('.lobby-stage'); if (st) st.scrollTop = 0; }
++    // from: la pagina da cui si arriva, pageN: numero della visita (natpf_split_ui: tornando con «‹ Indietro» da «Partita»
++    // il conto non riparte da solo)
++    if (this.step !== step){ this.from = this.step; this.pageN = (this.pageN || 0) + 1; }
+     this.step = step; this.el.dataset.step = step; this.el.dataset.flow = this.mode;
+     for (const p of this.el.querySelectorAll('[data-page]')) p.classList.toggle('on', p.dataset.page === step);
+     if (step !== 'menu') show($('lobby-menu-result'), false);
+diff --git a/natpf-tennis/src/natpf/natpf_split_ui.js b/natpf-tennis/src/natpf/natpf_split_ui.js
+index 3597ec3..2a549d7 100644
+--- a/natpf-tennis/src/natpf/natpf_split_ui.js
++++ b/natpf-tennis/src/natpf/natpf_split_ui.js
+@@ -107,9 +107,10 @@ export class NatpfSplitUi {
+     for (const id of SPLIT_PLAYERS) this.tut[id] = typeof document !== 'undefined' ? new NatpfTutorial($(`split-tut-${id}`), { half: true, demo: () => getGestureDemo(), canDemo: () => this.demoOwner === id }) : null;
+     let saved = 'phones'; try { saved = localStorage.getItem(SPLIT_INPUT_KEY) || 'phones'; } catch {}
+     this.input = splitInputOf(saved);
+-    // conto alla rovescia prima della partita: left (secondi), running, held («Aspetta»), why (motivo dell'annullamento)
++    // conto alla rovescia prima della partita: left (secondi), running, held («Aspetta»), why (motivo dell'annullamento),
++    // back (tornati con «‹ Indietro» da «Partita» con tutti e due già pronti: si aspetta un cambio o «Gioca», vedi _tickStart)
+     this.countdown = createCountdown({ ms: SPLIT_COUNTDOWN_MS });
+-    this.cd = { left: 0, running: false, held: false, why: null, whyUntil: 0 };
++    this.cd = { left: 0, running: false, held: false, back: false, why: null, whyUntil: 0 }; this._here = null; this._leftBoth = false;
+     const box = document.querySelector('[data-setup="split"]');
+     engine.natpfSplitNames = { p1: 'Player 1', p2: 'Player 2' };
+     box?.addEventListener('input', e => {
+@@ -345,17 +346,27 @@ export class NatpfSplitUi {
+   }
+   // Ogni 100 ms (tick): nella pagina «Collega» dello stesso schermo, con tutti e due pronti (e il tutorial chiuso) e
+   // nessun pannello aperto sopra, conto alla rovescia; a zero si gioca. Un giocatore che non è più pronto lo annulla,
+-  // con il motivo nella barra dell'avvio e sui telefoni
++  // con il motivo nella barra dell'avvio e sui telefoni.
++  // Quando parte da solo (revisione B9 del 06/11, minore a): quando i due diventano pronti mentre si è qui, ed entrando
++  // in avanti (menu → «Stesso schermo», dopo una partita) con tutti e due già pronti: scegliere la pagina è l'azione.
++  // Tornando con «‹ Indietro» dalla pagina «Partita» (per cambiare nomi o mano) con tutti e due già pronti NO: «Tutto
++  // pronto · premi «Gioca»» (come «Aspetta»), e riparte da solo solo se lo stato dei telefoni cambia (uno non è più
++  // pronto e poi torna). È la regola della lobby per gli altri modi (natpf_lobby.go, autoFrom: in campo da soli solo se
++  // il controller diventa pronto mentre si è lì). Prima ripartiva subito e il riquadro del conto copriva nomi e mano.
++  // Mentre si scrive un nome il conto non corre: prima la partita poteva partire con il nome a metà
+   _tickStart(now = performance.now()){
+     const L = this.ui.lobby;
+     const here = !!L?.visible && L.mode === 'split' && L.step === 'connect' && !this.session && !this.ui.intro?.active;
+     // fuori dalla pagina (anche in partita, dopo che il conto è scattato) il conto torna da capo: tornando qui con tutti
+     // e due pronti riparte (prima di questa riga restava «già scattato» e non ripartiva più)
+-    if (!here){ if (this.cd.running || this.cd.held || this.cd.why) this._stopCount(this.cd.running ? 'Si scelgono le impostazioni sul computer.' : null); else this.countdown.reset(); return; }
++    if (!here){ this._here = null; if (this.cd.running || this.cd.held || this.cd.back || this.cd.why) this._stopCount(this.cd.running ? 'Si scelgono le impostazioni sul computer.' : null); else this.countdown.reset(); return; }
+     const sheet = [...document.querySelectorAll('.natpf-sheet-backdrop')].some(m => !m.classList.contains('hidden'));
+-    const blocked = !!L.onboarding?.isOpen || !!this.ui.calibra?.isOpen || sheet;
++    const blocked = !!L.onboarding?.isOpen || !!this.ui.calibra?.isOpen || sheet || this.typing;
+     const slots = this.slots(now), gate = startGate(slots);
+-    const r = this.countdown.update(gate.both && !this.cd.held && !blocked, now);
++    if (this._here !== L.pageN){ this._here = L.pageN; this.countdown.reset(); this.cd.back = gate.both && L.from === 'match' && this._leftBoth; }
++    else if (!gate.both) this.cd.back = false;
++    this._leftBoth = gate.both;
++    const r = this.countdown.update(gate.both && !this.cd.held && !this.cd.back && !blocked, now);
+     const R = this.ui.diag?.recorder;
+     if (r.cancelled){
+       this.cd.why = gate.both ? null : cancelText(slots); this.cd.whyUntil = now + SPLIT_CANCEL_SHOW_MS;
+@@ -374,7 +385,7 @@ export class NatpfSplitUi {
+   _stopCount(txt = null){
+     const was = this.cd.running;
+     this.countdown.reset();
+-    this.cd = { left: 0, running: false, held: false, why: null, whyUntil: 0 };
++    this.cd = { left: 0, running: false, held: false, back: false, why: null, whyUntil: 0 };
+     if (was && txt) this._announce({ stop: 1, txt });
+     this._paintStart();
+   }
+@@ -387,11 +398,13 @@ export class NatpfSplitUi {
+     if (was){ this._announce({ stop: 1, txt: 'Partenza fermata sul computer.' }); this.ui.diag?.recorder?.log?.('split.conto', { stato: 'fermato' }); }
+     this._paintStart();
+   }
+-  playNow(){ this.cd.held = false; this._fire(); }
++  playNow(){ this.cd.held = false; this.cd.back = false; this._fire(); }
++  // si sta scrivendo un nome (campo attivo nella pagina «Collega»)
++  get typing(){ return typeof document !== 'undefined' && !!document.activeElement?.matches?.('.split-name-input'); }
+   // a zero (o «Gioca» dopo «Aspetta»): lo stesso «Gioca» della pagina «Partita» (natpf_ui._bindStart ricontrolla che
+   // tutti e due siano pronti, poi la sessione split e il passaggio al campo)
+   _fire(){
+-    Object.assign(this.cd, { running: false, left: 0, held: false, why: null });
++    Object.assign(this.cd, { running: false, left: 0, held: false, back: false, why: null });
+     this._announce({ n: 0 });
+     this.ui.diag?.recorder?.log?.('split.conto', { stato: 'si gioca' });
+     const b = $('btn-start-match'); if (b){ b.disabled = false; b.click(); }
+@@ -403,6 +416,8 @@ export class NatpfSplitUi {
+     let mode = 'wait', title = 'Si parte da soli quando tutti e due i giocatori sono pronti', sub = `${waitingText(gate.waiting)}.`;
+     if (cd.running){ mode = 'count'; title = `Tutto pronto: si gioca tra ${cd.left}`; sub = this.webcam ? `${names}, in posizione davanti alla webcam.` : `${names}, tenete il telefono come in partita.`; }
+     else if (gate.both && cd.held){ mode = 'held'; title = 'Tutto pronto'; sub = 'Partenza fermata: premi «Gioca» quando volete.'; }
++    else if (gate.both && cd.back){ mode = 'held'; title = 'Tutto pronto'; sub = 'Premi «Gioca» quando volete.'; }
++    else if (gate.both && this.typing){ mode = 'ready'; title = 'Tutto pronto'; sub = 'Si parte quando finisci di scrivere il nome.'; }
+     else if (gate.both){ mode = 'ready'; title = 'Tutto pronto'; sub = 'Si parte appena si chiude il pannello aperto.'; }
+     else if (cd.why && now < cd.whyUntil){ mode = 'cancel'; title = cd.why; sub = 'Il conto riparte da solo quando tutto è di nuovo pronto.'; }
+     const set = (el, t) => { if (el && el.textContent !== t) el.textContent = t; };
+@@ -425,9 +440,11 @@ export class NatpfSplitUi {
+   }
+   // pagina «Partita» dello stesso schermo: le due schede compatte, dal vivo (prima solo «VS» e una nota sotto il piede)
+   paintMatch(now = performance.now()){
+-    const slots = this.slots(now);
++    const slots = this.slots(now), gate = startGate(slots);
+     paintBoard($('split-ready-board'), slots);
+-    return { ...startGate(slots), slots };
++    // (uno che non è più pronto mentre si è qui: tornando nella pagina «Collega» lo stato è cambiato, il conto può partire)
++    if (!gate.both) this._leftBoth = false;
++    return { ...gate, slots };
+   }
+   // «Gioca»: sessione split nel motore, mano del P2 sul suo personaggio
+   start(){
+diff --git a/natpf-tennis/test/natpf-split.test.mjs b/natpf-tennis/test/natpf-split.test.mjs
+index e25e13e..8efc238 100644
+--- a/natpf-tennis/test/natpf-split.test.mjs
++++ b/natpf-tennis/test/natpf-split.test.mjs
+@@ -507,6 +507,50 @@ test('stesso schermo, pagina «Partita»: schede dal vivo, «Gioca» grigio e sp
+   assert.equal($('btn-start-match').disabled, false); assert.ok(!$('btn-start-match').classList.contains('is-wait'));
+ });
+ 
++// Revisione B9 (06/11), minore a: tornando con «‹ Indietro» dalla pagina «Partita» con tutti e due già pronti il conto non
++// riparte da solo (prima ripartiva subito e il riquadro copriva nomi e mano): «Tutto pronto · premi «Gioca»»; riparte da
++// solo se lo stato dei telefoni cambia; entrando in avanti (dopo una partita) sì. Mentre si scrive un nome non corre
++test('stesso schermo: «‹ Indietro» da «Partita» con i due pronti → nessun conto da solo; riparte se un telefono cambia o con «Gioca»', async () => {
++  const { E, ui, lobby, l2, P2, readyBoth, advance } = await splitLobby();
++  readyBoth(); advance(600);
++  assert.equal(ui.split.countdownRunning, true);
++  lobby.next(); assert.equal(lobby.step, 'match'); advance(300);
++  lobby.back(); assert.equal(lobby.step, 'connect');
++  advance(4000);
++  assert.equal(ui.split.cd.running, false, 'nessun conto tornando indietro'); assert.ok(!E.natpfSplit?.active);
++  assert.equal($('split-ready-bar').dataset.readyBar, 'held');
++  assert.equal($('split-ready-bar').querySelector('[data-ready-bar-sub]').textContent, 'Premi «Gioca» quando volete.');
++  assert.ok(!$('split-ready-bar').querySelector('[data-split-play]').classList.contains('hidden'), '«Gioca» nella barra');
++  // anche subito, senza un controllo in mezzo (Invio e Esc di fila)
++  lobby.next(); lobby.back(); advance(1500); assert.equal(ui.split.cd.running, false);
++  // il telefono di Marco cade e torna pronto: lo stato è cambiato, il conto riparte da solo
++  Object.assign(l2, { connected: false, ready: false, L: { state: 'lost', phone: null } }); P2._changed(); advance(300);
++  Object.assign(l2, { connected: true, ready: true, L: { state: 'connected', phone: 'ready' } }); P2._changed(); advance(150);
++  assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3);
++  advance(3000); assert.equal(E.natpfSplit?.active, true);
++  // di nuovo indietro: «Gioca» nella barra fa partire
++  ui.backToMenu(); lobby.go('mode'); lobby.setMode('split'); lobby.go('connect'); advance(150);
++  assert.equal(ui.split.cd.running, true, 'in avanti (dopo una partita) il conto riparte');
++  lobby.next(); advance(200); lobby.back(); advance(1000);
++  assert.equal(ui.split.cd.running, false);
++  ui.split.playNow(); assert.equal(E.natpfSplit?.active, true);
++});
++
++test('stesso schermo: mentre si scrive un nome il conto non corre; finito il nome parte', async () => {
++  const { ui, readyBoth, advance } = await splitLobby();
++  let typing = true;
++  const had = Object.getOwnPropertyDescriptor(document, 'activeElement');
++  Object.defineProperty(document, 'activeElement', { configurable: true, get: () => typing ? { matches: q => q === '.split-name-input' } : null });
++  try {
++    readyBoth(); advance(4000);
++    assert.equal(ui.split.cd.running, false, 'nessun conto mentre si scrive');
++    assert.equal($('split-ready-bar').dataset.readyBar, 'ready');
++    assert.equal($('split-ready-bar').querySelector('[data-ready-bar-sub]').textContent, 'Si parte quando finisci di scrivere il nome.');
++    typing = false; advance(150);
++    assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3);
++  } finally { if (had) Object.defineProperty(document, 'activeElement', had); else delete document.activeElement; }
++});
++
+ // ---------------------------------------------------------------------------------------------------------------------
+ // Revisione B9 (06/11), bloccante del ramo A: nello stesso schermo un telefono che cade e si ricollega con il suo
+ // tutorial aperto lo perdeva (segnato come visto senza «Tutto chiaro» e calibrazione partita da sola). Il telefono finto
+-- 
+2.43.0
+
+
+From e0d8c3fe644514c7d17322999c336ab2b6e6476d Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 13:09:54 +0000
+Subject: [PATCH 4/5] =?UTF-8?q?B9=20revisione,=20minori=20c=20ed=20e:=20?=
+ =?UTF-8?q?=C2=ABAspetta=C2=BB=20senza=20anello=20rosso=20sul=20telefono,?=
+ =?UTF-8?q?=20velo=20con=20testo=20neutro?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- c) Stesso schermo: il computer manda soft:1 quando il conto si ferma sul computer («Aspetta»/Esc, si va alle
+  impostazioni, pannello aperto); il telefono mostra «Aspetta» con l'anello neutro. L'anello rosso resta per un problema
+  (un telefono non più pronto: «Conto annullato · Marco: …»). Le pagine del telefono di prima ignorano soft (rosso come
+  prima). Testi del conto sul telefono in una funzione pura (phone-screen.countFlash), ora provata in tools/test.
+- e) Velo del ritorno sul telefono: «Bentornato: un tocco tiene acceso lo schermo…» invece di «Lo schermo si era
+  spento», perché compare anche tornando da un'altra app.
+
+Test: gioco 794/794 (split 34/34), sito 194/194.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ natpf-tennis/src/natpf/natpf_split_ui.js |  9 +++++----
+ natpf-tennis/test/natpf-split.test.mjs   |  5 +++--
+ site/js/tennis/phone-screen.js           | 11 +++++++++++
+ site/js/tennis/racchetta.js              |  4 ++--
+ site/tennis/racchetta.html               |  2 +-
+ tools/test/phone-screen.test.mjs         | 18 +++++++++++++++++-
+ 6 files changed, 39 insertions(+), 10 deletions(-)
+
+diff --git a/natpf-tennis/src/natpf/natpf_split_ui.js b/natpf-tennis/src/natpf/natpf_split_ui.js
+index 2a549d7..39afca8 100644
+--- a/natpf-tennis/src/natpf/natpf_split_ui.js
++++ b/natpf-tennis/src/natpf/natpf_split_ui.js
+@@ -338,7 +338,8 @@ export class NatpfSplitUi {
+   }
+   slots(now = performance.now()){ return SPLIT_PLAYERS.map(id => this.slot(id, now)); }
+   get countdownRunning(){ return this.cd.running; }
+-  // ai telefoni (pagina del telefono: racchetta.js, «ev» con k 'count'): n = 3, 2, 1 e 0 (si gioca), stop con il motivo.
++  // ai telefoni (pagina del telefono: racchetta.js, «ev» con k 'count'): n = 3, 2, 1 e 0 (si gioca), stop con il motivo
++  // (soft: fermato sul computer, anello neutro sul telefono; senza soft un telefono non più pronto, anello rosso).
+   // Le pagine del telefono di prima ignorano il messaggio (k sconosciuto): nessun problema di versioni
+   _announce(m){
+     if (this.webcam) return;
+@@ -370,7 +371,7 @@ export class NatpfSplitUi {
+     const R = this.ui.diag?.recorder;
+     if (r.cancelled){
+       this.cd.why = gate.both ? null : cancelText(slots); this.cd.whyUntil = now + SPLIT_CANCEL_SHOW_MS;
+-      this._announce({ stop: 1, txt: this.cd.why || 'Guarda il computer.' });
++      this._announce({ stop: 1, txt: this.cd.why || 'Guarda il computer.', ...(this.cd.why ? {} : { soft: 1 }) });
+       R?.log?.('split.conto', { stato: 'annullato', motivo: this.cd.why || 'pannello aperto' });
+     }
+     if (r.running && r.left !== this.cd.left){
+@@ -386,7 +387,7 @@ export class NatpfSplitUi {
+     const was = this.cd.running;
+     this.countdown.reset();
+     this.cd = { left: 0, running: false, held: false, back: false, why: null, whyUntil: 0 };
+-    if (was && txt) this._announce({ stop: 1, txt });
++    if (was && txt) this._announce({ stop: 1, soft: 1, txt });
+     this._paintStart();
+   }
+   // «Aspetta» (o Esc): il conto si ferma e non riparte da solo; poi «Gioca» nella barra (this.hold è un'altra cosa: la
+@@ -395,7 +396,7 @@ export class NatpfSplitUi {
+     const was = this.cd.running;
+     this.countdown.reset();
+     Object.assign(this.cd, { running: false, left: 0, held: true, why: null });
+-    if (was){ this._announce({ stop: 1, txt: 'Partenza fermata sul computer.' }); this.ui.diag?.recorder?.log?.('split.conto', { stato: 'fermato' }); }
++    if (was){ this._announce({ stop: 1, soft: 1, txt: 'Partenza fermata sul computer.' }); this.ui.diag?.recorder?.log?.('split.conto', { stato: 'fermato' }); }
+     this._paintStart();
+   }
+   playNow(){ this.cd.held = false; this.cd.back = false; this._fire(); }
+diff --git a/natpf-tennis/test/natpf-split.test.mjs b/natpf-tennis/test/natpf-split.test.mjs
+index 8efc238..3348666 100644
+--- a/natpf-tennis/test/natpf-split.test.mjs
++++ b/natpf-tennis/test/natpf-split.test.mjs
+@@ -450,6 +450,7 @@ test('stesso schermo: un telefono che cade durante il conto lo annulla e la barr
+   assert.equal($('split-ready-bar').querySelector('[data-ready-bar-title]').textContent, 'Conto annullato · Marco: telefono scollegato');
+   const stop = counts(link).at(-1);
+   assert.equal(stop.stop, 1); assert.match(stop.txt, /Marco: telefono scollegato/, 'il telefono di Giulia lo sa');
++  assert.equal(stop.soft, undefined, 'un problema: anello rosso sul telefono');
+   advance(5000);
+   assert.ok(!E.natpfSplit?.active, 'nessuna partita'); assert.equal(lobby.step, 'connect');
+   // il telefono torna pronto: il conto riparte da capo (3), e poi si gioca
+@@ -467,7 +468,7 @@ test('stesso schermo: «Aspetta» (Esc) ferma il conto e non riparte da solo; «
+   key('Escape', 'Escape');
+   assert.equal(lobby.step, 'connect', 'Esc durante il conto non torna indietro');
+   assert.equal(ui.split.cd.running, false); assert.equal(ui.split.cd.held, true);
+-  assert.match(counts(link).at(-1).txt, /fermata/);
++  assert.match(counts(link).at(-1).txt, /fermata/); assert.equal(counts(link).at(-1).soft, 1, 'fermato sul computer: anello neutro sul telefono');
+   advance(6000);
+   assert.ok(!E.natpfSplit?.active, 'fermo finché non si preme «Gioca»');
+   assert.equal($('split-ready-bar').dataset.readyBar, 'held');
+@@ -486,7 +487,7 @@ test('stesso schermo, pagina «Partita»: schede dal vivo, «Gioca» grigio e sp
+   // «Impostazioni partita ›»: il conto si ferma, i telefoni lo sanno
+   lobby.next(); assert.equal(lobby.step, 'match');
+   advance(400);
+-  assert.equal(ui.split.cd.running, false); assert.match(counts(link).at(-1).txt, /impostazioni/);
++  assert.equal(ui.split.cd.running, false); assert.match(counts(link).at(-1).txt, /impostazioni/); assert.equal(counts(link).at(-1).soft, 1);
+   advance(4000); assert.ok(!E.natpfSplit?.active, 'nella pagina «Partita» si parte con «Gioca»');
+   const board = $('split-ready-board');
+   assert.match(board.innerHTML, /data-ready-slot="p1"/);
+diff --git a/site/js/tennis/phone-screen.js b/site/js/tennis/phone-screen.js
+index dbe95ae..02705cc 100644
+--- a/site/js/tennis/phone-screen.js
++++ b/site/js/tennis/phone-screen.js
+@@ -94,6 +94,17 @@ export const sensorForCal = gate => (gate ? 'idle' : 'cal');
+ // come sono (un telefono pronto resta «ready» anche durante il tutorial: niente pausa del computer sopra la modale)
+ export const reportedSensor = sensor => (sensor === 'off' ? 'sensors' : sensor === 'idle' ? 'tut' : sensor);
+ 
++// conto alla rovescia dello stesso schermo (messaggio del computer { t:'ev', k:'count' }, natpf_split_ui._announce):
++// n = 3, 2, 1 («Si gioca tra» con il numero, anello verde) e 0 («Si gioca!»); stop = conto fermato o annullato, con il
++// motivo. Anello rosso solo per un problema (un telefono non più pronto); soft = fermato sul computer («Aspetta», si
++// scelgono le impostazioni, pannello aperto): anello neutro, non è un errore (revisione B9 del 06/11, prima sempre rosso)
++export function countFlash(d = {}){
++  if (d.stop) return { ring: d.soft ? '' : 'miss', big: 'Aspetta', sub: String(d.txt || 'Guarda il computer.').slice(0, 140), ms: 2400, arrow: '', buzz: null };
++  const n = Math.round(+d.n || 0);
++  return n > 0 ? { ring: 'ready', big: 'Si gioca tra', sub: 'Tieni il telefono come in partita.', ms: 1150, arrow: String(n), buzz: [25] }
++    : { ring: 'ready', big: 'Si gioca!', sub: '', ms: 1000, arrow: '', buzz: [70] };
++}
++
+ // testi della schermata del tutorial sul telefono
+ export function tutorialTexts(gate, { sensor = 'idle' } = {}){
+   const then = sensor === 'ready' ? 'poi si gioca' : 'poi si calibra';
+diff --git a/site/js/tennis/racchetta.js b/site/js/tennis/racchetta.js
+index 6620131..8d38aa5 100644
+--- a/site/js/tennis/racchetta.js
++++ b/site/js/tennis/racchetta.js
+@@ -15,7 +15,7 @@ import { NATPF_BUILD } from './version.js';
+ import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
+ import { gripSvg, GRIP_TEXT_PLAIN } from './grip-art.js';
+ import { platformAccSign, createAccSign, normalizeSample } from './motion-sign.js';
+-import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable } from './phone-screen.js';
++import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash } from './phone-screen.js';
+ 
+ const $ = s => document.querySelector(s);
+ const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
+@@ -252,7 +252,7 @@ function onData(c, d){
+       if (d.k === 'point') flash(d.mine ? 'hit' : 'miss', d.mine ? 'Punto tuo' : 'Punto avversario', d.txt || '', 1300);
+       // stesso schermo (B9, natpf_split_ui._announce): conto alla rovescia del computer prima della partita (n = 3, 2, 1;
+       // 0 = si gioca) o conto fermato (stop, con il motivo). Solo un avviso sopra la schermata, che poi torna da sola
+-      if (d.k === 'count'){ if (d.stop) flash('miss', 'Aspetta', String(d.txt || 'Guarda il computer.').slice(0, 140), 2400); else { buzz([d.n > 0 ? 25 : 70]); flash('ready', d.n > 0 ? 'Si gioca tra' : 'Si gioca!', d.n > 0 ? 'Tieni il telefono come in partita.' : '', d.n > 0 ? 1150 : 1000, d.n > 0 ? String(Math.round(d.n)) : ''); } }
++      if (d.k === 'count'){ const f = countFlash(d); if (f.buzz) buzz(f.buzz); flash(f.ring, f.big, f.sub, f.ms, f.arrow); }
+       break;
+     }
+     case 'bye': ss.del('resume'); ss.del('pair'); pair = null; closeFast(); linkState = 'denied'; paint(); ui('Scollegato', 'Il computer ha scollegato il telefono. Per giocare di nuovo inquadra il nuovo QR.'); try { c.close(); } catch (e){} break;
+diff --git a/site/tennis/racchetta.html b/site/tennis/racchetta.html
+index 9867462..2d2e77e 100644
+--- a/site/tennis/racchetta.html
++++ b/site/tennis/racchetta.html
+@@ -142,7 +142,7 @@
+ </div>
+ <!-- solo mentre il computer registra la diagnostica: segna nel registro l'istante di un problema -->
+ <button class="btn alt hidden" id="mark">⚑ Segna un problema</button>
+-<div id="wakeVeil" class="hidden" role="button" tabindex="0" aria-label="Tocca lo schermo per riprendere"><i class="tap" aria-hidden="true"></i><b>Tocca lo schermo per riprendere</b><p id="wakeVeilText">Lo schermo si era spento: un tocco tiene acceso lo schermo e riattiva i sensori. Il collegamento e la calibrazione sono rimasti.</p></div>
++<div id="wakeVeil" class="hidden" role="button" tabindex="0" aria-label="Tocca lo schermo per riprendere"><i class="tap" aria-hidden="true"></i><b>Tocca lo schermo per riprendere</b><p id="wakeVeilText">Bentornato: un tocco tiene acceso lo schermo e riattiva i sensori. Il collegamento e la calibrazione sono rimasti.</p></div>
+ <div id="rotate" class="hidden" role="status"><b>Il telefono si è girato</b><p>Il gioco continua: tieni il telefono come preferisci. Per leggere meglio questa pagina, raddrizzalo.</p></div>
+ <script type="module" src="../js/tennis/racchetta.js"></script>
+ </body>
+diff --git a/tools/test/phone-screen.test.mjs b/tools/test/phone-screen.test.mjs
+index 7f686c2..9646503 100644
+--- a/tools/test/phone-screen.test.mjs
++++ b/tools/test/phone-screen.test.mjs
+@@ -4,7 +4,7 @@
+ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import { readFileSync } from 'node:fs';
+-import { phoneView, screenOf, PHONE_SCREENS, gateOnCfg, gateOnProgress, gateRestore, gateNav, tutConfirmable, sensorOnGateOpen,
++import { countFlash, phoneView, screenOf, PHONE_SCREENS, gateOnCfg, gateOnProgress, gateRestore, gateNav, tutConfirmable, sensorOnGateOpen,
+   sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts } from '../../site/js/tennis/phone-screen.js';
+ 
+ const LINKS = ['off', 'connecting', 'on', 'lost', 'denied'];
+@@ -164,3 +164,19 @@ test('pagina del telefono: [hidden] vince sulle regole dei label (riga «Presa»
+   assert.doesNotMatch(JS, /show\('#tutOk'/); assert.doesNotMatch(JS, /show\('#tools'/);
+   assert.doesNotMatch(JS, /tutWait/);
+ });
++
++// conto alla rovescia dello stesso schermo sul telefono (revisione B9 del 06/11): anello rosso solo per un problema,
++// «Aspetta» premuto sul computer (soft) con l'anello neutro; il velo dopo il ritorno non dice «lo schermo si era spento»
++// (si torna anche da un'altra app)
++test('telefono: conto 3, 2, 1, «Si gioca!»; «Aspetta» dal computer neutro, annullato per un telefono in rosso; velo neutro', () => {
++  assert.deepEqual(countFlash({ n: 3 }), { ring: 'ready', big: 'Si gioca tra', sub: 'Tieni il telefono come in partita.', ms: 1150, arrow: '3', buzz: [25] });
++  assert.deepEqual(countFlash({ n: 0 }), { ring: 'ready', big: 'Si gioca!', sub: '', ms: 1000, arrow: '', buzz: [70] });
++  const held = countFlash({ stop: 1, soft: 1, txt: 'Partenza fermata sul computer.' });
++  assert.equal(held.ring, '', '«Aspetta» sul computer: niente anello rosso'); assert.equal(held.big, 'Aspetta'); assert.equal(held.sub, 'Partenza fermata sul computer.');
++  const ko = countFlash({ stop: 1, txt: 'Conto annullato · Marco: schermo spento' });
++  assert.equal(ko.ring, 'miss', 'un telefono non più pronto: rosso'); assert.match(ko.sub, /Marco: schermo spento/);
++  assert.equal(countFlash({ stop: 1 }).sub, 'Guarda il computer.');
++  assert.equal(countFlash({ stop: 1, txt: 'x'.repeat(300) }).sub.length, 140);
++  assert.match(JS, /countFlash\(d\)/, 'la pagina usa countFlash');
++  assert.doesNotMatch(HTML, /si era spento/); assert.match(HTML, /id="wakeVeilText">Bentornato:/);
++});
+-- 
+2.43.0
+
+
+From 5d757a0ff2a3b1e5139ed81f2f8a9575d4f9e805 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 13:12:04 +0000
+Subject: [PATCH 5/5] B9 revisione, minore d: stesso schermo, riquadro della
+ pausa con due telefoni spenti stabile
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Il riquadro della pausa sopra il campo è uno. Con gli schermi spenti su tutti e due i telefoni il P1
+(natpf_ui._refreshPhoneHold) e il P2 (natpf_split_ui._watchP2) lo ridisegnavano ognuno con il suo «da quanto» e i
+testi si alternavano ogni secondo; la ripresa di uno toglieva il riquadro anche con l'altro ancora in pausa.
+
+- natpf_ui._paintHold ha un proprietario (p1 questo computer, p2 il telefono del Player 2): con due pause il riquadro
+  dice «Partita in pausa» con una riga per telefono e due pulsanti «Ricollega il telefono del Player 1/2»; con una
+  sola pausa come prima. La ripresa di uno toglie solo la sua riga.
+- natpf_split_ui: le pause del P2 dipingono come p2.
+- test: due schermi spenti per 4 s (testo con le due righe a ogni controllo, «da quanto» che avanza), ripresa del P2
+  con il P1 ancora in pausa, poi del P1. Rosso senza la correzione.
+
+Test: gioco 795/795.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ natpf-tennis/natpf-ui.css                     |  3 ++
+ natpf-tennis/src/natpf/natpf_split_ui.js      | 10 ++---
+ natpf-tennis/src/natpf/natpf_ui.js            | 37 ++++++++++++------
+ .../test/natpf-split-ricollega.test.mjs       | 38 +++++++++++++++++++
+ 4 files changed, 72 insertions(+), 16 deletions(-)
+
+diff --git a/natpf-tennis/natpf-ui.css b/natpf-tennis/natpf-ui.css
+index 8ddc811..ea6292e 100644
+--- a/natpf-tennis/natpf-ui.css
++++ b/natpf-tennis/natpf-ui.css
+@@ -744,6 +744,9 @@ body.natpf-arcade #natpf-games-line { opacity: 0; pointer-events: none; }
+ .natpf-phone-hold p { margin: 6px 0 0; font-weight: 500; }
+ .natpf-phone-hold button { margin-top: 12px; padding: 0.55em 1.2em; border: 0; border-radius: var(--r-pill); background: var(--ball); color: var(--ball-ink); font: 700 1em/1.2 system-ui, sans-serif; cursor: pointer; }
+ .natpf-phone-hold button.hidden { display: none; }
++/* due pause insieme (stesso schermo): una riga per telefono, due pulsanti affiancati */
++.natpf-phone-hold.two p { white-space: pre-line; }
++.natpf-phone-hold button + button { margin-left: 8px; }
+ 
+ /* ---------- toast ----------
+    Figlio diretto del body (segue l'area): si vede nel menu, in campo, in pausa e sopra la calibrazione (z 300), sotto la
+diff --git a/natpf-tennis/src/natpf/natpf_split_ui.js b/natpf-tennis/src/natpf/natpf_split_ui.js
+index 39afca8..06b2f8b 100644
+--- a/natpf-tennis/src/natpf/natpf_split_ui.js
++++ b/natpf-tennis/src/natpf/natpf_split_ui.js
+@@ -458,7 +458,7 @@ export class NatpfSplitUi {
+   end(){
+     this.closeTutorials();
+     if (!this.session && !this.hold) return;
+-    this.engine.endSplit?.(); if (this.hold){ this.hold = null; this.ui._paintHold?.(null); } show($('natpf-split-hud'), false);
++    this.engine.endSplit?.(); if (this.hold){ this.hold = null; this.ui._paintHold?.(null, '', null, 'p2'); } show($('natpf-split-hud'), false);
+   }
+   // esiti dei colpi (motore → aptica): etichetta della metà di chi ha colpito
+   onFeedback(e = {}){
+@@ -496,17 +496,17 @@ export class NatpfSplitUi {
+     const R = this.ui.diag?.recorder;
+     if (inField && this.resync.update(h, { paused: this.watch.state !== 'ok', busy: rally, now }) && p.relink()) R?.log?.('tel.ricollega', { chi: 'p2', motivo: h.why || h.degraded, auto: true });
+     // schermo del telefono del P2 spento: il riquadro dice da quanto (ogni secondo)
+-    if (!a && this.hold && this.watch.state === 'paused' && p.state.vis === false){ const text = phoneHoldText(p, this.hold.why); if (text !== this.holdShown){ this.holdShown = text; this.ui._paintHold('Telefono del Player 2 in pausa', text, this.ui.relinkAction?.(p, 'Player 2')); } }
++    if (!a && this.hold && this.watch.state === 'paused' && p.state.vis === false){ const text = phoneHoldText(p, this.hold.why); if (text !== this.holdShown){ this.holdShown = text; this.ui._paintHold('Telefono del Player 2 in pausa', text, this.ui.relinkAction?.(p, 'Player 2'), 'p2'); } }
+     if (!a) return;
+     if (a.kind === 'pause' || a.kind === 'wait'){
+       this.hold = { why: a.why };
+-      this.ui._paintHold('Telefono del Player 2 in pausa', phoneHoldText(p, a.why), this.ui.relinkAction?.(p, 'Player 2'));
++      this.ui._paintHold('Telefono del Player 2 in pausa', phoneHoldText(p, a.why), this.ui.relinkAction?.(p, 'Player 2'), 'p2');
+       R?.log?.('tel.pausa', { chi: 'p2', motivo: a.why, fase: E.phase, ...(h.gapMs ? { gapMs: h.gapMs } : {}), ...(Number.isFinite(p.state.sensorAge) ? { sensoriTelefonoMs: p.state.sensorAge } : {}) });
+       if (p.connected){ p.link.send({ t: 'ph', ph: 'pause' }); p.lastPhase = 'pause'; }
+     }
+-    if (a.kind === 'countdown') this.ui._paintHold('Telefono del Player 2 di nuovo pronto', `Si riprende tra ${a.left}…`);
++    if (a.kind === 'countdown') this.ui._paintHold('Telefono del Player 2 di nuovo pronto', `Si riprende tra ${a.left}…`, null, 'p2');
+     if (a.kind === 'resume'){
+-      this.hold = null; this.ui._paintHold(null); E.pendingP2Swing = null; E.pendingUserSwing = null; p.lastPhase = null;
++      this.hold = null; this.ui._paintHold(null, '', null, 'p2'); E.pendingP2Swing = null; E.pendingUserSwing = null; p.lastPhase = null;
+       const replay = a.replay && ['RALLY', 'SERVE_TOSS'].includes(E.phase);
+       if (replay){ E._setupPointServe({ showBanner: false }); this.ui.toast?.('Il telefono del Player 2 si era fermato: il punto si rigioca'); }
+       R?.log?.('tel.ripresa', { chi: 'p2', rigiocato: replay });
+diff --git a/natpf-tennis/src/natpf/natpf_ui.js b/natpf-tennis/src/natpf/natpf_ui.js
+index 9eebff7..5ac18f3 100644
+--- a/natpf-tennis/src/natpf/natpf_ui.js
++++ b/natpf-tennis/src/natpf/natpf_ui.js
+@@ -504,30 +504,45 @@ export class NatpfUi {
+     this._syncPause();
+   }
+   // riquadro della pausa del telefono sopra il campo (titolo, testo e un pulsante facoltativo { label, run }), null per
+-  // toglierlo. Il pulsante: «Ricollega il telefono» nei casi estremi (richiesta del 29/10)
+-  _paintHold(title, text = '', action = null){
++  // toglierlo. Il pulsante: «Ricollega il telefono» nei casi estremi (richiesta del 29/10). owner: di chi è la pausa
++  // ('p1' questo computer, 'p2' il telefono del Player 2 nello stesso schermo, natpf_split_ui._watchP2). Con due pause
++  // insieme (stesso schermo, due telefoni con lo schermo spento) il riquadro le dice tutte e due, ognuna con il suo
++  // pulsante; prima ognuno ridisegnava il riquadro unico con il suo testo e i testi si alternavano ogni secondo, e la
++  // ripresa di uno toglieva il riquadro anche se l'altro era ancora in pausa (revisione B9 del 06/11)
++  _paintHold(title, text = '', action = null, owner = 'p1'){
++    this._holds ||= { p1: null, p2: null };
++    this._holds[owner === 'p2' ? 'p2' : 'p1'] = title ? { title, text, action } : null;
++    const list = ['p1', 'p2'].map(k => this._holds[k]).filter(Boolean);
+     let el = $('natpf-phone-hold');
+-    if (!title){ show(el, false); return; }
++    if (!list.length){ show(el, false); return; }
+     if (!el){
+       el = document.createElement('div'); el.id = 'natpf-phone-hold'; el.className = 'natpf-phone-hold hidden'; el.setAttribute('role', 'status');
+-      el.innerHTML = '<b></b><p></p><button type="button" class="hidden"></button>';
++      el.innerHTML = '<b></b><p></p><button type="button" class="hidden"></button><button type="button" class="hidden" data-hold-second></button>';
+       document.body.appendChild(el);
+     }
++    const b1 = el.querySelector('button'), b2 = el.querySelector('[data-hold-second]');
+     if (!el._bound){
+       el._bound = true;
+-      const b = el.querySelector('button');
+-      b?.addEventListener('pointerdown', e => e.stopPropagation());
+-      b?.addEventListener('click', e => { e.stopPropagation(); try { el._run?.(); } catch (err){ console.error(err); } });
++      for (const [b, k] of [[b1, '_run'], [b2, '_run2']]){
++        b?.addEventListener('pointerdown', e => e.stopPropagation());
++        b?.addEventListener('click', e => { e.stopPropagation(); try { el[k]?.(); } catch (err){ console.error(err); } });
++      }
+     }
+-    el.querySelector('b').textContent = title; el.querySelector('p').textContent = text;
+-    const b = el.querySelector('button'); el._run = action?.run || null;
+-    if (action){ b.textContent = action.label; } show(b, !!action);
++    const two = list.length > 1, acts = list.map(h => h.action).filter(Boolean);
++    el.querySelector('b').textContent = two ? 'Partita in pausa' : list[0].title;
++    el.querySelector('p').textContent = two ? list.map(h => `${h.title}: ${h.text}`).join('\n') : list[0].text;
++    el.classList.toggle('two', two);
++    // con due pause i pulsanti dicono di chi sono (Player 1, Player 2)
++    const label = a => two && a.who ? `${a.label} del ${a.who}` : a.label;
++    el._run = acts[0]?.run || null; el._run2 = acts[1]?.run || null;
++    if (acts[0] && b1) b1.textContent = label(acts[0]); show(b1, !!acts[0]);
++    if (acts[1] && b2) b2.textContent = label(acts[1]); show(b2, !!acts[1]);
+     show(el);
+   }
+   // pulsante «Ricollega il telefono» del riquadro della pausa: il telefono rifà il collegamento (canali nuovi); se non è
+   // collegato si ricollega da solo con la sua chiave, oppure con il QR
+   relinkAction(phone, who = ''){
+-    return { label: 'Ricollega il telefono', run: () => {
++    return { label: 'Ricollega il telefono', who, run: () => {
+       if (phone?.relink?.()) this.toast(`${who ? who + ': ' : ''}ricollego il telefono…`);
+       else if (phone === this.phone && !this.engine.natpfSplit?.active) this.openPhone();
+       else this.toast(`${who ? who + ': ' : ''}telefono scollegato, riapri la pagina del gioco sul telefono (si ricollega da solo)`);
+diff --git a/natpf-tennis/test/natpf-split-ricollega.test.mjs b/natpf-tennis/test/natpf-split-ricollega.test.mjs
+index 060aaaa..47edcff 100644
+--- a/natpf-tennis/test/natpf-split-ricollega.test.mjs
++++ b/natpf-tennis/test/natpf-split-ricollega.test.mjs
+@@ -112,3 +112,41 @@ test('«Ricollega» tiene i riferimenti della mira (stessa pagina); un collegame
+   Object.assign(L, { joins: 3, relinked: false }); P._sendGrip();
+   assert.equal(P.aimModel.center(1), null, 'pagina ricaricata: si reimpara');
+ });
++
++// Revisione B9 (06/11), minore d: stesso schermo con gli schermi spenti su tutti e due i telefoni. Il riquadro della
++// pausa è uno: prima il P1 (natpf_ui._refreshPhoneHold) e il P2 (_watchP2) lo ridisegnavano ognuno con il suo testo e i
++// testi si alternavano ogni secondo; la ripresa di uno lo toglieva anche con l'altro ancora in pausa
++test('stesso schermo: due telefoni con lo schermo spento → un riquadro con tutti e due, stabile; la ripresa di uno lascia l\'altro', async () => {
++  const w = await splitMatch(), { E, ui, link, l2 } = w;
++  w.advance(500);
++  link.L.vis = false; link.L.hiddenAt = performance.now(); E.natpfPhone._changed();
++  w.advance(700);
++  l2.L.vis = false; l2.L.hiddenAt = performance.now(); w.P2._changed();
++  w.advance(1500);
++  assert.ok(ui.phoneHold && ui.split.hold, 'tutti e due in pausa');
++  const el = holdEl(), seen = new Set();
++  for (let i = 0; i < 40; i++){
++    w.advance(100);
++    const t = el.querySelector('p').textContent;
++    assert.equal(el.querySelector('b').textContent, 'Partita in pausa');
++    assert.match(t, /^Telefono del Player 1 in pausa: .+\nTelefono del Player 2 in pausa: .+$/, t);
++    seen.add(t);
++  }
++  assert.ok(seen.size >= 3, 'il «da quanto» va avanti (ogni secondo)');
++  assert.equal(el.querySelector('button').textContent, 'Ricollega il telefono del Player 1');
++  assert.equal(el.querySelector('[data-hold-second]').textContent, 'Ricollega il telefono del Player 2');
++  assert.equal(el.querySelector('[data-hold-second]').classList.contains('hidden'), false);
++  // il P2 riaccende: conto e ripresa del P2, il riquadro resta per il P1 (e la partita resta in pausa)
++  l2.L.vis = true; w.P2._changed();
++  w.advance(4000);
++  assert.equal(ui.split.hold, null);
++  assert.ok(!el.classList.contains('hidden'), 'il P1 è ancora in pausa: il riquadro resta');
++  assert.equal(el.querySelector('b').textContent, 'Telefono del Player 1 in pausa');
++  assert.equal(el.querySelector('button').textContent, 'Ricollega il telefono');
++  assert.equal(el.querySelector('[data-hold-second]').classList.contains('hidden'), true);
++  assert.equal(E.natpfPaused, true);
++  // il P1 riaccende: niente più riquadro
++  link.L.vis = true; E.natpfPhone._changed();
++  w.advance(4000);
++  assert.ok(el.classList.contains('hidden')); assert.equal(E.natpfPaused, false);
 +});
 -- 
 2.43.0

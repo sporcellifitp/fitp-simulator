@@ -1,9 +1,9 @@
 From 3627e579aef2d835e8f60e2527aaa50c00870a0d Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 13:02:06 +0000
-Subject: [PATCH] =?UTF-8?q?B9=20C=20(WIP):=20modulo=20della=20posa=20dei?=
- =?UTF-8?q?=20gesti=20e=20adattatore=20posa=E2=86=92sensori,=20non=20ancor?=
- =?UTF-8?q?a=20verificati?=
+Subject: [PATCH 1/2] =?UTF-8?q?B9=20C=20(WIP):=20modulo=20della=20posa=20d?=
+ =?UTF-8?q?ei=20gesti=20e=20adattatore=20posa=E2=86=92sensori,=20non=20anc?=
+ =?UTF-8?q?ora=20verificati?=
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -631,6 +631,116 @@ index 0000000..72e0de1
 +  // la presa «a giradischi» non è periodica in 6 s: si campiona un solo ciclo, senza ripetizione
 +  return { name: 'animazione di prima', plan, pose: (id, t, hand = 'right') => { const p = right(id, t); return hand === 'left' ? mirrorPose(p) : p; } };
 +}
+-- 
+2.43.0
+
+
+From b88735ca7e08a1159b70036bc2cd88b0ab183e52 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 13:11:37 +0000
+Subject: [PATCH 2/2] =?UTF-8?q?B9=20C=20(WIP):=20camere=20per=20scheda,=20?=
+ =?UTF-8?q?ritorno=20di=20incrociato=20e=20lungolinea=20sotto=20250=20?=
+ =?UTF-8?q?=C2=B0/s,=20mezzo=20campione=20nell'adattatore=20posa=E2=86=92s?=
+ =?UTF-8?q?ensori?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Verifica a mano (script nello scratchpad): tutte le 11 schede e i 2 esercizi, destro e mancino, calibrazione con
+l'animazione e con il braccio simulato, presa palmo e martello: colpo mostrato, picco letto = contatto (Δ 0 ms).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ natpf-tennis/src/natpf/natpf_gesture_pose.js | 40 ++++++++++++++++++--
+ natpf-tennis/test/pose-sensors.mjs           |  6 ++-
+ 2 files changed, 42 insertions(+), 4 deletions(-)
+
+diff --git a/natpf-tennis/src/natpf/natpf_gesture_pose.js b/natpf-tennis/src/natpf/natpf_gesture_pose.js
+index ef6496c..c87acb5 100644
+--- a/natpf-tennis/src/natpf/natpf_gesture_pose.js
++++ b/natpf-tennis/src/natpf/natpf_gesture_pose.js
+@@ -132,9 +132,9 @@ export const TIMING = Object.freeze({
+   smash:    Object.freeze({ hold: .3, prep: 1.0, overlap: .05, follow: .16, back: .6, rest: .4, trunk: 0 }),
+   volley:   Object.freeze({ hold: .35, prep: .24, prepAmp: 12, overlap: 0, follow: .1, back: .45, rest: .56, trunk: .15 }),
+   // mira degli esercizi (incrociato, lungolinea): il piatto gira attorno alla verticale durante la carica e torna più
+-  // piano del braccio (aimBack), così il ritorno resta sotto i 250 °/s
+-  cross:    Object.freeze({ hold: .35, prep: .55, overlap: 0, follow: .14, back: .52, aimBack: .8, rest: .45, trunk: .32 }),
+-  line:     Object.freeze({ hold: .35, prep: .55, overlap: 0, follow: .14, back: .52, aimBack: .8, rest: .45, trunk: .32 }),
++  // piano del braccio (back) e tornano più piano del dritto: il piatto e il braccio rientrano insieme, sotto i 250 °/s
++  cross:    Object.freeze({ hold: .35, prep: .55, overlap: 0, follow: .14, back: .62, aimBack: .8, rest: .4, trunk: .32 }),
++  line:     Object.freeze({ hold: .35, prep: .55, overlap: 0, follow: .14, back: .62, aimBack: .8, rest: .4, trunk: .32 }),
+ });
+ // servizio: fermo, preparazione (la mano scende un poco e il telefono si inclina indietro, ≤ 60 °/s), lancio, raccordo
+ // (minimo jerk, la mano va sopra la testa, il telefono ruota appena), battuta che comincia `overlap` prima della fine del
+@@ -149,6 +149,34 @@ export const PHASES = Object.freeze({
+   accompagnamento: 'Accompagna', ritorno: 'Ritorno', lancio: 'Lancio', caricamento: 'Braccio in alto', battuta: 'Battuta',
+ });
+ 
++// Camere per scheda (brief §5.3; per dritto, rovescio, servizio, pallonetto, palla corta e presa quelle del prototipo
++// illustrato già giudicato, prototipi/b9-motion/main.js VIEWS). Solo dati per il disegno: dir = direzione soggetto →
++// camera nel campo (x a destra, y in alto, +z dietro chi gioca; il mancino la specchia, cameraFor), dist = distanza (m,
++// prospettiva moderata), follow = la camera segue la mano (media pesata su ±window s, mix tra il centro dell'arco e la
++// mano, size = altezza inquadrata in m), views/seq = presa: due viste ferme e il giro della camera tra le due (s).
++export const CAMERAS = Object.freeze({
++  grip: Object.freeze({ views: Object.freeze([[-.36, .78, .5], [.95, .3, -.12]]), dist: 1.0, seq: Object.freeze([3, 1.5, 3, 1.5]), read: 'pollice sul bordo destro, dita attorno al sinistro, cima in avanti e verso l\u2019interno' }),
++  ready: Object.freeze({ dir: [.6, .45, .8], dist: 2.2, read: 'telefono fermo nella posa di partenza' }),
++  forehand: Object.freeze({ dir: [-.35, .62, 1], dist: 2.2, read: 'arco orizzontale da destra a sinistra, mano alla stessa altezza' }),
++  flat: Object.freeze({ dir: [-.35, .62, 1], dist: 2.2, read: 'come il dritto, più veloce' }),
++  backhand: Object.freeze({ dir: [.35, .62, 1], dist: 2.2, read: 'arco da sinistra a destra, partenza dall\u2019anca sinistra' }),
++  slice: Object.freeze({ dir: [-.2, .22, 1], dist: 2.2, read: 'la mano scende durante il colpo' }),
++  lob: Object.freeze({ dir: [1, .5, -.35], dist: 2.2, read: 'la mano sale, schermo verso il cielo alla fine' }),
++  drop: Object.freeze({ dir: [.75, .55, .6], dist: 2.2, read: 'gesto corto e lento, mano che scende un poco' }),
++  serve: Object.freeze({ dir: [1, .2, .25], dist: 2.2, follow: Object.freeze({ window: .24, mix: .5, size: .45 }), read: 'lancio, braccio in alto con il telefono di faccia, battuta al colmo della palla' }),
++  smash: Object.freeze({ dir: [1, .2, .25], dist: 2.2, follow: Object.freeze({ window: .24, mix: .5, size: .45 }), read: 'braccio in alto, poi giù deciso' }),
++  volley: Object.freeze({ dir: [.55, .45, -.7], dist: 2.2, read: 'preparazione quasi nulla, gesto corto e deciso' }),
++  cross: Object.freeze({ dir: [-.35, .62, 1], dist: 2.2, read: 'piatto girato verso il centro' }),
++  line: Object.freeze({ dir: [-.35, .62, 1], dist: 2.2, read: 'piatto girato verso l\u2019esterno' }),
++});
++// camera della scheda per la mano: il mancino vede lo specchio (x → −x della direzione)
++export function cameraFor(id, { hand = 'right' } = {}){
++  const c = CAMERAS[id]; if (!c) return null;
++  if (hand !== 'left') return c;
++  const m = v => [-v[0], v[1], v[2]];
++  return { ...c, ...(c.dir ? { dir: m(c.dir) } : {}), ...(c.views ? { views: c.views.map(m) } : {}) };
++}
++
+ const SH = SHOULDER;
+ const readyPos = () => add(SH, READY);
+ 
+@@ -362,6 +390,12 @@ export const HAND_LOCAL = Object.freeze({
+ // Scheletro nel campo per una posa del telefono { pos, q } (della mano `hand`): spalla S, gomito E, polso W (m), versori
+ // dell'avambraccio F (polso → gomito) e del braccio U (gomito → spalla), flessione del gomito (gradi), dita e pollice,
+ // punti del telefono. Il mancino è lo specchio esatto dello scheletro del destro.
++// Affidabili per il disegno: telefono, mano, dita, polso e avambraccio (rigidi con il telefono: «polso fermo», la
++// direzione dell'avambraccio è quella del prototipo illustrato giudicato, brief §5.2: si disegna fino al gomito, che
++// sfuma fuori quadro). Indicativi: spalla, braccio ed elbowDeg. Il braccio superiore non è risolto con la cinematica
++// inversa: S è a ARM.upper dal gomito verso la spalla del modello e shoulderShift dice quanto se ne scosta (fino a
++// ~0,43 m nel dritto all'impatto: con il telefono a 0,46 m dalla spalla e l'avambraccio rigido il gomito non sta a
++// distanza di braccio dalla spalla fissa). Chi vuole disegnare anche il braccio deve risolverlo (docs/b9/posa-gesti.md).
+ export function gestureRig(pose, { hand = pose.hand || 'right' } = {}){
+   const left = hand === 'left', pr = left ? { pos: mirrorPos(pose.pos), q: mirrorQ(pose.q) } : pose;
+   const T = v => add(pr.pos, qrot(pr.q, v));
+diff --git a/natpf-tennis/test/pose-sensors.mjs b/natpf-tennis/test/pose-sensors.mjs
+index 72e0de1..67a9a67 100644
+--- a/natpf-tennis/test/pose-sensors.mjs
++++ b/natpf-tennis/test/pose-sensors.mjs
+@@ -32,10 +32,14 @@ export const mirrorPose = p => ({ ...p, pos: [-p.pos[0], p.pos[1], p.pos[2]], q:
+ // imita (1 = tempo reale, 1,25 = più veloce). Prima il telefono si porta lentamente nella posa iniziale e resta fermo
+ // 0,4 s. after(k): dopo ogni campione (per cambiare il contesto del rilevatore fuori dagli ascoltatori). Restituisce
+ // l'istante (ms del telefono) che corrisponde a t = 0 del gesto.
++// Il campione k (istante p.t del telefono) porta la rotazione dell'intervallo [k, k+1] della posa (differenza in avanti:
++// così l'orientamento integrato da sampleWorld coincide con quello disegnato); il suo istante nel gesto è quindi il
++// centro dell'intervallo, (k + ½)·passo: la corrispondenza tiene conto di questo mezzo campione (senza, ogni picco
++// letto risulterebbe 8,3 ms prima del contatto disegnato).
+ export function playPose(p, poseAt, { t0 = 0, t1, rate = 1, after = null } = {}){
+   returnTo(p, poseAt(t0).q, 60); p.rest(400, 2);
+   const dt = DT/1000, dtg = dt*rate, N = Math.round((t1 - t0)/dtg), at = k => poseAt(t0 + k*dtg);
+-  const start = p.t - t0/rate*1000;
++  const start = p.t - t0/rate*1000 - DT/2;
+   let prev = at(-1), cur = at(0);
+   for (let k = 0; k < N; k++){
+     const next = at(k + 1);
 -- 
 2.43.0
 
