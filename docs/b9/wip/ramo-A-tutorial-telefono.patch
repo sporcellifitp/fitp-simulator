@@ -1,7 +1,7 @@
 From cb32d43a869ab6a72b14e12f2151b1d041b1279e Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 5 Nov 2026 22:26:31 +0000
-Subject: [PATCH 1/5] B9 A: modale del tutorial compatta con le frecce e
+Subject: [PATCH 1/7] B9 A: modale del tutorial compatta con le frecce e
  schermate esclusive del telefono
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -1974,7 +1974,7 @@ index 0000000..a05be11
 From 75d819d41edf81d5b79962c366d7647e3550a507 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 03:02:20 +0000
-Subject: [PATCH 2/5] WIP B9: modifiche in corso salvate prima della ripresa
+Subject: [PATCH 2/7] WIP B9: modifiche in corso salvate prima della ripresa
  (limite d'uso)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -2070,7 +2070,7 @@ index 8e3975b..a367cea 100644
 From 8c095a35b4bdd03060ee70fa7312b79ecefa6639 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 03:09:39 +0000
-Subject: [PATCH 3/5] B9 A: giocatore fermo dietro la modale del tutorial,
+Subject: [PATCH 3/7] B9 A: giocatore fermo dietro la modale del tutorial,
  prova nel browser con le schede sfogliate dal telefono
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2148,7 +2148,7 @@ index 246d5b7..0863a29 100644
 From 6b2af15c6cd8667643424312bd2affeb1ddf2451 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 03:12:03 +0000
-Subject: [PATCH 4/5] B9 A: schermo del telefono spento, cosa si garantisce via
+Subject: [PATCH 4/7] B9 A: schermo del telefono spento, cosa si garantisce via
  browser e protocollo di prova (docs/b9/schermo-spento.md)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2373,7 +2373,7 @@ index 38e163c..2a9ec92 100644
 From 43dea4e76ca8e5c49d5f5f83bdfbf54eb832d172 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 03:21:46 +0000
-Subject: [PATCH 5/5] B9 A: prova nel browser della modale e del telefono
+Subject: [PATCH 5/7] B9 A: prova nel browser della modale e del telefono
  (natpf-tutorial-phone.mjs), 36/36
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2714,6 +2714,107 @@ index 0000000..bec0763
 +finally { await B.close(); stop(); }
 +summary();
 +setTimeout(() => process.exit(), 300);
+-- 
+2.43.0
+
+
+From d9b1b558975804b48a046a92e7aa3addb8f1dabf Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 03:26:59 +0000
+Subject: [PATCH 6/7] =?UTF-8?q?B9=20A:=20stesso=20schermo=20con=20la=20mod?=
+ =?UTF-8?q?ale=20non=20a=20tutta=20met=C3=A0,=20velo=20del=20telefono=20op?=
+ =?UTF-8?q?aco?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Stesso schermo: la scheda del tutorial di ciascun giocatore passa da 84% a 76% della propria metà (al
+centro, 69% dell'altezza a 1280×720 e a 1920×1080): proporzionata, non a tutta metà. Telefono: il velo
+«Tocca lo schermo per riprendere» ha lo sfondo pieno della pagina (prima si leggevano «Pronto» e i
+pulsanti sotto, guardato nelle schermate).
+
+Test: gioco 768/768, sito 193/193, build ok, natpf-tutorial-phone 36/36 (schermate guardate).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ natpf-tennis/natpf-ui.css          | 2 +-
+ site/tennis/racchetta.html         | 2 +-
+ tools/e2e/natpf-tutorial-phone.mjs | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/natpf-tennis/natpf-ui.css b/natpf-tennis/natpf-ui.css
+index 4b9c00a..e30ec92 100644
+--- a/natpf-tennis/natpf-ui.css
++++ b/natpf-tennis/natpf-ui.css
+@@ -1427,7 +1427,7 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
+    destra), sopra la pagina «Collega», proporzionato alla metà; le due metà sono indipendenti */
+ .natpf-tutorial.half { inset: 0 auto 0 0; width: 50cqw; padding: 2cqh 1cqw; }
+ .natpf-tutorial.half[data-side="right"] { inset: 0 0 0 auto; }
+-.natpf-tutorial.half .tut-card { --tw: min(42cqw, 96cqh, 900px); height: min(calc(var(--tw) * 1.02), 80cqh); padding: 1.8cqh 1.4cqw; gap: 1.1cqh; }
++.natpf-tutorial.half .tut-card { --tw: min(38cqw, 92cqh, 860px); height: min(calc(var(--tw) * 1.02), 80cqh); padding: 1.8cqh 1.4cqw; gap: 1.1cqh; }
+ .natpf-tutorial.half .tut-body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; gap: 1.1cqh; }
+ .natpf-tutorial.half .tut-kicker { font-size: clamp(10px, .9cqw, 15px); }
+ .natpf-tutorial.half .tut-count { font-size: clamp(11px, 1cqw, 16px); }
+diff --git a/site/tennis/racchetta.html b/site/tennis/racchetta.html
+index e99728f..9867462 100644
+--- a/site/tennis/racchetta.html
++++ b/site/tennis/racchetta.html
+@@ -58,7 +58,7 @@
+   #tutNav .btn:disabled{opacity:.35}
+   /* di nuovo in primo piano (schermo riacceso): un tocco riprende schermo acceso, sensori e schermo intero */
+   #wakeVeil{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;
+-    background:rgba(7,18,51,.94);color:var(--ink)}
++    background:radial-gradient(circle at 50% 40%,#12286e,var(--bg) 70%);color:var(--ink)}
+   #wakeVeil b{font-size:28px;line-height:1.15} #wakeVeil p{margin:0;font-size:17px;color:var(--muted);max-width:340px;line-height:1.4}
+   #wakeVeil .tap{width:84px;height:84px;border-radius:50%;border:4px solid var(--ball);animation:veil-pulse 1.4s ease-in-out infinite}
+   @keyframes veil-pulse{50%{transform:scale(1.12);box-shadow:0 0 0 10px rgba(232,255,58,.18)}}
+diff --git a/tools/e2e/natpf-tutorial-phone.mjs b/tools/e2e/natpf-tutorial-phone.mjs
+index bec0763..6f4853b 100644
+--- a/tools/e2e/natpf-tutorial-phone.mjs
++++ b/tools/e2e/natpf-tutorial-phone.mjs
+@@ -274,8 +274,8 @@ try {
+     const sg = await pc.evaluate(() => { const r = el => { const b = el.getBoundingClientRect(); return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) }; }; return ['p1', 'p2'].map(id => r(document.querySelector(`#split-tut-${id} .tut-card`))); });
+     await gshot('stesso-schermo-1280x720', pc);
+     await pshot(ph1, '12-stesso-schermo-p1');
+-    check('stesso schermo: due modali, ciascuna al centro della sua metà, frecce del P1 muovono solo la sua', h.open.p1 && h.open.p2 && h.idx.p1 === 2 && h.idx.p2 === 0 && s1.gate.i === 2 && s2.gate.i === 0
+-      && Math.abs(sg[0].x + sg[0].w/2 - 320) <= 4 && Math.abs(sg[1].x + sg[1].w/2 - 960) <= 4 && sg[0].w <= 640*.9, JSON.stringify({ h, sg }));
++    check('stesso schermo: due modali, ciascuna al centro della sua metà (non a tutta metà), frecce del P1 muovono solo la sua', h.open.p1 && h.open.p2 && h.idx.p1 === 2 && h.idx.p2 === 0 && s1.gate.i === 2 && s2.gate.i === 0
++      && Math.abs(sg[0].x + sg[0].w/2 - 320) <= 4 && Math.abs(sg[1].x + sg[1].w/2 - 960) <= 4 && sg[0].w <= 640*.8 && sg[0].h <= 720*.8, JSON.stringify({ h, sg }));
+     await pc.setViewportSize({ width: 1920, height: 1080 }); await pc.waitForTimeout(600);
+     await gshot('stesso-schermo-1920x1080', pc);
+     await pc.setViewportSize({ width: 1280, height: 720 }); await pc.waitForTimeout(400);
+-- 
+2.43.0
+
+
+From 7b4a766487953a0a6f3b05b285cc8a632d72858e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 03:33:33 +0000
+Subject: [PATCH 7/7] B9 A: schermo-spento.md con gli esiti delle prove nel
+ browser
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ docs/b9/schermo-spento.md | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/docs/b9/schermo-spento.md b/docs/b9/schermo-spento.md
+index db7d4e6..9395b91 100644
+--- a/docs/b9/schermo-spento.md
++++ b/docs/b9/schermo-spento.md
+@@ -121,6 +121,8 @@ diagnostiche degli eventi mostrano spegnimenti nonostante le misure sopra.
+ - Test unitari: `tools/test/phone-keep.test.mjs` (blocco dello schermo, velo), `tools/test/phone-screen.test.mjs`
+   (schermate esclusive e ripresa), `tools/test/phone-link-fast.test.mjs` (abbinamento nuovo contro ripresa, pagina
+   nascosta da quando), `natpf-tennis/test/natpf-phone-watch.test.mjs` (testo della pausa con la durata).
+-- Prove nel browser con visibilità e blocco simulati nella pagina: `tools/e2e/natpf-phone-keep.mjs`,
+-  `natpf-phone-blackout.mjs`, `natpf-training-reconnect.mjs` (esiti nel registro del compito A).
++- Prove nel browser con visibilità e blocco simulati nella pagina (06/11, Chromium headless): `natpf-phone-keep.mjs`
++  13/13, `natpf-phone-blackout.mjs` 6/6, `natpf-training-reconnect.mjs` 6/6 e `natpf-tutorial-phone.mjs` 36/36 (pausa
++  con «da 3 s», velo «Tocca lo schermo per riprendere» quando il blocco vuole un tocco, ripresa del computer senza
++  tutorial né QR, un tocco sul velo riprende il blocco).
+ - **Non verificato**: tutto quello che riguarda telefoni veri (tabella sopra), Safari su iPhone in particolare.
 -- 
 2.43.0
 

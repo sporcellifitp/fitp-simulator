@@ -1,7 +1,7 @@
 From 8698c4bd4780e8f2bc9427904b625224a72b4529 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Thu, 5 Nov 2026 22:21:41 +0000
-Subject: [PATCH 1/3] B9 pronto 1v1: stesso schermo con schede per giocatore e
+Subject: [PATCH 1/4] B9 pronto 1v1: stesso schermo con schede per giocatore e
  conto alla rovescia
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -1016,7 +1016,7 @@ index ff1bc91..2e2482a 100644
 From 4d4451066f29a0f47aae4eb51ace6ee4d234254a Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 03:02:21 +0000
-Subject: [PATCH 2/3] WIP B9: modifiche in corso salvate prima della ripresa
+Subject: [PATCH 2/4] WIP B9: modifiche in corso salvate prima della ripresa
  (limite d'uso)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -1336,7 +1336,7 @@ index 0000000..0cb574a
 From f65efb93ca5529e32aeacc163f297d144f8ffbb8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Fri, 6 Nov 2026 03:12:29 +0000
-Subject: [PATCH 3/3] =?UTF-8?q?B9=20pronto=201v1:=20sfida=20un=20amico=20c?=
+Subject: [PATCH 3/4] =?UTF-8?q?B9=20pronto=201v1:=20sfida=20un=20amico=20c?=
  =?UTF-8?q?on=20schede,=20=C2=ABPronto=20=E2=9C=93=C2=BB=20verde=20e=20?=
  =?UTF-8?q?=C2=ABAnnulla=C2=BB;=20prova=20stesso=20schermo=20verde?=
 MIME-Version: 1.0
@@ -1951,6 +1951,262 @@ index 0cb574a..fd965ce 100644
    await sleep(4000);
    v = await view(g);
    check('   nessuna partita, si resta nella pagina dei telefoni', !v.session && v.step === 'connect' && v.visible);
+-- 
+2.43.0
+
+
+From 061a729019f7e04a5b3e56e8c5614328d3203736 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 03:26:29 +0000
+Subject: [PATCH 4/4] B9 pronto 1v1: prova nel browser della sfida estesa, nomi
+ delle schede, conferma solo da collegati
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- natpf-1v1-p2p.mjs, passo 4: colore calcolato del pulsante del P2 (giallo «Sono pronto»,
+  verde pieno «Pronto ✓»), «Annulla», secondo clic, schede sui due computer, «Gioca» grigio
+  e poi giallo sull'host, pulsante in vista a 1280×720 e nel ledwall; schermate a 1280×720,
+  1920×1080 e ledwall 720×720 (senza fotogramma nuovo: con WebGL software fermava il relay)
+- CSS: «tu» nella barra dell'invito non più a tutta riga (schiacciava il nome in «PLA…»);
+  misure fisse delle schede nel pannello del P2 (a 1920×1080 i nomi erano tagliati)
+- «lo vede ✓» solo da collegati in lobby: con il collegamento perso l'ultimo p2Ready
+  ricevuto restava vero
+- natpf-split-ready.mjs: telefono fotografato subito, bordi rossi controllati
+- docs/b9/pronto-1v1.md: cosa è fatto, protocollo «ev count» del telefono, prove, non verificato
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ docs/b9/pronto-1v1.md                         | 74 +++++++++++++++++++
+ natpf-tennis/natpf-ui.css                     |  8 ++
+ natpf-tennis/src/natpf/natpf_versus_ui.js     |  4 +-
+ natpf-tennis/test/natpf-versus-ready.test.mjs |  5 ++
+ tools/e2e/natpf-1v1-p2p.mjs                   | 64 +++++++++++++++-
+ 5 files changed, 152 insertions(+), 3 deletions(-)
+ create mode 100644 docs/b9/pronto-1v1.md
+
+diff --git a/docs/b9/pronto-1v1.md b/docs/b9/pronto-1v1.md
+new file mode 100644
+index 0000000..96aa5ee
+--- /dev/null
++++ b/docs/b9/pronto-1v1.md
+@@ -0,0 +1,74 @@
++# B9 · Compito B — stato «pronto» nel 1v1: cosa è fatto
++
++> 06/11/2026, agente Claude, ramo del worktree `wf_e8b0b59b-1e4-2`. Consegna in `docs/b9/compiti.md` (Compito B),
++> analisi in `docs/b9/analisi-pronto-1v1.md`. Qui solo quello che serve a chi unisce il ramo: file, protocollo del
++> telefono, differenze dall'analisi, prove, cosa non è verificato.
++
++## Stesso schermo («Collega i due telefoni»)
++
++- `natpf-tennis/src/natpf/natpf_ready.js` (nuovo, funzioni pure + disegno idempotente): quattro stati
++  `off · prep · ready · ko` («In attesa», «Si prepara», «Pronto», «Problema» o la parola precisa: «Scollegato»), sempre
++  con colore, icona e parola; conto alla rovescia (`createCountdown`, 3 s) che scatta una volta, si annulla e riparte.
++- `natpf_split_ui.js`: ogni metà è la scheda del giocatore con il nome scritto; stato «Guarda il tutorial» quando il
++  tutorial della metà è aperto (prima «Attiva i sensori» con i sensori già attivi); barra dell'avvio sempre in vista
++  (chi manca e perché); con tutti e due pronti e il tutorial chiuso, conto di 3 s grande sul computer e annunciato sui
++  telefoni, poi si gioca senza toccare il PC; telefono che cade durante il conto → conto annullato con il motivo nella
++  barra e sui telefoni; «Aspetta» o Esc lo fermano, poi «Gioca» nella barra.
++- `natpf_lobby.js`: niente più salto muto a «Partita» dopo 0,7 s (`autoAdvance` falso per `split`); nella pagina
++  «Partita» le schede dal vivo al posto del «VS» e «Gioca» grigio e spento se un telefono non è pronto.
++- CSS in `natpf-ui.css` (`cqw/cqh`, `@container natpf`): bordo verde su tutti i lati da pronti (prima il bordo
++  superiore restava giallo o rosa), «Impostazioni partita ›» neutro nella pagina dei telefoni.
++
++### Protocollo del telefono (una riga in `site/js/tennis/racchetta.js`)
++
++Il computer manda ai due telefoni il messaggio già esistente `ev` con un `k` nuovo:
++
++| Messaggio | Quando | Sul telefono |
++|---|---|---|
++| `{ t: 'ev', k: 'count', n: 3 \| 2 \| 1 }` | a ogni secondo del conto | avviso «Si gioca tra» con il numero, vibrazione breve |
++| `{ t: 'ev', k: 'count', n: 0 }` | a zero, si gioca | «Si gioca!», vibrazione più lunga |
++| `{ t: 'ev', k: 'count', stop: 1, txt }` | conto annullato o fermato | «Aspetta» con il motivo (2,4 s), poi la schermata di prima |
++
++È solo un avviso sopra la schermata (`flash`), non cambia gli stati del telefono: si integra con la macchina a stati del
++Compito A senza conflitti. Le pagine del telefono di prima ignorano `k: 'count'` (nessun ramo per `k` sconosciuti):
++compatibile nei due versi. **Differenza dall'analisi**: niente messaggio `duo` (nome, «chi sei», stato dell'altro) sul
++telefono, per toccare il meno possibile la pagina del telefono mentre un altro agente la estende; si può aggiungere dopo.
++
++## Sfida un amico (due computer, percorso sospeso: correzione minima)
++
++- `natpf_versus.js`: `hostInfo` (racchetta dell'host: telefono calibrato, webcam accesa, subito con mouse e tastiera),
++  `readyEcho` (conferma: «invio…» → «visto» quando il relay rimanda `p2Ready`, «non arriva» dopo 3 s), `guestBoard` e
++  `hostBoard` (schede), `guestLine` con stato `ready` (riga verde, diversa da «collegato»).
++- `natpf_versus_ui.js`, Player 2: «Sono pronto» giallo **senza ✓** → al clic **verde pieno «Pronto ✓»**
++  (`aria-pressed`); un secondo clic non toglie più il pronto (avviso «per tornare indietro premi «Annulla»»); pulsante
++  «Annulla» a parte, con l'avviso «Non sei più pronto»; due schede «Player 1» e «Player 2 · tu» con la conferma
++  «Player 1 lo vede ✓»; piede del pannello fisso in basso (a 1280×720 i pulsanti si vedevano a metà).
++- Host: due schede nella barra dell'invito («tu» con la racchetta, Player 2 in attesa · si prepara · pronto); «Gioca»
++  **grigio neutro** finché non si può (classe `is-wait`, al posto del giallo spento), giallo «Gioca ›» quando si può.
++- `game_engine.js`: lo snapshot della lobby porta anche `host` (`hostInfo()`), il P2 lo legge in `versusGuest.host`.
++  Un host di una versione di prima non lo manda: la scheda del Player 1 dice «Si prepara · prepara la partita».
++- `hud_ui.js`: «Bea pronto ✓» sotto il «VS» al posto dell'emoji.
++- Non fatto (analisi §4.2, facoltativo o fuori dalla correzione minima): conto alla rovescia tra due computer; pronto
++  che decade da solo se in lobby il telefono del P2 si scollega (in partita c'è già la pausa); pillola «pronti al
++  servizio!» quando il P2 è solo collegato.
++
++## Prove
++
++- Unità: `natpf-ready.test.mjs` (6), `natpf-split.test.mjs` (5 nuovi: niente salto, conto → partita, telefono che cade,
++  tutorial nella scheda, conto che riparte dopo la partita), `natpf-versus-ready.test.mjs` (6 nuovi: funzioni pure,
++  pannello del P2 con clic, secondo clic, «Annulla», conferma e «non arriva», scheda dell'host dallo snapshot, host con
++  «Gioca» grigio e snapshot con `host`); aggiornati `natpf-versus`, `natpf-versus-webcam` (secondo clic), `natpf-flows`.
++- Browser (Chromium con WebGL software, telefoni simulati con `devicemotion` sintetici):
++  - `tools/e2e/natpf-split-ready.mjs`: stesso schermo con due telefoni, tutorial, calibrazioni, conto 3-2-1 sul
++    computer e sui telefoni, partita senza toccare il PC, Esc, telefono chiuso durante il conto, pagina «Partita»;
++    schermate a 1280×720, 1920×1080 e nell'area di un ledwall 720×720. La calibrazione simulata ripete il gesto perso
++    (sotto carico un gesto sintetico poteva non arrivare).
++  - `tools/e2e/natpf-1v1-p2p.mjs` (sfida senza server, WebRTC): passo 4 esteso con il colore calcolato del pulsante,
++    «Annulla», secondo clic, schede, «Gioca» grigio/giallo; schermate a 1280×720, 1920×1080 e ledwall.
++
++## Non verificato
++
++- Telefoni veri, due computer veri, una rete vera: solo simulazioni sulla stessa macchina.
++- Vibrazione del telefono al conto (nel browser di prova non c'è).
++- Sfida tra due computer con il relay del server (LAN): provata solo senza server (WebRTC); il relay del server
++  rimanda `p2Ready` allo stesso modo (`scripts/match-relay.mjs`), coperto dai test di unità del relay.
+diff --git a/natpf-tennis/natpf-ui.css b/natpf-tennis/natpf-ui.css
+index dec0611..b85ed1d 100644
+--- a/natpf-tennis/natpf-ui.css
++++ b/natpf-tennis/natpf-ui.css
+@@ -1152,6 +1152,14 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
+ .versus-board .ready-slot .ready-who b { font-size: clamp(16px, 2.4cqh, 26px); }
+ .versus-board .ready-slot .ready-detail { font-size: clamp(13px, 1.8cqh, 18px); }
+ @container natpf (max-width: 520px) { .versus-board { grid-template-columns: 1fr; } }
++/* «tu» accanto al nome: non il <small> a tutta riga della barra dell'invito (natpf.css), che schiacciava il nome in «PLA…» */
++.natpf-invite .versus-board .ready-you { width: auto; grid-column: auto; color: var(--text-3); }
++/* nel pannello del Player 2 (largo al massimo 560 px) misure fisse: con cqh a 1920×1080 il distintivo cresceva e
++   schiacciava i nomi */
++.natpf-sheet .versus-board .ready-slot { gap: 2px 8px; padding: 8px 10px 8px 16px; }
++.natpf-sheet .versus-board .ready-slot .ready-who b { font-size: 19px; }
++.natpf-sheet .versus-board .ready-slot .ready-detail { font-size: 14px; }
++.natpf-sheet .versus-board .ready-slot .ready-badge { font-size: 13px; }
+ /* pannello del Player 2: pulsanti sempre in vista anche quando il pannello scorre (a 1280×720 si vedevano a metà) */
+ .natpf-guest-dialog .sheet-actions { position: sticky; bottom: -22px; z-index: 1; margin: 16px -28px -22px; padding: 12px 28px 22px; background: var(--panel-solid); box-shadow: 0 -10px 18px rgba(4, 8, 24, 0.5); }
+ /* riga di stato del Player 2 pronto: verde, diversa da «collegato» */
+diff --git a/natpf-tennis/src/natpf/natpf_versus_ui.js b/natpf-tennis/src/natpf/natpf_versus_ui.js
+index ce893ad..4681fc6 100644
+--- a/natpf-tennis/src/natpf/natpf_versus_ui.js
++++ b/natpf-tennis/src/natpf/natpf_versus_ui.js
+@@ -372,7 +372,9 @@ export class NatpfVersusUi {
+     const modal = $('natpf-guest-modal');
+     show(modal?.querySelector('[data-versus-unready]'), this.ready && st === 'lobby');
+     // schede: Player 1 (l'host, con la sua racchetta se la manda) e «tu», con la conferma che l'host ti vede pronto
+-    const echo = readyEcho({ ready: this.ready, echoed: !!this.engine.roomStatus?.p2Ready, sinceMs: performance.now() - (this.readyAt || 0) });
++    // la conferma vale solo collegati in lobby (con il collegamento perso l'ultimo p2Ready ricevuto resta vero, ma l'host
++    // non lo sta vedendo)
++    const echo = readyEcho({ ready: this.ready, echoed: st === 'lobby' && !!this.engine.roomStatus?.p2Ready, sinceMs: performance.now() - (this.readyAt || 0) });
+     if (echo !== this._echo){ if (this._echo === 'sending' && echo === 'late') this.ui.diag?.recorder?.log?.('sfida.pronto', { conferma: 'non arriva' }); this._echo = echo; }
+     paintBoard(modal?.querySelector('[data-versus-board]'), guestBoard({ guest: st, ready: this.ready, echo, phone, webcam, host: this.engine.versusGuest?.host || null,
+       hostName: this.engine.roomStatus?.hostName || 'Player 1', guestName: this.engine.roomStatus?.guestName || 'Player 2' }));
+diff --git a/natpf-tennis/test/natpf-versus-ready.test.mjs b/natpf-tennis/test/natpf-versus-ready.test.mjs
+index 04408ed..c694fe2 100644
+--- a/natpf-tennis/test/natpf-versus-ready.test.mjs
++++ b/natpf-tennis/test/natpf-versus-ready.test.mjs
+@@ -93,6 +93,11 @@ test('Player 2: «Sono pronto» → verde pieno «Pronto ✓», un secondo clic
+   assert.equal(slot('p2').dataset.ready, 'ready'); assert.equal(detail('p2'), 'Ada lo vede ✓');
+   // la riga di stato del P2 pronto è «ready» (fondo verde), non più uguale a «collegato»
+   assert.equal(guestLine(ui.versus.guest, { ready: ui.versus.ready }).state, 'ready');
++  // collegamento con l'host perso: l'ultimo p2Ready ricevuto resta vero, ma «lo vede» non vale più (prova nel browser)
++  E.roomStatus = { ...E.roomStatus, p1Online: false }; E.versusGuest = { ...(E.versusGuest || {}), everLinked: true }; w.advance(300);
++  assert.equal(ui.versus.guest, 'lost');
++  assert.equal(slot('p1').dataset.ready, 'ko');
++  assert.equal(detail('p2'), 'Ada non lo vede: controlla il collegamento', 'non più «Ada lo vede ✓»');
+ });
+ 
+ test('Player 2: la scheda del Player 1 dice la racchetta dell’host (snapshot della lobby) e il collegamento perso', async () => {
+diff --git a/tools/e2e/natpf-1v1-p2p.mjs b/tools/e2e/natpf-1v1-p2p.mjs
+index ecf2607..b4cca09 100644
+--- a/tools/e2e/natpf-1v1-p2p.mjs
++++ b/tools/e2e/natpf-1v1-p2p.mjs
+@@ -7,7 +7,9 @@
+ //   2. il link porta stanza, ruolo, rete p2p e server di segnalazione;
+ //   3. P2 apre il gioco e scrive il codice («Ti hanno invitato?»): entra nella stanza, l'host lo vede entrato, «Gioca»
+ //      resta bloccato;
+-//   4. P2 «Sono pronto»: l'host lo vede pronto, «Gioca» si sblocca;
++//   4. P2 «Sono pronto»: l'host lo vede pronto, «Gioca» si sblocca; (B9) il pulsante del P2 diventa verde pieno
++//      «Pronto ✓» con «Annulla» accanto e la sua scheda dice che l'host lo vede; un secondo clic non lo toglie,
++//      «Annulla» sì («Gioca» dell'host torna grigio); schede e pulsanti fotografati a 1280×720, 1920×1080 e ledwall;
+ //   5. «Gioca»: si gioca al meglio di 3, servono tutti e due, punteggio uguale sulle due sessioni;
+ //      Il P2 colpisce con i dati del telefono (~1,4 KB a colpo, come natpf_phone_racket.js): fino al 30/10 dopo una decina
+ //      di suoi colpi lo stato della partita superava i 16300 byte, PeerJS lo scartava e il P2 restava su «collegamento
+@@ -68,6 +70,23 @@ const BOT = () => {
+ };
+ // il disegno con WebGL software rallenta i fotogrammi a 1–2 s: si toglie solo il render, la partita resta
+ const NO_RENDER = () => { const e = window.__natpfTennis; e.render = () => {}; };
++// schermata dell'interfaccia sopra l'ultimo fotogramma disegnato: niente fotogramma nuovo, che con WebGL software ferma
++// la pagina per secondi (l'host tiene il relay: il P2 risultava «collegamento perso» nelle schermate)
++const OUT = path.join(SP, 'versus-ready'); fs.mkdirSync(OUT, { recursive: true });
++const shot = async (p, name) => { await sleep(300); await p.screenshot({ path: `${OUT}/${name}.png` }); log('schermata ' + name); };
++const GREEN = 'rgb(54, 224, 122)';
++// pannello del Player 2: pulsante (scritta, colore calcolato, aria-pressed), «Annulla», schede, riga di stato
++const p2View = p => p.evaluate(() => {
++  const m = document.getElementById('natpf-guest-modal'), go = document.getElementById('natpf-guest-go'), un = m.querySelector('[data-versus-unready]');
++  const slot = id => { const el = m.querySelector(`[data-versus-board] [data-ready-slot="${id}"]`); return el ? `${el.dataset.ready}:${el.querySelector('[data-ready-word]').textContent}:${el.querySelector('[data-ready-detail]').textContent}` : null; };
++  const r = go.getBoundingClientRect();
++  return { label: go.textContent, bg: getComputedStyle(go).backgroundColor, pressed: go.getAttribute('aria-pressed'), cancel: !!un && !un.classList.contains('hidden'), me: slot('p2'), host: slot('p1'), line: document.querySelector('[data-versus-guest]')?.dataset.state, goInView: r.top >= 0 && r.bottom <= innerHeight };
++});
++// barra dell'invito dell'host: schede e «Gioca» (spento, classe, colore calcolato)
++const hostView = p => p.evaluate(() => {
++  const b = document.getElementById('btn-start-match');
++  return { slots: [...document.querySelectorAll('#natpf-invite [data-versus-board] [data-ready-slot]')].map(s => `${s.dataset.readySlot}:${s.dataset.ready}`).join(), disabled: b.disabled, wait: b.classList.contains('is-wait'), bg: getComputedStyle(b).backgroundColor, label: b.textContent.trim() };
++});
+ const ready = p => p.waitForFunction(() => window.__natpfTennis?.player?.model && window.__natpfTennis.racketKinematics && window.__natpfTennis.natpfUi?.versus, null, { timeout: 120000 });
+ // riga di stato della barra dell'invito dell'host: stato (on · ok · error) e testo
+ const line = p => p.evaluate(() => { const el = document.querySelector('#natpf-invite [data-versus-state]'); return el ? `${el.dataset.state}: ${el.textContent}` : ''; });
+@@ -125,9 +144,50 @@ try {
+   check('   P2 collegato all’host con WebRTC, pannello «Sono pronto»', p2linked && await p2.evaluate(() => __natpfTennis.playerRole === 'p2' && __natpfTennis.natpfP2p.status === 'connected'), await guestStatus(p2));
+   const joined = await until(p1, () => /è entrato/.test(document.querySelector('#natpf-invite [data-versus-state]')?.textContent || ''));
+   check('   l’host vede il P2 entrato, «Gioca» ancora bloccato', joined && await p1.evaluate(() => document.getElementById('btn-start-match').disabled), await line(p1));
+-  await p2.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.testInput = true; ui.selectController('mouse', { open: false }); document.getElementById('natpf-guest-go').click(); });
++  await p2.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.testInput = true; ui.selectController('mouse', { open: false }); });
++  await sleep(400);
++  let g2 = await p2View(p2), h1 = await hostView(p1);
++  check('   P2 prima del clic: «Sono pronto» giallo senza ✓, niente «Annulla», scheda «si prepara»', g2.label === 'Sono pronto' && g2.bg !== GREEN && !g2.cancel && /^prep:/.test(g2.me) && g2.line === 'lobby', JSON.stringify(g2));
++  check('   host: schede «tu» pronto e Player 2 «si prepara», «Gioca» grigio (non giallo spento)', h1.slots === 'p1:ready,p2:prep' && h1.disabled && h1.wait && h1.bg !== 'rgb(227, 255, 54)', JSON.stringify(h1));
++  for (const [p, w, h] of [[p2, 1280, 720], [p1, 1280, 720]]) await p.setViewportSize({ width: w, height: h });
++  await sleep(300);
++  check('   P2 a 1280×720: il pulsante si vede senza scorrere (piede del pannello fisso)', (await p2View(p2)).goInView);
++  await shot(p2, 'p2-1-prima-1280'); await shot(p1, 'host-1-p2-si-prepara-1280');
++  const tClick = Date.now();
++  await p2.evaluate(() => document.getElementById('natpf-guest-go').click());
+   const ready2 = await until(p1, () => document.querySelector('#natpf-invite [data-versus-state]')?.dataset.state === 'ok' && !document.getElementById('btn-start-match').disabled);
++  log(`dal clic del P2 a «Gioca» acceso sull'host: ${Date.now() - tClick} ms (con il passaggio dallo script)`);
+   check('4. P2 «Sono pronto»: l’host lo vede pronto e «Gioca» si sblocca', ready2, await line(p1));
++  const seen = await until(p2, () => /lo vede ✓/.test(document.querySelector('#natpf-guest-modal [data-ready-slot="p2"] [data-ready-detail]')?.textContent || ''), null, 8000);
++  await sleep(500);   // colori a transizione finita (il fondo di «Gioca» passa dal grigio al giallo in ~0,2 s)
++  g2 = await p2View(p2); h1 = await hostView(p1);
++  check('   P2: «Pronto ✓» verde pieno, «Annulla» accanto, riga verde, la sua scheda dice che l’host lo vede', seen && g2.label === 'Pronto ✓' && g2.bg === GREEN && g2.pressed === 'true' && g2.cancel && /^ready:Pronto:.* lo vede ✓$/.test(g2.me) && g2.line === 'ready', JSON.stringify(g2));
++  check('   P2: la scheda dell’host dice la sua racchetta (snapshot della lobby)', /^ready:Pronto:racchetta pronta$/.test(g2.host || ''), g2.host);
++  check('   host: Player 2 «pronto», «Gioca ›» giallo e attivo', h1.slots === 'p1:ready,p2:ready' && !h1.disabled && !h1.wait && h1.bg === 'rgb(227, 255, 54)' && /Gioca/.test(h1.label), JSON.stringify(h1));
++  await shot(p2, 'p2-2-pronto-1280'); await shot(p1, 'host-2-p2-pronto-1280');
++  // un secondo clic sul pulsante verde non toglie il pronto (prima sì, senza avviso)
++  await p2.evaluate(() => document.getElementById('natpf-guest-go').click());
++  await sleep(1200);
++  check('   P2: un secondo clic su «Pronto ✓» non lo toglie, l’host resta con «Gioca» attivo', (await p2.evaluate(() => __natpfTennis.natpfUi.versus.ready)) && !(await hostView(p1)).disabled);
++  // «Annulla»: non pronto, l'host lo vede («Gioca» grigio di nuovo); poi di nuovo pronto
++  await p2.evaluate(() => document.querySelector('#natpf-guest-modal [data-versus-unready]').click());
++  const unready = await until(p1, () => document.getElementById('btn-start-match').disabled, null, 8000);
++  await sleep(500);
++  g2 = await p2View(p2); h1 = await hostView(p1);
++  check('   «Annulla»: il P2 torna «Sono pronto» giallo, l’host «Gioca» grigio e spento', unready && g2.label === 'Sono pronto' && g2.bg !== GREEN && !g2.cancel && h1.wait && h1.slots === 'p1:ready,p2:prep', JSON.stringify({ g2, h1 }));
++  await p2.evaluate(() => document.getElementById('natpf-guest-go').click());
++  check('   di nuovo «Sono pronto»: l’host lo rivede pronto', await until(p1, () => !document.getElementById('btn-start-match').disabled, null, 8000));
++  // le stesse schede a 1920×1080 e, sull'host, in un'area di ledwall 720×720 (come ?area=0,0,720,720)
++  for (const p of [p1, p2]) await p.setViewportSize({ width: 1920, height: 1080 });
++  await sleep(500);
++  await shot(p2, 'p2-3-pronto-1920'); await shot(p1, 'host-3-pronto-1920');
++  for (const p of [p1, p2]){ await p.setViewportSize({ width: 1280, height: 720 }); await p.evaluate(() => __natpfTennis.natpfUi.screen.restore({ preset: 'full', area: { x: 0, y: 0, w: 720, h: 720 }, margins: {} })); }
++  await sleep(500);
++  check('   P2 nell’area del ledwall: il pulsante si vede', (await p2View(p2)).goInView);
++  await shot(p1, 'host-4-pronto-ledwall-720'); await shot(p2, 'p2-4-pronto-ledwall-720');
++  for (const p of [p1, p2]) await p.evaluate(() => __natpfTennis.natpfUi.screen.restore({ preset: 'full', area: null, margins: {} }));
++  for (const p of [p1, p2]) await p.setViewportSize({ width: 1100, height: 680 });
++  await sleep(300);
+ 
+   /* 5: partita */
+   await p1.evaluate(() => document.getElementById('btn-start-match').click());
 -- 
 2.43.0
 

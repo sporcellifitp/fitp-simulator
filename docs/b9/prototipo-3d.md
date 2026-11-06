@@ -31,5 +31,10 @@
   5. causa vera dei graffi trovata contando i triangoli invertiti (523, di cui 504 nella parte che sfuma): superfici
      dell'omero piegate nella piega del gomito. Tolto l'omero dalla SDF → 19 invertiti (tutti nelle pieghe delle dita,
      ora girati); 39,8k vertici, 62k triangoli, 2,1 s di costruzione in node.
-- (in corso) pavimento infinito (orizzonte senza spigolo), camera che segue la mano in servizio e schiacciata, viste a
-  tre quarti per pallonetto e palla corta; poi fotogrammi finali, misure, rapporto.
+- Fatti prima dell'interruzione: pavimento ampio con nebbia (orizzonte senza spigolo), camera che segue la mano in
+  servizio e schiacciata (vista `segui`, media mobile ±0,24 s), vista bassa da dietro per pallonetto, palla corta, tagliato.
+- **Ripresa 06/11 (terzo agente):** fotogrammi rifatti da `scratchpad/b9/b9-3d/` (vite su una porta propria). Difetti
+  visti nei fotogrammi del 05/11 sera da correggere: (a) la scia passa davanti allo schermo del telefono all'impatto;
+  (b) i fantasmi delle pose sembrano lastre di vetro grandi (soprattutto vicino alla camera nel servizio); (c) banda
+  scura in alto nella vista del servizio; (d) pallonetto: mano piccola nel quadro; (e) avambraccio corto che sembra un
+  moncherino nella palla corta. In corso: iterazioni 10+ su questi punti, poi misure e fotogrammi finali.
