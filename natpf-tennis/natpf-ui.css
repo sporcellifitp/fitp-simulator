@@ -1506,6 +1506,10 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 .natpf-tutorial { position: absolute; inset: 0; z-index: 70; display: grid; place-items: center; padding: 2cqh 2cqw;
   background: rgba(4, 8, 24, 0.72); }
 .natpf-tutorial.hidden { display: none; }
+/* con un tutorial aperto nessuna sfocatura dal vivo dietro di lui (menu dello stesso schermo, pannelli dell'allenatore):
+   ogni fotogramma dell'animazione costringeva a rifare il backdrop-filter del menu sotto, e senza GPU l'animazione
+   scendeva da 59 a 27 fotogrammi al secondo (misurato, docs/b9/animazione-c.md); sotto il velo al 72% non si vede */
+:root:has(.natpf-tutorial:not(.hidden)) :not(.natpf-tutorial *) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 .natpf-tutorial .tut-card { --tw: min(70cqw, 124cqh, 1280px); box-sizing: border-box; width: var(--tw); height: min(calc(var(--tw) * 0.62), 78cqh);
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 1.4cqh; padding: 2cqh 1.8cqw;
   border-radius: var(--r-l); background: var(--panel-solid); border: 1px solid var(--line-strong);

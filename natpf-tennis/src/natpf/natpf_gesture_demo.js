@@ -667,7 +667,7 @@ export class NatpfGestureDemo {
     st.dpr = dpr; st.W = this.w; st.H = this.h;
     for (const k of [this.canvas, st.layer, st.ghost]){ k.width = Math.round(this.w*dpr); k.height = Math.round(this.h*dpr); }
     this.canvas.style.aspectRatio = `${this.w} / ${this.h}`;
-    this._frames = new Map(); this._ghosts = new Map(); this._bg = null; this._hudKey = null; this._dirty = true;
+    this._frames = new Map(); this._ghosts = new Map(); this._bg = null; this._floorKey = null; this._hudKey = null; this._dirty = true;
   }
   // id: chiave di GESTURES; hand: 'right' | 'left'; speed: numero o 'auto'
   play(id, { hand = this.hand, speed = 'auto' } = {}){
@@ -762,32 +762,43 @@ export class NatpfGestureDemo {
       g.addColorStop(0, BG.center); g.addColorStop(.55, BG.mid); g.addColorStop(1, BG.edge);
       x.fillStyle = g; x.fillRect(0, 0, W, H);
     }
-    c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(this._bg, 0, 0); c.restore();
-    if (this.compact) return;                       // compatta: niente piano, solo il soggetto
+    if (this.compact){ c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(this._bg, 0, 0); c.restore(); return; }   // compatta: solo il soggetto
     const M = motion(this.id, this.grip), y0 = Math.min(M.floor ??= M.pts.reduce((m, p) => Math.min(m, p[1]), Infinity) - .3, .75);
+    const sq = Math.max(.2, Math.min(1, Math.abs(dot(cam.fw, [0, -1, 0]))*1.15));
+    // piano (alone e linea di fondo): con la camera ferma si disegna una volta sopra il gradiente e si copia (meno pixel da
+    // riempire a ogni fotogramma); con la camera che segue o gira (servizio, schiacciata, presa) a ogni fotogramma
+    const C = CAMERAS[this.id] || CAMERAS.ready, still = !C.follow && !C.views, key = `${this.id}|${this.grip}|${this.hand}`;
+    if (still && this._floorKey !== key){
+      const fl = this._floor ||= document.createElement('canvas'); fl.width = this.canvas.width; fl.height = this.canvas.height;
+      const x = fl.getContext('2d', { alpha: false }); x.setTransform(1, 0, 0, 1, 0, 0); x.drawImage(this._bg, 0, 0);
+      x.setTransform(st.dpr, 0, 0, st.dpr, 0, 0); this._floorDraw(x, cam, y0, sq); this._floorKey = key;
+    }
+    c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(still ? this._floor : this._bg, 0, 0); c.restore();
+    if (!still) this._floorDraw(c, cam, y0, sq);
+    // ombra morbida della mano sul piano
     const X = [pose.pos[0], y0, pose.pos[2]];
     if (cam.depth(X) < .3) return;
     const o = cam.p(X), r = cam.rad(X, .16);
     c.save();
-    // alone del piano attorno al punto sotto la mano (ellisse schiacciata dalla prospettiva)
-    const R0 = [SHOULDER_X, y0, -.25], q0 = cam.p(R0), rr = cam.rad(R0, .75), sq = Math.max(.2, Math.min(1, Math.abs(dot(cam.fw, [0, -1, 0]))*1.15));
-    if (cam.depth(R0) > .3){
-      const ag = c.createRadialGradient(q0.x, q0.y, 0, q0.x, q0.y, rr);
-      ag.addColorStop(0, 'rgba(90,130,235,.16)'); ag.addColorStop(1, 'rgba(90,130,235,0)');
-      c.save(); c.translate(q0.x, q0.y); c.scale(1, sq); c.translate(-q0.x, -q0.y); c.fillStyle = ag; c.beginPath(); c.arc(q0.x, q0.y, rr, 0, 2*Math.PI); c.fill(); c.restore();
-      // tratto della linea di fondo campo davanti ai piedi, che sfuma ai lati
-      const A = [SHOULDER_X - .6, y0, -.35], B = [SHOULDER_X + .6, y0, -.35];
-      if (cam.depth(A) > .3 && cam.depth(B) > .3){
-        const pa = cam.p(A), pb = cam.p(B), lg = c.createLinearGradient(pa.x, pa.y, pb.x, pb.y);
-        lg.addColorStop(0, 'rgba(225,235,255,0)'); lg.addColorStop(.5, 'rgba(225,235,255,.17)'); lg.addColorStop(1, 'rgba(225,235,255,0)');
-        c.beginPath(); c.moveTo(pa.x, pa.y); c.lineTo(pb.x, pb.y); c.lineCap = 'round'; c.lineWidth = Math.max(1.5, st.ow*1.5); c.strokeStyle = lg; c.stroke();
-      }
-    }
-    // ombra morbida della mano sul piano
     const sg = c.createRadialGradient(o.x, o.y, 0, o.x, o.y, r);
     sg.addColorStop(0, 'rgba(2,6,20,.4)'); sg.addColorStop(1, 'rgba(2,6,20,0)');
     c.translate(o.x, o.y); c.scale(1, sq*.8); c.translate(-o.x, -o.y); c.fillStyle = sg; c.beginPath(); c.arc(o.x, o.y, r, 0, 2*Math.PI); c.fill();
     c.restore();
+  }
+  // alone del piano attorno al punto sotto la mano (ellisse schiacciata dalla prospettiva) e tratto della linea di fondo
+  // campo davanti ai piedi, che sfuma ai lati
+  _floorDraw(c, cam, y0, sq){
+    const st = this.st, R0 = [SHOULDER_X, y0, -.25];
+    if (cam.depth(R0) <= .3) return;
+    const q0 = cam.p(R0), rr = cam.rad(R0, .75), ag = c.createRadialGradient(q0.x, q0.y, 0, q0.x, q0.y, rr);
+    ag.addColorStop(0, 'rgba(90,130,235,.16)'); ag.addColorStop(1, 'rgba(90,130,235,0)');
+    c.save(); c.translate(q0.x, q0.y); c.scale(1, sq); c.translate(-q0.x, -q0.y); c.fillStyle = ag; c.beginPath(); c.arc(q0.x, q0.y, rr, 0, 2*Math.PI); c.fill(); c.restore();
+    const A = [SHOULDER_X - .6, y0, -.35], B = [SHOULDER_X + .6, y0, -.35];
+    if (cam.depth(A) > .3 && cam.depth(B) > .3){
+      const pa = cam.p(A), pb = cam.p(B), lg = c.createLinearGradient(pa.x, pa.y, pb.x, pb.y);
+      lg.addColorStop(0, 'rgba(225,235,255,0)'); lg.addColorStop(.5, 'rgba(225,235,255,.17)'); lg.addColorStop(1, 'rgba(225,235,255,0)');
+      c.save(); c.beginPath(); c.moveTo(pa.x, pa.y); c.lineTo(pb.x, pb.y); c.lineCap = 'round'; c.lineWidth = Math.max(1.5, st.ow*1.5); c.strokeStyle = lg; c.stroke(); c.restore();
+    }
   }
   // fantasma: sagoma a contorno disegnata una volta per scheda e misura e poi copiata; con la camera che segue (che si
   // sposta senza girare né cambiare focale) la copia si sposta di quanto si sposta la proiezione del telefono
