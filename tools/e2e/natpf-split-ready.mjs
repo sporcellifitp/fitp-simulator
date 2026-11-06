@@ -111,6 +111,10 @@ try {
   await sleep(700);
   const qrLed = await g.evaluate(() => ['p1', 'p2'].map(id => { const el = document.getElementById(`split-qr-${id}`), b = el.getBoundingClientRect(), t = document.elementFromPoint(b.left + b.width/2, b.top + b.height/2); return { id, top: Math.round(b.top), bottom: Math.round(b.bottom), center: !!t && el.contains(t), inArea: b.bottom <= 720 && b.top >= 0 }; }));
   check('   ledwall 720×720: i due QR interi nell\'area e liberi al centro (la barra non copre il QR del Player 2)', qrLed.every(q => q.center && q.inArea), JSON.stringify(qrLed));
+  // schede affiancate allineate: stessa altezza, distintivo alla stessa altezza, QR alla stessa altezza (revisione B9 del
+  // 06/11: il distintivo del P1 andava a capo e i QR erano sfalsati di 15 px)
+  const cardsLed = await g.evaluate(() => ['p1', 'p2'].map(id => { const c = document.querySelector(`[data-split-player="${id}"]`), t = el => Math.round(el.getBoundingClientRect().top); const b = c.getBoundingClientRect(); return { top: Math.round(b.top), bottom: Math.round(b.bottom), badge: t(c.querySelector('.ready-badge')), qr: t(c.querySelector('.natpf-qr')) }; }));
+  check('   ledwall 720×720: le due schede allineate (bordo, distintivo, QR)', ['top', 'bottom', 'badge', 'qr'].every(k => Math.abs(cardsLed[0][k] - cardsLed[1][k]) <= 1), JSON.stringify(cardsLed));
   await shot('1b-qr-ledwall-720');
   await g.evaluate(() => __natpfTennis.natpfUi.screen.restore({ preset: 'full', area: null, margins: {} }));
   await sleep(400);
