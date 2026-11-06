@@ -81,6 +81,47 @@ test('tutorial prima della calibrazione: modale con presa e gesti, il telefono a
   T.stop({ completed: false, silent: true });
 });
 
+// Revisione B9 (06/11), minore f: nell'Allenamento il telefono mostrava per ~0,76 s la calibrazione («Preparati») tra
+// «Attiva i sensori» e il tutorial: nella pagina «Collega» il computer non chiedeva ancora di aspettare il tutorial e la
+// lobby entrava in campo solo con il telefono in calibrazione. Ora il telefono aspetta il tutorial già lì ('tut' conta
+// come sensori attivi); lasciando la pagina senza entrare in campo, o con un percorso senza tutorial, smette di aspettarlo
+test('tutorial: nella pagina «Collega» il telefono aspetta già il tutorial (niente calibrazione prima), e smette se non si entra', async () => {
+  const w = await makeWorld({ controller: 'phone' }), { ui, lobby, link } = w, P = ui.phone;
+  link.L.phone = 'sensors';
+  lobby.go('mode'); lobby.setMode('training'); lobby.go('connect');
+  const from = link.sent.length;
+  assert.equal(P.tutWait, true, 'aspetta il tutorial già nella pagina «Collega»');
+  assert.ok(link.sent.some(m => m.t === 'cfg' && m.tut === 1 && m.tv === 2));
+  w.advance(1500); assert.equal(lobby.step, 'connect', 'sensori non ancora attivi: si resta qui');
+  // «Attiva i sensori» sul telefono: con il cancello aperto va al tutorial e lo dice ('tut'); la lobby entra in campo
+  fromPhone(P, { w: 1, v: 2 }); link.L.phone = 'tut';
+  assert.equal(lobby.state().phoneLinked, true, "'tut' = sensori attivi");
+  w.advance(1500);
+  assert.ok(ui.training.active && ui.training.tutorialOpen, 'in campo con la modale del tutorial');
+  assert.equal(lobby.tutPrearm, false, "da qui lo gestisce l'allenamento");
+  assert.ok(!link.sent.slice(from).some(m => m.t === 'cfg' && !m.tut), 'mai un cfg senza tutorial: il telefono non calibra prima');
+  assert.equal(P.tutWait, true);
+  ui.training.stop({ completed: false, silent: true });
+  // pagina «Collega» lasciata senza entrare in campo: il telefono non resta ad aspettare
+  const w2 = await makeWorld({ controller: 'phone' });
+  w2.link.L.phone = 'sensors';
+  w2.lobby.go('mode'); w2.lobby.setMode('cpu'); w2.lobby.go('connect'); assert.equal(w2.ui.phone.tutWait, true);
+  w2.lobby.go('mode');
+  assert.equal(w2.ui.phone.tutWait, false); assert.equal(w2.link.sent.filter(m => m.t === 'cfg').at(-1).tut, undefined);
+  // percorso senza tutorial (prova guidata della diagnostica): in campo il telefono smette di aspettarlo e calibra
+  const w3 = await makeWorld({ controller: 'phone' });
+  w3.lobby.go('mode'); w3.lobby.setMode('training'); w3.lobby.go('connect'); assert.equal(w3.ui.phone.tutWait, true);
+  w3.lobby.startDiag([DRILLS[0]], { onFeed(){}, onEnd(){} });
+  assert.ok(w3.ui.training.active && !w3.ui.training.tutorialOpen); assert.equal(w3.ui.phone.tutWait, false);
+  // telefono che ha già visto il tutorial: niente attesa
+  const w4 = await makeWorld({ controller: 'phone' });
+  w4.ui.phone.markTutorialSeen(); w4.lobby.go('mode'); w4.lobby.setMode('training'); w4.lobby.go('connect');
+  assert.equal(w4.ui.phone.tutWait, false);
+  // stesso schermo: lo gestisce la sua pagina (natpf_split_ui), non la lobby
+  const w5 = await makeWorld({ controller: 'phone' });
+  w5.lobby.go('mode'); w5.lobby.setMode('split'); w5.lobby.go('connect'); assert.equal(w5.lobby.tutPrearm, undefined);
+});
+
 test('tutorial: indietro dopo aver visto tutto non spegne «ho capito»; uscita a metà e ripresa dalla scheda raggiunta', async () => {
   const w = await makeWorld({ controller: 'phone' });
   const T = w.ui.training, P = w.ui.phone;

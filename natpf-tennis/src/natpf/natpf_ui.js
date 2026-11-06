@@ -286,7 +286,7 @@ export class NatpfUi {
         $('connect-certificate-dialog').showModal();
       };
     }
-    const sensors = p.connected && (L.phone === 'cal' || L.phone === 'ready');
+    const sensors = p.connected && (L.phone === 'cal' || L.phone === 'ready' || L.phone === 'tut');
     const state = { scan: p.connected ? 'ok' : 'on', sensors: sensors ? 'ok' : err ? 'ko' : p.connected ? 'on' : '', hold: p.ready ? 'ok' : sensors ? 'on' : '' };
     for (const li of document.querySelectorAll('[data-connect]')) li.className = state[li.dataset.connect] || '';
     const w = $('connect-warn');
