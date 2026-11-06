@@ -34,6 +34,9 @@ export const splitInputOf = v => (v === 'webcam' ? 'webcam' : 'phones');
 // annullato
 export const SPLIT_COUNTDOWN_MS = READY_COUNTDOWN_MS;
 export const SPLIT_CANCEL_SHOW_MS = 8000;
+// si sta scrivendo un nome: campo del nome attivo e un tasto da meno di così (ms). Solo il campo attivo non basta: dopo
+// aver scritto il nome il cursore resta lì e il conto non partirebbe mai
+export const SPLIT_TYPING_MS = 2500;
 // sensori fermi da così (ms senza dati dal telefono pronto) → la scheda dice «Sensori fermi»: lo stesso tempo della pausa
 // in partita (natpf_phone_watch: sensorGapMs più la tolleranza graceMs), così un pacchetto in ritardo non annulla il conto
 export const SPLIT_STALL_MS = WATCH.sensorGapMs + WATCH.graceMs;
@@ -115,6 +118,7 @@ export class NatpfSplitUi {
     engine.natpfSplitNames = { p1: 'Player 1', p2: 'Player 2' };
     box?.addEventListener('input', e => {
       const id = e.target.dataset.splitName; if (!['p1', 'p2'].includes(id)) return;
+      this._typedAt = performance.now();
       engine.natpfSplitNames[id] = e.target.value.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 24) || (id === 'p1' ? 'Player 1' : 'Player 2');
       for (const el of document.querySelectorAll(`[data-split-tag="${id}"] b`)) el.textContent = engine.natpfSplitNames[id];
       this.paint();
@@ -400,8 +404,8 @@ export class NatpfSplitUi {
     this._paintStart();
   }
   playNow(){ this.cd.held = false; this.cd.back = false; this._fire(); }
-  // si sta scrivendo un nome (campo attivo nella pagina «Collega»)
-  get typing(){ return typeof document !== 'undefined' && !!document.activeElement?.matches?.('.split-name-input'); }
+  // si sta scrivendo un nome (campo attivo nella pagina «Collega» e un tasto da poco)
+  get typing(){ return typeof document !== 'undefined' && !!document.activeElement?.matches?.('.split-name-input') && performance.now() - (this._typedAt ?? -1e9) < SPLIT_TYPING_MS; }
   // a zero (o «Gioca» dopo «Aspetta»): lo stesso «Gioca» della pagina «Partita» (natpf_ui._bindStart ricontrolla che
   // tutti e due siano pronti, poi la sessione split e il passaggio al campo)
   _fire(){

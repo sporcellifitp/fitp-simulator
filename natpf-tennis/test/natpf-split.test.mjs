@@ -359,7 +359,7 @@ test('stesso schermo: lo stato della metà dice che si sta guardando il tutorial
 // caduto. Ora: schede con nome e stato, conto di 3 s sul computer e sui telefoni, partita senza toccare il computer,
 // conto annullato (con il motivo) se un telefono cade, «Aspetta» / Esc, «Gioca» spento nella pagina «Partita».
 import { $, visible } from './ui-world.mjs';
-import { SPLIT_COUNTDOWN_MS } from '../src/natpf/natpf_split_ui.js';
+import { SPLIT_COUNTDOWN_MS, SPLIT_TYPING_MS } from '../src/natpf/natpf_split_ui.js';
 
 async function splitLobby({ names = ['Giulia', 'Marco'] } = {}){
   const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
@@ -537,18 +537,24 @@ test('stesso schermo: «‹ Indietro» da «Partita» con i due pronti → nessu
   ui.split.playNow(); assert.equal(E.natpfSplit?.active, true);
 });
 
-test('stesso schermo: mentre si scrive un nome il conto non corre; finito il nome parte', async () => {
+test('stesso schermo: mentre si scrive un nome il conto non corre; finito il nome parte (anche con il cursore ancora lì)', async () => {
   const { ui, readyBoth, advance } = await splitLobby();
-  let typing = true;
+  let focus = true;
   const had = Object.getOwnPropertyDescriptor(document, 'activeElement');
-  Object.defineProperty(document, 'activeElement', { configurable: true, get: () => typing ? { matches: q => q === '.split-name-input' } : null });
+  Object.defineProperty(document, 'activeElement', { configurable: true, get: () => focus ? { matches: q => q === '.split-name-input' } : null });
   try {
-    readyBoth(); advance(4000);
+    readyBoth();
+    // un tasto ogni 400 ms per 4 s: il conto non corre
+    for (let i = 0; i < 10; i++){ ui.split._typedAt = performance.now(); advance(400); }
     assert.equal(ui.split.cd.running, false, 'nessun conto mentre si scrive');
     assert.equal($('split-ready-bar').dataset.readyBar, 'ready');
     assert.equal($('split-ready-bar').querySelector('[data-ready-bar-sub]').textContent, 'Si parte quando finisci di scrivere il nome.');
-    typing = false; advance(150);
+    // smesso di scrivere, il cursore resta nel campo: dopo SPLIT_TYPING_MS il conto parte
+    advance(SPLIT_TYPING_MS + 200);
     assert.equal(ui.split.cd.running, true); assert.equal(ui.split.cd.left, 3);
+    // campo lasciato: come sempre
+    focus = false; ui.split.holdCountdown(); ui.split.cd.held = false; advance(150);
+    assert.equal(ui.split.cd.running, true);
   } finally { if (had) Object.defineProperty(document, 'activeElement', had); else delete document.activeElement; }
 });
 
