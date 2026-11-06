@@ -1501,9 +1501,15 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
    @container natpf): gira anche in un'area di ledwall. Nel 1v1 sullo stesso schermo un'istanza per metà
    (.natpf-tutorial.half), centrata nella sua metà e proporzionata a quella. L'animazione sta in un riquadro 16:10
    (.tut-stage) che si adatta allo spazio del suo contenitore (.tut-frame, contenitore di misura «tutframe») */
+/* velo pieno, senza backdrop-filter: la sfocatura dal vivo del campo animato dietro la modale costava un terzo dei
+   fotogrammi senza GPU (B9, giudizio-animazione.md §2.5) */
 .natpf-tutorial { position: absolute; inset: 0; z-index: 70; display: grid; place-items: center; padding: 2cqh 2cqw;
-  background: rgba(4, 8, 24, 0.62); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+  background: rgba(4, 8, 24, 0.72); }
 .natpf-tutorial.hidden { display: none; }
+/* con un tutorial aperto nessuna sfocatura dal vivo dietro di lui (menu dello stesso schermo, pannelli dell'allenatore):
+   ogni fotogramma dell'animazione costringeva a rifare il backdrop-filter del menu sotto, e senza GPU l'animazione
+   scendeva da 59 a 27 fotogrammi al secondo (misurato, docs/b9/animazione-c.md); sotto il velo al 72% non si vede */
+:root:has(.natpf-tutorial:not(.hidden)) :not(.natpf-tutorial *) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 .natpf-tutorial .tut-card { --tw: min(70cqw, 124cqh, 1280px); box-sizing: border-box; width: var(--tw); height: min(calc(var(--tw) * 0.62), 78cqh);
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 1.4cqh; padding: 2cqh 1.8cqw;
   border-radius: var(--r-l); background: var(--panel-solid); border: 1px solid var(--line-strong);
@@ -1568,8 +1574,8 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 @container natpf (max-aspect-ratio: 5/4) {
   .natpf-tutorial.half .tut-card { height: min(calc(var(--tw) * 1.6), 82cqh); }
 }
-/* senza l'animazione 3D (ce l'ha l'altra metà): la foto della presa resta; per gli altri gesti le indicazioni a tutta
-   larghezza, più grandi (la scheda ha la stessa misura nelle due metà) */
+/* senza l'animazione (niente canvas): la foto della presa resta; per gli altri gesti le indicazioni a tutta larghezza,
+   più grandi */
 .natpf-tutorial.no-3d .tut-3d { display: none; }
 .natpf-tutorial.no-media .tut-frame { display: none; }
 .natpf-tutorial.no-media .tut-body { grid-template-columns: 1fr; grid-template-rows: auto; align-content: center; }
