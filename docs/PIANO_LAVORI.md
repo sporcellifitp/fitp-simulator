@@ -122,9 +122,14 @@ Come si aggiorna:
   nello stesso worktree (unione di `natpf-simulator`, controlli visivi, prestazioni, nota), poi revisione tecnica e
   artistica e correzioni.
 - Versione **2026-11-06.2** (`10ed703`) con i minori, pacchetti provati estratti e consegnati.
-- **Prossima azione esatta:** a workflow finito unire i rami (worktree in `.claude/worktrees/`), test, prove nel
-  browser, push; versione 2026-11-06.3, pacchetti, eseguibili (workflow GitHub `natpf-windows.yml` a ogni cambio di
-  versione), riepilogo finale all'utente.
+- **06/11 sera: B9 consegnato.** Ramo C unito (`f386f89`), versione **2026-11-06.3** (`d867d5e`) con l'animazione
+  nuova; test gioco 820/820, sito 195/195, build ok, 6 prove nel browser verdi; ZIP provati estratti e consegnati;
+  eseguibili dal workflow GitHub `natpf-windows.yml`. Le revisioni tecnica e artistica dell'animazione sono state
+  fermate su richiesta dell'utente (consegna urgente).
+- **Prossima azione esatta:** collaudo dell'utente con telefoni veri (tutorial con le frecce, «Tutto chiaro» acceso solo
+  alla fine, schermo spento e ripresa, stesso schermo con il conto, animazione nuova); se c'è tempo, rifare la revisione
+  tecnica e artistica dell'animazione (script `scratchpad/wf-ramo-c-ripresa.js`, parte «Revisione»: brief in
+  `docs/b9/giudizio-animazione.md` §5.6) e le persone vere del §5.6.6.
 - **Prossima azione esatta (precedente):** finiti rami e giudizio → correggere i bloccanti delle revisioni, unire A e B su
   `natpf-simulator`, test e prove nel browser, push; poi ramo C (animazione nuova secondo il giudizio), versione nuova,
   pacchetti ed eseguibili.

@@ -129,6 +129,24 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   strade di sempre. Il canale «fast» del telefono via internet è affidabile ma non ordinato (PeerJS imposta solo
   ordered:false): lasciato così per decisione dell'utente.
 
+## Decisioni B9 (05–06/11/2026: tutorial, telefono, schermo spento, pronto)
+
+- **Animazione dei gesti** (`natpf_gesture_demo.js`): Canvas 2D illustrata «2,5D», solo avambraccio, mano e telefono,
+  senza three.js né WebGL. Il moto si legge **solo** da `natpf_gesture_pose.js` (`gesturePose(id, t, { hand })`, modulo
+  puro): il test `natpf-gesture-pose`/`natpf-gesture-anim` fa passare la stessa posa dal telefono simulato al
+  rilevatore vero, quindi un cambio del disegno che non passa dalla posa non è verificato. Un'istanza per metà dello
+  stesso schermo; modalità compatta sotto 320 px; niente `backdrop-filter` sotto la modale aperta. Giudizio e brief:
+  `docs/b9/giudizio-animazione.md`; nota del ramo: `docs/b9/animazione-c.md`; API della posa: `docs/b9/posa-gesti.md`.
+- **Tutorial e telefono**: frecce ‹ › (niente scorrimento automatico), scheda vista dopo ~1 s, avanzamento `tp` al
+  telefono, «Tutto chiaro, ho capito» acceso solo con tutte le schede viste; schermate del telefono esclusive
+  (`site/js/tennis/phone-screen.js`); Ricalibra/Ricollega/Scollega solo sotto «Pronto».
+- **Schermo spento**: nessun browser dà i sensori a pagina nascosta. Wake Lock, pausa immediata sul computer, ripresa
+  automatica e velo con testo dipendente dallo stato (`veilText`). Alternativa vera: app Android nativa
+  (`docs/b9/schermo-spento.md`).
+- **Pronto nello stesso schermo**: una scheda per giocatore; conto di 3 s quando tutti e due sono pronti, telefoni
+  sani (pagina visibile, sensori vivi) e tutorial chiuso; `bothReady()` usa lo stesso criterio delle schede; il conto
+  non riparte da solo tornando con «‹ Indietro» (solo dopo un cambio di stato che dura ≥ 1 s).
+
 ## Decisioni del 04/11/2026 (richiesta in 5 punti; stato e piano in `docs/PIANO_LAVORI.md`)
 
 - **Uso agli eventi**: un solo PC Windows 10 noleggiato (GPU ignota, probabilmente integrata), ledwall come monitor

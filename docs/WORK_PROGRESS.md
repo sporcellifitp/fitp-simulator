@@ -336,3 +336,18 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
   `265237ca750a15314976ff9338405de3f5d6b1d21cfdd6f1e5233acefc56cfd7`; LAN 57.789.722 B, un `node.exe`, nessun
   certificato, sha256 `8cf9731ca2ed86c1746610ecb17441d359aebc6d01924c2065d78b89a67f1c1f`. Provati estratti come la .1
   (Cloudflare 3/4 con il solo errore atteso del Worker TURN vero sull'origine locale, LAN 4/4). Consegnati.
+- **Ramo C, animazione nuova** (worktree `wf_b232ca46-ca8-1`, unione `f386f89`): `631bd34` palla del servizio
+  appoggiata sul vetro, test della posa più stretti; `d8ed8cb` Canvas 2D sopra `gesturePose` (11 schede, mancino,
+  compatta, camere riviste); `bf63224` un'istanza per metà schermo (niente `demoOwner`), velo senza `backdrop-filter`,
+  test `natpf-gesture-anim`; `0f6be42`, `c2fc6c9` (menu dello stesso schermo con il tutorial aperto da 27 a 60 fps senza
+  GPU), `e76e514`, `5b03537`, `fe49c52` (nota `docs/b9/animazione-c.md`, fogli `docs/b9/img/C-anim-*` e schermate
+  `C-modale-*` guardati), `6d02f38`. **Revisioni tecnica e artistica non fatte**: fermate su richiesta dell'utente
+  («accelera verso un push, devo consegnare»); l'utente ha visto l'anteprima e ha detto che va bene.
+- Codice unito: gioco 820/820, sito 195/195, build ok; browser tutorial-phone 37/37, split-ready 34/34,
+  training-flow 17/17, modale-gesti 15/15, menu 22/22, 1v1-p2p 37/37.
+- **Versione 2026-11-06.3** (`d867d5e`): Cloudflare 22.551.200 B, sha256
+  `72e2b744805d2e68a721b1634e174126bd60f7b07126be96c65c584ff8b6e0e5`; LAN 57.805.448 B, un `node.exe`, nessun
+  certificato, sha256 `9511df51735245284c96e15aae9f9a8a33d1aa1f64d1fd63406c29d0e4da0cea`. Provati estratti (come .1/.2).
+  Eseguibili: workflow GitHub «NATPF eseguibili Windows» esecuzione 42274534538.
+- **Non verificato**: telefoni veri, Windows, ledwall vero, GPU vera; persone che guardano l'animazione e ripetono il
+  gesto (brief §5.6.6).
