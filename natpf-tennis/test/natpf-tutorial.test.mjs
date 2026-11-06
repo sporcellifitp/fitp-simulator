@@ -50,6 +50,10 @@ test('tutorial prima della calibrazione: modale con presa e gesti, il telefono a
   assert.deepEqual({ ...lastTp(w.link), nm: undefined }, { t: 'tp', i: 0, n: TUTORIAL_CARDS.length, s: 0, m: 0, all: 0, nm: undefined });
   // niente scorrimento automatico: dopo 20 s la scheda è la stessa (e conta come vista)
   w.advance(20000); assert.equal(T.tutorial.state.idx, 0); assert.equal(lastTp(w.link).s, 1, 'la prima scheda è vista dopo ~1 s');
+  // dietro la modale aperta a lungo il giocatore aspetta al centro: niente servizio preparato dal motore, niente
+  // «Telefono scollegato» nel pannello (il telefono aspetta il tutorial)
+  assert.equal(w.E.phase, 'POINT_OVER', 'nessun servizio dietro la modale'); assert.equal(w.E.player.pos.x, 0, 'giocatore al centro');
+  w.link.L.phone = 'tut'; T.paint(); assert.equal(T.coach.querySelector('#coach-text').textContent, 'Come si gioca'); w.link.L.phone = 'cal';
   // «ho capito» toccato prima di aver visto tutto (messaggi incrociati): non chiude, il telefono riceve di nuovo il cancello
   const sentBefore = w.link.sent.length;
   fromPhone(P, { ok: 1 });

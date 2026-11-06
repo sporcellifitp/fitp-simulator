@@ -509,7 +509,10 @@ export class NatpfTraining {
     // il lanciapalle non corre e non risponde: l'avversario resta fuori dal campo
     if (o){ o.pos.set(0, 0, -40); o.targetPos.copy(o.pos); }
     this.ui.machine?.tick(dt);
-    if (this.lesson || this.tutorialOpen){ this.paint(); return; }
+    // lezione o modale del tutorial aperte: il giocatore aspetta fermo al centro. Il motore in POINT_OVER preparerebbe da
+    // solo il servizio dopo qualche secondo, e dal 05/11 (B9) la modale resta aperta finché non si sono viste tutte le
+    // schede: prima, dietro la modale, il giocatore andava alla posizione di servizio
+    if (this.lesson || this.tutorialOpen){ if (E.phase === 'POINT_OVER') E.phaseTimer = 0; this.paint(); return; }
     // volée: il giocatore aspetta a rete tra una palla e l'altra
     if (!this.cal && this.drill?.volley && !this.ballLive()) this.engine.player.targetPos.set(0, 0, VOLLEY_Z);
     if (!this.cal && this._phoneRecalibrating()) this._recal();
@@ -573,7 +576,8 @@ export class NatpfTraining {
     if (L) this._paintLesson($, hand);
     const flash = this.flash && now < this.flash.until ? this.flash : null;
     const mode = this.ui.flow?.mode === 'training' ? 'Allenamento' : 'Riscaldamento';
-    const P = this.ui.phone, lost = c === 'phone' && P && (!P.connected || (P.state?.phone && !['cal', 'ready'].includes(P.state.phone)));
+    // (con la modale del tutorial aperta il telefono aspetta il tutorial, «tut»: non è scollegato)
+    const P = this.ui.phone, lost = c === 'phone' && P && (!P.connected || (!this.tutorialOpen && P.state?.phone && !['cal', 'ready'].includes(P.state.phone)));
     const grip = $('#coach-grip'), showGrip = c === 'phone' && !!this.cal && this.view.stage === 'still' && !lost;
     // foto reale della presa (base nel palmo, cima in avanti); la figura disegnata resta se la foto non si carica
     if (grip && showGrip && grip.dataset.hand !== hand){
@@ -585,6 +589,7 @@ export class NatpfTraining {
     let view;
     // telefono scollegato o senza sensori (pagina ricaricata, schermo spento): prima il pannello restava su «Ora»
     if (lost) view = { kicker: mode, title: 'Telefono scollegato', sub: !P.connected ? 'Riapri la pagina sul telefono: si ricollega da solo e si riparte da qui' : 'Sul telefono tocca «Attiva i sensori»', state: 'retry', dir: null, count: '' };
+    else if (this.tutorialOpen) view = { kicker: mode, title: 'Come si gioca', sub: 'Sfoglia le schede, poi sul telefono «Tutto chiaro, ho capito»', state: 'wait', dir: null, count: '' };
     else if (this.cal){
       const v = this.view, pr = calPrompt(v, hand);
       const count = v.stage === 'gesture' ? `Gesto ${Math.min(v.idx + 1, v.total)} di ${v.total}` : v.stage === 'still' ? 'Prima di iniziare' : '';
