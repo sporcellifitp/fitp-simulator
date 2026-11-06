@@ -3,7 +3,7 @@
 // se la pausa è arrivata nello scambio.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { phoneHealth, createPhoneWatch, holdText, WATCH } from '../src/natpf/natpf_phone_watch.js';
+import { phoneHealth, createPhoneWatch, holdText, phoneHoldText, WATCH } from '../src/natpf/natpf_phone_watch.js';
 
 const ok = { connected: true, phone: 'ready', vis: true, rates: { fo: { ageMs: 16 }, bin: { ageMs: 20 } } };
 test('salute del telefono: collegamento, telefono pronto, pagina in primo piano, sensori che arrivano', () => {
@@ -72,4 +72,17 @@ test('ricollegamento lampo: un problema più breve della tolleranza non mette in
   const a = w.update({ ok: false, why: 'sensori fermi' }, { inField: true, now: 1000 + WATCH.graceMs, rally: false });
   assert.deepEqual(a, { kind: 'pause', why: 'sensori fermi' });
   assert.equal(w.replay, true, 'lo scambio era in corso quando il problema è iniziato');
+});
+
+// B9 (05/11): schermo del telefono spento. La pausa dice da quanto (aggiornata ogni secondo dal computer) e che si riprende
+// da solo; se il collegamento cade con lo schermo spento non si chiede il QR (il telefono si ricollega da solo)
+test('pausa per lo schermo spento: da quanto, e cosa fare; collegamento caduto con lo schermo spento', () => {
+  assert.match(holdText('pagina nascosta'), /^Schermo del telefono spento[^:]*: riaccendi/);
+  assert.doesNotMatch(holdText('pagina nascosta', { hiddenMs: 400 }), / da \d+ s/, 'meno di un secondo: niente durata');
+  assert.match(holdText('pagina nascosta', { hiddenMs: 12400 }), / da 12 s: /);
+  assert.match(holdText('scollegato', { wasHidden: true, hiddenMs: 7000 }), /schermo spento da 7 s: riaccendilo.*si ricollega da solo/);
+  assert.match(holdText('scollegato'), /^Telefono scollegato/);
+  const p = { state: { vis: false, hiddenAt: 1000 } };
+  assert.match(phoneHoldText(p, 'pagina nascosta', 31000), / da 30 s/);
+  assert.doesNotMatch(phoneHoldText({ state: { vis: true } }, 'scollegato', 5000), /schermo spento/);
 });
