@@ -55,11 +55,34 @@ export async function quickCalibrate(phone, plan, { timeout = 12000 } = {}){
 // «Calibra». Durante la lezione il computer non segue la calibrazione del telefono (natpf_training._onCal).
 // Con il telefono, dal 04/11, al posto della lezione c'è la modale del tutorial: si chiude toccando «Tutto chiaro, ho
 // capito» sul telefono (phone), come chi gioca; senza la pagina del telefono, con Esc come chi gestisce la postazione.
+// Dal 05/11 (B9) «Tutto chiaro» resta spento finché non si sono viste tutte le schede (ognuna almeno 1 s): seeAllCards le
+// sfoglia con «Avanti ›» sul telefono, come chi gioca.
+export async function seeAllCards(phone, { timeout = 60000, stepMs = 1150 } = {}){
+  const t0 = Date.now();
+  // stato dal telefono: pulsante acceso, scheda mostrata (i di n) e schede viste (maschera m), come l'ha mandato il computer
+  const read = () => phone.evaluate(() => { const b = document.getElementById('tutOk'), g = window.__racchetta?.state?.gate; return { on: !!b && !b.disabled && !b.classList.contains('hidden'), g }; });
+  // (tocco senza aspettare: lo stato delle frecce arriva dal computer e può essere cambiato nel frattempo)
+  const tap = id => phone.evaluate(id => { const b = document.getElementById(id); if (b && !b.disabled) b.click(); }, id);
+  while (Date.now() - t0 < timeout){
+    const st = await read();
+    if (st.on) return true;
+    await phone.waitForTimeout(stepMs);
+    const g = st.g;
+    if (!g || !g.n){ await tap('tutNext'); continue; }
+    // verso la prima scheda non ancora vista (una passata troppo in fretta si rivede); su quella si aspetta
+    let u = 0; while (u < g.n && (g.m >>> u) & 1) u++;
+    const now = (await read()).g || g;
+    if (u >= g.n || u === now.i) continue;
+    await tap(u > now.i ? 'tutNext' : 'tutPrev');
+  }
+  return false;
+}
 export async function finishLesson(game, max = 8, phone = null){
   for (let k = 0; k < max && await game.evaluate(() => !!window.__natpfTennis?.natpfUi?.training?.lesson); k++) await game.click('#coach-lesson-next');
   if (!await game.evaluate(() => !!window.__natpfTennis?.natpfUi?.training?.tutorialOpen)) return null;
   if (phone){
     await phone.waitForFunction(() => { const b = document.getElementById('tutOk'); return b && !b.classList.contains('hidden'); }, null, { timeout: 8000 });
+    await seeAllCards(phone);
     await phone.click('#tutOk');
   } else await game.keyboard.press('Escape');
   await game.waitForFunction(() => !window.__natpfTennis.natpfUi.training.tutorialOpen, null, { timeout: 8000 });
