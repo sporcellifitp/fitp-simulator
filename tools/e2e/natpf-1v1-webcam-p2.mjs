@@ -15,7 +15,8 @@
 //   cd natpf-tennis && node node_modules/vite/bin/vite.js build
 //   cd tools/e2e && npm ci && CHROMIUM_PATH=/percorso/chrome node natpf-1v1-webcam-p2.mjs
 // NOSHOT=1 salta le schermate (OUT=cartella per dove salvarle): accendere il disegno con WebGL software per gli scatti
-// rallenta tanto la pagina che il collegamento diretto può cadere per qualche secondo («collegamento perso»).
+// rallenta tanto la pagina che il collegamento diretto può cadere per qualche secondo («collegamento perso») e l'host
+// può vedere il P2 fuori linea (niente letture per più di 4 s): prima di «Gioca» la prova aspetta che torni pronto.
 // Non sostituisce una webcam vera con una persona davanti: il riconoscimento della mano qui non si prova.
 import http from 'node:http';
 import path from 'node:path';
@@ -87,7 +88,8 @@ try {
   const video = await p2.evaluate(() => { const v = document.getElementById('guest-cam-video'); return { stream: !!v.srcObject, w: v.videoWidth, h: v.videoHeight }; });
   await p2.waitForTimeout(1500);
   const camState = await p2.evaluate(() => ({ badge: document.getElementById('guest-cam-badge').textContent, text: document.getElementById('guest-cam-text').textContent, guest: !document.getElementById('natpf-guest-modal').classList.contains('hidden'), field: !document.getElementById('guest-cam-field').disabled, ready: __natpfTennis.natpfUi.versus.ready }));
-  check('   pannello della webcam: camera accesa, anteprima con il video, non coperto dal pannello del P2', camOn && video.stream && video.w > 0 && !camState.guest && await shown(p2, 'natpf-guest-cam'), JSON.stringify(video));
+  const camShown = await shown(p2, 'natpf-guest-cam');
+  check('   pannello della webcam: camera accesa, anteprima con il video, non coperto dal pannello del P2', camOn && video.stream && video.w > 0 && !camState.guest && camShown, JSON.stringify({ camOn, ...video, guest: camState.guest, shown: camShown }));
   check('   webcam finta senza mano: «Cerco la mano…», «In campo ›» attivo, non ancora pronto', camState.badge === 'Cerco la mano…' && camState.field && !camState.ready, JSON.stringify(camState));
   const joined = await until(p1, () => /è entrato/.test(document.querySelector('#natpf-invite [data-versus-state]')?.textContent || ''));
   check('   l’host vede il P2 entrato, «Gioca» bloccato', joined && await p1.evaluate(() => document.getElementById('btn-start-match').disabled), await line(p1));
@@ -109,6 +111,13 @@ try {
   const after = await p2.evaluate(() => { const E = __natpfTennis; return { role: E.playerRole, multi: E.isMultiplayer, local: E.motionController.localPractice, go: document.getElementById('natpf-guest-go').textContent, cam: E.motionController.webcamActive }; });
   check('4. «Salta»: il P2 è pronto da solo (l’host lo vede), motore di nuovo del Player 2, webcam accesa', ready2 && after.role === 'p2' && after.multi === true && !after.local && after.go === 'Pronto ✓' && after.cam, JSON.stringify(after));
   await shot(p2, '4-pronto');
+  // la schermata (disegno con WebGL software, 7–11 s) ferma la pagina del P2 anche più di 3 s tra due letture: oltre i
+  // 4 s il relay lo dà fuori linea (match-relay.mjs, p2Online) e l'host spegne «Gioca» finché non torna. È il gioco che
+  // fa bene (88c607a: online = letto negli ultimi 4 s; «Gioca» solo con il P2 online e pronto): prima la prova premeva
+  // subito un pulsante a volte spento, l'host restava al menu e il P2 nella lobby (8/12). Ora aspetta che l'host lo
+  // veda di nuovo pronto e lo verifica
+  const goAgain = await until(p1, () => !document.getElementById('btn-start-match').disabled && __natpfTennis.natpfUi.versus.canStart(), null, 20000);
+  check('   dopo la schermata l’host vede ancora il P2 pronto, «Gioca» attivo', goAgain, await line(p1));
   await p1.evaluate(() => document.getElementById('btn-start-match').click());
   const started = await until(p2, () => ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(__natpfTennis.phase) && document.querySelector('[data-versus-guest]')?.dataset.state === 'playing', null, 30000);
   check('   «Gioca»: partita su tutti e due i computer', started && await p1.evaluate(() => __natpfTennis._versusInMatch()), started ? '' : JSON.stringify(await diag(p1, p2)));
@@ -126,7 +135,10 @@ try {
   await shot(p2, '5-pausa');
   await p2.click('#natpf-phone-hold button');
   const resumed = await until(p1, () => !__natpfTennis.natpfVersusWait && !__natpfTennis.natpfPaused, null, 20000);
-  check('   «Accendi la webcam»: la webcam si riaccende e la partita riprende', resumed && await p2.evaluate(() => __natpfTennis.motionController.webcamActive));
+  // se non riprende: perché è ferma per l'host e la salute della webcam del P2 (con il modello delle mani caricato, la
+  // webcam finta senza mano dà «mano persa»; con la macchina carica i fotogrammi fermi danno «webcam ferma»)
+  const notResumed = resumed ? '' : JSON.stringify({ host: await p1.evaluate(() => ({ why: __natpfTennis.natpfUi.versus.holdWhy, hold: __natpfTennis.roomStatus.p2Hold, online: __natpfTennis.roomStatus.p2Online })), p2: await p2.evaluate(() => { const mc = __natpfTennis.motionController; return { ...mc.webcamHealth(), hands: !!mc.mpHands, hold: mc.versusHold, opening: !!mc._webcamOpening, err: mc.webcamError?.name || null, box: document.getElementById("natpf-phone-hold")?.textContent?.slice(0, 80) }; }) });
+  check('   «Accendi la webcam»: la webcam si riaccende e la partita riprende', resumed && await p2.evaluate(() => __natpfTennis.motionController.webcamActive), notResumed);
 
   /* 6: webcam negata */
   const DENY = () => { navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException('Permission denied', 'NotAllowedError')); };
