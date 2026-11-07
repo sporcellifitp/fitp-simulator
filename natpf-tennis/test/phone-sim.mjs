@@ -115,7 +115,7 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
     const ev = natpfSwingToEngine(s, { hand, now: 10.02, ballHigh, liftBaseline: lifts.model.value, headBaseline: heads.model.value, faceCenter: faces.center(s.dir), aimModel: aims, ref, rawRef, riseRef: habitual ? habitualRise(p, s.dir, rises) : null, own: typeof own === 'function' ? own(s, habitual ? habitualRise(p, s.dir, rises) : null) : own });
     if (!expect && NORMAL_SHOTS.has(ev.natpf.shot)){ lifts.model.add(s.dir, s.lift); heads.model.add(s.dir, ev.natpf.head); }
     if (!expect){ faces.add(s.dir, s.face); aims.add(s.dir, s.heading); }
-    if (!expect && ev.natpf.intent) rises.add(s.dir, s.shape?.rise, ev.natpf.intent.shot);
+    if (!expect) rises.learn(s.dir, s.shape?.rise, ev.natpf.intent);
     if (rally && !expect) typical.add(s.peak);
     return { s, ev };
   };

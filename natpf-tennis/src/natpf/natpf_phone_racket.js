@@ -81,7 +81,15 @@ export const riseRefOf = (profile, dir) => (profile && !profile.simple && (dir =
 // degli ultimi colpi dello scambio in quel verso, pallonetti e schiacciate esclusi, da tre colpi in poi. Senza, chi
 // tiene il telefono in verticale con il polso che prona (presa del 19/10) e salta la calibrazione vedeva i dritti
 // diventare tagliati per tutta la partita. Come quella della calibrazione sposta le soglie dei colpi speciali solo per
-// renderli più difficili (classifyStroke): con molti tagliati voluti i tagliati diventano più difficili, mai più facili
+// renderli più difficili (classifyStroke): con molti tagliati voluti i tagliati diventano più difficili, mai più facili.
+// 07/11, palle corte: quelle riconosciute dalla forma senza la salita abituale (taglio verticale morbido, o come la
+// propria palla corta degli esercizi: intent.byShape) non insegnano niente, come pallonetti e schiacciate (learn). Prima
+// la salita abituale le contava (circa −0,88): dopo 4 palle corte e 2 dritti era −0,60 e da lì un tagliato voluto e un
+// piatto si leggevano top spin. Quella regola della palla corta non dipende dalla salita abituale, quindi impararla da lì
+// non serve a niente e sposta solo le soglie degli altri colpi. Le palle corte «dall'alto in basso» (sotto la soglia del
+// tagliato, morbide o corte) restano come i tagliati: senza calibrazione è così che i colpi normali compatti di chi
+// prona, letti all'inizio palle corte, diventano colpi normali (escluderle tutte, con 'drop' in skip, lasciava palle
+// corte per tutta la partita 31 combinazioni in più su 324 di presa, polso, ampiezza e velocità del telefono simulato)
 // 29/10 pomeriggio: anche con la calibrazione, dopo «verified» colpi in quel verso vale quella imparata giocando. Con il
 // telefono nel palmo e la cima in avanti la calibrazione dava al rovescio +0,30 e in partita il rovescio normale scendeva
 // (mediana −0,45): 15 rovesci su 21 erano tagliati, e i colpi dal basso verso l'alto non arrivavano al pallonetto
@@ -112,6 +120,8 @@ export function createRiseModel({ min = RISE_LEARN.min, keep = RISE_LEARN.keep }
   return {
     reset(){ seen[1] = []; seen[-1] = []; },
     add(dir, rise, shot){ if ((dir === 1 || dir === -1) && Number.isFinite(rise) && !RISE_LEARN.skip.includes(shot)){ const h = seen[dir]; h.push(rise); if (h.length > keep) h.shift(); } },
+    // da un colpo letto (strokeIntent): non dai colpi riconosciuti dalla forma senza la salita abituale (byShape)
+    learn(dir, rise, intent){ if (intent && !intent.byShape) this.add(dir, rise, intent.shot); },
     ref(dir, need = min){ const h = seen[dir]; if (!h || h.length < need) return null; const v = [...h].sort((a, b) => a - b), m = v.length >> 1; return +(v.length % 2 ? v[m] : (v[m - 1] + v[m])/2).toFixed(3); },
   };
 }
@@ -588,7 +598,7 @@ export class NatpfPhoneRacket {
     // piatto e direzione abituali solo dai colpi dello scambio non deboli: servizi, preparazioni e micro-movimenti
     // spostavano il centro (il 23/10 scarti di 50–77° in quasi tutti i colpi)
     if (teachesNormal(ev, { rally, expect })){ this.faceModel.add(s.dir, s.face); this.aimModel.add(s.dir, s.heading); }
-    if (rally && !expect && ev.natpf.intent) this.riseModel.add(s.dir, s.shape?.rise, ev.natpf.intent.shot);
+    if (rally && !expect) this.riseModel.learn(s.dir, s.shape?.rise, ev.natpf.intent);
     if (ev.natpf.intent && teachesNormal(ev, { rally, expect })) this.shapeModel.add(ev.natpf.intent.plane, ev.natpf.intent.shapePower);
     for (const fn of this.swingListeners) try { fn(ev, s); } catch (e){ console.error(e); }
     // P2 locale dello split screen: come un colpo del Player 2 arrivato dalla rete (natpf_split.js); altrimenti
