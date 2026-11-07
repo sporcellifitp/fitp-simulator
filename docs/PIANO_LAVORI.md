@@ -144,7 +144,10 @@ Come si aggiorna:
   aggiornare direttamente dal gioco». Risposte dell'utente: aggiornamenti su **Cloudflare R2**; **solo installer Windows
   + zip Cloudflare** (niente più zip LAN né portatile). In corso: workflow `natpf-b11-installer-aggiornamenti` (parte A
   programma/installer/aggiornatore/pubblicazione in CI/guida R2, parte B interfaccia nel gioco; revisione di sicurezza,
-  correzioni). Poi: guida all'utente per creare il bucket R2 e i segreti, indirizzo pubblico nel programma, versione.
+  correzioni). Bucket R2 creato dall'utente il 07/11: `natpf-aggiornamenti`, indirizzo pubblico
+  **https://pub-96b3cd8975b6434aaeac3ecfcca14a19.r2.dev** (va in `natpf-desktop/aggiornamenti.json` all'unione); segreti di
+  GitHub indicati all'utente: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET` (la CI deve usare
+  questi nomi). Poi: versione, prima pubblicazione su R2 e prova del manifesto.
 - **Prossima azione esatta (prima di B11):** collaudo dell'utente con telefoni veri, Windows e ledwall (tutorial con frecce, «Tutto
   chiaro», schermo spento, pronto nello stesso schermo, animazione nuova, voce «smash», tabellone, scritte nel 2v2);
   correggere ciò che segnala. Aperto: errore raro della webcam del P2 sotto carico (`tools/e2e/natpf-1v1-webcam-p2.mjs`).
