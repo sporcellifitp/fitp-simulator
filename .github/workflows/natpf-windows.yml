@@ -143,6 +143,26 @@ jobs:
             echo "::error title=Endpoint R2 non trovato::L'indirizzo <Account ID>.r2.cloudflarestorage.com non esiste: l'ID nel segreto R2_ACCOUNT_ID non è quello dell'account con il bucket (o R2 non è attivo)."
             exit 1
           fi
+          # chiavi ripulite (spazi, a capo, virgolette copiati insieme) e prova d'accesso al bucket con il motivo esatto,
+          # senza mostrare i valori (di solito l'Access Key ID ha 32 caratteri e la Secret Access Key 64)
+          AWS_ACCESS_KEY_ID="$(printf '%s' "$AWS_ACCESS_KEY_ID" | tr -d '[:space:]"'"'"'')"
+          AWS_SECRET_ACCESS_KEY="$(printf '%s' "$AWS_SECRET_ACCESS_KEY" | tr -d '[:space:]"'"'"'')"
+          export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+          lens="R2_ACCESS_KEY_ID ${#AWS_ACCESS_KEY_ID} caratteri, R2_SECRET_ACCESS_KEY ${#AWS_SECRET_ACCESS_KEY} (di solito 32 e 64)"
+          [ "${#AWS_ACCESS_KEY_ID}" -gt "${#AWS_SECRET_ACCESS_KEY}" ] && lens="$lens: sembrano SCAMBIATI"
+          if ! prova=$(aws s3api list-objects-v2 --endpoint-url "$ep" --bucket "$R2_BUCKET" --max-items 1 2>&1); then
+            case "$prova" in
+              *InvalidAccessKeyId*|*InvalidArgument*) why="R2_ACCESS_KEY_ID non è l'Access Key ID di un token R2 di questo account";;
+              *SignatureDoesNotMatch*) why="R2_SECRET_ACCESS_KEY non è la Secret Access Key dello stesso token";;
+              *NoSuchBucket*) why="R2_BUCKET non è il nome di un bucket di questo account (${#R2_BUCKET} caratteri)";;
+              *AccessDenied*|*Forbidden*|*403*) why="il token non ha il permesso Object Read & Write su questo bucket (limitato a un altro bucket, solo lettura, o di un altro account)";;
+              *) why="errore non riconosciuto";;
+            esac
+            echo "::error title=Accesso al bucket R2 rifiutato::$why. $lens. Guida: docs/GUIDA_AGGIORNAMENTI_R2.md"
+            printf '%s\n' "$prova" | sed -E 's/[0-9a-f]{32,}/<…>/g' | tail -n 3
+            exit 1
+          fi
+          echo "Accesso al bucket R2: ok ($lens)"
           # mai tornare indietro e mai ripubblicare la stessa versione: se sul bucket c'è già questa versione o una più
           # nuova, non si carica niente (un installer già pubblicato non si riscrive: la cache lunga del suo nome darebbe
           # i byte vecchi con lo sha256 nuovo del manifesto, e il programma rifiuterebbe il file)
