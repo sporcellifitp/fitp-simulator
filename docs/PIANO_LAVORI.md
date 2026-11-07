@@ -148,6 +148,12 @@ Come si aggiorna:
   **https://pub-96b3cd8975b6434aaeac3ecfcca14a19.r2.dev** (va in `natpf-desktop/aggiornamenti.json` all'unione); segreti di
   GitHub indicati all'utente: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET` (la CI deve usare
   questi nomi; i quattro segreti sono stati inseriti dall'utente il 07/11, `R2_BUCKET` = `natpfsimulator`). Poi: versione, prima pubblicazione su R2 e prova del manifesto.
+  **07/11 sera:** versione 2026-11-07.4 (`d2e0d50`) con l'indirizzo in `natpf-desktop/aggiornamenti.json`; installer
+  costruito dal workflow, pubblicazione su R2 **non ancora riuscita**: Account ID con 5 caratteri in più (ora ripulito
+  dal workflow, `8412507`), poi «Access Denied» su ListObjectsV2 con chiavi valide (32/64): il token non ha Object Read &
+  Write sul bucket `natpfsimulator` (`da73187` dà il motivo esatto). Chiesto all'utente di rifare il token e aggiornare
+  `R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`; poi rilanciare il workflow (rerun dell'ultima esecuzione o run_workflow su
+  `natpf-windows.yml`) e controllare `…r2.dev/windows/latest.json`.
 - **Prossima azione esatta (prima di B11):** collaudo dell'utente con telefoni veri, Windows e ledwall (tutorial con frecce, «Tutto
   chiaro», schermo spento, pronto nello stesso schermo, animazione nuova, voce «smash», tabellone, scritte nel 2v2);
   correggere ciò che segnala. Aperto: errore raro della webcam del P2 sotto carico (`tools/e2e/natpf-1v1-webcam-p2.mjs`).
