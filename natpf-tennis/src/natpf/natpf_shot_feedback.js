@@ -6,6 +6,7 @@
 //   situazione rende il colpo debole o lo fa fallire («palla debole: in corsa», «scambio lungo»).
 // I colpi dell'avversario restano con l'anello bianco di rimbalzo del motore base.
 import * as THREE from 'three';
+import { splitViewports } from './natpf_split.js';
 
 export const QUALITY_COLORS = Object.freeze({ green: 0x3be37f, yellow: 0xffd23f, red: 0xff4d5e });
 const COURT = { halfW: 4.115, halfL: 11.885, service: 6.4 };
@@ -84,6 +85,17 @@ export function flashGlowTexture(){
   return flashTexture;
 }
 
+// rettangolo {l, r, t, b} contro quadrilatero convesso [[x, y], …] (campo proiettato): angoli dentro o lati che si incrociano
+export function rectHitsPoly(R, poly){
+  const inPoly = ([x, y]) => { let s = 0; for (let i = 0; i < poly.length; i++){ const [x1, y1] = poly[i], [x2, y2] = poly[(i + 1)%poly.length], c = (x2 - x1)*(y - y1) - (y2 - y1)*(x - x1); if (c){ if (s && Math.sign(c) !== s) return false; s = Math.sign(c); } } return true; };
+  const pts = [[R.l, R.t], [R.r, R.t], [R.r, R.b], [R.l, R.b]];
+  if (pts.some(inPoly) || poly.some(([x, y]) => x > R.l && x < R.r && y > R.t && y < R.b)) return true;
+  const o = (p, q, r) => Math.sign((q[0] - p[0])*(r[1] - p[1]) - (q[1] - p[1])*(r[0] - p[0]));
+  const cross = (a, b, c, d) => o(a, b, c) !== o(a, b, d) && o(c, d, a) !== o(c, d, b);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < poly.length; j++) if (cross(pts[i], pts[(i + 1)%4], poly[j], poly[(j + 1)%poly.length])) return true;
+  return false;
+}
+
 export class NatpfShotFeedback {
   constructor(engine){
     this.engine = engine;
@@ -123,40 +135,101 @@ export class NatpfShotFeedback {
       this._place(document.getElementById('timing-popup'), place);
     };
   }
-  // scritta nell'angolo: sopra le barre di Potenza ed Energia (se in vista), altrimenti appena sopra il bordo in basso.
-  // Fuori dallo stesso schermo, se l'angolo coprirebbe un giocatore o la palla (chi gioca molto largo e in fondo) passa
-  // all'altro angolo
+  // Posto della scritta: si provano alcuni posti e si tiene il primo che non copre il campo, i giocatori, la palla e gli
+  // altri elementi dell'interfaccia in basso (barre, scheda dell'Allenamento, etichette delle metà):
+  // - schermo intero: l'angolo del proprio lato sopra le barre, poi l'altro angolo (chi gioca molto largo e in fondo);
+  // - stesso schermo (revisione B10: la camera di ogni metà è più larga e il campo arriva quasi al bordo in basso, così la
+  //   scritta sopra le barre toccava il corridoio e copriva chi giocava largo): nella stessa metà, in basso sotto le barre
+  //   accanto all'etichetta del giocatore, poi sopra le barre, poi accanto alle barre (mai nella metà dell'altro).
+  // Se nessuno è libero: il primo che non copre interfaccia, giocatori e palla, altrimenti il primo.
   _place(el, place){
     if (!el?.classList) return;
     el.classList.add('anchored'); el.classList.toggle('other', place.kind === 'other');
-    el.style.left = el.style.top = '';
-    const set = side => {
-      el.classList.toggle('side-right', side === 'right');
-      const layer = el.parentElement?.getBoundingClientRect?.(), tops = [];
-      for (const g of document.querySelectorAll?.('.natpf-meters:not(.hidden) .meter-group:not(.hidden)') || []){ const r = g.getBoundingClientRect(); if (r.height) tops.push(r.top); }
-      el.style.bottom = layer && tops.length ? `${Math.max(0, layer.bottom - Math.min(...tops) + 6).toFixed(1)}px` : '';
-    };
-    set(place.side);
-    if (this.engine.natpfSplit?.active || !this._covers(el)) return;
-    const other = place.side === 'left' ? 'right' : 'left';
-    set(other);
-    if (this._covers(el)) set(place.side);
+    el.style.left = el.style.top = el.style.right = '';
+    const split = !!this.engine.natpfSplit?.active, other = place.side === 'left' ? 'right' : 'left';
+    const tries = split ? [['low', place.side], ['above', place.side], ['beside', place.side]] : [['above', place.side], ['above', other]];
+    let pick = null, safe = null, cur = null;
+    for (const t of tries){
+      this._set(el, ...(cur = t));
+      const b = this._blocked(el, split ? t[1] : null);
+      if (!b.ui && !b.actors && !b.court){ pick = t; break; }
+      if (!safe && !b.ui && !b.actors) safe = t;
+    }
+    const best = pick || safe || tries[0];
+    if (best !== cur) this._set(el, ...best);
   }
-  // il riquadro della scritta copre un giocatore o la palla? (proiezione con la camera del motore, pixel dell'area)
-  _covers(el){
-    const E = this.engine, r = el.getBoundingClientRect?.(), layer = el.parentElement?.getBoundingClientRect?.();
-    if (!r || !layer || !E._projectToScreen || !E.camera) return false;
-    const R = { l: r.left - layer.left - 6, r: r.right - layer.left + 6, t: r.top - layer.top - 6, b: r.bottom - layer.top + 6 };
-    const hits = pts => { const q = pts.map(p => E._projectToScreen(p)).filter(p => p.visible); if (!q.length) return false; const xs = q.map(p => p.x), ys = q.map(p => p.y); return Math.min(...xs) < R.r && Math.max(...xs) > R.l && Math.min(...ys) < R.b && Math.max(...ys) > R.t; };
-    const V = E.ball?.pos?.constructor;
-    if (!V) return false;
+  // riquadro della scritta senza l'animazione d'entrata (translateY): quello della pagina nei primi 0,16 s è spostato in
+  // basso e la farebbe sembrare sopra le barre
+  _box(el){
+    const layer = el.offsetParent?.getBoundingClientRect?.();
+    if (layer && el.offsetWidth){ const left = layer.left + el.offsetLeft, top = layer.top + el.offsetTop; return { left, top, right: left + el.offsetWidth, bottom: top + el.offsetHeight, width: el.offsetWidth, height: el.offsetHeight }; }
+    return el.getBoundingClientRect?.();
+  }
+  // riquadri degli elementi dell'interfaccia in vista (pixel della pagina)
+  _uiBoxes(sel){
+    const out = [];
+    for (const g of document.querySelectorAll?.(sel) || []){ const r = g.getBoundingClientRect?.(); if (r?.height && r.width) out.push(r); }
+    return out;
+  }
+  // above: sopra le barre di Potenza ed Energia e, nell'Allenamento, sopra la scheda dell'esercizio quando sta dal lato
+  // della scritta (revisione B10: la scheda .coach-main, sopra il gioco, la copriva del tutto e chi si allenava non vedeva
+  // l'esito); low: nell'angolo in basso (stesso schermo: le barre sono alzate sopra le etichette dei giocatori, sotto resta
+  // posto); beside: accanto alle barre del proprio lato, alla loro altezza
+  _set(el, mode, side){
+    el.classList.toggle('side-right', side === 'right');
+    el.style.bottom = el.style.left = el.style.right = '';
+    if (mode === 'low') return;
+    const layer = el.parentElement?.getBoundingClientRect?.(), me = this._box(el);
+    if (!layer) return;
+    const meters = this._uiBoxes('.natpf-meters:not(.hidden) .meter-group:not(.hidden)');
+    if (mode === 'beside'){
+      const mid = layer.left + layer.width/2, g = meters.find(r => side === 'right' ? r.left >= mid : r.right <= mid);
+      if (!g) return;
+      if (side === 'right') el.style.right = `${(layer.right - g.left + 10).toFixed(1)}px`;
+      else el.style.left = `${(g.right - layer.left + 10).toFixed(1)}px`;
+      el.style.bottom = `${Math.max(0, layer.bottom - g.bottom).toFixed(1)}px`;
+      return;
+    }
+    const tops = meters.map(r => r.top);
+    for (const r of this._uiBoxes('.natpf-coach:not(.hidden) .coach-main')) if (!me?.width || (r.left < me.right && r.right > me.left)) tops.push(r.top);
+    if (tops.length) el.style.bottom = `${Math.max(0, layer.bottom - Math.min(...tops) + 6).toFixed(1)}px`;
+  }
+  // Che cosa copre la scritta: ui (barre, scheda, etichette delle metà), actors (giocatori o palla), court (campo del
+  // doppio, con i corridoi). Proiezione con la camera della vista in cui sta la scritta: stesso schermo disegnato diviso,
+  // la metà del suo lato (camera del P1 a sinistra, del P2 a destra); altrimenti la camera del motore a schermo intero
+  _blocked(el, half = null){
+    const E = this.engine, r = this._box(el), layer = el.parentElement?.getBoundingClientRect?.();
+    const out = { ui: false, actors: false, court: false };
+    if (!r?.width || !layer) return out;
+    const hit = (a, m) => a.left < r.right + m && a.right > r.left - m && a.top < r.bottom + m && a.bottom > r.top - m;
+    out.ui = this._uiBoxes('.natpf-meters:not(.hidden) .meter-group:not(.hidden), .natpf-coach:not(.hidden) .coach-main, .natpf-split-hud:not(.hidden) .split-tag').some(a => hit(a, 4));
+    const view = half && E.natpfSplit?.shown ? this._halfView(half, layer) : null;
+    const project = view || (E._projectToScreen && E.camera ? p => E._projectToScreen(p) : null);
+    if (!project) return out;
+    // margine di 6 px per giocatori e palla; il campo senza margine (la scritta può stare a filo delle righe)
+    const R0 = { l: r.left - layer.left, r: r.right - layer.left, t: r.top - layer.top, b: r.bottom - layer.top };
+    const R = { l: R0.l - 6, r: R0.r + 6, t: R0.t - 6, b: R0.b + 6 };
+    const V = THREE.Vector3;
+    const hits = pts => { const q = pts.map(project).filter(p => p.visible); if (!q.length) return false; const xs = q.map(p => p.x), ys = q.map(p => p.y); return Math.min(...xs) < R.r && Math.max(...xs) > R.l && Math.min(...ys) < R.b && Math.max(...ys) > R.t; };
     for (const a of [E.player, E.opponent, ...(E.isDoubles ? [E.playerPartner, E.opponentPartner] : [])]){
       if (!a?.pos) continue;
       const { x, z } = a.pos;
-      if (hits([new V(x - .55, 0, z), new V(x + .55, 0, z), new V(x - .55, 2.1, z), new V(x + .55, 2.1, z)])) return true;
+      if (hits([new V(x - .55, 0, z), new V(x + .55, 0, z), new V(x - .55, 2.1, z), new V(x + .55, 2.1, z)])){ out.actors = true; break; }
     }
-    const b = E.ball.pos;
-    return hits([new V(b.x - .3, b.y - .3, b.z), new V(b.x + .3, b.y + .3, b.z)]);
+    const b = E.ball?.pos;
+    if (!out.actors && b) out.actors = hits([new V(b.x - .3, b.y - .3, b.z), new V(b.x + .3, b.y + .3, b.z)]);
+    // campo: quadrilatero proiettato, solo se i quattro angoli stanno davanti alla camera (in prima persona no)
+    const W = 5.485, L = COURT.halfL, poly = [[-W, L], [W, L], [W, -L], [-W, -L]].map(([x, z]) => project(new V(x, 0, z)));
+    if (poly.every(p => p.visible)) out.court = rectHitsPoly(R0, poly.map(p => [p.x, p.y]));
+    return out;
+  }
+  // proiezione nella metà dello stesso schermo (pixel dell'area del gioco, come _projectToScreen)
+  _halfView(half, layer){
+    const E = this.engine, cam = half === 'right' ? E.natpfSplit?.cam2 : E.camera;
+    if (!cam?.matrixWorldInverse) return null;
+    const vp = splitViewports(layer.width, layer.height)[half === 'right' ? 'p2' : 'p1'];
+    cam.updateMatrixWorld();
+    return p => { const t = p.clone().project(cam); return { x: vp.x + (t.x*.5 + .5)*vp.w, y: (-t.y*.5 + .5)*vp.h, visible: t.z >= -1 && t.z <= 1 }; };
   }
   get localActor(){ return this.engine.playerRole === 'p2' ? this.engine.opponent : this.engine.player; }
   // dal giro dell'aptica: kind «hit»/«whiff» del giocatore locale; restituisce l'esito (anche per il telefono)
