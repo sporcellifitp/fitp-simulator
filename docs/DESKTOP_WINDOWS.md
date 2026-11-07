@@ -244,6 +244,9 @@ F0 e restante F1 (qualità automatica, taratura latenza, traffico, dipendenze) n
 
 ## 13. Eseguibili Windows con Electron (fase F3) · 04/11/2026 sera · B7
 
+> **Dal 07/11/2026 (§15)** il portatile non c'è più: resta solo l'installer, che si aggiorna dal gioco. Le parti di
+> questa sezione sul portatile (`build/portatile.nsi`, regola «NATPF Simulator portatile») valgono solo come storia.
+
 Richiesta dell'utente: «una versione portatile e una versione installabile, entrambe tramite eseguibili; vai avanti
 su Windows, il resto lo provo io». Codice in `natpf-desktop/` (procedura in `natpf-desktop/LEGGIMI.md`), punti di
 collaudo per l'utente in `docs/COLLAUDO_WINDOWS.md`.
@@ -328,3 +331,55 @@ precedenti (§6–§9: «Edge in app/chiosco», `--kiosk`) non coincidono, vale 
 - **Verificato qui**: prove di unità, prove nel browser (schermo, calibrazione, inquadratura, menu, allenamento, LAN),
   prova del programma con Electron per Linux in Xvfb. **Da verificare su Windows**: `docs/COLLAUDO_WINDOWS.md` §4, §4b,
   §5b.
+
+## 15. Un solo installer che si aggiorna dal gioco · 07/11/2026
+
+Richiesta dell'utente: «La versione LAN mi pare la stessa della versione windows. Sviluppa solo quella windows se è la
+stessa. La versione windows (installer) deve essere un unico installer che poi deve potersi aggiornare direttamente dal
+gioco». Risposte: aggiornamenti su **Cloudflare R2** (bucket pubblico sullo stesso account del gioco; il repository è
+privato, quindi niente download da GitHub); si consegnano **solo l'installer Windows e lo zip Cloudflare** (niente più
+zip LAN né portatile). Dove questa sezione e le precedenti non coincidono, vale questa.
+
+- **LAN e Windows sono la stessa cosa**: il programma avvia nello stesso processo il server LAN dello zip (stessi
+  certificati in `%LOCALAPPDATA%\NATPF`, stesse porte), con in più schermo intero senza cornici, firewall
+  dall'installazione e ora gli aggiornamenti. Lo zip LAN non si fa più; `natpf-tennis/lan/` resta perché il programma
+  lo usa (`scripts/prepara.mjs`).
+- **Un solo eseguibile** `NATPF-Simulator-Setup-<versione>.exe` (`build/installatore.nsi`): prima installazione e
+  aggiornamento sopra quella esistente (stessa cartella letta dal registro, pagina della cartella saltata, nessuna
+  disinstallazione), `/S` silenziosa, `/AGGIORNA` per l'aggiornamento dal gioco (aspetta fino a 15 s che il programma
+  si chiuda da solo, poi lo chiude; alla fine riapre il gioco tramite Esplora risorse, quindi senza i permessi di
+  amministratore). Per il computer come prima (Programmi e firewall): ogni aggiornamento chiede il permesso di Windows
+  (UAC). Non tocca `%LOCALAPPDATA%\NATPF` (impostazioni, profilo del gioco, certificati, registri).
+- **Aggiornatore** (`natpf-desktop/src/aggiornamenti.mjs`, puro e provato con un server HTTP locale; collegato in
+  `main.mjs`): indirizzo base da `aggiornamenti.json` del pacchetto (vuoto → `off`) o dalla variabile
+  `NATPF_AGGIORNAMENTI_URL` alla costruzione; manifesto `<base>/windows/latest.json` = `{ build, version, file, size,
+  sha256, notes, published }`; controllo 8 s dopo l'apertura e su richiesta; confronto `AAAA-MM-GG.n`; download in
+  `%LOCALAPPDATA%\NATPF\aggiornamenti` con avanzamento, ripresa `Range` o riavvio, controllo di dimensione e sha256,
+  redirect solo verso la stessa origine (o host elencati); installer avviato con PowerShell `Start-Process -Verb RunAs
+  /S /AGGIORNA`, poi il programma si chiude. Attivo solo nel programma installato. Mai download o installazione senza
+  clic; offline → stato `error` con un testo chiaro e il gioco continua (eventi in LAN senza internet).
+  Nessuna dipendenza nuova (http/https di Node; electron-updater non serve: l'installer è NSIS su misura costruito da
+  Linux e il manifesto è nostro).
+- **Ponte** `window.natpfDesktop.updates` (versione 2 del ponte): `state()`, `check()`, `download()`, `install()`,
+  `onChange(cb)`; contratto in `natpf-desktop/src/preload.cjs` e `natpf-desktop/LEGGIMI.md`. Solo dalla finestra del
+  gioco e dalle pagine del proprio server, come lo schermo intero. Nel browser (Cloudflare) `natpfDesktop` non c'è:
+  l'interfaccia degli aggiornamenti non compare. In più, menu del programma: Alt → Aiuto → «Cerca aggiornamenti…».
+- **Pubblicazione** (`.github/workflows/natpf-windows.yml`): dopo la costruzione `scripts/manifesto.mjs` scrive
+  `latest.json`; con i segreti `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET` aws cli (API S3
+  di R2, caricamento a più parti; wrangler `r2 object put` arriva a 315 MB per file secondo la documentazione: oggi
+  basterebbe, ma senza margine e un oggetto alla volta) carica prima l'installer (dimensione ricontrollata sul bucket), poi il manifesto senza cache, poi la
+  copia `NATPF-Simulator-Setup.exe` per la prima installazione; tiene gli ultimi 5 installer; mai una versione più
+  vecchia sopra una più nuova; senza segreti solo un avviso. L'Artifact di GitHub resta. Passi per l'utente:
+  `docs/GUIDA_AGGIORNAMENTI_R2.md`.
+- **Limiti noti**: integrità affidata a HTTPS e al token di scrittura (lo sha256 protegge da file rovinati, non da chi
+  può scrivere sul bucket; possibile miglioramento: manifesto firmato con una chiave privata solo nei segreti). Il
+  programma usa http/https di Node, che non legge il proxy di sistema di Windows (reti aziendali con proxy obbligatorio:
+  controllo in errore, gioco intatto). Le installazioni fatte prima di questa versione non conoscono l'indirizzo: la
+  prima versione con l'indirizzo si installa a mano. Il portatile già usato lascia `%LOCALAPPDATA%\NATPF\portatile` e
+  la regola del firewall «NATPF Simulator portatile»: si possono cancellare a mano.
+- **Verificato qui**: test dell'aggiornatore (manifesto valido e non valido, versioni, sha256 e dimensione sbagliati,
+  redirect esterno, interruzione e ripresa, permesso rifiutato), degli script NSIS e del workflow; passo di
+  pubblicazione con un aws finto; prova con Electron per Linux in Xvfb con un server finto (off, available, download,
+  ready, install simulata); compilazione dell'installer con makensis. **Da verificare su Windows**:
+  `docs/COLLAUDO_WINDOWS.md` §2 e §2b (UAC, aggiornamento silenzioso, riapertura, dati conservati), e il primo giro
+  vero su R2 con i segreti dell'utente.

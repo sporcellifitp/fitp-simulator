@@ -2,7 +2,7 @@
   "name": "natpf-simulator-desktop",
   "private": true,
   "version": "1.0.0",
-  "description": "NATPF Simulator per Windows: eseguibili portatile e installabile (Electron) con il server LAN dei telefoni",
+  "description": "NATPF Simulator per Windows: un solo installer (Electron) con il server LAN dei telefoni e gli aggiornamenti dal gioco",
   "type": "module",
   "scripts": {
     "test": "node --test test/*.test.mjs",

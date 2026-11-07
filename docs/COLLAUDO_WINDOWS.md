@@ -1,53 +1,53 @@
-# COLLAUDO_WINDOWS · punti da controllare sugli eseguibili Windows (per l'utente)
+# COLLAUDO_WINDOWS · punti da controllare sul programma Windows (per l'utente)
 
-Richiesta del 04/11/2026: «una versione portatile e una versione installabile, entrambe tramite eseguibili; vai avanti
-su Windows, il resto lo provo io, segnati i punti che devo controllare». Questo file è la lista dei controlli. Spunta
-le caselle (`[x]`) o scrivi accanto cosa non va; se qualcosa non va, manda anche il registro
-`%LOCALAPPDATA%\NATPF\log\programma.log` (dal programma: tasto **Alt** → Aiuto → Cartella dei dati).
+Richieste: 04/11/2026 «una versione portatile e una versione installabile, entrambe tramite eseguibili; vai avanti su
+Windows, il resto lo provo io, segnati i punti che devo controllare»; **07/11/2026** «La versione windows (installer)
+deve essere un unico installer che poi deve potersi aggiornare direttamente dal gioco» (niente più portatile né zip
+LAN; aggiornamenti da Cloudflare R2). Questo file è la lista dei controlli. Spunta le caselle (`[x]`) o scrivi accanto
+cosa non va; se qualcosa non va, manda anche il registro `%LOCALAPPDATA%\NATPF\log\programma.log` (dal programma: tasto
+**Alt** → Aiuto → Cartella dei dati).
 
-Codice: `natpf-desktop/` (Electron 45.2.2), procedura di costruzione in `natpf-desktop/LEGGIMI.md`.
+Codice: `natpf-desktop/` (Electron 45.2.2), procedura di costruzione in `natpf-desktop/LEGGIMI.md`, bucket degli
+aggiornamenti: `docs/GUIDA_AGGIORNAMENTI_R2.md`.
 
-## 0. I due file
+## 0. Il file
 
 | File | Cosa fa | Dimensione | sha256 |
 |---|---|---|---|
-| `NATPF-Simulator-Setup-2026-11-05.1.exe` | installazione in Programmi, collegamenti, firewall, disinstallazione | 124.510.981 B | fe3de548601edd6587cf4a81542ec64426719d47fab9ef83bdeaf56d3bd18a3e |
-| `NATPF-Simulator-Portatile-2026-11-05.1.exe` | un solo file, nessuna installazione, nessun permesso per avviarlo | 124.518.594 B | c60008c945736725ab7f8a7d5697a1cce5997818864aacacea4fa37d7c90478e |
+| `NATPF-Simulator-Setup-<versione>.exe` | installa la prima volta e aggiorna sopra (Programmi, collegamenti, firewall, disinstallazione) | ~125 MB | in `SHA256SUMS.txt` accanto al file (Artifacts di GitHub) o in `latest.json` sul bucket |
 
-- Stesso gioco della versione browser e dello zip LAN `2026-11-05.1` (B8: schermo intero senza cornici, calibrazione
-  dello schermo, inquadratura adattata al monitor; prima consegna degli eseguibili: `2026-11-04.5`, B7).
+- **Un solo eseguibile** (dal 07/11). Il portatile non c'è più: se l'hai usato, puoi cancellare
+  `%LOCALAPPDATA%\NATPF\portatile` e la regola del firewall «NATPF Simulator portatile» (non servono più).
+- Stesso gioco della versione browser; il server dei telefoni è quello che era nello zip LAN, dentro il programma.
 - Richiede Windows 10 o 11 a 64 bit. Su Windows più vecchi o a 32 bit si ferma con un messaggio.
-- Server e certificati sono gli stessi dello zip LAN di Codex: HTTPS 8443 per gioco e telefoni, pagina del
-  certificato 8081, avvio guidato 8080 (solo sul PC). Dati in `%LOCALAPPDATA%\NATPF` (certificati in `certs`,
-  impostazioni e profilo del gioco in `programma`, registri in `log`).
-- **Uno alla volta**: zip LAN, portatile e installato usano le stesse porte. Se uno è aperto, il secondo dice «La
-  porta 8443 è già in uso» (zip LAN) oppure porta in primo piano la finestra già aperta (portatile/installato).
+- Server e certificati: HTTPS 8443 per gioco e telefoni, pagina del certificato 8081, avvio guidato 8080 (solo sul PC).
+  Dati in `%LOCALAPPDATA%\NATPF` (certificati in `certs`, impostazioni e profilo del gioco in `programma`, registri in
+  `log`, aggiornamenti scaricati in `aggiornamenti`).
+- **Uno alla volta**: se il programma è già aperto, aprirlo di nuovo porta in primo piano la finestra già aperta.
 
-## 1. Scaricare e aprire (tutti e due)
+## 1. Scaricare e aprire
 
 Da **GitHub** (un unico zip): Actions → «NATPF eseguibili Windows» → ultima esecuzione → Artifacts →
-`NATPF-Simulator-Windows-<versione>`; dentro i due `.exe`, i loro sha256 (`SHA256SUMS.txt`) e questa lista. Sono
-costruiti da GitHub con lo stesso codice: gli sha256 sono quelli di `SHA256SUMS.txt`, non quelli del §0.
+`NATPF-Simulator-Windows-<versione>`; dentro l'installer, il suo sha256 (`SHA256SUMS.txt`), `latest.json` e questa
+lista. Oppure, quando il bucket è pronto (guida R2): `<indirizzo pubblico>/windows/NATPF-Simulator-Setup.exe` (sempre
+l'ultima versione).
 
-Oppure dai messaggi, **a pezzi** (`.001`, `.002`, `.003`, al massimo 45 MB ciascuno) con `UNISCI I PEZZI.cmd`: metti
-tutti i pezzi e quel file nella stessa cartella e fai doppio clic. Deve scrivere «… pronto e verificato» per ciascun
-eseguibile (sha256 controllato); poi i pezzi si possono cancellare.
-- [ ] `UNISCI I PEZZI.cmd` crea i due `.exe` e li dice verificati (se Windows avvisa anche per il `.cmd`: Ulteriori
-      informazioni → Esegui comunque).
+Se serve, dai messaggi **a pezzi** (`.001`, `.002`, `.003`, al massimo 45 MB ciascuno) con `UNISCI I PEZZI.cmd`: metti
+tutti i pezzi e quel file nella stessa cartella e fai doppio clic. Deve scrivere «… pronto e verificato».
 
-Senza firma del codice (decisione del 04/11) Windows avvisa alla prima apertura di ciascun file.
+Senza firma del codice (decisione del 04/11) Windows avvisa alla prima apertura del file scaricato.
 
 - [ ] SmartScreen «Windows ha protetto il PC»: **Ulteriori informazioni → Esegui comunque** apre il file.
 - [ ] L'antivirus (Defender o altro del PC noleggiato) non mette il file in quarantena. Se lo fa, scrivimi il nome
       della minaccia segnalata.
 - [ ] Le proprietà del file (tasto destro → Proprietà → Dettagli) mostrano «NATPF Simulator», versione file
-      2026.1105.1.0 e versione prodotto 2026-11-05.1; l'icona è la pallina su fondo blu.
+      `AAAA.MMGG.n.0` e versione prodotto `AAAA-MM-GG.n` della versione scaricata; l'icona è la pallina su fondo blu.
 
-## 2. Versione installabile (`NATPF-Simulator-Setup-…exe`)
+## 2. Installazione (`NATPF-Simulator-Setup-…exe`)
 
 - [ ] Chiede il permesso di amministratore (UAC, «Autore sconosciuto»): è normale, serve per Programmi e firewall.
-- [ ] Pagine in italiano con la grafica NATPF: benvenuto → cartella (`C:\Program Files\NATPF Simulator`) →
-      installazione → fine.
+- [ ] Prima installazione: pagine in italiano con la grafica NATPF: benvenuto → cartella
+      (`C:\Program Files\NATPF Simulator`) → installazione → fine.
 - [ ] Alla fine «Avvia NATPF Simulator» apre il gioco (non come amministratore: la finestra si comporta come le altre).
 - [ ] Collegamento «NATPF Simulator» con l'icona della pallina sul desktop e nel menu Start.
 - [ ] Al primo avvio **non** compare l'avviso del firewall di Windows né la domanda «Apri la rete ai telefoni»
@@ -56,30 +56,42 @@ Senza firma del codice (decisione del 04/11) Windows avvisa alla prima apertura 
       **NATPF Simulator** (Consenti, profilo Tutti, indirizzo remoto Subnet locale, programma
       `C:\Program Files\NATPF Simulator\NATPF Simulator.exe`). In alternativa, da un prompt:
       `netsh advfirewall firewall show rule name="NATPF Simulator" verbose`.
-- [ ] Impostazioni → App → App installate: «NATPF Simulator», versione 2026-11-05.1, con «Disinstalla».
-- [ ] Aggiornamento: rilanciare il setup con il gioco aperto → chiede di chiuderlo, lo chiude e installa sopra.
+- [ ] Impostazioni → App → App installate: «NATPF Simulator» con la versione installata e «Disinstalla».
+- [ ] **Aggiornamento a mano** (setup di una versione più nuova, con il gioco già installato): **non** chiede di
+      disinstallare né la cartella (benvenuto → installazione → fine); se il gioco è aperto chiede di chiuderlo.
+      Dopo: in «App installate» c'è la versione nuova; monitor scelto, schermo intero, impostazioni del gioco e
+      telefoni (certificato) come prima.
 - [ ] Disinstallazione: toglie collegamenti, cartella in Programmi e regola del firewall; lascia
       `%LOCALAPPDATA%\NATPF` (certificati: i telefoni restano a posto se reinstalli).
-- [ ] Installazione silenziosa (facoltativa, per chi prepara i PC): `NATPF-Simulator-Setup-2026-11-05.1.exe /S`.
+- [ ] Installazione silenziosa (facoltativa, per chi prepara i PC): `NATPF-Simulator-Setup-<versione>.exe /S`.
 
-## 3. Versione portatile (`NATPF-Simulator-Portatile-…exe`)
+## 2b. Aggiornamento dal gioco (07/11)
 
-- [ ] Funziona da qualunque cartella o chiavetta USB, senza installazione e senza permessi per avviarlo.
-- [ ] Primo avvio di questa versione: finestrella «Primo avvio di questa versione» con la barra (da qualche secondo a
-      circa un minuto: estrae ~320 MB in `%LOCALAPPDATA%\NATPF\portatile\2026-11-05.1`), poi si apre il gioco.
-- [ ] Prima di aprire il gioco (schermata «Avvio del gioco…») chiede «I telefoni devono poter raggiungere questo
-      computer» → **Apri la rete ai telefoni** → permesso di amministratore (UAC) → nessun altro messaggio, e
-      **nessun** avviso «Windows Defender Firewall ha bloccato alcune funzionalità». Regola creata: **NATPF Simulator
-      portatile** (programma in `%LOCALAPPDATA%\NATPF\portatile\2026-11-05.1`).
-- [ ] Avvii successivi: il gioco si apre in pochi secondi, senza finestrella e senza domande sul firewall.
-- [ ] Con una versione nuova del portatile: estrae di nuovo una volta, chiede di nuovo il firewall una volta (il
-      percorso cambia), e cancella la cartella della versione precedente.
-- [ ] Se rispondi «Più tardi»: il gioco funziona sul PC; Windows può mostrare il suo avviso del firewall (lì
-      «Consenti accesso» chiede l'amministratore; «Annulla» crea regole di blocco). In tutti e due i casi
-      **Alt → Rete → Apri la rete ai telefoni (firewall)…** deve sistemare tutto: toglie le regole legate al
-      programma, blocchi compresi, e crea quella giusta. Da provare apposta una volta con «Annulla».
+Serve il bucket R2 pronto (`docs/GUIDA_AGGIORNAMENTI_R2.md`) e un installer che conosca il suo indirizzo: la **prima**
+versione con l'indirizzo si installa a mano (§2); per provare l'aggiornamento serve poi una versione ancora più nuova
+pubblicata sul bucket (dimmelo e la pubblico).
+- [ ] Con internet, qualche secondo dopo l'avvio il gioco dice che c'è una versione nuova (numero e novità). Niente si
+      scarica da solo.
+- [ ] **Scarica**: avanzamento nel gioco e sulla barra delle applicazioni (icona verde); si può continuare a giocare.
+      ~125 MB: con una rete lenta qualche minuto. Il file va in `%LOCALAPPDATA%\NATPF\aggiornamenti`.
+- [ ] Download interrotto (staccare la rete a metà, poi riattaccarla e premere di nuovo): riprende da dove era.
+- [ ] **Installa**: Windows chiede il permesso (Controllo dell'account utente, «Vuoi consentire a questa app di
+      apportare modifiche?», programma «NATPF-Simulator-Setup-…») → **Sì** → il gioco si chiude, nessuna finestra
+      dell'installazione, e **entro un minuto il gioco si riapre da solo**, aggiornato (Alt → Aiuto → Versione).
+- [ ] Il gioco riaperto **non** è come amministratore (si comporta come prima; trascinare un file sulla finestra o la
+      webcam funzionano come prima).
+- [ ] Dopo l'aggiornamento restano: monitor scelto e schermo intero, impostazioni e record del gioco, telefoni già
+      collegati (certificato), regola del firewall (nessun avviso del firewall).
+- [ ] Al permesso di Windows rispondi **No**: il gioco resta aperto, dice che serve il permesso, e «Installa» si può
+      ripremere più tardi.
+- [ ] Senza internet (rete dello stand senza uscita): il gioco parte e funziona come sempre; negli aggiornamenti dice
+      che il server non è raggiungibile. Nessuna attesa, nessun blocco.
+- [ ] Alt → Aiuto → **Cerca aggiornamenti…**: stesso percorso con le finestre di Windows («Hai già l'ultima versione»
+      quando è aggiornato).
+- [ ] Il giorno dopo l'aggiornamento la cartella `%LOCALAPPDATA%\NATPF\aggiornamenti` è vuota (installer già usato
+      cancellato all'avvio).
 
-## 4. Gioco sul PC (tutti e due)
+## 4. Gioco sul PC
 
 - [ ] Si apre a **schermo intero sul monitor più grande che non è il principale**: con il ledwall collegato come
       monitor esteso deve andare sul ledwall. Senza ledwall: sul monitor del PC.
@@ -125,7 +137,7 @@ Senza firma del codice (decisione del 04/11) Windows avvisa alla prima apertura 
       lato) il gioco sta tutto in quell'angolo; la scelta resta alla riapertura.
 - [ ] Con «Intero» e bordi a zero il gioco riempie tutto il monitor, **senza bande nere** ai lati.
 
-## 5. Telefoni (tutti e due)
+## 5. Telefoni
 
 - [ ] Telefoni dello staff sulla rete dello stand. Prima volta su quel PC: **Alt → Rete → Indirizzi e certificato
       per i telefoni…** mostra `http://<indirizzo del PC>:8081`; dal telefono si apre la pagina e si installa il
@@ -139,15 +151,10 @@ Senza firma del codice (decisione del 04/11) Windows avvisa alla prima apertura 
       **prima** del primo avvio; il programma tiene la stessa autorità e rifà solo il certificato per i nuovi
       indirizzi.
 
-## 5b. Zip LAN con Edge e versione browser (B8)
+## 5b. Versione browser (Cloudflare, B8)
 
-Non sono eseguibili, ma la richiesta del 04/11 sera («full screen senza cornici in tutte le versioni») vale anche qui.
-- [ ] Zip LAN, **AVVIA NATPF DESKTOP.cmd**: Edge si apre **già a schermo intero senza bordi** sul monitor scelto
-      (prima apriva una finestra con la barra del titolo). Per uscire: tieni premuto **Esc** o premi **F11**; per
-      chiudere **Alt+F4**. **CONFIGURA SCHERMO.cmd**: Invio = schermo intero (consigliato), 2 = finestra con bordi
-      (solo prove; in finestra il gioco non va a schermo intero da solo).
-- [ ] Edge già aperto con lo stesso profilo: le opzioni nuove non valgono finché Edge non si chiude del tutto.
-- [ ] Versione browser (Cloudflare o LAN da un browser qualsiasi): il **primo tasto o clic** sulla schermata
+Lo zip LAN non si consegna più dal 07/11 (è lo stesso gioco e lo stesso server del programma Windows).
+- [ ] Versione browser (Cloudflare): il **primo tasto o clic** sulla schermata
       «Premi un tasto per iniziare» porta il gioco a schermo intero; un **Esc breve** resta «indietro», tenuto
       premuto esce (Edge e Chrome). F entra ed esce. «Opzioni → Schermo → All'avvio: Finestra» lo spegne.
 - [ ] Versione Cloudflare: lo zip pesa meno di 25 MB (`natpf-simulator-cloudflare-20261105-1.zip`, 22.517.792 B) e la
@@ -155,10 +162,11 @@ Non sono eseguibili, ma la richiesta del 04/11 sera («full screen senza cornici
 
 ## 6. Se qualcosa non va
 
-- «Il gioco non è partito. La porta 8443 è già in uso»: è aperto lo zip LAN («AVVIA NATPF LAN») o un altro
+- «Il gioco non è partito. La porta 8443 è già in uso»: è aperto un vecchio zip LAN («AVVIA NATPF LAN») o un altro
   programma sulla 8443. Chiuderlo e riaprire.
-- Telefoni che non si collegano: Alt → Rete → Apri la rete ai telefoni; controllare la regola del firewall (punto 2
-  o 3) e che non ci siano regole di **blocco** per «NATPF Simulator» nelle regole in entrata; che PC e telefoni siano
+- Aggiornamento dal gioco che non parte o non riapre il gioco: aprire il gioco dal collegamento sul desktop e
+  mandarmi il registro (righe «aggiornamenti»). In alternativa installare a mano l'ultimo setup (§2): aggiorna sopra.
+- Telefoni che non si collegano: Alt → Rete → Apri la rete ai telefoni; controllare la regola del firewall (punto 2) e che non ci siano regole di **blocco** per «NATPF Simulator» nelle regole in entrata; che PC e telefoni siano
   sulla stessa rete; che la rete dello stand non isoli i dispositivi tra loro (isolamento dei client Wi-Fi). Un
   antivirus con un suo firewall (non Defender) ignora le regole di Windows: va aperto lì.
 - Schermo nero o gioco a scatti: punto «Scheda grafica in uso» del §4.
@@ -167,15 +175,21 @@ Non sono eseguibili, ma la richiesta del 04/11 sera («full screen senza cornici
 ## 7. Cosa è stato verificato qui (Linux) e cosa no
 
 Verificato prima della consegna:
-- costruzione da Linux: electron-builder per Electron Windows x64, NSIS 3.0.4.1 per installazione e portatile;
-- contenuto dei due eseguibili (elenco dei file compressi), icona e informazioni di versione nell'eseguibile;
+- costruzione da Linux: electron-builder per Electron Windows x64, NSIS 3.0.4.1 per l'installer (dal 07/11 uno solo);
+- contenuto dell'eseguibile (elenco dei file compressi), icona e informazioni di versione nell'eseguibile;
 - il programma avviato con Electron per Linux (stesso codice, schermo virtuale): server LAN, certificato accettato
   solo per i propri indirizzi, gioco a schermo intero con la schermata iniziale;
 - prove delle funzioni del processo principale (monitor, certificato, firewall, impostazioni, versione);
 - B8: prova automatica con Electron per Linux in uno schermo virtuale (finestra già a schermo intero, Alt che non
   mostra il menu, F11, Esc al gioco, ponte `window.natpfDesktop`, cambio di monitor simulato), prove nel browser dello
-  schermo intero, della calibrazione e dell'inquadratura a 16:9, 4:3, 1:1 e in verticale.
+  schermo intero, della calibrazione e dell'inquadratura a 16:9, 4:3, 1:1 e in verticale;
+- 07/11 aggiornamenti: prove dell'aggiornatore con un server finto (versioni, manifesto, sha256 e dimensione sbagliati,
+  redirect verso altri siti, download interrotto e ripreso, permesso rifiutato), prova con Electron per Linux (stato
+  spento senza indirizzo, controllo all'avvio senza download, scarica → pronto, installazione simulata), script NSIS
+  compilato con `/AGGIORNA`, passo di pubblicazione su R2 con un aws finto.
 
 **Non verificato** (serve Windows): tutto quello che è in questo file. In particolare SmartScreen e antivirus,
 installazione e disinstallazione, regole del firewall, avvio senza permessi dalla pagina finale, ledwall, webcam,
-scheda grafica del PC noleggiato, telefoni veri.
+scheda grafica del PC noleggiato, telefoni veri; per gli aggiornamenti: il permesso di Windows, l'installazione
+silenziosa con `/AGGIORNA`, la riapertura del gioco senza permessi, i dati conservati, il primo caricamento vero sul
+bucket R2 (servono i segreti dell'utente).
