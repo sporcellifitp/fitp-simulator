@@ -34,8 +34,9 @@ Archivio (si consulta, non si aggiorna): `docs/archivio/` (diari fino al 04/11/2
   subito, su `origin natpf-simulator`. Verificato = test del gioco e del sito verdi, più build se il passo tocca build,
   asset, vite o `site/`. Prima `git fetch`; solo avanzamento lineare (se il remoto è avanti: integrare e rifare i
   test); mai `--force`; niente push con test rossi, salvo un WIP dichiarato autorizzato dall'utente caso per caso.
-- **Pacchetti ZIP** (LAN Windows e Cloudflare), regola dell'utente del 04/11: **sempre dopo ogni commit**, consegnati
-  all'utente senza aspettare che li chieda. Se il commit cambia il contenuto dei pacchetti si rifanno con una versione
+- **Pacchetti** (dal 07/11: **installer Windows unico** e **zip Cloudflare**; lo zip LAN e il portatile non si fanno più,
+  decisione dell'utente: «sviluppa solo quella windows»), regola dell'utente del 04/11: **sempre dopo ogni commit**,
+  consegnati all'utente senza aspettare che li chieda. Se il commit cambia il contenuto dei pacchetti si rifanno con una versione
   nuova (`site/js/tennis/version.js` e `site/tennis/build.json`) e si provano estratti; se non lo cambia (solo
   documenti o prove) si riconsegnano gli ultimi ZIP (stessa versione e sha256) dicendolo. Procedura in
   `docs/PIANO_LAVORI.md` §6.

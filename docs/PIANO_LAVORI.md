@@ -139,7 +139,13 @@ Come si aggiorna:
   Resta: blocco di ~1 s nello stesso schermo con le due animazioni (workflow `natpf-b10-blocco-1s` in corso).
 - **07/11: B10 completato.** **Versione 2026-11-07.3** (`0c6188b`) consegnata: tolto il blocco di ~1 s nello stesso
   schermo (era l'arena dietro il menu ridisegnata 8 volte senza GPU). Dettagli in WORK_PROGRESS B10.
-- **Prossima azione esatta:** collaudo dell'utente con telefoni veri, Windows e ledwall (tutorial con frecce, «Tutto
+- **Richiesta nuova (07/11) → blocco B11:** «La versione LAN mi pare la stessa della versione windows. Sviluppa solo
+  quella windows se è la stessa. La versione windows (installer) deve essere un unico installer che poi deve potersi
+  aggiornare direttamente dal gioco». Risposte dell'utente: aggiornamenti su **Cloudflare R2**; **solo installer Windows
+  + zip Cloudflare** (niente più zip LAN né portatile). In corso: workflow `natpf-b11-installer-aggiornamenti` (parte A
+  programma/installer/aggiornatore/pubblicazione in CI/guida R2, parte B interfaccia nel gioco; revisione di sicurezza,
+  correzioni). Poi: guida all'utente per creare il bucket R2 e i segreti, indirizzo pubblico nel programma, versione.
+- **Prossima azione esatta (prima di B11):** collaudo dell'utente con telefoni veri, Windows e ledwall (tutorial con frecce, «Tutto
   chiaro», schermo spento, pronto nello stesso schermo, animazione nuova, voce «smash», tabellone, scritte nel 2v2);
   correggere ciò che segnala. Aperto: errore raro della webcam del P2 sotto carico (`tools/e2e/natpf-1v1-webcam-p2.mjs`).
 - **Prossima azione esatta (B10, superata):** unire la correzione del blocco, natpf-modale-gesti verde 3 volte, versione

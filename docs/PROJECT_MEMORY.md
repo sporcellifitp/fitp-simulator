@@ -129,6 +129,13 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   strade di sempre. Il canale «fast» del telefono via internet è affidabile ma non ordinato (PeerJS imposta solo
   ordered:false): lasciato così per decisione dell'utente.
 
+## Decisioni B11 (07/11/2026: un solo installer Windows che si aggiorna dal gioco)
+
+- Prodotti consegnati: **installer Windows unico** (`NATPF-Simulator-Setup-<build>.exe`) e **zip Cloudflare** per il
+  browser. Lo zip LAN e l'eseguibile portatile non si fanno più (stesso gioco e stesso server dei telefoni dell'installer).
+- Aggiornamenti dal gioco: file pubblicati su **Cloudflare R2** (bucket pubblico; il repository è privato, quindi niente
+  download da GitHub e nessun segreto nel programma). Dettagli di formato e sicurezza nella nota del blocco B11.
+
 ## Decisioni B9 (05–06/11/2026: tutorial, telefono, schermo spento, pronto)
 
 - **Animazione dei gesti** (`natpf_gesture_demo.js`): Canvas 2D illustrata «2,5D», solo avambraccio, mano e telefono,
