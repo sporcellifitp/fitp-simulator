@@ -128,7 +128,21 @@ jobs:
           set -euo pipefail
           build='${{ steps.v.outputs.build }}'
           exe="NATPF-Simulator-Setup-$build.exe"
-          ep="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          # Account ID e nome del bucket ripuliti (spazi, a capo, virgolette, indirizzo intero copiato al posto dell'ID);
+          # i messaggi dicono cosa non va senza mostrare i valori
+          raw="$(printf '%s' "$R2_ACCOUNT_ID" | tr -d '[:space:]"'"'"'')"
+          acct="$(printf '%s' "$raw" | tr 'A-F' 'a-f' | grep -oE '[0-9a-f]{32}' | head -n 1 || true)"
+          if [ -z "$acct" ]; then
+            echo "::error title=R2_ACCOUNT_ID non valido::Il segreto R2_ACCOUNT_ID non contiene un Account ID di Cloudflare (32 caratteri 0-9 e a-f): ha ${#raw} caratteri. Si trova nell'indirizzo della dashboard dopo dash.cloudflare.com/ (docs/GUIDA_AGGIORNAMENTI_R2.md)."
+            exit 1
+          fi
+          [ "$acct" = "$raw" ] || echo "::notice title=R2_ACCOUNT_ID ripulito::Il segreto conteneva altro oltre all'Account ID (${#raw} caratteri): uso i 32 caratteri dell'ID."
+          R2_BUCKET="$(printf '%s' "$R2_BUCKET" | tr -d '[:space:]"'"'"'' | sed -E 's#^s3://##; s#/.*$##')"
+          ep="https://${acct}.r2.cloudflarestorage.com"
+          if ! getent hosts "${acct}.r2.cloudflarestorage.com" >/dev/null; then
+            echo "::error title=Endpoint R2 non trovato::L'indirizzo <Account ID>.r2.cloudflarestorage.com non esiste: l'ID nel segreto R2_ACCOUNT_ID non è quello dell'account con il bucket (o R2 non è attivo)."
+            exit 1
+          fi
           # mai tornare indietro e mai ripubblicare la stessa versione: se sul bucket c'è già questa versione o una più
           # nuova, non si carica niente (un installer già pubblicato non si riscrive: la cache lunga del suo nome darebbe
           # i byte vecchi con lo sha256 nuovo del manifesto, e il programma rifiuterebbe il file)
