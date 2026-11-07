@@ -5,6 +5,9 @@ import { launch, page, check, summary, SP } from './th.mjs';
 import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
 const B=await launch(), motion=readFileSync(new URL('./motion.js',import.meta.url),'utf8')+';DeviceMotionEvent.requestPermission = async () => "denied";';
 const opened=[];
+// CPU_THROTTLE=4 (facoltativo): computer e telefono frenati via CDP dal servizio in poi, come un runner lento della CI
+// (così si è riprodotto l'errore intermittente del servizio, docs/b13/gesture-calibration-ci.md)
+const SLOW=Number(process.env.CPU_THROTTLE)||0, slow=async x=>{if(SLOW>1)await(await x.ctx.newCDPSession(x.p)).send('Emulation.setCPUThrottlingRate',{rate:SLOW});};
 try {
  const desktop=await page(B,'http://127.0.0.1:8765/tennis/?q=low&peer=127.0.0.1:9000',{w:960,h:720});opened.push(desktop);const d=desktop.p;
  await d.waitForFunction(()=>window.__racchetta);await d.click('#btnCpu');await d.waitForFunction(()=>document.querySelector('#qr').dataset.url);
@@ -42,6 +45,7 @@ try {
  await d.screenshot({path:SP+'/calibration-quick.png'});
  await d.click('#rvConfirm');await p.waitForFunction(()=>__racchetta.state.sensor==='ready');await d.click('#pairGo');
  await d.waitForFunction(()=>__racchetta.state==='play');
+ await slow(desktop);await slow(P);
  // A deterministic point selects the human server. Inputs still come exclusively
  // from devicemotion on the real phone page and travel through the real link.
  // Fermo immagine all'apice del lancio: da quel fotogramma il motore avanza con dt = 0, la tela continua a mostrare la

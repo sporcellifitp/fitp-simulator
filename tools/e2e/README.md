@@ -25,6 +25,7 @@ Le prove con `devicemotion` sintetico non sostituiscono le prove su iPhone Safar
 
 
 `gesture-calibration.mjs` verifica la nuova calibrazione compatta e la prova del colpo, il controllo touch, portrait e il vincolo della racchetta con eventi sintetici.
+Il servizio a due movimenti si prova con un fermo immagine all'apice del lancio (motore con `dt = 0`, tela non ridisegnata, fotogramma dell'apice registrato come presentato) e non con `A.netPause`: in pausa il gioco non registra i fotogrammi presentati e scarta i gesti arrivati più di 0,8 s dopo l'ultimo (`INPUT_TIME.maxAge`), per questo prima la prova falliva a intermittenza sui runner lenti. `CPU_THROTTLE=4 node run-local.mjs gesture-calibration.mjs` frena computer e telefono via CDP dal servizio in poi, come un runner lento. Analisi: [docs/b13/gesture-calibration-ci.md](../../docs/b13/gesture-calibration-ci.md).
 
 
 Arcade/LAN: `node run-local.mjs arcade-visuals.mjs` controlla camera, smash, scie e articolazione; `node lan-browser.mjs` avvia il proprio server LAN e verifica WebRTC diretto, dopo `npm ci --prefix ../lan`. I test si trovano nella matrice GitHub Actions insieme a timing e calibrazione.
