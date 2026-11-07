@@ -406,7 +406,7 @@ export class NatpfLobby {
     if (this.step === 'connect' && split) this.ui.split?.paint();
     else if (this.step === 'connect' && st.controller === 'phone') this.ui.paintConnect();
     if (this.step === 'options') this._paintOptions();
-    // aggiornamento del programma Windows: avviso sotto la pagina (solo nel menu e nelle pagine di scelta) e Opzioni
+    // aggiornamento del programma Windows: avviso sotto la pagina (solo nel menu principale) e Opzioni
     this.ui.updates?.paint();
     this.ui.paintWebcamSetup?.();
     this._paintInvite();

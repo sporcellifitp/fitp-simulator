@@ -2,7 +2,10 @@
 // window.natpfDesktop finto come il preload di Electron (ponte versione 2, iniettato prima del caricamento):
 //   • senza natpfDesktop (gioco nel browser, Cloudflare): niente avviso nel menu e niente sezione in Opzioni;
 //   • a 1280 × 720, 1920 × 1080, 720 × 720 (ledwall quadrato) e 1024 × 600: avviso «Aggiornamento disponibile · <build>» sotto il
-//     menu, dentro lo schermo, che non copre nessuna voce del menu né i pulsanti in basso;
+//     menu, dentro lo schermo, che non copre nessuna voce del menu né i pulsanti in basso e non ne spinge nessuna sotto
+//     il bordo inferiore del contenitore che scorre (main.lobby-stage) o dello schermo, in ogni stato (disponibile,
+//     download, pronto); l'avviso compare solo nel menu principale (NOTICE_STEPS): nelle pagine di scelta («Scegli la
+//     modalità», «Minigiochi», «Classifica», «Risultato») niente avviso, e le voci restano dove sono senza l'avviso;
 //   • «Aggiorna» → download con percentuale, MB e barra; «pronto» → «Riavvia e aggiorna» con la nota del consenso di
 //     Windows → install chiamato; «Più tardi» con Invio (frecce e Invio come con un joypad) nasconde l'avviso;
 //   • Opzioni → «Aggiornamenti»: versione installata, ultima verifica, «Cerca aggiornamenti» → «Sei aggiornato»;
@@ -56,8 +59,12 @@ const notice = p => p.evaluate(() => {
   const covered = items.filter(x => { const b = x.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2; if (cy < 0 || cy > innerHeight) return false; const h = document.elementFromPoint(cx, cy); return h && e.contains(h); }).map(x => x.textContent.trim().slice(0, 20));
   const overlap = items.filter(x => { const b = x.getBoundingClientRect(); return on && b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top; }).map(x => x.textContent.trim().slice(0, 20));
   const btns = [...e.querySelectorAll('[data-update-act]')].map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.updateAct, label: b.textContent.trim(), ok: q.width > 0 && q.left >= area.left && q.right <= area.right + 0.5 && q.bottom <= area.bottom + 0.5 }; });
-  const bar = e.querySelector('.upd-bar i');
-  return { count: all.length, on, inside, covered, overlap, title: e.querySelector('[data-upd-title]')?.textContent || '', sub: e.querySelector('[data-upd-sub]')?.textContent || '', btns,
+  // voci sotto il bordo: il bordo è quello del contenitore che scorre (se la pagina scorre) o dello schermo / area
+  let sc = null; for (let x = page; x && x !== document.body; x = x.parentElement){ const cs = getComputedStyle(x); if (/(auto|scroll)/.test(cs.overflowY) && x.scrollHeight > x.clientHeight + 1){ sc = x; break; } }
+  const clip = Math.min(sc ? sc.getBoundingClientRect().bottom : Infinity, area.bottom, innerHeight);
+  const below = items.filter(x => x.getBoundingClientRect().bottom > clip + 1).map(x => x.textContent.trim().slice(0, 20));
+  const bar = e.querySelector('.upd-bar i'), pb = e.querySelector('[data-upd-bar]');
+  return { count: all.length, on, inside, covered, overlap, below, scrolls: !!sc, step: window.__natpfTennis?.natpfUi?.lobby?.step, live: pb ? { now: pb.getAttribute('aria-valuenow'), sub: e.querySelector('[data-upd-sub]')?.getAttribute('aria-live') } : null, title: e.querySelector('[data-upd-title]')?.textContent || '', sub: e.querySelector('[data-upd-sub]')?.textContent || '', btns,
     bar: bar ? Math.round(100 * bar.getBoundingClientRect().width / bar.parentElement.getBoundingClientRect().width) : null, rect: [r.left, r.top, r.width, r.height].map(Math.round) };
 });
 const opt = p => p.evaluate(() => {
@@ -90,15 +97,26 @@ try {
     const n = await notice(p);
     check(`${tag}: avviso «Aggiornamento disponibile · 2026-11-08.1» con «Aggiorna» e «Più tardi»`, n.on && n.count === 1 && n.title === 'Aggiornamento disponibile · 2026-11-08.1' && n.btns.map(b => b.label).join('|') === 'Aggiorna|Più tardi' && n.btns.every(b => b.ok), JSON.stringify(n));
     check(`${tag}: avviso dentro lo schermo, non copre le voci del menu né i pulsanti`, n.inside && !n.covered.length && !n.overlap.length, JSON.stringify({ rect: n.rect, covered: n.covered, overlap: n.overlap }));
+    check(`${tag}: menu con l’avviso: nessuna voce sotto il bordo, la pagina non scorre`, !n.below.length && !n.scrolls, JSON.stringify({ below: n.below, scrolls: n.scrolls }));
+    // pagine di scelta: niente avviso (lì toglierebbe altezza e alcune voci finirebbero sotto il bordo)
+    for (const step of ['mode', 'challenges', 'ranking', 'result']){
+      await p.evaluate(s => __natpfTennis.natpfUi.lobby.go(s), step); await wait(p, 400);
+      const q = await notice(p);
+      check(`${tag}: «${step}»: nessun avviso`, !q.on && q.count === 0 && q.step === step, JSON.stringify({ on: q.on, count: q.count, step: q.step }));
+      if (w === 1280 && step === 'mode') await p.screenshot({ path: `${SP}/agg-mode-senza-avviso-${w}x${h}.png` });
+    }
+    await p.evaluate(() => __natpfTennis.natpfUi.lobby.go('menu')); await wait(p, 500);
+    check(`${tag}: di nuovo nel menu: l’avviso c’è`, (await notice(p)).on);
     await p.screenshot({ path: `${SP}/agg-menu-disponibile-${w}x${h}.png` });
     await p.click('#natpf-update [data-update-act="download"]'); await wait(p, 200);
     await p.evaluate(() => __upd.emit({ status: 'downloading', progress: 0.42 })); await wait(p, 500);
     const d = await notice(p);
-    check(`${tag}: «Aggiorna» → download con percentuale, MB e barra`, (await p.evaluate(() => __upd.calls.includes('download'))) && d.on && d.title === 'Download dell’aggiornamento · 2026-11-08.1' && d.sub === '42% · 52,4 di 124,9 MB' && Math.abs(d.bar - 42) <= 2 && !d.covered.length, JSON.stringify(d));
+    check(`${tag}: «Aggiorna» → download con percentuale, MB e barra`, (await p.evaluate(() => __upd.calls.includes('download'))) && d.on && d.title === 'Download dell’aggiornamento · 2026-11-08.1' && d.sub === '42% · 52,4 di 124,9 MB' && Math.abs(d.bar - 42) <= 2 && !d.covered.length && !d.below.length, JSON.stringify(d));
+    check(`${tag}: download: percentuale non annunciata a ogni passo (sottotitolo aria-live off, barra con aria-valuenow)`, d.live?.now === '42' && d.live?.sub === 'off', JSON.stringify(d.live));
     await p.screenshot({ path: `${SP}/agg-menu-download-${w}x${h}.png` });
     await p.evaluate(() => __upd.emit({ status: 'ready', progress: 1 })); await wait(p);
     const r = await notice(p);
-    check(`${tag}: pronto → «Riavvia e aggiorna» con la nota del consenso di Windows`, r.on && r.title === 'Aggiornamento pronto · 2026-11-08.1' && /Windows chiederà il consenso/.test(r.sub) && r.btns[0]?.label === 'Riavvia e aggiorna' && r.btns.every(b => b.ok) && !r.covered.length && !r.overlap.length, JSON.stringify(r));
+    check(`${tag}: pronto → «Riavvia e aggiorna» con la nota del consenso di Windows`, r.on && r.title === 'Aggiornamento pronto · 2026-11-08.1' && /Windows chiederà il consenso/.test(r.sub) && r.btns[0]?.label === 'Riavvia e aggiorna' && r.btns.every(b => b.ok) && !r.covered.length && !r.overlap.length && !r.below.length, JSON.stringify(r));
     await p.screenshot({ path: `${SP}/agg-menu-pronto-${w}x${h}.png` });
     if (w === 1280){
       await p.click('#natpf-update [data-update-act="install"]'); await wait(p);
@@ -191,10 +209,10 @@ try {
     await ready(p); await wait(p, 600);
     await p.evaluate(() => { const L = __natpfTennis.natpfUi.lobby; L.setMode('split'); L.go('menu'); }); await wait(p, 500);
     const s1 = await notice(p);
-    check('stesso schermo: un solo avviso nel menu', s1.on && s1.count === 1 && !s1.covered.length, JSON.stringify(s1));
+    check('stesso schermo: un solo avviso nel menu, nessuna voce sotto il bordo', s1.on && s1.count === 1 && !s1.covered.length && !s1.below.length, JSON.stringify(s1));
     await p.evaluate(() => { __natpfTennis.natpfUi.screen.set('2x2'); __natpfTennis.natpfUi.lobby.paint(); }); await wait(p, 700);
     const s2 = await notice(p), area = await p.evaluate(() => { const b = document.body.getBoundingClientRect(); return [b.left, b.top, b.width, b.height].map(Math.round); });
-    check('ledwall 2×2: un solo avviso, dentro l’area, non copre il menu', s2.on && s2.count === 1 && s2.inside && !s2.covered.length && !s2.overlap.length, JSON.stringify({ s2, area }));
+    check('ledwall 2×2: un solo avviso, dentro l’area, non copre il menu, nessuna voce sotto il bordo', s2.on && s2.count === 1 && s2.inside && !s2.covered.length && !s2.overlap.length && !s2.below.length, JSON.stringify({ s2, area }));
     await p.screenshot({ path: `${SP}/agg-ledwall-2x2-stesso-schermo.png` });
     await p.evaluate(() => __natpfTennis.natpfUi.screen.set('full'));
     check('stesso schermo: nessun errore JavaScript', !errs.length, errs.join(' | ').slice(0, 300));

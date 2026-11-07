@@ -403,7 +403,7 @@
             <div class="upd-opt-info">
               <p class="upd-opt-state" data-upd-state role="status" aria-live="polite"></p>
               <p class="upd-opt-meta" data-upd-meta></p>
-              <span class="upd-bar hidden" data-upd-bar><i></i></span>
+              <span class="upd-bar hidden" data-upd-bar role="progressbar" aria-label="Download dell’aggiornamento" aria-valuemin="0" aria-valuemax="100"><i></i></span>
               <p class="upd-opt-note" data-upd-note></p>
             </div>
           </div>
@@ -577,7 +577,7 @@
       </main>
 
       <!-- aggiornamento del programma Windows disponibile, in download o pronto (natpf_updates.js, 07/11): tra la pagina e la
-           barra in basso, così non copre i pulsanti; solo nel menu e nelle pagine di scelta, mai in campo -->
+           barra in basso, così non copre i pulsanti; solo nel menu principale, mai in campo -->
       <aside id="natpf-update" class="natpf-update hidden" role="status" aria-live="polite"></aside>
 
       <footer class="lobby-bottom">

@@ -84,9 +84,11 @@ test('Opzioni: versione installata, ultima verifica, pulsanti per stato', () => 
   assert.equal(optionsView(S('installing'), now).buttons.length, 0);
 });
 
-test('l’avviso compare solo nel menu e nelle pagine di scelta, mai in campo', () => {
-  for (const step of NOTICE_STEPS) assert.equal(noticeAllowed({ lobbyVisible: true, step }), true, step);
-  for (const step of ['options', 'controller', 'connect', 'match', 'warmup']) assert.equal(noticeAllowed({ lobbyVisible: true, step }), false, step);
+test('l’avviso compare solo nel menu principale, mai nelle pagine di scelta né in campo', () => {
+  assert.deepEqual(NOTICE_STEPS, ['menu']);
+  assert.equal(noticeAllowed({ lobbyVisible: true, step: 'menu' }), true);
+  // nelle pagine di scelta l'avviso toglierebbe altezza alla pagina e alcune voci finirebbero sotto il bordo (revisione 07/11)
+  for (const step of ['mode', 'challenges', 'ranking', 'result', 'options', 'controller', 'connect', 'match', 'warmup']) assert.equal(noticeAllowed({ lobbyVisible: true, step }), false, step);
   assert.equal(noticeAllowed({ lobbyVisible: false, step: 'menu' }), false, 'menu nascosto: partita in corso');
   assert.equal(noticeAllowed({ lobbyVisible: true, step: 'menu', training: true }), false, 'Allenamento in corso');
   assert.equal(noticeAllowed({ lobbyVisible: true, step: 'menu', events: true }), false, 'minigioco in corso');
@@ -146,6 +148,45 @@ test('azioni: «Aggiorna» solo da disponibile, «Riavvia e aggiorna» solo da p
   assert.deepEqual(acts(u.notice()), ['check:Riprova', 'later:Chiudi']);
 });
 
+test('prima della risposta del programma: né «non configurati» né avviso, ma «Lettura dello stato…»', async () => {
+  let answer; const api = fakeApi(S('none'));
+  api.state = () => { api.calls.push('state'); return new Promise(r => { answer = r; }); };
+  const u = new NatpfUpdates({ lobby: { visible: true, step: 'menu' } }, { api, doc: null });
+  const v = optionsView(u.S);
+  assert.equal(v.status, 'pending'); assert.equal(v.state, 'Lettura dello stato…'); assert.equal(v.note, ''); assert.deepEqual(v.buttons, []);
+  assert.equal(u.notice(), null);
+  answer(S('off')); await flush();
+  assert.equal(optionsView(u.S).state, 'Aggiornamenti non configurati', 'dopo la risposta lo stato vero');
+  assert.equal(u.S.pending, undefined);
+});
+
+test('avvio: uno stato arrivato con onChange vince sulla risposta (più vecchia) di state(); niente seconda ricerca', async () => {
+  let answer; const api = fakeApi(S('idle'));
+  api.state = () => { api.calls.push('state'); return new Promise(r => { answer = r; }); };
+  const u = new NatpfUpdates({ lobby: { visible: true, step: 'menu' } }, { api, doc: null });
+  api.emit({ status: 'available', latest: '2026-11-08.1', checkedAt: 2 });   // il programma ha già cercato da solo
+  answer(S('idle', { checkedAt: 1 })); await flush();
+  assert.equal(u.S.status, 'available', 'la risposta vecchia non sovrascrive');
+  assert.deepEqual(api.calls, ['state'], 'nessuna ricerca in più');
+  // state() che fallisce: errore in parole, nessuna ricerca
+  const bad = fakeApi(S('idle')); bad.state = async () => { bad.calls.push('state'); throw new Error('ipc'); };
+  const b = new NatpfUpdates({ lobby: { visible: true, step: 'menu' } }, { api: bad, doc: null }); await flush();
+  assert.equal(b.S.status, 'error'); assert.equal(b.S.error, 'il programma non risponde'); assert.deepEqual(bad.calls, ['state']);
+});
+
+test('un errore nell’avviso solo dopo un’azione dall’avviso, fino al prossimo stato buono; onChange conservato per close()', async () => {
+  let unsub = 0; const api = fakeApi(S('available', { latest: 'x' }));
+  api.onChange = cb => { api.cbs.push(cb); return () => { unsub++; }; };
+  const u = new NatpfUpdates({ lobby: { visible: true, step: 'menu' } }, { api, doc: null }); await flush();
+  api.download = async () => { throw new Error('rete'); };
+  await u.act('download');
+  assert.equal(u.notice()?.kind, 'error', 'dopo «Aggiorna» dall’avviso l’errore si vede nel menu');
+  api.emit({ status: 'none', error: undefined });
+  api.emit({ status: 'error', error: 'rete non raggiungibile' });   // ricerca periodica più tarda, senza rete
+  assert.equal(u.notice(), null, 'un errore di una ricerca successiva non compare nel menu');
+  u.close(); assert.equal(unsub, 1);
+});
+
 test('stato «idle» all’avvio: il gioco chiede una ricerca; errore del ponte → stato di errore', async () => {
   const api = fakeApi(S('idle'));
   const u = new NatpfUpdates({ lobby: { visible: true, step: 'menu' } }, { api, doc: null });
@@ -172,6 +213,15 @@ test('flusso vero: avviso nel menu, mai in Allenamento o in partita; arriva al r
     assert.match(el.innerHTML, /Aggiornamento disponibile · 2026-11-08\.1/);
     assert.match(el.innerHTML, /data-update-act="download"[^>]*>Aggiorna</);
     assert.match(el.innerHTML, /data-update-act="later"[^>]*>Più tardi</);
+    // pagine di scelta: niente avviso (toglierebbe altezza e alcune voci finirebbero sotto il bordo); torna nel menu
+    for (const step of ['mode', 'challenges', 'ranking']){ lobby.go(step); w.advance(400); assert.equal(el.classList.contains('hidden'), true, `niente avviso in ${step}`); }
+    lobby.go('menu'); w.advance(400);
+    assert.equal(el.classList.contains('hidden'), false, 'di nuovo nel menu: l’avviso c’è');
+    // download dal menu: la percentuale non viene annunciata a ogni passo (sottotitolo aria-live off, barra progressbar: aria-valuenow si prova nel browser)
+    api.emit({ status: 'downloading', progress: 0.42 }); w.advance(400);
+    assert.match(el.innerHTML, /data-upd-sub aria-live="off"/);
+    assert.match(el.innerHTML, /role="progressbar"/);
+    api.emit({ status: 'available', progress: 0 }); w.advance(400);
     // Opzioni: l'avviso lascia il posto alla sezione
     lobby.go('options'); w.advance(400);
     assert.equal(el.classList.contains('hidden'), true, 'in Opzioni niente avviso: c’è la sezione');

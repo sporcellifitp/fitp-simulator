@@ -1595,7 +1595,8 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 /* =====================================================================================================================
    Aggiornamenti del programma Windows (natpf_updates.js, 07/11). Solo con window.natpfDesktop.updates.
    • Avviso nel menu (#natpf-update): una striscia bassa tra la pagina e la barra in basso, nella stessa colonna della
-     pagina; sta nel flusso (non sopra), così non copre mai le voci né i pulsanti. Solo nel menu e nelle pagine di scelta.
+     pagina; sta nel flusso (non sopra), così non copre mai le voci né i pulsanti. Solo nel menu principale: toglie altezza
+     alla pagina, e nelle pagine di scelta (modalità, minigiochi, classifiche) alcune voci finirebbero sotto il bordo.
    • Opzioni → «Aggiornamenti» (#natpf-updates-opt): riga come le altre, sotto lo stato in parole e la barra.
    Misure con cqw/cqh del contenitore natpf: seguono l'area (monitor, ledwall 2×2 e 3×2).
    ===================================================================================================================== */
@@ -1633,7 +1634,7 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 #title-modal .upd-opt[data-status="none"] .upd-opt-state { color: var(--ok); }
 #title-modal .upd-opt[data-status="available"] .upd-opt-state, #title-modal .upd-opt[data-status="ready"] .upd-opt-state { color: var(--ball); }
 #title-modal .upd-opt[data-status="error"] .upd-opt-state { color: var(--warn); }
-#title-modal .upd-opt[data-status="off"] .upd-opt-state { color: var(--text-3); }
+#title-modal .upd-opt[data-status="off"] .upd-opt-state, #title-modal .upd-opt[data-status="pending"] .upd-opt-state { color: var(--text-3); }
 #title-modal .upd-opt-meta, #title-modal .upd-opt-note { font: 500 clamp(13px, 0.4cqw + 0.9cqh, 16px)/1.4 var(--font-text); color: var(--text-2); }
 #title-modal .upd-opt-note:empty, #title-modal .upd-opt-meta:empty { display: none; }
 /* area stretta (ledwall quadrato, telefono in orizzontale): testo e pulsanti nella stessa riga finché ci stanno, poi i

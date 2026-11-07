@@ -8,18 +8,23 @@
 //   quello che segue compare.
 // Due posti:
 //   • avviso discreto sotto la pagina del menu (#natpf-update, tra la pagina e la barra in basso: non copre i pulsanti),
-//     solo nel menu principale e nelle pagine di scelta della lobby (NOTICE_STEPS), mai in campo (partita, Allenamento,
-//     minigiochi, calibrazione): uno stato che arriva durante la partita aspetta il ritorno al menu. Uno solo anche nello
-//     stesso schermo (è nel menu, non nelle due metà). «Più tardi» lo nasconde per quella versione fino alla chiusura;
+//     solo nel menu principale (NOTICE_STEPS), mai in campo (partita, Allenamento, minigiochi, calibrazione): uno stato
+//     che arriva durante la partita aspetta il ritorno al menu. Uno solo anche nello stesso schermo (è nel menu, non nelle
+//     due metà). «Più tardi» lo nasconde per quella versione fino alla chiusura. Non compare a chi è entrato come ospite
+//     nella partita 1v1 di un altro computer (engine.playerRole 'p2'): lì il menu serve solo a tornare alla partita, e
+//     resta così fino al ricaricamento del gioco (la sezione in Opzioni c'è comunque);
 //   • Opzioni → «Aggiornamenti» (#natpf-updates-opt): versione installata, ultima verifica, stato in parole e pulsanti.
 // Il download lo fa il programma (processo principale): continua anche in partita; «Riavvia e aggiorna» avvia
 // l'installer scaricato (Windows chiede il consenso) e il programma si chiude; l'installer riapre il gioco aggiornato.
 // Testi e scelte sono funzioni pure (noticeView, optionsView, noticeAllowed), provate in test/natpf-aggiornamenti.test.mjs.
 
 export const UPDATE_STATUSES = ['off', 'idle', 'checking', 'none', 'available', 'downloading', 'ready', 'installing', 'error'];
-// pagine del menu dove l'avviso può comparire: il menu principale e le pagine di scelta. Non in «Racchetta», «Collega»
-// e «Partita» (si sta preparando una partita: lì ci sono il QR e i passi del telefono) né in «Opzioni» (c'è la sezione)
-export const NOTICE_STEPS = ['menu', 'mode', 'challenges', 'ranking', 'result'];
+// pagine del menu dove l'avviso può comparire: solo il menu principale. L'avviso sta nel flusso tra la pagina e la barra
+// in basso e toglie altezza alla pagina: nel menu principale le voci ci stanno a tutte le misure (1280×720, 1920×1080,
+// 1024×600, ledwall 720×720), mentre in «Scegli la modalità», «Minigiochi», «Classifica» e «Risultato» (liste lunghe)
+// alcune voci finirebbero sotto il bordo (revisione del 07/11). Non in «Racchetta», «Collega» e «Partita» (si prepara
+// una partita: QR e passi del telefono) né in «Opzioni» (c'è la sezione)
+export const NOTICE_STEPS = ['menu'];
 
 const clamp01 = v => Math.max(0, Math.min(1, Number(v) || 0));
 // stato valido (quello che manda il programma, o niente): uno stato sconosciuto vale «non configurati»
@@ -89,7 +94,9 @@ export function noticeView(s, { engaged = false } = {}){
   return null;
 }
 // Opzioni → «Aggiornamenti»: stato, riga con versione installata e ultima verifica, avanzamento, note e pulsanti
+// Prima della prima risposta del programma (S.pending): «Lettura dello stato…», niente pulsanti né note (non «non configurati»)
 export function optionsView(s, now = Date.now()){
+  if (s?.pending) return { status: 'pending', state: 'Lettura dello stato…', meta: s.current ? `Versione installata ${s.current}` : '', note: '', progress: null, buttons: [] };
   const S = normalizeState(s);
   const meta = S.status === 'off' ? (S.current ? `Versione ${S.current}` : '') : `Versione installata ${S.current || '?'} · ultima verifica ${checkedText(S.checkedAt, now)}`;
   let buttons = [], note = '';
@@ -120,9 +127,12 @@ export class NatpfUpdates {
   constructor(ui, { api = (typeof window !== 'undefined' ? window.natpfDesktop?.updates : null), doc = (typeof document !== 'undefined' ? document : null), now = () => Date.now() } = {}){
     this.ui = ui; this.doc = doc; this.now = now;
     this.api = api && typeof api.state === 'function' ? api : null;
-    this.S = normalizeState(null);
+    this.S = { ...normalizeState(null), pending: true };   // finché il programma non risponde: né «non configurati» né avviso
+    this._heard = false;             // è già arrivato uno stato con onChange (più recente della risposta di state())
+    this._unsub = null;              // funzione di onChange per togliersi (il ponte vive quanto la pagina: tenuta per close())
     this.dismissed = new Set();      // avvisi chiusi con «Più tardi» (per stato e versione) fino alla chiusura del programma
-    this.engaged = false;            // chi gioca ha toccato l'avviso: un errore dopo si mostra anche lì
+    this.engaged = false;            // chi gioca ha toccato l'avviso: un errore dopo si mostra anche lì (fino al prossimo
+                                     // stato «buono», none/available/ready: un errore di una ricerca più tarda non disturba)
     this._noticeKey = null; this._optKey = null;
     if (!this.api) return;           // gioco nel browser: niente avviso né sezione
     const $ = id => doc?.getElementById?.(id);
@@ -136,14 +146,28 @@ export class NatpfUpdates {
     const onClick = e => { const b = e.target?.closest?.('[data-update-act]'); if (!b || b.disabled) return; e.stopPropagation(); this.act(b.dataset.updateAct, { from: e.currentTarget === this.noticeEl ? 'notice' : 'options' }); };
     this.noticeEl?.addEventListener?.('click', onClick);
     this.optEl?.addEventListener?.('click', onClick);
-    try { this.api.onChange?.(s => this.apply(s)); } catch (e){ console.error(e); }
-    this._call('state').then(s => { if (s && normalizeState(s).status === 'idle') this._call('check'); });
+    try { const off = this.api.onChange?.(s => { this._heard = true; this.apply(s); }); if (typeof off === 'function') this._unsub = off; } catch (e){ console.error(e); }
+    this._start();
   }
+  // stato all'avvio: la risposta di state() vale solo se nel frattempo non è arrivato niente con onChange (quello è più
+  // recente); se lo stato è «idle» (mai cercati) il gioco chiede una ricerca, una volta sola
+  async _start(){
+    let s = null;
+    try { s = await this.api.state(); } catch { s = null; }
+    if (this._heard) return;
+    if (s && typeof s === 'object' && 'status' in s) this.apply(s);
+    else this.apply({ ...this.S, status: 'error', error: 'il programma non risponde' });
+    if (this.S.status === 'idle') this._call('check');
+  }
+  // smette di ascoltare il programma (non serve nel gioco: il ponte vive quanto la pagina)
+  close(){ try { this._unsub?.(); } catch {} this._unsub = null; }
   get enabled(){ return !!this.api; }
   // stato nuovo dal programma (onChange o risposta di una chiamata)
   apply(s){
     if (!s || typeof s !== 'object') return;
-    this.S = normalizeState(s);
+    const { pending: _pending, ...S } = normalizeState(s);   // una risposta vera chiude l'attesa iniziale
+    this.S = S;
+    if (['none', 'available', 'ready'].includes(this.S.status)) this.engaged = false;
     this.paint();
   }
   async _call(name){
@@ -210,12 +234,15 @@ export class NatpfUpdates {
     const key = v.kind + '|' + v.title + '|' + v.buttons.map(b => b.act + b.label).join(',');
     if (this._noticeKey !== key){
       this._noticeKey = key;
-      el.innerHTML = `${ICON}<div class="upd-text"><b data-upd-title>${esc(v.title)}</b><span data-upd-sub>${esc(v.sub)}</span>${v.progress != null ? '<span class="upd-bar" data-upd-bar><i></i></span>' : ''}</div>`
+      // l'avviso è una regione «polite»: si annunciano titolo e pulsanti quando cambia lo stato, non ogni percentuale del
+      // download (il sottotitolo che avanza è aria-live off; la percentuale si legge dalla barra, role progressbar)
+      const bar = v.progress != null ? '<span class="upd-bar" data-upd-bar role="progressbar" aria-label="Download dell’aggiornamento" aria-valuemin="0" aria-valuemax="100"><i></i></span>' : '';
+      el.innerHTML = `${ICON}<div class="upd-text"><b data-upd-title>${esc(v.title)}</b><span data-upd-sub${v.progress != null ? ' aria-live="off"' : ''}>${esc(v.sub)}</span>${bar}</div>`
         + (v.buttons.length ? `<div class="upd-actions">${buttonsHtml(v.buttons, b => (b.primary ? 'lobby-primary' : 'lobby-ghost') + ' upd-btn')}</div>` : '');
       if (had) el.querySelector?.('[data-update-act]')?.focus?.({ preventScroll: true });
     }
     const sub = el.querySelector?.('[data-upd-sub]'); if (sub && sub.textContent !== v.sub) sub.textContent = v.sub;
-    if (v.progress != null) el.querySelector?.('[data-upd-bar]')?.style?.setProperty?.('--p', `${(v.progress * 100).toFixed(1)}%`);
+    if (v.progress != null){ const b = el.querySelector?.('[data-upd-bar]'); b?.style?.setProperty?.('--p', `${(v.progress * 100).toFixed(1)}%`); b?.setAttribute?.('aria-valuenow', String(percent(v.progress))); }
     el.setAttribute?.('aria-label', v.title);
   }
   _focusMenu(){
@@ -229,9 +256,11 @@ export class NatpfUpdates {
     const q = s => el.querySelector?.(s);
     const set = (s, t) => { const e = q(s); if (e && e.textContent !== t) e.textContent = t; };
     el.dataset.status = v.status;
+    // durante il download lo stato in parole cambia a ogni percentuale: niente annuncio continuo (si legge dalla barra)
+    q('[data-upd-state]')?.setAttribute?.('aria-live', v.status === 'downloading' ? 'off' : 'polite');
     set('[data-upd-state]', v.state); set('[data-upd-meta]', v.meta); set('[data-upd-note]', v.note);
     const bar = q('[data-upd-bar]');
-    if (bar){ bar.classList.toggle('hidden', v.progress == null); if (v.progress != null) bar.style?.setProperty?.('--p', `${(v.progress * 100).toFixed(1)}%`); }
+    if (bar){ bar.classList.toggle('hidden', v.progress == null); if (v.progress != null){ bar.style?.setProperty?.('--p', `${(v.progress * 100).toFixed(1)}%`); bar.setAttribute?.('aria-valuenow', String(percent(v.progress))); } }
     const key = v.buttons.map(b => b.act + b.label + (b.disabled ? '0' : '1')).join(',');
     const box = q('[data-upd-btns]');
     if (box && this._optKey !== key){
