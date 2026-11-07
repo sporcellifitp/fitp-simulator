@@ -44,19 +44,33 @@ try {
  await d.waitForFunction(()=>__racchetta.state==='play');
  // A deterministic point selects the human server. Inputs still come exclusively
  // from devicemotion on the real phone page and travel through the real link.
+ // Fermo immagine all'apice del lancio: da quel fotogramma il motore avanza con dt = 0, la tela continua a mostrare la
+ // palla in cima e il ciclo del computer continua a registrarlo come fotogramma presentato (input-time.js). Prima la
+ // prova fermava tutto con A.netPause: in pausa main.js non registra i fotogrammi presentati e sui runner lenti (CI) il
+ // secondo gesto arrivava più di INPUT_TIME.maxAge (0,8 s) dopo l'ultimo registrato; presented.seenAt lo scartava, alla
+ // ripresa la palla ricadeva (tossCaught) e il contatto non arrivava mai. Nel gioco vero ogni ripresa dalla pausa passa
+ // da resetInputTimeline e scarta i colpi fatti in pausa: il fermo immagine è solo della prova, la catena del colpo
+ // (telefono, collegamento, controlli, fotogramma visto, motore) resta quella vera. docs/b13/gesture-calibration-ci.md
  await d.evaluate(async()=>{
   const {TOSS_APEX}=await import('/js/match/arcade.js');const c=__racchetta.core;
   __racchetta.A.netPause=true;c.score.server=0;c.setupPoint();
-  window.__gestures=[];window.__contacts=[];window.__serveFrame=null;
+  window.__gestures=[];window.__contacts=[];window.__serveFrame=null;window.__hold=false;window.__serveLog=[];
   __racchetta.link.on('swing',e=>__gestures.push(e));
-  const update=c.update.bind(c);c.update=(dt,input)=>{const events=update(dt,input);__contacts.push(...events.filter(e=>e.type==='contact'));return events;};
+  const update=c.update.bind(c);c.update=(dt,input)=>{
+   const events=update(__hold?0:dt,input);__contacts.push(...events.filter(e=>e.type==='contact'));
+   for(const e of events)if(__serveLog.length<40&&['toss','tossCaught','swing','contact'].includes(e.type))__serveLog.push({type:e.type,t:c.t,wall:performance.now()/1000});
+   return events;
+  };
   const render=__racchetta.S.render;
   __racchetta.S.render=()=>{
+   // durante il fermo la tela mostra ancora il fotogramma con la palla in cima: niente lavoro per la GPU software, così
+   // il computer gira a pieno ritmo e registra il fotogramma presentato ogni pochi millisecondi (con la GPU software un
+   // fotogramma disegnato costa anche mezzo secondo e un gesto poteva cadere oltre gli 0,8 s dall'ultimo registrato)
+   if(__hold)return;
    render();const age=c.toss?c.t-c.toss.t0:-1;
    if(!__serveFrame&&age>=TOSS_APEX-.04&&age<TOSS_APEX+.2){
-    __serveFrame={age,apex:TOSS_APEX,y:c.ball.p.y,vy:c.ball.v.y};
-    // Complete this presentation timestamp before freezing its visible apex.
-    setTimeout(()=>{__racchetta.A.netPause=true;},0);
+    // questo fotogramma è già stato calcolato e viene registrato come presentato: dal prossimo la palla resta in cima
+    __serveFrame={age,apex:TOSS_APEX,y:c.ball.p.y,vy:c.ball.v.y,wall:performance.now()/1000};__hold=true;
    }
   };
   __racchetta.link.send({t:'ph',ph:'serve'});__racchetta.A.netPause=false;
@@ -65,15 +79,16 @@ try {
  await p.evaluate(async()=>{await __motion.still(300);await __motion.swing({axis:[1,0,0],peak:120,up:1});});
  await d.waitForFunction(()=>!!__racchetta.core.toss||!!__serveFrame);
  check('first vertical phone motion launches the serve without tapping',await d.evaluate(()=>__gestures.length>=1&&(__racchetta.core.toss||__serveFrame)));
- await d.waitForFunction(()=>__serveFrame&&__racchetta.A.netPause);
+ await d.waitForFunction(()=>__serveFrame&&__hold);
  await p.waitForFunction(()=>__racchetta.state.phase==='toss');
  await p.evaluate(async()=>{await __motion.swing({axis:[1,0,0],peak:120,up:1});});
- await d.waitForFunction(()=>__gestures.length>=2);
- await d.evaluate(()=>{__racchetta.A.netPause=false;});
- try {await d.waitForFunction(()=>__contacts.some(e=>e.serve),null,{timeout:15000});}
- catch(e){console.log('Motion serve diagnostic',await d.evaluate(()=>({frame:__serveFrame,gestures:__gestures,contacts:__contacts,phase:__racchetta.core.phase,toss:__racchetta.core.toss,time:__racchetta.core.t})));throw e;}
+ // il secondo gesto colpisce mentre si vede ancora la palla in cima: nessuna scadenza dipende dalla velocità del runner
+ try {await d.waitForFunction(()=>__gestures.length>=2&&__contacts.some(e=>e.serve),null,{timeout:30000});}
+ catch(e){console.log('Motion serve diagnostic',await d.evaluate(()=>({frame:__serveFrame,hold:__hold,log:__serveLog,gestures:__gestures.map(g=>({seq:g.seq,at:g.at,receivedAt:g.receivedAt,sentLat:g.sentLat,peak:g.peak,vert:g.vert,dir:g.dir,path:g.path})),contacts:__contacts,phase:__racchetta.core.phase,toss:__racchetta.core.toss,time:__racchetta.core.t,now:performance.now()/1000})));throw e;}
+ await d.evaluate(()=>{__hold=false;});
  await p.waitForFunction(()=>__racchetta.state.phase==='play');
- check('second phone motion contacts the visible toss apex and restores rally input',await d.evaluate(()=>{const e=__contacts.find(e=>e.serve);return Math.abs(__serveFrame.age-__serveFrame.apex)<.12&&Math.abs(e.timing)<.15;}));
+ const serve=await d.evaluate(()=>{const e=__contacts.find(e=>e.serve),g=__gestures[1];return {age:+__serveFrame.age.toFixed(3),apex:+__serveFrame.apex.toFixed(3),timing:+e.timing.toFixed(3),afterApex:+(g.at-__serveFrame.wall).toFixed(3)};});
+ check('second phone motion contacts the visible toss apex and restores rally input',Math.abs(serve.age-serve.apex)<.12&&Math.abs(serve.timing)<.15,JSON.stringify(serve));
  // Hold the rally fixture while inspecting the input stream; this isolates
  // opening/return suppression from CPU point duration on a slow software GPU.
  await d.evaluate(()=>{__racchetta.A.netPause=true;__gestures.length=0;});
