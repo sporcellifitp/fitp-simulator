@@ -107,3 +107,23 @@ test('pagina e stili: tabellone nuovo al posto della riga «Game … game secco�
   assert.match(block, /--sb: clamp\([^)]*cqh/);
   assert.doesNotMatch(block, /\d(vw|vh)\b|@media/);
 });
+
+test('piede del tabellone fuori dalla sottogriglia: il formato e «Vantaggio di …» non si sovrappongono, testo leggibile', () => {
+  // revisione del 07/11: con il piede nella sottogriglia «Vantaggio di Player 2» stava nelle colonne di game e punti
+  // (2em + 3.4em) e usciva a sinistra sul formato («Al meglio di 5 game»): «gameVANTAGGIO». Ora in fila (flex) con
+  // uno spazio, e la larghezza del piede conta in quella del tabellone
+  const css = readFileSync(new URL('../natpf-round.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rule = sel => [...css.matchAll(/(?:^|\n)([^{}]*?)\{([^}]*)\}/g)].filter(m => m[1].split(',').some(s => s.trim() === sel)).map(m => m[2]).join(';');
+  const foot = rule('.natpf-scoreboard .sb-foot');
+  assert.match(foot, /display:\s*flex/);
+  assert.doesNotMatch(foot, /subgrid/);
+  assert.match(foot, /gap:\s*0?\.\d+em/);
+  // la sottogriglia resta per intestazioni e righe, non per il piede
+  assert.match(rule('.natpf-scoreboard .sb-row'), /grid-template-columns:\s*subgrid/);
+  // niente colonne fisse per le due scritte del piede
+  assert.doesNotMatch(rule('.natpf-scoreboard .sb-foot [data-sb-format]') + rule('.natpf-scoreboard .sb-label'), /grid-column/);
+  // almeno 10 px (prima 0.56em: 7,3 px a 844×390 e 9,3 px nel ledwall 720×720)
+  assert.match(foot, /font-size:\s*max\(10px,\s*0?\.6\d*em\)/);
+  // la scritta del momento, se proprio non ci sta, si accorcia invece di uscire
+  assert.match(rule('.natpf-scoreboard .sb-label'), /text-overflow:\s*ellipsis/);
+});
