@@ -428,3 +428,24 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
 - **Non verificato**: tutto su Windows (installazione, UAC, aggiornamento silenzioso, riapertura, impostazioni
   conservate: `docs/COLLAUDO_WINDOWS.md` §2 e §2b); un aggiornamento vero da una versione all'altra (servirà la
   prossima versione).
+
+## B12 · Forza del colpo dopo le palle corte, azioni di GitHub · [x] · 07/11/2026
+- Richiesta: «parti dalla forza del colpo e dalle azioni di GitHub» (passaggio di consegne §3 punti 6 e 10).
+- [x] B12.1 (`67af1d9`) · `natpf_phone_racket.js` (`TYPICAL.skip`, `createTypicalModel.learn`, `_onSwing`),
+  `test/phone-sim.mjs`, `test/natpf-racchetta.test.mjs` (+2 test). Sonda con il telefono simulato e le pose del
+  tutorial nel vero `NatpfPhoneRacket`: prima della correzione, dopo 3 dritti e 4 palle corte (381 °/s) il colpo tipico
+  era 381 e il dritto si leggeva **piatto** (forza 0,691 contro 0,512), il tagliato 0,592 contro 0,399; uguale per destro
+  e mancino, calibrazione con il braccio e con l'animazione. Dopo: colpo tipico 670, dritto topspin 0,491, tagliato 0,415,
+  piatto piatto. I due test nuovi falliscono senza la correzione (prova fatta rimettendo il codice vecchio).
+- [x] B12.2 (`4ba8b49`) · `.github/workflows/*.yml`: actions/checkout, actions/setup-node, actions/upload-artifact da v4
+  a v7 (Node 24; Node 20 tolto dai runner il 16/09/2026). Note di rilascio lette: nessun cambiamento per questi
+  workflow.
+- [x] B12.3 · versione **2026-11-07.5** (`site/js/tennis/version.js`, `site/tennis/build.json`, prima riga di
+  `natpf-tennis/lan/LEGGIMI.txt`), novità in `natpf-desktop/novita.txt` (la vede chi aggiorna dal gioco).
+- Verifiche: gioco 875/875, sito 195/195, LAN 12/12, programma Windows 28/28, build ok; nel browser
+  `natpf-gesti-speciali` 9/9, `natpf-rally` 7/7, `natpf-training-flow` 18/18. Zip Cloudflare
+  `natpf-simulator-cloudflare-20261107-5.zip` 22.560.092 B (127 file), sha256
+  `65d242c8f143b92f4d1c0ee157816dcc19e91d4043deb5ad83c19f3333dd6d96`, provato estratto (versione 2026-11-07.5, nessun
+  errore della pagina; 404 attesi solo su `/api/match/state` e `/lan/status` con un server statico).
+- Non verificato: telefoni veri (la forza percepita in partita), il primo aggiornamento dal gioco 07.4 → 07.5 su
+  Windows (lo prova l'utente).

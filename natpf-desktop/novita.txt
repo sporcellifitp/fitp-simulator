@@ -2,3 +2,4 @@
 # Una riga per novità, con la versione davanti:  AAAA-MM-GG.n: testo semplice per chi gioca, in italiano
 # Si usano solo le righe della versione pubblicata; senza righe il gioco mostra «Versione AAAA-MM-GG.n.».
 # Le righe delle versioni vecchie si possono lasciare o togliere.
+2026-11-07.5: La forza dei colpi resta giusta anche dopo tante palle corte (prima il dritto poteva diventare un colpo piatto).

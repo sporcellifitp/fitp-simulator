@@ -429,3 +429,14 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   `MEDIAPIPE_EXCLUDED`); senza SIMD li prende `mediapipe_locate.js` dal CDN fissato. Nel gioco solo i loghi nominati
   (`natpf-site-plugin.mjs`). Lo zip si fa **solo** con `node scripts/pacchetto-cloudflare.mjs --out=… --zip=…`:
   deterministico, si ferma a `ZIP_LIMIT` = 25.000.000 byte, avvisa sopra 24.000.000; la CI lo esegue a ogni push.
+
+### Colpo tipico solo dai colpi normali (B12, 07/11/2026)
+- Il **colpo tipico** (`createTypicalModel`, riferimento della forza e dei gesti deboli) impara solo dai colpi normali
+  dello scambio: `typicalModel.learn(peak, intent)` salta pallonetti, schiacciate (`TYPICAL.skip`) e i colpi
+  riconosciuti dalla forma (`intent.byShape`), come la salita abituale (`createRiseModel.learn`). Le palle corte
+  «dall'alto in basso» restano (senza calibrazione possono essere colpi compatti letti male: imparandole il riferimento
+  si corregge da solo); senza la forma (telefoni vecchi) si impara come prima. Prima 4 palle corte (≈ 381 °/s)
+  portavano il colpo tipico a 381 e il dritto successivo diventava piatto (forza 0,69 invece di 0,51). Il telefono
+  simulato dei test (`test/phone-sim.mjs`) usa la stessa regola.
+- Le azioni di GitHub sono alle versioni con Node 24 (checkout, setup-node e upload-artifact v7): Node 20 viene tolto
+  dai runner il 16/09/2026.

@@ -22,17 +22,18 @@ Come si aggiorna:
   schermo spento, pronto; B10 voce «smash», tabellone, scritte nel 2v2, prove; B11 installer unico che si aggiorna dal
   gioco su Cloudflare R2), cosa resta aperto (§3) e cosa controllare (§4). Checkpoint precedente (storia dal 04/11):
   `docs/archivio/PIANO_checkpoint_fino_al_2026-11-07.md`.
-- Versione **2026-11-07.4** (`d2e0d50`), pubblicata: installer
-  `https://pub-96b3cd8975b6434aaeac3ecfcca14a19.r2.dev/windows/NATPF-Simulator-Setup.exe` (sha256
-  `c516a2a0…0ab36f84`, verificato dall'indirizzo pubblico) e zip Cloudflare (sha256 `c8bdf92e…f1468f135`), consegnati.
-  Prodotti dal 07/11: solo installer Windows e zip Cloudflare (niente zip LAN né portatile).
-- Test all'ultimo giro: gioco 873/873, sito 195/195, LAN 12/12, programma Windows 28/28, build ok; prove nel browser
-  verdi (elenco con i numeri in `docs/PASSAGGIO_CONSEGNE.md` §4).
-- Non verificato: Windows (installazione, UAC, aggiornamento silenzioso, riapertura), telefoni veri, ledwall, GPU vera,
+- **B12 fatto (07/11 sera, richiesta «parti dalla forza del colpo e dalle azioni di GitHub»):** il colpo tipico
+  impara solo dai colpi normali (dopo 4 palle corte il dritto non diventa più piatto; `67af1d9`); azioni di GitHub a
+  Node 24 (`4ba8b49`). Versione **2026-11-07.5**: il push fa pubblicare il workflow `natpf-windows.yml` su R2 → è la
+  **prima prova vera dell'aggiornamento dal gioco** per chi ha la 07.4. Zip Cloudflare sha256 `65d242c8…f3333dd6d96`.
+- Test: gioco 875/875, sito 195/195, LAN 12/12, programma Windows 28/28, build ok; nel browser natpf-gesti-speciali 9/9,
+  natpf-rally 7/7, natpf-training-flow 18/18 (le altre come al giro del B11, `docs/PASSAGGIO_CONSEGNE.md` §4).
+- Non verificato: Windows (installazione, UAC, aggiornamento dal gioco, riapertura), telefoni veri, ledwall, GPU vera,
   persone vere sull'animazione nuova.
-- **Prossima azione esatta:** aspettare il collaudo dell'utente sulla 2026-11-07.4 (sta installando) e correggere ciò
-  che segnala; alla prossima versione verificare il primo aggiornamento dal gioco (§3 punto 2 del passaggio di
-  consegne); poi i punti aperti del passaggio di consegne §3 in ordine.
+- **Prossima azione esatta:** controllare che il workflow «NATPF eseguibili Windows» della 07.5 chiuda con
+  «Aggiornamento … pubblicato su Cloudflare R2» e che `windows/latest.json` dica 2026-11-07.5; poi aspettare il collaudo
+  dell'utente (07.4 installata → avviso nel menu → Aggiorna → Riavvia e aggiorna) e i punti aperti del passaggio di
+  consegne §3 in ordine (6 e 10 fatti nel B12).
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
@@ -108,6 +109,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B9 Tutorial, telefono, 1v1 | [x] | modale compatta con frecce, animazione nuova dei gesti (Canvas 2D sopra `natpf_gesture_pose.js`), «Tutto chiaro» dopo l'ultima finestra, schermo del telefono spento, «Pronto» per giocatore | `4ed5eab`…`f386f89` | 2026-11-06.1–.3 |
 | B10 Voce, tabellone, scritte, prove | [x] | voce «smash» solo per la schiacciata, tabellone come in TV, scritte del colpo fuori dal campo nel 2v2, palla corta e salita abituale, blocco di 1 s, prove rifatte | `8a12f2b`…`f490c7b` | 2026-11-07.1–.3 |
 | B11 Installer unico con aggiornamenti | [x] | un solo installer Windows che si aggiorna dal gioco (Cloudflare R2, bucket UE `natpfsimulator`), zip LAN e portatile tolti; collaudo Windows dell'utente in corso | `8623bd9`…`fa190f2` | 2026-11-07.4 |
+| B12 Forza del colpo e CI | [x] | colpo tipico solo dai colpi normali (palle corte non abbassano più la forza); azioni di GitHub a Node 24 | vedi WORK_PROGRESS B12 | 2026-11-07.5 |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).
