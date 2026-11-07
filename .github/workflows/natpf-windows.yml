@@ -160,6 +160,19 @@ jobs:
             esac
             echo "::error title=Accesso al bucket R2 rifiutato::$why. $lens. Guida: docs/GUIDA_AGGIORNAMENTI_R2.md"
             printf '%s\n' "$prova" | sed -E 's/[0-9a-f]{32,}/<…>/g' | tail -n 3
+            # diagnosi: quali operazioni passano (scrittura senza elenco = permesso sbagliato; niente con l'endpoint
+            # «eu» = bucket in giurisdizione UE; niente di niente = token di un altro account o non ancora attivo)
+            code(){ printf '%s' "$1" | grep -oE '\(([A-Za-z]+)\)' | head -n 1 | tr -d '()'; }
+            echo "Diagnosi (senza valori):"
+            echo "  Account ID: ${#acct} caratteri; bucket: ${#R2_BUCKET} caratteri"
+            if r=$(aws s3api put-object --endpoint-url "$ep" --bucket "$R2_BUCKET" --key "windows/.prova-accesso" --body /dev/null 2>&1); then
+              echo "  scrittura di un file di prova: OK"; aws s3api delete-object --endpoint-url "$ep" --bucket "$R2_BUCKET" --key "windows/.prova-accesso" >/dev/null 2>&1 || true
+            else echo "  scrittura di un file di prova: NO ($(code "$r"))"; fi
+            if r=$(aws s3api head-bucket --endpoint-url "$ep" --bucket "$R2_BUCKET" 2>&1); then echo "  bucket visibile: OK"; else echo "  bucket visibile: NO ($(printf '%s' "$r" | grep -oE '[0-9]{3}|Forbidden|Not Found' | head -n 1))"; fi
+            if r=$(aws s3api list-objects-v2 --endpoint-url "https://${acct}.eu.r2.cloudflarestorage.com" --bucket "$R2_BUCKET" --max-items 1 2>&1); then
+              echo "::error title=Bucket nella giurisdizione UE::Con l'endpoint .eu. il bucket risponde: va usato quello (dimmelo)."
+            else echo "  endpoint UE: NO ($(code "$r"))"; fi
+            if r=$(aws s3api list-buckets --endpoint-url "$ep" 2>&1); then echo "  elenco dei bucket dell'account: OK ($(printf '%s' "$r" | grep -c '"Name"') bucket)"; else echo "  elenco dei bucket dell'account: NO ($(code "$r"), normale per un token limitato a un bucket)"; fi
             exit 1
           fi
           echo "Accesso al bucket R2: ok ($lens)"
