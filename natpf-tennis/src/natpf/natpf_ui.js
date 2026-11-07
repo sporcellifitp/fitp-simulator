@@ -28,6 +28,7 @@ import { NatpfSplitUi } from './natpf_split_ui.js';
 import { NatpfScreen } from './natpf_screen.js';
 import { NatpfCalibra } from './natpf_calibra.js';
 import { scoreboardView, scoreboardHtml } from './natpf_scoreboard.js';
+import { NatpfUpdates } from './natpf_updates.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -104,6 +105,9 @@ export class NatpfUi {
     this.kiosk = new NatpfKiosk(engine, this);
     // intro all'avvio (marchi, titolo, «Premi un tasto»): poi il menu principale
     this.intro = new NatpfIntro({ onDone: () => { if (this.lobby.visible) this.lobby.go('menu'); } });
+    // aggiornamenti del programma Windows (window.natpfDesktop.updates, 07/11): avviso nel menu e sezione in Opzioni;
+    // nel browser niente. Lo ridisegna la lobby (paint, ogni 300 ms con il menu in vista) e ogni stato nuovo del programma
+    this.updates = new NatpfUpdates(this);
     // «Gioca ancora» (fine partita): si torna alla pagina «Partita» per scegliere di nuovo livello, formato e lunghezza,
     // con la modalità di prima (richiesta del 28/10 sera: prima ripartiva subito la stessa partita). Nel 1v1 tra due
     // computer resta la rivincita immediata: l'altro computer aspetta la stessa partita

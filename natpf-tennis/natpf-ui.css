@@ -1591,3 +1591,68 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 .natpf-tutorial.no-media .tut-frame { display: none; }
 .natpf-tutorial.no-media .tut-body { grid-template-columns: 1fr; grid-template-rows: auto; align-content: center; }
 .natpf-tutorial.no-media .tut-cues li { font-size: clamp(14px, 1.6cqw, 28px); }
+
+/* =====================================================================================================================
+   Aggiornamenti del programma Windows (natpf_updates.js, 07/11). Solo con window.natpfDesktop.updates.
+   • Avviso nel menu (#natpf-update): una striscia bassa tra la pagina e la barra in basso, nella stessa colonna della
+     pagina; sta nel flusso (non sopra), così non copre mai le voci né i pulsanti. Solo nel menu e nelle pagine di scelta.
+   • Opzioni → «Aggiornamenti» (#natpf-updates-opt): riga come le altre, sotto lo stato in parole e la barra.
+   Misure con cqw/cqh del contenitore natpf: seguono l'area (monitor, ledwall 2×2 e 3×2).
+   ===================================================================================================================== */
+#title-modal .natpf-update {
+  flex: none; display: flex; align-items: center; gap: clamp(10px, 1.2cqw, 18px);
+  width: min(1040px, calc(100% - 2 * var(--gutter))); margin: clamp(2px, 0.6cqh, 8px) auto 0; box-sizing: border-box;
+  padding: clamp(6px, 1cqh, 12px) clamp(10px, 1.2cqw, 18px);
+  border-radius: var(--r-m); border: 1px solid var(--line-strong); border-left: 4px solid var(--ball);
+  background: var(--panel); box-shadow: var(--shadow); color: var(--text);
+  animation: upd-in var(--t-med) var(--ease) both;
+}
+#title-modal .natpf-update.hidden { display: none; }
+#title-modal .natpf-update[data-kind="error"] { border-left-color: var(--warn); }
+#title-modal .natpf-update[data-kind="ready"] { border-left-color: var(--ok); }
+@keyframes upd-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+#title-modal .natpf-update .upd-ico { flex: none; width: clamp(22px, 2.2cqw, 32px); height: clamp(22px, 2.2cqw, 32px); fill: none; stroke: var(--ball); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+#title-modal .natpf-update[data-kind="ready"] .upd-ico { stroke: var(--ok); }
+#title-modal .natpf-update[data-kind="error"] .upd-ico { stroke: var(--warn); }
+#title-modal .natpf-update .upd-text { flex: 1; min-width: 0; display: grid; gap: clamp(2px, 0.4cqh, 6px); text-align: left; }
+#title-modal .natpf-update .upd-text b { font: 700 italic clamp(16px, 0.7cqw + 1.1cqh, 24px)/1.05 var(--font-display); letter-spacing: 0.03em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#title-modal .natpf-update .upd-text span[data-upd-sub] { font: 500 clamp(13px, 0.45cqw + 0.9cqh, 17px)/1.3 var(--font-text); color: var(--text-2); }
+#title-modal .natpf-update .upd-actions { flex: none; display: flex; gap: clamp(6px, 0.6cqw, 10px); }
+#title-modal .natpf-update .upd-btn { height: clamp(34px, 4.8cqh, 46px); min-width: 0; padding: 0 clamp(12px, 1.2cqw, 20px); font-size: clamp(14px, 0.5cqw + 0.8cqh, 18px); box-shadow: none; }
+/* barra di avanzamento (avviso e Opzioni): --p dal codice */
+#title-modal .upd-bar { display: block; position: relative; height: clamp(6px, 0.8cqh, 10px); border-radius: var(--r-pill); background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+#title-modal .upd-bar.hidden { display: none; }
+#title-modal .upd-bar i { position: absolute; inset: 0 auto 0 0; width: var(--p, 0%); border-radius: inherit; background: var(--ball); transition: width var(--t-med) linear; }
+/* Opzioni → Aggiornamenti */
+#title-modal .upd-opt { display: grid; gap: 8px; }
+#title-modal .upd-opt.hidden { display: none; }
+#title-modal .upd-opt [data-upd-btns]:empty, #title-modal .upd-opt [data-upd-btns].hidden { display: none; }
+#title-modal .upd-opt-info { display: grid; gap: clamp(4px, 0.6cqh, 8px); padding: 0 clamp(12px, 1.2cqw, 18px); text-align: left; }
+#title-modal .upd-opt-info p { margin: 0; }
+#title-modal .upd-opt-state { font: 700 italic clamp(17px, 0.6cqw + 1.1cqh, 24px)/1.1 var(--font-display); letter-spacing: 0.03em; text-transform: uppercase; color: var(--text); }
+#title-modal .upd-opt[data-status="none"] .upd-opt-state { color: var(--ok); }
+#title-modal .upd-opt[data-status="available"] .upd-opt-state, #title-modal .upd-opt[data-status="ready"] .upd-opt-state { color: var(--ball); }
+#title-modal .upd-opt[data-status="error"] .upd-opt-state { color: var(--warn); }
+#title-modal .upd-opt[data-status="off"] .upd-opt-state { color: var(--text-3); }
+#title-modal .upd-opt-meta, #title-modal .upd-opt-note { font: 500 clamp(13px, 0.4cqw + 0.9cqh, 16px)/1.4 var(--font-text); color: var(--text-2); }
+#title-modal .upd-opt-note:empty, #title-modal .upd-opt-meta:empty { display: none; }
+/* area stretta (ledwall quadrato, telefono in orizzontale): testo e pulsanti nella stessa riga finché ci stanno, poi i
+   pulsanti vanno sotto; il titolo va a capo; per «disponibile» resta solo il titolo (i MB sono anche in Opzioni) */
+@container natpf (max-width: 760px) {
+  #title-modal .natpf-update { flex-wrap: wrap; row-gap: 6px; }
+  #title-modal .natpf-update .upd-text { flex: 1 1 240px; }
+  #title-modal .natpf-update .upd-text b { white-space: normal; }
+  #title-modal .natpf-update .upd-actions { margin-left: auto; }
+  #title-modal .natpf-update[data-kind="available"] .upd-text span[data-upd-sub] { display: none; }
+}
+/* area quadrata o più alta che larga (menu in colonna, più alto): con l'avviso in vista nel menu la barra in basso, che lì
+   ha solo il promemoria dei tasti, lascia il posto all'avviso; così le voci del menu restano tutte in vista senza scorrere */
+@container natpf (max-aspect-ratio: 5/4) {
+  #title-modal[data-step="menu"]:has(> .natpf-update:not(.hidden)) .lobby-bottom { display: none; }
+  #title-modal[data-step="menu"] > .natpf-update { margin-bottom: var(--gutter); }
+}
+@container natpf (max-height: 560px) {
+  #title-modal .natpf-update .upd-text span[data-upd-sub] { display: none; }
+  #title-modal .natpf-update .upd-text:has(.upd-bar) span[data-upd-sub] { display: inline; }
+}
+@media (prefers-reduced-motion: reduce) { #title-modal .natpf-update { animation: none; } #title-modal .upd-bar i { transition: none; } }
