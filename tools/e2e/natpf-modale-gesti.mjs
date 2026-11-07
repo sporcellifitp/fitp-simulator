@@ -98,6 +98,16 @@ for (const [w, h] of [[1280, 720], [1920, 1080]]){
   await p.waitForTimeout(800);
   const stop = await p.evaluate(() => { const D = __natpfTennis.natpfUi.training.tutorial.demo(); return { running: D.running, frames: D.frames - __fr0 }; });
   check(`${w}×${h}: modale chiusa: animazione ferma`, !stop.running && stop.frames === 0, JSON.stringify(stop));
+  // revisione tecnica: si contano le requestAnimationFrame chieste DAL MODULO dell'animazione (pila della chiamata) per
+  // 1 s a modale chiusa, anche dopo averla riaperta e richiusa su un'altra scheda: devono essere zero
+  const rafs = await p.evaluate(async () => {
+    const T = __natpfTennis.natpfUi.training.tutorial, raf = window.requestAnimationFrame;
+    T.openFor({ mode: 'review' }); T.go(5); await new Promise(r => setTimeout(r, 300)); T.close('review');
+    let n = 0; window.requestAnimationFrame = f => { if (/natpf_gesture_demo/.test(new Error().stack || '')) n++; return raf.call(window, f); };
+    await new Promise(r => setTimeout(r, 1000)); window.requestAnimationFrame = raf;
+    return n;
+  });
+  check(`${w}×${h}: modale chiusa: nessuna requestAnimationFrame dell'animazione in 1 s`, rafs === 0, `${rafs}`);
   check(`${w}×${h}: nessun errore`, !errs.length, errs.join(' | ').slice(0, 300));
   await ctx.close();
 }
@@ -117,6 +127,15 @@ for (const [w, h] of [[1280, 720], [1920, 1080]]){
   check('stesso schermo: due animazioni insieme ≥ 50 fps', f.fps >= 50, `${f.fps.toFixed(1)} fps, peggiore ${f.worst.toFixed(0)} ms, canvas ${f.demos}`);
   await p.evaluate(() => { const s = __natpfTennis.natpfUi.split; const a = s.tut.p1.demo(), b = s.tut.p2.demo(); a.stop(); b.stop(); a.show(a.hitTime(), { rate: 1 }); b.show(b.hitTime(), { rate: 1 }); });
   await p.screenshot({ path: path.join(SHOTS, 'C-modale-stesso-schermo-1280x720.png') });
+  // le due metà chiuse: nessuna requestAnimationFrame delle due animazioni
+  const rafs = await p.evaluate(async () => {
+    const s = __natpfTennis.natpfUi.split, raf = window.requestAnimationFrame;
+    s.tut.p1.demo().start(); s.tut.p2.demo().start(); s.tut.p1.close('skip'); s.tut.p2.close('skip');
+    let n = 0; window.requestAnimationFrame = f => { if (/natpf_gesture_demo/.test(new Error().stack || '')) n++; return raf.call(window, f); };
+    await new Promise(r => setTimeout(r, 1000)); window.requestAnimationFrame = raf;
+    return { n, run: [s.tut.p1.demo().running, s.tut.p2.demo().running] };
+  });
+  check('stesso schermo: metà chiuse: animazioni ferme, nessuna requestAnimationFrame in 1 s', rafs.n === 0 && !rafs.run.some(Boolean), JSON.stringify(rafs));
   check('stesso schermo: nessun errore', !errs.length, errs.join(' | ').slice(0, 300));
   await ctx.close();
 }

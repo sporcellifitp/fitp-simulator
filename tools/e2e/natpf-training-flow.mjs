@@ -165,6 +165,17 @@ try {
     await game.waitForTimeout(400);
   }
   if (process.env.DEBUG) console.log(JSON.stringify(await game.evaluate(() => __sw)));
+  // riquadro «Guarda e ripeti» degli esercizi: animazione compatta 200×200 che gira; sotto la modale «Rivedi i gesti» si
+  // ferma (prima continuava a disegnare: due animazioni insieme), richiusa la modale riparte (revisione tecnica B9)
+  const coach = await game.evaluate(async () => {
+    const ui = __natpfTennis.natpfUi, T = ui.training, D = (await import('/src/natpf/natpf_gesture_demo.js')).getGestureDemo('coach');
+    const wait = ms => new Promise(r => setTimeout(r, ms)), before = { run: D.running, id: D.id, compact: D.compact, w: D.w };
+    T.tutorial.openFor({ mode: 'review' }); await wait(400);
+    const f0 = D.frames; await wait(500); const under = { run: D.running, frames: D.frames - f0 };
+    T.tutorial.close('review'); await wait(400);
+    return { before, under, after: D.running };
+  });
+  check('esercizio: «Guarda e ripeti» compatta che gira, ferma sotto la modale «Rivedi i gesti», riparte dopo', coach.before.run && coach.before.compact && coach.before.w === 200 && !coach.under.run && coach.under.frames === 0 && coach.after, JSON.stringify(coach));
   check('esercizio «Dritto»: freccia ← sul computer, «Ora» quando la palla arriva, colpi contati', drill.filter(d => d.ok).length >= 2 && drill.every(d => d.cue === 'L' && /Dritto/i.test(d.title)), JSON.stringify(drill));
   const tl = await game.evaluate(() => __tl), ptl = await phone.evaluate(() => __tl);
   const cals = await game.evaluate(() => __cals);

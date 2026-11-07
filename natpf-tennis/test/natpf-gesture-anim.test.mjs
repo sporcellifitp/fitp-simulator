@@ -144,3 +144,88 @@ test('disegno: mano e avambraccio della presa nel palmo = scheletro gestureRig (
   assert.ok(FOREARM_SHOWN.to < .9 && FOREARM_SHOWN.from < FOREARM_SHOWN.to);
   assert.equal(COMPACT_W, 320);
 });
+
+// Revisione tecnica (docs/b9/animazione-c.md §6): il test qui sopra confronta demo.pose(t) con gesturePose, ma non
+// dimostrava che il DISEGNO usi demo.pose. Qui il disegno gira davvero in Node con un contesto 2D finto (accetta le
+// chiamate, non dipinge): lo scheletro disegnato (info.figure.rig) è quello di gesturePose della mano scelta, e se
+// demo.pose restituisce un'altra posa il disegno la segue (un disegno che calcolasse la posa per conto suo farebbe
+// fallire questo test). Più la revisione artistica: etichette dei fantasmi che non saltano (prima fino a 200 px tra due
+// fotogrammi), freccia del verso che non scatta al giro del ciclo, avambraccio mai di punta verso la camera.
+function fakeDom(){
+  let calls = 0;
+  const ctx = () => new Proxy({}, {
+    get(t, k){ if (k in t) return t[k]; calls++;
+      if (k === 'measureText') return s => ({ width: String(s).length*6 });
+      if (typeof k === 'string' && k.startsWith('create')) return () => ({ addColorStop(){} });
+      return () => {}; },
+    set(t, k, v){ t[k] = v; return true; },
+  });
+  const canvas = () => ({ width: 0, height: 0, style: {}, className: '', isConnected: true, offsetParent: {}, getContext: ctx, remove(){} });
+  const had = 'document' in globalThis, prev = globalThis.document;
+  const raf = globalThis.requestAnimationFrame, caf = globalThis.cancelAnimationFrame;
+  globalThis.document = { createElement: canvas, hidden: false };
+  globalThis.requestAnimationFrame = () => 1; globalThis.cancelAnimationFrame = () => {};
+  return { calls: () => calls, restore: () => {
+    if (had) globalThis.document = prev; else delete globalThis.document;
+    globalThis.requestAnimationFrame = raf; globalThis.cancelAnimationFrame = caf;
+    if (!raf) delete globalThis.requestAnimationFrame; if (!caf) delete globalThis.cancelAnimationFrame;
+  } };
+}
+const close3 = (a, b) => GP.len(GP.sub(a, b)) < 1e-9;
+
+test('il disegno usa la posa di demo.pose (= gesturePose): scheletro disegnato uguale, e se demo.pose cambia il disegno la segue', () => {
+  const dom = fakeDom();
+  try {
+    const d = new NatpfGestureDemo({ width: 640, height: 400 });
+    assert.equal(d.available, true);
+    for (const hand of HANDS) for (const id of ['forehand', 'serve', 'smash', 'volley', 'grip']){
+      d.play(id, { hand }); d.stop();
+      for (const t of [0, .5, d.hitTime() || 1, d.cycle()*.8]){
+        d.show(t);
+        const p = GP.gesturePose(id, t, { hand }), R = hand === 'left' ? { pos: GP.mirrorPos(p.pos), q: GP.mirrorQ(p.q) } : p;
+        const r = handRig(R, handFor());
+        assert.ok(close3(d.info.figure.rig.W, r.W) && close3(d.info.figure.rig.fingers[1].pts[3], r.fingers[1].pts[3]), `${id} ${hand} ${t}: scheletro disegnato diverso da gesturePose`);
+      }
+    }
+    // posa sostituita: il disegno la segue
+    d.play('forehand', { hand: 'right' }); d.stop();
+    const other = GP.gesturePose('backhand', 1.1);
+    d.pose = () => other;
+    d.show(.4);
+    assert.ok(close3(d.info.figure.rig.W, handRig(other, handFor()).W), 'il disegno non segue demo.pose');
+    assert.ok(dom.calls() > 100);
+  } finally { dom.restore(); }
+});
+
+test('etichette dei fantasmi ferme sul proprio fantasma (nessun salto) con la camera ferma; freccia del verso spenta al giro del ciclo', () => {
+  const dom = fakeDom();
+  try {
+    const d = new NatpfGestureDemo({ width: 640, height: 400 });
+    for (const id of ['forehand', 'backhand', 'slice', 'drop', 'volley', 'flat', 'cross']){
+      d.play(id); d.stop();
+      const P = GP.gesturePlan(id), prev = new Map();
+      let worst = 0;
+      for (let t = 0; t < P.total; t += 1/60){
+        d.show(t);
+        for (const g of d.info.ghosts || []){ if (!g.labelBox) continue; const a = prev.get(g.i); if (a) worst = Math.max(worst, Math.hypot(g.labelBox.x0 - a.x0, g.labelBox.y0 - a.y0)); prev.set(g.i, g.labelBox); }
+      }
+      assert.ok(worst < .5, `${id}: etichetta che salta di ${worst.toFixed(0)} px`);
+    }
+  } finally { dom.restore(); }
+  const src = readFileSync(new URL('../src/natpf/natpf_gesture_demo.js', import.meta.url), 'utf8');
+  assert.match(src, /vis = 1 - sstep\(P\.T\.back, P\.T\.home, t\);/);
+});
+
+test('camere: l\'avambraccio non punta mai verso la camera (≥ 28° dal raggio visivo, oggi ≥ 30°; prima il servizio e la schiacciata scendevano a 1° e 5°: «palla di pelle» sotto il telefono)', () => {
+  for (const id of GP.POSE_IDS){
+    const P = GP.gesturePlan(id);
+    if (P.still) continue;
+    let worst = 90;
+    for (let t = 0; t < P.total; t += 1/60){
+      const r = handRig(GP.gesturePose(id, t), handFor()), cam = cameraAt(id, t, { W: 640, H: 400 });
+      const F = GP.norm(GP.sub(r.E, r.W)), v = GP.norm(GP.sub(cam.eye, r.W));
+      worst = Math.min(worst, 90 - Math.asin(Math.min(1, Math.abs(GP.dot(F, v))))/D);
+    }
+    assert.ok(worst >= 28, `${id}: avambraccio a ${worst.toFixed(0)}° dal raggio visivo`);
+  }
+});

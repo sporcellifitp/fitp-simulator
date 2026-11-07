@@ -3,6 +3,8 @@
 > Stato: **completo per l'unione** (06/11/2026, worktree `wf_b232ca46-ca8-1`, branch `worktree-wf_b232ca46-ca8-1`, base
 > `b86baac` più `natpf-simulator` unito). Brief: `docs/b9/giudizio-animazione.md` §5. Posa: `docs/b9/posa-gesti.md`.
 > Fogli di controllo: `docs/b9/img/C-anim-*.webp`. Modale vera: `docs/b9/img/C-modale-*.webp`.
+> **Unito in `f386f89` senza le due revisioni previste: fatte dopo l'unione, vedi §6** (cosa trovato, cosa corretto,
+> misure). Le camere di servizio, schiacciata e palla corta del §1 e del brief sono cambiate lì.
 
 ## 1. Cosa è cambiato
 
@@ -133,3 +135,85 @@ Schermate guardate: `C-modale-1280x720` (dritto all'impatto, «Rivedi i gesti» 
 - Presa a martello (rollback): disegnata e fedele nei test, ma le camere sono tarate per la presa nel palmo (telefono di
   taglio nel dritto a martello alla Carica).
 - Le misure dei tempi sono state prese con un altro agente al lavoro sulla stessa macchina (carico 1–5 su 4 core).
+
+## 6. Revisioni dopo l'unione (06/11/2026 sera, worktree `wf_0d2c43d5-d67-1`, base `3685b0f`)
+
+Il ramo è stato unito (`f386f89`) senza le due revisioni del brief; fatte qui, sul codice unito. Commit: `2168295`,
+`46dde6a`, `3f41e33` più questa nota. Riconoscimento dei gesti **non toccato** (moti, piani, rilevatore): cambiano solo
+disegno, dati delle camere (`CAMERAS` di `natpf_gesture_pose.js`, solo disegno) e un riquadro dell'Allenamento.
+
+### 6.1 Revisione tecnica
+| Controllo | Trovato | Corretto / misura |
+|---|---|---|
+| API di `natpf_gesture_demo.js` e usi | invariata; usi: `natpf_tutorial.js` (istanza iniettata, `stop()` alla chiusura, `_fit` → `setSize`), `natpf_training.js` (`'main'` per la modale, `'coach'` 200×200 negli esercizi e 300×300 nella lezione, compatta), `natpf_split_ui.js` (`'p1'`/`'p2'`), `natpf_media.js` (solo un commento) | — |
+| `demo.pose == gesturePose`: il test di fedeltà fallisce davvero? | **No**: il test confrontava `demo.pose(t)` con `gesturePose`, ma non che il disegno usi `demo.pose`. Prova: con `render` che calcola la posa da sé (`gesturePose(...)` al posto di `this.pose(tt)`) i 7 test del file restavano verdi | nuovo test con un contesto 2D finto in Node: il disegno vero gira, lo scheletro disegnato (`info.figure.rig`) = `handRig(gesturePose)` destro e mancino, e con `demo.pose` sostituita il disegno la segue. Con la stessa mutazione ora **fallisce** («il disegno non segue demo.pose»). Corretto anche `info` della presa (perdeva la figura) |
+| Due istanze nello stesso schermo | ok: istanze distinte, dritto P1 e servizio mancino P2 insieme | 60,0 fps a 1280×720 (≥ 50 ✓) |
+| Compatta negli esercizi dell'Allenamento | ok (200×200, `compact`), **ma** con la modale «Rivedi i gesti» aperta durante un esercizio il riquadro «Guarda e ripeti» continuava a disegnare sotto la modale (due animazioni) | si ferma con la modale aperta e riparte alla chiusura; verifica nuova in `natpf-training-flow` (prima 0 controlli, ora: in esercizio gira, compatta, 200 px; sotto la modale ferma, 0 fotogrammi in 0,5 s; dopo riparte) |
+| Nessun disegno a modale chiusa (requestAnimationFrame) | ok: `close()` chiama `stop()` | contate le `requestAnimationFrame` chieste dal modulo (pila della chiamata) per 1 s: **0** a modale chiusa (1280×720 e 1920×1080, dopo riapertura su un'altra scheda) e **0** con le due metà dello stesso schermo chiuse |
+| fps senza GPU (Chromium 153, opzioni predefinite) | — | modale sopra l'arena ferma: **58,4** fps a 1280×720 (disegno 1,9 ms), **60,2** a 1920×1080 (3,7 ms); due istanze **60,0**. Una prima esecuzione a 1920×1080 con carico 8–10 su 4 core (altri agenti con Chromium): 45,9 fps, rossa; ripetuta con carico ~8: verde. Con il campo 3D che gioca dietro: 1,3–1,7 fps con e senza modale (WebGL in software: il campo da solo non arriva a 2 fps); il ≥ 55 fps sopra il gioco che gira **non è misurabile qui** |
+| Costo del disegno a 640×400 | registrazione 2,25–2,59 ms (≤ 4 ✓); con la rasterizzazione su CPU 3,87 / 4,06 / 4,11 ms con carico 5–6 (≤ 4 al limite, una su tre verde); stessa misura sulla base `3685b0f` nello stesso momento: 3,71. Confronto alternato per scheda (min di 3 giri): media **3,45 ms** contro 3,21 della base; servizio 4,01 (2,79) e schiacciata 3,80 (2,69): le camere nuove mostrano l'avambraccio di lato, più lungo e quindi più pixel da sfumare; presa 4,54 (5,00) | registrazione ✓; rasterizzazione su CPU al limite con la macchina carica (da rimisurare a macchina scarica; su un PC con GPU il Canvas 2D è accelerato) |
+| Peso nella build | — | JS principale 1 519 981 → 1 561 091 byte rispetto a `3b59c51`, gzip −9 457 001 → 473 176 (**+16,2 KB** compressi ≤ 40 ✓); `dist` intera +42,8 KB non compressi; nessun asset |
+| Prove nel browser | — | `natpf-modale-gesti` **18/18** (15 + 3 nuove), `natpf-tutorial-phone` **37/37**, `natpf-split-ready` **34/34** (prima esecuzione 33/34 con la macchina carica, ripetuta verde), `natpf-training-flow` **18/18** (17 + 1 nuova), `natpf-gesti-fotogrammi` 30/31 (rossa solo la rasterizzazione ≤ 4 ms sopra) |
+
+### 6.2 Revisione artistica e didattica
+Fotogrammi in sequenza (nuova prova `tools/e2e/natpf-gesti-sequenze.mjs`: 16 per ciclo, 11 schede, destro e mancino, a
+640×400 e 448×280, striscia 1600×1000; più le misure del moto a 60 fps sul disegno) **guardati**, più primi piani a
+800×500. In `docs/b9/img/`: `C-anim-seq-448x280-servizio`, `-schiacciata`, `-palla-corta`, `-dritto-mancino` e
+`C-anim-seq-1600x1000-dritto`, `-servizio` (dopo le correzioni); fogli `C-anim-*` dei momenti chiave rifatti.
+
+Difetti trovati (bloccanti = si notano o rendono il gesto ambiguo):
+
+| # | Difetto | Gravità | Misura prima → dopo | Correzione |
+|---|---|---|---|---|
+| 1 | **Etichette numerate dei fantasmi che saltano** da un lato all'altro del soggetto mentre il telefono si muove (posto ricalcolato a ogni fotogramma) | bloccante | salto massimo per fotogramma: dritto 135 px, tagliato 203, servizio 114, palla corta 119 a 640×400 (7–109 salti > 3 px per ciclo) → **0 px** con la camera ferma; con la camera che segue (servizio, schiacciata, pallonetto) l'etichetta si sposta solo con il suo fantasma (≤ 1,5× lo spostamento della camera: 9 / 14 / 6 px) | posto scelto una volta quando il fantasma compare, guardando il soggetto vivo in 12 istanti fino al ritorno e al contatto (peso forte sulla sovrapposizione peggiore); l'etichetta resta attaccata al fantasma e si spegne se il fantasma esce dallo stadio (prima restavano «1 Carica 2 Impatto 3 Fine» in cima allo stadio senza fantasma). Costo: una volta per scheda, ≤ ~10 ms nel fotogramma in cui il fantasma compare (prima ~1 ms a ogni fotogramma) |
+| 2 | **Avambraccio di punta verso la camera** nella fine del servizio e della schiacciata (e nella palla corta): una «palla di pelle» sfocata sotto il telefono, letta come un pugno | bloccante | angolo minimo tra avambraccio e raggio visivo: servizio 1°, schiacciata 5°, palla corta 21° (servizio sotto 35° per l'83% del ciclo) → **≥ 30°** per tutte le schede (servizio 30° a fine ritorno, schiacciata 30°, pallonetto 31°, palla corta 81°; a 30° l'avambraccio si vede ancora di lato, accorciato, con la sfumatura lineare); test nuovo «avambraccio mai verso la camera ≥ 28°» | camere riviste con una ricerca su azimut ed elevazione (telefono ≥ 28° dalla linea di vista nelle pose chiave) e guardate: servizio e schiacciata `[.3, .5, .81]` (da dietro un poco a destra e dall'alto: il braccio sale dal basso, la battuta scende sopra il telefono, l'accompagnamento esce di lato), palla corta `[-.47, .34, .81]` (da dietro a sinistra, bassa). Scartata per la schiacciata `[.13, .64, .75]`: lo slancio in avanti si accorciava in un piccolo ricciolo |
+| 3 | **Freccia del verso che scatta al giro del ciclo**: si riaccendeva piena negli ultimi decimi del ciclo e spariva di colpo a t = 0 | bloccante (si vede a ogni ripetizione) | — | spenta dal ritorno alla carica successiva; la punta cresce con la freccia (prima una punta piena da sola, staccata dal telefono); nel servizio la freccia della battuta cresce dopo il lancio, non insieme (prima una punta isolata in cima allo stadio durante il lancio) |
+| 4 | Polsino coperto dall'avambraccio quando l'avambraccio è davanti alla mano (presa di lato, posizione): il bordo tondo dell'avambraccio restava come una cucitura sul palmo | minore | — | polsino ridisegnato sopra l'avambraccio (lo avvolge) |
+
+Lista del §5.6.2 punto per punto (dopo le correzioni; `natpf-gesti-fotogrammi`, tutte le schede, destro e mancino):
+
+| Voce | Misura |
+|---|---|
+| Avambraccio e mano sempre uniti | sì in tutti i fotogrammi in sequenza (polsino sull'attacco anche con l'avambraccio davanti); avambraccio mai di punta (≥ 30°) |
+| Polso ≤ 35° | 32,7° palmo, 13,8° martello (test) |
+| Dita sul vetro ≤ 8 mm | 4,8 mm (test) |
+| Nessun fantasma sopra il telefono vivo | sì (fantasmi sotto la figura, spenti al passaggio) |
+| Telefono mai di taglio nelle pose chiave (≥ 25°) | sì a 640×400, 448×280, 200×200, 1600×1000 (test e prova); con le camere nuove (pose chiave) servizio ≥ 53°, schiacciata ≥ 38°, palla corta ≥ 56° |
+| Palla ≤ 1 raggio dalla cima al contatto | sì per tutte |
+| «Impatto» scritto in quell'istante | sì per tutte |
+| Mano+telefono ≥ 28% dell'altezza all'impatto | minimo 32% (palla corta, 640×400), 33% (448×280), 37% (200×200), 30% (1600×1000): la palla corta vista da dietro è più piccola di prima (era il 53% minimo); sopra la soglia |
+| A 448×280 telefono ≥ 60 px all'impatto | minimo 61 px (pallonetto); 87 px a 640×400, 219 a 1600×1000 |
+| Etichette dentro lo stadio e fuori dal soggetto (≤ 10%) | sì a tutte le misure (con il posto fisso: prima della taratura del peso il dritto all'impatto era al 25%, corretto) |
+| Testi ≥ 12 px | sì |
+| Contrasto pelle/sfondo ≥ 3:1 | invariato: 4,4:1 sul punto più chiaro |
+| Colpo nel quadro (cima e palla fuori ≤ 100 ms, freccia ≤ 10%) | sì a tutte le misure (massimo 100 ms: palla in arrivo di piatto e incrociato) |
+
+Giudizio sui punti del brief, dai fotogrammi:
+- **Anatomia**: mano e telefono 1:1 (telefono lungo quanto la mano dal polso alla punta del medio); presa coerente con
+  `docs/riferimenti/presa-palmo-utente-2026-11-04.webp` (dita avvolte sul bordo sinistro nella parte bassa, pollice
+  lungo il bordo destro in alto, schermo verso chi guarda, cima inclinata in avanti); dita a capsule con unghie solo sul
+  dorso visibile, stile cartoon coerente; polso fermo. Il polsino visto dalla parte del gomito (posizione, presa di
+  lato) è un anello bianco marcato: corretto in prospettiva, un po' pesante a 640×400.
+- **Moto**: preparazione lenta e continua, accelerazione con il picco al contatto (scia e lampo), fermo breve in fine
+  colpo, ritorno morbido; con le correzioni nessuno scatto visibile nel ciclo (etichette, freccia). Velocità massima della
+  cima a 640×400: 22–43 px per fotogramma nella parte veloce (rovescio 43, tagliato 42), leggibile grazie alla scia.
+- **Fedeltà visiva al gesto riconosciuto**: freccia e scia seguono la cima nella parte veloce; servizio: lancio con la
+  palla appoggiata sul vetro → braccio in alto → battuta sopra la palla al colmo; schiacciata: braccio alto, poi giù
+  sopra il telefono; palla corta: carica in alto e mano che scende, corta e lenta (curva 0,6× il dritto).
+- **Leggibilità a metà schermo (448×280)**: il soggetto resta ≥ 33% dell'altezza all'impatto; le etichette dei fantasmi
+  sono piccole (12 px) ma ferme; il pallonetto a riposo è il soggetto più piccolo (telefono ~45 px in «Pronto»).
+
+Minori lasciati (non bloccanti, da decidere): fantasmi a contorno con le dita disegnate (a 448×280 si leggono come
+guanti vuoti, un po' affollati quando ce ne sono tre); pallonetto piccolo a riposo (camera che segue con `size .52`); la
+fase scritta dice «Colpo» già all'istante della carica (dalla posa, non dal disegno); etichetta che sfuma ancora visibile
+per ~0,1 s quando il suo fantasma è già quasi spento.
+
+### 6.3 Non verificato in queste revisioni
+- Persone vere (brief §5.6.6), GPU vera, Windows, ledwall, telefoni veri: come §5.
+- Movimento giudicato da fotogrammi in sequenza (16 per ciclo) e da misure a 60 fps sul disegno, non da un video.
+- La rasterizzazione su CPU a 640×400 è al limite di 4 ms con la macchina carica (altri agenti con Chromium, carico
+  5–10 su 4 core); non rimisurata a macchina scarica.
+- Presa a martello (rollback) con le camere nuove di servizio, schiacciata e palla corta: verde nei test e nella prova
+  dei fogli, non guardata in sequenza.
+- Le schermate della modale vera `C-modale-*-servizio.webp` mostrano ancora la camera di prima del servizio (le prove
+  le rifanno in PNG in una cartella temporanea, non convertite).
