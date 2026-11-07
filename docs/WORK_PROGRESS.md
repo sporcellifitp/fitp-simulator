@@ -449,3 +449,10 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
   errore della pagina; 404 attesi solo su `/api/match/state` e `/lan/status` con un server statico).
 - Non verificato: telefoni veri (la forza percepita in partita), il primo aggiornamento dal gioco 07.4 → 07.5 su
   Windows (lo prova l'utente).
+- GitHub dopo il push (`1b2d3b7`, azioni v7): «NATPF eseguibili Windows» verde, installer 2026-11-07.5 pubblicato su R2
+  (124.580.634 B, sha256 `7c037ab5768af33f77a0d4128719cd0506cc07c61a992aee137069e6c087fc5a`, `latest.json` con la novità
+  e il link fisso controllati dall'indirizzo pubblico), niente più avviso «Node.js 20 is deprecated» nei registri;
+  «NATPF motore base MVP» verde; «NATPF Simulator tests» rosso in `gesture-calibration.mjs:73` (servizio col telefono
+  del sito: `toss: null` al secondo gesto) al primo tentativo e alla ripetizione dei soli job falliti (in quella
+  anche `timing-browser` era rosso al primo e verde al secondo). In locale `gesture-calibration` 18/18 due volte su due
+  con lo stesso codice; B12 non tocca `site/js/tennis` né la prova: punto aperto noto (passaggio di consegne §3.10).

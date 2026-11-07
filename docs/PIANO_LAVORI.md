@@ -30,10 +30,13 @@ Come si aggiorna:
   natpf-rally 7/7, natpf-training-flow 18/18 (le altre come al giro del B11, `docs/PASSAGGIO_CONSEGNE.md` §4).
 - Non verificato: Windows (installazione, UAC, aggiornamento dal gioco, riapertura), telefoni veri, ledwall, GPU vera,
   persone vere sull'animazione nuova.
-- **Prossima azione esatta:** controllare che il workflow «NATPF eseguibili Windows» della 07.5 chiuda con
-  «Aggiornamento … pubblicato su Cloudflare R2» e che `windows/latest.json` dica 2026-11-07.5; poi aspettare il collaudo
-  dell'utente (07.4 installata → avviso nel menu → Aggiorna → Riavvia e aggiorna) e i punti aperti del passaggio di
-  consegne §3 in ordine (6 e 10 fatti nel B12).
+- GitHub: installer 2026-11-07.5 **pubblicato su R2** (`latest.json` controllato: build 07.5, sha256
+  `7c037ab5…c087fc5a`, novità), azioni senza avviso di Node 20; «NATPF Simulator tests» rosso solo in
+  `gesture-calibration.mjs:73` (due tentativi; in locale 18/18 due volte: instabilità nota dei runner, §3.10 del
+  passaggio di consegne).
+- **Prossima azione esatta:** aspettare il collaudo dell'utente: 07.4 installata → avviso nel menu → Aggiorna →
+  Riavvia e aggiorna → gioco riaperto in 07.5; poi i punti aperti del passaggio di consegne §3 in ordine (6 e 10 fatti
+  nel B12; da valutare la prova `gesture-calibration` da rendere stabile sui runner).
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
