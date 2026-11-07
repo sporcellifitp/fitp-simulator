@@ -89,6 +89,8 @@ Con la variante di sola diagnostica (stesso freno via CDP dal servizio in poi, `
 | prova nuova | ×6 | **5/5** consecutive |
 | prova nuova, secondo gesto ritardato di 1,5 s | nessuno | 3/3 (gesto 2,08–2,09 s dopo l'apice, timing −0,025/−0,028) |
 | prova nuova, secondo gesto ritardato di 1,5 s | ×4 | 2/2 (gesto 1,63–1,65 s dopo l'apice) |
+| prova di prima, tutto su un core (`taskset -c 0`) con un processo che lo occupa al 100% | — | 0/2 (ferme al contatto del servizio) |
+| prova nuova, stesso core occupato | — | **3/3** (18/18, ~100 s a run) |
 
 Con il file vero del repository: 3/3 senza freno (18/18 ciascuna, gesto 0,57–0,60 s dopo l'apice) e 2/2 con
 `CPU_THROTTLE=4` (18/18, gesto 0,12 s dopo l'apice). `node --test tools/test/*.test.mjs`: 195/195. Il gioco
