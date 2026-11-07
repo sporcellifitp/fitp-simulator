@@ -1862,7 +1862,8 @@ export class NatpfTennisEngine {
         T = natpfServe ? natpfServe.grade : s ? "POWER SERVE!" : n ? "EARLY SERVE" : "GOOD SERVE",
         M = `${w} KM/H \u2022 ${s ? "SWEET SPOT APEX" : n ? "LOW CONTACT" : "SERVICE BOX"}`,
         R = this._projectToScreen(e.pos.clone().add(new o.Vector3(0, 2.35, 0)));
-      this.hud.showTimingPopup({ grade: T, detail: M, screenPos: R }),
+      // NATPF B10: servizio del Player 2 con «P2» come i colpi dello scambio (lato della scritta, «avversario», dentro/fuori)
+      this.hud.showTimingPopup({ grade: (e === this.opponent ? "P2 " : "") + T, detail: M, screenPos: R }),
         this.hud.updateTimingGauge({
           cursorNormalized: s ? 0.5 : n ? 0.22 : 0.42,
           modeTitle: "SERVE IMPACT",
