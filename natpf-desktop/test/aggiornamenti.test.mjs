@@ -337,3 +337,33 @@ test('stato: download con sha256 sbagliato → errore, poi si riprova dal clic',
     assert.equal((await u.download()).status, 'ready', 'dopo l\'errore il clic riprova');
   } finally { await s.close(); }
 });
+
+test('manifesto del workflow (scripts/manifesto.mjs): valido per il programma, note pulite, mai indietro', async () => {
+  const { makeManifest, shouldPublish, cleanNotes } = await import('../scripts/manifesto.mjs');
+  const m = makeManifest({ build: '2026-11-08.1', bytes: BODY, notes: 'Versione nuova\n\nCo-Authored-By: X <x@y>\nClaude-Session: https://z', published: '2026-11-08T09:00:00Z' });
+  assert.deepEqual(m, { build: '2026-11-08.1', version: '2026.1108.1', file: 'NATPF-Simulator-Setup-2026-11-08.1.exe', size: BODY.length, sha256: sha(BODY), notes: 'Versione nuova', published: '2026-11-08T09:00:00Z' });
+  // il programma lo accetta così com'è
+  assert.equal(validateManifest(JSON.parse(JSON.stringify(m)), 'https://pub-abc.r2.dev').url, 'https://pub-abc.r2.dev/windows/NATPF-Simulator-Setup-2026-11-08.1.exe');
+  assert.equal(makeManifest({ build: '2026-11-08.1', bytes: BODY }).notes, 'Versione 2026-11-08.1.', 'note predefinite');
+  assert.throws(() => makeManifest({ build: 'prova', bytes: BODY }));
+  assert.equal(cleanNotes('a\u0007b\nSigned-off-by: x'), 'ab');
+  assert.ok(shouldPublish('', '2026-11-08.1'), 'niente sul bucket');
+  assert.ok(shouldPublish('{ rotto', '2026-11-08.1'));
+  assert.ok(shouldPublish(JSON.stringify({ build: '2026-11-07.3' }), '2026-11-08.1'));
+  assert.ok(shouldPublish(JSON.stringify({ build: '2026-11-08.1' }), '2026-11-08.1'), 'stessa versione (esecuzione rifatta)');
+  assert.ok(!shouldPublish(JSON.stringify({ build: '2026-11-08.2' }), '2026-11-08.1'), 'mai tornare indietro');
+});
+
+test('workflow: solo l\'installer, R2 con i soli segreti di GitHub, prima l\'installer e poi il manifesto', () => {
+  const wf = fs.readFileSync(new URL('../../.github/workflows/natpf-windows.yml', import.meta.url), 'utf8');
+  assert.ok(!/Portatile/.test(wf), 'niente portatile');
+  for (const s of ['R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ACCOUNT_ID', 'R2_BUCKET']) assert.match(wf, new RegExp(`\\$\\{\\{ secrets\\.${s} \\}\\}`), s);
+  assert.ok(!/AKIA|[0-9a-f]{32}\.r2\.cloudflarestorage/i.test(wf), 'nessuna chiave o account scritto nel file');
+  assert.match(wf, /::warning[^\n]*segreti/i, 'senza segreti: avviso, non errore');
+  const exe = wf.indexOf('"s3://$R2_BUCKET/windows/$exe"'), manifest = wf.indexOf('"s3://$R2_BUCKET/windows/latest.json"', exe);
+  assert.ok(exe > 0 && manifest > exe, 'prima l\'installer, poi il manifesto');
+  assert.match(wf, /head-object[\s\S]*ContentLength[\s\S]*"s3:\/\/\$R2_BUCKET\/windows\/latest\.json"/, 'dimensione controllata sul bucket prima del manifesto');
+  assert.match(wf, /manifesto\.mjs --confronta=/, 'mai tornare indietro');
+  assert.match(wf, /actions\/upload-artifact/, 'resta anche l\'artefatto di GitHub');
+  assert.match(wf, /NATPF_AGGIORNAMENTI_URL: \$\{\{ vars\.NATPF_AGGIORNAMENTI_URL \}\}/);
+});

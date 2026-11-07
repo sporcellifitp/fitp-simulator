@@ -1,11 +1,17 @@
 name: NATPF eseguibili Windows
 
-# Eseguibili Windows di NATPF Simulator (natpf-desktop: installabile e portatile) costruiti su GitHub e pubblicati come
-# un unico file da scaricare (richiesta dell'utente del 05/11/2026: «non puoi caricarli come zip su github? in un unico
-# file che scaricherò poi da lì?»; dal messaggio gli .exe da ~125 MB non si scaricavano). Il file si scarica dalla
-# pagina dell'esecuzione: Actions → «NATPF eseguibili Windows» → ultima esecuzione → Artifacts. Contiene i due .exe,
-# SHA256SUMS.txt e la lista dei controlli (COLLAUDO_WINDOWS.md).
-# Parte quando cambia la versione del gioco (pacchetti nuovi), il programma Windows o questo file; anche a mano.
+# Installer Windows di NATPF Simulator (natpf-desktop) costruito su GitHub e pubblicato:
+# - come Artifact dell'esecuzione (un unico file da scaricare: Actions → «NATPF eseguibili Windows» → ultima
+#   esecuzione → Artifacts; richiesta del 05/11/2026), con SHA256SUMS.txt e COLLAUDO_WINDOWS.md;
+# - sul bucket pubblico di Cloudflare R2 degli aggiornamenti (richiesta del 07/11/2026: «un unico installer che poi
+#   deve potersi aggiornare direttamente dal gioco»; il repository è privato, quindi niente download da GitHub per il
+#   programma): windows/NATPF-Simulator-Setup-<versione>.exe, poi windows/latest.json (il manifesto che il programma
+#   legge), più una copia con il nome fisso windows/NATPF-Simulator-Setup.exe per la prima installazione.
+#   Solo con i segreti del repository R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ACCOUNT_ID, R2_BUCKET (guida:
+#   docs/GUIDA_AGGIORNAMENTI_R2.md); senza segreti il passo si salta con un avviso e resta l'Artifact.
+# L'indirizzo pubblico del bucket che il programma usa viene da natpf-desktop/aggiornamenti.json o dalla variabile del
+# repository NATPF_AGGIORNAMENTI_URL (Settings → Secrets and variables → Actions → Variables).
+# Parte quando cambia la versione del gioco, il programma Windows o questo file; anche a mano.
 on:
   push:
     branches:
@@ -19,9 +25,14 @@ on:
 permissions:
   contents: read
 
+# una pubblicazione alla volta: il manifesto non deve mai tornare a una versione vecchia
+concurrency:
+  group: natpf-windows-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   windows-exe:
-    name: Installabile e portatile (.exe)
+    name: Installer (.exe) e aggiornamenti
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -53,19 +64,21 @@ jobs:
           npm ci --no-audit --no-fund
           npm test
       # electron-builder scarica Electron per Windows x64; makensis (NSIS 3.0.4.1, versione Linux) compila
-      # installazione e portatile senza wine (natpf-desktop/scripts/costruisci.mjs)
-      - name: Costruzione degli eseguibili
+      # l'installer senza wine (natpf-desktop/scripts/costruisci.mjs)
+      - name: Costruzione dell'installer
         working-directory: natpf-desktop
+        env:
+          NATPF_AGGIORNAMENTI_URL: ${{ vars.NATPF_AGGIORNAMENTI_URL }}
         run: npm run costruisci
-      - name: Controlli e sha256
+      - name: Controlli, sha256 e manifesto degli aggiornamenti
         working-directory: natpf-desktop/dist
         run: |
           build='${{ steps.v.outputs.build }}'
-          for f in "NATPF-Simulator-Setup-$build.exe" "NATPF-Simulator-Portatile-$build.exe"; do
-            test -s "$f"
-            test "$(stat -c %s "$f")" -gt 50000000
-          done
+          f="NATPF-Simulator-Setup-$build.exe"
+          test -s "$f"
+          test "$(stat -c %s "$f")" -gt 50000000
           sha256sum NATPF-Simulator-*.exe | tee SHA256SUMS.txt
+          node ../scripts/manifesto.mjs --exe="$f" --out=latest.json --note="$(git log -1 --format=%s)"
           cp ../../docs/COLLAUDO_WINDOWS.md .
           ls -l
       - name: Un unico file da scaricare
@@ -75,7 +88,86 @@ jobs:
           path: |
             natpf-desktop/dist/NATPF-Simulator-*.exe
             natpf-desktop/dist/SHA256SUMS.txt
+            natpf-desktop/dist/latest.json
             natpf-desktop/dist/COLLAUDO_WINDOWS.md
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
+      - name: Segreti di Cloudflare R2
+        id: r2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          if [ -n "$R2_ACCESS_KEY_ID" ] && [ -n "$R2_SECRET_ACCESS_KEY" ] && [ -n "$R2_ACCOUNT_ID" ] && [ -n "$R2_BUCKET" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Aggiornamenti non pubblicati::Mancano i segreti R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ACCOUNT_ID o R2_BUCKET (docs/GUIDA_AGGIORNAMENTI_R2.md): l'installer è solo negli Artifacts."
+          fi
+      # API S3 di R2 con aws cli (già sui runner; caricamento a più parti per i file grandi). I controlli di integrità
+      # predefiniti delle versioni recenti di aws cli si limitano a quando servono (compatibilità con R2)
+      - name: Pubblicazione su Cloudflare R2 (prima l'installer, poi il manifesto)
+        if: steps.r2.outputs.ok == 'true' && github.ref == 'refs/heads/natpf-simulator'
+        working-directory: natpf-desktop/dist
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+        run: |
+          set -euo pipefail
+          build='${{ steps.v.outputs.build }}'
+          exe="NATPF-Simulator-Setup-$build.exe"
+          ep="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          # mai tornare indietro: se sul bucket c'è già una versione più nuova, non si pubblica
+          if aws s3 cp --endpoint-url "$ep" "s3://$R2_BUCKET/windows/latest.json" remoto.json --only-show-errors 2>/dev/null; then
+            if ! node ../scripts/manifesto.mjs --confronta=remoto.json --build="$build"; then
+              echo "::warning title=Aggiornamenti non pubblicati::Sul bucket c'è già una versione più nuova di $build."
+              exit 0
+            fi
+          fi
+          # 1) installer con il nome della versione (non cambia più: cache lunga)
+          aws s3 cp --endpoint-url "$ep" "$exe" "s3://$R2_BUCKET/windows/$exe" --only-show-errors \
+            --content-type application/vnd.microsoft.portable-executable --cache-control "public, max-age=31536000, immutable"
+          remote_size=$(aws s3api head-object --endpoint-url "$ep" --bucket "$R2_BUCKET" --key "windows/$exe" --query ContentLength --output text)
+          test "$remote_size" = "$(stat -c %s "$exe")"
+          echo "Installer caricato: $remote_size byte"
+          # 2) manifesto (solo dopo l'installer: mai un manifesto che punta a un file che non c'è), senza cache
+          aws s3 cp --endpoint-url "$ep" latest.json "s3://$R2_BUCKET/windows/latest.json" --only-show-errors \
+            --content-type application/json --cache-control "no-cache, max-age=0"
+          # 3) copia con il nome fisso per la prima installazione (il link da dare non cambia)
+          aws s3 cp --endpoint-url "$ep" "$exe" "s3://$R2_BUCKET/windows/NATPF-Simulator-Setup.exe" --only-show-errors \
+            --content-type application/vnd.microsoft.portable-executable --cache-control "no-cache, max-age=0"
+          # 4) spazio: restano gli ultimi 5 installer con la versione nel nome (gratis fino a 10 GB)
+          aws s3 ls --endpoint-url "$ep" "s3://$R2_BUCKET/windows/" | awk '{print $4}' \
+            | { grep -E '^NATPF-Simulator-Setup-[0-9]{4}-[0-9]{2}-[0-9]{2}\.[0-9]+\.exe$' || true; } | sort -V | head -n -5 \
+            | while read -r old; do
+                [ "$old" = "$exe" ] && continue
+                echo "Tolgo $old"
+                aws s3 rm --endpoint-url "$ep" "s3://$R2_BUCKET/windows/$old" --only-show-errors
+              done
+          echo "### Aggiornamento $build pubblicato su Cloudflare R2" >> "$GITHUB_STEP_SUMMARY"
+          echo "windows/$exe e windows/latest.json (sha256 $(sha256sum "$exe" | cut -d' ' -f1))" >> "$GITHUB_STEP_SUMMARY"
+      # controllo dall'indirizzo pubblico, come lo vede il programma (solo se l'indirizzo è noto)
+      - name: Controllo dall'indirizzo pubblico
+        if: steps.r2.outputs.ok == 'true' && github.ref == 'refs/heads/natpf-simulator' && vars.NATPF_AGGIORNAMENTI_URL != ''
+        working-directory: natpf-desktop/dist
+        env:
+          BASE: ${{ vars.NATPF_AGGIORNAMENTI_URL }}
+        run: |
+          base="${BASE%/}"
+          if curl -fsS "$base/windows/latest.json?t=$(date +%s)" -o pubblico.json; then
+            if [ "$(node -p "require('./pubblico.json').sha256")" = "$(node -p "require('./latest.json').sha256")" ]; then
+              echo "Manifesto pubblico aggiornato: $base/windows/latest.json"
+            else
+              echo "::warning title=Manifesto pubblico diverso::$base/windows/latest.json non è ancora quello appena caricato (cache o altra pubblicazione)."
+            fi
+          else
+            echo "::warning title=Manifesto pubblico non raggiungibile::$base/windows/latest.json (accesso pubblico del bucket attivo?)"
+          fi
