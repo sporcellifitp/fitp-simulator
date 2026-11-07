@@ -360,3 +360,22 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
   palla corta del telefono simulato letti come top spin), natpf-1v1-webcam-p2 8/12 (P2 nella lobby mentre l'host gioca,
   webcam del P2 spenta letta come scollegamento): workflow `natpf-b10-prove-rosse` in corso (gioco o prova sbagliati,
   correzione, revisione).
+- **Rami B10 uniti** (07/11 mattina, `8a12f2b`…`a1e44ab`): revisioni tecnica e artistica dell'animazione fatte
+  dall'agente stesso (`2168295`…`631a0e4`: etichette dei fantasmi ferme, freccia senza scatto al giro, camere di
+  servizio/schiacciata/palla corta senza avambraccio di punta, «Guarda e ripeti» ferma sotto «Rivedi i gesti», test che
+  il disegno usi davvero la posa); voce «Smash» solo quando la scritta del colpo è una schiacciata voluta (`59533b3`,
+  `natpf-voce-smash.test.mjs`, 4 test rossi senza la correzione); tabellone come in televisione (`fa76fe3`: nome, game,
+  punti 0/15/30/40/Vantaggio, chi serve, formato in parole; prova `natpf-tabellone` 17/17); scritte dell'esito nell'angolo
+  del proprio lato, quelle del compagno con «Compagno» (`ab4ebe6`, `2998d9c`, prova `natpf-scritte-2v2` 49/49); prova
+  gesti speciali corretta (`69bd202`: era la prova a non segnare il tutorial come visto; 9/9). Conflitto in
+  `game_engine.js` (voce + scritta del compagno) risolto tenendo entrambe.
+- Codice unito: gioco 842/842, sito 195/195, build ok; browser tutorial-phone 37/37, split-ready 34/34, training-flow
+  18/18, menu 22/22, 1v1-p2p 37/37, rally 7/7, gesti-speciali 9/9, scritte-2v2 49/49, tabellone 17/17; modale-gesti 16/18
+  con i soli controlli di fps rossi a macchina carica (carico 9–13 su 4 core con altri agenti; a macchina scarica 58–60
+  fps): da riprovare a macchina scarica.
+- **Versione 2026-11-07.1** (`c58bebe`): Cloudflare 22.553.859 B, sha256
+  `e0d41d9777189c293c196fe619131761bcf2f828b135a6b6c53cc936bb19f26e`; LAN 57.808.101 B, sha256
+  `88cb443e7b48c309470437ee8fc8500553fe018439db69b8ef17562893d87d0e`; provati estratti, consegnati.
+- In corso: workflow `natpf-b10-revisioni` (revisioni indipendenti di voce, tabellone, scritte, animazione; correzione
+  della prova/gioco webcam del P2; `drop` escluso dalla salita abituale imparata in partita, difetto trovato dal revisore
+  dei gesti speciali: dopo alcune palle corte tagliati e piatti letti come top spin).

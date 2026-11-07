@@ -133,7 +133,11 @@ Come si aggiorna:
   correzioni, voce «smash», tabellone del punteggio, scritte dei colpi nel 2v2; un revisore per ramo, poi correzioni) e,
   sulla 2026-11-06.3, le prove nel browser non ancora rifatte (relink, phone-keep, blackout, reconnect, rally, schermo,
   inquadratura, gesti speciali, diagnostica, webcam, swing-loss, gesture-calibration, arcade, timing).
-- **Prossima azione esatta (B10):** a workflow finito unire i quattro rami, test, prove nel browser, push, versione
+- **07/11 mattina:** rami B10 uniti e **versione 2026-11-07.1** (`c58bebe`) consegnata (dettagli in WORK_PROGRESS B10).
+  In corso il workflow `natpf-b10-revisioni` (revisioni indipendenti, webcam del P2, palla corta nella salita abituale).
+- **Prossima azione esatta (B10, aggiornata):** a workflow finito unire le correzioni, test, prove nel browser (anche
+  natpf-1v1-webcam-p2 e natpf-modale-gesti a macchina scarica), push, versione 2026-11-07.2, pacchetti, riepilogo.
+- **Prossima azione esatta (B10, prima):** a workflow finito unire i quattro rami, test, prove nel browser, push, versione
   2026-11-06.4, pacchetti ed eseguibili, riepilogo all'utente.
 - **Prossima azione esatta (prima di B10):** collaudo dell'utente con telefoni veri (tutorial con le frecce, «Tutto chiaro» acceso solo
   alla fine, schermo spento e ripresa, stesso schermo con il conto, animazione nuova); se c'è tempo, rifare la revisione
