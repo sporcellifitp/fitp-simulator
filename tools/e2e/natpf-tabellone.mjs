@@ -23,8 +23,17 @@ const read = p => p.evaluate(() => {
   const sb = document.getElementById('natpf-scoreboard'), vis = el => !!el && el.getBoundingClientRect().height > 0 && getComputedStyle(el).visibility !== 'hidden';
   const rows = sb ? [...sb.querySelectorAll('[data-sb-row]')].map(r => ({ side: r.dataset.sbRow, name: r.querySelector('[data-sb-name]')?.textContent || '', games: r.querySelector('[data-sb-games]')?.textContent || '', points: r.querySelector('[data-sb-points]')?.textContent || '', serve: r.classList.contains('serving') })) : [];
   const b = sb?.getBoundingClientRect();
-  return { visible: vis(sb), rows, format: sb?.querySelector('[data-sb-format]')?.textContent || '', label: sb?.querySelector('[data-sb-label]')?.textContent || '', old: document.getElementById('natpf-games-line')?.textContent || '', box: b ? { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height) } : null };
+  // estensione reale delle due scritte del piede (Range sul testo: il riquadro della cella può essere più stretto del
+  // testo che ne esce); la scritta del momento può essere vuota (niente parità né vantaggio)
+  // (la scritta del momento si misura dal suo riquadro: se si accorcia con i puntini il testo nascosto non conta)
+  const ink = (el, box = false) => { if (!el || !el.textContent) return null; const r = document.createRange(); r.selectNodeContents(el); const q = box ? el.getBoundingClientRect() : r.getBoundingClientRect(); return { l: Math.round(q.left * 10) / 10, r: Math.round(q.right * 10) / 10, t: Math.round(q.top), b: Math.round(q.bottom), fs: parseFloat(getComputedStyle(el).fontSize) }; };
+  const fmtEl = sb?.querySelector('[data-sb-format]'), labEl = sb?.querySelector('[data-sb-label]');
+  // «game secco» non deve comparire in nessuna scritta visibile della pagina (innerText salta ciò che è nascosto)
+  return { visible: vis(sb), rows, format: fmtEl?.textContent || '', label: labEl?.textContent || '', secco: /secco/i.test(document.body.innerText), fmtInk: ink(fmtEl), labInk: ink(labEl, true), box: b ? { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height) } : null };
 });
+// il formato finisce prima che cominci la scritta del momento, sulla stessa riga, con almeno 4 px di spazio
+// (revisione del 07/11: «Al meglio di 5 game» e «Vantaggio di Player 2» si toccavano: «gameVANTAGGIO»)
+const footApart = v => !!v.fmtInk && !!v.labInk && v.fmtInk.r + 4 <= v.labInk.l && v.labInk.b > v.fmtInk.t && v.labInk.t < v.fmtInk.b && v.box && v.labInk.r <= v.box.x + v.box.w;
 const setScore = (p, s, gamesToWin = 2) => p.evaluate(({ s, gamesToWin }) => { const E = __natpfTennis; E.matchConfig.gamesToWin = gamesToWin; Object.assign(E.score, s); E._syncScoreboardHUD(); try { E.__render?.(); } catch {} }, { s, gamesToWin });
 const shot = async (p, name) => { await p.evaluate(() => { try { __natpfTennis.__render?.(); } catch {} }); await p.screenshot({ path: `${SP}/tabellone-${name}.png` }); };
 const row = (v, side) => v.rows.find(r => r.side === side) || {};
@@ -49,7 +58,7 @@ try {
   if (!ONLY_SHOTS){
     check('1v1 CPU: tabellone visibile con due righe (tu e la CPU)', v.visible && v.rows.length === 2 && row(v, 'me').name === 'Tu' && row(v, 'them').name === 'CPU', fmt(v));
     check('1v1 CPU: game 1 e 0, punti 30 e 15, serve chi gioca', row(v, 'me').games === '1' && row(v, 'them').games === '0' && row(v, 'me').points === '30' && row(v, 'them').points === '15' && row(v, 'me').serve && !row(v, 'them').serve, fmt(v));
-    check('1v1 CPU: formato in parole («Al meglio di 3 game»), niente «game secco»', v.format === 'Al meglio di 3 game' && !/secco/i.test(v.format + v.old), fmt(v));
+    check('1v1 CPU: formato in parole («Al meglio di 3 game»), niente «game secco»', v.format === 'Al meglio di 3 game' && !v.secco, fmt(v));
   }
   await shot(p, '1280-1v1-cpu-30-15');
   await setScore(p, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'opponent' }, 1);
@@ -64,9 +73,9 @@ try {
   v = await read(p);
   if (!ONLY_SHOTS) check('vantaggio di chi gioca: «Vant.» nella sua riga, 40 alla CPU, «Vantaggio tuo»', row(v, 'me').points === 'Vant.' && row(v, 'them').points === '40' && v.label === 'Vantaggio tuo', fmt(v));
   await shot(p, '1280-1v1-cpu-vantaggio');
-  await setScore(p, { playerPoints: 3, opponentPoints: 5, playerGames: 0, opponentGames: 0, server: 'player' }, 1);
+  await setScore(p, { playerPoints: 3, opponentPoints: 5, playerGames: 0, opponentGames: 0, server: 'player' }, 3);
   v = await read(p);
-  if (!ONLY_SHOTS) check('vantaggio della CPU: «Vant.» nella riga della CPU, «Vantaggio della CPU»', row(v, 'them').points === 'Vant.' && row(v, 'me').points === '40' && v.label === 'Vantaggio della CPU', fmt(v));
+  if (!ONLY_SHOTS) check('vantaggio della CPU al meglio di 5: «Vant.» nella riga della CPU, «Vantaggio della CPU» separato dal formato', row(v, 'them').points === 'Vant.' && row(v, 'me').points === '40' && v.label === 'Vantaggio della CPU' && footApart(v), fmt(v));
 
   // 1920×1080: stesso tabellone, in proporzione
   await p.setViewportSize({ width: 1920, height: 1080 }); await p.waitForTimeout(250);
@@ -94,7 +103,17 @@ try {
   await shot(p, '1920-stesso-schermo');
   await setScore(p, { playerPoints: 5, opponentPoints: 4, playerGames: 1, opponentGames: 2, server: 'opponent' }, 3);
   v = await read(p);
-  if (!ONLY_SHOTS) check('stesso schermo, vantaggio: «Vantaggio Marco»', row(v, 'me').points === 'Vant.' && v.label === 'Vantaggio Marco', fmt(v));
+  if (!ONLY_SHOTS) check('stesso schermo, vantaggio: «Vantaggio Marco»', row(v, 'me').points === 'Vant.' && v.label === 'Vantaggio Marco' && footApart(v), fmt(v));
+  // nomi lunghi (24 caratteri, il massimo della pagina «Collega») al vantaggio: tutto dentro il riquadro, scritte separate
+  await p.evaluate(() => { __natpfTennis.natpfSplitNames = { p1: 'Bartolomeo Massimiliano', p2: 'Maria Francesca Giovanna' }; });
+  for (const [w, h] of [[1920, 1080], [844, 390]]){
+    await p.setViewportSize({ width: w, height: h }); await p.waitForTimeout(250);
+    await setScore(p, { playerPoints: 4, opponentPoints: 5, playerGames: 2, opponentGames: 2, server: 'player' }, 3);
+    v = await read(p);
+    if (!ONLY_SHOTS) check(`stesso schermo ${w}×${h}, nomi di 24 caratteri al vantaggio: piede dentro il tabellone, scritte separate`, v.label === 'Vantaggio Maria Francesca Giovanna' && footApart(v) && v.box.x >= 0 && v.box.x + v.box.w <= w, fmt(v));
+    await shot(p, `${w}-stesso-schermo-nomi-lunghi`);
+  }
+  await p.evaluate(() => { __natpfTennis.natpfSplitNames = { p1: 'Marco', p2: 'Giulia' }; });
   await p.setViewportSize({ width: 1280, height: 720 }); await p.waitForTimeout(250);
   await p.evaluate(() => __natpfTennis.endSplit());
 
@@ -104,10 +123,25 @@ try {
   v = await read(p);
   if (!ONLY_SHOTS) check('sfida un amico (host): righe «Tu» e «Player 2», 30-40', row(v, 'me').name === 'Tu' && row(v, 'them').name === 'Player 2' && row(v, 'me').points === '30' && row(v, 'them').points === '40' && row(v, 'me').serve, fmt(v));
   await shot(p, '1280-amico-host');
+  // vantaggio dell'amico, al meglio di 5: le scritte lunghe del piede non si toccano (1280, 1920, 844×390)
+  for (const [w, h] of [[1280, 720], [1920, 1080], [844, 390]]){
+    await p.setViewportSize({ width: w, height: h }); await p.waitForTimeout(250);
+    await setScore(p, { playerPoints: 3, opponentPoints: 4, playerGames: 1, opponentGames: 2, server: 'player' }, 3);
+    v = await read(p);
+    if (!ONLY_SHOTS) check(`sfida un amico (host) ${w}×${h}, vantaggio: «Al meglio di 5 game» e «Vantaggio di Player 2» separati`, v.format === 'Al meglio di 5 game' && v.label === 'Vantaggio di Player 2' && footApart(v), fmt(v));
+    if (!ONLY_SHOTS) check(`sfida un amico ${w}×${h}: scritte del piede di almeno 10 px`, v.fmtInk?.fs >= 10 && v.labInk?.fs >= 10, fmt(v));
+    await shot(p, `${w}-amico-host-vantaggio`);
+  }
+  await p.setViewportSize({ width: 1280, height: 720 }); await p.waitForTimeout(250);
+  await setScore(p, { playerPoints: 2, opponentPoints: 3, playerGames: 0, opponentGames: 0, server: 'player' }, 1);
   await p.evaluate(() => { const E = __natpfTennis; E.__role = E.playerRole; E.playerRole = 'p2'; E._syncScoreboardHUD(); });
   v = await read(p);
   if (!ONLY_SHOTS) check('sfida un amico (Player 2): la sua riga sopra («Tu» 40) e «Player 1» sotto (30), serve Player 1', row(v, 'me').name === 'Tu' && row(v, 'them').name === 'Player 1' && row(v, 'me').points === '40' && row(v, 'them').points === '30' && row(v, 'them').serve && !row(v, 'me').serve, fmt(v));
   await shot(p, '1280-amico-p2');
+  await setScore(p, { playerPoints: 5, opponentPoints: 4, playerGames: 2, opponentGames: 1, server: 'opponent' }, 3);
+  v = await read(p);
+  if (!ONLY_SHOTS) check('sfida un amico (Player 2), vantaggio dell\'host: «Vantaggio di Player 1» separato dal formato', v.label === 'Vantaggio di Player 1' && footApart(v), fmt(v));
+  await shot(p, '1280-amico-p2-vantaggio');
   await p.evaluate(() => { const E = __natpfTennis; E.playerRole = E.__role; E.isMultiplayer = false; E._syncScoreboardHUD(); });
 
   // ledwall: riquadro 720×720 dentro una finestra 1920×1080
