@@ -176,12 +176,14 @@ jobs:
           echo "windows/$exe e windows/latest.json (sha256 $(sha256sum "$src" | cut -d' ' -f1))" >> "$GITHUB_STEP_SUMMARY"
       # controllo dall'indirizzo pubblico, come lo vede il programma (solo se l'indirizzo è noto)
       - name: Controllo dall'indirizzo pubblico
-        if: steps.pub.outputs.fatto == 'true' && vars.NATPF_AGGIORNAMENTI_URL != ''
+        if: steps.pub.outputs.fatto == 'true'
         working-directory: natpf-desktop/dist
         env:
           BASE: ${{ vars.NATPF_AGGIORNAMENTI_URL }}
         run: |
+          [ -n "$BASE" ] || BASE="$(node -p "require('../aggiornamenti.json').base")"
           base="${BASE%/}"
+          [ -n "$base" ] || { echo "::warning title=Indirizzo pubblico mancante::natpf-desktop/aggiornamenti.json senza base"; exit 0; }
           if curl -fsS "$base/windows/latest.json?t=$(date +%s)" -o pubblico.json; then
             if [ "$(node -p "require('./pubblico.json').sha256")" = "$(node -p "require('./latest.json').sha256")" ]; then
               echo "Manifesto pubblico aggiornato: $base/windows/latest.json"
