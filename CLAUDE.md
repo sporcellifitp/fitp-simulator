@@ -13,7 +13,8 @@ con il telefono come racchetta (pagina in `site/tennis/racchetta.html` + `site/j
 1. Leggere **`docs/PIANO_LAVORI.md`** (file di ripresa unico per tutti gli agenti): checkpoint con l'ultimo stato
    verificato e la **«Prossima azione esatta»**, regole di lavoro e decisioni dell'utente, e per ogni punto aperto
    stato, cosa fare, come e perché. Poi, se serve il dettaglio, `docs/WORK_PROGRESS.md` (registro dei passi) e
-   `docs/PROJECT_MEMORY.md` (decisioni tecniche durature).
+   `docs/PROJECT_MEMORY.md` (decisioni tecniche durature). Passaggio di consegne dettagliato (lavoro fatto, punti
+   aperti, controlli): `docs/PASSAGGIO_CONSEGNE.md`.
 2. Verificare lo stato reale: `git fetch origin natpf-simulator`, `git status -sb`, `git log --oneline -10`.
    Se il repository e i documenti divergono, vale il repository: correggere i documenti.
 3. Riprendere dalla «Prossima azione esatta» di `docs/PIANO_LAVORI.md`.
