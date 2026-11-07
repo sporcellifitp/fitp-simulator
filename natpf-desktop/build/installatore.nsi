@@ -6,6 +6,10 @@
 ; «NATPF Simulator» (solo rete locale: i telefoni raggiungono il gioco), voce in «App installate» con la
 ; disinstallazione. I dati (certificati, impostazioni, registri) restano in %LOCALAPPDATA%\NATPF.
 ; Il programma di disinstallazione si scrive durante l'installazione (WriteUninstaller): niente wine per costruirlo.
+; Unico eseguibile dal 07/11/2026 (niente portatile): installa la prima volta e aggiorna sopra l'installazione esistente
+; (stessa cartella, senza disinstallare e senza chiedere la cartella). Aggiornamento dal gioco (natpf-desktop/src/
+; aggiornamenti.mjs): il programma scarica questo file e lo avvia con «/S /AGGIORNA» (permesso di Windows), poi si
+; chiude; l'installer aspetta che si chiuda, aggiorna in silenzio e riapre il gioco senza i permessi di amministratore.
 Unicode true
 ManifestDPIAware true
 SetCompressor /SOLID lzma
@@ -43,8 +47,10 @@ BrandingText "${NOME} ${BUILD}"
 !define MUI_ABORTWARNING
 
 !define MUI_WELCOMEPAGE_TITLE "Installazione di ${NOME}"
-!define MUI_WELCOMEPAGE_TEXT "Versione ${BUILD}.$\r$\n$\r$\nVerranno creati i collegamenti nel menu Start e sul desktop e una regola del firewall di Windows che apre il gioco ai telefoni della rete locale (solo dispositivi della stessa rete).$\r$\n$\r$\nSe NATPF Simulator è aperto, verrà chiuso.$\r$\n$\r$\nFai clic su Avanti per continuare."
+!define MUI_WELCOMEPAGE_TEXT "Versione ${BUILD}.$\r$\n$\r$\nSe NATPF Simulator è già installato viene aggiornato: impostazioni e certificati restano.$\r$\n$\r$\nVerranno creati i collegamenti nel menu Start e sul desktop e una regola del firewall di Windows che apre il gioco ai telefoni della rete locale (solo dispositivi della stessa rete).$\r$\n$\r$\nSe NATPF Simulator è aperto, verrà chiuso.$\r$\n$\r$\nFai clic su Avanti per continuare."
 !insertmacro MUI_PAGE_WELCOME
+; aggiornamento: la cartella è quella dell'installazione precedente, non si chiede
+!define MUI_PAGE_CUSTOMFUNCTION_PRE SaltaCartella
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_TITLE "${NOME} è installato"
@@ -68,11 +74,32 @@ VIAddVersionKey /LANG=${LANG_ITALIAN} "FileVersion" "${VERSION}"
 VIAddVersionKey /LANG=${LANG_ITALIAN} "CompanyName" "${NOME}"
 VIAddVersionKey /LANG=${LANG_ITALIAN} "LegalCopyright" "${NOME}"
 
-; NATPF Simulator aperto (i file sarebbero bloccati): si chiude, chiedendo prima
+; 1 se avviato dal gioco per aggiornare (/AGGIORNA); cartella dell'installazione precedente (vuota se non c'è)
+Var AGGIORNA
+Var PRECEDENTE
+
+; NATPF Simulator aperto (i file sarebbero bloccati): si chiude, chiedendo prima. Nell'aggiornamento dal gioco il
+; programma si sta chiudendo da solo: si aspetta fino a 15 secondi prima di chiuderlo
 !macro ChiudiProgramma
   nsExec::ExecToStack 'cmd.exe /c tasklist /FI "IMAGENAME eq ${EXE}" /NH | find /I "${EXE}"'
   Pop $0
   Pop $1
+  ${If} $0 == 0
+  ${AndIf} $AGGIORNA == 1
+    DetailPrint "Attesa della chiusura di NATPF Simulator"
+    StrCpy $2 0
+    ${Do}
+      Sleep 500
+      nsExec::ExecToStack 'cmd.exe /c tasklist /FI "IMAGENAME eq ${EXE}" /NH | find /I "${EXE}"'
+      Pop $0
+      Pop $1
+      IntOp $2 $2 + 1
+      ${If} $0 != 0
+      ${OrIf} $2 >= 30
+        ${ExitDo}
+      ${EndIf}
+    ${Loop}
+  ${EndIf}
   ${If} $0 == 0
     MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "NATPF Simulator è aperto: per continuare verrà chiuso." /SD IDOK IDOK +2
     Abort "Annullato: NATPF Simulator è ancora aperto."
@@ -92,11 +119,35 @@ Function .onInit
     MessageBox MB_ICONSTOP "NATPF Simulator richiede Windows 10 o 11 a 64 bit." /SD IDOK
     Abort
   ${EndIf}
+  ; /AGGIORNA: aggiornamento avviato dal gioco (con /S), alla fine si riapre il gioco
+  StrCpy $AGGIORNA 0
+  ${GetParameters} $R0
+  ClearErrors
+  ${GetOptions} $R0 "/AGGIORNA" $R1
+  ${IfNot} ${Errors}
+    StrCpy $AGGIORNA 1
+  ${EndIf}
   SetRegView 64
   ; aggiornamento: stessa cartella dell'installazione precedente
+  StrCpy $PRECEDENTE ""
   ReadRegStr $0 HKLM "${CHIAVE}" "InstallLocation"
   ${If} $0 != ""
+  ${AndIf} ${FileExists} "$0\${EXE}"
     StrCpy $INSTDIR $0
+    StrCpy $PRECEDENTE $0
+  ${EndIf}
+FunctionEnd
+
+Function SaltaCartella
+  ${If} $PRECEDENTE != ""
+    Abort
+  ${EndIf}
+FunctionEnd
+
+; aggiornamento dal gioco finito: si riapre il gioco (senza i permessi dell'installer, tramite Esplora risorse)
+Function .onInstSuccess
+  ${If} $AGGIORNA == 1
+    Call Avvia
   ${EndIf}
 FunctionEnd
 

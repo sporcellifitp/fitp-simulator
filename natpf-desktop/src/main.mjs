@@ -1,4 +1,5 @@
-// NATPF Simulator per Windows (richiesta del 04/11/2026): eseguibile portatile e installabile con Electron.
+// NATPF Simulator per Windows (richiesta del 04/11/2026) con Electron. Dal 07/11/2026 un solo installer (niente più
+// portatile) che si aggiorna dal gioco: aggiornamenti.mjs, esposto alla pagina come window.natpfDesktop.updates.
 // Il processo principale avvia nello stesso processo il server LAN già usato dal pacchetto zip (certificati in
 // %LOCALAPPDATA%\NATPF, HTTPS 8443 per gioco e telefoni, pagina del certificato 8081) e apre il gioco a schermo intero
 // sul monitor scelto. Il gioco è lo stesso della versione browser (natpf-tennis/dist): qui solo il guscio.
@@ -14,7 +15,8 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { DESKTOP, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings,
-  windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode } from './desktop-core.mjs';
+  windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode, UPDATE_ACTIONS } from './desktop-core.mjs';
+import { UPDATES, Updater, readUpdateConfig, installerLaunchArgs } from './aggiornamenti.mjs';
 
 const ROOT = app.getAppPath();
 const DATA = path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'NATPF');
@@ -37,9 +39,32 @@ function log(...a){
   console.log(line.trim());
 }
 
-// versione portatile (un .exe che si estrae in una cartella temporanea): regola del firewall con un nome suo
-const PORTABLE = !!process.env.PORTABLE_EXECUTABLE_DIR;
-const RULE = PORTABLE ? `${DESKTOP.ruleName} portatile` : DESKTOP.ruleName;
+// regola del firewall (la crea l'installer; dal menu Rete si rifà)
+const RULE = DESKTOP.ruleName;
+
+// --- aggiornamenti dal gioco (richiesta del 07/11/2026) -------------------------------------------------------------
+// Indirizzo base in aggiornamenti.json del pacchetto (vuoto → 'off'). Attivi solo nel programma installato (c'è la
+// disinstallazione accanto all'eseguibile): l'installer è per il computer e sa aggiornare sopra se stesso. Su Linux
+// (prova-linux) con NATPF_AGGIORNAMENTI_PROVA=1 l'installazione è simulata: non si avvia niente e non si chiude.
+const BUILD = (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).natpfBuild || ''; } catch { return ''; } })();
+const updateConfig = readUpdateConfig(path.join(ROOT, UPDATES.config), process.env);
+const INSTALLED = process.platform === 'win32' && app.isPackaged && fs.existsSync(path.join(path.dirname(process.execPath), DESKTOP.uninstaller));
+const SIMULATE_INSTALL = process.platform !== 'win32' && process.env[UPDATES.envSimulate] === '1';
+function launchInstaller(file){
+  if (SIMULATE_INSTALL){ log('aggiornamenti: installazione simulata (prova)', { file, argomenti: UPDATES.installerArgs }); return Promise.resolve({ ok: true }); }
+  // PowerShell esce quando l'installer è partito (dopo il «Sì» del permesso di Windows) o con errore se il permesso è
+  // rifiutato: in quel caso il programma resta aperto
+  return new Promise(resolve => execFile('powershell.exe', installerLaunchArgs(file), { windowsHide: true, timeout: 10*60*1000 }, (err, _out, stderr) => {
+    if (!err) return resolve({ ok: true });
+    const why = `${stderr || ''} ${err.message || ''}`;
+    log('aggiornamenti: installer non avviato', why.trim().slice(0, 500));
+    resolve({ ok: false, error: /cancel|annull|1223/i.test(why) ? 'Aggiornamento annullato: serve il permesso di Windows («Sì» nella finestra di Controllo dell\'account utente).' : 'Installazione non avviata: riprova.' });
+  }));
+}
+const updater = new Updater({ current: BUILD, base: updateConfig.base, hosts: updateConfig.hosts, dir: path.join(DATA, UPDATES.dir),
+  enabled: INSTALLED || SIMULATE_INSTALL, launch: launchInstaller, log,
+  // install() risponde alla pagina, poi il programma si chiude e libera i file e le porte; l'installer riapre il gioco
+  quit: () => { if (SIMULATE_INSTALL) log('aggiornamenti: chiusura simulata (prova)'); else setTimeout(() => app.quit(), 300); } });
 let win = null, lan = null, ca = null, certPath = null, addresses = [], settings = readSettings(DATA), blocker = null;
 // monitor voluto (quello salvato anche se adesso manca, altrimenti quello scelto all'avvio; cambia solo con una scelta
 // dal menu o Ctrl+Maiusc+M) e monitor su cui il gioco è a schermo intero adesso (diverso dal voluto se quello è
@@ -184,7 +209,7 @@ const ACTIONS = {
   strumenti: () => win?.webContents.toggleDevTools(),
 };
 
-// firewall: regola per questo eseguibile (l'installazione la crea; il portatile la chiede alla prima apertura)
+// firewall: regola per questo eseguibile (l'installazione la crea; se manca il programma la chiede all'apertura)
 function netsh(args){ return new Promise(resolve => execFile('netsh', args, { windowsHide: true, timeout: 10000 }, (err, out) => resolve(err ? '' : String(out)))); }
 async function firewallReady(){
   if (process.platform !== 'win32') return true;
@@ -218,6 +243,39 @@ function showGpu(){
   w.loadURL('chrome://gpu');
 }
 
+// stato degli aggiornamenti alla pagina del gioco (solo se è una pagina del proprio server) e sulla barra delle
+// applicazioni (avanzamento del download)
+function onUpdateState(s){
+  if (!win) return;
+  try { win.setProgressBar(s.status === 'downloading' ? Math.max(0.01, s.progress || 0) : -1); } catch {}
+  if (isOwnUrl(win.webContents.getURL(), addresses)) win.webContents.send(DESKTOP.ipcUpdatesChanged, s);
+}
+// Aiuto → Cerca aggiornamenti…: la stessa cosa del gioco, con le finestre di Windows (se la pagina del gioco non
+// risponde o per chi usa il menu). Niente parte senza i clic dell'utente
+async function updatesDialog(){
+  const box = opts => dialog.showMessageBox(win, { title: 'NATPF Simulator', ...opts });
+  let s = updater.state();
+  if (s.status === 'off'){
+    await box({ type: 'info', message: 'Aggiornamenti non attivi in questa copia.', detail: updateConfig.base ? 'Gli aggiornamenti dal gioco funzionano nel programma installato con NATPF-Simulator-Setup.' : 'Indirizzo degli aggiornamenti non impostato: installa una versione nuova a mano.' });
+    return;
+  }
+  if (!['ready', 'available', 'downloading'].includes(s.status)) s = await updater.check();
+  if (s.status === 'none'){ await box({ type: 'info', message: 'Hai già l\'ultima versione.', detail: `Versione ${s.current}.` }); return; }
+  if (s.status === 'error' || s.status === 'checking'){ await box({ type: 'warning', message: 'Controllo degli aggiornamenti non riuscito.', detail: s.error || 'Riprova tra poco.' }); return; }
+  if (s.status === 'installing') return;
+  const mb = s.size ? ` (${Math.round(s.size/1e6)} MB)` : '';
+  const ask = await box({ type: 'question', buttons: [s.status === 'ready' ? 'Installa' : 'Scarica e installa', 'Più tardi'], defaultId: 0, cancelId: 1,
+    message: `È disponibile la versione ${s.latest}${mb}.`, detail: `${s.notes ? `${s.notes}\n\n` : ''}Versione in uso: ${s.current}. Il download avviene mentre giochi; l'avanzamento è sulla barra delle applicazioni.` });
+  if (ask.response !== 0) return;
+  if (s.status !== 'ready') s = await updater.download();
+  if (s.status !== 'ready'){ await box({ type: 'warning', message: 'Download non riuscito.', detail: s.error || 'Riprova.' }); return; }
+  const go = await box({ type: 'question', buttons: ['Installa ora', 'Più tardi'], defaultId: 0, cancelId: 1, message: `Versione ${s.latest} pronta da installare.`,
+    detail: 'Windows chiederà il permesso di amministratore (Controllo dell\'account utente): rispondi «Sì». Il gioco si chiude e si riapre aggiornato in meno di un minuto. Impostazioni e certificati restano.' });
+  if (go.response !== 0) return;
+  const r = await updater.install();
+  if (!r.ok) await box({ type: 'warning', message: 'Aggiornamento non avviato.', detail: r.error || '' });
+}
+
 function buildMenu(){
   const displays = screen.getAllDisplays(), primaryId = screen.getPrimaryDisplay().id;
   const current = win ? screen.getDisplayMatching(win.getBounds()).id : null;
@@ -240,10 +298,11 @@ function buildMenu(){
       { label: 'Indirizzi e certificato per i telefoni…', click: showAddresses },
     ] },
     { label: 'Aiuto', submenu: [
+      { label: 'Cerca aggiornamenti…', click: () => updatesDialog() },
       { label: 'Cartella dei dati (certificati, registri)', click: () => shell.openPath(DATA) },
       { label: 'Scheda grafica in uso…', click: showGpu },
       { id: 'strumenti', label: 'Strumenti per sviluppatori', accelerator: 'CmdOrCtrl+Shift+I', click: ACTIONS.strumenti },
-      { label: `Versione ${app.getVersion()}`, enabled: false },
+      { label: `Versione ${BUILD || app.getVersion()}`, enabled: false },
     ] },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
@@ -308,10 +367,17 @@ async function main(){
     if (on === null) throw new Error('azione non valida');
     return action === 'get' ? on : setFullscreen(on);
   });
+  // window.natpfDesktop.updates: stesse regole (solo la finestra del gioco, solo le pagine del proprio server)
+  ipcMain.handle(DESKTOP.ipcUpdates, (event, action) => {
+    if (!win || event.sender?.id !== win.webContents.id || !isOwnUrl(event.senderFrame?.url || '', addresses)) throw new Error('richiesta non consentita');
+    if (!UPDATE_ACTIONS.includes(action)) throw new Error('azione non valida');
+    return updater[action]();
+  });
+  updater.onChange(onUpdateState);
   await win.loadURL(loading('Avvio del gioco…'));
   blocker = powerSaveBlocker.start('prevent-display-sleep');
   // firewall prima del server: con la regola già presente Windows non mostra il suo avviso (se lì si preme «Annulla»
-  // Windows crea regole di blocco). Il portatile la chiede qui alla prima apertura; l'installazione l'ha già creata
+  // Windows crea regole di blocco). L'installazione l'ha già creata; se qualcuno l'ha tolta, si chiede qui
   if (!(await firewallReady())) await openFirewall();
   try {
     await startServers();
@@ -336,6 +402,13 @@ async function main(){
   screen.on('display-metrics-changed', onDisplayMetricsChanged);
   win.webContents.on('render-process-gone', (_e, d) => { log('pagina del gioco chiusa', d); if (d.reason !== 'clean-exit') setTimeout(() => win?.webContents.reload(), 1000); });
   await win.loadURL(`https://localhost:${DESKTOP.port}${DESKTOP.gamePath}`);
+  // aggiornamenti: un controllo qualche secondo dopo l'avvio, senza bloccare niente (senza internet: stato 'error', il
+  // gioco va avanti). Scaricare e installare solo con il clic dell'utente
+  log('aggiornamenti', { stato: updater.state().status, versione: BUILD, indirizzo: updateConfig.base || '(non impostato)', installato: INSTALLED, prova: SIMULATE_INSTALL, errore: updateConfig.error });
+  if (updater.enabled){
+    updater.cleanup();
+    setTimeout(() => { updater.check().catch(() => {}); }, UPDATES.startupDelayMs);
+  }
 }
 
 app.on('window-all-closed', () => app.quit());

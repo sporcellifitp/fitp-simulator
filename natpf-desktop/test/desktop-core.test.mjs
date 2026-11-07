@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
-import { DESKTOP, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings, windowsVersion, readBuild,
+import { DESKTOP, UPDATE_ACTIONS, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings, windowsVersion, readBuild,
   windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode } from '../src/desktop-core.mjs';
 
 const d = (id, w, h, x = 0) => ({ id, bounds: { x, y: 0, width: w, height: h }, scaleFactor: 1 });
@@ -71,17 +71,38 @@ test('impostazioni salvate nella cartella dei dati; versione di Windows dalla ve
   assert.equal(readBuild("export const NATPF_BUILD = '2026-11-04.5';"), '2026-11-04.5');
 });
 
-test('installazione e portatile coerenti con il programma: nome della regola, porte, avviso del portatile', () => {
+test('installazione coerente con il programma: nome della regola, porte; un solo eseguibile (niente portatile)', () => {
   const read = f => fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
-  const setup = read('build/installatore.nsi'), port = read('build/portatile.nsi'), main = read('src/main.mjs');
+  const setup = read('build/installatore.nsi'), main = read('src/main.mjs'), costruisci = read('scripts/costruisci.mjs');
   assert.match(setup, new RegExp(`!define REGOLA "${DESKTOP.ruleName}"`), 'l\'installazione crea la regola che il programma controlla');
   assert.match(setup, /add rule name="\$\{REGOLA\}" dir=in action=allow program="\$INSTDIR\\\$\{EXE\}" enable=yes profile=any remoteip=localsubnet/);
   assert.match(setup, /delete rule name=all program="\$INSTDIR\\\$\{EXE\}"[\s\S]*add rule name=/, 'via le regole di blocco prima di consentire');
   assert.match(setup, /Section "Uninstall"[\s\S]*delete rule name="\$\{REGOLA\}"[\s\S]*delete rule name=all program=/, 'la disinstallazione toglie le regole');
   assert.match(setup, /WriteUninstaller/); assert.match(setup, /RequestExecutionLevel admin/);
-  assert.match(port, /RequestExecutionLevel user/);
-  assert.match(port, /SetEnvironmentVariable\(t "PORTABLE_EXECUTABLE_DIR"/); assert.match(main, /process\.env\.PORTABLE_EXECUTABLE_DIR/);
-  for (const nsi of [setup, port]) assert.match(nsi, /!define EXE "NATPF Simulator\.exe"/);
+  assert.match(setup, /!define EXE "NATPF Simulator\.exe"/);
+  assert.match(setup, new RegExp(`!define DISINST "${DESKTOP.uninstaller}"`), 'il programma riconosce l\'installazione dalla disinstallazione accanto');
+  // portatile tolto (richiesta del 07/11/2026): un solo eseguibile
+  assert.ok(!fs.existsSync(new URL('../build/portatile.nsi', import.meta.url)), 'build/portatile.nsi tolto');
+  assert.ok(!/PORTABLE_EXECUTABLE_DIR|portatile\.nsi|Portatile-/.test(main + costruisci), 'niente portatile nel programma e nella costruzione');
+  assert.match(costruisci, /\[\['installatore\.nsi', `NATPF-Simulator-Setup-\$\{build\}\.exe`\]\]/);
+});
+
+test('installer: aggiorna sopra senza chiedere, /S /AGGIORNA dal gioco aspetta la chiusura e riapre il gioco', () => {
+  const setup = fs.readFileSync(new URL('../build/installatore.nsi', import.meta.url), 'utf8');
+  // parametro dell'aggiornamento dal gioco
+  assert.match(setup, /\$\{GetOptions\} \$R0 "\/AGGIORNA" \$R1\s+\$\{IfNot\} \$\{Errors\}\s+StrCpy \$AGGIORNA 1/);
+  // aggiornamento: stessa cartella della precedente, pagina della cartella saltata
+  assert.match(setup, /ReadRegStr \$0 HKLM "\$\{CHIAVE\}" "InstallLocation"[\s\S]*StrCpy \$INSTDIR \$0[\s\S]*StrCpy \$PRECEDENTE \$0/);
+  assert.match(setup, /!define MUI_PAGE_CUSTOMFUNCTION_PRE SaltaCartella\s+!insertmacro MUI_PAGE_DIRECTORY/);
+  assert.match(setup, /Function SaltaCartella\s+\$\{If\} \$PRECEDENTE != ""\s+Abort/);
+  // il programma si chiude da solo: attesa (30 × 500 ms) prima di chiuderlo, poi la chiusura di sempre (/SD IDOK)
+  assert.match(setup, /\$\{AndIf\} \$AGGIORNA == 1[\s\S]*\$\{Do\}[\s\S]*Sleep 500[\s\S]*\$\{OrIf\} \$2 >= 30[\s\S]*\$\{Loop\}[\s\S]*taskkill/);
+  assert.match(setup, /MessageBox MB_OKCANCEL\|MB_ICONEXCLAMATION "NATPF Simulator è aperto[^\n]*\/SD IDOK/);
+  // alla fine riapre il gioco senza i permessi dell'installer (Esplora risorse), solo nell'aggiornamento dal gioco
+  assert.match(setup, /Function \.onInstSuccess\s+\$\{If\} \$AGGIORNA == 1\s+Call Avvia/);
+  assert.match(setup, /Function Avvia\s+Exec '"\$WINDIR\\explorer\.exe" "\$INSTDIR\\\$\{EXE\}"'/);
+  // i dati dell'utente (impostazioni, certificati, aggiornamenti scaricati) non si toccano
+  assert.ok(!/LOCALAPPDATA/.test(setup.replace(/^;.*$/gm, '').replace(/MUI_FINISHPAGE_TEXT[^\n]*/, '')), 'nessuna operazione su %LOCALAPPDATA%');
 });
 
 test('finestra di partenza e di ritorno: al centro dell\'area utile, al massimo 1280×720, tutta dentro il monitor', () => {
@@ -181,20 +202,21 @@ test('richieste della pagina sullo schermo intero', () => {
 
 test('preload: window.natpfDesktop come da contratto, canali uguali al processo principale', async () => {
   const code = fs.readFileSync(new URL('../src/preload.cjs', import.meta.url), 'utf8');
-  const exposed = {}, invoked = [], listeners = {};
+  const exposed = {}, invoked = [], listeners = {}, removed = [];
   const electron = {
     contextBridge: { exposeInMainWorld: (name, api) => { exposed[name] = api; } },
     ipcRenderer: {
       invoke: (channel, action) => { invoked.push([channel, action]); return Promise.resolve(action === 'off' ? false : true); },
       on: (channel, fn) => { (listeners[channel] ||= []).push(fn); },
+      removeListener: (channel, fn) => { removed.push([channel, fn]); },
     },
   };
   const require = m => { if (m !== 'electron') throw new Error(`modulo non disponibile nella sandbox: ${m}`); return electron; };
   vm.runInNewContext(code, { require, console });
   const api = exposed.natpfDesktop;
   assert.ok(api, 'natpfDesktop esposto');
-  assert.deepEqual(Object.keys(api).sort(), ['isFullScreen', 'onFullScreenChange', 'setFullScreen', 'shell', 'toggleFullScreen', 'version']);
-  assert.equal(api.shell, 'electron'); assert.equal(api.version, 1);
+  assert.deepEqual(Object.keys(api).sort(), ['isFullScreen', 'onFullScreenChange', 'setFullScreen', 'shell', 'toggleFullScreen', 'updates', 'version']);
+  assert.equal(api.shell, 'electron'); assert.equal(api.version, 2);
   assert.equal(await api.isFullScreen(), true);
   assert.equal(await api.setFullScreen(false), false);
   await api.setFullScreen(true); await api.toggleFullScreen();
@@ -206,6 +228,22 @@ test('preload: window.natpfDesktop come da contratto, canali uguali al processo 
   listeners[DESKTOP.ipcFullscreenChanged][0]({ sender: 'evento di Electron' }, false);
   listeners[DESKTOP.ipcFullscreenChanged][0]({}, 1);
   assert.deepEqual(seen, [false, true], 'alla pagina solo true/false, mai l\'evento');
+  // aggiornamenti (07/11/2026): state, check, download, install, onChange con la funzione che toglie l'ascolto
+  assert.deepEqual(Object.keys(api.updates).sort(), ['check', 'download', 'install', 'onChange', 'state']);
+  invoked.length = 0;
+  for (const a of UPDATE_ACTIONS) await api.updates[a]();
+  assert.deepEqual(invoked, UPDATE_ACTIONS.map(a => [DESKTOP.ipcUpdates, a]));
+  const states = [];
+  const off = api.updates.onChange(s => states.push(s));
+  assert.equal(typeof off, 'function');
+  assert.equal(typeof api.updates.onChange('non una funzione'), 'function', 'anche senza funzione risponde con una funzione');
+  assert.equal(listeners[DESKTOP.ipcUpdatesChanged].length, 1);
+  const s1 = { status: 'downloading', current: '2026-11-07.3', latest: '2026-11-08.1', progress: 0.5 };
+  listeners[DESKTOP.ipcUpdatesChanged][0]({ sender: 'evento di Electron' }, s1);
+  // (la copia nasce nel contesto del preload: si confronta il contenuto)
+  assert.equal(JSON.stringify(states), JSON.stringify([s1])); assert.notEqual(states[0], s1, 'una copia');
+  off();
+  assert.deepEqual(removed, [[DESKTOP.ipcUpdatesChanged, listeners[DESKTOP.ipcUpdatesChanged][0]]], 'ascolto tolto');
   // il programma usa il preload e lo copia in app/; la richiesta passa dal controllo dei propri indirizzi
   const main = fs.readFileSync(new URL('../src/main.mjs', import.meta.url), 'utf8');
   const prepara = fs.readFileSync(new URL('../scripts/prepara.mjs', import.meta.url), 'utf8');
@@ -213,8 +251,12 @@ test('preload: window.natpfDesktop come da contratto, canali uguali al processo 
   assert.match(main, /contextIsolation: true, sandbox: true/);
   assert.match(main, /ipcMain\.handle\(DESKTOP\.ipcFullscreen,[^\n]*\n[^\n]*isOwnUrl\(event\.senderFrame\?\.url/);
   assert.match(main, /webContents\.send\(DESKTOP\.ipcFullscreenChanged/);
+  assert.match(main, /ipcMain\.handle\(DESKTOP\.ipcUpdates,[^\n]*\n[^\n]*isOwnUrl\(event\.senderFrame\?\.url[^\n]*\n[^\n]*UPDATE_ACTIONS\.includes\(action\)/, 'aggiornamenti solo dalle pagine del gioco');
+  assert.match(main, /isOwnUrl\(win\.webContents\.getURL\(\), addresses\)\) win\.webContents\.send\(DESKTOP\.ipcUpdatesChanged/);
+  for (const k of ['ipcFullscreen', 'ipcFullscreenChanged', 'ipcUpdates', 'ipcUpdatesChanged']) assert.ok(code.includes(`'${DESKTOP[k]}'`), `canale ${k} uguale nel preload`);
   assert.match(main, /'fullscreen'/, 'permesso dello schermo intero ancora consentito');
-  assert.match(prepara, /'main\.mjs', 'desktop-core\.mjs', DESKTOP\.preload/);
+  assert.match(prepara, /'main\.mjs', 'desktop-core\.mjs', 'aggiornamenti\.mjs', DESKTOP\.preload/);
+  assert.match(prepara, /UPDATES\.config/, 'aggiornamenti.json nel pacchetto');
   assert.equal(DESKTOP.preload, 'preload.cjs');
 });
 
