@@ -184,7 +184,6 @@ export class NatpfUi {
   menuBackdrop(){ return !!this.lobby?.visible && !this.training?.active && !this.events?.active && this.engine.playerRole !== 'p2'; }
   // esito dei colpi del giocatore locale: anello colorato, allenamento; il valore torna al telefono (vibrazione)
   feedback(e = {}){
-    this.split?.onFeedback(e);                    // split screen: esito sotto la metà di chi ha colpito (anche il P2)
     if ((e.role || 'p1') !== this.engine.playerRole) return null;
     const q = this.shot.onLocalFeedback(e);
     this.diag?.onFeedback(e, q);

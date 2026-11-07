@@ -2144,7 +2144,7 @@ export class NatpfTennisEngine {
       const A = this._projectToScreen(p.pos.clone().add(new o.Vector3(0, 2.35, 0)));
       // NATPF: «Smash» detto solo quando la scritta del colpo lo dice (prima: da swingType, anche sotto «Volée» o «Super!»)
       /\bSMASH\b/.test(X) && this.audioEngine && this.audioEngine.playVoiceCallout("smash");
-      this.hud.showTimingPopup({ grade: `${u} \u2022 ${X}!`, detail: `${F} KM/H`, screenPos: A }),
+      this.hud.showTimingPopup({ grade: `${u} \u2022 ${X}!`, detail: `${F} KM/H`, screenPos: A, partner: p === this.playerPartner }), // NATPF B10: colpo del compagno (il tuo gesto)
         this.motionController &&
           this.motionController.triggerHapticFeedback &&
           this.motionController.triggerHapticFeedback({
@@ -2457,7 +2457,7 @@ export class NatpfTennisEngine {
             : `SWEET SPOT ${m}`,
       I = this._projectToScreen(l.pos.clone().add(new o.Vector3(0, 2.35, 0)));
     return (
-      this.hud.showTimingPopup({ grade: `P2 ${u} \u2022 ${N}!`, detail: `${O} KM/H`, screenPos: I }),
+      this.hud.showTimingPopup({ grade: `P2 ${u} \u2022 ${N}!`, detail: `${O} KM/H`, screenPos: I, partner: l === this.opponentPartner }),
       this.motionController &&
         this.motionController.triggerHapticFeedback &&
         this.motionController.triggerHapticFeedback({

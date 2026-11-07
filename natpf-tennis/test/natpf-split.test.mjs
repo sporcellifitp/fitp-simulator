@@ -117,7 +117,7 @@ test('split: sessione 1v1 locale (niente rete), terza persona, singolare; uscita
 });
 
 import { progressSteps, previousStep, stepReady, autoAdvance } from '../src/natpf/natpf_lobby.js';
-import { splitPlayerStatus, splitShotLabel, SPLIT_CAL_TRIES, splitCamLine } from '../src/natpf/natpf_split_ui.js';
+import { splitPlayerStatus, SPLIT_CAL_TRIES, splitCamLine } from '../src/natpf/natpf_split_ui.js';
 
 test('webcam per due: la linea nel riquadro della camera segue il confine tra le corsie (prima fissa a metà)', () => {
   assert.equal(splitCamLine(.5), '50.0%'); assert.equal(splitCamLine(.62), '62.0%'); assert.equal(splitCamLine(.3), '30.0%');
@@ -144,9 +144,6 @@ test('pannello di un giocatore: QR, sensori, passi della calibrazione, pronto; e
   assert.match(splitPlayerStatus(p, 'left').title, /Rovescio/, 'mancino: stesso gesto, colpo opposto');
   Object.assign(p, { ready: true, simple: true });
   assert.equal(splitPlayerStatus(p).state, 'ok'); assert.match(splitPlayerStatus(p).sub, /Senza calibrazione/);
-  assert.equal(splitShotLabel({ kind: 'hit', grade: 'PERFECT • FOREHAND' }), 'Perfetto!');
-  assert.equal(splitShotLabel({ kind: 'hit', grade: 'LATE' }), 'In ritardo');
-  assert.equal(splitShotLabel({ kind: 'fault' }), null);
 });
 
 test('stesso schermo dal menu alla partita: due telefoni, calibrazione automatica, partita divisa, P2 che cade, menu', async () => {
@@ -186,9 +183,16 @@ test('stesso schermo dal menu alla partita: due telefoni, calibrazione automatic
   ui.split.setHand('p2', 'left'); assert.equal(P2.hand, 'left');
   assert.equal(w.pressStart(), true);
   assert.equal(E.natpfSplit.active, true); assert.equal(E.isDoubles, false); assert.equal(E.isMultiplayer, true);
-  // esito di un colpo del P2 sotto la sua metà
-  E.motionController.triggerHapticFeedback({ role: 'p2', kind: 'hit', grade: 'PERFECT' });
-  assert.equal(ui.split.labels.p2.text, 'Perfetto!');
+  // esito di un colpo del P2 nell'angolo in basso della sua metà (a destra), una scritta sola: l'etichetta della metà
+  // dice solo chi gioca (B10, prima l'esito c'era due volte, sopra la testa e sotto la metà)
+  E.hud.showTimingPopup({ grade: 'P2 PERFECT \u2022 FOREHAND TOPSPIN!', detail: '120 KM/H', screenPos: { x: 640, y: 300, visible: true } });
+  const pop = document.getElementById('timing-popup');
+  assert.ok(pop.classList.contains('anchored') && pop.classList.contains('side-right') && !pop.classList.contains('other'), 'P2 a destra, come un colpo suo');
+  assert.equal(pop.style.top, '', 'non più sopra la testa di chi colpisce');
+  E.hud.showTimingPopup({ grade: 'PERFECT \u2022 FOREHAND TOPSPIN!', detail: '120 KM/H', screenPos: { x: 640, y: 300, visible: true } });
+  assert.ok(!pop.classList.contains('side-right'), 'P1 a sinistra');
+  ui.split.tick();
+  assert.equal(document.getElementById('natpf-split-hud').querySelector('[data-split-tag="p2"] span').textContent, '');
   // telefono del P2 che cade a partita in corso: pausa, poi ripresa quando torna
   E.phase = 'RALLY'; l2.connected = false; l2.ready = false; l2.L = { state: 'lost', phone: null };
   w.advance(900);
