@@ -393,6 +393,20 @@
             </div>
           </div>
           <p class="lobby-note" id="screen-note">Monitor, proiettore o ledwall: «Calibra lo schermo…» sceglie il formato e i bordi visibili, anche quando il processore LED prende solo un angolo dell’uscita del PC. Per un’area in pixel esatti aggiungi all’indirizzo <code>?area=x,y,larghezza,altezza</code>.</p>
+          <!-- aggiornamenti del programma Windows (natpf_updates.js, 07/11): solo con window.natpfDesktop.updates, nel browser
+               resta nascosta. Versione installata, ultima verifica, stato in parole, avanzamento e pulsanti -->
+          <div id="natpf-updates-opt" class="upd-opt hidden">
+            <div class="lobby-row lobby-row-updates">
+              <span class="lobby-label">Aggiornamenti</span>
+              <div class="lobby-ctrls"><div class="lobby-seg" data-upd-btns></div></div>
+            </div>
+            <div class="upd-opt-info">
+              <p class="upd-opt-state" data-upd-state role="status" aria-live="polite"></p>
+              <p class="upd-opt-meta" data-upd-meta></p>
+              <span class="upd-bar hidden" data-upd-bar role="progressbar" aria-label="Download dell’aggiornamento" aria-valuemin="0" aria-valuemax="100"><i></i></span>
+              <p class="upd-opt-note" data-upd-note></p>
+            </div>
+          </div>
         </section>
 
         <section class="lobby-page" data-page="controller" aria-labelledby="lobby-t-controller">
@@ -561,6 +575,10 @@
           <p class="lobby-note" id="lobby-match-note"></p>
         </section>
       </main>
+
+      <!-- aggiornamento del programma Windows disponibile, in download o pronto (natpf_updates.js, 07/11): tra la pagina e la
+           barra in basso, così non copre i pulsanti; solo nel menu principale, mai in campo -->
+      <aside id="natpf-update" class="natpf-update hidden" role="status" aria-live="polite"></aside>
 
       <footer class="lobby-bottom">
         <button type="button" id="lobby-back" class="lobby-ghost">‹ Indietro</button>

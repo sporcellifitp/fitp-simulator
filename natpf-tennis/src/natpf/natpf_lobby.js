@@ -406,6 +406,8 @@ export class NatpfLobby {
     if (this.step === 'connect' && split) this.ui.split?.paint();
     else if (this.step === 'connect' && st.controller === 'phone') this.ui.paintConnect();
     if (this.step === 'options') this._paintOptions();
+    // aggiornamento del programma Windows: avviso sotto la pagina (solo nel menu principale) e Opzioni
+    this.ui.updates?.paint();
     this.ui.paintWebcamSetup?.();
     this._paintInvite();
     // stesso schermo, pagina «Partita»: le schede dei due giocatori dal vivo e «Gioca» grigio e spento finché non sono
@@ -470,7 +472,8 @@ export class NatpfLobby {
   }
   _tiles(){
     const page = `[data-page="${this.step}"]`;
-    return [...this.el.querySelectorAll(`${page} .lobby-tile, ${page} .menu-item, ${page} .seg-btn, ${page} [data-result]`)].filter(t => !t.classList.contains('hidden') && t.offsetParent !== null);
+    // più i pulsanti dell'avviso di aggiornamento (natpf_updates.js), in fondo: frecce e Invio arrivano anche lì
+    return [...this.el.querySelectorAll(`${page} .lobby-tile, ${page} .menu-item, ${page} .seg-btn, ${page} [data-result]`), ...(this.ui.updates?.noticeButtons?.() || [])].filter(t => !t.classList.contains('hidden') && t.offsetParent !== null);
   }
   _key(e){
     if (this.ui.intro?.active) return;
