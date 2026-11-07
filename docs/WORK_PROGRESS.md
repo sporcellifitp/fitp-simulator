@@ -379,3 +379,18 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
 - In corso: workflow `natpf-b10-revisioni` (revisioni indipendenti di voce, tabellone, scritte, animazione; correzione
   della prova/gioco webcam del P2; `drop` escluso dalla salita abituale imparata in partita, difetto trovato dal revisore
   dei gesti speciali: dopo alcune palle corte tagliati e piatti letti come top spin).
+- **Revisioni indipendenti B10** (workflow `natpf-b10-revisioni`): animazione nessun bloccante; voce: l'esercizio della
+  schiacciata contava un dritto su palla alta → `35f170d` (`smashCalled`, `trainingShot`, minori della voce, «Super
+  colpo»); scritte: servizio del P2 nella metà sbagliata e scritta sopra la scheda dell'esercizio → `a70e071`; tabellone:
+  formato e «Vantaggio di …» sovrapposti nella sfida → `3c606b7` (testo ≥ 10 px; prova 26/26); palla corta nella salita
+  abituale → `70d310a` (le palle corte riconosciute dalla forma non la insegnano più; escludere tutte le `drop` lasciava
+  31 combinazioni su 324 lette palla corta per tutta la partita); webcam del P2 → `013ff72` (era la prova: il P2 risultava
+  fuori linea per > 4 s mentre la schermata col WebGL software bloccava la pagina; 15/15, raro errore sotto carico non
+  risolto). Unione `50c36cf`…`fa7a613`: gioco 857/857, sito 195/195, LAN 12/12, build ok; browser split-ready 34/34,
+  tutorial-phone 37/37, training-flow 18/18, menu 22/22, 1v1-webcam-p2 15/15, 1v1-p2p 37/37, rally 7/7, gesti-speciali
+  9/9, tabellone 26/26, scritte-2v2 73/73, tutorial-relink 8/8, phone-keep 13/13; modale-gesti 17/18: nello stesso schermo
+  con le due animazioni un fotogramma bloccato ~1 s (presente da `8a12f2b`, anche a macchina scarica; a schermo singolo
+  60 fps) → workflow `natpf-b10-blocco-1s` in corso.
+- **Versione 2026-11-07.2** (`94ee4b6`): Cloudflare 22.555.142 B, sha256
+  `e406d36f2a8f97656b9e50bea11e4f10360fd921f43cc6d2614c1899780de5d7`; LAN 57.809.500 B, sha256
+  `a5dcc5afa879c88d8b5697bb935433d1fa5624220c3795d23e6408536a67e303`; provati estratti, consegnati.

@@ -135,7 +135,11 @@ Come si aggiorna:
   inquadratura, gesti speciali, diagnostica, webcam, swing-loss, gesture-calibration, arcade, timing).
 - **07/11 mattina:** rami B10 uniti e **versione 2026-11-07.1** (`c58bebe`) consegnata (dettagli in WORK_PROGRESS B10).
   In corso il workflow `natpf-b10-revisioni` (revisioni indipendenti, webcam del P2, palla corta nella salita abituale).
-- **Prossima azione esatta (B10, aggiornata):** a workflow finito unire le correzioni, test, prove nel browser (anche
+- **07/11 pomeriggio:** revisioni indipendenti B10 fatte e corrette, **versione 2026-11-07.2** (`94ee4b6`) consegnata.
+  Resta: blocco di ~1 s nello stesso schermo con le due animazioni (workflow `natpf-b10-blocco-1s` in corso).
+- **Prossima azione esatta (B10, ora):** unire la correzione del blocco, natpf-modale-gesti verde 3 volte, versione
+  2026-11-07.3, pacchetti; poi collaudo dell'utente con telefoni veri.
+- **Prossima azione esatta (B10, aggiornata, superata):** a workflow finito unire le correzioni, test, prove nel browser (anche
   natpf-1v1-webcam-p2 e natpf-modale-gesti a macchina scarica), push, versione 2026-11-07.2, pacchetti, riepilogo.
 - **Prossima azione esatta (B10, prima):** a workflow finito unire i quattro rami, test, prove nel browser, push, versione
   2026-11-06.4, pacchetti ed eseguibili, riepilogo all'utente.
