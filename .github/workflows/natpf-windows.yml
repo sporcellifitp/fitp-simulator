@@ -150,7 +150,14 @@ jobs:
           export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
           lens="R2_ACCESS_KEY_ID ${#AWS_ACCESS_KEY_ID} caratteri, R2_SECRET_ACCESS_KEY ${#AWS_SECRET_ACCESS_KEY} (di solito 32 e 64)"
           [ "${#AWS_ACCESS_KEY_ID}" -gt "${#AWS_SECRET_ACCESS_KEY}" ] && lens="$lens: sembrano SCAMBIATI"
-          if ! prova=$(aws s3api list-objects-v2 --endpoint-url "$ep" --bucket "$R2_BUCKET" --max-items 1 2>&1); then
+          # bucket nella giurisdizione UE (creato con «European Union»): stesso account, endpoint <id>.eu.r2.cloudflarestorage.com
+          if ! prova=$(aws s3api list-objects-v2 --endpoint-url "$ep" --bucket "$R2_BUCKET" --max-items 1 2>&1) \
+             && aws s3api list-objects-v2 --endpoint-url "https://${acct}.eu.r2.cloudflarestorage.com" --bucket "$R2_BUCKET" --max-items 1 >/dev/null 2>&1; then
+            ep="https://${acct}.eu.r2.cloudflarestorage.com"
+            echo "::notice title=Bucket R2 nella giurisdizione UE::Uso l'endpoint <Account ID>.eu.r2.cloudflarestorage.com."
+            prova=""
+          fi
+          if [ -n "$prova" ] && ! aws s3api list-objects-v2 --endpoint-url "$ep" --bucket "$R2_BUCKET" --max-items 1 >/dev/null 2>&1; then
             case "$prova" in
               *InvalidAccessKeyId*|*InvalidArgument*) why="R2_ACCESS_KEY_ID non è l'Access Key ID di un token R2 di questo account";;
               *SignatureDoesNotMatch*) why="R2_SECRET_ACCESS_KEY non è la Secret Access Key dello stesso token";;
