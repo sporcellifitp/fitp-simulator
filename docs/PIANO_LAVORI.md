@@ -137,7 +137,12 @@ Come si aggiorna:
   In corso il workflow `natpf-b10-revisioni` (revisioni indipendenti, webcam del P2, palla corta nella salita abituale).
 - **07/11 pomeriggio:** revisioni indipendenti B10 fatte e corrette, **versione 2026-11-07.2** (`94ee4b6`) consegnata.
   Resta: blocco di ~1 s nello stesso schermo con le due animazioni (workflow `natpf-b10-blocco-1s` in corso).
-- **Prossima azione esatta (B10, ora):** unire la correzione del blocco, natpf-modale-gesti verde 3 volte, versione
+- **07/11: B10 completato.** **Versione 2026-11-07.3** (`0c6188b`) consegnata: tolto il blocco di ~1 s nello stesso
+  schermo (era l'arena dietro il menu ridisegnata 8 volte senza GPU). Dettagli in WORK_PROGRESS B10.
+- **Prossima azione esatta:** collaudo dell'utente con telefoni veri, Windows e ledwall (tutorial con frecce, «Tutto
+  chiaro», schermo spento, pronto nello stesso schermo, animazione nuova, voce «smash», tabellone, scritte nel 2v2);
+  correggere ciò che segnala. Aperto: errore raro della webcam del P2 sotto carico (`tools/e2e/natpf-1v1-webcam-p2.mjs`).
+- **Prossima azione esatta (B10, superata):** unire la correzione del blocco, natpf-modale-gesti verde 3 volte, versione
   2026-11-07.3, pacchetti; poi collaudo dell'utente con telefoni veri.
 - **Prossima azione esatta (B10, aggiornata, superata):** a workflow finito unire le correzioni, test, prove nel browser (anche
   natpf-1v1-webcam-p2 e natpf-modale-gesti a macchina scarica), push, versione 2026-11-07.2, pacchetti, riepilogo.

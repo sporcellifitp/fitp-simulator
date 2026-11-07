@@ -394,3 +394,16 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
 - **Versione 2026-11-07.2** (`94ee4b6`): Cloudflare 22.555.142 B, sha256
   `e406d36f2a8f97656b9e50bea11e4f10360fd921f43cc6d2614c1899780de5d7`; LAN 57.809.500 B, sha256
   `a5dcc5afa879c88d8b5697bb935433d1fa5624220c3795d23e6408536a67e303`; provati estratti, consegnati.
+- **Blocco di ~1 s nello stesso schermo** (workflow `natpf-b10-blocco-1s`, `528a53f`, unione con la versione): non era
+  l'animazione. Il menu ridisegnava l'arena 3D dietro di sé una volta al secondo per 8 s a ogni ingresso; senza GPU ogni
+  disegno costa ~1 s (traccia CDP: `GLES2::ReadPixels` nel Commit in attesa del WebGL software). Ora lo sfondo fermo si
+  ridisegna all'ingresso, al ridimensionamento e all'arrivo di un'immagine (`_natpfWatchTextures`, al più una volta al
+  secondo); aspetto invariato (37/46 texture caricate come prima; con immagini in ritardo di 12 s meglio di prima).
+  Revisione: causa confermata con un profilo indipendente, nessun bloccante. natpf-modale-gesti 18/18 tre volte (stesso
+  schermo 60 fps, peggiore 17 ms).
+- **Versione 2026-11-07.3** (`0c6188b`): gioco 859/859, sito 195/195, LAN 12/12, build ok; browser modale-gesti 18/18 ×3,
+  split-ready 34/34, tutorial-phone 37/37, menu 22/22. Cloudflare 22.555.226 B, sha256
+  `af881095f6f5674161933d01063705a5b38df4729c5cb9db5833b0b3184af621`; LAN 57.809.594 B, sha256
+  `fbce2e33303cd2a51004b9014243e09faf802a5099b616e49bfa51b3e99da5a8`; provati estratti, consegnati.
+- **Non verificato (B10)**: telefoni veri, webcam vera, audio ascoltato, Windows, ledwall, GPU vera; webcam del P2 nella
+  sfida: errore raro sotto carico (webcam non riaccesa dopo «Accendi la webcam», 1 volta su ~15) non risolto.
