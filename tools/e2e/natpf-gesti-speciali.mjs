@@ -138,6 +138,9 @@ try {
     T.onShot = q => { const d = T.drill?.id; onShot(q); __drill.push({ drill: d, shot: T.lastShotSeen, msg: T.message, done: T.progress.done, tries: T.progress.tries, learn: T.lastLearn }); };
     const onPhone = T._onPhoneSwing.bind(T);
     T._onPhoneSwing = ev => { T.lastShotSeen = ev?.natpf?.shot; onPhone(ev); };
+    // il tutorial (modale delle schede) si apre al primo Allenamento di ogni abbinamento (B9): qui il telefono è già
+    // calibrato e la prova riguarda i gesti, quindi lo si segna come visto
+    E.natpfPhone.markTutorialSeen();
     T.start({ drills: [{ id: 'lob', label: 'Pallonetto', need: 2, shot: 'lob', phoneOnly: true, maxTries: 5, hint: { phone: 'Dal basso verso l’alto' } }, { id: 'drop', label: 'Palla corta', need: 2, shot: 'drop', phoneOnly: true, maxTries: 5, hint: { phone: 'Lento, dall’alto verso il basso' } }] });
     // telefono già calibrato: il riscaldamento parte dal servizio di chi gioca; qui si va subito alla prima palla, come
     // dopo la calibrazione in campo
@@ -152,7 +155,9 @@ try {
   }
   const drills = await game.evaluate(() => __drill), byDrill = k => drills.filter(d => d.drill === k);
   if (process.env.DEBUG) console.log('DEBUG esercizi', JSON.stringify(await game.evaluate(() => { const T = __natpfTennis.natpfUi.training; return { active: T.active, idx: T.idx, drill: T.drill?.id, progress: T.progress, message: T.message, flash: T.flash?.text, sw: __sw, robot: window.__robot }; })), 'telefono', JSON.stringify(await phone.evaluate(() => ({ disc: window.__disc, step: __racchetta.state.step }))));
-  const fmt = a => a.map(d => `${d.shot}${d.learn?.learned ? (d.learn.distinct ? ' (imparato)' : ' (simile al normale)') : ''} → «${d.msg}»`).join(' · ');
+  // senza tentativi si dice perché (un esercizio fermo dietro la modale del tutorial è stato la causa del 6/9 dal 04/11)
+  const stuck = drills.length ? '' : `nessun tentativo · ${JSON.stringify(await game.evaluate(() => { const T = __natpfTennis.natpfUi.training; return { tutorialOpen: T.tutorialOpen, drill: T.drill?.id || null, phase: __natpfTennis.phase }; }))}`;
+  const fmt = a => a.map(d => `${d.shot}${d.learn?.learned ? (d.learn.distinct ? ' (imparato)' : ' (simile al normale)') : ''} → «${d.msg}»`).join(' · ') || stuck;
   check('B. esercizio «Pallonetto»: superato (due pallonetti riconosciuti)', byDrill('lob').filter(d => d.shot === 'lob').length >= 2, fmt(byDrill('lob')));
   check('   esercizio «Palla corta»: superato (due palle corte riconosciute)', byDrill('drop').filter(d => d.shot === 'drop').length >= 2, fmt(byDrill('drop')));
   check('   messaggi veri: «Ho imparato» solo quando il gioco ha imparato un gesto distinto', drills.every(d => !/imparato/i.test(d.msg) || (d.learn?.learned && d.learn?.distinct)), fmt(drills));
