@@ -8,8 +8,11 @@ Test e Rollback restano come sono.
 
 **Pacchetti** (dopo ogni commit che li cambia; se il commit non li cambia si riconsegnano gli ultimi, stessa versione e
 sha256, dicendolo):
-1. Versione nuova `AAAA-MM-GG.n` in `site/js/tennis/version.js` e `site/tennis/build.json`, commit, push. Il push
-   fa partire il workflow `natpf-windows.yml` (installer e aggiornamento su R2, vedi 4).
+1. Versione nuova `AAAA-MM-GG.n` in `site/js/tennis/version.js` e `site/tennis/build.json` e, se si vuole un testo
+   per chi gioca, righe `AAAA-MM-GG.n: novità` in `natpf-desktop/novita.txt` (mostrate nel gioco con l'aggiornamento;
+   senza: «Versione AAAA-MM-GG.n.»); commit, push. Il push fa partire il workflow `natpf-windows.yml` (installer e
+   aggiornamento su R2, vedi 4). **Solo una versione nuova si pubblica**: rifare il workflow o cambiare il programma
+   senza cambiare versione costruisce l'Artifact ma non tocca il bucket (un installer pubblicato non si riscrive).
 2. `cd natpf-tennis && npm run build`.
 3. **Cloudflare** (come dal B8): `node scripts/pacchetto-cloudflare.mjs --out=<cartella nuova>
    --zip=<altra cartella>/natpf-simulator-cloudflare-<versione>.zip --turn-url=https://natpf-turn.s-porcelli.workers.dev/`;
@@ -41,5 +44,7 @@ sha256, dicendolo):
 - Il bucket e i segreti li prepara l'utente con `docs/GUIDA_AGGIORNAMENTI_R2.md`; poi manda l'indirizzo pubblico (o
   imposta la variabile del repository `NATPF_AGGIORNAMENTI_URL`). La prima versione con l'indirizzo si installa a mano.
 - Ogni aggiornamento chiede il permesso di Windows (UAC): l'installazione è per il computer (Programmi e firewall).
+- Un correttivo dell'installer va pubblicato con una **versione nuova**: con la stessa versione il workflow salta il
+  bucket («Aggiornamenti già pubblicati»).
 - Prova su Linux: `cd natpf-desktop && node scripts/prepara.mjs && node scripts/prova-linux.mjs` (scenario
   `aggiornamenti` con un server finto; porte 8443, 8081, 8080 libere).

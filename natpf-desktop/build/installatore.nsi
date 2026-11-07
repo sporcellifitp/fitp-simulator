@@ -151,6 +151,18 @@ Function .onInstSuccess
   ${EndIf}
 FunctionEnd
 
+; aggiornamento dal gioco non riuscito (disco pieno, file bloccati): il gioco si è già chiuso e l'installazione è
+; silenziosa, quindi un messaggio senza /SD (si vede anche con /S) che dice come riprovare; se il programma c'è ancora
+; (errore prima di toglierlo) si riapre
+Function .onInstFailed
+  ${If} $AGGIORNA == 1
+    MessageBox MB_ICONSTOP "Aggiornamento di NATPF Simulator non riuscito (spazio sul disco o file bloccati?).$\r$\n$\r$\nImpostazioni e certificati sono conservati. Per riprovare apri a mano l'installer scaricato:$\r$\n$EXEPATH"
+    ${If} ${FileExists} "$INSTDIR\${EXE}"
+      Call Avvia
+    ${EndIf}
+  ${EndIf}
+FunctionEnd
+
 ; avvio dalla pagina finale senza i permessi di amministratore dell'installazione (lo apre Esplora risorse)
 Function Avvia
   Exec '"$WINDIR\explorer.exe" "$INSTDIR\${EXE}"'
@@ -167,8 +179,15 @@ Section "NATPF Simulator"
     !insertmacro RimuoviProgramma
   ${EndIf}
   SetOutPath "$INSTDIR"
+  ; con /S un file che non si scrive viene saltato (scelta predefinita «Ignora») e resta l'errore: l'installazione
+  ; si ferma (.onInstFailed avvisa) invece di lasciare un programma a metà senza dirlo
+  ClearErrors
   File /r "${SRC}/*"
   WriteUninstaller "$INSTDIR\${DISINST}"
+  ${If} ${Errors}
+  ${OrIfNot} ${FileExists} "$INSTDIR\${EXE}"
+    Abort "Copia dei file non riuscita."
+  ${EndIf}
 
   CreateShortCut "$SMPROGRAMS\${NOME}.lnk" "$INSTDIR\${EXE}" "" "$INSTDIR\${EXE}" 0
   CreateShortCut "$DESKTOP\${NOME}.lnk" "$INSTDIR\${EXE}" "" "$INSTDIR\${EXE}" 0

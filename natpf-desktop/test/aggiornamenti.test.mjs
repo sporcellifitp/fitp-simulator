@@ -8,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
 import crypto from 'node:crypto';
-import { UPDATES, STATUSES, UpdateError, parseBuild, compareBuilds, installerName, normalizeBase, readUpdateConfig, urlAllowed, validateManifest,
+import { UPDATES, STATUSES, UpdateError, parseBuild, compareBuilds, installerName, normalizeBase, readUpdateConfig, updateEnv, urlAllowed, validateManifest,
   fetchManifest, downloadVerified, sha256File, installerLaunchArgs, staleFiles, friendlyError, Updater } from '../src/aggiornamenti.mjs';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'natpf-agg-'));
@@ -72,6 +72,12 @@ test('indirizzo base: https (http solo verso questo computer), configurazione da
   fs.writeFileSync(f, JSON.stringify({ base: 'https://pub-abc.r2.dev/', hosts: ['Natpf.Example.it', 'non valido/', 3] }));
   assert.deepEqual(readUpdateConfig(f), { base: 'https://pub-abc.r2.dev', hosts: ['natpf.example.it', '3'] });
   assert.equal(readUpdateConfig(f, { [UPDATES.envBase]: 'http://localhost:9611' }).base, 'http://localhost:9611', 'l\'ambiente (prove) vince');
+  // nel programma costruito l'ambiente non conta (una variabile dell'utente non sceglie l'installer da approvare)
+  const env = { [UPDATES.envBase]: 'http://127.0.0.1:9' };
+  assert.equal(readUpdateConfig(f, updateEnv(env, { packaged: true })).base, 'https://pub-abc.r2.dev', 'programma installato: vince il file');
+  assert.equal(readUpdateConfig(f, updateEnv(env, { packaged: false })).base, 'http://127.0.0.1:9', 'npm start: prove');
+  assert.equal(readUpdateConfig(f, updateEnv(env, { packaged: true, simulate: true })).base, 'http://127.0.0.1:9', 'prova simulata');
+  assert.deepEqual(updateEnv(env), {}, 'predefinito: programma costruito');
   fs.writeFileSync(f, JSON.stringify({ base: 'http://pub-abc.r2.dev' }));
   const bad = readUpdateConfig(f); assert.equal(bad.base, ''); assert.match(bad.error, /https/);
   fs.writeFileSync(f, '{ rotto');
@@ -339,7 +345,11 @@ test('stato: download con sha256 sbagliato → errore, poi si riprova dal clic',
 });
 
 test('manifesto del workflow (scripts/manifesto.mjs): valido per il programma, note pulite, mai indietro', async () => {
-  const { makeManifest, shouldPublish, cleanNotes } = await import('../scripts/manifesto.mjs');
+  const { makeManifest, shouldPublish, cleanNotes, notesFor } = await import('../scripts/manifesto.mjs');
+  const novita = '# commento\n2026-11-08.1: Partite più fluide.\n2026-11-08.1: Menu più chiaro.\n2026-11-07.3: vecchia\n2026-11-08.10: altra\n';
+  assert.equal(notesFor(novita, '2026-11-08.1'), 'Partite più fluide.\nMenu più chiaro.', 'solo le righe della versione');
+  assert.equal(notesFor(novita, '2026-11-09.1'), '', 'versione senza note');
+  assert.equal(notesFor(fs.readFileSync(new URL('../novita.txt', import.meta.url), 'utf8'), '2026-11-07.3') !== null, true);
   const m = makeManifest({ build: '2026-11-08.1', bytes: BODY, notes: 'Versione nuova\n\nCo-Authored-By: X <x@y>\nClaude-Session: https://z', published: '2026-11-08T09:00:00Z' });
   assert.deepEqual(m, { build: '2026-11-08.1', version: '2026.1108.1', file: 'NATPF-Simulator-Setup-2026-11-08.1.exe', size: BODY.length, sha256: sha(BODY), notes: 'Versione nuova', published: '2026-11-08T09:00:00Z' });
   // il programma lo accetta così com'è
@@ -350,7 +360,10 @@ test('manifesto del workflow (scripts/manifesto.mjs): valido per il programma, n
   assert.ok(shouldPublish('', '2026-11-08.1'), 'niente sul bucket');
   assert.ok(shouldPublish('{ rotto', '2026-11-08.1'));
   assert.ok(shouldPublish(JSON.stringify({ build: '2026-11-07.3' }), '2026-11-08.1'));
-  assert.ok(shouldPublish(JSON.stringify({ build: '2026-11-08.1' }), '2026-11-08.1'), 'stessa versione (esecuzione rifatta)');
+  // stessa versione (esecuzione rifatta, commit di soli documenti): mai riscrivere l'installer già pubblicato, anche
+  // se i byte sono diversi (la cache di Cloudflare darebbe quelli vecchi con lo sha256 nuovo)
+  assert.ok(!shouldPublish(JSON.stringify({ build: '2026-11-08.1', sha256: 'a'.repeat(64) }), '2026-11-08.1'), 'stessa versione: non si pubblica');
+  assert.ok(!shouldPublish(JSON.stringify({ build: '2026-11-08.1' }), '2026-11-08.1'));
   assert.ok(!shouldPublish(JSON.stringify({ build: '2026-11-08.2' }), '2026-11-08.1'), 'mai tornare indietro');
 });
 
@@ -364,6 +377,10 @@ test('workflow: solo l\'installer, R2 con i soli segreti di GitHub, prima l\'ins
   assert.ok(exe > 0 && manifest > exe, 'prima l\'installer, poi il manifesto');
   assert.match(wf, /head-object[\s\S]*ContentLength[\s\S]*"s3:\/\/\$R2_BUCKET\/windows\/latest\.json"/, 'dimensione controllata sul bucket prima del manifesto');
   assert.match(wf, /manifesto\.mjs --confronta=/, 'mai tornare indietro');
+  // un installer già sul bucket non si riscrive (head-object prima del caricamento; il manifesto si rifà da quei byte)
+  assert.match(wf, /head-object[^\n]*--key "windows\/\$exe" 2>&1\); then[\s\S]*--exe="bucket\/\$exe"[\s\S]*NoSuchKey[\s\S]*"s3:\/\/\$R2_BUCKET\/windows\/\$exe" --only-show-errors/);
+  assert.ok(!/git log -1 --format=%s/.test(wf), 'note non dall\'oggetto del commit');
+  assert.match(wf, /'!natpf-desktop\/\*\*\/\*\.md'/, 'i soli documenti non rifanno l\'installer');
   assert.match(wf, /actions\/upload-artifact/, 'resta anche l\'artefatto di GitHub');
   assert.match(wf, /NATPF_AGGIORNAMENTI_URL: \$\{\{ vars\.NATPF_AGGIORNAMENTI_URL \}\}/);
 });

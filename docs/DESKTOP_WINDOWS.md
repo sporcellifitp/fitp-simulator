@@ -352,14 +352,18 @@ zip LAN né portatile). Dove questa sezione e le precedenti non coincidono, vale
   (UAC). Non tocca `%LOCALAPPDATA%\NATPF` (impostazioni, profilo del gioco, certificati, registri).
 - **Aggiornatore** (`natpf-desktop/src/aggiornamenti.mjs`, puro e provato con un server HTTP locale; collegato in
   `main.mjs`): indirizzo base da `aggiornamenti.json` del pacchetto (vuoto → `off`) o dalla variabile
-  `NATPF_AGGIORNAMENTI_URL` alla costruzione; manifesto `<base>/windows/latest.json` = `{ build, version, file, size,
+  `NATPF_AGGIORNAMENTI_URL` alla costruzione (la variabile `NATPF_AGGIORNAMENTI_BASE` vale solo nelle prove, `npm
+  start` o installazione simulata: nel programma costruito una variabile dell'utente non cambia l'indirizzo); manifesto `<base>/windows/latest.json` = `{ build, version, file, size,
   sha256, notes, published }`; controllo 8 s dopo l'apertura e su richiesta; confronto `AAAA-MM-GG.n`; download in
   `%LOCALAPPDATA%\NATPF\aggiornamenti` con avanzamento, ripresa `Range` o riavvio, controllo di dimensione e sha256,
   redirect solo verso la stessa origine (o host elencati); installer avviato con PowerShell `Start-Process -Verb RunAs
   /S /AGGIORNA`, poi il programma si chiude. Attivo solo nel programma installato. Mai download o installazione senza
   clic; offline → stato `error` con un testo chiaro e il gioco continua (eventi in LAN senza internet).
   Nessuna dipendenza nuova (http/https di Node; electron-updater non serve: l'installer è NSIS su misura costruito da
-  Linux e il manifesto è nostro).
+  Linux e il manifesto è nostro). Se la finestra del permesso di Windows resta aperta più di 10 minuti il gioco torna a
+  «pronto» con un avviso; un «Sì» dato dopo chiude comunque il programma. Aggiornamento silenzioso non riuscito
+  (disco pieno, file non scritti): l'installer si ferma e mostra un messaggio anche con `/S` (`.onInstFailed`), con il
+  percorso dell'installer scaricato per riprovare a mano; se il programma c'è ancora, il gioco si riapre.
 - **Ponte** `window.natpfDesktop.updates` (versione 2 del ponte): `state()`, `check()`, `download()`, `install()`,
   `onChange(cb)`; contratto in `natpf-desktop/src/preload.cjs` e `natpf-desktop/LEGGIMI.md`. Solo dalla finestra del
   gioco e dalle pagine del proprio server, come lo schermo intero. Nel browser (Cloudflare) `natpfDesktop` non c'è:
@@ -368,13 +372,24 @@ zip LAN né portatile). Dove questa sezione e le precedenti non coincidono, vale
   `latest.json`; con i segreti `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET` aws cli (API S3
   di R2, caricamento a più parti; wrangler `r2 object put` arriva a 315 MB per file secondo la documentazione: oggi
   basterebbe, ma senza margine e un oggetto alla volta) carica prima l'installer (dimensione ricontrollata sul bucket), poi il manifesto senza cache, poi la
-  copia `NATPF-Simulator-Setup.exe` per la prima installazione; tiene gli ultimi 5 installer; mai una versione più
-  vecchia sopra una più nuova; senza segreti solo un avviso. L'Artifact di GitHub resta. Passi per l'utente:
+  copia `NATPF-Simulator-Setup.exe` per la prima installazione; tiene gli ultimi 5 installer; si pubblica **solo una
+  versione più nuova** di quella sul bucket: un installer già pubblicato non si riscrive mai (la costruzione non dà gli
+  stessi byte e il nome con la versione ha la cache lunga `immutable`: la cache di Cloudflare darebbe i byte vecchi
+  con lo sha256 nuovo); se l'installer della versione c'è già ma il manifesto no (esecuzione interrotta), il
+  manifesto si rifà dai byte del bucket. I soli documenti in `natpf-desktop/` non fanno partire il workflow. Novità
+  mostrate nel gioco da `natpf-desktop/novita.txt` (righe `AAAA-MM-GG.n: testo`), mai l'oggetto del commit; senza
+  righe «Versione AAAA-MM-GG.n.». Senza segreti solo un avviso. L'Artifact di GitHub resta. Passi per l'utente:
   `docs/GUIDA_AGGIORNAMENTI_R2.md`.
 - **Limiti noti**: integrità affidata a HTTPS e al token di scrittura (lo sha256 protegge da file rovinati, non da chi
   può scrivere sul bucket; possibile miglioramento: manifesto firmato con una chiave privata solo nei segreti). Il
   programma usa http/https di Node, che non legge il proxy di sistema di Windows (reti aziendali con proxy obbligatorio:
-  controllo in errore, gioco intatto). Le installazioni fatte prima di questa versione non conoscono l'indirizzo: la
+  controllo in errore, gioco intatto) né i certificati di Windows (antivirus o reti che ispezionano HTTPS con un
+  certificato loro: «Collegamento sicuro … non riuscito»; il modulo `net` di Electron risolverebbe entrambi, non fatto).
+  Tra il controllo dello sha256 e il «Sì» del permesso di Windows il file scaricato sta in una cartella dell'utente:
+  un programma già in esecuzione con lo stesso utente potrebbe sostituirlo e farsi dare i permessi (Node non può
+  bloccarlo in scrittura; rimedi: installer firmato o manifesto firmato). Se il permesso di Windows lo dà un altro
+  account amministratore (utente standard che scrive la password di un altro), il gioco riaperto può partire con
+  quell'account e i suoi dati (certificati nuovi). Le installazioni fatte prima di questa versione non conoscono l'indirizzo: la
   prima versione con l'indirizzo si installa a mano. Il portatile già usato lascia `%LOCALAPPDATA%\NATPF\portatile` e
   la regola del firewall «NATPF Simulator portatile»: si possono cancellare a mano.
 - **Verificato qui**: test dell'aggiornatore (manifesto valido e non valido, versioni, sha256 e dimensione sbagliati,

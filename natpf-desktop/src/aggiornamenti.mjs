@@ -83,7 +83,11 @@ export function normalizeBase(base){
   if (u.search || u.hash || u.username || u.password) throw new UpdateError('config', 'Indirizzo degli aggiornamenti non valido.');
   return `${u.origin}${u.pathname.replace(/\/+$/, '')}`;
 }
-// aggiornamenti.json del pacchetto; l'ambiente (prove) vince sul file. Mai errori: { base, hosts, error? }
+// ambiente che può cambiare l'indirizzo: solo fuori dal programma costruito (npm start) o nelle prove simulate
+export function updateEnv(env = {}, { packaged = true, simulate = false } = {}){
+  return !packaged || simulate ? env : {};
+}
+// aggiornamenti.json del pacchetto; l'ambiente (prove, vedi updateEnv) vince sul file. Mai errori: { base, hosts, error? }
 export function readUpdateConfig(file, env = {}){
   let raw = {};
   try { raw = JSON.parse(fs.readFileSync(file, 'utf8')) || {}; } catch (e){ if (e.code !== 'ENOENT') return { base: '', hosts: [], error: `aggiornamenti.json non leggibile: ${e.message}` }; }

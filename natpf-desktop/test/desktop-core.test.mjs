@@ -101,6 +101,11 @@ test('installer: aggiorna sopra senza chiedere, /S /AGGIORNA dal gioco aspetta l
   // alla fine riapre il gioco senza i permessi dell'installer (Esplora risorse), solo nell'aggiornamento dal gioco
   assert.match(setup, /Function \.onInstSuccess\s+\$\{If\} \$AGGIORNA == 1\s+Call Avvia/);
   assert.match(setup, /Function Avvia\s+Exec '"\$WINDIR\\explorer\.exe" "\$INSTDIR\\\$\{EXE\}"'/);
+  // aggiornamento silenzioso non riuscito: messaggio visibile anche con /S (senza /SD) e gioco riaperto se c'è ancora
+  assert.match(setup, /Function \.onInstFailed\s+\$\{If\} \$AGGIORNA == 1\s+MessageBox MB_ICONSTOP "Aggiornamento di NATPF Simulator non riuscito[^\n]*\$EXEPATH"\s+\$\{If\} \$\{FileExists\} "\$INSTDIR\\\$\{EXE\}"\s+Call Avvia/);
+  assert.ok(!/Function \.onInstFailed[^]*?MessageBox[^\n]*\/SD[^]*?FunctionEnd/.test(setup.slice(setup.indexOf('Function .onInstFailed'))), 'messaggio senza /SD');
+  // file non scritti (con /S si salterebbero in silenzio): installazione fermata
+  assert.match(setup, /ClearErrors\s+File \/r "\$\{SRC\}\/\*"\s+WriteUninstaller[^\n]*\s+\$\{If\} \$\{Errors\}\s+\$\{OrIfNot\} \$\{FileExists\} "\$INSTDIR\\\$\{EXE\}"\s+Abort/);
   // i dati dell'utente (impostazioni, certificati, aggiornamenti scaricati) non si toccano
   assert.ok(!/LOCALAPPDATA/.test(setup.replace(/^;.*$/gm, '').replace(/MUI_FINISHPAGE_TEXT[^\n]*/, '')), 'nessuna operazione su %LOCALAPPDATA%');
 });

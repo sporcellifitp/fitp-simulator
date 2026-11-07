@@ -64,8 +64,12 @@ Bucket degli aggiornamenti (Cloudflare R2), passi per l'utente: `docs/GUIDA_AGGI
   `aggiornamenti.json` (`{ "base": "https://pub-….r2.dev", "hosts": [] }`) o, al momento della costruzione, nella
   variabile `NATPF_AGGIORNAMENTI_URL` (il workflow la prende dalla variabile del repository con lo stesso nome).
   Vuoto → stato `off`. `hosts`: altri host https verso cui il server può rimandare (redirect); di base nessuno.
+  `NATPF_AGGIORNAMENTI_BASE` (ambiente, all'avvio) vale solo nelle prove (`npm start` o `NATPF_AGGIORNAMENTI_PROVA=1`):
+  nel programma costruito vince sempre `aggiornamenti.json`.
 - **Manifesto** `<base>/windows/latest.json` = `{ build, version, file, size, sha256, notes, published }`, installer in
-  `<base>/windows/<file>`. Li carica il workflow (prima l'installer, poi il manifesto).
+  `<base>/windows/<file>`. Li carica il workflow (prima l'installer, poi il manifesto), solo per una versione più nuova
+  di quella sul bucket: un installer pubblicato non si riscrive. `notes`: righe della versione in `novita.txt`
+  (`AAAA-MM-GG.n: testo per chi gioca`), altrimenti «Versione AAAA-MM-GG.n.».
 - **Ponte** `window.natpfDesktop.updates`: `state()`, `check()`, `download()` → `Promise<S>`; `install()` →
   `Promise<{ ok, error? }>`; `onChange(cb)` → funzione che toglie l'ascolto. `S = { status, current, latest?, notes?,
   size?, progress?, error?, checkedAt? }`, `status` tra `off`, `idle`, `checking`, `none`, `available`, `downloading`,
@@ -83,10 +87,14 @@ Bucket degli aggiornamenti (Cloudflare R2), passi per l'utente: `docs/GUIDA_AGGI
   '/S','/AGGIORNA' -Verb RunAs` (permesso di Windows: «Sì»; se si rifiuta il programma resta aperto, stato `ready`
   con l'errore), poi il programma si chiude. L'installer con `/AGGIORNA` aspetta fino a 15 s che il programma si
   chiuda, aggiorna in silenzio nella stessa cartella e riapre il gioco tramite Esplora risorse (senza i permessi di
-  amministratore). Dati in `%LOCALAPPDATA%\NATPF` intatti.
+  amministratore). Dati in `%LOCALAPPDATA%\NATPF` intatti. Se l'installazione silenziosa non riesce l'installer mostra
+  un messaggio con il percorso del file per riprovare a mano. Permesso di Windows senza risposta per 10 minuti: di nuovo
+  `ready` con un avviso; un «Sì» dato dopo chiude comunque il programma.
 - **Sicurezza**: l'integrità dipende da HTTPS verso R2 e dal token di scrittura nei segreti di GitHub (sha256 nel
   manifesto: contro file rovinati, non contro chi può scrivere sul bucket). Una firma del manifesto (chiave privata
-  solo nei segreti) è un miglioramento possibile, non fatto.
+  solo nei segreti) è un miglioramento possibile, non fatto. Tra il ricontrollo dello sha256 e il «Sì» un programma
+  dello stesso utente potrebbe sostituire il file nella cartella dell'utente (rimedio: installer o manifesto firmati).
+  http/https di Node non usano proxy e certificati di Windows (reti che ispezionano HTTPS: controllo in errore).
 
 ## Costruire (da Linux o da Windows; non serve wine)
 

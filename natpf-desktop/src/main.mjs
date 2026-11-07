@@ -16,7 +16,7 @@ import { execFile } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { DESKTOP, chooseDisplay, nextDisplay, displayLabel, isOwnUrl, samePem, firewallCommand, elevatedPowershellArgs, ruleCoversExe, readSettings, writeSettings,
   windowedBounds, needsRefit, displayToFollow, shortcutFor, fullscreenTarget, initialWanted, placeMode, UPDATE_ACTIONS } from './desktop-core.mjs';
-import { UPDATES, Updater, readUpdateConfig, installerLaunchArgs } from './aggiornamenti.mjs';
+import { UPDATES, Updater, readUpdateConfig, updateEnv, installerLaunchArgs } from './aggiornamenti.mjs';
 
 const ROOT = app.getAppPath();
 const DATA = path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'NATPF');
@@ -47,19 +47,32 @@ const RULE = DESKTOP.ruleName;
 // disinstallazione accanto all'eseguibile): l'installer è per il computer e sa aggiornare sopra se stesso. Su Linux
 // (prova-linux) con NATPF_AGGIORNAMENTI_PROVA=1 l'installazione è simulata: non si avvia niente e non si chiude.
 const BUILD = (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).natpfBuild || ''; } catch { return ''; } })();
-const updateConfig = readUpdateConfig(path.join(ROOT, UPDATES.config), process.env);
 const INSTALLED = process.platform === 'win32' && app.isPackaged && fs.existsSync(path.join(path.dirname(process.execPath), DESKTOP.uninstaller));
 const SIMULATE_INSTALL = process.platform !== 'win32' && process.env[UPDATES.envSimulate] === '1';
+// l'indirizzo dall'ambiente (NATPF_AGGIORNAMENTI_BASE) vale solo nelle prove: nel programma costruito vince sempre
+// aggiornamenti.json del pacchetto (una variabile dell'utente non deve poter indicare un altro installer da approvare)
+const updateConfig = readUpdateConfig(path.join(ROOT, UPDATES.config), updateEnv(process.env, { packaged: app.isPackaged, simulate: SIMULATE_INSTALL }));
 function launchInstaller(file){
   if (SIMULATE_INSTALL){ log('aggiornamenti: installazione simulata (prova)', { file, argomenti: UPDATES.installerArgs }); return Promise.resolve({ ok: true }); }
   // PowerShell esce quando l'installer è partito (dopo il «Sì» del permesso di Windows) o con errore se il permesso è
-  // rifiutato: in quel caso il programma resta aperto
-  return new Promise(resolve => execFile('powershell.exe', installerLaunchArgs(file), { windowsHide: true, timeout: 10*60*1000 }, (err, _out, stderr) => {
-    if (!err) return resolve({ ok: true });
-    const why = `${stderr || ''} ${err.message || ''}`;
-    log('aggiornamenti: installer non avviato', why.trim().slice(0, 500));
-    resolve({ ok: false, error: /cancel|annull|1223/i.test(why) ? 'Aggiornamento annullato: serve il permesso di Windows («Sì» nella finestra di Controllo dell\'account utente).' : 'Installazione non avviata: riprova.' });
-  }));
+  // rifiutato: in quel caso il programma resta aperto. PowerShell non si chiude mai a forza: se la finestra del
+  // permesso resta aperta più di 10 minuti si torna a «pronto» con l'avviso, e un «Sì» dato dopo chiude comunque il
+  // programma (l'installer è partito e lo aspetta)
+  return new Promise(resolve => {
+    let answered = false;
+    const answer = r => { if (!answered){ answered = true; resolve(r); } };
+    const wait = setTimeout(() => answer({ ok: false, error: 'La finestra del permesso di Windows è ancora aperta: se rispondi «Sì», l\'aggiornamento parte e il gioco si chiude.' }), 10*60*1000);
+    execFile('powershell.exe', installerLaunchArgs(file), { windowsHide: true }, (err, _out, stderr) => {
+      clearTimeout(wait);
+      if (!err){
+        if (answered){ log('aggiornamenti: permesso dato dopo l\'attesa, installer avviato: chiusura del programma'); setTimeout(() => app.quit(), 300); }
+        return answer({ ok: true });
+      }
+      const why = `${stderr || ''} ${err.message || ''}`;
+      log('aggiornamenti: installer non avviato', why.trim().slice(0, 500));
+      answer({ ok: false, error: /cancel|annull|1223/i.test(why) ? 'Aggiornamento annullato: serve il permesso di Windows («Sì» nella finestra di Controllo dell\'account utente).' : 'Installazione non avviata: riprova.' });
+    });
+  });
 }
 const updater = new Updater({ current: BUILD, base: updateConfig.base, hosts: updateConfig.hosts, dir: path.join(DATA, UPDATES.dir),
   enabled: INSTALLED || SIMULATE_INSTALL, launch: launchInstaller, log,

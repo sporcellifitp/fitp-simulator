@@ -84,6 +84,15 @@ pubblicata sul bucket (dimmelo e la pubblico).
       collegati (certificato), regola del firewall (nessun avviso del firewall).
 - [ ] Al permesso di Windows rispondi **No**: il gioco resta aperto, dice che serve il permesso, e «Installa» si può
       ripremere più tardi.
+- [ ] (Facoltativo) Aggiornamento che non riesce: se l'installazione si ferma (disco pieno, file bloccati), compare
+      «Aggiornamento di NATPF Simulator non riuscito» con il percorso dell'installer scaricato: aprendolo a mano si
+      riprova; impostazioni e certificati restano. Annota il messaggio se succede.
+- [ ] Se il PC usa un account **standard** e al permesso di Windows si scrive la password di **un altro account
+      amministratore**: il gioco potrebbe riaprirsi con quell'altro account (certificati e impostazioni diversi, i
+      telefoni devono fidarsi di nuovo). In quel caso chiudilo e riaprilo dal collegamento sul desktop; annotalo.
+- [ ] Rete con antivirus che «controlla HTTPS» o rete aziendale con proxy: il controllo può dire «Collegamento
+      sicuro … non riuscito» o server non raggiungibile; il gioco funziona. Annotalo (si aggiorna con l'installer a
+      mano).
 - [ ] Senza internet (rete dello stand senza uscita): il gioco parte e funziona come sempre; negli aggiornamenti dice
       che il server non è raggiungibile. Nessuna attesa, nessun blocco.
 - [ ] Alt → Aiuto → **Cerca aggiornamenti…**: stesso percorso con le finestre di Windows («Hai già l'ultima versione»
