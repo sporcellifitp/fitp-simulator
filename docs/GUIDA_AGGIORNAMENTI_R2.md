@@ -119,3 +119,10 @@ Non mandatemi mai queste chiavi in chat o per email: vanno **solo** nei segreti 
   aggiornamenti non è raggiungibile.
 - Dal menu del programma (tasto **Alt** → Aiuto → **Cerca aggiornamenti…**) si fa la stessa cosa con le finestre di
   Windows.
+
+## Nota: bucket nella giurisdizione UE
+
+Il bucket `natpfsimulator` è stato creato nella giurisdizione **Unione Europea**: per caricare i file si usa l'indirizzo
+`https://<Account ID>.eu.r2.cloudflarestorage.com`. Il workflow lo riconosce da solo (dal 07/11, `fa190f2`); l'indirizzo
+pubblico `https://pub-….r2.dev` per scaricare non cambia.
+

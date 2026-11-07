@@ -154,6 +154,11 @@ Come si aggiorna:
   Write sul bucket `natpfsimulator` (`da73187` dà il motivo esatto). Chiesto all'utente di rifare il token e aggiornare
   `R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`; poi rilanciare il workflow (rerun dell'ultima esecuzione o run_workflow su
   `natpf-windows.yml`) e controllare `…r2.dev/windows/latest.json`.
+  **Risolto** (`fa190f2`): il bucket è nella giurisdizione UE; il workflow usa da solo l'endpoint `.eu.`. Pubblicata la
+  2026-11-07.4 (link fisso `…r2.dev/windows/NATPF-Simulator-Setup.exe`, sha256 verificato dall'indirizzo pubblico).
+- **Prossima azione esatta (B11):** collaudo dell'utente su Windows: installare a mano la 2026-11-07.4 dal link fisso;
+  alla prossima versione verificare l'aggiornamento dal gioco (avviso nel menu → Aggiorna → Riavvia e aggiorna → UAC →
+  gioco riaperto con la versione nuova e impostazioni conservate).
 - **Prossima azione esatta (prima di B11):** collaudo dell'utente con telefoni veri, Windows e ledwall (tutorial con frecce, «Tutto
   chiaro», schermo spento, pronto nello stesso schermo, animazione nuova, voce «smash», tabellone, scritte nel 2v2);
   correggere ciò che segnala. Aperto: errore raro della webcam del P2 sotto carico (`tools/e2e/natpf-1v1-webcam-p2.mjs`).

@@ -407,3 +407,24 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
   `fbce2e33303cd2a51004b9014243e09faf802a5099b616e49bfa51b3e99da5a8`; provati estratti, consegnati.
 - **Non verificato (B10)**: telefoni veri, webcam vera, audio ascoltato, Windows, ledwall, GPU vera; webcam del P2 nella
   sfida: errore raro sotto carico (webcam non riaccesa dopo «Accendi la webcam», 1 volta su ~15) non risolto.
+
+## B11 · Un solo installer Windows che si aggiorna dal gioco (richiesta del 07/11) · [x]
+- Workflow `natpf-b11-installer-aggiornamenti`: parte A (`96b3274`…`c7197b4`: solo `NATPF-Simulator-Setup-<build>.exe`,
+  portatile tolto; `natpf-desktop/src/aggiornamenti.mjs` con manifesto `windows/latest.json`, download con ripresa,
+  controllo di dimensione e sha256, redirect solo sullo stesso host; `/S /AGGIORNA` che aspetta la chiusura e riapre il
+  gioco; pubblicazione in CI su R2, mai ripubblicare la stessa versione; guida `docs/GUIDA_AGGIORNAMENTI_R2.md`), parte B
+  (`6c158ef`, `50613c9`: avviso solo nel menu principale, sezione «Aggiornamenti» in Opzioni, prova
+  `natpf-aggiornamenti` 80/80). Revisioni: un bloccante per parte, corretti. Unione `8623bd9`, `0c1dd8f`.
+- Versione **2026-11-07.4** (`d2e0d50`) con l'indirizzo `https://pub-96b3cd8975b6434aaeac3ecfcca14a19.r2.dev` in
+  `natpf-desktop/aggiornamenti.json`: gioco 873/873, sito 195/195, programma Windows 28/28, LAN 12/12, build ok; browser
+  aggiornamenti 80/80, menu 22/22, split-ready 34/34.
+- Prima pubblicazione su R2: quattro tentativi. Cause trovate dal workflow senza mostrare i segreti (`8412507`,
+  `da73187`, `f547d52`, `fa190f2`): Account ID con 5 caratteri in più (ripulito), token rifatto dall'utente, infine il
+  bucket `natpfsimulator` è nella **giurisdizione UE** (endpoint `<id>.eu.r2.cloudflarestorage.com`, ora riconosciuto da
+  solo). Pubblicato il 07/11 17:21: `windows/latest.json` (build 2026-11-07.4, 124.614.379 B, sha256
+  `c516a2a0ee5ceecf8cb6aaa90ff6a540e7a10809e115862faf948da90ab36f84`), `windows/NATPF-Simulator-Setup-2026-11-07.4.exe` e il
+  link fisso `windows/NATPF-Simulator-Setup.exe`: scaricati dall'indirizzo pubblico, stesso sha256 del manifesto.
+- Zip Cloudflare 2026-11-07.4: 22.560.067 B, sha256 `c8bdf92e1ef50a932bb3fe2db73c741af86fa25a07b97d7376608f9f1468f135`.
+- **Non verificato**: tutto su Windows (installazione, UAC, aggiornamento silenzioso, riapertura, impostazioni
+  conservate: `docs/COLLAUDO_WINDOWS.md` §2 e §2b); un aggiornamento vero da una versione all'altra (servirà la
+  prossima versione).
