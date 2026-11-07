@@ -9,6 +9,10 @@
 //   ledwall-spento monitor salvato che manca all'avvio (ledwall acceso dopo il programma): il gioco parte su quello che
 //                  c'è e ci va quando compare (evento display-added simulato), un altro monitor non lo sposta
 //   finestra       avvio in finestra (scelta salvata): Alt mostra e nasconde il menu, F11 va a schermo intero
+//   gioco          il gioco vero con il ponte (schermo intero della finestra, mai quello di HTML)
+//   aggiornamenti  server degli aggiornamenti finto: controllo all'avvio senza download, check → available,
+//                  download → ready con l'avanzamento e lo sha256, install() simulata (07/11/2026); in predefinito
+//                  lo stato 'off' senza indirizzo e fuori dall'installazione
 // I tasti si mandano con webContents.sendInputEvent (quelli di Playwright non passano dalle scorciatoie di Electron) e
 // solo con la finestra visibile. Gli eventi dei monitor sono simulati (screen.emit): provano il collegamento, non
 // Windows. Non controlla misure e posizione della finestra: senza gestore delle finestre Xvfb le riporta sbagliate.
@@ -17,12 +21,14 @@
 //   ELECTRON_SKIP_BINARY_DOWNLOAD= node node_modules/electron/install.js   (se manca Electron per Linux)
 //   npm ci --prefix ../tools/e2e                      (se manca playwright-core)
 //   node scripts/prova-linux.mjs [--display=:91] [--dati=cartella] [--senza-xvfb] [--tieni-dati]
-//                                [--scenari=predefinito,ledwall-spento,finestra,gioco]
+//                                [--scenari=predefinito,ledwall-spento,finestra,gioco,aggiornamenti]
 // Usa le porte del programma (8443, 8081, 8080): devono essere libere. Dati (certificati, impostazioni, registro) in
 // --dati (predefinita: una cartella temporanea nuova), mai in quelli veri.
 import fs from 'node:fs';
 import os from 'node:os';
 import net from 'node:net';
+import http from 'node:http';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -35,7 +41,7 @@ const APP = path.join(HERE, 'app');
 const args = Object.fromEntries(process.argv.slice(2).map(v => { const i = v.indexOf('='); return i < 0 ? [v.replace(/^--/, ''), true] : [v.slice(0, i).replace(/^--/, ''), v.slice(i + 1)]; }));
 const DISPLAY = args['senza-xvfb'] ? process.env.DISPLAY : String(args.display || ':91');
 const GAME = `https://localhost:${DESKTOP.port}${DESKTOP.gamePath}`;
-const SCENARI = ['predefinito', 'ledwall-spento', 'finestra', 'gioco'];
+const SCENARI = ['predefinito', 'ledwall-spento', 'finestra', 'gioco', 'aggiornamenti'];
 const chosen = typeof args.scenari === 'string' ? args.scenari.split(',').map(s => s.trim()).filter(Boolean) : SCENARI;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const fail = m => { console.error(m); process.exit(2); };
@@ -98,13 +104,13 @@ async function closeApp(){
   if (!(await until(portsFree, 15000, 250))) throw new Error('porte del programma ancora occupate dopo la chiusura');
 }
 // seed: impostazioni del programma prima dell'avvio (desktop-app.json), null = nessuna
-async function launch(seed){
+async function launch(seed, extraEnv = {}){
   fs.mkdirSync(NATPF, { recursive: true });
   if (seed) fs.writeFileSync(SETTINGS, JSON.stringify(seed)); else fs.rmSync(SETTINGS, { force: true });
   const logStart = readLog().length;
   // da root Chromium chiede --no-sandbox; la sandbox della pagina del gioco (sandbox:true) resta quella di Electron
   app = await electron.launch({ executablePath: ELECTRON, args: ['--no-sandbox', APP], timeout: 60000,
-    env: { ...process.env, DISPLAY, LOCALAPPDATA: DATI, NATPF_DATA_DIR: NATPF, ELECTRON_ENABLE_LOGGING: '' } });
+    env: { ...process.env, DISPLAY, LOCALAPPDATA: DATI, NATPF_DATA_DIR: NATPF, ELECTRON_ENABLE_LOGGING: '', NATPF_AGGIORNAMENTI_BASE: '', NATPF_AGGIORNAMENTI_PROVA: '', ...extraEnv } });
   // funzioni eseguite nel processo principale di Electron (una sola finestra: il gioco)
   const main = (fn, arg) => app.evaluate(fn, arg);
   const state = () => main(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows()[0]; return w && { windows: BrowserWindow.getAllWindows().length, visible: w.isVisible(), fullscreen: w.isFullScreen(), menuVisible: w.isMenuBarVisible(), menuAutoHide: w.isMenuBarAutoHide(), opacity: w.getOpacity(), url: w.webContents.getURL(), loading: w.webContents.isLoading() }; });
@@ -197,8 +203,12 @@ async function predefinito(){
   check('Esc non toglie lo schermo intero', s.fullscreen, s);
 
   // 6. window.natpfDesktop
-  const api = await page(`(() => { const d = window.natpfDesktop; return d ? { type: typeof d, shell: d.shell, version: d.version, keys: Object.keys(d).sort() } : null; })()`);
-  check('window.natpfDesktop presente come da contratto', api && api.shell === 'electron' && api.version === 1 && ['isFullScreen', 'onFullScreenChange', 'setFullScreen', 'toggleFullScreen'].every(k => api.keys.includes(k)), api);
+  const api = await page(`(() => { const d = window.natpfDesktop; return d ? { type: typeof d, shell: d.shell, version: d.version, keys: Object.keys(d).sort(), updates: d.updates ? Object.keys(d.updates).sort() : null } : null; })()`);
+  check('window.natpfDesktop presente come da contratto', api && api.shell === 'electron' && api.version === 2 && ['isFullScreen', 'onFullScreenChange', 'setFullScreen', 'toggleFullScreen', 'updates'].every(k => api.keys.includes(k))
+    && JSON.stringify(api.updates) === JSON.stringify(['check', 'download', 'install', 'onChange', 'state']), api);
+  // aggiornamenti spenti: programma non installato (Linux) e nessun indirizzo
+  const upd = await page('Promise.all([window.natpfDesktop.updates.state(), window.natpfDesktop.updates.check(), window.natpfDesktop.updates.install()])');
+  check('aggiornamenti: stato off fuori dall\'installazione, senza indirizzo', upd?.[0]?.status === 'off' && upd[1].status === 'off' && upd[1].current && upd[2].ok === false, upd);
   await page('window.natpfDesktop.onFullScreenChange(on => __prova.changes.push(on)); true');
   const was = await page('window.natpfDesktop.isFullScreen()');
   check('natpfDesktop.isFullScreen() = true', was === true, was);
@@ -336,7 +346,67 @@ async function gioco(){
   check("«All'avvio» nascosto nel programma", startRow === true, startRow);
 }
 
-const RUN = { predefinito, 'ledwall-spento': ledwallSpento, finestra, gioco };
+// --- aggiornamenti: server degli aggiornamenti finto (127.0.0.1), installazione simulata (richiesta del 07/11) --------
+// Come il bucket R2: windows/latest.json e l'installer (Range). Il programma su Linux non è «installato»: con
+// NATPF_AGGIORNAMENTI_PROVA=1 gli aggiornamenti si attivano e install() registra soltanto (non avvia niente, non chiude).
+async function aggiornamenti(){
+  const NEW = '2099-01-01.1', FILE = `NATPF-Simulator-Setup-${NEW}.exe`;
+  const body = crypto.randomBytes(2*1024*1024);
+  const manifest = { build: NEW, version: '2099.101.1', file: FILE, size: body.length, sha256: crypto.createHash('sha256').update(body).digest('hex'), notes: 'Versione di prova', published: new Date().toISOString() };
+  const seen = [];
+  const srv = http.createServer((req, res) => {
+    const p = new URL(req.url, 'http://x').pathname;
+    seen.push({ path: p, range: req.headers.range || null, at: Date.now() });
+    if (p === '/windows/latest.json'){ res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(manifest)); return; }
+    if (p !== `/windows/${FILE}`){ res.writeHead(404); res.end(); return; }
+    const m = /^bytes=(\d+)-$/.exec(req.headers.range || ''), from = m ? Number(m[1]) : 0;
+    res.writeHead(m ? 206 : 200, { 'Content-Length': body.length - from, ...(m ? { 'Content-Range': `bytes ${from}-${body.length - 1}/${body.length}` } : {}) });
+    // a pezzi da 64 KB ogni 25 ms (~0,8 s): l'avanzamento si vede
+    let at = from;
+    const step = () => { if (res.destroyed) return; if (at >= body.length){ res.end(); return; } res.write(body.subarray(at, at + 65536)); at += 65536; setTimeout(step, 25); };
+    step();
+  });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  try {
+    const started = Date.now();
+    const { main, state, page, newLog, gameLoaded } = await launch(null, { NATPF_AGGIORNAMENTI_BASE: base, NATPF_AGGIORNAMENTI_PROVA: '1' });
+    const loaded = await gameLoaded();
+    check('pagina del gioco caricata', loaded, loaded?.url);
+    if (!loaded) throw new Error('pagina del gioco non caricata');
+    const first = await page('window.natpfDesktop.updates.state()');
+    check('aggiornamenti attivi con l\'indirizzo (stato idle o già controllato)', ['idle', 'checking', 'available'].includes(first?.status) && /^\d{4}-\d{2}-\d{2}\.\d+$/.test(first.current), first);
+    await page('window.__agg = []; window.__aggOff = window.natpfDesktop.updates.onChange(s => window.__agg.push(s)); true');
+    // controllo all'avvio (dopo qualche secondo) da solo, senza scaricare
+    const auto = await until(() => seen.some(x => x.path === '/windows/latest.json'), 20000, 250);
+    check('controllo automatico qualche secondo dopo l\'avvio', auto, { secondi: auto ? ((seen.find(x => x.path === '/windows/latest.json').at - started)/1000).toFixed(1) : null });
+    const c = await page('window.natpfDesktop.updates.check()');
+    check('check(): versione nuova disponibile, con note e dimensione', c?.status === 'available' && c.latest === NEW && c.size === body.length && c.notes === 'Versione di prova' && c.checkedAt > 0, c);
+    await sleep(1500);
+    check('nessun download senza il clic dell\'utente', !seen.some(x => x.path.endsWith('.exe')), seen.map(x => x.path));
+    const d = await page('window.natpfDesktop.updates.download()');
+    check('download(): pronto da installare', d?.status === 'ready' && d.progress === 1 && d.latest === NEW, d);
+    const events = await page('window.__agg.map(s => s.status + (s.progress != null ? ":" + s.progress.toFixed(2) : ""))');
+    const prog = events.filter(e => e.startsWith('downloading:')).map(e => Number(e.split(':')[1]));
+    check('onChange: available → downloading con l\'avanzamento → ready', events.includes('available') && prog.length >= 3 && prog.every((p, i) => !i || p >= prog[i - 1]) && events.at(-1).startsWith('ready'), events);
+    const file = path.join(NATPF, 'aggiornamenti', FILE);
+    const ok = fs.existsSync(file) && crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') === manifest.sha256;
+    check('installer scaricato in NATPF/aggiornamenti con lo sha256 giusto', ok, file);
+    const inst = await page('window.natpfDesktop.updates.install()');
+    const after = await page('window.natpfDesktop.updates.state()');
+    const log = newLog();
+    check('install(): installazione simulata (su Linux non si avvia niente), stato installing', inst?.ok === true && after.status === 'installing' && /installazione simulata[^\n]*\/AGGIORNA/.test(log) && /chiusura simulata/.test(log), { inst, stato: after.status });
+    const offWorks = await page('window.__aggOff(); const n = window.__agg.length; window.natpfDesktop.updates.state().then(() => n === window.__agg.length)');
+    check('onChange: la funzione restituita toglie l\'ascolto', offWorks === true, offWorks);
+    // una pagina estranea non comanda gli aggiornamenti
+    await main(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.loadURL('data:text/html,<title>altra</title>'));
+    await until(async () => { const x = await state(); return x.url.startsWith('data:') && !x.loading; }, 10000);
+    const foreign = await page(`window.natpfDesktop ? window.natpfDesktop.updates.state().then(() => 'eseguito', e => 'rifiutato:' + e.message) : 'senza ponte'`).catch(e => `errore:${e.message}`);
+    check('pagina estranea: richiesta degli aggiornamenti rifiutata', /^rifiutato:.*non consentita|^senza ponte/.test(foreign), foreign);
+  } finally { srv.closeAllConnections?.(); srv.close(); }
+}
+
+const RUN = { predefinito, 'ledwall-spento': ledwallSpento, finestra, gioco, aggiornamenti };
 try {
   if (!args['senza-xvfb']) await startXvfb();
   for (const name of chosen){
