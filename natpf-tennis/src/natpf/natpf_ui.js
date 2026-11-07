@@ -27,6 +27,7 @@ import { p2pStatusText, P2P_NET_HINT } from './natpf_versus.js';
 import { NatpfSplitUi } from './natpf_split_ui.js';
 import { NatpfScreen } from './natpf_screen.js';
 import { NatpfCalibra } from './natpf_calibra.js';
+import { scoreboardView, scoreboardHtml } from './natpf_scoreboard.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -192,12 +193,15 @@ export class NatpfUi {
     else if ((e.kind === 'fault' || e.kind === 'whiff') && /VERY (EARLY|LATE)|WHIFF/.test(e.grade || '')) this.training.onMistime(/EARLY/.test(e.grade));
     return q;
   }
-  // game vinti dentro il tabellone (al posto delle caselle negli angoli)
+  // tabellone della partita (natpf_scoreboard.js): una riga per giocatore o squadra con chi serve, nome, game e punti,
+  // più il formato in parole. Prima «30 - 15» tra due ritratti e sotto «Game 1 – 0 · game secco» (B10, 06/11)
   onScore(score, gamesToWin){
-    const el = $('natpf-games-line'); if (!el || !score) return;
-    const p2 = this.engine.playerRole === 'p2';
-    const me = p2 ? score.opponentGames : score.playerGames, other = p2 ? score.playerGames : score.opponentGames;
-    el.innerHTML = `<span>Game</span><b>${me}</b><i>–</i><b>${other}</b><small>${gamesToWin > 1 ? `al meglio di ${gamesToWin*2 - 1}` : 'game secco'}</small>`;
+    const el = $('natpf-scoreboard'); if (!el || !score) return;
+    const E = this.engine, rs = E.roomStatus || {};
+    const v = scoreboardView(score, { gamesToWin, viewer: E.playerRole === 'p2' ? 'opponent' : 'player', multiplayer: !!E.isMultiplayer,
+      split: !!E.natpfSplit?.active, splitNames: E.natpfSplitNames, doubles: !!E.isDoubles, hostName: rs.hostName, guestName: rs.guestName });
+    const html = scoreboardHtml(v);
+    if (this._sbHtml !== html || !el.firstChild){ this._sbHtml = html; el.innerHTML = html; }
   }
   // dal menu di pausa (e dal chiosco): fine partita, allenamento o sfida, ritorno al menu principale. Prima, in
   // allenamento, lo stop passava dalla fine dell'allenamento: dal riscaldamento si finiva sulla pagina «Partita» e dalla

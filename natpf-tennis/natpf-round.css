@@ -348,6 +348,9 @@
 }
 #top-hud-bar {
   position: relative;
+  /* relativa: left/right del motore base la spostavano di lato (il tabellone non era al centro) */
+  left: 0;
+  right: 0;
 }
 .nt-scoreboard-pill {
   border-radius: var(--r-pill) !important;
@@ -357,37 +360,125 @@
   border-radius: 50% !important;
   overflow: hidden;
 }
-.natpf-games-line {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 50%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 16px;
-  border-radius: var(--r-pill);
-  background: rgba(7, 18, 51, 0.82);
-  box-shadow: inset 0 0 0 1px var(--lb-line);
-  color: var(--lb-ink);
-  font: 700 14px var(--lb-font);
-  white-space: nowrap;
-  transform: translateX(-50%);
+/* tabellone della partita (natpf_scoreboard.js, B10 del 06/11): come in televisione, una riga per giocatore o squadra
+   con chi serve (pallina), nome, game vinti e punti del game in corso; sotto il formato in parole e «Parità» o
+   «Vantaggio …». Sostituisce «30 - 15» tra i ritratti e la riga «Game 1 – 0 · game secco» (che restano nascosti: il
+   motore base li aggiorna ancora). Misure legate allo schermo (cqh del contenitore natpf): ledwall e metà schermo */
+#hud-root {
+  --sb: clamp(13px, 2.3cqh, 32px);
 }
-.natpf-games-line:empty {
+#scoreboard-pill {
+  display: none !important;
+}
+.natpf-scoreboard {
+  display: grid;
+  grid-template-columns: 0.9em minmax(4.6em, max-content) 2em 3.4em;
+  column-gap: 0.45em;
+  margin-inline: auto;
+  max-width: min(94cqw, 26em);
+  padding: 0.3em 0.35em 0.32em 0.55em;
+  border-radius: 0.6em;
+  background: rgba(7, 18, 51, 0.9);
+  box-shadow:
+    inset 0 0 0 1px var(--lb-line),
+    0 0.2em 0.7em rgba(0, 0, 0, 0.45);
+  color: var(--lb-ink);
+  font: 700 var(--sb) / 1.15 var(--lb-font);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.natpf-scoreboard:empty {
   display: none;
 }
-.natpf-games-line span,
-.natpf-games-line small {
-  color: var(--lb-muted);
-  font-weight: 600;
+.natpf-scoreboard .sb-head,
+.natpf-scoreboard .sb-row,
+.natpf-scoreboard .sb-foot {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
 }
-.natpf-games-line b {
-  min-width: 14px;
-  color: var(--lb-ball);
-  font-size: 16px;
+.natpf-scoreboard .sb-head span {
+  color: var(--lb-muted);
+  font-size: 0.5em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.natpf-scoreboard .sb-row {
+  margin-top: 0.12em;
+  padding: 0.08em 0;
+}
+.natpf-scoreboard .sb-name {
+  overflow: hidden;
+  max-width: 11em;
+  padding-left: 0.45em;
+  border-left: 0.2em solid var(--lb-ball);
+  font-weight: 800;
+  text-overflow: ellipsis;
+}
+.natpf-scoreboard .sb-them .sb-name {
+  border-left-color: var(--lb-pink);
+}
+.natpf-scoreboard .sb-serve {
+  justify-self: center;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: var(--lb-ball);
+  box-shadow: 0 0 0.35em rgba(232, 255, 58, 0.7);
+  visibility: hidden;
+}
+.natpf-scoreboard .serving .sb-serve {
+  visibility: visible;
+}
+.natpf-scoreboard .sb-games {
+  font-size: 1.12em;
+  font-weight: 800;
   text-align: center;
 }
-.natpf-training .natpf-games-line,
+.natpf-scoreboard .sb-points {
+  padding: 0.04em 0;
+  border-radius: 0.3em;
+  background: var(--lb-ball);
+  color: #0a1330;
+  font-size: 1.12em;
+  font-weight: 800;
+  text-align: center;
+}
+.natpf-scoreboard .sb-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.natpf-scoreboard .sb-foot {
+  margin-top: 0.22em;
+  color: var(--lb-muted);
+  font-size: 0.56em;
+  font-weight: 600;
+}
+.natpf-scoreboard .sb-foot [data-sb-format] {
+  grid-column: 1 / 3;
+  padding-left: 0.2em;
+}
+.natpf-scoreboard .sb-label {
+  grid-column: 3 / -1;
+  justify-self: end;
+  color: var(--lb-ball);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.natpf-scoreboard .sb-label:empty {
+  display: none;
+}
+/* l'avviso «In attesa di Player 2» del 1v1 sotto il tabellone (prima a 72 px, sotto la pillola) */
+#hud-root .opponent-presence-pill {
+  top: calc(26px + 5.4 * var(--sb));
+}
+.natpf-training .natpf-scoreboard,
 .natpf-training .pl-side-opponent {
   visibility: hidden;
 }
