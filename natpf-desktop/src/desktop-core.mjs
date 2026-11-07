@@ -1,5 +1,6 @@
 // Funzioni pure del programma Windows di NATPF Simulator (natpf-desktop/src/main.mjs): niente Electron qui, così si
-// provano con node:test (natpf-desktop/test). Richiesta del 04/11/2026: eseguibile portatile e installabile.
+// provano con node:test (natpf-desktop/test). Richiesta del 04/11/2026; dal 07/11 un solo installer che si aggiorna
+// dal gioco (aggiornamenti.mjs).
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -12,7 +13,14 @@ export const DESKTOP = Object.freeze({
   preload: 'preload.cjs',
   ipcFullscreen: 'natpf:fullscreen',
   ipcFullscreenChanged: 'natpf:fullscreen-changed',
+  // aggiornamenti dal gioco (aggiornamenti.mjs, window.natpfDesktop.updates; richiesta del 07/11/2026)
+  ipcUpdates: 'natpf:updates',
+  ipcUpdatesChanged: 'natpf:updates-changed',
+  // disinstallazione scritta dall'installer accanto al programma: c'è solo nel programma installato
+  uninstaller: 'Disinstalla NATPF Simulator.exe',
 });
+// azioni della pagina sugli aggiornamenti (window.natpfDesktop.updates)
+export const UPDATE_ACTIONS = Object.freeze(['state', 'check', 'download', 'install']);
 
 // Monitor del gioco: quello scelto l'ultima volta se c'è ancora; altrimenti il più grande non principale (agli eventi il
 // ledwall è un monitor esteso), poi il principale. displays: screen.getAllDisplays() di Electron ({ id, bounds, ... })

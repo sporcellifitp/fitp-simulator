@@ -8,6 +8,7 @@ import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { DESKTOP, readBuild, windowsVersion } from '../src/desktop-core.mjs';
+import { UPDATES, normalizeBase } from '../src/aggiornamenti.mjs';
 
 const HERE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = path.resolve(HERE, '..');
@@ -32,7 +33,14 @@ fs.mkdirSync(path.join(APP, 'node_modules'), { recursive: true });
 for (const m of ['ws', 'node-forge']) fs.cpSync(path.join(REPO, 'tools/lan/node_modules', m), path.join(APP, 'node_modules', m), { recursive: true });
 const lanPkg = JSON.parse(fs.readFileSync(path.join(REPO, 'tools/lan/package.json'), 'utf8'));
 // processo principale, ponte con la pagina del gioco (preload) e icona
-for (const f of ['main.mjs', 'desktop-core.mjs', DESKTOP.preload]) fs.copyFileSync(path.join(HERE, 'src', f), path.join(APP, f));
+for (const f of ['main.mjs', 'desktop-core.mjs', 'aggiornamenti.mjs', DESKTOP.preload]) fs.copyFileSync(path.join(HERE, 'src', f), path.join(APP, f));
+// indirizzo degli aggiornamenti (bucket pubblico di Cloudflare R2): da aggiornamenti.json del repository, oppure dalla
+// variabile NATPF_AGGIORNAMENTI_URL al momento della costruzione (il workflow la prende dalla variabile di GitHub
+// con lo stesso nome). Vuoto → aggiornamenti spenti nel programma
+const updCfg = JSON.parse(fs.readFileSync(path.join(HERE, UPDATES.config), 'utf8'));
+const updBase = normalizeBase(process.env.NATPF_AGGIORNAMENTI_URL || updCfg.base || '');
+fs.writeFileSync(path.join(APP, UPDATES.config), `${JSON.stringify({ base: updBase, hosts: Array.isArray(updCfg.hosts) ? updCfg.hosts : [] }, null, 2)}\n`);
+console.log(`aggiornamenti: ${updBase || 'spenti (indirizzo non impostato)'}`);
 fs.copyFileSync(path.join(HERE, 'build/icon.ico'), path.join(APP, 'icon.ico'));
 fs.writeFileSync(path.join(APP, 'package.json'), JSON.stringify({
   name: 'natpf-simulator', productName: 'NATPF Simulator', version: windowsVersion(build), natpfBuild: build,

@@ -1,10 +1,12 @@
-// Costruisce gli eseguibili Windows di NATPF Simulator (da Linux o da Windows), dopo scripts/prepara.mjs:
-//   dist/NATPF-Simulator-Setup-<versione>.exe      installazione (Programmi, collegamenti, firewall, disinstalla)
-//   dist/NATPF-Simulator-Portatile-<versione>.exe  un solo file, senza installazione (si estrae al primo avvio)
+// Costruisce l'installer Windows di NATPF Simulator (da Linux o da Windows), dopo scripts/prepara.mjs:
+//   dist/NATPF-Simulator-Setup-<versione>.exe   installazione e aggiornamento (Programmi, collegamenti, firewall,
+//                                               disinstallazione; /S /AGGIORNA per l'aggiornamento dal gioco)
+// Un solo eseguibile (richiesta del 07/11/2026: «un unico installer che poi deve potersi aggiornare direttamente dal
+// gioco»): il portatile non c'è più.
 // 1) electron-builder prepara dist/win-unpacked (Electron per Windows x64 con il gioco in resources/app);
-// 2) makensis (lo stesso che usa electron-builder, scaricato nella sua cache) compila build/installatore.nsi e
-//    build/portatile.nsi. Il target nsis di electron-builder da Linux chiede wine per la disinstallazione; qui la
-//    disinstallazione si scrive durante l'installazione (WriteUninstaller), quindi niente wine.
+// 2) makensis (lo stesso che usa electron-builder, scaricato nella sua cache) compila build/installatore.nsi. Il target
+//    nsis di electron-builder da Linux chiede wine per la disinstallazione; qui la disinstallazione si scrive durante
+//    l'installazione (WriteUninstaller), quindi niente wine.
 // Senza firma del codice (decisione dell'utente del 04/11): SmartScreen avvisa alla prima apertura. Icona e dati del
 // programma nell'eseguibile con resedit (da Linux non c'è rcedit, che chiede Windows o wine).
 import fs from 'node:fs';
@@ -20,7 +22,7 @@ const app = JSON.parse(fs.readFileSync(path.join(HERE, 'app/package.json'), 'utf
 const electronVersion = JSON.parse(fs.readFileSync(path.join(HERE, 'node_modules/electron/package.json'), 'utf8')).version;
 const build = app.natpfBuild, [a, b, c] = app.version.split('.').map(Number);
 
-// icona e informazioni sulla versione dentro «NATPF Simulator.exe» (prima di comporre installazione e portatile)
+// icona e informazioni sulla versione dentro «NATPF Simulator.exe» (prima di comporre l'installazione)
 function editExe(exe){
   const exeFile = ResEdit.NtExecutable.from(fs.readFileSync(exe), { ignoreCert: true });
   const res = ResEdit.NtExecutableResource.from(exeFile);
@@ -63,7 +65,7 @@ const makensis = await windowsToolset.getMakeNsisPath();
 const defines = { VERSION: app.version, BUILD: build, SRC: UNPACKED, ELENCO: elenco,
   ICONA: path.join(HERE, 'build/icon.ico'), LATO: path.join(HERE, 'build/installatore-lato.bmp'), TESTATA: path.join(HERE, 'build/installatore-testata.bmp') };
 const out = [];
-for (const [script, name] of [['installatore.nsi', `NATPF-Simulator-Setup-${build}.exe`], ['portatile.nsi', `NATPF-Simulator-Portatile-${build}.exe`]]){
+for (const [script, name] of [['installatore.nsi', `NATPF-Simulator-Setup-${build}.exe`]]){
   const file = path.join(DIST, name);
   console.log(`makensis ${script} → ${name} (compressione lzma, qualche minuto)`);
   execFileSync(makensis.path, ['-V2', '-INPUTCHARSET', 'UTF8', '-WX', ...Object.entries({ ...defines, OUT: file }).map(([k, v]) => `-D${k}=${v}`), path.join(HERE, 'build', script)],
