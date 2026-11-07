@@ -499,31 +499,48 @@ la prossima azione esatta.
 In questo ambiente `CHROMIUM_PATH` è obbligatorio: `playwright-core` di `tools/e2e` cerca un Chromium diverso da quello
 installato in `/opt/pw-browsers`.
 
-**Pacchetti** (dopo ogni commit che li cambia):
-1. Versione nuova `AAAA-MM-GG.n` in `site/js/tennis/version.js` e `site/tennis/build.json`, commit.
+**Pacchetti** (dopo ogni commit che li cambia; se il commit non li cambia si riconsegnano gli ultimi, stessa versione e
+sha256, dicendolo):
+1. Versione nuova `AAAA-MM-GG.n` in `site/js/tennis/version.js` e `site/tennis/build.json` e, se si vuole un testo
+   per chi gioca, righe `AAAA-MM-GG.n: novità` in `natpf-desktop/novita.txt` (mostrate nel gioco con l'aggiornamento;
+   senza: «Versione AAAA-MM-GG.n.»); commit, push. Il push fa partire il workflow `natpf-windows.yml` (installer e
+   aggiornamento su R2, vedi 4). **Solo una versione nuova si pubblica**: rifare il workflow o cambiare il programma
+   senza cambiare versione costruisce l'Artifact ma non tocca il bucket (un installer pubblicato non si riscrive).
 2. `cd natpf-tennis && npm run build`.
-3. Cloudflare (dal B8 lo zip si fa **solo** così): `node scripts/pacchetto-cloudflare.mjs --out=<cartella nuova>
-   --zip=<altra cartella>/natpf-simulator-cloudflare-<versione>.zip --turn-url=https://natpf-turn.s-porcelli.workers.dev/`
-   (lo zip fuori dalla cartella del pacchetto e non già esistente: lo script lo rifiuta).
-   Zip deterministico; lo script si ferma se arriva a 25.000.000 byte (richiesta dell'utente: «sempre leggermente meno
-   di 25 MB») e avvisa sopra 24.000.000; la CI lo rifà a ogni push. Se si ferma: vedere i file più grandi che elenca.
-4. LAN: `npm ci` in `tools/lan`, poi `node lan/pacchetto.mjs --out=<cartella> --node=<node-v22-win-x64.zip verificato>`,
-   zip → `natpf-simulator-lan-windows-<versione>.zip` (niente certificati o chiavi nello zip).
-5. Prova sugli zip estratti (server statico per Cloudflare; `node tools/lan/certificato.mjs` e server LAN per il
-   LAN), `unzip -l` per controllare che non ci siano doppioni di Node né certificati, sha256, consegna all'utente,
-   annotazione in `docs/WORK_PROGRESS.md` e nel Registro (§4).
-6. Eseguibili Windows (dal 04/11 sera, stessa versione dei pacchetti): `npm ci` in `tools/lan`, poi in
-   `natpf-desktop`: `ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci`, `npm test`, `npm run costruisci` (~15 minuti, compressione
-   lzma). Controllo con il 7zz della cache di electron-builder (`~/.cache/electron-builder/7zip@*/…/bin/7zz l`):
-   ~300 file, nessun `.pem` o chiave, `resources/app` uguale a `dist/win-unpacked`; sha256; consegna insieme agli zip
-   e aggiornamento delle dimensioni e degli sha256 in `docs/COLLAUDO_WINDOWS.md` §0. Procedura completa in
-   `natpf-desktop/LEGGIMI.md`. **Consegna a pezzi** (dal 05/11: l'utente non riusciva a scaricare gli `.exe` da
-   ~125 MB dal messaggio; gli zip da ~60 MB sì): `node scripts/dividi.mjs` → `dist/consegna/` con pezzi da 45 MB
-   (`.001`, `.002`, …) e `UNISCI I PEZZI.cmd` (copy /b e controllo dello sha256 con certutil); si mandano quelli.
-   **In più, su GitHub** (richiesta del 05/11: «un unico file che scaricherò da lì»): il workflow
-   `.github/workflows/natpf-windows.yml` costruisce gli stessi eseguibili a ogni cambio di versione (o del programma
-   Windows) e li pubblica come un unico zip in Actions → «NATPF eseguibili Windows» → esecuzione → Artifacts (30
-   giorni): si dà all'utente il link dell'esecuzione. Gli sha256 di quella build sono in `SHA256SUMS.txt` nello zip.
+3. **Cloudflare** (come dal B8): `node scripts/pacchetto-cloudflare.mjs --out=<cartella nuova>
+   --zip=<altra cartella>/natpf-simulator-cloudflare-<versione>.zip --turn-url=https://natpf-turn.s-porcelli.workers.dev/`;
+   lo script si ferma a 25.000.000 byte e avvisa sopra 24.000.000. Prova sullo zip estratto (server statico), sha256.
+4. **Installer Windows** (unico eseguibile, stessa versione): `npm ci` in `tools/lan`, poi in `natpf-desktop`:
+   `ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci`, `npm test`, `npm run costruisci` (~15 minuti, lzma) →
+   `natpf-desktop/dist/NATPF-Simulator-Setup-<versione>.exe`. Con l'indirizzo degli aggiornamenti (quando l'utente l'ha
+   dato): in `natpf-desktop/aggiornamenti.json` (`"base"`) o `NATPF_AGGIORNAMENTI_URL=<indirizzo> npm run costruisci`;
+   senza, l'installer ha gli aggiornamenti spenti (stato `off`). Controllo con il 7zz della cache di electron-builder
+   (`~/.cache/electron-builder/7zip@*/…/bin/7zz l`): ~300 file, nessun `.pem` o chiave, `resources/app` uguale a
+   `dist/win-unpacked`, `resources/app/aggiornamenti.json` con l'indirizzo giusto; sha256; dimensioni e sha256 in
+   `docs/COLLAUDO_WINDOWS.md` §0 se cambiano.
+   **Su GitHub** lo stesso installer lo costruisce il workflow a ogni cambio di versione: Artifacts
+   (`NATPF-Simulator-Windows-<versione>`: `.exe`, `SHA256SUMS.txt`, `latest.json`, lista di collaudo; 30 giorni) e,
+   con i segreti R2 dell'utente, **aggiornamento pubblicato su R2**: `windows/NATPF-Simulator-Setup-<versione>.exe`,
+   poi `windows/latest.json`, poi `windows/NATPF-Simulator-Setup.exe` (link fisso per la prima installazione). Da lì
+   i programmi installati con l'indirizzo vedono la versione nuova e si aggiornano dal gioco. Controllo: riepilogo
+   dell'esecuzione («Aggiornamento … pubblicato su Cloudflare R2») e `<indirizzo>/windows/latest.json` nel browser.
+   Senza segreti il workflow avvisa e l'installer resta solo negli Artifacts.
+5. **Consegna all'utente**: zip Cloudflare (sha256) e installer (link dell'esecuzione di GitHub o del bucket; se
+   serve, a pezzi con `node scripts/dividi.mjs` → `dist/consegna/`, pezzi da 45 MB e `UNISCI I PEZZI.cmd`).
+   Annotazione in `docs/WORK_PROGRESS.md` e nel Registro (§4).
+6. **Niente più** zip LAN (`natpf-tennis/lan/pacchetto.mjs` resta: lo usa `natpf-desktop/scripts/prepara.mjs` per
+   mettere il server dei telefoni nel programma) né portatile (`build/portatile.nsi` tolto).
+
+**Aggiornamenti: cose da sapere per chi coordina**
+- Contratto con il gioco: `window.natpfDesktop.updates` (versione 2 del ponte), descritto in
+  `natpf-desktop/src/preload.cjs` e `natpf-desktop/LEGGIMI.md` § «Aggiornamenti dal gioco».
+- Il bucket e i segreti li prepara l'utente con `docs/GUIDA_AGGIORNAMENTI_R2.md`; poi manda l'indirizzo pubblico (o
+  imposta la variabile del repository `NATPF_AGGIORNAMENTI_URL`). La prima versione con l'indirizzo si installa a mano.
+- Ogni aggiornamento chiede il permesso di Windows (UAC): l'installazione è per il computer (Programmi e firewall).
+- Un correttivo dell'installer va pubblicato con una **versione nuova**: con la stessa versione il workflow salta il
+  bucket («Aggiornamenti già pubblicati»).
+- Prova su Linux: `cd natpf-desktop && node scripts/prepara.mjs && node scripts/prova-linux.mjs` (scenario
+  `aggiornamenti` con un server finto; porte 8443, 8081, 8080 libere).
 
 **Rollback della presa** (dopo B3): cambiare la costante del profilo di presa da `palmo` a `martello` (modulo
 indicato in `PROJECT_MEMORY.md` §Gesti), `npm test`, pacchetti. In alternativa `git revert` dei commit di B3 elencati
