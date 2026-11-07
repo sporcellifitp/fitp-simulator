@@ -15,6 +15,7 @@ const PHRASES = [
   ["UPWARD FLICK / SPACE", "Polso in alto / Spazio"],
   ["SWEET SPOT APEX", "Impatto al vertice"],
   ["SWEET SPOT", "Centro piatto"],
+  ["SUPER SHOT", "Super colpo"],
   ["VERY EARLY", "Molto in anticipo"],
   ["VERY LATE", "Molto in ritardo"],
   ["TOO LATE", "Troppo tardi"],

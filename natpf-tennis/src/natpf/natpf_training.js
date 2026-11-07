@@ -121,6 +121,18 @@ export function trainingDirection({ x, hitX = 0, contact = 1 } = {}){
   if (x*from < 0) return Math.abs(x - hitX) >= 2 ? 'cross' : null;
   return Math.abs(x - hitX) <= 2.6 ? 'line' : null;
 }
+// colpo e lato che l'allenamento conta: quelli che il gioco chiama per nome. Il motore gioca da sopra la testa ogni palla
+// sopra 2,3 m (swingType «smash», esito «SMASH»), ma la scritta e la voce dicono «Schiacciata» solo con il gesto della
+// schiacciata (natpfLastRacket.smashCalled, natpf_stroke_outcome.smashCalled). Prima un dritto su una palla alta passava
+// l'esercizio della schiacciata («Schiacciata ✓» con la scritta «Perfetto» e senza voce: revisione B10) e nell'esercizio
+// del dritto diventava «Era un rovescio». La schiacciata non chiamata conta come colpo piatto, dal lato del gesto
+// (racket.contact: +1 dritto per chi gioca con la destra)
+export function trainingShot({ swingType = null, racket = null, lastShot = null, hand = 'right' } = {}){
+  const raw = racket?.out?.shot ? String(racket.out.shot).toLowerCase() : null, uncalled = raw === 'smash' && racket.smashCalled === false;
+  const side = swingType === 'backhand' ? 'backhand' : swingType !== 'smash' ? 'forehand'
+    : !uncalled ? 'smash' : (Number(racket.contact) || 1)*(hand === 'left' ? -1 : 1) < 0 ? 'backhand' : 'forehand';
+  return { shot: uncalled ? 'flat' : raw || lastShot, side };
+}
 export function drillAfterShot(drill, progress, { side, inCourt, shot = null, direction = null, volley = false }){
   // prova guidata della diagnostica: ogni palla giocata è un campione (il giudizio lo fanno le metriche, con il video)
   if (drill.diag) return { ...progress, tries: progress.tries + 1, done: progress.done + 1, ok: true };
@@ -434,14 +446,13 @@ export class NatpfTraining {
     const E = this.engine, d = this.drill;
     if (!d) return;
     this.stats.shots++; if (q.color === 'green') this.stats.perfect++; if (q.label === 'Fuori') this.stats.out++;
-    const side = E.player.swingType === 'backhand' ? 'backhand' : E.player.swingType === 'smash' ? 'smash' : 'forehand';
     // il servizio si conta qui; gli altri esercizi quando la palla è giocabile (anche fuori conta come tentativo)
     const before = this.progress.done;
     const mirror = E.playerRole === 'p2' ? -1 : 1, record = E.natpfLastRacket;
     const racket = record && Math.abs(E.elapsedTime - record.at) < .1 ? record : null;
+    const { shot: appliedShot, side } = trainingShot({ swingType: E.player.swingType, racket, lastShot: this.lastShot, hand: this.ui.hand?.hand });
     const direction = trainingDirection({ x: E.ball.targetLanding?.x*mirror, hitX: racket?.hitX ?? E.ball.pos.x*mirror,
       contact: racket?.contact ?? (side === 'backhand' ? -1 : 1)*(this.ui.hand?.hand === 'left' ? -1 : 1) });
-    const appliedShot = racket?.out?.shot?.toLowerCase() || this.lastShot;
     this.progress = drillAfterShot(d, this.progress, { side: d.id === 'serve' ? 'serve' : side,
       inCourt: q.color !== 'red' && !['Fuori', 'Mancata', 'In rete'].includes(q.label), shot: appliedShot, direction, volley: !!racket?.volley });
     this.lastShot = null;
