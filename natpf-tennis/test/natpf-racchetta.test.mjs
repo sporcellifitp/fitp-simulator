@@ -10,6 +10,8 @@ import { classifyStroke } from '../src/natpf/natpf_stroke_intent.js';
 import { racketSim, strokeDir } from './racket-sim.mjs';
 import { strokeIntent } from '../src/natpf/natpf_stroke_intent.js';
 import { simPhone } from './phone-sim.mjs';
+import { readCard, calibratedPhone } from './pose-sensors.mjs';
+import { gesturePose, gesturePlan } from '../src/natpf/natpf_gesture_pose.js';
 
 /* ---------- mano unica ---------- */
 test('mano: una sola, quella del gioco; va al telefono, torna dal telefono e la calibrazione non la cambia', () => {
@@ -421,4 +423,53 @@ test('presa del 19/10 senza calibrazione («Salta»): la salita abituale si impa
   m.reset(); assert.equal(habitualRise({ simple: true }, 1, m), null);
   // imparata la salita della presa, il tagliato vero (la testa scende di molto di più) resta un tagliato
   assert.equal(classifyStroke({ plane: .9, rise: -.62, roll: 0, tilt: .6 }, { power: .6, riseRef: -.3 }).shot, 'slice');
+});
+
+// Revisione B10 (07/11): le palle corte (salita ≈ −0,88) entravano nella salita abituale imparata giocando. Dopo 4 palle
+// corte e 2 dritti era −0,60 e un tagliato voluto e un piatto si leggevano top spin. Ora non insegnano niente le palle
+// corte riconosciute dalla forma senza la salita abituale (byShape: taglio verticale morbido, o come la propria palla
+// corta degli esercizi); quelle «dall'alto in basso» (sotto la soglia del tagliato, morbide o corte) restano come i
+// tagliati, così i colpi normali compatti di chi prona, senza calibrazione, smettono di essere palle corte
+test('salita abituale: le palle corte riconosciute dalla forma non la insegnano; quelle «dall\'alto in basso» sì, come i tagliati', () => {
+  const vertical = classifyStroke({ rise: -.88, plane: .3 }, { power: .25, angle: 60 });
+  assert.equal(vertical.shot, 'drop'); assert.equal(vertical.byShape, true);
+  const chop = classifyStroke({ rise: -.45, plane: .9 }, { power: .6, angle: 40 });   // corta: piano orizzontale, swing corto
+  assert.equal(chop.shot, 'drop'); assert.ok(!chop.byShape);
+  assert.ok(!classifyStroke({ rise: -.5, plane: .9 }, { power: .6, angle: 80 }).byShape);
+  // come la propria palla corta degli esercizi (personalSpecial): riconosciuta dalla forma
+  const own = strokeIntent({ shape: { rise: -.1, plane: .8 }, peak: 400, angle: 60 }, { personal: { normal: { rise: .2, plane: .9, power: .6 }, drop: { rise: -.1, plane: .8, power: .136 } } });
+  assert.equal(own.shot, 'drop'); assert.equal(own.byShape, true);
+  assert.equal(strokeIntent({ shape: { rise: .25, plane: .9 }, peak: 700, angle: 80 }).byShape, false);
+  // il modello: learn salta pallonetti, schiacciate e i colpi riconosciuti dalla forma
+  const m = createRiseModel();
+  for (let i = 0; i < 4; i++) m.learn(1, -.88, { shot: 'drop', byShape: true });
+  m.learn(1, .2, { shot: 'topspin' }); m.learn(1, .21, { shot: 'topspin' }); m.learn(1, .9, { shot: 'lob' }); m.learn(1, .1, null);
+  assert.equal(m.ref(1), null, 'due colpi normali: ancora niente');
+  m.learn(1, -.45, { shot: 'drop' });
+  assert.equal(m.ref(1), .2);
+  assert.equal(habitualRise({ simple: true }, 1, m), .2);
+});
+
+test('in partita (NatpfPhoneRacket): pallonetti, palle corte e colpi normali alternati, poi tagliato e piatto voluti restano tagliato e piatto (prima: top spin)', () => {
+  const want = { lob: 'lob', drop: 'drop', forehand: 'topspin', backhand: 'topspin', slice: 'slice', flat: 'flat' };
+  const seq = ['lob', 'drop', 'forehand', 'lob', 'drop', 'forehand', 'lob', 'drop', 'backhand', 'drop', 'lob', 'slice', 'drop', 'flat', 'lob', 'drop', 'drop', 'slice', 'flat'];
+  for (const hand of ['right', 'left']) for (const cal of ['arm', 'pose']){
+    const src = { pose: (id, t, h) => gesturePose(id, t, { hand: h }), plan: id => gesturePlan(id) };
+    const sim = calibratedPhone(src, { hand, cal });
+    const got = [], phone = new NatpfPhoneRacket({ playerRole: 'p1', phase: 'RALLY', motionController: { _emitSwing: e => got.push(e) },
+      ball: { inPlay: true, lastHitter: 'opponent', pos: { x: .6, y: 1, z: 6 }, vel: { x: 0, y: 0, z: 12 } }, player: { pos: { x: 0, z: 11.4 } }, opponent: { pos: { x: 0, z: -11.4 } } });
+    phone.link = { ready: true, connected: true, send(){}, cmd(){} };
+    phone.setHand(hand);
+    phone._onCal({ kind: 'done', profile: sim.det.profile });
+    const bad = [];
+    seq.forEach((id, i) => {
+      const r = readCard(src, id, { hand, phone: sim }), b = got.length;
+      for (const d of r.msgs) phone._onSwing(parseSwingMessage(d, { at: performance.now()/1000, now: d.pk + 20 }));
+      const shots = got.slice(b).map(e => e.natpf.shot).join('+');
+      if (shots !== want[id]) bad.push(`${i} ${id} → ${shots} (abituale ${got.at(-1)?.natpf.intent?.riseRef})`);
+    });
+    assert.deepEqual(bad, [], `${hand}, calibrazione ${cal}`);
+    const fore = phone.profileRise(hand === 'left' ? -1 : 1);
+    assert.ok(fore > 0, `salita abituale del dritto ${fore}`);
+  }
 });

@@ -77,7 +77,9 @@ export const swingReach = angle => (Number.isFinite(angle) ? clamp((angle - INTE
 // racchetta virtuale anche nel colpo normale (presa del 19/10), con il telefono nel palmo e la cima in avanti il colpo
 // normale scende (29/10): top spin e piatto si leggono rispetto a questa; tagliato e schiacciata si spostano solo per
 // diventare più difficili, il pallonetto si misura sopra il proprio colpo normale. Senza (null) le soglie assolute.
-// Restituisce { shot, conf (margine 0…1 dalla soglia più vicina), why }.
+// Restituisce { shot, conf (margine 0…1 dalla soglia più vicina), why }, più byShape: true quando il colpo è riconosciuto
+// dalla sua forma senza la salita abituale (palla corta «taglio verticale morbido»): non insegna la salita abituale
+// (natpf_phone_racket.createRiseModel.learn).
 export function classifyStroke(shape, { power = .5, angle = null, ballHigh = null, riseRef = null } = {}){
   const I = INTENT, r = finite(shape?.rise), P = Math.abs(finite(shape?.plane, 1)), tilt = finite(shape?.tilt), p = clamp(finite(power, .5));
   const ref = clamp(finite(riseRef), I.riseRefMin, I.riseRefMax), rel = r - ref;
@@ -94,7 +96,7 @@ export function classifyStroke(shape, { power = .5, angle = null, ballHigh = nul
     return { shot: 'lob', conf: m(r - softLobAt, .3), why: [`la testa sale decisa (${said})`, `gesto morbido (${p.toFixed(2)})`] };
   // Una carezza verticale resta una palla corta: non deve scendere ancora oltre la pronazione del dritto.
   if ((!Number.isFinite(angle) || angle >= I.dropMinAngle) && r <= I.dropSoftRise && P <= I.dropVerticalPlane && p <= I.dropPower)
-    return { shot: 'drop', conf: Math.min(m(I.dropSoftRise - r, .3), m(I.dropPower - p, .2)), why: ['taglio verticale morbido', `discesa ${r.toFixed(2)}, forza ${p.toFixed(2)}`] };
+    return { shot: 'drop', conf: Math.min(m(I.dropSoftRise - r, .3), m(I.dropPower - p, .2)), why: ['taglio verticale morbido', `discesa ${r.toFixed(2)}, forza ${p.toFixed(2)}`], byShape: true };
   if (r <= sliceAt){
     // palla corta: morbido o corto, ma un gesto vero (senza ampiezza misurata vale com'era)
     const real = !Number.isFinite(angle) || angle >= I.dropMinAngle;
@@ -160,8 +162,11 @@ export function strokeIntent(s, { ref = null, rawRef = null, ballHigh = null, he
   const sp = shapePower(s);
   const own = cls.shot === 'smash' ? null : personalSpecial({ rise: finite(s.shape.rise), plane: Math.abs(finite(s.shape.plane, 1)), power: sp }, personal || {});
   if (own && own.shot !== cls.shot) cls = { shot: own.shot, conf: +clamp((own.dN - own.d)/2).toFixed(2), why: [own.shot === 'lob' ? 'come il tuo pallonetto' : 'come la tua palla corta', `distanza ${own.d} (dal colpo normale ${own.dN})`] };
+  // byShape: riconosciuto dalla forma senza la salita abituale (palla corta verticale e morbida, o come il proprio gesto
+  // speciale degli esercizi): non insegna la salita abituale dei colpi normali (createRiseModel.learn)
+  const byShape = !!cls.byShape || !!own;
   return {
-    shot: cls.shot, conf: cls.conf, why: cls.why, power: +power.toFixed(3), shapePower: +sp.toFixed(3), reach: +reach.toFixed(3),
+    shot: cls.shot, conf: cls.conf, why: cls.why, byShape, power: +power.toFixed(3), shapePower: +sp.toFixed(3), reach: +reach.toFixed(3),
     // profondità voluta 0…1: la forza, un poco ridotta se lo swing è corto (un colpo bloccato è più corto)
     depth: +clamp(power*(INTENT.reachDepth + (1 - INTENT.reachDepth)*reach)).toFixed(3),
     rise: finite(s.shape.rise), plane: finite(s.shape.plane), tilt: finite(s.shape.tilt), roll: finite(s.shape.roll),
