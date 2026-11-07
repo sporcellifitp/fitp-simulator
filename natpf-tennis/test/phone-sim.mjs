@@ -116,7 +116,7 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
     if (!expect && NORMAL_SHOTS.has(ev.natpf.shot)){ lifts.model.add(s.dir, s.lift); heads.model.add(s.dir, ev.natpf.head); }
     if (!expect){ faces.add(s.dir, s.face); aims.add(s.dir, s.heading); }
     if (!expect) rises.learn(s.dir, s.shape?.rise, ev.natpf.intent);
-    if (rally && !expect) typical.add(s.peak);
+    if (rally && !expect) typical.learn(s.peak, ev.natpf.intent);
     return { s, ev };
   };
   return { det, face, cal, msgs, rest, pose, swing, calibrate, skip, game, sampleWorld, get t(){ return t; }, get q(){ return q; } };

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
 import { parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { QUICK_PLAN } from '@natpf/tennis/calibration.js';
-import { NatpfPhoneRacket, natpfSwingToEngine, riseRefOf, createRiseModel, habitualRise } from '../src/natpf/natpf_phone_racket.js';
+import { NatpfPhoneRacket, natpfSwingToEngine, riseRefOf, createRiseModel, habitualRise, createTypicalModel } from '../src/natpf/natpf_phone_racket.js';
 import { classifyStroke } from '../src/natpf/natpf_stroke_intent.js';
 import { racketSim, strokeDir } from './racket-sim.mjs';
 import { strokeIntent } from '../src/natpf/natpf_stroke_intent.js';
@@ -473,3 +473,44 @@ test('in partita (NatpfPhoneRacket): pallonetti, palle corte e colpi normali alt
     assert.ok(fore > 0, `salita abituale del dritto ${fore}`);
   }
 });
+
+// Passaggio di consegne §3.6 (07/11): il colpo tipico (riferimento della forza) imparava da tutti i colpi dello scambio.
+// Le palle corte morbide (≈ 381 °/s) lo abbassavano: dopo 4 palle corte era 381 e il dritto si leggeva colpo piatto
+// (forza 0,69 invece di 0,51), il tagliato più forte (0,59 invece di 0,40). Ora non lo insegnano pallonetti, schiacciate e
+// colpi riconosciuti dalla forma (come la salita abituale); le palle corte «dall'alto in basso» sì
+test('colpo tipico: non lo insegnano palle corte riconosciute dalla forma, pallonetti e schiacciate; il resto sì', () => {
+  const m = createTypicalModel();
+  for (let i = 0; i < 4; i++) m.learn(381, { shot: 'drop', byShape: true });
+  m.learn(700, { shot: 'lob' }); m.learn(1200, { shot: 'smash' });
+  assert.equal(m.value, null, 'solo colpi speciali: nessun colpo tipico');
+  m.learn(670, { shot: 'topspin' }); m.learn(680, { shot: 'flat' }); m.learn(560, { shot: 'slice' });
+  assert.equal(m.value, 670);
+  m.learn(420, { shot: 'drop' }); m.learn(410, { shot: 'drop' });   // «dall'alto in basso»: può essere un colpo compatto
+  assert.equal(m.value, 560);
+  m.reset(); m.learn(500, null); m.learn(510, null); m.learn(520, null);   // senza la forma (telefoni vecchi): come prima
+  assert.equal(m.value, 510);
+  m.learn(150, { shot: 'topspin' }); assert.equal(m.value, 510, 'sotto «from» non conta');
+});
+
+test('in partita (NatpfPhoneRacket): dopo quattro palle corte il dritto resta un dritto con la stessa forza; piatto e tagliato restano quelli (prima: piatto)', () => {
+  const src = { pose: (id, t, h) => gesturePose(id, t, { hand: h }), plan: id => gesturePlan(id) };
+  for (const hand of ['right', 'left']) for (const cal of ['arm', 'pose']){
+    const sim = calibratedPhone(src, { hand, cal });
+    const got = [], phone = new NatpfPhoneRacket({ playerRole: 'p1', phase: 'RALLY', motionController: { _emitSwing: e => got.push(e) },
+      ball: { inPlay: true, lastHitter: 'opponent', pos: { x: .6, y: 1, z: 6 }, vel: { x: 0, y: 0, z: 12 } }, player: { pos: { x: 0, z: 11.4 } }, opponent: { pos: { x: 0, z: -11.4 } } });
+    phone.link = { ready: true, connected: true, send(){}, cmd(){} };
+    phone.setHand(hand);
+    phone._onCal({ kind: 'done', profile: sim.det.profile });
+    const play = id => { const r = readCard(src, id, { hand, phone: sim }), b = got.length; for (const d of r.msgs) phone._onSwing(parseSwingMessage(d, { at: performance.now()/1000, now: d.pk + 20 })); return got.slice(b); };
+    const tag = `${hand}, calibrazione ${cal}`;
+    const base = ['forehand', 'forehand', 'forehand'].map(play).at(-1)[0].natpf;
+    for (let i = 0; i < 4; i++) assert.deepEqual(play('drop').map(e => e.natpf.shot), ['drop'], tag);
+    play('lob');
+    const fore = play('forehand'), flat = play('flat'), slice = play('slice');
+    assert.deepEqual([fore, flat, slice].map(x => x.map(e => e.natpf.shot).join('+')), ['topspin', 'flat', 'slice'], tag);
+    assert.ok(Math.abs(fore[0].natpf.intent.power - base.intent.power) < .06, `${tag}: forza del dritto ${fore[0].natpf.intent.power} contro ${base.intent.power}`);
+    assert.ok(Math.abs(fore[0].natpf.typical - base.typical) < 20, `${tag}: colpo tipico ${fore[0].natpf.typical} contro ${base.typical}`);
+    assert.ok(slice[0].natpf.intent.power < .5, `${tag}: forza del tagliato ${slice[0].natpf.intent.power}`);
+  }
+});
+

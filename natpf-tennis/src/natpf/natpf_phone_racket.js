@@ -98,12 +98,22 @@ export const RISE_LEARN = Object.freeze({ min: 3, verified: 5, keep: 9, skip: Ob
 // poi; prima, il verso più deciso della calibrazione. Dice al motore se un gesto è debole rispetto ai propri colpi
 // (natpf_impact.WEAK: preparazione o micro-movimento, che da solo non colpisce in anticipo). Chi gioca con colpetti
 // piccoli ha un colpo tipico piccolo
-export const TYPICAL = Object.freeze({ keep: 9, min: 3, from: 200 });
+// 07/11 (passaggio di consegne §3.6, verificato con il telefono simulato e le pose del tutorial): il colpo tipico
+// imparava da tutti i colpi dello scambio. Le palle corte morbide (≈ 381 °/s contro i 670 del dritto) lo abbassavano:
+// dopo 4 palle corte era 381 e il dritto successivo si leggeva colpo piatto (forza 0,69 invece di 0,51; il tagliato 0,59
+// invece di 0,40), destro e mancino, calibrazione con il braccio e con l'animazione. Ora, come la salita abituale
+// (createRiseModel.learn), non insegnano il colpo tipico pallonetti, schiacciate e i colpi riconosciuti dalla forma
+// (byShape: palla corta verticale e morbida, o come il proprio gesto degli esercizi). Le palle corte «dall'alto in basso»
+// restano: senza calibrazione possono essere colpi normali compatti letti male, e il colpo tipico che li impara li fa
+// tornare colpi normali. Senza la forma (telefoni vecchi) si impara come prima
+export const TYPICAL = Object.freeze({ keep: 9, min: 3, from: 200, skip: Object.freeze(['lob', 'smash']) });
 export function createTypicalModel({ keep = TYPICAL.keep, min = TYPICAL.min, from = TYPICAL.from } = {}){
   const h = [];
   return {
     reset(){ h.length = 0; },
     add(peak){ if (Number.isFinite(peak) && peak >= from){ h.push(peak); if (h.length > keep) h.shift(); } },
+    // da un colpo letto (strokeIntent): solo i colpi normali
+    learn(peak, intent){ if (intent && (intent.byShape || TYPICAL.skip.includes(intent.shot))) return; this.add(peak); },
     get value(){ if (h.length < min) return null; const v = [...h].sort((a, b) => a - b), m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m])/2; },
   };
 }
@@ -589,7 +599,7 @@ export class NatpfPhoneRacket {
     if (Number.isFinite(s.angle)) ev.natpf.angle = s.angle;
     // gesto fatto a richiesta negli esercizi del pallonetto e della palla corta: non insegna niente del colpo normale
     const expect = typeof this.expectSpecial === 'function' ? this.expectSpecial() || null : null, rally = this.engine.phase === 'RALLY';
-    if (rally && !expect) this.typicalModel.add(s.peak);
+    if (rally && !expect) this.typicalModel.learn(s.peak, ev.natpf.intent);
     this.lastPrep = null;
     if (!ev.side) ev.side = sideFromBall(this.engine, this.hand, this.role);
     // riferimenti personali solo dai colpi normali: prima entravano anche pallonetti e palle corte, e dopo tre di fila il
