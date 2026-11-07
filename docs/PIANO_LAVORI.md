@@ -34,10 +34,16 @@ Come si aggiorna:
   `7c037ab5…c087fc5a`, novità), azioni senza avviso di Node 20; «NATPF Simulator tests» rosso solo in
   `gesture-calibration.mjs:73` (due tentativi; in locale 18/18 due volte: instabilità nota dei runner, §3.10 del
   passaggio di consegne).
-- **Prossima azione esatta:** aspettare il collaudo dell'utente: 07.4 installata → avviso nel menu → Aggiorna →
-  Riavvia e aggiorna → gioco riaperto in 07.5; poi i punti aperti del passaggio di consegne §3 in ordine (6 e 10 fatti
-  nel B12; da valutare la prova `gesture-calibration` da rendere stabile sui runner).
-
+- **Richiesta nuova (07/11 sera):** «sistema la prova gesture-calibration. In parallelo, rivedi ancora i gesti del
+  tutorial, il dritto non mi sembra tale e ci sono troppi colpi che non simulano la fisica del movimento del braccio
+  con il telefono in mano» → **B13**.
+- **Blocco in corso:** B13, in due rami paralleli: (a) `tools/e2e/gesture-calibration.mjs` stabile sui runner lenti
+  (servizio col telefono del sito: `toss: null` al secondo gesto); (b) moto dei gesti del tutorial
+  (`natpf-tennis/src/natpf/natpf_gesture_pose.js`, disegno `natpf_gesture_demo.js`) rifatto su una catena
+  spalla-gomito-polso fisicamente plausibile, senza perdere la fedeltà al riconoscimento (`natpf-gesture-pose.test.mjs`,
+  `natpf-gesture-anim.test.mjs`). Analisi e prove in `docs/b13/` quando pronte.
+- **Prossima azione esatta:** se il lavoro si interrompe, ripartire da (a) e (b) leggendo `docs/b13/` (se c'è) e il
+  passaggio di consegne §3; il collaudo dell'aggiornamento 07.4 → 07.5 dall'utente resta da fare.
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
 1. **Push**: dopo ogni commit verificato, subito, su `origin natpf-simulator`. Verificato = test del gioco e del sito
@@ -113,6 +119,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B10 Voce, tabellone, scritte, prove | [x] | voce «smash» solo per la schiacciata, tabellone come in TV, scritte del colpo fuori dal campo nel 2v2, palla corta e salita abituale, blocco di 1 s, prove rifatte | `8a12f2b`…`f490c7b` | 2026-11-07.1–.3 |
 | B11 Installer unico con aggiornamenti | [x] | un solo installer Windows che si aggiorna dal gioco (Cloudflare R2, bucket UE `natpfsimulator`), zip LAN e portatile tolti; collaudo Windows dell'utente in corso | `8623bd9`…`fa190f2` | 2026-11-07.4 |
 | B12 Forza del colpo e CI | [x] | colpo tipico solo dai colpi normali (palle corte non abbassano più la forza); azioni di GitHub a Node 24 | vedi WORK_PROGRESS B12 | 2026-11-07.5 |
+| B13 Prova del servizio e gesti del tutorial | [~] | `gesture-calibration` stabile in CI; moto dei gesti del tutorial con la fisica del braccio (dritto credibile) | — | — |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).
