@@ -1921,7 +1921,11 @@ export class NatpfTennisEngine {
         ? NO.smashAt(e, this.ball.pos.y, { serveReturn: Number(this.ball.rallyStrokeCount || 0) <= 1 }) // NATPF racchetta virtuale: schiacciata dal gesto e dall'altezza della palla (in risposta al servizio solo dal gesto)
         : e.side === "overhead" ||
           ((this.selectedShotType === "FLAT" || e.shotType === "smash") && this.ball.pos.y > 1.5) ||
-          this.ball.pos.y > 1.78;
+          this.ball.pos.y > 1.78,
+      // NATPF: schiacciata chiamata per nome (scritta e voce «Smash») solo se voluta: gesto della schiacciata E palla alta
+      // (natpf_stroke_outcome.smashCalled). Prima la voce la diceva per ogni palla giocata da sopra la testa: dritti sopra
+      // 2,3 m, nel doppio volée sopra 1,78 m e colpi forti sopra 1,5 m (segnalazione del 06/11)
+      dn = NO.smashCalled(e, { smash: d, serveReturn: !t && Number.isFinite(e.natpfTau) && Number(this.ball.rallyStrokeCount || 0) <= 1 });
     if (
       ((p.swingType = d ? "smash" : m ? "backhand" : "forehand"),
       (p.swingDuration = 0.36),
@@ -2112,24 +2116,23 @@ export class NatpfTennisEngine {
           T === "FLAT" || d || racketShot?.super ? "smash" : T.toLowerCase(),
           u === "PERFECT" || racketShot?.super ? "perfect" : "good",
         ),
-        p.swingType === "smash" && !this.autoPlayMode && this.audioEngine.playVoiceCallout("smash"),
         // NATPF: colpo super potente: sforzo e il pubblico che trattiene il fiato
         racketShot?.super && !this.autoPlayMode && (this.audioEngine.playerVoice?.("effort"), this.audioEngine.playCrowdReaction?.("ooh")));
     const F = Math.round(this.ball.vel.length() * 6.8),
-      H = d ? "SMASH" : m ? "BACKHAND" : "FOREHAND",
+      H = dn ? "SMASH" : m ? "BACKHAND" : "FOREHAND",
       // NATPF: i colpi speciali si vedono sempre per nome (prima «anticipo/ritardo» copriva pallonetto e palla corta)
-      natpfSpecial = d ? "SMASH" : natpfDrop ? "DROP SHOT" : T === "LOB" ? "LOB" : T === "SLICE" ? "SLICE" : null,
+      natpfSpecial = dn ? "SMASH" : natpfDrop ? "DROP SHOT" : T === "LOB" ? "LOB" : T === "SLICE" ? "SLICE" : null,
       // NATPF: con la racchetta virtuale incrociato e lungolinea dalla caduta vera (la direzione segue il ritmo di chi
       // gioca, non solo il voto del tempo)
       natpfDir = racketShot && racketShot.out ? Math.sign(racketShot.contact || 1) * racketShot.out.x : null,
       X = racketShot?.super
-        ? "SUPER SHOT"
+        ? (dn ? "SUPER SHOT SMASH" : "SUPER SHOT")
         : l
         ? "NET VOLLEY"
         : _
           ? "DEFENSIVE"
           : natpfSpecial && !t
-            ? (d ? "SMASH" : `${H} ${natpfSpecial}`)
+            ? (dn ? "SMASH" : `${H} ${natpfSpecial}`)
           : natpfDir != null
             ? (natpfDir <= -1 ? `${H} CROSS` : natpfDir >= 1 ? `${H} LINE` : `${H} ${T}`)
           : u === "EARLY"
@@ -2139,6 +2142,8 @@ export class NatpfTennisEngine {
               : `${H} ${T}`;
     if (!this.autoPlayMode) {
       const A = this._projectToScreen(p.pos.clone().add(new o.Vector3(0, 2.35, 0)));
+      // NATPF: «Smash» detto solo quando la scritta del colpo lo dice (prima: da swingType, anche sotto «Volée» o «Super!»)
+      /\bSMASH\b/.test(X) && this.audioEngine && this.audioEngine.playVoiceCallout("smash");
       this.hud.showTimingPopup({ grade: `${u} \u2022 ${X}!`, detail: `${F} KM/H`, screenPos: A }),
         this.motionController &&
           this.motionController.triggerHapticFeedback &&
@@ -2146,7 +2151,7 @@ export class NatpfTennisEngine {
             role: "p1",
             kind: _ ? "fault" : "hit",
             grade: `${u} \u2022 ${X}`,
-            shotType: d ? "SMASH" : T,
+            shotType: dn ? "SMASH" : T,
             speedKmh: F,
             intensity: M ? 1.45 : _ ? 0.75 : 1.1,
           });
@@ -2273,7 +2278,8 @@ export class NatpfTennisEngine {
         ? NO.smashAt(e, this.ball.pos.y)
         : e.side === "overhead" ||
           ((m === "FLAT" || e.shotType === "smash") && this.ball.pos.y > 1.5) ||
-          this.ball.pos.y > 1.78;
+          this.ball.pos.y > 1.78,
+      dn = NO.smashCalled(e, { smash: d }); // NATPF: come per il P1, «SMASH» scritto solo per la schiacciata voluta
     if (
       ((l.swingType = d ? "smash" : f ? "backhand" : "forehand"),
       (l.swingDuration = 0.36),
@@ -2437,7 +2443,7 @@ export class NatpfTennisEngine {
         );
     const O = Math.round(this.ball.vel.length() * 6.8),
       // NATPF: i colpi speciali del P2 si vedono per nome, come quelli del P1
-      natpfP2Special = natpfSwing || natpfDrop ? (d ? "SMASH" : natpfDrop ? "DROP SHOT" : m === "LOB" ? "LOB" : m === "SLICE" ? "SLICE" : null) : null,
+      natpfP2Special = natpfSwing || natpfDrop ? (dn ? "SMASH" : natpfDrop ? "DROP SHOT" : m === "LOB" ? "LOB" : m === "SLICE" ? "SLICE" : null) : null,
       N = p2Racket?.super
         ? "SUPER SHOT"
         : r
@@ -2458,7 +2464,7 @@ export class NatpfTennisEngine {
           role: "p2",
           kind: "hit",
           grade: `${u} \u2022 ${N}`,
-          shotType: d ? "SMASH" : m,
+          shotType: dn ? "SMASH" : m,
           speedKmh: O,
           intensity: w ? 1.45 : 1.1,
         }),
