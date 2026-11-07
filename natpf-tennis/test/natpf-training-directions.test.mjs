@@ -43,6 +43,35 @@ test('speciali: si giudica il colpo applicato dal motore, non soltanto quello ri
   T.onShot({ color: 'green', label: 'Perfetto' }); assert.equal(T.progress.done, 1);
 });
 
+// revisione B10 (voce «smash»): il motore gioca da sopra la testa ogni palla sopra 2,3 m, ma la scritta e la voce dicono
+// «Schiacciata» solo con il gesto della schiacciata. L'esercizio conta il colpo chiamato: un dritto su una palla alta
+// diceva «Schiacciata ✓» sulla scheda con la scritta «Perfetto» e senza voce
+test('esercizio Schiacciata nel motore: un dritto su una palla alta non conta, il gesto della schiacciata sì', async () => {
+  const w = await makeWorld(); w.link.ready = true; w.link.L.phone = 'ready';
+  const T = w.ui.training, E = w.E; T.start({ drills: [DRILLS.find(d => d.id === 'smash')] });
+  const popups = [], show = E.hud.showTimingPopup.bind(E.hud);
+  E.hud.showTimingPopup = (o) => { popups.push(String(o.grade)); return show(o); };
+  const strike = (shot, y) => {
+    const power = .6;
+    E.phase = 'RALLY'; E.ball.inPlay = true; E.ball.lastHitter = 'opponent'; E.ball.bounceCountOnCurrentSide = 0; E.ball.rallyStrokeCount = 4;
+    E.player.pos.set(.3, 0, 7.5); E.player.targetPos.copy(E.player.pos); E.player.swingCooldown = 0;
+    E.ball.pos.set(.8, y, 7.2); E.ball.vel.set(0, -1, 14); E.ball.targetLanding.set(.3, 0, 8.5);
+    return E._attemptPlayerRallyStrike({ source: 'natpf-phone', side: 'forehand', shotType: shot === 'smash' ? 'smash' : 'topspin', speed: .8 + power*.85, dirX: 0,
+      natpfTau: 0, natpfLateSpan: .1, natpf: { aim: 'swing', shot, intent: { shot, power, depth: power, rise: 0, face: 0 }, power, peak: 900, latency: 0, hand: 'right' } }, false);
+  };
+  for (const y of [2.45, 2.8]){
+    assert.ok(strike('topspin', y), `dritto a ${y} m colpito`);
+    assert.equal(E.natpfLastRacket.out.shot, 'SMASH', 'il motore la gioca da sopra la testa');
+    assert.ok(!/SMASH/.test(popups.at(-1)), popups.at(-1));
+    assert.equal(T.progress.done, 0, `dritto a ${y} m contato come schiacciata (${T.message})`);
+    assert.doesNotMatch(T.message, /✓/);
+  }
+  assert.ok(strike('smash', 2.0), 'schiacciata colpita');
+  assert.match(popups.at(-1), /SMASH/);
+  assert.equal(T.progress.done, 1, T.message);
+  assert.match(T.message, /Schiacciata ✓/);
+});
+
 test('lanciapalle della schiacciata: traiettoria alta prima del rimbalzo, non il lancio normale', async () => {
   const w = await makeWorld(); w.link.ready = true; w.link.L.phone = 'ready';
   const T = w.ui.training; T.start({ drills: [DRILLS.find(d => d.id === 'smash')] });

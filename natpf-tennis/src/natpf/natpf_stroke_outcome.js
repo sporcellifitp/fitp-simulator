@@ -334,23 +334,23 @@ export function smashAt(e = {}, ballY = 1, { serveReturn = false } = {}){
 // Gesto della schiacciata (solo per il nome del colpo e la voce, non per l'esito). Dal telefono: il colpo riconosciuto
 // (classifyPhoneShot / strokeIntent: palla alta + mano che scende). Dalla webcam e dagli altri controlli: «smash» da sopra
 // la testa, non un colpo veloce di lato (webcam_argon_track e motion_controls chiamano «smash» anche ogni swing forte).
+const SMASH_DOWN = .5;
 export function smashGesture(e = {}){
   if (e.side === 'overhead') return true;
   const n = e.natpf || {};
   if ((n.intent && typeof n.intent === 'object') || n.shot) return eventIntent(e).shot === 'smash';
   if (String(e.shotType || '').toLowerCase() !== 'smash') return false;
-  return !((e.side === 'forehand' || e.side === 'backhand') && finite(e.dirY) < Math.abs(finite(e.dirX)));
+  // dall'alto in basso almeno quanto la regola della webcam (webcam_strokes: −D.u ≥ 0,5·|D.x|): una schiacciata che
+  // scende in diagonale resta una schiacciata (prima serviva dirY ≥ |dirX|: «Dritto incrociato» senza voce)
+  return !((e.side === 'forehand' || e.side === 'backhand') && finite(e.dirY) < SMASH_DOWN * Math.abs(finite(e.dirX)));
 }
 // Schiacciata da chiamare per nome (scritta del colpo e voce «Smash», segnalazione del 06/11: «la voce dice "smash" ma
 // non è realmente quel colpo»): il motore la gioca da sopra la testa (smash: smashAt, o la regola di sempre del doppio,
-// palla sopra 1,78 m o colpo forte sopra 1,5 m) E chi gioca l'ha voluta: il gesto della schiacciata, o con la forma del
-// colpo la mano che scende decisa (la regola di smashAt sotto «always», non in risposta al servizio). Un dritto, una volée
-// o un colpo forte su una palla alta restano col loro nome e senza voce.
-export function smashCalled(e = {}, { smash = false, serveReturn = false } = {}){
-  if (!smash) return false;
-  if (smashGesture(e)) return true;
-  const it = eventIntent(e);
-  return !serveReturn && !it.derived && finite(it.rise) - finite(it.riseRef) <= SMASH_FROM.rise && finite(it.power, .5) >= SMASH_FROM.power;
+// palla sopra 1,78 m o colpo forte sopra 1,5 m) E chi gioca ha fatto il gesto della schiacciata (smashGesture). Un
+// dritto, una volée, un colpo forte o un tagliato che scende deciso all'altezza della spalla (regola del 29/10 di
+// smashAt: il motore lo gioca da sopra la testa, ma il gesto non è una schiacciata) restano col loro nome e senza voce.
+export function smashCalled(e = {}, { smash = false } = {}){
+  return !!smash && smashGesture(e);
 }
 
 // Servizio dal gesto (prima era sempre «POWER SERVE» con la posizione a caso: sessione del 22/10). Il lancio parte con il

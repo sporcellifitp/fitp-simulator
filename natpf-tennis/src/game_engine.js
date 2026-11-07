@@ -1875,7 +1875,7 @@ export class NatpfTennisEngine {
             role: _,
             kind: "hit",
             grade: T,
-            shotType: s ? "SMASH" : "TOPSPIN",
+            shotType: s ? "POWER" : "TOPSPIN", // NATPF: servizio potente, non «Smash!» sul telefono
             speedKmh: w,
             intensity: s ? 1.5 : n ? 0.75 : 1.05,
           });
@@ -1925,7 +1925,7 @@ export class NatpfTennisEngine {
       // NATPF: schiacciata chiamata per nome (scritta e voce «Smash») solo se voluta: gesto della schiacciata E palla alta
       // (natpf_stroke_outcome.smashCalled). Prima la voce la diceva per ogni palla giocata da sopra la testa: dritti sopra
       // 2,3 m, nel doppio volée sopra 1,78 m e colpi forti sopra 1,5 m (segnalazione del 06/11)
-      dn = NO.smashCalled(e, { smash: d, serveReturn: !t && Number.isFinite(e.natpfTau) && Number(this.ball.rallyStrokeCount || 0) <= 1 });
+      dn = NO.smashCalled(e, { smash: d });
     if (
       ((p.swingType = d ? "smash" : m ? "backhand" : "forehand"),
       (p.swingDuration = 0.36),
@@ -1995,7 +1995,7 @@ export class NatpfTennisEngine {
       natpfTau = natpfSwing ? (e.sweetSpotAssisted ? Number(e.natpfLead || 0) + NS.eventLatency(e) : NS.swingTiming(g, this.ball.vel.z)) : 0;
     natpfSwing && ({ grade: u, cursor: w } = NS.swingGrade(natpfTau, NS.skillLevel(this.matchConfig.difficulty)));
     // NATPF racchetta virtuale: esito deterministico del colpo (intenzione dal gesto, tempo vero, esecuzione), niente caso
-    const racketShot = !t && Number.isFinite(e.natpfTau) ? this._natpfRacketShot(e, p, { lateral: c, smash: d, running: p.vel.length() / Math.max(1, p.maxSpeed) }) : null;
+    const racketShot = !t && Number.isFinite(e.natpfTau) ? this._natpfRacketShot(e, p, { lateral: c, smash: d, called: dn, running: p.vel.length() / Math.max(1, p.maxSpeed) }) : null;
     racketShot && ((u = racketShot.u), (w = racketShot.w));
     const _ = racketShot ? racketShot.defensive : u === "VERY EARLY" || u === "VERY LATE",
       T = racketShot ? racketShot.T : this.selectedShotType || "TOPSPIN",
@@ -2151,7 +2151,8 @@ export class NatpfTennisEngine {
             role: "p1",
             kind: _ ? "fault" : "hit",
             grade: `${u} \u2022 ${X}`,
-            shotType: dn ? "SMASH" : T,
+            // NATPF: al telefono «Smash!» solo se la scritta e la voce lo dicono (non sotto «Volée» del compagno)
+            shotType: /\bSMASH\b/.test(X) ? "SMASH" : T,
             speedKmh: F,
             intensity: M ? 1.45 : _ ? 0.75 : 1.1,
           });
@@ -2174,7 +2175,8 @@ export class NatpfTennisEngine {
   }
   // NATPF racchetta virtuale: esito deterministico del colpo di chi gioca (natpf_stroke_outcome.js). lateral: distanza
   // laterale della palla; smash: colpo da sopra la testa; running: corsa al momento del colpo (0…1)
-  _natpfRacketShot(e, p, { lateral = 0, smash = !1, running = 0 } = {}) {
+  // called: schiacciata chiamata per nome (NO.smashCalled: gesto della schiacciata), per chi legge l'esito (allenamento)
+  _natpfRacketShot(e, p, { lateral = 0, smash = !1, called = smash, running = 0 } = {}) {
     const lv = NS.skillLevel(this.matchConfig.difficulty), b = this.ball;
     // chi colpisce verso −z (P1) o verso +z (P2 nel 1v1): l'esito è nel suo riferimento (x a destra), poi si specchia
     const toward = p === this.opponent ? 1 : -1, mirror = toward === 1 ? -1 : 1;
@@ -2225,7 +2227,7 @@ export class NatpfTennisEngine {
       I = NO.outcomeFlight({ ...out, flight: null }, { fromY, fromZ: b.pos.z, toZ: N, flight: NS.mistimeFlight(NS.streakFlight(base, toward === 1 ? st.p2Streak : st.streak, lv), out.q) / (sup.on ? NO.SUPER.speedUp : 1) });
     }
     // seq: numero del colpo del telefono (diagnostica); at: istante del motore, per riconoscere un esito nuovo
-    this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, hitX: +hitX.toFixed(3), quality: +(quality * pressure).toFixed(3), pressure: +pressure.toFixed(3), cause, volley, flight: +I.toFixed(3), seq: (e.natpf && e.natpf.seq) ?? null, at: this.elapsedTime, super: sup.on ? sup.ball : null, superWhy: sup.why };
+    this.natpfLastRacket = { who: toward === 1 ? "p2" : "player", intent, out, timing: e.natpfTau, contact, hitX: +hitX.toFixed(3), quality: +(quality * pressure).toFixed(3), pressure: +pressure.toFixed(3), cause, volley, flight: +I.toFixed(3), seq: (e.natpf && e.natpf.seq) ?? null, at: this.elapsedTime, super: sup.on ? sup.ball : null, superWhy: sup.why, smashCalled: !!called };
     // altezza minima sopra il nastro per il lancio: più bassa per il colpo super, la chiusura sopra la rete e la schiacciata
     const netClear = sup.on ? NO.SUPER.netGap : out.attack ? Math.max(0.05, out.clear - S.NET_HEIGHT_CENTER) : null;
     return {
@@ -2351,7 +2353,7 @@ export class NatpfTennisEngine {
       ? NS.swingQuality(natpfTau, natpfLv) * NS.prepQuality(e.natpf) * NS.reachQuality(g, l.vel.length() / Math.max(1, l.maxSpeed))
       : e.sweetSpotAssisted && p >= -1.85 && p <= 0.78 ? NS.assistGrade(e.natpfLead, NS.skillLevel("1v1")).quality : NS.timingQuality(u, p);
     // NATPF racchetta virtuale: il colpo del P2 senza caso, con lo stesso esito del P1 specchiato (_natpfRacketShot)
-    const p2Racket = natpfSwing ? this._natpfRacketShot({ ...e, natpfTau }, l, { lateral: g, smash: d, running: l.vel.length() / Math.max(1, l.maxSpeed) }) : null;
+    const p2Racket = natpfSwing ? this._natpfRacketShot({ ...e, natpfTau }, l, { lateral: g, smash: d, called: dn, running: l.vel.length() / Math.max(1, l.maxSpeed) }) : null;
     p2Racket && (u = p2Racket.u);
     T = p2Racket
       ? p2Racket.E
@@ -2445,7 +2447,7 @@ export class NatpfTennisEngine {
       // NATPF: i colpi speciali del P2 si vedono per nome, come quelli del P1
       natpfP2Special = natpfSwing || natpfDrop ? (dn ? "SMASH" : natpfDrop ? "DROP SHOT" : m === "LOB" ? "LOB" : m === "SLICE" ? "SLICE" : null) : null,
       N = p2Racket?.super
-        ? "SUPER SHOT"
+        ? (dn ? "SUPER SHOT SMASH" : "SUPER SHOT") // NATPF: come per il P1
         : r
         ? "NET VOLLEY"
         : natpfP2Special
@@ -2464,7 +2466,7 @@ export class NatpfTennisEngine {
           role: "p2",
           kind: "hit",
           grade: `${u} \u2022 ${N}`,
-          shotType: dn ? "SMASH" : m,
+          shotType: /\bSMASH\b/.test(N) ? "SMASH" : m, // NATPF: come la scritta del P2
           speedKmh: O,
           intensity: w ? 1.45 : 1.1,
         }),
