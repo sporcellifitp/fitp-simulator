@@ -356,6 +356,7 @@ export class NatpfTennisEngine {
       (this.swingVfx = new ee(this.scene)),
       this._setupLightingAndSky(),
       this._setupEffectsPools(),
+      this._natpfWatchTextures(),
       (this.natpfArena = installNatpfArena(this)),
       this._initHudAndControllers(),
       (this.clock = new o.Clock()),
@@ -3838,13 +3839,13 @@ export class NatpfTennisEngine {
   // NATPF: sfondo del menu. Prima dietro il menu girava una partita dimostrativa (camera che segue la palla, scie,
   // stelline, pubblico in movimento) disegnata a ogni fotogramma e sfocata con un backdrop-filter sull'intera pagina:
   // sfarfallio e fotogrammi persi nella home. Ora con il menu aperto l'arena è un'inquadratura ferma, ridisegnata solo
-  // quando serve (all'ingresso, a ogni ridimensionamento, nei primi secondi per le texture che arrivano dopo); il gioco
-  // non avanza, ma il telefono, l'interfaccia e la lobby della sfida 1v1 continuano a funzionare.
-  _natpfBackdropFrame(dt) {
+  // quando serve (all'ingresso, a ogni ridimensionamento, quando arriva una texture caricata dopo); il gioco non avanza,
+  // ma il telefono, l'interfaccia e la lobby della sfida 1v1 continuano a funzionare.
+  _natpfBackdropFrame(dt, now = performance.now()) {
     const want = !!this.natpfUi?.menuBackdrop?.();
     if (want !== !!this.natpfBackdrop) {
       this.natpfBackdrop = want;
-      want && (this._natpfBackdropPose(), (this.natpfBackdropDirty = !0), (this.natpfBackdropSince = performance.now()), (this.natpfBackdropTick = 0));
+      want && (this._natpfBackdropPose(), (this.natpfBackdropDirty = !0), (this.natpfBackdropSince = now), (this.natpfBackdropTick = 0));
     }
     if (!want) return !1;
     this.elapsedTime += dt;
@@ -3856,18 +3857,34 @@ export class NatpfTennisEngine {
       this.elapsedTime - this.lastSyncSentAt >= VERSUS.lobbyEvery &&
       ((this.lastSyncSentAt = this.elapsedTime), this._broadcastMultiplayerSnapshot());
     this.natpfPhone && this.natpfPhone.update(), this.natpfPhone2 && this.natpfPhone2.update(), this.natpfUi && this.natpfUi.tick && this.natpfUi.tick(dt);
-    // si ridisegna solo quando serve: all'ingresso, a ogni ridimensionamento e, nei primi 8 s, una volta al secondo
-    // (texture dei loghi che arrivano dopo il primo disegno); poi l'immagine resta quella. Tempo vero, non quello del
-    // gioco (che a fotogrammi lenti avanza meno)
-    const tick = Math.floor((performance.now() - (this.natpfBackdropSince || 0)) / 1000);
-    (this.natpfBackdropDirty || (tick !== this.natpfBackdropTick && tick <= 8)) && ((this.natpfBackdropDirty = !1), (this.natpfBackdropTick = tick), this.render());
+    // si ridisegna solo quando serve: all'ingresso, a ogni ridimensionamento e quando è arrivata una texture dopo
+    // l'ultimo disegno (grafiche dell'arena, _natpfWatchTextures), al più una volta al secondo; poi l'immagine resta
+    // quella. Prima si ridisegnava una volta al secondo per 8 s a ogni ingresso nel menu anche con tutte le texture già
+    // arrivate (al primo avvio lo sono prima del primo disegno): senza GPU (WebGL in software) ogni disegno costa ~1 s
+    // e fermava per 1 s l'interfaccia e le animazioni dei gesti nella lobby dello stesso schermo (44 fps invece di 60).
+    // Tempo vero, non quello del gioco (che a fotogrammi lenti avanza meno)
+    const tick = Math.floor((now - (this.natpfBackdropSince || 0)) / 1000),
+      late = this.natpfTextureArrived && tick !== this.natpfBackdropTick;
+    (this.natpfBackdropDirty || late) &&
+      ((this.natpfBackdropDirty = this.natpfTextureArrived = !1), (this.natpfBackdropTick = tick), this.render());
     return !0;
+  }
+  // NATPF: le texture caricate da file (grafiche dell'arena di site/js/tennis/arena.js e del motore: TextureLoader con il
+  // gestore predefinito di three) chiedono un ridisegno dello sfondo fermo quando arrivano. Il gestore chiama onProgress
+  // dopo che il TextureLoader ha messo l'immagine nella texture (anche dopo un errore); si conserva un onProgress già messo
+  _natpfWatchTextures(manager = o.DefaultLoadingManager) {
+    if (!manager) return;
+    const prev = manager.onProgress;
+    manager.onProgress = (...a) => {
+      this.natpfTextureArrived = !0;
+      typeof prev == "function" && prev.apply(manager, a);
+    };
   }
   // NATPF: un fotogramma del ciclo di requestAnimationFrame (dt in s): 'backdrop' | 'paused' | 'play'
   _natpfFrame(dt, now = performance.now()) {
     // con il menu aperto lo sfondo è un'inquadratura ferma dell'arena (_natpfBackdropTick), non più la partita
     // dimostrativa disegnata a ogni fotogramma sotto un blur
-    if (this._natpfBackdropFrame(dt)) return "backdrop";
+    if (this._natpfBackdropFrame(dt, now)) return "backdrop";
     // partita ferma mentre si leggono le istruzioni o si collega il telefono: niente update e disegno solo quando serve
     if (this.natpfPaused) return this._natpfPauseFrame(now), "paused";
     (this.natpfPauseSince = this.natpfPauseDrawnAt = null), this.update(dt), this.render();
