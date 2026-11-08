@@ -141,10 +141,17 @@ export function createFaceModel({ keep = 12, min = 3 } = {}) {
 // drift 0,01 (era 0,03): dieci colpi mirati di fila a 20° toglievano il 30% della mira (0,6° a colpo); una deriva vera
 // oltre settle la recupera la verifica del seme, il «pull» oltre 25° e, sul telefono, la posa «pronto» che segue il
 // telefono fermo (face-tracker)
-// biasLow / commonLow: una volta partito, il «pull» continua finché lo scarto non scende sotto (isteresi): un riferimento
-// sbagliato si recupera del tutto, non fino a 25° (dove la mira resterebbe quasi satura da una parte)
+// Isteresi a due velocità (B15, secondo giro): una volta partito, il «pull» porta lo scarto a biasLow (20°, sotto la
+// mira piena) di biasPull a colpo, poi continua piano (biasSlow) fino a biasEnd (10°): un riferimento sbagliato si
+// recupera del tutto, ma in una trentina di colpi, e una mira tenuta resta. Con un solo passo fino a 10° (primo giro)
+// una mira piena tenuta, il piatto girato di 30° per 14 dritti di fila, finiva a 0,63 m dal centro (banco colpi.mjs;
+// 1,20 m prima del B15): la mira tenuta e il riferimento girato di 25–35° non si distinguono, si distinguono solo per
+// quanto durano. Ora (banco colpi.mjs, sequenze dopo 12 colpi normali): +30° ×14 → 1,72 m alla fine (mancino −1,64; con
+// INTENT.faceSpan di adesso, vedi lì); riferimento girato di 35–40° → scarto 8–10° dopo 20 colpi, 2–3° dopo 30 (primo
+// giro 3° e 1°; prima del B15 2–5° e 1°); girato di 30° o meno non parte (come nel primo giro); 20° ×10 non parte
 export const AIM = Object.freeze({ gain: 22, settle: 10, alpha: .12, drift: .01, min: 3, maxDev: 80, seedAlpha: .35,
-  verify: 4, verifyDev: 20, keep: 12, biasFrom: 10, biasDev: 25, biasLow: 10, biasPull: .2, commonFrom: 3, commonDev: 25, commonLow: 10, commonPull: .2 });
+  verify: 4, verifyDev: 20, keep: 12, biasFrom: 10, biasDev: 25, biasLow: 20, biasEnd: 10, biasPull: .2, biasSlow: .05,
+  commonFrom: 3, commonDev: 25, commonLow: 20, commonEnd: 10, commonPull: .2, commonSlow: .05 });
 const wrapDeg = a => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };
 // mediana circolare (gradi): +179° e −179° sono vicini
 const circMedian = a => (a.length ? wrapDeg(a[0] + median(a.map(h => wrapDeg(h - a[0])))) : null);
@@ -184,18 +191,18 @@ export function createAimModel({ gain = AIM.gain, settle = AIM.settle, alpha = A
       // tutti i colpi recenti da una parte: il centro va verso di loro (anche da oltre maxDev: un centro molto sbagliato
       // si recupera)
       if (st.recent.length >= AIM.biasFrom) {
-        const off = wrapDeg(circMedian(st.recent) - st.center);
-        st.pulling = Math.abs(off) > AIM.biasDev || (st.pulling && Math.abs(off) > AIM.biasLow);
-        if (st.pulling) st.center = wrapDeg(st.center + AIM.biasPull * off);
+        const off = wrapDeg(circMedian(st.recent) - st.center), o = Math.abs(off);
+        st.pulling = o > AIM.biasDev || (st.pulling && o > AIM.biasEnd);
+        if (st.pulling) st.center = wrapDeg(st.center + (o > AIM.biasLow ? AIM.biasPull : AIM.biasSlow) * off);
       }
       // dritti e rovesci dalla stessa parte: il riferimento si è girato, i due centri vanno insieme
       const A = S[1], B = S[-1];
       if (A.center != null && B.center != null && A.recent.length >= AIM.commonFrom && B.recent.length >= AIM.commonFrom) {
         const a = wrapDeg(circMedian(A.recent) - A.center), b = wrapDeg(circMedian(B.recent) - B.center);
         const least = Math.sign(a) === Math.sign(b) ? Math.min(Math.abs(a), Math.abs(b)) : 0;
-        this.commonPulling = least > AIM.commonDev || (this.commonPulling && least > AIM.commonLow);
+        this.commonPulling = least > AIM.commonDev || (this.commonPulling && least > AIM.commonEnd);
         if (this.commonPulling) {
-          const shift = Math.sign(a) * AIM.commonPull * least;
+          const shift = Math.sign(a) * (least > AIM.commonLow ? AIM.commonPull : AIM.commonSlow) * least;
           A.center = wrapDeg(A.center + shift); B.center = wrapDeg(B.center + shift);
         }
       }

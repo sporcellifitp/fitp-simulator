@@ -7,7 +7,7 @@
 //   • centro della mira: biasPull/commonPull da 12°/8° e drift 0,03 → dieci dritti girati di 20° cadevano da 2,9 a 1,1 m.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makePhone, warmPhone, gesture, variant, strike } from '../scripts/audit/colpi.mjs';
+import { makePhone, warmPhone, gesture, variant, strike, sequence as seq } from '../scripts/audit/colpi.mjs';
 import { rng } from './phone-sim.mjs';
 import { createAimModel } from '../src/natpf/natpf_gestures.js';
 
@@ -82,13 +82,29 @@ test('la mira tenuta non viene assorbita: dieci dritti girati di 20°, e dritti 
   assert.ok(alt[8].x >= .85*alt[0].x && alt[9].x >= .85*alt[1].x, `alternati: ${alt.map(r => r.x)}`);
 });
 
-test('centro della mira: un riferimento sbagliato oltre 25° si recupera del tutto (isteresi), uno scarto tenuto sotto 25° resta', () => {
-  const m = createAimModel(); m.seed(1, 0);
-  for (let i = 0; i < 6; i++) m.add(1, 5 + (i % 2));         // colpi normali: il seme vale
-  for (let i = 0; i < 20; i++) m.add(1, 32 + (i % 3));
-  assert.ok(Math.abs(m.aim(1, 33).aim) < .3, `riferimento girato recuperato: centro ${m.center(1)}`);
+// secondo giro: l'isteresi a due velocità (AIM.biasLow 20, poi biasSlow fino a biasEnd 10) recupera il riferimento girato
+// in una trentina di colpi invece che in venti (primo giro: 32–34° recuperati in 20 colpi, ma la mira piena tenuta finiva
+// al centro: prova qui sotto)
+test('centro della mira: un riferimento girato di 35–40° si recupera del tutto in una trentina di colpi (isteresi), uno scarto tenuto sotto 25° resta', () => {
+  for (const turn of [35, 38, 40]){
+    const m = createAimModel(); m.seed(1, 0);
+    for (let i = 0; i < 6; i++) m.add(1, 5 + (i % 2));         // colpi normali: il seme vale
+    for (let i = 0; i < 30; i++) m.add(1, turn - 1 + (i % 3));
+    assert.ok(Math.abs(m.aim(1, turn).aim) < .2, `riferimento girato di ${turn}° recuperato: centro ${m.center(1)}`);
+  }
   const w = createAimModel(); w.seed(1, 0);
   for (let i = 0; i < 6; i++) w.add(1, 5 + (i % 2));
   for (let i = 0; i < 20; i++) w.add(1, 22 + (i % 3));
   assert.ok(w.aim(1, 23).aim > .6, `mira tenuta a 22° ancora piena: ${JSON.stringify(w.aim(1, 23))} centro ${w.center(1)}`);
+});
+
+// secondo giro B15: con l'isteresi del primo giro (dopo il «pull», fino a 10°) quattordici dritti con il piatto girato di
+// 30° (mira piena) finivano a 0,63 m dal centro; prima del B15 a 1,20 m. Anche il mancino, allo specchio
+test('mira piena tenuta: quattordici dritti con il piatto girato di 30° restano lontani dal centro, destro e mancino', () => {
+  for (const hand of ['right', 'left']){
+    const rows = seq({ side: 'forehand', k: 1, yaw: 30 }, { n: 14, hand });
+    const sx = hand === 'left' ? -1 : 1, x = rows.map(r => sx*r.x);
+    assert.ok(x[0] > 3, `${hand}: primo ${x[0]}`);
+    assert.ok(x.at(-1) >= 1.5, `${hand}: mira tenuta ${x.map(v => v.toFixed(2))}`);
+  }
 });
