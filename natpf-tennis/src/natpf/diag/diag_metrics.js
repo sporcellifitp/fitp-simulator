@@ -111,7 +111,7 @@ function webcamStates(changes, pauses){
 }
 // tipi di evento che le metriche leggono: l'analisi a righe (diag_analysis.js) tiene in memoria solo questi
 export const METRIC_KINDS = new Set(['tel.colpo', 'tel.orologio', 'tel.stato', 'tel.link', 'tel.scartato', 'tel.prep', 'tel.dispositivo', 'webcam.frame', 'webcam.evento', 'webcam.camera', 'webcam.ritmo', 'webcam.carico', 'webcam.stato', 'webcam.modello', 'webcam.riapertura', 'webcam.pausa', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.link', 'tel2.colpo', 'prestazioni',
-  'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'punto', 'rimbalzo', 'tentativo', 'atteso', 'avviso', 'video', 'marca', 'sfida.colpo', 'sfida.colpo_vecchio', 'popup']);
+  'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'punto', 'rimbalzo', 'tentativo', 'atteso', 'avviso', 'video', 'marca', 'sfida.colpo', 'sfida.colpo_vecchio', 'popup', 'partita']);
 // ms dal rimbalzo della palla dell'avversario al colpo di chi gioca qui (evento racchetta entro 1,5 s, prima di un altro
 // rimbalzo o di un punto)
 function bounceToContact(events){
@@ -166,6 +166,94 @@ function phoneTiming(events){
   const tt = events.filter(e => e.k === 'tentativo' && Number.isFinite(e.tauMs));
   return { tempoTelefonoMs: dist(tt.map(x => x.tauMs)), ...(tt.length ? { tempoTelefonoFonte: 'tentativo' } : {}) };
 }
+// ---- lato delle palle per partita (B16 · decisione (d) dell'utente sulla mira più sensibile: «ok ma come lo misuro?») ----
+// Per chi gioca con il telefono (P1 e, nel 1v1, P2), partita per partita: dove vanno le sue palle nel suo riferimento
+// (x del punto di caduta del colpo, evento «racchetta»: + alla destra di chi colpisce guardando la rete; per il P2 la x del
+// campo cambia segno). Il punto di caduta è quello calcolato dal colpo (la direzione scelta), non il rimbalzo vero: lo
+// scarto tra i due è in racchetta.cadutaScartoM. Si contano tutti i colpi dello scambio, anche quelli finiti in rete o
+// fuori; non i servizi, l'allenamento (riscaldamento compreso), i minigiochi e i colpi della webcam (che non ha la mira
+// del piatto). Misure: quota a sinistra · al centro (entro SIDE.center m dal centro) · a destra; |mediana x| per blocchi
+// di SIDE.block colpi (come il banco del B15, scripts/audit/colpi.mjs «partite»; l'ultimo blocco solo se ha almeno
+// SIDE.minBlock colpi); verdetto con la soglia SIDE.share sulle metà del campo (x > 0 contro x < 0: «palle da una
+// parte», come nel banco del B15, docs/b15/audit-colpi.md §8) e almeno SIDE.min colpi. Il mancino è a specchio: la
+// parte è quella vista da chi gioca, e il testo dice anche se è la parte del dritto o del rovescio (come per il destro).
+export const SIDE = Object.freeze({ center: 1, share: .7, min: 20, block: 20, minBlock: 10, alert: .2 });
+const fmtN = (v, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '–');
+const median = a => { const v = a.filter(Number.isFinite).sort((x, y) => x - y), m = v.length >> 1; return v.length ? (v.length % 2 ? v[m] : (v[m - 1] + v[m])/2) : null; };
+const modeOf = a => { const c = tally(a, x => x); const top = Object.entries(c).sort((p, q) => q[1] - p[1])[0]; return top ? top[0] : null; };
+const AIM_NAMES = { 17: 'alta', 20: 'media', 23: 'bassa' };
+export const aimName = deg => (Number.isFinite(+deg) && AIM_NAMES[+deg] ? AIM_NAMES[+deg] : null);
+const isPhoneShot = e => !e.fonte || /phone/.test(String(e.fonte));
+export function sideJudge(xs, { hand = null } = {}){
+  const v = xs.filter(Number.isFinite), n = v.length, pc = k => (n ? Math.round(100*k/n) : null);
+  const left = count(v, x => x < -SIDE.center), right = count(v, x => x > SIDE.center), halfL = count(v, x => x < 0), halfR = count(v, x => x > 0);
+  const blocks = [];
+  for (let i = 0; i < n; i += SIDE.block){
+    const b = v.slice(i, i + SIDE.block);
+    if (b.length >= SIDE.minBlock) blocks.push({ colpi: `${i + 1}–${i + b.length}`, mediana: r2(Math.abs(median(b))) });   // solo l'ultimo può essere corto
+  }
+  const side = halfR >= halfL ? 'destra' : 'sinistra', share = n ? Math.max(halfL, halfR)/n : 0;
+  const verdetto = n < SIDE.min ? 'pochi colpi' : share >= SIDE.share ? 'sbilanciata' : 'equilibrata';
+  // parte del dritto: per il destro la sua destra, per il mancino la sua sinistra
+  const fh = hand === 'left' ? 'sinistra' : hand === 'right' ? 'destra' : null;
+  const colpo = fh ? (side === fh ? 'dritto' : 'rovescio') : null;
+  const testo = verdetto === 'pochi colpi' ? `troppo pochi colpi per giudicare (${n}, ne servono ${SIDE.min})`
+    : verdetto === 'sbilanciata' ? `sbilanciata a ${side}${colpo ? ` (dalla parte del ${colpo})` : ''}: ${pc(Math.max(halfL, halfR))} % dei colpi da quella parte`
+    : `equilibrata: ${pc(halfL)} % dei colpi a sinistra del centro, ${pc(halfR)} % a destra`;
+  return { colpi: n, sinistraPercento: pc(left), centroPercento: pc(n - left - right), destraPercento: pc(right), metaSinistraPercento: pc(halfL), metaDestraPercento: pc(halfR),
+    medianaX: r2(median(v)), blocchi: blocks, verdetto, lato: verdetto === 'sbilanciata' ? side : null, latoColpo: verdetto === 'sbilanciata' ? colpo : null, quotaPercento: n ? pc(Math.max(halfL, halfR)) : null, testo };
+}
+export function sideBalance(events, { meta = {} } = {}){
+  const partite = [];
+  let cur = null;
+  const open = (p, t) => { cur = { n: p?.n ?? null, inizioS: Number.isFinite(t) ? r1(t/1000) : null, modo: p?.modo ?? null, '1v1': !!p?.['1v1'], ...(p ? {} : { senzaInizio: true }), p: p || null, shots: { player: [], p2: [] } }; partite.push(cur); };
+  for (const e of events){
+    if (e.k === 'partita'){ if (!(e.continua && cur && cur.n === e.n)) open(e, e.t); continue; }
+    if (e.k !== 'racchetta' || (e.chi !== 'player' && e.chi !== 'p2') || e.allenamento || e.minigioco || !isPhoneShot(e) || !Number.isFinite(e.x)) continue;
+    if (!cur) open(null, e.t);         // partita già iniziata quando è partita la registrazione, o pacchetto di prima del B16
+    cur.shots[e.chi].push(e);
+  }
+  const out = [], tot = { giudicate: 0, sbilanciate: 0 }, perMira = {};
+  for (const m of partite){
+    const giocatori = {};
+    for (const [chi, label] of [['player', 'P1'], ['p2', 'P2']]){
+      const L = m.shots[chi];
+      if (!L.length) continue;
+      const hand = modeOf(L.map(e => e.mano).filter(Boolean)) || (chi === 'p2' ? m.p?.mano2 : m.p?.mano ?? meta?.gioco?.mano) || null;
+      const deg = +(modeOf(L.map(e => e.miraPiena).filter(Number.isFinite)) ?? m.p?.miraPiena ?? meta?.gioco?.miraPiena ?? NaN);
+      const j = sideJudge(L.map(e => (chi === 'p2' ? -e.x : e.x)), { hand });
+      giocatori[label] = { mano: hand, miraPiena: Number.isFinite(deg) ? deg : null, mira: aimName(deg), ...j };
+      if (j.verdetto !== 'pochi colpi'){
+        const k = Number.isFinite(deg) ? String(deg) : 'non registrata', g = (perMira[k] ||= { giudicate: 0, sbilanciate: 0 });
+        tot.giudicate++; g.giudicate++; if (j.verdetto === 'sbilanciata'){ tot.sbilanciate++; g.sbilanciate++; }
+      }
+    }
+    if (Object.keys(giocatori).length) out.push({ n: m.n, inizioS: m.inizioS, modo: m.modo, '1v1': m['1v1'], ...(m.senzaInizio ? { senzaInizio: true } : {}), giocatori });
+  }
+  return { nota: `x del punto di caduta dei colpi del telefono nel riferimento di chi gioca (+ alla sua destra); centro entro ${SIDE.center} m; sbilanciata con almeno il ${100*SIDE.share} % dei colpi in una metà del campo su almeno ${SIDE.min} colpi`,
+    soglia: { quotaPercento: 100*SIDE.share, colpiMinimi: SIDE.min, centroM: SIDE.center, bloccoColpi: SIDE.block },
+    partite: out, riepilogo: { ...tot, sbilanciatePercento: tot.giudicate ? Math.round(100*tot.sbilanciate/tot.giudicate) : null, perMiraPiena: perMira } };
+}
+// righe in parole (pannello della diagnostica, rapporto, LEGGIMI, scripts/audit/lato-palle.mjs)
+export function sideLines(lp, { prefix = 'Lato delle palle' } = {}){
+  if (!lp?.partite?.length) return [];
+  const L = [], hands = { right: 'destro', left: 'mancino' };
+  for (const m of lp.partite){
+    const what = m.senzaInizio ? 'colpi prima dell\'inizio di una partita registrato' : `partita ${m.n ?? '?'}`;
+    for (const [who, g] of Object.entries(m.giocatori)){
+      const mira = g.miraPiena ? `mira ${g.mira || ''}${g.mira ? ' ' : ''}${g.miraPiena}°` : 'mira non registrata';
+      const bl = g.blocchi.length ? ` · |mediana x| per ${SIDE.block} colpi ${g.blocchi.map(b => fmtN(b.mediana)).join(' / ')} m` : '';
+      L.push(`${prefix}${prefix ? ' · ' : ''}${what} · ${who} (${hands[g.mano] || 'mano ?'}, ${mira}): ${g.colpi} colpi · sinistra ${g.sinistraPercento} % · centro ${g.centroPercento} % · destra ${g.destraPercento} %${bl} → ${g.testo}`);
+    }
+  }
+  const R = lp.riepilogo;
+  if (R?.giudicate){
+    const per = Object.entries(R.perMiraPiena || {}).map(([k, g]) => `${aimName(k) ? `mira ${aimName(k)} (${k}°)` : k === 'non registrata' ? 'mira non registrata' : `mira ${k}°`}: ${g.sbilanciate} su ${g.giudicate}`).join(' · ');
+    L.push(`${prefix ? `${prefix}, in tutto` : 'In tutto'}: ${R.sbilanciate} partite sbilanciate su ${R.giudicate} giudicate (per giocatore)${per ? ` · ${per}` : ''}${R.giudicate >= 5 && R.sbilanciate/R.giudicate > SIDE.alert ? ' · più di una su cinque: prova la mira «media» (Opzioni → Mira del telefono; docs/GUIDA_MISURA_MIRA.md)' : ''}`);
+  }
+  return L;
+}
+
 export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spanMs = null } = {}){
   const by = k => events.filter(e => e.k === k);
   const durata = Number.isFinite(spanMs) ? spanMs/1000 : events.length ? (events.at(-1).t - events[0].t)/1000 : 0;
@@ -378,6 +466,10 @@ export function computeMetrics(events, { raw = [], meta = {}, eventi = null, spa
     }
   }
 
+  // ---- lato delle palle per partita (B16): dove vanno le palle di chi gioca con il telefono, partita per partita ----
+  const lato = sideBalance(events, { meta });
+  if (lato.partite.length) out.latoPalle = lato;
+
   // ---- pause della partita per il telefono (pagina nascosta, sensori fermi, scollegato) ----
   const telPause = by('tel.pausa');
   if (telPause.length) out.pauseTelefono = tally(telPause, p => (p.chi === 'p2' ? 'P2 ' : '') + (p.motivo || '?'));
@@ -479,6 +571,7 @@ export function summaryLines(m = {}){
   if (KR?.servizi) L.push(`Servizi dal gesto: ${KR.servizi.n} · ${list(KR.servizi.voti)}`);
   const P2 = m.p2;
   if (P2) L.push(`Player 2: ${P2.ricevuti} colpi ricevuti${Object.keys(P2.esitiRicevuti || {}).length ? ' (' + list(P2.esitiRicevuti) + ')' : ''}${P2.etaMs?.n ? ` · età mediana ${P2.etaMs.p50} ms` : ''}${P2.vecchi ? ` · troppo vecchi ${P2.vecchi}` : ''} · ${P2.colpi} colpi della racchetta${P2.tempoMs?.n ? `, tempo mediana ${P2.tempoMs.p50} ms` : ''}${Object.keys(P2.vuoti || {}).length ? ' · a vuoto: ' + list(P2.vuoti) : ''}${P2.servizi ? ` · servizi dal gesto ${P2.servizi.n} (${list(P2.servizi.voti)})` : ''}`);
+  L.push(...sideLines(m.latoPalle));
   if (m.pauseTelefono) L.push(`Partita in pausa per il telefono: ${Object.entries(m.pauseTelefono).map(([k, n]) => `${k} ${n}`).join(', ')}`);
   if (m.segni?.length) L.push(`Segni «qui è successo un problema»: ${m.segni.length} (${m.segni.slice(0, 8).map(x => `${(x.t/1000).toFixed(1)} s`).join(', ')}${m.segni.length > 8 ? ', …' : ''})`);
   const av = m.registrazione?.avvisi || {};

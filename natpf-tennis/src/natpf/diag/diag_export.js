@@ -17,7 +17,7 @@ export async function buildPackage(store, id){
   const names = Object.keys(meta.files || {}).filter(n => n !== 'meta.json' && n !== 'metriche.json');
   const videos = names.filter(n => n.startsWith('video-')).map(file => ({ file }));
   const entries = [
-    { name: 'LEGGIMI.txt', data: readmeText(meta) },
+    { name: 'LEGGIMI.txt', data: readmeText(meta, metrics) },
     { name: 'rapporto.html', data: viewerHtml({ meta, metrics, eventsJson, videos }) },
     { name: 'sessione.json', data: JSON.stringify(meta, null, 1) },
     { name: 'metriche.json', data: JSON.stringify(metrics, null, 1) },
