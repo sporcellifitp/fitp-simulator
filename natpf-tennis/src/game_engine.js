@@ -37,10 +37,6 @@ import * as NS from "./natpf/natpf_skill.js";
 import * as NL from "./natpf/natpf_legend.js";
 import * as NO from "./natpf/natpf_stroke_outcome.js";
 import * as NI from "./natpf/natpf_impact.js";
-// NATPF B15 (mancini): lato di un colpo senza «side» nell'evento, preso dal verso del gesto (dirX) o dalla palla con la
-// regola del destro: per il mancino si scambia (il suo dritto è a sinistra). Con il lato nell'evento (telefono, webcam
-// e mouse del P1 passati da NatpfHand.leftySide, P2 della webcam per due) non cambia niente, né per il destro
-const natpfHandedSide = (side, e, hand) => (hand === "left" && e.side !== "forehand" && e.side !== "backhand" && (side === "forehand" || side === "backhand") ? (side === "forehand" ? "backhand" : "forehand") : side);
 import * as NPC from "./natpf/natpf_point_call.js";
 import { NatpfReplay } from "./natpf/natpf_replay.js";
 const NR = { c: null }; // NATPF moviola: posa della telecamera
@@ -52,6 +48,10 @@ import * as GV from "./natpf/natpf_guest_view.js";
 import { NatpfSplit } from "./natpf/natpf_split.js";
 import { viewport } from "./natpf/natpf_screen.js";
 import { deepCamShift, actorDepth } from "./natpf/natpf_camera_depth.js";
+// NATPF B15 (mancini): lato di un colpo senza «side» nell'evento, preso dal verso del gesto (dirX) o dalla palla con la
+// regola del destro: per il mancino si scambia (il suo dritto è a sinistra). Con il lato nell'evento (telefono, webcam
+// e mouse del P1 passati da NatpfHand.leftySide, P2 della webcam per due) non cambia niente, né per il destro
+const natpfHandedSide = (side, e, hand) => (hand === "left" && e.side !== "forehand" && e.side !== "backhand" && (side === "forehand" || side === "backhand") ? (side === "forehand" ? "backhand" : "forehand") : side);
 const VERSUS_ROOM_KEY = "natpf.versus.room";
 // NATPF (31/10): partita in pausa (guida, pausa, telefono o webcam da ricollegare, attesa del 1v1). La scena è ferma
 // (update non gira) sotto i fogli con il blur a tutto schermo, ma prima si ridisegnava a ogni fotogramma, come lo sfondo
