@@ -67,8 +67,10 @@ test('«Torna al menu» durante la calibrazione prima di una sfida: si torna al 
 test('«Torna al menu» dal riscaldamento prima della partita: al menu principale, non alla pagina Partita', async () => {
   const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
   const { ui, lobby } = w;
-  lobby.menu('play'); lobby.setMode('cpu'); lobby.go('controller'); lobby.go('connect'); lobby.next(); w.advance(500);
-  assert.ok(ui.training.active);
+  // (dal B16 con mouse e tastiera «Collega» porta alla pagina «Partita»: il riscaldamento è «Riscaldati prima»)
+  lobby.menu('play'); lobby.setMode('cpu'); lobby.go('controller'); lobby.go('connect'); lobby.next(); assert.equal(lobby.step, 'match');
+  $('lobby-warmup').click(); w.advance(500);
+  assert.ok(ui.training.active && !lobby.visible);
   w.key('Escape', 'Escape'); ui.pause.run('menu');
   assert.equal(lobby.step, 'menu');
 });
@@ -194,11 +196,15 @@ test('Sfide: «Torna al menu» da un minigioco rimette la CPU scelta e la durata
   assert.notEqual(ui.events.active?.id, 'champion');
 });
 
+// (B16: «rally» non è un minigioco (sono rush, precision, combo), pickChallenge lo ignora: la prova passava dal riscaldamento della partita contro la
+// CPU, che dal B16 non parte più da «Collega». Ora con un minigioco in vista, e la pausa davvero aperta in una sfida)
 test('Moviola: nascosta nel menu di pausa durante le sfide', async () => {
   const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
   const { ui, lobby } = w;
-  lobby.menu('challenges'); ui.events.nickname = 'Luca'; lobby.pickChallenge('rally'); lobby.go('connect'); lobby.next(); w.advance(1500);
+  lobby.menu('challenges'); ui.events.nickname = 'Luca'; lobby.pickChallenge('rush'); lobby.go('connect'); lobby.next(); w.advance(1500);
+  assert.ok(ui.events.active, 'sfida in corso');
   w.key('Escape', 'Escape');
+  assert.ok(ui.pause.isOpen);
   assert.ok(ui.pause.el.querySelector('[data-pause="replay"]').classList.contains('hidden'));
 });
 

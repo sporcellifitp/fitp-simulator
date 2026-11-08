@@ -74,7 +74,9 @@ test('guida aperta: Esc la chiude, le ripetizioni non tornano indietro nel menu'
 test('in campo: Esc tenuto apre la pausa una volta sola; F e la voce della pausa cambiano lo schermo intero', async () => {
   const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
   const { ui, lobby, E } = w, calls = stubFullscreen(); ui.screen.fullscreen.disarm();
-  lobby.menu('play'); lobby.setMode('cpu'); lobby.go('controller'); lobby.go('connect'); lobby.next(); w.advance(500);
+  // (dal B16 con mouse e tastiera si va subito alla pagina «Partita»: in campo con «Riscaldati prima»)
+  lobby.menu('play'); lobby.setMode('cpu'); lobby.go('controller'); lobby.go('connect'); lobby.next(); assert.equal(lobby.step, 'match');
+  $('lobby-warmup').click(); w.advance(500);
   assert.ok(ui.training.active && !lobby.visible);
   esc(w); assert.ok(ui.pause.isOpen && E.natpfPaused);
   esc(w, { repeat: true }); esc(w, { repeat: true }); esc(w, { repeat: true });
@@ -140,7 +142,7 @@ test('browser in F11 (LAN in Edge): F in campo, la voce della pausa e F nella ca
     const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
     const { ui, lobby } = w, calls = stubFullscreen(), toast = () => (!$('natpf-toast').classList.contains('hidden') ? $('natpf-toast').textContent : '');
     assert.equal(ui.screen.fullscreen.frameless, true); assert.equal(ui.screen.fullscreen.armed, false, 'già senza cornici: niente apertura automatica');
-    lobby.menu('play'); lobby.setMode('cpu'); lobby.go('controller'); lobby.go('connect'); lobby.next(); w.advance(500);
+    lobby.menu('play'); lobby.setMode('cpu'); lobby.go('controller'); lobby.go('connect'); lobby.next(); $('lobby-warmup').click(); w.advance(500);
     assert.ok(!lobby.visible);
     w.key('KeyF', 'f'); await w.flush();
     assert.equal(toast(), FS_TEXT.f11, 'F in campo: il messaggio va nel toast (figlio del body, si vede anche in campo)');

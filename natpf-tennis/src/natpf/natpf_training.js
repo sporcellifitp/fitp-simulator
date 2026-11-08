@@ -280,6 +280,7 @@ export class NatpfTraining {
     this.tutorial?.close(reason);
     if (!this.active) return;
     this._begin({ phoneCalibrates: aware });
+    if (!this.active) return;                               // solo il tutorial (telefono già pronto, B16): finito
     this.engine.hud.showCenterBanner(this.cal ? 'Calibrazione' : 'Si comincia', { style: 'style-start', subText: this.cal ? 'Tieni fermo il telefono, poi i due gesti' : 'Solo tu e il lanciapalle', durationMs: 1300 });
     this.paint();
   }
@@ -299,7 +300,8 @@ export class NatpfTraining {
       // Dopo il tutorial la calibrazione la fa partire il telefono (phoneCalibrates)
       const step = this.ui.phone.cal?.step;
       if (!phoneCalibrates && (!step || ['done', 'review', 'free'].includes(step) || this.view.stage === 'off')) this.ui.phone.recalibrate();
-    } else E._setupPointServe({ showBanner: false });
+    } else if (this.calOnly && !this.drills.length) this.stop({ completed: true, calibrated: true });  // telefono già pronto: solo il tutorial
+    else E._setupPointServe({ showBanner: false });
   }
   lessonAction(a){
     const L = this.lesson; if (!this.active || !L) return;
@@ -600,7 +602,7 @@ export class NatpfTraining {
     show($('#coach-lesson'), !!L);
     if (L) this._paintLesson($, hand);
     const flash = this.flash && now < this.flash.until ? this.flash : null;
-    const mode = this.ui.flow?.mode === 'training' ? 'Allenamento' : 'Riscaldamento';
+    const mode = this.ui.flow?.mode === 'training' ? 'Allenamento' : this.calOnly ? 'Calibrazione' : 'Riscaldamento';
     // (con la modale del tutorial aperta il telefono aspetta il tutorial, «tut»: non è scollegato)
     const P = this.ui.phone, lost = c === 'phone' && P && (!P.connected || (!this.tutorialOpen && P.state?.phone && !['cal', 'ready'].includes(P.state.phone)));
     const grip = $('#coach-grip'), showGrip = c === 'phone' && !!this.cal && this.view.stage === 'still' && !lost;

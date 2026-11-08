@@ -113,7 +113,7 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
     lifts.model ||= createLiftModel(liftBaselineFromProfile(prof()) ?? 0);
     heads.model ||= createLiftModel(headBaselineFromProfile(prof(), hand) ?? 0);
     const s = parseSwingMessage(d, { at: 10, now: 10020 });
-    const p = prof(), { ref, rawRef } = powerRefs(p, typical.value);
+    const p = prof(), { ref, rawRef } = powerRefs(p, typical.value, { seen: typical.seen, peak: s.peak });
     const ev = natpfSwingToEngine(s, { hand, now: 10.02, ballHigh, liftBaseline: lifts.model.value, headBaseline: heads.model.value, faceCenter: faces.center(s.dir), aimModel: aims, ref, rawRef, riseRef: habitual ? habitualRise(p, s.dir, rises) : null, own: typeof own === 'function' ? own(s, habitual ? habitualRise(p, s.dir, rises) : null) : own });
     if (!learn) return { s, ev };
     if (!expect && NORMAL_SHOTS.has(ev.natpf.shot)){ lifts.model.add(s.dir, s.lift); heads.model.add(s.dir, ev.natpf.head); }

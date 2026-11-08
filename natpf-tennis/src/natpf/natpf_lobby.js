@@ -1,10 +1,12 @@
 // Menu di NATPF Simulator, con il percorso di un gioco da console (dopo l'intro, natpf_intro.js):
 //   menu principale ─ Gioca ─────────→ modalità (contro la CPU · sfida un amico) → racchetta (smartphone o webcam,
 //                   │                   (stesso schermo: modalità → i due telefoni → partita, natpf_split_ui.js)
-//                   │                   mano) → collega (QR e tre passi sul telefono, o la webcam) → riscaldamento in
-//                   │                   campo (calibrazione + lanciapalle, natpf_training.js, saltabile) → partita
-//                   │                   (livello in vista; formato, durata, chi batte e visuale sotto «Altre
-//                   │                   impostazioni», B15) → «Gioca»: passaggio al campo
+//                   │                   mano) → collega (QR e tre passi sul telefono, o la webcam) → in campo il tutorial
+//                   │                   corto e la calibrazione del telefono (natpf_training.js; con la webcam o il
+//                   │                   telefono già calibrato niente) → partita (livello in vista; formato, durata, chi
+//                   │                   batte e visuale sotto «Altre impostazioni», B15) → «Gioca»: passaggio al campo.
+//                   │                   Il riscaldamento (lanciapalle: dritto, rovescio, servizio) è facoltativo dal B16
+//                   │                   (decisione dell'utente dell'08/11 sera): «Riscaldati prima» nella pagina «Partita»
 //                   ├ Sfide ─────────→ sfida → nickname → racchetta → collega → (calibrazione) → sfida in campo →
 //                   │                   risultato con la posizione in classifica (natpf_events.js)
 //                   ├ Classifica del giorno
@@ -28,9 +30,9 @@ const ARCADE_ICONS = {
   radar: '<svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M8 34a17 17 0 1 1 32 0"/><path d="M24 34l9-13"/><circle cx="24" cy="34" r="3"/></svg>',
 };
 import { warmupDrills } from './natpf_training.js';
+import { tutorialSetFor } from './natpf_tutorial.js';
 import { hostLobbyStatus, roomCode, joinUrl } from './natpf_versus.js';
 import { p2pRequested } from './natpf_p2p.js';
-import { tutorialSetFor } from './natpf_tutorial.js';
 import { screenSummary } from './natpf_screen.js';
 import { waitingText } from './natpf_ready.js';
 const $ = id => document.getElementById(id);
@@ -42,8 +44,9 @@ export const MODES = ['cpu', 'friend', 'training', 'challenge', 'split'];
 export function progressSteps(mode){
   if (mode === 'challenge') return [['challenges', 'Sfida'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'In campo']];
   if (mode === 'split') return [['mode', 'Modalità'], ['connect', 'Racchette'], ['match', 'Partita']];
+  // (in campo prima della partita dal B16 solo il tutorial corto e la calibrazione: il riscaldamento è facoltativo)
   return mode === 'training' ? [['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Allenamento']]
-    : [['mode', 'Modalità'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Riscaldamento'], ['match', 'Partita']];
+    : [['mode', 'Modalità'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Calibrazione'], ['match', 'Partita']];
 }
 // tappa precedente («Indietro» ed Esc)
 export function previousStep(step, mode){
@@ -135,7 +138,8 @@ export class NatpfLobby {
     });
     $('lobby-next').addEventListener('click', e => { e.stopPropagation(); this.next(); });
     $('lobby-back').addEventListener('click', e => { e.stopPropagation(); this.back(); });
-    $('lobby-warmup').addEventListener('click', e => { e.stopPropagation(); this.go('warmup'); });
+    // «Riscaldati prima» (pagina «Partita», B16): il riscaldamento con il lanciapalle, facoltativo
+    $('lobby-warmup').addEventListener('click', e => { e.stopPropagation(); this.warmupFirst(); });
     $('lobby-help').addEventListener('click', e => { e.stopPropagation(); this.onboarding.open(); });
     // il pulsante dello schermo intero in alto (#lobby-fullscreen) lo collega natpf_screen.js
     $('setup-cam-go').addEventListener('click', async e => { e.stopPropagation(); await this.ui.startWebcam(); this.paint(); });
@@ -387,11 +391,11 @@ export class NatpfLobby {
   // sensori» passa subito al tutorial. Prima calibrava per ~0,76 s («Preparati») finché la lobby non entrava in campo e il
   // tutorial non lo fermava (revisione B9 del 06/11, minore f). Si toglie lasciando la pagina senza entrare in campo
   // (releaseTutorial) o se in campo il tutorial non si apre (natpf_training.start: diagnostica)
+  // B16: tutorial corto prima della partita, completo nell'Allenamento (visto il corto, l'Allenamento mostra quelle che mancano)
   _prearmTutorial(){
     const P = this.ui.phone, seen = P?.tutorialSeenFor ? P.tutorialSeenFor(tutorialSetFor(this.mode)) : !!P?.tutorialSeen;
     if (!['training', 'cpu', 'challenge'].includes(this.mode) || !P || seen || P.tutWait) return;
     this.tutPrearm = true; P.waitTutorial?.(true);
-  // B16: tutorial corto prima della partita, completo nell'Allenamento (visto il corto, l'Allenamento mostra quelle che mancano)
   }
   releaseTutorial(){
     if (!this.tutPrearm) return;
@@ -557,23 +561,40 @@ export class NatpfLobby {
     else if (e.code === 'KeyH'){ this.onboarding.open(); }
   }
   /* ---------- riscaldamento e allenamento in campo ---------- */
-  startWarmup(){
+  // In campo dalla pagina «Collega» (da soli quando il telefono ha i sensori attivi, o con «In campo ›»).
+  // Partita (contro la CPU, sfida un amico) dal B16, decisione dell'utente dell'08/11 sera («riscaldamento facoltativo»):
+  // con il telefono da calibrare il tutorial corto e la calibrazione in campo, poi la pagina «Partita» con «Gioca» e
+  // «Riscaldati prima»; con il telefono già calibrato, la webcam o mouse e tastiera subito la pagina «Partita». Prima dopo
+  // la calibrazione partiva il riscaldamento (2 dritti, 2 rovesci, un servizio), che quasi tutti saltavano con «Salta».
+  // Il riscaldamento insegnava al gioco il colpo tipico prima della partita: senza, i primi colpi della partita si
+  // leggono con la mediana dei colpi già fatti (natpf_phone_racket.powerRefs, banco scripts/audit/riscaldamento.mjs).
+  // warmup: true per il riscaldamento vero («Riscaldati prima»)
+  startWarmup({ warmup = false } = {}){
     const ui = this.ui;
-    // telefono non ancora collegato: prima il collegamento
-    if (ui.controller === 'phone' && !this.state().phoneLinked){ this.go('connect'); return; }
-    this.step = 'warmup'; this.el.dataset.step = 'warmup';
+    // telefono non ancora collegato: prima il collegamento (il riscaldamento chiesto resta chiesto)
+    if (ui.controller === 'phone' && !this.state().phoneLinked){ if (warmup) this.wantWarmup = true; this.go('connect'); return; }
+    warmup = warmup || !!this.wantWarmup; this.wantWarmup = false;
     // sfida: con il telefono non ancora calibrato prima solo la calibrazione in campo, poi la sfida
     if (this.mode === 'challenge'){
+      this.step = 'warmup'; this.el.dataset.step = 'warmup';
       if (ui.controller === 'phone' && !ui.phone.ready) ui.training.start({ calOnly: true });
       else { this.releaseTutorial(); ui.events.start(this.challenge); }
       return;
     }
-    // Allenamento dal menu: tutorial completo, sempre con la lezione su presa e posizione. Riscaldamento prima della
-    // partita: solo dritto, rovescio e servizio, senza lezione (la presa è già nella pagina «Collega»: in fiera si gioca)
+    // Allenamento dal menu: tutorial completo, sempre con la lezione su presa e posizione
     const full = this.mode === 'training';
-    if (full) ui.training.introSeen = {};
-    ui.training.start({ drills: full ? null : warmupDrills(ui.controller), intro: full });
+    if (full){ this.step = 'warmup'; this.el.dataset.step = 'warmup'; ui.training.introSeen = {}; ui.training.start({ intro: true }); return; }
+    // «Riscaldati prima»: solo dritto, rovescio e servizio (con il telefono da calibrare, prima la calibrazione)
+    if (warmup){ this.step = 'warmup'; this.el.dataset.step = 'warmup'; ui.training.start({ drills: warmupDrills(ui.controller) }); return; }
+    // partita: telefono da calibrare (o pronto ma con il tutorial corto da vedere: visitatore nuovo con lo stesso telefono)
+    // → in campo il tutorial e la calibrazione, poi «Partita»
+    const P = ui.phone, tutDue = P?.tutorialSeenFor ? !P.tutorialSeenFor('short') : !P?.tutorialSeen;
+    if (ui.controller === 'phone' && (!P.ready || tutDue)){ this.step = 'warmup'; this.el.dataset.step = 'warmup'; ui.training.start({ calOnly: true }); return; }
+    this.releaseTutorial();
+    this.go('match');
   }
+  // «Riscaldati prima» nella pagina «Partita»
+  warmupFirst(){ show($('lobby-practice-result'), false); this.startWarmup({ warmup: true }); }
   // prova guidata della modalità diagnostica: come l'allenamento, con esercizi che dicono quale colpo serve (riferimento
   // delle metriche). Con il telefono non collegato si va prima al collegamento
   startDiag(drills, run){
@@ -592,7 +613,11 @@ export class NatpfLobby {
     // calibrazione prima di una sfida (anche saltata: modalità semplice) → la sfida
     if (this.mode === 'challenge'){ this.ui.events.start(this.challenge); return; }
     if (completed) this.trainingDone = true;
-    const text = skipped ? `<b>${this.mode === 'training' ? 'Allenamento interrotto' : 'Riscaldamento saltato'}</b><span>${this.ui.phone.simple ? 'Senza calibrazione: si gioca lo stesso, la forza non è tarata.' : 'Lo puoi rifare quando vuoi.'}</span>`
+    const simple = 'Senza calibrazione: si gioca lo stesso, la forza non è tarata.';
+    // solo la calibrazione prima della partita (B16): racchetta pronta, o saltata (modalità semplice)
+    const text = calibrated && !stats.shots ? '<b>Racchetta pronta ✓</b>'
+      : skipped && this.mode !== 'training' && !this.ui.training?.drills?.length ? `<b>Calibrazione saltata</b><span>${simple}</span>`
+      : skipped ? `<b>${this.mode === 'training' ? 'Allenamento interrotto' : 'Riscaldamento saltato'}</b><span>${this.ui.phone.simple ? simple : 'Lo puoi rifare quando vuoi.'}</span>`
       : `<b>${completed ? (this.mode === 'training' ? 'Allenamento completato ✓' : 'Riscaldamento completato ✓') : 'Interrotto'}</b><span>${stats.shots} colpi · ${stats.perfect} perfetti${stats.out ? ` · ${stats.out} fuori` : ''}</span>`;
     // allenamento dal menu: si torna al menu con il risultato; riscaldamento prima della partita: si va alla partita
     if (this.mode === 'training'){

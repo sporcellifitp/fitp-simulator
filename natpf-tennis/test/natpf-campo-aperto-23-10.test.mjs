@@ -74,13 +74,19 @@ test('profondità dall\'intensità rispetto al proprio colpo tipico imparato gio
   // calibrazione con colpetti piccoli (come il 23/10), poi lo scambio con il proprio colpo a ~700 °/s
   const p = simPhone({ hand: 'right', seed: 21, shape: true });
   p.rest(500, 3); p.calibrate({ tremor: 3, peak: 260 });
-  const hit = peak => { const n0 = p.msgs.length; p.swing({ tremor: 4, axis: [0, 1, 0], peak }); p.rest(700, 4); return p.msgs.slice(n0).map(d => p.game(d).ev).at(-1).natpf.intent; };
-  const first = [hit(700), hit(950), hit(450)];                 // prima del colpo tipico: riferimento della calibrazione
+  const { strokeIntent } = await import('../src/natpf/natpf_stroke_intent.js');
+  // (calib: lo stesso colpo letto con il solo riferimento della calibrazione, come prima del B16)
+  const hit = peak => { const n0 = p.msgs.length; p.swing({ tremor: 4, axis: [0, 1, 0], peak }); p.rest(700, 4); const r = p.msgs.slice(n0).map(d => p.game(d)).at(-1); return { ...r.ev.natpf.intent, calib: strokeIntent(r.s, powerRefs(p.det.profile, null)) }; };
+  const first = [hit(700), hit(950), hit(450)];                 // prima del colpo tipico
   for (let i = 0; i < 4; i++) hit(700);
   const typ = hit(700), strong = hit(950), soft = hit(450);
   assert.ok(strong.depth - typ.depth > .1 && typ.depth - soft.depth > .1, `con il colpo tipico: morbido ${soft.depth}, solito ${typ.depth}, forte ${strong.depth}`);
   // con il riferimento dei colpetti la parte relativa della forza era piena: le differenze erano metà
-  assert.ok((strong.depth - soft.depth) > 1.3*(first[1].depth - first[2].depth), `prima ${first[2].depth}…${first[1].depth}, ora ${soft.depth}…${strong.depth}`);
+  assert.ok((strong.depth - soft.depth) > 1.3*(first[1].calib.depth - first[2].calib.depth), `con la calibrazione ${first[2].calib.depth}…${first[1].calib.depth}, con il colpo tipico ${soft.depth}…${strong.depth}`);
+  // B16 (riscaldamento facoltativo): prima del colpo tipico il riferimento non sta sotto i colpi già fatti né sotto 3/4 del
+  // colpo (powerRefs, BOOT): i primi colpi seguono già l'intensità quasi come con il colpo tipico
+  assert.ok((first[1].depth - first[2].depth) > .8*(strong.depth - soft.depth), `primi colpi ${first[2].depth}…${first[1].depth}, con il colpo tipico ${soft.depth}…${strong.depth}`);
+  assert.ok(first[0].power < first[0].calib.power, `il primo colpo non è più letto pieno: ${first[0].power} (con la calibrazione ${first[0].calib.power})`);
   assert.ok(typ.depth > .4 && typ.depth < .6, `il proprio colpo solito cade a metà campo-fondo: ${typ.depth}`);
 });
 
