@@ -198,7 +198,10 @@ export function cameraAt(id, t, { W, H, hand = 'right', grip = GRIP_STYLE, cache
   }
   // modalità compatta della famiglia del dritto: la camera sta più attaccata alla mano (alla fine della carica la mano
   // usciva dal bordo) con un quadro un poco più largo
-  const compactSwing = W < COMPACT_W && C.frame === 'swing', mix = compactSwing ? .95 : fo.mix;
+  // mixSmall (B14): a 448×280 la camera sta più attaccata alla mano (il braccio intero è più grande del quadro), negli stadi
+  // da 640×400 in su segue meno e la mano percorre il quadro (si vede la salita dal basso verso l'alto)
+  const big = Math.min(1, Math.max(0, (box.h - 202)/(288 - 202)));
+  const compactSwing = W < COMPACT_W && C.frame === 'swing', mix = compactSwing ? .95 : fo.mixSmall != null ? fo.mixSmall + (fo.mix - fo.mixSmall)*big : fo.mix;
   const target = add(mul(fr.target, 1 - mix), mul(m, mix/ws));
   // altezza inquadrata: fo.size sulla metà dello schermo (448×280: telefono ≥ 60 px), di più negli stadi più grandi (si
   // vedono il braccio intero e il busto: revisione B13, la camera stretta toglieva il corpo), al massimo 1,5 volte (mano e

@@ -368,28 +368,35 @@ export const PHASES = Object.freeze({
   accompagnamento: 'Accompagna', ritorno: 'Ritorno', lancio: 'Lancio', caricamento: 'Braccio in alto', battuta: 'Battuta',
 });
 
-// Camere per scheda (brief §5.3, riviste nel B13 per la catena). Solo dati per il disegno: dir = direzione soggetto →
-// camera nel campo (x a destra, y in alto, +z dietro chi gioca; il mancino la specchia, cameraFor), dist = distanza (m,
-// prospettiva moderata), follow = la camera segue la mano (media pesata su ±window s, mix tra il centro dell'arco e la
-// mano, size = altezza inquadrata in m a 448×280, di più negli stadi grandi), frame 'swing' = inquadratura solo sul colpo,
-// views/seq = presa: due viste ferme e il giro della camera tra le due (s). Dritto, piatto, lungolinea e rovescio da
-// dietro e dall'alto (come la camera della televisione, stessa mano di chi imita): con il braccio che percorre 0,9 m è
-// l'unica direzione che tiene il telefono non di taglio nelle pose chiave, ≥ 60 px a 448×280 e l'avambraccio ≥ 28° dal
-// raggio visivo (ricerca su griglia, correzioni dell'08/11).
+// Camere per scheda (brief §5.3, riviste nel B13 per la catena e nel B14 per la lettura). Solo dati per il disegno: dir =
+// direzione soggetto → camera nel campo (x a destra, y in alto, +z dietro chi gioca; il mancino la specchia, cameraFor),
+// dist = distanza (m, prospettiva moderata), follow = la camera segue la mano (media pesata su ±window s, mix tra il centro
+// dell'arco e la mano, size = altezza inquadrata in m a 448×280, di più negli stadi grandi; mixSmall = mix a 448×280, che
+// sale a mix negli stadi da 640×400 in su), frame 'swing' = inquadratura solo sul colpo, views/seq = presa: due viste
+// ferme e il giro della camera tra le due (s).
+// B14 (lettura del dritto): la camera della televisione (dietro e dall'alto, 55°) schiacciava sullo schermo «avanti» e
+// «in alto» (20° tra le due direzioni) e, seguendo la mano per 0,8, cancellava la salita: dall'impatto alla fine la mano,
+// che sale di 0,5 m, scendeva di 1 px sullo schermo. Dritto e lungolinea ora da dietro a sinistra e più in basso (15–25°,
+// stessa mano di chi imita): avanti è a sinistra, in alto è in alto (78°), la mano all'impatto va verso la rete sullo
+// schermo (9°) e sale verso la fine (28% dell'altezza), il corpo si legge in piedi; la camera segue la mano per 0,5. Il
+// piatto resta nella direzione di prima (le direzioni basse non tengono il telefono non di taglio nella carica) e segue
+// per 0,5; incrociato dietro e basso; rovescio dietro a sinistra a 40° (segue per 0,7). Tutte nei vincoli del disegno del
+// B9 (telefono non di taglio nelle pose chiave, ≥ 60 px a 448×280, avambraccio ≥ 28° dal raggio visivo: ricerca su
+// griglia, docs/b14/camera-dritto.md; test/natpf-gesture-camera.test.mjs misura la lettura).
 export const CAMERAS = Object.freeze({
   grip: Object.freeze({ views: Object.freeze([[-.36, .78, .5], [.85, .4, .35]]), dist: 1.0, seq: Object.freeze([3, 1.5, 3, 1.5]), read: 'pollice sul bordo destro, dita attorno al sinistro, cima in avanti e verso l\u2019interno' }),
   ready: Object.freeze({ dir: [-.5, .55, .67], dist: 2.4, frameBody: 'neck', read: 'telefono fermo davanti allo sterno, gomito al fianco' }),
-  forehand: Object.freeze({ dir: [-.148, .819, .554], dist: 3.6, follow: Object.freeze({ window: .25, mix: .8, size: .4 }), frame: 'swing', read: 'spalle che girano, mano che scende sotto la palla, colpo dal basso verso l\u2019alto attorno al corpo, fine davanti alla spalla sinistra' }),
-  flat: Object.freeze({ dir: [-.148, .819, .554], dist: 3.6, follow: Object.freeze({ window: .25, mix: .8, size: .4 }), frame: 'swing', read: 'come il dritto, più veloce e più piatto' }),
-  backhand: Object.freeze({ dir: [-.148, .819, .554], dist: 3.6, follow: Object.freeze({ window: .25, mix: .8, size: .4 }), frame: 'swing', read: 'spalle che girano a sinistra, braccio davanti al corpo, chiusura in alto a destra' }),
+  forehand: Object.freeze({ dir: [-.791, .259, .554], dist: 3.6, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'spalle che girano, mano che scende sotto la palla, colpo dal basso verso l\u2019alto attorno al corpo, fine davanti alla spalla sinistra' }),
+  flat: Object.freeze({ dir: [-.148, .819, .554], dist: 3.6, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .8, size: .4 }), frame: 'swing', read: 'come il dritto, più veloce e più piatto' }),
+  backhand: Object.freeze({ dir: [-.383, .643, .663], dist: 3.6, follow: Object.freeze({ window: .25, mix: .7, mixSmall: .9, size: .4 }), frame: 'swing', read: 'spalle che girano a sinistra, braccio davanti al corpo, chiusura in alto a destra' }),
   slice: Object.freeze({ dir: [-.18, .62, .76], dist: 3.6, frameBody: 'neck', read: 'la mano parte alta e scende in avanti, piatto aperto' }),
   lob: Object.freeze({ dir: [-.24, .65, .72], dist: 3.6, follow: Object.freeze({ window: .25, mix: .85, size: .5 }), read: 'lancio da sotto: il braccio oscilla indietro e sale davanti' }),
   drop: Object.freeze({ dir: [.75, .35, .55], dist: 3.4, frameBody: 'neck', read: 'gesto corto e lento: il gomito si distende, la mano scende un poco in avanti e il piatto si apre' }),
   serve: Object.freeze({ dir: [.37, .65, .67], dist: 3.6, follow: Object.freeze({ window: .3, mix: .8, size: .5 }), read: 'lancio, braccio in alto sopra la testa, battuta al colmo della palla' }),
   smash: Object.freeze({ dir: [-.59, .65, .48], dist: 3.6, follow: Object.freeze({ window: .3, mix: .55, size: .5 }), read: 'braccio in alto sopra la testa, poi in avanti e giù deciso' }),
   volley: Object.freeze({ dir: [-.24, .34, .91], dist: 3.4, frameBody: 'neck', read: 'preparazione quasi nulla, gesto corto e deciso davanti al corpo' }),
-  cross: Object.freeze({ dir: [-.212, .574, .791], dist: 3.6, follow: Object.freeze({ window: .25, mix: .8, size: .4 }), frame: 'swing', read: 'contatto più avanti, busto già aperto: piatto girato verso il centro' }),
-  line: Object.freeze({ dir: [-.148, .819, .554], dist: 3.6, follow: Object.freeze({ window: .25, mix: .8, size: .4 }), frame: 'swing', read: 'contatto più indietro: piatto girato verso l\u2019esterno' }),
+  cross: Object.freeze({ dir: [-.258, .087, .962], dist: 3.6, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'contatto più avanti, busto già aperto: piatto girato verso il centro' }),
+  line: Object.freeze({ dir: [-.821, .423, .383], dist: 3.6, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'contatto più indietro: piatto girato verso l\u2019esterno' }),
 });
 // camera della scheda per la mano: il mancino vede lo specchio (x → −x della direzione)
 export function cameraFor(id, { hand = 'right' } = {}){
