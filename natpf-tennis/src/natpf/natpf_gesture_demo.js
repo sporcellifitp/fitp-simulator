@@ -873,6 +873,18 @@ function drawTrail(c, cam, M, t, st){
   }
   c.restore();
 }
+// tratto più lungo di una spezzata dentro il rettangolo dato, tagliato esattamente sul bordo (B14: la punta della freccia
+// usciva dallo stadio, nella modalità 200×200 dal bordo sinistro): la punta della freccia resta sempre nello stadio
+function clipRun(P, x0, x1, y0, y1){
+  const inside = q => q.x >= x0 && q.x <= x1 && q.y >= y0 && q.y <= y1;
+  const cut = (a, b) => { let u = 1; for (const [v, lo, hi] of [[b.x - a.x, x0 - a.x, x1 - a.x], [b.y - a.y, y0 - a.y, y1 - a.y]]){ if (v > 1e-9) u = Math.min(u, hi/v); else if (v < -1e-9) u = Math.min(u, lo/v); } u = Math.max(0, u); return { x: a.x + (b.x - a.x)*u, y: a.y + (b.y - a.y)*u }; };
+  let best = [], cur = [];
+  for (let i = 0; i < P.length; i++){
+    if (inside(P[i])){ if (!cur.length && i > 0) cur.push(cut(P[i], P[i - 1])); cur.push(P[i]); }
+    else if (cur.length){ cur.push(cut(cur[cur.length - 1], P[i])); if (cur.length > best.length) best = cur; cur = []; }
+  }
+  return cur.length > best.length ? cur : best;
+}
 // freccia tratteggiata del verso lungo il percorso della cima nella parte veloce: cresce durante la carica, poi resta
 function drawArrows(c, cam, M, t, st){
   // visibile dalla carica al ritorno, spenta fino alla carica dopo (prima si riaccendeva alla fine del ciclo e spariva di
@@ -883,12 +895,15 @@ function drawArrows(c, cam, M, t, st){
     const from = j ? Math.min(M.arrows[j - 1].t1, seg.t0 - .05) : P.T.hold;
     const grow = t < from ? 0 : t < seg.t0 ? sstep(from, seg.t0, t) : 1, n = Math.max(2, Math.round(32*Math.max(.03, grow)) + 1);
     if (vis*grow <= .02) continue;
-    const pts = seg.pts.slice(0, n).map(cam.p);
+    const sz = Math.max(7, st.ow*6), pts = clipRun(seg.pts.slice(0, n).map(cam.p), sz + 2, st.W - sz - 2, sz + 2, (st.compact ? st.H : st.H*(1 - HUD_H)) - sz - 2);
+    if (pts.length < 2) continue;
     c.save(); c.globalAlpha = .8*Math.min(1, vis); c.lineCap = 'round'; c.lineJoin = 'round';
     c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y));
     c.lineWidth = st.ow*2.6; c.strokeStyle = 'rgba(5,10,28,.55)'; c.stroke();
     c.lineWidth = st.ow*1.2; c.setLineDash([st.ow*4, st.ow*3]); c.strokeStyle = 'rgba(240,245,255,.92)'; c.stroke(); c.setLineDash([]);
-    const e = pts[pts.length - 1], d = pts[pts.length - 2], ang = Math.atan2(e.y - d.y, e.x - d.x), s = Math.max(7, st.ow*6)*sstep(0, .3, grow);   // la punta cresce con la freccia
+    const e = pts[pts.length - 1]; let d = pts[pts.length - 2];
+    for (let j = pts.length - 2; j >= 0 && Math.hypot(e.x - d.x, e.y - d.y) < .5; j--) d = pts[j];
+    const ang = Math.atan2(e.y - d.y, e.x - d.x), s = sz*sstep(0, .3, grow);   // la punta cresce con la freccia
     c.translate(e.x, e.y); c.rotate(ang); c.beginPath(); c.moveTo(s*.9, 0); c.lineTo(-s*.6, s*.62); c.lineTo(-s*.3, 0); c.lineTo(-s*.6, -s*.62); c.closePath();
     c.fillStyle = css(BALL); c.fill(); c.lineWidth = Math.max(1, st.ow*.7); c.strokeStyle = 'rgba(5,10,28,.85)'; c.stroke();
     c.restore();
