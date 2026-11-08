@@ -225,7 +225,11 @@ export function motion(id, grip = GRIP_STYLE){
       for (const f of r.fingers) pts.push(f.pts[3]);
       // inquadratura con le spalle e il collo (si leggono il busto che gira e «sopra la testa»), dove la camera lo chiede
       // e non nella modalità compatta (lì solo mano e telefono)
-      if (CAMERAS[id]?.frameBody && p.chain){ const B = bodyOf(p.chain); body.push(...(CAMERAS[id].frameBody === 'head' ? [B.S, B.shoulderL, B.head] : [B.S, B.shoulderL, B.neck])); }
+      if (CAMERAS[id]?.frameBody && p.chain){
+        const B = bodyOf(p.chain); body.push(...(CAMERAS[id].frameBody === 'head' ? [B.S, B.shoulderL, B.head] : [B.S, B.shoulderL, B.neck]));
+        // la spalla con la manica intera (sfera di 7 cm): la manica non esce più dal bordo del quadro (B14: posizione e volée)
+        for (const v of [[.07, 0, 0], [-.07, 0, 0], [0, .07, 0], [0, -.07, 0], [0, 0, .07], [0, 0, -.07]]) body.push(add(B.S, v));
+      }
       // gomito nell'inquadratura (non nella modalità compatta): l'avambraccio intero resta sopra la banda della curva (B14:
       // nella palla corta, nel tagliato e nella volée il gomito stava sempre sotto la banda)
       body.push(elb[i]);
@@ -589,7 +593,8 @@ function figure(cam, pose, st, H){
   if (full){
     const E = rig.E, S = rig.S, aU = u => add(E, mul(sub(S, E), u)), rU = u => (UPPER_PROFILE.elbow + (UPPER_PROFILE.shoulder - UPPER_PROFILE.elbow)*u)/1000, sl = 1 - UPPER_PROFILE.sleeve;
     upper.push(cap(aU(0), aU(sl + .04), rU(0), rU(sl + .04), MAT.skinFar, { kind: 'upper' }));
-    upper.push(cap(aU(sl), aU(1), rU(sl) + .003, rU(1) + .003, MAT.sleeve, { kind: 'sleeve' }));
+    // manica: contorno blu notte invece del bruno della pelle (si fonde con il busto: B14, era la forma più vistosa)
+    upper.push(cap(aU(sl), aU(1), rU(sl) + .003, rU(1) + .003, MAT.sleeve, { kind: 'sleeve', line: 'rgba(8,14,40,1)' }));
   }
   // omero davanti alla mano (verso la camera): si disegna sopra la mano e il telefono, non sotto (revisione B13: nella
   // posizione di partenza il polsino era ridisegnato sopra la manica che lo copriva)
@@ -663,8 +668,7 @@ function figure(cam, pose, st, H){
   return { rig, full, fore, upper, upperFront, hand, armSide, parts, band, foreFront, fadeA, fadeB, sideOn, rect, handRect, foreRect, palmHull };
 }
 function drawShapes(c, shapes, st){
-  c.fillStyle = css(LINE, 1);
-  for (const s of shapes){ c.beginPath(); s.path(c, st.ow); c.fill(); }
+  for (const s of shapes){ c.fillStyle = s.line || css(LINE, 1); c.beginPath(); s.path(c, st.ow); c.fill(); }
   for (const s of shapes){ c.beginPath(); s.path(c, 0); c.fillStyle = s.fill(c); c.fill(); }
 }
 function unitsOf(parts){
