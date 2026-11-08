@@ -85,6 +85,9 @@ decisioni dell'utente (04–05/11) e non si toccano qui; sotto le proposte per r
 
 ## 4. Proposte strutturali per l'utente (non fatte: cambiano passi o schermate)
 
+Stato dopo il secondo giro (§6): **4, 5 e 6 fatte**; **3 non fatta** (motivi e piano in §6); 1 e 2 restano all'utente.
+Fatti anche i due punti «da decidere» qui sotto sullo stesso schermo a 1280×720 e sul pannello della calibrazione.
+
 Schizzo «prima → dopo» in passi.
 
 1. **Tutorial corto prima della partita** (11 → 5 schede: presa, posizione, dritto, rovescio, servizio; i colpi speciali
@@ -114,3 +117,86 @@ sviluppa, non si toglie).
 Vedi la risposta finale del blocco e `docs/WORK_PROGRESS.md`: test del gioco e del sito, build, prove nel browser
 (`natpf-training-flow`, `natpf-tutorial-phone`, `natpf-menu`, `natpf-modale-gesti`), screenshot «dopo» controllati a occhio a
 1280×720, 1920×1080 e sul telefono simulato (390×844, 412×915). Non verificato: telefoni veri, persone vere, ledwall.
+
+## 6. Secondo giro (08/11): proposte 4, 5, 6 e due punti visti nel primo giro
+
+Fatto sul ramo `b15-ux`, un commit per punto, nessun passo tolto e nessuna impostazione persa (al massimo un tocco in più
+per le cose rare). Le decisioni dell'utente restano com'erano: tutte le schede del tutorial viste prima di «Tutto chiaro,
+ho capito», modale piccola e centrata con le frecce, «Pronto» con Ricalibra/Ricollega/Scollega, presa nel palmo, niente
+video. Le proposte 1 (tutorial corto) e 2 (riscaldamento facoltativo) non sono state toccate: le decide l'utente.
+
+| Punto | Prima | Dopo | Commit |
+|---|---|---|---|
+| 4 · una voce per la guida | «Guida» nel menu e «Come si gioca» in alto aprivano la stessa finestra | resta «Come si gioca» in alto a destra (in ogni pagina, tasto H, anche nella riga dei tasti del menu); la fila in basso del menu ha Classifica e Opzioni | `ecb17ba` |
+| 5 · pagina «Partita» con una scelta | livello + formato, durata, chi batte, visuale: 90 parole, 18 pulsanti | in vista le tre tessere del livello e la riga «Altre impostazioni · 1 game · singolare · 3ª persona» (chiusa a ogni visita, un tocco la apre: dentro le stesse righe di prima); 70 parole, 9 pulsanti. Stesso schermo: tolta l'unica tessera «Stesso schermo» che ripeteva il titolo, 91 → 62 parole, 13 → 4 pulsanti | `d87a0e9` |
+| 6 · telefono «Attiva i sensori» | riquadro con Movimento, Mano (menu a tendina), «Riconosci il gesto solo mentre tengo premuto» e una nota, poi due pulsanti pieni: 39 parole | riga «Mano [Destra] [Sinistra]» sempre in vista sopra il pulsante giallo «Attiva i sensori», poi i link «Gioca con i tocchi» e «Opzioni» (dentro: Movimento e «solo mentre tengo premuto»): 26 parole, un solo pulsante grande | `674cfbe` |
+| Stesso schermo a 1280×720 | la barra «Si parte da soli quando siete pronti tutti e due» stava a 585–657 px, sotto il piè di pagina (630): si vedeva solo scorrendo | nomi e scelta «Due telefoni / Una webcam per due» in una riga sola (prima due): barra a 511–583 px, in vista con la riga della presa; a 1920×1080 tutto in vista senza scorrere | `2abfa37` |
+| Pannello della calibrazione e degli esercizi | 460 px e consiglio a 15 px fissi anche a 1920×1080 (da 2 m non si leggeva) | misure in `cqw` del contenitore `natpf`: a 1280 come prima, a 1920×1080 circa 614 px, titolo 51 px, consiglio 23 px | `8de3f58` |
+
+**Mano la prima volta (proposta 6).** Un mancino non deve giocare da destro per errore: invece di nascondere la mano
+sotto «Opzioni» (o di una riga «Mano: destra · cambia»), restano due pulsanti Destra / Sinistra con la scelta accesa, nella
+stessa riga e sopra «Attiva i sensori». Un tocco cambia mano; passa dallo stesso `change` di prima (`applyHand` e messaggio
+`hand` al computer), quindi il computer la salva e la rimanda con `cfg` (provato: il computer passa a «left»). Sul computer
+la mano resta nella pagina «Con cosa giochi?» e in Opzioni.
+
+**Proposta 3 (unire «Modalità» e «Racchetta»): non fatta.** Il telefono di default e la webcam dal link «Senza telefono?
+Usa la webcam» di «Collega» funzionerebbero, ma oggi il passo non è sicuro:
+- la pagina «Con cosa giochi?» è anche l'unico posto del percorso con la **mano** sul computer: chi gioca con la webcam (e
+  il Player 2 senza telefono) la perderebbe dal percorso, restando solo in Opzioni; andrebbe spostata nella pagina «Collega»
+  della webcam, cioè nella parte su cui lavora il ramo dei mancini (B15.B) in parallelo;
+- la tappa `controller` è usata da 10 prove nel browser (`natpf-training-flow`, `natpf-tutorial-phone`,
+  `natpf-tutorial-relink`, `natpf-training-reconnect`, `natpf-phone-blackout`, `natpf-diag-session`, `natpf-menu`,
+  `natpf-aggiornamenti`, `natpf-1v1-p2p`, `scripts/ui-shots.mjs`) e da 6 file di test del gioco; due di quelle prove
+  (`natpf-training-flow`, `natpf-tutorial-phone`) sono cambiate proprio nelle stesse righe sul ramo dei mancini: farlo ora
+  vuol dire conflitti nell'integrazione B15;
+- la scelta della racchetta resterebbe quella dell'ultimo visitatore (salvata nel browser) senza che nessuno la veda, e la
+  modalità prova con mouse e tastiera (easter egg) non avrebbe più una pagina da cui sceglierla.
+Come farla dopo l'integrazione B15 (un blocco a sé): `progressSteps` senza `controller` (CPU 4 tappe), `[data-mode]`,
+`menu('training')` e `pickChallenge` verso `connect`, riga «Mano» nella pagina «Collega» della webcam, easter egg che
+sceglie direttamente mouse e tastiera, chiosco che riporta la racchetta al telefono, prove aggiornate con lo stesso
+significato. Risparmio: un clic nel gioco singolo (21 → 20), uno nell'Allenamento e uno nei minigiochi.
+
+### Passi dall'apertura alla prima palla (dopo il secondo giro)
+
+Invariati: gioco singolo con il telefono **21** (PC 6 + telefono 14, più «Consenti» su iPhone), stesso schermo **29**,
+1v1 su due computer **≈ 35**. Il secondo giro toglie scelte in vista e parole (pagina «Partita» 18 → 9 pulsanti compresi
+quelli in alto e in basso, telefono da 2 pulsanti pieni e 3 campi a 1 pulsante grande), non tocchi: la riga «Altre
+impostazioni» e il link «Opzioni» sono tocchi in più solo per chi cambia formato, durata, chi batte, visuale, movimento o
+«solo mentre tengo premuto». I tocchi veri da togliere restano le proposte 1–3.
+
+### Parole (stesso script del primo giro, `innerText` visibile a 1280×720; telefono 390×844 con un conto dei nodi di testo visibili)
+
+| Schermata | Dopo il primo giro | Dopo il secondo | Pulsanti |
+|---|---|---|---|
+| Menu principale | 54 | 53 | 8 → 7 |
+| Partita (CPU) | 90 | 70 | 18 → 9 |
+| Stesso schermo · Partita | 91 | 62 | 13 → 4 |
+| Collega i due telefoni | 148 | 154 (stato delle schede diverso nella misura: «Preparo il QR» / «Inquadra il QR»; tolte le 3 parole «Si gioca con») | 11 → 11 |
+| Telefono · «Attiva i sensori» | 39 (stesso conto sul codice di `c32cfb1`) | 26 | 5 controlli → 5 (1 pulsante grande, 2 per la mano, 2 link) |
+
+(Il JSON «dopo» del primo giro era stato misurato prima di `464db52`: guida scheda 1 110 → 93 e Collega 111 → 107 vengono
+da quel commit, non da questo giro.)
+
+### Dove si trova ogni impostazione (nessuna persa)
+
+Formato, durata, chi batte, visuale: «Partita → Altre impostazioni» (visuale anche in Opzioni e in pausa). Guida: «Come si
+gioca» in alto, tasto H, pausa. Mano: telefono (sopra «Attiva i sensori»), «Con cosa giochi?», Opzioni, stesso schermo
+(schede). Movimento e «solo mentre tengo premuto»: telefono → «Opzioni» (anche alla verifica della calibrazione). «Gioca con
+i tocchi»: link sotto «Attiva i sensori», pulsante pieno se i sensori non vanno e durante la calibrazione. Webcam: «Con cosa
+giochi?» e link in «Collega».
+
+### Verifiche del secondo giro
+
+`npm test` 896/896 (due test nuovi: riassunto di «Altre impostazioni» e apri/chiudi/richiuso a ogni visita) ·
+`node --test tools/test/*.test.mjs` 196/196 (nuovo: struttura della schermata «Attiva i sensori», mano in vista prima del
+pulsante, `#moreOpts` insieme a `#profileOptions`) · `npm run build` ok · prove nel browser sulle porte 3841–3848:
+`natpf-menu` 22/22 (cinque voci, frecce `training,challenges,ranking,options,options,challenges`), `natpf-training-flow`
+18/18, `natpf-tutorial-phone` 37/37, `natpf-split-ready` 34/34, `gesture-calibration` 19/19 (apre «Opzioni», tocca
+«Sinistra»), `natpf-1v1-p2p` 37/37, `natpf-modale-gesti` 18/18 (16/18 al primo giro solo per i fps con il computer
+carico da altre prove, 18/18 rifatta). Dettagli in `docs/WORK_PROGRESS.md` (B15-UX.6–11). Screenshot «dopo2»
+(1280×720 con telefono 390×844, 1920×1080 con telefono 412×915, più pagina «Partita» aperta, stesso schermo, pannello degli
+esercizi e telefono con «Opzioni» aperte): guardate le schermate toccate dal giro (menu, Partita chiusa e aperta, Sfida
+un amico, stesso schermo QR / pronto / conto / webcam per due, calibrazione ed esercizio, telefono «Attiva i sensori»,
+«Opzioni», «Sinistra» e sensori negati) alle due risoluzioni: niente tagliato, niente sovrapposto; la webcam per due a
+1280×720 scorre ancora sotto le schede (come prima, con una riga in meno).
+Non verificato: telefoni veri, persone vere, ledwall vero, lettori di schermo.

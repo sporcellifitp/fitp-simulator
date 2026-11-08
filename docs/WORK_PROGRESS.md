@@ -607,3 +607,36 @@ restano proposte in `docs/b15/audit-ux.md` §4. Ramo di lavoro `b15-ux` (worktre
   fermo» 62→21, pausa 72→37), documenti.
   Non verificato: telefoni veri, persone vere, ledwall; i passi dei tre percorsi non cambiano (le riduzioni di passi sono le
   proposte 1–3 di `docs/b15/audit-ux.md` §4, da decidere con l'utente).
+- [x] B15-UX.6 · secondo giro, proposta 4 (commit `ecb17ba`): una voce sola per la guida. Tolta «Guida» dal menu
+  principale (apriva la stessa finestra di «Come si gioca» in alto); la fila in basso ha Classifica e Opzioni.
+  File: `natpf-tennis/index.html`, `natpf-ui.css` (fila a 2 colonne), commenti in `natpf_lobby.js` e `natpf_onboarding.js`,
+  `test/natpf-lobby.test.mjs` (frecce con la fila a due voci, più il caso a tre voci), `tools/e2e/natpf-menu.mjs` (cinque
+  voci, sequenza `training,challenges,ranking,options,options,challenges`). Verifiche: `natpf-menu` 22/22.
+- [x] B15-UX.7 · proposta 5 (commit `d87a0e9`): pagina «Partita» con in vista solo il livello della CPU e la riga «Altre
+  impostazioni · 1 game · singolare · 3ª persona» (chiusa a ogni visita; dentro formato, durata, chi batte e visuale con gli
+  stessi id di prima). Frecce: dalle tessere alla riga, Invio la apre; il fuoco iniziale va alla tessera scelta o a «Gioca».
+  Stesso schermo: nascosta l'unica tessera «Stesso schermo». File: `index.html`, `natpf_lobby.js` (`matchSummary`,
+  `matchMore`, `_paintMatchMore`, `_tiles`, Invio), `natpf-ui.css`, `test/natpf-lobby.test.mjs`, `test/natpf-flows.test.mjs`.
+  Parole 90 → 70 e pulsanti 18 → 9 (CPU), 91 → 62 e 13 → 4 (stesso schermo).
+- [x] B15-UX.8 · proposta 6 (commit `674cfbe`): telefono, «Attiva i sensori» con un solo pulsante grande. Riga «Mano
+  [Destra] [Sinistra]» sempre in vista sopra il pulsante (la scelta resta nel `<select id="hand">` nascosto e passa dallo
+  stesso `change` al computer: provato, il computer passa a «left»); «Gioca con i tocchi» come link (pulsante pieno con i
+  sensori negati e in calibrazione); Movimento e «solo mentre tengo premuto» sotto «Opzioni» chiuse (`#moreOpts`, mostrato
+  da `phoneView` insieme a `#profileOptions`). File: `site/tennis/racchetta.html`, `site/js/tennis/racchetta.js`
+  (`paintHand`), `site/js/tennis/phone-screen.js`, `tools/test/phone-screen.test.mjs`, `tools/e2e/gesture-calibration.mjs`
+  (apre «Opzioni», tocca «Sinistra»). Verifiche: sito 196/196, `gesture-calibration` 19/19 (copia temporanea di
+  `run-local.mjs` sulle porte 3842/3843, tolta). Parole della schermata 39 → 26.
+- [x] B15-UX.9 · stesso schermo a 1280×720 (commit `2abfa37`): nomi e «Due telefoni / Una webcam per due» in una riga;
+  la barra dell'avvio passa da 585–657 px (sotto il piè di pagina, 630) a 511–583. La barra resta ferma mentre si
+  aspettano i telefoni (scelta B9 per il ledwall 720×720). Verifiche: `natpf-split-ready` 34/34 (porte 3845/3846).
+- [x] B15-UX.10 · pannello della calibrazione e degli esercizi in `cqw` (commit `8de3f58`): a 1280 invariato, a 1920×1080
+  circa 614 px con consiglio a 23 px e titolo a 51 px (prima 460 px e 15 px fissi).
+- [x] B15-UX.11 · proposta 3 non fatta (motivi e piano in `docs/b15/audit-ux.md` §6: mano della webcam solo in quella
+  pagina, 10 prove nel browser e 6 file di test sulla tappa `controller`, conflitti con il ramo dei mancini nelle stesse
+  righe di `natpf-training-flow` e `natpf-tutorial-phone`, racchetta dell'ultimo visitatore, easter egg). Documenti:
+  `docs/b15/audit-ux.md` §6 (tabella prima/dopo, passi invariati 21/29/≈35, parole, dove sta ogni impostazione).
+  Verifiche finali su `8de3f58`: `npm test` 896/896 · `node --test tools/test/*.test.mjs` 196/196 · `npm run build` ok ·
+  e2e `natpf-menu` 22/22, `natpf-training-flow` 18/18, `natpf-tutorial-phone` 37/37, `natpf-split-ready` 34/34,
+  `natpf-1v1-p2p` 37/37, `natpf-modale-gesti` 18/18 (una prima esecuzione 16/18 solo nei due controlli dei fps, con il
+  computer carico dalle prove di un altro agente: 1,2 fps anche il campo da solo; rifatta a carico più basso 18/18). Screenshot «dopo2» (fuori dal repository) a 1280×720 + 390×844
+  e 1920×1080 + 412×915. Non verificato: telefoni veri, persone vere, ledwall vero, lettori di schermo; la proposta 3.
