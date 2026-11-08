@@ -18,7 +18,7 @@ import { gripSvg, GRIP } from '@natpf/tennis/grip-art.js';
 import { getGestureDemo } from './natpf_gesture_demo.js';
 import { GESTURES } from './natpf_gesture_motion.js';
 import { PHOTOS, lessonPhotos } from './natpf_media.js';
-import { NatpfTutorial } from './natpf_tutorial.js';
+import { NatpfTutorial, tutorialSetFor, tutorialResumeAfterShort } from './natpf_tutorial.js';
 export { calSide };
 
 // Esercizi del tutorial, in ordine progressivo: i colpi di base, il servizio, la direzione, la rete, il tocco, la
@@ -221,7 +221,11 @@ export class NatpfTraining {
     // con il telefono la lezione (presa, mano, posizione) è la modale del tutorial, in tutti i percorsi; resta per la webcam
     // si rivede solo con un abbinamento nuovo del telefono (QR: può essere un altro giocatore), non quando lo stesso telefono
     // si ricollega (pagina ricaricata, schermo spento, «Ricollega»: B9, prima ricompariva sopra «Pronto»)
-    const wantTutorial = ctrl === 'phone' && !diag && !guest && !this.ui.phone?.tutorialSeen;
+    // B16 (decisione dell'utente dell'08/11 sera): prima della partita (e delle sfide) il tutorial corto, 5 schede;
+    // l'Allenamento dal menu (intro, natpf_lobby.startWarmup) tutte le 11 (dopo il corto, solo quelle che mancano)
+    this.tutSet = tutorialSetFor(intro ? 'training' : this.ui.flow?.mode);
+    const P0 = this.ui.phone, seen = P0?.tutorialSeenFor ? P0.tutorialSeenFor(this.tutSet) : !!P0?.tutorialSeen;
+    const wantTutorial = ctrl === 'phone' && !diag && !guest && !seen;
     // il telefono aspettava già il tutorial dalla pagina «Collega» (natpf_lobby._prearmTutorial): da qui lo gestisce
     // l'allenamento; se il tutorial non si apre il telefono smette di aspettarlo e calibra
     if (this.ui.lobby?.tutPrearm){ this.ui.lobby.tutPrearm = false; if (!wantTutorial) this.ui.phone?.waitTutorial?.(false); }
@@ -257,10 +261,12 @@ export class NatpfTraining {
   // della fine (uscita) riparte da dove era arrivata
   _openTutorial(){
     this.tutorialOpen = true; this._idle(); this._centerPlayer();
-    const P = this.ui.phone;
+    const P = this.ui.phone, set = this.tutSet || 'full';
     P.waitTutorial?.(true);
-    this.tutorial?.openFor({ mode: 'phone', player: '', hand: this.ui.hand?.hand || 'right', after: this.cal ? 'cal' : 'play',
-      from: P.savedTutorial?.() || null, onProgress: p => P.tutorialProgress?.(p) });
+    // tutorial completo dopo il corto (stesso telefono: Allenamento dopo una partita): dalla prima scheda che manca
+    const from = P.savedTutorial?.() || (set === 'full' && P.tutorialSeenFor?.('short') ? tutorialResumeAfterShort() : null);
+    this.tutorial?.openFor({ mode: 'phone', set, player: '', hand: this.ui.hand?.hand || 'right', after: this.cal ? 'cal' : 'play',
+      from, onProgress: p => P.tutorialProgress?.(p) });
   }
   // chiusa dal telefono (o con Esc da chi gestisce la postazione, o da un telefono con la pagina di prima che ha già
   // cominciato a calibrare): si segna vista per questa sessione e si va alla calibrazione o agli esercizi
@@ -269,7 +275,7 @@ export class NatpfTraining {
   _tutorialDone(reason = 'phone'){
     if (!this.tutorialOpen) return;
     const aware = !!this.ui.phone.tutSupported;
-    this.tutorialOpen = false; this.ui.phone.markTutorialSeen?.();
+    this.tutorialOpen = false; this.ui.phone.markTutorialSeen?.(this.tutSet || 'full');
     this.ui.phone.waitTutorial?.(false);
     this.tutorial?.close(reason);
     if (!this.active) return;

@@ -30,6 +30,7 @@ const ARCADE_ICONS = {
 import { warmupDrills } from './natpf_training.js';
 import { hostLobbyStatus, roomCode, joinUrl } from './natpf_versus.js';
 import { p2pRequested } from './natpf_p2p.js';
+import { tutorialSetFor } from './natpf_tutorial.js';
 import { screenSummary } from './natpf_screen.js';
 import { waitingText } from './natpf_ready.js';
 const $ = id => document.getElementById(id);
@@ -387,9 +388,10 @@ export class NatpfLobby {
   // tutorial non lo fermava (revisione B9 del 06/11, minore f). Si toglie lasciando la pagina senza entrare in campo
   // (releaseTutorial) o se in campo il tutorial non si apre (natpf_training.start: diagnostica)
   _prearmTutorial(){
-    const P = this.ui.phone;
-    if (!['training', 'cpu', 'challenge'].includes(this.mode) || !P || P.tutorialSeen || P.tutWait) return;
+    const P = this.ui.phone, seen = P?.tutorialSeenFor ? P.tutorialSeenFor(tutorialSetFor(this.mode)) : !!P?.tutorialSeen;
+    if (!['training', 'cpu', 'challenge'].includes(this.mode) || !P || seen || P.tutWait) return;
     this.tutPrearm = true; P.waitTutorial?.(true);
+  // B16: tutorial corto prima della partita, completo nell'Allenamento (visto il corto, l'Allenamento mostra quelle che mancano)
   }
   releaseTutorial(){
     if (!this.tutPrearm) return;

@@ -302,7 +302,9 @@ test('stesso schermo con una webcam per due: scelta ricordata, pronti con le due
 // B9 (05/11): nello stesso schermo ogni metà ha la sua modale con le frecce; l'avanzamento va al telefono di quel
 // giocatore (pulsante acceso dopo l'ultima scheda); le frecce di un telefono sfogliano solo la sua metà; un telefono che
 // cade a tutorial aperto ritrova la scheda raggiunta; un telefono già pronto non viene ricalibrato; il P1 che ha visto il
-// tutorial nell'Allenamento non lo rivede; tastiera A/D (metà sinistra) e ← → (metà destra)
+// tutorial nell'Allenamento non lo rivede; tastiera A/D (metà sinistra) e ← → (metà destra). B16 (decisione dell'utente
+// dell'08/11 sera): prima della partita il tutorial corto, 5 schede (presa, posizione, dritto, rovescio, servizio), per
+// ciascuno dei due telefoni
 test('stesso schermo: tutorial indipendenti con le frecce, avanzamento a ciascun telefono, ricollegamento, già visto', async () => {
   const w = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = w;
   const P1 = E.natpfPhone, P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
@@ -314,6 +316,10 @@ test('stesso schermo: tutorial indipendenti con le frecce, avanzamento a ciascun
   const nav = (P, d) => P._onTut({ nav: d, v: 2 }), ok = P => P._onTut({ ok: true, v: 2 });
   P1._onTut({ wait: true, v: 2 }); P2._onTut({ wait: true, v: 2 });
   assert.equal(tp(w.link).i, 0); assert.equal(tp(l2).i, 0);
+  // tutorial corto in tutte e due le metà: 5 schede, le prime 5 del tutorial completo; il telefono lo sa da n
+  const N = ui.split.tut.p2.state.cards;
+  assert.equal(N, 5); assert.equal(ui.split.tut.p1.state.cards, 5); assert.equal(tp(w.link).n, 5); assert.equal(tp(l2).n, 5);
+  assert.deepEqual(ui.split.tut.p2.cards.map(c => c.id), ['grip', 'ready', 'forehand', 'backhand', 'serve']);
   // il P2 sfoglia dal suo telefono: si muove solo la metà destra
   w.advance(1200); nav(P2, 1); nav(P2, 1);
   assert.equal(ui.split.tut.p2.state.idx, 2); assert.equal(ui.split.tut.p1.state.idx, 0, 'la metà del P1 non si muove');
@@ -329,10 +335,10 @@ test('stesso schermo: tutorial indipendenti con le frecce, avanzamento a ciascun
   assert.ok(!ui.split.tutOpen.p2 && !ui.split.tut.p2.open, 'telefono caduto: la metà mostra di nuovo il QR');
   l2.connected = true; l2.ready = true; l2.L = { state: 'connected', phone: 'ready', joins: 2 }; ui.split.paint();
   assert.ok(ui.split.tutOpen.p2); assert.equal(ui.split.tut.p2.state.idx, 3, 'riparte dalla scheda raggiunta'); assert.ok(ui.split.tut.p2.state.visited.has(3) && !ui.split.tut.p2.state.visited.has(2), 'schede viste ricordate (la 3 sì, la 2 passata di fila no)');
-  for (let i = 3; i < 11; i++){ w.advance(1200); if (i < 10) nav(P2, 1); }
+  for (let i = 3; i < N; i++){ w.advance(1200); if (i < N - 1) nav(P2, 1); }
   assert.equal(tp(l2).all, 0, 'le schede 1 e 2 passate di fila non contano');
   // indietro fino alla 2 e alla 1, guardate: tutte viste
-  for (let i = 0; i < 8; i++) nav(P2, -1);
+  for (let i = 0; i < N - 3; i++) nav(P2, -1);
   w.advance(1200); nav(P2, -1); w.advance(1200);
   assert.equal(ui.split.tut.p2.state.idx, 1); assert.equal(tp(l2).all, 1);
   // P2 già pronto: «poi sei pronto», e dopo «ho capito» nessuna calibrazione
@@ -354,9 +360,9 @@ test('stesso schermo: tutorial indipendenti con le frecce, avanzamento a ciascun
 
 test('stesso schermo: lo stato della metà dice che si sta guardando il tutorial', async () => {
   const { splitPlayerStatus } = await import('../src/natpf/natpf_split_ui.js');
-  const p = { link: {}, state: { state: 'connected', phone: 'tut' }, connected: true, ready: false, tutWait: true, tutProgress: { i: 3, n: 11, s: 4, all: false } };
-  assert.match(splitPlayerStatus(p).title, /Guarda il tutorial/); assert.match(splitPlayerStatus(p).sub, /4 di 11/);
-  p.tutProgress = { i: 10, n: 11, s: 11, all: true }; assert.match(splitPlayerStatus(p).sub, /Tutto chiaro/);
+  const p = { link: {}, state: { state: 'connected', phone: 'tut' }, connected: true, ready: false, tutWait: true, tutProgress: { i: 3, n: 5, s: 4, all: false } };
+  assert.match(splitPlayerStatus(p).title, /Guarda il tutorial/); assert.match(splitPlayerStatus(p).sub, /4 di 5/);
+  p.tutProgress = { i: 4, n: 5, s: 5, all: true }; assert.match(splitPlayerStatus(p).sub, /Tutto chiaro/);
 });
 
 // ---------------------------------------------------------------------------------------------------------------------

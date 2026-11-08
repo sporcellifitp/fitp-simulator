@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DRILLS, LESSON, liveFeedback, VOLLEY_Z } from '../src/natpf/natpf_training.js';
 import { makeWorld } from './ui-world.mjs';
-import { TUTORIAL, TUTORIAL_CARDS, tutorialStart, tutorialGo, tutorialSeen, tutorialProgress, tutorialWait } from '../src/natpf/natpf_tutorial.js';
+import { TUTORIAL, TUTORIAL_CARDS, TUTORIAL_SHORT_IDS, tutorialCards, tutorialSetFor, tutorialResumeAfterShort, tutorialStart, tutorialGo, tutorialSeen, tutorialProgress, tutorialWait } from '../src/natpf/natpf_tutorial.js';
 
 const D = id => DRILLS.find(d => d.id === id);
 
@@ -34,7 +34,7 @@ test('feedback in tempo reale: riconosce il gesto giusto e spiega quello sbaglia
 const fromPhone = (P, d) => P._onTut({ wait: !!d.w, ok: !!d.ok, v: d.v === 2 ? 2 : 1, nav: d.nav === 1 || d.nav === -1 ? d.nav : 0 });
 const lastTp = link => link.sent.filter(m => m.t === 'tp').at(-1);
 // tutte le schede, una dopo l'altra, ciascuna a schermo più di TUTORIAL.seenMs (frecce del telefono)
-const seeAll = (w, P, T) => { for (let i = 0; i < TUTORIAL_CARDS.length; i++){ w.advance(TUTORIAL.seenMs + 300); if (i < TUTORIAL_CARDS.length - 1) fromPhone(P, { nav: 1 }); } };
+const seeAll = (w, P, T, n = T?.tutorial?.state?.cards || TUTORIAL_CARDS.length) => { for (let i = T?.tutorial?.state?.idx || 0; i < n; i++){ w.advance(TUTORIAL.seenMs + 300); if (i < n - 1) fromPhone(P, { nav: 1 }); } };
 
 test('tutorial prima della calibrazione: modale con presa e gesti, il telefono aspetta «Tutto chiaro, ho capito», poi calibra da solo', async () => {
   const w = await makeWorld({ controller: 'phone' });
@@ -79,6 +79,73 @@ test('tutorial prima della calibrazione: modale con presa e gesti, il telefono a
   // «Rivedi i gesti»: la stessa modale, da chiudere sul computer, senza fermare il telefono
   T._tutorialDone('skip'); T.reviewGestures(); assert.ok(T.tutorial.open && !T.tutorialOpen && !P.tutWait); T.tutorial.close('review'); assert.ok(!T.tutorial.open);
   T.stop({ completed: false, silent: true });
+});
+
+// B16 (decisione dell'utente dell'08/11 sera, «tutorial corto prima della partita: ok»): prima della partita contro la CPU
+// (riscaldamento o sola calibrazione), della sfida tra due computer e dei minigiochi il tutorial ha 5 schede (presa,
+// posizione, dritto, rovescio, servizio) e «Tutto chiaro» si accende quando le 5 sono viste; le altre 6 restano
+// nell'Allenamento (tutte le 11; dopo il corto, con lo stesso telefono, dalla sesta) e in «Rivedi i gesti» (sempre 11).
+// Il protocollo non cambia: n del messaggio tp è il numero delle schede di quel tutorial (un telefono con la pagina di
+// prima lo legge uguale)
+test('tutorial corto prima della partita (5 schede), completo nell\'Allenamento e in «Rivedi i gesti»', async () => {
+  const w = await makeWorld({ controller: 'phone' });
+  const T = w.ui.training, P = w.ui.phone;
+  w.lobby.setMode('cpu');
+  T.start({ calOnly: true });
+  assert.ok(T.tutorialOpen); assert.equal(T.tutorial.set, 'short');
+  assert.deepEqual(T.tutorial.cards.map(c => c.id), ['grip', 'ready', 'forehand', 'backhand', 'serve']);
+  fromPhone(P, { w: 1, v: 2 });
+  assert.deepEqual({ ...lastTp(w.link), nm: undefined }, { t: 'tp', i: 0, n: 5, s: 0, m: 0, all: 0, nm: undefined }, 'il telefono riceve 5 schede');
+  // dopo la quarta scheda non è ancora finito; «ho capito» prima della quinta non chiude
+  for (let i = 0; i < 4; i++){ w.advance(TUTORIAL.seenMs + 300); fromPhone(P, { nav: 1 }); }
+  assert.equal(T.tutorial.state.idx, 4); assert.equal(lastTp(w.link).all, 0); assert.equal(lastTp(w.link).nm, 'Servizio');
+  fromPhone(P, { ok: 1 }); assert.ok(T.tutorialOpen, 'prima di aver visto il servizio non si chiude');
+  fromPhone(P, { nav: 1 }); assert.equal(T.tutorial.state.idx, 4, 'dopo il servizio non ci sono altre schede');
+  w.advance(TUTORIAL.seenMs + 300);
+  assert.deepEqual({ ...lastTp(w.link), nm: undefined }, { t: 'tp', i: 4, n: 5, s: 5, m: 31, all: 1, nm: undefined }, 'tutte e 5 viste: «Tutto chiaro» si accende');
+  fromPhone(P, { ok: 1 });
+  assert.ok(!T.tutorialOpen); assert.ok(P.tutorialSeen && P.tutorialSeenFor('short') && !P.tutorialSeenFor('full'));
+  // «Rivedi i gesti»: sempre tutte le schede
+  T.reviewGestures(); assert.equal(T.tutorial.set, 'full'); assert.equal(T.tutorial.cards.length, TUTORIAL_CARDS.length); T.tutorial.close('review');
+  T.stop({ completed: false, silent: true });
+  // stesso telefono, poi la partita di nuovo: il tutorial corto non si ripete
+  T.start({ calOnly: true }); assert.ok(!T.tutorialOpen, 'corto già visto'); T.stop({ completed: false, silent: true });
+  // stesso telefono nell'Allenamento: il tutorial completo dalla sesta scheda (pallonetto, piatto…), le prime 5 già viste
+  w.lobby.setMode('training');
+  T.start({ intro: true });
+  assert.ok(T.tutorialOpen); assert.equal(T.tutorial.set, 'full'); assert.equal(T.tutorial.state.idx, 5); assert.equal(T.tutorial.state.visited.size, 5);
+  assert.equal(T.tutorial.card.id, TUTORIAL_CARDS[5].id);
+  fromPhone(P, { w: 1, v: 2 }); assert.equal(lastTp(w.link).n, TUTORIAL_CARDS.length); assert.equal(lastTp(w.link).all, 0, 'il corto visto non accende il completo');
+  seeAll(w, P, T); assert.equal(lastTp(w.link).all, 1);
+  fromPhone(P, { ok: 1 }); assert.ok(!T.tutorialOpen && P.tutorialSeenFor('full'));
+  T.stop({ completed: false, silent: true });
+  // visto il completo, il corto non si rivede (prima della partita)
+  w.lobby.setMode('cpu'); T.start({ calOnly: true }); assert.ok(!T.tutorialOpen); T.stop({ completed: false, silent: true });
+  // abbinamento nuovo nell'Allenamento: tutte le 11 dalla prima
+  w.link.L.pairs = 3; w.lobby.setMode('training'); T.start({ intro: true });
+  assert.equal(T.tutorial.state.idx, 0); assert.equal(T.tutorial.state.visited.size, 0); assert.equal(T.tutorial.cards.length, TUTORIAL_CARDS.length);
+  T.stop({ completed: false, silent: true });
+});
+
+test('tutorial corto, stato puro: le 5 schede sono le prime 5 del completo (stessi indici), serie per modalità, ripresa', () => {
+  assert.deepEqual(TUTORIAL_SHORT_IDS, ['grip', 'ready', 'forehand', 'backhand', 'serve']);
+  assert.deepEqual(tutorialCards('short').map(c => c.id), TUTORIAL_CARDS.slice(0, 5).map(c => c.id), 'prefisso del completo: la maschera m vale per tutte e due');
+  assert.equal(tutorialCards('full'), TUTORIAL_CARDS); assert.equal(tutorialCards('qualunque'), TUTORIAL_CARDS);
+  assert.deepEqual(['cpu', 'friend', 'challenge', 'split', 'training', undefined].map(tutorialSetFor), ['short', 'short', 'short', 'short', 'full', 'short']);
+  // le schede tolte prima della partita: i colpi speciali e la volée
+  assert.deepEqual(TUTORIAL_CARDS.slice(5).map(c => c.id).sort(), ['drop', 'flat', 'lob', 'slice', 'smash', 'volley']);
+  // corto visto tutto, poi il completo: «all» non passa (n diverso), le schede viste restano
+  let s = tutorialStart({ cards: 5 }); for (let i = 0; i < 5; i++){ s = tutorialGo(s, i, { now: i*2000 }); s = tutorialSeen(s, { now: i*2000 + TUTORIAL.seenMs }); }
+  assert.ok(s.all);
+  const snap = { idx: s.idx, visited: [...s.visited], all: s.all, n: s.cards };
+  const f = tutorialStart({ cards: TUTORIAL_CARDS.length, from: snap });
+  assert.ok(!f.all); assert.equal(f.visited.size, 5); assert.equal(f.idx, 4);
+  assert.ok(tutorialStart({ cards: 5, from: snap }).all, 'stessa serie: tutto visto resta');
+  const r = tutorialStart({ cards: TUTORIAL_CARDS.length, from: tutorialResumeAfterShort() });
+  assert.equal(r.idx, 5); assert.deepEqual([...r.visited], [0, 1, 2, 3, 4]); assert.ok(!r.all);
+  // il completo interrotto e poi il corto: indici oltre il quinto ignorati, scheda raggiunta portata sull'ultima
+  const c = tutorialStart({ cards: 5, from: { idx: 8, visited: [0, 1, 2, 3, 4, 5, 6, 7], all: false, n: 11 } });
+  assert.equal(c.idx, 4); assert.ok(c.all, 'le 5 già viste nel completo bastano per il corto');
 });
 
 // Revisione B9 (06/11), minore f: nell'Allenamento il telefono mostrava per ~0,76 s la calibrazione («Preparati») tra

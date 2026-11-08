@@ -382,8 +382,9 @@ export class NatpfPhoneRacket {
     this.tutListeners = new Set(); this.tutNavListeners = new Set();
     // tutorial visto per questo abbinamento del telefono (link.L.pairs): si rivede solo con un abbinamento nuovo (QR), non
     // a ogni ricollegamento (pagina ricaricata, schermo spento, «Ricollega»); tutSaved = dove era arrivata la modale chiusa
-    // prima della fine (stesso abbinamento: si riprende da lì). Uno per telefono: vale per Allenamento e stesso schermo
-    this.tutSeenPairs = null; this.tutSaved = null;
+    // prima della fine (stesso abbinamento: si riprende da lì). Uno per telefono: vale per Allenamento e stesso schermo.
+    // tutSeenSet: quale tutorial è stato visto ('short' prima della partita, 'full' nell'Allenamento: B16)
+    this.tutSeenPairs = null; this.tutSeenSet = null; this.tutSaved = null;
     this.lastPhase = null;
     this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false };
     // passo della calibrazione come lo vede il computer (natpf_cal_view.js): si aggiorna con ogni evento del telefono,
@@ -538,11 +539,18 @@ export class NatpfPhoneRacket {
     }
     this._changed();
   }
-  // tutorial già visto da chi tiene questo telefono (stesso abbinamento)
+  // tutorial già visto da chi tiene questo telefono (stesso abbinamento): uno qualunque, corto o completo
   get tutorialSeen(){ return this.tutSeenPairs != null && this.tutSeenPairs === (this.state.pairs || 0); }
-  markTutorialSeen(){ this.tutSeenPairs = this.state.pairs || 0; this.tutSaved = null; }
+  // visto il tutorial di questa serie: il completo vale anche per il corto, il corto no per il completo (l'Allenamento dopo
+  // una partita mostra le schede che mancano, natpf_tutorial.tutorialResumeAfterShort)
+  tutorialSeenFor(set = 'full'){ return this.tutorialSeen && (this.tutSeenSet === 'full' || set === 'short'); }
+  // set: la serie appena vista ('short' | 'full'); non si torna dal completo al corto
+  markTutorialSeen(set = 'full'){
+    const was = this.tutorialSeen ? this.tutSeenSet : null;
+    this.tutSeenPairs = this.state.pairs || 0; this.tutSeenSet = was === 'full' || set !== 'short' ? 'full' : 'short'; this.tutSaved = null;
+  }
   // visitatore nuovo (chiosco): il tutorial si rivede anche con lo stesso telefono
-  forgetTutorial(){ this.tutSeenPairs = null; this.tutSaved = null; }
+  forgetTutorial(){ this.tutSeenPairs = null; this.tutSeenSet = null; this.tutSaved = null; }
   // modale chiusa prima della fine (si esce, il telefono cade nella pagina «Collega»): si riprende da lì, stesso abbinamento
   saveTutorial(snap){ this.tutSaved = snap ? { ...snap, pairs: this.state.pairs || 0 } : null; }
   savedTutorial(){ const t = this.tutSaved; return t && t.pairs === (this.state.pairs || 0) ? t : null; }
