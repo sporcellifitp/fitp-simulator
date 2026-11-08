@@ -152,11 +152,13 @@ export function createFaceModel({ keep = 12, min = 3 } = {}) {
 export const AIM = Object.freeze({ gain: 22, settle: 10, alpha: .12, drift: .01, min: 3, maxDev: 80, seedAlpha: .35,
   verify: 4, verifyDev: 20, keep: 12, biasFrom: 10, biasDev: 25, biasLow: 20, biasEnd: 10, biasPull: .2, biasSlow: .05,
   commonFrom: 3, commonDev: 25, commonLow: 20, commonEnd: 10, commonPull: .2, commonSlow: .05,
-  recheck: 4, recheckFrom: 5, recheckFull: 10 });
+  recheck: 6, recheckFrom: 6, recheckFull: 12 });
 // recheck, recheckFrom, recheckFull (B15, secondo giro): seconda verifica del seme della calibrazione, vedi add(). Banco
-// colpi.mjs, persona vera con il seme spostato di −15°/+15° (12 partite): errore del centro al 20° colpo 7,9°/8,0° →
-// 1,0°/2,8°, al 40° 6,6°/6,5° → 0,4°/1,9°; x p50 dall'11° al 20° colpo +1,51/−1,77 m → −0,18/−1,25 (seme giusto −0,37).
-// Con il seme giusto non cambia niente (errore 0,3–0,8°). Provati 5 colpi (più lento), da 6 a 12° (uguale)
+// colpi.mjs, persona vera con il seme spostato di −15°/+15° (24 partite): errore del centro, medio con il segno e medio
+// assoluto, al 40° colpo −7,5°/+5,6° (8,1°/7,8°) → −1,2°/+1,4° (4,5°/4,6°); x p50 dei colpi dal 21° al 40° +1,4/−1,2 m
+// → +0,2/−0,3 (seme giusto 0,0). Con il seme giusto l'errore medio assoluto passa da 1,4° a 2,1° (massimo 8,9° prima e
+// dopo). Provati 4 colpi da 5° a 10°: più rapido (x p50 dall'11° al 20° colpo +0,5 m invece di +1,2) ma con il seme
+// giusto la mediana di 4 colpi sbaglia troppo (errore medio assoluto 3,3°, fino a 18°)
 const wrapDeg = a => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };
 // mediana circolare (gradi): +179° e −179° sono vicini
 const circMedian = a => (a.length ? wrapDeg(a[0] + median(a.map(h => wrapDeg(h - a[0])))) : null);

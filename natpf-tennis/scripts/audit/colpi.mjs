@@ -226,14 +226,14 @@ export function realeAll({ hand = 'right', quick = QUICK } = {}){
 // partite diverse; per blocchi di colpi, x p50 (le partite insieme) ed errore che resta nel centro della mira (gradi,
 // media alla fine del blocco). Lo stesso errore visto dall'altra parte è una mira tenuta dal primo colpo (piatto sempre
 // girato di −seedErr): per il centro della mira le due cose sono uguali
-export const SEME = Object.freeze({ runs: 12, n: 40, blocks: Object.freeze([[0, 5], [5, 10], [10, 20], [20, 40]]) });
+export const SEME = Object.freeze({ runs: 24, n: 40, blocks: Object.freeze([[0, 5], [5, 10], [10, 20], [20, 40]]) });
 export function seme({ seedErr = 0, runs = SEME.runs, n = SEME.n, hand = 'right' } = {}){
   const xs = SEME.blocks.map(() => []), err = SEME.blocks.map(() => []);
   for (let r = 0; r < runs; r++){
     const res = reale({ hand, N: n, seed: 101 + r, seedErr });
     SEME.blocks.forEach(([a, b], j) => { for (const s of res.shots.slice(a, b)) if (!s.lost) xs[j].push(s.x); err[j].push(res.shots[Math.min(b, res.shots.length) - 1].cerr); });
   }
-  return { seedErr, hand, blocks: SEME.blocks.map(([a, b], j) => ({ shots: `${a + 1}-${b}`, x: q(xs[j], .5), xMean: +mean(xs[j]).toFixed(2), cerr: +mean(err[j]).toFixed(1) })) };
+  return { seedErr, hand, blocks: SEME.blocks.map(([a, b], j) => ({ shots: `${a + 1}-${b}`, x: q(xs[j], .5), xMean: +mean(xs[j]).toFixed(2), cerr: +mean(err[j]).toFixed(1), cabs: +mean(err[j].map(Math.abs)).toFixed(1), cmax: +Math.max(...err[j].map(Math.abs)).toFixed(1) })) };
 }
 // specchio: le stesse estrazioni del destro e del mancino danno la stessa palla dall'altra parte. Nei tagliati (e nelle
 // palle corte) l'effetto laterale del motore va dalla parte del campo dove sta chi colpisce (x ≥ 0), non dipende dalla
@@ -304,8 +304,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href){
     if (mode === 'tutto' || mode === 'reale'){
       res[hand].reale = realeAll({ hand }); printReale(res[hand].reale, hand);
       res[hand].seme = [-15, 0, 15].map(seedErr => seme({ seedErr, hand }));
-      console.log(`\n== seme della calibrazione sbagliato (${SEME.runs} partite, primi ${SEME.n} colpi): x p50 (media) e errore del centro della mira alla fine del blocco`);
-      for (const r of res[hand].seme) console.log(`  seme ${String(r.seedErr).padStart(3)}°  ` + r.blocks.map(b => `colpi ${b.shots}: x ${fmt(b.x)} (${fmt(b.xMean)}), centro ${fmt(b.cerr)}°`).join(' · '));
+      console.log(`\n== seme della calibrazione sbagliato (${SEME.runs} partite, primi ${SEME.n} colpi): x p50 (media) e errore del centro della mira alla fine del blocco (medio con il segno, medio assoluto, massimo)`);
+      for (const r of res[hand].seme) console.log(`  seme ${String(r.seedErr).padStart(3)}°  ` + r.blocks.map(b => `colpi ${b.shots}: x ${fmt(b.x)} (${fmt(b.xMean)}), centro ${fmt(b.cerr)}° (|err| medio ${fmt(b.cabs)}°, max ${fmt(b.cmax)}°)`).join(' · '));
     }
     if (mode === 'tutto' || mode === 'banco'){ res[hand].banco = audit({ hand }); print(res[hand].banco); }
   }
