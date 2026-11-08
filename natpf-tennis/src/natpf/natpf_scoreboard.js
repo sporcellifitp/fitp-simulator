@@ -30,24 +30,42 @@ export function gamePoints(p = 0, o = 0){
 }
 
 // nome abbreviato per la riga del tabellone, come le sigle in televisione (riferimento: «DRL», «2KG»): «TU», «CPU»,
-// «P1»/«P2» per «Player 1»/«Player 2», altrimenti le prime `n` lettere (3; 4 se le due righe uscirebbero uguali) del nome
-// scelto nella pagina «Collega», maiuscole; un nome di al più 4 caratteri resta intero («Anna», «Luca»). Le squadre del
-// doppio tengono il «+»: «TU+CPU», «MAR+CPU», «2CPU»
-export function shortName(name = '', n = 3){
+// «P1»/«P2» per «Player 1»/«Player 2», altrimenti le prime `n` lettere (3) del nome scelto nella pagina «Collega»,
+// maiuscole. Con più parole le lettere non vanno oltre la prima parola («Jean Paul» → «JEA», «JEAN», mai «JEANPA»); con
+// `initials` la sigla è fatta dalle iniziali delle parole prima dell'ultima più le lettere dell'ultima («Jean Paul» →
+// «JPA», «Marco Rossi» → «MRO»). Le squadre del doppio tengono il «+»: «TU+CPU», «MAR+CPU», «2CPU» (un numero davanti
+// resta intero). Rifinitura del 08/11: prima un nome di al più 4 caratteri restava intero («ANNA»), ma «Anna»/«Annalisa»
+// uscivano ANNA/ANN e si confondevano: ora sempre 3 lettere, e le sigle uguali le allunga shortNames
+export function shortName(name = '', n = 3, initials = false){
+  const len = Math.max(1, n | 0);
   const one = s => {
     s = String(s).trim();
     const m = /^player\s*(\d+)$/i.exec(s); if (m) return `P${m[1]}`;
-    const w = s.replace(/\s+/g, '');
-    return (w.length <= 4 ? w : w.slice(0, Math.max(1, n | 0))).toUpperCase();
+    const num = /^(\d+)\s+(\S.*)$/.exec(s); if (num) return num[1] + one(num[2]);
+    const words = s.split(/\s+/).filter(Boolean);
+    if (initials && words.length > 1){
+      const head = words.slice(0, -1).map(w => w[0]).join('');
+      return (head + words.at(-1).slice(0, Math.max(1, len - head.length))).toUpperCase();
+    }
+    const cap = words.length > 1 ? Math.max(3, words[0].length) : len;
+    return words.join('').slice(0, Math.min(len, cap)).toUpperCase();
   };
   return String(name).split(/\s*\+\s*/).map(one).join('+');
 }
 
-// sigle delle due righe: diverse tra loro (3 lettere, poi 4; se anche così sono uguali, «P1» e «P2»)
+// confronto delle sigle senza accenti e maiuscole: «JOSÉ» e «JOSÈ» sono la stessa sigla (si distinguerebbero solo
+// dall'accento, illeggibile da lontano)
+const plain = s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+
+// sigle delle due righe, diverse tra loro: 3 lettere; se uguali si allungano fino a 6 («Marco»/«Marcello» → MARCO/MARCE,
+// «Anna»/«Annalisa» → ANNA/ANNAL); se ancora uguali e c'è più di una parola, le iniziali («Jean Paul»/«Jean Pierre» →
+// JPA/JPI, anche loro allungate fino a 6 se serve); solo alla fine «P1» e «P2» («Marco»/«Marco», «José»/«Josè»)
 export function shortNames(me, them){
+  const same = (a, b) => plain(a) === plain(b);
   let a = shortName(me), b = shortName(them);
-  if (a === b){ a = shortName(me, 4); b = shortName(them, 4); }
-  if (a === b){ a = 'P1'; b = 'P2'; }
+  for (let n = 4; n <= 6 && same(a, b); n++){ a = shortName(me, n); b = shortName(them, n); }
+  for (let n = 3; n <= 6 && same(a, b); n++){ a = shortName(me, n, true); b = shortName(them, n, true); }
+  if (same(a, b)){ a = 'P1'; b = 'P2'; }
   return { me: a, them: b };
 }
 
