@@ -263,11 +263,11 @@ export class NatpfTraining {
     this.tutorialOpen = true; this._idle(); this._centerPlayer();
     const P = this.ui.phone, set = this.tutSet || 'full';
     P.waitTutorial?.(true);
+    // la X in alto a destra (B17.2), accesa dopo tutte le schede, fa quello che fa «Tutto chiaro» dal telefono
     // tutorial completo dopo il corto (stesso telefono: Allenamento dopo una partita): dalla prima scheda che manca
     const from = P.savedTutorial?.() || (set === 'full' && P.tutorialSeenFor?.('short') ? tutorialResumeAfterShort() : null);
     this.tutorial?.openFor({ mode: 'phone', set, player: '', hand: this.ui.hand?.hand || 'right', after: this.cal ? 'cal' : 'play',
-      from, onProgress: p => P.tutorialProgress?.(p) });
-  }
+      from, onProgress: p => P.tutorialProgress?.(p), onDone: () => this._tutorialDone('phone') });  }
   // chiusa dal telefono (o con Esc da chi gestisce la postazione, o da un telefono con la pagina di prima che ha già
   // cominciato a calibrare): si segna vista per questa sessione e si va alla calibrazione o agli esercizi
   // Il telefono che sa del tutorial calibra da solo appena si chiude (dopo «ho capito», o quando il computer chiude con
