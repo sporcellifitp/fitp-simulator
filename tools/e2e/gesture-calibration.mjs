@@ -24,7 +24,11 @@ try {
  await p.evaluate(async()=>{const t0=performance.now();while(__racchetta.cal.state.step!=='swings'&&performance.now()-t0<12000)await __motion.still(100);});
  try { await p.waitForFunction(()=>__racchetta.cal.state.step==='swings'); }
  catch(e){console.log('Sensor calibration diagnostic',await p.evaluate(()=>({state:__racchetta.state,profile:__racchetta.det.profile,mode:__racchetta.det.mode,last:__racchetta.det.last,cal:__racchetta.cal.state})));throw e;}
- for(const dir of QUICK_PLAN.map(w=>w==='L'?1:-1)){
+ // i gesti nell'ordine che chiede il telefono (B15: il mancino fa prima il suo dritto, «R»; prima la prova usava sempre
+ // l'ordine del destro e con la mano sinistra il primo gesto era nel verso sbagliato)
+ const askPlan=await p.evaluate(()=>__racchetta.cal.state.plan||null);
+ check('il telefono del mancino chiede prima il dritto (→)',Array.isArray(askPlan)&&askPlan[0]==='R'&&askPlan.length===QUICK_PLAN.length,JSON.stringify(askPlan));
+ for(const dir of (askPlan||QUICK_PLAN).map(w=>w==='L'?1:-1)){
   await p.evaluate(async dir=>{const t0=performance.now();while(!__racchetta.cal.state.ready&&performance.now()-t0<12000)await __motion.still(100);await __motion.swing({axis:[0,-dir,0],peak:42,dur:260});await __motion.swing({axis:[0,dir,0],peak:dir===1?120:150,dur:220});await __motion.still(650);},dir);
  }
  check(`${QUICK_PLAN.length} comfortable gestures finish setup without special-shot training`,await p.evaluate(()=>__racchetta.cal.state.profile.version===4&&__racchetta.cal.state.profile.automaticGesture&&__racchetta.cal.state.step!=='shots'));
@@ -101,7 +105,7 @@ try {
  await d.evaluate(()=>{__racchetta.A.netPause=true;__gestures.length=0;});
  await p.evaluate(async()=>{await __motion.still(500);await __motion.swing({axis:[0,-1,0],peak:42,dur:260});await __motion.swing({axis:[0,1,0],peak:130});await __motion.swing({axis:[0,-1,0],peak:130,dur:180});await __motion.still(500);});
  await d.waitForFunction(()=>__gestures.length>0);
- check('one motion drive; opening and return suppressed; continuous aim transmitted',await d.evaluate(()=>__gestures.length===1&&!__gestures[0].drop&&!__gestures[0].slice&&!__gestures[0].lob&&__gestures[0].dir===1&&Number.isFinite(__gestures[0].aim)&&Math.abs(__gestures[0].aim)>.1&&Math.abs(__gestures[0].aim)<.99));
+ check('one motion drive; opening and return suppressed; continuous aim transmitted',await d.evaluate(()=>__gestures.length===1&&!__gestures[0].drop&&!__gestures[0].slice&&!__gestures[0].lob&&__gestures[0].dir===1&&Number.isFinite(__gestures[0].aim)&&Math.abs(__gestures[0].aim)>.1&&Math.abs(__gestures[0].aim)<.99),JSON.stringify(await d.evaluate(()=>__gestures.map(g=>({dir:g.dir,aim:g.aim,drop:g.drop,slice:g.slice,lob:g.lob,peak:g.peak})))));
  await d.evaluate(()=>{__racchetta.A.netPause=false;});
  await p.click('#recal');await d.waitForFunction(()=>__racchetta.state==='pair');
  check('recalibration from phone pauses the match',await d.evaluate(()=>__racchetta.A.core&&__racchetta.state==='pair'));
