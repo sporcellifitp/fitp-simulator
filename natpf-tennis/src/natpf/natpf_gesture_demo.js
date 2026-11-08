@@ -974,7 +974,7 @@ export function ghostAlpha(P, keys, i, t, follow){
   if (P.kind === 'serve' && k.id !== 'lancio') return 0;
   let a = t < k.t ? 0 : Math.min(1, (t - k.t)/.12)*(1 - sstep(P.T.home - .25, P.T.home + .1, t));
   a *= sstep(.04, .16, Math.abs(t - k.t));                     // si spegne mentre il telefono passa per quella posa
-  if (k.id === 'carica' && P.contact != null) a *= 1 - sstep(P.contact, P.contact + .1, t);
+  if (k.id === 'carica' && P.contact != null) a *= 1 - sstep(P.contact - .06, P.contact + .02, t);
   if (follow && k.id === 'impatto'){ const f = keys.find(q => q.id === 'fine'); if (f) a *= 1 - sstep(f.t - .1, f.t + .02, t); }
   return a;
 }
