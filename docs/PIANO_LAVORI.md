@@ -65,7 +65,19 @@ Come si aggiorna:
   del busto e camere.
 - GitHub: tre esecuzioni verdi su `ddd4428`; installer **2026-11-08.3 pubblicato su R2** (sha256 `d5ead1f7…27fb2f79`);
   zip Cloudflare sha256 `2bc87923…5084487f`.
-- **Prossima azione esatta:** aspettare l'utente sulle decisioni (a)–(c). Possibile problema reale da provare con un telefono: una carica del dritto veloce (racchetta portata
+- **Richiesta nuova (08/11): B15.** «Fai un nuovo audit per migliorare la sensibilità del dispositivo e la precisione dei
+  colpi rispetto ai gesti eseguiti. I colpi non sono ancora da campo aperto, anzi, tutti gli scambi vanno quasi sempre
+  nella stessa direzione con stessa velocità e angolazione. Assicurati che per i giocatori mancini sia tutto uguale. Per
+  quanto riguarda la UX UI, rivedi l'intero flusso dall'accesso al gioco fino alla partita. Semplifica eventuali
+  ridondanze, testi lunghi, rendi tutto semplice e di facile lettura e comprensione.»
+- **Blocco in corso:** B15 in tre rami locali da `8a996e3` (`b15-colpi`, `b15-mancini`, `b15-ux`, cartella
+  `scratchpad/b15/`, non pubblicati): (A) banco sul pipeline vero telefono → intenzione → esito → motore e correzioni
+  alla compressione di direzione, forza e angolo; (B) prova a specchio del mancino su tutta la catena e correzioni;
+  (C) audit UX/UI con screenshot del flusso completo (gioco e pagina del telefono), semplificazioni. Poi verifiche
+  indipendenti, integrazione, versione 2026-11-08.4 o 09.1.
+- **Prossima azione esatta:** se la sessione è finita, i rami locali sono persi: ripartire dall'audit (A) con
+  `natpf-tennis/scripts/audit/variety.mjs` e `letture-gesti.mjs` sul pipeline, poi (B) e (C). Le decisioni (a)–(c) sul
+  dritto restano aperte. Possibile problema reale da provare con un telefono: una carica del dritto veloce (racchetta portata
   indietro con forza) potrebbe essere letta come colpo speciale con la calibrazione veloce (`gesture-intent.js:64`).
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
