@@ -9,7 +9,9 @@ la stessa (schermo verso chi gioca), quindi nel riferimento del telefono il giro
 Il verso del gesto sul telefono è assoluto: `dir` +1 da destra a sinistra, −1 da sinistra a destra; il dritto del destro è
 +1, quello del mancino −1 (`forehandDir`).
 
-Prova automatica: `natpf-tennis/test/natpf-mancini.test.mjs` (7 prove, vedi §3).
+Prove automatiche: `natpf-tennis/test/natpf-mancini.test.mjs` (8 prove nel primo giro, 13 dopo il secondo) e
+`natpf-tennis/test/natpf-mancini-mondo.test.mjs` (5 prove, secondo giro: interfaccia vera sul motore senza disegno), vedi §3
+e §4.
 
 ## 1. Inventario: dove la mano conta
 
@@ -21,7 +23,7 @@ Prova automatica: `natpf-tennis/test/natpf-mancini.test.mjs` (7 prove, vedi §3)
 | `site/js/tennis/calibration.js:172,189-197,223-241` | Asse, riferimenti (`refs`, `heads`, `rises`, `faceRef`) per verso ±1, preferenza del gesto nel verso chiesto | ✓ per verso, non per mano |
 | `site/js/tennis/stroke-shape.js` | Forma rispetto alla gravità: `plane` cambia segno a specchio, `rise`/`roll`/`tilt`/`head` no | ✓ «speculare tra destri e mancini» verificato (±0,03) |
 | `site/js/tennis/face-tracker.js` | Imbardata del piatto (`yaw`, `abs`) e `headAt` | ✓ yaw e heading opposti a specchio (±1,5°), head uguale |
-| `site/js/tennis/gesture-intent.js:6-9,50` | `canonicalTwist(axis, prof.axis, g, dir)`: polso relativo al verso del colpo; `aim` del gesto | ✓ `prof.axis` è l'asse del gesto «L» (ha il segno della mano): il twist cambia segno a specchio e la mira del gesto pure. (Nei gesti verticali, dir 0, non si specchia: innocuo, la mira vera è il piatto; vedi §4) |
+| `site/js/tennis/gesture-intent.js:6-9,50` | `canonicalTwist(axis, prof.axis, g, dir)`: polso relativo al verso del colpo; `aim` del gesto | ✓ `prof.axis` è l'asse del gesto «L» (ha il segno della mano): il twist cambia segno a specchio e la mira del gesto pure. (Nei gesti verticali, dir 0, non si specchia: innocuo, la mira vera è il piatto; vedi §2, E) |
 | `site/js/tennis/motion-sign.js` | Segno dell'accelerazione (iPhone) | ✓ non dipende dalla mano |
 | `site/js/tennis/racchetta.js:71-82,137-139,231,506` | Mano: `preferences().hand`, `applyHand` (menu, figura della presa, profilo salvato), scritta «Dritto/Rovescio» dal piano e dalla mano, cambio dal telefono → `hand` al computer; `cfg` dal computer la applica | ✓ (con il piano per mano la scritta del mancino diventa «Dritto →» per prima) |
 | `site/js/tennis/grip-art.js:100-106` | Figura della presa specchiata (`scale(-1 1)`), aria «Mano sinistra» | ✓ |
@@ -58,7 +60,7 @@ Prova automatica: `natpf-tennis/test/natpf-mancini.test.mjs` (7 prove, vedi §3)
 | `natpf_ui.js:160-174`, `index.html:366,418,472-483,821-822` | Scelta della mano: lobby (pannello Racchetta, due volte nelle pagine), stesso schermo (P1 e P2), lezione del riscaldamento; salvata in `localStorage` (`natpf-tennis.hand`, `.p2`) | ✓ una impostazione, ricordata tra sessioni |
 | `webcam_strokes.js:259-264`, `webcam_argon_track.js:131` | Lato dal movimento nella convenzione del destro | ✓ scambiato da `NatpfHand` (P1) e, ora, da `_duoEmit` (P2) |
 | `webcam_pose_strokes.js:7-10`, `webcam_strokes.js:105-107` | Polso/mano da seguire in base alla mano | ✓ |
-| `natpf_p2p.js`, `natpf_versus*.js` | 1v1 tra due computer: la mano del P2 viaggia con ogni colpo (`motion_controls.js:226,262`) | △ l'host la sa dal primo colpo del P2 (prima: piano d'intercetto da destro per la prima palla). Non corretto: serve un messaggio di stato nuovo; effetto solo sulla posizione del corpo del P2 prima del suo primo colpo |
+| `natpf_p2p.js`, `natpf_versus*.js` | 1v1 tra due computer: la mano del P2 viaggia con ogni colpo (`motion_controls.js:226,262`) | △ l'host la sapeva dal primo colpo del P2 e il P2 non sapeva mai quella dell'host: corretto nel secondo giro (§4, punto 3) |
 | `tools/lan` | Server LAN: nessuna logica sulla mano (inoltra i messaggi) | ✓ |
 
 ## 2. Asimmetrie trovate
@@ -68,9 +70,9 @@ Prova automatica: `natpf-tennis/test/natpf-mancini.test.mjs` (7 prove, vedi §3)
 | A | `site/js/tennis/calibration.js:14-16,148-156` | La calibrazione chiedeva prima «Rovescio ←» e poi «Dritto →» (al destro prima il dritto); nel tutorial la scheda del dritto viene prima | Sì: piano per mano, primo gesto generalizzato (`calibrationPlan`, `QUICK_PLAN_LEFT`, `PLAN_LEFT`); `phone-sim`, `natpf-racchetta.test` e l'e2e seguono il piano della mano |
 | B | `natpf-tennis/src/motion_controls.js:955` | Webcam per due: il P2 mancino colpiva con il lato del destro (il suo dritto arrivava al motore come rovescio, e viceversa) | Sì: `_duoEmit` scambia il lato per il P2 mancino |
 | C | `natpf-tennis/src/natpf/natpf_split_ui.js:211,459` | Stesso schermo: il piano d'intercetto del P2 mancino lo metteva da destro fino al suo primo colpo | Sì: `engine.natpfP2Hand` da `setHand` e da «Gioca» |
-| D | `natpf_p2p.js` (1v1 tra due computer) | Come C, finché non arriva il primo colpo del P2 dalla rete | No (serve un messaggio di stato; effetto minimo: posizione del corpo prima del primo colpo) |
+| D | `natpf_p2p.js` (1v1 tra due computer) | Come C, finché non arriva il primo colpo del P2 dalla rete | Sì, nel secondo giro (§4, punto 3: `hand=` nella lettura dello stato, `p2Hand` dal relay) |
 | E | `site/js/tennis/gesture-intent.js:50`, `natpf_gestures.js:275` | Mira dal polso dei gesti verticali (dir 0) non specchiata | No: innocua. Vale solo per telefoni senza il piatto (`fh`), la mira in gioco è il piatto (`aimSource` 'face') e il tipo di colpo non la usa |
-| F | `game_engine.js:1913,2268` | Lato dalla palla/dirX da destro quando l'evento non ha il lato | No: non raggiungibile dal telefono (lato sempre presente) né dalla webcam del P1 (`leftySide`); il P2 webcam ha sempre il lato della scia |
+| F | `game_engine.js:1913,2268` | Lato dalla palla/dirX da destro quando l'evento non ha il lato | Sì, nel secondo giro (§4, ricerca): non raggiungibile dal telefono, dalla webcam e dal mouse di oggi, ma ora un evento senza lato è letto con la mano |
 | G | `natpf_training.js:382` | Calibrazione in campo: il colpo del gesto «Dritto» del mancino era giocato di rovescio (`NatpfHand.leftySide` scambiava il lato dell'evento `natpf-warmup`) | Sì: `handedSide: true` (trovata con la prova nel browser HAND=left: «il giocatore colpisce con il colpo del gesto» KO) |
 | H | `racket_kinematics.js:472-497,711-747` | In ogni scambio la racchetta animata rileggeva il lato dalla palla con la regola del destro e lo scriveva in `actor.swingType`: il dritto del mancino risultava un rovescio (esercizio «Dritto»: «Era un rovescio: la palla va sul dritto» a ogni palla; scritte e corpo di conseguenza). L'esito del motore (`_natpfRacketShot`) era già giusto | Sì: lato e preparazione nel riferimento della mano del personaggio (`actor.natpfHand`); prova «racchetta animata» nel test (fallisce senza la correzione) |
 
@@ -105,7 +107,52 @@ e `natpf-tutorial-phone.mjs`:
   colpi contati). Prima delle correzioni G e H la stessa prova dava 18/20 (dritto giocato di rovescio, «Era un rovescio»).
 - `natpf-tutorial-phone.mjs`: HAND=right 38/38, HAND=left 38/38.
 
-## 4. Non verificato
+## 4. Secondo giro (verifica indipendente, 08/11)
+
+Una verifica indipendente ha confermato A, B, C, G, H e che per il destro non cambia niente, e ha trovato sei punti.
+Per ognuno una prova che fallisce prima e passa dopo (commit sul ramo `b15-mancini`):
+
+| # | Dove | Effetto per il mancino | Correzione | Prova |
+|---|---|---|---|---|
+| 1 | `site/js/tennis/calibration.js:83`, `racchetta.js:80,137` | Regressione di A: il percorso si ricalcolava a ogni gesto da `S.options` e `applyHand` (menu, `cfg` dal computer, pulsanti della mano dello stesso schermo) cambia la mano a metà: dopo il primo gesto si chiedeva di nuovo lo stesso verso, calibrazione fallita («direzione») | Percorso fissato in `start` e `retry` (`S.plan`, con la mano di quel momento); la scritta del telefono legge lo stesso percorso | `natpf-mancini` «cambio di mano a metà percorso», `tools/test/phone-screen` (`bed5531`) |
+| 2 | `natpf_hand.js` (`mirrorBall`), `game_engine.js` `_setupPointServe`/`_startServeToss` | Palla del servizio nella mano libera solo per il personaggio locale: il P2 mancino (stesso schermo, 1v1 sull'host) la teneva e la lanciava con la mano della racchetta | `NatpfHand.handOf(actor)`: il locale ha la mano del gioco, l'altro quella di `mirrorRemote` | `natpf-mancini-mondo` «servizio» (4 combinazioni di mani, attesa, lancio, lancio dal telefono del P2) (`512a4f7`) |
+| 3 | `motion_controls.js` (lettura dello stato), `scripts/match-relay.mjs`, `game_engine.js` (`_handleRoomStateUpdate`, snapshot) | 1v1 tra due computer: sull'host la mano del P2 solo dal suo primo colpo (D); sul computer del P2 l'host mancino non specchiato e senza `natpfHand` (la sua mano non viaggiava) | Il P2 manda `hand=` con `ready=`/`hold=`, il relay la rimanda (`p2Hand`), l'host la applica in sessione (`_natpfSetP2Hand`) e mette la propria negli snapshot di lobby e partita (`p1Hand`), il P2 specchia l'host. Campi facoltativi: computer e relay di prima li ignorano | `natpf-mancini-mondo` (relay, host, P2, versioni di prima), `natpf-mancini` (lettura dello stato), controllo in `tools/e2e/natpf-1v1-p2p.mjs` (`a766eb5`) |
+| 4 | `player_body_animation.js:239-244` (`de`) | Lato della carica dalla palla con la regola del destro finché la racchetta animata non carica (oltre 8,5 m): carica dal lato sbagliato per un attimo | Lato con la mano del personaggio | `natpf-mancini` «personaggio intero a specchio» (`b6312db`) |
+| 5 | `game_engine.js` `endSplit`/`endVersus`, `natpf_split_ui.js` `setHand` | `natpfP2Hand` e specchio dell'avversario restavano a fine sessione (P2 del 1v1 seguente da mancino fino al primo colpo, CPU specchiata); la mano scelta nel pannello entrava nel motore anche senza giocare | `_natpfClearP2Hand` a fine sessione; nel pannello la mano va nel motore solo a sessione in corso (e da «Gioca»); sul P2 la stanza chiusa riporta l'host destro | `natpf-mancini-mondo` «fine sessione» (`49f6cda`) |
+| 6 | `natpf_ui.js:160` | Il riquadro della mano del P2 diceva «Mancino», il resto «Sinistra»; questo documento diceva «7 prove» (erano 8) | «Sinistra»; conti corretti qui | `natpf-mancini` «scelta della mano» (`38507b9`) |
+
+Ricerca dello stesso giro (grep di `right`/`left`/`hand`/`mirror`/`forehand`/`sideSign` in `game_engine.js`,
+`player_*.js`, `racket_kinematics.js`, `swing_vfx.js`, `natpf_*.js`, `webcam_*.js`, `motion_controls.js`,
+`site/js/tennis/*.js`, `tools/lan`, e la prova del personaggio intero a specchio):
+
+| Dove | Effetto | Correzione | Prova |
+|---|---|---|---|
+| `player_body_animation.js` (inclinazione nella corsa `g`, testa verso la palla `G`) | Con il personaggio specchiato (`root.scale.x < 0`) le rotazioni attorno alla verticale e in avanti calcolate da direzioni del campo si vedono rovesciate: la testa del mancino guardava il punto riflesso della palla (0,2 m sulla bocca), si inclinava dalla parte sbagliata nella corsa | Fattore dello specchio nelle grandezze laterali del campo (`wm`) | «personaggio intero a specchio»: ogni parte entro 1 mm dallo specchio del destro, P1 e P2, 7 scene (`b6312db`) |
+| `racket_kinematics.js` (velocità e accelerazione laterali `m`, mouse `_`, inclinazione del telefono, mano della webcam `handOffsetX`) | Stessa causa: polso, lato della posizione nella corsa (`m > 1,25` → rovescio, col segno del destro) e racchetta dalla parte opposta (0,8 m sulla mano nella corsa, 0,4 m con i comandi) | Fattore dello specchio `mx` | come sopra (scene «corsa laterale» e «mouse, telefono e webcam») |
+| `game_engine.js` (`_handleUserSwingInput`, `_handleP2SwingInput`, webcam argon, `_attemptPlayerRallyStrike`, `_attemptOpponentRallyStrike`) | Lato di un colpo senza `side` dal verso o dalla palla con la regola del destro (F) | `natpfHandedSide` e la stessa regola nei due tentativi di colpo: con la mano sinistra si scambia (compagno CPU del doppio destro); con il lato nell'evento niente cambia | `natpf-mancini` «colpo senza lato» (`67e19f9`) |
+
+Visti e lasciati: `webcam_strokes.js` (lato nella convenzione del destro, scambiato da `NatpfHand` per il P1 e da
+`_duoEmit` per il P2), `natpf_camera.js` (prima persona centrata), `swing_vfx.js:130-137` (posizione della racchetta
+dalla posizione del corpo con la regola del destro, solo senza `racketPivot`: non raggiungibile nel gioco),
+`site/js/tennis/*` e `tools/lan` (nessuna regola della mano oltre a quelle del primo giro).
+Fuori tema (non della mano, non toccato perché cambierebbe il gioco di tutti): `game_engine.js:3046`, la CPU
+che non arriva alla palla fa il gesto del rovescio quando la palla è alla sua destra (`ball.x < opponent.x`), mentre
+`_executeOpponentReturn` usa la regola opposta (giusta).
+
+Verifiche del secondo giro (commit `ceb94f9` più documenti): gioco 912/912, sito 196/196, LAN 12/12. Le 10 prove nuove
+fallite tutte sul codice di prima del giro (`d696253`: 8/18 nei due file dei mancini, `phone-screen` 11/12). Nel browser:
+`natpf-training-flow` HAND=right 20/20 e HAND=left 20/20, `natpf-tutorial-phone` HAND=right 38/38 e HAND=left 38/38
+(un primo giro a 32/34 con il computer carico da altre prove in parallelo: il telefono del P1 non finiva la
+calibrazione nello stesso schermo; rifatto da solo 38/38), `natpf-split-ready` 34/34, `natpf-1v1-p2p` 39/39 (con i due
+controlli nuovi della mano: host e P2 mancini, poi destri, prima di qualunque colpo), `natpf-1v1-webcam-p2` 15/15 (due
+volte; una volta 13/15 sotto carico, pausa della webcam del P2; il codice di prima 15/15).
+
+## 5. Non verificato
 
 - Telefono vero nella mano sinistra (sensori sintetici e telefono simulato soltanto).
 - Webcam vera con un mancino (solo la scia simulata della prova `natpf-webcam-duo`).
+- 1v1 tra due computer veri con un mancino (secondo giro: due sessioni del browser sullo stesso computer, `natpf-1v1-p2p`,
+  e il mondo di prova); un computer con la versione di prima davanti a uno nuovo è provato solo nel mondo di prova
+  (campi assenti), non con due build diverse.
+- Il personaggio specchiato è confrontato parte per parte con lo specchio del destro senza disegno (posizioni dei nodi);
+  non è stato guardato a occhio.

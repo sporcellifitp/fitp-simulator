@@ -571,3 +571,40 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
   GitHub (`ddd4428`): tre esecuzioni verdi; installer **2026-11-08.3 pubblicato su R2** (124.609.974 B, sha256
   `d5ead1f7d34583c64abdabe74aeed58190f87d48c7603a93dc80d03527fb2f79`, `latest.json` controllato).
 - Non verificato: telefoni veri, persone vere, Windows; l'utente non ha ancora visto i fogli.
+
+## B15.B · Mancini: tutto uguale al destro (ramo `b15-mancini`) · [~] · 08/11/2026
+Richiesta dell'utente: «Assicurati che per i giocatori mancini sia tutto uguale». Criterio: lo stesso gesto a specchio dà
+lo stesso colpo, la stessa forza, la direzione a specchio e la stessa esperienza (calibrazione, tutorial, webcam, stesso
+schermo, 1v1); per il destro non cambia niente. Inventario e prove in `docs/b15/audit-mancini.md`.
+- [x] B15.B.1 · primo giro (commit `10a886a`, `1a8a37f`, `d696253`, push no, pacchetti invariati): calibrazione con il
+  dritto per primo anche al mancino (A), webcam per due con il P2 mancino (B), `natpfP2Hand` dello stesso schermo (C),
+  calibrazione in campo (G, `handedSide`), racchetta animata con la mano del personaggio (H); prova
+  `test/natpf-mancini.test.mjs`, `HAND=left` in `natpf-training-flow` e `natpf-tutorial-phone`.
+  File: `site/js/tennis/calibration.js`, `motion_controls.js`, `natpf_hand.js`, `natpf_split_ui.js`, `natpf_training.js`,
+  `racket_kinematics.js`, prove · Verifiche: gioco 902/902, sito 195/195, LAN 12/12; training 20/20 e 20/20, tutorial
+  38/38 e 38/38.
+- [x] B15.B.2 · secondo giro dopo una verifica indipendente (commit `bed5531`, `512a4f7`, `a766eb5`, `b6312db`,
+  `49f6cda`, `38507b9`, `67e19f9` e documenti; push no, pacchetti invariati):
+  1. regressione di A: percorso della calibrazione fissato all'avvio (`S.plan`), il cambio di mano a metà non la fa più
+     fallire; 2. palla del servizio nella mano libera anche del P2 mancino (`NatpfHand.handOf`); 3. 1v1 tra due computer:
+     la mano viaggia nei due sensi appena è nota (`hand=` nella lettura del P2, `p2Hand` dal relay, `p1Hand` negli
+     snapshot; campi facoltativi, compatibili con le versioni di prima); 4. carica del corpo dalla palla con la mano;
+     5. mano del P2 e specchio dell'avversario azzerati a fine sessione (e la mano del pannello nel motore solo a sessione
+     in corso); 6. «Sinistra» anche nel riquadro del P2. Ricerca: testa, inclinazione, polso e comandi del personaggio
+     specchiato (lo specchio rovesciava le grandezze laterali del campo: fino a 0,8 m sulla mano); lato di un colpo senza
+     `side` con la mano (cinque punti di `game_engine.js`).
+  File: `site/js/tennis/calibration.js`, `site/js/tennis/racchetta.js`, `natpf-tennis/scripts/match-relay.mjs`,
+  `src/game_engine.js`, `src/motion_controls.js`, `src/player_body_animation.js`, `src/racket_kinematics.js`,
+  `src/natpf/natpf_hand.js`, `src/natpf/natpf_split_ui.js`, `src/natpf/natpf_ui.js`; prove nuove
+  `test/natpf-mancini-mondo.test.mjs` (5), 5 prove in più in `test/natpf-mancini.test.mjs` (13), `tools/test/phone-screen`
+  (+1), controllo della mano in `tools/e2e/natpf-1v1-p2p.mjs`. Ogni prova nuova fallisce sul codice di prima.
+  Verifiche: vedi la voce B15.B.3.
+  Non verificato: telefoni veri nella mano sinistra, webcam vera con un mancino, due computer veri, una build vecchia
+  davanti a una nuova (solo campi assenti nel mondo di prova), il personaggio specchiato guardato a occhio.
+- [x] B15.B.3 · verifiche del secondo giro (ramo a `ceb94f9`, nessun push, pacchetti invariati): gioco 912/912
+  (`npm test`), sito 196/196, LAN 12/12; le 10 prove nuove falliscono tutte su `d696253` (8/18 nei due file dei
+  mancini, `phone-screen` 11/12). Browser (Chromium, telefono simulato, porte 3720-3729): `natpf-training-flow`
+  HAND=right 20/20 e HAND=left 20/20; `natpf-tutorial-phone` HAND=right 38/38 e HAND=left 38/38 (primo tentativo 32/34
+  con il computer carico da altre prove in parallelo, rifatto da solo); `natpf-split-ready` 34/34; `natpf-1v1-p2p` 39/39
+  (due controlli nuovi della mano); `natpf-1v1-webcam-p2` 15/15 due volte (una volta 13/15 sotto carico; il codice di
+  prima 15/15). Build di produzione ok.

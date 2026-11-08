@@ -144,6 +144,18 @@ try {
   check('   P2 collegato all’host con WebRTC, pannello «Sono pronto»', p2linked && await p2.evaluate(() => __natpfTennis.playerRole === 'p2' && __natpfTennis.natpfP2p.status === 'connected'), await guestStatus(p2));
   const joined = await until(p1, () => /è entrato/.test(document.querySelector('#natpf-invite [data-versus-state]')?.textContent || ''));
   check('   l’host vede il P2 entrato, «Gioca» ancora bloccato', joined && await p1.evaluate(() => document.getElementById('btn-start-match').disabled), await line(p1));
+  // B15 (mancini, secondo giro): la mano viaggia nei due sensi appena è scelta, prima di qualunque colpo (il P2 nella
+  // lettura dello stato, l'host negli snapshot della lobby). Prima: il P2 solo con il primo colpo, l'host mai
+  const hands = async (h1, h2) => {
+    await p1.evaluate(h => __natpfTennis.natpfUi.hand.set(h), h1); await p2.evaluate(h => __natpfTennis.natpfUi.hand.set(h), h2);
+    const onHost = await until(p1, h => { const e = __natpfTennis; return e.natpfP2Hand === h && Math.sign(e.opponent.root.scale.x) === (h === 'left' ? -1 : 1); }, h2, 15000);
+    const onGuest = await until(p2, h => { const e = __natpfTennis; return e.player.natpfHand === h && Math.sign(e.player.root.scale.x) === (h === 'left' ? -1 : 1); }, h1, 15000);
+    return { onHost, onGuest, info: JSON.stringify({ host: await p1.evaluate(() => ({ p2: __natpfTennis.natpfP2Hand, sx: __natpfTennis.opponent.root.scale.x, hits: window.__hits || 0 })), guest: await p2.evaluate(() => ({ p1: __natpfTennis.player.natpfHand, sx: __natpfTennis.player.root.scale.x })) }) };
+  };
+  let hv = await hands('left', 'left');
+  check('   mancini: l’host sa la mano del P2 e il P2 quella dell’host prima di qualunque colpo (personaggi specchiati)', hv.onHost && hv.onGuest, hv.info);
+  hv = await hands('right', 'right');
+  check('   di nuovo destri: tutti e due tornano destri sui due computer', hv.onHost && hv.onGuest, hv.info);
   await p2.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.testInput = true; ui.selectController('mouse', { open: false }); });
   await sleep(400);
   let g2 = await p2View(p2), h1 = await hostView(p1);
