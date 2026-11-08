@@ -33,13 +33,14 @@ export const FOREARM_SHOWN = Object.freeze({ from: .42, to: .8 });   // modalit�
 // e colore BODY_COLOR. Revisione B14: al posto dei pezzi traslucidi (cuneo, disco della spalla, anello della testa in cui
 // finiva il telefono, quadrato scuro del collo) che non si leggevano come una persona
 export const BODY_ALPHA = 1;
-export const BODY_COLOR = Object.freeze({ top: '#17296a', bottom: '#0d1944', rim: 'rgba(150,176,246,.26)' });
+export const BODY_COLOR = Object.freeze({ top: '#17296a', bottom: '#0d1944', rim: 'rgba(150,176,246,.42)', edge: 'rgba(150,176,246,.16)' });
 // parti del braccio DIETRO il busto (più lontane dalla camera del suo asse, dentro la sua sagoma): il busto passa davanti
 // velato, così restano visibili ma si leggono dietro (prima la mano davanti alla pancia, vista da dietro, sembrava dietro la
 // schiena). Velo del busto sull'avambraccio (con la mano e il telefono), più leggero se dietro c'è solo la mano
 export const XRAY = Object.freeze({ arm: .4, hand: .3 });
-// schede senza busto: la palla corta, vista da destra e vicina, ne mostrava solo un cuneo scuro senza testa (non una persona)
-export const BODY_HIDDEN = Object.freeze(['drop']);
+// schede senza busto (nessuna dal B14: la palla corta, vista da destra e vicina, ne mostrava solo un cuneo scuro; con la camera
+// nuova da dietro a sinistra, che inquadra anche la testa, il busto si legge come una persona)
+export const BODY_HIDDEN = Object.freeze([]);
 // banda bassa della curva (frazione dell'altezza dello stadio). B14: da 0,2 (più la sfumatura scura di 0,07 sopra) a 0,17 con
 // la sfumatura più corta e più leggera: copriva polso, gomito e omero nelle pose chiave (revisione B14)
 const HUD_H = .17;
@@ -143,6 +144,9 @@ function drawBodySolid(c, B, st){
   c.save(); c.globalAlpha = BODY_ALPHA;
   const g = c.createLinearGradient(B.top.x, B.top.y, B.bot.x, B.bot.y); g.addColorStop(0, BODY_COLOR.top); g.addColorStop(1, BODY_COLOR.bottom);
   c.beginPath(); bodyPath(c, B); c.fillStyle = g; c.fill('nonzero');
+  // contorno chiaro e leggero di tutta la sagoma: in alto nel quadro il fondo ha quasi il colore della testa e senza il
+  // contorno la testa spariva (verifica dell'integrazione B14: «busto senza testa» nelle camere che seguono)
+  c.lineWidth = Math.max(1, st.ow*.9); c.strokeStyle = BODY_COLOR.edge; c.lineJoin = 'round'; c.stroke();
   // filo di luce sul bordo della testa e delle spalle (dall'alto): si legge il volume senza contorni interni
   c.beginPath(); c.arc(B.head.c.x, B.head.c.y, Math.max(1, B.head.r - .5), Math.PI*1.1, Math.PI*1.9, false);
   c.lineWidth = Math.max(1, st.ow*.8); c.strokeStyle = BODY_COLOR.rim; c.lineCap = 'round'; c.stroke();
@@ -810,10 +814,14 @@ function ballBehind(cam, pose, ball){
 }
 // palla dietro il telefono: dentro la sagoma del telefono solo il contorno tratteggiato della parte nascosta (B14: prima
 // anche la palla a metà opacità, che al contatto sembrava colpita con lo schermo; il contatto è sul dorso)
-function drawBallThrough(c, cam, X, st, hullPts, alpha){
+function drawBallThrough(c, cam, X, spin, st, hullPts, alpha){
   const p = cam.p(X), r = cam.rad(X, BALL_R), b = bbox(hullPts);
   if (p.x + r < b.x0 || p.x - r > b.x1 || p.y + r < b.y0 || p.y - r > b.y1) return;
   c.save(); c.beginPath(); polyPath(c, hullPts); c.clip();
+  // la parte nascosta si vede «attraverso» il telefono a metà opacità, come prima del B14: con il solo contorno, nei colpi in
+  // cui la palla sta quasi tutta dietro il telefono (piatto 92%, tagliato, pallonetto) all'impatto restava un alone e a
+  // 200×200 non si vedeva più (verifica dell'integrazione B14)
+  drawBall(c, cam, X, spin, st, .5*alpha);
   c.beginPath(); c.arc(p.x, p.y, r, 0, 2*Math.PI); c.setLineDash([Math.max(2, st.ow*2.2), Math.max(2, st.ow*1.8)]);
   c.lineWidth = Math.max(1.5, st.ow*1.1); c.strokeStyle = `rgba(5,10,28,${.6*alpha})`; c.stroke();
   c.lineWidth = Math.max(1, st.ow*.7); c.strokeStyle = `rgba(227,255,54,${.9*alpha})`; c.stroke();
@@ -1095,9 +1103,9 @@ export class NatpfGestureDemo {
     const F = K.figure ? figure(cam, R, st, H_) : drawFigure(c, cam, R, st, H_);
     if (body && !K.figure && !K.xray) drawXray(c, cam, R, F, body, st);
     if (ball && !ballFirst && ballAlpha > .01) drawBall(c, cam, ball, spin, st, ballAlpha);
-    // palla dietro il telefono (contatto sul dorso, lontano dalla camera): dentro la sagoma del telefono il contorno
-    // tratteggiato della parte nascosta, così all'impatto non sparisce mai (brief §5.6.2)
-    else if (ball && ballFirst && ballAlpha > .01 && !K.figure && F.phoneHull) drawBallThrough(c, cam, ball, st, F.phoneHull, ballAlpha);
+    // palla dietro il telefono (contatto sul dorso, lontano dalla camera): dentro la sagoma del telefono la parte nascosta a
+    // metà opacità con il contorno tratteggiato, così all'impatto non sparisce mai (brief §5.6.2)
+    else if (ball && ballFirst && ballAlpha > .01 && !K.figure && F.phoneHull) drawBallThrough(c, cam, ball, spin, st, F.phoneHull, ballAlpha);
     if (CPm && !impactBehind) drawImpact(c, cam, CPm, tt - P.contact, st);
     if (!compact && !K.hud){
       const taken = [];
@@ -1132,11 +1140,15 @@ export class NatpfGestureDemo {
     }
     c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(still ? this._floor : this._bg, 0, 0); c.restore();
     if (!still) this._floorDraw(c, cam, y0, sq);
-    // ombra morbida della mano sul piano
+    // ombra morbida della mano sul piano: solo con la camera ferma e nella parte bassa del quadro (senza la linea del piano,
+    // con la camera che segue la mano era una macchia scura che galleggiava sotto la mano: fine della schiacciata, verifica
+    // dell'integrazione B14)
+    if (!still) return;
     const X = [pose.pos[0], y0, pose.pos[2]];
     if (cam.depth(X) < .3) return;
-    const o = cam.p(X), r = cam.rad(X, .16);
-    c.save();
+    const o = cam.p(X), r = cam.rad(X, .16), low = sstep(.5, .72, o.y/(H*(1 - HUD_H)));
+    if (low <= .01) return;
+    c.save(); c.globalAlpha = low;
     const sg = c.createRadialGradient(o.x, o.y, 0, o.x, o.y, r);
     sg.addColorStop(0, 'rgba(2,6,20,.4)'); sg.addColorStop(1, 'rgba(2,6,20,0)');
     c.translate(o.x, o.y); c.scale(1, sq*.8); c.translate(-o.x, -o.y); c.fillStyle = sg; c.beginPath(); c.arc(o.x, o.y, r, 0, 2*Math.PI); c.fill();
