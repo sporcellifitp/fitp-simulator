@@ -804,14 +804,25 @@ function ballBehind(cam, pose, ball){
   const n = qrot(pose.q, [0, 0, 1]);
   return dot(n, d)*dot(n, sub(cam.eye, pose.pos)) < 0;
 }
-function drawBallThrough(c, cam, X, spin, st, hullPts, alpha){
+// palla dietro il telefono: dentro la sagoma del telefono solo il contorno tratteggiato della parte nascosta (B14: prima
+// anche la palla a metà opacità, che al contatto sembrava colpita con lo schermo; il contatto è sul dorso)
+function drawBallThrough(c, cam, X, st, hullPts, alpha){
   const p = cam.p(X), r = cam.rad(X, BALL_R), b = bbox(hullPts);
   if (p.x + r < b.x0 || p.x - r > b.x1 || p.y + r < b.y0 || p.y - r > b.y1) return;
   c.save(); c.beginPath(); polyPath(c, hullPts); c.clip();
-  drawBall(c, cam, X, spin, st, .5*alpha);
   c.beginPath(); c.arc(p.x, p.y, r, 0, 2*Math.PI); c.setLineDash([Math.max(2, st.ow*2.2), Math.max(2, st.ow*1.8)]);
-  c.lineWidth = Math.max(1.2, st.ow*.9); c.strokeStyle = `rgba(227,255,54,${.95*alpha})`; c.stroke();
+  c.lineWidth = Math.max(1.5, st.ow*1.1); c.strokeStyle = `rgba(5,10,28,${.6*alpha})`; c.stroke();
+  c.lineWidth = Math.max(1, st.ow*.7); c.strokeStyle = `rgba(227,255,54,${.9*alpha})`; c.stroke();
   c.restore();
+}
+// la palla si spegne mentre esce dallo stadio (mai tagliata dal bordo: B14, palla in arrivo tagliata in alto nel piatto, nel
+// tagliato e nel pallonetto, in alto a destra nella palla corta) e dopo il colpo, quando è lontana (palla vagante nella
+// schiacciata)
+function ballAlphaAt(cam, X, st, P, t){
+  const p = cam.p(X), r = cam.rad(X, BALL_R), d = Math.min(p.x, st.W - p.x, p.y, st.H - p.y) - r;
+  let a = sstep(-.2*r, 1.2*r, d);
+  if (P.contact != null && t > P.contact) a *= 1 - sstep(P.contact + .3, P.contact + .5, t);
+  return a;
 }
 function drawBall(c, cam, X, spin, st, alpha = 1){
   const p = cam.p(X), r = cam.rad(X, BALL_R);
@@ -1047,18 +1058,25 @@ export class NatpfGestureDemo {
     if (!K.ghost) for (const g of ghosts) if (g.a > .01) this._ghost(c, cam, g, H_);
     if (!P.still){ if (!K.arrow) drawArrows(c, cam, M, tt, st); if (!K.trail) drawTrail(c, cam, M, tt, st); }
     const ballR = gestureBall(id, tt, { hand: this.hand, grip: this.grip }), ball = ballR && this.hand === 'left' ? mirrorPos(ballR) : ballR;
-    let ballAlpha = 1;
-    if (P.kind === 'serve' && tt < P.T.hold) ballAlpha = sstep(0, P.T.hold, tt);
+    let ballAlpha = ball ? ballAlphaAt(cam, ball, st, P, tt) : 0;
+    if (P.kind === 'serve' && tt < P.T.hold) ballAlpha *= sstep(0, P.T.hold, tt);
     const spin = tt*12, ballFirst = ball && ballBehind(cam, R, ball);
     if (!compact && (this.ghostRacket ?? GHOST_RACKET)) drawGhostRacket(c, cam, R, st);   // prototipo spento
-    if (ball && ballFirst) drawBall(c, cam, ball, spin, st, ballAlpha);
+    if (ball && ballFirst && ballAlpha > .01) drawBall(c, cam, ball, spin, st, ballAlpha);
+    // lampo dell'impatto: se il punto di contatto è sulla faccia lontana dalla camera (il dorso, con lo schermo verso chi
+    // guarda) si disegna PRIMA del telefono, che ne copre il centro (B14: il lampo sopra lo schermo diceva «colpita con lo
+    // schermo»); se è sulla faccia vicina, dopo la figura
+    // (punto del destro: si disegna la posa del destro, specchiata dalla camera per il mancino)
+    const CPm = !compact && P.contact != null ? gestureContactPoint(id, { grip: this.grip }) : null;
+    const impactBehind = CPm && ballBehind(cam, R, CPm);
+    if (CPm && impactBehind) drawImpact(c, cam, CPm, tt - P.contact, st);
     const F = K.figure ? figure(cam, R, st, H_) : drawFigure(c, cam, R, st, H_);
     if (body && !K.figure && !K.xray) drawXray(c, cam, R, F, body, st);
-    if (ball && !ballFirst) drawBall(c, cam, ball, spin, st, ballAlpha);
-    // palla dietro il telefono (contatto sulla faccia lontana dalla camera): si vede «in trasparenza» dentro la sagoma del
-    // telefono, a metà opacità e con il contorno tratteggiato, così all'impatto non sparisce mai (brief §5.6.2)
-    else if (ball && !K.figure && F.phoneHull) drawBallThrough(c, cam, ball, spin, st, F.phoneHull, ballAlpha);
-    if (!compact && P.contact != null){ const X = gestureContactPoint(id, { grip: this.grip }); drawImpact(c, cam, X, tt - P.contact, st); }
+    if (ball && !ballFirst && ballAlpha > .01) drawBall(c, cam, ball, spin, st, ballAlpha);
+    // palla dietro il telefono (contatto sul dorso, lontano dalla camera): dentro la sagoma del telefono il contorno
+    // tratteggiato della parte nascosta, così all'impatto non sparisce mai (brief §5.6.2)
+    else if (ball && ballFirst && ballAlpha > .01 && !K.figure && F.phoneHull) drawBallThrough(c, cam, ball, st, F.phoneHull, ballAlpha);
+    if (CPm && !impactBehind) drawImpact(c, cam, CPm, tt - P.contact, st);
     if (!compact && !K.hud){
       const taken = [];
       for (const g of ghosts) if (g.a > .01) this._ghostLabel(c, cam, g, F, u, taken);
