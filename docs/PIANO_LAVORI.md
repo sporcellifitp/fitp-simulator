@@ -42,12 +42,19 @@ Come si aggiorna:
   libero in servizio e schiacciata; camera alta da dietro (stile TV) per i colpi da fondo.
 - GitHub: le tre esecuzioni del push sono verdi («NATPF Simulator tests» con `gesture-calibration` al primo tentativo);
   installer **2026-11-08.1 pubblicato su R2** (sha256 `4000b1b7…60753204`). Zip Cloudflare sha256 `34889962…cf5a3cf0`.
-- In corso (08/11): indagine B14 sul dritto, solo in rami locali (`b14-dritto-a`, `b14-dritto-b`, non pubblicati):
-  (a) smentire o confermare il limite del riconoscimento cercando un dritto con la mano ≤ 35° dalla rete che passi le
-  prove di fedeltà; (b) inquadrature più leggibili; (c) revisione a occhi nuovi dei fogli.
-- **Prossima azione esatta:** leggere l'esito dell'indagine B14 (se interrotta, i rami locali e le note
-  `scratchpad/b14/notes-*.md` non sopravvivono alla sessione: ripartire dalla domanda (a) se serve) e aspettare il parere
-  dell'utente sui gesti e sulle tre decisioni.
+- **B14 (08/11, seguito del B13):** il «vincolo del riconoscimento» del dritto è smentito (33° dalla rete senza
+  toccarlo, verificato); camere più basse per il dritto e i colpi da fondo integrate: versione **2026-11-08.2**
+  (`04a702d`), tutte le prove verdi, tre esecuzioni di GitHub verdi, installer pubblicato su R2 (sha256 `18559a51…bc5049a8`),
+  zip Cloudflare sha256 `cf51aa20…b10fd4f6`. La revisione a occhi nuovi ha trovato il problema vero del dritto:
+  l'orientamento del telefono (racchetta verso la rete in carica, palmo verso chi gioca all'impatto). Dettaglio in
+  `docs/WORK_PROGRESS.md` B14.
+- **In corso:** B14.2 in tre rami locali da `04a702d` (non pubblicati, non sopravvivono alla fine della sessione):
+  (D) dritto, piatto, incrociato e lungolinea con la racchetta portata indietro e il palmo verso la rete; (F) volée,
+  servizio, schiacciata, tenute finali, palla corta, rovescio, pallonetto, tagliato; (E) disegno. Ognuno con una verifica
+  indipendente; poi integrazione, prove complete, versione 2026-11-08.3.
+- **Prossima azione esatta:** integrare i rami B14.2 verificati (le modifiche marcate «PROPOSTA:» a test o dati di
+  calibrazione si valutano una per una); se la sessione è finita, ripartire dal brief della revisione riassunto in
+  `docs/WORK_PROGRESS.md` B14 punto (C). Restano le decisioni dell'utente (sagoma del busto, racchetta fantasma, camera).
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
 1. **Push**: dopo ogni commit verificato, subito, su `origin natpf-simulator`. Verificato = test del gioco e del sito
@@ -124,6 +131,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B11 Installer unico con aggiornamenti | [x] | un solo installer Windows che si aggiorna dal gioco (Cloudflare R2, bucket UE `natpfsimulator`), zip LAN e portatile tolti; collaudo Windows dell'utente in corso | `8623bd9`…`fa190f2` | 2026-11-07.4 |
 | B12 Forza del colpo e CI | [x] | colpo tipico solo dai colpi normali (palle corte non abbassano più la forza); azioni di GitHub a Node 24 | vedi WORK_PROGRESS B12 | 2026-11-07.5 |
 | B13 Prova del servizio e gesti del tutorial | [x] | `gesture-calibration` senza pausa di rete (stabile con CPU ×4); gesti del tutorial sulla catena fisica del braccio (dritto ancora in diagonale: limite del riconoscimento) | vedi WORK_PROGRESS B13 | 2026-11-08.1 |
+| B14 Dritto: limite, camere, orientamento | [~] | vincolo smentito; camere più basse (2026-11-08.2); in corso orientamento del telefono nel dritto, altri colpi, disegno | vedi WORK_PROGRESS B14 | 2026-11-08.2 |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).

@@ -505,3 +505,36 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
   `gesture-calibration` al primo tentativo; «NATPF motore base MVP» verde; «NATPF eseguibili Windows» verde e installer
   **2026-11-08.1 pubblicato su R2** (124.574.121 B, sha256 `4000b1b74ec837f0ce415b923b14b2f0595478d5a49d8d28289aeb7160753204`,
   `latest.json` con la novità e link fisso `windows/NATPF-Simulator-Setup.exe` controllati dall'indirizzo pubblico).
+
+## B14 · Dritto: limite smentito, camere più basse, orientamento del telefono · [~] · 08/11/2026
+- Seguito del B13 (stessa richiesta: «il dritto non mi sembra tale»). Indagine in tre rami locali con verifiche
+  indipendenti (brief in scratchpad, riassunti qui):
+  - (A) **Vincolo del B13 smentito**: dritto con la mano a 32,8° dalla rete (prima 56,7°) senza toccare il riconoscimento,
+    887/887, 40/40 letture, 0/72 errori con le prese di chi imita; il limite veniva dalle bande dell'ottimizzatore del B13.
+    Vincoli veri con file e righe in `docs/PROJECT_MEMORY.md` (gesti B13). **Non integrato**: il verificatore ha visto nei
+    fogli un guadagno modesto e alcuni peggioramenti (contatto più basso e arretrato, palmo meno davanti).
+  - (B) **Camere** (integrato, `1b779d2`, `2b7d0b6`): dritto da dietro a sinistra e in basso (azimut −55°, elevazione 15°),
+    la camera segue meno la mano (`follow.mixSmall`); lungolinea, incrociato, piatto, rovescio ritoccati. Sullo schermo
+    «avanti» e «in alto» ora distinti di 78° (prima 20°), mano all'impatto 9° dalla direzione della rete sullo schermo
+    (prima 59°), salita dopo l'impatto +0,28 dell'altezza (prima scendeva di circa 7 px). Moto identico (verificato su
+    40.700 campioni). Nuovo test `natpf-gesture-camera.test.mjs`; prototipo della testa di racchetta fantasma **spento**
+    (`GHOST_RACKET = false`: con l'orientamento di oggi mostrerebbe la racchetta verso la rete all'impatto).
+    Documento `docs/b14/camera-dritto.md`.
+  - (C) **Revisione a occhi nuovi** di tutte le schede: il problema del dritto è l'**orientamento del telefono** (la cima,
+    cioè la racchetta virtuale, punta alla rete in carica; all'impatto palmo e schermo guardano chi gioca; la testa della
+    racchetta va a 89° dalla rete). Altri punti: volée che spazza invece di spingere, fine di servizio e schiacciata
+    troppo alte, tenute finali di 0,03 s, palla corta troppo vicina, fascia del grafico che copre pose chiave, fantasmi che
+    sembrano braccia in più, busto a pezzi con la testa trasparente, manica troppo grande.
+- [x] B14.1 · versione **2026-11-08.2** (`04a702d`: correzioni ai commenti e ai documenti delle camere, vincolo smentito nei
+  documenti, novità). Verifiche: gioco 891/891, sito 195/195, LAN 12/12, programma Windows 28/28, build ok; nel browser
+  `gesture-calibration` 18/18, `natpf-modale-gesti` 18/18, `natpf-gesti-fotogrammi` 31/31, `natpf-gesti-sequenze` 47/47,
+  `natpf-training-flow` 18/18, `natpf-tutorial-phone` 37/37, `natpf-tutorial-relink` 8/8. Zip Cloudflare
+  `natpf-simulator-cloudflare-20261108-2.zip` 22.566.432 B (127 file), sha256
+  `cf51aa20614d0bfa5519f0fa7829ff9d3004fae6e3b7972b982888ccb10fd4f6`, provato estratto (versione giusta, nessun errore).
+  GitHub: tre esecuzioni verdi; installer **2026-11-08.2 pubblicato su R2** (124.594.293 B, sha256
+  `18559a5198a3a6294102af8d2f3a3c7f866c815351bfc5cb881fe8bcbc5049a8`, `latest.json` controllato).
+- [~] B14.2 (in corso, rami locali `b14-d`, `b14-e`, `b14-f` da `04a702d`, non pubblicati): (D) famiglia del dritto con
+  la racchetta portata indietro in carica e il palmo verso la rete all'impatto; (F) volée a pugno, fine di servizio e
+  schiacciata fino alla vita, tenute finali, palla corta, rovescio, pallonetto e tagliato; (E) disegno (fascia del
+  grafico, fantasmi, busto unico con occlusione, manica, palla sulla faccia giusta, 200×200, fotogrammi «Fine»).
+- Non verificato: telefoni veri, persone vere, Windows; l'utente non ha ancora visto i fogli.
