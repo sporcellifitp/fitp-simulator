@@ -38,7 +38,11 @@ export const BODY_COLOR = Object.freeze({ top: '#17296a', bottom: '#0d1944', rim
 // velato, così restano visibili ma si leggono dietro (prima la mano davanti alla pancia, vista da dietro, sembrava dietro la
 // schiena). Velo del busto sull'avambraccio (con la mano e il telefono), più leggero se dietro c'è solo la mano
 export const XRAY = Object.freeze({ arm: .4, hand: .3 });
-const HUD_H = .2;                             // banda bassa della curva (frazione dell'altezza dello stadio)
+// schede senza busto: la palla corta, vista da destra e vicina, ne mostrava solo un cuneo scuro senza testa (non una persona)
+export const BODY_HIDDEN = Object.freeze(['drop']);
+// banda bassa della curva (frazione dell'altezza dello stadio). B14: da 0,2 (più la sfumatura scura di 0,07 sopra) a 0,17 con
+// la sfumatura più corta e più leggera: copriva polso, gomito e omero nelle pose chiave (revisione B14)
+const HUD_H = .17;
 // palla anche qualche ms prima del contatto nell'inquadratura (s; quanto basta perché resti fuori ≤ 100 ms e il telefono
 // resti ≥ 60 px a 448×280)
 const BALL_EARLY = Object.freeze({ forehand: .035, backhand: .035, line: .035, drop: .035, slice: .035, lob: .035, volley: .02, flat: .02 });
@@ -205,9 +209,12 @@ export function motion(id, grip = GRIP_STYLE){
   const tk = id + '|' + grip;
   if (TABLES.has(tk)) return TABLES.get(tk);
   const H = handFor(grip), P = gesturePlan(id, { grip }), n = Math.max(1, Math.ceil(P.total/STEP)), tip = [], mid = [], speed = new Float32Array(n + 1), pts = [], body = [];
+  const elb = [], base = [];
   for (let i = 0; i <= n; i++){
     const t = Math.min(P.total, i*STEP), p = gesturePose(id, t, { grip });
     tip.push(tipOf(p, 1)); mid.push(tipOf(p, .35)); speed[i] = p.speed;
+    // gomito e base del telefono (camera che segue: soggetto sopra la banda della curva, B14)
+    base.push(tipOf(p, -1)); elb.push(p.chain && !H.rigidForearm ? p.chain.E : add(add(p.pos, qrot(p.q, H.wrist)), mul(qrot(p.q, H.forearmDir), ARM.fore)));
     // frame 'swing': l'inquadratura comprende solo il colpo (dalla fine della carica alla fine dell'accompagnamento, dove il
     // telefono è più grande): il ritorno passa per la posizione di partenza, che sta dentro quell'arco
     const inFrame = CAMERAS[id]?.frame !== 'swing' || P.kind !== 'stroke' || (t >= P.T.inv - .12 && t <= P.T.back + .08);
@@ -219,13 +226,16 @@ export function motion(id, grip = GRIP_STYLE){
       // inquadratura con le spalle e il collo (si leggono il busto che gira e «sopra la testa»), dove la camera lo chiede
       // e non nella modalità compatta (lì solo mano e telefono)
       if (CAMERAS[id]?.frameBody && p.chain){ const B = bodyOf(p.chain); body.push(...(CAMERAS[id].frameBody === 'head' ? [B.S, B.shoulderL, B.head] : [B.S, B.shoulderL, B.neck])); }
+      // gomito nell'inquadratura (non nella modalità compatta): l'avambraccio intero resta sopra la banda della curva (B14:
+      // nella palla corta, nel tagliato e nella volée il gomito stava sempre sotto la banda)
+      body.push(elb[i]);
       if (P.still) break;
     }
   }
   // la palla vicino al contatto (−25…+20 ms) resta nel riquadro utile: entro ±50 ms resta nello stadio (brief §4)
   if (!P.still) for (const dt of (BALL_EARLY[id] ? [-BALL_EARLY[id], 0] : [0])){ const b = gestureBall(id, P.contact + dt, { grip }); if (b) pts.push(b); }
   let max = 0, at = 0; for (let i = 0; i <= n; i++) if (speed[i] > max){ max = speed[i]; at = i; }
-  const T = { P, n, tip, mid, speed, pts, ptsBody: body.length ? pts.concat(body) : pts, peak: max, peakI: at };
+  const T = { P, n, tip, mid, base, elb, speed, pts, ptsBody: body.length ? pts.concat(body) : pts, peak: max, peakI: at };
   // arco della freccia del verso: cima un poco oltre il telefono nella parte veloce (servizio: lancio e battuta). Con la
   // camera che segue la mano (servizio, schiacciata, pallonetto: la mano percorre più di quanto la camera inquadra) solo
   // la parte veloce attorno al contatto e più vicino alla cima, perché resti nel quadro
@@ -248,7 +258,7 @@ function sampleAt(arr, T, t){
 export function stageBox(id, W, H){
   if (W < COMPACT_W) return { x: W*.1, y: H*.1, w: W*.8, h: H*.8 };
   if (id === 'grip') return { x: W*.24, y: H*.1, w: W*.52, h: H*.74 };
-  return { x: W*.07, y: H*.05, w: W*.86, h: H*(1 - HUD_H - .08) };
+  return { x: W*.07, y: H*.05, w: W*.86, h: H*(1 - HUD_H - .11) };
 }
 // camera della scheda all'istante t per uno stadio W×H (px CSS); il mancino è lo specchio della camera del destro (si
 // disegna la posa del destro specchiata: la scritta dello schermo del telefono resta dritta)
@@ -272,7 +282,14 @@ export function cameraAt(id, t, { W, H, hand = 'right', grip = GRIP_STYLE, cache
   let fr = cache?.get(key);
   if (!fr){ fr = frame(W < COMPACT_W ? M.pts : M.ptsBody, C.dir, C.dist, box); cache?.set(key, fr); }
   if (!C.follow) return makeCam(fr.eye, fr.target, fr.f, fr.cx, fr.cy, mirror, W);
-  // servizio e schiacciata: la camera segue la mano (media pesata su ±window), a metà tra il centro dell'arco e la mano
+  // camera che segue la mano, più lo spostamento dello schermo che tiene il soggetto nel riquadro utile (tabella liscia)
+  const b = followBase(M, fr, C, t, box, W), S = shiftTable(id, grip, W, H, C, M, fr, box);
+  const sx = sampleAt(S.dx, M, t), sy = sampleAt(S.dy, M, t);
+  // (lo specchio del mancino si fa dopo la proiezione: lo stesso cx spostato dà l'immagine specchiata di quella del destro)
+  return makeCam(b.eye, b.target, b.f*(S.z ?? 1), b.cx + sx, b.cy + sy, mirror, W);
+}
+// servizio, schiacciata e colpi da fondo: la camera segue la mano (media pesata su ±window), tra il centro dell'arco e la mano
+function followBase(M, fr, C, t, box, W){
   const fo = C.follow, n = 16, Dd = len(sub(fr.eye, fr.target)), dir = norm(sub(fr.eye, fr.target));
   let m = [0, 0, 0], ws = 0;
   for (let i = 0; i <= n; i++){
@@ -290,7 +307,122 @@ export function cameraAt(id, t, { W, H, hand = 'right', grip = GRIP_STYLE, cache
   // vedono il braccio intero e il busto: revisione B13, la camera stretta toglieva il corpo), al massimo 1,5 volte (mano e
   // telefono restano ≥ 28% dell'altezza)
   const size = fo.size*Math.min(1.5, Math.max(1, box.h/202)**1.2)*(compactSwing ? 1.22 : 1), f = Math.max(fr.f, box.h*Dd/size);
-  return makeCam(add(target, mul(dir, Dd)), target, f, box.x + box.w/2, box.y + box.h*.5, mirror, W);
+  return { eye: add(target, mul(dir, Dd)), target, f, cx: box.x + box.w/2, cy: box.y + box.h*.5 };
+}
+// B14: spostamento dello schermo (la direzione e la distanza della camera restano) che tiene il soggetto nel riquadro utile:
+// negli stadi grandi telefono e gomito sopra la banda della curva, se c'è posto sopra il telefono (con la palla e la freccia
+// vicine al colpo); nella modalità compatta telefono dentro lo stadio anche di lato (prima la mano usciva a destra e la
+// punta della freccia a sinistra). Richiesta all'istante t (dy in basso, px CSS, camera non specchiata); compatta: intervalli
+function shiftRaw(id, grip, M, b, t, box, W, H){
+  const c0 = makeCam(b.eye, b.target, b.f, b.cx, b.cy, false, W), q = X => c0.p(X), P = M.P;
+  const ph = [sampleAt(M.tip, M, t), sampleAt(M.base, M, t)].map(q), pr = c0.rad(sampleAt(M.mid, M, t), HW*1.3);
+  const pTop = Math.min(ph[0].y, ph[1].y) - pr, pBot = Math.max(ph[0].y, ph[1].y) + pr;
+  if (W < COMPACT_W){
+    // compatta: intervallo di spostamento che tiene il telefono dentro lo stadio a questo istante; all'istante del contatto
+    // anche quello della freccia della parte veloce (prova tools/e2e/natpf-gesti-fotogrammi)
+    const m = W*.02, x0 = Math.min(ph[0].x, ph[1].x) - pr, x1 = Math.max(ph[0].x, ph[1].x) + pr;
+    const out = { pxlo: m - x0, pxhi: W - m - x1, pylo: m - pTop, pyhi: H - m - pBot };
+    if (P.contact != null && Math.abs(t - P.contact) < STEP/2){
+      const A = M.arrows.filter(a => a.t0 <= P.contact && a.t1 >= P.contact).flatMap(a => a.pts.map(q));
+      if (A.length){ const xs = A.map(p => p.x), ys = A.map(p => p.y); Object.assign(out, { axlo: 2 - Math.min(...xs), axhi: W - 2 - Math.max(...xs), aylo: 2 - Math.min(...ys), ayhi: H - 2 - Math.max(...ys) }); }
+    }
+    return out;
+  }
+  let top = pTop, bot = pBot;
+  // palla e freccia della parte veloce attorno al contatto (limitano solo quanto si sale): pesi che salgono e scendono con
+  // continuità
+  if (P.contact != null){
+    const wB = P.kind === 'serve' ? sstep(P.T.tossPeak - .45, P.T.tossPeak - .3, t)*(1 - sstep(P.contact + .05, P.contact + .15, t))
+      : sstep(P.contact - .2, P.contact - .1, t)*(1 - sstep(P.contact + .05, P.contact + .15, t));
+    const ball = wB > 0 ? gestureBall(id, t, { grip }) : null;
+    if (ball){ const bb = q(ball); top = Math.min(top, bb.y - c0.rad(ball, BALL_R) + (1 - wB)*H); }
+    const wA = sstep(P.contact - .25, P.contact - .12, t)*(1 - sstep(P.contact + .1, P.contact + .2, t));
+    if (wA > 0){ let ta = Infinity; for (const a of M.arrows) if (a.t0 <= P.contact && a.t1 >= P.contact) for (const X of a.pts) ta = Math.min(ta, q(X).y - 4); top = Math.min(top, ta + (1 - wA)*H); }
+  }
+  const e = sampleAt(M.elb, M, t), ey = q(e).y + c0.rad(e, .035);
+  bot = Math.max(bot, ey);
+  const need = Math.max(0, bot - (box.y + box.h)), room = Math.max(0, top - box.y);
+  return { dy: -Math.min(need, room), need, room, ylo: -room };
+}
+// tabella dello spostamento sul ciclo (passo STEP), lisciata: chiusura (massimo e minimo mobili su ±0,15 s, poi media
+// pesata sulla stessa finestra: il valore lisciato copre sempre quello richiesto) — la camera non scatta mai. Negli stadi
+// grandi, durante il colpo (dalla fine della carica alla fine dell'accompagnamento) lo spostamento è COSTANTE (il massimo
+// richiesto nel colpo, nei limiti del posto sopra): il moto della mano sullo schermo resta quello della camera (la salita
+// dall'impatto alla fine, test/natpf-gesture-camera), e ci si raccorda allo spostamento delle fasi lente in 0,3 s
+const SHIFTS = new WeakMap(), SHIFT_W = .15, SHIFT_BLEND = .3, ZMIN = .96;
+function shiftTable(id, grip, W, H, C, M, fr, box){
+  let byC = SHIFTS.get(C); if (!byC) SHIFTS.set(C, byC = new Map());
+  const key = `${id}|${grip}|${W}x${H}`; let S = byC.get(key); if (S) return S;
+  const n = M.n, ry = new Float32Array(n), raw = [];
+  for (let i = 0; i < n; i++){ const t = i*STEP, r = shiftRaw(id, grip, M, followBase(M, fr, C, t, box, W), t, box, W, H); ry[i] = r.dy ?? 0; raw.push(r); }
+  S = { dx: new Float32Array(n + 1), dy: new Float32Array(n + 1) };
+  if (W < COMPACT_W){
+    // compatta: spostamento e riduzione COSTANTI sul ciclo (nessun moto in più della camera): il più piccolo spostamento che
+    // tiene il telefono dentro lo stadio per tutto il ciclo e la freccia del contatto dentro lo stadio; se i due non stanno
+    // insieme, il quadro si allarga appena (al più del 4%, attorno al centro del riquadro: mano e telefono restano ≥ 28%)
+    const cx = box.x + box.w/2, cy = box.y + box.h/2, size = { x: W, y: H }, ctr = { x: cx, y: cy };
+    // limite basso lo = margine − estremo: con la riduzione z l'estremo si avvicina al centro
+    const sc = (lim, z, k, hiSide, mg) => { const e = hiSide ? size[k] - mg - lim : mg - lim, e2 = ctr[k] + z*(e - ctr[k]); return hiSide ? size[k] - mg - e2 : mg - e2; };
+    const m = W*.02;
+    const solve = z => {
+      const res = {};
+      for (const k of ['x', 'y']){
+        let lo = -1e9, hi = 1e9;
+        for (const r of raw){
+          lo = Math.max(lo, sc(r['p' + k + 'lo'], z, k, false, m)); hi = Math.min(hi, sc(r['p' + k + 'hi'], z, k, true, m));
+          if (r.axlo != null){ lo = Math.max(lo, sc(r['a' + k + 'lo'], z, k, false, 2)); hi = Math.min(hi, sc(r['a' + k + 'hi'], z, k, true, 2)); }
+        }
+        res[k] = [lo, hi];
+      }
+      return res;
+    };
+    let z = 1, R = solve(1);
+    while (z > ZMIN + .001 && (R.x[0] > R.x[1] || R.y[0] > R.y[1])){ z -= .01; R = solve(z); }
+    S.z = z;
+    for (const k of ['x', 'y']){ const [lo, hi] = R[k]; S['d' + k].fill(lo <= hi ? Math.min(Math.max(0, lo), hi) : (lo + hi)/2); }
+    byC.set(key, S); return S;
+  }
+  S.dy = smoothShift(ry);
+  const P = M.P, s0 = P.T.inv ?? P.T.hitStart, s1 = P.T.back;
+  if (s0 != null && s1 != null){
+    let need = 0, room = Infinity;
+    for (let i = 0; i < n; i++){ const t = i*STEP; if (t >= s0 && t <= s1){ need = Math.max(need, raw[i].need); room = Math.min(room, raw[i].room); } }
+    const k = -Math.min(need, room);
+    for (let i = 0; i <= n; i++){ const t = Math.min(P.total, i*STEP), w = sstep(s0 - SHIFT_BLEND, s0, t)*(1 - sstep(s1, s1 + SHIFT_BLEND, t)); S.dy[i] = w*k + (1 - w)*S.dy[i]; }
+  }
+  // limiti (posto sopra il soggetto, freccia e palla vicine al colpo): inviluppi lisciati che li rispettano sempre (il limite
+  // basso dilatato verso l'alto, quello alto eroso verso il basso), e lo spostamento vi si tiene dentro
+  const L = smoothEnv(Float32Array.from(raw, r => r.ylo), 1);
+  for (let i = 0; i <= n; i++) S.dy[i] = Math.max(S.dy[i], L[i]);
+  // ultima media corta (±0,08 s): niente spigoli della velocità della camera dove il limite entra in gioco
+  S.dy = blurPeriodic(S.dy, .08);
+  byC.set(key, S); return S;
+}
+// inviluppo lisciato di un limite: sgn 1 = limite basso (massimo mobile, poi media: mai sotto il limite), −1 = limite alto
+function smoothEnv(r, sgn){
+  const n = r.length, k = Math.max(1, Math.round(SHIFT_W/STEP)), out = new Float32Array(n + 1), at = i => ((i % n) + n) % n, e = new Float32Array(n);
+  for (let i = 0; i < n; i++){ let v = -Infinity; for (let j = -k; j <= k; j++) v = Math.max(v, sgn*r[at(i + j)]); e[i] = sgn*v; }
+  let ws = 0; const w = Array.from({ length: 2*k + 1 }, (_, j) => { const x = Math.sin(Math.PI*(j + .5)/(2*k + 1)); ws += x; return x; });
+  for (let i = 0; i < n; i++){ let a = 0; for (let j = -k; j <= k; j++) a += e[at(i + j)]*w[j + k]; out[i] = a/ws; }
+  out[n] = out[0];
+  return out;
+}
+function blurPeriodic(a, win){
+  const n = a.length - 1, k = Math.max(1, Math.round(win/STEP)), out = new Float32Array(n + 1), at = i => ((i % n) + n) % n;
+  let ws = 0; const w = Array.from({ length: 2*k + 1 }, (_, j) => { const x = Math.sin(Math.PI*(j + .5)/(2*k + 1)); ws += x; return x; });
+  for (let i = 0; i < n; i++){ let s = 0; for (let j = -k; j <= k; j++) s += a[at(i + j)]*w[j + k]; out[i] = s/ws; }
+  out[n] = out[0];
+  return out;
+}
+function smoothShift(r){
+  const n = r.length, k = Math.max(1, Math.round(SHIFT_W/STEP)), out = new Float32Array(n + 1), at = i => ((i % n) + n) % n;
+  if (!r.some(v => v)) return out;
+  const pos = new Float32Array(n), neg = new Float32Array(n);
+  for (let i = 0; i < n; i++){ let p = 0, q = 0; for (let j = -k; j <= k; j++){ const v = r[at(i + j)]; if (v > p) p = v; if (v < q) q = v; } pos[i] = p; neg[i] = q; }
+  let ws = 0; const w = Array.from({ length: 2*k + 1 }, (_, j) => { const x = Math.sin(Math.PI*(j + .5)/(2*k + 1)); ws += x; return x; });
+  for (let i = 0; i < n; i++){ let a = 0; for (let j = -k; j <= k; j++) a += (pos[at(i + j)] + neg[at(i + j)])*w[j + k]; out[i] = a/ws; }
+  out[n] = out[0];
+  return out;
 }
 
 /* ---------- forme ---------- */
@@ -907,7 +1039,7 @@ export class NatpfGestureDemo {
     if (id === 'grip'){ this._grip(c, cam, R, tt, u); return; }   // info (con la figura disegnata) la scrive _grip
     // busto e testa: sagoma piena sotto tutto (fantasmi compresi); il velo sulle parti del braccio che gli stanno dietro dopo
     // la figura
-    const body = !compact && BODY_ALPHA > 0 && R.chain && !K.body ? bodyGeom(cam, R.chain) : null;
+    const body = !compact && BODY_ALPHA > 0 && R.chain && !K.body && !BODY_HIDDEN.includes(id) ? bodyGeom(cam, R.chain) : null;
     if (body) drawBodySolid(c, body, st);
     // fantasmi a contorno delle pose chiave (non nella modalità compatta)
     const follow = !!(CAMERAS[id] || {}).follow;
@@ -1074,11 +1206,11 @@ export class NatpfGestureDemo {
   _hudStatic(M, L, u){
     const st = this.st, key = `${this.id}|${this.grip}|${st.W}x${st.H}@${st.dpr}`;
     if (this._hudKey === key) return this._hudCv;
-    const top = Math.max(0, Math.floor((L.y0 - L.h*.35)*st.dpr)), cv = this._hudCv ||= document.createElement('canvas');
+    const top = Math.max(0, Math.floor((L.y0 - L.h*.2)*st.dpr)), cv = this._hudCv ||= document.createElement('canvas');
     cv.width = Math.round(st.W*st.dpr); cv.height = Math.max(1, Math.round(st.H*st.dpr) - top); cv.top = top;
     const c = cv.getContext('2d'); c.setTransform(st.dpr, 0, 0, st.dpr, 0, -top);
-    const g = c.createLinearGradient(0, L.y0 - L.h*.35, 0, L.H); g.addColorStop(0, 'rgba(5,10,28,0)'); g.addColorStop(.35, 'rgba(5,10,28,.8)'); g.addColorStop(1, 'rgba(5,10,28,.94)');
-    c.fillStyle = g; c.fillRect(0, L.y0 - L.h*.35, L.W, L.h*1.35);
+    const g = c.createLinearGradient(0, L.y0 - L.h*.2, 0, L.H); g.addColorStop(0, 'rgba(5,10,28,0)'); g.addColorStop(.3, 'rgba(5,10,28,.62)'); g.addColorStop(1, 'rgba(5,10,28,.86)');
+    c.fillStyle = g; c.fillRect(0, L.y0 - L.h*.2, L.W, L.h*1.2);
     if (L.curve){
       const { X, Y, cx0, cx1, cy0, cy1 } = L;
       c.beginPath(); c.moveTo(X(0), cy1); for (let i = 0; i <= M.n; i += 2) c.lineTo(X(i), Y(M.speed[i])); c.lineTo(X(M.n), cy1); c.closePath();
