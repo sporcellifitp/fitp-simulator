@@ -3,7 +3,10 @@
 // in basso (mouse, tastiera ←/→, o dal telefono di chi gioca), niente scorrimento automatico; una scheda conta come
 // vista dopo TUTORIAL.seenMs che è a schermo. Si chiude dal telefono con «Tutto chiaro, ho capito», che sul telefono si
 // accende solo quando tutte le schede sono state viste (l'avanzamento va al telefono con onProgress →
-// natpf_phone_racket.tutorialProgress, messaggio «tp»); sul computer solo Esc per chi gestisce la postazione.
+// natpf_phone_racket.tutorialProgress, messaggio «tp»); sul computer Esc per chi gestisce la postazione e, dal B17.2
+// (08/11), una X in alto a destra della scheda: spenta («Sfoglia tutte le schede») finché non sono tutte viste, poi
+// accesa; cliccata fa la stessa cosa di «Tutto chiaro, ho capito» (onDone di chi apre la modale). In «Rivedi i gesti»
+// la X chiude sempre, come «Chiudi».
 // Più istanze possibili (una per metà dello schermo nel 1v1 sullo stesso schermo), ciascuna con la sua animazione dei
 // gesti (natpf_gesture_demo.js, Canvas 2D: niente WebGL, B9 ramo C). Senza canvas (test) foto e indicazioni.
 // L'animazione sta in un riquadro 16:10 (.tut-stage dentro .tut-frame): mount/setSize/play come prima, setSize di nuovo
@@ -59,7 +62,13 @@ export function tutorialWait({ mode = 'phone', all = false, after = 'cal', half 
   const tel = half ? 'tuo telefono' : 'telefono';
   if (!all) return `Sfoglia le schede con ‹ › (anche dal ${tel}): alla fine si accende «Tutto chiaro, ho capito».`;
   const then = after === 'ready' ? 'sei pronto' : after === 'play' ? 'si comincia' : 'si calibra';
-  return `Sul ${tel} tocca «Tutto chiaro, ho capito»: poi ${then}.`;
+  return `Sul ${tel} tocca «Tutto chiaro, ho capito» (o la X qui in alto): poi ${then}.`;
+}
+
+// etichetta della X in alto a destra (tooltip e lettore di schermo): spenta dice perché, accesa cosa fa
+export function tutorialX({ mode = 'phone', all = false } = {}){
+  if (mode !== 'phone') return 'Chiudi';
+  return all ? 'Chiudi: tutto chiaro, ho capito' : 'Sfoglia tutte le schede';
 }
 
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -74,7 +83,8 @@ export class NatpfTutorial {
     root.classList.add('natpf-tutorial', 'hidden'); if (half) root.classList.add('half');
     root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true');
     root.innerHTML = `<div class="tut-card">
-      <header class="tut-head"><span class="tut-kicker"></span><span class="tut-count" aria-live="polite"></span><h2 class="tut-name"></h2></header>
+      <header class="tut-head"><span class="tut-kicker"></span><span class="tut-count" aria-live="polite"></span><h2 class="tut-name"></h2>
+        <button type="button" class="tut-x" aria-label="Chiudi il tutorial"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></header>
       <div class="tut-body">
         <div class="tut-frame"><div class="tut-stage"><div class="tut-media"></div><div class="tut-3d"></div></div></div>
         <div class="tut-info"><p class="tut-text"></p><ul class="tut-cues"></ul></div>
@@ -90,6 +100,8 @@ export class NatpfTutorial {
       const b = e.target?.closest?.('[data-tut-go]'); if (b){ e.stopPropagation(); this.step(+b.dataset.tutGo); return; }
       if (e.target?.closest?.('.tut-close')){ e.stopPropagation(); this.close('review'); }
     });
+    // la X in alto a destra: ascoltatore sul pulsante (anche nel DOM finto dei test, dove closest non c'è)
+    root.querySelector?.('.tut-x')?.addEventListener('click', e => { e.stopPropagation(); this.closeX(); });
     root.addEventListener('pointerdown', e => e.stopPropagation());
     // il riquadro dell'animazione cambia misura (finestra, schermo intero, ledwall): l'animazione si ridimensiona
     const stage = root.querySelector?.('.tut-stage');
@@ -99,12 +111,15 @@ export class NatpfTutorial {
   get progress(){ return this.state ? { ...tutorialProgress(this.state), nm: TUTORIAL_CARDS[this.state.idx]?.title || '' } : null; }
   // per riaprire più tardi dallo stesso punto (stesso abbinamento del telefono)
   get snapshot(){ return this.state ? { idx: this.state.idx, visited: [...this.state.visited], all: this.state.all } : null; }
-  // mode: 'phone' (si chiude con il telefono), 'review' («Rivedi i gesti», si chiude con «Chiudi»)
-  // player: 'Player 1'…, hand: 'right' | 'left', onClose(reason): 'phone' | 'skip' | 'review'; onProgress(progress) a ogni
-  // cambio di scheda o di schede viste (solo 'phone'); after: vedi tutorialWait; from: snapshot di prima
-  openFor({ mode = 'phone', player = '', hand = 'right', onClose = null, onProgress = null, after = 'cal', from = null } = {}){
+  // mode: 'phone' (si chiude con il telefono o con la X dopo tutte le schede), 'review' («Rivedi i gesti», si chiude con
+  // «Chiudi» o con la X). player: 'Player 1'…, hand: 'right' | 'left', onClose(reason): 'phone' | 'skip' | 'review';
+  // onProgress(progress) a ogni cambio di scheda o di schede viste (solo 'phone'); onDone(): la X cliccata con tutte le
+  // schede viste (solo 'phone'): chi apre la modale fa quello che fa con «Tutto chiaro, ho capito» dal telefono (segna
+  // il tutorial come visto, libera il telefono, chiude); senza onDone la X chiude con close('phone');
+  // after: vedi tutorialWait; from: snapshot di prima
+  openFor({ mode = 'phone', player = '', hand = 'right', onClose = null, onProgress = null, onDone = null, after = 'cal', from = null } = {}){
     if (!this.root) return;
-    this.opts = { mode, player, hand, onClose, onProgress: mode === 'phone' ? onProgress : null, after };
+    this.opts = { mode, player, hand, onClose, onProgress: mode === 'phone' ? onProgress : null, onDone: mode === 'phone' ? onDone : null, after };
     this.open = true; this.paintKey = '';
     this.state = tutorialStart({ now: this.clock(), from });
     this.root.classList.remove('hidden'); this.root.dataset.mode = mode;
@@ -136,6 +151,17 @@ export class NatpfTutorial {
     this.state = next; this.paintNav(); this._progress();
   }
   _progress(){ const p = this.progress; if (p) try { this.opts.onProgress?.(p); } catch (e){ console.error(e); } }
+  // la X è accesa quando cliccarla fa qualcosa: sempre in «Rivedi i gesti», in 'phone' dopo tutte le schede
+  get xEnabled(){ return this.open && (this.opts.mode === 'review' || !!this.state?.all); }
+  // X in alto a destra: in «Rivedi i gesti» chiude; in 'phone' con tutte le schede viste fa quello che fa «Tutto chiaro,
+  // ho capito» dal telefono (onDone); spenta non fa niente (il telefono non è toccato)
+  closeX(){
+    if (!this.xEnabled) return;
+    if (this.opts.mode === 'review'){ this.close('review'); return; }
+    const done = this.opts.onDone;
+    if (done){ try { done(); } catch (e){ console.error(e); } if (this.open) this.close('phone'); }
+    else this.close('phone');
+  }
   close(reason = 'phone'){
     if (!this.open) return;
     this.open = false; clearInterval(this.timer); this.timer = null;
@@ -156,6 +182,13 @@ export class NatpfTutorial {
     for (const dot of this.root.querySelectorAll('.tut-dot')){ const i = +dot.dataset.dot; dot.classList.toggle('on', i === st.idx); dot.classList.toggle('seen', st.visited.has(i)); }
     this.root.classList.toggle('all-seen', !!st.all);
     const w = $('.tut-wait'); if (w) w.textContent = tutorialWait({ mode: this.opts.mode, all: st.all, after: this.opts.after, half: this.half });
+    // X in alto a destra: spenta finché non sono tutte viste (con la spiegazione), accesa poi; in «Rivedi» sempre accesa
+    const x = $('.tut-x');
+    if (x){
+      const on = this.xEnabled, tip = tutorialX({ mode: this.opts.mode, all: on });
+      x.classList.toggle('off', !on); x.setAttribute('aria-disabled', on ? 'false' : 'true');
+      x.title = tip; x.setAttribute('aria-label', tip);
+    }
   }
   paint(){
     if (!this.open || !this.root) return;

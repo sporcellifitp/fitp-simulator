@@ -259,8 +259,9 @@ export class NatpfTraining {
     this.tutorialOpen = true; this._idle(); this._centerPlayer();
     const P = this.ui.phone;
     P.waitTutorial?.(true);
+    // la X in alto a destra (B17.2), accesa dopo tutte le schede, fa quello che fa «Tutto chiaro» dal telefono
     this.tutorial?.openFor({ mode: 'phone', player: '', hand: this.ui.hand?.hand || 'right', after: this.cal ? 'cal' : 'play',
-      from: P.savedTutorial?.() || null, onProgress: p => P.tutorialProgress?.(p) });
+      from: P.savedTutorial?.() || null, onProgress: p => P.tutorialProgress?.(p), onDone: () => this._tutorialDone('phone') });
   }
   // chiusa dal telefono (o con Esc da chi gestisce la postazione, o da un telefono con la pagina di prima che ha già
   // cominciato a calibrare): si segna vista per questa sessione e si va alla calibrazione o agli esercizi

@@ -6,7 +6,10 @@
 //     dalla scheda raggiunta), Ricalibra, Ricollega e pagina ricaricata da «Pronto» (il tutorial non torna);
 //   - schermo del telefono spento: pausa con da quanto, velo «Tocca lo schermo per riprendere» se il blocco vuole un tocco;
 //   - stesso schermo: due tutorial indipendenti, ciascuno sfogliato dal proprio telefono;
-//   - schermate della modale a 1280×720, 1920×1080, stesso schermo e ledwall (?area=0,0,720,720) e del telefono a ogni stato.
+//   - schermate della modale a 1280×720, 1920×1080, stesso schermo e ledwall (?area=0,0,720,720) e del telefono a ogni stato;
+//   - B17.2 (08/11): la X in alto a destra della scheda: spenta (aria-disabled) a metà, accesa dopo tutte le schede; cliccata
+//     sul computer chiude come «Tutto chiaro» (telefono in calibrazione una volta sola, non resta sul tutorial); nello
+//     stesso schermo la X del P2 chiude solo la sua metà.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-tutorial-phone.mjs   (schermate in $OUT, di base /tmp/tennis-e2e)
 //   HAND=left: lo stesso percorso per un mancino (B15): mano scelta nel gioco (P1, anche nello stesso schermo), schede e
 //   calibrazione con il piano della mano (prima il dritto →).
@@ -118,12 +121,22 @@ try {
   const geo = () => game.evaluate(() => {
     const r = el => { const b = el.getBoundingClientRect(); return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) }; };
     const root = document.getElementById('natpf-tutorial'), card = root.querySelector('.tut-card'), area = document.getElementById('natpf-root') || document.body;
-    return { area: r(area), card: r(card), prev: r(root.querySelector('.tut-prev')), next: r(root.querySelector('.tut-next')), stage: r(root.querySelector('.tut-stage')), win: [innerWidth, innerHeight] };
+    const x = root.querySelector('.tut-x');
+    return { area: r(area), card: r(card), prev: r(root.querySelector('.tut-prev')), next: r(root.querySelector('.tut-next')), stage: r(root.querySelector('.tut-stage')), win: [innerWidth, innerHeight],
+      x: { ...r(x), off: x.getAttribute('aria-disabled') === 'true', title: x.title, vis: getComputedStyle(x).visibility === 'visible' && getComputedStyle(x).display !== 'none' && +getComputedStyle(x).opacity > .5 } };
   });
+  // la X in alto a destra della scheda: dentro la scheda, nell'angolo (entro il 12% della larghezza dal bordo destro e il
+  // 12% dell'altezza dal bordo alto), almeno 36 px, visibile
+  const xCorner = (g, c = g.card) => g.x.w >= 36 && g.x.h >= 36 && g.x.vis && g.x.x >= c.x && g.x.y >= c.y - 2 && g.x.x + g.x.w <= c.x + c.w + 1 && g.x.x + g.x.w >= c.x + c.w*.88 && g.x.y <= c.y + c.h*.12;
   const centered = (g, W, H, x0 = 0) => Math.abs(g.card.x + g.card.w/2 - (x0 + W/2)) <= 3 && Math.abs(g.card.y + g.card.h/2 - H/2) <= 3 && g.card.w <= W*.705 && g.card.h <= H*.785
     && g.prev.y > g.card.y + g.card.h*.7 && g.next.y > g.card.y + g.card.h*.7 && g.prev.x < g.card.x + g.card.w*.2 && g.next.x > g.card.x + g.card.w*.75;
   let g = await geo();
   check('modale 1280×720: al centro, al massimo 70% × 78%, frecce in basso a sinistra e a destra, animazione 16:10', centered(g, 1280, 720) && Math.abs(g.stage.w/g.stage.h - 1.6) < .03, JSON.stringify(g));
+  check('X in alto a destra della scheda (1280×720): visibile, spenta all\'inizio con «Sfoglia tutte le schede»', xCorner(g) && g.x.off && g.x.title === 'Sfoglia tutte le schede', JSON.stringify(g.x));
+  // spenta: il clic sul computer non chiude e il telefono resta nel tutorial
+  // (force: Playwright non clicca da solo un pulsante con aria-disabled; qui si vuole proprio il clic sulla X spenta)
+  await game.click('#natpf-tutorial .tut-x', { force: true }); await game.waitForTimeout(400);
+  check('X spenta: il clic non chiude la modale, il telefono resta nel tutorial', await game.evaluate(() => __natpfTennis.natpfUi.training.tutorialOpen) && (await snap(phone)).screen === 'tutorial');
   check('«Tutto chiaro» spento: toccarlo non chiude la modale', !(await tap(phone, 'tutOk')) && await game.evaluate(() => __natpfTennis.natpfUi.training.tutorialOpen));
 
   // avanti dal telefono fino alla scheda 5 (una alla volta, ognuna vista)
@@ -133,11 +146,14 @@ try {
   await pshot(phone, '03-tutorial-scheda-5');
   await gshot('1280x720-scheda-5');
   check('frecce del telefono: computer alla scheda 5, sul telefono «Scheda 5 di 11», ancora spento', pc5.idx === 4 && s.gate.i === 4 && /Scheda 5 di 11/.test(s.where) && !s.tutOn, JSON.stringify({ pc5, s }));
+  g = await geo();
+  check('X a metà (scheda 5): ancora spenta', xCorner(g) && g.x.off, JSON.stringify(g.x));
   // modale anche a 1920×1080 (stessa pagina, finestra più grande)
   await game.setViewportSize({ width: 1920, height: 1080 }); await game.waitForTimeout(600);
   g = await geo();
   await gshot('1920x1080-scheda-5');
   check('modale 1920×1080: al centro, proporzionata (al massimo 1280 px di larghezza), animazione 16:10', centered(g, 1920, 1080) && g.card.w <= 1280 && Math.abs(g.stage.w/g.stage.h - 1.6) < .03, JSON.stringify(g));
+  check('X in alto a destra anche a 1920×1080 (al massimo 60 px)', xCorner(g) && g.x.w <= 61, JSON.stringify(g.x));
   await game.setViewportSize({ width: 1280, height: 720 }); await game.waitForTimeout(400);
 
   // ricollegamento automatico a tutorial aperto (come dopo lo schermo spento): stesso abbinamento, si riprende da lì
@@ -169,6 +185,8 @@ try {
   await pshot(phone, '05-tutorial-acceso');
   await gshot('1280x720-tutte-viste');
   check('telefono: «Hai visto tutto», pulsante acceso, ancora niente strumenti', s.tutOn && s.big === 'Hai visto tutto' && !s.tools, JSON.stringify(s));
+  g = await geo();
+  check('tutte le schede viste: la X si accende («Chiudi: tutto chiaro, ho capito»)', xCorner(g) && !g.x.off && g.x.title === 'Chiudi: tutto chiaro, ho capito', JSON.stringify(g.x));
   // indietro di due schede dopo aver visto tutto: resta acceso
   await tap(phone, 'tutPrev'); await phone.waitForTimeout(350); await tap(phone, 'tutPrev'); await phone.waitForTimeout(500);
   s = await snap(phone);
@@ -176,14 +194,21 @@ try {
   await pshot(phone, '06-indietro-acceso');
   check('indietro dopo aver visto tutto: il computer torna indietro, «Tutto chiaro» resta acceso', back === 8 && s.gate.i === 8 && s.tutOn, JSON.stringify({ back, s }));
 
-  // «Tutto chiaro» → calibrazione (strumenti ancora nascosti) → «Pronto» con Ricalibra/Ricollega/Scollega
-  await phone.click('#tutOk');
-  await game.waitForFunction(() => !__natpfTennis.natpfUi.training.tutorialOpen, null, { timeout: 5000 });
-  await phone.waitForFunction(() => __racchetta.state.screen === 'cal', null, { timeout: 5000 });
-  await phone.waitForTimeout(500);
+  // X sul computer (B17.2) al posto di «Tutto chiaro» sul telefono: stessa cosa → calibrazione (strumenti ancora nascosti)
+  // → «Pronto» con Ricalibra/Ricollega/Scollega. Una calibrazione sola: la fa partire il telefono (cfg senza tut), il
+  // computer non la chiede (recalibrate); il telefono non resta sulla schermata del tutorial
+  await phone.evaluate(() => { const c = __racchetta.cal, o = c.start.bind(c); window.__calStarts = 0; c.start = (...a) => { window.__calStarts++; return o(...a); }; });
+  await game.evaluate(() => { const P = __natpfTennis.natpfPhone, o = P.recalibrate.bind(P); window.__recal = 0; P.recalibrate = () => { window.__recal++; return o(); }; });
+  await game.click('#natpf-tutorial .tut-x');
+  const xClosed = await game.waitForFunction(() => !__natpfTennis.natpfUi.training.tutorialOpen && document.getElementById('natpf-tutorial').classList.contains('hidden'), null, { timeout: 5000 }).then(() => true, () => false);
+  const xCal = await phone.waitForFunction(() => __racchetta.state.screen === 'cal', null, { timeout: 5000 }).then(() => true, () => false);
+  await phone.waitForTimeout(1500);
   s = await snap(phone);
+  const once = { starts: await phone.evaluate(() => window.__calStarts), recal: await game.evaluate(() => window.__recal), seen: await game.evaluate(() => __natpfTennis.natpfPhone.tutorialSeen && !__natpfTennis.natpfPhone.tutWait), cal: await game.evaluate(() => !!__natpfTennis.natpfUi.training.cal) };
   await pshot(phone, '07-calibrazione');
-  check('dopo «Tutto chiaro»: calibrazione, senza «Tutto chiaro» né Ricalibra/Ricollega/Scollega', s.screen === 'cal' && !s.tutOk && !s.tools && !s.tutBox, JSON.stringify(s));
+  check('X cliccata sul computer: modale chiusa, tutorial visto, telefono libero, computer in calibrazione', xClosed && once.seen && once.cal, JSON.stringify(once));
+  check('dopo la X: il telefono passa alla calibrazione una volta sola (non resta sul tutorial, il computer non la chiede)', xCal && s.screen === 'cal' && once.starts === 1 && once.recal === 0, JSON.stringify({ s, once }));
+  check('dopo la X: calibrazione, senza «Tutto chiaro» né Ricalibra/Ricollega/Scollega', s.screen === 'cal' && !s.tutOk && !s.tools && !s.tutBox, JSON.stringify(s));
   await quickCalibrate(phone, QUICK_PLAN);
   const ready = await game.waitForFunction(() => __natpfTennis.natpfPhone.ready, null, { timeout: 15000 }).then(() => true, () => false);
   await phone.waitForFunction(() => __racchetta.state.screen === 'ready', null, { timeout: 8000 }).catch(() => {});
@@ -255,10 +280,11 @@ try {
     await wall.evaluate(() => { const E = __natpfTennis; E.__render = E.render.bind(E); E.render = () => {}; E.natpfUi.intro?.skip?.(); });
     await wall.evaluate(() => { const T = __natpfTennis.natpfUi.training.tutorial; T.openFor({ mode: 'phone', after: 'cal' }); T.go(2); });
     await wall.waitForTimeout(800);
-    const gw = await wall.evaluate(() => { const r = el => { const b = el.getBoundingClientRect(); return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) }; }; const root = document.getElementById('natpf-tutorial'); return { card: r(root.querySelector('.tut-card')), prev: r(root.querySelector('.tut-prev')), next: r(root.querySelector('.tut-next')), stage: r(root.querySelector('.tut-stage')) }; });
+    const gw = await wall.evaluate(() => { const r = el => { const b = el.getBoundingClientRect(); return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) }; }; const root = document.getElementById('natpf-tutorial'), x = root.querySelector('.tut-x'); return { card: r(root.querySelector('.tut-card')), prev: r(root.querySelector('.tut-prev')), next: r(root.querySelector('.tut-next')), stage: r(root.querySelector('.tut-stage')), x: { ...r(x), off: x.getAttribute('aria-disabled') === 'true', title: x.title, vis: getComputedStyle(x).display !== 'none' && +getComputedStyle(x).opacity > .5 } }; });
     await gshot('ledwall-720x720-dritto', wall);
     const inside = gw.card.x >= 0 && gw.card.y >= 0 && gw.card.x + gw.card.w <= 720 && gw.card.y + gw.card.h <= 720;
     check('ledwall 720×720: modale dentro l’area, centrata, frecce in basso, animazione 16:10', inside && Math.abs(gw.card.x + gw.card.w/2 - 360) <= 3 && Math.abs(gw.card.y + gw.card.h/2 - 360) <= 3 && gw.prev.y > gw.card.y + gw.card.h*.7 && Math.abs(gw.stage.w/gw.stage.h - 1.6) < .03, JSON.stringify(gw));
+    check('ledwall 720×720: X in alto a destra della scheda, dentro l’area, spenta', xCorner(gw) && gw.x.off && gw.x.x + gw.x.w <= 720, JSON.stringify(gw.x));
     check('ledwall: nessun errore JavaScript', !wallErrs.length, wallErrs.slice(0, 3).join(' | '));
     await wall.context().close();
   }
@@ -284,10 +310,13 @@ try {
     let h = await halves();
     const s1 = await snap(ph1), s2 = await snap(ph2);
     const sg = await pc.evaluate(() => { const r = el => { const b = el.getBoundingClientRect(); return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) }; }; return ['p1', 'p2'].map(id => r(document.querySelector(`#split-tut-${id} .tut-card`))); });
+    const sx = () => pc.evaluate(() => { const r = el => { const b = el.getBoundingClientRect(); return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) }; }; return ['p1', 'p2'].map(id => { const x = document.querySelector(`#split-tut-${id} .tut-x`); return { ...r(x), off: x.getAttribute('aria-disabled') === 'true', vis: getComputedStyle(x).display !== 'none' && +getComputedStyle(x).opacity > .5 }; }); });
+    let xs = await sx();
     await gshot('stesso-schermo-1280x720', pc);
     await pshot(ph1, '12-stesso-schermo-p1');
     check('stesso schermo: due modali, ciascuna al centro della sua metà (non a tutta metà), frecce del P1 muovono solo la sua', h.open.p1 && h.open.p2 && h.idx.p1 === 2 && h.idx.p2 === 0 && s1.gate.i === 2 && s2.gate.i === 0
       && Math.abs(sg[0].x + sg[0].w/2 - 320) <= 4 && Math.abs(sg[1].x + sg[1].w/2 - 960) <= 4 && sg[0].w <= 640*.8 && sg[0].h <= 720*.8, JSON.stringify({ h, sg }));
+    check('stesso schermo: una X in alto a destra di ciascuna scheda, tutte e due spente', xCorner({ x: xs[0] }, sg[0]) && xCorner({ x: xs[1] }, sg[1]) && xs[0].off && xs[1].off, JSON.stringify({ xs, sg }));
     await pc.setViewportSize({ width: 1920, height: 1080 }); await pc.waitForTimeout(600);
     await gshot('stesso-schermo-1920x1080', pc);
     await pc.setViewportSize({ width: 1280, height: 720 }); await pc.waitForTimeout(400);
@@ -310,12 +339,18 @@ try {
     await pc.waitForTimeout(1500);
     h = await halves();
     check('stesso schermo: P1 ricollegato, il tutorial della sua metà non torna', !h.open.p1 && (await snap(ph1)).screen === 'ready', JSON.stringify(h));
-    // P2: dal telefono fino in fondo, poi «Tutto chiaro»
+    // P2: dal telefono fino in fondo, poi la X della sua metà sul computer (B17.2) al posto di «Tutto chiaro»
     check('stesso schermo: P2 sfoglia le sue schede e il suo pulsante si accende', await seeAllCards(ph2));
-    await ph2.click('#tutOk');
+    xs = await sx();
+    check('stesso schermo: la X del P2 si accende dopo le sue schede', !xs[1].off && xs[1].vis, JSON.stringify(xs));
+    await ph2.evaluate(() => { const c = __racchetta.cal, o = c.start.bind(c); window.__calStarts = 0; c.start = (...a) => { window.__calStarts++; return o(...a); }; });
+    await pc.click('#split-tut-p2 .tut-x');
     await ph2.waitForFunction(() => __racchetta.state.screen === 'cal', null, { timeout: 5000 }).catch(() => {});
+    await ph2.waitForTimeout(1200);
     h = await halves();
-    check('stesso schermo: «Tutto chiaro» del P2 chiude solo la sua metà e avvia la sua calibrazione', !h.open.p2 && (await snap(ph2)).screen === 'cal', JSON.stringify(h));
+    const p2x = { s: await snap(ph2), starts: await ph2.evaluate(() => window.__calStarts), seen: await pc.evaluate(() => __natpfTennis.natpfPhone2.tutorialSeen && !__natpfTennis.natpfPhone2.tutWait), p1: await pc.evaluate(() => __natpfTennis.natpfPhone.ready && !__natpfTennis.natpfPhone.tutWait) };
+    await gshot('stesso-schermo-p2-chiuso-con-x', pc);
+    check('stesso schermo: la X del P2 chiude solo la sua metà, il suo telefono calibra una volta, il P1 resta pronto', !h.open.p2 && p2x.s.screen === 'cal' && p2x.starts === 1 && p2x.seen && p2x.p1, JSON.stringify({ h, p2x }));
     const ov = (await snap(ph1)).overlap + (await snap(ph2)).overlap;
     check('stesso schermo: mai «Tutto chiaro» insieme a «Pronto» o agli strumenti', ov === 0);
     check('stesso schermo: nessun errore JavaScript', ![...pcErrs, ...e1, ...e2].length, [...pcErrs, ...e1, ...e2].slice(0, 4).join(' | '));

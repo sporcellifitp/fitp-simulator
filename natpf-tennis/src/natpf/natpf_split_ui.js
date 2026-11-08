@@ -261,7 +261,8 @@ export class NatpfSplitUi {
     p.waitTutorial?.(true);
     const name = this.engine.natpfSplitNames?.[id] || (id === 'p1' ? 'Player 1' : 'Player 2');
     // avanzamento al telefono di questo giocatore (pulsante acceso dopo l'ultima scheda); «poi sei pronto» se è già calibrato
-    this.tut[id]?.openFor({ mode: 'phone', player: name, hand: this.hand(id), after: p.ready ? 'ready' : 'cal', from: p.savedTutorial?.() || null, onProgress: pr => p.tutorialProgress?.(pr) });
+    // la X in alto a destra della sua scheda (B17.2), accesa dopo tutte le schede: come «Tutto chiaro» dal suo telefono
+    this.tut[id]?.openFor({ mode: 'phone', player: name, hand: this.hand(id), after: p.ready ? 'ready' : 'cal', from: p.savedTutorial?.() || null, onProgress: pr => p.tutorialProgress?.(pr), onDone: () => this._tutDone(id) });
   }
   // chiusa dal telefono di quel giocatore (o dal telefono di prima che calibra da solo): solo la sua metà
   _tutDone(id){
