@@ -53,10 +53,6 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: NATPF ↔ motore base integration tests
         run: npm test
-      # B16 (08/11): i criteri della CPU Leggenda (torneo senza grafica, 300 punti × 8 semi, ~70 s) e la non regressione di
-      # casual e pro. Prima nessuno lo eseguiva e due criteri erano rimasti rotti per settimane (docs/NATPF_LEGGENDA.md)
-      - name: CPU Leggenda criteria (audit:legend)
-        run: npm run audit:legend
       - name: Production build (motore base 3D models, NATPF phone page and arena art)
         run: npm run build
       - name: Check bundled NATPF files
@@ -79,3 +75,9 @@ jobs:
           node scripts/pacchetto-cloudflare.mjs --out="$RUNNER_TEMP/natpf-cloudflare" --zip="$RUNNER_TEMP/natpf-cloudflare.zip" --turn-url=https://natpf-turn.s-porcelli.workers.dev/
           test -s "$RUNNER_TEMP/natpf-cloudflare.zip"
           test "$(stat -c %s "$RUNNER_TEMP/natpf-cloudflare.zip")" -lt 25000000
+      # B16 (08/11): i criteri della CPU Leggenda (torneo senza grafica, 300 punti × 8 semi, ~70 s) e la non regressione di
+      # casual e pro. Prima nessuno lo eseguiva e due criteri erano rimasti rotti per settimane (docs/NATPF_LEGGENDA.md).
+      # Ultimo passo del job: un passo fallito fa saltare quelli dopo, quindi qui una Leggenda fuori criterio fa fallire il
+      # job senza nascondere l'esito di build, file del pacchetto e zip Cloudflare
+      - name: CPU Leggenda criteria (audit:legend)
+        run: npm run audit:legend
