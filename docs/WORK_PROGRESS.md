@@ -501,3 +501,7 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
   carica della volée 15° su 15°, fermo del pallonetto 0,030 s su 0,04 s).
 - Decisioni chieste all'utente: sagoma del busto sì o no; racchetta fantasma o braccio libero in servizio e schiacciata;
   camera alta da dietro (stile TV) per i colpi da fondo.
+- GitHub dopo il push: «NATPF Simulator tests» **verde** su `e82f35b` (esecuzione 109) e su `e5c4469` (110), con
+  `gesture-calibration` al primo tentativo; «NATPF motore base MVP» verde; «NATPF eseguibili Windows» verde e installer
+  **2026-11-08.1 pubblicato su R2** (124.574.121 B, sha256 `4000b1b74ec837f0ce415b923b14b2f0595478d5a49d8d28289aeb7160753204`,
+  `latest.json` con la novità e link fisso `windows/NATPF-Simulator-Setup.exe` controllati dall'indirizzo pubblico).

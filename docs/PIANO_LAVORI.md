@@ -40,8 +40,14 @@ Come si aggiorna:
   persone vere sull'animazione nuova; l'utente non ha ancora visto i fogli dei gesti nuovi.
 - **Decisioni chieste all'utente** (B13): tenere la sagoma del busto; aggiungere una racchetta fantasma o il braccio
   libero in servizio e schiacciata; camera alta da dietro (stile TV) per i colpi da fondo.
-- **Prossima azione esatta:** controllare la CI del push di B13 («NATPF Simulator tests» con `gesture-calibration`
-  verde; «NATPF eseguibili Windows» che pubblica la 2026-11-08.1 su R2) e aspettare il parere dell'utente sui gesti.
+- GitHub: le tre esecuzioni del push sono verdi («NATPF Simulator tests» con `gesture-calibration` al primo tentativo);
+  installer **2026-11-08.1 pubblicato su R2** (sha256 `4000b1b7…60753204`). Zip Cloudflare sha256 `34889962…cf5a3cf0`.
+- In corso (08/11): indagine B14 sul dritto, solo in rami locali (`b14-dritto-a`, `b14-dritto-b`, non pubblicati):
+  (a) smentire o confermare il limite del riconoscimento cercando un dritto con la mano ≤ 35° dalla rete che passi le
+  prove di fedeltà; (b) inquadrature più leggibili; (c) revisione a occhi nuovi dei fogli.
+- **Prossima azione esatta:** leggere l'esito dell'indagine B14 (se interrotta, i rami locali e le note
+  `scratchpad/b14/notes-*.md` non sopravvivono alla sessione: ripartire dalla domanda (a) se serve) e aspettare il parere
+  dell'utente sui gesti e sulle tre decisioni.
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
 1. **Push**: dopo ogni commit verificato, subito, su `origin natpf-simulator`. Verificato = test del gioco e del sito
