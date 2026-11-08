@@ -571,3 +571,100 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
   GitHub (`ddd4428`): tre esecuzioni verdi; installer **2026-11-08.3 pubblicato su R2** (124.609.974 B, sha256
   `d5ead1f7d34583c64abdabe74aeed58190f87d48c7603a93dc80d03527fb2f79`, `latest.json` controllato).
 - Non verificato: telefoni veri, persone vere, Windows; l'utente non ha ancora visto i fogli.
+
+## B15 · Audit della sensibilità e della precisione dei colpi (ramo «colpi») · [~] · 08/11/2026
+
+Richiesta dell'utente (08/11): «migliorare la sensibilità del dispositivo e la precisione dei colpi rispetto ai gesti
+eseguiti: tutti gli scambi vanno quasi sempre nella stessa direzione con stessa velocità e angolazione». Audit completo con
+i numeri in `docs/b15/audit-colpi.md`. Lavoro su un worktree a parte (ramo locale `b15-colpi`, base `8a996e3`), da integrare.
+
+- [x] B15.1 · banco `natpf-tennis/scripts/audit/colpi.mjs` (`404bb36`): telefono simulato mosso dal braccio → messaggio →
+  `natpfSwingToEngine` → motore headless → fisica fino al rimbalzo; velocità del gesto 0,4…1,6×, piatto −30…+30°, tempo
+  −1…+1 finestre, dritto/rovescio, palla 0,7…1,8 m, livelli, 240 colpi di una «persona normale» (p10/p50/p90 e R² per
+  ingresso), sequenze di dieci colpi uguali con i riferimenti che imparano. `test/phone-sim.mjs`: `game(d, { learn: false })`
+  e `models` esposti. Prima: 0,6× → 1,6× del proprio colpo 82 → 123 km/h (×1,50); dieci dritti girati di 20° cadevano da
+  2,88 a 1,06 m; dieci colpi a 1,5× passavano da forza 0,80 a 0,65 dal sesto; alternando dritto e rovescio girati di 20°
+  da 2,9/3,5 a 1,4/1,6 m.
+- [x] B15.2 · correzioni (`5bda836`), ognuna con misura prima/dopo nel commento della costante e nel documento:
+  `AIM` verifyDev 35 → 20°, biasDev/commonDev 12/8 → 25° con isteresi (biasLow/commonLow 10°), pull 0,3 → 0,2, drift
+  0,03 → 0,01 (`natpf_gestures.js`); `TYPICAL.keep` 9 → 24 (`natpf_phone_racket.js`); tetto del volo base 1,2 → 1,5
+  (`game_engine.js` `_natpfRacketShot`); `OUTCOME.topClearSoft` 2,5 m, `clearCurve` 1,5, `topSpinPower` 8, `smashSpeed`
+  46 → 48 (`natpf_stroke_outcome.js`). Dopo: 77 → 124 km/h (×1,62) con il colpo tipico fermo a 92,6 km/h e 9,2 m; dieci
+  dritti a 20°: 2,83 → 2,54 m; a 1,5×: forza 0,80 → 0,80; alternati: 2,8/3,5 → 2,7/3,6. Piatto 15° → 1,7 m, 30° → 3,3 m,
+  tempo ±1 → ±3,6 m, dritto e rovescio equivalenti: già così, invariati. Test nuovo `test/natpf-colpi-b15.test.mjs` (6):
+  con i sorgenti della base falliscono 4 su 6 (prova di mutazione).
+  Verifiche: gioco **900/900**, sito 195/195; `rally-balance --points=150` (punti vinti, prima → dopo): Casual medio 93,1 →
+  94,9 %, amatore 85,3 → 86,4, tennista 98,7 → 98,7, umano 90,0 → 89,6; Pro medio 65,8 → 64,7, amatore 60,7 → 61,3, tennista
+  96,7 → 96,4, umano 76,7 → 73,8. `audit:legend` (300 punti, 8 semi): pro contro medio **84,1 % dei game (criterio 70–85;
+  alla base 85,3 %, KO)**, casual contro medio 100 %; i due criteri di Leggenda già KO alla base peggiorano (CPU contro
+  «tennista» 74,5 → 67,3 %, criterio ≥ 85; contro «preciso» 37,4 → 25,9 %, criterio ≥ 60): i colpi forti dei profili forti
+  sono più tesi e la Leggenda li prende meno (con 3 semi il tetto del volo da solo non li cambia: è l'altezza sulla rete
+  dei colpi forti). Browser (Chromium, porte 3605–3608): `natpf-rally` 7/7, `natpf-gesti-speciali` 9/9.
+- Non cambiato e perché: ritmo (`RHYTHM`, decisione del 28/10), soglie del tipo di colpo (fedeltà del tutorial), zona
+  morta e scarto della mira (15° → 1,7 m e 30° → 3,3 m già così), soglia minima del gesto (40 % del colpo tipico con il
+  verso atteso: sotto ci sono preparazioni e rientri), metà relativa della forza.
+- [x] B15.3 · **secondo giro** dopo la verifica indipendente («integrare con correzioni»: con la distribuzione dei gesti di
+  una persona vera x e profondità identiche prima e dopo, solo i km/h cambiavano; mira piena tenuta +30° ×14 finita a
+  0,63 m, base 1,20; il «prima» del documento non si riproduceva). Commit `cbecf4b`, `2d57a96`, `8653af4`, `a1165b6`,
+  `9347b28`, `58fb8e0` più i documenti:
+  - banco `colpi.mjs`: modalità «persona vera» (`--mode=reale`: tempo +0,35 ± 0,45, piatto ±12°, gesto 1 ± 0,3 del colpo
+    tipico, 400 colpi nelle funzioni vere: `createAimModel`, `strokeIntent`, motore con il ritmo), mano (`--hand=left|both`:
+    gli stessi gesti allo specchio), sequenze +30° ×14, seme della calibrazione sbagliato di ±15° (24 partite). «Prima»
+    rigenerato sopra `8a996e3` (gesto 1,2× = piatto a 111,5 km/h; alternati +20° D/R 2,47/3,42 m);
+  - isteresi del centro della mira a due velocità (`AIM.biasLow/commonLow` 20°, poi `biasSlow/commonSlow` 0,05 fino a 10°):
+    +30° ×14 → 2,50 m; riferimento girato di 35–40° recuperato in una trentina di colpi;
+  - `INTENT.faceSpan` 20 → 14 (mira piena a 17°): x della persona vera p90−p10 6,17 → 6,82 m, oltre 2,5 m 30 → 37 %;
+  - `INTENT.relGain` 0,6 → 0,9 per l'esito (tipo di colpo, super e barra con la pendenza di prima: `typePower`,
+    `classGain`, `superStrength`): km/h p90−p10 39,3 → 44,1 (base 33,4), profondità 2,90 → 3,35 m (base 2,72), tipi identici
+    con il colpo tipico fisso del banco (correzione del terzo giro: con il colpo tipico che impara `TYPICAL.keep` 24 scambia
+    17 colpi su 400 tra piatto e top spin, saldo nullo);
+  - seconda verifica del seme (`AIM.recheck` 6 colpi per verso, 6–12°, una volta, non con dritto e rovescio in versi
+    opposti): seme sbagliato di ±15°, errore del centro al 40° colpo (con il segno) −3,9/+3,2° base, −7,4/+5,6° primo giro
+    → −1,2/+1,4°; seme giusto 1,4 → 2,1° medio assoluto.
+  Verifiche: gioco **907/907** (7 prove nuove in `natpf-colpi-b15`, ognuna rossa con i valori di prima; `natpf-sessione-23-10`
+  «mira dal piatto» aggiornata alla curva 3–17°); sito **195/195**; `rally-balance` (600 punti) Casual medio 93,2 → 94,2 %,
+  Pro medio 65,3 → 65,8, Pro umano 76,7 → 74,0; `audit:legend` identico al primo giro (pro contro medio 84,1 %); browser
+  (porte 3620–3623) `natpf-rally` 7/7, `natpf-gesti-speciali` 9/9. Mancino: persona vera specchio esatto (x, profondità,
+  tipi; km/h tranne l'effetto dei tagliati, legato al lato del campo nel motore).
+  Rischi dichiarati in `docs/b15/audit-colpi.md` §5: Leggenda contro «tennista» 74,5 → 67,3 % e «preciso» 37,4 → 25,9 %
+  (criteri già KO alla base, dal motore del primo giro), webcam più veloce in cima (121,8 → 127,4 km/h a forza piena, x e
+  profondità identiche), `clearCurve` anche su piatto, tagliato e palla corta (fino a 4 cm più bassi), seme: una mira dalla
+  stessa parte con dritto e rovescio nei primi 6 colpi per verso si toglie.
+- [x] B15.4 · **terzo giro** dopo la seconda verifica indipendente («integrare con correzioni», un punto **bloccante**: con
+  il rumore di chi gioca, piatto ±12° e dritti e rovesci mescolati, il centro della mira del primo e del secondo giro
+  lasciava per partita più palle da una parte della base; le misure del secondo giro erano senza rumore o mescolavano le
+  partite). Commit `012e017`, `b64f74f`, `bde7963` più i documenti:
+  - banco `colpi.mjs --mode=partite` (`012e017`): 24 partite da 80 colpi della persona vera, ognuna giudicata da sola
+    (|mediana x|, partite oltre 1 m da una parte, errore del centro; colpi 21–40/41–60/61–80): seme 0/±15/±25/±30°, seme
+    diverso nei due versi, riferimento girato di 26–40° al 20° colpo, mira +18° con dritto e rovescio nei primi 16 colpi;
+    `reale()` con `turnAt/turn`, `aimN/aimBias`, `seedErrB`, `makeAim` (anche in `simPhone`) per provare candidati;
+  - **centro della mira di prima** (`b64f74f`): provati 20 candidati (isteresi e seconda verifica tolte una per una,
+    `drift` 0,01, `biasDev` 16/20/25, `biasPull` 0,1/0,15, `verifyDev` 20/25, `commonDev` 6/7, `commonEnd` 4/5, `alpha`
+    0,08 e combinazioni): nessuno è non peggiore del centro di prima in tutte le misure per partita e migliore sulla mira
+    tenuta senza rumore (tabella in `docs/b15/audit-colpi.md` §3), quindi `AIM` torna quello di `8a996e3`. Per partita,
+    semi ±15/±25/±30° |mediana x| 0,96/0,92/0,90 m (secondo giro) → 0,93/0,77/0,66 (base con `faceSpan` 20: 0,76/0,69/0,60);
+    seme giusto 0,74/0,74/0,79 → 0,61/0,70/0,60, errore del centro massimo 8,9 → 4,4°; riferimento girato di 26–40°
+    sbagliato dopo 60 colpi 9–11° → 4°; mira tenuta nei primi 16 colpi −2,38 → −1,54 m. Senza rumore la mira tenuta torna
+    quella di prima (+30° ×14 dritti 2,50 → 1,75 m; mancino nel telefono simulato 0,92). `faceSpan` 14 resta;
+  - non bloccanti (`bde7963`): `smashAt` e il colpo potente del motore (stelle, scossa, soglia 0,7) leggono la forza di tipo
+    (`superStrength(intent, d)`: typePower dal telefono, power dagli altri; null non vale): colpo potente da 1,25× come
+    prima (con la forza dell'esito era 1,2×), schiacciata dal gesto da 0,64× (era 0,71×); registratore con `forzaTipo` in
+    `tel.colpo` e `racchetta` solo se c'è, `superNo` con la forza di tipo, visore che la mostra;
+  - prove: `natpf-colpi-b15` 12 (tolte 5 del comportamento tolto: mira tenuta a 20°, isteresi, +30° ×14, due della
+    seconda verifica; nuove 4: per partita seme ±15/0, riferimento girato 26/32/38°, mira tenuta nei primi 16 colpi con il
+    mancino allo specchio, schiacciata e colpo potente con la forza di tipo, tutte rosse con `409c112`; la prova del piatto
+    a 15° vale da −15° a +15° ≥ 5 m, prima 3,9–4,2, e ≥ 2 m per verso: la soglia 2,4 passava di poco, 2,36–2,46);
+    `natpf-diag` +1 (`forzaTipo`).
+  Verifiche: gioco **907/907** (`012e017` 907, `b64f74f` 905, `bde7963` 907); sito **195/195**; banco completo
+  `--hand=both` prima e dopo (persona vera x p90−p10 6,08 → 6,92 m, oltre 2,5 m 31 → 37 %, profondità 2,72 → 3,29 m, km/h
+  33,4 → 43,9; mancino specchio esatto, tagliati fino a 0,9 km/h); `audit:rally` (600 punti) identico al secondo giro
+  (Casual medio 93,2 → 94,2 %, Pro medio 65,3 → 65,8, Pro umano 76,7 → 74,0); `audit:legend` identico al secondo giro
+  (pro contro medio 84,1 %; Leggenda contro «tennista» 74,5 → 67,3 % e «preciso» 37,4 → 25,9 %, criteri già KO alla base);
+  browser (Chromium, porte 3640–3643, nessun server lasciato acceso) `natpf-rally` **7/7** (cadute da −3,88 a +3,95 m),
+  `natpf-gesti-speciali` **9/9**.
+  Rischi in `docs/b15/audit-colpi.md` §7: Leggenda, webcam più veloce in cima, `faceSpan` 14 che satura a 17° (20° e 30°
+  nello stesso punto) e che rende più visibili in metri gli errori del centro (semi sbagliati 0,76 → 0,93 m ai colpi 21–40),
+  mira tenuta presa dal centro come prima, `TYPICAL.keep` 24 che scambia piatto e top spin, `clearCurve`. Opzione misurata
+  non adottata: `AIM.commonDev` 6 (semi sbagliati 0,93 → 0,79 m, mira tenuta con i due colpi −1,54 → −1,64).
+- Non verificato: telefoni veri, persone vere, rumore dell'orientamento dei telefoni veri, webcam nel browser, Windows,
+  pacchetti (il ramo va integrato prima).

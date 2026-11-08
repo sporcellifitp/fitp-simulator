@@ -131,6 +131,19 @@ export function createFaceModel({ keep = 12, min = 3 } = {}) {
 // centro, oltre commonDev: è il riferimento che si è girato (corpo girato, deriva del giroscopio), non una mira, perché
 // chi mira incrociato o lungolinea gira il piatto in versi opposti nel dritto e nel rovescio. I due centri si spostano
 // insieme di commonPull della pendenza più piccola, a ogni colpo (104712: dritti +33°, rovesci +21°)
+// B15 (08/11, richiesta «tutti gli scambi vanno quasi sempre nella stessa direzione»): le costanti restano queste.
+// Provati (banco scripts/audit/colpi.mjs, misure per partita con il rumore di chi gioca: piatto ±12°, 60% dritti, 24
+// partite da 80 colpi, --mode=partite) l'isteresi a due velocità, la seconda verifica del seme e le soglie 25° del primo
+// giro: tenevano la mira piena tenuta senza rumore (+30° ×14 dritti 2,50 m contro 1,75), ma con il rumore lasciavano più
+// palle da una parte in ogni partita: |mediana x| dei colpi 21–40 con il seme sbagliato di ±15/±25/±30° 0,96 m (qui 0,93),
+// dei colpi 61–80 0,90 (qui 0,66); seme giusto 0,74–0,79 m (qui 0,60–0,70), errore del centro massimo 8,9° (qui 4,4°);
+// riferimento girato di 26–40° ancora sbagliato di 9–11° dopo 60 colpi (qui 4°); mira di +18° con dritto e rovescio nei
+// primi 16 colpi, poi colpi normali: mediana −2,38 m ai colpi 21–40 (qui −1,54). Provati anche i passi intermedi: un
+// «pull» di un verso più tardo o più lento (biasDev 16–25, biasPull 0,1–0,15, drift 0,01) peggiora il seme diverso nei
+// due versi (|mediana x| 0,94 → 1,01–1,30 m) e il riferimento girato; un «pull» comune più deciso (commonDev 6) migliora
+// semi e riferimento girato (0,93 → 0,79 m, girato dopo 60 colpi 4,1° → 3,5°) ma assorbe di più la mira tenuta con dritto
+// e rovescio (−1,54 → −1,64 m). Mira tenuta e riferimento sbagliato non si distinguono se non da quanto durano: qui si
+// sceglie il riferimento che si corregge (docs/b15/audit-colpi.md)
 export const AIM = Object.freeze({ gain: 22, settle: 10, alpha: .12, drift: .03, min: 3, maxDev: 80, seedAlpha: .35,
   verify: 4, verifyDev: 35, keep: 12, biasFrom: 10, biasDev: 12, biasPull: .3, commonFrom: 3, commonDev: 8, commonPull: .3 });
 const wrapDeg = a => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };

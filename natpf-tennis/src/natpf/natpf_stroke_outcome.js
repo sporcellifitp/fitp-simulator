@@ -65,6 +65,14 @@ export const OUTCOME = Object.freeze({
   // (23/10: con il lungolinea pieno al bordo della finestra anche lui cadeva a 6,5–7 m, e le palle si ammucchiavano lì)
   wideFrom: 3.2, wideSpan: .8, wideDepth: 6, widePull: .6,
   hitZ: 11.5,         // m dalla rete del punto d'impatto se non si sa (fondo campo)
+  // B15 (08/11): altezza sulla rete e top spin dalla forza. La velocità della palla nel motore la decide l'altezza a cui
+  // deve passare sopra il nastro (non il volo base, che vincola solo i colpi morbidi): con l'altezza lineare nella forza
+  // (TOPSPIN 1,3…2,05 m) e il top spin che scendeva con la forza (15 + 8·salita + 6·morbidezza) un gesto 1,2× del proprio
+  // colpo dava 102 km/h e il top spin forte restava sotto il piatto (banco colpi.mjs: 0,6× 82 km/h, 1× 94, 1,2× 102,
+  // 1,4× piatto 119, 1,6× 123). Ora il colpo morbido galleggia di più (fino a topClearSoft m) e quello forte passa basso
+  // prima (curva clearCurve: morbidezza^1,5) con più top spin (fino a +topSpinPower a forza piena, 26 a 0,86 come il
+  // colpo super): 0,6× 77 km/h, 1× 94, 1,2× 108, 1,4× 119, 1,6× 123 (×1,6 tra 0,6× e 1,6×, era ×1,5)
+  topClearSoft: 2.5, clearCurve: 1.5, topSpinPower: 8,
   floatPerQ: .35,     // m più alta sulla rete per la qualità che manca (palla «galleggiante» per l'avversario)
   // schiacciata: velocità lungo il campo (m/s) e volo minimo. Segnalazione del 29/10: «dovrebbe essere un colpo molto
   // più forte»; con 0,42 s andava a 28–29 m/s (191–200 km/h sul tabellone), poco più di un piatto (26 m/s, 179 km/h)
@@ -73,7 +81,9 @@ export const OUTCOME = Object.freeze({
   // pallonetto: volo da forza 0 a forza 1 per un colpo da fondo a fondo (lobRef m), più corto da più vicino. 29/10
   // pomeriggio: con [2,2, 1,75] il pallonetto passava 2,8 m sopra il nastro e saliva a circa 4 m: l'altro giocatore lo
   // schiacciava da metà campo. Ora il difensivo sale a 6–7 m, quello forte (d'attacco) a 4,5–5 m
-  lobFlight: [2.6, 1.95], lobRef: 22, lobScale: [.85, 1.1], smashFlight: .26, smashSpeed: 46,
+  // B15 (08/11): smashSpeed 48 (era 46): con il colpo forte più teso (clearCurve, tetto del volo base) il piatto pieno
+  // del test va a 31 m/s (era 30) e la schiacciata deve restare almeno 1,4 volte più veloce (richiesta del 29/10)
+  lobFlight: [2.6, 1.95], lobRef: 22, lobScale: [.85, 1.1], smashFlight: .26, smashSpeed: 48,
   volleyShort: 1,     // m: la volée spinge meno
   netLowY: .42, netExcess: .45,   // palla presa sotto 0,42 m molto fuori tempo: in rete
   weakDepth: 6.8, weakFloat: .9,  // a rete, colpo fallito con il tempo perfetto: al massimo a 6,8 m dalla rete, 0,9 m più alto
@@ -203,8 +213,10 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   // altezza sulla rete ed effetto
   const A = ARC[shot === 'DROP' ? 'SLICE' : shot === 'SMASH' ? 'FLAT' : shot === 'LOB' ? 'MOON' : shot] || ARC.TOPSPIN, soft = 1 - power;
   const high = clamp((finite(contactY, 1) - 1.5)/.5)*.18;
-  const clear = Math.max(ARC.netY + .02, A.clear[0] + (A.clear[1] - A.clear[0])*soft + (1 - q)*O.floatPerQ - high + (shot === 'TOPSPIN' ? .6*clamp(rise - .15, 0, .6) : 0));
-  const topspin = shot === 'TOPSPIN' ? 15 + 8*clamp(rise) + 6*soft : shot === 'FLAT' ? 12 : shot === 'SLICE' ? -6.5 : shot === 'DROP' ? -3 : shot === 'LOB' ? 5 : 9;
+  // morbidezza con la curva (B15): il colpo tipico (forza 0,5) passa come prima, quello forte più basso, quello morbido più alto
+  const softC = shot === 'LOB' ? soft : Math.pow(soft, O.clearCurve), clearSoft = shot === 'TOPSPIN' ? O.topClearSoft : A.clear[1];
+  const clear = Math.max(ARC.netY + .02, A.clear[0] + (clearSoft - A.clear[0])*softC + (1 - q)*O.floatPerQ - high + (shot === 'TOPSPIN' ? .6*clamp(rise - .15, 0, .6) : 0));
+  const topspin = shot === 'TOPSPIN' ? 15 + 8*clamp(rise) + 6*soft + O.topSpinPower*clamp((power - .5)/.5) : shot === 'FLAT' ? 12 : shot === 'SLICE' ? -6.5 : shot === 'DROP' ? -3 : shot === 'LOB' ? 5 : 9;
   let flight = shot === 'LOB' ? lerp(O.lobFlight[0], O.lobFlight[1], power)*clamp((zc + depth)/O.lobRef, O.lobScale[0], O.lobScale[1]) : shot === 'SMASH' ? Math.max(O.smashFlight, depth/26) : null;
   // colpo fallito: tempo molto sbagliato su una palla bassissima, o qualità sotto failQ (in corsa, in allungo, palla
   // veloce, sotto pressione): in rete se la palla è sotto il metro, altrimenti lunga oltre la riga di fondo. Deterministico.
@@ -256,13 +268,20 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
 // Leggenda × `legendQ`, `reach` della velocità di corsa a chi gioca con il telefono): ci arriva solo a volte.
 export const SUPER = Object.freeze({ power: .86, conf: .5, sideWrong: .35, timing: .6, quality: .8, highY: 1.25, slowVz: 12.5,
   speedUp: 1.4, smashUp: 1.2, minDepth: 10.2, netGap: .16, topspin: 26, react: .16, misread: 1.5, legendQ: .55, reach: .8 });
+// Forza del gesto sulla scala delle soglie (colpo super, barra della potenza in natpf_power_hud.js, schiacciata dal gesto in
+// smashAt, colpo potente del motore): dal telefono con la forma è typePower, la forza con la pendenza relativa di prima
+// (INTENT.classGain, natpf_stroke_intent.strokeIntent), su cui sono tarati SUPER.power (il 10% più forte dei registri del
+// 29/10), SMASH_FROM.power, il colpo potente (0,7) e le soglie dei tipi di colpo; l'esito usa power, più sensibile al gesto
+// dal B15 (INTENT.relGain). Dagli altri controlli (webcam, mouse, CPU: niente typePower) power; d se manca anche quella.
+// Solo un numero vale come typePower (null, registrazioni vecchie: si usa power)
+export const superStrength = (intent = {}, d = 0) => (Number.isFinite(intent?.typePower) ? clamp(intent.typePower) : clamp(finite(intent?.power, d)));
 // { on, why[], ball } — ball: 'alta' | 'lenta' | 'corta' | 'schiacciata'
 export function superShot({ intent = {}, out = null, contact = 1, ballSide = 0, contactY = 1, ballVz = 15, shortBall = false } = {}){
   const no = why => ({ on: false, why: [why], ball: null });
   if (!out || out.failed || out.weak || out.netFault) return no('colpo non riuscito');
   const shot = String(out.shot || '').toUpperCase();
   if (!['TOPSPIN', 'FLAT', 'SMASH'].includes(shot)) return no(`colpo ${shot.toLowerCase()}`);
-  if (finite(intent.power) < SUPER.power) return no('gesto non abbastanza forte');
+  if (superStrength(intent) < SUPER.power) return no('gesto non abbastanza forte');
   if (Number.isFinite(intent.conf) && intent.conf < SUPER.conf) return no('gesto poco chiaro');
   if (shot !== 'SMASH' && finite(ballSide)*(finite(contact, 1) >= 0 ? 1 : -1) < -SUPER.sideWrong) return no('colpo innaturale (palla dall\'altra parte)');
   if (finite(out.excess) > 0 || Math.abs(finite(out.t)) > SUPER.timing) return no('fuori tempo');
@@ -329,7 +348,9 @@ export function smashAt(e = {}, ballY = 1, { serveReturn = false } = {}){
   if (y < SMASH_FROM.gesture) return false;
   const rel = finite(it.rise) - finite(it.riseRef);
   const gesture = e.side === 'overhead' || it.shot === 'smash' || String(e.shotType || '').toLowerCase() === 'smash';
-  return gesture || (!serveReturn && rel <= SMASH_FROM.rise && finite(it.power, .5) >= SMASH_FROM.power);
+  // forza sulla scala di SMASH_FROM.power (superStrength: typePower dal telefono, B15), non quella dell'esito: come prima da
+  // 0,64 volte il colpo tipico (780 °/s; con la forza dell'esito sarebbe da 0,71)
+  return gesture || (!serveReturn && rel <= SMASH_FROM.rise && superStrength(it, .5) >= SMASH_FROM.power);
 }
 // Gesto della schiacciata (solo per il nome del colpo e la voce, non per l'esito). Dal telefono: il colpo riconosciuto
 // (classifyPhoneShot / strokeIntent: palla alta + mano che scende). Dalla webcam e dagli altri controlli: «smash» da sopra

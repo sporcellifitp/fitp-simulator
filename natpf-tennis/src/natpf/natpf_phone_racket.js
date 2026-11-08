@@ -106,7 +106,12 @@ export const RISE_LEARN = Object.freeze({ min: 3, verified: 5, keep: 9, skip: Ob
 // (byShape: palla corta verticale e morbida, o come il proprio gesto degli esercizi). Le palle corte «dall'alto in basso»
 // restano: senza calibrazione possono essere colpi normali compatti letti male, e il colpo tipico che li impara li fa
 // tornare colpi normali. Senza la forma (telefoni vecchi) si impara come prima
-export const TYPICAL = Object.freeze({ keep: 9, min: 3, from: 200, skip: Object.freeze(['lob', 'smash']) });
+// B15 (08/11): keep 24 (era 9). Con la mediana degli ultimi 9 colpi chi tirava più forte del solito per cinque colpi
+// vedeva il colpo tipico raggiungerlo e la forza tornare a metà (banco colpi.mjs: dieci dritti a 1,5× del proprio colpo,
+// forza 0,80 → 0,65 dal sesto, 120 → 114 km/h, 10,9 → 10,3 m); la forza relativa ha senso solo se il riferimento è la
+// propria scala di gioco, non gli ultimi colpi. Con 24 serve più di metà finestra al nuovo livello perché il riferimento
+// si sposti (una dozzina di colpi forti di fila: allora è davvero il proprio colpo)
+export const TYPICAL = Object.freeze({ keep: 24, min: 3, from: 200, skip: Object.freeze(['lob', 'smash']) });
 export function createTypicalModel({ keep = TYPICAL.keep, min = TYPICAL.min, from = TYPICAL.from } = {}){
   const h = [];
   return {

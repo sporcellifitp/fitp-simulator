@@ -2224,8 +2224,11 @@ export class NatpfTennisEngine {
       // forza → tempo di volo base (come prima), più veloce con lo scambio e con i perfetti consecutivi; poi abbastanza
       // lungo da passare la rete all'altezza voluta (galleggia di più se il colpo è sporco)
       // il ritmo cresce un poco con lo scambio, come prima (fino a −16% del tempo di volo all'ottavo colpo)
+      // B15 (08/11): il tetto della velocità del motore base era 1,2 (forza da 0,56 in su: stesso volo base 0,70 s, la
+      // palla più forte solo per l'altezza minore sulla rete; banco colpi.mjs: gesto 0,6× → 1,4× del proprio colpo
+      // 82 → 119 km/h, ×1,45). Ora 1,5: a forza piena 0,58 s (il minimo di sempre), a 0,74 0,63 s (era 0,70)
       const K = Math.max(0.84, 1 - Math.min(8, b.rallyStrokeCount) * 0.015),
-        base = out.shot === "SMASH" ? out.flight : Math.max(0.58, 0.84 / Math.min(1.2, (0.8 + intent.power * 0.85) * 0.94)) * K;
+        base = out.shot === "SMASH" ? out.flight : Math.max(0.58, 0.84 / Math.min(1.5, (0.8 + intent.power * 0.85) * 0.94)) * K;
       I = NO.outcomeFlight({ ...out, flight: null }, { fromY, fromZ: b.pos.z, toZ: N, flight: NS.mistimeFlight(NS.streakFlight(base, toward === 1 ? st.p2Streak : st.streak, lv), out.q) / (sup.on ? NO.SUPER.speedUp : 1) });
     }
     // seq: numero del colpo del telefono (diagnostica); at: istante del motore, per riconoscere un esito nuovo
@@ -2235,8 +2238,10 @@ export class NatpfTennisEngine {
     return {
       netClear, E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 * mirror : 0, O: out.netFault, T: engineShot,
       drop: out.shot === "DROP", u: out.grade, w: out.cursor, q: out.q, power: intent.power, out, contact,
-      // colpo potente (stelle, scossa della camera): anche ogni schiacciata riuscita e ogni colpo super potente
-      M: sup.on || (out.shot === "SMASH" && !out.failed && !out.weak) || (out.shot !== "DROP" && out.shot !== "LOB" && out.q >= 0.9 && intent.power >= 0.7 && Math.abs(out.t) <= 0.35),
+      // colpo potente (stelle, scossa della camera): anche ogni schiacciata riuscita e ogni colpo super potente. La forza
+      // sulla scala di prima (NO.superStrength: typePower dal telefono, B15), così scatta dallo stesso gesto di prima (da 1,25 volte
+      // il colpo tipico di 780 °/s; con la forza dell'esito, più sensibile, da 1,2)
+      M: sup.on || (out.shot === "SMASH" && !out.failed && !out.weak) || (out.shot !== "DROP" && out.shot !== "LOB" && out.q >= 0.9 && NO.superStrength(intent) >= 0.7 && Math.abs(out.t) <= 0.35),
       // per chi riceve: legge la palla in ritardo (CPU) e corre più piano verso di lei (chi gioca con il telefono)
       super: sup.on ? { ball: sup.ball, react: NO.SUPER.react, misread: NO.SUPER.misread, legendQ: NO.SUPER.legendQ, reach: NO.SUPER.reach } : null,
       defensive: out.excess > 0.6,

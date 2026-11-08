@@ -490,3 +490,43 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   con `A.netPause` i fotogrammi non si registrano. Una prova che ferma il gioco con la pausa di rete e poi manda un gesto
   è instabile sui runner lenti (era `gesture-calibration.mjs:73`). Il fermo immagine si fa facendo avanzare il motore con
   dt = 0 e fermando il disegno; `CPU_THROTTLE=4` simula un runner lento (`docs/b13/gesture-calibration-ci.md`).
+
+### Colpi sensibili al gesto (B15, 08/11/2026, ramo «colpi»; audit in `docs/b15/audit-colpi.md`)
+- **Misurare con la persona vera**: `scripts/audit/colpi.mjs --mode=reale --hand=both` manda la distribuzione dei gesti di
+  chi gioca davvero (tempo +0,35 ± 0,45 unità, piatto ±12°, gesto 1 ± 0,3 del colpo tipico, dalle diagnostiche) nelle
+  funzioni vere (centro della mira, `strokeIntent`, motore con il ritmo). Le sequenze di colpi uguali (mira tenuta, colpi
+  forti di fila) dicono se un riferimento che impara spegne la varietà; la persona vera dice se la varietà si vede. Il
+  mancino si prova allo specchio: x, profondità e tipi devono essere identici cambiati di segno.
+- **Il centro della mira si giudica per partita, con il rumore** (`--mode=partite`: 24 partite da 80 colpi, |mediana x| di
+  ogni partita, partite oltre 1 m da una parte, errore del centro; seme sbagliato, seme diverso nei due versi, riferimento
+  girato, mira tenuta nei primi colpi). Le misure senza rumore (sequenze) o con le partite mescolate (x p50 di tutte insieme)
+  nascondono il difetto: nel secondo giro B15 dicevano «meglio» e per partita era peggio.
+- **Centro della mira** (`createAimModel`, `AIM`): **invariato dal 29/10** (verifyDev 35, biasDev 12 / commonDev 8, pull
+  0,3, drift 0,03). Mira tenuta e riferimento sbagliato (seme della calibrazione, corpo girato) per il centro sono la stessa
+  cosa: si distinguono solo da quanto durano. Nel B15 provati e tolti (terzo giro, `docs/b15/audit-colpi.md` §3): isteresi a
+  due velocità, seconda verifica del seme, soglie 25°, drift 0,01 (tenevano la mira tenuta senza rumore ma per partita, con il
+  rumore, lasciavano più palle da una parte: semi sbagliati 0,96 m ai colpi 21–40 e 0,90 ai 61–80, contro 0,93 e 0,66 del
+  centro di prima; seme giusto con l'errore del centro fino a 8,9° contro 4,4°; riferimento girato di 26–32° ancora a 11°
+  dopo 60 colpi contro 4°); e una ventina di
+  intermedi: il «pull» di un verso più tardo o lento peggiora il seme diverso nei due versi, il «pull» comune o la verifica
+  più decisi prendono di più la mira tenuta con dritto e rovescio. Opzione misurata e non adottata: `commonDev` 6.
+- **Mira del piatto**: `INTENT.faceSpan` 14 (mira piena a 17°, 10° = 0,5): da −15° a +15° 5,6–6,0 m (prima 3,9–4,2), ma
+  20° e 30° cadono nello stesso punto e un grado di errore del centro vale 0,25 m invece di 0,18.
+- **Forza**: due pendenze della parte relativa al colpo tipico (`strokePower(peak, ref, gain)`): `relGain` 0,9 per l'esito
+  (velocità, profondità), `classGain` 0,6 per il tipo di colpo (`typePower`: `flatPower`, `dropPower`, `lobSoft` sono tarati
+  lì, e il tutorial con loro) e per tutte le soglie della forza: colpo super e barra della potenza, schiacciata dal gesto
+  (`smashAt`, `SMASH_FROM.power`), colpo potente del motore (stelle e scossa, 0,7), «perché niente super» delle
+  diagnostiche (`superStrength(intent, d)`: `SUPER.power` 0,86 è il 10 % più forte dei registri del 29/10). Webcam, CPU e
+  registrazioni senza `typePower` (o con `null`): vale `power`. Le diagnostiche registrano `forzaTipo` accanto a `forza`
+  quando c'è.
+- **Colpo tipico** (`TYPICAL.keep` 24, era 9): il riferimento della forza relativa è la propria scala di gioco; dieci colpi
+  forti di fila restano forti (prima la forza tornava a 0,65 dal sesto). Con il colpo tipico che impara scambia 17 colpi su
+  400 tra piatto e top spin (saldo nullo).
+- **Velocità della palla**: nel motore la decide l'altezza a cui deve passare sopra il nastro, non il volo base (che vincola
+  solo i colpi morbidi). Altezza con la curva morbidezza^1,5 (`OUTCOME.clearCurve`, su tutti i colpi tranne il pallonetto),
+  TOPSPIN morbido fino a 2,5 m (`topClearSoft`), top spin che cresce con la forza (`topSpinPower` 8), tetto del volo base 1,5
+  (era 1,2). In cima la velocità non cresce oltre ~124 km/h (altezza minima sul nastro, volo minimo 0,58 s, passi di 0,01 s
+  di `flightForClear`). Schiacciata 48 m/s (era 46) perché resti ≥ 1,4 volte il piatto pieno (29/10).
+- Effetto dei tagliati: l'effetto laterale va dalla parte del campo in cui sta chi colpisce (`R = p.pos.x >= 0`), non dipende
+  dalla mano.
+- Test `natpf-colpi-b15.test.mjs`. Il ritmo (`RHYTHM`, 28/10) e le soglie del tipo di colpo non cambiano.

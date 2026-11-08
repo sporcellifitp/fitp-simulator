@@ -45,23 +45,42 @@ export const INTENT = Object.freeze({
   compact: 30, wide: 100,          // gradi: swing corto (profondità ridotta) … ampio (profondità piena)
   reachDepth: .8,                  // profondità voluta di uno swing corto rispetto a uno ampio alla stessa forza (era
                                    // 0,55: un colpo compatto ma veloce perdeva quasi metà della profondità)
-  faceDead: 3, faceSpan: 20,       // gradi: zona morta e scarto per la mira piena del piatto (27/10: era 8 e 28; un
+  faceDead: 3, faceSpan: 14,       // gradi: zona morta e scarto per la mira piena del piatto (27/10: era 8 e 28; un
                                    // piatto girato apposta di 15° vale ora .4, prima .25: la mira risponde prima).
                                    // 29/10: era 5 e 25; richiesta «angolazione più sensibile»: 15° valgono .6, la
-                                   // mira piena a 23° (con il centro che si corregge sui colpi veri, createAimModel)
+                                   // mira piena a 23° (con il centro che si corregge sui colpi veri, createAimModel).
+                                   // B15 (08/11, «gli scambi vanno quasi sempre nella stessa direzione»): era 20; ora
+                                   // la mira piena a 17°, 10° valgono .5. Banco scripts/audit/colpi.mjs, persona vera
+                                   // (piatto ±12° attorno al proprio colpo): x p10/p90 −3,04/+3,13 → −3,24/+3,58 m
+                                   // (p90−p10 6,17 → 6,82, palle oltre 2,5 m dal centro 30 → 37%); piatto girato di 15°
+                                   // 1,9–2,3 → 2,7–3,3 m dal colpo dritto; +30° tenuto ×14 alla fine 1,72 → 2,50 m.
+                                   // Il prezzo: il piatto sbagliato di qualche grado sposta di più (5° ≈ 1 m)
   faceTrust: 45, faceTrustSpan: 15, // gradi: oltre faceTrust lo scarto è sempre meno credibile, oltre +span non conta. Il
                                    // 23/10 26 mire su 67 erano sature (scarti di 50–77° da un centro imparato male):
                                    // aggiungevano fino a 1,2 m di lato da una misura sbagliata
   riseRefMin: -.6, riseRefMax: .3, // salita abituale (calibrazione) che si tiene in conto, al massimo
+  relPower: .6, relGain: .9, classGain: .6, // forza relativa al proprio colpo tipico (metà della forza): relPower con il
+                                   // colpo tipico, relGain per ogni volta il colpo tipico in più o in meno (prima
+                                   // .6·picco/tipico, cioè relGain .6). B15, secondo giro («stessa velocità»): relGain
+                                   // .9 per l'esito; banco colpi.mjs, persona vera (gesto 1 ± 0,3 del proprio colpo):
+                                   // forza p10/p90 .29/.79 → .23/.85, km/h p10/p50/p90 79,1/92,9/118,4 → 75,7/92,9/119,8
+                                   // (p90−p10 39,3 → 44,1; prima del B15 33,4), profondità p90−p10 2,90 → 3,35 m; il
+                                   // colpo tipico resta a .5. Con 1 il gesto 1,4× e 1,6× andavano alla stessa velocità
+                                   // (123,4 e 123,2 km/h: in cima la decide l'altezza sulla rete). classGain: la pendenza
+                                   // di prima per riconoscere il tipo di colpo (flatPower, dropPower, lobSoft) e per il
+                                   // colpo super (superStrength): con la pendenza nuova anche lì il 2% dei colpi della
+                                   // persona vera passava da top spin a piatto, tagliati morbidi diventavano palle corte
+                                   // (4 prove di natpf-racchetta rosse) e il super era possibile da 1,4× invece di 1,5×
 });
 export const SHOTS = Object.freeze(['topspin', 'flat', 'slice', 'drop', 'lob', 'smash']);
 
-// Forza 0…1: velocità vera del telefono al picco; con un proprio colpo tipico (calibrazione) per metà relativa a quello
-export function strokePower(peak, ref = null){
+// Forza 0…1: velocità vera del telefono al picco; con un proprio colpo tipico (calibrazione) per metà relativa a quello.
+// gain: pendenza della parte relativa (INTENT.relGain per l'esito del colpo, INTENT.classGain per riconoscerne il tipo)
+export function strokePower(peak, ref = null, gain = INTENT.relGain){
   const p = finite(peak, NaN);
   if (!Number.isFinite(p)) return .5;
   const abs = clamp((p - INTENT.peakLow)/(INTENT.peakHigh - INTENT.peakLow));
-  return Number.isFinite(ref) && ref > 60 ? clamp(.5*abs + .5*clamp(.6*p/ref)) : abs;
+  return Number.isFinite(ref) && ref > 60 ? clamp(.5*abs + .5*clamp(INTENT.relPower + gain*(p/ref - 1))) : abs;
 }
 // Forza del gesto per il confronto con i propri gesti (personalSpecial): la parte assoluta, dal picco vero se c'è.
 // Non dipende dal colpo tipico, che si sposta con i colpi della partita: prima i prototipi del pallonetto e della palla
@@ -157,8 +176,11 @@ export function faceAimFromDev(dev){
 export function strokeIntent(s, { ref = null, rawRef = null, ballHigh = null, headingDev = null, riseRef = null, personal = null } = {}){
   if (!s?.shape) return null;
   const useRaw = Number.isFinite(s.rawPeak) && (Number.isFinite(rawRef) || !Number.isFinite(ref));
-  const power = useRaw ? strokePower(s.rawPeak, Number.isFinite(rawRef) ? rawRef : null) : strokePower(s.peak, ref), reach = swingReach(s.angle);
-  let cls = classifyStroke(s.shape, { power, angle: s.angle, ballHigh, riseRef });
+  const peak = useRaw ? s.rawPeak : s.peak, pref = useRaw ? (Number.isFinite(rawRef) ? rawRef : null) : ref;
+  // forza dell'esito (velocità, profondità, colpo super) e forza per il tipo di colpo (soglie del piatto, della palla
+  // corta, del pallonetto morbido: tarate con la pendenza di prima, INTENT.classGain)
+  const power = strokePower(peak, pref, INTENT.relGain), typePower = strokePower(peak, pref, INTENT.classGain), reach = swingReach(s.angle);
+  let cls = classifyStroke(s.shape, { power: typePower, angle: s.angle, ballHigh, riseRef });
   const sp = shapePower(s);
   const own = cls.shot === 'smash' ? null : personalSpecial({ rise: finite(s.shape.rise), plane: Math.abs(finite(s.shape.plane, 1)), power: sp }, personal || {});
   if (own && own.shot !== cls.shot) cls = { shot: own.shot, conf: +clamp((own.dN - own.d)/2).toFixed(2), why: [own.shot === 'lob' ? 'come il tuo pallonetto' : 'come la tua palla corta', `distanza ${own.d} (dal colpo normale ${own.dN})`] };
@@ -166,7 +188,7 @@ export function strokeIntent(s, { ref = null, rawRef = null, ballHigh = null, he
   // speciale degli esercizi): non insegna la salita abituale dei colpi normali (createRiseModel.learn)
   const byShape = !!cls.byShape || !!own;
   return {
-    shot: cls.shot, conf: cls.conf, why: cls.why, byShape, power: +power.toFixed(3), shapePower: +sp.toFixed(3), reach: +reach.toFixed(3),
+    shot: cls.shot, conf: cls.conf, why: cls.why, byShape, power: +power.toFixed(3), typePower: +typePower.toFixed(3), shapePower: +sp.toFixed(3), reach: +reach.toFixed(3),
     // profondità voluta 0…1: la forza, un poco ridotta se lo swing è corto (un colpo bloccato è più corto)
     depth: +clamp(power*(INTENT.reachDepth + (1 - INTENT.reachDepth)*reach)).toFixed(3),
     rise: finite(s.shape.rise), plane: finite(s.shape.plane), tilt: finite(s.shape.tilt), roll: finite(s.shape.roll),
