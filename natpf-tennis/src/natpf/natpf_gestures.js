@@ -131,16 +131,29 @@ export function createFaceModel({ keep = 12, min = 3 } = {}) {
 // centro, oltre commonDev: è il riferimento che si è girato (corpo girato, deriva del giroscopio), non una mira, perché
 // chi mira incrociato o lungolinea gira il piatto in versi opposti nel dritto e nel rovescio. I due centri si spostano
 // insieme di commonPull della pendenza più piccola, a ogni colpo (104712: dritti +33°, rovesci +21°)
-export const AIM = Object.freeze({ gain: 22, settle: 10, alpha: .12, drift: .03, min: 3, maxDev: 80, seedAlpha: .35,
-  verify: 4, verifyDev: 35, keep: 12, biasFrom: 10, biasDev: 12, biasPull: .3, commonFrom: 3, commonDev: 8, commonPull: .3 });
+// B15 (08/11, richiesta «tutti gli scambi vanno quasi sempre nella stessa direzione»): nel banco scripts/audit/colpi.mjs
+// dieci dritti di fila con il piatto girato di 20° cadevano da 2,9 m a 1,1 m dal centro (biasPull 0,3 da 12°, dopo dieci
+// colpi) e, alternando dritto e rovescio girati di 20°, da 2,9/3,5 m a 1,4/1,6 m (commonPull 0,3 da 8°): una mira tenuta
+// era letta come riferimento girato. Ora: il centro seminato si verifica a 20° (era 35: un seme sbagliato di 21–33°,
+// diagnostica 104712, restava e lo correggevano i «pull»); dopo, uno scarto che dura sposta il centro solo oltre lo
+// scarto della mira piena (biasDev e commonDev 25°, oltre faceDead + faceSpan = 23°: lì la mira è satura e non
+// controlla più niente, quindi è il riferimento), di 0,2 a colpo. Dopo la correzione: 2,9 → 2,7 m e 2,9/3,5 → 2,8/3,4 m
+// drift 0,01 (era 0,03): dieci colpi mirati di fila a 20° toglievano il 30% della mira (0,6° a colpo); una deriva vera
+// oltre settle la recupera la verifica del seme, il «pull» oltre 25° e, sul telefono, la posa «pronto» che segue il
+// telefono fermo (face-tracker)
+// biasLow / commonLow: una volta partito, il «pull» continua finché lo scarto non scende sotto (isteresi): un riferimento
+// sbagliato si recupera del tutto, non fino a 25° (dove la mira resterebbe quasi satura da una parte)
+export const AIM = Object.freeze({ gain: 22, settle: 10, alpha: .12, drift: .01, min: 3, maxDev: 80, seedAlpha: .35,
+  verify: 4, verifyDev: 20, keep: 12, biasFrom: 10, biasDev: 25, biasLow: 10, biasPull: .2, commonFrom: 3, commonDev: 25, commonLow: 10, commonPull: .2 });
 const wrapDeg = a => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };
 // mediana circolare (gradi): +179° e −179° sono vicini
 const circMedian = a => (a.length ? wrapDeg(a[0] + median(a.map(h => wrapDeg(h - a[0])))) : null);
 export function createAimModel({ gain = AIM.gain, settle = AIM.settle, alpha = AIM.alpha, drift = AIM.drift, min = AIM.min } = {}) {
-  const fresh = () => ({ first: [], center: null, seeded: 0, verify: 0, since: [], recent: [] });
+  const fresh = () => ({ first: [], center: null, seeded: 0, verify: 0, since: [], recent: [], pulling: false });
   const S = { 1: fresh(), '-1': fresh() };
   return {
-    reset() { for (const d of [1, -1]) Object.assign(S[d], fresh()); },
+    commonPulling: false,
+    reset() { for (const d of [1, -1]) Object.assign(S[d], fresh()); this.commonPulling = false; },
     center(dir) { return S[dir]?.center ?? null; },
     // centro dalla calibrazione (direzione del piatto all'impatto dei gesti chiesti, per verso): la mira vale dal primo
     // colpo della partita. Prima il centro nasceva solo dopo «min» colpi veri (e dopo ogni ricalibrazione): nei primi
@@ -172,14 +185,17 @@ export function createAimModel({ gain = AIM.gain, settle = AIM.settle, alpha = A
       // si recupera)
       if (st.recent.length >= AIM.biasFrom) {
         const off = wrapDeg(circMedian(st.recent) - st.center);
-        if (Math.abs(off) > AIM.biasDev) st.center = wrapDeg(st.center + AIM.biasPull * off);
+        st.pulling = Math.abs(off) > AIM.biasDev || (st.pulling && Math.abs(off) > AIM.biasLow);
+        if (st.pulling) st.center = wrapDeg(st.center + AIM.biasPull * off);
       }
       // dritti e rovesci dalla stessa parte: il riferimento si è girato, i due centri vanno insieme
       const A = S[1], B = S[-1];
       if (A.center != null && B.center != null && A.recent.length >= AIM.commonFrom && B.recent.length >= AIM.commonFrom) {
         const a = wrapDeg(circMedian(A.recent) - A.center), b = wrapDeg(circMedian(B.recent) - B.center);
-        if (Math.sign(a) === Math.sign(b) && Math.min(Math.abs(a), Math.abs(b)) > AIM.commonDev) {
-          const shift = Math.sign(a) * AIM.commonPull * Math.min(Math.abs(a), Math.abs(b));
+        const least = Math.sign(a) === Math.sign(b) ? Math.min(Math.abs(a), Math.abs(b)) : 0;
+        this.commonPulling = least > AIM.commonDev || (this.commonPulling && least > AIM.commonLow);
+        if (this.commonPulling) {
+          const shift = Math.sign(a) * AIM.commonPull * least;
           A.center = wrapDeg(A.center + shift); B.center = wrapDeg(B.center + shift);
         }
       }

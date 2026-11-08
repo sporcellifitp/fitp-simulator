@@ -2224,8 +2224,11 @@ export class NatpfTennisEngine {
       // forza → tempo di volo base (come prima), più veloce con lo scambio e con i perfetti consecutivi; poi abbastanza
       // lungo da passare la rete all'altezza voluta (galleggia di più se il colpo è sporco)
       // il ritmo cresce un poco con lo scambio, come prima (fino a −16% del tempo di volo all'ottavo colpo)
+      // B15 (08/11): il tetto della velocità del motore base era 1,2 (forza da 0,56 in su: stesso volo base 0,70 s, la
+      // palla più forte solo per l'altezza minore sulla rete; banco colpi.mjs: gesto 0,6× → 1,4× del proprio colpo
+      // 82 → 119 km/h, ×1,45). Ora 1,5: a forza piena 0,58 s (il minimo di sempre), a 0,74 0,63 s (era 0,70)
       const K = Math.max(0.84, 1 - Math.min(8, b.rallyStrokeCount) * 0.015),
-        base = out.shot === "SMASH" ? out.flight : Math.max(0.58, 0.84 / Math.min(1.2, (0.8 + intent.power * 0.85) * 0.94)) * K;
+        base = out.shot === "SMASH" ? out.flight : Math.max(0.58, 0.84 / Math.min(1.5, (0.8 + intent.power * 0.85) * 0.94)) * K;
       I = NO.outcomeFlight({ ...out, flight: null }, { fromY, fromZ: b.pos.z, toZ: N, flight: NS.mistimeFlight(NS.streakFlight(base, toward === 1 ? st.p2Streak : st.streak, lv), out.q) / (sup.on ? NO.SUPER.speedUp : 1) });
     }
     // seq: numero del colpo del telefono (diagnostica); at: istante del motore, per riconoscere un esito nuovo
