@@ -268,11 +268,13 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
 // Leggenda × `legendQ`, `reach` della velocità di corsa a chi gioca con il telefono): ci arriva solo a volte.
 export const SUPER = Object.freeze({ power: .86, conf: .5, sideWrong: .35, timing: .6, quality: .8, highY: 1.25, slowVz: 12.5,
   speedUp: 1.4, smashUp: 1.2, minDepth: 10.2, netGap: .16, topspin: 26, react: .16, misread: 1.5, legendQ: .55, reach: .8 });
-// Forza del gesto sulla scala del colpo super (e della barra della potenza, natpf_power_hud.js): dal telefono con la forma
-// è typePower, la forza con la pendenza relativa di prima (INTENT.classGain, natpf_stroke_intent.strokeIntent), su cui sono
-// tarati SUPER.power (il 10% più forte dei registri del 29/10) e le soglie dei tipi di colpo; l'esito usa power, più
-// sensibile al gesto dal B15 (INTENT.relGain). Dagli altri controlli (webcam, mouse, CPU) power
-export const superStrength = (intent = {}) => (Number.isFinite(Number(intent?.typePower)) ? clamp(Number(intent.typePower)) : clamp(finite(intent?.power)));
+// Forza del gesto sulla scala delle soglie (colpo super, barra della potenza in natpf_power_hud.js, schiacciata dal gesto in
+// smashAt, colpo potente del motore): dal telefono con la forma è typePower, la forza con la pendenza relativa di prima
+// (INTENT.classGain, natpf_stroke_intent.strokeIntent), su cui sono tarati SUPER.power (il 10% più forte dei registri del
+// 29/10), SMASH_FROM.power, il colpo potente (0,7) e le soglie dei tipi di colpo; l'esito usa power, più sensibile al gesto
+// dal B15 (INTENT.relGain). Dagli altri controlli (webcam, mouse, CPU: niente typePower) power; d se manca anche quella.
+// Solo un numero vale come typePower (null, registrazioni vecchie: si usa power)
+export const superStrength = (intent = {}, d = 0) => (Number.isFinite(intent?.typePower) ? clamp(intent.typePower) : clamp(finite(intent?.power, d)));
 // { on, why[], ball } — ball: 'alta' | 'lenta' | 'corta' | 'schiacciata'
 export function superShot({ intent = {}, out = null, contact = 1, ballSide = 0, contactY = 1, ballVz = 15, shortBall = false } = {}){
   const no = why => ({ on: false, why: [why], ball: null });
@@ -346,7 +348,9 @@ export function smashAt(e = {}, ballY = 1, { serveReturn = false } = {}){
   if (y < SMASH_FROM.gesture) return false;
   const rel = finite(it.rise) - finite(it.riseRef);
   const gesture = e.side === 'overhead' || it.shot === 'smash' || String(e.shotType || '').toLowerCase() === 'smash';
-  return gesture || (!serveReturn && rel <= SMASH_FROM.rise && finite(it.power, .5) >= SMASH_FROM.power);
+  // forza sulla scala di SMASH_FROM.power (superStrength: typePower dal telefono, B15), non quella dell'esito: come prima da
+  // 0,64 volte il colpo tipico (780 °/s; con la forza dell'esito sarebbe da 0,71)
+  return gesture || (!serveReturn && rel <= SMASH_FROM.rise && superStrength(it, .5) >= SMASH_FROM.power);
 }
 // Gesto della schiacciata (solo per il nome del colpo e la voce, non per l'esito). Dal telefono: il colpo riconosciuto
 // (classifyPhoneShot / strokeIntent: palla alta + mano che scende). Dalla webcam e dagli altri controlli: «smash» da sopra

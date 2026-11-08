@@ -2238,8 +2238,10 @@ export class NatpfTennisEngine {
     return {
       netClear, E: X, N, I, C: out.topspin, V: out.shot === "SLICE" || out.shot === "DROP" ? -R * 9 * mirror : 0, O: out.netFault, T: engineShot,
       drop: out.shot === "DROP", u: out.grade, w: out.cursor, q: out.q, power: intent.power, out, contact,
-      // colpo potente (stelle, scossa della camera): anche ogni schiacciata riuscita e ogni colpo super potente
-      M: sup.on || (out.shot === "SMASH" && !out.failed && !out.weak) || (out.shot !== "DROP" && out.shot !== "LOB" && out.q >= 0.9 && intent.power >= 0.7 && Math.abs(out.t) <= 0.35),
+      // colpo potente (stelle, scossa della camera): anche ogni schiacciata riuscita e ogni colpo super potente. La forza
+      // sulla scala di prima (NO.superStrength: typePower dal telefono, B15), così scatta dallo stesso gesto di prima (da 1,25 volte
+      // il colpo tipico di 780 °/s; con la forza dell'esito, più sensibile, da 1,2)
+      M: sup.on || (out.shot === "SMASH" && !out.failed && !out.weak) || (out.shot !== "DROP" && out.shot !== "LOB" && out.q >= 0.9 && NO.superStrength(intent) >= 0.7 && Math.abs(out.t) <= 0.35),
       // per chi riceve: legge la palla in ritardo (CPU) e corre più piano verso di lei (chi gioca con il telefono)
       super: sup.on ? { ball: sup.ball, react: NO.SUPER.react, misread: NO.SUPER.misread, legendQ: NO.SUPER.legendQ, reach: NO.SUPER.reach } : null,
       defensive: out.excess > 0.6,

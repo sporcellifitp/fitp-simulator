@@ -12,7 +12,8 @@ import assert from 'node:assert/strict';
 import { makePhone, warmPhone, gesture, variant, strike, reale, mirrorCheck, partite } from '../scripts/audit/colpi.mjs';
 import { rng } from './phone-sim.mjs';
 import { strokeIntent, strokePower, classifyStroke } from '../src/natpf/natpf_stroke_intent.js';
-import { superShot, SUPER } from '../src/natpf/natpf_stroke_outcome.js';
+import { superShot, SUPER, smashAt, superStrength } from '../src/natpf/natpf_stroke_outcome.js';
+import { createHeadlessEngine } from '../scripts/audit/headless-engine.mjs';
 import { powerView } from '../src/natpf/natpf_power_hud.js';
 
 const base = { side: 'forehand', k: 1, yaw: 0, u: 0, ballY: 1, difficulty: 'casual' };
@@ -163,4 +164,26 @@ test('per partita, con il rumore: dopo 16 colpi mirati di +18° con dritto e rov
   const r = partite({ aimN: 16, aimBias: 18 }), l = partite({ aimN: 16, aimBias: 18, hand: 'left' });
   assert.ok(r.blocks[0].signed >= -1.75 && r.blocks[1].signed >= -1 && r.blocks[2].signed >= -.7, JSON.stringify(r.blocks));
   r.blocks.forEach((b, j) => { assert.equal(l.blocks[j].mabs, b.mabs); assert.equal(l.blocks[j].signed, -b.signed); assert.equal(l.blocks[j].cabs, b.cabs); });
+});
+// non bloccanti della verifica: la schiacciata dal gesto (smashAt) e il colpo potente del motore (stelle, scossa) leggono
+// la forza sulla scala di prima (typePower), come il tipo di colpo e il colpo super
+test('schiacciata dal gesto e colpo potente con la forza di tipo (typePower), non quella dell\'esito', () => {
+  const down = { rise: -.4, riseRef: 0, shot: 'topspin' }, ev = it => ({ side: 'forehand', natpf: { intent: { ...down, ...it } } });
+  assert.equal(smashAt(ev({ power: .26, typePower: .32 }), 1.6), true, 'gesto da schiacciata sulla scala di prima');
+  assert.equal(smashAt(ev({ power: .34, typePower: .28 }), 1.6), false, 'forza dell\'esito alta, gesto morbido');
+  assert.equal(smashAt(ev({ power: .34 }), 1.6), true, 'senza typePower (webcam, CPU) vale power');
+  assert.equal(superStrength({ power: .4, typePower: null }), .4, 'typePower null (registrazioni): si usa power');
+  // colpo potente: gesto 1,22× del colpo tipico (forza dell'esito ≥ 0,7, di tipo < 0,7) no; 1,3× sì
+  const ref = 780, e = createHeadlessEngine({ difficulty: 'casual' }); e.startNewMatch({ showStartBanner: false });
+  const orig = e._natpfRacketShot.bind(e); let last = null; e._natpfRacketShot = (...a) => (last = orig(...a));
+  const powerful = k => {
+    const intent = strokeIntent({ peak: k*ref, angle: 90, shape: { rise: .1, plane: .85, tilt: 0 } }, { ref, headingDev: 0, riseRef: .1 });
+    const o = strike({ source: 'natpf-phone', side: 'forehand', shotType: intent.shot, speed: .8 + intent.power*.85, dirX: 0, timing: null,
+      natpf: { aim: 'swing', shot: intent.shot, intent, power: intent.power, peak: k*ref, typical: ref, latency: 0, hand: 'right', aimDev: 0 } }, { engine: e });
+    assert.ok(o && last, `${k}×`);
+    return { M: last.M, power: intent.power, typePower: intent.typePower, q: o.q, t: o.t, shot: o.shot };
+  };
+  const a = powerful(1.22), b = powerful(1.3);
+  assert.ok(a.power >= .7 && a.typePower < .7 && a.M === false, JSON.stringify(a));
+  assert.ok(b.typePower >= .7 && b.M === true, JSON.stringify(b));
 });

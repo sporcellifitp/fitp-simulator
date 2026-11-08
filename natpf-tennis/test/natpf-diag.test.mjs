@@ -240,6 +240,36 @@ test('registratore (racchetta virtuale): forma e intenzione del gesto, esito det
   await R.stop(); await flushTimers();
 });
 
+// B15 (08/11): dal telefono la forza dell'esito (power, più sensibile al gesto) e quella con cui si leggono tipo di colpo,
+// colpo super, schiacciata dal gesto e colpo potente (typePower) sono due: si registrano tutte e due. Campo nuovo solo se
+// c'è (webcam, telefoni di prima: niente forzaTipo, i registri restano come prima)
+test('registratore (B15): forzaTipo accanto alla forza dell\'esito, nel gesto e nell\'esito; il «perché niente super» con la forza di tipo', async t => {
+  globalThis.requestAnimationFrame ??= cb => setTimeout(() => cb(performance.now()), 16);
+  globalThis.cancelAnimationFrame ??= id => clearTimeout(id);
+  let now = 1000;
+  const { engine, emitSwing } = fakeWorld(), store = memoryStore();
+  engine._natpfRacketShot = () => ({ E: .4, N: -11 });
+  const ui = { controller: 'phone', hand: { hand: 'right' }, training: { active: false } };
+  const R = new DiagRecorder({ engine, ui, store, now: () => now, wallNow: () => Date.UTC(2026, 10, 8, 10, 0, 0) });
+  const id = await R.start({ webcamVideo: false, gameVideo: false });
+  t.after(() => { if (R.active) R.stop(); });
+  const intent = { shot: 'topspin', conf: .7, power: .85, typePower: .764, reach: .9, depth: .8, face: .1, rise: .3, plane: .9, riseRef: .1 };
+  emitSwing({ side: 'forehand', natpf: { shot: 'topspin', intent, seq: 3 } }, { seq: 3, at: (now - 30)/1000, receivedAt: now/1000, peak: 1100, angle: 100, shape: { plane: .9, rise: .3, roll: 0, tilt: .2, head: 10, hand: 2, from: 200 } });
+  engine.natpfLastRacket = { who: 'player', at: 1, seq: 3, timing: 0, intent, contact: 1, hitX: 0, flight: 1, quality: .9, volley: false, super: null, superWhy: ['gesto non abbastanza forte'],
+    out: { t: 0, excess: 0, q: .9, assisted: false, assist: 0, aim: 0, x0: 0, clear: 1.2, topspin: 20, failed: false, netFault: false, shot: 'TOPSPIN', grade: 'PERFECT' } };
+  engine._natpfRacketShot();
+  emitSwing({ side: 'backhand', natpf: { shot: 'topspin', intent: { shot: 'topspin', conf: .5, power: .6, reach: .9, depth: .6, face: 0 }, seq: 4 } }, { seq: 4, at: (now - 20)/1000, receivedAt: now/1000, peak: 700, angle: 90, shape: { plane: .9, rise: .2, roll: 0, tilt: .2, head: 9, hand: 2, from: 200 } });
+  await R.flush();
+  const ev = (await (await store.file(id, 'eventi.jsonl')).text()).trim().split('\n').map(l => JSON.parse(l));
+  const [sw, old] = ev.filter(e => e.k === 'tel.colpo'), rk = ev.find(e => e.k === 'racchetta');
+  assert.equal(sw.intenzione.forza, .85); assert.equal(sw.intenzione.forzaTipo, .764);
+  assert.equal('forzaTipo' in old.intenzione, false);
+  assert.equal(rk.forza, .85); assert.equal(rk.forzaTipo, .764);
+  // forza dell'esito .85 ma di tipo .764: sotto la soglia del super sulla sua scala, il «perché no» non si annota (≥ 0,8)
+  assert.equal(rk.superNo, undefined);
+  await R.stop(); await flushTimers();
+});
+
 test('metriche (racchetta virtuale): esito nella finestra, direzione voluta con il tempo, ripetibilità per colpo richiesto', () => {
   const ev = [{ t: 0, k: 'atteso', prova: 'diag-fh-cross', lato: 'forehand', colpo: 'normale', direzione: 'incrociato', finestraMs: 4000 }];
   // quattro dritti incrociati richiesti: tre in anticipo (incrociati con il tempo), uno in ritardo; gesti simili

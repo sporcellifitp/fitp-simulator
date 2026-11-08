@@ -249,14 +249,16 @@ export class DiagRecorder {
       // n: numero del colpo del telefono (lega l'esito al gesto, evento tel.colpo); tempo: posizione nella finestra
       // della direzione, −1…+1 (+ anticipo: incrociato, − ritardo: lungolinea), oltre ±1 l'eccesso. È l'unico esito
       // registrato della racchetta (prima anche un campo racchetta in colpo.gioco, solo per chi gioca qui)
-      if (out && L) R.log('racchetta', { chi: L.who || null, n: L.seq ?? null, voluto: I.shot || null, colpo: O.shot || null, forza: r(I.power, 3), profondita: r(I.depth, 3), piatto: r(I.face, 3), ricavato: !!I.derived,
+      // forzaTipo (B15, solo se c'è): la forza sulla scala di prima (typePower), con cui si leggono il tipo di colpo, il colpo
+      // super, la schiacciata dal gesto e il colpo potente; forza è quella dell'esito (velocità, profondità)
+      if (out && L) R.log('racchetta', { chi: L.who || null, n: L.seq ?? null, voluto: I.shot || null, colpo: O.shot || null, forza: r(I.power, 3), ...(Number.isFinite(I.typePower) ? { forzaTipo: r(I.typePower, 3) } : {}), profondita: r(I.depth, 3), piatto: r(I.face, 3), ricavato: !!I.derived,
         tempoMs: r(1000*L.timing, 1), tempo: r(O.t, 3), oltre: r(O.excess, 3), qualita: r(O.q, 3), assistito: !!O.assisted, fallito: !!O.failed, rete: !!O.netFault,
         // a rete con il tempo perfetto: palla debole invece dell'errore; pressione degli scambi lunghi; causa del colpo
         // debole o fallito («in corsa», «in allungo», «palla veloce», «senza preparazione», «scambio lungo»)
         debole: !!O.weak, pressione: r(L.pressure, 3), causa: L.cause || null,
         x: r(out.E), z: r(out.N), volee: !!L.volley, lato: L.contact ?? null, voto: O.grade || null,
         // colpo super potente: la palla che lo ha permesso (alta, lenta, corta, schiacciata), o perché no (gesti forti)
-        super: L.super || null, ...(!L.super && I.power >= .8 && Array.isArray(L.superWhy) ? { superNo: L.superWhy[0] } : {}),
+        super: L.super || null, ...(!L.super && (Number.isFinite(I.typePower) ? I.typePower : I.power) >= .8 && Array.isArray(L.superWhy) ? { superNo: L.superWhy[0] } : {}),
         // direzione calcolata: mira (−1…+1 tra le righe, 0 il punto neutro), punto neutro e posizione della palla
         // all'impatto (riferimento di chi colpisce), assistenza (0…1); traiettoria: volo (s), altezza sulla rete, effetto
         mira: r(O.aim, 3), neutro: r(O.x0), palla: r(L.hitX), aiuto: r(O.assist, 2), volo: r(L.flight, 3), rete_m: r(O.clear, 2), effetto: r(O.topspin, 1) });
@@ -384,7 +386,7 @@ export class DiagRecorder {
       // (stroke-shape.js) e intenzione letta dal computer (natpf_stroke_intent.js); null con i telefoni di prima
       pk: s?.peak ?? null, ampiezza: r(s?.angle, 1),
       forma: s?.shape ? { piano: r(s.shape.plane, 3), salita: r(s.shape.rise, 3), polso: r(s.shape.roll, 3), manico: r(s.shape.tilt, 3), testa: r(s.shape.head, 2), mano: r(s.shape.hand, 2) } : null,
-      intenzione: n.intent ? { tipo: n.intent.shot, conf: r(n.intent.conf), forza: r(n.intent.power, 3), portata: r(n.intent.reach, 3), profondita: r(n.intent.depth, 3), piatto: r(n.intent.face, 3), abituale: r(n.intent.riseRef, 3) } : null,
+      intenzione: n.intent ? { tipo: n.intent.shot, conf: r(n.intent.conf), forza: r(n.intent.power, 3), ...(Number.isFinite(n.intent.typePower) ? { forzaTipo: r(n.intent.typePower, 3) } : {}), portata: r(n.intent.reach, 3), profondita: r(n.intent.depth, 3), piatto: r(n.intent.face, 3), abituale: r(n.intent.riseRef, 3) } : null,
     });
     if (ev?.side && kind === 'tel.colpo') this.lastInputSide = ev.side;
   }
