@@ -29,7 +29,15 @@ export const MAX_DPR = 2;
 export const MAX_PIXELS = 2.4e6;              // pixel del canvas al massimo (4K: densità ridotta)
 export const SLOW = .5;                       // rallentato della modalità 'auto'
 export const FOREARM_SHOWN = Object.freeze({ from: .42, to: .8 });   // modalità compatta: l'avambraccio sfuma tra queste frazioni (mai il gomito)
-export const BODY_ALPHA = .16;                // busto e testa: sagoma tenue (contesto, non soggetto)
+// busto e testa: UNA sagoma piena, arrotondata e poco contrastata (contesto, non soggetto), opacità BODY_ALPHA (0 = spenta)
+// e colore BODY_COLOR. Revisione B14: al posto dei pezzi traslucidi (cuneo, disco della spalla, anello della testa in cui
+// finiva il telefono, quadrato scuro del collo) che non si leggevano come una persona
+export const BODY_ALPHA = 1;
+export const BODY_COLOR = Object.freeze({ top: '#17296a', bottom: '#0d1944', rim: 'rgba(150,176,246,.26)' });
+// parti del braccio DIETRO il busto (più lontane dalla camera del suo asse, dentro la sua sagoma): il busto passa davanti
+// velato, così restano visibili ma si leggono dietro (prima la mano davanti alla pancia, vista da dietro, sembrava dietro la
+// schiena). Velo del busto sull'avambraccio (con la mano e il telefono), più leggero se dietro c'è solo la mano
+export const XRAY = Object.freeze({ arm: .4, hand: .3 });
 const HUD_H = .2;                             // banda bassa della curva (frazione dell'altezza dello stadio)
 // palla anche qualche ms prima del contatto nell'inquadratura (s; quanto basta perché resti fuori ≤ 100 ms e il telefono
 // resti ≥ 60 px a 448×280)
@@ -57,8 +65,10 @@ const MAT = {
   nail: { shadow: hex('#dba595'), base: hex('#f5cfc2'), light: hex('#ffe6de'), high: hex('#fff6f2'), rim: hex('#ffffff') },
   // omero: contesto, non soggetto (revisione artistica B13: la manica bianca era la forma più chiara e più grande del
   // quadro). Manica blu spento poco più chiara del fondo e pelle dell'omero un poco più scura di quella dell'avambraccio
-  sleeve: { shadow: hex('#1f2c5c'), base: hex('#34477f'), light: hex('#45599a'), high: hex('#566bb0'), rim: hex('#7d90cc') },
-  skinFar: { shadow: hex('#9a5a3e'), base: hex('#c98a68'), light: hex('#dcaa88'), high: hex('#e8c2a6'), rim: hex('#9fb2dc') },
+  // B14: manica opaca e opaca davvero (niente luce alta né di contorno: sembrava un tubo di vetro), della famiglia del busto
+  sleeve: { shadow: hex('#13215a'), base: hex('#1c2d6c'), light: hex('#223476'), high: hex('#223476'), rim: hex('#1c2d6c') },
+  // B14: pelle dell'omero più spenta (vicino alla camera da dietro l'omero è grande: non deve rubare la scena alla mano)
+  skinFar: { shadow: hex('#87503a'), base: hex('#ad7556'), light: hex('#bd8a6b'), high: hex('#c79a7d'), rim: hex('#a07058') },
 };
 const BALL = hex('#e3ff36'), WHITE = [255, 255, 255], BLUE = '#2f6bff';
 // luce nello spazio dello schermo (x a destra, y in basso, z verso chi guarda): dall'alto a sinistra, davanti
@@ -94,6 +104,73 @@ function bodyOf(ch){
   const at = v => add(ch.pelvis, qrot(ch.trunk, v)), o = { S: ch.S };
   for (const [k, v] of Object.entries(BODY_PTS)) o[k] = at(v);
   return o;
+}
+
+// sagoma del busto per il disegno: anelli ellittici del tronco (bacino, vita, petto, spalle) e le due spalle, inviluppo
+// convesso proiettato; collo corto; testa piena. Tutto con lo stesso verso (orario sullo schermo) perché l'unione si possa
+// riempire e ritagliare con 'nonzero'
+const BODY_RINGS = Object.freeze([[-.2, .15, .1], [-.06, .135, .095], [.2, .16, .11], [.37, .165, .095]]);
+function bodyGeom(cam, ch){
+  const at = v => add(ch.pelvis, qrot(ch.trunk, v)), P = cam.p, pts = [];
+  for (const [y, rx, rz] of BODY_RINGS) for (let i = 0; i < 12; i++){ const a = i/12*2*Math.PI, X = at([rx*Math.cos(a), y, rz*Math.sin(a)]); if (cam.depth(X) > .05) pts.push(P(X)); }
+  const SL = at(BODY_PTS.shoulderL);
+  for (const X of [ch.S, SL]) if (cam.depth(X) > .05) pts.push(...circlePts(P(X), cam.rad(X, .058), 12));
+  if (pts.length < 3) return null;
+  let torso = hull(pts), area = 0;
+  for (let i = 0; i < torso.length; i++){ const a = torso[i], b = torso[(i + 1)%torso.length]; area += a.x*b.y - b.x*a.y; }
+  if (area < 0) torso = torso.reverse();
+  const Hd = at(BODY_PTS.head), N = at([0, .4, -.005]), HB = at([0, .56, -.015]);
+  if (cam.depth(Hd) <= .05 || cam.depth(N) <= .05) return null;
+  const axis = y => at([0, Math.max(-.2, Math.min(.45, y)), 0]);
+  return { torso, head: { c: P(Hd), r: cam.rad(Hd, .098) }, neck: { a: P(N), b: P(HB), ra: cam.rad(N, .052), rb: cam.rad(HB, .048) }, ch, axis,
+    top: P(at([0, .5, 0])), bot: P(at([0, -.22, 0])), box: bbox(torso.concat(circlePts(P(Hd), cam.rad(Hd, .098), 8))) };
+}
+function bodyPath(c, B){
+  smoothPath(c, B.torso);
+  capsulePath(c, B.neck.a, B.neck.b, B.neck.ra, B.neck.rb);
+  c.moveTo(B.head.c.x + B.head.r, B.head.c.y); c.arc(B.head.c.x, B.head.c.y, B.head.r, 0, 2*Math.PI, false);
+}
+// una parte del braccio è dietro il busto? (più lontana dalla camera del punto dell'asse del tronco alla stessa altezza)
+function behindBody(cam, B, X){
+  const ch = B.ch, loc = qrot([-ch.trunk[0], -ch.trunk[1], -ch.trunk[2], ch.trunk[3]], sub(X, ch.pelvis));
+  return cam.depth(X) > cam.depth(B.axis(loc[1])) + .02;
+}
+function drawBodySolid(c, B, st){
+  c.save(); c.globalAlpha = BODY_ALPHA;
+  const g = c.createLinearGradient(B.top.x, B.top.y, B.bot.x, B.bot.y); g.addColorStop(0, BODY_COLOR.top); g.addColorStop(1, BODY_COLOR.bottom);
+  c.beginPath(); bodyPath(c, B); c.fillStyle = g; c.fill('nonzero');
+  // filo di luce sul bordo della testa e delle spalle (dall'alto): si legge il volume senza contorni interni
+  c.beginPath(); c.arc(B.head.c.x, B.head.c.y, Math.max(1, B.head.r - .5), Math.PI*1.1, Math.PI*1.9, false);
+  c.lineWidth = Math.max(1, st.ow*.8); c.strokeStyle = BODY_COLOR.rim; c.lineCap = 'round'; c.stroke();
+  c.restore();
+}
+// velo del busto sulle parti del braccio che gli stanno dietro: le loro forme (capsule, palmo, telefono: tutte in verso
+// orario, quindi un solo riempimento 'nonzero' ne fa l'unione senza sovrapporre il velo) riempite con il colore del busto,
+// ritagliate sulla sagoma del busto. Niente strato: costa come un riempimento
+function drawXray(c, cam, pose, F, B, st){
+  if (BODY_ALPHA <= 0) return;
+  const mid = (a, b) => mul(add(a, b), .5), rig = F.rig;
+  // l'omero no: pende di fianco al busto dalla spalla (la sagoma convessa del busto lo coprirebbe a metà per lungo)
+  const fore = behindBody(cam, B, mid(rig.W, rig.E)), hand = behindBody(cam, B, pose.pos);
+  if (!fore && !hand) return;
+  const g = st.ow;
+  c.save(); c.beginPath(); bodyPath(c, B); c.clip('nonzero');
+  c.beginPath();
+  if (fore) for (const q of F.fore) q.path(c, g);
+  if (hand){
+    for (const q of F.hand) q.path(c, g);
+    for (const q of F.parts) q.path(c, g);
+    if (F.band?.hull) polyPath(c, F.band.hull);
+    if (F.phoneHull) polyPath(c, F.phoneHull);
+  }
+  // il velo sull'avambraccio sfuma verso il gomito (al gomito il braccio è alla profondità dell'omero, che non si vela)
+  const col = hex(BODY_COLOR.top), a = (fore ? XRAY.arm : XRAY.hand)*BODY_ALPHA;
+  if (fore){
+    const A = cam.p(add(rig.W, mul(sub(rig.E, rig.W), .55))), E = cam.p(rig.E), gr = c.createLinearGradient(A.x, A.y, E.x, E.y);
+    gr.addColorStop(0, css(col, a)); gr.addColorStop(1, css(col, 0)); c.fillStyle = gr;
+  } else c.fillStyle = css(col, a);
+  c.fill('nonzero');
+  c.restore();
 }
 
 /* ---------- camera prospettica ---------- */
@@ -382,14 +459,6 @@ function figure(cam, pose, st, H){
     upper.push(cap(aU(0), aU(sl + .04), rU(0), rU(sl + .04), MAT.skinFar, { kind: 'upper' }));
     upper.push(cap(aU(sl), aU(1), rU(sl) + .003, rU(1) + .003, MAT.sleeve, { kind: 'sleeve' }));
   }
-  // busto e testa (sagoma tenue): si disegnano dopo il braccio quando la mano è dietro il busto
-  let body = null;
-  if (!st.compact && !st.handOnly && rig.chain){
-    const B = bodyOf(rig.chain), Bp = {}; for (const [k, v] of Object.entries(B)) Bp[k] = P(v);
-    const mid = mul(add(add(B.S, B.shoulderL), add(B.waistR, B.waistL)), .25);
-    body = { p: Bp, headR: R(B.head, .105), neckR: R(B.neck, .05), front: cam.depth(rig.W) > cam.depth(mid) + .06,
-      headBottom: P(add(B.head, [0, -.1, 0])), shoulderR: R(B.S, .05) };
-  }
   // omero davanti alla mano (verso la camera): si disegna sopra la mano e il telefono, non sotto (revisione B13: nella
   // posizione di partenza il polsino era ridisegnato sopra la manica che lo copriva)
   const upperFront = full && cam.depth(add(rig.E, mul(sub(rig.S, rig.E), .3))) < cam.depth(rig.heel[2].p) - .05;
@@ -459,7 +528,7 @@ function figure(cam, pose, st, H){
   const handRect = rectOf(hand.concat(parts), palmHull.concat(band.hull, corners)), foreRect = rectOf(fore.concat(upper), []);
   const rect = { x: Math.min(handRect.x, foreRect.x), y: Math.min(handRect.y, foreRect.y) };
   rect.w = Math.max(handRect.x + handRect.w, foreRect.x + foreRect.w) - rect.x; rect.h = Math.max(handRect.y + handRect.h, foreRect.y + foreRect.h) - rect.y;
-  return { rig, full, fore, upper, upperFront, body, hand, armSide, parts, band, foreFront, fadeA, fadeB, sideOn, rect, handRect, foreRect, palmHull };
+  return { rig, full, fore, upper, upperFront, hand, armSide, parts, band, foreFront, fadeA, fadeB, sideOn, rect, handRect, foreRect, palmHull };
 }
 function drawShapes(c, shapes, st){
   c.fillStyle = css(LINE, 1);
@@ -532,7 +601,6 @@ function drawFigure(c, cam, pose, st, H){
   const F = figure(cam, pose, st, H), L = st.layer, l = L.getContext('2d'), R = F.handRect;
   const clearL = () => { l.setTransform(1, 0, 0, 1, 0, 0); l.clearRect(R.x, R.y, R.w, R.h); l.setTransform(st.dpr, 0, 0, st.dpr, 0, 0); };
   const blit = () => { c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(L, R.x, R.y, R.w, R.h, R.x, R.y, R.w, R.h); c.restore(); };
-  if (F.body && !F.body.front) drawBody(c, F, st);
   if (!F.foreFront) drawArm(c, F, st, F.upperFront ? 'fore' : 'all');
   else if (!F.upperFront) drawArm(c, F, st, 'upper');
   const back = F.parts.filter(p => p.side === 'back'), front = F.parts.filter(p => p.side === 'front');
@@ -564,7 +632,6 @@ function drawFigure(c, cam, pose, st, H){
   // l'avambraccio lo copriva e il suo bordo tondo restava come una cucitura sul palmo (revisione artistica)
   if (F.foreFront){ drawArm(c, F, st, 'fore'); drawBand(c, F, st); }
   if (F.upperFront) drawArm(c, F, st, 'upper');
-  if (F.body && F.body.front) drawBody(c, F, st);
   return F;
 }
 // braccio: intero (omero con la manica e avambraccio, il più lontano prima, ciascuno con il proprio contorno: al gomito
@@ -576,31 +643,6 @@ function drawArm(c, F, st, which = 'all'){
   const depth = q => q.reduce((m, x) => m + x.depth, 0)/q.length;
   const units = [F.upper, F.fore].sort((a, b) => depth(b) - depth(a));
   for (const u of units) drawShapes(c, u, st);
-}
-// busto e testa: sagoma tenue che gira con il busto (si leggono «attorno a me», «sopra la testa», le spalle che girano)
-function drawBody(c, F, st){
-  // sagoma scura e unita (un solo riempimento: niente contorni interni, niente «buco della serratura» tra collo e testa),
-  // un poco più scura del fondo, con un filo di luce sul bordo delle spalle e della testa (revisione artistica B13: il
-  // busto chiaro a pannello di vetro rubava l'attenzione al telefono)
-  const b = F.body, p = b.p, a = BODY_ALPHA;
-  if (a <= 0) return;
-  c.save(); c.lineJoin = 'round'; c.lineCap = 'round';
-  c.beginPath();
-  c.moveTo(p.shoulderL.x, p.shoulderL.y); c.lineTo(p.S.x, p.S.y); c.lineTo(p.waistR.x, p.waistR.y); c.lineTo(p.hipR.x, p.hipR.y);
-  c.lineTo(p.hipL.x, p.hipL.y); c.lineTo(p.waistL.x, p.waistL.y); c.closePath();
-  const hb = b.headBottom, nw = b.neckR*.9, dx = hb.x - p.neck.x, dy = hb.y - p.neck.y, L = Math.hypot(dx, dy) || 1, ox = -dy/L*nw, oy = dx/L*nw;
-  c.moveTo(p.neck.x + ox, p.neck.y + oy); c.lineTo(hb.x + ox, hb.y + oy); c.lineTo(hb.x - ox, hb.y - oy); c.lineTo(p.neck.x - ox, p.neck.y - oy); c.closePath();
-  c.fillStyle = `rgba(4,9,30,${Math.min(.5, a*2.2)})`; c.fill('nonzero');
-  // testa: disco appena velato con il bordo (vista dall'alto e da dietro sta davanti al soggetto: un disco scuro pieno
-  // copriva il centro del quadro)
-  c.beginPath(); c.arc(p.head.x, p.head.y, b.headR, 0, 2*Math.PI); c.fillStyle = `rgba(4,9,30,${Math.min(.25, a)})`; c.fill();
-  c.lineWidth = Math.max(1, st.ow*.8); c.strokeStyle = `rgba(150,175,245,${a*1.4})`; c.stroke();
-  // spalle arrotondate: due dischi alle spalle nello stesso riempimento
-  c.beginPath(); for (const q of [p.S, p.shoulderL]){ c.moveTo(q.x + b.shoulderR, q.y); c.arc(q.x, q.y, b.shoulderR, 0, 2*Math.PI); } c.fill();
-  // filo di luce: linea delle spalle e arco alto della testa
-  c.lineWidth = Math.max(1, st.ow*.8); c.strokeStyle = `rgba(150,175,245,${a*1.1})`;
-  c.beginPath(); c.moveTo(p.shoulderL.x, p.shoulderL.y); c.lineTo(p.neck.x, p.neck.y); c.lineTo(p.S.x, p.S.y); c.stroke();
-  c.restore();
 }
 // sagoma della figura (contorno esterno, niente riempimento) per i fantasmi: unione allargata meno unione delle forme
 function drawGhostInto(x, cam, pose, st, H, color){
@@ -863,6 +905,10 @@ export class NatpfGestureDemo {
     // presa: solo mano, avambraccio e telefono (primo piano: niente manica né sagoma del corpo che entrano nel quadro)
     st.handOnly = id === 'grip';
     if (id === 'grip'){ this._grip(c, cam, R, tt, u); return; }   // info (con la figura disegnata) la scrive _grip
+    // busto e testa: sagoma piena sotto tutto (fantasmi compresi); il velo sulle parti del braccio che gli stanno dietro dopo
+    // la figura
+    const body = !compact && BODY_ALPHA > 0 && R.chain && !K.body ? bodyGeom(cam, R.chain) : null;
+    if (body) drawBodySolid(c, body, st);
     // fantasmi a contorno delle pose chiave (non nella modalità compatta)
     const follow = !!(CAMERAS[id] || {}).follow;
     const ghosts = compact || P.still ? [] : M.keys.map((k, i) => ({ k, i, a: ghostAlpha(P, M.keys, i, tt, follow) }));
@@ -875,6 +921,7 @@ export class NatpfGestureDemo {
     if (!compact && (this.ghostRacket ?? GHOST_RACKET)) drawGhostRacket(c, cam, R, st);   // prototipo spento
     if (ball && ballFirst) drawBall(c, cam, ball, spin, st, ballAlpha);
     const F = K.figure ? figure(cam, R, st, H_) : drawFigure(c, cam, R, st, H_);
+    if (body && !K.figure && !K.xray) drawXray(c, cam, R, F, body, st);
     if (ball && !ballFirst) drawBall(c, cam, ball, spin, st, ballAlpha);
     // palla dietro il telefono (contatto sulla faccia lontana dalla camera): si vede «in trasparenza» dentro la sagoma del
     // telefono, a metà opacità e con il contorno tratteggiato, così all'impatto non sparisce mai (brief §5.6.2)
