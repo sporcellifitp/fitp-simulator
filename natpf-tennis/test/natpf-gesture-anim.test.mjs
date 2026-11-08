@@ -140,8 +140,12 @@ test('disegno: mano e avambraccio della presa nel palmo = scheletro gestureRig (
     const H = handFor(style).def, axis = GP.norm(GP.sub(H.fingers[1].mcp, H.wrist)), bend = Math.acos(GP.dot(GP.norm(H.forearmDir), GP.mul(axis, -1)))/D;
     assert.ok(bend <= 35, `${style}: polso piegato di ${bend.toFixed(1)}°`);
   }
-  // spalla e gomito sono solo indicativi (docs/b9/posa-gesti.md): il disegno non arriva mai al gomito
+  // modalità compatta e martello (rollback): l'avambraccio sfuma prima del gomito; con la presa nel palmo fuori dalla
+  // modalità compatta il braccio intero è la catena della posa (B13). Il martello si disegna con l'avambraccio rigido nella
+  // sua direzione: la piega del polso disegnata è quella misurata qui sopra (revisione di fedeltà B13)
   assert.ok(FOREARM_SHOWN.to < .9 && FOREARM_SHOWN.from < FOREARM_SHOWN.to);
+  const pm = GP.gesturePose('forehand', 1, { grip: 'martello' }), rm = handRig(pm, handFor('martello'));
+  assert.ok(GP.len(GP.sub(rm.E, GP.add(rm.W, GP.mul(GP.qrot(pm.q, handFor('martello').forearmDir), GP.ARM.fore)))) < 1e-9, 'martello: avambraccio rigido con la mano');
   assert.equal(COMPACT_W, 320);
 });
 
@@ -197,19 +201,27 @@ test('il disegno usa la posa di demo.pose (= gesturePose): scheletro disegnato u
   } finally { dom.restore(); }
 });
 
-test('etichette dei fantasmi ferme sul proprio fantasma (nessun salto) con la camera ferma; freccia del verso spenta al giro del ciclo', () => {
+// B13 (correzioni dopo le revisioni): dritto, piatto, rovescio, incrociato e lungolinea hanno la camera che segue la mano
+// (il braccio percorre più di quanto la metà dello schermo inquadra). Lì l'etichetta deve restare attaccata al suo
+// fantasma: si misura la sua posizione rispetto alla proiezione del telefono del fantasma (con la camera ferma è la stessa
+// cosa della posizione sullo schermo); ammessi 2 px di deriva per la prospettiva della camera che si sposta
+test('etichette dei fantasmi ferme sul proprio fantasma (nessun salto, anche con la camera che segue); freccia del verso spenta al giro del ciclo', () => {
   const dom = fakeDom();
   try {
     const d = new NatpfGestureDemo({ width: 640, height: 400 });
-    for (const id of ['forehand', 'backhand', 'slice', 'drop', 'volley', 'flat', 'cross']){
+    for (const id of ['forehand', 'backhand', 'slice', 'drop', 'volley', 'flat', 'cross', 'line']){
       d.play(id); d.stop();
-      const P = GP.gesturePlan(id), prev = new Map();
+      const P = GP.gesturePlan(id), prev = new Map(), follow = !!GP.CAMERAS[id].follow;
       let worst = 0;
       for (let t = 0; t < P.total; t += 1/60){
         d.show(t);
-        for (const g of d.info.ghosts || []){ if (!g.labelBox) continue; const a = prev.get(g.i); if (a) worst = Math.max(worst, Math.hypot(g.labelBox.x0 - a.x0, g.labelBox.y0 - a.y0)); prev.set(g.i, g.labelBox); }
+        for (const g of d.info.ghosts || []){
+          if (!g.labelBox) continue;
+          const o = follow ? d.info.cam.p(GP.gesturePose(id, g.k.t).pos) : { x: 0, y: 0 }, b = { x: g.labelBox.x0 - o.x, y: g.labelBox.y0 - o.y };
+          const a = prev.get(g.i); if (a) worst = Math.max(worst, Math.hypot(b.x - a.x, b.y - a.y)); prev.set(g.i, b);
+        }
       }
-      assert.ok(worst < .5, `${id}: etichetta che salta di ${worst.toFixed(0)} px`);
+      assert.ok(worst < (follow ? 2 : .5), `${id}: etichetta che salta di ${worst.toFixed(1)} px`);
     }
   } finally { dom.restore(); }
   const src = readFileSync(new URL('../src/natpf/natpf_gesture_demo.js', import.meta.url), 'utf8');

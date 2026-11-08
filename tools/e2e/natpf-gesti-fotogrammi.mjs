@@ -52,7 +52,8 @@ const MOMENTS = await p.evaluate(() => {
     if (id === 'grip') out[id] = [[1.5, 'Come la vedi tu'], [6, 'Di lato'], [3.75, 'Giro della camera']];
     else if (id === 'ready') out[id] = [[1, 'Ferma']];
     else if (P.kind === 'serve') out[id] = [[T.hold + .5, 'Carica'], [T.tossPeak, 'Lancio (palla lasciata)'], [T.tossEnd, 'Fine del lancio'], [T.hitStart, 'Braccio in alto'], [P.contact, 'Impatto'], [T.end + .02, 'Fine']];
-    else out[id] = [[T.inv, 'Carica'], [(T.inv + P.contact)/2, 'Colpo'], [P.contact, 'Impatto'], [T.end + .02, 'Fine'], [(T.back + T.home)/2, 'Ritorno']];
+    // «Fine»: la posa chiave della fine dell'accompagnamento (B13: tutte le articolazioni ferme, P.keys)
+    else out[id] = [[T.inv, 'Carica'], [(T.inv + P.contact)/2, 'Colpo'], [P.contact, 'Impatto'], [P.keys.find(k => k.id === 'fine')?.t ?? T.end + .02, 'Fine'], [(T.back + T.home)/2, 'Ritorno']];
   }
   return out;
 });
