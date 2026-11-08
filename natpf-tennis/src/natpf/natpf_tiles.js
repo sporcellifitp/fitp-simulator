@@ -9,13 +9,13 @@ export const ICONS = {
   first: svg('<path d="M4 42 18 20h12l14 22"/><path d="M33 40c3-6 4-11 9-14M36 25a6 6 0 1 0 8 4"/><circle cx="12" cy="38" r="3"/>'),
 };
 export const CONTROLLER_TILES = [
-  { id: 'phone', name: 'Smartphone', tag: 'NATPF', desc: 'Il telefono diventa la racchetta: lo impugni in verticale, come il manico' },
-  { id: 'webcam', name: 'Webcam', tag: 'Mano libera', desc: 'La webcam segue la tua mano, senza niente da impugnare' },
+  { id: 'phone', name: 'Smartphone', tag: 'NATPF', desc: 'Il telefono è la racchetta: lo tieni nel palmo' },
+  { id: 'webcam', name: 'Webcam', tag: 'Mano libera', desc: 'Colpisci a mano libera davanti alla webcam' },
   { id: 'mouse', name: 'Mouse e tastiera', tag: 'Classico', desc: 'Trascina per colpire, oppure Spazio e frecce' },
 ];
 export const VIEW_TILES = [
   { id: 'third', name: 'Terza persona', tag: 'Camera TV', desc: 'Vedi il tuo giocatore e tutto il campo' },
-  { id: 'first', name: 'Prima persona', tag: 'In campo', desc: 'Racchetta e mani davanti a te, come in un FPS' },
+  { id: 'first', name: 'Prima persona', tag: 'In campo', desc: 'Racchetta e mani davanti a te' },
 ];
 
 const tile = (attr, t, compact) => `<button type="button" class="lobby-tile${compact ? ' compact' : ''}" ${attr}="${t.id}" role="radio">
@@ -27,6 +27,6 @@ export const viewTiles = (compact = false) => VIEW_TILES.map(t => tile('data-nat
 // Stato mostrato sotto ogni racchetta.
 export function controllerStatus(id, { phone, webcamActive }){
   if (id === 'phone') return phone.ready ? 'Pronto ✓' : phone.connected ? 'Collegato' : 'Si collega con un QR';
-  if (id === 'webcam') return webcamActive ? 'Attiva ✓' : 'Niente da impugnare';
+  if (id === 'webcam') return webcamActive ? 'Attiva ✓' : 'Senza telefono';
   return 'Sempre disponibile';
 }

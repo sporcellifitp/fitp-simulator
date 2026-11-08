@@ -202,7 +202,7 @@ export class NatpfLobby {
     if (tile){
       const n = tile.querySelector('.tile-name'), d = tile.querySelector('.tile-desc');
       if (n) n.textContent = mode === 'split' ? 'Stesso schermo' : 'Sfida un amico';
-      if (d) d.textContent = mode === 'split' ? '1v1 su un computer, due telefoni o una webcam' : '1v1 su due computer';
+      if (d) d.textContent = mode === 'split' ? 'Uno contro uno sullo stesso computer' : 'Uno contro uno su due computer';
     }
     this.paint();
   }
@@ -251,7 +251,7 @@ export class NatpfLobby {
     const L = ev.level || { level: 1, into: 0, next: 500 }, mc = medalCount(ev.records || {});
     const head = $('arcade-progress');
     if (head) head.innerHTML = `<span class="ap-level"><b>Livello ${L.level}</b><i style="--p:${Math.round(100*L.into/L.next)}%"></i><small>${L.into}/${L.next} XP</small></span><span class="ap-medals"><i data-medal="gold">${mc.gold}</i><i data-medal="silver">${mc.silver}</i><i data-medal="bronze">${mc.bronze}</i></span>`;
-    const note = $('challenge-nick-note'); if (note) note.textContent = ev.nickname ? `Giochi come ${ev.nickname}` : 'Prima del minigioco ti chiediamo solo un nickname per la classifica.';
+    const note = $('challenge-nick-note'); if (note) note.textContent = ev.nickname ? `Giochi come ${ev.nickname}` : 'Serve solo un nickname per la classifica.';
   }
   _paintRanking(){
     const tabs = $('ranking-tabs'), list = $('ranking-list'); if (!tabs || !list) return;
@@ -418,7 +418,7 @@ export class NatpfLobby {
     else if (sb && this.mode !== 'friend' && sb.classList.contains('is-wait')){ sb.classList.remove('is-wait'); sb.disabled = false; }
     const note = $('lobby-match-note');
     const names = this.engine.natpfSplitNames || {}, n1 = names.p1 || 'Player 1', n2 = names.p2 || 'Player 2';
-    if (note) note.textContent = split ? (st.splitReady ? `${n1} a sinistra, ${n2} a destra. Ognuno guarda la sua metà.` : `${gate?.waiting?.length ? waitingText(gate.waiting) + ': ' : ''}${this.ui.split?.webcam ? 'la webcam deve vedere tutti e due' : 'servono i due telefoni pronti'}, torna a «Racchette».`) : st.controller === 'phone' && !st.phoneReady ? 'Il telefono va ricollegato: premendo «Gioca» compare il QR.' : '';
+    if (note) note.textContent = split ? (st.splitReady ? `${n1} a sinistra, ${n2} a destra. Ognuno guarda la sua metà.` : `${gate?.waiting?.length ? waitingText(gate.waiting) + ': ' : ''}${this.ui.split?.webcam ? 'la webcam deve vedere tutti e due' : 'servono i due telefoni pronti'}, torna a «Racchette».`) : st.controller === 'phone' && !st.phoneReady ? 'Telefono da ricollegare: con «Gioca» compare il QR.' : '';
     // telefono con i sensori attivi o mano vista dalla webcam: si entra in campo da soli, ma non con la guida aperta (prima
     // il riscaldamento partiva sotto la guida e il suo «Prova» lo faceva ripartire come allenamento)
     if (this.visible && autoAdvance(this.step, st) && this.autoFrom !== this.step && !this.onboarding.isOpen){
@@ -553,7 +553,7 @@ export class NatpfLobby {
     // calibrazione prima di una sfida (anche saltata: modalità semplice) → la sfida
     if (this.mode === 'challenge'){ this.ui.events.start(this.challenge); return; }
     if (completed) this.trainingDone = true;
-    const text = skipped ? `<b>${this.mode === 'training' ? 'Allenamento interrotto' : 'Riscaldamento saltato'}</b><span>${this.ui.phone.simple ? 'Senza calibrazione: il gesto vale lo stesso, la forza non è tarata sul tuo colpo.' : 'Lo puoi rifare quando vuoi.'}</span>`
+    const text = skipped ? `<b>${this.mode === 'training' ? 'Allenamento interrotto' : 'Riscaldamento saltato'}</b><span>${this.ui.phone.simple ? 'Senza calibrazione: si gioca lo stesso, la forza non è tarata.' : 'Lo puoi rifare quando vuoi.'}</span>`
       : `<b>${completed ? (this.mode === 'training' ? 'Allenamento completato ✓' : 'Riscaldamento completato ✓') : 'Interrotto'}</b><span>${stats.shots} colpi · ${stats.perfect} perfetti${stats.out ? ` · ${stats.out} fuori` : ''}</span>`;
     // allenamento dal menu: si torna al menu con il risultato; riscaldamento prima della partita: si va alla partita
     if (this.mode === 'training'){

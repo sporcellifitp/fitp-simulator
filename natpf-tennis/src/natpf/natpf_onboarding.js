@@ -17,33 +17,33 @@ const grip = gripSvg({ cls: 'guide-svg guide-grip', compact: true });
 
 export const GUIDE = [
   { id: 'grip', title: 'Impugna la racchetta', art: () => grip, you: {
-    phone: `${GRIP_TEXT} Nel riscaldamento fai due colpetti, un dritto e un rovescio: il telefono impara il tuo gesto.`,
-    webcam: 'Mettiti <b>tra 1 e 4 metri</b> dalla webcam (quella del portatile o una separata), con la mano che colpisce ben visibile e la luce davanti. Vicino (1 m) fai swing più corti, davanti al corpo.',
-    mouse: '<b>Spazio</b> o un trascinamento del mouse colpiscono. Funziona sempre, anche insieme agli altri.',
-  }, game: 'In campo la racchetta segue il tuo telefono (o la tua mano).' },
+    phone: `${GRIP_TEXT} Poi due colpetti, un dritto e un rovescio: il telefono impara il tuo gesto.`,
+    webcam: 'Mettiti <b>tra 1 e 4 metri</b> dalla webcam, con la mano che colpisce ben visibile e la luce davanti.',
+    mouse: '<b>Spazio</b> o un trascinamento del mouse colpiscono.',
+  }, game: 'La racchetta in campo segue il tuo telefono (o la tua mano).' },
   { id: 'run', title: 'Il giocatore corre da solo', clip: 'run', you: {
-    all: 'Non devi spostarti: <b>pensi solo al colpo</b>. Guarda la palla che arriva verso la racchetta.',
-  }, game: 'Il tuo giocatore va da solo verso la palla. Cambi visuale (prima o terza persona) nel menu o con <kbd>V</kbd>.' },
+    all: 'Non devi spostarti: <b>pensi solo al colpo</b>.',
+  }, game: 'Il giocatore corre da solo verso la palla. Visuale: nel menu o con <kbd>V</kbd>.' },
   { id: 'hit', title: 'Colpisci quando la palla arriva', clip: 'hit', you: {
-    phone: 'Mentre la palla arriva <b>porta indietro il telefono</b> come una racchetta, poi un <b>colpo deciso</b> nel verso opposto quando la palla è vicina. Dritto o rovescio li sceglie il verso del colpo; la preparazione non conta come colpo.',
+    phone: 'Mentre la palla arriva <b>porta indietro il telefono</b>, poi un <b>colpo deciso</b> quando la palla è vicina. Il verso del colpo decide dritto o rovescio.',
     webcam: 'Uno <b>swing della mano</b> verso sinistra o verso destra quando la palla arriva.',
     mouse: '<kbd>Spazio</kbd> quando la palla arriva alla racchetta.',
-  }, game: 'La racchetta in campo si carica con te. A terra compare un anello: <b class="q-g">verde</b> perfetto, <b class="q-y">giallo</b> buono, <b class="q-r">rosso</b> fuori tempo.' },
+  }, game: 'A terra compare un anello: <b class="q-g">verde</b> perfetto, <b class="q-y">giallo</b> buono, <b class="q-r">rosso</b> fuori tempo.' },
   { id: 'aim', title: 'Scegli dove va la palla', clip: 'aim', you: {
-    phone: 'Il <b>tempo</b> sceglie la direzione, rispetto al <b>tuo ritmo</b>: colpisci <b>un attimo prima del solito</b> e la palla va <b>incrociata</b>, <b>un attimo dopo il solito</b> e va <b>lungolinea</b>; con il tuo tempo solito va al centro. Girare il dorso del telefono la sposta ancora un poco. Un colpo <b>più forte del tuo solito</b> va più in fondo, uno più morbido resta più corto.',
-    webcam: 'Il verso dello swing sceglie la direzione; colpire <b>prima</b> la incrocia, colpire <b>dopo</b> la manda lungolinea. Uno swing più veloce la manda più in fondo.',
+    phone: 'Colpisci <b>un attimo prima</b> del solito: palla <b>incrociata</b>. <b>Un attimo dopo</b>: <b>lungolinea</b>. Un colpo <b>più forte</b> va più in fondo.',
+    webcam: 'Colpire <b>prima</b> incrocia la palla, colpire <b>dopo</b> la manda lungolinea. Swing più veloce: palla più in fondo.',
     mouse: '<kbd>Q</kbd>/<kbd>E</kbd> o <kbd>A</kbd>/<kbd>D</kbd> mirano a sinistra o a destra.',
-  }, game: 'Con il tempo si va da una riga all’altra: un incrociato stretto fa correre l’avversario, una palla profonda lo spinge indietro. Troppo presto o troppo tardi la palla esce di lato.' },
+  }, game: 'Un incrociato stretto fa correre l’avversario, una palla profonda lo spinge indietro. Troppo presto o troppo tardi: palla fuori.' },
   { id: 'serve', title: 'Il servizio', clip: 'serve', you: {
-    phone: '<b>1</b> alza il telefono (o tocca lo schermo): lanci la palla. <b>2</b> un colpetto quando è in alto: servizio.',
+    phone: '<b>1</b> alza il telefono (o tocca lo schermo): lanci la palla. <b>2</b> colpisci quando è in alto.',
     webcam: '<b>1</b> alza la mano di scatto: lanci la palla. <b>2</b> swing quando è in alto.',
     mouse: '<b>1</b> <kbd>↑</kbd> o <kbd>W</kbd> lancia la palla. <b>2</b> <kbd>Spazio</kbd> quando è in alto.',
   }, game: 'Quando servi tu, in basso compare «Al servizio».' },
   { id: 'shots', title: 'Colpi speciali', clip: 'shots', you: {
-    phone: 'Chiudi il colpo con la racchetta <b>che sale</b>, dal basso verso l’alto: pallonetto. Colpo <b>lento e morbido dall’alto verso il basso</b>: palla corta; deciso dall’alto verso il basso: tagliato (schiacciata se la palla è alta). Gesto veloce e dritto: colpo piatto. Negli esercizi dell’Allenamento il gioco impara il tuo pallonetto e la tua palla corta.',
-    webcam: 'Swing verso l’alto: lob. Verso il basso: tagliato. Sulle palle alte lo smash parte da solo.',
+    phone: '<b>Dal basso verso l’alto</b>: pallonetto. <b>Dall’alto verso il basso</b>, lento: palla corta; deciso: tagliato (schiacciata se la palla è alta). Veloce e dritto: piatto.',
+    webcam: 'Swing verso l’alto: pallonetto. Verso il basso: tagliato. Sulle palle alte la schiacciata parte da sola.',
     mouse: '<kbd>1</kbd> topspin · <kbd>2</kbd> tagliato · <kbd>3</kbd> lob · <kbd>4</kbd> smash.',
-  }, game: 'Il lob scavalca chi è a rete, la palla corta sorprende chi sta in fondo.' },
+  }, game: 'Il pallonetto scavalca chi è a rete, la palla corta sorprende chi sta in fondo.' },
 ];
 // testo «Cosa fai tu» di un passo per una racchetta
 export const guideText = (step, controller) => step.you[controller] || step.you.all || step.you.phone;

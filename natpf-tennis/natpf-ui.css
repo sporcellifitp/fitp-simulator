@@ -846,6 +846,17 @@ body.natpf-arcade #natpf-scoreboard { opacity: 0; pointer-events: none; }
   #title-modal .connect-steps li .connect-grip { display: none; }
   #title-modal .result-score { font-size: 72px; }
 }
+/* B15 (08/11): risultato del minigioco su schermi bassi (1280×720): punteggio, medaglia e classifica più compatti, così
+   i pulsanti Riprova / Classifica / Menu restano in vista sopra il piè di pagina */
+@container natpf (max-height: 780px) {
+  #title-modal .result-score { font-size: 64px; }
+  #title-modal .result-score small { font-size: 22px; }
+  #title-modal .result-medal { width: 84px; height: 84px; margin-bottom: -4px; }
+  #title-modal .result-medal b { font-size: 16px; }
+  #title-modal .result-rank { font-size: 18px; }
+  #title-modal [data-page="result"] .ranking-list.compact li:nth-child(n + 4) { display: none; }
+  #title-modal [data-page="result"] { gap: 8px; }
+}
 /* area quadrata o più alta che larga (ledwall 2×2): menu in colonna, titolo sopra le voci */
 @container natpf (max-aspect-ratio: 5/4) {
   #title-modal .menu-layout { grid-template-columns: 1fr; justify-items: center; gap: 18px; }
@@ -1517,6 +1528,9 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 .natpf-tutorial { position: absolute; inset: 0; z-index: 70; display: grid; place-items: center; padding: 2cqh 2cqw;
   background: rgba(4, 8, 24, 0.72); }
 .natpf-tutorial.hidden { display: none; }
+/* B15 (08/11): con la modale aperta il pannello in basso a sinistra non ripete la riga della modale (resta la barra con
+   «Salta» e la pausa) */
+#natpf-tutorial:not(.hidden) ~ #natpf-coach .coach-main { visibility: hidden; }
 /* con un tutorial aperto nessuna sfocatura dal vivo dietro di lui (menu dello stesso schermo, pannelli dell'allenatore):
    ogni fotogramma dell'animazione costringeva a rifare il backdrop-filter del menu sotto, e senza GPU l'animazione
    scendeva da 59 a 27 fotogrammi al secondo (misurato, docs/b9/animazione-c.md); sotto il velo al 72% non si vede */

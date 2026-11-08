@@ -50,11 +50,11 @@ export const SPLIT_STALL_MS = WATCH.sensorGapMs + WATCH.graceMs;
 // (detail: la parte breve, per il distintivo della scheda, natpf_ready.splitSlot)
 export function splitCamStatus({ active = false, seen = false, error = null } = {}){
   if (!active) return error ? { state: 'ko', title: error.badge, sub: error.text, detail: error.badge } : { state: 'wait', title: 'Webcam spenta', sub: 'Accendi la webcam qui sopra', detail: 'Webcam spenta' };
-  return seen ? { state: 'ok', title: 'Mano vista ✓', sub: 'Pronto: un colpo veloce e dritto è un colpo', detail: 'Mano vista' } : { state: 'on', title: 'Alza la mano che colpisce', sub: 'Dalla tua parte dell’inquadratura, con il polso visibile', detail: 'Alza la mano' };
+  return seen ? { state: 'ok', title: 'Mano vista ✓', sub: 'Pronto', detail: 'Mano vista' } : { state: 'on', title: 'Alza la mano che colpisce', sub: 'Dalla tua parte, polso visibile', detail: 'Alza la mano' };
 }
 // posizione della linea del confine nel riquadro della camera (specchiato come lo schermo): CSS left; metà se manca
 export const splitCamLine = split => `${(100*(Number.isFinite(split) ? Math.max(0, Math.min(1, split)) : .5)).toFixed(1)}%`;
-const PHONE_ERR = { denied: 'Sensori negati sul telefono: ricarica la pagina e consenti', nomotion: 'Il browser del telefono non manda i sensori: usa Chrome (Android) o Safari (iPhone)', insecure: 'Pagina senza https: i sensori non funzionano' };
+const PHONE_ERR = { denied: 'Sensori negati: ricarica la pagina sul telefono e consenti', nomotion: 'Il browser del telefono non dà i sensori: usa Chrome (Android) o Safari (iPhone)', insecure: 'Pagina senza https: i sensori non funzionano' };
 
 // Stato di un giocatore nella pagina «Collega» (funzione pura): state 'wait' | 'qr' | 'on' | 'go' | 'tut' | 'ok' | 'ko';
 // detail: la parte breve, per il distintivo della scheda (natpf_ready.splitSlot); lost: telefono che c'era e si è perso.
@@ -79,11 +79,11 @@ export function splitPlayerStatus(p, hand = 'right', { tut = null, unseen = fals
   if (tut || p.tutWait){
     const n = Math.max(1, tp?.n || tut?.n || 1), i = Math.min(n, Math.max(1, tp ? (tp.i ?? 0) + 1 : tut?.i || 1));
     const seen = tp?.n ? `Schede viste ${tp.s} di ${tp.n}` : `Scheda ${i} di ${n}`;
-    return { state: 'tut', title: 'Guarda il tutorial', sub: tp?.all ? `${seen} · sul telefono «Tutto chiaro, ho capito»` : `${seen}. Poi sul telefono «Tutto chiaro, ho capito».`, detail: `Tutorial ${i}/${n}` };
+    return { state: 'tut', title: 'Guarda il tutorial', sub: tp?.all ? `${seen} · sul telefono «Tutto chiaro, ho capito»` : `${seen}, poi sul telefono «Tutto chiaro, ho capito»`, detail: `Tutorial ${i}/${n}` };
   }
   if (unseen) return { state: 'tut', title: 'Tutorial da vedere', sub: 'Si apre nella pagina dei telefoni («Racchette»)', detail: 'Tutorial da vedere' };
-  if (L.vis === false || health?.why === 'pagina nascosta') return { state: 'ko', title: 'Schermo del telefono spento', sub: 'O la pagina del gioco non è in primo piano: riaccendi lo schermo, torna alla pagina e tocca il telefono', detail: 'Schermo spento' };
-  if (p.ready && health?.why === 'sensori fermi' && !(health.gapMs < SPLIT_STALL_MS)) return { state: 'ko', title: 'Sensori del telefono fermi', sub: 'Sul telefono tocca «Riattiva i sensori» (o riaccendi lo schermo e torna alla pagina)', detail: 'Sensori fermi' };
+  if (L.vis === false || health?.why === 'pagina nascosta') return { state: 'ko', title: 'Schermo del telefono spento', sub: 'Riaccendi lo schermo e tocca la pagina del gioco', detail: 'Schermo spento' };
+  if (p.ready && health?.why === 'sensori fermi' && !(health.gapMs < SPLIT_STALL_MS)) return { state: 'ko', title: 'Sensori del telefono fermi', sub: 'Sul telefono tocca «Riattiva i sensori»', detail: 'Sensori fermi' };
   if (p.ready) return { state: 'ok', title: 'Pronto ✓', sub: p.simple ? 'Senza calibrazione: si gioca lo stesso' : 'Racchetta calibrata', detail: p.simple ? 'Senza calibrazione' : 'Calibrato' };
   if (L.phone !== 'cal') return { state: 'on', title: 'Tocca «Attiva i sensori»', sub: 'Sul telefono; su iPhone poi «Consenti»', detail: 'Attiva i sensori' };
   const c = calPrompt(p.calView, hand);
@@ -413,9 +413,9 @@ export class NatpfSplitUi {
   _paintStart(now = performance.now(), slots = this.slots(now)){
     const bar = $('split-ready-bar'), ov = $('split-countdown'), cd = this.cd;
     const gate = startGate(slots), names = bothNames(slots);
-    let mode = 'wait', title = 'Si parte da soli quando tutti e due i giocatori sono pronti', sub = `${waitingText(gate.waiting)}.`;
+    let mode = 'wait', title = 'Si parte da soli quando siete pronti tutti e due', sub = `${waitingText(gate.waiting)}.`;
     if (cd.running){ mode = 'count'; title = `Tutto pronto: si gioca tra ${cd.left}`; sub = this.webcam ? `${names}, in posizione davanti alla webcam.` : `${names}, tenete il telefono come in partita.`; }
-    else if (gate.both && cd.held){ mode = 'held'; title = 'Tutto pronto'; sub = 'Partenza fermata: premi «Gioca» quando volete.'; }
+    else if (gate.both && cd.held){ mode = 'held'; title = 'Tutto pronto'; sub = 'Premi «Gioca» quando volete.'; }
     else if (gate.both && cd.back){ mode = 'held'; title = 'Tutto pronto'; sub = 'Premi «Gioca» quando volete.'; }
     else if (gate.both && this.typing){ mode = 'ready'; title = 'Tutto pronto'; sub = 'Si parte quando finisci di scrivere il nome.'; }
     else if (gate.both){ mode = 'ready'; title = 'Tutto pronto'; sub = 'Si parte appena si chiude il pannello aperto.'; }

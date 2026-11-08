@@ -21,7 +21,7 @@ export const TUTORIAL = Object.freeze({ seenMs: 1000, tickMs: 250 });
 // schede: presa (foto), posizione di partenza, colpi di base, servizio, colpi con effetto e speciali
 export const TUTORIAL_CARDS = Object.freeze([
   { id: 'grip', photo: true, title: GRIP.name, text: GRIP.ui.lessonGrip },
-  { id: 'ready', title: 'Posizione di partenza', text: 'In piedi a 1,5–2 m dallo schermo, al centro, il braccio rilassato davanti a te. Calibrazione e partita si fanno con questa stessa presa.' },
+  { id: 'ready', title: 'Posizione di partenza', text: 'A 1,5–2 m dallo schermo, al centro, braccio rilassato. Stessa presa per calibrazione e partita.' },
   { id: 'forehand' }, { id: 'backhand' }, { id: 'serve' }, { id: 'flat' },
   { id: 'lob' }, { id: 'drop' }, { id: 'slice' }, { id: 'smash' }, { id: 'volley' },
 ].map(c => Object.freeze({ ...c, title: c.title || GESTURES[c.id]?.label || c.id, cues: GESTURES[c.id]?.cues || [] })));
@@ -57,7 +57,7 @@ export function tutorialProgress(st){
 export function tutorialWait({ mode = 'phone', all = false, after = 'cal', half = false } = {}){
   if (mode !== 'phone') return '';
   const tel = half ? 'tuo telefono' : 'telefono';
-  if (!all) return `Sfoglia le schede con ‹ ›, anche dal ${tel}. Viste tutte, sul ${tel} si accende «Tutto chiaro, ho capito».`;
+  if (!all) return `Sfoglia le schede con ‹ › (anche dal ${tel}): alla fine si accende «Tutto chiaro, ho capito».`;
   const then = after === 'ready' ? 'sei pronto' : after === 'play' ? 'si comincia' : 'si calibra';
   return `Sul ${tel} tocca «Tutto chiaro, ho capito»: poi ${then}.`;
 }

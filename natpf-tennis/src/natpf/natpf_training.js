@@ -24,20 +24,20 @@ export { calSide };
 // Esercizi del tutorial, in ordine progressivo: i colpi di base, il servizio, la direzione, la rete, il tocco, la
 // potenza. demo: animazione 3D del gesto (natpf_gesture_motion.GESTURES, verificata con il rilevatore vero).
 export const DRILLS = Object.freeze([
-  { id: 'forehand', label: 'Dritto', need: 2, cue: 'forehand', demo: 'forehand', hint: { phone: 'Ruota attorno a te in orizzontale, dall’esterno verso il corpo, quando la palla arriva alla racchetta', webcam: 'Swing quando la palla arriva alla racchetta', mouse: 'Spazio quando la palla arriva' } },
-  { id: 'backhand', label: 'Rovescio', need: 2, cue: 'backhand', demo: 'backhand', hint: { phone: 'Palla sull’altro lato: stessa rotazione orizzontale, nel verso opposto', webcam: 'Swing verso l’altro lato', mouse: 'Spazio o trascina verso l’altro lato' } },
+  { id: 'forehand', label: 'Dritto', need: 2, cue: 'forehand', demo: 'forehand', hint: { phone: 'Ruota in orizzontale, dall’esterno verso il corpo, quando la palla arriva', webcam: 'Swing quando la palla arriva alla racchetta', mouse: 'Spazio quando la palla arriva' } },
+  { id: 'backhand', label: 'Rovescio', need: 2, cue: 'backhand', demo: 'backhand', hint: { phone: 'Palla sull’altro lato: stessa rotazione, verso opposto', webcam: 'Swing verso l’altro lato', mouse: 'Spazio o trascina verso l’altro lato' } },
   { id: 'serve', label: 'Servizio', need: 1, demo: 'serve', hint: { phone: 'Alza il telefono per lanciare la palla, poi colpisci dall’alto quando è in cima', webcam: 'Alza la mano per lanciare, poi swing in alto', mouse: '↑ o W per lanciare, poi Spazio' } },
-  { id: 'cross', label: 'Incrociato', need: 1, direction: 'cross', feed: 'forehand', demo: 'cross', hint: { phone: 'Gira il display verso il centro e colpisci un attimo prima del solito: la palla va oltre il centro', webcam: 'Colpisci prima: manda la palla nell’altra metà del campo', mouse: 'Mira nell’altra metà del campo, oltre il centro' } },
-  { id: 'line', label: 'Lungolinea', need: 1, direction: 'line', feed: 'forehand', demo: 'line', hint: { phone: 'Gira il display verso l’esterno e colpisci un attimo dopo il solito: la palla corre lungo il tuo lato', webcam: 'Colpisci un attimo dopo: manda la palla lungo il tuo lato', mouse: 'Mira lungo il lato da cui colpisci' } },
+  { id: 'cross', label: 'Incrociato', need: 1, direction: 'cross', feed: 'forehand', demo: 'cross', hint: { phone: 'Cima verso il centro e colpisci un attimo prima: la palla va nell’altra metà', webcam: 'Colpisci prima: manda la palla nell’altra metà del campo', mouse: 'Mira nell’altra metà del campo, oltre il centro' } },
+  { id: 'line', label: 'Lungolinea', need: 1, direction: 'line', feed: 'forehand', demo: 'line', hint: { phone: 'Cima verso l’esterno e colpisci un attimo dopo: la palla corre lungo il tuo lato', webcam: 'Colpisci un attimo dopo: manda la palla lungo il tuo lato', mouse: 'Mira lungo il lato da cui colpisci' } },
   // volée: il giocatore aspetta a rete, la palla si prende al volo (il motore lo decide dalla posizione, natpf_impact)
-  { id: 'volley', label: 'Volée', need: 1, volley: true, feed: 'forehand', demo: 'volley', maxTries: 4, hint: { phone: 'Sei a rete: gesto corto e compatto, palla al volo prima del rimbalzo', webcam: 'Sei a rete: swing corto, palla al volo', mouse: 'Sei a rete: Spazio prima che la palla rimbalzi' } },
+  { id: 'volley', label: 'Volée', need: 1, volley: true, feed: 'forehand', demo: 'volley', maxTries: 4, hint: { phone: 'A rete: gesto corto, palla al volo prima del rimbalzo', webcam: 'Sei a rete: swing corto, palla al volo', mouse: 'Sei a rete: Spazio prima che la palla rimbalzi' } },
   // colpi speciali (solo smartphone): il gioco impara il TUO pallonetto e la TUA palla corta (soglie personali,
   // natpf_gestures.learnSpecials). Si passa avanti anche senza riuscirci, dopo 4 tentativi.
-  { id: 'lob', label: 'Pallonetto', need: 1, shot: 'lob', phoneOnly: true, maxTries: 4, demo: 'lob', hint: { phone: 'Gesto in verticale dal basso verso l’alto: la mano sale davvero' } },
+  { id: 'lob', label: 'Pallonetto', need: 1, shot: 'lob', phoneOnly: true, maxTries: 4, demo: 'lob', hint: { phone: 'In verticale, dal basso verso l’alto: la mano sale davvero' } },
   { id: 'drop', label: 'Palla corta', need: 1, shot: 'drop', phoneOnly: true, maxTries: 4, demo: 'drop', hint: { phone: 'Dall’alto verso il basso, lento e morbido, come una carezza' } },
   { id: 'slice', label: 'Tagliato', need: 1, shot: 'slice', phoneOnly: true, learn: false, maxTries: 4, demo: 'slice', hint: { phone: 'Dall’alto verso il basso, deciso: più ampio e veloce della palla corta' } },
-  { id: 'smash', label: 'Schiacciata', need: 1, shot: 'smash', phoneOnly: true, learn: false, maxTries: 4, demo: 'smash', hint: { phone: 'Arriva una palla alta: braccio in alto, poi giù deciso prima del rimbalzo' } },
-  { id: 'flat', label: 'Colpo piatto', need: 1, shot: 'flat', phoneOnly: true, learn: false, maxTries: 4, feed: 'forehand', demo: 'flat', hint: { phone: 'Come il dritto ma più veloce, in orizzontale, senza alzare la mano' } },
+  { id: 'smash', label: 'Schiacciata', need: 1, shot: 'smash', phoneOnly: true, learn: false, maxTries: 4, demo: 'smash', hint: { phone: 'Palla alta: braccio in alto, poi giù deciso prima del rimbalzo' } },
+  { id: 'flat', label: 'Colpo piatto', need: 1, shot: 'flat', phoneOnly: true, learn: false, maxTries: 4, feed: 'forehand', demo: 'flat', hint: { phone: 'Come il dritto, ma più veloce e senza alzare la mano' } },
 ]);
 // Riscaldamento prima della partita: solo i colpi di base (il tutorial completo è «Allenamento» nel menu)
 export const WARMUP_IDS = Object.freeze(['forehand', 'backhand', 'serve']);
@@ -46,10 +46,10 @@ export const warmupDrills = controller => drillsFor(controller).filter(d => WARM
 export const LESSON = Object.freeze([
   { id: 'grip', demo: 'grip', title: GRIP.name, text: GRIP.ui.lessonGrip },
   { id: 'hand', demo: 'ready', title: 'Orientamento e mano', text: GRIP.ui.lessonHand, hand: true },
-  { id: 'ready', demo: 'ready', title: 'Posizione di partenza', text: 'In piedi a 1,5–2 m dallo schermo, al centro. Braccio rilassato davanti a te. Calibrazione e partita si fanno con questa stessa presa.' },
+  { id: 'ready', demo: 'ready', title: 'Posizione di partenza', text: 'A 1,5–2 m dallo schermo, al centro, braccio rilassato. Stessa presa per calibrazione e partita.' },
 ]);
 export const WEBCAM_LESSON = Object.freeze([
-  { id: 'ready', title: 'Posizione di partenza', text: 'In piedi tra 1 e 4 m dalla webcam, al centro dell’inquadratura. La mano che colpisce deve restare sempre visibile: vicino alla webcam fai swing più corti.' },
+  { id: 'ready', title: 'Posizione di partenza', text: 'Tra 1 e 4 m dalla webcam, al centro. La mano che colpisce resta sempre visibile.' },
 ]);
 const SHOT_NAME = Object.freeze({ topspin: 'Topspin', flat: 'Piatto', lob: 'Pallonetto', drop: 'Palla corta', slice: 'Tagliato', smash: 'Schiacciata' });
 const SIDE_NAME = Object.freeze({ forehand: 'Dritto', backhand: 'Rovescio' });
@@ -436,7 +436,7 @@ export class NatpfTraining {
   simpleMode(){
     if (!this.active) return;
     this.ui.phone.skipCalibration();
-    this.message = 'Senza calibrazione: il gesto vale lo stesso, la forza non è tarata sul tuo colpo';
+    this.message = 'Senza calibrazione: si gioca lo stesso, la forza non è tarata';
     if (this.cal) this.cal.fails = 0;
   }
   /* ---------- palle ---------- */
@@ -603,8 +603,8 @@ export class NatpfTraining {
     show(grip, showGrip);
     let view;
     // telefono scollegato o senza sensori (pagina ricaricata, schermo spento): prima il pannello restava su «Ora»
-    if (lost) view = { kicker: mode, title: 'Telefono scollegato', sub: !P.connected ? 'Riapri la pagina sul telefono: si ricollega da solo e si riparte da qui' : 'Sul telefono tocca «Attiva i sensori»', state: 'retry', dir: null, count: '' };
-    else if (this.tutorialOpen) view = { kicker: mode, title: 'Come si gioca', sub: 'Sfoglia le schede, poi sul telefono «Tutto chiaro, ho capito»', state: 'wait', dir: null, count: '' };
+    if (lost) view = { kicker: mode, title: 'Telefono scollegato', sub: !P.connected ? 'Riapri la pagina sul telefono: si ricollega da solo' : 'Sul telefono tocca «Attiva i sensori»', state: 'retry', dir: null, count: '' };
+    else if (this.tutorialOpen) view = { kicker: mode, title: 'Come si gioca', sub: '', state: 'wait', dir: null, count: '' };
     else if (this.cal){
       const v = this.view, pr = calPrompt(v, hand);
       const count = v.stage === 'gesture' ? `Gesto ${Math.min(v.idx + 1, v.total)} di ${v.total}` : v.stage === 'still' ? 'Prima di iniziare' : '';

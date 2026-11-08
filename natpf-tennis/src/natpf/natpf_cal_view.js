@@ -42,7 +42,7 @@ export function calReduce(v = CAL_VIEW_EMPTY, e = {}){
 // side: 'forehand' | 'backhand' del gesto chiesto («L» = da destra a sinistra: dritto del destro, rovescio del mancino)
 export const calSide = (want, hand = 'right') => ((want === 'L') !== (hand === 'left') ? 'forehand' : 'backhand');
 const ARROW = { L: '←', R: '→' };
-const WHY = { piccolo: 'Gesto troppo piccolo: un colpetto un po’ più deciso', direzione: 'Era nell’altro verso' };
+const WHY = { piccolo: 'Troppo piccolo: un colpetto più deciso', direzione: 'Era nell’altro verso' };
 export function calPrompt(v, hand = 'right'){
   if (v.stage === 'still') return { title: 'Tieni fermo il telefono', sub: v.note === 'fermo' ? GRIP.ui.stillMoved : GRIP.ui.still, state: 'wait', arrow: '', dir: null };
   if (v.stage === 'gesture'){
@@ -51,10 +51,10 @@ export function calPrompt(v, hand = 'right'){
     const failed = v.last && !v.last.ok && v.last.idx === v.idx;
     const why = failed ? (v.last.why === 'direzione' ? `${WHY.direzione} (${ARROW[v.last.dir] || '?'}): muovi ${move} ${arrow}` : WHY[v.last.why] || 'Riprova') : null;
     if (!v.ready) return { title: `${title} ${arrow}`, sub: why || (v.note === 'idle' ? `Non sento movimenti: un colpetto ${move}` : 'Fermo un attimo al centro…'), state: why ? 'retry' : 'wait', arrow, dir: v.want, side };
-    return { title: `${title} ${arrow}`, sub: why || `Ora: gesto naturale ${move}, con la stessa presa che userai in partita, poi fermati`, state: 'go', arrow, dir: v.want, side };
+    return { title: `${title} ${arrow}`, sub: why || `Ora: un colpo naturale ${move}, poi fermati`, state: 'go', arrow, dir: v.want, side };
   }
   if (v.stage === 'review') return v.pass === false
-    ? { title: 'Rifacciamo i gesti', sub: v.why === 'piccolo' ? 'Gesti troppo piccoli: più ampi e decisi' : v.why === 'squilibrio' ? 'Un gesto era molto più debole dell’altro: rifai i due con la stessa decisione' : 'Non ho distinto i due versi: fai i gesti davvero da una parte all’altra', state: 'retry', arrow: '', dir: null }
+    ? { title: 'Rifacciamo i gesti', sub: v.why === 'piccolo' ? 'Troppo piccoli: più ampi e decisi' : v.why === 'squilibrio' ? 'Uno era molto più debole: rifai i due con la stessa forza' : 'Non ho distinto i due versi: vai davvero da una parte all’altra', state: 'retry', arrow: '', dir: null }
     : { title: 'Racchetta pronta ✓', sub: 'Ora le palle vere', state: 'ok', arrow: '', dir: null };
   if (v.stage === 'done') return { title: 'Racchetta pronta ✓', sub: 'Ora le palle vere', state: 'ok', arrow: '', dir: null };
   return { title: 'Collego il telefono…', sub: '', state: 'wait', arrow: '', dir: null };

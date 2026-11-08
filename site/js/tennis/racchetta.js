@@ -13,7 +13,7 @@ import { strokeShape } from './stroke-shape.js';
 import { swingMessage } from './swing-message.js';
 import { NATPF_BUILD } from './version.js';
 import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
-import { gripSvg, GRIP_TEXT_PLAIN } from './grip-art.js';
+import { gripSvg, GRIP } from './grip-art.js';
 import { platformAccSign, createAccSign, normalizeSample } from './motion-sign.js';
 import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, veilText } from './phone-screen.js';
 
@@ -98,7 +98,8 @@ function paint(){
   if (v.screen !== screen){ screen = v.screen; document.body.dataset.screen = screen; }
   for (const [sel, on] of Object.entries(v.show)) show(sel, on);
   $('#touchHit').textContent = inputMode === 'touch' ? 'Colpisci' : 'Arma dopo l’apertura';
-  $('#shotHint').textContent=inputMode==='touch'?'Scegli il colpo; smash e servizio seguono la palla.':'Dai un colpetto quando la palla arriva alla racchetta sul computer.';
+  // (con i sensori la frase sotto l'anello dice già cosa fare: il consiglio del pannello dei colpi solo con i tocchi)
+  $('#shotHint').textContent = 'Scegli il colpo; schiacciata e servizio seguono la palla.'; show('#shotHint', inputMode === 'touch');
   paintShots();
   paintTut(v);
   const holding = screen === 'cal' && sensor === 'cal' && (cal.state.step === 'grip' || cal.state.step === 'still');
@@ -106,7 +107,7 @@ function paint(){
   const dial = grip === 'flat' && face.ready && (screen === 'ready' || (screen === 'cal' && ['free', 'swings'].includes(cal.state.step)));
   show('#faceDial', dial); show('#faceTxt', dial);
   if (linkState !== 'on' || flashT) return;
-  if (screen === 'enable') ui('Collegato', 'Tocca «Attiva i sensori»: il telefono diventa la tua racchetta.');
+  if (screen === 'enable') ui('Collegato', 'Tocca «Attiva i sensori»: il telefono diventa la racchetta.');
   else if (screen === 'tutorial'){ const t = tutorialTexts(gate, { sensor }); ui(t.big, t.sub); }
   else if (screen === 'cal'){ if (sensor === 'cal') calUi(); else ui('Preparati', 'Tra un attimo si calibra.'); }
   else if (screen === 'ready') ui(phase === 'serve' ? 'Al servizio' : 'Pronto', phaseText(), 'ready');
@@ -128,23 +129,23 @@ function paintTut(v){
 }
 function calUi(){
   const st = cal.state;
-  if (cal.leading) ui('Preparati', 'Prendi il telefono come in partita: tra un attimo misuro la presa. Non serve muoverlo.');
+  if (cal.leading) ui('Preparati', 'Tieni il telefono come in partita, fermo.');
   else if (st.step === 'still' && grip === 'flat') ui('Pronto, fermo', 'Telefono in orizzontale nel palmo, display verso di te: il dorso guarda la rete come le corde. Resta fermo così per 2 secondi.');
   // stessi passi e stesse parole del computer (natpf_cal_view.js): si guarda il computer, qui c'è il riassunto
-  else if (st.step === 'still') ui('Tieni fermo', `${GRIP_TEXT_PLAIN} Guarda il computer.`);
-  else if (st.step === 'grip') ui('La tua presa', 'Tieni il telefono come ti è comodo, senza stringere troppo.');
+  else if (st.step === 'still') ui('Tieni fermo', `${GRIP.short}. Guarda il computer.`);
+  else if (st.step === 'grip') ui('La tua presa', 'Tienilo comodo, senza stringere.');
   else if (st.step === 'swings'){
     const plan = calibrationPlan(st.options), w = plan[st.idx], stroke = (w === 'L') !== (st.options.hand === 'left') ? 'Dritto' : 'Rovescio';
     if (!st.ready) ui(`${stroke} ${ARROW[w]}`, 'Fermo un attimo al centro…', '', '');
-    else ui(`${stroke} ${ARROW[w]}`, `Ora: gesto naturale ${w === 'L' ? 'verso sinistra' : 'verso destra'}, con la stessa presa che userai in partita, poi fermati. Gesto ${st.idx + 1} di ${plan.length}.`, 'ready', ARROW[w]);
+    else ui(`${stroke} ${ARROW[w]}`, `Ora: un colpo naturale ${w === 'L' ? 'verso sinistra' : 'verso destra'}, poi fermati. Gesto ${st.idx + 1} di ${plan.length}.`, 'ready', ARROW[w]);
   }
   else if(st.step==='shots'){const g=GESTURE_PLAN[st.idx];ui(SHOT_NAMES[g.shot],`Gesto ${PLAN.length+st.idx+1} di ${PLAN.length+GESTURE_PLAN.length}: ${g.hint}`, '',g.want?ARROW[g.want]:'↑');}
   else if (st.step === 'review') ui(st.result && st.result.pass ? 'Fatto!' : 'Da rifare', st.result && st.result.pass ? 'Guarda il computer: si parte da soli.' : 'Guarda il computer: ti dice cosa cambiare.', st.result && st.result.pass ? 'ready' : 'miss');
-  else if (st.step === 'free') ui('Prova un colpetto', 'Guarda il computer: il personaggio ripete il tuo gesto. Non devi conoscere i colpi del tennis.');
+  else if (st.step === 'free') ui('Prova un colpetto', 'Guarda il computer: il personaggio ripete il tuo gesto.');
 }
 function phaseText(){
   if (grip === 'flat' && phase === 'play') return 'Colpisci quando la palla arriva alla racchetta: gira il piatto verso dove vuoi mandarla, aprilo per il lob, chiudilo per il coperto.';
-  return { menu: 'Guarda il computer per iniziare.', toss:'Colpisci quando la palla raggiunge la cima del lancio.', serve: 'Alza il telefono per far partire la palla. Poi dai un colpetto quando è in alto. Puoi anche toccare lo schermo per lanciarla.', play: 'Guarda il computer e colpisci quando la palla arriva alla racchetta. Muovi il telefono nella direzione desiderata.', pause: 'Partita in pausa: guarda il computer. Si riprende da solo quando il telefono è di nuovo pronto; se resta ferma, tocca «Ricollega».', over: 'Partita finita: guarda il computer.' }[phase] || '';
+  return { menu: 'Guarda il computer per iniziare.', toss: 'Colpisci quando la palla è in cima al lancio.', serve: 'Alza il telefono (o tocca lo schermo): lanci la palla. Poi colpisci quando è in alto.', play: 'Colpisci quando la palla arriva alla racchetta.', pause: 'Partita in pausa: guarda il computer. Se non riparte, tocca «Ricollega».', over: 'Partita finita: guarda il computer.' }[phase] || '';
 }
 function flash(cls, big, sub, ms = 650, arrow = ''){ ui(big, sub, cls, arrow); clearTimeout(flashT); flashT = setTimeout(() => { flashT = null; paint(); }, ms); }
 
@@ -154,7 +155,7 @@ async function connect(){
   const epoch = ++connectEpoch, previous = peer;
   peer = null; conn = null; pendingConn = null; closeFast();
   if (previous && !previous.destroyed) previous.destroy();
-  if (!pair){ linkState = 'denied'; bar(); ui('Nessuna partita', 'Inquadra il codice QR che compare sul computer.'); show('#retry', false); return; }
+  if (!pair){ linkState = 'denied'; bar(); ui('Nessuna partita', 'Inquadra il QR sul computer.'); show('#retry', false); return; }
   linkState = 'connecting'; paint(); ui('Collegamento…', 'Mi collego al gioco sul computer.');
   // a che punto è il collegamento di questo tentativo: server di segnalazione raggiunto, risposta del computer e stato
   // della strada diretta (ICE). A 12 s, se la strada si sta ancora cercando (il computer ha risposto), si aspetta fino a
@@ -222,7 +223,7 @@ function onData(c, d){
       paint(); break;
     case 'deny':
       linkState = 'denied'; ss.del('resume');
-      ui('Non collegato', d.why === 'busy' ? 'C\'è già un altro telefono collegato a questo computer.' : 'Il codice è scaduto o è già stato usato: inquadra di nuovo il QR sul computer.');
+      ui('Non collegato', d.why === 'busy' ? 'C\'è già un altro telefono collegato.' : 'Codice scaduto o già usato: inquadra di nuovo il QR.');
       paint(); try { c.close(); } catch (e){} break;
     case 'pong': rtt = rtt*.7 + (performance.now() - d.c)*.3; bar(); break;
     case 'dp': send({ t: 'dq', d: d.d, p: performance.now() }); break;
@@ -268,7 +269,7 @@ function lost(){
   const previous = peer; peer = null; pendingConn = null;
   closeFast(); conn = null; linkState = 'lost';
   if (previous && !previous.destroyed) previous.destroy();
-  paint(); ui('Connessione persa', why ? `${why} Riprovo da solo tra poco.` : 'Riprovo da solo tra poco. Sul computer puoi riprovare il collegamento.');
+  paint(); ui('Connessione persa', why ? `${why} Riprovo da solo tra poco.` : 'Riprovo da solo tra poco.');
   if (tries++ < 10) retryT = setTimeout(connect, Math.min(6000, 1000*tries));
 }
 const send = m => { if (conn && conn.open) try { conn.send(m); } catch (e){} };
@@ -348,9 +349,9 @@ function noMotion(why){
   removeEventListener('devicemotion', onMotion);
   sensor = why; sendState(); paint();
   ui({ denied: 'Sensori negati', insecure: 'Serve https', nomotion: 'Sensori non disponibili' }[why], {
-    denied: 'Hai negato l\'accesso ai sensori di movimento. Su iPhone ricarica la pagina e tocca «Consenti»; su Android controlla i permessi del sito nel browser. Puoi usare Gioca con i tocchi, oppure consentire i sensori e riprovare.',
-    insecure: 'I sensori richiedono HTTPS attendibile. In LAN usa il server HTTPS sul computer e un certificato riconosciuto dal telefono.',
-    nomotion: 'Questo browser non dà i sensori di movimento. Prova con Chrome (Android) o Safari (iPhone), e riapri il QR dal gioco.',
+    denied: 'Su iPhone ricarica la pagina e tocca «Consenti»; su Android consenti i sensori nelle impostazioni del sito. Oppure «Gioca con i tocchi».',
+    insecure: 'I sensori vogliono una pagina https. In LAN serve il certificato NATPF sul telefono.',
+    nomotion: 'Questo browser non dà i sensori. Usa Chrome (Android) o Safari (iPhone) e inquadra di nuovo il QR.',
   }[why], 'miss');
 }
 function onMotion(e){
@@ -574,15 +575,15 @@ function paintAlert(){
   if (veil.shown){}
   else if (linkState === 'on' && motion && sensorWatch.stalled(now, { visible: !document.hidden })){
     a = revivedAt != null
-      ? { t: 'I sensori non sono ripartiti', p: 'Ricarica la pagina: il collegamento e la calibrazione restano.', b: 'Ricarica la pagina', act: 'reload' }
+      ? { t: 'I sensori non sono ripartiti', p: 'Ricarica la pagina: collegamento e calibrazione restano.', b: 'Ricarica la pagina', act: 'reload' }
       : { t: 'Sensori fermi', p: 'Il telefono non manda più il movimento al gioco.', b: 'Riattiva i sensori', act: 'revive' };
   } else {
     if (revivedAt != null && sensorWatch.last > revivedAt) revivedAt = null;
     // anche durante il tutorial e la calibrazione (chi guarda il computer non tocca il telefono per un minuto)
     if (linkState === 'on' && motion && !document.hidden && awake.state !== 1 && !awake.busy)
       a = awake.state === -1
-        ? { t: 'Lo schermo può spegnersi', p: 'Questo browser non tiene acceso lo schermo: nelle impostazioni del telefono allunga lo spegnimento automatico dello schermo.' }
-        : { t: 'Lo schermo può spegnersi', p: 'Il telefono non lascia tenere acceso lo schermo (spesso per il risparmio energetico). Tocca il pulsante; se ricapita, disattiva il risparmio energetico.', b: 'Tieni acceso lo schermo', act: 'wake' };
+        ? { t: 'Lo schermo può spegnersi', p: 'Questo browser non lo tiene acceso: allunga lo spegnimento automatico nelle impostazioni del telefono.' }
+        : { t: 'Lo schermo può spegnersi', p: 'Tocca il pulsante; se ricapita, disattiva il risparmio energetico.', b: 'Tieni acceso lo schermo', act: 'wake' };
   }
   const key = a ? a.t + a.p : '';
   if (key === alertKey) return;

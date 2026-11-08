@@ -124,7 +124,7 @@ export function tutorialTexts(gate, { sensor = 'idle' } = {}){
   const then = sensor === 'ready' ? 'poi si gioca' : 'poi si calibra';
   if (!gate) return null;
   const where = gate.n ? `Scheda ${gate.i + 1} di ${gate.n}${gate.name ? ` · ${gate.name}` : ''}` : '';
-  if (gate.v < 2) return { big: 'Guarda lo schermo', sub: `Sul computer ci sono la presa e i colpi. Quando hai capito tocca «Tutto chiaro, ho capito», qui in alto: ${then}.`, where, hint: '' };
-  if (!gate.all) return { big: 'Guarda lo schermo', sub: 'Sul computer ci sono la presa e i colpi: sfoglia le schede con ‹ ›, qui o sul computer.', where, hint: gate.n ? `Viste ${gate.s} di ${gate.n}: «Tutto chiaro» si accende dopo l’ultima.` : '' };
-  return { big: 'Hai visto tutto', sub: `Tocca «Tutto chiaro, ho capito», qui in alto: ${then}. Puoi ancora rivedere le schede con ‹ ›.`, where, hint: '' };
+  if (gate.v < 2) return { big: 'Guarda lo schermo', sub: `Presa e colpi sono sul computer. Quando hai capito tocca «Tutto chiaro, ho capito»: ${then}.`, where, hint: '' };
+  if (!gate.all) return { big: 'Guarda lo schermo', sub: 'Presa e colpi sono sul computer. Sfoglia le schede con ‹ ›.', where, hint: gate.n ? `Viste ${gate.s} di ${gate.n}: alla fine si accende «Tutto chiaro».` : '' };
+  return { big: 'Hai visto tutto', sub: `Tocca «Tutto chiaro, ho capito»: ${then}.`, where, hint: '' };
 }

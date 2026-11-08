@@ -62,7 +62,7 @@ test('tessere: tre controller (il mouse si mostra solo con l’easter egg), due 
   assert.match(controllerStatus('phone', { phone: { ready: false, connected: true } }), /Collegato/);
   assert.match(controllerStatus('phone', { phone: { ready: true, connected: true } }), /Pronto/);
   assert.match(controllerStatus('webcam', { phone: {}, webcamActive: true }), /Attiva/);
-  assert.match(controllerStatus('webcam', { phone: {}, webcamActive: false }), /impugnare/);
+  assert.match(controllerStatus('webcam', { phone: {}, webcamActive: false }), /Senza telefono/);
 });
 
 test('esito del colpo: verde perfetto, giallo anticipo/ritardo, rosso fuori o mancata', () => {
