@@ -1103,3 +1103,58 @@ guida provato nel browser.
   verde (`index.html` toccato: il pulsante nel pannello dello stand c'è, la riga delle Opzioni no).
   Non verificato: persone vere e telefoni veri (i numeri sono del banco: una persona simulata; con persone diverse la
   variabilità cresce, le partite necessarie sono un minimo), Windows, il confronto del guadagno su pacchetti veri.
+
+## B16 · Integrazione: Leggenda, tutorial corto, riscaldamento facoltativo, mira dello staff, versione 2026-11-08.5 · [~] pronta, non pubblicata · 08/11/2026 sera
+- Ramo locale `b16-int` da `origin/natpf-simulator` `6dae07a` (che contiene due commit di soli documenti del **B17** di
+  un'altra sessione: `docs/b17/analisi-e-piano.md`, `docs/b17/punteggio-riferimento.md`). Unioni `--no-ff`: `70c85b3`
+  (`b16-legend`, senza conflitti), `90a8eb7` (`b16-flow`, conflitto solo in questo registro), `bb46a6f` (`b16-mira`,
+  conflitti in questo registro e in `natpf-tennis/test/phone-sim.mjs`). Ogni ramo era già corretto dopo la sua verifica
+  indipendente (voci B16 sopra).
+- Conflitti risolti tenendo tutte e due le intenzioni:
+  - `natpf-tennis/test/phone-sim.mjs`, stessa riga: il ramo flow passa a `powerRefs` il colpo tipico già visto e il picco
+    (`{ seen, peak }`: forza dei primi colpi senza riscaldamento), il ramo mira passa `aimFull` a `natpfSwingToEngine`
+    (sensibilità della mira): la riga unita ha tutti e due.
+  - `docs/WORK_PROGRESS.md`: le tre voci dei rami in coda, nell'ordine Leggenda, flusso, mira.
+  - Uniti da git senza conflitti e ricontrollati a mano: `natpf_phone_racket.js` (riga del colpo con `powerRefs(…, { seen,
+    peak })` e `aimFull: aimFullNow()`), `natpf-tennis/index.html` (commento del percorso del ramo flow, pulsante
+    «Mira del telefono» del pannello dello stand e «Riscaldati prima»), `docs/PROJECT_MEMORY.md` (tre sezioni). Il ramo
+    mira ha riportato `natpf_lobby.js` com'era (opzione tolta dalle Opzioni), quindi lì restano solo le modifiche del flow.
+    `diag_recorder.js` e `natpf_stroke_intent.js` li tocca solo il ramo mira.
+- `npm test` dopo ogni unione: 932/932 (Leggenda), 942/942 (+ flusso), 957/957 (+ mira); i test si sommano senza doppioni.
+- Versione **2026-11-08.5** (`site/js/tennis/version.js`, `site/tennis/build.json`, prima riga di
+  `natpf-tennis/lan/LEGGIMI.txt`, riga nuova in `natpf-desktop/novita.txt`: «Tutorial più corto (5 schede) e riscaldamento
+  facoltativo; Leggenda più forte; mira del telefono regolabile dallo staff e misurata nella diagnostica.»).
+- Documenti: rapporto dell'audit del gameplay in `docs/b16/rapporto-gameplay.md` (copia di quello consegnato all'utente, con
+  una nota in testa: misurato sulla 2026-11-08.4 e sovrapposizioni con il B17; il resto è identico, controllato con
+  `diff`); PIANO (checkpoint, registro B16), PROJECT_MEMORY (sintesi «Decisioni B16», nomi delle 5 schede, riscaldamento
+  facoltativo nella nota del tutorial), PASSAGGIO_CONSEGNE (§2 B16, §3 punto 13 chiuso e punto 14 con le 4 decisioni
+  dell'audit, numeri dei test), `tools/e2e/README.md` (righe di `natpf-flusso-tocchi` e `natpf-mira-lato`, che mancavano).
+- Verifiche sul risultato (versione .5 compresa): gioco **957/957** (52 s), sito **197/197**, LAN **12/12**, programma
+  Windows **28/28**, `npm run build` ok (solo l'avviso già noto sulla dimensione dei pezzi), `npm run audit:legend`
+  **69/69** (uscita 0, 64 s; game della CPU contro medio 97,7 · amatore 99,8 · tennista 92,4 · preciso 70,8 · bambino 100 ·
+  impreciso 99,8 %, errori della CPU 2,2–3,1 % per colpo, incrociati 34,6–45,8 %, reazione p10 0,125 s; pro contro medio
+  84,1 %, casual 100 %: identici al ramo `b16-legend`).
+- Nel browser, una prova alla volta (porte 4730–4749, log in `scratchpad/b16/int/e2e/`): `natpf-training-flow` **21/21**
+  destro e **21/21** mancino; `natpf-tutorial-phone` **39/39** destro e **39/39** mancino; `natpf-flusso-tocchi` singolo
+  **13 tocchi** (computer 5, telefono 8) 4/4, stesso schermo **19** (3 + 16) 5/5, sfida tra due computer **18** (7 + 11)
+  7/7, uguali al ramo flow; `natpf-tutorial-relink` **9/9**; `natpf-modale-gesti` **18/18** (60 fps sopra l'arena ferma a
+  1920×1080; con il campo che gioca 1,5–2,1 fps, uguale al campo da solo: disegno WebGL software); `natpf-menu` **22/22**;
+  `natpf-split-ready` **34/34**; `natpf-1v1-p2p` sulla build .5 **39/39**; `natpf-mira-lato` **23/23** (partita 1 con la
+  mira media 22 colpi, metà 41 · 59 %, «equilibrata»; partita 2 con la mira alta 4 colpi, «troppo pochi colpi»);
+  `natpf-diag-session` **24/24** (costo del registratore mediana 0,9 ms/s, massimo 7,2; video della webcam e del gioco di
+  153,6 s); `natpf-leggenda` **7/7** (6 punti, 61 colpi della CPU, 9 schemi, corsa massima 8,00 m/s; un allungo vero in
+  partita a 1,67 m dal corpo: piatto +0,08, mano +0,22 contro 0,18 richiesti, testa +0,41 m; 4 allunghi forzati: piatto
+  +0,31…+0,47, mano +0,30…+0,45, testa +0,19…+0,34 m); `natpf-rally` con `DIFF=leggenda` **8/8** (10 colpi su 10 gesti,
+  CPU entro la portata, corsa massima 8 m/s). In più, perché l'integrazione tocca la lettura dei colpi e `index.html`:
+  `natpf-phone-upright` **10/10**, `natpf-gesti-speciali` **9/9**, `natpf-schermo` **41/41**; prove del sito della CI con
+  `run-local.mjs` (porte 8765/9000): `gesture-calibration` **20/20**, `phone-only` **10/10** + `timing-browser` **8/8**.
+  Tutte verdi al primo giro, nessuna ripetuta. Alla fine nessun server acceso sulle porte 4730–4749, 8765, 9000.
+- Zip Cloudflare `natpf-simulator-cloudflare-20261108-5.zip` **22.578.755 B** (127 file, 2,42 MB sotto il limite di
+  25.000.000), sha256 `89ed0cb113b5920322a8ab97ec3c7c536e7e0ae52d5d27231291853a8ab73d71`, in `scratchpad/b16/pacchetti/`.
+  Provato estratto con un server statico: contenuto uguale a `dist` più `_headers` e `natpf/turn.json`; gioco e pagina del
+  telefono con la versione 2026-11-08.5 e nessun errore della pagina; 404 attesi solo su `/api/match/state`, `/lan/status`
+  (e la favicon) e il rifiuto CORS del Worker TURN vero per l'origine locale. L'installer Windows lo costruisce GitHub dopo
+  il push (qui solo i test di `natpf-desktop`, 28/28).
+- Non verificato: telefoni veri, persone vere, webcam vera, Windows (installazione e aggiornamento dal gioco 08.4 → 08.5:
+  l'installer lo costruisce GitHub dopo il push), ledwall, GPU vera; l'esecuzione su GitHub del passo `audit:legend` spostato
+  in fondo al job; la pagina «Collega» con mouse e tastiera o webcam nel browser (coperta dai test con il DOM finto).

@@ -17,7 +17,7 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-- Aggiornato: 08/11/2026 · agente: Claude · branch `natpf-simulator`.
+- Aggiornato: 08/11/2026 sera · agente: Claude · branch `natpf-simulator` (integrazione B16 nel ramo locale `b16-int`).
 - **Per riprendere leggere `docs/PASSAGGIO_CONSEGNE.md`** (lavoro dal 05/11, punti aperti §3, controlli §4) e, per i
   gesti del tutorial, `docs/b13/gesti-nuovi.md`. Checkpoint precedente (storia dal 04/11):
   `docs/archivio/PIANO_checkpoint_fino_al_2026-11-07.md`.
@@ -91,16 +91,44 @@ Come si aggiorna:
 - **Decisioni dell'utente (08/11 sera)** sulle domande del B15 (§3.13 del passaggio di consegne): (a) Leggenda più dura:
   «Sì»; (b) tutorial corto prima della partita (5 schede, le altre in Allenamento e in «Rivedi i gesti»): «Ok» (cambia la
   regola B9 «tutte le schede viste prima di "Tutto chiaro"»); (c) riscaldamento facoltativo: «Ok»; (d) mira più sensibile:
-  «Ok ma come lo misuro?» → misura nella diagnostica, comando che legge il pacchetto e opzione dello staff per la
-  sensibilità (17°/20°), poi decisione con le partite vere.
-- **Richiesta nuova (08/11 sera): B16.** «Vai avanti con l'audit e dimmi cos'altro c'è da migliorare e cosa non va,
-  soprattutto a livello gameplay.»
-- **Blocco in corso: B16** in rami locali da `b9f69c0` (`scratchpad/b16/`, non pubblicati): (1) le decisioni (a)–(d), ognuna
-  con verifica indipendente; (2) audit del gameplay da sei angolazioni (scambi e CPU, movimento e posizionamento,
-  servizio e risposta, sensazione del colpo e ritardi, colpi speciali e gioco a rete, partita e modalità), ogni risultato
-  verificato da un agente scettico, poi un rapporto con le priorità per l'utente.
-- **Prossima azione esatta:** leggere gli esiti in `scratchpad/b16/`; se la sessione è finita i rami sono persi: ripartire
-  da qui (decisioni (a)–(d) e audit).
+  «Ok ma come lo misuro?». Poi la richiesta del **B16**: «Vai avanti con l'audit e dimmi cos'altro c'è da migliorare e cosa
+  non va, soprattutto a livello gameplay.»
+- **B16 fatto, versione 2026-11-08.5 pronta e NON ancora pubblicata** (ramo locale `b16-int`, cartella di lavoro
+  `scratchpad/b16/wt-int`; la pubblicazione la fa chi ha avviato l'integrazione). Base `origin/natpf-simulator` `6dae07a`
+  (con due commit di soli documenti del **B17** di un'altra sessione, vedi sotto); unioni `70c85b3` (Leggenda), `90a8eb7`
+  (tutorial corto e riscaldamento facoltativo), `bb46a6f` (mira); versione e documenti nel commit di questo checkpoint.
+  - (a) **Leggenda più dura**: forza dalla CPU (primo passo, pressione dal 20° colpo, chiusura misurata, controllo dei colpi
+    forti, un po' più di incrociato stretto); `audit:legend` 69/69 e ultimo passo del job del gioco su GitHub; torneo
+    ridotto in `npm test`; prova nel browser `natpf-leggenda`.
+  - (b)+(c) **Tutorial corto e riscaldamento facoltativo**: 5 schede prima della partita (presa, posizione di partenza,
+    dritto, rovescio, servizio), le altre nell'Allenamento e in «Rivedi i gesti»; dopo la calibrazione la pagina «Partita»
+    con «Gioca» e «Riscaldati prima»; tocchi fino alla prima palla singolo 20 → 13, stesso schermo 31 → 19, sfida 25 → 18.
+  - (d) **Mira**: l'addetto la sceglie nel pannello dello stand (alta 17° · media 20° · bassa 23°); la diagnostica misura
+    per partita lato delle palle, palle angolate e piatto mediano; comando `lato-palle.mjs`; `docs/GUIDA_MISURA_MIRA.md`.
+  - **Audit del gameplay**: `docs/b16/rapporto-gameplay.md` (misurato sulla 2026-11-08.4; 25 difetti, 11 miglioramenti,
+    piano in tre tappe). Le 4 decisioni che chiede sono in `docs/PASSAGGIO_CONSEGNE.md` §3 punto 14.
+- Test: gioco 957/957, sito 197/197, LAN 12/12, programma Windows 28/28, build ok, `audit:legend` 69/69; nel browser tutte
+  le prove dei file toccati verdi (elenco e numeri in `docs/WORK_PROGRESS.md` «B16 · Integrazione»). Zip Cloudflare
+  2026-11-08.5 pronto in `scratchpad/b16/pacchetti/` (`natpf-simulator-cloudflare-20261108-5.zip`, 22.578.755 B, sha256
+  `89ed0cb1…8ab73d71`, provato estratto); l'installer lo costruisce GitHub dopo il push.
+- Non verificato: telefoni veri, persone vere, webcam vera, Windows (installer 08.5 e aggiornamento dal gioco 08.4 → 08.5),
+  ledwall, GPU vera; il passo `audit:legend` spostato non è ancora girato su GitHub.
+- **B17 di un'altra sessione, in parallelo** (`docs/b17/analisi-e-piano.md`: gesti del tutorial dal video, X per uscire
+  dal tutorial, punteggio in alto a sinistra, colpi sotto rete). Sovrapposizioni: difetto 2 dell'audit (colpo fallito a
+  Leggenda) ↔ B17.4 (stessa regola `failQ` → `weak` in `natpf_stroke_outcome.js`); difetto 4 (fine partita nello stesso
+  schermo, banner) ↔ B17.3 (tabellone, `natpf_scoreboard.js`); tutorial corto ↔ B17.2 (X per uscire). File che tutte e due
+  le sessioni toccano o toccheranno: `natpf_tutorial.js`, `natpf_split_ui.js`, `index.html`, `natpf_stroke_intent.js`,
+  `natpf_phone_racket.js`, e questi documenti: chi integra dopo fa `git fetch` e unisce (merge), rifà le prove.
+- **Prossima azione esatta:** (1) pubblicare la 2026-11-08.5: `git fetch origin natpf-simulator`; se `origin` è andato
+  avanti unire (merge) e rifare gioco, sito, build e le prove nel browser dei file toccati da tutte e due le parti; poi push
+  di `b16-int` su `origin natpf-simulator` (solo avanzamento lineare, mai `--force`), controllo dei tre workflow di GitHub
+  (anche il passo `audit:legend` in fondo a «NATPF motore base MVP»; installer 08.5 pubblicato su R2), consegna dello zip
+  Cloudflare e del link dell'installer, registro §4 a [x]. (2) Poi attendere le decisioni dell'utente sulle **4 domande
+  dell'audit** (passaggio di consegne §3 punto 14): 1. partire con la tappa 1; 2. formato in fiera: punto decisivo sul
+  40-40 e servizio alternato; 3. pulsante «Nuovo giocatore» che azzera nome, calibrazione e tutorial senza scollegare il
+  telefono, record per giorno; 4. tappa 2 con il livello «Evento» adattivo (adulto medio al 60–70 % dei punti) e un livello
+  per bambini. Prima di cominciare una tappa, coordinarsi con il B17 dell'altra sessione (sovrapposizioni qui sopra).
+
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
 1. **Push**: dopo ogni commit verificato, subito, su `origin natpf-simulator`. Verificato = test del gioco e del sito
@@ -179,6 +207,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B13 Prova del servizio e gesti del tutorial | [x] | `gesture-calibration` senza pausa di rete (stabile con CPU ×4); gesti del tutorial sulla catena fisica del braccio (dritto ancora in diagonale: limite del riconoscimento) | vedi WORK_PROGRESS B13 | 2026-11-08.1 |
 | B14 Dritto: limite, camere, orientamento | [x] | vincolo smentito; camere più basse (08.2); disegno, schiacciata, camere di palla corta/tagliato/pallonetto, prova alle velocità intermedie (08.3); dritto da manuale bloccato (decisione dell'utente) | vedi WORK_PROGRESS B14 | 2026-11-08.3 |
 | B15 Colpi, mancini, flusso | [x] | palla che segue il gesto (forza, piatto); mancini a specchio in tutta la catena; testi brevi e meno scelte | vedi WORK_PROGRESS B15 | 2026-11-08.4 |
+| B16 Decisioni del B15 e audit del gameplay | [~] | Leggenda più dura; tutorial corto (5 schede) e riscaldamento facoltativo; mira scelta dall'addetto e misurata nella diagnostica; rapporto dell'audit `docs/b16/rapporto-gameplay.md` con 4 decisioni chieste; pronta, da pubblicare | vedi WORK_PROGRESS B16 | 2026-11-08.5 |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).

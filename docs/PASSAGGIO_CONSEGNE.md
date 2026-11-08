@@ -1,4 +1,4 @@
-# Passaggio di consegne · NATPF Simulator (aggiornato al 07/11/2026 sera)
+# Passaggio di consegne · NATPF Simulator (aggiornato al 07/11/2026 sera; B16 aggiunto l'08/11/2026 sera)
 
 Per l'agente che riprende **da GitHub** (`sergio4/foro-italico-world`, branch `natpf-simulator`, ultimo commit indicato in
 `docs/PIANO_LAVORI.md` §1). Questo file racconta in dettaglio il lavoro dal 05/11 al 07/11 (blocchi B9, B10, B11),
@@ -10,8 +10,8 @@ cosa resta aperto e cosa va controllato. Le regole permanenti sono in `CLAUDE.md
 
 ```sh
 git fetch origin natpf-simulator && git checkout natpf-simulator && git status -sb && git log --oneline -15
-cd natpf-tennis && npm ci && npm test && npm run build && cd ..          # gioco: 873 test
-node --test tools/test/*.test.mjs                                       # sito e pagina del telefono: 195
+cd natpf-tennis && npm ci && npm test && npm run build && cd ..          # gioco: 957 test (B16)
+node --test tools/test/*.test.mjs                                       # sito e pagina del telefono: 197
 (cd tools/lan && npm ci && node --test test/*.test.mjs)                 # server dei telefoni: 12
 (cd natpf-desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci && npm test) # programma Windows: 28
 npm ci --prefix tools/e2e
@@ -134,6 +134,33 @@ Testo completo della richiesta: `docs/b9/compiti.md`. Analisi e prototipi: `docs
   `c516a2a0ee5ceecf8cb6aaa90ff6a540e7a10809e115862faf948da90ab36f84`. Lo stesso sha256 è stato verificato scaricando dal
   link fisso e dal nome con la versione.
 
+### B16 · Decisioni dell'utente sul B15 e audit del gameplay (08/11/2026 sera, versione 2026-11-08.5)
+Richiesta: risposte alle domande del B15 (§3.13: (a) «sì», (b) «ok», (c) «ok», (d) «ok ma come lo misuro?») e «vai avanti
+con l'audit e dimmi cos'altro c'è da migliorare e cosa non va, soprattutto a livello gameplay». Tre rami locali con
+verifiche indipendenti e correzioni, uniti nel ramo `b16-int` (dettaglio in `docs/WORK_PROGRESS.md`, voci B16).
+- **(a) Leggenda più dura** (`b16-legend`): la CPU è più forte come giocatore (primo passo esplosivo, pressione dal 20°
+  colpo, chiusura degli scambi lunghi misurata, controllo dei colpi forti, un po' più di incrociato stretto), chi gioca non
+  è punito di più. `npm run audit:legend` passa tutti i 69 criteri (prima due rotti: contro «tennista» 67,3 → 92,4 % dei
+  game, contro «preciso» 25,9 → 70,8 %) ed è l'ultimo passo del job del gioco su GitHub; `npm test` ha un torneo ridotto
+  (margine di circa 3 punti contro «preciso»: se fallisce dopo una modifica al motore, prima `audit:legend`, poi ritarare).
+  Prova nel browser `natpf-leggenda` (allungo misurato sul disegno). Resta aperto: in corsa il piatto della racchetta della
+  CPU va verso la palla meno della mano (`docs/NATPF_LEGGENDA.md`).
+- **(b) Tutorial corto e (c) riscaldamento facoltativo** (`b16-flow`): prima della partita 5 schede (presa, posizione di
+  partenza, dritto, rovescio, servizio), le altre nell'Allenamento e in «Rivedi i gesti»; dopo tutorial e calibrazione la
+  pagina «Partita» con «Gioca» e «Riscaldati prima». Tocchi dall'apertura alla prima palla: singolo 20 → 13, stesso schermo
+  31 → 19, sfida tra due computer 25 → 18. Senza riscaldamento i primi colpi hanno la forza giusta (`powerRefs`). Il
+  pulsante di «Collega» dice dove porta; la barra delle tappe ha «Calibrazione» solo con il telefono.
+- **(d) Mira del telefono** (`b16-mira`): l'addetto la sceglie nel **pannello dello stand** (alta 17° · media 20° · bassa
+  23°; non nelle Opzioni); la diagnostica misura per partita il lato delle palle, le palle angolate e il piatto mediano, e
+  dice se due sensibilità si distinguono davvero; comando `scripts/audit/lato-palle.mjs`; guida `docs/GUIDA_MISURA_MIRA.md`.
+  Per confrontare «alta» e «media» servono circa 80 partite per sensibilità.
+- **Audit del gameplay**: `docs/b16/rapporto-gameplay.md` (misurato sulla 2026-11-08.4; sei angolazioni, ogni risultato
+  ricontrollato; 25 difetti, di cui 16 di priorità alta o media, 11 miglioramenti, piano in tre tappe). Le decisioni che chiede sono in §3, punto 14.
+- **Un'altra sessione lavora al B17** (`docs/b17/analisi-e-piano.md`: gesti del tutorial dal video, X per uscire dal
+  tutorial, punteggio in alto a sinistra, colpi sotto rete). Sovrapposizioni da coordinare: difetto 2 dell'audit (colpo
+  fallito a Leggenda) e B17.4 toccano la stessa regola `failQ` → `weak`; difetto 4 (fine partita nello stesso schermo,
+  banner) e B17.3 (tabellone); tutorial corto e B17.2 (la X lavora con qualunque numero di schede).
+
 ### Versioni consegnate in questi giorni
 | Versione | Commit | Contenuto |
 |---|---|---|
@@ -163,12 +190,13 @@ Le sha256 di tutti i pacchetti sono in `docs/WORK_PROGRESS.md`.
 | 10 | **CI** | Azioni aggiornate a Node 24 (checkout, setup-node, upload-artifact v7; B12, 07/11). `gesture-calibration` resa stabile nel B13 (08/11): la prova usava la pausa di rete come fermo immagine e il gioco scarta i gesti fatti oltre 0,8 s dopo l'ultimo fotogramma registrato (`docs/b13/gesture-calibration-ci.md`; con CPU ×4 prima 0/5, ora 12/12). Resta intermittente `timing-browser` (causa diversa: un messaggio del telefono finto oltre 3 s sul runner lento, non corretto) e `natpf-tennis/test/e2e/lan-e2e.mjs` (fuori CI) rosso negli stessi controlli già prima del B8. |
 | 11 | **Sfida tra due computer** | Sospesa dall'utente per le partite vere; fatta solo la correzione minima del «pronto». TURN Worker `natpf-turn` attivo (`docs/GUIDA_TURN_CLOUDFLARE.md`). |
 | 12 | **Velocità dell'animazione su PC senza GPU** | Disegno a 640×400 con rasterizzazione su CPU al limite dei 4 ms con la macchina carica. Su GPU vera non misurato. Dopo il riavvio del contenitore dell'08/11 la stessa misura dà 4,2 ms anche sul codice di prima del B15 (macchina più lenta): il limite di 4 ms della prova `natpf-gesti-fotogrammi` va letto con la macchina scarica. |
-| 13 | **Decisioni chieste dopo il B15 (08/11)** — risposte dell'utente (08/11 sera): (a) sì, (b) ok, (c) ok, (d) «ok ma come lo misuro?»: in lavoro nel B16 | (a) **Leggenda**: con i colpi forti più tesi la CPU Leggenda vince meno contro i profili forti (contro «tennista» 74,5 → 67,3 % dei game, criterio ≥ 85; contro «preciso» 37,4 → 25,9 %, criterio ≥ 60; erano già sotto il criterio): Leggenda più dura o colpi forti meno tesi? (b) **Tutorial corto prima della partita** (5 schede: presa, posizione, dritto, rovescio, servizio; le altre in Allenamento): singolo 21 → 15 tocchi, stesso schermo 29 → 17; cambia la regola «tutte le schede viste prima di "Tutto chiaro"». (c) **Riscaldamento facoltativo** dopo la calibrazione. (d) **Mira più sensibile** (piena a 17°): se nelle prove con persone vere le palle vanno troppo da una parte, `faceSpan` 17 (piena a 20°) dimezza l'effetto. (e) Unire «Con chi giochi?» e «Con cosa giochi?» (non fatto: la scelta della mano sul computer sta lì; `docs/b15/audit-ux.md` §6). |
+| 13 | **Decisioni chieste dopo il B15 (08/11)** — risposte dell'utente (08/11 sera): (a) sì, (b) ok, (c) ok, (d) «ok ma come lo misuro?»: **fatte nel B16 (versione 2026-11-08.5, vedi §2 B16)**; (e) resta non fatta | (a) **Leggenda**: con i colpi forti più tesi la CPU Leggenda vince meno contro i profili forti (contro «tennista» 74,5 → 67,3 % dei game, criterio ≥ 85; contro «preciso» 37,4 → 25,9 %, criterio ≥ 60; erano già sotto il criterio): Leggenda più dura o colpi forti meno tesi? (b) **Tutorial corto prima della partita** (5 schede: presa, posizione, dritto, rovescio, servizio; le altre in Allenamento): singolo 21 → 15 tocchi, stesso schermo 29 → 17; cambia la regola «tutte le schede viste prima di "Tutto chiaro"». (c) **Riscaldamento facoltativo** dopo la calibrazione. (d) **Mira più sensibile** (piena a 17°): se nelle prove con persone vere le palle vanno troppo da una parte, `faceSpan` 17 (piena a 20°) dimezza l'effetto. (e) Unire «Con chi giochi?» e «Con cosa giochi?» (non fatto: la scelta della mano sul computer sta lì; `docs/b15/audit-ux.md` §6). |
+| 14 | **Decisioni chieste dopo l'audit del gameplay (B16, 08/11 sera)** — da coordinare con il B17 dell'altra sessione | (1) **Partire con la tappa 1** del rapporto (correzioni piccole che si vedono di più: fine partita nello stesso schermo, stanchezza, niente schiacciate non volute in risposta, scritte dell'errore, istruzioni del primo servizio…)? (2) **Formato in fiera**: punto decisivo sul 40-40 e servizio che passa come nel tie-break (oggi in un game batte sempre la stessa persona; 9 partite su 10 entro 1,6–2,4 minuti invece di 2,2–3,4)? (3) Pulsante **«Nuovo giocatore»** (fine partita, risultato dei minigiochi, pannello dell'addetto) che azzera nome, calibrazione, colpi imparati e tutorial visto **senza scollegare il telefono**, con record per nome e per giorno? (4) **Tappa 2** con un livello **«Evento» adattivo** (l'adulto medio intorno al 60–70 % dei punti) e un **livello per bambini** sotto Casual? Dettaglio, misure e costi: `docs/b16/rapporto-gameplay.md` §2–§4. |
 
 ## 4. Cosa controllare (prove automatiche e a mano)
 
 **Automatiche (devono essere verdi prima di ogni push e di ogni versione):**
-- Unità: gioco 873, sito 195, LAN 12, programma Windows 28; `npm run build`.
+- Unità: gioco 957, sito 197, LAN 12, programma Windows 28 (B16); `npm run build`; `npm run audit:legend` (69 criteri, ~70 s).
 - Prove nel browser `natpf-*`, con questi valori all'ultimo giro: `natpf-tutorial-phone` 37/37, `natpf-split-ready`
   34/34, `natpf-tutorial-relink` 8/8, `natpf-training-flow` 18/18, `natpf-modale-gesti` 18/18 (fps solo a macchina
   scarica), `natpf-menu` 22/22, `natpf-1v1-p2p` 37/37, `natpf-1v1-webcam-p2` 15/15, `natpf-rally` 7/7,

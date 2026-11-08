@@ -129,6 +129,24 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   strade di sempre. Il canale «fast» del telefono via internet è affidabile ma non ordinato (PeerJS imposta solo
   ordered:false): lasciato così per decisione dell'utente.
 
+## Decisioni B16 (08/11/2026 sera: risposte dell'utente alle domande (a)–(d) del B15)
+
+- **(a) Leggenda più dura**: la forza viene dalla CPU (primo passo, pressione dal 20° colpo, chiusura, controllo dei colpi
+  forti), non da regole più severe per chi gioca; criteri sempre controllati (`audit:legend` in CI, torneo ridotto in
+  `npm test`). Dettaglio in §CPU Leggenda.
+- **(b) Tutorial corto prima della partita**: cambia la regola B9 «tutte le schede viste prima di "Tutto chiaro"». Prima
+  della partita 5 schede: presa, posizione di partenza (pronto), dritto, rovescio, servizio; le altre 6 (piatto,
+  pallonetto, palla corta, tagliato, schiacciata, volée) nell'Allenamento e in «Rivedi i gesti». Dettaglio in §Decisioni B9.
+- **(c) Riscaldamento facoltativo**: dopo tutorial corto e calibrazione si va alla pagina «Partita»; il riscaldamento
+  (dritto, rovescio, servizio) parte solo con «Riscaldati prima» (o dall'Allenamento). Dettaglio in §Decisioni B9.
+- **(d) Mira del telefono**: sensibilità scelta dall'**addetto** nel **pannello dello stand** (alta 17° di base, media 20°,
+  bassa 23°), non nelle Opzioni dei visitatori; misura per partita nella diagnostica e comando `lato-palle.mjs`. Dettaglio
+  in §Mira del telefono e `docs/GUIDA_MISURA_MIRA.md`.
+- **Audit del gameplay** (`docs/b16/rapporto-gameplay.md`, misurato sulla 2026-11-08.4): piano in tre tappe; decisioni
+  chieste all'utente in `docs/PASSAGGIO_CONSEGNE.md` §3. Tre punti si sovrappongono al B17 di un'altra sessione
+  (`docs/b17/analisi-e-piano.md`): colpo fallito a Leggenda ↔ colpi sotto rete (stessa regola `failQ` → `weak`), fine
+  partita nello stesso schermo ↔ punteggio in alto a sinistra, tutorial corto ↔ X per uscire dal tutorial.
+
 ## Decisioni B11 (07/11/2026: un solo installer Windows che si aggiorna dal gioco)
 
 - Prodotti consegnati: **installer Windows unico** (`NATPF-Simulator-Setup-<build>.exe`) e **zip Cloudflare** per il
@@ -150,7 +168,7 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 - **Tutorial corto prima della partita (decisione cambiata dall'utente l'08/11 sera, B16; prima: «tutte le 11 schede viste
   prima di "Tutto chiaro"» anche prima della partita)**: prima della partita contro la CPU, della sfida tra due computer
   (host), dei minigiochi e nello stesso schermo (ognuno il suo tutorial e il suo «Tutto chiaro») 5 schede: presa,
-  posizione, dritto, rovescio, servizio. L'Allenamento dal menu e «Rivedi i gesti» mostrano tutte le 11 (piatto,
+  posizione di partenza (pronto), dritto, rovescio, servizio. L'Allenamento dal menu e «Rivedi i gesti» mostrano tutte le 11 (piatto,
   pallonetto, palla corta, tagliato, schiacciata, volée). Le 5 sono le prime 5 di `TUTORIAL_CARDS` (`natpf_tutorial.js`:
   `tutorialCards('short'|'full')`, `tutorialSetFor(mode)`): stessi indici, quindi il protocollo `tp` non cambia (`n` =
   schede di quel tutorial, `m` maschera sugli stessi indici; un telefono con la pagina di prima mostra «Scheda x di 5» e
@@ -261,7 +279,7 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   (token `--ink-*`, `--ball`, `--pink`, `--r-*`; pulsanti `.btn .btn-primary .btn-ghost .btn-sm`; segmenti `.seg`).
   Font Barlow / Barlow Condensed (SIL OFL) in `natpf-tennis/fonts/`, URL relativi: Vite li include nella build.
 - **Tutorial**: «Allenamento» = lezione + 11 esercizi; il riscaldamento prima della partita = dritto, rovescio,
-  servizio senza lezione (`WARMUP_IDS` in `natpf_training.js`). La volée si allena a rete (`VOLLEY_Z`).
+  servizio senza lezione (`WARMUP_IDS` in `natpf_training.js`), facoltativo dal B16 («Riscaldati prima» nella pagina «Partita»). La volée si allena a rete (`VOLLEY_Z`).
 
 ## Storico modifiche significative
 
