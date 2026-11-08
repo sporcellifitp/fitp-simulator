@@ -787,6 +787,7 @@ export class NatpfTennisEngine {
     this.motionController?.setRoomConfig?.({ roomId: "default", role: "p1" });
     this.roomStatus = { ...this.roomStatus, roomId: "default", p2Online: !1, p2Ready: !1, isMultiplayer: !1 };
     this.hud?.updateMultiplayerRoomInfo?.(this.roomStatus);
+    this._natpfClearP2Hand();
   }
   // NATPF split screen: sessione 1v1 locale (nessuna stanza, nessuna rete). Il P2 gioca con il secondo telefono
   // (natpfPhone2, role 'p2'), le regole sono quelle del 1v1 dell'host; singolare, due viste in terza persona.
@@ -804,6 +805,7 @@ export class NatpfTennisEngine {
     if (!this.natpfSplit?.active) return;
     this.natpfSplit.active = !1;
     (this.versus = { active: !1, closing: !1 }), (this.isMultiplayer = !1), (this.pendingP2Swing = null);
+    this._natpfClearP2Hand();
     typeof document < "u" && document.body.classList.remove("natpf-split");
     // la camera del motore torna a schermo intero al primo fotogramma non diviso (NatpfSplit.render)
   }
@@ -3331,6 +3333,12 @@ export class NatpfTennisEngine {
     this.natpfP2Hand = hand;
     this.natpfUi?.hand?.mirrorRemote?.(this.opponent, hand);
   }
+  // NATPF B15: fine della sessione con un altro giocatore (stesso schermo, sfida in rete): la sua mano non vale più.
+  // Prima restava: il P2 del 1v1 seguente aveva il piano da mancino fino al primo colpo, la CPU restava specchiata
+  _natpfClearP2Hand() {
+    this.natpfP2Hand = null;
+    this.natpfUi?.hand?.mirrorRemote?.(this.opponent, "right");
+  }
   _handleRoomStateUpdate(e = {}) {
     if (!e) return;
     // NATPF B15: host in una sfida 1v1 in rete: la mano del P2 dal relay, prima del suo primo colpo (relay di prima: nessuna)
@@ -3387,7 +3395,8 @@ export class NatpfTennisEngine {
       n.fmt && n.fmt !== this.matchFormat.id && this.setMatchFormat(n.fmt);
       n.gamesToWin && (this.matchConfig.gamesToWin = n.gamesToWin);
       // l'host ha chiuso la stanza o è in lobby: niente partita da mostrare
-      if (n.closed) { G.closed = !0; G.lobby = !0; return; }
+      // (B15: anche la mano dell'host non vale più: il suo personaggio torna destro)
+      if (n.closed) { G.closed = !0; G.lobby = !0; this.natpfUi?.hand?.mirrorRemote?.(this.player, "right"); return; }
       G.closed = !1;
       // NATPF B15: mano dell'host (lobby e partita): il suo personaggio specchiato se è mancino (host di prima: nessuna)
       (n.p1Hand === "left" || n.p1Hand === "right") && this.natpfUi?.hand?.mirrorRemote?.(this.player, n.p1Hand);

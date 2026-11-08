@@ -208,8 +208,14 @@ export class NatpfSplitUi {
     return ok;
   }
   setHand(id, hand){
-    // (natpfP2Hand: il piano d'intercetto del P2 sa da che lato è il suo dritto prima del primo colpo, natpf_impact.handOf)
-    if (id === 'p2'){ this.engine.natpfPhone2?.setHand(hand); this.engine.natpfP2Hand = hand === 'left' ? 'left' : 'right'; this.ui.hand.mirrorRemote?.(this.engine.opponent, hand); if (this.engine.motionController) this.engine.motionController.p2HandPreference = hand; }
+    // (natpfP2Hand: il piano d'intercetto del P2 sa da che lato è il suo dritto prima del primo colpo, natpf_impact.handOf).
+    // Nel motore (natpfP2Hand, personaggio specchiato) solo a sessione in corso: prima di «Gioca» è la preferenza del P2,
+    // che start() applica; prima restava anche tornando al menu (CPU o P2 del 1v1 in rete mancini, B15)
+    if (id === 'p2'){
+      this.engine.natpfPhone2?.setHand(hand);
+      if (this.session) this.engine._natpfSetP2Hand?.(hand);
+      if (this.engine.motionController) this.engine.motionController.p2HandPreference = hand;
+    }
     else { this.ui.hand.set(hand); this.ui.paintTiles?.(); }
     this.paint();
   }
@@ -458,8 +464,7 @@ export class NatpfSplitUi {
   start(){
     this.closeTutorials();
     if (!this.engine.startSplit()) return false;
-    this.engine.natpfP2Hand = this.hand('p2');
-    this.ui.hand.mirrorRemote?.(this.engine.opponent, this.hand('p2'));
+    this.engine._natpfSetP2Hand?.(this.hand('p2'));   // natpfP2Hand e personaggio specchiato (game_engine.js)
     return true;
   }
   end(){

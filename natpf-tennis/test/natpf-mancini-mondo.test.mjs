@@ -126,3 +126,51 @@ test('1v1, computer del P2: l’host mancino è specchiato e ha la sua mano (sna
   snap({ phase: 'RALLY', phaseTimer: 1, score: { ...E.score }, ball: { px: 0, py: 1, pz: 0, vx: 0, vy: 0, vz: 0, inPlay: true }, p1Hand: 'left' }); w.advance(100);
   assert.ok(E.player.root.scale.x < 0);
 });
+
+// Punto 5: la mano del P2 (natpfP2Hand) e lo specchio dell'avversario restavano dopo la fine della sessione: dopo lo
+// stesso schermo con un P2 mancino, il P2 di un 1v1 in rete aveva il piano da mancino fino al primo colpo (e la CPU
+// restava specchiata); sul computer del P2 l'host restava specchiato dopo la stanza chiusa
+test('fine sessione: mano del P2 e specchio dell’avversario azzerati (stesso schermo, 1v1 in rete, stanza chiusa sul P2)', async () => {
+  // stesso schermo con il P2 mancino → fine → 1v1 in rete: nessuna mano del P2 finché non arriva
+  const s = await splitWorld({ p2: 'left' });
+  assert.equal(s.E.natpfP2Hand, 'left'); assert.ok(s.E.opponent.root.scale.x < 0);
+  s.E.endSplit();
+  assert.notEqual(s.E.natpfP2Hand, 'left', 'stesso schermo finito: mano del P2 azzerata');
+  assert.ok(s.E.opponent.root.scale.x > 0 && s.E.opponent.natpfHand !== 'left', 'avversario non più specchiato');
+  // contro la CPU: palla del servizio nella sinistra dell'avversario (destro), non più nella destra
+  s.E.score.server = 'opponent'; s.E._setupPointServe({ showBanner: false });
+  assert.ok(s.E.ball.pos.x - s.E.opponent.pos.x > 0, 'la CPU tiene la palla nella sinistra (destro)');
+  // mano scelta nel pannello dello stesso schermo senza poi giocare (si torna al menu): è solo la preferenza del P2,
+  // l'avversario della CPU o del 1v1 in rete non diventa mancino; «Gioca» la applica
+  const q = await makeWorld({ controller: 'phone' });
+  q.E.natpfPhone2 = new NatpfPhoneRacket(q.E, { role: 'p2' }); q.E.natpfPhone2.link = fakeLink();
+  q.ui.split.setHand('p2', 'left');
+  assert.equal(q.ui.split.hand('p2'), 'left', 'preferenza del P2 ricordata');
+  assert.notEqual(q.E.natpfP2Hand, 'left', 'fuori dalla sessione: nessuna mano del P2 nel motore');
+  assert.ok(q.E.opponent.root.scale.x > 0, 'fuori dalla sessione: avversario non specchiato');
+  assert.equal(q.ui.split.start(), true);
+  assert.equal(q.E.natpfP2Hand, 'left', '«Gioca»: mano del P2'); assert.ok(q.E.opponent.root.scale.x < 0);
+  q.ui.split.setHand('p2', 'right');
+  assert.equal(q.E.natpfP2Hand, 'right', 'cambio a sessione in corso'); assert.ok(q.E.opponent.root.scale.x > 0);
+  q.ui.split.end();
+  assert.notEqual(q.E.natpfP2Hand, 'right'); assert.equal(q.E.natpfP2Hand, null);
+  // host 1v1 in rete con il P2 mancino → altra modalità (endVersus): azzerata
+  const w = await hostLobby('right'), { E } = w;
+  E._handleRoomStateUpdate({ p2Online: true, p2Ready: true, p2Hand: 'left' });
+  assert.equal(E.natpfP2Hand, 'left');
+  E.endVersus();
+  assert.notEqual(E.natpfP2Hand, 'left', 'sfida finita: mano del P2 azzerata');
+  assert.ok(E.opponent.root.scale.x > 0 && E.opponent.natpfHand !== 'left');
+  // il P1 resta com'era (mancino specchiato anche dopo)
+  const l = await hostLobby('left');
+  l.E._handleRoomStateUpdate({ p2Online: true, p2Hand: 'left' }); l.E.endVersus();
+  assert.ok(l.E.player.root.scale.x < 0, 'l’host mancino resta specchiato');
+  // computer del P2: stanza chiusa → l'host non è più specchiato
+  const p = await makeWorld({ controller: 'mouse', role: 'p2' }); p.advance(300);
+  let seq = 0;
+  const snap = snapshot => p.E._handleRoomStateUpdate({ p1Online: true, hostName: 'Ada', epoch: 'x', snapshotSeq: ++seq, snapshot });
+  snap({ lobby: true, p1Hand: 'left' }); assert.ok(p.E.player.root.scale.x < 0);
+  snap({ closed: true });
+  assert.ok(p.E.player.root.scale.x > 0 && p.E.player.natpfHand !== 'left', 'stanza chiusa: host non più specchiato');
+  assert.ok(p.E.opponent.root.scale.x > 0, 'il P2 (destro) com’era');
+});
