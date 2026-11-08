@@ -390,7 +390,7 @@ export const CAMERAS = Object.freeze({
   flat: Object.freeze({ dir: [-.148, .819, .554], dist: 3.6, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .8, size: .4 }), frame: 'swing', read: 'come il dritto, più veloce e più piatto' }),
   backhand: Object.freeze({ dir: [-.383, .643, .663], dist: 3.6, follow: Object.freeze({ window: .25, mix: .7, mixSmall: .9, size: .4 }), frame: 'swing', read: 'spalle che girano a sinistra, braccio davanti al corpo, chiusura in alto a destra' }),
   slice: Object.freeze({ dir: [-.4, .36, .84], dist: 3.6, frameBody: 'head', read: 'la mano parte alta e scende in avanti, piatto aperto' }),
-  lob: Object.freeze({ dir: [-.24, .65, .72], dist: 3.6, follow: Object.freeze({ window: .25, mix: .85, size: .5 }), read: 'lancio da sotto: il braccio oscilla indietro e sale davanti' }),
+  lob: Object.freeze({ dir: [-.35, .45, .82], dist: 3.6, follow: Object.freeze({ window: .25, mix: .8, size: .5 }), read: 'lancio da sotto: il braccio oscilla indietro e sale davanti' }),
   drop: Object.freeze({ dir: [-.62, .26, .74], dist: 3.4, frameBody: 'head', read: 'gesto corto e lento: il gomito si distende, la mano scende un poco in avanti e il piatto si apre' }),
   serve: Object.freeze({ dir: [.37, .65, .67], dist: 3.6, follow: Object.freeze({ window: .3, mix: .8, size: .5 }), read: 'lancio, braccio in alto sopra la testa, battuta al colmo della palla' }),
   smash: Object.freeze({ dir: [-.59, .65, .48], dist: 3.6, follow: Object.freeze({ window: .3, mix: .55, size: .5 }), read: 'braccio in alto sopra la testa, poi in avanti e giù deciso' }),
