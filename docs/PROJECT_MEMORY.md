@@ -450,10 +450,19 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   massimo 60° dalla rete), gomito staccato dal corpo (≥ 0,1 m), carica dietro il piano del busto, una sola frenata
   (nessuna riaccelerazione oltre 0,3 m/s o 40 °/s), nessuna compenetrazione di avambraccio, gomito, dita e telefono con
   busto e testa. La fedeltà al riconoscimento resta in `natpf-gesture-pose` e `natpf-racchetta` (non toccati).
-- **Vincolo del dritto**: con la presa nel palmo e i limiti del riconoscimento (carica lenta per ~70° di rotazione del
-  telefono, parte veloce di ~45° prima del picco) la mano all'impatto non può andare dritta verso la rete con il palmo
-  davanti: va in diagonale avanti-sinistra (57°). Una mano tutta in avanti avrebbe il dorso davanti. Per cambiarlo si
-  dovrebbe toccare il riconoscimento (con prove su telefoni veri), non l'animazione.
+- **Dritto in diagonale (57°): non è un vincolo del riconoscimento** (B14, 08/11, verificato in modo indipendente). Il
+  B13 lo attribuiva al riconoscimento; un'indagine ha ottenuto 33° dalla rete senza toccarlo (tutti i test verdi, 40/40
+  letture, 0/72 errori con le prese di chi imita), quindi il limite veniva dalle bande dell'ottimizzatore B13 (torsione
+  ≥ −25°, «~70° di carica», scatole estetiche). Vincoli veri trovati: carica ≤ ~148 °/s, perché con la calibrazione
+  veloce (`site/js/tennis/gesture-intent.js:34-36`, soglia `:64` = max(rumore×5, riferimento×0,28), usata in
+  `swing-detect.js:350,355`) una carica più veloce si legge come palla corta; picco letto > 652 perché
+  `natpf-racchetta.test.mjs:512` vuole il colpo tipico entro 20 dal riferimento della calibrazione col braccio simulato
+  (672); salita della presa a martello ≤ ~0,14 per la finestra del piatto (`natpf_stroke_intent.js:38`, ±0,12); salita
+  della presa nel palmo > 0 (`natpf-racchetta.test.mjs:473`); avambraccio ≥ 28° dal raggio della camera
+  (`natpf-gesture-anim`). L'ampiezza 85±3° e il limite di carica 180 °/s di `natpf-gesture-pose.test.mjs:133` sono
+  scelte di progetto del B9. Il problema che si vede però è l'**orientamento**: in carica la cima del telefono (la
+  racchetta virtuale di `stroke-shape.js`, 0,45 m lungo la cima) punta alla rete e all'impatto palmo e schermo guardano
+  indietro, verso chi gioca; in un dritto vero la racchetta è portata indietro e all'impatto il palmo guarda la rete.
 - Le coreografie si ritoccano con un ottimizzatore fuori dal repository (Nelder–Mead sulle pose chiave e sui ritardi,
   ogni candidato letto dal telefono simulato completo): descritto in `docs/b13/gesti-nuovi.md`.
 

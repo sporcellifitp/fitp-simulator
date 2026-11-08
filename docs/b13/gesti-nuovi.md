@@ -25,7 +25,8 @@ Correzioni (commit `9e640ed` e seguenti):
   alto a 6,7 m/s (57° dalla direzione della rete invece di 77°, salita 0,18), palmo che spinge (+0,18), **una sola
   frenata** fino alla fine davanti alla spalla sinistra a 1,45 m (sopra la spalla), busto a +27°. Sequenza: busto −9 ms,
   omero −21 ms, avambraccio +1 ms, mano −1 ms.
-- **Vincolo scoperto** (perché la mano non va dritta verso la rete con il palmo davanti): con la presa approvata e i limiti
+- **Vincolo scoperto** (**smentito nel B14**: 33° dalla rete senza toccare il riconoscimento; i vincoli veri sono in
+  `docs/PROJECT_MEMORY.md`, gesti B13) (perché la mano non va dritta verso la rete con il palmo davanti): con la presa approvata e i limiti
   del riconoscimento (carica ≤ ~150 °/s per ~70° di rotazione del telefono, parte veloce di ~45° prima del picco) la
   torsione del telefono all'impatto rispetto alla posa di partenza non può scendere sotto ~−25°: all'impatto la cima del
   telefono punta in avanti e un «manico» che punta alla rete spazza di lato. Il compromesso è la mano in diagonale

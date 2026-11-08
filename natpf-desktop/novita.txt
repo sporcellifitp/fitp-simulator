@@ -4,3 +4,4 @@
 # Le righe delle versioni vecchie si possono lasciare o togliere.
 2026-11-07.5: La forza dei colpi resta giusta anche dopo tante palle corte (prima il dritto poteva diventare un colpo piatto).
 2026-11-08.1: Nel tutorial i gesti mostrano tutto il braccio, dalla spalla al telefono, con movimenti più naturali: dritto, rovescio, servizio, schiacciata e volée rifatti.
+2026-11-08.2: Nel tutorial il dritto e i colpi da fondo si vedono da un'angolazione più bassa: si capisce meglio che la mano va avanti e sale.

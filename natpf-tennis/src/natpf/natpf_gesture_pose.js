@@ -376,7 +376,7 @@ export const PHASES = Object.freeze({
 // ferme e il giro della camera tra le due (s).
 // B14 (lettura del dritto): la camera della televisione (dietro e dall'alto, 55°) schiacciava sullo schermo «avanti» e
 // «in alto» (20° tra le due direzioni) e, seguendo la mano per 0,8, cancellava la salita: dall'impatto alla fine la mano,
-// che sale di 0,5 m, scendeva di 1 px sullo schermo. Dritto e lungolinea ora da dietro a sinistra e più in basso (15–25°,
+// che sale di 0,5 m, scendeva di circa 7 px sullo schermo (640×400). Dritto e lungolinea ora da dietro a sinistra e più in basso (15–25°,
 // stessa mano di chi imita): avanti è a sinistra, in alto è in alto (78°), la mano all'impatto va verso la rete sullo
 // schermo (9°) e sale verso la fine (28% dell'altezza), il corpo si legge in piedi; la camera segue la mano per 0,5. Il
 // piatto resta nella direzione di prima (le direzioni basse non tengono il telefono non di taglio nella carica) e segue

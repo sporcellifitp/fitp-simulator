@@ -4,7 +4,7 @@
 > test del gioco e del sito e con le prove nel browser `natpf-gesti-fotogrammi` e `natpf-modale-gesti`. Non visto
 > dall'utente, non provato su un telefono vero (il riconoscimento non è toccato).
 > Richiesta di partenza (07/11): «il dritto non mi sembra tale». Il moto del B13 resta quello (mano all'impatto in
-> diagonale avanti-sinistra, 57° dalla rete: vincolo del riconoscimento, `docs/b13/gesti-nuovi.md` §0). Qui si cambia
+> diagonale avanti-sinistra, 57° dalla rete; il «vincolo del riconoscimento» del B13 è stato smentito: vedi `docs/PROJECT_MEMORY.md`, gesti B13). Qui si cambia
 > solo come lo si guarda.
 
 ## 1. Cosa non si leggeva
@@ -42,7 +42,7 @@ Mappe per posa (azimut × elevazione):
 | scheda | direzione (azimut, elevazione) | segue (640×400 / 448×280) | lettura |
 |---|---|---|---|
 | dritto | −55°, 15° | 0,5 / 0,65 | avanti a sinistra, in alto in alto, corpo in piedi, fine alta alla testa |
-| lungolinea | −65°, 25° | 0,5 / 0,65 | come il dritto |
+| lungolinea | −65°, 25° | 0,5 / 0,65 | come il dritto: avanti/alto 78°, mano 16° dalla rete sullo schermo, salita 0,25 (misure del verificatore) |
 | incrociato | −15°, 5° | 0,5 / 0,65 | da dietro, busto in piedi, salita 0,37 |
 | piatto | come prima (−15°, 55°) | 0,5 / 0,8 | le direzioni basse lasciano il telefono di taglio nella carica; segue meno: salita 0,10 (prima 0,02) |
 | rovescio | −30°, 40° | 0,7 / 0,9 | salita 0,26 (prima 0,13), avanti/alto 40° (prima 16°) |

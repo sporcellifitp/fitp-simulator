@@ -25,7 +25,7 @@ function screenDirs(id){
 }
 const ang = (a, b) => Math.acos(Math.max(-1, Math.min(1, (a[0]*b[0] + a[1]*b[1])/Math.hypot(...a)/Math.hypot(...b))))/D;
 
-test('camere dei colpi da fondo: dall\'impatto alla fine la mano sale sullo schermo (prima il dritto scendeva di 1 px a 640×400)', () => {
+test('camere dei colpi da fondo: dall\'impatto alla fine la mano sale sullo schermo (prima il dritto scendeva di circa 7 px a 640×400)', () => {
   const min = { forehand: .2, line: .2, cross: .2, backhand: .15, flat: .06 };
   for (const [id, m] of Object.entries(min)){
     for (const [W, H] of [[640, 400], [448, 280]]){
