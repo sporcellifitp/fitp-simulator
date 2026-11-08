@@ -278,7 +278,16 @@ export function webcamGate(engine, hand = handOf(engine, engine?.localActor)){
 // un gesto debole prima del colmo aspetta il colpo vero fino a serveWait dopo il colmo. Senza colpo tipico (profilo
 // semplice, webcam) nessun gesto è debole. Chi gioca con colpetti piccoli ha un colpo tipico piccolo: i suoi colpi non
 // sono deboli.
-export const WEAK = Object.freeze({ rel: .3, early: .08, wait: .22, serveWait: .3, ample: 25 });
+// A rete (B17.4, revisione): il telefono entro netZ m dalla rete (cfg net:1, natpf_phone_racket NET_Z.in; stessa regola di
+// «net» in game_engine._natpfRacketShot, |z| < 5) accetta i tocchi da 0,10 × colpo tipico e 10° (swing-detect netMinPeak,
+// netMinAngle). Con rel .3 e ample 25 il motore li scartava in silenzio: nelle due diagnostiche dell'08/11, dei 30 gesti
+// «deboli» (163–469 °/s, 10–103°, colpo tipico ~1300) 8 con ampiezza 10–20° sarebbero stati scartati da resolvePending
+// («palla persa» spostata dal telefono al motore). Ora a rete un gesto è debole solo sotto netRel × tipico (195 °/s con 1300:
+// i tocchi di volée si giocano all'arrivo della palla, morbidi in attesa SOFT) e un gesto debole si gioca da netAmple gradi
+// (come il telefono): niente che il telefono lascia passare a rete viene scartato dal motore per la sola forza
+export const WEAK = Object.freeze({ rel: .3, early: .08, wait: .22, serveWait: .3, ample: 25, netRel: .15, netAmple: 10, netZ: 5 });
+// chi colpisce è a rete (entro WEAK.netZ dalla rete): la soglia del gesto debole e l'ampiezza minima sono quelle del telefono
+export const nearNetActor = actor => Math.abs(finite(actor?.pos?.z, NaN)) < WEAK.netZ;
 export const KEEP = Object.freeze({ conf: .5, within: .45 });
 // Servizio battuto da un gesto intermedio (diagnostica 20261030-142438 n. 101/102): un gesto da 732 °/s (0,68 del colpo
 // tipico, 1082) 368 ms prima del colmo batteva subito, e la battuta vera (1022 °/s, 25 ms prima del colmo) arrivava dopo
@@ -323,12 +332,12 @@ export function softSwing(e = {}){
   const peak = finite(e.natpf?.peak, NaN), typ = finite(e.natpf?.typical, NaN);
   return Number.isFinite(peak) && Number.isFinite(typ) && typ > 0 && peak < SOFT.rel*typ;
 }
-export function weakSwing(e = {}){
+export function weakSwing(e = {}, net = false){
   // Palla corta e pallonetto confermati dalla forma sono volutamente lenti, non una preparazione da scartare (28/10 sera:
   // a rete un pallonetto da 356 °/s, 0,1 s dopo il punto d'impatto, era ignorato come il rientro della mano)
   if (deliberateSpecial(e)) return false;
   const peak = finite(e.natpf?.peak, NaN), typ = finite(e.natpf?.typical, NaN);
-  return Number.isFinite(peak) && Number.isFinite(typ) && typ > 0 && peak < WEAK.rel*typ;
+  return Number.isFinite(peak) && Number.isFinite(typ) && typ > 0 && peak < (net ? WEAK.netRel : WEAK.rel)*typ;
 }
 
 // Lo swing di chi gioca nello scambio: in attesa fino all'arrivo della palla (o subito, se è già passata da poco).
@@ -339,7 +348,7 @@ export function queueUserSwing(engine, e, actor){
   if (ttc == null) return null;
   const lat = eventLatency(e), lead = ttc + lat, now = finite(engine.elapsedTime);
   const lateSpan = lateSpanOf(engine.ball.vel.z, skillLevel(engine.matchConfig?.difficulty)) + lateMargin(engine, actor), key = pendKey(engine, actor);
-  const strength = swingStrength(e), weak = weakSwing(e);
+  const net = nearNetActor(actor), strength = swingStrength(e), weak = weakSwing(e, net);
   if (ttc < 0){
     if (weak) return 'ignored';
     // decisione rinviata su un gesto morbido in attesa (SOFT): lo sostituisce solo uno swing chiaramente più forte; la
@@ -356,7 +365,7 @@ export function queueUserSwing(engine, e, actor){
     return deferred ? 'ignored' : 'whiff';
   }
   const lateWin = lateSpan*(W.lateExtra || IMPACT.lateExtra);
-  const cand = { evt: { ...e, natpfTau: lead, natpfLateSpan: lateSpan }, lead, strength, weak, lateWin, actor, at: now, prep: !0, waitForSweetSpot: !0, natpfWindow: !0, expiresAt: now + ttc + lateWin + .12 };
+  const cand = { evt: { ...e, natpfTau: lead, natpfLateSpan: lateSpan }, lead, strength, weak, net, lateWin, actor, at: now, prep: !0, waitForSweetSpot: !0, natpfWindow: !0, expiresAt: now + ttc + lateWin + .12 };
   const cur = engine[key];
   let better = !cur || !cur.natpfWindow || strength >= cur.strength*1.15 || (Math.abs(lead) < Math.abs(cur.lead) && strength >= cur.strength*.6);
   // un colpo vero sostituisce sempre un gesto debole in attesa, mai il contrario
@@ -390,7 +399,9 @@ export function resolvePending(engine, actor){
     if (ps.deferUntil == null){ ps.deferUntil = now + Math.min(WEAK.wait, Math.max(.05, finite(ps.lateWin, WEAK.wait))); return false; }
     if (now < ps.deferUntil) return false;
     engine[key] = null;
-    if (finite(ps.evt?.natpf?.angle) >= WEAK.ample && Math.abs(b.pos.x - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4) strike(engine, actor, ps.evt);
+    // a rete (al momento del gesto o adesso) basta l'ampiezza che accetta il telefono (netAmple): il tocco di volée si gioca
+    const ample = ps.net || nearNetActor(actor) ? WEAK.netAmple : WEAK.ample;
+    if (finite(ps.evt?.natpf?.angle) >= ample && Math.abs(b.pos.x - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4) strike(engine, actor, ps.evt);
     else engine._natpfWeakDropped?.(ps);
     return true;
   }

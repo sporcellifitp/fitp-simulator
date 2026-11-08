@@ -7,9 +7,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { strokeOutcome, directionSpan, lateSpanOf, impactWindow, OUTCOME, ASSIST, strokeSeed, seedUnit } from '../src/natpf/natpf_stroke_outcome.js';
 import { ARC, skillLevel } from '../src/natpf/natpf_skill.js';
-import { earlyWindow } from '../src/natpf/natpf_impact.js';
+import { earlyWindow, WEAK, weakSwing, nearNetActor } from '../src/natpf/natpf_impact.js';
 import { NatpfPhoneRacket, atNet, NET_Z } from '../src/natpf/natpf_phone_racket.js';
+import { DEFAULTS as DET } from '@natpf/tennis/swing-detect.js';
 import { FIXTURE, replay, reproduces } from '../scripts/audit/rete-diag.mjs';
+import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
 
 const lv = skillLevel('leggenda'), span = directionSpan(lv), late = lateSpanOf(8, lv);
 // la situazione delle diagnostiche: a rete (4 m), palla corta rimbalzata, bassa (0,9 m), lenta (8 m/s), qualità di situazione
@@ -132,4 +134,61 @@ test('telefono: il gioco manda cfg net:1 quando chi gioca è entro 5 m dalla ret
   assert.equal(atNet(E(4.9)), true); assert.equal(atNet(E(5.3)), false); assert.equal(atNet(E(5.3), 'p1', true), true); assert.equal(atNet(E(5.7), 'p1', true), false);
   assert.equal(atNet(E(4.9, 'POINT_OVER')), false); assert.equal(atNet(E(-4.9), 'p2'), true);
   assert.deepEqual(NET_Z, { in: 5, out: 5.6 });
+});
+
+// Revisione del B17.4: la soglia bassa del telefono a rete era vanificata dal motore (WEAK.rel .3 e ample 25: un tocco da
+// 200 °/s e 15° fatto 0,2 s prima della palla era «debole» e, sotto 25°, scartato in silenzio da resolvePending: la palla
+// passava). Motore vero senza browser: Leggenda, chi gioca a 4,5 m dalla rete, palla corta lenta (6 m/s) in arrivo
+function netTouch({ peak, angle, lead, shot = 'slice', power = .15, rise = -.3, conf = .3, vz = 6, playerZ = 4.5 }){
+  const realRandom = Math.random; Math.random = mulberry32(5);
+  try {
+    const e = createHeadlessEngine({ difficulty: 'leggenda' }); e.startNewMatch({ showStartBanner: false });
+    e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'opponent'; e.ball.bounceCountOnCurrentSide = 1; e.ball.rallyStrokeCount = 4;
+    e.player.pos.set(.3, 0, playerZ); e.player.targetPos.copy(e.player.pos); e.player.vel.set(0, 0, 0);
+    const zc = playerZ - .35; e.ball.pos.set(.6, .95, zc - lead*vz); e.ball.vel.set(0, 0, vz); e.ball.targetLanding.set(.6, 0, 3);
+    e._handleUserSwingInput({ source: 'natpf-phone', side: 'forehand', shotType: shot, speed: .8 + power*.85, dirX: 0, timing: null,
+      natpf: { aim: 'swing', shot, conf, power, latency: 0, hand: 'right', peak, typical: 1300, angle, intent: { shot, power, typePower: power, depth: power, rise, face: 0, conf, byShape: true } } });
+    let steps = 0;
+    for (let i = 0; i < 200 && e.ball.lastHitter === 'opponent' && e.phase === 'RALLY'; i++){ e.ball.vel.y = 0; e.step(1/120); steps++; }
+    const R = e.natpfLastRacket, hit = e.ball.lastHitter === 'player';
+    return { hit, t: steps/120, out: hit && R ? R.out : null };
+  } finally { Math.random = realRandom; }
+}
+
+test('motore a rete: un tocco da 200 °/s e 15° fatto 0,2 s prima della palla è giocato (volée controllata), non scartato', () => {
+  // i due gesti della revisione: sulla base (WEAK.rel .3, ample 25) hit:false, la palla passava
+  const a = netTouch({ peak: 200, angle: 15, lead: .2 });
+  assert.ok(a.hit && a.out && !a.out.weak && !a.out.failed && a.out.shot === 'SLICE', JSON.stringify(a));
+  assert.ok(a.t < .2 + WEAK.wait, `giocato all'arrivo della palla (${a.t} s), non dopo l'attesa WEAK`);   // non è «weak» a rete: .15 × 1300 = 195
+  const b = netTouch({ peak: 300, angle: 20, lead: .3 });
+  assert.ok(b.hit && b.out && !b.out.weak && !b.out.failed, JSON.stringify(b));
+  // un gesto sotto netRel × tipico (160 °/s) ma con l'ampiezza del telefono (12°) aspetta il colpo vero WEAK.wait e poi si gioca
+  const c = netTouch({ peak: 160, angle: 12, lead: .2 });
+  assert.ok(c.hit && c.out && !c.out.failed, JSON.stringify(c));
+  assert.ok(c.t >= .2 + .05 && c.t <= .2 + WEAK.wait + .05, `dopo l'attesa del colpo vero (${c.t} s)`);
+  // un micro-movimento (6°, che il telefono non manda) resta scartato anche a rete
+  assert.equal(netTouch({ peak: 160, angle: 6, lead: .2 }).hit, false);
+  // da fondo campo (11,5 m) lo stesso tocco da 200 °/s e 15° è ancora la preparazione: debole e scartato, come prima
+  const far = netTouch({ peak: 200, angle: 15, lead: .2, playerZ: 11.5 });
+  assert.equal(far.hit, false, JSON.stringify(far));
+  assert.ok(netTouch({ peak: 500, angle: 30, lead: .2, playerZ: 11.5 }).hit);
+});
+
+test('soglie a rete coerenti tra telefono e motore: ampiezza netAmple = netMinAngle, zona netZ = NET_Z.in, rel ≥ netMinPeak', () => {
+  assert.equal(WEAK.netAmple, DET.netMinAngle);
+  assert.equal(WEAK.netZ, NET_Z.in);
+  assert.ok(WEAK.netRel >= DET.netMinPeak && WEAK.netRel < WEAK.rel, `${WEAK.netRel}`);
+  const g = peak => ({ natpf: { peak, typical: 1300, angle: 15, intent: { shot: 'slice', conf: .3 } } });
+  assert.equal(weakSwing(g(200)), true); assert.equal(weakSwing(g(200), true), false);
+  assert.equal(weakSwing(g(160), true), true); assert.equal(weakSwing(g(380), true), false); assert.equal(weakSwing(g(380)), true);
+  assert.equal(nearNetActor({ pos: { z: 4.9 } }), true); assert.equal(nearNetActor({ pos: { z: -4.9 } }), true);
+  assert.equal(nearNetActor({ pos: { z: 5.1 } }), false); assert.equal(nearNetActor(null), false);
+  // le due diagnostiche dell'08/11: i 30 gesti scartati «deboli» dal telefono (colpo tipico ~1300 °/s) passano tutti la soglia
+  // nuova del telefono (≥ 130 °/s, ≥ 10°); nel motore prima 8 con ampiezza 10–20° sarebbero stati scartati, ora nessuno
+  const weakOnes = [[163,11],[164,20],[173,10],[180,15],[181,30],[183,28],[185,44],[189,45],[203,19],[207,54],[211,14],[213,32],[221,18],[228,70],[231,59],[241,10],[242,58],[242,82],[250,69],[266,67],[276,34],[277,36],[278,71],[318,38],[334,28],[395,75],[400,92],[443,87],[444,103],[469,69]];
+  const phoneOk = weakOnes.filter(([pk, ang]) => pk >= DET.netMinPeak*1300 && ang >= DET.netMinAngle);
+  assert.equal(phoneOk.length, 30);
+  const droppedBefore = weakOnes.filter(([pk, ang]) => pk < WEAK.rel*1300 && ang < WEAK.ample), droppedNow = weakOnes.filter(([pk, ang]) => pk < WEAK.netRel*1300 && ang < WEAK.netAmple);
+  assert.equal(droppedBefore.length, 8); assert.equal(droppedNow.length, 0);
+  assert.equal(weakOnes.filter(([pk]) => pk < WEAK.netRel*1300).length, 8);   // questi aspettano WEAK.wait il colpo vero, poi si giocano
 });

@@ -76,14 +76,34 @@ Telefono: `natpf_phone_racket.js` manda `cfg net:1` quando chi gioca è entro `N
 `det.setNet`; `swing-detect.js` a rete usa la soglia del picco `netMinPeak 0,10 × scala di chi gioca` (min `playMinPeak`
 45 °/s e 5 × rumore), inizio del gesto `netOn 0,08 × scala`, ampiezza minima `netMinAngle` 10° e la sola soglia del picco
 al posto della soglia dell'intenzione (metà del colpo tipico). Con il colpo tipico di 1300 °/s: picco 130 °/s invece di
-~250, ampiezza 10° invece di 23°: dei 30 gesti scartati «deboli» nelle due partite quasi tutti sarebbero arrivati.
+~250, ampiezza 10° invece di 23°: dei 30 gesti scartati «deboli» nelle due partite (163–469 °/s, 10–103°) tutti e 30
+passano la soglia nuova del telefono e arrivano al gioco.
+
+**Revisione (motore coerente con il telefono, `natpf_impact.js`)**: arrivare al gioco non bastava. Con `WEAK.rel .3` e
+`WEAK.ample 25` il motore trattava i tocchi sotto 390 °/s come «deboli» (preparazione): all'arrivo della palla aspettava
+`WEAK.wait` 0,22 s il colpo vero e poi, **sotto 25° di ampiezza**, li scartava in silenzio (`_natpfWeakDropped`: niente
+swing, niente messaggio, la palla passa). Dei 30 gesti: 25 erano «deboli» per il motore, **8 con ampiezza 10–20° sarebbero
+stati scartati** (lo stesso «palla persa» di prima, spostato dal telefono al motore), 17 giocati solo dopo l'attesa, 5
+«forti». Riprodotto nel motore vero senza browser (Leggenda, chi gioca a 4,5 m, palla corta a 6 m/s): tocco da 200 °/s e
+15° fatto 0,2 s prima della palla → nessun colpo; 300 °/s e 20° 0,3 s prima → nessun colpo; lo stesso gesto da 30° →
+colpito dopo l'attesa. Ora a rete (`nearNetActor`: chi colpisce entro `WEAK.netZ` 5 m, la stessa regola di `NET_Z.in`
+del telefono e di `net` in `_natpfRacketShot`) un gesto è «debole» solo sotto `WEAK.netRel` **0,15** × colpo tipico
+(195 °/s con 1300: i tocchi di volée si giocano all'arrivo della palla, come gesto morbido in attesa `SOFT` 0,065 s) e un
+gesto debole si gioca da `WEAK.netAmple` **10°** (= `netMinAngle` del telefono) invece di 25°. Dei 30 gesti: 22 giocati
+all'arrivo, 8 (163–189 °/s) giocati dopo l'attesa del colpo vero, **0 scartati**. Fuori dalla zona di rete niente cambia
+(rel 0,3 e 25°: la preparazione da fondo campo resta scartata). Il gesto in attesa ricorda se era a rete (`cand.net`);
+alla risoluzione vale anche la posizione del momento. Con il test `natpf-rete-b17` (9) che fissa l'uguaglianza delle
+tre soglie (`netAmple = netMinAngle`, `netZ = NET_Z.in`, `netRel ≥ netMinPeak`) e il conteggio 8 → 0 sui 30 gesti.
 
 Non toccati: `game_engine.js` (il ramo DROP con il minimo di 1,32 s resta per le palle corte vere), il disegno dei gesti
 del tutorial, `natpf_stroke_intent.js` (la lettura della palla corta per forma resta; cambia solo l'esito a rete).
 
 ## 3. Prove
 
-- Nuovo `natpf-tennis/test/natpf-rete-b17.test.mjs` (7): stessa situazione a rete (palla corta a 4 m, 0,9 m, 8 m/s,
+- Nuovo `natpf-tennis/test/natpf-rete-b17.test.mjs` (9, di cui 2 dalla revisione: motore a rete «tocco da 200 °/s e 15°
+  0,2 s prima della palla → giocato all'arrivo, non scartato; 300 °/s e 20° 0,3 s prima → giocato; 160 °/s e 12° → giocato
+  dopo l'attesa del colpo vero; 6° → scartato; da fondo campo 11,5 m lo stesso tocco → scartato come prima»; soglie
+  coerenti telefono/motore e conteggio 8 → 0 sui 30 gesti delle diagnostiche): stessa situazione a rete (palla corta a 4 m, 0,9 m, 8 m/s,
   qualità 0,6) con cinque gesti → cinque esiti diversi e coerenti (forte teso: chiusura, ≥ 9 m, basso, volo < 0,8 s;
   tagliato: effetto all'indietro, più basso del top spin; smorzata: ≤ 4,6 m; anticipo e ritardo: incrociato e lungolinea a
   più di 3 m; piatto ±1: più di 4 m; forza → profondità in ordine); determinismo e dispersione dal seme; palla debole sotto
@@ -97,8 +117,10 @@ del tutorial, `natpf_stroke_intent.js` (la lettura della palla corta per forma r
   controllato invece di debole, debole sotto `netQMin`, fallito molto fuori tempo), `natpf-drop-recovery` (il recupero
   oltre 5 m: debole *o* controllato), `natpf-grip-skill` (colpo a vuoto a 1,0 s con la palla a 10 m/s, non più a 0,7 s:
   la finestra è allargata di 1,5).
-- Gioco **934/934** (927 + 7), sito **199/199** (197 + 2), `npm run build` ok. Nel browser (porte 9651/3651):
-  `natpf-rally` 7/7, `natpf-gesti-speciali` 9/9, `natpf-1v1-p2p` 39/39 (tutte al primo tentativo).
+- Gioco **936/936** (927 + 9), sito **199/199** (197 + 2), `npm run build` ok (il `dist` contiene `netAmple`). Nel
+  browser (porte 9651/3651), rifatte dopo la revisione: `natpf-rally` 7/7, `natpf-gesti-speciali` 9/9, `natpf-1v1-p2p`
+  39/39 (tutte al primo tentativo). Banco `colpi.mjs --mode=rete` rifatto: identico (12/12, esiti distinti 12; il banco e
+  `audit:legend` non passano da `queueUserSwing`, la soglia WEAK non li tocca).
 
 ## 4. Banco
 
@@ -128,7 +150,18 @@ più dura» deciso dall'utente per il B16, non un effetto di questo passo.
 ## 5. Non verificato e note
 
 - Telefono vero, Windows, ledwall: niente. La soglia bassa a rete è provata solo con il rilevatore simulato; su un telefono
-  vero potrebbe far passare la preparazione come colpo debole (il gioco la gestisce come gesto debole in attesa, WEAK).
+  vero potrebbe far passare la preparazione come colpo debole (il gioco la gestisce come gesto debole in attesa, WEAK), e
+  a rete con il verso atteso sconosciuto (palla non ancora colpita dall'avversario) l'assestamento da 180–300 °/s e 14–27°
+  può diventare un gesto: nel motore senza palla in arrivo non costa il punto (al più animazione), ma va provato con il
+  telefono. Con `netRel` 0,15 nel motore, a rete un gesto da 195 °/s in su si gioca all'arrivo della palla: un
+  assestamento fatto nell'ultimo mezzo secondo prima della palla diventa il colpo (a meno di uno swing 1,15 volte più
+  forte entro 0,065 s). È il prezzo della coerenza con il telefono; se sul campo dà colpi non voluti, alzare `netRel`
+  (es. 0,2) senza toccare il telefono.
+- `earlyWindow × slowFactor` vale a tutti i livelli (Casual 0,6 × 1,8 = 1,08 s): un gesto non morbido 0,4–0,7 s prima
+  di una palla lenta, che prima restava in attesa e veniva sostituito dal colpo vero, ora è giocato all'arrivo con il suo
+  anticipo e il colpo vero successivo è ignorato; non provato con la sequenza «gesto anticipato non morbido + colpo vero».
+- `attackQPower` abbassa `attackQ` con la forza a tutti i livelli (Pro: 0,65 → 0,35 a forza piena), non solo a rete:
+  nessun banco a Pro/Casual lo copre.
 - Le due «palle corte per forma» da 9 e 12 m (n.112, n.139) non cambiano: non sono a rete. Se l'utente le sente come «palla
   morbidissima» anche da lì, la stessa regola (`dropNet`) si può estendere a tutto il campo: decisione sua.
 - wqdk·121 era e resta fuori di lato (x −5): il piatto girato di −1 e l'anticipo danno la mira piena oltre la riga, senza
