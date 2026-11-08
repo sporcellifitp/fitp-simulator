@@ -831,7 +831,7 @@ restano proposte in `docs/b15/audit-ux.md` §4. Ramo di lavoro `b15-ux` (worktre
   sì». Obiettivo: tutti i criteri di `audit:legend` rispettati con cambiamenti da giocatore più forte, senza trucchi
   visibili, casual e pro invariati, deterministico. Ramo locale da `7936011`, non pubblicato.
 - Diagnosi (`audit:legend` alla base, 300 punti × 8 semi): CPU contro «tennista» 67,3 % dei game (criterio ≥ 85), contro
-  «preciso» 25,9 % (≥ 60). Contro «preciso» il 40,5 % dei punti finiva con un errore della CPU (errori per colpo 3,5 % sotto
+  «preciso» 25,9 % (≥ 60). Contro «preciso» il 43,4 % dei punti finiva con un errore della CPU (40,5 % fuori, 2,9 % in rete; errori per colpo 3,5 % sotto
   i 20 colpi, 11–27 % oltre: il colpo di chiusura sbagliava il 17–18 %), il 17,4 % con un vincente di chi gioca (sempre
   con la CPU oltre 2,3 m dalla palla, palle a 118–133 km/h vicino alla riga laterale, quasi sempre con la CPU già al suo
   posto), il 31,8 % con chi gioca in rete. Nessuna palla persa perché troppo alta o corta.
@@ -872,3 +872,39 @@ restano proposte in `docs/b15/audit-ux.md` §4. Ramo di lavoro `b15-ux` (worktre
 - Non verificato: persone vere (la Leggenda potrebbe risultare frustrante: contro «preciso» chi gioca vince ancora il
   41 % dei punti, contro «tennista» il 27 %), telefoni veri, Windows. Il tempo di GitHub per `audit:legend` è stimato
   (~70–100 s), non misurato.
+- **Correzioni della revisione indipendente** (esito «integrare con correzioni», 08/11 sera), stesso ramo:
+  - `.github/workflows/natpf-tennis.yml`: il passo `audit:legend` è l'ultimo del job (dopo build, file del pacchetto e
+    zip Cloudflare): prima stava subito dopo `npm test` e, se falliva, GitHub saltava build e controlli del pacchetto.
+    YAML letto con PyYAML: 8 passi nell'ordine giusto.
+  - `docs/NATPF_LEGGENDA.md`, tabella «Movimento», valori dal codice: velocità massima 8 m/s (`cpuSpeed`, era scritto 7),
+    affondo al massimo 8,6 m/s (`lungeSpeed`, era 8,4) per palle tra 1,2 e 2,65 m (portata + 0,35), portata 2,3 m
+    (`cpuReach`, era 1,85), errore di lettura 0,11–0,18 m (`cpuReadSd` 0,18, era 0,15–0,25).
+  - Preferenza per l'angolo stretto (`angle` +0,01, tenuta): motivazione riscritta in `NATPF_LEGGENDA.md`,
+    `PROJECT_MEMORY.md` e nel commento di `natpf_legend.js`. Ricontrollata sul banco (`angle` 0 contro 0,01, 8 semi × 300
+    punti, tutti i profili): senza, tutti i criteri passano (incrociati: medio 31,8 %, amatore 37,1, tennista 36,0, preciso
+    32,3, bambino 37,9, impreciso 35,1; game della CPU entro un punto); con, incrociati 34,6–45,8 % e l'incrociato stretto
+    passa da 6,6 a 15,2 % dei colpi contro «medio», da 9,6 a 16,8 contro «amatore» (da 3,7–13,2 a 13,4–19,4 su tutti).
+    Con la temperatura 0,014 il +0,01 raddoppia il peso di quel colpo (e^(0,01/0,014) ≈ 2,04).
+  - Diagnosi: il 43,4 % dei punti contro «preciso» finiva con un errore della CPU (40,5 % fuori + 2,9 % in rete; prima
+    era scritto 40,5 %, solo le palle fuori), in `NATPF_LEGGENDA.md` e qui sopra.
+  - `PROJECT_MEMORY.md` (Leggenda): il torneo ridotto di `npm test` è deterministico, il margine contro «preciso» è di
+    circa 3 punti (42,8 % dei punti con soglia 46), una modifica al motore (per esempio la tappa 2 dell'audit del
+    gameplay) può richiedere di ritararlo; comando per rigenerare i numeri
+    (`npm run audit:legend -- --table --difficulty=leggenda --profiles=tennista,preciso --points=75`, 10 s: tennista
+    25,7 %, preciso 42,8 %, identici al test).
+  - `tools/e2e/natpf-leggenda.mjs`: la verifica dell'allungo era tautologica (l'allungo letto era quello calcolato dalla
+    distanza della palla) e passava anche senza palle oltre 1 m: le «6/6» di sopra non provavano l'allungo. Ora misura
+    sul disegno le posizioni 3D all'impatto di centro del piatto (`NatpfPiatto`), mano destra e testa della CPU rispetto
+    agli impatti normali della stessa prova; dopo i punti fa 4 allunghi forzati (CPU ferma, palla a 1,2/1,5/1,8/2,1 m);
+    senza palle oltre 1 m stampa «NON ESERCITATA» e non passa; `ALLUNGO_SPENTO=1` spegne l'allungo del disegno e la
+    verifica fallisce (provato: 4/4 fuori soglia, piatto, mano e testa a ±0,05 m dal posto normale). Prove (porte
+    4700–4708, una alla volta): di base 7/7 (6 punti, 81 colpi della CPU, 9 schemi, nessun allungo in partita, 4 forzati
+    con piatto +0,29–0,45 m, mano +0,29–0,45, testa +0,19–0,32 oltre il posto normale; 3 min 53 s). Trovato con la misura
+    vera: con la CPU che corre o fa l'affondo verso la palla il piatto va fuori molto meno (+0,08–0,23 m; in una prova, palla
+    a 1,51 m: +0,08 m, palla a 0,66 m dal centro del piatto), probabilmente per la racchetta del motore base che ruota con
+    la velocità laterale: la soglia sul piatto è quindi 5 cm (mano ≥ 0,4 e testa ≥ 0,3 volte l'allungo previsto); il
+    disegno non è stato cambiato. Il caso con `reachMax` 0 manda in NaN l'inclinazione (divisione per zero in
+    `legendReachPose`): succede solo con quella configurazione di prova, la prova usa 1e-6 e `reachLean` 0.
+  - Verifiche finali: `npm test` 932/932 (49 s), `npm run audit:legend` 69/69 (uscita 0, 67 s, righe identiche alla
+    verifica del revisore), sito 197/197, `natpf-leggenda` 7/7. Non verificato: persone vere, telefoni veri, Windows,
+    l'esecuzione del passo spostato su GitHub (il ramo non è pubblicato).

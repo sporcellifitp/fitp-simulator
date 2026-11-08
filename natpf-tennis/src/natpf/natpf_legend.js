@@ -78,8 +78,9 @@ export const LEGEND = Object.freeze({
   // gioca con margine. Con il rischio vero nella scelta, contro chi sbaglia molto la CPU giocava quasi solo colpi forti e
   // profondi (entropia delle zone 2,05–2,24 bit, criterio ≥ 2,3)
   powerErr: .65,
-  // B16: preferenza per l'angolo stretto incrociato (utilità + angle): gioco a percentuale, apre il campo e tiene
-  // l'incrociato nel 30–50 % anche contro chi gioca bene (con le altre modifiche scendeva al 29–31 % contro «preciso»)
+  // B16: preferenza per l'angolo stretto incrociato (utilità + angle). Non è piccola: con tau 0,014 raddoppia il peso di
+  // quel colpo (dal 7–10 al 15–17 % dei colpi contro «medio» e «amatore»). Non serve ai criteri (con angle 0 passano tutti:
+  // incrociati al 31,8 % contro «medio», limite ≥ 30): dà margine a quel criterio e apre il campo come un giocatore forte
   angle: .01,
   // vincente: chi gioca si muove da solo verso la palla (natpf_impact.js) e arriva quasi ovunque; la CPU stima se ci
   // arriva in tempo: margine = volo + reachAfter s dopo il rimbalzo (la palla torna all'altezza comoda in discesa)

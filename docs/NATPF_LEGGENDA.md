@@ -40,9 +40,15 @@ audit con soglie in `natpf-tennis/scripts/audit/legend.mjs`, test in `natpf-tenn
     vale 0,65 volte quella di Esperto (`powerErr`), ma la scelta del colpo stima il rischio con le regole di Esperto. Con il
     rischio vero nella scelta, contro chi sbaglia molto la CPU giocava quasi solo colpi forti e profondi (entropia delle
     zone 2,05–2,24 bit, criterio ≥ 2,3);
-  - **cerca l'angolo**: +0,01 di utilità all'incrociato stretto (`angle`), gioco a percentuale che tiene l'incrociato
-    nel 30–50% anche contro chi gioca bene.
-  - Il passo `audit:legend` gira su GitHub dopo `npm test` (`natpf-tennis.yml`), e `npm test` ha un torneo ridotto sui
+  - **cerca l'angolo**: +0,01 di utilità all'incrociato stretto (`angle`). Non è un ritocco piccolo: con la temperatura
+    della scelta (0,014) raddoppia il peso di quel colpo (e^(0,01/0,014) ≈ 2), che passa dal 7–10% al 15–17% dei colpi
+    della CPU contro «medio» e «amatore» (su tutti i profili da 4–13% a 13–19%). Non serve per rispettare i criteri:
+    senza, passano tutti (incrociati al 31,8% contro «medio», il valore più basso, con il limite a 30; game della CPU
+    entro un punto). Si tiene per dare margine al criterio degli incrociati (con la preferenza 34,6–45,8%) e perché aprire
+    il campo con l'angolo stretto è un colpo da giocatore forte. Se a chi gioca davvero sembra ripetitivo, si toglie
+    (`angle` 0) senza rompere nessun criterio.
+  - Il passo `audit:legend` gira su GitHub come ultimo passo del job del gioco (`natpf-tennis.yml`, dopo test, build e
+    controlli del pacchetto, così un suo fallimento non nasconde l'esito della build), e `npm test` ha un torneo ridotto sui
     due profili forti (`natpf-legend-b16.test.mjs`): una modifica che indebolisce la Leggenda ora si vede.
 
 ## Progetto
@@ -101,11 +107,11 @@ Utilità di ogni candidato:
 | cosa | valore |
 |---|---|
 | split-step: ferma dall'impatto dell'avversario per | 0,15 ± 0,03 s (limiti 0,10–0,25 s) |
-| errore di lettura laterale del punto d'incontro | gaussiano, 0,15–0,25 m (più grande con la palla veloce), si azzera in 0,32 s |
+| errore di lettura laterale del punto d'incontro | gaussiano, deviazione 0,11–0,18 m (`cpuReadSd` 0,18 × 0,6–1, più grande con la palla veloce; fino al 22/10 0,25), si azzera in 0,32 s |
 | accelerazione / frenata | 20 / 28 m/s² (fino al B16: 14 / 22) |
-| velocità massima | 7 m/s (chi gioca: 8,8) |
-| affondo | palla che passerebbe oltre 1,2 m dal corpo nelle ultime 0,32 s: passo a 30 m/s², al massimo 8,4 m/s, fino a 1,05 m dalla palla |
-| portata | 1,85 m |
+| velocità massima | 8 m/s (`cpuSpeed`; fino al 22/10 7 m/s; chi gioca: 8,8) |
+| affondo | palla che passerebbe tra 1,2 e 2,65 m dal corpo (portata + 0,35) nelle ultime 0,32 s: passo a 30 m/s², al massimo 8,6 m/s (fino al 22/10 8,4), fino a 1,05 m dalla palla |
+| portata | 2,3 m (`cpuReach`; fino al 22/10 1,85 m) |
 | recupero | sulla bisettrice degli angoli possibili dell'avversario, x tra −2,2 e 2,2 m, 11,35 m dalla rete |
 | palle fuori | non ancora rimbalzate, viste fuori di oltre 0,08 m (lettura ± 0,12 m): lasciate passare, una decisione per palla |
 | servizio | 36% verso un angolo, 36% verso l'altro, 28% al corpo; forza 1,05–1,45 |
@@ -160,9 +166,10 @@ Audit completo (punti e semi predefiniti), prima → dopo il B16:
   impreciso 100%, tutti i criteri rispettati: il margine non dipende dai semi dell'audit. Con 16 semi (gli 8 dell'audit
   più 97–151) contro «preciso» 70% circa. Il rumore va tenuto presente: con 8 semi × 300 punti contro «preciso» si giocano
   ~200 game, quindi ± 3 punti percentuali di errore standard, e cambiare un parametro rimescola tutte le partite.
-- Da dove vengono i punti di chi gioca contro «preciso»: prima del B16 il 40,5% dei punti finiva con un errore della CPU
-  (un terzo dagli scambi oltre i 20 colpi) e il 17,4% con un vincente (sempre con la CPU oltre 2,3 m dalla palla: palle
-  a 118–133 km/h vicino alla riga laterale, quasi sempre con la CPU già al suo posto: angoli veri, che restano).
+- Da dove vengono i punti di chi gioca contro «preciso»: prima del B16 il 43,4% dei punti finiva con un errore della CPU
+  (40,5% palle fuori, 2,9% in rete; un terzo degli errori, 220 su 647, negli scambi oltre i 20 colpi) e il 17,4% con un
+  vincente (sempre con la CPU oltre 2,3 m dalla palla: palle a 118–133 km/h vicino alla riga laterale, quasi sempre con
+  la CPU già al suo posto: angoli veri, che restano).
 
 Ablazione del B16 (`audit:legend -- --ablation`, game vinti da chi gioca):
 
@@ -184,9 +191,22 @@ qualità del colpo della CPU è già quasi sempre piena), preferenza per tutti g
 di incrociati, oltre il criterio).
 
 Nel gioco con la grafica (prove nel browser, 08/11): `natpf-rally` con `DIFF=leggenda` (la prova ora applica le regole
-del livello, velocità della CPU compresa) e `natpf-leggenda` (partita con il giocatore simulato «preciso», fotogrammi
-all'impatto della CPU, negli allunghi e nell'affondo): la CPU colpisce sempre entro la portata (allunghi a 1,2–2,3 m con
-racchetta e corpo verso la palla), corsa massima 8,0–8,6 m/s (affondo), colpi vari. Non provato con persone vere.
+del livello, velocità della CPU compresa) e `natpf-leggenda` (partita con il giocatore simulato «preciso», poi allunghi
+forzati; fotogrammi all'impatto della CPU, negli allunghi e nell'affondo): la CPU colpisce sempre entro la portata,
+corsa massima 8,0–8,6 m/s (affondo), colpi vari (81–82 colpi e 8–9 schemi in 6 punti). L'allungo si misura sul disegno,
+con le posizioni 3D all'impatto di centro del piatto, mano destra e testa della CPU di lato verso la palla, rispetto agli
+impatti normali della stessa prova (palla a 0,3–0,8 m: piatto a 0,77–0,78 m dal corpo, mano a 0,49, testa a 0,05–0,06):
+- CPU ferma (allunghi forzati, palla a 1,2–2,1 m): piatto e mano vanno verso la palla di quasi tutto l'allungo previsto
+  (+0,29 e +0,29 m a 1,2 m; +0,41–0,45 m da 1,5 m in su), la testa di +0,19–0,32 m; la palla resta a 0,13 m di lato dal
+  centro del piatto a 1,2 m, 0,32 m a 1,5 m, 0,55 m a 1,8 m e 0,89 m a 2,1 m (l'allungo del disegno arriva al massimo a
+  0,45 m);
+- CPU che corre o fa l'affondo verso la palla: il piatto va fuori molto meno (+0,08–0,23 m: in partita, palla a 1,51 m,
+  +0,08 m e palla a 0,66 m dal centro del piatto), la mano +0,21–0,32, la testa +0,24–0,42. Probabilmente la racchetta del
+  motore base ruota e oscilla con la velocità laterale (`racket_kinematics.js`) e porta il piatto indietro rispetto alla
+  corsa: da guardare se si vuole la racchetta sulla palla anche in corsa (non cambiato qui).
+In 6 punti le palle oltre 1 m dal corpo sono poche (una o nessuna nelle ultime prove): per questo la prova finisce con gli
+allunghi forzati. Con l'allungo del disegno spento la verifica fallisce (piatto, mano e testa a ±0,05 m dal posto
+normale). Non provato con persone vere.
 
 ### Criteri di accettazione (`audit:legend`, 22/10/2026, storico)
 

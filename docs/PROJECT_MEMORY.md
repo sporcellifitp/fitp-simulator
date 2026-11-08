@@ -492,22 +492,36 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   dt = 0 e fermando il disegno; `CPU_THROTTLE=4` simula un runner lento (`docs/b13/gesture-calibration-ci.md`).
 
 ### CPU Leggenda: criteri sempre controllati e taratura del B16 (08/11/2026, ramo `b16-legend`)
-- **`audit:legend` è un controllo, non un rapporto**: gira su GitHub dopo `npm test` (`natpf-tennis.yml`, ~70 s) e
+- **`audit:legend` è un controllo, non un rapporto**: gira su GitHub come ultimo passo del job del gioco (`natpf-tennis.yml`,
+  ~70 s, dopo test, build e controlli del pacchetto: un passo fallito fa saltare quelli dopo, così non li nasconde) e
   `npm test` ha un torneo ridotto sui due profili forti (`natpf-legend-b16.test.mjs`, 8 semi × 75 punti, soglie sui punti:
   ≤ 33,5% a «tennista», ≤ 46% a «preciso»). Prima nessuno lo eseguiva: due criteri erano già rotti prima del B15 (da quando non
   è registrato) e il B15 li ha peggiorati senza che una prova fallisse. Chi cambia il colpo di chi gioca (forza, mira, traiettoria)
   deve guardare anche questo.
 - **Rumore**: 8 semi × 300 punti contro «preciso» sono ~200 game, ± 3 punti percentuali; cambiare un parametro rimescola
   tutte le partite. Si decide con 16 semi o con semi diversi (201–208), poi si controlla con quelli dell'audit.
+- **Torneo ridotto di `npm test`** (`natpf-legend-b16.test.mjs`, ultimo test): è deterministico (semi fissi, stesso risultato
+  a ogni esecuzione), quindi non «balla», ma il margine è stretto: contro «preciso» chi gioca vince il 42,8% dei punti con
+  la soglia al 46% (circa 3 punti), contro «tennista» il 25,7% con la soglia al 33,5%. Una modifica qualsiasi al motore
+  che cambi gli errori della CPU o di chi gioca (per esempio la tappa 2 dell'audit del gameplay) rimescola le partite e
+  può farlo fallire senza che la Leggenda sia davvero più debole: allora si guarda prima `npm run audit:legend` (300 punti,
+  tutti i criteri) e, se lì i criteri passano, si ritarano le soglie e il commento del test con i numeri nuovi. I numeri si
+  rigenerano da `natpf-tennis` con
+  `npm run audit:legend -- --table --difficulty=leggenda --profiles=tennista,preciso --points=75` (stessi semi del test,
+  ~10 s; colonne `puntiG`, `erroriCPU`, `incrociato`, `infinitiPct`).
 - **Taratura (`LEGEND` in `natpf_legend.js`)**: accelerazione / frenata 20 / 28 m/s²; pressione degli scambi lunghi sulla
   CPU dal 20° colpo (chi gioca a Leggenda dal 10°); chiusura degli scambi lunghi misurata (forza +0,15, larghezza +0,25 m,
   chiusura 0,72–0,85); errore da forza × 0,65 nell'esecuzione (`powerErr`) con la **scelta che stima il rischio con le
   regole di Esperto** (margine: con il rischio vero la CPU gioca quasi solo colpi forti e profondi contro chi sbaglia molto,
-  entropia sotto 2,3); +0,01 all'incrociato stretto (`angle`). Velocità massima, portata, reazione e lettura della palla
-  non cambiano (vincoli di credibilità e criteri: reazione p10 ≥ 0,12 s, velocità ≤ 8,8 m/s).
+  entropia sotto 2,3); +0,01 all'incrociato stretto (`angle`: con la temperatura 0,014 raddoppia il peso di quel colpo,
+  che passa dal 7–10% al 15–17% dei colpi contro «medio» e «amatore»; non serve ai criteri, che senza passano tutti con gli
+  incrociati al 31,8% contro «medio» e limite 30: dà margine a quel criterio e si può togliere se risulta ripetitivo).
+  Velocità massima, portata, reazione e lettura della palla non cambiano (vincoli di credibilità e criteri: reazione
+  p10 ≥ 0,12 s, velocità ≤ 8,8 m/s).
 - **Criteri che si toccano tra loro**: errori della CPU ≥ 2% contro «amatore» (con l'errore ridotto anche sulla parte base
   scende a 1,4–2,1%), entropia ≥ 2,3 contro i profili deboli (colpi più profondi o rischio vero la abbassano), incrociati
-  30–50% (una preferenza per tutti gli incrociati porta «bambino» oltre il 50%, senza preferenza «preciso» scende al 30%).
+  30–50% (una preferenza per tutti gli incrociati porta «bambino» oltre il 50%; senza preferenza per l'angolo stretto il
+  più basso è «medio» al 31,8%, sopra il limite ma con poco margine).
 - **Vincenti di chi gioca contro la Leggenda**: tutti con la CPU oltre 2,3 m dalla palla, quasi sempre già al suo posto
   (angoli veri alla riga laterale a 118–133 km/h). Non si correggono con più portata (sarebbe un trucco visibile).
 
