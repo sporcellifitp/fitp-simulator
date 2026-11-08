@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
 import { parseSwingMessage } from '@natpf/tennis/swing-message.js';
-import { QUICK_PLAN } from '@natpf/tennis/calibration.js';
+import { QUICK_PLAN, calibrationPlan } from '@natpf/tennis/calibration.js';
 import { NatpfPhoneRacket, natpfSwingToEngine, riseRefOf, createRiseModel, habitualRise, createTypicalModel } from '../src/natpf/natpf_phone_racket.js';
 import { classifyStroke } from '../src/natpf/natpf_stroke_intent.js';
 import { racketSim, strokeDir } from './racket-sim.mjs';
@@ -72,7 +72,7 @@ function followCalibration({ hand, seed, tremor, limit = 15000 }){
   const still = sim.t - t0;
   while (sim.cal.state.step === 'swings' && sim.t - t0 < limit){
     while (!sim.cal.state.ready && sim.t - t0 < limit) sim.rest(50, tremor);
-    sim.swing({ axis: [0, QUICK_PLAN[sim.cal.state.idx] === 'L' ? 1 : -1, 0], tremor });
+    sim.swing({ axis: [0, calibrationPlan({ quick: true, hand })[sim.cal.state.idx] === 'L' ? 1 : -1, 0], tremor });
     sim.rest(450, tremor);
   }
   return { still, total: sim.t - t0, result: sim.cal.state.result, attempts: ev.filter(e => e.kind === 'attempt'), moves: ev.filter(e => e.kind === 'warn' && e.why === 'move').length };

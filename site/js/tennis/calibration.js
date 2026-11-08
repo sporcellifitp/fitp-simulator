@@ -13,7 +13,14 @@ import { faceReference, flatGrip } from './face-tracker.js';
 
 export const PLAN = ['L', 'L', 'L', 'R', 'R', 'R'];      // L: da destra a sinistra (←), R: da sinistra a destra (→)
 export const QUICK_PLAN = ['L', 'R'];
-export const calibrationPlan = options => options?.quick ? QUICK_PLAN : PLAN;
+// Percorso per la mano (B15, 08/11): prima il dritto, poi il rovescio, a tutti e due. Il dritto del destro è «L» (da
+// destra a sinistra), quello del mancino è «R»: prima il mancino faceva i gesti nell'ordine del destro (rovescio, poi
+// dritto), con il computer che gli chiedeva «Rovescio ←» per primo. Il verso dei gesti e il profilo non cambiano: cambia
+// solo l'ordine in cui si chiedono
+const flipPlan = plan => plan.map(w => (w === 'L' ? 'R' : 'L'));
+export const QUICK_PLAN_LEFT = Object.freeze(flipPlan(QUICK_PLAN));
+export const PLAN_LEFT = Object.freeze(flipPlan(PLAN));
+export const calibrationPlan = options => (options?.hand === 'left' ? (options?.quick ? QUICK_PLAN_LEFT : PLAN_LEFT) : options?.quick ? QUICK_PLAN : PLAN);
 // gesti riusciti per verso perché la calibrazione passi: tutti nel percorso rapido (uno per verso), due su tre nell'esteso
 export const calibrationNeed = options => options?.quick ? 1 : 2;
 export const GESTURE_PLAN = [
@@ -146,13 +153,14 @@ export function createCalibration(det){
     const small = sw.peak < minimum;
     let dir = '?';
     if (!S.axis && S.idx === 0){
-      // il primo swing (da destra a sinistra) fissa il verso. Prima si accettava qualunque verso: un primo gesto al
-      // contrario invertiva tutta la calibrazione (il gesto «verso destra» dopo risultava «verso sinistra»). Ora, se la
-      // rotazione attorno alla verticale dice chiaramente il contrario, è un tentativo nel verso sbagliato; dopo
-      // CAL.flipTrust volte di fila si accetta comunque (telefoni che riportano la rotazione con il segno opposto)
-      const turn = small ? 0 : verticalTurn(sw.axis, sw.gravity);
-      if (turn === -1 && S.flipTries < CAL.flipTrust){ S.flipTries++; dir = 'R'; }
-      else { if (turn === -1) S.vsign = -1; S.axis = sw.axis.slice(); dir = 'L'; S.flipTries = 0; }
+      // il primo swing (il dritto: da destra a sinistra per il destro, da sinistra a destra per il mancino) fissa il
+      // verso. Prima si accettava qualunque verso: un primo gesto al contrario invertiva tutta la calibrazione (il gesto
+      // «verso destra» dopo risultava «verso sinistra»). Ora, se la rotazione attorno alla verticale dice chiaramente il
+      // contrario, è un tentativo nel verso sbagliato; dopo CAL.flipTrust volte di fila si accetta comunque (telefoni che
+      // riportano la rotazione con il segno opposto). L'asse imparato (S.axis) è sempre quello del gesto «L»
+      const turn = small ? 0 : verticalTurn(sw.axis, sw.gravity), wantSign = SIGN[want], other = want === 'L' ? 'R' : 'L';
+      if (turn === -wantSign && S.flipTries < CAL.flipTrust){ S.flipTries++; dir = other; }
+      else { if (turn === -wantSign) S.vsign = -1; S.axis = sw.axis.map(v => v*wantSign); dir = want; S.flipTries = 0; }
     }
     else {
       // verso dei gesti dopo il primo: prima di tutto la rotazione attorno alla verticale (dritto e rovescio girano
