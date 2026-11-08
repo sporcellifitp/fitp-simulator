@@ -235,14 +235,17 @@ export function seme({ seedErr = 0, runs = SEME.runs, n = SEME.n, hand = 'right'
   }
   return { seedErr, hand, blocks: SEME.blocks.map(([a, b], j) => ({ shots: `${a + 1}-${b}`, x: q(xs[j], .5), xMean: +mean(xs[j]).toFixed(2), cerr: +mean(err[j]).toFixed(1) })) };
 }
-// specchio: le stesse estrazioni del destro e del mancino danno la stessa palla dall'altra parte
+// specchio: le stesse estrazioni del destro e del mancino danno la stessa palla dall'altra parte. Nei tagliati (e nelle
+// palle corte) l'effetto laterale del motore va dalla parte del campo dove sta chi colpisce (x ≥ 0), non dipende dalla
+// mano: al centro esatto (x = 0, il banco) i due vanno dalla stessa parte e la velocità cambia di qualche decimo (cutKmh)
 export function mirrorCheck(right, left){
-  let dx = 0, dd = 0, dk = 0, n = 0, types = 0;
+  let dx = 0, dd = 0, dk = 0, ck = 0, n = 0, types = 0;
   for (let i = 0; i < right.shots.length; i++){
     const a = right.shots[i], b = left.shots[i]; if (a.lost || b.lost){ if (a.lost !== b.lost) types++; continue; }
-    dx = Math.max(dx, Math.abs(a.x + b.x)); dd = Math.max(dd, Math.abs(a.depth - b.depth)); dk = Math.max(dk, Math.abs(a.kmh - b.kmh)); if (a.shot !== b.shot) types++; n++;
+    dx = Math.max(dx, Math.abs(a.x + b.x)); dd = Math.max(dd, Math.abs(a.depth - b.depth)); if (a.shot !== b.shot) types++; n++;
+    if (a.shot === 'SLICE' || a.shot === 'DROP') ck = Math.max(ck, Math.abs(a.kmh - b.kmh)); else dk = Math.max(dk, Math.abs(a.kmh - b.kmh));
   }
-  return { n, dx: +dx.toFixed(3), depth: +dd.toFixed(3), kmh: +dk.toFixed(2), types };
+  return { n, dx: +dx.toFixed(3), depth: +dd.toFixed(3), kmh: +dk.toFixed(2), cutKmh: +ck.toFixed(2), types };
 }
 
 export function print(out){

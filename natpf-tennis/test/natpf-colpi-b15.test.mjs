@@ -7,7 +7,7 @@
 //   • centro della mira: biasPull/commonPull da 12°/8° e drift 0,03 → dieci dritti girati di 20° cadevano da 2,9 a 1,1 m.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makePhone, warmPhone, gesture, variant, strike, sequence as seq } from '../scripts/audit/colpi.mjs';
+import { makePhone, warmPhone, gesture, variant, strike, sequence as seq, reale, mirrorCheck } from '../scripts/audit/colpi.mjs';
 import { rng } from './phone-sim.mjs';
 import { createAimModel } from '../src/natpf/natpf_gestures.js';
 
@@ -107,4 +107,23 @@ test('mira piena tenuta: quattordici dritti con il piatto girato di 30° restano
     assert.ok(x[0] > 3, `${hand}: primo ${x[0]}`);
     assert.ok(x.at(-1) >= 1.5, `${hand}: mira tenuta ${x.map(v => v.toFixed(2))}`);
   }
+});
+
+// secondo giro B15: INTENT.faceSpan 14 (era 20, mira piena a 23°). Con 20 il piatto girato di 15° spostava la palla di
+// 1,9–2,3 m e la persona vera (piatto ±12°) mandava il 30% delle palle oltre 2,5 m dal centro, x p90−p10 6,17 m
+const handPhones = {};
+const handShot = (hand, g) => { const p = (handPhones[hand] ||= warmPhone(makePhone({ hand }))), r = variant(p, { ...base, ...g }); assert.ok(r, `${hand} ${JSON.stringify(g)}`); const o = strike(r.ev, base); assert.ok(o); return o; };
+test('piatto più sensibile: girato di 15° almeno 2,4 m dal colpo dritto, nei due versi, dritto e rovescio, destro e mancino', () => {
+  for (const hand of ['right', 'left']) for (const side of ['forehand', 'backhand']){
+    const x = Object.fromEntries([-15, 0, 15].map(yaw => [yaw, handShot(hand, { side, yaw }).x]));
+    assert.ok(x[15] - x[0] >= 2.4 && x[0] - x[-15] >= 2.4, `${hand} ${side}: ${JSON.stringify(x)}`);
+  }
+});
+test('persona vera (banco colpi.mjs): palle più aperte, e il mancino è lo specchio esatto del destro', () => {
+  const right = reale({ hand: 'right' }), left = reale({ hand: 'left' });
+  assert.ok(right.x.span >= 6.6, `x p90−p10 ${right.x.span}`);
+  assert.ok(right.xWide >= 34, `palle oltre 2,5 m dal centro: ${right.xWide}%`);
+  assert.equal(right.failed, 0);
+  const m = mirrorCheck(right, left);
+  assert.ok(m.n === right.N && m.dx < 1e-9 && m.depth < 1e-9 && m.types === 0 && m.kmh < 1e-9 && m.cutKmh < 1.5, JSON.stringify(m));
 });

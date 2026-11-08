@@ -45,10 +45,16 @@ export const INTENT = Object.freeze({
   compact: 30, wide: 100,          // gradi: swing corto (profondità ridotta) … ampio (profondità piena)
   reachDepth: .8,                  // profondità voluta di uno swing corto rispetto a uno ampio alla stessa forza (era
                                    // 0,55: un colpo compatto ma veloce perdeva quasi metà della profondità)
-  faceDead: 3, faceSpan: 20,       // gradi: zona morta e scarto per la mira piena del piatto (27/10: era 8 e 28; un
+  faceDead: 3, faceSpan: 14,       // gradi: zona morta e scarto per la mira piena del piatto (27/10: era 8 e 28; un
                                    // piatto girato apposta di 15° vale ora .4, prima .25: la mira risponde prima).
                                    // 29/10: era 5 e 25; richiesta «angolazione più sensibile»: 15° valgono .6, la
-                                   // mira piena a 23° (con il centro che si corregge sui colpi veri, createAimModel)
+                                   // mira piena a 23° (con il centro che si corregge sui colpi veri, createAimModel).
+                                   // B15 (08/11, «gli scambi vanno quasi sempre nella stessa direzione»): era 20; ora
+                                   // la mira piena a 17°, 10° valgono .5. Banco scripts/audit/colpi.mjs, persona vera
+                                   // (piatto ±12° attorno al proprio colpo): x p10/p90 −3,04/+3,13 → −3,24/+3,58 m
+                                   // (p90−p10 6,17 → 6,82, palle oltre 2,5 m dal centro 30 → 37%); piatto girato di 15°
+                                   // 1,9–2,3 → 2,7–3,3 m dal colpo dritto; +30° tenuto ×14 alla fine 1,72 → 2,50 m.
+                                   // Il prezzo: il piatto sbagliato di qualche grado sposta di più (5° ≈ 1 m)
   faceTrust: 45, faceTrustSpan: 15, // gradi: oltre faceTrust lo scarto è sempre meno credibile, oltre +span non conta. Il
                                    // 23/10 26 mire su 67 erano sature (scarti di 50–77° da un centro imparato male):
                                    // aggiungevano fino a 1,2 m di lato da una misura sbagliata
