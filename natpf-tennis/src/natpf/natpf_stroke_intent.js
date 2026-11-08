@@ -157,11 +157,26 @@ export function personalSpecial(f, { normal = null, lob = null, drop = null } = 
   return best.d <= PERSONAL.maxDist && best.d + PERSONAL.margin < dN ? { shot: best.shot, d: +best.d.toFixed(2), dN: +dN.toFixed(2) } : null;
 }
 
+// Sensibilità della mira (opzione dello staff nelle Opzioni del computer, B16 · decisione (d) dell'utente «ok ma come lo
+// misuro?»): gradi di scarto del piatto per la mira piena. alta = 17° (B15: INTENT.faceDead + INTENT.faceSpan, la base),
+// media = 20° (faceSpan 17: dimezza l'effetto di un riferimento della mira sbagliato tenendo metà della varietà guadagnata
+// nel B15, docs/b15/audit-colpi.md §8), bassa = 23° (faceSpan 20, quella di prima del B15). Si misura con la diagnostica
+// (lato delle palle per partita, diag_metrics.sideBalance) e scripts/audit/lato-palle.mjs: docs/GUIDA_MISURA_MIRA.md
+export const AIM_FULL = Object.freeze({ alta: 17, media: 20, bassa: 23 });
+export const AIM_LEVELS = Object.freeze(['alta', 'media', 'bassa']);
+export const AIM_DEFAULT = 'alta';
+export const aimLevelOf = v => (AIM_LEVELS.includes(v) ? v : AIM_DEFAULT);
+export const aimFullOf = level => AIM_FULL[aimLevelOf(level)];
+// livello dai gradi della mira piena (diagnostica: ogni colpo registra i gradi con cui è stato letto), null se non è uno dei tre
+export const aimLevelFromFull = deg => AIM_LEVELS.find(k => AIM_FULL[k] === deg) || null;
+
 // Mira del piatto: scarto (gradi) della direzione del piatto all'impatto dal proprio colpo abituale per lato, con zona
-// morta. +1 piatto girato a destra … −1 a sinistra; 0 se non misurata.
-export function faceAimFromDev(dev){
+// morta. +1 piatto girato a destra … −1 a sinistra; 0 se non misurata. full: gradi della mira piena (AIM_FULL; senza, la
+// base INTENT.faceDead + INTENT.faceSpan = 17°)
+export function faceAimFromDev(dev, full = null){
   if (!Number.isFinite(dev)) return 0;
-  const a = Math.max(0, Math.abs(dev) - INTENT.faceDead)/INTENT.faceSpan, trust = 1 - clamp((Math.abs(dev) - INTENT.faceTrust)/INTENT.faceTrustSpan);
+  const span = Number.isFinite(full) && full > INTENT.faceDead ? full - INTENT.faceDead : INTENT.faceSpan;
+  const a = Math.max(0, Math.abs(dev) - INTENT.faceDead)/span, trust = 1 - clamp((Math.abs(dev) - INTENT.faceTrust)/INTENT.faceTrustSpan);
   return +(Math.sign(dev)*clamp(a)*trust).toFixed(3);
 }
 
@@ -173,7 +188,8 @@ export function faceAimFromDev(dev){
 //   contro 0,70 di uno swing ampio alla stessa velocità). Con un profilo senza rawRef si resta sul picco della media.
 //   personal: prototipi dei propri gesti (personalSpecial): pallonetto e palla corta come li fa chi gioca, tranne con
 //   la palla alta (la schiacciata resta quella)
-export function strokeIntent(s, { ref = null, rawRef = null, ballHigh = null, headingDev = null, riseRef = null, personal = null } = {}){
+//   aimFull: gradi della mira piena (sensibilità della mira scelta dallo staff, AIM_FULL); null = la base (17°)
+export function strokeIntent(s, { ref = null, rawRef = null, ballHigh = null, headingDev = null, riseRef = null, personal = null, aimFull = null } = {}){
   if (!s?.shape) return null;
   const useRaw = Number.isFinite(s.rawPeak) && (Number.isFinite(rawRef) || !Number.isFinite(ref));
   const peak = useRaw ? s.rawPeak : s.peak, pref = useRaw ? (Number.isFinite(rawRef) ? rawRef : null) : ref;
@@ -193,6 +209,6 @@ export function strokeIntent(s, { ref = null, rawRef = null, ballHigh = null, he
     depth: +clamp(power*(INTENT.reachDepth + (1 - INTENT.reachDepth)*reach)).toFixed(3),
     rise: finite(s.shape.rise), plane: finite(s.shape.plane), tilt: finite(s.shape.tilt), roll: finite(s.shape.roll),
     riseRef: Number.isFinite(riseRef) ? +clamp(riseRef, INTENT.riseRefMin, INTENT.riseRefMax).toFixed(3) : null,
-    face: faceAimFromDev(headingDev),
+    face: faceAimFromDev(headingDev, aimFull),
   };
 }

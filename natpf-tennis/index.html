@@ -393,6 +393,17 @@
               ><button type="button" class="seg-btn" data-option="intro">Rivedi l’intro</button>
             </div>
           </div>
+          <!-- sensibilità della mira del telefono (B16, per lo staff): gradi di piatto girato per mandare la palla sulla riga
+               (natpf_aim_level.js). Di base «alta»; si misura con la diagnostica: docs/GUIDA_MISURA_MIRA.md -->
+          <div class="lobby-row">
+            <span class="lobby-label">Mira del telefono</span>
+            <div class="lobby-seg" role="radiogroup" aria-label="Sensibilità della mira del telefono">
+              <button type="button" class="seg-btn" data-natpf-aim="alta" role="radio">Alta · 17°</button
+              ><button type="button" class="seg-btn" data-natpf-aim="media" role="radio">Media · 20°</button
+              ><button type="button" class="seg-btn" data-natpf-aim="bassa" role="radio">Bassa · 23°</button>
+            </div>
+          </div>
+          <p class="lobby-note" id="aim-note">Per lo staff. Alta: palle più angolate. Media o bassa: se le palle vanno troppo da una parte (si misura con la diagnostica).</p>
           <p class="lobby-note" id="screen-note">Monitor, proiettore o ledwall: «Calibra lo schermo…» regola formato e bordi visibili. Area in pixel esatti: <code>?area=x,y,larghezza,altezza</code> nell’indirizzo.</p>
           <!-- aggiornamenti del programma Windows (natpf_updates.js, 07/11): solo con window.natpfDesktop.updates, nel browser
                resta nascosta. Versione installata, ultima verifica, stato in parole, avanzamento e pulsanti -->

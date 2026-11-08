@@ -27,7 +27,8 @@ import { swingPower } from './natpf_skill.js';
 import { classifyPhoneShot, aimFromSignals, ENGINE_SHOT, liftBaselineFromProfile, headBaselineFromProfile, resolveLiftBaseline, createLiftModel, createFaceModel, createAimModel, centeredFace, learnSpecials } from './natpf_gestures.js';
 import { calReduce, CAL_VIEW_EMPTY } from './natpf_cal_view.js';
 import { readHand, readP2Hand, writeP2Hand, normalizeHand } from './natpf_hand.js';
-import { strokeIntent, shapeDistinct, strokePower } from './natpf_stroke_intent.js';
+import { strokeIntent, shapeDistinct, strokePower, INTENT } from './natpf_stroke_intent.js';
+import { aimFullNow } from './natpf_aim_level.js';
 import { weakSwing, livePlan } from './natpf_impact.js';
 import { SMASH_FROM } from './natpf_stroke_outcome.js';
 
@@ -192,7 +193,9 @@ function writeSpecials(v, key = SPECIALS_KEY){ try { localStorage.setItem(key, J
 // displayLag (s): ritardo dello schermo misurato (impostazione della diagnostica, 0 se non misurato). Chi gioca colpisce
 // la palla che vede: con uno schermo in ritardo ogni colpo risulterebbe in ritardo di altrettanto
 // own: prototipi dei propri gesti per i telefoni con la forma (ownShapes); personal: soglie personali della tabella di prima
-export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaseline = 0, headBaseline = 0, faceCenter = null, aimModel = null, personal = null, own = null, now = null, prep = null, prepCapable = false, ballHigh = false, displayLag = 0, ref = null, rawRef = null, riseRef = null } = {}){
+// aimFull: gradi della mira piena (sensibilità della mira, AIM_FULL); null = la base (17°). Torna in natpf.aimFull con
+// l'intenzione, per la diagnostica
+export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaseline = 0, headBaseline = 0, faceCenter = null, aimModel = null, personal = null, own = null, now = null, prep = null, prepCapable = false, ballHigh = false, displayLag = 0, ref = null, rawRef = null, riseRef = null, aimFull = null } = {}){
   const flat = !!s.face && Number.isFinite(s.face.yaw) && (s.grip === 'flat' || grip === 'flat');
   if (flat) return faceSwingToEngine(s, { hand });
   const dirX = Math.max(-1, Math.min(1, gestureAim(s)));
@@ -217,7 +220,7 @@ export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaselin
   const heading = aimModel && Number.isFinite(s.heading) ? aimModel.aim(s.dir || 0, s.heading) : null;
   // telefoni con la forma del colpo (stroke-shape.js): intenzione dalla forma (natpf_stroke_intent.js), deterministica;
   // il motore aggiunge tempo ed esecuzione all'impatto (natpf_stroke_outcome.js). Senza forma, la tabella di prima.
-  const intent = chosen ? null : strokeIntent(s, { ref, rawRef, ballHigh, headingDev: heading?.dev ?? null, riseRef, personal: own });
+  const intent = chosen ? null : strokeIntent(s, { ref, rawRef, ballHigh, headingDev: heading?.dev ?? null, riseRef, personal: own, aimFull });
   const cls = chosen ? { shot: chosen, why: ['scelto sul telefono'] } : intent ? { shot: intent.shot, conf: intent.conf, why: intent.why } : classifyPhoneShot({ dir: s.dir || 0, vert: s.vert || null, lift, liftBaseline, head, headBaseline, personal, facePitch: face ? face.pitch : null, power, speed: Number.isFinite(s.speed) ? s.speed : null, ballHigh });
   const shot = cls.shot;
   const faceAim = heading ? heading.aim : face ? face.aim : null, faceUnreliable = heading ? heading.aim == null : !!face && !Number.isFinite(face.aim);
@@ -229,7 +232,7 @@ export function natpfSwingToEngine(s, { hand = 'right', grip = null, liftBaselin
     dirY: shot === 'lob' ? -.85 : shot === 'slice' || shot === 'drop' ? .3 : shot === 'smash' ? .5 : -.45 + clamp(rel, -.5, .5)*.2, timing: null,
     natpf: { aim: 'swing', shot, head, v: cls.v ?? null, move: cls.move ?? null, conf: cls.conf ?? null, speed: Number.isFinite(s.speed) ? s.speed : null, wrist: +aimed.aim.toFixed(3), aimSource: aimed.source, power: +power.toFixed(3), latency: +latency.toFixed(3), hand,
       aimDev: heading ? heading.dev : null, why: cls.why, prep: pr ? { lead: +(s.at - pr.at).toFixed(3), amount: clamp((pr.angle || 30)/50, .3, 1) } : null, prepCapable: !!prepCapable,
-      ...(intent ? { intent, peak: Number.isFinite(s.peak) ? s.peak : null } : {}) } };
+      ...(intent ? { intent, peak: Number.isFinite(s.peak) ? s.peak : null, aimFull: Number.isFinite(aimFull) ? aimFull : INTENT.faceDead + INTENT.faceSpan } : {}) } };
 }
 function faceSwingToEngine(s, { hand = 'right' } = {}){
   const f = s.face, lift = Number.isFinite(s.lift) ? s.lift : 0, power = Number.isFinite(s.power) ? s.power : .6;
@@ -595,7 +598,7 @@ export class NatpfPhoneRacket {
     const riseRef = habitualRise(this.profile, s.dir, this.riseModel);
     // pallonetto e palla corta come li fa chi gioca (esercizi del riscaldamento), rispetto al proprio colpo normale
     const own = ownShapes(this.ownShape, { rise: riseRef, forehandRise: this.profileRise(this.hand === 'left' ? -1 : 1), normal: this.shapeModel.value });
-    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, own, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, displayLag: this.displayLagMs/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine, this.role), ref, rawRef, riseRef }), role: this.role };
+    const ev = { ...natpfSwingToEngine(s, { hand: this.hand, grip: this.grip, liftBaseline: this.liftModel.value, headBaseline: this.headModel.value, personal: this.personal, own, faceCenter: this.faceModel.center(s.dir), aimModel: this.aimModel, now: performance.now()/1000, displayLag: this.displayLagMs/1000, prep: this.lastPrep, prepCapable: !!this.state.prep, ballHigh: ballIsHigh(this.engine, this.role), ref, rawRef, riseRef, aimFull: aimFullNow() }), role: this.role };
     // numero del colpo del telefono: la diagnostica lega così il gesto (tel.colpo) al suo esito nel motore (colpo.gioco)
     ev.natpf.seq = Number.isFinite(s.seq) ? s.seq : null;
     // colpo tipico di chi gioca, prima di questo colpo: il motore decide così se il gesto è debole (natpf_impact.WEAK)

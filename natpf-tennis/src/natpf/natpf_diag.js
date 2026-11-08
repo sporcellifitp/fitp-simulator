@@ -17,6 +17,7 @@ export { summaryLines };
 import { buildPackage, download } from './diag/diag_export.js';
 import { DIAG_PROTOCOLS, protocolDrills, expectedFor } from './diag/diag_protocol.js';
 import { writeDisplayLagMs } from './natpf_phone_racket.js';
+import { aimLevelLabel } from './natpf_aim_level.js';
 
 const $ = id => document.getElementById(id);
 const r1 = v => (Number.isFinite(v) ? Math.round(v) : '–');
@@ -176,6 +177,7 @@ export class NatpfDiag {
       <div class="diag-opts"><label><input type="checkbox" data-opt="webcamVideo" ${o.webcamVideo ? 'checked' : ''}> video della webcam (chi gioca)</label><label><input type="checkbox" data-opt="gameVideo" ${o.gameVideo ? 'checked' : ''}> video del gioco (pesa sulle prestazioni)</label><label><input type="checkbox" data-opt="phoneSamples" ${o.phoneSamples ? 'checked' : ''}> campioni dei sensori del telefono</label></div>
       <div class="diag-actions"><input data-label type="text" maxlength="80" placeholder="Nota (facoltativa): cosa provi in questa sessione"><button type="button" class="diag-start" data-diag="start">● Avvia registrazione</button></div>
       <div class="diag-actions"><button type="button" data-diag="protocol">▶ Prova guidata dei colpi (dal menu, ~5 min)</button><span class="diag-note">il lanciapalle chiede dritti, rovesci, pallonetti, tagliati, palle corte (con il telefono), incrociati e lungolinea: così si misura se il gioco riconosce il colpo richiesto</span></div>
+      <p class="diag-note" data-aim-level>Mira del telefono: ${esc(aimLevelLabel())} (si cambia in Opzioni → Mira del telefono). Il riassunto dice, partita per partita, da che parte vanno le palle di chi gioca con il telefono: docs/GUIDA_MISURA_MIRA.md</p>
       <details class="diag-lag"><summary>Ritardo dello schermo: ${this.engine.natpfPhone?.displayLagMs || 0} ms</summary>
         <p class="diag-note">Lascia 0 se non l'hai misurato. Si misura con la prova guidata (mediana del «tempo dei colpi del telefono»: se è in ritardo di molti ms a ogni sessione, lo schermo è un sospetto) o meglio con un video a 240 fps del telefono e del televisore insieme. Vale solo per i colpi del telefono.</p>
         <div class="diag-actions"><input data-lag type="number" min="0" max="200" step="5" value="${this.engine.natpfPhone?.displayLagMs || 0}"><button type="button" data-diag="lag">Salva</button></div></details>

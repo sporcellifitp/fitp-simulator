@@ -109,12 +109,13 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
   // own: prototipi dei propri gesti (pallonetto e palla corta degli esercizi, natpf_phone_racket.ownShapes)
   // expect: gesto speciale chiesto da un esercizio («lob», «drop»): come nel gioco, non insegna il colpo normale
   // learn: false legge il colpo senza che insegni niente ai riferimenti (banchi: la stessa variante letta più volte)
-  const game = (d, { ballHigh = false, rally = true, own = null, expect = null, learn = true } = {}) => {
+  // aimFull: gradi della mira piena (sensibilità della mira dello staff, B16); null = la base (17°)
+  const game = (d, { ballHigh = false, rally = true, own = null, expect = null, learn = true, aimFull = null } = {}) => {
     lifts.model ||= createLiftModel(liftBaselineFromProfile(prof()) ?? 0);
     heads.model ||= createLiftModel(headBaselineFromProfile(prof(), hand) ?? 0);
     const s = parseSwingMessage(d, { at: 10, now: 10020 });
     const p = prof(), { ref, rawRef } = powerRefs(p, typical.value);
-    const ev = natpfSwingToEngine(s, { hand, now: 10.02, ballHigh, liftBaseline: lifts.model.value, headBaseline: heads.model.value, faceCenter: faces.center(s.dir), aimModel: aims, ref, rawRef, riseRef: habitual ? habitualRise(p, s.dir, rises) : null, own: typeof own === 'function' ? own(s, habitual ? habitualRise(p, s.dir, rises) : null) : own });
+    const ev = natpfSwingToEngine(s, { hand, now: 10.02, ballHigh, liftBaseline: lifts.model.value, headBaseline: heads.model.value, faceCenter: faces.center(s.dir), aimModel: aims, ref, rawRef, riseRef: habitual ? habitualRise(p, s.dir, rises) : null, own: typeof own === 'function' ? own(s, habitual ? habitualRise(p, s.dir, rises) : null) : own, aimFull });
     if (!learn) return { s, ev };
     if (!expect && NORMAL_SHOTS.has(ev.natpf.shot)){ lifts.model.add(s.dir, s.lift); heads.model.add(s.dir, ev.natpf.head); }
     if (!expect){ faces.add(s.dir, s.face); aims.add(s.dir, s.heading); }
