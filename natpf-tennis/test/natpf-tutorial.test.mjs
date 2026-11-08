@@ -398,3 +398,53 @@ test('tutorial, X: in «Rivedi i gesti» sempre accesa e chiude come «Chiudi»;
   assert.ok(!E.natpfPhone.tutWait && P2.tutWait, 'liberato solo il telefono del P1');
   assert.ok(ws.link.cmds.includes('cal') && !l2.cmds.includes('cal'), 'calibrazione del P1 (telefono di prova senza tutorial), il P2 non è disturbato');
 });
+
+// B17.2 bis: Invio e Spazio sulla X (o su una freccia, o su «Chiudi») a fuoco con Tab la attivano come il clic. Prima
+// motion_controls._onKeyDown fermava Spazio e Invio (preventDefault: niente clic del pulsante) e tirava un colpo da
+// tastiera a modale aperta; adesso l'ascoltatore in cattura dell'allenamento (e la lobby nello stesso schermo) li
+// fermano prima del motore
+test('tutorial, tastiera: Invio e Spazio sulla X a fuoco = clic (spenta: niente), sulle frecce sfogliano, mai un colpo da tastiera a modale aperta', async () => {
+  const w = await makeWorld({ controller: 'phone' });
+  const T = w.ui.training, P = w.ui.phone;
+  T.start({ intro: true }); fromPhone(P, { w: 1, v: 2 });
+  const x = xOf(T.tutorial), prev = T.tutorial.root.querySelector('.tut-prev'), next = T.tutorial.root.querySelector('.tut-next');
+  const press = (code, active) => { document.activeElement = active; try { return w.key(code); } finally { document.activeElement = null; } };
+  const blocked = ev => ev.defaultPrevented && ev._stopImm;      // il motore (dopo, in bubbling) non lo vede
+  // fuoco altrove: Spazio e Invio fermati (niente colpo), modale com'era
+  assert.ok(blocked(press('Space', document.body)) && blocked(press('Enter', document.body)), 'Spazio e Invio fermati prima del motore');
+  assert.ok(T.tutorialOpen && T.tutorial.open && T.tutorial.state.idx === 0);
+  // X spenta: Invio e Spazio fermati, la modale resta aperta e il telefono aspetta
+  assert.equal(T.tutorial.focusedControl(x), '.tut-x'); assert.equal(T.tutorial.focusedControl(next), '.tut-next'); assert.equal(T.tutorial.focusedControl(document.body), null);
+  assert.ok(blocked(press('Enter', x)) && blocked(press('Space', x)));
+  assert.ok(T.tutorialOpen && T.tutorial.open && P.tutWait && !P.tutorialSeen, 'X spenta: niente');
+  // frecce a fuoco: Invio avanti, Spazio indietro; la freccia spenta (prima scheda) non fa niente
+  assert.ok(blocked(press('Enter', next))); assert.equal(T.tutorial.state.idx, 1);
+  assert.ok(blocked(press('Space', prev))); assert.equal(T.tutorial.state.idx, 0);
+  assert.ok(prev.disabled); assert.ok(blocked(press('Enter', prev))); assert.equal(T.tutorial.state.idx, 0, 'freccia spenta: ferma');
+  // tutte viste: Invio sulla X chiude come il clic («Tutto chiaro» dal telefono): visto, telefono libero, calibrazione
+  seeAll(w, P, T); assert.ok(T.tutorial.xEnabled);
+  assert.ok(blocked(press('Enter', x)));
+  assert.ok(!T.tutorialOpen && !T.tutorial.open && P.tutorialSeen && !P.tutWait && T.active && T.cal, 'Invio sulla X accesa: chiusa come il clic');
+  // modale chiusa: la tastiera torna al motore (l'ascoltatore non ferma più niente)
+  assert.ok(!blocked(press('Enter', document.body)) && !blocked(press('Space', x)));
+  T.stop({ completed: false, silent: true });
+  // «Rivedi i gesti»: Spazio sulla X e Invio su «Chiudi» chiudono
+  T.reviewGestures(); assert.ok(blocked(press('Space', xOf(T.tutorial)))); assert.ok(!T.tutorial.open, 'review: Spazio sulla X chiude');
+  T.reviewGestures(); assert.ok(blocked(press('Enter', T.tutorial.root.querySelector('.tut-close')))); assert.ok(!T.tutorial.open, 'review: Invio su «Chiudi» chiude');
+  // stesso schermo: Invio sulla X della metà del P2 chiude solo quella (la lobby non va alla pagina dopo), spenta ferma
+  const { NatpfPhoneRacket } = await import('../src/natpf/natpf_phone_racket.js');
+  const ws = await makeWorld({ controller: 'phone' }), { E, ui, lobby } = ws;
+  const P2 = E.natpfPhone2 = new NatpfPhoneRacket(E, { role: 'p2' });
+  P2.link = { connected: true, ready: false, L: { state: 'connected', phone: 'cal' }, session: 's2', token: 't2', sent: [], cmds: [],
+    start(){}, send(m){ this.sent.push(m); }, cmd(c){ this.cmds.push(c); if (c === 'cal'){ this.ready = false; this.L.phone = 'cal'; } }, forget(){}, motion(){ return null; }, face(){ return null; }, on(){} };
+  lobby.go('mode'); lobby.setMode('split'); lobby.go('connect'); ui.split.paint();
+  assert.ok(ui.split.tutOpen.p1 && ui.split.tutOpen.p2);
+  const x2 = xOf(ui.split.tut.p2), press2 = (code, active) => { document.activeElement = active; try { return ws.key(code); } finally { document.activeElement = null; } };
+  assert.ok(blocked(press2('Enter', x2))); assert.ok(ui.split.tutOpen.p1 && ui.split.tutOpen.p2 && lobby.step === 'connect', 'X del P2 spenta: niente, si resta in «Collega»');
+  ws.advance(1300); assert.ok(blocked(press2('Enter', ui.split.tut.p2.root.querySelector('.tut-next')))); assert.equal(ui.split.tut.p2.state.idx, 1); assert.equal(ui.split.tut.p1.state.idx, 0, 'Invio sulla freccia del P2: solo la sua metà');
+  for (let i = 0; i < TUTORIAL_CARDS.length; i++){ ws.advance(1300); ui.split.tut.p2.step(1); } ui.split.tut.p2.tick();
+  assert.ok(ui.split.tut.p2.xEnabled && !ui.split.tut.p1.xEnabled);
+  assert.ok(blocked(press2('Space', x2))); ui.split.paint();
+  assert.ok(!ui.split.tutOpen.p2 && ui.split.tutOpen.p1 && lobby.step === 'connect', 'Spazio sulla X accesa del P2: chiusa solo la sua metà');
+  assert.ok(P2.tutorialSeen && !P2.tutWait && !E.natpfPhone.tutorialSeen && E.natpfPhone.tutWait, 'liberato solo il telefono del P2');
+});
