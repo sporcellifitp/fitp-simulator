@@ -541,7 +541,7 @@ body.natpf-arcade #natpf-scoreboard { opacity: 0; pointer-events: none; }
 #title-modal .menu-item.menu-primary:hover,
 #title-modal .menu-item.menu-primary:focus-visible { background: #efff7a; border-color: #efff7a; }
 #title-modal .menu-item.menu-primary:focus-visible { box-shadow: 0 0 0 3px #fff, 0 14px 36px rgba(227, 255, 54, 0.3); }
-#title-modal .menu-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 4px; }
+#title-modal .menu-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 4px; }
 #title-modal .menu-item.menu-small { display: grid; place-items: center; grid-template-columns: 1fr; min-height: 52px; padding: 8px 10px; text-align: center; }
 #title-modal .menu-item.menu-small b { font-size: 19px; }
 #title-modal .menu-item.menu-small:hover,

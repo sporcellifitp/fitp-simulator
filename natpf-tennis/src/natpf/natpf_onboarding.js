@@ -4,7 +4,7 @@
 // figura della presa, e due blocchi di testo grande: «Cosa fai tu» e «Cosa succede in campo». Si sfoglia con
 // Indietro/Avanti (sull'ultima «Fine»), con i puntini, con le frecce ←/→ (Home/Fine, 1–6), con uno swipe del dito;
 // Esc chiude. In alto si sceglie la racchetta (smartphone, webcam, mouse e tastiera): cambiano i testi, non il passo.
-// Si apre dal benvenuto, con «?», con il tasto H, dal menu (Guida) e dalla pausa. API: open(), close(), isOpen, key(e).
+// Si apre con «Come si gioca» in alto nel menu (una voce sola, B15), con «?», con il tasto H e dalla pausa. API: open(), close(), isOpen, key(e).
 import { gripSvg, GRIP_TEXT } from '@natpf/tennis/grip-art.js';
 const $ = id => document.getElementById(id);
 export const GUIDE_CONTROLLERS = Object.freeze([['phone', 'Smartphone'], ['webcam', 'Webcam'], ['mouse', 'Mouse e tastiera']]);

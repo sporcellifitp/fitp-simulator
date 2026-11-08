@@ -8,7 +8,7 @@
 //                   │                   risultato con la posizione in classifica (natpf_events.js)
 //                   ├ Classifica del giorno
 //                   ├ Allenamento ───→ racchetta → collega → campo d'allenamento → di nuovo al menu con il risultato
-//                   ├ Come si gioca → guida con le clip (natpf_onboarding.js)
+//                   ├ (Come si gioca: in alto a destra in ogni pagina e tasto H → guida, natpf_onboarding.js)
 //                   └ Opzioni ───────→ mano, visuale, musica, voce, colpi imparati, intro
 // Un pulsante grande per pagina, «Indietro» sempre visibile, frecce + Invio + Esc come con un joypad.
 // Appena il telefono ha i sensori attivi si entra in campo da soli; con la webcam appena si vede la mano.
@@ -171,6 +171,7 @@ export class NatpfLobby {
     if (item === 'challenges'){ this.go('challenges'); return; }
     if (item === 'ranking'){ this.go('ranking'); return; }
     if (item === 'training'){ this.setMode('training'); this.go('controller'); return; }
+    // (la voce «Guida» del menu non c'è più dal B15: la guida si apre con «Come si gioca» in alto o con H)
     if (item === 'guide'){ this.onboarding.open(); return; }
     if (item === 'options') this.go('options');
   }

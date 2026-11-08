@@ -1,7 +1,7 @@
 // NATPF motore base: menu principale al centro, sfondo fermo. Verifica a tre risoluzioni (1366 × 657 di un portatile
 // con la barra del browser, 1024 × 600, 1280 × 720):
 //   • tutte le voci visibili senza scorrere (anche le pagine «Modalità», «Racchetta», «Partita», «Opzioni», «Sfide»);
-//   • frecce come con un joypad: giù/su tra le voci, destra/sinistra nella fila delle voci di servizio;
+//   • frecce come con un joypad: giù/su tra le voci, destra/sinistra nella fila delle due voci di servizio;
 //   • descrizione della voce scelta sotto il pannello;
 //   • con il menu aperto il gioco non avanza (niente partita dimostrativa) e l'arena non si ridisegna a ogni
 //     fotogramma: era la causa dello sfarfallio della home, insieme al campo animato dell'intro.
@@ -28,13 +28,14 @@ try {
     await p.waitForFunction(() => window.__natpfTennis?.player?.model && __natpfTennis.natpfUi?.lobby?.visible, null, { timeout: 120000 });
     await p.waitForTimeout(600);
     const tag = `${w} × ${h}`;
-    const fit = await p.evaluate(() => { const m = document.getElementById('title-modal'); const items = [...document.querySelectorAll('[data-page="menu"] .menu-item')].map(e => e.getBoundingClientRect()); return { scroll: m.scrollHeight - m.clientHeight, inView: items.length === 6 && items.every(r => r.top >= 0 && r.bottom <= innerHeight), focus: document.activeElement?.dataset?.menu, centre: (() => { const l = document.querySelector('[data-page="menu"] .menu-layout').getBoundingClientRect(); return Math.round(Math.abs((l.left + l.right)/2 - innerWidth/2)); })(), side: (() => { const h = document.querySelector('[data-page="menu"] .menu-hero').getBoundingClientRect(); return items.every(r => r.left >= h.right - 1); })() }; });
+    const fit = await p.evaluate(() => { const m = document.getElementById('title-modal'); const items = [...document.querySelectorAll('[data-page="menu"] .menu-item')].map(e => e.getBoundingClientRect()); return { scroll: m.scrollHeight - m.clientHeight, inView: items.length === 5 && items.every(r => r.top >= 0 && r.bottom <= innerHeight), focus: document.activeElement?.dataset?.menu, centre: (() => { const l = document.querySelector('[data-page="menu"] .menu-layout').getBoundingClientRect(); return Math.round(Math.abs((l.left + l.right)/2 - innerWidth/2)); })(), side: (() => { const h = document.querySelector('[data-page="menu"] .menu-hero').getBoundingClientRect(); return items.every(r => r.left >= h.right - 1); })() }; });
     // menu a due colonne (dal 31/10): titolo e descrizione a sinistra, voci a destra; il blocco intero è al centro
-    check(`${tag}: le sei voci del menu a destra del titolo, blocco al centro, visibili senza scorrere, «Gioca» scelta`, fit.scroll <= 0 && fit.inView && fit.focus === 'play' && fit.side && fit.centre < 4, JSON.stringify(fit));
+    check(`${tag}: le cinque voci del menu a destra del titolo, blocco al centro, visibili senza scorrere, «Gioca» scelta`, fit.scroll <= 0 && fit.inView && fit.focus === 'play' && fit.side && fit.centre < 4, JSON.stringify(fit));
     if (w === 1280) await p.screenshot({ path: `${SP}/menu-${w}x${h}.png` });
     const seq = [];
     for (const k of ['ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowRight', 'ArrowRight', 'ArrowUp']){ await p.keyboard.press(k); seq.push(await p.evaluate(() => document.activeElement?.dataset?.menu)); }
-    check(`${tag}: frecce come un joypad`, seq.join() === 'training,challenges,guide,options,options,challenges', seq.join());
+    // (dal B15 la fila in basso ha due voci, Classifica e Opzioni: la guida è «Come si gioca» in alto)
+    check(`${tag}: frecce come un joypad`, seq.join() === 'training,challenges,ranking,options,options,challenges', seq.join());
     const desc = await p.evaluate(() => document.getElementById('menu-desc').textContent);
     check(`${tag}: descrizione della voce scelta`, /bersagli/i.test(desc) && !/Radar|Survival|sopravvivenza/i.test(desc), desc);
     // sfondo fermo: lo stato del gioco non cambia e il canvas non si ridisegna dopo i primi secondi
