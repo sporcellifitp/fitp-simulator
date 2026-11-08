@@ -9,6 +9,8 @@ const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const KIOSK_KEY = 'natpf-tennis.chiosco';
 export const IDLE_STEPS = [30, 45, 60, 90];
+// cosa vuol dire ogni mira, per l'avviso del pannello dello stand (natpf_aim_level.js, docs/GUIDA_MISURA_MIRA.md §1)
+const AIM_HINT = { alta: 'più palle angolate', media: 'un po’ meno angolate dell’alta', bassa: 'meno angolate, com’era prima' };
 // cosa fare dopo `idle` secondi fermi (funzione pura): niente, tornare al menu, chiudere la partita in corso
 export function kioskAction({ enabled, idle, limit, inGame, atRest }){
   if (!enabled) return null;
@@ -79,8 +81,9 @@ export class NatpfKiosk {
     if (cmd === 'reset'){ if (confirm('Azzerare la classifica di oggi?')) ui.events.resetBoard(); }
     if (cmd === 'phone'){ ui.phone.forget?.(); }
     if (cmd === 'music') $('btn-audio-toggle')?.click();
-    // mira del telefono: alta → media → bassa → alta; vale dal colpo successivo (anche per il secondo telefono)
-    if (cmd === 'aim'){ const v = writeAimLevel(nextAimLevel(readAimLevel())); ui.toast?.(`Mira del telefono: ${aimLevelLabel(v)}`); }
+    // mira del telefono: alta → media → bassa → alta; vale dal colpo successivo (anche per il secondo telefono). L'avviso
+    // dice anche cosa vuol dire (nel foglio non c'è posto per un paragrafo: a 1024 × 600 «Chiudi» finiva fuori vista)
+    if (cmd === 'aim'){ const v = writeAimLevel(nextAimLevel(readAimLevel())); ui.toast?.(`Mira del telefono: ${aimLevelLabel(v)} · ${AIM_HINT[v]}; resta salvata`); }
     this.paint();
   }
   paint(){

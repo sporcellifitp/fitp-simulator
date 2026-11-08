@@ -3,6 +3,8 @@
 //   • tutte le voci visibili senza scorrere (anche le pagine «Modalità», «Racchetta», «Partita», «Opzioni», «Sfide»);
 //   • frecce come con un joypad: giù/su tra le voci, destra/sinistra nella fila delle due voci di servizio;
 //   • descrizione della voce scelta sotto il pannello;
+//   • pannello dello stand (Ctrl+Maiusc+K) in una schermata, «Chiudi» in vista senza scorrere (B16: una nota di tre righe
+//     sotto i pulsanti lo portava fuori vista a 1024 × 600 e a metà a 1366 × 657);
 //   • con il menu aperto il gioco non avanza (niente partita dimostrativa) e l'arena non si ridisegna a ogni
 //     fotogramma: era la causa dello sfarfallio della home, insieme al campo animato dell'intro.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-menu.mjs
@@ -52,6 +54,17 @@ try {
       pages[step] = await p.evaluate(() => { const m = document.getElementById('title-modal'); return m.scrollHeight - m.clientHeight; });
     }
     check(`${tag}: anche le altre pagine del menu senza scorrere`, Object.values(pages).every(v => v <= 0), JSON.stringify(pages));
+    // pannello dello stand dal menu, con i tasti veri: il foglio non scorre e «Chiudi» si vede tutto (dentro il foglio e la
+    // finestra). Si chiude con il suo pulsante
+    await p.evaluate(() => __natpfTennis.natpfUi.lobby.go('menu'));
+    await p.keyboard.press('Control+Shift+KeyK');
+    await p.waitForSelector('#natpf-staff:not(.hidden) [data-staff="close"]', { state: 'visible', timeout: 10000 });
+    await p.waitForTimeout(400);                                            // animazione d'entrata del foglio (0,28 s)
+    const staff = await p.evaluate(() => { const s = document.querySelector('#natpf-staff .natpf-sheet'), r = s.getBoundingClientRect(), c = s.querySelector('[data-staff="close"]').getBoundingClientRect(); return { scroll: s.scrollHeight - s.clientHeight, sheet: [Math.round(r.top), Math.round(r.bottom)], close: [Math.round(c.top), Math.round(c.bottom)], inner: innerHeight }; });
+    check(`${tag}: pannello dello stand senza scorrere, «Chiudi» in vista`, staff.scroll <= 0 && staff.close[0] >= staff.sheet[0] && staff.close[1] <= Math.min(staff.sheet[1], staff.inner), JSON.stringify(staff));
+    if (w === 1024) await p.screenshot({ path: `${SP}/stand-${w}x${h}.png` });
+    await p.click('#natpf-staff [data-staff="close"]');
+    check(`${tag}: «Chiudi» chiude il pannello dello stand`, await p.evaluate(() => document.getElementById('natpf-staff').classList.contains('hidden')));
     // Invio su «Allenamento» porta alla scelta della racchetta
     await p.evaluate(() => __natpfTennis.natpfUi.lobby.go('menu'));
     await p.waitForTimeout(300);

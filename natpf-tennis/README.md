@@ -18,7 +18,7 @@ white label per uso interno. Solo **1v1**: contro la CPU oppure tra due computer
 
 Analisi, architettura, verifiche e limiti: [../docs/NATPF_TENNIS_MVP.md](../docs/NATPF_TENNIS_MVP.md).
 
-## Menu per chi gioca la prima volta, riscaldamento in campo e pausa
+## Menu per chi gioca la prima volta, calibrazione in campo e pausa
 
 Pensato per fiere ed eventi: ogni visitatore vede il gioco per la prima volta. Una pagina alla volta, un pulsante
 grande per andare avanti, «Indietro» sempre visibile, forme arrotondate (`natpf-round.css`, `natpf-flow.css`).
@@ -29,12 +29,15 @@ grande per andare avanti, «Indietro» sempre visibile, forme arrotondate (`natp
    - smartphone: QR nella pagina e tre passi che si spuntano da soli (inquadra il QR, «Attiva i sensori», impugna
      in verticale); appena i sensori sono attivi si entra in campo da soli;
    - webcam: anteprima, controllo della mano e scelta fra corsa automatica e corsa col corpo.
-4. **Riscaldamento in campo** (`natpf_training.js`), con un lanciapalle e senza avversario. **Calibrazione e
-   allenamento sono la stessa cosa**: ogni gesto chiesto dal telefono è una palla che rallenta, si ferma davanti alla
-   racchetta e riparte quando il gesto è riconosciuto. La calibrazione si conferma da sola, poi dritto 2, rovescio 2,
-   servizio 1, angoli 3. «Salta il riscaldamento» è sempre visibile: con il telefono non calibrato si gioca in
-   **modalità semplice** (dritto e rovescio li sceglie il gioco).
-5. **Partita**: CPU facile, CPU esperta o sfida un amico; durata (1 game di default) e visuale; poi **Gioca**.
+4. **In campo, solo con il telefono da calibrare** (`natpf_training.js`, con un lanciapalle e senza avversario): il
+   **tutorial corto** sul telefono (5 schede: presa, posizione di partenza, dritto, rovescio, servizio; le altre
+   nell'Allenamento e in «Rivedi i gesti») e la **calibrazione**: ogni gesto chiesto dal telefono è una palla che
+   rallenta, si ferma davanti alla racchetta e riparte quando il gesto è riconosciuto. «Salta ›» è sempre visibile: con
+   il telefono non calibrato si gioca in **modalità semplice** (dritto e rovescio li sceglie il gioco). Con la webcam, con
+   mouse e tastiera o con il telefono già calibrato si va subito alla pagina «Partita».
+5. **Partita**: CPU facile, CPU esperta, CPU Leggenda o sfida un amico; formato, durata, chi batte e visuale sotto
+   «Altre impostazioni»; poi **Gioca**. Il **riscaldamento** (lanciapalle: dritto, rovescio, servizio) è facoltativo dal
+   B16: «Riscaldati prima» nella stessa pagina.
 
 Dietro il menu gira una dimostrazione: con il menu aperto nessun colpo arriva al motore, da nessuna racchetta.
 Tastiera: Invio avanti, Esc indietro, H guida. **Come si gioca** è una finestra unica con tutte le istruzioni
@@ -182,8 +185,8 @@ la rianalizza. Analisi completa, mappatura dei gesti e problemi aperti:
 1. Nel menu scegli **Smartphone**: nella pagina «Collega» compare il QR.
 2. Si gioca solo con il telefono **in verticale nel palmo**, schermo verso il palmo, come il manico (la presa
    orizzontale è stata provata e tolta: scomoda).
-3. Inquadra il QR, tocca «Attiva i sensori»: si entra in campo e il riscaldamento fa la calibrazione con quattro palle
-   (dritto e rovescio alternati).
+3. Inquadra il QR, tocca «Attiva i sensori»: si entra in campo per il tutorial corto e la calibrazione (telefono fermo,
+   poi un dritto e un rovescio), poi la pagina «Partita»; il riscaldamento è facoltativo («Riscaldati prima»).
 4. Al servizio un primo gesto lancia la palla e il secondo la colpisce in alto. Nello scambio:
    - **tempo**: conta l'istante vero del colpo misurato dal telefono. Un attimo prima → incrociato, un attimo dopo →
      lungolinea (finestra più larga contro la CPU facile);

@@ -57,7 +57,9 @@ test('pannello dello stand: «Mira del telefono» alta → media → bassa → a
   assert.equal(aimLevelButton('alta'), 'Alta · 17°'); assert.equal(aimLevelButton('media'), 'Media · 20°'); assert.equal(aimLevelButton('bassa'), 'Bassa · 23°');
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const staff = html.slice(html.indexOf('<div id="natpf-staff"'), html.indexOf('<!-- passaggio dal menu al campo -->'));
-  assert.match(staff, /<button type="button" data-staff="aim"><span>Mira del telefono<\/span><b>Alta · 17°<\/b><\/button>/);
+  assert.match(staff, /<button type="button" data-staff="aim" title="Alta: più palle angolate;[^"]*"><span>Mira del telefono<\/span><b>Alta · 17°<\/b><\/button>/);
+  // nessun paragrafo in più sotto i pulsanti (rifinitura del B16): a 1024 × 600 «Chiudi» finiva fuori vista
+  assert.doesNotMatch(staff, /staff-aim-note|docs\//, 'niente nota con il percorso di un file del repository');
   assert.doesNotMatch(html, /data-natpf-aim|id="aim-note"/, 'niente più nelle Opzioni');
   // pannello vero sull'interfaccia senza disegno (test/ui-world.mjs)
   const { makeWorld, $ } = await import('./ui-world.mjs');
@@ -68,9 +70,9 @@ test('pannello dello stand: «Mira del telefono» alta → media → bassa → a
     assert.equal(readAimLevel(), 'alta'); assert.equal(label(), 'Alta · 17°');
     K.run('aim');
     assert.equal(readAimLevel(), 'media'); assert.equal(aimFullNow(), 20); assert.equal(localStorage.getItem(AIM_LEVEL_KEY), 'media');
-    assert.equal(label(), 'Media · 20°'); assert.equal($('natpf-toast').textContent, 'Mira del telefono: media (20°)');
-    K.run('aim'); assert.equal(readAimLevel(), 'bassa'); assert.equal(label(), 'Bassa · 23°');
-    K.run('aim'); assert.equal(readAimLevel(), 'alta'); assert.equal(label(), 'Alta · 17°');
+    assert.equal(label(), 'Media · 20°'); assert.equal($('natpf-toast').textContent, 'Mira del telefono: media (20°) · un po’ meno angolate dell’alta; resta salvata');
+    K.run('aim'); assert.equal(readAimLevel(), 'bassa'); assert.equal(label(), 'Bassa · 23°'); assert.match($('natpf-toast').textContent, /^Mira del telefono: bassa \(23°\) · meno angolate/);
+    K.run('aim'); assert.equal(readAimLevel(), 'alta'); assert.equal(label(), 'Alta · 17°'); assert.match($('natpf-toast').textContent, /^Mira del telefono: alta \(17°\) · più palle angolate; resta salvata$/);
     // il chiosco che rimette in ordine lo stand per il visitatore successivo non la tocca (è dello staff)
     K.run('aim'); K.reset(); assert.equal(readAimLevel(), 'media');
   } finally { writeAimLevel('alta'); K.close(); }

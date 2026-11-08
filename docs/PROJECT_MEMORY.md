@@ -612,6 +612,12 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   staff** nel **pannello dello stand** (Ctrl+Maiusc+K o 3 s sul marchio; pulsante `data-staff="aim"`, un clic passa alla
   successiva: **alta 17°** di base → media 20° → bassa 23°; chiave `natpf-tennis.mira`, `src/natpf/natpf_aim_level.js`),
   **non nelle Opzioni** dove un visitatore potrebbe cambiarla (revisione del B16); il reset del chiosco non la tocca.
+  Cosa vuol dire lo dicono l'avviso dopo il clic («Mira del telefono: media (20°) · un po’ meno angolate dell’alta; resta
+  salvata», `natpf_kiosk.js` `AIM_HINT`) e il `title` del pulsante, **non un paragrafo nel foglio**: a 1024 × 600 il foglio
+  del pannello dello stand è alto 554 px su 555 disponibili, una riga in più porta «Chiudi» fuori vista (successo nella
+  prima integrazione del B16, con una nota di tre righe). `tools/e2e/natpf-menu.mjs` controlla foglio senza scorrere e
+  «Chiudi» in vista a 1366 × 657, 1024 × 600 e 1280 × 720. Niente percorsi `docs/` nei testi per l'addetto: nel
+  programma installato e sul sito quei file non ci sono.
   I gradi sono quelli della mira piena (`natpf_stroke_intent.AIM_FULL`): `faceAimFromDev(dev, full)` usa
   `full − INTENT.faceDead` come scarto; senza `full` vale la base `INTENT.faceSpan` (alta = `faceDead + faceSpan`, prova
   che lo tiene). Arriva a `strokeIntent` con `aimFull` da `natpfSwingToEngine` (telefono di questo computer, P1 e P2 dello

@@ -70,11 +70,6 @@ Come si aggiorna:
   nella stessa direzione con stessa velocità e angolazione. Assicurati che per i giocatori mancini sia tutto uguale. Per
   quanto riguarda la UX UI, rivedi l'intero flusso dall'accesso al gioco fino alla partita. Semplifica eventuali
   ridondanze, testi lunghi, rendi tutto semplice e di facile lettura e comprensione.»
-- **Blocco in corso:** B15 in tre rami locali da `8a996e3` (`b15-colpi`, `b15-mancini`, `b15-ux`, cartella
-  `scratchpad/b15/`, non pubblicati): (A) banco sul pipeline vero telefono → intenzione → esito → motore e correzioni
-  alla compressione di direzione, forza e angolo; (B) prova a specchio del mancino su tutta la catena e correzioni;
-  (C) audit UX/UI con screenshot del flusso completo (gioco e pagina del telefono), semplificazioni. Poi verifiche
-  indipendenti, integrazione, versione 2026-11-08.4 o 09.1.
 - **B15 fatto, versione 2026-11-08.4** (richiesta dell'08/11 su colpi, mancini e flusso; poi «Quando hanno finito integra
   tutto e fai la versione nuova»): tre rami con verifiche indipendenti a ogni giro, uniti in `b15-int`. Colpi: la palla
   segue il gesto (velocità +29 %, profondità +17 %, direzione +12 % nella distribuzione di una persona vera; mira piena a
@@ -107,10 +102,18 @@ Come si aggiorna:
     per partita lato delle palle, palle angolate e piatto mediano; comando `lato-palle.mjs`; `docs/GUIDA_MISURA_MIRA.md`.
   - **Audit del gameplay**: `docs/b16/rapporto-gameplay.md` (misurato sulla 2026-11-08.4; 25 difetti, 11 miglioramenti,
     piano in tre tappe). Le 4 decisioni che chiede sono in `docs/PASSAGGIO_CONSEGNE.md` §3 punto 14.
-- Test: gioco 957/957, sito 197/197, LAN 12/12, programma Windows 28/28, build ok, `audit:legend` 69/69; nel browser tutte
-  le prove dei file toccati verdi (elenco e numeri in `docs/WORK_PROGRESS.md` «B16 · Integrazione»). Zip Cloudflare
-  2026-11-08.5 pronto in `scratchpad/b16/pacchetti/` (`natpf-simulator-cloudflare-20261108-5.zip`, 22.578.755 B, sha256
-  `89ed0cb1…8ab73d71`, provato estratto); l'installer lo costruisce GitHub dopo il push.
+  - **Rifinitura 1** dopo le revisioni dell'integrazione (commit successivo a `bfeb069`, sempre su `b16-int`, non
+    pubblicato): la nota di tre righe sotto i pulsanti del pannello dello stand portava «Chiudi» fuori vista a 1024 × 600 e
+    a metà a 1366 × 657; tolta, la spiegazione della mira ora è nell'avviso dopo il clic e nel `title` del pulsante;
+    `natpf-menu` controlla il pannello con «Chiudi» in vista a tre misure (28/28; 26/28 sulla versione di prima). Corretti
+    anche testi e documenti segnalati (README del gioco, guida della mira, §4 del passaggio di consegne, riga superata del
+    B15 qui). I non bloccanti lasciati sono elencati in `docs/WORK_PROGRESS.md` «B16 · Integrazione», rifinitura 1.
+- Test: gioco 957/957, sito 197/197, LAN 12/12, programma Windows 28/28 (non rifatto nella rifinitura: nessun file
+  toccato), build ok, `audit:legend` 69/69; nel browser tutte le prove dei file toccati verdi (elenco e numeri in
+  `docs/WORK_PROGRESS.md` «B16 · Integrazione»; nella rifinitura `natpf-menu` 28/28 e `natpf-mira-lato` 23/23). Zip
+  Cloudflare 2026-11-08.5 **rifatto** dopo la rifinitura in `scratchpad/b16/pacchetti/`
+  (`natpf-simulator-cloudflare-20261108-5.zip`, 22.578.885 B, sha256 `8cec771b…2285c983a`, provato estratto; sostituisce
+  quello di `bfeb069`, sha256 `89ed0cb1…8ab73d71`, mai consegnato); l'installer lo costruisce GitHub dopo il push.
 - Non verificato: telefoni veri, persone vere, webcam vera, Windows (installer 08.5 e aggiornamento dal gioco 08.4 → 08.5),
   ledwall, GPU vera; il passo `audit:legend` spostato non è ancora girato su GitHub.
 - **B17 di un'altra sessione, in parallelo** (`docs/b17/analisi-e-piano.md`: gesti del tutorial dal video, X per uscire
@@ -119,15 +122,16 @@ Come si aggiorna:
   schermo, banner) ↔ B17.3 (tabellone, `natpf_scoreboard.js`); tutorial corto ↔ B17.2 (X per uscire). File che tutte e due
   le sessioni toccano o toccheranno: `natpf_tutorial.js`, `natpf_split_ui.js`, `index.html`, `natpf_stroke_intent.js`,
   `natpf_phone_racket.js`, e questi documenti: chi integra dopo fa `git fetch` e unisce (merge), rifà le prove.
-- **Prossima azione esatta:** (1) pubblicare la 2026-11-08.5: `git fetch origin natpf-simulator`; se `origin` è andato
-  avanti unire (merge) e rifare gioco, sito, build e le prove nel browser dei file toccati da tutte e due le parti; poi push
-  di `b16-int` su `origin natpf-simulator` (solo avanzamento lineare, mai `--force`), controllo dei tre workflow di GitHub
-  (anche il passo `audit:legend` in fondo a «NATPF motore base MVP»; installer 08.5 pubblicato su R2), consegna dello zip
-  Cloudflare e del link dell'installer, registro §4 a [x]. (2) Poi attendere le decisioni dell'utente sulle **4 domande
-  dell'audit** (passaggio di consegne §3 punto 14): 1. partire con la tappa 1; 2. formato in fiera: punto decisivo sul
-  40-40 e servizio alternato; 3. pulsante «Nuovo giocatore» che azzera nome, calibrazione e tutorial senza scollegare il
-  telefono, record per giorno; 4. tappa 2 con il livello «Evento» adattivo (adulto medio al 60–70 % dei punti) e un livello
-  per bambini. Prima di cominciare una tappa, coordinarsi con il B17 dell'altra sessione (sovrapposizioni qui sopra).
+- **Prossima azione esatta:** (1) pubblicare la 2026-11-08.5 (ramo `b16-int` con la rifinitura 1): `git fetch origin
+  natpf-simulator`; se `origin` è andato avanti unire (merge) e rifare gioco, sito, build e le prove nel browser dei
+  file toccati da tutte e due le parti; poi push di `b16-int` su `origin natpf-simulator` (solo avanzamento lineare, mai
+  `--force`), controllo dei tre workflow di GitHub (anche il passo `audit:legend` in fondo a «NATPF motore base MVP»;
+  installer 08.5 pubblicato su R2), consegna dello zip Cloudflare e del link dell'installer, registro §4 a [x]. (2) Poi
+  attendere le decisioni dell'utente sulle **4 domande dell'audit** (passaggio di consegne §3 punto 14): 1. partire con
+  la tappa 1; 2. formato in fiera: punto decisivo sul 40-40 e servizio alternato; 3. pulsante «Nuovo giocatore» che
+  azzera nome, calibrazione e tutorial senza scollegare il telefono, record per giorno; 4. tappa 2 con il livello
+  «Evento» adattivo (adulto medio al 60–70 % dei punti) e un livello per bambini. Prima di cominciare una tappa,
+  coordinarsi con il B17 dell'altra sessione (sovrapposizioni qui sopra).
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 

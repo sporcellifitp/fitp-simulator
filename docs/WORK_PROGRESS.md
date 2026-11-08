@@ -1150,11 +1150,65 @@ guida provato nel browser.
   `run-local.mjs` (porte 8765/9000): `gesture-calibration` **20/20**, `phone-only` **10/10** + `timing-browser` **8/8**.
   Tutte verdi al primo giro, nessuna ripetuta. Alla fine nessun server acceso sulle porte 4730–4749, 8765, 9000.
 - Zip Cloudflare `natpf-simulator-cloudflare-20261108-5.zip` **22.578.755 B** (127 file, 2,42 MB sotto il limite di
-  25.000.000), sha256 `89ed0cb113b5920322a8ab97ec3c7c536e7e0ae52d5d27231291853a8ab73d71`, in `scratchpad/b16/pacchetti/`.
+  25.000.000), sha256 `89ed0cb113b5920322a8ab97ec3c7c536e7e0ae52d5d27231291853a8ab73d71`, in `scratchpad/b16/pacchetti/`
+  (**sostituito** dalla rifinitura 1 qui sotto, stessa versione: quello valido è il nuovo).
   Provato estratto con un server statico: contenuto uguale a `dist` più `_headers` e `natpf/turn.json`; gioco e pagina del
   telefono con la versione 2026-11-08.5 e nessun errore della pagina; 404 attesi solo su `/api/match/state`, `/lan/status`
   (e la favicon) e il rifiuto CORS del Worker TURN vero per l'origine locale. L'installer Windows lo costruisce GitHub dopo
   il push (qui solo i test di `natpf-desktop`, 28/28).
 - Non verificato: telefoni veri, persone vere, webcam vera, Windows (installazione e aggiornamento dal gioco 08.4 → 08.5:
   l'installer lo costruisce GitHub dopo il push), ledwall, GPU vera; l'esecuzione su GitHub del passo `audit:legend` spostato
-  in fondo al job; la pagina «Collega» con mouse e tastiera o webcam nel browser (coperta dai test con il DOM finto).
+  in fondo al job. La pagina «Collega» con mouse e tastiera o webcam nel browser l'ha provata poi la revisione del prodotto
+  (webcam finta di Chromium e il trucco «natpf»): pulsante «Alla partita ›», barra di 4 tappe senza «Calibrazione», con
+  mouse e tastiera subito la pagina «Partita».
+- **Rifinitura 1, dopo le due revisioni dell'integrazione (codice e prodotto)** · 08/11 sera:
+  - Bloccante (prodotto), riprodotto prima di toccare il codice con una sonda nel browser (Ctrl+Maiusc+K dal menu): la nota
+    nuova sotto i pulsanti del pannello dello stand (`#staff-aim-note`, tre righe con il percorso
+    `docs/GUIDA_MISURA_MIRA.md`) allungava il foglio da 554 a 654 px; a 1024 × 600 il foglio scorreva di 99 px e «Chiudi»
+    stava a y 607–653 (fuori vista, senza barra di scorrimento), a 1366 × 657 scorreva di 45 px con «Chiudi» tagliato; a
+    720 × 720, 1280 × 720 e 1920 × 1080 niente. Varianti misurate: nota di una riga sola → a 1024 × 600 scorre ancora di
+    53 px; frase dentro `#staff-note` → 23 px; senza nota → 0 (la base). A 1024 × 600 il foglio ha 555 px e quello della
+    base ne usa 554: non c'è posto per nessuna riga.
+  - Correzione: tolto il paragrafo. Cosa vuol dire la mira lo dicono l'avviso dopo il clic («Mira del telefono: media (20°)
+    · un po’ meno angolate dell’alta; resta salvata»; alta: «più palle angolate», bassa: «meno angolate, com’era prima»;
+    `natpf_kiosk.js`, `AIM_HINT`) e il `title` del pulsante («Alta: più palle angolate; Media e Bassa un po’ meno. Resta
+    salvata.»). Niente più percorso `docs/` nel pannello dell'addetto (nel programma installato e sul sito quel file non
+    c'è). Sonda dopo la correzione: foglio 554 px e scorrimento 0 a tutte e cinque le misure, «Chiudi» a y 508–554 a
+    1024 × 600; l'avviso sta in una riga anche a 720 × 720.
+  - Prova nuova in `tools/e2e/natpf-menu.mjs` (che gira già a 1366 × 657, 1024 × 600 e 1280 × 720): pannello dello stand
+    aperto con i tasti veri, foglio senza scorrere e «Chiudi» dentro il foglio e la finestra, poi «Chiudi» lo chiude.
+    **28/28** sulla correzione; sulla `index.html` di prima **26/28** (i due KO sono proprio 1366 × 657 e 1024 × 600, con
+    scorrimento 45 e 99): la prova scopre il difetto. `natpf-mira-lato` controlla anche il testo nuovo dell'avviso.
+  - Test di unità (`natpf-mira-sensibilita.test.mjs`): avviso con la spiegazione per le tre mire, pulsante con il `title`,
+    nessun `staff-aim-note` né percorso `docs/` nel pannello.
+  - Non bloccanti corretti (solo testi): `natpf-tennis/README.md` (riscaldamento descritto ancora come passo obbligatorio
+    dopo «Collega», con «dritto 2, rovescio 2, servizio 1, angoli 3» e due soli livelli della CPU: ora tutorial corto e
+    calibrazione solo con il telefono da calibrare, «Riscaldati prima» nella pagina «Partita», tre livelli);
+    `docs/GUIDA_MISURA_MIRA.md` (23/23 invece di 22/22, avviso nuovo, percentuali che cambiano a ogni giro);
+    `docs/PASSAGGIO_CONSEGNE.md` §4 (valori delle prove nel browser dell'ultimo giro, prove nuove del B16,
+    `gesture-calibration` 20/20, `phone-only` 10/10); `docs/PIANO_LAVORI.md` (tolta dal Checkpoint la riga superata
+    «Blocco in corso: B15»); `docs/PROJECT_MEMORY.md` (perché la spiegazione non sta nel foglio, quale prova lo controlla);
+    `tools/e2e/README.md` (riga di `natpf-menu`).
+  - Non bloccanti lasciati, da fare in un passo a parte: (1) `NatpfTraining.skip()` chiama `phone.skipCalibration()` se in
+    quell'istante `phone.ready` è falso: un telefono calibrato che perde il collegamento per un attimo durante «Riscaldati
+    prima» e «Salta ›» diventa «semplice» (c'era già prima del B16; visto solo con il disegno acceso e fotogrammi di
+    0,7–1,1 s in questo contenitore); (2) sui pacchetti di diagnostica di prima del B16 `latoPalle` conta anche riscaldamento
+    e webcam (la riga è già marcata «mira non registrata»); (3) con la presa piatta (`faceSwingToEngine`) la sensibilità
+    della mira non conta; (4) margini stretti: `audit:legend` «pro contro medio» 84,1 % con il limite all'85 %, torneo
+    ridotto di `npm test` circa 3 punti contro «preciso»; (5) «Riprova!» quando vince il Player 2 nello stesso schermo
+    (difetto dell'audit, aspetta le decisioni dell'utente); (6) nella guida «Come si gioca» il pulsante «Prova nel
+    riscaldamento» apre l'Allenamento: con «Riscaldati prima» separato il nome può confondere (da valutare); (7) la nota
+    della diagnostica (pannello tecnico) rimanda ancora a `docs/GUIDA_MISURA_MIRA.md`: va bene lì.
+  - Verifiche: gioco **957/957**, sito **197/197**, LAN **12/12**, `npm run build` ok (solo l'avviso già noto sulla dimensione dei pezzi; in `dist/index.html` niente nota, il pulsante con il `title`, l'avviso nel pezzo JS); nel browser (porte 4770–4789)
+    `natpf-menu` **28/28**, `natpf-mira-lato` **23/23** (partita 1 con la mira media 22 colpi, metà 45 · 55 %, «equilibrata», palle angolate 41 %; partita 2 con la mira alta 4 colpi, «troppo pochi colpi»). Al primo giro, nessuna ripetuta. Programma Windows non rifatto (nessun file di `natpf-desktop`
+    toccato).
+  - Zip Cloudflare rifatto con la stessa versione 2026-11-08.5 (non ancora pubblicata; cambia solo `index.html` e il pezzo
+    JS del gioco): `natpf-simulator-cloudflare-20261108-5.zip` **22.578.885 B** (127 file, 2,42 MB sotto il limite),
+    sha256 `8cec771b91710b8f244a6b74293f6310f11edfb908b545d8341278d2285c983a`, in `scratchpad/b16/pacchetti/` al posto del
+    precedente (cartella ed estratto rifatti). Provato estratto in una cartella nuova: contenuto uguale a `dist` più
+    `_headers` e `natpf/turn.json`; servito con un server statico, gioco e pagina del telefono con la versione 2026-11-08.5
+    e nessun errore della pagina, 404 attesi solo su `/api/match/state`, `/lan/status` e la favicon, più il rifiuto CORS del
+    Worker TURN vero per l'origine locale (stesso quadro dello zip di prima); sullo zip estratto il pannello dello stand a
+    1024 × 600 e 1366 × 657 non scorre, «Chiudi» a y 508–554 e 537–583, l'avviso nuovo dopo il clic.
+  - Non verificato: come sopra; in più l'avviso letto da un addetto vero e il `title` su un computer con il mouse vero
+    (il `title` non si vede con il tocco: l'avviso sì).

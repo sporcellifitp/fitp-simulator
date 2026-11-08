@@ -69,9 +69,10 @@ try {
   check('pannello dello stand: di base la mira è «Alta · 17°»', (await staffAim()).label === 'Alta · 17°', JSON.stringify(await staffAim()));
   await game.click('#natpf-staff [data-staff="aim"]');
   const toast = await game.evaluate(() => document.getElementById('natpf-toast')?.textContent || '');
-  check('pannello dello stand: un clic, «Media · 20°» con l’avviso, salvata', (await staffAim()).label === 'Media · 20°' && (await staffAim()).saved === 'media' && /media \(20°\)/.test(toast), toast);
+  check('pannello dello stand: un clic, «Media · 20°» con l’avviso che dice cosa vuol dire, salvata', (await staffAim()).label === 'Media · 20°' && (await staffAim()).saved === 'media' && /media \(20°\) · un po’ meno angolate dell’alta; resta salvata/.test(toast), toast);
   await game.waitForTimeout(400); await game.screenshot({ path: path.join(SP, 'mira-stand.png') });
   const sheet = await game.$eval('#natpf-staff .natpf-sheet', el => ({ scroll: el.scrollHeight - el.clientHeight }));
+  // (a 1366 × 657 e 1024 × 600 lo controlla natpf-menu, con «Chiudi» in vista)
   check('pannello dello stand: con il pulsante nuovo sta in una schermata 1280 × 720 senza scorrere', sheet.scroll <= 0, JSON.stringify(sheet));
   await game.click('#natpf-staff [data-staff="close"]');
   // nelle Opzioni dei visitatori non c'è più

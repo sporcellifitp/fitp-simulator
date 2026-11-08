@@ -26,7 +26,9 @@ per confrontare due sensibilità molte più partite (§8).
 1. Dal menu del gioco premi **Ctrl+Maiusc+K**, oppure **tieni premuto 3 secondi il marchio NATPF** in alto a sinistra:
    si apre il **«Pannello dello stand»**.
 2. Il pulsante **«Mira del telefono»** dice quella in uso. **Ogni clic passa alla successiva**: Alta · 17° → Media · 20° →
-   Bassa · 23° → di nuovo Alta. In basso compare l'avviso, per esempio «Mira del telefono: media (20°)».
+   Bassa · 23° → di nuovo Alta. In basso compare l'avviso che dice anche cosa vuol dire, per esempio «Mira del
+   telefono: media (20°) · un po’ meno angolate dell’alta; resta salvata» (con il mouse sopra il pulsante, la stessa
+   spiegazione per tutte e tre).
    - **Alta · 17°** (di base, la scelta del B15): palle più angolate;
    - **Media · 20°**: lo stesso piatto girato manda la palla un po' meno di lato;
    - **Bassa · 23°**: com'era prima del B15.
@@ -219,18 +221,20 @@ Si può anche cambiare sensibilità tra una partita e l'altra nella stessa regis
 
 ## Passi provati
 
-**08/11/2026, dopo la revisione del B16** (`tools/e2e/natpf-mira-lato.mjs`, telefono simulato, 22/22 verifiche):
+**08/11/2026, dopo la revisione del B16** (`tools/e2e/natpf-mira-lato.mjs`, telefono simulato, 23/23 verifiche; il
+pannello dello stand a 1366 × 657, 1024 × 600 e 1280 × 720, con «Chiudi» in vista, lo prova `natpf-menu.mjs`):
 
 1. Ctrl+Maiusc+K → «Pannello dello stand»: «Mira del telefono» dice «Alta · 17°»; un clic → «Media · 20°» con l'avviso
-   «Mira del telefono: media (20°)». Nelle Opzioni del menu la riga non c'è. Ricaricata la pagina, resta «Media · 20°».
+   «Mira del telefono: media (20°) · un po’ meno angolate dell’alta; resta salvata». Nelle Opzioni del menu la riga non
+   c'è. Ricaricata la pagina, resta «Media · 20°».
 2. Maiusc+D → il pannello dice «Mira del telefono: media (20°), si cambia nel pannello dello stand: Ctrl+Maiusc+K, o 3 s
    sul marchio NATPF del menu»; tolti i due video; nota; «● Avvia registrazione».
 3. Telefono collegato e calibrato; pagina «Partita» → «Gioca»; partita 1 con 22 colpi del telefono. Menu → pannello dello
    stand → due clic («Bassa», poi «Alta · 17°»); «Gioca»; partita 2 con 4 colpi.
 4. Maiusc+D → «■ Ferma la registrazione»: nel riassunto la riga della partita 1 del §5 (metà sinistra 45 % · metà
-   destra 55 %, equilibrata), «partita 2 · P1 (destro, mira alta 17°): 4 colpi … troppo pochi colpi per giudicare (4, ne
-   servono 20)», «in tutto: 0 sbilanciate su 1 partita giudicata (per giocatore) · mira media (20°): 0 sbilanciate su 1,
-   palle angolate 41 % in media (1 partita)».
+   destra 55 %, equilibrata; le percentuali cambiano a ogni giro: in altri 41 · 59 % e 50 · 50 %), «partita 2 · P1
+   (destro, mira alta 17°): 4 colpi … troppo pochi colpi per giudicare (4, ne servono 20)», «in tutto: 0 sbilanciate su
+   1 partita giudicata (per giocatore) · mira media (20°): 0 sbilanciate su 1, palle angolate 41 % in media (1 partita)».
 5. Scorso il pannello, «⬇ Scarica il pacchetto»: lo zip ha la scheda «Lato delle palle per partita» in `rapporto.html`, le
    righe in `LEGGIMI.txt`, `latoPalle` in `metriche.json`, la mira in `sessione.json`.
 6. `node scripts/audit/lato-palle.mjs <zip>`: le due partite con la loro sensibilità e il totale.

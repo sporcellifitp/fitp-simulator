@@ -197,14 +197,17 @@ Le sha256 di tutti i pacchetti sono in `docs/WORK_PROGRESS.md`.
 
 **Automatiche (devono essere verdi prima di ogni push e di ogni versione):**
 - Unità: gioco 957, sito 197, LAN 12, programma Windows 28 (B16); `npm run build`; `npm run audit:legend` (69 criteri, ~70 s).
-- Prove nel browser `natpf-*`, con questi valori all'ultimo giro: `natpf-tutorial-phone` 37/37, `natpf-split-ready`
-  34/34, `natpf-tutorial-relink` 8/8, `natpf-training-flow` 18/18, `natpf-modale-gesti` 18/18 (fps solo a macchina
-  scarica), `natpf-menu` 22/22, `natpf-1v1-p2p` 37/37, `natpf-1v1-webcam-p2` 15/15, `natpf-rally` 7/7,
-  `natpf-gesti-speciali` 9/9, `natpf-tabellone` 26/26, `natpf-scritte-2v2` 73/73, `natpf-aggiornamenti` 80/80,
-  `natpf-phone-keep` 13/13, `natpf-phone-blackout` 6/6, `natpf-training-reconnect` 6/6, `natpf-schermo` 41/41,
-  `natpf-inquadratura` 36/36, `natpf-diag-session` 24/24, `natpf-webcam-distanza` 7/7.
+- Prove nel browser `natpf-*`, con questi valori all'ultimo giro in cui sono girate (B16 per quelle toccate dal B16, giri
+  precedenti per le altre): `natpf-tutorial-phone` 39/39, `natpf-split-ready` 34/34, `natpf-tutorial-relink` 9/9,
+  `natpf-training-flow` 21/21, `natpf-modale-gesti` 18/18 (fps solo a macchina scarica), `natpf-menu` 28/28 (con il
+  pannello dello stand e «Chiudi» in vista a tre misure), `natpf-1v1-p2p` 39/39, `natpf-1v1-webcam-p2` 15/15,
+  `natpf-rally` 8/8, `natpf-flusso-tocchi` (singolo 13 tocchi 4/4, stesso schermo 19 tocchi 5/5, sfida 18 tocchi
+  7/7), `natpf-mira-lato` 23/23, `natpf-leggenda` 7/7, `natpf-phone-upright` 10/10, `natpf-gesti-speciali` 9/9,
+  `natpf-tabellone` 26/26, `natpf-scritte-2v2` 73/73, `natpf-aggiornamenti` 80/80, `natpf-phone-keep` 13/13,
+  `natpf-phone-blackout` 6/6, `natpf-training-reconnect` 6/6, `natpf-schermo` 41/41, `natpf-inquadratura` 36/36,
+  `natpf-diag-session` 24/24, `natpf-webcam-distanza` 7/7.
 - Prove del sito, con `CHROMIUM_PATH` obbligatorio: `cd tools/e2e && node run-local.mjs gesture-calibration.mjs`
-  (18/18), `timing-browser.mjs` (8/8).
+  (20/20), `phone-only.mjs` (10/10), `timing-browser.mjs` (8/8).
 - Programma su Linux: `cd natpf-desktop && node scripts/prepara.mjs && node scripts/prova-linux.mjs`, con lo scenario
   `aggiornamenti` su un server finto (porte 8443, 8081, 8080 libere).
 
