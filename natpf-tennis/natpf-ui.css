@@ -1088,7 +1088,7 @@ body.natpf-split #opponent-presence-pill { display: none !important; }
 /* nomi dei due giocatori: campi con lo stile del gioco (prima i campi bianchi del browser) */
 #title-modal .split-names { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px 24px; }
 #title-modal .split-names label { display: flex; align-items: center; gap: 10px; font: 600 13px/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
-#title-modal .split-name-input { width: min(24cqw, 260px); height: 40px; padding: 0 14px; border-radius: var(--r-s); border: 1px solid var(--line-strong); background: rgba(5, 10, 28, 0.6); color: var(--text); font: 700 italic 19px/1 var(--font-display); letter-spacing: 0.02em; }
+#title-modal .split-name-input { width: clamp(130px, 13cqw, 166px); height: 40px; padding: 0 14px; border-radius: var(--r-s); border: 1px solid var(--line-strong); background: rgba(5, 10, 28, 0.6); color: var(--text); font: 700 italic 19px/1 var(--font-display); letter-spacing: 0.02em; }
 #title-modal .split-name-input::placeholder { color: var(--text-3); }
 #title-modal .split-name-input:focus-visible { outline: 3px solid var(--ball); outline-offset: 2px; }
 /* barra dell'avvio sotto le schede: chi manca, conto alla rovescia, conto annullato con il motivo. Sempre in vista:
@@ -1389,7 +1389,7 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 @keyframes natpf-esito-in { from { opacity: 0; transform: translateY(0.4em); } to { opacity: 1; transform: none; } }
 /* stesso schermo con una webcam per due (natpf_split_ui.js, webcam_duo.js): anteprima specchiata con la metà di ciascuno;
    i pannelli dei giocatori restano per la mano e lo stato, senza QR */
-#title-modal .split-input-row { grid-column: 1 / -1; }
+#title-modal .split-names .split-input { margin-left: auto; }
 #title-modal .split-cam { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: center; }
 #title-modal .split-setup:not([data-input="webcam"]) .split-cam { display: none; }
 #title-modal .split-setup[data-input="webcam"] .split-qr, #title-modal .split-setup[data-input="webcam"] [data-split-skip], #title-modal .split-setup[data-input="webcam"] .split-grip { display: none; }

@@ -448,14 +448,13 @@
           <!-- stesso schermo (split screen, natpf_split_ui.js): un telefono per giocatore, ognuno con il suo QR e la sua
                calibrazione guidata sul telefono; si va alla partita quando sono pronti tutti e due -->
           <div class="setup-panel split-setup" data-setup="split">
-            <div class="split-names"><label>Player 1 · sinistra <input class="split-name-input" data-split-name="p1" maxlength="24" placeholder="Player 1" autocomplete="off" spellcheck="false"></label><label>Player 2 · destra <input class="split-name-input" data-split-name="p2" maxlength="24" placeholder="Player 2" autocomplete="off" spellcheck="false"></label></div>
-            <div class="lobby-row split-input-row">
-              <span class="lobby-label">Si gioca con</span>
-              <div class="lobby-seg" role="radiogroup" aria-label="Si gioca con">
+            <!-- una riga sola: i due nomi e la scelta «Due telefoni / Una webcam per due» (B15: prima due righe, e a 1280×720
+                 la barra dell'avvio finiva sotto il piè di pagina) -->
+            <div class="split-names"><label>Player 1 · sinistra <input class="split-name-input" data-split-name="p1" maxlength="24" placeholder="Player 1" autocomplete="off" spellcheck="false"></label><label>Player 2 · destra <input class="split-name-input" data-split-name="p2" maxlength="24" placeholder="Player 2" autocomplete="off" spellcheck="false"></label
+              ><div class="lobby-seg split-input" role="radiogroup" aria-label="Si gioca con">
                 <button type="button" class="seg-btn" data-split-input="phones">Due telefoni</button
                 ><button type="button" class="seg-btn" data-split-input="webcam">Una webcam per due</button>
-              </div>
-            </div>
+              </div></div>
             <div class="split-cam">
               <div class="split-cam-view"><video id="split-webcam-video" autoplay playsinline muted></video><i class="split-cam-mid" aria-hidden="true"></i><span class="split-cam-tag p1">Player 1</span><span class="split-cam-tag p2">Player 2</span></div>
               <div class="split-cam-side">
