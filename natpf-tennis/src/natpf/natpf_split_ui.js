@@ -173,8 +173,11 @@ export class NatpfSplitUi {
   get tutSeen(){ return { p1: !!this.phone('p1')?.tutorialSeen, p2: !!this.phone('p2')?.tutorialSeen }; }
   // tastiera di chi gestisce la postazione nella pagina «Collega» (natpf_lobby): A/D sfogliano il tutorial del P1 (metà
   // sinistra), ← → quello del P2 (metà destra); con una sola metà aperta tutti e due i tasti vanno a quella
+  // Invio e Spazio sulla X o su una freccia a fuoco (Tab) attivano quella della metà che ha il fuoco, come il clic
+  // (natpf_tutorial.keyActivate; senza, la lobby con Invio andrebbe alla pagina dopo)
   key(e){
     if (!this.tutOpen.p1 && !this.tutOpen.p2) return false;
+    if (e.code === 'Enter' || e.code === 'Space') return ['p1', 'p2'].some(id => this.tutOpen[id] && !!this.tut[id]?.keyActivate(e));
     const left = e.code === 'KeyA' || e.code === 'KeyD';
     const id = left ? (this.tutOpen.p1 ? 'p1' : 'p2') : (this.tutOpen.p2 ? 'p2' : 'p1');
     const code = e.code === 'KeyA' ? 'ArrowLeft' : e.code === 'KeyD' ? 'ArrowRight' : e.code;

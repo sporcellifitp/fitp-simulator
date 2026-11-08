@@ -87,6 +87,11 @@ const pshot = async (phone, name) => { await phone.waitForTimeout(200); await ph
 const tap = (phone, id) => phone.evaluate(id => { const b = document.getElementById(id); if (b && !b.disabled) b.click(); return !!b && !b.disabled; }, id);
 // una scheda avanti dal telefono e almeno 1,1 s a schermo (conta come vista)
 const nextCard = async phone => { await tap(phone, 'tutNext'); await phone.waitForTimeout(1250); };
+// tastiera di chi gestisce la postazione: Tab finché il fuoco è sulla X della modale (al massimo 40 volte)
+const onX = (pg, root) => pg.evaluate(r => document.activeElement === document.querySelector(`${r} .tut-x`), root);
+const tabToX = async (pg, root = '#natpf-tutorial') => { for (let k = 0; k < 40 && !(await onX(pg, root)); k++){ await pg.keyboard.press('Tab'); await pg.waitForTimeout(40); } return onX(pg, root); };
+// colpi da tastiera arrivati al motore (motion_controls._onKeyDown con Spazio/Invio): a modale aperta devono essere zero
+const hookSwings = pg => pg.evaluate(() => { const mc = __natpfTennis.motionController, o = mc._emitSwing.bind(mc); window.__swings = 0; mc._emitSwing = (...a) => { window.__swings++; return o(...a); }; });
 
 const B = await launch();
 try {
@@ -139,6 +144,13 @@ try {
   await game.click('#natpf-tutorial .tut-x', { force: true }); await game.waitForTimeout(400);
   check('X spenta: il clic non chiude la modale, il telefono resta nel tutorial', await game.evaluate(() => __natpfTennis.natpfUi.training.tutorialOpen) && (await snap(phone)).screen === 'tutorial');
   check('«Tutto chiaro» spento: toccarlo non chiude la modale', !(await tap(phone, 'tutOk')) && await game.evaluate(() => __natpfTennis.natpfUi.training.tutorialOpen));
+  // tastiera (B17.2 bis): Tab fino alla X, Invio e Spazio sulla X spenta non chiudono e non tirano colpi da tastiera
+  // (prima motion_controls fermava Spazio/Invio e tirava un colpo a modale aperta)
+  await hookSwings(game);
+  const focusedX0 = await tabToX(game);
+  await game.keyboard.press('Enter'); await game.waitForTimeout(150); await game.keyboard.press('Space'); await game.waitForTimeout(300);
+  const kb0 = { focusedX: focusedX0, open: await game.evaluate(() => __natpfTennis.natpfUi.training.tutorialOpen), swings: await game.evaluate(() => window.__swings), idx: await game.evaluate(() => __natpfTennis.natpfUi.training.tutorial.state.idx), phone: (await snap(phone)).screen };
+  check('Tab fino alla X spenta, Invio e Spazio: la modale resta aperta alla scheda 1, nessun colpo da tastiera, il telefono resta nel tutorial', kb0.focusedX && kb0.open && kb0.swings === 0 && kb0.idx === 0 && kb0.phone === 'tutorial', JSON.stringify(kb0));
 
   // avanti dal telefono fino alla scheda 5 (una alla volta, ognuna vista)
   for (let k = 0; k < 4; k++) await nextCard(phone);
@@ -200,14 +212,19 @@ try {
   // computer non la chiede (recalibrate); il telefono non resta sulla schermata del tutorial
   await phone.evaluate(() => { const c = __racchetta.cal, o = c.start.bind(c); window.__calStarts = 0; c.start = (...a) => { window.__calStarts++; return o(...a); }; });
   await game.evaluate(() => { const P = __natpfTennis.natpfPhone, o = P.recalibrate.bind(P); window.__recal = 0; P.recalibrate = () => { window.__recal++; return o(); }; });
-  await game.click('#natpf-tutorial .tut-x');
+  // dalla tastiera (B17.2 bis): Tab fino alla X accesa e Invio, come il clic (nello stesso schermo, sotto, il clic)
+  await hookSwings(game);
+  const focusedX = await tabToX(game);
+  check('tutte viste: Tab porta il fuoco sulla X accesa', focusedX);
+  await game.keyboard.press('Enter');
   const xClosed = await game.waitForFunction(() => !__natpfTennis.natpfUi.training.tutorialOpen && document.getElementById('natpf-tutorial').classList.contains('hidden'), null, { timeout: 5000 }).then(() => true, () => false);
+  check('Invio sulla X accesa: modale chiusa come con il clic, nessun colpo da tastiera', xClosed && (await game.evaluate(() => window.__swings)) === 0);
   const xCal = await phone.waitForFunction(() => __racchetta.state.screen === 'cal', null, { timeout: 5000 }).then(() => true, () => false);
   await phone.waitForTimeout(1500);
   s = await snap(phone);
   const once = { starts: await phone.evaluate(() => window.__calStarts), recal: await game.evaluate(() => window.__recal), seen: await game.evaluate(() => __natpfTennis.natpfPhone.tutorialSeen && !__natpfTennis.natpfPhone.tutWait), cal: await game.evaluate(() => !!__natpfTennis.natpfUi.training.cal) };
   await pshot(phone, '07-calibrazione');
-  check('X cliccata sul computer: modale chiusa, tutorial visto, telefono libero, computer in calibrazione', xClosed && once.seen && once.cal, JSON.stringify(once));
+  check('X attivata sul computer (Invio): modale chiusa, tutorial visto, telefono libero, computer in calibrazione', xClosed && once.seen && once.cal, JSON.stringify(once));
   check('dopo la X: il telefono passa alla calibrazione una volta sola (non resta sul tutorial, il computer non la chiede)', xCal && s.screen === 'cal' && once.starts === 1 && once.recal === 0, JSON.stringify({ s, once }));
   check('dopo la X: calibrazione, senza «Tutto chiaro» né Ricalibra/Ricollega/Scollega', s.screen === 'cal' && !s.tutOk && !s.tools && !s.tutBox, JSON.stringify(s));
   await quickCalibrate(phone, QUICK_PLAN);

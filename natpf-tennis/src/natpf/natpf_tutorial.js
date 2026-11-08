@@ -162,12 +162,29 @@ export class NatpfTutorial {
     this.state = next; this.paint(); this._progress();
   }
   step(d){ if (this.open) this.go(this.state.idx + (d < 0 ? -1 : 1)); }
-  // tastiera di chi gestisce la postazione: ← → (true se il tasto è della modale)
+  // tastiera di chi gestisce la postazione: ← → (true se il tasto è della modale); Invio e Spazio sul pulsante a fuoco
   key(e){
     if (!this.open) return false;
     if (e.code === 'ArrowLeft' || e.code === 'PageUp'){ this.step(-1); return true; }
     if (e.code === 'ArrowRight' || e.code === 'PageDown'){ this.step(1); return true; }
-    return false;
+    return this.keyActivate(e);
+  }
+  // il pulsante della modale che ha il fuoco (Tab), come selettore: la X, una freccia o «Chiudi»; null se il fuoco è altrove
+  focusedControl(active = typeof document !== 'undefined' ? document.activeElement : null){
+    if (!this.open || !this.root || !active) return null;
+    return ['.tut-x', '.tut-prev', '.tut-next', '.tut-close'].find(sel => this.root.querySelector(sel) === active) || null;
+  }
+  // Invio o Spazio sul pulsante a fuoco: la stessa cosa del clic (la X solo se accesa: closeX; una freccia spenta
+  // non fa niente). Il motore con Spazio e Invio tira un colpo da tastiera (motion_controls._onKeyDown, con
+  // preventDefault che annullerebbe il clic del pulsante): chi chiama ferma l'evento prima (true = tasto della modale)
+  keyActivate(e, active){
+    if (!this.open || !(e.code === 'Enter' || e.code === 'Space')) return false;
+    const sel = this.focusedControl(active);
+    if (!sel) return false;
+    if (sel === '.tut-x') this.closeX();
+    else if (sel === '.tut-close') this.close('review');
+    else if (!this.root.querySelector(sel)?.disabled) this.step(sel === '.tut-prev' ? -1 : 1);
+    return true;
   }
   tick(){
     if (!this.open) return;

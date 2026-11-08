@@ -180,8 +180,12 @@ export class NatpfTraining {
     document.getElementById('coach-review')?.addEventListener('click', e => { e.stopPropagation(); this.reviewGestures(); });
     if (typeof window !== 'undefined') window.addEventListener('keydown', e => {
       if (!this.tutorial?.open) return;
-      // ← → sfogliano le schede (prima del motore, che con le frecce muoverebbe il giocatore)
+      // ← → sfogliano le schede (prima del motore, che con le frecce muoverebbe il giocatore); Invio e Spazio sulla X,
+      // su una freccia o su «Chiudi» a fuoco (Tab) li attivano come il clic (natpf_tutorial.keyActivate)
       if (this.tutorial.key(e)){ e.preventDefault(); e.stopImmediatePropagation(); return; }
+      // con la modale aperta Spazio e Invio non tirano colpi da tastiera (motion_controls._onKeyDown li fermerebbe
+      // con preventDefault e tirerebbe un colpo mentre si legge il tutorial)
+      if (e.code === 'Space' || e.code === 'Enter'){ e.preventDefault(); e.stopImmediatePropagation(); return; }
       if (e.code !== 'Escape') return;
       e.preventDefault(); e.stopImmediatePropagation();
       // Esc tenuto premuto (uscita dallo schermo intero del browser) ripete il tasto: conta solo il primo
