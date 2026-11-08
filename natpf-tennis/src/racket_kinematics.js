@@ -674,12 +674,15 @@ export class RacketKinematicsController {
     // NATPF B15: personaggio specchiato (mancino, root.scale.x < 0): le grandezze laterali del campo (velocità e
     // accelerazione del personaggio, mouse, inclinazione del telefono, mano vista dalla webcam) vanno nel riferimento
     // specchiato, altrimenti lo specchio le rovescia (polso e racchetta del mancino dalla parte opposta). mx = 1 al destro
+    // (solo le grandezze laterali: la velocità e l'accelerazione in avanti, R e K, non si specchiano; verifica del secondo
+    // giro: correndo verso la rete il polso del mancino andava a 87–149 mm dallo specchio)
     const mx = n.root && n.root.scale && n.root.scale.x < 0 ? -1 : 1,
-      b = (n.sideSign > 0 ? -1 : 1) * mx,
+      sb = n.sideSign > 0 ? -1 : 1,
+      b = sb * mx,
       m = v.x * b,
-      R = v.z * b,
+      R = v.z * sb,
       x = p((z * b) / s, -42, 42),
-      K = p((P * b) / s, -42, 42);
+      K = p((P * sb) / s, -42, 42);
     (t.wristSpringVel.x -= x * 0.0085 * s),
       (t.wristSpringVel.z -= K * 0.0085 * s),
       (t.wristSpringOmega.z += x * 0.068 * s),

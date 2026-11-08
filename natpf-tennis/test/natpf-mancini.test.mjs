@@ -462,7 +462,7 @@ function mirrorRun(scn, sideSign = 1){
     [[A, balls[0], 1], [B, balls[1], -1]].forEach(([W, ball, s]) => {
       const b = scn.ball?.(t);
       if (b){ ball.pos.set(s*b.x, b.y, sideSign*b.z); ball.vel.set(0, 0, sideSign*b.vz); ball.targetLanding = { x: s*b.x, z: sideSign*10 }; }
-      const v = scn.vel?.(t) || 0; W.actor.vel.set(s*v, 0, 0); W.actor.pos.x += s*v/60; W.actor.root.position.copy(W.actor.pos);
+      const v = scn.vel?.(t) || 0, vz = scn.velz?.(t) || 0; W.actor.vel.set(s*v, 0, vz); W.actor.pos.x += s*v/60; W.actor.pos.z += vz/60; W.actor.root.position.copy(W.actor.pos);
       if (scn.swingAt === f) W.rk.triggerSwing(W.actor, { shotType: 'topspin', side: scn.side, speed: 1.1, timing: 'sweet', dirX: 0 });
       const li = scn.input?.(t);
       const ctx = { phase: 'RALLY', score: { server: 'player' }, ball: b ? ball : null, elapsedTime: t, ...(li ? { liveInput: { tiltPitch: li.pitch, tiltRoll: s*li.roll, tiltYaw: s*li.yaw, mouseVelX: s*li.mx, mouseVelY: li.my, handOffsetX: s*li.hx, handOffsetY: li.hy } } : {}) };
@@ -490,6 +490,9 @@ test('personaggio intero a specchio: carica dalla palla lontana, corsa, testa, c
     'palla che arriva sul dritto': { frames: 60, ball: t => ({ x: 1.2, y: 1, z: 11.89 - 6 + t*4, vz: 4 }) },
     'palla in mezzo': { frames: 60, ball: t => ({ x: .1, y: 1, z: 11.89 - 6 + t*4, vz: 4 }) },
     'corsa laterale': { x0: .4, frames: 90, vel: t => 3*Math.sin(t*3) },
+    // verifica del secondo giro: lo specchio valeva anche per la velocità in avanti (polso a 87–149 mm dallo specchio)
+    'verso rete e frenata': { frames: 70, velz: t => (t < .6 ? -5 : 0) },
+    'avanti e indietro': { frames: 90, velz: t => -3*Math.sin(t*3) },
     'dritto': { frames: 40, swingAt: 2, side: 'forehand', ball: () => ({ x: 1, y: 1, z: 11, vz: 4 }) },
     'rovescio': { frames: 40, swingAt: 2, side: 'backhand', ball: () => ({ x: -1, y: 1, z: 11, vz: 4 }) },
     'mouse, telefono e webcam': { frames: 60, input: t => ({ pitch: .2*Math.sin(t*5), roll: .4*Math.sin(t*4), yaw: .5*Math.cos(t*3), mx: 3*Math.sin(t*6), my: 1, hx: .2*Math.sin(t*2), hy: .05 }) },

@@ -139,6 +139,16 @@ Fuori tema (non della mano, non toccato perché cambierebbe il gioco di tutti): 
 che non arriva alla palla fa il gesto del rovescio quando la palla è alla sua destra (`ball.x < opponent.x`), mentre
 `_executeOpponentReturn` usa la regola opposta (giusta).
 
+Verifica indipendente del secondo giro: confermati i punti 1–6 e la ricerca, con una regressione introdotta dal
+fattore `mx` in `racket_kinematics.js`: moltiplicava anche la velocità e l'accelerazione **in avanti** (`R`, `K`), così
+correndo verso la rete o all'indietro il polso del mancino andava a 87–149 mm dallo specchio del destro (le 7 scene della
+prova non avevano corsa in avanti). Corretto (solo le grandezze laterali si specchiano) e aggiunte alla prova le scene
+«verso rete e frenata» e «avanti e indietro» (falliscono senza la correzione: 0,149 m). Restano, minori e già presenti
+prima del B15: sul computer del P2, durante la sua calibrazione in campo, il personaggio dell'host prende la mano del P2
+finché la prossima istantanea dell'host (con `p1Hand`) non lo rimette giusto (un host vecchio non lo rimette); la pagina
+vecchia del sito (`site/tennis/index.html`, fuori dal gioco NATPF) mostra le frecce del destro; cambiando mano a metà
+calibrazione il telefono mostra «Dritto ←» e poi «Dritto →» (giusto per la mano nuova, ma può confondere).
+
 Verifiche del secondo giro (commit `ceb94f9` più documenti): gioco 912/912, sito 196/196, LAN 12/12. Le 10 prove nuove
 fallite tutte sul codice di prima del giro (`d696253`: 8/18 nei due file dei mancini, `phone-screen` 11/12). Nel browser:
 `natpf-training-flow` HAND=right 20/20 e HAND=left 20/20, `natpf-tutorial-phone` HAND=right 38/38 e HAND=left 38/38
