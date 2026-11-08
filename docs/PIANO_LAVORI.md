@@ -75,18 +75,21 @@ Come si aggiorna:
   alla compressione di direzione, forza e angolo; (B) prova a specchio del mancino su tutta la catena e correzioni;
   (C) audit UX/UI con screenshot del flusso completo (gioco e pagina del telefono), semplificazioni. Poi verifiche
   indipendenti, integrazione, versione 2026-11-08.4 o 09.1.
-- Stato B15 (09/11 mattina): (A) `b15-colpi` fatto (`404bb36`, `5bda836`, `ab9dd89`): banco `scripts/audit/colpi.mjs`;
-  causa principale: il centro della mira inseguiva la mira tenuta (dieci dritti a +20° da 2,9 a 1,1 m) e il colpo tipico
-  degli ultimi 9 colpi riassorbiva la forza; correzioni ad `AIM`, `TYPICAL.keep` 24, tetto del volo 1,5, altezza sulla
-  rete e top spin dalla forza; 6 test nuovi, 900/900; in verifica indipendente. (B) `b15-mancini` fatto (`10a886a`,
-  `1a8a37f`, `d696253`): due difetti veri per il mancino (calibrazione in campo: dritto giocato di rovescio,
-  `natpf_training.js`; racchetta animata che rileggeva il lato con la regola del destro, `racket_kinematics.js`), più
-  calibrazione per mano, webcam per due e stesso schermo; test a specchio nuovo (8), 902/902; e2e con `HAND=left`; in
-  verifica indipendente. (C) `b15-ux` in corso (`40a910c`, `464db52`: testi brevi; audit e screenshot da finire).
-- **Prossima azione esatta:** leggere i tre esiti (scratchpad/b15/*), integrare in un ramo unico, prove complete,
-  versione 2026-11-09.1, documenti, pacchetti. Se la sessione è finita, i rami locali sono persi: ripartire dalle
-  descrizioni qui sopra. Le decisioni (a)–(c) sul dritto restano aperte. Possibile problema reale da provare con un telefono: una carica del dritto veloce (racchetta portata
-  indietro con forza) potrebbe essere letta come colpo speciale con la calibrazione veloce (`gesture-intent.js:64`).
+- Stato B15 (09/11): tre rami locali da `8a996e3`, ognuno al secondo giro dopo una verifica indipendente.
+  (A) `b15-colpi`: primo giro (`404bb36`, `5bda836`, `ab9dd89`) verificato: con la distribuzione dei gesti di una persona
+  vera direzione e profondità erano identiche prima e dopo (solo i km/h più vari); secondo giro in corso su faceSpan,
+  pendenza della forza, seme della calibrazione sbagliato, isteresi della mira (regressione sulla mira piena tenuta).
+  (B) `b15-mancini`: correzioni A, B, C, G, H confermate, destro invariato; secondo giro in corso su: piano di calibrazione
+  fissato all'inizio (regressione col cambio di mano a metà), lancio del servizio del P2 mancino, mano dell'host nel 1v1,
+  lato della carica del corpo, azzeramento della mano del P2. (C) `b15-ux`: testi accorciati (`40a910c`, `464db52`,
+  `c32cfb1`, audit `docs/b15/audit-ux.md`); secondo giro in corso: una sola voce per la guida, pagina «Partita» con una
+  scelta, telefono con un pulsante, eventualmente «Modalità» e «Racchetta» unite. Da proporre all'utente: tutorial corto
+  prima della partita e riscaldamento facoltativo (cambiano decisioni sue).
+- **Richiesta dell'utente (09/11):** «Quando hanno finito integra tutto e fai la versione nuova».
+- **Prossima azione esatta:** quando i tre secondi giri e le loro verifiche finiscono: ramo unico da `natpf-simulator`,
+  conflitti, prove complete, verifica dell'integrazione, versione 2026-11-09.1, documenti, push, CI, R2, zip. Se la
+  sessione è finita, i rami locali sono persi: ripartire dalle descrizioni qui sopra e dai documenti `docs/b15/` (non
+  ancora nel repository). Le decisioni (a)–(c) sul dritto restano aperte.
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
 1. **Push**: dopo ogni commit verificato, subito, su `origin natpf-simulator`. Verificato = test del gioco e del sito
