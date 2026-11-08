@@ -268,13 +268,18 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
 // Leggenda × `legendQ`, `reach` della velocità di corsa a chi gioca con il telefono): ci arriva solo a volte.
 export const SUPER = Object.freeze({ power: .86, conf: .5, sideWrong: .35, timing: .6, quality: .8, highY: 1.25, slowVz: 12.5,
   speedUp: 1.4, smashUp: 1.2, minDepth: 10.2, netGap: .16, topspin: 26, react: .16, misread: 1.5, legendQ: .55, reach: .8 });
+// Forza del gesto sulla scala del colpo super (e della barra della potenza, natpf_power_hud.js): dal telefono con la forma
+// è typePower, la forza con la pendenza relativa di prima (INTENT.classGain, natpf_stroke_intent.strokeIntent), su cui sono
+// tarati SUPER.power (il 10% più forte dei registri del 29/10) e le soglie dei tipi di colpo; l'esito usa power, più
+// sensibile al gesto dal B15 (INTENT.relGain). Dagli altri controlli (webcam, mouse, CPU) power
+export const superStrength = (intent = {}) => (Number.isFinite(Number(intent?.typePower)) ? clamp(Number(intent.typePower)) : clamp(finite(intent?.power)));
 // { on, why[], ball } — ball: 'alta' | 'lenta' | 'corta' | 'schiacciata'
 export function superShot({ intent = {}, out = null, contact = 1, ballSide = 0, contactY = 1, ballVz = 15, shortBall = false } = {}){
   const no = why => ({ on: false, why: [why], ball: null });
   if (!out || out.failed || out.weak || out.netFault) return no('colpo non riuscito');
   const shot = String(out.shot || '').toUpperCase();
   if (!['TOPSPIN', 'FLAT', 'SMASH'].includes(shot)) return no(`colpo ${shot.toLowerCase()}`);
-  if (finite(intent.power) < SUPER.power) return no('gesto non abbastanza forte');
+  if (superStrength(intent) < SUPER.power) return no('gesto non abbastanza forte');
   if (Number.isFinite(intent.conf) && intent.conf < SUPER.conf) return no('gesto poco chiaro');
   if (shot !== 'SMASH' && finite(ballSide)*(finite(contact, 1) >= 0 ? 1 : -1) < -SUPER.sideWrong) return no('colpo innaturale (palla dall\'altra parte)');
   if (finite(out.excess) > 0 || Math.abs(finite(out.t)) > SUPER.timing) return no('fuori tempo');

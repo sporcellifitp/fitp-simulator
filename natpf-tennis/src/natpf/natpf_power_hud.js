@@ -9,7 +9,7 @@
 // - Energia: 1 − stanchezza (natpf_skill.fatigueLevel), sempre in vista in partita; sotto ENERGY.tired «Stanco».
 // Sullo stesso schermo due gruppi, uno per metà (P1 a sinistra, P2 a destra); altrimenti solo chi gioca qui.
 import * as THREE from 'three';
-import { SUPER } from './natpf_stroke_outcome.js';
+import { SUPER, superStrength } from './natpf_stroke_outcome.js';
 import { fatigueLevel } from './natpf_skill.js';
 
 export const POWER_HUD = Object.freeze({ showS: 1.8, superS: 2.6 });
@@ -17,10 +17,11 @@ export const ENERGY = Object.freeze({ tired: .5, low: .75 });
 const MATCH = ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'];
 const clamp01 = v => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
 
-// barra della potenza di un colpo: { fill 0…1, super, label }
+// barra della potenza di un colpo: { fill 0…1, super, label }. La forza sulla scala del colpo super (superStrength: con il
+// telefono la pendenza relativa di prima), così la tacca della soglia vale per il super
 export function powerView(shot){
   if (!shot) return null;
-  const power = clamp01(shot.intent?.power), sup = !!shot.super;
+  const power = clamp01(superStrength(shot.intent || {})), sup = !!shot.super;
   return { fill: sup ? 1 : power, super: sup, label: sup ? 'SUPER!' : power >= SUPER.power ? 'Fortissimo' : power >= .65 ? 'Forte' : 'Potenza' };
 }
 // energia (0…1, piena senza stanchezza) e stato

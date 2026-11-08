@@ -10,6 +10,9 @@ import assert from 'node:assert/strict';
 import { makePhone, warmPhone, gesture, variant, strike, sequence as seq, reale, mirrorCheck } from '../scripts/audit/colpi.mjs';
 import { rng } from './phone-sim.mjs';
 import { createAimModel } from '../src/natpf/natpf_gestures.js';
+import { strokeIntent, strokePower, classifyStroke } from '../src/natpf/natpf_stroke_intent.js';
+import { superShot, SUPER } from '../src/natpf/natpf_stroke_outcome.js';
+import { powerView } from '../src/natpf/natpf_power_hud.js';
 
 const base = { side: 'forehand', k: 1, yaw: 0, u: 0, ballY: 1, difficulty: 'casual' };
 let phone = null;
@@ -126,4 +129,35 @@ test('persona vera (banco colpi.mjs): palle più aperte, e il mancino è lo spec
   assert.equal(right.failed, 0);
   const m = mirrorCheck(right, left);
   assert.ok(m.n === right.N && m.dx < 1e-9 && m.depth < 1e-9 && m.types === 0 && m.kmh < 1e-9 && m.cutKmh < 1.5, JSON.stringify(m));
+});
+
+// secondo giro B15: pendenza della forza relativa al proprio colpo tipico .6 → .9 (INTENT.relGain) per l'esito. Con .6 la
+// persona vera andava da 79 a 118 km/h (p90−p10 39,3) e da 7,6 a 10,5 m (2,90)
+test('forza più ampia: la persona vera varia di più velocità e profondità, il colpo tipico resta a 0,5', () => {
+  const r = reale({ hand: 'right' });
+  assert.ok(r.kmh.span >= 42, `km/h p90−p10 ${r.kmh.span}`);
+  assert.ok(r.depth.span >= 3.2, `profondità p90−p10 ${r.depth.span}`);
+  assert.ok(Math.abs(r.power.p50 - .53) < .03, `forza mediana ${r.power.p50}`);
+  assert.equal(r.failed, 0);
+  const ref = 780, s = k => ({ peak: k*ref, angle: 90, shape: { rise: .1, plane: .85, tilt: 0 } });
+  const typical = strokeIntent(s(1), { ref, riseRef: .1 });
+  assert.equal(typical.power, typical.typePower, 'il colpo tipico ha la stessa forza di prima');
+  for (const k of [.7, 1.3]){
+    const it = strokeIntent(s(k), { ref, riseRef: .1 });
+    assert.ok(Math.abs(it.power - .54) > Math.abs(it.typePower - .54) + .04, `${k}×: forza ${it.power}, per il tipo ${it.typePower}`);
+  }
+});
+test('la pendenza nuova non cambia i tipi di colpo né il colpo super: si leggono con la forza di prima (classGain)', () => {
+  const ref = 780;
+  for (const k of [.3, .5, .7, .9, 1.1, 1.3, 1.5, 1.8]) for (const rise of [-.5, -.3, -.1, 0, .1, .3, .7]) for (const plane of [.3, .6, .9]){
+    const s = { peak: k*ref, angle: 70, shape: { rise, plane, tilt: .5 } };
+    const it = strokeIntent(s, { ref, riseRef: .1, ballHigh: rise < 0 }), before = strokePower(k*ref, ref, .6);
+    assert.equal(it.typePower, +before.toFixed(3));
+    assert.equal(it.shot, classifyStroke(s.shape, { power: before, angle: s.angle, ballHigh: rise < 0, riseRef: .1 }).shot, `${k}× salita ${rise} piano ${plane}`);
+  }
+  const out = { shot: 'FLAT', q: 1, t: 0, excess: 0 };
+  assert.equal(superShot({ intent: { power: .9, typePower: .8, conf: .8 }, out, contactY: 1.4 }).on, false, 'forza dell\'esito alta, gesto non da super');
+  assert.equal(superShot({ intent: { power: .9, typePower: SUPER.power, conf: .8 }, out, contactY: 1.4 }).on, true);
+  assert.equal(superShot({ intent: { power: .9, conf: .8 }, out, contactY: 1.4 }).on, true, 'senza typePower (webcam, CPU) vale power');
+  assert.equal(powerView({ intent: { power: .95, typePower: .7 } }).label, 'Forte');
 });
