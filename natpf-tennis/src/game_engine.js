@@ -803,6 +803,10 @@ export class NatpfTennisEngine {
     this.setMatchFormat("singles");
     this.natpfSplit.active = !0;
     typeof document < "u" && document.body.classList.add("natpf-split");
+    // B17.3 (revisione): l'etichetta «Al servizio» è di una sola vista (una proiezione, uno schermo intero): nello stesso
+    // schermo si nasconde subito, non al prossimo update (fermo in pausa o nelle prove restava dov'era, a cavallo della metà
+    // del P2 o tagliata al bordo del ledwall); da qui in poi _updateProjectedHUD la tiene nascosta
+    this.hud?.updateServerTag?.(null, !1);
     // B17.3: la copia del tabellone nella metà del P2 si riempie subito (setMatchFormat sopra la sincronizza prima di active)
     this.natpfUi?.onScore?.(this.score, this.matchConfig?.gamesToWin);
     return !0;

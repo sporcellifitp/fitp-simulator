@@ -1,7 +1,11 @@
-// Tabellone della partita in alto, come in televisione (segnalazione del 06/11 sera, B10: «la UI sotto per il punteggio
-// dice "game" o "game secco", non si capisce lo score»). Prima c'erano due pezzi: «30 - 15» tra due ritratti senza nomi
-// e sotto una riga «Game 1 – 0 · game secco». Ora una riga per giocatore (o squadra) con chi serve, il nome, i game vinti
-// e i punti del game in corso (0, 15, 30, 40, Vant.), più il formato della partita detto in parole.
+// Tabellone della partita in alto a sinistra, come in televisione (segnalazione del 06/11 sera, B10: «la UI sotto per il
+// punteggio dice "game" o "game secco", non si capisce lo score»). Prima c'erano due pezzi: «30 - 15» tra due ritratti
+// senza nomi e sotto una riga «Game 1 – 0 · game secco». Ora una riga per giocatore (o squadra) con chi serve, il nome, i
+// game vinti e i punti del game in corso (0, 15, 30, 40, Vant.), più il formato della partita detto in parole.
+// B17.3 (08/11, schermata di riferimento dell'utente, docs/b17/punteggio-riferimento.md): il disegno segue quella
+// disposizione: linguetta colorata per riga, pallina di chi serve, nome ABBREVIATO in maiuscolo (nome intero nel title),
+// game, punti in una casella piena gialla («AD» al vantaggio); niente intestazioni; formato e «Parità»/«Vantaggio …»
+// come sottotitolo piccolo sotto il riquadro. Lo stato (nomi interi, punti, scritte) non cambia: cambia solo l'HTML.
 // La partita del motore non ha set né tie-break: si vince arrivando per primi a `gamesToWin` game, e un game si vince
 // con due punti di scarto (parità e vantaggio). Funzioni pure: le usa natpf_ui.onScore e le provano i test.
 import { viewScore } from './natpf_point_call.js';
@@ -25,6 +29,28 @@ export function gamePoints(p = 0, o = 0){
   return { player: POINTS[Math.min(3, p)], opponent: POINTS[Math.min(3, o)] };
 }
 
+// nome abbreviato per la riga del tabellone, come le sigle in televisione (riferimento: «DRL», «2KG»): «TU», «CPU»,
+// «P1»/«P2» per «Player 1»/«Player 2», altrimenti le prime `n` lettere (3; 4 se le due righe uscirebbero uguali) del nome
+// scelto nella pagina «Collega», maiuscole; un nome di al più 4 caratteri resta intero («Anna», «Luca»). Le squadre del
+// doppio tengono il «+»: «TU+CPU», «MAR+CPU», «2CPU»
+export function shortName(name = '', n = 3){
+  const one = s => {
+    s = String(s).trim();
+    const m = /^player\s*(\d+)$/i.exec(s); if (m) return `P${m[1]}`;
+    const w = s.replace(/\s+/g, '');
+    return (w.length <= 4 ? w : w.slice(0, Math.max(1, n | 0))).toUpperCase();
+  };
+  return String(name).split(/\s*\+\s*/).map(one).join('+');
+}
+
+// sigle delle due righe: diverse tra loro (3 lettere, poi 4; se anche così sono uguali, «P1» e «P2»)
+export function shortNames(me, them){
+  let a = shortName(me), b = shortName(them);
+  if (a === b){ a = shortName(me, 4); b = shortName(them, 4); }
+  if (a === b){ a = 'P1'; b = 'P2'; }
+  return { me: a, them: b };
+}
+
 // nomi delle due righe dal lato di chi guarda: { me, them } (stesso schermo: P1 e P2 con i nomi della pagina «Collega»)
 export function rowNames({ viewer = 'player', multiplayer = false, split = false, splitNames = null, doubles = false, hostName = '', guestName = '' } = {}){
   if (split) return { me: splitNames?.p1 || 'Player 1', them: splitNames?.p2 || 'Player 2' };
@@ -42,7 +68,8 @@ export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', 
   const pts = gamePoints(score.playerPoints, score.opponentPoints);
   const side = s => ({ games: String(Math.max(0, score[`${s}Games`] | 0)), points: pts[s], serving: (score.server || 'player') === s, adv: pts.adv === s });
   const mine = split ? 'player' : viewer === 'opponent' ? 'opponent' : 'player', theirs = mine === 'player' ? 'opponent' : 'player';
-  const rows = [{ side: 'me', name: names.me, ...side(mine) }, { side: 'them', name: names.them, ...side(theirs) }];
+  const short = shortNames(names.me, names.them);
+  const rows = [{ side: 'me', name: names.me, short: short.me, ...side(mine) }, { side: 'them', name: names.them, short: short.them, ...side(theirs) }];
   let label = '';
   if (pts.deuce) label = 'Parità';
   else if (pts.adv){
@@ -58,13 +85,16 @@ export function scoreboardView(score = {}, { gamesToWin = 1, viewer = 'player', 
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// HTML del tabellone (data-sb-* per le prove nel browser)
+// HTML del tabellone (data-sb-* per le prove nel browser). Riquadro .sb-box con una riga per giocatore: linguetta del
+// colore della riga, pallina di chi serve, sigla (nome intero nel title e per chi legge con lo screen reader), game,
+// punti nella casella piena («AD» al vantaggio, così la casella resta larga uguale); sotto il riquadro il sottotitolo
+// .sb-foot con il formato e la scritta del momento
 export function scoreboardHtml(v){
-  const row = r => `<div class="sb-row sb-${r.side}${r.serving ? ' serving' : ''}${r.adv ? ' adv' : ''}" data-sb-row="${r.side}">`
-    + `<i class="sb-serve" aria-hidden="true"></i><b class="sb-name" data-sb-name>${esc(r.name)}</b>`
-    + `<span class="sb-games" data-sb-games>${esc(r.games)}</span><strong class="sb-points" data-sb-points>${esc(r.points)}</strong>`
-    + `<span class="sb-sr">${r.serving ? ' (al servizio)' : ''}</span></div>`;
-  return `<div class="sb-head" aria-hidden="true"><span></span><span></span><span>Game</span><span>Punti</span></div>`
-    + v.rows.map(row).join('')
+  const row = r => `<div class="sb-row sb-${r.side}${r.serving ? ' serving' : ''}${r.adv ? ' adv' : ''}" data-sb-row="${r.side}" title="${esc(r.name)}">`
+    + `<i class="sb-tab" aria-hidden="true"></i><i class="sb-serve" aria-hidden="true"></i>`
+    + `<b class="sb-name" data-sb-name="${esc(r.name)}" aria-hidden="true">${esc(r.short || r.name)}</b>`
+    + `<span class="sb-sr">${esc(r.name)}${r.serving ? ' (al servizio)' : ''}</span>`
+    + `<span class="sb-games" data-sb-games>${esc(r.games)}</span><strong class="sb-points" data-sb-points>${esc(r.points === 'Vant.' ? 'AD' : r.points)}</strong></div>`;
+  return `<div class="sb-box">${v.rows.map(row).join('')}</div>`
     + `<div class="sb-foot"><span data-sb-format>${esc(v.format)}</span><span class="sb-label" data-sb-label>${esc(v.label)}</span></div>`;
 }

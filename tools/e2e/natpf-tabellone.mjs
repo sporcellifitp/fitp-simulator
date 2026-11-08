@@ -3,9 +3,12 @@
 // CPU) o con le sessioni del motore (stesso schermo, sfida un amico vista dall'host e dal Player 2), poi si scrivono
 // punteggi tipici nel motore (30-15, parità, vantaggio, game) e si leggono le righe del tabellone: nome, game, punti, chi
 // serve e il formato in parole. Schermate a 1280×720, 1920×1080 e nel riquadro del ledwall 720×720 (OUT=cartella).
-// B17.3 (08/11): il tabellone sta nell'angolo in alto a sinistra (prima al centro), più grande (--sb 3,2 cqh, 16–44 px),
-// piede di almeno 11 px, lontano dal pulsante di pausa in alto a destra; stesso schermo: una copia in alto a sinistra
-// della metà del Player 2 (#natpf-scoreboard-p2), ognuna nella sua metà. Misure in docs/b17/punteggio.md.
+// B17.3 (08/11): il tabellone sta nell'angolo in alto a sinistra (prima al centro), disegnato come la schermata di
+// riferimento dell'utente (docs/b17/punteggio-riferimento.md): sigle maiuscole (TU, CPU, P2, MAR…; nome intero in
+// data-sb-name e nel title), casella piena dei punti («AD» al vantaggio), sottotitolo con formato e «Parità»/«Vantaggio …»
+// sotto il riquadro (≥ 11 px), --sb 2,6 cqh (15–36 px), angolo a 2,3 cqw / 6 cqh, lontano dal pulsante di pausa in alto
+// a destra; stesso schermo: una copia in alto a sinistra della metà del Player 2 (#natpf-scoreboard-p2), ognuna nella sua
+// metà, e niente etichetta «Al servizio» (è di una sola vista). Misure in docs/b17/punteggio.md.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome GAME_PORT=3851 node natpf-tabellone.mjs
 import { spawn } from 'node:child_process';
 import http from 'node:http';
@@ -24,7 +27,8 @@ check('gioco avviato con vite', await up(`http://127.0.0.1:${GAME_PORT}/`));
 // righe del tabellone come le legge chi guarda: nome, game, punti, servizio; più il formato e la casella del motore
 const read = p => p.evaluate(() => {
   const sb = document.getElementById('natpf-scoreboard'), vis = el => !!el && el.getBoundingClientRect().height > 0 && getComputedStyle(el).visibility !== 'hidden';
-  const rows = sb ? [...sb.querySelectorAll('[data-sb-row]')].map(r => ({ side: r.dataset.sbRow, name: r.querySelector('[data-sb-name]')?.textContent || '', games: r.querySelector('[data-sb-games]')?.textContent || '', points: r.querySelector('[data-sb-points]')?.textContent || '', serve: r.classList.contains('serving') })) : [];
+  // name: la sigla scritta; full: il nome intero (data-sb-name e title della riga)
+  const rows = sb ? [...sb.querySelectorAll('[data-sb-row]')].map(r => ({ side: r.dataset.sbRow, name: r.querySelector('[data-sb-name]')?.textContent || '', full: r.querySelector('[data-sb-name]')?.dataset.sbName || '', title: r.title, games: r.querySelector('[data-sb-games]')?.textContent || '', points: r.querySelector('[data-sb-points]')?.textContent || '', serve: r.classList.contains('serving') })) : [];
   const b = sb?.getBoundingClientRect();
   // estensione reale delle due scritte del piede (Range sul testo: il riquadro della cella può essere più stretto del
   // testo che ne esce); la scritta del momento può essere vuota (niente parità né vantaggio)
@@ -34,27 +38,38 @@ const read = p => p.evaluate(() => {
   // riquadro di un elemento in vista (null se nascosto o vuoto): copia del tabellone del P2 e pulsante di pausa
   const rc = el => { if (!el || getComputedStyle(el).display === 'none') return null; const r = el.getBoundingClientRect(); return r.width && r.height ? { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) } : null; };
   const p2 = document.getElementById('natpf-scoreboard-p2');
+  // riquadro scuro e casella dei punti di ogni riga (misure del disegno di riferimento); etichetta «Al servizio» in vista?
+  const boxEl = sb?.querySelector('.sb-box'), cells = sb ? [...sb.querySelectorAll('[data-sb-points]')].map(rc) : [];
+  const tag = document.getElementById('server-tag'), tagOn = !!tag && !tag.classList.contains('hidden') && getComputedStyle(tag).display !== 'none';
   // «game secco» non deve comparire in nessuna scritta visibile della pagina (innerText salta ciò che è nascosto)
   return { visible: vis(sb), rows, format: fmtEl?.textContent || '', label: labEl?.textContent || '', secco: /secco/i.test(document.body.innerText), fmtInk: ink(fmtEl), labInk: ink(labEl, true), box: b ? { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height) } : null,
-    fs: sb ? parseFloat(getComputedStyle(sb).fontSize) : 0, p2: rc(p2), same: !!p2 && p2.textContent === sb?.textContent, pause: rc(document.querySelector('.natpf-pause-btn')) };
+    fs: sb ? parseFloat(getComputedStyle(sb).fontSize) : 0, p2: rc(p2), same: !!p2 && p2.textContent === sb?.textContent, pause: rc(document.querySelector('.natpf-pause-btn')),
+    sbBox: rc(boxEl), cells, cellFs: cells.length ? parseFloat(getComputedStyle(sb.querySelector('[data-sb-points]')).fontSize) : 0, head: !!sb?.querySelector('.sb-head'), tagOn, split: document.body.classList.contains('natpf-split') };
 });
 // il formato finisce prima che cominci la scritta del momento, sulla stessa riga, con almeno 4 px di spazio
 // (revisione del 07/11: «Al meglio di 5 game» e «Vantaggio di Player 2» si toccavano: «gameVANTAGGIO»)
 const footApart = v => !!v.fmtInk && !!v.labInk && v.fmtInk.r + 4 <= v.labInk.l && v.labInk.b > v.fmtInk.t && v.labInk.t < v.fmtInk.b && v.box && v.labInk.r <= v.box.x + v.box.w;
 const setScore = (p, s, gamesToWin = 2) => p.evaluate(({ s, gamesToWin }) => { const E = __natpfTennis; E.matchConfig.gamesToWin = gamesToWin; Object.assign(E.score, s); E._syncScoreboardHUD(); try { E.__render?.(); } catch {} }, { s, gamesToWin });
-const shot = async (p, name) => { await p.evaluate(() => { try { __natpfTennis.__render?.(); } catch {} }); await p.screenshot({ path: `${SP}/tabellone-${name}.png` }); };
+// prima della schermata anche l'etichetta «Al servizio» si aggiorna (update() è fermo: _updateProjectedHUD la posiziona o
+// la nasconde come in partita; prima restava dov'era, e nelle schermate dello stesso schermo compariva a cavallo della metà
+// del P2 o tagliata al bordo del ledwall)
+const shot = async (p, name) => { await p.evaluate(() => { try { __natpfTennis._updateProjectedHUD?.(); __natpfTennis.__render?.(); } catch {} }); await p.screenshot({ path: `${SP}/tabellone-${name}.png` }); };
 const row = (v, side) => v.rows.find(r => r.side === side) || {};
-// B17.3: riquadro nell'angolo in alto a sinistra (bordi a 10–28 px), alto al più il 20% dello schermo (5,3 righe di 3,2 cqh
-// più i margini: 17%; la revisione del 08/11 ha alzato il limite dal 19%, che passava per 0,5–1 px), carattere 3,2 cqh tra
-// 16 e 44 px, a destra del tabellone almeno 40 px liberi prima del pulsante di pausa, che in partita DEVE esserci (se non
-// si vede, la prova è rossa: prima «!v.pause ||» lasciava passare senza misurare)
-// (stesso schermo: il carattere segue anche la larghezza, 2,4 cqw, per le metà strette del ledwall)
-const corner = (v, w, h, fs = Math.min(44, Math.max(16, h*.032))) => !!v.box && v.box.x >= 8 && v.box.x <= 28 && v.box.y >= 8 && v.box.y <= 28 && v.box.y + v.box.h <= h*.20
-  && Math.abs(v.fs - fs) < 1 && !!v.pause && v.box.x + v.box.w + 40 <= v.pause.x;
+// B17.3: riquadro nell'angolo in alto a sinistra come nella schermata di riferimento (left 2,3 cqw tra 12 e 44 px, top 6 cqh
+// tra 12 e 64 px), con il sottotitolo non oltre il 20% dello schermo, carattere 2,6 cqh tra 15 e 36 px, a destra del
+// tabellone almeno 40 px liberi prima del pulsante di pausa, che in partita DEVE esserci (se non si vede, la prova è rossa:
+// prima «!v.pause ||» lasciava passare senza misurare). Disegno: niente intestazione «Game/Punti», riquadro largo al più
+// 13 em (sigle, non nomi interi), due caselle dei punti larghe uguali (1,6 em) e alte 1,5 em con la cifra a 1,08 em
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const fsAt = h => clamp(h*.026, 15, 36);
+const corner = (v, w, h, fs = fsAt(h)) => !!v.box && Math.abs(v.box.x - clamp(w*.023, 12, 44)) <= 1 && Math.abs(v.box.y - clamp(h*.06, 12, 64)) <= 1 && v.box.y + v.box.h <= h*.20
+  && Math.abs(v.fs - fs) < 1 && !!v.pause && v.box.x + v.box.w + 40 <= v.pause.x && drawn(v);
+const drawn = v => !v.head && !!v.sbBox && v.sbBox.w <= 13 * v.fs && v.cells.length === 2 && Math.abs(v.cells[0].w - v.cells[1].w) <= 1
+  && Math.abs(v.cells[0].w - 1.6 * v.fs) <= 2 && Math.abs(v.cells[0].h - 1.5 * v.fs) <= 2 && Math.abs(v.cellFs - 1.08 * v.fs) <= 1;
 // stesso schermo: la copia del P2 finisce almeno 40 px prima del pulsante di pausa (revisione del 08/11: a 844×390 con i
 // nomi lunghi finiva sotto la pausa, 812 > 774; a 1024×600 restavano 17 px)
 const p2Clear = v => !!v.p2 && !!v.pause && v.p2.x + v.p2.w + 40 <= v.pause.x;
-const splitFs = (w, h) => Math.min(44, Math.max(16, Math.min(h*.032, w*.024)));
+const splitFs = (w, h) => fsAt(h);        // stesso carattere anche nello stesso schermo (il riquadro con le sigle è stretto)
 const fmt = v => JSON.stringify(v);
 
 const B = await launch();
@@ -74,10 +89,11 @@ try {
   await setScore(p, { playerPoints: 2, opponentPoints: 1, playerGames: 1, opponentGames: 0, server: 'player' }, 2);
   let v = await read(p);
   if (!ONLY_SHOTS){
-    check('1v1 CPU: tabellone visibile con due righe (tu e la CPU)', v.visible && v.rows.length === 2 && row(v, 'me').name === 'Tu' && row(v, 'them').name === 'CPU', fmt(v));
+    check('1v1 CPU: tabellone visibile con due righe, sigle «TU» e «CPU» (nome intero in data-sb-name e nel title)', v.visible && v.rows.length === 2 && row(v, 'me').name === 'TU' && row(v, 'them').name === 'CPU' && row(v, 'me').full === 'Tu' && row(v, 'me').title === 'Tu', fmt(v));
     check('1v1 CPU: game 1 e 0, punti 30 e 15, serve chi gioca', row(v, 'me').games === '1' && row(v, 'them').games === '0' && row(v, 'me').points === '30' && row(v, 'them').points === '15' && row(v, 'me').serve && !row(v, 'them').serve, fmt(v));
     check('1v1 CPU: formato in parole («Al meglio di 3 game»), niente «game secco»', v.format === 'Al meglio di 3 game' && !v.secco, fmt(v));
-    check('1280×720: tabellone nell\'angolo in alto a sinistra, carattere 23 px, piede ≥ 11 px, lontano dalla pausa, niente copia del P2', corner(v, 1280, 720) && v.fmtInk?.fs >= 11 && !v.p2, fmt(v));
+    check('1280×720: tabellone nell\'angolo in alto a sinistra (29, 43), carattere 18,7 px, sottotitolo ≥ 11 px sotto il riquadro, lontano dalla pausa, niente copia del P2', corner(v, 1280, 720) && v.fmtInk?.fs >= 11 && v.fmtInk.t >= v.sbBox.y + v.sbBox.h && !v.p2, fmt(v));
+    check('1280×720: etichetta «Al servizio» in vista sopra chi serve (schermo intero)', v.tagOn, fmt({ tagOn: v.tagOn }));
   }
   await shot(p, '1280-1v1-cpu-30-15');
   await setScore(p, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'opponent' }, 1);
@@ -90,23 +106,23 @@ try {
   await shot(p, '1280-1v1-cpu-parita');
   await setScore(p, { playerPoints: 4, opponentPoints: 3, playerGames: 0, opponentGames: 0, server: 'player' }, 1);
   v = await read(p);
-  if (!ONLY_SHOTS) check('vantaggio di chi gioca: «Vant.» nella sua riga, 40 alla CPU, «Vantaggio tuo»', row(v, 'me').points === 'Vant.' && row(v, 'them').points === '40' && v.label === 'Vantaggio tuo', fmt(v));
+  if (!ONLY_SHOTS) check('vantaggio di chi gioca: «AD» nella sua casella, 40 alla CPU, «Vantaggio tuo» nel sottotitolo, caselle larghe uguali', row(v, 'me').points === 'AD' && row(v, 'them').points === '40' && v.label === 'Vantaggio tuo' && drawn(v), fmt(v));
   await shot(p, '1280-1v1-cpu-vantaggio');
   await setScore(p, { playerPoints: 3, opponentPoints: 5, playerGames: 0, opponentGames: 0, server: 'player' }, 3);
   v = await read(p);
-  if (!ONLY_SHOTS) check('vantaggio della CPU al meglio di 5: «Vant.» nella riga della CPU, «Vantaggio della CPU» separato dal formato', row(v, 'them').points === 'Vant.' && row(v, 'me').points === '40' && v.label === 'Vantaggio della CPU' && footApart(v), fmt(v));
+  if (!ONLY_SHOTS) check('vantaggio della CPU al meglio di 5: «AD» nella casella della CPU, «Vantaggio della CPU» separato dal formato', row(v, 'them').points === 'AD' && row(v, 'me').points === '40' && v.label === 'Vantaggio della CPU' && footApart(v), fmt(v));
 
   // 1920×1080: stesso tabellone, in proporzione
   await p.setViewportSize({ width: 1920, height: 1080 }); await p.waitForTimeout(250);
   await setScore(p, { playerPoints: 1, opponentPoints: 3, playerGames: 1, opponentGames: 1, server: 'opponent' }, 2);
   v = await read(p);
-  if (!ONLY_SHOTS) check('1920×1080: 15-40, game 1-1, tabellone in alto a sinistra (carattere 35 px) e non più alto del 19% dello schermo', row(v, 'me').points === '15' && row(v, 'them').points === '40' && corner(v, 1920, 1080), fmt(v));
+  if (!ONLY_SHOTS) check('1920×1080: 15-40, game 1-1, tabellone in alto a sinistra (44, 65; carattere 28 px) e non più alto del 20% dello schermo', row(v, 'me').points === '15' && row(v, 'them').points === '40' && corner(v, 1920, 1080), fmt(v));
   await shot(p, '1920-1v1-cpu-15-40');
   // 1024×600 (schermo piccolo): stesso angolo, carattere 19 px, piede di 11 px
   await p.setViewportSize({ width: 1024, height: 600 }); await p.waitForTimeout(250);
   await setScore(p, { playerPoints: 3, opponentPoints: 2, playerGames: 0, opponentGames: 1, server: 'player' }, 2);
   v = await read(p);
-  if (!ONLY_SHOTS) check('1024×600: 40-30, tabellone in alto a sinistra (carattere 19 px), piede ≥ 11 px', row(v, 'me').points === '40' && row(v, 'them').points === '30' && corner(v, 1024, 600) && v.fmtInk?.fs >= 11, fmt(v));
+  if (!ONLY_SHOTS) check('1024×600: 40-30, tabellone in alto a sinistra (24, 36; carattere 15,6 px), sottotitolo ≥ 11 px', row(v, 'me').points === '40' && row(v, 'them').points === '30' && corner(v, 1024, 600) && v.fmtInk?.fs >= 11, fmt(v));
   await shot(p, '1024-1v1-cpu-40-30');
 
   // 2v2 contro la CPU: squadre
@@ -114,7 +130,7 @@ try {
   await p.evaluate(() => { __natpfTennis.setMatchFormat('doubles'); });
   await setScore(p, { playerPoints: 2, opponentPoints: 2, playerGames: 0, opponentGames: 1, server: 'player' }, 2);
   v = await read(p);
-  if (!ONLY_SHOTS) check('2v2 CPU: righe «Tu + CPU» e «2 CPU», 30-30, game 0-1', row(v, 'me').name === 'Tu + CPU' && row(v, 'them').name === '2 CPU' && row(v, 'me').points === '30' && row(v, 'them').points === '30' && row(v, 'them').games === '1', fmt(v));
+  if (!ONLY_SHOTS) check('2v2 CPU: sigle «TU+CPU» e «2CPU» (nomi interi «Tu + CPU» e «2 CPU»), 30-30, game 0-1', row(v, 'me').name === 'TU+CPU' && row(v, 'them').name === '2CPU' && row(v, 'me').full === 'Tu + CPU' && row(v, 'them').full === '2 CPU' && row(v, 'me').points === '30' && row(v, 'them').points === '30' && row(v, 'them').games === '1' && drawn(v), fmt(v));
   await shot(p, '1280-2v2-cpu-30-30');
   await p.evaluate(() => { __natpfTennis.setMatchFormat('singles'); });
 
@@ -122,18 +138,23 @@ try {
   await p.evaluate(() => { const E = __natpfTennis; E.natpfSplitNames = { p1: 'Marco', p2: 'Giulia' }; E.startSplit(); });
   v = await read(p);
   // revisione del 08/11: la copia del P2 è piena subito dopo startSplit (prima restava vuota fino al primo punteggio)
-  if (!ONLY_SHOTS) check('stesso schermo: subito dopo l\'avvio la copia del P2 è già piena e uguale al tabellone', !!v.p2 && v.same && row(v, 'me').name === 'Marco', fmt({ p2: v.p2, same: v.same, rows: v.rows }));
+  if (!ONLY_SHOTS) check('stesso schermo: subito dopo l\'avvio la copia del P2 è già piena e uguale al tabellone, e l\'etichetta «Al servizio» è sparita subito', !!v.p2 && v.same && row(v, 'me').name === 'MAR' && !v.tagOn, fmt({ p2: v.p2, same: v.same, rows: v.rows, tagOn: v.tagOn }));
   await setScore(p, { playerPoints: 1, opponentPoints: 0, playerGames: 1, opponentGames: 2, server: 'opponent' }, 3);
   v = await read(p);
-  if (!ONLY_SHOTS) check('stesso schermo: righe con i nomi (Marco, Giulia), 15-0, serve Giulia, «Al meglio di 5 game»', row(v, 'me').name === 'Marco' && row(v, 'them').name === 'Giulia' && row(v, 'me').points === '15' && row(v, 'them').points === '0' && row(v, 'them').serve && v.format === 'Al meglio di 5 game', fmt(v));
+  if (!ONLY_SHOTS) check('stesso schermo: righe con le sigle dei nomi (MAR, GIU; interi Marco e Giulia), 15-0, serve Giulia, «Al meglio di 5 game»', row(v, 'me').name === 'MAR' && row(v, 'them').name === 'GIU' && row(v, 'me').full === 'Marco' && row(v, 'them').full === 'Giulia' && row(v, 'me').points === '15' && row(v, 'them').points === '0' && row(v, 'them').serve && v.format === 'Al meglio di 5 game', fmt(v));
   // B17.3: un tabellone in alto a sinistra di ogni metà, lo stesso testo, ognuno dentro la sua metà (la linea scura sta a 637–643)
-  if (!ONLY_SHOTS) check('stesso schermo 1280×720: tabellone del P1 nella metà sinistra e copia uguale in alto a sinistra della metà del P2', corner(v, 1280, 720, splitFs(1280, 720)) && v.box.x + v.box.w <= 637 && !!v.p2 && v.same && v.p2.x >= 643 + 8 && v.p2.x <= 643 + 28 && Math.abs(v.p2.y - v.box.y) <= 1 && v.p2.x + v.p2.w <= 1280 && p2Clear(v), fmt({ box: v.box, p2: v.p2, same: v.same, pause: v.pause }));
+  if (!ONLY_SHOTS) check('stesso schermo 1280×720: tabellone del P1 nella metà sinistra e copia uguale in alto a sinistra della metà del P2', corner(v, 1280, 720, splitFs(1280, 720)) && v.box.x + v.box.w <= 637 && !!v.p2 && v.same && Math.abs(v.p2.x - (643 + v.box.x)) <= 1 && Math.abs(v.p2.y - v.box.y) <= 1 && v.p2.x + v.p2.w <= 1280 && p2Clear(v), fmt({ box: v.box, p2: v.p2, same: v.same, pause: v.pause }));
   await shot(p, '1280-stesso-schermo');
   await p.setViewportSize({ width: 1920, height: 1080 }); await p.waitForTimeout(250);
   await shot(p, '1920-stesso-schermo');
   await setScore(p, { playerPoints: 5, opponentPoints: 4, playerGames: 1, opponentGames: 2, server: 'opponent' }, 3);
   v = await read(p);
-  if (!ONLY_SHOTS) check('stesso schermo, vantaggio: «Vantaggio Marco»', row(v, 'me').points === 'Vant.' && v.label === 'Vantaggio Marco' && footApart(v), fmt(v));
+  if (!ONLY_SHOTS) check('stesso schermo, vantaggio: «AD» a Marco, «Vantaggio Marco» nel sottotitolo', row(v, 'me').points === 'AD' && v.label === 'Vantaggio Marco' && footApart(v), fmt(v));
+  // revisione del 08/11 (difetto preesistente): nello stesso schermo niente etichetta «Al servizio», anche dopo un nuovo
+  // punteggio con un altro battitore e un disegno (_updateProjectedHUD come in partita)
+  await p.evaluate(() => { try { __natpfTennis._updateProjectedHUD?.(); __natpfTennis.__render?.(); } catch {} });
+  v = await read(p);
+  if (!ONLY_SHOTS) check('stesso schermo: l\'etichetta «Al servizio» resta nascosta anche dopo un disegno con il battitore cambiato', v.split && !v.tagOn, fmt({ split: v.split, tagOn: v.tagOn }));
   // nomi lunghi (24 caratteri, il massimo della pagina «Collega») al vantaggio: tutto dentro il riquadro, scritte separate;
   // la copia del P2 dentro la sua metà e almeno 40 px prima della pausa anche a 1024×600 e 844×390 (revisione del 08/11)
   await p.evaluate(() => { __natpfTennis.natpfSplitNames = { p1: 'Bartolomeo Massimiliano', p2: 'Maria Francesca Giovanna' }; });
@@ -141,7 +162,7 @@ try {
     await p.setViewportSize({ width: w, height: h }); await p.waitForTimeout(250);
     await setScore(p, { playerPoints: 4, opponentPoints: 5, playerGames: 2, opponentGames: 2, server: 'player' }, 3);
     v = await read(p);
-    if (!ONLY_SHOTS) check(`stesso schermo ${w}×${h}, nomi di 24 caratteri al vantaggio: piede dentro il tabellone, scritte separate`, v.label === 'Vantaggio Maria Francesca Giovanna' && footApart(v) && v.box.x >= 0 && v.box.x + v.box.w <= w / 2, fmt(v));
+    if (!ONLY_SHOTS) check(`stesso schermo ${w}×${h}, nomi di 24 caratteri al vantaggio: sigle «BAR» e «MAR», sottotitolo dentro il tabellone, scritte separate`, row(v, 'me').name === 'BAR' && row(v, 'them').name === 'MAR' && v.label === 'Vantaggio Maria Francesca Giovanna' && footApart(v) && v.box.x >= 0 && v.box.x + v.box.w <= w / 2, fmt(v));
     if (!ONLY_SHOTS) check(`stesso schermo ${w}×${h}, nomi lunghi: copia del P2 nella sua metà e almeno 40 px prima del pulsante di pausa`, !!v.p2 && v.same && v.p2.x >= w / 2 && p2Clear(v), fmt({ box: v.box, p2: v.p2, pause: v.pause }));
     await shot(p, `${w}-stesso-schermo-nomi-lunghi`);
   }
@@ -153,7 +174,7 @@ try {
   await p.evaluate(() => { const E = __natpfTennis; E.isMultiplayer = true; });
   await setScore(p, { playerPoints: 2, opponentPoints: 3, playerGames: 0, opponentGames: 0, server: 'player' }, 1);
   v = await read(p);
-  if (!ONLY_SHOTS) check('sfida un amico (host): righe «Tu» e «Player 2», 30-40', row(v, 'me').name === 'Tu' && row(v, 'them').name === 'Player 2' && row(v, 'me').points === '30' && row(v, 'them').points === '40' && row(v, 'me').serve, fmt(v));
+  if (!ONLY_SHOTS) check('sfida un amico (host): sigle «TU» e «P2» (nome intero «Player 2»), 30-40', row(v, 'me').name === 'TU' && row(v, 'them').name === 'P2' && row(v, 'them').full === 'Player 2' && row(v, 'me').points === '30' && row(v, 'them').points === '40' && row(v, 'me').serve, fmt(v));
   if (!ONLY_SHOTS) check('finito lo stesso schermo: la copia del P2 sparisce', !v.p2, fmt({ p2: v.p2 }));
   // l'avviso «In attesa di Player 2» sotto il tabellone, allineato a sinistra, senza toccarlo
   const pres = await p.evaluate(() => { const el = document.getElementById('opponent-presence-pill'); el.classList.remove('hidden'); const r = el.getBoundingClientRect(), b = document.getElementById('natpf-scoreboard').getBoundingClientRect(); el.classList.add('hidden'); return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height), sbL: Math.round(b.left), sbB: Math.round(b.bottom) }; });
@@ -168,14 +189,14 @@ try {
     await setScore(p, { playerPoints: 3, opponentPoints: 4, playerGames: 1, opponentGames: 2, server: 'player' }, 3);
     v = await read(p);
     if (!ONLY_SHOTS) check(`sfida un amico (host) ${w}×${h}, vantaggio: «Al meglio di 5 game» e «Vantaggio di Player 2» separati`, v.format === 'Al meglio di 5 game' && v.label === 'Vantaggio di Player 2' && footApart(v), fmt(v));
-    if (!ONLY_SHOTS) check(`sfida un amico ${w}×${h}: scritte del piede di almeno 11 px`, v.fmtInk?.fs >= 11 && v.labInk?.fs >= 11, fmt(v));
+      if (!ONLY_SHOTS) check(`sfida un amico ${w}×${h}: scritte del sottotitolo di almeno 11 px`, v.fmtInk?.fs >= 11 && v.labInk?.fs >= 11, fmt(v));
     await shot(p, `${w}-amico-host-vantaggio`);
   }
   await p.setViewportSize({ width: 1280, height: 720 }); await p.waitForTimeout(250);
   await setScore(p, { playerPoints: 2, opponentPoints: 3, playerGames: 0, opponentGames: 0, server: 'player' }, 1);
   await p.evaluate(() => { const E = __natpfTennis; E.__role = E.playerRole; E.playerRole = 'p2'; E._syncScoreboardHUD(); });
   v = await read(p);
-  if (!ONLY_SHOTS) check('sfida un amico (Player 2): la sua riga sopra («Tu» 40) e «Player 1» sotto (30), serve Player 1', row(v, 'me').name === 'Tu' && row(v, 'them').name === 'Player 1' && row(v, 'me').points === '40' && row(v, 'them').points === '30' && row(v, 'them').serve && !row(v, 'me').serve, fmt(v));
+  if (!ONLY_SHOTS) check('sfida un amico (Player 2): la sua riga sopra («TU» 40) e «P1» sotto (30), serve Player 1', row(v, 'me').name === 'TU' && row(v, 'them').name === 'P1' && row(v, 'them').full === 'Player 1' && row(v, 'me').points === '40' && row(v, 'them').points === '30' && row(v, 'them').serve && !row(v, 'me').serve, fmt(v));
   await shot(p, '1280-amico-p2');
   await setScore(p, { playerPoints: 5, opponentPoints: 4, playerGames: 2, opponentGames: 1, server: 'opponent' }, 3);
   v = await read(p);
@@ -189,13 +210,13 @@ try {
   await p.waitForTimeout(400);
   await setScore(p, { playerPoints: 3, opponentPoints: 1, playerGames: 1, opponentGames: 0, server: 'player' }, 2);
   v = await read(p);
-  if (!ONLY_SHOTS) check('ledwall 720×720: tabellone in alto a sinistra del riquadro (carattere 23 px), righe leggibili (40-15)', corner(v, 720, 720) && v.box.x + v.box.w <= 720 && row(v, 'me').points === '40' && row(v, 'them').points === '15', fmt(v));
+  if (!ONLY_SHOTS) check('ledwall 720×720: tabellone in alto a sinistra del riquadro (17, 43; carattere 18,7 px), righe leggibili (40-15)', corner(v, 720, 720) && v.box.x + v.box.w <= 720 && row(v, 'me').points === '40' && row(v, 'them').points === '15', fmt(v));
   await p.screenshot({ path: `${SP}/tabellone-ledwall-720.png`, clip: { x: 0, y: 0, width: 720, height: 720 } });
   // stesso schermo nel ledwall 720×720: due metà di 358 px, un tabellone per metà senza uscire dal riquadro
   await p.evaluate(() => { const E = __natpfTennis; E.natpfSplitNames = { p1: 'Marco', p2: 'Giulia' }; E.startSplit(); });
   await setScore(p, { playerPoints: 2, opponentPoints: 3, playerGames: 1, opponentGames: 1, server: 'opponent' }, 2);
   v = await read(p);
-  if (!ONLY_SHOTS) check('ledwall 720×720, stesso schermo: tabellone del P1 nella metà sinistra e copia nella metà del P2 (carattere 17 px), dentro il riquadro e lontana dalla pausa', corner(v, 720, 720, splitFs(720, 720)) && v.box.x + v.box.w <= 358 && !!v.p2 && v.same && v.p2.x >= 362 && v.p2.x + v.p2.w <= 720 && p2Clear(v) && v.fmtInk?.fs >= 11, fmt({ box: v.box, p2: v.p2, pause: v.pause, fs: v.fs, foot: v.fmtInk?.fs }));
+  if (!ONLY_SHOTS) check('ledwall 720×720, stesso schermo: tabellone del P1 nella metà sinistra e copia nella metà del P2 (carattere 18,7 px), dentro il riquadro e lontana dalla pausa, niente «Al servizio»', corner(v, 720, 720, splitFs(720, 720)) && v.box.x + v.box.w <= 358 && !!v.p2 && v.same && v.p2.x >= 362 && v.p2.x + v.p2.w <= 720 && p2Clear(v) && v.fmtInk?.fs >= 11 && !v.tagOn, fmt({ box: v.box, p2: v.p2, pause: v.pause, fs: v.fs, foot: v.fmtInk?.fs, tagOn: v.tagOn }));
   await p.screenshot({ path: `${SP}/tabellone-ledwall-720-stesso-schermo.png`, clip: { x: 0, y: 0, width: 720, height: 720 } });
   await p.evaluate(() => __natpfTennis.endSplit());
   await p.evaluate(() => __natpfTennis.natpfUi.screen.restore({ preset: 'full', area: null, margins: {} }));
