@@ -400,7 +400,7 @@ export class NatpfLobby {
     // collega: pannello del controller scelto (stesso schermo: i due telefoni)
     for (const p of this.el.querySelectorAll('[data-setup]')) show(p, p.dataset.setup === (split ? 'split' : st.controller));
     const other = $('connect-other');
-    if (other){ show(other, st.controller !== 'mouse' && !split); other.textContent = st.controller === 'phone' ? 'Non hai il telefono a portata? Usa la webcam' : 'Preferisci il telefono? Usa lo smartphone'; }
+    if (other){ show(other, st.controller !== 'mouse' && !split); other.textContent = st.controller === 'phone' ? 'Senza telefono? Usa la webcam' : 'Hai il telefono? Usalo come racchetta'; }
     $('lobby-t-connect').textContent = split ? (this.ui.split?.webcam ? 'Una webcam per due' : 'Collega i due telefoni') : st.controller === 'phone' ? 'Collega il telefono' : st.controller === 'webcam' ? 'Accendi la webcam' : 'Mouse e tastiera';
     $('lobby-t-match').textContent = split ? 'Stesso schermo' : this.mode === 'friend' ? 'Sfida un amico' : 'Pronto per la partita';
     if (this.step === 'connect' && split) this.ui.split?.paint();
