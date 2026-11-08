@@ -75,9 +75,17 @@ Come si aggiorna:
   alla compressione di direzione, forza e angolo; (B) prova a specchio del mancino su tutta la catena e correzioni;
   (C) audit UX/UI con screenshot del flusso completo (gioco e pagina del telefono), semplificazioni. Poi verifiche
   indipendenti, integrazione, versione 2026-11-08.4 o 09.1.
-- **Prossima azione esatta:** se la sessione è finita, i rami locali sono persi: ripartire dall'audit (A) con
-  `natpf-tennis/scripts/audit/variety.mjs` e `letture-gesti.mjs` sul pipeline, poi (B) e (C). Le decisioni (a)–(c) sul
-  dritto restano aperte. Possibile problema reale da provare con un telefono: una carica del dritto veloce (racchetta portata
+- Stato B15 (09/11 mattina): (A) `b15-colpi` fatto (`404bb36`, `5bda836`, `ab9dd89`): banco `scripts/audit/colpi.mjs`;
+  causa principale: il centro della mira inseguiva la mira tenuta (dieci dritti a +20° da 2,9 a 1,1 m) e il colpo tipico
+  degli ultimi 9 colpi riassorbiva la forza; correzioni ad `AIM`, `TYPICAL.keep` 24, tetto del volo 1,5, altezza sulla
+  rete e top spin dalla forza; 6 test nuovi, 900/900; in verifica indipendente. (B) `b15-mancini` fatto (`10a886a`,
+  `1a8a37f`, `d696253`): due difetti veri per il mancino (calibrazione in campo: dritto giocato di rovescio,
+  `natpf_training.js`; racchetta animata che rileggeva il lato con la regola del destro, `racket_kinematics.js`), più
+  calibrazione per mano, webcam per due e stesso schermo; test a specchio nuovo (8), 902/902; e2e con `HAND=left`; in
+  verifica indipendente. (C) `b15-ux` in corso (`40a910c`, `464db52`: testi brevi; audit e screenshot da finire).
+- **Prossima azione esatta:** leggere i tre esiti (scratchpad/b15/*), integrare in un ramo unico, prove complete,
+  versione 2026-11-09.1, documenti, pacchetti. Se la sessione è finita, i rami locali sono persi: ripartire dalle
+  descrizioni qui sopra. Le decisioni (a)–(c) sul dritto restano aperte. Possibile problema reale da provare con un telefono: una carica del dritto veloce (racchetta portata
   indietro con forza) potrebbe essere letta come colpo speciale con la calibrazione veloce (`gesture-intent.js:64`).
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
