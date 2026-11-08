@@ -36,8 +36,10 @@ export class NatpfHand {
     this.hand = readHand();
     this.mirrored = null;
     this.offHidden = null;
-    // al servizio la palla sta nella mano libera: per un mancino dall'altra parte del corpo
-    const mirrorBall = actor => { if (this.hand === 'left' && actor === engine.localActor) engine.ball.pos.x = 2*actor.pos.x - engine.ball.pos.x; };
+    // al servizio la palla sta nella mano libera: per un mancino dall'altra parte del corpo. La mano è quella di chi
+    // batte: il personaggio locale ha questa, l'altro giocatore (Player 2 dello stesso schermo o del 1v1 visto
+    // dall'host) quella messa da mirrorRemote (B15: prima il P2 mancino lanciava con la mano della racchetta)
+    const mirrorBall = actor => { if (actor && this.handOf(actor) === 'left') engine.ball.pos.x = 2*actor.pos.x - engine.ball.pos.x; };
     const setup = engine._setupPointServe?.bind(engine), toss = engine._startServeToss?.bind(engine);
     if (setup) engine._setupPointServe = (o) => { const r = setup(o); const s = engine.score.server === 'player' ? engine.player : engine.opponent; mirrorBall(s); return r; };
     if (toss) engine._startServeToss = (actor) => { const r = toss(actor); mirrorBall(actor); return r; };
@@ -74,6 +76,8 @@ export class NatpfHand {
     }
     this.apply();
   }
+  // mano di un personaggio: il locale ha quella del gioco, l'altro quella ricevuta (mirrorRemote), destro se non si sa
+  handOf(actor){ return actor === this.engine.localActor ? this.hand : normalizeHand(actor?.natpfHand); }
   // specchia il personaggio locale (una sola volta per cambio)
   apply(){
     const a = this.engine.localActor; if (!a?.root) return;
