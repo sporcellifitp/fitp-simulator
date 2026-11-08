@@ -1104,7 +1104,7 @@ guida provato nel browser.
   Non verificato: persone vere e telefoni veri (i numeri sono del banco: una persona simulata; con persone diverse la
   variabilità cresce, le partite necessarie sono un minimo), Windows, il confronto del guadagno su pacchetti veri.
 
-## B16 · Integrazione: Leggenda, tutorial corto, riscaldamento facoltativo, mira dello staff, versione 2026-11-08.5 · [~] pronta, non pubblicata · 08/11/2026 sera
+## B16 · Integrazione: Leggenda, tutorial corto, riscaldamento facoltativo, mira dello staff, versione 2026-11-08.5 · [x] pubblicata · 08/11/2026 sera
 - Ramo locale `b16-int` da `origin/natpf-simulator` `6dae07a` (che contiene due commit di soli documenti del **B17** di
   un'altra sessione: `docs/b17/analisi-e-piano.md`, `docs/b17/punteggio-riferimento.md`). Unioni `--no-ff`: `70c85b3`
   (`b16-legend`, senza conflitti), `90a8eb7` (`b16-flow`, conflitto solo in questo registro), `bb46a6f` (`b16-mira`,
@@ -1212,3 +1212,14 @@ guida provato nel browser.
     1024 × 600 e 1366 × 657 non scorre, «Chiudi» a y 508–554 e 537–583, l'avviso nuovo dopo il clic.
   - Non verificato: come sopra; in più l'avviso letto da un addetto vero e il `title` su un computer con il mouse vero
     (il `title` non si vede con il tocco: l'avviso sì).
+
+### B16 · Pubblicazione della 2026-11-08.5 · [x] · 08/11/2026 sera
+- `git fetch origin natpf-simulator`: origin fermo a `6dae07a` (B17.3, soli documenti), contenuto in `b16-int`. Checkout
+  principale portato a `84838f6` con avanzamento lineare; gioco 957/957 e sito 197/197 rifatti lì; push `6dae07a..84838f6`.
+- GitHub su `84838f6`: «NATPF Simulator tests», «NATPF motore base MVP» (con `audit:legend` come ultimo passo) e «NATPF
+  eseguibili Windows» verdi al primo tentativo. Installer **2026-11-08.5 su R2** (`windows/latest.json`:
+  `NATPF-Simulator-Setup-2026-11-08.5.exe`, 124.585.994 B, sha256 `65534743a2003e251939aa6322c14f15ed0dbab1bc9f7bd8813f3edceca5e4a3`,
+  note uguali a `novita.txt`).
+- Zip Cloudflare consegnato all'utente: `natpf-simulator-cloudflare-20261108-5.zip`, 22.578.885 B, sha256
+  `8cec771b91710b8f244a6b74293f6310f11edfb908b545d8341278d2285c983a`.
+- Non verificato: installazione e aggiornamento su Windows vero, telefoni veri, persone, ledwall.

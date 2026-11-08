@@ -17,7 +17,7 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-- Aggiornato: 08/11/2026 sera · agente: Claude · branch `natpf-simulator` (integrazione B16 nel ramo locale `b16-int`).
+- Aggiornato: 08/11/2026 sera · agente: Claude · branch `natpf-simulator` (B16 pubblicato: `84838f6`, versione 2026-11-08.5).
 - **Per riprendere leggere `docs/PASSAGGIO_CONSEGNE.md`** (lavoro dal 05/11, punti aperti §3, controlli §4) e, per i
   gesti del tutorial, `docs/b13/gesti-nuovi.md`. Checkpoint precedente (storia dal 04/11):
   `docs/archivio/PIANO_checkpoint_fino_al_2026-11-07.md`.
@@ -88,8 +88,8 @@ Come si aggiorna:
   regola B9 «tutte le schede viste prima di "Tutto chiaro"»); (c) riscaldamento facoltativo: «Ok»; (d) mira più sensibile:
   «Ok ma come lo misuro?». Poi la richiesta del **B16**: «Vai avanti con l'audit e dimmi cos'altro c'è da migliorare e cosa
   non va, soprattutto a livello gameplay.»
-- **B16 fatto, versione 2026-11-08.5 pronta e NON ancora pubblicata** (ramo locale `b16-int`, cartella di lavoro
-  `scratchpad/b16/wt-int`; la pubblicazione la fa chi ha avviato l'integrazione). Base `origin/natpf-simulator` `6dae07a`
+- **B16 fatto e pubblicato, versione 2026-11-08.5** (`84838f6` su `origin natpf-simulator`, avanzamento lineare da
+  `6dae07a`; integrato nel ramo locale `b16-int`). Base `origin/natpf-simulator` `6dae07a`
   (con due commit di soli documenti del **B17** di un'altra sessione, vedi sotto); unioni `70c85b3` (Leggenda), `90a8eb7`
   (tutorial corto e riscaldamento facoltativo), `bb46a6f` (mira); versione e documenti nel commit di questo checkpoint.
   - (a) **Leggenda più dura**: forza dalla CPU (primo passo, pressione dal 20° colpo, chiusura misurata, controllo dei colpi
@@ -103,7 +103,7 @@ Come si aggiorna:
   - **Audit del gameplay**: `docs/b16/rapporto-gameplay.md` (misurato sulla 2026-11-08.4; 25 difetti, 11 miglioramenti,
     piano in tre tappe). Le 4 decisioni che chiede sono in `docs/PASSAGGIO_CONSEGNE.md` §3 punto 14.
   - **Rifinitura 1** dopo le revisioni dell'integrazione (commit successivo a `bfeb069`, sempre su `b16-int`, non
-    pubblicato): la nota di tre righe sotto i pulsanti del pannello dello stand portava «Chiudi» fuori vista a 1024 × 600 e
+    `84838f6`): la nota di tre righe sotto i pulsanti del pannello dello stand portava «Chiudi» fuori vista a 1024 × 600 e
     a metà a 1366 × 657; tolta, la spiegazione della mira ora è nell'avviso dopo il clic e nel `title` del pulsante;
     `natpf-menu` controlla il pannello con «Chiudi» in vista a tre misure (28/28; 26/28 sulla versione di prima). Corretti
     anche testi e documenti segnalati (README del gioco, guida della mira, §4 del passaggio di consegne, riga superata del
@@ -115,23 +115,24 @@ Come si aggiorna:
   (`natpf-simulator-cloudflare-20261108-5.zip`, 22.578.885 B, sha256 `8cec771b…2285c983a`, provato estratto; sostituisce
   quello di `bfeb069`, sha256 `89ed0cb1…8ab73d71`, mai consegnato); l'installer lo costruisce GitHub dopo il push.
 - Non verificato: telefoni veri, persone vere, webcam vera, Windows (installer 08.5 e aggiornamento dal gioco 08.4 → 08.5),
-  ledwall, GPU vera; il passo `audit:legend` spostato non è ancora girato su GitHub.
+  ledwall, GPU vera.
+- GitHub: tre esecuzioni verdi su `84838f6` al primo tentativo («NATPF Simulator tests», «NATPF motore base MVP» con il
+  passo `audit:legend` in fondo, «NATPF eseguibili Windows»); installer **2026-11-08.5 pubblicato su R2**
+  (`NATPF-Simulator-Setup-2026-11-08.5.exe`, 124.585.994 B, sha256 `65534743…edceca5e4a3`); zip Cloudflare consegnato
+  all'utente (sha256 `8cec771b…2285c983a`). Prima del push: `git fetch` (origin fermo a `6dae07a`), gioco 957/957 e sito
+  197/197 rifatti nel checkout principale.
 - **B17 di un'altra sessione, in parallelo** (`docs/b17/analisi-e-piano.md`: gesti del tutorial dal video, X per uscire
   dal tutorial, punteggio in alto a sinistra, colpi sotto rete). Sovrapposizioni: difetto 2 dell'audit (colpo fallito a
   Leggenda) ↔ B17.4 (stessa regola `failQ` → `weak` in `natpf_stroke_outcome.js`); difetto 4 (fine partita nello stesso
   schermo, banner) ↔ B17.3 (tabellone, `natpf_scoreboard.js`); tutorial corto ↔ B17.2 (X per uscire). File che tutte e due
   le sessioni toccano o toccheranno: `natpf_tutorial.js`, `natpf_split_ui.js`, `index.html`, `natpf_stroke_intent.js`,
   `natpf_phone_racket.js`, e questi documenti: chi integra dopo fa `git fetch` e unisce (merge), rifà le prove.
-- **Prossima azione esatta:** (1) pubblicare la 2026-11-08.5 (ramo `b16-int` con la rifinitura 1): `git fetch origin
-  natpf-simulator`; se `origin` è andato avanti unire (merge) e rifare gioco, sito, build e le prove nel browser dei
-  file toccati da tutte e due le parti; poi push di `b16-int` su `origin natpf-simulator` (solo avanzamento lineare, mai
-  `--force`), controllo dei tre workflow di GitHub (anche il passo `audit:legend` in fondo a «NATPF motore base MVP»;
-  installer 08.5 pubblicato su R2), consegna dello zip Cloudflare e del link dell'installer, registro §4 a [x]. (2) Poi
-  attendere le decisioni dell'utente sulle **4 domande dell'audit** (passaggio di consegne §3 punto 14): 1. partire con
-  la tappa 1; 2. formato in fiera: punto decisivo sul 40-40 e servizio alternato; 3. pulsante «Nuovo giocatore» che
-  azzera nome, calibrazione e tutorial senza scollegare il telefono, record per giorno; 4. tappa 2 con il livello
-  «Evento» adattivo (adulto medio al 60–70 % dei punti) e un livello per bambini. Prima di cominciare una tappa,
-  coordinarsi con il B17 dell'altra sessione (sovrapposizioni qui sopra).
+- **Prossima azione esatta:** attendere le decisioni dell'utente sulle **4 domande dell'audit** (passaggio di consegne §3
+  punto 14): 1. partire con la tappa 1; 2. formato in fiera: punto decisivo sul 40-40 e servizio alternato; 3. pulsante
+  «Nuovo giocatore» che azzera nome, calibrazione e tutorial senza scollegare il telefono, record per giorno; 4. tappa 2
+  con il livello «Evento» adattivo (adulto medio al 60–70 % dei punti) e un livello per bambini. Prima di cominciare una
+  tappa: `git fetch origin natpf-simulator` e coordinarsi con il B17 dell'altra sessione (sovrapposizioni qui sopra);
+  il B17 deve partire dalla 2026-11-08.5 (`84838f6`).
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
@@ -211,7 +212,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B13 Prova del servizio e gesti del tutorial | [x] | `gesture-calibration` senza pausa di rete (stabile con CPU ×4); gesti del tutorial sulla catena fisica del braccio (dritto ancora in diagonale: limite del riconoscimento) | vedi WORK_PROGRESS B13 | 2026-11-08.1 |
 | B14 Dritto: limite, camere, orientamento | [x] | vincolo smentito; camere più basse (08.2); disegno, schiacciata, camere di palla corta/tagliato/pallonetto, prova alle velocità intermedie (08.3); dritto da manuale bloccato (decisione dell'utente) | vedi WORK_PROGRESS B14 | 2026-11-08.3 |
 | B15 Colpi, mancini, flusso | [x] | palla che segue il gesto (forza, piatto); mancini a specchio in tutta la catena; testi brevi e meno scelte | vedi WORK_PROGRESS B15 | 2026-11-08.4 |
-| B16 Decisioni del B15 e audit del gameplay | [~] | Leggenda più dura; tutorial corto (5 schede) e riscaldamento facoltativo; mira scelta dall'addetto e misurata nella diagnostica; rapporto dell'audit `docs/b16/rapporto-gameplay.md` con 4 decisioni chieste; pronta, da pubblicare | vedi WORK_PROGRESS B16 | 2026-11-08.5 |
+| B16 Decisioni del B15 e audit del gameplay | [x] | Leggenda più dura; tutorial corto (5 schede) e riscaldamento facoltativo; mira scelta dall'addetto e misurata nella diagnostica; rapporto dell'audit `docs/b16/rapporto-gameplay.md` con 4 decisioni chieste | `70c85b3`…`84838f6` | 2026-11-08.5 |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).
