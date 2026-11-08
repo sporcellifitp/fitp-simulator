@@ -375,3 +375,29 @@ test('racchetta animata: il lato del colpo dalla palla segue la mano del persona
   assert.equal(strike('right', 1.2), 'forehand'); assert.equal(strike('right', -1.2), 'backhand');
   assert.equal(strike('left', -1.2), 'forehand'); assert.equal(strike('left', 1.2), 'backhand');
 });
+
+// Secondo giro della verifica (08/11): il percorso della calibrazione si ricalcolava a ogni gesto da S.options, e il
+// telefono (racchetta.js applyHand: menu, «cfg» dal computer, pulsanti della mano dello stesso schermo) cambia
+// options.hand a calibrazione in corso: dopo il primo gesto il percorso si girava e si chiedeva di nuovo lo stesso verso
+// («direzione», calibrazione fallita). Ora il percorso è fissato all'avvio (e a «Rifai», con la mano di quel momento);
+// la scritta Dritto/Rovescio segue la mano nuova, il verso dei gesti resta quello del percorso
+test('calibrazione: cambio di mano a metà percorso (applyHand del telefono) → il percorso resta quello dell’avvio e la calibrazione passa', () => {
+  for (const [from, to] of [['right', 'left'], ['left', 'right']]){
+    const p = simPhone({ hand: from, seed: 7 }), ev = []; p.cal.on(e => ev.push(e));
+    p.cal.start({ quick: true, hand: from }); p.rest(800, 0);
+    const plan0 = calibrationPlan({ quick: true, hand: from });
+    assert.deepEqual(p.cal.state.plan, plan0, `${from}: percorso fissato all'avvio`);
+    p.swing({ axis: [0, plan0[0] === 'L' ? 1 : -1, 0] }); p.rest(500, 0);
+    p.cal.state.options.hand = to;                                   // come applyHand() sul telefono
+    const w = p.cal.state.plan[p.cal.state.idx];
+    assert.equal(w, plan0[1], `${from}→${to}: il secondo gesto resta quello del percorso`);
+    p.swing({ axis: [0, w === 'L' ? 1 : -1, 0] }); p.rest(500, 0);
+    assert.equal(p.cal.state.step, 'review', `${from}→${to}`);
+    assert.equal(p.cal.state.result?.pass, true, `${from}→${to}: ${JSON.stringify(p.cal.state.result)}`);
+    assert.equal(p.cal.state.options.hand, to, 'la mano nuova resta nel profilo');
+    assert.deepEqual(ev.filter(e => e.kind === 'next').map(e => e.want), [plan0[1]]);
+    // «Rifai» riparte con il percorso della mano di adesso (prima il suo dritto)
+    p.cal.retry();
+    assert.deepEqual(p.cal.state.plan, calibrationPlan({ quick: true, hand: to }), `${to}: «Rifai» con la mano nuova`);
+  }
+});

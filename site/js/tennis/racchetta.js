@@ -134,7 +134,7 @@ function calUi(){
   else if (st.step === 'still') ui('Tieni fermo', `${GRIP_TEXT_PLAIN} Guarda il computer.`);
   else if (st.step === 'grip') ui('La tua presa', 'Tieni il telefono come ti è comodo, senza stringere troppo.');
   else if (st.step === 'swings'){
-    const plan = calibrationPlan(st.options), w = plan[st.idx], stroke = (w === 'L') !== (st.options.hand === 'left') ? 'Dritto' : 'Rovescio';
+    const plan = st.plan || calibrationPlan(st.options), w = plan[st.idx], stroke = (w === 'L') !== (st.options.hand === 'left') ? 'Dritto' : 'Rovescio';
     if (!st.ready) ui(`${stroke} ${ARROW[w]}`, 'Fermo un attimo al centro…', '', '');
     else ui(`${stroke} ${ARROW[w]}`, `Ora: gesto naturale ${w === 'L' ? 'verso sinistra' : 'verso destra'}, con la stessa presa che userai in partita, poi fermati. Gesto ${st.idx + 1} di ${plan.length}.`, 'ready', ARROW[w]);
   }
