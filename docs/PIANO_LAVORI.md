@@ -133,6 +133,17 @@ Come si aggiorna:
   con il livello «Evento» adattivo (adulto medio al 60–70 % dei punti) e un livello per bambini. Prima di cominciare una
   tappa: `git fetch origin natpf-simulator` e coordinarsi con il B17 dell'altra sessione (sovrapposizioni qui sopra);
   il B17 deve partire dalla 2026-11-08.5 (`84838f6`).
+- **B17 (08/11 sera, richiesta con video e due diagnostiche; agente Claude in parallelo al B16):** analisi in
+  `docs/b17/analisi-e-piano.md`. Uniti su `natpf-simulator` sopra il B16 (`b6e09f2`, `466830a`, `d254944`; conflitti con
+  il tutorial corto risolti tenendo tutte e due le cose): **B17.2** X in alto a destra del tutorial (accesa dopo tutte le
+  schede, fa come «Tutto chiaro»); **B17.3** tabellone in alto a sinistra sulla schermata di riferimento dell'utente
+  (`docs/b17/punteggio-riferimento.md`, `docs/b17/punteggio.md`); **B17.4** colpi sotto rete guidati dal gesto
+  (`docs/b17/rete.md`). Test sul codice unito: gioco 970/970, sito 200/200, LAN 12/12, build ok; prove nel browser in
+  corso. In corso anche: revisioni di tabellone e rete sul codice unito, Invio/Spazio sulla X (workflow
+  `natpf-b17-chiusura`). **B17.1** (gesti del tutorial dal video dell'utente): piano in `docs/b17/analisi-e-piano.md` §1.4,
+  in attesa dell'ok dell'utente.
+- **Prossima azione esatta (B17):** esito delle prove nel browser e del workflow di chiusura → correzioni, versione
+  2026-11-08.6, installer su R2 e zip Cloudflare, WORK_PROGRESS; poi B17.1 se l'utente approva il piano.
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 

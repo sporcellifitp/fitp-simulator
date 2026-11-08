@@ -1223,3 +1223,28 @@ guida provato nel browser.
 - Zip Cloudflare consegnato all'utente: `natpf-simulator-cloudflare-20261108-5.zip`, 22.578.885 B, sha256
   `8cec771b91710b8f244a6b74293f6310f11edfb908b545d8341278d2285c983a`.
 - Non verificato: installazione e aggiornamento su Windows vero, telefoni veri, persone, ledwall.
+
+## B17 · Gesti dal video, uscita dal tutorial, punteggio in alto a sinistra, colpi sotto rete (08/11 sera) · [~]
+- Analisi del video dell'utente (fotogrammi estratti e guardati: presa dritta nel pugno con lo schermo in avanti, dritto
+  largo e orizzontale con braccio disteso, rovescio a due mani, servizio con la mano libera, tagliato in discesa lunga) e
+  delle diagnostiche `20261108-171902-wqdk`/`172017-q79f` (9 colpi entro 7 m dalla rete: palla corta per forma, «in
+  allungo» sotto failQ .63 di Leggenda → debole uniforme, VERY EARLY, 22+8 gesti scartati dal telefono):
+  `docs/b17/analisi-e-piano.md` (`035a089`), riferimento del punteggio `docs/b17/punteggio-riferimento.md` (`6dae07a`).
+- Tre rami in worktree con revisore ciascuno (base `7936011`), poi uniti sopra il B16 (`4515259`):
+  - B17.2 `6f2bef3` → `b6e09f2`: X in `.tut-head` (onDone di `openFor`; training `_tutorialDone('phone')`, split `_tutDone(id)`);
+    conflitti con il tutorial corto del B16 risolti (set/cards + onDone). Revisione: nessun bloccante; minore Invio/Spazio
+    (in lavoro).
+  - B17.3 `6f64161`, `6a5f11b`, `7240d32` → `466830a`: tabellone in alto a sinistra (2,3 cqw / 6 cqh, --sb 2,6 cqh 15–36 px),
+    sigle, casella gialla dei punti («AD»), sottotitolo con formato/parità; copia `#natpf-scoreboard-p2` nella metà del
+    P2 (bloccante della revisione: finiva sotto la pausa a 844/1024 → larghezza dalla metà meno pausa); «Al servizio»
+    nascosta subito nello stesso schermo. Prova `natpf-tabellone` 39/39.
+  - B17.4 `318e6d3`, `ad58b23`, `dcafd4c` → `d254944`: colpo «controllato» a rete (qualità fino a .25 sotto failQ, forza →
+    profondità/velocità, tipo → arco, dispersione dal seme, bordo laterale), attackQ dalla forza solo in zona di rete,
+    palla corta per forma a rete solo conf ≥ .6 e forza ≤ .25, finestra a vuoto × slowFactor solo a rete, telefono
+    `cfg net:1` (picco 0,10 × scala, 10°, solo con verso atteso noto) e motore `WEAK.netRel .15`/`netAmple 10°`;
+    `scripts/audit/rete-diag.mjs` (diagnostiche rigiocate: i 3 colpi deboli diventano 6,8/10,2/8,8 m controllati),
+    `colpi.mjs --mode=rete` (2/12 → 12/12 non deboli, 12 esiti distinti), banco/reale/partite invariati. Test
+    `natpf-rete-b17` (10), `swing-net` (3).
+- Codice unito (`d254944`): gioco 970/970, sito 200/200, LAN 12/12, build ok (prove nel browser in corso).
+- **Non verificato**: telefono vero, Windows, ledwall; la soglia bassa a rete su un telefono vero (rischio: assestamento
+  da 195 °/s letto come tocco); il giudizio dell'utente sulle sigle del tabellone.
