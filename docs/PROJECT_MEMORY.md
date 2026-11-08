@@ -521,7 +521,7 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   quando c'è.
 - **Colpo tipico** (`TYPICAL.keep` 24, era 9): il riferimento della forza relativa è la propria scala di gioco; dieci colpi
   forti di fila restano forti (prima la forza tornava a 0,65 dal sesto). Con il colpo tipico che impara scambia 17 colpi su
-  400 tra piatto e top spin (saldo nullo).
+  400 tra piatto e top spin; su 1200 colpi circa il 7 % dei piatti diventa top spin (spostamento sistematico).
 - **Velocità della palla**: nel motore la decide l'altezza a cui deve passare sopra il nastro, non il volo base (che vincola
   solo i colpi morbidi). Altezza con la curva morbidezza^1,5 (`OUTCOME.clearCurve`, su tutti i colpi tranne il pallonetto),
   TOPSPIN morbido fino a 2,5 m (`topClearSoft`), top spin che cresce con la forza (`topSpinPower` 8), tetto del volo base 1,5

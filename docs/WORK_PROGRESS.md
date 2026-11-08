@@ -617,7 +617,7 @@ i numeri in `docs/b15/audit-colpi.md`. Lavoro su un worktree a parte (ramo local
   - `INTENT.relGain` 0,6 → 0,9 per l'esito (tipo di colpo, super e barra con la pendenza di prima: `typePower`,
     `classGain`, `superStrength`): km/h p90−p10 39,3 → 44,1 (base 33,4), profondità 2,90 → 3,35 m (base 2,72), tipi identici
     con il colpo tipico fisso del banco (correzione del terzo giro: con il colpo tipico che impara `TYPICAL.keep` 24 scambia
-    17 colpi su 400 tra piatto e top spin, saldo nullo);
+    17 colpi su 400 tra piatto e top spin; su 1200 colpi circa il 7 % dei piatti diventa top spin);
   - seconda verifica del seme (`AIM.recheck` 6 colpi per verso, 6–12°, una volta, non con dritto e rovescio in versi
     opposti): seme sbagliato di ±15°, errore del centro al 40° colpo (con il segno) −3,9/+3,2° base, −7,4/+5,6° primo giro
     → −1,2/+1,4°; seme giusto 1,4 → 2,1° medio assoluto.

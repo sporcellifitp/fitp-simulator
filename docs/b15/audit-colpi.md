@@ -93,8 +93,10 @@ mancino, dritto e rovescio; ma oltre 17° la mira è piena: **+20° e +30° cado
 
 **Tipi di colpo con il colpo tipico che impara**: nel banco `reale` il colpo tipico è fisso, quindi i tipi sono identici per
 costruzione. Con il colpo tipico che impara (persona della verifica, `createTypicalModel`) `TYPICAL.keep` 24 scambia **17
-colpi su 400** tra piatto e top spin (8 piatti diventano top spin, 9 top spin diventano piatti; saldo nullo, nessun super,
-nessun fallito): non è vero che i tipi restano «identici» colpo per colpo, come diceva il documento del secondo giro.
+colpi su 400** tra piatto e top spin (8 piatti diventano top spin, 9 top spin diventano piatti, nessun super, nessun
+fallito): non è vero che i tipi restano «identici» colpo per colpo, come diceva il documento del secondo giro. Con un
+campione più grande (verifica del terzo giro, 1200 colpi in tre partite) lo spostamento è **sistematico**: circa il 7 % di
+piatti in meno (diventano top spin; 54 cambi, 37 piatti → top spin e 17 il contrario), in tutte e tre le partite.
 
 ## 3. Il centro della mira per partita, con il rumore (24 partite, colpi 21–40 / 41–60 / 61–80)
 
@@ -215,8 +217,8 @@ gesto, zona morta del piatto (3°).
 Tolte (comportamenti tolti con il centro della mira di prima): mira tenuta di dieci dritti a 20° e alternati, isteresi
 (riferimento girato di 35–40° in 30 colpi, scarto di 22° tenuto), mira piena +30° ×14 destro e mancino ≥ 1,5 m, seconda
 verifica del seme (due prove). `natpf-diag.test.mjs`: una prova nuova (`forzaTipo` nel gesto e nell'esito, `superNo` con la
-forza di tipo). Le prove della base non sono state toccate; `natpf-sessione-23-10` «mira dal piatto» resta quella del
-secondo giro (curva da 3° a 17°).
+forza di tipo). Delle prove della base è cambiata solo `natpf-sessione-23-10` «mira dal piatto» (curva da 3° a 17° invece
+che a 23°, perché segue `faceSpan` 14); nessuna è stata indebolita.
 
 ## 7. Rischi dichiarati
 
@@ -238,9 +240,13 @@ secondo giro (curva da 3° a 17°).
 - **Mira tenuta presa dal centro come prima**: tenere lo stesso piatto girato per più di sei-sette colpi di fila fa tornare la
   palla verso il centro (+20° ×10: 3,31 → 1,92 m; mancino nel telefono simulato 0,75, §4); con dritto e rovescio insieme
   dopo una decina di colpi per verso.
-- **`TYPICAL.keep` 24** scambia 17 colpi su 400 tra piatto e top spin quando il colpo tipico impara (saldo nullo, §2).
+- **`TYPICAL.keep` 24**: quando il colpo tipico impara, circa il 7 % dei piatti diventa top spin (verifica del terzo giro,
+  1200 colpi; §2).
 - **`clearCurve` su tutti i colpi tranne il pallonetto**: piatto, tagliato e palla corta morbidi passano fino a 4 cm più
   bassi sul nastro; nessun fallito nella persona vera, `natpf-gesti-speciali` 9/9 nel browser.
+- **Livello Casual, profili deboli** (`audit:rally`, 600 punti): «bambino» 48,3 → 42,2 % dei punti vinti, «impreciso»
+  58,2 → 56,0 % (Pro: bambino 18 → 19,7, impreciso 22 → 21,2). Effetto del motore del primo giro (colpi morbidi più alti,
+  che la CPU attacca).
 - **Cosa resta**: la velocità in cima non supera ~124 km/h (altezza minima sul nastro, volo minimo 0,58 s); il ritmo ricentra
   chi anticipa sempre (decisione del 28/10); la distribuzione «vera» è stimata dalle diagnostiche, non registrata colpo per
   colpo; il rumore del piatto dei telefoni veri non è misurato; le asimmetrie del percorso del mancino (calibrazione,
@@ -253,6 +259,11 @@ secondo giro (curva da 3° a 17°).
   colpo normale resta quasi dov'era (9,2 m, 93 km/h; prima 9,3 m e 95 km/h). Dieci colpi forti di fila restano forti (prima la forza tornava a metà).
 - **Il piatto decide di più la direzione**: da −15° a +15° la palla si sposta di 5,6–6,0 m (prima 3,9–4,2); nella
   distribuzione vera x p90−p10 6,08 → 6,92 m e palle oltre 2,5 m dal centro 31 → 37 %. Oltre 17° la mira è piena.
+- **Il prezzo della mira più sensibile**: se il riferimento della mira è sbagliato (calibrazione fatta male, corpo girato),
+  anche l'errore pesa di più. Le palle della stessa partita da una parte crescono di poco in proporzione alla dispersione
+  (+8–16 %); la quota di palle dalla parte più frequente sale di 0,1–1,5 punti (58,0 → 58,4 %); le partite con almeno il
+  70 % delle palle da una parte passano da 10 a 18 su 384 con il seme sbagliato. Se in prova con le persone dà fastidio, la
+  mira piena a 20° (`faceSpan` 17) dimezza l'effetto tenendo metà della varietà guadagnata.
 - **Il centro della mira è quello di prima**: si corregge sui colpi veri (seme della calibrazione sbagliato, corpo girato)
   come prima del B15, partita per partita; la mira tenuta per più di sei-sette colpi di fila torna verso il centro, come
   prima. Le prove del secondo giro che la tenevano lasciavano, con il rumore vero, più palle da una parte in ogni partita.
