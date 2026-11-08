@@ -1,5 +1,6 @@
 // NATPF B9 (richiesta del 05/11): modale del tutorial compatta con le frecce e pagina del telefono con una schermata alla
-// volta. Telefono simulato (390×844) dal QR a «Pronto» nell'Allenamento, poi stesso schermo con due telefoni:
+// volta. Telefono simulato (390×844) dal QR a «Pronto» nell'Allenamento (tutte le 11 schede), poi stesso schermo con due
+// telefoni (tutorial corto, 5 schede: B16, decisione dell'utente dell'08/11 sera):
 //   - «Tutto chiaro, ho capito» spento (e inerte) finché il computer non ha mostrato tutte le schede, poi acceso;
 //   - mai «Tutto chiaro» insieme a «Pronto» o a Ricalibra/Ricollega/Scollega (controllo ogni 30 ms per tutta la prova);
 //   - tornare indietro dopo aver visto tutto, ricollegamento automatico e pagina ricaricata a tutorial aperto (si riprende
@@ -286,6 +287,10 @@ try {
     const sg = await pc.evaluate(() => { const r = el => { const b = el.getBoundingClientRect(); return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) }; }; return ['p1', 'p2'].map(id => r(document.querySelector(`#split-tut-${id} .tut-card`))); });
     await gshot('stesso-schermo-1280x720', pc);
     await pshot(ph1, '12-stesso-schermo-p1');
+    // B16 (decisione dell'utente dell'08/11 sera): prima della partita il tutorial corto, 5 schede per ciascun telefono
+    // (presa, posizione, dritto, rovescio, servizio); nell'Allenamento (sopra) restano tutte le 11
+    const cards = await pc.evaluate(() => ['p1', 'p2'].map(id => ({ n: __natpfTennis.natpfUi.split.tut[id].state?.cards, ids: __natpfTennis.natpfUi.split.tut[id].cards.map(c => c.id).join(','), dots: document.querySelectorAll(`#split-tut-${id} .tut-dot`).length })));
+    check('stesso schermo: tutorial corto, 5 schede per telefono (sul telefono «Scheda 3 di 5»)', cards.every(c => c.n === 5 && c.dots === 5 && c.ids === 'grip,ready,forehand,backhand,serve') && s1.gate.n === 5 && s2.gate.n === 5 && /Scheda 3 di 5/.test(s1.where), JSON.stringify({ cards, w1: s1.where, w2: s2.where }));
     check('stesso schermo: due modali, ciascuna al centro della sua metà (non a tutta metà), frecce del P1 muovono solo la sua', h.open.p1 && h.open.p2 && h.idx.p1 === 2 && h.idx.p2 === 0 && s1.gate.i === 2 && s2.gate.i === 0
       && Math.abs(sg[0].x + sg[0].w/2 - 320) <= 4 && Math.abs(sg[1].x + sg[1].w/2 - 960) <= 4 && sg[0].w <= 640*.8 && sg[0].h <= 720*.8, JSON.stringify({ h, sg }));
     await pc.setViewportSize({ width: 1920, height: 1080 }); await pc.waitForTimeout(600);

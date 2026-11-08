@@ -592,6 +592,8 @@ export class NatpfTraining {
     const cur = this.cal ? 0 : stages.indexOf(this.drill);
     const list = $('#coach-stages'), key = stages.map(x => x.id).join() + cur;
     if (list && list.dataset.key !== key){ list.dataset.key = key; list.innerHTML = stages.map((x, i) => `<li class="${i < cur ? 'done' : i === cur ? 'on' : ''}">${x.label}</li>`).join(''); }
+    // una tappa sola (solo la calibrazione prima della partita, B16): la dice già il titolo in alto («Calibrazione»)
+    show(list, stages.length > 1);
     show($('#coach-simple'), !!this.cal && this.cal.fails >= 1);
     show($('#coach-review'), this.ui.controller === 'phone' && !this.lesson && !this.tutorialOpen);
     // lezione iniziale: pannello a sinistra con l'animazione grande, il campo resta libero
