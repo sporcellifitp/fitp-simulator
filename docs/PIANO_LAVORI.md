@@ -86,8 +86,9 @@ Come si aggiorna:
 - **Decisioni chieste all'utente:** `docs/PASSAGGIO_CONSEGNE.md` §3.13 (Leggenda più dura o colpi forti meno tesi; tutorial
   corto prima della partita; riscaldamento facoltativo; mira più sensibile; unire le due pagine della scelta). Restano
   quelle sul dritto (§3.4).
-- **Prossima azione esatta:** controllare CI e pubblicazione su R2 della 2026-11-08.4, consegnare lo zip Cloudflare;
-  poi aspettare le decisioni dell'utente.
+- GitHub: tre esecuzioni verdi su `d888fb3` (`timing-browser` verde alla ripetizione, instabilità nota); installer
+  **2026-11-08.4 pubblicato su R2** (sha256 `95485927…e3dfa15164`); zip Cloudflare sha256 `e5e67f5e…cce5c70de`.
+- **Prossima azione esatta:** aspettare le decisioni dell'utente (§3.13 del passaggio di consegne).
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
 1. **Push**: dopo ogni commit verificato, subito, su `origin natpf-simulator`. Verificato = test del gioco e del sito

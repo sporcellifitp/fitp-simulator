@@ -814,7 +814,14 @@ restano proposte in `docs/b15/audit-ux.md` §4. Ramo di lavoro `b15-ux` (worktre
   sensori negati uguale su computer e telefono. Non corretto (cosmetico, già presente): la foto della presa specchiata per il
   mancino ha la scritta dello schermo rovesciata. Dopo le correzioni: gioco 927/927, sito 197/197, `natpf-menu` 22/22,
   `natpf-1v1-p2p` 39/39, `natpf-tutorial-phone` mancino 38/38, `gesture-calibration` 20/20, `phone-only` 10/10.
-- Versione **2026-11-08.4** (`version.js`, `build.json`, `LEGGIMI.txt`), novità in `natpf-desktop/novita.txt`.
+- Versione **2026-11-08.4** (`version.js`, `build.json`, `LEGGIMI.txt`), novità in `natpf-desktop/novita.txt`. Zip
+  Cloudflare `natpf-simulator-cloudflare-20261108-4.zip` 22.570.688 B (127 file), sha256
+  `e5e67f5e5178a4398ba1d2364cbd03472ce5608aa59f6b0608bf584cce5c70de`, provato estratto (versione giusta, nessun errore).
+  GitHub (`d888fb3`): «NATPF motore base MVP» e «NATPF eseguibili Windows» verdi, installer **2026-11-08.4 pubblicato su
+  R2** (124.586.677 B, sha256 `95485927488451787ce2b86815cc0447e218333b430265a332cd63e3dfa15164`, `latest.json` con la
+  novità controllato); «NATPF Simulator tests» rosso al primo tentativo solo in `timing-browser` (parte P2, attesa di 20 s:
+  l'instabilità nota dei runner, §3.10 del passaggio di consegne; in locale 3/3 sullo stesso codice), verde alla
+  ripetizione del solo job fallito.
 - Decisioni chieste all'utente: `docs/PASSAGGIO_CONSEGNE.md` §3.13 (Leggenda, tutorial corto, riscaldamento facoltativo,
   mira più sensibile, unire le due pagine della scelta).
 - Non verificato: telefoni veri (anche nella mano sinistra), persone vere, webcam vera, due computer veri, Windows.
