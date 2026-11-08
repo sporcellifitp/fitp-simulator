@@ -54,6 +54,10 @@ export const DEFAULTS = {
   // prima. play*: minimi assoluti, solo contro un profilo fatto di rumore
   scaleOn: .12, scaleMinPeak: .18, scaleAngle: .25,
   playOn: 25, playMinPeak: 45, playMinAngle: 4,
+  // a rete (il gioco manda cfg net:1 quando chi gioca è entro 5 m dalla rete, B17.4): i tocchi morbidi contano. Soglia del
+  // picco netMinPeak × scala di chi gioca (min playMinPeak), inizio del gesto netOn × scala; l'08/11 con un colpo tipico di
+  // ~1300 °/s la soglia in gioco era ~250 °/s e 30 gesti da 160–470 °/s sono stati scartati «deboli». Torna normale con net:0
+  netOn: .08, netMinPeak: .10, netMinAngle: 10,   // gradi: a rete una volée è un gesto corto (nelle diagnostiche 10–29°)
   recoverMax: 650,  // ms dopo un colpo: il rientro finisce anche senza quiete (braccio teso che trema, preparazione del
                     // colpo dopo senza pausa); prima il rilevatore poteva restare in attesa e ignorare il colpo successivo
   recoverLate: 900, recoverLateWeak: .7,   // fino a 0,9 s un gesto opposto sotto il 70% del colpo è ancora il rientro
@@ -151,7 +155,7 @@ export function createSwingDetector(opts = {}){
   // muove nel verso opposto al colpo. Se il gioco dice da che parte arriva la palla (expect: +1/-1, verso del colpo
   // atteso), un gesto nel verso opposto non parte subito: se entro poco arriva il gesto nel verso giusto era una
   // preparazione (evento 'prep'), altrimenti vale come colpo con il suo istante del picco (il tempo resta giusto).
-  let prepMode = false, expectDir = 0, held = null, lastDir = 0, lastAxis = null;
+  let prepMode = false, expectDir = 0, held = null, lastDir = 0, lastAxis = null, atNet = false;
   // verso assoluto (senza asse di calibrazione): segno dei sensori e voti dei colpi rispetto al verso atteso
   let absSign = 1, votes = { agree: 0, against: 0 };
   // ultimi tre campioni grezzi (tempo, modulo): l'istante vero del picco si ricava da una parabola sui tre attorno al
@@ -181,11 +185,16 @@ export function createSwingDetector(opts = {}){
   // scala di chi gioca: il verso più deciso (calibrazione o colpi veri); null se non si sa (profilo semplice)
   const scale = () => { const v = [prof.refs?.[1], prof.refs?.[-1], typicalOf(1), typicalOf(-1)].filter(x => x > 0); return v.length ? Math.max(...v) : null; };
   const inPlay = () => !training && !serving();
+  // a rete (cfg net) solo con il verso del colpo atteso noto (ex ±1: la palla arriva): con le soglie basse e il verso sconosciuto
+  // la preparazione da 180–300 °/s nel verso opposto diventava un colpo (revisione del B17.4); con ex 0 valgono le soglie normali
+  const nearNet = () => atNet && inPlay() && expectDir !== 0;
   const thr = () => {
     const examples = (prof.templates || []).filter(t => !serving() || t.shot === 'serve');
     const ref = examples.length ? Math.min(...examples.map(t => t.peak)) : serving() ? prof.ref*.5 : Infinity;
     const S = inPlay() ? scale() : null;
     const on = Math.max((prof.noise || 1)*4, Math.min(prof.on,ref*.2))*prof.sens, minPeak = Math.max((prof.noise || 1)*5,Math.min(prof.minPeak,ref*.28))*prof.sens;
+    // a rete, con la scala di chi gioca nota: soglie basse per i tocchi morbidi (mai sotto il rumore e i minimi assoluti)
+    if (nearNet() && S) return { on: Math.max(C.playOn, (prof.noise || 1)*4, Math.min(on, S*C.netOn*prof.sens)), minPeak: Math.max(C.playMinPeak, (prof.noise || 1)*5, S*C.netMinPeak*prof.sens) };
     return inPlay() ? { on: Math.max(C.playOn, on, S ? S*C.scaleOn*prof.sens : 0), minPeak: Math.max(C.playMinPeak, minPeak, S ? S*C.scaleMinPeak*prof.sens : 0) } : { on, minPeak };
   };
   // ampiezza minima in gioco: quella del verso più ampio della calibrazione (minAngles è già un quarto del gesto)
@@ -266,7 +275,7 @@ export function createSwingDetector(opts = {}){
       const g = [k.accG[0] - k.acc[0], k.accG[1] - k.acc[1], k.accG[2] - k.acc[2]], gl = len(g);
       if (gl > 5){ cur.up += dot(k.acc, g)/gl*dt; cur.tot += len(k.acc)*dt; }
     }
-    const minAngle = serving() ? Math.min(2.5,prof.minAngle) : Math.max(playAngle(), Math.min(prof.minAngle,...(prof.templates||[]).map(t=>Math.max(2,t.angle*.35))));
+    const minAngle = serving() ? Math.min(2.5,prof.minAngle) : nearNet() ? Math.max(C.playMinAngle, C.netMinAngle) : Math.max(playAngle(), Math.min(prof.minAngle,...(prof.templates||[]).map(t=>Math.max(2,t.angle*.35))));
     // gesto verticale lento e ampio (VERTICAL.slow*): soglia più bassa
     cur.slow = inPlay() && cur.t0 - lastFire > C.recoverLate && cur.angle >= VERTICAL.slowAngle && verticalAxis(cur.peakW, cur.gravity || prof.gravity, prof.axis);
     const minPeak = cur.slow ? Math.min(T.minPeak, slowFloor()) : T.minPeak;
@@ -352,8 +361,9 @@ export function createSwingDetector(opts = {}){
     // nel verso opposto, e la soglia della preparazione non serve (gestureFloor: toward). Il 28/10 un dritto da 619 °/s
     // era scartato «debole» (soglia 630: la preparazione di calibrazione × 1,2), e così i gesti morbidi voluti
     const toward=prepMode&&inPlay()&&expectDir!==0&&dir===expectDir&&Number.isFinite(intent.toward);
-    const floor=prof.intentGate&&!serving()?thr().minPeak:Math.max(thr().minPeak,(toward?intent.toward:intent.floor)*prof.sens);
-    const minAngle=serving()?2:Math.max(playAngle(), Math.min(prof.minAngles?.[dir]||prof.minAngle,...(prof.templates||[]).filter(t=>t.shot===intent.shot).map(t=>Math.max(2,t.angle*.35))));
+    // a rete (B17.4) vale la sola soglia del picco: la soglia dell'intenzione (metà del colpo tipico) scartava i tocchi morbidi
+    const floor=(prof.intentGate||nearNet())&&!serving()?thr().minPeak:Math.max(thr().minPeak,(toward?intent.toward:intent.floor)*prof.sens);
+    const minAngle=serving()?2:nearNet()?Math.max(C.playMinAngle,C.netMinAngle):Math.max(playAngle(), Math.min(prof.minAngles?.[dir]||prof.minAngle,...(prof.templates||[]).filter(t=>t.shot===intent.shot).map(t=>Math.max(2,t.angle*.35))));
     // rientro in posizione dopo un colpo, nel verso opposto: non è un colpo (né una preparazione). Subito dopo il colpo
     // se non è chiaramente più forte; fino a 0,9 s se è molto più debole (rientro lento)
     const since = c.peakT - lastFire;
@@ -428,6 +438,9 @@ export function createSwingDetector(opts = {}){
     // modalità preparazione e verso del colpo atteso (+1 da destra a sinistra, -1 da sinistra a destra, 0 non si sa)
     setPrepMode(v){ prepMode = !!v; if (!prepMode){ expectDir = 0; held = null; } },
     setExpect(d){ expectDir = d === 1 ? 1 : d === -1 ? -1 : 0; },
+    // a rete (dal gioco, cfg net): soglie basse per i tocchi morbidi (DEFAULTS.netOn, netMinPeak); false al rientro
+    setNet(v){ atNet = !!v; },
+    get atNet(){ return atNet; },
     get prepMode(){ return prepMode; },
     get last(){ return last; },
     on(k, f){ listeners[k].push(f); return this; },

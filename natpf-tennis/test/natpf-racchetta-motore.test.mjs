@@ -294,9 +294,12 @@ test('scambi che finiscono e dinamici: nessuno scambio infinito; palle lasciate 
     // a ogni livello le palle che vanno fuori si lasciano andare
     assert.ok(r.racket.plans.letgo > 0, `${difficulty}: ${JSON.stringify(r.racket)}`);
     // movimento (campo aperto, fase C): dopo il colpo si torna verso il fondo; verso la rete solo quando una palla
-    // corta ha portato lì e non c'è il tempo di tornare (prima 46–89% dei colpi, anche dal fondo)
+    // corta ha portato lì e non c'è il tempo di tornare (prima 46–89% dei colpi, anche dal fondo). Il criterio è «mai dal
+    // fondo» (toNetFromBackPct 0); il tetto sul totale è di sicurezza: B17.4 (revisione, bordo laterale del colpo controllato)
+    // a Leggenda con il seme 7 i colpi controllati a rete restano in campo e lo scambio continua a rete (10,8% di mosse verso
+    // la rete, tutte da palla corta; era 5,6%)
     const c = courtStats([r]);
-    assert.ok(c.toNetPct < 10 && c.toNetFromBackPct === 0, `${difficulty}: ${JSON.stringify(c)}`);
+    assert.ok(c.toNetPct < 15 && c.toNetFromBackPct === 0, `${difficulty}: ${JSON.stringify(c)}`);
     all.volleys += r.racket.volleys;
     for (const [k, v] of Object.entries(r.racket.shots)) all.shots[k] = (all.shots[k] || 0) + v;
     for (const [k, v] of Object.entries(r.racket.plans)) all.plans[k] = (all.plans[k] || 0) + v;

@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { strokeOutcome, directionSpan, lateSpanOf, impactWindow, OUTCOME } from '../src/natpf/natpf_stroke_outcome.js';
-import { skillLevel } from '../src/natpf/natpf_skill.js';
+import { ARC, skillLevel } from '../src/natpf/natpf_skill.js';
 import * as THREE from 'three';
 import * as NI from '../src/natpf/natpf_impact.js';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
@@ -82,26 +82,29 @@ test('fuori e in rete possibili: tempo molto sbagliato, qualità scarsa, palla b
   assert.equal(net.netFault, true);
 });
 
-test('a rete con il tempo perfetto la palla passa la rete: la situazione la rende debole, non la manda in rete (23/10, sera)', () => {
+test('a rete con il tempo nella finestra la palla passa la rete: la situazione non la manda in rete (23/10, sera; B17.4: colpo controllato, non più debole uguale per tutti)', () => {
   const lv = skillLevel('leggenda'), late = lateSpanOf(18, lv), Q = .55;        // sotto failQ di Leggenda (.63): in corsa sulla palla corta
-  const good = shotOf({ net: true, contactY: .4 }, lv);
-  for (const o of [{ net: true, contactY: .4 }, { volley: true, contactY: .7 }, { volley: true, net: true, contactY: 1.1 }]){
+  for (const o of [{ net: true, contactY: .4 }, { volley: true, hitZ: 4, contactY: .7 }, { volley: true, net: true, contactY: 1.1 }]){
     const s = shotOf({ ...o, quality: Q }, lv);
-    // passa (niente rete né lunga), corta e più alta sulla rete: una palla facile da attaccare
-    assert.ok(s.grade === 'PERFECT' && s.failed && s.weak && !s.netFault && s.depth <= OUTCOME.weakDepth && s.depth < BASELINE, JSON.stringify(s));
-    assert.ok(s.clear > good.clear + .5, `${s.clear} contro ${good.clear}`);
+    // passa (niente rete né lunga): colpo controllato con la dispersione della qualità che manca (B17.4), in campo
+    assert.ok(s.grade === 'PERFECT' && s.controlled && !s.failed && !s.weak && !s.netFault && s.depth < BASELINE && s.clear >= ARC.netY, JSON.stringify(s));
+    assert.ok(s.spread > 0 && s.spread < .5, JSON.stringify(s));
   }
+  // raggiunta all'ultimo (qualità sotto netQMin): resta la palla debole di prima, corta e alta
+  const last = shotOf({ net: true, contactY: .4, quality: .4 }, lv), good = shotOf({ net: true, contactY: .4 }, lv);
+  assert.ok(last.failed && last.weak && !last.netFault && last.depth <= OUTCOME.weakDepth && last.clear > good.clear + .5, JSON.stringify(last));
   // da fondo campo resta l'errore forzato (palla bassa: in rete)
   const back = shotOf({ quality: Q, contactY: .6 }, lv);
   assert.ok(back.failed && !back.weak && back.netFault, JSON.stringify(back));
-  // a rete senza il tempo perfetto resta l'errore
-  const off = shotOf({ quality: Q, net: true, contactY: .4, timing: .95*late, lateSpan: late }, lv);
+  // a rete molto fuori tempo (oltre la finestra della direzione) resta l'errore
+  const off = shotOf({ quality: Q, net: true, contactY: .4, timing: -1.6*late, lateSpan: late }, lv);
   assert.ok(off.grade !== 'PERFECT' && off.failed && !off.weak && off.netFault, JSON.stringify(off));
   // scambio lungo: la situazione da sola terrebbe la palla (.7), la pressione la porta sotto failQ: errore anche a rete
   const tired = shotOf({ quality: .7, pressure: .8, net: true, contactY: .4 }, lv);
   assert.ok(tired.failed && tired.pressured && !tired.weak && tired.netFault, JSON.stringify(tired));
   // stessa qualità totale, tutta dalla situazione: passa
-  assert.ok(shotOf({ quality: .56, net: true, contactY: .4 }, lv).weak);
+  const same = shotOf({ quality: .56, net: true, contactY: .4 }, lv);
+  assert.ok(same.controlled && !same.failed && !same.netFault, JSON.stringify(same));
 });
 
 test('l\'assistenza tiene dentro senza cambiare la direzione voluta: ordine delle direzioni uguale, palle dentro le righe', () => {

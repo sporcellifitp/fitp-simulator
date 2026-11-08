@@ -174,27 +174,39 @@ test('skill gap: gli errori della CPU crescono con angolo, velocità, pressione 
   assert.ok(e({ angle: .8, speed: 28 }, p) < e({ angle: .8, speed: 28 }, c));
 });
 
-test('motore: finestra d\'impatto — lo swing in anticipo aspetta la palla a ogni livello, troppo in anticipo è a vuoto', () => {
+test('motore: finestra d\'impatto — lo swing in anticipo aspetta la palla a ogni livello, troppo in anticipo è a vuoto; allargata sulla palla lenta solo a rete', () => {
   // racchetta virtuale (natpf_impact.js): prima a Pro e Leggenda l'attesa era di 0,16 s e uno swing 0,29 s in anticipo
   // era un colpo a vuoto con la palla ancora lontana (sessione del 22/10). Ora si aspetta fino a IMPACT.early
-  const run = (difficulty, z) => {
+  // playerZ: chi gioca; vz: velocità della palla; lead: s prima del punto d'impatto (0,35 m davanti); short: palla corta
+  // rimbalzata con la caduta entro 6,4 m (la zona di rete della finestra allargata, come il colpo controllato)
+  const run = (difficulty, { playerZ = 11.4, vz = 10, lead, short = false }) => {
     const realRandom = Math.random; Math.random = mulberry32(5);
     try {
       const e = createHeadlessEngine({ difficulty });
       e.startNewMatch({ showStartBanner: false });
       e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'opponent';
-      e.player.pos.set(1, 0, 11.4); e.player.targetPos.copy(e.player.pos);
-      e.ball.pos.set(1.7, 1.0, z); e.ball.vel.set(0, 0, 10);
+      if (short){ e.ball.bounceCountOnCurrentSide = 1; e.ball.rallyStrokeCount = 4; e.ball.targetLanding.set(1.7, 0, 3); }
+      e.player.pos.set(1, 0, playerZ); e.player.targetPos.copy(e.player.pos); e.player.vel.set(0, 0, 0);
+      e.ball.pos.set(1.7, 1.0, playerZ - .35 - lead*vz); e.ball.vel.set(0, 0, vz);
       e._handleUserSwingInput({ source: 'test', speed: 1.2, dirX: .5 });
-      for (let i = 0; i < 110 && e.ball.lastHitter === 'opponent'; i++){ e.ball.vel.y = 0; e.step(1/120); }
+      for (let i = 0; i < 400 && e.ball.lastHitter === 'opponent' && e.phase === 'RALLY'; i++){ e.ball.vel.y = 0; e.step(1/120); }
       return { hitter: e.ball.lastHitter, hitZ: e.ball.lastHitter === 'player' ? e.natpfLastRacket?.timing : null };
     } finally { Math.random = realRandom; }
   };
   for (const difficulty of ['casual', 'pro', 'leggenda']){
-    const held = run(difficulty, 8.4);                      // 0,27 s prima del punto d'impatto
+    const held = run(difficulty, { lead: .265 });            // 0,27 s prima del punto d'impatto, da fondo campo
     assert.equal(held.hitter, 'player', difficulty);
     assert.ok(Math.abs(held.hitZ - .265) < .03, `${difficulty} ${held.hitZ}`);   // tempo vero dello swing, non quello dell'impatto
-    assert.equal(run(difficulty, 4.0).hitter, 'opponent', difficulty);           // 0,7 s prima: a vuoto
+    assert.equal(run(difficulty, { lead: .705 }).hitter, 'opponent', difficulty);   // 0,7 s prima: a vuoto (IMPACT.early ≤ 0,5)
+    // B17.4 (revisione): da fondo campo la finestra non si allarga sulla palla lenta (4,5 m/s): 0,65 s prima resta a vuoto
+    // (con l'allargamento ×1,8 a tutti i livelli, 0,72–0,9 s, sarebbe stato giocato al posto del colpo vero)
+    assert.equal(run(difficulty, { vz: 4.5, lead: .65 }).hitter, 'opponent', `${difficulty} fondo campo, palla lenta`);
+    // a rete (4,95 m) sulla palla corta lenta la finestra è allargata di slowFactor 1,8 (0,72–0,9 s): 0,65 s prima si aspetta
+    // la palla e si gioca con il tempo vero del gesto; 1,0 s prima è ancora a vuoto
+    const net = run(difficulty, { playerZ: 4.95, vz: 4.5, lead: .65, short: true });
+    assert.equal(net.hitter, 'player', `${difficulty} a rete`);
+    assert.ok(Math.abs(net.hitZ - .65) < .03, `${difficulty} a rete ${net.hitZ}`);
+    assert.equal(run(difficulty, { playerZ: 4.95, vz: 4.5, lead: 1.0, short: true }).hitter, 'opponent', `${difficulty} a rete, 1 s`);
   }
 });
 

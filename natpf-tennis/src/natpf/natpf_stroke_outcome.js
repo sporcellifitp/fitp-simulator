@@ -96,7 +96,37 @@ export const OUTCOME = Object.freeze({
   // morbido) e veloce (attackSpeed lungo il campo, dalla forza), con l'angolo stretto possibile (attackWideDepth). Con la
   // palla sotto il nastro resta una volée che deve salire, come nella realtà
   attackZ: 6.4, attackY: .9, attackPower: .45, attackGap: [.08, .3], attackSpeed: [20, 34], attackWideDepth: 4.2, smashGap: .1,
+  // B17.4 (08/11 sera, «maggiore libertà nei colpi sotto rete»; docs/b17/rete.md). Nelle due diagnostiche dell'08/11 i tre
+  // colpi giocati a rete su una palla corta (gesti da 760–1340 °/s: piatto, top spin, pallonetto) avevano qualità di situazione
+  // 0,57–0,62 («in allungo»), sotto failQ 0,63 di Leggenda, e diventavano tutti la stessa palla «debole» (6,8 m, +0,9 m sulla
+  // rete, 24–37 km/h). Ora a rete (chi colpisce entro 5 m, palla corta o palla entro attackZ) la qualità di situazione fino a
+  // netQSpan sotto failQ non fa fallire il colpo: è un colpo «controllato», con forza → velocità e profondità, tipo → arco,
+  // direzione piena, e la qualità che manca aggiunge dispersione (direzione fino a netSpread.x m, altezza sulla rete fino a
+  // netSpread.clear m, deterministica dal seme del colpo: stessi ingressi, stesso esito). Più sotto (palla raggiunta
+  // all'ultimo) resta debole (palla corta, tempo nella finestra) o fallito come prima
+  // netQMin: sotto questa qualità la palla è raggiunta all'ultimo a qualunque livello (il colpo controllato vale quindi a
+  // Leggenda, failQ .63; a Pro, 1v1 e Casual failQ è già sotto netQMin); netControlExcess: oltre tante unità fuori dalla finestra
+  // della direzione il colpo è «molto fuori tempo» e fallisce come prima
+  netQSpan: .25, netQMin: .45, netControlExcess: .5, netSpread: Object.freeze({ x: 1.2, clear: .35 }),
+  attackQPower: .3,   // la chiusura sopra la rete chiede meno qualità a un gesto forte: attackQ − attackQPower a forza piena (solo nella zona di rete)
+  // palla corta letta dalla forma (taglio verticale morbido) giocata a rete: resta una palla corta solo se la forma è chiara
+  // (confidenza ≥ conf) e il gesto è davvero lento (forza ≤ power); altrimenti è una volée controllata, tagliata, con la
+  // profondità da volleyDepth[0] a volleyDepth[1] m dalla forza e il volo del tagliato (niente minimo di 1,32 s del motore)
+  dropNet: Object.freeze({ conf: .6, power: .25 }), volleyDepth: [3, 7],
 });
+
+// Seme deterministico del colpo (B17.4): dagli ingressi del gesto e della palla a due numeri in [−1, 1], per la dispersione
+// dei colpi controllati a rete. Stessi ingressi, stesso esito; ingressi vicini, esiti diversi (come la mano che trema)
+export function strokeSeed(...vals){
+  let h = 2166136261;
+  for (const v of vals){ h ^= (Math.round(finite(v)*1000) | 0); h = Math.imul(h, 16777619); h ^= h >>> 13; }
+  return h >>> 0;
+}
+export function seedUnit(h, k = 0){
+  let x = (h ^ Math.imul(k + 1, 0x9E3779B1)) >>> 0;
+  x = Math.imul(x ^ (x >>> 16), 0x45d9f3b) >>> 0; x = Math.imul(x ^ (x >>> 16), 0x45d9f3b) >>> 0; x ^= x >>> 16;
+  return ((x >>> 0)/4294967295)*2 - 1;
+}
 
 // Tempo misurato sulla strada della palla, non solo in secondi: su una palla lenta (palla corta, rimbalzo alto, colpo
 // morbido) lo stesso anticipo in secondi è molto più vicino al punto d'impatto. La finestra della direzione e quella
@@ -177,32 +207,48 @@ export const aimForLanding = (x, x0, xMax = OUTCOME.xMax) => (x - x0)/Math.max(.
 // flight (solo pallonetto e schiacciata), netFault, failed, weak, pressured, grade, cursor, t, excess, q, aim, x0,
 // assist, assisted }.
 export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz = null, contact = 1, hitX = 0, hitZ = null, quality = 1, pressure = 1, rhythm = 0, contactY = 1, volley = false, net = false, shortBall = false, level = {} } = {}){
-  const O = OUTCOME, shot = String(intent.shot || 'topspin').toUpperCase();
+  const O = OUTCOME;
+  let shot = String(intent.shot || 'topspin').toUpperCase();
   const power = clamp(finite(intent.power, .5)), want = clamp(finite(intent.depth, power)), rise = clamp(finite(intent.rise), -1, 1);
+  // a rete (B17.4): chi colpisce entro 5 m, palla corta raggiunta, o palla entro la zona della chiusura
+  const zKnown = hitZ != null && Number.isFinite(Number(hitZ)), zc = Math.abs(finite(hitZ, O.hitZ)), nearNet = !!net || !!shortBall || (zKnown && zc <= O.attackZ);
+  // palla corta per forma a rete: palla corta solo con la forma chiara e il gesto lento, altrimenti volée controllata (tagliata)
+  const netVolley = shot === 'DROP' && nearNet && Number.isFinite(intent.conf) && !(finite(intent.conf) >= O.dropNet.conf && power <= O.dropNet.power);
+  if (netVolley) shot = 'SLICE';
   const AS = assistOf(level), span = directionSpan(level)*slowFactor(ballVz), late = Number.isFinite(lateSpan) ? clamp(lateSpan, .04, span) : span;
   // tempo in unità della finestra della direzione (+ anticipo). Oltre ±1 la palla continua ad andare verso l'esterno
   // fino alla fine della finestra d'impatto (prima si fermava a 1,6 unità: nell'ultimo 40% della finestra tutte le
   // palle uguali). ±4 è oltre ogni finestra d'impatto, solo per sicurezza
   const c = finite(contact, 1) >= 0 ? 1 : -1, t = clamp(finite(timing) >= 0 ? finite(timing)/span : finite(timing)/late, -4, 4), inside = clamp(t, -1, 1), excess = Math.max(0, Math.abs(t) - 1);
   const qs = clamp(timingQualityOf(t)*clamp(finite(quality, 1)), .2, 1), q = clamp(qs*clamp(finite(pressure, 1)), .2, 1);
+  // qualità sotto failQ: fallito (in corsa, in allungo, palla veloce, sotto pressione); a rete, per la sola situazione e fino a
+  // netQSpan sotto, colpo controllato con dispersione (B17.4) invece della palla debole uguale per tutti i gesti
+  const fq = finite(AS.failQ, 0), belowFq = q < fq && shot !== 'DROP', pressured = belowFq && qs >= fq;
+  const controlled = belowFq && !pressured && nearNet && q >= Math.max(O.netQMin, fq - O.netQSpan) && excess <= O.netControlExcess, failed = belowFq && !controlled;
+  const spread = controlled ? clamp((fq - q)/O.netQSpan) : 0, seed = controlled ? strokeSeed(timing, power, intent.face, rise, hitX, contactY, zc) : 0;
   // assistenza: piena dentro la finestra e sopra la qualità del livello, sfuma oltre (prima un gradino)
   const assist = clamp(1 - excess/O.assistFade)*clamp((q - AS.assistQ)/O.assistQSpan + .5), xMax = AS.xMax, k = xMax/O.xMax;
+  // B17.4 (revisione): nel colpo controllato a rete il bordo morbido laterale (sideKnee/sideEdge) vale anche senza assistenza,
+  // pieno con il tempo nella finestra e sfumato oltre come l'assistenza (assistFade): la dispersione (netSpread.x) e la mira
+  // piena con il piatto girato non mandano la palla oltre la riga laterale (wqdk·121: piatto −1 e anticipo +0,78, x −4,99 → dentro)
+  const sideHold = controlled ? Math.max(assist, clamp(1 - excess/O.assistFade)) : assist;
   // direzione: mira dal tempo (ai bordi della finestra le due righe; la spinta naturale verso l'incrociato solo vicino al
   // tempo neutro) e dal piatto attorno al punto neutro, poi la spinta oltre la finestra
   const aimT = clamp(t - clamp(finite(rhythm), -RHYTHM.max, RHYTHM.max), -1, 1);   // tempo rispetto al proprio ritmo
   const aim = -c*O.natural*(1 - Math.abs(aimT)) - c*aimT*finite(AS.timingAim, O.timingAim) + clamp(finite(intent.face), -1, 1)*finite(intent.faceWeight, O.faceAim);
-  const x0 = neutralX(hitX, xMax), raw = landingFromAim(aim, x0, xMax) - c*Math.sign(t)*excess*finite(AS.pushOut, O.pushOut);
-  const xa = raw + (Math.sign(raw)*softEdge(Math.abs(raw), O.sideKnee*k, O.sideEdge*k) - raw)*assist;
+  const x0 = neutralX(hitX, xMax), raw = landingFromAim(aim, x0, xMax) - c*Math.sign(t)*excess*finite(AS.pushOut, O.pushOut) + (controlled ? seedUnit(seed, 0)*O.netSpread.x*spread : 0);
+  const xa = raw + (Math.sign(raw)*softEdge(Math.abs(raw), O.sideKnee*k, O.sideEdge*k) - raw)*sideHold;
   const x = Math.abs(xa) <= O.sideLine ? xa : Math.sign(xa)*(O.sideLine + softEdge(Math.abs(xa) - O.sideLine, O.outKnee, O.outMax));
   // profondità: voluta (forza e ampiezza dello swing), meno per la qualità che manca e il tempo oltre la finestra
-  const D = O.depth[shot] || O.depth.TOPSPIN;
-  // profondità voluta con la curva (DROP e LOB restano lineari: la palla corta vuole restare corta)
-  const wantD = shot === 'DROP' || shot === 'LOB' ? want : Math.pow(want, O.depthCurve);
+  const D = netVolley ? O.volleyDepth : O.depth[shot] || O.depth.TOPSPIN;
+  // profondità voluta con la curva (DROP e LOB restano lineari: la palla corta vuole restare corta; la volée controllata
+  // segue la forza, lineare)
+  const wantD = netVolley ? power : shot === 'DROP' || shot === 'LOB' ? want : Math.pow(want, O.depthCurve);
   let depth = lerp(D[0], D[1], wantD) - (1 - q)*O.shortPerQ - excess*O.shortPerExcess - (volley ? O.volleyShort*(1 - power) : 0);
   // in diagonale la palla fa la stessa strada: la profondità voluta è la lunghezza del colpo dritto, e un colpo che va
   // di lato cade più vicino alla rete di quanto va di lato (prima la profondità era la stessa per ogni direzione: gli
   // incrociati e i lungolinea cadevano tutti alla stessa distanza, gli angoli non si vedevano)
-  const zc = Math.abs(finite(hitZ, O.hitZ)), along = zc + depth, side = x - clamp(finite(hitX), -6, 6);
+  const along = zc + depth, side = x - clamp(finite(hitX), -6, 6);
   if (shot !== 'DROP' && shot !== 'LOB' && along > Math.abs(side)) depth = Math.sqrt(along*along - side*side) - zc;
   if (shot === 'TOPSPIN') depth += clamp(rise - O.heavyRise, 0, .4)*O.heavyGain*power;
   const yc = finite(contactY, 1);
@@ -215,7 +261,7 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   const high = clamp((finite(contactY, 1) - 1.5)/.5)*.18;
   // morbidezza con la curva (B15): il colpo tipico (forza 0,5) passa come prima, quello forte più basso, quello morbido più alto
   const softC = shot === 'LOB' ? soft : Math.pow(soft, O.clearCurve), clearSoft = shot === 'TOPSPIN' ? O.topClearSoft : A.clear[1];
-  const clear = Math.max(ARC.netY + .02, A.clear[0] + (clearSoft - A.clear[0])*softC + (1 - q)*O.floatPerQ - high + (shot === 'TOPSPIN' ? .6*clamp(rise - .15, 0, .6) : 0));
+  const clear = Math.max(ARC.netY + .02, A.clear[0] + (clearSoft - A.clear[0])*softC + (1 - q)*O.floatPerQ - high + (shot === 'TOPSPIN' ? .6*clamp(rise - .15, 0, .6) : 0) + (controlled ? seedUnit(seed, 1)*O.netSpread.clear*spread : 0));
   const topspin = shot === 'TOPSPIN' ? 15 + 8*clamp(rise) + 6*soft + O.topSpinPower*clamp((power - .5)/.5) : shot === 'FLAT' ? 12 : shot === 'SLICE' ? -6.5 : shot === 'DROP' ? -3 : shot === 'LOB' ? 5 : 9;
   let flight = shot === 'LOB' ? lerp(O.lobFlight[0], O.lobFlight[1], power)*clamp((zc + depth)/O.lobRef, O.lobScale[0], O.lobScale[1]) : shot === 'SMASH' ? Math.max(O.smashFlight, depth/26) : null;
   // colpo fallito: tempo molto sbagliato su una palla bassissima, o qualità sotto failQ (in corsa, in allungo, palla
@@ -228,9 +274,9 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   // pressione la qualità sarebbe sopra failQ), il modo in cui finiscono gli scambi senza fine: contro «preciso» tutti i
   // colpi falliti con il tempo perfetto sono di questo tipo (dal 15° colpo); senza, la CPU Leggenda vinceva il 43% dei game
   // contro di lui (criterio ≥ 60%)
-  const g = swingGrade(t*(level?.timingSpan || span), level), fq = finite(AS.failQ, 0);
-  const failed = q < fq && shot !== 'DROP', pressured = failed && qs >= fq;
+  const g = swingGrade(t*(level?.timingSpan || span), level);
   // Palla corta raggiunta nella finestra utile: corsa e pressione producono una risposta debole, non errore obbligato.
+  // (B17.4: solo oltre netQSpan sotto failQ, cioè raggiunta all'ultimo; prima ogni colpo a rete sotto failQ era così)
   const weak = failed && ((shortBall && excess === 0) || (!pressured && (!!volley || !!net) && g.grade === 'PERFECT'));
   const netFault = (finite(contactY, 1) < O.netLowY && excess > O.netExcess) || (failed && !weak && finite(contactY, 1) < 1);
   if (failed && !weak && !netFault) depth = Math.max(depth, 12.6 + (fq - q)*4);
@@ -238,14 +284,21 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   if (weak){ depth = Math.min(depth, O.weakDepth); lift = clear + O.weakFloat; }
   // chiusura sopra la rete e schiacciata riuscite: bassa sul nastro e veloce (la schiacciata ha la sua velocità nel
   // motore, OUTCOME.smashSpeed); il volo è quello che passa il nastro a quell'altezza, mai più corto
-  const attacked = attack && !failed && !weak && !netFault && (shot === 'SMASH' || q >= finite(AS.attackQ, 0));
+  // B17.4: la chiusura chiede meno qualità a un gesto forte (da attackPower a forza piena: attackQ − attackQPower), con il rischio
+  // della dispersione del colpo controllato e dell'assistenza che non c'è. Revisione: solo nella zona di rete (nearNet, la
+  // stessa regola del colpo controllato); fuori resta attackQ del livello (a Pro .65, non .35 a forza piena)
+  const attackQ = finite(AS.attackQ, 0) - (nearNet ? O.attackQPower*clamp((power - O.attackPower)/(1 - O.attackPower)) : 0);
+  const attacked = attack && !failed && !weak && !netFault && (shot === 'SMASH' || q >= attackQ);
   if (attacked){
     lift = ARC.netY - .34 + (shot === 'SMASH' ? O.smashGap : lerp(O.attackGap[1], O.attackGap[0], power));
     if (shot !== 'SMASH') flight = flightForClear({ fromY: yc, fromZ: zc, toZ: -depth, flight: (zc + depth)/lerp(O.attackSpeed[0], O.attackSpeed[1], power), topspin, clear: lift });
   }
   return { x: +x.toFixed(3), depth: +depth.toFixed(3), clear: +lift.toFixed(3), topspin: +topspin.toFixed(2), flight: flight == null ? null : +flight.toFixed(3),
     netFault, failed, weak, pressured, attack: attacked, grade: g.grade, cursor: g.cursor, t: +t.toFixed(3), excess: +excess.toFixed(3), q: +q.toFixed(3),
-    aim: +aim.toFixed(3), x0: +x0.toFixed(3), assist: +assist.toFixed(3), assisted: assist >= .5, shot };
+    aim: +aim.toFixed(3), x0: +x0.toFixed(3), assist: +assist.toFixed(3), assisted: assist >= .5, shot,
+    // B17.4: colpo controllato a rete (qualità di situazione sotto failQ, dispersione «spread» 0…1) e volée controllata al posto
+    // della palla corta per forma
+    controlled, spread: +spread.toFixed(3), netVolley };
 }
 
 // Colpo super potente (richiesta del 29/10: «se rilevi una forte accelerazione o un forte gesto del braccio, un colpo

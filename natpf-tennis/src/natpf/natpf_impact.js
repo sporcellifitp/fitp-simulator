@@ -16,7 +16,7 @@
 //     chiede (corta, o al volo quando aspettare il rimbalzo costerebbe troppa strada). Prima chi colpiva da dentro il
 //     campo andava e restava a rete (56–89% dei colpi nelle partite simulate), anche senza che la palla lo chiedesse.
 import { bounceSpin, eventLatency, holdSwingPrep, COURT, moveFactor } from './natpf_skill.js';
-import { IMPACT, impactWindow, lateSpanOf, directionSpan, slowFactor } from './natpf_stroke_outcome.js';
+import { IMPACT, impactWindow, lateSpanOf, directionSpan, slowFactor, OUTCOME } from './natpf_stroke_outcome.js';
 import { skillLevel } from './natpf_skill.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -278,7 +278,16 @@ export function webcamGate(engine, hand = handOf(engine, engine?.localActor)){
 // un gesto debole prima del colmo aspetta il colpo vero fino a serveWait dopo il colmo. Senza colpo tipico (profilo
 // semplice, webcam) nessun gesto è debole. Chi gioca con colpetti piccoli ha un colpo tipico piccolo: i suoi colpi non
 // sono deboli.
-export const WEAK = Object.freeze({ rel: .3, early: .08, wait: .22, serveWait: .3, ample: 25 });
+// A rete (B17.4, revisione): il telefono entro netZ m dalla rete (cfg net:1, natpf_phone_racket NET_Z.in; stessa regola di
+// «net» in game_engine._natpfRacketShot, |z| < 5) accetta i tocchi da 0,10 × colpo tipico e 10° (swing-detect netMinPeak,
+// netMinAngle). Con rel .3 e ample 25 il motore li scartava in silenzio: nelle due diagnostiche dell'08/11, dei 30 gesti
+// «deboli» (163–469 °/s, 10–103°, colpo tipico ~1300) 8 con ampiezza 10–20° sarebbero stati scartati da resolvePending
+// («palla persa» spostata dal telefono al motore). Ora a rete un gesto è debole solo sotto netRel × tipico (195 °/s con 1300:
+// i tocchi di volée si giocano all'arrivo della palla, morbidi in attesa SOFT) e un gesto debole si gioca da netAmple gradi
+// (come il telefono): niente che il telefono lascia passare a rete viene scartato dal motore per la sola forza
+export const WEAK = Object.freeze({ rel: .3, early: .08, wait: .22, serveWait: .3, ample: 25, netRel: .15, netAmple: 10, netZ: 5 });
+// chi colpisce è a rete (entro WEAK.netZ dalla rete): la soglia del gesto debole e l'ampiezza minima sono quelle del telefono
+export const nearNetActor = actor => Math.abs(finite(actor?.pos?.z, NaN)) < WEAK.netZ;
 export const KEEP = Object.freeze({ conf: .5, within: .45 });
 // Servizio battuto da un gesto intermedio (diagnostica 20261030-142438 n. 101/102): un gesto da 732 °/s (0,68 del colpo
 // tipico, 1082) 368 ms prima del colmo batteva subito, e la battuta vera (1022 °/s, 25 ms prima del colmo) arrivava dopo
@@ -293,6 +302,22 @@ export function serveMidSwing(e = {}, tau = 0){
 }
 // forza di un gesto per il confronto tra due gesti (picco del telefono, °/s; altrimenti dalla velocità del motore)
 export const swingStrength = (e = {}) => finite(e.natpf?.peak, NaN) || finite(e.speed, 1)*600;
+// Palla corta in arrivo per chi colpisce (la regola di _natpfRacketShot: rimbalzata nella sua metà, non il servizio, caduta
+// entro attackZ, palla entro 7 m dalla rete)
+export const shortBallFor = (engine, actor) => {
+  const b = engine?.ball; if (!b || !actor) return false;
+  return finite(b.bounceCountOnCurrentSide) > 0 && finite(b.rallyStrokeCount) > 1 && Math.abs(finite(b.targetLanding?.z, NaN)) <= OUTCOME.attackZ && Math.abs(finite(b.pos?.z, NaN)) <= 7
+    && Math.sign(finite(b.pos?.z)) === Math.sign(finite(actor.pos?.z));
+};
+// Zona di rete per lo swing (la stessa regola del colpo controllato di strokeOutcome): chi colpisce entro WEAK.netZ, o la palla
+// corta in arrivo
+export const nearNetSwing = (engine, actor) => nearNetActor(actor) || shortBallFor(engine, actor);
+// Finestra del colpo a vuoto in anticipo (IMPACT.early del livello), nella zona di rete allargata sulle palle lente come la
+// finestra della direzione (slowFactor, fino a ×1,8 sotto 15 m/s). B17.4: sulle palle corte a rete i gesti fatti «quando la
+// palla sembra lì» erano «VERY EARLY • WHIFF» (diagnostica q79f, 42,8 s: colpo a vuoto, poi il pallonetto vero 0,2 s dopo).
+// Revisione: fuori dalla zona di rete la finestra resta quella del livello (a Casual 0,5 × 1,8 avrebbe fatto 0,9 s: un gesto
+// non morbido 0,4–0,7 s prima di una palla lenta sarebbe stato giocato al posto del colpo vero); senza attore, quella del livello
+export const earlyWindow = (engine, actor = null) => impactWindow(engine?.matchConfig?.difficulty).early*(actor && nearNetSwing(engine, actor) ? slowFactor(engine?.ball?.vel?.z) : 1);
 // Attesa dello swing per attore: chi gioca qui (pendingUserSwing) e il Player 2 del 1v1, tra due computer o sullo stesso
 // schermo (pendingP2Swing), con il suo colpo (_attemptP2RallyStrike). Diagnostiche 142317/142438 (C2): lo swing del P2
 // passava dal percorso vecchio, con 0,22 s di attesa contro 0,45 s del P1 e senza la finestra in ritardo della palla.
@@ -319,12 +344,12 @@ export function softSwing(e = {}){
   const peak = finite(e.natpf?.peak, NaN), typ = finite(e.natpf?.typical, NaN);
   return Number.isFinite(peak) && Number.isFinite(typ) && typ > 0 && peak < SOFT.rel*typ;
 }
-export function weakSwing(e = {}){
+export function weakSwing(e = {}, net = false){
   // Palla corta e pallonetto confermati dalla forma sono volutamente lenti, non una preparazione da scartare (28/10 sera:
   // a rete un pallonetto da 356 °/s, 0,1 s dopo il punto d'impatto, era ignorato come il rientro della mano)
   if (deliberateSpecial(e)) return false;
   const peak = finite(e.natpf?.peak, NaN), typ = finite(e.natpf?.typical, NaN);
-  return Number.isFinite(peak) && Number.isFinite(typ) && typ > 0 && peak < WEAK.rel*typ;
+  return Number.isFinite(peak) && Number.isFinite(typ) && typ > 0 && peak < (net ? WEAK.netRel : WEAK.rel)*typ;
 }
 
 // Lo swing di chi gioca nello scambio: in attesa fino all'arrivo della palla (o subito, se è già passata da poco).
@@ -335,14 +360,14 @@ export function queueUserSwing(engine, e, actor){
   if (ttc == null) return null;
   const lat = eventLatency(e), lead = ttc + lat, now = finite(engine.elapsedTime);
   const lateSpan = lateSpanOf(engine.ball.vel.z, skillLevel(engine.matchConfig?.difficulty)) + lateMargin(engine, actor), key = pendKey(engine, actor);
-  const strength = swingStrength(e), weak = weakSwing(e);
+  const net = nearNetActor(actor), strength = swingStrength(e), weak = weakSwing(e, net);
   if (ttc < 0){
     if (weak) return 'ignored';
     // decisione rinviata su un gesto morbido in attesa (SOFT): lo sostituisce solo uno swing chiaramente più forte; la
     // palla corta o il pallonetto voluti e fatti in tempo restano anche qui (KEEP: il braccio che torna dall'altra parte).
     // Al posto di un colpo a vuoto in anticipo va bene ogni swing che prende la palla
     const cur = engine[key], deferred = !!cur?.natpfWindow && cur.softDefer;
-    if (deferred && cur.lead <= W.early && !cur.weak && (strength < cur.strength*SOFT.replace || keepsSpecial(engine, cur, e, now))) return 'ignored';
+    if (deferred && cur.lead <= earlyWindow(engine, actor) && !cur.weak && (strength < cur.strength*SOFT.replace || keepsSpecial(engine, cur, e, now))) return 'ignored';
     const b = engine.ball, toward = Math.sign(actor.pos.z) || 1, behind = (b.pos.z - (actor.pos.z - toward*IMPACT.contactAhead))*toward;
     const extra = W.lateExtra || IMPACT.lateExtra;
     if (lead >= -lateSpan*extra && behind <= IMPACT.lateBehind*extra + .2 && Math.abs(b.pos.x - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4){
@@ -352,7 +377,7 @@ export function queueUserSwing(engine, e, actor){
     return deferred ? 'ignored' : 'whiff';
   }
   const lateWin = lateSpan*(W.lateExtra || IMPACT.lateExtra);
-  const cand = { evt: { ...e, natpfTau: lead, natpfLateSpan: lateSpan }, lead, strength, weak, lateWin, actor, at: now, prep: !0, waitForSweetSpot: !0, natpfWindow: !0, expiresAt: now + ttc + lateWin + .12 };
+  const cand = { evt: { ...e, natpfTau: lead, natpfLateSpan: lateSpan }, lead, strength, weak, net, lateWin, actor, at: now, prep: !0, waitForSweetSpot: !0, natpfWindow: !0, expiresAt: now + ttc + lateWin + .12 };
   const cur = engine[key];
   let better = !cur || !cur.natpfWindow || strength >= cur.strength*1.15 || (Math.abs(lead) < Math.abs(cur.lead) && strength >= cur.strength*.6);
   // un colpo vero sostituisce sempre un gesto debole in attesa, mai il contrario
@@ -386,7 +411,9 @@ export function resolvePending(engine, actor){
     if (ps.deferUntil == null){ ps.deferUntil = now + Math.min(WEAK.wait, Math.max(.05, finite(ps.lateWin, WEAK.wait))); return false; }
     if (now < ps.deferUntil) return false;
     engine[key] = null;
-    if (finite(ps.evt?.natpf?.angle) >= WEAK.ample && Math.abs(b.pos.x - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4) strike(engine, actor, ps.evt);
+    // a rete (al momento del gesto o adesso) basta l'ampiezza che accetta il telefono (netAmple): il tocco di volée si gioca
+    const ample = ps.net || nearNetActor(actor) ? WEAK.netAmple : WEAK.ample;
+    if (finite(ps.evt?.natpf?.angle) >= ample && Math.abs(b.pos.x - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4) strike(engine, actor, ps.evt);
     else engine._natpfWeakDropped?.(ps);
     return true;
   }
@@ -395,10 +422,11 @@ export function resolvePending(engine, actor){
     if (livePlan(engine, actor)?.kind === 'letgo'){ engine[key] = null; return true; }
     // gesto morbido o colpo a vuoto in anticipo: si aspetta SOFT.wait il colpo vero, che può arrivare al computer poco
     // dopo l'arrivo della palla (queueUserSwing lo gioca in ritardo al posto di questo)
-    if (ps.deferUntil == null && (ps.lead > W.early || softSwing(ps.evt))){ ps.deferUntil = now + SOFT.wait; ps.softDefer = true; return false; }
+    const early = earlyWindow(engine, actor);
+    if (ps.deferUntil == null && (ps.lead > early || softSwing(ps.evt))){ ps.deferUntil = now + SOFT.wait; ps.softDefer = true; return false; }
     if (ps.softDefer && now < ps.deferUntil) return false;
     engine[key] = null;
-    if (ps.lead > W.early){ engine._natpfEarlyWhiff?.(ps); return true; }
+    if (ps.lead > early){ engine._natpfEarlyWhiff?.(ps); return true; }
     if (Math.abs(b.pos.x - actor.pos.x) > IMPACT.reach || b.pos.y >= 3.4){ engine._natpfEarlyWhiff?.({ ...ps, natpfWhy: 'portata' }); return true; }
     strike(engine, actor, ps.evt);
     return true;
