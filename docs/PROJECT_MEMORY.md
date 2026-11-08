@@ -491,6 +491,26 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   è instabile sui runner lenti (era `gesture-calibration.mjs:73`). Il fermo immagine si fa facendo avanzare il motore con
   dt = 0 e fermando il disegno; `CPU_THROTTLE=4` simula un runner lento (`docs/b13/gesture-calibration-ci.md`).
 
+### CPU Leggenda: criteri sempre controllati e taratura del B16 (08/11/2026, ramo `b16-legend`)
+- **`audit:legend` è un controllo, non un rapporto**: gira su GitHub dopo `npm test` (`natpf-tennis.yml`, ~70 s) e
+  `npm test` ha un torneo ridotto sui due profili forti (`natpf-legend-b16.test.mjs`, 8 semi × 75 punti, soglie sui punti:
+  ≤ 33,5% a «tennista», ≤ 46% a «preciso»). Prima nessuno lo eseguiva: due criteri erano già rotti prima del B15 (da quando non
+  è registrato) e il B15 li ha peggiorati senza che una prova fallisse. Chi cambia il colpo di chi gioca (forza, mira, traiettoria)
+  deve guardare anche questo.
+- **Rumore**: 8 semi × 300 punti contro «preciso» sono ~200 game, ± 3 punti percentuali; cambiare un parametro rimescola
+  tutte le partite. Si decide con 16 semi o con semi diversi (201–208), poi si controlla con quelli dell'audit.
+- **Taratura (`LEGEND` in `natpf_legend.js`)**: accelerazione / frenata 20 / 28 m/s²; pressione degli scambi lunghi sulla
+  CPU dal 20° colpo (chi gioca a Leggenda dal 10°); chiusura degli scambi lunghi misurata (forza +0,15, larghezza +0,25 m,
+  chiusura 0,72–0,85); errore da forza × 0,65 nell'esecuzione (`powerErr`) con la **scelta che stima il rischio con le
+  regole di Esperto** (margine: con il rischio vero la CPU gioca quasi solo colpi forti e profondi contro chi sbaglia molto,
+  entropia sotto 2,3); +0,01 all'incrociato stretto (`angle`). Velocità massima, portata, reazione e lettura della palla
+  non cambiano (vincoli di credibilità e criteri: reazione p10 ≥ 0,12 s, velocità ≤ 8,8 m/s).
+- **Criteri che si toccano tra loro**: errori della CPU ≥ 2% contro «amatore» (con l'errore ridotto anche sulla parte base
+  scende a 1,4–2,1%), entropia ≥ 2,3 contro i profili deboli (colpi più profondi o rischio vero la abbassano), incrociati
+  30–50% (una preferenza per tutti gli incrociati porta «bambino» oltre il 50%, senza preferenza «preciso» scende al 30%).
+- **Vincenti di chi gioca contro la Leggenda**: tutti con la CPU oltre 2,3 m dalla palla, quasi sempre già al suo posto
+  (angoli veri alla riga laterale a 118–133 km/h). Non si correggono con più portata (sarebbe un trucco visibile).
+
 ### Colpi sensibili al gesto (B15, 08/11/2026, ramo «colpi»; audit in `docs/b15/audit-colpi.md`)
 - **Misurare con la persona vera**: `scripts/audit/colpi.mjs --mode=reale --hand=both` manda la distribuzione dei gesti di
   chi gioca davvero (tempo +0,35 ± 0,45 unità, piatto ±12°, gesto 1 ± 0,3 del colpo tipico, dalle diagnostiche) nelle

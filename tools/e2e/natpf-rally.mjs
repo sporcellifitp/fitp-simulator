@@ -5,6 +5,8 @@
 //   • dopo ogni colpo dal fondo si torna in fondo (niente corsa a rete), e dopo una palla corta si torna indietro;
 //   • l'esito è nel campo aperto (cadute in punti diversi) e la diagnostica lo vede (mira, punto neutro).
 // SHOTS=1 salva i fotogrammi all'impatto e 0,7 s dopo (recupero). Porte 3151 (gioco) e 9151 (PeerJS).
+// DIFF=casual|pro|leggenda: livello della CPU (B16: con le regole del livello, velocità della CPU compresa; prima cambiava
+// solo il nome del livello). CPU_SHOTS=n salva i primi n fotogrammi all'impatto della CPU (gioco fermo per lo scatto).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-rally.mjs
 import { spawn } from 'node:child_process';
 import http from 'node:http';
@@ -63,8 +65,21 @@ try {
   // inizio, e contano i colpi del telefono su tutti i punti
   await game.evaluate(diff => {
     const E = __natpfTennis; E.natpfUi.onboarding?.close?.(); E.hud.hideTitleModal(); E.autoPlayMode = false; E.userHasInteracted = true;
-    if (E.matchConfig) E.matchConfig.difficulty = diff;
+    if (E.matchConfig){ E.matchConfig.difficulty = diff; E._applyDifficultyTuning?.(diff); }
     window.__log = []; window.__contact = 0;
+    // colpi della CPU: distanza laterale palla–corpo all'impatto, velocità, schema (Leggenda); velocità massima della CPU
+    window.__cpu = []; window.__cpuVmax = 0; window.__freeze = false;
+    const exec = E._executeOpponentReturn.bind(E);
+    E._executeOpponentReturn = a => {
+      const o = a || E.opponent, gap = Math.abs(E.ball.pos.x - o.pos.x), v = o.vel.length();
+      exec(a);
+      __cpu.push({ gap: +gap.toFixed(2), v: +v.toFixed(2), kmh: Math.round(E.ball.vel.length()*3.6), kind: E.natpfLegend?.lastPick?.kind || null });
+      if (__cpu.length <= (window.__cpuShots || 0)) window.__freeze = true;    // fermo immagine all'impatto della CPU
+    };
+    const upd = E.update.bind(E);
+    E.update = dt => (window.__freeze ? undefined : upd(dt));
+    const step = E._stepPhysics.bind(E);
+    E._stepPhysics = dt => { step(dt); window.__cpuVmax = Math.max(window.__cpuVmax, E.opponent.vel.length()); };
     const strike = E._attemptPlayerRallyStrike.bind(E);
     E._attemptPlayerRallyStrike = (e, t) => {
       const r = strike(e, t);
@@ -81,6 +96,7 @@ try {
     E._awardPoint = (who, why) => { __ends.push(`${who}:${why}`); return award(who, why); };
     __rally();
   }, DIFF);
+  await game.evaluate(n => { window.__cpuShots = n; }, +(process.env.CPU_SHOTS || 0));
   await phone.waitForFunction(() => __racchetta.state.phase === 'play', null, { timeout: 5000 }).catch(() => {});
   const t0 = Date.now(); let lastPlan = null, shots = 0, after = [], gestures = 0, rallies = 1;
   while (Date.now() - t0 < 60000){
@@ -89,6 +105,7 @@ try {
     if (s.phase !== 'RALLY'){ if (rallies >= 8) break; await game.waitForTimeout(600); await game.evaluate(() => __rally()); rallies++; lastPlan = null; continue; }
     // gesto circa 0,12 s prima del punto d'impatto (picco a metà dei 240 ms); il lato dal piano: + destra = dritto
     if (s.last === 'opponent' && s.left != null && s.at !== lastPlan && s.left < .16){ lastPlan = s.at; gestures++; await phone.evaluate(sign => { __up.swing(sign).then(() => __up.still(300)); }, s.side >= 0 ? 1 : -1); }
+    if (await game.evaluate(() => window.__freeze)){ const n = await game.evaluate(() => __cpu.length); await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/rally-cpu-${DIFF}-${n}.png` }); await game.evaluate(() => { window.__freeze = false; }); }
     if (s.contact > shots){ shots = s.contact; if (process.env.SHOTS === '1' && shots <= 4){ await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/rally-impatto-${shots}.png` }); after.push({ n: shots, at: Date.now() + 700 }); } }
     for (const a of after.filter(a => Date.now() >= a.at)){ await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/rally-recupero-${a.n}.png` }); after = after.filter(x => x !== a); }
     if (shots >= 10) break;
@@ -104,6 +121,10 @@ try {
   check('dopo ogni colpo si torna in fondo, anche dopo le palle prese dentro il campo (niente corsa a rete)', log.every(l => l.target > 11 || l.pz < 6) && log.filter(l => l.pz > 9).every(l => l.target > 11), JSON.stringify(log.map(l => [l.pz, l.target])));
   const xs = log.map(l => Math.round(l.x)), depths = log.map(l => l.depth);
   check('campo aperto: cadute in punti diversi, mira e punto neutro dal modello', new Set(xs).size >= 3 && log.every(l => Number.isFinite(l.mira) && Number.isFinite(l.neutro)) && Math.max(...depths) - Math.min(...depths) > .3, JSON.stringify(log.map(l => [l.x, l.depth])));
+  const cpu = await game.evaluate(() => ({ shots: __cpu, vmax: __cpuVmax, speed: __natpfTennis.opponent.maxSpeed, level: __natpfTennis.matchConfig.difficulty }));
+  console.log(`CPU (${cpu.level}, velocità massima ${cpu.speed} m/s): ${cpu.shots.length} colpi, distanza palla–corpo ${cpu.shots.map(c => c.gap).join(' ')} m, schemi ${cpu.shots.map(c => c.kind).join(' ')}, velocità ${cpu.shots.map(c => c.kmh).join(' ')} km/h, corsa massima ${cpu.vmax.toFixed(2)} m/s`);
+  // la CPU del livello scelto: velocità del livello, colpi solo entro la sua portata, mai più veloce di chi gioca
+  check(`CPU del livello ${DIFF}: colpi entro la portata, corsa sotto la velocità di chi gioca`, cpu.level === DIFF && cpu.shots.length >= 3 && cpu.shots.every(c => c.gap <= 2.35) && cpu.vmax <= 8.8 + 1e-6 && (DIFF !== 'leggenda' || cpu.shots.every(c => c.kind)), JSON.stringify({ level: cpu.level, n: cpu.shots.length, vmax: +cpu.vmax.toFixed(2), gap: Math.max(...cpu.shots.map(c => c.gap)) }));
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));
 } finally {
   await B.close(); stop();

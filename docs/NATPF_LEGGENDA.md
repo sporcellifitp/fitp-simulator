@@ -27,6 +27,23 @@ audit con soglie in `natpf-tennis/scripts/audit/legend.mjs`, test in `natpf-tenn
   - niente affondo durante il tempo di reazione;
   - pressione degli scambi lunghi anche sulla CPU, dal 10° colpo;
   - misura della reazione nell'audit corretta (la frenata non è una reazione).
+- **Leggenda più dura (B16, 08/11/2026, decisione dell'utente «sì»).** Con i colpi forti più tesi del B15 la CPU vinceva
+  il 67,3% dei game contro «tennista» (criterio ≥ 85) e il 25,9% contro «preciso» (criterio ≥ 60); i due criteri erano
+  già rotti prima del B15 (74,5 e 37,4%) perché nessuno eseguiva l'audit. Cambiato solo `LEGEND` in `natpf_legend.js`,
+  con cambiamenti da giocatore più forte e niente trucchi visibili (velocità massima, portata, reazione e lettura uguali):
+  - **primo passo più esplosivo**: accelerazione / frenata 14 / 22 → 20 / 28 m/s² (chi gioca non ha inerzia);
+  - **regge negli scambi lunghi**: la pressione degli scambi lunghi sulla CPU parte dal 20° colpo (prima dal 10°, come chi
+    gioca a Leggenda);
+  - **chiude senza strafare**: nel finale degli scambi lunghi forza +0,15 (prima +0,45), +0,25 m di larghezza (prima +0,6),
+    colpo di chiusura a 0,72–0,85 (prima 0,85–0,95): prima sbagliava il 17–18% dei colpi di chiusura;
+  - **controlla meglio i colpi forti e gioca con margine**: nell'esecuzione la parte dell'errore che cresce con la forza
+    vale 0,65 volte quella di Esperto (`powerErr`), ma la scelta del colpo stima il rischio con le regole di Esperto. Con il
+    rischio vero nella scelta, contro chi sbaglia molto la CPU giocava quasi solo colpi forti e profondi (entropia delle
+    zone 2,05–2,24 bit, criterio ≥ 2,3);
+  - **cerca l'angolo**: +0,01 di utilità all'incrociato stretto (`angle`), gioco a percentuale che tiene l'incrociato
+    nel 30–50% anche contro chi gioca bene.
+  - Il passo `audit:legend` gira su GitHub dopo `npm test` (`natpf-tennis.yml`), e `npm test` ha un torneo ridotto sui
+    due profili forti (`natpf-legend-b16.test.mjs`): una modifica che indebolisce la Leggenda ora si vede.
 
 ## Progetto
 
@@ -85,7 +102,7 @@ Utilità di ogni candidato:
 |---|---|
 | split-step: ferma dall'impatto dell'avversario per | 0,15 ± 0,03 s (limiti 0,10–0,25 s) |
 | errore di lettura laterale del punto d'incontro | gaussiano, 0,15–0,25 m (più grande con la palla veloce), si azzera in 0,32 s |
-| accelerazione / frenata | 14 / 22 m/s² |
+| accelerazione / frenata | 20 / 28 m/s² (fino al B16: 14 / 22) |
 | velocità massima | 7 m/s (chi gioca: 8,8) |
 | affondo | palla che passerebbe oltre 1,2 m dal corpo nelle ultime 0,32 s: passo a 30 m/s², al massimo 8,4 m/s, fino a 1,05 m dalla palla |
 | portata | 1,85 m |
@@ -114,7 +131,64 @@ I profili sono giocatori simulati (`rally-balance.mjs`): «medio», «preciso»,
 «tennista», «amatore», «bambino» con il telefono. Non sono persone: non puniscono la prevedibilità della CPU e non si
 stancano.
 
-### Criteri di accettazione (`audit:legend`, tutti rispettati)
+### Criteri di accettazione dopo il B16 (`audit:legend`, tutti rispettati, 08/11/2026)
+
+Audit completo (punti e semi predefiniti), prima → dopo il B16:
+
+| criterio | medio | amatore | tennista | preciso | bambino | impreciso |
+|---|---|---|---|---|---|---|
+| game vinti dalla CPU (soglia) | 92,2 → **97,7%** (≥ 90) | 98,5 → **99,8%** (≥ 90) | 67,3 → **92,4%** (≥ 85) | 25,9 → **70,8%** (≥ 60) | 100 → **100%** (≥ 98) | 99,8 → **99,8%** (≥ 98) |
+| punti vinti da chi gioca | 27,2 → 18,2% | 18,3 → 11,9% | 43,0 → 27,4% | 60,8 → 41,2% | 10,5 → 7,3% | 10,0 → 8,1% |
+| errori della CPU per colpo (2–6%) | 4,2 → 2,6% | 3,4 → 2,2% | 4,2 → 2,6% | 5,3 → 2,9% | 4,0 → 2,9% | 3,8 → 3,1% |
+| incrociati (30–50%) | 32,3 → 36,1% | 36 → 42,5% | 37,3 → 40,2% | 32,9 → 34,6% | 39,4 → 45,8% | 37 → 45,1% |
+| lungolinea (≥ 10%) | 28,1 → 25,7% | 19,1 → 18,5% | 24,3 → 25,7% | 32 → 33,3% | 22,1 → 20,5% | 19,8 → 15,2% |
+| schemi sopra il 3% (≥ 6) | 9 → 9 | 8 → 9 | 9 → 9 | 9 → 9 | 8 → 8 | 8 → 8 |
+| schema più usato (≤ 35%) | 19,2 → 16,9% | 17,6 → 16,8% | 15,6 → 19,4% | 15,4 → 16,4% | 20,9 → 17,1% | 20,4 → 21,4% |
+| entropia delle 9 zone (≥ 2,3 bit) | 2,76 → 2,85 | 2,70 → 2,79 | 2,79 → 2,82 | 2,79 → 2,89 | 2,56 → 2,71 | 2,51 → 2,64 |
+| stessa zona del colpo prima (≤ 20%) | 10,7 → 9,9% | 11,1 → 10,1% | 11,3 → 10,5% | 11,3 → 10,9% | 13 → 10,3% | 13,1 → 12% |
+| scambi chiusi a 60 colpi (≤ 1%) | 0 → 0% | 0 → 0% | 0 → 0% | 0 → 0% | 0 → 0% | 0 → 0% |
+| velocità massima della CPU (≤ 8,8 m/s) | 8,49 → 8,6 | 8,48 → 8,6 | 8,36 → 8,6 | 8,6 → 8,6 | 8,58 → 8,6 | 8,6 → 8,6 |
+| reazione p10 (≥ 0,12 s) | 0,133 → 0,125 | 0,133 → 0,125 | 0,133 → 0,125 | 0,133 → 0,125 | 0,133 → 0,125 | 0,133 → 0,125 |
+| vincenti / errori della CPU (≥ 1, solo «medio») | 1,17 → 1,86 | | | | | |
+| colpi per punto | 12,6 → 13,4 | 11,2 → 11,4 | 14,7 → 16,5 | 17,4 → 20,0 | 5,9 → 5,8 | 5,8 → 5,9 |
+
+- La reazione p10 scende da 0,133 a 0,125 s solo per la misura: la reazione pianificata è la stessa (0,15 ± 0,03 s), ma
+  con l'accelerazione più alta la CPU supera prima la soglia di 0,3 m/s con cui l'audit la riconosce.
+- Non regressione: contro «medio» chi gioca vince l'84,1% dei game a pro (70–85%, uguale a prima) e il 100% a casual
+  (≥ 95%, uguale); `audit:rally` di casual e pro (7 profili, 600 punti) identico byte per byte a prima del B16.
+- Su altri semi (201–208, stesso codice): tennista 93,0%, preciso 70,0%, amatore 99,8%, medio 98,6%, bambino e
+  impreciso 100%, tutti i criteri rispettati: il margine non dipende dai semi dell'audit. Con 16 semi (gli 8 dell'audit
+  più 97–151) contro «preciso» 70% circa. Il rumore va tenuto presente: con 8 semi × 300 punti contro «preciso» si giocano
+  ~200 game, quindi ± 3 punti percentuali di errore standard, e cambiare un parametro rimescola tutte le partite.
+- Da dove vengono i punti di chi gioca contro «preciso»: prima del B16 il 40,5% dei punti finiva con un errore della CPU
+  (un terzo dagli scambi oltre i 20 colpi) e il 17,4% con un vincente (sempre con la CPU oltre 2,3 m dalla palla: palle
+  a 118–133 km/h vicino alla riga laterale, quasi sempre con la CPU già al suo posto: angoli veri, che restano).
+
+Ablazione del B16 (`audit:legend -- --ablation`, game vinti da chi gioca):
+
+| variante | medio | tennista | preciso |
+|---|---|---|---|
+| Leggenda dopo il B16 | 2,3% | 7,6% | 29,2% |
+| come prima del B16 (tutte le modifiche tolte: riproduce l'audit di prima) | 7,8% | 32,7% | 74,1% |
+| senza il primo passo esplosivo (14 / 22 m/s²) | 1,4% | 13,9% | 36,8% |
+| con la pressione dal 10° colpo | 3,3% | 9,2% | 40,3% |
+| con la chiusura di prima | 1,7% | 8,8% | 34,7% |
+| senza il controllo dei colpi forti (`powerErr` 1) | 5,0% | 16,7% | 50,0% |
+| con il rischio vero nella scelta (senza margine) | 2,0% | 8,5% | 32,3% |
+| senza l'angolo stretto | 2,5% | 8,0% | 30,3% |
+
+Provati e scartati durante la taratura: lettura della palla più precisa (±0,1 m, correzione in 0,24 s: nessun effetto
+misurabile), reazione 0,14 s (reazione p10 0,117 s, criterio ≥ 0,12), colpi più profondi (+0,3 m: contro «impreciso»
+entropia 2,24 da sola, 2,03–2,09 insieme al controllo dei colpi forti), velocità 8,3 m/s, affondo più lungo, errore di tempo della CPU più piccolo (quasi senza effetto: la
+qualità del colpo della CPU è già quasi sempre piena), preferenza per tutti gli incrociati (+0,01: contro «bambino» 50,2%
+di incrociati, oltre il criterio).
+
+Nel gioco con la grafica (prove nel browser, 08/11): `natpf-rally` con `DIFF=leggenda` (la prova ora applica le regole
+del livello, velocità della CPU compresa) e `natpf-leggenda` (partita con il giocatore simulato «preciso», fotogrammi
+all'impatto della CPU, negli allunghi e nell'affondo): la CPU colpisce sempre entro la portata (allunghi a 1,2–2,3 m con
+racchetta e corpo verso la palla), corsa massima 8,0–8,6 m/s (affondo), colpi vari. Non provato con persone vere.
+
+### Criteri di accettazione (`audit:legend`, 22/10/2026, storico)
 
 Audit completo del 22/10/2026, con il codice finale della racchetta virtuale (punti e semi predefiniti):
 
@@ -218,8 +292,8 @@ Nel torneo (tutti i profili) gli impatti oltre 1,5 m dal corpo sono lo 0,85% (da
 Dalla cartella `natpf-tennis`:
 
 ```
-npm test                                   # tutti i test (compresi gli 11 di Leggenda)
-npm run audit:legend                       # criteri di Leggenda e non regressione di casual/pro (esce con 1 se uno manca)
+npm test                                   # tutti i test (compresi gli 11 di Leggenda e i 5 del B16, torneo ridotto)
+npm run audit:legend                       # criteri di Leggenda e non regressione di casual/pro (esce con 1 se uno manca; ~70 s, anche su GitHub)
 npm run audit:legend -- --table            # tabella casual / pro / leggenda per tutti i profili
 npm run audit:legend -- --ablation         # contributo di ogni parte
 npm run audit:legend -- --seeds=3 --points=150 --profiles=medio   # prova veloce
