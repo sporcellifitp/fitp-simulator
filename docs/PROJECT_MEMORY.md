@@ -533,26 +533,43 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 
 ### Mira del telefono: sensibilità dello staff e misura per partita (B16, 08/11/2026; guida `docs/GUIDA_MISURA_MIRA.md`)
 - Decisione (d) dell'utente sulla mira più sensibile del B15: «ok ma come lo misuro?». La sensibilità è un'**opzione dello
-  staff** nelle Opzioni del computer («Mira del telefono»: **alta 17°** di base · media 20° · bassa 23°; chiave
-  `natpf-tennis.mira`, `src/natpf/natpf_aim_level.js`), non una costante da cambiare nel codice. I gradi sono quelli della
-  mira piena (`natpf_stroke_intent.AIM_FULL`): `faceAimFromDev(dev, full)` usa `full − INTENT.faceDead` come scarto; senza
-  `full` vale la base `INTENT.faceSpan` (alta = `faceDead + faceSpan`, prova che lo tiene). Arriva a `strokeIntent` con
-  `aimFull` da `natpfSwingToEngine` (telefono di questo computer, P1 e P2 dello stesso schermo); tocca solo `intent.face`
-  (tipo, forza, profondità identici). Nella sfida tra due computer dovrebbe valere l'opzione del computer a cui è collegato il telefono (il colpo si legge lì; non provato).
-- **Misura**: lato delle palle per partita (`diag_metrics.sideBalance`, `sideJudge`, `sideLines`; `SIDE`): x del punto di
-  caduta calcolato dei colpi del telefono (evento `racchetta`) nel riferimento di chi colpisce (P2: x del campo cambiata di
-  segno), servizi, allenamento (riscaldamento compreso), minigiochi e webcam esclusi. Quote sinistra · centro (±1 m) ·
-  destra; |mediana x| per blocchi di 20 colpi (l'ultimo se ≥ 10); **sbilanciata** con almeno il **70 %** dei colpi in una
-  **metà del campo** (x > 0 contro x < 0, la «palla da una parte» del banco B15) su almeno **20 colpi**. Il testo dice anche
-  se è la parte del dritto o del rovescio (mancino a specchio). Le partite si separano con l'evento `partita` (un
-  `startNewMatch`, ripetuto con `continua` all'inizio di una parte nuova); ogni `racchetta` porta `mano`, `fonte`,
-  `miraPiena` e, se serve, `allenamento`/`minigioco`; la sessione `gioco.mira`/`gioco.miraPiena`.
-- **Regola della guida**: con almeno 5 partite giudicate, più di una su cinque sbilanciata → prima la calibrazione, poi la
-  sensibilità meno sensibile, e si rifà il confronto con le stesse persone. Banco (`scripts/audit/colpi.mjs --mode=lato`,
-  persona vera, 24 partite da 40 colpi per caso): con la calibrazione giusta 0 partite sbilanciate con 17°, 20° e 23°; con
-  il seme sbagliato di ±15° 40 / 38 / 35 % (|mediana x| 1,18 / 1,05 / 0,93 m), ±25° 58 / 56 / 50 %, semi diversi nei due
-  versi 33 / 27 / 25 %. La sensibilità attenua lo sbilanciamento (circa −10 % di metri da una parte per passo), non lo
-  cura: lo cura la calibrazione.
+  staff** nel **pannello dello stand** (Ctrl+Maiusc+K o 3 s sul marchio; pulsante `data-staff="aim"`, un clic passa alla
+  successiva: **alta 17°** di base → media 20° → bassa 23°; chiave `natpf-tennis.mira`, `src/natpf/natpf_aim_level.js`),
+  **non nelle Opzioni** dove un visitatore potrebbe cambiarla (revisione del B16); il reset del chiosco non la tocca.
+  I gradi sono quelli della mira piena (`natpf_stroke_intent.AIM_FULL`): `faceAimFromDev(dev, full)` usa
+  `full − INTENT.faceDead` come scarto; senza `full` vale la base `INTENT.faceSpan` (alta = `faceDead + faceSpan`, prova
+  che lo tiene). Arriva a `strokeIntent` con `aimFull` da `natpfSwingToEngine` (telefono di questo computer, P1 e P2 dello
+  stesso schermo); tocca solo `intent.face` (tipo, forza, profondità identici). Nella sfida tra due computer dovrebbe
+  valere l'opzione del computer a cui è collegato il telefono (il colpo si legge lì; non provato).
+- **Misura** (`diag_metrics`: `SIDE`, `sideJudge`, `sideBalance`, `sideTotals`, `gainCompare`, `sideLines`): x del punto
+  di caduta calcolato dei colpi del telefono (evento `racchetta`) nel riferimento di chi colpisce (P2: x del campo cambiata
+  di segno), servizi, allenamento (riscaldamento compreso), minigiochi e webcam esclusi. Tre misure, due usi:
+  - **verdetto** sulle metà del campo (x > 0 / x < 0): **sbilanciata** con almeno il **70 %** in una metà su almeno **20
+    colpi** (numeri principali della riga: metà sinistra · metà destra; a parte oltre 1 m a sinistra · al centro · oltre
+    1 m a destra), più la |mediana x| per blocchi di 20 colpi, e **|piatto mediano|** (`racchetta.piatto` dei colpi non
+    `ricavato`; oltre **0,20** su almeno 20 colpi «riferimento storto: ricalibrare»): servono a **scoprire una
+    calibrazione sbagliata**, non a confrontare le sensibilità;
+  - **palle angolate** (oltre **2,5 m** dal centro): il guadagno, per **confrontare le sensibilità**; media per
+    sensibilità senza le partite storte; `gainCompare` dice se una differenza si distingue dal caso (oltre due errori
+    standard, da 5 partite per parte; errore di ogni media = max(deviazione/√partite, √(p(1−p)/colpi))).
+  Sensibilità di una partita = quella dei colpi (`racchetta.miraPiena`); se nessun colpo l'ha ma la registrazione la
+  conosce, «sensibilità non applicata» (pagina del telefono senza la forma del colpo), mai quella dell'evento `partita`.
+  Le partite si separano con l'evento `partita` (un `startNewMatch`, ripetuto con `continua` all'inizio di una parte
+  nuova); ogni `racchetta` porta `mano`, `fonte`, `miraPiena` e, se serve, `allenamento`/`minigioco`; la sessione
+  `gioco.mira`/`gioco.miraPiena`.
+- **Banco** (`scripts/audit/colpi.mjs --mode=lato --runs=400`, persona vera, partite da 40 colpi; mancino identico):
+  calibrazione giusta → sbilanciate 1,3 / 1,0 / 1,5 % (alta / media / bassa), riferimento storto 0 su 400 con tutte e tre
+  (|piatto mediano| massimo 0,18 / 0,15 / 0,13; con partite da 30 colpi 0–1 %, da 20 colpi 1,5–3 %), palle angolate
+  37,3 / 34,0 / 30,9 % ±7,4 punti per partita (±8,3 a 30 colpi); seme sbagliato di ±15° → sbilanciate 40,5 / 37,8 /
+  32,3 %, storto 76 / 69 / 57 %, |mediana x| 1,27 / 1,13 / 1,00 m. Lettura: la sensibilità attenua un riferimento
+  sbagliato di circa il 10 % di metri per passo e cambia di pochi punti le partite sbilanciate (per vederlo servirebbero
+  migliaia di partite); la calibrazione lo cura. Il guadagno alta − media (3,3 punti) richiede circa 80 partite per
+  sensibilità (100 a 30 colpi), alta − bassa (6,4) circa 21: con 9–15 partite non si può dire (con 15 la media risulta
+  più angolata dell'alta una volta su cinque per caso).
+- **Regola della guida**: calibrazione a posto → resta «alta»; partite sbilanciate o storte → ricalibrare; se dopo la
+  ricalibrazione restano più di una su cinque, «media» ne toglie solo un poco; il confronto alta/media si fa con circa 80
+  partite per sensibilità e la riga «confronto del guadagno».
 - Comando per lo staff: `node scripts/audit/lato-palle.mjs <zip o cartelle…>` (parti dello stesso `gruppo` insieme, totale
-  per sensibilità). Prove: `natpf-mira-sensibilita.test.mjs`, `natpf-mira-lato.test.mjs`, nel browser
-  `tools/e2e/natpf-mira-lato.mjs` (il percorso della guida).
+  di tutti i pacchetti per sensibilità con `sideTotals`, confronto del guadagno). Prove: `natpf-mira-sensibilita.test.mjs`
+  (anche il pulsante del pannello dello stand), `natpf-mira-lato.test.mjs`, nel browser `tools/e2e/natpf-mira-lato.mjs`
+  (il percorso della guida).

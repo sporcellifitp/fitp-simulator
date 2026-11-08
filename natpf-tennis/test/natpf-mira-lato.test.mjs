@@ -1,8 +1,10 @@
 // B16 (08/11/2026) · decisione (d) dell'utente sulla mira più sensibile del B15 («ok ma come lo misuro?»): lato delle
-// palle per partita nella diagnostica (diag_metrics.sideBalance): quota a sinistra · centro · destra nel riferimento di
-// chi gioca, |mediana x| per blocchi di 20 colpi, verdetto con la soglia del 70 % su almeno 20 colpi; nel riassunto, nel
-// rapporto, nel LEGGIMI e in scripts/audit/lato-palle.mjs. Il banco (scripts/audit/colpi.mjs --mode=lato) dice quante
-// partite sbilanciate aspettarsi con le tre sensibilità (natpf-mira-sensibilita.test.mjs: l'opzione).
+// palle per partita nella diagnostica (diag_metrics.sideBalance): metà sinistra · metà destra nel riferimento di chi gioca
+// con il verdetto (soglia del 70 % su almeno 20 colpi), il dettaglio oltre 1 m a sinistra · al centro · oltre 1 m a
+// destra, le palle angolate (oltre 2,5 m: il guadagno, per confrontare le sensibilità), |mediana x| per blocchi di 20
+// colpi e |piatto mediano| (oltre 0,20: «riferimento storto: ricalibrare»); nel riassunto, nel rapporto, nel LEGGIMI e in
+// scripts/audit/lato-palle.mjs. Il banco (scripts/audit/colpi.mjs --mode=lato) dice cosa aspettarsi con le tre
+// sensibilità (natpf-mira-sensibilita.test.mjs: l'opzione nel pannello dello stand).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -10,7 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { sideBalance, sideJudge, sideLines, computeMetrics, summaryLines, SIDE } from '../src/natpf/diag/diag_metrics.js';
+import { sideBalance, sideJudge, sideLines, sideTotals, gainCompare, computeMetrics, summaryLines, SIDE } from '../src/natpf/diag/diag_metrics.js';
 import { viewerHtml, readmeText } from '../src/natpf/diag/diag_viewer.js';
 import { zipBlob } from '../src/natpf/diag/diag_zip.js';
 import { memoryStore } from '../src/natpf/diag/diag_store.js';
@@ -25,19 +27,20 @@ const series = (t0, chi, xs, extra) => xs.map((x, i) => shot(t0 + i*1000, chi, x
 const xsOf = (right, left, centre = 0) => [...Array(right).fill(2), ...Array(left).fill(-2), ...Array(centre).fill(.3)];
 
 test('verdetto: almeno il 70 % in una metà del campo su almeno 20 colpi; centro entro 1 m; blocchi di 20 colpi', () => {
-  assert.deepEqual({ ...SIDE }, { center: 1, share: .7, min: 20, block: 20, minBlock: 10, alert: .2 });
+  assert.deepEqual({ ...SIDE }, { center: 1, share: .7, min: 20, block: 20, minBlock: 10, alert: .2, wide: 2.5, storto: .2, minGain: 5 });
   const a = sideJudge(xsOf(14, 6), { hand: 'right' });
   assert.equal(a.verdetto, 'sbilanciata'); assert.equal(a.lato, 'destra'); assert.equal(a.latoColpo, 'dritto'); assert.equal(a.quotaPercento, 70);
-  assert.equal(a.testo, 'sbilanciata a destra (dalla parte del dritto): 70 % dei colpi da quella parte');
+  assert.equal(a.testo, 'sbilanciata a destra (dalla parte del dritto): 70 % dei colpi nella metà destra');
   const b = sideJudge([...xsOf(13, 6), .4], { hand: 'right' });   // 14 su 20 a destra del centro, 13 oltre 1 m
   assert.equal(b.verdetto, 'sbilanciata'); assert.equal(b.destraPercento, 65); assert.equal(b.centroPercento, 5); assert.equal(b.metaDestraPercento, 70);
   const c = sideJudge(xsOf(13, 7), { hand: 'right' });
-  assert.equal(c.verdetto, 'equilibrata'); assert.equal(c.testo, 'equilibrata: 35 % dei colpi nella metà sinistra del campo, 65 % nella destra');
+  assert.equal(c.verdetto, 'equilibrata'); assert.equal(c.testo, 'equilibrata: nessuna metà del campo arriva al 70 %');
+  assert.equal(c.metaSinistraPercento, 35); assert.equal(c.metaDestraPercento, 65);
   const d = sideJudge(xsOf(19, 0), { hand: 'right' });
   assert.equal(d.verdetto, 'pochi colpi'); assert.match(d.testo, /19, ne servono 20/);
   // mancino: la sua destra è la parte del rovescio; la sua sinistra quella del dritto
   assert.equal(sideJudge(xsOf(15, 5), { hand: 'left' }).latoColpo, 'rovescio');
-  assert.equal(sideJudge(xsOf(5, 15), { hand: 'left' }).testo, 'sbilanciata a sinistra (dalla parte del dritto): 75 % dei colpi da quella parte');
+  assert.equal(sideJudge(xsOf(5, 15), { hand: 'left' }).testo, 'sbilanciata a sinistra (dalla parte del dritto): 75 % dei colpi nella metà sinistra');
   // blocchi: 1–20, 21–40, e l'ultimo solo se ha almeno 10 colpi
   const xs = [...Array(20).fill(2.5), ...Array(20).fill(-1.5), ...Array(12).fill(.5), ...Array(5).fill(3)];
   assert.deepEqual(sideJudge(xs).blocchi, [{ colpi: '1–20', mediana: 2.5 }, { colpi: '21–40', mediana: 1.5 }, { colpi: '41–57', mediana: .5 }]);
@@ -68,17 +71,20 @@ test('partita per partita: P2 nel suo riferimento, mancino a specchio, fuori all
   assert.equal(m1.giocatori.P1.verdetto, 'equilibrata');      // 16 su 24 a destra del centro = 67 %
   assert.equal(m1.giocatori.P1.metaDestraPercento, 67); assert.equal(m1.giocatori.P1.mira, 'alta');
   assert.equal(m2.giocatori.P1.colpi, 25); assert.equal(m2.giocatori.P1.mano, 'left'); assert.equal(m2.giocatori.P1.miraPiena, 20); assert.equal(m2.giocatori.P1.mira, 'media');
-  assert.equal(m2.giocatori.P1.testo, 'sbilanciata a sinistra (dalla parte del dritto): 100 % dei colpi da quella parte');
+  assert.equal(m2.giocatori.P1.testo, 'sbilanciata a sinistra (dalla parte del dritto): 100 % dei colpi nella metà sinistra');
   assert.equal(m2.giocatori.P2.metaDestraPercento, 55, 'P2: x del campo cambiata di segno');
   assert.equal(m2.giocatori.P2.verdetto, 'equilibrata');
-  assert.deepEqual(lp.riepilogo, { giudicate: 3, sbilanciate: 1, sbilanciatePercento: 33, perMiraPiena: { 17: { giudicate: 1, sbilanciate: 0 }, 20: { giudicate: 2, sbilanciate: 1 } } });
+  const { perMiraPiena: per, ...tot } = lp.riepilogo;
+  assert.deepEqual(tot, { giudicate: 3, sbilanciate: 1, storti: 0, sbilanciatePercento: 33 });
+  assert.deepEqual(Object.fromEntries(Object.entries(per).map(([k, v]) => [k, [v.giudicate, v.sbilanciate, v.storti, v.angolate.partite, v.angolate.colpi]])), { 17: [1, 0, 0, 1, 24], 20: [2, 1, 0, 2, 47] });
   // mancino a specchio del destro: gli stessi colpi allo specchio danno lo stesso verdetto, dalla parte del dritto
   const right = sideJudge(xsOf(16, 4), { hand: 'right' }), left = sideJudge(xsOf(4, 16), { hand: 'left' });
   assert.equal(right.quotaPercento, left.quotaPercento); assert.equal(right.latoColpo, left.latoColpo); assert.notEqual(right.lato, left.lato);
   // registrazione partita già iniziata (o pacchetto di prima del B16): colpi senza inizio della partita
   const old = sideBalance(series(0, 'player', xsOf(15, 5), { mano: undefined, miraPiena: undefined, fonte: undefined }), { meta: { gioco: { mano: 'right' } } });
   assert.equal(old.partite[0].senzaInizio, true); assert.equal(old.partite[0].giocatori.P1.mano, 'right'); assert.equal(old.partite[0].giocatori.P1.miraPiena, null);
-  assert.deepEqual(old.riepilogo.perMiraPiena, { 'non registrata': { giudicate: 1, sbilanciate: 1 } });
+  assert.equal(old.partite[0].giocatori.P1.sensibilita, 'non registrata');
+  assert.deepEqual(Object.keys(old.riepilogo.perMiraPiena), ['non registrata']); assert.equal(old.riepilogo.perMiraPiena['non registrata'].sbilanciate, 1);
 });
 
 test('riassunto, rapporto e LEGGIMI: il lato delle palle per partita con il verdetto e il totale per sensibilità', () => {
@@ -88,21 +94,86 @@ test('riassunto, rapporto e LEGGIMI: il lato delle palle per partita con il verd
   assert.equal(m.latoPalle.partite.length, 5);
   const lines = summaryLines(m).filter(l => l.startsWith('Lato delle palle'));
   assert.equal(lines.length, 6);
-  assert.equal(lines[0], 'Lato delle palle · partita 1 · P1 (destro, mira alta 17°): 30 colpi · sinistra 20 % · centro 20 % · destra 60 % · |mediana x| per 20 colpi 2,00 / 0,30 m → sbilanciata a destra (dalla parte del dritto): 80 % dei colpi da quella parte');
-  assert.match(lines.at(-1), /^Lato delle palle, in tutto: 1 partite sbilanciate su 5 giudicate \(per giocatore\) · mira alta \(17°\): 1 su 5$/);
+  // numeri principali le metà del campo (quelli del verdetto); a parte, tra parentesi, oltre 1 m e il centro
+  assert.equal(lines[0], 'Lato delle palle · partita 1 · P1 (destro, mira alta 17°): 30 colpi · metà sinistra 20 % · metà destra 80 % (oltre 1 m a sinistra 20 % · al centro 20 % · oltre 1 m a destra 60 %) · palle angolate (oltre 2,5 m) 0 % · |mediana x| per 20 colpi 2,00 / 0,30 m → sbilanciata a destra (dalla parte del dritto): 80 % dei colpi nella metà destra');
+  assert.equal(lines.at(-1), 'Lato delle palle, in tutto: 1 sbilanciata su 5 partite giudicate (per giocatore) · mira alta (17°): 1 sbilanciata su 5, palle angolate 0 % in media (5 partite)');
   // sei sbilanciate su dieci: il riassunto suggerisce la mira media
   const many = []; for (let i = 0; i < 10; i++) many.push({ t: i*60000, k: 'partita', n: i + 1, miraPiena: 17 }, ...series(i*60000 + 1000, 'player', i < 6 ? xsOf(16, 4) : xsOf(10, 10)));
-  assert.match(sideLines(sideBalance(many)).at(-1), /più di una su cinque: controlla la calibrazione, poi prova una mira meno sensibile/);
+  assert.match(sideLines(sideBalance(many)).at(-1), /· più di una su cinque sbilanciate: controlla la calibrazione \(docs\/GUIDA_MISURA_MIRA\.md §6\)$/);
   const html = viewerHtml({ meta: { id: 'x', inizio: '2026-11-08' }, metrics: m, events: ev });
   assert.match(html, /Lato delle palle per partita \(mira del telefono\)/);
-  assert.match(html, /sbilanciata a destra \(dalla parte del dritto\): 80 % dei colpi da quella parte/);
+  assert.match(html, /sbilanciata a destra \(dalla parte del dritto\): 80 % dei colpi nella metà destra/);
+  assert.match(html, /<th>Metà sinistra · metà destra<\/th><th>Oltre 1 m a sinistra · al centro · oltre 1 m a destra<\/th><th>Palle angolate<\/th>/);
   assert.match(html, /class="warn">sbilanciata/); assert.match(html, /class="okc">equilibrata/);
-  assert.match(html, /1 partite sbilanciate su 5 giudicate/);
+  assert.match(html, /1 sbilanciata su 5 partite giudicate/);
   assert.doesNotMatch(viewerHtml({ meta: {}, metrics: {}, events: [] }), /Lato delle palle per partita/);
   const readme = readmeText({ id: 'x', inizio: '2026-11-08', gioco: { mira: 'alta', miraPiena: 17 } }, m);
   assert.match(readme, /sensibilità della mira alta \(17°\)/);
   assert.match(readme, /- Lato delle palle · partita 1 · P1/);
   assert.match(readme, /scripts\/audit\/lato-palle\.mjs/);
+});
+
+// palle angolate (il guadagno della mira più sensibile) e piatto mediano (il riferimento della mira): revisione del B16
+test('palle angolate oltre 2,5 m; |piatto mediano| oltre 0,20 su almeno 20 colpi letti con la forma: «riferimento storto: ricalibrare»', () => {
+  // 30 colpi: 9 oltre 2,5 m (6 a destra, 3 a sinistra), 2,5 esatti non contano; 18 nella metà destra (equilibrata)
+  const xs = [...Array(6).fill(2.8), ...Array(3).fill(-3), ...Array(2).fill(2.5), ...Array(10).fill(.4), ...Array(9).fill(-.4)];
+  const a = sideJudge(xs, { hand: 'right' });
+  assert.equal(a.angolate, 9); assert.equal(a.angolatePercento, 30); assert.equal(a.piattoMediano, null); assert.equal(a.storto, false);
+  const p = (v, n) => Array(n).fill(v);
+  assert.equal(sideJudge(xs, { piatti: [...p(.3, 16), ...p(0, 14)] }).piattoMediano, .3);
+  assert.equal(sideJudge(xs, { piatti: [...p(.3, 16), ...p(0, 14)] }).storto, true);
+  assert.equal(sideJudge(xs, { piatti: [...p(-.25, 16), ...p(0, 14)] }).storto, true, 'storto da tutte e due le parti');
+  assert.equal(sideJudge(xs, { piatti: p(.2, 30) }).storto, false, 'soglia esclusa');
+  assert.equal(sideJudge(xs, { piatti: p(.4, 19) }).storto, false, 'meno di 20 colpi letti con la forma: non si giudica');
+  assert.equal(sideJudge(xs.slice(0, 19), { piatti: p(.4, 19) }).storto, false);
+  // nella riga e nel totale: il |piatto mediano|, il consiglio, e la partita storta fuori dalla media delle palle angolate
+  const ev = [{ t: 0, k: 'partita', n: 1, mano: 'right', miraPiena: 17 }, ...series(1000, 'player', xs, { piatto: .3 }),
+    { t: 100000, k: 'partita', n: 2, mano: 'right', miraPiena: 17 }, ...series(101000, 'player', xs.map(x => -x), { piatto: -.02 })];
+  const lp = sideBalance(ev), lines = sideLines(lp);
+  assert.equal(lp.partite[0].giocatori.P1.storto, true); assert.equal(lp.partite[1].giocatori.P1.storto, false);
+  assert.match(lines[0], /· palle angolate \(oltre 2,5 m\) 30 % · \|mediana x\| per 20 colpi .* m · \|piatto mediano\| 0,30 → equilibrata: nessuna metà del campo arriva al 70 % · riferimento storto: ricalibrare \(\|piatto mediano\| oltre 0,20\)$/);
+  assert.match(lines[1], /\|piatto mediano\| 0,02 → equilibrata: nessuna metà del campo arriva al 70 %$/);
+  assert.deepEqual(lp.riepilogo.perMiraPiena[17].angolate, { partite: 1, mediaPercento: 30, devPunti: null, colpi: 30, quotaColpiPercento: 30 });
+  assert.equal(lp.riepilogo.storti, 1);
+  assert.equal(lines.at(-1), 'Lato delle palle, in tutto: 0 sbilanciate su 2 partite giudicate (per giocatore), 1 con il riferimento storto (ricalibrare) · mira alta (17°): 0 sbilanciate su 2, riferimento storto in 1, palle angolate 30 % in media (1 partita senza il riferimento storto)');
+  // colpi ricostruiti (telefono senza la forma del colpo: racchetta.ricavato) fuori dal piatto mediano
+  const der = sideBalance([{ t: 0, k: 'partita', n: 1, miraPiena: 17 }, ...series(1000, 'player', xs, { piatto: .6, ricavato: true })]);
+  assert.equal(der.partite[0].giocatori.P1.piattoMediano, null); assert.equal(der.partite[0].giocatori.P1.storto, false);
+});
+
+test('telefono senza la forma del colpo (pagina vecchia): «sensibilità non applicata», non quella della partita', () => {
+  const xs = xsOf(12, 10);
+  const ev = [{ t: 0, k: 'partita', n: 1, mano: 'right', mira: 'media', miraPiena: 20 }, ...series(1000, 'player', xs, { miraPiena: undefined, ricavato: true, piatto: .5 })];
+  const lp = sideBalance(ev, { meta: { gioco: { mira: 'media', miraPiena: 20 } } }), g = lp.partite[0].giocatori.P1;
+  assert.equal(g.sensibilita, 'non applicata'); assert.equal(g.miraPiena, null); assert.equal(g.mira, null);
+  assert.match(sideLines(lp)[0], /^Lato delle palle · partita 1 · P1 \(destro, sensibilità non applicata\): 22 colpi/);
+  assert.deepEqual(Object.keys(lp.riepilogo.perMiraPiena), ['non applicata']);
+  assert.match(sideLines(lp).at(-1), /· sensibilità non applicata: 0 sbilanciate su 1/);
+  // basta un colpo letto con la forma per avere la sensibilità; senza niente (pacchetto di prima del B16) «non registrata»
+  assert.equal(sideBalance([...ev, shot(30000, 'player', 1, { miraPiena: 20 })]).partite[0].giocatori.P1.miraPiena, 20);
+  assert.equal(sideBalance(series(0, 'player', xs, { miraPiena: undefined })).partite[0].giocatori.P1.sensibilita, 'non registrata');
+});
+
+test('confronto del guadagno: si distingue dal caso solo oltre due errori standard, con almeno 5 partite per sensibilità', () => {
+  // partite da 40 colpi con k palle angolate
+  const match = (deg, k) => ({ giocatori: { P1: { verdetto: 'equilibrata', sensibilita: String(deg), miraPiena: deg, colpi: 40, angolate: k, storto: false } } });
+  const set = (deg, ks) => ks.map(k => match(deg, k));
+  // come nel banco: 37 contro 34 % con ±7 punti da una partita all'altra, 15 partite per parte: non si distingue
+  const A = [12, 18, 15, 13, 17, 14, 16, 12, 18, 15, 13, 17, 14, 16, 15], B = A.map(k => k - 1);
+  let c = gainCompare(sideTotals([...set(17, A), ...set(20, B)]).perMiraPiena);
+  assert.equal(c.length, 1); assert.equal(c[0].a, '17'); assert.equal(c[0].b, '20'); assert.equal(c[0].differenzaPunti, 2.5); assert.equal(c[0].chiara, false);
+  // la stessa differenza con 400 partite per parte si distingue
+  const many = n => Array.from({ length: n }, (_, i) => A[i % A.length]);
+  c = gainCompare(sideTotals([...set(17, many(400)), ...set(20, many(400).map(k => k - 1))]).perMiraPiena);
+  assert.equal(c[0].chiara, true);
+  // l'errore non scende sotto quello del conteggio dei colpi (partite tutte uguali: deviazione 0)
+  c = gainCompare(sideTotals([...set(17, Array(5).fill(15)), ...set(20, Array(5).fill(14))]).perMiraPiena);
+  assert.ok(c[0].dueErroriPunti > 2*100*Math.sqrt(.375*.625/200), JSON.stringify(c)); assert.equal(c[0].chiara, false);
+  // meno di 5 partite in una sensibilità: nessun confronto; le partite con il riferimento storto non contano
+  assert.deepEqual(gainCompare(sideTotals([...set(17, A), ...set(20, B.slice(0, 4))]).perMiraPiena), []);
+  const storte = set(20, B).map((m, i) => (i < 11 ? { giocatori: { P1: { ...m.giocatori.P1, storto: true } } } : m));
+  assert.equal(sideTotals(storte).perMiraPiena[20].angolate.partite, 4);
+  assert.deepEqual(gainCompare(sideTotals([...set(17, A), ...storte]).perMiraPiena), []);
 });
 
 // registratore con un motore finto: esito della racchetta con mano, fonte e sensibilità; inizio della partita
@@ -172,17 +243,26 @@ test('scripts/audit/lato-palle.mjs: legge zip e cartelle, tiene insieme le parti
     const run = (...a) => execFileSync(process.execPath, [path.join(ROOT, 'scripts/audit/lato-palle.mjs'), ...a], { encoding: 'utf8', cwd: ROOT });
     const txt = run(path.join(dir, 'p2.zip'), path.join(dir, 'p1.zip'), sub, `--json=${path.join(dir, 'out.json')}`);
     assert.match(txt, /== G1 · 2026-11-08T18:00:00Z · versione 2026-11-08\.4 · parti 1, 2 · sensibilità della mira all'inizio alta \(17°\)/);
-    assert.match(txt, /partita 1 · P1 \(destro, mira alta 17°\): 24 colpi · .* → sbilanciata a destra \(dalla parte del dritto\): 75 % dei colpi da quella parte/);
-    assert.match(txt, /partita 1 · P1 \(mancino, mira media 20°\): 22 colpi · .* → equilibrata: 50 % dei colpi nella metà sinistra del campo, 50 % nella destra/);
-    assert.match(txt, /== In tutto \(2 registrazioni, 3 pacchetti\): 1 partite sbilanciate su 2 giudicate/);
-    assert.match(txt, /mira alta \(17°\): 1 su 1 = 100 % · poche partite: giocane almeno 5 prima di decidere/);
-    assert.match(txt, /mira media \(20°\): 0 su 1 = 0 %/);
+    assert.match(txt, /partita 1 · P1 \(destro, mira alta 17°\): 24 colpi · metà sinistra 25 % · metà destra 75 % \(.*\) · .* → sbilanciata a destra \(dalla parte del dritto\): 75 % dei colpi nella metà destra/);
+    assert.match(txt, /partita 1 · P1 \(mancino, mira media 20°\): 22 colpi · .* → equilibrata: nessuna metà del campo arriva al 70 %/);
+    assert.match(txt, /== In tutto \(2 registrazioni, 3 pacchetti\): 1 sbilanciata su 2 partite giudicate/);
+    assert.match(txt, /mira alta \(17°\): 1 sbilanciata su 1 = 100 % · poche partite: giocane almeno 5 prima di guardare il verdetto · palle angolate \(oltre 2,5 m\) 0,0 % in media su 1 partita/);
+    assert.match(txt, /mira media \(20°\): 0 sbilanciate su 1 = 0 %/);
+    assert.match(txt, /confronto del guadagno: servono almeno 5 partite giudicate per sensibilità/);
     const js = JSON.parse(fs.readFileSync(path.join(dir, 'out.json'), 'utf8'));
-    assert.equal(js.registrazioni.length, 2); assert.deepEqual(js.totale.perMiraPiena, { 17: { giudicate: 1, sbilanciate: 1 }, 20: { giudicate: 1, sbilanciate: 0 } });
+    assert.equal(js.registrazioni.length, 2);
+    assert.deepEqual(Object.fromEntries(Object.entries(js.totale.perMiraPiena).map(([k, v]) => [k, [v.giudicate, v.sbilanciate]])), { 17: [1, 1], 20: [1, 0] });
+    assert.deepEqual(js.confronti, []);
     // cinque partite giudicate con la mira alta, due sbilanciate: prima la calibrazione, poi la mira media
     const five = []; for (let i = 0; i < 5; i++) five.push({ t: i*60000, k: 'partita', n: i + 1, mano: 'right', miraPiena: 17 }, ...series(i*60000 + 1000, 'player', i < 2 ? xsOf(16, 4) : xsOf(10, 10)));
     await pack('cinque.zip', { id: 'K1', gruppo: 'K1', gioco: { mira: 'alta', miraPiena: 17 } }, five);
-    assert.match(run(path.join(dir, 'cinque.zip')), /mira alta \(17°\): 2 su 5 = 40 % · più di una su cinque: controlla la calibrazione, poi prova la mira «media»/);
+    assert.match(run(path.join(dir, 'cinque.zip')), /mira alta \(17°\): 2 sbilanciate su 5 = 40 % · più di una su cinque: ricalibra chi ha le partite sbilanciate e rifai la misura; se restano, la mira «media» \(pannello dello stand\) ne toglie solo un poco \(guida §6\)/);
+    // confronto del guadagno: cinque partite con la mira alta e cinque con la media, in due pacchetti
+    const gains = (deg, wide) => { const ev = []; for (let i = 0; i < 5; i++) ev.push({ t: i*60000, k: 'partita', n: i + 1, mano: 'right', miraPiena: deg }, ...series(i*60000 + 1000, 'player', [...Array(wide + (i % 2)).fill(3), ...Array(10 - wide - (i % 2)).fill(-.5), ...Array(10).fill(1.5)], { miraPiena: deg })); return ev; };
+    await pack('ga.zip', { id: 'GA', gruppo: 'GA', gioco: { mira: 'alta', miraPiena: 17 } }, gains(17, 8));
+    await pack('gm.zip', { id: 'GM', gruppo: 'GM', gioco: { mira: 'media', miraPiena: 20 } }, gains(20, 2));
+    const cmp = run(path.join(dir, 'ga.zip'), path.join(dir, 'gm.zip'));
+    assert.match(cmp, /confronto del guadagno: mira alta \(17°\) 42 % di palle angolate \(5 partite\) contro mira media \(20°\) 12 % \(5 partite\): 30,0 punti di differenza, ± \d+,\d per il caso → si distingue dal caso: la mira alta manda più palle angolate/);
     // zip compresso di nuovo (non «stored»): spiega di estrarlo
     fs.writeFileSync(path.join(dir, 'rotto.zip'), 'non è uno zip');
     assert.throws(() => run(path.join(dir, 'rotto.zip')), e => /estrailo e passa la cartella/.test(String(e.stderr)));
@@ -192,10 +272,20 @@ test('scripts/audit/lato-palle.mjs: legge zip e cartelle, tiene insieme le parti
 // banco (persona vera di scripts/audit/colpi.mjs, partite da 40 colpi): con la calibrazione giusta nessuna partita
 // sbilanciata con nessuna sensibilità; con il seme della calibrazione sbagliato di 15° la mira media e la bassa lasciano
 // le palle meno da una parte (|mediana x| e quota media scendono, le partite sbilanciate non crescono)
-test('banco: seme giusto nessuna partita sbilanciata (17°, 20°, 23°); seme sbagliato di ±15° meno da una parte con media e bassa', () => {
+// Il riferimento storto (|piatto mediano| oltre 0,20) non scatta con la calibrazione giusta (24 partite da 40 colpi per
+// sensibilità; sonda della revisione: 0 su 200) e scatta nella maggior parte delle partite con il seme sbagliato. Le palle
+// angolate scendono da alta a media a bassa (il guadagno che si confronta)
+test('banco: seme giusto nessuna partita sbilanciata né storta (17°, 20°, 23°); seme sbagliato di ±15° storto e meno da una parte con media e bassa', () => {
   const cases = { giusto: {}, sbagliato: [{ seedErr: 15 }, { seedErr: -15 }] };
-  const r = Object.fromEntries([17, 20, 23].map(a => [a, lato({ aimFull: a, runs: 6, cases })]));
-  for (const a of [17, 20, 23]) assert.equal(r[a].giusto.sbilanciate, 0, `${a}°: ${JSON.stringify(r[a].giusto)}`);
+  const r = Object.fromEntries([17, 20, 23].map(a => [a, { ...lato({ aimFull: a, runs: 6, cases: { sbagliato: cases.sbagliato } }), ...lato({ aimFull: a, runs: 24, cases: { giusto: {} } }) }]));
+  for (const a of [17, 20, 23]){
+    assert.equal(r[a].giusto.sbilanciate, 0, `${a}°: ${JSON.stringify(r[a].giusto)}`);
+    assert.equal(r[a].giusto.storti, 0, `${a}°: il suggerimento non scatta con la calibrazione giusta ${JSON.stringify(r[a].giusto)}`);
+    assert.ok(r[a].giusto.piattoMax < .15, `${a}°: ${JSON.stringify(r[a].giusto)}`);
+    assert.ok(r[a].sbagliato.storti >= r[a].sbagliato.partite/2, `${a}°: ${JSON.stringify(r[a].sbagliato)}`);
+  }
+  assert.ok(r[17].giusto.angolate > r[20].giusto.angolate + 2 && r[20].giusto.angolate > r[23].giusto.angolate + 2, JSON.stringify(r));
+  assert.ok([17, 20, 23].every(a => r[a].giusto.angolateDev > 5 && r[a].giusto.angolateDev < 10), 'da una partita all\'altra ±7–8 punti');
   assert.ok(r[17].sbagliato.mabs > r[20].sbagliato.mabs && r[20].sbagliato.mabs > r[23].sbagliato.mabs, JSON.stringify(r));
   assert.ok(r[17].sbagliato.quotaMedia > r[20].sbagliato.quotaMedia && r[20].sbagliato.quotaMedia > r[23].sbagliato.quotaMedia, JSON.stringify(r));
   assert.ok(r[20].sbagliato.sbilanciate <= r[17].sbagliato.sbilanciate && r[23].sbagliato.sbilanciate <= r[20].sbagliato.sbilanciate, JSON.stringify(r));

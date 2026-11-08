@@ -1,9 +1,13 @@
 // Lato delle palle per partita da uno o più pacchetti della diagnostica (B16 · decisione (d) dell'utente sulla mira più
-// sensibile: «ok ma come lo misuro?»). Per chi gioca con il telefono (P1 e, nel 1v1, P2), partita per partita: quota di
-// palle a sinistra · al centro · a destra (nel suo riferimento), |mediana x| per blocchi di 20 colpi e verdetto
-// («equilibrata» / «sbilanciata a destra: 72 % dei colpi da quella parte», soglia 70 % su almeno 20 colpi). In fondo il
-// totale di tutti i pacchetti, separato per sensibilità della mira (alta 17°, media 20°, bassa 23°). Stesso calcolo del
-// pannello della diagnostica e del rapporto (src/natpf/diag/diag_metrics.js: sideBalance, sideLines).
+// sensibile: «ok ma come lo misuro?»). Per chi gioca con il telefono (P1 e, nel 1v1, P2), partita per partita: metà
+// sinistra · metà destra del campo (nel suo riferimento) con il verdetto («equilibrata» / «sbilanciata a destra», soglia
+// 70 % su almeno 20 colpi), il dettaglio oltre 1 m a sinistra · al centro · oltre 1 m a destra, le palle angolate (oltre
+// 2,5 m dal centro), |mediana x| per blocchi di 20 colpi e |piatto mediano| («riferimento storto: ricalibrare» oltre 0,20).
+// In fondo il totale di tutti i pacchetti, separato per sensibilità della mira (alta 17°, media 20°, bassa 23°), e il
+// confronto del guadagno (palle angolate) tra le sensibilità, con l'errore del caso. Stesso calcolo del pannello della
+// diagnostica e del rapporto (src/natpf/diag/diag_metrics.js: sideBalance, sideTotals, gainCompare, sideLines).
+// Il verdetto e il piatto scoprono una calibrazione sbagliata; per confrontare le sensibilità servono le palle angolate e
+// molte partite (circa 80 per sensibilità tra alta e media): docs/GUIDA_MISURA_MIRA.md §6.
 //
 //   node scripts/audit/lato-palle.mjs <pacchetto.zip | cartella estratta> [altri…] [--json=uscita.json]
 //
@@ -13,7 +17,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { readZip } from '../../src/natpf/diag/diag_zip.js';
-import { sideBalance, sideLines, aimName, SIDE } from '../../src/natpf/diag/diag_metrics.js';
+import { sideBalance, sideLines, sideTotals, gainCompare, gainLines, sensLabel, aimName, SIDE } from '../../src/natpf/diag/diag_metrics.js';
 
 const args = process.argv.slice(2);
 const files = args.filter(a => !a.startsWith('--'));
@@ -52,23 +56,30 @@ for (const f of files){
   try { pkgs.push(openPackage(f)); }
   catch (e){ console.error(`Saltato: ${e.message}`); process.exitCode = 1; }
 }
-const regs = groupPackages(pkgs), all = [], tot = { giudicate: 0, sbilanciate: 0 }, perMira = {};
+const regs = groupPackages(pkgs), all = [], matches = [];
 for (const r of regs){
   const lp = sideBalance(r.events, { meta: r.meta }), g = r.meta.gioco || {};
   const head = `${r.meta.id || r.files[0]} · ${r.meta.inizio || '?'} · versione ${r.meta.build || '?'}${r.parts.length > 1 ? ` · parti ${r.parts.join(', ')}` : ''}${g.miraPiena ? ` · sensibilità della mira all'inizio ${g.mira || aimName(g.miraPiena) || ''} (${g.miraPiena}°)` : ' · sensibilità della mira non registrata (pacchetto di prima del B16)'}`;
   console.log(`\n== ${head}`);
   if (!lp.partite.length) console.log('   nessun colpo del telefono in partita (allenamento, minigiochi e webcam non contano)');
   for (const l of sideLines(lp, { prefix: '' })) console.log(`   ${l}`);
-  tot.giudicate += lp.riepilogo.giudicate; tot.sbilanciate += lp.riepilogo.sbilanciate;
-  for (const [k, v] of Object.entries(lp.riepilogo.perMiraPiena)){ const t = (perMira[k] ||= { giudicate: 0, sbilanciate: 0 }); t.giudicate += v.giudicate; t.sbilanciate += v.sbilanciate; }
+  matches.push(...lp.partite);
   all.push({ file: r.files, id: r.meta.id || null, inizio: r.meta.inizio || null, build: r.meta.build || null, mira: g.mira || null, miraPiena: g.miraPiena ?? null, latoPalle: lp });
 }
-const pct = (a, b) => (b ? Math.round(100*a/b) : 0);
-console.log(`\n== In tutto (${regs.length} registrazion${regs.length === 1 ? 'e' : 'i'}, ${pkgs.length} pacchett${pkgs.length === 1 ? 'o' : 'i'}): ${tot.sbilanciate} partite sbilanciate su ${tot.giudicate} giudicate (per giocatore, almeno ${SIDE.min} colpi)${tot.giudicate ? ` = ${pct(tot.sbilanciate, tot.giudicate)} %` : ''}`);
-for (const [k, v] of Object.entries(perMira).sort()){
-  const name = aimName(k), over = v.giudicate >= 5 && v.sbilanciate/v.giudicate > SIDE.alert;
-  // più di una su cinque: prima la calibrazione, poi la sensibilità meno sensibile di quella provata (guida §6)
-  const next = { alta: ', poi prova la mira «media» (Opzioni → Mira del telefono)', media: ', poi prova la mira «bassa»' }[name] || '';
-  console.log(`   ${name ? `mira ${name} (${k}°)` : k === 'non registrata' ? 'mira non registrata' : `mira ${k}°`}: ${v.sbilanciate} su ${v.giudicate} = ${pct(v.sbilanciate, v.giudicate)} %${v.giudicate < 5 ? ' · poche partite: giocane almeno 5 prima di decidere' : over ? ` · più di una su cinque: controlla la calibrazione${next}` : ' · una su cinque o meno: la sensibilità va bene'}`);
+// totale di tutte le registrazioni insieme (le palle angolate si mediano sulle partite di tutti i pacchetti)
+const T = sideTotals(matches), confronti = gainCompare(T.perMiraPiena);
+const pct = (a, b) => (b ? Math.round(100*a/b) : 0), fmt = (v, d = 1) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '–');
+console.log(`\n== In tutto (${regs.length} registrazion${regs.length === 1 ? 'e' : 'i'}, ${pkgs.length} pacchett${pkgs.length === 1 ? 'o' : 'i'}): ${T.sbilanciate} sbilanciat${T.sbilanciate === 1 ? 'a' : 'e'} su ${T.giudicate} partit${T.giudicate === 1 ? 'a giudicata' : 'e giudicate'} (per giocatore, almeno ${SIDE.min} colpi)${T.giudicate ? ` = ${pct(T.sbilanciate, T.giudicate)} %` : ''}${T.storti ? ` · riferimento storto in ${T.storti}` : ''}`);
+for (const [k, v] of Object.entries(T.perMiraPiena).sort()){
+  const name = aimName(k), over = v.giudicate >= 5 && v.sbilanciate/v.giudicate > SIDE.alert, a = v.angolate;
+  // più di una su cinque: prima la calibrazione; una mira meno sensibile ne toglie solo un poco (guida §6)
+  const next = { alta: '«media»', media: '«bassa»' }[name];
+  const verdict = v.giudicate < 5 ? ' · poche partite: giocane almeno 5 prima di guardare il verdetto'
+    : over ? ` · più di una su cinque: ricalibra chi ha le partite sbilanciate e rifai la misura${next ? `; se restano, la mira ${next} (pannello dello stand) ne toglie solo un poco` : ''} (guida §6)`
+    : ' · una su cinque o meno: la calibrazione va bene';
+  console.log(`   ${sensLabel(k)}: ${v.sbilanciate} sbilanciat${v.sbilanciate === 1 ? 'a' : 'e'} su ${v.giudicate} = ${pct(v.sbilanciate, v.giudicate)} %${v.storti ? ` · riferimento storto in ${v.storti}: ricalibra quelle persone` : ''}${verdict}${a ? ` · palle angolate (oltre ${fmt(SIDE.wide)} m) ${fmt(a.mediaPercento)} % in media su ${a.partite} partit${a.partite === 1 ? 'a' : 'e'}${Number.isFinite(a.devPunti) ? ` (±${fmt(a.devPunti)} punti da una partita all'altra)` : ''}${v.storti ? ', senza quelle con il riferimento storto' : ''}` : ''}`);
 }
-if (out) fs.writeFileSync(out, JSON.stringify({ soglia: { quotaPercento: 100*SIDE.share, colpiMinimi: SIDE.min, centroM: SIDE.center, bloccoColpi: SIDE.block }, registrazioni: all, totale: { ...tot, perMiraPiena: perMira } }, null, 1));
+for (const l of gainLines(T.perMiraPiena)) console.log(`   ${l}`);
+const named = Object.keys(T.perMiraPiena).filter(aimName);
+if (named.length > 1 && !confronti.length) console.log(`   confronto del guadagno: servono almeno ${SIDE.minGain} partite giudicate per sensibilità (e per vedere una differenza di 3 punti, come tra alta e media nel banco, circa 80: guida §6)`);
+if (out) fs.writeFileSync(out, JSON.stringify({ soglia: { quotaPercento: 100*SIDE.share, colpiMinimi: SIDE.min, centroM: SIDE.center, bloccoColpi: SIDE.block, angolateM: SIDE.wide, piattoStorto: SIDE.storto }, registrazioni: all, totale: T, confronti }, null, 1));

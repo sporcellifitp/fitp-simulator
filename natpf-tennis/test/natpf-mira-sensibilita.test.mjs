@@ -1,13 +1,14 @@
 // B16 (08/11/2026) · decisione (d) dell'utente sulla mira più sensibile del B15 («ok ma come lo misuro?»): sensibilità
-// della mira scelta dallo staff (Opzioni → Mira del telefono): alta 17° (la base del B15), media 20°, bassa 23° (quella di
-// prima del B15). Arriva a strokeIntent senza cambiare niente con il valore di base: le prove di fedeltà (natpf-gesture-pose,
+// della mira scelta dallo staff (pannello dello stand → Mira del telefono; non nelle Opzioni dei visitatori): alta 17° (la
+// base del B15), media 20°, bassa 23° (quella di prima del B15). Arriva a strokeIntent senza cambiare niente con il valore di base: le prove di fedeltà (natpf-gesture-pose,
 // natpf-racchetta, natpf-gesture-speeds, natpf-colpi-b15) restano quelle; qui i tre valori, fino al motore.
 // La misura del lato delle palle per partita è in natpf-mira-lato.test.mjs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { INTENT, AIM_FULL, AIM_LEVELS, AIM_DEFAULT, faceAimFromDev, strokeIntent, aimFullOf, aimLevelOf, aimLevelFromFull } from '../src/natpf/natpf_stroke_intent.js';
 import { natpfSwingToEngine } from '../src/natpf/natpf_phone_racket.js';
-import { readAimLevel, writeAimLevel, aimFullNow, aimLevelLabel, AIM_LEVEL_KEY } from '../src/natpf/natpf_aim_level.js';
+import fs from 'node:fs';
+import { readAimLevel, writeAimLevel, aimFullNow, aimLevelLabel, aimLevelButton, nextAimLevel, AIM_LEVEL_KEY } from '../src/natpf/natpf_aim_level.js';
 import { makePhone, warmPhone, gesture, strike } from '../scripts/audit/colpi.mjs';
 import { rng } from './phone-sim.mjs';
 
@@ -46,6 +47,33 @@ test('opzione salvata: alta di base, media e bassa restano dopo la scelta (local
     assert.equal(writeAimLevel('bassa'), 'bassa'); assert.equal(aimFullNow(), 23);
     assert.equal(writeAimLevel('altissima'), 'alta'); assert.equal(mem.get(AIM_LEVEL_KEY), 'alta'); assert.equal(aimFullNow(), 17);
   } finally { writeAimLevel('alta'); globalThis.localStorage = prev; }
+});
+
+// decisione dell'utente: è un'opzione dello staff. Sta nel pannello dello stand (Ctrl+Maiusc+K, 3 s sul marchio), con lo
+// stesso schema dei pulsanti data-staff (un clic passa alla successiva, come «Ritorno al menu dopo»), e non nelle Opzioni
+// dove un visitatore potrebbe cambiarla
+test('pannello dello stand: «Mira del telefono» alta → media → bassa → alta, salvata; non nelle Opzioni dei visitatori', async () => {
+  assert.equal(nextAimLevel('alta'), 'media'); assert.equal(nextAimLevel('media'), 'bassa'); assert.equal(nextAimLevel('bassa'), 'alta'); assert.equal(nextAimLevel('boh'), 'media');
+  assert.equal(aimLevelButton('alta'), 'Alta · 17°'); assert.equal(aimLevelButton('media'), 'Media · 20°'); assert.equal(aimLevelButton('bassa'), 'Bassa · 23°');
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const staff = html.slice(html.indexOf('<div id="natpf-staff"'), html.indexOf('<!-- passaggio dal menu al campo -->'));
+  assert.match(staff, /<button type="button" data-staff="aim"><span>Mira del telefono<\/span><b>Alta · 17°<\/b><\/button>/);
+  assert.doesNotMatch(html, /data-natpf-aim|id="aim-note"/, 'niente più nelle Opzioni');
+  // pannello vero sull'interfaccia senza disegno (test/ui-world.mjs)
+  const { makeWorld, $ } = await import('./ui-world.mjs');
+  const w = await makeWorld({ controller: 'phone' }); w.advance(300);
+  const K = w.ui.kiosk, label = () => K.el.querySelector('[data-staff="aim"] b').textContent;
+  try {
+    K.open();
+    assert.equal(readAimLevel(), 'alta'); assert.equal(label(), 'Alta · 17°');
+    K.run('aim');
+    assert.equal(readAimLevel(), 'media'); assert.equal(aimFullNow(), 20); assert.equal(localStorage.getItem(AIM_LEVEL_KEY), 'media');
+    assert.equal(label(), 'Media · 20°'); assert.equal($('natpf-toast').textContent, 'Mira del telefono: media (20°)');
+    K.run('aim'); assert.equal(readAimLevel(), 'bassa'); assert.equal(label(), 'Bassa · 23°');
+    K.run('aim'); assert.equal(readAimLevel(), 'alta'); assert.equal(label(), 'Alta · 17°');
+    // il chiosco che rimette in ordine lo stand per il visitatore successivo non la tocca (è dello staff)
+    K.run('aim'); K.reset(); assert.equal(readAimLevel(), 'media');
+  } finally { writeAimLevel('alta'); K.close(); }
 });
 
 test('strokeIntent: di base identico alla mira alta; con media e bassa cambia solo la mira del piatto, e meno', () => {

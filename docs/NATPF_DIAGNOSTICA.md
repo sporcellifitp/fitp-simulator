@@ -166,14 +166,23 @@ I campioni grezzi del telefono stanno in un file a parte, `telefono-sensori.json
   colpo; senza (telefono di prima, webcam) dagli esiti della racchetta, raggruppati per colpo voluto. Il modello del
   colpo non ha caso: la variazione è di chi gioca e delle palle, ed è il riferimento per tarare le soglie;
 - `latoPalle` (B16, misura della mira: `docs/GUIDA_MISURA_MIRA.md`): per ogni partita (evento `partita`) e per chi gioca
-  con il telefono (P1 e, nel 1v1, P2) la quota di palle a sinistra · al centro (entro 1 m) · a destra nel suo riferimento
-  (x del punto di caduta calcolato, evento `racchetta`; per il P2 la x del campo cambia segno), |mediana x| per blocchi di
-  20 colpi e il verdetto: «equilibrata», «sbilanciata a destra (dalla parte del dritto): 72 % dei colpi da quella parte»
-  (almeno il 70 % in una metà del campo su almeno 20 colpi) o «troppo pochi colpi». Fuori servizi, allenamento, minigiochi
-  e webcam. `riepilogo`: partite giudicate e sbilanciate, anche per sensibilità della mira (`perMiraPiena`). Lo stesso
-  calcolo è nel riassunto in parole, nella scheda «Lato delle palle per partita» di `rapporto.html`, nel `LEGGIMI.txt` e in
-  `node scripts/audit/lato-palle.mjs <pacchetti…>` (uno o più zip o cartelle; le parti dello stesso gruppo insieme;
-  totale per sensibilità);
+  con il telefono (P1 e, nel 1v1, P2), nel suo riferimento (x del punto di caduta calcolato, evento `racchetta`; per il P2
+  la x del campo cambia segno): quota nella **metà sinistra · metà destra** del campo con il verdetto («equilibrata»,
+  «sbilanciata a destra (dalla parte del dritto): 72 % dei colpi nella metà destra», almeno il 70 % in una metà su
+  almeno 20 colpi, o «troppo pochi colpi»); a parte il dettaglio oltre 1 m a sinistra · al centro · oltre 1 m a destra;
+  **palle angolate** (oltre 2,5 m dal centro, il guadagno della mira più sensibile); |mediana x| per blocchi di 20 colpi;
+  **|piatto mediano|** (`racchetta.piatto` dei colpi letti con la forma, non `ricavato`: oltre 0,20 su almeno 20 colpi
+  «riferimento storto: ricalibrare»); la sensibilità con cui il telefono ha letto i colpi (`racchetta.miraPiena`;
+  «non applicata» se nessun colpo l'ha in una registrazione che la conosce: pagina del telefono senza la forma del colpo;
+  «non registrata» nei pacchetti di prima del B16). Fuori servizi, allenamento, minigiochi e webcam. `riepilogo`
+  (`sideTotals`): partite giudicate, sbilanciate e con il riferimento storto, anche per sensibilità (`perMiraPiena`, con
+  `angolate`: partite, media e deviazione per partita, senza le partite storte). Il confronto del guadagno tra due
+  sensibilità (`gainCompare`: differenza e due errori standard, «si distingue dal caso» o no, da 5 partite per parte) è
+  nel riassunto e nel comando. Il verdetto e il piatto scoprono una calibrazione sbagliata; per confrontare le
+  sensibilità servono le palle angolate e circa 80 partite per sensibilità (banco `scripts/audit/colpi.mjs --mode=lato`,
+  guida §6). Lo stesso calcolo è nel riassunto in parole, nella scheda «Lato delle palle per partita» di `rapporto.html`,
+  nel `LEGGIMI.txt` e in `node scripts/audit/lato-palle.mjs <pacchetti…>` (uno o più zip o cartelle; le parti dello
+  stesso gruppo insieme; totale di tutti i pacchetti per sensibilità e confronto del guadagno);
 - `registrazione`.
 
 L'esito di ogni colpo della racchetta è registrato una volta sola, nell'evento `racchetta`. Fino al 22/10 era ripetuto
@@ -191,7 +200,7 @@ Da riga di comando, dalla cartella `natpf-tennis`:
 node scripts/diag/diag.mjs metriche sessione.zip
 node scripts/diag/diag.mjs colpi sessione.zip
 node scripts/diag/diag.mjs confronta prima.zip dopo.zip   # codice 2 se qualcosa peggiora
-node scripts/audit/lato-palle.mjs a.zip b.zip              # lato delle palle per partita, totale per sensibilità della mira
+node scripts/audit/lato-palle.mjs a.zip b.zip              # lato delle palle per partita, totale e guadagno per sensibilità della mira
 ```
 
 ## Codice e prove

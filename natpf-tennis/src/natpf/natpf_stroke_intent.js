@@ -157,11 +157,15 @@ export function personalSpecial(f, { normal = null, lob = null, drop = null } = 
   return best.d <= PERSONAL.maxDist && best.d + PERSONAL.margin < dN ? { shot: best.shot, d: +best.d.toFixed(2), dN: +dN.toFixed(2) } : null;
 }
 
-// Sensibilità della mira (opzione dello staff nelle Opzioni del computer, B16 · decisione (d) dell'utente «ok ma come lo
+// Sensibilità della mira (opzione dello staff nel pannello dello stand, B16 · decisione (d) dell'utente «ok ma come lo
 // misuro?»): gradi di scarto del piatto per la mira piena. alta = 17° (B15: INTENT.faceDead + INTENT.faceSpan, la base),
-// media = 20° (faceSpan 17: dimezza l'effetto di un riferimento della mira sbagliato tenendo metà della varietà guadagnata
-// nel B15, docs/b15/audit-colpi.md §8), bassa = 23° (faceSpan 20, quella di prima del B15). Si misura con la diagnostica
-// (lato delle palle per partita, diag_metrics.sideBalance) e scripts/audit/lato-palle.mjs: docs/GUIDA_MISURA_MIRA.md
+// media = 20° (faceSpan 17), bassa = 23° (faceSpan 20, quella di prima del B15). Cosa cambia, nel banco
+// (scripts/audit/colpi.mjs --mode=lato, persona vera, partite da 40 colpi): con la calibrazione giusta le palle angolate
+// (oltre 2,5 m dal centro) scendono da 37 a 34 e 31 % (il guadagno del B15 che si perde); con un riferimento della mira
+// sbagliato (seme di ±15°) le palle stanno circa il 10 % meno da una parte a ogni passo (|mediana x| 1,27 → 1,13 →
+// 1,00 m, 400 partite) e le partite sbilanciate scendono poco (41 / 38 / 32 %). Media e bassa non dimezzano l'effetto di un
+// riferimento sbagliato: lo attenuano di poco; lo cura la calibrazione. Si misura con la diagnostica (lato delle palle per
+// partita, diag_metrics.sideBalance) e scripts/audit/lato-palle.mjs: docs/GUIDA_MISURA_MIRA.md
 export const AIM_FULL = Object.freeze({ alta: 17, media: 20, bassa: 23 });
 export const AIM_LEVELS = Object.freeze(['alta', 'media', 'bassa']);
 export const AIM_DEFAULT = 'alta';

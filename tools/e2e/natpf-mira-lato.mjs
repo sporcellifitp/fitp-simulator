@@ -1,10 +1,13 @@
 // B16 · decisione (d) dell'utente sulla mira più sensibile («ok ma come lo misuro?»): il percorso della guida
 // docs/GUIDA_MISURA_MIRA.md nel browser, con il telefono simulato (pagina del telefono, collegamento e motore veri).
-//   1. Opzioni → «Mira del telefono»: si sceglie «Media · 20°», resta dopo aver ricaricato la pagina;
-//   2. Maiusc+D: il pannello della diagnostica dice la mira in uso; «● Avvia registrazione»;
+//   1. pannello dello stand (Ctrl+Maiusc+K) → «Mira del telefono»: un clic, «Media · 20°», resta dopo aver ricaricato la
+//      pagina; nelle Opzioni dei visitatori non c'è (decisione dell'utente: opzione dello staff);
+//   2. Maiusc+D: il pannello della diagnostica dice la mira in uso e dove si cambia; «● Avvia registrazione»;
 //   3. telefono collegato e calibrato, «Gioca» (pulsante vero della pagina «Partita»): partita 1 con la mira media, scambi
-//      contro la CPU finché il telefono ha colpito almeno MIN colpi; poi menu → Opzioni → «Alta · 17°» → partita 2 corta;
-//   4. «■ Ferma la registrazione»: il riassunto dice il lato delle palle per partita con il verdetto;
+//      contro la CPU finché il telefono ha colpito almeno MIN colpi; poi menu → pannello dello stand → «Alta · 17°» (due
+//      clic: media → bassa → alta) → partita 2 corta;
+//   4. «■ Ferma la registrazione»: il riassunto dice il lato delle palle per partita (metà sinistra · metà destra con il
+//      verdetto, oltre 1 m e centro a parte, palle angolate, |piatto mediano|) e il totale;
 //   5. «⬇ Scarica il pacchetto»: lo zip ha la scheda nel rapporto, le righe nel LEGGIMI e latoPalle in metriche.json;
 //   6. node scripts/audit/lato-palle.mjs sul pacchetto: le due partite con la loro sensibilità e il totale.
 // Porte: GAME_PORT (3191) per il gioco, PEER_PORT (9191) per PeerJS. OUT: cartella del pacchetto e delle schermate.
@@ -50,28 +53,41 @@ try {
   let { p: game, errs: gameErrs } = await page(B, gameUrl, { context: ctx });
   const ready = () => game.waitForFunction(() => window.__natpfTennis?.natpfPhone && window.__natpfTennis.natpfUi?.lobby && window.__natpfTennis.player?.model, null, { timeout: 120000 });
   await ready();
-  // 1. Opzioni → Mira del telefono → Media · 20° (pulsanti veri della pagina)
-  const openOptions = async () => {
-    await game.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.onboarding?.isOpen && ui.onboarding.close(); if (!ui.lobby.visible) ui.backToMenu(); ui.lobby.go('menu'); });
-    await game.click('[data-menu="options"]');
-    await game.waitForSelector('[data-natpf-aim="media"]', { state: 'visible', timeout: 10000 });
+  // 1. pannello dello stand (Ctrl+Maiusc+K, tasti veri) → Mira del telefono: un clic porta alla successiva (pulsante vero)
+  const toMenu = () => game.evaluate(() => { const ui = __natpfTennis.natpfUi; ui.onboarding?.isOpen && ui.onboarding.close(); if (!ui.lobby.visible) ui.backToMenu(); ui.lobby.go('menu'); });
+  const openStaff = async () => {
+    await toMenu();
+    await game.keyboard.press('Control+Shift+KeyK');
+    await game.waitForSelector('#natpf-staff:not(.hidden) [data-staff="aim"]', { state: 'visible', timeout: 10000 });
   };
-  await openOptions();
-  const aimState = () => game.evaluate(() => ({ sel: [...document.querySelectorAll('[data-natpf-aim]')].filter(b => b.getAttribute('aria-checked') === 'true').map(b => b.dataset.natpfAim), note: document.getElementById('aim-note')?.textContent || '' }));
-  check('Opzioni: di base la mira è «alta» (17°)', (await aimState()).sel.join() === 'alta', JSON.stringify(await aimState()));
-  await game.click('[data-natpf-aim="media"]');
+  const staffAim = () => game.evaluate(() => ({ label: document.querySelector('#natpf-staff [data-staff="aim"] b')?.textContent || '', saved: localStorage.getItem('natpf-tennis.mira') }));
+  const setAim = async want => {
+    for (let i = 0; i < 3 && (await staffAim()).label !== want; i++) await game.click('#natpf-staff [data-staff="aim"]');
+    return staffAim();
+  };
+  await openStaff();
+  check('pannello dello stand: di base la mira è «Alta · 17°»', (await staffAim()).label === 'Alta · 17°', JSON.stringify(await staffAim()));
+  await game.click('#natpf-staff [data-staff="aim"]');
   const toast = await game.evaluate(() => document.getElementById('natpf-toast')?.textContent || '');
-  check('Opzioni: «Media · 20°» scelta, con l’avviso', (await aimState()).sel.join() === 'media' && /media \(20°\)/.test(toast), toast);
-  await game.waitForTimeout(600); await game.screenshot({ path: path.join(SP, 'mira-opzioni.png') });
+  check('pannello dello stand: un clic, «Media · 20°» con l’avviso, salvata', (await staffAim()).label === 'Media · 20°' && (await staffAim()).saved === 'media' && /media \(20°\)/.test(toast), toast);
+  await game.waitForTimeout(400); await game.screenshot({ path: path.join(SP, 'mira-stand.png') });
+  const sheet = await game.$eval('#natpf-staff .natpf-sheet', el => ({ scroll: el.scrollHeight - el.clientHeight }));
+  check('pannello dello stand: con il pulsante nuovo sta in una schermata 1280 × 720 senza scorrere', sheet.scroll <= 0, JSON.stringify(sheet));
+  await game.click('#natpf-staff [data-staff="close"]');
+  // nelle Opzioni dei visitatori non c'è più
+  await game.click('[data-menu="options"]'); await game.waitForTimeout(300);
+  const opts = await game.evaluate(() => ({ step: __natpfTennis.natpfUi.lobby.step, aim: document.querySelectorAll('[data-natpf-aim], #aim-note').length, text: /Mira del telefono/.test(document.getElementById('title-modal')?.innerText || '') }));
+  check('Opzioni: niente «Mira del telefono» (è dello staff)', opts.step === 'options' && !opts.aim && !opts.text, JSON.stringify(opts));
   await game.reload({ waitUntil: 'domcontentloaded' }); await ready();
-  await openOptions();
-  check('Opzioni: la scelta resta dopo aver ricaricato la pagina', (await aimState()).sel.join() === 'media', JSON.stringify(await aimState()));
+  await openStaff();
+  check('pannello dello stand: la scelta resta dopo aver ricaricato la pagina', (await staffAim()).label === 'Media · 20°', JSON.stringify(await staffAim()));
+  await game.click('#natpf-staff [data-staff="close"]');
   // 2. Maiusc+D → pannello della diagnostica con la mira in uso → Avvia registrazione (senza video: la prova è sui dati)
   await game.evaluate(() => __natpfTennis.natpfUi.lobby.go('menu'));
   await game.keyboard.press('Shift+KeyD');
   await game.waitForSelector('.natpf-diag:not(.hidden) [data-diag="start"]', { timeout: 10000 });
   const panelAim = await game.textContent('.natpf-diag [data-aim-level]');
-  check('diagnostica: il pannello dice la mira in uso', /Mira del telefono: media \(20°\)/.test(panelAim || ''), panelAim);
+  check('diagnostica: il pannello dice la mira in uso e dove si cambia (senza parentesi doppie)', /^Mira del telefono: media \(20°\), si cambia nel pannello dello stand: Ctrl\+Maiusc\+K/.test(panelAim || '') && !/\) \(/.test(panelAim || ''), panelAim);
   for (const opt of ['webcamVideo', 'gameVideo']) if (await game.isChecked(`.natpf-diag [data-opt="${opt}"]`)) await game.click(`.natpf-diag [data-opt="${opt}"]`);
   await game.fill('.natpf-diag [data-label]', 'prova della mira (B16)');
   await game.click('.natpf-diag [data-diag="start"]');
@@ -125,11 +141,12 @@ try {
   await startMatch();
   const n1 = await play(MIN, 240000);
   check(`partita 1 (mira media): almeno ${MIN} colpi del telefono`, n1 >= MIN, `${n1} colpi`);
-  // menu → Opzioni → Alta · 17° → partita 2, corta
+  // menu → pannello dello stand → Alta · 17° (media → bassa → alta) → partita 2, corta
   await game.evaluate(() => __natpfTennis.natpfUi.backToMenu());
-  await openOptions();
-  await game.click('[data-natpf-aim="alta"]');
-  check('Opzioni: «Alta · 17°» scelta tra le due partite', (await aimState()).sel.join() === 'alta');
+  await openStaff();
+  const between = await setAim('Alta · 17°');
+  check('pannello dello stand: «Alta · 17°» scelta tra le due partite', between.label === 'Alta · 17°' && between.saved === 'alta', JSON.stringify(between));
+  await game.click('#natpf-staff [data-staff="close"]');
   await startMatch();
   const n2 = await play(4, 60000);
   check('partita 2 (mira alta): qualche colpo del telefono', n2 >= 3, `${n2} colpi`);
@@ -143,9 +160,16 @@ try {
   const items = await game.$$eval('.natpf-diag .diag-summary li', l => l.map(x => x.textContent));
   const lato = items.filter(t => /^Lato delle palle/.test(t));
   console.log(lato.map(l => '   ' + l).join('\n'));
-  check('riassunto: partita 1 del P1 con la mira media e il verdetto', lato.some(t => /^Lato delle palle · partita 1 · P1 \(destro, mira media 20°\): \d+ colpi · sinistra \d+ % · centro \d+ % · destra \d+ % · .*→ (equilibrata|sbilanciata a (destra|sinistra) \(dalla parte del (dritto|rovescio)\)): /.test(t)), lato[0] || '');
+  const p1 = lato.find(t => /^Lato delle palle · partita 1 · P1 /.test(t)) || '';
+  const m1 = p1.match(/^Lato delle palle · partita 1 · P1 \(destro, mira media 20°\): (\d+) colpi · metà sinistra (\d+) % · metà destra (\d+) % \(oltre 1 m a sinistra \d+ % · al centro \d+ % · oltre 1 m a destra \d+ %\) · palle angolate \(oltre 2,5 m\) \d+ % · \|mediana x\| per 20 colpi [\d,/ ]+ m · \|piatto mediano\| \d,\d\d → (equilibrata: nessuna metà del campo arriva al 70 %|sbilanciata a (destra|sinistra) \(dalla parte del (dritto|rovescio)\): (\d+) % dei colpi nella metà (destra|sinistra))/);
+  check('riassunto: partita 1 del P1 con la mira media, metà del campo, oltre 1 m e centro a parte, palle angolate, piatto mediano e verdetto', !!m1, p1);
+  // i numeri principali sono quelli del verdetto: metà che sommano a 100 (± arrotondamento, palle sulla riga di metà) e,
+  // se sbilanciata, la stessa percentuale nella metà detta
+  const halves = m1 ? { L: +m1[2], R: +m1[3] } : null;
+  const coherent = m1 && halves.L + halves.R >= 98 && halves.L + halves.R <= 101 && (m1[4].startsWith('equilibrata') ? Math.max(halves.L, halves.R) < 70 : +m1[7] === (m1[8] === 'destra' ? halves.R : halves.L) && +m1[7] >= 70);
+  check('riassunto: il verdetto non contraddice le metà del campo', !!coherent, JSON.stringify({ halves, verdetto: m1?.[4] }));
   check('riassunto: partita 2 con la mira alta (pochi colpi: non si giudica)', lato.some(t => /partita 2 · P1 \(destro, mira alta 17°\): \d+ colpi .*troppo pochi colpi per giudicare/.test(t)));
-  check('riassunto: il totale per sensibilità', lato.some(t => /^Lato delle palle, in tutto: \d partite sbilanciate su 1 giudicate \(per giocatore\) · mira media \(20°\): \d su 1$/.test(t)), lato.at(-1) || '');
+  check('riassunto: il totale per sensibilità con le palle angolate', lato.some(t => /^Lato delle palle, in tutto: \d sbilanciat[ae] su 1 partita giudicata \(per giocatore\).* · mira media \(20°\): \d sbilanciat[ae] su 1(, riferimento storto in 1)?, palle angolate \d+ % in media \(\d partit[ae]/.test(t) || /^Lato delle palle, in tutto: .* · mira media \(20°\): \d sbilanciat[ae] su 1, riferimento storto in 1$/.test(t)), lato.at(-1) || '');
   await game.screenshot({ path: path.join(SP, 'mira-riassunto.png') });
   // 5. Scarica il pacchetto (pulsante vero)
   // il riassunto è lungo: il pannello scorre (come con la rotella), poi il clic vero sul pulsante
@@ -168,11 +192,11 @@ try {
   // 6. il comando per lo staff sul pacchetto scaricato
   const out = execFileSync(process.execPath, [path.join(GAME, 'scripts/audit/lato-palle.mjs'), file], { encoding: 'utf8', cwd: GAME });
   console.log(out.split('\n').map(l => '   | ' + l).join('\n'));
-  check('lato-palle.mjs: le due partite con la loro sensibilità e il totale', /partita 1 · P1 \(destro, mira media 20°\)/.test(out) && /partita 2 · P1 \(destro, mira alta 17°\)/.test(out) && /== In tutto \(1 registrazione, 1 pacchetto\): \d partite sbilanciate su 1 giudicate/.test(out) && /mira media \(20°\): \d su 1/.test(out), out.slice(-300));
+  check('lato-palle.mjs: le due partite con la loro sensibilità e il totale', /partita 1 · P1 \(destro, mira media 20°\): \d+ colpi · metà sinistra/.test(out) && /partita 2 · P1 \(destro, mira alta 17°\)/.test(out) && /== In tutto \(1 registrazione, 1 pacchetto\): \d sbilanciat[ae] su 1 partita giudicata/.test(out) && /mira media \(20°\): \d sbilanciat[ae] su 1 = \d+ %/.test(out), out.slice(-400));
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));
   // la mira torna quella di base per le prove dopo (stesso profilo del browser solo in questa prova, ma per ordine)
   await game.evaluate(() => __natpfTennis.natpfUi.diag.close());
-  await openOptions(); await game.click('[data-natpf-aim="alta"]');
+  await openStaff(); await setAim('Alta · 17°');
 } finally {
   await B.close(); stop();
 }

@@ -32,7 +32,6 @@ import { hostLobbyStatus, roomCode, joinUrl } from './natpf_versus.js';
 import { p2pRequested } from './natpf_p2p.js';
 import { screenSummary } from './natpf_screen.js';
 import { waitingText } from './natpf_ready.js';
-import { readAimLevel, writeAimLevel, aimLevelLabel } from './natpf_aim_level.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -115,8 +114,6 @@ export class NatpfLobby {
       const t = e.target.closest('[data-mode]'); if (t){ e.stopPropagation(); this.setMode(t.dataset.mode); setTimeout(() => this.go(this.mode === 'split' ? 'connect' : 'controller'), 160); return; }
       const o = e.target.closest('[data-option]'); if (o){ e.stopPropagation(); this.option(o.dataset.option); return; }
       const sc = e.target.closest('[data-natpf-screen]'); if (sc){ e.stopPropagation(); this.ui.screen?.set(sc.dataset.natpfScreen); this.paint(); return; }
-      // sensibilità della mira del telefono (Opzioni, per lo staff; B16): vale dal colpo successivo
-      const am = e.target.closest('[data-natpf-aim]'); if (am){ e.stopPropagation(); const v = writeAimLevel(am.dataset.natpfAim); this.ui.toast?.(`Mira del telefono: ${aimLevelLabel(v)}`); this.paint(); return; }
       // schermo intero all'avvio (Opzioni → Schermo): «Schermo intero» (al primo tasto) o «Finestra»
       const fp = e.target.closest('[data-natpf-fs]'); if (fp){ e.stopPropagation(); if (this.ui.screen?.fullscreen) this.ui.screen.fullscreen.pref = fp.dataset.natpfFs; this.paint(); return; }
       const f = e.target.closest('[data-natpf-format]'); if (f){ e.stopPropagation(); this.setFormat(f.dataset.natpfFormat); return; }
@@ -342,8 +339,6 @@ export class NatpfLobby {
     set('music', audio ? !audio.muted : true);
     set('voice', audio?.voice ? !!audio.voice.enabled : true);
     // schermo: con un'area dall'indirizzo (?area=) nessuna scelta è accesa (vale l'indirizzo)
-    const aim = readAimLevel();
-    for (const b of this.el.querySelectorAll('[data-natpf-aim]')){ const on = b.dataset.natpfAim === aim; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
     const scr = this.ui.screen, cur = scr?.area ? null : scr?.preset;
     for (const b of this.el.querySelectorAll('[data-natpf-screen]')){ const on = b.dataset.natpfScreen === cur; b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); }
     // calibrazione salvata (bordi tolti o formato 16:9, 16:10, 4:3): riassunto sotto la riga

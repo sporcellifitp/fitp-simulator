@@ -172,21 +172,45 @@ function phoneTiming(events){
 // campo cambia segno). Il punto di caduta è quello calcolato dal colpo (la direzione scelta), non il rimbalzo vero: lo
 // scarto tra i due è in racchetta.cadutaScartoM. Si contano tutti i colpi dello scambio, anche quelli finiti in rete o
 // fuori; non i servizi, l'allenamento (riscaldamento compreso), i minigiochi e i colpi della webcam (che non ha la mira
-// del piatto). Misure: quota a sinistra · al centro (entro SIDE.center m dal centro) · a destra; |mediana x| per blocchi
-// di SIDE.block colpi (come il banco del B15, scripts/audit/colpi.mjs «partite»; l'ultimo blocco solo se ha almeno
-// SIDE.minBlock colpi); verdetto con la soglia SIDE.share sulle metà del campo (x > 0 contro x < 0: «palle da una
-// parte», come nel banco del B15, docs/b15/audit-colpi.md §8) e almeno SIDE.min colpi. Il mancino è a specchio: la
-// parte è quella vista da chi gioca, e il testo dice anche se è la parte del dritto o del rovescio (come per il destro).
-export const SIDE = Object.freeze({ center: 1, share: .7, min: 20, block: 20, minBlock: 10, alert: .2 });
+// del piatto). Tre misure con due usi diversi (docs/GUIDA_MISURA_MIRA.md §6; numeri del banco scripts/audit/colpi.mjs
+// --mode=lato, persona vera, partite da 40 colpi):
+// - verdetto sulle metà del campo (x > 0 contro x < 0, «palle da una parte» come nel banco del B15,
+//   docs/b15/audit-colpi.md §8): «sbilanciata» con almeno SIDE.share dei colpi in una metà, su almeno SIDE.min colpi; le
+//   quote oltre SIDE.center m a sinistra · al centro · oltre SIDE.center m a destra sono un dettaglio a parte. Con la
+//   |mediana x| per blocchi di SIDE.block colpi (come colpi.mjs «partite»; l'ultimo blocco solo se ha almeno
+//   SIDE.minBlock colpi) e il |piatto mediano| serve a SCOPRIRE UN RIFERIMENTO DELLA MIRA SBAGLIATO (calibrazione): con la
+//   calibrazione giusta 1–1,5 % di partite sbilanciate (4–6 su 400), con il seme sbagliato di ±15° 41 / 38 / 32 % (alta /
+//   media / bassa). Non serve a confrontare le sensibilità: con lo stesso errore la quota di partite sbilanciate cambia di
+//   pochi punti tra una sensibilità e l'altra, servirebbero migliaia di partite;
+// - |piatto mediano| (racchetta.piatto: la mira del piatto letta da strokeIntent, −1…+1; non i colpi ricostruiti dei
+//   telefoni senza la forma del colpo, racchetta.ricavato): oltre SIDE.storto su almeno SIDE.min colpi la riga dice
+//   «riferimento storto: ricalibrare». Soglia dal banco: con la calibrazione giusta 0 partite oltre 0,20 su 400 per
+//   ognuna delle tre sensibilità (|piatto mediano| massimo 0,18 / 0,15 / 0,13; con le partite più corte 0–1 % a 30 colpi,
+//   1,5–3 % a 20); con il seme sbagliato di ±15° oltre 0,20 il 76 / 69 / 57 % delle partite (alta / media / bassa: con la
+//   mira meno sensibile lo stesso errore pesa meno sul piatto e sulle palle);
+// - palle angolate (oltre SIDE.wide m dal centro): il GUADAGNO della mira più sensibile, per CONFRONTARE LE SENSIBILITÀ.
+//   Banco con la calibrazione giusta: 37 / 34 / 31 % (alta / media / bassa), ±7–8 punti da una partita all'altra: per
+//   distinguere alta da media (3 punti) servono circa 80 partite per sensibilità, alta da bassa (6 punti) circa 20–25
+//   (gainCompare dice se la differenza misurata si distingue dal caso).
+// Il mancino è a specchio: la parte è quella vista da chi gioca, e il testo dice anche se è la parte del dritto o del
+// rovescio (come per il destro).
+export const SIDE = Object.freeze({ center: 1, share: .7, min: 20, block: 20, minBlock: 10, alert: .2, wide: 2.5, storto: .2, minGain: 5 });
 const fmtN = (v, d = 2) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '–');
+const r3 = v => (Number.isFinite(v) ? Math.round(v*1000)/1000 : null);
 const median = a => { const v = a.filter(Number.isFinite).sort((x, y) => x - y), m = v.length >> 1; return v.length ? (v.length % 2 ? v[m] : (v[m - 1] + v[m])/2) : null; };
 const modeOf = a => { const c = tally(a, x => x); const top = Object.entries(c).sort((p, q) => q[1] - p[1])[0]; return top ? top[0] : null; };
 const AIM_NAMES = { 17: 'alta', 20: 'media', 23: 'bassa' };
 export const aimName = deg => (Number.isFinite(+deg) && AIM_NAMES[+deg] ? AIM_NAMES[+deg] : null);
+// nome di una sensibilità del riepilogo: «mira alta (17°)», «sensibilità non applicata» (telefono senza la forma del
+// colpo: la pagina del telefono è vecchia e i suoi colpi non usano la mira del piatto), «mira non registrata» (pacchetto di
+// prima del B16)
+export const sensLabel = k => (aimName(k) ? `mira ${aimName(k)} (${k}°)` : k === 'non registrata' ? 'mira non registrata' : k === 'non applicata' ? 'sensibilità non applicata' : `mira ${k}°`);
 const isPhoneShot = e => !e.fonte || /phone/.test(String(e.fonte));
-export function sideJudge(xs, { hand = null } = {}){
+// xs: x dei colpi nel riferimento di chi gioca; piatti: racchetta.piatto dei colpi letti con la forma
+export function sideJudge(xs, { hand = null, piatti = null } = {}){
   const v = xs.filter(Number.isFinite), n = v.length, pc = k => (n ? Math.round(100*k/n) : null);
   const left = count(v, x => x < -SIDE.center), right = count(v, x => x > SIDE.center), halfL = count(v, x => x < 0), halfR = count(v, x => x > 0);
+  const wide = count(v, x => Math.abs(x) > SIDE.wide);
   const blocks = [];
   for (let i = 0; i < n; i += SIDE.block){
     const b = v.slice(i, i + SIDE.block);
@@ -198,10 +222,13 @@ export function sideJudge(xs, { hand = null } = {}){
   const fh = hand === 'left' ? 'sinistra' : hand === 'right' ? 'destra' : null;
   const colpo = fh ? (side === fh ? 'dritto' : 'rovescio') : null;
   const testo = verdetto === 'pochi colpi' ? `troppo pochi colpi per giudicare (${n}, ne servono ${SIDE.min})`
-    : verdetto === 'sbilanciata' ? `sbilanciata a ${side}${colpo ? ` (dalla parte del ${colpo})` : ''}: ${pc(Math.max(halfL, halfR))} % dei colpi da quella parte`
-    : `equilibrata: ${pc(halfL)} % dei colpi nella metà sinistra del campo, ${pc(halfR)} % nella destra`;
-  return { colpi: n, sinistraPercento: pc(left), centroPercento: pc(n - left - right), destraPercento: pc(right), metaSinistraPercento: pc(halfL), metaDestraPercento: pc(halfR),
-    medianaX: r2(median(v)), blocchi: blocks, verdetto, lato: verdetto === 'sbilanciata' ? side : null, latoColpo: verdetto === 'sbilanciata' ? colpo : null, quotaPercento: n ? pc(Math.max(halfL, halfR)) : null, testo };
+    : verdetto === 'sbilanciata' ? `sbilanciata a ${side}${colpo ? ` (dalla parte del ${colpo})` : ''}: ${pc(Math.max(halfL, halfR))} % dei colpi nella metà ${side}`
+    : `equilibrata: nessuna metà del campo arriva al ${100*SIDE.share} %`;
+  // piatto mediano: riferimento della mira storto se resta oltre SIDE.storto (su almeno SIDE.min colpi letti con la forma)
+  const pv = (piatti || []).filter(Number.isFinite), pm = pv.length ? median(pv) : null, storto = pv.length >= SIDE.min && Math.abs(pm) > SIDE.storto;
+  return { colpi: n, metaSinistraPercento: pc(halfL), metaDestraPercento: pc(halfR), sinistraPercento: pc(left), centroPercento: pc(n - left - right), destraPercento: pc(right),
+    angolate: wide, angolatePercento: pc(wide), medianaX: r2(median(v)), blocchi: blocks, piattoMediano: r3(pm), piattoColpi: pv.length, storto,
+    verdetto, lato: verdetto === 'sbilanciata' ? side : null, latoColpo: verdetto === 'sbilanciata' ? colpo : null, quotaPercento: n ? pc(Math.max(halfL, halfR)) : null, testo };
 }
 export function sideBalance(events, { meta = {} } = {}){
   const partite = [];
@@ -213,44 +240,91 @@ export function sideBalance(events, { meta = {} } = {}){
     if (!cur) open(null, e.t);         // partita già iniziata quando è partita la registrazione, o pacchetto di prima del B16
     cur.shots[e.chi].push(e);
   }
-  const out = [], tot = { giudicate: 0, sbilanciate: 0 }, perMira = {};
+  const out = [];
   for (const m of partite){
     const giocatori = {};
     for (const [chi, label] of [['player', 'P1'], ['p2', 'P2']]){
       const L = m.shots[chi];
       if (!L.length) continue;
       const hand = modeOf(L.map(e => e.mano).filter(Boolean)) || (chi === 'p2' ? m.p?.mano2 : m.p?.mano ?? meta?.gioco?.mano) || null;
-      const deg = +(modeOf(L.map(e => e.miraPiena).filter(Number.isFinite)) ?? m.p?.miraPiena ?? meta?.gioco?.miraPiena ?? NaN);
-      const j = sideJudge(L.map(e => (chi === 'p2' ? -e.x : e.x)), { hand });
-      giocatori[label] = { mano: hand, miraPiena: Number.isFinite(deg) ? deg : null, mira: aimName(deg), ...j };
-      if (j.verdetto !== 'pochi colpi'){
-        const k = Number.isFinite(deg) ? String(deg) : 'non registrata', g = (perMira[k] ||= { giudicate: 0, sbilanciate: 0 });
-        tot.giudicate++; g.giudicate++; if (j.verdetto === 'sbilanciata'){ tot.sbilanciate++; g.sbilanciate++; }
-      }
+      // sensibilità con cui il telefono ha letto i colpi (racchetta.miraPiena). Se nessun colpo l'ha ma la registrazione la
+      // conosce (evento «partita» o sessione, dal B16), il telefono non ha la forma del colpo (pagina vecchia) e la
+      // sensibilità non si applica ai suoi colpi: non si prende quella della partita. Senza niente: pacchetto di prima del B16
+      const shotDeg = modeOf(L.map(e => e.miraPiena).filter(Number.isFinite)), deg = shotDeg == null ? NaN : +shotDeg;
+      const known = Number.isFinite(m.p?.miraPiena) || Number.isFinite(meta?.gioco?.miraPiena);
+      const j = sideJudge(L.map(e => (chi === 'p2' ? -e.x : e.x)), { hand, piatti: L.filter(e => !e.ricavato).map(e => e.piatto) });
+      giocatori[label] = { mano: hand, miraPiena: Number.isFinite(deg) ? deg : null, mira: aimName(deg), sensibilita: Number.isFinite(deg) ? String(deg) : known ? 'non applicata' : 'non registrata', ...j };
     }
     if (Object.keys(giocatori).length) out.push({ n: m.n, inizioS: m.inizioS, modo: m.modo, '1v1': m['1v1'], ...(m.senzaInizio ? { senzaInizio: true } : {}), giocatori });
   }
-  return { nota: `x del punto di caduta dei colpi del telefono nel riferimento di chi gioca (+ alla sua destra); centro entro ${SIDE.center} m; sbilanciata con almeno il ${100*SIDE.share} % dei colpi in una metà del campo su almeno ${SIDE.min} colpi`,
-    soglia: { quotaPercento: 100*SIDE.share, colpiMinimi: SIDE.min, centroM: SIDE.center, bloccoColpi: SIDE.block },
-    partite: out, riepilogo: { ...tot, sbilanciatePercento: tot.giudicate ? Math.round(100*tot.sbilanciate/tot.giudicate) : null, perMiraPiena: perMira } };
+  return { nota: `x del punto di caduta dei colpi del telefono nel riferimento di chi gioca (+ alla sua destra); sbilanciata con almeno il ${100*SIDE.share} % dei colpi in una metà del campo su almeno ${SIDE.min} colpi; centro entro ${SIDE.center} m; palle angolate oltre ${SIDE.wide} m dal centro; riferimento storto con il |piatto mediano| oltre ${SIDE.storto}`,
+    soglia: { quotaPercento: 100*SIDE.share, colpiMinimi: SIDE.min, centroM: SIDE.center, bloccoColpi: SIDE.block, angolateM: SIDE.wide, piattoStorto: SIDE.storto },
+    partite: out, riepilogo: sideTotals(out) };
 }
-// righe in parole (pannello della diagnostica, rapporto, LEGGIMI, scripts/audit/lato-palle.mjs)
+// Totale delle partite giudicate (almeno SIDE.min colpi), anche per sensibilità: sbilanciate, con il riferimento storto,
+// palle angolate (media e deviazione per partita; senza le partite con il riferimento storto, dove le palle vanno più di
+// lato da una parte e gonfiano il guadagno). Anche per più pacchetti insieme (scripts/audit/lato-palle.mjs)
+export function sideTotals(partite = []){
+  const tot = { giudicate: 0, sbilanciate: 0, storti: 0 }, per = {}, gain = {};
+  for (const m of partite) for (const g of Object.values(m.giocatori || {})){
+    if (g.verdetto === 'pochi colpi') continue;
+    const k = g.sensibilita || (Number.isFinite(g.miraPiena) ? String(g.miraPiena) : 'non registrata'), t = (per[k] ||= { giudicate: 0, sbilanciate: 0, storti: 0 });
+    tot.giudicate++; t.giudicate++;
+    if (g.verdetto === 'sbilanciata'){ tot.sbilanciate++; t.sbilanciate++; }
+    if (g.storto){ tot.storti++; t.storti++; }
+    else if (g.colpi && Number.isFinite(g.angolate)) (gain[k] ||= []).push(g);
+  }
+  for (const [k, L] of Object.entries(gain)){
+    const ps = L.map(g => 100*g.angolate/g.colpi), m = ps.reduce((s, x) => s + x, 0)/ps.length;
+    const sd = ps.length > 1 ? Math.sqrt(ps.reduce((s, x) => s + (x - m)**2, 0)/(ps.length - 1)) : null;
+    const colpi = L.reduce((s, g) => s + g.colpi, 0), ang = L.reduce((s, g) => s + g.angolate, 0);
+    per[k].angolate = { partite: L.length, mediaPercento: r1(m), devPunti: r1(sd), colpi, quotaColpiPercento: r1(100*ang/colpi) };
+  }
+  return { ...tot, sbilanciatePercento: tot.giudicate ? Math.round(100*tot.sbilanciate/tot.giudicate) : null, perMiraPiena: per };
+}
+// Confronto del guadagno tra due sensibilità (palle angolate, media per partita): differenza e due errori standard (errore
+// di ogni media: la deviazione tra le partite diviso √partite, almeno quello del conteggio dei colpi √(p(1−p)/colpi)).
+// «Si distingue dal caso» solo oltre due errori standard e con almeno SIDE.minGain partite per parte.
+export function gainCompare(per = {}){
+  const ks = Object.keys(per).filter(k => aimName(k) && per[k].angolate?.partite >= SIDE.minGain).sort((a, b) => a - b), out = [];
+  const se = g => { const p = g.quotaColpiPercento/100; return Math.max(Number.isFinite(g.devPunti) ? g.devPunti/Math.sqrt(g.partite) : 0, 100*Math.sqrt(p*(1 - p)/g.colpi)); };
+  for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++){
+    const A = per[ks[i]].angolate, B = per[ks[j]].angolate, diff = A.mediaPercento - B.mediaPercento, due = 2*Math.sqrt(se(A)**2 + se(B)**2);
+    out.push({ a: ks[i], b: ks[j], differenzaPunti: r1(diff), dueErroriPunti: r1(due), chiara: Math.abs(diff) > due });
+  }
+  return out;
+}
+export function gainLines(per = {}){
+  return gainCompare(per).map(c => {
+    const A = per[c.a].angolate, B = per[c.b].angolate, more = c.differenzaPunti >= 0 ? c.a : c.b;
+    return `confronto del guadagno: ${sensLabel(c.a)} ${fmtN(A.mediaPercento, 0)} % di palle angolate (${A.partite} partite) contro ${sensLabel(c.b)} ${fmtN(B.mediaPercento, 0)} % (${B.partite} partite): ${fmtN(Math.abs(c.differenzaPunti), 1)} punti di differenza, ± ${fmtN(c.dueErroriPunti, 1)} per il caso → ${c.chiara ? `si distingue dal caso: la mira ${aimName(more)} manda più palle angolate` : 'non si distingue dal caso: servono più partite (docs/GUIDA_MISURA_MIRA.md §6)'}`;
+  });
+}
+const nOf = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+// righe del totale: partite sbilanciate e con il riferimento storto, palle angolate per sensibilità, confronti del guadagno
+export function sideTotalLines(R, { prefix = 'Lato delle palle' } = {}){
+  if (!R?.giudicate) return [];
+  const per = Object.entries(R.perMiraPiena || {}).map(([k, g]) => `${sensLabel(k)}: ${nOf(g.sbilanciate, 'sbilanciata', 'sbilanciate')} su ${g.giudicate}${g.storti ? `, riferimento storto in ${g.storti}` : ''}${g.angolate ? `, palle angolate ${fmtN(g.angolate.mediaPercento, 0)} % in media (${nOf(g.angolate.partite, 'partita', 'partite')}${g.storti ? ' senza il riferimento storto' : ''})` : ''}`).join(' · ');
+  const L = [`${prefix ? `${prefix}, in tutto` : 'In tutto'}: ${nOf(R.sbilanciate, 'sbilanciata', 'sbilanciate')} su ${nOf(R.giudicate, 'partita giudicata', 'partite giudicate')} (per giocatore)${R.storti ? `, ${R.storti} con il riferimento storto (ricalibrare)` : ''}${per ? ` · ${per}` : ''}${R.giudicate >= 5 && R.sbilanciate/R.giudicate > SIDE.alert ? ' · più di una su cinque sbilanciate: controlla la calibrazione (docs/GUIDA_MISURA_MIRA.md §6)' : ''}`];
+  for (const l of gainLines(R.perMiraPiena)) L.push(`${prefix ? `${prefix}, ` : ''}${l}`);
+  return L;
+}
+// righe in parole (pannello della diagnostica, rapporto, LEGGIMI, scripts/audit/lato-palle.mjs): una per giocatore e
+// partita, poi il totale. Numeri principali le metà del campo (il verdetto); a parte, tra parentesi, le zone oltre
+// SIDE.center m e il centro
 export function sideLines(lp, { prefix = 'Lato delle palle' } = {}){
   if (!lp?.partite?.length) return [];
   const L = [], hands = { right: 'destro', left: 'mancino' };
   for (const m of lp.partite){
     const what = m.senzaInizio ? 'colpi prima dell\'inizio di una partita registrato' : `partita ${m.n ?? '?'}`;
     for (const [who, g] of Object.entries(m.giocatori)){
-      const mira = g.miraPiena ? `mira ${g.mira || ''}${g.mira ? ' ' : ''}${g.miraPiena}°` : 'mira non registrata';
+      const mira = g.sensibilita === 'non applicata' ? 'sensibilità non applicata' : g.miraPiena ? `mira ${g.mira || ''}${g.mira ? ' ' : ''}${g.miraPiena}°` : 'mira non registrata';
       const bl = g.blocchi.length ? ` · |mediana x| per ${SIDE.block} colpi ${g.blocchi.map(b => fmtN(b.mediana)).join(' / ')} m` : '';
-      L.push(`${prefix}${prefix ? ' · ' : ''}${what} · ${who} (${hands[g.mano] || 'mano ?'}, ${mira}): ${g.colpi} colpi · sinistra ${g.sinistraPercento} % · centro ${g.centroPercento} % · destra ${g.destraPercento} %${bl} → ${g.testo}`);
+      const pm = Number.isFinite(g.piattoMediano) ? ` · |piatto mediano| ${fmtN(Math.abs(g.piattoMediano))}` : '';
+      L.push(`${prefix}${prefix ? ' · ' : ''}${what} · ${who} (${hands[g.mano] || 'mano ?'}, ${mira}): ${g.colpi} colpi · metà sinistra ${g.metaSinistraPercento} % · metà destra ${g.metaDestraPercento} % (oltre ${SIDE.center} m a sinistra ${g.sinistraPercento} % · al centro ${g.centroPercento} % · oltre ${SIDE.center} m a destra ${g.destraPercento} %) · palle angolate (oltre ${fmtN(SIDE.wide, 1)} m) ${g.angolatePercento ?? '–'} %${bl}${pm} → ${g.testo}${g.storto ? ` · riferimento storto: ricalibrare (|piatto mediano| oltre ${fmtN(SIDE.storto)})` : ''}`);
     }
   }
-  const R = lp.riepilogo;
-  if (R?.giudicate){
-    const per = Object.entries(R.perMiraPiena || {}).map(([k, g]) => `${aimName(k) ? `mira ${aimName(k)} (${k}°)` : k === 'non registrata' ? 'mira non registrata' : `mira ${k}°`}: ${g.sbilanciate} su ${g.giudicate}`).join(' · ');
-    L.push(`${prefix ? `${prefix}, in tutto` : 'In tutto'}: ${R.sbilanciate} partite sbilanciate su ${R.giudicate} giudicate (per giocatore)${per ? ` · ${per}` : ''}${R.giudicate >= 5 && R.sbilanciate/R.giudicate > SIDE.alert ? ' · più di una su cinque: controlla la calibrazione, poi prova una mira meno sensibile (docs/GUIDA_MISURA_MIRA.md §6)' : ''}`);
-  }
+  L.push(...sideTotalLines(lp.riepilogo, { prefix }));
   return L;
 }
 

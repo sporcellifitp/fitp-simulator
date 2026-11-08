@@ -268,25 +268,34 @@ export function partite({ runs = PARTITE.runs, n = PARTITE.n, blocks = PARTITE.b
 }
 // Lato delle palle per partita con le tre sensibilità della mira (B16 · decisione (d) dell'utente: «ok ma come lo
 // misuro?»): la persona vera gioca `runs` partite da `n` colpi per caso (seme della calibrazione giusto o sbagliato, seme
-// diverso nei due versi, corpo girato) e ogni partita si giudica come nella diagnostica (diag_metrics.sideJudge: almeno il
-// 70 % dei colpi in una metà del campo = sbilanciata). È il riferimento del banco per leggere le partite vere: quante
-// partite sbilanciate aspettarsi con la mira alta (17°), media (20°) e bassa (23°)
+// diverso nei due versi, corpo girato) e ogni partita si giudica come nella diagnostica (diag_metrics.sideJudge): verdetto
+// (almeno il 70 % dei colpi in una metà del campo = sbilanciata), |piatto mediano| (oltre 0,20 = riferimento storto),
+// palle angolate (oltre 2,5 m dal centro, il guadagno della mira più sensibile). È il riferimento del banco per leggere le
+// partite vere (docs/GUIDA_MISURA_MIRA.md §6): quante partite sbilanciate o con il riferimento storto aspettarsi con la
+// mira alta (17°), media (20°) e bassa (23°), quante palle angolate, e quante partite servono per confrontarle
 export const LATO = Object.freeze({ runs: 24, n: 40, aims: Object.freeze([17, 20, 23]),
   cases: Object.freeze({ 'seme giusto': {}, 'seme ±15°': [{ seedErr: 15 }, { seedErr: -15 }], 'seme ±25°': [{ seedErr: 25 }, { seedErr: -25 }], 'seme ±30°': [{ seedErr: 30 }, { seedErr: -30 }],
     'seme diverso nei due versi': [{ seedErr: 30, seedErrB: 0 }, { seedErr: 0, seedErrB: 30 }, { seedErr: 25, seedErrB: 10 }, { seedErr: 20, seedErrB: -20 }],
     'corpo girato di 30° al 20° colpo': { turnAt: 20, turn: 30 } }) });
 export function lato({ aimFull = 17, runs = LATO.runs, n = LATO.n, hand = 'right', cases = LATO.cases, judge = sideJudge } = {}){
-  const out = {};
+  const out = {}, sd = a => { const m = mean(a); return a.length > 1 ? Math.sqrt(a.reduce((s, x) => s + (x - m)**2, 0)/(a.length - 1)) : 0; };
   for (const [name, c] of Object.entries(cases)){
-    const list = Array.isArray(c) ? c : [c], v = { partite: 0, sbilanciate: 0, quote: [], mabs: [] };
+    const list = Array.isArray(c) ? c : [c], v = { partite: 0, sbilanciate: 0, storti: 0, quote: [], mabs: [], ang: [], piatto: [] };
     for (const o of list) for (let r = 0; r < runs; r++){
-      const g = reale({ ...o, hand, N: n, seed: PARTITE.seed + r, aimFull }), xs = g.shots.filter(s => !s.lost).map(s => s.x), j = judge(xs, { hand });
-      v.partite++; if (j.verdetto === 'sbilanciata') v.sbilanciate++; v.quote.push(j.quotaPercento); v.mabs.push(Math.abs(j.medianaX));
+      const g = reale({ ...o, hand, N: n, seed: PARTITE.seed + r, aimFull }), ok = g.shots.filter(s => !s.lost);
+      const j = judge(ok.map(s => s.x), { hand, piatti: ok.map(s => s.face) });
+      v.partite++; if (j.verdetto === 'sbilanciata') v.sbilanciate++; if (j.storto) v.storti++;
+      v.quote.push(j.quotaPercento); v.mabs.push(Math.abs(j.medianaX)); v.ang.push(100*j.angolate/j.colpi); v.piatto.push(Math.abs(j.piattoMediano ?? 0));
     }
-    out[name] = { partite: v.partite, sbilanciate: v.sbilanciate, percento: +(100*v.sbilanciate/v.partite).toFixed(1), quotaMedia: +mean(v.quote).toFixed(1), mabs: +mean(v.mabs).toFixed(2) };
+    out[name] = { partite: v.partite, sbilanciate: v.sbilanciate, percento: +(100*v.sbilanciate/v.partite).toFixed(1), quotaMedia: +mean(v.quote).toFixed(1), mabs: +mean(v.mabs).toFixed(2),
+      storti: v.storti, stortiPercento: +(100*v.storti/v.partite).toFixed(1), piatto: +mean(v.piatto).toFixed(3), piattoMax: +Math.max(...v.piatto).toFixed(3),
+      angolate: +mean(v.ang).toFixed(1), angolateDev: +sd(v.ang).toFixed(1) };
   }
   return out;
 }
+// partite per sensibilità per vedere una differenza di palle angolate tra due sensibilità (due medie indipendenti, 95 %
+// a due code, potenza 80 %): 2·(1,96 + 0,84)²·dev²/differenza²
+export const partiteNecessarie = (diff, dev) => Math.ceil(2*(1.96 + .8416)**2*dev*dev/(diff*diff));
 
 // i casi per partita: seme della calibrazione sbagliato di 0…±30° (nei due versi), seme sbagliato in un verso solo o
 // diverso nei due (dritto/rovescio), riferimento girato di 26–40° dopo 20 colpi (errore del centro 30 e 60 colpi dopo il
@@ -385,12 +394,20 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href){
     if (mode === 'tutto' || mode === 'partite'){ res[hand].partite = partiteAll({ hand }); printPartite(res[hand].partite, hand); }
     if (mode === 'tutto' || mode === 'banco'){ res[hand].banco = audit({ hand }); print(res[hand].banco); }
     if (mode === 'lato'){
-      const runs = QUICK ? 8 : LATO.runs;
+      const runs = +(arg('runs') || 0) || (QUICK ? 8 : LATO.runs);
       res[hand].lato = Object.fromEntries(LATO.aims.map(a => [a, lato({ aimFull: a, hand, runs })]));
-      console.log(`\n######## lato delle palle per partita · mano ${hand === 'left' ? 'sinistra (mancino)' : 'destra'} (persona vera, ${runs} partite da ${LATO.n} colpi per caso; sbilanciata = almeno 70 % dei colpi in una metà)`);
-      console.log('  celle: partite sbilanciate / partite = % (quota media della metà più frequente, |mediana x| media)');
+      const L = res[hand].lato;
+      console.log(`\n######## lato delle palle per partita · mano ${hand === 'left' ? 'sinistra (mancino)' : 'destra'} (persona vera, ${runs} partite da ${LATO.n} colpi per caso)`);
+      console.log('  verdetto: partite sbilanciate (almeno 70 % dei colpi in una metà) / partite = % (quota media della metà più frequente, |mediana x| media)');
       console.log('  caso'.padEnd(36) + LATO.aims.map(a => `mira ${a}°`.padEnd(34)).join(''));
-      for (const name of Object.keys(LATO.cases)) console.log(`  ${name}`.padEnd(36) + LATO.aims.map(a => { const v = res[hand].lato[a][name]; return `${v.sbilanciate}/${v.partite} = ${fmt(v.percento)} % (${fmt(v.quotaMedia)} %, ${fmt(v.mabs)} m)`.padEnd(34); }).join(''));
+      for (const name of Object.keys(LATO.cases)) console.log(`  ${name}`.padEnd(36) + LATO.aims.map(a => { const v = L[a][name]; return `${v.sbilanciate}/${v.partite} = ${fmt(v.percento)} % (${fmt(v.quotaMedia)} %, ${fmt(v.mabs)} m)`.padEnd(34); }).join(''));
+      console.log('  riferimento storto: partite con il |piatto mediano| oltre 0,20 / partite (|piatto mediano| medio, massimo) · palle angolate oltre 2,5 m (media ± dev. per partita)');
+      for (const name of Object.keys(LATO.cases)) console.log(`  ${name}`.padEnd(36) + LATO.aims.map(a => { const v = L[a][name]; return `${v.storti}/${v.partite} (${fmt(v.piatto)}, ${fmt(v.piattoMax)}) · ${fmt(v.angolate)} ± ${fmt(v.angolateDev)} %`.padEnd(38); }).join(''));
+      const g = a => L[a]['seme giusto'];
+      for (const [a, b] of [[17, 20], [17, 23], [20, 23]]){
+        const diff = g(a).angolate - g(b).angolate, dev = Math.sqrt((g(a).angolateDev**2 + g(b).angolateDev**2)/2);
+        console.log(`  guadagno ${a}° contro ${b}° (seme giusto): ${fmt(diff)} punti di palle angolate, ${fmt(dev)} punti da una partita all'altra ⇒ ${diff > 0 ? partiteNecessarie(diff, dev) : '–'} partite per sensibilità (95 %, potenza 80 %)`);
+      }
     }
   }
   if (res.right?.reale && res.left?.reale){

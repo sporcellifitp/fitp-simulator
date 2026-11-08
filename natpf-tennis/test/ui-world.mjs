@@ -25,7 +25,8 @@ export class El {
   addEventListener(t, fn, cap){ (this.ls[t] ||= []).push({ fn, cap: !!(cap === true || cap?.capture) }); }
   removeEventListener(){}
   click(){ const ev = mkEvent('click', this); for (const l of [...(this.ls.click || [])].sort((a, b) => b.cap - a.cap)){ l.fn(ev); if (ev._stopImm) break; } return ev; }
-  querySelector(sel){ if (!this._q.has(sel)) this._q.set(sel, new El(sel)); return this._q.get(sel); }
+  // il figlio ha un genitore (il pannello dello stand marca il pulsante dal suo <b>: b.parentElement.classList)
+  querySelector(sel){ if (!this._q.has(sel)){ const el = new El(sel); el.parentElement = new El(); this._q.set(sel, el); } return this._q.get(sel); }
   querySelectorAll(){ return []; }
   closest(){ return null; }
   focus(){} blur(){} setAttribute(){} getAttribute(){ return null; } insertAdjacentHTML(){} appendChild(){} insertBefore(){} remove(){} scrollBy(){}
