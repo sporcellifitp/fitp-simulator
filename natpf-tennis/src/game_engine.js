@@ -37,6 +37,10 @@ import * as NS from "./natpf/natpf_skill.js";
 import * as NL from "./natpf/natpf_legend.js";
 import * as NO from "./natpf/natpf_stroke_outcome.js";
 import * as NI from "./natpf/natpf_impact.js";
+// NATPF B15 (mancini): lato di un colpo senza «side» nell'evento, preso dal verso del gesto (dirX) o dalla palla con la
+// regola del destro: per il mancino si scambia (il suo dritto è a sinistra). Con il lato nell'evento (telefono, webcam
+// e mouse del P1 passati da NatpfHand.leftySide, P2 della webcam per due) non cambia niente, né per il destro
+const natpfHandedSide = (side, e, hand) => (hand === "left" && e.side !== "forehand" && e.side !== "backhand" && (side === "forehand" || side === "backhand") ? (side === "forehand" ? "backhand" : "forehand") : side);
 import * as NPC from "./natpf/natpf_point_call.js";
 import { NatpfReplay } from "./natpf/natpf_replay.js";
 const NR = { c: null }; // NATPF moviola: posa della telecamera
@@ -1477,7 +1481,7 @@ export class NatpfTennisEngine {
     }
     if (this.phase === "RALLY") {
       this.autoPlayMode = !1;
-      const t =
+      const t = natpfHandedSide(
           e.side === "backhand" || (Number(e.dirX || 0) > 0.12 && e.side !== "forehand")
             ? "backhand"
             : e.side === "forehand" || Number(e.dirX || 0) < -0.12
@@ -1485,6 +1489,7 @@ export class NatpfTennisEngine {
               : this.ball.pos.x < this.player.pos.x - 0.05 || this.ball.targetLanding.x < -0.15
                 ? "backhand"
                 : "forehand",
+          e, e.hand || this.natpfUi?.hand?.hand),
         i = String(e.shotType || this.selectedShotType || "topspin").toLowerCase();
       // NATPF racchetta virtuale: finestra d'impatto (natpf_impact.js). Lo swing resta in attesa fino all'arrivo della
       // palla al punto d'impatto, con il suo tempo vero; uno più forte lo sostituisce; mai un impatto con la palla lontana
@@ -1568,7 +1573,7 @@ export class NatpfTennisEngine {
     }
     if (this.phase === "RALLY") {
       this.autoPlayMode = !1;
-      const t =
+      const t = natpfHandedSide(
           e.side === "backhand" || (Number(e.dirX || 0) > 0.12 && e.side !== "forehand")
             ? "backhand"
             : e.side === "forehand" || Number(e.dirX || 0) < -0.12
@@ -1576,6 +1581,7 @@ export class NatpfTennisEngine {
               : this.ball.pos.x < this.player.pos.x - 0.05 || this.ball.targetLanding.x < -0.15
                 ? "backhand"
                 : "forehand",
+          e, e.hand || this.natpfUi?.hand?.hand),
         i = String(e.shotType || this.selectedShotType || "topspin").toLowerCase();
       if (this.ball.lastHitter === "opponent") {
         const s = this.ball.pos.z - this.player.pos.z,
@@ -1697,7 +1703,7 @@ export class NatpfTennisEngine {
     }
     if (this.phase === "RALLY") {
       this.autoPlayMode = !1;
-      const t =
+      const t = natpfHandedSide(
           e.side === "backhand" || (Number(e.dirX || 0) > 0.12 && e.side !== "forehand")
             ? "backhand"
             : e.side === "forehand" || Number(e.dirX || 0) < -0.12
@@ -1705,6 +1711,7 @@ export class NatpfTennisEngine {
               : this.ball.pos.x > this.opponent.pos.x + 0.05 || this.ball.targetLanding.x > 0.15
                 ? "backhand"
                 : "forehand",
+          e, e.hand || this.natpfP2Hand),
         i = String(e.shotType || this.p2SelectedShotType || "topspin").toLowerCase();
       // NATPF racchetta virtuale: lo swing del P2 con il telefono passa dalla finestra d'impatto come quello del P1
       // (natpf_impact.queueUserSwing, attesa in pendingP2Swing). Diagnostica 142438 (C2): prima aspettava solo 0,22 s
@@ -1916,11 +1923,14 @@ export class NatpfTennisEngine {
           ? !0
           : e.side === "forehand"
             ? !1
-            : Number(e.dirX || 0) > 0.14
-              ? !0
-              : Number(e.dirX || 0) < -0.14
-                ? !1
-                : this.ball.pos.x < p.pos.x - 0.04 || this.ball.targetLanding.x < -0.12,
+            : // NATPF B15: senza lato nell'evento, dal gesto o dalla palla nel riferimento della mano di chi gioca (il
+              // mancino ha il dritto a sinistra); il compagno CPU del doppio è destro
+              (Number(e.dirX || 0) > 0.14
+                ? !0
+                : Number(e.dirX || 0) < -0.14
+                  ? !1
+                  : this.ball.pos.x < p.pos.x - 0.04 || this.ball.targetLanding.x < -0.12) !==
+              (p === this.player && (e.hand || this.natpfUi?.hand?.hand) === "left"),
       d = !t && Number.isFinite(e.natpfTau)
         ? NO.smashAt(e, this.ball.pos.y, { serveReturn: Number(this.ball.rallyStrokeCount || 0) <= 1 }) // NATPF racchetta virtuale: schiacciata dal gesto e dall'altezza della palla (in risposta al servizio solo dal gesto)
         : e.side === "overhead" ||
@@ -2271,11 +2281,13 @@ export class NatpfTennisEngine {
           ? !0
           : e.side === "forehand"
             ? !1
-            : Number(e.dirX || 0) > 0.14
-              ? !0
-              : Number(e.dirX || 0) < -0.14
-                ? !1
-                : this.ball.pos.x > l.pos.x + 0.04 || this.ball.targetLanding.x > 0.12,
+            : // NATPF B15: come per il P1, nel riferimento della mano del P2 (natpfP2Hand)
+              (Number(e.dirX || 0) > 0.14
+                ? !0
+                : Number(e.dirX || 0) < -0.14
+                  ? !1
+                  : this.ball.pos.x > l.pos.x + 0.04 || this.ball.targetLanding.x > 0.12) !==
+              (l === this.opponent && (e.hand || this.natpfP2Hand) === "left"),
       m = this.p2SelectedShotType || "TOPSPIN",
       // NATPF: il P2 con il telefono in verticale schiaccia con la regola del P1 (gesto e altezza della palla). Prima ogni
       // palla sopra 1,78 m era una schiacciata: diagnostica del 29/10 (stesso schermo), risposte al servizio a fondo campo

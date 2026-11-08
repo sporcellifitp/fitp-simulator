@@ -515,3 +515,26 @@ test('scelta della mano: «Destra» e «Sinistra» in ogni pannello (lobby, P2, 
   assert.ok(labels.filter(l => l[1] === 'left').length >= 6, JSON.stringify(labels));
   for (const [name, hand, text] of labels) assert.equal(text, hand === 'left' ? 'Sinistra' : 'Destra', `${name}: ${hand} → «${text}»`);
 });
+
+// Ricerca del secondo giro: game_engine (_attemptPlayerRallyStrike e _attemptOpponentRallyStrike) sceglieva il lato di
+// un colpo senza «side» (mouse, webcam di prima, prove) dalla palla con la regola del destro. Oggi il telefono, la
+// webcam e il mouse del P1 lo mandano sempre (NatpfHand.leftySide), ma un evento senza lato con la mano sinistra ora
+// è letto da mancino: palla alla sua sinistra = dritto. Per il destro (e per i compagni CPU del doppio) non cambia
+test('motore: colpo senza lato (mouse, prove) → il lato dalla palla segue la mano di chi gioca (P1 e P2)', () => {
+  const plain = hand => ({ source: 'mouse', speed: 1.2, shotType: 'topspin', dirX: 0, hand });
+  for (const hand of ['right', 'left']){
+    const m = sgn(hand);
+    // P1: palla alla sua destra (destro) / sinistra (mancino) → dritto; dall'altra parte → rovescio
+    for (const [want, bx] of [['forehand', 1.6], ['backhand', -1.6]]){
+      const r = withEngine('casual', e => { cpuShot(e, { to: [bx*m, 8.5], player: [.2*m, 11.7] }); play(e, [{ lead: .08, swing: plain(hand) }]); return { hit: e.ball.lastHitter === 'player', side: e.player.swingType, contact: e.natpfLastRacket?.contact }; });
+      assert.ok(r.hit, `P1 ${hand} ${want}: non colpito`);
+      assert.equal(r.side, want, `P1 ${hand}: palla a x ${bx*m}`);
+    }
+    // P2 del 1v1 (la sua destra è −x)
+    for (const [want, bx] of [['forehand', -1.6], ['backhand', 1.4]]){
+      const r = withEngine('1v1', e => { p1Shot(e, { from: [.5*m, 1, 11], to: [bx*m, -8.5], flight: 1.05, p2: [(want === 'forehand' ? -.4 : .3)*m, -11.7], hand }); return { ...playP2(e, { ...plain(hand) }, { gap: 1.7 }), side: e.opponent.swingType }; });
+      assert.ok(r.hit, `P2 ${hand} ${want}: non colpito`);
+      assert.equal(r.side, want, `P2 ${hand}: palla a x ${bx*m}`);
+    }
+  }
+});
