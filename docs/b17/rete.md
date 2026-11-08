@@ -1,4 +1,4 @@
-# B17.4 · Colpi sotto rete: cosa succedeva, cosa cambia, numeri (08/11/2026 sera; revisione dei minori in fondo a §2, §3, §4, §5)
+# B17.4 · Colpi sotto rete: cosa succedeva, cosa cambia, numeri (08/11/2026 sera; revisione dei minori in fondo a §2, §3, §4, §5; seconda revisione, bloccante «rete», in §2 «bordo morbido», §3, §4 e §5)
 
 Richiesta dell'utente (punto 4): «Quando ricevo una palla corta e mi avvicino alla rete per colpirla, succede quasi sempre una
 delle due cose: compare "palla persa", oppure parte una palla morbidissima e lentissima, praticamente identica ogni volta.
@@ -60,11 +60,32 @@ ampiezza minima 23°), e alle 42,8 s della seconda partita un gesto 0,97 s prima
   riduzione vale solo nella zona di rete (`nearNet`, la stessa regola del colpo controllato); fuori resta `attackQ` del
   livello (a Pro 0,65, non 0,35 a forza piena). Di fatto la chiusura (`attack`) chiede già la palla entro `attackZ`, quindi
   la riduzione era già confinata lì: ora è esplicito e il banco lo conferma (§4: `banco`, `reale`, `partite` identici).
+  Precisazione (seconda revisione): nella chiusura la dispersione del colpo controllato è **solo laterale** (`netSpread.x`):
+  l'altezza sulla rete è sovrascritta da `lift` (nastro + `attackGap`), quindi `netSpread.clear` non si applica al colpo
+  chiuso; il «rischio» della chiusura a bassa qualità è la dispersione laterale e la profondità senza assistenza.
 - **Bordo morbido laterale nel colpo controllato** (revisione dei minori): la dispersione (`netSpread.x`) e la mira piena con
   il piatto girato non mandano la palla oltre la riga laterale: il bordo `sideKnee`/`sideEdge` (3,1 → 4 m, riga a 4,115)
   vale anche senza assistenza, pieno con il tempo nella finestra e sfumato oltre come l'assistenza (`assistFade` 0,25
   unità). wqdk·121 (piatto −1, anticipo +0,78) cade a x −3,97 invece di −4,99. Fuori dalla zona di rete niente cambia (la
   regola del B15: sotto `assistQ` la palla può uscire di lato).
+  **Seconda revisione (bloccante)**: il bordo legato al solo colpo controllato creava un'**inversione di coerenza** a
+  Leggenda: lo stesso gesto fatto da una situazione *migliore* (q 0,64–0,88: sopra `failQ` 0,63 ma sotto `assistQ` 0,8,
+  assistenza 0) non aveva nessun bordo e usciva di lato, mentre da una situazione peggiore (q 0,45–0,62, controllato) restava
+  dentro. Riprodotto nel motore vero (Leggenda, chi gioca a 4 m, palla corta a 0,9 m e 8 m/s, piatto 0,75 con il piatto girato
+  −1 a +0,5 della finestra, allungo via via minore): allungo 2,4 m senza preparazione, q 0,614 → controllato, x −4,00 dentro;
+  allungo 2,2/2,0/1,9/1,6 m, q 0,652/0,690/0,709/0,765 → «normale», x −5,96/−5,95/−5,94/−5,74 **fuori**; allungo 1,2 m,
+  q 0,841 → x −4,17 fuori; dentro di nuovo solo da q 0,89 (assistenza piena). Chi si avvicinava meglio alla palla era punito
+  con un fuori. Ora il bordo vale **in tutta la zona di rete** (`netHold = nearNet && failQ > netQMin`): la stessa sequenza
+  dà x −4,00 dentro per ogni q (0,614 … 1), stessa direzione, profondità crescente con la qualità (6,92 → 7,56 m). Il bordo
+  è **solo ai livelli che hanno il colpo controllato** (`failQ > netQMin`: Leggenda), dove nasce l'inversione: a Pro, 1v1 e
+  Casual (`failQ` 0,30/0,34/0,20 sotto `netQMin` 0,45, niente colpo controllato) l'esito a rete era già monotono con la
+  situazione e resta la regola del B15. Provato anche con il bordo a rete a tutti i livelli (`nearNet` da solo): fondo campo
+  e banco identici, ma `audit:legend` «pro contro medio» passava da 83,5 a **85,3 %** di game del giocatore, fuori dal
+  criterio 70–85 % che la CI esegue; con il bordo solo ai livelli con il colpo controllato Pro e Casual sono identici a prima
+  (16,5 % e 0 %, stessi errori e colpi per punto). Nota sul tempo: il bordo è pieno con il tempo nella finestra e sfuma oltre
+  come l'assistenza (`assistFade` 0,25 unità): il colpo controllato e il colpo a rete **restano dentro solo con il tempo entro
+  la finestra**; nel motore un gesto 1,24 unità in anticipo (0,336 s prima della palla a 8 m/s) cade a x −4,33, fuori, per la
+  spinta oltre la finestra del B15 (`excess` 0,24 → bordo ≈ 0,04).
 - **Palla corta per forma a rete** (`netVolley`): la palla corta resta tale solo con forma chiara (`conf ≥ dropNet.conf
   0,6`) e gesto davvero lento (`forza ≤ dropNet.power 0,25`); altrimenti è una **volée controllata**: tagliata, profondità
   lineare dalla forza tra `volleyDepth` 3 e 7 m, volo del tagliato nel motore (il minimo di 1,32 s del ramo DROP non si
@@ -157,6 +178,23 @@ del tutorial, `natpf_stroke_intent.js` (la lettura della palla corta per forma r
 - Nel browser dopo la revisione dei minori (Chromium, porte 9731/3731, build con le correzioni): `natpf-rally` 7/7,
   `natpf-gesti-speciali` 9/9, `natpf-1v1-p2p` 39/39, tutte al primo tentativo. `scripts/audit/rete-diag.mjs` rifatto:
   5/8 uguali al registrato come prima (cambiano solo i tre colpi deboli), con wqdk·121 a x −3,97.
+- **Seconda revisione** (bloccante «rete»), nuovi in `natpf-rete-b17` (ora 13), i due sull'inversione **falliscono senza la
+  correzione** (provato rimettendo `controlled` al posto di `netHold`: «piatto −1, q 0,64: x −6,009» e «allungo 2,2, q 0,652:
+  x −6,015, caduta −6,01 fuori»): (a) `strokeOutcome`: stesso gesto a rete (piatto 0,75, piatto ±1, +0,8 della finestra) con
+  q 0,5/0,62/0,64/0,7/0,79/0,85/1 → tutti dentro (|x| ≤ `sideEdge` 4 m), stessa direzione a q 0,62 e 0,7, profondità
+  crescente; 1,24 unità in anticipo → fuori; da fondo campo q 0,7 fuori e q 1 dentro come prima; a Pro, 1v1 e Casual
+  (`failQ < netQMin`) la mira piena sotto `assistQ` esce come prima e con l'assistenza resta dentro; (b) **motore vero**
+  (`createHeadlessEngine` + `_handleUserSwingInput`, come `netTouch`): la situazione dell'utente (Leggenda, 4 m, allungo 2,4 m
+  senza preparazione, palla corta a 0,9 m e 8 m/s, q 0,614) con **dodici gesti** (forte teso, medio, morbido, tagliato,
+  smorzata chiara e vaga, pallonetto, anticipo 0,8, ritardo 0,8, piatto ±1, tocco da 200 °/s) → 12/12 colpiti, 12 esiti
+  distinti (x | profondità | km/h), nessuno debole o fallito, tutti dentro il campo, forza → profondità e velocità in ordine
+  (10,0/8,6/7,4 m; 69/55/50 km/h), tagliato più basso del top spin con effetto all'indietro, smorzata ≤ 4,6 m, volée vaga
+  3–7 m, pallonetto ≥ 8 m e alto, anticipo/ritardo da parti opposte (> 3 m), piatto ±1 (> 4 m), tocco corto e lento; la
+  stessa situazione comodi (0,6 m, con preparazione): qualità 1, colpi normali; (c) **motore vero, inversione**: piatto 0,75 con
+  il piatto −1 a +0,5 della finestra, allungo 2,4 → 0,6 m (q 0,614 → 1): tutti dentro (|x| ≤ 4 m, caduta dentro la riga),
+  stessa direzione (scarto < 5 cm), profondità crescente a parità di preparazione (6,92 → 7,33 m senza, 7,00 → 7,55 m con).
+- Seconda revisione: gioco **973** (972 superati, 1 saltato come prima, 0 falliti; 970 + 3), sito **200/200**, `npm run
+  build` ok. Nel browser (Chromium, porte 9941/3941): vedi §5 in fondo (risultati della seconda revisione).
 
 ## 4. Banco
 
@@ -182,12 +220,27 @@ valori, tutti nello scenario `rete` «in allungo»: il piatto −20° cade a x �
 morbido), profondità 5,7 invece di 5,3 m, 48 invece di 47 km/h; il piatto +20° x +3,33 invece di +3,34. Il banco non passa
 da `queueUserSwing`: la finestra del colpo a vuoto non lo tocca.
 
+**Seconda revisione** (`colpi.mjs --mode=tutto --json`, prima = `d254944` (B16 + B17.2/3/4 uniti), dopo = questo passo,
+confronto campo per campo): **49 796 valori uguali, 0 differenze** in `banco`, `reale`, `partite`, `seme` e `rete` (lo
+scenario «rete» del banco ha solo q 0,61, controllato, e q 1, assistenza piena: il bordo c'era già). Dump deterministico dei
+colpi da fondo campo (griglia `strokeOutcome` con hitZ 6,5–13 m non a rete a Casual, Pro e Leggenda, 857 304 colpi, più
+540 colpi del motore vero da 11,4 m con il gesto del telefono): **0 differenze** prima → dopo.
+
 Banco Leggenda (`audit:legend`, 300 punti, 8 semi, come lo pubblica il progetto), game vinti dalla CPU prima → dopo:
 medio 92,2 → 92,2 %, amatore 98,5 → 97,6 %, tennista 67,3 → 63,7 %, preciso 25,9 → 24,7 %, bambino 100 → 99,8 %,
 impreciso 99,8 → 99,8 %; errori della CPU 3,4–5,3 % → 3,7–5 %; pro contro medio (giocatore) 84,1 → 83,5 %, casual 100 → 100 %.
 **La CPU Leggenda non crolla**: perde 1–4 punti di game con i profili che vanno a rete (i colpi a rete non sono più regali).
 I due criteri KO (tennista ≥ 85 %, preciso ≥ 60 %) **erano già KO sulla base** `7936011` (67,3 e 25,9 %): è il «Leggenda
 più dura» deciso dall'utente per il B16, non un effetto di questo passo.
+
+**Seconda revisione**, `audit:legend` sopra il B16 (CPU Leggenda più dura), prima = `d254944` → dopo = bordo laterale in tutta
+la zona di rete: game vinti dalla CPU medio 98,8 → 97,9 %, amatore 100 → 99,8 %, tennista 89,2 → **92,7 %**, preciso 71,1 →
+**60,6 %** (criterio ≥ 60 %: passa, al limite), bambino 100 → 100 %, impreciso 99,8 → 99,8 %; errori della CPU 2,5–2,9 →
+2,6–3,3 %; scambi infiniti 0 → 0; **nessun criterio KO prima né dopo**. Pro contro medio 16,5 → 16,5 % e Casual 0 → 0 %
+(identici: il bordo a rete non tocca i livelli senza il colpo controllato). Il «preciso» (l'unico profilo che gioca molto a
+rete con la qualità di situazione tra `failQ` e `assistQ`) guadagna 10 punti di game: i suoi colpi a rete da situazione buona
+non escono più di lato. Con il bordo a tutti i livelli (variante scartata): Leggenda uguale, pro contro medio 83,5 → 85,3 %
+(KO, criterio ≤ 85 %).
 
 ## 5. Non verificato e note
 
@@ -213,9 +266,16 @@ più dura» deciso dall'utente per il B16, non un effetto di questo passo.
   anche senza assistenza: x −3,97. Fuori dalla zona di rete la regola del B15 resta.
 - Il tetto di sicurezza sulle mosse verso la rete nel test «scambi che finiscono e dinamici» è stato alzato da 10 a 15%
   per il seme 7 di Leggenda (10,8%, tutte da palla corta): è una conseguenza dei colpi controllati che restano in campo,
-  non una corsa a rete senza motivo (il criterio «mai dal fondo» resta 0). Non è stato rifatto `audit:legend` dopo la
-  revisione dei minori: il bordo laterale cambia solo i colpi controllati a rete fuori di lato (nel banco `rete` 1 colpo su
-  12).
+  non una corsa a rete senza motivo (il criterio «mai dal fondo» resta 0); è un allentamento del tetto, non una prova nuova
+  (nota della seconda revisione: resta così, il criterio vero è `toNetFromBackPct === 0`). `audit:legend` è stato rifatto
+  nella seconda revisione (§4): nessun criterio KO.
+- (Risolto nella seconda revisione) l'inversione di coerenza a Leggenda tra colpo controllato (dentro) e colpo da situazione
+  migliore sotto `assistQ` (fuori di lato): il bordo morbido laterale vale in tutta la zona di rete ai livelli con il colpo
+  controllato (§2). Telefono rifatto con le sonde del revisore (`swing-detect.js` simulato, senza browser): con `cfg net:1`
+  e verso atteso +1 la preparazione da 300 °/s opposta resta `prep` anche senza colpo dopo, il tocco da 200 °/s nel verso
+  atteso è un colpo (193 °/s, 12°), dopo `setNet(false)` lo stesso tocco torna «debole»; con verso atteso 0 la preparazione
+  è scartata «debole» e il dritto è l'unico colpo. Nessuna modifica al telefono in questo passo.
+- Seconda revisione, nel browser (Chromium, porte 9941/3941, build con la correzione): `natpf-rally` 8/8, `natpf-gesti-speciali` 9/9, `natpf-1v1-p2p` 39/39, tutte al primo tentativo.
 - Il colpo a vuoto delle 42,8 s (0,97 s prima) resta a vuoto anche con la finestra allargata (0,72 s): era la preparazione.
 - Il banco `colpi.mjs` sul resto (`--mode=banco|reale|partite`) è stato rifatto nella revisione dei minori (§4): identico
   prima e dopo.

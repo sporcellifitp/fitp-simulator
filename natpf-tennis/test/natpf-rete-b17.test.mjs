@@ -88,6 +88,35 @@ test('colpo controllato: il bordo morbido laterale vale anche senza assistenza (
   assert.ok(d.controlled && d.x < -3.5 && Math.abs(d.x) < OUTCOME.sideLine, JSON.stringify(d));
 });
 
+test('zona di rete: lo stesso gesto da una situazione migliore (q sopra failQ, sotto assistQ) resta dentro come il colpo controllato', () => {
+  // seconda revisione del B17.4: con il bordo legato a «controlled» il piatto girato −1 cadeva dentro (x −4,00) con q 0,62 e fuori
+  // (x −5,75) con q 0,64…0,8: peggio si era messi, più sicura era la palla. Stesso gesto (piatto .75, piatto −1, +0,8 della
+  // finestra), qualità di situazione via via migliore: tutte dentro la riga laterale, stessa direzione, profondità crescente
+  const sp = span*slowFactor(AT_NET.ballVz), flat = (face, u, o = {}) => strokeOutcome({ ...AT_NET, timing: u*sp, ...o, intent: { shot: 'flat', power: .75, depth: .75, face, rise: -.3, conf: .6 } });
+  for (const face of [-1, 1]){
+    const rows = [.5, .62, .64, .7, .79, .85, 1].map(quality => flat(face, .8, { quality }));
+    assert.ok(rows[1].controlled && !rows[2].controlled && !rows[3].controlled && rows[3].assist === 0, JSON.stringify(rows.map(o => [o.q, o.controlled, o.assist])));
+    for (const o of rows) assert.ok(Math.abs(o.x) <= OUTCOME.sideEdge + .01 && Math.abs(o.x) < OUTCOME.sideLine, `piatto ${face}, q ${o.q}: x ${o.x} (controllato ${o.controlled}, assistenza ${o.assist})`);
+    assert.ok(Math.abs(rows[1].x - rows[3].x) < .05, `stessa direzione a q .62 e .7: ${rows[1].x} / ${rows[3].x}`);
+    for (let i = 2; i < rows.length; i++) assert.ok(rows[i].depth > rows[i - 1].depth, rows.map(o => `${o.q}:${o.depth}`).join(' '));
+  }
+  // il bordo sfuma oltre la finestra come l'assistenza (regola del B15): 1,24 unità in anticipo il colpo esce
+  assert.ok(Math.abs(flat(-1, 1.24, { quality: .7 }).x) > OUTCOME.sideLine);
+  // da fondo campo niente cambia: sotto assistQ (q .7) la stessa mira esce come prima, con l'assistenza piena resta dentro
+  const back = q => flat(-1, .8, { net: false, shortBall: false, hitZ: 11.5, quality: q });
+  assert.ok(Math.abs(back(.7).x) > OUTCOME.sideLine && back(.7).assist === 0 && Math.abs(back(1).x) < OUTCOME.sideLine, `${back(.7).x} / ${back(1).x}`);
+  // ai livelli senza il colpo controllato (failQ sotto netQMin: Pro, 1v1, Casual) l'esito a rete è già monotono con la situazione
+  // e resta la regola del B15: sotto assistQ la mira piena esce di lato, con l'assistenza resta dentro (con il bordo a rete a
+  // tutti i livelli audit:legend «pro contro medio» usciva dal criterio: 85,3 %)
+  for (const name of ['pro', '1v1', 'casual']){
+    const L = skillLevel(name), A = ASSIST[name];
+    assert.ok(A.failQ < OUTCOME.netQMin, name);
+    const low = flat(-1, .8, { level: L, lateSpan: lateSpanOf(8, L), quality: A.failQ + .1 }), high = flat(-1, .8, { level: L, lateSpan: lateSpanOf(8, L), quality: 1 });
+    assert.ok(!low.controlled && !low.failed && low.assist === 0 && Math.abs(low.x) > OUTCOME.sideLine, `${name}: ${JSON.stringify(low)}`);
+    assert.ok(high.assist === 1 && Math.abs(high.x) < OUTCOME.sideLine, `${name}: ${JSON.stringify(high)}`);
+  }
+});
+
 test('palla corta per forma a rete: palla corta solo con la forma chiara e il gesto lento, altrimenti volée controllata 3–7 m', () => {
   const drop = shot({ shot: 'drop', power: .2, rise: -.5, conf: .9 });
   assert.ok(drop.shot === 'DROP' && !drop.netVolley && drop.depth <= 4.6, JSON.stringify(drop));
@@ -218,4 +247,101 @@ test('soglie a rete coerenti tra telefono e motore: ampiezza netAmple = netMinAn
   const droppedBefore = weakOnes.filter(([pk, ang]) => pk < WEAK.rel*1300 && ang < WEAK.ample), droppedNow = weakOnes.filter(([pk, ang]) => pk < WEAK.netRel*1300 && ang < WEAK.netAmple);
   assert.equal(droppedBefore.length, 8); assert.equal(droppedNow.length, 0);
   assert.equal(weakOnes.filter(([pk]) => pk < WEAK.netRel*1300).length, 8);   // questi aspettano WEAK.wait il colpo vero, poi si giocano
+});
+
+// La situazione dell'utente rigiocata nel motore vero (headless, Leggenda): chi gioca a 4 m dalla rete, in allungo (palla a
+// «lateral» m di lato) e senza preparazione (prepCapable senza prep), palla corta rimbalzata, bassa (0,9 m), lenta (8 m/s).
+// Un gesto del telefono (natpf.intent) in _handleUserSwingInput, poi il motore fino al colpo: esito, caduta, velocità
+function netPlay({ shot = 'topspin', power = .7, rise = .3, face = 0, conf = .9, peak = 1200, angle = 60, lead = .12, lateral = 2.4, playerZ = 4, ballY = .9, vz = 8, prep = false, difficulty = 'leggenda' }){
+  const realRandom = Math.random; Math.random = mulberry32(5);
+  try {
+    const e = createHeadlessEngine({ difficulty }); e.startNewMatch({ showStartBanner: false });
+    e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'opponent'; e.ball.bounceCountOnCurrentSide = 1; e.ball.rallyStrokeCount = 4;
+    e.player.pos.set(.3, 0, playerZ); e.player.targetPos.copy(e.player.pos); e.player.vel.set(0, 0, 0);
+    const zc = playerZ - .35; e.ball.pos.set(.3 + lateral, ballY, zc - lead*vz); e.ball.vel.set(0, 0, vz); e.ball.targetLanding.set(.3 + lateral, 0, 3);
+    const intent = { shot, power, typePower: power, depth: power, rise, face, conf, byShape: shot === 'drop' || shot === 'lob' };
+    e._handleUserSwingInput({ source: 'natpf-phone', side: 'forehand', shotType: shot, speed: .8 + power*.85, dirX: 0, timing: null,
+      natpf: { aim: 'swing', shot, conf, power, latency: 0, hand: 'right', peak, typical: 1300, angle, prepCapable: true, prep, intent } });
+    let steps = 0, hit = false, v0 = null, land = null;
+    for (let i = 0; i < 300 && e.phase === 'RALLY'; i++){
+      if (e.ball.lastHitter === 'opponent') e.ball.vel.y = 0;
+      e.step(1/120); steps++;
+      if (e.ball.lastHitter === 'player'){ hit = true; v0 = e.ball.vel.clone(); land = e.ball.targetLanding.clone(); break; }
+    }
+    const R = e.natpfLastRacket;
+    if (!hit || !R) return { hit: false, t: +(steps/120).toFixed(3) };
+    const o = R.out;
+    return { hit: true, q: R.quality, timing: +R.timing.toFixed(3), shot: o.shot, esito: o.controlled ? 'controllato' : o.weak ? 'debole' : o.failed ? 'fallito' : o.attack ? 'chiusura' : 'ok',
+      x: o.x, depth: o.depth, clear: o.clear, kmh: Math.round(v0.length()*3.6), flight: +R.flight.toFixed(3), landX: +land.x.toFixed(2), landZ: +land.z.toFixed(2), out: o };
+  } finally { Math.random = realRandom; }
+}
+
+test('motore a rete, la situazione dell\'utente: stessa situazione in allungo (q 0,61), dodici gesti → dodici esiti diversi, nessuno debole o fallito', () => {
+  const sp = directionSpan(lv)*slowFactor(8), lt = lateSpanOf(8, lv);
+  const G = {
+    forte: { shot: 'flat', power: .9, rise: -.2, peak: 1500 },
+    medio: { shot: 'topspin', power: .6, peak: 1000 },
+    morbido: { shot: 'topspin', power: .35, peak: 600 },
+    tagliato: { shot: 'slice', power: .55, rise: -.5, peak: 900 },
+    smorzata: { shot: 'drop', power: .2, rise: -.5, conf: .9, peak: 350, angle: 30 },
+    smorzataVaga: { shot: 'drop', power: .3, rise: -.5, conf: .14, peak: 450, angle: 30 },
+    pallonetto: { shot: 'lob', power: .45, rise: .6, conf: .8, peak: 760, angle: 70 },
+    anticipo: { shot: 'topspin', power: .7, lead: .8*sp },   // 0,8 della finestra (il tempo letto dal motore è il gesto prima della palla)
+    ritardo: { shot: 'topspin', power: .7, lead: -.8*lt },
+    piattoDestra: { shot: 'topspin', power: .7, face: 1 },
+    piattoSinistra: { shot: 'topspin', power: .7, face: -1 },
+    tocco: { shot: 'slice', power: .15, rise: -.3, conf: .3, peak: 200, angle: 15, lead: .2 },
+  };
+  const R = Object.fromEntries(Object.entries(G).map(([k, g]) => [k, netPlay(g)]));
+  for (const [k, r] of Object.entries(R)){
+    assert.ok(r.hit, `${k}: non colpito ${JSON.stringify(r)}`);
+    assert.ok(r.q < ASSIST.leggenda.failQ && r.q >= OUTCOME.netQMin, `${k}: qualità di situazione ${r.q} (in allungo, sotto failQ)`);
+    assert.ok(r.esito !== 'debole' && r.esito !== 'fallito' && !r.out.netFault, `${k}: ${JSON.stringify(r)}`);
+    assert.ok(Math.abs(r.x) < OUTCOME.sideLine && r.depth > 0, `${k}: dentro il campo (x ${r.x}, profondità ${r.depth})`);
+  }
+  // dodici esiti diversi (direzione, profondità o velocità): prima del B17.4 erano 8 palle deboli identiche a 6,8 m
+  const keys = Object.values(R).map(r => `${r.x.toFixed(1)}|${r.depth.toFixed(1)}|${r.kmh}`);
+  assert.equal(new Set(keys).size, 12, keys.join(' '));
+  assert.equal(Object.values(R).filter(r => r.depth.toFixed(1) === OUTCOME.weakDepth.toFixed(1)).length, 0, keys.join(' '));
+  // coerenza con il gesto: forza → profondità e velocità in ordine (forte > medio > morbido)
+  assert.ok(R.forte.depth > R.medio.depth && R.medio.depth > R.morbido.depth, `${R.forte.depth} ${R.medio.depth} ${R.morbido.depth}`);
+  assert.ok(R.forte.kmh > R.medio.kmh && R.medio.kmh > R.morbido.kmh, `${R.forte.kmh} ${R.medio.kmh} ${R.morbido.kmh}`);
+  assert.ok(R.forte.esito === 'controllato' && R.forte.depth >= 9 && R.forte.kmh >= 60, JSON.stringify(R.forte));
+  // tagliato: effetto all'indietro, più basso sulla rete del top spin; smorzata chiara: palla corta vera; vaga: volée a 3 m e più
+  assert.ok(R.tagliato.out.topspin < 0 && R.tagliato.clear < R.medio.clear, JSON.stringify({ tagliato: R.tagliato, medio: R.medio }));
+  assert.ok(R.smorzata.shot === 'DROP' && R.smorzata.depth <= 4.6 && R.smorzata.kmh < R.tagliato.kmh, JSON.stringify(R.smorzata));
+  assert.ok(R.smorzataVaga.shot === 'SLICE' && R.smorzataVaga.out.netVolley && R.smorzataVaga.depth >= 3 && R.smorzataVaga.depth < R.tagliato.depth, JSON.stringify(R.smorzataVaga));
+  assert.ok(R.pallonetto.shot === 'LOB' && R.pallonetto.depth >= 8 && R.pallonetto.clear > R.medio.clear + .8, JSON.stringify(R.pallonetto));
+  // direzioni opposte dal tempo (anticipo incrociato, ritardo lungolinea) e dal piatto, almeno 3 e 4 m tra loro
+  assert.ok(R.anticipo.x < R.ritardo.x - 3, `${R.anticipo.x} / ${R.ritardo.x}`);
+  assert.ok(R.piattoDestra.x > R.piattoSinistra.x + 4, `${R.piattoSinistra.x} / ${R.piattoDestra.x}`);
+  // il tocco di volée da 200 °/s è giocato, corto e lento
+  assert.ok(R.tocco.esito === 'controllato' && R.tocco.depth < 6 && R.tocco.kmh < R.morbido.kmh, JSON.stringify(R.tocco));
+  // la stessa situazione comodi (0,6 m, con preparazione): qualità piena, colpi normali, la palla corta vaga diventa volée
+  const easy = netPlay({ ...G.forte, lateral: .6, prep: true }), easyDrop = netPlay({ ...G.smorzataVaga, lateral: .6, prep: true });
+  assert.ok(easy.hit && easy.q === 1 && easy.esito === 'ok' && easy.kmh > R.forte.kmh, JSON.stringify(easy));
+  assert.ok(easyDrop.hit && easyDrop.shot === 'SLICE' && easyDrop.out.netVolley, JSON.stringify(easyDrop));
+});
+
+test('motore a rete: lo stesso gesto da una situazione via via migliore resta dentro la riga laterale (niente inversione di coerenza)', () => {
+  // seconda revisione del B17.4: piatto .75 con il piatto girato −1 a +0,5 della finestra, allungo 2,4 → 0,6 m. Con il bordo
+  // laterale legato a «controlled»: q 0,614 controllato x −4,00 dentro, q 0,65…0,84 normale x −5,96…−4,17 FUORI, dentro di
+  // nuovo solo da q 0,89 (assistenza piena). Ora: dentro a ogni q, stessa direzione, profondità crescente con la qualità
+  const sp = directionSpan(lv)*slowFactor(8);
+  const rows = [[2.4, false], [2.2, false], [2.0, false], [2.4, true], [1.6, false], [1.2, false], [1.6, true], [.6, true]]
+    .map(([lateral, prep]) => ({ lateral, prep, ...netPlay({ shot: 'flat', power: .75, rise: -.3, face: -1, conf: .6, lead: .12 + .5*sp, lateral, prep }) }));
+  for (const r of rows) assert.ok(r.hit, JSON.stringify(r));
+  assert.ok(rows[0].esito === 'controllato' && rows[0].q < ASSIST.leggenda.failQ, JSON.stringify(rows[0]));
+  assert.ok(rows[1].esito === 'ok' && rows[1].q > ASSIST.leggenda.failQ && rows[1].out.assist === 0, JSON.stringify(rows[1]));
+  assert.ok(rows.at(-1).q === 1 && rows.at(-1).out.assist === 1, JSON.stringify(rows.at(-1)));
+  for (let i = 1; i < rows.length; i++) assert.ok(rows[i].q > rows[i - 1].q, rows.map(r => r.q).join(' '));
+  for (const r of rows) assert.ok(Math.abs(r.x) <= OUTCOME.sideEdge + .01 && Math.abs(r.landX) < OUTCOME.sideLine, `allungo ${r.lateral}${r.prep ? ' con preparazione' : ''}, q ${r.q}: x ${r.x}, caduta ${r.landX} (fuori)`);
+  assert.ok(Math.max(...rows.map(r => r.x)) - Math.min(...rows.map(r => r.x)) < .05, `stessa direzione: ${rows.map(r => r.x).join(' ')}`);
+  // profondità crescente con la qualità, a parità di preparazione (la posizione laterale della palla entra nella profondità
+  // con la regola della diagonale, quindi il confronto è dentro ogni gruppo)
+  for (const prep of [false, true]){
+    const g = rows.filter(r => r.prep === prep);
+    for (let i = 1; i < g.length; i++) assert.ok(g[i].depth > g[i - 1].depth, g.map(r => `${r.q}:${r.depth}`).join(' '));
+  }
+  assert.ok(rows.at(-1).depth > rows[0].depth + .5, `${rows[0].depth} → ${rows.at(-1).depth}`);
 });
