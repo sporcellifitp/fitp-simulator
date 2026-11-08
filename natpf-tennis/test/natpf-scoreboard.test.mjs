@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { formatText, gamePoints, rowNames, scoreboardView, scoreboardHtml } from '../src/natpf/natpf_scoreboard.js';
+import { formatText, gamePoints, rowNames, shortName, shortNames, scoreboardView, scoreboardHtml } from '../src/natpf/natpf_scoreboard.js';
 import { pointCall } from '../src/natpf/natpf_point_call.js';
 import { createHeadlessEngine } from '../scripts/audit/headless-engine.mjs';
 
@@ -75,13 +75,42 @@ test('stesso schermo: P1 sopra e P2 sotto, anche se il punteggio è del motore',
   assert.deepEqual(cells(v), [' Anna 1 0', '•Luca 1 30']);
 });
 
-test('HTML del tabellone: righe con data-sb-*, intestazioni Game e Punti, nomi senza markup', () => {
+// B17.3 (08/11, schermata di riferimento dell'utente): sigle maiuscole come in televisione («DRL», «2KG»)
+test('sigle dei nomi: TU, CPU, P1/P2, prime 3 lettere del nome scelto (4 se uguali), squadre con il «+»', () => {
+  assert.equal(shortName('Tu'), 'TU');
+  assert.equal(shortName('CPU'), 'CPU');
+  assert.equal(shortName('Player 1'), 'P1');
+  assert.equal(shortName('Player 2'), 'P2');
+  assert.equal(shortName('Marco'), 'MAR');
+  assert.equal(shortName('Giulia'), 'GIU');
+  assert.equal(shortName('Anna'), 'ANNA');                       // fino a 4 caratteri resta intero
+  assert.equal(shortName('Bartolomeo Massimiliano'), 'BAR');
+  assert.equal(shortName('Tu + CPU'), 'TU+CPU');
+  assert.equal(shortName('Marco + CPU'), 'MAR+CPU');
+  assert.equal(shortName('2 CPU'), '2CPU');
+  assert.equal(shortName('Marco', 4), 'MARC');
+  assert.deepEqual(shortNames('Marco', 'Giulia'), { me: 'MAR', them: 'GIU' });
+  assert.deepEqual(shortNames('Marco', 'Maria'), { me: 'MARC', them: 'MARI' });    // uguali a 3 lettere: 4
+  assert.deepEqual(shortNames('Marco', 'Marco'), { me: 'P1', them: 'P2' });        // uguali anche a 4: P1 e P2
+  const v = scoreboardView(sc(0, 0), { split: true, splitNames: { p1: 'Marco', p2: 'Giulia' } });
+  assert.deepEqual(v.rows.map(r => [r.name, r.short]), [['Marco', 'MAR'], ['Giulia', 'GIU']]);
+});
+
+test('HTML del tabellone: riquadro con linguetta, pallina, sigla (nome intero in data-sb-name e title), game, casella dei punti; niente intestazioni; sottotitolo', () => {
   const html = scoreboardHtml(scoreboardView(sc(2, 0, 0, 0, 'opponent'), { split: true, splitNames: { p1: '<b>x</b>', p2: 'Giulia' } }));
-  assert.match(html, /<span>Game<\/span><span>Punti<\/span>/);
-  assert.match(html, /data-sb-row="me"[^>]*>.*data-sb-name>&lt;b&gt;x&lt;\/b&gt;</);
-  assert.match(html, /class="sb-row sb-them serving" data-sb-row="them"/);
-  assert.match(html, /data-sb-format>Partita a 1 game</);
+  assert.doesNotMatch(html, /sb-head|<span>Game<\/span>|<span>Punti<\/span>/);
+  assert.match(html, /<div class="sb-box"><div class="sb-row sb-me" data-sb-row="me" title="&lt;b&gt;x&lt;\/b&gt;"><i class="sb-tab"[^>]*><\/i><i class="sb-serve"[^>]*><\/i><b class="sb-name" data-sb-name="&lt;b&gt;x&lt;\/b&gt;"[^>]*>&lt;B&gt;<\/b>/);
+  assert.match(html, /class="sb-row sb-them serving" data-sb-row="them" title="Giulia"/);
+  assert.match(html, /data-sb-name="Giulia"[^>]*>GIU<\/b><span class="sb-sr">Giulia \(al servizio\)<\/span>/);
+  assert.match(html, /data-sb-games>0<\/span><strong class="sb-points" data-sb-points>0<\/strong>/);
+  assert.match(html, /<\/div><div class="sb-foot"><span data-sb-format>Partita a 1 game<\/span><span class="sb-label" data-sb-label><\/span><\/div>$/);
   assert.doesNotMatch(html, /secco/);
+  // al vantaggio la casella dice «AD» (larghezza fissa), la scritta sotto resta quella degli annunci
+  const adv = scoreboardHtml(scoreboardView(sc(4, 3), { gamesToWin: 2 }));
+  assert.match(adv, /data-sb-row="me"[^>]*>.*data-sb-points>AD<\/strong>/);
+  assert.match(adv, /data-sb-row="them"[^>]*>.*data-sb-points>40<\/strong>/);
+  assert.match(adv, /data-sb-label>Vantaggio tuo</);
+  assert.doesNotMatch(adv, /Vant\./);
 });
 
 test('motore: _syncScoreboardHUD passa punteggio e formato al tabellone (natpf_ui.onScore)', () => {
@@ -106,6 +135,18 @@ test('pagina e stili: tabellone nuovo al posto della riga «Game … game secco�
   const block = css.slice(css.indexOf('#hud-root {\n  --sb:'), css.indexOf('.natpf-training .natpf-scoreboard'));
   assert.match(block, /--sb: clamp\([^)]*cqh/);
   assert.doesNotMatch(block, /\d(vw|vh)\b|@media/);
+  // B17.3, disegno di riferimento: angolo a 2,3 cqw / 6 cqh, riga di 1,75 em, linguette gialla e rosa, casella dei punti
+  // piena gialla larga 1,6 em (fissa: «AD» e «40» uguali) con la cifra scura, sottotitolo di almeno 11 px
+  assert.match(block, /--sb-left: clamp\(\d+px, 2\.3cqw/);
+  assert.match(block, /--sb-top: clamp\(\d+px, 6cqh/);
+  const rule = sel => [...block.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/(?:^|\n)([^{}]*?)\{([^}]*)\}/g)].filter(m => m[1].split(',').some(s => s.trim() === sel)).map(m => m[2]).join(';');
+  assert.match(rule('.natpf-scoreboard .sb-box'), /grid-template-columns: 0\.42em 0\.85em minmax\(2\.2em, max-content\) 1\.5em 1\.6em/);
+  assert.match(rule('.natpf-scoreboard .sb-row'), /height: 1\.75em/);
+  assert.match(rule('.natpf-scoreboard .sb-tab'), /background: var\(--lb-ball\)/);
+  assert.match(rule('.natpf-scoreboard .sb-them .sb-tab'), /background: var\(--lb-pink\)/);
+  assert.match(rule('.natpf-scoreboard .sb-points'), /background: var\(--lb-ball\)[\s\S]*color: #0a1330[\s\S]*font-size: 1\.08em/);
+  assert.match(rule('.natpf-scoreboard .sb-name'), /text-transform: uppercase/);
+  assert.doesNotMatch(block, /sb-head/);
 });
 
 test('piede del tabellone fuori dalla sottogriglia: il formato e «Vantaggio di …» non si sovrappongono, testo leggibile', () => {
@@ -122,8 +163,11 @@ test('piede del tabellone fuori dalla sottogriglia: il formato e «Vantaggio di 
   assert.match(rule('.natpf-scoreboard .sb-row'), /grid-template-columns:\s*subgrid/);
   // niente colonne fisse per le due scritte del piede
   assert.doesNotMatch(rule('.natpf-scoreboard .sb-foot [data-sb-format]') + rule('.natpf-scoreboard .sb-label'), /grid-column/);
-  // almeno 10 px (prima 0.56em: 7,3 px a 844×390 e 9,3 px nel ledwall 720×720)
-  assert.match(foot, /font-size:\s*max\(10px,\s*0?\.6\d*em\)/);
+  // almeno 11 px (B17.3; prima 10, e prima ancora 0.56em: 7,3 px a 844×390 e 9,3 px nel ledwall 720×720)
+  assert.match(foot, /font-size:\s*max\(11px,\s*0?\.6\d*em\)/);
+  // B17.3: il sottotitolo sta sotto il riquadro (.sb-box), non dentro
+  assert.match(rule('.natpf-scoreboard'), /flex-direction:\s*column/);
+  assert.match(rule('.natpf-scoreboard .sb-box'), /display:\s*grid/);
   // la scritta del momento, se proprio non ci sta, si accorcia invece di uscire
   assert.match(rule('.natpf-scoreboard .sb-label'), /text-overflow:\s*ellipsis/);
 });

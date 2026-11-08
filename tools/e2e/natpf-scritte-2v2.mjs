@@ -40,8 +40,11 @@ const MEASURE = () => {
   }
   const rect = el => { if (!el || el.classList.contains('hidden') || getComputedStyle(el).display === 'none' || getComputedStyle(el).visibility === 'hidden') return null; const r = el.getBoundingClientRect(); return r.width && r.height ? { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height } : null; };
   const pop = document.getElementById('timing-popup');
+  // B17.3: il tabellone sta in alto a sinistra (e la sua copia in alto a sinistra della metà del P2 nello stesso schermo):
+  // la scritta dell'esito, nell'angolo in basso, non deve coprirlo
+  const sb = ['natpf-scoreboard', 'natpf-scoreboard-p2'].map(id => rect(document.getElementById(id))).filter(Boolean);
   return {
-    vp: [innerWidth, innerHeight], phase: E.phase, last: E.ball.lastHitter, doubles: !!E.isDoubles,
+    vp: [innerWidth, innerHeight], phase: E.phase, last: E.ball.lastHitter, doubles: !!E.isDoubles, sb,
     popup: rect(pop), text: pop?.innerText?.replace(/\s+/g, ' ').trim() || '', cls: pop?.className || '',
     grade: getComputedStyle(document.getElementById('timing-popup-grade')).fontSize,
     court: court.map(p => [+p.x.toFixed(1), +p.y.toFixed(1)]), net, ball, actors,
@@ -60,6 +63,7 @@ const overlaps = m => {
   if (rectRect(r, m.net, 4)) out.push('rete');
   if (rectRect(r, m.ball, 6)) out.push('palla');
   for (const [k, a] of Object.entries(m.actors)) if (rectRect(r, a, 4)) out.push(k);
+  if ((m.sb || []).some(b => rectRect(r, b, 4))) out.push('tabellone');
   if (r.l < 0 || r.t < 0 || r.r > m.vp[0] || r.b > m.vp[1]) out.push('fuori dallo schermo');
   return out;
 };

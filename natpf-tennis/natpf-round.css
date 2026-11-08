@@ -346,11 +346,16 @@
 #btn-natpf-movement {
   display: none !important;
 }
+/* B17.3 (08/11): il tabellone sta nell'angolo in alto a sinistra, come il riquadro del punteggio in televisione; la barra
+   del motore base (ritratti e pillole dei game, nascosti) non si stende più su tutto lo schermo ma segue il tabellone.
+   Prima era relativa e centrata (left/right del motore la spostavano di lato) */
 #top-hud-bar {
-  position: relative;
-  /* relativa: left/right del motore base la spostavano di lato (il tabellone non era al centro) */
-  left: 0;
-  right: 0;
+  position: absolute;
+  top: var(--sb-top);
+  left: var(--sb-left);
+  right: auto;
+  justify-content: flex-start;
+  gap: 0;
 }
 .nt-scoreboard-pill {
   border-radius: var(--r-pill) !important;
@@ -363,67 +368,69 @@
 /* tabellone della partita (natpf_scoreboard.js, B10 del 06/11): come in televisione, una riga per giocatore o squadra
    con chi serve (pallina), nome, game vinti e punti del game in corso; sotto il formato in parole e «Parità» o
    «Vantaggio …». Sostituisce «30 - 15» tra i ritratti e la riga «Game 1 – 0 · game secco» (che restano nascosti: il
-   motore base li aggiorna ancora). Misure legate allo schermo (cqh del contenitore natpf): ledwall e metà schermo */
+   motore base li aggiorna ancora). Misure legate allo schermo (cqh del contenitore natpf): ledwall e metà schermo.
+   B17.3 (08/11, schermata di riferimento dell'utente, docs/b17/punteggio-riferimento.md): riquadro scuro compatto
+   nell'angolo in alto a sinistra (left 2,3 cqw, top 6 cqh), per riga linguetta colorata · pallina di chi serve · sigla
+   maiuscola · game · punti in una casella piena gialla a larghezza fissa; niente intestazioni; formato e «Parità»/
+   «Vantaggio …» come sottotitolo piccolo sotto il riquadro. Un terzo più grande del riferimento: --sb (testo di nomi e
+   numeri) 2,6 cqh = 18,7 px a 720p, 28 px a 1080p, 15–36 px; riga 1,75 em (4,6 cqh); casella 1,6 × 1,5 em con la cifra
+   a 1,08 em (2,8 cqh). Misure in docs/b17/punteggio.md */
 #hud-root {
-  --sb: clamp(13px, 2.3cqh, 32px);
+  --sb: clamp(15px, 2.6cqh, 36px);
+  --sb-top: clamp(12px, 6cqh, 64px);
+  --sb-left: clamp(12px, 2.3cqw, 44px);
 }
 #scoreboard-pill {
   display: none !important;
 }
 .natpf-scoreboard {
-  display: grid;
-  grid-template-columns: 0.9em minmax(4.6em, max-content) 2em 3.4em;
-  column-gap: 0.45em;
-  margin-inline: auto;
-  max-width: min(94cqw, 26em);
-  padding: 0.3em 0.35em 0.32em 0.55em;
-  border-radius: 0.6em;
-  background: rgba(7, 18, 51, 0.9);
-  box-shadow:
-    inset 0 0 0 1px var(--lb-line),
-    0 0.2em 0.7em rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.28em;
+  margin-inline: 0;
+  max-width: min(60cqw, 26em);
   color: var(--lb-ink);
-  font: 700 var(--sb) / 1.15 var(--lb-font);
+  font: 800 var(--sb) / 1.15 var(--lb-font);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .natpf-scoreboard:empty {
   display: none;
 }
-.natpf-scoreboard .sb-head,
+/* il riquadro: linguetta | pallina | sigla | game | casella dei punti */
+.natpf-scoreboard .sb-box {
+  display: grid;
+  grid-template-columns: 0.42em 0.85em minmax(2.2em, max-content) 1.5em 1.6em;
+  column-gap: 0.2em;
+  row-gap: 0.14em;
+  padding: 0.22em 0.4em 0.22em 0;
+  border-radius: 0.32em;
+  background: rgba(5, 10, 28, 0.84);
+  box-shadow:
+    inset 0 0 0 1px rgba(166, 182, 220, 0.18),
+    0 0.2em 0.7em rgba(0, 0, 0, 0.45);
+}
 .natpf-scoreboard .sb-row {
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
   align-items: center;
+  height: 1.75em;
 }
-.natpf-scoreboard .sb-head span {
-  color: var(--lb-muted);
-  font-size: 0.5em;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-align: center;
-  text-transform: uppercase;
+.natpf-scoreboard .sb-tab {
+  align-self: stretch;
+  margin: 0.1em 0;
+  border-radius: 0 0.12em 0.12em 0;
+  background: var(--lb-ball);
 }
-.natpf-scoreboard .sb-row {
-  margin-top: 0.12em;
-  padding: 0.08em 0;
-}
-.natpf-scoreboard .sb-name {
-  overflow: hidden;
-  max-width: 11em;
-  padding-left: 0.45em;
-  border-left: 0.2em solid var(--lb-ball);
-  font-weight: 800;
-  text-overflow: ellipsis;
-}
-.natpf-scoreboard .sb-them .sb-name {
-  border-left-color: var(--lb-pink);
+.natpf-scoreboard .sb-them .sb-tab {
+  background: var(--lb-pink);
 }
 .natpf-scoreboard .sb-serve {
   justify-self: center;
-  width: 0.5em;
-  height: 0.5em;
+  width: 0.42em;
+  height: 0.42em;
   border-radius: 50%;
   background: var(--lb-ball);
   box-shadow: 0 0 0.35em rgba(232, 255, 58, 0.7);
@@ -432,18 +439,30 @@
 .natpf-scoreboard .serving .sb-serve {
   visibility: visible;
 }
+.natpf-scoreboard .sb-name {
+  overflow: hidden;
+  max-width: 7em;
+  padding: 0 0.3em 0 0.05em;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+}
 .natpf-scoreboard .sb-games {
-  font-size: 1.12em;
   font-weight: 800;
   text-align: center;
 }
 .natpf-scoreboard .sb-points {
-  padding: 0.04em 0;
-  border-radius: 0.3em;
+  display: grid;
+  place-items: center;
+  height: calc(1.5em / 1.08);   /* 1,5 em del carattere base (la cifra è a 1,08 em) */
+  border-radius: 0.22em;
   background: var(--lb-ball);
   color: #0a1330;
-  font-size: 1.12em;
-  font-weight: 800;
+  font-size: 1.08em;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  line-height: 1;
   text-align: center;
 }
 .natpf-scoreboard .sb-sr {
@@ -453,25 +472,28 @@
   overflow: hidden;
   clip: rect(0 0 0 0);
 }
-/* piede fuori dalla sottogriglia (revisione del 07/11): nelle colonne strette di game e punti (2em e 3.4em) la scritta
-   lunga del momento usciva a sinistra sul formato («Al meglio di 5 game» + «Vantaggio di Player 2» = «gameVANTAGGIO»).
-   In fila con uno spazio, il piede conta nella larghezza del tabellone; se proprio non ci sta (nomi lunghi dello stesso
-   schermo) la scritta si accorcia con i puntini. Testo di almeno 10 px: 0.56em erano 7,3 px a 844×390 */
+/* sottotitolo sotto il riquadro (B17.3): formato della partita e scritta del momento, in fila con uno spazio, almeno
+   11 px (0,6 em: 11,2 px a 720p, 16,8 a 1080p); su un velo scuro leggero perché sta sopra il campo. Fuori dalla griglia
+   (revisione del 07/11): nelle colonne strette «Vantaggio di Player 2» usciva sul formato («gameVANTAGGIO»); se proprio
+   non ci sta (nomi lunghi dello stesso schermo) la scritta del momento si accorcia con i puntini */
 .natpf-scoreboard .sb-foot {
   display: flex;
-  grid-column: 1 / -1;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   gap: 0.9em;
+  box-sizing: border-box;
   min-width: 0;
-  margin-top: 0.22em;
+  max-width: 100%;
+  padding: 0.12em 0.55em 0.14em;
+  border-radius: 0.3em;
+  background: rgba(5, 10, 28, 0.62);
   color: var(--lb-muted);
-  font-size: max(10px, 0.62em);
-  font-weight: 600;
+  font-size: max(11px, 0.6em);
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 .natpf-scoreboard .sb-foot [data-sb-format] {
   flex: none;
-  padding-left: 0.2em;
 }
 .natpf-scoreboard .sb-label {
   min-width: 0;
@@ -484,9 +506,45 @@
 .natpf-scoreboard .sb-label:empty {
   display: none;
 }
-/* l'avviso «In attesa di Player 2» del 1v1 sotto il tabellone (prima a 72 px, sotto la pillola) */
+/* l'avviso «In attesa di Player 2» del 1v1 sotto il tabellone, allineato al suo bordo sinistro (B17.3; prima al centro,
+   a 26 px + 5,4 righe). Il tabellone è alto circa 3,95 em di riquadro più il sottotitolo (0,28 em + 1,45 × max(11px, 0,6em)):
+   l'avviso comincia 0,45 em più in basso (8 px a 720p, 13 a 1080p).
+   Il motore base lo centra con translate(-50%): qui niente spostamento, e il rimpicciolimento durante lo scambio parte
+   dall'angolo in alto a sinistra */
 #hud-root .opponent-presence-pill {
-  top: calc(26px + 5.4 * var(--sb));
+  top: calc(var(--sb-top) + 4.8 * var(--sb) + 1.5 * max(11px, 0.6 * var(--sb)));
+  left: var(--sb-left);
+  transform: none;
+  transform-origin: left top;
+}
+#hud-root .opponent-presence-pill.in-rally {
+  transform: scale(0.92);
+}
+#hud-root .opponent-presence-pill.just-joined {
+  animation-name: natpf-presence-join;
+}
+@keyframes natpf-presence-join {
+  0% { transform: scale(0.86); }
+  45% { transform: scale(1.1); }
+  100% { transform: none; }
+}
+/* stesso schermo (B17.3): una copia del tabellone in alto a sinistra della metà del Player 2 (natpf_ui.onScore la riempie
+   solo con lo stesso schermo attivo; qui resta nascosta fuori dallo stesso schermo). La metà del P2 comincia a metà
+   larghezza più la linea scura (splitViewports: 0,4 cqw); ogni tabellone sta nella sua metà */
+#natpf-scoreboard-p2 {
+  position: absolute;
+  top: var(--sb-top);
+  left: calc(50cqw + 0.2cqw + var(--sb-left));
+}
+body:not(.natpf-split) #natpf-scoreboard-p2 {
+  display: none;
+}
+/* larghezza massima nello stesso schermo: lo spazio reale della metà meno il pulsante di pausa (fixed, 52 px a 18 px dal bordo
+   destro: comincia a larghezza − 70 px) e 40 px di margine. La copia del P2 parte a 50,2 cqw + --sb-left, quindi finisce al
+   più a 100 cqw − 110 px (revisione del 08/11). Con le sigle il riquadro è stretto (circa 9 em); è il sottotitolo
+   «Vantaggio Nome Lungo» che può arrivare al limite e si accorcia con i puntini */
+body.natpf-split .natpf-scoreboard {
+  max-width: min(calc(49.8cqw - var(--sb-left) - 110px), 26em);
 }
 .natpf-training .natpf-scoreboard,
 .natpf-training .pl-side-opponent {
