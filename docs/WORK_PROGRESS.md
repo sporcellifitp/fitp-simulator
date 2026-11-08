@@ -456,3 +456,48 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
   del sito: `toss: null` al secondo gesto) al primo tentativo e alla ripetizione dei soli job falliti (in quella
   anche `timing-browser` era rosso al primo e verde al secondo). In locale `gesture-calibration` 18/18 due volte su due
   con lo stesso codice; B12 non tocca `site/js/tennis` né la prova: punto aperto noto (passaggio di consegne §3.10).
+
+## B13 · Prova gesture-calibration stabile, gesti del tutorial con la fisica del braccio · [x] · 07–08/11/2026
+- Richiesta: «sistema la prova gesture-calibration. In parallelo, rivedi ancora i gesti del tutorial, il dritto non mi
+  sembra tale e ci sono troppi colpi che non simulano la fisica del movimento del braccio con il telefono in mano».
+  Due rami paralleli (`b13-gc`, `b13-gesti`), ciascuno con revisione indipendente.
+- [x] B13.1 (`9f9ca9e`, `209cda6`, `67845e6`) · `tools/e2e/gesture-calibration.mjs`, `tools/e2e/README.md`,
+  `docs/b13/gesture-calibration-ci.md`. Causa riprodotta con la CPU frenata via CDP: la prova fermava il gioco con
+  `A.netPause` all'apice del lancio; con la pausa `main.js` non registra i fotogrammi e `presented.seenAt` scarta un gesto
+  fatto più di 0,8 s dopo l'ultimo (`INPUT_TIME.maxAge`): sui runner lenti il secondo gesto arrivava oltre, la palla
+  ricadeva (`toss: null`) e la prova scadeva alla riga 73. Il gioco vero non è difettoso (ogni ripresa chiama
+  `resetInputTimeline()`). Correzione solo nella prova: fermo immagine facendo avanzare il motore con dt = 0 e fermando il
+  disegno; `CPU_THROTTLE=<n>` frena la CPU dal servizio in poi. Prima con CPU ×4: 0/5; dopo: 12/12 (revisore 10/10, anche
+  ×6, ×8, ×10 e gesto in ritardo). `timing-browser` ha una causa diversa (messaggio del telefono finto oltre 3 s sul
+  runner lento): non corretto, annotato in `docs/PASSAGGIO_CONSEGNE.md` §3.10.
+- [x] B13.2 (`e82f35b`, 12 commit del ramo uniti in uno perché alcuni intermedi avevano test rossi) ·
+  `natpf_gesture_pose.js` (catena spalla-gomito-polso con segmenti fissi e limiti delle articolazioni, telefono rigido nel
+  palmo, `gestureRig` con le articolazioni vere, `tC` salvati nelle coreografie), `natpf_gesture_demo.js` (braccio intero
+  dalla spalla, busto, testa, manica blu, fantasmi di avambraccio e mano, camere nuove), `test/natpf-gesture-physics.test.mjs`
+  (12, nuovo), `test/natpf-gesture-anim.test.mjs`, `tools/e2e/natpf-gesti-fotogrammi.mjs`, `docs/b13/analisi-gesti.md`,
+  `docs/b13/gesti-nuovi.md`. Riconoscimento non toccato; `natpf-gesture-pose` (14) e `natpf-racchetta` (26) non modificati.
+  Cambiati due controlli di disegno del dritto scritti nel B9 (palmo che spinge da ≥ 0,3 a ≥ 0,1; «mano ≥ 4 cm sotto la
+  palla» → «punto più basso non sopra il contatto») e il test delle etichette dei fantasmi (camere che seguono la mano).
+  - Dritto: carica con le spalle a −38° e la mano dietro il busto; impatto davanti a destra (0,29; 0,98; −0,37) con il
+    gomito staccato 0,33 m e flesso 59°; una sola frenata; fine sopra la spalla sinistra a 1,45 m. **Mano all'impatto in
+    diagonale avanti-sinistra, 57° dalla rete (prima 77°)**: con la presa nel palmo e i limiti del riconoscimento non
+    può andare dritta con il palmo davanti (`docs/b13/gesti-nuovi.md` §0).
+  - Servizio: gomito 34° all'impatto (prima 80°), polso a 1,93 m, mano e telefono mai nella testa; ancora 2 gesti a
+    0,8×, 1× e 1,25×. Schiacciata: gomito 28°, fine in avanti e giù a 1,40 m. Rovescio: impatto 0,37 m davanti con il
+    gomito a 20° (prima 86°), mano a 5,4 m/s (prima 2,46), avambraccio mai nel busto. Volée: mano in avanti (prima
+    tornava verso il corpo), camera più bassa. Incrociato con coreografia propria.
+  - Disegno a 640×400: 1,27 ms per fotogramma, 3,10 ms con la rasterizzazione (limite 4).
+- [x] B13.3 · versione **2026-11-08.1** (`version.js`, `build.json`, `LEGGIMI.txt`), novità in `natpf-desktop/novita.txt`.
+- Verifiche sul branch unito: gioco 887/887, sito 195/195, LAN 12/12, programma Windows 28/28, build ok; nel browser
+  `gesture-calibration` 18/18 e con `CPU_THROTTLE=4` 18/18, `phone-only` + `timing-browser` 8/8, `natpf-modale-gesti`
+  18/18, `natpf-gesti-fotogrammi` 31/31, `natpf-gesti-sequenze` 47/47, `natpf-gesti-speciali` 9/9, `natpf-training-flow`
+  18/18, `natpf-tutorial-phone` 37/37, `natpf-tutorial-relink` 8/8. Zip Cloudflare `natpf-simulator-cloudflare-20261108-1.zip`
+  22.565.946 B (127 file), sha256 `348899623679808b7cd6322dae0eb83c5b2e9a60d7ac98878066a047cf5a3cf0`, provato estratto
+  (versione 2026-11-08.1 nel gioco e nella pagina del telefono, nessun errore; 404 attesi solo su `/api/match/state` e
+  `/lan/status` con un server statico).
+- Non verificato: telefoni veri, persone vere che imitano l'animazione, Windows; l'utente non ha ancora visto i fogli.
+  Restano: dritto in diagonale, servizio con poca pronazione, volée vicina al centro, pendolo del pallonetto poco
+  visibile, busto che anticipa la mano di soli 6–16 ms; margini sottili ma dentro i test (picco del piatto 1144 su 1150,
+  carica della volée 15° su 15°, fermo del pallonetto 0,030 s su 0,04 s).
+- Decisioni chieste all'utente: sagoma del busto sì o no; racchetta fantasma o braccio libero in servizio e schiacciata;
+  camera alta da dietro (stile TV) per i colpi da fondo.

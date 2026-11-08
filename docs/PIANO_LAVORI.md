@@ -17,33 +17,31 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-- Aggiornato: 07/11/2026 sera · agente: Claude · branch `natpf-simulator`.
-- **Per riprendere leggere `docs/PASSAGGIO_CONSEGNE.md`**: cosa è stato fatto dal 05/11 (B9 tutorial, telefono,
-  schermo spento, pronto; B10 voce «smash», tabellone, scritte nel 2v2, prove; B11 installer unico che si aggiorna dal
-  gioco su Cloudflare R2), cosa resta aperto (§3) e cosa controllare (§4). Checkpoint precedente (storia dal 04/11):
+- Aggiornato: 08/11/2026 · agente: Claude · branch `natpf-simulator`.
+- **Per riprendere leggere `docs/PASSAGGIO_CONSEGNE.md`** (lavoro dal 05/11, punti aperti §3, controlli §4) e, per i
+  gesti del tutorial, `docs/b13/gesti-nuovi.md`. Checkpoint precedente (storia dal 04/11):
   `docs/archivio/PIANO_checkpoint_fino_al_2026-11-07.md`.
-- **B12 fatto (07/11 sera, richiesta «parti dalla forza del colpo e dalle azioni di GitHub»):** il colpo tipico
-  impara solo dai colpi normali (dopo 4 palle corte il dritto non diventa più piatto; `67af1d9`); azioni di GitHub a
-  Node 24 (`4ba8b49`). Versione **2026-11-07.5**: il push fa pubblicare il workflow `natpf-windows.yml` su R2 → è la
-  **prima prova vera dell'aggiornamento dal gioco** per chi ha la 07.4. Zip Cloudflare sha256 `65d242c8…f3333dd6d96`.
-- Test: gioco 875/875, sito 195/195, LAN 12/12, programma Windows 28/28, build ok; nel browser natpf-gesti-speciali 9/9,
-  natpf-rally 7/7, natpf-training-flow 18/18 (le altre come al giro del B11, `docs/PASSAGGIO_CONSEGNE.md` §4).
-- Non verificato: Windows (installazione, UAC, aggiornamento dal gioco, riapertura), telefoni veri, ledwall, GPU vera,
-  persone vere sull'animazione nuova.
-- GitHub: installer 2026-11-07.5 **pubblicato su R2** (`latest.json` controllato: build 07.5, sha256
-  `7c037ab5…c087fc5a`, novità), azioni senza avviso di Node 20; «NATPF Simulator tests» rosso solo in
-  `gesture-calibration.mjs:73` (due tentativi; in locale 18/18 due volte: instabilità nota dei runner, §3.10 del
-  passaggio di consegne).
-- **Richiesta nuova (07/11 sera):** «sistema la prova gesture-calibration. In parallelo, rivedi ancora i gesti del
+- **B13 fatto (08/11, richiesta «sistema la prova gesture-calibration. In parallelo, rivedi ancora i gesti del
   tutorial, il dritto non mi sembra tale e ci sono troppi colpi che non simulano la fisica del movimento del braccio
-  con il telefono in mano» → **B13**.
-- **Blocco in corso:** B13, in due rami paralleli: (a) `tools/e2e/gesture-calibration.mjs` stabile sui runner lenti
-  (servizio col telefono del sito: `toss: null` al secondo gesto); (b) moto dei gesti del tutorial
-  (`natpf-tennis/src/natpf/natpf_gesture_pose.js`, disegno `natpf_gesture_demo.js`) rifatto su una catena
-  spalla-gomito-polso fisicamente plausibile, senza perdere la fedeltà al riconoscimento (`natpf-gesture-pose.test.mjs`,
-  `natpf-gesture-anim.test.mjs`). Analisi e prove in `docs/b13/` quando pronte.
-- **Prossima azione esatta:** se il lavoro si interrompe, ripartire da (a) e (b) leggendo `docs/b13/` (se c'è) e il
-  passaggio di consegne §3; il collaudo dell'aggiornamento 07.4 → 07.5 dall'utente resta da fare.
+  con il telefono in mano»):**
+  - (a) `tools/e2e/gesture-calibration.mjs` stabile (`9f9ca9e`…`67845e6`): la prova fermava il gioco con la pausa di
+    rete, e un gesto fatto più di 0,8 s dopo l'ultimo fotogramma registrato viene scartato apposta
+    (`input-time.js`); sui runner lenti succedeva. Ora fermo immagine all'apice del lancio senza pausa; `CPU_THROTTLE`
+    per simulare un runner lento (prima 0/5 con CPU ×4, ora 12/12). Analisi `docs/b13/gesture-calibration-ci.md`.
+  - (b) Gesti del tutorial sulla catena fisica spalla-gomito-polso (`e82f35b`): braccio intero dalla spalla con busto,
+    testa e manica; dritto, piatto, incrociato, rovescio, servizio, schiacciata, volée e pallonetto rifatti; nuovo test
+    `natpf-gesture-physics` (12). Riconoscimento non toccato. **Limite rimasto**: all'impatto la mano del dritto va in
+    diagonale avanti-sinistra (57° dalla rete, prima 77°): con la presa nel palmo e i limiti del riconoscimento non può
+    andare dritta verso la rete con il palmo davanti (`docs/b13/gesti-nuovi.md` §0).
+  - Versione **2026-11-08.1** (novità per chi aggiorna dal gioco).
+- Test: gioco 887/887, sito 195/195, LAN 12/12, programma Windows 28/28, build ok; nel browser vedi
+  `docs/WORK_PROGRESS.md` B13.
+- Non verificato: Windows (installazione, aggiornamento dal gioco 07.4 → 07.5 → 08.1), telefoni veri, ledwall, GPU vera,
+  persone vere sull'animazione nuova; l'utente non ha ancora visto i fogli dei gesti nuovi.
+- **Decisioni chieste all'utente** (B13): tenere la sagoma del busto; aggiungere una racchetta fantasma o il braccio
+  libero in servizio e schiacciata; camera alta da dietro (stile TV) per i colpi da fondo.
+- **Prossima azione esatta:** controllare la CI del push di B13 («NATPF Simulator tests» con `gesture-calibration`
+  verde; «NATPF eseguibili Windows» che pubblica la 2026-11-08.1 su R2) e aspettare il parere dell'utente sui gesti.
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
 1. **Push**: dopo ogni commit verificato, subito, su `origin natpf-simulator`. Verificato = test del gioco e del sito
@@ -119,7 +117,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B10 Voce, tabellone, scritte, prove | [x] | voce «smash» solo per la schiacciata, tabellone come in TV, scritte del colpo fuori dal campo nel 2v2, palla corta e salita abituale, blocco di 1 s, prove rifatte | `8a12f2b`…`f490c7b` | 2026-11-07.1–.3 |
 | B11 Installer unico con aggiornamenti | [x] | un solo installer Windows che si aggiorna dal gioco (Cloudflare R2, bucket UE `natpfsimulator`), zip LAN e portatile tolti; collaudo Windows dell'utente in corso | `8623bd9`…`fa190f2` | 2026-11-07.4 |
 | B12 Forza del colpo e CI | [x] | colpo tipico solo dai colpi normali (palle corte non abbassano più la forza); azioni di GitHub a Node 24 | vedi WORK_PROGRESS B12 | 2026-11-07.5 |
-| B13 Prova del servizio e gesti del tutorial | [~] | `gesture-calibration` stabile in CI; moto dei gesti del tutorial con la fisica del braccio (dritto credibile) | — | — |
+| B13 Prova del servizio e gesti del tutorial | [x] | `gesture-calibration` senza pausa di rete (stabile con CPU ×4); gesti del tutorial sulla catena fisica del braccio (dritto ancora in diagonale: limite del riconoscimento) | vedi WORK_PROGRESS B13 | 2026-11-08.1 |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).

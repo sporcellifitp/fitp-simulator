@@ -440,3 +440,25 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   simulato dei test (`test/phone-sim.mjs`) usa la stessa regola.
 - Le azioni di GitHub sono alle versioni con Node 24 (checkout, setup-node e upload-artifact v7): Node 20 viene tolto
   dai runner il 16/09/2026.
+
+### Gesti del tutorial sulla catena fisica del braccio (B13, 08/11/2026)
+- `natpf_gesture_pose.js` calcola il braccio come una catena spalla-gomito-polso con segmenti di lunghezza fissa e
+  limiti delle articolazioni; il telefono è rigido nel palmo (presa approvata). `gestureRig` restituisce le
+  articolazioni vere e `natpf_gesture_demo.js` disegna il braccio intero dalla spalla, con busto, testa e manica.
+  I tempi d'impatto risolti (`tC`) stanno nelle coreografie (un test li ricalcola) per non risolverli a ogni apertura.
+- `test/natpf-gesture-physics.test.mjs` misura la fisica con soglie fisiche: direzione della mano all'impatto (dritto al
+  massimo 60° dalla rete), gomito staccato dal corpo (≥ 0,1 m), carica dietro il piano del busto, una sola frenata
+  (nessuna riaccelerazione oltre 0,3 m/s o 40 °/s), nessuna compenetrazione di avambraccio, gomito, dita e telefono con
+  busto e testa. La fedeltà al riconoscimento resta in `natpf-gesture-pose` e `natpf-racchetta` (non toccati).
+- **Vincolo del dritto**: con la presa nel palmo e i limiti del riconoscimento (carica lenta per ~70° di rotazione del
+  telefono, parte veloce di ~45° prima del picco) la mano all'impatto non può andare dritta verso la rete con il palmo
+  davanti: va in diagonale avanti-sinistra (57°). Una mano tutta in avanti avrebbe il dorso davanti. Per cambiarlo si
+  dovrebbe toccare il riconoscimento (con prove su telefoni veri), non l'animazione.
+- Le coreografie si ritoccano con un ottimizzatore fuori dal repository (Nelder–Mead sulle pose chiave e sui ritardi,
+  ogni candidato letto dal telefono simulato completo): descritto in `docs/b13/gesti-nuovi.md`.
+
+### Prove nel browser: niente pausa di rete come fermo immagine (B13, 08/11/2026)
+- `main.js` scarta di proposito un gesto fatto più di `INPUT_TIME.maxAge` (0,8 s) dopo l'ultimo fotogramma registrato, e
+  con `A.netPause` i fotogrammi non si registrano. Una prova che ferma il gioco con la pausa di rete e poi manda un gesto
+  è instabile sui runner lenti (era `gesture-calibration.mjs:73`). Il fermo immagine si fa facendo avanzare il motore con
+  dt = 0 e fermando il disegno; `CPU_THROTTLE=4` simula un runner lento (`docs/b13/gesture-calibration-ci.md`).
