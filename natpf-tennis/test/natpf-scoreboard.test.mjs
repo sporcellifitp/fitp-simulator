@@ -122,8 +122,8 @@ test('piede del tabellone fuori dalla sottogriglia: il formato e «Vantaggio di 
   assert.match(rule('.natpf-scoreboard .sb-row'), /grid-template-columns:\s*subgrid/);
   // niente colonne fisse per le due scritte del piede
   assert.doesNotMatch(rule('.natpf-scoreboard .sb-foot [data-sb-format]') + rule('.natpf-scoreboard .sb-label'), /grid-column/);
-  // almeno 10 px (prima 0.56em: 7,3 px a 844×390 e 9,3 px nel ledwall 720×720)
-  assert.match(foot, /font-size:\s*max\(10px,\s*0?\.6\d*em\)/);
+  // almeno 11 px (B17.3; prima 10, e prima ancora 0.56em: 7,3 px a 844×390 e 9,3 px nel ledwall 720×720)
+  assert.match(foot, /font-size:\s*max\(11px,\s*0?\.6\d*em\)/);
   // la scritta del momento, se proprio non ci sta, si accorcia invece di uscire
   assert.match(rule('.natpf-scoreboard .sb-label'), /text-overflow:\s*ellipsis/);
 });

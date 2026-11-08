@@ -205,6 +205,9 @@ export class NatpfUi {
       split: !!E.natpfSplit?.active, splitNames: E.natpfSplitNames, doubles: !!E.isDoubles, hostName: rs.hostName, guestName: rs.guestName });
     const html = scoreboardHtml(v);
     if (this._sbHtml !== html || !el.firstChild){ this._sbHtml = html; el.innerHTML = html; }
+    // stesso schermo (B17.3): la stessa tabella anche in alto a sinistra della metà del Player 2; vuota altrimenti
+    const el2 = $('natpf-scoreboard-p2'), html2 = E.natpfSplit?.active ? html : '';
+    if (el2 && (this._sbHtml2 !== html2 || !!el2.firstChild !== !!html2)){ this._sbHtml2 = html2; el2.innerHTML = html2; }
   }
   // dal menu di pausa (e dal chiosco): fine partita, allenamento o sfida, ritorno al menu principale. Prima, in
   // allenamento, lo stop passava dalla fine dell'allenamento: dal riscaldamento si finiva sulla pagina «Partita» e dalla
