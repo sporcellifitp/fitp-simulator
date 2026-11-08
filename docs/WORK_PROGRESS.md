@@ -571,3 +571,37 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
   GitHub (`ddd4428`): tre esecuzioni verdi; installer **2026-11-08.3 pubblicato su R2** (124.609.974 B, sha256
   `d5ead1f7d34583c64abdabe74aeed58190f87d48c7603a93dc80d03527fb2f79`, `latest.json` controllato).
 - Non verificato: telefoni veri, persone vere, Windows; l'utente non ha ancora visto i fogli.
+
+## B15 · Audit della sensibilità e della precisione dei colpi (ramo «colpi») · [~] · 08/11/2026
+
+Richiesta dell'utente (08/11): «migliorare la sensibilità del dispositivo e la precisione dei colpi rispetto ai gesti
+eseguiti: tutti gli scambi vanno quasi sempre nella stessa direzione con stessa velocità e angolazione». Audit completo con
+i numeri in `docs/b15/audit-colpi.md`. Lavoro su un worktree a parte (ramo locale `b15-colpi`, base `8a996e3`), da integrare.
+
+- [x] B15.1 · banco `natpf-tennis/scripts/audit/colpi.mjs` (`404bb36`): telefono simulato mosso dal braccio → messaggio →
+  `natpfSwingToEngine` → motore headless → fisica fino al rimbalzo; velocità del gesto 0,4…1,6×, piatto −30…+30°, tempo
+  −1…+1 finestre, dritto/rovescio, palla 0,7…1,8 m, livelli, 240 colpi di una «persona normale» (p10/p50/p90 e R² per
+  ingresso), sequenze di dieci colpi uguali con i riferimenti che imparano. `test/phone-sim.mjs`: `game(d, { learn: false })`
+  e `models` esposti. Prima: 0,6× → 1,6× del proprio colpo 82 → 123 km/h (×1,50); dieci dritti girati di 20° cadevano da
+  2,88 a 1,06 m; dieci colpi a 1,5× passavano da forza 0,80 a 0,65 dal sesto; alternando dritto e rovescio girati di 20°
+  da 2,9/3,5 a 1,4/1,6 m.
+- [x] B15.2 · correzioni (`5bda836`), ognuna con misura prima/dopo nel commento della costante e nel documento:
+  `AIM` verifyDev 35 → 20°, biasDev/commonDev 12/8 → 25° con isteresi (biasLow/commonLow 10°), pull 0,3 → 0,2, drift
+  0,03 → 0,01 (`natpf_gestures.js`); `TYPICAL.keep` 9 → 24 (`natpf_phone_racket.js`); tetto del volo base 1,2 → 1,5
+  (`game_engine.js` `_natpfRacketShot`); `OUTCOME.topClearSoft` 2,5 m, `clearCurve` 1,5, `topSpinPower` 8, `smashSpeed`
+  46 → 48 (`natpf_stroke_outcome.js`). Dopo: 77 → 124 km/h (×1,62) con il colpo tipico fermo a 92,6 km/h e 9,2 m; dieci
+  dritti a 20°: 2,83 → 2,54 m; a 1,5×: forza 0,80 → 0,80; alternati: 2,8/3,5 → 2,7/3,6. Piatto 15° → 1,7 m, 30° → 3,3 m,
+  tempo ±1 → ±3,6 m, dritto e rovescio equivalenti: già così, invariati. Test nuovo `test/natpf-colpi-b15.test.mjs` (6):
+  con i sorgenti della base falliscono 4 su 6 (prova di mutazione).
+  Verifiche: gioco **900/900**, sito 195/195; `rally-balance --points=150` (punti vinti, prima → dopo): Casual medio 93,1 →
+  94,9 %, amatore 85,3 → 86,4, tennista 98,7 → 98,7, umano 90,0 → 89,6; Pro medio 65,8 → 64,7, amatore 60,7 → 61,3, tennista
+  96,7 → 96,4, umano 76,7 → 73,8. `audit:legend` (300 punti, 8 semi): pro contro medio **84,1 % dei game (criterio 70–85;
+  alla base 85,3 %, KO)**, casual contro medio 100 %; i due criteri di Leggenda già KO alla base peggiorano (CPU contro
+  «tennista» 74,5 → 67,3 %, criterio ≥ 85; contro «preciso» 37,4 → 25,9 %, criterio ≥ 60): i colpi forti dei profili forti
+  sono più tesi e la Leggenda li prende meno (con 3 semi il tetto del volo da solo non li cambia: è l'altezza sulla rete
+  dei colpi forti). Browser (Chromium, porte 3605–3608): `natpf-rally` 7/7, `natpf-gesti-speciali` 9/9.
+- Non cambiato e perché: ritmo (`RHYTHM`, decisione del 28/10), soglie del tipo di colpo (fedeltà del tutorial), zona
+  morta e scarto della mira (15° → 1,7 m e 30° → 3,3 m già così), soglia minima del gesto (40 % del colpo tipico con il
+  verso atteso: sotto ci sono preparazioni e rientri), metà relativa della forza.
+- Non verificato: telefoni veri, persone vere, rumore dell'orientamento dei telefoni veri, Windows, pacchetti (il ramo va
+  integrato prima).

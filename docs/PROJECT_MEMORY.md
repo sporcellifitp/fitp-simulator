@@ -490,3 +490,21 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   con `A.netPause` i fotogrammi non si registrano. Una prova che ferma il gioco con la pausa di rete e poi manda un gesto
   è instabile sui runner lenti (era `gesture-calibration.mjs:73`). Il fermo immagine si fa facendo avanzare il motore con
   dt = 0 e fermando il disegno; `CPU_THROTTLE=4` simula un runner lento (`docs/b13/gesture-calibration-ci.md`).
+
+### Colpi sensibili al gesto (B15, 08/11/2026, ramo «colpi»; audit in `docs/b15/audit-colpi.md`)
+- **Centro della mira** (`createAimModel`, `AIM`): uno scarto che dura è una *scelta* finché sta sotto lo scarto della mira
+  piena (25° > faceDead + faceSpan = 23°): il centro non lo insegue (drift 0,01 a colpo; prima biasPull/commonPull da
+  12°/8° e drift 0,03 toglievano il 60 % di una mira tenuta di 20° in dieci colpi). Oltre 25° la mira è satura e non
+  controlla niente: è il riferimento, e il «pull» (0,2 a colpo, con isteresi fino a 10°) lo recupera del tutto. Il seme
+  della calibrazione si verifica sui primi 4 colpi veri a 20° (era 35°: un seme sbagliato di 21–33° restava). Rischio
+  residuo accettato: un seme sbagliato di 10–20° resta (mira 0,3–0,75 da una parte) finché la posa «pronto» del telefono
+  o i colpi vicini al centro (alpha entro 10°) non lo correggono.
+- **Colpo tipico** (`TYPICAL.keep` 24, era 9): il riferimento della forza relativa è la propria scala di gioco; dieci colpi
+  forti di fila restano forti (prima la forza tornava a 0,65 dal sesto).
+- **Velocità della palla**: nel motore la decide l'altezza a cui deve passare sopra il nastro, non il volo base (che vincola
+  solo i colpi morbidi). Altezza con la curva morbidezza^1,5 (`OUTCOME.clearCurve`), TOPSPIN morbido fino a 2,5 m
+  (`topClearSoft`), top spin che cresce con la forza (`topSpinPower` 8: 26 a forza 0,86, come il colpo super), tetto del
+  volo base 1,5 (era 1,2). Gesto 0,6× → 1,6× del proprio colpo: 77 → 124 km/h (×1,62; era ×1,50), colpo tipico invariato
+  (92,6 km/h, 9,2 m). Schiacciata 48 m/s (era 46) perché resti ≥ 1,4 volte il piatto pieno (29/10).
+- Banco di riferimento: `scripts/audit/colpi.mjs` (mappa ingresso → uscita e sequenze); test `natpf-colpi-b15.test.mjs`.
+  Il ritmo (`RHYTHM`, 28/10) e le soglie del tipo di colpo non cambiano.
