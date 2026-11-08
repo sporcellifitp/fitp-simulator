@@ -884,8 +884,10 @@ diverse. Ramo locale da `7936011`, non pubblicato.
   `npm run build` ok. Nel browser (porte 4510–4523, una prova alla volta): `natpf-flusso-tocchi` singolo 5/5, stesso 5/5,
   1v1 7/7; `natpf-tutorial-phone` 39/39 (nuova verifica: 5 schede per telefono nello stesso schermo); `natpf-tutorial-relink`
   9/9; `natpf-training-flow` 21/21; `natpf-split-ready` 34/34 (barra «tutorial 1/5»); `natpf-menu` 22/22; `natpf-1v1-p2p`
-  39/39; `natpf-modale-gesti` 17/18, 15/18, 17/18 in tre giri: KO solo di velocità, ogni volta su una verifica diversa
-  (fps della modale con la macchina carica, load 5–10 su 4 CPU con gli altri agenti; il disegno della modale non è
-  cambiato, cambiano solo numero di schede e puntini).
+  39/39; `natpf-tutorial-phone` mancino (HAND=left) 39/39; `natpf-modale-gesti` 18/18 al quarto giro (prima 17/18, 15/18,
+  17/18: KO solo di velocità, ogni volta su una verifica diversa, fps della modale con la macchina carica, load 5–10 su 4
+  CPU con gli altri agenti; il disegno della modale non è cambiato, cambiano solo numero di schede e puntini).
+  `natpf-flusso-tocchi` singolo rifatto dopo la correzione della tappa unica: 13 tocchi, pannello con un solo
+  «Calibrazione» (schermata guardata).
 - Non verificato: telefoni veri, persone vere (il banco del riscaldamento è un telefono simulato: quanto è forte il
   colpetto della calibrazione di chi gioca davvero lo dicono solo le diagnostiche), Windows.
