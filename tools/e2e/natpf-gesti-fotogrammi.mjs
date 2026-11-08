@@ -51,9 +51,10 @@ const MOMENTS = await p.evaluate(() => {
     const P = GP.gesturePlan(id), T = P.T;
     if (id === 'grip') out[id] = [[1.5, 'Come la vedi tu'], [6, 'Di lato'], [3.75, 'Giro della camera']];
     else if (id === 'ready') out[id] = [[1, 'Ferma']];
-    else if (P.kind === 'serve') out[id] = [[T.hold + .5, 'Carica'], [T.tossPeak, 'Lancio (palla lasciata)'], [T.tossEnd, 'Fine del lancio'], [T.hitStart, 'Braccio in alto'], [P.contact, 'Impatto'], [T.end + .02, 'Fine']];
-    // «Fine»: la posa chiave della fine dell'accompagnamento (B13: tutte le articolazioni ferme, P.keys)
-    else out[id] = [[T.inv, 'Carica'], [(T.inv + P.contact)/2, 'Colpo'], [P.contact, 'Impatto'], [P.keys.find(k => k.id === 'fine')?.t ?? T.end + .02, 'Fine'], [(T.back + T.home)/2, 'Ritorno']];
+    // «Fine»: la fine VERA dell'accompagnamento (B13: tutte le articolazioni ferme, T.back; colpi: la posa chiave 'fine' di
+    // P.keys). B14: la «Fine» del servizio era T.end + 0,02, cioè 0,3 s prima (mano ancora sopra la testa a 1,79 m)
+    else if (P.kind === 'serve') out[id] = [[T.hold + .5, 'Carica'], [T.tossPeak, 'Lancio (palla lasciata)'], [T.tossEnd, 'Fine del lancio'], [T.hitStart, 'Braccio in alto'], [P.contact, 'Impatto'], [T.back - .004, 'Fine']];
+    else out[id] = [[T.inv, 'Carica'], [(T.inv + P.contact)/2, 'Colpo'], [P.contact, 'Impatto'], [P.keys.find(k => k.id === 'fine')?.t ?? T.back - .004, 'Fine'], [(T.back + T.home)/2, 'Ritorno']];
   }
   return out;
 });

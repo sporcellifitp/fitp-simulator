@@ -102,9 +102,10 @@ for (const [W, H] of SIZES) for (const hand of HANDS) for (const id of IDS){
   console.log(`    ${W}×${H} ${id} ${hand}: ${path.basename(f)} · cima max ${m.tipJump.toFixed(0)} px/fotogramma a ${m.tipAt.toFixed(2)} s · camera max ${m.camJump.toFixed(1)} px · etichette: salto max ${m.labJump.toFixed(0)} px (${m.labAt || '-'}), salti > 3 px ${m.labJumps}`);
 }
 if (process.env.STRIP){
-  // striscia per il ledwall: dritto e servizio a 1600×1000, 6 momenti ciascuno
+  // striscia per il ledwall: dritto e servizio a 1600×1000, 6 momenti ciascuno (la fine è quella VERA dell'accompagnamento,
+  // T.back: prima T.end + 0,02, 0,15–0,3 s prima)
   const T = await p.evaluate(() => { const GP = window.__GP, a = GP.gesturePlan('forehand'), b = GP.gesturePlan('serve');
-    return { fh: [a.T.inv - .3, a.T.inv, (a.T.inv + a.contact)/2, a.contact, a.T.end + .02, (a.T.back + a.T.home)/2], sv: [b.T.hold + .5, b.T.tossPeak, b.T.tossEnd, b.T.hitStart, b.contact, b.T.end + .02] }; });
+    return { fh: [a.T.inv - .3, a.T.inv, (a.T.inv + a.contact)/2, a.contact, a.T.back - .004, (a.T.back + a.T.home)/2], sv: [b.T.hold + .5, b.T.tossPeak, b.T.tossEnd, b.T.hitStart, b.contact, b.T.back - .004] }; });
   for (const [id, t] of [['forehand', T.fh], ['serve', T.sv]]) console.log('    striscia', path.basename(await seqSheet(id, 'right', 1600, 1000, .4, t)));
 }
 check('nessun errore nella pagina', errs.length === 0, errs.join(' | '));
