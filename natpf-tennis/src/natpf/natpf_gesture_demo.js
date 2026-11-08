@@ -604,23 +604,18 @@ function drawBody(c, F, st){
 }
 // sagoma della figura (contorno esterno, niente riempimento) per i fantasmi: unione allargata meno unione delle forme
 function drawGhostInto(x, cam, pose, st, H, color){
-  const F = figure(cam, pose, st, H), ow = Math.max(1.5, st.ow*.9);
+  const F = figure(cam, pose, { ...st, handOnly: true }, H), ow = Math.max(1.5, st.ow*.9);
   const T = v => add(pose.pos, qrot(pose.q, v));
   const phone = hull(RR.map(p => cam.p(T([p[0], p[1], HD]))).concat(RR.map(p => cam.p(T([p[0], p[1], -HD])))));
-  // solo avambraccio, mano e telefono (revisione artistica B13: i contorni del braccio intero incrociavano il busto)
-  const shapes = [...(F.full ? F.fore : F.fore.slice(0, 2)), ...F.hand, ...F.parts];
+  // solo mano e telefono (revisione B14: i contorni dell'avambraccio sembravano altre braccia; prima, B13, il braccio intero
+  // incrociava il busto)
+  const shapes = [...F.hand, ...F.parts];
   x.fillStyle = color;
   for (const s of shapes){ x.beginPath(); s.path(x, ow); x.fill(); }
   x.beginPath(); polyPath(x, phone); x.lineJoin = 'round'; x.lineWidth = ow*2; x.strokeStyle = color; x.stroke(); x.fill();
   x.save(); x.globalCompositeOperation = 'destination-out'; x.fillStyle = '#000';
   for (const s of shapes){ x.beginPath(); s.path(x, 0); x.fill(); }
   x.beginPath(); polyPath(x, phone); x.fill();
-  // l'avambraccio del fantasma sfuma come quello vivo (modalità compatta)
-  const a = F.fadeA, b = F.fadeB;
-  if (!F.full && Math.hypot(b.x - a.x, b.y - a.y) > .5){
-    const g = x.createLinearGradient(a.x, a.y, b.x, b.y); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,1)');
-    x.fillStyle = g; x.beginPath(); for (const s of F.fore) s.path(x, ow + 1); x.fill();
-  }
   x.restore();
   return F;
 }
@@ -766,6 +761,20 @@ function versusForehand(id){
   return id === 'flat' ? ` · ${k.toFixed(1).replace('.', ',')}× il dritto` : ` · ${Math.round(k*10)/10 === .5 ? 'metà' : k.toFixed(1).replace('.', ',') + '×'} del dritto`;
 }
 
+/* ---------- fantasmi: quando si vedono ---------- */
+// ogni posa chiave lascia il suo fantasma dopo che il telefono vi è passato, fino al ritorno. Revisione B14: la «Carica» si
+// spegne dopo il contatto (restava fino al ritorno, con «Impatto» e «Fine»: tre braccia in più), con la camera che segue
+// al massimo un fantasma (l'ultimo: «Impatto» lascia il posto a «Fine»), nel servizio solo quello del lancio
+export function ghostAlpha(P, keys, i, t, follow){
+  const k = keys[i];
+  if (P.kind === 'serve' && k.id !== 'lancio') return 0;
+  let a = t < k.t ? 0 : Math.min(1, (t - k.t)/.12)*(1 - sstep(P.T.home - .25, P.T.home + .1, t));
+  a *= sstep(.04, .16, Math.abs(t - k.t));                     // si spegne mentre il telefono passa per quella posa
+  if (k.id === 'carica' && P.contact != null) a *= 1 - sstep(P.contact, P.contact + .1, t);
+  if (follow && k.id === 'impatto'){ const f = keys.find(q => q.id === 'fine'); if (f) a *= 1 - sstep(f.t - .1, f.t + .02, t); }
+  return a;
+}
+
 /* ---------- l'istanza ---------- */
 export class NatpfGestureDemo {
   constructor({ width = 240, height = 240 } = {}){
@@ -855,11 +864,8 @@ export class NatpfGestureDemo {
     st.handOnly = id === 'grip';
     if (id === 'grip'){ this._grip(c, cam, R, tt, u); return; }   // info (con la figura disegnata) la scrive _grip
     // fantasmi a contorno delle pose chiave (non nella modalità compatta)
-    const ghosts = compact || P.still ? [] : M.keys.map((k, i) => {
-      let a = tt < k.t ? 0 : Math.min(1, (tt - k.t)/.12)*(1 - sstep(P.T.home - .25, P.T.home + .1, tt));
-      a *= sstep(.04, .16, Math.abs(tt - k.t));                   // si spegne mentre il telefono passa per quella posa
-      return { k, i, a };
-    });
+    const follow = !!(CAMERAS[id] || {}).follow;
+    const ghosts = compact || P.still ? [] : M.keys.map((k, i) => ({ k, i, a: ghostAlpha(P, M.keys, i, tt, follow) }));
     if (!K.ghost) for (const g of ghosts) if (g.a > .01) this._ghost(c, cam, g, H_);
     if (!P.still){ if (!K.arrow) drawArrows(c, cam, M, tt, st); if (!K.trail) drawTrail(c, cam, M, tt, st); }
     const ballR = gestureBall(id, tt, { hand: this.hand, grip: this.grip }), ball = ballR && this.hand === 'left' ? mirrorPos(ballR) : ballR;
@@ -935,7 +941,7 @@ export class NatpfGestureDemo {
     if (!cached){
       const G = st.ghost, x = G.getContext('2d');
       x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, G.width, G.height); x.setTransform(st.dpr, 0, 0, st.dpr, 0, 0);
-      const F = drawGhostInto(x, cam, pose, st, H_, 'rgba(214,228,255,1)'), R = F.rect;
+      const F = drawGhostInto(x, cam, pose, st, H_, 'rgba(214,228,255,1)'), R = F.handRect;
       const cv = document.createElement('canvas'); cv.width = R.w; cv.height = R.h;
       cv.getContext('2d').drawImage(G, R.x, R.y, R.w, R.h, 0, 0, R.w, R.h);
       cached = { cv, R, F, ref: cam.p(pose.pos) }; this._ghosts.set(key, cached);
@@ -943,7 +949,12 @@ export class NatpfGestureDemo {
     const now = cam.p(pose.pos), dx = (now.x - cached.ref.x)*st.dpr, dy = (now.y - cached.ref.y)*st.dpr;
     const R = cached.R;
     g.F = { ...cached.F, rect: { ...R, x: R.x + dx, y: R.y + dy } };
-    c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = .38*g.a;
+    // con la camera che segue il fantasma (fermo nel campo) scorre: si spegne mentre esce dallo stadio (sopra la banda della
+    // curva) invece di restare tagliato dal bordo (revisione B14: servizio e pallonetto nel ritorno)
+    const d = st.dpr, x0 = (R.x + dx)/d, y0 = (R.y + dy)/d, x1 = x0 + R.w/d, y1 = y0 + R.h/d, sz = Math.max(8, Math.min(R.w, R.h)/d);
+    g.edge = sstep(-.15*sz, .1*sz, Math.min(x0, st.W - x1, y0, st.H*(1 - HUD_H) - y1));
+    if (g.edge <= .01) return;
+    c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = .38*g.a*g.edge;
     c.drawImage(cached.cv, Math.round(R.x + dx), Math.round(R.y + dy));
     c.restore();
   }
@@ -981,7 +992,7 @@ export class NatpfGestureDemo {
           let sum = 0, worst = 0;
           for (const S of samples){ const v = S.occ(place(S.A[ai], ox, oy))/21; sum += v; worst = Math.max(worst, v); }
           const r = place(now[ai], ox, oy), A = now[ai], cx = Math.max(r.x0, Math.min(r.x1, A.x)), cy = Math.max(r.y0, Math.min(r.y1, A.y));
-          const cc = sum/samples.length*2 + worst*8 + taken.reduce((m, b) => m + over(r, b)/(w*h)*3, 0) + Math.hypot(cx - A.x, cy - A.y)/Math.max(st.W, st.H)*2.5 + (ai ? .04 : 0);
+          const cc = sum/samples.length*2 + worst*8 + taken.reduce((m, b) => m + (over(r, b) > 0 ? 20 + over(r, b)/(w*h)*3 : 0), 0) + Math.hypot(cx - A.x, cy - A.y)/Math.max(st.W, st.H)*2.5 + (ai ? .04 : 0);
           if (!L || cc < L.cc) L = { ai, ox, oy, cc };
         }
       }
@@ -996,8 +1007,8 @@ export class NatpfGestureDemo {
     const PT = motion(this.id, this.grip).P.T, back = 1 - sstep(PT.back + .2, PT.back + .4, this._tNow ?? 0);
     const vis = (follow ? sstep(0, u, Math.min(r0.x0 - box.x0, box.x1 - r0.x1, r0.y0 - box.y0, box.y1 - r0.y1))
       : sstep(-2*u, u, Math.min(A.x, st.W - A.x, A.y, st.H*(1 - HUD_H) - A.y)))*back;
-    if (vis <= .01) return;
-    c.save(); c.globalAlpha = Math.min(1, g.a*1.4)*vis;
+    if (vis*(g.edge ?? 1) <= .01) return;
+    c.save(); c.globalAlpha = Math.min(1, g.a*1.4)*vis*(g.edge ?? 1);
     const r = pill(c, st, r0.x0, (r0.y0 + r0.y1)/2, g.k.label, { num: String(g.i + 1), size: u, box: follow ? FREE_BOX : box, align: 'left' });
     c.restore();
     g.labelBox = r; taken.push({ x0: r.x0, y0: r.y0, x1: r.x0 + r.w, y1: r.y0 + r.h });
