@@ -326,6 +326,14 @@ export function sideFromBall(engine, hand = 'right', role = engine.playerRole){
 // Palla alta o piano della schiacciata (ballIsHigh): 0. La schiacciata si fa dall'alto, di dritto o di rovescio, e il
 // lato della palla non dice il verso del gesto: diagnostica 20261030-142438 n. 124, una schiacciata di rovescio con la
 // palla dal lato del dritto è stata trattenuta 300 ms sul telefono come preparazione e colpita lontano dalla racchetta
+// Chi gioca è a rete (B17.4): entro NET_Z.in m dalla rete durante lo scambio; una volta a rete ci resta fino a NET_Z.out
+// (isteresi). Stessa soglia di «net» dell'esito del colpo (game_engine._natpfRacketShot: |z| < 5)
+export const NET_Z = Object.freeze({ in: 5, out: 5.6 });
+export function atNet(engine, role = engine.playerRole, was = false){
+  const me = actorOf(engine, role), z = Math.abs(Number(me?.pos?.z));
+  if (!Number.isFinite(z) || engine.phase !== 'RALLY') return false;
+  return z < (was ? NET_Z.out : NET_Z.in);
+}
 export function expectedStrokeDir(engine, hand = 'right', role = engine.playerRole){
   const b = engine.ball, p2 = role === 'p2', me = actorOf(engine, role);
   if (!b || !me || !b.inPlay || engine.phase !== 'RALLY' || b.lastHitter === (p2 ? 'opponent' : 'player')) return 0;
@@ -498,7 +506,16 @@ export class NatpfPhoneRacket {
   onCal(fn){ this.calListeners.add(fn); return () => this.calListeners.delete(fn); }
   // configurazione mandata al telefono (a ogni collegamento e quando cambia l'attesa del tutorial). tv 2: il computer manda
   // l'avanzamento (tp) e il telefono tiene «Tutto chiaro» spento fino all'ultima scheda vista
-  _cfg(){ return { t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}), ...(this.tutWait ? { tut: 1, tv: 2 } : {}) }; }
+  // net (B17.4): chi gioca è a rete (entro NET_Z m), il telefono abbassa la soglia del picco per i tocchi morbidi (swing-detect
+  // setNet); si rimanda cfg senza net al rientro
+  _cfg(){ return { t: 'cfg', prep: 1, mo: 1, hand: this.hand, ...(this.diagStream ? { diag: 1 } : {}), ...(this.tutWait ? { tut: 1, tv: 2 } : {}), ...(this.atNet ? { net: 1 } : {}) }; }
+  // a rete: entro NET_Z.in m dalla rete nello scambio; si esce oltre NET_Z.out (isteresi: niente cfg a ogni passo sul confine).
+  // Manda cfg al telefono quando cambia; true se è cambiato
+  setNet(v){
+    const on = !!v; if (on === !!this.atNet) return false;
+    this.atNet = on; if (this.connected) this.link.send(this._cfg());
+    return true;
+  }
   // il telefono aspetta il tutorial (on) o calibra subito (off); onTutorial: «Tutto chiaro, ho capito» toccato sul telefono.
   // Si chiama con false solo quando il tutorial si chiude davvero (visto, saltato, si lascia la pagina): un telefono che
   // cade a tutorial aperto continua ad aspettare, e al ricollegamento riceve di nuovo cfg con tut e l'avanzamento
@@ -675,6 +692,8 @@ export class NatpfPhoneRacket {
     // verso del colpo atteso: il telefono distingue così la preparazione (verso opposto) dal colpo
     const ex = phase === 'play' && this.ready ? expectedStrokeDir(this.engine, this.hand, this.role) : 0;
     if (this.connected && ex !== this.lastExpect){ this.lastExpect = ex; this.link.send({ t: 'ex', d: ex }); }
+    // a rete (B17.4): soglie basse sul telefono per i tocchi morbidi, finché si resta entro NET_Z dalla rete nello scambio
+    this.setNet(phase === 'play' && this.ready && atNet(this.engine, this.role, !!this.atNet));
     if (!this.connected) this.lastPhase = null;
     this._syncPhoneState();
   }

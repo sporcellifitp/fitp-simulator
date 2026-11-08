@@ -236,7 +236,7 @@ function onData(c, d){
     case 'dp': send({ t: 'dq', d: d.d, p: performance.now() }); break;
     case 'grip': setGrip(d.g); break;
     // il gioco chiede la modalità preparazione (prep) e il flusso dei sensori in JSON quando non c'è il canale binario (mo)
-    case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); streamJson = !!d.mo; diagStream = !!d.diag; if (d.hand === 'left' || d.hand === 'right') applyHand(d.hand);
+    case 'cfg': prepWanted = !!d.prep; det.setPrepMode(prepWanted); det.setNet?.(!!d.net); streamJson = !!d.mo; diagStream = !!d.diag; if (d.hand === 'left' || d.hand === 'right') applyHand(d.hand);
       { // tutorial: il computer lo apre (tut, con tv 2 manda l'avanzamento) o lo chiude. Si risponde che si sa aspettare
         // (w) con il pulsante spento fino all'ultima scheda (v 2). Calibrazione già partita (si entra in campo dalla pagina
         // «Collega»): si ferma e ripartirà dopo; un telefono già calibrato resta calibrato (dopo «ho capito» torna a «Pronto»)

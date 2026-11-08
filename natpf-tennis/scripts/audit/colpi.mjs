@@ -8,7 +8,7 @@
 // mira, ritmo) spengono la varietà, e la «persona vera» (secondo giro B15): la distribuzione dei gesti di chi gioca davvero,
 // presa dalle diagnostiche, colpo per colpo nelle funzioni vere del computer e nel motore.
 // È un banco deterministico sulle regole vere, non una misura di persone.
-//   node --import ./test/register.mjs scripts/audit/colpi.mjs [--mode=tutto|banco|reale|partite] [--hand=right|left|both] [--json=file] [--quick]
+//   node --import ./test/register.mjs scripts/audit/colpi.mjs [--mode=tutto|banco|reale|partite|rete] [--hand=right|left|both] [--json=file] [--quick]
 //   banco: gesti variati e sequenze nel telefono simulato · reale: persona vera · partite: centro della mira per partita
 //   con il rumore (seme sbagliato, riferimento girato, mira tenuta nei primi colpi) · tutto (predefinito): tutti
 import { pathToFileURL } from 'node:url';
@@ -17,7 +17,7 @@ import { simPhone, rng } from '../../test/phone-sim.mjs';
 import { armSwing, photoGrip, STROKES } from '../../test/arm-sim.mjs';
 import { createHeadlessEngine, gauss } from './headless-engine.mjs';
 import { skillLevel } from '../../src/natpf/natpf_skill.js';
-import { lateSpanOf, directionSpan, SUPER } from '../../src/natpf/natpf_stroke_outcome.js';
+import { lateSpanOf, directionSpan, slowFactor, SUPER } from '../../src/natpf/natpf_stroke_outcome.js';
 import { strokeIntent, INTENT } from '../../src/natpf/natpf_stroke_intent.js';
 import { createAimModel } from '../../src/natpf/natpf_gestures.js';
 
@@ -42,8 +42,9 @@ export function makePhone({ seed = 7, hand = 'right', makeAim = createAimModel }
 }
 // un gesto variato: k = velocità rispetto al colpo del braccio (STROKES), yaw = piatto girato a destra (gradi, prima del
 // colpo, poi si torna), side = dritto o rovescio. Restituisce i messaggi «sw» mandati (di norma uno)
-export function gesture(p, { side = 'forehand', k = 1, yaw = 0, R = Math.random } = {}){
-  const hand = p.hand || 'right', S = strokesOf(hand)[side === 'forehand' ? 'forehand' : 'backhand'], fh = hand === 'left' ? -1 : 1;
+// stroke (B17.4): un gesto di test/arm-sim.STROKES al posto del dritto o del rovescio (tagliato, corta, pallonetto)
+export function gesture(p, { side = 'forehand', k = 1, yaw = 0, R = Math.random, stroke = null } = {}){
+  const hand = p.hand || 'right', S = stroke ? STROKES[stroke] : strokesOf(hand)[side === 'forehand' ? 'forehand' : 'backhand'], fh = hand === 'left' ? -1 : 1;
   // come in partita: il telefono sa da che parte arriva la palla (verso atteso) e la modalità preparazione è attiva
   p.det.setPrepMode(true); p.det.setExpect(side === 'forehand' ? fh : -fh);
   p.rest(450, 4);
@@ -59,17 +60,20 @@ export function gesture(p, { side = 'forehand', k = 1, yaw = 0, R = Math.random 
 // il colpo nel motore vero: palla al punto d'impatto, tempo u in unità della finestra della direzione (+ anticipo),
 // Math.random fisso. Il mancino (ev.natpf.hand) ha la palla dall'altra parte (specchio). Restituisce l'esito del motore e
 // dove cade davvero la palla (fisica fino al rimbalzo)
-export function strike(ev, { difficulty = 'casual', u = 0, ballY = 1, engine = null, rally = 3 } = {}){
+// B17.4 (scenario «palla corta e rete»): ballZ posizione della palla (m dalla rete; chi gioca 0,5 m dietro), short palla corta
+// già rimbalzata e lenta (6 m/s), lateral distanza laterale della palla (oltre 1,1 m toglie qualità: in allungo), run corsa
+// (0…1, toglie qualità)
+export function strike(ev, { difficulty = 'casual', u = 0, ballY = 1, engine = null, rally = 3, ballZ = 10.9, short = false, lateral = .6, run = 0 } = {}){
   const real = Math.random; Math.random = () => .5;
   try {
     const e = engine || createHeadlessEngine({ difficulty });
     if (!engine) e.startNewMatch({ showStartBanner: false });
-    const mx = (ev.natpf?.hand || ev.hand) === 'left' ? -1 : 1;
+    const mx = (ev.natpf?.hand || ev.hand) === 'left' ? -1 : 1, vz = short ? 6 : 18;
     e.phase = 'RALLY'; e.ball.inPlay = true; e.ball.lastHitter = 'opponent'; e.ball.bounceCountOnCurrentSide = 1; e.ball.rallyStrokeCount = rally;
     e.ball.natpfSuper = null; e.pendingUserSwing = null;
-    e.player.pos.set(0, 0, 11.4); e.player.vel.set(0, 0, 0); e.player.targetPos.copy(e.player.pos); e.player.swingCooldown = 0;
-    e.ball.pos.set(.6*mx, ballY, 10.9); e.ball.vel.set(0, 0, 18); e.ball.targetLanding.set(.6*mx, 0, 9);
-    const lv = skillLevel(difficulty), span = directionSpan(lv), late = lateSpanOf(18, lv), tau = u >= 0 ? u*span : u*late;
+    e.player.pos.set(0, 0, ballZ + .5); e.player.vel.set(0, 0, -run*Math.max(1, e.player.maxSpeed || 9)); e.player.targetPos.copy(e.player.pos); e.player.swingCooldown = 0;
+    e.ball.pos.set(lateral*mx, ballY, ballZ); e.ball.vel.set(0, 0, vz); e.ball.targetLanding.set(lateral*mx, 0, short ? Math.max(1.5, ballZ - .6) : 9);
+    const lv = skillLevel(difficulty), span = directionSpan(lv)*slowFactor(vz), late = lateSpanOf(vz, lv), tau = u >= 0 ? u*span : u*late;
     const ok = e._attemptPlayerRallyStrike({ ...ev, natpf: { ...ev.natpf, latency: 0 }, natpfTau: tau, natpfLateSpan: late }, false);
     if (!ok || e.ball.lastHitter !== 'player') return null;
     const R = e.natpfLastRacket, out = R.out, kmh = e.ball.vel.length()*3.6;
@@ -83,7 +87,8 @@ export function strike(ev, { difficulty = 'casual', u = 0, ballY = 1, engine = n
     }
     return { x: out.x, depth: out.depth, clear: out.clear, kmh: +kmh.toFixed(1), bx: bx == null ? null : +bx.toFixed(2), bz: bz == null ? null : +(-bz).toFixed(2), net: net == null ? null : +net.toFixed(2),
       apex: +apex.toFixed(2), shot: out.shot, t: out.t, aim: out.aim, q: out.q, grade: out.grade, failed: !!out.failed, netFault: !!out.netFault, super: R.super, assist: out.assist,
-      power: +R.intent.power.toFixed(3), face: +(R.intent.face ?? 0).toFixed(3), wantDepth: +(R.intent.depth ?? 0).toFixed(3) };
+      power: +R.intent.power.toFixed(3), face: +(R.intent.face ?? 0).toFixed(3), wantDepth: +(R.intent.depth ?? 0).toFixed(3),
+      weak: !!out.weak, controlled: !!out.controlled, attack: !!out.attack, netVolley: !!out.netVolley, flight: +R.flight.toFixed(3), read: ev.natpf?.shot || null };
   } finally { Math.random = real; }
 }
 // lettura del telefono e dell'intenzione (per vedere dove si perde la varietà, prima del motore)
@@ -280,6 +285,56 @@ export function partiteAll({ hand = 'right', makeAim = createAimModel, quick = Q
 // specchio: le stesse estrazioni del destro e del mancino danno la stessa palla dall'altra parte. Nei tagliati (e nelle
 // palle corte) l'effetto laterale del motore va dalla parte del campo dove sta chi colpisce (x ≥ 0), non dipende dalla
 // mano: al centro esatto (x = 0, il banco) i due vanno dalla stessa parte e la velocità cambia di qualche decimo (cutKmh)
+// Scenario «palla corta e rete» (B17.4): gli stessi gesti variati con la palla corta a 4 m dalla rete (bassa, 0,9 m, lenta),
+// una volta arrivandoci «in allungo e di corsa» (qualità di situazione ≈ 0,6, la situazione delle diagnostiche dell'08/11) e
+// una volta comodi (qualità piena); Leggenda. Mostra che gesti diversi danno colpi diversi anche lì (prima: tutti «deboli»)
+export const RETE = Object.freeze({ ballZ: 4, ballY: .9, strained: { lateral: 2.2, run: 1 }, easy: { lateral: .6, run: 0 } });
+// gesti del braccio simulato (dritto e rovescio variati: velocità, piatto, tempo) e, per i colpi speciali che il braccio
+// simulato con la presa della foto non produce (il telefono simulato li scarta «verso»), l'intenzione letta come la manda il
+// computer (strokeIntent: tipo, forza, salita, confidenza) in un colpo sintetico con gli stessi campi dell'evento del telefono
+export const RETE_GESTURES = [
+  ['dritto forte 1,4×', { side: 'forehand', k: 1.4 }], ['dritto 1×', { side: 'forehand', k: 1 }], ['dritto morbido 0,6×', { side: 'forehand', k: .6 }],
+  ['rovescio 1×', { side: 'backhand', k: 1 }],
+  ['tagliato (intenzione)', { intent: { shot: 'slice', power: .55, rise: -.5, conf: 1 } }],
+  ['palla corta chiara, lenta (intenzione)', { intent: { shot: 'drop', power: .2, rise: -.5, conf: .9 } }],
+  ['palla corta vaga, conf .14 (intenzione)', { intent: { shot: 'drop', power: .3, rise: -.5, conf: .14 } }],
+  ['pallonetto (intenzione)', { intent: { shot: 'lob', power: .4, rise: .6, conf: .8 } }],
+  ['dritto piatto +20°', { side: 'forehand', k: 1, yaw: 20 }], ['dritto piatto −20°', { side: 'forehand', k: 1, yaw: -20 }],
+  ['dritto anticipo +0,7', { side: 'forehand', k: 1 }, { u: .7 }], ['dritto ritardo −0,7', { side: 'forehand', k: 1 }, { u: -.7 }],
+];
+export const syntheticEvent = (intent, { side = 'forehand', hand = 'right' } = {}) => ({ source: 'natpf-phone', side, shotType: intent.shot, speed: .8 + intent.power*.85, dirX: 0, dirY: 0, timing: null,
+  natpf: { aim: 'swing', shot: intent.shot, conf: intent.conf ?? 1, power: intent.power, latency: 0, hand, aimDev: 0, peak: Math.round(250 + 1100*intent.power), typical: 780,
+    intent: { typePower: intent.power, depth: intent.power, rise: 0, face: 0, conf: 1, byShape: false, ...intent } } });
+// come variant, ma con qualche seme in più se il gesto si perde (il banco di B15 non riprova: lì la perdita è un dato)
+function variantRetry(p, g, tries = 4){
+  for (let i = 0; i < tries; i++){ const msgs = gesture(p, { ...g, R: rng(2000 + i*17 + Math.round(g.k*100) + Math.round(g.yaw || 0)) }); if (msgs.length === 1) return p.game(msgs[0], { learn: false }); }
+  return null;
+}
+export function rete({ hand = 'right', difficulty = 'leggenda' } = {}){
+  const p = warmPhone(makePhone({ hand })), out = { hand, difficulty, strained: [], easy: [] };
+  for (const [name, g, s = {}] of RETE_GESTURES){
+    const r = g.intent ? { ev: syntheticEvent(g.intent, { hand }) } : variantRetry(p, g);
+    if (!r){ out.strained.push({ name, lost: true }); out.easy.push({ name, lost: true }); continue; }
+    const read = g.intent ? { shot: g.intent.shot, power: g.intent.power } : readOf(r, p);
+    for (const key of ['strained', 'easy']) out[key].push({ name, read, out: strike(r.ev, { difficulty, ballZ: RETE.ballZ, ballY: RETE.ballY, short: true, ...RETE[key], ...s }) });
+  }
+  return out;
+}
+export function printRete(res){
+  for (const key of ['strained', 'easy']){
+    console.log(`\n«palla corta e rete» (${res.difficulty}, palla a ${RETE.ballZ} m, ${RETE.ballY} m, ${key === 'strained' ? 'in allungo e di corsa: qualità ≈ 0,6' : 'comodi: qualità piena'})`);
+    const row2 = cells => cells.map((c, i) => fmt(c).padStart(i ? 9 : 38)).join('');
+    console.log(row2(['gesto', 'letto', 'forza', 'colpo', 'x', 'prof', 'km/h', 'rete m', 'volo', 'q', 'esito']));
+    for (const r of res[key]){
+      const o = r.out; if (!o){ console.log(row2([r.name, 'perso'])); continue; }
+      const esito = o.weak ? 'debole' : o.failed ? (o.netFault ? 'in rete' : 'fallito') : o.controlled ? (o.attack ? 'contr+chius' : 'controllato') : o.attack ? 'chiusura' : o.netVolley ? 'volée' : 'ok';
+      console.log(row2([r.name, o.read, o.power, o.shot, o.x, o.depth, o.kmh, o.net, o.flight, o.q, esito]));
+    }
+    const ok = res[key].filter(r => r.out && !r.out.weak && !r.out.failed);
+    const depths = ok.map(r => r.out.depth), xs = ok.map(r => r.out.x), kmh = ok.map(r => r.out.kmh);
+    console.log(`  colpi non deboli né falliti ${ok.length}/${res[key].length}; profondità ${fmt(Math.min(...depths))}…${fmt(Math.max(...depths))} m, x ${fmt(Math.min(...xs))}…${fmt(Math.max(...xs))} m, ${fmt(Math.min(...kmh))}…${fmt(Math.max(...kmh))} km/h, esiti distinti ${new Set(ok.map(r => `${r.out.depth.toFixed(1)}|${r.out.x.toFixed(1)}`)).size}`);
+  }
+}
 export function mirrorCheck(right, left){
   let dx = 0, dd = 0, dk = 0, ck = 0, n = 0, types = 0;
   for (let i = 0; i < right.shots.length; i++){
@@ -360,6 +415,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href){
     }
     if (mode === 'tutto' || mode === 'partite'){ res[hand].partite = partiteAll({ hand }); printPartite(res[hand].partite, hand); }
     if (mode === 'tutto' || mode === 'banco'){ res[hand].banco = audit({ hand }); print(res[hand].banco); }
+    if (mode === 'tutto' || mode === 'rete'){ res[hand].rete = rete({ hand }); printRete(res[hand].rete); }
   }
   if (res.right?.reale && res.left?.reale){
     console.log('\n######## specchio destro ↔ mancino (persona vera: stesse estrazioni, |x_D + x_M|, |prof_D − prof_M|, |km/h_D − km/h_M| massimi)');

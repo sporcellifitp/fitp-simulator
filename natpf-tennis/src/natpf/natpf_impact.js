@@ -293,6 +293,10 @@ export function serveMidSwing(e = {}, tau = 0){
 }
 // forza di un gesto per il confronto tra due gesti (picco del telefono, °/s; altrimenti dalla velocità del motore)
 export const swingStrength = (e = {}) => finite(e.natpf?.peak, NaN) || finite(e.speed, 1)*600;
+// Finestra del colpo a vuoto in anticipo (IMPACT.early del livello), allargata sulle palle lente come la finestra della
+// direzione (slowFactor, fino a ×1,8 sotto 15 m/s). B17.4: sulle palle corte a rete i gesti fatti «quando la palla sembra lì»
+// erano «VERY EARLY • WHIFF» (diagnostica q79f, 42,8 s: colpo a vuoto, poi il pallonetto vero 0,2 s dopo)
+export const earlyWindow = engine => impactWindow(engine?.matchConfig?.difficulty).early*slowFactor(engine?.ball?.vel?.z);
 // Attesa dello swing per attore: chi gioca qui (pendingUserSwing) e il Player 2 del 1v1, tra due computer o sullo stesso
 // schermo (pendingP2Swing), con il suo colpo (_attemptP2RallyStrike). Diagnostiche 142317/142438 (C2): lo swing del P2
 // passava dal percorso vecchio, con 0,22 s di attesa contro 0,45 s del P1 e senza la finestra in ritardo della palla.
@@ -342,7 +346,7 @@ export function queueUserSwing(engine, e, actor){
     // palla corta o il pallonetto voluti e fatti in tempo restano anche qui (KEEP: il braccio che torna dall'altra parte).
     // Al posto di un colpo a vuoto in anticipo va bene ogni swing che prende la palla
     const cur = engine[key], deferred = !!cur?.natpfWindow && cur.softDefer;
-    if (deferred && cur.lead <= W.early && !cur.weak && (strength < cur.strength*SOFT.replace || keepsSpecial(engine, cur, e, now))) return 'ignored';
+    if (deferred && cur.lead <= earlyWindow(engine) && !cur.weak && (strength < cur.strength*SOFT.replace || keepsSpecial(engine, cur, e, now))) return 'ignored';
     const b = engine.ball, toward = Math.sign(actor.pos.z) || 1, behind = (b.pos.z - (actor.pos.z - toward*IMPACT.contactAhead))*toward;
     const extra = W.lateExtra || IMPACT.lateExtra;
     if (lead >= -lateSpan*extra && behind <= IMPACT.lateBehind*extra + .2 && Math.abs(b.pos.x - actor.pos.x) <= IMPACT.reach && b.pos.y < 3.4){
@@ -395,10 +399,11 @@ export function resolvePending(engine, actor){
     if (livePlan(engine, actor)?.kind === 'letgo'){ engine[key] = null; return true; }
     // gesto morbido o colpo a vuoto in anticipo: si aspetta SOFT.wait il colpo vero, che può arrivare al computer poco
     // dopo l'arrivo della palla (queueUserSwing lo gioca in ritardo al posto di questo)
-    if (ps.deferUntil == null && (ps.lead > W.early || softSwing(ps.evt))){ ps.deferUntil = now + SOFT.wait; ps.softDefer = true; return false; }
+    const early = earlyWindow(engine);
+    if (ps.deferUntil == null && (ps.lead > early || softSwing(ps.evt))){ ps.deferUntil = now + SOFT.wait; ps.softDefer = true; return false; }
     if (ps.softDefer && now < ps.deferUntil) return false;
     engine[key] = null;
-    if (ps.lead > W.early){ engine._natpfEarlyWhiff?.(ps); return true; }
+    if (ps.lead > early){ engine._natpfEarlyWhiff?.(ps); return true; }
     if (Math.abs(b.pos.x - actor.pos.x) > IMPACT.reach || b.pos.y >= 3.4){ engine._natpfEarlyWhiff?.({ ...ps, natpfWhy: 'portata' }); return true; }
     strike(engine, actor, ps.evt);
     return true;

@@ -38,5 +38,6 @@ test('motore Leggenda: recupero della palla corta oltre 5 metri dalla rete', () 
   const swing = { source: 'natpf-phone', side: 'forehand', shotType: 'topspin', speed: 1, natpfTau: 0, natpfLateSpan: .1,
     natpf: { aim: 'swing', shot: 'topspin', intent: { shot: 'topspin', power: .5, depth: .5, rise: .3, face: 0 }, power: .5, peak: 900, latency: 0, hand: 'right' } };
   const r = e._natpfRacketShot(swing, e.player, { lateral: 2, smash: false, running: 1 });
-  assert.equal(r.out.netFault, false); assert.ok(r.out.depth < 11.885); assert.equal(r.out.weak, true);
+  // B17.4: con la qualità di situazione poco sotto failQ il colpo a rete è controllato (non più debole uguale per tutti)
+  assert.equal(r.out.netFault, false); assert.ok(r.out.depth < 11.885); assert.ok(r.out.weak || r.out.controlled, JSON.stringify(r.out));
 });

@@ -194,7 +194,8 @@ test('motore: finestra d\'impatto — lo swing in anticipo aspetta la palla a og
     const held = run(difficulty, 8.4);                      // 0,27 s prima del punto d'impatto
     assert.equal(held.hitter, 'player', difficulty);
     assert.ok(Math.abs(held.hitZ - .265) < .03, `${difficulty} ${held.hitZ}`);   // tempo vero dello swing, non quello dell'impatto
-    assert.equal(run(difficulty, 4.0).hitter, 'opponent', difficulty);           // 0,7 s prima: a vuoto
+    // 1,0 s prima: a vuoto (B17.4: su una palla lenta, 10 m/s, la finestra è allargata di slowFactor 1,5: 0,6–0,75 s)
+    assert.equal(run(difficulty, 1.0).hitter, 'opponent', difficulty);
   }
 });
 
