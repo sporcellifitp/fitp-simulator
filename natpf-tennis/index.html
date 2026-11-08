@@ -538,34 +538,40 @@
               <span class="tile-name">Sfida un amico</span><span class="tile-desc">1v1 su due computer</span>
             </button>
           </div>
-          <div class="lobby-row">
-            <span class="lobby-label">Formato</span>
-            <div class="lobby-seg" role="radiogroup" aria-label="Formato">
-              <button type="button" class="seg-btn" data-natpf-format="singles">Singolare 1v1</button
-              ><button type="button" class="seg-btn" data-natpf-format="doubles">Doppio 2v2</button>
+          <!-- una scelta in vista (il livello della CPU), il resto (formato, durata, chi batte, visuale) sotto «Altre
+               impostazioni», chiuso a ogni visita della pagina (B15, 08/11: prima cinque righe e 18 pulsanti prima di
+               «Gioca»). Il riassunto accanto dice che cosa è scelto; durata e visuale restano salvate -->
+          <button type="button" class="match-more-btn" id="match-more-btn" data-match-more aria-expanded="false" aria-controls="match-more"><b>Altre impostazioni</b><small id="match-more-sum"></small><i aria-hidden="true">›</i></button>
+          <div id="match-more" class="match-more hidden">
+            <div class="lobby-row">
+              <span class="lobby-label">Formato</span>
+              <div class="lobby-seg" role="radiogroup" aria-label="Formato">
+                <button type="button" class="seg-btn" data-natpf-format="singles">Singolare 1v1</button
+                ><button type="button" class="seg-btn" data-natpf-format="doubles">Doppio 2v2</button>
+              </div>
             </div>
-          </div>
-          <div class="lobby-row" id="match-length-section">
-            <span class="lobby-label">Durata</span>
-            <div class="lobby-seg" id="match-length-group">
-              <button type="button" class="nt-green-choice selected" data-games="1"><span class="choice-main">1 game</span></button
-              ><button type="button" class="nt-green-choice" data-games="3"><span class="choice-main">Al meglio di 3</span></button
-              ><button type="button" class="nt-green-choice" data-games="5"><span class="choice-main">Al meglio di 5</span></button>
+            <div class="lobby-row" id="match-length-section">
+              <span class="lobby-label">Durata</span>
+              <div class="lobby-seg" id="match-length-group">
+                <button type="button" class="nt-green-choice selected" data-games="1"><span class="choice-main">1 game</span></button
+                ><button type="button" class="nt-green-choice" data-games="3"><span class="choice-main">Al meglio di 3</span></button
+                ><button type="button" class="nt-green-choice" data-games="5"><span class="choice-main">Al meglio di 5</span></button>
+              </div>
             </div>
-          </div>
-          <div class="lobby-row" id="serve-first-section">
-            <span class="lobby-label">Batte per primo</span>
-            <div class="lobby-seg" role="radiogroup" aria-label="Batte per primo">
-              <button type="button" class="seg-btn" data-natpf-serve="player">Tu</button
-              ><button type="button" class="seg-btn" data-natpf-serve="opponent">CPU</button
-              ><button type="button" class="seg-btn" data-natpf-serve="random">Sorteggio</button>
+            <div class="lobby-row" id="serve-first-section">
+              <span class="lobby-label">Batte per primo</span>
+              <div class="lobby-seg" role="radiogroup" aria-label="Batte per primo">
+                <button type="button" class="seg-btn" data-natpf-serve="player">Tu</button
+                ><button type="button" class="seg-btn" data-natpf-serve="opponent">CPU</button
+                ><button type="button" class="seg-btn" data-natpf-serve="random">Sorteggio</button>
+              </div>
             </div>
-          </div>
-          <div class="lobby-row">
-            <span class="lobby-label">Visuale</span>
-            <div class="lobby-seg" role="radiogroup" aria-label="Visuale">
-              <button type="button" class="seg-btn" data-natpf-view="third">3ª persona</button
-              ><button type="button" class="seg-btn" data-natpf-view="first">1ª persona</button>
+            <div class="lobby-row">
+              <span class="lobby-label">Visuale</span>
+              <div class="lobby-seg" role="radiogroup" aria-label="Visuale">
+                <button type="button" class="seg-btn" data-natpf-view="third">3ª persona</button
+                ><button type="button" class="seg-btn" data-natpf-view="first">1ª persona</button>
+              </div>
             </div>
           </div>
           <div class="lobby-versus" aria-hidden="true">

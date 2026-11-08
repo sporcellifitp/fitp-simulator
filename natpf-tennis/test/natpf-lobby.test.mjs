@@ -1,7 +1,7 @@
 // Menu a tappe, esito del colpo, mano del giocatore e allenamento (funzioni senza DOM).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LOBBY_STEPS, EGG_WORD, stepReady, initialStep, eggTyped, autoAdvance, progressSteps, previousStep } from '../src/natpf/natpf_lobby.js';
+import { LOBBY_STEPS, EGG_WORD, stepReady, initialStep, eggTyped, autoAdvance, progressSteps, previousStep, matchSummary } from '../src/natpf/natpf_lobby.js';
 import { introMode, INTRO_MS } from '../src/natpf/natpf_intro.js';
 import { controllerTiles, viewTiles, controllerStatus, CONTROLLER_TILES } from '../src/natpf/natpf_tiles.js';
 import { shotQuality, shotWhy, landsIn, VIBRATION, QUALITY_COLORS } from '../src/natpf/natpf_shot_feedback.js';
@@ -171,4 +171,11 @@ test('menu principale: frecce verso la voce più vicina in quella direzione (le 
   // con tre voci in fila la freccia giù va alla voce sotto il centro
   const R3 = { ...R, ranking: [0, 200, 95, 40], mid: [102, 200, 95, 40], options: [205, 200, 95, 40] };
   assert.equal(nearestTile(Object.keys(R3), 'challenges', 'ArrowDown', k => ({ left: R3[k][0], top: R3[k][1], width: R3[k][2], height: R3[k][3] })), 'mid', 'sotto il centro della voce');
+});
+
+test('pagina «Partita»: riassunto di «Altre impostazioni» (durata, formato, visuale; nello stesso schermo niente formato)', () => {
+  assert.equal(matchSummary(), '1 game · singolare · 3ª persona');
+  assert.equal(matchSummary({ games: '3', format: 'doubles', view: 'first' }), 'Al meglio di 3 · doppio · 1ª persona');
+  assert.equal(matchSummary({ games: 5, split: true }), 'Al meglio di 5 · 3ª persona');
+  assert.equal(matchSummary({ games: undefined, view: undefined }), '1 game · singolare · 3ª persona');
 });

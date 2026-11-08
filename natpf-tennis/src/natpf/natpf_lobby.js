@@ -3,7 +3,8 @@
 //                   │                   (stesso schermo: modalità → i due telefoni → partita, natpf_split_ui.js)
 //                   │                   mano) → collega (QR e tre passi sul telefono, o la webcam) → riscaldamento in
 //                   │                   campo (calibrazione + lanciapalle, natpf_training.js, saltabile) → partita
-//                   │                   (livello o invito dell'amico, durata, visuale) → «Gioca»: passaggio al campo
+//                   │                   (livello in vista; formato, durata, chi batte e visuale sotto «Altre
+//                   │                   impostazioni», B15) → «Gioca»: passaggio al campo
 //                   ├ Sfide ─────────→ sfida → nickname → racchetta → collega → (calibrazione) → sfida in campo →
 //                   │                   risultato con la posizione in classifica (natpf_events.js)
 //                   ├ Classifica del giorno
@@ -90,6 +91,12 @@ export function nearestTile(tiles, from, code, rect = el => el.getBoundingClient
   }
   return best;
 }
+// Pagina «Partita»: riassunto delle impostazioni chiuse sotto «Altre impostazioni» (B15): durata, formato (non nello stesso
+// schermo, che è solo singolare) e visuale
+export function matchSummary({ games = 1, format = 'singles', view = 'third', split = false } = {}){
+  const n = parseInt(games, 10) || 1;
+  return [n > 1 ? `Al meglio di ${n}` : '1 game', split ? null : format === 'doubles' ? 'doppio' : 'singolare', view === 'first' ? '1ª persona' : '3ª persona'].filter(Boolean).join(' · ');
+}
 // Riconosce la parola dell'easter egg tra i tasti digitati
 export function eggTyped(buffer, key){ const next = (buffer + String(key || '').toLowerCase()).slice(-EGG_WORD.length); return { buffer: next, hit: next === EGG_WORD }; }
 
@@ -114,6 +121,8 @@ export class NatpfLobby {
       const ch = e.target.closest('[data-challenge]'); if (ch){ e.stopPropagation(); this.pickChallenge(ch.dataset.challenge); return; }
       const tab = e.target.closest('[data-ranking]'); if (tab){ e.stopPropagation(); this.rankingTab = tab.dataset.ranking; this._paintRanking(); return; }
       const r = e.target.closest('[data-result]'); if (r){ e.stopPropagation(); this._resultAction(r.dataset.result); return; }
+      // pagina «Partita»: «Altre impostazioni» apre e chiude formato, durata, chi batte e visuale
+      const more = e.target.closest('[data-match-more]'); if (more){ e.stopPropagation(); this.matchMore = !this.matchMore; this.paint(); return; }
       // scegliere la racchetta è già andare avanti
       const c = e.target.closest('[data-natpf-controller]'); if (c && this.step === 'controller') setTimeout(() => this.go('connect'), 160);
     });
@@ -345,6 +354,8 @@ export class NatpfLobby {
     // from: la pagina da cui si arriva, pageN: numero della visita (natpf_split_ui: tornando con «‹ Indietro» da «Partita»
     // il conto non riparte da solo)
     if (this.step !== step){ this.from = this.step; this.pageN = (this.pageN || 0) + 1; }
+    // «Altre impostazioni» chiuse a ogni visita della pagina «Partita» (chi arriva vede solo il livello e «Gioca»)
+    if (this.step !== step && step === 'match') this.matchMore = false;
     if (this.step === 'connect' && step !== 'connect') this.releaseTutorial();
     this.step = step; this.el.dataset.step = step; this.el.dataset.flow = this.mode;
     for (const p of this.el.querySelectorAll('[data-page]')) p.classList.toggle('on', p.dataset.page === step);
@@ -360,7 +371,9 @@ export class NatpfLobby {
       if (this.ui.controller === 'webcam' && !this.engine.motionController?.webcamActive) this.ui.startWebcam().then(() => this.paint());
     }
     this.paint();
-    requestAnimationFrame(() => (this._tiles().find(t => t.classList.contains('selected')) || this._tiles()[0] || this._primary())?.focus({ preventScroll: true }));
+    // fuoco sulla scelta fatta o sulla prima voce; nella pagina «Partita» senza tessere (amico, stesso schermo) su «Gioca»,
+    // non su «Altre impostazioni» (Invio lì le aprirebbe invece di giocare)
+    requestAnimationFrame(() => { const tiles = this._tiles(); (tiles.find(t => t.classList.contains('selected')) || (step === 'match' ? null : tiles[0]) || this._primary())?.focus({ preventScroll: true }); });
   }
   _primary(){ return this.step === 'match' ? $('btn-start-match') : $('lobby-next'); }
   // Tutorial da vedere (Allenamento, partita contro la CPU, sfida: dopo «Collega» si entra in campo e la modale del tutorial
@@ -407,6 +420,7 @@ export class NatpfLobby {
     if (this.step === 'connect' && split) this.ui.split?.paint();
     else if (this.step === 'connect' && st.controller === 'phone') this.ui.paintConnect();
     if (this.step === 'options') this._paintOptions();
+    if (match) this._paintMatchMore(split);
     // aggiornamento del programma Windows: avviso sotto la pagina (solo nel menu principale) e Opzioni
     this.ui.updates?.paint();
     this.ui.paintWebcamSetup?.();
@@ -426,6 +440,17 @@ export class NatpfLobby {
       this.autoFrom = this.step;
       setTimeout(() => { if (this.visible && this.step === 'connect' && !this.onboarding.isOpen) this.go(split ? 'match' : 'warmup'); else this.autoFrom = null; }, 700);
     }
+  }
+  // «Altre impostazioni» della pagina «Partita»: aperte o chiuse, e il riassunto di che cosa c'è dentro
+  _paintMatchMore(split){
+    const btn = $('match-more-btn'), box = $('match-more'), sum = $('match-more-sum');
+    const open = !!this.matchMore;
+    show(box, open);
+    if (btn && btn.getAttribute('aria-expanded') !== String(open)) btn.setAttribute('aria-expanded', String(open));
+    const games = document.querySelector('#match-length-group .selected')?.dataset?.games;
+    const view = this.el.querySelector('[data-page="match"] [data-natpf-view].selected')?.dataset?.natpfView;
+    const t = matchSummary({ games, format: this.format, view, split });
+    if (sum && sum.textContent !== t) sum.textContent = t;
   }
   // Sfida un amico (host): la barra dell'invito (codice, link, stato del Player 2) resta in vista dalla racchetta alla
   // partita, così il link parte subito e l'amico entra mentre ci si prepara. Finché la stanza non c'è, «Creo la
@@ -474,7 +499,7 @@ export class NatpfLobby {
   _tiles(){
     const page = `[data-page="${this.step}"]`;
     // più i pulsanti dell'avviso di aggiornamento (natpf_updates.js), in fondo: frecce e Invio arrivano anche lì
-    return [...this.el.querySelectorAll(`${page} .lobby-tile, ${page} .menu-item, ${page} .seg-btn, ${page} [data-result]`), ...(this.ui.updates?.noticeButtons?.() || [])].filter(t => !t.classList.contains('hidden') && t.offsetParent !== null);
+    return [...this.el.querySelectorAll(`${page} .lobby-tile, ${page} .menu-item, ${page} [data-match-more], ${page} .seg-btn, ${page} [data-result]`), ...(this.ui.updates?.noticeButtons?.() || [])].filter(t => !t.classList.contains('hidden') && t.offsetParent !== null);
   }
   _key(e){
     if (this.ui.intro?.active) return;
@@ -512,7 +537,10 @@ export class NatpfLobby {
       t.focus(); if (this.step === 'match' && t.classList.contains('lobby-tile')) t.click();
     } else if (e.code === 'Enter'){
       e.preventDefault();
-      if (i >= 0 && ['menu', 'mode', 'controller', 'options', 'challenges', 'ranking', 'result'].includes(this.step)) tiles[i].click(); else this.next();
+      if (i >= 0 && ['menu', 'mode', 'controller', 'options', 'challenges', 'ranking', 'result'].includes(this.step)) tiles[i].click();
+      // pagina «Partita»: Invio su «Altre impostazioni» le apre o le chiude; altrove si gioca
+      else if (i >= 0 && this.step === 'match' && tiles[i].matches('[data-match-more]')) tiles[i].click();
+      else this.next();
     }
     // Esc tenuto premuto (per uscire dallo schermo intero del browser) ripete il tasto: indietro di una pagina sola
     else if (e.code === 'Escape' || e.code === 'Backspace'){ e.preventDefault(); if (!(e.repeat && e.code === 'Escape')) this.back(); }
