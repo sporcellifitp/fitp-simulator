@@ -40,13 +40,30 @@ const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const LOBBY_STEPS = ['menu', 'mode', 'options', 'challenges', 'ranking', 'result', 'controller', 'connect', 'warmup', 'match'];
 export const MODES = ['cpu', 'friend', 'training', 'challenge', 'split'];
-// tappe mostrate nella barra di avanzamento, per modalità
-export function progressSteps(mode){
+// tappe mostrate nella barra di avanzamento, per modalità (e racchetta: la calibrazione c'è solo con il telefono)
+export function progressSteps(mode, { controller = 'phone' } = {}){
   if (mode === 'challenge') return [['challenges', 'Sfida'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'In campo']];
   if (mode === 'split') return [['mode', 'Modalità'], ['connect', 'Racchette'], ['match', 'Partita']];
-  // (in campo prima della partita dal B16 solo il tutorial corto e la calibrazione: il riscaldamento è facoltativo)
-  return mode === 'training' ? [['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Allenamento']]
-    : [['mode', 'Modalità'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Calibrazione'], ['match', 'Partita']];
+  if (mode === 'training') return [['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Allenamento']];
+  // (in campo prima della partita dal B16 solo il tutorial corto e la calibrazione del telefono: il riscaldamento è
+  // facoltativo; con mouse e tastiera o la webcam dalla pagina «Collega» subito la pagina «Partita», revisione del B16)
+  return controller === 'phone' ? [['mode', 'Modalità'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['warmup', 'Calibrazione'], ['match', 'Partita']]
+    : [['mode', 'Modalità'], ['controller', 'Racchetta'], ['connect', 'Collega'], ['match', 'Partita']];
+}
+// Dove porta la pagina «Collega» («Avanti», Invio, o da sola con il controller pronto), dal B16: 'match' la pagina
+// «Partita» (mouse e tastiera, webcam, telefono già calibrato e con il tutorial corto già visto); 'court' in campo
+// (calibrazione e tutorial corto, riscaldamento chiesto con «Riscaldati prima», sfida, allenamento)
+export function connectTarget({ mode, controller, phoneReady = false, tutorialDue = false, wantWarmup = false }){
+  if (mode === 'split') return 'match';
+  if (mode === 'training' || mode === 'challenge' || wantWarmup) return 'court';
+  return controller === 'phone' && (!phoneReady || tutorialDue) ? 'court' : 'match';
+}
+// Il pulsante della pagina «Collega» dice dove porta (revisione del B16: con mouse, webcam o telefono già pronto diceva
+// «In campo ›» e portava alla pagina «Partita»)
+export function connectNextLabel(s){
+  if (s.mode === 'split') return 'Impostazioni partita ›';
+  if (s.mode === 'training') return 'Al campo d’allenamento ›';
+  return connectTarget(s) === 'match' ? 'Alla partita ›' : 'In campo ›';
 }
 // tappa precedente («Indietro» ed Esc)
 export function previousStep(step, mode){
@@ -366,7 +383,12 @@ export class NatpfLobby {
     if (this.step !== step){ this.from = this.step; this.pageN = (this.pageN || 0) + 1; }
     // «Altre impostazioni» chiuse a ogni visita della pagina «Partita» (chi arriva vede solo il livello e «Gioca»)
     if (this.step !== step && step === 'match') this.matchMore = false;
-    if (this.step === 'connect' && step !== 'connect') this.releaseTutorial();
+    // «Riscaldati prima» con il telefono caduto porta a «Collega» e resta chiesto finché si entra in campo: lasciando la
+    // pagina senza entrare in campo (o tornando al menu) non vale più. Prima restava chiesto e partiva alla partita dopo,
+    // magari del visitatore successivo (revisione del B16)
+    if (this.step === 'connect' && step !== 'connect'){ this.releaseTutorial(); this.wantWarmup = false; }
+    // al menu principale: visitatore nuovo, niente riscaldamento chiesto né già fatto
+    if (step === 'menu'){ this.wantWarmup = false; this.warmupDone = false; }
     this.step = step; this.el.dataset.step = step; this.el.dataset.flow = this.mode;
     for (const p of this.el.querySelectorAll('[data-page]')) p.classList.toggle('on', p.dataset.page === step);
     if (step !== 'menu') show($('lobby-menu-result'), false);
@@ -403,10 +425,10 @@ export class NatpfLobby {
     if (!this.ui.training?.tutorialOpen) this.ui.phone?.waitTutorial?.(false);
   }
   paint(){
-    const st = this.state(), steps = progressSteps(this.mode), k = steps.findIndex(([id]) => id === this.step);
+    const st = this.state(), steps = progressSteps(this.mode, st), k = steps.findIndex(([id]) => id === this.step);
     const bar = $('lobby-progress');
     if (bar){
-      const key = this.mode + ':' + this.step;
+      const key = this.mode + ':' + this.step + ':' + steps.length;
       if (bar.dataset.key !== key){ bar.dataset.key = key; bar.innerHTML = steps.map(([id, label], i) => `<li class="${i === k ? 'on' : i < k ? 'done' : ''}"><b>${i + 1}</b><span>${label}</span></li>`).join(''); }
     }
     const menu = this.step === 'menu', match = this.step === 'match', pick = ['mode', 'options', 'challenges', 'ranking', 'result'].includes(this.step);
@@ -414,14 +436,19 @@ export class NatpfLobby {
     show($('lobby-next'), !menu && !match && !pick);
     show($('btn-start-match'), match);
     show($('lobby-warmup'), match && this.mode !== 'split');
+    // riscaldamento già fatto da questo giocatore (dalla pagina «Partita»): lo si rifà, non ci si riscalda «prima»
+    const wb = $('lobby-warmup'), wt = this.warmupDone ? 'Rifai il riscaldamento' : 'Riscaldati prima';
+    if (wb && wb.textContent !== wt) wb.textContent = wt;
     // tasti come su una console: nel menu le frecce scelgono, nelle altre pagine Invio va avanti
     const keys = this.el.querySelector('.lobby-keys'), kt = menu ? '↑ ↓ ← → scegli · Invio conferma · H come si gioca · F schermo intero' : 'Invio avanti · Esc indietro · F schermo intero';
     if (keys && keys.textContent !== kt) keys.textContent = kt;
     const next = $('lobby-next');
     next.disabled = !stepReady(this.step, st);
     const split = this.mode === 'split';
-    // stesso schermo: dalla pagina «Collega» si gioca da soli (conto alla rovescia); il pulsante porta alle impostazioni
-    next.textContent = this.step === 'connect' ? (split ? 'Impostazioni partita ›' : this.mode === 'training' ? 'Al campo d’allenamento ›' : 'In campo ›') : 'Avanti ›';
+    // il pulsante della pagina «Collega» dice dove porta (connectNextLabel): in campo (calibrazione, riscaldamento chiesto,
+    // sfida, allenamento) o alla pagina «Partita»; stesso schermo: si gioca da soli (conto alla rovescia), porta alle impostazioni
+    const nt = this.step === 'connect' ? connectNextLabel({ ...st, tutorialDue: this._tutorialDue(), wantWarmup: !!this.wantWarmup }) : 'Avanti ›';
+    if (next.textContent !== nt) next.textContent = nt;
     // collega: pannello del controller scelto (stesso schermo: i due telefoni)
     for (const p of this.el.querySelectorAll('[data-setup]')) show(p, p.dataset.setup === (split ? 'split' : st.controller));
     const other = $('connect-other');
@@ -561,7 +588,8 @@ export class NatpfLobby {
     else if (e.code === 'KeyH'){ this.onboarding.open(); }
   }
   /* ---------- riscaldamento e allenamento in campo ---------- */
-  // In campo dalla pagina «Collega» (da soli quando il telefono ha i sensori attivi, o con «In campo ›»).
+  // Dalla pagina «Collega» (da soli quando il telefono ha i sensori attivi, o con il pulsante «In campo ›» / «Alla partita ›»,
+  // che dice dove si va: connectTarget).
   // Partita (contro la CPU, sfida un amico) dal B16, decisione dell'utente dell'08/11 sera («riscaldamento facoltativo»):
   // con il telefono da calibrare il tutorial corto e la calibrazione in campo, poi la pagina «Partita» con «Gioca» e
   // «Riscaldati prima»; con il telefono già calibrato, la webcam o mouse e tastiera subito la pagina «Partita». Prima dopo
@@ -588,11 +616,13 @@ export class NatpfLobby {
     if (warmup){ this.step = 'warmup'; this.el.dataset.step = 'warmup'; ui.training.start({ drills: warmupDrills(ui.controller) }); return; }
     // partita: telefono da calibrare (o pronto ma con il tutorial corto da vedere: visitatore nuovo con lo stesso telefono)
     // → in campo il tutorial e la calibrazione, poi «Partita»
-    const P = ui.phone, tutDue = P?.tutorialSeenFor ? !P.tutorialSeenFor('short') : !P?.tutorialSeen;
-    if (ui.controller === 'phone' && (!P.ready || tutDue)){ this.step = 'warmup'; this.el.dataset.step = 'warmup'; ui.training.start({ calOnly: true }); return; }
+    // (la stessa scelta di connectTarget, che dà il nome al pulsante della pagina «Collega»)
+    if (ui.controller === 'phone' && (!ui.phone.ready || this._tutorialDue())){ this.step = 'warmup'; this.el.dataset.step = 'warmup'; ui.training.start({ calOnly: true }); return; }
     this.releaseTutorial();
     this.go('match');
   }
+  // tutorial corto ancora da vedere con questo telefono (prima della partita: natpf_training lo apre in campo)
+  _tutorialDue(){ const P = this.ui.phone; return P?.tutorialSeenFor ? !P.tutorialSeenFor('short') : !P?.tutorialSeen; }
   // «Riscaldati prima» nella pagina «Partita»
   warmupFirst(){ show($('lobby-practice-result'), false); this.startWarmup({ warmup: true }); }
   // prova guidata della modalità diagnostica: come l'allenamento, con esercizi che dicono quale colpo serve (riferimento
@@ -613,6 +643,8 @@ export class NatpfLobby {
     // calibrazione prima di una sfida (anche saltata: modalità semplice) → la sfida
     if (this.mode === 'challenge'){ this.ui.events.start(this.challenge); return; }
     if (completed) this.trainingDone = true;
+    // riscaldamento finito (non la sola calibrazione): il pulsante della pagina «Partita» diventa «Rifai il riscaldamento»
+    if (completed && this.mode !== 'training' && !this.ui.training?.calOnly && this.ui.training?.drills?.length) this.warmupDone = true;
     const simple = 'Senza calibrazione: si gioca lo stesso, la forza non è tarata.';
     // solo la calibrazione prima della partita (B16): racchetta pronta, o saltata (modalità semplice)
     const text = calibrated && !stats.shots ? '<b>Racchetta pronta ✓</b>'

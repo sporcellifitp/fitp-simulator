@@ -891,3 +891,26 @@ diverse. Ramo locale da `7936011`, non pubblicato.
   «Calibrazione» (schermata guardata).
 - Non verificato: telefoni veri, persone vere (il banco del riscaldamento è un telefono simulato: quanto è forte il
   colpetto della calibrazione di chi gioca davvero lo dicono solo le diagnostiche), Windows.
+- [x] B16-flow.4 · correzioni della revisione indipendente («integrare con correzioni»), `natpf_lobby.js`:
+  1. il pulsante della pagina «Collega» dice dove porta (`connectTarget` / `connectNextLabel`, funzioni pure): «Alla
+     partita ›» con mouse e tastiera, webcam o telefono già calibrato e con il tutorial corto visto (prima «In campo ›», ma
+     portava alla pagina «Partita»); «In campo ›» con il telefono da calibrare, il tutorial da vedere, il riscaldamento
+     chiesto, la sfida; invariati «Al campo d’allenamento ›» e «Impostazioni partita ›». `startWarmup` usa la stessa scelta
+     (`_tutorialDue`). Nessuna prova nel browser né test clicca il pulsante per testo (`git grep`).
+  2. richiesta di riscaldamento appesa: «Riscaldati prima» con il telefono caduto porta a «Collega» con `wantWarmup`; prima
+     restava chiesta anche lasciando la pagina e partiva alla partita dopo (in fiera: del visitatore successivo). Ora si
+     azzera lasciando «Collega» senza entrare in campo (anche «‹ Indietro») e tornando al menu principale.
+  3. commento della lobby in `natpf-tennis/index.html` (diceva ancora «riscaldamento in campo»).
+  4. barra delle tappe: «Calibrazione» solo con il telefono (`progressSteps(mode, { controller })`); con mouse e tastiera
+     o webcam 4 tappe (Modalità, Racchetta, Collega, Partita), dove la calibrazione non c'è.
+  5. «Riscaldati prima» diventa «Rifai il riscaldamento» dopo un riscaldamento finito (non saltato) dello stesso giocatore;
+     torna «Riscaldati prima» al menu principale (visitatore nuovo).
+  Test: 3 nuovi in `natpf-riscaldamento` (pulsante di «Collega» dal vivo con mouse e telefono; sequenza della revisione
+  «Riscaldati prima» con il telefono caduto → menu (o Indietro) → nuova partita, e la richiesta che resta finché si è in
+  «Collega»; barra con webcam e «Rifai il riscaldamento»). Prova a mutazioni: togliendo ogni correzione fallisce il test
+  giusto (pulsante, richiesta appesa, barra, «Rifai»).
+  Verifiche: `npm test` 937/937, `node --test tools/test/*.test.mjs` 197/197. Nel browser (porte 4710/4711, una alla
+  volta): `natpf-flusso-tocchi` singolo 13 tocchi (5 + 8) 4/4, stesso 19 (3 + 16) 5/5, 1v1 18 (7 + 11) 7/7 (invariati);
+  `natpf-training-flow` 21/21 e mancino 21/21; `natpf-menu` 22/22; `natpf-split-ready` 34/34; `natpf-tutorial-phone`
+  39/39 e mancino 39/39. Non provato nel browser: la pagina «Collega» con mouse e tastiera o webcam (le prove nel browser
+  usano il telefono simulato; coperta dai test con il DOM finto). `npm run build` ok (in `index.html` cambia solo un commento).

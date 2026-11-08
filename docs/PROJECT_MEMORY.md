@@ -166,7 +166,10 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   riferimento della calibrazione (spesso un colpetto) almeno alla mediana dei colpi già fatti e a 0,75 del colpo letto
   finché il colpo tipico non c'è (`BOOT`; banco `scripts/audit/riscaldamento.mjs`, test `natpf-riscaldamento`).
   Tocchi dall'apertura alla prima palla (`tools/e2e/natpf-flusso-tocchi.mjs`): singolo 20 → 13, stesso schermo 31 → 19,
-  sfida tra due computer 25 → 18.
+  sfida tra due computer 25 → 18. Il pulsante di «Collega» dice dove porta (`connectTarget`/`connectNextLabel`: «Alla
+  partita ›» o «In campo ›»); la barra delle tappe ha «Calibrazione» solo con il telefono; «Riscaldati prima» con il
+  telefono caduto porta a «Collega» e la richiesta vale solo finché si resta lì (si azzera lasciando la pagina o al menu);
+  dopo un riscaldamento finito il pulsante dice «Rifai il riscaldamento» (fino al menu principale).
 - **Schermo spento**: nessun browser dà i sensori a pagina nascosta. Wake Lock, pausa immediata sul computer, ripresa
   automatica e velo con testo dipendente dallo stato (`veilText`). Alternativa vera: app Android nativa
   (`docs/b9/schermo-spento.md`).
