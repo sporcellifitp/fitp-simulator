@@ -208,7 +208,8 @@ export class NatpfSplitUi {
     return ok;
   }
   setHand(id, hand){
-    if (id === 'p2'){ this.engine.natpfPhone2?.setHand(hand); this.ui.hand.mirrorRemote?.(this.engine.opponent, hand); if (this.engine.motionController) this.engine.motionController.p2HandPreference = hand; }
+    // (natpfP2Hand: il piano d'intercetto del P2 sa da che lato è il suo dritto prima del primo colpo, natpf_impact.handOf)
+    if (id === 'p2'){ this.engine.natpfPhone2?.setHand(hand); this.engine.natpfP2Hand = hand === 'left' ? 'left' : 'right'; this.ui.hand.mirrorRemote?.(this.engine.opponent, hand); if (this.engine.motionController) this.engine.motionController.p2HandPreference = hand; }
     else { this.ui.hand.set(hand); this.ui.paintTiles?.(); }
     this.paint();
   }
@@ -457,6 +458,7 @@ export class NatpfSplitUi {
   start(){
     this.closeTutorials();
     if (!this.engine.startSplit()) return false;
+    this.engine.natpfP2Hand = this.hand('p2');
     this.ui.hand.mirrorRemote?.(this.engine.opponent, this.hand('p2'));
     return true;
   }

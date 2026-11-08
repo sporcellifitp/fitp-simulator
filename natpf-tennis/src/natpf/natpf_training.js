@@ -379,7 +379,9 @@ export class NatpfTraining {
     const c = this.cal, E = this.engine;
     if (!c || c.ballFor !== idx || c.hitFor === idx || !this.ballLive() || E.ball.lastHitter !== 'opponent') return;
     c.hitFor = idx; c.flightT = 0; E.natpfTimeScale = 1; E.player.swingCooldown = 0;
-    E.motionController?._emitSwing({ source: 'natpf-warmup', side: calSide(want, this.ui.hand?.hand), shotType: 'topspin', speed: 1.15, dirX: 0, role: E.playerRole });
+    // handedSide: il lato è già quello della mano (calSide); NatpfHand non lo scambia per il mancino (B15: il dritto del
+    // mancino in calibrazione era colpito di rovescio)
+    E.motionController?._emitSwing({ source: 'natpf-warmup', side: calSide(want, this.ui.hand?.hand), handedSide: true, shotType: 'topspin', speed: 1.15, dirX: 0, role: E.playerRole });
   }
   // colpo del gesto riconosciuto che aspetta la palla al punto d'impatto (finestra d'impatto del motore): la palla è
   // già presa. Il telefono manda il gesto dopo (o la verifica, poi la fine) subito dopo il tentativo: prima la palla

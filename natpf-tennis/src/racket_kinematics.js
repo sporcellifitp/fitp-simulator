@@ -472,7 +472,10 @@ export class RacketKinematicsController {
       d.ball &&
       d.ball.inPlay
     ) {
-      const m = (n.sideSign || 1) >= 0 ? 1 : -1,
+      // NATPF B15: il lato dalla palla nel riferimento di chi colpisce, con la sua mano (actor.natpfHand, natpf_hand.js):
+      // per il mancino la palla alla sua sinistra è il dritto. Prima la regola del destro sovrascriveva il lato dato dal
+      // motore e il dritto del mancino diventava un rovescio (anche in actor.swingType, letto dall'allenamento)
+      const m = ((n.sideSign || 1) >= 0 ? 1 : -1) * (n.natpfHand === "left" ? -1 : 1),
         R = d.ball.pos.x * m,
         x =
           d.ball.targetLanding && typeof d.ball.targetLanding.x == "number" ? d.ball.targetLanding.x * m : R,
@@ -705,7 +708,9 @@ export class RacketKinematicsController {
       (t.wristSpringOmega.z += ((D.z - t.wristSpringEuler.z) * oe - t.wristSpringOmega.z * ie) * s),
       t.wristSpringEuler.addScaledVector(t.wristSpringOmega, s);
     let G = 0;
-    const L = (n.sideSign || 1) >= 0 ? 1 : -1;
+    // NATPF B15: lato della preparazione e della posizione dalla palla nel riferimento di chi colpisce, con la sua mano
+    // (il mancino prepara il dritto sulla palla alla sua sinistra)
+    const L = ((n.sideSign || 1) >= 0 ? 1 : -1) * (n.natpfHand === "left" ? -1 : 1);
     if (c && c.inPlay && d === "RALLY" && !t.swingActive) {
       const l = n.sideSign > 0 && (c.vel.z > 0.4 || c.lastHitter === "opponent"),
         i = n.sideSign < 0 && (c.vel.z < -0.4 || c.lastHitter === "player");

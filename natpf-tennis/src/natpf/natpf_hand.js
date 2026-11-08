@@ -77,12 +77,14 @@ export class NatpfHand {
   // specchia il personaggio locale (una sola volta per cambio)
   apply(){
     const a = this.engine.localActor; if (!a?.root) return;
+    a.natpfHand = this.hand;   // la mano sul personaggio: la racchetta animata (racket_kinematics) sceglie il lato con questa
     const want = this.hand === 'left' ? -1 : 1;
     if (this.mirrored !== a || Math.sign(a.root.scale.x) !== want){ a.root.scale.x = Math.abs(a.root.scale.x || 1)*want; this.mirrored = a; }
   }
   // personaggio dell'altro giocatore (Player 2 visto dall'host): specchiato se è mancino
   mirrorRemote(actor, hand){
     if (!actor?.root || actor === this.engine.localActor) return;
+    actor.natpfHand = normalizeHand(hand);
     const want = normalizeHand(hand) === 'left' ? -1 : 1;
     if (Math.sign(actor.root.scale.x) !== want) actor.root.scale.x = Math.abs(actor.root.scale.x || 1)*want;
   }
