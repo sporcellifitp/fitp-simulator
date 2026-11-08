@@ -53,6 +53,10 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: NATPF ↔ motore base integration tests
         run: npm test
+      # B16 (08/11): i criteri della CPU Leggenda (torneo senza grafica, 300 punti × 8 semi, ~70 s) e la non regressione di
+      # casual e pro. Prima nessuno lo eseguiva e due criteri erano rimasti rotti per settimane (docs/NATPF_LEGGENDA.md)
+      - name: CPU Leggenda criteria (audit:legend)
+        run: npm run audit:legend
       - name: Production build (motore base 3D models, NATPF phone page and arena art)
         run: npm run build
       - name: Check bundled NATPF files
