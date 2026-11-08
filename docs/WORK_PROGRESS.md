@@ -603,5 +603,30 @@ i numeri in `docs/b15/audit-colpi.md`. Lavoro su un worktree a parte (ramo local
 - Non cambiato e perché: ritmo (`RHYTHM`, decisione del 28/10), soglie del tipo di colpo (fedeltà del tutorial), zona
   morta e scarto della mira (15° → 1,7 m e 30° → 3,3 m già così), soglia minima del gesto (40 % del colpo tipico con il
   verso atteso: sotto ci sono preparazioni e rientri), metà relativa della forza.
+- [x] B15.3 · **secondo giro** dopo la verifica indipendente («integrare con correzioni»: con la distribuzione dei gesti di
+  una persona vera x e profondità identiche prima e dopo, solo i km/h cambiavano; mira piena tenuta +30° ×14 finita a
+  0,63 m, base 1,20; il «prima» del documento non si riproduceva). Commit `cbecf4b`, `2d57a96`, `8653af4`, `a1165b6`,
+  `9347b28`, `58fb8e0` più i documenti:
+  - banco `colpi.mjs`: modalità «persona vera» (`--mode=reale`: tempo +0,35 ± 0,45, piatto ±12°, gesto 1 ± 0,3 del colpo
+    tipico, 400 colpi nelle funzioni vere: `createAimModel`, `strokeIntent`, motore con il ritmo), mano (`--hand=left|both`:
+    gli stessi gesti allo specchio), sequenze +30° ×14, seme della calibrazione sbagliato di ±15° (24 partite). «Prima»
+    rigenerato sopra `8a996e3` (gesto 1,2× = piatto a 111,5 km/h; alternati +20° D/R 2,47/3,42 m);
+  - isteresi del centro della mira a due velocità (`AIM.biasLow/commonLow` 20°, poi `biasSlow/commonSlow` 0,05 fino a 10°):
+    +30° ×14 → 2,50 m; riferimento girato di 35–40° recuperato in una trentina di colpi;
+  - `INTENT.faceSpan` 20 → 14 (mira piena a 17°): x della persona vera p90−p10 6,17 → 6,82 m, oltre 2,5 m 30 → 37 %;
+  - `INTENT.relGain` 0,6 → 0,9 per l'esito (tipo di colpo, super e barra con la pendenza di prima: `typePower`,
+    `classGain`, `superStrength`): km/h p90−p10 39,3 → 44,1 (base 33,4), profondità 2,90 → 3,35 m (base 2,72), tipi identici;
+  - seconda verifica del seme (`AIM.recheck` 6 colpi per verso, 6–12°, una volta, non con dritto e rovescio in versi
+    opposti): seme sbagliato di ±15°, errore del centro al 40° colpo (con il segno) −3,9/+3,2° base, −7,4/+5,6° primo giro
+    → −1,2/+1,4°; seme giusto 1,4 → 2,1° medio assoluto.
+  Verifiche: gioco **907/907** (7 prove nuove in `natpf-colpi-b15`, ognuna rossa con i valori di prima; `natpf-sessione-23-10`
+  «mira dal piatto» aggiornata alla curva 3–17°); sito **195/195**; `rally-balance` (600 punti) Casual medio 93,2 → 94,2 %,
+  Pro medio 65,3 → 65,8, Pro umano 76,7 → 74,0; `audit:legend` identico al primo giro (pro contro medio 84,1 %); browser
+  (porte 3620–3623) `natpf-rally` 7/7, `natpf-gesti-speciali` 9/9. Mancino: persona vera specchio esatto (x, profondità,
+  tipi; km/h tranne l'effetto dei tagliati, legato al lato del campo nel motore).
+  Rischi dichiarati in `docs/b15/audit-colpi.md` §5: Leggenda contro «tennista» 74,5 → 67,3 % e «preciso» 37,4 → 25,9 %
+  (criteri già KO alla base, dal motore del primo giro), webcam più veloce in cima (121,8 → 127,4 km/h a forza piena, x e
+  profondità identiche), `clearCurve` anche su piatto, tagliato e palla corta (fino a 4 cm più bassi), seme: una mira dalla
+  stessa parte con dritto e rovescio nei primi 6 colpi per verso si toglie.
 - Non verificato: telefoni veri, persone vere, rumore dell'orientamento dei telefoni veri, Windows, pacchetti (il ramo va
   integrato prima).
