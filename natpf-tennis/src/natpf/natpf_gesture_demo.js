@@ -881,10 +881,8 @@ export class NatpfGestureDemo {
     }
     this.info = { t: tt, cam, pose: live, ball, figure: F, ghosts };
   }
-  // fondo: gradiente radiale più chiaro attorno al soggetto, piano di gioco accennato (linea di fondo) e ombra morbida
   // fondo: gradiente radiale più chiaro al centro dello stadio (fatto una volta per misura e copiato), piano di gioco
-  // accennato sotto la mano (alone, tratto della linea di fondo che sfuma, ombra morbida della mano): dà alto e basso e
-  // la direzione dello schermo (−z) senza linee che tagliano il quadro
+  // accennato sotto la mano (alone e ombra morbida della mano): dà alto e basso senza linee che tagliano il quadro
   _background(c, cam, pose){
     const st = this.st, W = st.W, H = st.H;
     if (!this._bg){
@@ -894,10 +892,12 @@ export class NatpfGestureDemo {
       g.addColorStop(0, BG.center); g.addColorStop(.55, BG.mid); g.addColorStop(1, BG.edge);
       x.fillStyle = g; x.fillRect(0, 0, W, H);
     }
-    if (this.compact){ c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(this._bg, 0, 0); c.restore(); return; }   // compatta: solo il soggetto
+    // compatta: solo il soggetto; presa: primo piano della mano, nessun piano di gioco (revisione B14: la linea del piano in
+    // basso a destra non voleva dire nulla)
+    if (this.compact || this.id === 'grip'){ c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(this._bg, 0, 0); c.restore(); return; }
     const M = motion(this.id, this.grip), y0 = Math.min(M.floor ??= M.pts.reduce((m, p) => Math.min(m, p[1]), Infinity) - .3, .75);
     const sq = Math.max(.2, Math.min(1, Math.abs(dot(cam.fw, [0, -1, 0]))*1.15));
-    // piano (alone e linea di fondo): con la camera ferma si disegna una volta sopra il gradiente e si copia (meno pixel da
+    // piano (alone): con la camera ferma si disegna una volta sopra il gradiente e si copia (meno pixel da
     // riempire a ogni fotogramma); con la camera che segue o gira (servizio, schiacciata, presa) a ogni fotogramma
     const C = CAMERAS[this.id] || CAMERAS.ready, still = !C.follow && !C.views, key = `${this.id}|${this.grip}|${this.hand}`;
     if (still && this._floorKey !== key){
@@ -917,20 +917,14 @@ export class NatpfGestureDemo {
     c.translate(o.x, o.y); c.scale(1, sq*.8); c.translate(-o.x, -o.y); c.fillStyle = sg; c.beginPath(); c.arc(o.x, o.y, r, 0, 2*Math.PI); c.fill();
     c.restore();
   }
-  // alone del piano attorno al punto sotto la mano (ellisse schiacciata dalla prospettiva) e tratto della linea di fondo
-  // campo davanti ai piedi, che sfuma ai lati
+  // alone del piano attorno al punto sotto la mano (ellisse schiacciata dalla prospettiva). Niente più tratto della linea
+  // di fondo: dalle camere basse del B14 attraversava il busto come una riga vagante (revisione B14)
   _floorDraw(c, cam, y0, sq){
-    const st = this.st, R0 = [SHOULDER_X, y0, -.25];
+    const R0 = [SHOULDER_X, y0, -.25];
     if (cam.depth(R0) <= .3) return;
     const q0 = cam.p(R0), rr = cam.rad(R0, .75), ag = c.createRadialGradient(q0.x, q0.y, 0, q0.x, q0.y, rr);
     ag.addColorStop(0, 'rgba(90,130,235,.16)'); ag.addColorStop(1, 'rgba(90,130,235,0)');
     c.save(); c.translate(q0.x, q0.y); c.scale(1, sq); c.translate(-q0.x, -q0.y); c.fillStyle = ag; c.beginPath(); c.arc(q0.x, q0.y, rr, 0, 2*Math.PI); c.fill(); c.restore();
-    const A = [SHOULDER_X - .6, y0, -.35], B = [SHOULDER_X + .6, y0, -.35];
-    if (cam.depth(A) > .3 && cam.depth(B) > .3){
-      const pa = cam.p(A), pb = cam.p(B), lg = c.createLinearGradient(pa.x, pa.y, pb.x, pb.y);
-      lg.addColorStop(0, 'rgba(225,235,255,0)'); lg.addColorStop(.5, 'rgba(225,235,255,.17)'); lg.addColorStop(1, 'rgba(225,235,255,0)');
-      c.save(); c.beginPath(); c.moveTo(pa.x, pa.y); c.lineTo(pb.x, pb.y); c.lineCap = 'round'; c.lineWidth = Math.max(1.5, st.ow*1.5); c.strokeStyle = lg; c.stroke(); c.restore();
-    }
   }
   // fantasma: sagoma a contorno disegnata una volta per scheda e misura e poi copiata; con la camera che segue (che si
   // sposta senza girare né cambiare focale) la copia si sposta di quanto si sposta la proiezione del telefono
