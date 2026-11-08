@@ -6,7 +6,7 @@
 //   audit:legend                                       criteri: Leggenda contro 6 profili, casual e pro contro «medio»
 //   audit:legend -- --points=150 --profiles=medio,tennista --seeds=3   (default: 300 punti, 8 semi)
 //   audit:legend -- --table                            tabella casual / pro / leggenda per tutti i profili (senza criteri)
-//   audit:legend -- --ablation                         da dove viene la forza (senza «lascia passare», scelta a caso, …)
+//   audit:legend -- --ablation                         da dove viene la forza (senza «lascia passare», scelta a caso, modifiche del B16, …)
 //   audit:legend -- --json
 import { pathToFileURL } from 'node:url';
 import { simulate } from './rally-balance.mjs';
@@ -173,13 +173,21 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href){
       ['corsa come pro (5 m/s, velocità istantanea)', { vmax: 5, legacyMove: true }],
       ['senza affondo', { lungeTime: 0 }],
       ['senza chiusura (scambi lunghi come gli altri)', { closeFrom: 999, closeHard: 0 }],
+      // B16 (08/11, «Leggenda più dura»): una modifica alla volta tolta, e tutte insieme (come prima del B16)
+      ['come prima del B16', { accel: 14, decel: 22, pressureFrom: 10, closeAggr: .45, closeWiden: .6, closePower: [.85, .95], powerErr: 1, angle: 0 }],
+      ['B16 senza il primo passo esplosivo (14/22 m/s²)', { accel: 14, decel: 22 }],
+      ['B16 con la pressione dal 10° colpo', { pressureFrom: 10 }],
+      ['B16 con la chiusura di prima', { closeAggr: .45, closeWiden: .6, closePower: [.85, .95] }],
+      ['B16 senza il controllo dei colpi forti', { powerErr: 1 }],
+      ['B16 con il rischio vero nella scelta (senza margine)', { riskTrue: true }],
+      ['B16 senza l\'angolo stretto', { angle: 0 }],
     ];
     for (const profile of (arg('profiles') ? profiles : ['medio', 'tennista', 'preciso'])) for (const [name, t] of cases){
       for (const k of Object.keys(legendTuning)) delete legendTuning[k];
       Object.assign(legendTuning, t);
       const m = metrics(run({ profile, difficulty: 'leggenda', points, seeds }));
       out.push({ profile, variante: name, ...m });
-      if (!json) console.log(`${profile.padEnd(9)} ${name.padEnd(46)} game G ${String(m.gameG).padStart(5)}%  punti G ${String(m.puntiG).padStart(5)}%  errori CPU ${String(m.erroriCPU).padStart(4)}%  incrociati ${String(m.incrociato).padStart(4)}%  infiniti ${m.infinitiPct}%`);
+      if (!json) console.log(`${profile.padEnd(9)} ${name.padEnd(52)} game G ${String(m.gameG).padStart(5)}%  punti G ${String(m.puntiG).padStart(5)}%  errori CPU ${String(m.erroriCPU).padStart(4)}%  incrociati ${String(m.incrociato).padStart(4)}%  infiniti ${m.infinitiPct}%`);
     }
     for (const k of Object.keys(legendTuning)) delete legendTuning[k];
     if (json) console.log(JSON.stringify(out, null, 1));

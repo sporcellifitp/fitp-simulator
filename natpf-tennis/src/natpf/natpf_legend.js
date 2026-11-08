@@ -14,6 +14,8 @@
 //     affondo (passo esplosivo nelle ultime decine di centesimi) quando la palla passerebbe lontana dal corpo; nel
 //     disegno racchetta, braccio e corpo si allungano verso la palla lontana e lo swing tocca la palla all'impatto;
 //   • lascia passare le palle che vede fuori, con un errore di lettura; servizio vario.
+// B16 (08/11, l'utente: «Leggenda più dura»): primo passo più esplosivo, regge di più negli scambi lunghi, chiude senza
+// strafare, controlla meglio i colpi forti (gioca con margine) e cerca l'angolo stretto; criteri in docs/NATPF_LEGGENDA.md.
 // Split-step, reazione e lettura della traiettoria stanno in natpf_skill.planCpuRun (livello con cpuLegend).
 // Attiva solo con il livello «leggenda» contro la CPU: casual, pro, 1v1 e le sfide non passano mai da qui.
 // Il generatore casuale si può iniettare (engine.natpfLegendRng); l'audit scripts/audit/legend.mjs misura i criteri.
@@ -43,7 +45,10 @@ export const LEGEND = Object.freeze({
   // e la CPU continuava a giocarle (contro «preciso» dal 37,7 al 29,6% dei game)
   punPrior: .08, punW: 3,
   kLat: .865,               // spostamento laterale vero / voluto per l'aria (misurato sul motore)
-  accel: 14, decel: 22,     // m/s²: accelerazione e frenata
+  // m/s²: accelerazione e frenata. B16 (08/11, «Leggenda più dura»): primo passo più esplosivo (prima 14 / 22): con i
+  // colpi forti più tesi del B15 la CPU arrivava tardi sugli angoli. Resta sotto chi gioca, che non ha inerzia (8,8 m/s
+  // subito) e la velocità massima non cambia (8 m/s, affondo 8,6)
+  accel: 20, decel: 28,
   recoverZ: -11.35,         // profondità di attesa
   letGoMargin: .08, letGoSd: .12,  // m: lascia passare la palla se la vede fuori di almeno tanto (± errore di lettura)
   // affondo: se all'impatto la palla passerebbe a più di lungeFrom dal corpo, nelle ultime lungeTime secondi un passo
@@ -61,8 +66,22 @@ export const LEGEND = Object.freeze({
   // colpi da fondo diventano più spinti e larghi (fino a +closeAggr di forza e +closeWiden m) e c'è un colpo di chiusura
   // piatto e profondo nell'angolo lontano dall'avversario; contro chi sbaglia poco (osservati/attesi ≤ closeG), oltre
   // closeHard colpi gioca solo per chiudere
-  closeFrom: 20, closeGain: .2, closeFloor: 0, closeAggr: .45, closeWiden: .6, closePower: [.85, .95], closeX: [3.2, 3.75],
+  // B16: chiusura misurata (prima +0,45 di forza, +0,6 m e chiusura a 0,85–0,95): il colpo di chiusura sbagliava il 17–18 %
+  // delle volte e contro «preciso» un terzo degli errori della CPU veniva dagli scambi oltre i 20 colpi
+  closeFrom: 20, closeGain: .2, closeFloor: 0, closeAggr: .15, closeWiden: .25, closePower: [.72, .85], closeX: [3.2, 3.75],
   closeHard: 24, closeG: 1.6,
+  // B16: la pressione degli scambi lunghi sulla CPU parte dal 20° colpo (prima dal 10°, come chi gioca a Leggenda): la
+  // Leggenda regge il ritmo più a lungo. Pesa solo negli scambi lunghi, quindi contro chi gioca bene
+  pressureFrom: 20,
+  // B16: controllo dei colpi forti. Nell'esecuzione la parte dell'errore che cresce con la forza (playerErrorChance,
+  // k.power) vale powerErr volte quella di Esperto; la scelta del colpo stima il rischio con le regole di Esperto, cioè
+  // gioca con margine. Con il rischio vero nella scelta, contro chi sbaglia molto la CPU giocava quasi solo colpi forti e
+  // profondi (entropia delle zone 2,05–2,24 bit, criterio ≥ 2,3)
+  powerErr: .65,
+  // B16: preferenza per l'angolo stretto incrociato (utilità + angle). Non è piccola: con tau 0,014 raddoppia il peso di
+  // quel colpo (dal 7–10 al 15–17 % dei colpi contro «medio» e «amatore»). Non serve ai criteri (con angle 0 passano tutti:
+  // incrociati al 31,8 % contro «medio», limite ≥ 30): dà margine a quel criterio e apre il campo come un giocatore forte
+  angle: .01,
   // vincente: chi gioca si muove da solo verso la palla (natpf_impact.js) e arriva quasi ovunque; la CPU stima se ci
   // arriva in tempo: margine = volo + reachAfter s dopo il rimbalzo (la palla torna all'altezza comoda in discesa)
   // − (reazione + strada / velocità). Margine negativo:
@@ -71,7 +90,8 @@ export const LEGEND = Object.freeze({
 });
 // Solo per audit ed esperimenti (scripts/audit/legend.mjs): valori che sostituiscono LEGEND in tutte le partite.
 // Oltre alle chiavi di LEGEND: forceKind (sempre quel colpo), noLetGo (gioca anche le palle fuori), legacyMove (corsa
-// del motore, velocità istantanea), vmax (velocità massima diversa).
+// del motore, velocità istantanea), vmax (velocità massima diversa), riskTrue (la scelta stima il rischio con il
+// controllo vero della CPU, powerErr, invece che con le regole di Esperto).
 export const legendTuning = {};
 const cfg = e => (e?.natpfLegendCfg || Object.keys(legendTuning).length ? { ...LEGEND, ...legendTuning, ...(e?.natpfLegendCfg || {}) } : LEGEND);
 
@@ -83,6 +103,14 @@ export function legendState(e){
 // nuova partita: il modello dell'avversario riparte da zero (chi gioca è cambiato)
 export function resetLegend(e){ if (e) e.natpfLegend = null; }
 const zone = (x, z) => `${Math.abs(x) < 1.37 ? 'C' : x > 0 ? 'R' : 'L'}${z < 6.4 ? 'S' : z < 9.4 ? 'M' : 'D'}`;
+// Regole d'esecuzione della CPU: quelle di Esperto, con l'errore da forza × powerErr (B16)
+const EXEC = new Map();
+function execLevel(L){
+  const lv = NS.skillLevel('leggenda'), k = finite(L.powerErr, 1);
+  if (k === 1 || !lv.playerErr) return lv;
+  if (!EXEC.has(k)) EXEC.set(k, Object.freeze({ ...lv, playerErr: Object.freeze({ ...lv.playerErr, power: lv.playerErr.power*k }) }));
+  return EXEC.get(k);
+}
 
 /* ---------- modello dell'avversario: quanto spesso sbaglia, per tipo di palla (impara durante la partita) ---------- */
 function humanErr(m, L, c, ctx, learn){
@@ -144,7 +172,8 @@ function shape(c, ctx){
 
 /* ---------- scelta del colpo ---------- */
 export function legendDecide(e, actor, rng = legendRng(e)){
-  const L = cfg(e), lv = NS.skillLevel('leggenda'), b = e.ball, h = e.player, m = legendState(e);
+  // rischio stimato con le regole di Esperto (margine), salvo riskTrue (solo audit)
+  const L = cfg(e), lv = L.riskTrue ? execLevel(L) : NS.skillLevel('leggenda'), b = e.ball, h = e.player, m = legendState(e);
   const ctx = { bx: b.pos.x, by: clamp(b.pos.y, .82, 1.68), bz: b.pos.z };
   // lato da cui colpisce la CPU: l'incrociato va dalla parte opposta, il lungolinea dalla stessa
   const s = Math.abs(ctx.bx) > .6 ? Math.sign(ctx.bx) : (h.pos.x > 0 ? -1 : 1);
@@ -153,9 +182,9 @@ export function legendDecide(e, actor, rng = legendRng(e)){
   const lat = Math.abs(b.pos.x - actor.pos.x), running = actor.vel.length()/Math.max(1, actor.maxSpeed);
   const pace = clamp((b.vel.length()*3.6 - 55)/55);
   const tq = NS.swingQuality(NS.gauss(rng)*L.timingSd*(1 + .8*pace), lv);
-  // pressione degli scambi lunghi, uguale a quella di chi gioca (natpf_stroke_outcome.rallyPressure); il colpo super
+  // pressione degli scambi lunghi come quella di chi gioca (natpf_stroke_outcome.rallyPressure), ma dal 20° colpo (B16); il colpo super
   // potente di chi gioca (natpf_stroke_outcome.superShot) mette in difficoltà anche la Leggenda (b.natpfSuper.legendQ)
-  const q = clamp(tq*NS.reachQuality(lat, running)*rallyPressure(b.rallyStrokeCount, 10)*finite(b.natpfSuper?.legendQ, 1), .3, 1);
+  const q = clamp(tq*NS.reachQuality(lat, running)*rallyPressure(b.rallyStrokeCount, L.pressureFrom)*finite(b.natpfSuper?.legendQ, 1), .3, 1);
   const R = (a, z) => a + rng()*(z - a), hx = h.pos.x, hz = h.pos.z, hv = h.vel.x;
   const away = -(Math.sign(hx) || -s);                    // angolo lontano dall'avversario
   const cands = [
@@ -202,6 +231,7 @@ export function legendDecide(e, actor, rng = legendRng(e)){
     // utilità: palla dentro × (vincente + errore provocato + valore di uno scambio che continua), meno le ripetizioni
     c.pPun = punishOf(m, L, c.kind);
     c.U = (1 - c.pErr)*(hr.pWin + (1 - hr.pWin)*(eR + (1 - eR)*V*(1 - c.pPun))) - L.repeat*recent.filter(z => z === zone(c.x, c.z)).length
+      + (c.kind === 'incrociatoStretto' ? L.angle : 0)
       - L.repeatKind*last3.filter(l => l.kind === c.kind).length - L.capPenalty*Math.max(0, last10.filter(l => l.kind === c.kind).length/10 - L.maxShare);
     if (!best || c.U > best.U) best = c;
   }
@@ -218,7 +248,8 @@ export function legendDecide(e, actor, rng = legendRng(e)){
 // Risposta della CPU: bersaglio, tipo di colpo, tempo di volo e traiettoria per il lancio del motore.
 // Restituisce { kind, err, x, z, shot, flight, arc, net } (x già corretto per l'aria).
 export function legendReturn(e, actor, rng = legendRng(e)){
-  const L = cfg(e), lv = NS.skillLevel('leggenda'), m = legendState(e);
+  // esecuzione con il controllo dei colpi forti della Leggenda (powerErr, B16)
+  const L = cfg(e), lv = execLevel(L), m = legendState(e);
   // il colpo precedente della CPU è tornato indietro: per il modello dell'avversario non era un errore
   noteHumanResult(m, false);
   m.lunging = false;
