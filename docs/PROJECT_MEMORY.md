@@ -530,3 +530,29 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 - Effetto dei tagliati: l'effetto laterale va dalla parte del campo in cui sta chi colpisce (`R = p.pos.x >= 0`), non dipende
   dalla mano.
 - Test `natpf-colpi-b15.test.mjs`. Il ritmo (`RHYTHM`, 28/10) e le soglie del tipo di colpo non cambiano.
+
+### Mira del telefono: sensibilità dello staff e misura per partita (B16, 08/11/2026; guida `docs/GUIDA_MISURA_MIRA.md`)
+- Decisione (d) dell'utente sulla mira più sensibile del B15: «ok ma come lo misuro?». La sensibilità è un'**opzione dello
+  staff** nelle Opzioni del computer («Mira del telefono»: **alta 17°** di base · media 20° · bassa 23°; chiave
+  `natpf-tennis.mira`, `src/natpf/natpf_aim_level.js`), non una costante da cambiare nel codice. I gradi sono quelli della
+  mira piena (`natpf_stroke_intent.AIM_FULL`): `faceAimFromDev(dev, full)` usa `full − INTENT.faceDead` come scarto; senza
+  `full` vale la base `INTENT.faceSpan` (alta = `faceDead + faceSpan`, prova che lo tiene). Arriva a `strokeIntent` con
+  `aimFull` da `natpfSwingToEngine` (telefono di questo computer, P1 e P2 dello stesso schermo); tocca solo `intent.face`
+  (tipo, forza, profondità identici). Nella sfida tra due computer dovrebbe valere l'opzione del computer a cui è collegato il telefono (il colpo si legge lì; non provato).
+- **Misura**: lato delle palle per partita (`diag_metrics.sideBalance`, `sideJudge`, `sideLines`; `SIDE`): x del punto di
+  caduta calcolato dei colpi del telefono (evento `racchetta`) nel riferimento di chi colpisce (P2: x del campo cambiata di
+  segno), servizi, allenamento (riscaldamento compreso), minigiochi e webcam esclusi. Quote sinistra · centro (±1 m) ·
+  destra; |mediana x| per blocchi di 20 colpi (l'ultimo se ≥ 10); **sbilanciata** con almeno il **70 %** dei colpi in una
+  **metà del campo** (x > 0 contro x < 0, la «palla da una parte» del banco B15) su almeno **20 colpi**. Il testo dice anche
+  se è la parte del dritto o del rovescio (mancino a specchio). Le partite si separano con l'evento `partita` (un
+  `startNewMatch`, ripetuto con `continua` all'inizio di una parte nuova); ogni `racchetta` porta `mano`, `fonte`,
+  `miraPiena` e, se serve, `allenamento`/`minigioco`; la sessione `gioco.mira`/`gioco.miraPiena`.
+- **Regola della guida**: con almeno 5 partite giudicate, più di una su cinque sbilanciata → prima la calibrazione, poi la
+  sensibilità meno sensibile, e si rifà il confronto con le stesse persone. Banco (`scripts/audit/colpi.mjs --mode=lato`,
+  persona vera, 24 partite da 40 colpi per caso): con la calibrazione giusta 0 partite sbilanciate con 17°, 20° e 23°; con
+  il seme sbagliato di ±15° 40 / 38 / 35 % (|mediana x| 1,18 / 1,05 / 0,93 m), ±25° 58 / 56 / 50 %, semi diversi nei due
+  versi 33 / 27 / 25 %. La sensibilità attenua lo sbilanciamento (circa −10 % di metri da una parte per passo), non lo
+  cura: lo cura la calibrazione.
+- Comando per lo staff: `node scripts/audit/lato-palle.mjs <zip o cartelle…>` (parti dello stesso `gruppo` insieme, totale
+  per sensibilità). Prove: `natpf-mira-sensibilita.test.mjs`, `natpf-mira-lato.test.mjs`, nel browser
+  `tools/e2e/natpf-mira-lato.mjs` (il percorso della guida).

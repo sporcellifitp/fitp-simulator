@@ -199,7 +199,7 @@ export function sideJudge(xs, { hand = null } = {}){
   const colpo = fh ? (side === fh ? 'dritto' : 'rovescio') : null;
   const testo = verdetto === 'pochi colpi' ? `troppo pochi colpi per giudicare (${n}, ne servono ${SIDE.min})`
     : verdetto === 'sbilanciata' ? `sbilanciata a ${side}${colpo ? ` (dalla parte del ${colpo})` : ''}: ${pc(Math.max(halfL, halfR))} % dei colpi da quella parte`
-    : `equilibrata: ${pc(halfL)} % dei colpi a sinistra del centro, ${pc(halfR)} % a destra`;
+    : `equilibrata: ${pc(halfL)} % dei colpi nella metà sinistra del campo, ${pc(halfR)} % nella destra`;
   return { colpi: n, sinistraPercento: pc(left), centroPercento: pc(n - left - right), destraPercento: pc(right), metaSinistraPercento: pc(halfL), metaDestraPercento: pc(halfR),
     medianaX: r2(median(v)), blocchi: blocks, verdetto, lato: verdetto === 'sbilanciata' ? side : null, latoColpo: verdetto === 'sbilanciata' ? colpo : null, quotaPercento: n ? pc(Math.max(halfL, halfR)) : null, testo };
 }
@@ -249,7 +249,7 @@ export function sideLines(lp, { prefix = 'Lato delle palle' } = {}){
   const R = lp.riepilogo;
   if (R?.giudicate){
     const per = Object.entries(R.perMiraPiena || {}).map(([k, g]) => `${aimName(k) ? `mira ${aimName(k)} (${k}°)` : k === 'non registrata' ? 'mira non registrata' : `mira ${k}°`}: ${g.sbilanciate} su ${g.giudicate}`).join(' · ');
-    L.push(`${prefix ? `${prefix}, in tutto` : 'In tutto'}: ${R.sbilanciate} partite sbilanciate su ${R.giudicate} giudicate (per giocatore)${per ? ` · ${per}` : ''}${R.giudicate >= 5 && R.sbilanciate/R.giudicate > SIDE.alert ? ' · più di una su cinque: prova la mira «media» (Opzioni → Mira del telefono; docs/GUIDA_MISURA_MIRA.md)' : ''}`);
+    L.push(`${prefix ? `${prefix}, in tutto` : 'In tutto'}: ${R.sbilanciate} partite sbilanciate su ${R.giudicate} giudicate (per giocatore)${per ? ` · ${per}` : ''}${R.giudicate >= 5 && R.sbilanciate/R.giudicate > SIDE.alert ? ' · più di una su cinque: controlla la calibrazione, poi prova una mira meno sensibile (docs/GUIDA_MISURA_MIRA.md §6)' : ''}`);
   }
   return L;
 }

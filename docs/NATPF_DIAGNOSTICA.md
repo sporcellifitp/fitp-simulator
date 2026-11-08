@@ -44,7 +44,8 @@ Tutto è scritto in `eventi.jsonl`, un evento JSON per riga. `t` è in ms dall'i
 
 | Evento | Contenuto |
 |---|---|
-| `sessione`, `sessione.fine` | dispositivi, browser, scheda grafica, impostazioni, conteggi |
+| `sessione`, `sessione.fine` | dispositivi, browser, scheda grafica, impostazioni (in `gioco` anche la sensibilità della mira del telefono: `mira` alta/media/bassa e `miraPiena` in gradi, B16), conteggi |
+| `partita` | inizio di una partita (B16): numero nella sessione, modo (CPU, stesso schermo, sfida), difficoltà, formato, mani dei due giocatori, sensibilità della mira; ripetuto con `continua` all'inizio di una parte nuova se la partita prosegue |
 | `tel.colpo` | colpo del telefono: numero, percorso (veloce o affidabile), lato, tipo, perché, mira, istante del picco, tempi di riconoscimento, preparazione, consegna e totale; anche i colpi scartati, con il motivo. Racchetta virtuale: velocità al picco (`pk`, °/s), ampiezza (gradi), `forma` del gesto (piano, salita della testa, polso, manico, velocità della testa e della mano) e `intenzione` letta dal computer (tipo, sicurezza, forza, portata, profondità voluta, mira del piatto, salita abituale della calibrazione in quel verso: `abituale`, null senza calibrazione); null con i telefoni di prima |
 | `tel.cal` | passi della calibrazione |
 | `tel.stato` | collegamento, stato del telefono, presa, pagina visibile o nascosta, blocco dello schermo |
@@ -54,7 +55,7 @@ Tutto è scritto in `eventi.jsonl`, un evento JSON per riga. `t` è in ms dall'i
 | `rimbalzo`, `punto`, `fase` | eventi del motore |
 | `tentativo` | swing del giocatore: distanza palla–giocatore, correzione della latenza, velocità, se l'ha colpita |
 | `colpo.gioco` | esito del colpo a schermo (tempo, qualità, punto di rimbalzo, direzione incrociato/lungolinea/centro) e colpi della CPU. Con la racchetta virtuale l'esito del colpo è solo nell'evento `racchetta` (prima era ripetuto qui) |
-| `racchetta` | esito deterministico del colpo, unica registrazione (docs/NATPF_RACCHETTA_VIRTUALE.md): chi, numero del colpo del telefono (`n`, lo lega a `tel.colpo`), colpo voluto e giocato, forza, profondità voluta, piatto, tempo rispetto all'impatto in ms (`tempoMs`) e nella finestra della direzione (`tempo`, −1…+1, + anticipo), oltre la finestra (`oltre`), qualità, assistito, fallito (in rete o lungo), punto di rimbalzo calcolato, al volo, lato, voto; direzione calcolata (`mira`, −1…+1 tra le righe, 0 il punto neutro; `neutro`; `palla`: posizione laterale della palla all'impatto, riferimento di chi colpisce; `aiuto`: assistenza 0…1) e traiettoria (`volo` in s, `rete_m` altezza sulla rete, `effetto`) |
+| `racchetta` | esito deterministico del colpo, unica registrazione (docs/NATPF_RACCHETTA_VIRTUALE.md): chi, numero del colpo del telefono (`n`, lo lega a `tel.colpo`), colpo voluto e giocato, forza, profondità voluta, piatto, tempo rispetto all'impatto in ms (`tempoMs`) e nella finestra della direzione (`tempo`, −1…+1, + anticipo), oltre la finestra (`oltre`), qualità, assistito, fallito (in rete o lungo), punto di rimbalzo calcolato, al volo, lato, voto; direzione calcolata (`mira`, −1…+1 tra le righe, 0 il punto neutro; `neutro`; `palla`: posizione laterale della palla all'impatto, riferimento di chi colpisce; `aiuto`: assistenza 0…1) e traiettoria (`volo` in s, `rete_m` altezza sulla rete, `effetto`). Dal B16 anche `mano` di chi colpisce, `fonte` (telefono o webcam), `miraPiena` (gradi della mira con cui il telefono ha letto il piatto) e, se è il caso, `allenamento` (riscaldamento compreso) o `minigioco` |
 | `piano` | piano d'intercetto del movimento automatico: rimbalzo (`ground`), volée, schiacciata al volo, palla lasciata andare (`letgo`), al limite (`stretch`); punto d'impatto, tempo, corsa |
 | `servizio` | servizio dal gesto: tipo (piatto, kick, slice), qualità, ritmo, ms dal punto più alto del lancio, punto di rimbalzo, km/h, voto |
 | `vuoto` | colpo a vuoto e il motivo: troppo presto, troppo tardi, palla fuori portata |
@@ -164,6 +165,15 @@ I campioni grezzi del telefono stanno in un file a parte, `telefono-sensori.json
   profondità. Si parte dai gesti del telefono (`tel.colpo` con forma o intenzione) legati all'esito con il numero del
   colpo; senza (telefono di prima, webcam) dagli esiti della racchetta, raggruppati per colpo voluto. Il modello del
   colpo non ha caso: la variazione è di chi gioca e delle palle, ed è il riferimento per tarare le soglie;
+- `latoPalle` (B16, misura della mira: `docs/GUIDA_MISURA_MIRA.md`): per ogni partita (evento `partita`) e per chi gioca
+  con il telefono (P1 e, nel 1v1, P2) la quota di palle a sinistra · al centro (entro 1 m) · a destra nel suo riferimento
+  (x del punto di caduta calcolato, evento `racchetta`; per il P2 la x del campo cambia segno), |mediana x| per blocchi di
+  20 colpi e il verdetto: «equilibrata», «sbilanciata a destra (dalla parte del dritto): 72 % dei colpi da quella parte»
+  (almeno il 70 % in una metà del campo su almeno 20 colpi) o «troppo pochi colpi». Fuori servizi, allenamento, minigiochi
+  e webcam. `riepilogo`: partite giudicate e sbilanciate, anche per sensibilità della mira (`perMiraPiena`). Lo stesso
+  calcolo è nel riassunto in parole, nella scheda «Lato delle palle per partita» di `rapporto.html`, nel `LEGGIMI.txt` e in
+  `node scripts/audit/lato-palle.mjs <pacchetti…>` (uno o più zip o cartelle; le parti dello stesso gruppo insieme;
+  totale per sensibilità);
 - `registrazione`.
 
 L'esito di ogni colpo della racchetta è registrato una volta sola, nell'evento `racchetta`. Fino al 22/10 era ripetuto
@@ -181,6 +191,7 @@ Da riga di comando, dalla cartella `natpf-tennis`:
 node scripts/diag/diag.mjs metriche sessione.zip
 node scripts/diag/diag.mjs colpi sessione.zip
 node scripts/diag/diag.mjs confronta prima.zip dopo.zip   # codice 2 se qualcosa peggiora
+node scripts/audit/lato-palle.mjs a.zip b.zip              # lato delle palle per partita, totale per sensibilità della mira
 ```
 
 ## Codice e prove

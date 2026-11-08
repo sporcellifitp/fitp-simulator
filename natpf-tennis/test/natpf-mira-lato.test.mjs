@@ -32,7 +32,7 @@ test('verdetto: almeno il 70 % in una metà del campo su almeno 20 colpi; centro
   const b = sideJudge([...xsOf(13, 6), .4], { hand: 'right' });   // 14 su 20 a destra del centro, 13 oltre 1 m
   assert.equal(b.verdetto, 'sbilanciata'); assert.equal(b.destraPercento, 65); assert.equal(b.centroPercento, 5); assert.equal(b.metaDestraPercento, 70);
   const c = sideJudge(xsOf(13, 7), { hand: 'right' });
-  assert.equal(c.verdetto, 'equilibrata'); assert.equal(c.testo, 'equilibrata: 35 % dei colpi a sinistra del centro, 65 % a destra');
+  assert.equal(c.verdetto, 'equilibrata'); assert.equal(c.testo, 'equilibrata: 35 % dei colpi nella metà sinistra del campo, 65 % nella destra');
   const d = sideJudge(xsOf(19, 0), { hand: 'right' });
   assert.equal(d.verdetto, 'pochi colpi'); assert.match(d.testo, /19, ne servono 20/);
   // mancino: la sua destra è la parte del rovescio; la sua sinistra quella del dritto
@@ -92,7 +92,7 @@ test('riassunto, rapporto e LEGGIMI: il lato delle palle per partita con il verd
   assert.match(lines.at(-1), /^Lato delle palle, in tutto: 1 partite sbilanciate su 5 giudicate \(per giocatore\) · mira alta \(17°\): 1 su 5$/);
   // sei sbilanciate su dieci: il riassunto suggerisce la mira media
   const many = []; for (let i = 0; i < 10; i++) many.push({ t: i*60000, k: 'partita', n: i + 1, miraPiena: 17 }, ...series(i*60000 + 1000, 'player', i < 6 ? xsOf(16, 4) : xsOf(10, 10)));
-  assert.match(sideLines(sideBalance(many)).at(-1), /più di una su cinque: prova la mira «media»/);
+  assert.match(sideLines(sideBalance(many)).at(-1), /più di una su cinque: controlla la calibrazione, poi prova una mira meno sensibile/);
   const html = viewerHtml({ meta: { id: 'x', inizio: '2026-11-08' }, metrics: m, events: ev });
   assert.match(html, /Lato delle palle per partita \(mira del telefono\)/);
   assert.match(html, /sbilanciata a destra \(dalla parte del dritto\): 80 % dei colpi da quella parte/);
@@ -173,12 +173,16 @@ test('scripts/audit/lato-palle.mjs: legge zip e cartelle, tiene insieme le parti
     const txt = run(path.join(dir, 'p2.zip'), path.join(dir, 'p1.zip'), sub, `--json=${path.join(dir, 'out.json')}`);
     assert.match(txt, /== G1 · 2026-11-08T18:00:00Z · versione 2026-11-08\.4 · parti 1, 2 · sensibilità della mira all'inizio alta \(17°\)/);
     assert.match(txt, /partita 1 · P1 \(destro, mira alta 17°\): 24 colpi · .* → sbilanciata a destra \(dalla parte del dritto\): 75 % dei colpi da quella parte/);
-    assert.match(txt, /partita 1 · P1 \(mancino, mira media 20°\): 22 colpi · .* → equilibrata: 50 % dei colpi a sinistra del centro, 50 % a destra/);
+    assert.match(txt, /partita 1 · P1 \(mancino, mira media 20°\): 22 colpi · .* → equilibrata: 50 % dei colpi nella metà sinistra del campo, 50 % nella destra/);
     assert.match(txt, /== In tutto \(2 registrazioni, 3 pacchetti\): 1 partite sbilanciate su 2 giudicate/);
     assert.match(txt, /mira alta \(17°\): 1 su 1 = 100 % · poche partite: giocane almeno 5 prima di decidere/);
     assert.match(txt, /mira media \(20°\): 0 su 1 = 0 %/);
     const js = JSON.parse(fs.readFileSync(path.join(dir, 'out.json'), 'utf8'));
     assert.equal(js.registrazioni.length, 2); assert.deepEqual(js.totale.perMiraPiena, { 17: { giudicate: 1, sbilanciate: 1 }, 20: { giudicate: 1, sbilanciate: 0 } });
+    // cinque partite giudicate con la mira alta, due sbilanciate: prima la calibrazione, poi la mira media
+    const five = []; for (let i = 0; i < 5; i++) five.push({ t: i*60000, k: 'partita', n: i + 1, mano: 'right', miraPiena: 17 }, ...series(i*60000 + 1000, 'player', i < 2 ? xsOf(16, 4) : xsOf(10, 10)));
+    await pack('cinque.zip', { id: 'K1', gruppo: 'K1', gioco: { mira: 'alta', miraPiena: 17 } }, five);
+    assert.match(run(path.join(dir, 'cinque.zip')), /mira alta \(17°\): 2 su 5 = 40 % · più di una su cinque: controlla la calibrazione, poi prova la mira «media»/);
     // zip compresso di nuovo (non «stored»): spiega di estrarlo
     fs.writeFileSync(path.join(dir, 'rotto.zip'), 'non è uno zip');
     assert.throws(() => run(path.join(dir, 'rotto.zip')), e => /estrailo e passa la cartella/.test(String(e.stderr)));

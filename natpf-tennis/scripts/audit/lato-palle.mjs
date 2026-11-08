@@ -67,6 +67,8 @@ const pct = (a, b) => (b ? Math.round(100*a/b) : 0);
 console.log(`\n== In tutto (${regs.length} registrazion${regs.length === 1 ? 'e' : 'i'}, ${pkgs.length} pacchett${pkgs.length === 1 ? 'o' : 'i'}): ${tot.sbilanciate} partite sbilanciate su ${tot.giudicate} giudicate (per giocatore, almeno ${SIDE.min} colpi)${tot.giudicate ? ` = ${pct(tot.sbilanciate, tot.giudicate)} %` : ''}`);
 for (const [k, v] of Object.entries(perMira).sort()){
   const name = aimName(k), over = v.giudicate >= 5 && v.sbilanciate/v.giudicate > SIDE.alert;
-  console.log(`   ${name ? `mira ${name} (${k}°)` : k === 'non registrata' ? 'mira non registrata' : `mira ${k}°`}: ${v.sbilanciate} su ${v.giudicate} = ${pct(v.sbilanciate, v.giudicate)} %${v.giudicate < 5 ? ' · poche partite: giocane almeno 5 prima di decidere' : over ? ' · più di una su cinque: prova la mira «media» (Opzioni → Mira del telefono)' : ' · una su cinque o meno: la sensibilità va bene'}`);
+  // più di una su cinque: prima la calibrazione, poi la sensibilità meno sensibile di quella provata (guida §6)
+  const next = { alta: ', poi prova la mira «media» (Opzioni → Mira del telefono)', media: ', poi prova la mira «bassa»' }[name] || '';
+  console.log(`   ${name ? `mira ${name} (${k}°)` : k === 'non registrata' ? 'mira non registrata' : `mira ${k}°`}: ${v.sbilanciate} su ${v.giudicate} = ${pct(v.sbilanciate, v.giudicate)} %${v.giudicate < 5 ? ' · poche partite: giocane almeno 5 prima di decidere' : over ? ` · più di una su cinque: controlla la calibrazione${next}` : ' · una su cinque o meno: la sensibilità va bene'}`);
 }
 if (out) fs.writeFileSync(out, JSON.stringify({ soglia: { quotaPercento: 100*SIDE.share, colpiMinimi: SIDE.min, centroM: SIDE.center, bloccoColpi: SIDE.block }, registrazioni: all, totale: { ...tot, perMiraPiena: perMira } }, null, 1));
