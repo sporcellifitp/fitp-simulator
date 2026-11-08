@@ -874,7 +874,12 @@ guida provato nel browser.
   verdetto; download con il clic vero dopo lo scorrimento del pannello; `sessione.json`, `metriche.json`, `rapporto.html`,
   `LEGGIMI.txt`, eventi `partita` e `racchetta`; `lato-palle.mjs` sul pacchetto). Schermate in `scratchpad/b16/e2e-mira/`
   (`mira-opzioni.png`, `mira-riassunto.png`, `mira-scarica.png`, `rapporto-lato.png`). npm test **938/938**, sito
-  **197/197**.
+  **197/197**. `natpf-diag-session` (registratore toccato; porte 4532/4533): giro completo 23/24, unico KO di sola velocità
+  (costo del registratore: massimo 33,2 ms in un secondo, scrittura 37,8 ms, nei secondi in cui il gioco era a 7–14 fps con
+  fotogrammi da 233–317 ms: macchina carica, load average 8–10 su 4 CPU); ripetuta da sola la parte A: 15/16 (massimo 23,8
+  ms con il gioco a 31 fps), poi la base `7936011` sulla stessa macchina 16/16 (10,3 ms) e di nuovo il ramo **16/16**
+  (massimo 8,6 ms/s, scrittura 2,8 ms; mediana 0,7 ms/s come la base 0,6). Il ramo aggiunge 4–6 campi a ogni `racchetta`
+  (22 in 155 s) e un evento a partita.
   Non verificato: telefoni veri, persone vere (la guida serve a questo), programma Windows (download dal pannello), partite
   intere dal servizio nel browser (la prova fa partire gli scambi da una palla della CPU dopo il «Gioca» vero), sfida tra due
   computer (vale l'opzione del computer di chi gioca: non provato).
