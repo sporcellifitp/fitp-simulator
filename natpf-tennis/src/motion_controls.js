@@ -1367,8 +1367,9 @@ export class MotionController {
         try {
           // NATPF 1v1: touch con il proprio ruolo (prima «touch=1», che il relay ignorava: l'host non vedeva mai il P2
           // online) e, dal P2, se è pronto in lobby e se in partita non può giocare (hold: telefono scollegato, pagina
-          // nascosta…, natpf_versus.p2HoldWhy; vuoto = può giocare)
-          const t = `?room=${encodeURIComponent(this.roomId || "default")}&role=${encodeURIComponent(this.role || "p1")}&touch=${this.role === "p2" ? "p2" : "p1"}${this.role === "p2" && this.versusReady != null ? `&ready=${this.versusReady ? 1 : 0}` : ""}${this.role === "p2" && this.versusHold !== undefined ? `&hold=${encodeURIComponent(this.versusHold || "")}` : ""}`,
+          // nascosta…, natpf_versus.p2HoldWhy; vuoto = può giocare). B15: anche la sua mano (hand), così l'host la sa prima
+          // del suo primo colpo (piano d'intercetto, personaggio specchiato, palla del servizio); un relay di prima la ignora
+          const t = `?room=${encodeURIComponent(this.roomId || "default")}&role=${encodeURIComponent(this.role || "p1")}&touch=${this.role === "p2" ? "p2" : "p1"}${this.role === "p2" && this.versusReady != null ? `&ready=${this.versusReady ? 1 : 0}` : ""}${this.role === "p2" && this.versusHold !== undefined ? `&hold=${encodeURIComponent(this.versusHold || "")}` : ""}${this.role === "p2" ? `&hand=${this.handPreference === "left" ? "left" : "right"}` : ""}`,
             t0 = Date.now(),
             ac = typeof AbortController == "function" ? new AbortController() : null;
           ac && (abortTimer = setTimeout(() => ac.abort(), (this.phonePoll || PHONE_POLL).abortMs));

@@ -24,6 +24,7 @@ import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engi
 import * as NI from '../src/natpf/natpf_impact.js';
 import { RacketKinematicsController } from '../src/racket_kinematics.js';
 import { ENGINE_SHOT, aimFromSignals } from '../src/natpf/natpf_gestures.js';
+import { MotionController } from '../src/motion_controls.js';
 
 const near = (a, b, tol) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= tol;
 const opp = (a, b, tol) => near(a, -b, tol);
@@ -400,4 +401,25 @@ test('calibrazione: cambio di mano a metà percorso (applyHand del telefono) →
     p.cal.retry();
     assert.deepEqual(p.cal.state.plan, calibrationPlan({ quick: true, hand: to }), `${to}: «Rifai» con la mano nuova`);
   }
+});
+
+// 1v1 tra due computer (secondo giro, punto 3): la mano del P2 viaggia con la lettura dello stato, appena è nota (prima
+// solo con il primo colpo). Le altre prove del 1v1 sono in natpf-mancini-mondo.test.mjs
+test('1v1, computer del P2: la lettura dello stato porta la sua mano (l’host no: la sua va nello snapshot)', async () => {
+  const realFetch = globalThis.fetch;
+  // prima lettura di un controller del ruolo e della mano dati (poi si ferma subito)
+  const firstPoll = async (role, hand) => {
+    const urls = [];
+    globalThis.fetch = async url => { urls.push(String(url)); return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+    const mc = Object.create(MotionController.prototype);
+    Object.assign(mc, { role, roomId: 'AT-AB12', phonePollIntervalMs: 5, phoneState: { connected: false, orientation: {} }, p2PhoneState: { connected: false }, _listeners: { swing: [] }, ...(role === 'p2' ? { versusReady: true } : {}), handPreference: hand });
+    mc._notifyStatus = () => {}; mc._updatePhoneBadgeUI = () => {};
+    try { mc.startPhonePolling(); await new Promise(r => setTimeout(r, 40)); }
+    finally { mc.stopPhonePolling(); mc._disposed = true; }
+    return urls[0] || '';
+  };
+  try {
+    for (const hand of ['left', 'right']) assert.match(await firstPoll('p2', hand), new RegExp(`touch=p2&ready=1.*&hand=${hand}`), hand);
+    assert.doesNotMatch(await firstPoll('p1', 'left'), /hand=/);
+  } finally { globalThis.fetch = realFetch; }
 });
