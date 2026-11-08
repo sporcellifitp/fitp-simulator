@@ -101,6 +101,12 @@ try {
     const tlT = await phone.evaluate(() => window.__tl), sT = await snap(phone);
     const hT = await game.evaluate(() => { const T = __natpfTennis.natpfUi.training; return { open: T.tutorialOpen, idx: T.tutorial.state?.idx, seen: __natpfTennis.natpfPhone.tutorialSeen }; });
     check('T. Allenamento, collegamento perso e ripreso a tutorial aperto: stessa scheda, nessuna calibrazione', hT.open && !hT.seen && hT.idx === 3 && sT.screen === 'tutorial' && !calSeen(tlT) && !sT.tutOn, JSON.stringify({ hT, screen: sT.screen, tl: keys(tlT) }));
+    // T2 (verifica B15): pagina del telefono chiusa a tutorial aperto: il pannello del computer avvisa «Telefono
+    // scollegato» anche sotto la modale (una regola CSS del B15 lo nascondeva insieme alla riga che ripeteva la modale)
+    await phone.close();
+    const warn = await game.waitForFunction(() => { const m = document.querySelector('#coach-main'); return !!m && m.dataset.state === 'retry' && getComputedStyle(m).visibility === 'visible' && /scollegato/i.test(m.textContent); }, null, { timeout: 25000, polling: 200 }).then(() => true).catch(() => false);
+    const mT = await game.evaluate(() => { const m = document.querySelector('#coach-main'); return m ? { state: m.dataset.state, vis: getComputedStyle(m).visibility, text: m.textContent.trim().slice(0, 80) } : null; });
+    check('T. pagina del telefono chiusa a tutorial aperto: il computer mostra «Telefono scollegato» anche sotto la modale', warn, JSON.stringify(mT));
     await phone.context().close(); await game.context().close();
   }
 

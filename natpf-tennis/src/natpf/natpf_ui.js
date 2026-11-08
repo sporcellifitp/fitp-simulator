@@ -594,7 +594,7 @@ export class NatpfUi {
     this.renderQr($('natpf-qr'), $('natpf-phone-link'));
 
     let status = 'Preparo la connessione…', hint = '', tag = 'Scansiona il QR';
-    if (L.state === 'waiting') status = 'Inquadra il codice con la fotocamera del telefono';
+    if (L.state === 'waiting') status = 'Inquadra il QR con la fotocamera del telefono';
     if (L.state === 'lost'){ status = L.vis === false ? 'Telefono scollegato con lo schermo spento: riaccendilo e torna alla pagina, si ricollega da solo' : 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo'; tag = 'Scollegato'; }
     if (L.state === 'error'){ status = `Connessione non disponibile (${L.error}). Riprova o verifica la connessione a internet.`; tag = 'Errore'; }
     if (step === 'collega' && p.connected){ status = 'Collegato: sul telefono tocca «Attiva i sensori»'; tag = 'Collegato'; }

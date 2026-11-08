@@ -107,4 +107,3 @@ export function gripSvg({ cls = 'natpf-grip-art', compact = false, id = '', hand
 }
 // la presa in parole (stessa cosa della figura), per i pannelli e la guida
 export const GRIP_TEXT = GRIP.text;
-export const GRIP_TEXT_PLAIN = GRIP_TEXT.replace(/<\/?b>/g, '');

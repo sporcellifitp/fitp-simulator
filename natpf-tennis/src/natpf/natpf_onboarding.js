@@ -42,7 +42,7 @@ export const GUIDE = [
   { id: 'shots', title: 'Colpi speciali', clip: 'shots', you: {
     phone: '<b>Dal basso verso l’alto</b>: pallonetto. <b>Dall’alto verso il basso</b>, lento: palla corta; deciso: tagliato (schiacciata se la palla è alta). Veloce e dritto: piatto.',
     webcam: 'Swing verso l’alto: pallonetto. Verso il basso: tagliato. Sulle palle alte la schiacciata parte da sola.',
-    mouse: '<kbd>1</kbd> topspin · <kbd>2</kbd> tagliato · <kbd>3</kbd> lob · <kbd>4</kbd> smash.',
+    mouse: '<kbd>1</kbd> topspin · <kbd>2</kbd> tagliato · <kbd>3</kbd> pallonetto · <kbd>4</kbd> schiacciata.',
   }, game: 'Il pallonetto scavalca chi è a rete, la palla corta sorprende chi sta in fondo.' },
 ];
 // testo «Cosa fai tu» di un passo per una racchetta

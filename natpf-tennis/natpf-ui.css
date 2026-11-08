@@ -868,7 +868,7 @@ body.natpf-arcade #natpf-scoreboard { opacity: 0; pointer-events: none; }
   #title-modal .result-medal { width: 84px; height: 84px; margin-bottom: -4px; }
   #title-modal .result-medal b { font-size: 16px; }
   #title-modal .result-rank { font-size: 18px; }
-  #title-modal [data-page="result"] .ranking-list.compact li:nth-child(n + 4) { display: none; }
+  #title-modal [data-page="result"] .ranking-list.compact li:nth-child(n + 4):not(.me) { display: none; }
   #title-modal [data-page="result"] { gap: 8px; }
 }
 /* area quadrata o più alta che larga (ledwall 2×2): menu in colonna, titolo sopra le voci */
@@ -1543,8 +1543,9 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
   background: rgba(4, 8, 24, 0.72); }
 .natpf-tutorial.hidden { display: none; }
 /* B15 (08/11): con la modale aperta il pannello in basso a sinistra non ripete la riga della modale (resta la barra con
-   «Salta» e la pausa) */
-#natpf-tutorial:not(.hidden) ~ #natpf-coach .coach-main { visibility: hidden; }
+   «Salta» e la pausa); l'avviso «Telefono scollegato» (data-state="retry") resta in vista (verifica dell'integrazione B15,
+   prova natpf-tutorial-relink T) */
+#natpf-tutorial:not(.hidden) ~ #natpf-coach .coach-main:not([data-state="retry"]) { visibility: hidden; }
 /* con un tutorial aperto nessuna sfocatura dal vivo dietro di lui (menu dello stesso schermo, pannelli dell'allenatore):
    ogni fotogramma dell'animazione costringeva a rifare il backdrop-filter del menu sotto, e senza GPU l'animazione
    scendeva da 59 a 27 fotogrammi al secondo (misurato, docs/b9/animazione-c.md); sotto il velo al 72% non si vede */

@@ -122,7 +122,13 @@ export class NatpfLobby {
       const tab = e.target.closest('[data-ranking]'); if (tab){ e.stopPropagation(); this.rankingTab = tab.dataset.ranking; this._paintRanking(); return; }
       const r = e.target.closest('[data-result]'); if (r){ e.stopPropagation(); this._resultAction(r.dataset.result); return; }
       // pagina «Partita»: «Altre impostazioni» apre e chiude formato, durata, chi batte e visuale
-      const more = e.target.closest('[data-match-more]'); if (more){ e.stopPropagation(); this.matchMore = !this.matchMore; this.paint(); return; }
+      const more = e.target.closest('[data-match-more]'); if (more){
+        e.stopPropagation(); this.matchMore = !this.matchMore; this.paint();
+        // aperte su uno schermo basso (1366×657, 1024×600) l'ultima riga restava sotto la barra in basso senza che si
+        // vedesse che c'era (verifica dell'integrazione B15): la pagina scorre fino a mostrarla
+        if (this.matchMore) requestAnimationFrame(() => { const last = $('match-more')?.lastElementChild; if (last?.scrollIntoView) last.scrollIntoView({ block: 'nearest' }); });
+        return;
+      }
       // scegliere la racchetta è già andare avanti
       const c = e.target.closest('[data-natpf-controller]'); if (c && this.step === 'controller') setTimeout(() => this.go('connect'), 160);
     });
@@ -181,7 +187,6 @@ export class NatpfLobby {
     if (item === 'ranking'){ this.go('ranking'); return; }
     if (item === 'training'){ this.setMode('training'); this.go('controller'); return; }
     // (la voce «Guida» del menu non c'è più dal B15: la guida si apre con «Come si gioca» in alto o con H)
-    if (item === 'guide'){ this.onboarding.open(); return; }
     if (item === 'options') this.go('options');
   }
   setMode(mode){
