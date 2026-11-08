@@ -804,6 +804,16 @@ restano proposte in `docs/b15/audit-ux.md` §4. Ramo di lavoro `b15-ux` (worktre
   disegno con la rasterizzazione è 4,26 ms contro 4, ma la base sulla stessa macchina dà 4,22 ms (macchina più lenta dopo
   il riavvio; il B15 non tocca il disegno dei gesti). Le prove con la macchina carica (altre prove in parallelo) avevano
   dato KO di sola velocità (fps della modale, tempi), tutti verdi ripetuti da soli.
+- Revisione indipendente dell'integrazione: «pubblicare dopo correzioni». Unioni intatte (ogni riga dei tre rami presente),
+  correzioni delle verifiche tutte presenti, letture e banchi identici ai rami (letture 736/736, sweep 1658/1672, imitatori
+  1148/1152, semi 528/528; colpi del destro identici a `b15-colpi`), riga «Mano» del telefono che cambia davvero il piano
+  di calibrazione (8/8 in tutte e due le mani). Corretti dopo la revisione (commit dopo `e32e021`): pannello degli esercizi
+  del mancino dalla parte opposta al punto d'impatto (prova nuova in `natpf-training-flow`, 21/21 destro e mancino);
+  «Gioca» della CPU che restava «In attesa del Player 2…» dopo «Sfida un amico» (c'era già prima); avvisi di «Collega il
+  telefono» non più sotto la barra in basso a 1280×720; freccia della pagina vecchia del sito per il mancino; testo dei
+  sensori negati uguale su computer e telefono. Non corretto (cosmetico, già presente): la foto della presa specchiata per il
+  mancino ha la scritta dello schermo rovesciata. Dopo le correzioni: gioco 927/927, sito 197/197, `natpf-menu` 22/22,
+  `natpf-1v1-p2p` 39/39, `natpf-tutorial-phone` mancino 38/38, `gesture-calibration` 20/20, `phone-only` 10/10.
 - Versione **2026-11-08.4** (`version.js`, `build.json`, `LEGGIMI.txt`), novità in `natpf-desktop/novita.txt`.
 - Decisioni chieste all'utente: `docs/PASSAGGIO_CONSEGNE.md` §3.13 (Leggenda, tutorial corto, riscaldamento facoltativo,
   mira più sensibile, unire le due pagine della scelta).
