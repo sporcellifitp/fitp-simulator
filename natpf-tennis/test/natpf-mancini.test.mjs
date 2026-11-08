@@ -25,6 +25,10 @@ import * as NI from '../src/natpf/natpf_impact.js';
 import { RacketKinematicsController } from '../src/racket_kinematics.js';
 import { ENGINE_SHOT, aimFromSignals } from '../src/natpf/natpf_gestures.js';
 import { MotionController } from '../src/motion_controls.js';
+import { createNatpfCharacter, createNatpfRacket, finishNatpfActor, updateNatpfActorLimbs } from '../src/natpf/natpf_character.js';
+import { setupArticulatedPlayerRig, updatePlayerBodyAnimation } from '../src/player_body_animation.js';
+import { PlayerFacialFXController } from '../src/player_facial_fx.js';
+import { upgradePlayerCharacterMaterials, upgradeRacketMaterials } from '../src/player_materials.js';
 
 const near = (a, b, tol) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= tol;
 const opp = (a, b, tol) => near(a, -b, tol);
@@ -422,4 +426,77 @@ test('1v1, computer del P2: la lettura dello stato porta la sua mano (l’host n
     for (const hand of ['left', 'right']) assert.match(await firstPoll('p2', hand), new RegExp(`touch=p2&ready=1.*&hand=${hand}`), hand);
     assert.doesNotMatch(await firstPoll('p1', 'left'), /hand=/);
   } finally { globalThis.fetch = realFetch; }
+});
+
+/* ---------- personaggio intero a specchio (secondo giro, punto 4 e ricerca) ---------- */
+// Personaggio montato come in natpf-character.test.mjs (game_engine._preparePlayerActor); il mancino specchiato come fa
+// NatpfHand.apply (root.scale.x = −1, natpfHand 'left')
+const PART_RE = { head: /^head(\.?0*\d+)?$/i, torso: /^torso(\.?0*\d+)?$/i, handL: /^hand_l(\.?0*\d+)?$/i, handR: /^hand_r(\.?0*\d+)?$/i, footL: /^foot_l(\.?0*\d+)?$/i, footR: /^foot_r(\.?0*\d+)?$/i };
+function mountActor(hand, x0, sideSign = 1){
+  const scene = new THREE.Scene();
+  const actor = { role: sideSign > 0 ? 'player' : 'opponent', sideSign, root: new THREE.Group(), model: null, parts: {}, racketPivot: new THREE.Group(), pos: new THREE.Vector3(x0, 0, sideSign*11.89),
+    vel: new THREE.Vector3(), targetPos: new THREE.Vector3(), stridePhase: 0, swingTimer: 0, swingDuration: .34, swingType: 'forehand', maxSpeed: 9 };
+  const model = createNatpfCharacter(sideSign > 0 ? 'p1' : 'p2'); actor.model = model;
+  model.traverse(s => { s.userData.basePos = s.position.clone(); s.userData.baseRot = s.rotation.clone(); const n = (s.name || '').trim();
+    for (const [k, re] of Object.entries(PART_RE)) if (re.test(n) && (!actor.parts[k] || !s.isMesh)){ actor.parts[k] = s; break; } });
+  model.scale.setScalar(1.16); actor.root.add(model);
+  upgradePlayerCharacterMaterials(actor, sideSign > 0 ? 'p1' : 'p2');
+  new PlayerFacialFXController(scene).attachFacialRig(actor);
+  setupArticulatedPlayerRig(actor);
+  const racket = createNatpfRacket(); upgradeRacketMaterials(racket); racket.scale.setScalar(1.22);
+  actor.racketMesh = racket; actor.racketPivot.position.set(-.36, .9, .16); actor.racketPivot.add(racket); actor.root.add(actor.racketPivot);
+  actor.root.rotation.y = sideSign > 0 ? Math.PI : 0; actor.root.position.copy(actor.pos); scene.add(actor.root);
+  if (hand === 'left'){ actor.root.scale.x = -1; actor.natpfHand = 'left'; }
+  const rk = new RacketKinematicsController(); rk.initActor(actor); finishNatpfActor(actor);
+  return { actor, scene, rk };
+}
+// stessa scena per il destro e, riflessa (x → −x), per il mancino: palla, corsa, colpo e comandi (mouse, inclinazione del
+// telefono, mano vista dalla webcam). Ritorna lo scarto più grande tra ogni parte del mancino e lo specchio della stessa
+// parte del destro, e i lati della carica del corpo
+function mirrorRun(scn, sideSign = 1){
+  const A = mountActor('right', scn.x0 || 0, sideSign), B = mountActor('left', -(scn.x0 || 0), sideSign);
+  const balls = [A, B].map(() => ({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), inPlay: true, lastHitter: sideSign > 0 ? 'opponent' : 'player', targetLanding: { x: 0, z: 10 } }));
+  let worst = { d: 0 }; const coiled = [];
+  for (let f = 0; f < scn.frames; f++){
+    const t = f/60;
+    [[A, balls[0], 1], [B, balls[1], -1]].forEach(([W, ball, s]) => {
+      const b = scn.ball?.(t);
+      if (b){ ball.pos.set(s*b.x, b.y, sideSign*b.z); ball.vel.set(0, 0, sideSign*b.vz); ball.targetLanding = { x: s*b.x, z: sideSign*10 }; }
+      const v = scn.vel?.(t) || 0; W.actor.vel.set(s*v, 0, 0); W.actor.pos.x += s*v/60; W.actor.root.position.copy(W.actor.pos);
+      if (scn.swingAt === f) W.rk.triggerSwing(W.actor, { shotType: 'topspin', side: scn.side, speed: 1.1, timing: 'sweet', dirX: 0 });
+      const li = scn.input?.(t);
+      const ctx = { phase: 'RALLY', score: { server: 'player' }, ball: b ? ball : null, elapsedTime: t, ...(li ? { liveInput: { tiltPitch: li.pitch, tiltRoll: s*li.roll, tiltYaw: s*li.yaw, mouseVelX: s*li.mx, mouseVelY: li.my, handOffsetX: s*li.hx, handOffsetY: li.hy } } : {}) };
+      W.rk.update(W.actor, 1/60, ctx); updatePlayerBodyAnimation(W.actor, 1/60, ctx); updateNatpfActorLimbs(W.actor);
+      W.scene.updateMatrixWorld(true);
+    });
+    coiled.push([A.actor.rig.coiledSide, B.actor.rig.coiledSide]);
+    const na = {}, nb = {};
+    A.scene.traverse(o => { if (o.name) na[o.name] = o.getWorldPosition(new THREE.Vector3()); });
+    B.scene.traverse(o => { if (o.name) nb[o.name] = o.getWorldPosition(new THREE.Vector3()); });
+    for (const k of Object.keys(na)) if (nb[k]){ const d = Math.hypot(na[k].x + nb[k].x, na[k].y - nb[k].y, na[k].z - nb[k].z); if (d > worst.d) worst = { d, k, f }; }
+  }
+  return { worst, coiled };
+}
+
+// Punto 4 della verifica: player_body_animation (de) sceglieva il lato della carica dalla palla con la regola del destro
+// quando la racchetta animata non caricava ancora (palla oltre anticipationRangeMeters): il mancino cominciava a
+// caricare dal lato sbagliato. Ricerca dello stesso giro: con il personaggio specchiato (root.scale.x < 0) le rotazioni
+// calcolate da direzioni del campo si vedevano rovesciate: testa verso il punto riflesso della palla, inclinazione nella
+// corsa laterale e polso dalla parte opposta (corsa: 0,8 m sulla mano), mouse, telefono e mano della webcam rovesciati.
+// Ora ogni parte del mancino è lo specchio della stessa parte del destro (1 mm), Player 1 e Player 2
+test('personaggio intero a specchio: carica dalla palla lontana, corsa, testa, colpi e comandi del mancino = specchio del destro', () => {
+  const SC = {
+    'palla lontana di lato (oltre la carica della racchetta)': { frames: 60, ball: t => ({ x: 4.4, y: 1, z: 11.89 - 7.6 + t*.2, vz: 2 }) },
+    'palla che arriva sul dritto': { frames: 60, ball: t => ({ x: 1.2, y: 1, z: 11.89 - 6 + t*4, vz: 4 }) },
+    'palla in mezzo': { frames: 60, ball: t => ({ x: .1, y: 1, z: 11.89 - 6 + t*4, vz: 4 }) },
+    'corsa laterale': { x0: .4, frames: 90, vel: t => 3*Math.sin(t*3) },
+    'dritto': { frames: 40, swingAt: 2, side: 'forehand', ball: () => ({ x: 1, y: 1, z: 11, vz: 4 }) },
+    'rovescio': { frames: 40, swingAt: 2, side: 'backhand', ball: () => ({ x: -1, y: 1, z: 11, vz: 4 }) },
+    'mouse, telefono e webcam': { frames: 60, input: t => ({ pitch: .2*Math.sin(t*5), roll: .4*Math.sin(t*4), yaw: .5*Math.cos(t*3), mx: 3*Math.sin(t*6), my: 1, hx: .2*Math.sin(t*2), hy: .05 }) },
+  };
+  for (const sideSign of [1, -1]) for (const [name, scn] of Object.entries(SC)){
+    const r = mirrorRun(scn, sideSign);
+    assert.ok(r.worst.d < 1e-3, `${sideSign > 0 ? 'P1' : 'P2'}, ${name}: ${r.worst.k} a ${r.worst.d.toFixed(3)} m dallo specchio (fotogramma ${r.worst.f})`);
+    assert.ok(r.coiled.every(([a, b]) => a === b), `${sideSign > 0 ? 'P1' : 'P2'}, ${name}: lato della carica ${JSON.stringify(r.coiled.find(([a, b]) => a !== b))}`);
+  }
 });

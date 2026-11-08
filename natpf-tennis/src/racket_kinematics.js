@@ -671,7 +671,11 @@ export class RacketKinematicsController {
       z = v.x - t.prevActorVel.x,
       P = v.z - t.prevActorVel.z;
     t.prevActorVel.copy(v);
-    const b = n.sideSign > 0 ? -1 : 1,
+    // NATPF B15: personaggio specchiato (mancino, root.scale.x < 0): le grandezze laterali del campo (velocità e
+    // accelerazione del personaggio, mouse, inclinazione del telefono, mano vista dalla webcam) vanno nel riferimento
+    // specchiato, altrimenti lo specchio le rovescia (polso e racchetta del mancino dalla parte opposta). mx = 1 al destro
+    const mx = n.root && n.root.scale && n.root.scale.x < 0 ? -1 : 1,
+      b = (n.sideSign > 0 ? -1 : 1) * mx,
       m = v.x * b,
       R = v.z * b,
       x = p((z * b) / s, -42, 42),
@@ -683,20 +687,20 @@ export class RacketKinematicsController {
       (t.wristSpringOmega.y -= x * 0.045 * s);
     const _ = a.mouseVelX * b,
       B = Pe.set(
-        p(-m * 0.012 + _ * 0.018 - a.tiltRoll * 0.055, -0.09, 0.09),
+        p(-m * 0.012 + _ * 0.018 - a.tiltRoll * mx * 0.055, -0.09, 0.09),
         p(Math.abs(m) * 0.008 - a.mouseVelY * 0.016 + a.tiltPitch * 0.05, -0.08, 0.08),
         p(-R * 0.012 + a.accelMag * 0.015, -0.08, 0.08),
       ),
       D = Oe.set(
         p(a.tiltPitch * 0.65 - a.mouseVelY * 0.14 - R * 0.032, -0.58, 0.58),
-        p(a.tiltYaw * 0.55 + _ * 0.16 - m * 0.035, -0.65, 0.65),
-        p(-a.tiltRoll * 0.72 - _ * 0.18 + m * 0.045, -0.68, 0.68),
+        p(a.tiltYaw * mx * 0.55 + _ * 0.16 - m * 0.035, -0.65, 0.65),
+        p(-a.tiltRoll * mx * 0.72 - _ * 0.18 + m * 0.045, -0.68, 0.68),
       ),
       te = this.posSpringStiffness,
       ne = this.posSpringDamping;
     // NATPF: la mano reale (webcam) sposta polso e racchetta, oltre le piccole oscillazioni del motore base.
     // Nel riferimento del personaggio la destra del giocatore è -x (la racchetta a riposo sta a x = -0,36).
-    (B.x -= a.handOffsetX), (B.y += a.handOffsetY);
+    (B.x -= a.handOffsetX * mx), (B.y += a.handOffsetY);
     (t.wristSpringVel.x += ((B.x - t.wristSpringPos.x) * te - t.wristSpringVel.x * ne) * s),
       (t.wristSpringVel.y += ((B.y - t.wristSpringPos.y) * te - t.wristSpringVel.y * ne) * s),
       (t.wristSpringVel.z += ((B.z - t.wristSpringPos.z) * te - t.wristSpringVel.z * ne) * s),

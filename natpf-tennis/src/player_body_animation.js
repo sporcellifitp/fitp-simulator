@@ -236,9 +236,13 @@ function de(t, o, s) {
   const d = Math.abs(t.pos.z - n.pos.z),
     h = Math.abs(t.pos.x - n.pos.x);
   if (d > 9.5 || h > 4.6) return { charge: 0, side: o.coiledSide || "forehand" };
-  const l = n.pos.x * w,
-    P = n.targetLanding && typeof n.targetLanding.x == "number" ? n.targetLanding.x * w : l,
-    u = (n.pos.x - t.pos.x) * w,
+  // NATPF B15: lato dalla palla nel riferimento di chi colpisce, con la sua mano (natpf_hand.js): per il mancino la palla
+  // alla sua sinistra è il dritto (prima la regola del destro: caricava dal lato sbagliato finché la racchetta animata,
+  // che ha già la mano, non cominciava a caricare)
+  const hw = w * (t.natpfHand === "left" ? -1 : 1),
+    l = n.pos.x * hw,
+    P = n.targetLanding && typeof n.targetLanding.x == "number" ? n.targetLanding.x * hw : l,
+    u = (n.pos.x - t.pos.x) * hw,
     m = n.pos.y > 1.72 && d < 4.5,
     r = P < -0.22 || l < -0.22 || (Math.abs(l) <= 0.22 && u < -0.08),
     R = m ? "smash" : r ? "backhand" : "forehand";
@@ -257,6 +261,10 @@ export function updatePlayerBodyAnimation(t, o, s = {}) {
   const M = Number.isFinite(s?.elapsedTime) ? s.elapsedTime : e.elapsedTime;
   fe(t, e);
   const w = t.sideSign || 1,
+    // NATPF B15: personaggio specchiato (mancino, natpf_hand.js: root.scale.x < 0): le rotazioni attorno alla verticale e
+    // in avanti calcolate da direzioni del campo (inclinazione nella corsa laterale, testa verso la palla) si vedono
+    // rovesciate dallo specchio; con wm il mancino si inclina e guarda dalla parte giusta (il destro non cambia)
+    wm = w * (t.root && t.root.scale && t.root.scale.x < 0 ? -1 : 1),
     S = s?.phase || t.phase || "RALLY",
     d = s?.score || t.score || null,
     h = s?.ball || t.ball || null,
@@ -275,7 +283,7 @@ export function updatePlayerBodyAnimation(t, o, s = {}) {
     m = t.vel ? t.vel.z : 0,
     r = Math.hypot(u, m),
     R = r > 0.25,
-    g = u * -w,
+    g = u * -wm,
     _ = m * -w,
     V = (g - e.prevLocalVelX) / Math.max(0.004, n),
     U = (_ - e.prevLocalVelZ) / Math.max(0.004, n),
@@ -519,7 +527,7 @@ export function updatePlayerBodyAnimation(t, o, s = {}) {
       f = h.pos.x - t.pos.x,
       v = h.pos.y - a,
       B = h.pos.z - t.pos.z,
-      G = f * -w,
+      G = f * -wm,
       b = Math.max(0.35, B * -w),
       Q = Math.hypot(G, b);
     (j = i.MathUtils.clamp(Math.atan2(G, b) * 0.78, -0.62, 0.62)),
