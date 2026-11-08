@@ -48,13 +48,24 @@ Come si aggiorna:
   zip Cloudflare sha256 `cf51aa20…b10fd4f6`. La revisione a occhi nuovi ha trovato il problema vero del dritto:
   l'orientamento del telefono (racchetta verso la rete in carica, palmo verso chi gioca all'impatto). Dettaglio in
   `docs/WORK_PROGRESS.md` B14.
-- **In corso:** B14.2 in tre rami locali da `04a702d` (non pubblicati, non sopravvivono alla fine della sessione):
-  (D) dritto, piatto, incrociato e lungolinea con la racchetta portata indietro e il palmo verso la rete; (F) volée,
-  servizio, schiacciata, tenute finali, palla corta, rovescio, pallonetto, tagliato; (E) disegno. Ognuno con una verifica
-  indipendente; poi integrazione, prove complete, versione 2026-11-08.3.
-- **Prossima azione esatta:** integrare i rami B14.2 verificati (le modifiche marcate «PROPOSTA:» a test o dati di
-  calibrazione si valutano una per una); se la sessione è finita, ripartire dal brief della revisione riassunto in
-  `docs/WORK_PROGRESS.md` B14 punto (C). Restano le decisioni dell'utente (sagoma del busto, racchetta fantasma, camera).
+- **B14.2 fatto, versione 2026-11-08.3:** disegno più pulito (persona da dietro con la testa leggibile, fantasmi di sola
+  mano e telefono, palla sempre visibile all'impatto), schiacciata che finisce in basso, palla corta, tagliato e pallonetto
+  inquadrati meglio, prova nuova alle velocità intermedie. **Il dritto non è cambiato**: la versione con la racchetta
+  portata indietro e il palmo verso la rete (quella da manuale) è bloccata da tre cose misurate: (1) il riconoscimento
+  vero (`site/js/tennis/gesture-intent.js:64`: con la calibrazione veloce una carica che gira il telefono a più di
+  ~150 °/s è letta come un colpo speciale, quindi i 120–150° della racchetta portata indietro chiedono una carica lenta
+  e una scheda di ~4 s; con la presa a martello la fine della carica è letta rovescio); (2) le regole del disegno (nessuna
+  camera fa vedere quella carica senza il telefono di taglio); (3) l'ampiezza 85±3° del B9. Le versioni intermedie
+  sbagliavano a velocità che i test non campionavano. Dettaglio: `docs/b14/dritto-orientamento.md`.
+- Test: gioco 894/894, sito 195/195, LAN 12/12, programma Windows 28/28, build ok, sette prove nel browser verdi; letture
+  identiche alla base. Dettaglio in `docs/WORK_PROGRESS.md` B14.
+- **Decisioni chieste all'utente:** (a) se vuole il dritto da manuale bisogna toccare il riconoscimento (soglia dei colpi
+  speciali nella calibrazione veloce) e provarlo con telefoni veri, accettare una scheda del dritto più lunga e ammorbidire
+  le regole del disegno; (b) racchetta fantasma (prototipo spento: oggi mostrerebbe la racchetta verso la rete); (c) sagoma
+  del busto e camere.
+- **Prossima azione esatta:** controllare CI e pubblicazione su R2 della 2026-11-08.3; poi aspettare l'utente sulle
+  decisioni (a)–(c). Possibile problema reale da provare con un telefono: una carica del dritto veloce (racchetta portata
+  indietro con forza) potrebbe essere letta come colpo speciale con la calibrazione veloce (`gesture-intent.js:64`).
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
 1. **Push**: dopo ogni commit verificato, subito, su `origin natpf-simulator`. Verificato = test del gioco e del sito
@@ -131,7 +142,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B11 Installer unico con aggiornamenti | [x] | un solo installer Windows che si aggiorna dal gioco (Cloudflare R2, bucket UE `natpfsimulator`), zip LAN e portatile tolti; collaudo Windows dell'utente in corso | `8623bd9`…`fa190f2` | 2026-11-07.4 |
 | B12 Forza del colpo e CI | [x] | colpo tipico solo dai colpi normali (palle corte non abbassano più la forza); azioni di GitHub a Node 24 | vedi WORK_PROGRESS B12 | 2026-11-07.5 |
 | B13 Prova del servizio e gesti del tutorial | [x] | `gesture-calibration` senza pausa di rete (stabile con CPU ×4); gesti del tutorial sulla catena fisica del braccio (dritto ancora in diagonale: limite del riconoscimento) | vedi WORK_PROGRESS B13 | 2026-11-08.1 |
-| B14 Dritto: limite, camere, orientamento | [~] | vincolo smentito; camere più basse (2026-11-08.2); in corso orientamento del telefono nel dritto, altri colpi, disegno | vedi WORK_PROGRESS B14 | 2026-11-08.2 |
+| B14 Dritto: limite, camere, orientamento | [x] | vincolo smentito; camere più basse (08.2); disegno, schiacciata, camere di palla corta/tagliato/pallonetto, prova alle velocità intermedie (08.3); dritto da manuale bloccato (decisione dell'utente) | vedi WORK_PROGRESS B14 | 2026-11-08.3 |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).

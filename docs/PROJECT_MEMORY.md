@@ -466,6 +466,25 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
 - Le coreografie si ritoccano con un ottimizzatore fuori dal repository (Nelder–Mead sulle pose chiave e sui ritardi,
   ogni candidato letto dal telefono simulato completo): descritto in `docs/b13/gesti-nuovi.md`.
 
+### Gesti del tutorial: regole dal B14 (08/11/2026)
+- **Niente fine tenuta lunga**: la specifica (`docs/b9/specifica-gesti.md:397-398`) vuole il fermo in fine colpo
+  0,05–0,6 s e il ritorno entro 0,6 s dall'impatto, perché il rilevatore considera «rientro» solo un gesto opposto entro
+  0,6–0,9 s (`swing-detect.js` recoverWindow 600, recoverLate 900). Con una fine ferma di 0,3–0,4 s il ritorno cadeva a
+  0,7–0,9 s dall'impatto (oltre 0,9 s a 0,8×): chi imita e poi torna con decisione rischia un colpo fantasma. La fine si
+  fa vedere con il disegno (fantasma «Fine», ciclo rallentato), non fermando il braccio.
+- **Prove alle velocità intermedie**: `test/natpf-gesture-speeds.test.mjs` (0,85–1,2× e prese di chi imita a 1,2×). Nel
+  B14 tre ritocchi verdi a 0,8×/1×/1,25× sbagliavano in mezzo. Prima di integrare un ritocco del moto si confrontano le
+  letture larghe con `natpf-tennis/scripts/audit/letture-gesti.mjs` (sweep ogni 0,025×, semi, prese di chi imita;
+  riferimenti della 2026-11-08.3 nell'intestazione).
+- **Racchetta virtuale = cima del telefono** (`stroke-shape.js`, 0,45 m lungo la cima), faccia = schermo/palmo. Il dritto
+  di oggi ha la cima verso la rete in carica e il palmo verso chi gioca all'impatto: per cambiarlo vedi
+  `docs/b14/dritto-orientamento.md` (blocchi misurati).
+- La prova `tools/e2e/natpf-gesti-fotogrammi.mjs` senza `OUT` riscrive `docs/b9/img/C-anim-*.webp`: è voluto (documenti
+  aggiornati), ma nei passi che non toccano l'animazione si dà `OUT` in una cartella di prova.
+- Disegno: palla dietro il telefono all'impatto a metà opacità con il contorno tratteggiato; busto pieno con contorno
+  chiaro leggero (sul fondo la testa spariva) e velo sulle parti del braccio dietro il busto; fantasmi di sola mano e
+  telefono; ombra della mano solo con la camera ferma; prototipo della racchetta fantasma spento (`GHOST_RACKET`).
+
 ### Prove nel browser: niente pausa di rete come fermo immagine (B13, 08/11/2026)
 - `main.js` scarta di proposito un gesto fatto più di `INPUT_TIME.maxAge` (0,8 s) dopo l'ultimo fotogramma registrato, e
   con `A.netPause` i fotogrammi non si registrano. Una prova che ferma il gioco con la pausa di rete e poi manda un gesto

@@ -533,8 +533,37 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
   `cf51aa20614d0bfa5519f0fa7829ff9d3004fae6e3b7972b982888ccb10fd4f6`, provato estratto (versione giusta, nessun errore).
   GitHub: tre esecuzioni verdi; installer **2026-11-08.2 pubblicato su R2** (124.594.293 B, sha256
   `18559a5198a3a6294102af8d2f3a3c7f866c815351bfc5cb881fe8bcbc5049a8`, `latest.json` controllato).
-- [~] B14.2 (in corso, rami locali `b14-d`, `b14-e`, `b14-f` da `04a702d`, non pubblicati): (D) famiglia del dritto con
-  la racchetta portata indietro in carica e il palmo verso la rete all'impatto; (F) volée a pugno, fine di servizio e
-  schiacciata fino alla vita, tenute finali, palla corta, rovescio, pallonetto e tagliato; (E) disegno (fascia del
-  grafico, fantasmi, busto unico con occlusione, manica, palla sulla faccia giusta, 200×200, fotogrammi «Fine»).
+- [x] B14.2 · tre rami di lavoro con verifiche indipendenti, poi integrazione con una seconda verifica (verificatore e
+  revisione da allenatore dei fogli). Cosa è entrato e cosa no:
+  - (D) dritto con la racchetta portata indietro e il palmo verso la rete: **non integrato**. La versione verde del ramo
+    (coreografia dell'indagine A più fine tenuta) era letta tagliato con le prese di chi imita a 1,2–1,25× (nessun test lo
+    copriva) e la salita della racchetta letta all'impatto quasi spariva. Il candidato «da manuale» (cima a 116° in carica,
+    schermo a 2° dalla rete, testa a 19°, discesa di 14 cm) è misurato ma fallisce fedeltà a 1× (presa a martello,
+    calibrazione con l'animazione), le regole del disegno (nessuna camera ferma su 168) e dura ~4 s: è un dato di studio
+    in `docs/b14/dritto-orientamento.md` e `docs/b14/dritto-lungo.over.json`.
+  - (F) altri colpi: **integrati** schiacciata con l'accompagnamento fino alla vita a sinistra (`636f9c6`, camera
+    `2435d55`), camere nuove di palla corta (da dietro a sinistra, bassa, con la testa: prima un primissimo piano di lato),
+    tagliato (il telefono non sta più dentro la testa) e pallonetto (palla e fine nel quadro). **Non integrati**: servizio
+    nuovo (terzo gesto a 1,05–1,225×), volée nuova (letta palla corta a 1,1–1,225×), fine tenuta 0,3–0,4 s e relativa
+    «PROPOSTA» sul test dei tempi: il ritorno cadeva a 0,7–0,9 s dall'impatto (oltre 0,9 s a 0,8×), fuori dalla finestra
+    del rientro del rilevatore (`swing-detect.js` recoverLate 900 ms), e il pallonetto perdeva il margine a 1,26×.
+  - (E) disegno: **integrato** (9 commit): fantasmi di sola mano e telefono, «Carica» spenta dopo il contatto, busto
+    pieno con l'occlusione velata, manica opaca, banda della curva più bassa con il soggetto sopra, palla dietro il
+    telefono all'impatto, frecce dentro lo stadio, 200×200 senza tagli, «Fine» del servizio alla fine vera.
+  - Correzioni dell'integrazione (`ffb56b6`, `e4ec1d0`): palla del lancio visibile fino al bordo (448×280), etichette dei
+    fantasmi che si spengono con il contorno, palla dietro il telefono di nuovo a metà opacità (con il solo contorno nel
+    piatto spariva), busto anche nella palla corta, contorno chiaro della sagoma (la testa spariva sul fondo), ombra
+    della mano solo con la camera ferma.
+  - **Prova nuova** `natpf-tennis/test/natpf-gesture-speeds.test.mjs` (`71e09d1`): sette velocità intermedie 0,85–1,2× per
+    tutte le schede e le nove prese di chi imita a 1,2× (~10 s); prova di mutazione: fallisce sui rami di lavoro del
+    servizio e del dritto, passa sull'integrazione.
+  - Fogli `docs/b9/img/C-anim-*.webp` rigenerati con l'animazione di oggi (la prova `natpf-gesti-fotogrammi` li scrive lì
+    se non si dà `OUT`; erano già stati aggiornati per sbaglio in `e5c4469` e `bc81551`, con l'animazione di allora).
+- [x] B14.3 · versione **2026-11-08.3**. Verifiche sull'integrazione: gioco 894/894, sito 195/195, LAN 12/12, programma
+  Windows 28/28, build ok; nel browser `gesture-calibration` 18/18, `natpf-modale-gesti` 18/18, `natpf-gesti-fotogrammi`
+  31/31, `natpf-gesti-sequenze` 47/47, `natpf-training-flow` 18/18, `natpf-tutorial-phone` 37/37, `natpf-tutorial-relink`
+  8/8. Letture con il telefono simulato **identiche alla base 04a702d**: griglia dei test 736/736, velocità da 0,80 a
+  1,25× ogni 0,025 1658/1672 (gli stessi 14 errori di prima: piatto con la presa a martello un poco più veloce letto top
+  spin), prese di chi imita a 0,9/1,1/1,2× 1148/1152 (gli stessi 4: volée 50/25 a 0,9× letta pallonetto), sei semi
+  528/528. Disegno a 640×400 con la rasterizzazione ~3,2 ms (limite 4; prima ~3,0).
 - Non verificato: telefoni veri, persone vere, Windows; l'utente non ha ancora visto i fogli.
