@@ -88,7 +88,19 @@ Come si aggiorna:
   quelle sul dritto (§3.4).
 - GitHub: tre esecuzioni verdi su `d888fb3` (`timing-browser` verde alla ripetizione, instabilità nota); installer
   **2026-11-08.4 pubblicato su R2** (sha256 `95485927…e3dfa15164`); zip Cloudflare sha256 `e5e67f5e…cce5c70de`.
-- **Prossima azione esatta:** aspettare le decisioni dell'utente (§3.13 del passaggio di consegne).
+- **Decisioni dell'utente (08/11 sera)** sulle domande del B15 (§3.13 del passaggio di consegne): (a) Leggenda più dura:
+  «Sì»; (b) tutorial corto prima della partita (5 schede, le altre in Allenamento e in «Rivedi i gesti»): «Ok» (cambia la
+  regola B9 «tutte le schede viste prima di "Tutto chiaro"»); (c) riscaldamento facoltativo: «Ok»; (d) mira più sensibile:
+  «Ok ma come lo misuro?» → misura nella diagnostica, comando che legge il pacchetto e opzione dello staff per la
+  sensibilità (17°/20°), poi decisione con le partite vere.
+- **Richiesta nuova (08/11 sera): B16.** «Vai avanti con l'audit e dimmi cos'altro c'è da migliorare e cosa non va,
+  soprattutto a livello gameplay.»
+- **Blocco in corso: B16** in rami locali da `b9f69c0` (`scratchpad/b16/`, non pubblicati): (1) le decisioni (a)–(d), ognuna
+  con verifica indipendente; (2) audit del gameplay da sei angolazioni (scambi e CPU, movimento e posizionamento,
+  servizio e risposta, sensazione del colpo e ritardi, colpi speciali e gioco a rete, partita e modalità), ogni risultato
+  verificato da un agente scettico, poi un rapporto con le priorità per l'utente.
+- **Prossima azione esatta:** leggere gli esiti in `scratchpad/b16/`; se la sessione è finita i rami sono persi: ripartire
+  da qui (decisioni (a)–(d) e audit).
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
 1. **Push**: dopo ogni commit verificato, subito, su `origin natpf-simulator`. Verificato = test del gioco e del sito
