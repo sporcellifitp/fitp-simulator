@@ -120,14 +120,31 @@ export function createTypicalModel({ keep = TYPICAL.keep, min = TYPICAL.min, fro
     // da un colpo letto (strokeIntent): solo i colpi normali
     learn(peak, intent){ if (intent && (intent.byShape || TYPICAL.skip.includes(intent.shot))) return; this.add(peak); },
     get value(){ if (h.length < min) return null; const v = [...h].sort((a, b) => a - b), m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m])/2; },
+    // colpi già imparati (picchi), anche meno di min: i primi colpi della partita (powerRefs)
+    get seen(){ return h.slice(); },
   };
 }
+// Primi colpi senza il colpo tipico (B16, riscaldamento facoltativo, decisione dell'utente dell'08/11 sera). Il riscaldamento
+// prima della partita (2 dritti, 2 rovesci) insegnava il colpo tipico: senza, i primi tre colpi della partita avevano come
+// riferimento la calibrazione, spesso un colpetto (il 23/10 143 °/s contro 670 del dritto): forza letta piena e colpi piatti.
+// Banco scripts/audit/riscaldamento.mjs (telefono simulato con il braccio, calibrazione a 0,3–0,6 del proprio colpo): primi
+// tre colpi |forza − forza col colpo tipico| 0,20–0,25 senza riscaldamento, 0,00 con. Finché il colpo tipico non c'è, il
+// riferimento della calibrazione non sta sotto la mediana dei colpi già fatti né sotto self volte il colpo che si legge (un
+// colpo vale al massimo 1/self del riferimento): alza solo i riferimenti troppo bassi, mai li abbassa (una calibrazione
+// giusta o decisa resta com'era)
+export const BOOT = Object.freeze({ self: .75 });
 // riferimento della forza (natpf_stroke_intent.strokeIntent): il colpo tipico imparato giocando, nella stessa misura del
-// picco (peak); finché non c'è, quelli della calibrazione (ref sul picco, rawRef sul picco vero)
-export function powerRefs(profile, typical = null){
+// picco (peak); finché non c'è, quelli della calibrazione (ref sul picco, rawRef sul picco vero), con il pavimento BOOT dei
+// colpi già fatti (seen, picchi) e del colpo che si legge (peak)
+export function powerRefs(profile, typical = null, { seen = null, peak = null } = {}){
   if (Number.isFinite(typical)) return { ref: typical, rawRef: null };
   const ok = profile && !profile.simple;
-  return { ref: ok && Number.isFinite(profile.ref) ? profile.ref : null, rawRef: ok && Number.isFinite(profile.rawRef) ? profile.rawRef : null };
+  const ref = ok && Number.isFinite(profile.ref) ? profile.ref : null, rawRef = ok && Number.isFinite(profile.rawRef) ? profile.rawRef : null;
+  if (!Number.isFinite(ref) || ref <= 0) return { ref, rawRef };
+  const prev = (seen || []).filter(Number.isFinite).sort((a, b) => a - b), m = prev.length >> 1;
+  const floor = Math.max(prev.length ? (prev.length % 2 ? prev[m] : (prev[m - 1] + prev[m])/2) : 0, Number.isFinite(peak) ? BOOT.self*peak : 0);
+  if (!(floor > ref)) return { ref, rawRef };
+  return { ref: +floor.toFixed(1), rawRef: Number.isFinite(rawRef) ? +(rawRef*floor/ref).toFixed(1) : null };
 }
 export const profileTypical = profile => { if (!profile || profile.simple) return null; const v = [profile.refs?.[1], profile.refs?.[-1], profile.ref].filter(x => Number.isFinite(x) && x > 0); return v.length ? Math.max(...v) : null; };
 export function createRiseModel({ min = RISE_LEARN.min, keep = RISE_LEARN.keep } = {}){
@@ -382,8 +399,9 @@ export class NatpfPhoneRacket {
     this.tutListeners = new Set(); this.tutNavListeners = new Set();
     // tutorial visto per questo abbinamento del telefono (link.L.pairs): si rivede solo con un abbinamento nuovo (QR), non
     // a ogni ricollegamento (pagina ricaricata, schermo spento, «Ricollega»); tutSaved = dove era arrivata la modale chiusa
-    // prima della fine (stesso abbinamento: si riprende da lì). Uno per telefono: vale per Allenamento e stesso schermo
-    this.tutSeenPairs = null; this.tutSaved = null;
+    // prima della fine (stesso abbinamento: si riprende da lì). Uno per telefono: vale per Allenamento e stesso schermo.
+    // tutSeenSet: quale tutorial è stato visto ('short' prima della partita, 'full' nell'Allenamento: B16)
+    this.tutSeenPairs = null; this.tutSeenSet = null; this.tutSaved = null;
     this.lastPhase = null;
     this.cal = { step: null, review: null, freeOk: false, grip: null, attempts: [], idle: false };
     // passo della calibrazione come lo vede il computer (natpf_cal_view.js): si aggiorna con ogni evento del telefono,
@@ -538,11 +556,18 @@ export class NatpfPhoneRacket {
     }
     this._changed();
   }
-  // tutorial già visto da chi tiene questo telefono (stesso abbinamento)
+  // tutorial già visto da chi tiene questo telefono (stesso abbinamento): uno qualunque, corto o completo
   get tutorialSeen(){ return this.tutSeenPairs != null && this.tutSeenPairs === (this.state.pairs || 0); }
-  markTutorialSeen(){ this.tutSeenPairs = this.state.pairs || 0; this.tutSaved = null; }
+  // visto il tutorial di questa serie: il completo vale anche per il corto, il corto no per il completo (l'Allenamento dopo
+  // una partita mostra le schede che mancano, natpf_tutorial.tutorialResumeAfterShort)
+  tutorialSeenFor(set = 'full'){ return this.tutorialSeen && (this.tutSeenSet === 'full' || set === 'short'); }
+  // set: la serie appena vista ('short' | 'full'); non si torna dal completo al corto
+  markTutorialSeen(set = 'full'){
+    const was = this.tutorialSeen ? this.tutSeenSet : null;
+    this.tutSeenPairs = this.state.pairs || 0; this.tutSeenSet = was === 'full' || set !== 'short' ? 'full' : 'short'; this.tutSaved = null;
+  }
   // visitatore nuovo (chiosco): il tutorial si rivede anche con lo stesso telefono
-  forgetTutorial(){ this.tutSeenPairs = null; this.tutSaved = null; }
+  forgetTutorial(){ this.tutSeenPairs = null; this.tutSeenSet = null; this.tutSaved = null; }
   // modale chiusa prima della fine (si esce, il telefono cade nella pagina «Collega»): si riprende da lì, stesso abbinamento
   saveTutorial(snap){ this.tutSaved = snap ? { ...snap, pairs: this.state.pairs || 0 } : null; }
   savedTutorial(){ const t = this.tutSaved; return t && t.pairs === (this.state.pairs || 0) ? t : null; }
@@ -590,7 +615,7 @@ export class NatpfPhoneRacket {
     // spesso un colpetto (il 23/10 143 °/s): la parte relativa della forza era sempre piena e la profondità non seguiva
     // l'intensità. Il colpo tipico è nella stessa misura del picco (peak), quindi la forza si legge su quello. Finché non
     // c'è (primi colpi dello scambio), il riferimento della calibrazione
-    const { ref, rawRef } = powerRefs(this.profile, this.typicalModel.value);
+    const { ref, rawRef } = powerRefs(this.profile, this.typicalModel.value, { seen: this.typicalModel.seen, peak: s.peak });
     // salita abituale dei propri colpi in questo verso (gesti della calibrazione, o imparata giocando): classifyStroke
     const riseRef = habitualRise(this.profile, s.dir, this.riseModel);
     // pallonetto e palla corta come li fa chi gioca (esercizi del riscaldamento), rispetto al proprio colpo normale

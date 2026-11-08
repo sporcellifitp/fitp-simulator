@@ -1,9 +1,15 @@
 // Tutorial prima della calibrazione (richiesta del 04/11/2026, rifatto in B9 il 05/11): una modale compatta al centro dello
-// schermo (nello stesso schermo al centro della propria metà) con la presa e tutti i gesti. Si sfoglia con le frecce ‹ ›
+// schermo (nello stesso schermo al centro della propria metà) con la presa e i gesti. Si sfoglia con le frecce ‹ ›
 // in basso (mouse, tastiera ←/→, o dal telefono di chi gioca), niente scorrimento automatico; una scheda conta come
 // vista dopo TUTORIAL.seenMs che è a schermo. Si chiude dal telefono con «Tutto chiaro, ho capito», che sul telefono si
-// accende solo quando tutte le schede sono state viste (l'avanzamento va al telefono con onProgress →
+// accende solo quando tutte le schede di quel tutorial sono state viste (l'avanzamento va al telefono con onProgress →
 // natpf_phone_racket.tutorialProgress, messaggio «tp»); sul computer solo Esc per chi gestisce la postazione.
+// Due serie di schede (decisione dell'utente dell'08/11 sera, B16): prima della partita (gioco singolo, stesso schermo,
+// sfida, minigiochi) il tutorial corto, 5 schede (presa, posizione, dritto, rovescio, servizio); le altre (piatto,
+// pallonetto, palla corta, tagliato, schiacciata, volée) restano nell'Allenamento dal menu e in «Rivedi i gesti», che
+// mostrano tutte le 11. Le 5 schede corte sono le prime 5 di quelle complete, con gli stessi indici: l'avanzamento per il
+// telefono (i, n, s, m) non cambia significato (n è il numero delle schede di quel tutorial) e un telefono con la pagina
+// di prima lo legge uguale; l'Allenamento dopo il tutorial corto riprende dalla sesta scheda con le prime 5 già viste.
 // Più istanze possibili (una per metà dello schermo nel 1v1 sullo stesso schermo), ciascuna con la sua animazione dei
 // gesti (natpf_gesture_demo.js, Canvas 2D: niente WebGL, B9 ramo C). Senza canvas (test) foto e indicazioni.
 // L'animazione sta in un riquadro 16:10 (.tut-stage dentro .tut-frame): mount/setSize/play come prima, setSize di nuovo
@@ -25,13 +31,29 @@ export const TUTORIAL_CARDS = Object.freeze([
   { id: 'forehand' }, { id: 'backhand' }, { id: 'serve' }, { id: 'flat' },
   { id: 'lob' }, { id: 'drop' }, { id: 'slice' }, { id: 'smash' }, { id: 'volley' },
 ].map(c => Object.freeze({ ...c, title: c.title || GESTURES[c.id]?.label || c.id, cues: GESTURES[c.id]?.cues || [] })));
+// tutorial corto prima della partita (B16): presa, posizione, dritto, rovescio, servizio (le prime 5 schede complete)
+export const TUTORIAL_SHORT_IDS = Object.freeze(['grip', 'ready', 'forehand', 'backhand', 'serve']);
+export const TUTORIAL_SETS = Object.freeze(['short', 'full']);
+export const tutorialSet = set => (set === 'short' ? 'short' : 'full');
+// schede di una serie: 'short' (prima della partita) o 'full' (Allenamento, «Rivedi i gesti»)
+export function tutorialCards(set = 'full'){
+  return tutorialSet(set) === 'short' ? TUTORIAL_CARDS.slice(0, TUTORIAL_SHORT_IDS.length) : TUTORIAL_CARDS;
+}
+// serie del tutorial con il telefono per una modalità della lobby: completa solo nell'Allenamento dal menu
+export const tutorialSetFor = mode => (mode === 'training' ? 'full' : 'short');
+// tutorial completo dopo il corto (stesso abbinamento: Allenamento dopo una partita): si parte dalla prima scheda nuova, con
+// le schede del corto già viste
+export const tutorialResumeAfterShort = () => ({ idx: TUTORIAL_SHORT_IDS.length, visited: TUTORIAL_SHORT_IDS.map((_, i) => i), all: false, n: TUTORIAL_CARDS.length });
 
 /* ---------- stato puro: scheda mostrata, schede viste ---------- */
-// from: avanzamento di prima (stesso abbinamento del telefono, modale riaperta): { idx, visited: [indici], all }
+// from: avanzamento di prima (stesso abbinamento del telefono, modale riaperta): { idx, visited: [indici], all, n }. «all» di
+// prima vale solo per una modale con lo stesso numero di schede (n): un tutorial corto visto tutto non accende «Tutto
+// chiaro» in quello completo (le schede viste restano viste: stessi indici)
 export function tutorialStart({ now = 0, cards = TUTORIAL_CARDS.length, from = null } = {}){
   const visited = new Set((from?.visited || []).filter(i => Number.isInteger(i) && i >= 0 && i < cards));
   const idx = Number.isInteger(from?.idx) ? Math.max(0, Math.min(cards - 1, from.idx)) : 0;
-  return { idx, shownAt: now, visited, all: !!from?.all || visited.size >= cards, cards };
+  const sameSet = from?.n == null || from.n === cards;
+  return { idx, shownAt: now, visited, all: (sameSet && !!from?.all) || visited.size >= cards, cards };
 }
 // scheda i (fuori dai limiti: la prima o l'ultima, niente giro); stessa scheda: niente di nuovo. La scheda che si lascia
 // conta come vista se è rimasta a schermo almeno seenMs, anche se il controllo periodico (tick) non è ancora passato:
@@ -63,6 +85,7 @@ export function tutorialWait({ mode = 'phone', all = false, after = 'cal', half 
 }
 
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const dotsHtml = n => Array.from({ length: n }, (_, i) => `<i class="tut-dot" data-dot="${i}"></i>`).join('');
 
 export class NatpfTutorial {
   // root: elemento che contiene la modale (vuoto); demo: () => getGestureDemo() (iniettato: niente three.js nei test)
@@ -70,6 +93,7 @@ export class NatpfTutorial {
   constructor(root, { demo = null, clock = () => performance.now(), half = false } = {}){
     this.root = root; this.demo = demo; this.clock = clock; this.half = half;
     this.open = false; this.state = null; this.timer = null; this.opts = {}; this.demoOn = false; this.paintKey = '';
+    this.set = 'full'; this.cards = TUTORIAL_CARDS;
     if (!root) return;
     root.classList.add('natpf-tutorial', 'hidden'); if (half) root.classList.add('half');
     root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true');
@@ -81,7 +105,7 @@ export class NatpfTutorial {
       </div>
       <footer class="tut-foot">
         <button type="button" class="tut-arrow tut-prev" data-tut-go="-1" aria-label="Scheda precedente">‹</button>
-        <div class="tut-mid"><div class="tut-dots" aria-hidden="true">${TUTORIAL_CARDS.map((c, i) => `<i class="tut-dot" data-dot="${i}"></i>`).join('')}</div>
+        <div class="tut-mid"><div class="tut-dots" aria-hidden="true">${dotsHtml(TUTORIAL_CARDS.length)}</div>
           <p class="tut-wait"></p><button type="button" class="btn btn-primary tut-close hidden">Chiudi</button></div>
         <button type="button" class="tut-arrow tut-next" data-tut-go="1" aria-label="Scheda successiva">›</button>
       </footer>
@@ -95,18 +119,23 @@ export class NatpfTutorial {
     const stage = root.querySelector?.('.tut-stage');
     if (stage && typeof ResizeObserver === 'function'){ this.ro = new ResizeObserver(() => this._fit()); this.ro.observe(stage); }
   }
-  get card(){ return TUTORIAL_CARDS[this.state?.idx ?? 0]; }
-  get progress(){ return this.state ? { ...tutorialProgress(this.state), nm: TUTORIAL_CARDS[this.state.idx]?.title || '' } : null; }
-  // per riaprire più tardi dallo stesso punto (stesso abbinamento del telefono)
-  get snapshot(){ return this.state ? { idx: this.state.idx, visited: [...this.state.visited], all: this.state.all } : null; }
-  // mode: 'phone' (si chiude con il telefono), 'review' («Rivedi i gesti», si chiude con «Chiudi»)
+  get card(){ return this.cards[this.state?.idx ?? 0]; }
+  get progress(){ return this.state ? { ...tutorialProgress(this.state), nm: this.cards[this.state.idx]?.title || '' } : null; }
+  // per riaprire più tardi dallo stesso punto (stesso abbinamento del telefono); n: schede di quella modale
+  get snapshot(){ return this.state ? { idx: this.state.idx, visited: [...this.state.visited], all: this.state.all, n: this.state.cards } : null; }
+  // mode: 'phone' (si chiude con il telefono), 'review' («Rivedi i gesti», si chiude con «Chiudi», sempre tutte le schede)
   // player: 'Player 1'…, hand: 'right' | 'left', onClose(reason): 'phone' | 'skip' | 'review'; onProgress(progress) a ogni
-  // cambio di scheda o di schede viste (solo 'phone'); after: vedi tutorialWait; from: snapshot di prima
-  openFor({ mode = 'phone', player = '', hand = 'right', onClose = null, onProgress = null, after = 'cal', from = null } = {}){
+  // cambio di scheda o di schede viste (solo 'phone'); after: vedi tutorialWait; from: snapshot di prima; set: 'short'
+  // (tutorial corto prima della partita) o 'full' (tutte le schede)
+  openFor({ mode = 'phone', player = '', hand = 'right', onClose = null, onProgress = null, after = 'cal', from = null, set = 'full' } = {}){
     if (!this.root) return;
     this.opts = { mode, player, hand, onClose, onProgress: mode === 'phone' ? onProgress : null, after };
+    this.set = mode === 'review' ? 'full' : tutorialSet(set); this.cards = tutorialCards(this.set);
+    this.root.dataset.set = this.set;
+    const dots = this.root.querySelector?.('.tut-dots');
+    if (dots && dots.children?.length !== this.cards.length) dots.innerHTML = dotsHtml(this.cards.length);
     this.open = true; this.paintKey = '';
-    this.state = tutorialStart({ now: this.clock(), from });
+    this.state = tutorialStart({ now: this.clock(), cards: this.cards.length, from });
     this.root.classList.remove('hidden'); this.root.dataset.mode = mode;
     this.root.querySelector('.tut-close')?.classList.toggle('hidden', mode !== 'review');
     const k = this.root.querySelector('.tut-kicker'); if (k) k.textContent = [player, mode === 'phone' ? 'Come si gioca' : 'Rivedi i gesti'].filter(Boolean).join(' · ');

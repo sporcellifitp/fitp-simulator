@@ -88,14 +88,33 @@ decisioni dell'utente (04–05/11) e non si toccano qui; sotto le proposte per r
 Stato dopo il secondo giro (§6): **4, 5 e 6 fatte**; **3 non fatta** (motivi e piano in §6); 1 e 2 restano all'utente.
 Fatti anche i due punti «da decidere» qui sotto sullo stesso schermo a 1280×720 e sul pannello della calibrazione.
 
+**Aggiornamento B16 (08/11 sera): 1 e 2 fatte** dopo il «sì» dell'utente (ramo `b16-flow`, `docs/WORK_PROGRESS.md` B16).
+Tocchi dall'apertura alla prima palla contati nel browser con la stessa prova prima e dopo
+(`tools/e2e/natpf-flusso-tocchi.mjs`, comandi veri, telefono simulato):
+
+| Percorso | Prima (contato) | Dopo 1 e 2 | Stima del primo giro |
+|---|---|---|---|
+| Gioco singolo con il telefono | 20 (computer 6, telefono 14) | **13** (5 + 8) | 21 → 15 |
+| Stesso schermo, due telefoni | 31 (3 + 2 × 14) | **19** (3 + 2 × 8) | 29 → 17 |
+| Sfida tra due computer | 25 (host 4 + 14 + Salta + Gioca, Player 2: link, Sono pronto, 3 sul telefono) | **18** | ≈ 35 |
+
+Le stime del primo giro erano sbagliate di poco: 6 + 14 fa 20 (non 21), ogni telefono dello stesso schermo ha 14 tocchi
+(QR, link, Attiva, 10 × Avanti, Tutto chiaro), e il Player 2 della sfida tra due computer non ha il tutorial (escluso dal
+B4). Il riscaldamento insegnava al gioco il colpo tipico: senza, la forza dei primi colpi si legge con un riferimento
+minimo (mediana dei colpi già fatti, 3/4 del colpo) invece della sola calibrazione (`natpf_phone_racket.powerRefs`,
+banco `natpf-tennis/scripts/audit/riscaldamento.mjs`).
+
 Schizzo «prima → dopo» in passi.
 
 1. **Tutorial corto prima della partita** (11 → 5 schede: presa, posizione, dritto, rovescio, servizio; i colpi speciali
    restano nelle 11 schede dell'Allenamento e in «Rivedi i gesti»). Prima: 10 tocchi di Avanti per giocatore; dopo: 4.
-   Singolo 21 → 15 tocchi; stesso schermo 29 → 17.
+   Singolo 21 → 15 tocchi; stesso schermo 29 → 17. **Fatta nel B16** (commit `c41723b`: 6 Avanti in meno per telefono,
+   singolo 20 → 14 con la sola 1, calcolato; stesso schermo 31 → 19, contato).
 2. **Riscaldamento facoltativo prima della partita**: dopo la calibrazione si va subito alla pagina «Partita» (o in campo),
    con «Riscaldati prima» come pulsante secondario. Prima: calibrazione → 5 colpi (o Salta) → Partita → Gioca; dopo:
-   calibrazione → Gioca. Toglie un tocco e circa un minuto.
+   calibrazione → Gioca. Toglie un tocco e circa un minuto. **Fatta nel B16** (commit `476d62b`): dopo la calibrazione la
+   pagina «Partita» con «Racchetta pronta ✓», «Gioca» e «Riscaldati prima»; con il telefono già calibrato o la webcam
+   «Collega» porta subito lì (singolo 14 → 13, sfida tra due computer → 18).
 3. **Unire «Modalità» e «Racchetta»**: il telefono è la racchetta di default (già scelta); la webcam resta come link «Senza
    telefono? Usa la webcam» nella pagina Collega (c'è già). Prima: Gioca → Modalità → Racchetta → Collega; dopo: Gioca →
    Modalità → Collega. Un clic in meno e una pagina in meno nella barra di avanzamento (4 tappe invece di 5).

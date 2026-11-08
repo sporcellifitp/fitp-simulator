@@ -4,8 +4,8 @@
 // chiamava waitTutorial(false) alla caduta). Nell'Allenamento la calibrazione compariva ~0,76 s tra «Attiva i sensori» e
 // il tutorial. Percorsi:
 //   A. Allenamento: «Attiva i sensori» → direttamente la schermata del tutorial (nessuna calibrazione in mezzo);
-//   B1. stesso schermo, P2 alla scheda 4/11: «Ricollega» (relink) → resta nel tutorial alla scheda 4, «Tutto chiaro» spento;
-//   B2. stesso schermo, P2 alla scheda 4/11: collegamento perso davvero (RTCPeerConnection chiuse sul telefono, ripresa
+//   B1. stesso schermo, P2 alla scheda 4/5 (tutorial corto prima della partita, B16): «Ricollega» (relink) → resta nel tutorial alla scheda 4, «Tutto chiaro» spento;
+//   B2. stesso schermo, P2 alla scheda 4/5: collegamento perso davvero (RTCPeerConnection chiuse sul telefono, ripresa
 //       con la chiave) → la metà riprende dalla scheda 4, non vista, nessuna calibrazione;
 //   T. Allenamento, stessa caduta: stessa scheda (controllo).
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-tutorial-relink.mjs     (OUT=cartella delle schermate)

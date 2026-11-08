@@ -18,7 +18,7 @@ import { gripSvg, GRIP } from '@natpf/tennis/grip-art.js';
 import { getGestureDemo } from './natpf_gesture_demo.js';
 import { GESTURES } from './natpf_gesture_motion.js';
 import { PHOTOS, lessonPhotos } from './natpf_media.js';
-import { NatpfTutorial } from './natpf_tutorial.js';
+import { NatpfTutorial, tutorialSetFor, tutorialResumeAfterShort } from './natpf_tutorial.js';
 export { calSide };
 
 // Esercizi del tutorial, in ordine progressivo: i colpi di base, il servizio, la direzione, la rete, il tocco, la
@@ -221,7 +221,11 @@ export class NatpfTraining {
     // con il telefono la lezione (presa, mano, posizione) è la modale del tutorial, in tutti i percorsi; resta per la webcam
     // si rivede solo con un abbinamento nuovo del telefono (QR: può essere un altro giocatore), non quando lo stesso telefono
     // si ricollega (pagina ricaricata, schermo spento, «Ricollega»: B9, prima ricompariva sopra «Pronto»)
-    const wantTutorial = ctrl === 'phone' && !diag && !guest && !this.ui.phone?.tutorialSeen;
+    // B16 (decisione dell'utente dell'08/11 sera): prima della partita (e delle sfide) il tutorial corto, 5 schede;
+    // l'Allenamento dal menu (intro, natpf_lobby.startWarmup) tutte le 11 (dopo il corto, solo quelle che mancano)
+    this.tutSet = tutorialSetFor(intro ? 'training' : this.ui.flow?.mode);
+    const P0 = this.ui.phone, seen = P0?.tutorialSeenFor ? P0.tutorialSeenFor(this.tutSet) : !!P0?.tutorialSeen;
+    const wantTutorial = ctrl === 'phone' && !diag && !guest && !seen;
     // il telefono aspettava già il tutorial dalla pagina «Collega» (natpf_lobby._prearmTutorial): da qui lo gestisce
     // l'allenamento; se il tutorial non si apre il telefono smette di aspettarlo e calibra
     if (this.ui.lobby?.tutPrearm){ this.ui.lobby.tutPrearm = false; if (!wantTutorial) this.ui.phone?.waitTutorial?.(false); }
@@ -257,10 +261,12 @@ export class NatpfTraining {
   // della fine (uscita) riparte da dove era arrivata
   _openTutorial(){
     this.tutorialOpen = true; this._idle(); this._centerPlayer();
-    const P = this.ui.phone;
+    const P = this.ui.phone, set = this.tutSet || 'full';
     P.waitTutorial?.(true);
-    this.tutorial?.openFor({ mode: 'phone', player: '', hand: this.ui.hand?.hand || 'right', after: this.cal ? 'cal' : 'play',
-      from: P.savedTutorial?.() || null, onProgress: p => P.tutorialProgress?.(p) });
+    // tutorial completo dopo il corto (stesso telefono: Allenamento dopo una partita): dalla prima scheda che manca
+    const from = P.savedTutorial?.() || (set === 'full' && P.tutorialSeenFor?.('short') ? tutorialResumeAfterShort() : null);
+    this.tutorial?.openFor({ mode: 'phone', set, player: '', hand: this.ui.hand?.hand || 'right', after: this.cal ? 'cal' : 'play',
+      from, onProgress: p => P.tutorialProgress?.(p) });
   }
   // chiusa dal telefono (o con Esc da chi gestisce la postazione, o da un telefono con la pagina di prima che ha già
   // cominciato a calibrare): si segna vista per questa sessione e si va alla calibrazione o agli esercizi
@@ -269,11 +275,12 @@ export class NatpfTraining {
   _tutorialDone(reason = 'phone'){
     if (!this.tutorialOpen) return;
     const aware = !!this.ui.phone.tutSupported;
-    this.tutorialOpen = false; this.ui.phone.markTutorialSeen?.();
+    this.tutorialOpen = false; this.ui.phone.markTutorialSeen?.(this.tutSet || 'full');
     this.ui.phone.waitTutorial?.(false);
     this.tutorial?.close(reason);
     if (!this.active) return;
     this._begin({ phoneCalibrates: aware });
+    if (!this.active) return;                               // solo il tutorial (telefono già pronto, B16): finito
     this.engine.hud.showCenterBanner(this.cal ? 'Calibrazione' : 'Si comincia', { style: 'style-start', subText: this.cal ? 'Tieni fermo il telefono, poi i due gesti' : 'Solo tu e il lanciapalle', durationMs: 1300 });
     this.paint();
   }
@@ -293,7 +300,8 @@ export class NatpfTraining {
       // Dopo il tutorial la calibrazione la fa partire il telefono (phoneCalibrates)
       const step = this.ui.phone.cal?.step;
       if (!phoneCalibrates && (!step || ['done', 'review', 'free'].includes(step) || this.view.stage === 'off')) this.ui.phone.recalibrate();
-    } else E._setupPointServe({ showBanner: false });
+    } else if (this.calOnly && !this.drills.length) this.stop({ completed: true, calibrated: true });  // telefono già pronto: solo il tutorial
+    else E._setupPointServe({ showBanner: false });
   }
   lessonAction(a){
     const L = this.lesson; if (!this.active || !L) return;
@@ -584,6 +592,8 @@ export class NatpfTraining {
     const cur = this.cal ? 0 : stages.indexOf(this.drill);
     const list = $('#coach-stages'), key = stages.map(x => x.id).join() + cur;
     if (list && list.dataset.key !== key){ list.dataset.key = key; list.innerHTML = stages.map((x, i) => `<li class="${i < cur ? 'done' : i === cur ? 'on' : ''}">${x.label}</li>`).join(''); }
+    // una tappa sola (solo la calibrazione prima della partita, B16): la dice già il titolo in alto («Calibrazione»)
+    show(list, stages.length > 1);
     show($('#coach-simple'), !!this.cal && this.cal.fails >= 1);
     show($('#coach-review'), this.ui.controller === 'phone' && !this.lesson && !this.tutorialOpen);
     // lezione iniziale: pannello a sinistra con l'animazione grande, il campo resta libero
@@ -594,7 +604,7 @@ export class NatpfTraining {
     show($('#coach-lesson'), !!L);
     if (L) this._paintLesson($, hand);
     const flash = this.flash && now < this.flash.until ? this.flash : null;
-    const mode = this.ui.flow?.mode === 'training' ? 'Allenamento' : 'Riscaldamento';
+    const mode = this.ui.flow?.mode === 'training' ? 'Allenamento' : this.calOnly ? 'Calibrazione' : 'Riscaldamento';
     // (con la modale del tutorial aperta il telefono aspetta il tutorial, «tut»: non è scollegato)
     const P = this.ui.phone, lost = c === 'phone' && P && (!P.connected || (!this.tutorialOpen && P.state?.phone && !['cal', 'ready'].includes(P.state.phone)));
     const grip = $('#coach-grip'), showGrip = c === 'phone' && !!this.cal && this.view.stage === 'still' && !lost;

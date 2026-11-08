@@ -19,7 +19,7 @@ import { createPhoneWatch, createResync, phoneHealthOf, phoneHoldText, WATCH } f
 import { splitVisible } from './natpf_split.js';
 import { webcamOpenError } from './natpf_webcam_watch.js';
 
-import { NatpfTutorial, TUTORIAL_CARDS } from './natpf_tutorial.js';
+import { NatpfTutorial, tutorialCards } from './natpf_tutorial.js';
 import { getGestureDemo } from './natpf_gesture_demo.js';
 import { slotView, splitSlot, startGate, waitingText, bothNames, cancelText, createCountdown, paintSlot, paintBoard, defaultName, READY_COUNTDOWN_MS } from './natpf_ready.js';
 const $ = id => document.getElementById(id);
@@ -99,7 +99,7 @@ export class NatpfSplitUi {
     // tutorial di ciascun giocatore nella sua metà della pagina «Collega» (richiesta del 04/11): indipendenti, si chiudono
     // dal proprio telefono; ciascuna con la sua animazione dei gesti (Canvas 2D, niente WebGL: getGestureDemo(p1/p2), B9).
     // Visto una volta per abbinamento del telefono (NatpfPhoneRacket.tutorialSeen, B9): non a ogni ricollegamento, e il P1
-    // che l'ha già visto nell'Allenamento non lo rivede qui
+    // che l'ha già visto nell'Allenamento non lo rivede qui. Prima della partita il tutorial corto (5 schede, B16)
     this.tutOpen = { p1: false, p2: false }; this.tutHeld = { p1: false, p2: false };
     this.tut = {};
     for (const id of SPLIT_PLAYERS) this.tut[id] = typeof document !== 'undefined' ? new NatpfTutorial($(`split-tut-${id}`), { half: true, demo: () => getGestureDemo(id) }) : null;
@@ -261,12 +261,12 @@ export class NatpfSplitUi {
     p.waitTutorial?.(true);
     const name = this.engine.natpfSplitNames?.[id] || (id === 'p1' ? 'Player 1' : 'Player 2');
     // avanzamento al telefono di questo giocatore (pulsante acceso dopo l'ultima scheda); «poi sei pronto» se è già calibrato
-    this.tut[id]?.openFor({ mode: 'phone', player: name, hand: this.hand(id), after: p.ready ? 'ready' : 'cal', from: p.savedTutorial?.() || null, onProgress: pr => p.tutorialProgress?.(pr) });
+    this.tut[id]?.openFor({ mode: 'phone', set: 'short', player: name, hand: this.hand(id), after: p.ready ? 'ready' : 'cal', from: p.savedTutorial?.() || null, onProgress: pr => p.tutorialProgress?.(pr) });
   }
   // chiusa dal telefono di quel giocatore (o dal telefono di prima che calibra da solo): solo la sua metà
   _tutDone(id){
     if (!this.tutOpen[id]) return;
-    this.phone(id)?.markTutorialSeen?.(); this._tutClose(id);
+    this.phone(id)?.markTutorialSeen?.('short'); this._tutClose(id);
     this.paint();
   }
   // keep: chiusa prima della fine (telefono caduto, si lascia la pagina): si ricorda dove era arrivata. hold: telefono
@@ -322,8 +322,8 @@ export class NatpfSplitUi {
   }
   /* ---------- stato «pronto» delle schede e conto alla rovescia (B9, natpf_ready.js) ---------- */
   name(id){ return this.engine.natpfSplitNames?.[id] || defaultName(id); }
-  // scheda mostrata del tutorial di questo giocatore (1…n), per «Tutorial 3/11»
-  tutInfo(id){ const t = this.tut[id]; return { i: (t?.state?.idx ?? 0) + 1, n: TUTORIAL_CARDS.length }; }
+  // scheda mostrata del tutorial di questo giocatore (1…n), per «Tutorial 3/5»
+  tutInfo(id){ const t = this.tut[id]; return { i: (t?.state?.idx ?? 0) + 1, n: t?.state?.cards || tutorialCards('short').length }; }
   // stato del telefono (o della webcam per due) di un giocatore, come lo dice la sua metà
   status(id, now = performance.now()){
     const mc = this.engine.motionController;

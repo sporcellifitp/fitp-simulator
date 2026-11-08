@@ -227,7 +227,9 @@
     <div id="natpf-wipe" class="natpf-wipe" aria-hidden="true"><div class="wipe-band"><span class="wipe-mark">NATPF <i>Simulator</i></span><b id="natpf-wipe-text">Si gioca</b></div></div>
     <!-- NATPF: menu (src/natpf/natpf_lobby.js), percorso come in un gioco da console:
          menu principale → modalità (contro la CPU o un amico) → racchetta → collega (QR e passi del telefono, o la
-         webcam) → riscaldamento in campo (calibrazione + lanciapalle, src/natpf/natpf_training.js) → partita.
+         webcam) → con il telefono da calibrare, in campo il tutorial corto e la calibrazione (src/natpf/natpf_training.js;
+         con mouse, webcam o telefono già pronto niente) → partita. Il riscaldamento con il lanciapalle è facoltativo dal
+         B16: «Riscaldati prima» nella pagina «Partita» (#lobby-warmup).
          «Allenamento» dal menu: racchetta → collega → campo d'allenamento → di nuovo al menu.
          Restano gli id letti dall'HUD del motore base: #difficulty-mode-group/.nt-green-choice, #match-length-group,
          #btn-start-match, #setup-pl-*, .you-tag -->
@@ -589,7 +591,7 @@
       <footer class="lobby-bottom">
         <button type="button" id="lobby-back" class="lobby-ghost">‹ Indietro</button>
         <span class="lobby-keys" aria-hidden="true">Invio avanti · Esc indietro</span>
-        <button type="button" id="lobby-warmup" class="lobby-ghost hidden">Rifai il riscaldamento</button
+        <button type="button" id="lobby-warmup" class="lobby-ghost hidden">Riscaldati prima</button
         ><button type="button" id="lobby-next" class="lobby-primary">Avanti ›</button
         ><button id="btn-start-match" type="button" class="lobby-primary"><span>Gioca</span> ›</button>
       </footer>
