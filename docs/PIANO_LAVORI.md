@@ -63,8 +63,9 @@ Come si aggiorna:
   speciali nella calibrazione veloce) e provarlo con telefoni veri, accettare una scheda del dritto più lunga e ammorbidire
   le regole del disegno; (b) racchetta fantasma (prototipo spento: oggi mostrerebbe la racchetta verso la rete); (c) sagoma
   del busto e camere.
-- **Prossima azione esatta:** controllare CI e pubblicazione su R2 della 2026-11-08.3; poi aspettare l'utente sulle
-  decisioni (a)–(c). Possibile problema reale da provare con un telefono: una carica del dritto veloce (racchetta portata
+- GitHub: tre esecuzioni verdi su `ddd4428`; installer **2026-11-08.3 pubblicato su R2** (sha256 `d5ead1f7…27fb2f79`);
+  zip Cloudflare sha256 `2bc87923…5084487f`.
+- **Prossima azione esatta:** aspettare l'utente sulle decisioni (a)–(c). Possibile problema reale da provare con un telefono: una carica del dritto veloce (racchetta portata
   indietro con forza) potrebbe essere letta come colpo speciale con la calibrazione veloce (`gesture-intent.js:64`).
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 

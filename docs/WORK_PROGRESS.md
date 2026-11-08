@@ -566,4 +566,8 @@ Analisi in `docs/b9/` (modale e animazione, specifica dei gesti, telefono e sche
   1,25× ogni 0,025 1658/1672 (gli stessi 14 errori di prima: piatto con la presa a martello un poco più veloce letto top
   spin), prese di chi imita a 0,9/1,1/1,2× 1148/1152 (gli stessi 4: volée 50/25 a 0,9× letta pallonetto), sei semi
   528/528. Disegno a 640×400 con la rasterizzazione ~3,2 ms (limite 4; prima ~3,0).
+  Zip Cloudflare `natpf-simulator-cloudflare-20261108-3.zip` 22.569.223 B (127 file), sha256
+  `2bc8792336c13a9fc2559c22bd9fe8d9eac85fdd3b385a59b8dd434d5084487f`, provato estratto (versione giusta, nessun errore).
+  GitHub (`ddd4428`): tre esecuzioni verdi; installer **2026-11-08.3 pubblicato su R2** (124.609.974 B, sha256
+  `d5ead1f7d34583c64abdabe74aeed58190f87d48c7603a93dc80d03527fb2f79`, `latest.json` controllato).
 - Non verificato: telefoni veri, persone vere, Windows; l'utente non ha ancora visto i fogli.
