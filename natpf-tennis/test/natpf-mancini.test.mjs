@@ -500,3 +500,18 @@ test('personaggio intero a specchio: carica dalla palla lontana, corsa, testa, c
     assert.ok(r.coiled.every(([a, b]) => a === b), `${sideSign > 0 ? 'P1' : 'P2'}, ${name}: lato della carica ${JSON.stringify(r.coiled.find(([a, b]) => a !== b))}`);
   }
 });
+
+// Punto 6 (cosmetico): la scelta della mano si chiama allo stesso modo ovunque («Destra»/«Sinistra»). Il riquadro
+// «Racchetta, Visuale, Mano» (data-natpf-setup, pannello del Player 2) diceva «Mancino», il resto del gioco «Sinistra»
+test('scelta della mano: «Destra» e «Sinistra» in ogni pannello (lobby, P2, stesso schermo, lezione, telefono)', async () => {
+  const fs = await import('node:fs');
+  const read = rel => fs.readFileSync(new URL(rel, import.meta.url), 'utf8');
+  const sources = { 'index.html': read('../index.html'), 'natpf_ui.js': read('../src/natpf/natpf_ui.js'), 'racchetta.html': read('../../site/tennis/racchetta.html') };
+  const labels = [];
+  for (const [name, src] of Object.entries(sources)){
+    for (const m of src.matchAll(/data-(?:natpf-hand|split-hand|lesson)="(?:p[12]:)?(left|right)"[^>]*>([^<]*)</g)) labels.push([name, m[1], m[2].trim()]);
+    for (const m of src.matchAll(/<option value="(left|right)">([^<]*)</g)) labels.push([name, m[1], m[2].trim()]);
+  }
+  assert.ok(labels.filter(l => l[1] === 'left').length >= 6, JSON.stringify(labels));
+  for (const [name, hand, text] of labels) assert.equal(text, hand === 'left' ? 'Sinistra' : 'Destra', `${name}: ${hand} → «${text}»`);
+});
