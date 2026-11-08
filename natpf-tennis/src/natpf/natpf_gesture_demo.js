@@ -35,6 +35,12 @@ const HUD_H = .2;                             // banda bassa della curva (frazio
 // resti ≥ 60 px a 448×280)
 const BALL_EARLY = Object.freeze({ forehand: .035, backhand: .035, line: .035, drop: .035, slice: .035, lob: .035, volley: .02, flat: .02 });
 const STEP = 1/120;                           // passo delle tabelle del moto (s)
+// testa di racchetta fantasma (B14, prototipo SPENTO: decide l'utente). Ovale traslucido che prolunga il telefono oltre la
+// cima (gola 7 cm, ovale 33 × 25 cm) nel piano del telefono: il dorso guarda dove guarderebbero le corde, come nella presa
+// «il telefono è il piatto» del gioco. Solo disegno: non entra nell'inquadratura, nella palla né nei test. Prova:
+// demo.ghostRacket = true (o GHOST_RACKET = true)
+export const GHOST_RACKET = false;
+export const RACKET_HEAD = Object.freeze({ throat: .07, len: .33, wid: .25 });
 const HW = PHONE.w/2, HH = PHONE.h/2, HD = PHONE.d/2, SHOULDER_X = .19;
 
 /* ---------- colori e luce dipinta (brief §5.2) ---------- */
@@ -265,6 +271,32 @@ function rrectAt(cx, cy, w, h, r){
 }
 const RR = rrectLocal(), RR_SCREEN = rrectLocal(.0021), CAM_MOD = rrectAt(.021, .058, .019, .045, .007);
 const rotLocal = (v, k, ang) => { const c = Math.cos(ang), s = Math.sin(ang), d = dot(k, v), x = cross(k, v); return [v[0]*c + x[0]*s + k[0]*d*(1 - c), v[1]*c + x[1]*s + k[1]*d*(1 - c), v[2]*c + x[2]*s + k[2]*d*(1 - c)]; };
+
+/* ---------- testa di racchetta fantasma (prototipo, GHOST_RACKET) ---------- */
+const RK = (() => {
+  const { throat, len: L, wid } = RACKET_HEAD, a = wid/2, b = L/2, cy = PHONE.h/2 + throat + b;
+  const rim = Array.from({ length: 28 }, (_, i) => { const u = i/28*2*Math.PI; return [a*Math.sin(u), cy - b*Math.cos(u), 0]; });
+  const chordX = x => { const k = Math.sqrt(Math.max(0, 1 - (x/a)**2))*b; return [[x, cy - k, 0], [x, cy + k, 0]]; };
+  const chordY = y => { const k = Math.sqrt(Math.max(0, 1 - ((y - cy)/b)**2))*a; return [[-k, y, 0], [k, y, 0]]; };
+  const strings = [-.5, 0, .5].map(f => chordX(f*a)).concat([-.55, -.18, .18, .55].map(f => chordY(cy + f*b)));
+  // gola: dai due angoli della cima del telefono all'ovale (a ±30% della larghezza)
+  const y0 = cy - b*Math.cos(Math.asin(.3));
+  const throatL = [[[-PHONE.w*.32, PHONE.h/2, 0], [-a*.3, y0, 0]], [[PHONE.w*.32, PHONE.h/2, 0], [a*.3, y0, 0]]];
+  return { rim, strings, throat: throatL };
+})();
+function drawGhostRacket(c, cam, pose, st){
+  const T = v => add(pose.pos, qrot(pose.q, v)), P = v => cam.p(T(v));
+  if (RK.rim.some(v => cam.depth(T(v)) < .05)) return;
+  const rim = RK.rim.map(P);
+  c.save(); c.lineJoin = 'round'; c.lineCap = 'round';
+  c.beginPath(); polyPath(c, rim); c.fillStyle = 'rgba(227,255,54,.09)'; c.fill();
+  c.beginPath(); for (const [A, B] of RK.strings){ const a = P(A), b = P(B); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); }
+  c.lineWidth = Math.max(.6, st.ow*.5); c.strokeStyle = 'rgba(240,245,255,.22)'; c.stroke();
+  c.beginPath(); for (const [A, B] of RK.throat){ const a = P(A), b = P(B); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); }
+  c.lineWidth = Math.max(1, st.ow*1.1); c.strokeStyle = 'rgba(240,245,255,.42)'; c.stroke();
+  c.beginPath(); polyPath(c, rim); c.lineWidth = Math.max(1.2, st.ow*1.6); c.strokeStyle = 'rgba(240,245,255,.5)'; c.stroke();
+  c.restore();
+}
 
 /* ---------- telefono ---------- */
 function drawPhone(c, cam, pose, st, outlineOnly = null){
@@ -834,6 +866,7 @@ export class NatpfGestureDemo {
     let ballAlpha = 1;
     if (P.kind === 'serve' && tt < P.T.hold) ballAlpha = sstep(0, P.T.hold, tt);
     const spin = tt*12, ballFirst = ball && ballBehind(cam, R, ball);
+    if (!compact && (this.ghostRacket ?? GHOST_RACKET)) drawGhostRacket(c, cam, R, st);   // prototipo spento
     if (ball && ballFirst) drawBall(c, cam, ball, spin, st, ballAlpha);
     const F = K.figure ? figure(cam, R, st, H_) : drawFigure(c, cam, R, st, H_);
     if (ball && !ballFirst) drawBall(c, cam, ball, spin, st, ballAlpha);

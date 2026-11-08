@@ -67,4 +67,10 @@ dietro a sinistra basso (scelta), 3/4 davanti a destra, lato destro.
 - **Messa in scena** (prototipi non adottati): freccia «RETE» dipinta sul piano (troppo grande con la camera vicina),
   linea delle spalle chiara (confusa sotto il braccio), telefono a esposizione multipla (affollato), percorso della palla
   a puntini (utile per incrociato e lungolinea, tenue nel dritto: da riprendere se l'utente lo vuole).
-- **Testa di racchetta fantasma**: prototipo dietro un'opzione spenta (`GHOST_RACKET`, commit a parte); vedi il commit.
+- **Testa di racchetta fantasma** (prototipo, commit a parte, **spento**: `GHOST_RACKET = false` in
+  `natpf_gesture_demo.js`, prova con `demo.ghostRacket = true`): ovale traslucido 33 × 25 cm con gola di 7 cm che
+  prolunga il telefono oltre la cima, nel piano del telefono (il dorso guarda dove guarderebbero le corde, come nella
+  presa «il telefono è il piatto» del gioco). Con la presa nel palmo la cima del telefono all'impatto punta in avanti a
+  sinistra: la testa punta alla rete (un affondo, non un dritto), la palla cade sulla gola e non sulle corde, e alla fine
+  della carica la testa guarda avanti invece che indietro. Rende il colpo «da racchetta» ma mostra posizioni della
+  racchetta che un dritto vero non ha: sconsigliato accenderlo senza cambiare la presa o la mappa telefono → racchetta.

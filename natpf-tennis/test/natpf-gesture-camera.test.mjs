@@ -57,3 +57,29 @@ test('camere che seguono meno negli stadi grandi (mixSmall): a 448×280 il telef
     assert.ok(Math.abs(R.p(X).x - (640 - L.p(X).x)) < 1e-6 && Math.abs(R.p(X).y - L.p(X).y) < 1e-6);
   }
 });
+
+// testa di racchetta fantasma (B14): prototipo SPENTO di serie, decide l'utente. Con la presa nel palmo la cima del
+// telefono all'impatto punta in avanti: la testa che la prolunga punterebbe alla rete e la palla cadrebbe sulla gola
+// (docs/b14/camera-dritto.md §4). Qui solo che resti spenta e che, accesa, si disegni senza errori.
+test('testa di racchetta fantasma: spenta di serie; accesa si disegna (contesto 2D finto) senza cambiare la posa', async () => {
+  const D = await import('../src/natpf/natpf_gesture_demo.js');
+  assert.equal(D.GHOST_RACKET, false);
+  const ctx = () => new Proxy({}, { get(t, k){ if (k in t) return t[k]; if (k === 'measureText') return s => ({ width: String(s).length*6 }); if (typeof k === 'string' && k.startsWith('create')) return () => ({ addColorStop(){} }); return () => {}; }, set(t, k, v){ t[k] = v; return true; } });
+  const canvas = () => ({ width: 0, height: 0, style: {}, className: '', isConnected: true, offsetParent: {}, getContext: ctx, remove(){} });
+  const had = 'document' in globalThis, prev = globalThis.document;
+  const raf = globalThis.requestAnimationFrame, caf = globalThis.cancelAnimationFrame;
+  globalThis.document = { createElement: canvas, hidden: false };
+  globalThis.requestAnimationFrame = () => 1; globalThis.cancelAnimationFrame = () => {};
+  try {
+    const d = new D.NatpfGestureDemo({ width: 640, height: 400 }); d.ghostRacket = true;
+    for (const id of ['forehand', 'backhand', 'flat', 'cross']){
+      d.play(id); d.stop(); d.show(d.hitTime());
+      const p = GP.gesturePose(id, d.hitTime());
+      assert.ok(GP.len(GP.sub(d.info.pose.pos, p.pos)) < 1e-12);
+    }
+  } finally {
+    if (had) globalThis.document = prev; else delete globalThis.document;
+    if (raf) globalThis.requestAnimationFrame = raf; else delete globalThis.requestAnimationFrame;
+    if (caf) globalThis.cancelAnimationFrame = caf; else delete globalThis.cancelAnimationFrame;
+  }
+});
