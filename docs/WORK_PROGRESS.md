@@ -772,3 +772,39 @@ restano proposte in `docs/b15/audit-ux.md` §4. Ramo di lavoro `b15-ux` (worktre
   `natpf-1v1-p2p` 37/37, `natpf-modale-gesti` 18/18 (una prima esecuzione 16/18 solo nei due controlli dei fps, con il
   computer carico dalle prove di un altro agente: 1,2 fps anche il campo da solo; rifatta a carico più basso 18/18). Screenshot «dopo2» (fuori dal repository) a 1280×720 + 390×844
   e 1920×1080 + 412×915. Non verificato: telefoni veri, persone vere, ledwall vero, lettori di schermo; la proposta 3.
+
+## B15 · Integrazione: colpi, mancini e flusso, versione 2026-11-08.4 · [x] · 08/11/2026
+- Richiesta dell'utente (08/11): «Fai un nuovo audit per migliorare la sensibilità del dispositivo e la precisione dei colpi
+  rispetto ai gesti eseguiti. I colpi non sono ancora da campo aperto, anzi, tutti gli scambi vanno quasi sempre nella
+  stessa direzione con stessa velocità e angolazione. Assicurati che per i giocatori mancini sia tutto uguale. Per quanto
+  riguarda la UX UI, rivedi l'intero flusso dall'accesso al gioco fino alla partita. Semplifica eventuali ridondanze,
+  testi lunghi, rendi tutto semplice e di facile lettura e comprensione.» Poi: «Quando hanno finito integra tutto e fai la
+  versione nuova».
+- Tre rami di lavoro (voci B15, B15.B, B15-UX sopra), ognuno con verifiche indipendenti a ogni giro (colpi: tre giri;
+  mancini: due giri più una correzione dell'integratore; flusso: due giri), uniti nel ramo `b15-int`: merge `5013c3c`
+  (colpi), `848c855` (mancini), `610f78b` (flusso), conflitti solo in questo registro.
+- Correzioni dell'integrazione: `5fede84` (mancini: velocità e accelerazione in avanti non specchiate, prova a specchio
+  con due scene di corsa in avanti), `c0c2d05` (verifica del flusso: avviso «Telefono scollegato» visibile anche sotto la
+  modale del tutorial, prova nuova in `natpf-tutorial-relink` T, 8/9 → 9/9; «Altre impostazioni» che scorrono fino
+  all'ultima riga sugli schermi bassi; 4° e 5° posto visibili nel risultato dei minigiochi; nomi coerenti; codice morto),
+  `25183b0` (documenti dei colpi corretti come chiesto dalla verifica del terzo giro), `81329e8` (la prova del sito
+  `gesture-calibration` sceglieva la mano sinistra ma faceva i gesti nell'ordine del destro: con il piano per mano la
+  direzione imparata si invertiva, 18/19; ora segue il piano del telefono, 20/20).
+- Che cosa cambia per chi gioca: la palla segue il gesto (dal colpo morbido al colpo forte 74 → 123 km/h e 7,7 → 11,2 m;
+  nella distribuzione dei gesti di una persona vera direzione +12 %, profondità +17 %, velocità +29 %; girando il
+  telefono di 15° la palla si sposta di 2,7–3,3 m invece di 1,9–2,3); per i mancini lo stesso gesto a specchio dà lo
+  specchio esatto, calibrazione prima del dritto, racchetta e corpo a specchio, servizio con la mano libera, mano nel 1v1;
+  testi più brevi su computer e telefono, pagina «Partita» con una scelta in vista, telefono con un pulsante grande e la
+  mano sempre in vista, una sola voce per la guida.
+- Verifiche sull'integrazione: gioco 927/927, sito 197/197, LAN 12/12, programma Windows 28/28, build ok. Nel browser:
+  `gesture-calibration` 20/20, `phone-only` 10/10 + `timing-browser` 8/8, `natpf-menu` 22/22, `natpf-modale-gesti` 18/18,
+  `natpf-gesti-sequenze` 47/47, `natpf-gesti-speciali` 9/9, `natpf-rally` 7/7, `natpf-training-flow` destro e mancino
+  20/20, `natpf-tutorial-phone` destro e mancino 38/38, `natpf-tutorial-relink` 9/9, `natpf-split-ready` 34/34,
+  `natpf-1v1-p2p` 39/39, `natpf-1v1-webcam-p2` 15/15, `natpf-schermo` 41/41. `natpf-gesti-fotogrammi` 30/31: il costo del
+  disegno con la rasterizzazione è 4,26 ms contro 4, ma la base sulla stessa macchina dà 4,22 ms (macchina più lenta dopo
+  il riavvio; il B15 non tocca il disegno dei gesti). Le prove con la macchina carica (altre prove in parallelo) avevano
+  dato KO di sola velocità (fps della modale, tempi), tutti verdi ripetuti da soli.
+- Versione **2026-11-08.4** (`version.js`, `build.json`, `LEGGIMI.txt`), novità in `natpf-desktop/novita.txt`.
+- Decisioni chieste all'utente: `docs/PASSAGGIO_CONSEGNE.md` §3.13 (Leggenda, tutorial corto, riscaldamento facoltativo,
+  mira più sensibile, unire le due pagine della scelta).
+- Non verificato: telefoni veri (anche nella mano sinistra), persone vere, webcam vera, due computer veri, Windows.

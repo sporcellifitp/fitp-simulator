@@ -75,21 +75,19 @@ Come si aggiorna:
   alla compressione di direzione, forza e angolo; (B) prova a specchio del mancino su tutta la catena e correzioni;
   (C) audit UX/UI con screenshot del flusso completo (gioco e pagina del telefono), semplificazioni. Poi verifiche
   indipendenti, integrazione, versione 2026-11-08.4 o 09.1.
-- Stato B15 (09/11): tre rami locali da `8a996e3`, ognuno al secondo giro dopo una verifica indipendente.
-  (A) `b15-colpi`: primo giro (`404bb36`, `5bda836`, `ab9dd89`) verificato: con la distribuzione dei gesti di una persona
-  vera direzione e profondità erano identiche prima e dopo (solo i km/h più vari); secondo giro in corso su faceSpan,
-  pendenza della forza, seme della calibrazione sbagliato, isteresi della mira (regressione sulla mira piena tenuta).
-  (B) `b15-mancini`: correzioni A, B, C, G, H confermate, destro invariato; secondo giro in corso su: piano di calibrazione
-  fissato all'inizio (regressione col cambio di mano a metà), lancio del servizio del P2 mancino, mano dell'host nel 1v1,
-  lato della carica del corpo, azzeramento della mano del P2. (C) `b15-ux`: testi accorciati (`40a910c`, `464db52`,
-  `c32cfb1`, audit `docs/b15/audit-ux.md`); secondo giro in corso: una sola voce per la guida, pagina «Partita» con una
-  scelta, telefono con un pulsante, eventualmente «Modalità» e «Racchetta» unite. Da proporre all'utente: tutorial corto
-  prima della partita e riscaldamento facoltativo (cambiano decisioni sue).
-- **Richiesta dell'utente (09/11):** «Quando hanno finito integra tutto e fai la versione nuova».
-- **Prossima azione esatta:** quando i tre secondi giri e le loro verifiche finiscono: ramo unico da `natpf-simulator`,
-  conflitti, prove complete, verifica dell'integrazione, versione 2026-11-09.1, documenti, push, CI, R2, zip. Se la
-  sessione è finita, i rami locali sono persi: ripartire dalle descrizioni qui sopra e dai documenti `docs/b15/` (non
-  ancora nel repository). Le decisioni (a)–(c) sul dritto restano aperte.
+- **B15 fatto, versione 2026-11-08.4** (richiesta dell'08/11 su colpi, mancini e flusso; poi «Quando hanno finito integra
+  tutto e fai la versione nuova»): tre rami con verifiche indipendenti a ogni giro, uniti in `b15-int`. Colpi: la palla
+  segue il gesto (velocità +29 %, profondità +17 %, direzione +12 % nella distribuzione di una persona vera; mira piena a
+  17°; centro della mira quello di prima). Mancini: specchio esatto in tutta la catena, calibrazione prima del dritto,
+  corpo e racchetta, servizio, 1v1. Flusso: testi brevi, una scelta per pagina, telefono con un pulsante. Dettaglio in
+  `docs/WORK_PROGRESS.md` B15 e `docs/b15/`.
+- Test: gioco 927/927, sito 197/197, LAN 12/12, programma Windows 28/28, build ok, prove nel browser verdi (vedi
+  WORK_PROGRESS B15 · Integrazione; il costo del disegno sopra 4 ms è della macchina, uguale sulla base).
+- **Decisioni chieste all'utente:** `docs/PASSAGGIO_CONSEGNE.md` §3.13 (Leggenda più dura o colpi forti meno tesi; tutorial
+  corto prima della partita; riscaldamento facoltativo; mira più sensibile; unire le due pagine della scelta). Restano
+  quelle sul dritto (§3.4).
+- **Prossima azione esatta:** controllare CI e pubblicazione su R2 della 2026-11-08.4, consegnare lo zip Cloudflare;
+  poi aspettare le decisioni dell'utente.
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
 1. **Push**: dopo ogni commit verificato, subito, su `origin natpf-simulator`. Verificato = test del gioco e del sito
@@ -167,6 +165,7 @@ Legenda: [ ] da fare · [~] in corso · [x] fatto, verificato e pubblicato.
 | B12 Forza del colpo e CI | [x] | colpo tipico solo dai colpi normali (palle corte non abbassano più la forza); azioni di GitHub a Node 24 | vedi WORK_PROGRESS B12 | 2026-11-07.5 |
 | B13 Prova del servizio e gesti del tutorial | [x] | `gesture-calibration` senza pausa di rete (stabile con CPU ×4); gesti del tutorial sulla catena fisica del braccio (dritto ancora in diagonale: limite del riconoscimento) | vedi WORK_PROGRESS B13 | 2026-11-08.1 |
 | B14 Dritto: limite, camere, orientamento | [x] | vincolo smentito; camere più basse (08.2); disegno, schiacciata, camere di palla corta/tagliato/pallonetto, prova alle velocità intermedie (08.3); dritto da manuale bloccato (decisione dell'utente) | vedi WORK_PROGRESS B14 | 2026-11-08.3 |
+| B15 Colpi, mancini, flusso | [x] | palla che segue il gesto (forza, piatto); mancini a specchio in tutta la catena; testi brevi e meno scelte | vedi WORK_PROGRESS B15 | 2026-11-08.4 |
 
 Ordine: B0 → B1 → B2 → B3 → B4 → B5 → B6. B2 e B6 non dipendono dagli altri e possono essere anticipati se un blocco
 resta in attesa di una decisione. B4 dipende da B3 (il contenuto della modale mostra la presa nuova).

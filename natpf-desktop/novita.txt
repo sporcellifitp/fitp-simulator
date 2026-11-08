@@ -6,3 +6,4 @@
 2026-11-08.1: Nel tutorial i gesti mostrano tutto il braccio, dalla spalla al telefono, con movimenti più naturali: dritto, rovescio, servizio, schiacciata e volée rifatti.
 2026-11-08.2: Nel tutorial il dritto e i colpi da fondo si vedono da un'angolazione più bassa: si capisce meglio che la mano va avanti e sale.
 2026-11-08.3: Tutorial più chiaro: si vede la persona da dietro, la palla all'impatto è sempre visibile, la schiacciata finisce in basso; palla corta, tagliato e pallonetto inquadrati meglio.
+2026-11-08.4: I colpi seguono di più il gesto: più forte va più veloce e più in fondo, girando il telefono la palla cambia direzione. Per i mancini tutto uguale ai destri. Menu e telefono con testi più brevi e meno scelte.
