@@ -44,6 +44,8 @@ export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inpu
     '#enableTouch': (S('enable') || S('error') || S('cal')) && !touch,
     // mano e movimento: prima di attivare i sensori e alla verifica della calibrazione (non nel tutorial né in «Pronto»)
     '#profileOptions': S('enable') || S('error') || (S('cal') && calStep === 'review'),
+    // «Opzioni» (movimento, «solo mentre tengo premuto»): chiuse sotto «Attiva i sensori», quando c'è la riga della mano
+    '#moreOpts': S('enable') || S('error') || (S('cal') && calStep === 'review'),
     '#shotPanel': S('ready') || (S('cal') && calStep === 'free'),
     '#manualAim': touch,
     '#touchHit': touch || !!intentGate,

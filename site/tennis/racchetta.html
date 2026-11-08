@@ -32,8 +32,21 @@
   .btn.alt{background:var(--panel);color:var(--ink);font-weight:600;font-size:16px;padding:14px}
   #tools{display:flex;gap:8px;margin-top:10px}
   #tools .btn{flex:1;margin:0}
-  #profileOptions{font-size:15px;background:#13245a;border-radius:12px;padding:12px;display:grid;gap:8px;margin-top:10px}
-  #profileOptions label{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  /* «Attiva i sensori» (B15, 2° giro): un pulsante grande; sopra la mano, sempre in vista (un mancino non deve giocare da
+     destro per errore); Movimento e «solo mentre tengo premuto» sotto il link «Opzioni» */
+  #profileOptions{display:flex;align-items:center;gap:8px;font-size:16px;background:#13245a;border-radius:12px;padding:8px 8px 8px 14px;margin-top:10px}
+  #profileOptions>span{flex:1;color:var(--muted);font-weight:600}
+  #profileOptions [data-hand]{min-height:44px;min-width:100px;border:1px solid #405b9b;border-radius:10px;background:transparent;color:var(--ink);font:inherit;font-weight:600}
+  #profileOptions [data-hand].on{background:var(--ink);border-color:var(--ink);color:#071233}
+  #moreOpts{margin-top:4px;font-size:15px}
+  #moreOpts summary{list-style:none;cursor:pointer;text-align:center;color:var(--muted);padding:10px;text-decoration:underline;text-underline-offset:3px}
+  #moreOpts summary::-webkit-details-marker{display:none}
+  #moreOpts[open] summary{text-decoration:none;color:var(--ink);font-weight:600}
+  #moreOpts>div{background:#13245a;border-radius:12px;padding:12px;display:grid;gap:8px}
+  #moreOpts label{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  /* «Gioca con i tocchi» prima di attivare i sensori: un link sotto il pulsante grande (pulsante pieno quando i sensori
+     non vanno e in calibrazione) */
+  body[data-screen="enable"] #enableTouch{background:none;color:var(--muted);font-size:15px;font-weight:500;padding:10px;margin-top:2px;text-decoration:underline;text-underline-offset:3px}
   select{font:inherit;min-height:44px;max-width:58%;border-radius:8px;padding:4px;background:#eef3ff;color:#071233}
   #shotChoices{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
   #shotChoices button{min-height:44px;border:1px solid #405b9b;border-radius:9px;background:#13245a;color:white;font:inherit;font-size:14px}
@@ -117,12 +130,11 @@
   <div id="tutNav"><button class="btn alt" id="tutPrev" aria-label="Scheda precedente">‹ Indietro</button><button class="btn alt" id="tutNext" aria-label="Scheda successiva">Avanti ›</button></div>
 </div>
 <div id="phaseFeedback" aria-live="polite"></div>
-<div id="profileOptions" class="hidden">
+<!-- mano: sempre in vista sopra «Attiva i sensori», due pulsanti (la scelta è il <select> nascosto, come prima) -->
+<div id="profileOptions" class="hidden" role="radiogroup" aria-label="Mano">
   <label hidden>Presa <select id="gripMode"><option value="upright">Verticale · manico</option><option value="flat">Orizzontale · piatto</option></select></label>
-  <label>Movimento <select id="motionRange"><option value="standard">Naturale</option><option value="compact">Corto / compatto</option></select></label>
-  <label>Mano <select id="hand"><option value="right">Destra</option><option value="left">Sinistra</option></select></label>
-  <label><span>Riconosci il gesto solo mentre tengo premuto</span><input id="intentGate" type="checkbox"></label>
-  <small>Bastano due colpetti. Puoi giocare anche da seduto.</small>
+  <span>Mano</span><button type="button" data-hand="right" role="radio" aria-checked="true" class="on">Destra</button><button type="button" data-hand="left" role="radio" aria-checked="false">Sinistra</button>
+  <label hidden>Mano <select id="hand"><option value="right">Destra</option><option value="left">Sinistra</option></select></label>
 </div>
 <div id="shotPanel" class="hidden">
   <div id="shotChoices"></div><div id="shotHint">Guarda la palla sul computer e dai un colpetto.</div>
@@ -135,6 +147,12 @@
   <button class="btn alt hidden" id="enableTouch">Gioca con i tocchi</button>
   <button class="btn hidden" id="retry">Riprova</button>
 </div>
+<!-- opzioni rare, chiuse: movimento e «solo mentre tengo premuto» (insieme alla riga della mano) -->
+<details id="moreOpts" class="hidden"><summary>Opzioni</summary><div>
+  <label>Movimento <select id="motionRange"><option value="standard">Naturale</option><option value="compact">Corto / compatto</option></select></label>
+  <label><span>Riconosci il gesto solo mentre tengo premuto</span><input id="intentGate" type="checkbox"></label>
+  <small>Bastano due colpetti. Puoi giocare anche da seduto.</small>
+</div></details>
 <div id="tools" class="hidden">
   <button class="btn alt" id="recal">Ricalibra</button>
   <button class="btn alt" id="relink">Ricollega</button>

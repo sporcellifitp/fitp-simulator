@@ -72,9 +72,15 @@ const preferences = () => ({ range: $('#motionRange').value, hand: $('#hand').va
 const ARROW = { L: '←', R: '→', '?': '?' };
 // mano scelta nel gioco (o qui, e confermata dal gioco): menu, calibrazione in corso e profilo salvato. Il verso del
 // gesto non dipende dalla mano: cambia solo quale verso è il dritto, quindi il profilo resta valido
+// pulsanti Destra / Sinistra sopra «Attiva i sensori» (la scelta vera è il <select id="hand"> nascosto)
+function paintHand(){
+  const hand = $('#hand').value;
+  for (const b of document.querySelectorAll('#profileOptions [data-hand]')){ const on = b.dataset.hand === hand; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); }
+}
 function applyHand(h){
   const hand = h === 'left' ? 'left' : 'right';
   if ($('#hand').value !== hand) $('#hand').value = hand;
+  paintHand();
   const art = $('#grip');
   if (art && art.dataset.hand !== hand) art.outerHTML = gripSvg({ id: 'grip', cls: art.getAttribute('class') || 'hidden', compact: true, hand });
   if (cal.state.options) cal.state.options.hand = hand;
@@ -97,6 +103,7 @@ function paint(){
   const v = phoneView({ linkState, sensor, gate, inputMode, calStep: cal.state.step, hasPair: !!pair, diag: diagStream, intentGate: det.profile.intentGate });
   if (v.screen !== screen){ screen = v.screen; document.body.dataset.screen = screen; }
   for (const [sel, on] of Object.entries(v.show)) show(sel, on);
+  if (v.show['#profileOptions']) paintHand();
   $('#touchHit').textContent = inputMode === 'touch' ? 'Colpisci' : 'Arma dopo l’apertura';
   // (con i sensori la frase sotto l'anello dice già cosa fare: il consiglio del pannello dei colpi solo con i tocchi)
   $('#shotHint').textContent = 'Scegli il colpo; schiacciata e servizio seguono la palla.'; show('#shotHint', inputMode === 'touch');
@@ -505,6 +512,7 @@ $('#touchHit').addEventListener('click', () => {
 $('#gripMode').addEventListener('change', e => setGrip(e.target.value));
 // mano: una sola per tutto il gioco. Cambiata qui va al computer, che la applica e la rimanda (cfg)
 $('#hand').addEventListener('change', e => { applyHand(e.target.value); send({ t: 'hand', h: $('#hand').value }); });
+$('#profileOptions').addEventListener('click', e => { const b = e.target.closest('[data-hand]'); if (!b || $('#hand').value === b.dataset.hand) return; $('#hand').value = b.dataset.hand; $('#hand').dispatchEvent(new Event('change')); });
 $('#enableTouch').addEventListener('click', () => { lockOrientation(); inputMode='touch'; selectedShot='drive'; det.stop(); needCal(); sendState(); paint(); });
 det.on('phase', value => {
   // (niente «Pronto» qui: lo dice già la schermata, prima compariva due volte)
