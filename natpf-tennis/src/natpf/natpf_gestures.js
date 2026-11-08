@@ -151,12 +151,17 @@ export function createFaceModel({ keep = 12, min = 3 } = {}) {
 // giro 3° e 1°; prima del B15 2–5° e 1°); girato di 30° o meno non parte (come nel primo giro); 20° ×10 non parte
 export const AIM = Object.freeze({ gain: 22, settle: 10, alpha: .12, drift: .01, min: 3, maxDev: 80, seedAlpha: .35,
   verify: 4, verifyDev: 20, keep: 12, biasFrom: 10, biasDev: 25, biasLow: 20, biasEnd: 10, biasPull: .2, biasSlow: .05,
-  commonFrom: 3, commonDev: 25, commonLow: 20, commonEnd: 10, commonPull: .2, commonSlow: .05 });
+  commonFrom: 3, commonDev: 25, commonLow: 20, commonEnd: 10, commonPull: .2, commonSlow: .05,
+  recheck: 4, recheckFrom: 5, recheckFull: 10 });
+// recheck, recheckFrom, recheckFull (B15, secondo giro): seconda verifica del seme della calibrazione, vedi add(). Banco
+// colpi.mjs, persona vera con il seme spostato di −15°/+15° (12 partite): errore del centro al 20° colpo 7,9°/8,0° →
+// 1,0°/2,8°, al 40° 6,6°/6,5° → 0,4°/1,9°; x p50 dall'11° al 20° colpo +1,51/−1,77 m → −0,18/−1,25 (seme giusto −0,37).
+// Con il seme giusto non cambia niente (errore 0,3–0,8°). Provati 5 colpi (più lento), da 6 a 12° (uguale)
 const wrapDeg = a => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };
 // mediana circolare (gradi): +179° e −179° sono vicini
 const circMedian = a => (a.length ? wrapDeg(a[0] + median(a.map(h => wrapDeg(h - a[0])))) : null);
 export function createAimModel({ gain = AIM.gain, settle = AIM.settle, alpha = AIM.alpha, drift = AIM.drift, min = AIM.min } = {}) {
-  const fresh = () => ({ first: [], center: null, seeded: 0, verify: 0, since: [], recent: [], pulling: false });
+  const fresh = () => ({ first: [], center: null, seeded: 0, verify: 0, since: [], recent: [], pulling: false, recheck: 0, seen: [], probe: null });
   const S = { 1: fresh(), '-1': fresh() };
   return {
     commonPulling: false,
@@ -167,13 +172,16 @@ export function createAimModel({ gain = AIM.gain, settle = AIM.settle, alpha = A
     // colpi, proprio quelli del riscaldamento in cui si impara a mirare, il piatto non contava niente (27/10)
     seed(dir, heading) {
       const st = S[dir]; if (!st || !Number.isFinite(heading)) return;
-      Object.assign(st, fresh(), { center: wrapDeg(heading), seeded: 2, verify: AIM.verify });   // i primi colpi veri lo correggono di più
+      Object.assign(st, fresh(), { center: wrapDeg(heading), seeded: 2, verify: AIM.verify, recheck: AIM.recheck });   // i primi colpi veri lo correggono di più
     },
     get seeded() { return S[1].seeded > 0 || S[-1].seeded > 0; },
     add(dir, heading) {
       const st = S[dir]; if (!st || !Number.isFinite(heading)) return;
       st.recent.push(heading); if (st.recent.length > AIM.keep) st.recent.shift();
       if (st.center == null) { st.first.push(heading); if (st.first.length >= min) st.center = circMedian(st.first); return; }
+      // seconda verifica dei centri della calibrazione (B15): la mediana dei primi `recheck` colpi veri di ogni verso
+      // (probe); quando ci sono tutti e due, ogni centro va verso la sua (sotto)
+      if (st.recheck > 0) { st.seen.push(heading); if (--st.recheck === 0) { st.probe = circMedian(st.seen); st.seen = []; } }
       // centro della calibrazione verificato sui primi colpi veri: molto lontano dalla loro mediana, si prende quella
       if (st.verify > 0) {
         st.since.push(heading);
@@ -195,8 +203,21 @@ export function createAimModel({ gain = AIM.gain, settle = AIM.settle, alpha = A
         st.pulling = o > AIM.biasDev || (st.pulling && o > AIM.biasEnd);
         if (st.pulling) st.center = wrapDeg(st.center + (o > AIM.biasLow ? AIM.biasPull : AIM.biasSlow) * off);
       }
-      // dritti e rovesci dalla stessa parte: il riferimento si è girato, i due centri vanno insieme
+      // seconda verifica (B15): il seme della calibrazione sbagliato di 10–20° restava (sotto verifyDev) e la mira andava
+      // tutta da una parte per decine di colpi (diagnostica 104712; banco colpi.mjs, persona vera con il seme spostato di
+      // 15°: x p50 +2,5 m nei primi 5 colpi, +1,3 m dal 21° al 40°, centro ancora sbagliato di 6,6° al 40° colpo). Ogni
+      // centro va verso la mediana dei suoi primi colpi: per niente sotto recheckFrom gradi, del tutto da recheckFull, in
+      // proporzione tra i due. Non se dritto e rovescio sono andati tutti e due, e oltre recheckFrom, in versi opposti: è
+      // chi mira tutto incrociato (o tutto lungolinea) dai primi colpi, e quella mira resta. Una mira dalla stessa parte con
+      // tutti e due i colpi fin dai primi colpi della partita invece si toglie: per il centro è uguale a un seme sbagliato
       const A = S[1], B = S[-1];
+      if (A.probe != null && B.probe != null && A.center != null && B.center != null) {
+        const a = wrapDeg(A.probe - A.center), b = wrapDeg(B.probe - B.center); A.probe = B.probe = null;
+        const opposite = Math.sign(a) !== Math.sign(b) && Math.min(Math.abs(a), Math.abs(b)) > AIM.recheckFrom;
+        const w = o => Math.max(0, Math.min(1, (Math.abs(o) - AIM.recheckFrom) / (AIM.recheckFull - AIM.recheckFrom)));
+        if (!opposite) { A.center = wrapDeg(A.center + w(a) * a); B.center = wrapDeg(B.center + w(b) * b); }
+      }
+      // dritti e rovesci dalla stessa parte: il riferimento si è girato, i due centri vanno insieme
       if (A.center != null && B.center != null && A.recent.length >= AIM.commonFrom && B.recent.length >= AIM.commonFrom) {
         const a = wrapDeg(circMedian(A.recent) - A.center), b = wrapDeg(circMedian(B.recent) - B.center);
         const least = Math.sign(a) === Math.sign(b) ? Math.min(Math.abs(a), Math.abs(b)) : 0;

@@ -7,7 +7,7 @@
 //   • centro della mira: biasPull/commonPull da 12°/8° e drift 0,03 → dieci dritti girati di 20° cadevano da 2,9 a 1,1 m.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makePhone, warmPhone, gesture, variant, strike, sequence as seq, reale, mirrorCheck } from '../scripts/audit/colpi.mjs';
+import { makePhone, warmPhone, gesture, variant, strike, sequence as seq, reale, mirrorCheck, seme } from '../scripts/audit/colpi.mjs';
 import { rng } from './phone-sim.mjs';
 import { createAimModel } from '../src/natpf/natpf_gestures.js';
 import { strokeIntent, strokePower, classifyStroke } from '../src/natpf/natpf_stroke_intent.js';
@@ -160,4 +160,24 @@ test('la pendenza nuova non cambia i tipi di colpo né il colpo super: si leggon
   assert.equal(superShot({ intent: { power: .9, typePower: SUPER.power, conf: .8 }, out, contactY: 1.4 }).on, true);
   assert.equal(superShot({ intent: { power: .9, conf: .8 }, out, contactY: 1.4 }).on, true, 'senza typePower (webcam, CPU) vale power');
   assert.equal(powerView({ intent: { power: .95, typePower: .7 } }).label, 'Forte');
+});
+
+// secondo giro B15: seme della calibrazione sbagliato di 10–20° (sotto AIM.verifyDev): la mira andava tutta da una parte
+// per decine di colpi (persona vera, seme −15°: centro ancora sbagliato di 7,9° al 20° colpo e di 6,6° al 40°)
+test('seme della calibrazione sbagliato di 15°: entro una ventina di colpi il centro della mira torna giusto (seconda verifica)', () => {
+  for (const seedErr of [-15, 15]){
+    const r = seme({ seedErr }), at = k => r.blocks.find(b => b.shots === k);
+    assert.ok(Math.abs(at('11-20').cerr) <= 3.5 && Math.abs(at('21-40').cerr) <= 2.5, `seme ${seedErr}: ${JSON.stringify(r.blocks)}`);
+  }
+  const ok = seme({ seedErr: 0 });
+  for (const b of ok.blocks) assert.ok(Math.abs(b.cerr) <= 1.5, `seme giusto: ${JSON.stringify(ok.blocks)}`);
+});
+test('seconda verifica: i primi colpi dalla stessa parte spostano i centri, una mira in versi opposti (tutto incrociato) resta', () => {
+  const m = createAimModel(); m.seed(1, 0); m.seed(-1, 0);
+  const fh = [12, 20, 8, 17], bh = [16, 9, 22, 14];
+  for (let i = 0; i < 4; i++){ m.add(1, fh[i]); m.add(-1, bh[i]); }
+  assert.ok(m.center(1) > 12 && m.center(-1) > 12, `centri ${m.center(1)} ${m.center(-1)}`);
+  const x = createAimModel(); x.seed(1, 0); x.seed(-1, 0);
+  for (let i = 0; i < 4; i++){ x.add(1, -fh[i]); x.add(-1, bh[i]); }
+  assert.ok(Math.abs(x.center(1)) < 5 && Math.abs(x.center(-1)) < 5, `centri ${x.center(1)} ${x.center(-1)}`);
 });
