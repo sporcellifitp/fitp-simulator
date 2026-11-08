@@ -44,11 +44,16 @@ const footApart = v => !!v.fmtInk && !!v.labInk && v.fmtInk.r + 4 <= v.labInk.l 
 const setScore = (p, s, gamesToWin = 2) => p.evaluate(({ s, gamesToWin }) => { const E = __natpfTennis; E.matchConfig.gamesToWin = gamesToWin; Object.assign(E.score, s); E._syncScoreboardHUD(); try { E.__render?.(); } catch {} }, { s, gamesToWin });
 const shot = async (p, name) => { await p.evaluate(() => { try { __natpfTennis.__render?.(); } catch {} }); await p.screenshot({ path: `${SP}/tabellone-${name}.png` }); };
 const row = (v, side) => v.rows.find(r => r.side === side) || {};
-// B17.3: riquadro nell'angolo in alto a sinistra (bordi a 10–28 px), alto al più il 19% dello schermo (5,3 righe di 3,2 cqh
-// più i margini), carattere 3,2 cqh tra 16 e 44 px, a destra del tabellone almeno 40 px liberi prima del pulsante di pausa
+// B17.3: riquadro nell'angolo in alto a sinistra (bordi a 10–28 px), alto al più il 20% dello schermo (5,3 righe di 3,2 cqh
+// più i margini: 17%; la revisione del 08/11 ha alzato il limite dal 19%, che passava per 0,5–1 px), carattere 3,2 cqh tra
+// 16 e 44 px, a destra del tabellone almeno 40 px liberi prima del pulsante di pausa, che in partita DEVE esserci (se non
+// si vede, la prova è rossa: prima «!v.pause ||» lasciava passare senza misurare)
 // (stesso schermo: il carattere segue anche la larghezza, 2,4 cqw, per le metà strette del ledwall)
-const corner = (v, w, h, fs = Math.min(44, Math.max(16, h*.032))) => !!v.box && v.box.x >= 8 && v.box.x <= 28 && v.box.y >= 8 && v.box.y <= 28 && v.box.y + v.box.h <= h*.19
-  && Math.abs(v.fs - fs) < 1 && (!v.pause || v.box.x + v.box.w + 40 <= v.pause.x);
+const corner = (v, w, h, fs = Math.min(44, Math.max(16, h*.032))) => !!v.box && v.box.x >= 8 && v.box.x <= 28 && v.box.y >= 8 && v.box.y <= 28 && v.box.y + v.box.h <= h*.20
+  && Math.abs(v.fs - fs) < 1 && !!v.pause && v.box.x + v.box.w + 40 <= v.pause.x;
+// stesso schermo: la copia del P2 finisce almeno 40 px prima del pulsante di pausa (revisione del 08/11: a 844×390 con i
+// nomi lunghi finiva sotto la pausa, 812 > 774; a 1024×600 restavano 17 px)
+const p2Clear = v => !!v.p2 && !!v.pause && v.p2.x + v.p2.w + 40 <= v.pause.x;
 const splitFs = (w, h) => Math.min(44, Math.max(16, Math.min(h*.032, w*.024)));
 const fmt = v => JSON.stringify(v);
 
@@ -115,24 +120,29 @@ try {
 
   // stesso schermo: i nomi scritti nella pagina «Collega»
   await p.evaluate(() => { const E = __natpfTennis; E.natpfSplitNames = { p1: 'Marco', p2: 'Giulia' }; E.startSplit(); });
+  v = await read(p);
+  // revisione del 08/11: la copia del P2 è piena subito dopo startSplit (prima restava vuota fino al primo punteggio)
+  if (!ONLY_SHOTS) check('stesso schermo: subito dopo l\'avvio la copia del P2 è già piena e uguale al tabellone', !!v.p2 && v.same && row(v, 'me').name === 'Marco', fmt({ p2: v.p2, same: v.same, rows: v.rows }));
   await setScore(p, { playerPoints: 1, opponentPoints: 0, playerGames: 1, opponentGames: 2, server: 'opponent' }, 3);
   v = await read(p);
   if (!ONLY_SHOTS) check('stesso schermo: righe con i nomi (Marco, Giulia), 15-0, serve Giulia, «Al meglio di 5 game»', row(v, 'me').name === 'Marco' && row(v, 'them').name === 'Giulia' && row(v, 'me').points === '15' && row(v, 'them').points === '0' && row(v, 'them').serve && v.format === 'Al meglio di 5 game', fmt(v));
   // B17.3: un tabellone in alto a sinistra di ogni metà, lo stesso testo, ognuno dentro la sua metà (la linea scura sta a 637–643)
-  if (!ONLY_SHOTS) check('stesso schermo 1280×720: tabellone del P1 nella metà sinistra e copia uguale in alto a sinistra della metà del P2', corner(v, 1280, 720, splitFs(1280, 720)) && v.box.x + v.box.w <= 637 && !!v.p2 && v.same && v.p2.x >= 643 + 8 && v.p2.x <= 643 + 28 && Math.abs(v.p2.y - v.box.y) <= 1 && v.p2.x + v.p2.w <= 1280 && (!v.pause || v.p2.x + v.p2.w + 40 <= v.pause.x), fmt({ box: v.box, p2: v.p2, same: v.same, pause: v.pause }));
+  if (!ONLY_SHOTS) check('stesso schermo 1280×720: tabellone del P1 nella metà sinistra e copia uguale in alto a sinistra della metà del P2', corner(v, 1280, 720, splitFs(1280, 720)) && v.box.x + v.box.w <= 637 && !!v.p2 && v.same && v.p2.x >= 643 + 8 && v.p2.x <= 643 + 28 && Math.abs(v.p2.y - v.box.y) <= 1 && v.p2.x + v.p2.w <= 1280 && p2Clear(v), fmt({ box: v.box, p2: v.p2, same: v.same, pause: v.pause }));
   await shot(p, '1280-stesso-schermo');
   await p.setViewportSize({ width: 1920, height: 1080 }); await p.waitForTimeout(250);
   await shot(p, '1920-stesso-schermo');
   await setScore(p, { playerPoints: 5, opponentPoints: 4, playerGames: 1, opponentGames: 2, server: 'opponent' }, 3);
   v = await read(p);
   if (!ONLY_SHOTS) check('stesso schermo, vantaggio: «Vantaggio Marco»', row(v, 'me').points === 'Vant.' && v.label === 'Vantaggio Marco' && footApart(v), fmt(v));
-  // nomi lunghi (24 caratteri, il massimo della pagina «Collega») al vantaggio: tutto dentro il riquadro, scritte separate
+  // nomi lunghi (24 caratteri, il massimo della pagina «Collega») al vantaggio: tutto dentro il riquadro, scritte separate;
+  // la copia del P2 dentro la sua metà e almeno 40 px prima della pausa anche a 1024×600 e 844×390 (revisione del 08/11)
   await p.evaluate(() => { __natpfTennis.natpfSplitNames = { p1: 'Bartolomeo Massimiliano', p2: 'Maria Francesca Giovanna' }; });
-  for (const [w, h] of [[1920, 1080], [844, 390]]){
+  for (const [w, h] of [[1920, 1080], [1024, 600], [844, 390]]){
     await p.setViewportSize({ width: w, height: h }); await p.waitForTimeout(250);
     await setScore(p, { playerPoints: 4, opponentPoints: 5, playerGames: 2, opponentGames: 2, server: 'player' }, 3);
     v = await read(p);
-    if (!ONLY_SHOTS) check(`stesso schermo ${w}×${h}, nomi di 24 caratteri al vantaggio: piede dentro il tabellone, scritte separate`, v.label === 'Vantaggio Maria Francesca Giovanna' && footApart(v) && v.box.x >= 0 && v.box.x + v.box.w <= w, fmt(v));
+    if (!ONLY_SHOTS) check(`stesso schermo ${w}×${h}, nomi di 24 caratteri al vantaggio: piede dentro il tabellone, scritte separate`, v.label === 'Vantaggio Maria Francesca Giovanna' && footApart(v) && v.box.x >= 0 && v.box.x + v.box.w <= w / 2, fmt(v));
+    if (!ONLY_SHOTS) check(`stesso schermo ${w}×${h}, nomi lunghi: copia del P2 nella sua metà e almeno 40 px prima del pulsante di pausa`, !!v.p2 && v.same && v.p2.x >= w / 2 && p2Clear(v), fmt({ box: v.box, p2: v.p2, pause: v.pause }));
     await shot(p, `${w}-stesso-schermo-nomi-lunghi`);
   }
   await p.evaluate(() => { __natpfTennis.natpfSplitNames = { p1: 'Marco', p2: 'Giulia' }; });
@@ -185,7 +195,7 @@ try {
   await p.evaluate(() => { const E = __natpfTennis; E.natpfSplitNames = { p1: 'Marco', p2: 'Giulia' }; E.startSplit(); });
   await setScore(p, { playerPoints: 2, opponentPoints: 3, playerGames: 1, opponentGames: 1, server: 'opponent' }, 2);
   v = await read(p);
-  if (!ONLY_SHOTS) check('ledwall 720×720, stesso schermo: tabellone del P1 nella metà sinistra e copia nella metà del P2 (carattere 17 px), dentro il riquadro e lontana dalla pausa', corner(v, 720, 720, splitFs(720, 720)) && v.box.x + v.box.w <= 358 && !!v.p2 && v.same && v.p2.x >= 362 && v.p2.x + v.p2.w <= 720 && (!v.pause || v.p2.x + v.p2.w + 40 <= v.pause.x) && v.fmtInk?.fs >= 11, fmt({ box: v.box, p2: v.p2, pause: v.pause, fs: v.fs, foot: v.fmtInk?.fs }));
+  if (!ONLY_SHOTS) check('ledwall 720×720, stesso schermo: tabellone del P1 nella metà sinistra e copia nella metà del P2 (carattere 17 px), dentro il riquadro e lontana dalla pausa', corner(v, 720, 720, splitFs(720, 720)) && v.box.x + v.box.w <= 358 && !!v.p2 && v.same && v.p2.x >= 362 && v.p2.x + v.p2.w <= 720 && p2Clear(v) && v.fmtInk?.fs >= 11, fmt({ box: v.box, p2: v.p2, pause: v.pause, fs: v.fs, foot: v.fmtInk?.fs }));
   await p.screenshot({ path: `${SP}/tabellone-ledwall-720-stesso-schermo.png`, clip: { x: 0, y: 0, width: 720, height: 720 } });
   await p.evaluate(() => __natpfTennis.endSplit());
   await p.evaluate(() => __natpfTennis.natpfUi.screen.restore({ preset: 'full', area: null, margins: {} }));

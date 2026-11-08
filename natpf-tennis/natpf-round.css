@@ -524,8 +524,12 @@
 body:not(.natpf-split) #natpf-scoreboard-p2 {
   display: none;
 }
+/* larghezza massima nello stesso schermo: lo spazio reale della metà meno il pulsante di pausa (fixed, 52 px a 18 px dal bordo
+   destro: comincia a larghezza − 70 px) e 40 px di margine. La copia del P2 parte a 50,2 cqw + --sb-left, quindi finisce al
+   più a 100 cqw − 110 px (revisione del 08/11: con min(46cqw, 26em) a 844×390 e nomi lunghi finiva a 812 px sotto la pausa
+   a 774, a 1024×600 restavano 17 px). Restano 507 px a 1280, 384 a 1024×600, 297 a 844×390, 237 nel ledwall 720 diviso */
 body.natpf-split .natpf-scoreboard {
-  max-width: min(46cqw, 26em);
+  max-width: min(calc(49.8cqw - var(--sb-left) - 110px), 26em);
 }
 /* metà strette (ledwall 720×720 diviso in due: 358 px per metà): il carattere segue anche la larghezza, così la copia del
    P2 (303 px a 23 px) non finisce sotto il pulsante di pausa in alto a destra; a 1280 e oltre non cambia nulla */
