@@ -228,10 +228,18 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   const spread = controlled ? clamp((fq - q)/O.netQSpan) : 0, seed = controlled ? strokeSeed(timing, power, intent.face, rise, hitX, contactY, zc) : 0;
   // assistenza: piena dentro la finestra e sopra la qualità del livello, sfuma oltre (prima un gradino)
   const assist = clamp(1 - excess/O.assistFade)*clamp((q - AS.assistQ)/O.assistQSpan + .5), xMax = AS.xMax, k = xMax/O.xMax;
-  // B17.4 (revisione): nel colpo controllato a rete il bordo morbido laterale (sideKnee/sideEdge) vale anche senza assistenza,
+  // B17.4 (revisione): nella zona di rete (nearNet) il bordo morbido laterale (sideKnee/sideEdge) vale anche senza assistenza,
   // pieno con il tempo nella finestra e sfumato oltre come l'assistenza (assistFade): la dispersione (netSpread.x) e la mira
-  // piena con il piatto girato non mandano la palla oltre la riga laterale (wqdk·121: piatto −1 e anticipo +0,78, x −4,99 → dentro)
-  const sideHold = controlled ? Math.max(assist, clamp(1 - excess/O.assistFade)) : assist;
+  // piena con il piatto girato non mandano la palla oltre la riga laterale (wqdk·121: piatto −1 e anticipo +0,78, x −4,99 → dentro).
+  // Seconda revisione: vale in tutta la zona di rete, non solo nel colpo controllato: con il bordo legato a «controlled» lo
+  // stesso gesto fatto da una situazione migliore (q 0,64…0,88 a Leggenda: sopra failQ ma sotto assistQ, assistenza 0) usciva
+  // di lato (x −5,96) mentre da una situazione peggiore (q 0,61, controllato) restava dentro (x −4,00): peggio si era messi,
+  // più sicura era la palla. Solo ai livelli che hanno il colpo controllato (failQ > netQMin: Leggenda), dove nasce l'inversione;
+  // a Pro, 1v1 e Casual (failQ sotto netQMin: niente colpo controllato, esito monotono con la situazione) e fuori dalla zona di
+  // rete resta la regola del B15 (sotto assistQ la palla può uscire di lato): con il bordo a rete a tutti i livelli il banco
+  // audit:legend «pro contro medio» passava da 83,5 a 85,3 % di game del giocatore, oltre il criterio (70–85 %)
+  const netHold = nearNet && fq > O.netQMin;
+  const sideHold = netHold ? Math.max(assist, clamp(1 - excess/O.assistFade)) : assist;
   // direzione: mira dal tempo (ai bordi della finestra le due righe; la spinta naturale verso l'incrociato solo vicino al
   // tempo neutro) e dal piatto attorno al punto neutro, poi la spinta oltre la finestra
   const aimT = clamp(t - clamp(finite(rhythm), -RHYTHM.max, RHYTHM.max), -1, 1);   // tempo rispetto al proprio ritmo
@@ -285,8 +293,10 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   // chiusura sopra la rete e schiacciata riuscite: bassa sul nastro e veloce (la schiacciata ha la sua velocità nel
   // motore, OUTCOME.smashSpeed); il volo è quello che passa il nastro a quell'altezza, mai più corto
   // B17.4: la chiusura chiede meno qualità a un gesto forte (da attackPower a forza piena: attackQ − attackQPower), con il rischio
-  // della dispersione del colpo controllato e dell'assistenza che non c'è. Revisione: solo nella zona di rete (nearNet, la
-  // stessa regola del colpo controllato); fuori resta attackQ del livello (a Pro .65, non .35 a forza piena)
+  // della dispersione laterale del colpo controllato (netSpread.x) e dell'assistenza che non c'è sulla profondità; la dispersione
+  // sull'altezza (netSpread.clear) non si applica alla chiusura, perché `lift` qui sotto sovrascrive `clear` (nastro + attackGap).
+  // Revisione: solo nella zona di rete (nearNet, la stessa regola del colpo controllato); fuori resta attackQ del livello (a Pro
+  // .65, non .35 a forza piena)
   const attackQ = finite(AS.attackQ, 0) - (nearNet ? O.attackQPower*clamp((power - O.attackPower)/(1 - O.attackPower)) : 0);
   const attacked = attack && !failed && !weak && !netFault && (shot === 'SMASH' || q >= attackQ);
   if (attacked){
