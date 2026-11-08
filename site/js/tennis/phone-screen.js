@@ -44,6 +44,8 @@ export function phoneView({ linkState = 'off', sensor = 'off', gate = null, inpu
     '#enableTouch': (S('enable') || S('error') || S('cal')) && !touch,
     // mano e movimento: prima di attivare i sensori e alla verifica della calibrazione (non nel tutorial né in «Pronto»)
     '#profileOptions': S('enable') || S('error') || (S('cal') && calStep === 'review'),
+    // «Opzioni» (movimento, «solo mentre tengo premuto»): chiuse sotto «Attiva i sensori», quando c'è la riga della mano
+    '#moreOpts': S('enable') || S('error') || (S('cal') && calStep === 'review'),
     '#shotPanel': S('ready') || (S('cal') && calStep === 'free'),
     '#manualAim': touch,
     '#touchHit': touch || !!intentGate,
@@ -124,7 +126,7 @@ export function tutorialTexts(gate, { sensor = 'idle' } = {}){
   const then = sensor === 'ready' ? 'poi si gioca' : 'poi si calibra';
   if (!gate) return null;
   const where = gate.n ? `Scheda ${gate.i + 1} di ${gate.n}${gate.name ? ` · ${gate.name}` : ''}` : '';
-  if (gate.v < 2) return { big: 'Guarda lo schermo', sub: `Sul computer ci sono la presa e i colpi. Quando hai capito tocca «Tutto chiaro, ho capito», qui in alto: ${then}.`, where, hint: '' };
-  if (!gate.all) return { big: 'Guarda lo schermo', sub: 'Sul computer ci sono la presa e i colpi: sfoglia le schede con ‹ ›, qui o sul computer.', where, hint: gate.n ? `Viste ${gate.s} di ${gate.n}: «Tutto chiaro» si accende dopo l’ultima.` : '' };
-  return { big: 'Hai visto tutto', sub: `Tocca «Tutto chiaro, ho capito», qui in alto: ${then}. Puoi ancora rivedere le schede con ‹ ›.`, where, hint: '' };
+  if (gate.v < 2) return { big: 'Guarda lo schermo', sub: `Presa e colpi sono sul computer. Quando hai capito tocca «Tutto chiaro, ho capito»: ${then}.`, where, hint: '' };
+  if (!gate.all) return { big: 'Guarda lo schermo', sub: 'Presa e colpi sono sul computer. Sfoglia le schede con ‹ ›.', where, hint: gate.n ? `Viste ${gate.s} di ${gate.n}: alla fine si accende «Tutto chiaro».` : '' };
+  return { big: 'Hai visto tutto', sub: `Tocca «Tutto chiaro, ho capito»: ${then}.`, where, hint: '' };
 }

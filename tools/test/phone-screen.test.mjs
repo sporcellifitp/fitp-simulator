@@ -27,7 +27,11 @@ test('schermate esclusive: in ogni combinazione una sola, «ho capito» solo nel
     assert.equal(v.show['#tutBox'], v.screen === 'tutorial', ctx);
     assert.equal(v.show['#tools'], v.screen === 'ready', ctx);
     // nel tutorial: niente opzioni, «Gioca con i tocchi», pannello dei colpi
-    if (v.screen === 'tutorial') for (const k of ['#profileOptions', '#enableTouch', '#shotPanel', '#enable', '#retry']) assert.equal(v.show[k], false, `${k} ${ctx}`);
+    if (v.screen === 'tutorial') for (const k of ['#profileOptions', '#moreOpts', '#enableTouch', '#shotPanel', '#enable', '#retry']) assert.equal(v.show[k], false, `${k} ${ctx}`);
+    // «Opzioni» (movimento, «solo mentre tengo premuto») insieme alla riga della mano (B15): prima di attivare i sensori,
+    // con i sensori che non vanno e alla verifica della calibrazione
+    assert.equal(v.show['#moreOpts'], v.show['#profileOptions'], ctx);
+    if (v.screen === 'enable') assert.equal(v.show['#profileOptions'], true, `mano in vista prima di «Attiva i sensori» ${ctx}`);
     // «Gioca con i tocchi» resta come via d'uscita nella calibrazione (prova del sito gesture-calibration), mai in «Pronto»
     if (v.screen === 'cal' || v.screen === 'enable') assert.equal(v.show['#enableTouch'], inputMode !== 'touch', `#enableTouch ${ctx}`);
     if (v.screen === 'ready') assert.equal(v.show['#enableTouch'], false, `#enableTouch ${ctx}`);
@@ -163,6 +167,25 @@ test('pagina del telefono: [hidden] vince sulle regole dei label (riga «Presa»
   // nessuna condizione propria per «ho capito» e per gli strumenti: solo phoneView
   assert.doesNotMatch(JS, /show\('#tutOk'/); assert.doesNotMatch(JS, /show\('#tools'/);
   assert.doesNotMatch(JS, /tutWait/);
+});
+
+// «Attiva i sensori» (B15, 2° giro): un pulsante grande; la mano resta in vista sopra (Destra / Sinistra, la scelta vera è
+// il <select id="hand"> nascosto, che il computer aggiorna con cfg); movimento e «solo mentre tengo premuto» in «Opzioni»,
+// chiuse; «Gioca con i tocchi» resta (link sotto il pulsante)
+test('pagina del telefono: «Attiva i sensori» con la mano in vista, il resto sotto «Opzioni» chiuse', () => {
+  const opts = HTML.slice(HTML.indexOf('<div id="profileOptions"'), HTML.indexOf('</div>', HTML.indexOf('<div id="profileOptions"')));
+  assert.match(opts, /data-hand="right"[^>]*>Destra</); assert.match(opts, /data-hand="left"[^>]*>Sinistra</);
+  assert.match(opts, /<label hidden>Mano <select id="hand">/, 'la scelta resta nel select (nascosto)');
+  assert.doesNotMatch(opts, /motionRange|intentGate/, 'movimento e «tengo premuto» non sono nella riga della mano');
+  const more = HTML.slice(HTML.indexOf('<details id="moreOpts"'), HTML.indexOf('</details>'));
+  assert.match(more, /^<details id="moreOpts" class="hidden"><summary>Opzioni<\/summary>/, 'chiuse (niente «open»)');
+  assert.match(more, /id="motionRange"/); assert.match(more, /id="intentGate"/);
+  assert.ok(HTML.indexOf('<div id="profileOptions"') < HTML.indexOf('id="enable"'), 'la mano sta sopra «Attiva i sensori»');
+  assert.ok(HTML.indexOf('id="enable"') < HTML.indexOf('<details id="moreOpts"'), '«Opzioni» sotto il pulsante');
+  assert.match(HTML, /id="enableTouch"/);
+  // i due pulsanti cambiano il select e passano dallo stesso «change» (applyHand + messaggio al computer)
+  assert.match(JS, /\$\('#hand'\)\.dispatchEvent\(new Event\('change'\)\)/);
+  assert.match(JS, /function paintHand\(\)/);
 });
 
 // conto alla rovescia dello stesso schermo sul telefono (revisione B9 del 06/11): anello rosso solo per un problema,

@@ -61,19 +61,19 @@ const palmSide = cx => `<g transform="translate(${cx - 4} 112) rotate(40)">
 export const GRIPS = Object.freeze({
   palmo: Object.freeze({
     name: 'Presa nel palmo',
-    text: 'Presa nel palmo: <b>appoggia il telefono nel palmo</b>, con lo <b>schermo verso di te</b>. Le dita avvolgono la parte bassa e il pollice resta sul bordo, lontano dallo schermo. La <b>cima è inclinata in avanti</b>, verso lo schermo, e un poco verso l’interno. Calibra e gioca con la stessa presa.',
+    text: 'Presa nel palmo: <b>appoggia il telefono nel palmo</b>, <b>schermo verso di te</b>. Dita attorno alla parte bassa, pollice sul bordo. <b>Cima inclinata in avanti</b>, verso lo schermo. Stessa presa per calibrare e giocare.',
     short: 'Nel palmo, schermo verso di te, cima in avanti',
     aria: 'Presa nel palmo: il telefono appoggiato nel palmo con lo schermo verso chi gioca, le dita attorno alla parte bassa, il pollice sul bordo, la cima inclinata in avanti verso lo schermo e un poco verso l’interno.',
     views: [[palmSide, 'DI LATO', 'cima in avanti'], [palmFront, 'DI FRONTE', 'schermo verso di te']],
     photo: { file: 'presa-palmo-schermo.webp', alt: 'Presa nel palmo: il telefono appoggiato nel palmo con lo schermo verso chi gioca, le dita attorno alla parte bassa, il pollice sul bordo, la cima inclinata in avanti' },
     ui: {
       connectTitle: 'Tieni il telefono nel palmo',
-      connectHint: 'Schermo verso di te, le dita attorno alla parte bassa e il pollice sul bordo; la cima inclinata in avanti, verso lo schermo. Si parte da soli.',
-      split: 'Presa nel palmo: lo schermo verso di te, le dita attorno alla parte bassa, il pollice sul bordo, la cima inclinata in avanti verso lo schermo.',
-      still: 'Nel palmo, lo schermo verso di te e la cima in avanti: misuro i sensori',
-      stillMoved: 'Si è mosso: tienilo fermo ancora un attimo, nel palmo come in partita',
-      lessonGrip: 'Appoggia il telefono nel palmo con lo schermo verso di te: le dita avvolgono la parte bassa, il pollice resta sul bordo. La cima punta in avanti, verso lo schermo, e un poco verso l’interno.',
-      lessonHand: 'Lo schermo guarda verso di te, inclinato in avanti. Il polso resta libero: il gioco segue anche le sue rotazioni. Con quale mano giochi?',
+      connectHint: 'Schermo verso di te, cima inclinata in avanti. Poi si va in campo da soli.',
+      split: 'Presa nel palmo: schermo verso di te, cima inclinata in avanti.',
+      still: 'Fermo nel palmo, schermo verso di te: misuro i sensori',
+      stillMoved: 'Si è mosso: fermo ancora un attimo',
+      lessonGrip: 'Appoggia il telefono nel palmo, schermo verso di te, cima inclinata in avanti.',
+      lessonHand: 'Schermo verso di te, polso libero. Con quale mano giochi?',
     },
   }),
   martello: Object.freeze({

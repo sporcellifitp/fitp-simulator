@@ -13,7 +13,10 @@ try {
  await d.waitForFunction(()=>window.__racchetta);await d.click('#btnCpu');await d.waitForFunction(()=>document.querySelector('#qr').dataset.url);
  const P=await page(B,await d.evaluate(()=>document.querySelector('#qr').dataset.url),{w:390,h:844,mobile:true,init:motion});opened.push(P);const p=P.p;
  await p.waitForFunction(()=>window.__racchetta?.state.linkState==='on');
- await p.selectOption('#motionRange','compact');await p.selectOption('#hand','left');await p.click('#enable');
+ // (B15) movimento in «Opzioni», chiuse; la mano con i pulsanti Destra/Sinistra sopra «Attiva i sensori»
+ await p.click('#moreOpts summary');await p.selectOption('#motionRange','compact');await p.click('#profileOptions [data-hand="left"]');
+ check('mano scelta con il pulsante «Sinistra»',await p.evaluate(()=>document.querySelector('#hand').value==='left'&&document.querySelector('#profileOptions [data-hand="left"]').classList.contains('on')));
+ await p.click('#enable');
  await p.waitForFunction(()=>__racchetta.state.sensor==='denied');
  check('denied sensor permission leaves the touch alternative available',await p.locator('#enableTouch').isVisible());
  await p.evaluate(()=>{DeviceMotionEvent.requestPermission=async()=> 'granted';});await p.click('#enable');

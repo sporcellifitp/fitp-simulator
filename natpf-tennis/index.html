@@ -191,7 +191,7 @@
       <form class="natpf-sheet nick-sheet" id="nick-form" autocomplete="off">
         <p class="sheet-kicker">Classifica del giorno</p>
         <h2 class="sheet-title" id="nick-title">Il tuo nickname</h2>
-        <p class="sheet-desc">Compare in classifica e sul maxischermo. Nient’altro: niente email, niente dati personali.</p>
+        <p class="sheet-desc">Solo per la classifica: niente email, niente dati personali.</p>
         <input id="nick-input" class="nick-input" maxlength="14" spellcheck="false" placeholder="Es. Ace99" />
         <p class="natpf-warn hidden" id="nick-warn"></p>
         <div class="sheet-actions"><button type="button" class="lobby-ghost" id="nick-cancel">Indietro</button><button type="submit" class="lobby-primary">Avanti ›</button></div>
@@ -249,52 +249,53 @@
              stato del Player 2), src/natpf/natpf_ui.js e natpf_lobby.js -->
         <div id="natpf-invite" class="natpf-invite hidden" aria-live="polite"></div>
         <!-- menu principale: un pannello al centro come nei giochi da console dei primi anni 2000 (voce principale grande,
-             due modalità, tre voci di servizio in fila; descrizione della voce scelta sotto, tasti in basso) -->
+             due modalità, due voci di servizio in fila; descrizione della voce scelta sotto, tasti in basso). La guida ha
+             una voce sola, «Come si gioca» in alto a destra (in ogni pagina, tasto H): fino al B15 c'era anche «Guida» qui,
+             che apriva la stessa finestra con un altro nome -->
         <section class="lobby-page" data-page="menu" aria-labelledby="lobby-t-menu">
           <div class="menu-layout">
             <div class="menu-hero">
               <h1 class="menu-brand"><b>NATPF</b><i>Simulator</i></h1>
               <p class="menu-kicker">Tennis 3D · il telefono è la racchetta</p>
               <h2 class="menu-hero-title" id="lobby-t-menu" aria-live="polite">Gioca</h2>
-              <p class="menu-desc" id="menu-desc" aria-live="polite">Partita veloce in arena contro la CPU, oppure sfida un amico su un altro computer.</p>
+              <p class="menu-desc" id="menu-desc" aria-live="polite">Una partita contro la CPU, o contro un amico.</p>
               <div id="lobby-menu-result" class="lobby-result hidden" aria-live="polite"></div>
               <footer class="menu-partners" aria-label="Partner"><span>Un progetto</span><img src="./natpf/assets/brand/esports-fitp-neg.png" alt="Esports FITP" /><span>per le</span><img src="./natpf/assets/brand/nitto-atp-finals-white.png" alt="Nitto ATP Finals" /></footer>
             </div>
             <nav class="main-menu" aria-label="Menu principale">
-              <button type="button" class="menu-item menu-primary" data-menu="play" data-title="Gioca" data-desc="Partita veloce in arena contro la CPU, oppure sfida un amico su un altro computer."><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" /><path d="M11 18c8 3 18 3 26 0M11 30c8-3 18-3 26 0" /></svg><span class="mi-text"><b>Gioca</b><span>CPU · Sfida un amico</span></span><i class="mi-go" aria-hidden="true">›</i></button>
-              <button type="button" class="menu-item" data-menu="training" data-title="Allenamento" data-desc="Il tutorial completo: come tenere il telefono, calibrazione e tutti i colpi, con il gesto da copiare."><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="16" y="6" width="16" height="30" rx="4" /><path d="M20 30h8M14 40h20" /></svg><span class="mi-text"><b>Allenamento</b><span>Tutorial e colpi</span></span><i class="mi-go" aria-hidden="true">›</i></button>
-              <button type="button" class="menu-item" data-menu="challenges" data-title="Minigiochi" data-desc="Sfide arcade con bersagli, zone di precisione e combo: record personali, medaglie e classifica del giorno."><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="16" /><circle cx="24" cy="24" r="9" /><circle cx="24" cy="24" r="2.5" /></svg><span class="mi-text"><b>Minigiochi</b><span>Bersagli, precisione, combo</span></span><i class="mi-go" aria-hidden="true">›</i></button>
+              <button type="button" class="menu-item menu-primary" data-menu="play" data-title="Gioca" data-desc="Una partita contro la CPU, o contro un amico."><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" /><path d="M11 18c8 3 18 3 26 0M11 30c8-3 18-3 26 0" /></svg><span class="mi-text"><b>Gioca</b><span>CPU · Sfida un amico</span></span><i class="mi-go" aria-hidden="true">›</i></button>
+              <button type="button" class="menu-item" data-menu="training" data-title="Allenamento" data-desc="Impara la presa e tutti i colpi, con il gesto da copiare."><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="16" y="6" width="16" height="30" rx="4" /><path d="M20 30h8M14 40h20" /></svg><span class="mi-text"><b>Allenamento</b><span>Tutorial e colpi</span></span><i class="mi-go" aria-hidden="true">›</i></button>
+              <button type="button" class="menu-item" data-menu="challenges" data-title="Minigiochi" data-desc="Bersagli, precisione e combo: record, medaglie e classifica del giorno."><svg class="mi-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="16" /><circle cx="24" cy="24" r="9" /><circle cx="24" cy="24" r="2.5" /></svg><span class="mi-text"><b>Minigiochi</b><span>Bersagli, precisione, combo</span></span><i class="mi-go" aria-hidden="true">›</i></button>
               <div class="menu-row">
                 <button type="button" class="menu-item menu-small" data-menu="ranking" data-title="Classifica" data-desc="I migliori di oggi in ogni minigioco."><b>Classifica</b></button
-                ><button type="button" class="menu-item menu-small" data-menu="guide" data-title="Come si gioca" data-desc="La guida in breve: come tenere il telefono e come colpire."><b>Guida</b></button
-                ><button type="button" class="menu-item menu-small" data-menu="options" data-title="Opzioni" data-desc="Mano, visuale, volumi di musica, effetti e voci."><b>Opzioni</b></button>
+                ><button type="button" class="menu-item menu-small" data-menu="options" data-title="Opzioni" data-desc="Schermo, mano, visuale e audio."><b>Opzioni</b></button>
               </div>
             </nav>
           </div>
         </section>
 
         <section class="lobby-page" data-page="mode" aria-labelledby="lobby-t-mode">
-          <header class="page-head"><h2 class="lobby-title" id="lobby-t-mode">Scegli la modalità</h2><p class="lobby-sub">Da solo contro la CPU, contro un amico su un altro computer o sullo stesso schermo.</p></header>
+          <header class="page-head"><h2 class="lobby-title" id="lobby-t-mode">Con chi giochi?</h2></header>
           <div class="lobby-tiles mode-tiles" role="radiogroup">
             <button type="button" class="lobby-tile mode-tile" data-mode="cpu" role="radio">
               <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15" /><path d="M11 18c8 3 18 3 26 0M11 30c8-3 18-3 26 0" /></svg>
-              <span class="tile-name">Contro la CPU</span><span class="tile-desc">Una partita veloce in arena contro un avversario facile, esperto o Leggenda.</span>
-              <ul class="mode-facts"><li>1 giocatore · 1 computer</li><li>Racchetta: smartphone o webcam</li><li>Singolare 1v1 o doppio 2v2 con un compagno CPU</li></ul>
+              <span class="tile-name">Contro la CPU</span><span class="tile-desc">Da solo, contro un avversario facile, esperto o fortissimo.</span>
+              <ul class="mode-facts"><li>1 giocatore</li><li>Telefono o webcam</li></ul>
             </button
             ><button type="button" class="lobby-tile mode-tile" data-mode="friend" role="radio">
               <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="16" cy="16" r="6" /><circle cx="32" cy="16" r="6" /><path d="M6 38c1-8 6-12 10-12s9 4 10 12M22 38c1-8 6-12 10-12s9 4 10 12" /></svg>
-              <span class="tile-name">Sfida un amico</span><span class="tile-desc">1 contro 1 su due computer: tu da un lato del campo, l’amico dall’altro.</span>
-              <ul class="mode-facts"><li>2 giocatori · 2 computer in rete</li><li>Ognuno con il suo smartphone o la sua webcam</li><li>1v1, oppure 2v2 ognuno con un compagno CPU</li></ul>
+              <span class="tile-name">Sfida un amico</span><span class="tile-desc">Uno contro uno, ognuno sul suo computer.</span>
+              <ul class="mode-facts"><li>2 giocatori · 2 computer in rete</li><li>Ognuno con il suo telefono o la sua webcam</li></ul>
             </button
             ><button type="button" class="lobby-tile mode-tile" data-mode="split" role="radio">
               <svg class="tile-icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="10" width="38" height="24" rx="3" /><path d="M24 10v24M17 40h14M24 34v6" /><circle cx="14.5" cy="22" r="3" /><circle cx="33.5" cy="22" r="3" /></svg>
-              <span class="tile-name">Stesso schermo</span><span class="tile-desc">1 contro 1 su un solo computer: lo schermo si divide in due, ognuno gioca con il suo telefono.</span>
-              <ul class="mode-facts"><li>2 giocatori · 1 computer · 2 smartphone</li><li>Player 1 a sinistra, Player 2 a destra</li><li>Anche su ledwall 2×2 e 3×2 (Opzioni → Schermo)</li></ul>
+              <span class="tile-name">Stesso schermo</span><span class="tile-desc">Uno contro uno sullo stesso computer, lo schermo diviso in due.</span>
+              <ul class="mode-facts"><li>2 giocatori · 2 telefoni</li><li>Player 1 a sinistra, Player 2 a destra</li></ul>
             </button>
           </div>
           <!-- Player 2 con il codice dell'amico (dettato a voce o scritto): entra nella sua stanza senza il link -->
           <form class="lobby-join" id="join-form" autocomplete="off">
-            <label for="join-code">Ti hanno invitato? Scrivi il codice della stanza</label>
+            <label for="join-code">Hai un codice d’invito? Scrivilo qui</label>
             <input id="join-code" maxlength="8" placeholder="AT-K3ZQ" spellcheck="false" autocapitalize="characters" aria-describedby="join-warn" />
             <button type="submit" class="lobby-secondary">Entra ›</button>
             <small id="join-warn" class="natpf-warn hidden" role="alert"></small>
@@ -302,7 +303,7 @@
         </section>
 
         <section class="lobby-page" data-page="challenges" aria-labelledby="lobby-t-challenges">
-          <header class="page-head page-head-row"><div><h2 class="lobby-title" id="lobby-t-challenges">Minigiochi</h2><p class="lobby-sub">Record personali, medaglie e livello: ogni partita vale esperienza.</p></div><div class="arcade-progress" id="arcade-progress"></div></header>
+          <header class="page-head page-head-row"><div><h2 class="lobby-title" id="lobby-t-challenges">Minigiochi</h2><p class="lobby-sub">Record, medaglie e classifica del giorno.</p></div><div class="arcade-progress" id="arcade-progress"></div></header>
           <div class="lobby-tiles challenge-tiles" id="challenge-tiles" role="radiogroup"></div>
           <p class="lobby-note" id="challenge-nick-note"></p>
         </section>
@@ -388,11 +389,11 @@
           <div class="lobby-row">
             <span class="lobby-label">Telefono</span>
             <div class="lobby-seg">
-              <button type="button" class="seg-btn" data-option="specials">Dimentica pallonetto e palla corta imparati</button
+              <button type="button" class="seg-btn" data-option="specials">Dimentica i colpi imparati</button
               ><button type="button" class="seg-btn" data-option="intro">Rivedi l’intro</button>
             </div>
           </div>
-          <p class="lobby-note" id="screen-note">Monitor, proiettore o ledwall: «Calibra lo schermo…» sceglie il formato e i bordi visibili, anche quando il processore LED prende solo un angolo dell’uscita del PC. Per un’area in pixel esatti aggiungi all’indirizzo <code>?area=x,y,larghezza,altezza</code>.</p>
+          <p class="lobby-note" id="screen-note">Monitor, proiettore o ledwall: «Calibra lo schermo…» regola formato e bordi visibili. Area in pixel esatti: <code>?area=x,y,larghezza,altezza</code> nell’indirizzo.</p>
           <!-- aggiornamenti del programma Windows (natpf_updates.js, 07/11): solo con window.natpfDesktop.updates, nel browser
                resta nascosta. Versione installata, ultima verifica, stato in parole, avanzamento e pulsanti -->
           <div id="natpf-updates-opt" class="upd-opt hidden">
@@ -410,7 +411,7 @@
         </section>
 
         <section class="lobby-page" data-page="controller" aria-labelledby="lobby-t-controller">
-          <header class="page-head"><h2 class="lobby-title" id="lobby-t-controller">Con cosa giochi?</h2><p class="lobby-sub">Il telefono diventa la racchetta. Senza telefono, la webcam segue la tua mano.</p></header>
+          <header class="page-head"><h2 class="lobby-title" id="lobby-t-controller">Con cosa giochi?</h2></header>
           <div class="lobby-tiles lobby-tiles-2" data-natpf-tiles="controller" role="radiogroup"></div>
           <div class="lobby-row">
             <span class="lobby-label">Giochi con la mano</span>
@@ -438,27 +439,26 @@
               </dialog>
             </div>
             <ol class="connect-steps">
-              <li data-connect="scan"><i aria-hidden="true"></i><div><b>Inquadra il QR</b><span>Apri la fotocamera del telefono e tocca il link che compare.</span></div></li>
-              <li data-connect="sensors"><i aria-hidden="true"></i><div><b>Tocca «Attiva i sensori»</b><span>Sul telefono. Su iPhone poi tocca «Consenti».</span></div></li>
-              <li data-connect="hold"><i aria-hidden="true"></i><div><b data-grip-text="connectTitle">Tieni il telefono nel palmo</b><span data-grip-text="connectHint">Schermo verso di te, le dita attorno alla parte bassa e il pollice sul bordo; la cima inclinata in avanti, verso lo schermo. Si parte da soli.</span></div>
+              <li data-connect="scan"><i aria-hidden="true"></i><div><b>Inquadra il QR</b><span>Con la fotocamera del telefono, poi tocca il link.</span></div></li>
+              <li data-connect="sensors"><i aria-hidden="true"></i><div><b>Tocca «Attiva i sensori»</b><span>Sul telefono; su iPhone poi «Consenti».</span></div></li>
+              <li data-connect="hold"><i aria-hidden="true"></i><div><b data-grip-text="connectTitle">Tieni il telefono nel palmo</b><span data-grip-text="connectHint">Schermo verso di te, cima inclinata in avanti. Poi si va in campo da soli.</span></div>
                 <img class="connect-grip connect-grip-photo" src="./media/presa-palmo-schermo.webp" alt="Presa nel palmo: il telefono appoggiato nel palmo con lo schermo verso chi gioca, le dita attorno alla parte bassa, il pollice sul bordo, la cima inclinata in avanti" /></li>
             </ol>
           </div>
           <!-- stesso schermo (split screen, natpf_split_ui.js): un telefono per giocatore, ognuno con il suo QR e la sua
                calibrazione guidata sul telefono; si va alla partita quando sono pronti tutti e due -->
           <div class="setup-panel split-setup" data-setup="split">
-            <div class="split-names"><label>Player 1 · sinistra <input class="split-name-input" data-split-name="p1" maxlength="24" placeholder="Player 1" autocomplete="off" spellcheck="false"></label><label>Player 2 · destra <input class="split-name-input" data-split-name="p2" maxlength="24" placeholder="Player 2" autocomplete="off" spellcheck="false"></label></div>
-            <div class="lobby-row split-input-row">
-              <span class="lobby-label">Si gioca con</span>
-              <div class="lobby-seg" role="radiogroup" aria-label="Si gioca con">
+            <!-- una riga sola: i due nomi e la scelta «Due telefoni / Una webcam per due» (B15: prima due righe, e a 1280×720
+                 la barra dell'avvio finiva sotto il piè di pagina) -->
+            <div class="split-names"><label>Player 1 · sinistra <input class="split-name-input" data-split-name="p1" maxlength="24" placeholder="Player 1" autocomplete="off" spellcheck="false"></label><label>Player 2 · destra <input class="split-name-input" data-split-name="p2" maxlength="24" placeholder="Player 2" autocomplete="off" spellcheck="false"></label
+              ><div class="lobby-seg split-input" role="radiogroup" aria-label="Si gioca con">
                 <button type="button" class="seg-btn" data-split-input="phones">Due telefoni</button
                 ><button type="button" class="seg-btn" data-split-input="webcam">Una webcam per due</button>
-              </div>
-            </div>
+              </div></div>
             <div class="split-cam">
               <div class="split-cam-view"><video id="split-webcam-video" autoplay playsinline muted></video><i class="split-cam-mid" aria-hidden="true"></i><span class="split-cam-tag p1">Player 1</span><span class="split-cam-tag p2">Player 2</span></div>
               <div class="split-cam-side">
-                <p class="split-cam-note" id="split-cam-note">In piedi uno accanto all'altro, a 2–3 m dalla webcam: Player 1 a sinistra, Player 2 a destra. Ognuno alzi la mano che colpisce; poi potete muovervi, anche oltre il centro: ognuno resta tracciato.</p>
+                <p class="split-cam-note" id="split-cam-note">Uno accanto all’altro, a 2–3 m dalla webcam: Player 1 a sinistra, Player 2 a destra. Alzate la mano che colpisce.</p>
                 <button type="button" class="lobby-primary" id="split-cam-go">Accendi la webcam</button>
               </div>
             </div>
@@ -487,17 +487,17 @@
             <!-- barra dell'avvio: chi manca; con tutti e due pronti il conto alla rovescia (poi si gioca da soli), «Aspetta» -->
             <div id="split-ready-bar" class="ready-bar" data-ready-bar="wait" aria-live="polite">
               <span class="ready-bar-count" data-ready-count aria-hidden="true"></span>
-              <p class="ready-bar-text"><b data-ready-bar-title>Si parte da soli quando tutti e due i giocatori sono pronti</b><span data-ready-bar-sub></span></p>
+              <p class="ready-bar-text"><b data-ready-bar-title>Si parte da soli quando siete pronti tutti e due</b><span data-ready-bar-sub></span></p>
               <button type="button" class="lobby-ghost hidden" data-split-hold>Aspetta</button
               ><button type="button" class="lobby-primary hidden" data-split-play>Gioca ›</button>
             </div>
-            <p class="split-grip"><span data-grip-text="split">Presa nel palmo: lo schermo verso di te, le dita attorno alla parte bassa, il pollice sul bordo, la cima inclinata in avanti verso lo schermo.</span> Ognuno segue i passi sul suo telefono.</p>
+            <p class="split-grip"><span data-grip-text="split">Presa nel palmo: schermo verso di te, cima inclinata in avanti.</span> Ognuno segue i passi sul suo telefono.</p>
           </div>
           <p id="connect-warn" class="natpf-warn hidden"></p>
           <div class="setup-panel" data-setup="webcam">
             <div class="setup-cam"><video id="setup-webcam-video" autoplay playsinline muted></video><span id="setup-cam-badge" class="setup-cam-badge">Webcam spenta</span></div>
             <div class="setup-side">
-              <div class="setup-status"><span class="setup-dot" id="setup-cam-dot"></span><span id="setup-cam-text">Mettiti a 1,5–2 m, mano ben visibile</span></div>
+              <div class="setup-status"><span class="setup-dot" id="setup-cam-dot"></span><span id="setup-cam-text">Mettiti a 1–2 m, mano ben visibile</span></div>
               <div class="lobby-row">
                 <span class="lobby-label">Movimento</span>
                 <div class="lobby-seg" role="radiogroup" aria-label="Movimento">
@@ -509,9 +509,9 @@
             </div>
           </div>
           <div class="setup-panel" data-setup="mouse">
-            <div class="setup-status"><span class="setup-dot ok"></span><span>Mouse e tastiera pronti: Spazio colpisce, ↑ lancia al servizio, Q/E mirano.</span></div>
+            <div class="setup-status"><span class="setup-dot ok"></span><span>Mouse e tastiera pronti: Spazio colpisce, ↑ lancia, Q/E mirano.</span></div>
           </div>
-          <button type="button" class="lobby-link" id="connect-other" data-switch-controller>Non hai il telefono a portata? Usa la webcam</button>
+          <button type="button" class="lobby-link" id="connect-other" data-switch-controller>Senza telefono? Usa la webcam</button>
         </section>
 
         <section class="lobby-page" data-page="match" aria-labelledby="lobby-t-match">
@@ -537,34 +537,40 @@
               <span class="tile-name">Sfida un amico</span><span class="tile-desc">1v1 su due computer</span>
             </button>
           </div>
-          <div class="lobby-row">
-            <span class="lobby-label">Formato</span>
-            <div class="lobby-seg" role="radiogroup" aria-label="Formato">
-              <button type="button" class="seg-btn" data-natpf-format="singles">Singolare 1v1</button
-              ><button type="button" class="seg-btn" data-natpf-format="doubles">Doppio 2v2</button>
+          <!-- una scelta in vista (il livello della CPU), il resto (formato, durata, chi batte, visuale) sotto «Altre
+               impostazioni», chiuso a ogni visita della pagina (B15, 08/11: prima cinque righe e 18 pulsanti prima di
+               «Gioca»). Il riassunto accanto dice che cosa è scelto; durata e visuale restano salvate -->
+          <button type="button" class="match-more-btn" id="match-more-btn" data-match-more aria-expanded="false" aria-controls="match-more"><b>Altre impostazioni</b><small id="match-more-sum"></small><i aria-hidden="true">›</i></button>
+          <div id="match-more" class="match-more hidden">
+            <div class="lobby-row">
+              <span class="lobby-label">Formato</span>
+              <div class="lobby-seg" role="radiogroup" aria-label="Formato">
+                <button type="button" class="seg-btn" data-natpf-format="singles">Singolare 1v1</button
+                ><button type="button" class="seg-btn" data-natpf-format="doubles">Doppio 2v2</button>
+              </div>
             </div>
-          </div>
-          <div class="lobby-row" id="match-length-section">
-            <span class="lobby-label">Durata</span>
-            <div class="lobby-seg" id="match-length-group">
-              <button type="button" class="nt-green-choice selected" data-games="1"><span class="choice-main">1 game</span></button
-              ><button type="button" class="nt-green-choice" data-games="3"><span class="choice-main">Al meglio di 3</span></button
-              ><button type="button" class="nt-green-choice" data-games="5"><span class="choice-main">Al meglio di 5</span></button>
+            <div class="lobby-row" id="match-length-section">
+              <span class="lobby-label">Durata</span>
+              <div class="lobby-seg" id="match-length-group">
+                <button type="button" class="nt-green-choice selected" data-games="1"><span class="choice-main">1 game</span></button
+                ><button type="button" class="nt-green-choice" data-games="3"><span class="choice-main">Al meglio di 3</span></button
+                ><button type="button" class="nt-green-choice" data-games="5"><span class="choice-main">Al meglio di 5</span></button>
+              </div>
             </div>
-          </div>
-          <div class="lobby-row" id="serve-first-section">
-            <span class="lobby-label">Batte per primo</span>
-            <div class="lobby-seg" role="radiogroup" aria-label="Batte per primo">
-              <button type="button" class="seg-btn" data-natpf-serve="player">Tu</button
-              ><button type="button" class="seg-btn" data-natpf-serve="opponent">CPU</button
-              ><button type="button" class="seg-btn" data-natpf-serve="random">Sorteggio</button>
+            <div class="lobby-row" id="serve-first-section">
+              <span class="lobby-label">Batte per primo</span>
+              <div class="lobby-seg" role="radiogroup" aria-label="Batte per primo">
+                <button type="button" class="seg-btn" data-natpf-serve="player">Tu</button
+                ><button type="button" class="seg-btn" data-natpf-serve="opponent">CPU</button
+                ><button type="button" class="seg-btn" data-natpf-serve="random">Sorteggio</button>
+              </div>
             </div>
-          </div>
-          <div class="lobby-row">
-            <span class="lobby-label">Visuale</span>
-            <div class="lobby-seg" role="radiogroup" aria-label="Visuale">
-              <button type="button" class="seg-btn" data-natpf-view="third">3ª persona</button
-              ><button type="button" class="seg-btn" data-natpf-view="first">1ª persona</button>
+            <div class="lobby-row">
+              <span class="lobby-label">Visuale</span>
+              <div class="lobby-seg" role="radiogroup" aria-label="Visuale">
+                <button type="button" class="seg-btn" data-natpf-view="third">3ª persona</button
+                ><button type="button" class="seg-btn" data-natpf-view="first">1ª persona</button>
+              </div>
             </div>
           </div>
           <div class="lobby-versus" aria-hidden="true">
@@ -603,7 +609,7 @@
           <h2 class="dialog-title">📱 Telefono come racchetta</h2>
           <span id="mp-active-status" class="mp-conn-tag">Scansiona il QR</span>
         </div>
-        <p class="dialog-desc">Inquadra il codice con la fotocamera del telefono</p>
+        <p class="dialog-desc">Inquadra il QR con la fotocamera del telefono</p>
         <div id="mp-card-p1" class="mp-clean-qr-wrap">
           <span id="mp-p1-status" class="hidden"></span
           ><img
@@ -708,7 +714,7 @@
       <div class="natpf-sheet natpf-guest-dialog">
         <p class="sheet-kicker">Sfida un amico · 1v1</p>
         <h2 class="sheet-title" id="natpf-guest-title">Sei il Player 2</h2>
-        <p class="sheet-desc">Scegli come colpire e da dove guardare il campo. Puoi cambiare in qualsiasi momento.</p>
+        <p class="sheet-desc">Scegli la racchetta e la visuale.</p>
         <div class="natpf-setup" data-natpf-setup></div>
         <div class="sheet-actions">
           <button type="button" class="lobby-ghost" data-open-onboarding>Come si gioca</button
@@ -722,11 +728,11 @@
       <div class="natpf-sheet natpf-guest-cam-dialog">
         <p class="sheet-kicker">Sfida un amico · webcam</p>
         <h2 class="sheet-title" id="natpf-guest-cam-title">Accendi la webcam</h2>
-        <p class="sheet-desc">Quando la webcam vede la mano che colpisce si va in campo: qualche palla con il lanciapalle, poi sei pronto.</p>
+        <p class="sheet-desc">Quando la webcam vede la tua mano si va in campo: qualche palla di prova, poi sei pronto.</p>
         <div class="setup-panel guest-cam-panel">
           <div class="setup-cam"><video id="guest-cam-video" autoplay playsinline muted></video><span id="guest-cam-badge" class="setup-cam-badge">Webcam spenta</span></div>
           <div class="setup-side">
-            <div class="setup-status"><span class="setup-dot" id="guest-cam-dot"></span><span id="guest-cam-text">Mettiti a 1–2 m: mano, polso e avambraccio ben visibili</span></div>
+            <div class="setup-status"><span class="setup-dot" id="guest-cam-dot"></span><span id="guest-cam-text">Mettiti a 1–2 m, mano ben visibile</span></div>
             <div class="lobby-row">
               <span class="lobby-label">Movimento</span>
               <div class="lobby-seg" role="radiogroup" aria-label="Movimento">
@@ -859,7 +865,7 @@
       <div class="cal-panel">
         <p class="cal-kicker">Opzioni · Schermo</p>
         <h2 class="cal-title" id="cal-title">Calibra lo schermo</h2>
-        <p class="cal-help">Regola finché le frecce toccano i bordi visibili dello schermo. Il cerchio deve essere rotondo: se è ovale, il monitor o il processore LED stirano l’immagine.</p>
+        <p class="cal-help">Regola finché le frecce toccano i bordi visibili. Il cerchio deve essere rotondo: se è ovale l’immagine è stirata.</p>
         <div class="cal-row">
           <span class="cal-label">Formato</span>
           <div class="cal-seg" role="radiogroup" aria-label="Formato">

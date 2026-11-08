@@ -3,12 +3,13 @@
 //                   │                   (stesso schermo: modalità → i due telefoni → partita, natpf_split_ui.js)
 //                   │                   mano) → collega (QR e tre passi sul telefono, o la webcam) → riscaldamento in
 //                   │                   campo (calibrazione + lanciapalle, natpf_training.js, saltabile) → partita
-//                   │                   (livello o invito dell'amico, durata, visuale) → «Gioca»: passaggio al campo
+//                   │                   (livello in vista; formato, durata, chi batte e visuale sotto «Altre
+//                   │                   impostazioni», B15) → «Gioca»: passaggio al campo
 //                   ├ Sfide ─────────→ sfida → nickname → racchetta → collega → (calibrazione) → sfida in campo →
 //                   │                   risultato con la posizione in classifica (natpf_events.js)
 //                   ├ Classifica del giorno
 //                   ├ Allenamento ───→ racchetta → collega → campo d'allenamento → di nuovo al menu con il risultato
-//                   ├ Come si gioca → guida con le clip (natpf_onboarding.js)
+//                   ├ (Come si gioca: in alto a destra in ogni pagina e tasto H → guida, natpf_onboarding.js)
 //                   └ Opzioni ───────→ mano, visuale, musica, voce, colpi imparati, intro
 // Un pulsante grande per pagina, «Indietro» sempre visibile, frecce + Invio + Esc come con un joypad.
 // Appena il telefono ha i sensori attivi si entra in campo da soli; con la webcam appena si vede la mano.
@@ -90,6 +91,12 @@ export function nearestTile(tiles, from, code, rect = el => el.getBoundingClient
   }
   return best;
 }
+// Pagina «Partita»: riassunto delle impostazioni chiuse sotto «Altre impostazioni» (B15): durata, formato (non nello stesso
+// schermo, che è solo singolare) e visuale
+export function matchSummary({ games = 1, format = 'singles', view = 'third', split = false } = {}){
+  const n = parseInt(games, 10) || 1;
+  return [n > 1 ? `Al meglio di ${n}` : '1 game', split ? null : format === 'doubles' ? 'doppio' : 'singolare', view === 'first' ? '1ª persona' : '3ª persona'].filter(Boolean).join(' · ');
+}
 // Riconosce la parola dell'easter egg tra i tasti digitati
 export function eggTyped(buffer, key){ const next = (buffer + String(key || '').toLowerCase()).slice(-EGG_WORD.length); return { buffer: next, hit: next === EGG_WORD }; }
 
@@ -114,6 +121,8 @@ export class NatpfLobby {
       const ch = e.target.closest('[data-challenge]'); if (ch){ e.stopPropagation(); this.pickChallenge(ch.dataset.challenge); return; }
       const tab = e.target.closest('[data-ranking]'); if (tab){ e.stopPropagation(); this.rankingTab = tab.dataset.ranking; this._paintRanking(); return; }
       const r = e.target.closest('[data-result]'); if (r){ e.stopPropagation(); this._resultAction(r.dataset.result); return; }
+      // pagina «Partita»: «Altre impostazioni» apre e chiude formato, durata, chi batte e visuale
+      const more = e.target.closest('[data-match-more]'); if (more){ e.stopPropagation(); this.matchMore = !this.matchMore; this.paint(); return; }
       // scegliere la racchetta è già andare avanti
       const c = e.target.closest('[data-natpf-controller]'); if (c && this.step === 'controller') setTimeout(() => this.go('connect'), 160);
     });
@@ -171,6 +180,7 @@ export class NatpfLobby {
     if (item === 'challenges'){ this.go('challenges'); return; }
     if (item === 'ranking'){ this.go('ranking'); return; }
     if (item === 'training'){ this.setMode('training'); this.go('controller'); return; }
+    // (la voce «Guida» del menu non c'è più dal B15: la guida si apre con «Come si gioca» in alto o con H)
     if (item === 'guide'){ this.onboarding.open(); return; }
     if (item === 'options') this.go('options');
   }
@@ -202,7 +212,7 @@ export class NatpfLobby {
     if (tile){
       const n = tile.querySelector('.tile-name'), d = tile.querySelector('.tile-desc');
       if (n) n.textContent = mode === 'split' ? 'Stesso schermo' : 'Sfida un amico';
-      if (d) d.textContent = mode === 'split' ? '1v1 su un computer, due telefoni o una webcam' : '1v1 su due computer';
+      if (d) d.textContent = mode === 'split' ? 'Uno contro uno sullo stesso computer' : 'Uno contro uno su due computer';
     }
     this.paint();
   }
@@ -251,7 +261,7 @@ export class NatpfLobby {
     const L = ev.level || { level: 1, into: 0, next: 500 }, mc = medalCount(ev.records || {});
     const head = $('arcade-progress');
     if (head) head.innerHTML = `<span class="ap-level"><b>Livello ${L.level}</b><i style="--p:${Math.round(100*L.into/L.next)}%"></i><small>${L.into}/${L.next} XP</small></span><span class="ap-medals"><i data-medal="gold">${mc.gold}</i><i data-medal="silver">${mc.silver}</i><i data-medal="bronze">${mc.bronze}</i></span>`;
-    const note = $('challenge-nick-note'); if (note) note.textContent = ev.nickname ? `Giochi come ${ev.nickname}` : 'Prima del minigioco ti chiediamo solo un nickname per la classifica.';
+    const note = $('challenge-nick-note'); if (note) note.textContent = ev.nickname ? `Giochi come ${ev.nickname}` : 'Serve solo un nickname per la classifica.';
   }
   _paintRanking(){
     const tabs = $('ranking-tabs'), list = $('ranking-list'); if (!tabs || !list) return;
@@ -344,6 +354,8 @@ export class NatpfLobby {
     // from: la pagina da cui si arriva, pageN: numero della visita (natpf_split_ui: tornando con «‹ Indietro» da «Partita»
     // il conto non riparte da solo)
     if (this.step !== step){ this.from = this.step; this.pageN = (this.pageN || 0) + 1; }
+    // «Altre impostazioni» chiuse a ogni visita della pagina «Partita» (chi arriva vede solo il livello e «Gioca»)
+    if (this.step !== step && step === 'match') this.matchMore = false;
     if (this.step === 'connect' && step !== 'connect') this.releaseTutorial();
     this.step = step; this.el.dataset.step = step; this.el.dataset.flow = this.mode;
     for (const p of this.el.querySelectorAll('[data-page]')) p.classList.toggle('on', p.dataset.page === step);
@@ -359,7 +371,9 @@ export class NatpfLobby {
       if (this.ui.controller === 'webcam' && !this.engine.motionController?.webcamActive) this.ui.startWebcam().then(() => this.paint());
     }
     this.paint();
-    requestAnimationFrame(() => (this._tiles().find(t => t.classList.contains('selected')) || this._tiles()[0] || this._primary())?.focus({ preventScroll: true }));
+    // fuoco sulla scelta fatta o sulla prima voce; nella pagina «Partita» senza tessere (amico, stesso schermo) su «Gioca»,
+    // non su «Altre impostazioni» (Invio lì le aprirebbe invece di giocare)
+    requestAnimationFrame(() => { const tiles = this._tiles(); (tiles.find(t => t.classList.contains('selected')) || (step === 'match' ? null : tiles[0]) || this._primary())?.focus({ preventScroll: true }); });
   }
   _primary(){ return this.step === 'match' ? $('btn-start-match') : $('lobby-next'); }
   // Tutorial da vedere (Allenamento, partita contro la CPU, sfida: dopo «Collega» si entra in campo e la modale del tutorial
@@ -400,12 +414,13 @@ export class NatpfLobby {
     // collega: pannello del controller scelto (stesso schermo: i due telefoni)
     for (const p of this.el.querySelectorAll('[data-setup]')) show(p, p.dataset.setup === (split ? 'split' : st.controller));
     const other = $('connect-other');
-    if (other){ show(other, st.controller !== 'mouse' && !split); other.textContent = st.controller === 'phone' ? 'Non hai il telefono a portata? Usa la webcam' : 'Preferisci il telefono? Usa lo smartphone'; }
+    if (other){ show(other, st.controller !== 'mouse' && !split); other.textContent = st.controller === 'phone' ? 'Senza telefono? Usa la webcam' : 'Hai il telefono? Usalo come racchetta'; }
     $('lobby-t-connect').textContent = split ? (this.ui.split?.webcam ? 'Una webcam per due' : 'Collega i due telefoni') : st.controller === 'phone' ? 'Collega il telefono' : st.controller === 'webcam' ? 'Accendi la webcam' : 'Mouse e tastiera';
     $('lobby-t-match').textContent = split ? 'Stesso schermo' : this.mode === 'friend' ? 'Sfida un amico' : 'Pronto per la partita';
     if (this.step === 'connect' && split) this.ui.split?.paint();
     else if (this.step === 'connect' && st.controller === 'phone') this.ui.paintConnect();
     if (this.step === 'options') this._paintOptions();
+    if (match) this._paintMatchMore(split);
     // aggiornamento del programma Windows: avviso sotto la pagina (solo nel menu principale) e Opzioni
     this.ui.updates?.paint();
     this.ui.paintWebcamSetup?.();
@@ -418,13 +433,24 @@ export class NatpfLobby {
     else if (sb && this.mode !== 'friend' && sb.classList.contains('is-wait')){ sb.classList.remove('is-wait'); sb.disabled = false; }
     const note = $('lobby-match-note');
     const names = this.engine.natpfSplitNames || {}, n1 = names.p1 || 'Player 1', n2 = names.p2 || 'Player 2';
-    if (note) note.textContent = split ? (st.splitReady ? `${n1} a sinistra, ${n2} a destra. Ognuno guarda la sua metà.` : `${gate?.waiting?.length ? waitingText(gate.waiting) + ': ' : ''}${this.ui.split?.webcam ? 'la webcam deve vedere tutti e due' : 'servono i due telefoni pronti'}, torna a «Racchette».`) : st.controller === 'phone' && !st.phoneReady ? 'Il telefono va ricollegato: premendo «Gioca» compare il QR.' : '';
+    if (note) note.textContent = split ? (st.splitReady ? `${n1} a sinistra, ${n2} a destra. Ognuno guarda la sua metà.` : `${gate?.waiting?.length ? waitingText(gate.waiting) + ': ' : ''}${this.ui.split?.webcam ? 'la webcam deve vedere tutti e due' : 'servono i due telefoni pronti'}, torna a «Racchette».`) : st.controller === 'phone' && !st.phoneReady ? 'Telefono da ricollegare: con «Gioca» compare il QR.' : '';
     // telefono con i sensori attivi o mano vista dalla webcam: si entra in campo da soli, ma non con la guida aperta (prima
     // il riscaldamento partiva sotto la guida e il suo «Prova» lo faceva ripartire come allenamento)
     if (this.visible && autoAdvance(this.step, st) && this.autoFrom !== this.step && !this.onboarding.isOpen){
       this.autoFrom = this.step;
       setTimeout(() => { if (this.visible && this.step === 'connect' && !this.onboarding.isOpen) this.go(split ? 'match' : 'warmup'); else this.autoFrom = null; }, 700);
     }
+  }
+  // «Altre impostazioni» della pagina «Partita»: aperte o chiuse, e il riassunto di che cosa c'è dentro
+  _paintMatchMore(split){
+    const btn = $('match-more-btn'), box = $('match-more'), sum = $('match-more-sum');
+    const open = !!this.matchMore;
+    show(box, open);
+    if (btn && btn.getAttribute('aria-expanded') !== String(open)) btn.setAttribute('aria-expanded', String(open));
+    const games = document.querySelector('#match-length-group .selected')?.dataset?.games;
+    const view = this.el.querySelector('[data-page="match"] [data-natpf-view].selected')?.dataset?.natpfView;
+    const t = matchSummary({ games, format: this.format, view, split });
+    if (sum && sum.textContent !== t) sum.textContent = t;
   }
   // Sfida un amico (host): la barra dell'invito (codice, link, stato del Player 2) resta in vista dalla racchetta alla
   // partita, così il link parte subito e l'amico entra mentre ci si prepara. Finché la stanza non c'è, «Creo la
@@ -473,7 +499,7 @@ export class NatpfLobby {
   _tiles(){
     const page = `[data-page="${this.step}"]`;
     // più i pulsanti dell'avviso di aggiornamento (natpf_updates.js), in fondo: frecce e Invio arrivano anche lì
-    return [...this.el.querySelectorAll(`${page} .lobby-tile, ${page} .menu-item, ${page} .seg-btn, ${page} [data-result]`), ...(this.ui.updates?.noticeButtons?.() || [])].filter(t => !t.classList.contains('hidden') && t.offsetParent !== null);
+    return [...this.el.querySelectorAll(`${page} .lobby-tile, ${page} .menu-item, ${page} [data-match-more], ${page} .seg-btn, ${page} [data-result]`), ...(this.ui.updates?.noticeButtons?.() || [])].filter(t => !t.classList.contains('hidden') && t.offsetParent !== null);
   }
   _key(e){
     if (this.ui.intro?.active) return;
@@ -511,7 +537,10 @@ export class NatpfLobby {
       t.focus(); if (this.step === 'match' && t.classList.contains('lobby-tile')) t.click();
     } else if (e.code === 'Enter'){
       e.preventDefault();
-      if (i >= 0 && ['menu', 'mode', 'controller', 'options', 'challenges', 'ranking', 'result'].includes(this.step)) tiles[i].click(); else this.next();
+      if (i >= 0 && ['menu', 'mode', 'controller', 'options', 'challenges', 'ranking', 'result'].includes(this.step)) tiles[i].click();
+      // pagina «Partita»: Invio su «Altre impostazioni» le apre o le chiude; altrove si gioca
+      else if (i >= 0 && this.step === 'match' && tiles[i].matches('[data-match-more]')) tiles[i].click();
+      else this.next();
     }
     // Esc tenuto premuto (per uscire dallo schermo intero del browser) ripete il tasto: indietro di una pagina sola
     else if (e.code === 'Escape' || e.code === 'Backspace'){ e.preventDefault(); if (!(e.repeat && e.code === 'Escape')) this.back(); }
@@ -553,7 +582,7 @@ export class NatpfLobby {
     // calibrazione prima di una sfida (anche saltata: modalità semplice) → la sfida
     if (this.mode === 'challenge'){ this.ui.events.start(this.challenge); return; }
     if (completed) this.trainingDone = true;
-    const text = skipped ? `<b>${this.mode === 'training' ? 'Allenamento interrotto' : 'Riscaldamento saltato'}</b><span>${this.ui.phone.simple ? 'Senza calibrazione: il gesto vale lo stesso, la forza non è tarata sul tuo colpo.' : 'Lo puoi rifare quando vuoi.'}</span>`
+    const text = skipped ? `<b>${this.mode === 'training' ? 'Allenamento interrotto' : 'Riscaldamento saltato'}</b><span>${this.ui.phone.simple ? 'Senza calibrazione: si gioca lo stesso, la forza non è tarata.' : 'Lo puoi rifare quando vuoi.'}</span>`
       : `<b>${completed ? (this.mode === 'training' ? 'Allenamento completato ✓' : 'Riscaldamento completato ✓') : 'Interrotto'}</b><span>${stats.shots} colpi · ${stats.perfect} perfetti${stats.out ? ` · ${stats.out} fuori` : ''}</span>`;
     // allenamento dal menu: si torna al menu con il risultato; riscaldamento prima della partita: si va alla partita
     if (this.mode === 'training'){

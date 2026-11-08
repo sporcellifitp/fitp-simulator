@@ -4,7 +4,7 @@
 // node --import ./test/register.mjs --test test/*.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeWorld, $, fetches, visible } from './ui-world.mjs';
+import { makeWorld, $, fetches, visible, El, mkEvent } from './ui-world.mjs';
 import { QUICK_PLAN } from '@natpf/tennis/calibration.js';
 
 // calibrazione del telefono: i gesti del percorso rapido e verifica superata (eventi come quelli del telefono vero)
@@ -482,4 +482,21 @@ test('fine partita, «Gioca ancora»: si torna alla pagina «Partita» con le im
   assert.ok(lobby.visible, 'menu aperto'); assert.equal(lobby.step, 'match');
   assert.ok(!visible('victory-modal'));
   assert.equal(E.autoPlayMode, true, 'la partita dietro al menu è quella dimostrativa');
+});
+
+test('Partita (B15): una scelta in vista; «Altre impostazioni» apre formato, durata, chi batte e visuale e si richiude a ogni visita', async () => {
+  const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
+  const { lobby } = w;
+  const toggle = () => { const t = new El('match-more-btn'); t.matches = sel => sel === '[data-match-more]'; t.closest = sel => (sel === '[data-match-more]' ? t : null); for (const l of lobby.el.ls.click) l.fn(mkEvent('click', t)); };
+  lobby.menu('play'); lobby.setMode('cpu'); lobby.go('match');
+  assert.equal(visible('match-more'), false, 'chiuse quando si arriva nella pagina');
+  assert.equal($('match-more-sum').textContent, '1 game · singolare · 3ª persona', 'il riassunto dice che cosa è scelto');
+  toggle(); assert.equal(visible('match-more'), true, 'un tocco le apre: nessuna impostazione persa');
+  toggle(); assert.equal(visible('match-more'), false, 'un altro le chiude');
+  toggle(); lobby.go('connect'); lobby.go('match');
+  assert.equal(visible('match-more'), false, 'tornando nella pagina sono di nuovo chiuse');
+  lobby.setFormat('doubles'); lobby.paint(); assert.match($('match-more-sum').textContent, /doppio/);
+  lobby.setFormat('singles');
+  // stesso schermo: solo singolare, il formato non compare nel riassunto
+  lobby.setMode('split'); lobby.go('match'); assert.equal($('match-more-sum').textContent, '1 game · 3ª persona');
 });

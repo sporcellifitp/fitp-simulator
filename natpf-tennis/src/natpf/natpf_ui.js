@@ -21,7 +21,7 @@ import { NatpfEvents } from './natpf_events.js';
 import { NatpfKiosk } from './natpf_kiosk.js';
 import { phoneHealthOf, createPhoneWatch, createResync, phoneHoldText } from './natpf_phone_watch.js';
 import { webcamHealth, createWebcamWatch, webcamHoldText, webcamOpenError } from './natpf_webcam_watch.js';
-import { gripSvg, GRIP_TEXT_PLAIN, GRIP } from '@natpf/tennis/grip-art.js';
+import { gripSvg, GRIP } from '@natpf/tennis/grip-art.js';
 import { PHOTOS } from './natpf_media.js';
 import { p2pStatusText, P2P_NET_HINT } from './natpf_versus.js';
 import { NatpfSplitUi } from './natpf_split_ui.js';
@@ -46,14 +46,14 @@ const WEBCAM_PANELS = [
   { video: 'guest-cam-video', dot: 'guest-cam-dot', text: 'guest-cam-text', badge: 'guest-cam-badge', go: 'guest-cam-go' },
 ];
 const PHONE_ERR = {
-  denied: 'Sul telefono è stato negato l’accesso ai sensori di movimento. Su iPhone ricarica la pagina del telefono e tocca «Consenti»; su Android consenti «Sensori di movimento» dal lucchetto nella barra degli indirizzi.',
-  nomotion: 'Il browser del telefono non manda i dati dei sensori di movimento. Usa Chrome su Android o Safari su iPhone e inquadra di nuovo il QR.',
+  denied: 'Sensori negati sul telefono. Su iPhone ricarica la pagina e tocca «Consenti»; su Android consenti i sensori dal lucchetto nella barra degli indirizzi.',
+  nomotion: 'Il browser del telefono non dà i sensori. Usa Chrome (Android) o Safari (iPhone) e inquadra di nuovo il QR.',
   insecure: 'Il telefono ha aperto la pagina senza https e il browser non dà i sensori. Apri il gioco in https (npm run dev:https in LAN, oppure l’indirizzo pubblicato) e inquadra di nuovo il QR.',
 };
 const REVIEW_FAIL = {
-  servizio: 'Non è stato registrato alcun gesto di servizio. Ripeti senza forzare il movimento oppure scegli i tocchi sul telefono.',
-  piccolo: 'Non riesco a distinguere questi gesti dal rumore. Sul telefono scegli movimento compatto o il controllo con i tocchi.',
-  squilibrio: 'Un gesto è stato molto più debole dell’altro: era un movimento piccolo, non un colpo. Rifai i due gesti con la stessa decisione, come colpi veri.',
+  servizio: 'Nessun gesto di servizio letto. Ripeti senza forzare, o scegli i tocchi sul telefono.',
+  piccolo: 'Gesti troppo piccoli. Più ampi e decisi, oppure sul telefono scegli i tocchi.',
+  squilibrio: 'Un gesto era molto più debole dell’altro. Rifai i due con la stessa forza, come colpi veri.',
 };
 
 export class NatpfUi {
@@ -258,8 +258,8 @@ export class NatpfUi {
     const seen = swing ? 'Colpo visto' : wrist ? 'Braccio visto' : 'Mano vista';
     if (dot) dot.className = 'setup-dot ' + (hand ? 'ok' : on ? 'mid' : err ? 'ko' : '');
     if (txt) txt.textContent = hand ? `${seen} ✓ sei pronto` : err ? err.text
-      : on ? (body ? 'Mostra spalle e braccio che colpisce, con luce davanti' : 'Mostra la mano che colpisce, con polso e avambraccio, con luce davanti')
-      : body ? 'Mettiti a circa 2 m: spalle e braccio interi nell’inquadratura' : 'Mettiti tra 1 e 4 m: mano, polso e avambraccio ben visibili';
+      : on ? (body ? 'Mostra spalle e braccio che colpisce, con la luce davanti' : 'Mostra la mano che colpisce, con polso e avambraccio, con la luce davanti')
+      : body ? 'Mettiti a circa 2 m: spalle e braccio nell’inquadratura' : 'Mettiti tra 1 e 4 m: mano, polso e avambraccio ben visibili';
     if (badge){ badge.textContent = on ? (hand ? seen : 'Cerco la mano…') : err ? err.badge : 'Webcam spenta'; badge.classList.toggle('ok', hand); }
     show(go, !on);
     return { on, hand, err };
@@ -297,7 +297,7 @@ export class NatpfUi {
     const state = { scan: p.connected ? 'ok' : 'on', sensors: sensors ? 'ok' : err ? 'ko' : p.connected ? 'on' : '', hold: p.ready ? 'ok' : sensors ? 'on' : '' };
     for (const li of document.querySelectorAll('[data-connect]')) li.className = state[li.dataset.connect] || '';
     const w = $('connect-warn');
-    const text = err || (L.state === 'lost' ? 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo.' : L.state === 'error' ? `Connessione non disponibile (${L.error}). Controlla la rete e riprova.` : this._localWarning());
+    const text = err || (L.state === 'lost' ? 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo.' : L.state === 'error' ? `Collegamento non disponibile (${L.error}): controlla la rete e riprova.` : this._localWarning());
     if (w){ w.textContent = text; show(w, !!text); }
   }
   _localWarning(){
@@ -595,18 +595,18 @@ export class NatpfUi {
 
     let status = 'Preparo la connessione…', hint = '', tag = 'Scansiona il QR';
     if (L.state === 'waiting') status = 'Inquadra il codice con la fotocamera del telefono';
-    if (L.state === 'lost'){ status = L.vis === false ? 'Telefono scollegato con lo schermo spento: riaccendilo e torna alla pagina del gioco, si ricollega da solo' : 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo'; tag = 'Scollegato'; }
+    if (L.state === 'lost'){ status = L.vis === false ? 'Telefono scollegato con lo schermo spento: riaccendilo e torna alla pagina, si ricollega da solo' : 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo'; tag = 'Scollegato'; }
     if (L.state === 'error'){ status = `Connessione non disponibile (${L.error}). Riprova o verifica la connessione a internet.`; tag = 'Errore'; }
-    if (step === 'collega' && p.connected){ status = 'Telefono collegato: sul telefono tocca «Attiva i sensori»'; tag = 'Collegato'; }
-    if (step === 'impugna'){ status = cal.grip ? 'Presa letta ✓ resta così un attimo…' : GRIP_TEXT_PLAIN; hint = 'Presa comoda, senza stringere: va bene anche da seduti.'; tag = 'Impugnatura'; }
-    if (step === 'prova'){ status = 'Fai i gesti che chiede il telefono: un colpetto comodo verso sinistra o verso destra, poi fermati.'; hint = cal.idle ? 'Non sento movimenti: prova un gesto più deciso, oppure sul telefono scegli movimento compatto o i tocchi.' : 'Non serve conoscere il tennis: basta un gesto naturale.'; tag = 'Calibrazione'; }
+    if (step === 'collega' && p.connected){ status = 'Collegato: sul telefono tocca «Attiva i sensori»'; tag = 'Collegato'; }
+    if (step === 'impugna'){ status = cal.grip ? 'Presa letta ✓ resta così un attimo…' : `Tieni fermo il telefono. ${GRIP.short}.`; hint = 'Senza stringere: va bene anche da seduti.'; tag = 'Impugnatura'; }
+    if (step === 'prova'){ status = 'Fai i gesti che chiede il telefono: un colpetto a sinistra o a destra, poi fermati.'; hint = cal.idle ? 'Non sento movimenti: un gesto più deciso, oppure sul telefono scegli i tocchi.' : 'Basta un gesto naturale.'; tag = 'Calibrazione'; }
     if (step === 'verifica'){
       const r = cal.review;
-      if (r && !r.pass){ status = 'Calibrazione da rifare'; hint = REVIEW_FAIL[r.why] || 'Le due direzioni non si distinguono. Tieni il telefono sempre nello stesso modo e fai gli swing davvero da una parte all’altra.'; }
-      else { status = cal.freeOk ? 'Gesto letto ✓ ora conferma la racchetta' : 'Gesti riconosciuti! Prova un colpetto libero con il telefono…'; hint = 'Muovi normalmente per rispondere; accompagna verso l’alto per alzare la palla, un tocco corto e morbido per una palla corta.'; }
+      if (r && !r.pass){ status = 'Calibrazione da rifare'; hint = REVIEW_FAIL[r.why] || 'Non distinguo i due versi: tieni il telefono allo stesso modo e vai davvero da una parte all’altra.'; }
+      else { status = cal.freeOk ? 'Gesto letto ✓ ora conferma la racchetta' : 'Gesti riconosciuti! Prova un colpetto libero…'; hint = 'Verso l’alto alza la palla, un tocco corto e morbido la accorcia.'; }
       tag = 'Verifica';
     }
-    if (step === 'pronto'){ status = 'Racchetta pronta ✓'; hint = 'Colpisci quando la palla arriva alla racchetta: un attimo prima va incrociata, un attimo dopo lungolinea. Dal basso verso l’alto: lob; dall’alto verso il basso: tagliato. Al servizio: un gesto lancia la palla, il secondo la colpisce in alto.'; tag = `Pronto${L.rtt != null ? ` · ${L.rtt} ms` : ''}`; }
+    if (step === 'pronto'){ status = 'Racchetta pronta ✓'; hint = 'Colpisci quando la palla arriva alla racchetta. Un attimo prima: incrociata; un attimo dopo: lungolinea.'; tag = `Pronto${L.rtt != null ? ` · ${L.rtt} ms` : ''}`; }
     if (step === 'errore'){ status = 'Sensori non disponibili'; hint = PHONE_ERR[L.phone]; tag = 'Errore'; }
     $('natpf-phone-status').textContent = status; $('natpf-phone-hint').textContent = hint;
     const t = $('natpf-phone-tag'); t.textContent = tag; t.classList.toggle('online', step === 'pronto');

@@ -44,7 +44,7 @@ export function webcamOpenError(err){
 
 export function webcamHoldText(why){
   return {
-    'mano persa': 'Non vedo la mano che colpisce: inquadra mano, polso e avambraccio (o spalle e braccio, a circa 2 metri), con la luce davanti. Si riprende da solo.',
+    'mano persa': 'Non vedo la mano che colpisce: mostra mano, polso e avambraccio, con la luce davanti. Si riprende da solo.',
     'webcam ferma': 'La webcam non manda più immagini: controlla che nessun altro programma la stia usando. Si riprende da solo quando torna.',
     'webcam spenta': 'La webcam è spenta: riaccendila dal pannello della racchetta (Gioca → Racchetta → Webcam).',
   }[why] || 'Webcam in pausa.';

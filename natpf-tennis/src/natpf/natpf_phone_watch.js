@@ -116,12 +116,12 @@ export function createPhoneWatch({ steadyMs = WATCH.steadyMs, countdownMs = WATC
 // da solo quando torna, il QR serve solo se la pagina è stata chiusa
 export function holdText(why, { hiddenMs = null, wasHidden = false } = {}){
   const since = Number.isFinite(hiddenMs) && hiddenMs >= 1000 ? ` da ${Math.round(hiddenMs/1000)} s` : '';
-  if (why === 'pagina nascosta') return `Schermo del telefono spento o pagina del gioco non in primo piano${since}: riaccendi lo schermo (tasto laterale) e torna alla pagina, si riprende da solo. Sul telefono basta un tocco per riprendere.`;
-  if (why === 'scollegato' && wasHidden) return `Il telefono si è scollegato con lo schermo spento${since}: riaccendilo e torna alla pagina del gioco, si ricollega da solo. Se la pagina è stata chiusa, inquadra di nuovo il QR.`;
+  if (why === 'pagina nascosta') return `Schermo del telefono spento${since}: riaccendi lo schermo e tocca la pagina del gioco, si riprende da solo.`;
+  if (why === 'scollegato' && wasHidden) return `Telefono scollegato con lo schermo spento${since}: riaccendilo e torna alla pagina, si ricollega da solo. Pagina chiusa? Inquadra di nuovo il QR.`;
   return {
     scollegato: 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo.',
-    'non pronto': 'Il telefono non è pronto: guarda il telefono e finisci la calibrazione.',
-    'sensori fermi': 'Il telefono è collegato ma non manda il movimento: sul telefono tocca «Riattiva i sensori» (o riaccendi lo schermo e torna alla pagina del gioco).',
+    'non pronto': 'Telefono non pronto: finisci la calibrazione sul telefono.',
+    'sensori fermi': 'Il telefono non manda più il movimento: sul telefono tocca «Riattiva i sensori».',
   }[why] || 'Telefono in pausa.';
 }
 // testo della pausa per questo telefono adesso (da quanto è nascosto, se si è scollegato con lo schermo spento)

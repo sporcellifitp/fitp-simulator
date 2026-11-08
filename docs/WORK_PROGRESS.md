@@ -704,3 +704,71 @@ schermo, 1v1); per il destro non cambia niente. Inventario e prove in `docs/b15/
   con il computer carico da altre prove in parallelo, rifatto da solo); `natpf-split-ready` 34/34; `natpf-1v1-p2p` 39/39
   (due controlli nuovi della mano); `natpf-1v1-webcam-p2` 15/15 due volte (una volta 13/15 sotto carico; il codice di
   prima 15/15). Build di produzione ok.
+## B15-UX · Flusso dall'accesso alla partita: audit e testi semplici (richiesta dell'08/11) · [~] · 08/11/2026
+Obiettivo: rivedere il flusso intro → menu → modalità → racchetta → Collega → tutorial → calibrazione → partita (computer e
+telefono), togliere ridondanze e testi lunghi; cambiamenti solo sicuri (testi, una regola CSS), le modifiche di struttura
+restano proposte in `docs/b15/audit-ux.md` §4. Ramo di lavoro `b15-ux` (worktree), niente push da qui.
+- [x] B15-UX.1 · audit con screenshot (`docs/b15/audit-ux.md`): computer 1280×720 e 1920×1080, telefono simulato 390×844 e
+  412×915 per ogni schermata (QR, sensori, tutorial spento/acceso, calibrazione, pronto, servizio, pausa, velo, scollegato,
+  sensori negati, stesso schermo); parole visibili per schermata misurate con uno script (`innerText`); passi dall'apertura
+  alla prima palla: singolo 21, stesso schermo 29, 1v1 ≈ 35 (10 tocchi su 21 sono le schede del tutorial).
+  Difetti trovati: tessera Smartphone con la presa vecchia («come il manico»); telefono «Pronto» con due frasi uguali; la
+  riga della modale del tutorial ripetuta nel pannello in basso a sinistra; risultato dei minigiochi con i pulsanti sotto il
+  piè di pagina a 1280×720; «Guida» e «Come si gioca» per la stessa finestra.
+- [x] B15-UX.2 · testi brevi e coerenti (commit `40a910c`): `natpf-tennis/index.html` (menu, modalità senza sottotitolo e
+  con due righe per tessera, racchetta, Collega, Opzioni, minigiochi, nickname, stesso schermo, webcam per due, ospite,
+  calibra lo schermo), `src/natpf/natpf_tiles.js`, `natpf_lobby.js`, `natpf_tutorial.js` (scheda «posizione», riga in
+  fondo), `natpf_cal_view.js` (gesti e verifica), `natpf_training.js` (consigli degli esercizi, lezione webcam, pannello
+  sotto la modale senza la riga doppia), `natpf_onboarding.js` (6 schede della guida), `natpf_ui.js` (pannello del
+  telefono, errori dei sensori, webcam), `natpf_split_ui.js` (stati delle metà, barra dell'avvio), `natpf_phone_watch.js` e
+  `natpf_webcam_watch.js` (testi della pausa), `natpf-ui.css` (pannello nascosto sotto la modale; risultato compatto sotto
+  780 px di altezza), `site/js/tennis/grip-art.js` (testi della presa: Collega, stesso schermo, fermo, lezione),
+  `site/js/tennis/racchetta.js` e `racchetta.html` (schermate del telefono, consiglio dei colpi solo con i tocchi),
+  `site/js/tennis/phone-screen.js` (testi del tutorial sul telefono); `test/natpf-lobby.test.mjs` («Senza telefono» al posto
+  di «Niente da impugnare», stesso significato). Tenuti «polso e avambraccio» nei testi della webcam (requisito del modello,
+  verificato dai test).
+  Verifiche: `npm test` 894/894 · `node --test tools/test/*.test.mjs` 195/195 · `npm run build` ok · e2e `natpf-menu` 22/22,
+  `natpf-training-flow` 18/18, `natpf-tutorial-phone` 37/37, `natpf-modale-gesti` 18/18 (una prima esecuzione 17/18 per i
+  fps a 1280×720 sotto carico, 52,7 invece di 55; da sola 18/18).
+- [x] B15-UX.3 · presa in tre frasi (commit `464db52`): `GRIPS.palmo.text` da 45 a 28 parole (guida scheda 1, pannello del
+  telefono). Verifiche: sito 195/195, presa/guida 13/13.
+- [x] B15-UX.4 · link «Senza telefono? Usa la webcam» anche nel testo scritto dalla lobby (prima l'HTML e il JS dicevano due
+  cose diverse) e documenti (`docs/b15/audit-ux.md`, questo registro). Verifiche: lobby/flows/split/tutorial 91/91.
+- [x] B15-UX.5 · screenshot «dopo» a 1280×720, 1920×1080 e telefono (390×844, 412×915), parole «dopo» misurate (menu 60→54,
+  modalità 164→98, racchetta 79→59, Collega 126→111, guida 4 119→64, tutorial 1 80→56; telefono «Pronto» 37→16, «Tieni
+  fermo» 62→21, pausa 72→37), documenti.
+  Non verificato: telefoni veri, persone vere, ledwall; i passi dei tre percorsi non cambiano (le riduzioni di passi sono le
+  proposte 1–3 di `docs/b15/audit-ux.md` §4, da decidere con l'utente).
+- [x] B15-UX.6 · secondo giro, proposta 4 (commit `ecb17ba`): una voce sola per la guida. Tolta «Guida» dal menu
+  principale (apriva la stessa finestra di «Come si gioca» in alto); la fila in basso ha Classifica e Opzioni.
+  File: `natpf-tennis/index.html`, `natpf-ui.css` (fila a 2 colonne), commenti in `natpf_lobby.js` e `natpf_onboarding.js`,
+  `test/natpf-lobby.test.mjs` (frecce con la fila a due voci, più il caso a tre voci), `tools/e2e/natpf-menu.mjs` (cinque
+  voci, sequenza `training,challenges,ranking,options,options,challenges`). Verifiche: `natpf-menu` 22/22.
+- [x] B15-UX.7 · proposta 5 (commit `d87a0e9`): pagina «Partita» con in vista solo il livello della CPU e la riga «Altre
+  impostazioni · 1 game · singolare · 3ª persona» (chiusa a ogni visita; dentro formato, durata, chi batte e visuale con gli
+  stessi id di prima). Frecce: dalle tessere alla riga, Invio la apre; il fuoco iniziale va alla tessera scelta o a «Gioca».
+  Stesso schermo: nascosta l'unica tessera «Stesso schermo». File: `index.html`, `natpf_lobby.js` (`matchSummary`,
+  `matchMore`, `_paintMatchMore`, `_tiles`, Invio), `natpf-ui.css`, `test/natpf-lobby.test.mjs`, `test/natpf-flows.test.mjs`.
+  Parole 90 → 70 e pulsanti 18 → 9 (CPU), 91 → 62 e 13 → 4 (stesso schermo).
+- [x] B15-UX.8 · proposta 6 (commit `674cfbe`): telefono, «Attiva i sensori» con un solo pulsante grande. Riga «Mano
+  [Destra] [Sinistra]» sempre in vista sopra il pulsante (la scelta resta nel `<select id="hand">` nascosto e passa dallo
+  stesso `change` al computer: provato, il computer passa a «left»); «Gioca con i tocchi» come link (pulsante pieno con i
+  sensori negati e in calibrazione); Movimento e «solo mentre tengo premuto» sotto «Opzioni» chiuse (`#moreOpts`, mostrato
+  da `phoneView` insieme a `#profileOptions`). File: `site/tennis/racchetta.html`, `site/js/tennis/racchetta.js`
+  (`paintHand`), `site/js/tennis/phone-screen.js`, `tools/test/phone-screen.test.mjs`, `tools/e2e/gesture-calibration.mjs`
+  (apre «Opzioni», tocca «Sinistra»). Verifiche: sito 196/196, `gesture-calibration` 19/19 (copia temporanea di
+  `run-local.mjs` sulle porte 3842/3843, tolta). Parole della schermata 39 → 26.
+- [x] B15-UX.9 · stesso schermo a 1280×720 (commit `2abfa37`): nomi e «Due telefoni / Una webcam per due» in una riga;
+  la barra dell'avvio passa da 585–657 px (sotto il piè di pagina, 630) a 511–583. La barra resta ferma mentre si
+  aspettano i telefoni (scelta B9 per il ledwall 720×720). Verifiche: `natpf-split-ready` 34/34 (porte 3845/3846).
+- [x] B15-UX.10 · pannello della calibrazione e degli esercizi in `cqw` (commit `8de3f58`): a 1280 invariato, a 1920×1080
+  circa 614 px con consiglio a 23 px e titolo a 51 px (prima 460 px e 15 px fissi).
+- [x] B15-UX.11 · proposta 3 non fatta (motivi e piano in `docs/b15/audit-ux.md` §6: mano della webcam solo in quella
+  pagina, 10 prove nel browser e 6 file di test sulla tappa `controller`, conflitti con il ramo dei mancini nelle stesse
+  righe di `natpf-training-flow` e `natpf-tutorial-phone`, racchetta dell'ultimo visitatore, easter egg). Documenti:
+  `docs/b15/audit-ux.md` §6 (tabella prima/dopo, passi invariati 21/29/≈35, parole, dove sta ogni impostazione).
+  Verifiche finali su `8de3f58`: `npm test` 896/896 · `node --test tools/test/*.test.mjs` 196/196 · `npm run build` ok ·
+  e2e `natpf-menu` 22/22, `natpf-training-flow` 18/18, `natpf-tutorial-phone` 37/37, `natpf-split-ready` 34/34,
+  `natpf-1v1-p2p` 37/37, `natpf-modale-gesti` 18/18 (una prima esecuzione 16/18 solo nei due controlli dei fps, con il
+  computer carico dalle prove di un altro agente: 1,2 fps anche il campo da solo; rifatta a carico più basso 18/18). Screenshot «dopo2» (fuori dal repository) a 1280×720 + 390×844
+  e 1920×1080 + 412×915. Non verificato: telefoni veri, persone vere, ledwall vero, lettori di schermo; la proposta 3.
