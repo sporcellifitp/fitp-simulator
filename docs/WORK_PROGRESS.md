@@ -615,7 +615,9 @@ i numeri in `docs/b15/audit-colpi.md`. Lavoro su un worktree a parte (ramo local
     +30° ×14 → 2,50 m; riferimento girato di 35–40° recuperato in una trentina di colpi;
   - `INTENT.faceSpan` 20 → 14 (mira piena a 17°): x della persona vera p90−p10 6,17 → 6,82 m, oltre 2,5 m 30 → 37 %;
   - `INTENT.relGain` 0,6 → 0,9 per l'esito (tipo di colpo, super e barra con la pendenza di prima: `typePower`,
-    `classGain`, `superStrength`): km/h p90−p10 39,3 → 44,1 (base 33,4), profondità 2,90 → 3,35 m (base 2,72), tipi identici;
+    `classGain`, `superStrength`): km/h p90−p10 39,3 → 44,1 (base 33,4), profondità 2,90 → 3,35 m (base 2,72), tipi identici
+    con il colpo tipico fisso del banco (correzione del terzo giro: con il colpo tipico che impara `TYPICAL.keep` 24 scambia
+    17 colpi su 400 tra piatto e top spin, saldo nullo);
   - seconda verifica del seme (`AIM.recheck` 6 colpi per verso, 6–12°, una volta, non con dritto e rovescio in versi
     opposti): seme sbagliato di ±15°, errore del centro al 40° colpo (con il segno) −3,9/+3,2° base, −7,4/+5,6° primo giro
     → −1,2/+1,4°; seme giusto 1,4 → 2,1° medio assoluto.
@@ -628,5 +630,41 @@ i numeri in `docs/b15/audit-colpi.md`. Lavoro su un worktree a parte (ramo local
   (criteri già KO alla base, dal motore del primo giro), webcam più veloce in cima (121,8 → 127,4 km/h a forza piena, x e
   profondità identiche), `clearCurve` anche su piatto, tagliato e palla corta (fino a 4 cm più bassi), seme: una mira dalla
   stessa parte con dritto e rovescio nei primi 6 colpi per verso si toglie.
-- Non verificato: telefoni veri, persone vere, rumore dell'orientamento dei telefoni veri, Windows, pacchetti (il ramo va
-  integrato prima).
+- [x] B15.4 · **terzo giro** dopo la seconda verifica indipendente («integrare con correzioni», un punto **bloccante**: con
+  il rumore di chi gioca, piatto ±12° e dritti e rovesci mescolati, il centro della mira del primo e del secondo giro
+  lasciava per partita più palle da una parte della base; le misure del secondo giro erano senza rumore o mescolavano le
+  partite). Commit `012e017`, `b64f74f`, `bde7963` più i documenti:
+  - banco `colpi.mjs --mode=partite` (`012e017`): 24 partite da 80 colpi della persona vera, ognuna giudicata da sola
+    (|mediana x|, partite oltre 1 m da una parte, errore del centro; colpi 21–40/41–60/61–80): seme 0/±15/±25/±30°, seme
+    diverso nei due versi, riferimento girato di 26–40° al 20° colpo, mira +18° con dritto e rovescio nei primi 16 colpi;
+    `reale()` con `turnAt/turn`, `aimN/aimBias`, `seedErrB`, `makeAim` (anche in `simPhone`) per provare candidati;
+  - **centro della mira di prima** (`b64f74f`): provati 20 candidati (isteresi e seconda verifica tolte una per una,
+    `drift` 0,01, `biasDev` 16/20/25, `biasPull` 0,1/0,15, `verifyDev` 20/25, `commonDev` 6/7, `commonEnd` 4/5, `alpha`
+    0,08 e combinazioni): nessuno è non peggiore del centro di prima in tutte le misure per partita e migliore sulla mira
+    tenuta senza rumore (tabella in `docs/b15/audit-colpi.md` §3), quindi `AIM` torna quello di `8a996e3`. Per partita,
+    semi ±15/±25/±30° |mediana x| 0,96/0,92/0,90 m (secondo giro) → 0,93/0,77/0,66 (base con `faceSpan` 20: 0,76/0,69/0,60);
+    seme giusto 0,74/0,74/0,79 → 0,61/0,70/0,60, errore del centro massimo 8,9 → 4,4°; riferimento girato di 26–40°
+    sbagliato dopo 60 colpi 9–11° → 4°; mira tenuta nei primi 16 colpi −2,38 → −1,54 m. Senza rumore la mira tenuta torna
+    quella di prima (+30° ×14 dritti 2,50 → 1,75 m; mancino nel telefono simulato 0,92). `faceSpan` 14 resta;
+  - non bloccanti (`bde7963`): `smashAt` e il colpo potente del motore (stelle, scossa, soglia 0,7) leggono la forza di tipo
+    (`superStrength(intent, d)`: typePower dal telefono, power dagli altri; null non vale): colpo potente da 1,25× come
+    prima (con la forza dell'esito era 1,2×), schiacciata dal gesto da 0,64× (era 0,71×); registratore con `forzaTipo` in
+    `tel.colpo` e `racchetta` solo se c'è, `superNo` con la forza di tipo, visore che la mostra;
+  - prove: `natpf-colpi-b15` 12 (tolte 5 del comportamento tolto: mira tenuta a 20°, isteresi, +30° ×14, due della
+    seconda verifica; nuove 4: per partita seme ±15/0, riferimento girato 26/32/38°, mira tenuta nei primi 16 colpi con il
+    mancino allo specchio, schiacciata e colpo potente con la forza di tipo, tutte rosse con `409c112`; la prova del piatto
+    a 15° vale da −15° a +15° ≥ 5 m, prima 3,9–4,2, e ≥ 2 m per verso: la soglia 2,4 passava di poco, 2,36–2,46);
+    `natpf-diag` +1 (`forzaTipo`).
+  Verifiche: gioco **907/907** (`012e017` 907, `b64f74f` 905, `bde7963` 907); sito **195/195**; banco completo
+  `--hand=both` prima e dopo (persona vera x p90−p10 6,08 → 6,92 m, oltre 2,5 m 31 → 37 %, profondità 2,72 → 3,29 m, km/h
+  33,4 → 43,9; mancino specchio esatto, tagliati fino a 0,9 km/h); `audit:rally` (600 punti) identico al secondo giro
+  (Casual medio 93,2 → 94,2 %, Pro medio 65,3 → 65,8, Pro umano 76,7 → 74,0); `audit:legend` identico al secondo giro
+  (pro contro medio 84,1 %; Leggenda contro «tennista» 74,5 → 67,3 % e «preciso» 37,4 → 25,9 %, criteri già KO alla base);
+  browser (Chromium, porte 3640–3643, nessun server lasciato acceso) `natpf-rally` **7/7** (cadute da −3,88 a +3,95 m),
+  `natpf-gesti-speciali` **9/9**.
+  Rischi in `docs/b15/audit-colpi.md` §7: Leggenda, webcam più veloce in cima, `faceSpan` 14 che satura a 17° (20° e 30°
+  nello stesso punto) e che rende più visibili in metri gli errori del centro (semi sbagliati 0,76 → 0,93 m ai colpi 21–40),
+  mira tenuta presa dal centro come prima, `TYPICAL.keep` 24 che scambia piatto e top spin, `clearCurve`. Opzione misurata
+  non adottata: `AIM.commonDev` 6 (semi sbagliati 0,93 → 0,79 m, mira tenuta con i due colpi −1,54 → −1,64).
+- Non verificato: telefoni veri, persone vere, rumore dell'orientamento dei telefoni veri, webcam nel browser, Windows,
+  pacchetti (il ramo va integrato prima).

@@ -497,21 +497,31 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   funzioni vere (centro della mira, `strokeIntent`, motore con il ritmo). Le sequenze di colpi uguali (mira tenuta, colpi
   forti di fila) dicono se un riferimento che impara spegne la varietà; la persona vera dice se la varietà si vede. Il
   mancino si prova allo specchio: x, profondità e tipi devono essere identici cambiati di segno.
-- **Centro della mira** (`createAimModel`, `AIM`): mira tenuta e riferimento girato di 25–35° non si distinguono, si
-  distinguono solo per quanto durano. Uno scarto che dura sotto 25° è una scelta (drift 0,01); oltre 25° parte il «pull»:
-  0,2 a colpo fino a 20° (`biasLow`), poi 0,05 fino a 10° (`biasSlow`, `biasEnd`); idem `common*` per dritto e rovescio
-  dalla stessa parte. Così la mira piena tenuta per 14 colpi resta a 2,5 m dal centro e un riferimento girato di 35–40° si
-  recupera in una trentina di colpi. Il seme della calibrazione: verifica a 4 colpi (oltre 20°: si prende la mediana) e
-  seconda verifica a 6 colpi per verso (`recheck`: verso la mediana, niente sotto 6°, tutta da 12°, una volta, non se dritto
-  e rovescio vanno in versi opposti, che è chi mira tutto incrociato o tutto lungolinea). Con 4 colpi la mediana è troppo
-  rumorosa (seme giusto guastato fino a 18°).
-- **Mira del piatto**: `INTENT.faceSpan` 14 (mira piena a 17°, 10° = 0,5).
+- **Il centro della mira si giudica per partita, con il rumore** (`--mode=partite`: 24 partite da 80 colpi, |mediana x| di
+  ogni partita, partite oltre 1 m da una parte, errore del centro; seme sbagliato, seme diverso nei due versi, riferimento
+  girato, mira tenuta nei primi colpi). Le misure senza rumore (sequenze) o con le partite mescolate (x p50 di tutte insieme)
+  nascondono il difetto: nel secondo giro B15 dicevano «meglio» e per partita era peggio.
+- **Centro della mira** (`createAimModel`, `AIM`): **invariato dal 29/10** (verifyDev 35, biasDev 12 / commonDev 8, pull
+  0,3, drift 0,03). Mira tenuta e riferimento sbagliato (seme della calibrazione, corpo girato) per il centro sono la stessa
+  cosa: si distinguono solo da quanto durano. Nel B15 provati e tolti (terzo giro, `docs/b15/audit-colpi.md` §3): isteresi a
+  due velocità, seconda verifica del seme, soglie 25°, drift 0,01 (tenevano la mira tenuta senza rumore ma per partita, con il
+  rumore, lasciavano più palle da una parte: semi sbagliati 0,96 m ai colpi 21–40 e 0,90 ai 61–80, contro 0,93 e 0,66 del
+  centro di prima; seme giusto con l'errore del centro fino a 8,9° contro 4,4°; riferimento girato di 26–32° ancora a 11°
+  dopo 60 colpi contro 4°); e una ventina di
+  intermedi: il «pull» di un verso più tardo o lento peggiora il seme diverso nei due versi, il «pull» comune o la verifica
+  più decisi prendono di più la mira tenuta con dritto e rovescio. Opzione misurata e non adottata: `commonDev` 6.
+- **Mira del piatto**: `INTENT.faceSpan` 14 (mira piena a 17°, 10° = 0,5): da −15° a +15° 5,6–6,0 m (prima 3,9–4,2), ma
+  20° e 30° cadono nello stesso punto e un grado di errore del centro vale 0,25 m invece di 0,18.
 - **Forza**: due pendenze della parte relativa al colpo tipico (`strokePower(peak, ref, gain)`): `relGain` 0,9 per l'esito
   (velocità, profondità), `classGain` 0,6 per il tipo di colpo (`typePower`: `flatPower`, `dropPower`, `lobSoft` sono tarati
-  lì, e il tutorial con loro) e per il colpo super e la barra della potenza (`superStrength`: `SUPER.power` 0,86 è il 10 %
-  più forte dei registri del 29/10). Webcam e CPU non hanno `typePower`: vale `power`.
+  lì, e il tutorial con loro) e per tutte le soglie della forza: colpo super e barra della potenza, schiacciata dal gesto
+  (`smashAt`, `SMASH_FROM.power`), colpo potente del motore (stelle e scossa, 0,7), «perché niente super» delle
+  diagnostiche (`superStrength(intent, d)`: `SUPER.power` 0,86 è il 10 % più forte dei registri del 29/10). Webcam, CPU e
+  registrazioni senza `typePower` (o con `null`): vale `power`. Le diagnostiche registrano `forzaTipo` accanto a `forza`
+  quando c'è.
 - **Colpo tipico** (`TYPICAL.keep` 24, era 9): il riferimento della forza relativa è la propria scala di gioco; dieci colpi
-  forti di fila restano forti (prima la forza tornava a 0,65 dal sesto).
+  forti di fila restano forti (prima la forza tornava a 0,65 dal sesto). Con il colpo tipico che impara scambia 17 colpi su
+  400 tra piatto e top spin (saldo nullo).
 - **Velocità della palla**: nel motore la decide l'altezza a cui deve passare sopra il nastro, non il volo base (che vincola
   solo i colpi morbidi). Altezza con la curva morbidezza^1,5 (`OUTCOME.clearCurve`, su tutti i colpi tranne il pallonetto),
   TOPSPIN morbido fino a 2,5 m (`topClearSoft`), top spin che cresce con la forza (`topSpinPower` 8), tetto del volo base 1,5
