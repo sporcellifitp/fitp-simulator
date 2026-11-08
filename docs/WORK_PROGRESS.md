@@ -825,3 +825,67 @@ restano proposte in `docs/b15/audit-ux.md` §4. Ramo di lavoro `b15-ux` (worktre
 - Decisioni chieste all'utente: `docs/PASSAGGIO_CONSEGNE.md` §3.13 (Leggenda, tutorial corto, riscaldamento facoltativo,
   mira più sensibile, unire le due pagine della scelta).
 - Non verificato: telefoni veri (anche nella mano sinistra), persone vere, webcam vera, due computer veri, Windows.
+
+## B16 · Decisioni (b) e (c): tutorial corto prima della partita, riscaldamento facoltativo (ramo `b16-flow`) · [~] · 08/11/2026 sera
+Obiettivo: decisioni dell'utente dell'08/11 sera sulle domande del B15 (`docs/PASSAGGIO_CONSEGNE.md` §3.13): (b) tutorial
+corto prima della partita «Ok», (c) riscaldamento facoltativo «Ok». Criterio: meno tocchi dall'apertura alla prima palla
+(contati nel browser, prima e dopo), nessuna lettura dei colpi peggiorata, compatibilità tra telefono e computer di versioni
+diverse. Ramo locale da `7936011`, non pubblicato.
+- [x] B16-flow.1 · tutorial corto (commit `c41723b`): `natpf_tutorial.js` con due serie, `short` (presa, posizione, dritto,
+  rovescio, servizio) prima della partita contro la CPU, della sfida tra due computer (host), dei minigiochi e nello stesso
+  schermo (ognuno il suo), `full` (11) nell'Allenamento dal menu e in «Rivedi i gesti». Le 5 sono le prime 5 delle 11:
+  stessi indici, protocollo `tp` invariato (`n` = schede di quel tutorial). `NatpfPhoneRacket.tutorialSeenFor(set)` /
+  `markTutorialSeen(set)`: visto il corto, l'Allenamento con lo stesso telefono riprende dalla sesta scheda; visto il
+  completo, il corto non si ripete. File: `natpf_tutorial.js`, `natpf_phone_racket.js`, `natpf_training.js`,
+  `natpf_split_ui.js`, `natpf_lobby.js`, test `natpf-tutorial` (2 nuovi), `natpf-split` (5 schede).
+  Compatibilità: la pagina del telefono (`site/js/tennis/`) non cambia in questo ramo, quindi le prove nel browser qui sotto
+  sono già «pagina di prima con il gioco nuovo»: riceve `n` 5, mostra «Scheda x di 5» e accende il pulsante con `all` o
+  `s ≥ n` come prima (`phone-screen.gateOnProgress`, invariato); il gioco di prima con questa pagina manda 11 come prima.
+  Nessun campo nuovo, nessun significato cambiato; le pagine senza `tv 2` (prima del B9) chiudono la modale come prima.
+- [x] B16-flow.2 · riscaldamento facoltativo (commit `476d62b`): `natpf_lobby.startWarmup` porta in campo dalla pagina
+  «Collega» solo per il tutorial corto e la calibrazione (`training.start({ calOnly: true })`), poi la pagina «Partita»
+  («Racchetta pronta ✓», «Gioca» e «Riscaldati prima», prima «Rifai il riscaldamento»); telefono già calibrato, webcam,
+  mouse: subito «Partita»; telefono pronto ma tutorial da vedere (visitatore nuovo, stesso telefono): solo il tutorial.
+  Tappa «Calibrazione» al posto di «Riscaldamento»; «Calibrazione saltata» se si salta. Il riscaldamento (dritto,
+  rovescio, servizio) resta in «Riscaldati prima» e nell'Allenamento.
+  Letture dei primi colpi (richiesto: verificare che saltare il riscaldamento non le peggiori): banco nuovo
+  `natpf-tennis/scripts/audit/riscaldamento.mjs` (telefono simulato con il braccio e la presa della foto, calibrazione con
+  gesti a 0,3/0,6/1/1,3 del proprio colpo, 12 semi × 10 colpi di una persona, forza 1 ± 0,2, piatto ±10°; riferimento:
+  lo stesso gesto letto da un telefono assestato con 24 colpi della stessa persona). Senza riscaldamento, con la
+  calibrazione a colpetto (le diagnostiche: 143 °/s il 23/10 contro 670 del dritto), i primi 3 colpi avevano |Δforza|
+  0,24 (0,3) e 0,20 (0,6) e 24 e 18 colpi su 120 di tipo diverso (piatto invece di top spin), contro 0,03 e 8 con il
+  riscaldamento; con la calibrazione giusta nessuna differenza (0,02/0,03, 8/8). Correzione in
+  `natpf_phone_racket.powerRefs` (`BOOT.self` 0,75, `createTypicalModel().seen`): finché il colpo tipico non c'è, il
+  riferimento della calibrazione non sta sotto la mediana dei colpi già fatti né sotto 0,75 del colpo letto (alza solo).
+  Dopo: 0,13 e 0,11, 9 e 9 su 120 (8 con il riscaldamento); calibrazione giusta e decisa invariate; mancino uguale
+  (0,11/0,11, 9 e 10 su 120). Resta: il primo colpo con la calibrazione a colpetto (|Δforza| ~0,20, un colpo) e la mira dei
+  primi 10 colpi (|Δ| 2,5° contro 1,1°, su 17° di mira piena), che il riscaldamento assestava. Test nuovo
+  `natpf-riscaldamento` (pavimento, banco destro e mancino che fallisce senza la correzione: 0,204 contro 0,14, flusso);
+  `natpf-campo-aperto-23-10` C4 con lo stesso significato (confronto con la lettura della sola calibrazione); prove del
+  flusso che entrano in campo con «Riscaldati prima»; la prova della moviola usava il minigioco «rally», che non esiste
+  (passava dal riscaldamento della partita): ora «rush», con la sfida davvero in corso.
+- [x] B16-flow.3 · prova nel browser dei tocchi (commit `0490fd9`): `tools/e2e/natpf-flusso-tocchi.mjs`, comandi veri,
+  conta i tocchi dall'apertura alla prima palla («QR» e «link» uno ciascuno, i gesti non sono tocchi), schermate
+  1280×720 e 390×844. Prima (`7936011`) → dopo:
+
+  | Percorso | Prima | Dopo | Dettaglio dopo |
+  |---|---|---|---|
+  | Gioco singolo con il telefono | 20 (computer 6, telefono 14) | **13** (5 + 8) | computer: tasto, Gioca, Contro la CPU, Smartphone, Gioca; telefono: QR, link, Attiva i sensori, 4 × Avanti, Tutto chiaro |
+  | Stesso schermo, due telefoni | 31 (3 + 28) | **19** (3 + 16) | ogni telefono 8; il conto alla rovescia parte da solo |
+  | Sfida tra due computer | 25 (8 + 17) | **18** (7 + 11) | host come il singolo; Player 2: link, Sono pronto, QR, link, Attiva i sensori (il Player 2 non ha il tutorial: escluso dal B4, invariato) |
+
+  Il conto del B15 (21, 29, ≈35) era sbagliato: 6 + 14 = 20, ogni telefono dello stesso schermo 14 (non 13), il Player 2
+  della sfida senza tutorial. Schermate guardate (`scratchpad/b16/flow-shots/prima|dopo`, non nel repository): modale
+  «1 / 5» con 5 puntini sul computer e sul telefono («Scheda 5 di 5 · Servizio», «Viste 4 di 5»), le due metà dello
+  stesso schermo a 5 schede, pagina «Partita» con «Racchetta pronta ✓», «Riscaldati prima» e «Gioca», host della sfida con
+  «Riscaldati prima» e «In attesa del Player 2…». Visto e corretto: in calibrazione il pannello diceva «Calibrazione»
+  due volte (titolo e tappa unica): la lista delle tappe si nasconde se ha una tappa sola.
+- Verifiche: `npm test` 934/934 (prima 927 + 2 tutorial + 5 riscaldamento), `node --test tools/test/*.test.mjs` 197/197,
+  `npm run build` ok. Nel browser (porte 4510–4523, una prova alla volta): `natpf-flusso-tocchi` singolo 5/5, stesso 5/5,
+  1v1 7/7; `natpf-tutorial-phone` 39/39 (nuova verifica: 5 schede per telefono nello stesso schermo); `natpf-tutorial-relink`
+  9/9; `natpf-training-flow` 21/21; `natpf-split-ready` 34/34 (barra «tutorial 1/5»); `natpf-menu` 22/22; `natpf-1v1-p2p`
+  39/39; `natpf-modale-gesti` 17/18, 15/18, 17/18 in tre giri: KO solo di velocità, ogni volta su una verifica diversa
+  (fps della modale con la macchina carica, load 5–10 su 4 CPU con gli altri agenti; il disegno della modale non è
+  cambiato, cambiano solo numero di schede e puntini).
+- Non verificato: telefoni veri, persone vere (il banco del riscaldamento è un telefono simulato: quanto è forte il
+  colpetto della calibrazione di chi gioca davvero lo dicono solo le diagnostiche), Windows.

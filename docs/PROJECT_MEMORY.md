@@ -145,8 +145,28 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   stesso schermo; modalità compatta sotto 320 px; niente `backdrop-filter` sotto la modale aperta. Giudizio e brief:
   `docs/b9/giudizio-animazione.md`; nota del ramo: `docs/b9/animazione-c.md`; API della posa: `docs/b9/posa-gesti.md`.
 - **Tutorial e telefono**: frecce ‹ › (niente scorrimento automatico), scheda vista dopo ~1 s, avanzamento `tp` al
-  telefono, «Tutto chiaro, ho capito» acceso solo con tutte le schede viste; schermate del telefono esclusive
-  (`site/js/tennis/phone-screen.js`); Ricalibra/Ricollega/Scollega solo sotto «Pronto».
+  telefono, «Tutto chiaro, ho capito» acceso solo con tutte le schede **di quel tutorial** viste; schermate del telefono
+  esclusive (`site/js/tennis/phone-screen.js`); Ricalibra/Ricollega/Scollega solo sotto «Pronto».
+- **Tutorial corto prima della partita (decisione cambiata dall'utente l'08/11 sera, B16; prima: «tutte le 11 schede viste
+  prima di "Tutto chiaro"» anche prima della partita)**: prima della partita contro la CPU, della sfida tra due computer
+  (host), dei minigiochi e nello stesso schermo (ognuno il suo tutorial e il suo «Tutto chiaro») 5 schede: presa,
+  posizione, dritto, rovescio, servizio. L'Allenamento dal menu e «Rivedi i gesti» mostrano tutte le 11 (piatto,
+  pallonetto, palla corta, tagliato, schiacciata, volée). Le 5 sono le prime 5 di `TUTORIAL_CARDS` (`natpf_tutorial.js`:
+  `tutorialCards('short'|'full')`, `tutorialSetFor(mode)`): stessi indici, quindi il protocollo `tp` non cambia (`n` =
+  schede di quel tutorial, `m` maschera sugli stessi indici; un telefono con la pagina di prima mostra «Scheda x di 5» e
+  accende il pulsante con `all` come prima). Il telefono ricorda quale serie ha visto per abbinamento
+  (`NatpfPhoneRacket.tutorialSeenFor(set)`): visto il corto, l'Allenamento con lo stesso telefono riprende dalla sesta
+  scheda (`tutorialResumeAfterShort`); visto il completo, il corto non si ripete. Il Player 2 della sfida tra due
+  computer non ha il tutorial (escluso dal B4 con `guest`, invariato: la sfida tra due computer non si sviluppa).
+- **Riscaldamento facoltativo (decisione dell'utente dell'08/11 sera, B16)**: dalla pagina «Collega» della partita in campo
+  solo il tutorial corto e la calibrazione, poi la pagina «Partita» («Racchetta pronta ✓», «Gioca» e il pulsante
+  secondario «Riscaldati prima»); con il telefono già calibrato, la webcam o mouse e tastiera subito «Partita». Il
+  riscaldamento (dritto, rovescio, servizio) resta in «Riscaldati prima» e nell'Allenamento (`natpf_lobby.startWarmup`).
+  Il riscaldamento insegnava il colpo tipico prima della partita: senza, `natpf_phone_racket.powerRefs` alza il
+  riferimento della calibrazione (spesso un colpetto) almeno alla mediana dei colpi già fatti e a 0,75 del colpo letto
+  finché il colpo tipico non c'è (`BOOT`; banco `scripts/audit/riscaldamento.mjs`, test `natpf-riscaldamento`).
+  Tocchi dall'apertura alla prima palla (`tools/e2e/natpf-flusso-tocchi.mjs`): singolo 20 → 13, stesso schermo 31 → 19,
+  sfida tra due computer 25 → 18.
 - **Schermo spento**: nessun browser dà i sensori a pagina nascosta. Wake Lock, pausa immediata sul computer, ripresa
   automatica e velo con testo dipendente dallo stato (`veilText`). Alternativa vera: app Android nativa
   (`docs/b9/schermo-spento.md`).
@@ -164,7 +184,8 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   (`docs/riferimenti/presa-palmo-utente-2026-11-04.webp`): telefono nel palmo, schermo verso chi gioca, dita attorno alla
   parte bassa, pollice sul bordo, cima inclinata in avanti verso lo schermo. Il riconoscimento attuale per l'utente va
   già bene; foto, figura, 3D e testi cambiano, con **rollback** pronto su richiesta (dettagli in §Gesti dopo il blocco B3).
-- **Tutorial**: modale prima della calibrazione con tutti i gesti; «Tutto chiaro, ho capito» **sul telefono** di
+- **Tutorial**: modale prima della calibrazione con tutti i gesti (dall'08/11 sera, B16: 5 schede prima della partita, tutte
+  nell'Allenamento e in «Rivedi i gesti»; vedi §Decisioni B9); «Tutto chiaro, ho capito» **sul telefono** di
   ciascun giocatore; una volta per sessione e per giocatore, «Rivedi i gesti» sempre disponibile; webcam con una
   versione breve. Riquadro «Guarda e ripeti» tolto in calibrazione, tenuto negli esercizi dell'Allenamento. Nel 1v1
   sullo stesso schermo: modale e calibrazione indipendenti nelle due metà della pagina «Collega».
