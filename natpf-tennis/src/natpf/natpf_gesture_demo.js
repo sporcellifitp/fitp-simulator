@@ -822,9 +822,12 @@ function drawBallThrough(c, cam, X, st, hullPts, alpha){
 // la palla si spegne mentre esce dallo stadio (mai tagliata dal bordo: B14, palla in arrivo tagliata in alto nel piatto, nel
 // tagliato e nel pallonetto, in alto a destra nella palla corta) e dopo il colpo, quando è lontana (palla vagante nella
 // schiacciata)
+// Nel servizio, dal lancio al contatto, la palla è il soggetto: resta visibile finché il centro è nel quadro (a 448×280
+// la cima del lancio sfiora il bordo alto e con la sfumatura piena spariva proprio nel «Braccio in alto»)
 function ballAlphaAt(cam, X, st, P, t){
   const p = cam.p(X), r = cam.rad(X, BALL_R), d = Math.min(p.x, st.W - p.x, p.y, st.H - p.y) - r;
-  let a = sstep(-.2*r, 1.2*r, d);
+  const toss = P.kind === 'serve' && (P.contact == null || t <= P.contact);
+  let a = toss ? sstep(-1.1*r, -.3*r, d) : sstep(-.2*r, 1.2*r, d);
   if (P.contact != null && t > P.contact) a *= 1 - sstep(P.contact + .3, P.contact + .5, t);
   return a;
 }
@@ -1224,7 +1227,7 @@ export class NatpfGestureDemo {
     const vis = (follow ? sstep(0, u, Math.min(r0.x0 - box.x0, box.x1 - r0.x1, r0.y0 - box.y0, box.y1 - r0.y1))
       : sstep(-2*u, u, Math.min(A.x, st.W - A.x, A.y, st.H*(1 - HUD_H) - A.y)))*back;
     if (vis*(g.edge ?? 1) <= .01) return;
-    c.save(); c.globalAlpha = Math.min(1, g.a*1.4)*vis*(g.edge ?? 1);
+    c.save(); c.globalAlpha = Math.min(1, g.a*1.4)*sstep(.12, .45, g.a)*vis*(g.edge ?? 1); // si spegne con il suo contorno (.38·a): niente etichette orfane
     const r = pill(c, st, r0.x0, (r0.y0 + r0.y1)/2, g.k.label, { num: String(g.i + 1), size: u, box: follow ? FREE_BOX : box, align: 'left' });
     c.restore();
     g.labelBox = r; taken.push({ x0: r.x0, y0: r.y0, x1: r.x0 + r.w, y1: r.y0 + r.h });
