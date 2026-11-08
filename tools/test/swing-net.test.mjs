@@ -54,6 +54,36 @@ test('a rete (setNet) un tocco morbido da 200 °/s è un colpo; fuori dalla rete
   assert.ok(gx.length > n && gx.at(-1).why === 'debole', JSON.stringify(gx.slice(n)));
 });
 
+// la preparazione del dritto (gesto nel verso opposto, 300 °/s) seguita dal dritto pieno
+function prepThenSwing(det, t, { prepPeak = 300, gap = 150 } = {}){
+  let t1 = trace(det, t + 300, { axis: R, peak: prepPeak, dur: 300 });
+  t1 = trace(det, t1 + gap, { axis: L, peak: 1200, dur: 240 });
+  return still(det, t1 + 10, 900);
+}
+
+test('a rete con il verso atteso sconosciuto (ex 0) valgono le soglie normali: la preparazione da 300 °/s e un tocco da 200 °/s sono scartati «deboli»; con il verso noto il tocco è un colpo', () => {
+  // revisione del B17.4: con le soglie basse e il verso sconosciuto (palla non ancora colpita dall'avversario) la preparazione
+  // da 180–300 °/s diventava un colpo in più prima del dritto vero
+  const { det, t: t0 } = calibrated(), sw = [], gx = [];
+  det.on('swing', s => sw.push(s)); det.on('discard', d => gx.push(d));
+  det.setNet(true); det.setExpect(0);
+  let t = prepThenSwing(det, t0);
+  assert.equal(sw.length, 1, JSON.stringify(sw.map(s => [s.peak, s.dir])));   // solo il dritto pieno
+  assert.ok(sw[0].peak > 900 && sw[0].dir === 1, JSON.stringify(sw[0]));
+  assert.ok(gx.some(d => d.why === 'debole' && d.dir === -1 && d.peak >= 250 && d.peak <= 310), JSON.stringify(gx));
+  t = prepThenSwing(det, t, { prepPeak: 180, gap: 400 });
+  assert.equal(sw.length, 2); assert.ok(sw[1].peak > 900 && sw[1].dir === 1);
+  const n = gx.length;
+  t = still(det, trace(det, t + 300, { axis: L, peak: 200, dur: 300 }) + 10, 700);   // tocco da 200 °/s nel verso del dritto, ex 0
+  assert.equal(sw.length, 2); assert.ok(gx.length > n && gx.at(-1).why === 'debole', JSON.stringify(gx.slice(n)));
+  // con il verso atteso noto: la preparazione resta una preparazione (nessun colpo in più) e il tocco è un colpo
+  det.setExpect(1);
+  t = prepThenSwing(det, t);
+  assert.equal(sw.length, 3, JSON.stringify(sw.map(s => [s.peak, s.dir]))); assert.ok(sw[2].peak > 900 && sw[2].dir === 1);
+  t = touch(det, t + 300, 200);
+  assert.equal(sw.length, 4, JSON.stringify(sw.map(s => [s.peak, s.dir]))); assert.ok(sw[3].peak >= 150 && sw[3].peak <= 220 && sw[3].dir === 1, JSON.stringify(sw[3]));
+});
+
 test('a rete i minimi assoluti restano: un micro-movimento da 40 °/s non è un colpo; un colpo pieno è un colpo come prima', () => {
   const { det, t: t0 } = calibrated(), sw = [];
   det.on('swing', s => sw.push(s));

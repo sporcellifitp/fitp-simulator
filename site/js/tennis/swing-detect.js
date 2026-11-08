@@ -185,7 +185,9 @@ export function createSwingDetector(opts = {}){
   // scala di chi gioca: il verso più deciso (calibrazione o colpi veri); null se non si sa (profilo semplice)
   const scale = () => { const v = [prof.refs?.[1], prof.refs?.[-1], typicalOf(1), typicalOf(-1)].filter(x => x > 0); return v.length ? Math.max(...v) : null; };
   const inPlay = () => !training && !serving();
-  const nearNet = () => atNet && inPlay();
+  // a rete (cfg net) solo con il verso del colpo atteso noto (ex ±1: la palla arriva): con le soglie basse e il verso sconosciuto
+  // la preparazione da 180–300 °/s nel verso opposto diventava un colpo (revisione del B17.4); con ex 0 valgono le soglie normali
+  const nearNet = () => atNet && inPlay() && expectDir !== 0;
   const thr = () => {
     const examples = (prof.templates || []).filter(t => !serving() || t.shot === 'serve');
     const ref = examples.length ? Math.min(...examples.map(t => t.peak)) : serving() ? prof.ref*.5 : Infinity;

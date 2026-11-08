@@ -108,7 +108,7 @@ export const OUTCOME = Object.freeze({
   // Leggenda, failQ .63; a Pro, 1v1 e Casual failQ è già sotto netQMin); netControlExcess: oltre tante unità fuori dalla finestra
   // della direzione il colpo è «molto fuori tempo» e fallisce come prima
   netQSpan: .25, netQMin: .45, netControlExcess: .5, netSpread: Object.freeze({ x: 1.2, clear: .35 }),
-  attackQPower: .3,   // la chiusura sopra la rete chiede meno qualità a un gesto forte: attackQ − attackQPower a forza piena
+  attackQPower: .3,   // la chiusura sopra la rete chiede meno qualità a un gesto forte: attackQ − attackQPower a forza piena (solo nella zona di rete)
   // palla corta letta dalla forma (taglio verticale morbido) giocata a rete: resta una palla corta solo se la forma è chiara
   // (confidenza ≥ conf) e il gesto è davvero lento (forza ≤ power); altrimenti è una volée controllata, tagliata, con la
   // profondità da volleyDepth[0] a volleyDepth[1] m dalla forza e il volo del tagliato (niente minimo di 1,32 s del motore)
@@ -228,12 +228,16 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   const spread = controlled ? clamp((fq - q)/O.netQSpan) : 0, seed = controlled ? strokeSeed(timing, power, intent.face, rise, hitX, contactY, zc) : 0;
   // assistenza: piena dentro la finestra e sopra la qualità del livello, sfuma oltre (prima un gradino)
   const assist = clamp(1 - excess/O.assistFade)*clamp((q - AS.assistQ)/O.assistQSpan + .5), xMax = AS.xMax, k = xMax/O.xMax;
+  // B17.4 (revisione): nel colpo controllato a rete il bordo morbido laterale (sideKnee/sideEdge) vale anche senza assistenza,
+  // pieno con il tempo nella finestra e sfumato oltre come l'assistenza (assistFade): la dispersione (netSpread.x) e la mira
+  // piena con il piatto girato non mandano la palla oltre la riga laterale (wqdk·121: piatto −1 e anticipo +0,78, x −4,99 → dentro)
+  const sideHold = controlled ? Math.max(assist, clamp(1 - excess/O.assistFade)) : assist;
   // direzione: mira dal tempo (ai bordi della finestra le due righe; la spinta naturale verso l'incrociato solo vicino al
   // tempo neutro) e dal piatto attorno al punto neutro, poi la spinta oltre la finestra
   const aimT = clamp(t - clamp(finite(rhythm), -RHYTHM.max, RHYTHM.max), -1, 1);   // tempo rispetto al proprio ritmo
   const aim = -c*O.natural*(1 - Math.abs(aimT)) - c*aimT*finite(AS.timingAim, O.timingAim) + clamp(finite(intent.face), -1, 1)*finite(intent.faceWeight, O.faceAim);
   const x0 = neutralX(hitX, xMax), raw = landingFromAim(aim, x0, xMax) - c*Math.sign(t)*excess*finite(AS.pushOut, O.pushOut) + (controlled ? seedUnit(seed, 0)*O.netSpread.x*spread : 0);
-  const xa = raw + (Math.sign(raw)*softEdge(Math.abs(raw), O.sideKnee*k, O.sideEdge*k) - raw)*assist;
+  const xa = raw + (Math.sign(raw)*softEdge(Math.abs(raw), O.sideKnee*k, O.sideEdge*k) - raw)*sideHold;
   const x = Math.abs(xa) <= O.sideLine ? xa : Math.sign(xa)*(O.sideLine + softEdge(Math.abs(xa) - O.sideLine, O.outKnee, O.outMax));
   // profondità: voluta (forza e ampiezza dello swing), meno per la qualità che manca e il tempo oltre la finestra
   const D = netVolley ? O.volleyDepth : O.depth[shot] || O.depth.TOPSPIN;
@@ -281,8 +285,9 @@ export function strokeOutcome({ intent = {}, timing = 0, lateSpan = null, ballVz
   // chiusura sopra la rete e schiacciata riuscite: bassa sul nastro e veloce (la schiacciata ha la sua velocità nel
   // motore, OUTCOME.smashSpeed); il volo è quello che passa il nastro a quell'altezza, mai più corto
   // B17.4: la chiusura chiede meno qualità a un gesto forte (da attackPower a forza piena: attackQ − attackQPower), con il rischio
-  // della dispersione del colpo controllato e dell'assistenza che non c'è
-  const attackQ = finite(AS.attackQ, 0) - O.attackQPower*clamp((power - O.attackPower)/(1 - O.attackPower));
+  // della dispersione del colpo controllato e dell'assistenza che non c'è. Revisione: solo nella zona di rete (nearNet, la
+  // stessa regola del colpo controllato); fuori resta attackQ del livello (a Pro .65, non .35 a forza piena)
+  const attackQ = finite(AS.attackQ, 0) - (nearNet ? O.attackQPower*clamp((power - O.attackPower)/(1 - O.attackPower)) : 0);
   const attacked = attack && !failed && !weak && !netFault && (shot === 'SMASH' || q >= attackQ);
   if (attacked){
     lift = ARC.netY - .34 + (shot === 'SMASH' ? O.smashGap : lerp(O.attackGap[1], O.attackGap[0], power));

@@ -1,4 +1,4 @@
-# B17.4 · Colpi sotto rete: cosa succedeva, cosa cambia, numeri (08/11/2026 sera)
+# B17.4 · Colpi sotto rete: cosa succedeva, cosa cambia, numeri (08/11/2026 sera; revisione dei minori in fondo a §2, §3, §4, §5)
 
 Richiesta dell'utente (punto 4): «Quando ricevo una palla corta e mi avvicino alla rete per colpirla, succede quasi sempre una
 delle due cose: compare "palla persa", oppure parte una palla morbidissima e lentissima, praticamente identica ogni volta.
@@ -20,7 +20,7 @@ palla entro 7 m all'impatto *oppure* caduta entro 7 m; il nono della tabella di 
 | Sessione·n | s | Palla z (m) | y | vz | Gesto | Forza | Conf | Tempo | q | A rete | Corta | Registrato: x · prof · rete · volo · esito | **Rigiocato ora**: x · prof · rete · volo · km/h · esito |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | wqdk·112 | 22,5 | 9,15 | 0,93 | 11,7 | drop (forma, conf 0,14) | 0,26 | 0,14 | +0,65 | 0,73 | no | no | −1,77 · 1,88 · 1,56 · 1,32 · drop | uguale (DROP da 9 m: fuori dalla zona di rete, non toccato) |
-| **wqdk·121** | 36,6 | **3,49** | 0,53 | 5,5 | flat 1210 °/s | 0,75 | 0,62 | +0,78 | 0,62 | sì | sì | −5,04 · **6,79** · **2,32** · 1,22 · **debole** | −4,99 · 6,80 · 1,42 · 0,86 · 53 · **controllato** (fuori di lato come prima: mira piena −1,3 dal piatto girato e dall'anticipo) |
+| **wqdk·121** | 36,6 | **3,49** | 0,53 | 5,5 | flat 1210 °/s | 0,75 | 0,62 | +0,78 | 0,62 | sì | sì | −5,04 · **6,79** · **2,32** · 1,22 · **debole** | **−3,97** · 7,08 · 1,42 · 0,86 · 51 · **controllato** (revisione dei minori: dentro la riga laterale con il bordo morbido; prima della revisione −4,99, fuori come in partita: mira piena −1,3 dal piatto girato e dall'anticipo) |
 | wqdk·131 | 54,4 | 6,88 | 0,51 | 10,5 | slice 1239 °/s | 0,78 | 1 | +0,37 | 1,00 | no | sì | 2,82 · 9,87 · 1,30 · 0,90 · ok | uguale |
 | q79f·139 | 3,1 | 12,21 | 1,79 | 21,5 | drop (forma, conf 0,83) | 0,10 | 0,83 | −0,02 | 0,94 | no | no | −3,16 · 1,93 · 1,43 · 1,41 · drop | uguale (DROP da fondo campo, forma chiara e gesto lento) |
 | **q79f·142** | 6,2 | **4,03** | 0,51 | 3,8 | topspin 1344 °/s | 0,85 | 1 | +0,35 | 0,62 | sì | sì | −2,85 · **6,80** · **2,51** · 1,17 · **debole** | −2,89 · **10,17** · 1,62 · 0,91 · **56** · **controllato** |
@@ -56,7 +56,15 @@ ampiezza minima 23°), e alle 42,8 s della seconda partita un gesto 0,97 s prima
   lunghi (`pressured`) fa ancora fallire. A Pro, 1v1 e Casual `failQ` (0,30/0,34/0,20) è già sotto `netQMin`: lì non cambia
   niente.
 - **`attackQ` che scala con la forza**: `attackQ − attackQPower 0,3 × (forza − attackPower)/(1 − attackPower)`: a Leggenda
-  un gesto da 0,9 chiude sopra la rete con qualità 0,55 (prima 0,82), uno medio (0,5) ancora no.
+  un gesto da 0,9 chiude sopra la rete con qualità 0,55 (prima 0,82), uno medio (0,5) ancora no. **Revisione dei minori**: la
+  riduzione vale solo nella zona di rete (`nearNet`, la stessa regola del colpo controllato); fuori resta `attackQ` del
+  livello (a Pro 0,65, non 0,35 a forza piena). Di fatto la chiusura (`attack`) chiede già la palla entro `attackZ`, quindi
+  la riduzione era già confinata lì: ora è esplicito e il banco lo conferma (§4: `banco`, `reale`, `partite` identici).
+- **Bordo morbido laterale nel colpo controllato** (revisione dei minori): la dispersione (`netSpread.x`) e la mira piena con
+  il piatto girato non mandano la palla oltre la riga laterale: il bordo `sideKnee`/`sideEdge` (3,1 → 4 m, riga a 4,115)
+  vale anche senza assistenza, pieno con il tempo nella finestra e sfumato oltre come l'assistenza (`assistFade` 0,25
+  unità). wqdk·121 (piatto −1, anticipo +0,78) cade a x −3,97 invece di −4,99. Fuori dalla zona di rete niente cambia (la
+  regola del B15: sotto `assistQ` la palla può uscire di lato).
 - **Palla corta per forma a rete** (`netVolley`): la palla corta resta tale solo con forma chiara (`conf ≥ dropNet.conf
   0,6`) e gesto davvero lento (`forza ≤ dropNet.power 0,25`); altrimenti è una **volée controllata**: tagliata, profondità
   lineare dalla forza tra `volleyDepth` 3 e 7 m, volo del tagliato nel motore (il minimo di 1,32 s del ramo DROP non si
@@ -66,10 +74,14 @@ ampiezza minima 23°), e alle 42,8 s della seconda partita un gesto 0,97 s prima
   Il motore lo passa sempre; cambia solo per chi chiama la funzione senza.
 - Esito: campi nuovi `controlled`, `spread`, `netVolley`.
 
-`natpf-tennis/src/natpf/natpf_impact.js`: `earlyWindow(engine) = IMPACT.early × slowFactor(vz)` (fino a ×1,8 sotto
-15 m/s): la finestra del colpo a vuoto in anticipo si allarga sulle palle lente come quella della direzione, in
-`queueUserSwing` e `resolvePending`. A Leggenda su una palla a 7,4 m/s: 0,40 → 0,72 s (il gesto delle 42,8 s, 0,97 s prima,
-resterebbe a vuoto: era la preparazione, il pallonetto è arrivato dopo).
+`natpf-tennis/src/natpf/natpf_impact.js`: `earlyWindow(engine, actor) = IMPACT.early × slowFactor(vz)` (fino a ×1,8 sotto
+15 m/s) **solo nella zona di rete** (`nearNetSwing`: chi colpisce entro `WEAK.netZ` 5 m, oppure la palla corta in arrivo
+con la regola di `_natpfRacketShot`: rimbalzata nella propria metà, caduta entro `attackZ`, palla entro 7 m; revisione dei
+minori, prima valeva a tutti i livelli e dovunque: a Casual 0,5 × 1,8 = 0,9 s, e un gesto non morbido 0,4–0,7 s prima di
+una palla lenta sarebbe stato giocato al posto del colpo vero): la finestra del colpo a vuoto in anticipo si allarga sulle
+palle lente come quella della direzione, in `queueUserSwing` e `resolvePending`. Fuori dalla zona di rete, e senza attore,
+resta quella del livello (0,5/0,42/0,40 s). A Leggenda a rete su una palla a 7,4 m/s: 0,40 → 0,72 s (il gesto delle 42,8 s,
+0,97 s prima, resterebbe a vuoto: era la preparazione, il pallonetto è arrivato dopo).
 
 Telefono: `natpf_phone_racket.js` manda `cfg net:1` quando chi gioca è entro `NET_Z.in` 5 m dalla rete nello scambio
 (`atNet`, isteresi: si esce oltre 5,6 m) e di nuovo `cfg` senza `net` al rientro; `racchetta.js` lo passa a
@@ -77,7 +89,12 @@ Telefono: `natpf_phone_racket.js` manda `cfg net:1` quando chi gioca è entro `N
 45 °/s e 5 × rumore), inizio del gesto `netOn 0,08 × scala`, ampiezza minima `netMinAngle` 10° e la sola soglia del picco
 al posto della soglia dell'intenzione (metà del colpo tipico). Con il colpo tipico di 1300 °/s: picco 130 °/s invece di
 ~250, ampiezza 10° invece di 23°: dei 30 gesti scartati «deboli» nelle due partite (163–469 °/s, 10–103°) tutti e 30
-passano la soglia nuova del telefono e arrivano al gioco.
+passano la soglia nuova del telefono e arrivano al gioco. **Revisione dei minori**: le soglie basse valgono solo con il
+verso del colpo atteso noto (`ex` ±1: la palla arriva); con `ex 0` (palla non ancora colpita dall'avversario) restano le
+soglie normali. Sonda del revisore: a rete con `ex 0` la preparazione da 295 °/s nel verso opposto (e una da 180 °/s
+0,4 s prima) diventava un colpo in più prima del dritto pieno; ora è scartata «debole» (o ignorata) e il dritto è l'unico
+colpo; con `ex +1` la preparazione resta una preparazione e il tocco da 200 °/s è un colpo. I 30 gesti delle diagnostiche
+erano tutti con la palla in arrivo (verso atteso noto).
 
 **Revisione (motore coerente con il telefono, `natpf_impact.js`)**: arrivare al gioco non bastava. Con `WEAK.rel .3` e
 `WEAK.ample 25` il motore trattava i tocchi sotto 390 °/s come «deboli» (preparazione): all'arrivo della palla aspettava
@@ -114,13 +131,32 @@ del tutorial, `natpf_stroke_intent.js` (la lettura della palla corta per forma r
   in gioco, a rete (`setNet`) è un colpo, al rientro torna scartato; a rete un micro-movimento da 40 °/s non è un colpo e un
   colpo pieno resta un colpo.
 - Prove adattate alla regola nuova: `natpf-campo-aperto` («a rete con il tempo nella finestra la palla passa la rete»:
-  controllato invece di debole, debole sotto `netQMin`, fallito molto fuori tempo), `natpf-drop-recovery` (il recupero
-  oltre 5 m: debole *o* controllato), `natpf-grip-skill` (colpo a vuoto a 1,0 s con la palla a 10 m/s, non più a 0,7 s:
-  la finestra è allargata di 1,5).
-- Gioco **936/936** (927 + 9), sito **199/199** (197 + 2), `npm run build` ok (il `dist` contiene `netAmple`). Nel
-  browser (porte 9651/3651), rifatte dopo la revisione: `natpf-rally` 7/7, `natpf-gesti-speciali` 9/9, `natpf-1v1-p2p`
-  39/39 (tutte al primo tentativo). Banco `colpi.mjs --mode=rete` rifatto: identico (12/12, esiti distinti 12; il banco e
-  `audit:legend` non passano da `queueUserSwing`, la soglia WEAK non li tocca).
+  controllato invece di debole, debole sotto `netQMin`, fallito molto fuori tempo). **Revisione dei minori** (i test
+  adattati senza valore di prova tornano a provare qualcosa, e falliscono senza la correzione): `natpf-drop-recovery`
+  (palla corta recuperata a 5,8 m in allungo, qualità 0,56: **controllato**, profondità 8,6 m; sotto la pressione degli
+  scambi lunghi: debole come prima; raggiunta all'ultimo (qualità 0,39): debole; da fondo campo (9,5 m, caduta a 8 m)
+  la stessa situazione fallisce in rete come prima — sulla base `7936011` fallisce), `natpf-grip-skill` (da fondo campo
+  0,27 s prima: giocato, 0,7 s prima: a vuoto come prima del B17.4, **0,65 s prima su una palla lenta a 4,5 m/s: a vuoto**
+  a ogni livello; a rete (4,95 m) sulla palla corta lenta: 0,65 s prima giocato con il tempo vero del gesto, 1,0 s a
+  vuoto — fallisce senza la correzione della finestra e sulla base `7936011`). Nuovi in `natpf-rete-b17` (ora 10): il bordo
+  laterale del colpo controllato (piatto ±1, tempo 0,4–1 della finestra: |x| ≤ 4 m, assistenza 0; da fondo campo con
+  qualità 0,7 la stessa mira esce come prima; wqdk·121 rigiocato dentro) e la finestra a vuoto solo nella zona di rete
+  (fuori, a 11 m, resta 0,40 s anche sulla palla lenta e a Casual 0,5; la palla corta in arrivo a 6,5 m la allarga; senza
+  attore quella del livello); i tre colpi deboli delle diagnostiche rigiocati cadono tutti dentro la riga laterale. Nuovo
+  in `tools/test/swing-net.test.mjs` (ora 3): a rete con `ex 0` la preparazione da 300 °/s e il tocco da 200 °/s sono
+  scartati «deboli» e il dritto pieno è l'unico colpo; con `ex +1` la preparazione resta tale e il tocco è un colpo
+  (fallisce senza la correzione). `natpf-racchetta-motore` «scambi che finiscono e dinamici»: il tetto di sicurezza sulle
+  mosse verso la rete passa da 10 a 15% (a Leggenda con il seme 7 i colpi controllati a rete restano in campo e lo
+  scambio continua a rete: 10,8% di mosse, era 5,6%, **tutte da palla corta**: il criterio «mai dal fondo» resta 0;
+  vittorie del tennista 36,7 → 50%).
+- Gioco **937/937** (927 + 10), sito **200/200** (197 + 3), `npm run build` ok. Nel browser (porte 9731/3731), dopo la
+  revisione dei minori: vedi la riga in fondo a §3. Prima della revisione dei minori: gioco 936/936, sito 199/199, nel
+  browser (porte 9651/3651) `natpf-rally` 7/7, `natpf-gesti-speciali` 9/9, `natpf-1v1-p2p` 39/39 (tutte al primo
+  tentativo). Banco `colpi.mjs --mode=rete` rifatto: identico (12/12, esiti distinti 12; il banco e `audit:legend` non
+  passano da `queueUserSwing`, la soglia WEAK non li tocca).
+- Nel browser dopo la revisione dei minori (Chromium, porte 9731/3731, build con le correzioni): `natpf-rally` 7/7,
+  `natpf-gesti-speciali` 9/9, `natpf-1v1-p2p` 39/39, tutte al primo tentativo. `scripts/audit/rete-diag.mjs` rifatto:
+  5/8 uguali al registrato come prima (cambiano solo i tre colpi deboli), con wqdk·121 a x −3,97.
 
 ## 4. Banco
 
@@ -140,6 +176,12 @@ dritto 0,6× → 6,8 m, 44 km/h; tagliato → 8,1 m, 51 km/h, 1,43 m; palla cort
 vaga → volée tagliata 3,3 m; pallonetto → 9,0 m, 4,4 m sulla rete; piatto +20°/−20° → x +3,3/−4,1; anticipo/ritardo → x
 −2,4/+2,8.
 
+**Revisione dei minori** (`colpi.mjs --mode=tutto --json`, prima = `ad58b23`, dopo = questo passo, confronto campo per
+campo dei due JSON): `banco`, `reale` e `partite` (Casual, 1v1 e Pro, destro) **identici**, nessuna differenza; cambiano 7
+valori, tutti nello scenario `rete` «in allungo»: il piatto −20° cade a x −3,81 invece di −4,05 (dentro la riga: il bordo
+morbido), profondità 5,7 invece di 5,3 m, 48 invece di 47 km/h; il piatto +20° x +3,33 invece di +3,34. Il banco non passa
+da `queueUserSwing`: la finestra del colpo a vuoto non lo tocca.
+
 Banco Leggenda (`audit:legend`, 300 punti, 8 semi, come lo pubblica il progetto), game vinti dalla CPU prima → dopo:
 medio 92,2 → 92,2 %, amatore 98,5 → 97,6 %, tennista 67,3 → 63,7 %, preciso 25,9 → 24,7 %, bambino 100 → 99,8 %,
 impreciso 99,8 → 99,8 %; errori della CPU 3,4–5,3 % → 3,7–5 %; pro contro medio (giocatore) 84,1 → 83,5 %, casual 100 → 100 %.
@@ -157,15 +199,23 @@ più dura» deciso dall'utente per il B16, non un effetto di questo passo.
   assestamento fatto nell'ultimo mezzo secondo prima della palla diventa il colpo (a meno di uno swing 1,15 volte più
   forte entro 0,065 s). È il prezzo della coerenza con il telefono; se sul campo dà colpi non voluti, alzare `netRel`
   (es. 0,2) senza toccare il telefono.
-- `earlyWindow × slowFactor` vale a tutti i livelli (Casual 0,6 × 1,8 = 1,08 s): un gesto non morbido 0,4–0,7 s prima
-  di una palla lenta, che prima restava in attesa e veniva sostituito dal colpo vero, ora è giocato all'arrivo con il suo
-  anticipo e il colpo vero successivo è ignorato; non provato con la sequenza «gesto anticipato non morbido + colpo vero».
-- `attackQPower` abbassa `attackQ` con la forza a tutti i livelli (Pro: 0,65 → 0,35 a forza piena), non solo a rete:
-  nessun banco a Pro/Casual lo copre.
+- (Risolto nella revisione dei minori) `earlyWindow × slowFactor` valeva a tutti i livelli e dovunque: ora solo nella zona
+  di rete; da fondo campo un gesto 0,65 s prima di una palla lenta è a vuoto come prima (test `natpf-grip-skill`). Resta
+  non provata con il telefono vero la sequenza «gesto anticipato non morbido + colpo vero» a rete.
+- (Risolto nella revisione dei minori) `attackQPower` ora solo nella zona di rete; il banco a Pro e Casual (`banco`,
+  `reale`, `partite`) è identico prima e dopo.
+- (Risolto nella revisione dei minori) a rete con il verso atteso sconosciuto (`ex 0`) il telefono usa le soglie normali:
+  la preparazione da 180–300 °/s non diventa un colpo (test `swing-net`). Resta da provare sul telefono vero con `ex ±1`.
 - Le due «palle corte per forma» da 9 e 12 m (n.112, n.139) non cambiano: non sono a rete. Se l'utente le sente come «palla
   morbidissima» anche da lì, la stessa regola (`dropNet`) si può estendere a tutto il campo: decisione sua.
-- wqdk·121 era e resta fuori di lato (x −5): il piatto girato di −1 e l'anticipo danno la mira piena oltre la riga, senza
-  assistenza perché la qualità è sotto `assistQ`; è la regola del B15, non del gioco a rete.
+- (Risolto nella revisione dei minori) wqdk·121 era fuori di lato (x −5: piatto girato di −1 e anticipo, mira piena oltre la
+  riga senza assistenza perché la qualità è sotto `assistQ`); ora nel colpo controllato il bordo morbido laterale vale
+  anche senza assistenza: x −3,97. Fuori dalla zona di rete la regola del B15 resta.
+- Il tetto di sicurezza sulle mosse verso la rete nel test «scambi che finiscono e dinamici» è stato alzato da 10 a 15%
+  per il seme 7 di Leggenda (10,8%, tutte da palla corta): è una conseguenza dei colpi controllati che restano in campo,
+  non una corsa a rete senza motivo (il criterio «mai dal fondo» resta 0). Non è stato rifatto `audit:legend` dopo la
+  revisione dei minori: il bordo laterale cambia solo i colpi controllati a rete fuori di lato (nel banco `rete` 1 colpo su
+  12).
 - Il colpo a vuoto delle 42,8 s (0,97 s prima) resta a vuoto anche con la finestra allargata (0,72 s): era la preparazione.
-- Il banco `colpi.mjs` sul resto (`--mode=banco|reale|partite`) non è stato rifatto: le modifiche a `strike()` sono solo
-  opzioni nuove con i valori di prima.
+- Il banco `colpi.mjs` sul resto (`--mode=banco|reale|partite`) è stato rifatto nella revisione dei minori (§4): identico
+  prima e dopo.

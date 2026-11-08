@@ -5,9 +5,9 @@
 // sotto failQ .63 di Leggenda → tutti «deboli» (6,8 m, +0,9 m sulla rete). Ora: colpo controllato con dispersione.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { strokeOutcome, directionSpan, lateSpanOf, impactWindow, OUTCOME, ASSIST, strokeSeed, seedUnit } from '../src/natpf/natpf_stroke_outcome.js';
+import { strokeOutcome, directionSpan, lateSpanOf, impactWindow, slowFactor, OUTCOME, ASSIST, strokeSeed, seedUnit } from '../src/natpf/natpf_stroke_outcome.js';
 import { ARC, skillLevel } from '../src/natpf/natpf_skill.js';
-import { earlyWindow, WEAK, weakSwing, nearNetActor } from '../src/natpf/natpf_impact.js';
+import { earlyWindow, nearNetSwing, WEAK, weakSwing, nearNetActor } from '../src/natpf/natpf_impact.js';
 import { NatpfPhoneRacket, atNet, NET_Z } from '../src/natpf/natpf_phone_racket.js';
 import { DEFAULTS as DET } from '@natpf/tennis/swing-detect.js';
 import { FIXTURE, replay, reproduces } from '../scripts/audit/rete-diag.mjs';
@@ -72,6 +72,22 @@ test('colpo controllato: stessi ingressi stesso esito; la qualità che manca agg
   assert.ok(back.failed && !back.controlled, JSON.stringify(back));
 });
 
+test('colpo controllato: il bordo morbido laterale vale anche senza assistenza (piatto girato e anticipo non mandano la palla oltre la riga); fuori dalla zona di rete come prima', () => {
+  // revisione del B17.4: wqdk·121 (piatto 1210 °/s, piatto −1, anticipo +0,78, qualità .62) restava fuori di lato (x −4,99)
+  const sp = span*slowFactor(AT_NET.ballVz), flat = (face, u, o = {}) => strokeOutcome({ ...AT_NET, timing: u*sp, ...o, intent: { shot: 'flat', power: .75, depth: .75, face, rise: -.3, conf: .6 } });
+  for (const face of [-1, 1]) for (const u of [.4, .8, 1]){
+    const c = flat(face, u);
+    assert.ok(c.controlled && c.assist === 0 && c.excess === 0, JSON.stringify(c));
+    assert.ok(Math.abs(c.x) <= OUTCOME.sideEdge + .01 && Math.abs(c.x) < OUTCOME.sideLine, `piatto ${face}, tempo ${u}: x ${c.x}`);
+  }
+  // la stessa mira da fondo campo senza assistenza (qualità .7 sotto assistQ .8, non controllato): fuori di lato come prima (B15)
+  const back = flat(-1, .8, { net: false, shortBall: false, hitZ: 11.5, quality: .7 });
+  assert.ok(!back.controlled && back.assist === 0 && Math.abs(back.x) > OUTCOME.sideLine, JSON.stringify(back));
+  // il colpo delle diagnostiche rigiocato: controllato, incrociato pieno, dentro la riga laterale
+  const d = replay(FIXTURE.find(s => s.session === 'wqdk' && s.n === 121));
+  assert.ok(d.controlled && d.x < -3.5 && Math.abs(d.x) < OUTCOME.sideLine, JSON.stringify(d));
+});
+
 test('palla corta per forma a rete: palla corta solo con la forma chiara e il gesto lento, altrimenti volée controllata 3–7 m', () => {
   const drop = shot({ shot: 'drop', power: .2, rise: -.5, conf: .9 });
   assert.ok(drop.shot === 'DROP' && !drop.netVolley && drop.depth <= 4.6, JSON.stringify(drop));
@@ -101,6 +117,7 @@ test('le tre palle deboli delle diagnostiche dell\'08/11 diventano colpi control
   for (const s of weakOnes){
     const o = replay(s);
     assert.ok(o.controlled && !o.weak && !o.failed && !o.netFault, `${s.session}·${s.n}: ${JSON.stringify(o)}`);
+    assert.ok(Math.abs(o.x) < OUTCOME.sideLine, `${s.session}·${s.n}: dentro la riga laterale (x ${o.x})`);
     assert.ok(o.clear < s.recorded.clear, `${s.session}·${s.n}: più bassa sulla rete (${o.clear} contro ${s.recorded.clear})`);
   }
   // top spin forte (1344 °/s) a 4 m: profondo e veloce; pallonetto (759 °/s) a 6,3 m: un pallonetto vero, oltre 8 m
@@ -110,13 +127,23 @@ test('le tre palle deboli delle diagnostiche dell\'08/11 diventano colpi control
   for (const s of others) assert.ok(reproduces(s, replay(s)), `${s.session}·${s.n}: ${JSON.stringify(replay(s))}`);
 });
 
-test('finestra del colpo a vuoto in anticipo allargata con slowFactor sulle palle lente (fino a ×1,8)', () => {
-  const eng = vz => ({ matchConfig: { difficulty: 'leggenda' }, ball: { vel: { z: vz } } });
-  const W = impactWindow('leggenda');
-  assert.equal(+earlyWindow(eng(20)).toFixed(3), W.early);
-  assert.equal(+earlyWindow(eng(7.4)).toFixed(3), +(W.early*1.8).toFixed(3));
-  assert.equal(+earlyWindow(eng(10)).toFixed(3), +(W.early*1.5).toFixed(3));
-  assert.equal(+earlyWindow({ matchConfig: { difficulty: 'casual' } }).toFixed(3), impactWindow('casual').early);
+test('finestra del colpo a vuoto in anticipo allargata con slowFactor sulle palle lente (fino a ×1,8), solo nella zona di rete', () => {
+  // chi colpisce a z, palla a bz con la caduta a land (già rimbalzata, non il servizio)
+  const eng = (vz, { z = 4, bz = 3, land = 3, difficulty = 'leggenda' } = {}) => ({ matchConfig: { difficulty }, ball: { vel: { z: vz }, pos: { z: bz }, bounceCountOnCurrentSide: 1, rallyStrokeCount: 4, targetLanding: { z: land } }, player: { pos: { z } } });
+  const win = e => +earlyWindow(e, e.player).toFixed(3), W = impactWindow('leggenda');
+  assert.equal(win(eng(20)), W.early);
+  assert.equal(win(eng(7.4)), +(W.early*1.8).toFixed(3));
+  assert.equal(win(eng(10)), +(W.early*1.5).toFixed(3));
+  // revisione: fuori dalla zona di rete (chi colpisce a 11 m, palla non corta) la finestra resta quella del livello anche sulla
+  // palla lenta, a ogni livello (a Casual 0,5 × 1,8 avrebbe fatto 0,9 s); senza attore, quella del livello
+  const far = eng(7.4, { z: 11, bz: 10, land: 9 });
+  assert.equal(win(far), W.early); assert.ok(!nearNetSwing(far, far.player));
+  assert.equal(+earlyWindow(eng(7.4)).toFixed(3), W.early);
+  assert.equal(win(eng(7.4, { z: 11, bz: 10, land: 9, difficulty: 'casual' })), impactWindow('casual').early);
+  // la zona di rete è quella del colpo controllato: chi colpisce entro WEAK.netZ, o la palla corta in arrivo (caduta entro attackZ)
+  const short = eng(7.4, { z: 6.5, bz: 5.5, land: 5 });
+  assert.ok(nearNetSwing(short, short.player)); assert.equal(win(short), +(W.early*1.8).toFixed(3));
+  assert.ok(nearNetSwing(eng(7.4, { z: 4.9, bz: 4, land: 9 }), { pos: { z: 4.9 } }));
 });
 
 test('telefono: il gioco manda cfg net:1 quando chi gioca è entro 5 m dalla rete nello scambio, e lo toglie al rientro (isteresi)', () => {
