@@ -27,7 +27,8 @@ export function rng(seed = 1){ let a = seed >>> 0; return () => { a = (a + 0x6D2
 // habitual: false per leggere la forma senza la salita abituale della calibrazione (solo per i confronti)
 // ios: accelerazione con il segno di Safari su iPhone (opposto ad Android, motion-sign.js); fix: la pagina del telefono
 // la riporta al segno di Android (normalizeSample), come racchetta.js
-export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = true, calibrationHeading = true, ios = false, fix = false } = {}){
+// makeAim: fabbrica del centro della mira (predefinita createAimModel; il banco scripts/audit/colpi.mjs ci prova dei candidati)
+export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = true, calibrationHeading = true, ios = false, fix = false, makeAim = createAimModel } = {}){
   const det = createSwingDetector(), face = createFaceTracker({ quietHold: 400, relax: 2.5 });
   const cal = createCalibration(det), R = rng(seed);
   det.on('status', s => { if (s.s === 'still-ok') face.setRest(s.gravity, det.profile.bias); });
@@ -97,7 +98,7 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
   const skip = ({ tremor = 0 } = {}) => { cal.start({ quick: true, hand }); rest(800, tremor); const p = cal.skip(); ready = true; rest(600, tremor); return p; };
   // sul computer: come NatpfPhoneRacket._onSwing, con i riferimenti che si adattano ai colpi della partita
   const prof = () => det.profile;
-  const lifts = { model: null }, heads = { model: null }, faces = createFaceModel(), aims = createAimModel(), rises = createRiseModel(), typical = createTypicalModel();
+  const lifts = { model: null }, heads = { model: null }, faces = createFaceModel(), aims = makeAim(), rises = createRiseModel(), typical = createTypicalModel();
   cal.on(e => {
     if (e.kind !== 'done') return;
     aims.reset();

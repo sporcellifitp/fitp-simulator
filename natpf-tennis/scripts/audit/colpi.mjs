@@ -8,8 +8,9 @@
 // mira, ritmo) spengono la varietà, e la «persona vera» (secondo giro B15): la distribuzione dei gesti di chi gioca davvero,
 // presa dalle diagnostiche, colpo per colpo nelle funzioni vere del computer e nel motore.
 // È un banco deterministico sulle regole vere, non una misura di persone.
-//   node --import ./test/register.mjs scripts/audit/colpi.mjs [--mode=tutto|banco|reale] [--hand=right|left|both] [--json=file] [--quick]
-//   banco: gesti variati e sequenze nel telefono simulato · reale: persona vera · tutto (predefinito): i due
+//   node --import ./test/register.mjs scripts/audit/colpi.mjs [--mode=tutto|banco|reale|partite] [--hand=right|left|both] [--json=file] [--quick]
+//   banco: gesti variati e sequenze nel telefono simulato · reale: persona vera · partite: centro della mira per partita
+//   con il rumore (seme sbagliato, riferimento girato, mira tenuta nei primi colpi) · tutto (predefinito): tutti
 import { pathToFileURL } from 'node:url';
 import { writeFileSync } from 'node:fs';
 import { simPhone, rng } from '../../test/phone-sim.mjs';
@@ -29,9 +30,10 @@ export const mirrorStroke = S => ({ ...S, axis: [S.axis[0], -S.axis[1], -S.axis[
 const strokesOf = hand => (hand === 'left' ? { forehand: mirrorStroke(STROKES.dritto), backhand: mirrorStroke(STROKES.rovescio) } : { forehand: STROKES.dritto, backhand: STROKES.rovescio });
 
 // telefono con la presa insegnata (foto del 04/11), calibrazione rapida con il braccio (dritto e rovescio veri).
-// 'L' = rotazione antioraria vista dall'alto: dritto del destro, rovescio del mancino
-export function makePhone({ seed = 7, hand = 'right' } = {}){
-  const p = simPhone({ seed, shape: true, hand });
+// 'L' = rotazione antioraria vista dall'alto: dritto del destro, rovescio del mancino. makeAim: fabbrica del centro della
+// mira (predefinita createAimModel; per confrontare candidati)
+export function makePhone({ seed = 7, hand = 'right', makeAim = createAimModel } = {}){
+  const p = simPhone({ seed, shape: true, hand, makeAim });
   p.hand = hand;
   photoGrip(p, { hand });
   const R = rng(seed*31 + 5), S = strokesOf(hand);
@@ -112,8 +114,8 @@ export function variant(p, g){
 // sequenza dopo i colpi di qualche punto (12 normali): lo stesso gesto ripetuto con i riferimenti che imparano (stesso
 // telefono, stesso motore). g: gesto o funzione del numero del colpo. Il mancino fa la sequenza allo specchio (piatto
 // girato dall'altra parte): la sua x deve essere quella del destro cambiata di segno
-export function sequence(g, { n = 10, hand = 'right', difficulty = 'casual', u = 0 } = {}){
-  const pp = warmPhone(makePhone({ seed: 11, hand })), e = createHeadlessEngine({ difficulty }); e.startNewMatch({ showStartBanner: false });
+export function sequence(g, { n = 10, hand = 'right', difficulty = 'casual', u = 0, makeAim = createAimModel } = {}){
+  const pp = warmPhone(makePhone({ seed: 11, hand, makeAim })), e = createHeadlessEngine({ difficulty }); e.startNewMatch({ showStartBanner: false });
   const rows = [];
   for (let i = 0; i < n; i++){
     const g0 = typeof g === 'function' ? g(i) : g, gg = hand === 'left' ? { ...g0, yaw: -(g0.yaw || 0) } : g0, RR = rng(300 + i);
@@ -180,22 +182,28 @@ export function audit({ quick = QUICK, hand = 'right' } = {}){
 // impara dai colpi normali come in partita), intenzione (strokeIntent: forza dal colpo tipico, tipo di colpo dalla forma,
 // mira del piatto), poi il motore con il ritmo di chi gioca che impara (strike). Mancino: le stesse estrazioni allo
 // specchio (piatto, seme e palla dall'altra parte): l'esito deve essere lo specchio esatto.
+// Casi in più (terzo giro B15, dalla verifica indipendente): turnAt/turn, il riferimento si gira di `turn` gradi dal colpo
+// turnAt (corpo girato, deriva del giroscopio: dritti e rovesci insieme; il centro giusto diventa turn); aimN/aimBias, mira
+// tenuta di aimBias gradi con dritto e rovescio nei primi aimN colpi (poi colpi normali); seedErrB, errore del seme del
+// rovescio quando è diverso da quello del dritto (seedErr); makeAim, fabbrica del centro della mira (predefinita
+// createAimModel; per confrontare candidati)
 export const REAL = Object.freeze({ N: 400, seed: 3, fh: .6, uMed: .35, uSd: .45, devSd: 12, kMed: 1, kSd: .3, ref: 780, ballSd: .25, riseRef: .1, relSd: .12, angle: 90, angleSd: 20, plane: .85, planeSd: .08 });
-export function reale({ hand = 'right', N = REAL.N, seed = REAL.seed, uMed = REAL.uMed, uSd = REAL.uSd, devSd = REAL.devSd, devBias = 0, seedErr = 0, kMed = REAL.kMed, kSd = REAL.kSd, rhythm = true, difficulty = 'casual' } = {}){
+export function reale({ hand = 'right', N = REAL.N, seed = REAL.seed, uMed = REAL.uMed, uSd = REAL.uSd, devSd = REAL.devSd, devBias = 0, seedErr = 0, kMed = REAL.kMed, kSd = REAL.kSd, rhythm = true, difficulty = 'casual',
+  turnAt = -1, turn = 0, aimN = 0, aimBias = 0, seedErrB = null, makeAim = createAimModel } = {}){
   const clip = (v, a, b) => Math.max(a, Math.min(b, v)), R = rng(seed), mx = hand === 'left' ? -1 : 1;
   const e = createHeadlessEngine({ difficulty }); e.startNewMatch({ showStartBanner: false });
-  const aims = createAimModel(); aims.seed(1, mx*seedErr); aims.seed(-1, mx*seedErr);
+  const aims = makeAim(); aims.seed(mx, mx*seedErr); aims.seed(-mx, mx*(seedErrB ?? seedErr));   // verso del dritto = mx
   const shots = [];
   for (let i = 0; i < N; i++){
     const side = R() < REAL.fh ? 'forehand' : 'backhand', dir = (side === 'forehand' ? 1 : -1)*mx;
     const dev = clip(gauss(R)*devSd + devBias, -60, 60), k = clip(kMed + gauss(R)*kSd, .3, 2);
     const u = clip(uMed + gauss(R)*uSd, -1.5, 1.5), ballY = clip(1 + gauss(R)*REAL.ballSd, .6, 1.6);
     const rel = gauss(R)*REAL.relSd, angle = clip(REAL.angle + gauss(R)*REAL.angleSd, 40, 160), plane = clip(REAL.plane + gauss(R)*REAL.planeSd, .5, 1);
-    const heading = mx*dev, a = aims.aim(dir, heading), peak = k*REAL.ref;
+    const turned = turnAt >= 0 && i >= turnAt ? turn : 0, heading = mx*(dev + turned + (i < aimN ? aimBias : 0)), a = aims.aim(dir, heading), peak = k*REAL.ref;
     const intent = strokeIntent({ peak, angle, shape: { rise: REAL.riseRef + rel, plane, tilt: 0 } }, { ref: REAL.ref, headingDev: a?.dev ?? null, riseRef: REAL.riseRef, ballHigh: ballY >= 1.5 });
     if (['topspin', 'flat'].includes(intent.shot)) aims.add(dir, heading);
-    // errore che resta nel centro della mira (gradi, media dei due versi; il centro giusto è 0)
-    const cerr = +(mx*((aims.center(1) ?? 0) + (aims.center(-1) ?? 0))/2).toFixed(2);
+    // errore che resta nel centro della mira (gradi, media dei due versi; il centro giusto è 0, o turn dopo il giro)
+    const cerr = +(mx*((aims.center(1) ?? 0) + (aims.center(-1) ?? 0))/2 - turned).toFixed(2);
     const ev = { source: 'natpf-phone', side, shotType: intent.shot, speed: .8 + intent.power*.85, dirX: 0, timing: null,
       natpf: { aim: 'swing', shot: intent.shot, intent, power: intent.power, peak, typical: REAL.ref, latency: 0, hand, aimDev: a?.dev ?? null } };
     const o = strike(ev, { difficulty, u, ballY, engine: rhythm ? e : null, rally: 3 });
@@ -227,13 +235,47 @@ export function realeAll({ hand = 'right', quick = QUICK } = {}){
 // media alla fine del blocco). Lo stesso errore visto dall'altra parte è una mira tenuta dal primo colpo (piatto sempre
 // girato di −seedErr): per il centro della mira le due cose sono uguali
 export const SEME = Object.freeze({ runs: 24, n: 40, blocks: Object.freeze([[0, 5], [5, 10], [10, 20], [20, 40]]) });
-export function seme({ seedErr = 0, runs = SEME.runs, n = SEME.n, hand = 'right' } = {}){
+export function seme({ seedErr = 0, runs = SEME.runs, n = SEME.n, hand = 'right', makeAim = createAimModel } = {}){
   const xs = SEME.blocks.map(() => []), err = SEME.blocks.map(() => []);
   for (let r = 0; r < runs; r++){
-    const res = reale({ hand, N: n, seed: 101 + r, seedErr });
+    const res = reale({ hand, N: n, seed: 101 + r, seedErr, makeAim });
     SEME.blocks.forEach(([a, b], j) => { for (const s of res.shots.slice(a, b)) if (!s.lost) xs[j].push(s.x); err[j].push(res.shots[Math.min(b, res.shots.length) - 1].cerr); });
   }
   return { seedErr, hand, blocks: SEME.blocks.map(([a, b], j) => ({ shots: `${a + 1}-${b}`, x: q(xs[j], .5), xMean: +mean(xs[j]).toFixed(2), cerr: +mean(err[j]).toFixed(1), cabs: +mean(err[j].map(Math.abs)).toFixed(1), cmax: +Math.max(...err[j].map(Math.abs)).toFixed(1) })) };
+}
+// Per partita, con il rumore di chi gioca (terzo giro B15, dalla verifica indipendente del secondo giro). Le partite
+// mescolate nascondono il difetto che si vive: con il seme sbagliato di +15° in una partita e di −15° in un'altra la x p50
+// di tutte e due insieme è 0, ma ognuna ha le palle da una parte. Qui ogni partita (runs, ognuna con le sue estrazioni, la
+// persona vera di reale()) si giudica da sola, per blocchi di colpi: |mediana di x| (quanto le palle di quella partita
+// stanno da una parte; con il centro giusto resta circa mezzo metro, il campionamento di 20 colpi con x ±2,4 m), partite
+// con la mediana oltre 1 m da una parte, mediana con il segno (media sulle partite), errore del centro della mira alla
+// fine del blocco (gradi, medio assoluto e massimo). `at`: errore del centro anche a questi colpi (riferimento girato)
+export const PARTITE = Object.freeze({ runs: 24, n: 80, seed: 101, blocks: Object.freeze([[20, 40], [40, 60], [60, 80]]) });
+export function partite({ runs = PARTITE.runs, n = PARTITE.n, blocks = PARTITE.blocks, at = [], ...o } = {}){
+  const med = v => { const s = [...v].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m])/2; };
+  const B = blocks.map(() => ({ m: [], c: [] })), A = at.map(() => []);
+  for (let r = 0; r < runs; r++){
+    const g = reale({ ...o, N: n, seed: PARTITE.seed + r });
+    blocks.forEach(([a, b], j) => { B[j].m.push(med(g.shots.slice(a, b).filter(s => !s.lost).map(s => s.x))); B[j].c.push(Math.abs(g.shots[b - 1].cerr)); });
+    at.forEach((k, j) => A[j].push(Math.abs(g.shots[k - 1].cerr)));
+  }
+  const r2 = v => +v.toFixed(2), r1 = v => +v.toFixed(1);
+  return { ...o, runs, n,
+    blocks: blocks.map(([a, b], j) => ({ shots: `${a + 1}-${b}`, mabs: r2(mean(B[j].m.map(Math.abs))), over1: B[j].m.filter(v => Math.abs(v) > 1).length, signed: r2(mean(B[j].m)), cabs: r1(mean(B[j].c)), cmax: r1(Math.max(...B[j].c)) })),
+    at: at.map((k, j) => ({ shot: k, cabs: r1(mean(A[j])), cmax: r1(Math.max(...A[j])) })) };
+}
+// i casi per partita: seme della calibrazione sbagliato di 0…±30° (nei due versi), seme sbagliato in un verso solo o
+// diverso nei due (dritto/rovescio), riferimento girato di 26–40° dopo 20 colpi (errore del centro 30 e 60 colpi dopo il
+// giro), mira tenuta di +18° con dritto e rovescio nei primi 16 colpi
+export const PARTITE_CASES = Object.freeze({
+  seme: Object.freeze([-30, -25, -15, 0, 15, 25, 30].map(seedErr => Object.freeze({ seedErr }))),
+  asimmetrico: Object.freeze([[30, 0], [0, 30], [25, 10], [20, -20]].map(([seedErr, seedErrB]) => Object.freeze({ seedErr, seedErrB }))),
+  girato: Object.freeze([26, 28, 30, 32, 35, 38, 40].map(turn => Object.freeze({ turnAt: 20, turn, at: [50, 80] }))),
+  tenuta: Object.freeze([Object.freeze({ aimN: 16, aimBias: 18 })]),
+});
+export function partiteAll({ hand = 'right', makeAim = createAimModel, quick = QUICK } = {}){
+  const runs = quick ? 8 : PARTITE.runs;
+  return Object.fromEntries(Object.entries(PARTITE_CASES).map(([k, list]) => [k, list.map(o => partite({ ...o, hand, makeAim, runs }))]));
 }
 // specchio: le stesse estrazioni del destro e del mancino danno la stessa palla dall'altra parte. Nei tagliati (e nelle
 // palle corte) l'effetto laterale del motore va dalla parte del campo dove sta chi colpisce (x ≥ 0), non dipende dalla
@@ -281,6 +323,15 @@ export function print(out){
     for (const r of rows) console.log('    ' + (r ? [r.i, r.side === 'forehand' ? 'D' : 'R', r.peak, r.typical, r.power, r.heading, r.center, r.aimDev, r.face, r.x, r.depth, r.kmh, r.t, r.rhythm] : ['perso']).map(v => fmt(v).padStart(8)).join(''));
   }
 }
+export function printPartite(P, hand = 'right'){
+  console.log(`\n######## per partita, con il rumore di chi gioca · mano ${hand === 'left' ? 'sinistra (mancino)' : 'destra'} (${PARTITE.runs} partite da ${PARTITE.n} colpi, persona vera)`);
+  console.log('  |mediana x| per partita (media, m) · partite oltre 1 m da una parte · mediana con il segno (media) · errore del centro a fine blocco (|medio|, max, gradi)');
+  const B = b => `colpi ${b.shots}: ${fmt(b.mabs)} m, oltre 1 m ${b.over1}, segno ${fmt(b.signed)}, centro ${fmt(b.cabs)}° (max ${fmt(b.cmax)}°)`;
+  for (const r of P.seme) console.log(`  seme ${String(r.seedErr).padStart(3)}°   ` + r.blocks.map(B).join(' · '));
+  for (const r of P.asimmetrico) console.log(`  seme dritto ${r.seedErr}°, rovescio ${r.seedErrB}°   ` + r.blocks.map(B).join(' · '));
+  for (const r of P.girato) console.log(`  girato ${r.turn}° al 20° colpo  ` + r.at.map(a => `errore del centro ${a.shot - r.turnAt} colpi dopo: ${fmt(a.cabs)}° (max ${fmt(a.cmax)}°)`).join(' · ') + ' · ' + r.blocks.map(B).join(' · '));
+  for (const r of P.tenuta) console.log(`  mira tenuta ${r.aimBias}° (dritto e rovescio) nei primi ${r.aimN} colpi, poi normale  ` + r.blocks.map(B).join(' · '));
+}
 export function printReale(all, hand = 'right'){
   console.log(`\n######## persona vera · mano ${hand === 'left' ? 'sinistra (mancino)' : 'destra'} (${REAL.N} colpi; ${JSON.stringify(REAL)})`);
   const D = d => `p10 ${fmt(d.p10)}  p50 ${fmt(d.p50)}  p90 ${fmt(d.p90)}  sd ${fmt(d.sd)}  (p90−p10 ${fmt(d.span)})`;
@@ -307,6 +358,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href){
       console.log(`\n== seme della calibrazione sbagliato (${SEME.runs} partite, primi ${SEME.n} colpi): x p50 (media) e errore del centro della mira alla fine del blocco (medio con il segno, medio assoluto, massimo)`);
       for (const r of res[hand].seme) console.log(`  seme ${String(r.seedErr).padStart(3)}°  ` + r.blocks.map(b => `colpi ${b.shots}: x ${fmt(b.x)} (${fmt(b.xMean)}), centro ${fmt(b.cerr)}° (|err| medio ${fmt(b.cabs)}°, max ${fmt(b.cmax)}°)`).join(' · '));
     }
+    if (mode === 'tutto' || mode === 'partite'){ res[hand].partite = partiteAll({ hand }); printPartite(res[hand].partite, hand); }
     if (mode === 'tutto' || mode === 'banco'){ res[hand].banco = audit({ hand }); print(res[hand].banco); }
   }
   if (res.right?.reale && res.left?.reale){
