@@ -209,3 +209,11 @@ test('servizio e schiacciata colpiscono sopra la testa; il pallonetto sale davve
   const l = gesturePlan('lob'); assert.ok(W('lob', l.T.back)[1] - W('lob', l.T.inv)[1] > .6, 'pallonetto');
   const d = gesturePlan('drop'); assert.ok(W('drop', d.T.inv)[1] - W('drop', d.T.back)[1] > .08, 'palla corta');
 });
+
+// Revisione B14 (allenatore): la schiacciata finiva con il braccio teso in avanti all'altezza della spalla (1,40 m), «come
+// indicare la rete». Ora l'accompagnamento continua in basso e attraverso il corpo fino alla vita, a sinistra
+test('schiacciata: l\'accompagnamento scende attraverso il corpo fino alla vita, a sinistra (non si ferma all\'altezza della spalla)', () => {
+  const P = gesturePlan('smash'), W = t => gesturePose('smash', t).chain.W, c = W(P.contact), f = W(P.T.back);
+  assert.ok(f[1] <= 1.15 && f[0] <= -.1, `fine della schiacciata ${f}`);
+  assert.ok(c[1] - f[1] >= .6, `scende di ${(c[1] - f[1]).toFixed(2)} m dall'impatto alla fine`);
+});
