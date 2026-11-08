@@ -589,6 +589,8 @@ export class NatpfTraining {
     // lezione iniziale: pannello a sinistra con l'animazione grande, il campo resta libero
     const L = this.lesson;
     if (this.coach.dataset.mode !== (L ? 'lesson' : 'drill')) this.coach.dataset.mode = L ? 'lesson' : 'drill';
+    // mano di chi gioca: il mancino colpisce a sinistra dello schermo, la scheda dell'esercizio va a destra (CSS)
+    if (this.coach.dataset.hand !== hand) this.coach.dataset.hand = hand;
     show($('#coach-lesson'), !!L);
     if (L) this._paintLesson($, hand);
     const flash = this.flash && now < this.flash.until ? this.flash : null;

@@ -436,6 +436,9 @@ export class NatpfLobby {
     const sb = $('btn-start-match');
     if (sb && split){ const wait = match && !st.splitReady; if (sb.disabled !== wait) sb.disabled = wait; sb.classList.toggle('is-wait', wait); }
     else if (sb && this.mode !== 'friend' && sb.classList.contains('is-wait')){ sb.classList.remove('is-wait'); sb.disabled = false; }
+    // fuori dalla modalità amico «Gioca» torna «Gioca» (verifica dell'integrazione B15: dopo «Sfida un amico» e poi «Contro la
+    // CPU» il pulsante era attivo ma diceva ancora «In attesa del Player 2…»: la barra dell'invito non lo ridipingeva più)
+    if (sb && this.mode !== 'friend' && sb.dataset.label && sb.textContent !== sb.dataset.label) sb.textContent = sb.dataset.label;
     const note = $('lobby-match-note');
     const names = this.engine.natpfSplitNames || {}, n1 = names.p1 || 'Player 1', n2 = names.p2 || 'Player 2';
     if (note) note.textContent = split ? (st.splitReady ? `${n1} a sinistra, ${n2} a destra. Ognuno guarda la sua metà.` : `${gate?.waiting?.length ? waitingText(gate.waiting) + ': ' : ''}${this.ui.split?.webcam ? 'la webcam deve vedere tutti e due' : 'servono i due telefoni pronti'}, torna a «Racchette».`) : st.controller === 'phone' && !st.phoneReady ? 'Telefono da ricollegare: con «Gioca» compare il QR.' : '';

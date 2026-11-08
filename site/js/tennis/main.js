@@ -90,7 +90,7 @@ const PHONE_ERR = {
   nomotion: 'Il browser del telefono non manda i dati dei sensori di movimento. Usa Chrome su Android o Safari su iPhone e riapri il QR.',
   insecure: 'Il telefono ha aperto la pagina senza https e il browser non dà i sensori. Apri il gioco dall\'indirizzo pubblicato in https e inquadra di nuovo il QR.',
 };
-let pairNext = null, cal = { step: null, idx: 0, marks: [], result: null, free: null }, qrTok = null;
+let pairNext = null, cal = { step: null, idx: 0, marks: [], result: null, free: null, want: null }, qrTok = null;
 function ensureLink(){
   if (A.link) return A.link;
   const L = A.link = createPhoneLink();
@@ -144,6 +144,8 @@ function paintPair(){
 }
 function onCal(e){
   if (Number.isFinite(e.total)) cal.total = e.total;
+  // verso chiesto dal telefono (B15: il mancino parte dal dritto, «R»; l'ordine fisso del destro mostrava la freccia sbagliata)
+  if ((e.kind === 'step' || e.kind === 'next') && (e.want === 'L' || e.want === 'R')) cal.want = e.want;
   if (((e.kind === 'step' && e.step === 'still') || (e.kind === 'review' && e.touch)) && A.state === 'play'){ pause(); A.pairFromPause = true; openPair(() => { A.pairFromPause = false; A.state = 'paused'; resume(); }); }
   if (e.kind === 'selection'){ calibrationPreview.example(e.shot); }
   if (e.kind === 'next' || (e.kind === 'step' && ['swings','shots'].includes(e.step))) calibrationPreview.example(e.shot || 'drive', e.want === 'R' ? -1 : 1);
@@ -178,7 +180,7 @@ function feedback(dirId, txtId, barId, dir, txt, peak, ok){
 }
 function paintSwings(){
   const plan = cal.total === QUICK_PLAN.length ? QUICK_PLAN : PLAN;
-  const guided = cal.step === 'shots', guide = guided ? GESTURE_PLAN[cal.idx] : { shot: 'drive', want: plan[cal.idx] || 'L' };
+  const guided = cal.step === 'shots', guide = guided ? GESTURE_PLAN[cal.idx] : { shot: 'drive', want: cal.want || plan[cal.idx] || 'L' };
   const index = (guided ? PLAN.length : 0) + cal.idx, total = guided ? PLAN.length + GESTURE_PLAN.length : cal.marks.length || PLAN.length;
   $('#swArrow').textContent = guide.want === 'L' ? '←' : guide.want === 'R' ? '→' : '↑';
   $('#swWant').textContent = `Gesto ${Math.min(total, index + 1)} di ${total}${guide.want ? `: ${guide.want === 'L' ? 'verso sinistra' : 'verso destra'}` : ''}`;

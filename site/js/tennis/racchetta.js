@@ -356,7 +356,7 @@ function noMotion(why){
   removeEventListener('devicemotion', onMotion);
   sensor = why; sendState(); paint();
   ui({ denied: 'Sensori negati', insecure: 'Serve https', nomotion: 'Sensori non disponibili' }[why], {
-    denied: 'Su iPhone ricarica la pagina e tocca «Consenti»; su Android consenti i sensori nelle impostazioni del sito. Oppure «Gioca con i tocchi».',
+    denied: 'Su iPhone ricarica la pagina e tocca «Consenti»; su Android tocca il lucchetto accanto all\'indirizzo e consenti i sensori. Oppure «Gioca con i tocchi».',
     insecure: 'I sensori vogliono una pagina https. In LAN serve il certificato NATPF sul telefono.',
     nomotion: 'Questo browser non dà i sensori. Usa Chrome (Android) o Safari (iPhone) e inquadra di nuovo il QR.',
   }[why], 'miss');

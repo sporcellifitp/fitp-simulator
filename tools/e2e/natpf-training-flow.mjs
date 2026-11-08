@@ -174,7 +174,13 @@ try {
   for (let k = 0; k < 4 && drill.filter(d => d.ok).length < 2; k++){
     const hot = await game.waitForFunction(() => { const T = __natpfTennis.natpfUi.training; return T.active && !T.cal && T.drill?.id === 'forehand' && document.getElementById('coach-main').dataset.state === 'go' ? { cue: document.getElementById('coach-cue').dataset.dir, title: document.getElementById('coach-text').textContent } : null; }, null, { timeout: 15000, polling: 20 }).then(h => h.jsonValue(), () => null);
     if (!hot) break;
-    if (k === 0) await shot('4-esercizio-dritto');
+    if (k === 0){
+      await shot('4-esercizio-dritto');
+      // (verifica dell'integrazione B15) la scheda dell'esercizio sta dalla parte opposta al punto d'impatto: in basso a
+      // sinistra per il destro, in basso a destra per il mancino (prima copriva racchetta e corpo del mancino a «Ora!»)
+      const box = await game.evaluate(() => { const r = document.getElementById('coach-main').getBoundingClientRect(), d = document.getElementById('coach-demo')?.getBoundingClientRect(); return { cx: (r.left + r.right)/2, w: innerWidth, demo: d && d.width ? (d.left + d.right)/2 : null }; });
+      check(`scheda dell'esercizio lontana dal punto d'impatto del ${HAND === 'left' ? 'mancino (a destra)' : 'destro (a sinistra)'}`, HAND === 'left' ? box.cx > box.w/2 && (box.demo == null || box.demo < box.w/2) : box.cx < box.w/2 && (box.demo == null || box.demo > box.w/2), JSON.stringify(box));
+    }
     const before = await game.evaluate(() => __natpfTennis.natpfUi.training.progress.done);
     // tempo di reazione di una persona al segnale «Ora» (~0,25 s), poi il gesto (picco a metà, dopo 120 ms)
     await phone.evaluate(s => { window.__busy = true; return new Promise(r => setTimeout(r, 250)).then(() => __up.swing(s)).then(() => { window.__busy = false; }); }, FH);

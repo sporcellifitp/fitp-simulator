@@ -54,7 +54,12 @@ export class NatpfVersusUi {
   // modalità amico: riga di stato della barra dell'invito e pulsante «Gioca»
   paintLobby(){
     const box = $('natpf-invite'), btn = $('btn-start-match');
-    if (!this.hostActive || this.ui.lobby?.mode !== 'friend'){ if (btn){ btn.disabled = false; btn.classList.remove('is-wait'); } return; }
+    if (!this.hostActive || this.ui.lobby?.mode !== 'friend'){
+      // fuori dalla modalità amico «Gioca» torna «Gioca» (verifica dell'integrazione B15: dopo «Sfida un amico» e poi
+      // «Contro la CPU» il pulsante era attivo ma diceva ancora «In attesa del Player 2…»)
+      if (btn){ btn.disabled = false; btn.classList.remove('is-wait'); const label = btn.querySelector('.choice-main') || btn; if (btn.dataset.label && label.textContent !== btn.dataset.label) label.textContent = btn.dataset.label; }
+      return;
+    }
     const st = this.state, r = this.engine.roomStatus || {}, p2p = this.engine.natpfP2p;
     const line = hostLobbyStatus(st, { roomId: this.engine.roomId, p2Name: r.guestName || 'Player 2', net: p2p?.mode === 'host' ? { mode: 'host', status: p2p.status, error: p2p.error } : null });
     // solo se cambia: prima le righe si riscrivevano ogni 250 ms e l'animazione del pallino in attesa ripartiva da capo

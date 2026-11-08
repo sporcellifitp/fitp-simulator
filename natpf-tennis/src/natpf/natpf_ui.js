@@ -46,7 +46,7 @@ const WEBCAM_PANELS = [
   { video: 'guest-cam-video', dot: 'guest-cam-dot', text: 'guest-cam-text', badge: 'guest-cam-badge', go: 'guest-cam-go' },
 ];
 const PHONE_ERR = {
-  denied: 'Sensori negati sul telefono. Su iPhone ricarica la pagina e tocca «Consenti»; su Android consenti i sensori dal lucchetto nella barra degli indirizzi.',
+  denied: 'Sensori negati sul telefono. Su iPhone ricarica la pagina e tocca «Consenti»; su Android tocca il lucchetto accanto all\'indirizzo e consenti i sensori.',
   nomotion: 'Il browser del telefono non dà i sensori. Usa Chrome (Android) o Safari (iPhone) e inquadra di nuovo il QR.',
   insecure: 'Il telefono ha aperto la pagina senza https e il browser non dà i sensori. Apri il gioco in https (npm run dev:https in LAN, oppure l’indirizzo pubblicato) e inquadra di nuovo il QR.',
 };
@@ -299,6 +299,9 @@ export class NatpfUi {
     const w = $('connect-warn');
     const text = err || (L.state === 'lost' ? 'Telefono scollegato: riapri la pagina sul telefono, si ricollega da solo.' : L.state === 'error' ? `Collegamento non disponibile (${L.error}): controlla la rete e riprova.` : this._localWarning());
     if (w){ w.textContent = text; show(w, !!text); }
+    // con un avviso in vista la foto della presa del passo 3 si toglie: a 1280×720 l'avviso finiva sotto la barra in basso
+    // (verifica dell'integrazione B15); la presa resta scritta nel passo
+    document.querySelector('[data-setup="phone"]')?.classList.toggle('has-warn', !!text);
   }
   _localWarning(){
     const p = this.phone; if (p.connected) return '';
