@@ -3,6 +3,8 @@
 // il telefono (scritta grande, freccia), per verificare che i due schermi chiedano la stessa cosa nello stesso momento
 // e che il giocatore non si muova da solo mentre si aspetta il gesto.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-training-flow.mjs
+//   HAND=left: lo stesso percorso per un mancino (B15): mano scelta nel gioco, il telefono la riceve, il computer gli chiede
+//   prima il dritto (→) e poi il rovescio (←), la palla del gesto sta dal suo lato, l'esercizio «Dritto» ha la freccia →.
 // Eventi devicemotion sintetici: non sostituiscono la prova con un telefono vero.
 import { spawn } from 'node:child_process';
 import http from 'node:http';
@@ -12,7 +14,13 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
 import { launch, page, check, summary, SP, seeAllCards } from './th.mjs';
-import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
+import { calibrationPlan } from '../../site/js/tennis/calibration.js';
+import { calSide } from '../../natpf-tennis/src/natpf/natpf_cal_view.js';
+
+// mano di chi gioca (HAND=left per il mancino): il percorso della calibrazione chiede prima il dritto a tutti e due
+const HAND = process.env.HAND === 'left' ? 'left' : 'right', FH = HAND === 'left' ? -1 : 1;
+const QUICK_PLAN = calibrationPlan({ quick: true, hand: HAND }), ARROW = { L: '←', R: '→' };
+const WANT_FH = QUICK_PLAN[0];   // il gesto del dritto (L per il destro, R per il mancino)
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
 const PEER_PORT = +(process.env.PEER_PORT || 9109), GAME_PORT = +(process.env.GAME_PORT || 3109);
@@ -50,6 +58,9 @@ try {
   const shot = async name => { if (!SHOTS) return; await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/training-${name}.png` }); };
   await game.evaluate(() => __natpfTennis.natpfUi.intro?.skip?.());
   await game.waitForFunction(() => __natpfTennis.natpfUi.lobby.visible && __natpfTennis.natpfUi.lobby.step === 'menu', null, { timeout: 20000 });
+  // mano scelta nel gioco (una sola per tutto il gioco: va al telefono con la configurazione)
+  await game.evaluate(h => __natpfTennis.natpfUi.hand.set(h), HAND);
+  check(`mano «${HAND}» scelta nel gioco e salvata`, await game.evaluate(h => __natpfTennis.natpfUi.hand.hand === h && localStorage.getItem('natpf-tennis.hand') === h, HAND));
   await shot('0-menu');
   // menu → Allenamento → racchetta: smartphone → collega
   await game.click('[data-menu="training"]');
@@ -61,6 +72,9 @@ try {
   const { p: phone, errs: phoneErrs } = await page(B, url, { w: 390, h: 844, mobile: true, init: PHONE_INIT });
   await phone.waitForFunction(() => window.__racchetta?.state.linkState === 'on', null, { timeout: 30000 });
   check('il telefono si collega dal QR del menu «Allenamento»', true);
+  // la mano arriva al telefono (cfg) e il telefono la mostra: menu e figura della presa
+  const phoneHand = await phone.waitForFunction(h => document.getElementById('hand')?.value === h ? { sel: document.getElementById('hand').value, art: document.getElementById('grip')?.dataset.hand || null } : null, HAND, { timeout: 8000 }).then(h => h.jsonValue(), () => null);
+  check(`il telefono riceve la mano «${HAND}» dal gioco (menu e figura della presa)`, !!phoneHand && phoneHand.sel === HAND && (phoneHand.art == null || phoneHand.art === HAND), JSON.stringify(phoneHand));
 
   // registrazione dei due schermi ogni 100 ms (orologio del computer di prova, uguale per le due pagine)
   await game.evaluate(() => {
@@ -80,6 +94,10 @@ try {
   await game.evaluate(() => {
     const E = __natpfTennis, T = E.natpfUi.training; window.__hits = []; window.__cals = [];
     E.natpfPhone.onCal(e => __cals.push({ t: Date.now(), kind: e.kind, step: e.step, idx: e.idx, want: e.want, dir: e.dir, ok: e.ok, why: e.why }));
+    // gesti scartati sul telefono e colpi arrivati al motore (diagnostica della prova)
+    window.__diag = []; E.natpfPhone.onDiag((k, d) => __diag.push({ t: Date.now(), k, ...d })); E.natpfPhone.onSwing((ev, s) => __diag.push({ t: Date.now(), k: 'colpo', side: ev.side, shot: ev.natpf?.shot, dir: s?.dir, ignored: ev.ignored || null }));
+    // … e che cosa arriva al motore (lato e mano all'impatto)
+    const st = E._attemptPlayerRallyStrike.bind(E); E._attemptPlayerRallyStrike = (ev, auto) => { const r = st(ev, auto); __diag.push({ t: Date.now(), k: 'motore', src: ev.source, side: ev.side, hand: ev.hand || ev.natpf?.hand || null, dirX: ev.dirX, hit: r, swing: E.player.swingType }); return r; };
     const h = T._hitCal.bind(T);
     // il colpo si registra quando la palla è colpita davvero: dalla finestra d'impatto (22/10) lo swing aspetta che la
     // palla arrivi al punto d'impatto, e subito dopo il gesto la palla non è ancora partita (struck false, swing di prima)
@@ -138,7 +156,7 @@ try {
       await phone.evaluate(s => { window.__busy = true; return __up.swing(-s).then(() => { window.__busy = false; }); }, sign);
       const wrong = await game.waitForFunction(() => document.getElementById('coach-main').dataset.state === 'retry' ? { sub: document.getElementById('coach-sub').textContent, idx: __natpfTennis.natpfUi.training.view.idx, hits: __hits.length, bx: __natpfTennis.ball.pos.x, phone: null } : null, null, { timeout: 5000, polling: 20 }).then(h => h.jsonValue(), () => null);
       if (wrong) wrong.phone = await phone.evaluate(() => document.getElementById('big').textContent + ' ' + document.getElementById('arrow').textContent);
-      check('gesto nel verso sbagliato: computer e telefono chiedono di rifarlo con la freccia giusta, nessun colpo', !!wrong && wrong.idx === 0 && wrong.hits === 0 && /altro verso/.test(wrong.sub) && wrong.bx > .5 && /Altro verso ←/.test(wrong.phone), JSON.stringify(wrong));
+      check('gesto nel verso sbagliato: computer e telefono chiedono di rifarlo con la freccia giusta, nessun colpo', !!wrong && wrong.idx === 0 && wrong.hits === 0 && /altro verso/.test(wrong.sub) && wrong.bx*FH > .5 && new RegExp(`Altro verso ${ARROW[asked]}`).test(wrong.phone), JSON.stringify(wrong));
       await shot('2-gesto-sbagliato');
       await game.waitForFunction(() => document.getElementById('coach-main').dataset.state === 'go', null, { timeout: 8000, polling: 50 }).catch(() => {});
     }
@@ -159,7 +177,7 @@ try {
     if (k === 0) await shot('4-esercizio-dritto');
     const before = await game.evaluate(() => __natpfTennis.natpfUi.training.progress.done);
     // tempo di reazione di una persona al segnale «Ora» (~0,25 s), poi il gesto (picco a metà, dopo 120 ms)
-    await phone.evaluate(() => { window.__busy = true; return new Promise(r => setTimeout(r, 250)).then(() => __up.swing(1)).then(() => { window.__busy = false; }); });
+    await phone.evaluate(s => { window.__busy = true; return new Promise(r => setTimeout(r, 250)).then(() => __up.swing(s)).then(() => { window.__busy = false; }); }, FH);
     const res = await game.waitForFunction(b => { const T = __natpfTennis.natpfUi.training; return T.progress.done > b || T.drill?.id !== 'forehand' || T.progress.tries > 0 ? { done: T.progress.done, tries: T.progress.tries, drill: T.drill?.id, flash: T.flash?.text } : null; }, before, { timeout: 6000, polling: 50 }).then(h => h.jsonValue(), () => null);
     drill.push({ ...hot, ok: !!res && (res.done > before || res.drill !== 'forehand'), res });
     await game.waitForTimeout(400);
@@ -176,15 +194,16 @@ try {
     return { before, under, after: D.running };
   });
   check('esercizio: «Guarda e ripeti» compatta che gira, ferma sotto la modale «Rivedi i gesti», riparte dopo', coach.before.run && coach.before.compact && coach.before.w === 200 && !coach.under.run && coach.under.frames === 0 && coach.after, JSON.stringify(coach));
-  check('esercizio «Dritto»: freccia ← sul computer, «Ora» quando la palla arriva, colpi contati', drill.filter(d => d.ok).length >= 2 && drill.every(d => d.cue === 'L' && /Dritto/i.test(d.title)), JSON.stringify(drill));
+  check(`esercizio «Dritto»: freccia ${ARROW[WANT_FH]} sul computer, «Ora» quando la palla arriva, colpi contati`, drill.filter(d => d.ok).length >= 2 && drill.every(d => d.cue === WANT_FH && /Dritto/i.test(d.title)), JSON.stringify(drill) + ' · telefono: ' + JSON.stringify(await game.evaluate(() => __diag.slice(-8))));
   const tl = await game.evaluate(() => __tl), ptl = await phone.evaluate(() => __tl);
   const cals = await game.evaluate(() => __cals);
   writeFileSync(`${SP}/training-timeline.json`, JSON.stringify({ gestures, game: tl, phone: ptl, cals }, null, 0));
   check(`${QUICK_PLAN.length} gesti chiesti dal computer, nell’ordine dritto/rovescio, e riconosciuti`, gestures.length === QUICK_PLAN.length && gestures.every(g => g.asked && g.hit) && gestures.map(g => g.asked).join('') === QUICK_PLAN.join(''), JSON.stringify(gestures));
   // la palla di ogni gesto sta dal lato di quel colpo e il giocatore colpisce con quel colpo (prima: dritto su una palla
   // mandata al rovescio, quando il gesto arrivava prima della palla)
-  check('palla dal lato del colpo chiesto, ferma, giocatore al centro', gestures.every(g => g.ball && g.ball.frozen && g.ball.live && Math.abs(g.ball.px) < .05 && (g.asked === 'L' ? g.ball.bx > .5 : g.ball.bx < -.5)), JSON.stringify(gestures.map(g => g.ball)));
-  check('il giocatore colpisce con il colpo del gesto (dritto ←, rovescio →)', gestures.every(g => g.swing === (g.asked === 'L' ? 'forehand' : 'backhand')), JSON.stringify(gestures.map(g => g.swing)));
+  // (dritto del destro: palla a destra, x > 0; del mancino: a sinistra)
+  check('palla dal lato del colpo chiesto, ferma, giocatore al centro', gestures.every(g => g.ball && g.ball.frozen && g.ball.live && Math.abs(g.ball.px) < .05 && (calSide(g.asked, HAND) === 'forehand' ? g.ball.bx*FH > .5 : g.ball.bx*FH < -.5)), JSON.stringify(gestures.map(g => g.ball)));
+  check(`il giocatore colpisce con il colpo del gesto (dritto ${ARROW[WANT_FH]}, rovescio ${ARROW[QUICK_PLAN[1]]})`, gestures.every(g => g.swing === calSide(g.asked, HAND)), JSON.stringify(gestures.map(g => g.swing)));
   check('calibrazione completata in campo, si passa alle palle vere', done);
 
   // mentre il computer chiede un gesto (palla ferma davanti alla racchetta) il giocatore è fermo

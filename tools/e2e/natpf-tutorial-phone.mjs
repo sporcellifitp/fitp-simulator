@@ -8,6 +8,8 @@
 //   - stesso schermo: due tutorial indipendenti, ciascuno sfogliato dal proprio telefono;
 //   - schermate della modale a 1280×720, 1920×1080, stesso schermo e ledwall (?area=0,0,720,720) e del telefono a ogni stato.
 //   cd tools/e2e && CHROMIUM_PATH=/percorso/chrome node natpf-tutorial-phone.mjs   (schermate in $OUT, di base /tmp/tennis-e2e)
+//   HAND=left: lo stesso percorso per un mancino (B15): mano scelta nel gioco (P1, anche nello stesso schermo), schede e
+//   calibrazione con il piano della mano (prima il dritto →).
 // Eventi devicemotion, visibilità e blocco dello schermo sintetici: non sostituiscono la prova con un telefono vero.
 import { spawn } from 'node:child_process';
 import http from 'node:http';
@@ -16,7 +18,11 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { ExpressPeerServer } from 'peer';
 import { launch, page, check, summary, SP, seeAllCards, quickCalibrate } from './th.mjs';
-import { QUICK_PLAN } from '../../site/js/tennis/calibration.js';
+import { calibrationPlan } from '../../site/js/tennis/calibration.js';
+
+// mano di chi gioca (HAND=left per il mancino): il piano della calibrazione chiede prima il dritto a tutti e due
+const HAND = process.env.HAND === 'left' ? 'left' : 'right';
+const QUICK_PLAN = calibrationPlan({ quick: true, hand: HAND });
 
 const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../../natpf-tennis');
 const PEER_PORT = +(process.env.PEER_PORT || 9171), GAME_PORT = +(process.env.GAME_PORT || 3171);
@@ -88,6 +94,8 @@ try {
   const gshot = async (name, pg = game) => { await pg.evaluate(() => __natpfTennis.__render?.()); await pg.waitForTimeout(400); await pg.screenshot({ path: `${SP}/tutpc-${name}.png` }); };
   await game.evaluate(() => __natpfTennis.natpfUi.intro?.skip?.());
   await game.waitForFunction(() => __natpfTennis.natpfUi.lobby.visible && __natpfTennis.natpfUi.lobby.step === 'menu', null, { timeout: 20000 });
+  await game.evaluate(h => __natpfTennis.natpfUi.hand.set(h), HAND);
+  check(`mano «${HAND}» scelta nel gioco`, await game.evaluate(h => __natpfTennis.natpfUi.hand.hand === h, HAND));
   await game.click('[data-menu="training"]');
   await game.waitForFunction(() => __natpfTennis.natpfUi.lobby.step === 'controller', null, { timeout: 5000 });
   await game.click('[data-page="controller"] [data-natpf-controller="phone"]');
@@ -261,6 +269,7 @@ try {
     await pc.waitForFunction(() => window.__natpfTennis?.natpfPhone && window.__natpfTennis.natpfUi && window.__natpfTennis.player?.model, null, { timeout: 120000 });
     await pc.evaluate(() => { const E = __natpfTennis; E.__render = E.render.bind(E); E.render = () => {}; E.natpfUi.intro?.skip?.(); });
     await pc.waitForFunction(() => __natpfTennis.natpfUi.lobby.visible && __natpfTennis.natpfUi.lobby.step === 'menu', null, { timeout: 20000 });
+    await pc.evaluate(h => __natpfTennis.natpfUi.hand.set(h), HAND);
     await pc.evaluate(() => { const L = __natpfTennis.natpfUi.lobby; L.setMode('split'); L.go('connect'); });
     await pc.waitForFunction(() => __natpfTennis.natpfPhone.pairingUrl && __natpfTennis.natpfPhone2?.pairingUrl && __natpfTennis.natpfPhone2.state.state === 'waiting', null, { timeout: 30000 });
     const [u1, u2] = await pc.evaluate(() => [__natpfTennis.natpfPhone.pairingUrl, __natpfTennis.natpfPhone2.pairingUrl]);
