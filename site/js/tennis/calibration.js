@@ -13,7 +13,14 @@ import { faceReference, flatGrip } from './face-tracker.js';
 
 export const PLAN = ['L', 'L', 'L', 'R', 'R', 'R'];      // L: da destra a sinistra (←), R: da sinistra a destra (→)
 export const QUICK_PLAN = ['L', 'R'];
-export const calibrationPlan = options => options?.quick ? QUICK_PLAN : PLAN;
+// Percorso per la mano (B15, 08/11): prima il dritto, poi il rovescio, a tutti e due. Il dritto del destro è «L» (da
+// destra a sinistra), quello del mancino è «R»: prima il mancino faceva i gesti nell'ordine del destro (rovescio, poi
+// dritto), con il computer che gli chiedeva «Rovescio ←» per primo. Il verso dei gesti e il profilo non cambiano: cambia
+// solo l'ordine in cui si chiedono
+const flipPlan = plan => plan.map(w => (w === 'L' ? 'R' : 'L'));
+export const QUICK_PLAN_LEFT = Object.freeze(flipPlan(QUICK_PLAN));
+export const PLAN_LEFT = Object.freeze(flipPlan(PLAN));
+export const calibrationPlan = options => (options?.hand === 'left' ? (options?.quick ? QUICK_PLAN_LEFT : PLAN_LEFT) : options?.quick ? QUICK_PLAN : PLAN);
 // gesti riusciti per verso perché la calibrazione passi: tutti nel percorso rapido (uno per verso), due su tre nell'esteso
 export const calibrationNeed = options => options?.quick ? 1 : 2;
 export const GESTURE_PLAN = [
@@ -72,8 +79,12 @@ export const upright = g => !!g && Math.abs(g[1])/Math.max(1e-6, Math.hypot(g[0]
 
 export function createCalibration(det){
   const L = [];
-  const S = { step: 'idle', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, burst: [], burstT: 0, idleT: 0, gripT: null, lastT: 0, options: { range: 'standard', hand: 'right', intentGate: false }, practice: 0, templates: [], shotAttempts: [], ready: false, readyAt: 0, quietT: null, settleT: 0, settleHinted: false, rot: [0, 0, 0], track: [], home: null, quietSpan: 0, flipTries: 0, vsign: 1, first: false, slow: false, leadUntil: 0 };
-  const plan = () => calibrationPlan(S.options);
+  const S = { step: 'idle', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, burst: [], burstT: 0, idleT: 0, gripT: null, lastT: 0, options: { range: 'standard', hand: 'right', intentGate: false }, practice: 0, templates: [], shotAttempts: [], ready: false, readyAt: 0, quietT: null, settleT: 0, settleHinted: false, rot: [0, 0, 0], track: [], home: null, quietSpan: 0, flipTries: 0, vsign: 1, first: false, slow: false, leadUntil: 0, plan: null };
+  // percorso fissato all'avvio (start, retry): la mano può cambiare a calibrazione in corso (racchetta.js applyHand:
+  // menu, «cfg» dal computer, pulsanti della mano dello stesso schermo) e ricalcolarlo a ogni gesto girava i passi
+  // ancora da fare (dopo il primo gesto si chiedeva di nuovo lo stesso verso: calibrazione fallita, «direzione»).
+  // Il verso dei gesti misura il telefono, non la mano: la mano nuova cambia solo la scritta Dritto/Rovescio
+  const plan = () => S.plan || calibrationPlan(S.options);
   const total = () => plan().length + (S.options.gestural && !S.options.quick ? GESTURE_PLAN.length : 0);
   const emit = e => { for (const f of L) f({ ...e, step: S.step }); };
   const guided = () => S.step === 'swings' || S.step === 'shots';
@@ -146,13 +157,14 @@ export function createCalibration(det){
     const small = sw.peak < minimum;
     let dir = '?';
     if (!S.axis && S.idx === 0){
-      // il primo swing (da destra a sinistra) fissa il verso. Prima si accettava qualunque verso: un primo gesto al
-      // contrario invertiva tutta la calibrazione (il gesto «verso destra» dopo risultava «verso sinistra»). Ora, se la
-      // rotazione attorno alla verticale dice chiaramente il contrario, è un tentativo nel verso sbagliato; dopo
-      // CAL.flipTrust volte di fila si accetta comunque (telefoni che riportano la rotazione con il segno opposto)
-      const turn = small ? 0 : verticalTurn(sw.axis, sw.gravity);
-      if (turn === -1 && S.flipTries < CAL.flipTrust){ S.flipTries++; dir = 'R'; }
-      else { if (turn === -1) S.vsign = -1; S.axis = sw.axis.slice(); dir = 'L'; S.flipTries = 0; }
+      // il primo swing (il dritto: da destra a sinistra per il destro, da sinistra a destra per il mancino) fissa il
+      // verso. Prima si accettava qualunque verso: un primo gesto al contrario invertiva tutta la calibrazione (il gesto
+      // «verso destra» dopo risultava «verso sinistra»). Ora, se la rotazione attorno alla verticale dice chiaramente il
+      // contrario, è un tentativo nel verso sbagliato; dopo CAL.flipTrust volte di fila si accetta comunque (telefoni che
+      // riportano la rotazione con il segno opposto). L'asse imparato (S.axis) è sempre quello del gesto «L»
+      const turn = small ? 0 : verticalTurn(sw.axis, sw.gravity), wantSign = SIGN[want], other = want === 'L' ? 'R' : 'L';
+      if (turn === -wantSign && S.flipTries < CAL.flipTrust){ S.flipTries++; dir = other; }
+      else { if (turn === -wantSign) S.vsign = -1; S.axis = sw.axis.map(v => v*wantSign); dir = want; S.flipTries = 0; }
     }
     else {
       // verso dei gesti dopo il primo: prima di tutto la rotazione attorno alla verticale (dritto e rovescio girano
@@ -298,12 +310,12 @@ export function createCalibration(det){
       S.options = { range: options.range === 'compact' ? 'compact' : 'standard', hand: options.hand === 'left' ? 'left' : 'right', intentGate: options.intentGate === true, gestural: flat ? false : options.gestural === true, quick: flat || options.quick === true, ...(flat ? { grip: 'flat' } : {}) };
       if (det.config){ if (S.baseStill == null) S.baseStill = det.config.stillTime; det.config.stillTime = flat ? CAL.flatStill : S.baseStill; }
       S.practice = 0; det.setTraining(true);
-      Object.assign(S, { step: 'still', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT, home: null, track: [], rot: [0, 0, 0], flipTries: 0, vsign: 1, slow: lead > 0, first: lead > 0, leadUntil: lead > 0 ? -lead : 0 }); unready();
+      Object.assign(S, { plan: calibrationPlan(S.options), step: 'still', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT, home: null, track: [], rot: [0, 0, 0], flipTries: 0, vsign: 1, slow: lead > 0, first: lead > 0, leadUntil: lead > 0 ? -lead : 0 }); unready();
       det.setProfile({ bias: [0, 0, 0], ...CAL.low, axis: null }); det.still();
       emit({ kind: 'step' });
     },
     skipGrip(){ if (S.step === 'grip'){ S.step = 'swings'; S.idleT = S.lastT; unready(); emit({ kind: 'step', want: plan()[0], shot: 'drive', idx: 0, total: total() }); } },
-    retry(){ S.practice = 0; det.setTraining(true); Object.assign(S, { step: 'swings', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT, home: null, track: [], rot: [0, 0, 0], flipTries: 0, vsign: 1, first: !!S.slow }); unready(); det.setThresholds({ ...CAL.low, axis: null }); emit({ kind: 'step', want: plan()[0], shot: 'drive', idx: 0, total: total() }); },
+    retry(){ S.practice = 0; det.setTraining(true); Object.assign(S, { plan: calibrationPlan(S.options), step: 'swings', idx: 0, tries: 0, attempts: [], axis: null, result: null, profile: null, templates: [], shotAttempts: [], burst: [], idleT: S.lastT, home: null, track: [], rot: [0, 0, 0], flipTries: 0, vsign: 1, first: !!S.slow }); unready(); det.setThresholds({ ...CAL.low, axis: null }); emit({ kind: 'step', want: plan()[0], shot: 'drive', idx: 0, total: total() }); },
     // prova libera con il profilo proposto: direzione e forza di ogni swing, prima di confermare
     tryFree(){ if (!S.profile) return; S.step = 'free'; det.setProfile(S.profile); det.setTraining(false); det.setContext?.('practice'); emit({ kind: 'step' }); },
     // salta i gesti: profilo semplice dalla posa ferma (deriva e rumore), senza asse del colpo. Il gioco è completo lo

@@ -951,7 +951,10 @@ export class MotionController {
     this.lastWebcamTriggerMs = e; this.webcamMotionAt = e;
     const ev = { source: "webcam", side: v.side, shotType: v.shotType, speed: v.speed, dirX: v.dirX, dirY: v.dirY };
     this.onTrack && this._diag({ kind: "event", t: e, captureT: e, type: v.type, side: v.side, shotType: v.shotType, speed: v.speed, dirX: v.dirX, dirY: v.dirY, source: v.source, chosen: v.who, reason: `webcam per due, ${v.who === "p2" ? "Player 2" : "Player 1"}` });
-    if (v.who === "p2") v.type === "toss" ? this._emitP2Toss({ ...ev, hand: this.p2HandPreference || "right" }) : this._emitP2Swing({ ...ev, hand: this.p2HandPreference || "right" });
+    // NATPF B15: il lato della scia è nella convenzione del destro (verso destra = rovescio); il P2 mancino lo scambia
+    // qui, come NatpfHand (leftySide) fa per il P1 (prima il suo dritto arrivava al motore come rovescio)
+    const p2Hand = this.p2HandPreference === "left" ? "left" : "right", p2Side = p2Hand === "left" && (ev.side === "forehand" || ev.side === "backhand") ? (ev.side === "forehand" ? "backhand" : "forehand") : ev.side;
+    if (v.who === "p2") v.type === "toss" ? this._emitP2Toss({ ...ev, side: p2Side, hand: p2Hand }) : this._emitP2Swing({ ...ev, side: p2Side, hand: p2Hand });
     else v.type === "toss" ? this._emitToss(ev) : this._emitSwing(ev);
   }
   // NATPF: webcam per due accesa o spenta (stesso schermo, natpf_split_ui.js): corsie da capo, modello con più mani, camera
@@ -1364,8 +1367,9 @@ export class MotionController {
         try {
           // NATPF 1v1: touch con il proprio ruolo (prima «touch=1», che il relay ignorava: l'host non vedeva mai il P2
           // online) e, dal P2, se è pronto in lobby e se in partita non può giocare (hold: telefono scollegato, pagina
-          // nascosta…, natpf_versus.p2HoldWhy; vuoto = può giocare)
-          const t = `?room=${encodeURIComponent(this.roomId || "default")}&role=${encodeURIComponent(this.role || "p1")}&touch=${this.role === "p2" ? "p2" : "p1"}${this.role === "p2" && this.versusReady != null ? `&ready=${this.versusReady ? 1 : 0}` : ""}${this.role === "p2" && this.versusHold !== undefined ? `&hold=${encodeURIComponent(this.versusHold || "")}` : ""}`,
+          // nascosta…, natpf_versus.p2HoldWhy; vuoto = può giocare). B15: anche la sua mano (hand), così l'host la sa prima
+          // del suo primo colpo (piano d'intercetto, personaggio specchiato, palla del servizio); un relay di prima la ignora
+          const t = `?room=${encodeURIComponent(this.roomId || "default")}&role=${encodeURIComponent(this.role || "p1")}&touch=${this.role === "p2" ? "p2" : "p1"}${this.role === "p2" && this.versusReady != null ? `&ready=${this.versusReady ? 1 : 0}` : ""}${this.role === "p2" && this.versusHold !== undefined ? `&hold=${encodeURIComponent(this.versusHold || "")}` : ""}${this.role === "p2" ? `&hand=${this.handPreference === "left" ? "left" : "right"}` : ""}`,
             t0 = Date.now(),
             ac = typeof AbortController == "function" ? new AbortController() : null;
           ac && (abortTimer = setTimeout(() => ac.abort(), (this.phonePoll || PHONE_POLL).abortMs));

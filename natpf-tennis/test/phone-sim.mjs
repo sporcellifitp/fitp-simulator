@@ -7,7 +7,7 @@
 // schermo girato di lato, pronazione del polso di 60–90° a fine dritto), non solo i gesti «da manuale».
 import { createSwingDetector } from '@natpf/tennis/swing-detect.js';
 import { createFaceTracker } from '@natpf/tennis/face-tracker.js';
-import { createCalibration, QUICK_PLAN } from '@natpf/tennis/calibration.js';
+import { createCalibration, calibrationPlan } from '@natpf/tennis/calibration.js';
 import { swingMessage, parseSwingMessage } from '@natpf/tennis/swing-message.js';
 import { strokeShape } from '@natpf/tennis/stroke-shape.js';
 import { normalizeSample } from '@natpf/tennis/motion-sign.js';
@@ -80,14 +80,14 @@ export function simPhone({ hand = 'right', seed = 7, shape = false, habitual = t
     // rientro: la mano torna al centro e il polso torna nella posa di prima (la pronazione non si accumula)
     if (back){ rest(120, tremor); returnTo(start); }
   };
-  // calibrazione rapida vera: i gesti alternati del percorso rapido (QUICK_PLAN); opzioni del gesto (peak, ms, wrist,
+  // calibrazione rapida vera: i gesti del percorso rapido della mano (calibrationPlan: prima il dritto); opzioni del gesto (peak, ms, wrist,
   // tremor…) come in swing.
   // soft: restituisce l'esito invece di fermarsi (per le prove con prese e gesti diversi)
   // armGesture(w): il gesto della calibrazione fatto da fuori (braccio simulato, test/arm-sim.mjs), w = 'L' o 'R'
   const calibrate = ({ soft = false, rest: pause = 500, tremor = 0, armGesture = null, ...gesture } = {}) => {
     const events = []; const off = cal.on(e => events.push(e));
     cal.start({ quick: true, hand }); rest(800, tremor);
-    for (const w of QUICK_PLAN){ if (armGesture) armGesture(w); else swing({ axis: [0, w === 'L' ? 1 : -1, 0], tremor, ...gesture }); rest(pause, tremor); }
+    for (const w of calibrationPlan({ quick: true, hand })){ if (armGesture) armGesture(w); else swing({ axis: [0, w === 'L' ? 1 : -1, 0], tremor, ...gesture }); rest(pause, tremor); }
     const ok = cal.state.step === 'review' && !!cal.state.result?.pass;
     if (!ok && !soft) throw new Error('calibrazione non riuscita: ' + JSON.stringify(cal.state.result));
     if (ok){ cal.confirm(); ready = true; rest(600, tremor); }

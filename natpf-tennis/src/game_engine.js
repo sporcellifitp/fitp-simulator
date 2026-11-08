@@ -48,6 +48,10 @@ import * as GV from "./natpf/natpf_guest_view.js";
 import { NatpfSplit } from "./natpf/natpf_split.js";
 import { viewport } from "./natpf/natpf_screen.js";
 import { deepCamShift, actorDepth } from "./natpf/natpf_camera_depth.js";
+// NATPF B15 (mancini): lato di un colpo senza «side» nell'evento, preso dal verso del gesto (dirX) o dalla palla con la
+// regola del destro: per il mancino si scambia (il suo dritto è a sinistra). Con il lato nell'evento (telefono, webcam
+// e mouse del P1 passati da NatpfHand.leftySide, P2 della webcam per due) non cambia niente, né per il destro
+const natpfHandedSide = (side, e, hand) => (hand === "left" && e.side !== "forehand" && e.side !== "backhand" && (side === "forehand" || side === "backhand") ? (side === "forehand" ? "backhand" : "forehand") : side);
 const VERSUS_ROOM_KEY = "natpf.versus.room";
 // NATPF (31/10): partita in pausa (guida, pausa, telefono o webcam da ricollegare, attesa del 1v1). La scena è ferma
 // (update non gira) sotto i fogli con il blur a tutto schermo, ma prima si ridisegnava a ogni fotogramma, come lo sfondo
@@ -787,6 +791,7 @@ export class NatpfTennisEngine {
     this.motionController?.setRoomConfig?.({ roomId: "default", role: "p1" });
     this.roomStatus = { ...this.roomStatus, roomId: "default", p2Online: !1, p2Ready: !1, isMultiplayer: !1 };
     this.hud?.updateMultiplayerRoomInfo?.(this.roomStatus);
+    this._natpfClearP2Hand();
   }
   // NATPF split screen: sessione 1v1 locale (nessuna stanza, nessuna rete). Il P2 gioca con il secondo telefono
   // (natpfPhone2, role 'p2'), le regole sono quelle del 1v1 dell'host; singolare, due viste in terza persona.
@@ -804,6 +809,7 @@ export class NatpfTennisEngine {
     if (!this.natpfSplit?.active) return;
     this.natpfSplit.active = !1;
     (this.versus = { active: !1, closing: !1 }), (this.isMultiplayer = !1), (this.pendingP2Swing = null);
+    this._natpfClearP2Hand();
     typeof document < "u" && document.body.classList.remove("natpf-split");
     // la camera del motore torna a schermo intero al primo fotogramma non diviso (NatpfSplit.render)
   }
@@ -1475,7 +1481,7 @@ export class NatpfTennisEngine {
     }
     if (this.phase === "RALLY") {
       this.autoPlayMode = !1;
-      const t =
+      const t = natpfHandedSide(
           e.side === "backhand" || (Number(e.dirX || 0) > 0.12 && e.side !== "forehand")
             ? "backhand"
             : e.side === "forehand" || Number(e.dirX || 0) < -0.12
@@ -1483,6 +1489,7 @@ export class NatpfTennisEngine {
               : this.ball.pos.x < this.player.pos.x - 0.05 || this.ball.targetLanding.x < -0.15
                 ? "backhand"
                 : "forehand",
+          e, e.hand || this.natpfUi?.hand?.hand),
         i = String(e.shotType || this.selectedShotType || "topspin").toLowerCase();
       // NATPF racchetta virtuale: finestra d'impatto (natpf_impact.js). Lo swing resta in attesa fino all'arrivo della
       // palla al punto d'impatto, con il suo tempo vero; uno più forte lo sostituisce; mai un impatto con la palla lontana
@@ -1566,7 +1573,7 @@ export class NatpfTennisEngine {
     }
     if (this.phase === "RALLY") {
       this.autoPlayMode = !1;
-      const t =
+      const t = natpfHandedSide(
           e.side === "backhand" || (Number(e.dirX || 0) > 0.12 && e.side !== "forehand")
             ? "backhand"
             : e.side === "forehand" || Number(e.dirX || 0) < -0.12
@@ -1574,6 +1581,7 @@ export class NatpfTennisEngine {
               : this.ball.pos.x < this.player.pos.x - 0.05 || this.ball.targetLanding.x < -0.15
                 ? "backhand"
                 : "forehand",
+          e, e.hand || this.natpfUi?.hand?.hand),
         i = String(e.shotType || this.selectedShotType || "topspin").toLowerCase();
       if (this.ball.lastHitter === "opponent") {
         const s = this.ball.pos.z - this.player.pos.z,
@@ -1695,7 +1703,7 @@ export class NatpfTennisEngine {
     }
     if (this.phase === "RALLY") {
       this.autoPlayMode = !1;
-      const t =
+      const t = natpfHandedSide(
           e.side === "backhand" || (Number(e.dirX || 0) > 0.12 && e.side !== "forehand")
             ? "backhand"
             : e.side === "forehand" || Number(e.dirX || 0) < -0.12
@@ -1703,6 +1711,7 @@ export class NatpfTennisEngine {
               : this.ball.pos.x > this.opponent.pos.x + 0.05 || this.ball.targetLanding.x > 0.15
                 ? "backhand"
                 : "forehand",
+          e, e.hand || this.natpfP2Hand),
         i = String(e.shotType || this.p2SelectedShotType || "topspin").toLowerCase();
       // NATPF racchetta virtuale: lo swing del P2 con il telefono passa dalla finestra d'impatto come quello del P1
       // (natpf_impact.queueUserSwing, attesa in pendingP2Swing). Diagnostica 142438 (C2): prima aspettava solo 0,22 s
@@ -1914,11 +1923,14 @@ export class NatpfTennisEngine {
           ? !0
           : e.side === "forehand"
             ? !1
-            : Number(e.dirX || 0) > 0.14
-              ? !0
-              : Number(e.dirX || 0) < -0.14
-                ? !1
-                : this.ball.pos.x < p.pos.x - 0.04 || this.ball.targetLanding.x < -0.12,
+            : // NATPF B15: senza lato nell'evento, dal gesto o dalla palla nel riferimento della mano di chi gioca (il
+              // mancino ha il dritto a sinistra); il compagno CPU del doppio è destro
+              (Number(e.dirX || 0) > 0.14
+                ? !0
+                : Number(e.dirX || 0) < -0.14
+                  ? !1
+                  : this.ball.pos.x < p.pos.x - 0.04 || this.ball.targetLanding.x < -0.12) !==
+              (p === this.player && (e.hand || this.natpfUi?.hand?.hand) === "left"),
       d = !t && Number.isFinite(e.natpfTau)
         ? NO.smashAt(e, this.ball.pos.y, { serveReturn: Number(this.ball.rallyStrokeCount || 0) <= 1 }) // NATPF racchetta virtuale: schiacciata dal gesto e dall'altezza della palla (in risposta al servizio solo dal gesto)
         : e.side === "overhead" ||
@@ -2274,11 +2286,13 @@ export class NatpfTennisEngine {
           ? !0
           : e.side === "forehand"
             ? !1
-            : Number(e.dirX || 0) > 0.14
-              ? !0
-              : Number(e.dirX || 0) < -0.14
-                ? !1
-                : this.ball.pos.x > l.pos.x + 0.04 || this.ball.targetLanding.x > 0.12,
+            : // NATPF B15: come per il P1, nel riferimento della mano del P2 (natpfP2Hand)
+              (Number(e.dirX || 0) > 0.14
+                ? !0
+                : Number(e.dirX || 0) < -0.14
+                  ? !1
+                  : this.ball.pos.x > l.pos.x + 0.04 || this.ball.targetLanding.x > 0.12) !==
+              (l === this.opponent && (e.hand || this.natpfP2Hand) === "left"),
       m = this.p2SelectedShotType || "TOPSPIN",
       // NATPF: il P2 con il telefono in verticale schiaccia con la regola del P1 (gesto e altezza della palla). Prima ogni
       // palla sopra 1,78 m era una schiacciata: diagnostica del 29/10 (stesso schermo), risposte al servizio a fondo campo
@@ -3275,7 +3289,8 @@ export class NatpfTennisEngine {
   _broadcastMultiplayerSnapshot() {
     if (!this._versusInMatch()) {
       // NATPF 1v1 (B9): con la racchetta dell'host (pronta o no), per la scheda del Player 1 sul computer del P2
-      fetch("/api/match/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room: this.roomId, snapshot: { lobby: !0, fmt: this.matchFormat.id, gamesToWin: this.matchConfig.gamesToWin, host: this.natpfUi?.versus?.hostInfo?.() || null } }) }).catch(() => {});
+      // NATPF B15: e la mano dell'host (p1Hand), perché il P2 lo veda mancino già dalla lobby (un P2 di prima la ignora)
+      fetch("/api/match/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room: this.roomId, snapshot: { lobby: !0, fmt: this.matchFormat.id, gamesToWin: this.matchConfig.gamesToWin, host: this.natpfUi?.versus?.hostInfo?.() || null, p1Hand: this._natpfHostHand() } }) }).catch(() => {});
       return;
     }
     const e = (i) => ({
@@ -3316,6 +3331,7 @@ export class NatpfTennisEngine {
         gamesToWin: this.matchConfig.gamesToWin,
         spin: [Number(this.ball.spin.x.toFixed(2)), Number(this.ball.spin.y.toFixed(2))],
         bounces: this.ball.bounceCountOnCurrentSide,
+        p1Hand: this._natpfHostHand(), // NATPF B15: mano dell'host, per il suo personaggio sul computer del P2
       };
     fetch("/api/match/sync", {
       method: "POST",
@@ -3323,8 +3339,27 @@ export class NatpfTennisEngine {
       body: JSON.stringify({ room: this.roomId, snapshot: t }),
     }).catch(() => {});
   }
+  // NATPF B15 (mancini): mano dell'host (una sola per tutto il gioco, natpf_hand.js)
+  _natpfHostHand() {
+    return this.natpfUi?.hand?.hand === "left" ? "left" : "right";
+  }
+  // NATPF B15: mano del Player 2 sull'host (piano d'intercetto, natpf_impact.handOf; personaggio specchiato e palla del
+  // servizio nella mano libera, natpf_hand.js). Dal relay appena il P2 è collegato (p2Hand) e da ogni suo colpo
+  _natpfSetP2Hand(h) {
+    const hand = h === "left" ? "left" : "right";
+    this.natpfP2Hand = hand;
+    this.natpfUi?.hand?.mirrorRemote?.(this.opponent, hand);
+  }
+  // NATPF B15: fine della sessione con un altro giocatore (stesso schermo, sfida in rete): la sua mano non vale più.
+  // Prima restava: il P2 del 1v1 seguente aveva il piano da mancino fino al primo colpo, la CPU restava specchiata
+  _natpfClearP2Hand() {
+    this.natpfP2Hand = null;
+    this.natpfUi?.hand?.mirrorRemote?.(this.opponent, "right");
+  }
   _handleRoomStateUpdate(e = {}) {
     if (!e) return;
+    // NATPF B15: host in una sfida 1v1 in rete: la mano del P2 dal relay, prima del suo primo colpo (relay di prima: nessuna)
+    this.playerRole !== "p2" && (e.p2Hand === "left" || e.p2Hand === "right") && this.versus?.active && !this.versus.local && this._natpfSetP2Hand(e.p2Hand);
     // NATPF 1v1: stato del Player 2 (stanza inesistente, chiusa, lobby dell'host, snapshot)
     const G = this.playerRole === "p2" ? (this.versusGuest ||= { invalidSince: 0, closed: !1, lobby: !0, lastSnapshotAt: 0, everLinked: !1, gate: null }) : null;
     if (G && e.invalidRoom) {
@@ -3377,8 +3412,11 @@ export class NatpfTennisEngine {
       n.fmt && n.fmt !== this.matchFormat.id && this.setMatchFormat(n.fmt);
       n.gamesToWin && (this.matchConfig.gamesToWin = n.gamesToWin);
       // l'host ha chiuso la stanza o è in lobby: niente partita da mostrare
-      if (n.closed) { G.closed = !0; G.lobby = !0; return; }
+      // (B15: anche la mano dell'host non vale più: il suo personaggio torna destro)
+      if (n.closed) { G.closed = !0; G.lobby = !0; this.natpfUi?.hand?.mirrorRemote?.(this.player, "right"); return; }
       G.closed = !1;
+      // NATPF B15: mano dell'host (lobby e partita): il suo personaggio specchiato se è mancino (host di prima: nessuna)
+      (n.p1Hand === "left" || n.p1Hand === "right") && this.natpfUi?.hand?.mirrorRemote?.(this.player, n.p1Hand);
       G.lastSnapshotAt = performance.now();
       if (n.lobby) {
         G.lobby = !0;

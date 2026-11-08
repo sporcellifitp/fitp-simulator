@@ -181,6 +181,9 @@ export function createMatchRelay({ publicUrl = PUBLIC_URL } = {}) {
       // NATPF 1v1: il P2 dice se in partita non può giocare (telefono scollegato o non pronto, pagina nascosta…): l'host
       // ferma la partita per tutti e due. Prima l'host vedeva solo il computer del P2 e andava avanti
       m === "p2" && w.searchParams.has("hold") && (e.p2Hold = String(w.searchParams.get("hold") || "").slice(0, 40) || null);
+      // NATPF B15: mano del Player 2 (hand=left|right, solo dal P2): l'host la sa appena il P2 è collegato, non solo dal
+      // suo primo colpo. Un P2 di prima non la manda (p2Hand resta null) e un host di prima non la legge
+      m === "p2" && w.searchParams.has("hand") && (e.p2Hand = w.searchParams.get("hand") === "left" ? "left" : "right");
       const h = Date.now(),
         keep = f === "p2" ? STATE_SWINGS : HOST_STATE_SWINGS,
         k = T(e.rackets.p1, keep),
@@ -198,6 +201,7 @@ export function createMatchRelay({ publicUrl = PUBLIC_URL } = {}) {
         p2Online: s,
         p2Ready: s && !!e.p2Ready,
         p2Hold: s ? e.p2Hold || null : null,
+        p2Hand: e.p2Hand || null,
         epoch: e.epoch,
         p1DesktopOnline: o,
         p2DesktopOnline: s,

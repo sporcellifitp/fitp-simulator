@@ -199,3 +199,10 @@ test('telefono: velo dello schermo riacceso con il testo giusto (calibrato, tuto
   assert.match(JS, /veilText\(\{ linkState, sensor, gate \}\)/);
   assert.match(HTML, /id="wakeVeilText">Bentornato: un tocco tiene acceso lo schermo e riattiva i sensori\.<\/p>/);
 });
+
+// B15 (secondo giro, 08/11): la scritta della calibrazione legge il percorso fissato all'avvio (calibration.js S.plan),
+// non quello ricalcolato dalla mano di adesso: cambiando mano a metà (applyHand) i passi ancora da fare non si girano
+test('telefono: la scritta della calibrazione segue il percorso fissato all’avvio, non la mano cambiata a metà', () => {
+  assert.match(JS, /const plan = st\.plan \|\| calibrationPlan\(st\.options\)/);
+  assert.doesNotMatch(JS, /const plan = calibrationPlan\(st\.options\)/);
+});

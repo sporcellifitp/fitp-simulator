@@ -157,7 +157,7 @@ export class NatpfUi {
     for (const box of document.querySelectorAll('[data-natpf-tiles="controller"]')) box.innerHTML = controllerTiles();
     for (const box of document.querySelectorAll('[data-natpf-tiles="view"]')) box.innerHTML = viewTiles();
     // pannello del Player 2: le stesse tessere, compatte
-    for (const box of document.querySelectorAll('[data-natpf-setup]')) box.innerHTML = `<p class="lobby-label">Racchetta</p><div class="lobby-tiles compact">${controllerTiles(true)}</div><p class="lobby-label">Visuale</p><div class="lobby-tiles compact lobby-tiles-2">${viewTiles(true)}</div><div class="lobby-row"><span class="lobby-label">Mano</span><div class="lobby-seg" role="radiogroup" aria-label="Mano"><button type="button" class="seg-btn" data-natpf-hand="right">Destra</button><button type="button" class="seg-btn" data-natpf-hand="left">Mancino</button></div></div>`;
+    for (const box of document.querySelectorAll('[data-natpf-setup]')) box.innerHTML = `<p class="lobby-label">Racchetta</p><div class="lobby-tiles compact">${controllerTiles(true)}</div><p class="lobby-label">Visuale</p><div class="lobby-tiles compact lobby-tiles-2">${viewTiles(true)}</div><div class="lobby-row"><span class="lobby-label">Mano</span><div class="lobby-seg" role="radiogroup" aria-label="Mano"><button type="button" class="seg-btn" data-natpf-hand="right">Destra</button><button type="button" class="seg-btn" data-natpf-hand="left">Sinistra</button></div></div>`;
     this._paintTestInput();
     document.addEventListener('click', e => {
       const h = e.target.closest('[data-natpf-hand]');

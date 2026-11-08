@@ -266,7 +266,9 @@ function rig(){
   return { mc, p1, p2, frame, opts: () => opts };
 }
 
-test('nel controller: webcam per due accesa → quattro mani, il colpo di sinistra al P1 e quello di destra al P2 (con la sua mano)', () => {
+// B15: il lato della scia è nella convenzione del destro (verso destra = rovescio); il P2 mancino lo riceve scambiato, come
+// NatpfHand fa per il P1 (prima il suo dritto arrivava al motore come rovescio)
+test('nel controller: webcam per due accesa → quattro mani, il colpo di sinistra al P1 e quello di destra al P2 (mancino: lato scambiato, con la sua mano)', () => {
   const { mc, p1, p2, frame, opts } = rig();
   mc.setWebcamDuo(true);
   assert.equal(opts().maxNumHands, 4);
@@ -275,7 +277,7 @@ test('nel controller: webcam per due accesa → quattro mani, il colpo di sinist
   for (let i = 0; i < 12; i++) frame([.02, .55], [.75, .55]);
   for (let i = 1; i <= 4; i++) frame([.02, .55], [.75 + .055*i, .55]);
   assert.deepEqual(p1.map(e => [e.kind, e.side, e.source]), [['swing', 'forehand', 'webcam']]);
-  assert.deepEqual(p2.map(e => [e.kind, e.side, e.hand]), [['swing', 'backhand', 'left']]);
+  assert.deepEqual(p2.map(e => [e.kind, e.side, e.hand]), [['swing', 'forehand', 'left']]);
   // spenta: torna la webcam per uno (due mani, la prima della lista)
   mc.setWebcamDuo(false);
   assert.equal(opts().maxNumHands, 2); assert.equal(mc.webcamDuo, false);
