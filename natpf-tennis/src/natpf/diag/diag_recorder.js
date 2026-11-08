@@ -17,8 +17,10 @@
 // webcam.camera, webcam.ritmo, webcam.carico, webcam.stato, webcam.modello, webcam.riapertura, webcam.pausa, webcam.ripresa, tel.pausa, tel.ripresa,
 // prestazioni, video, video.frame, sfida.collegamento, sfida.colpo, sfida.colpo_vecchio, sfida.orologio (natpf_versus_ui.js),
 // sfida.vista (natpf_guest_view.js), tel.strada, tel2.strada, sfida.strada,
-// atteso, marca, avviso, popup (messaggio del colpo a schermo).
+// atteso, marca, avviso, popup (messaggio del colpo a schermo), partita (inizio di una partita: modo, mani, sensibilità
+// della mira; B16, lato delle palle per partita in diag_metrics.sideBalance).
 import { latencyShift, eventLatency, swingTiming } from '../natpf_skill.js';
+import { readAimLevel, aimFullNow } from '../natpf_aim_level.js';
 import { shotDirection } from './diag_metrics.js';
 import { NATPF_BUILD } from '@natpf/tennis/version.js';
 
@@ -72,7 +74,7 @@ export class DiagRecorder {
     this.events = []; this.rawBuf = []; this.counts = { eventi: 0, campioni: 0, byte: 0, persi: 0 }; this._warned = {};
     // reg: ms al secondo spesi dal registratore sul thread del gioco (serializzazione, campioni della palla): il suo costo
     this.videos = []; this.perf = { frames: [], upd: [], ren: [], last: null, longTasks: 0, reg: 0, flushMax: 0, at: this.now() };
-    this.lastPhase = null; this.lastHitter = null; this.lastInputSide = null; this.lastStato = null;
+    this.lastPhase = null; this.lastHitter = null; this.lastInputSide = null; this.lastStato = null; this.matchN = 0; this.lastMatch = null;
     // parti: la prima ha lo stesso id del gruppo; videoOff: video fermati per lo spazio (non ripartono nelle parti dopo)
     this.part = 1; this.partT0 = this.t0; this._countsAtPart = { ...this.counts }; this._spaceAt = -Infinity; this.freeMB = null; this.videoOff = null;
     const controller = ui?.controller || null, transport = ph?.link?.transport || null;
@@ -84,7 +86,8 @@ export class DiagRecorder {
       schermo: typeof screen !== 'undefined' ? { w: screen.width, h: screen.height, dpr: globalThis.devicePixelRatio || 1 } : null,
       cpu: typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || null : null,
       gpu: this._gpu(),
-      gioco: { difficolta: E.matchConfig?.difficulty || null, mano: ui?.hand?.hand || null, presa: ph?.grip || null, formato: E.matchFormat?.id || null, ritardoSchermoMs: ph?.displayLagMs ?? 0 },
+      // mira: sensibilità della mira scelta dallo staff (alta/media/bassa) e gradi della mira piena (B16)
+      gioco: { difficolta: E.matchConfig?.difficulty || null, mano: ui?.hand?.hand || null, presa: ph?.grip || null, formato: E.matchFormat?.id || null, ritardoSchermoMs: ph?.displayLagMs ?? 0, mira: readAimLevel(), miraPiena: aimFullNow() },
       store: this.store.kind, parte: 1, gruppo: this.id,
     };
     await this.store.open(this.id, this.meta);
@@ -159,6 +162,8 @@ export class DiagRecorder {
       this.meta = { ...this.meta, id: next, parte: this.part, precedente: prev, startedAt: this.wallNow(), inizio: new Date(this.wallNow()).toISOString(), tInizioMs: r(cut - this.t0, 1) };
       await this.store.open(next, this.meta);
       this.events.unshift({ t: tCut, k: 'sessione', ...this.meta, gpu: undefined }); this.counts.eventi++;
+      // la partita in corso continua nella parte nuova: il lato delle palle si giudica anche lì (diag_metrics.sideBalance)
+      if (this.lastMatch){ this.events.splice(1, 0, { t: tCut, k: 'partita', ...this.lastMatch, continua: true }); this.counts.eventi++; }
     } finally { this._cutting = false; }
     if (this.videoOff || this._stopping) return;
     if (kinds.includes('webcam')) await this._startCamera().catch(e => this.warn('video-webcam', `video della webcam non ripartito: ${e?.message || e}`));
@@ -261,7 +266,23 @@ export class DiagRecorder {
         super: L.super || null, ...(!L.super && (Number.isFinite(I.typePower) ? I.typePower : I.power) >= .8 && Array.isArray(L.superWhy) ? { superNo: L.superWhy[0] } : {}),
         // direzione calcolata: mira (−1…+1 tra le righe, 0 il punto neutro), punto neutro e posizione della palla
         // all'impatto (riferimento di chi colpisce), assistenza (0…1); traiettoria: volo (s), altezza sulla rete, effetto
-        mira: r(O.aim, 3), neutro: r(O.x0), palla: r(L.hitX), aiuto: r(O.assist, 2), volo: r(L.flight, 3), rete_m: r(O.clear, 2), effetto: r(O.topspin, 1) });
+        mira: r(O.aim, 3), neutro: r(O.x0), palla: r(L.hitX), aiuto: r(O.assist, 2), volo: r(L.flight, 3), rete_m: r(O.clear, 2), effetto: r(O.topspin, 1),
+        // B16, lato delle palle per partita (diag_metrics.sideBalance): mano di chi colpisce, fonte del colpo (telefono o
+        // webcam), gradi della mira piena con cui il telefono ha letto il piatto; colpi dell'allenamento (riscaldamento
+        // compreso) e dei minigiochi segnati, perché non sono una partita
+        mano: L.hand || null, fonte: L.source || null, ...(Number.isFinite(L.aimFull) ? { miraPiena: L.aimFull } : {}),
+        ...(R.ui?.training?.active ? { allenamento: true } : {}), ...(R.ui?.events?.active ? { minigioco: true } : {}) });
+      return out;
+    });
+    // inizio di una partita (B16): il lato delle palle si giudica partita per partita. Modo (contro la CPU, stesso schermo,
+    // sfida tra due computer), mani dei due giocatori, sensibilità della mira di questo computer
+    wrap('startNewMatch', function(orig, ...a){
+      const out = orig(...a);
+      R.matchN = (R.matchN || 0) + 1;
+      R.lastMatch = { n: R.matchN, modo: R.ui?.lobby?.mode || null, difficolta: E.matchConfig?.difficulty || null, formato: E.matchFormat?.id || null,
+        '1v1': !!(E.versus?.active || E.isMultiplayer), mano: R.ui?.hand?.hand || E.natpfPhone?.hand || null, mano2: E.natpfPhone2?.hand || null,
+        mira: readAimLevel(), miraPiena: aimFullNow() };
+      R.log('partita', R.lastMatch);
       return out;
     });
     // tc: secondi da adesso all'impatto previsto (prima si chiamava t e copriva l'istante dell'evento)

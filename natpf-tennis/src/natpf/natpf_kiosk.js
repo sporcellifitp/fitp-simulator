@@ -3,6 +3,8 @@
 // si torna al menu principale, si dimentica il nickname e si scollega il telefono, così lo stand è pronto per il
 // visitatore successivo. Durante una partita o una sfida si aspetta il doppio, poi si chiude anche quella.
 // Pannello dell'addetto: Ctrl+Maiusc+K, oppure tenere premuto 3 secondi il marchio NATPF in alto a sinistra nel menu.
+// Ha anche la sensibilità della mira del telefono (B16, opzione dello staff: natpf_aim_level.js).
+import { readAimLevel, writeAimLevel, aimLevelLabel, aimLevelButton, nextAimLevel } from './natpf_aim_level.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const KIOSK_KEY = 'natpf-tennis.chiosco';
@@ -77,6 +79,8 @@ export class NatpfKiosk {
     if (cmd === 'reset'){ if (confirm('Azzerare la classifica di oggi?')) ui.events.resetBoard(); }
     if (cmd === 'phone'){ ui.phone.forget?.(); }
     if (cmd === 'music') $('btn-audio-toggle')?.click();
+    // mira del telefono: alta → media → bassa → alta; vale dal colpo successivo (anche per il secondo telefono)
+    if (cmd === 'aim'){ const v = writeAimLevel(nextAimLevel(readAimLevel())); ui.toast?.(`Mira del telefono: ${aimLevelLabel(v)}`); }
     this.paint();
   }
   paint(){
@@ -86,6 +90,7 @@ export class NatpfKiosk {
     set('idle', `${this.limit} s`);
     const audio = this.engine.audioEngine; set('music', audio && audio.muted ? 'No' : 'Sì', !(audio && audio.muted));
     set('phone', this.ui.phone.connected ? 'Scollega' : 'Nessuno collegato');
+    set('aim', aimLevelButton(readAimLevel()));
     const n = $('staff-note');
     if (n) n.textContent = this.enabled ? `Chiosco attivo: dopo ${this.limit} s senza nessuno si torna al menu, il nickname si azzera e il telefono si scollega (in partita dopo ${this.limit*2} s).` : 'Chiosco spento: il gioco resta dove l’ha lasciato l’ultimo visitatore.';
   }

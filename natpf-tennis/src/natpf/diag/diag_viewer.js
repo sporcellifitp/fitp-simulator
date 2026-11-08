@@ -2,9 +2,21 @@
 // estratta. Metriche, linea del tempo degli eventi, video della webcam e del gioco affiancati e sincronizzati con il
 // registro: un clic su un evento porta i due video a quell'istante (1 s prima). Uno spostamento regolabile corregge
 // l'allineamento della webcam (si vede il gesto e si fa combaciare con il suo colpo). Nessuna risorsa esterna.
+import { sideLines, sideTotalLines, SIDE } from './diag_metrics.js';
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const num = v => (Number.isFinite(v) ? v.toFixed(2).replace('.', ',') : '–');
+// lato delle palle per partita (B16, diag_metrics.sideBalance): una riga per giocatore e partita (metà del campo, dettaglio
+// oltre 1 m e centro, palle angolate, |mediana x|, |piatto mediano|, verdetto colorato), poi il totale e i confronti
+export function sideCard(lp){
+  if (!lp?.partite?.length) return '';
+  const hands = { right: 'destro', left: 'mancino' };
+  const rows = lp.partite.flatMap(m => Object.entries(m.giocatori).map(([who, g]) => `<tr><td>${m.senzaInizio ? 'senza inizio' : esc(m.n)}</td><td>${esc(who)}</td><td>${esc(hands[g.mano] || '?')}</td><td>${g.sensibilita === 'non applicata' ? 'non applicata' : g.miraPiena ? esc(`${g.mira || ''} ${g.miraPiena}°`) : 'non registrata'}</td><td>${g.colpi}</td><td>${g.metaSinistraPercento} · ${g.metaDestraPercento} %</td><td class="mut">${g.sinistraPercento} · ${g.centroPercento} · ${g.destraPercento} %</td><td>${g.angolatePercento ?? '–'} %</td><td>${g.blocchi.map(b => num(b.mediana)).join(' / ') || '–'}</td><td${g.storto ? ' class="warn"' : ''}>${Number.isFinite(g.piattoMediano) ? num(Math.abs(g.piattoMediano)) : '–'}</td><td class="${g.verdetto === 'sbilanciata' ? 'warn' : g.verdetto === 'equilibrata' ? 'okc' : 'mut'}">${esc(g.testo)}${g.storto ? '<br><b class="warn">riferimento storto: ricalibrare</b>' : ''}</td></tr>`));
+  const tot = sideTotalLines(lp.riepilogo);
+  return `<h2>Lato delle palle per partita (mira del telefono)</h2><div class="card"><p class="mut">Dove cadono le palle di chi gioca con il telefono, viste da lui. «Sbilanciata»: almeno il ${100*SIDE.share} % dei colpi in una metà del campo, su almeno ${SIDE.min} colpi. Il verdetto e il |piatto mediano| (oltre ${num(SIDE.storto)}: riferimento storto, ricalibrare) scoprono una calibrazione sbagliata; le palle angolate (oltre ${String(SIDE.wide).replace('.', ',')} m dal centro) servono a confrontare le sensibilità, con molte partite. Come leggerlo: docs/GUIDA_MISURA_MIRA.md.</p>
+<table><tr><th>Partita</th><th>Chi</th><th>Mano</th><th>Mira</th><th>Colpi</th><th>Metà sinistra · metà destra</th><th>Oltre ${SIDE.center} m a sinistra · al centro · oltre ${SIDE.center} m a destra</th><th>Palle angolate</th><th>|mediana x| per ${SIDE.block} colpi (m)</th><th>|piatto mediano|</th><th>Verdetto</th></tr>${rows.join('')}</table>${tot.map(l => `<p><b>${esc(l)}</b></p>`).join('')}</div>`;
+}
 // eventi che vanno nella pagina (gli altri restano in eventi.jsonl): palla solo ogni 4 campioni (~15 al secondo)
-const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'tel.scartato', 'tel.dispositivo', 'webcam.evento', 'webcam.camera', 'webcam.carico', 'video', 'atteso', 'marca', 'avviso', 'sfida.collegamento', 'sfida.colpo', 'sfida.colpo_vecchio', 'sfida.orologio', 'sfida.vista', 'sessione.fine', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.colpo', 'tel.strada', 'tel2.strada', 'sfida.strada', 'popup']);
+const KEEP = new Set(['sessione', 'fase', 'rimbalzo', 'punto', 'tentativo', 'colpo.gioco', 'racchetta', 'piano', 'servizio', 'vuoto', 'input', 'tel.colpo', 'tel.cal', 'tel.stato', 'tel.scartato', 'tel.dispositivo', 'webcam.evento', 'webcam.camera', 'webcam.carico', 'video', 'atteso', 'marca', 'avviso', 'sfida.collegamento', 'sfida.colpo', 'sfida.colpo_vecchio', 'sfida.orologio', 'sfida.vista', 'sessione.fine', 'tel.pausa', 'tel.ripresa', 'tel.ricollega', 'tel2.colpo', 'tel.strada', 'tel2.strada', 'sfida.strada', 'popup', 'partita']);
 // filtro di un evento alla volta (anche nel worker, mentre legge il registro a righe): l'evento, la palla ridotta o null
 export function viewerFilter(){
   let i = 0;
@@ -40,13 +52,14 @@ header,main{max-width:1200px;margin:0 auto;padding:12px 16px}h1{font-size:20px;m
 .mut{color:var(--mut)}table{border-collapse:collapse;width:100%}td,th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 #tl{width:100%;height:70px;display:block;cursor:pointer}#list{max-height:420px;overflow:auto}#list tr{cursor:pointer}#list tr:hover{background:rgba(127,127,127,.12)}
 .k{font-family:ui-monospace,monospace;font-size:12px}.warn{color:var(--bad)}button,input{font:inherit}pre{white-space:pre-wrap;font-size:12px}
-.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.okc{color:var(--ok)}
 </style></head><body><header><h1>Sessione diagnostica</h1><div id="head" class="mut"></div></header><main>
 <div class="card vids" id="vids"></div>
 <div class="card"><div class="row"><b>Linea del tempo</b><span class="mut" id="now"></span>
 <label>Allineamento webcam <input id="off" type="range" min="-1000" max="1000" step="10" value="0"> <span id="offv">0 ms</span></label></div><canvas id="tl"></canvas></div>
 <div class="card"><div class="row"><b>Eventi</b><label><input type="checkbox" id="onlyShots" checked> solo colpi, punti e avvisi</label></div><div id="list"></div></div>
 <div class="card"><div class="row"><b>Mappa dei rimbalzi</b><span class="mut">dall'alto, chi gioca qui in basso · <span style="color:var(--acc)">●</span> colpi di chi gioca · <span style="color:#e67e22">●</span> colpi dell'avversario · ○ fuori · un clic porta i video lì</span></div><svg id="map" viewBox="-6.5 -14.5 13 29" style="width:100%;max-width:340px;height:auto;display:block;margin:6px auto"></svg></div>
+${sideCard(metrics.latoPalle)}
 <h2>Metriche</h2><div class="card"><pre id="metrics"></pre></div>
 <p class="mut">I colpi «sbagliati» si giudicano solo con un riferimento: nella prova guidata il colpo richiesto, da controllare comunque nel video. Tempi in ms dall'inizio della sessione, orologio del computer.</p>
 </main>
@@ -131,10 +144,11 @@ const desc = e => ({
   'tel.cal': () => 'calibrazione: ' + e.kind + (e.step ? ' ' + e.step : '') + (e.ok != null ? (e.ok ? ' ok' : ' no') : ''), 'webcam.evento': () => 'webcam: ' + e.tipo + ' ' + (e.side || '') + ' ' + (e.shotType || ''),
   'webcam.camera': () => 'webcam accesa: ' + (e.ottenuto ? e.ottenuto.w + '×' + e.ottenuto.h + ' a ' + (e.ottenuto.fps ?? '?') + ' fps' : '') + ', modello ' + (e.livello || ''), 'webcam.carico': () => 'webcam: modello ' + e.da + ' → ' + e.a + ' (inferenza ' + e.p50 + ' ms)',
   video: () => 'video ' + e.file + ' ' + e.stato, sessione: () => 'inizio sessione', 'sessione.fine': () => 'fine sessione',
+  partita: () => (e.continua ? 'partita ' + e.n + ' (continua)' : 'inizio della partita ' + e.n) + (e.modo ? ' · ' + e.modo : '') + (e.miraPiena ? ' · mira ' + (e.mira || '') + ' ' + e.miraPiena + '°' : ''),
 }[e.k] || (() => e.k))();
 function list(){
   const only = $('onlyShots').checked, rows = [];
-  for (const e of E){ if (e.k === 'palla') continue; if (only && !['tel.colpo', 'tel.scartato', 'input', 'colpo.gioco', 'racchetta', 'servizio', 'vuoto', 'punto', 'avviso', 'marca', 'atteso'].includes(e.k)) continue; rows.push('<tr data-t="' + e.t + '"><td class="k">' + fmt(e.t) + '</td><td class="' + (e.k === 'avviso' ? 'warn' : '') + '">' + desc(e).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])) + '</td></tr>'); }
+  for (const e of E){ if (e.k === 'palla') continue; if (only && !['tel.colpo', 'tel.scartato', 'input', 'colpo.gioco', 'racchetta', 'servizio', 'vuoto', 'punto', 'avviso', 'marca', 'atteso', 'partita'].includes(e.k)) continue; rows.push('<tr data-t="' + e.t + '"><td class="k">' + fmt(e.t) + '</td><td class="' + (e.k === 'avviso' ? 'warn' : '') + '">' + desc(e).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])) + '</td></tr>'); }
   $('list').innerHTML = '<table>' + rows.join('') + '</table>';
 }
 $('list').onclick = e => { const tr = e.target.closest('tr'); if (tr) seek(+tr.dataset.t - 1000); };
@@ -142,9 +156,13 @@ $('onlyShots').onchange = list; list(); draw(0); addEventListener('resize', () =
 </script></body></html>`;
 }
 
-export function readmeText(meta = {}){
+export function readmeText(meta = {}, metrics = null){
+  const lato = sideLines(metrics?.latoPalle);
   return `Pacchetto diagnostico NATPF Simulator
-Sessione ${meta.id || ''} · inizio ${meta.inizio || ''}${meta.parte > 1 || meta.prossima ? `
+Sessione ${meta.id || ''} · inizio ${meta.inizio || ''}${meta.gioco?.miraPiena ? ` · sensibilità della mira ${meta.gioco.mira || ''} (${meta.gioco.miraPiena}°)` : ''}${lato.length ? `
+
+Lato delle palle per partita (mira del telefono; come leggerlo: docs/GUIDA_MISURA_MIRA.md):
+${lato.map(l => '- ' + l).join('\n')}` : ''}${meta.parte > 1 || meta.prossima ? `
 Parte ${meta.parte || 1} di una registrazione lunga (stesso orologio: t continua dalla prima parte)${meta.precedente ? ` · precedente ${meta.precedente}` : ''}${meta.prossima ? ` · successiva ${meta.prossima}` : ''}` : ''}
 
 Apri rapporto.html con il browser (doppio clic, dopo aver estratto lo zip): metriche, linea del tempo e video
@@ -161,5 +179,6 @@ Orologi: il telefono ha il suo orologio; gli scambi tel.orologio (d invio e r ri
 telefono) permettono di ricalcolare scarto e deriva. Gli istanti dei colpi del telefono (picco) sono già portati
 sull'orologio del computer.
 Confronto tra due sessioni: node scripts/diag/diag.mjs confronta prima.zip dopo.zip (cartella natpf-tennis).
+Lato delle palle di uno o più pacchetti: node scripts/audit/lato-palle.mjs pacchetto.zip [altri.zip…] (cartella natpf-tennis).
 `;
 }

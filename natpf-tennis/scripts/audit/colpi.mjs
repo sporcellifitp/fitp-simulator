@@ -8,7 +8,8 @@
 // mira, ritmo) spengono la varietà, e la «persona vera» (secondo giro B15): la distribuzione dei gesti di chi gioca davvero,
 // presa dalle diagnostiche, colpo per colpo nelle funzioni vere del computer e nel motore.
 // È un banco deterministico sulle regole vere, non una misura di persone.
-//   node --import ./test/register.mjs scripts/audit/colpi.mjs [--mode=tutto|banco|reale|partite] [--hand=right|left|both] [--json=file] [--quick]
+//   node --import ./test/register.mjs scripts/audit/colpi.mjs [--mode=tutto|banco|reale|partite|lato] [--hand=right|left|both] [--json=file] [--quick]
+//   lato (B16, non in «tutto»): partite sbilanciate da una parte con la mira alta 17°, media 20°, bassa 23°
 //   banco: gesti variati e sequenze nel telefono simulato · reale: persona vera · partite: centro della mira per partita
 //   con il rumore (seme sbagliato, riferimento girato, mira tenuta nei primi colpi) · tutto (predefinito): tutti
 import { pathToFileURL } from 'node:url';
@@ -20,6 +21,7 @@ import { skillLevel } from '../../src/natpf/natpf_skill.js';
 import { lateSpanOf, directionSpan, SUPER } from '../../src/natpf/natpf_stroke_outcome.js';
 import { strokeIntent, INTENT } from '../../src/natpf/natpf_stroke_intent.js';
 import { createAimModel } from '../../src/natpf/natpf_gestures.js';
+import { sideJudge } from '../../src/natpf/diag/diag_metrics.js';
 
 const QUICK = process.argv.includes('--quick');
 const arg = k => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1];
@@ -109,7 +111,7 @@ export function variant(p, g){
   const R = rng(1000 + Math.round(g.k*100) + Math.round(g.yaw || 0)*7 + (g.side === 'backhand' ? 3 : 0));
   const msgs = gesture(p, { ...g, R });
   if (msgs.length !== 1) return null;
-  return p.game(msgs[0], { learn: false, ballHigh: !!g.ballHigh });
+  return p.game(msgs[0], { learn: false, ballHigh: !!g.ballHigh, aimFull: g.aimFull ?? null });
 }
 // sequenza dopo i colpi di qualche punto (12 normali): lo stesso gesto ripetuto con i riferimenti che imparano (stesso
 // telefono, stesso motore). g: gesto o funzione del numero del colpo. Il mancino fa la sequenza allo specchio (piatto
@@ -189,7 +191,7 @@ export function audit({ quick = QUICK, hand = 'right' } = {}){
 // createAimModel; per confrontare candidati)
 export const REAL = Object.freeze({ N: 400, seed: 3, fh: .6, uMed: .35, uSd: .45, devSd: 12, kMed: 1, kSd: .3, ref: 780, ballSd: .25, riseRef: .1, relSd: .12, angle: 90, angleSd: 20, plane: .85, planeSd: .08 });
 export function reale({ hand = 'right', N = REAL.N, seed = REAL.seed, uMed = REAL.uMed, uSd = REAL.uSd, devSd = REAL.devSd, devBias = 0, seedErr = 0, kMed = REAL.kMed, kSd = REAL.kSd, rhythm = true, difficulty = 'casual',
-  turnAt = -1, turn = 0, aimN = 0, aimBias = 0, seedErrB = null, makeAim = createAimModel } = {}){
+  turnAt = -1, turn = 0, aimN = 0, aimBias = 0, seedErrB = null, makeAim = createAimModel, aimFull = null } = {}){
   const clip = (v, a, b) => Math.max(a, Math.min(b, v)), R = rng(seed), mx = hand === 'left' ? -1 : 1;
   const e = createHeadlessEngine({ difficulty }); e.startNewMatch({ showStartBanner: false });
   const aims = makeAim(); aims.seed(mx, mx*seedErr); aims.seed(-mx, mx*(seedErrB ?? seedErr));   // verso del dritto = mx
@@ -200,7 +202,7 @@ export function reale({ hand = 'right', N = REAL.N, seed = REAL.seed, uMed = REA
     const u = clip(uMed + gauss(R)*uSd, -1.5, 1.5), ballY = clip(1 + gauss(R)*REAL.ballSd, .6, 1.6);
     const rel = gauss(R)*REAL.relSd, angle = clip(REAL.angle + gauss(R)*REAL.angleSd, 40, 160), plane = clip(REAL.plane + gauss(R)*REAL.planeSd, .5, 1);
     const turned = turnAt >= 0 && i >= turnAt ? turn : 0, heading = mx*(dev + turned + (i < aimN ? aimBias : 0)), a = aims.aim(dir, heading), peak = k*REAL.ref;
-    const intent = strokeIntent({ peak, angle, shape: { rise: REAL.riseRef + rel, plane, tilt: 0 } }, { ref: REAL.ref, headingDev: a?.dev ?? null, riseRef: REAL.riseRef, ballHigh: ballY >= 1.5 });
+    const intent = strokeIntent({ peak, angle, shape: { rise: REAL.riseRef + rel, plane, tilt: 0 } }, { ref: REAL.ref, headingDev: a?.dev ?? null, riseRef: REAL.riseRef, ballHigh: ballY >= 1.5, aimFull });
     if (['topspin', 'flat'].includes(intent.shot)) aims.add(dir, heading);
     // errore che resta nel centro della mira (gradi, media dei due versi; il centro giusto è 0, o turn dopo il giro)
     const cerr = +(mx*((aims.center(1) ?? 0) + (aims.center(-1) ?? 0))/2 - turned).toFixed(2);
@@ -264,6 +266,37 @@ export function partite({ runs = PARTITE.runs, n = PARTITE.n, blocks = PARTITE.b
     blocks: blocks.map(([a, b], j) => ({ shots: `${a + 1}-${b}`, mabs: r2(mean(B[j].m.map(Math.abs))), over1: B[j].m.filter(v => Math.abs(v) > 1).length, signed: r2(mean(B[j].m)), cabs: r1(mean(B[j].c)), cmax: r1(Math.max(...B[j].c)) })),
     at: at.map((k, j) => ({ shot: k, cabs: r1(mean(A[j])), cmax: r1(Math.max(...A[j])) })) };
 }
+// Lato delle palle per partita con le tre sensibilità della mira (B16 · decisione (d) dell'utente: «ok ma come lo
+// misuro?»): la persona vera gioca `runs` partite da `n` colpi per caso (seme della calibrazione giusto o sbagliato, seme
+// diverso nei due versi, corpo girato) e ogni partita si giudica come nella diagnostica (diag_metrics.sideJudge): verdetto
+// (almeno il 70 % dei colpi in una metà del campo = sbilanciata), |piatto mediano| (oltre 0,20 = riferimento storto),
+// palle angolate (oltre 2,5 m dal centro, il guadagno della mira più sensibile). È il riferimento del banco per leggere le
+// partite vere (docs/GUIDA_MISURA_MIRA.md §6): quante partite sbilanciate o con il riferimento storto aspettarsi con la
+// mira alta (17°), media (20°) e bassa (23°), quante palle angolate, e quante partite servono per confrontarle
+export const LATO = Object.freeze({ runs: 24, n: 40, aims: Object.freeze([17, 20, 23]),
+  cases: Object.freeze({ 'seme giusto': {}, 'seme ±15°': [{ seedErr: 15 }, { seedErr: -15 }], 'seme ±25°': [{ seedErr: 25 }, { seedErr: -25 }], 'seme ±30°': [{ seedErr: 30 }, { seedErr: -30 }],
+    'seme diverso nei due versi': [{ seedErr: 30, seedErrB: 0 }, { seedErr: 0, seedErrB: 30 }, { seedErr: 25, seedErrB: 10 }, { seedErr: 20, seedErrB: -20 }],
+    'corpo girato di 30° al 20° colpo': { turnAt: 20, turn: 30 } }) });
+export function lato({ aimFull = 17, runs = LATO.runs, n = LATO.n, hand = 'right', cases = LATO.cases, judge = sideJudge } = {}){
+  const out = {}, sd = a => { const m = mean(a); return a.length > 1 ? Math.sqrt(a.reduce((s, x) => s + (x - m)**2, 0)/(a.length - 1)) : 0; };
+  for (const [name, c] of Object.entries(cases)){
+    const list = Array.isArray(c) ? c : [c], v = { partite: 0, sbilanciate: 0, storti: 0, quote: [], mabs: [], ang: [], piatto: [] };
+    for (const o of list) for (let r = 0; r < runs; r++){
+      const g = reale({ ...o, hand, N: n, seed: PARTITE.seed + r, aimFull }), ok = g.shots.filter(s => !s.lost);
+      const j = judge(ok.map(s => s.x), { hand, piatti: ok.map(s => s.face) });
+      v.partite++; if (j.verdetto === 'sbilanciata') v.sbilanciate++; if (j.storto) v.storti++;
+      v.quote.push(j.quotaPercento); v.mabs.push(Math.abs(j.medianaX)); v.ang.push(100*j.angolate/j.colpi); v.piatto.push(Math.abs(j.piattoMediano ?? 0));
+    }
+    out[name] = { partite: v.partite, sbilanciate: v.sbilanciate, percento: +(100*v.sbilanciate/v.partite).toFixed(1), quotaMedia: +mean(v.quote).toFixed(1), mabs: +mean(v.mabs).toFixed(2),
+      storti: v.storti, stortiPercento: +(100*v.storti/v.partite).toFixed(1), piatto: +mean(v.piatto).toFixed(3), piattoMax: +Math.max(...v.piatto).toFixed(3),
+      angolate: +mean(v.ang).toFixed(1), angolateDev: +sd(v.ang).toFixed(1) };
+  }
+  return out;
+}
+// partite per sensibilità per vedere una differenza di palle angolate tra due sensibilità (due medie indipendenti, 95 %
+// a due code, potenza 80 %): 2·(1,96 + 0,84)²·dev²/differenza²
+export const partiteNecessarie = (diff, dev) => Math.ceil(2*(1.96 + .8416)**2*dev*dev/(diff*diff));
+
 // i casi per partita: seme della calibrazione sbagliato di 0…±30° (nei due versi), seme sbagliato in un verso solo o
 // diverso nei due (dritto/rovescio), riferimento girato di 26–40° dopo 20 colpi (errore del centro 30 e 60 colpi dopo il
 // giro), mira tenuta di +18° con dritto e rovescio nei primi 16 colpi
@@ -360,6 +393,22 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href){
     }
     if (mode === 'tutto' || mode === 'partite'){ res[hand].partite = partiteAll({ hand }); printPartite(res[hand].partite, hand); }
     if (mode === 'tutto' || mode === 'banco'){ res[hand].banco = audit({ hand }); print(res[hand].banco); }
+    if (mode === 'lato'){
+      const runs = +(arg('runs') || 0) || (QUICK ? 8 : LATO.runs);
+      res[hand].lato = Object.fromEntries(LATO.aims.map(a => [a, lato({ aimFull: a, hand, runs })]));
+      const L = res[hand].lato;
+      console.log(`\n######## lato delle palle per partita · mano ${hand === 'left' ? 'sinistra (mancino)' : 'destra'} (persona vera, ${runs} partite da ${LATO.n} colpi per caso)`);
+      console.log('  verdetto: partite sbilanciate (almeno 70 % dei colpi in una metà) / partite = % (quota media della metà più frequente, |mediana x| media)');
+      console.log('  caso'.padEnd(36) + LATO.aims.map(a => `mira ${a}°`.padEnd(34)).join(''));
+      for (const name of Object.keys(LATO.cases)) console.log(`  ${name}`.padEnd(36) + LATO.aims.map(a => { const v = L[a][name]; return `${v.sbilanciate}/${v.partite} = ${fmt(v.percento)} % (${fmt(v.quotaMedia)} %, ${fmt(v.mabs)} m)`.padEnd(34); }).join(''));
+      console.log('  riferimento storto: partite con il |piatto mediano| oltre 0,20 / partite (|piatto mediano| medio, massimo) · palle angolate oltre 2,5 m (media ± dev. per partita)');
+      for (const name of Object.keys(LATO.cases)) console.log(`  ${name}`.padEnd(36) + LATO.aims.map(a => { const v = L[a][name]; return `${v.storti}/${v.partite} (${fmt(v.piatto)}, ${fmt(v.piattoMax)}) · ${fmt(v.angolate)} ± ${fmt(v.angolateDev)} %`.padEnd(38); }).join(''));
+      const g = a => L[a]['seme giusto'];
+      for (const [a, b] of [[17, 20], [17, 23], [20, 23]]){
+        const diff = g(a).angolate - g(b).angolate, dev = Math.sqrt((g(a).angolateDev**2 + g(b).angolateDev**2)/2);
+        console.log(`  guadagno ${a}° contro ${b}° (seme giusto): ${fmt(diff)} punti di palle angolate, ${fmt(dev)} punti da una partita all'altra ⇒ ${diff > 0 ? partiteNecessarie(diff, dev) : '–'} partite per sensibilità (95 %, potenza 80 %)`);
+      }
+    }
   }
   if (res.right?.reale && res.left?.reale){
     console.log('\n######## specchio destro ↔ mancino (persona vera: stesse estrazioni, |x_D + x_M|, |prof_D − prof_M|, |km/h_D − km/h_M| massimi)');

@@ -997,3 +997,109 @@ diverse. Ramo locale da `7936011`, non pubblicato.
   `natpf-training-flow` 21/21 e mancino 21/21; `natpf-menu` 22/22; `natpf-split-ready` 34/34; `natpf-tutorial-phone`
   39/39 e mancino 39/39. Non provato nel browser: la pagina «Collega» con mouse e tastiera o webcam (le prove nel browser
   usano il telefono simulato; coperta dai test con il DOM finto). `npm run build` ok (in `index.html` cambia solo un commento).
+
+## B16 · Mira del telefono: come si misura e opzione dello staff (ramo `b16-mira`, decisione (d)) · [~] · 08/11/2026
+Decisione (d) dell'utente sulla mira più sensibile del B15: «Ok ma come lo misuro?». Obiettivo: misurarlo con partite vere
+(diagnostica e comando), poter scegliere la sensibilità senza toccare il codice, guida pratica. Criterio di fine: misura nel
+riassunto, nel rapporto, nel LEGGIMI e nel comando; opzione che arriva a `strokeIntent` senza cambiare la base; percorso della
+guida provato nel browser.
+- [x] B16-mira.1 · Opzione «Mira del telefono» (commit `87e4a66`, push no: ramo locale)
+  File: `src/natpf/natpf_stroke_intent.js` (`AIM_FULL` alta 17 · media 20 · bassa 23, `faceAimFromDev(dev, full)`,
+  `strokeIntent({ aimFull })`), `src/natpf/natpf_aim_level.js` (nuovo: `natpf-tennis.mira`, `readAimLevel`, `writeAimLevel`),
+  `src/natpf/natpf_phone_racket.js` (`natpfSwingToEngine({ aimFull })` → `natpf.aimFull`; il telefono passa `aimFullNow()`),
+  `index.html` + `src/natpf/natpf_lobby.js` (riga «Mira del telefono» nelle Opzioni, sotto «Telefono», con la nota «Per lo
+  staff…»), `src/natpf/natpf_diag.js` (il pannello dice la mira in uso), `test/phone-sim.mjs` (`game({ aimFull })`),
+  `test/natpf-mira-sensibilita.test.mjs` (nuovo, 5 prove).
+  Verifiche: 15° di piatto → 0,857 / 0,706 / 0,6 (`faceAimFromDev`); con il valore di base l'intenzione è identica alla
+  mira alta (deepEqual su 27 combinazioni di forza e scarto) e cambiano solo le mire con media e bassa; catena del telefono
+  simulato (destro e mancino, dritto e rovescio, ±15°, stesso messaggio letto con le tre sensibilità): mira ×14/17 e ×14/20,
+  spostamento della palla dal colpo dritto in ordine alta > media > bassa (media 70–95 % dell'alta, bassa 50–85 %).
+  Prove di fedeltà invariate (`natpf-gesture-pose`, `natpf-racchetta`, `natpf-gesture-speeds`, `natpf-colpi-b15` nella
+  suite). npm test 932/932, sito 197/197.
+- [x] B16-mira.2 · Lato delle palle per partita nella diagnostica e comando (commit `c176fa8`)
+  File: `src/natpf/diag/diag_metrics.js` (`SIDE`, `sideJudge`, `sideBalance`, `sideLines`; `metrics.latoPalle`; righe nel
+  riassunto), `src/natpf/diag/diag_recorder.js` (evento `partita` a ogni `startNewMatch`, ripetuto `continua` nella parte
+  nuova; `racchetta` con `mano`, `fonte`, `miraPiena`, `allenamento`/`minigioco`; `gioco.mira`/`miraPiena` nella sessione),
+  `src/game_engine.js` (`natpfLastRacket` con `hand`, `source`, `aimFull`: solo dati), `diag_viewer.js` (scheda «Lato delle
+  palle per partita» in `rapporto.html`, righe nel `LEGGIMI.txt`, `partita` nella linea del tempo), `diag_export.js`,
+  `scripts/audit/lato-palle.mjs` (nuovo), `scripts/audit/colpi.mjs` (`--mode=lato`, `reale({ aimFull })`,
+  `variant({ aimFull })`), `test/natpf-mira-lato.test.mjs` (nuovo, 6 prove).
+  Definizione: x del punto di caduta calcolato del colpo (evento `racchetta`) nel riferimento di chi colpisce (P2: x del campo
+  cambiata di segno); fuori servizi, allenamento (riscaldamento compreso), minigiochi, webcam; quote sinistra · centro (±1 m) ·
+  destra; |mediana x| per blocchi di 20 colpi (l'ultimo se ≥ 10); sbilanciata = almeno il 70 % in una metà del campo
+  (x > 0 / x < 0, la «palla da una parte» del banco B15) su almeno 20 colpi; il testo dice la parte del dritto o del
+  rovescio (mancino a specchio). Riepilogo per sensibilità (`perMiraPiena`).
+  Banco `colpi.mjs --mode=lato --hand=both` (persona vera, 24 partite da 40 colpi per caso; registro
+  `scratchpad/b16/mira-lato-banco.log`): partite sbilanciate con alta 17° / media 20° / bassa 23° — seme giusto 0/24 · 0/24 ·
+  0/24; seme ±15° 19/48 (39,6 %, |mediana x| 1,18 m) · 18/48 (37,5 %, 1,05) · 17/48 (35,4 %, 0,93); ±25° 58,3 · 56,3 · 50 %;
+  ±30° 64,6 · 58,3 · 50 %; seme diverso nei due versi 33,3 · 27,1 · 25 % (su 96); corpo girato di 30° al 20° colpo 54,2 ·
+  62,5 · 50 % (su 24). Mancino identico al destro. Lettura: la sensibilità attenua (circa −10 % di metri da una parte per
+  passo), la calibrazione cura.
+- [x] B16-mira.3 · Prova nel browser, guida e documenti (commit dopo `c176fa8`)
+  File: `tools/e2e/natpf-mira-lato.mjs` (nuovo), `docs/GUIDA_MISURA_MIRA.md` (nuova), `docs/NATPF_DIAGNOSTICA.md`,
+  `docs/PROJECT_MEMORY.md`, questo registro. Testo «equilibrata» chiarito (metà sinistra/destra del campo, perché le quote a
+  tre zone hanno il centro); suggerimento del riassunto e del comando: prima la calibrazione, poi la sensibilità meno
+  sensibile.
+  Verifiche: `natpf-mira-lato` (porte 4530/4531) **20/20**, tre giri verdi di fila dopo le correzioni della prova (Opzioni
+  alta → media con l'avviso, scelta che resta dopo la ricarica; pannello con la mira; registrazione; telefono simulato
+  calibrato; «Gioca» vero; partita 1 con la mira media 22 colpi, partita 2 con la mira alta 4 colpi; riassunto con il
+  verdetto; download con il clic vero dopo lo scorrimento del pannello; `sessione.json`, `metriche.json`, `rapporto.html`,
+  `LEGGIMI.txt`, eventi `partita` e `racchetta`; `lato-palle.mjs` sul pacchetto). Schermate in `scratchpad/b16/e2e-mira/`
+  (`mira-opzioni.png`, `mira-riassunto.png`, `mira-scarica.png`, `rapporto-lato.png`). npm test **938/938**, sito
+  **197/197**. `natpf-diag-session` (registratore toccato; porte 4532/4533): giro completo 23/24, unico KO di sola velocità
+  (costo del registratore: massimo 33,2 ms in un secondo, scrittura 37,8 ms, nei secondi in cui il gioco era a 7–14 fps con
+  fotogrammi da 233–317 ms: macchina carica, load average 8–10 su 4 CPU); ripetuta da sola la parte A: 15/16 (massimo 23,8
+  ms con il gioco a 31 fps), poi la base `7936011` sulla stessa macchina 16/16 (10,3 ms) e di nuovo il ramo **16/16**
+  (massimo 8,6 ms/s, scrittura 2,8 ms; mediana 0,7 ms/s come la base 0,6). Il ramo aggiunge 4–6 campi a ogni `racchetta`
+  (22 in 155 s) e un evento a partita.
+  Non verificato: telefoni veri, persone vere (la guida serve a questo), programma Windows (download dal pannello), partite
+  intere dal servizio nel browser (la prova fa partire gli scambi da una palla della CPU dopo il «Gioca» vero), sfida tra due
+  computer (vale l'opzione del computer di chi gioca: non provato).
+- [x] B16-mira.4 · Correzioni della revisione indipendente («integrare con correzioni»)
+  1. **Potenza statistica**: il verdetto «sbilanciata» non confronta alta e media con 9–15 partite. Aggiunto il
+     **guadagno**: palle angolate (oltre 2,5 m dal centro) per partita e media per sensibilità (senza le partite con il
+     riferimento storto), con `sideTotals` (anche per più pacchetti insieme) e `gainCompare`/`gainLines` («confronto del
+     guadagno»: differenza ± due errori standard, «si distingue dal caso» o no, da 5 partite per parte) nel riassunto,
+     rapporto, LEGGIMI e `lato-palle.mjs`. Banco (`colpi.mjs --mode=lato --runs=400`, nuovo `--runs`; registro
+     `scratchpad/b16/fix-mira/banco-lato-400.log`): con la calibrazione giusta palle angolate 37,3 / 34,0 / 30,9 % ±7,4
+     punti per partita (40 colpi; ±8,3 a 30 colpi) ⇒ alta contro media (3,3 punti) circa **80 partite per sensibilità**
+     (100 a 30 colpi), alta contro bassa (6,4) circa 21. La sonda del revisore (38,3 / 34,3 / 31,7 %, ±6,6, «40–45
+     partite») è nello stesso ordine ma più ottimista: con 400 partite e potenza 80 % ne servono circa 80; con 45
+     partite la media risulta più angolata dell'alta 7 volte su 100 e la differenza si distingue dal caso 3 volte su 10.
+     Guida §6 riscritta: il verdetto scopre la calibrazione, il guadagno confronta le sensibilità, quante partite servono.
+  2. **Commento di `AIM_FULL`** (`natpf_stroke_intent.js`): tolto «dimezza l'effetto»; ora i numeri del banco (circa
+     −10 % di metri da una parte per passo, |mediana x| 1,27 → 1,13 → 1,00 m, partite sbilanciate 41 / 38 / 32 % con 15°
+     di errore; palle angolate 37 / 34 / 31 %).
+  3. **Righe del verdetto**: numeri principali «metà sinistra · metà destra» (quelli del verdetto), a parte «(oltre 1 m a
+     sinistra · al centro · oltre 1 m a destra)»; testi «equilibrata: nessuna metà del campo arriva al 70 %» e
+     «sbilanciata a destra (…): 72 % dei colpi nella metà destra»; grammatica del totale («1 sbilanciata su 5 partite
+     giudicate»). Scheda del rapporto con le colonne nuove. Prova nel browser che il verdetto non contraddice le metà.
+  4. **Opzione dello staff**: «Mira del telefono» tolta dalle Opzioni (`index.html`, `natpf_lobby.js`) e messa nel
+     pannello dello stand (`natpf_kiosk.js`, pulsante `data-staff="aim"`, un clic passa alla successiva come «Ritorno al
+     menu dopo»; avviso; stessa chiave `natpf-tennis.mira`; il reset del chiosco non la tocca; `nextAimLevel`,
+     `aimLevelButton` in `natpf_aim_level.js`). Pannello della diagnostica: «si cambia nel pannello dello stand».
+  5. **Telefoni senza forma del colpo**: se nessun colpo della partita ha `miraPiena` in una registrazione che conosce
+     la sensibilità, la riga dice «sensibilità non applicata» (chiave `non applicata` nel riepilogo), non quella
+     dell'evento `partita`; «mira non registrata» resta per i pacchetti di prima del B16.
+  6. **|piatto mediano|** per partita (`racchetta.piatto`, solo colpi non `ricavato`), soglia **0,20** su almeno 20 colpi →
+     «riferimento storto: ricalibrare». Dal banco (400 partite da 40 colpi per sensibilità): calibrazione giusta 0 su 400
+     oltre 0,20 per tutte e tre (massimo 0,18 / 0,15 / 0,13); partite da 30 colpi 0–1 %, da 20 colpi 1,5–3 % (sonda
+     `fix-mira/probe/probe2.mjs`, 200 partite); seme sbagliato di ±15° scoperto nel 76 / 69 / 57 %. Prova: nel banco a 24
+     partite nessun suggerimento con la calibrazione giusta (test).
+  7. Testi: niente doppia parentesi nel pannello («alta (17°), si cambia nel pannello dello stand: …»); tabella del §6
+     della guida con le partite per riga.
+  File: `src/natpf/diag/diag_metrics.js`, `diag_viewer.js`, `scripts/audit/lato-palle.mjs`, `scripts/audit/colpi.mjs`,
+  `src/natpf/natpf_kiosk.js`, `natpf_aim_level.js`, `natpf_lobby.js`, `natpf_diag.js`, `natpf_stroke_intent.js`
+  (commento), `index.html`, `test/natpf-mira-lato.test.mjs` (9 prove, 3 nuove), `test/natpf-mira-sensibilita.test.mjs`
+  (6, 1 nuova: il pulsante del pannello vero su `ui-world`), `test/ui-world.mjs` (i figli di `querySelector` hanno un
+  genitore), `tools/e2e/natpf-mira-lato.mjs`, `docs/GUIDA_MISURA_MIRA.md`, `NATPF_DIAGNOSTICA.md`, `PROJECT_MEMORY.md`.
+  Verifiche: npm test **942/942**, sito **197/197**; nel browser `natpf-mira-lato` **23/23** (porte 4726/4727; prima 22/22
+  su 4720/4721, poi aggiunta la prova che il pannello dello stand sta in 1280 × 720 senza scorrere: pannello dello stand
+  con un clic e l'avviso, niente riga nelle Opzioni, scelta che resta dopo la ricarica, pannello della diagnostica senza
+  doppia parentesi, riga con metà del campo / oltre 1 m e centro / palle angolate / |piatto mediano| e verdetto coerente
+  con le metà, totale con le palle angolate, pacchetto, comando), `natpf-diag-session` **24/24** (4722/4723),
+  `natpf-menu` **22/22** (4724/4725; questi due prima di accorciare la nota del pannello dello stand, solo testo).
+  Rapporto aperto nel browser: scheda con le colonne nuove (`scratchpad/b16/fix-mira/rapporto/scheda.png`). `npm run build`
+  verde (`index.html` toccato: il pulsante nel pannello dello stand c'è, la riga delle Opzioni no).
+  Non verificato: persone vere e telefoni veri (i numeri sono del banco: una persona simulata; con persone diverse la
+  variabilità cresce, le partite necessarie sono un minimo), Windows, il confronto del guadagno su pacchetti veri.
