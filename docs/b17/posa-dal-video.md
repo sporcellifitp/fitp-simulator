@@ -48,6 +48,16 @@ palmo, quattro dita attorno al bordo lungo inferiore, pollice disteso lungo il b
   ~364 con i colpi veri dell'utente), quindi nel test dei tempi la presa a racchetta ha i limiti 150 e 265 per quelle due
   schede, la presa nel palmo tiene quelli del B13 (verificata nello stesso test). Le coreografie (angoli relativi alla
   partenza, tempi) non sono cambiate: picchi, ampiezze e contatti uguali a prima (dritto 716 °/s, piatto 1 145, …).
+- **Limite misurato a 200×200 (modalità compatta, giro 3)**: la lista di controllo del B9 chiede mano+telefono ≥ 28 %
+  dell'altezza all'impatto; il dritto con la presa a racchetta dà **26 %** (palmo: 28 % esatto). Non è la camera (f 1 133 px
+  per tutte e due le prese: il percorso del telefono è lo stesso) ma l'orientamento del telefono sullo schermo: lungo
+  l'avambraccio all'impatto è a 12° dall'orizzontale (palmo 21°), ingombro verticale 52 px contro 57. Stringere il quadro
+  compatto non si può: con il fattore 1,22 di oggi il risolutore (spostamento costante nel ciclo, z fino a 0,96) è già
+  saturo di 9 px tra il percorso del telefono e la freccia del contatto (freccia fuori 6 %, palla fuori 83 ms, entro i
+  limiti); con 1,08 il soggetto sale al 28,5 % ma la freccia esce del 21 % (limite 10 %), con 1,0 30 % e 30 %. Lungolinea
+  28 % (palmo 30 %), incrociato 30 %, rovescio 31,5 %, piatto 52,5 %. Scelta: quadro invariato e limite dichiarato nella
+  prova dei fogli (`LIMITI` in `tools/e2e/natpf-gesti-fotogrammi.mjs`), da confermare con l'utente; foglio in
+  `docs/b17/img/B-posa-200x200-1-colpi.webp`.
 - Alternativa misurata e scartata: ripartire le coreografie di oggi da `REST_RACCHETTA` (mano al fianco come nelle foto):
   il rientro da lì dà rotazioni di 300–550 °/s lette come un secondo colpo (`scratchpad/b17/posa/diag.mjs` modo b: 8 schede
   su 9 sbagliate).
@@ -138,4 +148,5 @@ Consigliata: **A**, poi B solo dove A non basta.
 - La partenza dei colpi `REST_COLPI_RACCHETTA` (telefono davanti al petto, schermo verso chi gioca) è una scelta nostra,
   misurata sul telefono simulato: nel video l'utente parte con il braccio che pende al fianco (`REST_VIDEO`), da cui le
   coreografie di oggi non sono leggibili (§3). Da confermare con lui; i fogli dei fotogrammi con la posa nuova sono stati
-  rifatti e guardati solo a 640×400 (vedi `STATO-posa.md`).
+  rifatti a tutte le misure e guardati a 640×400 e 200×200 (vedi `STATO-posa.md`).
+- Il limite del 26 % a 200×200 (§1) è ammesso e dichiarato nella prova dei fogli, non risolto: decide l'utente.

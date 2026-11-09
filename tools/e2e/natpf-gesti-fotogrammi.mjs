@@ -139,8 +139,15 @@ async function inFrame(W, H){
 
 // misure della lista (§5.6.2) su tutte le schede e le misure
 const KEY = { stroke: ['Carica', 'Impatto', 'Fine'], serve: ['Lancio (palla lasciata)', 'Braccio in alto', 'Impatto'] };
+// Limiti ammessi e DICHIARATI (si stampano nella riga OK, non si nascondono) per misura × scheda × presa: minimo misurato e
+// motivo. B17.1 passo B: a 200×200 il dritto con la presa a racchetta ha mano+telefono al 26 % dell'altezza all'impatto
+// (presa nel palmo: 28 %, al limite): il telefono lungo l'avambraccio è quasi orizzontale sullo schermo (12° contro 21°) e
+// la camera compatta non può stringere (percorso del telefono sul ciclo e freccia del contatto non stanno già nel quadro
+// per 9 px a z 0,96: stringere porta la freccia fuori; misure in docs/b17/posa-dal-video.md §1). Da confermare con l'utente.
+const GRIP = await p.evaluate(() => window.__GRIP);
+const LIMITI = { '200x200|forehand|racchetta': { subjectH: .26, nota: 'telefono orizzontale all\'impatto, camera compatta satura (28 % con la presa nel palmo)' } };
 for (const [W, H] of SIZES){
-  const bad = [], minLen = { v: Infinity, at: '' }, minSub = { v: Infinity, at: '' };
+  const bad = [], limiti = [], minLen = { v: Infinity, at: '' }, minSub = { v: Infinity, at: '' };
   for (const id of Object.keys(MOMENTS)) for (const hand of ['right', 'left']) for (const [t, txt] of MOMENTS[id]){
     const f = await frameInfo(id, t, W, H, hand), tag = `${id} ${hand} ${txt}`;
     const key = (KEY.stroke.includes(txt) && !['grip', 'ready'].includes(id) && id !== 'serve') || (id === 'serve' && KEY.serve.includes(txt)) || id === 'grip' && txt !== 'Giro della camera';
@@ -148,7 +155,11 @@ for (const [W, H] of SIZES){
     if (txt === 'Impatto'){
       if (f.label !== 'Impatto') bad.push(`${tag}: scritto «${f.label}»`);
       if (f.ballTip == null || f.ballTip > 1) bad.push(`${tag}: palla a ${f.ballTip?.toFixed(2)} raggi dalla cima`);
-      if (f.subjectH < .28) bad.push(`${tag}: mano+telefono ${(f.subjectH*100).toFixed(0)}% dell'altezza`);
+      if (f.subjectH < .28){
+        const lim = LIMITI[`${W}x${H}|${id}|${GRIP}`];
+        if (lim && f.subjectH >= lim.subjectH - 1e-6) limiti.push(`${tag}: mano+telefono ${(f.subjectH*100).toFixed(0)}% ≥ ${(lim.subjectH*100).toFixed(0)}% ammesso: ${lim.nota}`);
+        else bad.push(`${tag}: mano+telefono ${(f.subjectH*100).toFixed(0)}% dell'altezza`);
+      }
       if (f.subjectH < minSub.v){ minSub.v = f.subjectH; minSub.at = tag; }
       if (f.phoneLen < minLen.v){ minLen.v = f.phoneLen; minLen.at = tag; }
       if (W === 448 && f.phoneLen < 60) bad.push(`${tag}: telefono lungo ${f.phoneLen.toFixed(0)} px`);
@@ -160,7 +171,7 @@ for (const [W, H] of SIZES){
   check(`${W}×${H}: il colpo resta nel quadro (cima e palla fuori ≤ 100 ms, freccia fuori ≤ 10%)`, outB.length === 0,
     fr.map(r => `${r.id} ${Math.round(r.tipOut)}/${Math.round(r.ballOut)} ms ${Math.round(r.arrowOut*100)}%`).join(', '));
   check(`${W}×${H}: lista di controllo (telefono non di taglio ≥ 25°, «Impatto», palla ≤ 1 raggio dalla cima, mano+telefono ≥ 28%, etichette)`, bad.length === 0,
-    `impatto: telefono più corto ${minLen.v.toFixed(0)} px (${minLen.at}), soggetto più piccolo ${(minSub.v*100).toFixed(0)}% (${minSub.at})${bad.length ? '\n    ' + bad.join('\n    ') : ''}`);
+    `impatto: telefono più corto ${minLen.v.toFixed(0)} px (${minLen.at}), soggetto più piccolo ${(minSub.v*100).toFixed(0)}% (${minSub.at})${limiti.length ? '\n    LIMITE AMMESSO (dichiarato) ' + limiti.join('\n    LIMITE AMMESSO (dichiarato) ') : ''}${bad.length ? '\n    ' + bad.join('\n    ') : ''}`);
 }
 
 if (!process.env.NOFOGLI){

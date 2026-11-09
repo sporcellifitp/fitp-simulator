@@ -43,11 +43,34 @@
 - Verifiche: pose/anim/physics/presa/mancini/racchetta/speeds/camera verdi; suite del gioco e del sito e build: vedi il
   commit (numeri nel messaggio).
 
+## Correzioni dalla revisione (09/11/2026, giro 3)
+- La revisione automatica non ha consegnato bloccanti concreti (voce vuota). Ricontrollo indipendente del passo: diff dei
+  commit del passo B senza il nome del gioco commerciale, senza video, senza tocchi ai documenti protetti; cache delle
+  coreografie (`RC`) e `restOf` coerenti; suite del gioco 978 (977 pass, 1 todo dichiarato), sito 200/200, build ok.
+- **Trovato rifacendo i fogli a TUTTE le misure** (il giro 2 li aveva rifatti e guardati solo a 640×400): a **200×200**
+  (modalità compatta) la lista di controllo del dritto fallisce su «mano+telefono ≥ 28 % dell'altezza» all'impatto:
+  **26 %** (destro e mancino); sul ramo base, presa nel palmo, era **28 % esatto**. Le altre misure (448×280, 640×400,
+  1600×1000) e le altre schede sono verdi. Misure (`scratchpad/b17/corr/diag*.mjs`, telefono simulato nel browser):
+  la camera è identica per le due prese (f 1 133 px a 200×200: il percorso del telefono è lo stesso), cambia solo
+  l'**orientamento del telefono sullo schermo all'impatto**: lungo l'avambraccio è a 12° dall'orizzontale (palmo 21°),
+  quindi l'ingombro verticale di mano e telefono scende da 57 a 52 px. Provato a stringere il quadro compatto del
+  dritto (fattore 1,22 → 1,08 e 1,0): il soggetto sale a 28,5 % e 30 %, ma la **freccia del contatto esce** dal quadro
+  (21–30 % dei punti, limite 10 %) e la palla sta fuori 100 ms: il risolutore della camera compatta (spostamento
+  costante, riduzione fino a z 0,96) è **già saturo** con 1,22 (percorso del telefono sul ciclo dx ≤ −24,8 px contro
+  freccia dx ≥ −7,5 px: 9 px che non stanno, compromesso a metà). Per far stare tutto servirebbe z ≈ 0,92, che porta il
+  soggetto al 25 %: i due criteri del B9 sono in conflitto a 200×200 con questa presa. **Scelta**: quadro invariato
+  (modifiche provate e tolte), limite **dichiarato** nella prova (`tools/e2e/natpf-gesti-fotogrammi.mjs`, tabella
+  `LIMITI` per misura × scheda × presa, stampato nella riga OK come «LIMITE AMMESSO (dichiarato)»), foglio
+  `docs/b17/img/B-posa-200x200-1-colpi.webp` guardato (impatto leggibile; alla carica la mano è tagliata dal bordo destro,
+  il telefono resta in quadro). Da confermare con l'utente (alternativa: camera compatta che si sposta piano nel ciclo,
+  scelta esclusa dal B14).
+- Verifiche del giro: vedi il commit (numeri nel messaggio) e `docs/b17/posa-dal-video.md` §1.
+
 ## Manca / non verificato
 - Nessuna prova con il telefono vero né nel browser di queste pose (fogli dei fotogrammi del passo C non rifatti).
 - Il riconoscimento non è stato toccato (nessuna modifica «piccola e sicura» trovata: il limite è la fisica della presa).
 - `REST_RACCHETTA` (schermo in avanti-sinistra) è una lettura delle due foto da chiarire con l'utente (§5); la partenza dei
   colpi `REST_COLPI_RACCHETTA` (telefono davanti al petto, schermo verso chi gioca) è una scelta nostra misurata sul telefono
   simulato, da confermare con lui (nel video parte con il braccio che pende).
-- Fogli guardati solo a 640×400 (non 448×280, 200×200, 1600×1000); nessuna prova nel browser del flusso del tutorial in
-  questo giro.
+- Fogli rifatti a tutte e quattro le misure (giro 3) e guardati a 640×400 e 200×200 (non a 448×280 e 1600×1000, solo le
+  verifiche numeriche); nessuna prova nel browser del flusso del tutorial in questo giro.
