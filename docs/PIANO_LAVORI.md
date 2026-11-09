@@ -149,7 +149,10 @@ Come si aggiorna:
   `natpf-b17-1-gesti-dal-video` in tre passi con revisione (A dati dal video con MediaPipe → `docs/b17/gesti-video.json`;
   B posa dai dati e presa «upright»; C disegno specchiato frontale e fogli video/animazione `docs/b17/img/VC-*`). Il
   video resta in `scratchpad/b17-riferimenti/gesti-video.mp4` (fuori dal repository). Se la sessione si interrompe: i
-  commit sono nel worktree `.claude/worktrees/wf_*` del workflow; ripartire dal passo non finito.
+  commit sono nel worktree `.claude/worktrees/wf_bb380d57-57a-1` (ramo `worktree-wf_bb380d57-57a-1`, copia in
+  `docs/b17/wip/ramo-B17-1-passo-A.patch`: strumenti `natpf-tennis/scripts/video/*`); ripartire dal passo non finito
+  leggendo `docs/b17/STATO-*.md` nel worktree. Presa: dalle **foto dell'utente del 09/11** (`docs/b17/presa-foto.md`:
+  telefono orizzontale lungo l'avambraccio, cima in avanti, schermo verso lo schermo di gioco), non dal video.
 - **Prossima azione esatta:** collaudo dell'utente (tabellone: grandezza e sigle; X del tutorial; colpi a rete con il
   telefono vero, anche la soglia bassa a rete); **B17.1** gesti del tutorial dal video (`docs/b17/analisi-e-piano.md`
   §1.4) appena l'utente approva il piano; le decisioni del B16 (`docs/PASSAGGIO_CONSEGNE.md` §3.14) restano da prendere.

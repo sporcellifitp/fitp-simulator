@@ -1,0 +1,833 @@
+From 16b27663bf5ad94920a023083013419f1f6c304f Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 9 Nov 2026 08:52:52 +0000
+Subject: [PATCH] B17.1 passo A (WIP): strumenti per misurare il video
+ (estrai-posa, ricostruisci, fogli) e metodo in docs/b17/gesti-video.md;
+ estrazione non finita
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014xUKe3fJojkqNghZjqDcyr
+---
+ docs/b17/gesti-video.md                     |  69 ++++
+ natpf-tennis/scripts/video/estrai-posa.mjs  | 169 +++++++++
+ natpf-tennis/scripts/video/fogli.mjs        | 147 +++++++
+ natpf-tennis/scripts/video/ricostruisci.mjs | 401 ++++++++++++++++++++
+ 4 files changed, 786 insertions(+)
+ create mode 100644 docs/b17/gesti-video.md
+ create mode 100644 natpf-tennis/scripts/video/estrai-posa.mjs
+ create mode 100644 natpf-tennis/scripts/video/fogli.mjs
+ create mode 100644 natpf-tennis/scripts/video/ricostruisci.mjs
+
+diff --git a/docs/b17/gesti-video.md b/docs/b17/gesti-video.md
+new file mode 100644
+index 0000000..e635503
+--- /dev/null
++++ b/docs/b17/gesti-video.md
+@@ -0,0 +1,69 @@
++# B17.1 · I gesti dell'utente misurati dal video (passo A: dati, non pose inventate)
++
++> Stato (09/11/2026, ramo di lavoro B17.1, base `7381b2b`): **passo A del piano** (`docs/b17/analisi-e-piano.md` §1.4
++> punto 1) — misura del video, ricostruzione 3D con il modello del gioco, segmentazione dei colpi, dati in
++> `docs/b17/gesti-video.json`, fogli di controllo in `docs/b17/img/V-*.webp`. **Nessun file del gioco cambia** in questo
++> passo; gli script che rifanno tutto stanno in `natpf-tennis/scripts/video/`. Il video resta fuori dal repository.
++
++## 1. Che cosa si è misurato e come
++
++**Sorgente**: il video dell'utente (08/11/2026), 1080×1920 verticale, 30 fps, 42,7 s (1281 fotogrammi), camera davanti a
++lui all'altezza del petto, **mano destra**. Il video **non è specchiato**: le scritte del banner sul fondo si leggono
++dritte, quindi la destra di chi gioca sta a **sinistra** nel quadro (MediaPipe Pose conferma: polso destro = punto 16 a
++sinistra, con il telefono). Le etichette «Left/Right» di MediaPipe Hands valgono per un'immagine a specchio e qui sono
++invertite: la mano con il telefono si sceglie per vicinanza al polso destro di Pose, non per etichetta.
++
++**Catena** (`natpf-tennis/scripts/video/`, niente Python: tutto Node + Chromium headless con i pacchetti già nel repository):
++
++1. `ffmpeg` estrae i 1281 fotogrammi a 540×960 (JPEG q2; il video pesa troppo e resta fuori dal repository, i
++   fotogrammi anche).
++2. `estrai-posa.mjs`: MediaPipe **Pose** (modello *heavy*, `modelComplexity 2`, senza lisciatura) e **Hands** (*full*,
++   2 mani, confidenza 0,3) caricati come fa il gioco (`pose.js`/`hands.js` da `node_modules/@mediapipe`), in due pagine
++   separate perché il caricatore dei file di MediaPipe è globale (`webcam_body_follow.js`); un fotogramma alla volta, in
++   ordine, così il tracciamento tra fotogrammi funziona. Per ogni fotogramma: i 33 punti di Pose (pixel + visibilità) e i
++   punti «mondo» (metri, origine tra le anche), le mani (21 punti, pixel e mondo) e il **telefono**: lo schermo «Pronto»
++   acceso è una macchia blu satura (misurata sui fotogrammi: media RGB (57, 103, 195), contro i banner blu del fondo
++   (90, 110, 154) e (68, 87, 119)); si prende la componente connessa più grande entro 0,1 h dal polso destro e se ne
++   calcolano baricentro, assi principali (angolo dell'asse lungo nell'immagine, lunghezze) e area. Quando lo schermo è
++   di taglio o girato via la macchia manca: è segnato come «telefono non visto» e l'orientamento viene dalla mano e
++   dalla continuità.
++3. `ricostruisci.mjs`: per ogni fotogramma si cercano gli **angoli articolari del modello del gioco**
++   (`natpf_gesture_pose.armChain`: busto `tau`/`lat`, bacino `y`, spalla `p`/`e`/`r`, gomito `b`, pronosupinazione
++   `pro`, polso `fl`/`dv`; omero 0,30 m, avambraccio 0,262 m) più lo spostamento del bacino (`tx`, `tz`) che, proiettati con
++   una camera prospettica, cadono sui punti misurati: spalle, anche, gomito e polso destro di Pose (pesi con la
++   visibilità), le **profondità relative** dei punti mondo di MediaPipe (peso basso: danno il segno e l'ordine di
++   grandezza, la lunghezza dei segmenti fa il resto), i tre assi della mano di Hands (dita, nocche, normale del palmo,
++   dai punti mondo), l'**asse lungo dello schermo** (senza verso) e il suo centro. Minimi quadrati di Levenberg–Marquardt
++   con Jacobiano numerico, partenza dal fotogramma precedente (più due varianti di rotazione omero/pronosupinazione) e
++   una griglia di 72 partenze sul primo fotogramma di ogni tratto; limiti articolari come penalità morbide; senza la
++   mano vista pronosupinazione e polso seguono il fotogramma precedente (interpolazione dichiarata nei dati). Poi
++   lisciatura a fase nulla [1 2 1]/4 sugli angoli.
++   - **Camera**: scala (px/m) = distanza tra le spalle in pixel / nel mondo MediaPipe, mediana sui fotogrammi frontali in
++     piedi; lunghezza focale **ipotizzata** 720 px a 540×960 (ottica da 26 mm equivalenti: non misurata, incide sulla
++     prospettiva del braccio che viene verso la camera); altezza e scostamento laterale della camera dalla mediana delle
++     anche; camera senza inclinazione (le verticali del fondo sono verticali nel quadro).
++   - **Presa**: telefono rigido nella mano della catena. Modello di partenza «in piedi nel pugno, schermo in avanti»
++     (`upright`, la presa che la diagnostica dell'utente registra): cima lungo il pollice, schermo dalla parte della
++     normale del palmo. I tre angoli di Eulero della correzione si stimano sui fotogrammi in cui schermo e mano sono
++     visti insieme (minimo dell'errore dell'asse), poi si rifà la ricostruzione con il vincolo dello schermo.
++4. **Segmentazione**: impatto = picco della velocità del polso (2D misurata da Pose convertita in m/s con la scala del
++   corpo: è meno sensibile al tremolio della profondità della 3D, che si riporta accanto); carica = minimo della velocità
++   prima del picco (dopo il picco della preparazione); inizio = quando la mano comincia a muoversi; fine = quando torna
++   lenta dopo l'impatto. Servizio: lancio = picco della velocità del polso **sinistro** (palla immaginaria), battuta =
++   picco della mano destra dopo il lancio. Tagliati: tutti i picchi oltre 2 m/s a ≥ 1,2 s l'uno dall'altro, dritto o
++   rovescio dal verso della mano all'impatto.
++5. `fogli.mjs`: fogli `docs/b17/img/V-*.webp` con, per ogni fotogramma scelto (12 per colpo, con carica, impatto, fine e
++   lancio sempre dentro), il video con sopra Pose (ciano), la mano destra di Hands (verde), l'asse dello schermo
++   (magenta) e la catena riproiettata (arancione), accanto alla ricostruzione 3D vista di fronte (come la camera) e di
++   lato (da destra di chi gioca, rete a sinistra) con la scia del polso.
++
++Rifare tutto (dalla cartella `natpf-tennis`, con i fotogrammi in `$F` e il JSON di MediaPipe in `$MP`):
++
++```sh
++ffmpeg -i gesti-video.mp4 -vf scale=540:960 -q:v 2 -start_number 0 $F/f%04d.jpg
++CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/video/estrai-posa.mjs --frames=$F --out=$MP      # ~1 h su CPU
++node --import ./test/register.mjs scripts/video/ricostruisci.mjs --in=$MP --out=../docs/b17/gesti-video.json
++CHROMIUM_PATH=… node scripts/video/fogli.mjs --dati=../docs/b17/gesti-video.json --mp=$MP --frames=$F --out=../docs/b17/img
++```
++
++RISULTATI_DA_COMPILARE
+diff --git a/natpf-tennis/scripts/video/estrai-posa.mjs b/natpf-tennis/scripts/video/estrai-posa.mjs
+new file mode 100644
+index 0000000..5051ad8
+--- /dev/null
++++ b/natpf-tennis/scripts/video/estrai-posa.mjs
+@@ -0,0 +1,169 @@
++// B17.1 · Misura del video dei gesti dell'utente con MediaPipe Pose e Hands (pacchetti già nel repository) in Chromium
++// headless (Playwright di tools/e2e). Niente Python: i modelli girano nella pagina come nel gioco (stesso hands.js /
++// pose.js serviti da node_modules), un fotogramma alla volta, in ordine, così il tracciamento tra fotogrammi funziona.
++//
++//   ffmpeg -i gesti-video.mp4 -vf scale=540:960 -q:v 2 -start_number 0 frames/f%04d.jpg
++//   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/video/estrai-posa.mjs --frames=<cartella> --out=<file.json>
++//        [--from=0 --to=1280] [--pose=2] [--hands=1]
++//
++// Uscita (JSON): per fotogramma i 33 punti di Pose (x, y in pixel dell'immagine; z e visibilità di MediaPipe) e i punti
++// «mondo» (m, origine tra le anche), le mani (21 punti, lato dichiarato dal modello, punteggio), e il telefono visto
++// come macchia dello schermo acceso (blu) vicino al polso: baricentro, asse lungo (angolo nell'immagine), lunghezze
++// lungo i due assi, numero di pixel. Pose e Hands girano in due pagine separate: il caricatore dei file di MediaPipe è
++// globale e i due si sovrascrivono (natpf/webcam_body_follow.js).
++import fs from 'node:fs';
++import http from 'node:http';
++import path from 'node:path';
++import { fileURLToPath } from 'node:url';
++import { createRequire } from 'node:module';
++
++const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../..');
++const req = createRequire(path.join(GAME, 'package.json'));
++const { chromium } = createRequire(path.resolve(GAME, '../tools/e2e/package.json'))('playwright-core');
++const arg = (k, d) => { const a = process.argv.find(x => x.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : d; };
++const FRAMES = path.resolve(arg('frames', '')), OUT = path.resolve(arg('out', 'posa.json'));
++const FROM = +arg('from', 0), TO = +arg('to', 1e9), POSE_CX = +arg('pose', 2), HANDS_CX = +arg('hands', 1), PORT = +arg('port', 9671);
++const files = fs.readdirSync(FRAMES).filter(f => /^f\d+\.jpg$/.test(f)).sort().filter(f => { const n = +f.slice(1, -4); return n >= FROM && n <= TO; });
++if (!files.length) throw new Error('nessun fotogramma in ' + FRAMES);
++
++const MIME = { '.js': 'text/javascript', '.wasm': 'application/wasm', '.data': 'application/octet-stream', '.tflite': 'application/octet-stream', '.binarypb': 'application/octet-stream', '.jpg': 'image/jpeg', '.html': 'text/html', '.json': 'application/json' };
++const MP = { pose: path.dirname(req.resolve('@mediapipe/pose/pose.js')), hands: path.dirname(req.resolve('@mediapipe/hands/hands.js')) };
++const server = http.createServer((q, res) => {
++  const u = decodeURIComponent(q.url.split('?')[0]);
++  let file = null;
++  if (u.startsWith('/mp/pose/')) file = path.join(MP.pose, u.slice(9));
++  else if (u.startsWith('/mp/hands/')) file = path.join(MP.hands, u.slice(10));
++  else if (u.startsWith('/frames/')) file = path.join(FRAMES, u.slice(8));
++  else if (u === '/' || u === '/index.html'){ res.writeHead(200, { 'content-type': 'text/html' }); res.end('<!doctype html><meta charset="utf-8"><title>misura</title><canvas id="c"></canvas>'); return; }
++  if (!file || !fs.existsSync(file)){ res.writeHead(404); res.end(); return; }
++  res.writeHead(200, { 'content-type': MIME[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' });
++  fs.createReadStream(file).pipe(res);
++});
++await new Promise(r => server.listen(PORT, '127.0.0.1', r));
++
++const B = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--enable-features=WebAssemblySimd'] });
++const log = (...a) => console.error(new Date().toISOString().slice(11, 19), ...a);
++
++async function page(){
++  const ctx = await B.newContext({ viewport: { width: 600, height: 1000 } });
++  const p = await ctx.newPage();
++  p.on('pageerror', e => log('pageerror', e.message));
++  p.on('console', m => { if (m.type() === 'error') log('console', m.text().slice(0, 200)); });
++  await p.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'load' });
++  return { ctx, p };
++}
++const loadScript = (p, src) => p.evaluate(src => new Promise((ok, ko) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => ko(new Error('script ' + src)); document.head.appendChild(s); }), src);
++
++// nella pagina: strumenti comuni (disegno del fotogramma, macchia blu dello schermo)
++const TOOLS = `
++  window.loadFrame = src => new Promise((ok, ko) => { const im = new Image(); im.onload = () => { const c = document.getElementById('c'); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext('2d', { willReadFrequently: true }).drawImage(im, 0, 0); ok([c.width, c.height]); }; im.onerror = () => ko(new Error('img ' + src)); im.src = src; });
++  // macchia dello schermo acceso: pixel blu brillanti (lo schermo «Pronto» del telefono è blu con un anello verde) in un
++  // riquadro attorno a un punto (cx, cy, raggio r px); componente connessa più grande per baricentro e assi principali
++  window.blueBlob = (cx, cy, r) => {
++    const c = document.getElementById('c'), W = c.width, H = c.height, x0 = Math.max(0, Math.round(cx - r)), y0 = Math.max(0, Math.round(cy - r));
++    const w = Math.min(W, Math.round(cx + r)) - x0, h = Math.min(H, Math.round(cy + r)) - y0;
++    if (w <= 0 || h <= 0) return null;
++    const d = c.getContext('2d', { willReadFrequently: true }).getImageData(x0, y0, w, h).data, m = new Uint8Array(w*h);
++    let n = 0;
++    for (let i = 0; i < w*h; i++){ const R = d[4*i], G = d[4*i + 1], Bl = d[4*i + 2];
++      // blu dello schermo «Pronto» (misurato sui fotogrammi: media (57, 103, 195), B fino a 255 con R ≤ 100) contro i
++      // banner blu del fondo (medie (90, 110, 154) e (68, 87, 119), righe chiare con R alto): B ≥ 165, R ≤ 100, B − G ≥ 55;
++      // oppure il verde-ciano dell'anello (G alto, R basso)
++      if ((Bl >= 165 && R <= 100 && Bl - G >= 55) || (G >= 160 && R <= 110 && G - R >= 70)){ m[i] = 1; n++; } }
++    if (n < 12) return null;
++    // componenti connesse (4-vicini), la più grande
++    const lab = new Int32Array(w*h).fill(-1); let best = null, k = 0;
++    const stack = [];
++    for (let s = 0; s < w*h; s++){ if (!m[s] || lab[s] >= 0) continue;
++      let cnt = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, minx = 1e9, maxx = -1, miny = 1e9, maxy = -1; stack.push(s); lab[s] = k;
++      while (stack.length){ const i = stack.pop(); const x = i % w, y = (i - x)/w; cnt++; sx += x; sy += y; sxx += x*x; syy += y*y; sxy += x*y;
++        if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y;
++        const nb = [i - 1, i + 1, i - w, i + w]; if (x === 0) nb[0] = -1; if (x === w - 1) nb[1] = -1;
++        for (const j of nb) if (j >= 0 && j < w*h && m[j] && lab[j] < 0){ lab[j] = k; stack.push(j); } }
++      if (!best || cnt > best.n){ const mx = sx/cnt, my = sy/cnt, vxx = sxx/cnt - mx*mx, vyy = syy/cnt - my*my, vxy = sxy/cnt - mx*my;
++        const tr = vxx + vyy, det = vxx*vyy - vxy*vxy, disc = Math.sqrt(Math.max(0, tr*tr/4 - det)), l1 = tr/2 + disc, l2 = Math.max(0, tr/2 - disc);
++        // asse maggiore: angolo nell'immagine (gradi, 0 = verso destra, positivo verso il basso come y dell'immagine)
++        const ang = Math.atan2(l1 - vxx, vxy)*180/Math.PI;
++        best = { n: cnt, cx: x0 + mx, cy: y0 + my, ang, len1: 4*Math.sqrt(l1), len2: 4*Math.sqrt(l2), box: [x0 + minx, y0 + miny, x0 + maxx, y0 + maxy] }; }
++      k++; }
++    return best;
++  };
++`;
++
++const out = { source: 'gesti-video.mp4 (1080×1920, 30 fps) → fotogrammi 540×960', fps: 30, width: null, height: null, pose: { modelComplexity: POSE_CX }, hands: { modelComplexity: HANDS_CX }, frames: [] };
++const byIdx = new Map();
++const frameOf = f => { const n = +f.slice(1, -4); if (!byIdx.has(n)){ const o = { i: n, t: +(n/30).toFixed(4), file: f }; byIdx.set(n, o); out.frames.push(o); } return byIdx.get(n); };
++
++// ---- Pose (e telefono) ----
++{
++  const { ctx, p } = await page();
++  await p.evaluate(TOOLS);
++  await loadScript(p, '/mp/pose/pose.js');
++  await p.evaluate(async cx => {
++    const pose = new window.Pose({ locateFile: f => '/mp/pose/' + f });
++    pose.setOptions({ modelComplexity: cx, smoothLandmarks: false, enableSegmentation: false, minDetectionConfidence: .5, minTrackingConfidence: .5 });
++    window.__last = null; pose.onResults(r => { window.__last = r; });
++    await pose.initialize(); window.__pose = pose;
++  }, POSE_CX);
++  log('Pose pronto, complessità', POSE_CX, '·', files.length, 'fotogrammi');
++  let t0 = Date.now();
++  for (let k = 0; k < files.length; k++){
++    const f = files[k], o = frameOf(f);
++    const r = await p.evaluate(async src => {
++      const [w, h] = await window.loadFrame(src);
++      window.__last = null;
++      const t = performance.now(); await window.__pose.send({ image: document.getElementById('c') }); const ms = performance.now() - t;
++      const L = window.__last;
++      const lm = L?.poseLandmarks ? L.poseLandmarks.map(q => [+(q.x*w).toFixed(2), +(q.y*h).toFixed(2), +(q.z*w).toFixed(2), +q.visibility.toFixed(3)]) : null;
++      const wl = L?.poseWorldLandmarks ? L.poseWorldLandmarks.map(q => [+q.x.toFixed(4), +q.y.toFixed(4), +q.z.toFixed(4), +q.visibility.toFixed(3)]) : null;
++      // telefono: macchia blu attorno ai due polsi (15 sinistro, 16 destro; raggio 0,1 h ≈ 100 px: il telefono è ~50 px a
++      // questa scala) e, senza polsi, al centro dell'immagine (presa in primo piano)
++      let phone = null;
++      if (lm){ const cands = [16, 15].map(i => { const b = window.blueBlob(lm[i][0], lm[i][1], .1*h); return b && { ...b, nearWrist: i, distWrist: +Math.hypot(b.cx - lm[i][0], b.cy - lm[i][1]).toFixed(1) }; }).filter(Boolean);
++        phone = cands.sort((a, b) => a.distWrist - b.distWrist)[0] || null; }
++      if (!phone){ const b = window.blueBlob(w/2, h/2, Math.max(w, h)); if (b && b.n >= 40) phone = { ...b, nearWrist: null }; }
++      if (phone) for (const k of ['cx', 'cy', 'ang', 'len1', 'len2']) phone[k] = +phone[k].toFixed(2);
++      return { w, h, ms: +ms.toFixed(1), lm, wl, phone };
++    }, '/frames/' + f);
++    out.width = r.w; out.height = r.h;
++    o.pose = r.lm; o.poseWorld = r.wl; o.poseMs = r.ms; o.phone = r.phone;
++    if (k % 50 === 0 || k === files.length - 1) log(`pose ${k + 1}/${files.length} (${f}) ${r.ms} ms, telefono ${r.phone ? r.phone.n + ' px' : '—'} · ${((Date.now() - t0)/1000).toFixed(0)} s`);
++  }
++  await ctx.close();
++}
++
++// ---- Hands ----
++{
++  const { ctx, p } = await page();
++  await p.evaluate(TOOLS);
++  await loadScript(p, '/mp/hands/hands.js');
++  await p.evaluate(async cx => {
++    const hands = new window.Hands({ locateFile: f => '/mp/hands/' + f });
++    hands.setOptions({ maxNumHands: 2, modelComplexity: cx, minDetectionConfidence: .3, minTrackingConfidence: .3 });
++    window.__last = null; hands.onResults(r => { window.__last = r; });
++    await hands.initialize(); window.__hands = hands;
++  }, HANDS_CX);
++  log('Hands pronto, complessità', HANDS_CX);
++  let t0 = Date.now();
++  for (let k = 0; k < files.length; k++){
++    const f = files[k], o = frameOf(f);
++    const r = await p.evaluate(async src => {
++      const [w, h] = await window.loadFrame(src);
++      window.__last = null;
++      const t = performance.now(); await window.__hands.send({ image: document.getElementById('c') }); const ms = performance.now() - t;
++      const L = window.__last;
++      const hands = (L?.multiHandLandmarks || []).map((pts, i) => ({
++        label: L.multiHandedness?.[i]?.label || null, score: +(L.multiHandedness?.[i]?.score ?? 0).toFixed(3),
++        lm: pts.map(q => [+(q.x*w).toFixed(2), +(q.y*h).toFixed(2), +(q.z*w).toFixed(2)]),
++        world: L.multiHandWorldLandmarks?.[i]?.map(q => [+q.x.toFixed(4), +q.y.toFixed(4), +q.z.toFixed(4)]) || null }));
++      return { ms: +ms.toFixed(1), hands };
++    }, '/frames/' + f);
++    o.hands = r.hands; o.handsMs = r.ms;
++    if (k % 50 === 0 || k === files.length - 1) log(`hands ${k + 1}/${files.length} (${f}) ${r.ms} ms, mani ${r.hands.length} · ${((Date.now() - t0)/1000).toFixed(0)} s`);
++  }
++  await ctx.close();
++}
++await B.close(); server.close();
++fs.mkdirSync(path.dirname(OUT), { recursive: true });
++fs.writeFileSync(OUT, JSON.stringify(out));
++log('scritto', OUT, out.frames.length, 'fotogrammi');
+diff --git a/natpf-tennis/scripts/video/fogli.mjs b/natpf-tennis/scripts/video/fogli.mjs
+new file mode 100644
+index 0000000..d08d786
+--- /dev/null
++++ b/natpf-tennis/scripts/video/fogli.mjs
+@@ -0,0 +1,147 @@
++// B17.1 · Fogli di controllo della ricostruzione dal video (docs/b17/img/V-<colpo>.webp): per ogni colpo ≥ 10 fotogrammi
++// del video con sopra i punti misurati (Pose in ciano, mano destra di Hands in verde, asse dello schermo in magenta) e la
++// catena del gioco riproiettata (arancione), accanto alla ricostruzione 3D vista di fronte (come la camera: la destra di
++// chi gioca a sinistra) e di lato (da destra di chi gioca: la rete a sinistra), con la scia del polso sul colpo.
++// Vanno GUARDATI: dove lo scheletro è sbagliato si corregge la ricostruzione, non il foglio.
++//
++//   CHROMIUM_PATH=… node scripts/video/fogli.mjs --dati=docs/b17/gesti-video.json --mp=<mp.json[,…]> --frames=<cartella>
++//        --out=docs/b17/img [--solo=forehand,serve1] [--n=12]
++import fs from 'node:fs';
++import http from 'node:http';
++import path from 'node:path';
++import { fileURLToPath } from 'node:url';
++import { createRequire } from 'node:module';
++
++const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(here, '../..');
++const { chromium } = createRequire(path.resolve(GAME, '../tools/e2e/package.json'))('playwright-core');
++const arg = (k, d) => { const a = process.argv.find(x => x.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : d; };
++const DATI = JSON.parse(fs.readFileSync(path.resolve(arg('dati', '')), 'utf8'));
++const FRAMES = path.resolve(arg('frames', '')), OUT = path.resolve(arg('out', 'docs/b17/img')), N = +arg('n', 12), PORT = +arg('port', 9681);
++const SOLO = arg('solo', '').split(',').filter(Boolean);
++const mp = new Map();
++for (const p of arg('mp', '').split(',').filter(Boolean)) for (const f of JSON.parse(fs.readFileSync(path.resolve(p), 'utf8')).frames) mp.set(f.i, f);
++fs.mkdirSync(OUT, { recursive: true });
++
++const server = http.createServer((q, res) => {
++  const u = decodeURIComponent(q.url.split('?')[0]);
++  if (u === '/'){ res.writeHead(200, { 'content-type': 'text/html' }); res.end('<!doctype html><meta charset="utf-8"><title>fogli</title><canvas id="c"></canvas>'); return; }
++  const file = u.startsWith('/frames/') ? path.join(FRAMES, u.slice(8)) : null;
++  if (!file || !fs.existsSync(file)){ res.writeHead(404); res.end(); return; }
++  res.writeHead(200, { 'content-type': 'image/jpeg' }); fs.createReadStream(file).pipe(res);
++});
++await new Promise(r => server.listen(PORT, '127.0.0.1', r));
++const B = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
++const ctx = await B.newContext({ viewport: { width: 800, height: 600 } });
++const page = await ctx.newPage();
++page.on('pageerror', e => console.error('pageerror', e.message));
++await page.goto(`http://127.0.0.1:${PORT}/`);
++
++// scelta dei fotogrammi: N equidistanti tra inizio − 0,1 e fine + 0,1, con carica, impatto, fine (e lancio) sempre dentro
++function pick(stroke){
++  const S = stroke.campioni, keys = stroke.pose_chiave;
++  if (!S?.length) return [];
++  const t0 = stroke.lancio ? Math.min(stroke.tempi.inizio - .1, stroke.lancio.t_picco_mano_sinistra - .3) : stroke.tempi.inizio - .1, t1 = stroke.tempi.fine + .1;
++  const want = []; for (let k = 0; k < N; k++) want.push(t0 + (t1 - t0)*k/(N - 1));
++  const must = [keys.carica.t, keys.impatto.t, keys.fine.t, ...(stroke.lancio ? [stroke.lancio.t_picco_mano_sinistra] : [])];
++  for (const m of must){ let bi = 0; for (let k = 1; k < want.length; k++) if (Math.abs(want[k] - m) < Math.abs(want[bi] - m)) bi = k; want[bi] = m; }
++  const near = t => S.reduce((b, s) => Math.abs(s.t - t) < Math.abs(b.t - t) ? s : b, S[0]);
++  const chosen = [...new Set(want.map(t => near(t).i))].sort((a, b) => a - b);
++  const label = s => s.i === keys.carica.i ? 'CARICA' : s.i === keys.impatto.i ? 'IMPATTO' : s.i === keys.fine.i ? 'FINE' : stroke.lancio && Math.abs(s.t - stroke.lancio.t_picco_mano_sinistra) < .017 ? 'LANCIO' : '';
++  return chosen.map(i => { const s = S.find(q => q.i === i); return { s, label: label(s) }; });
++}
++
++const CAMERA = DATI.metodo.camera;
++const strokes = DATI.colpi.filter(s => !s.errore && (!SOLO.length || SOLO.includes(s.id)));
++for (const st of strokes){
++  const cells = st.kind === 'still' || st.posa ? st.campioni.slice(0, N).map(s => ({ s, label: '' })) : pick(st);
++  if (!cells.length) continue;
++  const frames = cells.map(c => ({ ...c, mp: mp.get(c.s.i) || null }));
++  const dataUrl = await page.evaluate(async ({ st, frames, CAMERA, trail }) => {
++    const [W, H] = CAMERA.immagine, F = CAMERA.f_px, DIST = CAMERA.distanza_m, OX = CAMERA.offset_m.x, OY = CAMERA.offset_m.y, PY = CAMERA.bacino_modello_y, HIPY = CAMERA.anche_y_m;
++    const project = p => { const Zc = p[2] + DIST; return [W/2 + F*(-p[0] + OX)/Zc, H/2 + F*(-(p[1] - PY - HIPY) + OY)/Zc]; };
++    const cross = (a, b) => [a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0]];
++    const addm = (a, b, k) => [a[0] + b[0]*k, a[1] + b[1]*k, a[2] + b[2]*k];
++    const phoneCorners = ph => { const right = cross(ph.cima, ph.schermo), c = ph.centro, hh = .081, hw = .0395;
++      return [addm(addm(c, ph.cima, hh), right, -hw), addm(addm(c, ph.cima, hh), right, hw), addm(addm(c, ph.cima, -hh), right, hw), addm(addm(c, ph.cima, -hh), right, -hw)]; };
++    const loadImg = src => new Promise((ok, ko) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => ko(new Error(src)); im.src = src; });
++    // riquadro del video: attorno a tutti i punti di Pose del colpo (più margine), rapporto 3:5
++    let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
++    for (const c of frames){ const pts = [...(c.mp?.pose || []).filter(p => p[3] > .5).map(p => [p[0], p[1]]), project(c.s.W), project(c.s.E)]; for (const [x, y] of pts){ bx0 = Math.min(bx0, x); by0 = Math.min(by0, y); bx1 = Math.max(bx1, x); by1 = Math.max(by1, y); } }
++    if (!(bx1 > bx0)){ bx0 = 0; by0 = 0; bx1 = W; by1 = H; }
++    let cw = Math.max(bx1 - bx0 + 80, 200), chh = Math.max(by1 - by0 + 80, 300); if (cw/chh < .6) cw = .6*chh; else chh = cw/.6;
++    const ccx = (bx0 + bx1)/2, ccy = (by0 + by1)/2;
++    const crop = { x: ccx - cw/2, y: ccy - chh/2, w: cw, h: chh };
++    const VW = 300, VH = 500, SW = 230, PAD = 8, CAP = 64, CELL_W = VW + 2*SW + 4*PAD, CELL_H = VH + CAP + 2*PAD, COLS = 3, ROWS = Math.ceil(frames.length/COLS), HEAD = 60;
++    const cv = document.getElementById('c'); cv.width = COLS*CELL_W; cv.height = HEAD + ROWS*CELL_H;
++    const g = cv.getContext('2d');
++    g.fillStyle = '#0b1020'; g.fillRect(0, 0, cv.width, cv.height);
++    g.fillStyle = '#fff'; g.font = '700 22px sans-serif'; g.fillText(`${st.label} · video dell’utente, ricostruzione con la catena del gioco`, 16, 30);
++    g.font = '14px sans-serif'; g.fillStyle = '#9fb3d9';
++    g.fillText(`ciano = Pose misurato · verde = mano destra (Hands) · magenta = asse dello schermo · arancione = catena del gioco riproiettata · scia = polso sul colpo · vista di fronte come la camera (destra di chi gioca a sinistra) · di lato da destra (rete a sinistra)`, 16, 52);
++    const imgs = await Promise.all(frames.map(c => loadImg('/frames/f' + String(c.s.i).padStart(4, '0') + '.jpg')));
++    const sc = VW/crop.w;
++    const toV = ([x, y], ox, oy) => [ox + (x - crop.x)*sc, oy + (y - crop.y)*sc];
++    // viste 3D: ortografiche, 1 m = K px, centro sul bacino a y = 1,25 m
++    const K = 150;
++    const front = (p, ox, oy) => [ox + SW/2 - p[0]*K, oy + VH*.62 - (p[1] - 1.25)*K];      // da davanti: x di chi gioca verso sinistra
++    const side = (p, ox, oy) => [ox + SW/2 + p[2]*K, oy + VH*.62 - (p[1] - 1.25)*K];       // da destra di chi gioca: −z (rete) a sinistra
++    const line = (a, b, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); };
++    const dotp = (a, col, r) => { g.fillStyle = col; g.beginPath(); g.arc(a[0], a[1], r, 0, 7); g.fill(); };
++    const poly = (pts, fill, stroke) => { g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); if (fill){ g.fillStyle = fill; g.fill(); } if (stroke){ g.strokeStyle = stroke; g.lineWidth = 1.5; g.stroke(); } };
++    const drawBody = (s, T, viewDir) => {
++      // busto: bacino, spalle, collo, testa (dalla posa: spalla destra S, l'altra specchiata rispetto al bacino traslato)
++      const S = s.S, pelvis = s.busto.bacino, SL = s.busto.spalla_sx, neck = s.busto.collo, head = s.busto.testa;
++      line(T(pelvis), T(neck), '#6b7fa6', 4); line(T(S), T(SL), '#6b7fa6', 4);
++      g.strokeStyle = '#6b7fa6'; g.lineWidth = 3; g.beginPath(); const hp = T(head); g.arc(hp[0], hp[1], .105*K, 0, 7); g.stroke();
++      line(T(S), T(s.E), '#ffb347', 6); line(T(s.E), T(s.W), '#ffb347', 6); dotp(T(S), '#fff', 4); dotp(T(s.E), '#fff', 4); dotp(T(s.W), '#fff', 4);
++      const corners = phoneCorners(s.telefono).map(T), facing = (viewDir[0]*s.telefono.schermo[0] + viewDir[1]*s.telefono.schermo[1] + viewDir[2]*s.telefono.schermo[2]);
++      poly(corners, facing > .15 ? 'rgba(80,120,255,.9)' : facing < -.15 ? 'rgba(40,40,50,.95)' : 'rgba(120,120,140,.9)', '#fff');
++      // rete / schermo: freccia verso −z nella vista di lato
++    };
++    frames.forEach((c, k) => {
++      const col = k % COLS, row = Math.floor(k/COLS), ox = col*CELL_W + PAD, oy = HEAD + row*CELL_H + PAD, s = c.s;
++      g.fillStyle = '#141b33'; g.fillRect(ox - PAD + 1, oy - PAD + 1, CELL_W - 2, CELL_H - 2);
++      // video
++      g.save(); g.beginPath(); g.rect(ox, oy, VW, VH); g.clip();
++      g.drawImage(imgs[k], crop.x, crop.y, crop.w, crop.h, ox, oy, VW, VH);
++      const m = c.mp;
++      if (m?.pose){
++        const P = m.pose, pt = i => toV([P[i][0], P[i][1]], ox, oy);
++        for (const [a, b] of [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 23], [12, 24], [23, 24]]) if (P[a][3] > .5 && P[b][3] > .5) line(pt(a), pt(b), 'rgba(0,230,255,.9)', 2);
++        for (const i of [11, 12, 13, 14, 15, 16, 23, 24]) if (P[i][3] > .5) dotp(pt(i), i === 16 || i === 14 || i === 12 ? '#00e6ff' : 'rgba(0,230,255,.6)', 3);
++        // mano destra (la più vicina al polso destro)
++        if (m.hands?.length){ const w = P[16]; const h = m.hands.reduce((b, hh) => { const d = Math.hypot(hh.lm[0][0] - w[0], hh.lm[0][1] - w[1]); return !b || d < b.d ? { hh, d } : b; }, null);
++          if (h && h.d < .07*H){ for (const [a, b] of [[0, 5], [5, 9], [9, 13], [13, 17], [0, 17], [5, 8], [9, 12], [0, 4]]) line(toV(h.hh.lm[a], ox, oy), toV(h.hh.lm[b], ox, oy), 'rgba(80,255,120,.9)', 1.5); } }
++      }
++      if (m?.phone && m.phone.nearWrist === 16){ const ph = m.phone, a = ph.ang*Math.PI/180, c0 = toV([ph.cx, ph.cy], ox, oy), L = ph.len1/2*sc;
++        line([c0[0] - Math.cos(a)*L, c0[1] - Math.sin(a)*L], [c0[0] + Math.cos(a)*L, c0[1] + Math.sin(a)*L], 'rgba(255,80,255,.95)', 3); }
++      // catena riproiettata
++      const pS = toV(project(s.S), ox, oy), pE = toV(project(s.E), ox, oy), pW = toV(project(s.W), ox, oy);
++      line(pS, pE, 'rgba(255,160,40,.95)', 3); line(pE, pW, 'rgba(255,160,40,.95)', 3); dotp(pS, '#ffb347', 4); dotp(pE, '#ffb347', 4); dotp(pW, '#ffb347', 4);
++      poly(phoneCorners(s.telefono).map(p => toV(project(p), ox, oy)), null, 'rgba(255,200,80,.95)');
++      g.restore();
++      // viste 3D
++      for (const [vi, T, dir] of [[0, (p => front(p, ox + VW + PAD, oy)), [0, 0, -1]], [1, (p => side(p, ox + VW + 2*PAD + SW, oy)), [1, 0, 0]]]){
++        const vx = ox + VW + PAD + vi*(SW + PAD);
++        g.fillStyle = '#0e1430'; g.fillRect(vx, oy, SW, VH);
++        g.fillStyle = '#5b6b94'; g.font = '12px sans-serif'; g.fillText(vi ? 'di lato (da destra) · rete ←' : 'di fronte (dalla camera)', vx + 6, oy + 14);
++        // scia del polso
++        g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 2; g.beginPath(); trail.forEach((p, i) => { const q = T(p); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); }); g.stroke();
++        drawBody(s, T, dir);
++      }
++      // didascalia
++      g.fillStyle = c.label ? '#ffd166' : '#dfe6f5'; g.font = '700 15px sans-serif';
++      g.fillText(`${c.label ? c.label + ' · ' : ''}t = ${s.t.toFixed(2)} s · fotogramma ${s.i}`, ox, oy + VH + 20);
++      g.fillStyle = '#b8c4e0'; g.font = '12px sans-serif';
++      const j = s.j;
++      g.fillText(`busto ${j.tau}° · spalla p ${j.p}° e ${j.e}° r ${j.r}° · gomito ${j.b}° · pro ${j.pro}° · polso ${j.fl}°/${j.dv}°`, ox, oy + VH + 38);
++      const q = s.qualita;
++      g.fillText(`mano ${s.velocita_mano_ms} m/s (2D ${s.velocita_mano_2d_ms ?? '—'}) · telefono ${s.omega_gs} °/s · riproiezione ${q.riproiezione_px ?? '—'} px · mano vista ${q.mano} · schermo ${q.telefono}${q.interpolato ? ' · INTERPOLATO' : ''}`, ox, oy + VH + 54);
++    });
++    return cv.toDataURL('image/webp', .82);
++  }, { st, frames, CAMERA, trail: st.campioni.map(s => s.W) });
++  const file = path.join(OUT, `V-${st.id}.webp`);
++  fs.writeFileSync(file, Buffer.from(dataUrl.split(',')[1], 'base64'));
++  console.error('scritto', file, frames.length, 'fotogrammi');
++}
++await B.close(); server.close();
+diff --git a/natpf-tennis/scripts/video/ricostruisci.mjs b/natpf-tennis/scripts/video/ricostruisci.mjs
+new file mode 100644
+index 0000000..865d660
+--- /dev/null
++++ b/natpf-tennis/scripts/video/ricostruisci.mjs
+@@ -0,0 +1,401 @@
++// B17.1 · Dal tracciamento 2D del video (scripts/video/estrai-posa.mjs) alla ricostruzione 3D con il MODELLO DEL GIOCO
++// (natpf_gesture_pose.js: busto tau/lat, spalla p/e/r, gomito b, pronosupinazione pro, polso fl/dv; omero 0,30 m,
++// avambraccio 0,262 m): per ogni fotogramma si cercano gli angoli articolari e la posizione del bacino che, proiettati con
++// una camera prospettica, cadono sui punti misurati (spalle, anche, gomito e polso destro di Pose), con la profondità
++// decisa dalle lunghezze note dei segmenti e dal segno dei punti «mondo» di MediaPipe, l'orientamento della mano da
++// Hands (direzione delle dita, linea delle nocche, normale del palmo) e l'asse lungo del telefono dalla macchia blu dello
++// schermo. Minimi quadrati di Levenberg–Marquardt, un fotogramma alla volta con partenza dal precedente (più tentativi
++// sul primo di ogni colpo), poi lisciatura a fase nulla di 3 fotogrammi.
++//
++//   node --import ./test/register.mjs scripts/video/ricostruisci.mjs --in=<mp.json[,mp2.json…]> --out=<gesti-video.json>
++//        [--f=720] [--grip=auto|upright] [--segments=…]
++//
++// Convenzioni: campo del gioco x a destra di chi gioca, y in alto, −z verso lo schermo/rete; la camera del video sta
++// davanti a chi gioca (sul lato −z) e guarda verso +z, quindi l'immagine ha la destra di chi gioca a sinistra
++// (Xc = −x, Yc = −y, Zc = z + D). Il video NON è specchiato (le scritte del fondo si leggono dritte).
++import fs from 'node:fs';
++import path from 'node:path';
++import * as GP from '../../src/natpf/natpf_gesture_pose.js';
++
++const { armChain, JOINTS, JOINT_LIMITS, REST, BODY, ARM, PHONE, D, add, sub, mul, dot, cross, len, norm, qrot, qmul, qconj, qaxis, qEuler } = GP;
++const arg = (k, d) => { const a = process.argv.find(x => x.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : d; };
++const IN = arg('in', '').split(',').filter(Boolean).map(p => path.resolve(p)), OUT = path.resolve(arg('out', 'gesti-video.json'));
++const F_PX = +arg('f', 720);            // lunghezza focale in pixel a 540×960 (ipotesi: ottica da 26 mm equivalenti; non misurata)
++if (!IN.length) throw new Error('--in=…');
++
++/* ---------- dati ---------- */
++const frames = [];
++let W = 540, H = 960;
++for (const p of IN){ const d = JSON.parse(fs.readFileSync(p, 'utf8')); W = d.width || W; H = d.height || H; frames.push(...d.frames); }
++frames.sort((a, b) => a.i - b.i);
++const byI = new Map(frames.map(f => [f.i, f]));
++const FPS = 30, CX = W/2, CY = H/2;
++const r2 = v => Math.round(v*100)/100, r3 = v => Math.round(v*1000)/1000, r4 = v => Math.round(v*1e4)/1e4;
++
++// Pose: 11 spalla sx, 12 spalla dx, 13 gomito sx, 14 gomito dx, 15 polso sx, 16 polso dx, 23 anca sx, 24 anca dx
++const P = { shL: 11, shR: 12, elL: 13, elR: 14, wrL: 15, wrR: 16, hipL: 23, hipR: 24 };
++const vis = (f, i) => f.pose?.[i]?.[3] ?? 0;
++const uv = (f, i) => f.pose ? [f.pose[i][0], f.pose[i][1]] : null;
++
++// mano destra tra quelle di Hands: la più vicina al polso destro di Pose (le etichette Left/Right di Hands valgono per
++// un'immagine a specchio e qui sono invertite)
++function rightHand(f){
++  if (!f.hands?.length || !f.pose) return null;
++  const w = uv(f, P.wrR);
++  let best = null;
++  for (const h of f.hands){ const d = Math.hypot(h.lm[0][0] - w[0], h.lm[0][1] - w[1]); if (!best || d < best.d) best = { h, d }; }
++  return best && best.d < .07*H ? best.h : null;
++}
++// macchia dello schermo valida: vicina al polso destro, di taglia plausibile (il telefono è ~50 px di lato lungo a 540×960)
++const phoneOf = f => f.phone && f.phone.nearWrist === P.wrR && f.phone.n >= 25 && f.phone.len1 < .2*H ? f.phone : null;
++
++/* ---------- camera: scala dal rapporto tra pixel e punti «mondo» di MediaPipe sulle spalle (fotogrammi fermi) ---------- */
++// La scala (px/m) nel piano del corpo: distanza tra le spalle nell'immagine / distanza nel mondo (x, y). D = f/scala.
++function scaleEstimate(){
++  const s = [];
++  for (const f of frames){
++    if (!f.pose || !f.poseWorld || vis(f, P.shL) < .8 || vis(f, P.shR) < .8) continue;
++    const a = uv(f, P.shL), b = uv(f, P.shR), wa = f.poseWorld[P.shL], wb = f.poseWorld[P.shR];
++    const dw = Math.hypot(wa[0] - wb[0], wa[1] - wb[1]); if (dw < .2) continue;      // spalle di taglio: la misura non vale
++    // solo con le spalle quasi frontali (z mondo vicine) e anche visibili (persona intera nel quadro)
++    if (Math.abs(wa[2] - wb[2]) > .1 || vis(f, P.hipL) < .7) continue;
++    s.push(Math.hypot(a[0] - b[0], a[1] - b[1])/dw);
++  }
++  s.sort((a, b) => a - b);
++  return { scale: s[Math.floor(s.length/2)], n: s.length, p10: s[Math.floor(s.length*.1)], p90: s[Math.floor(s.length*.9)] };
++}
++const SC = scaleEstimate();
++const DIST = F_PX/SC.scale;                                   // distanza camera–bacino (m)
++// altezza della camera rispetto al bacino: dal punto medio delle anche nei fotogrammi in piedi (mediana), così il
++// bacino del modello (0, 1, 0) cade dove Pose vede le anche; camera senza inclinazione (ipotesi: le linee verticali del
++// fondo sono verticali nel quadro)
++function cameraOffset(){
++  const ys = [], xs = [];
++  for (const f of frames){ if (!f.pose || vis(f, P.hipL) < .7 || vis(f, P.hipR) < .7 || vis(f, P.shL) < .7) continue;
++    const hm = [(f.pose[P.hipL][0] + f.pose[P.hipR][0])/2, (f.pose[P.hipL][1] + f.pose[P.hipR][1])/2];
++    ys.push((hm[1] - CY)*DIST/F_PX); xs.push((hm[0] - CX)*DIST/F_PX); }
++  ys.sort((a, b) => a - b); xs.sort((a, b) => a - b);
++  return { yc: ys[Math.floor(ys.length/2)] || 0, xc: xs[Math.floor(xs.length/2)] || 0, n: ys.length };
++}
++const CAM = cameraOffset();
++const HIP_Y = -.06;                                           // anche di MediaPipe (articolazioni) poco sotto il centro del bacino del modello
++
++/* ---------- proiezione ---------- */
++// punto del campo (m) → immagine (px): camera davanti a chi gioca che guarda +z, a DIST dal bacino, spostata di CAM
++// (il bacino del modello cade sulle anche misurate); tx, tz spostano il bacino nel campo fotogramma per fotogramma
++const project = p => { const Zc = p[2] + DIST; return [CX + F_PX*(-p[0] + CAM.xc)/Zc, CY + F_PX*(-(p[1] - BODY.pelvis[1] - HIP_Y) + CAM.yc)/Zc]; };
++// vettore in coordinate camera (MediaPipe: x a destra, y in basso, z lontano dalla camera) → campo
++const camToField = v => [-v[0], -v[1], v[2]];
++
++/* ---------- presa: il telefono rigido nella mano ---------- */
++// Riferimento della mano della catena: −y verso le dita, −z normale del palmo (fuori dal palmo), +x lato del pollice.
++// Telefono: +y cima, +z normale dello schermo, +x bordo destro guardando lo schermo.
++// Presa «in piedi nel pugno, schermo in avanti» (upright, come nella diagnostica dell'utente): la cima lungo il pollice
++// (+x mano), lo schermo dalla parte della normale del palmo (il dorso del telefono sta su dita e palmo): rotazione di 180°
++// attorno a (1, 1, 0)/√2. Il parametro --grip=auto la raffina sui fotogrammi con la macchia dello schermo (sotto).
++const GRIP_UPRIGHT = qaxis([1, 1, 0], Math.PI);
++let gripQ = GRIP_UPRIGHT, gripEuler = [0, 0, 0];
++const gripWith = eul => qmul(GRIP_UPRIGHT, qEuler(eul));
++
++/* ---------- modello: angoli + posizione → punti del campo ---------- */
++const NJ = JOINTS.length;                                     // 10: tau lat y p e r b pro fl dv
++const IDX = Object.fromEntries(JOINTS.map((k, i) => [k, i]));
++// parametri: i 10 di JOINTS (y in m, gli altri in gradi) + tx, tz (m): spostamento del bacino nel campo
++const NP = NJ + 2;
++function unpack(x){ const j = {}; for (let i = 0; i < NJ; i++) j[JOINTS[i]] = x[i]; return { j, tx: x[NJ], tz: x[NJ + 1] }; }
++function chainOf(x){
++  const { j, tx, tz } = unpack(x), ch = armChain(j), sh = [tx, 0, tz];
++  const T = v => add(v, sh);
++  const at = v => T(add(ch.pelvis, qrot(ch.trunk, v)));
++  const hipHalf = .10;                                        // anche di MediaPipe: articolazioni, ±0,10 m
++  return { S: T(ch.S), E: T(ch.E), W: T(ch.W), SL: at([-BODY.shoulder[0], BODY.shoulder[1], 0]), hipR: at([hipHalf, HIP_Y, 0]), hipL: at([-hipHalf, HIP_Y, 0]),
++    pelvis: T(ch.pelvis), neck: at(BODY.neck), head: at(BODY.head), hand: ch.hand, fore: ch.fore, upper: ch.upper, trunk: ch.trunk, j };
++}
++// telefono nel campo da una catena: centro (polso + offset nel riferimento del telefono), cima e normale
++function phoneOf3(ch, G = gripQ){
++  const q = qmul(ch.hand, G), wristLocal = GP.HAND_LOCAL_MARTELLO.wrist;   // polso del pugno (presa a martello: il più vicino a un pugno)
++  const center = sub(ch.W, qrot(q, wristLocal));
++  return { q, center, tip: qrot(q, [0, 1, 0]), screen: qrot(q, [0, 0, 1]), right: qrot(q, [1, 0, 0]) };
++}
++
++/* ---------- osservazioni di un fotogramma ---------- */
++function observe(f){
++  const o = { f, pts: [], depth: [], hand: null, phone: null, q: { pose: 0, hand: 0, phone: 0 } };
++  if (!f.pose) return o;
++  const add2 = (key, idx, w) => { const v = vis(f, idx); if (v >= .5) o.pts.push({ key, uv: uv(f, idx), w: w*Math.min(1, (v - .4)/.5) }); };
++  add2('S', P.shR, 1.2); add2('SL', P.shL, 1.2); add2('hipR', P.hipR, .8); add2('hipL', P.hipL, .8); add2('E', P.elR, 1); add2('W', P.wrR, 1.2);
++  o.q.pose = Math.min(vis(f, P.shR), vis(f, P.elR), vis(f, P.wrR));
++  if (f.poseWorld){
++    const z = i => f.poseWorld[i][2], wz = (i, j) => Math.min(vis(f, i), vis(f, j));
++    // profondità relative (m, campo: z = Zc) dai punti mondo di MediaPipe: segno e ordine di grandezza, peso basso
++    if (wz(P.elR, P.shR) >= .5) o.depth.push({ a: 'E', b: 'S', dz: z(P.elR) - z(P.shR), w: .25 });
++    if (wz(P.wrR, P.shR) >= .5) o.depth.push({ a: 'W', b: 'S', dz: z(P.wrR) - z(P.shR), w: .25 });
++    if (wz(P.shL, P.shR) >= .5) o.depth.push({ a: 'SL', b: 'S', dz: z(P.shL) - z(P.shR), w: .35 });
++  }
++  const h = rightHand(f);
++  if (h && h.world && h.score >= .5){
++    const w = h.world, v = (a, b) => norm(sub(w[a], w[b]));
++    const F = v(9, 0), T = v(5, 17), N = norm(cross(T, F));   // dita (polso → nocca del medio), nocche (mignolo → indice), normale del palmo (destra)
++    o.hand = { F: camToField(F), T: camToField(T), N: camToField(N), score: h.score, lm: h.lm };
++    o.q.hand = h.score;
++  }
++  const ph = phoneOf(f);
++  if (ph){ o.phone = { ang: ph.ang*D, ratio: ph.len2/Math.max(1, ph.len1), cx: ph.cx, cy: ph.cy, n: ph.n }; o.q.phone = Math.min(1, ph.n/400); }
++  return o;
++}
++
++/* ---------- residui ---------- */
++const LIM = JOINT_LIMITS;
++function residuals(x, o, prev, opts){
++  const ch = chainOf(x), r = [];
++  for (const p of o.pts){ const u = project(ch[p.key]); r.push(p.w*(u[0] - p.uv[0]), p.w*(u[1] - p.uv[1])); }
++  for (const d of o.depth) r.push(d.w*SC.scale*((ch[d.a][2] - ch[d.b][2]) - d.dz));
++  if (o.hand){
++    const wH = opts.wHand ?? 30, fingers = qrot(ch.hand, [0, -1, 0]), thumb = qrot(ch.hand, [1, 0, 0]), normal = qrot(ch.hand, [0, 0, -1]);
++    for (let k = 0; k < 3; k++){ r.push(wH*(fingers[k] - o.hand.F[k])); r.push(wH*(thumb[k] - o.hand.T[k])); r.push(wH*(normal[k] - o.hand.N[k])); }
++  }
++  if (o.phone && opts.wPhone){
++    const ph = phoneOf3(ch), a = project(add(ph.center, mul(ph.tip, PHONE.h/2))), b = project(sub(ph.center, mul(ph.tip, PHONE.h/2)));
++    const am = Math.atan2(a[1] - b[1], a[0] - b[0]);
++    r.push(opts.wPhone*Math.sin(am - o.phone.ang));          // asse lungo (senza verso)
++    // centro della macchia ≈ centro dello schermo
++    const c = project(ph.center); r.push(.3*(c[0] - o.phone.cx), .3*(c[1] - o.phone.cy));
++  }
++  // limiti articolari (penalità morbida fuori dai limiti) e continuità con il fotogramma precedente
++  const { j } = unpack(x);
++  for (const k of JOINTS){ const [lo, hi] = LIM[k], v = j[k], s = k === 'y' ? 300 : 3; r.push(v < lo ? s*(lo - v) : v > hi ? s*(v - hi) : 0); }
++  // senza la mano vista, pronosupinazione e polso seguono il fotogramma precedente (interpolazione), non il rumore
++  const HANDJ = new Set(['pro', 'fl', 'dv']);
++  if (prev) for (let i = 0; i < NP; i++){ const w = i >= NJ || JOINTS[i] === 'y' ? 40 : !o.hand && HANDJ.has(JOINTS[i]) ? (opts.wHold ?? 1.2) : (opts.wSmooth ?? .12); r.push(w*(x[i] - prev[i])); }
++  r.push(20*x[NJ + 1]);                                       // tz poco osservabile: resta vicino a 0
++  return r;
++}
++const STEP = JOINTS.map(k => k === 'y' ? 1e-4 : 1e-2).concat([1e-4, 1e-4]);
++function lm(x0, o, prev, opts, iters = 40){
++  let x = x0.slice(), r = residuals(x, o, prev, opts), cost = dot(r, r), lambda = 1e-2;
++  const m = r.length, J = Array.from({ length: m }, () => new Float64Array(NP));
++  for (let it = 0; it < iters; it++){
++    for (let p = 0; p < NP; p++){ const xp = x.slice(); xp[p] += STEP[p]; const rp = residuals(xp, o, prev, opts); for (let i = 0; i < m; i++) J[i][p] = (rp[i] - r[i])/STEP[p]; }
++    const A = Array.from({ length: NP }, () => new Float64Array(NP + 1));
++    for (let i = 0; i < m; i++) for (let a = 0; a < NP; a++){ const Jia = J[i][a]; if (!Jia) continue; for (let b = 0; b < NP; b++) A[a][b] += Jia*J[i][b]; A[a][NP] -= Jia*r[i]; }
++    let improved = false;
++    for (let tries = 0; tries < 6 && !improved; tries++){
++      const M = A.map(row => Float64Array.from(row)); for (let a = 0; a < NP; a++) M[a][a] += lambda*(M[a][a] + 1e-6);
++      // eliminazione di Gauss
++      for (let c = 0; c < NP; c++){ let piv = c; for (let rI = c + 1; rI < NP; rI++) if (Math.abs(M[rI][c]) > Math.abs(M[piv][c])) piv = rI; [M[c], M[piv]] = [M[piv], M[c]];
++        const pv = M[c][c] || 1e-12; for (let rI = c + 1; rI < NP; rI++){ const fct = M[rI][c]/pv; if (!fct) continue; for (let k = c; k <= NP; k++) M[rI][k] -= fct*M[c][k]; } }
++      const dx = new Float64Array(NP); for (let c = NP - 1; c >= 0; c--){ let s = M[c][NP]; for (let k = c + 1; k < NP; k++) s -= M[c][k]*dx[k]; dx[c] = s/(M[c][c] || 1e-12); }
++      const xn = x.map((v, i) => v + dx[i]), rn = residuals(xn, o, prev, opts), cn = dot(rn, rn);
++      if (cn < cost){ x = xn; r = rn; const gain = cost - cn; cost = cn; lambda = Math.max(1e-6, lambda/3); improved = true; if (gain < 1e-6*cost) return { x, cost }; }
++      else lambda *= 4;
++    }
++    if (!improved) break;
++  }
++  return { x, cost };
++}
++const restX = () => JOINTS.map(k => REST[k]).concat([0, 0]);
++function fitFrame(o, prev, opts, starts){
++  let best = null;
++  for (const s of starts){ const r = lm(s, o, prev, opts); if (!best || r.cost < best.cost) best = r; }
++  return best;
++}
++// tentativi per il primo fotogramma di un tratto: griglia su spalla e pronosupinazione
++function gridStarts(){
++  const out = [];
++  for (const p of [-20, 40, 100]) for (const e of [15, 50, 90, 130]) for (const r of [-50, 0, 50]) for (const pro of [20, 90]){
++    const x = restX(); x[IDX.p] = p; x[IDX.e] = e; x[IDX.r] = r; x[IDX.pro] = pro; x[IDX.b] = 60; out.push(x); }
++  return out;
++}
++const perturb = prev => [prev, (() => { const x = prev.slice(); x[IDX.r] += 35; x[IDX.pro] -= 35; return x; })(), (() => { const x = prev.slice(); x[IDX.r] -= 35; x[IDX.pro] += 35; return x; })()];
++
++/* ---------- tratti da ricostruire (s): istanti indicativi dell'utente, allargati ---------- */
++const SEGMENTS = [
++  { id: 'ready', label: 'Posizione di partenza (prima del dritto)', from: 7.5, to: 9.2, kind: 'still' },
++  { id: 'forehand', label: 'Dritto', from: 8.8, to: 12.0, kind: 'stroke', expect: 'topspin di dritto' },
++  { id: 'backhand', label: 'Rovescio a due mani', from: 14.4, to: 17.6, kind: 'stroke', expect: 'topspin di rovescio' },
++  { id: 'serve1', label: 'Servizio (1ª ripetizione)', from: 17.4, to: 20.4, kind: 'serve' },
++  { id: 'serve2', label: 'Servizio (2ª ripetizione)', from: 22.0, to: 25.2, kind: 'serve' },
++  { id: 'serve3', label: 'Servizio (3ª ripetizione)', from: 26.9, to: 30.2, kind: 'serve' },
++  { id: 'slices', label: 'Tagliati (dritto e rovescio)', from: 30.0, to: 38.6, kind: 'multi' },
++];
++const segArg = arg('segments', '');
++const segs = segArg ? SEGMENTS.filter(s => segArg.split(',').includes(s.id)) : SEGMENTS;
++
++/* ---------- ricostruzione di un tratto ---------- */
++function reconstruct(seg, opts){
++  const i0 = Math.round(seg.from*FPS), i1 = Math.round(seg.to*FPS), out = [];
++  let prev = null;
++  for (let i = i0; i <= i1; i++){
++    const f = byI.get(i); if (!f) continue;
++    const o = observe(f);
++    const hasArm = o.pts.some(p => p.key === 'W') && o.pts.some(p => p.key === 'E');
++    const starts = prev ? perturb(prev) : gridStarts();
++    const res = fitFrame(o, prev, opts, starts);
++    const x = res.x, ch = chainOf(x), ph = phoneOf3(ch);
++    // errore di riproiezione (px, media sui punti usati)
++    let err = 0, n = 0; for (const p of o.pts){ const u = project(ch[p.key]); err += Math.hypot(u[0] - p.uv[0], u[1] - p.uv[1]); n++; }
++    out.push({ i, t: i/FPS, x, ch, ph, o, reproj: n ? err/n : null, interpolated: !hasArm });
++    prev = x;
++  }
++  return out;
++}
++// lisciatura a fase nulla [1 2 1]/4 sugli angoli (gli spostamenti del bacino restano)
++function smooth(samples){
++  const xs = samples.map(s => s.x);
++  return samples.map((s, k) => {
++    const a = xs[Math.max(0, k - 1)], b = xs[k], c = xs[Math.min(xs.length - 1, k + 1)];
++    const x = b.map((v, i) => i < NJ ? .25*a[i] + .5*v + .25*c[i] : v);
++    const ch = chainOf(x); return { ...s, x, ch, ph: phoneOf3(ch) };
++  });
++}
++// velocità della mano (polso, m/s) e del telefono (°/s) per differenze centrate
++function kinematics(samples){
++  for (let k = 0; k < samples.length; k++){
++    const a = samples[Math.max(0, k - 1)], b = samples[Math.min(samples.length - 1, k + 1)], dt = (b.t - a.t) || 1/FPS;
++    samples[k].vW = mul(sub(b.ch.W, a.ch.W), 1/dt); samples[k].speed = len(samples[k].vW);
++    samples[k].omega = len(GP.omega(a.ph.q, b.ph.q, dt));
++    // velocità 2D del polso misurata da Pose (px/s → m/s con la scala del corpo), indipendente dal modello
++    const fa = byI.get(a.i), fb = byI.get(b.i);
++    samples[k].speed2d = fa?.pose && fb?.pose && vis(fa, P.wrR) > .5 && vis(fb, P.wrR) > .5 ? Math.hypot(fb.pose[P.wrR][0] - fa.pose[P.wrR][0], fb.pose[P.wrR][1] - fa.pose[P.wrR][1])/dt/SC.scale : null;
++    // per la segmentazione (istanti): la velocità 2D misurata, meno sensibile al tremolio della profondità; senza, la 3D
++    samples[k].sSeg = samples[k].speed2d ?? samples[k].speed;
++  }
++  return samples;
++}
++
++/* ---------- segmentazione dei colpi ---------- */
++// impatto = picco della velocità della mano; carica = minimo di velocità prima del picco (dopo il picco della
++// preparazione); inizio = quando la mano comincia a muoversi; fine = quando torna lenta dopo l'impatto
++function segmentStroke(samples, { from, to, peakMin = 1.5 } = {}){
++  const inWin = samples.filter(s => s.t >= (from ?? -1) && s.t <= (to ?? 1e9));
++  if (!inWin.length) return null;
++  const pk = inWin.reduce((b, s) => s.sSeg > b.sSeg ? s : b, inWin[0]);
++  if (pk.sSeg < peakMin) return null;
++  const k = samples.indexOf(pk);
++  const thrLow = Math.max(.35, .12*pk.sSeg);
++  let kLoad = k; for (let q = k - 1; q >= 0 && samples[q].t >= (from ?? -1); q--){ if (samples[q].sSeg < samples[kLoad].sSeg) kLoad = q; else if (samples[kLoad].sSeg < .45*pk.sSeg && samples[q].sSeg > samples[kLoad].sSeg + .5) break; }
++  let kStart = kLoad; for (let q = kLoad; q >= 0 && samples[q].t >= (from ?? -1) - .2; q--){ if (samples[q].sSeg < thrLow){ kStart = q; break; } kStart = q; }
++  let kEnd = k; for (let q = k + 1; q < samples.length && samples[q].t <= (to ?? 1e9) + .2; q++){ kEnd = q; if (samples[q].sSeg < thrLow) break; }
++  return { start: samples[kStart], load: samples[kLoad], impact: pk, end: samples[kEnd] };
++}
++
++/* ---------- misure ---------- */
++const deg = v => Math.round(v*10)/10;
++const hAngle = v => Math.atan2(-v[2], v[0])/D;               // angolo nel piano orizzontale (0 = +x, 90 = verso la rete −z)
++const elev = v => Math.asin(Math.max(-1, Math.min(1, v[1]/(len(v) || 1))))/D;
++function measures(seg, k){
++  if (!k) return null;
++  const { start, load, impact, end } = k, jl = load.ch.j, ji = impact.ch.j, je = end.ch.j;
++  const arm = s => sub(s.ch.W, s.ch.S);
++  const sweep = hAngle(arm(end)) - hAngle(arm(load));
++  return {
++    tempi: { inizio: r3(start.t), carica: r3(load.t), impatto: r3(impact.t), fine: r3(end.t), carica_s: r3(load.t - start.t), colpo_s: r3(impact.t - load.t), accompagnamento_s: r3(end.t - impact.t) },
++    velocita_mano_impatto_ms: r2(impact.speed), velocita_mano_impatto_2d_ms: impact.speed2d != null ? r2(impact.speed2d) : null,
++    rotazione_telefono_picco_gs: Math.round(Math.max(...[load, impact, end].map(s => s.omega))),
++    arco_orizzontale_spalla_mano_deg: deg(sweep),
++    busto_tau_deg: { carica: deg(jl.tau), impatto: deg(ji.tau), fine: deg(je.tau) },
++    gomito_flessione_deg: { carica: deg(jl.b), impatto: deg(ji.b), fine: deg(je.b) },
++    elevazione_omero_deg: { carica: deg(jl.e), impatto: deg(ji.e), fine: deg(je.e) },
++    altezza_mano_m: { carica: r3(load.ch.W[1]), impatto: r3(impact.ch.W[1]), fine: r3(end.ch.W[1]) },
++    mano_campo_m: { carica: load.ch.W.map(r3), impatto: impact.ch.W.map(r3), fine: end.ch.W.map(r3) },
++    direzione_mano_impatto: { angolo_dalla_rete_deg: deg(Math.acos(Math.max(-1, Math.min(1, dot(norm(impact.vW), [0, 0, -1]))))/D), salita: r2(norm(impact.vW)[1]) },
++    telefono: ['carica', 'impatto', 'fine'].reduce((acc, name, idx) => { const s = [load, impact, end][idx]; acc[name] = { cima_elevazione_deg: deg(elev(s.ph.tip)), cima_azimut_deg: deg(hAngle(s.ph.tip)), schermo_verso_rete: r2(-s.ph.screen[2]), schermo_verso_alto: r2(s.ph.screen[1]) }; return acc; }, {}),
++    qualita: { riproiezione_px: r2([start, load, impact, end].reduce((a, s) => a + (s.reproj || 0), 0)/4), telefono_visto: [load, impact, end].filter(s => s.o.phone).length + '/3', mano_vista: [load, impact, end].filter(s => s.o.hand).length + '/3' },
++  };
++}
++function sampleOut(s){
++  return { i: s.i, t: r4(s.t), j: Object.fromEntries(JOINTS.map((k, idx) => [k, k === 'y' ? r4(s.x[idx]) : deg(s.x[idx])])), bacino_dx_dz: [r3(s.x[NJ]), r3(s.x[NJ + 1])],
++    S: s.ch.S.map(r3), E: s.ch.E.map(r3), W: s.ch.W.map(r3), telefono: { centro: s.ph.center.map(r3), cima: s.ph.tip.map(r3), schermo: s.ph.screen.map(r3) },
++    busto: { bacino: s.ch.pelvis.map(r3), spalla_sx: s.ch.SL.map(r3), collo: s.ch.neck.map(r3), testa: s.ch.head.map(r3) },
++    velocita_mano_ms: r2(s.speed), velocita_mano_2d_ms: s.speed2d != null ? r2(s.speed2d) : null, omega_gs: Math.round(s.omega),
++    qualita: { posa: r2(s.o.q.pose), mano: r2(s.o.q.hand), telefono: r2(s.o.q.phone), riproiezione_px: s.reproj != null ? r2(s.reproj) : null, interpolato: s.interpolated || undefined } };
++}
++
++/* ---------- presa: raffinamento dell'orientamento del telefono nella mano sulle macchie dello schermo ---------- */
++function refineGrip(samplesAll){
++  const used = samplesAll.filter(s => s.o.phone && s.o.hand && !s.interpolated);
++  if (used.length < 8) return { eul: [0, 0, 0], n: used.length, resid: null };
++  const cost = eul => { const G = gripWith(eul); let c = 0;
++    for (const s of used){ const ph = phoneOf3(s.ch, G), a = project(add(ph.center, mul(ph.tip, PHONE.h/2))), b = project(sub(ph.center, mul(ph.tip, PHONE.h/2)));
++      const am = Math.atan2(a[1] - b[1], a[0] - b[0]); c += Math.sin(am - s.o.phone.ang)**2; } return c/used.length; };
++  let best = { eul: [0, 0, 0], c: cost([0, 0, 0]) };
++  for (const a of [-40, -20, 0, 20, 40]) for (const b of [-40, -20, 0, 20, 40]) for (const c of [-60, -40, -20, 0, 20, 40, 60]){ const v = cost([a, b, c]); if (v < best.c) best = { eul: [a, b, c], c: v }; }
++  // raffinamento locale a passi di 5°
++  for (let step = 10; step >= 2.5; step /= 2) for (let it = 0; it < 20; it++){ let moved = false;
++    for (let k = 0; k < 3; k++) for (const sgn of [-1, 1]){ const e = best.eul.slice(); e[k] += sgn*step; const v = cost(e); if (v < best.c){ best = { eul: e, c: v }; moved = true; } }
++    if (!moved) break; }
++  return { eul: best.eul, n: used.length, resid: Math.asin(Math.sqrt(best.c))/D, resid0: Math.asin(Math.sqrt(cost([0, 0, 0])))/D };
++}
++
++/* ---------- esecuzione ---------- */
++console.error(`fotogrammi ${frames.length}, scala ${SC.scale?.toFixed(1)} px/m (n=${SC.n}, p10 ${SC.p10?.toFixed(1)}, p90 ${SC.p90?.toFixed(1)}), f ${F_PX} px → distanza camera–bacino ${DIST.toFixed(2)} m, camera ${CAM.yc.toFixed(2)} m sopra le anche, ${CAM.xc.toFixed(2)} m di lato (n=${CAM.n})`);
++const optsA = { wHand: 30, wPhone: 0, wSmooth: .12 };
++let recon = {};
++for (const seg of segs){ const t0 = Date.now(); recon[seg.id] = reconstruct(seg, optsA); console.error(`${seg.id}: ${recon[seg.id].length} fotogrammi in ${((Date.now() - t0)/1000).toFixed(1)} s`); }
++// presa misurata sulle macchie, poi seconda passata con il vincolo del telefono
++const gripMode = arg('grip', 'auto');
++let gripInfo = { eul: [0, 0, 0], n: 0 };
++if (gripMode === 'auto'){
++  gripInfo = refineGrip(Object.values(recon).flat());
++  gripEuler = gripInfo.eul; gripQ = gripWith(gripEuler);
++  console.error(`presa: Euler ${gripEuler.map(deg).join(', ')}° su ${gripInfo.n} fotogrammi, errore d'asse ${gripInfo.resid?.toFixed(1)}° (prima ${gripInfo.resid0?.toFixed(1)}°)`);
++  const optsB = { wHand: 30, wPhone: 25, wSmooth: .12 };
++  for (const seg of segs){ const t0 = Date.now(); recon[seg.id] = reconstruct(seg, optsB); console.error(`${seg.id} (2ª passata): ${((Date.now() - t0)/1000).toFixed(1)} s`); }
++}
++for (const id in recon) recon[id] = kinematics(smooth(recon[id]));
++
++// colpi
++const strokes = [];
++const pushStroke = (id, label, expect, samples, k, extra = {}) => { if (!k){ strokes.push({ id, label, expect, errore: 'nessun picco di velocità trovato' }); return; }
++  const m = measures(null, k);
++  strokes.push({ id, label, expect, finestra_s: [r3(samples[0].t), r3(samples[samples.length - 1].t)], tempi: m.tempi, misure: m, ...extra,
++    pose_chiave: { carica: sampleOut(k.load), impatto: sampleOut(k.impact), fine: sampleOut(k.end) },
++    campioni: samples.filter(s => s.t >= Math.min(k.start.t - .2, extra.lancio ? extra.lancio.t_picco_mano_sinistra - .4 : 1e9) && s.t <= k.end.t + .3).map(sampleOut) }); };
++
++for (const seg of segs){
++  const S = recon[seg.id];
++  if (seg.kind === 'still'){
++    const mid = S[Math.floor(S.length/2)];
++    strokes.push({ id: seg.id, label: seg.label, finestra_s: [seg.from, seg.to], posa: sampleOut(mid), media_angoli: Object.fromEntries(JOINTS.map((k, idx) => [k, k === 'y' ? r4(S.reduce((a, s) => a + s.x[idx], 0)/S.length) : deg(S.reduce((a, s) => a + s.x[idx], 0)/S.length)])),
++      velocita_mano_max_ms: r2(Math.max(...S.map(s => s.speed))), campioni: S.filter((_, q) => q % 5 === 0).map(sampleOut) });
++  } else if (seg.kind === 'stroke'){
++    pushStroke(seg.id, seg.label, seg.expect, S, segmentStroke(S, { from: seg.from + .2, to: seg.to - .1 }));
++  } else if (seg.kind === 'serve'){
++    // lancio: picco della velocità 2D del polso SINISTRO (palla immaginaria); battuta: picco della mano destra dopo il lancio
++    const left = S.map(s => { const f = byI.get(s.i), a = byI.get(s.i - 1), b = byI.get(s.i + 1);
++      const ok = a?.pose && b?.pose && vis(a, P.wrL) > .5 && vis(b, P.wrL) > .5;
++      return { t: s.t, i: s.i, v: ok ? Math.hypot(b.pose[P.wrL][0] - a.pose[P.wrL][0], b.pose[P.wrL][1] - a.pose[P.wrL][1])*FPS/2/SC.scale : 0, y: f?.pose ? f.pose[P.wrL][1] : null }; });
++    // il lancio: il polso sinistro sale (y immagine cala) con velocità; prendiamo il picco di velocità nella metà iniziale della finestra
++    const half = S[Math.floor(S.length*.55)].t;
++    const toss = left.filter(l => l.t < half).reduce((b, l) => l.v > b.v ? l : b, left[0]);
++    const k = segmentStroke(S, { from: toss.t + .15, to: seg.to - .1 });
++    const tossTop = left.filter(l => l.y != null && l.t >= toss.t && l.t <= (k?.impact.t ?? seg.to)).reduce((b, l) => l.y < b.y ? l : b, { y: 1e9 });
++    pushStroke(seg.id, seg.label, 'lancio + battuta', S, k, { lancio: { t_picco_mano_sinistra: r3(toss.t), velocita_ms: r2(toss.v), t_mano_sinistra_piu_alta: tossTop.t != null ? r3(tossTop.t) : null, battuta_dopo_lancio_s: k ? r3(k.impact.t - toss.t) : null } });
++  } else if (seg.kind === 'multi'){
++    // tagliati: tutti i picchi di velocità separati di almeno 1,2 s
++    let rest = S.slice(), n = 0;
++    const found = [];
++    while (n < 6){ const k = segmentStroke(rest, { peakMin: 2.0 }); if (!k) break; found.push(k); rest = rest.filter(s => Math.abs(s.t - k.impact.t) > 1.2); n++; }
++    found.sort((a, b) => a.impact.t - b.impact.t);
++    found.forEach((k, idx) => {
++      // dritto o rovescio dal verso dell'arco: la mano va verso −x (sinistra di chi gioca) nel tagliato di dritto
++      const side = k.impact.vW[0] < 0 ? 'dritto' : 'rovescio';
++      pushStroke(`slice${idx + 1}`, `Tagliato ${idx + 1} (${side})`, 'slice', S, k, { lato: side });
++    });
++  }
++}
++
++const out = {
++  fonte: { video: 'gesti-video.mp4 dell’utente (08/11/2026), 1080×1920, 30 fps, 42,7 s; fotogrammi a 540×960', mano: 'destra (il video non è specchiato: le scritte del fondo si leggono dritte; la destra di chi gioca è a sinistra nel quadro)' },
++  metodo: {
++    tracciamento: 'MediaPipe Pose (modello heavy) e Hands (full) dal repository, in Chromium headless un fotogramma alla volta (scripts/video/estrai-posa.mjs); schermo del telefono come macchia blu vicino al polso destro',
++    ricostruzione: 'catena del gioco (natpf_gesture_pose.armChain: busto tau/lat, spalla p/e/r, gomito b, pronosupinazione pro, polso fl/dv; omero 0,30 m, avambraccio 0,262 m) + spostamento del bacino (tx, tz), adattata per minimi quadrati (Levenberg–Marquardt) ai punti 2D (spalle, anche, gomito e polso destro), alle profondità relative dei punti mondo di MediaPipe (peso basso: segno e ordine di grandezza), agli assi della mano di Hands e all’asse lungo dello schermo; lisciatura [1 2 1]/4',
++    camera: { f_px: F_PX, f_nota: 'ipotesi (26 mm equivalenti a 540×960), non misurata', scala_px_m: r2(SC.scale), scala_n: SC.n, distanza_m: r2(DIST), offset_m: { x: r3(CAM.xc), y: r3(CAM.yc), n: CAM.n }, anche_y_m: HIP_Y, immagine: [W, H], bacino_modello_y: BODY.pelvis[1], nota: 'scala = distanza tra le spalle in pixel / nel mondo MediaPipe, mediana sui fotogrammi frontali' },
++    presa: { modello: 'telefono in piedi nel pugno, schermo in avanti (upright); raffinata sui fotogrammi con schermo e mano visti', euler_xyz_deg: gripEuler.map(deg), fotogrammi: gripInfo.n, errore_asse_deg: gripInfo.resid != null ? deg(gripInfo.resid) : null, errore_asse_prima_deg: gripInfo.resid0 != null ? deg(gripInfo.resid0) : null },
++    convenzioni: 'campo del gioco: x a destra di chi gioca, y in alto, −z verso lo schermo; angoli in gradi (JOINTS di natpf_gesture_pose.js, assoluti come REST e CHOREO); tempi in secondi dall’inizio del video; velocità della mano = polso della catena (m/s), 2D = polso di Pose convertito con la scala del corpo',
++  },
++  colpi: strokes,
++};
++fs.mkdirSync(path.dirname(OUT), { recursive: true });
++fs.writeFileSync(OUT, JSON.stringify(out, null, 1));
++console.error('scritto', OUT, strokes.map(s => `${s.id}${s.errore ? '!' : ''}`).join(' '));
+-- 
+2.43.0
+
