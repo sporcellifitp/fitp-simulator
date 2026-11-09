@@ -404,10 +404,16 @@ export const CHOREO = Object.freeze({
 // Pose chiave: cinematica inversa della catena del gioco sulle POSIZIONI misurate di spalla, gomito e polso (al netto del
 // bacino) alle pose chiave del video (carica, impatto, fine; servizio: mano all'anca, arrivo in alto, battuta, fine), con il
 // busto misurato (tau, lat, y); la rotazione dell'omero `r` è regolarizzata verso la posa prima (con il gomito quasi disteso
-// non è osservabile e la ricostruzione saltava di 140° tra due pose del rovescio); il polso (pro, fl, dv) è tenuto a quello
-// della partenza (REST_VIDEO: polso dritto, schermo verso lo schermo di gioco), perché l'orientamento del telefono nel video
-// è a bassa confidenza (STATO-dati §2.2) e le pose con pro/fl/dv ricostruiti o risolti «schermo in avanti» danno al
-// telefono rotazioni che il rilevatore non legge come il colpo (misure in posa-dal-video.md §3). Tempi: `times` sono gli
+// non è osservabile e la ricostruzione saltava di 140° tra due pose del rovescio). PASSO C (09/11): spalla (p, e, r),
+// gomito e polso (pro, fl, dv) RISOLTI insieme per la posizione misurata di polso e gomito E per l'orientamento del telefono
+// che il video mostra (lettura dell'analisi §1.1 e dei fogli V-*: dritto con lo schermo verso la camera per tutto il colpo e
+// la cima a destra in carica, in alto alla fine; servizio con lo schermo in avanti sopra la testa; tagliati con lo schermo che
+// si apre verso l'alto; scratchpad b17c/ik-solve.mjs, errori in docs/b17/gesti-dal-video.md). Prima il polso era tenuto a
+// quello della partenza e da una camera frontale il telefono era di taglio (0–19° alla fine del dritto). Il riconoscimento
+// non legge comunque questo insieme (posa-dal-video.md §3: VIDEO_CARDS vuoto), quindi qui conta la fedeltà al video. `tC` =
+// `contact`: la posa dell'impatto (C) cade ESATTAMENTE nell'istante dell'impatto (nelle coreografie di oggi tC si sposta
+// perché il picco di velocità della mano cada nel contatto: con le pose del video il picco viene 0,12 s dopo C e la scritta
+// «Impatto» mostrava una posa 0,17–0,43 m oltre quella filmata, misurato con tools/e2e/natpf-gesti-video-confronto.mjs). Tempi: `times` sono gli
 // istanti del video (s); acc = carica → impatto e dMin/dMax = impatto → fine SONO quelli del video; hold, prep (partenza →
 // carica), fin (fermo nella posa finale: l'utente tiene la fine 0,2–0,4 s) e back (ritorno lento, 2 s a velocità costante:
 // l'utente abbassa il braccio piano) non si vedono nel video e sono scelti. Partenza: REST_VIDEO (braccio che pende).
@@ -417,27 +423,27 @@ export const CHOREO = Object.freeze({
 // strumenti e il test «insieme del video (in lavorazione)». Le scelte proposte all'utente sono in posa-dal-video.md §4.
 const LAG = Object.freeze({ tau: .045, lat: .045, y: .045, p: .022, e: .022, r: .01 });
 export const CHOREO_VIDEO = Object.freeze({
-  forehand: Object.freeze({ src: 'forehand (2ª ripetizione)', times: { carica: 9.867, impatto: 10.367, fine: 10.533 }, contact: 1.65, cycle: 4.37, prep: .7, acc: 0.5, crisp: 1, dMin: 0.166, dMax: 0.166, fin: .3, back: 2, backFlat: .3, lag: LAG,
-    B: { tau: -39.8, lat: 5.2, y: 0.008, p: -48.8, e: 19.6, r: 5.2, b: 50.6, pro: 14.5, fl: -7.1, dv: -1.9 },
-    C: { tau: 26.3, lat: -6.4, y: .03, p: 10.8, e: 68.3, r: -9.4, b: 48.1, pro: 14.5, fl: -7.1, dv: -1.9 },
-    F: { tau: 26, lat: -5.3, y: .03, p: 36.2, e: 51.7, r: -21.4, b: 86.6, pro: 14.5, fl: -7.1, dv: -1.9 } }),
-  backhand: Object.freeze({ src: 'backhand', times: { carica: 15.6, impatto: 15.767, fine: 15.967 }, contact: 1.317, cycle: 4.07, prep: .7, acc: 0.167, crisp: 1, dMin: 0.2, dMax: 0.2, fin: .3, back: 2, backFlat: .3, lag: LAG,
-    B: { tau: 47.9, lat: 0.4, y: 0.017, p: 130.9, e: 50.3, r: -7.9, b: 10.9, pro: 14.5, fl: -7.1, dv: -1.9 },
-    C: { tau: 12, lat: -0.4, y: 0.03, p: 122, e: 40.8, r: 64.9, b: 89.6, pro: 14.5, fl: -7.1, dv: -1.9 },
-    F: { tau: -40.4, lat: -0.5, y: .03, p: 91.1, e: 51.6, r: 31.1, b: 128.9, pro: 14.5, fl: -7.1, dv: -1.9 } }),
-  slice: Object.freeze({ src: 'slice2 (tagliato di dritto)', times: { carica: 32.6, impatto: 32.833, fine: 33.067 }, contact: 1.383, cycle: 4.17, prep: .7, acc: 0.233, crisp: 1, dMin: 0.234, dMax: 0.234, fin: .3, back: 2, backFlat: .3, lag: LAG,
-    B: { tau: -43.4, lat: 6.4, y: 0.021, p: 70.5, e: 48, r: 2.5, b: 97.6, pro: 14.5, fl: -7.1, dv: -1.9 },
-    C: { tau: -7.7, lat: 2.2, y: 0.024, p: 73.4, e: 6.3, r: -8.5, b: 112.8, pro: 14.5, fl: -7.1, dv: -1.9 },
-    F: { tau: 12, lat: 1.3, y: 0.011, p: 68.5, e: 0, r: 49.7, b: 93.8, pro: 14.5, fl: -7.1, dv: -1.9 } }),
-  sliceBackhand: Object.freeze({ src: 'slice1 (tagliato di rovescio)', times: { carica: 30.433, impatto: 30.7, fine: 30.867 }, contact: 1.417, cycle: 4.13, prep: .7, acc: 0.267, crisp: 1, dMin: 0.167, dMax: 0.167, fin: .3, back: 2, backFlat: .3, lag: LAG,
-    B: { tau: 20.3, lat: 1.2, y: 0.021, p: 91.5, e: 72.3, r: 45.7, b: 106.5, pro: 14.5, fl: -7.1, dv: -1.9 },
-    C: { tau: 3.1, lat: -2, y: 0.021, p: 2.2, e: 24.4, r: 50.1, b: 99, pro: 14.5, fl: -7.1, dv: -1.9 },
-    F: { tau: 4.9, lat: -0.3, y: 0.005, p: -28.9, e: 36.5, r: 12, b: 60.6, pro: 14.5, fl: -7.1, dv: -1.9 } }),
-  serve: Object.freeze({ src: 'serve2', kind: 'serve', times: { carica: 23, alto: 23.267, impatto: 23.7, fine: 24 }, hold: .4, prep: .7, rise: 0.267, up: 0.253, acc: .18, dMin: 0.3, dMax: 0.3, fin: .3, back: 2, backFlat: .3, cycle: 4.65, riseWrist: .15, lag: LAG,
-    P: { tau: -17.7, lat: 3.3, y: 0.02, p: -60.9, e: 17.9, r: 7.4, b: 94.9, pro: 14.5, fl: -7.1, dv: -1.9 },
-    U: { tau: -47.9, lat: 4.1, y: 0.022, p: 74.6, e: 85, r: 11.7, b: 104.4, pro: 14.5, fl: -7.1, dv: -1.9 },
-    C: { tau: -11.9, lat: -0.5, y: 0.007, p: 44.1, e: 103, r: -12.9, b: 98.6, pro: 14.5, fl: -7.1, dv: -1.9 },
-    F: { tau: 18.7, lat: -4.3, y: 0.016, p: 65.8, e: 24.4, r: 46.9, b: 90.7, pro: 14.5, fl: -7.1, dv: -1.9 } }),
+  forehand: Object.freeze({ src: 'forehand (2ª ripetizione)', times: { carica: 9.867, impatto: 10.367, fine: 10.533 }, contact: 1.65, tC: 1.65, cycle: 4.37, prep: .7, acc: 0.5, crisp: 1, dMin: 0.166, dMax: 0.166, fin: .3, back: 2, backFlat: .3, lag: LAG,
+    B: { tau: -39.8, lat: 5.2, y: 0.008, p: -47.7, e: 20.1, r: 6.9, b: 51, pro: 50.3, fl: -16.6, dv: 17.1 },
+    C: { tau: 26.3, lat: -6.4, y: 0.03, p: 12.6, e: 63.9, r: -21.7, b: 49.6, pro: 52.2, fl: -56.1, dv: 16.4 },
+    F: { tau: 26, lat: -5.3, y: 0.03, p: 37.6, e: 51.7, r: -23.2, b: 86.7, pro: 152.5, fl: -59.1, dv: -26 } }),
+  backhand: Object.freeze({ src: 'backhand', times: { carica: 15.6, impatto: 15.767, fine: 15.967 }, contact: 1.317, tC: 1.317, cycle: 4.07, prep: .7, acc: 0.167, crisp: 1, dMin: 0.2, dMax: 0.2, fin: .3, back: 2, backFlat: .3, lag: LAG,
+    B: { tau: 47.9, lat: 0.4, y: 0.017, p: 126.4, e: 51.7, r: 23.3, b: 3.7, pro: 166.1, fl: -4.7, dv: -26.6 },
+    C: { tau: 12, lat: -0.4, y: 0.03, p: 114.1, e: 46, r: 73.3, b: 89.4, pro: 168, fl: -21.3, dv: -26.7 },
+    F: { tau: -40.4, lat: -0.5, y: 0.03, p: 93.9, e: 53.6, r: 27.2, b: 128.1, pro: 137.6, fl: -27.1, dv: -26.5 } }),
+  slice: Object.freeze({ src: 'slice2 (tagliato di dritto)', times: { carica: 32.6, impatto: 32.833, fine: 33.067 }, contact: 1.383, tC: 1.383, cycle: 4.17, prep: .7, acc: 0.233, crisp: 1, dMin: 0.234, dMax: 0.234, fin: .3, back: 2, backFlat: .3, lag: LAG,
+    B: { tau: -43.4, lat: 6.4, y: 0.021, p: 70, e: 48.1, r: 3.1, b: 97.6, pro: 118.4, fl: -37.9, dv: 6 },
+    C: { tau: -7.7, lat: 2.2, y: 0.024, p: 61.9, e: 6.4, r: -7.6, b: 112.4, pro: 2.9, fl: -67.3, dv: -27.7 },
+    F: { tau: 12, lat: 1.3, y: 0.011, p: 61, e: 1.9, r: 54.5, b: 93.6, pro: 2.5, fl: -11.6, dv: -26.2 } }),
+  sliceBackhand: Object.freeze({ src: 'slice1 (tagliato di rovescio)', times: { carica: 30.433, impatto: 30.7, fine: 30.867 }, contact: 1.417, tC: 1.417, cycle: 4.13, prep: .7, acc: 0.267, crisp: 1, dMin: 0.167, dMax: 0.167, fin: .3, back: 2, backFlat: .3, lag: LAG,
+    B: { tau: 20.3, lat: 1.2, y: 0.021, p: 88.6, e: 76.6, r: 50, b: 105.9, pro: 168, fl: 7.1, dv: -27.6 },
+    C: { tau: 3.1, lat: -2, y: 0.021, p: -23.8, e: 17.5, r: 36.1, b: 99, pro: 2.5, fl: -54.6, dv: 16.7 },
+    F: { tau: 4.9, lat: -0.3, y: 0.005, p: -47.1, e: 23, r: -23.5, b: 61.9, pro: 2.3, fl: 17.4, dv: 16.4 } }),
+  serve: Object.freeze({ src: 'serve2', kind: 'serve', times: { carica: 23, alto: 23.267, impatto: 23.7, fine: 24 }, hold: .4, prep: .7, rise: 0.267, up: 0.253, acc: .18, contact: 1.8, tC: 1.8, dMin: 0.3, dMax: 0.3, fin: .3, back: 2, backFlat: .3, cycle: 4.65, riseWrist: .15, lag: LAG,
+    P: { tau: -17.7, lat: 3.3, y: 0.02, p: -56.4, e: 18.5, r: 9.7, b: 94.8, pro: 30.8, fl: -34, dv: -7.5 },
+    U: { tau: -47.9, lat: 4.1, y: 0.022, p: 75.2, e: 84.7, r: 11.5, b: 104.3, pro: 123.4, fl: -18.8, dv: -26.5 },
+    C: { tau: -11.9, lat: -0.5, y: 0.007, p: 43.7, e: 102.6, r: -14.4, b: 99, pro: 143.1, fl: -8, dv: -26 },
+    F: { tau: 18.7, lat: -4.3, y: 0.016, p: 68.1, e: 22.4, r: 47.1, b: 90.4, pro: 1, fl: -21.6, dv: -16.5 } }),
 });
 
 // Mira degli esercizi. Lungolinea: lo stesso dritto con il busto e la spalla girati attorno alla verticale per tutto il
@@ -524,9 +530,29 @@ export const CAMERAS = Object.freeze({
   cross: Object.freeze({ dir: [-.258, .087, .962], dist: 3.6, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'contatto più avanti, busto già aperto: piatto girato verso il centro' }),
   line: Object.freeze({ dir: [-.821, .423, .383], dist: 3.6, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'contatto più indietro: piatto girato verso l\u2019esterno' }),
 });
+// Camere dell'INSIEME DEL VIDEO (B17.1 passo C, piano §1.4 punto 4): per i colpi la camera FRONTALE a tre quarti
+// all'altezza del petto, come il video dell'utente, SPECCHIATA (mirror: chi guarda vede il proprio braccio destro a destra,
+// come in uno specchio; il mancino vede l'immagine non specchiata della posa specchiata, cioè di nuovo il proprio braccio
+// dalla sua parte); per il servizio il profilo a tre quarti dal lato del braccio. Valgono SOLO per le coreografie dal video
+// (gesturePlan(id, { set: 'video' })): con le coreografie di oggi (CHOREO, schermo verso chi gioca per tutto il colpo) una
+// camera frontale vedrebbe il telefono di taglio (misurato: 0–14° nelle pose chiave, schermo mai in vista), quindi quelle
+// tengono CAMERAS. Direzioni scelte con una ricerca su griglia (scratchpad b17c/cam-search.mjs; misure in
+// docs/b17/gesti-dal-video.md): telefono non di taglio nelle pose chiave dove la coreografia lo permette, schermo in vista
+// il più a lungo possibile nel colpo, avambraccio ≥ 28° dal raggio visivo, telefono dentro lo stadio.
+export const CAMERAS_VIDEO = Object.freeze({
+  forehand: Object.freeze({ dir: [-.643, .208, -.737], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'dall\u2019anca destra il braccio si distende di lato, arco orizzontale da destra a sinistra, fine davanti al viso con lo schermo verso di te' }),
+  cross: Object.freeze({ dir: [-.643, .208, -.737], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'come il dritto, tutto il corpo girato verso il centro' }),
+  line: Object.freeze({ dir: [-.643, .208, -.737], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'come il dritto, tutto il corpo girato verso l\u2019esterno' }),
+  backhand: Object.freeze({ dir: [-.386, .407, -.828], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .36 }), frame: 'swing', read: 'due mani sul telefono, dall\u2019anca sinistra in alto sopra la spalla destra' }),
+  slice: Object.freeze({ dir: [-.587, .407, -.7], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla destra in basso in diagonale, schermo che si apre verso l\u2019alto' }),
+  sliceBackhand: Object.freeze({ dir: [.17, .208, -.963], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla sinistra in basso a destra, schermo che si apre' }),
+  serve: Object.freeze({ dir: [.664, .342, -.664], dist: 3.6, follow: Object.freeze({ window: .3, mix: .8, size: .5 }), read: 'la sinistra lancia, il telefono sale sopra la testa, battuta e discesa davanti al corpo' }),
+});
+// camera di una scheda per insieme di coreografie: nell'insieme del video quella frontale (CAMERAS_VIDEO), se c'è
+export const camSpec = (id, set = 'legacy') => (set === 'video' && CAMERAS_VIDEO[id]) || CAMERAS[id] || null;
 // camera della scheda per la mano: il mancino vede lo specchio (x → −x della direzione)
-export function cameraFor(id, { hand = 'right' } = {}){
-  const c = CAMERAS[id]; if (!c) return null;
+export function cameraFor(id, { hand = 'right', set = 'legacy' } = {}){
+  const c = camSpec(id, set); if (!c) return null;
   if (hand !== 'left') return c;
   const m = v => [-v[0], v[1], v[2]];
   return { ...c, ...(c.dir ? { dir: m(c.dir) } : {}), ...(c.views ? { views: c.views.map(m) } : {}), ...(c.viewsBy ? { viewsBy: Object.fromEntries(Object.entries(c.viewsBy).map(([k, v]) => [k, v.map(m)])) } : {}) };

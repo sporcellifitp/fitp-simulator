@@ -238,7 +238,16 @@ test('insieme del video: si costruisce dalla partenza del video, continuo, ciclo
       assert.ok(Math.abs(c.acc - (c.times.impatto - c.times.carica)) < 1e-6 && Math.abs(c.dMax - (c.times.fine - c.times.impatto)) < 1e-6, `${id}: tempi del video`);
       assert.ok(Math.abs(P.contact - c.contact) < .02, `${id}: contatto ${P.contact} (atteso ${c.contact})`);
     }
-    assert.ok(P.peak > 300, `${id}: picco ${P.peak}`);
+    // B17.1 passo C: tC = contact, la posa dell'impatto (C) cade nell'istante dell'impatto (prima il picco di velocità cadeva
+    // nel contatto e la posa C 0,12 s prima: la scritta «Impatto» mostrava una posa 0,17–0,43 m oltre quella filmata). Il
+    // picco si misura sul colpo, non nel contatto
+    let pk = 0; for (let t = P.T.inv ?? P.T.load; t <= P.T.back; t += 1/240) pk = Math.max(pk, gesturePose(id, t, o).speed);
+    assert.ok(pk > 300, `${id}: picco ${pk}`);
+    const Wc = GP.armChain({ ...GP.REST_VIDEO, ...c.C }).W, Wa = gesturePose(id, P.contact, o).chain.W;
+    // (il ritardo prossimo-distale LAG sposta le articolazioni di 10–45 ms attorno a tC: ≤ 40 mm; rovescio a due mani misurato
+    // 105 mm con la parte veloce di 0,167 s e la ricostruzione del video non attendibile, STATO-dati §2.5: limite dichiarato)
+    const lim = id === 'backhand' ? .12 : .04;
+    assert.ok(len(sub(Wc, Wa)) <= lim, `${id}: all'impatto il polso dista ${(len(sub(Wc, Wa))*1000).toFixed(0)} mm dalla posa C del video`);
   }
   assert.deepEqual([...GP.VIDEO_CARDS], [], 'VIDEO_CARDS vuoto finché nessuna scheda del video è letta bene (vedi test todo)');
 });

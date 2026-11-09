@@ -20,8 +20,8 @@
 // niente busto né braccio). Senza canvas 2D (Node, test) available è false e chi la usa mostra la figura statica della
 // presa. Si disegna solo quando il canvas si vede.
 import { GESTURES, GRIP_STYLE } from './natpf_gesture_motion.js';
-import { gesturePose, gesturePlan, gestureBall, gestureContactPoint, CAMERAS, HAND, HAND_LOCAL, HAND_LOCAL_MARTELLO, HAND_RACCHETTA, HAND_LOCAL_RACCHETTA, ARM, FOREARM_PROFILE,
-  UPPER_PROFILE, BAND, PHONE, BALL_R, add, sub, mul, dot, cross, len, norm, qrot, mirrorPos, mirrorPose, D } from './natpf_gesture_pose.js';
+import { gesturePose, gesturePlan, gestureBall, gestureContactPoint, gestureFreeHand, CAMERAS, camSpec, BODY, ARM as ARM_, HAND, HAND_LOCAL, HAND_LOCAL_MARTELLO, HAND_RACCHETTA, HAND_LOCAL_RACCHETTA, ARM, FOREARM_PROFILE,
+  UPPER_PROFILE, BAND, PHONE, BALL_R, add, sub, mul, dot, cross, len, norm, qrot, qslerp, mirrorPos, mirrorPose, D } from './natpf_gesture_pose.js';
 export { HAND_MARTELLO } from './natpf_gesture_pose.js';
 
 export const COMPACT_W = 320;                 // px CSS: sotto, modalità compatta
@@ -29,11 +29,12 @@ export const MAX_DPR = 2;
 export const MAX_PIXELS = 2.4e6;              // pixel del canvas al massimo (4K: densità ridotta)
 export const SLOW = .5;                       // rallentato della modalità 'auto'
 export const FOREARM_SHOWN = Object.freeze({ from: .42, to: .8 });   // modalità compatta: l'avambraccio sfuma tra queste frazioni (mai il gomito)
-// busto e testa: UNA sagoma piena, arrotondata e poco contrastata (contesto, non soggetto), opacità BODY_ALPHA (0 = spenta)
-// e colore BODY_COLOR. Revisione B14: al posto dei pezzi traslucidi (cuneo, disco della spalla, anello della testa in cui
-// finiva il telefono, quadrato scuro del collo) che non si leggevano come una persona
+// Figura (B17.1 passo C, piano §1.4 punto 4): busto, testa, gambe e braccio libero CHIARI con la linea di contorno, come
+// una persona davanti a uno specchio, non più la sagoma scura unica del B14 (che non raccontava il corpo). Opacità BODY_ALPHA
+// (0 = spenta). top/bottom: maglia; legs: pantaloni; skin: pelle della testa e del braccio libero (più spenta della mano con
+// il telefono, che resta il soggetto); line: contorno
 export const BODY_ALPHA = 1;
-export const BODY_COLOR = Object.freeze({ top: '#17296a', bottom: '#0d1944', rim: 'rgba(150,176,246,.42)', edge: 'rgba(150,176,246,.16)' });
+export const BODY_COLOR = Object.freeze({ top: '#dfe6f6', bottom: '#bcc8e6', legs: '#9eadd2', legsBottom: '#7f8fb8', skin: '#e8bfa2', skinShade: '#c99474', line: 'rgba(16,26,66,.92)', rim: 'rgba(255,255,255,.6)', edge: 'rgba(16,26,66,.92)' });
 // parti del braccio DIETRO il busto (più lontane dalla camera del suo asse, dentro la sua sagoma): il busto passa davanti
 // velato, così restano visibili ma si leggono dietro (prima la mano davanti alla pancia, vista da dietro, sembrava dietro la
 // schiena). Velo del busto sull'avambraccio (con la mano e il telefono), più leggero se dietro c'è solo la mano
@@ -71,7 +72,8 @@ const MAT = {
   // omero: contesto, non soggetto (revisione artistica B13: la manica bianca era la forma più chiara e più grande del
   // quadro). Manica blu spento poco più chiara del fondo e pelle dell'omero un poco più scura di quella dell'avambraccio
   // B14: manica opaca e opaca davvero (niente luce alta né di contorno: sembrava un tubo di vetro), della famiglia del busto
-  sleeve: { shadow: hex('#13215a'), base: hex('#1c2d6c'), light: hex('#223476'), high: hex('#223476'), rim: hex('#1c2d6c') },
+  // B17.1 passo C: la figura è chiara a contorno, la manica è della stessa maglia chiara (prima blu notte sul busto scuro)
+  sleeve: { shadow: hex('#aab8da'), base: hex('#cdd7ec'), light: hex('#e2e8f6'), high: hex('#f2f5fc'), rim: hex('#ffffff') },
   // B14: pelle dell'omero più spenta (vicino alla camera da dietro l'omero è grande: non deve rubare la scena alla mano)
   skinFar: { shadow: hex('#87503a'), base: hex('#ad7556'), light: hex('#bd8a6b'), high: hex('#c79a7d'), rim: hex('#a07058') },
 };
@@ -128,29 +130,89 @@ function bodyGeom(cam, ch){
   const Hd = at(BODY_PTS.head), N = at([0, .4, -.005]), HB = at([0, .56, -.015]);
   if (cam.depth(Hd) <= .05 || cam.depth(N) <= .05) return null;
   const axis = y => at([0, Math.max(-.2, Math.min(.45, y)), 0]);
-  return { torso, head: { c: P(Hd), r: cam.rad(Hd, .098) }, neck: { a: P(N), b: P(HB), ra: cam.rad(N, .052), rb: cam.rad(HB, .048) }, ch, axis,
+  // gambe: le anche girano con il busto a metà, ginocchia e piedi (fermi a terra) a un quarto; capsule coscia e gamba, piede
+  // come capsula bassa in avanti. Si disegnano prima del busto (che copre le anche); nel quadro ne entra quel che ci sta
+  const half = qslerp([0, 0, 0, 1], ch.trunk, .5), quarter = qslerp([0, 0, 0, 1], ch.trunk, .25), atQ = (q, v) => add(ch.pelvis, qrot(q, v));
+  const legs = [];
+  for (const sgn of [1, -1]){
+    const hip = atQ(half, [sgn*.105, -.17, 0]), knee = atQ(quarter, [sgn*.12, -.56, .01]), ankle = atQ(quarter, [sgn*.13, -.93, -.01]), toe = atQ(quarter, [sgn*.14, -.975, -.15]);
+    if ([hip, knee, ankle, toe].some(X => cam.depth(X) <= .05)) continue;
+    // gambe tutte sotto il quadro (camera che segue la mano): non si disegnano
+    if (P(hip).y - cam.rad(hip, .08) > cam.H) continue;
+    const seg = (A, B2, ra, rb) => ({ a: P(A), b: P(B2), ra: cam.rad(A, ra), rb: cam.rad(B2, rb), depth: cam.depth(mul(add(A, B2), .5)) });
+    legs.push({ thigh: seg(hip, knee, .078, .058), shin: seg(knee, ankle, .056, .04), foot: seg(ankle, toe, .036, .03), near: cam.depth(hip) });
+  }
+  legs.sort((a, b) => b.near - a.near);
+  return { torso, head: { c: P(Hd), r: cam.rad(Hd, .098) }, neck: { a: P(N), b: P(HB), ra: cam.rad(N, .052), rb: cam.rad(HB, .048) }, ch, axis, legs,
     top: P(at([0, .5, 0])), bot: P(at([0, -.22, 0])), box: bbox(torso.concat(circlePts(P(Hd), cam.rad(Hd, .098), 8))) };
 }
-function bodyPath(c, B){
+function bodyPath(c, B, withHead = true){
   smoothPath(c, B.torso);
   capsulePath(c, B.neck.a, B.neck.b, B.neck.ra, B.neck.rb);
-  c.moveTo(B.head.c.x + B.head.r, B.head.c.y); c.arc(B.head.c.x, B.head.c.y, B.head.r, 0, 2*Math.PI, false);
+  if (withHead){ c.moveTo(B.head.c.x + B.head.r, B.head.c.y); c.arc(B.head.c.x, B.head.c.y, B.head.r, 0, 2*Math.PI, false); }
+}
+// capsula con contorno e riempimento (gambe, braccio libero)
+function outlinedCap(c, q, st, fill, line = BODY_COLOR.line, lw = 1.1){
+  c.beginPath(); capsulePath(c, q.a, q.b, q.ra, q.rb); c.fillStyle = fill; c.fill();
+  c.lineWidth = Math.max(1, st.ow*lw); c.strokeStyle = line; c.lineJoin = 'round'; c.stroke();
 }
 // una parte del braccio è dietro il busto? (più lontana dalla camera del punto dell'asse del tronco alla stessa altezza)
 function behindBody(cam, B, X){
   const ch = B.ch, loc = qrot([-ch.trunk[0], -ch.trunk[1], -ch.trunk[2], ch.trunk[3]], sub(X, ch.pelvis));
   return cam.depth(X) > cam.depth(B.axis(loc[1])) + .02;
 }
-function drawBodySolid(c, B, st){
+// figura chiara a contorno: gambe (la più lontana prima), busto con il collo, testa (pelle), filo di luce sulla testa
+function drawBody(c, B, st){
   c.save(); c.globalAlpha = BODY_ALPHA;
+  for (const L of B.legs){
+    const g = c.createLinearGradient(L.thigh.a.x, L.thigh.a.y, L.shin.b.x, L.shin.b.y); g.addColorStop(0, BODY_COLOR.legs); g.addColorStop(1, BODY_COLOR.legsBottom);
+    outlinedCap(c, L.foot, st, '#2a3358'); outlinedCap(c, L.shin, st, g); outlinedCap(c, L.thigh, st, g);
+  }
   const g = c.createLinearGradient(B.top.x, B.top.y, B.bot.x, B.bot.y); g.addColorStop(0, BODY_COLOR.top); g.addColorStop(1, BODY_COLOR.bottom);
-  c.beginPath(); bodyPath(c, B); c.fillStyle = g; c.fill('nonzero');
-  // contorno chiaro e leggero di tutta la sagoma: in alto nel quadro il fondo ha quasi il colore della testa e senza il
-  // contorno la testa spariva (verifica dell'integrazione B14: «busto senza testa» nelle camere che seguono)
-  c.lineWidth = Math.max(1, st.ow*.9); c.strokeStyle = BODY_COLOR.edge; c.lineJoin = 'round'; c.stroke();
-  // filo di luce sul bordo della testa e delle spalle (dall'alto): si legge il volume senza contorni interni
-  c.beginPath(); c.arc(B.head.c.x, B.head.c.y, Math.max(1, B.head.r - .5), Math.PI*1.1, Math.PI*1.9, false);
+  c.beginPath(); bodyPath(c, B, false); c.fillStyle = g; c.fill('nonzero');
+  c.lineWidth = Math.max(1, st.ow*1.2); c.strokeStyle = BODY_COLOR.edge; c.lineJoin = 'round'; c.stroke();
+  const hg = c.createRadialGradient(B.head.c.x - B.head.r*.35, B.head.c.y - B.head.r*.4, B.head.r*.1, B.head.c.x, B.head.c.y, B.head.r*1.05);
+  hg.addColorStop(0, '#f6d6bf'); hg.addColorStop(.7, BODY_COLOR.skin); hg.addColorStop(1, BODY_COLOR.skinShade);
+  c.beginPath(); c.arc(B.head.c.x, B.head.c.y, B.head.r, 0, 2*Math.PI); c.fillStyle = hg; c.fill(); c.stroke();
+  c.beginPath(); c.arc(B.head.c.x, B.head.c.y, Math.max(1, B.head.r - st.ow*1.4), Math.PI*1.1, Math.PI*1.9, false);
   c.lineWidth = Math.max(1, st.ow*.8); c.strokeStyle = BODY_COLOR.rim; c.lineCap = 'round'; c.stroke();
+  c.restore();
+}
+// Braccio libero (la sinistra del destro): spalla sinistra della catena, mano da gestureFreeHand (lancio del servizio,
+// seconda mano del rovescio a due mani) o rilassata al fianco; gomito con la cinematica inversa a due segmenti (lunghezze
+// vere), piegato verso fuori-dietro-basso. Solo disegno: la posa del telefono non cambia
+export function freeArm(pose, free){
+  const ch = pose.chain; if (!ch) return null;
+  const B = bodyOf(ch), S = B.shoulderL;
+  let Wf = free || add(ch.pelvis, qrot(ch.trunk, [-.25, -.03, -.07]));
+  let d = sub(Wf, S), L = len(d); const Lmax = ARM_.upper + ARM_.fore - .01;
+  if (L > Lmax){ d = mul(d, Lmax/L); Wf = add(S, d); L = Lmax; }
+  if (L < .08){ Wf = add(S, [-.0, -.08, 0]); d = sub(Wf, S); L = .08; }
+  const u = mul(d, 1/L), a = (ARM_.upper**2 - ARM_.fore**2 + L*L)/(2*L), h = Math.sqrt(Math.max(0, ARM_.upper**2 - a*a));
+  let hint = qrot(ch.trunk, [-.7, -.45, .5]); hint = sub(hint, mul(u, dot(hint, u)));
+  const E = add(S, add(mul(u, a), mul(norm(hint), h)));
+  return { S, E, W: Wf, busy: !!free };
+}
+function drawFreeArm(c, cam, A, st, which){
+  if (!A) return;
+  const seg = (P0, P1, ra, rb) => ({ a: cam.p(P0), b: cam.p(P1), ra: cam.rad(P0, ra), rb: cam.rad(P1, rb) });
+  if ([A.S, A.E, A.W].some(X => cam.depth(X) <= .05)) return;
+  c.save(); c.globalAlpha = BODY_ALPHA;
+  if (which !== 'hand'){
+    const sl = (1 - UPPER_PROFILE.sleeve);
+    const Em = add(A.E, mul(sub(A.S, A.E), sl)), fo = seg(A.W, A.E, .026, .036);
+    // avambraccio pelle, manica della maglia sull'omero
+    const g = c.createLinearGradient(fo.a.x, fo.a.y, fo.b.x, fo.b.y); g.addColorStop(0, BODY_COLOR.skin); g.addColorStop(1, BODY_COLOR.skinShade);
+    outlinedCap(c, fo, st, g);
+    outlinedCap(c, seg(A.E, Em, .036, .04), st, BODY_COLOR.skinShade);
+    outlinedCap(c, seg(Em, A.S, .042, .048), st, BODY_COLOR.bottom);
+  }
+  if (which !== 'arm'){
+    // mano: palmo e dita come una capsula corta che prosegue l'avambraccio e si piega un poco
+    const dir = norm(sub(A.W, A.E)), tip = add(A.W, add(mul(dir, .055), [0, A.busy ? .02 : -.015, 0]));
+    const hand = seg(A.W, tip, .04, .03), g = c.createLinearGradient(hand.a.x, hand.a.y, hand.b.x, hand.b.y); g.addColorStop(0, BODY_COLOR.skin); g.addColorStop(1, '#f1caae');
+    outlinedCap(c, hand, st, g);
+  }
   c.restore();
 }
 // velo del busto sulle parti del braccio che gli stanno dietro: le loro forme (capsule, palmo, telefono: tutte in verso
@@ -183,9 +245,9 @@ function drawXray(c, cam, pose, F, B, st){
 }
 
 /* ---------- camera prospettica ---------- */
-function makeCam(eye, target, f, cx, cy, mirror, W){
+function makeCam(eye, target, f, cx, cy, mirror, W, H = Infinity){
   const fw = norm(sub(target, eye)), r = norm(cross(fw, [0, 1, 0])), u = cross(r, fw);
-  const cam = { eye, target, fw, r, u, f, cx, cy, mirror, W };
+  const cam = { eye, target, fw, r, u, f, cx, cy, mirror, W, H };
   cam.depth = P => dot(sub(P, eye), fw);
   cam.p = P => {
     const d = sub(P, eye), z = Math.max(.02, dot(d, fw)), x = cx + f*dot(d, r)/z;
@@ -210,19 +272,21 @@ function frame(points, dir, dist, box){
 /* ---------- tabelle del moto (mano destra, presa GRIP_STYLE), calcolate una volta per gesto ---------- */
 const tipOf = (pose, k = 1) => add(pose.pos, qrot(pose.q, [0, HH*k, 0]));
 const TABLES = new Map();
-export function motion(id, grip = GRIP_STYLE){
-  const tk = id + '|' + grip;
+export function motion(id, grip = GRIP_STYLE, set = undefined){
+  const P = gesturePlan(id, { grip, set }), tk = id + '|' + grip + '|' + P.set;
   if (TABLES.has(tk)) return TABLES.get(tk);
-  const H = handFor(grip), P = gesturePlan(id, { grip }), n = Math.max(1, Math.ceil(P.total/STEP)), tip = [], mid = [], speed = new Float32Array(n + 1), pts = [], body = [];
+  set = P.set;
+  const C = camSpec(id, set) || CAMERAS.ready;
+  const H = handFor(grip), n = Math.max(1, Math.ceil(P.total/STEP)), tip = [], mid = [], speed = new Float32Array(n + 1), pts = [], body = [];
   const elb = [], base = [];
   for (let i = 0; i <= n; i++){
-    const t = Math.min(P.total, i*STEP), p = gesturePose(id, t, { grip });
+    const t = Math.min(P.total, i*STEP), p = gesturePose(id, t, { grip, set });
     tip.push(tipOf(p, 1)); mid.push(tipOf(p, .35)); speed[i] = p.speed;
     // gomito e base del telefono (camera che segue: soggetto sopra la banda della curva, B14)
     base.push(tipOf(p, -1)); elb.push(p.chain && !H.rigidForearm ? p.chain.E : add(add(p.pos, qrot(p.q, H.wrist)), mul(qrot(p.q, H.forearmDir), ARM.fore)));
     // frame 'swing': l'inquadratura comprende solo il colpo (dalla fine della carica alla fine dell'accompagnamento, dove il
     // telefono è più grande): il ritorno passa per la posizione di partenza, che sta dentro quell'arco
-    const inFrame = CAMERAS[id]?.frame !== 'swing' || P.kind !== 'stroke' || (t >= P.T.inv - .12 && t <= P.T.back + .08);
+    const inFrame = C.frame !== 'swing' || P.kind !== 'stroke' || (t >= P.T.inv - .12 && t <= P.T.back + .08);
     if ((i % 4 === 0 || P.still) && inFrame){
       const r = handRig(p, H);
       for (const v of [[-HW, HH, 0], [HW, HH, 0], [-HW, -HH, 0], [HW, -HH, 0]]) pts.push(r.T(v));
@@ -230,8 +294,8 @@ export function motion(id, grip = GRIP_STYLE){
       for (const f of r.fingers) pts.push(f.pts[3]);
       // inquadratura con le spalle e il collo (si leggono il busto che gira e «sopra la testa»), dove la camera lo chiede
       // e non nella modalità compatta (lì solo mano e telefono)
-      if (CAMERAS[id]?.frameBody && p.chain){
-        const B = bodyOf(p.chain); body.push(...(CAMERAS[id].frameBody === 'head' ? [B.S, B.shoulderL, B.head] : [B.S, B.shoulderL, B.neck]));
+      if (C.frameBody && p.chain){
+        const B = bodyOf(p.chain); body.push(...(C.frameBody === 'head' ? [B.S, B.shoulderL, B.head] : [B.S, B.shoulderL, B.neck]));
         // la spalla con la manica intera (sfera di 7 cm): la manica non esce più dal bordo del quadro (B14: posizione e volée)
         for (const v of [[.07, 0, 0], [-.07, 0, 0], [0, .07, 0], [0, -.07, 0], [0, 0, .07], [0, 0, -.07]]) body.push(add(B.S, v));
       }
@@ -242,16 +306,16 @@ export function motion(id, grip = GRIP_STYLE){
     }
   }
   // la palla vicino al contatto (−25…+20 ms) resta nel riquadro utile: entro ±50 ms resta nello stadio (brief §4)
-  if (!P.still) for (const dt of (BALL_EARLY[id] ? [-BALL_EARLY[id], 0] : [0])){ const b = gestureBall(id, P.contact + dt, { grip }); if (b) pts.push(b); }
+  if (!P.still) for (const dt of (BALL_EARLY[id] ? [-BALL_EARLY[id], 0] : [0])){ const b = gestureBall(id, P.contact + dt, { grip, set }); if (b) pts.push(b); }
   let max = 0, at = 0; for (let i = 0; i <= n; i++) if (speed[i] > max){ max = speed[i]; at = i; }
-  const T = { P, n, tip, mid, base, elb, speed, pts, ptsBody: body.length ? pts.concat(body) : pts, peak: max, peakI: at };
+  const T = { P, n, tip, mid, base, elb, speed, pts, ptsBody: body.length ? pts.concat(body) : pts, peak: max, peakI: at, set, C };
   // arco della freccia del verso: cima un poco oltre il telefono nella parte veloce (servizio: lancio e battuta). Con la
   // camera che segue la mano (servizio, schiacciata, pallonetto: la mano percorre più di quanto la camera inquadra) solo
   // la parte veloce attorno al contatto e più vicino alla cima, perché resti nel quadro
-  const follow = !!CAMERAS[id]?.follow, k = follow ? 1.06 : 1.36;
-  const near = CAMERAS[id]?.frame === 'swing' ? [P.contact - .045, P.contact + .045] : [P.contact - .06, P.contact + .06];
+  const follow = !!C.follow, k = follow ? 1.06 : 1.36;
+  const near = C.frame === 'swing' ? [P.contact - .045, P.contact + .045] : [P.contact - .06, P.contact + .06];
   const segs = P.kind === 'serve' ? [[P.T.load, P.T.tossEnd], near] : P.kind === 'stroke' ? [follow ? near : [P.T.inv, P.T.end]] : [];
-  T.arrows = segs.map(([a, b]) => ({ t0: a, t1: b, pts: Array.from({ length: 33 }, (_, i) => tipOf(gesturePose(id, a + (b - a)*i/32, { grip }), k)) }));
+  T.arrows = segs.map(([a, b]) => ({ t0: a, t1: b, pts: Array.from({ length: 33 }, (_, i) => tipOf(gesturePose(id, a + (b - a)*i/32, { grip, set }), k)) }));
   T.keys = P.keys;
   TABLES.set(tk, T);
   return T;
@@ -272,9 +336,11 @@ export function stageBox(id, W, H){
 // camera della scheda all'istante t per uno stadio W×H (px CSS); il mancino è lo specchio della camera del destro (si
 // disegna la posa del destro specchiata: la scritta dello schermo del telefono resta dritta)
 // spec: camera da provare al posto di quella della scheda (solo strumenti di taratura, senza cache)
-export function cameraAt(id, t, { W, H, hand = 'right', grip = GRIP_STYLE, cache = null, spec = null } = {}){
-  const mirror = hand === 'left', C = spec || CAMERAS[id] || CAMERAS.ready, box = stageBox(id, W, H);
-  const key = `${id}|${grip}|${W}x${H}`, M = motion(id, grip);
+// set: insieme di coreografie ('video' → camere frontali CAMERAS_VIDEO, specchiate: mirror); mirror finale = specchio della
+// camera XOR mancino (il mancino vede sempre lo specchio dell'immagine del destro)
+export function cameraAt(id, t, { W, H, hand = 'right', grip = GRIP_STYLE, cache = null, spec = null, set = undefined } = {}){
+  const M = motion(id, grip, set), C = spec || M.C, mirror = (hand === 'left') !== !!C.mirror, box = stageBox(id, W, H);
+  const key = `${id}|${grip}|${M.set}|${W}x${H}`;
   if (C.views){
     // presa: due viste ferme e il giro della CAMERA tra le due (la mano resta ferma); viste per presa (viewsBy) dove la posa
     // della presa è un'altra (racchetta: dallo schermo di gioco e di lato)
@@ -287,17 +353,17 @@ export function cameraAt(id, t, { W, H, hand = 'right', grip = GRIP_STYLE, cache
     const dA = norm(sub(A.eye, A.target)), dB = norm(sub(B.eye, B.target)), ang = Math.acos(Math.max(-1, Math.min(1, dot(dA, dB))));
     const d = ang < 1e-4 ? dA : norm(add(mul(dA, Math.sin((1 - a)*ang)), mul(dB, Math.sin(a*ang)))), target = add(mul(A.target, 1 - a), mul(B.target, a));
     const dist = len(sub(A.eye, A.target))*(1 - a) + len(sub(B.eye, B.target))*a;
-    const cam = makeCam(add(target, mul(d, dist)), target, A.f*(1 - a) + B.f*a, A.cx*(1 - a) + B.cx*a, A.cy*(1 - a) + B.cy*a, mirror, W);
+    const cam = makeCam(add(target, mul(d, dist)), target, A.f*(1 - a) + B.f*a, A.cx*(1 - a) + B.cx*a, A.cy*(1 - a) + B.cy*a, mirror, W, H);
     cam.view = a; return cam;
   }
   let fr = cache?.get(key);
   if (!fr){ fr = frame(W < COMPACT_W ? M.pts : M.ptsBody, C.dir, C.dist, box); cache?.set(key, fr); }
-  if (!C.follow) return makeCam(fr.eye, fr.target, fr.f, fr.cx, fr.cy, mirror, W);
+  if (!C.follow) return makeCam(fr.eye, fr.target, fr.f, fr.cx, fr.cy, mirror, W, H);
   // camera che segue la mano, più lo spostamento dello schermo che tiene il soggetto nel riquadro utile (tabella liscia)
   const b = followBase(M, fr, C, t, box, W), S = shiftTable(id, grip, W, H, C, M, fr, box);
   const sx = sampleAt(S.dx, M, t), sy = sampleAt(S.dy, M, t);
   // (lo specchio del mancino si fa dopo la proiezione: lo stesso cx spostato dà l'immagine specchiata di quella del destro)
-  return makeCam(b.eye, b.target, b.f*(S.z ?? 1), b.cx + sx, b.cy + sy, mirror, W);
+  return makeCam(b.eye, b.target, b.f*(S.z ?? 1), b.cx + sx, b.cy + sy, mirror, W, H);
 }
 // servizio, schiacciata e colpi da fondo: la camera segue la mano (media pesata su ±window), tra il centro dell'arco e la mano
 function followBase(M, fr, C, t, box, W){
@@ -325,6 +391,7 @@ function followBase(M, fr, C, t, box, W){
 // vicine al colpo); nella modalità compatta telefono dentro lo stadio anche di lato (prima la mano usciva a destra e la
 // punta della freccia a sinistra). Richiesta all'istante t (dy in basso, px CSS, camera non specchiata); compatta: intervalli
 function shiftRaw(id, grip, M, b, t, box, W, H){
+  const set = M.set;
   const c0 = makeCam(b.eye, b.target, b.f, b.cx, b.cy, false, W), q = X => c0.p(X), P = M.P;
   const ph = [sampleAt(M.tip, M, t), sampleAt(M.base, M, t)].map(q), pr = c0.rad(sampleAt(M.mid, M, t), HW*1.3);
   const pTop = Math.min(ph[0].y, ph[1].y) - pr, pBot = Math.max(ph[0].y, ph[1].y) + pr;
@@ -345,7 +412,7 @@ function shiftRaw(id, grip, M, b, t, box, W, H){
   if (P.contact != null){
     const wB = P.kind === 'serve' ? sstep(P.T.tossPeak - .45, P.T.tossPeak - .3, t)*(1 - sstep(P.contact + .05, P.contact + .15, t))
       : sstep(P.contact - .2, P.contact - .1, t)*(1 - sstep(P.contact + .05, P.contact + .15, t));
-    const ball = wB > 0 ? gestureBall(id, t, { grip }) : null;
+    const ball = wB > 0 ? gestureBall(id, t, { grip, set }) : null;
     if (ball){ const bb = q(ball); top = Math.min(top, bb.y - c0.rad(ball, BALL_R) + (1 - wB)*H); }
     const wA = sstep(P.contact - .25, P.contact - .12, t)*(1 - sstep(P.contact + .1, P.contact + .2, t));
     if (wA > 0){ let ta = Infinity; for (const a of M.arrows) if (a.t0 <= P.contact && a.t1 >= P.contact) for (const X of a.pts) ta = Math.min(ta, q(X).y - 4); top = Math.min(top, ta + (1 - wA)*H); }
@@ -363,7 +430,7 @@ function shiftRaw(id, grip, M, b, t, box, W, H){
 const SHIFTS = new WeakMap(), SHIFT_W = .15, SHIFT_BLEND = .3, ZMIN = .96;
 function shiftTable(id, grip, W, H, C, M, fr, box){
   let byC = SHIFTS.get(C); if (!byC) SHIFTS.set(C, byC = new Map());
-  const key = `${id}|${grip}|${W}x${H}`; let S = byC.get(key); if (S) return S;
+  const key = `${id}|${grip}|${M.set}|${W}x${H}`; let S = byC.get(key); if (S) return S;
   const n = M.n, ry = new Float32Array(n), raw = [];
   for (let i = 0; i < n; i++){ const t = i*STEP, r = shiftRaw(id, grip, M, followBase(M, fr, C, t, box, W), t, box, W, H); ry[i] = r.dy ?? 0; raw.push(r); }
   S = { dx: new Float32Array(n + 1), dy: new Float32Array(n + 1) };
@@ -567,12 +634,12 @@ function drawScreen(c, cam, T){
   c.save(); c.transform(ax, ay, bx, by, O.x, O.y);
   const g = c.createLinearGradient(0, 80, 0, -80); g.addColorStop(0, '#203aa8'); g.addColorStop(1, '#0b1558');
   c.fillStyle = g; c.fillRect(-45, -90, 90, 180);
-  c.lineWidth = 2.4; c.strokeStyle = '#36e07a'; c.beginPath(); c.arc(0, 22, 20, 0, 2*Math.PI); c.stroke();
+  c.lineWidth = 2.6; c.strokeStyle = '#36e07a'; c.beginPath(); c.arc(0, 30, 19, 0, 2*Math.PI); c.stroke();
   c.fillStyle = 'rgba(54,224,122,.14)'; c.fill();
   c.save(); c.scale(1, -1);
   c.fillStyle = '#ffffff'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.font = '700 8.5px Barlow, sans-serif'; c.fillText('Pronto', 0, -22);
-  c.fillStyle = 'rgba(220,228,255,.78)'; c.font = '500 4px Barlow, sans-serif'; c.fillText('Guarda il computer', 0, 8);
+  c.font = '700 14px Barlow, sans-serif'; c.fillText('Pronto', 0, -24);     // B17.1 passo C: più grande (leggibile con il telefono a ~80 px)
+  c.fillStyle = 'rgba(220,228,255,.78)'; c.font = '500 5.5px Barlow, sans-serif'; c.fillText('Guarda il computer', 0, 2);
   c.restore();
   c.lineWidth = .7; c.strokeStyle = 'rgba(160,180,255,.7)'; c.fillStyle = 'rgba(70,95,220,.55)';
   for (const x of [-24, 0, 24]){ c.beginPath(); c.roundRect(x - 10.5, -66, 21, 8, 4); c.fill(); c.stroke(); }
@@ -601,7 +668,7 @@ function figure(cam, pose, st, H){
     const E = rig.E, S = rig.S, aU = u => add(E, mul(sub(S, E), u)), rU = u => (UPPER_PROFILE.elbow + (UPPER_PROFILE.shoulder - UPPER_PROFILE.elbow)*u)/1000, sl = 1 - UPPER_PROFILE.sleeve;
     upper.push(cap(aU(0), aU(sl + .04), rU(0), rU(sl + .04), MAT.skinFar, { kind: 'upper' }));
     // manica: contorno blu notte invece del bruno della pelle (si fonde con il busto: B14, era la forma più vistosa)
-    upper.push(cap(aU(sl), aU(1), rU(sl) + .003, rU(1) + .003, MAT.sleeve, { kind: 'sleeve', line: 'rgba(8,14,40,1)' }));
+    upper.push(cap(aU(sl), aU(1), rU(sl) + .003, rU(1) + .003, MAT.sleeve, { kind: 'sleeve', line: BODY_COLOR.line }));
   }
   // omero davanti alla mano (verso la camera): si disegna sopra la mano e il telefono, non sotto (revisione B13: nella
   // posizione di partenza il polsino era ridisegnato sopra la manica che lo copriva)
@@ -795,6 +862,10 @@ function drawGhostInto(x, cam, pose, st, H, color){
   // solo mano e telefono (revisione B14: i contorni dell'avambraccio sembravano altre braccia; prima, B13, il braccio intero
   // incrociava il busto)
   const shapes = [...F.hand, ...F.parts];
+  // alone scuro sotto il contorno chiaro: sul busto chiaro (B17.1 passo C) il contorno chiaro da solo sparirebbe
+  x.fillStyle = 'rgba(12,20,52,.9)';
+  for (const s of shapes){ x.beginPath(); s.path(x, ow*2); x.fill(); }
+  x.beginPath(); polyPath(x, phone); x.lineJoin = 'round'; x.lineWidth = ow*4; x.strokeStyle = 'rgba(12,20,52,.9)'; x.stroke(); x.fill();
   x.fillStyle = color;
   for (const s of shapes){ x.beginPath(); s.path(x, ow); x.fill(); }
   x.beginPath(); polyPath(x, phone); x.lineJoin = 'round'; x.lineWidth = ow*2; x.strokeStyle = color; x.stroke(); x.fill();
@@ -1009,6 +1080,7 @@ export class NatpfGestureDemo {
       this._resize();
     }
     this.grip = GRIP_STYLE;
+    this.set = undefined;                      // insieme di coreografie: undefined = quello della scheda per la presa (setFor), 'video' | 'legacy'
   }
   mount(el){ if (!this.canvas || !el) return; if (this.canvas.parentNode !== el) el.appendChild(this.canvas); this._dirty = true; }
   // misure CSS del riquadro (px)
@@ -1026,10 +1098,10 @@ export class NatpfGestureDemo {
     this._frames = new Map(); this._ghosts = new Map(); this._bg = null; this._floorKey = null; this._hudKey = null; this._dirty = true;
   }
   // id: chiave di GESTURES; hand: 'right' | 'left'; speed: numero o 'auto'
-  play(id, { hand = this.hand, speed = 'auto' } = {}){
+  play(id, { hand = this.hand, speed = 'auto', set = this.set } = {}){
     const next = GESTURES[id] ? id : 'ready', h = hand === 'left' ? 'left' : 'right';
-    if (next !== this.id || h !== this.hand){ this.t = 0; this.cycles = 0; this._ghosts?.clear(); }
-    this.id = next; this.hand = h; this.speed = speed; this._dirty = true;
+    if (next !== this.id || h !== this.hand || set !== this.set){ this.t = 0; this.cycles = 0; this._ghosts?.clear(); }
+    this.id = next; this.hand = h; this.speed = speed; this.set = set; this._dirty = true;
     this.start();
   }
   start(){
@@ -1040,19 +1112,20 @@ export class NatpfGestureDemo {
   }
   stop(){ this.running = false; if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; }
   // istante del contatto nel ciclo (s, tempo reale); 0 per presa e posizione
-  hitTime(){ return gesturePlan(this.id, { grip: this.grip }).contact ?? 0; }
+  hitTime(){ return gesturePlan(this.id, this._o()).contact ?? 0; }
   // durata di un ciclo (s, tempo reale)
-  cycle(){ return gesturePlan(this.id, { grip: this.grip }).total; }
+  cycle(){ return gesturePlan(this.id, this._o()).total; }
+  _o(){ return { grip: this.grip, set: this.set }; }
   // velocità di riproduzione di questo ciclo
   rate(){ if (typeof this.speed === 'number') return this.speed; return GESTURES[this.id]?.still || this.cycles === 0 ? 1 : this.cycles % 2 ? SLOW : 1; }
   // posa disegnata al tempo t (s, tempo reale del gesto): È gesturePose (natpf_gesture_pose.js) della mano scelta
-  pose(t){ return gesturePose(this.id, t, { hand: this.hand, grip: this.grip }); }
+  pose(t){ return gesturePose(this.id, t, { hand: this.hand, grip: this.grip, set: this.set }); }
   visible(){ const c = this.canvas; return !!c && c.isConnected && c.offsetParent !== null && !(typeof document !== 'undefined' && document.hidden); }
   _frame(now){
     const dt = Math.min(.05, Math.max(0, (now - this.last)/1000)); this.last = now;
     // niente lavoro se il canvas non si vede (modale chiusa, metà nascosta, scheda del browser in background)
     if (!this.visible()) return;
-    const P = gesturePlan(this.id, { grip: this.grip });
+    const P = gesturePlan(this.id, this._o());
     this.t += dt*this.rate();
     if (this.t >= P.total){ this.t -= P.total; this.cycles++; }
     const t0 = performance.now();
@@ -1065,7 +1138,7 @@ export class NatpfGestureDemo {
   // fotogramma fermo all'istante t (prove e fogli di controllo): rate solo per la scritta
   show(t, { rate = null } = {}){ this.stop(); this.t = t; this._rateLabel = rate; this.render(t); this._rateLabel = null; return this; }
 
-  _cam(t){ return cameraAt(this.id, t, { W: this.st.W, H: this.st.H, hand: this.hand, grip: this.grip, cache: this._frames }); }
+  _cam(t){ return cameraAt(this.id, t, { W: this.st.W, H: this.st.H, hand: this.hand, grip: this.grip, set: this.set, cache: this._frames }); }
 
   /* ---------- fotogramma ---------- */
   render(t){
@@ -1073,7 +1146,7 @@ export class NatpfGestureDemo {
     const c = this.ctx, st = this.st, W = st.W, H = st.H, id = this.id, compact = this.compact, H_ = handFor(this.grip);
     c.setTransform(st.dpr, 0, 0, st.dpr, 0, 0);
     st.ow = Math.max(1, .003*W); st.shadow = Math.max(1.5, .0045*W); st.compact = compact;
-    const M = motion(id, this.grip), P = M.P, tt = wrapT(P, t);
+    const M = motion(id, this.grip, this.set), P = M.P, tt = wrapT(P, t), CS = M.C;
     const live = this.pose(tt), R = this.hand === 'left' ? mirrorPose(live) : live;
     const cam = this._cam(tt), K = this.skip || {}; this._tNow = tt;   // skip: parti da saltare (solo misure del costo)
     if (!K.bg) this._background(c, cam, R);
@@ -1084,13 +1157,20 @@ export class NatpfGestureDemo {
     // busto e testa: sagoma piena sotto tutto (fantasmi compresi); il velo sulle parti del braccio che gli stanno dietro dopo
     // la figura
     const body = !compact && BODY_ALPHA > 0 && R.chain && !K.body && !BODY_HIDDEN.includes(id) ? bodyGeom(cam, R.chain) : null;
-    if (body) drawBodySolid(c, body, st);
+    // braccio libero: mano da gestureFreeHand (posa del destro: il mancino è lo specchio dell'immagine), davanti o dietro il
+    // busto e la mano con il telefono secondo la profondità
+    const freeR = body ? gestureFreeHand(id, tt, { grip: this.grip, set: this.set }) : null;
+    const FA = body ? freeArm(R, freeR) : null, faFront = FA && cam.depth(FA.W) < cam.depth(R.pos) - .02, faBody = FA && cam.depth(FA.E) < cam.depth(R.chain.pelvis);
+    if (FA && !faBody) drawFreeArm(c, cam, FA, st, 'all');
+    if (body) drawBody(c, body, st);
+    if (FA && faBody && !faFront) drawFreeArm(c, cam, FA, st, 'all');
+    if (FA && faBody && faFront) drawFreeArm(c, cam, FA, st, 'arm');
     // fantasmi a contorno delle pose chiave (non nella modalità compatta)
-    const follow = !!(CAMERAS[id] || {}).follow;
+    const follow = !!CS.follow;
     const ghosts = compact || P.still ? [] : M.keys.map((k, i) => ({ k, i, a: ghostAlpha(P, M.keys, i, tt, follow) }));
     if (!K.ghost) for (const g of ghosts) if (g.a > .01) this._ghost(c, cam, g, H_);
     if (!P.still){ if (!K.arrow) drawArrows(c, cam, M, tt, st); if (!K.trail) drawTrail(c, cam, M, tt, st); }
-    const ballR = gestureBall(id, tt, { hand: this.hand, grip: this.grip }), ball = ballR && this.hand === 'left' ? mirrorPos(ballR) : ballR;
+    const ballR = gestureBall(id, tt, { hand: this.hand, grip: this.grip, set: this.set }), ball = ballR && this.hand === 'left' ? mirrorPos(ballR) : ballR;
     let ballAlpha = ball ? ballAlphaAt(cam, ball, st, P, tt) : 0;
     if (P.kind === 'serve' && tt < P.T.hold) ballAlpha *= sstep(0, P.T.hold, tt);
     const spin = tt*12, ballFirst = ball && ballBehind(cam, R, ball);
@@ -1100,11 +1180,12 @@ export class NatpfGestureDemo {
     // guarda) si disegna PRIMA del telefono, che ne copre il centro (B14: il lampo sopra lo schermo diceva «colpita con lo
     // schermo»); se è sulla faccia vicina, dopo la figura
     // (punto del destro: si disegna la posa del destro, specchiata dalla camera per il mancino)
-    const CPm = !compact && P.contact != null ? gestureContactPoint(id, { grip: this.grip }) : null;
+    const CPm = !compact && P.contact != null ? gestureContactPoint(id, { grip: this.grip, set: this.set }) : null;
     const impactBehind = CPm && ballBehind(cam, R, CPm);
     if (CPm && impactBehind) drawImpact(c, cam, CPm, tt - P.contact, st);
     const F = K.figure ? figure(cam, R, st, H_) : drawFigure(c, cam, R, st, H_);
     if (body && !K.figure && !K.xray) drawXray(c, cam, R, F, body, st);
+    if (FA && faBody && faFront) drawFreeArm(c, cam, FA, st, 'hand');   // la mano libera davanti (rovescio a due mani)
     if (ball && !ballFirst && ballAlpha > .01) drawBall(c, cam, ball, spin, st, ballAlpha);
     // palla dietro il telefono (contatto sul dorso, lontano dalla camera): dentro la sagoma del telefono la parte nascosta a
     // metà opacità con il contorno tratteggiato, così all'impatto non sparisce mai (brief §5.6.2)
@@ -1115,7 +1196,7 @@ export class NatpfGestureDemo {
       for (const g of ghosts) if (g.a > .01) this._ghostLabel(c, cam, g, F, u, taken);
       if (P.still) this._stillHud(c, u); else this._hud(c, M, tt, live, u);
     }
-    this.info = { t: tt, cam, pose: live, ball, figure: F, ghosts };
+    this.info = { t: tt, cam, pose: live, ball, figure: F, ghosts, freeArm: FA };
   }
   // fondo: gradiente radiale più chiaro al centro dello stadio (fatto una volta per misura e copiato), piano di gioco
   // accennato sotto la mano (alone e ombra morbida della mano): dà alto e basso senza linee che tagliano il quadro
@@ -1131,11 +1212,11 @@ export class NatpfGestureDemo {
     // compatta: solo il soggetto; presa: primo piano della mano, nessun piano di gioco (revisione B14: la linea del piano in
     // basso a destra non voleva dire nulla)
     if (this.compact || this.id === 'grip'){ c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(this._bg, 0, 0); c.restore(); return; }
-    const M = motion(this.id, this.grip), y0 = Math.min(M.floor ??= M.pts.reduce((m, p) => Math.min(m, p[1]), Infinity) - .3, .75);
+    const M = motion(this.id, this.grip, this.set), y0 = Math.min(M.floor ??= M.pts.reduce((m, p) => Math.min(m, p[1]), Infinity) - .3, .75);
     const sq = Math.max(.2, Math.min(1, Math.abs(dot(cam.fw, [0, -1, 0]))*1.15));
     // piano (alone): con la camera ferma si disegna una volta sopra il gradiente e si copia (meno pixel da
     // riempire a ogni fotogramma); con la camera che segue o gira (servizio, schiacciata, presa) a ogni fotogramma
-    const C = CAMERAS[this.id] || CAMERAS.ready, still = !C.follow && !C.views, key = `${this.id}|${this.grip}|${this.hand}`;
+    const C = M.C, still = !C.follow && !C.views, key = `${this.id}|${this.grip}|${M.set}|${this.hand}`;
     if (still && this._floorKey !== key){
       const fl = this._floor ||= document.createElement('canvas'); fl.width = this.canvas.width; fl.height = this.canvas.height;
       const x = fl.getContext('2d', { alpha: false }); x.setTransform(1, 0, 0, 1, 0, 0); x.drawImage(this._bg, 0, 0);
@@ -1192,7 +1273,7 @@ export class NatpfGestureDemo {
     c.drawImage(cached.cv, Math.round(R.x + dx), Math.round(R.y + dy));
     c.restore();
   }
-  _keyPose(k){ return gesturePose(this.id, k.t, { hand: this.hand, grip: this.grip }); }
+  _keyPose(k){ return gesturePose(this.id, k.t, { hand: this.hand, grip: this.grip, set: this.set }); }
   // etichetta numerata del fantasma: vicino al suo fantasma (cima o centro del telefono) e mai sopra il soggetto vivo
   // (sagoma vera: telefono, palmo, dita, avambraccio, non il suo rettangolo) né sopra le altre etichette. Il posto si
   // sceglie UNA volta, quando il fantasma compare, guardando il soggetto vivo per tutto il tempo in cui il fantasma resta
@@ -1210,7 +1291,7 @@ export class NatpfGestureDemo {
     const cached = this._ghosts.get(`${this.grip}|${g.i}`);
     let L = cached?.label;
     if (!L){
-      const P = motion(this.id, this.grip).P, tn = this._tNow ?? 0, t0 = Math.max(tn, g.k.t + .05), t1 = Math.max(t0, P.T.home);
+      const P = motion(this.id, this.grip, this.set).P, tn = this._tNow ?? 0, t0 = Math.max(tn, g.k.t + .05), t1 = Math.max(t0, P.T.home);
       const samples = [...Array.from({ length: 24 }, (_, j) => t0 + (t1 - t0)*j/23), ...(P.contact > t0 && P.contact < t1 ? [P.contact] : [])].map(ts => {
         const K = this._cam(ts), lp = this.pose(ts), R = this.hand === 'left' ? mirrorPose(lp) : lp;
         return { A: anchors(K), occ: liveTest(figure(K, R, st, handFor(this.grip))) };
@@ -1234,11 +1315,11 @@ export class NatpfGestureDemo {
     }
     // con la camera che segue l'etichetta resta attaccata al fantasma anche verso il bordo (non scivola lungo il bordo
     // mentre il fantasma esce: revisione B13) e si spegne quando esce dallo stadio
-    const follow = !!(CAMERAS[this.id] || {}).follow, A = anchors(cam)[L.ai];
+    const follow = !!motion(this.id, this.grip, this.set).C.follow, A = anchors(cam)[L.ai];
     const r0 = follow ? { x0: A.x + L.ox, y0: A.y + L.oy, x1: A.x + L.ox + w, y1: A.y + L.oy + h } : place(A, L.ox, L.oy);
     // nel ritorno il braccio vivo ripassa sopra i fantasmi: le etichette si spengono (B13: il braccio intero copre di più)
     // (la fine resta etichettata per un poco: prima la sua etichetta si spegneva proprio mentre il fantasma compariva)
-    const PT = motion(this.id, this.grip).P.T, back = 1 - sstep(PT.back + .2, PT.back + .4, this._tNow ?? 0);
+    const PT = motion(this.id, this.grip, this.set).P.T, back = 1 - sstep(PT.back + .2, PT.back + .4, this._tNow ?? 0);
     const vis = (follow ? sstep(0, u, Math.min(r0.x0 - box.x0, box.x1 - r0.x1, r0.y0 - box.y0, box.y1 - r0.y1))
       : sstep(-2*u, u, Math.min(A.x, st.W - A.x, A.y, st.H*(1 - HUD_H) - A.y)))*back;
     if (vis*(g.edge ?? 1) <= .01) return;
@@ -1259,7 +1340,7 @@ export class NatpfGestureDemo {
     return { W, H, y0, h, x0, big, cx0, cx1, cy0, cy1, X: i => cx0 + (cx1 - cx0)*i/M.n, Y: v => cy1 - (cy1 - cy0)*Math.min(1, v/vmax), curve: cx1 - cx0 > 60 };
   }
   _hudStatic(M, L, u){
-    const st = this.st, key = `${this.id}|${this.grip}|${st.W}x${st.H}@${st.dpr}`;
+    const st = this.st, key = `${this.id}|${this.grip}|${M.set}|${st.W}x${st.H}@${st.dpr}`;
     if (this._hudKey === key) return this._hudCv;
     const top = Math.max(0, Math.floor((L.y0 - L.h*.2)*st.dpr)), cv = this._hudCv ||= document.createElement('canvas');
     cv.width = Math.round(st.W*st.dpr); cv.height = Math.max(1, Math.round(st.H*st.dpr) - top); cv.top = top;
@@ -1319,7 +1400,7 @@ export class NatpfGestureDemo {
     const st = this.st, H_ = handFor(this.grip), F = drawFigure(c, cam, pose, st, H_), rig = F.rig;
     this.info = { t, cam, pose: this.pose(t), figure: F };
     if (this.compact) return;
-    const T = v => add(pose.pos, qrot(pose.q, v)), mirror = this.hand === 'left';
+    const T = v => add(pose.pos, qrot(pose.q, v)), mirror = !!cam.mirror;
     const a = cam.view, palm = this.grip === 'palmo', racket = this.grip === 'racchetta';
     const notesA = [
       { X: rig.thumb.pts[2], text: racket || palm ? 'Pollice lungo il bordo' : 'Pollice chiuso sul bordo', dx: 1, dy: -.45 },
