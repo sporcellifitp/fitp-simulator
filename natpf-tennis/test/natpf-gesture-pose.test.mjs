@@ -13,7 +13,7 @@ import { readCard, judgeCard, legacyPoseSource, calibratedPhone, DT } from './po
 import * as GP from '../src/natpf/natpf_gesture_pose.js';
 import { GESTURES, GRIP_STYLE } from '../src/natpf/natpf_gesture_motion.js';
 import { TUTORIAL_CARDS } from '../src/natpf/natpf_tutorial.js';
-import { videoRef, shapeOf, planOf as planVideo } from '../scripts/video/ottimizza.mjs';
+import { videoRef, shapeOf, planOf as planVideo, solutionChoreo, SEEDS_DEFAULT, AIM_MARGIN } from '../scripts/video/ottimizza.mjs';
 
 const { gesturePose, gesturePlan, gestureBall, gestureContactPoint, gestureRig, omega, len, sub, qangle } = GP;
 const source = (grip = undefined, set = undefined) => ({ name: 'posa nuova', pose: (id, t, hand) => gesturePose(id, t, { hand, grip, set }), plan: id => gesturePlan(id, { grip, set }) });
@@ -243,7 +243,8 @@ test('insieme del video: tutte le schede della racchetta, dalla partenza del vid
 // scarto dalla forma del video (cm, misurato con lo stesso codice dell'ottimizzatore: mano e gomito alle pose chiave contro
 // quelli ricostruiti dal video al netto del bacino, traiettoria della mano a tempo normalizzato tra le pose chiave); limiti =
 // valori trovati arrotondati in su (docs/b17/ottimizzazione.md), così una coreografia che si allontana dal video si vede qui
-const SHAPE_MAX = { forehand: { key: 5, impact: 3, path: 9 }, backhand: { key: 21, impact: 14, path: 11 }, slice: { key: 27, impact: 3, path: 14 }, sliceBackhand: { key: 14, impact: 14, path: 13 }, serve: { key: 14, impact: 13, path: 10 } };
+// (correzioni della revisione del passo B2: rovescio e tagliato di dritto con il proseguimento lento verso la fine del video)
+const SHAPE_MAX = { forehand: { key: 5, impact: 3, path: 9 }, backhand: { key: 9, impact: 9, path: 8 }, slice: { key: 11, impact: 3, path: 7 }, sliceBackhand: { key: 13, impact: 13, path: 14 }, serve: { key: 14, impact: 13, path: 10 } };
 test('insieme del video: la forma resta quella del video (mano alle pose chiave e traiettoria entro gli scarti misurati)', () => {
   for (const id of FROM_VIDEO){
     const P = planVideo(id, GP.CHOREO_VIDEO[id]); P.choreo = GP.CHOREO_VIDEO[id];
@@ -251,6 +252,74 @@ test('insieme del video: la forma resta quella del video (mano alle pose chiave 
     for (const [k, v] of Object.entries(sh.keys)) assert.ok(v.dW <= L.key, `${id} ${k}: mano a ${v.dW.toFixed(1)} cm dal video (≤ ${L.key})`);
     assert.ok(sh.keys.impatto.dW <= L.impact, `${id}: impatto a ${sh.keys.impatto.dW.toFixed(1)} cm dal video (≤ ${L.impact})`);
     assert.ok(sh.path.mean <= L.path, `${id}: traiettoria a ${sh.path.mean.toFixed(1)} cm in media dal video (≤ ${L.path})`);
+  }
+});
+
+// Revisione del passo B2: il primo giro dell'ottimizzatore leggeva un solo seme del rumore del telefono simulato (7, lo
+// stesso dei test) e le soluzioni si erano adattate a quella realizzazione: con altri semi il tagliato era letto palla
+// corta + tagliato, l'incrociato con la mira sotto 0,4, il piatto a 1,25× top spin (1416/1440 sui semi 1–6 e 8–11). Ora il
+// costo legge i semi 7, 1, 5, 10 con un margine sulla mira; qui si leggono TRE SEMI CHE L'OTTIMIZZATORE NON HA VISTO
+// (2, 3, 11): tutte le schede della racchetta, destro e mancino, due calibrazioni, 0,8× / 1× / 1,25×
+test('insieme del video: letto giusto anche con semi del rumore che l\'ottimizzatore non ha visto (2, 3, 11), mira dell\'incrociato e del lungolinea con margine', () => {
+  const HELD = [2, 3, 11];
+  assert.ok(HELD.every(s => !SEEDS_DEFAULT.includes(s)) && SEEDS_DEFAULT.includes(7));
+  const src = source('racchetta'), bad = [], ids = GP.POSE_IDS.filter(id => !GESTURES[id].still);
+  let n = 0, aimMin = Infinity;
+  for (const seed of HELD) for (const id of ids) for (const cal of CALS) for (const hand of HANDS) for (const rate of [1, .8, 1.25]){
+    n++;
+    const r = readCard(src, id, { hand, cal, rate, seed }), why = judgeCard(src, id, r, { hand, rate, allow: allowFor(id, rate) });
+    if (why.length) bad.push(`seme ${seed} ${id} ${hand} cal=${cal} ×${rate}: ${why.join('; ')}`);
+    else if (GESTURES[id].aim) aimMin = Math.min(aimMin, Math.abs(+r.read[0].ev.natpf.wrist));
+  }
+  assert.equal(n, 3*12*12);
+  assert.deepEqual(bad, [], bad.join('\n'));
+  assert.ok(aimMin >= AIM_MARGIN - .1, `mira minima ${aimMin.toFixed(3)} (soglia 0,4)`);
+});
+
+// Revisione del passo B2: lo script dell'ottimizzatore deve rifare ESATTAMENTE le coreografie consegnate (prima il dritto
+// trovato aveva la parte veloce a 0,319 s e lo script la limitava a 0,30). Le soluzioni stanno in scripts/video/soluzioni
+// (vettore, nomi delle variabili e opzioni con cui sono state trovate): decode le riporta a CHOREO_VIDEO e AIM_TURN_VIDEO
+test('ottimizzatore: le soluzioni salvate rifanno CHOREO_VIDEO e AIM_TURN_VIDEO (stessi numeri, arrotondati come --emit)', () => {
+  const load = id => JSON.parse(readFileSync(new URL(`../scripts/video/soluzioni/${id}.json`, import.meta.url), 'utf8'));
+  const r = (k, v) => typeof v === 'number' ? +v.toFixed(k === 'y' ? 4 : 3) : v;
+  const fore = solutionChoreo('forehand', load('forehand')), bad = [];
+  for (const id of [...Object.keys(GP.CHOREO_VIDEO), 'cross', 'line']){
+    const sol = load(id), c = solutionChoreo(id, sol, { fore });
+    if (id === 'cross' || id === 'line'){
+      for (const [k, v] of Object.entries(GP.AIM_TURN_VIDEO[id])) if (+c.aim[k].toFixed(2) !== v) bad.push(`${id}.aim.${k}: ${c.aim[k]} invece di ${v}`);
+      continue;
+    }
+    const ref = GP.CHOREO_VIDEO[id];
+    for (const k of new Set([...Object.keys(c), ...Object.keys(ref)])){
+      if (['tC', 'times', 'src', 'lag', 'jt', 'V'].includes(k)) continue;
+      const x = c[k], y = ref[k];
+      if (x && typeof x === 'object'){ for (const j of new Set([...Object.keys(x), ...Object.keys(y || {})])) if (r(j, x[j]) !== r(j, y?.[j])) bad.push(`${id}.${k}.${j}: ${x[j]} invece di ${y?.[j]}`); }
+      else if (r(k, x) !== r(k, y)) bad.push(`${id}.${k}: ${x} invece di ${y}`);
+    }
+  }
+  assert.deepEqual(bad, []);
+});
+
+// Revisione del passo B2: il tagliato di dritto aveva perso la «discesa lunga» del video (la mano scendeva di 10,5 cm, tutta
+// prima dell'impatto, e dopo saliva di 1,3 cm; nel video scende di 27 cm, 11 dopo l'impatto, fino all'anca sinistra) e il
+// rovescio a due mani finiva a 1,40 m in mezzo al petto (video 1,52 m sopra la spalla destra). Ora la parte veloce resta
+// quella letta giusta e la mano prosegue lenta dopo la frenata verso la fine del video (F2, `slow`): qui le altezze
+test('insieme del video: tagliato di dritto in discesa lunga (≥ 20 cm dalla carica alla fine, ≥ 8 cm dopo l\'impatto, fino all\'anca sinistra) e rovescio a due mani che finisce alto sopra la spalla destra; proseguimento lento sotto 150 °/s', () => {
+  const at = (id, t) => GP.gesturePose(id, t, { grip: 'racchetta' });
+  {
+    const P = gesturePlan('slice', { grip: 'racchetta' }), T = P.T, fine = T.back - GP.CHOREO_VIDEO.slice.fin;
+    const yC = at('slice', T.inv).chain.W[1], yI = at('slice', P.contact).chain.W[1], F = at('slice', fine).chain.W;
+    assert.ok(F[1] <= yC - .2, `tagliato: fine a ${F[1].toFixed(3)} m, carica a ${yC.toFixed(3)} m`);
+    assert.ok(F[1] <= yI - .08, `tagliato: dopo l'impatto la mano scende di ${((yI - F[1])*100).toFixed(1)} cm`);
+    assert.ok(F[0] < .05 && F[1] < 1.22, `tagliato: fine a (${F.map(v => v.toFixed(2)).join('; ')}), non verso l'anca sinistra`);
+    let w = 0; for (let t = T.fastEnd; t < fine; t += 1/240) w = Math.max(w, at('slice', t).speed);
+    assert.ok(w <= 150, `tagliato: telefono a ${w.toFixed(0)} °/s nel proseguimento lento`);
+  }
+  {
+    const P = gesturePlan('backhand', { grip: 'racchetta' }), T = P.T, fine = T.back - GP.CHOREO_VIDEO.backhand.fin, F = at('backhand', fine).chain.W;
+    assert.ok(F[1] >= 1.47 && F[0] > .1, `rovescio: fine a (${F.map(v => v.toFixed(2)).join('; ')}), non alta sopra la spalla destra`);
+    let w = 0; for (let t = T.fastEnd; t < fine; t += 1/240) w = Math.max(w, at('backhand', t).speed);
+    assert.ok(w <= 150, `rovescio: telefono a ${w.toFixed(0)} °/s nel proseguimento lento`);
   }
 });
 

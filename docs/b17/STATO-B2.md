@@ -35,5 +35,26 @@ Dalla cartella `natpf-tennis`: `node --import ./test/register.mjs scripts/video/
 uscita: due processi sulla stessa cartella si sovrascrivono). Le soluzioni usate sono quelle scritte in `CHOREO_VIDEO`;
 `--emit=DIR` le rigenera da una cartella di soluzioni.
 
+## Correzioni dopo la revisione del passo B2 (09/11 notte, IN CORSO)
+Bloccanti della revisione e stato:
+1. **Un solo seme del rumore** (144/144 valeva solo per il seme 7): `ottimizza.mjs` legge ora i semi 7, 1, 5, 10 (`--seeds`),
+   margine della mira |w| ≥ 0,5 (`AIM_MARGIN`), `--capPrep` (carica del tagliato sotto 95 °/s). Rifatti: tagliato di dritto,
+   rovescio, incrociato, piatto, tagliato di rovescio (cartelle in scratchpad `b17r/sl1`, `bh1`, `cr1`, `fl1`, `sb1`). Test nuovo
+   in `natpf-gesture-pose`: semi 2, 3, 11 (mai visti dall'ottimizzatore).
+2. **Script che non rifaceva il dritto**: `TIMES.stroke.acc` a [0,18; 0,32], `--report` senza `--from` valuta
+   `CHOREO_VIDEO[card]`, `--presa` esiste (risolve `REST_RACCHETTA`), ritorno delle schede di oggi da 0,5 s (la volée ha 0,628),
+   soluzioni nel repository (`natpf-tennis/scripts/video/soluzioni/`, con le opzioni) e test «le soluzioni salvate rifanno
+   CHOREO_VIDEO».
+3. **Tagliato senza discesa lunga**: proseguimento lento dopo la frenata (`slow`, `F2` nella coreografia, `SLOW_V` in
+   `natpf_gesture_pose.js`), `--slow --descent=0.2,0.08` (fine ≤ carica − 20 cm e ≤ impatto − 8 cm).
+4. **Rovescio con una mano**: `GESTURES.backhand.twoHanded` (solo disegno), mano libera sul telefono dalla carica alla fine
+   (test in `natpf-gesture-anim`); fine più alta con `--slow --f2d=25`; braccio libero a riposo lungo il fianco (`FREE_REST`).
+5. **Scheda «Presa» con il pollice sotto**: `REST_RACCHETTA` = presa misurata nella posa delle foto (gomito al fianco,
+   telefono lungo l'avambraccio, cima in avanti e 20° in su, pollice in alto, dita sotto; schermo verso l'interno), il primo
+   piano resta come `REST_RACCHETTA_PRIMO_PIANO`; terza indicazione «Pollice in alto lungo il bordo, schermo verso l'interno».
+
+Come riprendere: `sh <scratchpad>/b17r/apply.sh <cartella con le 12 soluzioni>` scrive `CHOREO_VIDEO`/`AIM_TURN_VIDEO` e
+`scripts/video/soluzioni/`; poi `npm test`, sito, build, fogli `PREFIX=O` e documenti (`ottimizzazione.md`).
+
 ## Non verificato
 - Niente telefono vero; presa del video a bassa confidenza (errore d'asse 37,7°); flusso del tutorial nel browser non provato.

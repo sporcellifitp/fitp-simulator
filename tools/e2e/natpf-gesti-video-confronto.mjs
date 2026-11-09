@@ -14,8 +14,10 @@
 // Fogli docs/b17/img/VC-<colpo>.webp, da GUARDARE. Il video e i fotogrammi restano fuori dal repository.
 //   cd tools/e2e && FRAMES=/cartella/frames30 CHROMIUM_PATH=/percorso/chrome GAME_PORT=3651 node natpf-gesti-video-confronto.mjs
 //   IDS=forehand,serve  OUT=/cartella  SCALE=.75
-// PREFIX=O (B17.1 passo B2): fogli docs/b17/img/O-<colpo>.webp a DUE colonne, video specchiato | posa ottimizzata (le
-// coreografie di CHOREO_VIDEO trovate dall'ottimizzatore, scripts/video/ottimizza.mjs), stessi istanti del colpo
+// PREFIX=O (B17.1 passo B2): fogli docs/b17/img/O-<colpo>.webp a TRE colonne, video specchiato | posa ottimizzata (le
+// coreografie di CHOREO_VIDEO trovate dall'ottimizzatore, scripts/video/ottimizza.mjs) con la camera della scheda | la stessa
+// posa con una camera FISSA frontale a corpo intero come quella del video (specchiata, il polso del video segnato con una
+// croce gialla: correzioni della revisione, la camera della scheda nascondeva la forma), stessi istanti del colpo
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
@@ -109,13 +111,21 @@ async function confronto(st){
     const load = src => new Promise(res => { if (!src) return res(null); const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
     const imgs = await Promise.all(frames.map(load));
     const cw = Math.round(640*scale), ch = Math.round(400*scale), vw = Math.round(360*scale), cap = 24, gap = 6;
-    const out = document.createElement('canvas'); out.width = vw + (two ? 1 : 2)*cw + (two ? 3 : 4)*gap; out.height = 44 + times.length*(ch + cap + gap);
+    const out = document.createElement('canvas'); out.width = vw + 2*cw + 4*gap; out.height = 44 + times.length*(ch + cap + gap);
+    // camera fissa frontale (fogli O): davanti a chi gioca a 3,4 m, all'altezza del bacino, corpo intero, specchiata come il video
+    const fixedCam = (W, H) => { const eye = [.05, 1.0, -3.4], target = [.05, 1.0, 0], fw = GP.norm(GP.sub(target, eye)), rr = GP.norm(GP.cross(fw, [0, 1, 0])), u = GP.cross(rr, fw), f = H*3.4/2.15, cx = W/2, cy = H/2;
+      const cam = { eye, target, fw, r: rr, u, f, cx, cy, mirror: true, W, H };
+      cam.depth = P => GP.dot(GP.sub(P, eye), fw);
+      cam.p = P => { const dd = GP.sub(P, eye), z = Math.max(.02, GP.dot(dd, fw)), x = cx + f*GP.dot(dd, rr)/z; return { x: W - x, y: cy - f*GP.dot(dd, u)/z, z }; };
+      cam.rad = (P, q) => cam.f*q/Math.max(.02, cam.depth(P)); return cam; };
     const o = out.getContext('2d'); o.fillStyle = '#0b0f1a'; o.fillRect(0, 0, out.width, out.height);
     o.fillStyle = '#f4f6fc'; o.font = '700 18px Barlow, sans-serif'; o.textBaseline = 'top';
     o.fillText(two ? `${title} · video dell'utente (specchiato) | posa ottimizzata` : `${title} · video dell'utente (specchiato come la camera) · animazione dalle coreografie del video · tutorial di oggi`, gap, 6);
     o.fillStyle = '#9aa7cf'; o.font = '500 12px Barlow, sans-serif';
     o.fillText(two ? 'sinistra: fotogramma 540×960 ritagliato e specchiato · destra: CHOREO_VIDEO (ottimizzatore), presa del video, camera frontale a tre quarti specchiata (servizio: profilo), istante mappato sulle pose chiave' : 'colonna 1: fotogramma 540×960 ritagliato, specchiato (il braccio destro a destra) · colonna 2: gesturePlan set video, camera frontale a tre quarti specchiata (servizio: profilo) · colonna 3: coreografie B13/B14, camera da dietro', gap, 28);
     const rows = [];
+    // didascalia tagliata alla larghezza della sua colonna (prima quella del video finiva sopra quella dell'animazione)
+    const fit = (text, x, y, w) => { let t = text; if (o.measureText(t).width > w){ while (t.length > 4 && o.measureText(t + '…').width > w) t = t.slice(0, -1); t += '…'; } o.fillText(t, x, y); };
     times.forEach((t, i) => {
       const y = 44 + i*(ch + cap + gap), row = { t };
       // 1. video specchiato
@@ -124,17 +134,26 @@ async function confronto(st){
       else { o.fillStyle = '#1a2240'; o.fillRect(gap, y + cap, vw, ch); o.fillStyle = '#9aa7cf'; o.font = '500 12px Barlow'; o.fillText('fotogramma non disponibile', gap + 8, y + cap + 8); }
       const s = samples[i];
       o.fillStyle = '#dfe6f7'; o.font = '600 12px Barlow, sans-serif'; o.textBaseline = 'top';
-      o.fillText(`video t = ${t.toFixed(2)} s · fotogramma ${Math.round(t*30)}${s ? ` · polso (${s.W.map(v => v.toFixed(2)).join('; ')}) m · busto ${s.tau?.toFixed(0)}°` : ''}`, gap, y + 4);
+      fit(`video ${t.toFixed(2)} s · f. ${Math.round(t*30)}${s ? ` · polso (${s.W.map(v => v.toFixed(2)).join('; ')})` : ''}`, gap, y + 4, vw);
       // 2 e 3: animazione
-      [['video', AV, gap*2 + vw, two ? 'posa ottimizzata' : 'animazione dal video'], ...(two ? [] : [['legacy', AL, gap*3 + vw + cw, 'tutorial di oggi']])].forEach(([set, A, x, lab]) => {
+      [['video', AV, gap*2 + vw, two ? 'posa ottimizzata' : 'animazione dal video'], ...(two ? [['video', AV, gap*3 + vw + cw, 'camera fissa frontale', true]] : [['legacy', AL, gap*3 + vw + cw, 'tutorial di oggi']])].forEach(([set, A, x, lab, fixed]) => {
+        if (fixed){ d._cam = () => fixedCam(640, 400); } else delete d._cam;
         const ta = mapT(t, anchors, A);
         d.play(id, { hand: 'right', set }); d.show(ta, { rate: 1 });
         const I = d.info, cam = I.cam, pose = I.pose, n = GP.qrot(pose.q, [0, 0, 1]), v = GP.sub(cam.eye, pose.pos);
         const edge = Math.asin(Math.min(1, Math.abs(GP.dot(n, GP.norm(v)))))*180/Math.PI, facing = GP.dot(n, v) > 0;
         const W = pose.chain?.W || pose.pos;
         o.drawImage(d.canvas, x, y + cap, cw, ch);
+        if (fixed){
+          delete d._cam;
+          // polso ricostruito dal video, con la stessa camera: croce gialla
+          if (s){ const q = fixedCam(640, 400).p(s.W), k = cw/640, qx = x + q.x*k, qy = y + cap + q.y*k; o.strokeStyle = '#ffe600'; o.lineWidth = 3; o.beginPath(); o.moveTo(qx - 8, qy - 8); o.lineTo(qx + 8, qy + 8); o.moveTo(qx + 8, qy - 8); o.lineTo(qx - 8, qy + 8); o.stroke(); }
+          o.fillStyle = '#dfe6f7'; o.font = '600 12px Barlow, sans-serif';
+          fit(`${lab} · croce gialla: polso del video${s ? ` · Δ ${(Math.hypot(...GP.sub(W, s.W))*100).toFixed(0)} cm` : ''}`, x, y + 4, cw);
+          return;
+        }
         o.fillStyle = '#dfe6f7'; o.font = '600 12px Barlow, sans-serif';
-        o.fillText(`${lab} · t = ${ta.toFixed(2)} s · ${pose.label || 'fermo'} · polso (${W.map(q => q.toFixed(2)).join('; ')}) · telefono ${edge.toFixed(0)}° ${facing ? 'schermo' : 'dorso'}`, x, y + 4);
+        fit(`${lab} · t = ${ta.toFixed(2)} s · ${pose.label || 'fermo'} · polso (${W.map(q => q.toFixed(2)).join('; ')}) · telefono ${edge.toFixed(0)}° ${facing ? 'schermo' : 'dorso'}`, x, y + 4, cw);
         row[set] = { ta, label: pose.label, W, edge, facing, dW: s ? Math.hypot(W[0] - s.W[0], W[1] - s.W[1], W[2] - s.W[2]) : null, dY: s ? W[1] - s.W[1] : null };
       });
       rows.push(row);

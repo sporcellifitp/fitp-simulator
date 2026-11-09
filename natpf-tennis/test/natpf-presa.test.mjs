@@ -23,8 +23,9 @@ test('presa insegnata dal 09/11: a racchetta (foto dell\'utente); palmo e martel
   assert.equal(LESSON.find(s => s.id === 'grip').title, 'Presa a racchetta');
   assert.match(calPrompt({ stage: 'still' }).sub, /cima in avanti/);
   assert.match(GESTURES.grip.cues.join(' '), /cima in avanti/);
-  // le tre indicazioni della scheda «Presa» concordate con l'utente (docs/b17/presa-foto.md)
-  assert.deepEqual(GESTURES.grip.cues, ['Telefono disteso nel palmo, cima in avanti', 'Dita sotto, attorno al bordo', 'Pollice lungo il bordo, schermo verso lo schermo di gioco']);
+  // le indicazioni della scheda «Presa»: le prime due concordate con l'utente (docs/b17/presa-foto.md); la terza dalla presa
+  // misurata nel video (B17.1 passo B2, correzioni: nella posa della scheda lo schermo guarda verso l'interno, il pollice in alto)
+  assert.deepEqual(GESTURES.grip.cues, ['Telefono disteso nel palmo, cima in avanti', 'Dita sotto, attorno al bordo', 'Pollice in alto lungo il bordo, schermo verso l’interno']);
 });
 
 test('i due profili hanno gli stessi campi, la foto nel pacchetto, la posa 3D e la figura per le due mani', () => {

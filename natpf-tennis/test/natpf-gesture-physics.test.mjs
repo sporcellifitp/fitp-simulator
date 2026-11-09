@@ -85,15 +85,22 @@ test('posizione di partenza (presa nel palmo): telefono davanti allo sterno con 
 });
 
 // B17.1 passo B2 (decisione dell'utente del 09/11 sera, «come la mia impugnatura del video»): il telefono nella mano è quello
-// MISURATO nei colpi del video (PHONE_IN_HAND_VIDEO, rigido in tutte le schede della racchetta); la scheda «Presa» mostra il
-// primo piano del video (REST_RACCHETTA: telefono di traverso davanti al petto, schermo verso lo schermo di gioco, cima verso la
-// sinistra di chi gioca); GRIP_POSE.racchetta.euler è quella posa nel campo; la partenza dei colpi è la posa ferma del video
-test('presa a racchetta: la presa misurata nel video, rigida nella mano; scheda «Presa» con lo schermo verso lo schermo di gioco come nel primo piano del video; GRIP_POSE.racchetta.euler = posa della scheda', () => {
-  const p = gesturePose('grip', 1, { grip: 'racchetta' }), c = p.chain;
-  const tip = qrot(p.q, [0, 1, 0]), screen = qrot(p.q, [0, 0, 1]);
-  assert.ok(screen[2] < -.9, `schermo ${screen}`);
-  assert.ok(tip[0] < -.7 && Math.abs(tip[2]) < .3, `cima ${tip}: verso la sinistra di chi gioca, di traverso`);
-  assert.ok(c.W[1] > 1.05 && c.W[1] < 1.3 && c.W[2] < -.2, `mano ${c.W}: davanti al petto`);
+// MISURATO nei colpi del video (PHONE_IN_HAND_VIDEO, rigido in tutte le schede della racchetta); la scheda «Presa»
+// (REST_RACCHETTA) lo mostra nella posa delle foto: gomito al fianco, telefono lungo l'avambraccio, cima in avanti e in alto,
+// polso dritto, il bordo del pollice in ALTO e le dita sotto (come nel video e nella foto; correzione dopo la revisione: con
+// il primo piano del video il pollice disegnato stava sotto); GRIP_POSE.racchetta.euler è quella posa nel campo; la
+// partenza dei colpi è la posa ferma del video
+test('presa a racchetta: la presa misurata nel video, rigida nella mano; scheda «Presa» con la cima in avanti, il pollice in alto e le dita sotto; GRIP_POSE.racchetta.euler = posa della scheda', () => {
+  const p = gesturePose('grip', 1, { grip: 'racchetta', rig: true }), c = p.chain, rig = p.rig;
+  const tip = qrot(p.q, [0, 1, 0]), screen = qrot(p.q, [0, 0, 1]), thumbEdge = qrot(p.q, [1, 0, 0]);
+  assert.ok(tip[2] < -.85 && tip[1] > .2, `cima ${tip}: in avanti e in alto`);
+  assert.ok(thumbEdge[1] > .8, `bordo del pollice ${thumbEdge}: in alto`);
+  // il pollice disegnato sopra il telefono, le dita (polpastrelli) sotto il centro del telefono
+  assert.ok(rig.thumb.pts[2][1] > p.pos[1] + .02, 'pollice sotto il telefono');
+  for (const f of rig.fingers) assert.ok(f.pts[3][1] < p.pos[1] - .01, `${f.name}: polpastrello sopra il telefono`);
+  assert.ok(screen[0] < -.8, `schermo ${screen}: verso l'interno`);
+  assert.equal(c.j.fl, 0); assert.equal(c.j.dv, 0);
+  assert.ok(c.E[1] < 1.15 && c.W[2] < -.2 && c.W[1] > 1 && c.W[1] < 1.2, `gomito ${c.E} al fianco, mano ${c.W} davanti`);
   assert.ok(qangle(p.q, GP.gripQuat('racchetta')) < .01 && qangle(GP.qEuler(GRIP_POSE.racchetta.euler), GP.gripQuat('racchetta')) < .01);
   assert.equal(GP.PHONE_IN_HAND_RACCHETTA, GP.PHONE_IN_HAND_VIDEO);
   assert.ok(qangle(GP.PHONE_IN_HAND_VIDEO, GP.qmul(GP.qaxis([1, 1, 0], Math.PI), GP.qEuler(GP.VIDEO_GRIP_EULER))) < 1e-3);

@@ -214,14 +214,23 @@ export function armChain(j, breath = 0){
 }
 const REST_HAND = armChain(REST).hand;
 // Scheda «Presa» con la presa a racchetta (B17.1 passo B2, decisione dell'utente del 09/11 sera: «come la mia impugnatura del
-// video»): il primo piano del video (1–5 s, gesti-video.json «grip»: telefono in orizzontale, schermo verso la camera = verso
-// lo schermo di gioco, dita sotto il bordo inferiore) con il telefono nella mano come MISURATO nei colpi (PHONE_IN_HAND_VIDEO).
-// Risolta per quei vincoli (scripts/video/ottimizza.mjs --presa): mano davanti al petto (0,05; 1,16; −0,30), avambraccio di
-// traverso verso sinistra, schermo a ≤ 12° dalla direzione dello schermo di gioco, cima verso la sinistra di chi gioca e un
-// poco in basso, pollice in alto. Coerente con la foto «davanti» dell'utente (schermo in vista, dita sotto, pollice sopra).
-export const REST_RACCHETTA = Object.freeze({ tau: 0, lat: 0, y: 0, p: 64.3, e: 46.8, r: 74.9, b: 83.4, pro: 165, fl: -21.5, dv: 12.2 });
-// alternativa del passo B (lettura delle due foto, presa PHONE_IN_HAND_FOTO): avambraccio in avanti e a destra di 40°, polso
-// dritto. Non più usata: con la presa misurata nel video lo schermo non guarda lo schermo di gioco in questa posa
+// video»; correzione dopo la revisione): il telefono nella mano come MISURATO nei colpi (PHONE_IN_HAND_VIDEO) nella posa delle
+// foto dell'utente (docs/b17/presa-foto.md: il telefono lungo l'avambraccio come un manico, cima in avanti e alzata di ~20°,
+// quattro dita attorno al bordo inferiore, pollice lungo il bordo superiore, polso dritto). Risolta per quei vincoli (cima in
+// avanti e 20° in su, bordo del pollice in alto, schermo un poco in alto, polso dritto fl = dv = 0, gomito al fianco, mano
+// davanti all’anca destra, avambraccio fuori dal busto: scripts/video/ottimizza.mjs --presa): gomito al fianco, avambraccio in avanti, polso a (0,23; 1,09;
+// −0,28). Con la presa misurata lo schermo guarda verso l’interno (verso sinistra e 22° in su), il dorso verso destra: come
+// nelle foto («davanti», presa da davanti a sinistra, vede lo schermo; «dietro», da dietro a destra, il dorso).
+// Prima la scheda mostrava il primo piano del video (1–5 s: telefono di traverso davanti al petto, schermo verso la camera,
+// cima verso la sinistra di chi gioca: REST_RACCHETTA_PRIMO_PIANO): lì l'utente MOSTRA lo schermo alla camera, e con la mano
+// disegnata (HAND_RACCHETTA, dalle foto: pollice sul bordo +x) il pollice veniva SOTTO e le dita sopra, il contrario del
+// video e della foto; con il pollice in alto e lo schermo verso la camera la cima va verso la DESTRA di chi gioca e la
+// presa misurata chiede il gomito alzato davanti al petto e la rotazione dell'omero al limite (−88…−97°): misure in
+// docs/b17/ottimizzazione.md §1.
+export const REST_RACCHETTA = Object.freeze({ tau: 0, lat: 0, y: 0, p: 30.1, e: 8, r: 1.4, b: 79.3, pro: 16.9, fl: 0, dv: 0 });
+// alternativa (non usata): il primo piano del video, 1–5 s (mano a (0,05; 1,16; −0,30), schermo a 18° dalla direzione dello
+// schermo di gioco, cima verso la sinistra; pollice in BASSO: la punta del pollice a 1,07 m, sotto il polso a 1,16 m)
+export const REST_RACCHETTA_PRIMO_PIANO = Object.freeze({ tau: 0, lat: 0, y: 0, p: 64.3, e: 46.8, r: 74.9, b: 83.4, pro: 165, fl: -21.5, dv: 12.2 });
 export const REST_RACCHETTA_FOTO = Object.freeze({ tau: 0, lat: 0, y: 0, p: -38.7, e: 12.9, r: -40, b: 90.1, pro: 76.4, fl: 0, dv: 0 });
 // Posizione di partenza dei COLPI e della scheda «Posizione di partenza» con la presa a racchetta (B17.1, passo B, giro 2):
 // la stessa posizione della mano di REST (telefono davanti al petto, gomito al fianco) con il polso quasi dritto (flesso 9°,
@@ -472,27 +481,29 @@ export const CHOREO_VIDEO = Object.freeze({
     B: { tau: -37.99, lat: 5.2, y: 0.008, p: -37.92, e: 25.99, r: 18.9, b: 55.45, pro: 3.67, fl: -6.7, dv: 15.17 },
     C: { tau: 23.41, lat: -6.4, y: 0.03, p: 21.98, e: 66.36, r: -22.55, b: 46.3, pro: 16.82, fl: 0.75, dv: 2.56 },
     F: { tau: 30, lat: -5.3, y: 0.03, p: 42.98, e: 48.14, r: -34.94, b: 80.95, pro: 41.73, fl: -25.32, dv: -17.19 } }),
-  backhand: Object.freeze({ src: "backhand", times: {"carica":15.6,"impatto":15.767,"fine":15.967}, tC: 2.504422, contact: 2.529, cycle: 5.353, prep: 1.943, acc: 0.236, crisp: 1, dMin: 0.132, dMax: 0.132, fin: 0.292, back: 2, backFlat: 0.3, lag: LAG,
-    B: { tau: 46.02, lat: 0.4, y: 0.017, p: 128.4, e: 45.54, r: 35.3, b: 15.7, pro: 130.31, fl: 40.18, dv: -6.03 },
-    C: { tau: 23.01, lat: -0.4, y: 0.03, p: 119.32, e: 47.32, r: 74.5, b: 81.5, pro: 76.83, fl: 35.29, dv: -11.45 },
-    F: { tau: -37.24, lat: -0.5, y: 0.03, p: 96.48, e: 49.44, r: 74.5, b: 117.93, pro: 73.94, fl: 28.19, dv: -29 } }),
-  slice: Object.freeze({ src: "slice2 (tagliato di dritto)", times: {"carica":32.6,"impatto":32.833,"fine":33.067}, tC: 2.223413, contact: 2.263, cycle: 5.158, prep: 1.727, acc: 0.186, crisp: 1, dMin: 0.292, dMax: 0.292, fin: 0.203, back: 2, backFlat: 0.3, lag: LAG,
-    B: { tau: -40.97, lat: 6.4, y: 0.021, p: 63.27, e: 42.58, r: -0.4, b: 90.91, pro: 76.63, fl: -41.11, dv: -28.37 },
-    C: { tau: -19.7, lat: 2.2, y: 0.024, p: 63.95, e: 4.47, r: -19.6, b: 114.1, pro: 41.52, fl: -19.35, dv: 6.39 },
-    F: { tau: 17.98, lat: 1.3, y: 0.011, p: 59.18, e: 8.52, r: 0.31, b: 117.39, pro: 1, fl: 19.39, dv: -29 } }),
-  sliceBackhand: Object.freeze({ src: "slice1 (tagliato di rovescio)", times: {"carica":30.433,"impatto":30.7,"fine":30.867}, tC: 2.864614, contact: 2.753, cycle: 5.817, prep: 2.2, acc: 0.203, crisp: 1, dMin: 0.35, dMax: 0.35, fin: 0.314, back: 2, backFlat: 0.3, lag: LAG,
-    B: { tau: 17.32, lat: 1.2, y: 0.021, p: 79.08, e: 78.15, r: 60.93, b: 100.21, pro: 104.58, fl: 9.77, dv: -29 },
-    C: { tau: -3.93, lat: -2, y: 0.021, p: -29.72, e: 24.57, r: 33.07, b: 94.04, pro: 8.1, fl: 3.79, dv: 3.65 },
-    F: { tau: 4.5, lat: -0.3, y: 0.005, p: -45.87, e: 6.25, r: -32.86, b: 65.24, pro: 64.22, fl: 64.41, dv: 17.43 } }),
+  backhand: Object.freeze({ src: "backhand", times: {"carica":15.6,"impatto":15.767,"fine":15.967}, tC: 2.672193, contact: 2.695, cycle: 5.979, prep: 2.163, acc: 0.182, crisp: 1, dMin: 0.139, dMax: 0.139, fin: 0.204, slow: 0.541, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: 51.41, lat: 0.4, y: 0.017, p: 127.21, e: 47.38, r: 28.54, b: 11.32, pro: 131.89, fl: 34.14, dv: -20.26 },
+    C: { tau: 24, lat: -0.4, y: 0.03, p: 126.1, e: 43.08, r: 74.5, b: 77.41, pro: 73.53, fl: 43.5, dv: -24.35 },
+    F: { tau: -31.53, lat: -0.5, y: 0.03, p: 100.08, e: 49.98, r: 74.5, b: 116.46, pro: 89.68, fl: 32.08, dv: -18.98 },
+    F2: { tau: -24.3, lat: -0.5, y: 0.03, p: 97.51, e: 54.63, r: 26.84, b: 132.49, pro: 76.29, fl: 26.23, dv: -29 } }),
+  slice: Object.freeze({ src: "slice2 (tagliato di dritto)", times: {"carica":32.6,"impatto":32.833,"fine":33.067}, tC: 2.783175, contact: 2.77, cycle: 6.403, prep: 2.2, acc: 0.22, crisp: 1, dMin: 0.127, dMax: 0.127, fin: 0.306, slow: 0.8, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: -54.35, lat: 6.4, y: 0.021, p: 62.07, e: 38.92, r: 9.14, b: 101.12, pro: 80.37, fl: -69, dv: -29 },
+    C: { tau: -18.8, lat: 2.2, y: 0.024, p: 50.68, e: 13.34, r: -5.03, b: 111.62, pro: 47.42, fl: -20.26, dv: 15.29 },
+    F: { tau: 6.2, lat: 1.3, y: 0.011, p: 67.65, e: 7.27, r: 1.4, b: 113.16, pro: 39.39, fl: 18.81, dv: -14.8 },
+    F2: { tau: 8.73, lat: 1.3, y: 0.011, p: 52.5, e: 14.31, r: 61.48, b: 88.29, pro: 37.84, fl: -12.32, dv: -4.72 } }),
+  sliceBackhand: Object.freeze({ src: "slice1 (tagliato di rovescio)", times: {"carica":30.433,"impatto":30.7,"fine":30.867}, tC: 2.86422, contact: 2.753, cycle: 5.846, prep: 2.2, acc: 0.203, crisp: 1, dMin: 0.35, dMax: 0.35, fin: 0.343, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: 17.32, lat: 1.2, y: 0.021, p: 76.6, e: 78.15, r: 61.96, b: 98.35, pro: 106.63, fl: 9.77, dv: -29 },
+    C: { tau: -0.2, lat: -2, y: 0.021, p: -30.9, e: 24.18, r: 31.86, b: 95.39, pro: 9.34, fl: -0.92, dv: 6.76 },
+    F: { tau: 5.49, lat: -0.3, y: 0.005, p: -45.45, e: 7, r: -35.5, b: 65.15, pro: 69.11, fl: 65.68, dv: 13.16 } }),
   serve: Object.freeze({ src: "serve2", times: {"carica":23,"alto":23.267,"impatto":23.7,"fine":24}, tC: 2.529628, kind: "serve", hold: 0.4, prep: 1.25, rise: 0.397, up: 0.279, acc: 0.3, contact: 2.626, dMin: 0.27, dMax: 0.27, fin: 0.355, back: 2, backFlat: 0.3, cycle: 5.651, riseWrist: 0.15, lag: LAG,
     P: { tau: -16.46, lat: 3.3, y: 0.02, p: -64.8, e: 15.94, r: 5.32, b: 95.32, pro: 63.32, fl: -19.39, dv: -20.2 },
     U: { tau: -35.9, lat: 4.1, y: 0.022, p: 76.35, e: 83.32, r: 3.58, b: 112.59, pro: 146.74, fl: -10.73, dv: -15.1 },
     C: { tau: -23.9, lat: -0.5, y: 0.007, p: 54.69, e: 113.98, r: -26.4, b: 105.9, pro: 70.17, fl: -23.97, dv: -21.44 },
     F: { tau: 6.7, lat: -4.3, y: 0.016, p: 78.44, e: 28.3, r: 40.84, b: 102.3, pro: 14.76, fl: -25.81, dv: -5.83 } }),
-  flat: Object.freeze({ src: "flat", tC: 2.041118, contact: 2.005, cycle: 3.98, prep: 1.655, acc: 0.091, crisp: 1, dMin: 0.08, dMax: 0.18, back: 1.379, backFlat: 0.3, lag: {tau: 0.04,lat: 0.04,y: 0.04,p: 0.02,e: 0.02,r: 0.008}, jt: {tau: {dMax: 0.3,acc: 0.127,lag: 0.041},lat: {dMax: 0.3,pre: 0.25},y: {dMax: 0.3,pre: 0.3},p: {dMax: 0.28,lag: 0.038,acc: 0.101},e: {dMax: 0.28,lag: 0.021},r: {lag: 0.014},b: {lag: 0.041},pro: {lag: -0.011}},
-    B: { tau: -39.25, lat: 7, y: -0.13, p: -5.9, e: 47.04, r: 21.84, b: 70.49, pro: 11.5, fl: 35.78, dv: -29 },
-    C: { tau: 7.38, lat: 5, y: -0.1, p: 17.76, e: 31.45, r: 25.14, b: 62.9, pro: 5.71, fl: 55.38, dv: -20.4 },
-    F: { tau: 36.11, lat: -3, y: 0, p: 76.63, e: 74.74, r: 44.31, b: 71.41, pro: 6.25, fl: 70.89, dv: -1.86 } }),
+  flat: Object.freeze({ src: "flat", tC: 2.195982, contact: 2.16, cycle: 3.71, prep: 1.81, acc: 0.091, crisp: 1, dMin: 0.08, dMax: 0.18, back: 0.954, backFlat: 0.3, lag: {tau: 0.04,lat: 0.04,y: 0.04,p: 0.02,e: 0.02,r: 0.008}, jt: {tau: {dMax: 0.3,acc: 0.127,lag: 0.041},lat: {dMax: 0.3,pre: 0.25},y: {dMax: 0.3,pre: 0.3},p: {dMax: 0.28,lag: 0.038,acc: 0.101},e: {dMax: 0.28,lag: 0.021},r: {lag: 0.014},b: {lag: 0.041},pro: {lag: -0.011}},
+    B: { tau: -43.6, lat: 7, y: -0.13, p: -2.46, e: 47.76, r: 24.99, b: 70.97, pro: 1, fl: 36.01, dv: -11.59 },
+    C: { tau: 5.31, lat: 5, y: -0.1, p: 16.72, e: 31.96, r: 19.28, b: 63.06, pro: 1, fl: 53.65, dv: -14.89 },
+    F: { tau: 30.27, lat: -3, y: 0, p: 77.49, e: 72.43, r: 47.75, b: 78.4, pro: 1, fl: 70.57, dv: 15.94 } }),
   lob: Object.freeze({ src: "lob", tC: 3.155312, contact: 3.147, cycle: 5.968, prep: 2.777, acc: 0.155, crisp: 1, dMin: 0.12, dMax: 0.24, back: 2.271, backFlat: 0.3, lag: {tau: 0.03,lat: 0.03,y: 0.03,p: 0.015,e: 0.015,r: 0.01}, jt: {b: {pre: 0.2},fl: {pre: 0.2},pro: {pre: 0.2},e: {dur: 0.45},tau: {dur: 0.6},lat: {pre: 0.15},y: {pre: 0.15}},
     B: { tau: -9.68, lat: 5, y: -0.08, p: 79.06, e: 11.09, r: 37.66, b: 32.86, pro: 43.09, fl: 74, dv: -15.45 },
     C: { tau: -0.03, lat: 3, y: -0.05, p: 83.45, e: 41.53, r: 21.83, b: 49.14, pro: 71.76, fl: 26.71, dv: -29 },
@@ -506,10 +517,10 @@ export const CHOREO_VIDEO = Object.freeze({
     B: { tau: -20.35, lat: 8, y: -0.03, p: 113.4, e: 141.38, r: 39.06, b: 65.73, pro: 17.43, fl: -47.75, dv: -23.65 },
     C: { tau: -6.37, lat: 4, y: -0.01, p: 115.58, e: 131.91, r: 46.59, b: 36.71, pro: 22.84, fl: -43.41, dv: 6.09 },
     F: { tau: 26.64, lat: -6.95, y: -0.053, p: 110.27, e: 50.75, r: 32.55, b: 18.06, pro: 21.67, fl: -37.24, dv: 8.23 } }),
-  volley: Object.freeze({ src: "volley", tC: 1.3205, contact: 1.285, cycle: 2.413, prep: 0.885, acc: 0.098, crisp: 1, dMin: 0.08, dMax: 0.13, back: 0.628, backFlat: 0.3, lag: {tau: 0.03,lat: 0.03,y: 0.03,p: 0.015,e: 0.015,r: 0.008}, jt: {tau: {lag: 0.038},p: {lag: 0.042},e: {lag: 0},r: {lag: -0.004},b: {lag: 0.033},pro: {lag: -0.007}},
-    B: { tau: -22.46, lat: 2, y: -0.04, p: 23.94, e: 25.07, r: 53.06, b: 81.03, pro: 51.06, fl: 10.9, dv: -27.57 },
-    C: { tau: 6.72, lat: 1, y: -0.04, p: 79.23, e: 46.88, r: 32.38, b: 51.44, pro: 47.03, fl: 61.64, dv: -27.12 },
-    F: { tau: 17.01, lat: 0, y: -0.03, p: 106.59, e: 63.97, r: 37.26, b: 24.1, pro: 21.48, fl: 70.94, dv: -25.61 } }),
+  volley: Object.freeze({ src: "volley", tC: 1.539384, contact: 1.502, cycle: 2.502, prep: 1.102, acc: 0.098, crisp: 1, dMin: 0.08, dMax: 0.13, back: 0.5, backFlat: 0.3, lag: {tau: 0.03,lat: 0.03,y: 0.03,p: 0.015,e: 0.015,r: 0.008}, jt: {tau: {lag: 0.038},p: {lag: 0.042},e: {lag: 0},r: {lag: -0.004},b: {lag: 0.033},pro: {lag: -0.007}},
+    B: { tau: -16.53, lat: 2, y: -0.04, p: 26.12, e: 26.61, r: 51.44, b: 82.59, pro: 33.69, fl: 14.28, dv: -23.95 },
+    C: { tau: 8.17, lat: 1, y: -0.04, p: 75.57, e: 44.36, r: 30.94, b: 48.39, pro: 46.39, fl: 61.64, dv: -29 },
+    F: { tau: 19.04, lat: 0, y: -0.03, p: 106.4, e: 61.64, r: 33.82, b: 25.44, pro: 27.1, fl: 70.59, dv: -27.03 } }),
 });
 // --- fine del generato ---
 
@@ -521,7 +532,7 @@ export const CHOREO_VIDEO = Object.freeze({
 export const AIM_TURN = Object.freeze({ line: Object.freeze({ tau: -10, r: -6 }) });
 // mira con il dritto dai dati (B17.1): tutto il corpo girato attorno alla verticale, incrociato verso sinistra, lungolinea
 // verso destra (il dritto campionato ha il contatto davanti e lo schermo verso la rete: basta girarlo)
-export const AIM_TURN_VIDEO = Object.freeze({ cross: Object.freeze({ tau: 1.81, r: -1.36, pro: 6.18, fl: 3.91 }), line: Object.freeze({ tau: -1.7, r: 0.59, pro: -2.59, fl: -12.75 }) });
+export const AIM_TURN_VIDEO = Object.freeze({ cross: Object.freeze({ tau: 1.74, r: 2.78, pro: 9.72, fl: 2.7 }), line: Object.freeze({ tau: -1.7, r: 0.59, pro: -2.59, fl: -12.75 }) });
 // Schede che, con la presa a racchetta, usano l'insieme 'video' (CHOREO_VIDEO e partenza REST_VIDEO; B17.1 passo B2): tutte
 // tranne la «Presa» (REST_RACCHETTA). Tutte lette come il colpo mostrato dal telefono simulato (test natpf-gesture-pose).
 export const VIDEO_CARDS = Object.freeze(['ready', 'forehand', 'backhand', 'flat', 'lob', 'drop', 'slice', 'smash', 'volley', 'serve', 'cross', 'line', 'sliceBackhand']);
@@ -611,10 +622,10 @@ export const CAMERAS = Object.freeze({
 // il più a lungo possibile nel colpo, avambraccio ≥ 28° dal raggio visivo, telefono dentro lo stadio.
 export const CAMERAS_VIDEO = Object.freeze({
   forehand: Object.freeze({ dir: [-.863, .087, -.498], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .65, mixSmall: .8, size: .37 }), frame: 'swing', read: 'dall\u2019anca destra il braccio si distende di lato, arco orizzontale da destra a sinistra, fine davanti al viso con lo schermo verso di te' }),
-  cross: Object.freeze({ dir: [-.863, .087, -.498], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .65, mixSmall: .8, size: .37 }), frame: 'swing', read: 'come il dritto, tutto il corpo girato verso il centro' }),
-  line: Object.freeze({ dir: [-.863, .087, -.498], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .65, mixSmall: .8, size: .37 }), frame: 'swing', read: 'come il dritto, tutto il corpo girato verso l\u2019esterno' }),
-  backhand: Object.freeze({ dir: [-.612, .707, .354], dist: 3.6, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .36 }), frame: 'swing', read: 'due mani sul telefono, dall\u2019anca sinistra in alto sopra la spalla destra' }),
-  slice: Object.freeze({ dir: [-.704, .087, -.704], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla destra in basso in diagonale, schermo che si apre verso l\u2019alto' }),
+  cross: Object.freeze({ dir: [-.863, .087, -.498], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .65, mixSmall: .8, size: .37 }), frame: 'swing', read: 'come il dritto, con il polso girato: cima e schermo verso il centro' }),
+  line: Object.freeze({ dir: [-.863, .087, -.498], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .65, mixSmall: .8, size: .37 }), frame: 'swing', read: 'come il dritto, con il polso piegato indietro: cima e schermo verso l\u2019esterno' }),
+  backhand: Object.freeze({ dir: [-.627, .643, .44], dist: 3.6, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .36 }), frame: 'swing', read: 'due mani sul telefono, dall\u2019anca sinistra in alto sopra la spalla destra' }),
+  slice: Object.freeze({ dir: [-.07, -.035, -.997], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla destra in basso in diagonale, schermo che si apre verso l\u2019alto' }),
   sliceBackhand: Object.freeze({ dir: [.483, .259, -.837], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla sinistra in basso a destra, schermo che si apre' }),
   serve: Object.freeze({ dir: [.612, .707, -.354], dist: 3, mirror: true, follow: Object.freeze({ window: .3, mix: .8, size: .5 }), read: 'la sinistra lancia, il telefono sale sopra la testa, battuta e discesa davanti al corpo' }),
   // schede che il video non mostra, con la partenza del video (passo B2): la camera di oggi (CAMERAS) girata dove la carica
@@ -656,6 +667,7 @@ const integral = (f, a, b, step = 1/1200) => { let s = 0; for (let t = a; t < b 
 function withAim(J, aim){ if (!aim) return J; const o = { ...J }; for (const k of JOINTS) if (aim[k]) o[k] = J[k] + aim[k]; return o; }
 function strokeTracks(c, tC, aim, R = REST){
   const B = withAim({ ...R, ...c.B }, aim), C = withAim({ ...R, ...c.C }, aim), F = withAim({ ...R, ...c.F }, aim);
+  const F2 = c.F2 && c.slow > 0 ? withAim({ ...R, ...c.F2 }, aim) : null;
   const info = {};
   let tf = tC;
   for (const k of JOINTS){
@@ -664,8 +676,14 @@ function strokeTracks(c, tC, aim, R = REST){
     info[k] = { t0, tc, tf: tc + f.d, vc: f.vc, acc };
     tf = Math.max(tf, tc + f.d);
   }
-  return { R, B, C, F, info, tf };
+  return { R, B, C, F, F2, info, tf };
 }
+// Proseguimento lento dopo la frenata (B17.1, correzioni del passo B2: tagliato «in discesa lunga», fine alta del rovescio a
+// due mani): F → F2 in `slow` s, senza fermarsi in F. Ogni articolazione arriva in F con la velocità SLOW_V·(F2 − F)/durata
+// (stesso verso della frenata) e da lì scende a zero in modo monotono (quintico con accelerazione nulla agli estremi: con
+// SLOW_V ≥ 5/3 la velocità non risale mai), così la mano frena una volta sola. Un'articolazione che in F2 tornerebbe
+// indietro rispetto alla frenata si ferma in F e riparte (il test della frenata unica se ne accorge).
+const SLOW_V = 1.875;
 function buildStroke(id, c, R = REST){
   const g = GESTURES[id], ms = g.stroke.ms/1000, aim = c.aim || null;
   // tC: istante nominale (articolazioni senza ritardo); si sposta finché il picco misurato cade in c.contact
@@ -676,7 +694,8 @@ function buildStroke(id, c, R = REST){
     if (hold < .06) throw new Error(`${id}: fermo iniziale ${hold.toFixed(3)} s`);
     T = { hold, nominal: tC };
     // fin: fermo nella posa finale (B17.1: l'utente tiene la fine del colpo 0,2–0,4 s) prima del ritorno
-    const back0 = X.tf + (c.fin || 0), tracks = {};
+    const T2 = X.tf + (X.F2 ? c.slow : 0), back0 = T2 + (c.fin || 0), tracks = {};
+    T.fastEnd = X.tf;
     for (const k of JOINTS){
       const i = X.info[k], r = X.R[k], b = X.B[k], cc = X.C[k], f = X.F[k], tp = i.t0 - hold;
       if (tp < .05) throw new Error(`${id}: carica di ${k} di ${tp.toFixed(3)} s`);
@@ -698,8 +717,10 @@ function buildStroke(id, c, R = REST){
         continue;
       }
       const v = pre ? {} : reversal(r, b, cc, dur, i.acc, c.crisp || 0);
+      const f2 = X.F2 ? X.F2[k] : f, vk = X.F2 && (f - cc)*(f2 - f) > 0 ? SLOW_V*(f2 - f)/(T2 - i.tf) : 0;
       tracks[k] = { i, knots: [{ t: 0, x: r }, { t: hold, x: r }, ...(from > hold + 1e-9 ? [{ t: from, x: r }] : []),
-        ...(pre ? [{ t: i.t0 - pre, x: b }] : []), { t: i.t0, x: b, ...v }, { t: i.tc, x: cc, v: i.vc }, { t: i.tf, x: f }, { t: back0, x: f }] };
+        ...(pre ? [{ t: i.t0 - pre, x: b }] : []), { t: i.t0, x: b, ...v }, { t: i.tc, x: cc, v: i.vc }, { t: i.tf, x: f, v: vk },
+        ...(X.F2 ? [{ t: T2, x: f2 }] : []), { t: back0, x: f2 }] };
       tracks[k].f = makeTrack(tracks[k].knots);
     }
     T.tf = back0;
@@ -1085,14 +1106,24 @@ function tossHand(P, t){
   return H.hip;
 }
 // rovescio a due mani (B17.1): la mano libera copre la destra sul telefono (riferimento del telefono, m)
-const TWO_HANDS = Object.freeze([0, -.045, -.055]);
-// posizione della mano libera (m, campo) al tempo t: lancio del servizio dai dati, seconda mano del rovescio a due mani;
-// null quando la mano libera non fa parte del gesto (il disegno decide da sé)
+export const TWO_HANDS = Object.freeze([0, -.045, -.055]);
+// mano libera a riposo (riferimento del busto, dal bacino, m): braccio rilassato lungo il fianco sinistro, quasi disteso,
+// come nel video (posa ferma 9,4–9,7 s e colpi); prima era la mano sul fianco con il gomito in fuori
+export const FREE_REST = Object.freeze([-.22, -.10, -.04]);
+export const freeRestOf = ch => add(ch.pelvis, qrot(ch.trunk, FREE_REST));
+// posizione della mano libera (m, campo) al tempo t: lancio del servizio dai dati, seconda mano del rovescio a due mani
+// (dalla seconda metà della carica la sinistra raggiunge il telefono, ci resta fino alla fine dell'accompagnamento e lo
+// lascia nella prima metà del ritorno, come nel video: due mani dalla carica alla fine); null quando la mano libera non fa
+// parte del gesto (il disegno la mette a riposo, FREE_REST)
 export function gestureFreeHand(id, t, { hand = 'right', grip = GRIP_STYLE, set = undefined } = {}){
   const P = gesturePlan(id, { grip, set }), tt = wrapT(P, t);
   let p = null;
   if (P.freeToss) p = tossHand(P, tt);
-  else if (GESTURES[id]?.twoHanded && P.set === 'video'){ const r = P.raw(tt); p = add(r.pos, qrot(r.q, TWO_HANDS)); }
+  else if (GESTURES[id]?.twoHanded && P.set === 'video' && P.kind === 'stroke'){
+    const T = P.T, a = T.inv - .5*(T.inv - T.hold), b = T.back + .5*(T.home - T.back);
+    const u = tt <= a || tt >= b ? 0 : tt < T.inv ? mj((tt - a)/(T.inv - a)) : tt <= T.back ? 1 : mj((b - tt)/(b - T.back));
+    if (u > 0){ const r = P.raw(tt), on = add(r.pos, qrot(r.q, TWO_HANDS)); p = u >= 1 ? on : lerp(freeRestOf(r.chain), on, u); }
+  }
   return p && hand === 'left' ? mirrorPos(p) : p;
 }
 const inFreeHand = P => t => add(tossHand(P, t), [0, BALL_R + .01, 0]);

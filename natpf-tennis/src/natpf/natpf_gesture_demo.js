@@ -20,7 +20,7 @@
 // niente busto né braccio). Senza canvas 2D (Node, test) available è false e chi la usa mostra la figura statica della
 // presa. Si disegna solo quando il canvas si vede.
 import { GESTURES, GRIP_STYLE } from './natpf_gesture_motion.js';
-import { gesturePose, gesturePlan, gestureBall, gestureContactPoint, gestureFreeHand, CAMERAS, camSpec, BODY, ARM as ARM_, HAND, HAND_LOCAL, HAND_LOCAL_MARTELLO, HAND_RACCHETTA, HAND_LOCAL_RACCHETTA, ARM, FOREARM_PROFILE,
+import { gesturePose, gesturePlan, gestureBall, gestureContactPoint, gestureFreeHand, freeRestOf, CAMERAS, camSpec, BODY, ARM as ARM_, HAND, HAND_LOCAL, HAND_LOCAL_MARTELLO, HAND_RACCHETTA, HAND_LOCAL_RACCHETTA, ARM, FOREARM_PROFILE,
   UPPER_PROFILE, BAND, PHONE, BALL_R, add, sub, mul, dot, cross, len, norm, qrot, qslerp, mirrorPos, mirrorPose, D } from './natpf_gesture_pose.js';
 export { HAND_MARTELLO } from './natpf_gesture_pose.js';
 
@@ -184,7 +184,7 @@ function drawBody(c, B, st){
 export function freeArm(pose, free){
   const ch = pose.chain; if (!ch) return null;
   const B = bodyOf(ch), S = B.shoulderL;
-  let Wf = free || add(ch.pelvis, qrot(ch.trunk, [-.25, -.03, -.07]));
+  let Wf = free || freeRestOf(ch);
   let d = sub(Wf, S), L = len(d); const Lmax = ARM_.upper + ARM_.fore - .01;
   if (L > Lmax){ d = mul(d, Lmax/L); Wf = add(S, d); L = Lmax; }
   if (L < .08){ Wf = add(S, [-.0, -.08, 0]); d = sub(Wf, S); L = .08; }
@@ -1403,9 +1403,9 @@ export class NatpfGestureDemo {
     const T = v => add(pose.pos, qrot(pose.q, v)), mirror = !!cam.mirror;
     const a = cam.view, palm = this.grip === 'palmo', racket = this.grip === 'racchetta';
     const notesA = [
-      { X: rig.thumb.pts[2], text: racket || palm ? 'Pollice lungo il bordo' : 'Pollice chiuso sul bordo', dx: 1, dy: -.45 },
+      { X: rig.thumb.pts[2], text: racket ? 'Pollice in alto, lungo il bordo' : palm ? 'Pollice lungo il bordo' : 'Pollice chiuso sul bordo', dx: 1, dy: -.45 },
       { X: rig.fingers[1].pts[3], text: racket ? 'Dita sotto, attorno al bordo' : palm ? 'Dita sul bordo, non sullo schermo' : 'Dita attorno alla parte bassa', dx: -1, dy: .4 },
-      { X: T([0, .035, HD]), text: racket ? 'Schermo verso lo schermo di gioco' : palm ? 'Schermo verso di te' : 'Display di lato', dx: -1, dy: -.7 },
+      { X: T([0, .035, HD]), text: racket ? 'Schermo verso l\u2019interno' : palm ? 'Schermo verso di te' : 'Display di lato', dx: -1, dy: -.7 },
     ];
     const notesB = [
       { X: rig.heel[2].p, text: racket ? 'Disteso nel palmo, lungo l\u2019avambraccio' : palm ? 'Dorso del telefono nel palmo' : 'Come il manico di un martello', dx: 1, dy: .5 },

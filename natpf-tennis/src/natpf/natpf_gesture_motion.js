@@ -22,10 +22,11 @@ export const GRIP_TILT = 80;     // gradi: cima del telefono in avanti dalla ver
 // palmo, quattro dita attorno al bordo lungo inferiore, pollice disteso lungo il bordo lungo superiore, polso dritto. È
 // definita nel riferimento della MANO della catena (natpf_gesture_pose.PHONE_IN_HAND_RACCHETTA: dal passo B2 la presa
 // MISURATA nei colpi del video; `cock` resta per l'alternativa delle foto PHONE_IN_HAND_FOTO); `euler` è la posa nel campo
-// che ne risulta nella posa della scheda «Presa» REST_RACCHETTA (primo piano del video: mano davanti al petto, schermo verso
-// lo schermo di gioco, cima verso la sinistra di chi gioca), verificata dal test natpf-gesture-physics (scarto < 0,01°)
+// che ne risulta nella posa della scheda «Presa» REST_RACCHETTA (come nelle foto: gomito al fianco, telefono lungo
+// l'avambraccio, cima in avanti e in alto, pollice in alto, schermo verso l'interno), verificata dal test
+// natpf-gesture-physics (scarto < 0,01°)
 export const GRIP_POSE = Object.freeze({
-  racchetta: Object.freeze({ cock: 20, euler: [167.052, 11.628, 65.01] }),
+  racchetta: Object.freeze({ cock: 20, euler: [-69.918, -66.694, 0.071] }),
   palmo: Object.freeze({ lean: 35, tilt: 40, euler: [-40, 0, 35] }),
   martello: Object.freeze({ tilt: GRIP_TILT, euler: [-GRIP_TILT, 90, 0] }),
 });
@@ -53,7 +54,10 @@ const S = Object.freeze({
 const GRIP_CUES = Object.freeze({
   // posizione di partenza come nel video dell'utente (B17.1 passo B2, REST_VIDEO): braccio che pende, mano all'anca destra
   racchetta: { ready: ['Braccio rilassato lungo il fianco, mano all’anca', 'Telefono lungo l’avambraccio, cima in avanti e in basso', 'Pollice in avanti, schermo verso la gamba'],
-    grip: ['Telefono disteso nel palmo, cima in avanti', 'Dita sotto, attorno al bordo', 'Pollice lungo il bordo, schermo verso lo schermo di gioco'] },
+    // le prime due concordate con l'utente (docs/b17/presa-foto.md); la terza diceva «schermo verso lo schermo di gioco»: con la
+    // presa MISURATA nel video (decisione del 09/11 sera) e il telefono in avanti lungo l'avambraccio lo schermo guarda verso
+    // l'interno (docs/b17/ottimizzazione.md §1; verso lo schermo di gioco va all'impatto dei colpi)
+    grip: ['Telefono disteso nel palmo, cima in avanti', 'Dita sotto, attorno al bordo', 'Pollice in alto lungo il bordo, schermo verso l’interno'] },
   palmo: { ready: ['Il telefono nel palmo, schermo verso di te', 'Cima in avanti e un poco verso l’interno', 'Braccio rilassato, di fronte allo schermo'],
     grip: ['Nel palmo, le dita attorno alla parte bassa', 'Pollice sul bordo, lontano dallo schermo', 'Cima in avanti, verso lo schermo'] },
   martello: { ready: ['Il telefono nel pugno, come un martello', 'Cima in avanti, display di lato', 'Braccio rilassato, di fronte allo schermo'],
@@ -67,7 +71,9 @@ export const GESTURES = Object.freeze({
   grip: { id: 'grip', label: 'Impugnatura', still: true, turntable: true, cues: GRIP_CUES[GRIP_STYLE].grip },
   forehand: { id: 'forehand', label: 'Dritto', stroke: S.forehand, ball: 'ground', expect: { shot: ['topspin'], side: 'forehand' },
     cues: ['Rotazione attorno a te, in orizzontale', 'Dall’esterno verso il corpo', 'Un poco dal basso verso l’alto'] },
-  backhand: { id: 'backhand', label: 'Rovescio', stroke: S.backhand, ball: 'ground', expect: { shot: ['topspin'], side: 'backhand' },
+  // twoHanded: rovescio a due mani come nel video dell'utente (B17.1): con le coreografie del video la mano libera è disegnata
+  // sul telefono dalla carica alla fine (natpf_gesture_pose.gestureFreeHand). Solo disegno: il riconoscimento non lo legge
+  backhand: { id: 'backhand', label: 'Rovescio', stroke: S.backhand, ball: 'ground', twoHanded: true, expect: { shot: ['topspin'], side: 'backhand' },
     cues: ['Rotazione orizzontale, verso opposto', 'Parti da davanti al corpo', 'Chiudi verso l’esterno'] },
   flat: { id: 'flat', label: 'Colpo piatto', stroke: S.flat, ball: 'ground', expect: { shot: ['flat'], side: 'forehand' },
     cues: ['Come il dritto, ma più veloce', 'Traiettoria orizzontale', 'Senza alzare la mano'] },

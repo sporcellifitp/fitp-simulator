@@ -182,8 +182,9 @@ test('schede del tutorial a specchio: il mancino legge dalla sua animazione lo s
       assert.equal(r.read.length, 1, `${tag}: ${r.read.length} colpi`);
       // (B17.1 passo B2: palla corta e schiacciata della racchetta con la calibrazione dell'animazione, salita dell'intenzione
       // −0,446 / −0,464 e −0,149 / −0,169: 0,018–0,020 di scarto dal rumore del telefono simulato, misurato; ammesso 0,025 solo lì;
-      // incrociato dal dritto del video: mira del piatto −0,557 / +0,471, come il lungolinea già ammesso fino a 0,12)
-      compareRead(r.read[0], l.read[0], tag, { aimTol: grip === 'racchetta' && ['line', 'cross'].includes(id) && cal === 'pose' ? .12 : undefined, riseTol: grip === 'racchetta' && ['drop', 'smash'].includes(id) && cal === 'pose' ? .025 : undefined });
+      // incrociato dal dritto del video: mira del piatto −0,557 / +0,471, come il lungolinea già ammesso fino a 0,12; correzioni
+      // della revisione: tagliato di dritto con la discesa lunga, salita −0,778 / −0,767, 0,011 di scarto, ammesso 0,025 anche lì)
+      compareRead(r.read[0], l.read[0], tag, { aimTol: grip === 'racchetta' && ['line', 'cross'].includes(id) && cal === 'pose' ? .12 : undefined, riseTol: grip === 'racchetta' && ['drop', 'smash', 'slice'].includes(id) && cal === 'pose' ? .025 : undefined });
       if (['cross', 'line'].includes(id)) assert.ok(r.read[0].ev.natpf.wrist*(id === 'cross' ? -1 : 1) > .4, `${tag}: mira del destro ${r.read[0].ev.natpf.wrist}`);
     }
   }

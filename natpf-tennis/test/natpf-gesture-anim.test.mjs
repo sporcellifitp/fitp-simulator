@@ -202,6 +202,39 @@ test('il disegno usa la posa di demo.pose (= gesturePose): scheletro disegnato u
   } finally { dom.restore(); }
 });
 
+// B17.1 (correzioni del passo B2): il rovescio del video è a DUE mani (decisione dell'utente: «due mani nel rovescio»): dalla
+// carica alla fine dell'accompagnamento la mano libera disegnata è sul telefono (prima restava sul fianco per tutto il colpo:
+// GESTURES.backhand.twoHanded non era definito); fuori dal colpo il braccio libero pende rilassato lungo il fianco
+test('rovescio a due mani: dalla carica alla fine la mano libera è sul telefono (≤ 8 cm), destro e mancino; a riposo il braccio libero pende', () => {
+  const dom = fakeDom();
+  try {
+    const d = new NatpfGestureDemo({ width: 640, height: 400 });
+    d.grip = 'racchetta';
+    for (const hand of HANDS){
+      d.play('backhand', { hand, set: 'video' }); d.stop();
+      const T = GP.gesturePlan('backhand', { grip: 'racchetta', set: 'video' }).T;
+      let n = 0;
+      for (let t = T.inv; t <= T.back + 1e-9; t += 1/60){
+        d.show(t);
+        const A = d.info.freeArm, R = hand === 'left' ? GP.mirrorPose(d.info.pose) : d.info.pose;
+        assert.ok(A?.busy, `${hand} ${t.toFixed(3)}: mano libera non impegnata`);
+        const gap = GP.len(GP.sub(A.W, R.pos));
+        assert.ok(gap < .08, `${hand} ${t.toFixed(3)}: mano libera a ${gap.toFixed(3)} m dal telefono`);
+        n++;
+      }
+      assert.ok(n > 20);
+      // posizione di partenza: braccio libero rilassato (quasi disteso, mano sotto il bacino di lato), non sul fianco
+      d.show(.1);
+      const A = d.info.freeArm, ch = d.info.pose.chain, R = hand === 'left' ? GP.mirrorPose(d.info.pose) : d.info.pose;
+      assert.equal(A.busy, false);
+      const reach = GP.len(GP.sub(A.W, A.S));
+      assert.ok(reach > .5, `braccio libero a riposo piegato (${reach.toFixed(3)} m dalla spalla)`);
+      assert.ok(A.W[1] < R.chain.pelvis[1] - .05, 'mano libera a riposo non sotto il bacino');
+      assert.ok(ch);
+    }
+  } finally { dom.restore(); }
+});
+
 // B13 (correzioni dopo le revisioni): dritto, piatto, rovescio, incrociato e lungolinea hanno la camera che segue la mano
 // (il braccio percorre più di quanto la metà dello schermo inquadra). Lì l'etichetta deve restare attaccata al suo
 // fantasma: si misura la sua posizione rispetto alla proiezione del telefono del fantasma (con la camera ferma è la stessa
