@@ -4,7 +4,7 @@
 //
 //   ffmpeg -i gesti-video.mp4 -vf scale=540:960 -q:v 2 -start_number 0 frames/f%04d.jpg
 //   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/video/estrai-posa.mjs --frames=<cartella> --out=<file.json>
-//        [--from=0 --to=1280] [--pose=2] [--hands=1]
+//        [--from=0 --to=1280 | --ranges=30-150,225-360] [--pose=2] [--hands=1] [--port=9671]
 //
 // Uscita (JSON): per fotogramma i 33 punti di Pose (x, y in pixel dell'immagine; z e visibilità di MediaPipe) e i punti
 // «mondo» (m, origine tra le anche), le mani (21 punti, lato dichiarato dal modello, punteggio), e il telefono visto
@@ -23,7 +23,10 @@ const { chromium } = createRequire(path.resolve(GAME, '../tools/e2e/package.json
 const arg = (k, d) => { const a = process.argv.find(x => x.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : d; };
 const FRAMES = path.resolve(arg('frames', '')), OUT = path.resolve(arg('out', 'posa.json'));
 const FROM = +arg('from', 0), TO = +arg('to', 1e9), POSE_CX = +arg('pose', 2), HANDS_CX = +arg('hands', 1), PORT = +arg('port', 9671);
-const files = fs.readdirSync(FRAMES).filter(f => /^f\d+\.jpg$/.test(f)).sort().filter(f => { const n = +f.slice(1, -4); return n >= FROM && n <= TO; });
+// --ranges=30-150,225-360: più tratti di fotogrammi (indici inclusi) nello stesso processo; senza, --from/--to
+const RANGES = arg('ranges', '').split(',').filter(Boolean).map(r => r.split('-').map(Number));
+const inRange = n => RANGES.length ? RANGES.some(([a, b]) => n >= a && n <= b) : n >= FROM && n <= TO;
+const files = fs.readdirSync(FRAMES).filter(f => /^f\d+\.jpg$/.test(f)).sort().filter(f => inRange(+f.slice(1, -4)));
 if (!files.length) throw new Error('nessun fotogramma in ' + FRAMES);
 
 const MIME = { '.js': 'text/javascript', '.wasm': 'application/wasm', '.data': 'application/octet-stream', '.tflite': 'application/octet-stream', '.binarypb': 'application/octet-stream', '.jpg': 'image/jpeg', '.html': 'text/html', '.json': 'application/json' };
