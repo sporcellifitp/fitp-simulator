@@ -71,9 +71,10 @@ export const GESTURES = Object.freeze({
   grip: { id: 'grip', label: 'Impugnatura', still: true, turntable: true, cues: GRIP_CUES[GRIP_STYLE].grip },
   forehand: { id: 'forehand', label: 'Dritto', stroke: S.forehand, ball: 'ground', expect: { shot: ['topspin'], side: 'forehand' },
     cues: ['Rotazione attorno a te, in orizzontale', 'Dall’esterno verso il corpo', 'Un poco dal basso verso l’alto'] },
-  // twoHanded: rovescio a due mani come nel video dell'utente (B17.1): con le coreografie del video la mano libera è disegnata
-  // sul telefono dalla carica alla fine (natpf_gesture_pose.gestureFreeHand). Solo disegno: il riconoscimento non lo legge
-  backhand: { id: 'backhand', label: 'Rovescio', stroke: S.backhand, ball: 'ground', twoHanded: true, expect: { shot: ['topspin'], side: 'backhand' },
+  // balance: rovescio A UNA MANO (B17.1 passo B3, decisione dell'utente del 09/11 notte: «Per il rovescio, a una mano»; prima
+  // a due mani come nel video): la mano libera non tocca il telefono, dalla carica si apre dietro e di lato per l'equilibrio
+  // (natpf_gesture_pose.gestureFreeHand). Solo disegno: il riconoscimento non lo legge
+  backhand: { id: 'backhand', label: 'Rovescio', stroke: S.backhand, ball: 'ground', balance: true, expect: { shot: ['topspin'], side: 'backhand' },
     cues: ['Rotazione orizzontale, verso opposto', 'Parti da davanti al corpo', 'Chiudi verso l’esterno'] },
   flat: { id: 'flat', label: 'Colpo piatto', stroke: S.flat, ball: 'ground', expect: { shot: ['flat'], side: 'forehand' },
     cues: ['Come il dritto, ma più veloce', 'Traiettoria orizzontale', 'Senza alzare la mano'] },

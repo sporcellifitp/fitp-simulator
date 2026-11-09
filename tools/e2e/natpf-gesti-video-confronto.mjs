@@ -40,7 +40,7 @@ check('fotogrammi del video disponibili (FRAMES)', !!FRAMES && existsSync(path.j
 // colpi confrontati: scheda dell'animazione ↔ tratto del video; i tempi del video dal json
 const STROKES = (process.env.IDS ? process.env.IDS.split(',') : ['forehand', 'backhand', 'serve', 'slice', 'sliceBackhand']).map(id => ({
   id, src: { forehand: 'forehand', backhand: 'backhand', serve: 'serve2', slice: 'slice2', sliceBackhand: 'slice1' }[id],
-  title: { forehand: 'Dritto', backhand: 'Rovescio a due mani', serve: 'Servizio', slice: 'Tagliato di dritto', sliceBackhand: 'Tagliato di rovescio' }[id] }));
+  title: { forehand: 'Dritto', backhand: 'Rovescio a una mano', serve: 'Servizio', slice: 'Tagliato di dritto', sliceBackhand: 'Tagliato di rovescio' }[id] }));
 
 const vite = spawn(process.execPath, [path.join(GAME, 'node_modules/vite/bin/vite.js'), '--port', String(GAME_PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: GAME, env: { ...process.env, DISABLE_HMR: 'true' }, stdio: 'pipe' });
 process.on('exit', () => { try { vite.kill(); } catch {} });

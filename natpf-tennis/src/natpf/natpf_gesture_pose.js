@@ -636,7 +636,7 @@ export const CAMERAS_VIDEO = Object.freeze({
   forehand: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .37, arrow: .025 }), frame: 'swing', read: 'dall\u2019anca destra il braccio si distende di lato, arco orizzontale da destra a sinistra, fine davanti al viso con lo schermo verso di te' }),
   cross: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .32, arrow: .012 }), frame: 'swing', read: 'come il dritto, con il polso girato: cima e schermo verso il centro' }),
   line: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .37, arrow: .025 }), frame: 'swing', read: 'come il dritto, con il polso piegato indietro: cima e schermo verso l\u2019esterno' }),
-  backhand: Object.freeze({ dir: [.696, -.174, -.696], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .36 }), frame: 'swing', read: 'due mani sul telefono, dall\u2019anca sinistra in alto sopra la spalla destra' }),
+  backhand: Object.freeze({ dir: [.696, -.174, -.696], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .36 }), frame: 'swing', read: 'a una mano: dall\u2019anca sinistra in alto verso destra, il dorso del telefono verso la palla, il braccio libero si apre dietro' }),
   slice: Object.freeze({ dir: [-.07, -.035, -.997], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla destra in basso in diagonale, schermo che si apre verso l\u2019alto' }),
   sliceBackhand: Object.freeze({ dir: [.483, .259, -.837], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla sinistra in basso a destra, schermo che si apre' }),
   serve: Object.freeze({ dir: [.906, -.174, -.375], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .3, mix: .8, size: .46, arrow: .02 }), read: 'la sinistra lancia, il telefono sale sopra la testa, battuta e discesa davanti al corpo' }),
@@ -1001,6 +1001,18 @@ export function gesturePose(id, t, { hand = 'right', grip = GRIP_STYLE, set = un
   if (rig) out.rig = gestureRig(out, { hand, grip });
   return out;
 }
+// Faccia del telefono che colpisce la palla (B17.1 passo B3, richiesta dell'utente del 09/11 notte: «con il dritto la pallina
+// venga colpita con il display in maniera frontale, il rovescio invece stesso movimento ma con l'altro lato»): +1 = lo SCHERMO
+// (normale +z del telefono) guarda la rete (−z del campo) all'impatto, come il piatto corde; −1 = il DORSO. Dritto e colpi di
+// dritto con lo schermo, rovescio e tagliato di rovescio con il dorso. Mancino: specchio esatto (l'angolo non cambia).
+export const IMPACT_FACE = Object.freeze({ forehand: 1, flat: 1, cross: 1, line: 1, slice: 1, volley: 1, backhand: -1, sliceBackhand: -1 });
+export const IMPACT_MAX = 20;                                     // gradi: limite chiesto (schermo o dorso verso la rete)
+// angolo (gradi) tra la faccia che colpisce (IMPACT_FACE) e la direzione della rete nell'istante del contatto
+export const faceAngleOf = (id, q) => { const n = mul(qrot(q, [0, 0, 1]), IMPACT_FACE[id] || 1); return Math.acos(Math.max(-1, Math.min(1, -n[2])))/D; };
+export function impactFaceAngle(id, { hand = 'right', grip = GRIP_STYLE, set = undefined } = {}){
+  const P = gesturePlan(id, { grip, set });
+  return faceAngleOf(id, rawPose(P, P.contact, hand).q);
+}
 // angoli articolari al tempo t (gradi; y in m): quelli della catena disegnata (uguali per destro e mancino)
 export const gestureJoints = (id, t, o = {}) => gesturePlan(id, o).ang(wrapT(gesturePlan(id, o), t));
 // velocità di rotazione del telefono (°/s) al tempo t e curva di un ciclo (per la banda «Picco = impatto» e la scia)
@@ -1118,24 +1130,31 @@ function tossHand(P, t){
   if (t <= T.back) return lerp(H.up, H.hip, mj((t - tUp)/(T.back - tUp)));
   return H.hip;
 }
-// rovescio a due mani (B17.1): la mano libera copre la destra sul telefono (riferimento del telefono, m)
-export const TWO_HANDS = Object.freeze([0, -.045, -.055]);
 // mano libera a riposo (riferimento del busto, dal bacino, m): braccio rilassato lungo il fianco sinistro, quasi disteso,
 // come nel video (posa ferma 9,4–9,7 s e colpi); prima era la mano sul fianco con il gomito in fuori
 export const FREE_REST = Object.freeze([-.22, -.10, -.04]);
 export const freeRestOf = ch => add(ch.pelvis, qrot(ch.trunk, FREE_REST));
-// posizione della mano libera (m, campo) al tempo t: lancio del servizio dai dati, seconda mano del rovescio a due mani
-// (dalla seconda metà della carica la sinistra raggiunge il telefono, ci resta fino alla fine dell'accompagnamento e lo
-// lascia nella prima metà del ritorno, come nel video: due mani dalla carica alla fine); null quando la mano libera non fa
-// parte del gesto (il disegno la mette a riposo, FREE_REST)
+// rovescio a una mano (B17.1 passo B3, decisione dell'utente: «Per il rovescio, a una mano»): il braccio libero si apre
+// DIETRO e di lato per l'equilibrio, quasi disteso, all'altezza del petto (riferimento del busto, dal bacino, m: +z dietro);
+// nella carica resta rilassata di lato, un poco dietro (FREE_PREP), lontana dal telefono che arriva all'anca sinistra
+export const FREE_BALANCE = Object.freeze([-.42, .18, .30]);
+export const FREE_PREP = Object.freeze([-.24, 0, .08]);
+// posizione della mano libera (m, campo) al tempo t: lancio del servizio dai dati, braccio in equilibrio del rovescio a una
+// mano (dalla seconda metà della carica la sinistra si sposta di lato e un poco dietro, dal contatto si apre dietro fino alla fine
+// dell'accompagnamento e torna a riposo nella prima metà del ritorno); null quando la mano libera non fa parte del gesto
+// (il disegno la mette a riposo, FREE_REST)
 export function gestureFreeHand(id, t, { hand = 'right', grip = GRIP_STYLE, set = undefined } = {}){
   const P = gesturePlan(id, { grip, set }), tt = wrapT(P, t);
   let p = null;
   if (P.freeToss) p = tossHand(P, tt);
-  else if (GESTURES[id]?.twoHanded && P.set === 'video' && P.kind === 'stroke'){
-    const T = P.T, a = T.inv - .5*(T.inv - T.hold), b = T.back + .5*(T.home - T.back);
-    const u = tt <= a || tt >= b ? 0 : tt < T.inv ? mj((tt - a)/(T.inv - a)) : tt <= T.back ? 1 : mj((b - tt)/(b - T.back));
-    if (u > 0){ const r = P.raw(tt), on = add(r.pos, qrot(r.q, TWO_HANDS)); p = u >= 1 ? on : lerp(freeRestOf(r.chain), on, u); }
+  else if (GESTURES[id]?.balance && P.set === 'video' && P.kind === 'stroke'){
+    const T = P.T, a = T.inv - .5*(T.inv - T.hold), c = P.contact, o = Math.min(T.back, c + .25), b = T.back + .5*(T.home - T.back);
+    if (tt > a && tt < b){
+      const ch = P.raw(tt).chain, at = v => add(ch.pelvis, qrot(ch.trunk, v)), rest = FREE_REST;
+      const v = tt < T.inv ? lerp(rest, FREE_PREP, mj((tt - a)/(T.inv - a))) : tt < c ? FREE_PREP : tt < o ? lerp(FREE_PREP, FREE_BALANCE, mj((tt - c)/(o - c)))
+        : tt <= T.back ? FREE_BALANCE : lerp(FREE_BALANCE, rest, mj((tt - T.back)/(b - T.back)));
+      p = at(v);
+    }
   }
   return p && hand === 'left' ? mirrorPos(p) : p;
 }

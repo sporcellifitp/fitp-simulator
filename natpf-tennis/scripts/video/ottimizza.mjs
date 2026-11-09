@@ -34,6 +34,14 @@
 // identica (test natpf-gesture-pose «le soluzioni salvate rifanno CHOREO_VIDEO», soluzioni in scripts/video/soluzioni/).
 // --emit=DIR: stampa CHOREO_VIDEO e AIM_TURN_VIDEO dalle soluzioni di DIR. --presa [--up=20]: risolve la posa della scheda
 // «Presa» (REST_RACCHETTA) con la presa misurata (solvePresa).
+// Passo B3 (richiesta dell'utente del 09/11 notte: dritto con lo SCHERMO verso la palla all'impatto, rovescio a una mano con il
+// DORSO): --impact=20 vincola nel costo l'angolo tra la faccia che colpisce (GP.IMPACT_FACE: schermo per dritto, piatto,
+// incrociato, lungolinea, tagliato di dritto, volée; dorso per rovescio e tagliato di rovescio) e la direzione della rete (−z)
+// nell'istante del contatto (penalità oltre impact − 3°); senza --from la partenza risolve prima le pose chiave B, C, F
+// (impactInit: polso e braccio entro --armd gradi dal video) perché la faccia sia girata già nella posa C, e la scrive nelle
+// opzioni della soluzione (`opts.init`) così che baseFor + decode la rifacciano. --armd=N: scarti del braccio alle pose chiave
+// (12 predefiniti). --mirror: per il rovescio, scarto della mano (al netto del bacino) dallo SPECCHIO del dritto (stessa forma,
+// dalla sinistra verso destra) a tempo normalizzato, pesato come la traiettoria del video.
 import fs from 'node:fs';
 import path from 'node:path';
 import * as GP from '../../src/natpf/natpf_gesture_pose.js';
@@ -53,6 +61,8 @@ const EDGE_MIN = +arg('edgeMin', 30), FORE_MIN = +arg('foreMin', 31);
 const CAP_PREP = +arg('capPrep', 140), DESCENT = arg('descent', null) ? String(arg('descent')).split(',').map(Number) : null;
 // margine della mira: |w| letto ≥ AIM_MARGIN (la soglia di judgeCard è 0,4)
 export const AIM_MARGIN = .5;
+// vincolo d'impatto (passo B3): gradi massimi tra la faccia che colpisce e la rete (null = spento); margine 3°
+const IMPACT = arg('impact', null) != null && arg('impact') !== true ? +arg('impact') : null, IMPACT_MARGIN = 3, MIRROR = !!arg('mirror', false);
 const DATA = JSON.parse(fs.readFileSync(new URL('../../../docs/b17/gesti-video.json', import.meta.url), 'utf8'));
 const { D, JOINTS, JOINT_LIMITS, len, sub, add, mul, dot, norm, qrot, qconj, qmul, omega } = GP;
 const GRIP = 'racchetta';
@@ -97,7 +107,7 @@ export function varsFor(id, base){
     return V;
   }
   for (const K of keysOf(id, !!base.slow)){
-    const AD = K === 'F2' ? (base.f2d || 15) : ARM_D;
+    const AD = K === 'F2' ? (base.f2d || 15) : (+base.armd || ARM_D);
     for (const k of ARMK) V.push({ name: `${K}.d${k}`, lo: -AD, hi: AD, s: 4, x0: 0 });
     for (const k of WRK){ const [lo, hi] = JOINT_LIMITS[k]; V.push({ name: `${K}.${k}`, lo: lo + 1, hi: hi - 1, s: k === 'pro' ? 25 : 12, x0: base[K][k] }); }
   }
@@ -289,7 +299,21 @@ function basePlans(){
   for (const k of ['forehand', 'backhand']) if (!plans[k]) plans[k] = GP.gesturePlan(k, { grip: GRIP, set: 'video' });
   return plans;
 }
-export function evaluate(id, choreo, { plans = basePlans(), stop = 3, also = ALSO, combos = COMBOS, descent = DESCENT, ref = LEGACY_IDS.includes(id) ? legacyRef(id) : videoRef(id) } = {}){
+// faccia all'impatto (passo B3): angolo tra la faccia che colpisce e la rete nell'istante del contatto (posa del destro; il
+// mancino è lo specchio e ha lo stesso angolo)
+export const impactOf = (id, P) => GP.IMPACT_FACE[id] ? GP.faceAngleOf(id, P.raw(P.contact).q) : null;
+// specchio del dritto (passo B3, rovescio a una mano «stesso movimento con l'altro lato»): mano al netto del bacino contro lo
+// specchio (x → −x) di quella del dritto alle pose chiave e a tempo normalizzato tra le pose chiave
+export function mirrorOf(P, F){
+  const KP = keyTimes(P), KF = keyTimes(F), rel = (Q, t) => { const c = Q.raw(t).chain; return sub(c.W, [c.pelvis[0], 0, c.pelvis[2]]); };
+  const m = v => [-v[0], v[1], v[2]], names = ['carica', 'impatto', 'fine'], keys = {};
+  for (const k of names) keys[k] = len(sub(rel(P, KP[k]), m(rel(F, KF[k]))))*100;
+  let sum = 0, n = 0, mx = 0;
+  for (let i = 1; i < names.length; i++) for (let s = 0; s <= 10; s++){ const u = s/10, a = names[i - 1], b = names[i];
+    const d = len(sub(rel(P, KP[a] + (KP[b] - KP[a])*u), m(rel(F, KF[a] + (KF[b] - KF[a])*u))))*100; sum += d; n++; mx = Math.max(mx, d); }
+  return { keys, mean: sum/n, max: mx };
+}
+export function evaluate(id, choreo, { plans = basePlans(), stop = 3, also = ALSO, combos = COMBOS, descent = DESCENT, impact = IMPACT, mirror = MIRROR, ref = LEGACY_IDS.includes(id) ? legacyRef(id) : videoRef(id) } = {}){
   let P;
   try { P = planOf(id, choreo); } catch (e){ return { cost: 1e6, err: e.message }; }
   P.choreo = choreo;
@@ -303,8 +327,12 @@ export function evaluate(id, choreo, { plans = basePlans(), stop = 3, also = ALS
   const margin = reads.reduce((s, r) => s + (r.margin || 0), 0);
   // discesa della mano (--descent=a,b): fine ≤ carica − a e fine ≤ impatto − b (tagliato «in discesa lunga»)
   if (descent && sh?.keys?.fine){ const y = k => sh.keys[k].W[1], e = Math.max(0, y('fine') - (y('carica') - descent[0])) + Math.max(0, y('fine') - (y('impatto') - descent[1])); if (e > 0) phys.push(['discesa', e*100]); }
-  const cost = 50*read + 5*margin + (sh ? shapeCost(sh) : 0) + 30*physCost(phys);
-  return { id, cost, read, margin, nBad: reads.filter(r => r.why.length).length + alsoReads.filter(r => r.why.length).length, reads, alsoReads, phys, shape: sh, P };
+  // faccia all'impatto (--impact): oltre impact − 3° penalità come un vincolo fisico
+  const face = impactOf(id, P);
+  if (impact != null && face != null && face > impact - IMPACT_MARGIN) phys.push(['faccia all\'impatto', (face - impact + IMPACT_MARGIN)/1.5]);
+  const mir = mirror && id !== 'forehand' && plans.forehand ? mirrorOf(P, plans.forehand) : null;
+  const cost = 50*read + 5*margin + (sh ? shapeCost(sh) : 0) + 30*physCost(phys) + (mir ? (mir.mean/8)**2 : 0);
+  return { id, cost, read, margin, face, mirror: mir, nBad: reads.filter(r => r.why.length).length + alsoReads.filter(r => r.why.length).length, reads, alsoReads, phys, shape: sh, P };
 }
 
 /* ---------- partenza: la coreografia del video con la presa misurata ---------- */
@@ -323,12 +351,38 @@ export function rawVideoChoreo(id){
   return out;
 }
 
+/* ---------- partenza con la faccia girata verso la rete (passo B3) ---------- */
+// Pose chiave risolte prima della ricerca: nella posa C la faccia che colpisce (GP.IMPACT_FACE) entro lim − 8° dalla rete,
+// con la mano dove la mette la partenza (scarto pesato 1 cm ≈ 1/4), il gomito vicino (peso basso), il braccio entro ±armd
+// gradi dalla partenza e le articolazioni ≥ 3° dai limiti; in F (e F2) il polso si sposta dello stesso scarto di C (il
+// proseguimento resta quello del video, girato come l'impatto). Restituisce { C, F, (F2) } con gli angoli cambiati.
+export function impactInit(card, base, lim = 20, armd = 12){
+  const C0 = base.C, K = ['tau', 'p', 'e', 'r', 'b', 'pro', 'fl', 'dv'], G = GP.gripInHand(GRIP), ch0 = GP.armChain({ ...GP.REST_VIDEO, ...C0 });
+  const J = x => { const j = { ...GP.REST_VIDEO, ...C0 }; K.forEach((k, i) => j[k] = x[i]); return j; };
+  const f = x => { const j = J(x); let c = 0;
+    for (const k of K){ const [a, b] = JOINT_LIMITS[k]; if (j[k] < a + 3) c += 10*(a + 3 - j[k])**2; if (j[k] > b - 3) c += 10*(j[k] - b + 3)**2;
+      if (!WRK.includes(k)){ const d = Math.abs(j[k] - C0[k]) - armd; if (d > 0) c += 10*d*d; } }
+    const ch = GP.armChain(j), q = qmul(ch.hand, G), a = GP.faceAngleOf(card, q);
+    return c + 4*Math.max(0, a - (lim - 8))**2 + (len(sub(ch.W, ch0.W))*100/2)**2 + .5*(len(sub(ch.E, ch0.E))*100/8)**2; };
+  let best = null;
+  for (const pro of [C0.pro, 10, 60, 110, 160]) for (const fl of [C0.fl, -40, 30]){
+    const r = nelderMead(f, K.map(k => k === 'pro' ? pro : k === 'fl' ? fl : C0[k]), K.map(k => WRK.includes(k) ? 20 : 6), 3000); if (!best || r.f < best.f) best = r; }
+  const j = J(best.x), C = Object.fromEntries(K.map(k => [k, +j[k].toFixed(2)])), out = { C };
+  const shift = (X) => Object.fromEntries(WRK.map(k => { const [a, b] = JOINT_LIMITS[k]; return [k, +Math.min(b - 1, Math.max(a + 1, X[k] + C[k] - C0[k])).toFixed(2)]; }));
+  out.F = { ...shift(base.F) };
+  if (base.F2) out.F2 = shift(base.F2);
+  const ch = GP.armChain(j);
+  out.info = { face: +GP.faceAngleOf(card, qmul(ch.hand, G)).toFixed(1), dW_cm: +(len(sub(ch.W, ch0.W))*100).toFixed(1), dE_cm: +(len(sub(ch.E, ch0.E))*100).toFixed(1) };
+  return out;
+}
+
 /* ---------- ricerca ---------- */
 function rng(seed){ let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0)/4294967296; }; }
 const gauss = R => { const u = Math.max(1e-12, R()), v = R(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
 function summary(e){
   const sh = e.shape;
-  return { cost: +e.cost.toFixed(2), nBad: e.nBad, nReads: e.reads?.length, margin: +(e.margin || 0).toFixed(2), read: e.reads?.filter(r => r.why.length).map(r => `seme ${r.seed} ${r.cal} ${r.hand} ×${r.rate}: ${r.why.join('; ')} [${r.desc}]`),
+  return { cost: +e.cost.toFixed(2), nBad: e.nBad, nReads: e.reads?.length, margin: +(e.margin || 0).toFixed(2), ...(e.face != null ? { impact_deg: +e.face.toFixed(1) } : {}),
+    ...(e.mirror ? { mirror_cm: { mean: +e.mirror.mean.toFixed(1), max: +e.mirror.max.toFixed(1), keys: Object.fromEntries(Object.entries(e.mirror.keys).map(([k, v]) => [k, +v.toFixed(1)])) } } : {}), read: e.reads?.filter(r => r.why.length).map(r => `seme ${r.seed} ${r.cal} ${r.hand} ×${r.rate}: ${r.why.join('; ')} [${r.desc}]`),
     aimMin: GESTURES[e.id]?.aim ? Math.min(...e.reads.filter(r => !r.why.length).map(r => Math.abs(+(r.desc.match(/mira (-?[\d.]+)/)?.[1] ?? 9)))) : undefined,
     also: e.alsoReads?.filter(r => r.why.length).map(r => `${r.card} ${r.hand} ×${r.rate}: ${r.why.join('; ')}`),
     phys: e.phys, shape: sh && { keys: Object.fromEntries(Object.entries(sh.keys).map(([k, v]) => [k, { dW_cm: +v.dW.toFixed(1), dE_cm: +v.dE.toFixed(1), dy_cm: +v.dy.toFixed(1), tip_deg: +v.tip.toFixed(0), screen_deg: +v.screen.toFixed(0), gomito: +v.elbow.toFixed(0) }])),
@@ -351,9 +405,10 @@ export function baseFor(card, opts = {}, { fore = null } = {}){
     // non da quella del video (limite dichiarato: dalla partenza del video la carica del piatto e della schiacciata era letta
     // come un colpo in tutte le varianti provate)
     if (opts.rest === 'colpi'){ c.rest = GP.REST_COLPI_RACCHETTA; c.prep = c0.prep; if (c0.V) c.V = c0.V; }
+    if (opts.init) for (const [K, J] of Object.entries(opts.init)) c[K] = { ...c[K], ...J };
     else if (opts.via){ const R = GP.REST_VIDEO, A1 = { ...R, e: 4 }, A2 = { ...A1, p: c0.B.p }, L = u => Object.fromEntries(GP.JOINTS.map(k => [k, +(A2[k] + (c0.B[k] - A2[k])*u).toFixed(3)]));
       c.V = [A1, A2, L(1/3), L(2/3)]; c.ov = c0.ov ?? .1; c.prep = c0.prep + 1.4; }
-    return { legacy: true, c, c0, src: card, prep: c.prep, back: Math.max(1, c.back), B: c.B, C: c.C, F: c.F };
+    return { legacy: true, c, c0, src: card, prep: c.prep, back: Math.max(1, c.back), B: c.B, C: c.C, F: c.F, ...(opts.armd ? { armd: +opts.armd } : {}) };
   }
   if (card === 'cross' || card === 'line') return { aimOnly: true, fore: fore || GP.CHOREO_VIDEO.forehand, aim: GP.AIM_TURN_VIDEO?.[card] };
   let raw = rawVideoChoreo(card);
@@ -367,12 +422,14 @@ export function baseFor(card, opts = {}, { fore = null } = {}){
   if (opts.wrist){ const [pro, fl, dv] = String(opts.wrist).split(',').map(Number); for (const K of keysOf(card)) raw = { ...raw, [K]: { ...raw[K], pro, fl, dv } }; }
   // slow: F2 = la fine del video (prima di --mono), raggiunta lentamente dopo la frenata
   // f2d: ampiezza degli scarti del braccio in F2 (gradi, 15 predefiniti)
-  const base = { ...raw, ...(opts.slow && card !== 'serve' ? { slow: true, F2, f2d: +(opts.f2d || 15) } : {}) };
+  // init (passo B3): pose chiave risolte da impactInit (faccia girata verso la rete nella posa C), scritte nella soluzione
+  if (opts.init) for (const [K, J] of Object.entries(opts.init)){ if (K === 'F2') Object.assign(F2, J); else raw = { ...raw, [K]: { ...raw[K], ...J } }; }
+  const base = { ...raw, ...(opts.slow && card !== 'serve' ? { slow: true, F2, f2d: +(opts.f2d || 15) } : {}), ...(opts.armd ? { armd: +opts.armd } : {}) };
   const A0 = +(opts.acc ?? .25), P0 = +(opts.prep ?? raw.prep);
   base.t = card === 'serve' ? { prep: P0, rise: raw.rise, up: raw.up, acc: A0, dMax: raw.dMax, fin: raw.fin } : { acc: A0, dMax: Math.max(.12, raw.dMax), prep: P0, fin: raw.fin, slow: .45 };
   return base;
 }
-const OPT_KEYS = ['mono', 'wrist', 'rest', 'via', 'slow', 'f2d'];
+const OPT_KEYS = ['mono', 'wrist', 'rest', 'via', 'slow', 'f2d', 'armd', 'init', 'impact', 'mirror'];
 // x di una soluzione salvata per le variabili V (per nome: una soluzione senza --slow riparte con le variabili nuove al valore iniziale)
 function xFrom(sol, V){
   if (!sol?.x) return null;
@@ -390,10 +447,20 @@ async function main(){
   for (const k of OPT_KEYS){ const v = arg(k, undefined); if (v !== undefined) opts[k] = v; else if (from?.opts?.[k] !== undefined) opts[k] = from.opts[k]; }
   for (const k of ['acc', 'prep']){ const v = arg(k, undefined); if (v !== undefined) opts[k] = v; }
   const fore = (CARD === 'cross' || CARD === 'line') && WITH ? loadSol(path.join(WITH, 'forehand.json')) : null;
-  const base = baseFor(CARD, opts, { fore: fore ? solutionChoreo('forehand', fore) : null });
+  let base = baseFor(CARD, opts, { fore: fore ? solutionChoreo('forehand', fore) : null }), inited = false;
+  // --impact senza una partenza già girata: pose chiave risolte con la faccia verso la rete (impactInit), scritte in opts.init
+  if (IMPACT != null && !opts.init && !base.aimOnly && GP.IMPACT_FACE[CARD] && !arg('noinit', false)){
+    const r = impactInit(CARD, base, IMPACT, +(opts.armd || ARM_D)); const { info, ...init } = r;
+    opts.init = init; base = baseFor(CARD, opts, { fore: null }); inited = true;
+    console.log(`partenza girata (impactInit): ${JSON.stringify(info)} ${JSON.stringify(init)}`);
+  }
+  if (IMPACT != null) opts.impact = IMPACT;
+  if (MIRROR) opts.mirror = true;
   const V = varsFor(CARD, base);
-  let x = xFrom(from, V) || V.map(v => v.x0);
-  const ev = xx => evaluate(CARD, decode(CARD, base, V, xx), { plans });
+  // con la partenza girata appena risolta della soluzione di --from si tengono solo i tempi (il polso è assoluto)
+  const fx = xFrom(from, V);
+  let x = inited ? V.map((v, i) => fx && v.name.startsWith('t.') ? fx[i] : v.x0) : fx || V.map(v => v.x0);
+  const ev = xx => evaluate(CARD, decode(CARD, base, V, xx), { plans, impact: opts.impact ?? IMPACT, mirror: !!(opts.mirror ?? MIRROR) });
   const saveOpts = Object.fromEntries(Object.entries(opts).filter(([k]) => OPT_KEYS.includes(k)));
   // --report senza --from: la coreografia del codice (CHOREO_VIDEO[card], o il dritto girato per la mira)
   if (REPORT && !from){

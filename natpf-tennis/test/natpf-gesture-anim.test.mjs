@@ -202,35 +202,42 @@ test('il disegno usa la posa di demo.pose (= gesturePose): scheletro disegnato u
   } finally { dom.restore(); }
 });
 
-// B17.1 (correzioni del passo B2): il rovescio del video è a DUE mani (decisione dell'utente: «due mani nel rovescio»): dalla
-// carica alla fine dell'accompagnamento la mano libera disegnata è sul telefono (prima restava sul fianco per tutto il colpo:
-// GESTURES.backhand.twoHanded non era definito); fuori dal colpo il braccio libero pende rilassato lungo il fianco
-test('rovescio a due mani: dalla carica alla fine la mano libera è sul telefono (≤ 8 cm), destro e mancino; a riposo il braccio libero pende', () => {
+// B17.1 passo B3 (decisione dell'utente del 09/11 notte: «Per il rovescio, a una mano»; nel passo B2 era a due mani come nel
+// video): GESTURES.backhand non ha più twoHanded e la mano libera non va mai sul telefono; dal contatto alla fine
+// dell'accompagnamento il braccio libero si apre dietro e di lato per l'equilibrio, quasi disteso; fuori dal colpo pende
+// rilassato lungo il fianco
+test('rovescio a una mano: niente seconda mano sul telefono (≥ 20 cm in tutto il ciclo), braccio libero aperto dietro dal contatto alla fine, destro e mancino; a riposo pende', async () => {
+  const { GESTURES } = await import('../src/natpf/natpf_gesture_motion.js');
+  assert.equal(GESTURES.backhand.twoHanded, undefined, 'rovescio ancora a due mani');
+  assert.equal(GESTURES.backhand.balance, true);
   const dom = fakeDom();
   try {
     const d = new NatpfGestureDemo({ width: 640, height: 400 });
     d.grip = 'racchetta';
     for (const hand of HANDS){
       d.play('backhand', { hand, set: 'video' }); d.stop();
-      const T = GP.gesturePlan('backhand', { grip: 'racchetta', set: 'video' }).T;
-      let n = 0;
-      for (let t = T.inv; t <= T.back + 1e-9; t += 1/60){
+      const P = GP.gesturePlan('backhand', { grip: 'racchetta', set: 'video' }), T = P.T;
+      let n = 0, near = 9;
+      for (let t = 0; t < P.total; t += 1/60){
         d.show(t);
         const A = d.info.freeArm, R = hand === 'left' ? GP.mirrorPose(d.info.pose) : d.info.pose;
-        assert.ok(A?.busy, `${hand} ${t.toFixed(3)}: mano libera non impegnata`);
-        const gap = GP.len(GP.sub(A.W, R.pos));
-        assert.ok(gap < .08, `${hand} ${t.toFixed(3)}: mano libera a ${gap.toFixed(3)} m dal telefono`);
+        near = Math.min(near, GP.len(GP.sub(A.W, R.pos)));
+        if (t < P.contact + .25 || t > T.back) continue;
+        // dal contatto (+0,25 s) alla fine: mano libera dietro il bacino (riferimento del busto, +z dietro), a sinistra, quasi distesa
+        const ch = R.chain, loc = GP.qrot(GP.qconj(ch.trunk), GP.sub(A.W, ch.pelvis));
+        assert.ok(A.busy && loc[2] > .2 && loc[0] < -.3, `${hand} ${t.toFixed(3)}: braccio libero non aperto dietro (${loc.map(v => v.toFixed(2))})`);
+        assert.ok(GP.len(GP.sub(A.W, A.S)) > .4, `${hand} ${t.toFixed(3)}: braccio libero piegato`);
         n++;
       }
-      assert.ok(n > 20);
+      assert.ok(n > 20, `solo ${n} campioni nell'accompagnamento`);
+      assert.ok(near >= .2, `${hand}: mano libera a ${near.toFixed(3)} m dal telefono`);
       // posizione di partenza: braccio libero rilassato (quasi disteso, mano sotto il bacino di lato), non sul fianco
       d.show(.1);
-      const A = d.info.freeArm, ch = d.info.pose.chain, R = hand === 'left' ? GP.mirrorPose(d.info.pose) : d.info.pose;
+      const A = d.info.freeArm, R = hand === 'left' ? GP.mirrorPose(d.info.pose) : d.info.pose;
       assert.equal(A.busy, false);
       const reach = GP.len(GP.sub(A.W, A.S));
       assert.ok(reach > .5, `braccio libero a riposo piegato (${reach.toFixed(3)} m dalla spalla)`);
       assert.ok(A.W[1] < R.chain.pelvis[1] - .05, 'mano libera a riposo non sotto il bacino');
-      assert.ok(ch);
     }
   } finally { dom.restore(); }
 });
