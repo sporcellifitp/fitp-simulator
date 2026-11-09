@@ -16,8 +16,16 @@ import { GRIP_STYLE } from '@natpf/tennis/grip-art.js';
 
 export const GRIP_TILT = 80;     // gradi: cima del telefono in avanti dalla verticale nell'impugnatura a martello
 // Posa del telefono nella mano per l'animazione 3D, Euler XYZ in gradi a partire dal telefono dritto con lo schermo verso
-// chi gioca (come test/phone-sim.mjs): prima la rotazione attorno a z (cima verso l'interno), poi attorno a x (in avanti)
+// chi gioca (come test/phone-sim.mjs): prima la rotazione attorno a z (cima verso l'interno), poi attorno a x (in avanti).
+// racchetta (B17.1, foto dell'utente del 09/11, docs/b17/presa-foto.md): il telefono disteso lungo l'avambraccio come il
+// manico di una racchetta, cima in avanti e alzata di `cock` gradi rispetto all'avambraccio (verso il pollice), dorso sul
+// palmo, quattro dita attorno al bordo lungo inferiore, pollice disteso lungo il bordo lungo superiore, polso dritto. È
+// definita nel riferimento della MANO della catena (natpf_gesture_pose.PHONE_IN_HAND_RACCHETTA); `euler` è la posa
+// nel campo che ne risulta nella posizione di partenza REST_RACCHETTA (avambraccio in avanti e a destra di 40°, pollice in
+// alto: cima in avanti-destra e 20° in su, schermo verso lo schermo di gioco e un poco a sinistra), verificata dal test
+// natpf-gesture-physics (scarto < 0,01°)
 export const GRIP_POSE = Object.freeze({
+  racchetta: Object.freeze({ cock: 20, euler: [-178.905, -50.055, -109.548] }),
   palmo: Object.freeze({ lean: 35, tilt: 40, euler: [-40, 0, 35] }),
   martello: Object.freeze({ tilt: GRIP_TILT, euler: [-GRIP_TILT, 90, 0] }),
 });
@@ -43,6 +51,8 @@ const S = Object.freeze({
 
 // indicazioni della presa (posizione di partenza e impugnatura) per ciascuna presa insegnabile
 const GRIP_CUES = Object.freeze({
+  racchetta: { ready: ['Telefono disteso lungo l’avambraccio, cima in avanti', 'Pollice in alto lungo il bordo, schermo verso lo schermo di gioco', 'Braccio rilassato, mano davanti al fianco'],
+    grip: ['Telefono disteso nel palmo, cima in avanti', 'Dita sotto, attorno al bordo', 'Pollice lungo il bordo, schermo verso lo schermo di gioco'] },
   palmo: { ready: ['Il telefono nel palmo, schermo verso di te', 'Cima in avanti e un poco verso l’interno', 'Braccio rilassato, di fronte allo schermo'],
     grip: ['Nel palmo, le dita attorno alla parte bassa', 'Pollice sul bordo, lontano dallo schermo', 'Cima in avanti, verso lo schermo'] },
   martello: { ready: ['Il telefono nel pugno, come un martello', 'Cima in avanti, display di lato', 'Braccio rilassato, di fronte allo schermo'],
@@ -68,6 +78,10 @@ export const GESTURES = Object.freeze({
     cues: ['Dall’alto verso il basso', 'Lento e morbido', 'Gesto corto, come una carezza'] },
   slice: { id: 'slice', label: 'Tagliato', stroke: S.slice, ball: 'ground', expect: { shot: ['slice'] },
     cues: ['Dall’alto verso il basso', 'Deciso, non lento', 'Più ampio della palla corta'] },
+  // variante di rovescio del tagliato (B17.1, dal video dell'utente: tagliati 1 e 3): stessa lettura, lato opposto. Non è
+  // una scheda del tutorial (CARD_IDS): è una posa in più (natpf_gesture_pose.VARIANT_IDS) per il disegno e le prove
+  sliceBackhand: { id: 'sliceBackhand', label: 'Tagliato di rovescio', stroke: S.slice, ball: 'ground', expect: { shot: ['slice'] }, variantOf: 'slice',
+    cues: ['Dall’alto verso il basso, dal lato del rovescio', 'Deciso, non lento', 'La mano finisce bassa a destra'] },
   smash: { id: 'smash', label: 'Schiacciata', stroke: S.smash, ball: 'high', ballHigh: true, expect: { shot: ['smash'] },
     cues: ['Palla alta sopra la testa', 'Braccio in alto, poi giù deciso', 'Colpisci prima del rimbalzo'] },
   serve: { id: 'serve', label: 'Servizio', toss: S.toss, stroke: S.smash, ball: 'toss', ballHigh: true, expect: { messages: 2 },

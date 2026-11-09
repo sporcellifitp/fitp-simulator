@@ -95,7 +95,9 @@ export function judgeCard(src, id, r, { hand = 'right', allow = null, peakTol = 
   if (P.kind === 'serve'){
     if (r.events.length !== 2) why.push(`${r.events.length} gesti (attesi lancio e battuta)`);
     else {
-      if (Math.abs(r.gap - .69/rate) > .1) why.push(`battuta ${r.gap.toFixed(3)} s dopo il lancio (atteso ${(.69/rate).toFixed(2)} ± 0,10)`);
+      // intervallo lancio → battuta: quello del piano (servizio dai dati del video, P.tossGap) o 0,69 s (servizio di prima)
+      const gap = (P.tossGap ?? .69)/rate;
+      if (Math.abs(r.gap - gap) > .1) why.push(`battuta ${r.gap.toFixed(3)} s dopo il lancio (atteso ${gap.toFixed(2)} ± 0,10)`);
       if (Math.abs(r.dPeak) > peakTol) why.push(`picco della battuta a ${Math.round(r.dPeak)} ms dal contatto disegnato`);
       if (r.dToss != null && Math.abs(r.dToss) > peakTol) why.push(`picco del lancio a ${Math.round(r.dToss)} ms dal picco disegnato`);
     }
@@ -120,7 +122,8 @@ export function judgeCard(src, id, r, { hand = 'right', allow = null, peakTol = 
 // telefono simulato (scratchpad posa-sensori.mjs).
 const qEuler = ([x, y, z]) => qmul(qmul(qaxis([1, 0, 0], x*D), qaxis([0, 1, 0], y*D)), qaxis([0, 0, 1], z*D));
 export function legacyPoseSource(){
-  const SH = [.19, 1.42, 0], q0 = qEuler(GRIP_POSE[GRIP_STYLE].euler);
+  // presa nel palmo: l'animazione di prima è stata giudicata con quella (B9/B13), non con la presa a racchetta del B17
+  const SH = [.19, 1.42, 0], q0 = qEuler(GRIP_POSE.palmo.euler);
   const right = (id, t) => {
     const g = GESTURES[id];
     let hand3, q = q0;

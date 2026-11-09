@@ -20,7 +20,7 @@
 // niente busto né braccio). Senza canvas 2D (Node, test) available è false e chi la usa mostra la figura statica della
 // presa. Si disegna solo quando il canvas si vede.
 import { GESTURES, GRIP_STYLE } from './natpf_gesture_motion.js';
-import { gesturePose, gesturePlan, gestureBall, gestureContactPoint, CAMERAS, HAND, HAND_LOCAL, HAND_LOCAL_MARTELLO, ARM, FOREARM_PROFILE,
+import { gesturePose, gesturePlan, gestureBall, gestureContactPoint, CAMERAS, HAND, HAND_LOCAL, HAND_LOCAL_MARTELLO, HAND_RACCHETTA, HAND_LOCAL_RACCHETTA, ARM, FOREARM_PROFILE,
   UPPER_PROFILE, BAND, PHONE, BALL_R, add, sub, mul, dot, cross, len, norm, qrot, mirrorPos, mirrorPose, D } from './natpf_gesture_pose.js';
 export { HAND_MARTELLO } from './natpf_gesture_pose.js';
 
@@ -88,7 +88,8 @@ function ramp(m, b){
 // la mano a martello (rollback) si disegna con l'avambraccio rigido nella sua direzione (polso dritto, HAND_MARTELLO
 // forearmDir) e senza il braccio intero: la catena del B13 è costruita per la presa nel palmo e con il martello il polso
 // disegnato sulla catena risultava piegato di 46–72° (revisione di fedeltà B13)
-const HANDS = { palmo: { ...HAND_LOCAL, def: HAND }, martello: { ...HAND_LOCAL_MARTELLO, rigidForearm: true } };
+// racchetta (B17.1): telefono disteso lungo l'avambraccio, mano sulla catena come il palmo
+const HANDS = { racchetta: { ...HAND_LOCAL_RACCHETTA, def: HAND_RACCHETTA }, palmo: { ...HAND_LOCAL, def: HAND }, martello: { ...HAND_LOCAL_MARTELLO, rigidForearm: true } };
 export const handFor = (style = GRIP_STYLE) => HANDS[style] || HANDS.palmo;
 // Scheletro della figura nel campo per una posa (destra) del telefono: mano e dita rigide con il telefono (con la presa nel
 // palmo è gestureRig punto per punto, test/natpf-gesture-anim); gomito, spalla e busto dalla catena della posa
@@ -1317,14 +1318,14 @@ export class NatpfGestureDemo {
     this.info = { t, cam, pose: this.pose(t), figure: F };
     if (this.compact) return;
     const T = v => add(pose.pos, qrot(pose.q, v)), mirror = this.hand === 'left';
-    const a = cam.view, palm = this.grip === 'palmo';
+    const a = cam.view, palm = this.grip === 'palmo', racket = this.grip === 'racchetta';
     const notesA = [
-      { X: rig.thumb.pts[2], text: palm ? 'Pollice lungo il bordo' : 'Pollice chiuso sul bordo', dx: 1, dy: -.45 },
-      { X: rig.fingers[1].pts[3], text: palm ? 'Dita sul bordo, non sullo schermo' : 'Dita attorno alla parte bassa', dx: -1, dy: .4 },
-      { X: T([0, .035, HD]), text: palm ? 'Schermo verso di te' : 'Display di lato', dx: -1, dy: -.7 },
+      { X: rig.thumb.pts[2], text: racket || palm ? 'Pollice lungo il bordo' : 'Pollice chiuso sul bordo', dx: 1, dy: -.45 },
+      { X: rig.fingers[1].pts[3], text: racket ? 'Dita sotto, attorno al bordo' : palm ? 'Dita sul bordo, non sullo schermo' : 'Dita attorno alla parte bassa', dx: -1, dy: .4 },
+      { X: T([0, .035, HD]), text: racket ? 'Schermo verso lo schermo di gioco' : palm ? 'Schermo verso di te' : 'Display di lato', dx: -1, dy: -.7 },
     ];
     const notesB = [
-      { X: rig.heel[2].p, text: palm ? 'Dorso del telefono nel palmo' : 'Come il manico di un martello', dx: 1, dy: .5 },
+      { X: rig.heel[2].p, text: racket ? 'Disteso nel palmo, lungo l\u2019avambraccio' : palm ? 'Dorso del telefono nel palmo' : 'Come il manico di un martello', dx: 1, dy: .5 },
       { X: T([0, HH, 0]), text: 'Cima in avanti e in alto', dx: -1, dy: -.45 },
     ];
     const C = CAMERAS.grip, P = C.seq.reduce((x, y) => x + y, 0), uu = ((t % P) + P) % P;
