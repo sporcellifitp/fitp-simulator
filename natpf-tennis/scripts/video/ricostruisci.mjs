@@ -65,7 +65,9 @@ function scaleEstimate(){
   return { scale: s[Math.floor(s.length/2)], n: s.length, p10: s[Math.floor(s.length*.1)], p90: s[Math.floor(s.length*.9)] };
 }
 const SC = scaleEstimate();
-const DIST = F_PX/SC.scale;                                   // distanza camera–bacino (m)
+// la scala di MediaPipe suppone le spalle di un corpo medio: --scala=auto la raffina (±15%) minimizzando il costo della
+// ricostruzione (pixel + profondità) su un campione di fotogrammi (sotto, dopo la definizione del modello)
+let SCALE = SC.scale, DIST = F_PX/SCALE;                       // distanza camera–bacino (m)
 // altezza della camera rispetto al bacino: dal punto medio delle anche nei fotogrammi in piedi (mediana), così il
 // bacino del modello (0, 1, 0) cade dove Pose vede le anche; camera senza inclinazione (ipotesi: le linee verticali del
 // fondo sono verticali nel quadro)
@@ -77,7 +79,7 @@ function cameraOffset(){
   ys.sort((a, b) => a - b); xs.sort((a, b) => a - b);
   return { yc: ys[Math.floor(ys.length/2)] || 0, xc: xs[Math.floor(xs.length/2)] || 0, n: ys.length };
 }
-const CAM = cameraOffset();
+let CAM = cameraOffset();
 const HIP_Y = -.06;                                           // anche di MediaPipe (articolazioni) poco sotto il centro del bacino del modello
 
 /* ---------- proiezione ---------- */
@@ -128,8 +130,10 @@ function observe(f){
   if (f.poseWorld){
     const z = i => f.poseWorld[i][2], wz = (i, j) => Math.min(vis(f, i), vis(f, j));
     // profondità relative (m, campo: z = Zc) dai punti mondo di MediaPipe: segno e ordine di grandezza, peso basso
-    if (wz(P.elR, P.shR) >= .5) o.depth.push({ a: 'E', b: 'S', dz: z(P.elR) - z(P.shR), w: .25 });
-    if (wz(P.wrR, P.shR) >= .5) o.depth.push({ a: 'W', b: 'S', dz: z(P.wrR) - z(P.shR), w: .25 });
+    // peso alzato da .25 a .6 (09/11): con .25 il braccio disteso di lato nel dritto veniva ricostruito a zig-zag (gomito
+    // indietro, avambraccio verso la camera) pur con i punti mondo che dicevano gomito e spalla alla stessa profondità
+    if (wz(P.elR, P.shR) >= .5) o.depth.push({ a: 'E', b: 'S', dz: z(P.elR) - z(P.shR), w: .6 });
+    if (wz(P.wrR, P.shR) >= .5) o.depth.push({ a: 'W', b: 'S', dz: z(P.wrR) - z(P.shR), w: .6 });
     if (wz(P.shL, P.shR) >= .5) o.depth.push({ a: 'SL', b: 'S', dz: z(P.shL) - z(P.shR), w: .35 });
   }
   const h = rightHand(f);
@@ -149,7 +153,7 @@ const LIM = JOINT_LIMITS;
 function residuals(x, o, prev, opts){
   const ch = chainOf(x), r = [];
   for (const p of o.pts){ const u = project(ch[p.key]); r.push(p.w*(u[0] - p.uv[0]), p.w*(u[1] - p.uv[1])); }
-  for (const d of o.depth) r.push(d.w*SC.scale*((ch[d.a][2] - ch[d.b][2]) - d.dz));
+  for (const d of o.depth) r.push(d.w*SCALE*((ch[d.a][2] - ch[d.b][2]) - d.dz));
   if (o.hand){
     const wH = opts.wHand ?? 30, fingers = qrot(ch.hand, [0, -1, 0]), thumb = qrot(ch.hand, [1, 0, 0]), normal = qrot(ch.hand, [0, 0, -1]);
     for (let k = 0; k < 3; k++){ r.push(wH*(fingers[k] - o.hand.F[k])); r.push(wH*(thumb[k] - o.hand.T[k])); r.push(wH*(normal[k] - o.hand.N[k])); }
@@ -171,21 +175,24 @@ function residuals(x, o, prev, opts){
   return r;
 }
 const STEP = JOINTS.map(k => k === 'y' ? 1e-4 : 1e-2).concat([1e-4, 1e-4]);
-function lm(x0, o, prev, opts, iters = 40){
-  let x = x0.slice(), r = residuals(x, o, prev, opts), cost = dot(r, r), lambda = 1e-2;
+// somma dei quadrati di TUTTI i residui (il dot di natpf_gesture_pose è a 3 componenti: usarlo qui sommava solo i primi tre e
+// l'ottimizzatore non faceva nessun passo: errore trovato il 09/11 sui dati veri, riproiezione 35 px → vedi RISULTATI)
+const sumsq = r => { let c = 0; for (const v of r) c += v*v; return c; };
+function lm(x0, o, prev, opts, iters = 60){
+  let x = x0.slice(), r = residuals(x, o, prev, opts), cost = sumsq(r), lambda = 1e-2;
   const m = r.length, J = Array.from({ length: m }, () => new Float64Array(NP));
   for (let it = 0; it < iters; it++){
     for (let p = 0; p < NP; p++){ const xp = x.slice(); xp[p] += STEP[p]; const rp = residuals(xp, o, prev, opts); for (let i = 0; i < m; i++) J[i][p] = (rp[i] - r[i])/STEP[p]; }
     const A = Array.from({ length: NP }, () => new Float64Array(NP + 1));
     for (let i = 0; i < m; i++) for (let a = 0; a < NP; a++){ const Jia = J[i][a]; if (!Jia) continue; for (let b = 0; b < NP; b++) A[a][b] += Jia*J[i][b]; A[a][NP] -= Jia*r[i]; }
     let improved = false;
-    for (let tries = 0; tries < 6 && !improved; tries++){
+    for (let tries = 0; tries < 12 && !improved; tries++){        // lambda fino a ~1,7e5: da una partenza lontana serve un passo quasi di gradiente
       const M = A.map(row => Float64Array.from(row)); for (let a = 0; a < NP; a++) M[a][a] += lambda*(M[a][a] + 1e-6);
       // eliminazione di Gauss
       for (let c = 0; c < NP; c++){ let piv = c; for (let rI = c + 1; rI < NP; rI++) if (Math.abs(M[rI][c]) > Math.abs(M[piv][c])) piv = rI; [M[c], M[piv]] = [M[piv], M[c]];
         const pv = M[c][c] || 1e-12; for (let rI = c + 1; rI < NP; rI++){ const fct = M[rI][c]/pv; if (!fct) continue; for (let k = c; k <= NP; k++) M[rI][k] -= fct*M[c][k]; } }
       const dx = new Float64Array(NP); for (let c = NP - 1; c >= 0; c--){ let s = M[c][NP]; for (let k = c + 1; k < NP; k++) s -= M[c][k]*dx[k]; dx[c] = s/(M[c][c] || 1e-12); }
-      const xn = x.map((v, i) => v + dx[i]), rn = residuals(xn, o, prev, opts), cn = dot(rn, rn);
+      const xn = x.map((v, i) => v + dx[i]), rn = residuals(xn, o, prev, opts), cn = sumsq(rn);
       if (cn < cost){ x = xn; r = rn; const gain = cost - cn; cost = cn; lambda = Math.max(1e-6, lambda/3); improved = true; if (gain < 1e-6*cost) return { x, cost }; }
       else lambda *= 4;
     }
@@ -210,16 +217,46 @@ const perturb = prev => [prev, (() => { const x = prev.slice(); x[IDX.r] += 35; 
 
 /* ---------- tratti da ricostruire (s): istanti indicativi dell'utente, allargati ---------- */
 const SEGMENTS = [
+  { id: 'grip', label: 'Presa (primo piano, 1–5 s)', from: 1.0, to: 5.0, kind: 'grip' },
   { id: 'ready', label: 'Posizione di partenza (prima del dritto)', from: 7.5, to: 9.2, kind: 'still' },
   { id: 'forehand', label: 'Dritto', from: 8.8, to: 12.0, kind: 'stroke', expect: 'topspin di dritto' },
   { id: 'backhand', label: 'Rovescio a due mani', from: 14.4, to: 17.6, kind: 'stroke', expect: 'topspin di rovescio' },
   { id: 'serve1', label: 'Servizio (1ª ripetizione)', from: 17.4, to: 20.4, kind: 'serve' },
   { id: 'serve2', label: 'Servizio (2ª ripetizione)', from: 22.0, to: 25.2, kind: 'serve' },
-  { id: 'serve3', label: 'Servizio (3ª ripetizione)', from: 26.9, to: 30.2, kind: 'serve' },
+  { id: 'serve3', label: 'Servizio (3ª ripetizione)', from: 26.9, to: 29.6, kind: 'serve' },   // a 29,8 s parte già il primo tagliato
   { id: 'slices', label: 'Tagliati (dritto e rovescio)', from: 30.0, to: 38.6, kind: 'multi' },
 ];
 const segArg = arg('segments', '');
 const segs = segArg ? SEGMENTS.filter(s => segArg.split(',').includes(s.id)) : SEGMENTS;
+
+/* ---------- presa in primo piano: misure 2D (schermo e mano), senza catena ---------- */
+// Nel primo piano Pose non vede il corpo: si misurano, sui fotogrammi con lo schermo (macchia grande) e una mano di
+// Hands, l'angolo dell'asse lungo dello schermo nell'immagine, la direzione dita (polso → nocca del medio) e nocche
+// (mignolo → indice) della mano, l'angolo tra asse dello schermo e dita, e dai punti mondo della mano il verso della
+// normale del palmo rispetto alla camera. Sono misure 2D (nessuna profondità): dicono come il telefono sta nella mano.
+function gripCloseup(seg){
+  const i0 = Math.round(seg.from*FPS), i1 = Math.round(seg.to*FPS), rows = [];
+  const a180 = a => { a = ((a % 180) + 180) % 180; return a; }, dAng = (a, b) => { let d = Math.abs(a180(a) - a180(b)); return Math.min(d, 180 - d); };
+  for (let i = i0; i <= i1; i++){
+    const f = byI.get(i); if (!f) continue;
+    const ph = f.phone && f.phone.n >= 1500 ? f.phone : null;
+    const h = (f.hands || []).filter(x => x.score >= .5).sort((a, b) => b.score - a.score)[0] || null;
+    const row = { i, t: r4(i/FPS), schermo_visto: !!ph, mano_vista: !!h };
+    if (ph) Object.assign(row, { schermo_asse_deg: r2(ph.ang), schermo_px: ph.n, schermo_rapporto: r2(ph.len2/Math.max(1, ph.len1)), schermo_centro: [r2(ph.cx), r2(ph.cy)] });
+    if (h){ const l = h.lm, F = [l[9][0] - l[0][0], l[9][1] - l[0][1]], T = [l[5][0] - l[17][0], l[5][1] - l[17][1]];
+      row.mano = { etichetta_modello: h.label, punteggio: h.score, dita_deg: r2(Math.atan2(F[1], F[0])/D), nocche_deg: r2(Math.atan2(T[1], T[0])/D), polso_px: [r2(l[0][0]), r2(l[0][1])] };
+      if (h.world){ const w = h.world, v = (a, b) => norm(sub(w[a], w[b])), N = cross(v(5, 17), v(9, 0)); row.mano.normale_palmo_verso_camera = r2(-N[2]); }   // mano destra: N = nocche × dita esce dal palmo
+      if (ph) row.schermo_meno_dita_deg = r2(dAng(ph.ang, row.mano.dita_deg)); }
+    rows.push(row);
+  }
+  const med = arr => { const a = arr.filter(v => v != null).sort((x, y) => x - y); return a.length ? r2(a[Math.floor(a.length/2)]) : null; };
+  const both = rows.filter(r => r.schermo_visto && r.mano_vista);
+  return { id: seg.id, label: seg.label, finestra_s: [seg.from, seg.to], tipo: 'presa_2d',
+    nota: 'primo piano: niente corpo per Pose, misure 2D nell’immagine (angoli: 0 = verso destra dell’immagine, positivo in senso orario); nessuna profondità',
+    fotogrammi: rows.length, con_schermo: rows.filter(r => r.schermo_visto).length, con_mano: rows.filter(r => r.mano_vista).length, con_entrambi: both.length,
+    mediane: { schermo_asse_deg: med(rows.map(r => r.schermo_asse_deg)), schermo_rapporto_lati: med(rows.map(r => r.schermo_rapporto)), dita_deg: med(rows.map(r => r.mano?.dita_deg)), schermo_meno_dita_deg: med(both.map(r => r.schermo_meno_dita_deg)), normale_palmo_verso_camera: med(rows.map(r => r.mano?.normale_palmo_verso_camera)) },
+    campioni: rows.filter((_, q) => q % 3 === 0) };
+}
 
 /* ---------- ricostruzione di un tratto ---------- */
 function reconstruct(seg, opts){
@@ -234,7 +271,7 @@ function reconstruct(seg, opts){
     const x = res.x, ch = chainOf(x), ph = phoneOf3(ch);
     // errore di riproiezione (px, media sui punti usati)
     let err = 0, n = 0; for (const p of o.pts){ const u = project(ch[p.key]); err += Math.hypot(u[0] - p.uv[0], u[1] - p.uv[1]); n++; }
-    out.push({ i, t: i/FPS, x, ch, ph, o, reproj: n ? err/n : null, interpolated: !hasArm });
+    out.push({ i, t: i/FPS, x, ch, ph, o, reproj: n ? err/n : null, interpolated: !hasArm, handInterp: !o.hand });
     prev = x;
   }
   return out;
@@ -256,27 +293,52 @@ function kinematics(samples){
     samples[k].omega = len(GP.omega(a.ph.q, b.ph.q, dt));
     // velocità 2D del polso misurata da Pose (px/s → m/s con la scala del corpo), indipendente dal modello
     const fa = byI.get(a.i), fb = byI.get(b.i);
-    samples[k].speed2d = fa?.pose && fb?.pose && vis(fa, P.wrR) > .5 && vis(fb, P.wrR) > .5 ? Math.hypot(fb.pose[P.wrR][0] - fa.pose[P.wrR][0], fb.pose[P.wrR][1] - fa.pose[P.wrR][1])/dt/SC.scale : null;
-    // per la segmentazione (istanti): la velocità 2D misurata, meno sensibile al tremolio della profondità; senza, la 3D
-    samples[k].sSeg = samples[k].speed2d ?? samples[k].speed;
+    samples[k].speed2d = fa?.pose && fb?.pose && vis(fa, P.wrR) > .5 && vis(fb, P.wrR) > .5 ? Math.hypot(fb.pose[P.wrR][0] - fa.pose[P.wrR][0], fb.pose[P.wrR][1] - fa.pose[P.wrR][1])/dt/SCALE : null;
+  }
+  // per la segmentazione (istanti): la velocità 3D della catena con mediana su 3 fotogrammi (toglie i salti di un solo
+  // fotogramma della profondità); la 2D di Pose non vede il moto verso la camera (il dritto va verso la rete) e resta
+  // accanto come controllo
+  for (let k = 0; k < samples.length; k++){
+    const a = samples[Math.max(0, k - 1)].speed, b = samples[k].speed, c = samples[Math.min(samples.length - 1, k + 1)].speed;
+    samples[k].speedMed = [a, b, c].sort((x, y) => x - y)[1];
+    // istanti: la 2D di Pose dove c'è (la profondità ricostruita salta ancora di un fotogramma e dava «impatti» con la
+    // mano ferma nell'immagine); dove manca, la 3D con mediana
+    samples[k].sSeg = samples[k].speed2d ?? samples[k].speedMed;
   }
   return samples;
 }
 
 /* ---------- segmentazione dei colpi ---------- */
-// impatto = picco della velocità della mano; carica = minimo di velocità prima del picco (dopo il picco della
-// preparazione); inizio = quando la mano comincia a muoversi; fine = quando torna lenta dopo l'impatto
+// impatto = picco della velocità della mano (mediana su 3); carica = fine del caricamento, cioè il punto in cui la mano è
+// più lontana dalla posizione d'impatto nell'1,5 s prima (lì inverte il moto); inizio = ultimo fotogramma con la mano
+// ferma (sotto la soglia bassa) prima della carica, entro 1,5 s; fine = dopo l'impatto, il primo fotogramma con la mano
+// lenta (sotto la soglia bassa) o il primo minimo locale della velocità sotto il 30% del picco, entro 0,8 s
 function segmentStroke(samples, { from, to, peakMin = 1.5 } = {}){
-  const inWin = samples.filter(s => s.t >= (from ?? -1) && s.t <= (to ?? 1e9));
+  const t0 = from ?? -1, t1 = to ?? 1e9, inWin = samples.filter(s => s.t >= t0 && s.t <= t1);
   if (!inWin.length) return null;
   const pk = inWin.reduce((b, s) => s.sSeg > b.sSeg ? s : b, inWin[0]);
   if (pk.sSeg < peakMin) return null;
   const k = samples.indexOf(pk);
   const thrLow = Math.max(.35, .12*pk.sSeg);
-  let kLoad = k; for (let q = k - 1; q >= 0 && samples[q].t >= (from ?? -1); q--){ if (samples[q].sSeg < samples[kLoad].sSeg) kLoad = q; else if (samples[kLoad].sSeg < .45*pk.sSeg && samples[q].sSeg > samples[kLoad].sSeg + .5) break; }
-  let kStart = kLoad; for (let q = kLoad; q >= 0 && samples[q].t >= (from ?? -1) - .2; q--){ if (samples[q].sSeg < thrLow){ kStart = q; break; } kStart = q; }
-  let kEnd = k; for (let q = k + 1; q < samples.length && samples[q].t <= (to ?? 1e9) + .2; q++){ kEnd = q; if (samples[q].sSeg < thrLow) break; }
-  return { start: samples[kStart], load: samples[kLoad], impact: pk, end: samples[kEnd] };
+  // carica: l'ultimo minimo locale della velocità (sotto il 60% del picco) nell'1,2 s prima dell'impatto, cioè dove la
+  // mano inverte o rallenta prima della parte veloce; se non c'è (colpo in un'unica spinta), il punto più lontano
+  // dalla posizione d'impatto nell'1,5 s prima
+  const L = loadBefore(samples, k, pk.sSeg, t0, thrLow);
+  let kEnd = k; for (let q = k + 1; q < samples.length && samples[q].t - pk.t <= .8; q++){ kEnd = q; if (samples[q].sSeg < thrLow) break; if (q + 1 < samples.length && samples[q].sSeg < .3*pk.sSeg && samples[q + 1].sSeg > samples[q].sSeg) break; }
+  return { ...L, impact: pk, end: samples[kEnd] };
+}
+// carica, inizio e punti notevoli prima del fotogramma k (impatto) con il picco di velocità pkSpeed
+function loadBefore(samples, k, pkSpeed, t0, thrLow){
+  const tk = samples[k].t;
+  let kLoad = -1, dmax = -1;
+  for (let q = k - 3; q >= 1 && tk - samples[q].t <= 1.2 && samples[q].t >= t0 - .3; q--){ const v = samples[q].sSeg; if (v < .6*pkSpeed && v <= samples[q - 1].sSeg && v <= samples[q + 1].sSeg){ kLoad = q; break; } }
+  let caricaModo = 'minimo di velocità';
+  if (kLoad < 0){ caricaModo = 'punto più lontano dall’impatto'; kLoad = Math.max(0, k - 1); for (let q = k - 1; q >= 0 && tk - samples[q].t <= 1.5 && samples[q].t >= t0 - .3; q--){ const d = len(sub(samples[q].ch.W, samples[k].ch.W)); if (d > dmax){ dmax = d; kLoad = q; } } }
+  // punti notevoli prima dell'impatto (entro 1,5 s): mano più a destra (apertura del dritto) e più alta (cima del tagliato)
+  const before = samples.filter((s, q) => q < k && tk - s.t <= 1.5 && s.t >= t0 - .3);
+  const farRight = before.length ? before.reduce((b, s) => s.ch.W[0] > b.ch.W[0] ? s : b, before[0]) : null, highest = before.length ? before.reduce((b, s) => s.ch.W[1] > b.ch.W[1] ? s : b, before[0]) : null;
+  let kStart = kLoad; for (let q = kLoad - 1; q >= 0 && samples[kLoad].t - samples[q].t <= 1.5; q--){ kStart = q; if (samples[q].sSeg < thrLow) break; }
+  return { start: samples[kStart], load: samples[kLoad], carica_modo: caricaModo, farRight, highest };
 }
 
 /* ---------- misure ---------- */
@@ -290,16 +352,21 @@ function measures(seg, k){
   const sweep = hAngle(arm(end)) - hAngle(arm(load));
   return {
     tempi: { inizio: r3(start.t), carica: r3(load.t), impatto: r3(impact.t), fine: r3(end.t), carica_s: r3(load.t - start.t), colpo_s: r3(impact.t - load.t), accompagnamento_s: r3(end.t - impact.t) },
+    strada_mano_m: { carica_impatto: r3(len(sub(impact.ch.W, load.ch.W))), impatto_fine: r3(len(sub(end.ch.W, impact.ch.W))) },
+    carica_definizione: k.carica_modo,
+    prima_dell_impatto: { mano_piu_a_destra: k.farRight ? { t: r3(k.farRight.t), mano_campo_m: k.farRight.ch.W.map(r3), gomito_flessione_deg: deg(k.farRight.ch.j.b) } : null, mano_piu_alta: k.highest ? { t: r3(k.highest.t), mano_campo_m: k.highest.ch.W.map(r3), gomito_flessione_deg: deg(k.highest.ch.j.b) } : null },
     velocita_mano_impatto_ms: r2(impact.speed), velocita_mano_impatto_2d_ms: impact.speed2d != null ? r2(impact.speed2d) : null,
     rotazione_telefono_picco_gs: Math.round(Math.max(...[load, impact, end].map(s => s.omega))),
     arco_orizzontale_spalla_mano_deg: deg(sweep),
     busto_tau_deg: { carica: deg(jl.tau), impatto: deg(ji.tau), fine: deg(je.tau) },
     gomito_flessione_deg: { carica: deg(jl.b), impatto: deg(ji.b), fine: deg(je.b) },
+    gomito_apertura_deg: { carica: deg(180 - jl.b), impatto: deg(180 - ji.b), fine: deg(180 - je.b) },
     elevazione_omero_deg: { carica: deg(jl.e), impatto: deg(ji.e), fine: deg(je.e) },
     altezza_mano_m: { carica: r3(load.ch.W[1]), impatto: r3(impact.ch.W[1]), fine: r3(end.ch.W[1]) },
     mano_campo_m: { carica: load.ch.W.map(r3), impatto: impact.ch.W.map(r3), fine: end.ch.W.map(r3) },
     direzione_mano_impatto: { angolo_dalla_rete_deg: deg(Math.acos(Math.max(-1, Math.min(1, dot(norm(impact.vW), [0, 0, -1]))))/D), salita: r2(norm(impact.vW)[1]) },
-    telefono: ['carica', 'impatto', 'fine'].reduce((acc, name, idx) => { const s = [load, impact, end][idx]; acc[name] = { cima_elevazione_deg: deg(elev(s.ph.tip)), cima_azimut_deg: deg(hAngle(s.ph.tip)), schermo_verso_rete: r2(-s.ph.screen[2]), schermo_verso_alto: r2(s.ph.screen[1]) }; return acc; }, {}),
+    telefono: ['carica', 'impatto', 'fine'].reduce((acc, name, idx) => { const s = [load, impact, end][idx]; acc[name] = { cima_elevazione_deg: deg(elev(s.ph.tip)), inclinazione_dalla_verticale_deg: deg(90 - Math.abs(elev(s.ph.tip))), cima_azimut_deg: deg(hAngle(s.ph.tip)), schermo_verso_rete: r2(-s.ph.screen[2]), schermo_verso_alto: r2(s.ph.screen[1]), schermo_visto: !!s.o.phone, mano_vista: !!s.o.hand }; return acc; }, {}),
+    interpolazione: { fotogrammi_senza_mano: null, fotogrammi_senza_schermo: null },
     qualita: { riproiezione_px: r2([start, load, impact, end].reduce((a, s) => a + (s.reproj || 0), 0)/4), telefono_visto: [load, impact, end].filter(s => s.o.phone).length + '/3', mano_vista: [load, impact, end].filter(s => s.o.hand).length + '/3' },
   };
 }
@@ -308,7 +375,8 @@ function sampleOut(s){
     S: s.ch.S.map(r3), E: s.ch.E.map(r3), W: s.ch.W.map(r3), telefono: { centro: s.ph.center.map(r3), cima: s.ph.tip.map(r3), schermo: s.ph.screen.map(r3) },
     busto: { bacino: s.ch.pelvis.map(r3), spalla_sx: s.ch.SL.map(r3), collo: s.ch.neck.map(r3), testa: s.ch.head.map(r3) },
     velocita_mano_ms: r2(s.speed), velocita_mano_2d_ms: s.speed2d != null ? r2(s.speed2d) : null, omega_gs: Math.round(s.omega),
-    qualita: { posa: r2(s.o.q.pose), mano: r2(s.o.q.hand), telefono: r2(s.o.q.phone), riproiezione_px: s.reproj != null ? r2(s.reproj) : null, interpolato: s.interpolated || undefined } };
+    qualita: { posa: r2(s.o.q.pose), mano: r2(s.o.q.hand), telefono: r2(s.o.q.phone), riproiezione_px: s.reproj != null ? r2(s.reproj) : null, interpolato: s.interpolated || undefined,
+      mano_interpolata: s.handInterp || undefined, schermo_visto: !!s.o.phone } };
 }
 
 /* ---------- presa: raffinamento dell'orientamento del telefono nella mano sulle macchie dello schermo ---------- */
@@ -327,11 +395,27 @@ function refineGrip(samplesAll){
   return { eul: best.eul, n: used.length, resid: Math.asin(Math.sqrt(best.c))/D, resid0: Math.asin(Math.sqrt(cost([0, 0, 0])))/D };
 }
 
+/* ---------- scala: ricerca sul campione (dritto, rovescio e tagliati, un fotogramma su 3) ---------- */
+let scaleInfo = { modo: 'mediapipe', fattore: 1, prove: [] };
+if (arg('scala', 'auto') === 'auto'){
+  const probe = ['forehand', 'backhand', 'slices'].map(id => SEGMENTS.find(s => s.id === id)).filter(Boolean);
+  const costOf = () => { let c = 0, n = 0; for (const seg of probe){ const i0 = Math.round(seg.from*FPS), i1 = Math.round(seg.to*FPS); let prev = null;
+      for (let i = i0; i <= i1; i += 3){ const f = byI.get(i); if (!f) continue; const o = observe(f); const res = fitFrame(o, prev, { wHand: 30, wPhone: 0, wSmooth: .3 }, prev ? perturb(prev) : gridStarts());
+        // solo pixel e profondità (senza i termini di continuità, che dipendono dal passo di 3 fotogrammi)
+        const ch = chainOf(res.x); for (const p of o.pts){ const u = project(ch[p.key]); c += (p.w*(u[0] - p.uv[0]))**2 + (p.w*(u[1] - p.uv[1]))**2; } for (const d of o.depth) c += (d.w*SC.scale*((ch[d.a][2] - ch[d.b][2]) - d.dz))**2; n++; prev = res.x; } }   // profondità pesata con la scala base: il confronto tra scale resta onesto
+    return n ? c/n : Infinity; };
+  const base = SC.scale;
+  for (const k of [.9, .95, 1, 1.05, 1.1]){ SCALE = base*k; DIST = F_PX/SCALE; CAM = cameraOffset(); const c = costOf(); scaleInfo.prove.push({ fattore: k, scala_px_m: r2(SCALE), distanza_m: r2(DIST), costo_medio: r2(c) }); }
+  const best = scaleInfo.prove.reduce((b, p) => p.costo_medio < b.costo_medio ? p : b, scaleInfo.prove[0]);
+  scaleInfo.modo = 'auto'; scaleInfo.fattore = best.fattore; SCALE = base*best.fattore; DIST = F_PX/SCALE; CAM = cameraOffset();
+  console.error('scala: ' + scaleInfo.prove.map(p => `${p.fattore}→${p.costo_medio}`).join(' ') + ` · scelto ×${best.fattore} (${r2(SCALE)} px/m, ${r2(DIST)} m)`);
+}
+
 /* ---------- esecuzione ---------- */
-console.error(`fotogrammi ${frames.length}, scala ${SC.scale?.toFixed(1)} px/m (n=${SC.n}, p10 ${SC.p10?.toFixed(1)}, p90 ${SC.p90?.toFixed(1)}), f ${F_PX} px → distanza camera–bacino ${DIST.toFixed(2)} m, camera ${CAM.yc.toFixed(2)} m sopra le anche, ${CAM.xc.toFixed(2)} m di lato (n=${CAM.n})`);
-const optsA = { wHand: 30, wPhone: 0, wSmooth: .12 };
+console.error(`fotogrammi ${frames.length}, scala ${SCALE?.toFixed(1)} px/m (n=${SC.n}, p10 ${SC.p10?.toFixed(1)}, p90 ${SC.p90?.toFixed(1)}), f ${F_PX} px → distanza camera–bacino ${DIST.toFixed(2)} m, camera ${CAM.yc.toFixed(2)} m sopra le anche, ${CAM.xc.toFixed(2)} m di lato (n=${CAM.n})`);
+const optsA = { wHand: 30, wPhone: 0, wSmooth: .3 };       // continuità .3 (era .12: salti di 30° della profondità tra fotogrammi)
 let recon = {};
-for (const seg of segs){ const t0 = Date.now(); recon[seg.id] = reconstruct(seg, optsA); console.error(`${seg.id}: ${recon[seg.id].length} fotogrammi in ${((Date.now() - t0)/1000).toFixed(1)} s`); }
+for (const seg of segs){ if (seg.kind === 'grip') continue; const t0 = Date.now(); recon[seg.id] = reconstruct(seg, optsA); console.error(`${seg.id}: ${recon[seg.id].length} fotogrammi in ${((Date.now() - t0)/1000).toFixed(1)} s`); }
 // presa misurata sulle macchie, poi seconda passata con il vincolo del telefono
 const gripMode = arg('grip', 'auto');
 let gripInfo = { eul: [0, 0, 0], n: 0 };
@@ -339,8 +423,8 @@ if (gripMode === 'auto'){
   gripInfo = refineGrip(Object.values(recon).flat());
   gripEuler = gripInfo.eul; gripQ = gripWith(gripEuler);
   console.error(`presa: Euler ${gripEuler.map(deg).join(', ')}° su ${gripInfo.n} fotogrammi, errore d'asse ${gripInfo.resid?.toFixed(1)}° (prima ${gripInfo.resid0?.toFixed(1)}°)`);
-  const optsB = { wHand: 30, wPhone: 25, wSmooth: .12 };
-  for (const seg of segs){ const t0 = Date.now(); recon[seg.id] = reconstruct(seg, optsB); console.error(`${seg.id} (2ª passata): ${((Date.now() - t0)/1000).toFixed(1)} s`); }
+  const optsB = { wHand: 30, wPhone: 25, wSmooth: .3 };
+  for (const seg of segs){ if (seg.kind === 'grip') continue; const t0 = Date.now(); recon[seg.id] = reconstruct(seg, optsB); console.error(`${seg.id} (2ª passata): ${((Date.now() - t0)/1000).toFixed(1)} s`); }
 }
 for (const id in recon) recon[id] = kinematics(smooth(recon[id]));
 
@@ -348,12 +432,15 @@ for (const id in recon) recon[id] = kinematics(smooth(recon[id]));
 const strokes = [];
 const pushStroke = (id, label, expect, samples, k, extra = {}) => { if (!k){ strokes.push({ id, label, expect, errore: 'nessun picco di velocità trovato' }); return; }
   const m = measures(null, k);
+  const inStroke = samples.filter(s => s.t >= k.start.t && s.t <= k.end.t);
+  m.interpolazione = { fotogrammi: inStroke.length, fotogrammi_senza_mano: inStroke.filter(s => !s.o.hand).length, fotogrammi_senza_schermo: inStroke.filter(s => !s.o.phone).length, fotogrammi_senza_braccio: inStroke.filter(s => s.interpolated).length };
   strokes.push({ id, label, expect, finestra_s: [r3(samples[0].t), r3(samples[samples.length - 1].t)], tempi: m.tempi, misure: m, ...extra,
     pose_chiave: { carica: sampleOut(k.load), impatto: sampleOut(k.impact), fine: sampleOut(k.end) },
     campioni: samples.filter(s => s.t >= Math.min(k.start.t - .2, extra.lancio ? extra.lancio.t_picco_mano_sinistra - .4 : 1e9) && s.t <= k.end.t + .3).map(sampleOut) }); };
 
 for (const seg of segs){
   const S = recon[seg.id];
+  if (seg.kind === 'grip'){ strokes.push(gripCloseup(seg)); continue; }
   if (seg.kind === 'still'){
     const mid = S[Math.floor(S.length/2)];
     strokes.push({ id: seg.id, label: seg.label, finestra_s: [seg.from, seg.to], posa: sampleOut(mid), media_angoli: Object.fromEntries(JOINTS.map((k, idx) => [k, k === 'y' ? r4(S.reduce((a, s) => a + s.x[idx], 0)/S.length) : deg(S.reduce((a, s) => a + s.x[idx], 0)/S.length)])),
@@ -364,13 +451,23 @@ for (const seg of segs){
     // lancio: picco della velocità 2D del polso SINISTRO (palla immaginaria); battuta: picco della mano destra dopo il lancio
     const left = S.map(s => { const f = byI.get(s.i), a = byI.get(s.i - 1), b = byI.get(s.i + 1);
       const ok = a?.pose && b?.pose && vis(a, P.wrL) > .5 && vis(b, P.wrL) > .5;
-      return { t: s.t, i: s.i, v: ok ? Math.hypot(b.pose[P.wrL][0] - a.pose[P.wrL][0], b.pose[P.wrL][1] - a.pose[P.wrL][1])*FPS/2/SC.scale : 0, y: f?.pose ? f.pose[P.wrL][1] : null }; });
+      return { t: s.t, i: s.i, v: ok ? Math.hypot(b.pose[P.wrL][0] - a.pose[P.wrL][0], b.pose[P.wrL][1] - a.pose[P.wrL][1])*FPS/2/SCALE : 0, y: f?.pose ? f.pose[P.wrL][1] : null }; });
     // il lancio: il polso sinistro sale (y immagine cala) con velocità; prendiamo il picco di velocità nella metà iniziale della finestra
     const half = S[Math.floor(S.length*.55)].t;
     const toss = left.filter(l => l.t < half).reduce((b, l) => l.v > b.v ? l : b, left[0]);
-    const k = segmentStroke(S, { from: toss.t + .15, to: seg.to - .1 });
+    // lancio debole o non visto (3ª ripetizione: la sinistra quasi ferma): non vincola la ricerca della battuta
+    const tossOk = toss.v >= .8;
+    const k0 = segmentStroke(S, { from: tossOk ? toss.t + .15 : seg.from + .2, to: seg.to - .1 });
+    // battuta = punto più alto della mano destra (y immagine minima, polso visto) nei 0,4 s prima del picco di velocità
+    // della discesa: nel servizio la mano è più veloce mentre scende, ma si colpisce in alto
+    let k = k0;
+    if (k0){ const cand = S.filter(s => s.t >= k0.impact.t - .4 && s.t <= k0.impact.t && byI.get(s.i)?.pose && vis(byI.get(s.i), P.wrR) > .5);
+      if (cand.length){ const top = cand.reduce((b, s) => byI.get(s.i).pose[P.wrR][1] < byI.get(b.i).pose[P.wrR][1] ? s : b, cand[0]);
+        // carica e inizio rifatti rispetto alla battuta (mano più alta): il minimo di velocità prima della salita
+        const L = loadBefore(S, S.indexOf(top), k0.impact.sSeg, seg.from, Math.max(.35, .12*k0.impact.sSeg));
+        k = { ...k0, ...L, impact: top, t_picco_velocita: k0.impact.t }; } }
     const tossTop = left.filter(l => l.y != null && l.t >= toss.t && l.t <= (k?.impact.t ?? seg.to)).reduce((b, l) => l.y < b.y ? l : b, { y: 1e9 });
-    pushStroke(seg.id, seg.label, 'lancio + battuta', S, k, { lancio: { t_picco_mano_sinistra: r3(toss.t), velocita_ms: r2(toss.v), t_mano_sinistra_piu_alta: tossTop.t != null ? r3(tossTop.t) : null, battuta_dopo_lancio_s: k ? r3(k.impact.t - toss.t) : null } });
+    pushStroke(seg.id, seg.label, 'lancio + battuta', S, k, { lancio: { t_picco_mano_sinistra: r3(toss.t), velocita_ms: r2(toss.v), lancio_visto: tossOk, t_mano_sinistra_piu_alta: tossTop.t != null ? r3(tossTop.t) : null, battuta_dopo_lancio_s: k && tossOk ? r3(k.impact.t - toss.t) : null }, battuta: { nota: 'battuta = mano destra più alta nei 0,4 s prima del picco di velocità della discesa', t_picco_velocita_discesa: k?.t_picco_velocita != null ? r3(k.t_picco_velocita) : null } });
   } else if (seg.kind === 'multi'){
     // tagliati: tutti i picchi di velocità separati di almeno 1,2 s
     let rest = S.slice(), n = 0;
@@ -390,7 +487,7 @@ const out = {
   metodo: {
     tracciamento: 'MediaPipe Pose (modello heavy) e Hands (full) dal repository, in Chromium headless un fotogramma alla volta (scripts/video/estrai-posa.mjs); schermo del telefono come macchia blu vicino al polso destro',
     ricostruzione: 'catena del gioco (natpf_gesture_pose.armChain: busto tau/lat, spalla p/e/r, gomito b, pronosupinazione pro, polso fl/dv; omero 0,30 m, avambraccio 0,262 m) + spostamento del bacino (tx, tz), adattata per minimi quadrati (Levenberg–Marquardt) ai punti 2D (spalle, anche, gomito e polso destro), alle profondità relative dei punti mondo di MediaPipe (peso basso: segno e ordine di grandezza), agli assi della mano di Hands e all’asse lungo dello schermo; lisciatura [1 2 1]/4',
-    camera: { f_px: F_PX, f_nota: 'ipotesi (26 mm equivalenti a 540×960), non misurata', scala_px_m: r2(SC.scale), scala_n: SC.n, distanza_m: r2(DIST), offset_m: { x: r3(CAM.xc), y: r3(CAM.yc), n: CAM.n }, anche_y_m: HIP_Y, immagine: [W, H], bacino_modello_y: BODY.pelvis[1], nota: 'scala = distanza tra le spalle in pixel / nel mondo MediaPipe, mediana sui fotogrammi frontali' },
+    camera: { f_px: F_PX, f_nota: 'ipotesi (26 mm equivalenti a 540×960), non misurata', scala_px_m: r2(SCALE), scala_mediapipe_px_m: r2(SC.scale), scala_n: SC.n, scala_ricerca: scaleInfo, distanza_m: r2(DIST), offset_m: { x: r3(CAM.xc), y: r3(CAM.yc), n: CAM.n }, anche_y_m: HIP_Y, immagine: [W, H], bacino_modello_y: BODY.pelvis[1], nota: 'scala = distanza tra le spalle in pixel / nel mondo MediaPipe, mediana sui fotogrammi frontali' },
     presa: { modello: 'telefono in piedi nel pugno, schermo in avanti (upright); raffinata sui fotogrammi con schermo e mano visti', euler_xyz_deg: gripEuler.map(deg), fotogrammi: gripInfo.n, errore_asse_deg: gripInfo.resid != null ? deg(gripInfo.resid) : null, errore_asse_prima_deg: gripInfo.resid0 != null ? deg(gripInfo.resid0) : null },
     convenzioni: 'campo del gioco: x a destra di chi gioca, y in alto, −z verso lo schermo; angoli in gradi (JOINTS di natpf_gesture_pose.js, assoluti come REST e CHOREO); tempi in secondi dall’inizio del video; velocità della mano = polso della catena (m/s), 2D = polso di Pose convertito con la scala del corpo',
   },

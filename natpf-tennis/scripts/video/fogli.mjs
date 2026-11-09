@@ -52,7 +52,38 @@ function pick(stroke){
 
 const CAMERA = DATI.metodo.camera;
 const strokes = DATI.colpi.filter(s => !s.errore && (!SOLO.length || SOLO.includes(s.id)));
-for (const st of strokes){
+// presa in primo piano: fotogrammi del video con la mano di Hands (verde) e l'asse dello schermo (magenta), misure 2D
+for (const st of strokes.filter(s => s.tipo === 'presa_2d')){
+  const rows = st.campioni.filter(r => r.schermo_visto || r.mano_vista);
+  const step = Math.max(1, Math.floor(rows.length/N)), chosen = rows.filter((_, k) => k % step === 0).slice(0, N);
+  const frames = chosen.map(r => ({ r, mp: mp.get(r.i) || null }));
+  if (!frames.length) continue;
+  const dataUrl = await page.evaluate(async ({ st, frames, CAMERA }) => {
+    const [W, H] = CAMERA.immagine, CW = 270, CH = 480, CAP = 48, PAD = 8, COLS = 4, ROWS = Math.ceil(frames.length/COLS), HEAD = 60;
+    const loadImg = src => new Promise((ok, ko) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => ko(new Error(src)); im.src = src; });
+    const cv = document.getElementById('c'); cv.width = COLS*(CW + 2*PAD); cv.height = HEAD + ROWS*(CH + CAP + 2*PAD);
+    const g = cv.getContext('2d'); g.fillStyle = '#0b1020'; g.fillRect(0, 0, cv.width, cv.height);
+    g.fillStyle = '#fff'; g.font = '700 22px sans-serif'; g.fillText(`${st.label} · video dell’utente, misure 2D (niente corpo per Pose nel primo piano)`, 16, 30);
+    g.font = '14px sans-serif'; g.fillStyle = '#9fb3d9'; g.fillText(`verde = mano (Hands: polso, nocche, indice, medio, pollice) · magenta = asse lungo dello schermo acceso · mediane: asse schermo ${st.mediane.schermo_asse_deg}°, dita ${st.mediane.dita_deg}°, schermo−dita ${st.mediane.schermo_meno_dita_deg}°, normale del palmo verso la camera ${st.mediane.normale_palmo_verso_camera}`, 16, 52);
+    const imgs = await Promise.all(frames.map(c => loadImg('/frames/f' + String(c.r.i).padStart(4, '0') + '.jpg')));
+    const sc = CW/W, line = (a, b, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); };
+    frames.forEach((c, k) => {
+      const ox = (k % COLS)*(CW + 2*PAD) + PAD, oy = HEAD + Math.floor(k/COLS)*(CH + CAP + 2*PAD) + PAD, T = ([x, y]) => [ox + x*sc, oy + y*sc];
+      g.drawImage(imgs[k], 0, 0, W, H, ox, oy, CW, CH);
+      const m = c.mp, h = (m?.hands || []).filter(x => x.score >= .5).sort((a, b) => b.score - a.score)[0];
+      if (h) for (const [a, b] of [[0, 5], [5, 9], [9, 13], [13, 17], [0, 17], [5, 8], [9, 12], [0, 4], [4, 3], [3, 2]]) line(T(h.lm[a]), T(h.lm[b]), 'rgba(80,255,120,.95)', 2);
+      if (m?.phone && m.phone.n >= 1500){ const ph = m.phone, a = ph.ang*Math.PI/180, c0 = T([ph.cx, ph.cy]), L = ph.len1/2*sc; line([c0[0] - Math.cos(a)*L, c0[1] - Math.sin(a)*L], [c0[0] + Math.cos(a)*L, c0[1] + Math.sin(a)*L], 'rgba(255,80,255,.95)', 3); }
+      g.fillStyle = '#dfe6f5'; g.font = '700 14px sans-serif'; g.fillText(`t = ${c.r.t.toFixed(2)} s · fotogramma ${c.r.i}`, ox, oy + CH + 18);
+      g.fillStyle = '#b8c4e0'; g.font = '12px sans-serif';
+      g.fillText(`schermo ${c.r.schermo_visto ? c.r.schermo_asse_deg + '° (' + c.r.schermo_px + ' px)' : 'non visto'} · mano ${c.r.mano_vista ? 'dita ' + c.r.mano.dita_deg + '°, palmo→camera ' + (c.r.mano.normale_palmo_verso_camera ?? '—') : 'non vista'}${c.r.schermo_meno_dita_deg != null ? ' · schermo−dita ' + c.r.schermo_meno_dita_deg + '°' : ''}`, ox, oy + CH + 36);
+    });
+    return cv.toDataURL('image/webp', .82);
+  }, { st, frames, CAMERA });
+  const file = path.join(OUT, `V-${st.id}.webp`);
+  fs.writeFileSync(file, Buffer.from(dataUrl.split(',')[1], 'base64'));
+  console.error('scritto', file, frames.length, 'fotogrammi');
+}
+for (const st of strokes.filter(s => s.tipo !== 'presa_2d')){
   const cells = st.kind === 'still' || st.posa ? st.campioni.slice(0, N).map(s => ({ s, label: '' })) : pick(st);
   if (!cells.length) continue;
   const frames = cells.map(c => ({ ...c, mp: mp.get(c.s.i) || null }));
@@ -136,7 +167,7 @@ for (const st of strokes){
       const j = s.j;
       g.fillText(`busto ${j.tau}° · spalla p ${j.p}° e ${j.e}° r ${j.r}° · gomito ${j.b}° · pro ${j.pro}° · polso ${j.fl}°/${j.dv}°`, ox, oy + VH + 38);
       const q = s.qualita;
-      g.fillText(`mano ${s.velocita_mano_ms} m/s (2D ${s.velocita_mano_2d_ms ?? '—'}) · telefono ${s.omega_gs} °/s · riproiezione ${q.riproiezione_px ?? '—'} px · mano vista ${q.mano} · schermo ${q.telefono}${q.interpolato ? ' · INTERPOLATO' : ''}`, ox, oy + VH + 54);
+      g.fillText(`mano ${s.velocita_mano_ms} m/s (2D ${s.velocita_mano_2d_ms ?? '—'}) · telefono ${s.omega_gs} °/s · riproiezione ${q.riproiezione_px ?? '—'} px · mano vista ${q.mano} · schermo ${q.telefono}${q.interpolato ? ' · BRACCIO INTERPOLATO' : ''}${q.mano_interpolata ? ' · MANO INTERPOLATA (polso/pronazione dal fotogramma prima)' : ''}`, ox, oy + VH + 54);
     });
     return cv.toDataURL('image/webp', .82);
   }, { st, frames, CAMERA, trail: st.campioni.map(s => s.W) });
