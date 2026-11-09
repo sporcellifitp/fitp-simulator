@@ -212,7 +212,7 @@ test('etichette dei fantasmi ferme sul proprio fantasma (nessun salto, anche con
     const d = new NatpfGestureDemo({ width: 640, height: 400 });
     for (const id of ['forehand', 'backhand', 'slice', 'drop', 'volley', 'flat', 'cross', 'line']){
       d.play(id); d.stop();
-      const P = GP.gesturePlan(id), prev = new Map(), follow = !!GP.CAMERAS[id].follow;
+      const P = GP.gesturePlan(id), prev = new Map(), follow = !!GP.camSpec(id, P.set).follow;
       let worst = 0;
       for (let t = 0; t < P.total; t += 1/60){
         d.show(t);

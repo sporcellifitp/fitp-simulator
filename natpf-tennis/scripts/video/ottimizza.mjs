@@ -46,10 +46,21 @@ export function videoRef(id){
   return { id: c.id, keys, at, times: T };
 }
 
+/* ---------- schede che il video non mostra (piatto, pallonetto, palla corta, schiacciata, volée) ---------- */
+// Con la presa del video e la partenza del video le coreografie di oggi (CHOREO, B13/B14) non si leggono più tutte: si
+// ottimizzano allo stesso modo (polso, piccoli scarti del braccio, durata della carica e del ritorno) tenendo la FORMA
+// approvata nel B13/B14 (la mano alle pose chiave e lungo il colpo come nella coreografia di oggi dalla sua partenza)
+export const LEGACY_IDS = Object.freeze(['flat', 'lob', 'drop', 'smash', 'volley']);
+export function legacyRef(id){
+  const m = GP.motionFrom(id, GP.CHOREO[id], { rest: GP.REST_COLPI_RACCHETTA, set: 'legacy' }), T = m.T, W = t => GP.armChain(m.ang(t)).W;
+  const keys = { carica: T.inv, impatto: T.contact, fine: T.back };
+  return { id, legacy: true, keys, at: t => ({ t, W: W(t), E: GP.armChain(m.ang(t)).E, tip: null, screen: null }) };
+}
+
 /* ---------- variabili ---------- */
 const ARMK = ['tau', 'p', 'e', 'r', 'b'], WRK = ['pro', 'fl', 'dv'], ARM_D = 12;
 const keysOf = id => id === 'serve' ? ['P', 'U', 'C', 'F'] : ['B', 'C', 'F'];
-const TIMES = { stroke: { acc: [.18, .32, .03], dMax: [.12, .35, .04], prep: [.6, 2.2, .25], fin: [.15, .4, .05] },
+const TIMES = { stroke: { acc: [.18, .30, .03], dMax: [.12, .35, .04], prep: [.6, 2.2, .25], fin: [.15, .4, .05] },
   serve: { prep: [.4, 1.6, .15], rise: [.2, .4, .04], up: [.1, .5, .06], acc: [.15, .3, .03], dMax: [.15, .4, .05], fin: [.15, .4, .05] } };
 const LAG = Object.freeze({ tau: .045, lat: .045, y: .045, p: .022, e: .022, r: .01 });
 // variabili di una scheda: [{ name, lo, hi, s (passo iniziale), get(base) }]
@@ -63,6 +74,7 @@ function varsFor(id, base){
     for (const k of ARMK) V.push({ name: `${K}.d${k}`, lo: -ARM_D, hi: ARM_D, s: 4, x0: 0 });
     for (const k of WRK){ const [lo, hi] = JOINT_LIMITS[k]; V.push({ name: `${K}.${k}`, lo: lo + 1, hi: hi - 1, s: k === 'pro' ? 25 : 12, x0: base[K][k] }); }
   }
+  if (base.legacy){ for (const [k, lo, hi, s0] of [['prep', .6, 3, .25], ['back', .8, 2.4, .25]]) V.push({ name: `t.${k}`, lo, hi, s: s0, x0: Math.min(hi, Math.max(lo, base[k])) }); return V; }
   for (const [k, [lo, hi, s]] of Object.entries(TIMES[id === 'serve' ? 'serve' : 'stroke'])) V.push({ name: `t.${k}`, lo, hi, s, x0: Math.min(hi, Math.max(lo, base.t?.[k] ?? (lo + hi)/2)) });
   return V;
 }
@@ -82,6 +94,12 @@ function decode(id, base, V, x){
     for (const k of WRK) J[k] = clampJ(k, val[`${K}.${k}`]);
     keys[K] = Object.fromEntries(JOINTS.map(k => [k, +(+J[k]).toFixed(k === 'y' ? 4 : 2)]));
   }
+  if (base.legacy){
+    const prep = +val['t.prep'].toFixed(3), back = +val['t.back'].toFixed(3), c = { ...base.c, ...keys, prep, back, backFlat: .3, contact: +(base.c0.contact + prep - base.c0.prep).toFixed(4), cycle: 99 };
+    delete c.tC;
+    try { c.cycle = +(GP.motionFrom(id, c, { rest: c.rest || GP.REST_VIDEO, set: 'video' }).T.home + .3).toFixed(3); } catch (e){ if (arg('debug', false)) console.error(e.message); }
+    return c;
+  }
   const t = Object.fromEntries(Object.keys(TIMES[id === 'serve' ? 'serve' : 'stroke']).map(k => [k, +val[`t.${k}`].toFixed(3)]));
   if (id === 'serve'){
     const hold = .4, contact = hold + t.prep + t.rise + t.up + t.acc;
@@ -94,7 +112,7 @@ function decode(id, base, V, x){
 }
 
 /* ---------- piani e sorgente per il telefono simulato ---------- */
-export const planOf = (id, choreo) => GP.planFrom(GP.motionFrom(id, choreo, { rest: GP.REST_VIDEO, set: 'video' }), GRIP);
+export const planOf = (id, choreo) => GP.planFrom(GP.motionFrom(id, choreo, { rest: choreo.rest || GP.REST_VIDEO, set: 'video' }), GRIP);
 const wrapT = (P, t) => ((t % P.total) + P.total) % P.total;
 function sourceWith(plans){
   return { name: 'ottimizzatore', plan: id => plans[id] || GP.gesturePlan(id, { grip: GRIP }),
@@ -110,7 +128,9 @@ export function readAll(src, id, { stop = Infinity, combos = COMBOS } = {}){
   for (const c of combos){
     if (bad >= stop){ out.push({ ...c, why: ['(non letto)'], skipped: true }); continue; }
     let why, r = null;
-    try { r = readCard(src, id, c); why = judgeCard(src, id, r, { hand: c.hand, rate: c.rate, allow: allowFor(id, c.rate) }); }
+    try { r = readCard(src, id, c); why = judgeCard(src, id, r, { hand: c.hand, rate: c.rate, allow: allowFor(id, c.rate) });
+      // a tempo reale il picco letto coincide con il contatto entro ¼ di campione (test natpf-gesture-pose)
+      if (!why.length && c.rate === 1){ const d = r.kind === 'serve' ? Math.max(Math.abs(r.dPeak ?? 99), Math.abs(r.dToss ?? 0)) : Math.abs(r.dPeak ?? 99); if (d > 1000/60/4) why = [`picco a ${d.toFixed(1)} ms dal contatto (> ¼ di campione)`]; } }
     catch (e){ why = ['ERRORE ' + e.message.slice(0, 120)]; }
     const desc = r ? (r.kind === 'serve' ? `${r.events.length} gesti` : r.read.map(x => x.ev.natpf.shot + (x.ev.side ? '/' + x.ev.side : '') + (x.ev.natpf.wrist != null && GESTURES[id]?.aim ? ` mira ${(+x.ev.natpf.wrist).toFixed(2)}` : '')).join(' + ')) : '';
     if (why.length) bad++;
@@ -131,7 +151,7 @@ export function shapeOf(id, P, ref){
   for (const [k, tv] of Object.entries(ref.keys)){
     if (K[k] == null) continue;
     const p = raw(K[k]), r = ref.at(tv), tip = qrot(p.q, [0, 1, 0]), sc = qrot(p.q, [0, 0, 1]);
-    out.keys[k] = { dW: len(sub(p.chain.W, r.W))*100, dE: len(sub(p.chain.E, r.E))*100, dy: (p.chain.W[1] - r.W[1])*100, tip: angDeg(tip, r.tip), screen: angDeg(sc, r.screen),
+    out.keys[k] = { dW: len(sub(p.chain.W, r.W))*100, dE: len(sub(p.chain.E, r.E))*100, dy: (p.chain.W[1] - r.W[1])*100, tip: r.tip ? angDeg(tip, r.tip) : 0, screen: r.screen ? angDeg(sc, r.screen) : 0,
       W: p.chain.W, Wref: r.W, elbow: p.chain.j.b };
   }
   // traiettoria della mano a tempo normalizzato tra le pose chiave consecutive
@@ -141,7 +161,7 @@ export function shapeOf(id, P, ref){
     for (let s = 0; s <= 10; s++){ const u = s/10, p = raw(K[a] + (K[b] - K[a])*u), r = ref.at(ref.keys[a] + (ref.keys[b] - ref.keys[a])*u), d = len(sub(p.chain.W, r.W))*100; sum += d; n++; mx = Math.max(mx, d); }
   }
   out.path = { mean: sum/n, max: mx };
-  out.cLag = P.T.nominal != null ? P.T.nominal - P.T.contact : null;
+  out.cLag = P.T.nominal != null && !ref.legacy ? P.T.nominal - P.T.contact : null;
   out.times = Object.fromEntries(names.slice(1).map((k, i) => [`${names[i]}→${k}`, { anim: K[k] - K[names[i]], video: ref.keys[k] - ref.keys[names[i]] }]));
   return out;
 }
@@ -188,11 +208,16 @@ export function physicsOf(id, P){
   for (let t = P.contact; t <= T.back; t += 1/240){ const s = vel(t); mn = Math.min(mn, s); up = Math.max(up, s - mn); const w = wsp(t); wmn = Math.min(wmn, w); wup = Math.max(wup, w - wmn); }
   if (up > .22 || wup > 30) bad.push(['frenata', Math.max(0, up - .22)*10 + Math.max(0, wup - 30)/10]);
   // sequenza prossimo-distale (colpi): busto prima della mano, omero e avambraccio non dopo; picco della mano al contatto
+  // la mano non salta più di 0,14 m tra due campioni a 60 Hz (test di continuità: 0,15)
+  let jump = 0; for (let t = 0; t < P.total; t += 1/60) jump = Math.max(jump, len(sub(W(t + 1/60), W(t))));
+  if (jump > .14) bad.push(['salto della mano', (jump - .14)*100]);
+  // il picco del telefono è al contatto anche rispetto alla salita del servizio (curva della velocità per il disegno)
+  if (P.kind === 'serve'){ const wq2 = t => len(omega(p(t - 1/480).q, p(t + 1/480).q, 1/240)); let up = 0; for (let t = T.load; t < T.tossEnd + .05; t += 1/240) up = Math.max(up, wq2(t)); const hit = wq2(P.contact); if (up > hit - 40) bad.push(['salita più veloce della battuta', (up - hit + 40)/20]); }
   if (P.kind === 'stroke'){
     const seg = k => { let m = 0, at = 0; const hh = 1/600; for (let t = P.contact - .3; t <= P.contact + .1; t += hh){ const w = len(omega(p(t).chain[k], p(t + hh).chain[k], hh)); if (w > m){ m = w; at = t + hh/2; } } return at - P.contact; };
     const tr = seg('trunk'), ha = seg('hand'), upA = seg('upper'), fo = seg('fore');
     let s = 0; if (Math.abs(ha) > 1/300) s += Math.abs(ha)*100; if (!(tr < ha - .006)) s += (tr - ha + .006)*100 + .5; if (upA > ha + .002) s += (upA - ha)*100 + .5; if (fo > ha + .002) s += (fo - ha)*100 + .5;
-    if (s > 0) bad.push(['sequenza', s]);
+    if (s > 0) bad.push(['sequenza', 5*s]);
   }
   // carica lenta (B13: il telefono gira sotto ~150 °/s fino alla carica, sotto la soglia dei colpi speciali della calibrazione
   // rapida) e una sola valle della velocità del telefono prima del colpo (niente «colpo in due tempi»)
@@ -200,6 +225,9 @@ export function physicsOf(id, P){
   const t1 = P.kind === 'serve' ? T.load : T.inv - .04;
   let cap = 0; for (let t = T.hold; t < t1; t += 1/120) cap = Math.max(cap, wq(t));
   if (cap > 140) bad.push(['carica veloce', (cap - 140)/20]);
+  // il telefono non supera 1 800 °/s (test di continuità: ≤ 2 000 °/s a 60 Hz)
+  let wmax = 0; for (let t = T.hold; t < T.back; t += 1/240) wmax = Math.max(wmax, wq(t));
+  if (wmax > 1800) bad.push(['telefono troppo veloce', (wmax - 1800)/50]);
   if (P.kind === 'stroke'){
     let mx = 0, drop = 0; for (let t = T.inv; t <= P.contact; t += 1/240){ const w = wq(t); mx = Math.max(mx, w); drop = Math.max(drop, mx - w); }
     const pk = wq(P.contact); if (drop > .25*pk) bad.push(['valle nel colpo', (drop - .25*pk)/50]);
@@ -223,7 +251,7 @@ function basePlans(){
   for (const k of ['forehand', 'backhand']) if (!plans[k]) plans[k] = GP.gesturePlan(k, { grip: GRIP, set: 'video' });
   return plans;
 }
-export function evaluate(id, choreo, { plans = basePlans(), stop = 3, also = ALSO, ref = videoRef(id) } = {}){
+export function evaluate(id, choreo, { plans = basePlans(), stop = 3, also = ALSO, ref = LEGACY_IDS.includes(id) ? legacyRef(id) : videoRef(id) } = {}){
   let P;
   try { P = planOf(id, choreo); } catch (e){ return { cost: 1e6, err: e.message }; }
   P.choreo = choreo;
@@ -269,13 +297,37 @@ async function main(){
   const plans = basePlans(), R = rng(SEED), logf = path.join(OUT, `${CARD}.log`);
   const log = s => { fs.appendFileSync(logf, s + '\n'); console.log(s); };
   let base;
-  if (CARD === 'cross' || CARD === 'line'){
+  if (LEGACY_IDS.includes(CARD)){
+    // partenza del video (braccio che pende, polso girato: il telefono deve girare di 83–155° fino alla carica): carica
+    // diretta in linea retta negli angoli e lunga (fino a 3 s), senza le pose di passaggio della schiacciata, pensate per la
+    // partenza di oggi (con quelle il polso si rigirava in un ottavo della carica: 576 °/s letti come un colpo, misurato);
+    // con la posa di oggi della racchetta come passaggio (110° dalla partenza del video) andava peggio
+    const c0 = GP.CHOREO[CARD], c = { ...c0, prep: c0.prep + 1 }; delete c.V;
+    // --via (piatto, schiacciata): la carica abbassa prima l'omero lungo il fianco (e 4°), lì cambia il piano di elevazione
+    // (con il braccio quasi verticale non gira il telefono), poi sale verso la carica di oggi in tre tratti: con la retta negli
+    // angoli il piano passava da −75° a +110° con il braccio già alzato (491 °/s a metà carica, letto come una schiacciata)
+    // --rest=colpi: la scheda parte dalla posa di oggi della racchetta (REST_COLPI_RACCHETTA, telefono davanti al petto) e
+    // non da quella del video (limite dichiarato: dalla partenza del video la carica del piatto e della schiacciata era letta
+    // come un colpo in tutte le varianti provate)
+    if (arg('rest', null) === 'colpi'){ c.rest = GP.REST_COLPI_RACCHETTA; c.prep = c0.prep; if (c0.V) c.V = c0.V; }
+    else if (arg('via', false)){ const R = GP.REST_VIDEO, A1 = { ...R, e: 4 }, A2 = { ...A1, p: c0.B.p }, L = u => Object.fromEntries(GP.JOINTS.map(k => [k, +(A2[k] + (c0.B[k] - A2[k])*u).toFixed(3)]));
+      c.V = [A1, A2, L(1/3), L(2/3)]; c.ov = c0.ov ?? .1; c.prep = c0.prep + 1.4; }
+    base = { legacy: true, c, c0, src: CARD, prep: c.prep, back: Math.max(1, c.back), B: c.B, C: c.C, F: c.F };
+  } else if (CARD === 'cross' || CARD === 'line'){
     const fore = WITH && loadSol(path.join(WITH, 'forehand.json'))?.choreo || GP.CHOREO_VIDEO.forehand;
     base = { aimOnly: true, fore, aim: GP.AIM_TURN_VIDEO?.[CARD] };
   } else {
-    const raw = rawVideoChoreo(CARD);
+    let raw = rawVideoChoreo(CARD);
+    // --mono: ogni articolazione del braccio va nello stesso verso da B a C e da C a F (la fine prosegue il colpo: niente
+    // articolazioni che si fermano o tornano indietro nell'impatto, che spezzano la velocità del telefono in due gobbe);
+    // --wrist=pro,fl,dv: polso di partenza uguale nelle tre pose (telefono rigido con l'avambraccio)
+    if (arg('mono', false)){ const B = raw.B, C = raw.C, F = { ...raw.F };
+      for (const k of ['tau', 'p', 'e', 'r', 'b']){ const d1 = C[k] - B[k], d2 = F[k] - C[k]; if (d1*d2 < 0 || Math.abs(d2) < 2) F[k] = C[k] + Math.sign(d1)*Math.max(3, Math.abs(d1)*.25); }
+      raw = { ...raw, F }; }
+    if (arg('wrist', null)){ const [pro, fl, dv] = arg('wrist').split(',').map(Number); for (const K of keysOf(CARD)) raw = { ...raw, [K]: { ...raw[K], pro, fl, dv } }; }
     base = { ...raw, t: id => null };
-    base.t = CARD === 'serve' ? { prep: raw.prep, rise: raw.rise, up: raw.up, acc: .25, dMax: raw.dMax, fin: raw.fin } : { acc: .25, dMax: Math.max(.12, raw.dMax), prep: raw.prep, fin: raw.fin };
+    const A0 = +arg('acc', .25), P0 = +arg('prep', raw.prep);
+    base.t = CARD === 'serve' ? { prep: P0, rise: raw.rise, up: raw.up, acc: A0, dMax: raw.dMax, fin: raw.fin } : { acc: A0, dMax: Math.max(.12, raw.dMax), prep: P0, fin: raw.fin };
   }
   const V = varsFor(CARD, base);
   let x = V.map(v => v.x0);
@@ -311,12 +363,13 @@ async function main(){
 function emit(dir){
   const lit = o => '{ ' + Object.entries(o).map(([k, v]) => `${k}: ${typeof v === 'number' ? +v.toFixed(k === 'y' ? 4 : 3) : JSON.stringify(v)}`).join(', ') + ' }';
   const lines = [];
-  for (const id of ['forehand', 'backhand', 'slice', 'sliceBackhand', 'serve']){
+  for (const id of ['forehand', 'backhand', 'slice', 'sliceBackhand', 'serve', ...LEGACY_IDS]){
     const s = loadSol(path.join(dir, `${id}.json`)); if (!s) continue;
     const c = { ...s.choreo }; delete c.tC;
-    const tC = GP.motionFrom(id, c, { rest: GP.REST_VIDEO, set: 'video' }).T.nominal;
-    const head = Object.entries(c).filter(([k]) => !['B', 'C', 'F', 'P', 'U', 'lag', 'times', 'src'].includes(k)).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(', ');
-    lines.push(`  ${id}: Object.freeze({ src: ${JSON.stringify(c.src)}, times: ${JSON.stringify(c.times)}, tC: ${+tC.toFixed(6)}, ${head}, lag: LAG,`);
+    const tC = GP.motionFrom(id, c, { rest: c.rest || GP.REST_VIDEO, set: 'video' }).T.nominal;
+    const head = Object.entries(c).filter(([k]) => !['B', 'C', 'F', 'P', 'U', 'V', 'lag', 'jt', 'times', 'src'].includes(k)).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(', ');
+    const extra = (c.jt ? `, jt: ${JSON.stringify(c.jt).replace(/"(\w+)":/g, '$1: ')}` : '') + (c.V ? `,\n    V: [${c.V.map(lit).join(', ')}]` : '');
+    lines.push(`  ${id}: Object.freeze({ src: ${JSON.stringify(c.src ?? id)}, times: ${JSON.stringify(c.times ?? null)}, tC: ${+tC.toFixed(6)}, ${head}, lag: ${c.lag === undefined || JSON.stringify(c.lag) === JSON.stringify({ tau: .045, lat: .045, y: .045, p: .022, e: .022, r: .01 }) ? 'LAG' : JSON.stringify(c.lag).replace(/"(\w+)":/g, '$1: ')}${extra},`);
     const K = id === 'serve' ? ['P', 'U', 'C', 'F'] : ['B', 'C', 'F'];
     lines.push(K.map(k => `    ${k}: ${lit(c[k])}`).join(',\n') + ' }),');
   }

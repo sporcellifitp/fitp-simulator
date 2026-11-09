@@ -219,7 +219,7 @@ const REST_HAND = armChain(REST).hand;
 // Risolta per quei vincoli (scripts/video/ottimizza.mjs --presa): mano davanti al petto (0,05; 1,16; −0,30), avambraccio di
 // traverso verso sinistra, schermo a ≤ 12° dalla direzione dello schermo di gioco, cima verso la sinistra di chi gioca e un
 // poco in basso, pollice in alto. Coerente con la foto «davanti» dell'utente (schermo in vista, dita sotto, pollice sopra).
-export const REST_RACCHETTA = Object.freeze({ tau: 0, lat: 0, y: 0, p: 64.3, e: 46.8, r: 75.4, b: 83.4, pro: 165, fl: -21.5, dv: 12.2 });
+export const REST_RACCHETTA = Object.freeze({ tau: 0, lat: 0, y: 0, p: 64.3, e: 46.8, r: 74.9, b: 83.4, pro: 165, fl: -21.5, dv: 12.2 });
 // alternativa del passo B (lettura delle due foto, presa PHONE_IN_HAND_FOTO): avambraccio in avanti e a destra di 40°, polso
 // dritto. Non più usata: con la presa misurata nel video lo schermo non guarda lo schermo di gioco in questa posa
 export const REST_RACCHETTA_FOTO = Object.freeze({ tau: 0, lat: 0, y: 0, p: -38.7, e: 12.9, r: -40, b: 90.1, pro: 76.4, fl: 0, dv: 0 });
@@ -427,10 +427,11 @@ export const CHOREO = Object.freeze({
 // istanti del video (s); acc = carica → impatto e dMin/dMax = impatto → fine SONO quelli del video; hold, prep (partenza →
 // carica), fin (fermo nella posa finale: l'utente tiene la fine 0,2–0,4 s) e back (ritorno lento, 2 s a velocità costante:
 // l'utente abbassa il braccio piano) non si vedono nel video e sono scelti. Partenza: REST_VIDEO (braccio che pende).
-// STATO (09/11): con il telefono simulato NESSUNA di queste schede è ancora letta come il colpo mostrato (dritto letto dal
-// lato del rovescio, tagliati letti palla corta/top spin, servizio 3 gesti): VIDEO_CARDS è vuoto, le schede del tutorial
-// usano CHOREO anche con la presa a racchetta; questo insieme è raggiungibile con gesturePlan(id, { set: 'video' }) per gli
-// strumenti e il test «insieme del video (in lavorazione)». Le scelte proposte all'utente sono in posa-dal-video.md §4.
+// STATO (passo B2): CHOREO_VIDEO_GREZZA NON è letta come il colpo mostrato dal telefono simulato (dritto letto dal lato del
+// rovescio, tagliati palla corta, servizio 3 gesti: test natpf-gesture-pose «pose del video grezze»). Resta come riferimento della
+// forma (partenza dell'ottimizzatore) e come rollback dei dati; il tutorial usa CHOREO_VIDEO qui sotto. Con la presa misurata
+// nel video (PHONE_IN_HAND_VIDEO) gli angoli del polso qui scritti (passo C, risolti con la presa delle foto) non danno più
+// l'orientamento del video: l'ottimizzatore li risolve di nuovo dalla ricostruzione (rawVideoChoreo).
 const LAG = Object.freeze({ tau: .045, lat: .045, y: .045, p: .022, e: .022, r: .01 });
 export const CHOREO_VIDEO_GREZZA = Object.freeze({
   forehand: Object.freeze({ src: 'forehand (2ª ripetizione)', times: { carica: 9.867, impatto: 10.367, fine: 10.533 }, contact: 1.65, tC: 1.65, cycle: 4.37, prep: .7, acc: 0.5, crisp: 1, dMin: 0.166, dMax: 0.166, fin: .3, back: 2, backFlat: .3, lag: LAG,
@@ -455,7 +456,62 @@ export const CHOREO_VIDEO_GREZZA = Object.freeze({
     C: { tau: -11.9, lat: -0.5, y: 0.007, p: 43.7, e: 102.6, r: -14.4, b: 99, pro: 143.1, fl: -8, dv: -26 },
     F: { tau: 18.7, lat: -4.3, y: 0.016, p: 68.1, e: 22.4, r: 47.1, b: 90.4, pro: 1, fl: -21.6, dv: -16.5 } }),
 });
-export const CHOREO_VIDEO = CHOREO_VIDEO_GREZZA;
+// Coreografie della presa a racchetta (B17.1 passo B2, decisioni dell'utente del 09/11 sera: «ottimizza senza di me»): trovate
+// dall'ottimizzatore scripts/video/ottimizza.mjs (strategia evolutiva con il telefono simulato completo nel costo: rilevatore
+// vero, calibrazione del braccio simulato e con il dritto e il rovescio di queste stesse coreografie, destro e mancino, 0,8× /
+// 1× / 1,25×; più lo scarto dalla forma del video e i vincoli fisici del B13), partenza REST_VIDEO e presa del video
+// (PHONE_IN_HAND_VIDEO). Dritto, rovescio a due mani, tagliati e servizio partono da CHOREO_VIDEO_GREZZA (la forma del
+// video) e cambiano il polso, di poco il braccio (≤ 12° per angolo) e i tempi (parte veloce 0,18–0,32 s invece di 0,17–0,5 s
+// del video); piatto, pallonetto, palla corta, schiacciata e volée (che il video non mostra) partono da CHOREO (B13/B14) e
+// tengono quella forma. Palla corta e schiacciata partono da REST_COLPI_RACCHETTA (telefono davanti al petto): dalla partenza
+// del video la loro carica era letta come un colpo in tutte le varianti provate (limite dichiarato). Scarti dal video, letture
+// e cosa è cambiato rispetto al video in docs/b17/ottimizzazione.md. Generato con `ottimizza.mjs --emit` (tC risolto e scritto).
+// --- generato da scripts/video/ottimizza.mjs --emit (non modificare a mano) ---
+export const CHOREO_VIDEO = Object.freeze({
+  forehand: Object.freeze({ src: "forehand (2ª ripetizione)", times: {"carica":9.867,"impatto":10.367,"fine":10.533}, tC: 2.108492, contact: 2.073, cycle: 4.896, prep: 1.404, acc: 0.319, crisp: 1, dMin: 0.129, dMax: 0.129, fin: 0.294, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: -37.99, lat: 5.2, y: 0.008, p: -37.92, e: 25.99, r: 18.9, b: 55.45, pro: 3.67, fl: -6.7, dv: 15.17 },
+    C: { tau: 23.41, lat: -6.4, y: 0.03, p: 21.98, e: 66.36, r: -22.55, b: 46.3, pro: 16.82, fl: 0.75, dv: 2.56 },
+    F: { tau: 30, lat: -5.3, y: 0.03, p: 42.98, e: 48.14, r: -34.94, b: 80.95, pro: 41.73, fl: -25.32, dv: -17.19 } }),
+  backhand: Object.freeze({ src: "backhand", times: {"carica":15.6,"impatto":15.767,"fine":15.967}, tC: 2.504422, contact: 2.529, cycle: 5.353, prep: 1.943, acc: 0.236, crisp: 1, dMin: 0.132, dMax: 0.132, fin: 0.292, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: 46.02, lat: 0.4, y: 0.017, p: 128.4, e: 45.54, r: 35.3, b: 15.7, pro: 130.31, fl: 40.18, dv: -6.03 },
+    C: { tau: 23.01, lat: -0.4, y: 0.03, p: 119.32, e: 47.32, r: 74.5, b: 81.5, pro: 76.83, fl: 35.29, dv: -11.45 },
+    F: { tau: -37.24, lat: -0.5, y: 0.03, p: 96.48, e: 49.44, r: 74.5, b: 117.93, pro: 73.94, fl: 28.19, dv: -29 } }),
+  slice: Object.freeze({ src: "slice2 (tagliato di dritto)", times: {"carica":32.6,"impatto":32.833,"fine":33.067}, tC: 2.223413, contact: 2.263, cycle: 5.158, prep: 1.727, acc: 0.186, crisp: 1, dMin: 0.292, dMax: 0.292, fin: 0.203, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: -40.97, lat: 6.4, y: 0.021, p: 63.27, e: 42.58, r: -0.4, b: 90.91, pro: 76.63, fl: -41.11, dv: -28.37 },
+    C: { tau: -19.7, lat: 2.2, y: 0.024, p: 63.95, e: 4.47, r: -19.6, b: 114.1, pro: 41.52, fl: -19.35, dv: 6.39 },
+    F: { tau: 17.98, lat: 1.3, y: 0.011, p: 59.18, e: 8.52, r: 0.31, b: 117.39, pro: 1, fl: 19.39, dv: -29 } }),
+  sliceBackhand: Object.freeze({ src: "slice1 (tagliato di rovescio)", times: {"carica":30.433,"impatto":30.7,"fine":30.867}, tC: 2.864614, contact: 2.753, cycle: 5.817, prep: 2.2, acc: 0.203, crisp: 1, dMin: 0.35, dMax: 0.35, fin: 0.314, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: 17.32, lat: 1.2, y: 0.021, p: 79.08, e: 78.15, r: 60.93, b: 100.21, pro: 104.58, fl: 9.77, dv: -29 },
+    C: { tau: -3.93, lat: -2, y: 0.021, p: -29.72, e: 24.57, r: 33.07, b: 94.04, pro: 8.1, fl: 3.79, dv: 3.65 },
+    F: { tau: 4.5, lat: -0.3, y: 0.005, p: -45.87, e: 6.25, r: -32.86, b: 65.24, pro: 64.22, fl: 64.41, dv: 17.43 } }),
+  serve: Object.freeze({ src: "serve2", times: {"carica":23,"alto":23.267,"impatto":23.7,"fine":24}, tC: 2.529628, kind: "serve", hold: 0.4, prep: 1.25, rise: 0.397, up: 0.279, acc: 0.3, contact: 2.626, dMin: 0.27, dMax: 0.27, fin: 0.355, back: 2, backFlat: 0.3, cycle: 5.651, riseWrist: 0.15, lag: LAG,
+    P: { tau: -16.46, lat: 3.3, y: 0.02, p: -64.8, e: 15.94, r: 5.32, b: 95.32, pro: 63.32, fl: -19.39, dv: -20.2 },
+    U: { tau: -35.9, lat: 4.1, y: 0.022, p: 76.35, e: 83.32, r: 3.58, b: 112.59, pro: 146.74, fl: -10.73, dv: -15.1 },
+    C: { tau: -23.9, lat: -0.5, y: 0.007, p: 54.69, e: 113.98, r: -26.4, b: 105.9, pro: 70.17, fl: -23.97, dv: -21.44 },
+    F: { tau: 6.7, lat: -4.3, y: 0.016, p: 78.44, e: 28.3, r: 40.84, b: 102.3, pro: 14.76, fl: -25.81, dv: -5.83 } }),
+  flat: Object.freeze({ src: "flat", tC: 2.041118, contact: 2.005, cycle: 3.98, prep: 1.655, acc: 0.091, crisp: 1, dMin: 0.08, dMax: 0.18, back: 1.379, backFlat: 0.3, lag: {tau: 0.04,lat: 0.04,y: 0.04,p: 0.02,e: 0.02,r: 0.008}, jt: {tau: {dMax: 0.3,acc: 0.127,lag: 0.041},lat: {dMax: 0.3,pre: 0.25},y: {dMax: 0.3,pre: 0.3},p: {dMax: 0.28,lag: 0.038,acc: 0.101},e: {dMax: 0.28,lag: 0.021},r: {lag: 0.014},b: {lag: 0.041},pro: {lag: -0.011}},
+    B: { tau: -39.25, lat: 7, y: -0.13, p: -5.9, e: 47.04, r: 21.84, b: 70.49, pro: 11.5, fl: 35.78, dv: -29 },
+    C: { tau: 7.38, lat: 5, y: -0.1, p: 17.76, e: 31.45, r: 25.14, b: 62.9, pro: 5.71, fl: 55.38, dv: -20.4 },
+    F: { tau: 36.11, lat: -3, y: 0, p: 76.63, e: 74.74, r: 44.31, b: 71.41, pro: 6.25, fl: 70.89, dv: -1.86 } }),
+  lob: Object.freeze({ src: "lob", tC: 3.155312, contact: 3.147, cycle: 5.968, prep: 2.777, acc: 0.155, crisp: 1, dMin: 0.12, dMax: 0.24, back: 2.271, backFlat: 0.3, lag: {tau: 0.03,lat: 0.03,y: 0.03,p: 0.015,e: 0.015,r: 0.01}, jt: {b: {pre: 0.2},fl: {pre: 0.2},pro: {pre: 0.2},e: {dur: 0.45},tau: {dur: 0.6},lat: {pre: 0.15},y: {pre: 0.15}},
+    B: { tau: -9.68, lat: 5, y: -0.08, p: 79.06, e: 11.09, r: 37.66, b: 32.86, pro: 43.09, fl: 74, dv: -15.45 },
+    C: { tau: -0.03, lat: 3, y: -0.05, p: 83.45, e: 41.53, r: 21.83, b: 49.14, pro: 71.76, fl: 26.71, dv: -29 },
+    F: { tau: 7.45, lat: 0, y: 0, p: 81.6, e: 94.2, r: 21.28, b: 47.72, pro: 115.34, fl: 26.98, dv: -8.33 } }),
+  drop: Object.freeze({ src: "drop", tC: 0.969802, contact: 0.969, cycle: 2.472, prep: 0.639, acc: 0.11, crisp: 1, dMin: 0.1, dMax: 0.14, back: 0.983, rest: REST_COLPI_RACCHETTA, backFlat: 0.3, lag: {tau: 0.03,lat: 0.03,y: 0.03,p: 0.015,e: 0.015,r: 0.01}, jt: {b: {dur: 0.5},pro: {dur: 0.45},fl: {dur: 0.45}},
+    B: { tau: -10.4, lat: 2, y: -0.03, p: 84.73, e: 30.47, r: 40.74, b: 99.75, pro: 30, fl: 23.87, dv: -8.08 },
+    C: { tau: -6.05, lat: 1, y: -0.04, p: 90.3, e: 29.62, r: 39.13, b: 85.5, pro: 18.61, fl: 19.48, dv: -1.99 },
+    F: { tau: -2.11, lat: 0, y: -0.04, p: 89.14, e: 28.51, r: 40.99, b: 75.91, pro: 4.21, fl: 12.09, dv: -28.4 } }),
+  smash: Object.freeze({ src: "smash", tC: 2.025205, contact: 2.032, cycle: 3.451, prep: 1.722, acc: 0.123, crisp: 1, dMin: 0.1, dMax: 0.219, back: 0.804, ov: 0.15, flat: 0.3, rest: REST_COLPI_RACCHETTA, backFlat: 0.3, lag: {tau: 0.03,lat: 0.03,y: 0.03,p: 0.015,e: 0.015,r: 0.01,b: 0}, jt: {e: {lag: -0.009,dMax: 0.313,acc: 0.059},b: {lag: -0.004,dMax: 0.291},fl: {dMax: 0.296},pro: {lag: 0.049},tau: {dMax: 0.3}},
+    V: [{ tau: -1.9, lat: 1, y: -0.004, p: 86.4, e: 30.1, r: 38.3, b: 95.2, pro: 12.8, fl: 13.9, dv: -20 }, { tau: -3.8, lat: 2, y: -0.007, p: 88.3, e: 43.2, r: 31.6, b: 101.3, pro: 4.9, fl: 0.2, dv: -23 }, { tau: -5.6, lat: 3, y: -0.011, p: 91.6, e: 58.2, r: 26.2, b: 102.3, pro: 3, fl: -12.7, dv: -25 }, { tau: -7.5, lat: 4, y: -0.015, p: 96.2, e: 73.5, r: 22.8, b: 100.1, pro: 3, fl: -24.3, dv: -26 }, { tau: -9.4, lat: 5, y: -0.019, p: 99.3, e: 90.3, r: 21.9, b: 94.8, pro: 3, fl: -34.1, dv: -26 }, { tau: -11.3, lat: 6, y: -0.022, p: 102.6, e: 107.9, r: 23.3, b: 86.9, pro: 3, fl: -42.1, dv: -26 }, { tau: -13.1, lat: 7, y: -0.026, p: 106.7, e: 126.4, r: 27.8, b: 75.4, pro: 3.9, fl: -47.9, dv: -26 }],
+    B: { tau: -20.35, lat: 8, y: -0.03, p: 113.4, e: 141.38, r: 39.06, b: 65.73, pro: 17.43, fl: -47.75, dv: -23.65 },
+    C: { tau: -6.37, lat: 4, y: -0.01, p: 115.58, e: 131.91, r: 46.59, b: 36.71, pro: 22.84, fl: -43.41, dv: 6.09 },
+    F: { tau: 26.64, lat: -6.95, y: -0.053, p: 110.27, e: 50.75, r: 32.55, b: 18.06, pro: 21.67, fl: -37.24, dv: 8.23 } }),
+  volley: Object.freeze({ src: "volley", tC: 1.3205, contact: 1.285, cycle: 2.413, prep: 0.885, acc: 0.098, crisp: 1, dMin: 0.08, dMax: 0.13, back: 0.628, backFlat: 0.3, lag: {tau: 0.03,lat: 0.03,y: 0.03,p: 0.015,e: 0.015,r: 0.008}, jt: {tau: {lag: 0.038},p: {lag: 0.042},e: {lag: 0},r: {lag: -0.004},b: {lag: 0.033},pro: {lag: -0.007}},
+    B: { tau: -22.46, lat: 2, y: -0.04, p: 23.94, e: 25.07, r: 53.06, b: 81.03, pro: 51.06, fl: 10.9, dv: -27.57 },
+    C: { tau: 6.72, lat: 1, y: -0.04, p: 79.23, e: 46.88, r: 32.38, b: 51.44, pro: 47.03, fl: 61.64, dv: -27.12 },
+    F: { tau: 17.01, lat: 0, y: -0.03, p: 106.59, e: 63.97, r: 37.26, b: 24.1, pro: 21.48, fl: 70.94, dv: -25.61 } }),
+});
+// --- fine del generato ---
 
 // Mira degli esercizi. Lungolinea: lo stesso dritto con il busto e la spalla girati attorno alla verticale per tutto il
 // colpo (contatto più indietro; gradi di busto tau e rotazione interna r, riportati nel ritorno). Incrociato: coreografia
@@ -465,11 +521,10 @@ export const CHOREO_VIDEO = CHOREO_VIDEO_GREZZA;
 export const AIM_TURN = Object.freeze({ line: Object.freeze({ tau: -10, r: -6 }) });
 // mira con il dritto dai dati (B17.1): tutto il corpo girato attorno alla verticale, incrociato verso sinistra, lungolinea
 // verso destra (il dritto campionato ha il contatto davanti e lo schermo verso la rete: basta girarlo)
-export const AIM_TURN_VIDEO = Object.freeze({ cross: Object.freeze({ tau: 14, r: 8 }), line: Object.freeze({ tau: -14, r: -8 }) });
-// Schede che, con la presa a racchetta, usano la coreografia DAL VIDEO (CHOREO_VIDEO) nel tutorial: solo quelle che il
-// telefono simulato legge come il colpo mostrato (test natpf-gesture-pose «fedeltà, insieme del video»); le altre
-// restano sulle coreografie di CHOREO. Lo stato e i limiti misurati sono in docs/b17/posa-dal-video.md.
-export const VIDEO_CARDS = Object.freeze([]);
+export const AIM_TURN_VIDEO = Object.freeze({ cross: Object.freeze({ tau: 1.81, r: -1.36, pro: 6.18, fl: 3.91 }), line: Object.freeze({ tau: -1.7, r: 0.59, pro: -2.59, fl: -12.75 }) });
+// Schede che, con la presa a racchetta, usano l'insieme 'video' (CHOREO_VIDEO e partenza REST_VIDEO; B17.1 passo B2): tutte
+// tranne la «Presa» (REST_RACCHETTA). Tutte lette come il colpo mostrato dal telefono simulato (test natpf-gesture-pose).
+export const VIDEO_CARDS = Object.freeze(['ready', 'forehand', 'backhand', 'flat', 'lob', 'drop', 'slice', 'smash', 'volley', 'serve', 'cross', 'line', 'sliceBackhand']);
 // insieme di coreografie di una scheda per presa: 'video' (dati del video dell'utente, presa a racchetta) o 'legacy'
 // (B13/B14, la stessa posa per palmo e martello)
 export const setFor = (grip = GRIP_STYLE, id = null) => isRacket(grip) && (id == null || VIDEO_CARDS.includes(id)) ? 'video' : 'legacy';
@@ -522,9 +577,10 @@ export const PHASES = Object.freeze({
 // B9 (telefono non di taglio nelle pose chiave, ≥ 60 px a 448×280, avambraccio ≥ 28° dal raggio visivo: ricerca su
 // griglia, docs/b14/camera-dritto.md; test/natpf-gesture-camera.test.mjs misura la lettura).
 export const CAMERAS = Object.freeze({
-  // presa nel palmo: dagli occhi di chi gioca e di lato; presa a racchetta (viewsBy): dallo schermo di gioco (la foto
-  // «davanti»: schermo in vista, dita sotto, pollice sopra) e di lato da destra (telefono lungo l'avambraccio, cima in su)
-  grip: Object.freeze({ views: Object.freeze([[-.36, .78, .5], [.85, .4, .35]]), viewsBy: Object.freeze({ racchetta: Object.freeze([[-.6, .15, -.78], [.85, .4, .35]]) }), dist: 1.0, seq: Object.freeze([3, 1.5, 3, 1.5]), read: 'pollice sul bordo destro, dita attorno al sinistro, cima in avanti e verso l\u2019interno' }),
+  // presa nel palmo: dagli occhi di chi gioca e di lato; presa a racchetta (viewsBy, passo B2): dallo schermo di gioco come il
+  // primo piano del video (schermo in vista) e da davanti a destra (di lato e dall'alto: mano e telefono di traverso; da
+  // destra di profilo, come prima, il telefono era di taglio con la posa del primo piano)
+  grip: Object.freeze({ views: Object.freeze([[-.36, .78, .5], [.85, .4, .35]]), viewsBy: Object.freeze({ racchetta: Object.freeze([[-.6, .15, -.78], [.7, .35, -.62]]) }), dist: 1.0, seq: Object.freeze([3, 1.5, 3, 1.5]), read: 'pollice sul bordo destro, dita attorno al sinistro, cima in avanti e verso l\u2019interno' }),
   ready: Object.freeze({ dir: [-.5, .55, .67], dist: 2.4, frameBody: 'neck', read: 'telefono fermo davanti allo sterno, gomito al fianco' }),
   forehand: Object.freeze({ dir: [-.791, .259, .554], dist: 3.6, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'spalle che girano, mano che scende sotto la palla, colpo dal basso verso l\u2019alto attorno al corpo, fine davanti alla spalla sinistra' }),
   flat: Object.freeze({ dir: [-.148, .819, .554], dist: 3.6, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .8, size: .4 }), frame: 'swing', read: 'come il dritto, più veloce e più piatto' }),
@@ -541,7 +597,10 @@ export const CAMERAS = Object.freeze({
   cross: Object.freeze({ dir: [-.258, .087, .962], dist: 3.6, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'contatto più avanti, busto già aperto: piatto girato verso il centro' }),
   line: Object.freeze({ dir: [-.821, .423, .383], dist: 3.6, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'contatto più indietro: piatto girato verso l\u2019esterno' }),
 });
-// Camere dell'INSIEME DEL VIDEO (B17.1 passo C, piano §1.4 punto 4): per i colpi la camera FRONTALE a tre quarti
+// Camere dell'INSIEME DEL VIDEO (B17.1 passo C, direzioni rifatte nel passo B2 per le coreografie ottimizzate con una ricerca
+// su griglia sui vincoli del disegno del B9: telefono non di taglio nelle pose chiave ≥ 28°, ≥ 52 px all'impatto a 448×280,
+// avambraccio ≥ 31° dal raggio visivo; il rovescio a due mani li rispetta solo da dietro a sinistra e dall'alto, come la
+// camera di oggi, e lì non si specchia). Per i colpi la camera FRONTALE a tre quarti
 // all'altezza del petto, come il video dell'utente, SPECCHIATA (mirror: chi guarda vede il proprio braccio destro a destra,
 // come in uno specchio; il mancino vede l'immagine non specchiata della posa specchiata, cioè di nuovo il proprio braccio
 // dalla sua parte); per il servizio il profilo a tre quarti dal lato del braccio. Valgono SOLO per le coreografie dal video
@@ -551,13 +610,20 @@ export const CAMERAS = Object.freeze({
 // docs/b17/gesti-dal-video.md): telefono non di taglio nelle pose chiave dove la coreografia lo permette, schermo in vista
 // il più a lungo possibile nel colpo, avambraccio ≥ 28° dal raggio visivo, telefono dentro lo stadio.
 export const CAMERAS_VIDEO = Object.freeze({
-  forehand: Object.freeze({ dir: [-.643, .208, -.737], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'dall\u2019anca destra il braccio si distende di lato, arco orizzontale da destra a sinistra, fine davanti al viso con lo schermo verso di te' }),
-  cross: Object.freeze({ dir: [-.643, .208, -.737], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'come il dritto, tutto il corpo girato verso il centro' }),
-  line: Object.freeze({ dir: [-.643, .208, -.737], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'come il dritto, tutto il corpo girato verso l\u2019esterno' }),
-  backhand: Object.freeze({ dir: [-.386, .407, -.828], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .36 }), frame: 'swing', read: 'due mani sul telefono, dall\u2019anca sinistra in alto sopra la spalla destra' }),
-  slice: Object.freeze({ dir: [-.587, .407, -.7], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla destra in basso in diagonale, schermo che si apre verso l\u2019alto' }),
-  sliceBackhand: Object.freeze({ dir: [.17, .208, -.963], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla sinistra in basso a destra, schermo che si apre' }),
+  forehand: Object.freeze({ dir: [-.863, .087, -.498], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'dall\u2019anca destra il braccio si distende di lato, arco orizzontale da destra a sinistra, fine davanti al viso con lo schermo verso di te' }),
+  cross: Object.freeze({ dir: [-.863, .087, -.498], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'come il dritto, tutto il corpo girato verso il centro' }),
+  line: Object.freeze({ dir: [-.863, .087, -.498], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'come il dritto, tutto il corpo girato verso l\u2019esterno' }),
+  backhand: Object.freeze({ dir: [-.612, .707, .354], dist: 3.6, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .36 }), frame: 'swing', read: 'due mani sul telefono, dall\u2019anca sinistra in alto sopra la spalla destra' }),
+  slice: Object.freeze({ dir: [-.704, .087, -.704], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla destra in basso in diagonale, schermo che si apre verso l\u2019alto' }),
+  sliceBackhand: Object.freeze({ dir: [.483, .259, -.837], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla sinistra in basso a destra, schermo che si apre' }),
   serve: Object.freeze({ dir: [.664, .342, -.664], dist: 3.6, follow: Object.freeze({ window: .3, mix: .8, size: .5 }), read: 'la sinistra lancia, il telefono sale sopra la testa, battuta e discesa davanti al corpo' }),
+  // schede che il video non mostra, con la partenza del video (passo B2): la camera di oggi (CAMERAS) girata dove la carica
+  // dall'anca puntava l'avambraccio verso la camera (piatto 12°, pallonetto 2°, volée 16°) o rimpiccioliva il telefono
+  // all'impatto (schiacciata 57 px, volée 41 px a 448×280); stessa ricerca su griglia, non specchiate
+  flat: Object.freeze({ ...CAMERAS.flat, dir: [-.366, .906, .211], dist: 3 }),
+  lob: Object.freeze({ ...CAMERAS.lob, dir: [-.704, .087, .704], follow: Object.freeze({ window: .25, mix: .8, size: .45 }) }),
+  smash: Object.freeze({ ...CAMERAS.smash, dir: [-.453, .423, .785], dist: 3 }),
+  volley: Object.freeze({ dir: [-.453, .423, -.785], dist: 3.4, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: CAMERAS.volley.read }),
 });
 // camera di una scheda per insieme di coreografie: nell'insieme del video quella frontale (CAMERAS_VIDEO), se c'è
 export const camSpec = (id, set = 'legacy') => (set === 'video' && CAMERAS_VIDEO[id]) || CAMERAS[id] || null;

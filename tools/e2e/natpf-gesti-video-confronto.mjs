@@ -14,6 +14,8 @@
 // Fogli docs/b17/img/VC-<colpo>.webp, da GUARDARE. Il video e i fotogrammi restano fuori dal repository.
 //   cd tools/e2e && FRAMES=/cartella/frames30 CHROMIUM_PATH=/percorso/chrome GAME_PORT=3651 node natpf-gesti-video-confronto.mjs
 //   IDS=forehand,serve  OUT=/cartella  SCALE=.75
+// PREFIX=O (B17.1 passo B2): fogli docs/b17/img/O-<colpo>.webp a DUE colonne, video specchiato | posa ottimizzata (le
+// coreografie di CHOREO_VIDEO trovate dall'ottimizzatore, scripts/video/ottimizza.mjs), stessi istanti del colpo
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
@@ -26,6 +28,7 @@ const GAME_PORT = +(process.env.GAME_PORT || 3651);
 const OUT = process.env.OUT || path.resolve(here, '../../docs/b17/img'); mkdirSync(OUT, { recursive: true });
 const FRAMES = process.env.FRAMES || '';
 const SCALE = +(process.env.SCALE || .75);
+const PREFIX = process.env.PREFIX || 'VC', TWO = PREFIX === 'O';
 const DATA = JSON.parse(readFileSync(path.resolve(here, '../../docs/b17/gesti-video.json'), 'utf8'));
 const colpi = Object.fromEntries(DATA.colpi.map(c => [c.id, c]));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -89,7 +92,7 @@ async function confronto(st){
   const { times, anchors } = instantsOf(st);
   const frames = times.map(frameUrl);
   const samples = times.map(t => sampleAt(st, t));
-  const r = await p.evaluate(async ({ id, title, times, frames, samples, anchors, scale }) => {
+  const r = await p.evaluate(async ({ id, title, times, frames, samples, anchors, scale, two }) => {
     const D = window.__D, GP = window.__GP, d = window.__demo;
     // ancore dell'animazione per insieme
     const planAnchors = set => {
@@ -106,12 +109,12 @@ async function confronto(st){
     const load = src => new Promise(res => { if (!src) return res(null); const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
     const imgs = await Promise.all(frames.map(load));
     const cw = Math.round(640*scale), ch = Math.round(400*scale), vw = Math.round(360*scale), cap = 24, gap = 6;
-    const out = document.createElement('canvas'); out.width = vw + 2*cw + 4*gap; out.height = 44 + times.length*(ch + cap + gap);
+    const out = document.createElement('canvas'); out.width = vw + (two ? 1 : 2)*cw + (two ? 3 : 4)*gap; out.height = 44 + times.length*(ch + cap + gap);
     const o = out.getContext('2d'); o.fillStyle = '#0b0f1a'; o.fillRect(0, 0, out.width, out.height);
     o.fillStyle = '#f4f6fc'; o.font = '700 18px Barlow, sans-serif'; o.textBaseline = 'top';
-    o.fillText(`${title} · video dell'utente (specchiato come la camera) · animazione dalle coreografie del video · tutorial di oggi`, gap, 6);
+    o.fillText(two ? `${title} · video dell'utente (specchiato) | posa ottimizzata` : `${title} · video dell'utente (specchiato come la camera) · animazione dalle coreografie del video · tutorial di oggi`, gap, 6);
     o.fillStyle = '#9aa7cf'; o.font = '500 12px Barlow, sans-serif';
-    o.fillText('colonna 1: fotogramma 540×960 ritagliato, specchiato (il braccio destro a destra) · colonna 2: gesturePlan set video, camera frontale a tre quarti specchiata (servizio: profilo) · colonna 3: coreografie B13/B14, camera da dietro', gap, 28);
+    o.fillText(two ? 'sinistra: fotogramma 540×960 ritagliato e specchiato · destra: CHOREO_VIDEO (ottimizzatore), presa del video, camera frontale a tre quarti specchiata (servizio: profilo), istante mappato sulle pose chiave' : 'colonna 1: fotogramma 540×960 ritagliato, specchiato (il braccio destro a destra) · colonna 2: gesturePlan set video, camera frontale a tre quarti specchiata (servizio: profilo) · colonna 3: coreografie B13/B14, camera da dietro', gap, 28);
     const rows = [];
     times.forEach((t, i) => {
       const y = 44 + i*(ch + cap + gap), row = { t };
@@ -123,7 +126,7 @@ async function confronto(st){
       o.fillStyle = '#dfe6f7'; o.font = '600 12px Barlow, sans-serif'; o.textBaseline = 'top';
       o.fillText(`video t = ${t.toFixed(2)} s · fotogramma ${Math.round(t*30)}${s ? ` · polso (${s.W.map(v => v.toFixed(2)).join('; ')}) m · busto ${s.tau?.toFixed(0)}°` : ''}`, gap, y + 4);
       // 2 e 3: animazione
-      [['video', AV, gap*2 + vw, 'animazione dal video'], ['legacy', AL, gap*3 + vw + cw, 'tutorial di oggi']].forEach(([set, A, x, lab]) => {
+      [['video', AV, gap*2 + vw, two ? 'posa ottimizzata' : 'animazione dal video'], ...(two ? [] : [['legacy', AL, gap*3 + vw + cw, 'tutorial di oggi']])].forEach(([set, A, x, lab]) => {
         const ta = mapT(t, anchors, A);
         d.play(id, { hand: 'right', set }); d.show(ta, { rate: 1 });
         const I = d.info, cam = I.cam, pose = I.pose, n = GP.qrot(pose.q, [0, 0, 1]), v = GP.sub(cam.eye, pose.pos);
@@ -139,13 +142,13 @@ async function confronto(st){
     let q = .82, url = out.toDataURL('image/webp', q);
     while (url.length*.75 > 600_000 && q > .3){ q -= .06; url = out.toDataURL('image/webp', q); }
     return { url, rows };
-  }, { id: st.id, title: st.title, times, frames, samples, anchors, scale: SCALE });
-  const buf = Buffer.from(r.url.split(',')[1], 'base64'), file = path.join(OUT, `VC-${st.id}.webp`);
+  }, { id: st.id, title: st.title, times, frames, samples, anchors, scale: SCALE, two: TWO });
+  const buf = Buffer.from(r.url.split(',')[1], 'base64'), file = path.join(OUT, `${PREFIX}-${st.id}.webp`);
   writeFileSync(file, buf);
   console.log(`\n${st.title}: foglio ${path.basename(file)} (${(buf.length/1024).toFixed(0)} KB)`);
   for (const row of r.rows){
     const f = v => v == null ? '—' : v.toFixed(2);
-    console.log(`  video ${row.t.toFixed(2)} s → anim video ${row.video.ta.toFixed(2)} s (${row.video.label || 'fermo'}; polso Δ ${f(row.video.dW)} m, Δy ${f(row.video.dY)}; telefono ${row.video.edge.toFixed(0)}° ${row.video.facing ? 'schermo' : 'dorso'}) · tutorial ${row.legacy.ta.toFixed(2)} s (${row.legacy.label || 'fermo'}; polso Δ ${f(row.legacy.dW)} m; telefono ${row.legacy.edge.toFixed(0)}° ${row.legacy.facing ? 'schermo' : 'dorso'})`);
+    console.log(`  video ${row.t.toFixed(2)} s → anim video ${row.video.ta.toFixed(2)} s (${row.video.label || 'fermo'}; polso Δ ${f(row.video.dW)} m, Δy ${f(row.video.dY)}; telefono ${row.video.edge.toFixed(0)}° ${row.video.facing ? 'schermo' : 'dorso'})` + (row.legacy ? ` · tutorial ${row.legacy.ta.toFixed(2)} s (${row.legacy.label || 'fermo'}; polso Δ ${f(row.legacy.dW)} m; telefono ${row.legacy.edge.toFixed(0)}° ${row.legacy.facing ? 'schermo' : 'dorso'})` : ''));
   }
   check(`${st.title}: foglio ≤ 600 KB`, buf.length <= 600_000, `${(buf.length/1024).toFixed(0)} KB`);
   // pose chiave: il polso dell'animazione dal video sta vicino a quello ricostruito dal video (le pose chiave sono risolte
@@ -159,7 +162,7 @@ async function confronto(st){
   check(`${st.title}: polso dell'animazione dal video entro 0,12 m dal video alle pose chiave${reliable ? '' : ' (solo misura: ricostruzione del video non attendibile)'}`, !reliable || far.length === 0,
     keyRows.map(row => `${row.t.toFixed(2)} s Δ ${row.video.dW?.toFixed(2) ?? '—'} m`).join(', '));
   const imp = r.rows.find(row => Math.abs(row.t - anchors.impatto) < 1e-6);
-  check(`${st.title}: «Impatto» scritto all'istante dell'impatto (dal video e tutorial)`, imp.video.label === 'Impatto' && imp.legacy.label === 'Impatto', `${imp.video.label} / ${imp.legacy.label}`);
+  check(`${st.title}: «Impatto» scritto all'istante dell'impatto`, imp.video.label === 'Impatto' && (!imp.legacy || imp.legacy.label === 'Impatto'), `${imp.video.label} / ${imp.legacy?.label ?? '—'}`);
   // telefono mai di taglio nelle pose chiave dell'animazione dal video; limiti dichiarati dove la coreografia dal video non
   // lo permette (misurato: rovescio a due mani all'impatto, dalla ricostruzione a due mani sovrapposte)
   const LIM = { backhand: 'impatto: schermo a 70° dal bersaglio del video nella posa risolta (ricostruzione a due mani sovrapposte, docs/b17/gesti-dal-video.md)' };

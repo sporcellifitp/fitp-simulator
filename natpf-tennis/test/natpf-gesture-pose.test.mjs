@@ -13,6 +13,7 @@ import { readCard, judgeCard, legacyPoseSource, calibratedPhone, DT } from './po
 import * as GP from '../src/natpf/natpf_gesture_pose.js';
 import { GESTURES, GRIP_STYLE } from '../src/natpf/natpf_gesture_motion.js';
 import { TUTORIAL_CARDS } from '../src/natpf/natpf_tutorial.js';
+import { videoRef, shapeOf, planOf as planVideo } from '../scripts/video/ottimizza.mjs';
 
 const { gesturePose, gesturePlan, gestureBall, gestureContactPoint, gestureRig, omega, len, sub, qangle } = GP;
 const source = (grip = undefined, set = undefined) => ({ name: 'posa nuova', pose: (id, t, hand) => gesturePose(id, t, { hand, grip, set }), plan: id => gesturePlan(id, { grip, set }) });
@@ -24,9 +25,8 @@ const HANDS = ['right', 'left'], CALS = ['pose', 'arm'];
 const allowFor = (id, rate) => rate > 1 ? (['forehand', 'backhand', 'volley', 'cross', 'line'].includes(id) ? ['flat'] : null)
   : rate < 1 ? ({ slice: ['drop'], sliceBackhand: ['drop'], flat: ['topspin'] })[id] || null : null;
 
-// B17.1 (giro 2): con la partenza dei colpi REST_COLPI_RACCHETTA (polso dritto) non resta nessun limite ammesso per la presa a
-// racchetta: il piatto con la calibrazione del braccio simulato, letto top spin quando i colpi partivano da REST (polso
-// piegato di 27°), ora si legge (docs/b17/posa-dal-video.md §1)
+// B17.1 (passo B2): con la presa a racchetta tutte le schede usano CHOREO_VIDEO (ottimizzate con il telefono simulato nel
+// costo): nessun limite ammesso (docs/b17/ottimizzazione.md)
 const allowLimit = () => null;
 function check(src, ids, { hands = HANDS, cals = CALS, rates = [1], grip = GRIP_STYLE } = {}){
   const bad = [];
@@ -74,7 +74,9 @@ test('fedeltà: picco letto e contatto disegnato coincidono (Δ ≤ ¼ di campio
     assert.equal(s.events.length, 2, `servizio ${hand}: ${s.events.length} gesti`);
     assert.ok(Math.abs(s.dToss) <= DT/4, `lancio ${hand}: Δ ${s.dToss} ms`);
     assert.ok(Math.abs(s.dPeak) <= DT/4, `battuta ${hand}: Δ ${s.dPeak} ms`);
-    assert.ok(Math.abs(s.gap - .69) <= 1.5*DT/1000, `servizio ${hand}: battuta ${s.gap} s dopo il lancio`);
+    // (servizio dal video, presa a racchetta: l'intervallo è quello del piano, P.tossGap; servizio di oggi: 0,69 s)
+    const gap = gesturePlan('serve').tossGap ?? .69;
+    assert.ok(Math.abs(s.gap - gap) <= 1.5*DT/1000, `servizio ${hand}: battuta ${s.gap} s dopo il lancio (atteso ${gap})`);
   }
 });
 
@@ -154,16 +156,11 @@ function speedRows(id, o = {}){
 // tratto più lungo sotto 20 °/s tra a e b (s)
 const stall = (rows, a, b) => { let run = 0, worst = 0; for (const r of rows) if (r.t >= a && r.t < b){ if (r.w < 20){ run += H; worst = Math.max(worst, run); } else run = 0; } return worst; };
 
-// Presa a racchetta (B17.1, giro 2): i colpi partono da REST_COLPI_RACCHETTA (polso dritto) e la stessa coreografia dà al
-// telefono una preparazione della schiacciata di 137 °/s (limite della presa nel palmo 80, pensato per non far leggere un top
-// spin in più) e un ritorno dell'incrociato di 257 °/s (250): misurati su tutta la zona fl 8–10 × pro 35–38 (130–148 e
-// 252–261), non si abbassano con la posa. Il telefono simulato non legge nessun colpo in più nemmeno a 1,25× (preparazione
-// ~171 °/s; soglia dei colpi speciali 0,28 × colpo di calibrazione = 174–185 qui, ~364 con i colpi veri dell'utente), quindi
-// per questa presa i due limiti sono 150 e 265 (docs/b17/posa-dal-video.md §1). La presa nel palmo tiene i limiti del B13.
-const LIMITS_RACCHETTA = { smash: { prep: 150 }, cross: { ret: 265 } };
-test('tempi dei colpi (brief §5.4): picco = contatto, picco e ampiezza, preparazione e ritorno sotto i limiti, nessun fermo tra carica e colpo, fermo finale 0,10–0,20 s, ritorno entro 0,6 s, ciclo (presa a racchetta e nel palmo)', () => {
-  for (const grip of ['racchetta', 'palmo']) for (const [id, L0] of Object.entries(LIMITS)){
-    const L = grip === 'racchetta' ? { ...L0, ...(LIMITS_RACCHETTA[id] || {}) } : L0;
+// (B17.1 passo B2: con la presa a racchetta tutte le schede usano le coreografie ottimizzate dalla partenza del video,
+// CHOREO_VIDEO: i loro tempi sono nel test «insieme del video» più sotto; questi restano quelli della presa nel palmo)
+test('tempi dei colpi (brief §5.4): picco = contatto, picco e ampiezza, preparazione e ritorno sotto i limiti, nessun fermo tra carica e colpo, fermo finale 0,10–0,20 s, ritorno entro 0,6 s, ciclo (presa nel palmo, coreografie di oggi)', () => {
+  for (const grip of ['palmo']) for (const [id, L0] of Object.entries(LIMITS)){
+    const L = L0;
     const { P, rows, max } = speedRows(id, { grip }), T = P.T, tag = `${grip} ${id}`;
     const pk = max(0, P.total);
     assert.ok(Math.abs(pk.t - P.contact) <= H, `${tag}: picco a ${pk.t}, contatto ${P.contact}`);
@@ -183,8 +180,8 @@ test('tempi dei colpi (brief §5.4): picco = contatto, picco e ampiezza, prepara
   }
 });
 
-test('servizio continuo (difetto (a) della specifica §5): lancio 300 °/s, raccordo ≤ 90 °/s senza salti, battuta 700 °/s 0,69 s dopo il picco del lancio, nel colmo della palla, sulla cima del telefono (presa nel palmo e a racchetta)', () => {
-  for (const grip of ['palmo', 'racchetta']){
+test('servizio continuo (difetto (a) della specifica §5): lancio 300 °/s, raccordo ≤ 90 °/s senza salti, battuta 700 °/s 0,69 s dopo il picco del lancio, nel colmo della palla, sulla cima del telefono (presa nel palmo; a racchetta: servizio dal video, test «insieme del video»)', () => {
+  for (const grip of ['palmo']){
   const o = { grip }, { P, rows, max } = speedRows('serve', o), T = P.T;
   const toss = max(T.load, T.tossEnd), hit = max(T.hitStart, T.end), link = max(T.tossEnd, T.hitStart);
   assert.ok(Math.abs(toss.t - T.tossPeak) <= H && Math.abs(toss.w - 300) <= 10, `lancio ${toss.w} a ${toss.t}`);
@@ -216,49 +213,55 @@ test('servizio continuo (difetto (a) della specifica §5): lancio 300 °/s, racc
   }
 });
 
-// B17.1 passo B: insieme di coreografie DAL VIDEO dell'utente (CHOREO_VIDEO, set 'video', partenza REST_VIDEO). Si costruisce,
-// è continuo e chiude il ciclo; la lettura con il telefono simulato NON è ancora quella mostrata (misure e scelte proposte in
-// docs/b17/posa-dal-video.md): il test della lettura è segnato «da fare» (todo) e riporta che cosa legge oggi, così il giorno
-// in cui una scheda sarà letta bene si vede qui e si aggiunge a VIDEO_CARDS
-const VIDEO_IDS = Object.keys(GP.CHOREO_VIDEO);
-test('insieme del video: si costruisce dalla partenza del video, continuo, ciclo chiuso, tempi del video (carica → impatto → fine)', () => {
-  for (const id of VIDEO_IDS){
-    const o = { grip: 'racchetta', set: 'video' }, P = gesturePlan(id, o), c = GP.CHOREO_VIDEO[id], step = 1/60;
-    assert.equal(P.set, 'video'); assert.equal(P.rest, GP.REST_VIDEO);
+// B17.1 passo B2 (decisioni dell'utente del 09/11 sera): con la presa a racchetta TUTTE le schede usano CHOREO_VIDEO,
+// coreografie trovate dall'ottimizzatore (scripts/video/ottimizza.mjs: polso, piccoli scarti del braccio e tempi con il
+// rilevatore vero nel costo) dalla partenza del video REST_VIDEO e con la presa del video: dritto, rovescio a due mani, tagliati
+// e servizio tengono la forma del video (scarti misurati in docs/b17/ottimizzazione.md), piatto, pallonetto, palla corta,
+// schiacciata e volée la forma approvata nel B13/B14. CHOREO_VIDEO_GREZZA (le pose del video come ricostruite, con i tempi del
+// video) resta come riferimento: il telefono simulato NON la legge come il colpo mostrato, e il test qui sotto lo verifica.
+const VIDEO_IDS = Object.keys(GP.CHOREO_VIDEO), FROM_VIDEO = ['forehand', 'backhand', 'slice', 'sliceBackhand', 'serve'];
+test('insieme del video: tutte le schede della racchetta, dalla partenza del video (palla corta e schiacciata dalla posa di oggi, limite dichiarato), continue, ciclo chiuso, angoli nei limiti, parte veloce 0,18–0,32 s, picco = contatto, tC risolto e scritto', () => {
+  assert.deepEqual([...VIDEO_IDS].sort(), [...FROM_VIDEO, 'flat', 'lob', 'drop', 'smash', 'volley'].sort());
+  for (const id of [...VIDEO_IDS, 'cross', 'line', 'ready']){
+    const o = { grip: 'racchetta' }, P = gesturePlan(id, o), step = 1/60;
+    assert.equal(P.set, 'video', id); assert.equal(P.rest, ['drop', 'smash'].includes(id) ? GP.REST_COLPI_RACCHETTA : GP.REST_VIDEO, id);
+    if (P.still) continue;
     let dw = 0, dp = 0;
     for (let t = 0; t < P.total; t += step){ const a = gesturePose(id, t, o), b = gesturePose(id, t + step, o); dw = Math.max(dw, len(omega(a.q, b.q, step))); dp = Math.max(dp, len(sub(a.pos, b.pos))); }
     assert.ok(dw <= 2000 && dp <= .15, `${id}: ${dw} °/s, ${dp} m`);
     const a = gesturePose(id, 0, o), z = gesturePose(id, P.total - 1e-9, o);
     assert.ok(len(sub(a.pos, z.pos)) <= .0005 && qangle(a.q, z.q) <= .2, `${id}: ciclo aperto`);
-    const j0 = GP.gestureJoints(id, 0, o); for (const k of GP.JOINTS) assert.ok(Math.abs(j0[k] - GP.REST_VIDEO[k]) < 1e-6, `${id}: parte da REST_VIDEO`);
     for (let t = 0; t < P.total; t += 1/120){ const j = GP.gestureJoints(id, t, o); for (const [k, [lo, hi]] of Object.entries(GP.JOINT_LIMITS)) assert.ok(j[k] >= lo - 1e-9 && j[k] <= hi + 1e-9, `${id} ${t.toFixed(3)} ${k} ${j[k]}`); }
-    if (P.kind === 'serve'){ assert.ok(Math.abs((P.T.tossEnd - P.T.load) - (c.times.alto - c.times.carica)) < 1e-6, `${id}: salita`); }
-    else {
-      // la parte veloce dura quanto nel video (carica → impatto) e la frenata quanto impatto → fine
-      assert.ok(Math.abs(c.acc - (c.times.impatto - c.times.carica)) < 1e-6 && Math.abs(c.dMax - (c.times.fine - c.times.impatto)) < 1e-6, `${id}: tempi del video`);
-      assert.ok(Math.abs(P.contact - c.contact) < .02, `${id}: contatto ${P.contact} (atteso ${c.contact})`);
-    }
-    // B17.1 passo C: tC = contact, la posa dell'impatto (C) cade nell'istante dell'impatto (prima il picco di velocità cadeva
-    // nel contatto e la posa C 0,12 s prima: la scritta «Impatto» mostrava una posa 0,17–0,43 m oltre quella filmata). Il
-    // picco si misura sul colpo, non nel contatto
-    let pk = 0; for (let t = P.T.inv ?? P.T.load; t <= P.T.back; t += 1/240) pk = Math.max(pk, gesturePose(id, t, o).speed);
-    assert.ok(pk > 300, `${id}: picco ${pk}`);
-    const Wc = GP.armChain({ ...GP.REST_VIDEO, ...c.C }).W, Wa = gesturePose(id, P.contact, o).chain.W;
-    // (il ritardo prossimo-distale LAG sposta le articolazioni di 10–45 ms attorno a tC: ≤ 40 mm; rovescio a due mani misurato
-    // 105 mm con la parte veloce di 0,167 s e la ricostruzione del video non attendibile, STATO-dati §2.5: limite dichiarato)
-    const lim = id === 'backhand' ? .12 : .04;
-    assert.ok(len(sub(Wc, Wa)) <= lim, `${id}: all'impatto il polso dista ${(len(sub(Wc, Wa))*1000).toFixed(0)} mm dalla posa C del video`);
+    const c = GP.choreoFor(id, 'video');
+    if (FROM_VIDEO.includes(id) && P.kind === 'stroke') assert.ok(c.acc >= .18 - 1e-9 && c.acc <= .32 + 1e-9, `${id}: parte veloce ${c.acc} s`);
+    const sc = GP.speedCurve(id, o);
+    assert.ok(Math.abs(sc.at - P.contact) <= 1/120 + 1e-9, `${id}: picco a ${sc.at}, contatto ${P.contact}`);
+    if (GP.CHOREO_VIDEO[id]){ const cc = { ...GP.CHOREO_VIDEO[id] }, stored = cc.tC; delete cc.tC; assert.ok(Math.abs(GP.motionFrom(id, cc, { rest: cc.rest || GP.REST_VIDEO, set: 'video' }).T.nominal - stored) < 2e-5, `${id}: tC ${stored}`); }
   }
-  assert.deepEqual([...GP.VIDEO_CARDS], [], 'VIDEO_CARDS vuoto finché nessuna scheda del video è letta bene (vedi test todo)');
 });
 
-test('insieme del video: lettura con il telefono simulato (DA FARE: oggi nessuna scheda è letta come il colpo mostrato, docs/b17/posa-dal-video.md §3)', { todo: true }, () => {
-  const src = source('racchetta', 'video'), bad = [];
-  for (const id of VIDEO_IDS){
-    const r = readCard(src, id, { hand: 'right', cal: 'arm' }), why = judgeCard(src, id, r, { hand: 'right' });
-    if (why.length) bad.push(`${id}: ${why.join('; ')}`);
+// scarto dalla forma del video (cm, misurato con lo stesso codice dell'ottimizzatore: mano e gomito alle pose chiave contro
+// quelli ricostruiti dal video al netto del bacino, traiettoria della mano a tempo normalizzato tra le pose chiave); limiti =
+// valori trovati arrotondati in su (docs/b17/ottimizzazione.md), così una coreografia che si allontana dal video si vede qui
+const SHAPE_MAX = { forehand: { key: 5, impact: 3, path: 9 }, backhand: { key: 21, impact: 14, path: 11 }, slice: { key: 27, impact: 3, path: 14 }, sliceBackhand: { key: 14, impact: 14, path: 13 }, serve: { key: 14, impact: 13, path: 10 } };
+test('insieme del video: la forma resta quella del video (mano alle pose chiave e traiettoria entro gli scarti misurati)', () => {
+  for (const id of FROM_VIDEO){
+    const P = planVideo(id, GP.CHOREO_VIDEO[id]); P.choreo = GP.CHOREO_VIDEO[id];
+    const sh = shapeOf(id, P, videoRef(id)), L = SHAPE_MAX[id];
+    for (const [k, v] of Object.entries(sh.keys)) assert.ok(v.dW <= L.key, `${id} ${k}: mano a ${v.dW.toFixed(1)} cm dal video (≤ ${L.key})`);
+    assert.ok(sh.keys.impatto.dW <= L.impact, `${id}: impatto a ${sh.keys.impatto.dW.toFixed(1)} cm dal video (≤ ${L.impact})`);
+    assert.ok(sh.path.mean <= L.path, `${id}: traiettoria a ${sh.path.mean.toFixed(1)} cm in media dal video (≤ ${L.path})`);
   }
-  assert.deepEqual(bad, [], bad.join('\n'));
+});
+
+test('insieme del video: le pose del video GREZZE (CHOREO_VIDEO_GREZZA, tempi del video) NON sono lette come il colpo mostrato dal telefono simulato (per questo il tutorial usa quelle ottimizzate)', () => {
+  const plans = Object.fromEntries(Object.keys(GP.CHOREO_VIDEO_GREZZA).map(id => [id, planVideo(id, GP.CHOREO_VIDEO_GREZZA[id])]));
+  const wrap = (P, t) => ((t % P.total) + P.total) % P.total;
+  const src = { plan: id => plans[id] || gesturePlan(id), pose: (id, t, hand = 'right') => { const P = plans[id] || gesturePlan(id), p = P.raw(wrap(P, t)); return hand === 'left' ? GP.mirrorPose(p) : p; } };
+  for (const id of Object.keys(GP.CHOREO_VIDEO_GREZZA)){
+    const r = readCard(src, id, { hand: 'right', cal: 'arm' }), why = judgeCard(src, id, r, { hand: 'right' });
+    assert.ok(why.length > 0, `${id}: la coreografia grezza è letta come il colpo mostrato`);
+  }
 });
 
 test('continuità e ciclo chiuso: nessun salto (|ω| ≤ 2000 °/s, |Δpos| ≤ 0,15 m a 60 Hz), posa a 0 e alla fine del ciclo uguali', () => {

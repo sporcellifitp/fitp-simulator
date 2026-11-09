@@ -25,7 +25,7 @@ export const GRIP_TILT = 80;     // gradi: cima del telefono in avanti dalla ver
 // che ne risulta nella posa della scheda «Presa» REST_RACCHETTA (primo piano del video: mano davanti al petto, schermo verso
 // lo schermo di gioco, cima verso la sinistra di chi gioca), verificata dal test natpf-gesture-physics (scarto < 0,01°)
 export const GRIP_POSE = Object.freeze({
-  racchetta: Object.freeze({ cock: 20, euler: [166.975, 11.369, 64.605] }),
+  racchetta: Object.freeze({ cock: 20, euler: [167.052, 11.628, 65.01] }),
   palmo: Object.freeze({ lean: 35, tilt: 40, euler: [-40, 0, 35] }),
   martello: Object.freeze({ tilt: GRIP_TILT, euler: [-GRIP_TILT, 90, 0] }),
 });
@@ -51,7 +51,8 @@ const S = Object.freeze({
 
 // indicazioni della presa (posizione di partenza e impugnatura) per ciascuna presa insegnabile
 const GRIP_CUES = Object.freeze({
-  racchetta: { ready: ['Telefono disteso lungo l’avambraccio, cima in avanti', 'Pollice in alto lungo il bordo, schermo verso di te', 'Braccio rilassato, telefono davanti al petto'],
+  // posizione di partenza come nel video dell'utente (B17.1 passo B2, REST_VIDEO): braccio che pende, mano all'anca destra
+  racchetta: { ready: ['Braccio rilassato lungo il fianco, mano all’anca', 'Telefono lungo l’avambraccio, cima in avanti e in basso', 'Pollice in avanti, schermo verso la gamba'],
     grip: ['Telefono disteso nel palmo, cima in avanti', 'Dita sotto, attorno al bordo', 'Pollice lungo il bordo, schermo verso lo schermo di gioco'] },
   palmo: { ready: ['Il telefono nel palmo, schermo verso di te', 'Cima in avanti e un poco verso l’interno', 'Braccio rilassato, di fronte allo schermo'],
     grip: ['Nel palmo, le dita attorno alla parte bassa', 'Pollice sul bordo, lontano dallo schermo', 'Cima in avanti, verso lo schermo'] },
