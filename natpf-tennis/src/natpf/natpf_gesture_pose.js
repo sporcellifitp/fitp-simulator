@@ -468,13 +468,17 @@ export const CHOREO_VIDEO_GREZZA = Object.freeze({
 // Coreografie della presa a racchetta (B17.1 passo B2, decisioni dell'utente del 09/11 sera: «ottimizza senza di me»): trovate
 // dall'ottimizzatore scripts/video/ottimizza.mjs (strategia evolutiva con il telefono simulato completo nel costo: rilevatore
 // vero, calibrazione del braccio simulato e con il dritto e il rovescio di queste stesse coreografie, destro e mancino, 0,8× /
-// 1× / 1,25×; più lo scarto dalla forma del video e i vincoli fisici del B13), partenza REST_VIDEO e presa del video
+// 1× / 1,25×, con quattro semi del rumore del telefono simulato (7, 1, 5, 10: correzione della revisione, prima solo il 7) e il
+// margine della mira; più lo scarto dalla forma del video e i vincoli fisici del B13), partenza REST_VIDEO e presa del video
 // (PHONE_IN_HAND_VIDEO). Dritto, rovescio a due mani, tagliati e servizio partono da CHOREO_VIDEO_GREZZA (la forma del
 // video) e cambiano il polso, di poco il braccio (≤ 12° per angolo) e i tempi (parte veloce 0,18–0,32 s invece di 0,17–0,5 s
 // del video); piatto, pallonetto, palla corta, schiacciata e volée (che il video non mostra) partono da CHOREO (B13/B14) e
 // tengono quella forma. Palla corta e schiacciata partono da REST_COLPI_RACCHETTA (telefono davanti al petto): dalla partenza
 // del video la loro carica era letta come un colpo in tutte le varianti provate (limite dichiarato). Scarti dal video, letture
-// e cosa è cambiato rispetto al video in docs/b17/ottimizzazione.md. Generato con `ottimizza.mjs --emit` (tC risolto e scritto).
+// e cosa è cambiato rispetto al video in docs/b17/ottimizzazione.md. Tagliato di dritto e rovescio con il proseguimento lento
+// dopo la frenata (F2, `slow`: discesa lunga fino all'anca sinistra, fine alta sopra la spalla destra). Generato con
+// `ottimizza.mjs --emit` dalle soluzioni in scripts/video/soluzioni (tC risolto e scritto; test «le soluzioni salvate rifanno
+// CHOREO_VIDEO»).
 // --- generato da scripts/video/ottimizza.mjs --emit (non modificare a mano) ---
 export const CHOREO_VIDEO = Object.freeze({
   forehand: Object.freeze({ src: "forehand (2ª ripetizione)", times: {"carica":9.867,"impatto":10.367,"fine":10.533}, tC: 2.108492, contact: 2.073, cycle: 4.896, prep: 1.404, acc: 0.319, crisp: 1, dMin: 0.129, dMax: 0.129, fin: 0.294, back: 2, backFlat: 0.3, lag: LAG,
@@ -848,8 +852,9 @@ function buildServe(c, R = REST){
 
 // Servizio dai dati del video (B17.1, CHOREO_VIDEO.serve): R → P (mano all'anca, carica lenta `prep`) → U (braccio sopra
 // la testa in `rise` s: è il gesto del LANCIO che il telefono legge; la palla la lancia la mano libera, gestureFreeHand) →
-// fermo in alto `up` s → battuta U → C (acc, picco della mano nel contatto) → F (frenata, accompagnamento davanti fino
-// all'anca sinistra) → fermo `fin` → ritorno a R con assestamento. tC risolto come nei colpi (c.tC lo fissa).
+// fermo in alto `up` s → battuta U → C (acc, picco della mano nel contatto) → F (frenata, accompagnamento davanti al corpo:
+// con CHOREO_VIDEO la mano finisce davanti al petto a 1,30 m, nel video a 1,20 m) → fermo `fin` → ritorno a R con
+// assestamento. tC risolto come nei colpi (c.tC lo fissa).
 function buildServeVideo(c, R = REST){
   const g = GESTURES.serve, hMs = g.stroke.ms/1000;
   const P = { ...R, ...c.P }, U = { ...R, ...c.U }, C = { ...R, ...c.C }, F = { ...R, ...c.F };

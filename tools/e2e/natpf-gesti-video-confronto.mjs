@@ -178,8 +178,8 @@ async function confronto(st){
   const edgeRows = st.id === 'serve' ? r.rows.filter(row => [anchors.alto, anchors.impatto].some(a => Math.abs(row.t - a) < 1e-6)) : keyRows;
   const reliable = !['backhand', 'sliceBackhand'].includes(st.id);
   // fogli O (passo B2): le coreografie ottimizzate si allontanano dal video dove la lettura lo chiede, misurato e dichiarato in
-  // docs/b17/ottimizzazione.md: fine del tagliato di dritto 0,26 m (più alta e a destra), impatto del servizio 0,12–0,13 m
-  const LIM_O = { slice: .27, serve: .13 }, lim = TWO ? (LIM_O[st.id] ?? .12) : .12;
+  // docs/b17/ottimizzazione.md: impatto del servizio 0,12–0,13 m (la fine del tagliato di dritto, 0,26 m nel primo giro, ora è entro 0,05 m)
+  const LIM_O = { serve: .13 }, lim = TWO ? (LIM_O[st.id] ?? .12) : .12;
   const far = keyRows.filter(row => row.video.dW != null && row.video.dW > lim);
   check(`${st.title}: polso dell'animazione dal video entro ${lim.toFixed(2).replace('.', ',')} m dal video alle pose chiave${reliable ? '' : ' (solo misura: ricostruzione del video non attendibile)'}${lim > .12 ? ' (LIMITE DICHIARATO, ottimizzazione.md)' : ''}`, !reliable || far.length === 0,
     keyRows.map(row => `${row.t.toFixed(2)} s Δ ${row.video.dW?.toFixed(2) ?? '—'} m`).join(', '));
