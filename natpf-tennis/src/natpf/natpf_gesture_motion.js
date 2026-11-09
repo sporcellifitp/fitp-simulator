@@ -51,7 +51,7 @@ const S = Object.freeze({
 
 // indicazioni della presa (posizione di partenza e impugnatura) per ciascuna presa insegnabile
 const GRIP_CUES = Object.freeze({
-  racchetta: { ready: ['Telefono disteso lungo l’avambraccio, cima in avanti', 'Pollice in alto lungo il bordo, schermo verso lo schermo di gioco', 'Braccio rilassato, mano davanti al fianco'],
+  racchetta: { ready: ['Telefono disteso lungo l’avambraccio, cima in avanti', 'Pollice in alto lungo il bordo, schermo verso di te', 'Braccio rilassato, telefono davanti al petto'],
     grip: ['Telefono disteso nel palmo, cima in avanti', 'Dita sotto, attorno al bordo', 'Pollice lungo il bordo, schermo verso lo schermo di gioco'] },
   palmo: { ready: ['Il telefono nel palmo, schermo verso di te', 'Cima in avanti e un poco verso l’interno', 'Braccio rilassato, di fronte allo schermo'],
     grip: ['Nel palmo, le dita attorno alla parte bassa', 'Pollice sul bordo, lontano dallo schermo', 'Cima in avanti, verso lo schermo'] },

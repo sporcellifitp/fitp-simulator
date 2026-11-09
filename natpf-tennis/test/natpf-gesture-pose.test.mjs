@@ -24,12 +24,10 @@ const HANDS = ['right', 'left'], CALS = ['pose', 'arm'];
 const allowFor = (id, rate) => rate > 1 ? (['forehand', 'backhand', 'volley', 'cross', 'line'].includes(id) ? ['flat'] : null)
   : rate < 1 ? ({ slice: ['drop'], sliceBackhand: ['drop'], flat: ['topspin'] })[id] || null : null;
 
-// Limite misurato (B17.1, presa a racchetta): il PIATTO con la calibrazione del braccio simulato è letto top spin. Il piatto
-// è «il proprio dritto più veloce» con la salita della testa entro ±0,12 da quella abituale (natpf_stroke_intent flatRise);
-// la salita abituale che il braccio simulato dà con il telefono lungo l'avambraccio (cima in avanti) è 0,23, il piatto
-// della coreografia sale 0,07 (forza 0,63 ≥ 0,62: la forza basta). Con la calibrazione fatta con i gesti dell'animazione
-// (quella di chi imita il tutorial) il piatto si legge. Si ammette solo questo caso (docs/b17/posa-dal-video.md §limiti).
-const allowLimit = (grip, id, cal) => grip === 'racchetta' && id === 'flat' && cal === 'arm' ? ['topspin'] : null;
+// B17.1 (giro 2): con la partenza dei colpi REST_COLPI_RACCHETTA (polso dritto) non resta nessun limite ammesso per la presa a
+// racchetta: il piatto con la calibrazione del braccio simulato, letto top spin quando i colpi partivano da REST (polso
+// piegato di 27°), ora si legge (docs/b17/posa-dal-video.md §1)
+const allowLimit = () => null;
 function check(src, ids, { hands = HANDS, cals = CALS, rates = [1], grip = GRIP_STYLE } = {}){
   const bad = [];
   let n = 0;
@@ -156,9 +154,17 @@ function speedRows(id, o = {}){
 // tratto più lungo sotto 20 °/s tra a e b (s)
 const stall = (rows, a, b) => { let run = 0, worst = 0; for (const r of rows) if (r.t >= a && r.t < b){ if (r.w < 20){ run += H; worst = Math.max(worst, run); } else run = 0; } return worst; };
 
-test('tempi dei colpi (brief §5.4): picco = contatto, picco e ampiezza, preparazione e ritorno sotto i limiti, nessun fermo tra carica e colpo, fermo finale 0,10–0,20 s, ritorno entro 0,6 s, ciclo', () => {
-  for (const [id, L] of Object.entries(LIMITS)){
-    const { P, rows, max } = speedRows(id), T = P.T, tag = id;
+// Presa a racchetta (B17.1, giro 2): i colpi partono da REST_COLPI_RACCHETTA (polso dritto) e la stessa coreografia dà al
+// telefono una preparazione della schiacciata di 137 °/s (limite della presa nel palmo 80, pensato per non far leggere un top
+// spin in più) e un ritorno dell'incrociato di 257 °/s (250): misurati su tutta la zona fl 8–10 × pro 35–38 (130–148 e
+// 252–261), non si abbassano con la posa. Il telefono simulato non legge nessun colpo in più nemmeno a 1,25× (preparazione
+// ~171 °/s; soglia dei colpi speciali 0,28 × colpo di calibrazione = 174–185 qui, ~364 con i colpi veri dell'utente), quindi
+// per questa presa i due limiti sono 150 e 265 (docs/b17/posa-dal-video.md §1). La presa nel palmo tiene i limiti del B13.
+const LIMITS_RACCHETTA = { smash: { prep: 150 }, cross: { ret: 265 } };
+test('tempi dei colpi (brief §5.4): picco = contatto, picco e ampiezza, preparazione e ritorno sotto i limiti, nessun fermo tra carica e colpo, fermo finale 0,10–0,20 s, ritorno entro 0,6 s, ciclo (presa a racchetta e nel palmo)', () => {
+  for (const grip of ['racchetta', 'palmo']) for (const [id, L0] of Object.entries(LIMITS)){
+    const L = grip === 'racchetta' ? { ...L0, ...(LIMITS_RACCHETTA[id] || {}) } : L0;
+    const { P, rows, max } = speedRows(id, { grip }), T = P.T, tag = `${grip} ${id}`;
     const pk = max(0, P.total);
     assert.ok(Math.abs(pk.t - P.contact) <= H, `${tag}: picco a ${pk.t}, contatto ${P.contact}`);
     assert.ok(pk.w >= L.peak[0] && pk.w <= L.peak[1], `${tag}: picco ${pk.w.toFixed(0)} °/s`);

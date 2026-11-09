@@ -28,9 +28,26 @@
   mostrato → `VIDEO_CARDS = []`, test della lettura segnato **todo** che stampa la lettura di oggi. Misure, cause e tre scelte
   per l'utente in `docs/b17/posa-dal-video.md` §3–4 (consigliata: registrare i gesti con il telefono collegato).
 
+## Giro 2 (09/11/2026, ripresa dopo il limite d'uso)
+- **Partenza dei colpi con la presa a racchetta**: `REST_COLPI_RACCHETTA` (`natpf_gesture_pose.js`: `REST` con polso flesso 9°,
+  deviazione 0, pronazione 36°) per le coreografie di oggi e per la scheda «Posizione di partenza»; `restOf`, chiave della
+  cache `RC`; indicazioni della scheda aggiornate (`GRIP_CUES.racchetta.ready`: «schermo verso di te», «telefono davanti al
+  petto»). Scelta misurata con `scratchpad/b17/posa2/grid.mjs` (griglia fl × dv × pro, 144 letture per posa: zona fl 8–10 ×
+  pro 35–38 senza errori; numeri in `posa-dal-video.md` §1). Il limite ammesso del piatto (calibrazione del braccio simulato)
+  sparisce: `allowLimit` tolto da `natpf-gesture-pose` e `natpf-gesture-anim`. Nel test dei tempi la racchetta ha i limiti
+  schiacciata prep ≤ 150 (misurato 137) e incrociato ritorno ≤ 265 (257), la presa nel palmo tiene quelli del B13 nello stesso
+  test; test delle camere: minimo del piatto 5,5 % (racchetta 2,99 % a 448×280 contro il 3 % di prima, palmo 3,3 %).
+- Fogli dei fotogrammi a 640×400 rifatti con la posa nuova (`tools/e2e/natpf-gesti-fotogrammi.mjs`, 13/13 verifiche) e
+  **guardati**: telefono lungo l'avambraccio in tutte le schede, «Posizione» coerente con «Presa»; copiati in
+  `docs/b17/img/B-posa-640x400-*.webp`.
+- Verifiche: pose/anim/physics/presa/mancini/racchetta/speeds/camera verdi; suite del gioco e del sito e build: vedi il
+  commit (numeri nel messaggio).
+
 ## Manca / non verificato
 - Nessuna prova con il telefono vero né nel browser di queste pose (fogli dei fotogrammi del passo C non rifatti).
 - Il riconoscimento non è stato toccato (nessuna modifica «piccola e sicura» trovata: il limite è la fisica della presa).
-- La posizione di partenza dei colpi con la presa a racchetta è ancora `REST` (polso piegato): incoerenza dichiarata in
-  `posa-dal-video.md` §1, da sciogliere con la scelta dell'utente.
-- `REST_RACCHETTA` (schermo in avanti-sinistra) è una lettura delle due foto da chiarire con l'utente (§5).
+- `REST_RACCHETTA` (schermo in avanti-sinistra) è una lettura delle due foto da chiarire con l'utente (§5); la partenza dei
+  colpi `REST_COLPI_RACCHETTA` (telefono davanti al petto, schermo verso chi gioca) è una scelta nostra misurata sul telefono
+  simulato, da confermare con lui (nel video parte con il braccio che pende).
+- Fogli guardati solo a 640×400 (non 448×280, 200×200, 1600×1000); nessuna prova nel browser del flusso del tutorial in
+  questo giro.

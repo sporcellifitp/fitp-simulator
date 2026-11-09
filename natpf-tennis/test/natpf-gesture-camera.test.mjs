@@ -26,7 +26,10 @@ function screenDirs(id){
 const ang = (a, b) => Math.acos(Math.max(-1, Math.min(1, (a[0]*b[0] + a[1]*b[1])/Math.hypot(...a)/Math.hypot(...b))))/D;
 
 test('camere dei colpi da fondo: dall\'impatto alla fine la mano sale sullo schermo (prima il dritto scendeva di circa 7 px a 640×400)', () => {
-  const min = { forehand: .2, line: .2, cross: .2, backhand: .15, flat: .06 };
+  // piatto: con la presa a racchetta (B17.1, partenza REST_COLPI_RACCHETTA) il punto di riferimento del telefono sta lungo
+  // l'avambraccio e alla fine è inclinato: sullo schermo sale del 9,4 % a 640×400 e del 2,99 % a 448×280 (presa nel palmo
+  // 9,8 % e 3,3 %; il polso 15 % e 12 %, la salita vera 0,53 m è la stessa): minimo 5,5 % (2,75 % a 448×280), misurato
+  const min = { forehand: .2, line: .2, cross: .2, backhand: .15, flat: .055 };
   for (const [id, m] of Object.entries(min)){
     for (const [W, H] of [[640, 400], [448, 280]]){
       const r = riseAfterImpact(id, W, H);

@@ -27,11 +27,30 @@ palmo, quattro dita attorno al bordo lungo inferiore, pollice disteso lungo il b
   l'avambraccio: fuori da ±0,12, `natpf_stroke_intent flatRise`). Con la calibrazione fatta con i gesti dell'animazione (quella
   di chi imita il tutorial) il piatto si legge (forza 0,64, salita 0,07 contro 0,13). Il caso è ammesso nei test con la
   spiegazione (`allowLimit` in `natpf-gesture-pose.test.mjs`).
-- Con la presa a racchetta la posizione di partenza dei colpi è ancora `REST` (quella della presa nel palmo): la mano davanti
-  allo sterno con il polso piegato di 27°, quindi il telefono NON prosegue l'avambraccio nel disegno della partenza dei colpi
-  (lo fa nella scheda «Presa»). È un'incoerenza visibile e dichiarata: si toglie quando le coreografie partono da `REST_VIDEO`
-  (§3), oppure, se l'utente preferisce, ripartendo le coreografie di oggi da `REST_RACCHETTA` (misurato: il rientro da lì
-  dà rotazioni di 300–550 °/s lette come un secondo colpo, `scratchpad/b17/posa/diag.mjs` modo b: 8 schede su 9 sbagliate).
+- **Partenza dei colpi con la presa a racchetta: `REST_COLPI_RACCHETTA` (giro 2, 09/11)**. Prima i colpi partivano da `REST`
+  (la posa della presa nel palmo: mano davanti allo sterno con il polso piegato di 27°), quindi il telefono NON proseguiva
+  l'avambraccio nel disegno della partenza. Ora partono dalla stessa posizione della mano con il **polso quasi dritto**
+  (flesso 9°, non deviato) e l'avambraccio pronato di 36° (`REST`: 27°/−12°/24°): il telefono prosegue l'avambraccio con la
+  cima in avanti-sinistra e 22° in su, pollice in alto, **schermo verso chi gioca e in su** (con l'avambraccio di traverso
+  davanti al petto lo schermo non può guardare lo schermo di gioco: lo fa nella scheda «Presa», braccio in avanti). La
+  scheda «Posizione di partenza» mostra la stessa posa (indicazioni: «Telefono disteso lungo l'avambraccio, cima in
+  avanti», «Pollice in alto lungo il bordo, schermo verso di te», «Braccio rilassato, telefono davanti al petto»).
+  **Scelta misurata**, non a occhio (`scratchpad/b17/posa2/grid.mjs`, telefono simulato, coreografie di oggi, destro e
+  mancino, due calibrazioni, 0,8×/1×/1,25×, 144 letture per posa): nel piano (flessione, pronazione) con deviazione 0 la
+  zona **fl 8–10 × pro 35–38 non dà nessun errore** (0/144 in sei pose); fl 12 e pro ≤ 32 danno la palla corta o il
+  lungolinea letti in due colpi a 1,25×; pro 23,6 (quella di `REST`) dà la palla corta letta pallonetto + palla corta;
+  pro 45–76 (palmo girato come nella scheda «Presa») 3–8 errori su 22 (schiacciata, pallonetto, volée). Si è preso il
+  centro della zona (fl 9, pro 36). **Effetti**: il limite ammesso del piatto con la calibrazione del braccio simulato
+  **sparisce** (si legge piatto: `allowLimit` tolto dai test della posa e dell'animazione); la preparazione della
+  schiacciata sale a 137 °/s (limite del B13 per la presa nel palmo 80: 130–148 in tutta la zona, non si abbassa con la
+  posa) e il ritorno dell'incrociato a 257 °/s (250: 252–261): il telefono simulato non legge nessun colpo in più
+  nemmeno a 1,25× (preparazione ~171 °/s contro la soglia dei colpi speciali 0,28 × colpo di calibrazione = 174–185 qui e
+  ~364 con i colpi veri dell'utente), quindi nel test dei tempi la presa a racchetta ha i limiti 150 e 265 per quelle due
+  schede, la presa nel palmo tiene quelli del B13 (verificata nello stesso test). Le coreografie (angoli relativi alla
+  partenza, tempi) non sono cambiate: picchi, ampiezze e contatti uguali a prima (dritto 716 °/s, piatto 1 145, …).
+- Alternativa misurata e scartata: ripartire le coreografie di oggi da `REST_RACCHETTA` (mano al fianco come nelle foto):
+  il rientro da lì dà rotazioni di 300–550 °/s lette come un secondo colpo (`scratchpad/b17/posa/diag.mjs` modo b: 8 schede
+  su 9 sbagliate).
 
 ## 2. Coreografie dai dati del video (fatto come dati, NON ancora usate nel tutorial)
 `CHOREO_VIDEO` in `natpf_gesture_pose.js` (dritto, rovescio a due mani, tagliato di dritto = tagliato 2, tagliato di rovescio
@@ -105,8 +124,8 @@ A. **Registrare i gesti con il telefono collegato** (una partita di prova o la �
 B. Tenere la forma del video e **cercare il polso (pro/fl/dv) e i tempi con il rilevatore nel costo** (ottimizzatore come nel
    B13, `scratchpad/b13/fix`): fattibile, ~un passo di lavoro per 5 schede; rischio di un gesto «ottimizzato» che non è più
    quello del video (il compromesso che il B13 ha già pagato).
-C. Tenere le coreografie di oggi con la presa a racchetta (quello che c'è adesso, tutto verde): le schede non somigliano ai
-   gesti del video (è il motivo del B17), ma sono lette; incoerenza della partenza (§1, ultimo punto) da sistemare.
+C. Tenere le coreografie di oggi con la presa a racchetta (quello che c'è adesso, tutto verde, partenza con il polso dritto
+   `REST_COLPI_RACCHETTA`): le schede non somigliano ai gesti del video (è il motivo del B17), ma sono lette.
 Consigliata: **A**, poi B solo dove A non basta.
 
 ## 5. Non verificato
@@ -116,3 +135,7 @@ Consigliata: **A**, poi B solo dove A non basta.
 - La posa `REST_RACCHETTA` (schermo in avanti-sinistra, avambraccio a destra di 40°) è una lettura delle due foto, scattate da
   lati diversi: se l'utente tiene l'avambraccio dritto in avanti, lo schermo guarda a sinistra, non lo schermo di gioco
   (sono perpendicolari: con il telefono lungo l'avambraccio non possono essere entrambi «in avanti»). Da chiarire con lui.
+- La partenza dei colpi `REST_COLPI_RACCHETTA` (telefono davanti al petto, schermo verso chi gioca) è una scelta nostra,
+  misurata sul telefono simulato: nel video l'utente parte con il braccio che pende al fianco (`REST_VIDEO`), da cui le
+  coreografie di oggi non sono leggibili (§3). Da confermare con lui; i fogli dei fotogrammi con la posa nuova sono stati
+  rifatti e guardati solo a 640×400 (vedi `STATO-posa.md`).

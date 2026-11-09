@@ -76,8 +76,7 @@ test('fedeltà dell\'animazione: ogni scheda e la mira, destro e mancino, racche
       if (GESTURES[id].still && rate !== 1) continue;
       n++;
       const r = readCard(src, id, { hand, cal, rate });
-      // piatto con la presa a racchetta e la calibrazione del braccio simulato: limite misurato (natpf-gesture-pose, allowLimit)
-      const why = judgeCard(src, id, r, { hand, rate, allow: [...(allowFor(id, rate) || []), ...(grip === 'racchetta' && id === 'flat' && cal === 'arm' ? ['topspin'] : [])], peakTol: 40 });
+      const why = judgeCard(src, id, r, { hand, rate, allow: allowFor(id, rate), peakTol: 40 });
       if (id === 'serve' && r.msgs.length !== 2) why.push(`${r.msgs.length} messaggi (attesi 2)`);
       if (why.length) bad.push(`${grip} ${id} ${hand} cal=${cal} ×${rate}: ${why.join('; ')}`);
     }

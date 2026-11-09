@@ -219,6 +219,15 @@ const REST_HAND = armChain(REST).hand;
 // per quei vincoli (scratchpad b17/posa); nel video l'utente parte con il braccio che pende al fianco (gesti-video.json
 // «ready»): si è scelta la mano alzata come nelle foto della presa, da confermare con lui (docs/b17/posa-dal-video.md).
 export const REST_RACCHETTA = Object.freeze({ tau: 0, lat: 0, y: 0, p: -38.7, e: 12.9, r: -40, b: 90.1, pro: 76.4, fl: 0, dv: 0 });
+// Posizione di partenza dei COLPI e della scheda «Posizione di partenza» con la presa a racchetta (B17.1, passo B, giro 2):
+// la stessa posizione della mano di REST (telefono davanti al petto, gomito al fianco) con il polso quasi dritto (flesso 9°,
+// non deviato) e l'avambraccio pronato di 36° (REST: 27°/−12°/24°), così il telefono prosegue l'avambraccio come nelle
+// foto (cima in avanti-sinistra e 22° in su, pollice in alto, schermo verso chi gioca e in su). Scelta MISURATA con il
+// telefono simulato su tutte le schede e gli esercizi della mira (destro e mancino, due calibrazioni, 0,8×/1×/1,25×):
+// nel piano (fl, pro) la zona fl 8–10 × pro 35–38 non dà nessun errore (144/144), fl 12 o pro ≤ 32 danno la palla corta
+// o il lungolinea letti in due colpi a 1,25×; con REST (polso piegato di 27°) il piatto con la calibrazione del braccio
+// simulato era letto top spin. Misure in docs/b17/posa-dal-video.md §1.
+export const REST_COLPI_RACCHETTA = Object.freeze({ ...REST, pro: 36, fl: 9, dv: 0 });
 // telefono nella mano con la presa a racchetta: cima lungo le dita (−y della mano) girata di `cock` gradi verso il pollice
 // (+x), schermo = normale del palmo (−z), bordo destro dal lato del pollice
 export const PHONE_IN_HAND_RACCHETTA = Object.freeze(qmul(qaxis([1, 0, 0], Math.PI), qaxis([0, 0, 1], -GRIP_POSE.racchetta.cock*D)));
@@ -448,10 +457,12 @@ export const VIDEO_CARDS = Object.freeze([]);
 // (B13/B14, la stessa posa per palmo e martello)
 export const setFor = (grip = GRIP_STYLE, id = null) => isRacket(grip) && (id == null || VIDEO_CARDS.includes(id)) ? 'video' : 'legacy';
 // posizione di partenza di un gesto per insieme e presa: la scheda «Presa» della racchetta è la posa delle foto
-// (REST_RACCHETTA); l'insieme del video parte come l'utente nel video (REST_VIDEO, o il `rest` della coreografia); il resto da REST
+// (REST_RACCHETTA); l'insieme del video parte come l'utente nel video (REST_VIDEO, o il `rest` della coreografia); le
+// coreografie di oggi con la presa a racchetta partono da REST_COLPI_RACCHETTA (polso dritto); il resto da REST
 export function restOf(id, set = 'legacy', grip = GRIP_STYLE){
   if (id === 'grip' && isRacket(grip)) return REST_RACCHETTA;
   if (set === 'video') return CHOREO_VIDEO[id]?.rest || REST_VIDEO;
+  if (isRacket(grip)) return REST_COLPI_RACCHETTA;
   return REST;
 }
 // coreografia di un gesto per insieme: nel 'video' quella campionata dove c'è (gli esercizi della mira: il dritto
@@ -804,7 +815,7 @@ export function planFrom(m, grip = GRIP_STYLE){
 }
 const motions = new Map(), plans = new Map();
 function gestureMotion(id, set = 'legacy', grip = GRIP_STYLE){
-  const rest = restOf(id, set, grip), key = id + '|' + set + '|' + (rest === REST ? 'R' : rest === REST_RACCHETTA ? 'RR' : 'RV');
+  const rest = restOf(id, set, grip), key = id + '|' + set + '|' + (rest === REST ? 'R' : rest === REST_RACCHETTA ? 'RR' : rest === REST_COLPI_RACCHETTA ? 'RC' : 'RV');
   if (!motions.has(key)) motions.set(key, motionFrom(id, choreoFor(id, set), { rest, set }));
   return motions.get(key);
 }
