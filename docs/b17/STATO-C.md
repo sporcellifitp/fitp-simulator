@@ -22,10 +22,17 @@
 - Verifiche: gioco 984/984, sito 200/200, build ok; `natpf-gesti-fotogrammi` 15/15 (tutte e quattro le misure, nessun limite
   dichiarato: anche il 26 % del dritto a 200×200 del passo B sparisce).
 
+## Giro 2 (fogli, prove, documento)
+- Fogli VC-* rifatti a 640×400 (≤ 400 KB) e guardati tutti; dritto: camera più bassa (−30°, −22,5°) perché mano+telefono
+  all'impatto stava al 22–24 % con la camera all'altezza del petto; freccia lunga fino alla fine vera nei colpi con il
+  proseguimento lento (tagliato: si vede la discesa all'anca opposta); scritta «Pronto» più grande.
+- `docs/b17/gesti-dal-video.md` scritto (camere, lista del B9 per misura, scarti dal video in cm e gradi, confronto, limiti).
+- Fogli dei fotogrammi in `docs/b17/img/C-anim-*.webp`.
+
 ## Prossima azione
-1. Fogli VC-* a 640×400 (video specchiato | animazione nuova | tutorial di prima), GUARDARLI tutti, correggere.
-2. Prove `natpf-gesti-sequenze`, `natpf-modale-gesti`, `natpf-tutorial-phone`, `natpf-training-flow`; prestazioni a 1280×720.
-3. `docs/b17/gesti-dal-video.md` con misure (scarto dal video in cm, altezze, angoli del telefono) e non verificato.
+Passo C chiuso (vedi `docs/b17/gesti-dal-video.md`). Restano le domande per l'utente: rovescio a due mani con lo schermo a 71°
+da quello del video all'impatto, servizio con il telefono all'anca durante il lancio, camera del dritto dal basso, scritta del
+telefono leggibile solo a telefono grande.
 
 ## Come riprendere
 Worktree `.claude/worktrees/wf_bb380d57-57a-1`. Strumenti nello scratchpad `b17C/` (camsearch.mjs, edges.mjs, subj.mjs, arr.mjs:

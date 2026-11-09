@@ -331,7 +331,10 @@ export function motion(id, grip = GRIP_STYLE, set = undefined){
   const arc = (segs, k) => segs.map(([a, b]) => ({ t0: a, t1: b, pts: Array.from({ length: 33 }, (_, i) => tipOf(gesturePose(id, a + (b - a)*i/32, { grip, set }), k)) }));
   T.arrows = arc(segs, k);
   // inquadratura del gesto intero (camera ferma): la freccia segue tutta la parte veloce, come con le camere ferme
-  T.arrowsWhole = C.whole ? arc(P.kind === 'serve' ? [[P.T.load, P.T.tossEnd], [P.contact - .06, P.contact + .06]] : P.kind === 'stroke' ? [[P.T.inv, P.T.end]] : [], 1.36) : T.arrows;
+  // (con il proseguimento lento dopo la frenata, tagliati e rovescio a due mani, fino alla fine vera: la discesa lunga del
+  // tagliato verso l'anca opposta è lì, non nella parte veloce)
+  const slowEnd = P.T.fastEnd != null && P.T.back - P.T.fastEnd > .3 ? P.T.back - .05 : P.T.end;
+  T.arrowsWhole = C.whole ? arc(P.kind === 'serve' ? [[P.T.load, P.T.tossEnd], [P.contact - .06, P.contact + .06]] : P.kind === 'stroke' ? [[P.T.inv, slowEnd]] : [], 1.36) : T.arrows;
   T.keys = P.keys;
   TABLES.set(tk, T);
   return T;
@@ -672,8 +675,8 @@ function drawScreen(c, cam, T){
   c.fillStyle = 'rgba(54,224,122,.14)'; c.fill();
   c.save(); c.scale(1, -1);
   c.fillStyle = '#ffffff'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.font = '700 14px Barlow, sans-serif'; c.fillText('Pronto', 0, -24);     // B17.1 passo C: più grande (leggibile con il telefono a ~80 px)
-  c.fillStyle = 'rgba(220,228,255,.78)'; c.font = '500 5.5px Barlow, sans-serif'; c.fillText('Guarda il computer', 0, 2);
+  c.font = '700 20px Barlow, sans-serif'; c.fillText('Pronto', 0, -26);     // B17.1 passo C: quasi tutta la larghezza dello schermo (leggibile con il telefono da ~80 px)
+  c.fillStyle = 'rgba(220,228,255,.78)'; c.font = '500 5.5px Barlow, sans-serif'; c.fillText('Guarda il computer', 0, 0);
   c.restore();
   c.lineWidth = .7; c.strokeStyle = 'rgba(160,180,255,.7)'; c.fillStyle = 'rgba(70,95,220,.55)';
   for (const x of [-24, 0, 24]){ c.beginPath(); c.roundRect(x - 10.5, -66, 21, 8, 4); c.fill(); c.stroke(); }

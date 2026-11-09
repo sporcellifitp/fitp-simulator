@@ -161,7 +161,7 @@ async function confronto(st){
       rows.push(row);
     });
     let q = .82, url = out.toDataURL('image/webp', q);
-    while (url.length*.75 > 600_000 && q > .3){ q -= .06; url = out.toDataURL('image/webp', q); }
+    while (url.length*.75 > 400_000 && q > .3){ q -= .06; url = out.toDataURL('image/webp', q); }
     return { url, rows };
   }, { id: st.id, title: st.title, times, frames, samples, anchors, scale: SCALE, two: TWO });
   const buf = Buffer.from(r.url.split(',')[1], 'base64'), file = path.join(OUT, `${PREFIX}-${st.id}.webp`);
@@ -171,7 +171,7 @@ async function confronto(st){
     const f = v => v == null ? '—' : v.toFixed(2);
     console.log(`  video ${row.t.toFixed(2)} s → anim video ${row.video.ta.toFixed(2)} s (${row.video.label || 'fermo'}; polso Δ ${f(row.video.dW)} m, Δy ${f(row.video.dY)}; telefono ${row.video.edge.toFixed(0)}° ${row.video.facing ? 'schermo' : 'dorso'})` + (row.legacy ? ` · tutorial ${row.legacy.ta.toFixed(2)} s (${row.legacy.label || 'fermo'}; polso Δ ${f(row.legacy.dW)} m; telefono ${row.legacy.edge.toFixed(0)}° ${row.legacy.facing ? 'schermo' : 'dorso'})` : ''));
   }
-  check(`${st.title}: foglio ≤ 600 KB`, buf.length <= 600_000, `${(buf.length/1024).toFixed(0)} KB`);
+  check(`${st.title}: foglio ≤ 400 KB`, buf.length <= 400_000, `${(buf.length/1024).toFixed(0)} KB`);
   // pose chiave: il polso dell'animazione dal video sta vicino a quello ricostruito dal video (le pose chiave sono risolte
   // sulle posizioni misurate: ≤ 0,12 m; rovescio a due mani e tagliato di rovescio: ricostruzione non attendibile, solo
   // misura). «Impatto» scritto all'istante dell'impatto in tutti e due gli insiemi
