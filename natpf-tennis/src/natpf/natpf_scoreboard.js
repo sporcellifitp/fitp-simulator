@@ -31,24 +31,35 @@ export function gamePoints(p = 0, o = 0){
 
 // nome abbreviato per la riga del tabellone, come le sigle in televisione (riferimento: «DRL», «2KG»): «TU», «CPU»,
 // «P1»/«P2» per «Player 1»/«Player 2», altrimenti le prime `n` lettere (3) del nome scelto nella pagina «Collega»,
-// maiuscole. Con più parole le lettere non vanno oltre la prima parola («Jean Paul» → «JEA», «JEAN», mai «JEANPA»); con
-// `initials` la sigla è fatta dalle iniziali delle parole prima dell'ultima più le lettere dell'ultima («Jean Paul» →
-// «JPA», «Marco Rossi» → «MRO»). Le squadre del doppio tengono il «+»: «TU+CPU», «MAR+CPU», «2CPU» (un numero davanti
-// resta intero). Rifinitura del 08/11: prima un nome di al più 4 caratteri restava intero («ANNA»), ma «Anna»/«Annalisa»
-// uscivano ANNA/ANN e si confondevano: ora sempre 3 lettere, e le sigle uguali le allunga shortNames
-export function shortName(name = '', n = 3, initials = false){
+// maiuscole. Con più parole le lettere non vanno oltre la prima parola («Jean Paul» → «JEA», «JEAN», mai «JEANPA»).
+// `mode`: con `initials` (o `true`) la sigla è fatta dalle iniziali delle parole prima dell'ultima più le lettere
+// dell'ultima («Jean Paul» → «JPA», «Marco Rossi» → «MRO»); con `ending` le ultime lettere di una parola più lunga di `n`
+// lasciano il posto all'ultima lettera, quella che in italiano distingue il nome maschile da quello femminile
+// («Francesco» a 6 → «FRANCO», «Francesca» → «FRANCA»; con le iniziali «Anna Francesco» → «AFRANO»). Le squadre del
+// doppio tengono il «+»: «TU+CPU», «MAR+CPU», «2CPU» (un numero davanti resta intero). Rifinitura del 08/11: prima un
+// nome di al più 4 caratteri restava intero («ANNA»), ma «Anna»/«Annalisa» uscivano ANNA/ANN e si confondevano: ora
+// sempre 3 lettere, e le sigle uguali le allunga shortNames. Le lettere si contano per code point (Array.from), non per
+// unità UTF-16: «🎾🎾» a 3 resta «🎾🎾», prima slice() lasciava mezza emoji («🎾\ud83c», nel tabellone «🎾�»)
+export function shortName(name = '', n = 3, mode = false){
   const len = Math.max(1, n | 0);
+  const initials = mode === true || mode === 'initials' || mode === 'initials-ending';
+  const ending = mode === 'ending' || mode === 'initials-ending';
+  const chars = s => Array.from(String(s));
+  // le prime k lettere di una parola; con `end` e una parola più lunga di k: k − 1 lettere più l'ultima
+  const cut = (word, k, end = false) => { const c = chars(word); if (end && c.length > k && k >= 2) return c.slice(0, k - 1).join('') + c.at(-1); return c.slice(0, k).join(''); };
   const one = s => {
     s = String(s).trim();
     const m = /^player\s*(\d+)$/i.exec(s); if (m) return `P${m[1]}`;
     const num = /^(\d+)\s+(\S.*)$/.exec(s); if (num) return num[1] + one(num[2]);
     const words = s.split(/\s+/).filter(Boolean);
     if (initials && words.length > 1){
-      const head = words.slice(0, -1).map(w => w[0]).join('');
-      return (head + words.at(-1).slice(0, Math.max(1, len - head.length))).toUpperCase();
+      const head = words.slice(0, -1).map(w => chars(w)[0]).join('');
+      return (head + cut(words.at(-1), Math.max(1, len - chars(head).length), ending)).toUpperCase();
     }
-    const cap = words.length > 1 ? Math.max(3, words[0].length) : len;
-    return words.join('').slice(0, Math.min(len, cap)).toUpperCase();
+    // una parola sola (o la prima di più parole, se è più lunga di `len`): l'ultima lettera solo con `ending`
+    const first = chars(words[0] || '');
+    if (words.length === 1 || first.length > len) return cut(words[0], len, ending).toUpperCase();
+    return cut(words.join(''), Math.max(3, first.length)).toUpperCase();
   };
   return String(name).split(/\s*\+\s*/).map(one).join('+');
 }
@@ -58,13 +69,21 @@ export function shortName(name = '', n = 3, initials = false){
 const plain = s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
 
 // sigle delle due righe, diverse tra loro: 3 lettere; se uguali si allungano fino a 6 («Marco»/«Marcello» → MARCO/MARCE,
-// «Anna»/«Annalisa» → ANNA/ANNAL); se ancora uguali e c'è più di una parola, le iniziali («Jean Paul»/«Jean Pierre» →
-// JPA/JPI, anche loro allungate fino a 6 se serve); solo alla fine «P1» e «P2» («Marco»/«Marco», «José»/«Josè»)
+// «Anna»/«Annalisa» → ANNA/ANNAL, «Simone»/«Simona» → SIMONE/SIMONA); se ancora uguali, 5 lettere più l'ultima, che in
+// italiano distingue il maschile dal femminile («Francesco»/«Francesca» → FRANCO/FRANCA, «Alessandro»/«Alessandra» →
+// ALESSO/ALESSA, «Antonio»/«Antonia» → ANTONO/ANTONA: revisione del 08/11, prima cadevano su P1/P2 perché differiscono
+// dalla 7ª lettera in poi); poi, con più di una parola, le iniziali («Jean Paul»/«Jean Pierre» → JPA/JPI, anche loro
+// allungate fino a 6 e con l'ultima lettera: «Anna Francesco»/«Anna Francesca» → AFRANO/AFRANA); solo alla fine «P1» e
+// «P2» («Marco»/«Marco», «José»/«Josè»). Non si va oltre 6 lettere: il riquadro resta entro i 13 em e, nel ledwall
+// 720×720 diviso, la copia del P2 finisce proprio al limite dei 40 px prima della pausa (docs/b17/punteggio.md)
 export function shortNames(me, them){
   const same = (a, b) => plain(a) === plain(b);
+  const both = (n, mode) => { a = shortName(me, n, mode); b = shortName(them, n, mode); };
   let a = shortName(me), b = shortName(them);
-  for (let n = 4; n <= 6 && same(a, b); n++){ a = shortName(me, n); b = shortName(them, n); }
-  for (let n = 3; n <= 6 && same(a, b); n++){ a = shortName(me, n, true); b = shortName(them, n, true); }
+  for (let n = 4; n <= 6 && same(a, b); n++) both(n);
+  if (same(a, b)) both(6, 'ending');
+  for (let n = 3; n <= 6 && same(a, b); n++) both(n, 'initials');
+  if (same(a, b)) both(6, 'initials-ending');
   if (same(a, b)){ a = 'P1'; b = 'P2'; }
   return { me: a, them: b };
 }

@@ -95,13 +95,25 @@ test('sigle dei nomi: TU, CPU, P1/P2, prime 3 lettere del nome scelto, squadre c
   assert.equal(shortName('Jean Paul', 3, true), 'JPA');           // iniziali: J + le lettere dell'ultima parola
   assert.equal(shortName('Marco Rossi', 4, true), 'MROS');
   assert.equal(shortName('Marco', 3, true), 'MAR');               // una parola sola: le iniziali non cambiano niente
+  assert.equal(shortName('Francesco', 6, 'ending'), 'FRANCO');    // 5 lettere più l'ultima (revisione del 08/11)
+  assert.equal(shortName('Simone', 6, 'ending'), 'SIMONE');       // non più lunga di 6: resta intera
+  assert.equal(shortName('Francesco Rossi', 6, 'ending'), 'FRANCO'); // sulla prima parola
+  assert.equal(shortName('Jean Paul', 6, 'ending'), 'JEAN');      // prima parola corta: come senza «ending»
+  assert.equal(shortName('Anna Francesco', 6, 'initials-ending'), 'AFRANO');
+  // code point, non unità UTF-16: le emoji non si spezzano (prima «🎾🎾» a 3 dava «🎾\ud83c», nel tabellone «🎾�»)
+  assert.equal(shortName('🎾🎾'), '🎾🎾');
+  assert.equal(shortName('Marco🎾', 6), 'MARCO🎾');
+  assert.equal(shortName('🎾 Marco', 3, true), '🎾MA');
+  for (const n of ['🎾🎾', 'Marco🎾', '🎾 Marco']) for (const k of [3, 4, 6]) for (const m of [false, true, 'ending', 'initials-ending']) assert.ok(shortName(n, k, m).isWellFormed(), `${n} ${k} ${m}`);
   const v = scoreboardView(sc(0, 0), { split: true, splitNames: { p1: 'Marco', p2: 'Giulia' } });
   assert.deepEqual(v.rows.map(r => [r.name, r.short]), [['Marco', 'MAR'], ['Giulia', 'GIU']]);
 });
 
 // rifinitura del 08/11: «Marco»/«Marcello» e «Jean Paul»/«Jean Pierre» cadevano su P1/P2 (i nomi scelti sparivano),
 // «Anna»/«Annalisa» uscivano ANNA/ANN, «José»/«Josè» si distinguevano solo dall'accento
-test('sigle uguali: 3 lettere, poi fino a 6, poi le iniziali delle parole, solo alla fine P1/P2; confronto senza accenti', () => {
+// revisione del 08/11: le coppie italiane più comuni (Francesco/Francesca, Antonio/Antonia…) differiscono dalla 7ª lettera
+// in poi e con il tetto a 6 cadevano ancora su P1/P2: ora 5 lettere più l'ultima prima delle iniziali e di P1/P2
+test('sigle uguali: 3 lettere, poi fino a 6, poi 5 più l\'ultima, poi le iniziali delle parole, solo alla fine P1/P2; confronto senza accenti', () => {
   assert.deepEqual(shortNames('Marco', 'Giulia'), { me: 'MAR', them: 'GIU' });
   assert.deepEqual(shortNames('Marco', 'Maria'), { me: 'MARC', them: 'MARI' });      // uguali a 3 lettere: 4
   assert.deepEqual(shortNames('Marco', 'Marcello'), { me: 'MARCO', them: 'MARCE' }); // uguali a 4: 5
@@ -110,6 +122,14 @@ test('sigle uguali: 3 lettere, poi fino a 6, poi le iniziali delle parole, solo 
   assert.deepEqual(shortNames('Jean Paul', 'Jean Pierre'), { me: 'JPA', them: 'JPI' });   // iniziali delle parole
   assert.deepEqual(shortNames('Jean Paul', 'Jean Paolo'), { me: 'JPAU', them: 'JPAO' }); // iniziali allungate
   assert.deepEqual(shortNames('Marco', 'Marco Rossi'), { me: 'MAR', them: 'MRO' });
+  assert.deepEqual(shortNames('Francesco', 'Francesca'), { me: 'FRANCO', them: 'FRANCA' }); // uguali fino a 8: 5 + l'ultima
+  assert.deepEqual(shortNames('Antonio', 'Antonia'), { me: 'ANTONO', them: 'ANTONA' });
+  assert.deepEqual(shortNames('Alessandra', 'Alessandro'), { me: 'ALESSA', them: 'ALESSO' });
+  assert.deepEqual(shortNames('Simone', 'Simona'), { me: 'SIMONE', them: 'SIMONA' });       // 6 lettere bastano
+  assert.deepEqual(shortNames('Francesco Rossi', 'Francesca Rossi'), { me: 'FRANCO', them: 'FRANCA' });
+  assert.deepEqual(shortNames('Anna Francesco', 'Anna Francesca'), { me: 'AFRANO', them: 'AFRANA' }); // iniziali più l'ultima
+  assert.deepEqual(shortNames('Francesco', 'Francesco'), { me: 'P1', them: 'P2' });
+  assert.deepEqual(shortNames('🎾🎾', 'Marco🎾'), { me: '🎾🎾', them: 'MAR' });
   assert.deepEqual(shortNames('Marco', 'Marco'), { me: 'P1', them: 'P2' });          // uguali davvero: P1 e P2
   assert.deepEqual(shortNames('José', 'Josè'), { me: 'P1', them: 'P2' });            // solo l'accento non basta
   assert.deepEqual(shortNames('josé', 'JOSÉ'), { me: 'P1', them: 'P2' });

@@ -7,7 +7,62 @@ nell'angolo e lo ha ingrandito, con la schermata di riferimento non ancora arriv
 schermata di riferimento», sotto) ne ha rifatto il disegno sulla schermata che l'utente ha mandato (misure in
 `docs/b17/punteggio-riferimento.md`). Le funzioni di stato di `natpf_scoreboard.js` (nomi, punti, scritte) non cambiano.
 Un **terzo passo** (§ «Rifinitura», sotto) applica i minori della revisione del secondo: carattere a 3 cqh, sottotitolo
-≥ 12 px, sigle che non cadono su P1/P2 per nomi simili, pillola «In attesa» senza l'arco giallo.
+≥ 12 px, sigle che non cadono su P1/P2 per nomi simili, pillola «In attesa» senza l'arco giallo. La **revisione del terzo
+passo** (09/11, § «Revisione della rifinitura») corregge le sigle per le coppie italiane che differiscono dalla 7ª lettera
+(«Francesco»/«Francesca» cadevano ancora su P1/P2) e le emoji spezzate a metà.
+
+## Revisione della rifinitura (09/11: bloccanti e minori della revisione del terzo passo)
+
+1. **Sigle delle coppie italiane** (bloccante). La regola «3 lettere → fino a 6 → iniziali → P1/P2» lasciava su P1/P2
+   proprio le coppie più comuni, che differiscono dalla 7ª lettera in poi: Francesco/Francesca, Marcello/Marcella,
+   Giovanni/Giovanna, Alessandro/Alessandra, Antonio/Antonia, Roberto/Roberta, Gabriele/Gabriella, Daniele/Daniela,
+   Giuseppe/Giuseppina (riprodotto con uno script sulle funzioni e nel browser: nella pagina «Collega» Player 1
+   «Francesco» e Player 2 «Francesca» davano P1/P2 a tutte le misure). Il difetto segnalato dall'utente («i nomi scelti
+   spariscono») restava per il caso più probabile in Italia. Ora `shortNames` ha un passo in più, **prima** delle
+   iniziali e di P1/P2: **5 lettere più l'ultima** (`shortName(nome, 6, 'ending')`), che in italiano è quella che
+   distingue il maschile dal femminile: FRANCO/FRANCA, ALESSO/ALESSA, ANTONO/ANTONA, ROBERO/ROBERA, MARCEO/MARCEA,
+   GABRIE/GABRIA; meno belle ma distinte GIOVAI/GIOVAA, DANIEE/DANIEA, GIUSEE/GIUSEA. Simone/Simona resta SIMONE/SIMONA
+   (bastano 6 lettere) e «Francesco Rossi»/«Francesca Rossi» → FRANCO/FRANCA (sulla prima parola); lo stesso passo vale
+   per le iniziali («Anna Francesco»/«Anna Francesca» → AFRANO/AFRANA). Scartata l'alternativa di allungare a 7–8
+   lettere: nel ledwall 720×720 diviso la copia del P2 con 6 lettere arriva già al limite (sotto), con 7–8 la larghezza
+   massima della metà (232 px) avrebbe accorciato le sigle con i puntini, **uguali** per tutti e due («GIOVAN…»).
+   Ordine completo: 3 lettere → 4, 5, 6 → 5 + l'ultima → iniziali delle parole da 3 a 6 → iniziali + l'ultima → P1/P2.
+2. **Emoji spezzate** (minore): `slice()` tagliava le unità UTF-16, non i caratteri: «🎾🎾» a 3 lettere dava «🎾\ud83c»
+   (surrogato spaiato: nel tabellone «🎾�»), «Marco🎾» a 6 → «MARCO\ud83c», e nelle iniziali `w[0]` prendeva mezza emoji
+   (prima del terzo passo un nome di ≤ 4 unità restava intero e «🎾🎾» si vedeva: regressione di bordo). Ora le lettere
+   si contano per code point (`Array.from`) in tutti i rami; il test verifica `isWellFormed()` su ogni combinazione.
+3. **Pillola «In attesa di Player 2»**: tolta la regola morta `.opponent-presence-pill.ready { border-left-color }` da
+   `natpf-hud.css` (il bordo sinistro è 0 dal terzo passo; la regola base `border-left: 4px` resta con una nota) e il
+   carattere, fisso a 13 px, ora segue il tabellone come il sottotitolo: `max(13px, 0.6·--sb)` = 13 px a 720p, 600 e
+   390, **19,4 px a 1080p** (pillola 304×36 a 44, 249, 16 px sotto il tabellone; prima 13 px, piccolissima accanto al
+   tabellone a 32,4 px). Corretto il commento del CSS: il riquadro è alto 4,07 em (88/21,6), non 3,95.
+4. **Misure da dire** (documentate, non cambiate): a **844×390** il tabellone con il sottotitolo arriva a 114 px = **29 %**
+   dell'altezza (la prova verifica il limite del 23 % a 1280×720, 1920×1080, 1024×600 e nel ledwall, non a 844, dove
+   controlla il sottotitolo e la copia del P2) e la pillola sta a 123–151 px, sopra l'inizio del campo: non copre pausa,
+   etichette o scritte. Nel **ledwall 720×720 diviso** con sigle di 6 lettere (SIMONE/SIMONA, FRANCO/FRANCA, ALESSO/ALESSA)
+   la copia del P2 finisce **esattamente a 610 = 650 − 40**, senza margine, perché la larghezza massima della metà
+   (49,8 cqw − `--sb-left` − 110 px = 232 px) la ferma lì; il riquadro `.sb-box` è 219–225 px (≤ 10,4 em) e le sigle
+   restano intere (la prova lo verifica: nessun `scrollWidth` oltre la cella), mentre il sottotitolo «Vantaggio
+   Francesco» si accorcia in «VANTAG…» (il nome intero resta nel `title` della riga). Con MAR/GIU la copia finisce a
+   559.
+5. **Da valutare con l'utente** (non cambiato): le iniziali si usano anche quando solo uno dei due nomi ha più parole:
+   «Anna»/«Anna Maria» → ANN/AMA, «Anna Maria»/«Anna Lisa» → AMA/ALI («Anna Maria» diventa AMA, poco riconoscibile); il
+   tetto «non oltre la prima parola» impedisce ANNAM/ANNAL, che si leggerebbe meglio. I casi del compito (JPA/JPI) sono
+   rispettati.
+
+| 1280×720, stesso schermo, Francesco/Francesca: FRANCO/FRANCA (prima P1/P2) | Ledwall 720×720 diviso, al vantaggio: sigle intere, copia del P2 a 610, sottotitolo «VANTAG…» |
+|---|---|
+| ![Francesco 1280](img/punteggio-rev-1280-stesso-schermo-francesco.jpg) | ![Francesco ledwall](img/punteggio-rev-ledwall-720-stesso-schermo-francesco.jpg) |
+
+1920×1080, sfida un amico al vantaggio con la pillola «In attesa» a 19,4 px (![attesa 1920](img/punteggio-rev-1920-attesa.jpg), mezza misura).
+
+Prove della revisione: `cd natpf-tennis && npm test` 975/975 (test delle sigle con Francesco/Francesca, Antonio/Antonia,
+Alessandra/Alessandro, Simone/Simona, «Francesco Rossi», «Anna Francesco», emoji e `isWellFormed`); `node --test
+tools/test/*.test.mjs` 200/200; `npm run build` ok (2,9 s); `tools/e2e/natpf-tabellone.mjs` (GAME_PORT 3771) **42/42**
+(due verifiche nuove: stesso schermo a 1280×720 con Francesco/Francesca → FRANCO/FRANCA interi, copia uguale e lontana
+dalla pausa; ledwall 720×720 diviso al vantaggio → sigle intere non accorciate, riquadro ≤ 13 em, copia a 610 ≤ 610);
+`natpf-scritte-2v2.mjs` 73/73; `natpf-split-ready.mjs` 34/34. Non verificato: schermo reale, il giudizio dell'utente
+sulle sigle «5 + l'ultima» (FRANCO/FRANCA, ANTONO/ANTONA, le meno belle GIOVAI/GIOVAA) e sulla pillola più grande a 1080p.
 
 ## Rifinitura (terzo passo, 08/11 notte: minori della revisione del secondo passo)
 
@@ -30,6 +85,8 @@ Un **terzo passo** (§ «Rifinitura», sotto) applica i minori della revisione d
    dell'ultima (JPA/JPI; se serve allungate: JPAU/JPAO; «Marco»/«Marco Rossi» → MAR/MRO); il confronto è **senza accenti
    e maiuscole** (JOSÉ e JOSÈ sono la stessa sigla); solo alla fine P1/P2 («Marco»/«Marco», «José»/«Josè»). Un numero
    davanti resta intero («2 CPU» → 2CPU). Test unitari in `test/natpf-scoreboard.test.mjs` con tutti questi casi.
+   **Revisione del 09/11**: tra le 6 lettere e le iniziali c'è il passo «5 lettere più l'ultima» (FRANCO/FRANCA), vedi
+   § «Revisione della rifinitura».
 3. **Pillola «In attesa di Player 2»**: `natpf-hud.css` le dà `border-left: 4px solid` giallo e `natpf-round.css` gli
    angoli a pillola (`--r-pill`): il bordo sinistro curvo si vedeva come un arco «(» giallo. Ora `#hud-root
    .opponent-presence-pill` ha `border-left: 0` e `padding-left: 14px`; il colore dell'attesa resta nel puntino. La
@@ -52,13 +109,14 @@ Riquadri misurati dalla prova `tools/e2e/natpf-tabellone.mjs` dopo la rifinitura
 | 1024×600, 1v1 CPU | 24, 36, 146×95 (131 = 21,8 %) | 146×73 | 18 | 29×27, cifra 19,4 | 12 | — | 954 |
 | 1280×720, 2v2 («TU+CPU» / «2CPU») | 29, 43, 222×112 | 222×88 | 21,6 | 35×32 | 13 | — | 1210 |
 | 1280×720, sfida un amico, «AD» e «Vantaggio di Player 2» | 29, 43, 323×112 | 168×88 | 21,6 | 35×32 | 13 | — | 1210 |
-| 1280×720, sfida un amico, «In attesa di Player 2» | 29, 43, 168×112 | 168×88 | 21,6 | 35×32 | 13 | pillola a 29, 166 (10 px sotto), bordo sinistro 0 | 1210 |
+| 1280×720, sfida un amico, «In attesa di Player 2» | 29, 43, 168×112 | 168×88 | 21,6 | 35×32 | 13 | pillola a 29, 166 (10 px sotto), bordo sinistro 0, carattere 13 px (revisione del 09/11: 19,4 a 1080p, pillola a 44, 249; a 844×390 a 19, 123–151) | 1210 |
 | 1280×720, stesso schermo (MAR/GIU) | 29, 43, 181×112 | 181×88 | 21,6 | 35×32 | 13 | 672, 43, 181×112 (finisce a 853 < 1170) | 1210 |
 | 1920×1080, stesso schermo, nomi di 24 caratteri al vantaggio | 44, 64, 677×169 | 272×132 | 32,4 | 52×49 | 19,4 | 1008, 64, 677×169 (finisce a 1685 < 1810) | 1850 |
 | 1024×600, stesso schermo, nomi lunghi | 24, 36, 376×95 | 151×73 | 18 | 29×27 | 12 | 538, 36, 376×95 (finisce a 914 = 954 − 40) | 954 |
-| 844×390, stesso schermo, nomi lunghi | 19, 23, 291×91 | 142×69 | 17 | 27×26 | 12 | 443, 23, 291×91 (finisce a 734 = 774 − 40) | 774 |
+| 844×390, stesso schermo, nomi lunghi | 19, 23, 291×91 (bordo basso 114 = 29 %, non verificato dalla prova) | 142×69 | 17 | 27×26 | 12 | 443, 23, 291×91 (finisce a 734 = 774 − 40) | 774 |
 | ledwall 720×720, 1v1 CPU | 17, 43, 176×112 | 176×88 | 21,6 | 35×32 | 13 | — | 650 |
 | ledwall 720×720, stesso schermo | 17, 43, 181×112 (finisce a 198 < 358) | 181×88 | 21,6 | 35×32 | 13 | 378, 43, 181×112 (finisce a 559 < 610) | 650 |
+| ledwall 720×720, stesso schermo, sigle di 6 lettere (FRANCO/FRANCA, revisione del 09/11) | 17, 43, 232×112 (larghezza massima della metà) | 225×88 | 21,6 | 35×32 | 13, «Vantaggio Francesco» → «VANTAG…» | 378, 43, 232×112 (finisce a 610 = 650 − 40, al limite) | 650 |
 
 Prove della rifinitura: `cd natpf-tennis && npm test` 975/975 (nuovo test delle sigle uguali, `--sb` a 3 cqh e
 sottotitolo a 12 px nelle regole CSS); `node --test tools/test/*.test.mjs` 200/200; `npm run build` ok (3,1 s);

@@ -42,10 +42,12 @@ const read = p => p.evaluate(() => {
   // riquadro scuro e casella dei punti di ogni riga (misure del disegno di riferimento); etichetta «Al servizio» in vista?
   const boxEl = sb?.querySelector('.sb-box'), cells = sb ? [...sb.querySelectorAll('[data-sb-points]')].map(rc) : [];
   const tag = document.getElementById('server-tag'), tagOn = !!tag && !tag.classList.contains('hidden') && getComputedStyle(tag).display !== 'none';
+  // sigle accorciate con i puntini (il testo non sta nella cella): non deve succedere, nemmeno nella copia del P2 nel ledwall diviso
+  const nameCut = [...document.querySelectorAll('.natpf-scoreboard [data-sb-name]')].some(el => el.scrollWidth > el.clientWidth + 1);
   // «game secco» non deve comparire in nessuna scritta visibile della pagina (innerText salta ciò che è nascosto)
   return { visible: vis(sb), rows, format: fmtEl?.textContent || '', label: labEl?.textContent || '', secco: /secco/i.test(document.body.innerText), fmtInk: ink(fmtEl), labInk: ink(labEl, true), box: b ? { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height) } : null,
     fs: sb ? parseFloat(getComputedStyle(sb).fontSize) : 0, p2: rc(p2), same: !!p2 && p2.textContent === sb?.textContent, pause: rc(document.querySelector('.natpf-pause-btn')),
-    sbBox: rc(boxEl), cells, cellFs: cells.length ? parseFloat(getComputedStyle(sb.querySelector('[data-sb-points]')).fontSize) : 0, head: !!sb?.querySelector('.sb-head'), tagOn, split: document.body.classList.contains('natpf-split') };
+    sbBox: rc(boxEl), cells, cellFs: cells.length ? parseFloat(getComputedStyle(sb.querySelector('[data-sb-points]')).fontSize) : 0, head: !!sb?.querySelector('.sb-head'), tagOn, nameCut, split: document.body.classList.contains('natpf-split') };
 });
 // il formato finisce prima che cominci la scritta del momento, sulla stessa riga, con almeno 4 px di spazio
 // (revisione del 07/11: «Al meglio di 5 game» e «Vantaggio di Player 2» si toccavano: «gameVANTAGGIO»)
@@ -147,6 +149,13 @@ try {
   // B17.3: un tabellone in alto a sinistra di ogni metà, lo stesso testo, ognuno dentro la sua metà (la linea scura sta a 637–643)
   if (!ONLY_SHOTS) check('stesso schermo 1280×720: tabellone del P1 nella metà sinistra e copia uguale in alto a sinistra della metà del P2', corner(v, 1280, 720, splitFs(1280, 720)) && v.box.x + v.box.w <= 637 && !!v.p2 && v.same && Math.abs(v.p2.x - (643 + v.box.x)) <= 1 && Math.abs(v.p2.y - v.box.y) <= 1 && v.p2.x + v.p2.w <= 1280 && p2Clear(v), fmt({ box: v.box, p2: v.p2, same: v.same, pause: v.pause }));
   await shot(p, '1280-stesso-schermo');
+  // revisione del 08/11: «Francesco»/«Francesca» (e le altre coppie italiane che differiscono dalla 7ª lettera) cadevano su
+  // P1/P2 anche con le sigle allungate fino a 6: ora 5 lettere più l'ultima, FRANCO/FRANCA, intere nella cella
+  await p.evaluate(() => { const E = __natpfTennis; E.natpfSplitNames = { p1: 'Francesco', p2: 'Francesca' }; E._syncScoreboardHUD(); });
+  v = await read(p);
+  if (!ONLY_SHOTS) check('stesso schermo 1280×720, Francesco/Francesca: sigle «FRANCO» e «FRANCA» (non P1/P2), nomi interi in data-sb-name, sigle non accorciate, copia del P2 uguale e lontana dalla pausa', row(v, 'me').name === 'FRANCO' && row(v, 'them').name === 'FRANCA' && row(v, 'me').full === 'Francesco' && row(v, 'them').full === 'Francesca' && !v.nameCut && v.same && corner(v, 1280, 720, splitFs(1280, 720)) && p2Clear(v), fmt(v));
+  await shot(p, '1280-stesso-schermo-francesco');
+  await p.evaluate(() => { __natpfTennis.natpfSplitNames = { p1: 'Marco', p2: 'Giulia' }; __natpfTennis._syncScoreboardHUD(); });
   await p.setViewportSize({ width: 1920, height: 1080 }); await p.waitForTimeout(250);
   await shot(p, '1920-stesso-schermo');
   await setScore(p, { playerPoints: 5, opponentPoints: 4, playerGames: 1, opponentGames: 2, server: 'opponent' }, 3);
@@ -222,6 +231,14 @@ try {
   v = await read(p);
   if (!ONLY_SHOTS) check('ledwall 720×720, stesso schermo: tabellone del P1 nella metà sinistra e copia nella metà del P2 (carattere 21,6 px), dentro il riquadro e lontana dalla pausa, niente «Al servizio»', corner(v, 720, 720, splitFs(720, 720)) && v.box.x + v.box.w <= 358 && !!v.p2 && v.same && v.p2.x >= 362 && v.p2.x + v.p2.w <= 720 && p2Clear(v) && v.fmtInk?.fs >= 12 && !v.tagOn, fmt({ box: v.box, p2: v.p2, pause: v.pause, fs: v.fs, foot: v.fmtInk?.fs, tagOn: v.tagOn }));
   await p.screenshot({ path: `${SP}/tabellone-ledwall-720-stesso-schermo.png`, clip: { x: 0, y: 0, width: 720, height: 720 } });
+  // sigle di 6 lettere nel ledwall diviso (il caso più largo: la copia del P2 arriva proprio al limite dei 40 px prima della
+  // pausa, 610; la larghezza massima della metà è 49,8 cqw − --sb-left − 110 px = 232 px): sigle intere, non accorciate
+  await p.evaluate(() => { const E = __natpfTennis; E.natpfSplitNames = { p1: 'Francesco', p2: 'Francesca' }; E._syncScoreboardHUD(); });
+  await setScore(p, { playerPoints: 4, opponentPoints: 3, playerGames: 1, opponentGames: 1, server: 'opponent' }, 2);
+  v = await read(p);
+  if (!ONLY_SHOTS) check('ledwall 720×720, stesso schermo, Francesco/Francesca al vantaggio: sigle «FRANCO»/«FRANCA» intere (non accorciate), riquadro ≤ 13 em, copia del P2 almeno 40 px prima della pausa', row(v, 'me').name === 'FRANCO' && row(v, 'them').name === 'FRANCA' && !v.nameCut && drawn(v) && v.box.x + v.box.w <= 358 && !!v.p2 && v.same && p2Clear(v) && v.label === 'Vantaggio Francesco', fmt({ box: v.box, sbBox: v.sbBox, p2: v.p2, pause: v.pause, rows: v.rows, nameCut: v.nameCut, label: v.label }));
+  await p.screenshot({ path: `${SP}/tabellone-ledwall-720-stesso-schermo-francesco.png`, clip: { x: 0, y: 0, width: 720, height: 720 } });
+  await p.evaluate(() => { __natpfTennis.natpfSplitNames = { p1: 'Marco', p2: 'Giulia' }; __natpfTennis._syncScoreboardHUD(); });
   await p.evaluate(() => __natpfTennis.endSplit());
   await p.evaluate(() => __natpfTennis.natpfUi.screen.restore({ preset: 'full', area: null, margins: {} }));
 

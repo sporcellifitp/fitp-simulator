@@ -126,7 +126,7 @@ body {
   top: 72px;
   padding: 6px 14px 6px 12px;
   border: 0;
-  border-left: 4px solid var(--hud-ball);
+  border-left: 4px solid var(--hud-ball);   /* annullato da natpf-round.css (B17.3: con gli angoli a pillola era un arco) */
   border-radius: 0;
   background: var(--hud-panel);
   box-shadow: none;
@@ -139,7 +139,6 @@ body {
   backdrop-filter: none;
 }
 .opponent-presence-pill.ready {
-  border-left-color: var(--hud-ok);
   background: rgba(7, 40, 40, 0.9);
   box-shadow: none;
 }

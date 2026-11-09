@@ -509,16 +509,20 @@
   display: none;
 }
 /* l'avviso «In attesa di Player 2» del 1v1 sotto il tabellone, allineato al suo bordo sinistro (B17.3; prima al centro,
-   a 26 px + 5,4 righe). Il tabellone è alto circa 3,95 em di riquadro più il sottotitolo (0,28 em + 1,45 × max(12px, 0,6em)):
-   l'avviso comincia 0,45 em più in basso (10 px a 720p, 15 a 1080p).
+   a 26 px + 5,4 righe). Il tabellone è alto 4,07 em di riquadro (88 px a 720p con --sb 21,6: due righe da 1,75 em più
+   0,44 em di bordi e 0,14 em tra le righe) più il sottotitolo (0,28 em + 1,45 × max(12px, 0,6em)): con 4,8 em nella
+   formula l'avviso comincia 10 px sotto il tabellone a 720p, 16 a 1080p (misure della prova natpf-tabellone.mjs).
    Il motore base lo centra con translate(-50%): qui niente spostamento, e il rimpicciolimento durante lo scambio parte
    dall'angolo in alto a sinistra. Niente bordo sinistro (natpf-hud.css: 4 px gialli): con gli angoli a pillola
-   (--r-pill, sotto) si vedeva come un arco «(» sul bordo; il colore dell'attesa resta nel puntino */
+   (--r-pill, sotto) si vedeva come un arco «(» sul bordo; il colore dell'attesa resta nel puntino. Il carattere segue il
+   tabellone come il sottotitolo (max(13px, 0,6·--sb): 13 px a 720p, 19,4 a 1080p; prima 13 px fissi, piccolissimi
+   accanto al tabellone a 32,4 px su 1920×1080) */
 #hud-root .opponent-presence-pill {
   top: calc(var(--sb-top) + 4.8 * var(--sb) + 1.5 * max(12px, 0.6 * var(--sb)));
   left: var(--sb-left);
   padding-left: 14px;
   border-left: 0;
+  font-size: max(13px, 0.6 * var(--sb));
   transform: none;
   transform-origin: left top;
 }

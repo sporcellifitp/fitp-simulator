@@ -24,8 +24,9 @@ Schermata 1280×720; il tabellone sta in alto a sinistra a circa 30 px dal bordo
   ≥ 11 px; ora ≥ 12 px.
 - Righe: prima chi guarda (come oggi), linguetta colorata (giallo per «me», rosa per «them» come nei colori attuali),
   pallina di chi serve nella prima colonna, **nome abbreviato** (3 lettere maiuscole: «TU», «CPU», «P1»/«P2» o le prime
-  lettere del nome scelto; se le due sigle sono uguali si allungano fino a 6, poi le iniziali delle parole, e solo alla
-  fine «P1»/«P2»; il nome intero nel `title`), **game**, **punti** nella casella piena gialla (0, 15,
+  lettere del nome scelto; se le due sigle sono uguali si allungano fino a 6, poi 5 lettere più l'ultima
+  («Francesco»/«Francesca» → FRANCO/FRANCA, revisione del 09/11), poi le iniziali delle parole, e solo alla fine
+  «P1»/«P2»; il nome intero nel `title`), **game**, **punti** nella casella piena gialla (0, 15,
   30, 40, «AD» per il vantaggio: la casella deve restare della stessa larghezza).
 - Niente intestazione «Game/Punti» e formato della partita spostato in un **sottotitolo piccolo** sotto il riquadro
   (`max(12px, 0.6em)`: 13 px a 720p, 19,4 a 1080p), insieme a «Parità»/«Vantaggio …» quando c'è.
