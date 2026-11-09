@@ -26,14 +26,24 @@
 | Rovescio | dorso | 102,6° |
 | Tagliato di rovescio | dorso | 37,8° |
 
-## In corso
-- Ottimizzazioni in background (nohup, log in scratchpad `b17B3/r1a`, `r1b`): dritto e rovescio, due strategie (a: partenza
-  girata con `--armd=25`; b: `--noinit`, dalla soluzione del passo C stringendo il vincolo).
+## In corso (giro 2, ottimizzazioni in background, log in scratchpad `b17B3/r*`)
+- Dritto e rovescio vanno ottimizzati INSIEME: ognuno entra nella calibrazione «con l'animazione» dell'altro (con il dritto
+  nuovo il rovescio di prima era letto in due colpi e viceversa, 28–32 letture sbagliate su 48). Coppia coerente trovata
+  (`b17B3/w2`): dritto 17,0° (schermo), rovescio 8,7° (dorso), 48/48 ciascuno e l'altro letto giusto (`--also`).
+- Tagliato di dritto 17,0°, tagliato di rovescio 5,9° (48/48). Palla corta riottimizzata (la calibrazione nuova la leggeva
+  top spin): 48/48. Pallonetto, schiacciata e servizio: 48/48 senza cambiare niente.
+- Piatto e volée: con la cima del telefono girata dall'altra parte (soluzione più vicina della partenza) erano letti dal lato
+  del rovescio; ripartiti dal dritto nuovo (`--initFrom=forehand --like`). Volée 60/60 a 17° ma con la forma del dritto
+  (impatto 43 cm più alto della volée di oggi): in corso. Piatto: letto «piatto» ma dal lato del rovescio, in corso.
+- Incrociato e lungolinea: con la calibrazione del braccio simulato la mira NON si legge (centro della mira 90° lontano: lo
+  scarto è 92,7°, oltre gli 80° credibili di `AIM.maxDev`, mira 0); con la calibrazione con l'animazione sì (24/24, incrociato
+  a 21,1°). In corso la misura (quanti dritti servono prima perché la mira valga con la calibrazione del braccio).
+- Nuove opzioni di `ottimizza.mjs`: `--also`, `--tipLike`, `--initFrom --like [--acc]`, `--aimwide`, `--cals=pose`,
+  `--camdir`; limiti articolari e faccia all'impatto senza tetto nel costo.
 
 ## Prossima azione
-Prendere le soluzioni migliori di dritto e rovescio (letture 48/48, angolo ≤ 20°, forma), poi tagliati, piatto, volée,
-incrociato, lungolinea con il dritto e il rovescio nuovi nella calibrazione (`--with`), poi verificare pallonetto, palla corta,
-schiacciata e servizio con la calibrazione nuova; `--emit`, test, fogli.
+Chiudere piatto, volée, incrociato, lungolinea; tabella delle letture semi 1–23; `--emit` nel codice (lo script
+`b17r/apply.sh DIR`), test (forma, fisica del dritto, faccia all'impatto, semi), fogli O/VC, documenti.
 
 ## Come riprendere
 Dalla cartella `natpf-tennis`: `node --import ./test/register.mjs scripts/video/ottimizza.mjs --card=<id> --out=DIR
