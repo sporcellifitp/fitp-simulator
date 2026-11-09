@@ -145,6 +145,11 @@ Come si aggiorna:
 - **B17.2–B17.4 fatti, versione 2026-11-09.1** (`a778b0f`): revisioni sul codice unito corrette (bordo laterale a rete,
   rifinitura del tabellone, Invio/Spazio sulla X), 12 prove nel browser verdi, installer su R2 (sha256 `9cd1bf14…a3295a15`)
   e zip Cloudflare (`460f25cd…eacc1cf0`) consegnati. Dettaglio in `docs/WORK_PROGRESS.md` B17.
+- **B17.1 avviato (09/11, l'utente ha approvato il piano «procedi con il piano dei gesti dal video»):** workflow
+  `natpf-b17-1-gesti-dal-video` in tre passi con revisione (A dati dal video con MediaPipe → `docs/b17/gesti-video.json`;
+  B posa dai dati e presa «upright»; C disegno specchiato frontale e fogli video/animazione `docs/b17/img/VC-*`). Il
+  video resta in `scratchpad/b17-riferimenti/gesti-video.mp4` (fuori dal repository). Se la sessione si interrompe: i
+  commit sono nel worktree `.claude/worktrees/wf_*` del workflow; ripartire dal passo non finito.
 - **Prossima azione esatta:** collaudo dell'utente (tabellone: grandezza e sigle; X del tutorial; colpi a rete con il
   telefono vero, anche la soglia bassa a rete); **B17.1** gesti del tutorial dal video (`docs/b17/analisi-e-piano.md`
   §1.4) appena l'utente approva il piano; le decisioni del B16 (`docs/PASSAGGIO_CONSEGNE.md` §3.14) restano da prendere.
