@@ -168,7 +168,7 @@ export function shapeOf(id, P, ref){
 function shapeCost(sh){
   let c = 0;
   // l'impatto pesa di più: è la posa che la scritta «Impatto» mostra nell'istante del picco letto dal telefono
-  for (const [n, k] of Object.entries(sh.keys)) c += (k.dW/(n === 'impatto' ? 2.5 : 4))**2 + .5*(k.dE/8)**2 + .3*(k.tip/25)**2 + .3*(k.screen/25)**2;
+  for (const [n, k] of Object.entries(sh.keys)) c += (k.dW/(n === 'impatto' ? 2.5 : +arg('wkey', 4)))**2 + .5*(k.dE/8)**2 + .3*(k.tip/25)**2 + .3*(k.screen/25)**2;
   c += (sh.path.mean/5)**2;
   // la posa C (impatto del video) cade nel picco letto: scarto di tempo tra l'istante nominale di C e il contatto
   if (sh.cLag != null) c += (sh.cLag/.03)**2;

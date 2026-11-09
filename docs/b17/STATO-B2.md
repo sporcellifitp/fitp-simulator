@@ -2,28 +2,38 @@
 
 > File di ripresa del passo B2. Decisioni dell'utente del 09/11 sera: (1) «ottimizza senza di me» = scelta B di
 > `docs/b17/posa-dal-video.md` §4; (2) presa e partenza «come la mia impugnatura del video» = misurate nel video
-> (`gesti-video.json`: presa nei colpi, posa ferma 9,4–9,7 s). Risultati e misure in `docs/b17/ottimizzazione.md`.
+> (`gesti-video.json`: presa nei colpi, posa ferma 9,4–9,7 s). Risultati, misure e limiti in **`docs/b17/ottimizzazione.md`**.
 
-## Come riprendere
-1. Leggere questo file e `git log --oneline -5` nel worktree.
-2. L'ottimizzatore è `natpf-tennis/scripts/video/ottimizza.mjs` (uso nell'intestazione). Lanci in background con `nohup`,
-   uscite in `scratchpad/b17o/r<giro>/<scheda>.{json,log,out}` (fuori dal repository). Ogni `<scheda>.json` è il migliore
-   trovato (si riprende con `--from=…json`); `--emit=DIR` stampa `CHOREO_VIDEO` e `AIM_TURN_VIDEO` da incollare.
-3. Ordine: dritto → rovescio (con `--with` il dritto trovato: la calibrazione «con l'animazione» usa i due) → di nuovo il
-   dritto con il rovescio nuovo → tagliati, servizio, incrociato e lungolinea con `--with` dritto e rovescio finali → schede di
-   oggi (piatto, volée, pallonetto, palla corta, schiacciata) rilette con la calibrazione nuova (`--also`).
+## Fatto (09/11 sera)
+- Presa «racchetta» = presa misurata nei colpi del video (`PHONE_IN_HAND_VIDEO`; alternativa delle foto `PHONE_IN_HAND_FOTO`),
+  partenza `REST_VIDEO` = media della posa ferma del video, scheda «Presa» dal primo piano del video (`REST_RACCHETTA`;
+  alternativa `REST_RACCHETTA_FOTO`), indicazioni della «Posizione» aggiornate.
+- Ottimizzatore `natpf-tennis/scripts/video/ottimizza.mjs` (uso nell'intestazione; `--emit` scrive `CHOREO_VIDEO`).
+- Tutte le schede della racchetta su `CHOREO_VIDEO` (`VIDEO_CARDS` = tutte tranne «Presa»): 144/144 letture giuste (12 schede ×
+  2 calibrazioni × 2 mani × 3 velocità). `CHOREO_VIDEO_GREZZA` resta come riferimento e rollback (non letta: test).
+- Camere `CAMERAS_VIDEO` rifatte (ricerca su griglia); fogli `docs/b17/img/O-*.webp` rifatti e guardati.
+- Test aggiornati (pose, anim, physics, camera, mancini); gioco 980/980, sito 200/200, build ok.
 
-## Fatto
-- (09/11 sera) Presa «racchetta» = presa MISURATA nei colpi del video (`PHONE_IN_HAND_VIDEO`, Euler (45°, 10°, 65°) sul modello
-  «in piedi nel pugno», errore d'asse 37,7°); l'alternativa delle foto resta come `PHONE_IN_HAND_FOTO`. `REST_VIDEO` = media
-  degli angoli misurati nella posa ferma 9,4–9,7 s (polso compreso). Scheda «Presa»: `REST_RACCHETTA` nuova (primo piano del
-  video: schermo verso lo schermo di gioco, telefono di traverso davanti al petto); l'alternativa delle foto resta come
-  `REST_RACCHETTA_FOTO`. `GRIP_POSE.racchetta.euler` aggiornato. `CHOREO_VIDEO_GREZZA` = le coreografie del video come
-  costruite nel passo B/C (rollback e riferimento dei test).
-- Ottimizzatore scritto e provato (≈ 80–200 ms per valutazione: 12 letture del telefono simulato più fisica e forma).
+## Limiti dichiarati (dettagli in ottimizzazione.md)
+- Palla corta e schiacciata partono da `REST_COLPI_RACCHETTA`, non dalla posa del video.
+- Fine del tagliato di dritto 26 cm più alta del video; rovescio a due mani: impatto 12 cm, fine 20 cm; servizio: battuta 12,5 cm
+  più bassa (1,65 m). Parte veloce del dritto 0,32 s (limite alto della ricerca).
+- Scheda «Presa»: con la presa misurata e lo schermo verso lo schermo di gioco il pollice disegnato sta sotto (foto e primo piano:
+  sopra). Da chiarire con l'utente.
+- Prova dei fotogrammi del B9 (`tools/e2e/natpf-gesti-fotogrammi.mjs`) rossa per inquadrature (dritto/incrociato/lungolinea al
+  27 % contro 28 %, freccia fuori a 448×280, palla fuori 117 ms a 200×200, etichette sul telefono nel tagliato e nella schiacciata).
+- Test dello specchio (mancini): due scarti piccoli ammessi e misurati (salita 0,02 palla corta/schiacciata, mira 0,086 incrociato).
 
-## In corso / prossima azione
-- Giro 1 dell'ottimizzatore in background (dritto, rovescio, servizio, tagliati).
+## Prossima azione
+1. Inquadrature del set video nella prova dei fotogrammi (risolutore della camera che segue: dritto, incrociato, lungolinea;
+   etichette dei fantasmi nel tagliato e nella schiacciata), poi `natpf-gesti-fotogrammi.mjs` verde.
+2. Chiedere all'utente: pollice nella scheda «Presa», fine del tagliato, partenza di palla corta e schiacciata.
+
+## Come riprendere l'ottimizzazione
+Dalla cartella `natpf-tennis`: `node --import ./test/register.mjs scripts/video/ottimizza.mjs --card=<id> --out=DIR --with=DIR_FINALI
+[--from=DIR/<id>.json] [--mono] [--rest=colpi] --evals=1500 --seed=N` in background con `nohup` (un processo per cartella di
+uscita: due processi sulla stessa cartella si sovrascrivono). Le soluzioni usate sono quelle scritte in `CHOREO_VIDEO`;
+`--emit=DIR` le rigenera da una cartella di soluzioni.
 
 ## Non verificato
-- Niente telefono vero; la presa del video è una misura a bassa confidenza (errore d'asse 37,7°).
+- Niente telefono vero; presa del video a bassa confidenza (errore d'asse 37,7°); flusso del tutorial nel browser non provato.

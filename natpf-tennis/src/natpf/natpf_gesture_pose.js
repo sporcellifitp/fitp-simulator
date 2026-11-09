@@ -610,13 +610,13 @@ export const CAMERAS = Object.freeze({
 // docs/b17/gesti-dal-video.md): telefono non di taglio nelle pose chiave dove la coreografia lo permette, schermo in vista
 // il più a lungo possibile nel colpo, avambraccio ≥ 28° dal raggio visivo, telefono dentro lo stadio.
 export const CAMERAS_VIDEO = Object.freeze({
-  forehand: Object.freeze({ dir: [-.863, .087, -.498], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'dall\u2019anca destra il braccio si distende di lato, arco orizzontale da destra a sinistra, fine davanti al viso con lo schermo verso di te' }),
-  cross: Object.freeze({ dir: [-.863, .087, -.498], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'come il dritto, tutto il corpo girato verso il centro' }),
-  line: Object.freeze({ dir: [-.863, .087, -.498], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'come il dritto, tutto il corpo girato verso l\u2019esterno' }),
+  forehand: Object.freeze({ dir: [-.863, .087, -.498], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .65, mixSmall: .8, size: .37 }), frame: 'swing', read: 'dall\u2019anca destra il braccio si distende di lato, arco orizzontale da destra a sinistra, fine davanti al viso con lo schermo verso di te' }),
+  cross: Object.freeze({ dir: [-.863, .087, -.498], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .65, mixSmall: .8, size: .37 }), frame: 'swing', read: 'come il dritto, tutto il corpo girato verso il centro' }),
+  line: Object.freeze({ dir: [-.863, .087, -.498], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .65, mixSmall: .8, size: .37 }), frame: 'swing', read: 'come il dritto, tutto il corpo girato verso l\u2019esterno' }),
   backhand: Object.freeze({ dir: [-.612, .707, .354], dist: 3.6, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .36 }), frame: 'swing', read: 'due mani sul telefono, dall\u2019anca sinistra in alto sopra la spalla destra' }),
   slice: Object.freeze({ dir: [-.704, .087, -.704], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla destra in basso in diagonale, schermo che si apre verso l\u2019alto' }),
   sliceBackhand: Object.freeze({ dir: [.483, .259, -.837], dist: 3.6, mirror: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla sinistra in basso a destra, schermo che si apre' }),
-  serve: Object.freeze({ dir: [.664, .342, -.664], dist: 3.6, follow: Object.freeze({ window: .3, mix: .8, size: .5 }), read: 'la sinistra lancia, il telefono sale sopra la testa, battuta e discesa davanti al corpo' }),
+  serve: Object.freeze({ dir: [.612, .707, -.354], dist: 3, mirror: true, follow: Object.freeze({ window: .3, mix: .8, size: .5 }), read: 'la sinistra lancia, il telefono sale sopra la testa, battuta e discesa davanti al corpo' }),
   // schede che il video non mostra, con la partenza del video (passo B2): la camera di oggi (CAMERAS) girata dove la carica
   // dall'anca puntava l'avambraccio verso la camera (piatto 12°, pallonetto 2°, volée 16°) o rimpiccioliva il telefono
   // all'impatto (schiacciata 57 px, volée 41 px a 448×280); stessa ricerca su griglia, non specchiate
