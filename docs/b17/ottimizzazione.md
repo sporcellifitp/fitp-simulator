@@ -149,8 +149,8 @@ carica è più lunga perché parte dall'anca (pallonetto 2,8 s). Polsi cambiati 
   lunga del video); tagliato di rovescio con la fine bassa a destra come il video. Le didascalie delle due colonne si
   sovrappongono nella riga del titolo (difetto del foglio, non del disegno).
 - **Prova dei fotogrammi del B9 (`tools/e2e/natpf-gesti-fotogrammi.mjs`) NON verde**: 640×400 e 1600×1000 «nel quadro» OK, ma
-  restano (misurati dopo due giri di camere): mano+telefono 27 % (limite 28 %) all'impatto del dritto, dell'incrociato e del
-  lungolinea a 640×400 e 1600×1000; freccia del contatto fuori dal quadro al 39–45 % a 448×280 per dritto, incrociato e
+  restano (misurati dopo due giri di camere, prima del passaggio del servizio alla camera specchiata): mano+telefono 27 % (limite
+  28 %) all'impatto del dritto, dell'incrociato e del lungolinea a 1600×1000 (a 640×400 ora 28–30 %); freccia del contatto fuori dal quadro al 39–45 % a 448×280 per dritto, incrociato e
   lungolinea; palla fuori 117 ms (limite 100) a 200×200 per dritto, piatto e lungolinea; etichetta del fantasma sopra il
   telefono vivo all'impatto nel tagliato (34–38 %) e nella schiacciata (26 %). È lavoro di inquadratura (risolutore della
   camera che segue), non di posa: da fare nel passo dopo.

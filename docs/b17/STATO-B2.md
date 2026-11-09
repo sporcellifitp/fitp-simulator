@@ -21,7 +21,7 @@
 - Scheda «Presa»: con la presa misurata e lo schermo verso lo schermo di gioco il pollice disegnato sta sotto (foto e primo piano:
   sopra). Da chiarire con l'utente.
 - Prova dei fotogrammi del B9 (`tools/e2e/natpf-gesti-fotogrammi.mjs`) rossa per inquadrature (dritto/incrociato/lungolinea al
-  27 % contro 28 %, freccia fuori a 448×280, palla fuori 117 ms a 200×200, etichette sul telefono nel tagliato e nella schiacciata).
+  27 % contro 28 % a 1600×1000, freccia fuori a 448×280, palla fuori 117 ms a 200×200, etichette sul telefono nel tagliato e nella schiacciata).
 - Test dello specchio (mancini): due scarti piccoli ammessi e misurati (salita 0,02 palla corta/schiacciata, mira 0,086 incrociato).
 
 ## Prossima azione
