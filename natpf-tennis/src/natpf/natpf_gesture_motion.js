@@ -20,12 +20,12 @@ export const GRIP_TILT = 80;     // gradi: cima del telefono in avanti dalla ver
 // racchetta (B17.1, foto dell'utente del 09/11, docs/b17/presa-foto.md): il telefono disteso lungo l'avambraccio come il
 // manico di una racchetta, cima in avanti e alzata di `cock` gradi rispetto all'avambraccio (verso il pollice), dorso sul
 // palmo, quattro dita attorno al bordo lungo inferiore, pollice disteso lungo il bordo lungo superiore, polso dritto. È
-// definita nel riferimento della MANO della catena (natpf_gesture_pose.PHONE_IN_HAND_RACCHETTA); `euler` è la posa
-// nel campo che ne risulta nella posizione di partenza REST_RACCHETTA (avambraccio in avanti e a destra di 40°, pollice in
-// alto: cima in avanti-destra e 20° in su, schermo verso lo schermo di gioco e un poco a sinistra), verificata dal test
-// natpf-gesture-physics (scarto < 0,01°)
+// definita nel riferimento della MANO della catena (natpf_gesture_pose.PHONE_IN_HAND_RACCHETTA: dal passo B2 la presa
+// MISURATA nei colpi del video; `cock` resta per l'alternativa delle foto PHONE_IN_HAND_FOTO); `euler` è la posa nel campo
+// che ne risulta nella posa della scheda «Presa» REST_RACCHETTA (primo piano del video: mano davanti al petto, schermo verso
+// lo schermo di gioco, cima verso la sinistra di chi gioca), verificata dal test natpf-gesture-physics (scarto < 0,01°)
 export const GRIP_POSE = Object.freeze({
-  racchetta: Object.freeze({ cock: 20, euler: [-178.905, -50.055, -109.548] }),
+  racchetta: Object.freeze({ cock: 20, euler: [166.975, 11.369, 64.605] }),
   palmo: Object.freeze({ lean: 35, tilt: 40, euler: [-40, 0, 35] }),
   martello: Object.freeze({ tilt: GRIP_TILT, euler: [-GRIP_TILT, 90, 0] }),
 });

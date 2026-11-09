@@ -213,12 +213,16 @@ export function armChain(j, breath = 0){
   return { trunk: T, pelvis, S, E, W, upper, fore, hand };
 }
 const REST_HAND = armChain(REST).hand;
-// Posizione di partenza della presa a racchetta (B17.1): gomito al fianco, avambraccio orizzontale in avanti e a destra
-// di 40° (la mano davanti al fianco destro, 1,13 m), pollice in alto, polso dritto: il telefono prosegue l'avambraccio
-// con la cima in avanti-destra e 20° in su, lo schermo (normale del palmo) verso lo schermo di gioco e a sinistra. Risolta
-// per quei vincoli (scratchpad b17/posa); nel video l'utente parte con il braccio che pende al fianco (gesti-video.json
-// «ready»): si è scelta la mano alzata come nelle foto della presa, da confermare con lui (docs/b17/posa-dal-video.md).
-export const REST_RACCHETTA = Object.freeze({ tau: 0, lat: 0, y: 0, p: -38.7, e: 12.9, r: -40, b: 90.1, pro: 76.4, fl: 0, dv: 0 });
+// Scheda «Presa» con la presa a racchetta (B17.1 passo B2, decisione dell'utente del 09/11 sera: «come la mia impugnatura del
+// video»): il primo piano del video (1–5 s, gesti-video.json «grip»: telefono in orizzontale, schermo verso la camera = verso
+// lo schermo di gioco, dita sotto il bordo inferiore) con il telefono nella mano come MISURATO nei colpi (PHONE_IN_HAND_VIDEO).
+// Risolta per quei vincoli (scripts/video/ottimizza.mjs --presa): mano davanti al petto (0,05; 1,16; −0,30), avambraccio di
+// traverso verso sinistra, schermo a ≤ 12° dalla direzione dello schermo di gioco, cima verso la sinistra di chi gioca e un
+// poco in basso, pollice in alto. Coerente con la foto «davanti» dell'utente (schermo in vista, dita sotto, pollice sopra).
+export const REST_RACCHETTA = Object.freeze({ tau: 0, lat: 0, y: 0, p: 64.3, e: 46.8, r: 75.4, b: 83.4, pro: 165, fl: -21.5, dv: 12.2 });
+// alternativa del passo B (lettura delle due foto, presa PHONE_IN_HAND_FOTO): avambraccio in avanti e a destra di 40°, polso
+// dritto. Non più usata: con la presa misurata nel video lo schermo non guarda lo schermo di gioco in questa posa
+export const REST_RACCHETTA_FOTO = Object.freeze({ tau: 0, lat: 0, y: 0, p: -38.7, e: 12.9, r: -40, b: 90.1, pro: 76.4, fl: 0, dv: 0 });
 // Posizione di partenza dei COLPI e della scheda «Posizione di partenza» con la presa a racchetta (B17.1, passo B, giro 2):
 // la stessa posizione della mano di REST (telefono davanti al petto, gomito al fianco) con il polso quasi dritto (flesso 9°,
 // non deviato) e l'avambraccio pronato di 36° (REST: 27°/−12°/24°), così il telefono prosegue l'avambraccio come nelle
@@ -228,19 +232,25 @@ export const REST_RACCHETTA = Object.freeze({ tau: 0, lat: 0, y: 0, p: -38.7, e:
 // o il lungolinea letti in due colpi a 1,25×; con REST (polso piegato di 27°) il piatto con la calibrazione del braccio
 // simulato era letto top spin. Misure in docs/b17/posa-dal-video.md §1.
 export const REST_COLPI_RACCHETTA = Object.freeze({ ...REST, pro: 36, fl: 9, dv: 0 });
-// telefono nella mano con la presa a racchetta: cima lungo le dita (−y della mano) girata di `cock` gradi verso il pollice
-// (+x), schermo = normale del palmo (−z), bordo destro dal lato del pollice
-export const PHONE_IN_HAND_RACCHETTA = Object.freeze(qmul(qaxis([1, 0, 0], Math.PI), qaxis([0, 0, 1], -GRIP_POSE.racchetta.cock*D)));
+// Telefono nella mano con la presa a racchetta. Dal passo B2 (decisione dell'utente del 09/11 sera) è quella MISURATA nei
+// colpi del video (gesti-video.json metodo.presa: modello «in piedi nel pugno» qaxis((1,1,0), 180°) corretto di Euler XYZ
+// (45°, 10°, 65°) sui 204 fotogrammi con schermo e mano visti, errore d'asse residuo 37,7°: misura a bassa confidenza). Nel
+// riferimento della mano: cima a 27° dalle dita, inclinata verso il palmo; schermo a 46° dalla normale del palmo, girato verso
+// il lato del mignolo. Rispetto alla lettura delle foto (PHONE_IN_HAND_FOTO: cima lungo le dita girata di 20° verso il pollice,
+// schermo = normale del palmo) è soprattutto un rollio di 46° attorno all'asse lungo.
+export const VIDEO_GRIP_EULER = Object.freeze([45, 10, 65]);
+export const PHONE_IN_HAND_VIDEO = Object.freeze(qmul(qaxis([1, 1, 0], Math.PI), qEuler(VIDEO_GRIP_EULER)));
+// alternativa (passo B, foto del 09/11): cima lungo le dita (−y della mano) girata di `cock` gradi verso il pollice (+x),
+// schermo = normale del palmo (−z), bordo destro dal lato del pollice
+export const PHONE_IN_HAND_FOTO = Object.freeze(qmul(qaxis([1, 0, 0], Math.PI), qaxis([0, 0, 1], -GRIP_POSE.racchetta.cock*D)));
+export const PHONE_IN_HAND_RACCHETTA = PHONE_IN_HAND_VIDEO;
 const isRacket = grip => grip === 'racchetta' || (typeof grip === 'string' && !GRIP_POSE[grip] && GRIP_STYLE === 'racchetta');
-// Posizione di partenza dei colpi DAL VIDEO (gesti-video.json «ready», 9,4–9,7 s, fermo: velocità 2D ≤ 0,16 m/s): braccio
-// che pende al fianco destro, avambraccio in avanti e in basso di ~45°, mano all'anca (0,17; 0,95; 0,00), pollice in alto,
-// telefono che prosegue l'avambraccio con la cima in avanti-basso e lo schermo verso lo schermo di gioco e a sinistra.
-// È la partenza di tutte le coreografie della presa a racchetta (CHOREO_VIDEO e CHOREO rifatte) e della scheda «Posizione
-// di partenza»; la scheda «Presa» usa REST_RACCHETTA (mano alzata come nelle foto). pro/fl/dv: nel tratto fermo il
-// telefono non era visto (orientamento solo da Hands, pro 57–89 = pollice in avanti, schermo a sinistra), mentre 0,3 s
-// dopo, nella carica del dritto con schermo e mano visti, pro 14,5 / fl −7 / dv −2 = palmo e schermo in avanti, come si
-// vede nel fotogramma 296 (schermo verso la camera): si prendono quelli (stessa postura, la mano si è solo spostata di 0,1 m)
-export const REST_VIDEO = Object.freeze({ tau: -4.5, lat: 2.9, y: 0.014, p: -81.1, e: 17.3, r: -2.9, b: 62.6, pro: 14.5, fl: -7.1, dv: -1.9 });
+// Posizione di partenza dei colpi DAL VIDEO (gesti-video.json «ready», 9,4–9,7 s, fermo: velocità 2D ≤ 0,16 m/s): MEDIA
+// degli angoli misurati nel tratto (media_angoli, polso compreso: pro 89, fl −23,5, dv −26,7 da Hands, decisione dell'utente
+// del 09/11 sera «la partenza come nel video»). Braccio che pende al fianco destro, avambraccio in avanti e in basso, mano
+// all'anca (0,16; 0,95; 0,00), con la presa misurata (PHONE_IN_HAND_VIDEO) la cima in avanti e in basso e lo schermo verso
+// la coscia. È la partenza delle coreografie dal video (CHOREO_VIDEO) e della scheda «Posizione di partenza».
+export const REST_VIDEO = Object.freeze({ tau: -5.9, lat: 3, y: 0.0127, p: -74.7, e: 18, r: 2.5, b: 62.9, pro: 89, fl: -23.5, dv: -26.7 });
 // presa nella mano: il telefono rigido nel palmo, orientato in modo che nella posizione di partenza sia esattamente
 // gripQuat(grip) (per la presa nel palmo: schermo = normale del palmo, cima girata ~30° verso il pollice, come la foto;
 // per la racchetta è PHONE_IN_HAND_RACCHETTA)
@@ -422,7 +432,7 @@ export const CHOREO = Object.freeze({
 // usano CHOREO anche con la presa a racchetta; questo insieme è raggiungibile con gesturePlan(id, { set: 'video' }) per gli
 // strumenti e il test «insieme del video (in lavorazione)». Le scelte proposte all'utente sono in posa-dal-video.md §4.
 const LAG = Object.freeze({ tau: .045, lat: .045, y: .045, p: .022, e: .022, r: .01 });
-export const CHOREO_VIDEO = Object.freeze({
+export const CHOREO_VIDEO_GREZZA = Object.freeze({
   forehand: Object.freeze({ src: 'forehand (2ª ripetizione)', times: { carica: 9.867, impatto: 10.367, fine: 10.533 }, contact: 1.65, tC: 1.65, cycle: 4.37, prep: .7, acc: 0.5, crisp: 1, dMin: 0.166, dMax: 0.166, fin: .3, back: 2, backFlat: .3, lag: LAG,
     B: { tau: -39.8, lat: 5.2, y: 0.008, p: -47.7, e: 20.1, r: 6.9, b: 51, pro: 50.3, fl: -16.6, dv: 17.1 },
     C: { tau: 26.3, lat: -6.4, y: 0.03, p: 12.6, e: 63.9, r: -21.7, b: 49.6, pro: 52.2, fl: -56.1, dv: 16.4 },
@@ -445,6 +455,7 @@ export const CHOREO_VIDEO = Object.freeze({
     C: { tau: -11.9, lat: -0.5, y: 0.007, p: 43.7, e: 102.6, r: -14.4, b: 99, pro: 143.1, fl: -8, dv: -26 },
     F: { tau: 18.7, lat: -4.3, y: 0.016, p: 68.1, e: 22.4, r: 47.1, b: 90.4, pro: 1, fl: -21.6, dv: -16.5 } }),
 });
+export const CHOREO_VIDEO = CHOREO_VIDEO_GREZZA;
 
 // Mira degli esercizi. Lungolinea: lo stesso dritto con il busto e la spalla girati attorno alla verticale per tutto il
 // colpo (contatto più indietro; gradi di busto tau e rotazione interna r, riportati nel ritorno). Incrociato: coreografia
@@ -574,7 +585,9 @@ const argmin = (f, a, b, step) => { const r = argmax(t => -f(t), a, b, step); re
 const integral = (f, a, b, step = 1/1200) => { let s = 0; for (let t = a; t < b - 1e-12; t += step){ const h = Math.min(step, b - t); s += f(t + h/2)*h; } return s; };
 
 /* ---------- colpi ---------- */
-function withAim(J, aim){ return aim ? { ...J, tau: J.tau + aim.tau, r: J.r + aim.r } : J; }
+// mira: rotazione del busto (tau) e dell'omero (r) aggiunta alle pose chiave; con la coreografia dal video anche il polso
+// (pro, fl: B17.1 passo B2, scripts/video/ottimizza.mjs)
+function withAim(J, aim){ if (!aim) return J; const o = { ...J }; for (const k of JOINTS) if (aim[k]) o[k] = J[k] + aim[k]; return o; }
 function strokeTracks(c, tC, aim, R = REST){
   const B = withAim({ ...R, ...c.B }, aim), C = withAim({ ...R, ...c.C }, aim), F = withAim({ ...R, ...c.F }, aim);
   const info = {};
