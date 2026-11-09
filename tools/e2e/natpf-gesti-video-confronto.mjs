@@ -29,7 +29,7 @@ const here = path.dirname(fileURLToPath(import.meta.url)), GAME = path.resolve(h
 const GAME_PORT = +(process.env.GAME_PORT || 3651);
 const OUT = process.env.OUT || path.resolve(here, '../../docs/b17/img'); mkdirSync(OUT, { recursive: true });
 const FRAMES = process.env.FRAMES || '';
-const SCALE = +(process.env.SCALE || .75);
+const SCALE = +(process.env.SCALE || 1);   // passo C: animazioni a 640×400 (scala 1)
 const PREFIX = process.env.PREFIX || 'VC', TWO = PREFIX === 'O';
 const DATA = JSON.parse(readFileSync(path.resolve(here, '../../docs/b17/gesti-video.json'), 'utf8'));
 const colpi = Object.fromEntries(DATA.colpi.map(c => [c.id, c]));
@@ -62,7 +62,7 @@ await p.evaluate(async () => {
     .gesture-demo-canvas { display: block; width: 100%; height: 100%; }</style></head><body><div id="st"></div></body>`;
   await Promise.all(['800 italic 20px "Barlow Condensed"', '500 12px Barlow', '600 12px Barlow', '700 12px Barlow'].map(f => document.fonts.load(f)));
   window.__D = await import('/src/natpf/natpf_gesture_demo.js'); window.__GP = await import('/src/natpf/natpf_gesture_pose.js');
-  const d = window.__demo = new window.__D.NatpfGestureDemo(); d.mount(document.getElementById('st')); d.setSize(640, 400);
+  const d = window.__demo = new window.__D.NatpfGestureDemo(); window.__GRIP = d.grip; d.mount(document.getElementById('st')); d.setSize(640, 400);
 });
 check('modulo dell\'animazione caricato senza errori', errs.length === 0, errs.join(' | '));
 
@@ -97,8 +97,10 @@ async function confronto(st){
   const r = await p.evaluate(async ({ id, title, times, frames, samples, anchors, scale, two }) => {
     const D = window.__D, GP = window.__GP, d = window.__demo;
     // ancore dell'animazione per insieme
+    // colonna 3 = il tutorial di PRIMA del B17 (presa nel palmo, coreografie B13/B14, camera da dietro)
+    const gripOf = set => set === 'legacy' ? 'palmo' : window.__GRIP;
     const planAnchors = set => {
-      const P = GP.gesturePlan(id, { set }), T = P.T, fine = P.keys.find(k => k.id === 'fine')?.t ?? T.back - .004;
+      const P = GP.gesturePlan(id, { set, grip: gripOf(set) }), T = P.T, fine = P.keys.find(k => k.id === 'fine')?.t ?? T.back - .004;
       return P.kind === 'serve' ? { inizio: T.hold, carica: T.load, alto: T.tossEnd, impatto: P.contact, fine: T.back } : { inizio: T.hold, carica: T.inv, impatto: P.contact, fine };
     };
     const mapT = (t, A, B) => {
@@ -120,9 +122,9 @@ async function confronto(st){
       cam.rad = (P, q) => cam.f*q/Math.max(.02, cam.depth(P)); return cam; };
     const o = out.getContext('2d'); o.fillStyle = '#0b0f1a'; o.fillRect(0, 0, out.width, out.height);
     o.fillStyle = '#f4f6fc'; o.font = '700 18px Barlow, sans-serif'; o.textBaseline = 'top';
-    o.fillText(two ? `${title} · video dell'utente (specchiato) | posa ottimizzata` : `${title} · video dell'utente (specchiato come la camera) · animazione dalle coreografie del video · tutorial di oggi`, gap, 6);
+    o.fillText(two ? `${title} · video dell'utente (specchiato) | posa ottimizzata` : `${title} · video dell'utente (specchiato come la camera) · animazione nuova · tutorial di prima (presa nel palmo)`, gap, 6);
     o.fillStyle = '#9aa7cf'; o.font = '500 12px Barlow, sans-serif';
-    o.fillText(two ? 'sinistra: fotogramma 540×960 ritagliato e specchiato · destra: CHOREO_VIDEO (ottimizzatore), presa del video, camera frontale a tre quarti specchiata (servizio: profilo), istante mappato sulle pose chiave' : 'colonna 1: fotogramma 540×960 ritagliato, specchiato (il braccio destro a destra) · colonna 2: gesturePlan set video, camera frontale a tre quarti specchiata (servizio: profilo) · colonna 3: coreografie B13/B14, camera da dietro', gap, 28);
+    o.fillText(two ? 'sinistra: fotogramma 540×960 ritagliato e specchiato · destra: CHOREO_VIDEO (ottimizzatore), presa del video, camera frontale a tre quarti specchiata (servizio: profilo), istante mappato sulle pose chiave' : 'colonna 1: fotogramma 540×960 ritagliato, specchiato (il braccio destro a destra) · colonna 2: gesturePlan set video, camera frontale a tre quarti specchiata (servizio: profilo) · colonna 3: tutorial di prima del B17 (presa nel palmo, coreografie B13/B14, camera da dietro)', gap, 28);
     const rows = [];
     // didascalia tagliata alla larghezza della sua colonna (prima quella del video finiva sopra quella dell'animazione)
     const fit = (text, x, y, w) => { let t = text; if (o.measureText(t).width > w){ while (t.length > 4 && o.measureText(t + '…').width > w) t = t.slice(0, -1); t += '…'; } o.fillText(t, x, y); };
@@ -136,10 +138,10 @@ async function confronto(st){
       o.fillStyle = '#dfe6f7'; o.font = '600 12px Barlow, sans-serif'; o.textBaseline = 'top';
       fit(`video ${t.toFixed(2)} s · f. ${Math.round(t*30)}${s ? ` · polso (${s.W.map(v => v.toFixed(2)).join('; ')})` : ''}`, gap, y + 4, vw);
       // 2 e 3: animazione
-      [['video', AV, gap*2 + vw, two ? 'posa ottimizzata' : 'animazione dal video'], ...(two ? [['video', AV, gap*3 + vw + cw, 'camera fissa frontale', true]] : [['legacy', AL, gap*3 + vw + cw, 'tutorial di oggi']])].forEach(([set, A, x, lab, fixed]) => {
+      [['video', AV, gap*2 + vw, two ? 'posa ottimizzata' : 'animazione dal video'], ...(two ? [['video', AV, gap*3 + vw + cw, 'camera fissa frontale', true]] : [['legacy', AL, gap*3 + vw + cw, 'tutorial di prima']])].forEach(([set, A, x, lab, fixed]) => {
         if (fixed){ d._cam = () => fixedCam(640, 400); } else delete d._cam;
         const ta = mapT(t, anchors, A);
-        d.play(id, { hand: 'right', set }); d.show(ta, { rate: 1 });
+        d.grip = gripOf(set); d.play(id, { hand: 'right', set }); d.show(ta, { rate: 1 });
         const I = d.info, cam = I.cam, pose = I.pose, n = GP.qrot(pose.q, [0, 0, 1]), v = GP.sub(cam.eye, pose.pos);
         const edge = Math.asin(Math.min(1, Math.abs(GP.dot(n, GP.norm(v)))))*180/Math.PI, facing = GP.dot(n, v) > 0;
         const W = pose.chain?.W || pose.pos;
@@ -179,7 +181,7 @@ async function confronto(st){
   const reliable = !['backhand', 'sliceBackhand'].includes(st.id);
   // fogli O (passo B2): le coreografie ottimizzate si allontanano dal video dove la lettura lo chiede, misurato e dichiarato in
   // docs/b17/ottimizzazione.md: impatto del servizio 0,12–0,13 m (la fine del tagliato di dritto, 0,26 m nel primo giro, ora è entro 0,05 m)
-  const LIM_O = { serve: .13 }, lim = TWO ? (LIM_O[st.id] ?? .12) : .12;
+  const LIM_O = { serve: .13 }, lim = LIM_O[st.id] ?? .12;   // servizio: limite dichiarato in ottimizzazione.md (fogli O e VC)
   const far = keyRows.filter(row => row.video.dW != null && row.video.dW > lim);
   check(`${st.title}: polso dell'animazione dal video entro ${lim.toFixed(2).replace('.', ',')} m dal video alle pose chiave${reliable ? '' : ' (solo misura: ricostruzione del video non attendibile)'}${lim > .12 ? ' (LIMITE DICHIARATO, ottimizzazione.md)' : ''}`, !reliable || far.length === 0,
     keyRows.map(row => `${row.t.toFixed(2)} s Δ ${row.video.dW?.toFixed(2) ?? '—'} m`).join(', '));

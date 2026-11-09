@@ -45,6 +45,11 @@ const CARD = arg('card', 'forehand'), OUT = arg('out', '/tmp/ottimizza'), EVALS 
 const WITH = arg('with', null), FROM = arg('from', null), ALSO = (arg('also', '') || '').split(',').filter(Boolean), REPORT = !!arg('report', false);
 export const SEEDS_DEFAULT = Object.freeze([7, 1, 5, 10]);
 const SEEDS = arg('seeds', null) ? String(arg('seeds')).split(',').map(Number) : SEEDS_DEFAULT;
+// --camdir=x,y,z: direzione della camera della scheda per i vincoli del disegno (prova di una camera nuova, passo C)
+const CAMDIR = arg('camdir', null) ? String(arg('camdir')).split(',').map(Number) : null;
+// --edgeMin, --foreMin: margini (°) del telefono non di taglio e dell'avambraccio sulla DIREZIONE della camera (30 e 31): la
+// prospettiva della camera vera (cameraAt) li riduce di qualche grado (passo C: piatto 30° → 22° all'occhio vero)
+const EDGE_MIN = +arg('edgeMin', 30), FORE_MIN = +arg('foreMin', 31);
 const CAP_PREP = +arg('capPrep', 140), DESCENT = arg('descent', null) ? String(arg('descent')).split(',').map(Number) : null;
 // margine della mira: |w| letto ≥ AIM_MARGIN (la soglia di judgeCard è 0,4)
 export const AIM_MARGIN = .5;
@@ -261,15 +266,15 @@ export function physicsOf(id, P){
     const pk = wq(P.contact); if (drop > .25*pk) bad.push(['valle nel colpo', (drop - .25*pk)/50]);
   }
   // telefono non di taglio nelle pose chiave (≥ 25° dalla linea di vista: margine 30°) per la camera della scheda
-  const cam = GP.CAMERAS_VIDEO?.[id] || GP.CAMERAS[id];
+  const cam = CAMDIR ? { dir: CAMDIR } : GP.CAMERAS_VIDEO?.[id] || GP.CAMERAS[id];
   if (cam?.dir){
     const KT = P.kind === 'serve' ? [T.tossEnd, T.hitStart, T.contact] : [T.inv, T.contact, T.back - .004];
     const v0 = norm(cam.dir);
-    let e = 0; for (const t of KT){ const q = p(t), n = qrot(q.q, [0, 0, 1]), v = v0; const a = Math.asin(Math.min(1, Math.abs(dot(n, v))))/D; if (a < 30) e += (30 - a)/5; }
+    let e = 0; for (const t of KT){ const q = p(t), n = qrot(q.q, [0, 0, 1]), v = v0; const a = Math.asin(Math.min(1, Math.abs(dot(n, v))))/D; if (a < EDGE_MIN) e += (EDGE_MIN - a)/5; }
     if (e > 0) bad.push(['di taglio', e]);
     // l'avambraccio non punta verso la camera della scheda in tutto il ciclo (test natpf-gesture-anim: ≥ 28° dal raggio
     // visivo; margine 31°; raggio visivo approssimato con la direzione della camera)
-    let fa = 0; for (let t = 0; t < P.total; t += 1/30){ const c = p(t).chain, F = norm(sub(c.E, c.W)), a = 90 - Math.asin(Math.min(1, Math.abs(dot(F, v0))))/D; if (a < 31) fa += (31 - a)/3; }
+    let fa = 0; for (let t = 0; t < P.total; t += 1/30){ const c = p(t).chain, F = norm(sub(c.E, c.W)), a = 90 - Math.asin(Math.min(1, Math.abs(dot(F, v0))))/D; if (a < FORE_MIN) fa += (FORE_MIN - a)/3; }
     if (fa > 0) bad.push(['avambraccio verso la camera', fa]);
   }
   return bad;

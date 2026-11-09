@@ -129,7 +129,7 @@ async function inFrame(W, H){
         if (off(tip)) tipOut += 1000/60;
         const b = GP.gestureBall(id, t), near = P.kind === 'serve' ? t >= P.T.tossPeak && t <= P.contact + .05 : t >= P.contact - .1 && t <= P.contact + .05;
         if (b && near && off(cam.p(b))) ballOut += 1000/60;
-        if (Math.abs(t - P.contact) < 1/120) for (const a of M.arrows.filter(a => a.t0 <= P.contact && a.t1 >= P.contact)) for (const q of a.pts){ arrowN++; if (off(cam.p(q))) arrowOut++; }
+        if (Math.abs(t - P.contact) < 1/120) for (const a of (D.wholeFrame?.(M.C, W, H) ? M.arrowsWhole : M.arrows).filter(a => a.t0 <= P.contact && a.t1 >= P.contact)) for (const q of a.pts){ arrowN++; if (off(cam.p(q))) arrowOut++; }
       }
       out.push({ id, tipOut, ballOut, arrowOut: arrowOut/Math.max(1, arrowN) });
     }
@@ -145,7 +145,9 @@ const KEY = { stroke: ['Carica', 'Impatto', 'Fine'], serve: ['Lancio (palla lasc
 // la camera compatta non può stringere (percorso del telefono sul ciclo e freccia del contatto non stanno già nel quadro
 // per 9 px a z 0,96: stringere porta la freccia fuori; misure in docs/b17/posa-dal-video.md §1). Da confermare con l'utente.
 const GRIP = await p.evaluate(() => window.__GRIP);
-const LIMITI = { '200x200|forehand|racchetta': { subjectH: .26, nota: 'telefono orizzontale all\'impatto, camera compatta satura (28 % con la presa nel palmo)' } };
+// B17.1 passo C: con le camere frontali dell'insieme del video il dritto a 200×200 è al 33 % e oltre: il limite non serve più
+// (la tabella resta per i limiti dichiarati che verranno)
+const LIMITI = {};
 for (const [W, H] of SIZES){
   const bad = [], limiti = [], minLen = { v: Infinity, at: '' }, minSub = { v: Infinity, at: '' };
   for (const id of Object.keys(MOMENTS)) for (const hand of ['right', 'left']) for (const [t, txt] of MOMENTS[id]){
