@@ -142,8 +142,12 @@ Come si aggiorna:
   corso. In corso anche: revisioni di tabellone e rete sul codice unito, Invio/Spazio sulla X (workflow
   `natpf-b17-chiusura`). **B17.1** (gesti del tutorial dal video dell'utente): piano in `docs/b17/analisi-e-piano.md` §1.4,
   in attesa dell'ok dell'utente.
-- **Prossima azione esatta (B17):** esito delle prove nel browser e del workflow di chiusura → correzioni, versione
-  2026-11-08.6, installer su R2 e zip Cloudflare, WORK_PROGRESS; poi B17.1 se l'utente approva il piano.
+- **B17.2–B17.4 fatti, versione 2026-11-09.1** (`a778b0f`): revisioni sul codice unito corrette (bordo laterale a rete,
+  rifinitura del tabellone, Invio/Spazio sulla X), 12 prove nel browser verdi, installer su R2 (sha256 `9cd1bf14…a3295a15`)
+  e zip Cloudflare (`460f25cd…eacc1cf0`) consegnati. Dettaglio in `docs/WORK_PROGRESS.md` B17.
+- **Prossima azione esatta:** collaudo dell'utente (tabellone: grandezza e sigle; X del tutorial; colpi a rete con il
+  telefono vero, anche la soglia bassa a rete); **B17.1** gesti del tutorial dal video (`docs/b17/analisi-e-piano.md`
+  §1.4) appena l'utente approva il piano; le decisioni del B16 (`docs/PASSAGGIO_CONSEGNE.md` §3.14) restano da prendere.
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 

@@ -1248,3 +1248,18 @@ guida provato nel browser.
 - Codice unito (`d254944`): gioco 970/970, sito 200/200, LAN 12/12, build ok (prove nel browser in corso).
 - **Non verificato**: telefono vero, Windows, ledwall; la soglia bassa a rete su un telefono vero (rischio: assestamento
   da 195 °/s letto come tocco); il giudizio dell'utente sulle sigle del tabellone.
+- **Chiusura (09/11 notte):** revisioni sul codice unito: tabellone senza bloccanti (minori: carattere +8 % sul
+  riferimento, sigle che cadevano su P1/P2, arco della pillola) → rifinitura `8fcbbc3`/`a94dcfe` (carattere 3 cqh 17–40 px,
+  sottotitolo ≥ 12 px, sigle 3 → 6 → «5 lettere più l'ultima» (Francesco/Francesca → FRANCO/FRANCA) → iniziali → P1/P2,
+  emoji per code point), unione `ec0b8d6`…; rete: bloccante «stesso gesto da situazione migliore usciva di lato a
+  Leggenda» → `e1ddb29` (bordo laterale in tutta la zona di rete ai livelli con il colpo controllato; test nel motore vero:
+  12 gesti → 12 esiti), unione `ecf4769`; X: Invio/Spazio `3270e87`, unione `cfb49ac`.
+- **Versione 2026-11-09.1** (`a778b0f`): gioco 975/975, sito 200/200, LAN 12/12, build ok; browser tabellone 42/42,
+  tutorial-phone 52/52, split-ready 34/34, scritte-2v2 73/73, menu 28/28, training-flow 22/22, rally 8/8, gesti-speciali
+  9/9, tutorial-relink 9/9, 1v1-p2p 39/39, modale-gesti 18/18, phone-keep 13/13 (training-flow intermittente sotto carico,
+  anche sulla base `4515259`). Installer pubblicato su R2 (124.602.691 B, sha256
+  `9cd1bf14f5d78eec55c8487e4bcb906168e6fb570fcc7ca8724720a9a3295a15`, verificato dal link fisso); zip Cloudflare
+  22.581.836 B, sha256 `460f25cd4a2e4394bbf69b9021428ce717c911e4c5c398e1bf70a629eacc1cf0`, provato estratto.
+- **Aperto**: B17.1 (gesti dal video) in attesa dell'ok dell'utente sul piano; giudizio dell'utente su grandezza del
+  tabellone e sigle; soglia bassa del telefono a rete su un telefono vero.
+
