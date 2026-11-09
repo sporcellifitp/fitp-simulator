@@ -28,5 +28,9 @@
 - Orientamento del telefono a bassa confidenza (errore d'asse 37,5° con il modello `upright` corretto): rifare con la
   presa delle foto del 09/11 come modello di partenza.
 - Rovescio a due mani: riproiezione 24 px (mani sovrapposte); da guardare il foglio `V-backhand.webp` prima di usarlo.
-- Fogli guardati solo per dritto, tagliato 1, servizio 3 e presa; gli altri 7 sono generati ma non ancora esaminati.
+- Fogli guardati: dritto, rovescio, servizio 3, tagliato 1, tagliato 2, presa (6 su 11); ready, servizio 1 e 2, tagliato 3 e 4
+  generati ma non ancora esaminati. Nel foglio del rovescio la catena segue i punti solo grossolanamente (18–32 px): con
+  il busto girato di ~70° e le due mani sovrapposte la ricostruzione del rovescio **non va usata** per le pose, solo i
+  tempi e la traiettoria 2D del polso di Pose. Il tagliato 2 (dritto) è pulito (8–12 px): cima alta alla spalla destra,
+  impatto al petto, fine bassa a sinistra con il telefono quasi orizzontale.
 - Il video e i fotogrammi restano fuori dal repository; i JSON di MediaPipe stanno nel blocco appunti della sessione.

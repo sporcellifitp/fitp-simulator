@@ -157,7 +157,9 @@ gioco danno 1 200–1 400 °/s di telefono). Rotazione del telefono (dalla caten
   del modello (0,19 m dal centro) è più interna di quella vera. Nel servizio 1 la mano in alto viene messa a 1,39 m.
   Rimedio per il passo B: usare per la posa le **posizioni misurate** (pixel e altezze relative) e non gli angoli del
   gomito nei tratti distesi; in alternativa adattare le lunghezze dei segmenti a chi gioca.
-- **Rovescio a due mani**: riproiezione 24 px (Pose confonde le due mani sovrapposte).
+- **Rovescio a due mani**: riproiezione 18–32 px su tutto il colpo (busto girato di ~70°, le due mani si coprono): sul
+  foglio la catena segue i punti solo grossolanamente. Per il passo B del rovescio valgono i **tempi** e la traiettoria 2D
+  del polso di Pose, non gli angoli ricostruiti.
 - **Mano**: Hands manca nel 15–30 % dei fotogrammi dei colpi (`fotogrammi_senza_mano` per colpo nel JSON; nel dritto 14
   su 24 nella parte veloce): lì pronosupinazione e polso sono tenuti dal fotogramma prima (`mano_interpolata` nei campioni
   e «MANO INTERPOLATA» sui fogli).
