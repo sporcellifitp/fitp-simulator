@@ -76,24 +76,65 @@ test('stesso schermo: P1 sopra e P2 sotto, anche se il punteggio è del motore',
 });
 
 // B17.3 (08/11, schermata di riferimento dell'utente): sigle maiuscole come in televisione («DRL», «2KG»)
-test('sigle dei nomi: TU, CPU, P1/P2, prime 3 lettere del nome scelto (4 se uguali), squadre con il «+»', () => {
+test('sigle dei nomi: TU, CPU, P1/P2, prime 3 lettere del nome scelto, squadre con il «+»', () => {
   assert.equal(shortName('Tu'), 'TU');
   assert.equal(shortName('CPU'), 'CPU');
   assert.equal(shortName('Player 1'), 'P1');
   assert.equal(shortName('Player 2'), 'P2');
   assert.equal(shortName('Marco'), 'MAR');
   assert.equal(shortName('Giulia'), 'GIU');
-  assert.equal(shortName('Anna'), 'ANNA');                       // fino a 4 caratteri resta intero
+  assert.equal(shortName('Anna'), 'ANN');                        // rifinitura del 08/11: anche i nomi corti a 3 lettere (prima «ANNA»)
+  assert.equal(shortName('Al'), 'AL');
   assert.equal(shortName('Bartolomeo Massimiliano'), 'BAR');
   assert.equal(shortName('Tu + CPU'), 'TU+CPU');
   assert.equal(shortName('Marco + CPU'), 'MAR+CPU');
   assert.equal(shortName('2 CPU'), '2CPU');
   assert.equal(shortName('Marco', 4), 'MARC');
-  assert.deepEqual(shortNames('Marco', 'Giulia'), { me: 'MAR', them: 'GIU' });
-  assert.deepEqual(shortNames('Marco', 'Maria'), { me: 'MARC', them: 'MARI' });    // uguali a 3 lettere: 4
-  assert.deepEqual(shortNames('Marco', 'Marco'), { me: 'P1', them: 'P2' });        // uguali anche a 4: P1 e P2
+  assert.equal(shortName('Marco', 6), 'MARCO');
+  assert.equal(shortName('Jean Paul', 6), 'JEAN');                // con più parole non oltre la prima
+  assert.equal(shortName('Jean Paul', 3, true), 'JPA');           // iniziali: J + le lettere dell'ultima parola
+  assert.equal(shortName('Marco Rossi', 4, true), 'MROS');
+  assert.equal(shortName('Marco', 3, true), 'MAR');               // una parola sola: le iniziali non cambiano niente
+  assert.equal(shortName('Francesco', 6, 'ending'), 'FRANCO');    // 5 lettere più l'ultima (revisione del 08/11)
+  assert.equal(shortName('Simone', 6, 'ending'), 'SIMONE');       // non più lunga di 6: resta intera
+  assert.equal(shortName('Francesco Rossi', 6, 'ending'), 'FRANCO'); // sulla prima parola
+  assert.equal(shortName('Jean Paul', 6, 'ending'), 'JEAN');      // prima parola corta: come senza «ending»
+  assert.equal(shortName('Anna Francesco', 6, 'initials-ending'), 'AFRANO');
+  // code point, non unità UTF-16: le emoji non si spezzano (prima «🎾🎾» a 3 dava «🎾\ud83c», nel tabellone «🎾�»)
+  assert.equal(shortName('🎾🎾'), '🎾🎾');
+  assert.equal(shortName('Marco🎾', 6), 'MARCO🎾');
+  assert.equal(shortName('🎾 Marco', 3, true), '🎾MA');
+  for (const n of ['🎾🎾', 'Marco🎾', '🎾 Marco']) for (const k of [3, 4, 6]) for (const m of [false, true, 'ending', 'initials-ending']) assert.ok(shortName(n, k, m).isWellFormed(), `${n} ${k} ${m}`);
   const v = scoreboardView(sc(0, 0), { split: true, splitNames: { p1: 'Marco', p2: 'Giulia' } });
   assert.deepEqual(v.rows.map(r => [r.name, r.short]), [['Marco', 'MAR'], ['Giulia', 'GIU']]);
+});
+
+// rifinitura del 08/11: «Marco»/«Marcello» e «Jean Paul»/«Jean Pierre» cadevano su P1/P2 (i nomi scelti sparivano),
+// «Anna»/«Annalisa» uscivano ANNA/ANN, «José»/«Josè» si distinguevano solo dall'accento
+// revisione del 08/11: le coppie italiane più comuni (Francesco/Francesca, Antonio/Antonia…) differiscono dalla 7ª lettera
+// in poi e con il tetto a 6 cadevano ancora su P1/P2: ora 5 lettere più l'ultima prima delle iniziali e di P1/P2
+test('sigle uguali: 3 lettere, poi fino a 6, poi 5 più l\'ultima, poi le iniziali delle parole, solo alla fine P1/P2; confronto senza accenti', () => {
+  assert.deepEqual(shortNames('Marco', 'Giulia'), { me: 'MAR', them: 'GIU' });
+  assert.deepEqual(shortNames('Marco', 'Maria'), { me: 'MARC', them: 'MARI' });      // uguali a 3 lettere: 4
+  assert.deepEqual(shortNames('Marco', 'Marcello'), { me: 'MARCO', them: 'MARCE' }); // uguali a 4: 5
+  assert.deepEqual(shortNames('Anna', 'Annalisa'), { me: 'ANNA', them: 'ANNAL' });   // non più ANNA/ANN
+  assert.deepEqual(shortNames('Annalisa', 'Anna'), { me: 'ANNAL', them: 'ANNA' });
+  assert.deepEqual(shortNames('Jean Paul', 'Jean Pierre'), { me: 'JPA', them: 'JPI' });   // iniziali delle parole
+  assert.deepEqual(shortNames('Jean Paul', 'Jean Paolo'), { me: 'JPAU', them: 'JPAO' }); // iniziali allungate
+  assert.deepEqual(shortNames('Marco', 'Marco Rossi'), { me: 'MAR', them: 'MRO' });
+  assert.deepEqual(shortNames('Francesco', 'Francesca'), { me: 'FRANCO', them: 'FRANCA' }); // uguali fino a 8: 5 + l'ultima
+  assert.deepEqual(shortNames('Antonio', 'Antonia'), { me: 'ANTONO', them: 'ANTONA' });
+  assert.deepEqual(shortNames('Alessandra', 'Alessandro'), { me: 'ALESSA', them: 'ALESSO' });
+  assert.deepEqual(shortNames('Simone', 'Simona'), { me: 'SIMONE', them: 'SIMONA' });       // 6 lettere bastano
+  assert.deepEqual(shortNames('Francesco Rossi', 'Francesca Rossi'), { me: 'FRANCO', them: 'FRANCA' });
+  assert.deepEqual(shortNames('Anna Francesco', 'Anna Francesca'), { me: 'AFRANO', them: 'AFRANA' }); // iniziali più l'ultima
+  assert.deepEqual(shortNames('Francesco', 'Francesco'), { me: 'P1', them: 'P2' });
+  assert.deepEqual(shortNames('🎾🎾', 'Marco🎾'), { me: '🎾🎾', them: 'MAR' });
+  assert.deepEqual(shortNames('Marco', 'Marco'), { me: 'P1', them: 'P2' });          // uguali davvero: P1 e P2
+  assert.deepEqual(shortNames('José', 'Josè'), { me: 'P1', them: 'P2' });            // solo l'accento non basta
+  assert.deepEqual(shortNames('josé', 'JOSÉ'), { me: 'P1', them: 'P2' });
+  assert.deepEqual(shortNames('Marco + CPU', 'Marcello + CPU'), { me: 'MARCO+CPU', them: 'MARCE+CPU' });
+  assert.deepEqual(shortNames('Tu + CPU', '2 CPU'), { me: 'TU+CPU', them: '2CPU' });
 });
 
 test('HTML del tabellone: riquadro con linguetta, pallina, sigla (nome intero in data-sb-name e title), game, casella dei punti; niente intestazioni; sottotitolo', () => {
@@ -133,10 +174,10 @@ test('pagina e stili: tabellone nuovo al posto della riga «Game … game secco�
   assert.doesNotMatch(ui, /'game secco'|al meglio di \$\{/);
   const css = readFileSync(new URL('../natpf-round.css', import.meta.url), 'utf8');
   const block = css.slice(css.indexOf('#hud-root {\n  --sb:'), css.indexOf('.natpf-training .natpf-scoreboard'));
-  assert.match(block, /--sb: clamp\([^)]*cqh/);
+  assert.match(block, /--sb: clamp\(17px, 3cqh, 40px\)/);   // rifinitura del 08/11: 3 cqh (prima 2,6)
   assert.doesNotMatch(block, /\d(vw|vh)\b|@media/);
   // B17.3, disegno di riferimento: angolo a 2,3 cqw / 6 cqh, riga di 1,75 em, linguette gialla e rosa, casella dei punti
-  // piena gialla larga 1,6 em (fissa: «AD» e «40» uguali) con la cifra scura, sottotitolo di almeno 11 px
+  // piena gialla larga 1,6 em (fissa: «AD» e «40» uguali) con la cifra scura, sottotitolo di almeno 12 px
   assert.match(block, /--sb-left: clamp\(\d+px, 2\.3cqw/);
   assert.match(block, /--sb-top: clamp\(\d+px, 6cqh/);
   const rule = sel => [...block.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/(?:^|\n)([^{}]*?)\{([^}]*)\}/g)].filter(m => m[1].split(',').some(s => s.trim() === sel)).map(m => m[2]).join(';');
@@ -163,8 +204,8 @@ test('piede del tabellone fuori dalla sottogriglia: il formato e «Vantaggio di 
   assert.match(rule('.natpf-scoreboard .sb-row'), /grid-template-columns:\s*subgrid/);
   // niente colonne fisse per le due scritte del piede
   assert.doesNotMatch(rule('.natpf-scoreboard .sb-foot [data-sb-format]') + rule('.natpf-scoreboard .sb-label'), /grid-column/);
-  // almeno 11 px (B17.3; prima 10, e prima ancora 0.56em: 7,3 px a 844×390 e 9,3 px nel ledwall 720×720)
-  assert.match(foot, /font-size:\s*max\(11px,\s*0?\.6\d*em\)/);
+  // almeno 12 px (rifinitura del 08/11; B17.3 11, prima 10, e prima ancora 0.56em: 7,3 px a 844×390 e 9,3 px nel ledwall 720×720)
+  assert.match(foot, /font-size:\s*max\(12px,\s*0?\.6\d*em\)/);
   // B17.3: il sottotitolo sta sotto il riquadro (.sb-box), non dentro
   assert.match(rule('.natpf-scoreboard'), /flex-direction:\s*column/);
   assert.match(rule('.natpf-scoreboard .sb-box'), /display:\s*grid/);

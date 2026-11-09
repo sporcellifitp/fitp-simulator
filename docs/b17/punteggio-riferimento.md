@@ -16,14 +16,19 @@ Schermata 1280×720; il tabellone sta in alto a sinistra a circa 30 px dal bordo
 
 ## Traduzione per NATPF (stesse funzioni di `natpf_scoreboard.js`, cambia il disegno)
 - Posizione: angolo in alto a sinistra dell'area di gioco, `left` ≈ 2,3 cqw, `top` ≈ 6 cqh (mai sopra il campo).
-- Grandezza: a 1280×720 il riquadro ≈ **200 × 72 px** (un terzo più grande del riferimento, come chiesto: «più grande e
-  leggibile»); misure in cqh: riga ≈ 4,6 cqh, testo nome/numeri ≈ 2,6 cqh (≥ 15 px), casella dei punti ≈ 3,6 × 4 cqh con
-  cifra ≈ 2,8 cqh. Su 1920×1080 scala con lo schermo; sul ledwall 720×720 resta leggibile da 3 m (testo ≥ 16 px).
+- Grandezza: a 1280×720 il riquadro ≈ **176 × 88 px** (più grande del riferimento, come chiesto: «più grande e
+  leggibile»; il testo è il 27 % più grande: 21,6 px contro 17); misure in cqh: riga 5,25 cqh (37,8 px), testo
+  nome/numeri **3 cqh** (21,6 px, maiuscole ~15 px; tetti 17–40 px), casella dei punti 4,8 × 4,5 cqh (35 × 32 px) con la
+  cifra a 3,24 cqh (23,3 px). Su 1920×1080 scala con lo schermo (32,4 px); sul ledwall 720×720 resta leggibile da 3 m
+  (testo 21,6 px). Rifinitura del 08/11: prima 2,6 cqh (18,7 px, maiuscole solo +8 % sul riferimento) e il sottotitolo
+  ≥ 11 px; ora ≥ 12 px.
 - Righe: prima chi guarda (come oggi), linguetta colorata (giallo per «me», rosa per «them» come nei colori attuali),
-  pallina di chi serve nella prima colonna, **nome abbreviato** (prime 3–4 lettere maiuscole: «TU», «CPU», «P1»/«P2» o
-  le prime lettere del nome scelto; il nome intero nel `title`), **game**, **punti** nella casella piena gialla (0, 15,
+  pallina di chi serve nella prima colonna, **nome abbreviato** (3 lettere maiuscole: «TU», «CPU», «P1»/«P2» o le prime
+  lettere del nome scelto; se le due sigle sono uguali si allungano fino a 6, poi 5 lettere più l'ultima
+  («Francesco»/«Francesca» → FRANCO/FRANCA, revisione del 09/11), poi le iniziali delle parole, e solo alla fine
+  «P1»/«P2»; il nome intero nel `title`), **game**, **punti** nella casella piena gialla (0, 15,
   30, 40, «AD» per il vantaggio: la casella deve restare della stessa larghezza).
 - Niente intestazione «Game/Punti» e formato della partita spostato in un **sottotitolo piccolo** sotto il riquadro
-  (≥ 11 px), insieme a «Parità»/«Vantaggio …» quando c'è.
+  (`max(12px, 0.6em)`: 13 px a 720p, 19,4 a 1080p), insieme a «Parità»/«Vantaggio …» quando c'è.
 - Set: la partita del motore non ha set; la colonna non si mostra (resta game + punti).
 - Stesso schermo: lo stesso riquadro in alto a sinistra di ciascuna metà, con P1 e P2.
