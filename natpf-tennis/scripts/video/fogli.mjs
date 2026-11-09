@@ -40,13 +40,16 @@ await page.goto(`http://127.0.0.1:${PORT}/`);
 function pick(stroke){
   const S = stroke.campioni, keys = stroke.pose_chiave;
   if (!S?.length) return [];
-  const t0 = stroke.lancio ? Math.min(stroke.tempi.inizio - .1, stroke.lancio.t_picco_mano_sinistra - .3) : stroke.tempi.inizio - .1, t1 = stroke.tempi.fine + .1;
+  // il lancio entra nel foglio (finestra e didascalia «LANCIO») solo se è stato visto: il picco di velocità della sinistra
+  // riportato quando lancio_visto è false non è un lancio (09/11: il foglio del servizio 3 lo etichettava lo stesso)
+  const toss = stroke.lancio?.lancio_visto && stroke.lancio.t_picco_mano_sinistra != null ? stroke.lancio.t_picco_mano_sinistra : null;
+  const t0 = toss != null ? Math.min(stroke.tempi.inizio - .1, toss - .3) : stroke.tempi.inizio - .1, t1 = stroke.tempi.fine + .1;
   const want = []; for (let k = 0; k < N; k++) want.push(t0 + (t1 - t0)*k/(N - 1));
-  const must = [keys.carica.t, keys.impatto.t, keys.fine.t, ...(stroke.lancio ? [stroke.lancio.t_picco_mano_sinistra] : [])];
+  const must = [keys.carica.t, keys.impatto.t, keys.fine.t, ...(toss != null ? [toss] : []), ...(stroke.battuta?.t_arrivo_in_alto != null ? [stroke.battuta.t_arrivo_in_alto] : [])];
   for (const m of must){ let bi = 0; for (let k = 1; k < want.length; k++) if (Math.abs(want[k] - m) < Math.abs(want[bi] - m)) bi = k; want[bi] = m; }
   const near = t => S.reduce((b, s) => Math.abs(s.t - t) < Math.abs(b.t - t) ? s : b, S[0]);
   const chosen = [...new Set(want.map(t => near(t).i))].sort((a, b) => a - b);
-  const label = s => s.i === keys.carica.i ? 'CARICA' : s.i === keys.impatto.i ? 'IMPATTO' : s.i === keys.fine.i ? 'FINE' : stroke.lancio && Math.abs(s.t - stroke.lancio.t_picco_mano_sinistra) < .017 ? 'LANCIO' : '';
+  const label = s => s.i === keys.carica.i ? 'CARICA' : s.i === keys.impatto.i ? 'IMPATTO' : s.i === keys.fine.i ? 'FINE' : toss != null && Math.abs(s.t - toss) < .017 ? 'LANCIO' : stroke.battuta?.t_arrivo_in_alto != null && Math.abs(s.t - stroke.battuta.t_arrivo_in_alto) < .017 ? 'IN ALTO' : '';
   return chosen.map(i => { const s = S.find(q => q.i === i); return { s, label: label(s) }; });
 }
 
@@ -167,7 +170,7 @@ for (const st of strokes.filter(s => s.tipo !== 'presa_2d')){
       const j = s.j;
       g.fillText(`busto ${j.tau}° · spalla p ${j.p}° e ${j.e}° r ${j.r}° · gomito ${j.b}° · pro ${j.pro}° · polso ${j.fl}°/${j.dv}°`, ox, oy + VH + 38);
       const q = s.qualita;
-      g.fillText(`mano ${s.velocita_mano_ms} m/s (2D ${s.velocita_mano_2d_ms ?? '—'}) · telefono ${s.omega_gs} °/s · riproiezione ${q.riproiezione_px ?? '—'} px · mano vista ${q.mano} · schermo ${q.telefono}${q.interpolato ? ' · BRACCIO INTERPOLATO' : ''}${q.mano_interpolata ? ' · MANO INTERPOLATA (polso/pronazione dal fotogramma prima)' : ''}`, ox, oy + VH + 54);
+      g.fillText(`mano ${s.velocita_mano_ms} m/s (2D ${s.velocita_mano_2d_ms ?? '—'}) · telefono ${s.omega_gs} °/s · riproiezione ${q.riproiezione_px ?? '—'} px · mano vista ${q.mano} · schermo ${q.telefono}${q.interpolato ? ' · BRACCIO INTERPOLATO' : ''}${q.mano_interpolata ? ' · MANO INTERPOLATA (polso/pronazione dal fotogramma prima)' : ''}${q.rifatto_da_griglia ? ' · RIFATTO DA GRIGLIA' : ''}${q.oltre_i_limiti ? ' · oltre i limiti: ' + Object.entries(q.oltre_i_limiti).map(([k, v]) => k + ' ' + v).join(' ') : ''}`, ox, oy + VH + 54);
     });
     return cv.toDataURL('image/webp', .82);
   }, { st, frames, CAMERA, trail: st.campioni.map(s => s.W) });
