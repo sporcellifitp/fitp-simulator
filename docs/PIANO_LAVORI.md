@@ -159,6 +159,11 @@ Come si aggiorna:
   allontanarsi un poco dal video: misurarlo e dirlo); (2) posizione di partenza e presa **«come la mia impugnatura del
   video»** (non la lettura delle due foto: orientamento del telefono e braccio di partenza come misurati nel video,
   `gesti-video.json`, presa nei colpi). In lavorazione nel worktree `wf_bb380d57-57a-1`, poi passo C (disegno e confronto).
+- **B17.1, conferme e richieste dell'utente (09/11 notte)** sulle anteprime VC-*: confermate le due eccezioni (palla corta e
+  schiacciata partono dal telefono davanti al petto) e la terza indicazione della scheda «Presa» («Pollice in alto lungo il
+  bordo, schermo verso l'interno»). Nuove richieste: **rovescio a una mano** (non a due); **dritto: la palla si colpisce con
+  il display frontale** (all'impatto lo schermo guarda la palla/la rete); **rovescio: stesso movimento ma con l'altro lato**
+  (all'impatto il dorso del telefono guarda la palla). In lavorazione nel worktree `wf_bb380d57-57a-1`.
 - **Prossima azione esatta:** collaudo dell'utente (tabellone: grandezza e sigle; X del tutorial; colpi a rete con il
   telefono vero, anche la soglia bassa a rete); **B17.1** gesti del tutorial dal video (`docs/b17/analisi-e-piano.md`
   §1.4) appena l'utente approva il piano; le decisioni del B16 (`docs/PASSAGGIO_CONSEGNE.md` §3.14) restano da prendere.
