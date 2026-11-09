@@ -276,8 +276,10 @@ export function cameraAt(id, t, { W, H, hand = 'right', grip = GRIP_STYLE, cache
   const mirror = hand === 'left', C = spec || CAMERAS[id] || CAMERAS.ready, box = stageBox(id, W, H);
   const key = `${id}|${grip}|${W}x${H}`, M = motion(id, grip);
   if (C.views){
-    // presa: due viste ferme e il giro della CAMERA tra le due (la mano resta ferma)
-    const fr = cache?.get(key) || C.views.map(v => frame(M.pts, v, C.dist, box));
+    // presa: due viste ferme e il giro della CAMERA tra le due (la mano resta ferma); viste per presa (viewsBy) dove la posa
+    // della presa è un'altra (racchetta: dallo schermo di gioco e di lato)
+    const views = (mirror ? C.viewsBy?.[grip]?.map(v => [-v[0], v[1], v[2]]) : C.viewsBy?.[grip]) || C.views;
+    const fr = cache?.get(key) || views.map(v => frame(M.pts, v, C.dist, box));
     cache?.set(key, fr);
     const [h1, turn, h2] = C.seq, P = h1 + turn + h2 + C.seq[3], u = ((t % P) + P) % P;
     const a = u < h1 ? 0 : u < h1 + turn ? sstep(h1, h1 + turn, u) : u < h1 + turn + h2 ? 1 : 1 - sstep(h1 + turn + h2, P, u);
@@ -1342,7 +1344,7 @@ export class NatpfGestureDemo {
       });
       c.restore();
     }
-    pill(c, st, st.W/2, st.H - u*1.5, a < .5 ? 'Come la vedi tu' : 'Di lato: la cima in avanti', { size: u, bg: 'rgba(8,14,40,.7)' });
+    pill(c, st, st.W/2, st.H - u*1.5, a < .5 ? (racket ? 'Dallo schermo di gioco' : 'Come la vedi tu') : 'Di lato: la cima in avanti', { size: u, bg: 'rgba(8,14,40,.7)' });
   }
   dispose(){
     this.stop(); this.canvas?.remove?.();

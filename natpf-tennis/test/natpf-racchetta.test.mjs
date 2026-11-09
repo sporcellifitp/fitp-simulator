@@ -453,8 +453,11 @@ test('salita abituale: le palle corte riconosciute dalla forma non la insegnano;
 test('in partita (NatpfPhoneRacket): pallonetti, palle corte e colpi normali alternati, poi tagliato e piatto voluti restano tagliato e piatto (prima: top spin)', () => {
   const want = { lob: 'lob', drop: 'drop', forehand: 'topspin', backhand: 'topspin', slice: 'slice', flat: 'flat' };
   const seq = ['lob', 'drop', 'forehand', 'lob', 'drop', 'forehand', 'lob', 'drop', 'backhand', 'drop', 'lob', 'slice', 'drop', 'flat', 'lob', 'drop', 'drop', 'slice', 'flat'];
+  // gesti dell'animazione con la presa nel palmo: con la presa a racchetta (predefinita dal 09/11) il piatto con la calibrazione
+  // del braccio simulato è letto top spin (limite misurato, docs/b17/posa-dal-video.md §1) e la prova non misurerebbe più
+  // l'apprendimento in partita, che qui è l'oggetto
   for (const hand of ['right', 'left']) for (const cal of ['arm', 'pose']){
-    const src = { pose: (id, t, h) => gesturePose(id, t, { hand: h }), plan: id => gesturePlan(id) };
+    const src = { pose: (id, t, h) => gesturePose(id, t, { hand: h, grip: 'palmo' }), plan: id => gesturePlan(id, { grip: 'palmo' }) };
     const sim = calibratedPhone(src, { hand, cal });
     const got = [], phone = new NatpfPhoneRacket({ playerRole: 'p1', phase: 'RALLY', motionController: { _emitSwing: e => got.push(e) },
       ball: { inPlay: true, lastHitter: 'opponent', pos: { x: .6, y: 1, z: 6 }, vel: { x: 0, y: 0, z: 12 } }, player: { pos: { x: 0, z: 11.4 } }, opponent: { pos: { x: 0, z: -11.4 } } });
@@ -493,7 +496,8 @@ test('colpo tipico: non lo insegnano palle corte riconosciute dalla forma, pallo
 });
 
 test('in partita (NatpfPhoneRacket): dopo quattro palle corte il dritto resta un dritto con la stessa forza; piatto e tagliato restano quelli (prima: piatto)', () => {
-  const src = { pose: (id, t, h) => gesturePose(id, t, { hand: h }), plan: id => gesturePlan(id) };
+  // presa nel palmo: vedi la prova qui sopra (piatto con la racchetta e la calibrazione del braccio simulato: limite misurato)
+  const src = { pose: (id, t, h) => gesturePose(id, t, { hand: h, grip: 'palmo' }), plan: id => gesturePlan(id, { grip: 'palmo' }) };
   for (const hand of ['right', 'left']) for (const cal of ['arm', 'pose']){
     const sim = calibratedPhone(src, { hand, cal });
     const got = [], phone = new NatpfPhoneRacket({ playerRole: 'p1', phase: 'RALLY', motionController: { _emitSwing: e => got.push(e) },

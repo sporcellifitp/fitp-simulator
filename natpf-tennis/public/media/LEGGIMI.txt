@@ -23,6 +23,12 @@ I loghi dei partner (Esports FITP, Nitto ATP Finals) NON sono in questi file: so
 Ogni clip dei colpi è stata controllata fotogramma per fotogramma contro le regole del rilevatore
 (docs/PROJECT_MEMORY.md §Gesti). Quelle sbagliate sono state scartate (vedi docs/WORK_PROGRESS.md, T7).
 
+Aggiornamento 09/11/2026 (B17.1): presa insegnata «a racchetta» (telefono disteso lungo l'avambraccio, cima in avanti,
+schermo verso lo schermo di gioco), dalle due foto dell'utente del 09/11 (docs/riferimenti/presa-utente-2026-11-09-*.webp,
+docs/b17/presa-foto.md). presa-racchetta-davanti.webp: ritaglio della foto «davanti» (lato dello schermo di gioco),
+900×610, 23 KB; foto e mano dell'utente, uso autorizzato. presa-palmo-schermo.webp e presa-martello.webp restano per il
+rollback (GRIP_STYLE in site/js/tennis/grip-art.js).
+
 File                      Modello Higgsfield       Job                                    Uso
 ------------------------  -----------------------  -------------------------------------  --------------------------------
 presa-martello.webp       nano_banana_2 (1:1)      d2e23949-0bdf-4206-8443-5ef54569f147   lezione: impugnatura; calibrazione;

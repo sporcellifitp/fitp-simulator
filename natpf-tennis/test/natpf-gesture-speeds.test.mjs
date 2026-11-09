@@ -17,7 +17,7 @@ const source = grip => ({ pose: (id, t, hand) => gesturePose(id, t, { hand, grip
 const STROKES = GP.POSE_IDS.filter(id => !GESTURES[id].still);
 // come natpf-gesture-pose: dove la velocità è il discriminante si ammette solo il cambiamento nel verso giusto
 const allowFor = (id, rate) => rate > 1 ? (['forehand', 'backhand', 'volley', 'cross', 'line'].includes(id) ? ['flat'] : null)
-  : rate < 1 ? ({ slice: ['drop'], flat: ['topspin'] })[id] || null : null;
+  : rate < 1 ? ({ slice: ['drop'], sliceBackhand: ['drop'], flat: ['topspin'] })[id] || null : null;
 // già presenti in 04a702d (prima del B14): con la presa a martello il piatto un poco più veloce del proprio dritto torna
 // top spin (la salita resta dentro la finestra del dritto). Fuori da questa prova, sempre già prima del B14: la volée a
 // 0,9× con la presa 50/25 è letta pallonetto

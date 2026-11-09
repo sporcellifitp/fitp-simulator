@@ -11,7 +11,7 @@ import * as GP from '../src/natpf/natpf_gesture_pose.js';
 import { GRIP_POSE } from '../src/natpf/natpf_gesture_motion.js';
 
 const { gesturePose, gesturePlan, gestureJoints, len, sub, dot, norm, qrot, qconj, qmul, qangle, omega } = GP;
-const HANDS = ['right', 'left'], GRIPS = ['palmo', 'martello'];
+const HANDS = ['right', 'left'], GRIPS = ['racchetta', 'palmo', 'martello'];
 const STROKES = GP.POSE_IDS.filter(id => !gesturePlan(id).still);
 const close = (a, b, eps = 1e-9) => Math.abs(a - b) <= eps;
 
@@ -66,14 +66,15 @@ test('continuità: angoli e velocità articolari senza salti (accelerazione ≤ 
       const p = gesturePose(id, t).chain, q = gesturePose(id, t + 1/60).chain;
       for (const k of ['S', 'E', 'W']) if (len(sub(p[k], q[k])) > .15) bad.push(`${id} ${t.toFixed(3)} ${k}: salto di ${len(sub(p[k], q[k])).toFixed(3)} m`);
     }
-    // il ciclo parte e finisce nella posizione di partenza (angoli uguali a REST)
-    for (const t of [0, P.total - 1e-9]){ const j = gestureJoints(id, t); for (const k of GP.JOINTS) if (!close(j[k], GP.REST[k], 1e-6)) bad.push(`${id} ${t}: ${k} ${j[k]} invece di ${GP.REST[k]}`); }
+    // il ciclo parte e finisce nella posizione di partenza della coreografia (angoli uguali a P.rest: REST, o la partenza
+    // delle foto/del video con la presa a racchetta)
+    for (const t of [0, P.total - 1e-9]){ const j = gestureJoints(id, t); for (const k of GP.JOINTS) if (!close(j[k], P.rest[k], 1e-6)) bad.push(`${id} ${t}: ${k} ${j[k]} invece di ${P.rest[k]}`); }
   }
   assert.deepEqual(bad.slice(0, 10), [], `${bad.length} problemi`);
 });
 
-test('posizione di partenza: telefono davanti allo sterno con la presa approvata esatta (GRIP_POSE.palmo), gomito al fianco sotto la spalla, avambraccio come la foto', () => {
-  const p = gesturePose('ready', 1), c = p.chain;
+test('posizione di partenza (presa nel palmo): telefono davanti allo sterno con la presa approvata esatta (GRIP_POSE.palmo), gomito al fianco sotto la spalla, avambraccio come la foto', () => {
+  const p = gesturePose('ready', 1, { grip: 'palmo' }), c = p.chain;
   assert.ok(qangle(p.q, GP.gripQuat('palmo')) < .01, `presa ${qangle(p.q, GP.gripQuat('palmo'))}°`);
   assert.ok(Math.abs(p.pos[0]) < .12 && p.pos[2] < -.2 && p.pos[1] > 1.1 && p.pos[1] < 1.35, `telefono ${p.pos}`);
   assert.ok(Math.abs(c.E[0] - c.S[0]) < .05 && c.E[1] < c.S[1] - .25, `gomito ${c.E}`);
@@ -81,6 +82,22 @@ test('posizione di partenza: telefono davanti allo sterno con la presa approvata
   const want = qrot(GP.gripQuat('palmo'), norm(GP.HAND.forearmDir)), got = norm(sub(c.E, c.W));
   assert.ok(Math.acos(Math.min(1, dot(want, got)))*180/Math.PI < .5, 'avambraccio della foto');
   assert.deepEqual(GRIP_POSE.palmo.euler, [-40, 0, 35]);
+});
+
+// B17.1: presa a racchetta (foto dell'utente del 09/11, docs/b17/presa-foto.md). La scheda «Presa» mostra REST_RACCHETTA:
+// polso dritto, telefono che prosegue l'avambraccio con la cima in avanti e alzata di `cock` gradi, schermo = normale del
+// palmo verso lo schermo di gioco (in avanti); GRIP_POSE.racchetta.euler è quella posa nel campo
+test('presa a racchetta: polso dritto, telefono lungo l\'avambraccio con la cima in avanti e in su, schermo in avanti; GRIP_POSE.racchetta.euler = posa della scheda «Presa»', () => {
+  const p = gesturePose('grip', 1, { grip: 'racchetta' }), c = p.chain, f = v => norm(v);
+  assert.equal(c.j.fl, 0); assert.equal(c.j.dv, 0);
+  const tip = qrot(p.q, [0, 1, 0]), screen = qrot(p.q, [0, 0, 1]), fore = f(sub(c.W, c.E));
+  assert.ok(tip[2] < -.5 && tip[1] > .15 && tip[1] < .6, `cima ${tip}`);
+  const cock = Math.acos(Math.min(1, dot(tip, fore)))*180/Math.PI;
+  assert.ok(Math.abs(cock - GRIP_POSE.racchetta.cock) < .5, `cima a ${cock.toFixed(1)}° dall'avambraccio`);
+  assert.ok(screen[2] < -.6, `schermo ${screen}`);
+  assert.ok(qangle(p.q, GP.gripQuat('racchetta')) < .01 && qangle(GP.qEuler(GRIP_POSE.racchetta.euler), GP.gripQuat('racchetta')) < .01);
+  // il telefono resta rigido nella mano in tutte le schede (G della presa) e il polso dei colpi è quello della coreografia
+  assert.ok(qangle(gesturePlan('forehand', { grip: 'racchetta' }).G, GP.PHONE_IN_HAND_RACCHETTA) < 1e-4);
 });
 
 // tempo del picco della velocità angolare di un segmento (busto, omero, avambraccio, mano) attorno al contatto
