@@ -153,6 +153,12 @@ Come si aggiorna:
   `docs/b17/wip/ramo-B17-1-passo-A.patch`: strumenti `natpf-tennis/scripts/video/*`); ripartire dal passo non finito
   leggendo `docs/b17/STATO-*.md` nel worktree. Presa: dalle **foto dell'utente del 09/11** (`docs/b17/presa-foto.md`:
   telefono orizzontale lungo l'avambraccio, cima in avanti, schermo verso lo schermo di gioco), non dal video.
+- **B17.1, decisioni dell'utente (09/11 sera)** dopo i passi A (video misurato) e B (presa «racchetta» verificata;
+  coreografie dal video NON lette dal riconoscimento: `docs/b17/posa-dal-video.md` §3): (1) **«Ottimizza senza di me»**
+  (scelta B del §4: tenere la forma del video e cercare polso e tempi con il rilevatore nel costo, come nel B13; il gesto può
+  allontanarsi un poco dal video: misurarlo e dirlo); (2) posizione di partenza e presa **«come la mia impugnatura del
+  video»** (non la lettura delle due foto: orientamento del telefono e braccio di partenza come misurati nel video,
+  `gesti-video.json`, presa nei colpi). In lavorazione nel worktree `wf_bb380d57-57a-1`, poi passo C (disegno e confronto).
 - **Prossima azione esatta:** collaudo dell'utente (tabellone: grandezza e sigle; X del tutorial; colpi a rete con il
   telefono vero, anche la soglia bassa a rete); **B17.1** gesti del tutorial dal video (`docs/b17/analisi-e-piano.md`
   §1.4) appena l'utente approva il piano; le decisioni del B16 (`docs/PASSAGGIO_CONSEGNE.md` §3.14) restano da prendere.
