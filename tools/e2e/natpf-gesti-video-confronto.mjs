@@ -1,6 +1,7 @@
 // NATPF motore base (natpf-tennis/): CONFRONTO fotogramma per fotogramma tra il video dell'utente (08/11/2026, misurato nel
 // passo A: docs/b17/gesti-video.json) e l'animazione dei gesti (natpf_gesture_demo.js) allo stesso istante del colpo
-// (B17.1 passo C, piano docs/b17/analisi-e-piano.md §1.4 punto 5). Per dritto, rovescio a due mani, servizio, tagliato di
+// (B17.1 passo C, piano docs/b17/analisi-e-piano.md §1.4 punto 5). Per dritto, rovescio (a due mani nel video; nell'animazione
+// dal passo B3 a una mano, specchio del dritto), servizio, tagliato di
 // dritto e di rovescio: ≥ 8 istanti (fermo, carica, tre nel colpo, impatto, accompagnamento, fine, dopo), tre colonne:
 //   1. il fotogramma del video SPECCHIATO come la camera frontale dell'animazione (chi guarda vede il proprio braccio
 //      destro a destra; nel video originale la destra di chi gioca sta a sinistra del quadro);
@@ -197,8 +198,8 @@ async function confronto(st){
   }
   check(`${st.title}: foglio ≤ 400 KB`, buf.length <= 400_000, `${(buf.length/1024).toFixed(0)} KB`);
   // pose chiave: il polso dell'animazione dal video sta vicino a quello ricostruito dal video (le pose chiave sono risolte
-  // sulle posizioni misurate: ≤ 0,12 m; rovescio a due mani e tagliato di rovescio: ricostruzione non attendibile, solo
-  // misura). «Impatto» scritto all'istante dell'impatto in tutti e due gli insiemi
+  // sulle posizioni misurate: ≤ 0,12 m; rovescio e tagliato di rovescio: solo misura, perché la ricostruzione del video non
+  // è attendibile e dal passo B3 l'animazione segue lo SPECCHIO del dritto e del tagliato, non il video: ottimizzazione.md §9.7). «Impatto» scritto all'istante dell'impatto in tutti e due gli insiemi
   const keyRows = r.rows.filter(row => [anchors.carica, anchors.alto, anchors.impatto, anchors.fine].filter(a => a != null).some(a => Math.abs(row.t - a) < 1e-6));
   // pose chiave del B9 §5.6.2 per il telefono non di taglio: colpi carica/impatto/fine; servizio lancio (= arrivo in alto qui) e impatto
   const edgeRows = st.id === 'serve' ? r.rows.filter(row => [anchors.alto, anchors.impatto].some(a => Math.abs(row.t - a) < 1e-6)) : keyRows;
@@ -217,7 +218,8 @@ async function confronto(st){
     check(`${st.title}: all'impatto la camera frontale vede lo ${want ? 'schermo' : 'dorso'} e la faccia che colpisce è entro 20° dalla rete`, imp.fixed.facing === want && imp.fixed.hit <= 20, `${imp.fixed.facing ? 'schermo' : 'dorso'}, ${imp.fixed.hit.toFixed(1)}°`); }
   check(`${st.title}: «Impatto» scritto all'istante dell'impatto`, imp.video.label === 'Impatto' && (!imp.legacy || imp.legacy.label === 'Impatto'), `${imp.video.label} / ${imp.legacy?.label ?? '—'}`);
   // telefono mai di taglio nelle pose chiave dell'animazione dal video; limiti dichiarati dove la coreografia dal video non
-  // lo permette (misurato: rovescio a due mani all'impatto, dalla ricostruzione a due mani sovrapposte)
+  // lo permette (misurato nel passo C sul rovescio a due mani all'impatto, dalla ricostruzione a due mani sovrapposte; resta
+  // come limite ammesso, il rovescio a una mano di oggi non lo usa: telefono non di taglio in tutte le pose chiave)
   const LIM = { backhand: 'impatto: schermo a 70° dal bersaglio del video nella posa risolta (ricostruzione a due mani sovrapposte, docs/b17/gesti-dal-video.md)' };
   const edgeBad = edgeRows.filter(row => row.video.edge < 25);
   check(`${st.title}: telefono non di taglio (≥ 25°) nelle pose chiave del B9 dell'animazione dal video`, edgeBad.length === 0 || (LIM[st.id] && edgeBad.every(row => Math.abs(row.t - anchors.impatto) < 1e-6)),
