@@ -24,15 +24,30 @@
 - Verifiche: gioco 991/991, sito 200/200; `natpf-gesti-fotogrammi` 15/15 (NOFOGLI): costo del disegno 640×400 media 1,26 ms
   (con la rasterizzazione 2,55 ms).
 
+## Giro 2 (FATTO, commit «passo C2: fogli, prove, documento»)
+- Primo piano rifinito: camera per il dorso 50° di lato e 30° verso la cima (dal fondo la mano copriva il dorso), palla velata
+  con il contorno, compare 40 ms prima del contatto; il posto evita anche il braccio libero in equilibrio; ordine degli angoli
+  specchiato per il mancino (test: riquadro speculare); niente riquadro con le camere sostituite dagli strumenti (fogli O).
+- `natpf-gesti-video-confronto.mjs`: nei fogli VC il primo piano è quello dell'animazione (prima lo disegnava lo script), sotto
+  l'angolo della faccia all'impatto; verifica nuova «primo piano dell'impatto con la scritta giusta».
+- Fogli `VC-*`, `O-*`, `C-anim-*` (quattro misure, tutti e quattro i fogli) rifatti; guardati VC di dritto, rovescio e tagliati,
+  C-anim 640×400 fogli 1–2 e 1600×1000 foglio 1.
+- Verifiche: gioco 991/991, sito 200/200, build ok; `natpf-gesti-fotogrammi` 31/31 (disegno 640×400 media 1,16 ms, con la
+  rasterizzazione 2,36 ms), `natpf-modale-gesti` 18/18 (59,9 fps a 1280×720, 60,2 a 1920×1080, due animazioni 57,7),
+  confronto VC 29/29 e O 28/28, `natpf-gesti-sequenze` 91/91, `natpf-tutorial-phone` 52/52, `natpf-training-flow` 22/22,
+  `natpf-split-ready` 34/34. Costruzione del riquadro una volta per scheda 5–9 ms.
+- `docs/b17/gesti-dal-video.md` §7 (misure della vista all'impatto, decisione, primo piano, braccio libero, prove, limiti).
+
 ## Prossima azione
-Giro 2: fogli VC-* (640×400) e fotogrammi C-anim-* (640×400, 448×280, 200×200, 1600×1000) rifatti e GUARDATI; prove
-`natpf-gesti-sequenze`, `natpf-modale-gesti`, `natpf-tutorial-phone`, `natpf-training-flow`, `natpf-split-ready`; build;
-`docs/b17/gesti-dal-video.md` §7.
+Passo C2 chiuso. Da mostrare all'utente: il primo piano dell'impatto (posto, durata 1 s, scritta «Palla sullo SCHERMO» /
+«Palla sul DORSO») e il braccio libero «ad ali» del rovescio. Punti aperti (gesti-dal-video.md §7.5): il riquadro copre il busto
+nel piatto e la spalla nel tagliato; camera del dritto con l'occhio sotto il piano del campo (−0,13 m).
 
 ## Come riprendere
 Worktree `.claude/worktrees/wf_bb380d57-57a-1`. Strumenti nello scratchpad `b17C2/` (shot.mjs: fotogrammi di prova con vite
-sulla porta 3851; meta.mjs: misure del primo piano; vista.mjs: faccia vista dalla camera principale). Prove nel browser con
-`CHROMIUM_PATH=/opt/pw-browsers/chromium GAME_PORT=385x`.
+sulla porta 3851; meta.mjs: misure del primo piano; costo.mjs: costo della costruzione; vista.mjs: faccia vista dalla camera
+principale; tutte.sh: tutte le prove nel browser in fila). Prove con `CHROMIUM_PATH=/opt/pw-browsers/chromium GAME_PORT=385x`.
 
 ## Non verificato
-- Niente telefono vero né utente: il primo piano è giudicato sui fogli.
+- Niente telefono vero né utente: il primo piano è giudicato sui fogli. Fogli delle sequenze non guardati uno per uno (solo
+  misure); C-anim a 448×280 e 200×200 non riguardati (lì niente riquadro).

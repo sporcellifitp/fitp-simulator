@@ -1,5 +1,8 @@
 # B17.1 · passo C · Il disegno dei gesti come il video: camera frontale specchiata, gesto intero, figura chiara
 
+> **Passo C2 (10/11)**: disegno allineato al passo B3 — primo piano dell'impatto («Palla sullo SCHERMO» nei colpi di dritto,
+> «Palla sul DORSO» nei rovesci) e braccio libero del rovescio a una mano in vista: §7 (misure, decisioni, limiti).
+>
 > **Passo B3 (10/11 notte)**: il rovescio è ora **a una mano** (decisione dell'utente) e all'impatto il dritto colpisce con lo
 > schermo verso la palla, il rovescio con il dorso; coreografie, camere di piatto, volée e incrociato e misure aggiornate in
 > `docs/b17/ottimizzazione.md` §9. Le righe qui sotto sul «rovescio a due mani» descrivono il passo C.
@@ -133,3 +136,80 @@ nelle misure.
 - Scheda «Presa»: la presa è quella del video (`PHONE_IN_HAND_VIDEO`) nella posa delle foto (B2); ora vista come allo specchio.
   La foto dell'utente da davanti è quella del B2 (giudicata coerente lì), non riesaminata in questo passo.
 - I fogli VC si guardano su 10 istanti: scatti tra un istante e l'altro sono controllati solo dalla prova delle sequenze.
+
+## 7. Passo C2 (10/11/2026): rovescio a una mano e faccia che colpisce, nel disegno
+Richieste dell'utente del 09/11 notte sulle anteprime VC-*: (1) «Per il rovescio, a una mano»; (2) «con il dritto la pallina venga
+colpita con il display in maniera frontale»; (3) «il rovescio invece stesso movimento ma con l'altro lato». Le coreografie sono
+quelle del passo B3 (`docs/b17/ottimizzazione.md` §9: faccia che colpisce entro 17° dalla rete, incrociato 21,1°); qui cambia
+solo il disegno (`natpf_gesture_demo.js`, costanti del braccio libero in `natpf_gesture_pose.js`). Riconoscimento non toccato.
+
+### 7.1 Che cosa vede la camera principale all'impatto (misura, 640×400, destro = mancino)
+| Scheda | Faccia che colpisce | Angolo tra la faccia e il raggio verso la camera | Telefono all'impatto | Palla |
+|---|---|---|---|---|
+| Dritto / piatto / volée | schermo | 28° / 26° / 26° | 42 / 43 / 48 px | davanti al vetro |
+| Incrociato / lungolinea | schermo | 24° / 43° | 44 / 36 px | davanti al vetro |
+| Tagliato di dritto | schermo | 10° | 51 px | davanti al vetro |
+| Rovescio | dorso | 53° | 34 px | davanti al dorso |
+| Tagliato di rovescio | dorso | 49° | 43 px | davanti al dorso |
+
+Le camere frontali del passo C stanno dalla parte della rete: all'impatto vedono proprio la faccia che colpisce (sotto 90° in
+tutti i colpi), quindi la vista principale è già quella giusta. Ma a 640×400 il telefono è lungo 34–51 px e la palla (6,6 cm,
+quasi la larghezza del telefono, 7,9 cm), che arriva dalla camera, ne copre metà: schermo e dorso non si distinguono (fotogrammi
+nello scratchpad `b17C2/a.png`). Girare la camera principale non serve (la faccia è già verso la camera) e ingrandire il telefono
+toglie il gesto intero. **Decisione: primo piano dell'impatto** in un riquadro.
+
+### 7.2 Primo piano dell'impatto (`IMPACT_CLOSE`)
+- Da 640×400 in su (camera ferma sul gesto intero), nei colpi con la faccia d'impatto (dritto, piatto, incrociato, lungolinea,
+  tagliato, volée: «Palla sullo SCHERMO»; rovescio e tagliato di rovescio: «Palla sul DORSO»). A 448×280 e 200×200 nessun
+  riquadro: lì la camera segue la mano e il telefono all'impatto è lungo 47–99 px.
+- Compare 40 ms prima del contatto (pieno 10 ms prima) e resta fino a 1 s del gesto dopo il contatto (2 s nel rallentato ×0,5),
+  poi si spegne in 0,15 s. È il fermo immagine dell'impatto: la mano con il telefono e la palla appoggiata sulla faccia che
+  colpisce, il lampo, la scritta in giallo.
+- Camera del primo piano: dalla parte della palla, 45° di lato verso la camera principale e 10° verso il fondo per lo schermo;
+  per il dorso 50° di lato e 30° verso la cima (il palmo sta sul dorso: dal fondo la mano copriva il dorso; provati 35°/20°,
+  10°/45°, 0°/65°). Faccia che colpisce a 45° (schermo) e 54–55° (dorso) dal raggio del primo piano. Palla velata (0,6) con il
+  contorno pieno: sotto si leggono il vetro con «Pronto» o il dorso con le fotocamere. Specchiata come la camera principale
+  (il mancino vede lo specchio, riquadro nell'angolo speculare: test).
+- Posto: uno dei quattro angoli dello stadio sopra la banda della curva, scelto una volta per scheda, mano e misura: mai sopra
+  telefono, mano e palla vivi attorno al contatto (prova esatta sulle sagome, `liveHits`), poi il meno possibile sopra il
+  soggetto e il braccio libero fino alla fine del riquadro, poi testa e busto. Le etichette dei fantasmi lo evitano.
+- Costo: il riquadro si disegna una volta per scheda (canvas a parte, al primo fotogramma della scheda: 5–9 ms una volta, a
+  640×400 e a 1600×1000, contro ~1 ms di un fotogramma normale) e poi si copia; disegno a 640×400 su tutte le schede media
+  1,16 ms per fotogramma, con la rasterizzazione 2,36 ms (≤ 4); nelle esecuzioni intermedie 1,26–1,41 / 2,55–2,77 ms (la misura
+  oscilla di ~0,2 ms tra un'esecuzione e l'altra). `natpf-modale-gesti` 18/18: 59,9 fps a 1280×720 e 60,2 fps a 1920×1080
+  sopra l'arena ferma (Chromium senza GPU, disegno 1,2–1,3 ms), due animazioni insieme 57,7 fps.
+
+### 7.3 Rovescio a una mano: il braccio libero
+Nel passo B3 la mano libera non toccava più il telefono, ma con la camera davanti a destra (busto quasi di profilo) l'equilibrio
+non si vedeva: la mano aperta «dietro e di lato» (−0,42; 0,18; 0,30) restava dietro il busto, e nella carica (−0,24; 0; 0,08)
+era una mano sull'anca con il gomito in fuori. Ora: `FREE_BALANCE` (−0,34; 0,16; 0,50) dal bacino nel riferimento del busto,
+braccio disteso dietro e un poco in basso, «ad ali» come nei rovesci a una mano (si vede uscire dietro la schiena dal contatto
+alla fine: test, mano fuori dalla sagoma del busto in ≥ 80 % dei campioni dell'accompagnamento); `FREE_PREP` (−0,26; −0,04;
+−0,10) rilassata davanti al fianco, a ≥ 0,3 m dal telefono. Solo disegno.
+
+### 7.4 Prove (passo C2)
+- `natpf-gesti-fotogrammi` 31/31 (ultima esecuzione con i fogli): lista del B9 come nel passo B3 (limiti dichiarati di allora invariati: rovescio 20 % a
+  640×400 e 19 % a 1600×1000, dritto, lungolinea, volée, tagliato di rovescio 27 % a 1600×1000) più il primo piano: presente
+  all'impatto con la scritta giusta, mai sopra telefono, mano, palla o etichette, dentro lo stadio.
+- Test del gioco nuovi: «primo piano dell'impatto…» (16 casi: scritta, angoli, posto, tempi, specchio, assente a 448×280 e
+  nei colpi senza faccia d'impatto) e il braccio libero in vista.
+- Fogli `VC-*.webp` (640×400: video specchiato | animazione | tutorial di prima) e `O-*.webp` rifatti; `C-anim-*.webp` nelle
+  quattro misure rifatti. Prove: confronto VC 29/29 (nuova: primo piano con la scritta giusta all'impatto, assente nel
+  servizio), O 28/28, `natpf-gesti-sequenze` 91/91 (quattro misure, destro e mancino), `natpf-tutorial-phone` 52/52,
+  `natpf-training-flow` 22/22, `natpf-split-ready` 34/34. Guardati: VC di dritto, rovescio, tagliato e tagliato di rovescio
+  (righe colpo, impatto, accompagnamento), C-anim 640×400 fogli 1 e 2, 1600×1000 foglio 1; non guardati uno per uno i fogli
+  delle sequenze (solo le misure) né i C-anim 448×280 e 200×200 (lì il disegno non cambia: niente riquadro).
+
+### 7.5 Limiti e cose da chiedere
+- **Il riquadro copre parte della figura** dove nessun angolo è libero: piatto (busto, in basso a sinistra, per circa 1 s dopo
+  il contatto) e tagliato (spalla e inizio della freccia, in alto a sinistra). Mai telefono, mano o palla all'impatto. Posti
+  (destro; il mancino lo specchio): dritto, incrociato, lungolinea, volée in basso a destra; rovescio e tagliato di rovescio in
+  basso a sinistra a 640×400 (rovescio in basso a destra a 1600×1000); piatto in basso a sinistra; tagliato in alto a sinistra.
+- La palla copre comunque una parte della faccia (è larga quasi come il telefono): per questo è velata nel riquadro.
+- Nel rovescio il dorso nel riquadro è in parte coperto dalla mano (presa a racchetta: il palmo sul dorso); si vedono il
+  bordo con le fotocamere e la palla sul dorso.
+- La camera principale del dritto, dell'incrociato e del lungolinea è dal basso (elevazione −22,5°): all'impatto l'occhio della
+  camera è a −0,13 m (dritto) dal pavimento, cioè sotto il piano del campo. Nel disegno non c'è il piano (solo l'alone), quindi
+  non si vede, ma è una camera impossibile per un telefono appoggiato; non toccata in questo passo (cambia la misura del 28 %:
+  `STATO-C.md`).
+- Niente telefono vero né utente: da far vedere all'utente il riquadro (posto, durata, scritta).

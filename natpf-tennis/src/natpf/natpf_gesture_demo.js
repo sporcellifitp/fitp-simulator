@@ -1127,11 +1127,13 @@ export function ghostAlpha(P, keys, i, t, follow){
 // DORSO»). La camera del primo piano guarda la faccia che colpisce di lato, IMPACT_CLOSE.side attorno all'asse del telefono
 // verso la camera principale (stesso lato dell'immagine grande) e IMPACT_CLOSE.tilt verso il fondo del telefono: la palla, che
 // sta davanti alla faccia vicino alla cima, si proietta in parte fuori dal telefono e lascia vedere il vetro con «Pronto» o il
-// dorso con le fotocamere (provati 35° verso il fondo e 20° di lato: nel rovescio la mano, più vicina alla camera, copriva il
-// dorso); a 1,1 m, con la mano intera nel quadro; specchiata come la camera principale. Il riquadro si disegna una volta per scheda, mano e misura e poi si copia (costo di
+// dorso con le fotocamere. Per il dorso (rovescio, tagliato di rovescio) tiltBack/sideBack: 30° verso la CIMA e 50° di lato,
+// perché il palmo sta sul dorso e, guardato dalla parte del fondo, la mano più vicina alla camera copriva il dorso (provati
+// 35°/20°, 10°/45°, 0°/65°: fogli nello scratchpad b17C2). A 1,1 m, con la mano intera nel quadro; specchiata come la camera
+// principale. La palla nel primo piano è velata (0,6) con il contorno pieno: copre quasi tutta la larghezza del telefono. Il riquadro si disegna una volta per scheda, mano e misura e poi si copia (costo di
 // un drawImage); il posto (uno dei quattro angoli dello stadio sopra la banda) è quello che copre meno il soggetto vivo
 // (telefono, mano, braccio, palla) dal contatto alla fine del riquadro, poi il busto. Solo disegno: la posa non cambia.
-export const IMPACT_CLOSE = Object.freeze({ tilt: 10, side: 45, from: -.07, fadeIn: .05, hold: 1.0, fadeOut: .15, w: .3, aspect: .75 });
+export const IMPACT_CLOSE = Object.freeze({ tilt: 10, side: 45, tiltBack: -30, sideBack: 50, from: -.04, fadeIn: .03, hold: 1.0, fadeOut: .15, w: .3, aspect: .75 });
 const FACE_TEXT = Object.freeze({ 1: 'Palla sullo SCHERMO', '-1': 'Palla sul DORSO' });
 export const impactCloseText = id => IMPACT_FACE[id] ? FACE_TEXT[IMPACT_FACE[id] > 0 ? 1 : '-1'] : null;
 // visibilità del riquadro all'istante t (0…1)
@@ -1147,7 +1149,7 @@ export function impactCloseSize(W, H){
 // camera del primo piano: posa del telefono R e punto di contatto CP (mondo della posa disegnata), camera principale
 function impactCloseCam(R, CP, ball, main, w, h, cap, H_){
   const n0 = qrot(R.q, [0, 0, 1]), nf = mul(n0, dot(n0, sub(CP, R.pos)) >= 0 ? 1 : -1), ay = qrot(R.q, [0, 1, 0]), ax = qrot(R.q, [1, 0, 0]);
-  const K = IMPACT_CLOSE, a = K.tilt*Math.PI/180, b = K.side*Math.PI/180, sx = dot(ax, sub(main.eye, R.pos)) >= 0 ? 1 : -1;
+  const K = IMPACT_CLOSE, back = dot(nf, n0) < 0, a = (back ? K.tiltBack : K.tilt)*Math.PI/180, b = (back ? K.sideBack : K.side)*Math.PI/180, sx = dot(ax, sub(main.eye, R.pos)) >= 0 ? 1 : -1;
   const dir = norm(add(add(mul(nf, Math.cos(a)*Math.cos(b)), mul(ay, -Math.sin(a))), mul(ax, sx*Math.sin(b)*Math.cos(a))));
   const T = v => add(R.pos, qrot(R.q, v)), pts = [];
   for (const [x, y] of [[-HW, -HH], [HW, -HH], [-HW, HH], [HW, HH]]) for (const z of [-HD, HD]) pts.push(T([x, y, z]));
@@ -1286,8 +1288,9 @@ export class NatpfGestureDemo {
     // metà opacità con il contorno tratteggiato, così all'impatto non sparisce mai (brief §5.6.2)
     else if (ball && ballFirst && ballAlpha > .01 && !K.figure && F.phoneHull) drawBallThrough(c, cam, ball, spin, st, F.phoneHull, ballAlpha);
     if (CPm && !impactBehind) drawImpact(c, cam, CPm, tt - P.contact, st);
-    // primo piano dell'impatto (passo C2): le etichette dei fantasmi non ci vanno mai sopra (il suo posto è fisso per scheda)
-    const close = !compact && !K.close && IMPACT_FACE[id] && wholeFrame(CS, W, H) ? this._impactClose(M, u) : null;
+    // primo piano dell'impatto (passo C2): le etichette dei fantasmi non ci vanno mai sopra (il suo posto è fisso per scheda).
+    // Solo con le coreografie del video e la camera della scheda (gli strumenti che sostituiscono demo._cam, fogli O, non lo hanno)
+    const close = !compact && !K.close && IMPACT_FACE[id] && M.set === 'video' && wholeFrame(CS, W, H) && !Object.hasOwn(this, '_cam') ? this._impactClose(M, u) : null;
     if (!compact && !K.hud){
       const taken = close ? [close.box] : [];
       for (const g of ghosts) if (g.a > .01) this._ghostLabel(c, cam, g, F, u, taken);
@@ -1318,7 +1321,10 @@ export class NatpfGestureDemo {
     const behind = ballBehind(ccam, Rc, ball);
     if (behind) drawBall(x, ccam, ball, .6, sti);
     const F = drawFigure(x, ccam, Rc, sti, H_);
-    if (!behind) drawBall(x, ccam, ball, .6, sti); else if (F.phoneHull) drawBallThrough(x, ccam, ball, .6, sti, F.phoneHull, 1);
+    // palla davanti alla faccia: velata (0,6) con il contorno pieno, così sotto si legge la faccia che colpisce (vetro con
+    // «Pronto» o dorso con le fotocamere: la palla, 6,6 cm, copre quasi tutta la larghezza del telefono, 7,9 cm)
+    if (!behind){ const bb = drawBall(x, ccam, ball, .6, sti, .6); x.beginPath(); x.arc(bb.p.x, bb.p.y, bb.r, 0, 2*Math.PI); x.lineWidth = Math.max(1.5, sti.ow*1.2); x.strokeStyle = css(LINE, .9); x.stroke(); }
+    else if (F.phoneHull) drawBallThrough(x, ccam, ball, .6, sti, F.phoneHull, 1);
     drawImpact(x, ccam, CP, .015, sti);
     x.restore();
     x.beginPath(); x.roundRect(1, 1, w - 2, h - 2, r); x.lineWidth = 2; x.strokeStyle = css(BALL, .9); x.stroke();
@@ -1328,7 +1334,9 @@ export class NatpfGestureDemo {
     const n0 = qrot(Rc.q, [0, 0, 1]), nf = mul(n0, face), ang = cm => Math.acos(Math.max(-1, Math.min(1, dot(nf, norm(sub(cm.eye, Rc.pos))))))/D;
     // posto: l'angolo che copre meno il soggetto vivo (telefono, mano, braccio, palla) dal contatto alla fine del riquadro, poi il
     // busto; a pari merito in alto e dalla parte opposta alla mano all'impatto
-    const m = 8, cands = [[m, m], [st.W - w - m, m], [m, top - h - m], [st.W - w - m, top - h - m]].map(([x0, y0]) => ({ x0, y0, x1: x0 + w, y1: y0 + h }));
+    // (a pari merito vince il primo: per il mancino l'ordine è specchiato, così il riquadro è lo specchio di quello del destro)
+    const m = 8, L = this.hand === 'left', xl = m, xr = st.W - w - m, names = L ? ['alto a destra', 'alto a sinistra', 'basso a destra', 'basso a sinistra'] : ['alto a sinistra', 'alto a destra', 'basso a sinistra', 'basso a destra'];
+    const cands = [[L ? xr : xl, m], [L ? xl : xr, m], [L ? xr : xl, top - h - m], [L ? xl : xr, top - h - m]].map(([x0, y0]) => ({ x0, y0, x1: x0 + w, y1: y0 + h }));
     const handX = main.p(Rc.pos).x, cost = cands.map((b, i) => (i > 1 ? .5 : 0) + (Math.abs((b.x0 + b.x1)/2 - handX) < st.W/2 ? .25 : 0));
     // campioni fitti attorno al contatto (il telefono del piatto attraversa 100 px in 0,1 s) e radi fino alla fine del riquadro
     const K = IMPACT_CLOSE, N = 10, TS = [-.05, -.03, -.015, 0, .015, .03, .05].map(k => P.contact + k);
@@ -1340,11 +1348,14 @@ export class NatpfGestureDemo {
       const occ = liveTest(Fs);
       const bR = gestureBall(id, ts, { ...o, hand: this.hand }), bs = bR ? (this.hand === 'left' ? mirrorPos(bR) : bR) : null, bp = bs ? cm.p(bs) : null, br = bs ? cm.rad(bs, BALL_R) : 0;
       const B = Rs.chain ? bodyGeom(cm, Rs.chain) : null;
+      // braccio libero che lavora (equilibrio del rovescio a una mano): anche lui non va sotto il riquadro
+      const fr = gestureFreeHand(id, ts, o), FA = fr && Rs.chain ? freeArm(Rs, fr) : null, fpts = FA ? [FA.W, add(FA.W, mul(sub(FA.E, FA.W), .5)), FA.E].map(X => cm.p(X)) : [];
       // all'impatto (primi campioni) telefono, mano e palla vivi non vanno mai sotto il riquadro
       const hard = ts <= P.contact + .05 ? 50 : 1;
       cands.forEach((b, i) => {
         cost[i] += occ(b)*2*hard + (liveHits(Fs, b) ? 6*hard : 0);
         if (bp && bp.x + br > b.x0 && bp.x - br < b.x1 && bp.y + br > b.y0 && bp.y - br < b.y1) cost[i] += 8*hard;
+        for (const q of fpts) if (q.x > b.x0 - 6 && q.x < b.x1 + 6 && q.y > b.y0 - 6 && q.y < b.y1 + 6) cost[i] += 2;
         if (B){ const q = B.box, ov = Math.max(0, Math.min(q.x1, b.x1) - Math.max(q.x0, b.x0))*Math.max(0, Math.min(q.y1, b.y1) - Math.max(q.y0, b.y0)); cost[i] += ov/(w*h)*3;
           // la testa coperta si nota più del busto
           const hc = B.head.c; if (Math.hypot(Math.max(b.x0 - hc.x, 0, hc.x - b.x1), Math.max(b.y0 - hc.y, 0, hc.y - b.y1)) < B.head.r) cost[i] += 3; }
@@ -1353,7 +1364,7 @@ export class NatpfGestureDemo {
     let bi = 0; cost.forEach((v, i) => { if (v < cost[bi] - 1e-9) bi = i; });
     const b = cands[bi];
     this._closeKey = key;
-    return (this._closeV = { cv, rect: { x: b.x0, y: b.y0, w, h }, box: b, meta: { text, face, cost: cost[bi], faceToClose: ang(ccam), faceToMain: ang(main), corner: ['alto a sinistra', 'alto a destra', 'basso a sinistra', 'basso a destra'][bi] } });
+    return (this._closeV = { cv, rect: { x: b.x0, y: b.y0, w, h }, box: b, meta: { text, face, cost: cost[bi], faceToClose: ang(ccam), faceToMain: ang(main), corner: names[bi] } });
   }
   // fondo: gradiente radiale più chiaro al centro dello stadio (fatto una volta per misura e copiato), piano di gioco
   // accennato sotto la mano (alone e ombra morbida della mano): dà alto e basso senza linee che tagliano il quadro

@@ -177,8 +177,15 @@ async function confronto(st){
           row.fixed = { facing: fFacing, hit };
           return;
         }
-        // fogli VC (passo B3): primo piano dalla palla all'impatto anche sull'animazione dal video
-        if (!two && set === 'video' && pose.label === 'Impatto' && GP.IMPACT_FACE?.[id]) inset(pose, ta, GP.faceAngleOf(id, pose.q), x, y);
+        // fogli VC: dal passo C2 il primo piano dell'impatto è dell'animazione stessa (natpf_gesture_demo IMPACT_CLOSE); qui solo
+        // l'angolo della faccia che colpisce dalla rete, sotto il riquadro
+        if (!two && set === 'video' && I.close && I.close.alpha > .5){
+          // (angolo all'istante del contatto, quello del fermo immagine del riquadro, non della posa di questa riga)
+          const k = cw/640, R = I.close.rect, hit = GP.IMPACT_FACE?.[id] ? GP.impactFaceAngle(id, { grip: gripOf(set), set }) : null;
+          o.font = '800 italic 18px "Barlow Condensed", sans-serif'; o.fillStyle = hit != null && hit <= 21.5 ? '#7dff9a' : '#ff8a7a';
+          if (hit != null) o.fillText(`${I.close.face > 0 ? 'schermo' : 'dorso'} a ${hit.toFixed(0)}° dalla rete`, x + R.x*k, y + cap + (R.y + R.h)*k + (R.y + R.h + 26 > 400*.83 ? -R.h*k - 22 : 4));
+        }
+        if (set === 'video') row.close = I.close ? { text: I.close.text, alpha: I.close.alpha } : null;
         o.fillStyle = '#dfe6f7'; o.font = '600 12px Barlow, sans-serif';
         fit(`${lab} · t = ${ta.toFixed(2)} s · ${pose.label || 'fermo'} · polso (${W.map(q => q.toFixed(2)).join('; ')}) · telefono ${edge.toFixed(0)}° ${facing ? 'schermo' : 'dorso'}`, x, y + 4, cw);
         row[set] = { ta, label: pose.label, W, edge, facing, dW: s ? Math.hypot(W[0] - s.W[0], W[1] - s.W[1], W[2] - s.W[2]) : null, dY: s ? W[1] - s.W[1] : null };
@@ -216,6 +223,9 @@ async function confronto(st){
   // colpisce è entro 20° dalla rete (fogli O)
   if (TWO && imp.fixed?.hit != null){ const want = ['backhand', 'sliceBackhand'].includes(st.id) ? false : true;
     check(`${st.title}: all'impatto la camera frontale vede lo ${want ? 'schermo' : 'dorso'} e la faccia che colpisce è entro 20° dalla rete`, imp.fixed.facing === want && imp.fixed.hit <= 20, `${imp.fixed.facing ? 'schermo' : 'dorso'}, ${imp.fixed.hit.toFixed(1)}°`); }
+  // passo C2: all'impatto l'animazione dal video ha il primo piano con la faccia giusta (servizio: nessun primo piano)
+  if (!TWO){ const want = { forehand: 'Palla sullo SCHERMO', slice: 'Palla sullo SCHERMO', backhand: 'Palla sul DORSO', sliceBackhand: 'Palla sul DORSO' }[st.id] ?? null;
+    check(`${st.title}: primo piano dell'impatto ${want ? `«${want}»` : 'assente'} nell'animazione dal video`, want ? imp.close?.text === want && imp.close.alpha > .99 : !imp.close, imp.close ? `${imp.close.text}, alfa ${imp.close.alpha.toFixed(2)}` : 'nessuno'); }
   check(`${st.title}: «Impatto» scritto all'istante dell'impatto`, imp.video.label === 'Impatto' && (!imp.legacy || imp.legacy.label === 'Impatto'), `${imp.video.label} / ${imp.legacy?.label ?? '—'}`);
   // telefono mai di taglio nelle pose chiave dell'animazione dal video; limiti dichiarati dove la coreografia dal video non
   // lo permette (misurato nel passo C sul rovescio a due mani all'impatto, dalla ricostruzione a due mani sovrapposte; resta
