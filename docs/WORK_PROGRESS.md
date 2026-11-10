@@ -1319,3 +1319,9 @@ guida provato nel browser.
   ascoltate; le soglie nuove del tagliato e del servizio con persone vere (si misurano con la diagnostica nuova);
   `natpf-leggenda` è stata rossa 1 volta su 3 nel ramo R2 (allungo con il piatto a +0,05 m sul limite di 5 cm), verde
   nell'unione: da tenere d'occhio.
+- **Consegna**: repository trasferito dall'utente e rinominato in `sporcellifitp/fitp-simulator` (la sessione non poteva
+  collegare un secondo repository con lo stesso nome); push `9e9ac3a`; installer 2026-11-10.2 su R2 (124.649.916 B, sha256
+  `a546aae40e8bb4d25172972e6e0e2b12c7a34805b0f4ff9e6d5ec56ec2505c8f`, verificato dal link fisso; segreti R2 passati con
+  il trasferimento); zip Cloudflare 22.626.641 B, sha256 `8459a7e0bcfb2ff08c49ad42794ab09ece3557ff2973e18078c2b7f05e3d41aa`,
+  provato estratto (l'unico errore è quello atteso del TURN da origine locale). Nota: prima di impacchettare lo zip serve
+  `npm run build` (lo script prende `natpf-tennis/dist` così com'è: la prima prova aveva ridato lo zip della 10.1).

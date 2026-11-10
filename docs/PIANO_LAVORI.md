@@ -190,11 +190,10 @@ Come si aggiorna:
   latenza, difesa a Pro), scritte dell'esito e istruzioni del servizio, Precision e Combo per principianti, misure in
   diagnostica, **formato in fiera come opzione spenta** (pannello dello stand → «Formato in fiera»). Gioco 1075+, sito 201,
   LAN 12, Windows 28, build, `audit:legend` 69/69, 20 prove nel browser.
-- **Repository trasferito (10/11 pomeriggio):** ora è **`sporcellifitp/fitp-simulator`** (prima `sergio4/...`; il
-  vecchio indirizzo dà 404/403). Remoto da usare: `https://github.com/sporcellifitp/fitp-simulator`. Dopo il
-  trasferimento controllare nel repository nuovo i 4 segreti di R2 (Settings → Secrets and variables → Actions,
-  `docs/GUIDA_AGGIORNAMENTI_R2.md`) e che la pubblicazione su R2 vada (manifesto `windows/latest.json`). Zip Cloudflare
-  2026-11-10.2 consegnato (22.626.641 B, sha256 `8459a7e0…3d41aa`).
+- **Repository trasferito e rinominato (10/11 pomeriggio):** ora è **`sporcellifitp/fitp-simulator`** (prima
+  `sergio4/foro-italico-world`). Push della 2026-11-10.2 fatto (`9e9ac3a`); i segreti R2 sono passati con il trasferimento:
+  la corsa 22 di «NATPF eseguibili Windows» ha pubblicato l'installer **2026-11-10.2** su R2 (124.649.916 B, sha256
+  `a546aae4…2505c8f`, verificato dal link fisso). Zip Cloudflare 2026-11-10.2: 22.626.641 B, sha256 `8459a7e0…3d41aa`.
 - **Prossima azione esatta:** **B18.2 = tappa 2** del rapporto (`docs/b16/rapporto-gameplay.md` §4), una cosa alla volta con
   le prove simulate prima e dopo: (1) personaggi fermi a ogni servizio + peso del servizio (D11); (2) CPU che sbaglia per la
   pressione e campo aperto a Pro (D1, D9); (3) Leggenda stessa regola per chi gioca e per la CPU (D2); (4) palla corta che
