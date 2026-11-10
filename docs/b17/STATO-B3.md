@@ -50,7 +50,27 @@ Passo B3 chiuso. Da chiedere all'utente (con i fogli O/VC): dritto che colpisce 
 volée e piatto diventati dritti alti (la volée non è più un gesto corto), incrociato a 21°; se accettare che con una calibrazione
 fatta tenendo lo schermo di lato la mira e il piatto non si leggano (nel gioco la calibrazione si fa con il dritto del tutorial).
 
-## Come riprendere
+## Correzioni dalla revisione (IN CORSO, 10/11)
+Bloccanti della revisione del passo B3: (1/4) il rovescio a una mano era la traiettoria del rovescio A DUE MANI del video
+(47,9 cm in media dallo specchio del dritto, contatto davanti al petto con il gomito piegato a 79–101°, fine davanti al viso);
+(5) il tagliato di rovescio a 35,5 cm dallo specchio del tagliato, specchio mai cercato; (2) la volée era diventata un dritto
+pieno (0,35 s, 97 cm) con le indicazioni di un gesto corto; (3) le letture escluse come «limite dichiarato» non avevano
+nessuna verifica (15/414 giuste) e il totale scritto era sbagliato (3 174 invece di 2 898).
+- Giro 1 (commit WIP «ottimizzatore con lo specchio come vincolo»): `ottimizza.mjs` con `--mirrorRef` (forma di riferimento =
+  specchio del dritto o del tagliato di dritto, `MIRROR_OF`), `--mirrorInit` (pose chiave risolte allo specchio, con il dorso
+  verso la rete e il braccio disteso), `--mirrorMax=a,b`, `--reach`, `--accMax`, `--pathMax`, `--initBlend`. Partenza allo
+  specchio: polso a 2,2 cm dallo specchio all'impatto, braccio disteso (0,56 m) e dorso a 12°: lo specchio è raggiungibile.
+- In corso (nohup, log in scratchpad `b3fix/bh2`, `bh3`, `sb1`, `vo1`): rovescio con `--mirrorInit --mirrorRef --mirrorMax=15,20
+  --reach=0.478 --also=forehand --camdir=.6,.5,-.62`; tagliato di rovescio `--mirrorMax=12,15`; volée corta
+  (`--initFrom=forehand --like --initBlend=0.3,0.4 --accMax=.12 --pathMax=.38`).
+
+### Come riprendere
+Dalla cartella `natpf-tennis`: `node --import ./test/register.mjs scripts/video/ottimizza.mjs --card=backhand --out=DIR
+--with=scripts/video/soluzioni --impact=20 --mirrorInit --mirrorRef --mirrorMax=15,20 --reach=0.478 --camdir=.6,.5,-.62
+--also=forehand --evals=1500 --seed=N` (con `--from=DIR/backhand.json` si prosegue; i vincoli --mirrorMax, --reach, --pathMax vanno
+ripetuti). Poi `--emit`, test, fogli.
+
+## Come riprendere (passo B3)
 Dalla cartella `natpf-tennis`: `node --import ./test/register.mjs scripts/video/ottimizza.mjs --card=<id> --out=DIR
 --with=DIR_SOLUZIONI --from=DIR_SOLUZIONI/<id>.json --impact=20 [--armd=25 | --noinit] [--mirror] --evals=1500 --seed=N`
 (nohup, un processo per cartella). Soluzioni del passo C in `natpf-tennis/scripts/video/soluzioni/`.

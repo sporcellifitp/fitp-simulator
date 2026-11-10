@@ -42,6 +42,17 @@
 // opzioni della soluzione (`opts.init`) così che baseFor + decode la rifacciano. --armd=N: scarti del braccio alle pose chiave
 // (12 predefiniti). --mirror: per il rovescio, scarto della mano (al netto del bacino) dallo SPECCHIO del dritto (stessa forma,
 // dalla sinistra verso destra) a tempo normalizzato, pesato come la traiettoria del video.
+// Correzioni del passo B3 (revisione: il rovescio a una mano era ancora la traiettoria del rovescio A DUE MANI del video, a
+// 48 cm dallo specchio del dritto; il tagliato di rovescio a 35 cm dallo specchio del tagliato, mai cercato):
+// --mirrorRef: la forma di riferimento del rovescio (o del tagliato di rovescio) è lo SPECCHIO del dritto (o del tagliato di
+//   dritto) della soluzione di --with (MIRROR_OF), non il video: mano alle pose chiave, traiettoria a tempo normalizzato e tempi;
+// --mirrorInit: partenza con le pose chiave B, C, F risolte perché il polso sia allo specchio del dritto (mirrorInit: con il
+//   dorso verso la rete nella posa C, il braccio disteso, l'avambraccio fuori dal busto) e i tempi del dritto (opts.likeT);
+// --mirrorMax=a,b: vincolo (come un vincolo fisico) sullo scarto dallo specchio: impatto ≤ a cm e media ≤ b cm;
+// --reach=d: distanza spalla–polso all'impatto ≥ d m (braccio quasi disteso: 0,48 = 0,85 della lunghezza del braccio);
+// --accMax=s (volée corta): parte veloce al più s secondi; --pathMax=m: percorso della mano dalla carica all'impatto ≤ m;
+// --initBlend=a,b (con --initFrom): carica = C + a·(B − C) e fine = C + b·(F − C) negli angoli della scheda di partenza
+//   (volée dal dritto nuovo: preparazione corta).
 import fs from 'node:fs';
 import path from 'node:path';
 import * as GP from '../../src/natpf/natpf_gesture_pose.js';
@@ -63,6 +74,10 @@ const CAP_PREP = +arg('capPrep', 140), DESCENT = arg('descent', null) ? String(a
 export const AIM_MARGIN = .5;
 // vincolo d'impatto (passo B3): gradi massimi tra la faccia che colpisce e la rete (null = spento); margine 3°
 const IMPACT = arg('impact', null) != null && arg('impact') !== true ? +arg('impact') : null, IMPACT_MARGIN = 3, MIRROR = !!arg('mirror', false);
+// specchio (correzioni del passo B3): scheda di cui il rovescio è lo specchio
+export const MIRROR_OF = Object.freeze({ backhand: 'forehand', sliceBackhand: 'slice' });
+const MIRROR_REF = !!arg('mirrorRef', false), MIRROR_MAX = arg('mirrorMax', null) ? String(arg('mirrorMax')).split(',').map(Number) : null;
+const REACH = arg('reach', null) != null ? +arg('reach') : null, PATH_MAX = arg('pathMax', null) != null ? +arg('pathMax') : null;
 const DATA = JSON.parse(fs.readFileSync(new URL('../../../docs/b17/gesti-video.json', import.meta.url), 'utf8'));
 const { D, JOINTS, JOINT_LIMITS, len, sub, add, mul, dot, norm, qrot, qconj, qmul, omega } = GP;
 const GRIP = 'racchetta';
@@ -119,7 +134,7 @@ export function varsFor(id, base){
   return V;
 }
 // like (piatto e volée dal dritto): la parte veloce scende fino a 0,08 s (piatto e volée di oggi: 0,09 e 0,10 s)
-const timesOf = (id, base) => id === 'serve' ? TIMES.serve : base.slow ? { ...TIMES.stroke, ...TIMES.slow } : base.like ? { ...TIMES.stroke, acc: [.08, .32, .03] } : TIMES.stroke;
+const timesOf = (id, base) => id === 'serve' ? TIMES.serve : base.slow ? { ...TIMES.stroke, ...TIMES.slow } : base.like ? { ...TIMES.stroke, acc: base.accMax ? [.06, +base.accMax, .02] : [.08, .32, .03] } : TIMES.stroke;
 const clampV = (v, x) => Math.min(v.hi, Math.max(v.lo, x));
 const clampJ = (k, x) => { const [lo, hi] = JOINT_LIMITS[k]; return k === 'y' ? Math.min(hi, Math.max(lo, x)) : Math.min(hi - .5, Math.max(lo + .5, x)); };
 // vettore → coreografia (stesso formato di CHOREO_VIDEO)
@@ -198,7 +213,7 @@ export function shapeOf(id, P, ref){
   for (const [k, tv] of Object.entries(ref.keys)){
     if (K[k] == null) continue;
     const p = raw(K[k]), r = ref.at(tv), tip = qrot(p.q, [0, 1, 0]), sc = qrot(p.q, [0, 0, 1]);
-    out.keys[k] = { dW: len(sub(p.chain.W, r.W))*100, dE: len(sub(p.chain.E, r.E))*100, dy: (p.chain.W[1] - r.W[1])*100, tip: r.tip ? angDeg(tip, r.tip) : 0, screen: r.screen ? angDeg(sc, r.screen) : 0,
+    out.keys[k] = { dW: len(sub(p.chain.W, r.W))*100, dE: r.E ? len(sub(p.chain.E, r.E))*100 : 0, dy: (p.chain.W[1] - r.W[1])*100, tip: r.tip ? angDeg(tip, r.tip) : 0, screen: r.screen ? angDeg(sc, r.screen) : 0,
       W: p.chain.W, Wref: r.W, elbow: p.chain.j.b };
   }
   // traiettoria della mano a tempo normalizzato tra le pose chiave consecutive
@@ -301,11 +316,13 @@ export function physicsOf(id, P){
 const physCost = bad => bad.reduce((s, [k, v]) => s + (k === 'faccia all\'impatto' ? v : k === 'limiti' ? Math.min(50, v) + Math.max(0, v - 50)/20 : Math.min(50, v)), 0);
 
 /* ---------- costo ---------- */
+// piano del codice con la sua coreografia (keyTimes usa choreo.fin per la posa della fine)
+export const choreoPlan = k => { const P = GP.gesturePlan(k, { grip: GRIP, set: 'video' }); return Object.isFrozen(P) ? Object.assign(Object.create(P), { choreo: GP.CHOREO_VIDEO[k] }) : Object.assign(P, { choreo: GP.CHOREO_VIDEO[k] }); };
 function loadSol(file){ try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } }
 function basePlans(){
   const plans = {};
-  if (WITH) for (const k of ['forehand', 'backhand', 'slice', 'sliceBackhand', 'serve']){ const s = loadSol(path.join(WITH, `${k}.json`)); if (s?.choreo) plans[k] = planOf(k, s.choreo); }
-  for (const k of ['forehand', 'backhand']) if (!plans[k]) plans[k] = GP.gesturePlan(k, { grip: GRIP, set: 'video' });
+  if (WITH) for (const k of ['forehand', 'backhand', 'slice', 'sliceBackhand', 'serve']){ const s = loadSol(path.join(WITH, `${k}.json`)); if (s?.choreo){ plans[k] = planOf(k, s.choreo); plans[k].choreo = s.choreo; } }
+  for (const k of ['forehand', 'backhand', 'slice']) if (!plans[k]) plans[k] = choreoPlan(k);
   return plans;
 }
 // faccia all'impatto (passo B3): angolo tra la faccia che colpisce e la rete nell'istante del contatto (posa del destro; il
@@ -313,6 +330,14 @@ function basePlans(){
 export const impactOf = (id, P) => GP.IMPACT_FACE[id] ? GP.faceAngleOf(id, P.raw(P.contact).q) : null;
 // specchio del dritto (passo B3, rovescio a una mano «stesso movimento con l'altro lato»): mano al netto del bacino contro lo
 // specchio (x → −x) di quella del dritto alle pose chiave e a tempo normalizzato tra le pose chiave
+// forma di riferimento = specchio di F (--mirrorRef): stesse pose chiave e stessi tempi di F, mano con x → −x, gomito libero
+export function mirrorRef(F){
+  const KF = keyTimes(F), m = v => [-v[0], v[1], v[2]];
+  // telefono: cima allo specchio e schermo opposto allo specchio («stesso movimento con l'altro lato»: il dorso del rovescio fa
+  // quello che fa lo schermo del dritto)
+  const ph = t => { const q = F.raw(t).q; return { tip: m(qrot(q, [0, 1, 0])), screen: mul(m(qrot(q, [0, 0, 1])), -1) }; };
+  return { id: 'specchio', mirror: true, keys: { carica: KF.carica, impatto: KF.impatto, fine: KF.fine }, at: t => ({ t, W: m(F.raw(t).chain.W), E: null, ...ph(t) }) };
+}
 export function mirrorOf(P, F){
   const KP = keyTimes(P), KF = keyTimes(F), rel = (Q, t) => { const c = Q.raw(t).chain; return sub(c.W, [c.pelvis[0], 0, c.pelvis[2]]); };
   const m = v => [-v[0], v[1], v[2]], names = ['carica', 'impatto', 'fine'], keys = {};
@@ -325,7 +350,8 @@ export function mirrorOf(P, F){
 const phoneAxis = P => { const q = P.raw(P.contact).q; return qrot(qconj(q), omega(P.raw(P.contact - 1/480).q, P.raw(P.contact + 1/480).q, 1/240)); };
 const RISE_MAX = arg('riseMax', null) != null ? +arg('riseMax') : null, AXIS_LIKE = arg('axisLike', null), PEAK_OVER = arg('peakOver', null) ? String(arg('peakOver')).split(',') : null;
 const peakOf = P => { let m = 0; for (let t = P.contact - .15; t <= P.contact + .1; t += 1/480) m = Math.max(m, len(omega(P.raw(t - 1/960).q, P.raw(t + 1/960).q, 1/480))); return m; };
-export function evaluate(id, choreo, { plans = basePlans(), stop = 3, also = ALSO, combos = COMBOS, descent = DESCENT, impact = IMPACT, mirror = MIRROR, axisLike = AXIS_LIKE, ref = LEGACY_IDS.includes(id) ? legacyRef(id) : videoRef(id) } = {}){
+export function evaluate(id, choreo, { plans = basePlans(), stop = 3, also = ALSO, combos = COMBOS, descent = DESCENT, impact = IMPACT, mirror = MIRROR, axisLike = AXIS_LIKE, mirrorRefOn = MIRROR_REF,
+  ref = mirrorRefOn && MIRROR_OF[id] && plans[MIRROR_OF[id]] ? mirrorRef(plans[MIRROR_OF[id]]) : LEGACY_IDS.includes(id) ? legacyRef(id) : videoRef(id) } = {}){
   let P;
   try { P = planOf(id, choreo); } catch (e){ return { cost: 1e6, err: e.message }; }
   P.choreo = choreo;
@@ -342,7 +368,15 @@ export function evaluate(id, choreo, { plans = basePlans(), stop = 3, also = ALS
   // faccia all'impatto (--impact): oltre impact − 3° penalità come un vincolo fisico
   const face = impactOf(id, P);
   if (impact != null && face != null && face > impact - IMPACT_MARGIN) phys.push(['faccia all\'impatto', (face - impact + IMPACT_MARGIN)/1.5]);
-  const mir = mirror && id !== 'forehand' && plans.forehand ? mirrorOf(P, plans.forehand) : null;
+  const mir = (mirror || mirrorRefOn) && MIRROR_OF[id] && plans[MIRROR_OF[id]] ? mirrorOf(P, plans[MIRROR_OF[id]]) : null;
+  // --mirrorMax=a,b: impatto ≤ a cm e media ≤ b cm dallo specchio (vincolo, non peso lieve)
+  if (mir && MIRROR_MAX){ const e = Math.max(0, mir.keys.impatto - MIRROR_MAX[0]) + Math.max(0, mir.mean - MIRROR_MAX[1]); if (e > 0) phys.push(['specchio', e/2]); }
+  // --reach=d: spalla–polso all'impatto ≥ d m (braccio quasi disteso)
+  const reach = (() => { const c = P.raw(P.contact).chain; return len(sub(c.W, c.S)); })();
+  if (REACH != null && reach < REACH) phys.push(['braccio piegato all\'impatto', (REACH - reach)*100/2]);
+  // --pathMax=m: percorso della mano dalla carica all'impatto (gesto corto)
+  const pathCI = (() => { let s = 0, a = P.raw(P.T.inv).chain.W; for (let t = P.T.inv + 1/240; t <= P.contact; t += 1/240){ const b = P.raw(t).chain.W; s += len(sub(b, a)); a = b; } return s; })();
+  if (PATH_MAX != null && pathCI > PATH_MAX) phys.push(['gesto lungo', (pathCI - PATH_MAX)*100/2]);
   // --axisLike=<scheda> (passo B3, piatto): asse di rotazione del telefono (nel riferimento del telefono) all'impatto vicino a
   // quello della scheda data: il lato del colpo si legge da quell'asse (calibrato con il dritto) e la lettura è a gradini
   const ax = axisLike && plans[axisLike] ? angDeg(phoneAxis(P), phoneAxis(plans[axisLike])) : null;
@@ -353,8 +387,8 @@ export function evaluate(id, choreo, { plans = basePlans(), stop = 3, also = ALS
   // (−0,02) lasciavano al piatto due finestre (± 0,12) che non si toccano
   const rises = RISE_MAX != null ? reads.filter(r => r.cal === 'pose' && r.rate === 1 && Number.isFinite(r.rise)).map(r => r.rise) : [];
   const riseMean = rises.length ? rises.reduce((a, b) => a + b, 0)/rises.length : null, rc2 = riseMean != null && riseMean > RISE_MAX ? 2000*(riseMean - RISE_MAX)**2 : 0;
-  const cost = 50*read + 5*margin + (sh ? shapeCost(sh) : 0) + 30*physCost(phys) + (mir ? (mir.mean/8)**2 : 0) + (ax != null ? 5*(ax/10)**2 : 0) + poc + rc2;
-  return { id, cost, read, margin, face, mirror: mir, axis: ax, peakRatio: po, riseMean, nBad: reads.filter(r => r.why.length).length + alsoReads.filter(r => r.why.length).length, reads, alsoReads, phys, shape: sh, P };
+  const cost = 50*read + 5*margin + (sh ? shapeCost(sh) : 0) + 30*physCost(phys) + (mir && !mirrorRefOn ? (mir.mean/8)**2 : 0) + (ax != null ? 5*(ax/10)**2 : 0) + poc + rc2;
+  return { id, cost, read, margin, face, mirror: mir, reach, pathCI, axis: ax, peakRatio: po, riseMean, nBad: reads.filter(r => r.why.length).length + alsoReads.filter(r => r.why.length).length, reads, alsoReads, phys, shape: sh, P };
 }
 
 /* ---------- partenza: la coreografia del video con la presa misurata ---------- */
@@ -401,13 +435,46 @@ export function impactInit(card, base, lim = 20, armd = 12, tipT = null){
   return out;
 }
 
+/* ---------- partenza allo specchio (correzioni del passo B3) ---------- */
+// Pose chiave B, C, F del rovescio (o del tagliato di rovescio) risolte con il braccio destro perché il polso sia allo specchio
+// (x → −x) di quello della scheda F (il dritto, o il tagliato di dritto) nelle sue pose chiave, con la cima del telefono allo
+// specchio e il dorso dove il dritto ha lo schermo; nella posa C la faccia che colpisce entro lim − 8° dalla rete e la distanza
+// spalla–polso ≥ reach; articolazioni ≥ 3° dai limiti, avambraccio fuori dal busto, la carica e la fine vicine alla posa C negli
+// angoli del busto (niente giri di 130° del busto tra carica e impatto). Restituisce { B, C, F, info }.
+export function mirrorInit(card, F, { lim = 20, reach = null } = {}){
+  // con il proseguimento lento (tagliato di dritto: F → F2) la fine della parte veloce è F e la fine del gesto F2
+  const slow = !!(F.choreo?.slow && F.T.fastEnd != null), KT = { ...keyTimes(F), fast: F.T.fastEnd }, names = slow ? { B: 'carica', C: 'impatto', F: 'fast', F2: 'fine' } : { B: 'carica', C: 'impatto', F: 'fine' }, M9 = ['tau', 'lat', 'p', 'e', 'r', 'b', 'pro', 'fl', 'dv'], G = GP.gripInHand(GRIP), m = v => [-v[0], v[1], v[2]];
+  const out = {}, info = {};
+  for (const K of ['C', 'B', 'F', ...(slow ? ['F2'] : [])]){
+    const t = KT[names[K]], pf = F.raw(t), Wt = m(pf.chain.W), tipT = m(qrot(pf.q, [0, 1, 0])), scT = mul(m(qrot(pf.q, [0, 0, 1])), -1), y = pf.chain.pelvis[1] - GP.BODY.pelvis[1];
+    const J = x => { const j = { y: +y.toFixed(4) }; M9.forEach((k, i) => j[k] = x[i]); return j; };
+    const f = x => { const j = J(x); let c = 0;
+      for (const k of M9){ const [a, b] = JOINT_LIMITS[k]; if (j[k] < a + 3) c += 10*(a + 3 - j[k])**2; if (j[k] > b - 3) c += 10*(j[k] - b + 3)**2; }
+      const ch = GP.armChain(j), q = qmul(ch.hand, G);
+      c += (len(sub(ch.W, Wt))*100)**2 + .02*angDeg(qrot(q, [0, 1, 0]), tipT)**2 + .02*angDeg(qrot(q, [0, 0, 1]), scT)**2;
+      if (K === 'C'){ c += 4*Math.max(0, GP.faceAngleOf(card, q) - (lim - 8))**2; if (reach != null){ const r = len(sub(ch.W, ch.S)); if (r < reach) c += (100*(reach - r))**2; } }
+      // carica più chiusa della posa C (busto girato a sinistra, tau ≥ C), fine più aperta (tau ≤ C), e vicine negli angoli
+      else { const d = K === 'B' ? out.C.tau - j.tau : K === 'F2' ? j.tau - out.F.tau : j.tau - out.C.tau; if (d > 0) c += 2*d*d; for (const k of ['p', 'e', 'r', 'b', 'pro']) c += .002*(j[k] - out.C[k])**2; }
+      for (let u = 0; u <= 1; u += .25){ const X = add(ch.W, mul(sub(ch.E, ch.W), u)), l = qrot(qconj(ch.trunk), sub(X, ch.pelvis)), e = (l[0]/.2)**2 + (l[2]/.15)**2; if (l[1] > -.1 && l[1] < .45 && e < 1) c += 3000*(1 - e)**2; }
+      return c; };
+    let best = null;
+    const starts = K === 'C' ? [] : [M9.map(k => out.C[k])];
+    for (const tau of [-50, 0, 50]) for (const p0 of [-40, 60, 120]) for (const pro of [20, 90, 160]) starts.push([tau, 0, p0, 60, 20, 30, pro, 0, 0]);
+    for (const s0 of starts){ const r = nelderMead(f, s0, [20, 8, 30, 30, 30, 30, 40, 20, 10], 3000); if (!best || r.f < best.f) best = r; }
+    const j = J(best.x), ch = GP.armChain(j), q = qmul(ch.hand, G);
+    out[K] = Object.fromEntries(Object.entries(j).map(([k, v]) => [k, +(+v).toFixed(k === 'y' ? 4 : 2)]));
+    info[K] = { dW_cm: +(len(sub(ch.W, Wt))*100).toFixed(1), tip: +angDeg(qrot(q, [0, 1, 0]), tipT).toFixed(1), screen: +angDeg(qrot(q, [0, 0, 1]), scT).toFixed(1), face: +GP.faceAngleOf(card, q).toFixed(1), reach: +len(sub(ch.W, ch.S)).toFixed(3) };
+  }
+  return { B: out.B, C: out.C, F: out.F, ...(slow ? { F2: out.F2 } : {}), info };
+}
+
 /* ---------- ricerca ---------- */
 function rng(seed){ let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0)/4294967296; }; }
 const gauss = R => { const u = Math.max(1e-12, R()), v = R(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
 function summary(e){
   const sh = e.shape;
   return { cost: +e.cost.toFixed(2), nBad: e.nBad, nReads: e.reads?.length, margin: +(e.margin || 0).toFixed(2), ...(e.face != null ? { impact_deg: +e.face.toFixed(1) } : {}),
-    ...(e.riseMean != null ? { rise: +e.riseMean.toFixed(3) } : {}), ...(e.axis != null ? { axis_deg: +e.axis.toFixed(1) } : {}), ...(e.peakRatio != null ? { peak_ratio: +e.peakRatio.toFixed(2) } : {}), ...(e.mirror ? { mirror_cm: { mean: +e.mirror.mean.toFixed(1), max: +e.mirror.max.toFixed(1), keys: Object.fromEntries(Object.entries(e.mirror.keys).map(([k, v]) => [k, +v.toFixed(1)])) } } : {}), read: e.reads?.filter(r => r.why.length).map(r => `seme ${r.seed} ${r.cal} ${r.hand} ×${r.rate}: ${r.why.join('; ')} [${r.desc}]`),
+    ...(e.riseMean != null ? { rise: +e.riseMean.toFixed(3) } : {}), ...(e.reach != null ? { reach_m: +e.reach.toFixed(3), path_ci_m: +e.pathCI.toFixed(3) } : {}), ...(e.axis != null ? { axis_deg: +e.axis.toFixed(1) } : {}), ...(e.peakRatio != null ? { peak_ratio: +e.peakRatio.toFixed(2) } : {}), ...(e.mirror ? { mirror_cm: { mean: +e.mirror.mean.toFixed(1), max: +e.mirror.max.toFixed(1), keys: Object.fromEntries(Object.entries(e.mirror.keys).map(([k, v]) => [k, +v.toFixed(1)])) } } : {}), read: e.reads?.filter(r => r.why.length).map(r => `seme ${r.seed} ${r.cal} ${r.hand} ×${r.rate}: ${r.why.join('; ')} [${r.desc}]`),
     aimMin: GESTURES[e.id]?.aim ? Math.min(...e.reads.filter(r => !r.why.length).map(r => Math.abs(+(r.desc.match(/mira (-?[\d.]+)/)?.[1] ?? 9)))) : undefined,
     also: e.alsoReads?.filter(r => r.why.length).map(r => `${r.card} ${r.hand} ×${r.rate}: ${r.why.join('; ')}`),
     phys: e.phys, shape: sh && { keys: Object.fromEntries(Object.entries(sh.keys).map(([k, v]) => [k, { dW_cm: +v.dW.toFixed(1), dE_cm: +v.dE.toFixed(1), dy_cm: +v.dy.toFixed(1), tip_deg: +v.tip.toFixed(0), screen_deg: +v.screen.toFixed(0), gomito: +v.elbow.toFixed(0) }])),
@@ -425,7 +492,7 @@ export function baseFor(card, opts = {}, { fore = null } = {}){
     const b = { src: card };
     for (const K of ['B', 'C', 'F']) b[K] = { ...GP.REST_VIDEO, ...opts.init[K] };
     b.t = { ...opts.likeT };
-    return { ...b, like: true, ...(opts.armd ? { armd: +opts.armd } : {}) };
+    return { ...b, like: true, ...(opts.armd ? { armd: +opts.armd } : {}), ...(opts.accMax ? { accMax: +opts.accMax } : {}) };
   }
   if (LEGACY_IDS.includes(card)){
     // partenza del video (braccio che pende, polso girato: il telefono deve girare di 83–155° fino alla carica): carica
@@ -462,9 +529,11 @@ export function baseFor(card, opts = {}, { fore = null } = {}){
   const base = { ...raw, ...(opts.slow && card !== 'serve' ? { slow: true, F2, f2d: +(opts.f2d || 15) } : {}), ...(opts.armd ? { armd: +opts.armd } : {}) };
   const A0 = +(opts.acc ?? .25), P0 = +(opts.prep ?? raw.prep);
   base.t = card === 'serve' ? { prep: P0, rise: raw.rise, up: raw.up, acc: A0, dMax: raw.dMax, fin: raw.fin } : { acc: A0, dMax: Math.max(.12, raw.dMax), prep: P0, fin: raw.fin, slow: .45 };
+  // likeT (correzioni del passo B3, rovescio allo specchio): tempi di partenza della scheda specchiata
+  if (opts.likeT && card !== 'serve') base.t = { ...base.t, ...opts.likeT };
   return base;
 }
-const OPT_KEYS = ['mono', 'wrist', 'rest', 'via', 'slow', 'f2d', 'armd', 'init', 'impact', 'mirror', 'aimwide', 'like', 'likeT'];
+const OPT_KEYS = ['mono', 'wrist', 'rest', 'via', 'slow', 'f2d', 'armd', 'init', 'impact', 'mirror', 'aimwide', 'like', 'likeT', 'accMax', 'mirrorRef', 'mirrorMax', 'reach', 'pathMax'];
 // x di una soluzione salvata per le variabili V (per nome: una soluzione senza --slow riparte con le variabili nuove al valore iniziale)
 function xFrom(sol, V){
   if (!sol?.x) return null;
@@ -488,8 +557,19 @@ async function main(){
   if (arg('initFrom', null) && !opts.init){
     const k = arg('initFrom'), s = WITH && loadSol(path.join(WITH, `${k}.json`)), c = s ? solutionChoreo(k, s) : GP.CHOREO_VIDEO[k];
     opts.init = Object.fromEntries(['B', 'C', 'F'].map(K => [K, Object.fromEntries(JOINTS.map(j => [j, c[K][j]]))]));
+    // --initBlend=a,b: carica e fine accorciate verso la posa C (volée corta dal dritto nuovo)
+    if (arg('initBlend', null)){ const [a, b] = String(arg('initBlend')).split(',').map(Number), bl = (K, u) => Object.fromEntries(JOINTS.map(j => [j, +(c.C[j] + u*(c[K][j] - c.C[j])).toFixed(j === 'y' ? 4 : 2)]));
+      opts.init.B = bl('B', a); opts.init.F = bl('F', b); }
     if (arg('like', false)){ opts.like = k; opts.likeT = { acc: arg('acc', null) ? +arg('acc') : c.acc, dMax: c.dMax, prep: c.prep, fin: c.fin }; }
     base = baseFor(CARD, opts, { fore: null }); inited = true;
+  }
+  // --mirrorInit: pose chiave allo specchio della scheda MIRROR_OF (dritto o tagliato di dritto) e i suoi tempi
+  if (arg('mirrorInit', false) && !opts.init && MIRROR_OF[CARD]){
+    const F = plans[MIRROR_OF[CARD]], r = mirrorInit(CARD, F, { lim: IMPACT ?? 20, reach: REACH }), { info, ...init } = r, c = F.choreo;
+    opts.init = init; opts.likeT = { acc: c.acc, dMax: c.dMax, prep: c.prep, fin: c.fin, ...(c.slow ? { slow: c.slow } : {}) };
+    if (init.F2){ opts.slow = true; opts.f2d = 15; }
+    base = baseFor(CARD, opts, { fore: null }); inited = true;
+    console.log(`partenza allo specchio di ${MIRROR_OF[CARD]} (mirrorInit): ${JSON.stringify(info)} ${JSON.stringify(init)}`);
   }
   // --impact senza una partenza già girata: pose chiave risolte con la faccia verso la rete (impactInit), scritte in opts.init
   if (IMPACT != null && !opts.init && !base.aimOnly && GP.IMPACT_FACE[CARD] && !arg('noinit', false)){
@@ -500,11 +580,13 @@ async function main(){
   }
   if (IMPACT != null) opts.impact = IMPACT;
   if (MIRROR) opts.mirror = true;
+  if (MIRROR_REF) opts.mirrorRef = true;
+  for (const k of ['mirrorMax', 'reach', 'pathMax', 'accMax']){ const v = arg(k, null); if (v != null) opts[k] = v; }
   const V = varsFor(CARD, base);
   // con la partenza girata appena risolta della soluzione di --from si tengono solo i tempi (il polso è assoluto)
   const fx = xFrom(from, V);
   let x = inited ? V.map((v, i) => fx && v.name.startsWith('t.') ? fx[i] : v.x0) : fx || V.map(v => v.x0);
-  const ev = xx => evaluate(CARD, decode(CARD, base, V, xx), { plans, impact: opts.impact ?? IMPACT, mirror: !!(opts.mirror ?? MIRROR) });
+  const ev = xx => evaluate(CARD, decode(CARD, base, V, xx), { plans, impact: opts.impact ?? IMPACT, mirror: !!(opts.mirror ?? MIRROR), mirrorRefOn: !!opts.mirrorRef });
   const saveOpts = Object.fromEntries(Object.entries(opts).filter(([k]) => OPT_KEYS.includes(k)));
   // --report senza --from: la coreografia del codice (CHOREO_VIDEO[card], o il dritto girato per la mira)
   if (REPORT && !from){
