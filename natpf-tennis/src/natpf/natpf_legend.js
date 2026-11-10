@@ -91,6 +91,9 @@ export const LEGEND = Object.freeze({
   // − (reazione + strada / velocità). Margine negativo:
   // probabilmente non ci arriva (vincente); piccolo: ci arriva in corsa e risponde peggio. reachSd: scala del margine (s)
   reachAfter: .55, reachReact: .12, reachSide: .72, reachSd: .08, reachUse: 1,
+  // B18.2 (D11 del rapporto B16): il servizio perfetto, forte e sulla riga di chi gioca toglie fino a serveQ alla qualità
+  // della risposta (come il colpo super, natpfSuper.legendQ); la lettura in ritardo è in natpf_skill.SERVE_WEIGHT.leggenda
+  serveQ: .15,
 });
 // Solo per audit ed esperimenti (scripts/audit/legend.mjs): valori che sostituiscono LEGEND in tutte le partite.
 // Oltre alle chiavi di LEGEND: forceKind (sempre quel colpo), noLetGo (gioca anche le palle fuori), legacyMove (corsa
@@ -188,7 +191,10 @@ export function legendDecide(e, actor, rng = legendRng(e)){
   const tq = NS.swingQuality(NS.gauss(rng)*L.timingSd*(1 + .8*pace), lv);
   // pressione degli scambi lunghi come quella di chi gioca (natpf_stroke_outcome.rallyPressure), ma dal 20° colpo (B16); il colpo super
   // potente di chi gioca (natpf_stroke_outcome.superShot) mette in difficoltà anche la Leggenda (b.natpfSuper.legendQ)
-  const q = clamp(tq*NS.reachQuality(lat, running)*rallyPressure(b.rallyStrokeCount, L.pressureFrom)*finite(b.natpfSuper?.legendQ, 1), .3, 1);
+  // B18.2 (D11): in risposta al servizio la qualità scende con la minaccia del servizio ricevuto (natpf_skill.serveInfo):
+  // fino a −serveQ per il servizio perfetto, forte e sulla riga; un servizio normale non la tocca
+  const sv = NS.serveInPlay(e);
+  const q = clamp(tq*NS.reachQuality(lat, running)*rallyPressure(b.rallyStrokeCount, L.pressureFrom)*finite(b.natpfSuper?.legendQ, 1)*(sv ? 1 - finite(L.serveQ)*sv.threat : 1), .3, 1);
   const R = (a, z) => a + rng()*(z - a), hx = h.pos.x, hz = h.pos.z, hv = h.vel.x;
   const away = -(Math.sign(hx) || -s);                    // angolo lontano dall'avversario
   const cands = [

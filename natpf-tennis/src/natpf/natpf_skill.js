@@ -86,9 +86,11 @@ export function cpuServeEvent(engine, rng = Math.random){
 
 // stato dello scambio sul motore: colpi perfetti consecutivi, pressione sulla CPU, piano di corsa della CPU
 export function skillState(engine){
-  return engine.natpfSkill || (engine.natpfSkill = { streak: 0, p2Streak: 0, pressure: 0, lastQuality: 1, cpuPlan: null, lastShot: null });
+  return engine.natpfSkill || (engine.natpfSkill = { streak: 0, p2Streak: 0, pressure: 0, lastQuality: 1, cpuPlan: null, lastShot: null, serve: null });
 }
-export function resetRally(engine){ const s = skillState(engine); s.streak = 0; s.p2Streak = 0; s.pressure = 0; s.cpuPlan = null; s.lastShot = null; return s; }
+// B18.2 (D11): a ogni punto ripartono anche la qualità dell'ultimo colpo (prima restava quella del punto prima e decideva
+// la risposta della CPU al servizio) e il servizio in gioco (serve, registerServe)
+export function resetRally(engine){ const s = skillState(engine); s.streak = 0; s.p2Streak = 0; s.pressure = 0; s.cpuPlan = null; s.lastShot = null; s.lastQuality = 1; s.serve = null; return s; }
 
 /* ---------- assistenza del tempo ---------- */
 // Quanto manca allo sweet spot (s) quando parte lo swing: distanza palla–giocatore lungo il campo / velocità.
@@ -297,6 +299,89 @@ export function registerPlayerShot(engine, { grade, quality, power, landingX, la
   return s;
 }
 
+/* ---------- servizio di chi gioca contro la CPU: un servizio che conta (B18.2, D11 del rapporto B16) ---------- */
+// Prima la risposta della CPU non dipendeva dal servizio: la probabilità d'errore usava la qualità dell'ultimo colpo del
+// punto prima (lastQuality mai azzerata) e l'angolo misurato dal centro del campo (un servizio alla «T» valeva zero, uno
+// al centro del quadrato metà di uno sulla riga), la CPU partiva nell'istante del colpo (nessuna reazione, a tutti i
+// livelli) e gli unici ace nascevano dalla velocità rimasta dal punto prima (game_engine._natpfStandStill). Con la CPU
+// ferma: punto diretto 14–18% a Casual, 3–9% a Pro e 1–2% a Leggenda, quasi uguale per un servizio perfetto, forte e
+// sulla riga e per uno colpito in ritardo. Ora il servizio ha una minaccia sua (serveInfo):
+//   • velocità (fast): quella vera della palla alla partenza, sulla scala del tabellone (km/h = m/s × 6,8): 0 fino a
+//     160 km/h (il servizio insegnato a tempo parte a 157), 1 da 190 (forza 0,9 a tempo: 191–194). La velocità vera e
+//     non la forza del gesto: il kick di webcam, mouse e prove (natpf_stroke_outcome.SERVE.legacyFlight) è una palla lenta
+//     anche con un gesto forte;
+//   • strettezza (tight): distanza del rimbalzo dal centro del quadrato, verso l'esterno o verso la «T» (chi risponde
+//     aspetta al centro del quadrato): 0 fino al 45% della metà larghezza utile (il servizio insegnato cade al 42%), 1 dal 90%;
+//   • tempo del colpo (clean, da q di serveOutcome): 1 a tempo, 0 da 0,55 in giù (colpito 0,5 s fuori tempo);
+//   • threat = tempo × (mix.pace·velocità + mix.tight·strettezza + mix.both·velocità·strettezza): 1 solo per il servizio
+//     perfetto, forte e sulla riga; sharp = tempo × velocità × strettezza: il servizio forte E angolato, che la CPU legge
+//     in ritardo.
+// Effetti, per livello (SERVE_WEIGHT[livello]; Leggenda: natpf_legend.LEGEND.serveQ):
+//   • errore in risposta (Casual e Pro, cpuServeErrorChance): base × (lateBase … 1 con il tempo del colpo) + threat ×
+//     minaccia + l'allungo vero all'impatto (× stretch: sul servizio pesa la metà che negli scambi, il resto lo fa la
+//     lettura in ritardo); a Leggenda la qualità del colpo di risposta scende di serveQ × minaccia (stesse regole del
+//     giocatore, niente dado);
+//   • lettura in ritardo (registerServe → cpuPlan): la CPU resta ferma read × sharp secondi (± readSd, mai sotto zero)
+//     prima di partire verso la palla; sul servizio esterno non ci arriva (ace) o risponde in allungo;
+//   • pressione: il servizio mette pressione allo scambio (pressure × minaccia), quindi più risposte deboli.
+// Un servizio normale (velocità e strettezza 0) non cambia la corsa della CPU: minaccia 0, nessun ritardo. Vale solo
+// contro la CPU: nello stesso schermo e nella sfida tra due computer chi risponde è una persona
+// (game_engine._executeServeHit). Valori tarati con scripts/audit/servizio.mjs (docs/b18/t2-1-servizio.md).
+export const SERVE_WEIGHT = Object.freeze({
+  kmhFrom: 160, kmhSpan: 30, kmh: 6.8, tightFrom: .45, tightSpan: .45, qFrom: .55, boxCenter: 2.05, boxHalf: 1.77,
+  mix: Object.freeze({ pace: .7, tight: .1, both: .2 }),
+  lateBase: .6,                // un servizio colpito fuori tempo vale il 60% della base
+  casual: Object.freeze({ base: .135, threat: .05, stretch: .5, max: .6, read: .075, readSd: .35, pressure: 1 }),
+  pro: Object.freeze({ base: .045, threat: .05, stretch: .5, max: .45, read: .135, readSd: .35, pressure: 1 }),
+  leggenda: Object.freeze({ read: .15, readSd: .35 }),
+});
+// Solo per audit ed esperimenti (scripts/audit/servizio.mjs): valori che sostituiscono quelli del livello, es.
+// serveTuning.casual = { read: 0 }
+export const serveTuning = {};
+const serveLevel = difficulty => { const k = String(difficulty || 'casual').toLowerCase(), W = SERVE_WEIGHT[k]; return W ? (serveTuning[k] ? { ...W, ...serveTuning[k] } : W) : null; };
+// Minaccia del servizio. speed: velocità della palla alla partenza (m/s); q: tempo del colpo (serveOutcome, 1 a tempo);
+// x: rimbalzo laterale voluto; box: lato del quadrato (segno della x del suo centro)
+export function serveInfo({ speed = 23, q = 1, x = 0, box = -1 } = {}){
+  const W = SERVE_WEIGHT, xc = (box >= 0 ? 1 : -1)*W.boxCenter, kmh = finite(speed, 23)*W.kmh;
+  const P = clamp((kmh - W.kmhFrom)/W.kmhSpan), A = clamp((Math.abs(finite(x, xc) - xc)/W.boxHalf - W.tightFrom)/W.tightSpan);
+  const Q = clamp((finite(q, 1) - W.qFrom)/(1 - W.qFrom));
+  return { kmh: Math.round(kmh), q: +finite(q, 1).toFixed(3), x: +finite(x).toFixed(3), fast: +P.toFixed(3), tight: +A.toFixed(3), clean: +Q.toFixed(3),
+    threat: +(Q*(W.mix.pace*P + W.mix.tight*A + W.mix.both*P*A)).toFixed(3), sharp: +(Q*P*A).toFixed(3) };
+}
+// Dopo il servizio di chi gioca contro la CPU (il motore ha già messo il bersaglio della CPU sul punto d'incontro):
+// ricorda il servizio per la risposta e, se è forte e angolato, fa leggere la CPU in ritardo. Restituisce lo stato del
+// servizio (s.serve), con late = secondi di ritardo della lettura
+export function registerServe(engine, serve, { rng = Math.random } = {}){
+  const s = skillState(engine), W = serveLevel(engine?.matchConfig?.difficulty), cpu = engine?.opponent;
+  s.serve = null; s.lastQuality = 1;
+  if (!W || !serve || !cpu) return null;
+  const info = serveInfo(serve), late = info.sharp > 0 && W.read > 0 ? Math.max(0, W.read*info.sharp*(1 + gauss(rng)*finite(W.readSd))) : 0;
+  s.serve = { ...info, late: +late.toFixed(3) };
+  s.pressure = clamp(finite(W.pressure)*info.threat, 0, 3);
+  if (late > .01){
+    const now = finite(engine.elapsedTime), truth = cpu.targetPos.clone(), hold = cpu.pos.clone();
+    // stessa forma del piano di corsa dello scambio (planCpuRun, tickCpuRun): ferma fino a readAt, poi sul punto vero
+    s.cpuPlan = skillLevel(engine.matchConfig?.difficulty).cpuLegend
+      ? { legend: true, serve: true, hold, truth, err: 0, readAt: now + late, fixDur: .01 }
+      : { serve: true, hold, read: truth, truth, readAt: now + late, fixAt: now + late };
+    cpu.targetPos.copy(hold);
+  }
+  return s.serve;
+}
+// Il servizio in gioco per la risposta della CPU: solo sulla palla del servizio (un colpo, colpita da chi gioca)
+export function serveInPlay(engine){
+  const sv = engine?.natpfSkill?.serve, b = engine?.ball;
+  return sv && b && finite(b.rallyStrokeCount) <= 1 && b.lastHitter === 'player' && !b.natpfFeed ? sv : null;
+}
+// Probabilità che la CPU sbagli la risposta al servizio (Casual e Pro). stretch: allungo vero all'impatto (distanza
+// laterale / portata), come negli scambi
+export function cpuServeErrorChance({ serve = null, stretch = 0, level = SKILL_LEVELS.casual, difficulty = 'casual' } = {}){
+  const k = level.cpuErr, W = serveLevel(difficulty); if (!k || !W || !serve) return 0;
+  const p = W.base*(SERVE_WEIGHT.lateBase + (1 - SERVE_WEIGHT.lateBase)*clamp(finite(serve.clean, 1))) + W.threat*clamp(finite(serve.threat))
+    + finite(W.stretch, 1)*(.3 + .7*clamp(finite(serve.q, 1)))*k.stretch*clamp(finite(stretch))**2;
+  return clamp(p, 0, W.max);
+}
+
 /* ---------- CPU ---------- */
 // Corsa della CPU: parte dopo il tempo di reazione verso dove crede che arrivi la palla, poi corregge.
 export function planCpuRun(engine, { rng = Math.random } = {}){
@@ -456,7 +541,11 @@ export function cpuReturnPlan(engine, actor, { rng = Math.random } = {}){
     threat: s.lastShot ? shotThreat({ power: s.lastShot.power, depth: s.lastShot.landingZ }) : 1,
     level: lv,
   };
-  const chance = cpuErrorChance(info), roll = rng();
+  // B18.2 (D11): sulla palla del servizio la risposta dipende dal servizio ricevuto (serveInfo), non dall'ultimo colpo
+  // del punto prima; per l'attacco della CPU conta il tempo del servizio (un servizio fuori tempo si attacca)
+  const sv = serveInPlay(engine);
+  if (sv){ info.quality = sv.q; info.threat = sv.threat; info.serve = true; }
+  const chance = sv ? cpuServeErrorChance({ serve: sv, stretch: info.stretch, level: lv, difficulty: engine.matchConfig?.difficulty }) : cpuErrorChance(info), roll = rng();
   s.lastCpu = { chance, ...info, level: undefined };
   if (roll < chance){
     const r = rng();

@@ -347,6 +347,8 @@ test('diagnostica: esito, piano, servizio e colpi a vuoto nel registro; ripetibi
     assert.deepEqual(of('vuoto').map(v => v.perche), ['presto']);
     const sv = of('servizio');
     assert.equal(sv.length, 1); assert.equal(sv[0].chi, 'giocatore'); assert.ok(sv[0].qualita > .9, JSON.stringify(sv[0]));
+    // B18.2 (D11): contro la CPU il registro porta anche il peso del servizio (minaccia, strettezza, lettura in ritardo)
+    assert.ok(sv[0].minaccia >= 0 && sv[0].minaccia <= 1 && sv[0].stretto >= 0 && sv[0].ritardoCpuMs >= 0, JSON.stringify(sv[0]));
     const m = computeMetrics(ev).racchetta;
     assert.equal(m.colpi, 3); assert.deepEqual(m.voluti, { topspin: 3 });
     // stesso gesto, stesso esito: nessuna variazione del punto di caduta tra i tre colpi (senza gesti del telefono i

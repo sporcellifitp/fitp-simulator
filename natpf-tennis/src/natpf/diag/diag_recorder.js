@@ -301,7 +301,11 @@ export class DiagRecorder {
     wrap('_natpfPlanOpponent', function(orig, ...a){ const out = orig(...a); if (E.isMultiplayer && !E.isDoubles) plan('p2', E.natpfPlanP2); return out; });
     wrap('_executeServeHit', function(orig, a, ...rest){
       const before = E.natpfLastServe, out = orig(a, ...rest), S = E.natpfLastServe;
-      if (S && S !== before) R.log('servizio', { chi: a === E.player ? 'giocatore' : E.isMultiplayer || E.versus?.active ? 'p2' : 'cpu', tipo: S.kind || null, qualita: r(S.q, 3), ritmo: r(S.pace, 3), tauMs: r(1000*S.tau, 1), x: r(S.x), profondita: r(S.depth), kmh: S.kmh ?? null, voto: S.grade || null });
+      // B18.2 (D11): contro la CPU anche il peso del servizio (natpf_skill.serveInfo): minaccia, strettezza e di quanto
+      // la CPU lo legge in ritardo. Serve a sapere quanti servizi forti e stretti fanno le persone vere
+      const W = a === E.player ? E.natpfSkill?.serve : null;
+      if (S && S !== before) R.log('servizio', { chi: a === E.player ? 'giocatore' : E.isMultiplayer || E.versus?.active ? 'p2' : 'cpu', tipo: S.kind || null, qualita: r(S.q, 3), ritmo: r(S.pace, 3), tauMs: r(1000*S.tau, 1), x: r(S.x), profondita: r(S.depth), kmh: S.kmh ?? null, voto: S.grade || null,
+        ...(W ? { minaccia: r(W.threat, 3), stretto: r(W.tight, 3), ritardoCpuMs: r(1000*W.late, 0) } : {}) });
       return out;
     });
     // chi: di chi è lo swing a vuoto (anche il Player 2 del 1v1, natpf_impact per attore); n: numero del colpo del telefono
