@@ -5,6 +5,8 @@
 //   node --import ./test/register.mjs scripts/audit/letture-gesti.mjs . <modo>
 //   modi: std (come i test), sweep (0,80–1,25× ogni 0,025), imitrates (prese di chi imita a 0,9/1,1/1,2×), seeds (semi 1–6),
 //         rates (velocità fuori campo 0,7–1,4× per i colpi lenti). V=1 stampa anche le letture giuste.
+// B18 (10/11, R2): std 796/796, sweep 1810/1824, rates 386/392, imitrates 1256/1260, seeds 576/576 (base d09357a: 788,
+// 1770, 386, 1220, 576; nessun errore nuovo, 84 risolti: tagliati a 0,8–0,9× letti palla corta).
 // Riferimento 2026-11-08.3: std 736/736, sweep 1658/1672, imitrates 1148/1152, seeds 528/528 (gli errori sono quelli già
 // presenti prima del B14: piatto con la presa a martello un poco più veloce letto top spin; volée 50/25 a 0,9× pallonetto).
 //   mode seeds : all stroke cards at rate 1, palmo+martello, seeds 1..6
@@ -16,8 +18,9 @@ const { readCard, judgeCard } = await import(root + '/test/pose-sensors.mjs');
 const { GESTURES } = await import(root + '/src/natpf/natpf_gesture_motion.js');
 const { gesturePose, gesturePlan } = GP;
 const source = grip => ({ pose: (id, t, hand) => gesturePose(id, t, { hand, grip }), plan: id => gesturePlan(id, { grip }) });
+// B18 (D13): il tagliato più lento resta un tagliato fino a 0,8×; palla corta ammessa solo se nettamente più lento
 const allowFor = (id, rate) => rate > 1 ? (['forehand', 'backhand', 'volley', 'cross', 'line'].includes(id) ? ['flat'] : null)
-  : rate < 1 ? ({ slice: ['drop'], flat: ['topspin'] })[id] || null : null;
+  : rate < 1 ? ({ slice: rate < .8 ? ['drop'] : null, flat: ['topspin'] })[id] || null : null;
 const fmt = r => r.kind === 'serve' ? `${r.events.length}g gap=${r.gap?.toFixed(3)} dPk=${r.dPeak?.toFixed(1)}`
   : (r.read.map(x => `${x.ev.natpf.shot}${x.ev.side ? '/' + x.ev.side : ''} v${x.ev.natpf.peak} r${x.ev.natpf.intent?.rise} pl${x.ev.natpf.intent?.plane}`).join(' + ') || '-') + ` dPk=${r.dPeak?.toFixed(1)}`;
 let n = 0, bad = 0; const out = [];

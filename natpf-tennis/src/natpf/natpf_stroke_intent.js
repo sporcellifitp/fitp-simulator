@@ -31,7 +31,8 @@ export const INTENT = Object.freeze({
                      // perché con la salita abituale 0,3 la soglia era 0,9
   topRise: .15,      // top spin: la testa sale almeno un poco
   sliceRise: -.22,   // tagliato: la testa scende
-  dropPower: .36,    // palla corta: tagliato morbido (forza fino a così) …
+  dropPower: .36,    // palla corta: tagliato morbido (forza fino a così) e verticale (|piano| fino a dropVerticalPlane) …
+  dropSoft: .28,     // … o nettamente morbido (forza fino a così, anche con lo swing orizzontale: B18, D13) …
   dropAngle: 48,     // … o corto (ampiezza dello swing fino a così, gradi), ma sempre un gesto vero (almeno dropMinAngle:
   dropMinAngle: 15,  // il 23/10 12 palle corte su 14 venivano da micro-movimenti di 3–32°)
   dropSoftRise: -.12, dropVerticalPlane: .55, // taglio verticale morbido anche con pronazione abituale
@@ -120,10 +121,14 @@ export function classifyStroke(shape, { power = .5, angle = null, ballHigh = nul
   if ((!Number.isFinite(angle) || angle >= I.dropMinAngle) && r <= I.dropSoftRise && P <= I.dropVerticalPlane && p <= I.dropPower)
     return { shot: 'drop', conf: Math.min(m(I.dropSoftRise - r, .3), m(I.dropPower - p, .2)), why: ['taglio verticale morbido', `discesa ${r.toFixed(2)}, forza ${p.toFixed(2)}`], byShape: true };
   if (r <= sliceAt){
-    // palla corta: morbido o corto, ma un gesto vero (senza ampiezza misurata vale com'era)
+    // palla corta: morbido o corto, ma un gesto vero (senza ampiezza misurata vale com'era). B18 (D13 del rapporto B16):
+    // morbido vuol dire nettamente morbido (fino a dropSoft), oppure morbido (fino a dropPower) e verticale (|piano| fino a
+    // dropVerticalPlane). Prima bastava dropPower: il tagliato del tutorial (swing orizzontale, |piano| 0,9) imitato a
+    // 0,8–0,9× diventava una palla corta (2 m invece di 8). Tra le due soglie il colpo resta un tagliato, più corto
     const real = !Number.isFinite(angle) || angle >= I.dropMinAngle;
-    const soft = real && p <= I.dropPower, short = real && Number.isFinite(angle) && angle <= I.dropAngle;
-    if (soft || short) return { shot: 'drop', conf: Math.min(m(sliceAt - r, .3), soft ? m(I.dropPower - p, .2) : m(I.dropAngle - angle, 20)), why: [`dall'alto in basso (${said})`, soft ? `morbido (${p.toFixed(2)})` : `corto (${Math.round(angle)}°)`] };
+    const softAt = P <= I.dropVerticalPlane ? I.dropPower : I.dropSoft;
+    const soft = real && p <= softAt, short = real && Number.isFinite(angle) && angle <= I.dropAngle;
+    if (soft || short) return { shot: 'drop', conf: Math.min(m(sliceAt - r, .3), soft ? m(softAt - p, .2) : m(I.dropAngle - angle, 20)), why: [`dall'alto in basso (${said})`, soft ? `morbido (${p.toFixed(2)})` : `corto (${Math.round(angle)}°)`] };
     return { shot: 'slice', conf: m(sliceAt - r, .3), why: [`dall'alto in basso (${said})`] };
   }
   if (rel >= I.topRise) return { shot: 'topspin', conf: m(rel - I.topRise, .3), why: [`dal basso verso l'alto (${said})`] };
