@@ -5,6 +5,7 @@
 // Cosa si azzera (resetVisitor), SENZA scollegare il telefono (niente link.forget, niente QR da rifare):
 //   - nickname (natpf_events: record, medaglie ed esperienza sono per nickname e per giorno, quindi spariscono anche quelli);
 //     quelli di oggi di «Ospite» (chi preme «Salta» nel passo del nome) si cancellano, così l'ospite dopo parte da zero;
+//   - colpi speciali imparati per le catene della Combo (natpf_events.forgetLearned), anche quelli di un ospite;
 //   - tutorial visto, anche il corto a 5 schede (NatpfPhoneRacket.forgetTutorial);
 //   - calibrazione, colpo tipico, prototipi dei colpi speciali, salita/piatto/mira abituali e riferimenti della forza
 //     (NatpfPhoneRacket.resetPlayer: il telefono ricalibra e azzera i colpi giocati, swing-detect effRef);
@@ -57,6 +58,9 @@ export function resetVisitor(ui){
   ui.events.nickname = '';
   // chi arriva e non scrive il nome gioca come «Ospite»: non eredita i record degli ospiti di prima (revisione B18)
   ui.events.forgetGuest?.();
+  // colpi speciali imparati (catene della Combo, R3): il setter del nickname li toglie solo se c'era un nome; un ospite senza
+  // nome li lasciava al visitatore dopo (unione B18.1)
+  ui.events.forgetLearned?.();
   if (route === 'split'){
     const S = ui.split;
     // nomi, caselle e targhette in campo (prima restavano le targhette di chi aveva giocato prima: revisione B18)

@@ -238,3 +238,16 @@ test('«Ospite»: chi non scrive il nome dopo «Nuovo giocatore» non eredita i 
   assert.equal(ui.events.record('rush'), null, 'l’ospite dopo parte da zero');
   assert.equal(ui.events.top('rush').length, 1, 'la classifica del giorno resta');
 });
+
+test('unione B18.1: «Nuovo giocatore» toglie anche i colpi speciali imparati da un ospite senza nome (catene della Combo)', async () => {
+  const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
+  const { ui, lobby } = w;
+  lobby.menu('challenges'); ui.events.nickname = 'x'; lobby.pickChallenge('rush'); ui.events.nickname = ''; lobby.go('connect'); lobby.next(); w.advance(1000);
+  ui.events.learnShot('lob'); ui.events.learnShot('drop');
+  assert.deepEqual(ui.events.learnedList.sort(), ['drop', 'lob'], 'l’ospite ha imparato pallonetto e palla corta');
+  ui.events.active.score = 100; ui.events.finish();
+  lobby._resultAction('new');
+  $('nick-cancel').click(); w.advance(1000);
+  assert.equal(ui.events.nickname, '');
+  assert.deepEqual(ui.events.learnedList, [], 'il visitatore dopo non eredita i colpi imparati');
+});
