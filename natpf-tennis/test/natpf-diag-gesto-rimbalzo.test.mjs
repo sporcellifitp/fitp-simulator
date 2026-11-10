@@ -54,6 +54,25 @@ test('dal rimbalzo al gesto e dal gesto all\'impatto previsto; solo palle dell\'
   assert.equal(gestureMeasures([]), null);
 });
 
+// Revisione B18: sul computer del Player 2 della sfida tra due computer le palle dell'avversario hanno lastHitter
+// 'player' e il piano è quello del P2: prima la misura contava le palle sbagliate (le sue)
+test('revisione B18: computer del Player 2 (ruolo dall’evento «partita»): palle del P1 e piano del P2', () => {
+  const ev = [
+    { t: 0, k: 'partita', n: 1, ruolo: 'p2' },
+    { t: 900, k: 'piano', chi: 'p2', tipo: 'ground', tc: .55 },
+    { t: 1000, k: 'rimbalzo', da: 'player', n: 1 },                              // palla del P1 nella metà del P2: conta
+    swing(1400, { picco: 1300 }),
+    { t: 2000, k: 'rimbalzo', da: 'opponent', n: 1 },                            // la sua palla: non conta
+    swing(2300),
+    { t: 3000, k: 'rimbalzo', da: 'player', n: 1 }, { t: 3100, k: 'colpo.gioco', chi: 'giocatore', esito: 'hit' }, swing(3200, { picco: 3150 }),
+  ];
+  assert.deepEqual(bounceToGesture(ev).map(x => x.dalRimbalzoMs), [300, 150]);
+  assert.equal(bounceToGesture(ev)[0].primaDellImpattoMs, 150);
+  // stessa registrazione senza ruolo (o ruolo p1): computer del P1, come prima
+  assert.deepEqual(bounceToGesture(ev.slice(1)).map(x => x.dalRimbalzoMs), [240], 'computer del P1: conta la palla «opponent»');
+  assert.deepEqual(bounceToGesture([{ t: 0, k: 'partita', ruolo: 'p1' }, ...ev.slice(1)]).map(x => x.dalRimbalzoMs), [240]);
+});
+
 test('rapporto: le misure stanno nelle metriche e nel riassunto in parole', () => {
   const ev = [...series(0, 12, .05), { t: 50000, k: 'piano', chi: 'giocatore', tipo: 'ground', tc: .6 }, { t: 50100, k: 'rimbalzo', da: 'opponent', n: 1 }, swing(50500, { picco: 50420 })];
   const m = computeMetrics(ev);

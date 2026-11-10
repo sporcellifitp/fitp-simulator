@@ -57,5 +57,11 @@ In fondo il totale: la variazione mediana tra le persone, quante superano 0,15 e
 - Servono telefoni con la forma del gesto (pagina del telefono di oggi); con la webcam queste misure non ci sono.
 - L'istante del gesto è quello del picco sul telefono riportato sull'orologio del computer: se l'orologio non è allineato
   (collegamento appena ripreso), i primi colpi possono essere spostati di qualche decina di ms.
+- Dove registrare: sul computer dello stand contro la CPU, o sul computer che ospita la sfida (Player 1). Dalla revisione
+  del 10/11 la registrazione scrive anche chi gioca su quel computer (`ruolo` nell'evento «partita») e sul computer del
+  Player 2 di una sfida tra due computer la misura del rimbalzo conta le palle del P1; questo caso però è provato solo
+  con eventi costruiti nei test, e l'impatto previsto («prima dell'impatto») lì può mancare. Nello stesso schermo la
+  misura vale per il Player 1 (metà sinistra). Le registrazioni fatte prima della revisione non hanno il ruolo e valgono
+  come computer del Player 1.
 - Nessuna di queste misure è ancora stata raccolta con persone vere: le prove sono solo con eventi costruiti nei test
   (`natpf-tennis/test/natpf-diag-gesto-rimbalzo.test.mjs`).

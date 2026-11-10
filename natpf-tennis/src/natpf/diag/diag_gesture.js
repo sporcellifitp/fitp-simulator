@@ -48,14 +48,20 @@ export function gestureSpread(events){
 }
 const groupSide = list => { const o = {}; for (const e of list){ const s = sideOf(e.lato); if (s) (o[s] ||= []).push(e); } return o; };
 
-// 2. dal rimbalzo al gesto, e dal gesto all'impatto previsto (piano del motore), per ogni palla dell'avversario
+// 2. dal rimbalzo al gesto, e dal gesto all'impatto previsto (piano del motore), per ogni palla dell'avversario.
+// Revisione B18: chi gioca qui viene dall'evento «partita» (ruolo, dal B18): sul computer del Player 2 della sfida tra due
+// computer le palle dell'avversario sono quelle del P1 (da 'player') e il piano è quello del P2 (chi 'p2'); prima si
+// contavano le palle sbagliate. Le registrazioni senza ruolo valgono come computer del P1 (host o contro la CPU)
 export function bounceToGesture(events){
   const out = [];
-  let b = null, plan = null;
+  let b = null, plan = null, p2 = false;
   for (const e of events){
-    if (e.k === 'rimbalzo'){ b = (e.da === 'opponent' || e.da === 'p2') && (e.n == null || e.n <= 1) ? e : null; continue; }
-    if (e.k === 'piano' && e.chi === 'giocatore'){ plan = finite(e.tc) ? { at: e.t + 1000*e.tc, tipo: e.tipo } : null; continue; }
-    if (e.k === 'punto' || (e.k === 'colpo.gioco' && e.chi && e.chi !== 'giocatore')){ b = null; continue; }
+    if (e.k === 'partita'){ p2 = e.ruolo === 'p2'; b = plan = null; continue; }
+    const me = p2 ? 'p2' : 'giocatore';
+    if (e.k === 'rimbalzo'){ b = (p2 ? e.da === 'player' : (e.da === 'opponent' || e.da === 'p2')) && (e.n == null || e.n <= 1) ? e : null; continue; }
+    if (e.k === 'piano' && e.chi === me){ plan = finite(e.tc) ? { at: e.t + 1000*e.tc, tipo: e.tipo } : null; continue; }
+    // colpo di un altro (sul computer del P2 il suo colpo è sia «giocatore», dall'esito, sia «p2», dalla palla)
+    if (e.k === 'punto' || (e.k === 'colpo.gioco' && e.chi && e.chi !== 'giocatore' && e.chi !== me)){ b = null; continue; }
     if (b && e.k === 'tel.colpo' && !e.scartato){
       const at = finite(e.picco) ? e.picco : e.t, gap = at - b.t;
       if (gap >= -200 && gap <= SPREAD.maxGapMs) out.push({ dalRimbalzoMs: r0(gap), primaDellImpattoMs: plan && plan.tipo === 'ground' ? r0(plan.at - at) : null, lato: sideOf(e.lato) });

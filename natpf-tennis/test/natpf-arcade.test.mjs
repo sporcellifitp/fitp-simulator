@@ -103,6 +103,12 @@ test('B18 Combo nel motore: dopo due errori sullo stesso passo il passo cambia; 
   assert.ok(ev.learned.has('lob'));
   ev.forgetLearned(); assert.equal(ev.learned.size, 0, 'visitatore nuovo: niente colpi imparati');
   ev.abort();
+  // revisione B18: anche senza «Nuovo giocatore» un nickname diverso (o dimenticato) toglie i colpi imparati; il primo no
+  ev.nickname = ''; ev.learnShot('lob'); ev.nickname = 'Ada';
+  assert.ok(ev.learned.has('lob'), 'chi si è allenato senza nickname e poi ne sceglie uno è la stessa persona');
+  ev.nickname = 'Ada'; assert.ok(ev.learned.has('lob'), 'stesso nickname');
+  ev.nickname = 'Bea'; assert.equal(ev.learned.size, 0, 'nickname nuovo: visitatore nuovo');
+  ev.learnShot('drop'); ev.nickname = ''; assert.equal(ev.learned.size, 0, 'stand di nuovo libero');
 });
 
 test('Combo Challenge: catene senza ripetizioni, colpi speciali solo con lo smartphone, controllo del passo', () => {

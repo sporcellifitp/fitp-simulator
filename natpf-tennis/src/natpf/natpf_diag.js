@@ -19,7 +19,7 @@ import { DIAG_PROTOCOLS, protocolDrills, expectedFor } from './diag/diag_protoco
 import { writeDisplayLagMs } from './natpf_phone_racket.js';
 import { aimLevelLabel } from './natpf_aim_level.js';
 import { gestureMeasures, gestureMeasureLines } from './diag/diag_gesture.js';
-const MEASURE_KINDS = new Set(['tel.colpo', 'rimbalzo', 'piano', 'punto', 'colpo.gioco']);
+const MEASURE_KINDS = new Set(['tel.colpo', 'rimbalzo', 'piano', 'punto', 'colpo.gioco', 'partita']);
 
 const $ = id => document.getElementById(id);
 const r1 = v => (Number.isFinite(v) ? Math.round(v) : '–');

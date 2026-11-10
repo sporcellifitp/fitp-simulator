@@ -1724,7 +1724,7 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
 
 /* B18: Combo, animazione del colpo chiesto (incrociato, lungolinea, colpi speciali già imparati) in alto a destra, sotto il
    pulsante della pausa: chi arriva per la prima volta vede il gesto mentre la palla arriva (natpf_events.paintDemo) */
-.natpf-challenge-demo { position: fixed; top: calc(var(--gutter) + max(56px, 8cqh)); right: var(--gutter); z-index: 30; display: grid; justify-items: center; gap: 4px; padding: 8px 8px 10px; border-radius: var(--r-l); background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--text); pointer-events: none; }
+.natpf-challenge-demo { position: fixed; top: calc(var(--gutter) + max(56px, 8cqh)); right: var(--gutter); z-index: 30; display: grid; justify-items: center; gap: max(4px, 0.6cqh); padding: max(8px, 1.1cqh) max(8px, 1.1cqh) max(10px, 1.4cqh); border-radius: var(--r-l); background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--text); pointer-events: none; }
 .natpf-challenge-demo.hidden { display: none; }
 .natpf-challenge-demo .cd-stage { width: clamp(120px, 26cqh, 260px); height: clamp(120px, 26cqh, 260px); }
 .natpf-challenge-demo .cd-stage canvas { width: 100% !important; height: 100% !important; }

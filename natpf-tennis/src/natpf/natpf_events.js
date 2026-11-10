@@ -79,7 +79,10 @@ export class NatpfEvents {
     engine._awardPoint = (winner, why = '') => this.active ? this._ballOver(winner, why, award) : award(winner, why);
   }
   get nickname(){ try { return sessionStorage.getItem(NICK_KEY) || ''; } catch { return this._nick || ''; } }
-  set nickname(v){ this._nick = v; try { v ? sessionStorage.setItem(NICK_KEY, v) : sessionStorage.removeItem(NICK_KEY); } catch {} }
+  // revisione B18: nickname cambiato o dimenticato (stand di nuovo libero) = visitatore nuovo: via i colpi speciali
+  // imparati da quello prima (prima restavano per tutta la sessione della scheda). Il primo nickname no: chi si è allenato
+  // senza nickname e poi ne sceglie uno è la stessa persona
+  set nickname(v){ const prev = this.nickname; this._nick = v; try { v ? sessionStorage.setItem(NICK_KEY, v) : sessionStorage.removeItem(NICK_KEY); } catch {} if (prev && v !== prev) this.forgetLearned(); }
   _read(){ try { return freshBoard(JSON.parse(localStorage.getItem(BOARD_KEY) || 'null')); } catch { return freshBoard(null); } }
   _write(){ try { localStorage.setItem(BOARD_KEY, JSON.stringify(this.board)); } catch {} }
   _readRecords(){ try { return JSON.parse(localStorage.getItem(RECORDS_KEY) || '{}') || {}; } catch { return {}; } }
