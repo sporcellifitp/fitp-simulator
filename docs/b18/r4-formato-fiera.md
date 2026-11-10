@@ -12,7 +12,9 @@ Due cose cambiano per tutti, perché riguardano il servizio della CPU (punto 17)
 
 - il tabellone dell'arena mostra la **velocità vera** del servizio della CPU. Prima era sempre 194 km/h. Ora a Casual
   va da 185 a 199 km/h, a Pro da 216 a 239 km/h, a Leggenda da 191 a 235 km/h (40 servizi per livello);
-- il servizio della CPU **non fa più tremare la telecamera** come un colpo eccezionale. La scia e le stelline restano.
+- il servizio della CPU **non sembra più un colpo eccezionale**: niente tremolio della telecamera, niente stelline al
+  colpo e in volo, scia normale invece di quella del colpo potente (dopo la revisione; prima restavano scia e stelline).
+  Per il gioco non cambia niente: la risposta della CPU e del giocatore tratta il servizio come prima.
 
 **Con l'opzione accesa:**
 
@@ -38,8 +40,10 @@ Due cose cambiano per tutti, perché riguardano il servizio della CPU (punto 17)
   - nella sfida tra due computer il Player 2 sente la stessa frase.
 - **Partite più lunghe.** Con l'opzione accesa la partita più lunga è **al meglio di 3**:
   - nella pagina «Partita» → «Altre impostazioni» il pulsante «Al meglio di 5» sparisce;
-  - se era già scelto, si passa da soli a «Al meglio di 3»;
-  - il motore fa lo stesso controllo, anche se il 5 arrivasse da un'altra strada.
+  - se era già scelto, si passa da soli a «Al meglio di 3»; spegnendo l'opzione il 5 ricompare e torna selezionato,
+    se nel frattempo nessuno ha scelto un'altra durata;
+  - il motore fa lo stesso controllo, anche se il 5 arrivasse da un'altra strada, senza cancellare la scelta del menu:
+    spenta l'opzione, anche «Rigioca» della schermata finale torna al meglio di 5.
   
   Con l'opzione spenta «Al meglio di 5» resta per tutti. Il motivo è nelle misure qui sotto: anche con il punto
   decisivo, il meglio di 5 arriva a 8 minuti al p90 e a 10 al massimo.
@@ -57,8 +61,10 @@ Due cose cambiano per tutti, perché riguardano il servizio della CPU (punto 17)
 - anche la ripresa dopo un ricaricamento dell'host salva la regola. Se la regola nel frattempo è cambiata, si riparte
   da 0-0, senza mescolare le regole.
 
-La regola si prova con l'unità e nel browser solo da un computer. Una partita P2P vera con la regola accesa non l'ho
-provata: la prova `natpf-1v1-p2p` gira con la regola spenta (vedi «Non verificato»).
+Dopo la revisione c'è anche una prova nel browser con due sessioni vere collegate con WebRTC
+(`tools/e2e/natpf-formato-fiera-p2p.mjs`): l'host con `?formato=fiera`, il P2 senza nessuna scelta salvata. Sul
+computer del P2 la pallina del servizio passa H G G H H G G come sull'host, sul 40-40 c'è «Punto decisivo» e la voce
+dice «Match Point». Persone vere su due computer veri e la LAN restano non provate (vedi «Non verificato»).
 
 **Doppio 2v2.** La regola vale uguale: le due squadre si passano il servizio. Batte sempre il giocatore della squadra,
 come prima: i compagni guidati dalla CPU non battono.
@@ -76,8 +82,11 @@ Dal pannello dello stand (riservato all'addetto):
 3. Clicca **«Chiudi»**. Vale **dalla prossima partita** e **resta salvata** anche chiudendo il programma.
 4. Per spegnerla: stesso riquadro, un altro clic, torna «No».
 
-Senza aprire il pannello, si può usare l'indirizzo (versione web o LAN). Così vale solo per quella pagina e non
-cambia la scelta salvata:
+**Nel programma Windows** (l'installer, il pacchetto che si usa all'evento) l'indirizzo non si può cambiare: lì vale
+solo il pannello dello stand (Ctrl + Maiusc + K, passi 1–4 qui sopra).
+
+Senza aprire il pannello, nella versione web (zip Cloudflare) o LAN si può usare l'indirizzo. Così vale solo per quella
+pagina e non cambia la scelta salvata:
 
 - `…/?formato=fiera` la accende;
 - `…/?formato=classico` la spegne;
@@ -127,8 +136,9 @@ Chi gioca vede comunque che è accesa:
   - `natpf-tennis/scripts/audit/formato-fiera.mjs` (nuovo);
   - `natpf-tennis/scripts/audit/rally-balance.mjs`: aggancio facoltativo `setup(e)` prima della partita.
 - Prove:
-  - `natpf-tennis/test/natpf-formato-fiera.test.mjs` (nuovo, 16 test);
-  - `tools/e2e/natpf-formato-fiera.mjs` (nuovo, 20 verifiche).
+  - `natpf-tennis/test/natpf-formato-fiera.test.mjs` (nuovo, 20 test dopo la revisione);
+  - `tools/e2e/natpf-formato-fiera.mjs` (nuovo, 21 verifiche dopo la revisione);
+  - `tools/e2e/natpf-formato-fiera-p2p.mjs` (nuovo con la revisione, 9 verifiche: sfida tra due computer).
 
 ## Misure prima e dopo
 
@@ -223,7 +233,7 @@ gioca come prima, e il banco della Leggenda la usa spenta.
     L'ho corretto mettendo «Formato in fiera» prima della mira;
   - il secondo era `natpf-lan-letture`, una prova a tempo. È fallita mentre girava insieme alle prove nel browser, e
     nel giro finale passa.
-- `node --test test/natpf-formato-fiera.test.mjs`: 16 su 16. Coprono:
+- `node --test test/natpf-formato-fiera.test.mjs`: 16 su 16 (20 su 20 dopo la revisione, vedi «Revisione»). Coprono:
   - opzione e indirizzo;
   - sequenza A B B A A B B e regola del game, accesa e spenta;
   - battitore dopo il punto;
@@ -262,15 +272,67 @@ gioca come prima, e il banco della Leggenda la usa spenta.
 - **Persone vere, telefono vero, PC Windows dell'evento, ledwall.** Niente di questo è provato. Il servizio del P2
   nello stesso schermo è provato con gli ingressi del secondo telefono nel motore, non con un telefono simulato
   completo né con uno vero.
-- **Sfida tra due computer con l'opzione accesa.** Ci sono:
-  - la regola, che passa nello snapshot;
-  - la prova di unità sul computer del P2 (`score.fair` resta spento, decide l'host);
-  - la ripresa della sfida.
-  
-  Una partita P2P o LAN vera tra due browser con l'opzione accesa no. `natpf-1v1-p2p` gira con l'opzione spenta.
+- **Sfida tra due computer con l'opzione accesa.** Dopo la revisione è provata nel browser con due sessioni vere
+  collegate con WebRTC sullo stesso computer (`natpf-formato-fiera-p2p.mjs`, punti assegnati dal motore dell'host).
+  Non provati: due computer veri, la LAN (server `tools/lan`) con l'opzione accesa, e una partita giocata davvero
+  scambio per scambio. `natpf-1v1-p2p` gira con l'opzione spenta.
 - **Voce.** Le frasi sono clip esistenti scelte dal motore, provate con le funzioni (`callout`). Non le ho ascoltate in
   un browser con l'audio. Non c'è una frase «deciding point»: per averla bisognerebbe generare una clip nuova con la
   stessa voce (`public/voce/LEGGIMI.txt`).
 - **Durate.** Sono del gioco simulato: le persone vere fanno pause, sbagliano il lancio, guardano il telefono.
 - **Il colpo del servizio** con l'opzione accesa e la webcam (P2 con la webcam nello stesso schermo) non è provato. La
   regola però non dipende dal tipo di racchetta.
+
+## Revisione
+
+Il revisore indipendente non ha trovato bloccanti. Dei sei minori ne ho corretti cinque; il quarto (telefono simulato
+completo del P2 nello stesso schermo) resta facoltativo e dichiarato.
+
+1. **La scelta «Al meglio di 5» veniva sovrascritta** (`game_engine.js`, `natpf_fair_format.js`). `startNewMatch`
+   scriveva 2 al posto di 3 in `matchConfig.gamesToWin`; spenta l'opzione, «Rigioca» restava al meglio di 3.
+   Ora la scelta del menu sta in `matchConfig.gamesToWinChosen` e `matchConfig.gamesToWin` è calcolato a ogni lettura
+   dalla scelta e dal formato della partita (`installGamesToWin`, idempotente: la chiamano il costruttore e
+   `startNewMatch`, così vale anche nel motore delle simulazioni). Chi scrive `gamesToWin` (menu, minigiochi, snapshot
+   dell'host) scrive la scelta; chi lo legge (tabellone, fine partita, snapshot, ripresa) ha il valore che vale.
+   Test: «Rigioca» dopo aver spento l'opzione torna a 3 game da vincere; il P2 della sfida tiene il valore dell'host.
+2. **La pagina «Partita» perdeva il 5** (`natpf_lobby.js`). Ora ricorda che il 5 l'aveva scelto lo staff e lo
+   riseleziona quando l'opzione si spegne, se nel frattempo nessuno ha scelto un'altra durata (funzione pura
+   `fairLengthStep`, provata da sola e nel browser in `natpf-formato-fiera.mjs`).
+3. **Mancava la prova nel browser della sfida tra due computer con l'opzione accesa.** Nuova prova
+   `tools/e2e/natpf-formato-fiera-p2p.mjs` (separata da `natpf-1v1-p2p`, che è già lunga e gira con l'opzione spenta):
+   host con `?formato=fiera`, P2 dal link d'invito in un browser senza scelte salvate. Controlla sul P2: formato e
+   1 game arrivati dall'host, pallina del servizio H G G H H G G (uguale sull'host), punteggio uguale a ogni punto,
+   «40» «40» con «Punto decisivo», voce «Match Point», fine partita sui due computer. Nota: la voce del punto
+   («40 - 30», «Deuce») nella prova non arriva al P2 perché i passi della fisica fatti a mano mettono il messaggio del
+   punto e quello del servizio nello stesso snapshot e il P2 dice solo l'ultimo; giocando tra i due passa più di un
+   secondo. Non l'ho provato giocando in tempo reale.
+4. **Servizio del P2 nello stesso schermo provato con gli ingressi del motore** e non con il telefono simulato
+   completo: non corretto (facoltativo), resta in «Non verificato».
+5. **«Come si attiva» non diceva del programma Windows.** Aggiunta la riga: nel programma Windows vale solo il pannello
+   dello stand.
+6. **Stelline e scia «POWER» sul servizio della CPU.** Tolte anche queste (prima solo il tremolio). Il servizio della
+   CPU resta «potente» per il gioco (`ball.isPowerShot`, che la risposta usa), cambia solo l'effetto. Le scintille in
+   volo si saltano dopo il sorteggio (`Math.random` resta chiamato), così la sequenza casuale non cambia; nel motore
+   delle simulazioni gli effetti non esistono, quindi le misure non cambiano. Test: niente stelline né scintille sul
+   servizio della CPU, scia normale; negli altri casi (`_natpfQuietCpuServe`) restano.
+
+### Verifiche dopo la revisione
+
+- `cd natpf-tennis && npm test`: **1010 su 1011 superati, 1 saltato** (lo stesso di prima), 0 falliti.
+- `node --test test/natpf-formato-fiera.test.mjs`: 20 su 20 (4 nuovi: scelta del menu separata, «Rigioca» dopo lo
+  spegnimento, `fairLengthStep`, effetti del servizio della CPU).
+- `node --test tools/test/*.test.mjs` (sito): 200/200.
+- `cd natpf-tennis && npm run build`: ok.
+- `npm run audit:legend`: tutti i criteri rispettati.
+- Banco `scripts/audit/formato-fiera.mjs --points=400 --seeds=7,11,23,31,47`: numeri **identici** alla tabella delle
+  misure (per esempio Pro amatore 1 game classico 91/162/422 s, fiera 89/129/175 s; Leggenda tennista classico
+  110/172/353 s, fiera 106/142/172 s). La revisione non cambia la simulazione.
+- Prove nel browser (Chromium senza GPU), ognuna con una porta sua (`GAME_PORT`, `PEER_PORT`):
+  - `natpf-formato-fiera` **21/21** (nuova verifica: il 5 scelto diventa 3 e torna 5 allo spegnere; la CPU ha
+    servito a 187, 198 e 188 km/h);
+  - `natpf-formato-fiera-p2p` **9/9**;
+  - `natpf-tabellone` 42/42, `natpf-split-ready` 34/34, `natpf-menu` 28/28, `natpf-1v1-p2p` 39/39 (dopo la build).
+- Nota per chi rilancia le prove: con più rami al lavoro sulla stessa macchina la porta di base di una prova può essere
+  già occupata dal server di un'altra worktree, e la prova parla con il codice sbagliato (qui
+  `natpf-formato-fiera` falliva al primo passo, «Formato in fiera» assente dal pannello, finché non ho dato una porta
+  libera con `GAME_PORT=3487`). Con una porta libera passa.

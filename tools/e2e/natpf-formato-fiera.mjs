@@ -49,6 +49,9 @@ try {
   await p.evaluate(() => __natpfTennis.natpfUi.intro?.skip?.());
   await p.evaluate(() => { try { localStorage.removeItem('natpf-tennis.formatoFiera'); } catch {} __natpfTennis.natpfUi.lobby.go('menu'); });
   await p.waitForTimeout(400);
+  // revisione R4: lo staff aveva scelto «Al meglio di 5» prima di accendere l'opzione (si controlla che torni allo spegnerla)
+  await p.evaluate(() => { document.querySelector('#match-length-group [data-games="5"]').click(); });
+  await p.waitForTimeout(400);
 
   // 1. pannello dello stand: spenta di base, un clic la accende, resta salvata
   await p.keyboard.press('Control+Shift+KeyK');
@@ -70,6 +73,15 @@ try {
   const page2 = await p.evaluate(() => ({ five: getComputedStyle(document.querySelector('#match-length-group [data-games="5"]')).display, sum: document.getElementById('match-more-sum')?.textContent }));
   check('pagina «Partita»: «Al meglio di 5» nascosto, riassunto «… · formato fiera · …»', page2.five === 'none' && /formato fiera/.test(page2.sum), fmt(page2));
   await p.screenshot({ path: `${SP}/formato-fiera-partita.png` });
+  // revisione R4: il 5 scelto prima è diventato 3 (al meglio di 3 sul motore); spenta l'opzione il 5 torna selezionato
+  const sel = () => p.evaluate(() => ({ sel: document.querySelector('#match-length-group .selected')?.dataset.games, games: __natpfTennis.matchConfig.gamesToWin, five: getComputedStyle(document.querySelector('#match-length-group [data-games="5"]')).display }));
+  const asThree = await sel();
+  await p.evaluate(() => localStorage.setItem('natpf-tennis.formatoFiera', '0'));
+  const back = await until(p, () => document.querySelector('#match-length-group .selected')?.dataset.games === '5', null, 3000);
+  const asFive = await sel();
+  check('pagina «Partita»: il «Al meglio di 5» scelto prima diventa 3 con l\'opzione accesa e torna 5 quando si spegne', asThree.sel === '3' && asThree.games === 2 && back && asFive.sel === '5' && asFive.games === 3 && asFive.five !== 'none', fmt({ asThree, asFive }));
+  await p.evaluate(() => localStorage.setItem('natpf-tennis.formatoFiera', '1'));
+  await until(p, () => document.querySelector('#match-length-group .selected')?.dataset.games === '3', null, 3000);
   await p.evaluate(() => { __natpfTennis.natpfUi.lobby.matchMore = false; document.querySelector('#match-length-group [data-games="1"]').click(); });
 
   // 3. singolo contro la CPU, partita a 1 game, avviata da «Gioca»
