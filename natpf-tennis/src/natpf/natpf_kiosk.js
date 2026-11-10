@@ -70,6 +70,10 @@ export class NatpfKiosk {
     if (ui.onboarding?.isOpen) ui.onboarding.close();
     for (const m of document.querySelectorAll('.natpf-sheet-backdrop:not(#natpf-staff)')) m.classList.add('hidden');
     ui.events.nickname = '';
+    // come «Nuovo giocatore» (natpf_new_player.resetVisitor): niente record degli ospiti di prima né colpi speciali
+    // imparati da un ospite senza nome (il setter del nickname li toglie solo se c'era un nome; revisione dell'insieme B18.1)
+    ui.events.forgetGuest?.();
+    ui.events.forgetLearned?.();
     // il visitatore successivo rivede il tutorial prima di calibrare (gioco singolo e stesso schermo)
     // (il tutorial visto è segnato sul telefono, per abbinamento: si dimentica anche con lo stesso telefono)
     if (ui.split) ui.split.closeTutorials?.();

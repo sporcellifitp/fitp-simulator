@@ -251,3 +251,18 @@ test('unione B18.1: «Nuovo giocatore» toglie anche i colpi speciali imparati d
   assert.equal(ui.events.nickname, '');
   assert.deepEqual(ui.events.learnedList, [], 'il visitatore dopo non eredita i colpi imparati');
 });
+
+test('revisione dell’insieme B18.1: il reset del chiosco (stand libero dopo l’inattività) toglie anche colpi imparati e record di un ospite senza nome', async () => {
+  const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
+  const { ui, lobby } = w;
+  lobby.menu('challenges'); ui.events.nickname = 'x'; lobby.pickChallenge('rush'); ui.events.nickname = ''; lobby.go('connect'); lobby.next(); w.advance(1000);
+  ui.events.learnShot('lob'); ui.events.learnShot('drop');
+  ui.events.active.score = 250; ui.events.finish();
+  assert.equal(ui.events.record('rush').best, 250, 'record dell’ospite');
+  assert.deepEqual(ui.events.learnedList.sort(), ['drop', 'lob']);
+  ui.kiosk.reset();
+  assert.equal(ui.events.nickname, '');
+  assert.deepEqual(ui.events.learnedList, [], 'il visitatore dopo non trova le catene con i colpi dell’ospite');
+  assert.equal(ui.events.record('rush'), null, 'né i suoi record');
+  assert.equal(ui.events.top('rush').length, 1, 'la classifica del giorno resta');
+});

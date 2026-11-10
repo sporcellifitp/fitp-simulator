@@ -4,7 +4,7 @@
 // più alto, «Colpisci quando la palla è in alto» dopo un lancio a vuoto (anche sul telefono), e si rilancia.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { serveCoachView, serveCoachStep, NatpfServeCoach, SERVE_COACH } from '../src/natpf/natpf_serve_coach.js';
+import { serveCoachView, serveCoachStep, NatpfServeCoach, SERVE_COACH, servedBy } from '../src/natpf/natpf_serve_coach.js';
 import { NatpfPhoneRacket } from '../src/natpf/natpf_phone_racket.js';
 import { eventFlash } from '../../site/js/tennis/phone-screen.js';
 
@@ -41,11 +41,11 @@ test('stato: servizi riusciti, lancio a vuoto dal segnale del motore, tempo ferm
   s = serveCoachStep(s, M({ phase: 'SERVE_TOSS' }), .1); assert.equal(s.idle, 0);
   s = serveCoachStep(s, M({ now: 3, tossMisses: 1 }), .1); assert.equal(s.missed, true); assert.equal(s.missAt, 3);
   s = serveCoachStep(s, M({ phase: 'SERVE_TOSS', tossMisses: 1 }), .1); assert.equal(s.missed, false);
-  s = serveCoachStep(s, M({ phase: 'RALLY', tossMisses: 1 }), .1); assert.equal(s.served, 1); assert.equal(s.missAt, null);
+  s = serveCoachStep(s, M({ phase: 'RALLY', tossMisses: 1 }), .1); assert.equal(servedBy(s), 1); assert.equal(s.missAt, null);
   s = serveCoachStep(s, M({ phase: 'POINT_OVER', tossMisses: 1 }), .1);
-  s = serveCoachStep(s, M({ tossMisses: 1 }), .1); assert.equal(s.served, 1, 'stessa partita: si continua a contare');
+  s = serveCoachStep(s, M({ tossMisses: 1 }), .1); assert.equal(servedBy(s), 1, 'stessa partita: si continua a contare');
   s = serveCoachStep(s, M({ phase: 'MATCH_OVER', tossMisses: 1 }), .1);
-  s = serveCoachStep(s, M({ match: 2, tossMisses: 1 }), .1); assert.equal(s.served, 0, 'partita nuova: istruzioni piene');
+  s = serveCoachStep(s, M({ match: 2, tossMisses: 1 }), .1); assert.equal(servedBy(s), 0, 'partita nuova: istruzioni piene');
   // il servizio della CPU che ricade non conta
   s = serveCoachStep({ ...s, phase: 'SERVE_TOSS' }, M({ mine: false, match: 2, tossMisses: 2 }), .1); assert.equal(s.missed, false);
   // in pausa il tempo fermo non cresce
@@ -58,14 +58,14 @@ test('stato: servizi riusciti, lancio a vuoto dal segnale del motore, tempo ferm
 test('revisione B18: partita ricominciata con la palla in aria non è un lancio a vuoto; seconda palla a 0-0 non riparte da capo', () => {
   let s = serveCoachStep({ phase: null }, G({ match: 1, tossMisses: 0, fresh: true }), .1);
   s = serveCoachStep(s, G({ phase: 'SERVE_TOSS', match: 1, tossMisses: 0, fresh: true }), .1);
-  s = serveCoachStep(s, G({ phase: 'RALLY', match: 1, tossMisses: 0, fresh: true }), .1); assert.equal(s.served, 1);
+  s = serveCoachStep(s, G({ phase: 'RALLY', match: 1, tossMisses: 0, fresh: true }), .1); assert.equal(servedBy(s), 1);
   // primo servizio fallo a 0-0: si torna al servizio con il punteggio ancora a zero
   s = serveCoachStep(s, G({ phase: 'POINT_OVER', match: 1, tossMisses: 0, fresh: true }), .1);
-  s = serveCoachStep(s, G({ match: 1, tossMisses: 0, fresh: true }), .1); assert.equal(s.served, 1, 'prima tornava a 0');
+  s = serveCoachStep(s, G({ match: 1, tossMisses: 0, fresh: true }), .1); assert.equal(servedBy(s), 1, 'prima tornava a 0');
   // lancio, poi «Nuova partita» dal menu della pausa con la palla in aria: contatore delle partite cambiato, nessun segnale
   s = serveCoachStep(s, G({ phase: 'SERVE_TOSS', match: 1, tossMisses: 0, fresh: true, ballY: 2.6, ballVy: 1 }), .1);
   s = serveCoachStep(s, G({ match: 2, tossMisses: 0, fresh: true }), .1);
-  assert.equal(s.missed, false, 'prima «lancio a vuoto»'); assert.equal(s.missAt, null); assert.equal(s.served, 0, 'partita nuova');
+  assert.equal(s.missed, false, 'prima «lancio a vuoto»'); assert.equal(s.missAt, null); assert.equal(servedBy(s), 0, 'partita nuova');
   // il segnale del motore senza cambio di fase (palla rimessa in mano): conta solo con il passaggio di fase
   s = serveCoachStep(s, G({ phase: 'SERVE_TOSS', match: 2, tossMisses: 0 }), .1);
   s = serveCoachStep(s, G({ match: 2, tossMisses: 1, now: 5 }), .1); assert.equal(s.missed, true); assert.equal(s.missAt, 5);
@@ -79,7 +79,7 @@ test('revisione B18: Player 2 sull’altro computer (niente segnali del motore):
   s = serveCoachStep(s, G({ phase: 'SERVE_TOSS', ballY: 2.8, ballVy: -1 }), .1);
   s = serveCoachStep(s, G({ now: 9 }), .1); assert.equal(s.missed, false);
   // senza contatore, la partita nuova si riconosce dal punteggio a zero arrivando da fuori dal punto
-  s = serveCoachStep({ ...s, served: 2, phase: 'MATCH_OVER' }, G({ fresh: true }), .1); assert.equal(s.served, 0);
+  s = serveCoachStep({ ...s, served: 2, phase: 'MATCH_OVER' }, G({ fresh: true }), .1); assert.equal(servedBy(s), 0);
 });
 test('revisione B18: gravità del lancio come il motore; stesso schermo con la webcam per due: «Alza la mano»', () => {
   assert.equal(SERVE_COACH.gravity, 9.15);
@@ -131,7 +131,28 @@ test('motore: dopo un lancio a vuoto la palla torna in mano, messaggio sullo sch
     run(1.4, () => e.ball.vel.y <= .5);
     e._handleUserSwingInput({ source: 'audit', speed: 1.2, dirX: 0 });
     assert.ok(run(1.5, () => e.phase === 'RALLY'), `servizio partito: ${e.phase}`);
-    assert.equal(coach.state.served, 1);
+    assert.equal(servedBy(coach.state), 1);
     assert.equal(views.at(-1), null, 'durante lo scambio niente istruzioni');
   } finally { Math.random = real; }
+});
+
+test('stesso schermo: ogni giocatore ha il suo conto dei servizi con le istruzioni (revisione dell\'insieme B18.1)', () => {
+  const G2 = o => ({ phase: 'SERVE_STANCE', mine: true, split: true, controller: 'phone', match: 1, tossMisses: 0, ...o });
+  let s = serveCoachStep({ phase: null }, G2({ server: 'player' }), .1);
+  // il P1 batte i due servizi del primo game (formato classico)
+  for (let i = 0; i < SERVE_COACH.firstServes; i++){
+    s = serveCoachStep(s, G2({ phase: 'SERVE_TOSS', server: 'player' }), .1);
+    s = serveCoachStep(s, G2({ phase: 'RALLY', server: 'player' }), .1);
+    s = serveCoachStep(s, G2({ phase: 'SERVE_STANCE', server: 'player' }), .1);
+  }
+  assert.equal(servedBy(s, 'player'), SERVE_COACH.firstServes);
+  assert.equal(serveCoachView(s, G2({ server: 'player' })), null, 'il P1 ha già visto le istruzioni piene');
+  // secondo game: batte il P2 per la prima volta e vede «Alza il telefono…» (prima no: il conto era uno solo)
+  assert.equal(servedBy(s, 'opponent'), 0);
+  assert.equal(serveCoachView(s, G2({ server: 'opponent' }))?.state, 'toss');
+  s = serveCoachStep(s, G2({ phase: 'SERVE_TOSS', server: 'opponent' }), .1);
+  s = serveCoachStep(s, G2({ phase: 'RALLY', server: 'opponent' }), .1);
+  assert.equal(servedBy(s, 'opponent'), 1); assert.equal(servedBy(s, 'player'), SERVE_COACH.firstServes);
+  // il numero semplice di prima vale ancora (un solo giocatore locale)
+  assert.equal(servedBy({ served: 3 }, 'opponent'), 3);
 });

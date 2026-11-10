@@ -24,9 +24,16 @@ const TOSS = { phone: 'Alza il telefono: lanci la palla', webcam: 'Alza la mano:
 // Testo da mostrare (funzione pura, per i test). s: stato del coach; g: fotografia del gioco
 //   g.phase, g.mine (chi serve gioca da questo computer), g.controller, g.tossT (s al punto più alto, + in salita),
 //   g.idle (s fermi al servizio). Restituisce null (niente) o { state: 'toss'|'wait'|'go'|'miss', big, sub }
+// servizi riusciti di chi serve adesso: nello stesso schermo ognuno ha il suo conto (revisione dell'insieme B18.1: prima un
+// conto solo, e il P2 che batteva nel secondo game non vedeva mai le istruzioni piene). s.served: numero (un solo
+// giocatore locale, compatibile) o { player, opponent }
+export function servedBy(s = {}, server = 'player'){
+  const v = s.served;
+  return typeof v === 'number' ? v : (v?.[server === 'opponent' ? 'opponent' : 'player'] || 0);
+}
 export function serveCoachView(s = {}, g = {}){
   if (!g.mine || !['SERVE_STANCE', 'SERVE_TOSS'].includes(g.phase)) return null;
-  const learning = (s.served || 0) < SERVE_COACH.firstServes, missed = s.missAt != null, toss = TOSS[g.controller] || TOSS.phone;
+  const learning = servedBy(s, g.server) < SERVE_COACH.firstServes, missed = s.missAt != null, toss = TOSS[g.controller] || TOSS.phone;
   if (g.phase === 'SERVE_STANCE'){
     if (missed && (g.now ?? 0) - s.missAt <= SERVE_COACH.missS) return { state: 'miss', big: 'Colpisci quando la palla è in alto', sub: `Lancio a vuoto: riprova. ${toss}` };
     if (learning || missed || (g.idle ?? 0) >= SERVE_COACH.idleS) return { state: 'toss', big: toss, sub: 'Poi colpisci quando la palla è in alto' };
@@ -49,13 +56,13 @@ export function serveCoachView(s = {}, g = {}){
 // (prima anche la seconda palla dopo un fallo a 0-0 ricominciava da capo)
 const IN_POINT = new Set(['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER']);
 export function serveCoachStep(s = {}, g = {}, dt = 0){
-  const n = { served: s.served || 0, missAt: s.missAt ?? null, idle: s.idle || 0, phase: g.phase, missed: false,
+  const n = { served: { player: servedBy(s, 'player'), opponent: servedBy(s, 'opponent') }, missAt: s.missAt ?? null, idle: s.idle || 0, phase: g.phase, missed: false,
     match: g.match ?? null, tossMisses: g.tossMisses ?? null, lastY: g.phase === 'SERVE_TOSS' ? g.ballY ?? null : null, lastVy: g.phase === 'SERVE_TOSS' ? g.ballVy ?? null : null };
   const newMatch = g.match != null ? s.match != null && g.match !== s.match : g.phase === 'SERVE_STANCE' && g.fresh && !IN_POINT.has(s.phase);
-  if (newMatch || (s.phase == null && g.phase === 'SERVE_STANCE')){ n.served = 0; n.missAt = null; }
+  if (newMatch || (s.phase == null && g.phase === 'SERVE_STANCE')){ n.served = { player: 0, opponent: 0 }; n.missAt = null; }
   const fell = g.tossMisses != null ? s.tossMisses != null && g.tossMisses > s.tossMisses : s.lastVy < 0 && s.lastY != null && s.lastY < SERVE_COACH.fallY;
   if (!newMatch && s.phase === 'SERVE_TOSS' && g.phase === 'SERVE_STANCE' && g.mine && fell){ n.missAt = g.now ?? 0; n.missed = true; }
-  if (s.phase === 'SERVE_TOSS' && g.phase === 'RALLY' && g.mine){ n.served++; n.missAt = null; }
+  if (s.phase === 'SERVE_TOSS' && g.phase === 'RALLY' && g.mine){ n.served[g.server === 'opponent' ? 'opponent' : 'player']++; n.missAt = null; }
   n.idle = g.phase === 'SERVE_STANCE' && g.mine && !g.paused ? (s.phase === 'SERVE_STANCE' ? n.idle + dt : 0) : 0;
   return n;
 }
@@ -63,7 +70,7 @@ export function serveCoachStep(s = {}, g = {}, dt = 0){
 export class NatpfServeCoach {
   constructor(engine, ui){
     this.engine = engine; this.ui = ui;
-    this.state = { served: 0, missAt: null, idle: 0, phase: null };
+    this.state = { served: { player: 0, opponent: 0 }, missAt: null, idle: 0, phase: null };
     this.el = typeof document !== 'undefined' ? document.getElementById('natpf-serve-coach') : null;
     this.shown = '';
   }

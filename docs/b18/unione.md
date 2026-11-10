@@ -219,3 +219,22 @@ vuole:
   schermo con il formato in fiera.
 - **Tappa 2** (livelli Evento e Bambini, CPU) da fare dopo. Per ogni cosa da accendere bisogna dire all'utente il
   percorso esatto, come chiesto nella decisione (4).
+
+## Revisione dell'insieme (10/11)
+
+Revisore indipendente sul codice unito (`174e637`), solo in lettura: ha rifatto test del gioco 1075/1075, sito 201/201,
+build, `audit:legend` (stesse cifre di questo documento) e 8 prove nel browser con gli stessi numeri, e ha **giocato** una
+partita nello stesso schermo con il formato in fiera acceso (Marco/Giulia, 1 game, fino al 40-40): battitore A B B A A B B,
+pallina del tabellone giusta anche nella copia del P2, «Punto decisivo» nei due tabelloni e nel banner, «0» e non «00»,
+fine partita «Vince Marco!» con la voce, «Nuovo giocatore» che rimette «Player 1»/«Player 2» e lascia salvato il formato.
+**Nessun bloccante.** Tre minori:
+1. *Istruzioni del servizio nello stesso schermo*: un solo conto dei servizi per i due giocatori. Nel formato classico il P2,
+   che batte nel secondo game, non vedeva mai le istruzioni piene del primo servizio. **Corretto**: un conto per chi serve
+   (`servedBy`, `natpf_serve_coach.js`), test nuovo in `natpf-servizio-istruzioni.test.mjs` (fallisce senza la correzione).
+2. *Reset del chiosco* (stand libero dopo l'inattività): toglieva il nome ma non i colpi speciali imparati né i record di
+   «Ospite» di un ospite senza nome (stessa fuga corretta nell'unione per «Nuovo giocatore»). **Corretto**:
+   `NatpfKiosk.reset()` chiama `forgetGuest` e `forgetLearned`; test nuovo in `natpf-nuovo-giocatore.test.mjs` (fallisce
+   senza la correzione).
+3. *«Fuori» invece di «In rete»* se una palla finisse in rete per la sola fisica senza il segno del motore: `landingOf` usa
+   `predictBall`, che non vede la rete. Misurato dal revisore: 0 casi su 14.253 colpi dal telefono simulato (casual e pro, 4
+   profili, 3 semi). **Non corretto** (non succede con il telefono); da guardare se si usano tastiera di prova o webcam.
