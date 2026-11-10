@@ -174,6 +174,9 @@ try {
   check('B1. due telefoni calibrati', (await calibrate(ph1)) && (await calibrate(ph2)));
   check('   conto alla rovescia e partita nello stesso schermo', await until(g, () => !!__natpfTennis.natpfSplit?.active && !__natpfTennis.natpfUi.lobby.visible, null, 20000));
   const splitPairs = [(await who(g, 'p1')).pairs, (await who(g, 'p2')).pairs];
+  const tags = () => g.evaluate(() => ['p1', 'p2'].map(id => document.querySelector(`[data-split-tag="${id}"] b`)?.textContent));
+  const tags0 = await tags();
+  check('   targhette in campo con i nomi scritti («Giulia», «Marco»)', tags0.join('|') === 'Giulia|Marco', JSON.stringify(tags0));
   await g.evaluate(() => { window.__voices.length = 0; });
   // un punto a testa per vedere il banner: «0» e non «00»
   const banner = await g.evaluate(() => { const E = __natpfTennis; E._awardPoint('opponent', 'Out'); return { text: E.lastBannerBroadcast.text, sub: E.lastBannerBroadcast.subText }; });
@@ -191,7 +194,9 @@ try {
   const reopened = await until(g, () => { const S = __natpfTennis.natpfUi.split; return S.tutOpen.p1 && S.tutOpen.p2; }, null, 10000);
   const s1 = await who(g, 'p1'), s2 = await who(g, 'p2');
   const inputs = await g.evaluate(() => [...document.querySelectorAll('[data-split-name]')].map(i => i.value));
+  const tags1 = await tags();
   check('B3. «Nuovo giocatore» nello stesso schermo: pagina dei due telefoni, nomi vuoti, tutorial di nuovo nelle due metà', back && reopened && inputs.join('|') === '|' && s1.names.p1 === 'Player 1' && s1.names.p2 === 'Player 2', JSON.stringify({ inputs, names: s1.names }));
+  check('   targhette in campo azzerate («Player 1», «Player 2»: revisione B18)', tags1.join('|') === 'Player 1|Player 2', JSON.stringify(tags1));
   check('   i due telefoni sempre collegati con lo stesso abbinamento, calibrazione da rifare', s1.connected && s2.connected && s1.pairs === splitPairs[0] && s2.pairs === splitPairs[1] && !s1.ready && !s2.ready && !s1.tutSeen && !s2.tutSeen, JSON.stringify({ s1, s2 }));
   await shot('B3-nuovi-giocatori-split-1280');
   check('nessun errore nella pagina del gioco', !errs.length, errs.slice(0, 3).join(' | '));

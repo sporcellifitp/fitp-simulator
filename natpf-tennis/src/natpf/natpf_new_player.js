@@ -4,10 +4,12 @@
 //
 // Cosa si azzera (resetVisitor), SENZA scollegare il telefono (niente link.forget, niente QR da rifare):
 //   - nickname (natpf_events: record, medaglie ed esperienza sono per nickname e per giorno, quindi spariscono anche quelli);
+//     quelli di oggi di «Ospite» (chi preme «Salta» nel passo del nome) si cancellano, così l'ospite dopo parte da zero;
 //   - tutorial visto, anche il corto a 5 schede (NatpfPhoneRacket.forgetTutorial);
 //   - calibrazione, colpo tipico, prototipi dei colpi speciali, salita/piatto/mira abituali e riferimenti della forza
 //     (NatpfPhoneRacket.resetPlayer: il telefono ricalibra e azzera i colpi giocati, swing-detect effRef);
-//   - mano: torna «Destra» e si sceglie di nuovo nel passo del nome (stesso schermo: nella pagina «Collega», per ciascuno).
+//   - mano: torna «Destra» e si sceglie di nuovo nel passo del nome (stesso schermo: nella pagina «Collega», per ciascuno;
+//     dalla strada 'menu' il passo del nome non c'è: la mano si cambia nella pagina «Collega» o nelle tessere del menu).
 //     Motivo: è del giocatore, non dello stand; un mancino dopo un destro (o il contrario) giocherebbe specchiato. Nove
 //     visitatori su dieci sono destri, quindi chi non sceglie gioca con la scelta giusta quasi sempre;
 //   - nello stesso schermo i nomi dei due giocatori (tornano Player 1 e Player 2).
@@ -53,10 +55,13 @@ export function resetVisitor(ui){
   for (const id of ['natpf-nick', 'natpf-staff']) document.getElementById(id)?.classList.add('hidden');
   E.hud?.hideVictoryModal?.();
   ui.events.nickname = '';
+  // chi arriva e non scrive il nome gioca come «Ospite»: non eredita i record degli ospiti di prima (revisione B18)
+  ui.events.forgetGuest?.();
   if (route === 'split'){
     const S = ui.split;
-    E.natpfSplitNames = { p1: 'Player 1', p2: 'Player 2' };
-    for (const el of document.querySelectorAll('[data-split-name]')) el.value = '';
+    // nomi, caselle e targhette in campo (prima restavano le targhette di chi aveva giocato prima: revisione B18)
+    if (S?.resetNames) S.resetNames();
+    else { E.natpfSplitNames = { p1: 'Player 1', p2: 'Player 2' }; for (const el of document.querySelectorAll('[data-split-name]')) el.value = ''; }
     // (gate false: il tutorial lo apre la metà di ciascuno nella pagina «Collega», che fa aspettare il telefono; le verifiche
     // fallite del giocatore di prima non contano per chi arriva)
     for (const id of ['p1', 'p2']){ S?.setHand?.(id, 'right'); S?.phone?.(id)?.resetPlayer?.({ gate: false }); if (S?.fails) S.fails[id] = 0; }

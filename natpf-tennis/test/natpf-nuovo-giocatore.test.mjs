@@ -7,7 +7,7 @@ import { makeWorld, $, visible, mkEvent } from './ui-world.mjs';
 import { QUICK_PLAN } from '@natpf/tennis/calibration.js';
 import { NatpfPhoneRacket } from '../src/natpf/natpf_phone_racket.js';
 import { newPlayerRoute, asksName, gatesTutorial } from '../src/natpf/natpf_new_player.js';
-import { migrateRecords, recordsFor, putRecords, nickKey, dayKey } from '../src/natpf/natpf_events.js';
+import { migrateRecords, recordsFor, putRecords, dropRecords, nickKey, dayKey } from '../src/natpf/natpf_events.js';
 import { RECORDS_KEY, recordGame } from '../src/natpf/natpf_arcade.js';
 
 const calibrate = w => {
@@ -169,9 +169,14 @@ test('stesso schermo → «Nuovo giocatore»: nomi, mani, tutorial e calibrazion
   lobby.menu('play'); lobby.setMode('split'); lobby.go('connect');
   for (const P of [E.natpfPhone, P2]) P.markTutorialSeen('short');
   E.natpfSplitNames = { p1: 'Marco', p2: 'Luca' };
+  const tag = id => $('natpf-split-hud').querySelector(`[data-split-tag="${id}"] b`);
+  ui.split._paintNames();
+  assert.deepEqual([tag('p1').textContent, tag('p2').textContent], ['Marco', 'Luca']);
   ui.split.setHand('p2', 'left');
   assert.equal(ui.newPlayer(), 'split');
   assert.deepEqual(E.natpfSplitNames, { p1: 'Player 1', p2: 'Player 2' });
+  // revisione B18: anche le targhette sotto le due metà del campo (prima restavano «Marco» e «Luca»)
+  assert.deepEqual([tag('p1').textContent, tag('p2').textContent], ['Player 1', 'Player 2']);
   assert.equal(P2.hand, 'right'); assert.equal(ui.hand.hand, 'right');
   for (const P of [E.natpfPhone, P2]){ assert.equal(P.tutorialSeen, false); assert.equal(P.ready, false); assert.equal(P.link.connected, true); }
   assert.ok(P2.link.cmds.includes('cal') && !P2.link.cmds.includes('forget'));
@@ -195,4 +200,41 @@ test('pannello dello stand: «Nuovo giocatore» con il menu in vista azzera e re
   const p2 = await makeWorld({ controller: 'mouse', role: 'p2' });
   p2.ui._paintVictory();
   assert.ok(!visible('btn-new-player'));
+});
+
+test('stesso schermo: le targhette in campo seguono i nomi anche se cambiano senza l’evento «input» (tick)', async () => {
+  const w = await makeWorld({ controller: 'phone' }); w.advance(300);
+  const { E, ui } = w;
+  const tag = id => $('natpf-split-hud').querySelector(`[data-split-tag="${id}"] b`);
+  tag('p1').textContent = 'Giulia'; tag('p2').textContent = 'Marco';   // targhette rimaste dalla partita di prima
+  E.natpfSplitNames = { p1: 'Player 1', p2: 'Bea' };
+  // in campo nello stesso schermo (splitVisible): la targhetta si riscrive dal nome corrente
+  E.natpfSplit.active = true; E.phase = 'SERVE_STANCE'; E.autoPlayMode = false; E.cameraMode = 'PLAY'; E.manualCameraOverride = false;
+  ui.split.tick();
+  assert.ok(visible('natpf-split-hud'));
+  assert.deepEqual([tag('p1').textContent, tag('p2').textContent], ['Player 1', 'Bea']);
+  E.natpfSplit.active = false;
+});
+
+test('«Ospite»: chi non scrive il nome dopo «Nuovo giocatore» non eredita i record degli ospiti di prima (revisione B18)', async () => {
+  // puro: si toglie solo il nickname chiesto, solo nel giorno chiesto
+  let st = putRecords(putRecords(null, '', { rush: { best: 300 } }), 'Mario', { rush: { best: 200 } });
+  st = putRecords(st, '', { rush: { best: 50 } }, '2026-11-09');
+  const d = dropRecords(st, '');
+  assert.deepEqual(recordsFor(d, ''), {}); assert.equal(recordsFor(d, 'Mario').rush.best, 200);
+  assert.equal(recordsFor(d, '', '2026-11-09').rush.best, 50);
+  assert.equal(dropRecords(st, 'nessuno'), st);
+  // nel gioco: un ospite fa un record, «Nuovo giocatore», «Salta» → il record di prima non c'è
+  const w = await makeWorld({ controller: 'mouse' }); w.advance(300);
+  const { ui, lobby } = w;
+  // (con il nome già dato il passo del nome si salta; poi si gioca senza nome, cioè come «Ospite»)
+  lobby.menu('challenges'); ui.events.nickname = 'x'; lobby.pickChallenge('rush'); ui.events.nickname = ''; lobby.go('connect'); lobby.next(); w.advance(1000);
+  assert.equal(ui.events.active?.id, 'rush');
+  ui.events.active.score = 300; ui.events.finish();
+  assert.equal(ui.events.record('rush').best, 300, 'record dell’ospite');
+  lobby._resultAction('new');
+  $('nick-cancel').click(); w.advance(1000);
+  assert.equal(ui.events.nickname, '');
+  assert.equal(ui.events.record('rush'), null, 'l’ospite dopo parte da zero');
+  assert.equal(ui.events.top('rush').length, 1, 'la classifica del giorno resta');
 });

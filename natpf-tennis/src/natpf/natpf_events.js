@@ -81,6 +81,15 @@ export function putRecords(store, nick, records, day = dayKey(), keep = RECORD_D
   return { ...s, days };
 }
 
+// toglie i record di oggi di un nickname (usata per «Ospite» con «Nuovo giocatore»: chi non scrive il nome non eredita
+// record, medaglie ed esperienza degli ospiti di prima; la classifica del giorno è a parte e resta)
+export function dropRecords(store, nick, day = dayKey()){
+  const s = migrateRecords(store), d = s.days[day], k = nickKey(nick);
+  if (!d || !(k in d)) return s;
+  const rest = { ...d }; delete rest[k];
+  return { ...s, days: { ...s.days, [day]: rest } };
+}
+
 /* ---------- minigiochi in campo ---------- */
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 export class NatpfEvents {
@@ -106,6 +115,8 @@ export class NatpfEvents {
   top(mode, n = 10){ this.board = freshBoard(this.board); return topScores(this.board, mode, n); }
   record(mode){ return this.records[mode] || null; }
   get level(){ return levelOf(this.records.xp || 0); }
+  // «Nuovo giocatore» (natpf_new_player): via i record di oggi del contenitore «Ospite» (revisione B18)
+  forgetGuest(){ this.store = dropRecords(this.store, ''); this._writeRecords(); }
   resetBoard(){ this.board = freshBoard(null); this._write(); }
   exportCsv(){
     const a = document.createElement('a');
