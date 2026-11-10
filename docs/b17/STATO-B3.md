@@ -29,7 +29,7 @@
 ## Giro 2 (FATTO, commit «coreografie con lo schermo verso la rete nel codice»)
 Coreografie nel codice (`CHOREO_VIDEO`, `AIM_TURN_VIDEO` da `scripts/video/soluzioni/`, `--emit`); faccia all'impatto (destro =
 mancino): dritto 17,0°, rovescio (dorso) 8,7°, tagliato 17,0°, tagliato di rovescio (dorso) 5,9°, piatto 17,0°, volée 17,0°,
-lungolinea 12,1°, **incrociato 21,1°** (minimo trovato con la mira letta: limite dichiarato). Letture semi 1–23: 3 174/3 174
+lungolinea 12,1°, **incrociato 21,1°** (minimo trovato con la mira letta: limite dichiarato). Letture semi 1–23: «3 174/3 174» (conto sbagliato: sono 2 898, vedi sotto)
 fuori dai limiti dichiarati. **Limite dichiarato**: con la calibrazione del braccio simulato (telefono tenuto come nella posa
 di partenza, schermo di lato) la mira di incrociato e lungolinea non si legge (0/138 ciascuno) e il piatto è letto top spin
 (15/138): con lo schermo verso la rete i due centri della mira distano 83,6° (> 80° credibili) e le finestre del piatto
@@ -50,7 +50,7 @@ Passo B3 chiuso. Da chiedere all'utente (con i fogli O/VC): dritto che colpisce 
 volée e piatto diventati dritti alti (la volée non è più un gesto corto), incrociato a 21°; se accettare che con una calibrazione
 fatta tenendo lo schermo di lato la mira e il piatto non si leggano (nel gioco la calibrazione si fa con il dritto del tutorial).
 
-## Correzioni dalla revisione (IN CORSO, 10/11)
+## Correzioni dalla revisione (FATTE, 10/11)
 Bloccanti della revisione del passo B3: (1/4) il rovescio a una mano era la traiettoria del rovescio A DUE MANI del video
 (47,9 cm in media dallo specchio del dritto, contatto davanti al petto con il gomito piegato a 79–101°, fine davanti al viso);
 (5) il tagliato di rovescio a 35,5 cm dallo specchio del tagliato, specchio mai cercato; (2) la volée era diventata un dritto
@@ -70,7 +70,15 @@ nessuna verifica (15/414 giuste) e il totale scritto era sbagliato (3 174 invece
   Test: semi 1–23 2 898/2 898 fuori dai limiti dichiarati; limiti dichiarati 15/414 confrontati per scheda con il misurato
   (`DECLARED_SEEN`); test nuovi dello specchio e della volée corta; mancino dei limiti dichiarati: stessa lettura specchiata.
   Gioco 990/990, sito 200/200.
-- Da fare: build, fogli O/VC, prove nel browser, `ottimizzazione.md` §9.7, domande per l'utente.
+- Giro 3 (commit «fogli, prove, documenti»): build ok; `natpf-gesti-fotogrammi` 31/31 con limiti dichiarati nuovi (rovescio:
+  mano+telefono all'impatto 20 % a 640×400 e 19 % a 1600×1000 a camera ferma; volée e tagliato di rovescio 27 % a 1600×1000),
+  `natpf-modale-gesti` 18/18, `natpf-tutorial-phone` 52/52, confronto `O` 28/28 e `VC` 24/24; fogli `O-`/`VC-backhand` e
+  `-sliceBackhand` rifatti e guardati. Documento: `ottimizzazione.md` §9.4 (letture dei limiti dichiarati, 2 898) e §9.7.
+
+### Prossima azione
+Mostrare all'utente i fogli O/VC del rovescio e chiedere (ottimizzazione.md §9.7, «Da chiedere»): versione A (specchio del dritto,
+ora) o B (forma del video a due mani senza la seconda mano, commit 12e2e00); pallonetto e palla corta con il dorso; incrociato a
+21°; calibrazione con lo schermo di lato (incrociati letti come rovesci); dritto e rovescio che colpiscono alti.
 
 ### Come riprendere
 Dalla cartella `natpf-tennis`: `node --import ./test/register.mjs scripts/video/ottimizza.mjs --card=backhand --out=DIR

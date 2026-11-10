@@ -151,7 +151,17 @@ const GRIP = await p.evaluate(() => window.__GRIP);
 // ha mano+telefono al 27 % dell'altezza all'impatto (28 % con il rovescio a due mani del passo C): misurato, dichiarato in
 // docs/b17/ottimizzazione.md §9
 // Lo stesso per dritto e lungolinea con lo schermo verso la rete (impatto 12 cm più alto, arco più lungo nel quadro fermo): 27 %
-const LIMITI = { '1600x1000|backhand|racchetta': { subjectH: .265, nota: 'rovescio a una mano, gesto intero a 1600×1000 (27 %), ottimizzazione.md §9' },
+// Correzioni del passo B3: il rovescio a una mano è lo SPECCHIO del dritto (braccio disteso a sinistra, arco largo) e la camera
+// non può essere lo specchio di quella del dritto (nella carica l'avambraccio destro che attraversa il corpo punta verso una
+// camera davanti a destra dal basso: 14° dal raggio visivo); con la camera davanti a destra dall'alto, gesto intero a camera
+// ferma, mano+telefono all'impatto è al 20 % a 640×400 e al 19 % a 1600×1000 (ricerca su griglia dell'azimut e dell'elevazione con
+// telefono non di taglio e avambraccio ≥ 31°: al più +13 %, scratchpad b3fix/camsearch.mjs); a 448×280 e 200×200 (camera che
+// segue la mano) è sopra il 28 %. Volée corta e tagliato di rovescio a 1600×1000 al 27 %. Misurati, dichiarati in
+// docs/b17/ottimizzazione.md §9.7
+const LIMITI = { '1600x1000|backhand|racchetta': { subjectH: .185, nota: 'rovescio a una mano allo specchio del dritto, gesto intero a camera ferma (19 %), ottimizzazione.md §9.7' },
+  '640x400|backhand|racchetta': { subjectH: .195, nota: 'rovescio a una mano allo specchio del dritto, gesto intero a camera ferma (20 %), ottimizzazione.md §9.7' },
+  '1600x1000|sliceBackhand|racchetta': { subjectH: .265, nota: 'tagliato di rovescio allo specchio del tagliato, gesto intero a 1600×1000 (27 %), ottimizzazione.md §9.7' },
+  '1600x1000|volley|racchetta': { subjectH: .27, nota: 'volée corta, gesto intero a 1600×1000 (27 %), ottimizzazione.md §9.7' },
   '1600x1000|forehand|racchetta': { subjectH: .265, nota: 'dritto con lo schermo verso la rete, gesto intero a 1600×1000 (27 %), ottimizzazione.md §9' },
   '1600x1000|line|racchetta': { subjectH: .265, nota: 'lungolinea con lo schermo verso la rete, gesto intero a 1600×1000 (27 %), ottimizzazione.md §9' } };
 for (const [W, H] of SIZES){
@@ -165,8 +175,8 @@ for (const [W, H] of SIZES){
       if (f.ballTip == null || f.ballTip > 1) bad.push(`${tag}: palla a ${f.ballTip?.toFixed(2)} raggi dalla cima`);
       if (f.subjectH < .28){
         const lim = LIMITI[`${W}x${H}|${id}|${GRIP}`];
-        if (lim && f.subjectH >= lim.subjectH - 1e-6) limiti.push(`${tag}: mano+telefono ${(f.subjectH*100).toFixed(0)}% ≥ ${(lim.subjectH*100).toFixed(0)}% ammesso: ${lim.nota}`);
-        else bad.push(`${tag}: mano+telefono ${(f.subjectH*100).toFixed(0)}% dell'altezza`);
+        if (lim && f.subjectH >= lim.subjectH - 1e-6) limiti.push(`${tag}: mano+telefono ${(f.subjectH*100).toFixed(1)}% ≥ ${(lim.subjectH*100).toFixed(1)}% ammesso: ${lim.nota}`);
+        else bad.push(`${tag}: mano+telefono ${(f.subjectH*100).toFixed(1)}% dell'altezza`);
       }
       if (f.subjectH < minSub.v){ minSub.v = f.subjectH; minSub.at = tag; }
       if (f.phoneLen < minLen.v){ minLen.v = f.phoneLen; minLen.at = tag; }

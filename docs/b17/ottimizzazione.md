@@ -289,18 +289,19 @@ Il costo dell'ottimizzatore penalizza oltre 17° (20° − 3° di margine): per 
   rotazione vicino a quello del dritto) e la camera del dritto (`--camdir`).
 - Incrociato e lungolinea: `--aimwide` (la mira gira anche deviazione ed elevazione del braccio). Palla corta riottimizzata (con il
   dritto nuovo nella calibrazione era letta top spin). Altre opzioni: `--tipLike`, `--peakOver`, `--riseMax`, `--cals=pose`.
-- Il rovescio porta anche lo **scarto dallo specchio del dritto** (`--mirror`, peso basso): la mano dista in media **42 cm** dallo
-  specchio della mano del dritto (carica 35, impatto 45, fine 55 cm). Il rovescio tiene la forma del rovescio del video (dall'anca
-  sinistra in alto sopra la spalla destra), che non è lo specchio del dritto del video (che finisce davanti al viso): ho tenuto il
-  video e misurato lo scarto, non ho forzato lo specchio. Il verso è speculare (da sinistra a destra) e la faccia opposta.
+- ~~Il rovescio porta anche lo scarto dallo specchio del dritto (`--mirror`, peso basso) … ho tenuto il video e misurato lo
+  scarto, non ho forzato lo specchio.~~ **Sbagliato, corretto nel §9.7**: con il peso basso lo scarto non si era mosso (44,8 cm in
+  media, 47,9 con la normalizzazione su tutto il gesto) e il rovescio restava la traiettoria del rovescio A DUE MANI del video con
+  una mano sola (contatto davanti al petto con il gomito piegato a 101°), contro la richiesta («stesso movimento ma con l'altro
+  lato», «a una mano»); la scelta di tenere il video era stata presa senza l'utente.
 
 ### 9.3 Quanto ci si è allontanati dal video (mano alle pose chiave, cm; Δ altezza)
 | Scheda | Carica | Impatto | Fine | Traiettoria media / max | Tempi carica→impatto, impatto→fine (video) |
 |---|---|---|---|---|---|
 | Dritto | 3,2 (−2,0) | **12,6 (+12,4)** (prima 1,3) | 2,7 (−0,7) | 11,7 / 25,9 (prima 7,2 / 21) | 0,30 (0,50), 0,17 (0,17) |
-| Rovescio a una mano | 2,4 (−0,7) | 11,4 (−0,3) (prima 7,6) | 3,0 (+0,9) | 8,5 / 17,0 | 0,33 (0,17), 0,56 (0,20) |
+| ~~Rovescio a una mano~~ (superato: §9.7, ora segue lo specchio del dritto, non il video) | 2,4 (−0,7) | 11,4 (−0,3) (prima 7,6) | 3,0 (+0,9) | 8,5 / 17,0 | 0,33 (0,17), 0,56 (0,20) |
 | Tagliato di dritto | 9,1 (−6,7) | 5,9 (+3,6) (prima 1,9) | 7,8 (−3,5) | 6,7 / 9,1 | 0,19 (0,23), 0,99 (0,23) |
-| Tagliato di rovescio | 7,5 (−6,6) | 4,8 (+1,8) | 5,0 (−2,4) | 6,7 / 14,3 | 0,12 (0,27), 0,41 (0,17) |
+| ~~Tagliato di rovescio~~ (superato: §9.7, specchio del tagliato di dritto) | 7,5 (−6,6) | 4,8 (+1,8) | 5,0 (−2,4) | 6,7 / 14,3 | 0,12 (0,27), 0,41 (0,17) |
 | Incrociato / lungolinea | 6,4 / 8,9 | 13,6 / 15,5 | 4,9 / 4,4 | 12,1 / 12,8 | come il dritto |
 
 Il dritto con lo schermo verso la rete colpisce **12 cm più in alto** del video (polso a 1,53 m, all'altezza della testa): con il
@@ -308,24 +309,37 @@ polso del video la faccia verso la rete chiedeva l'estensione del polso al limit
 (partenza girata: 48/48 sbagliate). Picco del telefono 765 °/s (prima 540).
 Schede che il video non mostra, contro la forma di oggi (B13/B14): **piatto** impatto 38,8 cm più in alto (+26 cm) e traiettoria
 22,5 cm in media, **volée** 42,8 cm (+33 cm) e 28,3 cm: sono il dritto nuovo più veloce (piatto: parte veloce 0,14 s, picco 904
-°/s) e il dritto nuovo con la stessa velocità (volée 0,32 s). La volée **non è più un gesto corto** davanti al corpo: è il limite
-più visibile del passo (§9.5). Partenze invariate (`REST_VIDEO`; palla corta e schiacciata da `REST_COLPI_RACCHETTA`).
+°/s) e il dritto nuovo con la stessa velocità (volée 0,32 s). ~~La volée non è più un gesto corto~~: corretto nel §9.7 (volée
+corta, parte veloce 0,10 s). Partenze invariate (`REST_VIDEO`; palla corta e schiacciata da `REST_COLPI_RACCHETTA`).
 
-### 9.4 Letture (semi 1–23 × 2 calibrazioni × 2 mani × 0,8/1/1,25×; test `natpf-gesture-semi-a/b/c`)
+### 9.4 Letture (semi 1–23 × 2 calibrazioni × 2 mani × 0,8/1/1,25×; test `natpf-gesture-semi-a/b/c`) — rifatte dopo il §9.7
 | Scheda | Letture giuste | Note |
 |---|---|---|
 | Dritto, rovescio, tagliati, servizio, pallonetto, palla corta, schiacciata, volée | 276/276 ciascuna | |
 | Piatto | 138/138 con la calibrazione con l'animazione; **15/138** con quella del braccio simulato | limite dichiarato |
-| Incrociato, lungolinea | 138/138 con la calibrazione con l'animazione (mira minima 0,49 / 0,50); **0/138** con quella del braccio | limite dichiarato |
+| Incrociato, lungolinea | 138/138 con la calibrazione con l'animazione; **0/138** con quella del braccio | limite dichiarato |
 
-Fuori dai limiti dichiarati **3 174/3 174**. Perché i limiti (misurato, non nascosto):
+Fuori dai limiti dichiarati **2 898/2 898** (12 schede × 23 semi × 12 letture = 3 312, meno le 414 dei limiti dichiarati; il
+giro di prima aveva scritto «3 174», un conto sbagliato). Nei limiti dichiarati **15/414** giuste. Che cosa viene letto con la
+calibrazione del braccio simulato (somma dei tre file di test, che ora la confrontano scheda per scheda con il misurato:
+`DECLARED_SEEN`, così un peggioramento fa fallire il test; prima le letture erano solo contate e anche lo 0 % passava):
+- **Incrociato**: letto top spin di **ROVESCIO** nel 100 % (138/138), di cui 46 come **due colpi** (rovescio + palla corta di
+  dritto). Chi calibra tenendo lo schermo di lato e poi fa l'incrociato con lo schermo verso la rete ottiene **rovesci**.
+- **Lungolinea**: 0/138; 46 doppi (top spin + palla corta), 73 top spin di dritto con la mira al centro (sotto 0,4), 18 dal lato
+  del rovescio, 1 pallonetto.
+- **Piatto**: 15/138 giuste (tutte a 0,8×, dove il top spin è ammesso); 107 top spin, 31 pallonetti.
+- Con le coreografie di prima del passo B3 (20b31bc) queste letture erano giuste: è un peggioramento, misurato e dichiarato,
+  non nascosto. Il mancino legge le stesse cose specchiate (test `natpf-mancini`, che ora lo verifica anche lì).
+
+Perché i limiti (misurato, non nascosto):
 - La calibrazione «del braccio simulato» del banco di prova (`test/arm-sim.mjs`) fa dritto e rovescio tenendo il telefono come
   nella **posa di partenza** (schermo di lato) e ruotando attorno alla verticale. Con lo schermo verso la rete all'impatto il
   centro della mira che ne nasce (`faceRef.heading`) dista **83,6°** da quello della calibrazione con il dritto del tutorial
   (−6,5° contro 77,1°; prima del passo B3: −6,5° contro −9,8°, 3°). La mira è credibile solo entro 80° dal centro
   (`AIM.maxDev`): un colpo mirato dovrebbe avere il verso giusto rispetto a due centri distanti più di 80°, che è impossibile; con
   la calibrazione del braccio l'incrociato è letto dal lato del rovescio (mira 0,99) e il lungolinea con la mira 0 (scarto
-  92,7°), anche dopo 4 o 5 dritti di prova (0/12 in ogni caso). Ruotando il dritto (scarti del polso e dell'omero) la distanza
+  92,7°). Provato anche con 4 o 5 dritti di prova prima dei colpi mirati: 0/12 in ogni caso, cioè nel banco il centro della mira
+  NON si è corretto con quei colpi (vedi l'ultimo punto: la correzione con i colpi veri di `AIM.verify` resta non provata). Ruotando il dritto (scarti del polso e dell'omero) la distanza
   dei centri scende sotto 70° solo con la faccia a 90° e più dalla rete.
 - Il piatto si legge «in piano e forte» se la salita della testa sta entro ±0,12 dalla salita abituale della calibrazione: con
   il dritto nuovo (salita 0,47) l'abituale è 0,30 con la calibrazione con l'animazione e −0,02 con quella del braccio, due
@@ -334,8 +348,10 @@ Fuori dai limiti dichiarati **3 174/3 174**. Perché i limiti (misurato, non nas
 - **Incrociato a 21,1°**: la mira si legge girando il piatto di ~10° rispetto al dritto (che è a 17°); con la mira ≥ 0,5 su tutti i
   semi l'ottimizzatore non è sceso sotto 21,1° (minimo trovato, non dimostrato). Il lungolinea gira dall'altra parte (12,1°).
 - Nel gioco la calibrazione si fa con il dritto e il rovescio del tutorial (calibrazione «con l'animazione»): lì tutto è letto
-  giusto. Una calibrazione fatta con lo schermo di lato e poi colpi con lo schermo verso la rete darebbe gli stessi limiti per la
-  mira finché il centro non si corregge con i colpi veri (dopo 4 colpi se dista più di 35°: `AIM.verify`), e il piatto top spin.
+  giusto. Una calibrazione fatta con lo schermo di lato e poi colpi con lo schermo verso la rete dà gli stessi limiti: incrociati
+  letti come rovesci, mira del lungolinea al centro, piatto top spin. Il codice prevede che il centro della mira si corregga con
+  i colpi veri (dopo 4 colpi se dista più di 35°: `AIM.verify`), ma nel banco con 4–5 dritti di prova non è successo (0/12):
+  non so se succede con un telefono vero. **Da dire all'utente.**
 
 ### 9.5 Disegno, fogli, prove
 - **Rovescio a una mano**: `GESTURES.backhand.twoHanded` tolto, `balance` (solo disegno): la mano libera non tocca mai il
@@ -360,3 +376,93 @@ Fuori dai limiti dichiarati **3 174/3 174**. Perché i limiti (misurato, non nas
 - Nessun telefono vero: non so se un telefono vero, calibrato con il dritto del tutorial, legga piatto e mira come il telefono
   simulato. Non so come l'utente trovi la volée e il piatto (ora dritti più alti e veloci) né il dritto che colpisce all'altezza
   della testa: **da mostrare all'utente**. La presa del video resta una misura a bassa confidenza (37,7°).
+
+### 9.7 Correzioni dalla revisione del passo B3 (10/11): rovescio allo specchio del dritto, tagliato di rovescio, volée corta
+Bloccanti della revisione, riprodotti con gli script del revisore prima di correggere: rovescio a 47,9 cm in media dallo specchio
+del dritto (polso al netto del bacino, tempo normalizzato su tutto il gesto; 44,8 con la normalizzazione per tratti di
+`ottimizza.mjs`), contatto davanti al petto con il gomito piegato (101° di flessione, spalla–polso 0,36 m), fine a 16 cm dal
+centro della testa; tagliato di rovescio a 35,5 cm dallo specchio del tagliato, mai cercato; volée diventata un dritto pieno
+(0,35 s, 96 cm) con le indicazioni di un gesto corto; letture dei limiti dichiarati senza verifica (§9.4).
+
+**Ottimizzatore** (`scripts/video/ottimizza.mjs`, opzioni nuove): `--mirrorRef` (la forma di riferimento è lo SPECCHIO della
+scheda `MIRROR_OF`: rovescio → dritto, tagliato di rovescio → tagliato di dritto; mano alle pose chiave e lungo il colpo,
+cima del telefono allo specchio e dorso dove il dritto ha lo schermo, tempi del dritto; il video del rovescio a due mani non entra
+più nel costo), `--mirrorInit` (partenza: pose chiave risolte con il braccio destro perché il polso sia allo specchio, con il
+dorso verso la rete e il braccio disteso nella posa C, il busto girato a sinistra nella carica), `--mirrorMax=a,b` (vincolo come
+un vincolo fisico: impatto ≤ a cm, media ≤ b cm), `--reach=d` (spalla–polso all'impatto ≥ d m), `--accMax`, `--pathMax`,
+`--initBlend` (volée). Rovescio ottimizzato con `--also=forehand,cross,line,slice`: con il rovescio nuovo nella calibrazione con
+l'animazione l'incrociato e il lungolinea erano letti in due colpi (8/24) e il tagliato di dritto come palla corta (8/48);
+nella soluzione scelta nessuno dei due.
+
+**Fattibilità dello specchio** (cinematica, senza lettura): il braccio destro arriva allo specchio del polso del dritto
+all'impatto a **2,2 cm** con il braccio disteso (0,562 m) e il dorso a 12° dalla rete (busto girato a sinistra di 67°), alla fine
+a 0 cm; la carica (dietro l'anca sinistra, all'altezza dell'anca) a 10 cm, 18,5 cm se il busto nella carica deve restare girato
+a sinistra come all'impatto (niente giro di 134° del busto fra carica e impatto).
+
+**Risultato con la lettura perfetta** (48/48 letture giuste nel costo, poi semi 1–23: §9.4):
+| | Prima (12e2e00) | Ora |
+|---|---|---|
+| Rovescio: polso dallo specchio del dritto, media (per tratti / su tutto il gesto) | 44,8 / 47,9 cm | **14,4 / 13,7 cm** |
+| Rovescio: carica, impatto, fine | 35,6 / 48,5 / 54,4 cm | **24,2 / 14,4 / 2,0 cm** |
+| Rovescio: polso all'impatto (campo) | (−0,06; 1,36; −0,20) dal bacino, davanti al petto | **(−0,43; 1,43; −0,38)**, a sinistra e davanti (specchio del dritto (−0,42; 1,53; −0,48)) |
+| Rovescio: braccio all'impatto | gomito 101°, spalla–polso 0,36 m | **gomito 7°, 0,561 m** (dritto 46°, 0,52 m) |
+| Rovescio: dorso dalla rete / dalla palla | 8,7° / 21,8° | **16,5° / 18,7°** (±1 fotogramma: 21,2 / 18,2 / 16,6 / 18,8°) |
+| Rovescio: telefono dalla testa (minimo, sfera della testa) | 1,7 cm | **21,8 cm** |
+| Tagliato di rovescio: dallo specchio del tagliato, media (per tratti / su tutto il gesto) | — / 35,5 cm | **8,4 / 9,8 cm** (carica 5,2, impatto 3,2, fine 5,2) |
+| Tagliato di rovescio: polso all'impatto, dorso | (+0,03; …) al centro della pancia, 5,9° | **(−0,34; 1,27; −0,21)** a sinistra, dorso a **16,0°** |
+| Volée: parte veloce, carica→impatto, percorso della mano | 0,32 s, 0,35 s, 96 cm | **0,10 s, 0,083 s, 26 cm** (carica davanti, z −0,30 m) |
+| Volée: polso all'impatto, schermo dalla rete / dalla palla | 1,42 m, 17° / 33° | **1,37 m, 17,0° / 32,6°** |
+
+Misurato anche con la posizione del TELEFONO invece del polso (script del revisore `specchio.mjs`): rovescio 17,9 cm in media
+(carica 17, impatto 22, fine 13 cm), tagliato di rovescio 14,5 cm: il telefono del rovescio è girato (dorso avanti), quindi il suo
+centro non cade esattamente dove cade quello del dritto specchiato.
+
+**Che cosa NON è lo specchio, e perché** (misurato): l'impatto del rovescio è 10 cm **più basso** dello specchio (1,43 contro 1,53
+m) e la carica 24 cm lontana (il busto deve restare girato a sinistra: dietro l'anca sinistra all'altezza dell'anca non si arriva
+senza girare il busto di 134° fra carica e impatto); la parte veloce è più corta (0,17 s contro 0,30 s dalla carica all'impatto).
+Più vicino di così, con tutte le letture giuste e i vincoli fisici, l'ottimizzatore non è andato (tre partenze; con
+`--mirrorMax=12,15` nessuna lettura giusta in 50 valutazioni).
+
+**Articolazioni al limite** (dichiarato): nel rovescio la rotazione dell'omero arriva a −99,7° (limite −100°) 0,12 s prima del
+contatto e il busto è girato di 61,8° all'impatto (limite 70°); il tagliato di rovescio gira il busto di 66,8°; la volée ha il polso
+esteso a −69° (limite −70°). I limiti sono indipendenti (l'accoppiamento tra le articolazioni non è modellato).
+
+**Camere**: rovescio e tagliato di rovescio con la camera davanti a destra e dall'alto (`[.602, .501, −.622]`). Lo specchio della
+camera del dritto (davanti a destra, dal basso) non va: nella carica l'avambraccio destro che attraversa il corpo punta verso la
+camera (fino a 14° dal raggio visivo, limite 28°). Con la camera ferma sul gesto intero mano+telefono all'impatto è al **20 %**
+dell'altezza a 640×400 e al **19 %** a 1600×1000 (lista del B9: 28 %; ricerca su griglia di azimut ed elevazione con telefono non di
+taglio e avambraccio ≥ 31°: al più +13 %); a 448×280 e 200×200 (camera che segue la mano) è sopra il 28 %. Volée e tagliato di
+rovescio a 1600×1000 al 27,7 % e 26,6 %. Limiti dichiarati in `natpf-gesti-fotogrammi` (31/31).
+
+**Indicazioni** (presa a racchetta, `natpf_gesture_motion.js` `STROKE_CUES`): dritto «Schermo verso la palla quando colpisci»,
+rovescio «A una mano: il dritto, dall'altro lato», «Dorso del telefono verso la palla», piatto «Più corto, contatto più basso»
+(la mano sale come nel dritto: non dice più «senza alzare la mano»), volée «Gesto corto, quasi senza preparazione», «Telefono
+davanti a te, schermo verso la palla»; testi delle camere aggiornati. Con le altre prese (rollback) restano quelle di prima.
+
+**Test**: `natpf-gesture-pose` (specchio: rovescio ≤ 15 cm in media e all'impatto, ≤ 25 cm alle pose chiave, braccio ≥ 0,85
+della lunghezza all'impatto, contatto a sinistra e davanti, telefono ≥ 15 cm dalla testa; tagliato di rovescio ≤ 9 / 4 / 6 cm;
+volée ≤ 0,12 s e ≤ 0,30 m; tolto il test del rovescio a due mani che finisce alto; il tagliato di rovescio entra nel test della
+discesa lunga), `natpf-gesture-semi-a/b/c` (limiti dichiarati confrontati per scheda con il misurato), `natpf-mancini` (nei
+limiti dichiarati il mancino legge lo stesso del destro; mira del gesto della schiacciata con la calibrazione con l'animazione
+−0,561 / +0,486: 0,075 di scarto, ammesso 0,08 solo lì), `natpf-gesture-anim` (conto esatto delle letture saltate: 18).
+Gioco 990/990, sito 200/200, build ok; prove nel browser `natpf-gesti-fotogrammi` 31/31, `natpf-modale-gesti` 18/18,
+`natpf-tutorial-phone` 52/52, confronto `PREFIX=O` 28/28 e `VC` 24/24 (fogli `O-backhand`, `O-sliceBackhand`, `VC-backhand`,
+`VC-sliceBackhand` rifatti e guardati: braccio disteso a sinistra all'impatto, dorso verso la palla nel primo piano, fine con il
+braccio a sinistra all'altezza della spalla; il tagliato di rovescio scende dalla spalla sinistra in diagonale verso destra).
+
+**Da chiedere all'utente** (con i fogli):
+1. Rovescio: due versioni possibili, con i numeri. **A (ora)**: lo specchio del dritto a una mano (14 cm in media dallo specchio,
+   braccio disteso, contatto all'altezza della spalla, 1,43 m, perché il dritto colpisce all'altezza della testa). **B (commit
+   12e2e00)**: la forma del rovescio a due mani del video senza la seconda mano (48 cm dallo specchio, contatto davanti al petto
+   con il gomito piegato, fine davanti al viso). Le due sono lette giuste.
+2. Pallonetto e palla corta (colpi dal lato del dritto) colpiscono con il DORSO (147,6° e 151,1° dalla rete): con la regola
+   «schermo = dritto, dorso = rovescio» vanno girati? Non erano nell'elenco della richiesta.
+3. Incrociato a 21,1° dalla rete (chiesto ≤ 20°): accettare? La volée è a 17° dalla rete ma a 33° dalla palla (che arriva alta e di
+   lato).
+4. Calibrazione con lo schermo di lato e poi colpi con lo schermo verso la rete: incrociati letti come rovesci, piatto top spin
+   (§9.4). Nel gioco la calibrazione si fa con il dritto del tutorial; accettare il limite?
+5. Il dritto colpisce all'altezza della testa (polso 1,53 m), e quindi anche il rovescio allo specchio è alto (1,43 m).
+
+**Non verificato**: nessun telefono vero; nessuna persona ha provato a imitare il rovescio nuovo; la faccia è entro 20° solo
+nell'istante del contatto (a ±1 fotogramma il rovescio arriva a 21,2°); l'accoppiamento delle articolazioni al limite non è
+modellato.
