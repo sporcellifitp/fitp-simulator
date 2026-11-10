@@ -5,7 +5,8 @@ Ramo R1 della tappa 1 del B18 (punti 1, 2 e 10 del §4 di `docs/b16/rapporto-gam
 (il visitatore dopo eredita tutto) e il punto 18 (rating finto a fine partita).
 
 Base: `natpf-simulator` a `d09357a` (versione 2026-11-10.1). Commit del ramo: `b09f215` (fine partita), `29dd847` («Nuovo
-giocatore» e record), `7389716` (banco `visitatori.mjs`), più il commit di questo documento. I file di versione non sono
+giocatore» e record), `7389716` (banco `visitatori.mjs`), `41e0e88` (questo documento); dopo la revisione `2c210b3`
+(targhette dei nomi, «Ospite») e `08c3cf7` (minori), più il commit della revisione del documento. I file di versione non sono
 toccati: li aggiorna l'unione.
 
 ## 1. Cosa cambia per chi gioca
@@ -16,7 +17,8 @@ toccati: li aggiorna l'unione.
   vinto è gialla), e «Game 0-1». Prima, se vinceva il Player 2, il vincitore leggeva «Riprova!» con il nome «Tu».
 - **Contro la CPU, la stessa schermata.** «Hai vinto!» (o «Vince Ada!» se c'è un nome, scelto con «Nuovo giocatore» o per i
   minigiochi), «Vince la CPU» quando perde (prima «Riprova!»), righe «Ada 0 · CPU 1». Nella sfida tra due computer ognuno
-  vede la sua riga per prima e «Hai vinto!» o «Vince Player 1!».
+  vede la sua riga per prima e «Hai vinto!» o «Vince Player 1!» (nel doppio in rete «Tu + CPU» e «Player 2 + CPU», come la
+  pagina «Partita»; il nome scelto sull'altro computer non arriva, l'avversario resta «Player 1»/«Player 2»).
 - **Voce di fine partita per chiunque vinca**: «Game, set and match» (clip già presente, nessun audio nuovo). Prima la diceva
   solo se vinceva il Player 1; se vinceva il Player 2 (o la CPU) diceva solo «Game». Anche il Player 2 della sfida tra due
   computer la sente (arriva con il messaggio dell'host).
@@ -41,8 +43,13 @@ Cosa azzera, **senza scollegare il telefono** (niente `link.forget`, niente QR d
   (la calibrazione nuova li azzera, `swing-detect setProfile`);
 - la **mano**: torna «Destra» e si sceglie nel passo del nome («Giochi con la mano: Destra · Sinistra»). Motivo: è del
   giocatore, non dello stand; un mancino dopo un destro (o il contrario) giocherebbe specchiato, con i colpi letti al
-  contrario. Nove visitatori su dieci sono destri: chi non tocca niente ha quasi sempre la scelta giusta;
+  contrario. Nove visitatori su dieci sono destri: chi non tocca niente ha quasi sempre la scelta giusta. Il passo del nome
+  c'è solo nelle strade «partita contro la CPU» e «minigioco»: dalla strada «menu» (pannello dello stand con il menu in
+  vista, o dall'Allenamento) la mano si cambia nella pagina «Collega» del telefono o nelle tessere del menu;
 - record, medaglie ed esperienza **non si vedono più** per il visitatore nuovo, perché ora sono per nome e per giorno (sotto).
+  Chi preme «Salta» nel passo del nome gioca come «Ospite»: con «Nuovo giocatore» si cancellano i record di oggi di
+  «Ospite», così anche chi non scrive il nome parte da zero (la classifica del giorno resta);
+- nello stesso schermo i due nomi: caselle vuote e targhette sotto le due metà del campo di nuovo «Player 1» e «Player 2».
 
 Cosa **resta**: il **livello** (Casual, Pro, Leggenda: è una scelta dello staff, come ha deciso l'utente per i livelli),
 durata e formato della partita, chi batte, la mira del telefono, il chiosco, la musica e la classifica del giorno.
@@ -65,7 +72,8 @@ telefono aveva ancora il profilo di prima.
 ### Record per nome e per giorno
 Record personali, medaglie ed esperienza (livello del giocatore nei minigiochi) erano uno solo per computer: il secondo
 visitatore vedeva quelli del primo. Ora sono **per nickname e per giorno** (senza nickname: «Ospite», come nella
-classifica). Si tengono gli ultimi 7 giorni. **Migrazione innocua**: l'archivio di prima (non si sa di chi) resta salvato
+classifica). Si tengono gli ultimi 7 giorni. Tutti quelli senza nome dello stesso giorno condividono «Ospite», ma
+«Nuovo giocatore» lo svuota (sopra). **Migrazione innocua**: l'archivio di prima (non si sa di chi) resta salvato
 a parte nella stessa chiave (`natpf-tennis.records`, campo `legacy`), non si cancella e non si mostra più. La classifica
 del giorno non cambia.
 
@@ -89,7 +97,10 @@ telefono (non è stato cambiato in questo ramo).
 - `natpf-tennis/src/hud_ui.js`: `showVictoryModal` con nomi e righe; tolti rating e grafico (`_drawSkillGraph`).
 - `natpf-tennis/index.html`: schermata finale nuova con «Nuovo giocatore»; passo del nome con la mano; «Nuovo giocatore» nel
   risultato dei minigiochi e nel pannello dello stand.
-- `natpf-tennis/natpf-hud.css`, `natpf-tennis/natpf-ui.css`: stili (misure dello schermo in `cqw`).
+- `natpf-tennis/natpf-hud.css`, `natpf-tennis/natpf-ui.css`: stili (misure dello schermo in `cqw`; il pulsante «Nuovo
+  giocatore» della schermata finale in `cqh` con `clamp`).
+- `natpf-tennis/src/natpf/natpf_split_ui.js`: `resetNames()` e targhette dei nomi riscritte anche da `tick()` (revisione).
+- `natpf-tennis/styles.css`, `natpf-tennis/src/player_avatars.js`: tolti gli stili e il riferimento rimasti del rating.
 - `natpf-tennis/src/natpf/natpf_new_player.js` (nuovo): cosa si azzera e dove si va (`newPlayerRoute`, `resetVisitor`).
 - `natpf-tennis/src/natpf/natpf_phone_racket.js`: `resetPlayer` (azzera senza scollegare; calibrazione al ricollegamento se
   il telefono non c'era).
@@ -98,8 +109,9 @@ telefono (non è stato cambiato in questo ramo).
 - `natpf-tennis/src/natpf/natpf_lobby.js`: passo del nome per il visitatore nuovo (con la mano e «Salta»), «Nuovo giocatore»
   nel risultato dei minigiochi, il telefono che aspetta il tutorial non aspetta più se si torna al menu.
 - `natpf-tennis/src/natpf/natpf_kiosk.js`: «Nuovo giocatore» nel pannello dello stand.
-- `natpf-tennis/src/natpf/natpf_events.js`: record, medaglie ed esperienza per nickname e per giorno, migrazione.
-- Test: `natpf-tennis/test/natpf-fine-partita.test.mjs` (8), `natpf-tennis/test/natpf-nuovo-giocatore.test.mjs` (8).
+- `natpf-tennis/src/natpf/natpf_events.js`: record, medaglie ed esperienza per nickname e per giorno, migrazione;
+  `dropRecords` e `forgetGuest` per «Ospite» (revisione).
+- Test: `natpf-tennis/test/natpf-fine-partita.test.mjs` (8), `natpf-tennis/test/natpf-nuovo-giocatore.test.mjs` (10).
 - Banco: `natpf-tennis/scripts/audit/visitatori.mjs`. Prova nel browser: `tools/e2e/natpf-nuovo-giocatore.mjs`.
 
 Il riconoscimento dei gesti non è toccato (né sul telefono né sul computer): `resetPlayer` usa solo i `reset()` già
@@ -130,6 +142,15 @@ calibrazione; che `resetPlayer` azzeri davvero quei campi lo controllano i test 
 
 ## 5. Verifiche
 
+Dopo la revisione (ultimo giro, al commit `08c3cf7`):
+- Gioco: `cd natpf-tennis && npm test` → **1008 superati su 1009, 0 falliti, 1 saltato** (il saltato c'è già sulla base).
+  Nuovi: `natpf-fine-partita.test.mjs` 8/8, `natpf-nuovo-giocatore.test.mjs` 10/10.
+- Sito 200/200, build ok; prove nel browser: `natpf-nuovo-giocatore` **28/28** (due controlli nuovi sulle targhette),
+  `natpf-split-ready` 34/34, `natpf-menu` 28/28, `natpf-training-flow` 22/22, `natpf-tutorial-phone` 52/52,
+  `natpf-tabellone` 42/42. La Leggenda non è stata rilanciata dopo la revisione: le correzioni non toccano motore né CPU
+  (69/69 al giro prima).
+
+Giro prima della revisione:
 - Gioco: `cd natpf-tennis && npm test` → **1006 superati su 1007, 0 falliti, 1 saltato** (il saltato c'è già sulla base).
   Nuovi: `natpf-fine-partita.test.mjs` 8/8, `natpf-nuovo-giocatore.test.mjs` 8/8.
 - Sito: `node --test tools/test/*.test.mjs` → **200/200**.
@@ -169,3 +190,34 @@ si scrivono dopo il tutorial, prima che parta il conto).
   fatto (si controlla solo che il gioco la chieda).
 - Il chiosco (ritorno automatico al menu) non è cambiato: quando scatta continua a scollegare il telefono e non rimette la
   mano su «Destra».
+
+## 7. Revisione
+
+Il revisore indipendente ha rilanciato test (1006/1007), sito (200/200), build, il banco `visitatori.mjs` (numeri identici)
+e le prove `natpf-nuovo-giocatore`, `natpf-split-ready` e `natpf-menu`. Ha trovato:
+
+**Bloccante, corretto.** Nello stesso schermo «Nuovo giocatore» rimetteva i nomi a Player 1/Player 2 e svuotava le caselle,
+ma le **targhette sotto le due metà del campo** (`[data-split-tag] b`) si scrivevano solo dall'evento `input` delle caselle:
+dopo il conto alla rovescia si leggevano ancora i nomi dei due giocatori di prima, mentre banner e schermata finale
+dicevano «Player 1»/«Player 2». Correzione: `NatpfSplitUi.resetNames()` azzera nomi, caselle e targhette (la usa
+`resetVisitor`), e `tick()` riscrive le targhette dal nome corrente in partita (`_paintNames`), così nessun altro percorso
+che cambia il nome senza `input` le lascia indietro. Test: il test di unità «stesso schermo → Nuovo giocatore» ora
+controlla le targhette (falliva senza la correzione), un test nuovo controlla che `tick()` le riscriva; nella prova nel
+browser due controlli nuovi: targhette «Giulia»/«Marco» in partita, «Player 1»/«Player 2» dopo «Nuovo giocatore».
+
+**Minori.**
+- *«Ospite» condiviso*: chi preme «Salta» ereditava record, medaglie ed esperienza di tutti gli ospiti del giorno.
+  Corretto: «Nuovo giocatore» cancella i record di oggi di «Ospite» (`dropRecords`, `forgetGuest`); la classifica del
+  giorno, che è a parte, resta. Test nuovo (puro e nel gioco). Limite: due ospiti di fila **senza** «Nuovo giocatore» in
+  mezzo condividono ancora «Ospite».
+- *Mano dalla strada «menu»*: lì il passo del nome non c'è, la mano torna «Destra» senza chiederla. Non cambiato nel codice
+  (chiedere nome e mano anche alla scelta della modalità cambierebbe il percorso del menu, fuori da questo ramo): ora è
+  scritto nel documento (§1) e nel commento di `natpf_new_player.js` che da lì la mano si cambia nella pagina «Collega» o
+  nelle tessere.
+- *Doppio in rete*: la riga dell'avversario diceva «Player 2»; ora «Player 2 + CPU» e la propria «Tu + CPU», come la pagina
+  «Partita». Test aggiunto. Il nome scelto sull'altro computer continua a non arrivare (servirebbe nel messaggio di fine
+  partita: non fatto).
+- *CSS in px*: altezza e carattere del pulsante «Nuovo giocatore» ora `clamp(48px, 8cqh, 64px)` e
+  `clamp(17px, 3cqh, 23px)` (a 720 px di altezza restano circa 58 e 21 px come prima). Sul ledwall non guardato.
+- *Riferimenti morti*: tolti `victory-pl-icon` da `player_avatars.js` e `#skill-graph-canvas`, `.skill-score-pill`,
+  `.skill-rating-number` da `styles.css` (nessun elemento li usava più).
