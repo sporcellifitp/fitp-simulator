@@ -1,6 +1,6 @@
 # CLAUDE.md · istruzioni permanenti per ogni agente
 
-Repository: `sergio4/foro-italico-world`. Prodotto su cui si lavora: **NATPF Simulator** (tennis 3D, `natpf-tennis/`),
+Repository: `sporcellifitp/foro-italico-world` (trasferito dall'utente il 10/11/2026; prima `sergio4/foro-italico-world`). Prodotto su cui si lavora: **NATPF Simulator** (tennis 3D, `natpf-tennis/`),
 con il telefono come racchetta (pagina in `site/tennis/racchetta.html` + `site/js/tennis/`), webcam e modalità LAN.
 
 ## Branch

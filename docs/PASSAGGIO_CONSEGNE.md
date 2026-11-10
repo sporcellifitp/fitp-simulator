@@ -1,6 +1,6 @@
 # Passaggio di consegne · NATPF Simulator (aggiornato al 07/11/2026 sera; B16 aggiunto l'08/11/2026 sera)
 
-Per l'agente che riprende **da GitHub** (`sergio4/foro-italico-world`, branch `natpf-simulator`, ultimo commit indicato in
+Per l'agente che riprende **da GitHub** (`sporcellifitp/foro-italico-world`, trasferito il 10/11 da `sergio4`, branch `natpf-simulator`, ultimo commit indicato in
 `docs/PIANO_LAVORI.md` §1). Questo file racconta in dettaglio il lavoro dal 05/11 al 07/11 (blocchi B9, B10, B11),
 cosa resta aperto e cosa va controllato. Le regole permanenti sono in `CLAUDE.md`. Il file di ripresa unico resta
 `docs/PIANO_LAVORI.md`: §1 Checkpoint, §2 regole, §6 procedure. Il dettaglio passo per passo è in `docs/WORK_PROGRESS.md`
