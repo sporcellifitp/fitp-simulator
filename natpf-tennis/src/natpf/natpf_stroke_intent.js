@@ -36,6 +36,9 @@ export const INTENT = Object.freeze({
   dropAngle: 48,     // … o corto (ampiezza dello swing fino a così, gradi), ma sempre un gesto vero (almeno dropMinAngle:
   dropMinAngle: 15,  // il 23/10 12 palle corte su 14 venivano da micro-movimenti di 3–32°)
   dropSoftRise: -.12, dropVerticalPlane: .55, // taglio verticale morbido anche con pronazione abituale
+  dropDeepRise: -.4, // B18 (revisione di D13): con la testa che scende decisa (fino a così) il gesto è un tagliato anche se
+                     // verticale (presa a racchetta: tagliato −0,57/−0,80, palla corta −0,23/−0,25): palla corta solo se
+                     // nettamente morbido (dropSoft)
   flatRise: .12,     // piatto: testa in piano (|salita| fino a così) …
   flatPower: .62,    // … e gesto forte
   smashRise: -.08,   // schiacciata (solo con la palla alta): la testa scende o almeno non sale…
@@ -118,7 +121,11 @@ export function classifyStroke(shape, { power = .5, angle = null, ballHigh = nul
   if (p <= I.lobSoft && r >= softLobAt)
     return { shot: 'lob', conf: m(r - softLobAt, .3), why: [`la testa sale decisa (${said})`, `gesto morbido (${p.toFixed(2)})`] };
   // Una carezza verticale resta una palla corta: non deve scendere ancora oltre la pronazione del dritto.
-  if ((!Number.isFinite(angle) || angle >= I.dropMinAngle) && r <= I.dropSoftRise && P <= I.dropVerticalPlane && p <= I.dropPower)
+  // B18 (revisione di D13): con la discesa decisa (r ≤ dropDeepRise) serve la forza del nettamente morbido. Con la presa a
+  // racchetta (quella insegnata dal B17) il tagliato del tutorial è uno swing verticale (|piano| 0,20–0,29) che scende
+  // −0,57/−0,80: a 0,7–0,9× (forza 0,27–0,36) finiva qui come palla corta. La palla corta del tutorial scende −0,23/−0,25
+  const deep = r <= I.dropDeepRise;
+  if ((!Number.isFinite(angle) || angle >= I.dropMinAngle) && r <= I.dropSoftRise && P <= I.dropVerticalPlane && p <= (deep ? I.dropSoft : I.dropPower))
     return { shot: 'drop', conf: Math.min(m(I.dropSoftRise - r, .3), m(I.dropPower - p, .2)), why: ['taglio verticale morbido', `discesa ${r.toFixed(2)}, forza ${p.toFixed(2)}`], byShape: true };
   if (r <= sliceAt){
     // palla corta: morbido o corto, ma un gesto vero (senza ampiezza misurata vale com'era). B18 (D13 del rapporto B16):
@@ -126,7 +133,8 @@ export function classifyStroke(shape, { power = .5, angle = null, ballHigh = nul
     // dropVerticalPlane). Prima bastava dropPower: il tagliato del tutorial (swing orizzontale, |piano| 0,9) imitato a
     // 0,8–0,9× diventava una palla corta (2 m invece di 8). Tra le due soglie il colpo resta un tagliato, più corto
     const real = !Number.isFinite(angle) || angle >= I.dropMinAngle;
-    const softAt = P <= I.dropVerticalPlane ? I.dropPower : I.dropSoft;
+    // (revisione: verticale e con la testa che non scende decisa; vedi dropDeepRise)
+    const softAt = P <= I.dropVerticalPlane && !deep ? I.dropPower : I.dropSoft;
     const soft = real && p <= softAt, short = real && Number.isFinite(angle) && angle <= I.dropAngle;
     if (soft || short) return { shot: 'drop', conf: Math.min(m(sliceAt - r, .3), soft ? m(softAt - p, .2) : m(I.dropAngle - angle, 20)), why: [`dall'alto in basso (${said})`, soft ? `morbido (${p.toFixed(2)})` : `corto (${Math.round(angle)}°)`] };
     return { shot: 'slice', conf: m(sliceAt - r, .3), why: [`dall'alto in basso (${said})`] };

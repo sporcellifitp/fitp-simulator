@@ -17,6 +17,8 @@ const GP = await import(root + '/src/natpf/natpf_gesture_pose.js');
 const { readCard, judgeCard } = await import(root + '/test/pose-sensors.mjs');
 const { GESTURES } = await import(root + '/src/natpf/natpf_gesture_motion.js');
 const { gesturePose, gesturePlan } = GP;
+// prese delle carte (GRIPS=palmo,martello di serie; GRIPS=racchetta per la presa insegnata dal B17: revisione del B18)
+const GRIPS = (process.env.GRIPS || 'palmo,martello').split(',');
 const source = grip => ({ pose: (id, t, hand) => gesturePose(id, t, { hand, grip }), plan: id => gesturePlan(id, { grip }) });
 // B18 (D13): il tagliato più lento resta un tagliato fino a 0,8×; palla corta ammessa solo se nettamente più lento
 const allowFor = (id, rate) => rate > 1 ? (['forehand', 'backhand', 'volley', 'cross', 'line'].includes(id) ? ['flat'] : null)
@@ -34,7 +36,7 @@ function one(grip, gs, id, hand, cal, rate, seed = 7){
 }
 const imit = [20, 35, 50].flatMap(lean => [25, 40, 55].map(tilt => ({ lean, tilt })));
 if (mode === 'std'){
-  for (const grip of ['palmo', 'martello']) for (const cal of ['pose', 'arm']) for (const hand of ['right', 'left']) for (const rate of [.8, 1, 1.25]) for (const id of GP.POSE_IDS){
+  for (const grip of GRIPS) for (const cal of ['pose', 'arm']) for (const hand of ['right', 'left']) for (const rate of [.8, 1, 1.25]) for (const id of GP.POSE_IDS){
     if (rate !== 1 && GESTURES[id].still) continue;
     one(grip, grip, id, hand, cal, rate);
   }
@@ -43,17 +45,17 @@ if (mode === 'std'){
     one(g, `${g.lean}/${g.tilt}`, id, hand, cal, 1);
   }
 } else if (mode === 'rates'){
-  for (const grip of ['palmo', 'martello']) for (const cal of ['pose', 'arm']) for (const hand of ['right', 'left']) for (const rate of [.7, .9, 1.1, 1.15, 1.2, 1.3, 1.4])
+  for (const grip of GRIPS) for (const cal of ['pose', 'arm']) for (const hand of ['right', 'left']) for (const rate of [.7, .9, 1.1, 1.15, 1.2, 1.3, 1.4])
     for (const id of ['serve', 'smash', 'volley', 'backhand', 'lob', 'slice', 'drop']) one(grip, grip, id, hand, cal, rate);
 } else if (mode === 'sweep'){
   const ids = (process.env.IDS || GP.POSE_IDS.filter(id => !GESTURES[id].still).join(',')).split(',');
   for (let i = 0; i <= 18; i++){ const rate = +(.8 + i*.025).toFixed(3);
-    for (const grip of ['palmo', 'martello']) for (const cal of ['pose', 'arm']) for (const hand of ['right', 'left']) for (const id of ids) one(grip, grip, id, hand, cal, rate); }
+    for (const grip of GRIPS) for (const cal of ['pose', 'arm']) for (const hand of ['right', 'left']) for (const id of ids) one(grip, grip, id, hand, cal, rate); }
 } else if (mode === 'imitrates'){
   for (const g of imit) for (const cal of ['pose', 'arm']) for (const hand of ['right', 'left']) for (const rate of [.9, 1.1, 1.2])
     for (const id of GP.POSE_IDS.filter(id => !GESTURES[id].still && !(g.lean === 50 && id === 'flat'))) one(g, `${g.lean}/${g.tilt}`, id, hand, cal, rate);
 } else if (mode === 'seeds'){
-  for (const grip of ['palmo', 'martello']) for (const cal of ['pose', 'arm']) for (const hand of ['right', 'left']) for (const seed of [1, 2, 3, 4, 5, 6])
+  for (const grip of GRIPS) for (const cal of ['pose', 'arm']) for (const hand of ['right', 'left']) for (const seed of [1, 2, 3, 4, 5, 6])
     for (const id of GP.POSE_IDS.filter(id => !GESTURES[id].still)) one(grip, grip, id, hand, cal, 1, seed);
 }
 console.log(out.join('\n'));
