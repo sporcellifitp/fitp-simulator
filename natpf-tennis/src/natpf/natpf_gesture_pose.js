@@ -34,7 +34,9 @@ export const D = Math.PI/180;
 // schede del tutorial nell'ordine della modale (natpf_tutorial.TUTORIAL_CARDS) e gesti degli esercizi dell'Allenamento
 export const CARD_IDS = Object.freeze(['grip', 'ready', 'forehand', 'backhand', 'serve', 'flat', 'lob', 'drop', 'slice', 'smash', 'volley']);
 export const EXERCISE_IDS = Object.freeze(['cross', 'line']);
-export const POSE_IDS = Object.freeze([...CARD_IDS, ...EXERCISE_IDS]);
+// varianti (B17.1): pose in più, non schede: il tagliato di rovescio del video dell'utente
+export const VARIANT_IDS = Object.freeze(['sliceBackhand']);
+export const POSE_IDS = Object.freeze([...CARD_IDS, ...EXERCISE_IDS, ...VARIANT_IDS]);
 export const PHONE = Object.freeze({ w: .079, h: .162, d: .0086, r: .0105 });   // 162 × 79 × 8,6 mm (Android grande)
 export const BALL_R = .034;
 export const BALL_OUT = .5;                                   // velocità della palla in uscita (frazione: solo disegno)
@@ -88,6 +90,9 @@ export const mirrorQ = q => [q[0], -q[1], -q[2], q[3]];
 // gradi in avanti, come test/arm-sim.photoGrip) | { euler }. Predefinita: la presa insegnata (GRIP_STYLE). È
 // l'orientamento del telefono nella posizione di partenza; nella mano il telefono resta poi rigido (gripInHand).
 export function gripQuat(grip = GRIP_STYLE){
+  // presa a racchetta: definita nella mano (PHONE_IN_HAND_RACCHETTA), nel campo è quella della posizione di partenza
+  // REST_RACCHETTA (GRIP_POSE.racchetta.euler la riporta, test natpf-gesture-physics)
+  if (grip === 'racchetta' || (typeof grip === 'string' && !GRIP_POSE[grip] && GRIP_STYLE === 'racchetta')) return qmul(armChain(REST_RACCHETTA).hand, PHONE_IN_HAND_RACCHETTA);
   if (typeof grip === 'string') return qEuler((GRIP_POSE[grip] || GRIP_POSE[GRIP_STYLE]).euler);
   if (grip?.euler) return qEuler(grip.euler);
   return qEuler([-(grip?.tilt ?? GRIP_POSE.palmo.tilt), 0, grip?.lean ?? GRIP_POSE.palmo.lean]);
@@ -149,9 +154,28 @@ export function localHand(H){
     fingers: H.fingers.map(f => ({ name: f.name, pts: fingerChain(f, H.palmN).map(mm), r: f.r.map(x => x/1000) })),
     thumb: { pts: H.thumb.pts.map(mm), r: H.thumb.r.map(x => x/1000) }, forearmDir: norm(H.forearmDir) });
 }
+// Presa a racchetta (B17.1, foto dell'utente del 09/11, docs/b17/presa-foto.md): il telefono disteso lungo l'avambraccio
+// come un manico; il dorso sul palmo, il pugno attorno alla metà bassa, le quattro dita attorno al bordo lungo sinistro
+// (−x: in mano è il bordo inferiore) con i polpastrelli sul bordo del vetro, il pollice disteso lungo il bordo destro (+x:
+// in alto), il polso dietro la base (y −118 mm), dritto: l'avambraccio (polso → gomito) prosegue l'asse lungo del telefono
+// girato di GRIP_POSE.racchetta.cock gradi verso il pollice (la cima è più in alto della base). Stesso formato di HAND.
+export const HAND_RACCHETTA = Object.freeze({
+  wrist: [12, -118, -27], wristR: [27, 19],
+  heel: [[30, -96, -22, 20], [2, -100, -23, 18], [14, -70, -25, 22]],
+  fingers: [
+    { name: 'index',  mcp: [-13, -18, -18], dir: [-1, .24, 0], L: [40, 23, 18], flex: [12, 68, 116], r: [9.0, 8.0, 7.2, 6.5] },
+    { name: 'middle', mcp: [-8, -37, -19], dir: [-1, .08, 0], L: [44, 25, 19], flex: [12, 68, 116], r: [9.4, 8.4, 7.5, 6.7] },
+    { name: 'ring',   mcp: [-10, -56, -18], dir: [-1, -.08, 0], L: [41, 24, 18], flex: [12, 68, 116], r: [8.8, 7.8, 7.1, 6.4] },
+    { name: 'pinky',  mcp: [-16, -73, -16], dir: [-1, -.24, 0], L: [33, 19, 16], flex: [12, 70, 110], r: [7.9, 7.0, 6.4, 5.8] },
+  ],
+  palmN: [0, 0, 1],
+  thumb: { pts: [[30, -96, -18], [45, -62, -8], [48, -30, -1], [46, 0, 2]], r: [15, 11.4, 10.2, 9.0] },
+  forearmDir: [Math.sin(20*D), -Math.cos(20*D), 0],
+});
 export const HAND_LOCAL = localHand(HAND);
 export const HAND_LOCAL_MARTELLO = localHand(HAND_MARTELLO);
-const handLocalFor = grip => grip === 'martello' ? HAND_LOCAL_MARTELLO : HAND_LOCAL;
+export const HAND_LOCAL_RACCHETTA = localHand(HAND_RACCHETTA);
+const handLocalFor = grip => grip === 'martello' ? HAND_LOCAL_MARTELLO : grip === 'racchetta' || (typeof grip !== 'string' ? false : !GRIP_POSE[grip] && GRIP_STYLE === 'racchetta') ? HAND_LOCAL_RACCHETTA : HAND_LOCAL;
 
 /* ---------- corpo e catena cinematica ---------- */
 // Misure (adulto ~1,72 m; antropometria media di Winter/Drillis-Contini; spalla come il modello di prima): centro di
@@ -189,9 +213,57 @@ export function armChain(j, breath = 0){
   return { trunk: T, pelvis, S, E, W, upper, fore, hand };
 }
 const REST_HAND = armChain(REST).hand;
+// Scheda «Presa» con la presa a racchetta (B17.1 passo B2, decisione dell'utente del 09/11 sera: «come la mia impugnatura del
+// video»; correzione dopo la revisione): il telefono nella mano come MISURATO nei colpi (PHONE_IN_HAND_VIDEO) nella posa delle
+// foto dell'utente (docs/b17/presa-foto.md: il telefono lungo l'avambraccio come un manico, cima in avanti e alzata di ~20°,
+// quattro dita attorno al bordo inferiore, pollice lungo il bordo superiore, polso dritto). Risolta per quei vincoli (cima in
+// avanti e 20° in su, bordo del pollice in alto, schermo un poco in alto, polso dritto fl = dv = 0, gomito al fianco, mano
+// davanti all’anca destra, avambraccio fuori dal busto: scripts/video/ottimizza.mjs --presa): gomito al fianco, avambraccio in avanti, polso a (0,23; 1,09;
+// −0,28). Con la presa misurata lo schermo guarda verso l’interno (verso sinistra e 22° in su), il dorso verso destra: come
+// nelle foto («davanti», presa da davanti a sinistra, vede lo schermo; «dietro», da dietro a destra, il dorso).
+// Prima la scheda mostrava il primo piano del video (1–5 s: telefono di traverso davanti al petto, schermo verso la camera,
+// cima verso la sinistra di chi gioca: REST_RACCHETTA_PRIMO_PIANO): lì l'utente MOSTRA lo schermo alla camera, e con la mano
+// disegnata (HAND_RACCHETTA, dalle foto: pollice sul bordo +x) il pollice veniva SOTTO e le dita sopra, il contrario del
+// video e della foto; con il pollice in alto e lo schermo verso la camera la cima va verso la DESTRA di chi gioca e la
+// presa misurata chiede il gomito alzato davanti al petto e la rotazione dell'omero al limite (−88…−97°): misure in
+// docs/b17/ottimizzazione.md §1.
+export const REST_RACCHETTA = Object.freeze({ tau: 0, lat: 0, y: 0, p: 30.1, e: 8, r: 1.4, b: 79.3, pro: 16.9, fl: 0, dv: 0 });
+// alternativa (non usata): il primo piano del video, 1–5 s (mano a (0,05; 1,16; −0,30), schermo a 18° dalla direzione dello
+// schermo di gioco, cima verso la sinistra; pollice in BASSO: la punta del pollice a 1,07 m, sotto il polso a 1,16 m)
+export const REST_RACCHETTA_PRIMO_PIANO = Object.freeze({ tau: 0, lat: 0, y: 0, p: 64.3, e: 46.8, r: 74.9, b: 83.4, pro: 165, fl: -21.5, dv: 12.2 });
+export const REST_RACCHETTA_FOTO = Object.freeze({ tau: 0, lat: 0, y: 0, p: -38.7, e: 12.9, r: -40, b: 90.1, pro: 76.4, fl: 0, dv: 0 });
+// Posizione di partenza dei COLPI e della scheda «Posizione di partenza» con la presa a racchetta (B17.1, passo B, giro 2):
+// la stessa posizione della mano di REST (telefono davanti al petto, gomito al fianco) con il polso quasi dritto (flesso 9°,
+// non deviato) e l'avambraccio pronato di 36° (REST: 27°/−12°/24°), così il telefono prosegue l'avambraccio come nelle
+// foto (cima in avanti-sinistra e 22° in su, pollice in alto, schermo verso chi gioca e in su). Scelta MISURATA con il
+// telefono simulato su tutte le schede e gli esercizi della mira (destro e mancino, due calibrazioni, 0,8×/1×/1,25×):
+// nel piano (fl, pro) la zona fl 8–10 × pro 35–38 non dà nessun errore (144/144), fl 12 o pro ≤ 32 danno la palla corta
+// o il lungolinea letti in due colpi a 1,25×; con REST (polso piegato di 27°) il piatto con la calibrazione del braccio
+// simulato era letto top spin. Misure in docs/b17/posa-dal-video.md §1.
+export const REST_COLPI_RACCHETTA = Object.freeze({ ...REST, pro: 36, fl: 9, dv: 0 });
+// Telefono nella mano con la presa a racchetta. Dal passo B2 (decisione dell'utente del 09/11 sera) è quella MISURATA nei
+// colpi del video (gesti-video.json metodo.presa: modello «in piedi nel pugno» qaxis((1,1,0), 180°) corretto di Euler XYZ
+// (45°, 10°, 65°) sui 204 fotogrammi con schermo e mano visti, errore d'asse residuo 37,7°: misura a bassa confidenza). Nel
+// riferimento della mano: cima a 27° dalle dita, inclinata verso il palmo; schermo a 46° dalla normale del palmo, girato verso
+// il lato del mignolo. Rispetto alla lettura delle foto (PHONE_IN_HAND_FOTO: cima lungo le dita girata di 20° verso il pollice,
+// schermo = normale del palmo) è soprattutto un rollio di 46° attorno all'asse lungo.
+export const VIDEO_GRIP_EULER = Object.freeze([45, 10, 65]);
+export const PHONE_IN_HAND_VIDEO = Object.freeze(qmul(qaxis([1, 1, 0], Math.PI), qEuler(VIDEO_GRIP_EULER)));
+// alternativa (passo B, foto del 09/11): cima lungo le dita (−y della mano) girata di `cock` gradi verso il pollice (+x),
+// schermo = normale del palmo (−z), bordo destro dal lato del pollice
+export const PHONE_IN_HAND_FOTO = Object.freeze(qmul(qaxis([1, 0, 0], Math.PI), qaxis([0, 0, 1], -GRIP_POSE.racchetta.cock*D)));
+export const PHONE_IN_HAND_RACCHETTA = PHONE_IN_HAND_VIDEO;
+const isRacket = grip => grip === 'racchetta' || (typeof grip === 'string' && !GRIP_POSE[grip] && GRIP_STYLE === 'racchetta');
+// Posizione di partenza dei colpi DAL VIDEO (gesti-video.json «ready», 9,4–9,7 s, fermo: velocità 2D ≤ 0,16 m/s): MEDIA
+// degli angoli misurati nel tratto (media_angoli, polso compreso: pro 89, fl −23,5, dv −26,7 da Hands, decisione dell'utente
+// del 09/11 sera «la partenza come nel video»). Braccio che pende al fianco destro, avambraccio in avanti e in basso, mano
+// all'anca (0,16; 0,95; 0,00), con la presa misurata (PHONE_IN_HAND_VIDEO) la cima in avanti e in basso e lo schermo verso
+// la coscia. È la partenza delle coreografie dal video (CHOREO_VIDEO) e della scheda «Posizione di partenza».
+export const REST_VIDEO = Object.freeze({ tau: -5.9, lat: 3, y: 0.0127, p: -74.7, e: 18, r: 2.5, b: 62.9, pro: 89, fl: -23.5, dv: -26.7 });
 // presa nella mano: il telefono rigido nel palmo, orientato in modo che nella posizione di partenza sia esattamente
-// gripQuat(grip) (per la presa nel palmo: schermo = normale del palmo, cima girata ~30° verso il pollice, come la foto)
-export const gripInHand = (grip = GRIP_STYLE) => qmul(qconj(REST_HAND), gripQuat(grip));
+// gripQuat(grip) (per la presa nel palmo: schermo = normale del palmo, cima girata ~30° verso il pollice, come la foto;
+// per la racchetta è PHONE_IN_HAND_RACCHETTA)
+export const gripInHand = (grip = GRIP_STYLE) => isRacket(grip) ? PHONE_IN_HAND_RACCHETTA : qmul(qconj(REST_HAND), gripQuat(grip));
 
 /* ---------- tracce articolari ---------- */
 // Segmento quintico di Hermite: da x0 a x1 in T secondi con velocità v0 → v1 e accelerazione a0 → a1 (unità al secondo)
@@ -256,6 +328,8 @@ function plateau(r){
     return k*(u - r/2);
   };
 }
+// tempo del ritorno: assestamento (settle) oppure, con backFlat ∈ (0, 0,5), tratto centrale a velocità costante (plateau)
+const backEase = c => c.backFlat ? plateau(c.backFlat) : settle;
 // Percorso della carica attraverso pose di passaggio (V: risolte offline lungo il percorso più breve dell'orientamento
 // della mano, a frazioni uguali): spline di Catmull-Rom nel parametro u ∈ [0, 1], percorsa con il tempo a minimo jerk
 // (velocità e accelerazione nulle agli estremi). Così il telefono gira lento anche quando il braccio sale di molto con il
@@ -345,10 +419,119 @@ export const CHOREO = Object.freeze({
     F: { tau: 18.16, lat: -22.12, y: 0, p: 91.32, e: 43.82, r: 19.75, b: 78.06, pro: 9.92, fl: 5.25, dv: -17.29 } }),
 });
 
-
-
-
-
+// Coreografie DAI DATI DEL VIDEO (B17.1 passo B, docs/b17/gesti-video.json; stato e misure in docs/b17/posa-dal-video.md).
+// Pose chiave: cinematica inversa della catena del gioco sulle POSIZIONI misurate di spalla, gomito e polso (al netto del
+// bacino) alle pose chiave del video (carica, impatto, fine; servizio: mano all'anca, arrivo in alto, battuta, fine), con il
+// busto misurato (tau, lat, y); la rotazione dell'omero `r` è regolarizzata verso la posa prima (con il gomito quasi disteso
+// non è osservabile e la ricostruzione saltava di 140° tra due pose del rovescio). PASSO C (09/11): spalla (p, e, r),
+// gomito e polso (pro, fl, dv) RISOLTI insieme per la posizione misurata di polso e gomito E per l'orientamento del telefono
+// che il video mostra (lettura dell'analisi §1.1 e dei fogli V-*: dritto con lo schermo verso la camera per tutto il colpo e
+// la cima a destra in carica, in alto alla fine; servizio con lo schermo in avanti sopra la testa; tagliati con lo schermo che
+// si apre verso l'alto; scratchpad b17c/ik-solve.mjs, errori in docs/b17/gesti-dal-video.md). Prima il polso era tenuto a
+// quello della partenza e da una camera frontale il telefono era di taglio (0–19° alla fine del dritto). Il riconoscimento
+// non legge comunque questo insieme (posa-dal-video.md §3: VIDEO_CARDS vuoto), quindi qui conta la fedeltà al video. `tC` =
+// `contact`: la posa dell'impatto (C) cade ESATTAMENTE nell'istante dell'impatto (nelle coreografie di oggi tC si sposta
+// perché il picco di velocità della mano cada nel contatto: con le pose del video il picco viene 0,12 s dopo C e la scritta
+// «Impatto» mostrava una posa 0,17–0,43 m oltre quella filmata, misurato con tools/e2e/natpf-gesti-video-confronto.mjs). Tempi: `times` sono gli
+// istanti del video (s); acc = carica → impatto e dMin/dMax = impatto → fine SONO quelli del video; hold, prep (partenza →
+// carica), fin (fermo nella posa finale: l'utente tiene la fine 0,2–0,4 s) e back (ritorno lento, 2 s a velocità costante:
+// l'utente abbassa il braccio piano) non si vedono nel video e sono scelti. Partenza: REST_VIDEO (braccio che pende).
+// STATO (passo B2): CHOREO_VIDEO_GREZZA NON è letta come il colpo mostrato dal telefono simulato (dritto letto dal lato del
+// rovescio, tagliati palla corta, servizio 3 gesti: test natpf-gesture-pose «pose del video grezze»). Resta come riferimento della
+// forma (partenza dell'ottimizzatore) e come rollback dei dati; il tutorial usa CHOREO_VIDEO qui sotto. Con la presa misurata
+// nel video (PHONE_IN_HAND_VIDEO) gli angoli del polso qui scritti (passo C, risolti con la presa delle foto) non danno più
+// l'orientamento del video: l'ottimizzatore li risolve di nuovo dalla ricostruzione (rawVideoChoreo).
+const LAG = Object.freeze({ tau: .045, lat: .045, y: .045, p: .022, e: .022, r: .01 });
+export const CHOREO_VIDEO_GREZZA = Object.freeze({
+  forehand: Object.freeze({ src: 'forehand (2ª ripetizione)', times: { carica: 9.867, impatto: 10.367, fine: 10.533 }, contact: 1.65, tC: 1.65, cycle: 4.37, prep: .7, acc: 0.5, crisp: 1, dMin: 0.166, dMax: 0.166, fin: .3, back: 2, backFlat: .3, lag: LAG,
+    B: { tau: -39.8, lat: 5.2, y: 0.008, p: -47.7, e: 20.1, r: 6.9, b: 51, pro: 50.3, fl: -16.6, dv: 17.1 },
+    C: { tau: 26.3, lat: -6.4, y: 0.03, p: 12.6, e: 63.9, r: -21.7, b: 49.6, pro: 52.2, fl: -56.1, dv: 16.4 },
+    F: { tau: 26, lat: -5.3, y: 0.03, p: 37.6, e: 51.7, r: -23.2, b: 86.7, pro: 152.5, fl: -59.1, dv: -26 } }),
+  backhand: Object.freeze({ src: 'backhand', times: { carica: 15.6, impatto: 15.767, fine: 15.967 }, contact: 1.317, tC: 1.317, cycle: 4.07, prep: .7, acc: 0.167, crisp: 1, dMin: 0.2, dMax: 0.2, fin: .3, back: 2, backFlat: .3, lag: LAG,
+    B: { tau: 47.9, lat: 0.4, y: 0.017, p: 126.4, e: 51.7, r: 23.3, b: 3.7, pro: 166.1, fl: -4.7, dv: -26.6 },
+    C: { tau: 12, lat: -0.4, y: 0.03, p: 114.1, e: 46, r: 73.3, b: 89.4, pro: 168, fl: -21.3, dv: -26.7 },
+    F: { tau: -40.4, lat: -0.5, y: 0.03, p: 93.9, e: 53.6, r: 27.2, b: 128.1, pro: 137.6, fl: -27.1, dv: -26.5 } }),
+  slice: Object.freeze({ src: 'slice2 (tagliato di dritto)', times: { carica: 32.6, impatto: 32.833, fine: 33.067 }, contact: 1.383, tC: 1.383, cycle: 4.17, prep: .7, acc: 0.233, crisp: 1, dMin: 0.234, dMax: 0.234, fin: .3, back: 2, backFlat: .3, lag: LAG,
+    B: { tau: -43.4, lat: 6.4, y: 0.021, p: 70, e: 48.1, r: 3.1, b: 97.6, pro: 118.4, fl: -37.9, dv: 6 },
+    C: { tau: -7.7, lat: 2.2, y: 0.024, p: 61.9, e: 6.4, r: -7.6, b: 112.4, pro: 2.9, fl: -67.3, dv: -27.7 },
+    F: { tau: 12, lat: 1.3, y: 0.011, p: 61, e: 1.9, r: 54.5, b: 93.6, pro: 2.5, fl: -11.6, dv: -26.2 } }),
+  sliceBackhand: Object.freeze({ src: 'slice1 (tagliato di rovescio)', times: { carica: 30.433, impatto: 30.7, fine: 30.867 }, contact: 1.417, tC: 1.417, cycle: 4.13, prep: .7, acc: 0.267, crisp: 1, dMin: 0.167, dMax: 0.167, fin: .3, back: 2, backFlat: .3, lag: LAG,
+    B: { tau: 20.3, lat: 1.2, y: 0.021, p: 88.6, e: 76.6, r: 50, b: 105.9, pro: 168, fl: 7.1, dv: -27.6 },
+    C: { tau: 3.1, lat: -2, y: 0.021, p: -23.8, e: 17.5, r: 36.1, b: 99, pro: 2.5, fl: -54.6, dv: 16.7 },
+    F: { tau: 4.9, lat: -0.3, y: 0.005, p: -47.1, e: 23, r: -23.5, b: 61.9, pro: 2.3, fl: 17.4, dv: 16.4 } }),
+  serve: Object.freeze({ src: 'serve2', kind: 'serve', times: { carica: 23, alto: 23.267, impatto: 23.7, fine: 24 }, hold: .4, prep: .7, rise: 0.267, up: 0.253, acc: .18, contact: 1.8, tC: 1.8, dMin: 0.3, dMax: 0.3, fin: .3, back: 2, backFlat: .3, cycle: 4.65, riseWrist: .15, lag: LAG,
+    P: { tau: -17.7, lat: 3.3, y: 0.02, p: -56.4, e: 18.5, r: 9.7, b: 94.8, pro: 30.8, fl: -34, dv: -7.5 },
+    U: { tau: -47.9, lat: 4.1, y: 0.022, p: 75.2, e: 84.7, r: 11.5, b: 104.3, pro: 123.4, fl: -18.8, dv: -26.5 },
+    C: { tau: -11.9, lat: -0.5, y: 0.007, p: 43.7, e: 102.6, r: -14.4, b: 99, pro: 143.1, fl: -8, dv: -26 },
+    F: { tau: 18.7, lat: -4.3, y: 0.016, p: 68.1, e: 22.4, r: 47.1, b: 90.4, pro: 1, fl: -21.6, dv: -16.5 } }),
+});
+// Coreografie della presa a racchetta (B17.1 passo B2, decisioni dell'utente del 09/11 sera: «ottimizza senza di me»): trovate
+// dall'ottimizzatore scripts/video/ottimizza.mjs (strategia evolutiva con il telefono simulato completo nel costo: rilevatore
+// vero, calibrazione del braccio simulato e con il dritto e il rovescio di queste stesse coreografie, destro e mancino, 0,8× /
+// 1× / 1,25×, con quattro semi del rumore del telefono simulato (7, 1, 5, 10: correzione della revisione, prima solo il 7) e il
+// margine della mira; più lo scarto dalla forma del video e i vincoli fisici del B13), partenza REST_VIDEO e presa del video
+// (PHONE_IN_HAND_VIDEO). Dritto, tagliato di dritto e servizio partono da CHOREO_VIDEO_GREZZA (la forma del
+// video) e cambiano il polso, di poco il braccio (≤ 12° per angolo) e i tempi (parte veloce 0,18–0,32 s invece di 0,17–0,5 s
+// del video); piatto, pallonetto, palla corta, schiacciata e volée (che il video non mostra) partono da CHOREO (B13/B14) e
+// tengono quella forma. Palla corta e schiacciata partono da REST_COLPI_RACCHETTA (telefono davanti al petto): dalla partenza
+// del video la loro carica era letta come un colpo in tutte le varianti provate (limite dichiarato). Scarti dal video, letture
+// e cosa è cambiato rispetto al video in docs/b17/ottimizzazione.md. Tagliato di dritto e di rovescio con il proseguimento
+// lento dopo la frenata (F2, `slow`: discesa lunga verso l'anca opposta). Passo B3 (richieste dell'utente del 09/11 notte):
+// all'impatto del dritto, del piatto, dell'incrociato, del lungolinea, del tagliato di dritto e della volée lo SCHERMO verso la
+// rete; il rovescio è A UNA MANO ed è lo SPECCHIO del dritto («stesso movimento ma con l'altro lato»: pose chiave, traiettoria
+// e tempi del dritto con x → −x, dorso del telefono verso la rete, braccio disteso), il tagliato di rovescio lo specchio del
+// tagliato di dritto (ottimizza.mjs --mirrorInit --mirrorRef: non seguono più il rovescio a due mani del video); la volée è un
+// gesto corto (parte veloce 0,1 s) dal dritto nuovo. Generato con
+// `ottimizza.mjs --emit` dalle soluzioni in scripts/video/soluzioni (tC risolto e scritto; test «le soluzioni salvate rifanno
+// CHOREO_VIDEO»).
+// --- generato da scripts/video/ottimizza.mjs --emit (non modificare a mano) ---
+export const CHOREO_VIDEO = Object.freeze({
+  forehand: Object.freeze({ src: "forehand (2ª ripetizione)", times: {"carica":9.867,"impatto":10.367,"fine":10.533}, tC: 2.243706, contact: 2.22, cycle: 5.079, prep: 1.589, acc: 0.281, crisp: 1, dMin: 0.148, dMax: 0.148, fin: 0.311, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: -32.39, lat: 5.2, y: 0.008, p: -46.75, e: 16.53, r: -5.08, b: 39.52, pro: 46.51, fl: -28.35, dv: 19 },
+    C: { tau: 19.44, lat: -6.4, y: 0.03, p: 22.25, e: 74.12, r: -33.68, b: 47.54, pro: 28.18, fl: -68.75, dv: 16.81 },
+    F: { tau: 27.07, lat: -5.3, y: 0.03, p: 49.08, e: 50.56, r: -31.29, b: 79.39, pro: 21.04, fl: -62.18, dv: -7.66 } }),
+  backhand: Object.freeze({ src: "specchio di forehand", tC: 2.884499, contact: 2.783, cycle: 5.572, prep: 2.2, acc: 0.233, crisp: 1, dMin: 0.239, dMax: 0.239, fin: 0.15, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: 69.5, lat: -22.23, y: 0.008, p: 126.84, e: 43.15, r: -99.5, b: 8, pro: 134.44, fl: -16.24, dv: -27.04 },
+    C: { tau: 55.08, lat: 4.5, y: 0.03, p: 93.05, e: 102.6, r: -65.88, b: 6.73, pro: 157.95, fl: -13.64, dv: -3.54 },
+    F: { tau: 20.12, lat: -10.38, y: 0.03, p: 104.21, e: 88.22, r: -33.84, b: 8.24, pro: 169, fl: 24.37, dv: 19 } }),
+  slice: Object.freeze({ src: "slice2 (tagliato di dritto)", times: {"carica":32.6,"impatto":32.833,"fine":33.067}, tC: 2.75332, contact: 2.731, cycle: 6.257, prep: 2.2, acc: 0.181, crisp: 1, dMin: 0.168, dMax: 0.168, fin: 0.158, slow: 0.8, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: -53.74, lat: 6.4, y: 0.021, p: 73.47, e: 36.58, r: 6.72, b: 98.11, pro: 72.47, fl: -64.95, dv: -28.48 },
+    C: { tau: -19.07, lat: 2.2, y: 0.024, p: 55.53, e: 13.36, r: -13.68, b: 114.47, pro: 82.25, fl: -37.28, dv: 19 },
+    F: { tau: 7.98, lat: 1.3, y: 0.011, p: 54.87, e: 11.49, r: 0.3, b: 109.95, pro: 98.75, fl: -6.18, dv: 8.12 },
+    F2: { tau: 14.43, lat: 1.3, y: 0.011, p: 60.63, e: 12.79, r: 52.32, b: 82.7, pro: 43.33, fl: -9.47, dv: 14.4 } }),
+  sliceBackhand: Object.freeze({ src: "specchio di slice", tC: 2.694641, contact: 2.624, cycle: 6.25, prep: 2.088, acc: 0.186, crisp: 1, dMin: 0.251, dMax: 0.251, fin: 0.175, slow: 0.8, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: 66.09, lat: -22, y: 0.021, p: 117.21, e: 54.02, r: 24.09, b: 75.18, pro: 9.56, fl: -66.13, dv: 9.84 },
+    C: { tau: 66.86, lat: 1.6, y: 0.0237, p: 113.63, e: 31.74, r: 3.89, b: 72.84, pro: 73.55, fl: 19.44, dv: 5.03 },
+    F: { tau: 49.08, lat: -22, y: 0.011, p: 130.08, e: 48.55, r: -47.13, b: 81.47, pro: 104.99, fl: 55.29, dv: -5.33 },
+    F2: { tau: 0.02, lat: 22.05, y: 0.011, p: 101.23, e: 14.25, r: 41.97, b: 74.85, pro: 72.53, fl: -45.05, dv: 19 } }),
+  serve: Object.freeze({ src: "serve2", times: {"carica":23,"alto":23.267,"impatto":23.7,"fine":24}, tC: 2.792662, kind: "serve", hold: 0.4, prep: 1.211, rise: 0.4, up: 0.408, acc: 0.252, contact: 2.671, dMin: 0.4, dMax: 0.4, fin: 0.152, back: 2, backFlat: 0.3, cycle: 5.623, riseWrist: 0.15, lag: LAG,
+    P: { tau: -13.29, lat: 3.3, y: 0.02, p: -32.55, e: 12.07, r: -0.25, b: 73.23, pro: 71.93, fl: -15.41, dv: 19 },
+    U: { tau: -42.68, lat: 4.1, y: 0.022, p: 81.14, e: 86.01, r: -0.8, b: 96.97, pro: 136.36, fl: -58.14, dv: -22.39 },
+    C: { tau: -9.39, lat: -0.5, y: 0.007, p: 29.21, e: 114.79, r: 9.45, b: 104.15, pro: 32.09, fl: -41.03, dv: -25.44 },
+    F: { tau: 22.46, lat: -4.3, y: 0.016, p: 64.62, e: 39.3, r: 29.84, b: 97.64, pro: 88.93, fl: -14.65, dv: -14.69 } }),
+  flat: Object.freeze({ src: "flat", tC: 2.797643, contact: 2.715, cycle: 5.686, prep: 2.2, acc: 0.165, crisp: 1, dMin: 0.337, dMax: 0.337, fin: 0.234, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: -21.56, lat: 5.2, y: 0.008, p: -21.75, e: 19.75, r: -16.14, b: 36.97, pro: 11.16, fl: -35.05, dv: 19 },
+    C: { tau: 8.93, lat: -6.4, y: 0.03, p: 47.25, e: 49.12, r: -46.1, b: 22.54, pro: 1, fl: -17.32, dv: 5.01 },
+    F: { tau: 41.98, lat: -5.3, y: 0.03, p: 69.3, e: 39.81, r: -26.46, b: 102.16, pro: 5.43, fl: -26.16, dv: -29 } }),
+  lob: Object.freeze({ src: "lob", tC: 3.155312, contact: 3.147, cycle: 5.968, prep: 2.777, acc: 0.155, crisp: 1, dMin: 0.12, dMax: 0.24, back: 2.271, backFlat: 0.3, lag: {tau: 0.03,lat: 0.03,y: 0.03,p: 0.015,e: 0.015,r: 0.01}, jt: {b: {pre: 0.2},fl: {pre: 0.2},pro: {pre: 0.2},e: {dur: 0.45},tau: {dur: 0.6},lat: {pre: 0.15},y: {pre: 0.15}},
+    B: { tau: -9.68, lat: 5, y: -0.08, p: 79.06, e: 11.09, r: 37.66, b: 32.86, pro: 43.09, fl: 74, dv: -15.45 },
+    C: { tau: -0.03, lat: 3, y: -0.05, p: 83.45, e: 41.53, r: 21.83, b: 49.14, pro: 71.76, fl: 26.71, dv: -29 },
+    F: { tau: 7.45, lat: 0, y: 0, p: 81.6, e: 94.2, r: 21.28, b: 47.72, pro: 115.34, fl: 26.98, dv: -8.33 } }),
+  drop: Object.freeze({ src: "drop", tC: 0.957198, contact: 0.959, cycle: 2.442, prep: 0.629, acc: 0.11, crisp: 1, dMin: 0.1, dMax: 0.14, back: 0.963, rest: REST_COLPI_RACCHETTA, backFlat: 0.3, lag: {tau: 0.03,lat: 0.03,y: 0.03,p: 0.015,e: 0.015,r: 0.01}, jt: {b: {dur: 0.5},pro: {dur: 0.45},fl: {dur: 0.45}},
+    B: { tau: -11.38, lat: 2, y: -0.03, p: 87.21, e: 30.43, r: 41.09, b: 98.82, pro: 36.84, fl: 24.97, dv: -5.79 },
+    C: { tau: -6.48, lat: 1, y: -0.04, p: 90.47, e: 30.09, r: 40.15, b: 85.27, pro: 24.79, fl: 16.1, dv: -7.97 },
+    F: { tau: -4.18, lat: 0, y: -0.04, p: 94.25, e: 28.3, r: 40.49, b: 74.7, pro: 6.85, fl: 11.54, dv: -28.38 } }),
+  smash: Object.freeze({ src: "smash", tC: 2.618308, contact: 2.631, cycle: 3.758, prep: 2.321, acc: 0.123, crisp: 1, dMin: 0.1, dMax: 0.219, back: 0.518, ov: 0.15, flat: 0.3, rest: REST_COLPI_RACCHETTA, backFlat: 0.3, lag: {tau: 0.03,lat: 0.03,y: 0.03,p: 0.015,e: 0.015,r: 0.01,b: 0}, jt: {e: {lag: -0.009,dMax: 0.313,acc: 0.059},b: {lag: -0.004,dMax: 0.291},fl: {dMax: 0.296},pro: {lag: 0.049},tau: {dMax: 0.3}},
+    V: [{ tau: -1.9, lat: 1, y: -0.004, p: 86.4, e: 30.1, r: 38.3, b: 95.2, pro: 12.8, fl: 13.9, dv: -20 }, { tau: -3.8, lat: 2, y: -0.007, p: 88.3, e: 43.2, r: 31.6, b: 101.3, pro: 4.9, fl: 0.2, dv: -23 }, { tau: -5.6, lat: 3, y: -0.011, p: 91.6, e: 58.2, r: 26.2, b: 102.3, pro: 3, fl: -12.7, dv: -25 }, { tau: -7.5, lat: 4, y: -0.015, p: 96.2, e: 73.5, r: 22.8, b: 100.1, pro: 3, fl: -24.3, dv: -26 }, { tau: -9.4, lat: 5, y: -0.019, p: 99.3, e: 90.3, r: 21.9, b: 94.8, pro: 3, fl: -34.1, dv: -26 }, { tau: -11.3, lat: 6, y: -0.022, p: 102.6, e: 107.9, r: 23.3, b: 86.9, pro: 3, fl: -42.1, dv: -26 }, { tau: -13.1, lat: 7, y: -0.026, p: 106.7, e: 126.4, r: 27.8, b: 75.4, pro: 3.9, fl: -47.9, dv: -26 }],
+    B: { tau: -12.6, lat: 8, y: -0.03, p: 99.27, e: 149.3, r: 38.78, b: 66.19, pro: 25.5, fl: -54.84, dv: -29 },
+    C: { tau: -5.07, lat: 4, y: -0.01, p: 106.32, e: 136.08, r: 58.01, b: 35.27, pro: 74.95, fl: -50.15, dv: -9.75 },
+    F: { tau: 15.24, lat: -6.95, y: -0.053, p: 107.31, e: 57.69, r: 40.36, b: 19.01, pro: 169, fl: -16.06, dv: 12.96 } }),
+  volley: Object.freeze({ src: "volley", tC: 2.649563, contact: 2.592, cycle: 5.352, prep: 2.142, acc: 0.1, crisp: 1, dMin: 0.133, dMax: 0.133, fin: 0.227, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: 12.98, lat: -2.92, y: 0.0234, p: 6.01, e: 31.84, r: -49.12, b: 70.13, pro: 62.5, fl: -69, dv: 19 },
+    C: { tau: 28.78, lat: -6.4, y: 0.03, p: 47.25, e: 49.12, r: -36.17, b: 61.39, pro: 34.35, fl: -69, dv: 16.9 },
+    F: { tau: 41.07, lat: -5.96, y: 0.03, p: 42.96, e: 58.38, r: -13.02, b: 50.02, pro: 13.02, fl: -53.21, dv: 8.93 } }),
+});
+// --- fine del generato ---
 
 // Mira degli esercizi. Lungolinea: lo stesso dritto con il busto e la spalla girati attorno alla verticale per tutto il
 // colpo (contatto più indietro; gradi di busto tau e rotazione interna r, riportati nel ritorno). Incrociato: coreografia
@@ -356,9 +539,40 @@ export const CHOREO = Object.freeze({
 // mira è un dritto sintetico simmetrico attorno alla posa di riposo e l'incrociato deve girare il telefono di ~38° più del
 // dritto della catena, troppo per girare solo il dritto (la carica era letta come una palla corta): docs/b13/gesti-nuovi.md.
 export const AIM_TURN = Object.freeze({ line: Object.freeze({ tau: -10, r: -6 }) });
-const choreoOf = id => CHOREO[id] || (GESTURES[id]?.aim ? CHOREO.forehand : null);
-const aimOf = id => AIM_TURN[id] || null;
+// mira con il dritto dai dati (B17.1): tutto il corpo girato attorno alla verticale, incrociato verso sinistra, lungolinea
+// verso destra (il dritto campionato ha il contatto davanti e lo schermo verso la rete: basta girarlo)
+export const AIM_TURN_VIDEO = Object.freeze({ cross: Object.freeze({ tau: 11.29, r: -14.87, pro: 4.57, fl: 17.55, dv: 0.36, p: -10.17 }), line: Object.freeze({ tau: 6.98, r: -20.81, pro: 22.33, fl: -1.13, dv: 0.54, p: 2.69 }) });
+// Schede che, con la presa a racchetta, usano l'insieme 'video' (CHOREO_VIDEO e partenza REST_VIDEO; B17.1 passo B2): tutte
+// tranne la «Presa» (REST_RACCHETTA). Tutte lette come il colpo mostrato dal telefono simulato (test natpf-gesture-pose).
+export const VIDEO_CARDS = Object.freeze(['ready', 'forehand', 'backhand', 'flat', 'lob', 'drop', 'slice', 'smash', 'volley', 'serve', 'cross', 'line', 'sliceBackhand']);
+// insieme di coreografie di una scheda per presa: 'video' (dati del video dell'utente, presa a racchetta) o 'legacy'
+// (B13/B14, la stessa posa per palmo e martello)
+export const setFor = (grip = GRIP_STYLE, id = null) => isRacket(grip) && (id == null || VIDEO_CARDS.includes(id)) ? 'video' : 'legacy';
+// posizione di partenza di un gesto per insieme e presa: la scheda «Presa» della racchetta è la posa delle foto
+// (REST_RACCHETTA); l'insieme del video parte come l'utente nel video (REST_VIDEO, o il `rest` della coreografia); le
+// coreografie di oggi con la presa a racchetta partono da REST_COLPI_RACCHETTA (polso dritto); il resto da REST
+export function restOf(id, set = 'legacy', grip = GRIP_STYLE){
+  if (id === 'grip' && isRacket(grip)) return REST_RACCHETTA;
+  if (set === 'video') return CHOREO_VIDEO[id]?.rest || REST_VIDEO;
+  if (isRacket(grip)) return REST_COLPI_RACCHETTA;
+  return REST;
+}
+// coreografia di un gesto per insieme: nel 'video' quella campionata dove c'è (gli esercizi della mira: il dritto
+// campionato girato con AIM_TURN_VIDEO), altrimenti quella di CHOREO (lungolinea: il dritto girato con AIM_TURN; il
+// tagliato di rovescio: variante del tagliato)
+export function choreoFor(id, set = 'legacy'){
+  const g = GESTURES[id];
+  if (set === 'video'){
+    if (CHOREO_VIDEO[id]) return CHOREO_VIDEO[id];
+    if (g?.aim && CHOREO_VIDEO.forehand) return { ...CHOREO_VIDEO.forehand, aim: AIM_TURN_VIDEO[id], tC: null };
+  }
+  const c = CHOREO[id] || (g?.variantOf ? CHOREO[g.variantOf] : null);
+  if (c) return c;
+  return g?.aim ? { ...CHOREO.forehand, aim: AIM_TURN[id], tC: null } : null;
+}
+const choreoOf = id => choreoFor(id, 'legacy');
 
+export const PREP_MOVE = .05;   // m: spostamento della mano dalla posa di partenza oltre il quale la fase scritta diventa «Carica»
 // tempi di presa e posizione di partenza (ferme)
 export const STILL_TIMING = Object.freeze({ grip: 9, ready: 4 });
 
@@ -384,12 +598,18 @@ export const PHASES = Object.freeze({
 // B9 (telefono non di taglio nelle pose chiave, ≥ 60 px a 448×280, avambraccio ≥ 28° dal raggio visivo: ricerca su
 // griglia, docs/b14/camera-dritto.md; test/natpf-gesture-camera.test.mjs misura la lettura).
 export const CAMERAS = Object.freeze({
-  grip: Object.freeze({ views: Object.freeze([[-.36, .78, .5], [.85, .4, .35]]), dist: 1.0, seq: Object.freeze([3, 1.5, 3, 1.5]), read: 'pollice sul bordo destro, dita attorno al sinistro, cima in avanti e verso l\u2019interno' }),
+  // presa nel palmo: dagli occhi di chi gioca e di lato; presa a racchetta (viewsBy, passo B2): dallo schermo di gioco come il
+  // primo piano del video (schermo in vista) e da davanti a destra (di lato e dall'alto: mano e telefono di traverso; da
+  // destra di profilo, come prima, il telefono era di taglio con la posa del primo piano)
+  grip: Object.freeze({ views: Object.freeze([[-.36, .78, .5], [.85, .4, .35]]), viewsBy: Object.freeze({ racchetta: Object.freeze([[-.6, .15, -.78], [.7, .35, -.62]]) }), mirrorBy: Object.freeze({ racchetta: true }), dist: 1.0, seq: Object.freeze([3, 1.5, 3, 1.5]), read: 'pollice sul bordo destro, dita attorno al sinistro, cima in avanti e verso l\u2019interno' }),
   ready: Object.freeze({ dir: [-.5, .55, .67], dist: 2.4, frameBody: 'neck', read: 'telefono fermo davanti allo sterno, gomito al fianco' }),
   forehand: Object.freeze({ dir: [-.791, .259, .554], dist: 3.6, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'spalle che girano, mano che scende sotto la palla, colpo dal basso verso l\u2019alto attorno al corpo, fine davanti alla spalla sinistra' }),
   flat: Object.freeze({ dir: [-.148, .819, .554], dist: 3.6, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .8, size: .4 }), frame: 'swing', read: 'come il dritto, più veloce e più piatto' }),
   backhand: Object.freeze({ dir: [-.383, .643, .663], dist: 3.6, follow: Object.freeze({ window: .25, mix: .7, mixSmall: .9, size: .4 }), frame: 'swing', read: 'spalle che girano a sinistra, braccio davanti al corpo, chiusura in alto a destra' }),
   slice: Object.freeze({ dir: [-.4, .36, .84], dist: 3.6, frameBody: 'head', read: 'la mano parte alta e scende in avanti, piatto aperto' }),
+  // tagliato di rovescio: finché la sua coreografia è quella del tagliato (CHOREO, insieme legacy) la camera è la stessa; con
+  // la coreografia dal video (CHOREO_VIDEO.sliceBackhand, in lavorazione) andrà da dietro a destra
+  sliceBackhand: Object.freeze({ dir: [-.4, .36, .84], dist: 3.6, frameBody: 'head', read: 'tagliato di rovescio: la mano parte alta e scende in avanti verso destra, piatto aperto' }),
   lob: Object.freeze({ dir: [-.35, .45, .82], dist: 3.6, follow: Object.freeze({ window: .25, mix: .8, size: .5 }), read: 'lancio da sotto: il braccio oscilla indietro e sale davanti' }),
   drop: Object.freeze({ dir: [-.62, .26, .74], dist: 3.4, frameBody: 'head', read: 'gesto corto e lento: il gomito si distende, la mano scende un poco in avanti e il piatto si apre' }),
   serve: Object.freeze({ dir: [.37, .65, .67], dist: 3.6, follow: Object.freeze({ window: .3, mix: .8, size: .5 }), read: 'lancio, braccio in alto sopra la testa, battuta al colmo della palla' }),
@@ -398,12 +618,58 @@ export const CAMERAS = Object.freeze({
   cross: Object.freeze({ dir: [-.258, .087, .962], dist: 3.6, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'contatto più avanti, busto già aperto: piatto girato verso il centro' }),
   line: Object.freeze({ dir: [-.821, .423, .383], dist: 3.6, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .65, size: .4 }), frame: 'swing', read: 'contatto più indietro: piatto girato verso l\u2019esterno' }),
 });
+// Camere dell'INSIEME DEL VIDEO (B17.1 passo C, direzioni rifatte nel passo B2 per le coreografie ottimizzate con una ricerca
+// su griglia sui vincoli del disegno del B9: telefono non di taglio nelle pose chiave ≥ 28°, ≥ 52 px all'impatto a 448×280,
+// avambraccio ≥ 31° dal raggio visivo; nel passo B2 il rovescio a due mani li rispettava solo da dietro a sinistra e
+// dall'alto). Per i colpi la camera FRONTALE a tre quarti
+// all'altezza del petto, come il video dell'utente, SPECCHIATA (mirror: chi guarda vede il proprio braccio destro a destra,
+// come in uno specchio; il mancino vede l'immagine non specchiata della posa specchiata, cioè di nuovo il proprio braccio
+// dalla sua parte); per il servizio il profilo a tre quarti dal lato del braccio. Valgono SOLO per le coreografie dal video
+// (gesturePlan(id, { set: 'video' })): con le coreografie di oggi (CHOREO, schermo verso chi gioca per tutto il colpo) una
+// camera frontale vedrebbe il telefono di taglio (misurato: 0–14° nelle pose chiave, schermo mai in vista), quindi quelle
+// tengono CAMERAS. Direzioni scelte con una ricerca su griglia (scratchpad b17c/cam-search.mjs; misure in
+// docs/b17/gesti-dal-video.md): telefono non di taglio nelle pose chiave dove la coreografia lo permette, schermo in vista
+// il più a lungo possibile nel colpo, avambraccio ≥ 28° dal raggio visivo, telefono dentro lo stadio.
+export const CAMERAS_VIDEO = Object.freeze({
+  // B17.1 passo C (decisione dell'utente: camera come il video): TUTTE le schede dell'insieme del video con la camera FRONTALE a
+  // tre quarti all'altezza del petto, SPECCHIATA (mirror), profilo a tre quarti dal lato del braccio per servizio e
+  // schiacciata; whole = negli stadi da 640×400 in su la camera è ferma e contiene il gesto intero con testa, spalle e anche
+  // (natpf_gesture_demo wholeFrame), a 448×280 e nella modalità compatta segue la mano (follow, come nel B14). Direzioni da
+  // una ricerca su griglia (azimut dal davanti, elevazione) sui vincoli del disegno del B9 con le coreografie del passo B2
+  // (scratchpad b17C/camsearch.mjs; misure in docs/b17/gesti-dal-video.md): telefono non di taglio nelle pose chiave
+  // (≥ 30° dove si può), avambraccio ≥ 30° dal raggio visivo in tutto il ciclo, la più frontale possibile, schermo in vista
+  // il più a lungo possibile. Rovescio a una mano e tagliato di rovescio (specchi del dritto e del tagliato, passo B3): camera
+  // davanti a destra e dall'alto (az 44°, el 30°): lo specchio della camera del dritto (dal basso) vedeva il braccio che pende
+  // nella posizione di partenza lungo il raggio visivo; ottimizzati con questa direzione (ottimizza.mjs --camdir).
+  forehand: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .37, arrow: .025 }), frame: 'swing', read: 'dall\u2019anca destra il braccio si distende di lato, arco da destra a sinistra, all\u2019impatto lo schermo verso la palla, fine davanti al viso' }),
+  // incrociato (passo B3): 5° più di lato e più alta del dritto (az 35°, el −17,5°): con il piatto girato verso il centro e lo
+  // schermo verso la rete la fine era di taglio (23°) con la camera del dritto
+  cross: Object.freeze({ dir: [-.547, -.301, -.781], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .32, arrow: .012 }), frame: 'swing', read: 'come il dritto, con il polso girato: cima e schermo verso il centro' }),
+  line: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .37, arrow: .025 }), frame: 'swing', read: 'come il dritto, con il polso piegato indietro: cima e schermo verso l\u2019esterno' }),
+  backhand: Object.freeze({ dir: [.602, .501, -.622], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .36 }), frame: 'swing', read: 'a una mano, il dritto dall\u2019altro lato: dall\u2019anca sinistra il braccio si distende, arco da sinistra a destra, all\u2019impatto il dorso del telefono verso la palla, il braccio libero si apre dietro' }),
+  slice: Object.freeze({ dir: [-.07, -.035, -.997], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla destra in basso in diagonale, schermo che si apre verso l\u2019alto' }),
+  sliceBackhand: Object.freeze({ dir: [.602, .501, -.622], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'il tagliato dall\u2019altro lato: dalla spalla sinistra in basso a destra, all\u2019impatto il dorso del telefono verso la palla' }),
+  serve: Object.freeze({ dir: [.906, -.174, -.375], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .3, mix: .8, size: .46, arrow: .02 }), read: 'la sinistra lancia, il telefono sale sopra la testa, battuta e discesa davanti al corpo' }),
+  smash: Object.freeze({ dir: [.866, 0, -.5], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .15, mix: .8, size: .5 }), read: CAMERAS.smash.read }),
+  // piatto e volée (passo B3): dal dritto nuovo con lo schermo verso la rete all'impatto, con la camera del dritto (ottimizzati
+  // con questa direzione nei vincoli del disegno: --camdir)
+  flat: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .37, arrow: .025 }), frame: 'swing', read: 'come il dritto, più corto e più veloce, contatto più basso, schermo in pieno verso la palla' }),
+  lob: Object.freeze({ dir: [.79, -.087, -.606], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .8, size: .45 }), read: CAMERAS.lob.read }),
+  // posizione di partenza: frontale specchiata come i colpi, dalla testa alle cosce (braccio che pende, telefono all'anca)
+  // posizione di partenza (revisione del 10/11): a tre quarti da destra (prima di fronte: il telefono tenuto di taglio accanto alla
+  // coscia era largo 3–4 px e la presa non si riconosceva); la posa di partenza (REST_VIDEO) non cambia
+  ready: Object.freeze({ dir: [.58, .03, -.81], dist: 2.2, mirror: true, frameBody: 'head', read: CAMERAS.ready.read }),
+  drop: Object.freeze({ dir: [0, .087, -.996], dist: 3.4, mirror: true, whole: true, frameBody: 'head', read: CAMERAS.drop.read }),
+  volley: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.4, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .37, arrow: .025 }), read: 'gesto corto davanti al corpo, quasi senza preparazione, schermo verso la palla' }),
+});
+// camera di una scheda per insieme di coreografie: nell'insieme del video quella frontale (CAMERAS_VIDEO), se c'è
+export const camSpec = (id, set = 'legacy') => (set === 'video' && CAMERAS_VIDEO[id]) || CAMERAS[id] || null;
 // camera della scheda per la mano: il mancino vede lo specchio (x → −x della direzione)
-export function cameraFor(id, { hand = 'right' } = {}){
-  const c = CAMERAS[id]; if (!c) return null;
+export function cameraFor(id, { hand = 'right', set = 'legacy' } = {}){
+  const c = camSpec(id, set); if (!c) return null;
   if (hand !== 'left') return c;
   const m = v => [-v[0], v[1], v[2]];
-  return { ...c, ...(c.dir ? { dir: m(c.dir) } : {}), ...(c.views ? { views: c.views.map(m) } : {}) };
+  return { ...c, ...(c.dir ? { dir: m(c.dir) } : {}), ...(c.views ? { views: c.views.map(m) } : {}), ...(c.viewsBy ? { viewsBy: Object.fromEntries(Object.entries(c.viewsBy).map(([k, v]) => [k, v.map(m)])) } : {}) };
 }
 
 /* ---------- misure sul moto (velocità di rotazione del telefono = della mano) ---------- */
@@ -422,9 +688,12 @@ const argmin = (f, a, b, step) => { const r = argmax(t => -f(t), a, b, step); re
 const integral = (f, a, b, step = 1/1200) => { let s = 0; for (let t = a; t < b - 1e-12; t += step){ const h = Math.min(step, b - t); s += f(t + h/2)*h; } return s; };
 
 /* ---------- colpi ---------- */
-function withAim(J, aim){ return aim ? { ...J, tau: J.tau + aim.tau, r: J.r + aim.r } : J; }
-function strokeTracks(c, tC, aim){
-  const R = REST, B = withAim({ ...R, ...c.B }, aim), C = withAim({ ...R, ...c.C }, aim), F = withAim({ ...R, ...c.F }, aim);
+// mira: rotazione del busto (tau) e dell'omero (r) aggiunta alle pose chiave; con la coreografia dal video anche il polso
+// (pro, fl: B17.1 passo B2, scripts/video/ottimizza.mjs)
+function withAim(J, aim){ if (!aim) return J; const o = { ...J }; for (const k of JOINTS) if (aim[k]) o[k] = J[k] + aim[k]; return o; }
+function strokeTracks(c, tC, aim, R = REST){
+  const B = withAim({ ...R, ...c.B }, aim), C = withAim({ ...R, ...c.C }, aim), F = withAim({ ...R, ...c.F }, aim);
+  const F2 = c.F2 && c.slow > 0 ? withAim({ ...R, ...c.F2 }, aim) : null;
   const info = {};
   let tf = tC;
   for (const k of JOINTS){
@@ -433,18 +702,26 @@ function strokeTracks(c, tC, aim){
     info[k] = { t0, tc, tf: tc + f.d, vc: f.vc, acc };
     tf = Math.max(tf, tc + f.d);
   }
-  return { R, B, C, F, info, tf };
+  return { R, B, C, F, F2, info, tf };
 }
-function buildStroke(id, c){
-  const g = GESTURES[id], ms = g.stroke.ms/1000, aim = aimOf(id);
+// Proseguimento lento dopo la frenata (B17.1, correzioni del passo B2: tagliato «in discesa lunga», fine alta del rovescio a
+// due mani; dal passo B3 tagliato di dritto e di rovescio): F → F2 in `slow` s, senza fermarsi in F. Ogni articolazione arriva in F con la velocità SLOW_V·(F2 − F)/durata
+// (stesso verso della frenata) e da lì scende a zero in modo monotono (quintico con accelerazione nulla agli estremi: con
+// SLOW_V ≥ 5/3 la velocità non risale mai), così la mano frena una volta sola. Un'articolazione che in F2 tornerebbe
+// indietro rispetto alla frenata si ferma in F e riparte (il test della frenata unica se ne accorge).
+const SLOW_V = 1.875;
+function buildStroke(id, c, R = REST){
+  const g = GESTURES[id], ms = g.stroke.ms/1000, aim = c.aim || null;
   // tC: istante nominale (articolazioni senza ritardo); si sposta finché il picco misurato cade in c.contact
   let tC = c.contact + .01, ang, T, X;
   const build = () => {
-    X = strokeTracks(c, tC, aim);
+    X = strokeTracks(c, tC, aim, R);
     const hold = Math.min(...JOINTS.map(k => X.info[k].t0)) - c.prep;
     if (hold < .06) throw new Error(`${id}: fermo iniziale ${hold.toFixed(3)} s`);
     T = { hold, nominal: tC };
-    const back0 = X.tf, tracks = {};
+    // fin: fermo nella posa finale (B17.1: l'utente tiene la fine del colpo 0,2–0,4 s) prima del ritorno
+    const T2 = X.tf + (X.F2 ? c.slow : 0), back0 = T2 + (c.fin || 0), tracks = {};
+    T.fastEnd = X.tf;
     for (const k of JOINTS){
       const i = X.info[k], r = X.R[k], b = X.B[k], cc = X.C[k], f = X.F[k], tp = i.t0 - hold;
       if (tp < .05) throw new Error(`${id}: carica di ${k} di ${tp.toFixed(3)} s`);
@@ -458,7 +735,7 @@ function buildStroke(id, c){
         // della parte veloce (le due si sommano: la velocità attraversa lo zero senza fermarsi), più la parte veloce
         // con le pose di passaggio la carica è una sola per tutte le articolazioni (stesso inizio e stessa fine: il
         // percorso resta quello risolto)
-        const P = pathOf([r, ...(c.V || []).map(J => withAim({ ...REST, ...J }, aim)[k]), b]);
+        const P = pathOf([r, ...(c.V || []).map(J => withAim({ ...R, ...J }, aim)[k]), b]);
         const f0 = c.V ? hold : from, e1 = (c.V ? Math.max(...JOINTS.map(q => X.info[q].t0)) : i.t0 - pre) + (c.ov || 0);
         const fast = makeTrack([{ t: i.t0, x: 0 }, { t: i.tc, x: cc - b, v: i.vc }, { t: i.tf, x: f - b }]);
         const ease = c.flat ? plateau(c.flat) : mj;
@@ -466,8 +743,10 @@ function buildStroke(id, c){
         continue;
       }
       const v = pre ? {} : reversal(r, b, cc, dur, i.acc, c.crisp || 0);
+      const f2 = X.F2 ? X.F2[k] : f, vk = X.F2 && (f - cc)*(f2 - f) > 0 ? SLOW_V*(f2 - f)/(T2 - i.tf) : 0;
       tracks[k] = { i, knots: [{ t: 0, x: r }, { t: hold, x: r }, ...(from > hold + 1e-9 ? [{ t: from, x: r }] : []),
-        ...(pre ? [{ t: i.t0 - pre, x: b }] : []), { t: i.t0, x: b, ...v }, { t: i.tc, x: cc, v: i.vc }, { t: i.tf, x: f }, { t: back0, x: f }] };
+        ...(pre ? [{ t: i.t0 - pre, x: b }] : []), { t: i.t0, x: b, ...v }, { t: i.tc, x: cc, v: i.vc }, { t: i.tf, x: f, v: vk },
+        ...(X.F2 ? [{ t: T2, x: f2 }] : []), { t: back0, x: f2 }] };
       tracks[k].f = makeTrack(tracks[k].knots);
     }
     T.tf = back0;
@@ -483,27 +762,33 @@ function buildStroke(id, c){
     tracks = build();
     ang = t => { const o = {}; for (const k of JOINTS) o[k] = tracks[k].f(t); return o; };
     if (fixed) break;
-    const pk = argmax(t => handSpeed(ang, t), T.hold + .1, T.tf);
+    // picco cercato nella parte veloce (dall'inizio della prima articolazione): una carica ampia e rapida (le schede di
+    // CHOREO rifatte dalla partenza della racchetta, B17.1) non deve confondersi con il colpo
+    const fastFrom = Math.min(...JOINTS.map(k => X.info[k].t0)) - .02;
+    const pk = argmax(t => handSpeed(ang, t), Math.max(T.hold + .1, fastFrom), T.tf);
     if (Math.abs(pk.t - c.contact) < 2e-5) break;
     tC += c.contact - pk.t;
   }
-  const speed = t => handSpeed(ang, t), pk = fixed ? argmax(speed, c.contact - .004, c.contact + .004, 1/4800) : argmax(speed, T.hold + .1, T.tf);
+  const speed = t => handSpeed(ang, t), pk = fixed ? argmax(speed, c.contact - .004, c.contact + .004, 1/4800) : argmax(speed, Math.max(T.hold + .1, Math.min(...JOINTS.map(k => X.info[k].t0)) - .02), T.tf);
   T.contact = pk.t; T.swing = T.contact - ms/2; T.end = T.contact + ms/2;
   // fine dell'accompagnamento: quando tutte le articolazioni sono ferme, almeno 0,10 s dopo la fine della parte veloce
   T.back = Math.max(T.end + .1, T.tf);
   T.home = T.back + c.back; T.total = c.cycle;
   if (T.total - T.home < .08) throw new Error(`${id}: riposo finale ${(T.total - T.home).toFixed(3)} s`);
-  // ritorno a REST con assestamento
-  const tr = {};
+  // ritorno a R con assestamento (o, con backFlat, a velocità costante nel tratto centrale: picco più basso a parità di
+  // durata, per i ritorni lunghi delle coreografie dal video, B17.1)
+  const tr = {}, eBack = backEase(c);
   for (const k of JOINTS){
     const f = tracks[k].f, Fk = f(T.back), back = T.home - T.back;
-    tr[k] = t => t <= T.back ? f(t) : t >= T.home ? REST[k] : Fk + (REST[k] - Fk)*settle((t - T.back)/back);
+    tr[k] = t => t <= T.back ? f(t) : t >= T.home ? R[k] : Fk + (R[k] - Fk)*eBack((t - T.back)/back);
   }
   const ang2 = t => { const o = {}; for (const k of JOINTS) o[k] = tr[k](t); return o; };
   const sp = t => handSpeed(ang2, t);
-  // fine della carica: il punto più lento tra il picco della carica e il colpo
-  const prepPk = argmax(sp, T.hold, Math.max(T.hold + .05, T.contact - .2), 1/300);
-  T.inv = argmin(sp, prepPk.t, T.contact - .02, 1/600).t; T.load = T.inv;
+  // fine della carica: il punto più lento tra il picco della carica e l'inizio della parte veloce (B17.1: prima la ricerca
+  // arrivava fino al contatto e con una parte veloce lunga, come il dritto dell'utente da 0,5 s, prendeva un punto del colpo)
+  const fastFrom = Math.min(...JOINTS.map(k => X.info[k].t0));
+  const prepPk = argmax(sp, T.hold, Math.max(T.hold + .05, Math.min(fastFrom, T.contact - .2)), 1/300);
+  T.inv = argmin(sp, prepPk.t, Math.min(T.contact - .02, Math.max(prepPk.t + .01, fastFrom + .03)), 1/600).t; T.load = T.inv;
   const W = IMPACT_WINDOW;
   const phases = [
     ['pronto', 0, T.hold], ['preparazione', T.hold, T.inv], ['accelerazione', T.inv, T.contact - W], ['impatto', T.contact - W, T.contact + W],
@@ -528,13 +813,13 @@ function lazy(o, getters){
 // compensano, pose di passaggio V, comincia già nel lancio), battuta L → C → F come un colpo, con il picco 0,69 s dopo
 // il picco del lancio (colmo della palla), poi il ritorno.
 const cyclo = u => { u = clamp01(u); return u - Math.sin(2*Math.PI*u)/(2*Math.PI); };   // velocità 1 − cos 2πu (picco 2× la media a metà)
-function buildServe(c){
-  const g = GESTURES.serve, hMs = g.stroke.ms/1000, R = REST;
+function buildServe(c, R = REST){
+  const g = GESTURES.serve, hMs = g.stroke.ms/1000;
   const P = { ...R, ...c.P }, Q = { ...R, ...c.Q }, L = { ...R, ...c.L }, C = { ...R, ...c.C }, F = { ...R, ...c.F };
   const T = { hold: c.hold }; T.load = T.hold + c.prep; T.tossEnd = T.load + c.tossMs; T.linkStart = T.tossEnd + c.tossHold;
   const ePrep = c.flat ? plateau(c.flat) : mj, eLink = c.linkFlat ? plateau(c.linkFlat) : mj;
   const prepTossLink = (k, t, linkFrom, linkTo) => {
-    const link = pathOf([Q[k], ...(c.V || []).map(J => ({ ...REST, ...J })[k]), L[k]]);
+    const link = pathOf([Q[k], ...(c.V || []).map(J => ({ ...R, ...J })[k]), L[k]]);
     return R[k] + (P[k] - R[k])*ePrep((t - T.hold)/c.prep) + (Q[k] - P[k])*cyclo((t - T.load)/c.tossMs) + link(eLink((t - linkFrom)/(linkTo - linkFrom))) - Q[k];
   };
   // picco del lancio e battuta 0,69 s dopo: il raccordo (che comincia nel lancio) dipende dall'inizio della battuta, quindi
@@ -573,7 +858,8 @@ function buildServe(c){
   T.back = Math.max(T.end + .1, tf); T.home = T.back + c.back; T.total = c.cycle;
   if (T.total - T.home < .08) throw new Error(`servizio: riposo finale ${(T.total - T.home).toFixed(3)} s`);
   const pre = ang, Fv = pre(T.back);
-  const ang2 = t => { if (t <= T.back) return pre(t); const o = {}; for (const k of JOINTS) o[k] = t >= T.home ? R[k] : Fv[k] + (R[k] - Fv[k])*settle((t - T.back)/c.back); return o; };
+  const eBack = backEase(c);
+  const ang2 = t => { if (t <= T.back) return pre(t); const o = {}; for (const k of JOINTS) o[k] = t >= T.home ? R[k] : Fv[k] + (R[k] - Fv[k])*eBack((t - T.back)/c.back); return o; };
   const sp = t => handSpeed(ang2, t), W = IMPACT_WINDOW;
   const phases = [
     ['pronto', 0, T.hold], ['preparazione', T.hold, T.load], ['lancio', T.load, T.linkStart], ['caricamento', T.linkStart, T.hitStart],
@@ -586,12 +872,68 @@ function buildServe(c){
     travel: () => integral(sp, T.hitStart, T.end), caps: () => ({ prep: argmax(sp, T.hold, T.load, 1/600).v, link: argmax(sp, T.tossEnd, T.hitStart, 1/600).v }) });
 }
 
+// Servizio dai dati del video (B17.1, CHOREO_VIDEO.serve): R → P (mano all'anca, carica lenta `prep`) → U (braccio sopra
+// la testa in `rise` s: è il gesto del LANCIO che il telefono legge; la palla la lancia la mano libera, gestureFreeHand) →
+// fermo in alto `up` s → battuta U → C (acc, picco della mano nel contatto) → F (frenata, accompagnamento davanti al corpo:
+// con CHOREO_VIDEO la mano finisce davanti al petto a 1,30 m, nel video a 1,20 m) → fermo `fin` → ritorno a R con
+// assestamento. tC risolto come nei colpi (c.tC lo fissa).
+function buildServeVideo(c, R = REST){
+  const g = GESTURES.serve, hMs = g.stroke.ms/1000;
+  const P = { ...R, ...c.P }, U = { ...R, ...c.U }, C = { ...R, ...c.C }, F = { ...R, ...c.F };
+  const T = { hold: c.hold }; T.load = T.hold + c.prep; T.tossEnd = T.load + c.rise; T.linkStart = T.tossEnd;
+  const want = c.contact ?? T.tossEnd + c.up + c.acc;
+  let tC = c.tC ?? want, tracks, ang;
+  const build = () => {
+    tracks = {}; let tf = tC;
+    for (const k of JOINTS){
+      const o = c.jt?.[k] || {}, acc = o.acc ?? c.acc, lag = o.lag ?? c.lag?.[k] ?? 0, tc = tC - lag, t0 = tc - acc;
+      if (t0 < T.tossEnd + .02) throw new Error(`servizio: battuta di ${k} che comincia ${(T.tossEnd - t0).toFixed(3)} s prima della fine della salita`);
+      const f = fastPart(C[k] - U[k], F[k] - C[k], acc, o.dMin ?? c.dMin, o.dMax ?? c.dMax);
+      tf = Math.max(tf, tc + f.d);
+      // polso (pro, fl, dv): salita più lunga della mano (comincia nella carica e finisce nel fermo in alto): il telefono non
+      // «scatta» con la ricostruzione del polso (docs/b17/posa-dal-video.md)
+      const w = c.riseWrist && ['pro', 'fl', 'dv'].includes(k) ? c.riseWrist : 0, r0 = T.load - w, r1 = Math.min(T.tossEnd + w, t0 - .02);
+      tracks[k] = { t0, tc, tf: tc + f.d, knots: [{ t: 0, x: R[k] }, { t: T.hold, x: R[k] }, { t: r0, x: P[k] }, { t: r1, x: U[k] }, { t: t0, x: U[k] }, { t: tc, x: C[k], v: f.vc }, { t: tc + f.d, x: F[k] }] };
+    }
+    T.tf = tf + (c.fin || 0);
+    for (const k of JOINTS){ tracks[k].knots.push({ t: T.tf, x: F[k] }); tracks[k].f = makeTrack(tracks[k].knots); }
+    ang = t => { const o = {}; for (const k of JOINTS) o[k] = tracks[k].f(t); return o; };
+  };
+  const fixed = c.tC != null;
+  for (let it = 0; it < (fixed ? 1 : 6); it++){
+    build();
+    if (fixed) break;
+    const pk = argmax(t => handSpeed(ang, t), T.tossEnd + .05, T.tf);
+    if (Math.abs(pk.t - want) < 2e-5) break;
+    tC += want - pk.t;
+  }
+  T.nominal = tC;
+  const sp0 = t => handSpeed(ang, t), pk = fixed ? argmax(sp0, want - .004, want + .004, 1/4800) : argmax(sp0, T.tossEnd + .05, T.tf);
+  T.tossPeak = argmax(sp0, T.load + .02, T.tossEnd - .02).t;
+  T.contact = pk.t; T.hitStart = Math.min(...JOINTS.map(k => tracks[k].t0)); T.linkEnd = T.hitStart; T.inv = T.hitStart; T.swing = T.hitStart; T.end = T.contact + hMs/2;
+  T.back = Math.max(T.end + .1, T.tf); T.home = T.back + c.back; T.total = c.cycle;
+  if (T.total - T.home < .08) throw new Error(`servizio: riposo finale ${(T.total - T.home).toFixed(3)} s`);
+  const Fv = ang(T.back);
+  const eBack = backEase(c);
+  const ang2 = t => { if (t <= T.back) return ang(t); const o = {}; for (const k of JOINTS) o[k] = t >= T.home ? R[k] : Fv[k] + (R[k] - Fv[k])*eBack((t - T.back)/c.back); return o; };
+  const sp = t => handSpeed(ang2, t), W = IMPACT_WINDOW;
+  const phases = [
+    ['pronto', 0, T.hold], ['preparazione', T.hold, T.load], ['lancio', T.load, T.tossEnd], ['caricamento', T.tossEnd, T.hitStart],
+    ['battuta', T.hitStart, T.contact - W], ['impatto', T.contact - W, T.contact + W], ['accompagnamento', T.contact + W, T.back],
+    ['ritorno', T.back, T.home], ['pronto', T.home, T.total],
+  ];
+  const keys = [{ id: 'lancio', t: T.tossEnd, label: 'Lancio' }, { id: 'caricamento', t: T.hitStart, label: 'Braccio in alto' }, { id: 'impatto', t: T.contact, label: 'Impatto' }];
+  return lazy({ id: 'serve', kind: 'serve', freeToss: true, T, ang: ang2, phases, keys, contact: T.contact, tossPeak: T.tossPeak, tossGap: T.contact - T.tossPeak, total: T.total, peak: sp(T.contact),
+    tossPeakSpeed: sp(T.tossPeak), ball: 'toss', ballHigh: true, expect: g.expect }, {
+    travel: () => integral(sp, T.hitStart, T.end), caps: () => ({ prep: argmax(sp, T.hold, T.load, 1/600).v, link: argmax(sp, T.tossEnd, T.hitStart, 1/600).v }) });
+}
+
 /* ---------- presa e posizione di partenza: ferme ---------- */
-function buildStill(id){
+function buildStill(id, R = REST){
   const total = STILL_TIMING[id];
   // presa: la camera gira (dagli occhi di chi gioca → di lato → ritorno), non la mano (specifica §2.1)
-  const keys = id === 'grip' ? [{ id: 'davanti', t: 1.5, label: 'Come la vedi tu' }, { id: 'lato', t: 6, label: 'Di lato' }] : [];
-  return { id, kind: 'still', T: { total }, ang: () => REST, phases: [['fermo', 0, total]], keys, contact: null, total, peak: 0, still: true,
+  const keys = id === 'grip' ? [{ id: 'davanti', t: 1.5, label: R === REST_RACCHETTA ? 'Come allo specchio' : 'Come la vedi tu' }, { id: 'lato', t: 6, label: 'Di lato' }] : [];
+  return { id, kind: 'still', T: { total }, ang: () => R, phases: [['fermo', 0, total]], keys, contact: null, total, peak: 0, still: true,
     ball: null, ballHigh: false, expect: { messages: 0 } };
 }
 
@@ -606,10 +948,20 @@ function breathOf(m, t){
 
 // Moto di un gesto da una coreografia (non dipende dalla presa: la presa cambia solo come il telefono sta nella mano).
 // Esportato per gli strumenti di taratura; il gioco usa gesturePlan con CHOREO.
-export function motionFrom(id, choreo = id === 'serve' ? CHOREO.serve : choreoOf(id)){
+export function motionFrom(id, choreo = id === 'serve' ? CHOREO.serve : choreoOf(id), { rest = REST, set = 'legacy' } = {}){
   const g = GESTURES[id];
   if (!g) throw new Error(`gesto sconosciuto: ${id}`);
-  const m = g.still ? buildStill(id) : g.toss ? buildServe(choreo) : buildStroke(id, choreo);
+  const m = g.still ? buildStill(id, rest) : g.toss ? (choreo.U ? buildServeVideo(choreo, rest) : buildServe(choreo, rest)) : buildStroke(id, choreo, rest);
+  m.set = set; m.rest = rest;
+  // «Carica» solo dal primo moto (revisione del passo C2: nei primi 0,9–1,5 s dei cicli la mano non si spostava di oltre 5 cm
+  // ma la fase scritta diceva già CARICA): la fase di preparazione comincia quando la mano si è staccata di PREP_MOVE dalla
+  // posa di partenza; fino ad allora resta «Pronto»
+  const pi = m.phases.findIndex(p => p[0] === 'preparazione');
+  if (pi > 0 && !m.still){
+    const [, from, to] = m.phases[pi], W0 = armChain(m.ang(0)).W;
+    let tm = from; while (tm < to - .02 && len(sub(armChain(m.ang(tm)).W, W0)) < PREP_MOVE) tm += 1/60;
+    if (tm > from + .03 && tm < to - .02){ m.phases[pi - 1] = [m.phases[pi - 1][0], m.phases[pi - 1][1], tm]; m.phases[pi] = [m.phases[pi][0], tm, to]; }
+  }
   m.phases = m.phases.map(([pid, from, to]) => Object.freeze({ id: pid, label: PHASES[pid], from, to }));
   return m;
 }
@@ -624,15 +976,17 @@ export function planFrom(m, grip = GRIP_STYLE){
   return Object.assign(Object.create(m), { raw, grip, Q0: gripQuat(grip), G, handLocal: HL });
 }
 const motions = new Map(), plans = new Map();
-function gestureMotion(id){
-  if (!motions.has(id)) motions.set(id, motionFrom(id));
-  return motions.get(id);
+function gestureMotion(id, set = 'legacy', grip = GRIP_STYLE){
+  const rest = restOf(id, set, grip), key = id + '|' + set + '|' + (rest === REST ? 'R' : rest === REST_RACCHETTA ? 'RR' : rest === REST_COLPI_RACCHETTA ? 'RC' : 'RV');
+  if (!motions.has(key)) motions.set(key, motionFrom(id, choreoFor(id, set), { rest, set }));
+  return motions.get(key);
 }
 // piano di un gesto (cache per gesto e presa). Le fasi sono [{ id, label, from, to }] in ordine.
-export function gesturePlan(id, { grip = GRIP_STYLE } = {}){
-  const key = id + '|' + gripKey(grip);
+// set: insieme di coreografie ('video' | 'legacy'); predefinito quello della scheda per la presa (setFor)
+export function gesturePlan(id, { grip = GRIP_STYLE, set = setFor(grip, id) } = {}){
+  const key = id + '|' + gripKey(grip) + '|' + set;
   if (plans.has(key)) return plans.get(key);
-  const p = planFrom(gestureMotion(id), grip);
+  const p = planFrom(gestureMotion(id, set, grip), grip);
   plans.set(key, p);
   return p;
 }
@@ -662,22 +1016,38 @@ function rawPose(P, t, hand){
 // campo), phase/label (fase e testo), u (avanzamento nella fase), speed (|ω| °/s), contact e cycle (s), trunk (rad,
 // rotazione del busto), chain (catena: bacino, spalla, gomito, polso, orientamenti dei segmenti e angoli j, nella mano
 // scelta). rig: true aggiunge lo scheletro per il disegno (gestureRig).
-export function gesturePose(id, t, { hand = 'right', grip = GRIP_STYLE, rig = false } = {}){
-  const P = gesturePlan(id, { grip }), h = 1/480;
-  const p = rawPose(P, t, hand), ph = phaseAt(id, t, { grip });
+export function gesturePose(id, t, { hand = 'right', grip = GRIP_STYLE, set = undefined, rig = false } = {}){
+  const P = gesturePlan(id, { grip, set }), h = 1/480;
+  const p = rawPose(P, t, hand), ph = phaseAt(id, t, { grip, set });
   const speed = P.still ? 0 : len(omega(rawPose(P, t - h/2, hand).q, rawPose(P, t + h/2, hand).q, h));
   const out = { id, t: wrapT(P, t), pos: p.pos, q: p.q, trunk: p.trunk, chain: p.chain, phase: ph.id, label: ph.label, u: ph.u, speed, contact: P.contact, cycle: P.total, hand };
   if (rig) out.rig = gestureRig(out, { hand, grip });
   return out;
 }
+// Faccia del telefono che colpisce la palla (B17.1 passo B3, richiesta dell'utente del 09/11 notte: «con il dritto la pallina
+// venga colpita con il display in maniera frontale, il rovescio invece stesso movimento ma con l'altro lato»): +1 = lo SCHERMO
+// (normale +z del telefono) guarda la rete (−z del campo) all'impatto, come il piatto corde; −1 = il DORSO. Dritto e colpi di
+// dritto con lo schermo, rovescio e tagliato di rovescio con il dorso. Mancino: specchio esatto (l'angolo non cambia).
+// Revisione del 10/11: ogni scheda e posa in più che colpisce una palla ha una faccia che colpisce. Servizio e schiacciata con lo
+// SCHERMO come il dritto (riottimizzati: 14,5° e 9,3° dalla rete; la schiacciata colpiva col dorso a 113° e il servizio con lo
+// schermo di taglio a 88°). Pallonetto e palla corta col DORSO (32,4° e 28,9° dalla rete: colpi dal lato del dritto che aprono la
+// faccia verso l'alto): domanda aperta per l'utente, docs/b17/ottimizzazione.md §9.7–9.8.
+export const IMPACT_FACE = Object.freeze({ forehand: 1, flat: 1, cross: 1, line: 1, slice: 1, volley: 1, serve: 1, smash: 1, backhand: -1, sliceBackhand: -1, lob: -1, drop: -1 });
+export const IMPACT_MAX = 20;                                     // gradi: limite chiesto (schermo o dorso verso la rete)
+// angolo (gradi) tra la faccia che colpisce (IMPACT_FACE) e la direzione della rete nell'istante del contatto
+export const faceAngleOf = (id, q) => { const n = mul(qrot(q, [0, 0, 1]), IMPACT_FACE[id] || 1); return Math.acos(Math.max(-1, Math.min(1, -n[2])))/D; };
+export function impactFaceAngle(id, { hand = 'right', grip = GRIP_STYLE, set = undefined } = {}){
+  const P = gesturePlan(id, { grip, set });
+  return faceAngleOf(id, rawPose(P, P.contact, hand).q);
+}
 // angoli articolari al tempo t (gradi; y in m): quelli della catena disegnata (uguali per destro e mancino)
 export const gestureJoints = (id, t, o = {}) => gesturePlan(id, o).ang(wrapT(gesturePlan(id, o), t));
 // velocità di rotazione del telefono (°/s) al tempo t e curva di un ciclo (per la banda «Picco = impatto» e la scia)
 export const gestureSpeed = (id, t, o = {}) => gesturePose(id, t, o).speed;
-export function speedCurve(id, { hand = 'right', grip = GRIP_STYLE, step = 1/120 } = {}){
-  const P = gesturePlan(id, { grip }), n = Math.round(P.total/step), t = new Float32Array(n + 1), w = new Float32Array(n + 1);
+export function speedCurve(id, { hand = 'right', grip = GRIP_STYLE, set = undefined, step = 1/120 } = {}){
+  const P = gesturePlan(id, { grip, set }), n = Math.round(P.total/step), t = new Float32Array(n + 1), w = new Float32Array(n + 1);
   let max = 0, at = 0;
-  for (let i = 0; i <= n; i++){ t[i] = i*step; w[i] = gestureSpeed(id, t[i], { hand, grip }); if (w[i] > max){ max = w[i]; at = t[i]; } }
+  for (let i = 0; i <= n; i++){ t[i] = i*step; w[i] = gestureSpeed(id, t[i], { hand, grip, set }); if (w[i] > max){ max = w[i]; at = t[i]; } }
   return { t, w, max, at, contact: P.contact, total: P.total };
 }
 
@@ -774,10 +1144,58 @@ function strokeBall(P, t){
 // ridotta), mai il tempo (specifica §2.5).
 export const SERVE_BALL_REST = Object.freeze([0, PHONE.h*.22, PHONE.d/2 + BALL_R]);   // punto d'appoggio (riferimento del telefono)
 const restOn = p => add(p.pos, qrot(p.q, SERVE_BALL_REST));
+// Mano libera (sinistra del destro) del servizio dai dati: lancia la palla mentre il telefono sale. Dall'anca sinistra
+// (fermo fino alla carica) sale davanti al corpo fino al punto di stacco nell'istante del picco del lancio, prosegue un
+// poco e torna all'anca entro la fine dell'accompagnamento. Solo dati per il disegno (il passo C la disegna).
+const TOSS_HAND = Object.freeze({ hip: [-.2, 1.0, -.05], release: [-.12, 1.45, -.2], up: [-.08, 1.6, -.25] });
+function tossHand(P, t){
+  const T = P.T, H = TOSS_HAND;
+  if (t <= T.load) return H.hip;
+  if (t <= T.tossPeak) return lerp(H.hip, H.release, mj((t - T.load)/(T.tossPeak - T.load)));
+  const tUp = T.tossEnd + .2;
+  if (t <= tUp) return lerp(H.release, H.up, mj((t - T.tossPeak)/(tUp - T.tossPeak)));
+  if (t <= T.back) return lerp(H.up, H.hip, mj((t - tUp)/(T.back - tUp)));
+  return H.hip;
+}
+// mano libera a riposo (riferimento del busto, dal bacino, m): braccio rilassato lungo il fianco sinistro, quasi disteso,
+// come nel video (posa ferma 9,4–9,7 s e colpi); prima era la mano sul fianco con il gomito in fuori
+export const FREE_REST = Object.freeze([-.22, -.10, -.04]);
+export const freeRestOf = ch => add(ch.pelvis, qrot(ch.trunk, FREE_REST));
+// rovescio a una mano (B17.1 passo B3, decisione dell'utente: «Per il rovescio, a una mano»): il braccio libero si apre
+// DIETRO per l'equilibrio, disteso e un poco in basso (riferimento del busto, dal bacino, m: +z dietro; y = +0,18 m dal bacino
+// è la vita), come le braccia aperte «ad ali» dei rovesci a una mano. Passo C2: prima (−0,42; 0,18; 0,30) di lato all'altezza
+// della vita: con la camera davanti a destra, che vede il busto girato quasi di profilo, la mano restava dietro il busto e non
+// si vedeva; ora braccio e mano escono dietro la schiena (fogli VC-backhand). Nella carica (FREE_PREP) pende rilassata un poco
+// davanti al fianco sinistro (prima (−0,24; 0; 0,08): la mano sul fianco con il gomito in fuori, «mano sull'anca»), a ≥ 0,3 m
+// dal telefono, che nel rovescio allo specchio del dritto passa davanti al busto (z −0,36…−0,44)
+export const FREE_BALANCE = Object.freeze([-.34, .16, .50]);
+export const FREE_PREP = Object.freeze([-.26, -.04, -.10]);
+// posizione della mano libera (m, campo) al tempo t: lancio del servizio dai dati, braccio in equilibrio del rovescio a una
+// mano (dalla seconda metà della carica la sinistra si sposta di lato e un poco dietro, dal contatto si apre dietro fino alla fine
+// dell'accompagnamento e torna a riposo nella prima metà del ritorno); null quando la mano libera non fa parte del gesto
+// (il disegno la mette a riposo, FREE_REST)
+export function gestureFreeHand(id, t, { hand = 'right', grip = GRIP_STYLE, set = undefined } = {}){
+  const P = gesturePlan(id, { grip, set }), tt = wrapT(P, t);
+  let p = null;
+  if (P.freeToss) p = tossHand(P, tt);
+  else if (GESTURES[id]?.balance && P.set === 'video' && P.kind === 'stroke'){
+    const T = P.T, a = T.inv - .5*(T.inv - T.hold), c = P.contact, o = Math.min(T.back, c + .25), b = T.back + .5*(T.home - T.back);
+    if (tt > a && tt < b){
+      const ch = P.raw(tt).chain, at = v => add(ch.pelvis, qrot(ch.trunk, v)), rest = FREE_REST;
+      const v = tt < T.inv ? lerp(rest, FREE_PREP, mj((tt - a)/(T.inv - a))) : tt < c ? FREE_PREP : tt < o ? lerp(FREE_PREP, FREE_BALANCE, mj((tt - c)/(o - c)))
+        : tt <= T.back ? FREE_BALANCE : lerp(FREE_BALANCE, rest, mj((tt - T.back)/(b - T.back)));
+      p = at(v);
+    }
+  }
+  return p && hand === 'left' ? mirrorPos(p) : p;
+}
+const inFreeHand = P => t => add(tossHand(P, t), [0, BALL_R + .01, 0]);
 function serveBall(P, t){
   const T = P.T, apex = contactPoint(P);
-  if (t <= T.tossPeak) return restOn(P.raw(t));
-  const release = restOn(P.raw(T.tossPeak));
+  // lancio con la mano libera (dati del video): la palla sta nella mano sinistra fino al picco del lancio
+  const held = P.freeToss ? inFreeHand(P) : t => restOn(P.raw(t));
+  if (t <= T.tossPeak) return held(t);
+  const release = held(T.tossPeak);
   if (t <= T.contact){
     const span = T.contact - T.tossPeak, g = 2*Math.max(.2, apex[1] - release[1])/(span*span), s = T.contact - t, u = (t - T.tossPeak)/span;
     return [release[0] + (apex[0] - release[0])*u, apex[1] - .5*g*s*s, release[2] + (apex[2] - release[2])*u];
@@ -787,15 +1205,15 @@ function serveBall(P, t){
   return [apex[0] - .3*BALL_OUT*dt, apex[1] - 1.0*BALL_OUT*dt - .5*G*dt*dt, apex[2] - 16*BALL_OUT*dt];
 }
 // posizione della palla (m, campo) al tempo t, o null quando non è in scena (presa e posizione: mai)
-export function gestureBall(id, t, { hand = 'right', grip = GRIP_STYLE } = {}){
-  const P = gesturePlan(id, { grip });
+export function gestureBall(id, t, { hand = 'right', grip = GRIP_STYLE, set = undefined } = {}){
+  const P = gesturePlan(id, { grip, set });
   if (P.still) return null;
   const tt = wrapT(P, t), b = P.kind === 'serve' ? serveBall(P, tt) : strokeBall(P, tt);
   return b && hand === 'left' ? mirrorPos(b) : b;
 }
 // punto in cui la palla tocca il telefono nell'istante del contatto (m, campo)
-export function gestureContactPoint(id, { hand = 'right', grip = GRIP_STYLE } = {}){
-  const P = gesturePlan(id, { grip });
+export function gestureContactPoint(id, { hand = 'right', grip = GRIP_STYLE, set = undefined } = {}){
+  const P = gesturePlan(id, { grip, set });
   if (P.still) return null;
   const c = contactPoint(P); return hand === 'left' ? mirrorPos(c) : c;
 }

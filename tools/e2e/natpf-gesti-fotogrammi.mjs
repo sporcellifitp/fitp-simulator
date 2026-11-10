@@ -79,7 +79,17 @@ async function frameInfo(id, t, W, H, hand = 'right'){
     const polys = [F?.phoneHull, F?.palmHull].filter(Boolean), in1 = (P, x, y) => { let k = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++){ const a = P[i], b = P[j]; if ((a.y > y) !== (b.y > y) && x < (b.x - a.x)*(y - a.y)/(b.y - a.y) + a.x) k = !k; } return k; };
     const inP = (x, y) => polys.some(P => in1(P, x, y));
     const over = labels.reduce((m, b) => { let n = 0; for (let i = 0; i <= 12; i++) for (let j = 0; j <= 4; j++) if (inP(b.x0 + b.w*i/12, b.y0 + b.h*j/4)) n++; return Math.max(m, n/65); }, 0);
-    return { label: pose.label, phase: pose.phase, edge, phoneLen: Math.hypot(tip.x - base.x, tip.y - base.y), subjectH: fr ? (Math.min(H, fr.y1) - Math.max(0, fr.y0))/H : null, ballTip, labelsIn: inStage, labelOver: over, compact: d.compact, ms: 0 };
+    // primo piano dell'impatto (passo C2): non copre telefono, palmo né palla vivi, né le etichette dei fantasmi
+    const C = info.close && info.close.alpha > .01 ? info.close : null;
+    let closeBad = null;
+    if (C){
+      const r = C.rect, inR = q => q.x > r.x && q.x < r.x + r.w && q.y > r.y && q.y < r.y + r.h;
+      if (polys.some(P => P.some(inR))) closeBad = 'copre il telefono o la mano';
+      else if (info.ball && inR(cam.p(info.ball))) closeBad = 'copre la palla';
+      else if (labels.some(b => b.x0 < r.x + r.w && b.x0 + b.w > r.x && b.y0 < r.y + r.h && b.y0 + b.h > r.y)) closeBad = 'sotto un\'etichetta';
+      else if (r.x < 0 || r.y < 0 || r.x + r.w > W || r.y + r.h > H*.83) closeBad = 'fuori dallo stadio';
+    }
+    return { close: C ? { text: C.text, alpha: C.alpha, toClose: C.faceToClose, toMain: C.faceToMain, bad: closeBad } : null, label: pose.label, phase: pose.phase, edge, phoneLen: Math.hypot(tip.x - base.x, tip.y - base.y), subjectH: fr ? (Math.min(H, fr.y1) - Math.max(0, fr.y0))/H : null, ballTip, labelsIn: inStage, labelOver: over, compact: d.compact, ms: 0 };
   }, { id, t, W, H, hand });
 }
 
@@ -129,7 +139,7 @@ async function inFrame(W, H){
         if (off(tip)) tipOut += 1000/60;
         const b = GP.gestureBall(id, t), near = P.kind === 'serve' ? t >= P.T.tossPeak && t <= P.contact + .05 : t >= P.contact - .1 && t <= P.contact + .05;
         if (b && near && off(cam.p(b))) ballOut += 1000/60;
-        if (Math.abs(t - P.contact) < 1/120) for (const a of M.arrows.filter(a => a.t0 <= P.contact && a.t1 >= P.contact)) for (const q of a.pts){ arrowN++; if (off(cam.p(q))) arrowOut++; }
+        if (Math.abs(t - P.contact) < 1/120) for (const a of (D.wholeFrame?.(M.C, W, H) ? M.arrowsWhole : M.arrows).filter(a => a.t0 <= P.contact && a.t1 >= P.contact)) for (const q of a.pts){ arrowN++; if (off(cam.p(q))) arrowOut++; }
       }
       out.push({ id, tipOut, ballOut, arrowOut: arrowOut/Math.max(1, arrowN) });
     }
@@ -139,8 +149,34 @@ async function inFrame(W, H){
 
 // misure della lista (§5.6.2) su tutte le schede e le misure
 const KEY = { stroke: ['Carica', 'Impatto', 'Fine'], serve: ['Lancio (palla lasciata)', 'Braccio in alto', 'Impatto'] };
+// Limiti ammessi e DICHIARATI (si stampano nella riga OK, non si nascondono) per misura × scheda × presa: minimo misurato e
+// motivo. B17.1 passo B: a 200×200 il dritto con la presa a racchetta ha mano+telefono al 26 % dell'altezza all'impatto
+// (presa nel palmo: 28 %, al limite): il telefono lungo l'avambraccio è quasi orizzontale sullo schermo (12° contro 21°) e
+// la camera compatta non può stringere (percorso del telefono sul ciclo e freccia del contatto non stanno già nel quadro
+// per 9 px a z 0,96: stringere porta la freccia fuori; misure in docs/b17/posa-dal-video.md §1). Da confermare con l'utente.
+const GRIP = await p.evaluate(() => window.__GRIP);
+const IMPACT_FACE = await p.evaluate(() => ({ ...window.__GP.IMPACT_FACE }));
+// B17.1 passo C: con le camere frontali dell'insieme del video il dritto a 200×200 è al 33 % e oltre: il limite non serve più
+// (la tabella resta per i limiti dichiarati che verranno)
+// B17.1 passo B3: il rovescio A UNA MANO con il dorso verso la rete all'impatto, a 1600×1000 con la camera ferma sul gesto intero,
+// ha mano+telefono al 27 % dell'altezza all'impatto (28 % con il rovescio a due mani del passo C): misurato, dichiarato in
+// docs/b17/ottimizzazione.md §9
+// Lo stesso per dritto e lungolinea con lo schermo verso la rete (impatto 12 cm più alto, arco più lungo nel quadro fermo): 27 %
+// Correzioni del passo B3: il rovescio a una mano è lo SPECCHIO del dritto (braccio disteso a sinistra, arco largo) e la camera
+// non può essere lo specchio di quella del dritto (nella carica l'avambraccio destro che attraversa il corpo punta verso una
+// camera davanti a destra dal basso: 14° dal raggio visivo); con la camera davanti a destra dall'alto, gesto intero a camera
+// ferma, mano+telefono all'impatto è al 20 % a 640×400 e al 19 % a 1600×1000 (ricerca su griglia dell'azimut e dell'elevazione con
+// telefono non di taglio e avambraccio ≥ 31°: al più +13 %, scratchpad b3fix/camsearch.mjs); a 448×280 e 200×200 (camera che
+// segue la mano) è sopra il 28 %. Volée corta e tagliato di rovescio a 1600×1000 al 27 %. Misurati, dichiarati in
+// docs/b17/ottimizzazione.md §9.7
+const LIMITI = { '1600x1000|backhand|racchetta': { subjectH: .185, nota: 'rovescio a una mano allo specchio del dritto, gesto intero a camera ferma (19 %), ottimizzazione.md §9.7' },
+  '640x400|backhand|racchetta': { subjectH: .195, nota: 'rovescio a una mano allo specchio del dritto, gesto intero a camera ferma (20 %), ottimizzazione.md §9.7' },
+  '1600x1000|sliceBackhand|racchetta': { subjectH: .265, nota: 'tagliato di rovescio allo specchio del tagliato, gesto intero a 1600×1000 (27 %), ottimizzazione.md §9.7' },
+  '1600x1000|volley|racchetta': { subjectH: .27, nota: 'volée corta, gesto intero a 1600×1000 (27 %), ottimizzazione.md §9.7' },
+  '1600x1000|forehand|racchetta': { subjectH: .265, nota: 'dritto con lo schermo verso la rete, gesto intero a 1600×1000 (27 %), ottimizzazione.md §9' },
+  '1600x1000|line|racchetta': { subjectH: .265, nota: 'lungolinea con lo schermo verso la rete, gesto intero a 1600×1000 (27 %), ottimizzazione.md §9' } };
 for (const [W, H] of SIZES){
-  const bad = [], minLen = { v: Infinity, at: '' }, minSub = { v: Infinity, at: '' };
+  const bad = [], limiti = [], closeSeen = [], minLen = { v: Infinity, at: '' }, minSub = { v: Infinity, at: '' };
   for (const id of Object.keys(MOMENTS)) for (const hand of ['right', 'left']) for (const [t, txt] of MOMENTS[id]){
     const f = await frameInfo(id, t, W, H, hand), tag = `${id} ${hand} ${txt}`;
     const key = (KEY.stroke.includes(txt) && !['grip', 'ready'].includes(id) && id !== 'serve') || (id === 'serve' && KEY.serve.includes(txt)) || id === 'grip' && txt !== 'Giro della camera';
@@ -148,19 +184,31 @@ for (const [W, H] of SIZES){
     if (txt === 'Impatto'){
       if (f.label !== 'Impatto') bad.push(`${tag}: scritto «${f.label}»`);
       if (f.ballTip == null || f.ballTip > 1) bad.push(`${tag}: palla a ${f.ballTip?.toFixed(2)} raggi dalla cima`);
-      if (f.subjectH < .28) bad.push(`${tag}: mano+telefono ${(f.subjectH*100).toFixed(0)}% dell'altezza`);
+      if (f.subjectH < .28){
+        const lim = LIMITI[`${W}x${H}|${id}|${GRIP}`];
+        if (lim && f.subjectH >= lim.subjectH - 1e-6) limiti.push(`${tag}: mano+telefono ${(f.subjectH*100).toFixed(1)}% ≥ ${(lim.subjectH*100).toFixed(1)}% ammesso: ${lim.nota}`);
+        else bad.push(`${tag}: mano+telefono ${(f.subjectH*100).toFixed(1)}% dell'altezza`);
+      }
       if (f.subjectH < minSub.v){ minSub.v = f.subjectH; minSub.at = tag; }
       if (f.phoneLen < minLen.v){ minLen.v = f.phoneLen; minLen.at = tag; }
       if (W === 448 && f.phoneLen < 60) bad.push(`${tag}: telefono lungo ${f.phoneLen.toFixed(0)} px`);
+      // passo C2: da 640×400 in su (camera ferma sul gesto intero) i colpi con la faccia d'impatto hanno il primo piano
+      const face = IMPACT_FACE[id];
+      if (face && W >= 640 && GRIP === 'racchetta'){
+        if (!f.close || f.close.alpha < .99) bad.push(`${tag}: manca il primo piano dell'impatto`);
+        else if (f.close.text !== (face > 0 ? 'Palla sullo SCHERMO' : 'Palla sul DORSO')) bad.push(`${tag}: primo piano «${f.close.text}»`);
+        else closeSeen.push(`${id} ${hand} ${f.close.toClose.toFixed(0)}°/${f.close.toMain.toFixed(0)}°`);
+      }
     }
+    if (f.close?.bad) bad.push(`${tag}: primo piano dell'impatto ${f.close.bad}`);
     if (!f.labelsIn) bad.push(`${tag}: etichetta fuori dallo stadio`);
     if (f.labelOver > .1) bad.push(`${tag}: etichetta sul telefono o sulla mano vivi (${(f.labelOver*100).toFixed(0)}%)`);
   }
   const fr = await inFrame(W, H), outB = fr.filter(r => r.tipOut > 100.001 || r.ballOut > 100.001 || r.arrowOut > .1);
   check(`${W}×${H}: il colpo resta nel quadro (cima e palla fuori ≤ 100 ms, freccia fuori ≤ 10%)`, outB.length === 0,
     fr.map(r => `${r.id} ${Math.round(r.tipOut)}/${Math.round(r.ballOut)} ms ${Math.round(r.arrowOut*100)}%`).join(', '));
-  check(`${W}×${H}: lista di controllo (telefono non di taglio ≥ 25°, «Impatto», palla ≤ 1 raggio dalla cima, mano+telefono ≥ 28%, etichette)`, bad.length === 0,
-    `impatto: telefono più corto ${minLen.v.toFixed(0)} px (${minLen.at}), soggetto più piccolo ${(minSub.v*100).toFixed(0)}% (${minSub.at})${bad.length ? '\n    ' + bad.join('\n    ') : ''}`);
+  check(`${W}×${H}: lista di controllo (telefono non di taglio ≥ 25°, «Impatto», palla ≤ 1 raggio dalla cima, mano+telefono ≥ 28%, etichette, primo piano dell'impatto)`, bad.length === 0,
+    `impatto: telefono più corto ${minLen.v.toFixed(0)} px (${minLen.at}), soggetto più piccolo ${(minSub.v*100).toFixed(0)}% (${minSub.at})${closeSeen.length ? `; primo piano (faccia che colpisce dalla camera del primo piano / principale): ${closeSeen.join(', ')}` : ''}${limiti.length ? '\n    LIMITE AMMESSO (dichiarato) ' + limiti.join('\n    LIMITE AMMESSO (dichiarato) ') : ''}${bad.length ? '\n    ' + bad.join('\n    ') : ''}`);
 }
 
 if (!process.env.NOFOGLI){

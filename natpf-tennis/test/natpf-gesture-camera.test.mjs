@@ -12,21 +12,28 @@ import { cameraAt, COMPACT_W } from '../src/natpf/natpf_gesture_demo.js';
 const D = Math.PI/180;
 const fineOf = P => P.keys.find(k => k.id === 'fine').t;
 // proiezione sullo schermo (px) di un punto del campo per la scheda all'istante t
-const at = (id, t, X, W = 640, H = 400) => cameraAt(id, t, { W, H }).p(X);
-const pos = (id, t) => GP.gesturePose(id, t).pos;
+// (B17.1 passo B2: queste sono le camere da dietro del B14 per le coreografie di oggi, che restano quelle della presa nel palmo;
+// con la presa a racchetta le schede usano le coreografie ottimizzate dal video e le camere CAMERAS_VIDEO, frontali come il
+// video: per quelle valgono i vincoli del disegno del B9 in natpf-gesture-anim, non «avanti a sinistra sullo schermo»)
+const o = { grip: 'palmo' };
+const at = (id, t, X, W = 640, H = 400) => cameraAt(id, t, { W, H, ...o }).p(X);
+const pos = (id, t) => GP.gesturePose(id, t, o).pos;
 // salita vista dall'impatto alla fine (frazione dell'altezza dello stadio; positiva = in alto sullo schermo)
-const riseAfterImpact = (id, W = 640, H = 400) => { const P = GP.gesturePlan(id); return (at(id, P.contact, pos(id, P.contact), W, H).y - at(id, fineOf(P), pos(id, fineOf(P)), W, H).y)/H; };
+const riseAfterImpact = (id, W = 640, H = 400) => { const P = GP.gesturePlan(id, o); return (at(id, P.contact, pos(id, P.contact), W, H).y - at(id, fineOf(P), pos(id, fineOf(P)), W, H).y)/H; };
 // direzioni proiettate all'impatto: avanti (−z), in alto (+y), velocità della mano
 function screenDirs(id){
-  const P = GP.gesturePlan(id), cam = cameraAt(id, P.contact, { W: 640, H: 400 }), X = pos(id, P.contact), o = cam.p(X);
-  const pr = d => { const q = cam.p(GP.add(X, GP.mul(d, .3))); return [q.x - o.x, q.y - o.y]; };
+  const P = GP.gesturePlan(id, o), cam = cameraAt(id, P.contact, { W: 640, H: 400, ...o }), X = pos(id, P.contact), c0 = cam.p(X);
+  const pr = d => { const q = cam.p(GP.add(X, GP.mul(d, .3))); return [q.x - c0.x, q.y - c0.y]; };
   const v = GP.sub(pos(id, P.contact + .004), pos(id, P.contact - .004));
   return { fwd: pr([0, 0, -1]), up: pr([0, 1, 0]), vel: pr(GP.norm(v)) };
 }
 const ang = (a, b) => Math.acos(Math.max(-1, Math.min(1, (a[0]*b[0] + a[1]*b[1])/Math.hypot(...a)/Math.hypot(...b))))/D;
 
 test('camere dei colpi da fondo: dall\'impatto alla fine la mano sale sullo schermo (prima il dritto scendeva di circa 7 px a 640×400)', () => {
-  const min = { forehand: .2, line: .2, cross: .2, backhand: .15, flat: .06 };
+  // piatto: con la presa a racchetta (B17.1, partenza REST_COLPI_RACCHETTA) il punto di riferimento del telefono sta lungo
+  // l'avambraccio e alla fine è inclinato: sullo schermo sale del 9,4 % a 640×400 e del 2,99 % a 448×280 (presa nel palmo
+  // 9,8 % e 3,3 %; il polso 15 % e 12 %, la salita vera 0,53 m è la stessa): minimo 5,5 % (2,75 % a 448×280), misurato
+  const min = { forehand: .2, line: .2, cross: .2, backhand: .15, flat: .055 };
   for (const [id, m] of Object.entries(min)){
     for (const [W, H] of [[640, 400], [448, 280]]){
       const r = riseAfterImpact(id, W, H);
@@ -45,7 +52,7 @@ test('dritto, lungolinea e incrociato: «avanti» e «in alto» distinti sullo s
 
 test('camere che seguono meno negli stadi grandi (mixSmall): a 448×280 il telefono resta dentro lo stadio utile, il mancino è lo specchio', () => {
   for (const id of ['forehand', 'flat', 'line', 'cross', 'backhand']){
-    const P = GP.gesturePlan(id), fo = GP.CAMERAS[id].follow;
+    const P = GP.gesturePlan(id, o), fo = GP.CAMERAS[id].follow;
     assert.ok(fo && fo.mix <= .7, `${id}: mix ${fo?.mix}`);
     for (const [W, H] of [[448, 280], [640, 400]]){
       let m = Infinity;
@@ -53,7 +60,7 @@ test('camere che seguono meno negli stadi grandi (mixSmall): a 448×280 il telef
       assert.ok(m >= 10, `${id} ${W}×${H}: centro del telefono a ${m.toFixed(0)} px dal bordo`);
     }
     // mancino: la stessa inquadratura specchiata
-    const t = P.contact, R = cameraAt(id, t, { W: 640, H: 400 }), L = cameraAt(id, t, { W: 640, H: 400, hand: 'left' }), X = pos(id, t);
+    const t = P.contact, R = cameraAt(id, t, { W: 640, H: 400, ...o }), L = cameraAt(id, t, { W: 640, H: 400, hand: 'left', ...o }), X = pos(id, t);
     assert.ok(Math.abs(R.p(X).x - (640 - L.p(X).x)) < 1e-6 && Math.abs(R.p(X).y - L.p(X).y) < 1e-6);
   }
 });

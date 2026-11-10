@@ -8,10 +8,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as GP from '../src/natpf/natpf_gesture_pose.js';
-import { GRIP_POSE } from '../src/natpf/natpf_gesture_motion.js';
+import { GRIP_POSE, GESTURES } from '../src/natpf/natpf_gesture_motion.js';
 
 const { gesturePose, gesturePlan, gestureJoints, len, sub, dot, norm, qrot, qconj, qmul, qangle, omega } = GP;
-const HANDS = ['right', 'left'], GRIPS = ['palmo', 'martello'];
+const HANDS = ['right', 'left'], GRIPS = ['racchetta', 'palmo', 'martello'];
 const STROKES = GP.POSE_IDS.filter(id => !gesturePlan(id).still);
 const close = (a, b, eps = 1e-9) => Math.abs(a - b) <= eps;
 
@@ -66,14 +66,15 @@ test('continuità: angoli e velocità articolari senza salti (accelerazione ≤ 
       const p = gesturePose(id, t).chain, q = gesturePose(id, t + 1/60).chain;
       for (const k of ['S', 'E', 'W']) if (len(sub(p[k], q[k])) > .15) bad.push(`${id} ${t.toFixed(3)} ${k}: salto di ${len(sub(p[k], q[k])).toFixed(3)} m`);
     }
-    // il ciclo parte e finisce nella posizione di partenza (angoli uguali a REST)
-    for (const t of [0, P.total - 1e-9]){ const j = gestureJoints(id, t); for (const k of GP.JOINTS) if (!close(j[k], GP.REST[k], 1e-6)) bad.push(`${id} ${t}: ${k} ${j[k]} invece di ${GP.REST[k]}`); }
+    // il ciclo parte e finisce nella posizione di partenza della coreografia (angoli uguali a P.rest: REST, o la partenza
+    // delle foto/del video con la presa a racchetta)
+    for (const t of [0, P.total - 1e-9]){ const j = gestureJoints(id, t); for (const k of GP.JOINTS) if (!close(j[k], P.rest[k], 1e-6)) bad.push(`${id} ${t}: ${k} ${j[k]} invece di ${P.rest[k]}`); }
   }
   assert.deepEqual(bad.slice(0, 10), [], `${bad.length} problemi`);
 });
 
-test('posizione di partenza: telefono davanti allo sterno con la presa approvata esatta (GRIP_POSE.palmo), gomito al fianco sotto la spalla, avambraccio come la foto', () => {
-  const p = gesturePose('ready', 1), c = p.chain;
+test('posizione di partenza (presa nel palmo): telefono davanti allo sterno con la presa approvata esatta (GRIP_POSE.palmo), gomito al fianco sotto la spalla, avambraccio come la foto', () => {
+  const p = gesturePose('ready', 1, { grip: 'palmo' }), c = p.chain;
   assert.ok(qangle(p.q, GP.gripQuat('palmo')) < .01, `presa ${qangle(p.q, GP.gripQuat('palmo'))}°`);
   assert.ok(Math.abs(p.pos[0]) < .12 && p.pos[2] < -.2 && p.pos[1] > 1.1 && p.pos[1] < 1.35, `telefono ${p.pos}`);
   assert.ok(Math.abs(c.E[0] - c.S[0]) < .05 && c.E[1] < c.S[1] - .25, `gomito ${c.E}`);
@@ -83,10 +84,38 @@ test('posizione di partenza: telefono davanti allo sterno con la presa approvata
   assert.deepEqual(GRIP_POSE.palmo.euler, [-40, 0, 35]);
 });
 
+// B17.1 passo B2 (decisione dell'utente del 09/11 sera, «come la mia impugnatura del video»): il telefono nella mano è quello
+// MISURATO nei colpi del video (PHONE_IN_HAND_VIDEO, rigido in tutte le schede della racchetta); la scheda «Presa»
+// (REST_RACCHETTA) lo mostra nella posa delle foto: gomito al fianco, telefono lungo l'avambraccio, cima in avanti e in alto,
+// polso dritto, il bordo del pollice in ALTO e le dita sotto (come nel video e nella foto; correzione dopo la revisione: con
+// il primo piano del video il pollice disegnato stava sotto); GRIP_POSE.racchetta.euler è quella posa nel campo; la
+// partenza dei colpi è la posa ferma del video
+test('presa a racchetta: la presa misurata nel video, rigida nella mano; scheda «Presa» con la cima in avanti, il pollice in alto e le dita sotto; GRIP_POSE.racchetta.euler = posa della scheda', () => {
+  const p = gesturePose('grip', 1, { grip: 'racchetta', rig: true }), c = p.chain, rig = p.rig;
+  const tip = qrot(p.q, [0, 1, 0]), screen = qrot(p.q, [0, 0, 1]), thumbEdge = qrot(p.q, [1, 0, 0]);
+  assert.ok(tip[2] < -.85 && tip[1] > .2, `cima ${tip}: in avanti e in alto`);
+  assert.ok(thumbEdge[1] > .8, `bordo del pollice ${thumbEdge}: in alto`);
+  // il pollice disegnato sopra il telefono, le dita (polpastrelli) sotto il centro del telefono
+  assert.ok(rig.thumb.pts[2][1] > p.pos[1] + .02, 'pollice sotto il telefono');
+  for (const f of rig.fingers) assert.ok(f.pts[3][1] < p.pos[1] - .01, `${f.name}: polpastrello sopra il telefono`);
+  assert.ok(screen[0] < -.8, `schermo ${screen}: verso l'interno`);
+  assert.equal(c.j.fl, 0); assert.equal(c.j.dv, 0);
+  assert.ok(c.E[1] < 1.15 && c.W[2] < -.2 && c.W[1] > 1 && c.W[1] < 1.2, `gomito ${c.E} al fianco, mano ${c.W} davanti`);
+  assert.ok(qangle(p.q, GP.gripQuat('racchetta')) < .01 && qangle(GP.qEuler(GRIP_POSE.racchetta.euler), GP.gripQuat('racchetta')) < .01);
+  assert.equal(GP.PHONE_IN_HAND_RACCHETTA, GP.PHONE_IN_HAND_VIDEO);
+  assert.ok(qangle(GP.PHONE_IN_HAND_VIDEO, GP.qmul(GP.qaxis([1, 1, 0], Math.PI), GP.qEuler(GP.VIDEO_GRIP_EULER))) < 1e-3);
+  assert.deepEqual([...GP.VIDEO_GRIP_EULER], [45, 10, 65]);
+  for (const id of GP.POSE_IDS) assert.ok(qangle(gesturePlan(id, { grip: 'racchetta' }).G, GP.PHONE_IN_HAND_VIDEO) < 1e-4, id);
+  // partenza dei colpi: la posa ferma del video (media degli angoli misurati 9,4–9,7 s)
+  const r = gesturePose('ready', 1, { grip: 'racchetta' }).chain;
+  for (const k of GP.JOINTS) assert.equal(r.j[k], GP.REST_VIDEO[k], k);
+  assert.ok(r.W[1] < 1.0 && r.W[0] > .12, `mano all'anca ${r.W}`);
+});
+
 // tempo del picco della velocità angolare di un segmento (busto, omero, avambraccio, mano) attorno al contatto
-function segPeak(id, k){
-  const P = gesturePlan(id), h = 1/600; let m = 0, at = 0;
-  for (let t = P.contact - .3; t <= P.contact + .1; t += h){ const w = len(omega(gesturePose(id, t).chain[k], gesturePose(id, t + h).chain[k], h)); if (w > m){ m = w; at = t + h/2; } }
+function segPeak(id, k, o = {}){
+  const P = gesturePlan(id, o), h = 1/600; let m = 0, at = 0;
+  for (let t = P.contact - .3; t <= P.contact + .1; t += h){ const w = len(omega(gesturePose(id, t, o).chain[k], gesturePose(id, t + h, o).chain[k], h)); if (w > m){ m = w; at = t + h/2; } }
   return { w: m, dt: at - P.contact };
 }
 test('sequenza prossimo-distale: il busto arriva al suo picco prima della mano, l\'omero e l\'avambraccio non dopo la mano; la mano (= telefono) ha il picco al contatto', () => {
@@ -97,7 +126,11 @@ test('sequenza prossimo-distale: il busto arriva al suo picco prima della mano, 
     assert.ok(up.dt <= ha.dt + .003 && fo.dt <= ha.dt + .003, `${id}: omero ${(up.dt*1000).toFixed(0)} ms, avambraccio ${(fo.dt*1000).toFixed(0)} ms`);
   }
   // nei colpi orizzontali la velocità cresce dal busto alla mano
-  for (const id of ['forehand', 'backhand', 'flat', 'slice', 'volley']){ const tr = segPeak(id, 'trunk'), ha = segPeak(id, 'hand'); assert.ok(tr.w < .8*ha.w, `${id}: busto ${tr.w} mano ${ha.w}`); }
+  // (B17.1 passo B2: il rovescio A DUE MANI del video ruota il busto di 83° nella parte veloce, da +46° a −37°, e con le braccia
+  // legate il busto arriva a 774 °/s contro i 700 del telefono, misurato: per lui, con la presa a racchetta, busto ≤ 1,2 × mano;
+  // il rovescio a una mano della presa nel palmo resta sotto 0,8)
+  for (const id of ['forehand', 'backhand', 'flat', 'slice', 'volley']){ const tr = segPeak(id, 'trunk'), ha = segPeak(id, 'hand'), k = id === 'backhand' && gesturePlan(id).set === 'video' ? 1.2 : .8; assert.ok(tr.w < k*ha.w, `${id}: busto ${tr.w} mano ${ha.w}`); }
+  { const o = { grip: 'palmo' }, tr = segPeak('backhand', 'trunk', o), ha = segPeak('backhand', 'hand', o); assert.ok(tr.w < .8*ha.w, `rovescio nel palmo: busto ${tr.w} mano ${ha.w}`); }
 });
 
 test('mancino: catena specchio esatta del destro (punti x → −x) con gli stessi angoli', () => {
@@ -181,15 +214,15 @@ test('la mano e il telefono non entrano mai nel busto', () => {
 // busto alla fine della carica, impatto davanti e a destra con il gomito staccato dal corpo, mano che va in avanti e in
 // alto (al massimo 60° dalla direzione della rete), palmo (schermo) che non resta indietro, una sola frenata fino alla
 // fine sopra l'altezza delle spalle davanti alla spalla sinistra.
-const vel = (id, t) => { const a = gesturePose(id, t - .002).chain.W, b = gesturePose(id, t + .002).chain.W; return GP.mul(sub(b, a), 1/.004); };
-test('il dritto si legge come un dritto: carica con le spalle girate e la mano dietro, impatto davanti a destra con il gomito staccato, mano in avanti e in alto, una sola frenata, fine alta davanti alla spalla sinistra', () => {
-  const P = gesturePlan('forehand'), T = P.T, W = t => gesturePose('forehand', t).chain.W, J = t => gestureJoints('forehand', t);
+const vel = (id, t, o = {}) => { const a = gesturePose(id, t - .002, o).chain.W, b = gesturePose(id, t + .002, o).chain.W; return GP.mul(sub(b, a), 1/.004); };
+test('il dritto si legge come un dritto: carica con le spalle girate e la mano dietro, impatto davanti a destra con il gomito staccato, mano in avanti e in alto, una sola frenata, fine alta davanti alla spalla sinistra (presa nel palmo, coreografia del B13/B14)', () => {
+  const o = { grip: 'palmo' }, P = gesturePlan('forehand', o), T = P.T, W = t => gesturePose('forehand', t, o).chain.W, J = t => gestureJoints('forehand', t, o);
   assert.ok(J(T.inv).tau <= -30, `busto a fine carica ${J(T.inv).tau}°`);
   assert.ok(W(T.inv)[2] >= 0 && W(T.inv)[0] >= .35, `mano a fine carica ${W(T.inv)}: dietro il piano del busto, a destra`);
-  const c = gesturePose('forehand', P.contact), ch = c.chain;
+  const c = gesturePose('forehand', P.contact, o), ch = c.chain;
   assert.ok(ch.W[0] >= .2 && ch.W[2] <= -.25, `impatto ${ch.W}: davanti e a destra`);
   assert.ok(ch.E[0] - ch.S[0] >= .1 && ch.j.b <= 75, `gomito ${ch.E} (spalla ${ch.S}), flesso ${ch.j.b}°`);
-  const v = norm(vel('forehand', P.contact));
+  const v = norm(vel('forehand', P.contact, o));
   assert.ok(-v[2] >= .5 && v[1] >= .1, `mano all'impatto ${v}: in avanti (≤ 60° dalla rete) e in alto`);
   assert.ok(dot(qrot(c.q, [0, 0, 1]), v) >= .1, 'all\'impatto non va avanti il dorso della mano');
   let low = Infinity; for (let t = T.hold; t < P.contact; t += .005) low = Math.min(low, W(t)[1]);
@@ -197,14 +230,32 @@ test('il dritto si legge come un dritto: carica con le spalle girate e la mano d
   assert.ok(W(T.back)[1] >= 1.4 && W(T.back)[0] <= -.05 && J(T.back).tau >= 20, `fine ${W(T.back)}, busto ${J(T.back).tau}°`);
   // una sola frenata: dopo l'impatto la velocità della mano non risale (prima: 0,9 → 2,3 m/s) e nemmeno quella del telefono
   let mn = Infinity, up = 0, wmn = Infinity, wup = 0;
-  for (let t = P.contact; t <= T.back; t += 1/240){ const s = len(vel('forehand', t)); mn = Math.min(mn, s); up = Math.max(up, s - mn); const w = gesturePose('forehand', t).speed; wmn = Math.min(wmn, w); wup = Math.max(wup, w - wmn); }
+  for (let t = P.contact; t <= T.back; t += 1/240){ const s = len(vel('forehand', t, o)); mn = Math.min(mn, s); up = Math.max(up, s - mn); const w = gesturePose('forehand', t, o).speed; wmn = Math.min(wmn, w); wup = Math.max(wup, w - wmn); }
   assert.ok(up <= .15, `la mano rallenta e poi riaccelera di ${up.toFixed(2)} m/s dopo l'impatto`);
   assert.ok(wup <= 30, `il telefono rallenta e poi riaccelera di ${wup.toFixed(0)} °/s dopo l'impatto`);
 });
 
+// B17.1 passo B2: con la presa a racchetta il dritto è quello del video ottimizzato (CHOREO_VIDEO.forehand): dall'anca destra
+// con le spalle girate, la mano sale e va avanti a destra fino all'impatto alto davanti (braccio quasi disteso nel modello del
+// gioco: gomito ≤ 50°), una sola frenata, fine davanti al viso con il busto girato (gesti-video.json, dritto 2ª ripetizione)
+test('il dritto del video (presa a racchetta): carica all\'anca destra con le spalle girate, impatto alto e davanti a destra, fine davanti al viso, una sola frenata', () => {
+  const P = gesturePlan('forehand'), T = P.T, W = t => gesturePose('forehand', t).chain.W, J = t => gestureJoints('forehand', t);
+  assert.equal(P.set, 'video');
+  assert.ok(J(T.inv).tau <= -30 && W(T.inv)[1] <= 1.0 && W(T.inv)[0] >= .2, `carica ${W(T.inv)}, busto ${J(T.inv).tau}°`);
+  const ch = gesturePose('forehand', P.contact).chain;
+  assert.ok(ch.W[1] >= 1.35 && ch.W[2] <= -.4 && ch.W[0] >= .25 && ch.j.b <= 50, `impatto ${ch.W}, gomito ${ch.j.b}°`);
+  const fin = T.back - (GP.CHOREO_VIDEO.forehand.fin || 0);
+  assert.ok(W(fin)[1] >= 1.4 && W(fin)[0] <= .25 && J(fin).tau >= 20, `fine ${W(fin)}, busto ${J(fin).tau}°`);
+  let mn = Infinity, up = 0;
+  for (let t = P.contact; t <= T.back; t += 1/240){ const s = len(vel('forehand', t)); mn = Math.min(mn, s); up = Math.max(up, s - mn); }
+  assert.ok(up <= .3, `la mano rallenta e poi riaccelera di ${up.toFixed(2)} m/s dopo l'impatto`);
+});
+
 test('servizio e schiacciata colpiscono sopra la testa; il pallonetto sale davvero; la palla corta scende', () => {
   const W = (id, t) => gesturePose(id, t).chain.W, top = GP.BODY.pelvis[1] + GP.BODY.head[1];
-  for (const id of ['serve', 'smash']){ const P = gesturePlan(id); assert.ok(W(id, P.contact)[1] > top + .1, `${id}: polso a ${W(id, P.contact)[1]}`); }
+  // (servizio del video, presa a racchetta: battuta con il polso a 1,65 m, nel video 1,70: sopra la spalla di almeno 0,2 m;
+  // nel palmo e con la schiacciata sopra la testa di 0,1 m)
+  for (const id of ['serve', 'smash']){ const P = gesturePlan(id), min = P.set === 'video' && id === 'serve' ? GP.SHOULDER[1] + .2 : top + .1; assert.ok(W(id, P.contact)[1] > min, `${id}: polso a ${W(id, P.contact)[1]}`); }
   const s = gesturePlan('serve'); assert.ok(W('serve', s.T.hitStart)[1] > GP.SHOULDER[1] + .2 && gesturePose('serve', s.T.hitStart).pos[1] > GP.SHOULDER[1] + .25, 'servizio: braccio in alto');
   const l = gesturePlan('lob'); assert.ok(W('lob', l.T.back)[1] - W('lob', l.T.inv)[1] > .6, 'pallonetto');
   const d = gesturePlan('drop'); assert.ok(W('drop', d.T.inv)[1] - W('drop', d.T.back)[1] > .08, 'palla corta');
@@ -216,4 +267,37 @@ test('schiacciata: l\'accompagnamento scende attraverso il corpo fino alla vita,
   const P = gesturePlan('smash'), W = t => gesturePose('smash', t).chain.W, c = W(P.contact), f = W(P.T.back);
   assert.ok(f[1] <= 1.15 && f[0] <= -.1, `fine della schiacciata ${f}`);
   assert.ok(c[1] - f[1] >= .6, `scende di ${(c[1] - f[1]).toFixed(2)} m dall'impatto alla fine`);
+});
+
+// B17.1 passo B3 (richiesta dell'utente del 09/11 notte): «con il dritto la pallina venga colpita con il display in maniera
+// frontale, il rovescio invece stesso movimento ma con l'altro lato». Nell'istante del contatto la normale dello SCHERMO
+// del telefono guarda la rete (−z del campo, da dove arriva la palla) nei colpi di dritto (dritto, piatto, incrociato,
+// lungolinea, tagliato di dritto, volée) e il DORSO nel rovescio e nel tagliato di rovescio, entro 20°; prima del passo B3 il
+// dritto aveva lo schermo a 83° (telefono di taglio verso la palla), il piatto e la volée il dorso (159° e 164°), il rovescio
+// lo schermo a 103°. Mancino: specchio esatto (stesso angolo, normale specchiata).
+// Correzione dalla revisione del 10/11: servizio e schiacciata colpivano con facce diverse dal dritto (schiacciata col DORSO
+// a 113° dalla rete, servizio con lo schermo di taglio a 88°): ora tutte le schede e le pose in più hanno una faccia che
+// colpisce, schermo anche nel servizio e nella schiacciata, entro 20° (servizio e schiacciata riottimizzati con
+// ottimizza.mjs --impact=20). Fanno eccezione, con il loro limite scritto qui, pallonetto e palla corta: colpiscono con il
+// DORSO (a 32,4° e 28,9° dalla rete) perché sono colpi dal lato del dritto che aprono la faccia verso l'alto; con «dritto =
+// schermo» l'utente può trovarli incoerenti: domanda aperta per l'utente (docs/b17/ottimizzazione.md §9.7)
+// incrociato: la mira (letta dalla direzione del piatto rispetto ai dritti) chiede il piatto girato verso il centro; con la
+// lettura perfetta (calibrazione con l'animazione, semi 7, 1, 5, 10, mira ≥ 0,5) l'ottimizzatore non scende sotto 21,1°
+// (misurato, limite dichiarato in docs/b17/ottimizzazione.md §9); tutte le altre ≤ 20°
+const IMPACT_LIM = { cross: 21.5, lob: 33, drop: 30 };
+test('faccia all\'impatto: schermo verso la rete nei colpi di dritto, dorso nel rovescio e nel tagliato di rovescio (≤ 20°), mancino specchio', () => {
+  // OGNI scheda e ogni posa in più che colpisce una palla ha una faccia che colpisce (non solo quelle già elencate)
+  assert.deepEqual(Object.keys(GP.IMPACT_FACE).sort(), GP.POSE_IDS.filter(id => !GESTURES[id].still).sort());
+  assert.equal(GP.IMPACT_MAX, 20);
+  for (const [id, face] of Object.entries(GP.IMPACT_FACE)){
+    const o = { grip: 'racchetta' }, P = gesturePlan(id, o);
+    assert.equal(P.set, 'video', id);
+    const r = gesturePose(id, P.contact, o), l = gesturePose(id, P.contact, { ...o, hand: 'left' });
+    const n = qrot(r.q, [0, 0, 1]), nl = qrot(l.q, [0, 0, 1]), a = GP.impactFaceAngle(id, o), lim = IMPACT_LIM[id] ?? GP.IMPACT_MAX;
+    assert.ok(a <= lim, `${id}: ${face > 0 ? 'schermo' : 'dorso'} a ${a.toFixed(1)}° dalla rete (≤ ${lim})`);
+    // la faccia che colpisce guarda la rete (−z), l'altra chi gioca (+z)
+    assert.ok(-face*n[2] >= Math.cos(lim*Math.PI/180) - 1e-9, `${id}: normale dello schermo ${n.map(v => v.toFixed(2))}`);
+    assert.ok(Math.abs(GP.impactFaceAngle(id, { ...o, hand: 'left' }) - a) < 1e-9, `${id}: mancino`);
+    [-n[0], n[1], n[2]].forEach((v, i) => assert.ok(Math.abs(v - nl[i]) < 1e-9, `${id}: normale del mancino non specchiata`));
+  }
 });

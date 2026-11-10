@@ -7,8 +7,13 @@
 // calibrazione e della lezione, e la posa del telefono nell'animazione 3D (natpf_gesture_motion.GRIP_POSE). Il
 // riconoscimento dei colpi non dipende dalla presa insegnata (test natpf-gesture-demo: tutte e due le prese).
 // Una sola figura per il computer (pannello del telefono, guida) e per la pagina del telefono. Senza DOM: una stringa.
-export const GRIP_STYLES = Object.freeze(['palmo', 'martello']);
-export const GRIP_STYLE = 'palmo';
+// Dal 09/11/2026 (B17.1, foto dell'utente docs/riferimenti/presa-utente-2026-11-09-*.webp, docs/b17/presa-foto.md):
+// PRESA A RACCHETTA. Il telefono è disteso lungo l'avambraccio come il manico di una racchetta, cima in avanti verso lo
+// schermo di gioco e alzata di 15–25°, dorso sul palmo, quattro dita attorno al bordo lungo inferiore, pollice disteso
+// lungo il bordo lungo superiore, polso dritto; lo schermo guarda lo schermo di gioco. «palmo» e «martello» restano come
+// rollback (GRIP_STYLE = 'palmo' o 'martello').
+export const GRIP_STYLES = Object.freeze(['racchetta', 'palmo', 'martello']);
+export const GRIP_STYLE = 'racchetta';
 const C = Object.freeze({ ink: '#0b1433', dev: '#dfe6ff', scr: '#2f6bff', skin: '#f0c7a0', crease: '#b9875f', accent: '#e8ff3a', ok: '#2bd36b', no: '#ff4d5e' });
 const line = `stroke="${C.ink}" stroke-width="2.4" stroke-linejoin="round"`;
 // schermo del computer, nel colore del testo (si vede su fondo chiaro e scuro)
@@ -57,8 +62,55 @@ const palmSide = cx => `<g transform="translate(${cx - 4} 112) rotate(40)">
   </g>
   ${monitor(cx + 34, 22)}<path d="M${cx + 8} 76 l10 -10 M${cx + 18} 66 v8 M${cx + 18} 66 h-8" stroke="${C.accent}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
 
+// PRESA A RACCHETTA, DI LATO (visto dalla tua destra, lo schermo del computer è a destra): l'avambraccio arriva da
+// sinistra, il pugno con il pollice disteso sopra, il telefono prosegue in avanti alzato di ~20°, bordo lungo in alto; si
+// vede il dorso (fotocamere) perché lo schermo guarda avanti e un poco a sinistra
+const racketSide = cx => `<path d="M${cx - 62} 118 L${cx - 30} 112 L${cx - 30} 134 L${cx - 62} 140 Z" fill="${C.skin}" ${line}/>
+  <g transform="translate(${cx - 12} 112) rotate(-20)">
+    <rect x="-4" y="-7" width="76" height="14" rx="4" fill="${C.dev}" ${line}/>
+    <rect x="52" y="-4" width="12" height="8" rx="2" fill="${C.ink}"/><circle cx="56" cy="-1" r="1.4" fill="${C.dev}"/><circle cx="60" cy="1" r="1.4" fill="${C.dev}"/>
+    <rect x="-2" y="-10" width="30" height="7" rx="3.5" fill="${C.skin}" ${line}/>
+  </g>
+  <rect x="${cx - 34}" y="104" width="30" height="36" rx="11" fill="${C.skin}" ${line}/>
+  <path d="M${cx - 30} 118 h22 M${cx - 30} 128 h20" stroke="${C.crease}" stroke-width="2.2" stroke-linecap="round"/>
+  ${monitor(cx + 34, 22)}<path d="M${cx + 8} 76 l10 -10 M${cx + 18} 66 v8 M${cx + 18} 66 h-8" stroke="${C.accent}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+// PRESA A RACCHETTA, DI FRONTE (come la vede lo schermo di gioco, davanti a te: la tua destra è a sinistra): il telefono in
+// orizzontale con lo schermo verso chi guarda, la cima a sinistra e un poco in alto; le dita avvolgono il bordo lungo in
+// basso (polpastrelli sul bordo del vetro), il pollice disteso lungo il bordo in alto, il polso dietro la base
+const racketFront = cx => `${monitor(cx, 20)}
+  <g transform="translate(${cx} 112) rotate(-12)">
+    <path d="M26 6 L54 20 L48 34 L22 20 Z" fill="${C.skin}" ${line}/>
+    <ellipse cx="22" cy="12" rx="18" ry="16" fill="${C.skin}" ${line}/>
+    <rect x="-44" y="-21" width="84" height="42" rx="6" fill="${C.dev}" ${line}/>
+    <rect x="-40" y="-17" width="76" height="34" rx="3" fill="${C.scr}"/>
+    <circle cx="-34" cy="-11" r="1.6" fill="${C.ink}"/>
+    <circle cx="-2" cy="0" r="9" fill="none" stroke="${C.ok}" stroke-width="2.4"/>
+    <rect x="-16" y="14" width="8" height="14" rx="4" fill="${C.skin}" ${line}/>
+    <rect x="-5" y="15" width="8" height="14" rx="4" fill="${C.skin}" ${line}/>
+    <rect x="6" y="15" width="8" height="13" rx="4" fill="${C.skin}" ${line}/>
+    <rect x="17" y="14" width="7" height="12" rx="3.5" fill="${C.skin}" ${line}/>
+    <rect x="-12" y="-27" width="40" height="9" rx="4.5" fill="${C.skin}" ${line}/>
+  </g>`;
+
 // Profili della presa: testi (guida, pannelli, telefono), figura e didascalie delle due viste
 export const GRIPS = Object.freeze({
+  racchetta: Object.freeze({
+    name: 'Presa a racchetta',
+    text: 'Presa a racchetta: <b>telefono disteso nel palmo, lungo l’avambraccio</b>, <b>cima in avanti</b> verso lo schermo di gioco e un poco in alto. <b>Dita sotto, attorno al bordo</b>; <b>pollice disteso lungo il bordo</b>; lo schermo guarda lo schermo di gioco. Stessa presa per calibrare e giocare.',
+    short: 'Disteso nel palmo come un manico, cima in avanti',
+    aria: 'Presa a racchetta: il telefono disteso lungo l’avambraccio come il manico di una racchetta, la cima in avanti verso lo schermo di gioco e un poco in alto, le quattro dita attorno al bordo lungo inferiore, il pollice disteso lungo il bordo superiore, lo schermo verso lo schermo di gioco.',
+    views: [[racketSide, 'DI LATO', 'cima in avanti, un poco in alto'], [racketFront, 'DI FRONTE', 'schermo verso lo schermo di gioco']],
+    photo: { file: 'presa-racchetta-davanti.webp', alt: 'Presa a racchetta vista dallo schermo di gioco: il telefono disteso nel palmo lungo l’avambraccio, cima in avanti, dita attorno al bordo inferiore, pollice lungo il bordo superiore, schermo in vista' },
+    ui: {
+      connectTitle: 'Tieni il telefono come un manico',
+      connectHint: 'Disteso nel palmo lungo l’avambraccio, cima in avanti, pollice lungo il bordo, schermo verso lo schermo di gioco. Poi si va in campo da soli.',
+      split: 'Presa a racchetta: telefono disteso nel palmo, cima in avanti, schermo verso lo schermo di gioco.',
+      still: 'Fermo, disteso nel palmo con la cima in avanti: misuro i sensori',
+      stillMoved: 'Si è mosso: fermo ancora un attimo',
+      lessonGrip: 'Telefono disteso nel palmo, cima in avanti. Dita sotto, attorno al bordo. Pollice lungo il bordo, schermo verso lo schermo di gioco.',
+      lessonHand: 'Il telefono prosegue l’avambraccio come un manico, pollice in alto, polso dritto. Con quale mano giochi?',
+    },
+  }),
   palmo: Object.freeze({
     name: 'Presa nel palmo',
     text: 'Presa nel palmo: <b>appoggia il telefono nel palmo</b>, <b>schermo verso di te</b>. Dita attorno alla parte bassa, pollice sul bordo. <b>Cima inclinata in avanti</b>, verso lo schermo. Stessa presa per calibrare e giocare.',

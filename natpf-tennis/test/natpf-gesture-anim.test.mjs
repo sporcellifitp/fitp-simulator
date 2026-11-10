@@ -10,11 +10,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { readCard, judgeCard, omega } from './pose-sensors.mjs';
 import * as GP from '../src/natpf/natpf_gesture_pose.js';
+import { judgeOne, newTally, DECLARED_EXPECT } from './gesture-semi.mjs';
 import * as DEMO from '../src/natpf/natpf_gesture_demo.js';
 import { GESTURES } from '../src/natpf/natpf_gesture_motion.js';
 
 const { NatpfGestureDemo, getGestureDemo, cameraAt, handRig, handFor, FOREARM_SHOWN, COMPACT_W } = DEMO;
-const HANDS = ['right', 'left'], GRIPS = ['palmo', 'martello'], RATES = [.8, 1, 1.25];
+const HANDS = ['right', 'left'], GRIPS = ['racchetta', 'palmo', 'martello'], RATES = [.8, 1, 1.25];
 const D = Math.PI/180;
 // la sorgente delle pose è L'ISTANZA dell'animazione (quello che disegna), non il modulo della posa
 function demoSource(grip){
@@ -24,7 +25,7 @@ function demoSource(grip){
     plan: id => GP.gesturePlan(id, { grip }) };
 }
 const allowFor = (id, rate) => rate > 1 ? (['forehand', 'backhand', 'volley', 'cross', 'line'].includes(id) ? ['flat'] : null)
-  : rate < 1 ? ({ slice: ['drop'], flat: ['topspin'] })[id] || null : null;
+  : rate < 1 ? ({ slice: ['drop'], sliceBackhand: ['drop'], flat: ['topspin'] })[id] || null : null;
 
 test('animazione: modulo senza three.js né WebGL, importabile in Node senza DOM (available false), stessa API di prima', () => {
   const src = readFileSync(new URL('../src/natpf/natpf_gesture_demo.js', import.meta.url), 'utf8');
@@ -53,7 +54,7 @@ test('animazione: velocità «auto» = primo ciclo a tempo reale, poi ×0,5 e te
   d.play('grip'); d.cycles = 3; assert.equal(d.rate(), 1);
 });
 
-test('la posa disegnata è quella del test: demo.pose(t) == gesturePose(id, t, { hand }) su 50 istanti per scheda (destro e mancino, palmo e martello)', () => {
+test('la posa disegnata è quella del test: demo.pose(t) == gesturePose(id, t, { hand }) su 50 istanti per scheda (destro e mancino, racchetta, palmo e martello)', () => {
   for (const grip of GRIPS) for (const hand of HANDS){
     const d = new NatpfGestureDemo(); d.grip = grip;
     for (const id of GP.POSE_IDS){
@@ -67,22 +68,25 @@ test('la posa disegnata è quella del test: demo.pose(t) == gesturePose(id, t, {
   }
 });
 
-test('fedeltà dell\'animazione: ogni scheda e la mira, destro e mancino, palmo e martello, calibrazione con l\'animazione e con il braccio simulato, imitazione 0,8× / 1× / 1,25×: un messaggio per ciclo (servizio due), colpo e lato attesi, picco letto = contatto disegnato ± 40 ms', () => {
-  const bad = [];
+test('fedeltà dell\'animazione: ogni scheda e la mira, destro e mancino, racchetta, palmo e martello, calibrazione con l\'animazione e con il braccio simulato, imitazione 0,8× / 1× / 1,25×: un messaggio per ciclo (servizio due), colpo e lato attesi, picco letto = contatto disegnato ± 40 ms', () => {
+  const bad = [], lim = newTally();
   let n = 0;
   for (const grip of GRIPS){
     const src = demoSource(grip);
     for (const cal of ['pose', 'arm']) for (const hand of HANDS) for (const rate of RATES) for (const id of GP.POSE_IDS){
       if (GESTURES[id].still && rate !== 1) continue;
+      // B17.1 passo B3: limite dichiarato (ottimizzazione.md §9.4): con lo schermo verso la rete nel dritto la calibrazione del
+      // braccio simulato non legge la mira di incrociato e lungolinea né il piatto. Quelle letture si fanno e si registrano in
+      // `lim` (gesture-semi.mjs), con il conto esatto delle letture giuste e di che cosa viene letto: mai saltate
+      const j = judgeOne(src, id, { hand, cal, rate, peakTol: 40, racket: grip === 'racchetta', extra: id === 'serve' ? r => r.msgs.length !== 2 ? [`${r.msgs.length} messaggi (attesi 2)`] : [] : null }, lim);
       n++;
-      const r = readCard(src, id, { hand, cal, rate });
-      const why = judgeCard(src, id, r, { hand, rate, allow: allowFor(id, rate), peakTol: 40 });
-      if (id === 'serve' && r.msgs.length !== 2) why.push(`${r.msgs.length} messaggi (attesi 2)`);
-      if (why.length) bad.push(`${grip} ${id} ${hand} cal=${cal} ×${rate}: ${why.join('; ')}`);
+      if (j.why.length) bad.push(`${grip} ${id} ${hand} cal=${cal} ×${rate}: ${j.why.join('; ')}`);
     }
   }
-  assert.ok(n >= 280, `${n} letture`);
+  assert.equal(lim.n, GRIPS.includes('racchetta') ? 18 : 0);
+  assert.ok(n >= 400, `${n} letture`);
   assert.deepEqual(bad, [], bad.join('\n'));
+  assert.deepEqual(lim.byCard, GRIPS.includes('racchetta') ? DECLARED_EXPECT.anim : {}, JSON.stringify(lim.byCard));
 });
 
 test('animazione: continuità (|ω| ≤ 2000 °/s, |Δpos| ≤ 0,15 m a 60 Hz) e ciclo chiuso; presa e posizione ferme (≤ 30 °/s)', () => {
@@ -123,15 +127,16 @@ test('disegno: nelle pose chiave il telefono non è mai di taglio (schermo o dor
     assert.ok(fromTip <= GP.BALL_R, `${id}: palla a ${(fromTip/GP.BALL_R).toFixed(2)} raggi dalla cima`);
     assert.equal(pose.label, 'Impatto');
   }
-  // presa: le due viste ferme mostrano lo schermo (non di taglio)
-  for (const t of [1.5, 6]){ const cam = cameraAt('grip', t, { W: 640, H: 400 }), p = GP.gesturePose('grip', t), n = GP.qrot(p.q, [0, 0, 1]);
-    assert.ok(Math.asin(Math.abs(GP.dot(n, GP.norm(GP.sub(cam.eye, p.pos)))))/D >= 25, `presa ${t}`); }
+  // presa: le due viste ferme mostrano lo schermo o il dorso (non di taglio), con la presa a racchetta (viste proprie: dallo
+  // schermo di gioco e di lato) e nel palmo
+  for (const grip of ['racchetta', 'palmo']) for (const t of [1.5, 6]){ const cam = cameraAt('grip', t, { W: 640, H: 400, grip }), p = GP.gesturePose('grip', t, { grip }), n = GP.qrot(p.q, [0, 0, 1]);
+    assert.ok(Math.asin(Math.abs(GP.dot(n, GP.norm(GP.sub(cam.eye, p.pos)))))/D >= 25, `presa ${grip} ${t}`); }
 });
 
-test('disegno: mano e avambraccio della presa nel palmo = scheletro gestureRig (polso fermo ~33°, dita sul vetro ≤ 8 mm); martello con il polso ≤ 35°; avambraccio che sfuma prima del gomito', () => {
-  for (const id of ['forehand', 'serve', 'grip']) for (const hand of HANDS){
-    const pose = GP.gesturePose(id, .9, { hand, rig: true }), R = hand === 'left' ? { pos: GP.mirrorPos(pose.pos), q: GP.mirrorQ(pose.q) } : pose;
-    const r = handRig(R, handFor('palmo')), g = GP.gestureRig(R, { hand: 'right' });
+test('disegno: mano e avambraccio della presa nel palmo e a racchetta = scheletro gestureRig (polso fermo ~33°, dita sul vetro ≤ 8 mm); martello con il polso ≤ 35°; avambraccio che sfuma prima del gomito', () => {
+  for (const grip of ['racchetta', 'palmo']) for (const id of ['forehand', 'serve', 'grip']) for (const hand of HANDS){
+    const pose = GP.gesturePose(id, .9, { hand, grip, rig: true }), R = hand === 'left' ? { pos: GP.mirrorPos(pose.pos), q: GP.mirrorQ(pose.q) } : pose;
+    const r = handRig(R, handFor(grip)), g = GP.gestureRig(R, { hand: 'right', grip });
     for (const [a, b] of [[r.W, g.wrist], [r.E, g.elbow], [r.thumb.pts[3], g.thumb.pts[3]], [r.fingers[2].pts[3], g.fingers[2].pts[3]]]) assert.ok(GP.len(GP.sub(a, b)) < 1e-12);
   }
   assert.ok(GP.fingersOverGlass() <= .008);
@@ -176,6 +181,7 @@ function fakeDom(){
   } };
 }
 const close3 = (a, b) => GP.len(GP.sub(a, b)) < 1e-9;
+const inPoly = (P, q) => { let k = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++){ const a = P[i], b = P[j]; if ((a.y > q.y) !== (b.y > q.y) && q.x < (b.x - a.x)*(q.y - a.y)/(b.y - a.y) + a.x) k = !k; } return k; };
 
 test('il disegno usa la posa di demo.pose (= gesturePose): scheletro disegnato uguale, e se demo.pose cambia il disegno la segue', () => {
   const dom = fakeDom();
@@ -201,6 +207,95 @@ test('il disegno usa la posa di demo.pose (= gesturePose): scheletro disegnato u
   } finally { dom.restore(); }
 });
 
+// B17.1 passo B3 (decisione dell'utente del 09/11 notte: «Per il rovescio, a una mano»; nel passo B2 era a due mani come nel
+// video): GESTURES.backhand non ha più twoHanded e la mano libera non va mai sul telefono; dal contatto alla fine
+// dell'accompagnamento il braccio libero si apre dietro e di lato per l'equilibrio, quasi disteso; fuori dal colpo pende
+// rilassato lungo il fianco
+test('rovescio a una mano: niente seconda mano sul telefono (≥ 20 cm in tutto il ciclo), braccio libero aperto dietro dal contatto alla fine, destro e mancino; a riposo pende', async () => {
+  const { GESTURES } = await import('../src/natpf/natpf_gesture_motion.js');
+  assert.equal(GESTURES.backhand.twoHanded, undefined, 'rovescio ancora a due mani');
+  assert.equal(GESTURES.backhand.balance, true);
+  const dom = fakeDom();
+  try {
+    const d = new NatpfGestureDemo({ width: 640, height: 400 });
+    d.grip = 'racchetta';
+    for (const hand of HANDS){
+      d.play('backhand', { hand, set: 'video' }); d.stop();
+      const P = GP.gesturePlan('backhand', { grip: 'racchetta', set: 'video' }), T = P.T;
+      let n = 0, near = 9, seen = 0;
+      for (let t = 0; t < P.total; t += 1/60){
+        d.show(t);
+        const A = d.info.freeArm, R = hand === 'left' ? GP.mirrorPose(d.info.pose) : d.info.pose;
+        near = Math.min(near, GP.len(GP.sub(A.W, R.pos)));
+        if (t < P.contact + .25 || t > T.back) continue;
+        // dal contatto (+0,25 s) alla fine: mano libera dietro il bacino (riferimento del busto, +z dietro), a sinistra, quasi distesa
+        const ch = R.chain, loc = GP.qrot(GP.qconj(ch.trunk), GP.sub(A.W, ch.pelvis));
+        assert.ok(A.busy && loc[2] > .2 && loc[0] < -.3, `${hand} ${t.toFixed(3)}: braccio libero non aperto dietro (${loc.map(v => v.toFixed(2))})`);
+        assert.ok(GP.len(GP.sub(A.W, A.S)) > .4, `${hand} ${t.toFixed(3)}: braccio libero piegato`);
+        // passo C2: la mano libera si VEDE (fuori dalla sagoma del busto della camera frontale; prima restava dietro il busto)
+        if (!inPoly(d.info.body.torso, d.info.cam.p(A.W))) seen++;
+        n++;
+      }
+      // (correzioni del passo B3: il rovescio è lo specchio del dritto, accompagnamento di 0,34 s come il dritto: 15 campioni)
+      assert.ok(n >= 12, `solo ${n} campioni nell'accompagnamento`);
+      assert.ok(seen >= .8*n, `${hand}: mano libera in vista solo in ${seen}/${n} campioni dell'accompagnamento`);
+      assert.ok(near >= .2, `${hand}: mano libera a ${near.toFixed(3)} m dal telefono`);
+      // posizione di partenza: braccio libero rilassato (quasi disteso, mano sotto il bacino di lato), non sul fianco
+      d.show(.1);
+      const A = d.info.freeArm, R = hand === 'left' ? GP.mirrorPose(d.info.pose) : d.info.pose;
+      assert.equal(A.busy, false);
+      const reach = GP.len(GP.sub(A.W, A.S));
+      assert.ok(reach > .5, `braccio libero a riposo piegato (${reach.toFixed(3)} m dalla spalla)`);
+      assert.ok(A.W[1] < R.chain.pelvis[1] - .05, 'mano libera a riposo non sotto il bacino');
+    }
+  } finally { dom.restore(); }
+});
+
+// B17.1 passo C2 (richiesta dell'utente del 09/11 notte: «con il dritto la pallina venga colpita con il display in maniera
+// frontale, il rovescio invece stesso movimento ma con l'altro lato»): da 640×400 in su, dal contatto e per circa un secondo
+// del gesto, il primo piano dell'impatto mostra la faccia che colpisce dalla parte della palla con la scritta giusta; la faccia
+// che colpisce guarda anche la camera principale; il riquadro sta nello stadio sopra la banda, non copre telefono né palla vivi
+// all'impatto, ed è lo specchio per il mancino; a 448×280 non c'è (lì il telefono all'impatto è lungo 72–99 px)
+test('primo piano dell’impatto: schermo nei colpi di dritto, dorso nei rovesci, dal contatto per un secondo, destro e mancino; non a 448×280', () => {
+  const dom = fakeDom();
+  try {
+    const d = new NatpfGestureDemo({ width: 640, height: 400 });
+    d.grip = 'racchetta';
+    for (const id of Object.keys(GP.IMPACT_FACE)){
+      const rects = {};
+      for (const hand of HANDS){
+        d.setSize(640, 400); d.play(id, { hand, set: 'video' }); d.stop();
+        const P = GP.gesturePlan(id, { grip: 'racchetta', set: 'video' });
+        d.show(P.contact);
+        const C = d.info.close, tag = `${id} ${hand}`;
+        assert.ok(C && C.alpha > .99, `${tag}: primo piano assente all'impatto`);
+        assert.equal(C.text, GP.IMPACT_FACE[id] > 0 ? 'Palla sullo SCHERMO' : 'Palla sul DORSO', tag);
+        assert.ok(C.faceToClose < 60, `${tag}: faccia che colpisce a ${C.faceToClose.toFixed(0)}° dalla camera del primo piano`);
+        // il centro della palla visto dal primo piano cade DENTRO il profilo del telefono, lontano dai bordi (revisione del 10/11:
+        // a 45° di lato il centro dei colpi di dritto cadeva oltre la cima e la palla si leggeva «accanto al telefono»)
+        assert.ok(C.ballOn.inside && Math.abs(C.ballOn.x) <= (GP.PHONE.w/2 - .009)*100 && Math.abs(C.ballOn.y) <= (GP.PHONE.h/2 - .01)*100, `${tag}: centro della palla sulla faccia a (${C.ballOn.x}; ${C.ballOn.y}) cm`);
+        assert.ok(C.faceToClose <= 50, `${tag}: primo piano a ${C.faceToClose.toFixed(0)}° dalla normale della faccia`);
+        if (GP.IMPACT_FACE[id] > 0) assert.ok(C.faceToClose <= 22, `${tag}: schermo visto a ${C.faceToClose.toFixed(0)}° dalla normale (frontale)`);
+        assert.ok(C.faceToMain < 75, `${tag}: faccia che colpisce a ${C.faceToMain.toFixed(0)}° dalla camera principale`);
+        const r = C.rect;
+        assert.ok(r.x >= 0 && r.y >= 0 && r.x + r.w <= 640 && r.y + r.h <= 400*(1 - .17), `${tag}: riquadro fuori dallo stadio`);
+        const R = hand === 'left' ? GP.mirrorPose(d.info.pose) : d.info.pose, cam = d.info.cam, inR = q => q.x > r.x && q.x < r.x + r.w && q.y > r.y && q.y < r.y + r.h;
+        for (const v of [[0, 0, 0], [0, GP.PHONE.h/2, 0], [0, -GP.PHONE.h/2, 0]]) assert.ok(!inR(cam.p(GP.add(R.pos, GP.qrot(R.q, v)))), `${tag}: il riquadro copre il telefono`);
+        if (d.info.ball) assert.ok(!inR(cam.p(d.info.ball)), `${tag}: il riquadro copre la palla`);
+        rects[hand] = r;
+        for (const t of [P.contact - .2, P.contact + 1.05]){ d.show(t); assert.ok(!d.info.close || d.info.close.alpha < .01, `${tag}: primo piano visibile a ${t.toFixed(2)} s`); }
+        d.show(P.contact + .6); assert.ok(d.info.close.alpha > .99, `${tag}: primo piano spento a 0,6 s dal contatto`);
+        d.setSize(448, 280); d.show(P.contact); assert.equal(d.info.close, null, `${tag}: primo piano a 448×280`);
+      }
+      assert.ok(Math.abs(rects.left.x - (640 - rects.right.x - rects.right.w)) < 1 && rects.left.y === rects.right.y, `${id}: riquadro del mancino non speculare`);
+    }
+    // ogni scheda che colpisce una palla ha il primo piano (IMPACT_FACE le copre tutte: servizio e schiacciata con lo SCHERMO come
+    // il dritto, pallonetto e palla corta col DORSO, revisione del 10/11); nessun primo piano nelle schede ferme (presa, posizione)
+    for (const id of GP.POSE_IDS.filter(id => !GESTURES[id].still)) assert.ok(GP.IMPACT_FACE[id], `${id}: senza faccia che colpisce`);
+    for (const id of ['grip', 'ready']){ d.setSize(640, 400); d.play(id, { set: 'video' }); d.stop(); d.show(1); assert.ok(!d.info.close, id); }
+  } finally { dom.restore(); }
+});
+
 // B13 (correzioni dopo le revisioni): dritto, piatto, rovescio, incrociato e lungolinea hanno la camera che segue la mano
 // (il braccio percorre più di quanto la metà dello schermo inquadra). Lì l'etichetta deve restare attaccata al suo
 // fantasma: si misura la sua posizione rispetto alla proiezione del telefono del fantasma (con la camera ferma è la stessa
@@ -211,7 +306,7 @@ test('etichette dei fantasmi ferme sul proprio fantasma (nessun salto, anche con
     const d = new NatpfGestureDemo({ width: 640, height: 400 });
     for (const id of ['forehand', 'backhand', 'slice', 'drop', 'volley', 'flat', 'cross', 'line']){
       d.play(id); d.stop();
-      const P = GP.gesturePlan(id), prev = new Map(), follow = !!GP.CAMERAS[id].follow;
+      const P = GP.gesturePlan(id), prev = new Map(), follow = !!GP.camSpec(id, P.set).follow;
       let worst = 0;
       for (let t = 0; t < P.total; t += 1/60){
         d.show(t);

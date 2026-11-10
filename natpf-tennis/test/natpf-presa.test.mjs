@@ -14,15 +14,18 @@ import { calPrompt } from '../src/natpf/natpf_cal_view.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
-test('presa insegnata dal 04/11: nel palmo; il martello resta pronto per il rollback', () => {
-  assert.equal(GRIP_STYLE, 'palmo');
-  assert.deepEqual([...GRIP_STYLES].sort(), ['martello', 'palmo']);
-  assert.equal(GRIP, GRIPS.palmo);
-  assert.match(GRIP_TEXT, /palmo/); assert.doesNotMatch(GRIP_TEXT, /martello/);
-  assert.equal(PHOTOS.grip.src, './media/presa-palmo-schermo.webp');
-  assert.equal(LESSON.find(s => s.id === 'grip').title, 'Presa nel palmo');
-  assert.match(calPrompt({ stage: 'still' }).sub, /palmo/);
-  assert.match(GESTURES.grip.cues.join(' '), /palmo/);
+test('presa insegnata dal 09/11: a racchetta (foto dell\'utente); palmo e martello restano pronti per il rollback', () => {
+  assert.equal(GRIP_STYLE, 'racchetta');
+  assert.deepEqual([...GRIP_STYLES].sort(), ['martello', 'palmo', 'racchetta']);
+  assert.equal(GRIP, GRIPS.racchetta);
+  assert.match(GRIP_TEXT, /racchetta/); assert.doesNotMatch(GRIP_TEXT, /martello/);
+  assert.equal(PHOTOS.grip.src, './media/presa-racchetta-davanti.webp');
+  assert.equal(LESSON.find(s => s.id === 'grip').title, 'Presa a racchetta');
+  assert.match(calPrompt({ stage: 'still' }).sub, /cima in avanti/);
+  assert.match(GESTURES.grip.cues.join(' '), /cima in avanti/);
+  // le indicazioni della scheda «Presa»: le prime due concordate con l'utente (docs/b17/presa-foto.md); la terza dalla presa
+  // misurata nel video (B17.1 passo B2, correzioni: nella posa della scheda lo schermo guarda verso l'interno, il pollice in alto)
+  assert.deepEqual(GESTURES.grip.cues, ['Telefono disteso nel palmo, cima in avanti', 'Dita sotto, attorno al bordo', 'Pollice in alto lungo il bordo, schermo verso l’interno']);
 });
 
 test('i due profili hanno gli stessi campi, la foto nel pacchetto, la posa 3D e la figura per le due mani', () => {
