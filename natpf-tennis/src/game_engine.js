@@ -802,6 +802,7 @@ export class NatpfTennisEngine {
     this._applyDifficultyTuning("1v1");
     this.setMatchFormat("singles");
     this.natpfSplit.active = !0;
+    NS.resetFatigue(this); // NATPF B18 (D6): i due giocatori dello stesso schermo partono con l'energia piena
     typeof document < "u" && document.body.classList.add("natpf-split");
     // B17.3 (revisione): l'etichetta «Al servizio» è di una sola vista (una proiezione, uno schermo intero): nello stesso
     // schermo si nasconde subito, non al prossimo update (fermo in pausa o nelle prove restava dov'era, a cavallo della metà
@@ -1198,6 +1199,8 @@ export class NatpfTennisEngine {
     NL.resetLegend(this); // NATPF Leggenda: il modello dell'avversario riparte da zero a ogni partita
     this.natpfArena.setSpeed(null); // NATPF: velocità «---» fino al primo servizio (C21: restava quella della partita prima)
     this.natpfRhythm = null; // NATPF: il ritmo di chi gioca (direzione) si reimpara a ogni partita
+    NS.resetFatigue(this); // NATPF B18 (D6): energia piena a ogni partita nuova (prima restava quella della partita prima)
+    this.natpfServeRef = null; // NATPF B18 (D12): il servizio abituale si reimpara a ogni partita (NO.serveRefOf)
     (this.score.playerPoints = 0),
       (this.score.opponentPoints = 0),
       (this.score.playerGames = 0),
@@ -1254,6 +1257,7 @@ export class NatpfTennisEngine {
       (this.ball.inPlay = !1),
       (this.ball.bounceCountOnCurrentSide = 0),
       (this.ball.rallyStrokeCount = 0),
+      (this.ball.natpfFeed = !1),
       (this.pendingUserSwing = null),
       (this.pendingP2Swing = null),
       (this.pendingServeSwing = null),
@@ -1787,11 +1791,15 @@ export class NatpfTennisEngine {
     // NATPF racchetta virtuale: servizio dal gesto (natpf_stroke_outcome.serveOutcome), senza caso
     // … nel riferimento di chi batte: il Player 2 guarda verso +z (la sua destra è −x), quadrato, angolo ed effetto
     // laterale si specchiano come nei colpi dello scambio (_natpfRacketShot)
+    // B18 (D12): tipo e «Gran servizio» rispetto al servizio abituale di chi batte (NO.serveRefOf), che impara dai servizi
     const natpfMir = e === this.opponent ? -1 : 1,
-      natpfServe0 = Number.isFinite(t.natpfServeTau)
-        ? NO.serveOutcome({ intent: NO.eventIntent(t), tau: t.natpfServeTau, boxSign: natpfMir * e.sideSign * (this.score.deuceSide ? -1 : 1) })
+      natpfRef = Number.isFinite(t.natpfServeTau) ? NO.serveRefOf(this, e) : null,
+      natpfIntent = natpfRef ? NO.eventIntent(t) : null,
+      natpfServe0 = natpfRef
+        ? NO.serveOutcome({ intent: natpfIntent, tau: t.natpfServeTau, boxSign: natpfMir * e.sideSign * (this.score.deuceSide ? -1 : 1), ref: natpfRef.value })
         : null,
       natpfServe = natpfServe0 && natpfMir < 0 ? { ...natpfServe0, x: -natpfServe0.x, sidespin: -natpfServe0.sidespin } : natpfServe0;
+    natpfServe0 && natpfRef.learn(natpfIntent, natpfServe0);
     const a = o.MathUtils.clamp(Number(t.speed || 1.18), 0.78, 1.68),
       s = natpfServe ? natpfServe.grade === "POWER SERVE!" : i >= 2.05 && i <= 3.55,
       n = natpfServe ? natpfServe.grade === "EARLY SERVE" : i < 1.72;
@@ -1846,8 +1854,11 @@ export class NatpfTennisEngine {
       (this.ball.lastHitter = e.role === "player" ? "player" : "opponent"),
       (this.ball.bounceCountOnCurrentSide = 0),
       (this.ball.rallyStrokeCount = 1),
-      (this.ball.isPowerShot = s),
-      (this.ball.shotType = s ? "POWER" : "TOPSPIN"),
+      (this.ball.natpfFeed = !1), // NATPF B18 (D7, revisione): palla di una partita, non del lanciapalle
+      // NATPF B18 (D12): «Gran servizio» (s) è sulla forza di servizio di chi batte; la palla potente per la CPU resta con la
+      // regola di prima (natpfServe.strong), così la risposta della CPU non cambia
+      (this.ball.isPowerShot = natpfServe ? natpfServe.strong : s),
+      (this.ball.shotType = (natpfServe ? natpfServe.strong : s) ? "POWER" : "TOPSPIN"),
       this.ballTrail.clear(),
       this.ballTrail.setStyle(this.ball.shotType, s),
       this.ballTrail.pushPoint(this.ball.pos),
@@ -2519,7 +2530,7 @@ export class NatpfTennisEngine {
       i = !["pro", "leggenda"].includes(this.matchConfig.difficulty),
       a = Math.abs(this.ball.pos.x - e.pos.x),
       s = !!this.ball.isPowerShot,
-      h = a > (i ? 1.08 : 1.55) || (s && a > (i ? 0.75 : 1.25)),
+      h = NS.cpuDefensive(this.matchConfig.difficulty, a, s), // NATPF B18 (D9): soglie per livello (natpf_skill.CPU_DEFENSE)
       r = this.ball.pos.x > e.pos.x + 0.05;
     (e.swingType = r ? "backhand" : "forehand"),
       (e.swingDuration = 0.36),
@@ -2554,6 +2565,7 @@ export class NatpfTennisEngine {
         (c = 4.4 + Math.random() * 2.4),
         (f = 1.5);
     else if (h && this.ball.rallyStrokeCount >= 2) {
+      this.natpfCpuDefense = { at: this.elapsedTime, stretch: +a.toFixed(3) }; // NATPF B18 (D9): ultima risposta difensiva (prove)
       ((y = a > 1.35 || s ? "LOB" : "SLICE"),
           (g = o.MathUtils.clamp((Math.random() - 0.5) * 2.4, -S.SINGLES_X + 1.1, S.SINGLES_X - 1.1)),
           (c = 5.6 + Math.random() * 2.2),
@@ -2785,6 +2797,8 @@ export class NatpfTennisEngine {
     this._updateEffects(e), this._updateCameraRig(e), this._updateProjectedHUD();
   }
   _stepPhysics(e) {
+    // NATPF B18 (D6): fuori dallo scambio (pausa tra i punti, servizio, moviola) chi gioca recupera la stanchezza
+    (this.phase === "RALLY" && this.ball.inPlay) || NS.fatigueRest(this, e);
     if (this.natpfReplay && this.natpfReplay.step(e)) return (this.phaseTimer += e), void 0; // NATPF moviola dell'ultimo punto
     if (
       ((this.phaseTimer += e),

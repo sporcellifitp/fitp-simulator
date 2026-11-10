@@ -47,8 +47,12 @@ export const LEGEND = Object.freeze({
   kLat: .865,               // spostamento laterale vero / voluto per l'aria (misurato sul motore)
   // m/s²: accelerazione e frenata. B16 (08/11, «Leggenda più dura»): primo passo più esplosivo (prima 14 / 22): con i
   // colpi forti più tesi del B15 la CPU arrivava tardi sugli angoli. Resta sotto chi gioca, che non ha inerzia (8,8 m/s
-  // subito) e la velocità massima non cambia (8 m/s, affondo 8,6)
-  accel: 20, decel: 28,
+  // subito) e la velocità massima non cambia (8 m/s, affondo 8,6).
+  // B18 (D6 del rapporto B16): 20 / 28 → 22 / 30. Prima chi gioca era quasi sempre «Stanco!» (il recupero tra i punti non
+  // scattava mai: 10% di velocità in meno per quasi tutta la partita) e una parte della forza della Leggenda veniva da lì.
+  // Con il recupero la forza torna dalla CPU, come vuole la decisione (a) del B16: contro «preciso» (24 semi × 300 punti)
+  // chi gioca vince il 43,9% dei punti con la base, 44,6% con il recupero, 42,5% con questo primo passo
+  accel: 22, decel: 30,
   recoverZ: -11.35,         // profondità di attesa
   letGoMargin: .08, letGoSd: .12,  // m: lascia passare la palla se la vede fuori di almeno tanto (± errore di lettura)
   // affondo: se all'impatto la palla passerebbe a più di lungeFrom dal corpo, nelle ultime lungeTime secondi un passo

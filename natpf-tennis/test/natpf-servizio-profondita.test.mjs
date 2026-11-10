@@ -10,7 +10,7 @@ import * as NO from '../src/natpf/natpf_stroke_outcome.js';
 const DT = 1/120;
 const INTENT = {
   flat: { rise: 0, plane: 0, face: 0 },
-  slice: { rise: 0, plane: .6, face: 0 },
+  slice: { rise: 0, plane: .9, face: 0 },   // B18 (D12): tagliato rispetto al servizio abituale (|piano| 0,55 + 0,25)
   kick: { rise: .3, plane: 0, face: 0 },
 };
 

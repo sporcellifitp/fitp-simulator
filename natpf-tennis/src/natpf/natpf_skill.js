@@ -43,7 +43,10 @@ export const SKILL_LEVELS = Object.freeze({
     cpuAccel: 11, cpuDecel: 17,                         // 23/10: con l'inerzia la punta sale da 5,0 (corse lunghe)
     // 23/10: meno errori a caso (erano base .015, velocità .12, angolo .2): con la corsa che costa, i punti li decidono di più
     // il campo aperto e l'allungo (stretch), non il caso; Pro contro «medio» resta nel 70–85% dei game
-    cpuErr: Object.freeze({ base: .004, angle: .08, speed: .04, pressure: .035, stretch: .18, rally: .012, drop: .22, lob: .2, smash: .35, max: .5 }),
+    // B18 (D9): rally .012 → .009. La risposta difensiva che ora scatta anche a Pro (CPU_DEFENSE) dà a chi gioca circa un
+    // punto su cento in più contro «medio» (24 semi × 300 punti: 66,2 → 67,4%); un po' meno errori «a dado» negli scambi
+    // lunghi lo riporta dov'era (66,1%), nella direzione del difetto 1 del rapporto B16 (la CPU sbaglia quando è in difficoltà)
+    cpuErr: Object.freeze({ base: .004, angle: .08, speed: .04, pressure: .035, stretch: .18, rally: .009, drop: .22, lob: .2, smash: .35, max: .5 }),
     cpuWeak: .1, cpuAttack: .7, cpuAttackBase: .24, cpuAttackFlight: .62,
     cpuServe: Object.freeze({ flight: .85, wide: .8 }),
   }),
@@ -346,15 +349,27 @@ export const cpuReach = (engine, base) => { const lv = skillLevel(engine.matchCo
 // ma non troppo»). Solo i personaggi mossi da chi gioca (P1, e il P2 del 1v1 e dello stesso schermo), non la CPU (le sue
 // prove di bilanciamento restano quelle). Ogni metro di corsa laterale (lungo x) durante il punto aggiunge perMeter
 // alla stanchezza (0…1), il cambio di verso di corsa ne aggiunge turn; ferma (sotto restSpeed) si recupera restRecover
-// al secondo, tra un punto e l'altro pointRecover al secondo. Effetto: velocità massima fino a −maxSlow (10%): uno
-// scambio lungo da una riga all'altra (una decina di colpi, 35–40 m di corsa laterale) toglie il 5–6%, qualche scambio
-// così di fila arriva al 10%, e torna giù nelle pause.
+// al secondo, tra un punto e l'altro pointRecover al secondo (B18, D6: fatigueRest; prima non scattava mai). Effetto:
+// velocità massima fino a −maxSlow (10%): uno scambio lungo da una riga all'altra (una decina di colpi, 35–40 m di corsa
+// laterale) toglie il 5–6%, qualche scambio così di fila arriva al 10%, e torna giù nelle pause.
 export const FATIGUE = Object.freeze({ perMeter: .012, turn: .015, turnSpeed: 2, restSpeed: 1.2, restRecover: .03, pointRecover: .12, maxSlow: .1 });
 const fatigueOf = (engine, actor) => {
   const F = engine.natpfFatigue || (engine.natpfFatigue = new Map());
   let f = F.get(actor); if (!f) F.set(actor, f = { level: 0, dir: 0 });
   return f;
 };
+// B18 (D6): stanchezza di tutti a zero (partita nuova, sessione nello stesso schermo). Prima restava quella della
+// partita prima (fino a 0,96–0,99 a Pro e Leggenda): il visitatore dopo partiva già «Stanco!»
+export const resetFatigue = engine => { engine?.natpfFatigue?.clear?.(); };
+// B18 (D6): un passo fuori dallo scambio (pausa tra i punti, servizio, moviola) per ogni personaggio che si è stancato:
+// recupero FATIGUE.pointRecover al secondo. Prima fatigueStep girava solo con la palla in gioco (il motore muove i
+// personaggi solo lì) e il ramo «tra un punto e l'altro» non scattava mai: a Pro la barra restava su «Stanco!» per il
+// 90–95% del tempo
+export function fatigueRest(engine, dt){
+  const F = engine?.natpfFatigue;
+  if (!F?.size || !(dt > 0)) return;
+  for (const a of F.keys()) fatigueStep(engine, a, { dt, inPoint: false });
+}
 // livello di stanchezza (0…1) di un personaggio
 export const fatigueLevel = (engine, actor) => (engine.natpfFatigue?.get(actor)?.level ?? 0);
 // a ogni passo del movimento di un personaggio di chi gioca: vx velocità laterale (m/s), dt (s)
@@ -411,6 +426,20 @@ export function cpuErrorChance({ angle = 0, speed = 22, pressure = 0, stretch = 
 }
 // Cosa fa la CPU con questa palla: 'ok' (risposta normale), 'net' / 'wide' / 'long' (errore) o 'weak' (palla corta e
 // alta, da smash). Gli errori della CPU crescono con angolo, velocità, pressione, allungo e lunghezza dello scambio.
+// Risposta difensiva della CPU in allungo (game_engine._executeOpponentReturn): con la palla lontana di lato più di «wide»
+// metri (o di «power» metri su un colpo potente) la CPU rimanda un tagliato o un pallonetto corto e lento, da attaccare.
+// B18 (D9 del rapporto B16): a Pro la soglia era 1,55 m, oltre la portata della CPU (cpuReach 1,5 m): la risposta difensiva
+// non scattava mai (0,0% dei colpi della CPU, a Casual 14%) e la palla larga non dava niente. Ora sotto la portata, un poco
+// più in là che a Casual (80% della portata contro 77%). Leggenda: come prima (la sua risposta la sceglie natpf_legend.js)
+export const CPU_DEFENSE = Object.freeze({
+  casual: Object.freeze({ wide: 1.08, power: .75 }),
+  pro: Object.freeze({ wide: 1.2, power: .95 }),
+  leggenda: Object.freeze({ wide: 1.55, power: 1.25 }),
+});
+export function cpuDefensive(difficulty, stretch, power = false){
+  const D = CPU_DEFENSE[String(difficulty || '').toLowerCase()] || CPU_DEFENSE.casual;
+  return finite(stretch) > D.wide || (!!power && finite(stretch) > D.power);
+}
 export function cpuReturnPlan(engine, actor, { rng = Math.random } = {}){
   const lv = skillLevel(engine.matchConfig?.difficulty), s = skillState(engine), ball = engine.ball;
   if (!lv.cpuErr || engine.isMultiplayer || (engine.autoPlayMode && !engine.userHasInteracted)) return { kind: 'ok', chance: 0 };

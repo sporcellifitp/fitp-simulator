@@ -274,7 +274,8 @@ test('servizio dal gesto: stesso gesto stesso servizio; forza, verso e momento d
   assert.ok(a.serve.q > .95 && a.serve.grade === 'POWER SERVE!', JSON.stringify(a.serve));
   const soft = serve({ ...flat, power: .25 });
   assert.ok(soft.vel < a.vel*.8, `${soft.vel} ${a.vel}`);
-  const left = serve({ ...flat, plane: .7 }), right = serve({ ...flat, plane: -.7 });
+  // B18 (D12): il tipo si giudica rispetto al servizio abituale (SERVE.habit, |piano| 0,55): tagliato da |piano| 0,8
+  const left = serve({ ...flat, plane: .9 }), right = serve({ ...flat, plane: -.9 });
   assert.ok(right.landing.x - left.landing.x > 1, `${left.landing.x} → ${right.landing.x}`);
   assert.equal(left.serve.kind, 'slice');
   assert.equal(serve({ ...flat, rise: .4 }).serve.kind, 'kick');
