@@ -281,7 +281,9 @@ export class DiagRecorder {
       R.matchN = (R.matchN || 0) + 1;
       R.lastMatch = { n: R.matchN, modo: R.ui?.lobby?.mode || null, difficolta: E.matchConfig?.difficulty || null, formato: E.matchFormat?.id || null,
         '1v1': !!(E.versus?.active || E.isMultiplayer), mano: R.ui?.hand?.hand || E.natpfPhone?.hand || null, mano2: E.natpfPhone2?.hand || null,
-        mira: readAimLevel(), miraPiena: aimFullNow(), ruolo: E.playerRole || 'p1' };   // ruolo: B18, chi gioca qui (misure del rimbalzo)
+        mira: readAimLevel(), miraPiena: aimFullNow(), ruolo: E.playerRole || 'p1',   // ruolo: B18, chi gioca qui (misure del rimbalzo)
+        // B18: formato in fiera (punto decisivo e servizio come nel tie-break) e game per vincere dopo la sua regola
+        formatoFiera: !!E.score?.fair, gameDaVincere: E.matchConfig?.gamesToWin ?? null };
       R.log('partita', R.lastMatch);
       return out;
     });

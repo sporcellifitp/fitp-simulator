@@ -65,7 +65,8 @@ function phoneIntent(e, P, rng){
 }
 
 // onStep(e): facoltativo, dopo ogni passo della fisica (misure di altri banchi: scripts/audit/rhythm.mjs)
-export function simulate({ profile = 'medio', difficulty = 'casual', points = 200, seed = 7, maxSeconds = 4000, onStep = null } = {}){
+// setup(e): facoltativo, prima della partita (B18: formato in fiera, scripts/audit/formato-fiera.mjs)
+export function simulate({ profile = 'medio', difficulty = 'casual', points = 200, seed = 7, maxSeconds = 4000, onStep = null, setup = null } = {}){
   const P = typeof profile === 'string' ? PROFILES[profile] : profile;
   const rng = mulberry32(seed), engineRng = mulberry32(seed*7919 + 13);
   const realRandom = Math.random; Math.random = engineRng;
@@ -98,6 +99,7 @@ export function simulate({ profile = 'medio', difficulty = 'casual', points = 20
     const popup = e.hud.showTimingPopup;
     e.hud = new Proxy({}, { get: (t, k) => k === 'showTimingPopup' ? ({ grade = '' } = {}) => { const g = String(grade).split(' ')[0]; out.grades[g] = (out.grades[g] || 0) + 1; if (/WHIFF/.test(grade)) out.whiffs++; } : () => {} });
     void popup;
+    setup?.(e);
     e.startNewMatch({ showStartBanner: false });
     let intent = null, serveAt = null, lastSeenShot = null, lastSeenCpu = null, lastSeenRacket = null, lastSeenPlan = null, bounceAt = null;
     for (let t = 0; t < maxSeconds && out.points < points; t += DT){
