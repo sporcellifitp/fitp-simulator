@@ -335,6 +335,8 @@ export const SERVE_WEIGHT = Object.freeze({
   pro: Object.freeze({ base: .045, threat: .05, stretch: .5, max: .45, read: .135, readSd: .35, pressure: 1 }),
   leggenda: Object.freeze({ read: .15, readSd: .35 }),
 });
+// Un livello nuovo contro la CPU deve avere qui la sua riga: senza, il suo servizio non ha peso (la risposta torna alla
+// regola degli scambi, cpuErrorChance) e la CPU non legge in ritardo.
 // Solo per audit ed esperimenti (scripts/audit/servizio.mjs): valori che sostituiscono quelli del livello, es.
 // serveTuning.casual = { read: 0 }
 export const serveTuning = {};
