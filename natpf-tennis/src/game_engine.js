@@ -315,6 +315,10 @@ export class NatpfTennisEngine {
         ? this.urlMode
         : "casual";
     (this.matchConfig = { gamesToWin: e === "1v1" ? 1 : 2, inputMode: "mouse", difficulty: e }),
+      // NATPF B18 (revisione del ramo R4): matchConfig.gamesToWinChosen è la scelta del menu (la scrivono il menu, i
+      // minigiochi e lo snapshot dell'host scrivendo gamesToWin); gamesToWin è il valore che vale in partita, calcolato a
+      // ogni lettura con il formato in fiera della partita (score.fair: «Al meglio di 5» → al meglio di 3)
+      NF.installGamesToWin(this.matchConfig, () => this.score?.fair),
       (this.score = {
         playerPoints: 0,
         opponentPoints: 0,
@@ -1211,8 +1215,9 @@ export class NatpfTennisEngine {
       // (sul computer del P2 della sfida tra due computer decide l'host: score.fair e gamesToWin arrivano con lo snapshot)
       (this.score.fair = this.playerRole === "p2" && this.isMultiplayer ? !1 : typeof this.natpfFair == "boolean" ? this.natpfFair : NF.readFairFormat()),
       (this.score.gameServer = this.score.server),
-      // … e con l'opzione accesa «Al meglio di 5» diventa «Al meglio di 3» (NF.fairGamesToWin)
-      (this.matchConfig.gamesToWin = NF.fairGamesToWin(this.matchConfig.gamesToWin, this.score.fair)),
+      // … e con l'opzione accesa «Al meglio di 5» vale «Al meglio di 3» (matchConfig.gamesToWin lo calcola da score.fair
+      // senza toccare la scelta del menu, matchConfig.gamesToWinChosen; installGamesToWin è idempotente)
+      NF.installGamesToWin(this.matchConfig, () => this.score?.fair),
       (this.score.deuceSide = !0),
       this._syncScoreboardHUD(),
       this.hud.setReplayMode(!1),
@@ -1867,7 +1872,8 @@ export class NatpfTennisEngine {
       (this.ball.isPowerShot = s),
       (this.ball.shotType = s ? "POWER" : "TOPSPIN"),
       this.ballTrail.clear(),
-      this.ballTrail.setStyle(this.ball.shotType, s),
+      // NATPF B18 (revisione R4): la scia del servizio della CPU è quella normale, non quella del colpo potente
+      this.ballTrail.setStyle(cpuServe ? "TOPSPIN" : this.ball.shotType, s && !cpuServe),
       this.ballTrail.pushPoint(this.ball.pos),
       (this.phase = "RALLY"),
       (this.cameraMode = "RALLY_CAM"),
@@ -1883,8 +1889,9 @@ export class NatpfTennisEngine {
           speed: this.ball.vel.length(),
         }),
       this.facialFX && this.facialFX.setExpression(e, "effort_shout", 0.55),
-      // NATPF B18: niente tremolio della telecamera sul servizio della CPU (era quello del colpo eccezionale a ogni servizio)
-      s && (cpuServe || (this.cameraTrauma = 0.34), this._spawnStarBurst(this.ball.pos, 14)),
+      // NATPF B18: niente tremolio della telecamera né stelline sul servizio della CPU (era l'effetto del colpo eccezionale a
+      // ogni servizio: la CPU serve sempre «potente»). isPowerShot resta com'era: lo usa la risposta (_executeOpponentReturn)
+      s && (cpuServe || ((this.cameraTrauma = 0.34), this._spawnStarBurst(this.ball.pos, 14))),
       this.audioEngine &&
         (this.audioEngine.playSwingWhoosh(s ? 1.5 : 1.1),
         this.audioEngine.playRacketHit(s ? "smash" : "topspin", s ? "perfect" : "good"),
@@ -2967,7 +2974,9 @@ export class NatpfTennisEngine {
           ((this.ball.mesh.rotation.x += this.ball.vel.z * e * 1.8),
           (this.ball.mesh.rotation.z -= this.ball.vel.x * e * 1.8)),
         this.ballTrail.pushPoint(this._natpfBallDrawPos()), // NATPF 1v1: la scia segue la palla disegnata (sul P2 con lo scarto)
-        this.ball.isPowerShot && Math.random() < 0.45 && this._spawnStarBurst(this.ball.pos, 1),
+        // NATPF B18 (revisione R4): niente scintille in volo dietro al servizio della CPU (il sorteggio resta, così la
+        // sequenza casuale non cambia)
+        this.ball.isPowerShot && Math.random() < 0.45 && !this._natpfQuietCpuServe() && this._spawnStarBurst(this.ball.pos, 1),
         ((t > 0 && this.ball.pos.z <= 0) || (t < 0 && this.ball.pos.z >= 0)) &&
           this.ball.pos.y < S.NET_HEIGHT_CENTER + 0.04)
       ) {
@@ -3713,6 +3722,11 @@ export class NatpfTennisEngine {
       i.mesh.scale.setScalar(0.6),
       (i.mesh.material.opacity = 0.9),
       (i.mesh.visible = !0);
+  }
+  // NATPF B18 (revisione R4): la palla in volo è il servizio della CPU (primo colpo, battuto dall'avversario, non nella
+  // sfida tra due persone): niente effetti da colpo eccezionale
+  _natpfQuietCpuServe() {
+    return this.ball.rallyStrokeCount === 1 && this.ball.lastHitter === "opponent" && !this.isMultiplayer;
   }
   _spawnStarBurst(e, t = 8) {
     let i = 0;

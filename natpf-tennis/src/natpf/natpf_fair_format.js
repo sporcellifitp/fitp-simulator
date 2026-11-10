@@ -63,6 +63,25 @@ export const isDecidingPoint = (p = 0, o = 0, { fair = false } = {}) => !!fair &
 export const FAIR_MAX_GAMES_LABEL = 'Con il formato in fiera la partita più lunga è al meglio di 3';
 export const fairGamesToWin = (gamesToWin = 1, fair = false) => (fair && gamesToWin === 3 ? 2 : gamesToWin);
 
+// Revisione R4: la scelta del menu (matchConfig.gamesToWinChosen) e il valore che vale in partita (matchConfig.gamesToWin,
+// calcolato a ogni lettura con fairGamesToWin e il formato della partita, isFair()) restano separati. Chi scrive
+// gamesToWin (menu, minigiochi, snapshot dell'host) scrive la scelta; prima startNewMatch sovrascriveva 3 con 2 e, spenta
+// l'opzione, «Rigioca» restava al meglio di 3. Idempotente: la chiamano il costruttore del motore e startNewMatch (così
+// vale anche per il motore senza grafica delle simulazioni e dei test)
+export function installGamesToWin(mc, isFair = () => false){
+  if (!mc || typeof mc !== 'object') return mc;
+  if (Object.getOwnPropertyDescriptor(mc, 'gamesToWin')?.get) return mc;
+  const chosen = mc.gamesToWin ?? mc.gamesToWinChosen ?? 1;
+  delete mc.gamesToWin;
+  mc.gamesToWinChosen = chosen;
+  Object.defineProperty(mc, 'gamesToWin', {
+    enumerable: true, configurable: true,
+    get(){ return fairGamesToWin(mc.gamesToWinChosen, !!isFair()); },
+    set(v){ mc.gamesToWinChosen = v; },
+  });
+  return mc;
+}
+
 // voce inglese del punto decisivo con le clip che ci sono già (public/voce: non c'è «deciding point», e la voce nuova
 // non si genera): «Match Point» se chi vince il punto può chiudere la partita, altrimenti «Game Point». Sul 40-40 col
 // punto decisivo è palla game (o match) per tutti e due, quindi la frase è vera

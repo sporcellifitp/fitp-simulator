@@ -5,12 +5,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FAIR_KEY, fairFromUrl, readFairFormat, writeFairFormat, fairForcedByUrl, pointServer, gameWinner, isDecidingPoint, nextServe, decidingVoice, fairGamesToWin } from '../src/natpf/natpf_fair_format.js';
+import { FAIR_KEY, fairFromUrl, readFairFormat, writeFairFormat, fairForcedByUrl, pointServer, gameWinner, isDecidingPoint, nextServe, decidingVoice, fairGamesToWin, installGamesToWin } from '../src/natpf/natpf_fair_format.js';
 import { scoreboardView } from '../src/natpf/natpf_scoreboard.js';
 import { pointCall, viewScore, callFromBroadcast } from '../src/natpf/natpf_point_call.js';
 import { makeCheckpoint, checkpointFor } from '../src/natpf/natpf_versus.js';
 import { fairButton, fairToast } from '../src/natpf/natpf_kiosk.js';
-import { matchSummary } from '../src/natpf/natpf_lobby.js';
+import { matchSummary, fairLengthStep } from '../src/natpf/natpf_lobby.js';
 import { phoneGamePhase } from '../src/natpf/natpf_phone_racket.js';
 import { t as hudText } from '../src/natpf/natpf_i18n.js';
 import { callout } from '../src/natpf/natpf_voice.js';
@@ -237,4 +237,79 @@ test('servizio della CPU: velocità vera sul tabellone (non 194 km/h fissi) e ni
     assert.notEqual(speeds[0].shown, 194);
     assert.equal(trauma, 0, `${difficulty}: niente tremolio`);
   }
+});
+
+/* ---------- revisione del ramo R4 ---------- */
+test('revisione: la scelta del menu resta separata dal valore in partita (installGamesToWin)', () => {
+  let fair = true;
+  const mc = installGamesToWin({ gamesToWin: 3, inputMode: 'mouse' }, () => fair);
+  assert.equal(mc.gamesToWinChosen, 3);
+  assert.equal(mc.gamesToWin, 2, 'acceso: al meglio di 3');
+  fair = false;
+  assert.equal(mc.gamesToWin, 3, 'spento: torna la scelta del menu');
+  mc.gamesToWin = 1;
+  assert.equal(mc.gamesToWinChosen, 1, 'chi scrive gamesToWin scrive la scelta');
+  assert.equal(installGamesToWin(mc, () => true), mc, 'idempotente');
+  assert.equal(mc.gamesToWinChosen, 1);
+  assert.ok(Object.keys(mc).includes('gamesToWin'), 'resta tra le chiavi (snapshot e diagnostica)');
+});
+
+test('revisione: «Rigioca» dopo aver spento l\'opzione torna al meglio di 5 scelto nel menu', () => {
+  const e = engine({ fair: true, gamesToWin: 3 });
+  assert.equal(e.matchConfig.gamesToWin, 2);
+  assert.equal(e.matchConfig.gamesToWinChosen, 3, 'la scelta del menu non si tocca');
+  e.natpfFair = false;
+  e.startNewMatch({ showStartBanner: false });   // come «Rigioca» della schermata finale, senza passare dal menu
+  assert.equal(e.matchConfig.gamesToWin, 3);
+  e.natpfFair = true; e.startNewMatch({ showStartBanner: false });
+  assert.equal(e.matchConfig.gamesToWin, 2);
+  // il P2 della sfida tra due computer: il valore dell'host arriva con lo snapshot, anche con score.fair vero
+  const p2 = createHeadlessEngine();
+  p2.playerRole = 'p2'; p2.isMultiplayer = true;
+  p2.natpfArena = { setScore(){}, setSpeed(){}, update(){}, setPractice(){} };
+  p2.startNewMatch({ showStartBanner: false });
+  p2.matchConfig.gamesToWin = 2; p2.score = { ...p2.score, fair: true };
+  assert.equal(p2.matchConfig.gamesToWin, 2);
+  p2.matchConfig.gamesToWin = 1;
+  assert.equal(p2.matchConfig.gamesToWin, 1);
+});
+
+test('revisione: pagina «Partita», il 5 scelto dallo staff torna quando l\'opzione si spegne (fairLengthStep)', () => {
+  // acceso con il 5: si passa al 3 e ci si ricorda del 5
+  let st = fairLengthStep({ fair: true, selected: '5' });
+  assert.deepEqual(st, { click: '3', fiveBeforeFair: true });
+  // ridisegni con l'opzione accesa e il 3 selezionato: il ricordo resta
+  st = fairLengthStep({ fair: true, selected: '3', fiveBeforeFair: st.fiveBeforeFair });
+  assert.deepEqual(st, { click: null, fiveBeforeFair: true });
+  // spento: si torna al 5
+  assert.deepEqual(fairLengthStep({ fair: false, selected: '3', fiveBeforeFair: true }), { click: '5', fiveBeforeFair: false });
+  // se nel frattempo qualcuno ha scelto 1 game, vale la sua scelta
+  st = fairLengthStep({ fair: true, selected: '1', fiveBeforeFair: true });
+  assert.deepEqual(st, { click: null, fiveBeforeFair: false });
+  assert.deepEqual(fairLengthStep({ fair: false, selected: '3', fiveBeforeFair: st.fiveBeforeFair }), { click: null, fiveBeforeFair: false });
+  // il 3 scelto a mano (senza 5 prima) non diventa 5
+  assert.deepEqual(fairLengthStep({ fair: false, selected: '3' }), { click: null, fiveBeforeFair: false });
+  assert.deepEqual(fairLengthStep({ fair: true, selected: '3' }), { click: null, fiveBeforeFair: false });
+});
+
+test('revisione: servizio della CPU senza stelline e con la scia normale; nello scambio, nel servizio del giocatore e nello stesso schermo restano', () => {
+  const e = createHeadlessEngine({ difficulty: 'pro' });
+  const bursts = [], styles = [];
+  e._spawnStarBurst = (_p, n) => bursts.push(n);
+  e.ballTrail = { setStyle: (t, p) => styles.push(`${t}/${p}`), clear(){}, pushPoint(){}, seedArc(){}, update(){} };
+  e.natpfArena = { setScore(){}, setSpeed(){}, update(){}, setPractice(){} };
+  e.natpfFair = false; e.natpfServeFirst = 'opponent';
+  e.startNewMatch({ showStartBanner: false });
+  for (let i = 0; i < 600 && e.phase !== 'RALLY'; i++) e.step(1/120);
+  assert.equal(e.phase, 'RALLY');
+  assert.equal(e.ball.isPowerShot, true, 'per la risposta resta un servizio potente (gioco invariato)');
+  assert.deepEqual(bursts.filter(n => n > 1), [], 'niente stelline al servizio');
+  assert.equal(styles.at(-1), 'TOPSPIN/false', 'scia normale');
+  assert.equal(e._natpfQuietCpuServe(), true);
+  for (let i = 0; i < 30; i++) e.step(1/120);
+  assert.deepEqual(bursts, [], 'niente scintille in volo');
+  // stesso schermo (due persone): il servizio del P2 non è della CPU
+  e.isMultiplayer = true; assert.equal(e._natpfQuietCpuServe(), false); e.isMultiplayer = false;
+  e.ball.rallyStrokeCount = 2; assert.equal(e._natpfQuietCpuServe(), false, 'nello scambio la CPU ha i suoi effetti');
+  e.ball.rallyStrokeCount = 1; e.ball.lastHitter = 'player'; assert.equal(e._natpfQuietCpuServe(), false, 'servizio del giocatore');
 });

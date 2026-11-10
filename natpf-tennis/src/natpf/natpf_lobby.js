@@ -120,6 +120,14 @@ export function matchSummary({ games = 1, format = 'singles', view = 'third', sp
   const n = parseInt(games, 10) || 1;
   return [n > 1 ? `Al meglio di ${n}` : '1 game', fair ? 'formato fiera' : null, split ? null : format === 'doubles' ? 'doppio' : 'singolare', view === 'first' ? '1ª persona' : '3ª persona'].filter(Boolean).join(' · ');
 }
+// B18 (revisione R4): durata della partita quando il formato in fiera si accende o si spegne (funzione pura). Acceso con
+// «Al meglio di 5» scelto: si passa al 3 e ci si ricorda del 5; spento con il 3 ancora scelto: si torna al 5. Se nel
+// frattempo qualcuno ha scelto un'altra durata, la sua scelta vale e il 5 si dimentica
+export function fairLengthStep({ fair = false, selected = null, fiveBeforeFair = false } = {}){
+  const sel = String(selected ?? '');
+  if (fair) return sel === '5' ? { click: '3', fiveBeforeFair: true } : { click: null, fiveBeforeFair: !!fiveBeforeFair && sel === '3' };
+  return fiveBeforeFair && sel === '3' ? { click: '5', fiveBeforeFair: false } : { click: null, fiveBeforeFair: false };
+}
 // Riconosce la parola dell'easter egg tra i tasti digitati
 export function eggTyped(buffer, key){ const next = (buffer + String(key || '').toLowerCase()).slice(-EGG_WORD.length); return { buffer: next, hit: next === EGG_WORD }; }
 
@@ -491,11 +499,15 @@ export class NatpfLobby {
     show(box, open);
     if (btn && btn.getAttribute('aria-expanded') !== String(open)) btn.setAttribute('aria-expanded', String(open));
     // B18: con il formato in fiera la partita più lunga è al meglio di 3 (natpf_fair_format.fairGamesToWin): «Al meglio
-    // di 5» sparisce e, se era scelto, si passa a «Al meglio di 3»; spento torna com'era
+    // di 5» sparisce e, se era scelto, si passa a «Al meglio di 3»; spento, il 5 ricompare e, se era stato lo staff a
+    // sceglierlo e nessuno ha cambiato durata nel frattempo, torna selezionato (revisione R4: prima la scelta si perdeva)
     const fair = readFairFormat(), five = document.querySelector('#match-length-group [data-games="5"]');
     if (five){
       if (five.classList.contains('hidden') !== fair){ five.classList.toggle('hidden', fair); five.title = fair ? FAIR_MAX_GAMES_LABEL : ''; }
-      if (fair && five.classList.contains('selected')) document.querySelector('#match-length-group [data-games="3"]')?.click();
+      const sel = document.querySelector('#match-length-group .selected')?.dataset?.games;
+      const step = fairLengthStep({ fair, selected: sel, fiveBeforeFair: this._fiveBeforeFair });
+      this._fiveBeforeFair = step.fiveBeforeFair;
+      if (step.click) document.querySelector(`#match-length-group [data-games="${step.click}"]`)?.click();
     }
     const games = document.querySelector('#match-length-group .selected')?.dataset?.games;
     const view = this.el.querySelector('[data-page="match"] [data-natpf-view].selected')?.dataset?.natpfView;
