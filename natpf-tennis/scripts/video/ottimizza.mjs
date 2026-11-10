@@ -527,6 +527,8 @@ export function baseFor(card, opts = {}, { fore = null } = {}){
   // init (passo B3): pose chiave risolte da impactInit (faccia girata verso la rete nella posa C), scritte nella soluzione
   if (opts.init) for (const [K, J] of Object.entries(opts.init)){ if (K === 'F2') Object.assign(F2, J); else raw = { ...raw, [K]: { ...raw[K], ...J } }; }
   const base = { ...raw, ...(opts.slow && card !== 'serve' ? { slow: true, F2, f2d: +(opts.f2d || 15) } : {}), ...(opts.armd ? { armd: +opts.armd } : {}) };
+  // forma dallo specchio (correzioni del passo B3): la coreografia non viene più dai tempi del video
+  if (opts.mirrorRef && MIRROR_OF[card]){ base.src = `specchio di ${MIRROR_OF[card]}`; delete base.times; }
   const A0 = +(opts.acc ?? .25), P0 = +(opts.prep ?? raw.prep);
   base.t = card === 'serve' ? { prep: P0, rise: raw.rise, up: raw.up, acc: A0, dMax: raw.dMax, fin: raw.fin } : { acc: A0, dMax: Math.max(.12, raw.dMax), prep: P0, fin: raw.fin, slow: .45 };
   // likeT (correzioni del passo B3, rovescio allo specchio): tempi di partenza della scheda specchiata

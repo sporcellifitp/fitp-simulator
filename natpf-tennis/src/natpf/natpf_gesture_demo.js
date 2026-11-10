@@ -181,7 +181,7 @@ function drawBody(c, B, st){
   c.restore();
 }
 // Braccio libero (la sinistra del destro): spalla sinistra della catena, mano da gestureFreeHand (lancio del servizio,
-// seconda mano del rovescio a due mani) o rilassata al fianco; gomito con la cinematica inversa a due segmenti (lunghezze
+// braccio in equilibrio del rovescio a una mano) o rilassata al fianco; gomito con la cinematica inversa a due segmenti (lunghezze
 // vere), piegato verso fuori-dietro-basso. Solo disegno: la posa del telefono non cambia
 export function freeArm(pose, free){
   const ch = pose.chain; if (!ch) return null;
@@ -333,7 +333,7 @@ export function motion(id, grip = GRIP_STYLE, set = undefined){
   const arc = (segs, k) => segs.map(([a, b]) => ({ t0: a, t1: b, pts: Array.from({ length: 33 }, (_, i) => tipOf(gesturePose(id, a + (b - a)*i/32, { grip, set }), k)) }));
   T.arrows = arc(segs, k);
   // inquadratura del gesto intero (camera ferma): la freccia segue tutta la parte veloce, come con le camere ferme
-  // (con il proseguimento lento dopo la frenata, tagliati e rovescio a due mani, fino alla fine vera: la discesa lunga del
+  // (con il proseguimento lento dopo la frenata, tagliato di dritto e di rovescio, fino alla fine vera: la discesa lunga del
   // tagliato verso l'anca opposta è lì, non nella parte veloce)
   const slowEnd = P.T.fastEnd != null && P.T.back - P.T.fastEnd > .3 ? P.T.back - .05 : P.T.end;
   T.arrowsWhole = C.whole ? arc(P.kind === 'serve' ? [[P.T.load, P.T.tossEnd], [P.contact - .06, P.contact + .06]] : P.kind === 'stroke' ? [[P.T.inv, slowEnd]] : [], 1.36) : T.arrows;
@@ -1225,7 +1225,7 @@ export class NatpfGestureDemo {
     if (CPm && impactBehind) drawImpact(c, cam, CPm, tt - P.contact, st);
     const F = K.figure ? figure(cam, R, st, H_) : drawFigure(c, cam, R, st, H_);
     if (body && !K.figure && !K.xray) drawXray(c, cam, R, F, body, st);
-    if (FA && faBody && faFront) drawFreeArm(c, cam, FA, st, 'hand');   // la mano libera davanti (rovescio a due mani)
+    if (FA && faBody && faFront) drawFreeArm(c, cam, FA, st, 'hand');   // la mano libera davanti al corpo (dalla camera)
     if (ball && !ballFirst && ballAlpha > .01) drawBall(c, cam, ball, spin, st, ballAlpha);
     // palla dietro il telefono (contatto sul dorso, lontano dalla camera): dentro la sagoma del telefono la parte nascosta a
     // metà opacità con il contorno tratteggiato, così all'impatto non sparisce mai (brief §5.6.2)

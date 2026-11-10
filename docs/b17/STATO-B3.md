@@ -60,9 +60,17 @@ nessuna verifica (15/414 giuste) e il totale scritto era sbagliato (3 174 invece
   specchio del dritto o del tagliato di dritto, `MIRROR_OF`), `--mirrorInit` (pose chiave risolte allo specchio, con il dorso
   verso la rete e il braccio disteso), `--mirrorMax=a,b`, `--reach`, `--accMax`, `--pathMax`, `--initBlend`. Partenza allo
   specchio: polso a 2,2 cm dallo specchio all'impatto, braccio disteso (0,56 m) e dorso a 12°: lo specchio è raggiungibile.
-- In corso (nohup, log in scratchpad `b3fix/bh2`, `bh3`, `sb1`, `vo1`): rovescio con `--mirrorInit --mirrorRef --mirrorMax=15,20
-  --reach=0.478 --also=forehand --camdir=.6,.5,-.62`; tagliato di rovescio `--mirrorMax=12,15`; volée corta
-  (`--initFrom=forehand --like --initBlend=0.3,0.4 --accMax=.12 --pathMax=.38`).
+- Giro 2 (commit «coreografie allo specchio nel codice»): rovescio (`bh5`: `--mirrorInit --mirrorRef --mirrorMax=15,20
+  --reach=0.478 --also=forehand,cross,line,slice --camdir=.6,.5,-.62`), tagliato di rovescio (`sb1`, `--mirrorMax=12,15`), volée
+  corta (`vo1`) in `scripts/video/soluzioni` e in `CHOREO_VIDEO` (`--emit`). Polso al netto del bacino contro lo specchio:
+  rovescio 14,4 cm in media (carica 24,2, impatto 14,4, fine 2,0; prima 44,8), braccio disteso all'impatto (spalla–polso
+  0,561 m, gomito 7°), dorso a 16,5°; tagliato di rovescio 8,4 cm (impatto 3,2; prima 35,5 con l'altra normalizzazione), dorso
+  a 16,0°; volée parte veloce 0,10 s (0,083 s dalla carica all'impatto), 26 cm, schermo a 17°. Camere del rovescio e del
+  tagliato di rovescio davanti a destra e dall'alto. Indicazioni (cues) della racchetta per dritto, rovescio, piatto, volée.
+  Test: semi 1–23 2 898/2 898 fuori dai limiti dichiarati; limiti dichiarati 15/414 confrontati per scheda con il misurato
+  (`DECLARED_SEEN`); test nuovi dello specchio e della volée corta; mancino dei limiti dichiarati: stessa lettura specchiata.
+  Gioco 990/990, sito 200/200.
+- Da fare: build, fogli O/VC, prove nel browser, `ottimizzazione.md` §9.7, domande per l'utente.
 
 ### Come riprendere
 Dalla cartella `natpf-tennis`: `node --import ./test/register.mjs scripts/video/ottimizza.mjs --card=backhand --out=DIR

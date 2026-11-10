@@ -70,14 +70,15 @@ test('la posa disegnata è quella del test: demo.pose(t) == gesturePose(id, t, {
 
 test('fedeltà dell\'animazione: ogni scheda e la mira, destro e mancino, racchetta, palmo e martello, calibrazione con l\'animazione e con il braccio simulato, imitazione 0,8× / 1× / 1,25×: un messaggio per ciclo (servizio due), colpo e lato attesi, picco letto = contatto disegnato ± 40 ms', () => {
   const bad = [];
-  let n = 0;
+  let n = 0, skipped = 0;
   for (const grip of GRIPS){
     const src = demoSource(grip);
     for (const cal of ['pose', 'arm']) for (const hand of HANDS) for (const rate of RATES) for (const id of GP.POSE_IDS){
       if (GESTURES[id].still && rate !== 1) continue;
       // B17.1 passo B3: limite dichiarato (ottimizzazione.md §9): con lo schermo verso la rete nel dritto la calibrazione del
-      // braccio simulato non legge la mira di incrociato e lungolinea né il piatto (letture contate a parte, test gesture-semi)
-      if (grip === 'racchetta' && declared(id, cal)) continue;
+      // braccio simulato non legge la mira di incrociato e lungolinea né il piatto; quelle letture NON sono verificate qui:
+      // sono contate e confrontate con il conto misurato nei test natpf-gesture-semi-a/b/c (gesture-semi.mjs)
+      if (grip === 'racchetta' && declared(id, cal)){ skipped++; continue; }
       n++;
       const r = readCard(src, id, { hand, cal, rate });
       const why = judgeCard(src, id, r, { hand, rate, allow: allowFor(id, rate), peakTol: 40 });
@@ -85,6 +86,8 @@ test('fedeltà dell\'animazione: ogni scheda e la mira, destro e mancino, racche
       if (why.length) bad.push(`${grip} ${id} ${hand} cal=${cal} ×${rate}: ${why.join('; ')}`);
     }
   }
+  // tutte le letture tranne le 18 dei limiti dichiarati (3 schede × 2 mani × 3 velocità, solo racchetta e braccio simulato)
+  assert.equal(skipped, GRIPS.includes('racchetta') ? 18 : 0);
   assert.ok(n >= 400, `${n} letture`);
   assert.deepEqual(bad, [], bad.join('\n'));
 });
@@ -233,7 +236,8 @@ test('rovescio a una mano: niente seconda mano sul telefono (≥ 20 cm in tutto 
         assert.ok(GP.len(GP.sub(A.W, A.S)) > .4, `${hand} ${t.toFixed(3)}: braccio libero piegato`);
         n++;
       }
-      assert.ok(n > 20, `solo ${n} campioni nell'accompagnamento`);
+      // (correzioni del passo B3: il rovescio è lo specchio del dritto, accompagnamento di 0,34 s come il dritto: 15 campioni)
+      assert.ok(n >= 12, `solo ${n} campioni nell'accompagnamento`);
       assert.ok(near >= .2, `${hand}: mano libera a ${near.toFixed(3)} m dal telefono`);
       // posizione di partenza: braccio libero rilassato (quasi disteso, mano sotto il bacino di lato), non sul fianco
       d.show(.1);

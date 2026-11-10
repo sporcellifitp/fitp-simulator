@@ -64,22 +64,36 @@ const GRIP_CUES = Object.freeze({
     grip: ['Come il manico di un martello', 'Cima in avanti, verso lo schermo', 'Bordo stretto in alto, display di lato'] },
 });
 
+// Indicazioni dei colpi con la presa a racchetta (B17.1 passo B3, correzioni dalla revisione): dicono quello che il disegno
+// mostra (CHOREO_VIDEO): all'impatto del dritto (piatto e volée compresi) lo SCHERMO verso la palla, nel rovescio a una mano
+// (lo specchio del dritto) il DORSO; la volée è un gesto corto (parte veloce 0,08 s, 26 cm dalla carica all'impatto), il piatto
+// sale come il dritto ma è più corto e più veloce. Con le altre prese (rollback) restano quelle del B13/B14.
+const STROKE_CUES = Object.freeze({
+  racchetta: {
+    forehand: ['Dall’anca destra, rotazione attorno a te', 'Dal basso verso l’alto, braccio disteso', 'Schermo verso la palla quando colpisci'],
+    backhand: ['A una mano: il dritto, dall’altro lato', 'Dall’anca sinistra, braccio disteso', 'Dorso del telefono verso la palla'],
+    flat: ['Come il dritto, più veloce', 'Più corto, contatto più basso', 'Schermo in pieno verso la palla'],
+    volley: ['A rete, palla al volo', 'Gesto corto, quasi senza preparazione', 'Telefono davanti a te, schermo verso la palla'],
+  },
+});
+const cuesFor = (id, legacy) => STROKE_CUES[GRIP_STYLE]?.[id] || legacy;
+
 // Gesti del tutorial. expect: cosa deve riconoscere il gioco (verificato nei test). cues: le tre cose da guardare.
 // ball: come arriva la palla nell'animazione ('ground' dopo il rimbalzo, 'volley' al volo, 'high' alta, 'toss' lancio)
 export const GESTURES = Object.freeze({
   ready: { id: 'ready', label: 'Posizione di partenza', still: true, cues: GRIP_CUES[GRIP_STYLE].ready },
   grip: { id: 'grip', label: 'Impugnatura', still: true, turntable: true, cues: GRIP_CUES[GRIP_STYLE].grip },
   forehand: { id: 'forehand', label: 'Dritto', stroke: S.forehand, ball: 'ground', expect: { shot: ['topspin'], side: 'forehand' },
-    cues: ['Rotazione attorno a te, in orizzontale', 'Dall’esterno verso il corpo', 'Un poco dal basso verso l’alto'] },
+    cues: cuesFor('forehand', ['Rotazione attorno a te, in orizzontale', 'Dall’esterno verso il corpo', 'Un poco dal basso verso l’alto']) },
   // balance: rovescio A UNA MANO (B17.1 passo B3, decisione dell'utente del 09/11 notte: «Per il rovescio, a una mano»; prima
   // a due mani come nel video): la mano libera non tocca il telefono, dalla carica si apre dietro e di lato per l'equilibrio
   // (natpf_gesture_pose.gestureFreeHand). Solo disegno: il riconoscimento non lo legge
   backhand: { id: 'backhand', label: 'Rovescio', stroke: S.backhand, ball: 'ground', balance: true, expect: { shot: ['topspin'], side: 'backhand' },
-    cues: ['Rotazione orizzontale, verso opposto', 'Parti da davanti al corpo', 'Chiudi verso l’esterno'] },
+    cues: cuesFor('backhand', ['Rotazione orizzontale, verso opposto', 'Parti da davanti al corpo', 'Chiudi verso l’esterno']) },
   flat: { id: 'flat', label: 'Colpo piatto', stroke: S.flat, ball: 'ground', expect: { shot: ['flat'], side: 'forehand' },
-    cues: ['Come il dritto, ma più veloce', 'Traiettoria orizzontale', 'Senza alzare la mano'] },
+    cues: cuesFor('flat', ['Come il dritto, ma più veloce', 'Traiettoria orizzontale', 'Senza alzare la mano']) },
   volley: { id: 'volley', label: 'Volée', stroke: S.volley, ball: 'volley', expect: { shot: ['topspin'], side: 'forehand' }, short: true,
-    cues: ['A rete, palla al volo', 'Gesto corto, quasi senza preparazione', 'Il telefono resta davanti a te'] },
+    cues: cuesFor('volley', ['A rete, palla al volo', 'Gesto corto, quasi senza preparazione', 'Il telefono resta davanti a te']) },
   lob: { id: 'lob', label: 'Pallonetto', stroke: S.lob, ball: 'ground', expect: { shot: ['lob'] },
     cues: ['Gesto in verticale', 'Dal basso verso l’alto', 'La mano sale davvero'] },
   drop: { id: 'drop', label: 'Palla corta', stroke: S.drop, ball: 'ground', expect: { shot: ['drop'] }, soft: true,

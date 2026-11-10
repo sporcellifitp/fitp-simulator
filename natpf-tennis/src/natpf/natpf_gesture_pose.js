@@ -470,13 +470,18 @@ export const CHOREO_VIDEO_GREZZA = Object.freeze({
 // vero, calibrazione del braccio simulato e con il dritto e il rovescio di queste stesse coreografie, destro e mancino, 0,8× /
 // 1× / 1,25×, con quattro semi del rumore del telefono simulato (7, 1, 5, 10: correzione della revisione, prima solo il 7) e il
 // margine della mira; più lo scarto dalla forma del video e i vincoli fisici del B13), partenza REST_VIDEO e presa del video
-// (PHONE_IN_HAND_VIDEO). Dritto, rovescio a due mani, tagliati e servizio partono da CHOREO_VIDEO_GREZZA (la forma del
+// (PHONE_IN_HAND_VIDEO). Dritto, tagliato di dritto e servizio partono da CHOREO_VIDEO_GREZZA (la forma del
 // video) e cambiano il polso, di poco il braccio (≤ 12° per angolo) e i tempi (parte veloce 0,18–0,32 s invece di 0,17–0,5 s
 // del video); piatto, pallonetto, palla corta, schiacciata e volée (che il video non mostra) partono da CHOREO (B13/B14) e
 // tengono quella forma. Palla corta e schiacciata partono da REST_COLPI_RACCHETTA (telefono davanti al petto): dalla partenza
 // del video la loro carica era letta come un colpo in tutte le varianti provate (limite dichiarato). Scarti dal video, letture
-// e cosa è cambiato rispetto al video in docs/b17/ottimizzazione.md. Tagliato di dritto e rovescio con il proseguimento lento
-// dopo la frenata (F2, `slow`: discesa lunga fino all'anca sinistra, fine alta sopra la spalla destra). Generato con
+// e cosa è cambiato rispetto al video in docs/b17/ottimizzazione.md. Tagliato di dritto e di rovescio con il proseguimento
+// lento dopo la frenata (F2, `slow`: discesa lunga verso l'anca opposta). Passo B3 (richieste dell'utente del 09/11 notte):
+// all'impatto del dritto, del piatto, dell'incrociato, del lungolinea, del tagliato di dritto e della volée lo SCHERMO verso la
+// rete; il rovescio è A UNA MANO ed è lo SPECCHIO del dritto («stesso movimento ma con l'altro lato»: pose chiave, traiettoria
+// e tempi del dritto con x → −x, dorso del telefono verso la rete, braccio disteso), il tagliato di rovescio lo specchio del
+// tagliato di dritto (ottimizza.mjs --mirrorInit --mirrorRef: non seguono più il rovescio a due mani del video); la volée è un
+// gesto corto (parte veloce 0,1 s) dal dritto nuovo. Generato con
 // `ottimizza.mjs --emit` dalle soluzioni in scripts/video/soluzioni (tC risolto e scritto; test «le soluzioni salvate rifanno
 // CHOREO_VIDEO»).
 // --- generato da scripts/video/ottimizza.mjs --emit (non modificare a mano) ---
@@ -485,20 +490,20 @@ export const CHOREO_VIDEO = Object.freeze({
     B: { tau: -32.39, lat: 5.2, y: 0.008, p: -46.75, e: 16.53, r: -5.08, b: 39.52, pro: 46.51, fl: -28.35, dv: 19 },
     C: { tau: 19.44, lat: -6.4, y: 0.03, p: 22.25, e: 74.12, r: -33.68, b: 47.54, pro: 28.18, fl: -68.75, dv: 16.81 },
     F: { tau: 27.07, lat: -5.3, y: 0.03, p: 49.08, e: 50.56, r: -31.29, b: 79.39, pro: 21.04, fl: -62.18, dv: -7.66 } }),
-  backhand: Object.freeze({ src: "backhand", times: {"carica":15.6,"impatto":15.767,"fine":15.967}, tC: 2.069623, contact: 2.089, cycle: 5.258, prep: 1.444, acc: 0.295, crisp: 1, dMin: 0.12, dMax: 0.12, fin: 0.187, slow: 0.462, back: 2, backFlat: 0.3, lag: LAG,
-    B: { tau: 53.84, lat: 0.4, y: 0.017, p: 124.52, e: 46.97, r: 21.92, b: 12.03, pro: 33.36, fl: -27.24, dv: 5.73 },
-    C: { tau: 23.87, lat: -0.4, y: 0.03, p: 115.8, e: 37.01, r: 74.5, b: 91.08, pro: 15.15, fl: -3.77, dv: -12.55 },
-    F: { tau: -36.27, lat: -0.5, y: 0.03, p: 103.55, e: 50.35, r: 74.5, b: 118.94, pro: 1, fl: -23.81, dv: 6.44 },
-    F2: { tau: -44.49, lat: -0.5, y: 0.03, p: 84.83, e: 67.59, r: 40.92, b: 126.13, pro: 6.34, fl: -23.34, dv: -6 } }),
+  backhand: Object.freeze({ src: "specchio di forehand", tC: 2.884499, contact: 2.783, cycle: 5.572, prep: 2.2, acc: 0.233, crisp: 1, dMin: 0.239, dMax: 0.239, fin: 0.15, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: 69.5, lat: -22.23, y: 0.008, p: 126.84, e: 43.15, r: -99.5, b: 8, pro: 134.44, fl: -16.24, dv: -27.04 },
+    C: { tau: 55.08, lat: 4.5, y: 0.03, p: 93.05, e: 102.6, r: -65.88, b: 6.73, pro: 157.95, fl: -13.64, dv: -3.54 },
+    F: { tau: 20.12, lat: -10.38, y: 0.03, p: 104.21, e: 88.22, r: -33.84, b: 8.24, pro: 169, fl: 24.37, dv: 19 } }),
   slice: Object.freeze({ src: "slice2 (tagliato di dritto)", times: {"carica":32.6,"impatto":32.833,"fine":33.067}, tC: 2.75332, contact: 2.731, cycle: 6.257, prep: 2.2, acc: 0.181, crisp: 1, dMin: 0.168, dMax: 0.168, fin: 0.158, slow: 0.8, back: 2, backFlat: 0.3, lag: LAG,
     B: { tau: -53.74, lat: 6.4, y: 0.021, p: 73.47, e: 36.58, r: 6.72, b: 98.11, pro: 72.47, fl: -64.95, dv: -28.48 },
     C: { tau: -19.07, lat: 2.2, y: 0.024, p: 55.53, e: 13.36, r: -13.68, b: 114.47, pro: 82.25, fl: -37.28, dv: 19 },
     F: { tau: 7.98, lat: 1.3, y: 0.011, p: 54.87, e: 11.49, r: 0.3, b: 109.95, pro: 98.75, fl: -6.18, dv: 8.12 },
     F2: { tau: 14.43, lat: 1.3, y: 0.011, p: 60.63, e: 12.79, r: 52.32, b: 82.7, pro: 43.33, fl: -9.47, dv: 14.4 } }),
-  sliceBackhand: Object.freeze({ src: "slice1 (tagliato di rovescio)", times: {"carica":30.433,"impatto":30.7,"fine":30.867}, tC: 2.709657, contact: 2.629, cycle: 5.687, prep: 2.099, acc: 0.18, crisp: 1, dMin: 0.332, dMax: 0.332, fin: 0.326, back: 2, backFlat: 0.3, lag: LAG,
-    B: { tau: 16.02, lat: 1.2, y: 0.021, p: 87.85, e: 69.8, r: 62, b: 113.47, pro: 42.11, fl: -35.71, dv: -29 },
-    C: { tau: 6.37, lat: -2, y: 0.021, p: -20.95, e: 27.56, r: 37.5, b: 87.04, pro: 17.19, fl: 56.45, dv: 18.33 },
-    F: { tau: 0.44, lat: -0.3, y: 0.005, p: -43.88, e: 14.73, r: -19.93, b: 57.42, pro: 29.69, fl: 27.49, dv: -16.31 } }),
+  sliceBackhand: Object.freeze({ src: "specchio di slice", tC: 2.694641, contact: 2.624, cycle: 6.25, prep: 2.088, acc: 0.186, crisp: 1, dMin: 0.251, dMax: 0.251, fin: 0.175, slow: 0.8, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: 66.09, lat: -22, y: 0.021, p: 117.21, e: 54.02, r: 24.09, b: 75.18, pro: 9.56, fl: -66.13, dv: 9.84 },
+    C: { tau: 66.86, lat: 1.6, y: 0.0237, p: 113.63, e: 31.74, r: 3.89, b: 72.84, pro: 73.55, fl: 19.44, dv: 5.03 },
+    F: { tau: 49.08, lat: -22, y: 0.011, p: 130.08, e: 48.55, r: -47.13, b: 81.47, pro: 104.99, fl: 55.29, dv: -5.33 },
+    F2: { tau: 0.02, lat: 22.05, y: 0.011, p: 101.23, e: 14.25, r: 41.97, b: 74.85, pro: 72.53, fl: -45.05, dv: 19 } }),
   serve: Object.freeze({ src: "serve2", times: {"carica":23,"alto":23.267,"impatto":23.7,"fine":24}, tC: 2.529628, kind: "serve", hold: 0.4, prep: 1.25, rise: 0.397, up: 0.279, acc: 0.3, contact: 2.626, dMin: 0.27, dMax: 0.27, fin: 0.355, back: 2, backFlat: 0.3, cycle: 5.651, riseWrist: 0.15, lag: LAG,
     P: { tau: -16.46, lat: 3.3, y: 0.02, p: -64.8, e: 15.94, r: 5.32, b: 95.32, pro: 63.32, fl: -19.39, dv: -20.2 },
     U: { tau: -35.9, lat: 4.1, y: 0.022, p: 76.35, e: 83.32, r: 3.58, b: 112.59, pro: 146.74, fl: -10.73, dv: -15.1 },
@@ -521,10 +526,10 @@ export const CHOREO_VIDEO = Object.freeze({
     B: { tau: -20.35, lat: 8, y: -0.03, p: 113.4, e: 141.38, r: 39.06, b: 65.73, pro: 17.43, fl: -47.75, dv: -23.65 },
     C: { tau: -6.37, lat: 4, y: -0.01, p: 115.58, e: 131.91, r: 46.59, b: 36.71, pro: 22.84, fl: -43.41, dv: 6.09 },
     F: { tau: 26.64, lat: -6.95, y: -0.053, p: 110.27, e: 50.75, r: 32.55, b: 18.06, pro: 21.67, fl: -37.24, dv: 8.23 } }),
-  volley: Object.freeze({ src: "volley", tC: 2.235555, contact: 2.228, cycle: 5.053, prep: 1.558, acc: 0.32, crisp: 1, dMin: 0.12, dMax: 0.12, fin: 0.305, back: 2, backFlat: 0.3, lag: LAG,
-    B: { tau: -17.76, lat: 5.2, y: 0.008, p: -50.39, e: 3.4, r: 9.42, b: 64.52, pro: 102.91, fl: -56.13, dv: 6.92 },
-    C: { tau: 16.3, lat: -6.4, y: 0.03, p: 33.52, e: 49.12, r: -37.72, b: 67.68, pro: 64.55, fl: -69, dv: 19 },
-    F: { tau: 33.96, lat: -5.3, y: 0.03, p: 74.08, e: 29.91, r: -19.03, b: 75.23, pro: 27.23, fl: -67.35, dv: 19 } }),
+  volley: Object.freeze({ src: "volley", tC: 2.649563, contact: 2.592, cycle: 5.352, prep: 2.142, acc: 0.1, crisp: 1, dMin: 0.133, dMax: 0.133, fin: 0.227, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: 12.98, lat: -2.92, y: 0.0234, p: 6.01, e: 31.84, r: -49.12, b: 70.13, pro: 62.5, fl: -69, dv: 19 },
+    C: { tau: 28.78, lat: -6.4, y: 0.03, p: 47.25, e: 49.12, r: -36.17, b: 61.39, pro: 34.35, fl: -69, dv: 16.9 },
+    F: { tau: 41.07, lat: -5.96, y: 0.03, p: 42.96, e: 58.38, r: -13.02, b: 50.02, pro: 13.02, fl: -53.21, dv: 8.93 } }),
 });
 // --- fine del generato ---
 
@@ -614,8 +619,8 @@ export const CAMERAS = Object.freeze({
 });
 // Camere dell'INSIEME DEL VIDEO (B17.1 passo C, direzioni rifatte nel passo B2 per le coreografie ottimizzate con una ricerca
 // su griglia sui vincoli del disegno del B9: telefono non di taglio nelle pose chiave ≥ 28°, ≥ 52 px all'impatto a 448×280,
-// avambraccio ≥ 31° dal raggio visivo; il rovescio a due mani li rispetta solo da dietro a sinistra e dall'alto, come la
-// camera di oggi, e lì non si specchia). Per i colpi la camera FRONTALE a tre quarti
+// avambraccio ≥ 31° dal raggio visivo; nel passo B2 il rovescio a due mani li rispettava solo da dietro a sinistra e
+// dall'alto). Per i colpi la camera FRONTALE a tre quarti
 // all'altezza del petto, come il video dell'utente, SPECCHIATA (mirror: chi guarda vede il proprio braccio destro a destra,
 // come in uno specchio; il mancino vede l'immagine non specchiata della posa specchiata, cioè di nuovo il proprio braccio
 // dalla sua parte); per il servizio il profilo a tre quarti dal lato del braccio. Valgono SOLO per le coreografie dal video
@@ -632,25 +637,27 @@ export const CAMERAS_VIDEO = Object.freeze({
   // una ricerca su griglia (azimut dal davanti, elevazione) sui vincoli del disegno del B9 con le coreografie del passo B2
   // (scratchpad b17C/camsearch.mjs; misure in docs/b17/gesti-dal-video.md): telefono non di taglio nelle pose chiave
   // (≥ 30° dove si può), avambraccio ≥ 30° dal raggio visivo in tutto il ciclo, la più frontale possibile, schermo in vista
-  // il più a lungo possibile. Il rovescio a due mani è stato riottimizzato con questa camera (ottimizza.mjs --camdir).
+  // il più a lungo possibile. Rovescio a una mano e tagliato di rovescio (specchi del dritto e del tagliato, passo B3): camera
+  // davanti a destra e dall'alto (az 44°, el 30°): lo specchio della camera del dritto (dal basso) vedeva il braccio che pende
+  // nella posizione di partenza lungo il raggio visivo; ottimizzati con questa direzione (ottimizza.mjs --camdir).
   forehand: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .37, arrow: .025 }), frame: 'swing', read: 'dall\u2019anca destra il braccio si distende di lato, arco da destra a sinistra, all\u2019impatto lo schermo verso la palla, fine davanti al viso' }),
   // incrociato (passo B3): 5° più di lato e più alta del dritto (az 35°, el −17,5°): con il piatto girato verso il centro e lo
   // schermo verso la rete la fine era di taglio (23°) con la camera del dritto
   cross: Object.freeze({ dir: [-.547, -.301, -.781], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .32, arrow: .012 }), frame: 'swing', read: 'come il dritto, con il polso girato: cima e schermo verso il centro' }),
   line: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .37, arrow: .025 }), frame: 'swing', read: 'come il dritto, con il polso piegato indietro: cima e schermo verso l\u2019esterno' }),
-  backhand: Object.freeze({ dir: [.696, -.174, -.696], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .36 }), frame: 'swing', read: 'a una mano: dall\u2019anca sinistra in alto verso destra, il dorso del telefono verso la palla, il braccio libero si apre dietro' }),
+  backhand: Object.freeze({ dir: [.602, .501, -.622], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .36 }), frame: 'swing', read: 'a una mano, il dritto dall\u2019altro lato: dall\u2019anca sinistra il braccio si distende, arco da sinistra a destra, all\u2019impatto il dorso del telefono verso la palla, il braccio libero si apre dietro' }),
   slice: Object.freeze({ dir: [-.07, -.035, -.997], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla destra in basso in diagonale, schermo che si apre verso l\u2019alto' }),
-  sliceBackhand: Object.freeze({ dir: [.483, .259, -.837], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'dalla spalla sinistra in basso a destra, schermo che si apre' }),
+  sliceBackhand: Object.freeze({ dir: [.602, .501, -.622], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .6, mixSmall: .8, size: .4 }), read: 'il tagliato dall\u2019altro lato: dalla spalla sinistra in basso a destra, all\u2019impatto il dorso del telefono verso la palla' }),
   serve: Object.freeze({ dir: [.906, -.174, -.375], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .3, mix: .8, size: .46, arrow: .02 }), read: 'la sinistra lancia, il telefono sale sopra la testa, battuta e discesa davanti al corpo' }),
   smash: Object.freeze({ dir: [.866, 0, -.5], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .15, mix: .8, size: .5 }), read: CAMERAS.smash.read }),
   // piatto e volée (passo B3): dal dritto nuovo con lo schermo verso la rete all'impatto, con la camera del dritto (ottimizzati
   // con questa direzione nei vincoli del disegno: --camdir)
-  flat: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .8, size: .4 }), frame: 'swing', read: CAMERAS.flat.read }),
+  flat: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .8, size: .4 }), frame: 'swing', read: 'come il dritto, più corto e più veloce, contatto più basso, schermo in pieno verso la palla' }),
   lob: Object.freeze({ dir: [.79, -.087, -.606], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .8, size: .45 }), read: CAMERAS.lob.read }),
   // posizione di partenza: frontale specchiata come i colpi, dalla testa alle cosce (braccio che pende, telefono all'anca)
   ready: Object.freeze({ dir: [-.259, .087, -.962], dist: 2.6, mirror: true, frameBody: 'head', read: CAMERAS.ready.read }),
   drop: Object.freeze({ dir: [0, .087, -.996], dist: 3.4, mirror: true, whole: true, frameBody: 'head', read: CAMERAS.drop.read }),
-  volley: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.4, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .37, arrow: .025 }), read: CAMERAS.volley.read }),
+  volley: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.4, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .37, arrow: .025 }), read: 'gesto corto davanti al corpo, quasi senza preparazione, schermo verso la palla' }),
 });
 // camera di una scheda per insieme di coreografie: nell'insieme del video quella frontale (CAMERAS_VIDEO), se c'è
 export const camSpec = (id, set = 'legacy') => (set === 'video' && CAMERAS_VIDEO[id]) || CAMERAS[id] || null;
@@ -695,7 +702,7 @@ function strokeTracks(c, tC, aim, R = REST){
   return { R, B, C, F, F2, info, tf };
 }
 // Proseguimento lento dopo la frenata (B17.1, correzioni del passo B2: tagliato «in discesa lunga», fine alta del rovescio a
-// due mani): F → F2 in `slow` s, senza fermarsi in F. Ogni articolazione arriva in F con la velocità SLOW_V·(F2 − F)/durata
+// due mani; dal passo B3 tagliato di dritto e di rovescio): F → F2 in `slow` s, senza fermarsi in F. Ogni articolazione arriva in F con la velocità SLOW_V·(F2 − F)/durata
 // (stesso verso della frenata) e da lì scende a zero in modo monotono (quintico con accelerazione nulla agli estremi: con
 // SLOW_V ≥ 5/3 la velocità non risale mai), così la mano frena una volta sola. Un'articolazione che in F2 tornerebbe
 // indietro rispetto alla frenata si ferma in F e riparte (il test della frenata unica se ne accorge).
@@ -1139,7 +1146,8 @@ function tossHand(P, t){
 export const FREE_REST = Object.freeze([-.22, -.10, -.04]);
 export const freeRestOf = ch => add(ch.pelvis, qrot(ch.trunk, FREE_REST));
 // rovescio a una mano (B17.1 passo B3, decisione dell'utente: «Per il rovescio, a una mano»): il braccio libero si apre
-// DIETRO e di lato per l'equilibrio, quasi disteso, all'altezza del petto (riferimento del busto, dal bacino, m: +z dietro);
+// DIETRO e di lato per l'equilibrio, quasi disteso, all'altezza della vita (riferimento del busto, dal bacino, m: +z dietro;
+// y = +0,18 m dal bacino è la vita, non il petto);
 // nella carica resta rilassata di lato, un poco dietro (FREE_PREP), lontana dal telefono che arriva all'anca sinistra
 export const FREE_BALANCE = Object.freeze([-.42, .18, .30]);
 export const FREE_PREP = Object.freeze([-.24, 0, .08]);

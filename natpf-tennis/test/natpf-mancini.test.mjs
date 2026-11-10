@@ -63,7 +63,7 @@ const NAMES = [['dritto', STROKES.dritto], ['rovescio', STROKES.rovescio], ['pal
 const RATES = [.85, 1, 1.2, 1.5], YAWS = [-22, 0, 22];
 
 // confronto di un colpo letto dal destro (r) e dal mancino (l): stesso colpo, forza e forma; verso, piano e mira opposti
-function compareRead(r, l, tag, { aimTol, riseTol } = {}){
+function compareRead(r, l, tag, { aimTol, riseTol, dirTol } = {}){
   assert.ok(r.s.dir + l.s.dir === 0, `${tag}: verso ${r.s.dir} / ${l.s.dir}`);   // (anche 0 e 0: gesto verticale)
   assert.ok(near(r.s.peak, l.s.peak, 6), `${tag}: picco ${r.s.peak} / ${l.s.peak}`);
   assert.ok(near(r.s.lift, l.s.lift, .03), `${tag}: lift ${r.s.lift} / ${l.s.lift}`);
@@ -86,7 +86,7 @@ function compareRead(r, l, tag, { aimTol, riseTol } = {}){
   assert.equal(a.natpf.aimSource, b.natpf.aimSource, tag);
   // mira del gesto (polso e ampiezza, gestureAim): solo di riserva per i telefoni senza il piatto. Nei gesti senza verso
   // (verticali, dir 0) il polso del telefono non ha il segno della mano e non si specchia: innocuo, la mira vera è il piatto
-  if (r.s.dir) assert.ok(opp(a.dirX, b.dirX, .06), `${tag}: dirX ${a.dirX} / ${b.dirX}`);
+  if (r.s.dir) assert.ok(opp(a.dirX, b.dirX, dirTol ?? .06), `${tag}: dirX ${a.dirX} / ${b.dirX}`);
   assert.ok(near(a.dirY, b.dirY, .02), `${tag}: dirY ${a.dirY} / ${b.dirY}`);
   const I = a.natpf.intent, J = b.natpf.intent;
   assert.ok(I && J, `${tag}: intenzione mancante`);
@@ -169,11 +169,16 @@ test('schede del tutorial a specchio: il mancino legge dalla sua animazione lo s
   for (const grip of ['palmo', 'racchetta']) for (const cal of ['pose', 'arm']){
     const src = { pose: (id, t, hand) => gesturePose(id, t, { hand, grip }), plan: id => gesturePlan(id, { grip }) };
     for (const id of ids){
-      // B17.1 passo B3: limite dichiarato della racchetta con la calibrazione del braccio simulato (ottimizzazione.md §9)
-      if (grip === 'racchetta' && cal === 'arm' && ['cross', 'line', 'flat'].includes(id)) continue;
       // telefono fresco per scheda (come natpf-gesture-pose), con lo stesso seme per le due mani
       const tag = `${id} (${grip}, calibrazione ${cal})`;
       const r = readCard(src, id, { hand: 'right', cal }), l = readCard(src, id, { hand: 'left', cal });
+      // B17.1 passo B3: limite dichiarato della racchetta con la calibrazione del braccio simulato (ottimizzazione.md §9): la
+      // lettura non è quella del colpo mostrato, ma resta SPECCHIATA: il mancino legge gli stessi colpi, dallo stesso lato
+      if (grip === 'racchetta' && cal === 'arm' && ['cross', 'line', 'flat'].includes(id)){
+        const d = x => x.read.map(e => `${e.ev.natpf.shot}/${e.ev.side}`).join(' + ');
+        assert.equal(d(l), d(r), `${tag} (limite dichiarato): destro «${d(r)}», mancino «${d(l)}»`);
+        continue;
+      }
       assert.equal(r.msgs.length, l.msgs.length, `${tag}: messaggi ${r.msgs.length} / ${l.msgs.length}`);
       if (id === 'serve'){
         assert.equal(r.events.length, 2, tag);
@@ -187,7 +192,10 @@ test('schede del tutorial a specchio: il mancino legge dalla sua animazione lo s
       // incrociato dal dritto del video: mira del piatto −0,557 / +0,471, come il lungolinea già ammesso fino a 0,12; correzioni
       // della revisione: tagliato di dritto con la discesa lunga, salita −0,778 / −0,767, 0,011 di scarto, ammesso 0,025 anche lì)
       // (passo B3: palla corta riottimizzata per la calibrazione con il dritto nuovo, salita −0,234 / −0,263: 0,029, ammesso 0,03)
-      compareRead(r.read[0], l.read[0], tag, { aimTol: grip === 'racchetta' && ['line', 'cross'].includes(id) && cal === 'pose' ? .12 : undefined, riseTol: grip === 'racchetta' && ['drop', 'smash', 'slice'].includes(id) && cal === 'pose' ? (id === 'drop' ? .03 : .025) : undefined });
+      // (correzioni del passo B3: con il rovescio a una mano allo specchio del dritto nella calibrazione con l'animazione la mira
+      // del gesto della schiacciata è −0,561 / +0,486, 0,075 di scarto dal rumore del telefono simulato: ammesso 0,08 solo lì)
+      compareRead(r.read[0], l.read[0], tag, { aimTol: grip === 'racchetta' && ['line', 'cross'].includes(id) && cal === 'pose' ? .12 : undefined, riseTol: grip === 'racchetta' && ['drop', 'smash', 'slice'].includes(id) && cal === 'pose' ? (id === 'drop' ? .03 : .025) : undefined,
+        dirTol: grip === 'racchetta' && id === 'smash' && cal === 'pose' ? .08 : undefined });
       if (['cross', 'line'].includes(id)) assert.ok(r.read[0].ev.natpf.wrist*(id === 'cross' ? -1 : 1) > .4, `${tag}: mira del destro ${r.read[0].ev.natpf.wrist}`);
     }
   }
