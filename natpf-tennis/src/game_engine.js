@@ -2351,7 +2351,7 @@ export class NatpfTennisEngine {
       // palla sopra 1,78 m era una schiacciata: diagnostica del 29/10 (stesso schermo), risposte al servizio a fondo campo
       // con il gesto del pallonetto giocate come schiacciate
       d = e.natpf && e.natpf.aim === "swing" && !e.timing
-        ? NO.smashAt(e, this.ball.pos.y)
+        ? NO.smashAt(e, this.ball.pos.y, { serveReturn: Number(this.ball.rallyStrokeCount || 0) <= 1 }) // B20 (audit B19, punto 1): in risposta al servizio solo dal gesto, come il P1 (decisione del 31/10; la tappa 1 l'aveva dato solo al P1)
         : e.side === "overhead" ||
           ((m === "FLAT" || e.shotType === "smash") && this.ball.pos.y > 1.5) ||
           this.ball.pos.y > 1.78,
@@ -2481,7 +2481,7 @@ export class NatpfTennisEngine {
       }
     }
     const k = this.ball.pos.clone();
-    (k.y = Math.max(0.78, Math.min(1.92, k.y))),
+    (k.y = Math.max(0.78, Math.min(p2Racket && p2Racket.T === "FLAT" && d ? 3.1 : 1.92, k.y))), // B20: la schiacciata del P2 parte da dove si colpisce, come quella del P1 (prima al massimo da 1,92 m: sui pallonetti finiva in rete)
       this.ball.pos.copy(k),
       this._launchBallToTarget(k, new o.Vector3(T, 0, M), R, { topspin: v, sidespin: E, allowNetFault: natpfP2Net, ...(p2Racket?.out?.shot === "SMASH" ? { minFlight: NO.OUTCOME.smashFlight / (p2Racket.super ? NO.SUPER.smashUp : 1) } : {}), ...(p2Racket?.netClear != null ? { netClear: p2Racket.netClear } : {}) }),
       (this.ball.natpfSuper = p2Racket?.super || null),
