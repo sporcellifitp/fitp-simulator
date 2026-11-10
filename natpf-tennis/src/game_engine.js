@@ -402,10 +402,11 @@ export class NatpfTennisEngine {
       t === "1v1"
         ? ((this.isMultiplayer = !0),
           // NATPF 1v1: la durata scelta nel menu vale anche tra due computer (prima sempre un game: il P2 non serviva mai)
+          // NATPF (B18, difetto 4 del B16): i due giocatori corrono uguale (prima il Player 2 a 9,6 m/s, il 2% più piano)
           (this.player.maxSpeed = 9.8),
           (this.playerPartner.maxSpeed = 8.4),
-          (this.opponent.maxSpeed = 9.6),
-          (this.opponentPartner.maxSpeed = 8.2))
+          (this.opponent.maxSpeed = 9.8),
+          (this.opponentPartner.maxSpeed = 8.4))
         : t === "pro" || t === "leggenda" // NATPF: Leggenda come Esperto (la velocità della CPU viene da natpf_skill)
           ? ((this.isMultiplayer = !!(this.urlRoom && this.urlRoom !== "DEFAULT")),
             (this.player.maxSpeed = 9.8),
@@ -3279,11 +3280,13 @@ export class NatpfTennisEngine {
         this.phase = "MATCH_OVER";
         // NATPF: chi ha vinto la partita, dal lato di chi guarda (natpf_point_call.js; prima «Game!» se vinceva la CPU)
         const gc = NPC.gameCall({ winner: p ? "player" : "opponent", ...NPC.callContext(this), games: { player: this.score.playerGames, opponent: this.score.opponentGames }, match: !0 });
-        this._recordBannerBroadcast(gc.text, gc.style, gc.subText, { kind: "match", winner: p ? "player" : "opponent", games: { player: this.score.playerGames, opponent: this.score.opponentGames }, voice: "Game" }),
+        // voce di fine partita per chiunque vinca (B18: prima «Game, set and match» solo se vinceva il Player 1, altrimenti
+        // «Game»; anche per il Player 2 della sfida tra due computer, che la riceve con il messaggio)
+        this._recordBannerBroadcast(gc.text, gc.style, gc.subText, { kind: "match", winner: p ? "player" : "opponent", games: { player: this.score.playerGames, opponent: this.score.opponentGames }, voice: NPC.MATCH_VOICE }),
           this.hud.showCenterBanner(gc.text, { style: gc.style, subText: gc.subText, durationMs: 2600 }),
           this.audioEngine &&
             (this.audioEngine.playMusicForState("victory"),
-            this.audioEngine.announceScore(p ? "Game Set and Match" : "Game")),
+            this.audioEngine.announceScore(NPC.MATCH_VOICE)),
           setTimeout(() => {
             // NATPF: solo se la partita è ancora finita lì (prima, tornando al menu entro 1,8 s, la schermata finale
             // compariva sopra il menu)
@@ -3293,6 +3296,7 @@ export class NatpfTennisEngine {
                 playerWon: this.playerRole === "p2" ? !p : p,
                 playerGames: this.score.playerGames,
                 opponentGames: this.score.opponentGames,
+                view: this._natpfMatchEndView(p ? "player" : "opponent"),
               });
           }, 1800);
         return;
@@ -3320,6 +3324,17 @@ export class NatpfTennisEngine {
           ? (this.audioEngine.playVoiceCallout(t, { clearQueue: !0 }),
             this.audioEngine.announceScore(n, { delayMs: 680 }))
           : this.audioEngine.announceScore(n));
+  }
+  // NATPF: schermata finale dal lato di chi guarda, con i nomi (natpf_point_call.matchEndView, B18)
+  _natpfMatchEndView(winner, score = this.score) {
+    return NPC.matchEndView({
+      winner,
+      games: { player: score.playerGames, opponent: score.opponentGames },
+      ...NPC.callContext(this),
+      nickname: this.natpfUi?.events?.nickname || "",
+      multiplayer: !!this.isMultiplayer && !this.natpfSplit?.active,
+      doubles: !!this.isDoubles,
+    });
   }
   _recordBannerBroadcast(e, t = "style-score", i = "", call = null) {
     (this.bannerSeq += 1),
@@ -3483,7 +3498,7 @@ export class NatpfTennisEngine {
         n.phase === "MATCH_OVER" &&
           !wasOver &&
           n.score &&
-          setTimeout(() => this.phase === "MATCH_OVER" && this.hud.showVictoryModal({ playerWon: n.score.opponentGames > n.score.playerGames, playerGames: n.score.playerGames, opponentGames: n.score.opponentGames }), 1800),
+          setTimeout(() => this.phase === "MATCH_OVER" && this.hud.showVictoryModal({ playerWon: n.score.opponentGames > n.score.playerGames, playerGames: n.score.playerGames, opponentGames: n.score.opponentGames, view: this._natpfMatchEndView(n.score.playerGames > n.score.opponentGames ? "player" : "opponent", n.score) }), 1800),
         n.score && ((this.score = { ...this.score, ...n.score }), this._syncScoreboardHUD());
       // NATPF 1v1: palla dell'host. Prima sovrascriveva sempre la palla del P2: dopo un suo colpo locale gli snapshot
       // fatti dall'host prima di riceverlo la riportavano indietro oltre la racchetta. Ora quella palla si ignora (per al

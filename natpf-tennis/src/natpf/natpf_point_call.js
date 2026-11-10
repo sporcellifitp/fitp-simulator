@@ -15,8 +15,9 @@ export const rivalOf = ({ multiplayer = false, viewer = 'player' } = {}) => (!mu
   : viewer === 'opponent' ? { of: 'di Player 1', who: 'Player 1', Who: 'Player 1' } : { of: 'di Player 2', who: 'Player 2', Who: 'Player 2' });
 
 // punteggio del game dal lato di chi guarda: «30-15» (il proprio prima), parità, vantaggio di chi
+// il motore scrive lo zero «00»: nei banner «0», come nei tabelloni (decisione B10 dell'utente)
+const z = v => (String(v) === '00' ? '0' : String(v));
 export function viewScore({ player = '0', opponent = '0' } = {}, viewer = 'player', rival = rivalOf()){
-  const z = v => (String(v) === '00' ? '0' : String(v));   // il motore scrive lo zero «00»
   const mine = z(viewer === 'opponent' ? opponent : player), theirs = z(viewer === 'opponent' ? player : opponent);
   if (mine === '40' && theirs === '40') return 'Parità';
   if (mine === 'Ad') return 'Vantaggio tuo';
@@ -38,7 +39,9 @@ export function pointCall({ winner = 'player', why = '', viewer = 'player', riva
   if (sharedNames){
     const win = sharedNames[winner], lose = sharedNames[winner === 'player' ? 'opponent' : 'player'];
     const reason = why === 'Out' ? `Errore di ${lose}: palla fuori` : why === 'Net' ? `Errore di ${lose}: palla in rete` : why === 'Point' ? `${lose} non ci arriva` : why === 'Ace!' ? `Ace di ${win}` : why === 'Nice Shot!' ? `Vincente di ${win}` : '';
-    const sc = score ? (score.player === 'Ad' ? `Vantaggio ${sharedNames.player}` : score.opponent === 'Ad' ? `Vantaggio ${sharedNames.opponent}` : `${sharedNames.player} ${score.player} · ${sharedNames.opponent} ${score.opponent}`) : '';
+    // stesso schermo (B18, difetto 4 del B16): «0» e non «00», «Parità» a 40-40 come contro la CPU
+    const sc = !score ? '' : score.player === 'Ad' ? `Vantaggio ${sharedNames.player}` : score.opponent === 'Ad' ? `Vantaggio ${sharedNames.opponent}`
+      : z(score.player) === '40' && z(score.opponent) === '40' ? 'Parità' : `${sharedNames.player} ${z(score.player)} · ${sharedNames.opponent} ${z(score.opponent)}`;
     return { mine: winner === 'player', text: `Punto ${win}`, subText: [reason, sc].filter(Boolean).join(' · '), style: winner === 'player' ? 'style-won' : 'style-lost' };
   }
   const mine = winner === viewer;
@@ -54,7 +57,8 @@ export function pointCall({ winner = 'player', why = '', viewer = 'player', riva
 
 // game e partita: games: { player, opponent } dopo il game
 export function gameCall({ winner = 'player', viewer = 'player', rival = rivalOf({ viewer }), games = { player: 0, opponent: 0 }, match = false, sharedNames = null } = {}){
-  if (sharedNames) return { mine: winner === 'player', text: `${match ? 'Partita' : 'Game'} ${sharedNames[winner]}`, subText: `${sharedNames.player} ${games.player} · ${sharedNames.opponent} ${games.opponent}`, style: winner === 'player' ? 'style-won' : 'style-lost' };
+  // stesso schermo: la partita la vince qualcuno che è lì («Vince Marco!», B18), il game è «Game Marco»
+  if (sharedNames) return { mine: winner === 'player', text: match ? `Vince ${sharedNames[winner]}!` : `Game ${sharedNames[winner]}`, subText: `${sharedNames.player} ${games.player} · ${sharedNames.opponent} ${games.opponent}`, style: winner === 'player' ? 'style-won' : 'style-lost' };
   const mine = winner === viewer, g = viewer === 'opponent' ? `${games.opponent}-${games.player}` : `${games.player}-${games.opponent}`;
   return {
     mine,
@@ -62,6 +66,29 @@ export function gameCall({ winner = 'player', viewer = 'player', rival = rivalOf
     subText: `Game ${g}`,
     style: mine ? 'style-won' : 'style-lost',
   };
+}
+
+// Schermata finale (B18, difetto 4 e punto 18 del B16): chi ha vinto con il nome, i game di tutti e due e la voce di fine
+// partita per chiunque vinca. Prima: «Hai vinto!/Riprova!» dal lato del Player 1 (nello stesso schermo il Player 2 che
+// vinceva leggeva «Riprova!» con il nome «Tu»), la voce «Game, set and match» solo se vinceva il Player 1, e un rating
+// finto (1145 se vinci, 1020 se perdi, con un grafico fisso).
+//   winner: 'player' | 'opponent' (motore); games: { player, opponent }; viewer, rival, sharedNames: callContext
+//   nickname: il nome di chi gioca su questo computer (natpf_events, «Nuovo giocatore»), '' se non c'è
+// → { title, won (titolo da festa: giallo; false = rosa, ha vinto l'avversario di chi guarda), rows: [{ name, games, win }]
+//    (prima la riga di chi guarda; stesso schermo: Player 1 sopra), score ('1-0' dal lato della prima riga), voice }
+export const MATCH_VOICE = 'Game Set and Match';
+export function matchEndView({ winner = 'player', games = { player: 0, opponent: 0 }, viewer = 'player', rival = rivalOf({ viewer }), sharedNames = null, nickname = '', multiplayer = false, doubles = false } = {}){
+  const g = { player: Math.max(0, games?.player | 0), opponent: Math.max(0, games?.opponent | 0) }, other = s => (s === 'player' ? 'opponent' : 'player');
+  if (sharedNames){
+    const rows = ['player', 'opponent'].map(s => ({ name: sharedNames[s], games: g[s], win: s === winner }));
+    return { title: `Vince ${sharedNames[winner]}!`, won: true, rows, score: `${g.player}-${g.opponent}`, voice: MATCH_VOICE };
+  }
+  const me = viewer === 'opponent' ? 'opponent' : 'player', mine = winner === me, nick = String(nickname || '').trim();
+  // doppio in rete: ciascuno con la sua CPU in coppia, come la pagina «Partita» («Amico + CPU», revisione B18)
+  const myName = nick || 'Tu', rivalName = !multiplayer ? (doubles ? '2 CPU' : 'CPU') : doubles ? `${rival.who} + CPU` : rival.who;
+  const title = mine ? (nick ? `Vince ${nick}!` : doubles ? 'Avete vinto!' : 'Hai vinto!') : !multiplayer ? (doubles ? 'Vincono le CPU' : 'Vince la CPU') : `Vince ${rival.who}!`;
+  const rows = [{ name: doubles ? `${myName} + CPU` : myName, games: g[me], win: mine }, { name: rivalName, games: g[other(me)], win: !mine }];
+  return { title, won: mine, rows, score: `${g[me]}-${g[other(me)]}`, voice: MATCH_VOICE };
 }
 
 // Dati del motore per chi guarda su questo computer (anche il Player 2 del 1v1)

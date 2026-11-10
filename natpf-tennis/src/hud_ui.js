@@ -331,62 +331,23 @@ export class HudUI {
   hideVictoryModal() {
     this.elVictoryModal && this.elVictoryModal.classList.add("hidden");
   }
-  showVictoryModal({ playerWon: t, playerGames: n, opponentGames: e }) {
+  // NATPF (B18, difetto 4 e punto 18 del B16): chi ha vinto con il nome e i game dei due giocatori, dal lato di chi guarda
+  // (view: natpf_point_call.matchEndView, la calcola il motore). Prima «Hai vinto!/Riprova!» dal lato del Player 1, il
+  // nome «Tu» e un rating finto (1145 se vinci, 1020 se perdi) con un grafico fisso. Senza view (chiamate di prima): i
+  // testi dal lato di chi guarda, senza nomi. «Nuovo giocatore» lo mostra o lo nasconde natpf_ui (sfida tra due computer)
+  showVictoryModal({ playerWon: t, playerGames: n, opponentGames: e, view: v = null }) {
     if (!this.elVictoryModal) return;
-    const i = document.getElementById("victory-result-banner"),
+    const w = v || { title: t ? "Hai vinto!" : "Vince l’avversario", won: !!t, rows: [{ name: "Tu", games: n, win: !!t }, { name: "Avversario", games: e, win: !t }], score: `${n}-${e}` },
+      i = document.getElementById("victory-result-banner"),
       o = document.getElementById("victory-match-score"),
-      s = document.getElementById("skill-rating-value");
-    // NATPF: testi e colori della schermata finale
-    i && ((i.textContent = t ? "Hai vinto!" : "Riprova!"), (i.style.color = t ? "#e8ff3a" : "#ff3d8b")),
-      this.elVictoryModal.classList.toggle("natpf-lost", !t),
-      o && (o.textContent = `Game finali: ${n} - ${e}`);
-    const a = t ? 1145 : 1020;
-    s && (s.textContent = String(a)), this._drawSkillGraph(t), this.elVictoryModal.classList.remove("hidden");
-  }
-  _drawSkillGraph(t) {
-    const n = document.getElementById("skill-graph-canvas");
-    if (!n) return;
-    const e = n.getContext("2d"),
-      i = n.width,
-      o = n.height;
-    e.clearRect(0, 0, i, o),
-      (e.fillStyle = "#071233"), // NATPF: grafico nei colori della lobby
-      e.fillRect(0, 0, i, o),
-      (e.strokeStyle = "rgba(166, 182, 220, 0.18)"),
-      (e.lineWidth = 1);
-    for (let p = 25; p < o; p += 35) e.beginPath(), e.moveTo(0, p), e.lineTo(i, p), e.stroke();
-    const s = o * 0.56;
-    (e.strokeStyle = "rgba(166, 182, 220, 0.5)"),
-      e.setLineDash([4, 4]),
-      e.beginPath(),
-      e.moveTo(0, s),
-      e.lineTo(i, s),
-      e.stroke(),
-      e.setLineDash([]),
-      (e.fillStyle = "#a6b6dc"),
-      (e.font = "bold 11px Bahnschrift, 'Arial Narrow', sans-serif"),
-      e.fillText("LIVELLO PRO 1000", 8, s - 5);
-    const a = t ? [0.74, 0.66, 0.58, 0.45, 0.24] : [0.74, 0.66, 0.58, 0.52, 0.55];
-    (e.strokeStyle = "#ff3d8b"),
-      (e.lineWidth = 3.5),
-      (e.lineCap = "round"),
-      (e.lineJoin = "round"),
-      e.beginPath(),
-      a.forEach((p, g) => {
-        const y = 24 + (g / (a.length - 1)) * (i - 48),
-          f = o * p;
-        g === 0 ? e.moveTo(y, f) : e.lineTo(y, f);
-      }),
-      e.stroke();
-    const r = i - 24,
-      m = o * a[a.length - 1];
-    (e.fillStyle = "#e8ff3a"),
-      e.beginPath(),
-      e.arc(r, m, 6, 0, Math.PI * 2),
-      e.fill(),
-      (e.strokeStyle = "#071233"),
-      (e.lineWidth = 2.5),
-      e.stroke();
+      r = document.getElementById("victory-rows"),
+      x = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+    i && ((i.textContent = w.title), (i.style.color = "")),
+      this.elVictoryModal.classList.toggle("natpf-lost", !w.won),
+      r && (r.innerHTML = w.rows.map((s) => `<li class="${s.win ? "win" : ""}" data-victory-row><span>${x(s.name)}</span><b>${s.games | 0}</b></li>`).join("")),
+      o && (o.textContent = `Game ${w.score}`),
+      this.elVictoryModal.classList.remove("hidden"),
+      window.dispatchEvent(new Event("natpf:victory"));
   }
   configureGameBubbles(t = 2) {
     [this.elGamesPlayer, this.elGamesOpponent].forEach((n) => {

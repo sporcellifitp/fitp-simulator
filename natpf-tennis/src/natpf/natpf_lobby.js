@@ -251,20 +251,28 @@ export class NatpfLobby {
     // solo il nickname: chiesto una volta per visitatore (il chiosco lo dimentica quando lo stand torna libero)
     this.askNickname(() => this.go('controller'));
   }
-  askNickname(then){
+  // newPlayer («Nuovo giocatore», natpf_new_player.js, B18): il passo del nome di chi arriva, con la mano; il nome serve
+  // anche alla schermata finale («Vince Marco!»). «Salta» va avanti senza nome (in classifica «Ospite»)
+  askNickname(then, { newPlayer = false } = {}){
     const ev = this.ui.events, box = $('natpf-nick'), input = $('nick-input'), warn = $('nick-warn');
-    if (ev.nickname){ then(); return; }
-    this._nickThen = then; input.value = ''; show(warn, false); show(box); setTimeout(() => input.focus(), 50);
+    if (ev.nickname && !newPlayer){ then(); return; }
+    const text = (id, t) => { const el = $(id); if (el && el.textContent !== t) el.textContent = t; };
+    text('nick-kicker', newPlayer ? 'Nuovo giocatore' : 'Classifica del giorno');
+    text('nick-title', newPlayer ? 'Come ti chiami?' : 'Il tuo nickname');
+    text('nick-desc', newPlayer ? 'Il nome va sulla schermata finale e nella classifica del giorno. Niente email, niente dati personali.' : 'Solo per la classifica: niente email, niente dati personali.');
+    text('nick-cancel', newPlayer ? 'Salta' : 'Indietro');
+    show($('nick-hand'), newPlayer);
+    this._nickThen = then; this._nickSkip = newPlayer ? then : null; input.value = ''; show(warn, false); show(box); setTimeout(() => input.focus(), 50);
     if (!this._nickBound){
       this._nickBound = true;
       box.addEventListener('pointerdown', e => e.stopPropagation());
       box.addEventListener('keydown', e => e.stopPropagation());
-      $('nick-cancel').addEventListener('click', e => { e.stopPropagation(); show(box, false); });
+      $('nick-cancel').addEventListener('click', e => { e.stopPropagation(); show(box, false); const skip = this._nickSkip; this._nickThen = this._nickSkip = null; skip?.(); });
       $('nick-form').addEventListener('submit', e => {
         e.preventDefault(); e.stopPropagation();
         const v = validNickname(input.value);
         if (!v.ok){ warn.textContent = v.why; show(warn); return; }
-        this.ui.events.nickname = v.nick; show(box, false); const t = this._nickThen; this._nickThen = null; t?.();
+        this.ui.events.nickname = v.nick; show(box, false); const t = this._nickThen; this._nickThen = this._nickSkip = null; t?.();
       });
     }
   }
@@ -315,6 +323,8 @@ export class NatpfLobby {
   _resultAction(a){
     if (a === 'again'){ this.setMode('challenge'); this.startWarmup(); return; }
     if (a === 'ranking'){ this.go('ranking'); return; }
+    // «Nuovo giocatore» (B18): chi arriva gioca lo stesso minigioco dopo nome, tutorial corto e calibrazione
+    if (a === 'new'){ this.ui.newPlayer?.(); return; }
     this.go('menu');
   }
   setFormat(id){
@@ -387,8 +397,9 @@ export class NatpfLobby {
     // pagina senza entrare in campo (o tornando al menu) non vale più. Prima restava chiesto e partiva alla partita dopo,
     // magari del visitatore successivo (revisione del B16)
     if (this.step === 'connect' && step !== 'connect'){ this.releaseTutorial(); this.wantWarmup = false; }
-    // al menu principale: visitatore nuovo, niente riscaldamento chiesto né già fatto
-    if (step === 'menu'){ this.wantWarmup = false; this.warmupDone = false; }
+    // al menu principale: visitatore nuovo, niente riscaldamento chiesto né già fatto; il telefono che aspettava il tutorial
+    // per chi non è entrato in campo («Nuovo giocatore» e poi «Menu») non aspetta più
+    if (step === 'menu'){ this.wantWarmup = false; this.warmupDone = false; this.releaseTutorial(); }
     this.step = step; this.el.dataset.step = step; this.el.dataset.flow = this.mode;
     for (const p of this.el.querySelectorAll('[data-page]')) p.classList.toggle('on', p.dataset.page === step);
     if (step !== 'menu') show($('lobby-menu-result'), false);

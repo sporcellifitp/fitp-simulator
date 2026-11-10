@@ -115,7 +115,7 @@ export class NatpfSplitUi {
       const id = e.target.dataset.splitName; if (!['p1', 'p2'].includes(id)) return;
       this._typedAt = performance.now();
       engine.natpfSplitNames[id] = e.target.value.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 24) || (id === 'p1' ? 'Player 1' : 'Player 2');
-      for (const el of document.querySelectorAll(`[data-split-tag="${id}"] b`)) el.textContent = engine.natpfSplitNames[id];
+      this._paintNames();
       this.paint();
     });
     // conto alla rovescia: «Aspetta» (nella barra e nel riquadro grande) e «Gioca» (dopo «Aspetta»)
@@ -325,6 +325,18 @@ export class NatpfSplitUi {
   }
   /* ---------- stato «pronto» delle schede e conto alla rovescia (B9, natpf_ready.js) ---------- */
   name(id){ return this.engine.natpfSplitNames?.[id] || defaultName(id); }
+  // targhette dei nomi sotto le due metà del campo, dai nomi correnti (scritte anche da tick: un nome cambiato senza
+  // l'evento 'input', come con «Nuovo giocatore», non lascia in campo il nome di chi ha giocato prima, revisione B18)
+  _paintNames(){
+    const hud = typeof document !== 'undefined' ? $('natpf-split-hud') : null; if (!hud) return;
+    for (const id of SPLIT_PLAYERS){ const b = hud.querySelector(`[data-split-tag="${id}"] b`), t = this.name(id); if (b && b.textContent !== t) b.textContent = t; }
+  }
+  // «Nuovo giocatore» (natpf_new_player.resetVisitor): nomi da capo, caselle vuote, targhette in campo riscritte
+  resetNames(){
+    this.engine.natpfSplitNames = { p1: defaultName('p1'), p2: defaultName('p2') };
+    if (typeof document !== 'undefined') for (const el of document.querySelectorAll('[data-split-name]')) el.value = '';
+    this._paintNames();
+  }
   // scheda mostrata del tutorial di questo giocatore (1…n), per «Tutorial 3/5»
   tutInfo(id){ const t = this.tut[id]; return { i: (t?.state?.idx ?? 0) + 1, n: t?.state?.cards || tutorialCards('short').length }; }
   // stato del telefono (o della webcam per due) di un giocatore, come lo dice la sua metà
@@ -483,6 +495,7 @@ export class NatpfSplitUi {
     const E = this.engine, on = this.session && splitVisible(E);
     const hud = $('natpf-split-hud'); show(hud, on);
     if (on){
+      this._paintNames();
       for (const id of SPLIT_PLAYERS){
         const tag = hud.querySelector(`[data-split-tag="${id}"] span`), p = this.webcam ? null : this.phone(id);
         const text = p && !p.ready ? 'Telefono in pausa' : '';

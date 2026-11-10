@@ -481,6 +481,8 @@ export class NatpfPhoneRacket {
     // (con il tutorial aperto anche l'avanzamento: il telefono riprende dalla scheda raggiunta, B9)
     if (this.connected && !this.gripSent){ this.link.send({ t: 'grip', g: this.grip }); this.link.send(this._cfg()); this._sendTp(); this.gripSent = true; this.lastExpect = null; }
     if (!this.connected) this.gripSent = false;
+    // «Nuovo giocatore» con il telefono scollegato (resetPlayer): appena torna, la calibrazione da capo
+    if (this.connected && this.recalPending){ this.recalPending = false; this.recalibrate(); }
   }
   get pairingUrl(){ return this.link ? pairingUrl(phonePageUrl(window.location, this.lanOrigin), testSearch(), this.link.session, this.link.token) : null; }
   onChange(fn){ this.listeners.add(fn); return () => this.listeners.delete(fn); }
@@ -716,6 +718,24 @@ export class NatpfPhoneRacket {
   invert(){ this.link?.cmd('invert'); }
   skipGrip(){ this.link?.cmd('skipGrip'); }
   forget(){ this.link?.forget(); this.recalibrate(); }
+  // «Nuovo giocatore» (B18, difetto 5 del B16): chi arriva dopo non eredita niente di chi c'era prima, e il telefono resta
+  // collegato (niente link.forget, niente QR da rifare). Si azzerano: tutorial visto (anche il corto), calibrazione
+  // (profilo e riferimenti della forza di powerRefs: con il profilo nullo e il colpo tipico vuoto non resta niente del
+  // giocatore di prima), colpo tipico, salita, piatto, verso e mira abituali, prototipi dei colpi speciali (pallonetto e
+  // palla corta). Sul telefono «cal» cancella il profilo salvato e la calibrazione nuova azzera i colpi giocati
+  // (swing-detect setProfile: effRef). gate: il telefono aspetta il tutorial prima di calibrare (lo apre chi porta il
+  // visitatore in campo: natpf_training, o la metà dello stesso schermo). Telefono non collegato in quel momento (schermo
+  // spento, pagina ricaricata): la calibrazione si chiede appena torna (_sendGrip), anche se il telefono ha ancora il
+  // profilo di prima. La mano non si tocca qui: la decide il gioco (natpf_new_player)
+  resetPlayer({ gate = true } = {}){
+    this.forgetTutorial();
+    this.profile = null; this.liftBaseline = 0; this.lastExpect = null;
+    this.liftModel.reset(null); this.faceModel.reset(); this.aimModel.reset(); this.headModel.reset(0);
+    this.riseModel.reset(); this.typicalModel.reset(); this.shapeModel.reset(); this.resetSpecials();
+    this.recalPending = !this.connected;
+    if (this.connected && gate) this.waitTutorial(true);
+    this.recalibrate();
+  }
   // salta i gesti della calibrazione: il telefono usa un profilo semplice (verso dalla gravità, tipo di colpo dalla forma,
   // forza dalla velocità vera; manca solo il colpo tipico)
   skipCalibration(){ this.simple = true; this.link?.cmd('skip'); this._changed(); }

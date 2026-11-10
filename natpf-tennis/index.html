@@ -193,11 +193,19 @@
     <!-- nickname per sfide e classifica (solo il nickname, nessun altro dato) -->
     <div id="natpf-nick" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="nick-title">
       <form class="natpf-sheet nick-sheet" id="nick-form" autocomplete="off">
-        <p class="sheet-kicker">Classifica del giorno</p>
+        <p class="sheet-kicker" id="nick-kicker">Classifica del giorno</p>
         <h2 class="sheet-title" id="nick-title">Il tuo nickname</h2>
-        <p class="sheet-desc">Solo per la classifica: niente email, niente dati personali.</p>
+        <p class="sheet-desc" id="nick-desc">Solo per la classifica: niente email, niente dati personali.</p>
         <input id="nick-input" class="nick-input" maxlength="14" spellcheck="false" placeholder="Es. Ace99" />
         <p class="natpf-warn hidden" id="nick-warn"></p>
+        <!-- «Nuovo giocatore» (B18): anche la mano, che torna «Destra» per chi arriva -->
+        <div class="lobby-row nick-hand hidden" id="nick-hand">
+          <span class="lobby-label">Giochi con la mano</span>
+          <div class="lobby-seg" role="radiogroup" aria-label="Mano">
+            <button type="button" class="seg-btn" data-natpf-hand="right">Destra</button
+            ><button type="button" class="seg-btn" data-natpf-hand="left">Sinistra</button>
+          </div>
+        </div>
         <div class="sheet-actions"><button type="button" class="lobby-ghost" id="nick-cancel">Indietro</button><button type="submit" class="lobby-primary">Avanti ›</button></div>
       </form>
     </div>
@@ -225,7 +233,8 @@
           ><button type="button" data-staff="aim" title="Alta: più palle angolate; Media e Bassa un po’ meno. Resta salvata."><span>Mira del telefono</span><b>Alta · 17°</b></button>
         </div>
         <p class="sheet-desc" id="staff-note"></p>
-        <div class="sheet-actions"><button type="button" class="lobby-primary" data-staff="close">Chiudi</button></div>
+        <!-- «Nuovo giocatore» (B18): nome, tutorial, calibrazione e colpi imparati da capo, il telefono resta collegato -->
+        <div class="sheet-actions"><button type="button" class="lobby-secondary new-player" data-staff="newplayer">Nuovo giocatore</button><button type="button" class="lobby-primary" data-staff="close">Chiudi</button></div>
       </div>
     </div>
     <!-- passaggio dal menu al campo -->
@@ -337,6 +346,7 @@
           <ol class="ranking-list compact" id="result-top"></ol>
           <div class="welcome-actions">
             <button type="button" class="lobby-primary" data-result="again">Riprova ›</button
+            ><button type="button" class="lobby-secondary new-player" data-result="new">Nuovo giocatore</button
             ><button type="button" class="lobby-secondary" data-result="ranking">Classifica</button
             ><button type="button" class="lobby-ghost" data-result="menu">Menu</button>
           </div>
@@ -662,27 +672,17 @@
         </div>
       </div>
     </div>
+    <!-- fine partita (B18): chi ha vinto con il nome, i game dei due giocatori e «Nuovo giocatore» per chi arriva dopo
+         (natpf_point_call.matchEndView; il rating finto con il grafico fisso non c'è più) -->
     <div id="victory-modal" class="nt-modal-backdrop hidden">
-      <div class="nt-skill-card">
-        <div class="skill-card-header">Rating NATPF</div>
-        <div class="skill-card-body">
-          <div class="skill-chart-frame">
-            <canvas id="skill-graph-canvas" width="280" height="200"></canvas>
-          </div>
-          <div class="skill-pl-summary">
-            <div id="victory-result-banner" class="victory-result-banner">Hai vinto!</div>
-            <div class="skill-score-pill">
-              <canvas id="victory-pl-icon" width="192" height="192"></canvas>
-              <div class="skill-score-meta">
-                <div class="skill-rating-number" id="skill-rating-value">1120</div>
-                <div class="skill-player-name">Tu</div>
-              </div>
-            </div>
-            <div id="victory-match-score" class="victory-match-score">Game finali: 2 - 0</div>
-          </div>
-        </div>
+      <div class="nt-skill-card natpf-end-card" role="dialog" aria-labelledby="victory-result-banner">
+        <div class="skill-card-header" id="victory-kicker">Fine partita</div>
+        <div id="victory-result-banner" class="victory-result-banner">Hai vinto!</div>
+        <ol class="victory-rows" id="victory-rows" aria-label="Game vinti"></ol>
+        <div id="victory-match-score" class="victory-match-score">Game 1-0</div>
         <div class="skill-card-footer">
           <button id="btn-play-again" type="button" class="nt-footer-btn primary">Gioca ancora</button
+          ><button id="btn-new-player" type="button" class="nt-footer-btn new-player">Nuovo giocatore</button
           ><button id="btn-return-title" type="button" class="nt-footer-btn secondary">Menu</button>
         </div>
       </div>

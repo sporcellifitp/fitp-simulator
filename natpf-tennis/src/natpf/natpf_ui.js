@@ -30,6 +30,7 @@ import { NatpfScreen } from './natpf_screen.js';
 import { NatpfCalibra } from './natpf_calibra.js';
 import { scoreboardView, scoreboardHtml } from './natpf_scoreboard.js';
 import { NatpfUpdates } from './natpf_updates.js';
+import { resetVisitor } from './natpf_new_player.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -118,6 +119,10 @@ export class NatpfUi {
       e.stopImmediatePropagation();
       this.backToMenu('match');
     }, true);
+    // «Nuovo giocatore» (B18, natpf_new_player.js): a fine partita; non nella sfida tra due computer (la rivincita è tra le
+    // stesse due persone: lì il giocatore di questo computer si cambia dal pannello dello stand)
+    $('btn-new-player')?.addEventListener('click', e => { e.stopPropagation(); this.newPlayer(); });
+    window.addEventListener('natpf:victory', () => this._paintVictory());
     this.hand.set(this.hand.hand);
     // mano cambiata sulla pagina del telefono: vale per tutto il gioco (personaggio, webcam) e torna al telefono
     if (this.phone) this.phone.onHand = h => { this.hand.set(h); this.paintTiles(); };
@@ -213,6 +218,14 @@ export class NatpfUi {
     // stesso schermo (B17.3): la stessa tabella anche in alto a sinistra della metà del Player 2; vuota altrimenti
     const el2 = $('natpf-scoreboard-p2'), html2 = E.natpfSplit?.active ? html : '';
     if (el2 && (this._sbHtml2 !== html2 || !!el2.firstChild !== !!html2)){ this._sbHtml2 = html2; el2.innerHTML = html2; }
+  }
+  // «Nuovo giocatore»: azzera nome, mano, tutorial, calibrazione e colpi imparati senza scollegare il telefono, e porta chi
+  // arriva al passo giusto (natpf_new_player.js). Restituisce la strada presa ('match', 'challenge', 'split', 'versus', 'menu')
+  newPlayer(){ return resetVisitor(this); }
+  // schermata finale: «Nuovo giocatore» nascosto nella sfida tra due computer
+  _paintVictory(){
+    const versus = this.lobby?.mode === 'friend' || this.engine.playerRole === 'p2' || !!this.versus?.hostActive;
+    $('btn-new-player')?.classList.toggle('hidden', versus);
   }
   // dal menu di pausa (e dal chiosco): fine partita, allenamento o sfida, ritorno al menu principale. Prima, in
   // allenamento, lo stop passava dalla fine dell'allenamento: dal riscaldamento si finiva sulla pagina «Partita» e dalla
