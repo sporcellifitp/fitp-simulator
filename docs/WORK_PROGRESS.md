@@ -1286,3 +1286,36 @@ guida provato nel browser.
 - **Non verificato**: telefoni veri, persone vere che imitano i gesti, Windows, ledwall; la soglia bassa a rete; limiti del
   tutorial: pallonetto e palla corta col dorso, fine del servizio a petto, telecamera solo sul braccio a 448×280/200×200.
 
+
+## B18.1 · Tappa 1 del rapporto B16 (10/11) · [x] versione 2026-11-10.2
+- Decisioni dell'utente (10/11): tappa 1 sì; formato in fiera sì ma come opzione da attivare; «Nuovo giocatore» sì; tappa 2
+  con livelli Evento e Bambini sì, «dimmi sempre come attivarli».
+- Workflow `b18-1-tappa-1`: quattro rami in worktree da `d09357a`, ognuno con revisore indipendente e correzioni, poi
+  unione `b18-int` e revisione dell'insieme (14 agenti). Documenti: `docs/b18/r1-fine-partita-e-visitatori.md`,
+  `r2-motore-piccolo.md`, `r3-scritte-e-istruzioni.md`, `misure-con-persone.md`, `r4-formato-fiera.md`, `unione.md`.
+  - R1: fine partita con il nome di chi vince e voce per chiunque vinca, «0» e «Parità», P2 a 9,8 m/s, via il rating finto,
+    «Nuovo giocatore», record per nome e giorno. Revisione: targhette dei nomi nello stesso schermo (bloccante), «Ospite».
+    Banco `visitatori.mjs`: bambino dopo adulto forza letta 0,12 → 0,30 (rif 0,31).
+  - R2: D6, D7, D12, D13, D16, D9 (soglia). Revisione: D13 con la presa a racchetta (bloccante: tagliato del tutorial letto
+    palla corta da 0,7× a 0,9× → tagliato da 0,85×), D12 servizio abituale dai primi servizi, D16 latenza negativa, D7
+    lanciapalle. Servizio della presa insegnata a 1×: tagliato 165–173 km/h → piatto 165–174, monotono da 0,7× a 1,5×.
+  - R3: D10, istruzioni del servizio, D14, misure in diagnostica. Revisione: telefono del P2 nello stesso schermo
+    (bloccante: scritte diverse 16,0% → 0,0%). «Fuori» col bersaglio sbagliava più di metà delle volte (Pro umano 245
+    «Fuori» di cui 159 con la palla poi dentro → 86/0). Combo: primo passo speciale 42% → 0%.
+  - R4: formato in fiera (opzione spenta). Partita a 1 game, Pro amatore p50/p90/max 91/162/422 s → 89/129/175 s; la CPU
+    batte il 49,9% dei punti; partite vinte 86,5% → 73,4%.
+  - Unione: conflitti in `startNewMatch` (R2+R3) e `natpf_point_call.js` (R1+R4) tenendo tutte e due le parti; correzione
+    `de2d717` («Nuovo giocatore» toglie anche i colpi imparati da un ospite). Revisione dell'insieme: nessun bloccante,
+    partita giocata nel browser con il formato in fiera nello stesso schermo; corretti due minori (istruzioni del servizio
+    con un conto per giocatore; reset del chiosco come «Nuovo giocatore»), il terzo (rete vista da `landingOf`) non succede
+    con il telefono (0 su 14.253 colpi).
+- Verifiche sull'unione: gioco 1075/1075 (con le due correzioni finali: vedi commit), sito 201/201, LAN 12/12, programma
+  Windows 28/28, build ok, `audit:legend` 69/69 (Leggenda contro «medio» 97% dei game, contro «preciso» 70,3%; Pro contro
+  «medio» il giocatore 80,8%); 20 prove nel browser verdi al primo giro (tabellone 42/42, tutorial-phone 52/52, split-ready
+  34/34, scritte-2v2 73/73, menu 28/28, training-flow 22/22, rally 8/8, gesti-speciali 9/9, tutorial-relink 9/9, 1v1-p2p
+  39/39, phone-keep 13/13, leggenda 7/7, nuovo-giocatore 28/28, formato-fiera 21/21, formato-fiera-p2p 9/9,
+  servizio-lancio 12/12, minigiochi-principianti 10/10, gameplay-23-10 11/11, latency 9/9, modale-gesti 18/18).
+- **Non verificato**: telefoni veri, persone vere, Windows, ledwall, due computer veri in LAN con il formato in fiera, voci
+  ascoltate; le soglie nuove del tagliato e del servizio con persone vere (si misurano con la diagnostica nuova);
+  `natpf-leggenda` è stata rossa 1 volta su 3 nel ramo R2 (allungo con il piatto a +0,05 m sul limite di 5 cm), verde
+  nell'unione: da tenere d'occhio.

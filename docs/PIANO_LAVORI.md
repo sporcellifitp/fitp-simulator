@@ -17,7 +17,7 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-- Aggiornato: 10/11/2026 · agente: Claude · branch `natpf-simulator` (**versione 2026-11-10.1**, B17.1 gesti dal video: codice `b55453b`, CI `d27f8e6`; B16 `84838f6`, versione 2026-11-08.5).
+- Aggiornato: 10/11/2026 pomeriggio · agente: Claude · branch `natpf-simulator` (**versione 2026-11-10.2**, B18.1 tappa 1; prima 2026-11-10.1 B17.1 gesti dal video `b55453b`).
 - **Per riprendere leggere `docs/PASSAGGIO_CONSEGNE.md`** (lavoro dal 05/11, punti aperti §3, controlli §4) e, per i
   gesti del tutorial, `docs/b13/gesti-nuovi.md`. Checkpoint precedente (storia dal 04/11):
   `docs/archivio/PIANO_checkpoint_fino_al_2026-11-07.md`.
@@ -185,7 +185,16 @@ Come si aggiorna:
   poi **B18.2 = tappa 2** una cosa alla volta con le prove simulate (personaggi fermi + servizio, CPU che sbaglia per la
   pressione, Leggenda stessa regola, palla corta che può sbagliare, poi livelli Evento e Bambini, segnale del momento giusto).
   Se la sessione si interrompe: i rami sono nelle worktree `.claude/worktrees/wf_*` più recenti (`git worktree list`).
-- **Prossima azione esatta:** B18.1 (tappa 1) in corso; in parallelo collaudo dell'utente (gesti del tutorial dal video: presa, dritto/rovescio, servizio,
+- **B18.1 fatto, versione 2026-11-10.2** (tappa 1 del rapporto B16; dettaglio in `docs/WORK_PROGRESS.md` B18.1 e
+  `docs/b18/`): fine partita per chiunque vinca, «Nuovo giocatore», motore piccolo (stanchezza, risposta, servizio, tagliato,
+  latenza, difesa a Pro), scritte dell'esito e istruzioni del servizio, Precision e Combo per principianti, misure in
+  diagnostica, **formato in fiera come opzione spenta** (pannello dello stand → «Formato in fiera»). Gioco 1075+, sito 201,
+  LAN 12, Windows 28, build, `audit:legend` 69/69, 20 prove nel browser.
+- **Prossima azione esatta:** **B18.2 = tappa 2** del rapporto (`docs/b16/rapporto-gameplay.md` §4), una cosa alla volta con
+  le prove simulate prima e dopo: (1) personaggi fermi a ogni servizio + peso del servizio (D11); (2) CPU che sbaglia per la
+  pressione e campo aperto a Pro (D1, D9); (3) Leggenda stessa regola per chi gioca e per la CPU (D2); (4) palla corta che
+  può sbagliare (D8); (5) livelli **Evento** adattivo e **Bambini** (D3) — dire all'utente come si attivano; (6) segnale del
+  momento giusto e colpo super spiegato. In parallelo collaudo dell'utente (gesti del tutorial dal video: presa, dritto/rovescio, servizio,
   tagliati; tabellone; X; colpi a rete con il telefono vero, anche la soglia bassa); decidere con l'utente pallonetto e
   palla corta (dorso o schermo) e le letture con la calibrazione del braccio. Decisioni del B16 prese (B18 sopra).
 

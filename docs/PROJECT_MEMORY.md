@@ -655,3 +655,27 @@ Classificazione (`natpf-tennis/src/natpf/natpf_gestures.js`, `classifyPhoneShot`
   di tutti i pacchetti per sensibilità con `sideTotals`, confronto del guadagno). Prove: `natpf-mira-sensibilita.test.mjs`
   (anche il pulsante del pannello dello stand), `natpf-mira-lato.test.mjs`, nel browser `tools/e2e/natpf-mira-lato.mjs`
   (il percorso della guida).
+
+### Decisioni dell'utente sull'audit B16 e tappa 1 (B18.1, 10/11/2026; documenti in `docs/b18/`)
+- **Ogni opzione o livello nuovo va detto all'utente con il percorso per accenderlo** («dimmi sempre come attivarli»).
+- **Formato in fiera** (punto decisivo sul 40-40, servizio che passa come nel tie-break: A, B B, A A…): opzione dello staff
+  **spenta di base**, nel pannello dello stand (Ctrl+Maiusc+K o 3 s sul marchio NATPF → «Formato in fiera»), salvata in
+  `localStorage` `natpf-tennis.formatoFiera`; sul web/LAN anche `?formato=fiera` / `?formato=classico` (solo per quella
+  pagina). Con l'opzione accesa «al meglio di 5» diventa al meglio di 3; nella sfida tra due computer decide l'host
+  (regola negli snapshot). La scelta del menu resta separata dal valore in partita (`gamesToWinChosen`). Voce: nessuna clip
+  «deciding point», si usano «Match Point»/«Game Point». `docs/b18/r4-formato-fiera.md`.
+- **«Nuovo giocatore»** (fine partita, risultato dei minigiochi, pannello dello stand): azzera nome, tutorial visto (anche
+  il corto), calibrazione, colpo tipico, prototipi, riferimenti di forza, mano, colpi speciali imparati e record di oggi di
+  «Ospite», **senza scollegare il telefono** (niente `link.forget`). Livello e formato restano. Record, medaglie ed
+  esperienza per nome e per giorno. Il reset del chiosco toglie le stesse cose (in più scollega il telefono, come prima).
+  `natpf_new_player.js`, `docs/b18/r1-fine-partita-e-visitatori.md`.
+- **Motore (R2)**: stanchezza che si ricarica tra i punti e riparte da zero a ogni partita; in risposta al servizio palla
+  «alta» solo da 2,3 m e mai schiacciata con un gesto che sale (le palle del lanciapalle non sono risposte); servizio
+  giudicato sul proprio servizio abituale (primi 3 imparati), più forte mai più lento, «Gran servizio» sulla propria forza
+  (a freddo 0,75, al massimo 0,9); palla corta solo con gesto nettamente morbido (`dropSoft` 0,28, `dropDeepRise` −0,4 per
+  la presa a racchetta); «palla passata» giudicata dove era la palla al gesto (latenza ≥ 0); risposta difensiva della CPU a
+  Pro. `audit:legend` 69/69. `docs/b18/r2-motore-piccolo.md`.
+- **Scritte e istruzioni (R3)**: «Fuori/In rete · troppo presto/tardi» dal primo rimbalzo previsto con la fisica (non dal
+  bersaglio), telefono = computer (anche il P2 nello stesso schermo), «Punto avversario» solo a punto finito; istruzioni del
+  servizio sul grande schermo con conto per chi serve; Precision e Combo per principianti; due misure nuove in diagnostica
+  (variazione del gesto, tempo dal rimbalzo) con `docs/b18/misure-con-persone.md`.
