@@ -471,6 +471,8 @@ export class NatpfTraining {
       inCourt: q.color !== 'red' && !['Fuori', 'Mancata', 'In rete'].includes(q.label), shot: appliedShot, direction, volley: !!racket?.volley });
     this.lastShot = null;
     const ok = this.progress.done > before;
+    // colpo speciale riuscito nell'esercizio: imparato, ora può comparire nelle catene della Combo (B18, natpf_events)
+    if (ok && d.shot) this.ui.events?.learnShot?.(d.shot);
     this.message = d.shot ? (ok ? `${d.label} ✓` : ['lob', 'drop'].includes(d.shot) ? specialHint(d.shot, this.lastLearn) : d.hint.phone)
       : ok ? `${d.label} ✓` : this.progress.wrongDirection ? (d.direction === 'cross' ? 'Serve un incrociato: mira nell’altra metà, oltre il centro' : 'Serve un lungolinea: mira lungo il lato da cui colpisci')
       : this.progress.notVolley ? 'La palla ha rimbalzato: colpiscila prima, al volo'

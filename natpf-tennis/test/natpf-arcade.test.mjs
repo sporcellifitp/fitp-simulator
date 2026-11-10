@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { MODES, medalFor, nextMedal, recordGame, levelOf, medalCount, zoneScore, comboMultiplier, rushTarget, rushLevel, PRECISION_ZONES,
-  precisionPoints, comboChain, comboStepOk, COMBO_STEPS, survivalLevel, SURVIVAL } from '../src/natpf/natpf_arcade.js';
+  precisionPoints, comboChain, comboStepOk, COMBO_STEPS, survivalLevel, SURVIVAL, comboPool, comboSwapStep, COMBO_LEARN, COMBO_BASIC, modeById } from '../src/natpf/natpf_arcade.js';
 import { TargetField, crossing } from '../src/natpf/natpf_targets.js';
 import { makeWorld } from './ui-world.mjs';
 
@@ -44,6 +44,65 @@ test('Precision: dieci zone sempre più piccole, punti dalla distanza, fuori zer
   assert.equal(precisionPoints({ x: z.x + z.r, z: z.z }, z), 50);
   assert.equal(precisionPoints({ x: z.x + 5, z: z.z }, z), 0);
   assert.equal(precisionPoints({ x: z.x, z: z.z }, z, false), 0);
+});
+
+// B18 (difetto 14 dell'audit B16): Precision e Combo per chi arriva per la prima volta
+test('B18 Precision: zone corte a portata di un dritto morbido (non più a 3 m), medaglie raggiungibili', () => {
+  // il dritto più morbido cade a 6,2 m dalla rete (natpf_stroke_outcome OUTCOME.depth.TOPSPIN[0]): in ogni zona prende punti
+  for (const z of PRECISION_ZONES) assert.ok(precisionPoints({ x: z.x, z: -6.2 }, z) > 0 || -z.z > 8, `${z.label}: zero punti con un dritto morbido a 6,2 m`);
+  const short = PRECISION_ZONES.filter(z => -z.z < 6);
+  assert.equal(short.length, 2, 'due zone corte');
+  for (const z of short){
+    assert.ok(-z.z >= 5 && -z.z <= 5.6, `${z.label} a ${-z.z} m`);
+    assert.ok(precisionPoints({ x: z.x, z: -6.2 }, z) >= 30, `${z.label}: dritto morbido a 6,2 m`);
+    assert.ok(precisionPoints({ x: z.x, z: -4 }, z) >= 30, `${z.label}: anche la palla corta (4 m) prende punti`);
+  }
+  // medaglie ricalcolate (scripts/audit/precision-combo.mjs): l'oro non è più sopra il massimo di chi gioca bene (prima 700)
+  assert.deepEqual(modeById('precision').medals, [200, 420, 650]);
+  assert.deepEqual(modeById('combo').medals, [300, 750, 1300]);
+});
+
+test('B18 Combo: prime catene solo dritto e rovescio, speciali solo se imparati, passo che cambia', () => {
+  for (let i = 0; i < 40; i++){
+    for (const chainsDone of [0, 1]){
+      const c = comboChain(4, { phone: true, rand: seq(i + 1), chainsDone, learned: ['lob', 'slice', 'drop'] });
+      assert.ok(c.every(s => COMBO_BASIC.includes(s)), `catena ${chainsDone + 1}: ${c}`);
+      for (let k = 1; k < c.length; k++) assert.notEqual(c[k], c[k - 1]);
+    }
+    const c = comboChain(5, { phone: true, rand: seq(i + 7), chainsDone: COMBO_LEARN.basicChains, learned: [] });
+    assert.ok(c.every(s => !COMBO_STEPS[s].phone), `niente speciali non imparati: ${c}`);
+    const lob = comboChain(6, { phone: true, rand: seq(i + 11), chainsDone: 5, learned: ['lob'] });
+    assert.ok(lob.every(s => !COMBO_STEPS[s].phone || s === 'lob'), `solo il pallonetto imparato: ${lob}`);
+  }
+  assert.deepEqual(comboPool({ chainsDone: 0, learned: ['lob'] }), ['forehand', 'backhand']);
+  assert.ok(comboPool({ chainsDone: 3, learned: ['lob'] }).includes('lob') && !comboPool({ chainsDone: 3, learned: ['lob'] }).includes('drop'));
+  assert.ok(comboPool({ chainsDone: 3, learned: null }).includes('drop'), 'senza elenco: come prima, tutti');
+  assert.ok(!comboPool({ phone: false, chainsDone: 3, learned: null }).includes('drop'), 'senza telefono niente speciali');
+  // passo nuovo: un colpo di base diverso dal passo e dai vicini
+  assert.equal(comboSwapStep(['forehand', 'lob', 'forehand'], 1), 'backhand');
+  assert.equal(comboSwapStep(['cross'], 0, () => 0), 'forehand');
+  assert.equal(comboSwapStep(['forehand', 'backhand'], 0), 'backhand', 'senza un colpo libero: l’altro colpo di base');
+});
+
+test('B18 Combo nel motore: dopo due errori sullo stesso passo il passo cambia; il colpo speciale riuscito si impara', async () => {
+  const w = await makeWorld({ controller: 'phone' });
+  const ev = w.ui.events;
+  ev.forgetLearned();
+  ev.start('combo');
+  const A = ev.active;
+  assert.ok(A.chain.every(s => COMBO_BASIC.includes(s)), `prima catena: ${A.chain}`);
+  // catena con un pallonetto da fare (come un visitatore che non lo sa fare): due errori → cambia
+  A.chain = ['lob', 'forehand']; A.chainIdx = 0;
+  const miss = () => { w.E.player.swingType = 'forehand'; w.E.ball.targetLanding.set(0, 0, -8); w.E.natpfLastRacket = { at: w.E.elapsedTime, out: { shot: 'TOPSPIN' }, hitX: 1 }; ev.onShot({ label: 'Perfetto', color: 'green' }, {}); };
+  miss(); assert.equal(A.chain[0], 'lob', 'un errore: stesso passo');
+  miss(); assert.ok(COMBO_BASIC.includes(A.chain[0]), `due errori: passo cambiato in ${A.chain[0]}`);
+  assert.match(A.last, /Cambiamo: al posto di Pallonetto/);
+  // pallonetto riuscito in campo (anche se il passo era un altro): imparato
+  w.E.natpfLastRacket = { at: w.E.elapsedTime, out: { shot: 'LOB' }, hitX: 1 }; w.E.ball.targetLanding.set(0, 0, -9);
+  ev.onShot({ label: 'Perfetto', color: 'green' }, {});
+  assert.ok(ev.learned.has('lob'));
+  ev.forgetLearned(); assert.equal(ev.learned.size, 0, 'visitatore nuovo: niente colpi imparati');
+  ev.abort();
 });
 
 test('Combo Challenge: catene senza ripetizioni, colpi speciali solo con lo smartphone, controllo del passo', () => {

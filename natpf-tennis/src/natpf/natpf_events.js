@@ -10,16 +10,19 @@
 // dell'addetto; dei visitatori si chiede solo il nickname.
 import * as THREE from 'three';
 import { MODES, VISIBLE_MODES, HIDDEN_MODES, modeById, recordGame, RECORDS_KEY, levelOf, comboMultiplier, rushLevel, rushTarget, PRECISION_ZONES, precisionPoints,
-  COMBO_STEPS, comboChain, comboStepOk, comboStepPoints, comboChainBonus, SURVIVAL, survivalLevel, MEDAL_LABEL } from './natpf_arcade.js';
+  COMBO_STEPS, COMBO_BASIC, comboChain, comboSwapStep, COMBO_LEARN, comboStepOk, comboStepPoints, comboChainBonus, SURVIVAL, survivalLevel, MEDAL_LABEL } from './natpf_arcade.js';
 import { TargetField } from './natpf_targets.js';
 import { feedForLevel } from './natpf_ball_machine.js';
 import { trainingDirection } from './natpf_training.js';
 import { viewport } from './natpf_screen.js';
+import { getGestureDemo } from './natpf_gesture_demo.js';
+import { GESTURES } from './natpf_gesture_motion.js';
 
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 export const BOARD_KEY = 'natpf-tennis.classifica';
 export const NICK_KEY = 'natpf-tennis.nickname';
+export const LEARNED_KEY = 'natpf-tennis.colpi-imparati';
 
 // i minigiochi che si scelgono (menu, classifica): natpf_arcade.VISIBLE_MODES, stessa forma delle sfide di prima (id,
 // label, unit, short, facts). ALL_CHALLENGES comprende anche quelli nascosti (HIDDEN_CHALLENGES), che restano giocabili
@@ -97,7 +100,7 @@ export class NatpfEvents {
     this.ui.training.active && this.ui.training.stop({ completed: false, silent: true });
     this.active = { id, c, score: 0, shots: 0, serves: 0, best: 0, streak: 0, bestStreak: 0, hits: 0, time: c.time || 0, elapsed: 0,
       wait: 2.2, over: false, last: '', lastOk: true, lives: SURVIVAL.lives, returned: 0, level: 0, ball: 0,
-      chainLen: 2, chain: id === 'combo' ? comboChain(2, { phone: this.phone }) : null, chainIdx: 0, chains: 0, zoneIdx: 0, zonePts: [],
+      chainLen: 2, chain: id === 'combo' ? comboChain(2, { phone: this.phone, chainsDone: 0, learned: this.learnedList }) : null, chainIdx: 0, stepFails: 0, chains: 0, zoneIdx: 0, zonePts: [],
       resolved: true, tick: 0 };
     E.hud.hideTitleModal(); E.hud.hideCenterBanner();
     E.setMatchFormat?.('singles'); E.isMultiplayer = false;
@@ -164,18 +167,20 @@ export class NatpfEvents {
       const side = E.player.swingType === 'backhand' ? 'backhand' : 'forehand', lefty = this.ui.hand?.hand === 'left';
       const direction = trainingDirection({ x: landing?.x, hitX: racket?.hitX ?? E.ball.pos.x, contact: (side === 'backhand' ? -1 : 1)*(lefty ? -1 : 1) });
       const shot = racket?.out?.shot?.toLowerCase() || null, step = A.chain[A.chainIdx];
+      // colpo speciale riuscito (anche se il passo era un altro): da ora può comparire nelle catene
+      if (inCourt && COMBO_STEPS[shot]?.phone) this.learnShot(shot);
       if (comboStepOk(step, { side, shot, direction, inCourt })){
+        if (A.failStep === A.chainIdx) A.stepFails = 0;   // il passo che non riusciva è riuscito
         const pts = comboStepPoints(A.chain.length); A.score += pts; A.chainIdx++; A.streak++;
         au?.playArcade?.('combo', { level: A.chainIdx });
         this.popup(`${COMBO_STEPS[step].label} ✓ +${pts}`, at, 'ok');
         if (A.chainIdx >= A.chain.length){
           const bonus = comboChainBonus(A.chain.length); A.score += bonus; A.chains++;
           this._say(`Catena completata! +${bonus}`); au?.cue?.(A.chain.length >= 4 ? 'superCombo' : 'combo');
-          A.chainLen = Math.min(6, A.chainLen + 1); A.chain = comboChain(A.chainLen, { phone: this.phone }); A.chainIdx = 0;
+          A.chainLen = Math.min(6, A.chainLen + 1); A.chain = comboChain(A.chainLen, { phone: this.phone, chainsDone: A.chains, learned: this.learnedList }); A.chainIdx = 0; A.failStep = null; A.stepFails = 0;
         } else this._say(`Ora: ${COMBO_STEPS[A.chain[A.chainIdx]].label}`);
       } else {
-        A.bestStreak = Math.max(A.bestStreak, A.streak); A.streak = 0;
-        this._say(inCourt ? `Serviva: ${COMBO_STEPS[step].label}` : 'Fuori: catena da capo', false); A.chainIdx = 0;
+        this._comboMiss(inCourt ? `Serviva: ${COMBO_STEPS[step].label}` : 'Fuori: catena da capo');
         au?.playArcade?.('miss');
       }
     } else if (A.id === 'survival'){
@@ -188,6 +193,31 @@ export class NatpfEvents {
     }
     this.paint();
   }
+  // Combo, passo sbagliato (colpo diverso, fuori o palla persa): la catena riparte da capo, come prima. B18 (difetto 14):
+  // dopo COMBO_LEARN.swapAfter errori sullo stesso passo il passo cambia (un dritto o un rovescio), invece di chiedere per
+  // 90" lo stesso colpo che chi gioca non sa fare
+  _comboMiss(why){
+    const A = this.active; if (!A || A.id !== 'combo') return;
+    A.bestStreak = Math.max(A.bestStreak, A.streak); A.streak = 0;
+    const i = A.chainIdx, step = A.chain[i];
+    A.stepFails = (A.failStep === i ? A.stepFails || 0 : 0) + 1; A.failStep = i;
+    if (A.stepFails >= COMBO_LEARN.swapAfter){
+      const next = comboSwapStep(A.chain, i);
+      A.chain = A.chain.map((k, j) => j === i ? next : k); A.stepFails = 0;
+      this._say(`Cambiamo: al posto di ${COMBO_STEPS[step].label}, ${COMBO_STEPS[next].label}`, false);
+    } else this._say(why, false);
+    A.chainIdx = 0;
+  }
+  // colpi speciali imparati da chi gioca adesso (riusciti nell'allenamento o in una sfida): solo questi compaiono nelle
+  // catene della Combo (B18). Restano per la sessione della pagina (come il nickname); forgetLearned li toglie
+  // (visitatore nuovo)
+  get learned(){ if (!this._learned){ let a = []; try { a = JSON.parse(sessionStorage.getItem(LEARNED_KEY) || '[]'); } catch {} this._learned = new Set(Array.isArray(a) ? a : []); } return this._learned; }
+  get learnedList(){ return [...this.learned]; }
+  learnShot(shot){
+    if (!COMBO_STEPS[shot]?.phone || this.learned.has(shot)) return;
+    this.learned.add(shot); try { sessionStorage.setItem(LEARNED_KEY, JSON.stringify(this.learnedList)); } catch {}
+  }
+  forgetLearned(){ this._learned = new Set(); try { sessionStorage.removeItem(LEARNED_KEY); } catch {} }
   _loseLife(why){
     const A = this.active; if (!A || A.id !== 'survival') return;
     A.lives = Math.max(0, A.lives - 1); this._say(`${why}: ${A.lives ? `${A.lives} ${A.lives === 1 ? 'vita' : 'vite'}` : 'game over'}`, false);
@@ -199,7 +229,7 @@ export class NatpfEvents {
     // palla del lanciapalle non presa
     if (!A.resolved && E.ball.lastHitter === 'opponent'){
       if (A.id === 'survival') this._loseLife('Palla persa');
-      else if (A.id === 'combo'){ A.chainIdx = 0; A.streak = 0; this._say('Palla persa: catena da capo', false); }
+      else if (A.id === 'combo') this._comboMiss('Palla persa: catena da capo');
       else if (A.id === 'precision'){ A.zonePts.push(0); A.ball++; this._say('Palla persa', false); }
       else if (A.id === 'rush'){ A.streak = 0; this._say('Palla persa', false); }
     }
@@ -291,7 +321,7 @@ export class NatpfEvents {
   _restore(){
     const E = this.engine;
     if (E.audioEngine?.musicContext === 'minigame') E.audioEngine.musicContext = null;
-    show(this.hud, false); this.field.clear(); this._opponentAway(false);
+    show(this.hud, false); this.paintDemo(null); this.field.clear(); this._opponentAway(false);
     E.natpfTimeScale = 1; E.pendingUserSwing = E.pendingP2Swing = E.pendingServeSwing = null;
     E.opponent.pos.set(-1.35, 0, -11.89); E.opponent.targetPos.copy(E.opponent.pos);
     // la CPU scelta nel menu (anche Leggenda); il 1v1 qui non c'è, i minigiochi sono contro la CPU o il lanciapalle
@@ -312,5 +342,21 @@ export class NatpfEvents {
     const html = `<span class="ch-kicker">${A.c.label}${this.nickname ? ` · ${esc(this.nickname)}` : ''}</span><b class="ch-score">${main}</b>${time}${extra}${sub ? `<span class="ch-sub">${sub}</span>` : ''}${rec != null ? `<span class="ch-best">Record ${rec} ${A.c.unit}</span>` : ''}${A.last ? `<span class="ch-last" data-ok="${A.lastOk}">${A.last}</span>` : ''}`;
     // solo se cambia (regione «aria-live»)
     if (html !== this.hudHtml){ this.hudHtml = html; this.hud.innerHTML = html; }
+    this.paintDemo(A);
+  }
+  // B18 (difetto 14): nella Combo, quando il passo chiesto non è un dritto o un rovescio (incrociato, lungolinea, un colpo
+  // speciale già imparato), accanto al riquadro l'animazione del gesto (la stessa del tutorial, natpf_gesture_demo)
+  paintDemo(A = this.active){
+    const box = typeof document !== 'undefined' ? $('natpf-challenge-demo') : null;
+    const step = A?.id === 'combo' && !A.over ? A.chain[A.chainIdx] : null, want = step && !COMBO_BASIC.includes(step) && GESTURES[step] ? step : null;
+    if (!box || want === this.demoStep) return;
+    this.demoStep = want;
+    const demo = getGestureDemo('combo');
+    if (!want){ show(box, false); demo.stop?.(); return; }
+    show(box, true);
+    demo.mount(box.querySelector('.cd-stage'));
+    if (demo.available) demo.setSize(220, 220);
+    demo.play(want, { hand: this.ui.hand?.hand || 'right', speed: 'auto' });
+    const t = box.querySelector('.cd-title'); if (t) t.textContent = COMBO_STEPS[step].label;
   }
 }
