@@ -2526,7 +2526,7 @@ export class NatpfTennisEngine {
       i = !["pro", "leggenda"].includes(this.matchConfig.difficulty),
       a = Math.abs(this.ball.pos.x - e.pos.x),
       s = !!this.ball.isPowerShot,
-      h = a > (i ? 1.08 : 1.55) || (s && a > (i ? 0.75 : 1.25)),
+      h = NS.cpuDefensive(this.matchConfig.difficulty, a, s), // NATPF B18 (D9): soglie per livello (natpf_skill.CPU_DEFENSE)
       r = this.ball.pos.x > e.pos.x + 0.05;
     (e.swingType = r ? "backhand" : "forehand"),
       (e.swingDuration = 0.36),
@@ -2561,6 +2561,7 @@ export class NatpfTennisEngine {
         (c = 4.4 + Math.random() * 2.4),
         (f = 1.5);
     else if (h && this.ball.rallyStrokeCount >= 2) {
+      this.natpfCpuDefense = { at: this.elapsedTime, stretch: +a.toFixed(3) }; // NATPF B18 (D9): ultima risposta difensiva (prove)
       ((y = a > 1.35 || s ? "LOB" : "SLICE"),
           (g = o.MathUtils.clamp((Math.random() - 0.5) * 2.4, -S.SINGLES_X + 1.1, S.SINGLES_X - 1.1)),
           (c = 5.6 + Math.random() * 2.2),

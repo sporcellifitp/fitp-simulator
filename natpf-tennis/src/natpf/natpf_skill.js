@@ -423,6 +423,20 @@ export function cpuErrorChance({ angle = 0, speed = 22, pressure = 0, stretch = 
 }
 // Cosa fa la CPU con questa palla: 'ok' (risposta normale), 'net' / 'wide' / 'long' (errore) o 'weak' (palla corta e
 // alta, da smash). Gli errori della CPU crescono con angolo, velocità, pressione, allungo e lunghezza dello scambio.
+// Risposta difensiva della CPU in allungo (game_engine._executeOpponentReturn): con la palla lontana di lato più di «wide»
+// metri (o di «power» metri su un colpo potente) la CPU rimanda un tagliato o un pallonetto corto e lento, da attaccare.
+// B18 (D9 del rapporto B16): a Pro la soglia era 1,55 m, oltre la portata della CPU (cpuReach 1,5 m): la risposta difensiva
+// non scattava mai (0,0% dei colpi della CPU, a Casual 14%) e la palla larga non dava niente. Ora sotto la portata, un poco
+// più in là che a Casual (80% della portata contro 77%). Leggenda: come prima (la sua risposta la sceglie natpf_legend.js)
+export const CPU_DEFENSE = Object.freeze({
+  casual: Object.freeze({ wide: 1.08, power: .75 }),
+  pro: Object.freeze({ wide: 1.2, power: .95 }),
+  leggenda: Object.freeze({ wide: 1.55, power: 1.25 }),
+});
+export function cpuDefensive(difficulty, stretch, power = false){
+  const D = CPU_DEFENSE[String(difficulty || '').toLowerCase()] || CPU_DEFENSE.casual;
+  return finite(stretch) > D.wide || (!!power && finite(stretch) > D.power);
+}
 export function cpuReturnPlan(engine, actor, { rng = Math.random } = {}){
   const lv = skillLevel(engine.matchConfig?.difficulty), s = skillState(engine), ball = engine.ball;
   if (!lv.cpuErr || engine.isMultiplayer || (engine.autoPlayMode && !engine.userHasInteracted)) return { kind: 'ok', chance: 0 };
