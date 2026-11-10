@@ -122,6 +122,13 @@ try {
   const voices = await g.evaluate(() => window.__voices.slice(-3));
   check('   voce di fine partita «Game Set and Match»', voices.includes('Game Set and Match'), JSON.stringify(voices));
   await shot('A2-fine-partita-1280');
+  // schermo piccolo dell'evento (1024×600): la schermata finale intera, «Nuovo giocatore» compreso
+  await g.setViewportSize({ width: 1024, height: 600 }); await sleep(500);
+  vic = await victory(g);
+  const btn600 = await g.evaluate(() => { const r = document.getElementById('btn-new-player').getBoundingClientRect(); return r.bottom <= innerHeight && r.top >= 0; });
+  check('   1024×600: schermata finale intera e «Nuovo giocatore» in vista', vic.inView && btn600, JSON.stringify({ inView: vic.inView, btn600 }));
+  await shot('A2-fine-partita-1024x600');
+  await g.setViewportSize({ width: 1280, height: 720 }); await sleep(300);
   const pairs0 = before.pairs;
   await g.click('#btn-new-player');
   await sleep(600);
@@ -131,6 +138,11 @@ try {
   const nickV = await g.evaluate(() => ({ open: !document.getElementById('natpf-nick').classList.contains('hidden'), hand: !document.getElementById('nick-hand').classList.contains('hidden'), title: document.getElementById('nick-title').textContent, skip: document.getElementById('nick-cancel').textContent }));
   check('   passo del nome con la mano («Come ti chiami?», «Salta»)', nickV.open && nickV.hand && nickV.title === 'Come ti chiami?' && nickV.skip === 'Salta', JSON.stringify(nickV));
   await shot('A3-nome-1280');
+  await g.setViewportSize({ width: 1024, height: 600 }); await sleep(500);
+  const nick600 = await g.evaluate(() => { const r = document.querySelector('#nick-form .sheet-actions').getBoundingClientRect(), h = document.getElementById('nick-hand').getBoundingClientRect(); return { actions: r.bottom <= innerHeight, hand: h.height > 0 && h.bottom <= innerHeight }; });
+  check('   1024×600: passo del nome con la mano e i pulsanti in vista', nick600.actions && nick600.hand, JSON.stringify(nick600));
+  await shot('A3-nome-1024x600');
+  await g.setViewportSize({ width: 1280, height: 720 }); await sleep(300);
   await g.fill('#nick-input', 'Bea');
   await g.click('#nick-hand [data-natpf-hand="right"]');
   await g.click('#nick-form button[type="submit"]');

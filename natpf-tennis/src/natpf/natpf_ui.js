@@ -214,10 +214,6 @@ export class NatpfUi {
     const el2 = $('natpf-scoreboard-p2'), html2 = E.natpfSplit?.active ? html : '';
     if (el2 && (this._sbHtml2 !== html2 || !!el2.firstChild !== !!html2)){ this._sbHtml2 = html2; el2.innerHTML = html2; }
   }
-  // dal menu di pausa (e dal chiosco): fine partita, allenamento o sfida, ritorno al menu principale. Prima, in
-  // allenamento, lo stop passava dalla fine dell'allenamento: dal riscaldamento si finiva sulla pagina «Partita» e dalla
-  // calibrazione di una sfida partiva la sfida; e il gioco poteva restare in pausa per chi arrivava dopo
-  // step: la pagina del menu da aprire («match» per «Gioca ancora»: le impostazioni della partita)
   // «Nuovo giocatore»: azzera nome, mano, tutorial, calibrazione e colpi imparati senza scollegare il telefono, e porta chi
   // arriva al passo giusto (natpf_new_player.js). Restituisce la strada presa ('match', 'challenge', 'split', 'versus', 'menu')
   newPlayer(){ return resetVisitor(this); }
@@ -226,6 +222,10 @@ export class NatpfUi {
     const versus = this.lobby?.mode === 'friend' || this.engine.playerRole === 'p2' || !!this.versus?.hostActive;
     $('btn-new-player')?.classList.toggle('hidden', versus);
   }
+  // dal menu di pausa (e dal chiosco): fine partita, allenamento o sfida, ritorno al menu principale. Prima, in
+  // allenamento, lo stop passava dalla fine dell'allenamento: dal riscaldamento si finiva sulla pagina «Partita» e dalla
+  // calibrazione di una sfida partiva la sfida; e il gioco poteva restare in pausa per chi arrivava dopo
+  // step: la pagina del menu da aprire («match» per «Gioca ancora»: le impostazioni della partita)
   backToMenu(step = 'menu'){
     const E = this.engine;
     // Player 2 dell'invito: tornare al menu vuol dire lasciare la stanza (prima restava dentro e i suoi colpi passavano)
