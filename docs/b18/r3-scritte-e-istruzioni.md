@@ -141,15 +141,20 @@ L'audit dava il primo passo speciale nel 43% delle sfide (3 su 7): qui 42%.
 
 ## Test
 
-- Gioco: `cd natpf-tennis && npm test` — vedi il risultato nel resoconto finale del ramo.
+- Gioco: `cd natpf-tennis && npm test` 1005 test: 1004 superati, 0 falliti, 1 saltato (quello già saltato sulla base).
 - Sito: `node --test tools/test/*.test.mjs` 201/201.
 - Build: `npm run build` ok.
+- `npm run audit:legend`: tutti i 69 criteri rispettati (Pro contro «medio» 83,5% dei game, Casual 100%). Il ramo non
+  tocca la CPU né l'esito dei colpi: il motore cambia solo nel tipo dell'evento del colpo difensivo e nella palla del
+  lancio a vuoto.
 - Nuovi test di unità: scritte e telefono (4 in `natpf-scritte-esito`, compreso il motore vero che non manda più
   «fault» con la palla in gioco: con il codice di prima fallisce), servizio (3 in `natpf-servizio-istruzioni`), Precision
   e Combo (3 in `natpf-arcade`), misure della diagnostica (4 in `natpf-diag-gesto-rimbalzo`), telefono (1 in
   `tools/test/phone-screen.test.mjs`).
-- Prove nel browser: `natpf-servizio-lancio` 12/12 e `natpf-minigiochi-principianti` 10/10 (nuove); le altre nel
-  resoconto finale.
+- Prove nel browser (Chromium senza schermo, telefono simulato): `natpf-servizio-lancio` 12/12 e
+  `natpf-minigiochi-principianti` 10/10 (nuove), `natpf-training-flow` 22/22, `natpf-tutorial-phone` 52/52,
+  `natpf-rally` 8/8, `natpf-gameplay-23-10` 11/11 (accetta ora «In rete · …»). Non esisteva una prova nel browser dei
+  minigiochi: è la nuova `natpf-minigiochi-principianti`.
 
 ## Cosa NON è verificato
 
