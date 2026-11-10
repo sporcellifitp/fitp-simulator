@@ -176,10 +176,18 @@ Come si aggiorna:
   `f6ceb80b…2161b30`, verificato dal link fisso) e zip Cloudflare (22.615.793 B, `3b81e05f…eae337`, provato estratto).
   La prima pubblicazione era fallita per la **quota degli artifact di GitHub piena** (124 MB a versione, 30 giorni): il
   workflow ora tiene la copia di riserva con `continue-on-error` e 2 giorni (`d27f8e6`).
-- **Prossima azione esatta:** collaudo dell'utente (gesti del tutorial dal video: presa, dritto/rovescio, servizio,
+- **B18 · Decisioni dell'utente sul B16 (10/11):** (1) tappa 1 del rapporto «sì»; (2) formato in fiera «ok, dimmi come
+  attivarlo in caso» → **opzione spenta di default**, si accende dal pannello dello stand (e si spiega come); (3) «Nuovo
+  giocatore» «sì»; (4) tappa 2 con livello «Evento» adattivo e livello per bambini «sì, ma dimmi sempre come attivarli»
+  (ogni livello/opzione nuova va detta all'utente con il percorso per accenderla). Ordine: **B18.1 = tappa 1** (rami in
+  worktree con revisore: R1 fine partita/«Nuovo giocatore»/rating finto, R2 motore piccolo D6/D7/D12/D13/D16/D9-soglia, R3
+  scritte/istruzioni del servizio/Precision e Combo/misure in diagnostica, R4 formato fiera come opzione), unione, versione;
+  poi **B18.2 = tappa 2** una cosa alla volta con le prove simulate (personaggi fermi + servizio, CPU che sbaglia per la
+  pressione, Leggenda stessa regola, palla corta che può sbagliare, poi livelli Evento e Bambini, segnale del momento giusto).
+  Se la sessione si interrompe: i rami sono nelle worktree `.claude/worktrees/wf_*` più recenti (`git worktree list`).
+- **Prossima azione esatta:** B18.1 (tappa 1) in corso; in parallelo collaudo dell'utente (gesti del tutorial dal video: presa, dritto/rovescio, servizio,
   tagliati; tabellone; X; colpi a rete con il telefono vero, anche la soglia bassa); decidere con l'utente pallonetto e
-  palla corta (dorso o schermo) e le letture con la calibrazione del braccio; le decisioni del B16
-  (`docs/PASSAGGIO_CONSEGNE.md` §3.14) restano da prendere.
+  palla corta (dorso o schermo) e le letture con la calibrazione del braccio. Decisioni del B16 prese (B18 sopra).
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
