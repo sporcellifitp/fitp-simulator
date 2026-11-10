@@ -1200,6 +1200,7 @@ export class NatpfTennisEngine {
     this.natpfArena.setSpeed(null); // NATPF: velocità «---» fino al primo servizio (C21: restava quella della partita prima)
     this.natpfRhythm = null; // NATPF: il ritmo di chi gioca (direzione) si reimpara a ogni partita
     NS.resetFatigue(this); // NATPF B18 (D6): energia piena a ogni partita nuova (prima restava quella della partita prima)
+    this.natpfServeRef = null; // NATPF B18 (D12): il servizio abituale si reimpara a ogni partita (NO.serveRefOf)
     (this.score.playerPoints = 0),
       (this.score.opponentPoints = 0),
       (this.score.playerGames = 0),
@@ -1789,11 +1790,15 @@ export class NatpfTennisEngine {
     // NATPF racchetta virtuale: servizio dal gesto (natpf_stroke_outcome.serveOutcome), senza caso
     // … nel riferimento di chi batte: il Player 2 guarda verso +z (la sua destra è −x), quadrato, angolo ed effetto
     // laterale si specchiano come nei colpi dello scambio (_natpfRacketShot)
+    // B18 (D12): tipo e «Gran servizio» rispetto al servizio abituale di chi batte (NO.serveRefOf), che impara dai servizi
     const natpfMir = e === this.opponent ? -1 : 1,
-      natpfServe0 = Number.isFinite(t.natpfServeTau)
-        ? NO.serveOutcome({ intent: NO.eventIntent(t), tau: t.natpfServeTau, boxSign: natpfMir * e.sideSign * (this.score.deuceSide ? -1 : 1) })
+      natpfRef = Number.isFinite(t.natpfServeTau) ? NO.serveRefOf(this, e) : null,
+      natpfIntent = natpfRef ? NO.eventIntent(t) : null,
+      natpfServe0 = natpfRef
+        ? NO.serveOutcome({ intent: natpfIntent, tau: t.natpfServeTau, boxSign: natpfMir * e.sideSign * (this.score.deuceSide ? -1 : 1), ref: natpfRef.value })
         : null,
       natpfServe = natpfServe0 && natpfMir < 0 ? { ...natpfServe0, x: -natpfServe0.x, sidespin: -natpfServe0.sidespin } : natpfServe0;
+    natpfServe0 && natpfRef.learn(natpfIntent, natpfServe0);
     const a = o.MathUtils.clamp(Number(t.speed || 1.18), 0.78, 1.68),
       s = natpfServe ? natpfServe.grade === "POWER SERVE!" : i >= 2.05 && i <= 3.55,
       n = natpfServe ? natpfServe.grade === "EARLY SERVE" : i < 1.72;

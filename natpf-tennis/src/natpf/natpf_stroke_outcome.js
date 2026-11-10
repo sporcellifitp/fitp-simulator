@@ -449,15 +449,52 @@ export const SERVE = Object.freeze({
   boxCenter: 2.05, boxHalf: 1.6, margin: .28,   // m: centro e metà larghezza del quadrato, distanza minima dalle righe
   planeAim: 1.5, faceAim: .8,                   // m di lato per il verso dello swing e per il piatto
   depth: [4.3, 6.0],                            // m dalla rete, da forza 0 a forza 1 (riga del servizio a 6,4)
-  flight: Object.freeze({ flat: [.92, .56], slice: [.98, .64], kick: [1.12, .84] }),   // s di volo da forza 0 a 1
+  // B18 (D12): s di volo da forza 0 a 1, uguale per i tre tipi: un gesto più forte non dà mai una palla più lenta. Prima
+  // il kick volava [1.12, .84] e il tagliato [.98, .64]: con la presa nel palmo il servizio del tutorial a 1,2× diventava
+  // un kick più lento del 20% (la salita cresce con la velocità). Il tipo cambia l'effetto (rimbalzo alto del kick,
+  // curva del tagliato), non la velocità. La curva è quella del tagliato di prima: il servizio di chi imita il tutorial
+  // (prima sempre tagliato) ha la stessa velocità di prima; il piatto forte, raro (presa a martello da 1,5×), vola 0,69 s
+  // invece di 0,62
+  flight: Object.freeze({ flat: [.98, .64], slice: [.98, .64], kick: [.98, .64] }),
   spin: Object.freeze({ flat: 14, slice: 9, kick: 24 }),
+  // B18 (D12, D13 del rapporto B16): il tipo si giudica rispetto al servizio abituale di chi gioca (habit: salita, |piano|
+  // e forza dei propri servizi piatti, imparati dai servizi della partita con createServeRef; prima di impararli quelli del
+  // servizio insegnato nel tutorial, presa nel palmo a 1×). Kick: la testa sale almeno kickRel più del proprio servizio;
+  // tagliato: lo swing è almeno sliceRel più orizzontale. Prima le soglie erano assolute (salita 0,12, |piano| 0,4) e il
+  // servizio insegnato (|piano| 0,50–0,60) era sempre un tagliato. «Gran servizio»: a tempo (q ≥ 0,9) e almeno greatRel
+  // più forte del proprio servizio (prima ritmo ≥ 0,62 per tutti: 25 servizi su 296 nella partita simulata)
+  habit: Object.freeze({ rise: -.08, plane: .55, power: .5 }),
+  kickRel: .3, sliceRel: .25, greatRel: .1, learn: .3,
 });
+// Riferimento del proprio servizio (SERVE.habit): media dei propri servizi piatti, letti dal telefono con la forma (non
+// le intenzioni ricostruite di webcam, mouse e CPU). Un servizio voluto diverso (kick, tagliato) non lo sposta
+export function createServeRef(){
+  let v = { ...SERVE.habit, n: 0 };
+  return {
+    get value(){ return v; },
+    learn(intent, out = null){
+      if (!intent || intent.derived || (out && out.kind !== 'flat')) return;
+      const r = Number(intent.rise), p = Math.abs(Number(intent.plane)), w = Number(intent.power);
+      if (![r, p, w].every(Number.isFinite)) return;
+      const a = SERVE.learn;
+      v = { rise: v.rise + a*(r - v.rise), plane: v.plane + a*(p - v.plane), power: v.power + a*(w - v.power), n: v.n + 1 };
+    },
+    reset(){ v = { ...SERVE.habit, n: 0 }; },
+  };
+}
+// riferimento del servizio di un personaggio nel motore (si azzera a ogni partita nuova: game_engine.startNewMatch)
+export function serveRefOf(engine, actor){
+  const M = engine.natpfServeRef || (engine.natpfServeRef = new Map());
+  let r = M.get(actor); if (!r) M.set(actor, r = createServeRef());
+  return r;
+}
 // boxSign: −1/+1 lato del campo del quadrato (segno della x del suo centro); tau: s prima del punto più alto
-export function serveOutcome({ intent = {}, tau = 0, boxSign = -1 } = {}){
+// ref: servizio abituale di chi batte ({ rise, plane, power }, createServeRef().value); senza, SERVE.habit
+export function serveOutcome({ intent = {}, tau = 0, boxSign = -1, ref = null } = {}){
   const S = SERVE, q = 1 - S.drop*clamp((Math.abs(finite(tau)) - S.perfect)/S.span);
   const power = clamp(finite(intent.power, .6)), pace = power*(.55 + .45*q);
-  const rise = finite(intent.rise), plane = finite(intent.plane);
-  const kind = rise > .12 ? 'kick' : Math.abs(plane) >= .4 ? 'slice' : 'flat';
+  const rise = finite(intent.rise), plane = finite(intent.plane), H = ref || S.habit;
+  const kind = rise - finite(H.rise, S.habit.rise) >= S.kickRel ? 'kick' : Math.abs(plane) - finite(H.plane, S.habit.plane) >= S.sliceRel ? 'slice' : 'flat';
   // angolo: verso orizzontale dello swing (+ da destra a sinistra → palla a sinistra) e piatto; un servizio sporco va più
   // verso il centro del quadrato
   const xc = Math.sign(boxSign || -1)*S.boxCenter, dx = (-plane*S.planeAim + clamp(finite(intent.face), -1, 1)*S.faceAim)*q;
@@ -466,5 +503,5 @@ export function serveOutcome({ intent = {}, tau = 0, boxSign = -1 } = {}){
   const depth = lerp(S.depth[0], S.depth[1], pace);
   const F = S.flight[kind], flight = lerp(F[0], F[1], pace);
   return { x: +x.toFixed(3), depth: +depth.toFixed(3), flight: +flight.toFixed(3), topspin: S.spin[kind], sidespin: kind === 'slice' ? -Math.sign(plane)*6 : 0,
-    kind, q: +q.toFixed(3), pace: +pace.toFixed(3), grade: q >= .9 && pace >= .62 ? 'POWER SERVE!' : q < .7 ? (tau > 0 ? 'EARLY SERVE' : 'LATE SERVE') : 'GOOD SERVE' };
+    kind, q: +q.toFixed(3), pace: +pace.toFixed(3), grade: q >= .9 && power >= finite(H.power, S.habit.power) + S.greatRel ? 'POWER SERVE!' : q < .7 ? (tau > 0 ? 'EARLY SERVE' : 'LATE SERVE') : 'GOOD SERVE' };
 }
