@@ -73,6 +73,23 @@ test('D12: «Gran servizio» sulla propria forza di servizio; il riferimento imp
   r.reset(); assert.deepEqual(r.value, { ...SERVE.habit, n: 0 });
 });
 
+test('D12 (revisione): i primi servizi si imparano di qualunque tipo; «Gran servizio» a freddo e per chi serve al massimo', () => {
+  // chi serve sempre con la testa che sale (letto kick sul riferimento insegnato): prima non veniva mai imparato
+  const r = createServeRef(), mine = { rise: .3, plane: .5, power: .6 };
+  for (let i = 0; i < 6; i++) r.learn(mine, serveOutcome({ intent: mine, ref: r.value }));
+  assert.ok(r.value.n >= SERVE.learnFree && r.value.rise > .15, JSON.stringify(r.value));
+  assert.equal(serveOutcome({ intent: mine, ref: r.value }).kind, 'flat', 'il proprio servizio è il proprio servizio piatto');
+  // dopo i primi, un kick voluto non sposta più il riferimento
+  const before = r.value; r.learn({ rise: .9, plane: .5, power: .9 }, { kind: 'kick' }); assert.deepEqual(r.value, before);
+  // a freddo (riferimento non ancora imparato, n = 0): «Gran servizio» solo da greatCold (presa a racchetta a 1×: forza 0,62)
+  const cold = createServeRef().value;
+  assert.equal(serveOutcome({ intent: { ...taught, power: .62 }, ref: cold }).grade, 'GOOD SERVE');
+  assert.equal(serveOutcome({ intent: { ...taught, power: SERVE.greatCold }, ref: cold }).grade, 'POWER SERVE!');
+  // chi serve sempre al massimo (abituale 0,95): a forza 1 resta «Gran servizio» (soglia al più greatMax)
+  assert.equal(serveOutcome({ intent: { ...taught, power: 1 }, ref: { ...SERVE.habit, power: .95, n: 5 } }).grade, 'POWER SERVE!');
+  assert.equal(serveOutcome({ intent: { ...taught, power: .85 }, ref: { ...SERVE.habit, power: .95, n: 5 } }).grade, 'GOOD SERVE');
+});
+
 // battuta del servizio del tutorial (secondo gesto) letta dal computer con il telefono simulato
 const src = grip => ({ pose: (id, t, hand) => GP.gesturePose(id, t, { hand, grip }), plan: id => GP.gesturePlan(id, { grip }) });
 function serveEvent(S, p, rate){
@@ -94,7 +111,8 @@ function engineServe(e, ev){
 }
 
 test('D12: servizio del tutorial dal telefono simulato, da 0,7× a 1,5×: mai un tagliato a 1×, più forte sempre più veloce (km/h nel motore)', () => {
-  for (const grip of ['palmo', 'martello']){
+  // revisione: anche la presa a racchetta, quella insegnata dal B17 (prima a 1,1× un kick a 144 km/h contro 166 a 1×)
+  for (const grip of ['palmo', 'martello', 'racchetta']){
     const S = src(grip), p = calibratedPhone(S, { hand: 'right', cal: 'pose', seed: 7 });
     const own = [0, 1, 2].map(() => serveEvent(S, p, 1));
     const seq = [];

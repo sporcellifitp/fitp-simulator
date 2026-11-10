@@ -469,15 +469,21 @@ export const SERVE = Object.freeze({
   // più forte del proprio servizio (prima ritmo ≥ 0,62 per tutti: 25 servizi su 296 nella partita simulata)
   habit: Object.freeze({ rise: -.08, plane: .55, power: .5 }),
   kickRel: .3, sliceRel: .25, greatRel: .1, learn: .3, strongPace: .62,
+  // revisione del B18: i primi learnFree servizi della partita si imparano qualunque tipo escano (chi serve sempre con la
+  // testa che sale, o molto di lato, altrimenti non veniva mai imparato e restava giudicato sul servizio insegnato); prima
+  // di averne imparato uno «Gran servizio» vuole almeno greatCold (la presa a racchetta a 1× ha forza 0,62: il primo
+  // servizio di ogni partita era «Gran servizio»); la soglia non supera greatMax (chi serve sempre al massimo lo ottiene)
+  learnFree: 3, greatCold: .75, greatMax: .9,
 });
-// Riferimento del proprio servizio (SERVE.habit): media dei propri servizi piatti, letti dal telefono con la forma (non
-// le intenzioni ricostruite di webcam, mouse e CPU). Un servizio voluto diverso (kick, tagliato) non lo sposta
+// Riferimento del proprio servizio (SERVE.habit): media dei propri servizi, letti dal telefono con la forma (non le
+// intenzioni ricostruite di webcam, mouse e CPU): i primi SERVE.learnFree di qualunque tipo, poi solo quelli piatti
+// rispetto al riferimento. Un servizio voluto diverso (kick, tagliato) dopo i primi non lo sposta
 export function createServeRef(){
   let v = { ...SERVE.habit, n: 0 };
   return {
     get value(){ return v; },
     learn(intent, out = null){
-      if (!intent || intent.derived || (out && out.kind !== 'flat')) return;
+      if (!intent || intent.derived || (out && out.kind !== 'flat' && v.n >= SERVE.learnFree)) return;
       const r = Number(intent.rise), p = Math.abs(Number(intent.plane)), w = Number(intent.power);
       if (![r, p, w].every(Number.isFinite)) return;
       const a = SERVE.learn;
@@ -505,9 +511,11 @@ export function serveOutcome({ intent = {}, tau = 0, boxSign = -1, ref = null } 
   const lo = Math.min(0, xc*2) + S.margin, hi = Math.max(0, xc*2) - S.margin;
   const x = clamp(xc + dx, Math.min(lo, hi), Math.max(lo, hi));
   const depth = lerp(S.depth[0], S.depth[1], pace);
+  // «Gran servizio»: greatRel sopra il proprio servizio; con il riferimento ancora da imparare (n = 0) almeno greatCold
+  const cold = ref && Number(ref.n) === 0, greatAt = Math.min(S.greatMax, Math.max(finite(H.power, S.habit.power) + S.greatRel, cold ? S.greatCold : 0));
   const F = (intent.derived ? S.legacyFlight : S.flight)[kind], flight = lerp(F[0], F[1], pace);
   return { x: +x.toFixed(3), depth: +depth.toFixed(3), flight: +flight.toFixed(3), topspin: S.spin[kind], sidespin: kind === 'slice' ? -Math.sign(plane)*6 : 0,
     // strong: servizio potente per il motore (palla «potente»: risposta della CPU, ball.isPowerShot), con la regola di prima
     // (a tempo e ritmo ≥ 0,62): la scritta «Gran servizio» (grade) è sulla propria forza, l'effetto sulla CPU resta quello
-    kind, q: +q.toFixed(3), pace: +pace.toFixed(3), strong: q >= .9 && pace >= S.strongPace, grade: q >= .9 && power >= finite(H.power, S.habit.power) + S.greatRel ? 'POWER SERVE!' : q < .7 ? (tau > 0 ? 'EARLY SERVE' : 'LATE SERVE') : 'GOOD SERVE' };
+    kind, q: +q.toFixed(3), pace: +pace.toFixed(3), strong: q >= .9 && pace >= S.strongPace, grade: q >= .9 && power >= greatAt ? 'POWER SERVE!' : q < .7 ? (tau > 0 ? 'EARLY SERVE' : 'LATE SERVE') : 'GOOD SERVE' };
 }
