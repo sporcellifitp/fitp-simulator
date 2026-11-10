@@ -40,6 +40,7 @@ export const INTENT = Object.freeze({
   smashRise: -.08,   // schiacciata (solo con la palla alta): la testa scende o almeno non sale…
   smashPlane: .55,   // … oppure swing verticale (|piano| sotto così) con il manico alto
   smashTilt: .4,
+  smashMaxRise: 0,   // B18 (D7): … e la testa che non sale (un gesto che sale non è mai schiacciata)
   smashPower: .3,
   peakLow: 250, peakHigh: 1350,   // °/s: forza assoluta da 0 a 1 (i dritti veri arrivano a 1200–1650 °/s)
   compact: 30, wide: 100,          // gradi: swing corto (profondità ridotta) … ampio (profondità piena)
@@ -106,7 +107,9 @@ export function classifyStroke(shape, { power = .5, angle = null, ballHigh = nul
   const lobAt = known ? Math.max(I.lobRelMin, ref + I.lobRel) : I.lobRise, lobPlane = known ? I.lobRelPlane : I.lobPlane, sliceAt = I.sliceRise + Math.min(0, ref), smashAt = I.smashRise + Math.min(0, ref);
   const m = (v, scale) => +clamp(Math.abs(v)/scale).toFixed(2);
   const said = r.toFixed(2) + (ref ? `, abituale ${ref.toFixed(2)}` : '');
-  if (ballHigh && p >= I.smashPower && (r <= smashAt || (P < I.smashPlane && tilt >= I.smashTilt)))
+  // B18 (D7): il ramo «swing verticale e manico alto» solo se la testa non sale (r ≤ smashMaxRise): un gesto che sale non è
+  // mai una schiacciata. Prima con la palla alta metà dei pallonetti del tutorial diventavano schiacciate
+  if (ballHigh && p >= I.smashPower && (r <= smashAt || (P < I.smashPlane && tilt >= I.smashTilt && r <= I.smashMaxRise)))
     return { shot: 'smash', conf: Math.max(m(smashAt - r, .3), m(I.smashPlane - P, .3)), why: ['palla alta', r <= smashAt ? `dall'alto (${said})` : `swing verticale, manico alto (${tilt.toFixed(2)})`] };
   const softLobAt = Math.max(I.lobRise, ref + I.lobSoftOver);
   if (r >= lobAt && P <= lobPlane)

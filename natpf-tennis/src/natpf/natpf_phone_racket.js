@@ -312,11 +312,18 @@ export function phoneGamePhase(engine, role = engine.playerRole){
 // Palla alta all'impatto (zona della schiacciata, natpf_stroke_outcome.SMASH_FROM): dal piano d'intercetto in corso,
 // che sa dove si colpirà (29/10 pomeriggio: con la sola posizione di adesso un gesto arrivato con la palla ancora
 // lontana non era «palla alta»); senza piano, dalla palla vicina come prima
+// B18 (D7, decisione dell'utente del 31/10: in risposta schiacciata solo se voluta): in risposta al servizio
+// (rallyStrokeCount ≤ 1) la palla è «alta» solo molto sopra la testa (SMASH_FROM.always, 2,3 m). La risposta si prende
+// fino a 1,72 m (natpf_impact.PLAN.returnTop), sopra SMASH_FROM.gesture: prima ogni risposta al servizio vero della CPU era
+// «palla alta» (60 su 60) e tagliati e pallonetti del tutorial diventavano schiacciate a circa 180 km/h
+export const isServeReturn = b => Number(b?.rallyStrokeCount || 0) <= 1;
 export function ballIsHigh(engine, role = engine.playerRole){
   const b = engine.ball; if (!b || !b.inPlay) return false;
-  const me = actorOf(engine, role), plan = me ? livePlan(engine, me) : null;
-  if (plan && plan.kind !== 'letgo' && Number.isFinite(plan.contact?.y)) return plan.kind === 'smash' || plan.contact.y >= SMASH_FROM.gesture;
+  const me = actorOf(engine, role), plan = me ? livePlan(engine, me) : null, ret = isServeReturn(b);
+  if (plan && plan.kind !== 'letgo' && Number.isFinite(plan.contact?.y))
+    return ret ? plan.contact.y >= SMASH_FROM.always : plan.kind === 'smash' || plan.contact.y >= SMASH_FROM.gesture;
   if (me?.pos && Number.isFinite(b.pos?.z) && Math.abs(b.pos.z - me.pos.z) > 6) return false;
+  if (ret) return b.pos.y >= SMASH_FROM.always;
   return b.pos.y > 1.7 || (b.pos.y > 1.2 && b.targetLanding && Math.abs(b.vel.y) < 2 && b.pos.y > 1.5);
 }
 export function ballMovingAway(engine, role = engine.playerRole){
