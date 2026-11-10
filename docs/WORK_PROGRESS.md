@@ -1260,6 +1260,29 @@ guida provato nel browser.
   anche sulla base `4515259`). Installer pubblicato su R2 (124.602.691 B, sha256
   `9cd1bf14f5d78eec55c8487e4bcb906168e6fb570fcc7ca8724720a9a3295a15`, verificato dal link fisso); zip Cloudflare
   22.581.836 B, sha256 `460f25cd4a2e4394bbf69b9021428ce717c911e4c5c398e1bf70a629eacc1cf0`, provato estratto.
-- **Aperto**: B17.1 (gesti dal video) in attesa dell'ok dell'utente sul piano; giudizio dell'utente su grandezza del
-  tabellone e sigle; soglia bassa del telefono a rete su un telefono vero.
+- **Aperto** (dopo la 09.1): giudizio dell'utente su grandezza del tabellone e sigle; soglia bassa del telefono a rete su
+  un telefono vero.
+
+### B17.1 · Gesti del tutorial dal video (09–10/11) · [x] versione 2026-11-10.1
+- Piano approvato dall'utente («procedi con il piano dei gesti dal video»); decisioni: «Ottimizza senza di me», partenza e
+  presa «come la mia impugnatura del video», rovescio a una mano, dritto con il display frontale (schermo sulla palla) e
+  rovescio «stesso movimento con l'altro lato» (dorso sulla palla). Palla corta e schiacciata partono dal telefono davanti
+  al petto; terza indicazione della scheda Presa «Pollice in alto lungo il bordo, schermo verso l'interno».
+- Rami in worktree con revisori (passi A dati, B posa/presa/ottimizzazione, C disegno): unione `6a35cc0`.
+  Strumenti: `natpf-tennis/scripts/video/{estrai-posa,ricostruisci,fogli,ottimizza}.mjs`. File: `natpf_gesture_pose.js`
+  (CHOREO, IMPACT_FACE, REST_VIDEO), `natpf_gesture_demo.js` (camera frontale a tre quarti, primo piano `IMPACT_CLOSE`),
+  `natpf_gesture_motion.js`, `site/js/tennis/grip-art.js`; test `natpf-gesture-pose/anim/physics`, `natpf-gesture-semi-a/b/c`
+  (semi 1-60: 7 560 letture giuste fuori dai limiti dichiarati). Riconoscimento non toccato.
+- Misure: schermo/dorso all'impatto ≤ 20° (servizio 14,5°, schiacciata 9,3°); primo piano a 20° dalla normale: il centro
+  della palla cade dentro il telefono. Documenti in `docs/b17/` (`gesti-dal-video.md`, `ottimizzazione.md`, `posa-dal-video.md`,
+  `STATO-*.md`, fogli `img/`). Il patch da 54 MB è stato tolto dall'albero (resta nella storia): `docs/b17/wip/`.
+- Versione 2026-11-10.1 (`b55453b`): gioco 991/991, sito 200/200, programma Windows 28/28, build ok, 12 prove nel browser.
+  Installer su R2 (124.627.238 B, sha256 `f6ceb80be0448b23a50b3331e67ac80c98b7783d4a673b17ca703f7052161b30`, link fisso
+  verificato), zip Cloudflare 22.615.793 B `3b81e05fe676059ba3935d253dbea0b2d90680b55adca69ba4a58a921eeae337` provato estratto.
+- **Incidente CI**: la corsa 42751274284 è fallita nel passo «upload-artifact» («Artifact storage quota has been hit»,
+  un installer da 124 MB per versione con 30 giorni) e ha saltato la pubblicazione su R2. Rimedio `d27f8e6`: il passo non
+  blocca più, conserva 2 giorni; la nuova corsa ha pubblicato la 2026-11-10.1 (stessa versione, nessun contenuto del gioco
+  cambiato). Se la quota resta piena la copia su GitHub manca ma l'installer su R2 c'è.
+- **Non verificato**: telefoni veri, persone vere che imitano i gesti, Windows, ledwall; la soglia bassa a rete; limiti del
+  tutorial: pallonetto e palla corta col dorso, fine del servizio a petto, telecamera solo sul braccio a 448×280/200×200.
 

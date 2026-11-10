@@ -17,7 +17,7 @@ Come si aggiorna:
 
 ## 1. Checkpoint (riscritto a ogni passo)
 
-- Aggiornato: 08/11/2026 sera · agente: Claude · branch `natpf-simulator` (B16 pubblicato: `84838f6`, versione 2026-11-08.5).
+- Aggiornato: 10/11/2026 · agente: Claude · branch `natpf-simulator` (**versione 2026-11-10.1**, B17.1 gesti dal video: codice `b55453b`, CI `d27f8e6`; B16 `84838f6`, versione 2026-11-08.5).
 - **Per riprendere leggere `docs/PASSAGGIO_CONSEGNE.md`** (lavoro dal 05/11, punti aperti §3, controlli §4) e, per i
   gesti del tutorial, `docs/b13/gesti-nuovi.md`. Checkpoint precedente (storia dal 04/11):
   `docs/archivio/PIANO_checkpoint_fino_al_2026-11-07.md`.
@@ -164,9 +164,22 @@ Come si aggiorna:
   bordo, schermo verso l'interno»). Nuove richieste: **rovescio a una mano** (non a due); **dritto: la palla si colpisce con
   il display frontale** (all'impatto lo schermo guarda la palla/la rete); **rovescio: stesso movimento ma con l'altro lato**
   (all'impatto il dorso del telefono guarda la palla). In lavorazione nel worktree `wf_bb380d57-57a-1`.
-- **Prossima azione esatta:** collaudo dell'utente (tabellone: grandezza e sigle; X del tutorial; colpi a rete con il
-  telefono vero, anche la soglia bassa a rete); **B17.1** gesti del tutorial dal video (`docs/b17/analisi-e-piano.md`
-  §1.4) appena l'utente approva il piano; le decisioni del B16 (`docs/PASSAGGIO_CONSEGNE.md` §3.14) restano da prendere.
+- **B17.1 fatto, versione 2026-11-10.1** (unione `6a35cc0`, versione `b55453b`): dati del video misurati con MediaPipe
+  (`docs/b17/gesti-video.json`), presa e partenza «come la mia impugnatura del video», coreografie ottimizzate con il
+  rilevatore vero nel costo (`natpf-tennis/scripts/video/ottimizza.mjs`), **rovescio a una mano** a specchio, **schermo
+  del telefono verso la palla nel dritto e dorso nel rovescio** (angolo ≤ 20° all'impatto, `IMPACT_FACE`), disegno frontale
+  a specchio con **primo piano** dell'impatto, fogli `docs/b17/img/{V,O,VC}-*`. Riconoscimento non toccato. Limiti dichiarati
+  (`docs/b17/ottimizzazione.md`, `gesti-dal-video.md` §8): pallonetto e palla corta colpiscono col dorso (da decidere con
+  l'utente), fine del servizio a petto, a 448×280/200×200 la telecamera segue solo il braccio, letture con la calibrazione
+  del braccio simulato per piatto/incrociato/lungolinea (`test/gesture-semi.mjs` DECLARED). Prove: gioco 991/991, sito 200/200,
+  programma Windows 28/28, build ok, 12 prove nel browser verdi. **Installer pubblicato su R2** (124.627.238 B, sha256
+  `f6ceb80b…2161b30`, verificato dal link fisso) e zip Cloudflare (22.615.793 B, `3b81e05f…eae337`, provato estratto).
+  La prima pubblicazione era fallita per la **quota degli artifact di GitHub piena** (124 MB a versione, 30 giorni): il
+  workflow ora tiene la copia di riserva con `continue-on-error` e 2 giorni (`d27f8e6`).
+- **Prossima azione esatta:** collaudo dell'utente (gesti del tutorial dal video: presa, dritto/rovescio, servizio,
+  tagliati; tabellone; X; colpi a rete con il telefono vero, anche la soglia bassa); decidere con l'utente pallonetto e
+  palla corta (dorso o schermo) e le letture con la calibrazione del braccio; le decisioni del B16
+  (`docs/PASSAGGIO_CONSEGNE.md` §3.14) restano da prendere.
 
 ## 2. Regole di lavoro decise dall'utente (04/11/2026, valgono per tutti gli agenti)
 
