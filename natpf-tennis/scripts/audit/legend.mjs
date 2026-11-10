@@ -5,6 +5,10 @@
 // Uso (comando «audit:legend» del progetto, dalla cartella natpf-tennis):
 //   audit:legend                                       criteri: Leggenda contro 6 profili, casual e pro contro «medio»
 //   audit:legend -- --points=150 --profiles=medio,tennista --seeds=3   (default: 300 punti, 8 semi)
+//   audit:legend -- --profiles=preciso --seeds=40      per DECIDERE sulla Leggenda: fino a 40 semi (gli 8 di base + MORE_SEEDS).
+//        Con 8 semi il criterio «preciso» (CPU ≥ 60% dei game) è rumoroso: 72,0% con gli 8 semi di base, 66,4% con 40 semi,
+//        58,7% con altri 12 (revisione del B18.2). Ogni riga riporta i punti di chi gioca con l'errore (± un errore
+//        standard) e la deviazione tra un seme e l'altro
 //   audit:legend -- --table                            tabella casual / pro / leggenda per tutti i profili (senza criteri)
 //   audit:legend -- --ablation                         da dove viene la forza (senza «lascia passare», scelta a caso, modifiche del B16, …)
 //   audit:legend -- --json
@@ -83,6 +87,8 @@ export function games(points){
   return { gw, gl };
 }
 export const SEEDS = [7, 11, 23, 31, 47, 59, 71, 83];
+// semi in più, solo su richiesta (--seeds=24 o 40): i criteri di base restano sugli 8 semi di SEEDS
+export const MORE_SEEDS = [97, 101, 113, 127, 131, 149, 157, 163, 173, 181, 193, 199, 211, 223, 229, 239, 251, 263, 271, 283, 307, 311, 331, 347, 359, 373, 389, 397, 409, 419, 431, 443];
 export function run({ profile = 'medio', difficulty = 'leggenda', points = 300, seeds = SEEDS } = {}){
   const sims = [], cpu = [], player = [], pts = [];
   let g = { gw: 0, gl: 0 }, letGo = 0, lunges = 0; const learned = [];
@@ -113,8 +119,12 @@ export function metrics(r){
   const share = Object.fromEntries(Object.entries(kinds).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, f(100*v/nk)]));
   const reacts = player.map(x => x.react).filter(Number.isFinite), ends = {};
   for (const p of r.points){ const k = `${p.who === 'player' ? 'G' : 'CPU'}:${p.why}`; ends[k] = (ends[k] || 0) + 1; }
+  // punti di chi gioca seme per seme: deviazione tra i semi ed errore standard della media (quanto si può credere a
+  // una differenza tra due giri)
+  const perSeed = sims.map(x => 100*x.won/Math.max(1, x.points)), mean = perSeed.reduce((s, v) => s + v, 0)/perSeed.length;
+  const sd = perSeed.length > 1 ? Math.sqrt(perSeed.reduce((s, v) => s + (v - mean)**2, 0)/(perSeed.length - 1)) : null;
   return {
-    puntiG: f(100*won/nPts), gameCPU: f(100*r.games.gl/Math.max(1, r.games.gw + r.games.gl)), gameG: f(100*r.games.gw/Math.max(1, r.games.gw + r.games.gl)), game: r.games.gw + r.games.gl,
+    puntiG: f(100*won/nPts), puntiGSd: sd == null ? null : f(sd, 2), puntiGErr: sd == null ? null : f(sd/Math.sqrt(perSeed.length), 2), semi: perSeed.length, gameCPU: f(100*r.games.gl/Math.max(1, r.games.gw + r.games.gl)), gameG: f(100*r.games.gw/Math.max(1, r.games.gw + r.games.gl)), game: r.games.gw + r.games.gl,
     colpiPerPunto: f(rallies.reduce((s, v) => s + v, 0)/rallies.length, 2), rallyP90: q(rallies, .9), infiniti: capped, infinitiPct: f(100*capped/nPts, 2),
     colpiCPU: cpu.length, erroriCPU: f(100*cpuErr/cpu.length), vincentiCPU: f(100*cpuWin/cpu.length), vincentiSuErrori: f(cpuWin/Math.max(1, cpuErr), 2),
     incrociato: f(100*cross/Math.max(1, side.length)), lungolinea: f(100*line/Math.max(1, side.length)),
@@ -161,7 +171,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href){
   const arg = k => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1];
   const has = k => process.argv.includes(`--${k}`);
   const points = +(arg('points') || 300), profiles = arg('profiles') ? arg('profiles').split(',') : PROFILES6, json = has('json');
-  const seeds = SEEDS.slice(0, Math.max(1, Math.min(SEEDS.length, +(arg('seeds') || SEEDS.length))));
+  const seeds = [...SEEDS, ...MORE_SEEDS].slice(0, Math.max(1, Math.min(SEEDS.length + MORE_SEEDS.length, +(arg('seeds') || SEEDS.length))));
   const out = [];
   if (has('ablation')){
     const cases = [
@@ -207,7 +217,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href){
     for (const profile of profiles){
       const m = metrics(run({ profile, difficulty: 'leggenda', points, seeds }));
       out.push({ difficulty: 'leggenda', profile, ...m, checks: legendChecks(profile, m) });
-      report(`Leggenda contro «${profile}» (${m.game} game, ${m.colpiPerPunto} colpi per punto, schemi ${JSON.stringify(m.schemi)}, distanza all'impatto p50/p95/max ${m.distanzaImpatto.join('/')} m, affondi ${m.affondi}, palle lasciate passare ${m.lasciatePassare})`, legendChecks(profile, m));
+      report(`Leggenda contro «${profile}» (${m.game} game, punti di chi gioca ${m.puntiG}% ± ${m.puntiGErr ?? '–'} con ${m.semi} semi (deviazione tra i semi ${m.puntiGSd ?? '–'}), ${m.colpiPerPunto} colpi per punto, schemi ${JSON.stringify(m.schemi)}, distanza all'impatto p50/p95/max ${m.distanzaImpatto.join('/')} m, affondi ${m.affondi}, palle lasciate passare ${m.lasciatePassare})`, legendChecks(profile, m));
     }
     if (!arg('profiles')) for (const difficulty of ['pro', 'casual']){
       const m = metrics(run({ profile: 'medio', difficulty, points, seeds }));

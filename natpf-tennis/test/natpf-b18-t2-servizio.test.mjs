@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import * as NS from '../src/natpf/natpf_skill.js';
 import * as NL from '../src/natpf/natpf_legend.js';
 import { createHeadlessEngine, mulberry32 } from '../scripts/audit/headless-engine.mjs';
-import { bench, natural, serveOf } from '../scripts/audit/servizio.mjs';
+import { bench, natural, serveOf, gamesOf, trialValues, phoneServeOf, PHONE_SERVES } from '../scripts/audit/servizio.mjs';
 
 const DT = 1/120;
 const ACTORS = e => [e.player, e.playerPartner, e.opponent, e.opponentPartner];
@@ -205,6 +205,27 @@ test('D11: solo contro la CPU. Sfida tra due persone, servizio della CPU e palle
     for (let i = 0; i < 400 && v.ball.vel.y > 0; i++) v.step(DT);
     v._executeServeHit(v.opponent, { ...serveEvt({ power: .9 }), natpfServeTau: 0 });
     assert.equal(v.ball.lastHitter, 'opponent'); assert.equal(v.natpfSkill.serve, null); assert.equal(v.natpfSkill.cpuPlan, null);
+    // stanza con due persone e un livello della CPU nel motore (casual, pro, leggenda: isMultiplayer dall'indirizzo della
+    // stanza, il livello resta quello scelto prima): SERVE_WEIGHT ha la riga del livello, il servizio non deve avere peso
+    // solo per la guardia !isMultiplayer di _executeServeHit (revisione del B18.2: senza questa prova la guardia si poteva
+    // togliere e le prove passavano, perché il livello «1v1» non ha una riga in SERVE_WEIGHT)
+    for (const difficulty of ['casual', 'pro', 'leggenda']){
+      const r = match(difficulty);
+      for (let i = 0; i < 400 && !(r.phase === 'SERVE_STANCE' && r.phaseTimer > .3); i++) r.step(DT);
+      r.isMultiplayer = true; r.score.server = 'player'; r._setupPointServe({ showBanner: false });
+      assert.equal(r.isMultiplayer, true); assert.ok(NS.SERVE_WEIGHT[difficulty], `${difficulty}: il livello ha un peso del servizio`);
+      playerServe(r, serveEvt({ power: .9, ...wide(r) }));
+      assert.equal(r.ball.lastHitter, 'player');
+      assert.equal(r.natpfSkill.serve, null, `${difficulty} in stanza: nessun peso del servizio`);
+      assert.equal(r.natpfSkill.cpuPlan, null, `${difficulty} in stanza: nessuna lettura in ritardo`);
+      assert.equal(r.natpfSkill.pressure, 0); assert.equal(NS.serveInPlay(r), null);
+      // controllo: lo stesso servizio contro la CPU ha peso (la prova sopra non passa per caso)
+      const c = match(difficulty);
+      for (let i = 0; i < 400 && !(c.phase === 'SERVE_STANCE' && c.phaseTimer > .3); i++) c.step(DT);
+      c.score.server = 'player'; c._setupPointServe({ showBanner: false });
+      playerServe(c, serveEvt({ power: .9, ...wide(c) }));
+      assert.ok(c.natpfSkill.serve && c.natpfSkill.serve.threat > .8, `${difficulty} contro la CPU: ${JSON.stringify(c.natpfSkill.serve)}`);
+    }
     // servizio della CPU (formato in fiera, o game battuti dalla CPU)
     for (const difficulty of ['casual', 'pro', 'leggenda']){
       const e = match(difficulty);
@@ -267,4 +288,42 @@ test('D11: banco sul motore vero. Punto diretto sul servizio perfetto, forte e s
   // il gesto del banco è quello che dichiara: sulla riga, nei due quadrati
   const e = match('pro');
   for (const deuce of [true, false]){ e.score.deuceSide = deuce; const s = serveOf('perfettoEsterno', e, mulberry32(1)).swing.natpf.intent; assert.equal(Math.sign(s.face), deuce ? -1 : 1); }
+});
+
+test('D11 (revisione): il banco misura le partite normali con il servizio del telefono (modelli, game, valori di prova)', () => {
+  // game dalla sequenza dei punti: primo a 4 con 2 di scarto; quelli in cui batteva chi gioca
+  const P = (seq, server = 'player') => [...seq].map(c => ({ won: c === 'V', server }));
+  assert.deepEqual(gamesOf(P('VVVV')), { game: 1, vinti: 1, alServizio: 1, vintiAlServizio: 1 });
+  assert.deepEqual(gamesOf(P('VVVPPPPP', 'opponent')), { game: 1, vinti: 0, alServizio: 0, vintiAlServizio: 0 });   // 3-3, poi 3-5
+  assert.deepEqual(gamesOf([...P('VVVPV'), ...P('PPPP', 'opponent'), ...P('PVPPP'), ...P('VV')]), { game: 3, vinti: 1, alServizio: 2, vintiAlServizio: 1 });
+  // valori di prova (--prova=…): più voci, più «=»; una voce non letta è un errore (prima il secondo «=» si perdeva e
+  // la prova misurava il gioco di sempre senza dirlo)
+  assert.deepEqual(trialValues('casual.base=.17,casual.lateBase=1,pro.read=.1'), { casual: { base: .17, lateBase: 1 }, pro: { read: .1 } });
+  assert.deepEqual(trialValues(''), {});
+  for (const bad of ['casual.lateBase', 'casual.base=x', 'base=.2', 'casual.base=']) assert.throws(() => trialValues(bad), /--prova/, bad);
+  // modelli del servizio dal telefono: gesto con la forma (servizio insegnato: salita −0,08, piano 0,5), forza e tempo
+  // del modello; «forteLinee» cerca la riga 7 volte su 10
+  const e = match('casual'), rng = mulberry32(5), mean = a => a.reduce((x, y) => x + y, 0)/a.length;
+  for (const [name, M] of Object.entries(PHONE_SERVES)){
+    const S = Array.from({ length: 400 }, () => phoneServeOf(name, e, rng));
+    for (const x of S){ const i = x.swing.natpf.intent; assert.equal(x.swing.side, 'overhead'); assert.equal(i.rise, -.08); assert.ok(i.power >= .1 && i.power <= 1 && Math.abs(i.face) <= 1); }
+    assert.ok(Math.abs(mean(S.map(x => x.swing.natpf.intent.power)) - M.p) < .03, `${name}: forza media`);
+    assert.ok(Math.abs(mean(S.map(x => x.tau)) - M.tau) < .04, `${name}: tempo medio`);
+    const onLine = S.filter(x => Math.abs(x.swing.natpf.intent.plane) === .55).length/S.length;
+    assert.ok(Math.abs(onLine - M.tight) < .08, `${name}: ${onLine} dei servizi cercati sulla riga`);
+  }
+  // partite normali con il servizio del telefono: il servizio insegnato parte a 157 km/h a tempo (non il kick lento dei
+  // profili, 133 km/h), quello in ritardo ha un tempo peggiore; nessun ace e CPU mai in corsa; i conti dei punti tornano
+  const taught = natural({ difficulty: 'casual', profile: 'bambino', points: 150, seeds: [7, 11], serveModel: 'insegnato' });
+  const late = natural({ difficulty: 'casual', profile: 'bambino', points: 150, seeds: [7, 11], serveModel: 'tardi' });
+  const kick = natural({ difficulty: 'casual', profile: 'bambino', points: 150, seeds: [7, 11] });
+  assert.ok(taught.kmh >= 153 && taught.kmh <= 161 && taught.q >= .97, JSON.stringify({ kmh: taught.kmh, q: taught.q }));
+  assert.ok(late.q < .9 && late.q > .6 && late.kmh < taught.kmh, JSON.stringify({ kmh: late.kmh, q: late.q }));
+  assert.ok(kick.kmh < 150, `il servizio dei profili è un kick lento: ${kick.kmh} km/h`);
+  for (const r of [taught, late, kick]){
+    assert.equal(r.inCorsa, 0); assert.equal(r.ace, 0, `${r.serveModel}: nessun ace con un servizio normale`);
+    assert.ok(r.game >= 30 && r.n >= 100 && r.puntiAlServizio > 0 && r.puntiInRisposta > 0 && r.gameVinti >= 0 && r.gameVinti <= 100, JSON.stringify({ ...r, rows: undefined }));
+    assert.ok(r.rows.every(x => Number.isFinite(x.threat) && Number.isFinite(x.late)), 'ogni servizio porta il suo peso');
+  }
+  assert.equal(taught.serveModel, 'insegnato'); assert.equal(kick.serveModel, null);
 });
