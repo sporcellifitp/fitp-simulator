@@ -1853,8 +1853,10 @@ export class NatpfTennisEngine {
       (this.ball.lastHitter = e.role === "player" ? "player" : "opponent"),
       (this.ball.bounceCountOnCurrentSide = 0),
       (this.ball.rallyStrokeCount = 1),
-      (this.ball.isPowerShot = s),
-      (this.ball.shotType = s ? "POWER" : "TOPSPIN"),
+      // NATPF B18 (D12): «Gran servizio» (s) è sulla forza di servizio di chi batte; la palla potente per la CPU resta con la
+      // regola di prima (natpfServe.strong), così la risposta della CPU non cambia
+      (this.ball.isPowerShot = natpfServe ? natpfServe.strong : s),
+      (this.ball.shotType = (natpfServe ? natpfServe.strong : s) ? "POWER" : "TOPSPIN"),
       this.ballTrail.clear(),
       this.ballTrail.setStyle(this.ball.shotType, s),
       this.ballTrail.pushPoint(this.ball.pos),

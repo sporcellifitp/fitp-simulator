@@ -54,6 +54,15 @@ test('D12: «Gran servizio» sulla propria forza di servizio; il riferimento imp
   assert.equal(great(.86, { ...SERVE.habit, power: .75 }), true);
   // fuori tempo mai
   assert.equal(serveOutcome({ intent: { ...taught, power: 1 }, tau: .5 }).grade === 'POWER SERVE!', false);
+  // la palla «potente» per la CPU (ball.isPowerShot) resta con la regola di prima: a tempo e ritmo ≥ 0,62
+  assert.equal(serveOutcome({ intent: { ...taught, power: .42 }, ref: { ...SERVE.habit, power: .3 } }).strong, false);
+  assert.equal(serveOutcome({ intent: { ...taught, power: .7 } }).strong, true);
+  assert.equal(serveOutcome({ intent: { ...taught, power: .6 } }).strong, false, 'ritmo 0,6 sotto 0,62');
+  assert.equal(serveOutcome({ intent: { ...taught, power: .6 } }).grade, 'POWER SERVE!', '«Gran servizio» sì: 0,1 sopra il servizio insegnato');
+  // servizi senza la forma del telefono (webcam, mouse): il volo per tipo di prima (il kick resta più lento)
+  const d = serveOutcome({ intent: { shot: 'topspin', rise: .3, power: .5, derived: true } });
+  assert.equal(d.kind, 'kick');
+  assert.equal(d.flight, +(SERVE.legacyFlight.kick[0] + (SERVE.legacyFlight.kick[1] - SERVE.legacyFlight.kick[0])*.5).toFixed(3));
   const r = createServeRef();
   for (let i = 0; i < 8; i++) r.learn({ rise: -.38, plane: .55, power: .3 }, { kind: 'flat' });
   assert.ok(Math.abs(r.value.rise + .38) < .03 && Math.abs(r.value.power - .3) < .02, JSON.stringify(r.value));

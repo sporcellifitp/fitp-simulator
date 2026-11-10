@@ -456,6 +456,10 @@ export const SERVE = Object.freeze({
   // (prima sempre tagliato) ha la stessa velocità di prima; il piatto forte, raro (presa a martello da 1,5×), vola 0,69 s
   // invece di 0,62
   flight: Object.freeze({ flat: [.98, .64], slice: [.98, .64], kick: [.98, .64] }),
+  // servizi senza la forma del telefono (intenzione ricostruita: webcam, mouse, prove; eventIntent derived): il tipo viene
+  // dal colpo scelto (top spin → kick) e non cambia con la forza, quindi il volo resta quello di prima per tipo. Con la
+  // curva unica il «kick» di questi servizi diventava più veloce del 15–25% e Pro più facile nel banco (audit:legend)
+  legacyFlight: Object.freeze({ flat: [.92, .56], slice: [.98, .64], kick: [1.12, .84] }),
   spin: Object.freeze({ flat: 14, slice: 9, kick: 24 }),
   // B18 (D12, D13 del rapporto B16): il tipo si giudica rispetto al servizio abituale di chi gioca (habit: salita, |piano|
   // e forza dei propri servizi piatti, imparati dai servizi della partita con createServeRef; prima di impararli quelli del
@@ -464,7 +468,7 @@ export const SERVE = Object.freeze({
   // servizio insegnato (|piano| 0,50–0,60) era sempre un tagliato. «Gran servizio»: a tempo (q ≥ 0,9) e almeno greatRel
   // più forte del proprio servizio (prima ritmo ≥ 0,62 per tutti: 25 servizi su 296 nella partita simulata)
   habit: Object.freeze({ rise: -.08, plane: .55, power: .5 }),
-  kickRel: .3, sliceRel: .25, greatRel: .1, learn: .3,
+  kickRel: .3, sliceRel: .25, greatRel: .1, learn: .3, strongPace: .62,
 });
 // Riferimento del proprio servizio (SERVE.habit): media dei propri servizi piatti, letti dal telefono con la forma (non
 // le intenzioni ricostruite di webcam, mouse e CPU). Un servizio voluto diverso (kick, tagliato) non lo sposta
@@ -501,7 +505,9 @@ export function serveOutcome({ intent = {}, tau = 0, boxSign = -1, ref = null } 
   const lo = Math.min(0, xc*2) + S.margin, hi = Math.max(0, xc*2) - S.margin;
   const x = clamp(xc + dx, Math.min(lo, hi), Math.max(lo, hi));
   const depth = lerp(S.depth[0], S.depth[1], pace);
-  const F = S.flight[kind], flight = lerp(F[0], F[1], pace);
+  const F = (intent.derived ? S.legacyFlight : S.flight)[kind], flight = lerp(F[0], F[1], pace);
   return { x: +x.toFixed(3), depth: +depth.toFixed(3), flight: +flight.toFixed(3), topspin: S.spin[kind], sidespin: kind === 'slice' ? -Math.sign(plane)*6 : 0,
-    kind, q: +q.toFixed(3), pace: +pace.toFixed(3), grade: q >= .9 && power >= finite(H.power, S.habit.power) + S.greatRel ? 'POWER SERVE!' : q < .7 ? (tau > 0 ? 'EARLY SERVE' : 'LATE SERVE') : 'GOOD SERVE' };
+    // strong: servizio potente per il motore (palla «potente»: risposta della CPU, ball.isPowerShot), con la regola di prima
+    // (a tempo e ritmo ≥ 0,62): la scritta «Gran servizio» (grade) è sulla propria forza, l'effetto sulla CPU resta quello
+    kind, q: +q.toFixed(3), pace: +pace.toFixed(3), strong: q >= .9 && pace >= S.strongPace, grade: q >= .9 && power >= finite(H.power, S.habit.power) + S.greatRel ? 'POWER SERVE!' : q < .7 ? (tau > 0 ? 'EARLY SERVE' : 'LATE SERVE') : 'GOOD SERVE' };
 }

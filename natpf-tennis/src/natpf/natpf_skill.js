@@ -43,7 +43,10 @@ export const SKILL_LEVELS = Object.freeze({
     cpuAccel: 11, cpuDecel: 17,                         // 23/10: con l'inerzia la punta sale da 5,0 (corse lunghe)
     // 23/10: meno errori a caso (erano base .015, velocità .12, angolo .2): con la corsa che costa, i punti li decidono di più
     // il campo aperto e l'allungo (stretch), non il caso; Pro contro «medio» resta nel 70–85% dei game
-    cpuErr: Object.freeze({ base: .004, angle: .08, speed: .04, pressure: .035, stretch: .18, rally: .012, drop: .22, lob: .2, smash: .35, max: .5 }),
+    // B18 (D9): rally .012 → .009. La risposta difensiva che ora scatta anche a Pro (CPU_DEFENSE) dà a chi gioca circa un
+    // punto su cento in più contro «medio» (24 semi × 300 punti: 66,2 → 67,4%); un po' meno errori «a dado» negli scambi
+    // lunghi lo riporta dov'era (66,1%), nella direzione del difetto 1 del rapporto B16 (la CPU sbaglia quando è in difficoltà)
+    cpuErr: Object.freeze({ base: .004, angle: .08, speed: .04, pressure: .035, stretch: .18, rally: .009, drop: .22, lob: .2, smash: .35, max: .5 }),
     cpuWeak: .1, cpuAttack: .7, cpuAttackBase: .24, cpuAttackFlight: .62,
     cpuServe: Object.freeze({ flight: .85, wide: .8 }),
   }),
@@ -346,9 +349,9 @@ export const cpuReach = (engine, base) => { const lv = skillLevel(engine.matchCo
 // ma non troppo»). Solo i personaggi mossi da chi gioca (P1, e il P2 del 1v1 e dello stesso schermo), non la CPU (le sue
 // prove di bilanciamento restano quelle). Ogni metro di corsa laterale (lungo x) durante il punto aggiunge perMeter
 // alla stanchezza (0…1), il cambio di verso di corsa ne aggiunge turn; ferma (sotto restSpeed) si recupera restRecover
-// al secondo, tra un punto e l'altro pointRecover al secondo. Effetto: velocità massima fino a −maxSlow (10%): uno
-// scambio lungo da una riga all'altra (una decina di colpi, 35–40 m di corsa laterale) toglie il 5–6%, qualche scambio
-// così di fila arriva al 10%, e torna giù nelle pause.
+// al secondo, tra un punto e l'altro pointRecover al secondo (B18, D6: fatigueRest; prima non scattava mai). Effetto:
+// velocità massima fino a −maxSlow (10%): uno scambio lungo da una riga all'altra (una decina di colpi, 35–40 m di corsa
+// laterale) toglie il 5–6%, qualche scambio così di fila arriva al 10%, e torna giù nelle pause.
 export const FATIGUE = Object.freeze({ perMeter: .012, turn: .015, turnSpeed: 2, restSpeed: 1.2, restRecover: .03, pointRecover: .12, maxSlow: .1 });
 const fatigueOf = (engine, actor) => {
   const F = engine.natpfFatigue || (engine.natpfFatigue = new Map());
