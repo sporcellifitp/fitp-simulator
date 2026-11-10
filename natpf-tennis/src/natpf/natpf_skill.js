@@ -317,8 +317,8 @@ export function registerPlayerShot(engine, { grade, quality, power, landingX, la
 //     perfetto, forte e sulla riga; sharp = tempo × velocità × strettezza: il servizio forte E angolato, che la CPU legge
 //     in ritardo.
 // Effetti, per livello (SERVE_WEIGHT[livello]; Leggenda: natpf_legend.LEGEND.serveQ):
-//   • errore in risposta (Casual e Pro, cpuServeErrorChance): base × (lateBase … 1 con il tempo del colpo) + threat ×
-//     minaccia + l'allungo vero all'impatto (× stretch: sul servizio pesa la metà che negli scambi, il resto lo fa la
+//   • errore in risposta (Casual e Pro, cpuServeErrorChance): base × (lateBase … 1 con il tempo del colpo; a Casual
+//     lateBase 1: il servizio fuori tempo non perde la base) + threat × minaccia + l'allungo vero all'impatto (× stretch: sul servizio pesa la metà che negli scambi, il resto lo fa la
 //     lettura in ritardo); a Leggenda la qualità del colpo di risposta scende di serveQ × minaccia (stesse regole del
 //     giocatore, niente dado);
 //   • lettura in ritardo (registerServe → cpuPlan): la CPU resta ferma read × sharp secondi (± readSd, mai sotto zero)
@@ -330,8 +330,14 @@ export function registerPlayerShot(engine, { grade, quality, power, landingX, la
 export const SERVE_WEIGHT = Object.freeze({
   kmhFrom: 160, kmhSpan: 30, kmh: 6.8, tightFrom: .45, tightSpan: .45, qFrom: .55, boxCenter: 2.05, boxHalf: 1.77,
   mix: Object.freeze({ pace: .7, tight: .1, both: .2 }),
-  lateBase: .6,                // un servizio colpito fuori tempo vale il 60% della base
-  casual: Object.freeze({ base: .135, threat: .05, stretch: .5, max: .6, read: .075, readSd: .35, pressure: 1 }),
+  lateBase: .6,                // un servizio colpito fuori tempo vale il 60% della base (Pro; un livello può avere il suo)
+  // Casual (revisione del B18.2): base 0,15 e nessuna penalità per il servizio fuori tempo (lateBase 1). Con i personaggi
+  // fermi spariscono gli ace «regalati», che con il servizio del telefono erano il 7–9% dei servizi anche per chi batte
+  // piano o tardi: con base 0,135 e lateBase 0,6 il profilo «bambino» scendeva da 52,4–52,6% a 49,6% (servizio insegnato)
+  // e 47,0% (in ritardo) dei punti al servizio, da 41% a 34–38% dei game. Casual è il livello di chi comincia: lì un
+  // servizio colpito tardi vale quanto uno normale. Limite: con base 0,17 il servizio perfetto, forte e stretto esce
+  // dalla fascia 20–25% (26,3%). Misure: scripts/audit/servizio.mjs --naturale --servizio=…, docs/b18/t2-1-servizio.md
+  casual: Object.freeze({ base: .15, lateBase: 1, threat: .05, stretch: .5, max: .6, read: .075, readSd: .35, pressure: 1 }),
   pro: Object.freeze({ base: .045, threat: .05, stretch: .5, max: .45, read: .135, readSd: .35, pressure: 1 }),
   leggenda: Object.freeze({ read: .15, readSd: .35 }),
 });
@@ -379,7 +385,8 @@ export function serveInPlay(engine){
 // laterale / portata), come negli scambi
 export function cpuServeErrorChance({ serve = null, stretch = 0, level = SKILL_LEVELS.casual, difficulty = 'casual' } = {}){
   const k = level.cpuErr, W = serveLevel(difficulty); if (!k || !W || !serve) return 0;
-  const p = W.base*(SERVE_WEIGHT.lateBase + (1 - SERVE_WEIGHT.lateBase)*clamp(finite(serve.clean, 1))) + W.threat*clamp(finite(serve.threat))
+  const late = clamp(finite(W.lateBase, SERVE_WEIGHT.lateBase));    // per livello (Casual: 1, nessuna penalità per chi colpisce tardi)
+  const p = W.base*(late + (1 - late)*clamp(finite(serve.clean, 1))) + W.threat*clamp(finite(serve.threat))
     + finite(W.stretch, 1)*(.3 + .7*clamp(finite(serve.q, 1)))*k.stretch*clamp(finite(stretch))**2;
   return clamp(p, 0, W.max);
 }

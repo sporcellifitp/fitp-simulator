@@ -110,19 +110,32 @@ test('D11: minaccia del servizio (serveInfo): velocità vera della palla, strett
   } finally { Math.random = real; }
 });
 
-test('D11: errore della CPU in risposta (Casual e Pro): perfetto forte stretto > forte > normale > in ritardo; Leggenda non tira il dado', () => {
+test('D11: errore della CPU in risposta (Casual e Pro): perfetto forte stretto > forte > normale > in ritardo; a Casual il ritardo non toglie la base; Leggenda non tira il dado', () => {
   const S = { normale: NS.serveInfo({ speed: 23.1, q: 1, x: -2.05, box: -1 }), forte: NS.serveInfo({ speed: 28.4, q: 1, x: -2.05, box: -1 }),
     perfetto: NS.serveInfo({ speed: 28.4, q: 1, x: -3.7, box: -1 }), ritardo: NS.serveInfo({ speed: 22.3, q: .56, x: -2.05, box: -1 }) };
   for (const difficulty of ['casual', 'pro']){
     const level = NS.skillLevel(difficulty), c = k => NS.cpuServeErrorChance({ serve: S[k], stretch: .4, level, difficulty });
     assert.ok(c('perfetto') > c('forte') && c('forte') > c('normale') && c('normale') > c('ritardo'), `${difficulty}: ${['perfetto', 'forte', 'normale', 'ritardo'].map(c).join(' ')}`);
-    assert.ok(c('ritardo') <= .75*c('normale'), `${difficulty}: un servizio in ritardo vale chiaramente meno`);
+    // Pro: un servizio in ritardo vale chiaramente meno di uno normale (60% della base). Casual (revisione del B18.2): è
+    // il livello di chi comincia, il servizio colpito tardi tiene tutta la base (lateBase 1) e perde solo sull'allungo;
+    // resta chiaramente sotto il servizio forte e quello perfetto. Prima di questa revisione la penalità valeva anche a
+    // Casual: con gli ace «regalati» spariti, chi batte tardi con il telefono perdeva 5,6 punti su 100 al servizio
+    if (difficulty === 'pro') assert.ok(c('ritardo') <= .75*c('normale'), `${difficulty}: un servizio in ritardo vale chiaramente meno`);
+    else {
+      assert.ok(c('ritardo') >= .93*c('normale'), `${difficulty}: nessuna penalità sulla base per il servizio in ritardo (${c('ritardo')} contro ${c('normale')})`);
+      assert.equal(NS.cpuServeErrorChance({ serve: S.ritardo, stretch: 0, level, difficulty }), NS.cpuServeErrorChance({ serve: S.normale, stretch: 0, level, difficulty }));
+      assert.equal(NS.cpuServeErrorChance({ serve: S.normale, stretch: 0, level, difficulty }), NS.SERVE_WEIGHT.casual.base);
+      assert.ok(c('ritardo') <= c('perfetto') - .04 && c('ritardo') < c('forte'), `${difficulty}: resta sotto il servizio forte e quello perfetto`);
+    }
     // l'allungo vero conta ancora
     assert.ok(NS.cpuServeErrorChance({ serve: S.normale, stretch: .9, level, difficulty }) > c('normale'));
   }
   // Casual sbaglia più di Pro sullo stesso servizio
   assert.ok(NS.cpuServeErrorChance({ serve: S.perfetto, level: NS.skillLevel('casual'), difficulty: 'casual' }) > NS.cpuServeErrorChance({ serve: S.perfetto, level: NS.skillLevel('pro'), difficulty: 'pro' }));
   assert.equal(NS.cpuServeErrorChance({ serve: S.perfetto, stretch: 1, level: NS.skillLevel('leggenda'), difficulty: 'leggenda' }), 0);
+  // i valori dei livelli: la penalità del ritardo è per livello (Casual 1, Pro quella comune)
+  assert.equal(NS.SERVE_WEIGHT.casual.lateBase, 1); assert.equal(NS.SERVE_WEIGHT.pro.lateBase, undefined); assert.equal(NS.SERVE_WEIGHT.lateBase, .6);
+  assert.ok(Math.abs(NS.cpuServeErrorChance({ serve: S.ritardo, stretch: 0, level: NS.skillLevel('pro'), difficulty: 'pro' }) - NS.SERVE_WEIGHT.pro.base*(.6 + .4*S.ritardo.clean)) < 1e-12);
 });
 
 test('D11: la risposta della CPU dipende dal servizio ricevuto, non dall\'ultimo colpo del punto prima', () => {
@@ -326,4 +339,30 @@ test('D11 (revisione): il banco misura le partite normali con il servizio del te
     assert.ok(r.rows.every(x => Number.isFinite(x.threat) && Number.isFinite(x.late)), 'ogni servizio porta il suo peso');
   }
   assert.equal(taught.serveModel, 'insegnato'); assert.equal(kick.serveModel, null);
+});
+
+test('D11 (revisione): a Casual chi batte tardi con il telefono non perde il servizio (partite sul motore vero, servizio con la forma)', () => {
+  // Il bloccante della revisione: tolti gli ace «regalati» dalla CPU in corsa, con il servizio del telefono il profilo
+  // «bambino» a Casual scendeva da 52,6% a 47,0% dei punti al servizio se colpisce tardi (18,5 → 10,7% di punti diretti,
+  // 25 semi × 300 punti), perché il servizio fuori tempo valeva il 60% della base anche al livello di chi comincia.
+  // Ora a Casual la base è 0,15 e il ritardo non la riduce: 4 semi × 300 punti (circa 620 servizi, ±1,4 punti)
+  const opts = { difficulty: 'casual', profile: 'bambino', points: 300, seeds: [1001, 1038, 1075, 1112] };
+  const late = natural({ ...opts, serveModel: 'tardi' }), taught = natural({ ...opts, serveModel: 'insegnato' });
+  const msg = r => `${r.serveModel}: punti diretti ${r.puntoDiretto}%, punti al servizio ${r.puntiAlServizio}%, q ${r.q}`;
+  assert.ok(late.q < .9, msg(late));
+  assert.ok(late.puntoDiretto >= 12.5 && late.puntoDiretto <= 19, msg(late));
+  assert.ok(taught.puntoDiretto >= 11.5 && taught.puntoDiretto <= 19, msg(taught));
+  assert.ok(late.puntoDiretto >= taught.puntoDiretto - 3, `${msg(late)} · ${msg(taught)}`);
+  assert.ok(late.puntiAlServizio >= 48 && taught.puntiAlServizio >= 48.5, `${msg(late)} · ${msg(taught)}`);
+  for (const r of [late, taught]){ assert.equal(r.ace, 0); assert.equal(r.inCorsa, 0); }
+  // controllo al contrario: con i valori di prima della revisione (base 0,135, ritardo al 60%) la stessa misura è sotto
+  NS.serveTuning.casual = { base: .135, lateBase: .6 };
+  try {
+    const old = natural({ ...opts, serveModel: 'tardi' });
+    assert.ok(old.puntoDiretto < 11.5 && old.puntiAlServizio < 48, `con i valori di prima: ${msg(old)}`);
+  } finally { delete NS.serveTuning.casual; }
+  // nel banco: a Casual il servizio in ritardo resta chiaramente sotto quello perfetto, forte e stretto
+  const b = type => bench({ type, difficulty: 'casual', points: 250, seeds: [7, 11] }).puntoDiretto;
+  const [perfetto, ritardo] = [b('perfettoStretto'), b('ritardo')];
+  assert.ok(ritardo >= 10 && ritardo <= perfetto - 6, `ritardo ${ritardo}%, perfetto ${perfetto}%`);
 });
