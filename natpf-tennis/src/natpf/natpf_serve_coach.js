@@ -16,7 +16,8 @@ export const SERVE_COACH = Object.freeze({
   apexAfter: .32,      // s dopo il punto più alto: ancora «Colpisci!» (la battuta vale fino a ~0,4 s dopo)
   idleS: 6,            // s fermi al servizio senza lanciare: torna l'istruzione del lancio
   missS: 4,            // s in cui resta la scritta del lancio a vuoto (poi di nuovo l'istruzione del lancio)
-  gravity: 9.81,
+  gravity: 9.15,        // gravità del motore nel lancio (L.GRAVITY, natpf_impact.PHYS.GRAVITY; revisione B18: era 9,81)
+  fallY: 1.6,           // m: senza il segnale del motore (Player 2 sull'altro computer) lancio a vuoto se la palla era sotto
 });
 const TOSS = { phone: 'Alza il telefono: lanci la palla', webcam: 'Alza la mano: lanci la palla', mouse: 'Premi ↑ o W: lanci la palla' };
 
@@ -40,12 +41,20 @@ export function serveCoachView(s = {}, g = {}){
 }
 
 // Stato che segue la partita: servizi riusciti, lancio a vuoto, tempo fermo al servizio. Funzione pura: (s, g, dt) → s,
-// con l'evento «missed» quando la palla del lancio è ricaduta senza battuta
+// con l'evento «missed» quando la palla del lancio è ricaduta senza battuta.
+// Revisione B18: il lancio a vuoto viene dal segnale del motore (g.tossMisses, contatore di game_engine) e non da ogni
+// passaggio SERVE_TOSS → SERVE_STANCE (una partita ricominciata con la palla in aria lo faceva scattare); dove il motore
+// non lo dà (Player 2 sull'altro computer: g.tossMisses null) vale la palla che stava ricadendo sotto fallY. Partita
+// nuova: cambia il contatore delle partite (g.match); senza contatore, il punteggio a zero arrivando da fuori dal punto
+// (prima anche la seconda palla dopo un fallo a 0-0 ricominciava da capo)
+const IN_POINT = new Set(['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER']);
 export function serveCoachStep(s = {}, g = {}, dt = 0){
-  const n = { served: s.served || 0, missAt: s.missAt ?? null, idle: s.idle || 0, phase: g.phase, missed: false };
-  // partita nuova (punteggio a zero al servizio): si ricomincia con le istruzioni piene
-  if (g.phase === 'SERVE_STANCE' && g.fresh && s.phase !== 'SERVE_STANCE'){ n.served = 0; n.missAt = null; }
-  if (s.phase === 'SERVE_TOSS' && g.phase === 'SERVE_STANCE' && g.mine){ n.missAt = g.now ?? 0; n.missed = true; }
+  const n = { served: s.served || 0, missAt: s.missAt ?? null, idle: s.idle || 0, phase: g.phase, missed: false,
+    match: g.match ?? null, tossMisses: g.tossMisses ?? null, lastY: g.phase === 'SERVE_TOSS' ? g.ballY ?? null : null, lastVy: g.phase === 'SERVE_TOSS' ? g.ballVy ?? null : null };
+  const newMatch = g.match != null ? s.match != null && g.match !== s.match : g.phase === 'SERVE_STANCE' && g.fresh && !IN_POINT.has(s.phase);
+  if (newMatch || (s.phase == null && g.phase === 'SERVE_STANCE')){ n.served = 0; n.missAt = null; }
+  const fell = g.tossMisses != null ? s.tossMisses != null && g.tossMisses > s.tossMisses : s.lastVy < 0 && s.lastY != null && s.lastY < SERVE_COACH.fallY;
+  if (!newMatch && s.phase === 'SERVE_TOSS' && g.phase === 'SERVE_STANCE' && g.mine && fell){ n.missAt = g.now ?? 0; n.missed = true; }
   if (s.phase === 'SERVE_TOSS' && g.phase === 'RALLY' && g.mine){ n.served++; n.missAt = null; }
   n.idle = g.phase === 'SERVE_STANCE' && g.mine && !g.paused ? (s.phase === 'SERVE_STANCE' ? n.idle + dt : 0) : 0;
   return n;
@@ -65,9 +74,14 @@ export class NatpfServeCoach {
     const inMatch = !E.autoPlayMode && !U.training?.active && !U.events?.active && !U.lobby?.visible;
     // chi serve gioca qui: nello stesso schermo tutti e due, altrimenti il lato di questo computer (la CPU non è mai locale)
     const mine = inMatch && (split || sc.server === local);
-    const vy = E.ball?.vel?.y;
+    const vy = E.ball?.vel?.y, guest = E.playerRole === 'p2' && !!E.isMultiplayer && !split;
+    // stesso schermo: due telefoni o una webcam per due (natpf_split_ui.input); revisione B18: prima sempre «telefono»
+    const controller = split ? (U.split?.webcam ? 'webcam' : 'phone') : (U.controller || 'phone');
     return { phase: E.phase, mine, split, side: split ? (sc.server === 'opponent' ? 'right' : 'left') : 'center', server: sc.server,
-      controller: split ? 'phone' : (U.controller || 'phone'), tossT: Number.isFinite(vy) ? vy/SERVE_COACH.gravity : null, now: E.elapsedTime || 0,
+      controller, tossT: Number.isFinite(vy) ? vy/SERVE_COACH.gravity : null, now: E.elapsedTime || 0,
+      ballY: E.ball?.pos?.y ?? null, ballVy: Number.isFinite(vy) ? vy : null,
+      // segnali del motore; il computer del P2 nella sfida tra due computer non fa la fisica (riceve lo stato): null
+      tossMisses: guest ? null : E.natpfTossMisses || 0, match: guest ? null : E.natpfMatchSeq || 0,
       paused: !!E.natpfPaused, fresh: !((sc.playerPoints || 0) + (sc.opponentPoints || 0) + (sc.playerGames || 0) + (sc.opponentGames || 0)) };
   }
   tick(dt = 1/60){

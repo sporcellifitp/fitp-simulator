@@ -33,22 +33,62 @@ test('testi: lancio, «Colpisci!» vicino al punto più alto, lancio a vuoto; ni
   assert.equal(serveCoachView({ served: 0 }, G({ phase: 'RALLY' })), null);
 });
 
-test('stato: servizi riusciti, lancio a vuoto, tempo fermo; partita nuova da capo', () => {
+test('stato: servizi riusciti, lancio a vuoto dal segnale del motore, tempo fermo; partita nuova da capo', () => {
   let s = { served: 0, missAt: null, idle: 0, phase: null };
-  s = serveCoachStep(s, G({ fresh: true }), .1);
-  s = serveCoachStep(s, G({ fresh: true }), .5); assert.equal(s.idle, .5);
-  s = serveCoachStep(s, G({ phase: 'SERVE_TOSS', fresh: true }), .1); assert.equal(s.idle, 0);
-  s = serveCoachStep(s, G({ fresh: true, now: 3 }), .1); assert.equal(s.missed, true); assert.equal(s.missAt, 3);
-  s = serveCoachStep(s, G({ phase: 'SERVE_TOSS', fresh: true }), .1); assert.equal(s.missed, false);
-  s = serveCoachStep(s, G({ phase: 'RALLY', fresh: true }), .1); assert.equal(s.served, 1); assert.equal(s.missAt, null);
-  s = serveCoachStep(s, G({ phase: 'POINT_OVER' }), .1);
-  s = serveCoachStep(s, G({ fresh: false }), .1); assert.equal(s.served, 1, 'stessa partita: si continua a contare');
-  s = serveCoachStep(s, G({ phase: 'MATCH_OVER' }), .1);
-  s = serveCoachStep(s, G({ fresh: true }), .1); assert.equal(s.served, 0, 'partita nuova: istruzioni piene');
+  const M = (o = {}) => G({ match: 1, tossMisses: 0, ...o });
+  s = serveCoachStep(s, M(), .1);
+  s = serveCoachStep(s, M(), .5); assert.equal(s.idle, .5);
+  s = serveCoachStep(s, M({ phase: 'SERVE_TOSS' }), .1); assert.equal(s.idle, 0);
+  s = serveCoachStep(s, M({ now: 3, tossMisses: 1 }), .1); assert.equal(s.missed, true); assert.equal(s.missAt, 3);
+  s = serveCoachStep(s, M({ phase: 'SERVE_TOSS', tossMisses: 1 }), .1); assert.equal(s.missed, false);
+  s = serveCoachStep(s, M({ phase: 'RALLY', tossMisses: 1 }), .1); assert.equal(s.served, 1); assert.equal(s.missAt, null);
+  s = serveCoachStep(s, M({ phase: 'POINT_OVER', tossMisses: 1 }), .1);
+  s = serveCoachStep(s, M({ tossMisses: 1 }), .1); assert.equal(s.served, 1, 'stessa partita: si continua a contare');
+  s = serveCoachStep(s, M({ phase: 'MATCH_OVER', tossMisses: 1 }), .1);
+  s = serveCoachStep(s, M({ match: 2, tossMisses: 1 }), .1); assert.equal(s.served, 0, 'partita nuova: istruzioni piene');
   // il servizio della CPU che ricade non conta
-  s = serveCoachStep({ ...s, phase: 'SERVE_TOSS' }, G({ mine: false }), .1); assert.equal(s.missed, false);
+  s = serveCoachStep({ ...s, phase: 'SERVE_TOSS' }, M({ mine: false, match: 2, tossMisses: 2 }), .1); assert.equal(s.missed, false);
   // in pausa il tempo fermo non cresce
-  s = serveCoachStep({ ...s, phase: 'SERVE_STANCE', idle: 2 }, G({ paused: true }), 1); assert.equal(s.idle, 0);
+  s = serveCoachStep({ ...s, phase: 'SERVE_STANCE', idle: 2 }, M({ paused: true, match: 2 }), 1); assert.equal(s.idle, 0);
+});
+
+// Revisione B18: prima ogni SERVE_TOSS → SERVE_STANCE era un lancio a vuoto (anche una partita ricominciata con la palla
+// in aria: «Colpisci quando la palla è in alto» sullo schermo e «Lancio a vuoto» al telefono), e il punteggio a zero
+// rimetteva le istruzioni piene anche alla seconda palla dopo un fallo a 0-0
+test('revisione B18: partita ricominciata con la palla in aria non è un lancio a vuoto; seconda palla a 0-0 non riparte da capo', () => {
+  let s = serveCoachStep({ phase: null }, G({ match: 1, tossMisses: 0, fresh: true }), .1);
+  s = serveCoachStep(s, G({ phase: 'SERVE_TOSS', match: 1, tossMisses: 0, fresh: true }), .1);
+  s = serveCoachStep(s, G({ phase: 'RALLY', match: 1, tossMisses: 0, fresh: true }), .1); assert.equal(s.served, 1);
+  // primo servizio fallo a 0-0: si torna al servizio con il punteggio ancora a zero
+  s = serveCoachStep(s, G({ phase: 'POINT_OVER', match: 1, tossMisses: 0, fresh: true }), .1);
+  s = serveCoachStep(s, G({ match: 1, tossMisses: 0, fresh: true }), .1); assert.equal(s.served, 1, 'prima tornava a 0');
+  // lancio, poi «Nuova partita» dal menu della pausa con la palla in aria: contatore delle partite cambiato, nessun segnale
+  s = serveCoachStep(s, G({ phase: 'SERVE_TOSS', match: 1, tossMisses: 0, fresh: true, ballY: 2.6, ballVy: 1 }), .1);
+  s = serveCoachStep(s, G({ match: 2, tossMisses: 0, fresh: true }), .1);
+  assert.equal(s.missed, false, 'prima «lancio a vuoto»'); assert.equal(s.missAt, null); assert.equal(s.served, 0, 'partita nuova');
+  // il segnale del motore senza cambio di fase (palla rimessa in mano): conta solo con il passaggio di fase
+  s = serveCoachStep(s, G({ phase: 'SERVE_TOSS', match: 2, tossMisses: 0 }), .1);
+  s = serveCoachStep(s, G({ match: 2, tossMisses: 1, now: 5 }), .1); assert.equal(s.missed, true); assert.equal(s.missAt, 5);
+});
+test('revisione B18: Player 2 sull’altro computer (niente segnali del motore): lancio a vuoto dalla palla che ricadeva', () => {
+  let s = serveCoachStep({ phase: null }, G({ fresh: true }), .1);
+  s = serveCoachStep(s, G({ phase: 'SERVE_TOSS', ballY: 2.4, ballVy: 2 }), .1);
+  s = serveCoachStep(s, G({ phase: 'SERVE_TOSS', ballY: 1.2, ballVy: -6 }), .1);
+  s = serveCoachStep(s, G({ now: 4 }), .1); assert.equal(s.missed, true);
+  // palla ancora alta quando il punto cambia (partita ricominciata): niente
+  s = serveCoachStep(s, G({ phase: 'SERVE_TOSS', ballY: 2.8, ballVy: -1 }), .1);
+  s = serveCoachStep(s, G({ now: 9 }), .1); assert.equal(s.missed, false);
+  // senza contatore, la partita nuova si riconosce dal punteggio a zero arrivando da fuori dal punto
+  s = serveCoachStep({ ...s, served: 2, phase: 'MATCH_OVER' }, G({ fresh: true }), .1); assert.equal(s.served, 0);
+});
+test('revisione B18: gravità del lancio come il motore; stesso schermo con la webcam per due: «Alza la mano»', () => {
+  assert.equal(SERVE_COACH.gravity, 9.15);
+  const E = { phase: 'SERVE_STANCE', score: { server: 'opponent', playerPoints: 0, opponentPoints: 0 }, natpfSplit: { active: true }, ball: { pos: { y: 1.1 }, vel: { y: 0 } }, elapsedTime: 0 };
+  const c = new NatpfServeCoach(E, { controller: 'phone', split: { webcam: true } });
+  assert.equal(c.snapshot().controller, 'webcam');
+  assert.equal(serveCoachView({ served: 0 }, c.snapshot()).big, 'Alza la mano: lanci la palla');
+  c.ui.split.webcam = false; assert.equal(c.snapshot().controller, 'phone');
+  assert.equal(c.snapshot().side, 'right');
 });
 
 // motore vero senza grafica: lancio senza battuta → la palla ricade nella mano, il coach lo dice (e il telefono), si
