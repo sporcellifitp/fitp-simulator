@@ -1,0 +1,1 @@
+# Il ramo del B17.1 sta nel worktree .claude/worktrees/wf_bb380d57-57a-1 (ramo worktree-wf_bb380d57-57a-1). ramo-B17-1-solo-testo.diff: diff dei soli sorgenti e documenti (le immagini restano nel ramo; il patch intero pesava 54 MB e non va più messo nel repository).
