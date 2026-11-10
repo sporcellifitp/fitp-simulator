@@ -74,7 +74,8 @@ export class NatpfServeCoach {
     const g = this.snapshot();
     this.state = serveCoachStep(this.state, g, dt);
     if (this.state.missed) this._tossMissed(g);
-    this.paint(serveCoachView(this.state, { ...g, idle: this.state.idle }), g);
+    // partita in pausa (menu della pausa, tutorial, telefono da ricollegare): niente istruzioni sopra i pannelli
+    this.paint(g.paused ? null : serveCoachView(this.state, { ...g, idle: this.state.idle }), g);
   }
   // lancio a vuoto: anche il telefono di chi serve lo dice (prima niente)
   _tossMissed(g){

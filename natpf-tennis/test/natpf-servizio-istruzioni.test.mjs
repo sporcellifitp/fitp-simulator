@@ -69,6 +69,9 @@ test('motore: dopo un lancio a vuoto la palla torna in mano, messaggio sullo sch
     const run = (s, until = () => false) => { for (let t = 0; t < s; t += 1/120){ e.step(1/120); coach.tick(1/120); if (until()) return true; } return false; };
     run(.3);
     assert.equal(views.at(-1)?.big, 'Alza il telefono: lanci la palla');
+    // partita in pausa: niente istruzioni sopra i pannelli
+    e.natpfPaused = true; coach.tick(1/120); assert.equal(views.at(-1), null); e.natpfPaused = false; coach.tick(1/120);
+    assert.equal(views.at(-1)?.state, 'toss');
     e._handleUserTossInput({});
     assert.equal(e.phase, 'SERVE_TOSS');
     assert.ok(run(1.4, () => views.at(-1)?.state === 'go'), '«Colpisci!» vicino al punto più alto');
