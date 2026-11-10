@@ -9,3 +9,4 @@
 2026-11-08.4: I colpi seguono di più il gesto: più forte va più veloce e più in fondo, girando il telefono la palla cambia direzione. Per i mancini tutto uguale ai destri. Menu e telefono con testi più brevi e meno scelte.
 2026-11-08.5: Tutorial più corto (5 schede) e riscaldamento facoltativo; Leggenda più forte; mira del telefono regolabile dallo staff e misurata nella diagnostica.
 2026-11-09.1: Punteggio in alto a sinistra, grande e leggibile. Nel tutorial una X per uscire dopo l'ultima scheda (anche con Invio). Sotto rete i colpi seguono il gesto: forte, tagliato, corto, angolato.
+2026-11-10.1: Gesti del tutorial rifatti dal tuo video: presa e partenza come le tue, dritto con lo schermo sulla palla, rovescio a una mano a specchio con il dorso, servizio e tagliati. Primo piano di cosa tocca la palla all'impatto.
