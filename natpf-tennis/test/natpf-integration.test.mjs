@@ -69,9 +69,9 @@ test('esito del colpo al telefono solo per il giocatore locale', () => {
   phone.feedback({ role: 'p2', kind: 'whiff' });
   phone.feedback({ role: 'p2', kind: 'point_won', grade: 'POINT WON!' });
   assert.deepEqual(sent, [
-    { t: 'ev', k: 'contact', label: 'perfetto', shot: 'lob', vib: [70], out: false },
+    { t: 'ev', k: 'contact', label: 'perfetto', shot: 'lob', vib: [70], out: false, net: false },   // B18: anche «In rete»
     { t: 'ev', k: 'miss', why: 'tardi', vib: [25, 60, 25] },
-    { t: 'ev', k: 'point', mine: true, txt: 'POINT WON!' },
+    { t: 'ev', k: 'point', mine: true, txt: '' },   // B18: motivo in italiano (niente testo inglese del motore)
   ]);
 });
 

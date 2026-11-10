@@ -355,7 +355,7 @@ export class NatpfEvents {
     if (!want){ show(box, false); demo.stop?.(); return; }
     show(box, true);
     demo.mount(box.querySelector('.cd-stage'));
-    if (demo.available) demo.setSize(220, 220);
+    if (demo.available) demo.setSize(320, 320);   // figura intera (sotto 320 px la modalità compatta: solo avambraccio); il CSS la riduce
     demo.play(want, { hand: this.ui.hand?.hand || 'right', speed: 'auto' });
     const t = box.querySelector('.cd-title'); if (t) t.textContent = COMBO_STEPS[step].label;
   }
