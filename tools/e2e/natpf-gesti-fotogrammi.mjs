@@ -79,7 +79,17 @@ async function frameInfo(id, t, W, H, hand = 'right'){
     const polys = [F?.phoneHull, F?.palmHull].filter(Boolean), in1 = (P, x, y) => { let k = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++){ const a = P[i], b = P[j]; if ((a.y > y) !== (b.y > y) && x < (b.x - a.x)*(y - a.y)/(b.y - a.y) + a.x) k = !k; } return k; };
     const inP = (x, y) => polys.some(P => in1(P, x, y));
     const over = labels.reduce((m, b) => { let n = 0; for (let i = 0; i <= 12; i++) for (let j = 0; j <= 4; j++) if (inP(b.x0 + b.w*i/12, b.y0 + b.h*j/4)) n++; return Math.max(m, n/65); }, 0);
-    return { label: pose.label, phase: pose.phase, edge, phoneLen: Math.hypot(tip.x - base.x, tip.y - base.y), subjectH: fr ? (Math.min(H, fr.y1) - Math.max(0, fr.y0))/H : null, ballTip, labelsIn: inStage, labelOver: over, compact: d.compact, ms: 0 };
+    // primo piano dell'impatto (passo C2): non copre telefono, palmo né palla vivi, né le etichette dei fantasmi
+    const C = info.close && info.close.alpha > .01 ? info.close : null;
+    let closeBad = null;
+    if (C){
+      const r = C.rect, inR = q => q.x > r.x && q.x < r.x + r.w && q.y > r.y && q.y < r.y + r.h;
+      if (polys.some(P => P.some(inR))) closeBad = 'copre il telefono o la mano';
+      else if (info.ball && inR(cam.p(info.ball))) closeBad = 'copre la palla';
+      else if (labels.some(b => b.x0 < r.x + r.w && b.x0 + b.w > r.x && b.y0 < r.y + r.h && b.y0 + b.h > r.y)) closeBad = 'sotto un\'etichetta';
+      else if (r.x < 0 || r.y < 0 || r.x + r.w > W || r.y + r.h > H*.83) closeBad = 'fuori dallo stadio';
+    }
+    return { close: C ? { text: C.text, alpha: C.alpha, toClose: C.faceToClose, toMain: C.faceToMain, bad: closeBad } : null, label: pose.label, phase: pose.phase, edge, phoneLen: Math.hypot(tip.x - base.x, tip.y - base.y), subjectH: fr ? (Math.min(H, fr.y1) - Math.max(0, fr.y0))/H : null, ballTip, labelsIn: inStage, labelOver: over, compact: d.compact, ms: 0 };
   }, { id, t, W, H, hand });
 }
 
@@ -145,6 +155,7 @@ const KEY = { stroke: ['Carica', 'Impatto', 'Fine'], serve: ['Lancio (palla lasc
 // la camera compatta non può stringere (percorso del telefono sul ciclo e freccia del contatto non stanno già nel quadro
 // per 9 px a z 0,96: stringere porta la freccia fuori; misure in docs/b17/posa-dal-video.md §1). Da confermare con l'utente.
 const GRIP = await p.evaluate(() => window.__GRIP);
+const IMPACT_FACE = await p.evaluate(() => ({ ...window.__GP.IMPACT_FACE }));
 // B17.1 passo C: con le camere frontali dell'insieme del video il dritto a 200×200 è al 33 % e oltre: il limite non serve più
 // (la tabella resta per i limiti dichiarati che verranno)
 // B17.1 passo B3: il rovescio A UNA MANO con il dorso verso la rete all'impatto, a 1600×1000 con la camera ferma sul gesto intero,
@@ -165,7 +176,7 @@ const LIMITI = { '1600x1000|backhand|racchetta': { subjectH: .185, nota: 'rovesc
   '1600x1000|forehand|racchetta': { subjectH: .265, nota: 'dritto con lo schermo verso la rete, gesto intero a 1600×1000 (27 %), ottimizzazione.md §9' },
   '1600x1000|line|racchetta': { subjectH: .265, nota: 'lungolinea con lo schermo verso la rete, gesto intero a 1600×1000 (27 %), ottimizzazione.md §9' } };
 for (const [W, H] of SIZES){
-  const bad = [], limiti = [], minLen = { v: Infinity, at: '' }, minSub = { v: Infinity, at: '' };
+  const bad = [], limiti = [], closeSeen = [], minLen = { v: Infinity, at: '' }, minSub = { v: Infinity, at: '' };
   for (const id of Object.keys(MOMENTS)) for (const hand of ['right', 'left']) for (const [t, txt] of MOMENTS[id]){
     const f = await frameInfo(id, t, W, H, hand), tag = `${id} ${hand} ${txt}`;
     const key = (KEY.stroke.includes(txt) && !['grip', 'ready'].includes(id) && id !== 'serve') || (id === 'serve' && KEY.serve.includes(txt)) || id === 'grip' && txt !== 'Giro della camera';
@@ -181,15 +192,23 @@ for (const [W, H] of SIZES){
       if (f.subjectH < minSub.v){ minSub.v = f.subjectH; minSub.at = tag; }
       if (f.phoneLen < minLen.v){ minLen.v = f.phoneLen; minLen.at = tag; }
       if (W === 448 && f.phoneLen < 60) bad.push(`${tag}: telefono lungo ${f.phoneLen.toFixed(0)} px`);
+      // passo C2: da 640×400 in su (camera ferma sul gesto intero) i colpi con la faccia d'impatto hanno il primo piano
+      const face = IMPACT_FACE[id];
+      if (face && W >= 640 && GRIP === 'racchetta'){
+        if (!f.close || f.close.alpha < .99) bad.push(`${tag}: manca il primo piano dell'impatto`);
+        else if (f.close.text !== (face > 0 ? 'Palla sullo SCHERMO' : 'Palla sul DORSO')) bad.push(`${tag}: primo piano «${f.close.text}»`);
+        else closeSeen.push(`${id} ${hand} ${f.close.toClose.toFixed(0)}°/${f.close.toMain.toFixed(0)}°`);
+      }
     }
+    if (f.close?.bad) bad.push(`${tag}: primo piano dell'impatto ${f.close.bad}`);
     if (!f.labelsIn) bad.push(`${tag}: etichetta fuori dallo stadio`);
     if (f.labelOver > .1) bad.push(`${tag}: etichetta sul telefono o sulla mano vivi (${(f.labelOver*100).toFixed(0)}%)`);
   }
   const fr = await inFrame(W, H), outB = fr.filter(r => r.tipOut > 100.001 || r.ballOut > 100.001 || r.arrowOut > .1);
   check(`${W}×${H}: il colpo resta nel quadro (cima e palla fuori ≤ 100 ms, freccia fuori ≤ 10%)`, outB.length === 0,
     fr.map(r => `${r.id} ${Math.round(r.tipOut)}/${Math.round(r.ballOut)} ms ${Math.round(r.arrowOut*100)}%`).join(', '));
-  check(`${W}×${H}: lista di controllo (telefono non di taglio ≥ 25°, «Impatto», palla ≤ 1 raggio dalla cima, mano+telefono ≥ 28%, etichette)`, bad.length === 0,
-    `impatto: telefono più corto ${minLen.v.toFixed(0)} px (${minLen.at}), soggetto più piccolo ${(minSub.v*100).toFixed(0)}% (${minSub.at})${limiti.length ? '\n    LIMITE AMMESSO (dichiarato) ' + limiti.join('\n    LIMITE AMMESSO (dichiarato) ') : ''}${bad.length ? '\n    ' + bad.join('\n    ') : ''}`);
+  check(`${W}×${H}: lista di controllo (telefono non di taglio ≥ 25°, «Impatto», palla ≤ 1 raggio dalla cima, mano+telefono ≥ 28%, etichette, primo piano dell'impatto)`, bad.length === 0,
+    `impatto: telefono più corto ${minLen.v.toFixed(0)} px (${minLen.at}), soggetto più piccolo ${(minSub.v*100).toFixed(0)}% (${minSub.at})${closeSeen.length ? `; primo piano (faccia che colpisce dalla camera del primo piano / principale): ${closeSeen.join(', ')}` : ''}${limiti.length ? '\n    LIMITE AMMESSO (dichiarato) ' + limiti.join('\n    LIMITE AMMESSO (dichiarato) ') : ''}${bad.length ? '\n    ' + bad.join('\n    ') : ''}`);
 }
 
 if (!process.env.NOFOGLI){

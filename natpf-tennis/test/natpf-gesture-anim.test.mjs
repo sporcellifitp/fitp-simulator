@@ -184,6 +184,7 @@ function fakeDom(){
   } };
 }
 const close3 = (a, b) => GP.len(GP.sub(a, b)) < 1e-9;
+const inPoly = (P, q) => { let k = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++){ const a = P[i], b = P[j]; if ((a.y > q.y) !== (b.y > q.y) && q.x < (b.x - a.x)*(q.y - a.y)/(b.y - a.y) + a.x) k = !k; } return k; };
 
 test('il disegno usa la posa di demo.pose (= gesturePose): scheletro disegnato uguale, e se demo.pose cambia il disegno la segue', () => {
   const dom = fakeDom();
@@ -224,7 +225,7 @@ test('rovescio a una mano: niente seconda mano sul telefono (≥ 20 cm in tutto 
     for (const hand of HANDS){
       d.play('backhand', { hand, set: 'video' }); d.stop();
       const P = GP.gesturePlan('backhand', { grip: 'racchetta', set: 'video' }), T = P.T;
-      let n = 0, near = 9;
+      let n = 0, near = 9, seen = 0;
       for (let t = 0; t < P.total; t += 1/60){
         d.show(t);
         const A = d.info.freeArm, R = hand === 'left' ? GP.mirrorPose(d.info.pose) : d.info.pose;
@@ -234,10 +235,13 @@ test('rovescio a una mano: niente seconda mano sul telefono (≥ 20 cm in tutto 
         const ch = R.chain, loc = GP.qrot(GP.qconj(ch.trunk), GP.sub(A.W, ch.pelvis));
         assert.ok(A.busy && loc[2] > .2 && loc[0] < -.3, `${hand} ${t.toFixed(3)}: braccio libero non aperto dietro (${loc.map(v => v.toFixed(2))})`);
         assert.ok(GP.len(GP.sub(A.W, A.S)) > .4, `${hand} ${t.toFixed(3)}: braccio libero piegato`);
+        // passo C2: la mano libera si VEDE (fuori dalla sagoma del busto della camera frontale; prima restava dietro il busto)
+        if (!inPoly(d.info.body.torso, d.info.cam.p(A.W))) seen++;
         n++;
       }
       // (correzioni del passo B3: il rovescio è lo specchio del dritto, accompagnamento di 0,34 s come il dritto: 15 campioni)
       assert.ok(n >= 12, `solo ${n} campioni nell'accompagnamento`);
+      assert.ok(seen >= .8*n, `${hand}: mano libera in vista solo in ${seen}/${n} campioni dell'accompagnamento`);
       assert.ok(near >= .2, `${hand}: mano libera a ${near.toFixed(3)} m dal telefono`);
       // posizione di partenza: braccio libero rilassato (quasi disteso, mano sotto il bacino di lato), non sul fianco
       d.show(.1);
@@ -247,6 +251,44 @@ test('rovescio a una mano: niente seconda mano sul telefono (≥ 20 cm in tutto 
       assert.ok(reach > .5, `braccio libero a riposo piegato (${reach.toFixed(3)} m dalla spalla)`);
       assert.ok(A.W[1] < R.chain.pelvis[1] - .05, 'mano libera a riposo non sotto il bacino');
     }
+  } finally { dom.restore(); }
+});
+
+// B17.1 passo C2 (richiesta dell'utente del 09/11 notte: «con il dritto la pallina venga colpita con il display in maniera
+// frontale, il rovescio invece stesso movimento ma con l'altro lato»): da 640×400 in su, dal contatto e per circa un secondo
+// del gesto, il primo piano dell'impatto mostra la faccia che colpisce dalla parte della palla con la scritta giusta; la faccia
+// che colpisce guarda anche la camera principale; il riquadro sta nello stadio sopra la banda, non copre telefono né palla vivi
+// all'impatto, ed è lo specchio per il mancino; a 448×280 non c'è (lì il telefono all'impatto è lungo 72–99 px)
+test('primo piano dell’impatto: schermo nei colpi di dritto, dorso nei rovesci, dal contatto per un secondo, destro e mancino; non a 448×280', () => {
+  const dom = fakeDom();
+  try {
+    const d = new NatpfGestureDemo({ width: 640, height: 400 });
+    d.grip = 'racchetta';
+    for (const id of Object.keys(GP.IMPACT_FACE)){
+      const rects = {};
+      for (const hand of HANDS){
+        d.setSize(640, 400); d.play(id, { hand, set: 'video' }); d.stop();
+        const P = GP.gesturePlan(id, { grip: 'racchetta', set: 'video' });
+        d.show(P.contact);
+        const C = d.info.close, tag = `${id} ${hand}`;
+        assert.ok(C && C.alpha > .99, `${tag}: primo piano assente all'impatto`);
+        assert.equal(C.text, GP.IMPACT_FACE[id] > 0 ? 'Palla sullo SCHERMO' : 'Palla sul DORSO', tag);
+        assert.ok(C.faceToClose < 60, `${tag}: faccia che colpisce a ${C.faceToClose.toFixed(0)}° dalla camera del primo piano`);
+        assert.ok(C.faceToMain < 75, `${tag}: faccia che colpisce a ${C.faceToMain.toFixed(0)}° dalla camera principale`);
+        const r = C.rect;
+        assert.ok(r.x >= 0 && r.y >= 0 && r.x + r.w <= 640 && r.y + r.h <= 400*(1 - .17), `${tag}: riquadro fuori dallo stadio`);
+        const R = hand === 'left' ? GP.mirrorPose(d.info.pose) : d.info.pose, cam = d.info.cam, inR = q => q.x > r.x && q.x < r.x + r.w && q.y > r.y && q.y < r.y + r.h;
+        for (const v of [[0, 0, 0], [0, GP.PHONE.h/2, 0], [0, -GP.PHONE.h/2, 0]]) assert.ok(!inR(cam.p(GP.add(R.pos, GP.qrot(R.q, v)))), `${tag}: il riquadro copre il telefono`);
+        if (d.info.ball) assert.ok(!inR(cam.p(d.info.ball)), `${tag}: il riquadro copre la palla`);
+        rects[hand] = r;
+        for (const t of [P.contact - .2, P.contact + 1.05]){ d.show(t); assert.ok(!d.info.close || d.info.close.alpha < .01, `${tag}: primo piano visibile a ${t.toFixed(2)} s`); }
+        d.show(P.contact + .6); assert.ok(d.info.close.alpha > .99, `${tag}: primo piano spento a 0,6 s dal contatto`);
+        d.setSize(448, 280); d.show(P.contact); assert.equal(d.info.close, null, `${tag}: primo piano a 448×280`);
+      }
+      assert.ok(Math.abs(rects.left.x - (640 - rects.right.x - rects.right.w)) < 1 && rects.left.y === rects.right.y, `${id}: riquadro del mancino non speculare`);
+    }
+    // nessun primo piano nei colpi senza faccia d'impatto
+    for (const id of ['serve', 'lob', 'drop', 'smash']){ d.setSize(640, 400); d.play(id, { set: 'video' }); d.stop(); d.show(d.hitTime()); assert.equal(d.info.close, null, id); }
   } finally { dom.restore(); }
 });
 

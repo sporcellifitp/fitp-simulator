@@ -1146,11 +1146,14 @@ function tossHand(P, t){
 export const FREE_REST = Object.freeze([-.22, -.10, -.04]);
 export const freeRestOf = ch => add(ch.pelvis, qrot(ch.trunk, FREE_REST));
 // rovescio a una mano (B17.1 passo B3, decisione dell'utente: «Per il rovescio, a una mano»): il braccio libero si apre
-// DIETRO e di lato per l'equilibrio, quasi disteso, all'altezza della vita (riferimento del busto, dal bacino, m: +z dietro;
-// y = +0,18 m dal bacino è la vita, non il petto);
-// nella carica resta rilassata di lato, un poco dietro (FREE_PREP), lontana dal telefono che arriva all'anca sinistra
-export const FREE_BALANCE = Object.freeze([-.42, .18, .30]);
-export const FREE_PREP = Object.freeze([-.24, 0, .08]);
+// DIETRO per l'equilibrio, disteso e un poco in basso (riferimento del busto, dal bacino, m: +z dietro; y = +0,18 m dal bacino
+// è la vita), come le braccia aperte «ad ali» dei rovesci a una mano. Passo C2: prima (−0,42; 0,18; 0,30) di lato all'altezza
+// della vita: con la camera davanti a destra, che vede il busto girato quasi di profilo, la mano restava dietro il busto e non
+// si vedeva; ora braccio e mano escono dietro la schiena (fogli VC-backhand). Nella carica (FREE_PREP) pende rilassata un poco
+// davanti al fianco sinistro (prima (−0,24; 0; 0,08): la mano sul fianco con il gomito in fuori, «mano sull'anca»), a ≥ 0,3 m
+// dal telefono, che nel rovescio allo specchio del dritto passa davanti al busto (z −0,36…−0,44)
+export const FREE_BALANCE = Object.freeze([-.34, .16, .50]);
+export const FREE_PREP = Object.freeze([-.26, -.04, -.10]);
 // posizione della mano libera (m, campo) al tempo t: lancio del servizio dai dati, braccio in equilibrio del rovescio a una
 // mano (dalla seconda metà della carica la sinistra si sposta di lato e un poco dietro, dal contatto si apre dietro fino alla fine
 // dell'accompagnamento e torna a riposo nella prima metà del ritorno); null quando la mano libera non fa parte del gesto

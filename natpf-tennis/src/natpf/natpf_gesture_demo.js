@@ -20,7 +20,7 @@
 // niente busto né braccio). Senza canvas 2D (Node, test) available è false e chi la usa mostra la figura statica della
 // presa. Si disegna solo quando il canvas si vede.
 import { GESTURES, GRIP_STYLE } from './natpf_gesture_motion.js';
-import { gesturePose, gesturePlan, gestureBall, gestureContactPoint, gestureFreeHand, freeRestOf, CAMERAS, camSpec, BODY, ARM as ARM_, HAND, HAND_LOCAL, HAND_LOCAL_MARTELLO, HAND_RACCHETTA, HAND_LOCAL_RACCHETTA, ARM, FOREARM_PROFILE,
+import { gesturePose, gesturePlan, gestureBall, gestureContactPoint, gestureFreeHand, freeRestOf, CAMERAS, camSpec, IMPACT_FACE, BODY, ARM as ARM_, HAND, HAND_LOCAL, HAND_LOCAL_MARTELLO, HAND_RACCHETTA, HAND_LOCAL_RACCHETTA, ARM, FOREARM_PROFILE,
   UPPER_PROFILE, BAND, PHONE, BALL_R, add, sub, mul, dot, cross, len, norm, qrot, qslerp, mirrorPos, mirrorPose, D } from './natpf_gesture_pose.js';
 export { HAND_MARTELLO } from './natpf_gesture_pose.js';
 
@@ -1070,6 +1070,18 @@ function liveTest(F){
   };
 }
 
+// il soggetto vivo (telefono, palmo, polsino, mano, avambraccio) tocca il rettangolo r (allargato di pad)? Esatto sui vertici delle
+// sagome e sui segmenti delle capsule (liveTest guarda una griglia di 7×3 punti: un telefono di 40 px può starci in mezzo)
+function liveHits(F, r, pad = 4){
+  const dist = (x, y) => Math.hypot(Math.max(r.x0 - x, 0, x - r.x1), Math.max(r.y0 - y, 0, y - r.y1));
+  for (const P of [F.phoneHull, F.palmHull, F.band?.hull]) if (P) for (const q of P) if (dist(q.x, q.y) <= pad) return true;
+  for (const q of [...F.fore, ...F.parts, ...F.hand.filter(k => k.a)]) for (let i = 0; i <= 6; i++){
+    const k = i/6, x = q.a.x + (q.b.x - q.a.x)*k, y = q.a.y + (q.b.y - q.a.y)*k;
+    if (dist(x, y) <= q.Ra + (q.Rb - q.Ra)*k + pad) return true;
+  }
+  return false;
+}
+
 /* ---------- testi ---------- */
 function pill(c, st, x, y, text, { bg = 'rgba(8,14,40,.84)', fg = '#f4f6fc', border = 'rgba(176,194,255,.42)', size = 12, align = 'center', num = null, box = null } = {}){
   c.save(); c.font = `700 ${size}px Barlow, sans-serif`;
@@ -1102,6 +1114,49 @@ export function ghostAlpha(P, keys, i, t, follow){
   if (k.id === 'carica' && P.contact != null) a *= 1 - sstep(P.contact - .06, P.contact + .02, t);
   if (follow && k.id === 'impatto'){ const f = keys.find(q => q.id === 'fine'); if (f) a *= 1 - sstep(f.t - .1, f.t + .02, t); }
   return a;
+}
+
+/* ---------- primo piano dell'impatto (B17.1 passo C2) ---------- */
+// Richiesta dell'utente del 09/11 notte: «con il dritto la pallina venga colpita con il display in maniera frontale, il
+// rovescio invece stesso movimento ma con l'altro lato». La camera frontale del gesto intero è dalla parte della rete, quindi
+// all'impatto vede proprio la faccia che colpisce (schermo nei colpi di dritto a 10–43° dal raggio visivo, dorso nel rovescio e nel tagliato di rovescio a 49–53°,
+// misure in docs/b17/gesti-dal-video.md §7), ma a 640×400 il telefono è lungo 34–51 px e la palla, che arriva dalla camera, ne
+// copre metà: schermo o dorso non si distinguono. Da 640×400 in su (camera ferma sul gesto intero), nei colpi con IMPACT_FACE,
+// dall'istante del contatto e per circa un secondo del gesto compare un riquadro con il fermo immagine dell'impatto visto da
+// vicino dalla parte della palla (la palla appoggiata sulla faccia che colpisce, la scritta «Palla sullo SCHERMO» o «Palla sul
+// DORSO»). La camera del primo piano guarda la faccia che colpisce di lato, IMPACT_CLOSE.side attorno all'asse del telefono
+// verso la camera principale (stesso lato dell'immagine grande) e IMPACT_CLOSE.tilt verso il fondo del telefono: la palla, che
+// sta davanti alla faccia vicino alla cima, si proietta in parte fuori dal telefono e lascia vedere il vetro con «Pronto» o il
+// dorso con le fotocamere (provati 35° verso il fondo e 20° di lato: nel rovescio la mano, più vicina alla camera, copriva il
+// dorso); a 1,1 m, con la mano intera nel quadro; specchiata come la camera principale. Il riquadro si disegna una volta per scheda, mano e misura e poi si copia (costo di
+// un drawImage); il posto (uno dei quattro angoli dello stadio sopra la banda) è quello che copre meno il soggetto vivo
+// (telefono, mano, braccio, palla) dal contatto alla fine del riquadro, poi il busto. Solo disegno: la posa non cambia.
+export const IMPACT_CLOSE = Object.freeze({ tilt: 10, side: 45, from: -.07, fadeIn: .05, hold: 1.0, fadeOut: .15, w: .3, aspect: .75 });
+const FACE_TEXT = Object.freeze({ 1: 'Palla sullo SCHERMO', '-1': 'Palla sul DORSO' });
+export const impactCloseText = id => IMPACT_FACE[id] ? FACE_TEXT[IMPACT_FACE[id] > 0 ? 1 : '-1'] : null;
+// visibilità del riquadro all'istante t (0…1)
+export function impactCloseAlpha(P, t){
+  const K = IMPACT_CLOSE, c = P.contact; if (c == null) return 0;
+  return sstep(c + K.from, c + K.from + K.fadeIn, t)*(1 - sstep(c + K.hold - K.fadeOut, c + K.hold, t));
+}
+// misure del riquadro in uno stadio W×H (px CSS)
+export function impactCloseSize(W, H){
+  const top = H*(1 - HUD_H), w = Math.round(Math.min(W*IMPACT_CLOSE.w, (top - 16)/IMPACT_CLOSE.aspect*.6)), h = Math.round(w*IMPACT_CLOSE.aspect);
+  return { w, h, top };
+}
+// camera del primo piano: posa del telefono R e punto di contatto CP (mondo della posa disegnata), camera principale
+function impactCloseCam(R, CP, ball, main, w, h, cap, H_){
+  const n0 = qrot(R.q, [0, 0, 1]), nf = mul(n0, dot(n0, sub(CP, R.pos)) >= 0 ? 1 : -1), ay = qrot(R.q, [0, 1, 0]), ax = qrot(R.q, [1, 0, 0]);
+  const K = IMPACT_CLOSE, a = K.tilt*Math.PI/180, b = K.side*Math.PI/180, sx = dot(ax, sub(main.eye, R.pos)) >= 0 ? 1 : -1;
+  const dir = norm(add(add(mul(nf, Math.cos(a)*Math.cos(b)), mul(ay, -Math.sin(a))), mul(ax, sx*Math.sin(b)*Math.cos(a))));
+  const T = v => add(R.pos, qrot(R.q, v)), pts = [];
+  for (const [x, y] of [[-HW, -HH], [HW, -HH], [-HW, HH], [HW, HH]]) for (const z of [-HD, HD]) pts.push(T([x, y, z]));
+  for (const d of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) pts.push(add(ball, mul(d, BALL_R*1.6)));
+  // la mano intera nel quadro (dita e polso): nel rovescio il palmo sta dalla parte del dorso e, tagliato dal bordo, sembrava
+  // coprire il telefono
+  const rig = handRig(R, H_); pts.push(rig.W, ...rig.fingers.map(f => f.pts[3]), rig.thumb.pts[rig.thumb.pts.length - 1]);
+  const m = 10, fr = frame(pts, dir, 1.1, { x: m, y: cap + m*.6, w: w - 2*m, h: h - cap - m*1.6 });
+  return makeCam(fr.eye, fr.target, fr.f, fr.cx, fr.cy, !!main.mirror, w, h);
 }
 
 /* ---------- l'istanza ---------- */
@@ -1231,12 +1286,74 @@ export class NatpfGestureDemo {
     // metà opacità con il contorno tratteggiato, così all'impatto non sparisce mai (brief §5.6.2)
     else if (ball && ballFirst && ballAlpha > .01 && !K.figure && F.phoneHull) drawBallThrough(c, cam, ball, spin, st, F.phoneHull, ballAlpha);
     if (CPm && !impactBehind) drawImpact(c, cam, CPm, tt - P.contact, st);
+    // primo piano dell'impatto (passo C2): le etichette dei fantasmi non ci vanno mai sopra (il suo posto è fisso per scheda)
+    const close = !compact && !K.close && IMPACT_FACE[id] && wholeFrame(CS, W, H) ? this._impactClose(M, u) : null;
     if (!compact && !K.hud){
-      const taken = [];
+      const taken = close ? [close.box] : [];
       for (const g of ghosts) if (g.a > .01) this._ghostLabel(c, cam, g, F, u, taken);
-      if (P.still) this._stillHud(c, u); else this._hud(c, M, tt, live, u);
     }
-    this.info = { t: tt, cam, pose: live, ball, figure: F, ghosts, freeArm: FA };
+    const closeA = close ? impactCloseAlpha(P, tt) : 0;
+    if (closeA > .01){ c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = closeA; c.drawImage(close.cv, Math.round(close.rect.x*st.dpr), Math.round(close.rect.y*st.dpr)); c.restore(); }
+    if (!compact && !K.hud){ if (P.still) this._stillHud(c, u); else this._hud(c, M, tt, live, u); }
+    this.info = { t: tt, cam, pose: live, ball, figure: F, ghosts, freeArm: FA, body, close: close ? { ...close.meta, rect: close.rect, alpha: closeA } : null };
+  }
+  // primo piano dell'impatto (vedi IMPACT_CLOSE): disegnato una volta per scheda, mano e misura in un canvas a parte, con il
+  // posto scelto tra i quattro angoli dello stadio
+  _impactClose(M, u){
+    const st = this.st, id = this.id, P = M.P, o = { grip: this.grip, set: this.set };
+    const key = `${id}|${this.grip}|${M.set}|${this.hand}|${st.W}x${st.H}@${st.dpr}`;
+    if (this._closeKey === key) return this._closeV;
+    const { w, h, top } = impactCloseSize(st.W, st.H), d = st.dpr, H_ = handFor(this.grip);
+    const mir = X => this.hand === 'left' ? mirrorPose(X) : X, Rc = mir(this.pose(P.contact));
+    const CP = gestureContactPoint(id, o), ball = gestureBall(id, P.contact, o), main = this._cam(P.contact);
+    const cap = Math.round(u*2.3), ccam = impactCloseCam(Rc, CP, ball, main, w, h, cap, H_);
+    const cv = document.createElement('canvas'); cv.width = Math.round(w*d); cv.height = Math.round(h*d);
+    const layer = document.createElement('canvas'); layer.width = cv.width; layer.height = cv.height;
+    const sti = { dpr: d, W: w, H: h, ow: Math.max(1, .0045*w), shadow: Math.max(1.5, .0065*w), compact: false, handOnly: true, layer, ghost: null };
+    const x = cv.getContext('2d'); x.setTransform(d, 0, 0, d, 0, 0);
+    const r = Math.max(6, u*.7), face = IMPACT_FACE[id] > 0 ? 1 : -1;
+    x.save(); x.beginPath(); x.roundRect(1, 1, w - 2, h - 2, r); x.clip();
+    const g = x.createRadialGradient(w/2, h*.55, 0, w/2, h*.55, Math.hypot(w, h)*.6); g.addColorStop(0, BG.center); g.addColorStop(1, BG.edge);
+    x.fillStyle = g; x.fillRect(0, 0, w, h);
+    const behind = ballBehind(ccam, Rc, ball);
+    if (behind) drawBall(x, ccam, ball, .6, sti);
+    const F = drawFigure(x, ccam, Rc, sti, H_);
+    if (!behind) drawBall(x, ccam, ball, .6, sti); else if (F.phoneHull) drawBallThrough(x, ccam, ball, .6, sti, F.phoneHull, 1);
+    drawImpact(x, ccam, CP, .015, sti);
+    x.restore();
+    x.beginPath(); x.roundRect(1, 1, w - 2, h - 2, r); x.lineWidth = 2; x.strokeStyle = css(BALL, .9); x.stroke();
+    const text = impactCloseText(id);
+    pill(x, sti, w/2, 4 + cap/2, text, { size: u, fg: '#e3ff36', bg: 'rgba(5,10,28,.88)', border: 'rgba(227,255,54,.55)' });
+    // misure per le prove: faccia che colpisce verso la camera del primo piano e verso quella principale (gradi)
+    const n0 = qrot(Rc.q, [0, 0, 1]), nf = mul(n0, face), ang = cm => Math.acos(Math.max(-1, Math.min(1, dot(nf, norm(sub(cm.eye, Rc.pos))))))/D;
+    // posto: l'angolo che copre meno il soggetto vivo (telefono, mano, braccio, palla) dal contatto alla fine del riquadro, poi il
+    // busto; a pari merito in alto e dalla parte opposta alla mano all'impatto
+    const m = 8, cands = [[m, m], [st.W - w - m, m], [m, top - h - m], [st.W - w - m, top - h - m]].map(([x0, y0]) => ({ x0, y0, x1: x0 + w, y1: y0 + h }));
+    const handX = main.p(Rc.pos).x, cost = cands.map((b, i) => (i > 1 ? .5 : 0) + (Math.abs((b.x0 + b.x1)/2 - handX) < st.W/2 ? .25 : 0));
+    // campioni fitti attorno al contatto (il telefono del piatto attraversa 100 px in 0,1 s) e radi fino alla fine del riquadro
+    const K = IMPACT_CLOSE, N = 10, TS = [-.05, -.03, -.015, 0, .015, .03, .05].map(k => P.contact + k);
+    for (let j = 0; j <= N; j++) TS.push(P.contact + K.from + (K.hold - K.from)*j/N);
+    for (const ts of TS){
+      const cm = this._cam(ts), Rs = mir(this.pose(ts)), Fs = figure(cm, Rs, st, H_);
+      // (figure non ha la sagoma del telefono, che fa drawPhone: qui la stessa, senza disegnare)
+      const TT = v => add(Rs.pos, qrot(Rs.q, v)); Fs.phoneHull = hull(RR.map(q => cm.p(TT([q[0], q[1], HD]))).concat(RR.map(q => cm.p(TT([q[0], q[1], -HD])))));
+      const occ = liveTest(Fs);
+      const bR = gestureBall(id, ts, { ...o, hand: this.hand }), bs = bR ? (this.hand === 'left' ? mirrorPos(bR) : bR) : null, bp = bs ? cm.p(bs) : null, br = bs ? cm.rad(bs, BALL_R) : 0;
+      const B = Rs.chain ? bodyGeom(cm, Rs.chain) : null;
+      // all'impatto (primi campioni) telefono, mano e palla vivi non vanno mai sotto il riquadro
+      const hard = ts <= P.contact + .05 ? 50 : 1;
+      cands.forEach((b, i) => {
+        cost[i] += occ(b)*2*hard + (liveHits(Fs, b) ? 6*hard : 0);
+        if (bp && bp.x + br > b.x0 && bp.x - br < b.x1 && bp.y + br > b.y0 && bp.y - br < b.y1) cost[i] += 8*hard;
+        if (B){ const q = B.box, ov = Math.max(0, Math.min(q.x1, b.x1) - Math.max(q.x0, b.x0))*Math.max(0, Math.min(q.y1, b.y1) - Math.max(q.y0, b.y0)); cost[i] += ov/(w*h)*3;
+          // la testa coperta si nota più del busto
+          const hc = B.head.c; if (Math.hypot(Math.max(b.x0 - hc.x, 0, hc.x - b.x1), Math.max(b.y0 - hc.y, 0, hc.y - b.y1)) < B.head.r) cost[i] += 3; }
+      });
+    }
+    let bi = 0; cost.forEach((v, i) => { if (v < cost[bi] - 1e-9) bi = i; });
+    const b = cands[bi];
+    this._closeKey = key;
+    return (this._closeV = { cv, rect: { x: b.x0, y: b.y0, w, h }, box: b, meta: { text, face, cost: cost[bi], faceToClose: ang(ccam), faceToMain: ang(main), corner: ['alto a sinistra', 'alto a destra', 'basso a sinistra', 'basso a destra'][bi] } });
   }
   // fondo: gradiente radiale più chiaro al centro dello stadio (fatto una volta per misura e copiato), piano di gioco
   // accennato sotto la mano (alone e ombra morbida della mano): dà alto e basso senza linee che tagliano il quadro
