@@ -51,3 +51,24 @@ principale; tutte.sh: tutte le prove nel browser in fila). Prove con `CHROMIUM_P
 ## Non verificato
 - Niente telefono vero né utente: il primo piano è giudicato sui fogli. Fogli delle sequenze non guardati uno per uno (solo
   misure); C-anim a 448×280 e 200×200 non riguardati (lì niente riquadro).
+
+## Correzioni dalle revisioni artistica e tecnica (10/11) — FATTO, un commit nel worktree, niente push
+Dettagli: `docs/b17/gesti-dal-video.md` §8, `docs/b17/ottimizzazione.md` §9.8. Riconoscimento non toccato.
+1. **Servizio e schiacciata con lo schermo** come il dritto (la schiacciata colpiva col dorso a 113° dalla rete, il servizio con lo schermo
+   di taglio a 88°): `IMPACT_FACE` copre tutte le pose che colpiscono (test), servizio 14,5° e schiacciata 9,3° (riottimizzati con
+   `--impact=20` e i vincoli nuovi `--wristMin`, `--peakMax`, `--endMaxX`), primo piano «Palla sullo SCHERMO» anche lì. Servizio ora più vicino
+   al video (impatto 5,2 cm, prima 12,5). Pallonetto e palla corta col **dorso** dichiarati (−1, limiti 33° e 30°): domanda per l'utente.
+2. **Primo piano dello schermo frontale** (12° di lato, 16° dalla cima: 20° dalla normale; il dorso 38°): la palla cade dentro il vetro
+   (`info.close.ballOn`, test su ogni scheda). Quadro 0,27 (prima 0,30).
+3. **Limite della calibrazione del braccio simulato** (incrociato 0/360, lungolinea 0/360, piatto 120/360 su 60 semi): non integrato in
+   silenzio; un solo punto del codice (`test/gesture-semi.mjs`) con il conto esatto, nessun `continue`; **decisione dell'utente da chiedere**.
+4. **Piatto**: riottimizzato con i semi 35 e 38 (e 22, 44); test sui semi 1–60, 7 560/7 560 giuste fuori dai limiti dichiarati.
+Minori: etichetta del lancio spenta dal contatto, «Carica» solo dal primo moto, camera della scheda «Posizione» a tre quarti, testo del
+tagliato di rovescio; non toccati e motivati in §8.6.
+Verifiche: gioco 991/991, sito 200/200, build ok; prove nel browser nel §8 di `gesti-dal-video.md` (vedi sotto, riga «Prove»).
+
+### Prossima azione
+Mostrare all'utente i fogli aggiornati (`docs/b17/img/VC-*`, `O-*`, `C-anim-*`) e chiedere: (a) pallonetto e palla corta col dorso o con lo
+schermo verso la palla in uscita; (b) calibrazione con lo schermo di lato e poi colpi con lo schermo verso la rete (incrociati letti rovesci):
+accettare il limite o riottimizzare il dritto; (c) schiacciata a 950 °/s (prima 707). Nessun telefono vero, nessun utente.
+

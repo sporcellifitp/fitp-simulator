@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as GP from '../src/natpf/natpf_gesture_pose.js';
-import { GRIP_POSE } from '../src/natpf/natpf_gesture_motion.js';
+import { GRIP_POSE, GESTURES } from '../src/natpf/natpf_gesture_motion.js';
 
 const { gesturePose, gesturePlan, gestureJoints, len, sub, dot, norm, qrot, qconj, qmul, qangle, omega } = GP;
 const HANDS = ['right', 'left'], GRIPS = ['racchetta', 'palmo', 'martello'];
@@ -274,13 +274,20 @@ test('schiacciata: l\'accompagnamento scende attraverso il corpo fino alla vita,
 // del telefono guarda la rete (−z del campo, da dove arriva la palla) nei colpi di dritto (dritto, piatto, incrociato,
 // lungolinea, tagliato di dritto, volée) e il DORSO nel rovescio e nel tagliato di rovescio, entro 20°; prima del passo B3 il
 // dritto aveva lo schermo a 83° (telefono di taglio verso la palla), il piatto e la volée il dorso (159° e 164°), il rovescio
-// lo schermo a 103°. Mancino: specchio esatto (stesso angolo, normale specchiata)
+// lo schermo a 103°. Mancino: specchio esatto (stesso angolo, normale specchiata).
+// Correzione dalla revisione del 10/11: servizio e schiacciata colpivano con facce diverse dal dritto (schiacciata col DORSO
+// a 113° dalla rete, servizio con lo schermo di taglio a 88°): ora tutte le schede e le pose in più hanno una faccia che
+// colpisce, schermo anche nel servizio e nella schiacciata, entro 20° (servizio e schiacciata riottimizzati con
+// ottimizza.mjs --impact=20). Fanno eccezione, con il loro limite scritto qui, pallonetto e palla corta: colpiscono con il
+// DORSO (a 32,4° e 28,9° dalla rete) perché sono colpi dal lato del dritto che aprono la faccia verso l'alto; con «dritto =
+// schermo» l'utente può trovarli incoerenti: domanda aperta per l'utente (docs/b17/ottimizzazione.md §9.7)
 // incrociato: la mira (letta dalla direzione del piatto rispetto ai dritti) chiede il piatto girato verso il centro; con la
 // lettura perfetta (calibrazione con l'animazione, semi 7, 1, 5, 10, mira ≥ 0,5) l'ottimizzatore non scende sotto 21,1°
 // (misurato, limite dichiarato in docs/b17/ottimizzazione.md §9); tutte le altre ≤ 20°
-const IMPACT_LIM = { cross: 21.5 };
+const IMPACT_LIM = { cross: 21.5, lob: 33, drop: 30 };
 test('faccia all\'impatto: schermo verso la rete nei colpi di dritto, dorso nel rovescio e nel tagliato di rovescio (≤ 20°), mancino specchio', () => {
-  assert.deepEqual(Object.keys(GP.IMPACT_FACE).sort(), ['backhand', 'cross', 'flat', 'forehand', 'line', 'slice', 'sliceBackhand', 'volley']);
+  // OGNI scheda e ogni posa in più che colpisce una palla ha una faccia che colpisce (non solo quelle già elencate)
+  assert.deepEqual(Object.keys(GP.IMPACT_FACE).sort(), GP.POSE_IDS.filter(id => !GESTURES[id].still).sort());
   assert.equal(GP.IMPACT_MAX, 20);
   for (const [id, face] of Object.entries(GP.IMPACT_FACE)){
     const o = { grip: 'racchetta' }, P = gesturePlan(id, o);

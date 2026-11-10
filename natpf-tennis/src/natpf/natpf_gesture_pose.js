@@ -504,15 +504,15 @@ export const CHOREO_VIDEO = Object.freeze({
     C: { tau: 66.86, lat: 1.6, y: 0.0237, p: 113.63, e: 31.74, r: 3.89, b: 72.84, pro: 73.55, fl: 19.44, dv: 5.03 },
     F: { tau: 49.08, lat: -22, y: 0.011, p: 130.08, e: 48.55, r: -47.13, b: 81.47, pro: 104.99, fl: 55.29, dv: -5.33 },
     F2: { tau: 0.02, lat: 22.05, y: 0.011, p: 101.23, e: 14.25, r: 41.97, b: 74.85, pro: 72.53, fl: -45.05, dv: 19 } }),
-  serve: Object.freeze({ src: "serve2", times: {"carica":23,"alto":23.267,"impatto":23.7,"fine":24}, tC: 2.529628, kind: "serve", hold: 0.4, prep: 1.25, rise: 0.397, up: 0.279, acc: 0.3, contact: 2.626, dMin: 0.27, dMax: 0.27, fin: 0.355, back: 2, backFlat: 0.3, cycle: 5.651, riseWrist: 0.15, lag: LAG,
-    P: { tau: -16.46, lat: 3.3, y: 0.02, p: -64.8, e: 15.94, r: 5.32, b: 95.32, pro: 63.32, fl: -19.39, dv: -20.2 },
-    U: { tau: -35.9, lat: 4.1, y: 0.022, p: 76.35, e: 83.32, r: 3.58, b: 112.59, pro: 146.74, fl: -10.73, dv: -15.1 },
-    C: { tau: -23.9, lat: -0.5, y: 0.007, p: 54.69, e: 113.98, r: -26.4, b: 105.9, pro: 70.17, fl: -23.97, dv: -21.44 },
-    F: { tau: 6.7, lat: -4.3, y: 0.016, p: 78.44, e: 28.3, r: 40.84, b: 102.3, pro: 14.76, fl: -25.81, dv: -5.83 } }),
-  flat: Object.freeze({ src: "flat", tC: 2.760432, contact: 2.69, cycle: 5.598, prep: 2.197, acc: 0.143, crisp: 1, dMin: 0.35, dMax: 0.35, fin: 0.158, back: 2, backFlat: 0.3, lag: LAG,
-    B: { tau: -23.78, lat: 5.2, y: 0.008, p: -21.75, e: 17.88, r: -23.93, b: 43.88, pro: 17.33, fl: -39.44, dv: 19 },
-    C: { tau: 8.93, lat: -6.4, y: 0.03, p: 39.9, e: 49.12, r: -46.39, b: 22.54, pro: 1.93, fl: -22.22, dv: 5.01 },
-    F: { tau: 36.13, lat: -5.3, y: 0.03, p: 73.34, e: 41.7, r: -18.94, b: 100.3, pro: 4.51, fl: -27.05, dv: -27.32 } }),
+  serve: Object.freeze({ src: "serve2", times: {"carica":23,"alto":23.267,"impatto":23.7,"fine":24}, tC: 2.792662, kind: "serve", hold: 0.4, prep: 1.211, rise: 0.4, up: 0.408, acc: 0.252, contact: 2.671, dMin: 0.4, dMax: 0.4, fin: 0.152, back: 2, backFlat: 0.3, cycle: 5.623, riseWrist: 0.15, lag: LAG,
+    P: { tau: -13.29, lat: 3.3, y: 0.02, p: -32.55, e: 12.07, r: -0.25, b: 73.23, pro: 71.93, fl: -15.41, dv: 19 },
+    U: { tau: -42.68, lat: 4.1, y: 0.022, p: 81.14, e: 86.01, r: -0.8, b: 96.97, pro: 136.36, fl: -58.14, dv: -22.39 },
+    C: { tau: -9.39, lat: -0.5, y: 0.007, p: 29.21, e: 114.79, r: 9.45, b: 104.15, pro: 32.09, fl: -41.03, dv: -25.44 },
+    F: { tau: 22.46, lat: -4.3, y: 0.016, p: 64.62, e: 39.3, r: 29.84, b: 97.64, pro: 88.93, fl: -14.65, dv: -14.69 } }),
+  flat: Object.freeze({ src: "flat", tC: 2.797643, contact: 2.715, cycle: 5.686, prep: 2.2, acc: 0.165, crisp: 1, dMin: 0.337, dMax: 0.337, fin: 0.234, back: 2, backFlat: 0.3, lag: LAG,
+    B: { tau: -21.56, lat: 5.2, y: 0.008, p: -21.75, e: 19.75, r: -16.14, b: 36.97, pro: 11.16, fl: -35.05, dv: 19 },
+    C: { tau: 8.93, lat: -6.4, y: 0.03, p: 47.25, e: 49.12, r: -46.1, b: 22.54, pro: 1, fl: -17.32, dv: 5.01 },
+    F: { tau: 41.98, lat: -5.3, y: 0.03, p: 69.3, e: 39.81, r: -26.46, b: 102.16, pro: 5.43, fl: -26.16, dv: -29 } }),
   lob: Object.freeze({ src: "lob", tC: 3.155312, contact: 3.147, cycle: 5.968, prep: 2.777, acc: 0.155, crisp: 1, dMin: 0.12, dMax: 0.24, back: 2.271, backFlat: 0.3, lag: {tau: 0.03,lat: 0.03,y: 0.03,p: 0.015,e: 0.015,r: 0.01}, jt: {b: {pre: 0.2},fl: {pre: 0.2},pro: {pre: 0.2},e: {dur: 0.45},tau: {dur: 0.6},lat: {pre: 0.15},y: {pre: 0.15}},
     B: { tau: -9.68, lat: 5, y: -0.08, p: 79.06, e: 11.09, r: 37.66, b: 32.86, pro: 43.09, fl: 74, dv: -15.45 },
     C: { tau: -0.03, lat: 3, y: -0.05, p: 83.45, e: 41.53, r: 21.83, b: 49.14, pro: 71.76, fl: 26.71, dv: -29 },
@@ -521,11 +521,11 @@ export const CHOREO_VIDEO = Object.freeze({
     B: { tau: -11.38, lat: 2, y: -0.03, p: 87.21, e: 30.43, r: 41.09, b: 98.82, pro: 36.84, fl: 24.97, dv: -5.79 },
     C: { tau: -6.48, lat: 1, y: -0.04, p: 90.47, e: 30.09, r: 40.15, b: 85.27, pro: 24.79, fl: 16.1, dv: -7.97 },
     F: { tau: -4.18, lat: 0, y: -0.04, p: 94.25, e: 28.3, r: 40.49, b: 74.7, pro: 6.85, fl: 11.54, dv: -28.38 } }),
-  smash: Object.freeze({ src: "smash", tC: 2.025205, contact: 2.032, cycle: 3.451, prep: 1.722, acc: 0.123, crisp: 1, dMin: 0.1, dMax: 0.219, back: 0.804, ov: 0.15, flat: 0.3, rest: REST_COLPI_RACCHETTA, backFlat: 0.3, lag: {tau: 0.03,lat: 0.03,y: 0.03,p: 0.015,e: 0.015,r: 0.01,b: 0}, jt: {e: {lag: -0.009,dMax: 0.313,acc: 0.059},b: {lag: -0.004,dMax: 0.291},fl: {dMax: 0.296},pro: {lag: 0.049},tau: {dMax: 0.3}},
+  smash: Object.freeze({ src: "smash", tC: 2.618308, contact: 2.631, cycle: 3.758, prep: 2.321, acc: 0.123, crisp: 1, dMin: 0.1, dMax: 0.219, back: 0.518, ov: 0.15, flat: 0.3, rest: REST_COLPI_RACCHETTA, backFlat: 0.3, lag: {tau: 0.03,lat: 0.03,y: 0.03,p: 0.015,e: 0.015,r: 0.01,b: 0}, jt: {e: {lag: -0.009,dMax: 0.313,acc: 0.059},b: {lag: -0.004,dMax: 0.291},fl: {dMax: 0.296},pro: {lag: 0.049},tau: {dMax: 0.3}},
     V: [{ tau: -1.9, lat: 1, y: -0.004, p: 86.4, e: 30.1, r: 38.3, b: 95.2, pro: 12.8, fl: 13.9, dv: -20 }, { tau: -3.8, lat: 2, y: -0.007, p: 88.3, e: 43.2, r: 31.6, b: 101.3, pro: 4.9, fl: 0.2, dv: -23 }, { tau: -5.6, lat: 3, y: -0.011, p: 91.6, e: 58.2, r: 26.2, b: 102.3, pro: 3, fl: -12.7, dv: -25 }, { tau: -7.5, lat: 4, y: -0.015, p: 96.2, e: 73.5, r: 22.8, b: 100.1, pro: 3, fl: -24.3, dv: -26 }, { tau: -9.4, lat: 5, y: -0.019, p: 99.3, e: 90.3, r: 21.9, b: 94.8, pro: 3, fl: -34.1, dv: -26 }, { tau: -11.3, lat: 6, y: -0.022, p: 102.6, e: 107.9, r: 23.3, b: 86.9, pro: 3, fl: -42.1, dv: -26 }, { tau: -13.1, lat: 7, y: -0.026, p: 106.7, e: 126.4, r: 27.8, b: 75.4, pro: 3.9, fl: -47.9, dv: -26 }],
-    B: { tau: -20.35, lat: 8, y: -0.03, p: 113.4, e: 141.38, r: 39.06, b: 65.73, pro: 17.43, fl: -47.75, dv: -23.65 },
-    C: { tau: -6.37, lat: 4, y: -0.01, p: 115.58, e: 131.91, r: 46.59, b: 36.71, pro: 22.84, fl: -43.41, dv: 6.09 },
-    F: { tau: 26.64, lat: -6.95, y: -0.053, p: 110.27, e: 50.75, r: 32.55, b: 18.06, pro: 21.67, fl: -37.24, dv: 8.23 } }),
+    B: { tau: -12.6, lat: 8, y: -0.03, p: 99.27, e: 149.3, r: 38.78, b: 66.19, pro: 25.5, fl: -54.84, dv: -29 },
+    C: { tau: -5.07, lat: 4, y: -0.01, p: 106.32, e: 136.08, r: 58.01, b: 35.27, pro: 74.95, fl: -50.15, dv: -9.75 },
+    F: { tau: 15.24, lat: -6.95, y: -0.053, p: 107.31, e: 57.69, r: 40.36, b: 19.01, pro: 169, fl: -16.06, dv: 12.96 } }),
   volley: Object.freeze({ src: "volley", tC: 2.649563, contact: 2.592, cycle: 5.352, prep: 2.142, acc: 0.1, crisp: 1, dMin: 0.133, dMax: 0.133, fin: 0.227, back: 2, backFlat: 0.3, lag: LAG,
     B: { tau: 12.98, lat: -2.92, y: 0.0234, p: 6.01, e: 31.84, r: -49.12, b: 70.13, pro: 62.5, fl: -69, dv: 19 },
     C: { tau: 28.78, lat: -6.4, y: 0.03, p: 47.25, e: 49.12, r: -36.17, b: 61.39, pro: 34.35, fl: -69, dv: 16.9 },
@@ -572,6 +572,7 @@ export function choreoFor(id, set = 'legacy'){
 }
 const choreoOf = id => choreoFor(id, 'legacy');
 
+export const PREP_MOVE = .05;   // m: spostamento della mano dalla posa di partenza oltre il quale la fase scritta diventa «Carica»
 // tempi di presa e posizione di partenza (ferme)
 export const STILL_TIMING = Object.freeze({ grip: 9, ready: 4 });
 
@@ -652,10 +653,12 @@ export const CAMERAS_VIDEO = Object.freeze({
   smash: Object.freeze({ dir: [.866, 0, -.5], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .15, mix: .8, size: .5 }), read: CAMERAS.smash.read }),
   // piatto e volée (passo B3): dal dritto nuovo con lo schermo verso la rete all'impatto, con la camera del dritto (ottimizzati
   // con questa direzione nei vincoli del disegno: --camdir)
-  flat: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .5, mixSmall: .8, size: .4 }), frame: 'swing', read: 'come il dritto, più corto e più veloce, contatto più basso, schermo in pieno verso la palla' }),
+  flat: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .37, arrow: .025 }), frame: 'swing', read: 'come il dritto, più corto e più veloce, contatto più basso, schermo in pieno verso la palla' }),
   lob: Object.freeze({ dir: [.79, -.087, -.606], dist: 3.6, mirror: true, whole: true, follow: Object.freeze({ window: .25, mix: .8, size: .45 }), read: CAMERAS.lob.read }),
   // posizione di partenza: frontale specchiata come i colpi, dalla testa alle cosce (braccio che pende, telefono all'anca)
-  ready: Object.freeze({ dir: [-.259, .087, -.962], dist: 2.6, mirror: true, frameBody: 'head', read: CAMERAS.ready.read }),
+  // posizione di partenza (revisione del 10/11): a tre quarti da destra (prima di fronte: il telefono tenuto di taglio accanto alla
+  // coscia era largo 3–4 px e la presa non si riconosceva); la posa di partenza (REST_VIDEO) non cambia
+  ready: Object.freeze({ dir: [.58, .03, -.81], dist: 2.2, mirror: true, frameBody: 'head', read: CAMERAS.ready.read }),
   drop: Object.freeze({ dir: [0, .087, -.996], dist: 3.4, mirror: true, whole: true, frameBody: 'head', read: CAMERAS.drop.read }),
   volley: Object.freeze({ dir: [-.462, -.383, -.8], dist: 3.4, mirror: true, whole: true, follow: Object.freeze({ window: .1, mix: .9, mixSmall: .9, size: .37, arrow: .025 }), read: 'gesto corto davanti al corpo, quasi senza preparazione, schermo verso la palla' }),
 });
@@ -950,6 +953,15 @@ export function motionFrom(id, choreo = id === 'serve' ? CHOREO.serve : choreoOf
   if (!g) throw new Error(`gesto sconosciuto: ${id}`);
   const m = g.still ? buildStill(id, rest) : g.toss ? (choreo.U ? buildServeVideo(choreo, rest) : buildServe(choreo, rest)) : buildStroke(id, choreo, rest);
   m.set = set; m.rest = rest;
+  // «Carica» solo dal primo moto (revisione del passo C2: nei primi 0,9–1,5 s dei cicli la mano non si spostava di oltre 5 cm
+  // ma la fase scritta diceva già CARICA): la fase di preparazione comincia quando la mano si è staccata di PREP_MOVE dalla
+  // posa di partenza; fino ad allora resta «Pronto»
+  const pi = m.phases.findIndex(p => p[0] === 'preparazione');
+  if (pi > 0 && !m.still){
+    const [, from, to] = m.phases[pi], W0 = armChain(m.ang(0)).W;
+    let tm = from; while (tm < to - .02 && len(sub(armChain(m.ang(tm)).W, W0)) < PREP_MOVE) tm += 1/60;
+    if (tm > from + .03 && tm < to - .02){ m.phases[pi - 1] = [m.phases[pi - 1][0], m.phases[pi - 1][1], tm]; m.phases[pi] = [m.phases[pi][0], tm, to]; }
+  }
   m.phases = m.phases.map(([pid, from, to]) => Object.freeze({ id: pid, label: PHASES[pid], from, to }));
   return m;
 }
@@ -1016,7 +1028,11 @@ export function gesturePose(id, t, { hand = 'right', grip = GRIP_STYLE, set = un
 // venga colpita con il display in maniera frontale, il rovescio invece stesso movimento ma con l'altro lato»): +1 = lo SCHERMO
 // (normale +z del telefono) guarda la rete (−z del campo) all'impatto, come il piatto corde; −1 = il DORSO. Dritto e colpi di
 // dritto con lo schermo, rovescio e tagliato di rovescio con il dorso. Mancino: specchio esatto (l'angolo non cambia).
-export const IMPACT_FACE = Object.freeze({ forehand: 1, flat: 1, cross: 1, line: 1, slice: 1, volley: 1, backhand: -1, sliceBackhand: -1 });
+// Revisione del 10/11: ogni scheda e posa in più che colpisce una palla ha una faccia che colpisce. Servizio e schiacciata con lo
+// SCHERMO come il dritto (riottimizzati: 14,5° e 9,3° dalla rete; la schiacciata colpiva col dorso a 113° e il servizio con lo
+// schermo di taglio a 88°). Pallonetto e palla corta col DORSO (32,4° e 28,9° dalla rete: colpi dal lato del dritto che aprono la
+// faccia verso l'alto): domanda aperta per l'utente, docs/b17/ottimizzazione.md §9.7–9.8.
+export const IMPACT_FACE = Object.freeze({ forehand: 1, flat: 1, cross: 1, line: 1, slice: 1, volley: 1, serve: 1, smash: 1, backhand: -1, sliceBackhand: -1, lob: -1, drop: -1 });
 export const IMPACT_MAX = 20;                                     // gradi: limite chiesto (schermo o dorso verso la rete)
 // angolo (gradi) tra la faccia che colpisce (IMPACT_FACE) e la direzione della rete nell'istante del contatto
 export const faceAngleOf = (id, q) => { const n = mul(qrot(q, [0, 0, 1]), IMPACT_FACE[id] || 1); return Math.acos(Math.max(-1, Math.min(1, -n[2])))/D; };

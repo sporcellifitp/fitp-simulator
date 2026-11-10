@@ -21,7 +21,7 @@
 // presa. Si disegna solo quando il canvas si vede.
 import { GESTURES, GRIP_STYLE } from './natpf_gesture_motion.js';
 import { gesturePose, gesturePlan, gestureBall, gestureContactPoint, gestureFreeHand, freeRestOf, CAMERAS, camSpec, IMPACT_FACE, BODY, ARM as ARM_, HAND, HAND_LOCAL, HAND_LOCAL_MARTELLO, HAND_RACCHETTA, HAND_LOCAL_RACCHETTA, ARM, FOREARM_PROFILE,
-  UPPER_PROFILE, BAND, PHONE, BALL_R, add, sub, mul, dot, cross, len, norm, qrot, qslerp, mirrorPos, mirrorPose, D } from './natpf_gesture_pose.js';
+  UPPER_PROFILE, BAND, PHONE, BALL_R, add, sub, mul, dot, cross, len, norm, qrot, qconj, qslerp, mirrorPos, mirrorPose, D } from './natpf_gesture_pose.js';
 export { HAND_MARTELLO } from './natpf_gesture_pose.js';
 
 export const COMPACT_W = 320;                 // px CSS: sotto, modalità compatta
@@ -1124,16 +1124,17 @@ export function ghostAlpha(P, keys, i, t, follow){
 // copre metà: schermo o dorso non si distinguono. Da 640×400 in su (camera ferma sul gesto intero), nei colpi con IMPACT_FACE,
 // dall'istante del contatto e per circa un secondo del gesto compare un riquadro con il fermo immagine dell'impatto visto da
 // vicino dalla parte della palla (la palla appoggiata sulla faccia che colpisce, la scritta «Palla sullo SCHERMO» o «Palla sul
-// DORSO»). La camera del primo piano guarda la faccia che colpisce di lato, IMPACT_CLOSE.side attorno all'asse del telefono
-// verso la camera principale (stesso lato dell'immagine grande) e IMPACT_CLOSE.tilt verso il fondo del telefono: la palla, che
-// sta davanti alla faccia vicino alla cima, si proietta in parte fuori dal telefono e lascia vedere il vetro con «Pronto» o il
-// dorso con le fotocamere. Per il dorso (rovescio, tagliato di rovescio) tiltBack/sideBack: 30° verso la CIMA e 50° di lato,
+// DORSO»). La camera del primo piano guarda la faccia che colpisce da vicino alla normale (revisione del 10/11: a 45° di lato il
+// centro della palla, che sta 3,8 cm davanti al vetro verso la cima, cadeva sul bordo e oltre la cima e la palla si leggeva «accanto al
+// telefono»): per lo schermo IMPACT_CLOSE.side = 12° di lato verso la camera principale e IMPACT_CLOSE.tilt = −16° (dalla parte della
+// cima, così il centro della palla si proietta dentro il vetro: (±0,7; 5,0) cm dal centro), 20° dalla normale. Per il dorso
+// (rovescio, tagliato di rovescio, pallonetto, palla corta) tiltBack/sideBack: 30° verso la CIMA e 38° di lato (centro a (∓2,7; 3,6) cm),
 // perché il palmo sta sul dorso e, guardato dalla parte del fondo, la mano più vicina alla camera copriva il dorso (provati
 // 35°/20°, 10°/45°, 0°/65°: fogli nello scratchpad b17C2). A 1,1 m, con la mano intera nel quadro; specchiata come la camera
 // principale. La palla nel primo piano è velata (0,6) con il contorno pieno: copre quasi tutta la larghezza del telefono. Il riquadro si disegna una volta per scheda, mano e misura e poi si copia (costo di
 // un drawImage); il posto (uno dei quattro angoli dello stadio sopra la banda) è quello che copre meno il soggetto vivo
 // (telefono, mano, braccio, palla) dal contatto alla fine del riquadro, poi il busto. Solo disegno: la posa non cambia.
-export const IMPACT_CLOSE = Object.freeze({ tilt: 10, side: 45, tiltBack: -30, sideBack: 50, from: -.04, fadeIn: .03, hold: 1.0, fadeOut: .15, w: .3, aspect: .75 });
+export const IMPACT_CLOSE = Object.freeze({ tilt: -16, side: 12, tiltBack: -30, sideBack: 38, from: -.04, fadeIn: .03, hold: 1.0, fadeOut: .15, w: .27, aspect: .75 });
 const FACE_TEXT = Object.freeze({ 1: 'Palla sullo SCHERMO', '-1': 'Palla sul DORSO' });
 export const impactCloseText = id => IMPACT_FACE[id] ? FACE_TEXT[IMPACT_FACE[id] > 0 ? 1 : '-1'] : null;
 // visibilità del riquadro all'istante t (0…1)
@@ -1329,6 +1330,11 @@ export class NatpfGestureDemo {
     x.restore();
     x.beginPath(); x.roundRect(1, 1, w - 2, h - 2, r); x.lineWidth = 2; x.strokeStyle = css(BALL, .9); x.stroke();
     const text = impactCloseText(id);
+    // dove il centro della palla cade sulla faccia che colpisce, visto dalla camera del primo piano (raggio dall'occhio al
+    // centro della palla fino al piano della faccia, nel riferimento del telefono, cm dal centro): dentro il profilo del
+    // telefono la palla si legge sulla faccia (revisione del passo C2: a 45° di lato il centro cadeva oltre la cima)
+    const ballOn = (() => { const e = qrot(qconj(Rc.q), sub(ccam.eye, Rc.pos)), c = qrot(qconj(Rc.q), sub(ball, Rc.pos)), zf = (c[2] >= 0 ? 1 : -1)*HD, s = (zf - e[2])/(c[2] - e[2]);
+      const px = e[0] + s*(c[0] - e[0]), py = e[1] + s*(c[1] - e[1]); return { x: +(px*100).toFixed(1), y: +(py*100).toFixed(1), inside: Math.abs(px) < HW && Math.abs(py) < HH }; })();
     pill(x, sti, w/2, 4 + cap/2, text, { size: u, fg: '#e3ff36', bg: 'rgba(5,10,28,.88)', border: 'rgba(227,255,54,.55)' });
     // misure per le prove: faccia che colpisce verso la camera del primo piano e verso quella principale (gradi)
     const n0 = qrot(Rc.q, [0, 0, 1]), nf = mul(n0, face), ang = cm => Math.acos(Math.max(-1, Math.min(1, dot(nf, norm(sub(cm.eye, Rc.pos))))))/D;
@@ -1364,7 +1370,7 @@ export class NatpfGestureDemo {
     let bi = 0; cost.forEach((v, i) => { if (v < cost[bi] - 1e-9) bi = i; });
     const b = cands[bi];
     this._closeKey = key;
-    return (this._closeV = { cv, rect: { x: b.x0, y: b.y0, w, h }, box: b, meta: { text, face, cost: cost[bi], faceToClose: ang(ccam), faceToMain: ang(main), corner: names[bi] } });
+    return (this._closeV = { cv, rect: { x: b.x0, y: b.y0, w, h }, box: b, meta: { text, face, ballOn, cost: cost[bi], faceToClose: ang(ccam), faceToMain: ang(main), corner: names[bi] } });
   }
   // fondo: gradiente radiale più chiaro al centro dello stadio (fatto una volta per misura e copiato), piano di gioco
   // accennato sotto la mano (alone e ombra morbida della mano): dà alto e basso senza linee che tagliano il quadro
@@ -1492,7 +1498,9 @@ export class NatpfGestureDemo {
       : sstep(-2*u, u, Math.min(A.x, st.W - A.x, A.y, st.H*(1 - HUD_H) - A.y)))*back;
     // si spegne con il suo contorno (.38·a): niente etichette orfane; spenta del tutto non occupa posto (né per le altre
     // etichette né per la prova delle etichette sul soggetto)
-    const la = Math.min(1, g.a*1.4)*sstep(.12, .45, g.a)*vis*(g.edge ?? 1);
+    // servizio: l'etichetta del lancio si spegne prima della battuta (sopra la cima del telefono finiva sul lampo e sulla scia)
+    const serveOff = PT.contact != null && motion(this.id, this.grip, this.set).P.kind === 'serve' ? 1 - sstep(PT.contact - .3, PT.contact - .08, this._tNow ?? 0) : 1;
+    const la = Math.min(1, g.a*1.4)*sstep(.12, .45, g.a)*vis*(g.edge ?? 1)*serveOff;
     if (la <= .01) return;
     c.save(); c.globalAlpha = la;
     const r = pill(c, st, r0.x0, (r0.y0 + r0.y1)/2, g.k.label, { num: String(g.i + 1), size: u, box: follow ? FREE_BOX : box, align: 'left' });

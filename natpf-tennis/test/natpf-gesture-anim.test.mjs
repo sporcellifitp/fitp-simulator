@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { readCard, judgeCard, omega } from './pose-sensors.mjs';
 import * as GP from '../src/natpf/natpf_gesture_pose.js';
-import { declared } from './gesture-semi.mjs';
+import { judgeOne, newTally, DECLARED_EXPECT } from './gesture-semi.mjs';
 import * as DEMO from '../src/natpf/natpf_gesture_demo.js';
 import { GESTURES } from '../src/natpf/natpf_gesture_motion.js';
 
@@ -69,27 +69,24 @@ test('la posa disegnata è quella del test: demo.pose(t) == gesturePose(id, t, {
 });
 
 test('fedeltà dell\'animazione: ogni scheda e la mira, destro e mancino, racchetta, palmo e martello, calibrazione con l\'animazione e con il braccio simulato, imitazione 0,8× / 1× / 1,25×: un messaggio per ciclo (servizio due), colpo e lato attesi, picco letto = contatto disegnato ± 40 ms', () => {
-  const bad = [];
-  let n = 0, skipped = 0;
+  const bad = [], lim = newTally();
+  let n = 0;
   for (const grip of GRIPS){
     const src = demoSource(grip);
     for (const cal of ['pose', 'arm']) for (const hand of HANDS) for (const rate of RATES) for (const id of GP.POSE_IDS){
       if (GESTURES[id].still && rate !== 1) continue;
-      // B17.1 passo B3: limite dichiarato (ottimizzazione.md §9): con lo schermo verso la rete nel dritto la calibrazione del
-      // braccio simulato non legge la mira di incrociato e lungolinea né il piatto; quelle letture NON sono verificate qui:
-      // sono contate e confrontate con il conto misurato nei test natpf-gesture-semi-a/b/c (gesture-semi.mjs)
-      if (grip === 'racchetta' && declared(id, cal)){ skipped++; continue; }
+      // B17.1 passo B3: limite dichiarato (ottimizzazione.md §9.4): con lo schermo verso la rete nel dritto la calibrazione del
+      // braccio simulato non legge la mira di incrociato e lungolinea né il piatto. Quelle letture si fanno e si registrano in
+      // `lim` (gesture-semi.mjs), con il conto esatto delle letture giuste e di che cosa viene letto: mai saltate
+      const j = judgeOne(src, id, { hand, cal, rate, peakTol: 40, racket: grip === 'racchetta', extra: id === 'serve' ? r => r.msgs.length !== 2 ? [`${r.msgs.length} messaggi (attesi 2)`] : [] : null }, lim);
       n++;
-      const r = readCard(src, id, { hand, cal, rate });
-      const why = judgeCard(src, id, r, { hand, rate, allow: allowFor(id, rate), peakTol: 40 });
-      if (id === 'serve' && r.msgs.length !== 2) why.push(`${r.msgs.length} messaggi (attesi 2)`);
-      if (why.length) bad.push(`${grip} ${id} ${hand} cal=${cal} ×${rate}: ${why.join('; ')}`);
+      if (j.why.length) bad.push(`${grip} ${id} ${hand} cal=${cal} ×${rate}: ${j.why.join('; ')}`);
     }
   }
-  // tutte le letture tranne le 18 dei limiti dichiarati (3 schede × 2 mani × 3 velocità, solo racchetta e braccio simulato)
-  assert.equal(skipped, GRIPS.includes('racchetta') ? 18 : 0);
+  assert.equal(lim.n, GRIPS.includes('racchetta') ? 18 : 0);
   assert.ok(n >= 400, `${n} letture`);
   assert.deepEqual(bad, [], bad.join('\n'));
+  assert.deepEqual(lim.byCard, GRIPS.includes('racchetta') ? DECLARED_EXPECT.anim : {}, JSON.stringify(lim.byCard));
 });
 
 test('animazione: continuità (|ω| ≤ 2000 °/s, |Δpos| ≤ 0,15 m a 60 Hz) e ciclo chiuso; presa e posizione ferme (≤ 30 °/s)', () => {
@@ -274,6 +271,11 @@ test('primo piano dell’impatto: schermo nei colpi di dritto, dorso nei rovesci
         assert.ok(C && C.alpha > .99, `${tag}: primo piano assente all'impatto`);
         assert.equal(C.text, GP.IMPACT_FACE[id] > 0 ? 'Palla sullo SCHERMO' : 'Palla sul DORSO', tag);
         assert.ok(C.faceToClose < 60, `${tag}: faccia che colpisce a ${C.faceToClose.toFixed(0)}° dalla camera del primo piano`);
+        // il centro della palla visto dal primo piano cade DENTRO il profilo del telefono, lontano dai bordi (revisione del 10/11:
+        // a 45° di lato il centro dei colpi di dritto cadeva oltre la cima e la palla si leggeva «accanto al telefono»)
+        assert.ok(C.ballOn.inside && Math.abs(C.ballOn.x) <= (GP.PHONE.w/2 - .009)*100 && Math.abs(C.ballOn.y) <= (GP.PHONE.h/2 - .01)*100, `${tag}: centro della palla sulla faccia a (${C.ballOn.x}; ${C.ballOn.y}) cm`);
+        assert.ok(C.faceToClose <= 50, `${tag}: primo piano a ${C.faceToClose.toFixed(0)}° dalla normale della faccia`);
+        if (GP.IMPACT_FACE[id] > 0) assert.ok(C.faceToClose <= 22, `${tag}: schermo visto a ${C.faceToClose.toFixed(0)}° dalla normale (frontale)`);
         assert.ok(C.faceToMain < 75, `${tag}: faccia che colpisce a ${C.faceToMain.toFixed(0)}° dalla camera principale`);
         const r = C.rect;
         assert.ok(r.x >= 0 && r.y >= 0 && r.x + r.w <= 640 && r.y + r.h <= 400*(1 - .17), `${tag}: riquadro fuori dallo stadio`);
@@ -287,8 +289,10 @@ test('primo piano dell’impatto: schermo nei colpi di dritto, dorso nei rovesci
       }
       assert.ok(Math.abs(rects.left.x - (640 - rects.right.x - rects.right.w)) < 1 && rects.left.y === rects.right.y, `${id}: riquadro del mancino non speculare`);
     }
-    // nessun primo piano nei colpi senza faccia d'impatto
-    for (const id of ['serve', 'lob', 'drop', 'smash']){ d.setSize(640, 400); d.play(id, { set: 'video' }); d.stop(); d.show(d.hitTime()); assert.equal(d.info.close, null, id); }
+    // ogni scheda che colpisce una palla ha il primo piano (IMPACT_FACE le copre tutte: servizio e schiacciata con lo SCHERMO come
+    // il dritto, pallonetto e palla corta col DORSO, revisione del 10/11); nessun primo piano nelle schede ferme (presa, posizione)
+    for (const id of GP.POSE_IDS.filter(id => !GESTURES[id].still)) assert.ok(GP.IMPACT_FACE[id], `${id}: senza faccia che colpisce`);
+    for (const id of ['grip', 'ready']){ d.setSize(640, 400); d.play(id, { set: 'video' }); d.stop(); d.show(1); assert.ok(!d.info.close, id); }
   } finally { dom.restore(); }
 });
 

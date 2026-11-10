@@ -103,7 +103,7 @@ export const GESTURES = Object.freeze({
   // variante di rovescio del tagliato (B17.1, dal video dell'utente: tagliati 1 e 3): stessa lettura, lato opposto. Non è
   // una scheda del tutorial (CARD_IDS): è una posa in più (natpf_gesture_pose.VARIANT_IDS) per il disegno e le prove
   sliceBackhand: { id: 'sliceBackhand', label: 'Tagliato di rovescio', stroke: S.slice, ball: 'ground', expect: { shot: ['slice'] }, variantOf: 'slice',
-    cues: ['Dall’alto verso il basso, dal lato del rovescio', 'Deciso, non lento', 'La mano finisce bassa a destra'] },
+    cues: ['Dall’alto verso il basso, dal lato del rovescio', 'Deciso, non lento', 'La mano finisce bassa, davanti a te'] },
   smash: { id: 'smash', label: 'Schiacciata', stroke: S.smash, ball: 'high', ballHigh: true, expect: { shot: ['smash'] },
     cues: ['Palla alta sopra la testa', 'Braccio in alto, poi giù deciso', 'Colpisci prima del rimbalzo'] },
   serve: { id: 'serve', label: 'Servizio', toss: S.toss, stroke: S.smash, ball: 'toss', ballHigh: true, expect: { messages: 2 },

@@ -14,7 +14,7 @@ import * as GP from '../src/natpf/natpf_gesture_pose.js';
 import { GESTURES, GRIP_STYLE } from '../src/natpf/natpf_gesture_motion.js';
 import { TUTORIAL_CARDS } from '../src/natpf/natpf_tutorial.js';
 import { videoRef, shapeOf, planOf as planVideo, solutionChoreo, SEEDS_DEFAULT, AIM_MARGIN, mirrorOf, MIRROR_OF } from '../scripts/video/ottimizza.mjs';
-import { declared } from './gesture-semi.mjs';
+import { judgeOne, newTally, DECLARED_EXPECT } from './gesture-semi.mjs';
 
 const { gesturePose, gesturePlan, gestureBall, gestureContactPoint, gestureRig, omega, len, sub, qangle } = GP;
 const source = (grip = undefined, set = undefined) => ({ name: 'posa nuova', pose: (id, t, hand) => gesturePose(id, t, { hand, grip, set }), plan: id => gesturePlan(id, { grip, set }) });
@@ -32,17 +32,16 @@ const allowLimit = () => null;
 // B17.1 passo B3: con lo schermo verso la rete all'impatto del dritto (richiesta dell'utente) la calibrazione del braccio
 // simulato (telefono tenuto come nella posa di partenza, schermo di lato) non legge la mira di incrociato e lungolinea né il
 // piatto: limite dichiarato e misurato in docs/b17/ottimizzazione.md §9; quelle letture si contano a parte (lim)
-function check(src, ids, { hands = HANDS, cals = CALS, rates = [1], grip = GRIP_STYLE } = {}){
+function check(src, ids, { hands = HANDS, cals = CALS, rates = [1], grip = GRIP_STYLE, lim = newTally() } = {}){
   const bad = [];
-  let n = 0, skipped = 0;
+  let n = 0;
   for (const cal of cals) for (const hand of hands) for (const rate of rates) for (const id of ids){
-    if (grip === 'racchetta' && declared(id, cal)){ skipped++; continue; }   // contate e confrontate con il misurato in gesture-semi
+    // le letture dei limiti dichiarati si fanno e si registrano in `lim` (conto esatto, gesture-semi.mjs): mai saltate
+    const j = judgeOne(src, id, { hand, cal, rate, allow: [...(allowFor(id, rate) || []), ...(allowLimit(grip, id, cal) || [])], racket: grip === 'racchetta' }, lim);
     n++;
-    const r = readCard(src, id, { hand, cal, rate });
-    const why = judgeCard(src, id, r, { hand, rate, allow: [...(allowFor(id, rate) || []), ...(allowLimit(grip, id, cal) || [])] });
-    if (why.length) bad.push(`${id} ${hand} cal=${cal} ×${rate}: ${why.join('; ')}`);
+    if (j.why.length) bad.push(`${id} ${hand} cal=${cal} ×${rate}: ${j.why.join('; ')}`);
   }
-  return { bad, n, skipped };
+  return { bad, n, lim };
 }
 
 test('posa: le schede sono quelle del tutorial, nello stesso ordine, più i due esercizi della mira', () => {
@@ -60,10 +59,12 @@ test('posa: modulo puro (niente DOM, three.js o canvas), importabile in Node', (
 
 test('fedeltà: ogni scheda (11) e ogni esercizio della mira dà esattamente il colpo mostrato, picco letto = contatto disegnato ± 1 campione (destro e mancino, calibrazione con l\'animazione e con il braccio simulato, presa a racchetta, nel palmo e a martello)', () => {
   for (const grip of ['racchetta', 'palmo', 'martello']){
-    const { bad, n, skipped } = check(source(grip), GP.POSE_IDS, { grip });
-    assert.equal(n + skipped, GP.POSE_IDS.length*4);
-    assert.equal(skipped, grip === 'racchetta' ? 6 : 0);
+    const { bad, n, lim } = check(source(grip), GP.POSE_IDS, { grip });
+    assert.equal(n, GP.POSE_IDS.length*4);
+    assert.equal(lim.n, grip === 'racchetta' ? 6 : 0);
     assert.deepEqual(bad, [], `presa ${grip}:\n${bad.join('\n')}`);
+    // limiti dichiarati (ottimizzazione.md §9.4): conto esatto delle letture giuste e di che cosa viene letto
+    assert.deepEqual(lim.byCard, grip === 'racchetta' ? DECLARED_EXPECT.pose : {}, `presa ${grip}: ${JSON.stringify(lim.byCard)}`);
   }
 });
 
@@ -255,7 +256,7 @@ test('insieme del video: tutte le schede della racchetta, dalla partenza del vid
 // 7,6); tagliato di dritto impatto 5,9 cm (prima 1,9): misure in docs/b17/ottimizzazione.md §9
 // Correzioni del passo B3: rovescio e tagliato di rovescio non seguono più il video (rovescio A DUE MANI, e tagliato di
 // rovescio del video) ma lo SPECCHIO del dritto e del tagliato di dritto (test qui sotto)
-const SHAPE_MAX = { forehand: { key: 13, impact: 13, path: 12 }, slice: { key: 10, impact: 6, path: 7 }, serve: { key: 14, impact: 13, path: 10 } };
+const SHAPE_MAX = { forehand: { key: 13, impact: 13, path: 12 }, slice: { key: 10, impact: 6, path: 7 }, serve: { key: 17, impact: 6, path: 11 } };   // servizio riottimizzato con lo schermo verso la rete (14,5°, revisione del 10/11): impatto a 5,2 cm, fine a 16,2 cm
 test('insieme del video: la forma resta quella del video (mano alle pose chiave e traiettoria entro gli scarti misurati)', () => {
   for (const id of Object.keys(SHAPE_MAX)){
     const P = planVideo(id, GP.CHOREO_VIDEO[id]); P.choreo = GP.CHOREO_VIDEO[id];
@@ -276,15 +277,17 @@ test('insieme del video: letto giusto anche con semi del rumore che l\'ottimizza
   assert.ok(HELD.every(s => !SEEDS_DEFAULT.includes(s)) && SEEDS_DEFAULT.includes(7));
   const src = source('racchetta'), bad = [], ids = GP.POSE_IDS.filter(id => !GESTURES[id].still);
   let n = 0, aimMin = Infinity;
+  const lim = newTally();
   for (const seed of HELD) for (const id of ids) for (const cal of CALS) for (const hand of HANDS) for (const rate of [1, .8, 1.25]){
     n++;
-    if (declared(id, cal)) continue;   // limite dichiarato (passo B3, ottimizzazione.md §9)
-    const r = readCard(src, id, { hand, cal, rate, seed }), why = judgeCard(src, id, r, { hand, rate, allow: allowFor(id, rate) });
-    if (why.length) bad.push(`seme ${seed} ${id} ${hand} cal=${cal} ×${rate}: ${why.join('; ')}`);
-    else if (GESTURES[id].aim) aimMin = Math.min(aimMin, Math.abs(+r.read[0].ev.natpf.wrist));
+    // limite dichiarato (passo B3, ottimizzazione.md §9.4): letto e registrato in `lim`, non saltato (conto esatto sotto)
+    const j = judgeOne(src, id, { hand, cal, rate, seed }, lim);
+    if (j.why.length) bad.push(`seme ${seed} ${id} ${hand} cal=${cal} ×${rate}: ${j.why.join('; ')}`);
+    else if (GESTURES[id].aim && !j.declared) aimMin = Math.min(aimMin, Math.abs(+j.r.read[0].ev.natpf.wrist));
   }
   assert.equal(n, 3*12*12);
   assert.deepEqual(bad, [], bad.join('\n'));
+  assert.deepEqual(lim.byCard, DECLARED_EXPECT.held, JSON.stringify(lim.byCard));
   assert.ok(aimMin >= AIM_MARGIN - .1, `mira minima ${aimMin.toFixed(3)} (soglia 0,4)`);
 });
 

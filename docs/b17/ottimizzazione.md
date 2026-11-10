@@ -466,3 +466,44 @@ braccio a sinistra all'altezza della spalla; il tagliato di rovescio scende dall
 **Non verificato**: nessun telefono vero; nessuna persona ha provato a imitare il rovescio nuovo; la faccia è entro 20° solo
 nell'istante del contatto (a ±1 fotogramma il rovescio arriva a 21,2°); l'accoppiamento delle articolazioni al limite non è
 modellato.
+
+### 9.8 Correzioni dalle revisioni del passo C2 (10/11): servizio e schiacciata con lo schermo, piatto con più semi, limiti dichiarati in un punto solo
+Dettagli del disegno in `docs/b17/gesti-dal-video.md` §8. Qui le coreografie e le letture.
+
+**Ottimizzatore** (`scripts/video/ottimizza.mjs`): `IMPACT_FACE` comprende ora servizio e schiacciata (+1) e, con il loro limite scritto nel
+test, pallonetto e palla corta (−1, dorso: 32,4° e 28,9° dalla rete, domanda aperta). Opzioni nuove (vincoli come quelli fisici, non salvate in `opts`:
+vanno ripetute quando si riprende con `--from`): `--wristMin=h` polso all'impatto almeno a h m, `--peakMax=w` picco del telefono al contatto al più
+w °/s, `--endMaxX=x` polso a fine accompagnamento a sinistra di x m. Servono perché la prima soluzione con la faccia girata portava il
+polso del servizio a 1,57 m (test: sopra la spalla di 0,2 m = 1,62 m) e la schiacciata a 1 327 °/s (prima 707) con la fine a −0,089 m (test ≤ −0,10).
+
+| Scheda | Comando (dalla cartella `natpf-tennis`, `--with=scripts/video/soluzioni`) | Risultato |
+|---|---|---|
+| Schiacciata | `--card=smash --from=…/smash.json --impact=20 --armd=25 --peakMax=950 --endMaxX=-0.12 --wristMin=1.76 --evals=1500` (da una prima soluzione `--impact=20 --armd=25 --rest=colpi`) | schermo a **9,3°** dalla rete, 48/48 letture giuste (semi 7, 1, 5, 10), picco 950 °/s, polso a 1,85 m, fine attraverso il corpo a sinistra |
+| Servizio | `--card=serve --impact=20 --armd=25 --peakMax=920 --wristMin=1.66 --evals=1500` (da zero: impactInit) | schermo a **14,5°**, 48/48, impatto **5,2 cm** dal video (prima 12,5), fine 16,2 cm, polso a 1,66 m, picco 861 °/s |
+| Piatto | `--card=flat --from=…/flat.json --axisLike=forehand --cals=pose --seeds=7,1,5,10,35,38,22,44 --evals=900` | 0 errori su 48 × 8 semi (la partenza ne aveva 2: semi 35 e 38) |
+
+**Letture** (test `natpf-gesture-semi-a/b/c`: semi **1–60**, prima 1–23): fuori dai limiti dichiarati **7 560/7 560** (0 errori; 12 schede × 60 semi ×
+12 combinazioni = 8 640, meno le 1 080 dei limiti dichiarati). Il giro di prima («2 898/2 898») valeva solo per i semi 1–23. Con la
+calibrazione con l'animazione tutte le 4 320 letture sono giuste. Prima di riottimizzare il piatto, con la stessa funzione di lettura, su
+semi 24–60 (4 662 letture fuori dai limiti) gli errori erano 2: seme 35 mancino e seme 38 destro, a 1×, «riconosciuto top spin (atteso piatto)».
+Limiti dichiarati (calibrazione del braccio simulato, 1 080 letture): **piatto 120/360 giuste** (le sole a 0,8×, dove il top spin è ammesso; tutte
+le 360 sono lette top spin di dritto), **incrociato 0/360** (letto rovescio top spin con la mira da lungolinea; 120 volte anche come due colpi),
+**lungolinea 0/360** (mira al centro: 120 volte top spin di dritto con palla corta, 193 top spin di dritto, 45 dal lato del rovescio, 2 pallonetti).
+Prima del passo B3 (20b31bc) queste letture erano giuste. **Non integrato in silenzio**: serve la decisione dell'utente (accettare, o riottimizzare dritto,
+incrociato e lungolinea con la calibrazione del braccio nel costo, che cambia anche il dritto) e una prova con un telefono vero.
+
+**Un solo punto del codice** per il limite: `test/gesture-semi.mjs` (`DECLARED`, `judgeOne`, `DECLARED_EXPECT`). Nessun test salta più quelle
+letture (`continue` tolti da `natpf-gesture-pose`, `natpf-gesture-anim` e dai tre file dei semi): si fanno, si giudicano, si registrano e si
+confronta il numero esatto di giuste e che cosa viene letto, per scheda (`semi-a/b/c`, `pose`, `anim`, `held`). Un peggioramento o un
+miglioramento fa fallire il test e va riscritto in `DECLARED_EXPECT` e qui.
+
+**Altri test aggiornati**: `natpf-gesture-physics` (faccia: tutte le pose non ferme; limiti 21,5° incrociato, 33° e 30° pallonetto e palla corta),
+`natpf-gesture-pose` («forma del video»: servizio chiave ≤ 17 cm, impatto ≤ 6 cm, traiettoria ≤ 11 cm), `natpf-gesture-anim` (primo piano per tutte
+le schede che colpiscono, nessuno nelle schede ferme, centro della palla dentro il telefono, schermo visto entro 22° dalla normale),
+`natpf-mancini` (schiacciata, calibrazione con l'animazione: direzione del piatto specchiata entro 6° invece di 1,5°: 37,8° / −32,4°, la mira
+della schiacciata non viene dal piatto).
+
+**Da chiedere all'utente** (aggiunte a §9.7): (6) pallonetto e palla corta con lo schermo verso la palla in uscita? (ora dorso); (7) servizio e
+schiacciata ora con lo schermo verso la rete: come li trova rispetto al video (il servizio è più vicino al video di prima, la schiacciata ha
+il picco a 950 °/s contro 707, +34 %)?
+

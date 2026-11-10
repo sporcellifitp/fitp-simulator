@@ -214,7 +214,7 @@ async function confronto(st){
   // fogli O (passo B2): le coreografie ottimizzate si allontanano dal video dove la lettura lo chiede, misurato e dichiarato in
   // docs/b17/ottimizzazione.md: impatto del servizio 0,12–0,13 m (la fine del tagliato di dritto, 0,26 m nel primo giro, ora è entro 0,05 m)
   // passo B3: il dritto con lo schermo verso la rete all'impatto ha il polso 12,4 cm più alto del video (ottimizzazione.md §9)
-  const LIM_O = { serve: .13, forehand: .13 }, lim = LIM_O[st.id] ?? .12;   // servizio: limite dichiarato in ottimizzazione.md (fogli O e VC)
+  const LIM_O = { serve: .17, forehand: .13 }, lim = LIM_O[st.id] ?? .12;   // servizio: limite dichiarato in ottimizzazione.md (fogli O e VC); dal 10/11 impatto 0,05 m e fine 0,16 m (schermo verso la rete)
   const far = keyRows.filter(row => row.video.dW != null && row.video.dW > lim);
   check(`${st.title}: polso dell'animazione dal video entro ${lim.toFixed(2).replace('.', ',')} m dal video alle pose chiave${reliable ? '' : ' (solo misura: ricostruzione del video non attendibile)'}${lim > .12 ? ' (LIMITE DICHIARATO, ottimizzazione.md)' : ''}`, !reliable || far.length === 0,
     keyRows.map(row => `${row.t.toFixed(2)} s Δ ${row.video.dW?.toFixed(2) ?? '—'} m`).join(', '));
@@ -223,8 +223,8 @@ async function confronto(st){
   // colpisce è entro 20° dalla rete (fogli O)
   if (TWO && imp.fixed?.hit != null){ const want = ['backhand', 'sliceBackhand'].includes(st.id) ? false : true;
     check(`${st.title}: all'impatto la camera frontale vede lo ${want ? 'schermo' : 'dorso'} e la faccia che colpisce è entro 20° dalla rete`, imp.fixed.facing === want && imp.fixed.hit <= 20, `${imp.fixed.facing ? 'schermo' : 'dorso'}, ${imp.fixed.hit.toFixed(1)}°`); }
-  // passo C2: all'impatto l'animazione dal video ha il primo piano con la faccia giusta (servizio: nessun primo piano)
-  if (!TWO){ const want = { forehand: 'Palla sullo SCHERMO', slice: 'Palla sullo SCHERMO', backhand: 'Palla sul DORSO', sliceBackhand: 'Palla sul DORSO' }[st.id] ?? null;
+  // passo C2: all'impatto l'animazione dal video ha il primo piano con la faccia giusta (dal 10/11 anche il servizio, con lo schermo)
+  if (!TWO){ const want = { forehand: 'Palla sullo SCHERMO', slice: 'Palla sullo SCHERMO', serve: 'Palla sullo SCHERMO', backhand: 'Palla sul DORSO', sliceBackhand: 'Palla sul DORSO' }[st.id] ?? null;
     check(`${st.title}: primo piano dell'impatto ${want ? `«${want}»` : 'assente'} nell'animazione dal video`, want ? imp.close?.text === want && imp.close.alpha > .99 : !imp.close, imp.close ? `${imp.close.text}, alfa ${imp.close.alpha.toFixed(2)}` : 'nessuno'); }
   check(`${st.title}: «Impatto» scritto all'istante dell'impatto`, imp.video.label === 'Impatto' && (!imp.legacy || imp.legacy.label === 'Impatto'), `${imp.video.label} / ${imp.legacy?.label ?? '—'}`);
   // telefono mai di taglio nelle pose chiave dell'animazione dal video; limiti dichiarati dove la coreografia dal video non

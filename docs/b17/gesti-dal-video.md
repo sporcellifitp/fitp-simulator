@@ -165,7 +165,7 @@ toglie il gesto intero. **Decisione: primo piano dell'impatto** in un riquadro.
 - Compare 40 ms prima del contatto (pieno 10 ms prima) e resta fino a 1 s del gesto dopo il contatto (2 s nel rallentato ×0,5),
   poi si spegne in 0,15 s. È il fermo immagine dell'impatto: la mano con il telefono e la palla appoggiata sulla faccia che
   colpisce, il lampo, la scritta in giallo.
-- Camera del primo piano: dalla parte della palla, 45° di lato verso la camera principale e 10° verso il fondo per lo schermo;
+- Camera del primo piano (**superata dal §8.2**: ora 12° di lato e 16° dalla cima per lo schermo, 38° di lato e 30° per il dorso; qui il giro del 10/11 mattina): dalla parte della palla, 45° di lato verso la camera principale e 10° verso il fondo per lo schermo;
   per il dorso 50° di lato e 30° verso la cima (il palmo sta sul dorso: dal fondo la mano copriva il dorso; provati 35°/20°,
   10°/45°, 0°/65°). Faccia che colpisce a 45° (schermo) e 54–55° (dorso) dal raggio del primo piano. Palla velata (0,6) con il
   contorno pieno: sotto si leggono il vetro con «Pronto» o il dorso con le fotocamere. Specchiata come la camera principale
@@ -213,3 +213,88 @@ alla fine: test, mano fuori dalla sagoma del busto in ≥ 80 % dei campioni dell
   non si vede, ma è una camera impossibile per un telefono appoggiato; non toccata in questo passo (cambia la misura del 28 %:
   `STATO-C.md`).
 - Niente telefono vero né utente: da far vedere all'utente il riquadro (posto, durata, scritta).
+
+## 8. Correzioni dalle revisioni del passo C2 (10/11/2026)
+Due revisioni (artistica e tecnica) hanno trovato quattro bloccanti e alcuni minori. Riprodotti con gli script dei revisori prima di
+correggere. Il riconoscimento non è stato toccato (`git diff` senza nessuna riga su `swing-detect.js`, `gesture-intent.js`,
+`natpf_gestures.js`, `natpf_stroke_intent.js`).
+
+### 8.1 Servizio e schiacciata con lo schermo, come il dritto (bloccante 1)
+Misura sulla posa vera al contatto (destro = mancino): dritto, incrociato, lungolinea, piatto, tagliato, volée **schermo** a 12–17° dalla
+rete, rovescio e tagliato di rovescio **dorso** a 16°; ma la **schiacciata** colpiva col **dorso** (schermo a 113° dalla rete) e il
+**servizio** con lo schermo di taglio (88°: la palla stava sul vetro per 0,04 di coseno), e nessuno dei due aveva il primo piano.
+L'utente vedeva il dritto, il servizio e la schiacciata (tutti colpi «sopra la testa o di dritto») colpire con facce diverse.
+- `IMPACT_FACE` ora copre **tutte** le schede e le pose in più che colpiscono una palla (test: le chiavi di `IMPACT_FACE` sono
+  esattamente le pose non ferme di `POSE_IDS`, così una scheda nuova non si dimentica): servizio e schiacciata **+1 (schermo)**.
+- **Servizio** e **schiacciata** riottimizzati con `ottimizza.mjs --impact=20` e tre vincoli nuovi (`--wristMin`, `--peakMax`,
+  `--endMaxX`, §ottimizzazione 9.8): schermo a **14,5°** (servizio) e **9,3°** (schiacciata) dalla rete, letti giusti. Il servizio
+  ora è più vicino al video (impatto a **5,2 cm**, prima 12,5; fine a 16,2 cm; polso a 1,66 m contro 1,70 nel video; picco 861 °/s,
+  prima 909); la schiacciata ha il picco a 950 °/s (prima 707; senza `--peakMax` arrivava a 1 327 e il mancino non leggeva la
+  stessa forza) e il polso a 1,85 m.
+- **Primo piano** «Palla sullo SCHERMO» anche per servizio e schiacciata (da 640×400 in su).
+- **Pallonetto e palla corta** colpiscono col **DORSO** (a 32,4° e 28,9° dalla rete): sono colpi dal lato del dritto che aprono la
+  faccia verso l'alto (la palla parte a ~48° e ~39° sopra l'orizzonte), con «schermo = dritto» possono sembrare incoerenti. Non li
+  ho girati senza chiedere: sono in `IMPACT_FACE` con **−1** (primo piano «Palla sul DORSO», limiti 33° e 30° scritti nel test), così
+  l'utente li vede dichiarati. **Domanda aperta per l'utente**: girarli con lo schermo verso la palla in uscita (la faccia aperta
+  verso l'alto di ~45°: l'angolo dalla rete non è la misura giusta per questi due, serve un'ottimizzazione con la direzione di uscita
+  della palla)? Oggi non cambia nulla nel gioco, solo il disegno.
+
+### 8.2 Primo piano: la palla sul display (bloccante 2)
+Il primo piano dello schermo era a 45° di lato e 10° dal fondo (45° dalla normale): il centro della palla (5,8 cm dal centro del
+telefono verso la cima e 3,8 cm davanti al vetro) si proiettava a (−3,5; 6,9) cm, sul bordo del vetro e oltre la cima: si leggeva «palla
+accanto al telefono, in alto». Ora **12° di lato e 16° dalla cima** (20° dalla normale: «frontale»): il centro cade a (±0,7; 5,0) cm, dentro
+il vetro. Per il dorso 38° di lato e 30° (prima 50°): centro a (∓2,7; 3,6) cm, dentro il profilo (prima (−4; 3,1), sul bordo).
+`info.close.ballOn` (nuovo) dà il punto e `inside`; test: per **ogni** scheda con faccia che colpisce il centro della palla sta ≥ 0,9 cm
+dentro il bordo laterale e ≥ 1 cm dalla cima, lo schermo è visto entro 22° dalla normale, il dorso entro 50°. Quadro ridotto
+(`w` 0,30 → 0,27) per coprire meno la figura nel piatto e nel tagliato.
+
+### 8.3 Letture con la calibrazione del braccio simulato (bloccante 3): limite dichiarato, DECISIONE DELL'UTENTE
+Rifatto sui semi 1–60 (prima 1–23): con la calibrazione del braccio simulato (telefono tenuto come nella posa di partenza, schermo di
+lato) il **piatto** è letto top spin (le 40 su 120 «giuste» per terzo sono quelle a 0,8×, dove il top spin è ammesso), l'**incrociato** è
+letto **rovescio** 0/360 e il **lungolinea** 0/360 (mira al centro). Il motivo è misurato (due centri della mira a 83,6°, §9.4 di
+`ottimizzazione.md`) e non è eluso: non l'ho aggirato né integrato in silenzio. Per chi calibra tenendo lo schermo di lato e poi fa i
+colpi con lo schermo verso la rete la scheda insegnata non corrisponde a ciò che il gioco legge. Nel gioco la calibrazione si fa con il
+dritto e il rovescio del tutorial (calibrazione «con l'animazione»): lì tutte le 4 320 letture (60 semi × 12 schede × 2 mani × 3 velocità) sono giuste.
+**Da decidere con l'utente, con una prova su un telefono vero**: accettare il limite (oggi), oppure riottimizzare dritto, incrociato e
+lungolinea con la calibrazione del braccio nel costo e lo schermo verso la rete entro 20° (non fatto: cambia il dritto e tutto ciò che
+dipende dalla sua calibrazione). Nel codice il limite vale in **un solo punto** (`test/gesture-semi.mjs`: `DECLARED`, `judgeOne`,
+`DECLARED_EXPECT`): quelle letture si fanno comunque, si giudicano e si contano; ogni test confronta il numero esatto di letture giuste e
+che cosa viene letto, per scheda (nessun `continue`), nei tre file dei semi, in `natpf-gesture-pose` (due test) e in `natpf-gesture-anim`.
+
+### 8.4 Il piatto a 1× non era robusto (bloccante 4)
+Con la calibrazione con l'animazione, a 1×, semi 1–60 (120 letture del piatto): 2 errori, **seme 35 (mancino) e seme 38 (destro)**, «top spin
+atteso piatto» (la finestra della salita, ±0,12, era al limite), sfuggiti ai test sui semi 1–23. Riottimizzato il piatto (`--seeds=7,1,5,10,35,38,22,44
+--cals=pose`, partendo dalla soluzione di prima, 0 errori su 48×8 letture). Ora i tre file dei semi leggono **tutti i semi 1–60**: 7 560 letture
+fuori dai limiti dichiarati su 7 560 giuste (0 errori), contro 2 898 su 2 898 del giro di prima solo sui semi 1–23.
+
+### 8.5 Minori corretti
+- Etichetta «1 Lancio» del servizio: si spegne dal contatto in poi (stava sul lampo e sulla fine della scia).
+- «Carica» solo dal primo moto: la fase scritta resta «Pronto» finché la mano non si è staccata di 5 cm dalla posa di partenza
+  (`PREP_MOVE`), prima diceva CARICA già dal fermo iniziale (0,9–1,5 s). Cambiano solo i tempi delle fasi, non i movimenti.
+- Scheda «Posizione» (640×400): la camera guarda a tre quarti da destra (prima di fronte, telefono di taglio largo 3–4 px accanto alla
+  coscia): ora il dorso con le fotocamere si vede. La posa di partenza (`REST_VIDEO`) non cambia.
+- Testo del tagliato di rovescio: «La mano finisce bassa, davanti a te» (la fine specchiata è davanti alla pancia, non a destra).
+
+### 8.6 Non cambiato (con il motivo)
+- **A 448×280 e 200×200 la camera segue la mano**: si vedono avambraccio, mano e telefono, non la figura intera, quindi la «carica larga a
+  destra, braccio disteso, fine alta davanti al viso» del dritto non si legge a metà schermo (dritto 448, t = 1,38–3,69 s). È una scelta
+  dichiarata (telefono ≥ 60 px); dove l'utente gioca a metà schermo vede una forma diversa da quella del video. Non aggiunta una figura
+  piccola in un angolo.
+- Rovescio e dritto non finiscono allo stesso modo (gomito 101° nel dritto, 172° nel rovescio; carica più breve e veloce, 0,174 s contro
+  0,296 s dalla parte veloce al contatto): lo specchio c'è come posizione del polso (14 cm in media), non come forma del braccio né nel tempo.
+- La fine del servizio resta all'altezza del petto (video: anca opposta); il dritto colpisce 12,6 cm sopra il video.
+- Lo strumento di confronto video-animazione (fogli VC) ancora la riga «carica» a `T.inv`, che nel tagliato cade con la mano ancora ferma
+  accanto all'anca: la riga «carica» dei fogli VC va letta con questa riserva; l'ancora andrebbe spostata alla posa chiave della carica
+  (t = 2,55 s tagliato, 2,46 s tagliato di rovescio). Non toccato.
+- Il primo piano copre ancora un poco la figura (piatto: anca e mano libera; tagliato: spalla sinistra) per circa 1 s.
+
+### 8.7 Prove (10/11, dopo le correzioni)
+Gioco `npm test` 991/991 (semi 1–60 in tre file, ~2 min 40 s con il carico), sito 200/200, build ok. Prove nel browser (Chromium senza GPU, porte
+3971–3976, PEER 9971): `natpf-gesti-fotogrammi` 31/31 (la camera del piatto è ora quella del dritto: con la nuova coreografia la freccia a 448×280
+usciva dal quadro al 15 %, ora 0 %; disegno a 640×400 densità 1 media ~2 ms, con la rasterizzazione 3,9 ms: la misura oscilla con il carico),
+`natpf-modale-gesti` 18/18, `natpf-tutorial-phone` 52/52, confronto `VC` 29/29 e `O` 29/29 (limite del servizio ora 0,17 m: fine a 0,16 m, impatto a
+0,05 m), `natpf-gesti-sequenze` 91/91. Fogli `docs/b17/img/C-anim-*`, `VC-*`, `O-*` rifatti; guardati C-anim 640×400 foglio 3 (servizio con il
+primo piano «Palla sullo SCHERMO»), e le immagini del primo piano di dritto, piatto, tagliato, volée, incrociato, lungolinea, rovescio,
+tagliato di rovescio, pallonetto, palla corta, schiacciata e servizio a 640×400. **Non verificato**: telefono vero, utente, Windows; 200×200 e
+448×280 non riguardati uno per uno (solo misure); i fogli VC/O di servizio non guardati riga per riga.
+

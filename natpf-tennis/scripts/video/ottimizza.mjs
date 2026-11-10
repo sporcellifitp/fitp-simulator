@@ -78,6 +78,11 @@ const IMPACT = arg('impact', null) != null && arg('impact') !== true ? +arg('imp
 export const MIRROR_OF = Object.freeze({ backhand: 'forehand', sliceBackhand: 'slice' });
 const MIRROR_REF = !!arg('mirrorRef', false), MIRROR_MAX = arg('mirrorMax', null) ? String(arg('mirrorMax')).split(',').map(Number) : null;
 const REACH = arg('reach', null) != null ? +arg('reach') : null, PATH_MAX = arg('pathMax', null) != null ? +arg('pathMax') : null;
+// correzioni del 10/11 (servizio e schiacciata con lo schermo verso la rete, test natpf-gesture-physics): --wristMin=h polso
+// all'impatto almeno a h m (servizio sopra la spalla, schiacciata sopra la testa); --peakMax=w picco del telefono al contatto al
+// più w °/s (la schiacciata nuova arrivava a 1 327 °/s, quella di prima 707: letta con la forza al limite); --endMaxX=x polso alla
+// fine dell'accompagnamento a sinistra di x m (la schiacciata finisce attraverso il corpo, a sinistra della vita)
+const WRIST_MIN = arg('wristMin', null) != null ? +arg('wristMin') : null, PEAK_MAX = arg('peakMax', null) != null ? +arg('peakMax') : null, END_MAX_X = arg('endMaxX', null) != null ? +arg('endMaxX') : null;
 const DATA = JSON.parse(fs.readFileSync(new URL('../../../docs/b17/gesti-video.json', import.meta.url), 'utf8'));
 const { D, JOINTS, JOINT_LIMITS, len, sub, add, mul, dot, norm, qrot, qconj, qmul, omega } = GP;
 const GRIP = 'racchetta';
@@ -374,6 +379,10 @@ export function evaluate(id, choreo, { plans = basePlans(), stop = 3, also = ALS
   // --reach=d: spalla–polso all'impatto ≥ d m (braccio quasi disteso)
   const reach = (() => { const c = P.raw(P.contact).chain; return len(sub(c.W, c.S)); })();
   if (REACH != null && reach < REACH) phys.push(['braccio piegato all\'impatto', (REACH - reach)*100/2]);
+  // --wristMin, --peakMax, --endMaxX (vedi in cima)
+  if (WRIST_MIN != null){ const h = P.raw(P.contact).chain.W[1]; if (h < WRIST_MIN) phys.push(['polso basso all\'impatto', (WRIST_MIN - h)*100]); }
+  if (PEAK_MAX != null){ const pk = peakOf(P); if (pk > PEAK_MAX) phys.push(['picco troppo alto', (pk - PEAK_MAX)/20]); }
+  if (END_MAX_X != null){ const x = P.raw(P.T.back).chain.W[0]; if (x > END_MAX_X) phys.push(['fine non a sinistra', (x - END_MAX_X)*100]); }
   // --pathMax=m: percorso della mano dalla carica all'impatto (gesto corto)
   const pathCI = (() => { let s = 0, a = P.raw(P.T.inv).chain.W; for (let t = P.T.inv + 1/240; t <= P.contact; t += 1/240){ const b = P.raw(t).chain.W; s += len(sub(b, a)); a = b; } return s; })();
   if (PATH_MAX != null && pathCI > PATH_MAX) phys.push(['gesto lungo', (pathCI - PATH_MAX)*100/2]);
