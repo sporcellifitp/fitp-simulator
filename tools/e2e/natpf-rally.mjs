@@ -3,7 +3,8 @@
 // dritto o rovescio dal lato del piano. Prova insieme le parti del colpo (fase C e D del 22/10 notte):
 //   • ogni gesto colpisce la palla, il lato del colpo è quello del gesto;
 //   • dopo ogni colpo dal fondo si torna in fondo (niente corsa a rete), e dopo una palla corta si torna indietro;
-//   • l'esito è nel campo aperto (cadute in punti diversi) e la diagnostica lo vede (mira, punto neutro).
+//   • l'esito è nel campo aperto (cadute in punti diversi) e la diagnostica lo vede (mira, punto neutro);
+//   • B18.2 (D11): nella pausa tra i punti i personaggi sono fermi (prima la CPU «correva sul posto»).
 // SHOTS=1 salva i fotogrammi all'impatto e 0,7 s dopo (recupero). Porte 3151 (gioco) e 9151 (PeerJS).
 // DIFF=casual|pro|leggenda: livello della CPU (B16: con le regole del livello, velocità della CPU compresa; prima cambiava
 // solo il nome del livello). CPU_SHOTS=n salva i primi n fotogrammi all'impatto della CPU (gioco fermo per lo scatto).
@@ -92,17 +93,24 @@ try {
       E.ball.pos.set(-.5, 1, -11); E._launchBallToTarget(E.ball.pos, new E.ball.pos.constructor(1.4, 0, 8.6), 1.05, { topspin: 14 }); E._natpfPlanPlayer();
       E.natpfPhone.lastPhase = 'play'; E.natpfPhone.link.send({ t: 'ph', ph: 'play' });
     };
-    const award = E._awardPoint.bind(E); window.__ends = [];
-    E._awardPoint = (who, why) => { __ends.push(`${who}:${why}`); return award(who, why); };
+    const award = E._awardPoint.bind(E); window.__ends = []; window.__endV = [];
+    // B18.2 (D11): velocità della CPU nell'istante in cui il punto finisce (prima restava quella per tutta la pausa)
+    E._awardPoint = (who, why) => { __ends.push(`${who}:${why}`); __endV.push(+E.opponent.vel.length().toFixed(2)); return award(who, why); };
     __rally();
   }, DIFF);
   await game.evaluate(n => { window.__cpuShots = n; }, +(process.env.CPU_SHOTS || 0));
   await phone.waitForFunction(() => __racchetta.state.phase === 'play', null, { timeout: 5000 }).catch(() => {});
-  const t0 = Date.now(); let lastPlan = null, shots = 0, after = [], gestures = 0, rallies = 1;
+  const t0 = Date.now(); let lastPlan = null, shots = 0, after = [], gestures = 0, rallies = 1; const pauses = [];
   while (Date.now() - t0 < 60000){
     const s = await game.evaluate(() => { const E = __natpfTennis, P = E.natpfPlan; return { phase: E.phase, last: E.ball.lastHitter, left: P ? P.at + P.t - E.elapsedTime : null, at: P ? P.at : null, side: P ? P.side : 1, contact: window.__contact }; });
     // punto finito: se ne gioca un altro (al massimo 8), dopo che il gesto in corso è finito
-    if (s.phase !== 'RALLY'){ if (rallies >= 8) break; await game.waitForTimeout(600); await game.evaluate(() => __rally()); rallies++; lastPlan = null; continue; }
+    if (s.phase !== 'RALLY'){
+      if (rallies >= 8) break;
+      await game.waitForTimeout(600);
+      // B18.2 (D11): nella pausa tra i punti i quattro personaggi sono fermi e l'animazione non fa il passo di corsa
+      pauses.push(await game.evaluate(() => { const E = __natpfTennis, A = [E.player, E.playerPartner, E.opponent, E.opponentPartner]; return { phase: E.phase, v: A.map(a => +a.vel.length().toFixed(2)), corre: A.map(a => !!a.rig?.wasMoving) }; }));
+      await game.evaluate(() => __rally()); rallies++; lastPlan = null; continue;
+    }
     // gesto circa 0,12 s prima del punto d'impatto (picco a metà dei 240 ms); il lato dal piano: + destra = dritto
     if (s.last === 'opponent' && s.left != null && s.at !== lastPlan && s.left < .16){ lastPlan = s.at; gestures++; await phone.evaluate(sign => { __up.swing(sign).then(() => __up.still(300)); }, s.side >= 0 ? 1 : -1); }
     if (await game.evaluate(() => window.__freeze)){ const n = await game.evaluate(() => __cpu.length); await game.evaluate(() => __natpfTennis.__render()); await game.screenshot({ path: `${SP}/rally-cpu-${DIFF}-${n}.png` }); await game.evaluate(() => { window.__freeze = false; }); }
@@ -125,6 +133,16 @@ try {
   console.log(`CPU (${cpu.level}, velocità massima ${cpu.speed} m/s): ${cpu.shots.length} colpi, distanza palla–corpo ${cpu.shots.map(c => c.gap).join(' ')} m, schemi ${cpu.shots.map(c => c.kind).join(' ')}, velocità ${cpu.shots.map(c => c.kmh).join(' ')} km/h, corsa massima ${cpu.vmax.toFixed(2)} m/s`);
   // la CPU del livello scelto: velocità del livello, colpi solo entro la sua portata, mai più veloce di chi gioca
   check(`CPU del livello ${DIFF}: colpi entro la portata, corsa sotto la velocità di chi gioca`, cpu.level === DIFF && cpu.shots.length >= 3 && cpu.shots.every(c => c.gap <= 2.35) && cpu.vmax <= 8.8 + 1e-6 && (DIFF !== 'leggenda' || cpu.shots.every(c => c.kind)), JSON.stringify({ level: cpu.level, n: cpu.shots.length, vmax: +cpu.vmax.toFixed(2), gap: Math.max(...cpu.shots.map(c => c.gap)) }));
+  // se i dieci colpi sono arrivati senza che un punto finisse: si lascia finire quello in corso (chi gioca non colpisce più)
+  if (!pauses.length && await game.waitForFunction(() => __natpfTennis.phase !== 'RALLY', null, { timeout: 30000 }).then(() => true, () => false)){
+    await game.waitForTimeout(600);
+    pauses.push(await game.evaluate(() => { const E = __natpfTennis, A = [E.player, E.playerPartner, E.opponent, E.opponentPartner]; return { phase: E.phase, v: A.map(a => +a.vel.length().toFixed(2)), corre: A.map(a => !!a.rig?.wasMoving) }; }));
+  }
+  const endV = await game.evaluate(() => __endV);
+  // (che la CPU corresse a fine punto dipende dallo scambio: lo provano il test natpf-b18-t2-servizio e natpf-servizio-peso)
+  check('B18.2: nella pausa tra i punti nessuno corre sul posto (velocità 0, animazione ferma)',
+    pauses.length >= 1 && pauses.every(p => p.phase !== 'RALLY' && p.v.every(v => v === 0) && p.corre.every(c => !c)),
+    `${pauses.length} pause, velocità ${JSON.stringify(pauses.map(p => p.v))}, in corsa ${pauses.filter(p => p.corre.some(Boolean)).length}; CPU nell'istante di fine punto ${endV.join(' ')} m/s`);
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));
 } finally {
   await B.close(); stop();
