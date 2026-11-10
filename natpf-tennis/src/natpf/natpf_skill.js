@@ -355,6 +355,18 @@ const fatigueOf = (engine, actor) => {
   let f = F.get(actor); if (!f) F.set(actor, f = { level: 0, dir: 0 });
   return f;
 };
+// B18 (D6): stanchezza di tutti a zero (partita nuova, sessione nello stesso schermo). Prima restava quella della
+// partita prima (fino a 0,96–0,99 a Pro e Leggenda): il visitatore dopo partiva già «Stanco!»
+export const resetFatigue = engine => { engine?.natpfFatigue?.clear?.(); };
+// B18 (D6): un passo fuori dallo scambio (pausa tra i punti, servizio, moviola) per ogni personaggio che si è stancato:
+// recupero FATIGUE.pointRecover al secondo. Prima fatigueStep girava solo con la palla in gioco (il motore muove i
+// personaggi solo lì) e il ramo «tra un punto e l'altro» non scattava mai: a Pro la barra restava su «Stanco!» per il
+// 90–95% del tempo
+export function fatigueRest(engine, dt){
+  const F = engine?.natpfFatigue;
+  if (!F?.size || !(dt > 0)) return;
+  for (const a of F.keys()) fatigueStep(engine, a, { dt, inPoint: false });
+}
 // livello di stanchezza (0…1) di un personaggio
 export const fatigueLevel = (engine, actor) => (engine.natpfFatigue?.get(actor)?.level ?? 0);
 // a ogni passo del movimento di un personaggio di chi gioca: vx velocità laterale (m/s), dt (s)

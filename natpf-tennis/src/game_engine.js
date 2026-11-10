@@ -802,6 +802,7 @@ export class NatpfTennisEngine {
     this._applyDifficultyTuning("1v1");
     this.setMatchFormat("singles");
     this.natpfSplit.active = !0;
+    NS.resetFatigue(this); // NATPF B18 (D6): i due giocatori dello stesso schermo partono con l'energia piena
     typeof document < "u" && document.body.classList.add("natpf-split");
     // B17.3 (revisione): l'etichetta «Al servizio» è di una sola vista (una proiezione, uno schermo intero): nello stesso
     // schermo si nasconde subito, non al prossimo update (fermo in pausa o nelle prove restava dov'era, a cavallo della metà
@@ -1198,6 +1199,7 @@ export class NatpfTennisEngine {
     NL.resetLegend(this); // NATPF Leggenda: il modello dell'avversario riparte da zero a ogni partita
     this.natpfArena.setSpeed(null); // NATPF: velocità «---» fino al primo servizio (C21: restava quella della partita prima)
     this.natpfRhythm = null; // NATPF: il ritmo di chi gioca (direzione) si reimpara a ogni partita
+    NS.resetFatigue(this); // NATPF B18 (D6): energia piena a ogni partita nuova (prima restava quella della partita prima)
     (this.score.playerPoints = 0),
       (this.score.opponentPoints = 0),
       (this.score.playerGames = 0),
@@ -2785,6 +2787,8 @@ export class NatpfTennisEngine {
     this._updateEffects(e), this._updateCameraRig(e), this._updateProjectedHUD();
   }
   _stepPhysics(e) {
+    // NATPF B18 (D6): fuori dallo scambio (pausa tra i punti, servizio, moviola) chi gioca recupera la stanchezza
+    (this.phase === "RALLY" && this.ball.inPlay) || NS.fatigueRest(this, e);
     if (this.natpfReplay && this.natpfReplay.step(e)) return (this.phaseTimer += e), void 0; // NATPF moviola dell'ultimo punto
     if (
       ((this.phaseTimer += e),
