@@ -1707,3 +1707,25 @@ html.natpf-area body { position: fixed; left: var(--area-x); top: var(--area-y);
   #title-modal .natpf-update .upd-text:has(.upd-bar) span[data-upd-sub] { display: inline; }
 }
 @media (prefers-reduced-motion: reduce) { #title-modal .natpf-update { animation: none; } #title-modal .upd-bar i { transition: none; } }
+
+/* B18: istruzioni del servizio sul grande schermo (natpf_serve_coach.js). In alto al centro, sopra il campo e sotto il
+   tabellone, lontano da chi serve (in basso) e dal banner del punteggio (al centro). Leggibile sul ledwall: misure in cqh,
+   testo bianco su fondo blu scuro quasi pieno, bordo giallo (lancio), verde («Colpisci!»), rosso (lancio a vuoto) */
+.natpf-serve-coach { position: fixed; left: 50%; top: max(64px, 15cqh); z-index: 31; transform: translateX(-50%); display: grid; justify-items: center; gap: 0.25em; max-width: min(86cqw, 1400px); padding: 0.35em 0.9em 0.45em; border-radius: 0.5em; background: rgba(7, 18, 51, 0.92); box-shadow: inset 0 0 0 max(2px, 0.35cqh) #ffd23f, 0 0.4cqh 2cqh rgba(0, 0, 0, 0.45); color: #fff; font-family: var(--font-display, "Bahnschrift", "Arial Narrow", system-ui, sans-serif); text-align: center; pointer-events: none; font-size: clamp(14px, 3.6cqh, 72px); }
+.natpf-serve-coach.hidden { display: none; }
+.natpf-serve-coach b { font-size: 1.75em; font-weight: 800; line-height: 1.05; letter-spacing: 0.01em; text-shadow: 0 0.06em 0.12em rgba(0, 0, 0, 0.6); }
+.natpf-serve-coach small { font-size: 0.82em; color: #dbe4f7; line-height: 1.2; }
+.natpf-serve-coach small[hidden] { display: none; }
+.natpf-serve-coach[data-state="go"] { box-shadow: inset 0 0 0 max(3px, 0.5cqh) #3be37f, 0 0 3cqh rgba(59, 227, 127, 0.55); }
+.natpf-serve-coach[data-state="go"] b { font-size: 2.4em; color: #3be37f; }
+.natpf-serve-coach[data-state="miss"] { box-shadow: inset 0 0 0 max(2px, 0.35cqh) #ff4d5e, 0 0.4cqh 2cqh rgba(0, 0, 0, 0.45); }
+.natpf-serve-coach[data-side="left"] { left: 25cqw; max-width: 46cqw; font-size: clamp(12px, 2.4cqh, 48px); }
+.natpf-serve-coach[data-side="right"] { left: 75cqw; max-width: 46cqw; font-size: clamp(12px, 2.4cqh, 48px); }
+
+/* B18: Combo, animazione del colpo chiesto (incrociato, lungolinea, colpi speciali già imparati) in alto a destra, sotto il
+   pulsante della pausa: chi arriva per la prima volta vede il gesto mentre la palla arriva (natpf_events.paintDemo) */
+.natpf-challenge-demo { position: fixed; top: calc(var(--gutter) + max(56px, 8cqh)); right: var(--gutter); z-index: 30; display: grid; justify-items: center; gap: 4px; padding: 8px 8px 10px; border-radius: var(--r-l); background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--text); pointer-events: none; }
+.natpf-challenge-demo.hidden { display: none; }
+.natpf-challenge-demo .cd-stage { width: clamp(120px, 26cqh, 260px); height: clamp(120px, 26cqh, 260px); }
+.natpf-challenge-demo .cd-stage canvas { width: 100% !important; height: 100% !important; }
+.natpf-challenge-demo .cd-title { font: 800 italic clamp(14px, 2.6cqh, 30px)/1 var(--font-display); text-transform: uppercase; color: var(--ball); }

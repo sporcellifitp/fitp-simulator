@@ -248,6 +248,8 @@ test('telefono: esito del colpo come il computer (Fuori/In rete con il perché),
   // colpi a vuoto e punti
   assert.equal(eventFlash({ k: 'miss', why: 'tardi' }).big, 'Troppo tardi');
   assert.equal(eventFlash({ k: 'miss', why: 'boh' }).big, 'Mancata');
+  // lancio del servizio senza battuta (B18, miglioramento 2): come il grande schermo, più a lungo
+  assert.deepEqual(eventFlash({ k: 'miss', why: 'lancio' }), { ring: 'miss', big: 'Lancio a vuoto', sub: 'Colpisci quando la palla è in alto. Alza il telefono e riprova.', ms: 1800, buzz: [90] });
   assert.deepEqual(eventFlash({ k: 'point', mine: false, txt: 'Fuori' }), { ring: 'miss', big: 'Punto avversario', sub: 'Fuori', ms: 1300, buzz: null });
   assert.equal(eventFlash({ k: 'point', mine: true, txt: 'Vincente' }).big, 'Punto tuo');
   assert.equal(eventFlash({ k: 'contact', why: 'x'.repeat(100), out: true }).sub.length, 40);

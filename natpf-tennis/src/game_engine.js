@@ -2901,12 +2901,19 @@ export class NatpfTennisEngine {
         this._executeServeHit(i, i === this.opponent && NL.isLegend(this) ? NL.legendServe(this) : i === this.opponent && !this.autoPlayMode ? NS.cpuServeEvent(this) : { timing: "PERFECT" });
         return;
       }
-      this.ball.pos.y <= 0.95 &&
-        this.ball.vel.y < 0 &&
-        ((this.phase = "SERVE_STANCE"),
-        (this.phaseTimer = 0),
-        this.ball.vel.set(0, 0, 0),
-        (this.pendingServeSwing = null));
+      // lancio senza battuta: la palla ricade e si torna al servizio. NATPF B18: la palla torna nella mano di chi serve
+      // (prima restava ferma a mezz'aria, 0,95 m, dove era scesa); il messaggio lo danno il grande schermo e il telefono
+      // (natpf_serve_coach.js), poi si rilancia
+      if (this.ball.pos.y <= 0.95 && this.ball.vel.y < 0) {
+        const sv = this.score.server === "player" ? this.player : this.opponent;
+        (this.phase = "SERVE_STANCE"),
+          (this.phaseTimer = 0),
+          this.ball.vel.set(0, 0, 0),
+          this.ball.pos.set(sv.pos.x + (sv.sideSign > 0 ? -0.28 : 0.28), 1.12, sv.pos.z - sv.sideSign * 0.27),
+          (this.pendingServeSwing = null),
+          (this.natpfWeakServe = null),
+          (this.natpfWeakServeP2 = null);
+      }
       return;
     }
     if (this.phase === "POINT_OVER") {

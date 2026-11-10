@@ -730,6 +730,13 @@ export class NatpfPhoneRacket {
     else if (kind === 'point_won' || kind === 'fault') this.link.send({ t: 'ev', k: 'point', mine: kind === 'point_won', txt: pointReason(grade) });
   }
 
+  // B18 (miglioramento 2): lancio del servizio senza battuta, la palla è ricaduta. Il telefono lo dice come il computer
+  // (natpf_serve_coach.js): «Lancio a vuoto», poi si rilancia
+  tossMissed(){
+    if (!this.ready || !this.link) return;
+    this.link.send({ t: 'ev', k: 'miss', why: 'lancio', vib: VIBRATION.red });
+  }
+
   // Ogni fotogramma: fase al telefono e orientamento del telefono alla racchetta del motore base.
   update(){
     if (!this.link) return;

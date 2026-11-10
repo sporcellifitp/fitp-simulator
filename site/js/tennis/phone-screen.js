@@ -114,7 +114,9 @@ export function countFlash(d = {}){
 // per il colpo difensivo con la palla in gioco), con il motivo già in italiano (txt).
 const SHOT_FLASH = { drop: 'Palla corta!', lob: 'Lob!', slice: 'Tagliato!', smash: 'Smash!' };
 const LABEL_FLASH = { perfetto: 'Perfetto!', buono: 'Bel colpo', anticipo: 'In anticipo', ritardo: 'In ritardo' };
-const MISS_FLASH = { presto: 'Troppo presto', tardi: 'Troppo tardi', nessuno: 'Nessun colpo', portata: 'Troppo lontana' };
+const MISS_FLASH = { presto: 'Troppo presto', tardi: 'Troppo tardi', nessuno: 'Nessun colpo', portata: 'Troppo lontana', lancio: 'Lancio a vuoto' };
+// lancio a vuoto al servizio (B18): come il grande schermo, più a lungo perché c'è da leggere
+const MISS_SUB = { nessuno: 'Il movimento non è arrivato: riprova con un colpetto comodo.', lancio: 'Colpisci quando la palla è in alto. Alza il telefono e riprova.' };
 const cap = s => s ? s[0].toUpperCase() + s.slice(1) : '';
 export function eventFlash(d = {}){
   const why = typeof d.why === 'string' ? d.why.slice(0, 40) : '';
@@ -123,7 +125,7 @@ export function eventFlash(d = {}){
     if (d.net || d.out) return { ring: 'miss', big: d.net ? 'In rete' : 'Fuori', sub: [cap(why), name.replace('!', '')].filter(Boolean).join(' · '), ms: 900, buzz: d.label === 'perfetto' ? [40] : [20] };
     return { ring: 'hit', big: name || LABEL_FLASH[d.label] || 'Colpo!', sub: '', ms: 650, buzz: d.label === 'perfetto' ? [40] : [20] };
   }
-  if (d.k === 'miss') return { ring: 'miss', big: MISS_FLASH[d.why] || 'Mancata', sub: d.why === 'nessuno' ? 'Il movimento non è arrivato: riprova con un colpetto comodo.' : '', ms: 650, buzz: [90] };
+  if (d.k === 'miss') return { ring: 'miss', big: MISS_FLASH[d.why] || 'Mancata', sub: MISS_SUB[d.why] || '', ms: d.why === 'lancio' ? 1800 : 650, buzz: [90] };
   if (d.k === 'point') return { ring: d.mine ? 'hit' : 'miss', big: d.mine ? 'Punto tuo' : 'Punto avversario', sub: String(d.txt || '').slice(0, 60), ms: 1300, buzz: null };
   return null;
 }
