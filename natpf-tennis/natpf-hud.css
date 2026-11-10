@@ -608,45 +608,75 @@ body {
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
-.skill-chart-frame {
+/* fine partita (B18): chi ha vinto, una riga per giocatore con i game, «Nuovo giocatore» grande (il rating finto con il
+   grafico non c'è più) */
+.natpf-end-card {
+  width: min(520px, 92cqw);
+  align-items: stretch;
+}
+.natpf-end-card .skill-card-header {
+  align-self: center;
+}
+.natpf-end-card .victory-result-banner {
+  text-align: center;
+  color: var(--hud-ball);
+  overflow-wrap: anywhere;
+}
+#victory-modal.natpf-lost .victory-result-banner {
+  color: var(--hud-pink);
+}
+.victory-rows {
+  display: grid;
+  gap: 6px;
+  margin: 0;
   padding: 0;
-  border: 1px solid var(--hud-line);
-  border-radius: 0;
-  background: var(--hud-navy);
+  list-style: none;
 }
-.victory-result-banner {
-  font-size: clamp(34px, 5cqw, 46px);
-  font-weight: 800;
-  font-style: italic;
-  line-height: 1;
-  text-transform: uppercase;
-  text-shadow: none;
-}
-.skill-score-pill {
-  padding: 8px 14px 10px 8px;
-  border: 0;
-  border-radius: 0;
+.victory-rows li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
   background: var(--hud-panel-2);
-  box-shadow: inset 0 -4px 0 var(--hud-ball);
-  clip-path: var(--hud-cut-sm);
+  box-shadow: inset 4px 0 0 var(--hud-line);
+  font-size: clamp(16px, 2.2cqw, 22px);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
-.skill-score-pill canvas,
-.skill-score-pill .nt-pl-svg {
-  border-radius: 0;
+.victory-rows li span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.skill-rating-number {
-  font-size: 30px;
-  font-weight: 800;
+.victory-rows li b {
+  font-size: 1.4em;
   font-style: italic;
   font-variant-numeric: tabular-nums;
+}
+.victory-rows li.win {
+  box-shadow: inset 4px 0 0 var(--hud-ball);
   color: var(--hud-ball);
 }
-.skill-player-name {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--hud-ink);
+.natpf-end-card .victory-match-score {
+  text-align: center;
+}
+.natpf-end-card .skill-card-footer {
+  grid-template-columns: 1fr 1fr;
+}
+/* «Nuovo giocatore»: tutta la larghezza, sopra «Gioca ancora» e «Menu» (in fiera è il pulsante del cambio in fila) */
+#victory-modal .nt-footer-btn.new-player {
+  grid-column: 1 / -1;
+  order: -1;
+  height: 58px;
+  font-size: 21px;
+  background: var(--hud-pink);
+  color: #fff;
+}
+#victory-modal .nt-footer-btn.new-player.hidden {
+  display: none;
 }
 .victory-match-score {
   font-size: 15px;
