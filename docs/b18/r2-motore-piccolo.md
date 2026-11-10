@@ -319,7 +319,7 @@ rumore. La Leggenda non è più debole.
 
   Le stesse cinque prove erano verdi anche prima del bilanciamento.
 - Prove nel browser dopo la revisione: `natpf-rally` 8/8, `natpf-gesti-speciali` 9/9, `natpf-1v1-p2p` 39/39,
-  `natpf-latency` verde, `natpf-training-flow` 22/22 (esercizi del lanciapalle, per il segno `ball.natpfFeed`).
+  `natpf-latency` 9/9, `natpf-training-flow` 22/22 (esercizi del lanciapalle, per il segno `ball.natpfFeed`).
   `natpf-leggenda`: 6/7 al primo giro, poi 7/7 e 7/7. Il rosso è la verifica del disegno della CPU nell'allungo: in un
   allungo **in partita** (palla a 1,79 m dal corpo, la CPU in corsa) il piatto della racchetta è andato fuori di +0,05 m,
   sul limite di 5 cm (mano +0,21, testa +0,41: sopra le loro soglie). Il commento della prova stessa dice che con la
