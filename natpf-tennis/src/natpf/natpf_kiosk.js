@@ -74,6 +74,8 @@ export class NatpfKiosk {
   run(cmd){
     const ui = this.ui;
     if (cmd === 'close') return this.close();
+    // «Nuovo giocatore» (B18, natpf_new_player.js): azzera chi gioca senza scollegare il telefono e lo porta al passo giusto
+    if (cmd === 'newplayer'){ this.close(); ui.newPlayer?.(); return; }
     if (cmd === 'kiosk'){ this.enabled = !this.enabled; this._save(); }
     if (cmd === 'idle'){ this.limit = IDLE_STEPS[(IDLE_STEPS.indexOf(this.limit) + 1) % IDLE_STEPS.length]; this._save(); }
     if (cmd === 'ranking'){ this.close(); if (!ui.lobby.visible) ui.backToMenu(); ui.lobby.go('ranking'); document.documentElement.classList.add('ranking-full'); return; }

@@ -29,6 +29,7 @@ import { NatpfScreen } from './natpf_screen.js';
 import { NatpfCalibra } from './natpf_calibra.js';
 import { scoreboardView, scoreboardHtml } from './natpf_scoreboard.js';
 import { NatpfUpdates } from './natpf_updates.js';
+import { resetVisitor } from './natpf_new_player.js';
 const $ = id => document.getElementById(id);
 const show = (el, on = true) => el && el.classList.toggle('hidden', !on);
 const store = {
@@ -116,6 +117,10 @@ export class NatpfUi {
       e.stopImmediatePropagation();
       this.backToMenu('match');
     }, true);
+    // «Nuovo giocatore» (B18, natpf_new_player.js): a fine partita; non nella sfida tra due computer (la rivincita è tra le
+    // stesse due persone: lì il giocatore di questo computer si cambia dal pannello dello stand)
+    $('btn-new-player')?.addEventListener('click', e => { e.stopPropagation(); this.newPlayer(); });
+    window.addEventListener('natpf:victory', () => this._paintVictory());
     this.hand.set(this.hand.hand);
     // mano cambiata sulla pagina del telefono: vale per tutto il gioco (personaggio, webcam) e torna al telefono
     if (this.phone) this.phone.onHand = h => { this.hand.set(h); this.paintTiles(); };
@@ -213,6 +218,14 @@ export class NatpfUi {
   // allenamento, lo stop passava dalla fine dell'allenamento: dal riscaldamento si finiva sulla pagina «Partita» e dalla
   // calibrazione di una sfida partiva la sfida; e il gioco poteva restare in pausa per chi arrivava dopo
   // step: la pagina del menu da aprire («match» per «Gioca ancora»: le impostazioni della partita)
+  // «Nuovo giocatore»: azzera nome, mano, tutorial, calibrazione e colpi imparati senza scollegare il telefono, e porta chi
+  // arriva al passo giusto (natpf_new_player.js). Restituisce la strada presa ('match', 'challenge', 'split', 'versus', 'menu')
+  newPlayer(){ return resetVisitor(this); }
+  // schermata finale: «Nuovo giocatore» nascosto nella sfida tra due computer
+  _paintVictory(){
+    const versus = this.lobby?.mode === 'friend' || this.engine.playerRole === 'p2' || !!this.versus?.hostActive;
+    $('btn-new-player')?.classList.toggle('hidden', versus);
+  }
   backToMenu(step = 'menu'){
     const E = this.engine;
     // Player 2 dell'invito: tornare al menu vuol dire lasciare la stanza (prima restava dentro e i suoi colpi passavano)

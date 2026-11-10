@@ -61,6 +61,26 @@ export function boardCsv(board){
   return rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
 }
 
+/* ---------- record, medaglie e livello per nickname e per giorno (B18, difetto 5 del B16) ---------- */
+// Prima record, medaglie ed esperienza erano uno solo per computer (localStorage RECORDS_KEY): il visitatore dopo vedeva
+// quelli di chi c'era prima. Ora l'archivio è { v: 2, days: { 'AAAA-MM-GG': { <nickname ripiegato>: record } } }: ognuno
+// vede solo i suoi di oggi (senza nickname: «Ospite», come nella classifica). Si tengono gli ultimi RECORD_DAYS giorni.
+// Migrazione innocua: l'archivio di prima (unico per computer, non si sa di chi) resta salvato a parte in «legacy», non si
+// mostra più a nessuno e non si cancella.
+export const RECORDS_V = 2, RECORD_DAYS = 7, GUEST = 'Ospite';
+export const nickKey = nick => String(nick || '').replace(/\s+/g, ' ').trim().toLowerCase() || GUEST.toLowerCase();
+export function migrateRecords(raw){
+  if (raw && raw.v === RECORDS_V && raw.days && typeof raw.days === 'object') return raw;
+  const legacy = raw && typeof raw === 'object' && !Array.isArray(raw) && Object.keys(raw).length ? raw : null;
+  return { v: RECORDS_V, days: {}, ...(legacy ? { legacy } : {}) };
+}
+export const recordsFor = (store, nick, day = dayKey()) => store?.days?.[day]?.[nickKey(nick)] || {};
+export function putRecords(store, nick, records, day = dayKey(), keep = RECORD_DAYS){
+  const s = migrateRecords(store), days = { ...s.days, [day]: { ...(s.days[day] || {}), [nickKey(nick)]: records } };
+  for (const d of Object.keys(days).sort().reverse().slice(keep)) delete days[d];
+  return { ...s, days };
+}
+
 /* ---------- minigiochi in campo ---------- */
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 export class NatpfEvents {
@@ -68,7 +88,7 @@ export class NatpfEvents {
     this.engine = engine; this.ui = ui;
     this.active = null;                // minigioco in corso
     this.board = this._read();
-    this.records = this._readRecords();
+    this.store = migrateRecords(this._readRecords());
     this.hud = $('natpf-challenge-hud');
     this.field = new TargetField(engine);
     // come il riscaldamento: durante il minigioco i punti del motore non contano, decide il minigioco
@@ -80,7 +100,9 @@ export class NatpfEvents {
   _read(){ try { return freshBoard(JSON.parse(localStorage.getItem(BOARD_KEY) || 'null')); } catch { return freshBoard(null); } }
   _write(){ try { localStorage.setItem(BOARD_KEY, JSON.stringify(this.board)); } catch {} }
   _readRecords(){ try { return JSON.parse(localStorage.getItem(RECORDS_KEY) || '{}') || {}; } catch { return {}; } }
-  _writeRecords(){ try { localStorage.setItem(RECORDS_KEY, JSON.stringify(this.records)); } catch {} }
+  _writeRecords(){ try { localStorage.setItem(RECORDS_KEY, JSON.stringify(this.store)); } catch {} }
+  // record di chi gioca adesso (nickname di oggi)
+  get records(){ return recordsFor(this.store, this.nickname); }
   top(mode, n = 10){ this.board = freshBoard(this.board); return topScores(this.board, mode, n); }
   record(mode){ return this.records[mode] || null; }
   get level(){ return levelOf(this.records.xp || 0); }
@@ -266,7 +288,7 @@ export class NatpfEvents {
     A.over = true; A.bestStreak = Math.max(A.bestStreak, A.streak);
     const nick = this.nickname || 'Ospite';
     const r = addScore(this.board, A.id, nick, A.score); this.board = r.board; this._write();
-    const rec = recordGame(this.records, A.id, A.score); this.records = rec.records; this._writeRecords();
+    const rec = recordGame(this.records, A.id, A.score); this.store = putRecords(this.store, nick, rec.records); this._writeRecords();
     this.active = null; this._restore();
     Object.assign(E.score, { playerPoints: 0, opponentPoints: 0, playerGames: 0, opponentGames: 0, server: 'player', deuceSide: true });
     E._syncScoreboardHUD(); E.hud.hideCenterBanner();

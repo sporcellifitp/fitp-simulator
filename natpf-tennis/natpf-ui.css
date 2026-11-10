@@ -826,6 +826,11 @@ body.natpf-arcade .natpf-scoreboard { opacity: 0; pointer-events: none; }
 .natpf-sheet .pause-grid button b { font: 700 italic 19px/1.1 var(--font-display); text-transform: uppercase; letter-spacing: 0.02em; }
 .natpf-sheet .nick-input { width: 100%; height: 56px; padding: 0 18px; border-radius: var(--r-m); border: 1px solid var(--line-strong); background: rgba(5, 10, 28, 0.6); color: var(--text); font: 700 26px/1 var(--font-display); letter-spacing: 0.04em; }
 .natpf-sheet .nick-input:focus { outline: 3px solid var(--ball); outline-offset: 1px; }
+/* «Nuovo giocatore» (B18): nel risultato dei minigiochi e nel pannello dello stand, rosa come nella schermata finale; nel passo
+   del nome anche la mano */
+.natpf-lobby .lobby-secondary.new-player, .natpf-sheet .lobby-secondary.new-player { background: var(--pink); border-color: var(--pink); color: #fff; }
+.natpf-sheet .nick-hand { margin-top: 12px; }
+.natpf-sheet .nick-hand.hidden { display: none; }
 .natpf-sheet .natpf-warn { margin: 10px 0 0; color: #ffe4a3; font: 500 15px/1.4 var(--font-text); }
 
 /* =====================================================================================================================
