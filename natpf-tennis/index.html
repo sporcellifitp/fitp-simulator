@@ -92,6 +92,8 @@
       </div>
       <!-- NATPF: etichetta dell'ultimo gesto del telefono (src/natpf/natpf_gesture_hud.js) -->
       <div id="natpf-gesture" class="natpf-gesture hidden" aria-live="polite" data-state="read"><b data-g="arrow"></b><span><i data-g="title"></i><small data-g="sub"></small></span></div>
+      <!-- NATPF B18: istruzioni del servizio sul grande schermo (src/natpf/natpf_serve_coach.js) -->
+      <div id="natpf-serve-coach" class="natpf-serve-coach hidden" aria-live="polite" data-state="toss" data-side="center"><b data-c="big"></b><small data-c="sub"></small></div>
       <div id="center-banner-layer" class="center-banner-layer hidden">
         <div id="center-banner-streak" class="center-banner-streak"></div>
         <div id="center-banner-text" class="center-banner-text style-gold">Palla game</div>
@@ -201,6 +203,8 @@
     </div>
     <!-- sfida in corso: punteggio, tempo, ultimo colpo -->
     <div id="natpf-challenge-hud" class="natpf-challenge-hud hidden" aria-live="polite"></div>
+    <!-- B18: nella Combo, accanto al riquadro, l'animazione del colpo chiesto quando non è un dritto o un rovescio -->
+    <div id="natpf-challenge-demo" class="natpf-challenge-demo hidden" aria-hidden="true"><div class="cd-stage"></div><b class="cd-title"></b></div>
     <!-- pannello dell'addetto allo stand (Ctrl+Maiusc+K, oppure tieni premuto 3 s il marchio NATPF nel menu) -->
     <div id="natpf-staff" class="nt-modal-backdrop natpf-sheet-backdrop hidden" role="dialog" aria-labelledby="staff-title">
       <div class="natpf-sheet staff-sheet">

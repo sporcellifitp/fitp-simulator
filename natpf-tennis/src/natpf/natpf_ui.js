@@ -15,6 +15,7 @@ import { NatpfTraining } from './natpf_training.js';
 import { NatpfBallMachine } from './natpf_ball_machine.js';
 import { bindAudioSliders } from './natpf_audio_settings.js';
 import { NatpfGestureHud } from './natpf_gesture_hud.js';
+import { NatpfServeCoach } from './natpf_serve_coach.js';
 import { NatpfDiag } from './natpf_diag.js';
 import { NatpfIntro } from './natpf_intro.js';
 import { NatpfEvents } from './natpf_events.js';
@@ -79,6 +80,7 @@ export class NatpfUi {
     this.machine = new NatpfBallMachine(engine);      // lanciapalle 3D del riscaldamento e dei minigiochi
     this.training = new NatpfTraining(engine, this);
     this.gesture = new NatpfGestureHud(engine, this);   // etichetta del gesto: rilevato, letto, applicato
+    this.serveCoach = new NatpfServeCoach(engine, this); // istruzioni del servizio sul grande schermo (B18)
     this.events = new NatpfEvents(engine, this);      // sfide per gli eventi (dopo il riscaldamento: ne avvolge i punti)
     // diagnostica (Maiusc+D o ?diag=1): prima del menu, così il suo tasto arriva anche con il menu aperto
     this.diag = new NatpfDiag(engine, this);
@@ -182,7 +184,7 @@ export class NatpfUi {
     const busy = this.onboarding?.isOpen || !this.modal?.classList.contains('hidden') || this.pause?.isOpen || this.engine.natpfVersusWait || !!this.phoneHold || !!this.webcamHold || !!this.split?.hold;
     this.engine.natpfPaused = !!busy && !this.engine.autoPlayMode && ['SERVE_STANCE', 'SERVE_TOSS', 'RALLY', 'POINT_OVER'].includes(this.engine.phase);
   }
-  tick(dt = 1/60){ this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.power.update(dt); this.gesture.update(dt); }
+  tick(dt = 1/60){ this.training.tick(dt); this.events.tick(dt); this.shot.update(dt); this.power.update(dt); this.gesture.update(dt); this.serveCoach.tick(dt); }
   // sfondo fermo dell'arena dietro il menu (motore: _natpfBackdropFrame). Il Player 2 dell'invito vede l'arena viva
   // (riceve lo stato dell'host), e in campo (riscaldamento, sfide) il gioco gira
   menuBackdrop(){ return !!this.lobby?.visible && !this.training?.active && !this.events?.active && this.engine.playerRole !== 'p2'; }
@@ -192,8 +194,11 @@ export class NatpfUi {
     const q = this.shot.onLocalFeedback(e);
     this.diag?.onFeedback(e, q);
     this.gesture?.onFeedback(e, q);
-    if (q && e.kind === 'hit'){ this.training.onShot(q); this.events.onShot(q, e); }
-    else if ((e.kind === 'fault' || e.kind === 'whiff') && /VERY (EARLY|LATE)|WHIFF/.test(e.grade || '')) this.training.onMistime(/EARLY/.test(e.grade));
+    // colpo difensivo (molto fuori tempo, la palla resta in gioco: dal B18 arriva come «hit»): per l'allenamento e i
+    // minigiochi resta un tentativo fuori tempo, come prima quando arrivava come «fault»
+    const defensive = e.kind === 'hit' && (!!e.defensive || /DEFENSIVE/.test(e.grade || ''));
+    if (q && e.kind === 'hit' && !defensive){ this.training.onShot(q); this.events.onShot(q, e); }
+    else if ((defensive || e.kind === 'fault' || e.kind === 'whiff') && /VERY (EARLY|LATE)|WHIFF/.test(e.grade || '')) this.training.onMistime(/EARLY/.test(e.grade));
     return q;
   }
   // tabellone della partita (natpf_scoreboard.js): una riga per giocatore o squadra con chi serve, nome, game e punti,

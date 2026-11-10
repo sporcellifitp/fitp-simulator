@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { countFlash, phoneView, screenOf, PHONE_SCREENS, gateOnCfg, gateOnProgress, gateRestore, gateNav, tutConfirmable, sensorOnGateOpen,
+import { countFlash, eventFlash, phoneView, screenOf, PHONE_SCREENS, gateOnCfg, gateOnProgress, gateRestore, gateNav, tutConfirmable, sensorOnGateOpen,
   sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, veilText, VEIL_LEAD } from '../../site/js/tennis/phone-screen.js';
 
 const LINKS = ['off', 'connecting', 'on', 'lost', 'denied'];
@@ -228,4 +228,31 @@ test('telefono: velo dello schermo riacceso con il testo giusto (calibrato, tuto
 test('telefono: la scritta della calibrazione segue il percorso fissato all’avvio, non la mano cambiata a metà', () => {
   assert.match(JS, /const plan = st\.plan \|\| calibrationPlan\(st\.options\)/);
   assert.doesNotMatch(JS, /const plan = calibrationPlan\(st\.options\)/);
+});
+
+// B18 (difetto 10 dell'audit B16): il telefono dice la stessa cosa del computer. Prima ignorava «fuori» e diceva
+// «In anticipo» mentre il grande schermo diceva «Fuori»; «Punto avversario» compariva anche per un colpo difensivo con la
+// palla ancora in gioco (il computer mandava «fault»: ora solo a punto finito)
+test('telefono: esito del colpo come il computer (Fuori/In rete con il perché), punto con il motivo in italiano', () => {
+  assert.deepEqual(eventFlash({ k: 'contact', label: 'anticipo', shot: 'drive', out: true, net: false, why: 'troppo presto' }),
+    { ring: 'miss', big: 'Fuori', sub: 'Troppo presto', ms: 900, buzz: [20] });
+  assert.deepEqual(eventFlash({ k: 'contact', label: 'ritardo', shot: 'slice', net: true, why: 'in ritardo' }),
+    { ring: 'miss', big: 'In rete', sub: 'In ritardo · Tagliato', ms: 900, buzz: [20] });
+  assert.equal(eventFlash({ k: 'contact', label: 'perfetto', shot: 'drive', out: true }).sub, '', 'fuori senza errore di tempo: niente perché');
+  // in campo come prima
+  assert.deepEqual(eventFlash({ k: 'contact', label: 'anticipo', shot: 'drive' }), { ring: 'hit', big: 'In anticipo', sub: '', ms: 650, buzz: [20] });
+  assert.equal(eventFlash({ k: 'contact', label: 'perfetto', shot: 'lob' }).big, 'Lob!');
+  assert.deepEqual(eventFlash({ k: 'contact', label: 'perfetto' }).buzz, [40]);
+  // messaggio di un gioco di una versione precedente (solo out): resta leggibile
+  assert.equal(eventFlash({ k: 'contact', label: 'anticipo', out: true }).big, 'Fuori');
+  // colpi a vuoto e punti
+  assert.equal(eventFlash({ k: 'miss', why: 'tardi' }).big, 'Troppo tardi');
+  assert.equal(eventFlash({ k: 'miss', why: 'boh' }).big, 'Mancata');
+  // lancio del servizio senza battuta (B18, miglioramento 2): come il grande schermo, più a lungo
+  assert.deepEqual(eventFlash({ k: 'miss', why: 'lancio' }), { ring: 'miss', big: 'Lancio a vuoto', sub: 'Colpisci quando la palla è in alto. Alza il telefono e riprova.', ms: 1800, buzz: [90] });
+  assert.deepEqual(eventFlash({ k: 'point', mine: false, txt: 'Fuori' }), { ring: 'miss', big: 'Punto avversario', sub: 'Fuori', ms: 1300, buzz: null });
+  assert.equal(eventFlash({ k: 'point', mine: true, txt: 'Vincente' }).big, 'Punto tuo');
+  assert.equal(eventFlash({ k: 'contact', why: 'x'.repeat(100), out: true }).sub.length, 40);
+  assert.equal(eventFlash({ k: 'count' }), null);
+  assert.match(JS, /eventFlash\(d\)/, 'la pagina usa eventFlash');
 });

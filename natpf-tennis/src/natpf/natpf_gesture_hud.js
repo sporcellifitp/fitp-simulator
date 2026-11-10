@@ -14,10 +14,13 @@ export function gestureLabel(ev = {}, s = {}){
   return { arrow, title: shot === 'smash' ? 'Schiacciata' : side, sub: shot && shot !== 'smash' ? SHOT[shot] || shot : '', state: 'read' };
 }
 // esito del colpo dal giro dell'aptica (kind, voto) e dall'anello (q: colore e scritta di natpf_shot_feedback)
+// Colpo difensivo (molto fuori tempo, la palla resta in gioco): dal B18 arriva come «hit» con defensive (prima come
+// «fault»); l'etichetta dice ancora «Molto in anticipo» / «Molto in ritardo» in rosso, o «Fuori · troppo presto» se esce
 export function gestureOutcome(e = {}, q = null){
-  if (e.kind === 'hit') return { state: q?.color === 'red' ? 'bad' : q?.color === 'green' ? 'ok' : 'mid', text: q?.label || 'Colpita' };
+  const defensive = e.kind === 'hit' && (!!e.defensive || /DEFENSIVE/.test(e.grade || ''));
+  if (defensive && q?.color !== 'red') return { state: 'bad', text: /EARLY/.test(e.grade || '') ? 'Molto in anticipo' : 'Molto in ritardo' };
+  if (e.kind === 'hit') return { state: q?.color === 'red' ? 'bad' : q?.color === 'green' ? 'ok' : 'mid', text: q?.text || q?.label || 'Colpita' };
   if (e.kind === 'whiff') return { state: 'bad', text: /EARLY/i.test(e.grade || '') ? 'Troppo presto' : 'Troppo tardi' };
-  if (e.kind === 'fault' && /VERY (EARLY|LATE)/.test(e.grade || '')) return { state: 'bad', text: /EARLY/.test(e.grade) ? 'Molto in anticipo' : 'Molto in ritardo' };
   return null;
 }
 

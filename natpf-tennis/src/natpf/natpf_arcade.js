@@ -7,10 +7,16 @@
 //   Survival          3 vite contro un lanciapalle che sale di livello ogni 5 palle; conta le palle rimandate
 //   Radar             3 servizi, vale il più veloce dentro il campo
 // «Sfida il campione» (contro la CPU esperta, primo a 3) tolto il 29/10 su richiesta dell'utente.
+// Medaglie di Precision ricalcolate nel B18 (200/420/650, prima 250/480/700 con l'oro irraggiungibile): con le zone nuove,
+// nel banco scripts/audit/precision-combo.mjs (solo dritto) il bronzo lo prende metà dei bambini, l'argento circa metà di chi
+// mira con un errore medio, l'oro circa metà di chi gioca bene.
+// Medaglie della Combo ricalcolate nello stesso banco (300/750/1300, prima 150/400/800): con le catene per principianti
+// (prime catene dritto e rovescio, passo che cambia dopo due errori) i punti salgono per tutti; con le soglie vecchie quasi
+// tutti prendevano l'oro. Il banco stima un colpo ogni 3,6 s: non è misurato con persone vere.
 export const MODES = Object.freeze([
   { id: 'rush', label: 'Target Rush', unit: 'punti', icon: 'target', time: 60, short: 'Un minuto per abbattere più bersagli possibile.', facts: ['Bersagli 3D, anche mobili', 'Centro 50 · anello 30 · bordo 10', 'Combo fino a ×4 · bersaglio d’oro +5"'], medals: [250, 600, 1100] },
-  { id: 'precision', label: 'Precision', unit: 'punti', icon: 'zone', balls: 10, short: 'Dieci palle, dieci zone del campo: più vicino al centro, più punti.', facts: ['10 palle', 'Zone sempre più piccole', 'Fino a 100 punti a palla'], medals: [250, 480, 700] },
-  { id: 'combo', label: 'Combo Challenge', unit: 'punti', icon: 'chain', time: 90, short: 'Esegui in ordine le sequenze di colpi richieste.', facts: ['90 secondi', 'Catene sempre più lunghe', 'Colpo sbagliato: catena da capo'], medals: [150, 400, 800] },
+  { id: 'precision', label: 'Precision', unit: 'punti', icon: 'zone', balls: 10, short: 'Dieci palle, dieci zone del campo: più vicino al centro, più punti.', facts: ['10 palle', 'Zone sempre più piccole', 'Fino a 100 punti a palla'], medals: [200, 420, 650] },
+  { id: 'combo', label: 'Combo Challenge', unit: 'punti', icon: 'chain', time: 90, short: 'Esegui in ordine le sequenze di colpi richieste.', facts: ['90 secondi', 'Prime catene: dritto e rovescio', 'Due errori sullo stesso colpo: si cambia'], medals: [300, 750, 1300] },
   { id: 'survival', label: 'Survival', unit: 'palle', icon: 'heart', short: 'Tre vite contro un lanciapalle sempre più cattivo.', facts: ['3 vite', 'Livello su ogni 5 palle', 'Più veloce, tagli, pallonetti, angoli'], medals: [8, 20, 35] },
   { id: 'radar', label: 'Radar del servizio', unit: 'km/h', icon: 'radar', time: 30, short: 'Tre servizi: vale il più veloce dentro il campo.', facts: ['3 servizi', 'Vale il più veloce dentro', '30 secondi'], medals: [110, 140, 165] },
 ]);
@@ -90,7 +96,10 @@ export function rushTarget(level = 0, rand = Math.random, taken = []){
 }
 
 /* ---------- Precision ---------- */
-// dieci zone: si parte larghe e in fondo al centro, poi angoli, poi palle corte, sempre più piccole
+// dieci zone: si parte larghe e in fondo al centro, poi angoli, poi palle corte, sempre più piccole.
+// B18 (difetto 14 dell'audit B16): le due zone corte erano a 3 m dalla rete, raggiungibili solo con la palla corta (il dritto
+// più morbido cade a 6 m e più): davano sempre zero a chi non la conosceva e l'oro era irraggiungibile. Ora stanno a 5,2–5,4 m,
+// dove arriva un dritto morbido; la palla corta (2–4,5 m) ci prende ancora punti. Misure: scripts/audit/precision-combo.mjs
 export const PRECISION_ZONES = Object.freeze([
   { x: 0, z: -9.2, r: 1.8, label: 'In fondo, al centro' },
   { x: -2.8, z: -9.4, r: 1.6, label: 'Angolo sinistro' },
@@ -98,10 +107,10 @@ export const PRECISION_ZONES = Object.freeze([
   { x: 0, z: -6.2, r: 1.5, label: 'Metà campo' },
   { x: -2.9, z: -6, r: 1.3, label: 'Sinistra, a metà' },
   { x: 2.9, z: -6, r: 1.3, label: 'Destra, a metà' },
-  { x: 0, z: -3, r: 1.3, label: 'Palla corta al centro' },
+  { x: 0, z: -5.2, r: 1.4, label: 'Corta al centro: dritto morbido' },
   { x: -3, z: -10.2, r: 1.1, label: 'Riga di fondo, sinistra' },
   { x: 3, z: -10.2, r: 1.1, label: 'Riga di fondo, destra' },
-  { x: 2.6, z: -3.2, r: 1, label: 'Palla corta, destra' },
+  { x: 2.5, z: -5.4, r: 1.1, label: 'Corta a destra: dritto morbido' },
 ]);
 // punti per la distanza dal centro della zona: 100 al centro, 50 sul bordo, 0 al doppio del raggio; fuori dal campo 0
 export function precisionPoints(landing, zone, inCourt = true){
@@ -120,14 +129,34 @@ export const COMBO_STEPS = Object.freeze({
   slice: { label: 'Tagliato', feed: 'backhand', phone: true },
   drop: { label: 'Palla corta', feed: 'forehand', phone: true },
 });
+// B18 (difetto 14 dell'audit B16): Combo per chi arriva per la prima volta. Prima tre visitatori su quattro incontravano
+// subito un colpo speciale mai provato (primo passo speciale nel 43% delle sfide) e, dopo un errore, ricominciava la stessa
+// catena: chi non sapeva fare il primo colpo restava a zero per 90". Ora:
+// - le prime basicChains catene solo dritto e rovescio;
+// - poi anche incrociato e lungolinea, e i colpi speciali solo se già imparati (learned: riusciti nell'allenamento o in
+//   questa sfida, natpf_events.learned); learned null = tutti, come prima (chi chiama senza saperlo);
+// - dopo swapAfter errori sullo stesso passo il passo cambia (comboSwapStep), con un dritto o un rovescio.
+export const COMBO_LEARN = Object.freeze({ basicChains: 2, swapAfter: 2 });
+export const COMBO_BASIC = Object.freeze(['forehand', 'backhand']);
+export function comboPool({ phone = true, chainsDone = Infinity, learned = null } = {}){
+  if (chainsDone < COMBO_LEARN.basicChains) return [...COMBO_BASIC];
+  return Object.keys(COMBO_STEPS).filter(k => (phone || !COMBO_STEPS[k].phone) && (!COMBO_STEPS[k].phone || learned == null || learned.includes(k)));
+}
 // catena di colpi: lunghezza 2, 3, 4… senza due passi uguali di fila; i colpi speciali solo con lo smartphone
-export function comboChain(length = 2, { phone = true, rand = Math.random } = {}){
-  const pool = Object.keys(COMBO_STEPS).filter(k => phone || !COMBO_STEPS[k].phone), out = [];
+export function comboChain(length = 2, { phone = true, rand = Math.random, chainsDone = Infinity, learned = null } = {}){
+  const pool = comboPool({ phone, chainsDone, learned }), out = [];
   while (out.length < length){
     const k = pool[Math.floor(rand()*pool.length) % pool.length];
-    if (k !== out[out.length - 1]) out.push(k);
+    if (k !== out[out.length - 1] || pool.length < 2) out.push(k);
   }
   return out;
+}
+// passo nuovo al posto di chain[i] dopo swapAfter errori: un dritto o un rovescio diverso dal passo sbagliato e dai vicini
+// (catena senza due passi uguali di fila); se non c'è, l'altro colpo di base (allora anche uguale al vicino)
+export function comboSwapStep(chain, i, rand = Math.random){
+  const ok = COMBO_BASIC.filter(k => k !== chain[i] && k !== chain[i - 1] && k !== chain[i + 1]);
+  if (ok.length) return ok[Math.floor(rand()*ok.length) % ok.length];
+  return COMBO_BASIC.find(k => k !== chain[i]) || COMBO_BASIC[0];
 }
 // il colpo fatto vale per il passo? side 'forehand'/'backhand', shot del motore ('topspin','lob','slice','drop'…),
 // direction 'cross'/'line'/null, inCourt

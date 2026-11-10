@@ -19,4 +19,9 @@ test('esito: colpita con il voto, troppo presto o tardi, nessun esito per gli al
   assert.deepEqual(gestureOutcome({ kind: 'whiff', grade: 'VERY EARLY • WHIFF' }), { state: 'bad', text: 'Troppo presto' });
   assert.deepEqual(gestureOutcome({ kind: 'whiff', grade: 'TOO LATE! • WHIFF' }), { state: 'bad', text: 'Troppo tardi' });
   assert.equal(gestureOutcome({ kind: 'point_won' }), null);
+  // revisione B18: il colpo difensivo arriva come «hit» (prima «fault»): resta «Molto in anticipo/ritardo» in rosso
+  assert.deepEqual(gestureOutcome({ kind: 'hit', defensive: true, grade: 'VERY EARLY • DEFENSIVE' }, { color: 'yellow', label: 'Anticipo' }), { state: 'bad', text: 'Molto in anticipo' });
+  assert.deepEqual(gestureOutcome({ kind: 'hit', grade: 'VERY LATE • DEFENSIVE' }, { color: 'yellow', label: 'Ritardo' }), { state: 'bad', text: 'Molto in ritardo' });
+  assert.deepEqual(gestureOutcome({ kind: 'hit', defensive: true, grade: 'VERY EARLY • DEFENSIVE' }, { color: 'red', label: 'Fuori', text: 'Fuori · troppo presto' }), { state: 'bad', text: 'Fuori · troppo presto' });
+  assert.equal(gestureOutcome({ kind: 'fault', grade: 'Out' }), null, '«fault» solo a punto finito');
 });

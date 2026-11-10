@@ -46,6 +46,7 @@ import { installNatpfP2p } from "./natpf/natpf_p2p.js";
 import { VERSUS, MATCH_PHASES, seqGate } from "./natpf/natpf_versus.js";
 import * as GV from "./natpf/natpf_guest_view.js";
 import { NatpfSplit } from "./natpf/natpf_split.js";
+import { relayPhoneFeedback } from "./natpf/natpf_shot_feedback.js";
 import { viewport } from "./natpf/natpf_screen.js";
 import { deepCamShift, actorDepth } from "./natpf/natpf_camera_depth.js";
 // NATPF B15 (mancini): lato di un colpo senza «side» nell'evento, preso dal verso del gesto (dirX) o dalla palla con la
@@ -684,10 +685,9 @@ export class NatpfTennisEngine {
       // NATPF: l'esito del colpo (anello colorato, allenamento) decide anche la vibrazione del telefono
       mc.triggerHapticFeedback = (e = {}) => {
         haptic(e);
-        const q = this.natpfUi && this.natpfUi.feedback ? this.natpfUi.feedback(e) : null;
-        this.natpfPhone.feedback({ ...e, quality: q });
-        // NATPF split screen: il secondo telefono (Player 2 locale) riceve i suoi esiti (role «p2»)
-        this.natpfPhone2 && this.natpfPhone2.feedback({ ...e, quality: q });
+        // NATPF split screen: il secondo telefono (Player 2 locale) riceve i suoi esiti (role «p2»). Revisione B18: con
+        // il suo esito calcolato come la sua metà dello schermo (prima null: il telefono non diceva «Fuori» né «In rete»)
+        relayPhoneFeedback(this, e);
       };
     }
   }
@@ -1201,6 +1201,7 @@ export class NatpfTennisEngine {
     this.natpfRhythm = null; // NATPF: il ritmo di chi gioca (direzione) si reimpara a ogni partita
     NS.resetFatigue(this); // NATPF B18 (D6): energia piena a ogni partita nuova (prima restava quella della partita prima)
     this.natpfServeRef = null; // NATPF B18 (D12): il servizio abituale si reimpara a ogni partita (NO.serveRefOf)
+    this.natpfMatchSeq = (this.natpfMatchSeq || 0) + 1; // NATPF B18: partita nuova per le istruzioni del servizio (natpf_serve_coach)
     (this.score.playerPoints = 0),
       (this.score.opponentPoints = 0),
       (this.score.playerGames = 0),
@@ -2181,7 +2182,11 @@ export class NatpfTennisEngine {
           this.motionController.triggerHapticFeedback &&
           this.motionController.triggerHapticFeedback({
             role: "p1",
-            kind: _ ? "fault" : "hit",
+            // NATPF B18 (difetto 10): il colpo difensivo è un colpo come gli altri (la palla resta in gioco). Prima
+            // «fault» faceva scrivere al telefono «Punto avversario» per più di un secondo con lo scambio ancora aperto;
+            // «fault» resta solo in _awardPoint, a punto finito
+            kind: "hit",
+            defensive: !!_,
             grade: `${u} \u2022 ${X}`,
             // NATPF: al telefono «Smash!» solo se la scritta e la voce lo dicono (non sotto «Volée» del compagno)
             shotType: /\bSMASH\b/.test(X) ? "SMASH" : T,
@@ -2911,12 +2916,22 @@ export class NatpfTennisEngine {
         this._executeServeHit(i, i === this.opponent && NL.isLegend(this) ? NL.legendServe(this) : i === this.opponent && !this.autoPlayMode ? NS.cpuServeEvent(this) : { timing: "PERFECT" });
         return;
       }
-      this.ball.pos.y <= 0.95 &&
-        this.ball.vel.y < 0 &&
-        ((this.phase = "SERVE_STANCE"),
-        (this.phaseTimer = 0),
-        this.ball.vel.set(0, 0, 0),
-        (this.pendingServeSwing = null));
+      // lancio senza battuta: la palla ricade e si torna al servizio. NATPF B18: la palla torna nella mano di chi serve
+      // (prima restava ferma a mezz'aria, 0,95 m, dove era scesa); il messaggio lo danno il grande schermo e il telefono
+      // (natpf_serve_coach.js), poi si rilancia
+      if (this.ball.pos.y <= 0.95 && this.ball.vel.y < 0) {
+        const sv = this.score.server === "player" ? this.player : this.opponent;
+        (this.phase = "SERVE_STANCE"),
+          (this.phaseTimer = 0),
+          this.ball.vel.set(0, 0, 0),
+          this.ball.pos.set(sv.pos.x + (sv.sideSign > 0 ? -0.28 : 0.28), 1.12, sv.pos.z - sv.sideSign * 0.27),
+          (this.pendingServeSwing = null),
+          (this.natpfWeakServe = null),
+          (this.natpfWeakServeP2 = null),
+          // segnale esplicito per natpf_serve_coach (revisione B18: prima ogni SERVE_TOSS → SERVE_STANCE, anche una
+          // partita ricominciata con la palla in aria, era un «lancio a vuoto»)
+          (this.natpfTossMisses = (this.natpfTossMisses || 0) + 1);
+      }
       return;
     }
     if (this.phase === "POINT_OVER") {

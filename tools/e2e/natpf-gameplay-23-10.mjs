@@ -190,7 +190,7 @@ try {
   const tired = [];
   for (const [x, z] of [[.5, 7.5], [-.5, 7], [1, 8]]){ await stage({ x, z, flight: .95, spin: 12, rally: 40, pz: 11.5 }); tired.push(await follow()); }
   const failed = tired.filter(d => d?.failed);
-  check('E. Leggenda, scambio lunghissimo: un colpo che va in rete dice «In rete» (e la palla lunga «Fuori»), non «Perfetto»', failed.length >= 1 && failed.every(d => (d.netFlag ? d.pop === 'In rete' : d.pop === 'Fuori') && d.pressured),
+  check('E. Leggenda, scambio lunghissimo: un colpo che va in rete dice «In rete» (e la palla lunga «Fuori»), non «Perfetto»', failed.length >= 1 && failed.every(d => (d.netFlag ? /^In rete( · |$)/.test(d.pop) : /^Fuori( · |$)/.test(d.pop)) && d.pressured),
     tired.map(d => (d ? `${d.grade}${d.failed ? ' fallito' : ''}${d.pressured ? ' (pressione)' : ''}${d.netFlag ? ' in rete' : ''}: «${d.pop}» «${d.detail}» → ${d.end ? `${d.end.who}/${d.end.why} «${d.end.sub}»` : d.crossed ? 'passa' : '?'}` : 'non presa')).join(' · '));
   check('nessun errore JavaScript', !gameErrs.length && !phoneErrs.length, [...gameErrs, ...phoneErrs].join(' | ').slice(0, 500));
 } finally {

@@ -107,6 +107,29 @@ export function countFlash(d = {}){
     : { ring: 'ready', big: 'Si gioca!', sub: '', ms: 1000, arrow: '', buzz: [70] };
 }
 
+// Esito del colpo e del punto dal computer (messaggio ev: contact, miss, point) → avviso del telefono. B18 (difetto 10
+// dell'audit B16): il telefono dice la stessa cosa del grande schermo. «Fuori» e «In rete» (out, net) prima erano
+// ignorati e il telefono diceva «In anticipo» mentre il computer diceva «Fuori»; il perché (why: «troppo presto»,
+// «in ritardo») va nella riga piccola. «Punto avversario» arriva solo a punto finito (il computer non manda più «fault»
+// per il colpo difensivo con la palla in gioco), con il motivo già in italiano (txt).
+const SHOT_FLASH = { drop: 'Palla corta!', lob: 'Lob!', slice: 'Tagliato!', smash: 'Smash!' };
+const LABEL_FLASH = { perfetto: 'Perfetto!', buono: 'Bel colpo', anticipo: 'In anticipo', ritardo: 'In ritardo' };
+const MISS_FLASH = { presto: 'Troppo presto', tardi: 'Troppo tardi', nessuno: 'Nessun colpo', portata: 'Troppo lontana', lancio: 'Lancio a vuoto' };
+// lancio a vuoto al servizio (B18): come il grande schermo, più a lungo perché c'è da leggere
+const MISS_SUB = { nessuno: 'Il movimento non è arrivato: riprova con un colpetto comodo.', lancio: 'Colpisci quando la palla è in alto. Alza il telefono e riprova.' };
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : '';
+export function eventFlash(d = {}){
+  const why = typeof d.why === 'string' ? d.why.slice(0, 40) : '';
+  if (d.k === 'contact'){
+    const name = SHOT_FLASH[d.shot] || '';
+    if (d.net || d.out) return { ring: 'miss', big: d.net ? 'In rete' : 'Fuori', sub: [cap(why), name.replace('!', '')].filter(Boolean).join(' · '), ms: 900, buzz: d.label === 'perfetto' ? [40] : [20] };
+    return { ring: 'hit', big: name || LABEL_FLASH[d.label] || 'Colpo!', sub: '', ms: 650, buzz: d.label === 'perfetto' ? [40] : [20] };
+  }
+  if (d.k === 'miss') return { ring: 'miss', big: MISS_FLASH[d.why] || 'Mancata', sub: MISS_SUB[d.why] || '', ms: d.why === 'lancio' ? 1800 : 650, buzz: [90] };
+  if (d.k === 'point') return { ring: d.mine ? 'hit' : 'miss', big: d.mine ? 'Punto tuo' : 'Punto avversario', sub: String(d.txt || '').slice(0, 60), ms: 1300, buzz: null };
+  return null;
+}
+
 // velo «Tocca lo schermo per riprendere» (schermo riacceso): cosa è rimasto, secondo dov'era il telefono. Prima diceva
 // sempre «Il collegamento e la calibrazione sono rimasti», anche durante il tutorial o a calibrazione non finita
 // (revisione B9 del 06/11)

@@ -15,7 +15,7 @@ import { NATPF_BUILD } from './version.js';
 import { createWakeKeeper, createSensorWatch, createResumeVeil } from './phone-keep.js';
 import { gripSvg, GRIP } from './grip-art.js';
 import { platformAccSign, createAccSign, normalizeSample } from './motion-sign.js';
-import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, veilText } from './phone-screen.js';
+import { phoneView, gateOnCfg, gateOnProgress, gateRestore, gateNav, sensorOnGateOpen, sensorOnGateClose, sensorForCal, reportedSensor, tutorialTexts, tutConfirmable, countFlash, eventFlash, veilText } from './phone-screen.js';
 
 const $ = s => document.querySelector(s);
 const show = (s, on = true) => $(s).classList.toggle('hidden', !on);
@@ -255,9 +255,8 @@ function onData(c, d){
     case 'cmd': command(d.c); break;
     case 'ev': {
       const vib = Array.isArray(d.vib) && d.vib.length <= 6 && d.vib.every(v => Number.isFinite(v) && v >= 0 && v <= 400) ? d.vib : null;
-      if (d.k === 'contact'){ buzz(vib || (d.label === 'perfetto' ? [40] : [20])); flash('hit', ({ drop: 'Palla corta!', lob: 'Lob!', slice: 'Tagliato!', smash: 'Smash!' }[d.shot]) || ({ perfetto: 'Perfetto!', buono: 'Bel colpo', anticipo: 'In anticipo', ritardo: 'In ritardo' }[d.label] || 'Colpo!'), ''); }
-      if (d.k === 'miss') { buzz(vib || [90]); flash('miss', { presto: 'Troppo presto', tardi: 'Troppo tardi', nessuno: 'Nessun colpo', portata: 'Troppo lontana' }[d.why] || 'Mancata', d.why === 'nessuno' ? 'Il movimento non è arrivato: riprova con un colpetto comodo.' : ''); }
-      if (d.k === 'point') flash(d.mine ? 'hit' : 'miss', d.mine ? 'Punto tuo' : 'Punto avversario', d.txt || '', 1300);
+      // esito del colpo e del punto, come sul computer (eventFlash, B18: anche «Fuori» e «In rete» con il perché)
+      if (d.k === 'contact' || d.k === 'miss' || d.k === 'point'){ const f = eventFlash(d); if (f.buzz) buzz(vib || f.buzz); flash(f.ring, f.big, f.sub, f.ms); }
       // stesso schermo (B9, natpf_split_ui._announce): conto alla rovescia del computer prima della partita (n = 3, 2, 1;
       // 0 = si gioca) o conto fermato (stop, con il motivo). Solo un avviso sopra la schermata, che poi torna da sola
       if (d.k === 'count'){ const f = countFlash(d); if (f.buzz) buzz(f.buzz); flash(f.ring, f.big, f.sub, f.ms, f.arrow); }
