@@ -46,6 +46,7 @@ import { installNatpfP2p } from "./natpf/natpf_p2p.js";
 import { VERSUS, MATCH_PHASES, seqGate } from "./natpf/natpf_versus.js";
 import * as GV from "./natpf/natpf_guest_view.js";
 import { NatpfSplit } from "./natpf/natpf_split.js";
+import { relayPhoneFeedback } from "./natpf/natpf_shot_feedback.js";
 import { viewport } from "./natpf/natpf_screen.js";
 import { deepCamShift, actorDepth } from "./natpf/natpf_camera_depth.js";
 // NATPF B15 (mancini): lato di un colpo senza «side» nell'evento, preso dal verso del gesto (dirX) o dalla palla con la
@@ -684,10 +685,9 @@ export class NatpfTennisEngine {
       // NATPF: l'esito del colpo (anello colorato, allenamento) decide anche la vibrazione del telefono
       mc.triggerHapticFeedback = (e = {}) => {
         haptic(e);
-        const q = this.natpfUi && this.natpfUi.feedback ? this.natpfUi.feedback(e) : null;
-        this.natpfPhone.feedback({ ...e, quality: q });
-        // NATPF split screen: il secondo telefono (Player 2 locale) riceve i suoi esiti (role «p2»)
-        this.natpfPhone2 && this.natpfPhone2.feedback({ ...e, quality: q });
+        // NATPF split screen: il secondo telefono (Player 2 locale) riceve i suoi esiti (role «p2»). Revisione B18: con
+        // il suo esito calcolato come la sua metà dello schermo (prima null: il telefono non diceva «Fuori» né «In rete»)
+        relayPhoneFeedback(this, e);
       };
     }
   }
@@ -1198,6 +1198,7 @@ export class NatpfTennisEngine {
     NL.resetLegend(this); // NATPF Leggenda: il modello dell'avversario riparte da zero a ogni partita
     this.natpfArena.setSpeed(null); // NATPF: velocità «---» fino al primo servizio (C21: restava quella della partita prima)
     this.natpfRhythm = null; // NATPF: il ritmo di chi gioca (direzione) si reimpara a ogni partita
+    this.natpfMatchSeq = (this.natpfMatchSeq || 0) + 1; // NATPF B18: partita nuova per le istruzioni del servizio (natpf_serve_coach)
     (this.score.playerPoints = 0),
       (this.score.opponentPoints = 0),
       (this.score.playerGames = 0),
@@ -2912,7 +2913,10 @@ export class NatpfTennisEngine {
           this.ball.pos.set(sv.pos.x + (sv.sideSign > 0 ? -0.28 : 0.28), 1.12, sv.pos.z - sv.sideSign * 0.27),
           (this.pendingServeSwing = null),
           (this.natpfWeakServe = null),
-          (this.natpfWeakServeP2 = null);
+          (this.natpfWeakServeP2 = null),
+          // segnale esplicito per natpf_serve_coach (revisione B18: prima ogni SERVE_TOSS → SERVE_STANCE, anche una
+          // partita ricominciata con la palla in aria, era un «lancio a vuoto»)
+          (this.natpfTossMisses = (this.natpfTossMisses || 0) + 1);
       }
       return;
     }
