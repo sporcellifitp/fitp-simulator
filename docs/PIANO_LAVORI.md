@@ -211,6 +211,14 @@ Come si aggiorna:
   - Nota di ripresa: il primo workflow si è fermato per il limite d'uso (18:30 UTC); ripresa con
     `workflows/scripts/b18-2-ripresa.js` (run `wf_ccb07fad-3b8`): correzioni del passo 1 fatte (`1f170bb` nella worktree
     `wf_326755c7-755-1`), passo 2 in corso nella stessa worktree.
+- **B20 · Risposte dell'utente all'audit B19 (10/11 notte)** e regola nuova «mi stai costando troppo, accelera»: lavoro
+  leggero (un agente per blocco, niente revisori separati né aggiornamenti periodici; controlli con le prove automatiche).
+  Decisioni: (1) **tappa A sì**; (2) chi batte per primo nello stesso schermo: **sorteggio**; (3) **formato in fiera
+  acceso di base solo nello stesso schermo** (pannello dello stand: No · Solo stesso schermo · Sì); (5) tempo massimo
+  **no**; (6) aiuto per il giocatore più debole **no**; (7) «scambio che si scalda» **sì ma come opzione** (spenta di
+  base, pannello dello stand); (8) «chi vince resta» **no**, «Rivincita» dai telefoni **sì**. Le domande 4 e 9–16 non
+  hanno risposta: resta tutto com'è. In lavorazione in una worktree `agent-*`/`wf_*` nuova (`git worktree list`),
+  documento `docs/b20/tappa-a.md`; esce con la stessa versione del gruppo 1 della tappa 2.
 - **Prossima azione esatta:** **B18.2 = tappa 2** del rapporto (`docs/b16/rapporto-gameplay.md` §4), una cosa alla volta con
   le prove simulate prima e dopo: (1) personaggi fermi a ogni servizio + peso del servizio (D11); (2) CPU che sbaglia per la
   pressione e campo aperto a Pro (D1, D9); (3) Leggenda stessa regola per chi gioca e per la CPU (D2); (4) palla corta che
